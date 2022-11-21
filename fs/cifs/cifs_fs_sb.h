@@ -1,18 +1,8 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/cifs_fs_sb.h
  *
  *   Copyright (c) International Business Machines  Corp., 2002,2004
  *   Author(s): Steve French (sfrench@us.ibm.com)
- *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
  *
  */
 #include <linux/rbtree.h>
@@ -55,41 +45,32 @@
 #define CIFS_MOUNT_MODE_FROM_SID 0x10000000 /* retrieve mode from special ACE */
 #define CIFS_MOUNT_RO_CACHE	0x20000000  /* assumes share will not change */
 #define CIFS_MOUNT_RW_CACHE	0x40000000  /* assumes only client accessing */
+#define CIFS_MOUNT_SHUTDOWN	0x80000000
 
 struct cifs_sb_info {
 	struct rb_root tlink_tree;
 	spinlock_t tlink_tree_lock;
 	struct tcon_link *master_tlink;
 	struct nls_table *local_nls;
-	unsigned int bsize;
-	unsigned int rsize;
-	unsigned int wsize;
-	unsigned long actimeo; /* attribute cache timeout (jiffies) */
+	struct smb3_fs_context *ctx;
 	atomic_t active;
-	kuid_t	mnt_uid;
-	kgid_t	mnt_gid;
-	kuid_t	mnt_backupuid;
-	kgid_t	mnt_backupgid;
-	umode_t	mnt_file_mode;
-	umode_t	mnt_dir_mode;
 	unsigned int mnt_cifs_flags;
-	char   *mountdata; /* options received at mount time or via DFS refs */
 	struct delayed_work prune_tlinks;
 	struct rcu_head rcu;
 
 	/* only used when CIFS_MOUNT_USE_PREFIX_PATH is set */
 	char *prepath;
 
-	/*
-	 * Path initially provided by the mount call. We might connect
-	 * to something different via DFS but we want to keep it to do
-	 * failover properly.
-	 */
-	char *origin_fullpath; /* \\HOST\SHARE\[OPTIONAL PATH] */
+	/* randomly generated 128-bit number for indexing dfs mount groups in referral cache */
+	uuid_t dfs_mount_id;
 	/*
 	 * Indicate whether serverino option was turned off later
 	 * (cifs_autodisable_serverino) in order to match new mounts.
 	 */
 	bool mnt_cifs_serverino_autodisabled;
+	/*
+	 * Available once the mount has completed.
+	 */
+	struct dentry *root;
 };
 #endif				/* _CIFS_FS_SB_H */

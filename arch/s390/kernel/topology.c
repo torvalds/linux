@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *    Copyright IBM Corp. 2007, 2011
- *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #define KMSG_COMPONENT "cpu"
@@ -62,22 +61,23 @@ static struct mask_info drawer_info;
 struct cpu_topology_s390 cpu_topology[NR_CPUS];
 EXPORT_SYMBOL_GPL(cpu_topology);
 
-static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
+static void cpu_group_map(cpumask_t *dst, struct mask_info *info, unsigned int cpu)
 {
-	cpumask_t mask;
+	static cpumask_t mask;
 
-	cpumask_copy(&mask, cpumask_of(cpu));
+	cpumask_clear(&mask);
+	if (!cpumask_test_cpu(cpu, &cpu_setup_mask))
+		goto out;
+	cpumask_set_cpu(cpu, &mask);
 	switch (topology_mode) {
 	case TOPOLOGY_MODE_HW:
 		while (info) {
 			if (cpumask_test_cpu(cpu, &info->mask)) {
-				mask = info->mask;
+				cpumask_copy(&mask, &info->mask);
 				break;
 			}
 			info = info->next;
 		}
-		if (cpumask_empty(&mask))
-			cpumask_copy(&mask, cpumask_of(cpu));
 		break;
 	case TOPOLOGY_MODE_PACKAGE:
 		cpumask_copy(&mask, cpu_present_mask);
@@ -85,27 +85,31 @@ static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 	default:
 		fallthrough;
 	case TOPOLOGY_MODE_SINGLE:
-		cpumask_copy(&mask, cpumask_of(cpu));
 		break;
 	}
-	cpumask_and(&mask, &mask, cpu_online_mask);
-	return mask;
+	cpumask_and(&mask, &mask, &cpu_setup_mask);
+out:
+	cpumask_copy(dst, &mask);
 }
 
-static cpumask_t cpu_thread_map(unsigned int cpu)
+static void cpu_thread_map(cpumask_t *dst, unsigned int cpu)
 {
-	cpumask_t mask;
+	static cpumask_t mask;
 	int i;
 
-	cpumask_copy(&mask, cpumask_of(cpu));
+	cpumask_clear(&mask);
+	if (!cpumask_test_cpu(cpu, &cpu_setup_mask))
+		goto out;
+	cpumask_set_cpu(cpu, &mask);
 	if (topology_mode != TOPOLOGY_MODE_HW)
-		return mask;
+		goto out;
 	cpu -= cpu % (smp_cpu_mtid + 1);
-	for (i = 0; i <= smp_cpu_mtid; i++)
-		if (cpu_present(cpu + i))
+	for (i = 0; i <= smp_cpu_mtid; i++) {
+		if (cpumask_test_cpu(cpu + i, &cpu_setup_mask))
 			cpumask_set_cpu(cpu + i, &mask);
-	cpumask_and(&mask, &mask, cpu_online_mask);
-	return mask;
+	}
+out:
+	cpumask_copy(dst, &mask);
 }
 
 #define TOPOLOGY_CORE_BITS	64
@@ -250,10 +254,10 @@ void update_cpu_masks(void)
 
 	for_each_possible_cpu(cpu) {
 		topo = &cpu_topology[cpu];
-		topo->thread_mask = cpu_thread_map(cpu);
-		topo->core_mask = cpu_group_map(&socket_info, cpu);
-		topo->book_mask = cpu_group_map(&book_info, cpu);
-		topo->drawer_mask = cpu_group_map(&drawer_info, cpu);
+		cpu_thread_map(&topo->thread_mask, cpu);
+		cpu_group_map(&topo->core_mask, &socket_info, cpu);
+		cpu_group_map(&topo->book_mask, &book_info, cpu);
+		cpu_group_map(&topo->drawer_mask, &drawer_info, cpu);
 		topo->booted_cores = 0;
 		if (topology_mode != TOPOLOGY_MODE_HW) {
 			id = topology_mode == TOPOLOGY_MODE_PACKAGE ? 0 : cpu;
@@ -401,7 +405,7 @@ static ssize_t dispatching_store(struct device *dev,
 	if (val != 0 && val != 1)
 		return -EINVAL;
 	rc = 0;
-	get_online_cpus();
+	cpus_read_lock();
 	mutex_lock(&smp_cpu_state_mutex);
 	if (cpu_management == val)
 		goto out;
@@ -412,7 +416,7 @@ static ssize_t dispatching_store(struct device *dev,
 	topology_expect_change();
 out:
 	mutex_unlock(&smp_cpu_state_mutex);
-	put_online_cpus();
+	cpus_read_unlock();
 	return rc ? rc : count;
 }
 static DEVICE_ATTR_RW(dispatching);
@@ -564,6 +568,7 @@ void __init topology_init_early(void)
 	alloc_masks(info, &book_info, 2);
 	alloc_masks(info, &drawer_info, 3);
 out:
+	cpumask_set_cpu(0, &cpu_setup_mask);
 	__arch_update_cpu_topology();
 	__arch_update_dedicated_flag(NULL);
 }

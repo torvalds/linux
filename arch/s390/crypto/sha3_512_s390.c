@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/cpufeature.h>
-#include <crypto/sha.h>
 #include <crypto/sha3.h>
 #include <asm/cpacf.h>
 

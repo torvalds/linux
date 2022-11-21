@@ -98,13 +98,13 @@ struct mdp5_plane_state {
 	struct mdp5_hw_pipe *hwpipe;
 	struct mdp5_hw_pipe *r_hwpipe;	/* right hwpipe */
 
-	/* aligned with property */
-	uint8_t premultiplied;
-	uint8_t zpos;
-	uint8_t alpha;
-
 	/* assigned by crtc blender */
 	enum mdp_mixer_stage_id stage;
+
+	/* whether attached CRTC needs pixel data explicitly flushed to
+	 * display (ex. DSI command mode display)
+	 */
+	bool needs_dirtyfb;
 };
 #define to_mdp5_plane_state(x) \
 		container_of(x, struct mdp5_plane_state, base)

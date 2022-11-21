@@ -62,7 +62,6 @@
  * @bulk_out_endpointAddress: endpoint address for the bulk out pipe for this
  *	port.
  * @flags: usb serial port flags
- * @write_wait: a wait_queue_head_t used by the port.
  * @work: work queue entry for the line discipline waking up.
  * @dev: pointer to the serial device
  *
@@ -108,7 +107,6 @@ struct usb_serial_port {
 	int			tx_bytes;
 
 	unsigned long		flags;
-	wait_queue_head_t	write_wait;
 	struct work_struct	work;
 	unsigned long		sysrq; /* sysrq timeout */
 	struct device		dev;
@@ -132,6 +130,8 @@ static inline void usb_set_serial_port_data(struct usb_serial_port *port,
  * @dev: pointer to the struct usb_device for this device
  * @type: pointer to the struct usb_serial_driver for this device
  * @interface: pointer to the struct usb_interface for this device
+ * @sibling: pointer to the struct usb_interface of any sibling interface
+ * @suspend_count: number of suspended (sibling) interfaces
  * @num_ports: the number of ports this device has
  * @num_interrupt_in: number of interrupt in endpoints we have
  * @num_interrupt_out: number of interrupt out endpoints we have
@@ -147,8 +147,9 @@ struct usb_serial {
 	struct usb_device		*dev;
 	struct usb_serial_driver	*type;
 	struct usb_interface		*interface;
+	struct usb_interface		*sibling;
+	unsigned int			suspend_count;
 	unsigned char			disconnected:1;
-	unsigned char			suspending:1;
 	unsigned char			attached:1;
 	unsigned char			minors_reserved:1;
 	unsigned char			num_ports;
@@ -262,7 +263,7 @@ struct usb_serial_driver {
 	void (*release)(struct usb_serial *serial);
 
 	int (*port_probe)(struct usb_serial_port *port);
-	int (*port_remove)(struct usb_serial_port *port);
+	void (*port_remove)(struct usb_serial_port *port);
 
 	int (*suspend)(struct usb_serial *serial, pm_message_t message);
 	int (*resume)(struct usb_serial *serial);
@@ -275,15 +276,15 @@ struct usb_serial_driver {
 	int  (*write)(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
 	/* Called only by the tty layer */
-	int  (*write_room)(struct tty_struct *tty);
+	unsigned int (*write_room)(struct tty_struct *tty);
 	int  (*ioctl)(struct tty_struct *tty,
 		      unsigned int cmd, unsigned long arg);
-	int  (*get_serial)(struct tty_struct *tty, struct serial_struct *ss);
+	void (*get_serial)(struct tty_struct *tty, struct serial_struct *ss);
 	int  (*set_serial)(struct tty_struct *tty, struct serial_struct *ss);
 	void (*set_termios)(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 	void (*break_ctl)(struct tty_struct *tty, int break_state);
-	int  (*chars_in_buffer)(struct tty_struct *tty);
+	unsigned int (*chars_in_buffer)(struct tty_struct *tty);
 	void (*wait_until_sent)(struct tty_struct *tty, long timeout);
 	bool (*tx_empty)(struct usb_serial_port *port);
 	void (*throttle)(struct tty_struct *tty);
@@ -337,14 +338,17 @@ static inline void usb_serial_console_disconnect(struct usb_serial *serial) {}
 /* Functions needed by other parts of the usbserial core */
 struct usb_serial_port *usb_serial_port_get_by_minor(unsigned int minor);
 void usb_serial_put(struct usb_serial *serial);
+
+int usb_serial_claim_interface(struct usb_serial *serial, struct usb_interface *intf);
+
 int usb_serial_generic_open(struct tty_struct *tty, struct usb_serial_port *port);
 int usb_serial_generic_write_start(struct usb_serial_port *port, gfp_t mem_flags);
 int usb_serial_generic_write(struct tty_struct *tty, struct usb_serial_port *port,
 		const unsigned char *buf, int count);
 void usb_serial_generic_close(struct usb_serial_port *port);
 int usb_serial_generic_resume(struct usb_serial *serial);
-int usb_serial_generic_write_room(struct tty_struct *tty);
-int usb_serial_generic_chars_in_buffer(struct tty_struct *tty);
+unsigned int usb_serial_generic_write_room(struct tty_struct *tty);
+unsigned int usb_serial_generic_chars_in_buffer(struct tty_struct *tty);
 void usb_serial_generic_wait_until_sent(struct tty_struct *tty, long timeout);
 void usb_serial_generic_read_bulk_callback(struct urb *urb);
 void usb_serial_generic_write_bulk_callback(struct urb *urb);
@@ -391,7 +395,7 @@ static inline void usb_serial_debug_data(struct device *dev,
 }
 
 /*
- * Macro for reporting errors in write path to avoid inifinite loop
+ * Macro for reporting errors in write path to avoid infinite loop
  * when port is used as a console.
  */
 #define dev_err_console(usport, fmt, ...)				\

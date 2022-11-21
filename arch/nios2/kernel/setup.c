@@ -32,8 +32,6 @@ EXPORT_SYMBOL(memory_start);
 unsigned long memory_end;
 EXPORT_SYMBOL(memory_end);
 
-unsigned long memory_size;
-
 static struct pt_regs fake_regs = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 					0, 0, 0, 0, 0, 0,
 					0};
@@ -141,31 +139,31 @@ asmlinkage void __init nios2_boot_init(unsigned r4, unsigned r5, unsigned r6,
 	parse_early_param();
 }
 
+static void __init find_limits(unsigned long *min, unsigned long *max_low,
+			       unsigned long *max_high)
+{
+	*max_low = PFN_DOWN(memblock_get_current_limit());
+	*min = PFN_UP(memblock_start_of_DRAM());
+	*max_high = PFN_DOWN(memblock_end_of_DRAM());
+}
+
 void __init setup_arch(char **cmdline_p)
 {
-	int dram_start;
-
 	console_verbose();
 
-	dram_start = memblock_start_of_DRAM();
-	memory_size = memblock_phys_mem_size();
-	memory_start = PAGE_ALIGN((unsigned long)__pa(_end));
-	memory_end = (unsigned long) CONFIG_NIOS2_MEM_BASE + memory_size;
+	memory_start = memblock_start_of_DRAM();
+	memory_end = memblock_end_of_DRAM();
 
-	init_mm.start_code = (unsigned long) _stext;
-	init_mm.end_code = (unsigned long) _etext;
-	init_mm.end_data = (unsigned long) _edata;
-	init_mm.brk = (unsigned long) _end;
+	setup_initial_init_mm(_stext, _etext, _edata, _end);
 	init_task.thread.kregs = &fake_regs;
 
 	/* Keep a copy of command line */
 	*cmdline_p = boot_command_line;
 
-	min_low_pfn = PFN_UP(memory_start);
-	max_low_pfn = PFN_DOWN(memory_end);
+	find_limits(&min_low_pfn, &max_low_pfn, &max_pfn);
 	max_mapnr = max_low_pfn;
 
-	memblock_reserve(dram_start, memory_start - dram_start);
+	memblock_reserve(__pa_symbol(_stext), _end - _stext);
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start) {
 		memblock_reserve(virt_to_phys((void *)initrd_start),

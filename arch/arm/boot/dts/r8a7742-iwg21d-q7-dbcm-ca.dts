@@ -20,6 +20,46 @@
 		serial5 = &hscif0;
 		ethernet1 = &ether;
 	};
+
+	mclk_cam1: mclk-cam1 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	mclk_cam2: mclk-cam2 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	mclk_cam3: mclk-cam3 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	mclk_cam4: mclk-cam4 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	reg_1p8v: 1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "1P8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	reg_2p8v: 2p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "2P8V";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+	};
 };
 
 &avb {
@@ -42,8 +82,23 @@
 	status = "okay";
 
 	phy1: ethernet-phy@1 {
+		compatible = "ethernet-phy-id0022.1560",
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
 		micrel,led-mode = <1>;
+	};
+};
+
+&gpio0 {
+	/* Disable hogging GP0_18 to output LOW */
+	/delete-node/ qspi-en-hog;
+
+	/* Hog GP0_18 to output HIGH to enable VIN2 */
+	vin2-en-hog {
+		gpio-hog;
+		gpios = <18 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "VIN2_EN";
 	};
 };
 
@@ -52,6 +107,22 @@
 	pinctrl-names = "default";
 	uart-has-rtscts;
 	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_pins>;
+	pinctrl-names = "default";
+
+	/* status set to "okay" when needed by camera configuration below */
+	clock-frequency = <400000>;
+};
+
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins>;
+	pinctrl-names = "default";
+
+	/* status set to "okay" when needed by camera configuration below */
+	clock-frequency = <400000>;
 };
 
 &pfc {
@@ -70,6 +141,16 @@
 		function = "hscif0";
 	};
 
+	i2c1_pins: i2c1 {
+		groups = "i2c1_c";
+		function = "i2c1";
+	};
+
+	i2c3_pins: i2c3 {
+		groups = "i2c3";
+		function = "i2c3";
+	};
+
 	scif0_pins: scif0 {
 		groups = "scif0_data";
 		function = "scif0";
@@ -84,6 +165,31 @@
 		groups = "scifb1_data";
 		function = "scifb1";
 	};
+
+	vin0_8bit_pins: vin0 {
+		groups = "vin0_data8", "vin0_clk", "vin0_sync";
+		function = "vin0";
+	};
+
+	vin1_8bit_pins: vin1 {
+		groups = "vin1_data8_b", "vin1_clk_b", "vin1_sync_b";
+		function = "vin1";
+	};
+
+	vin2_pins: vin2 {
+		groups = "vin2_g8", "vin2_clk";
+		function = "vin2";
+	};
+
+	vin3_pins: vin3 {
+		groups = "vin3_data8", "vin3_clk", "vin3_sync";
+		function = "vin3";
+	};
+};
+
+&qspi {
+	/* Pins shared with VIN2, keep status disabled */
+	status = "disabled";
 };
 
 &scif0 {
@@ -106,3 +212,136 @@
 	rts-gpios = <&gpio4 21 GPIO_ACTIVE_LOW>;
 	cts-gpios = <&gpio4 17 GPIO_ACTIVE_LOW>;
 };
+
+/*
+ * Below configuration ties VINx endpoints to ov5640/ov7725 camera endpoints
+ *
+ * (un)comment the #include statements to change configuration
+ */
+
+/* 8bit CMOS Camera 1 (J13) */
+#define CAM_PARENT_I2C		i2c0
+#define MCLK_CAM		mclk_cam1
+#define CAM_EP			cam0ep
+#define VIN_EP			vin0ep
+#undef CAM_ENABLED
+#include "r8a7742-iwg21d-q7-dbcm-ov5640-single.dtsi"
+//#include "r8a7742-iwg21d-q7-dbcm-ov7725-single.dtsi"
+
+#ifdef CAM_ENABLED
+&vin0 {
+	/*
+	 * Set SW2 switch on the SOM to 'ON'
+	 * Set SW1 switch on camera board to 'OFF' as we are using 8bit mode
+	 */
+	status = "okay";
+	pinctrl-0 = <&vin0_8bit_pins>;
+	pinctrl-names = "default";
+
+	port {
+		vin0ep: endpoint {
+			remote-endpoint = <&cam0ep>;
+			bus-width = <8>;
+			bus-type = <6>;
+		};
+	};
+};
+#endif /* CAM_ENABLED */
+
+#undef CAM_PARENT_I2C
+#undef MCLK_CAM
+#undef CAM_EP
+#undef VIN_EP
+
+/* 8bit CMOS Camera 2 (J14) */
+#define CAM_PARENT_I2C		i2c1
+#define MCLK_CAM		mclk_cam2
+#define CAM_EP			cam1ep
+#define VIN_EP			vin1ep
+#undef CAM_ENABLED
+#include "r8a7742-iwg21d-q7-dbcm-ov5640-single.dtsi"
+//#include "r8a7742-iwg21d-q7-dbcm-ov7725-single.dtsi"
+
+#ifdef CAM_ENABLED
+&vin1 {
+	/* Set SW1 switch on the SOM to 'ON' */
+	status = "okay";
+	pinctrl-0 = <&vin1_8bit_pins>;
+	pinctrl-names = "default";
+
+	port {
+		vin1ep: endpoint {
+			remote-endpoint = <&cam1ep>;
+			bus-width = <8>;
+			bus-type = <6>;
+		};
+	};
+};
+
+#endif /* CAM_ENABLED */
+
+#undef CAM_PARENT_I2C
+#undef MCLK_CAM
+#undef CAM_EP
+#undef VIN_EP
+
+/* 8bit CMOS Camera 3 (J12) */
+#define CAM_PARENT_I2C		i2c2
+#define MCLK_CAM		mclk_cam3
+#define CAM_EP			cam2ep
+#define VIN_EP			vin2ep
+#undef CAM_ENABLED
+#include "r8a7742-iwg21d-q7-dbcm-ov5640-single.dtsi"
+//#include "r8a7742-iwg21d-q7-dbcm-ov7725-single.dtsi"
+
+#ifdef CAM_ENABLED
+&vin2 {
+	status = "okay";
+	pinctrl-0 = <&vin2_pins>;
+	pinctrl-names = "default";
+
+	port {
+		vin2ep: endpoint {
+			remote-endpoint = <&cam2ep>;
+			bus-width = <8>;
+			data-shift = <8>;
+			bus-type = <6>;
+		};
+	};
+};
+#endif /* CAM_ENABLED */
+
+#undef CAM_PARENT_I2C
+#undef MCLK_CAM
+#undef CAM_EP
+#undef VIN_EP
+
+/* 8bit CMOS Camera 4 (J11) */
+#define CAM_PARENT_I2C		i2c3
+#define MCLK_CAM		mclk_cam4
+#define CAM_EP			cam3ep
+#define VIN_EP			vin3ep
+#undef CAM_ENABLED
+#include "r8a7742-iwg21d-q7-dbcm-ov5640-single.dtsi"
+//#include "r8a7742-iwg21d-q7-dbcm-ov7725-single.dtsi"
+
+#ifdef CAM_ENABLED
+&vin3 {
+	status = "okay";
+	pinctrl-0 = <&vin3_pins>;
+	pinctrl-names = "default";
+
+	port {
+		vin3ep: endpoint {
+			remote-endpoint = <&cam3ep>;
+			bus-width = <8>;
+			bus-type = <6>;
+		};
+	};
+};
+#endif /* CAM_ENABLED */
+
+#undef CAM_PARENT_I2C
+#undef MCLK_CAM
+#undef CAM_EP
+#undef VIN_EP

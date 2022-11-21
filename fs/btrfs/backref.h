@@ -47,7 +47,8 @@ int btrfs_find_all_leafs(struct btrfs_trans_handle *trans,
 			 const u64 *extent_item_pos, bool ignore_offset);
 int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 			 struct btrfs_fs_info *fs_info, u64 bytenr,
-			 u64 time_seq, struct ulist **roots, bool ignore_offset);
+			 u64 time_seq, struct ulist **roots,
+			 bool skip_commit_root_sem);
 char *btrfs_ref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 			u32 name_len, unsigned long name_off,
 			struct extent_buffer *eb_in, u64 parent,
@@ -296,6 +297,9 @@ static inline void btrfs_backref_free_node(struct btrfs_backref_cache *cache,
 					   struct btrfs_backref_node *node)
 {
 	if (node) {
+		ASSERT(list_empty(&node->list));
+		ASSERT(list_empty(&node->lower));
+		ASSERT(node->eb == NULL);
 		cache->nr_nodes--;
 		btrfs_put_root(node->root);
 		kfree(node);
@@ -340,11 +344,11 @@ static inline void btrfs_backref_drop_node_buffer(
 static inline void btrfs_backref_drop_node(struct btrfs_backref_cache *tree,
 					   struct btrfs_backref_node *node)
 {
-	BUG_ON(!list_empty(&node->upper));
+	ASSERT(list_empty(&node->upper));
 
 	btrfs_backref_drop_node_buffer(node);
-	list_del(&node->list);
-	list_del(&node->lower);
+	list_del_init(&node->list);
+	list_del_init(&node->lower);
 	if (!RB_EMPTY_NODE(&node->rb_node))
 		rb_erase(&node->rb_node, &tree->rb_root);
 	btrfs_backref_free_node(tree, node);

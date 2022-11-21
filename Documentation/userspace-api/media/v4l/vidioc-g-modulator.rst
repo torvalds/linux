@@ -60,7 +60,7 @@ context.
 To change the radio frequency the
 :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl is available.
 
-.. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{3.0cm}|
+.. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{2.4cm}|
 
 .. c:type:: v4l2_modulator
 
@@ -119,8 +119,9 @@ To change the radio frequency the
 
 	Drivers and applications must set the array to zero.
 
+.. tabularcolumns:: |p{6.0cm}|p{2.0cm}|p{9.3cm}|
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. cssclass:: longtable
 
 .. _modulator-txsubchans:
 

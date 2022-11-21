@@ -53,10 +53,6 @@ struct vmw_dx_shader {
 	struct list_head cotable_head;
 };
 
-static uint64_t vmw_user_shader_size;
-static uint64_t vmw_shader_size;
-static size_t vmw_shader_dx_size;
-
 static void vmw_user_shader_free(struct vmw_resource *res);
 static struct vmw_resource *
 vmw_user_shader_base_to_res(struct ttm_base_object *base);
@@ -79,7 +75,6 @@ static void vmw_dx_shader_commit_notify(struct vmw_resource *res,
 					enum vmw_cmdbuf_res_state state);
 static bool vmw_shader_id_ok(u32 user_key, SVGA3dShaderType shader_type);
 static u32 vmw_shader_key(u32 user_key, SVGA3dShaderType shader_type);
-static uint64_t vmw_user_shader_size;
 
 static const struct vmw_user_resource_conv user_shader_conv = {
 	.object_type = VMW_RES_SHADER,
@@ -125,7 +120,7 @@ static const struct vmw_res_func vmw_dx_shader_func = {
 	.commit_notify = vmw_dx_shader_commit_notify,
 };
 
-/**
+/*
  * Shader management:
  */
 
@@ -222,7 +217,7 @@ static int vmw_gb_shader_create(struct vmw_resource *res)
 		goto out_no_fifo;
 	}
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
 		ret = -ENOMEM;
 		goto out_no_fifo;
@@ -233,7 +228,7 @@ static int vmw_gb_shader_create(struct vmw_resource *res)
 	cmd->body.shid = res->id;
 	cmd->body.type = shader->type;
 	cmd->body.sizeInBytes = shader->size;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 	vmw_fifo_resource_inc(dev_priv);
 
 	return 0;
@@ -254,19 +249,19 @@ static int vmw_gb_shader_bind(struct vmw_resource *res,
 	} *cmd;
 	struct ttm_buffer_object *bo = val_buf->bo;
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	BUG_ON(bo->resource->mem_type != VMW_PL_MOB);
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
 	cmd->header.id = SVGA_3D_CMD_BIND_GB_SHADER;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.shid = res->id;
-	cmd->body.mobid = bo->mem.start;
+	cmd->body.mobid = bo->resource->start;
 	cmd->body.offsetInBytes = res->backup_offset;
 	res->backup_dirty = false;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
 }
@@ -282,9 +277,9 @@ static int vmw_gb_shader_unbind(struct vmw_resource *res,
 	} *cmd;
 	struct vmw_fence_obj *fence;
 
-	BUG_ON(res->backup->base.mem.mem_type != VMW_PL_MOB);
+	BUG_ON(res->backup->base.resource->mem_type != VMW_PL_MOB);
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -293,7 +288,7 @@ static int vmw_gb_shader_unbind(struct vmw_resource *res,
 	cmd->body.shid = res->id;
 	cmd->body.mobid = SVGA3D_INVALID_ID;
 	cmd->body.offsetInBytes = 0;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	/*
 	 * Create a fence object and fence the backup buffer.
@@ -324,7 +319,7 @@ static int vmw_gb_shader_destroy(struct vmw_resource *res)
 	mutex_lock(&dev_priv->binding_mutex);
 	vmw_binding_res_list_scrub(&res->binding_head);
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
 		mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
@@ -333,7 +328,7 @@ static int vmw_gb_shader_destroy(struct vmw_resource *res)
 	cmd->header.id = SVGA_3D_CMD_DESTROY_GB_SHADER;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.shid = res->id;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 	mutex_unlock(&dev_priv->binding_mutex);
 	vmw_resource_release_id(res);
 	vmw_fifo_resource_dec(dev_priv);
@@ -394,7 +389,7 @@ static int vmw_dx_shader_unscrub(struct vmw_resource *res)
 	if (!list_empty(&shader->cotable_head) || !shader->committed)
 		return 0;
 
-	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), shader->ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), shader->ctx->id);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -402,9 +397,9 @@ static int vmw_dx_shader_unscrub(struct vmw_resource *res)
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = shader->ctx->id;
 	cmd->body.shid = shader->id;
-	cmd->body.mobid = res->backup->base.mem.start;
+	cmd->body.mobid = res->backup->base.resource->start;
 	cmd->body.offsetInBytes = res->backup_offset;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	vmw_cotable_add_resource(shader->cotable, &shader->cotable_head);
 
@@ -450,7 +445,7 @@ static int vmw_dx_shader_bind(struct vmw_resource *res,
 	struct vmw_private *dev_priv = res->dev_priv;
 	struct ttm_buffer_object *bo = val_buf->bo;
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	BUG_ON(bo->resource->mem_type != VMW_PL_MOB);
 	mutex_lock(&dev_priv->binding_mutex);
 	vmw_dx_shader_unscrub(res);
 	mutex_unlock(&dev_priv->binding_mutex);
@@ -481,7 +476,7 @@ static int vmw_dx_shader_scrub(struct vmw_resource *res)
 		return 0;
 
 	WARN_ON_ONCE(!shader->committed);
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -491,7 +486,7 @@ static int vmw_dx_shader_scrub(struct vmw_resource *res)
 	cmd->body.shid = res->id;
 	cmd->body.mobid = SVGA3D_INVALID_ID;
 	cmd->body.offsetInBytes = 0;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 	res->id = -1;
 	list_del_init(&shader->cotable_head);
 
@@ -513,7 +508,7 @@ static int vmw_dx_shader_unbind(struct vmw_resource *res,
 	struct vmw_fence_obj *fence;
 	int ret;
 
-	BUG_ON(res->backup->base.mem.mem_type != VMW_PL_MOB);
+	BUG_ON(res->backup->base.resource->mem_type != VMW_PL_MOB);
 
 	mutex_lock(&dev_priv->binding_mutex);
 	ret = vmw_dx_shader_scrub(res);
@@ -563,16 +558,14 @@ void vmw_dx_shader_cotable_list_scrub(struct vmw_private *dev_priv,
  *
  * @res: The shader resource
  *
- * Frees the DX shader resource and updates memory accounting.
+ * Frees the DX shader resource.
  */
 static void vmw_dx_shader_res_free(struct vmw_resource *res)
 {
-	struct vmw_private *dev_priv = res->dev_priv;
 	struct vmw_dx_shader *shader = vmw_res_to_dx_shader(res);
 
 	vmw_resource_unreference(&shader->cotable);
 	kfree(shader);
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), vmw_shader_dx_size);
 }
 
 /**
@@ -594,30 +587,13 @@ int vmw_dx_shader_add(struct vmw_cmdbuf_res_manager *man,
 	struct vmw_dx_shader *shader;
 	struct vmw_resource *res;
 	struct vmw_private *dev_priv = ctx->dev_priv;
-	struct ttm_operation_ctx ttm_opt_ctx = {
-		.interruptible = true,
-		.no_wait_gpu = false
-	};
 	int ret;
-
-	if (!vmw_shader_dx_size)
-		vmw_shader_dx_size = ttm_round_pot(sizeof(*shader));
 
 	if (!vmw_shader_id_ok(user_key, shader_type))
 		return -EINVAL;
 
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv), vmw_shader_dx_size,
-				   &ttm_opt_ctx);
-	if (ret) {
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for shader "
-				  "creation.\n");
-		return ret;
-	}
-
 	shader = kmalloc(sizeof(*shader), GFP_KERNEL);
 	if (!shader) {
-		ttm_mem_global_free(vmw_mem_glob(dev_priv), vmw_shader_dx_size);
 		return -ENOMEM;
 	}
 
@@ -654,7 +630,7 @@ out_resource_init:
 
 
 
-/**
+/*
  * User-space shader management:
  */
 
@@ -669,24 +645,18 @@ static void vmw_user_shader_free(struct vmw_resource *res)
 {
 	struct vmw_user_shader *ushader =
 		container_of(res, struct vmw_user_shader, shader.res);
-	struct vmw_private *dev_priv = res->dev_priv;
 
 	ttm_base_object_kfree(ushader, base);
-	ttm_mem_global_free(vmw_mem_glob(dev_priv),
-			    vmw_user_shader_size);
 }
 
 static void vmw_shader_free(struct vmw_resource *res)
 {
 	struct vmw_shader *shader = vmw_res_to_shader(res);
-	struct vmw_private *dev_priv = res->dev_priv;
 
 	kfree(shader);
-	ttm_mem_global_free(vmw_mem_glob(dev_priv),
-			    vmw_shader_size);
 }
 
-/**
+/*
  * This function is called when user space has no more references on the
  * base object. It releases the base-object's reference on the resource object.
  */
@@ -706,8 +676,7 @@ int vmw_shader_destroy_ioctl(struct drm_device *dev, void *data,
 	struct drm_vmw_shader_arg *arg = (struct drm_vmw_shader_arg *)data;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 
-	return ttm_ref_object_base_unref(tfile, arg->handle,
-					 TTM_REF_USAGE);
+	return ttm_ref_object_base_unref(tfile, arg->handle);
 }
 
 static int vmw_user_shader_alloc(struct vmw_private *dev_priv,
@@ -722,31 +691,10 @@ static int vmw_user_shader_alloc(struct vmw_private *dev_priv,
 {
 	struct vmw_user_shader *ushader;
 	struct vmw_resource *res, *tmp;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = true,
-		.no_wait_gpu = false
-	};
 	int ret;
-
-	if (unlikely(vmw_user_shader_size == 0))
-		vmw_user_shader_size =
-			ttm_round_pot(sizeof(struct vmw_user_shader)) +
-			VMW_IDA_ACC_SIZE + TTM_OBJ_EXTRA_SIZE;
-
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
-				   vmw_user_shader_size,
-				   &ctx);
-	if (unlikely(ret != 0)) {
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for shader "
-				  "creation.\n");
-		goto out;
-	}
 
 	ushader = kzalloc(sizeof(*ushader), GFP_KERNEL);
 	if (unlikely(!ushader)) {
-		ttm_mem_global_free(vmw_mem_glob(dev_priv),
-				    vmw_user_shader_size);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -769,7 +717,7 @@ static int vmw_user_shader_alloc(struct vmw_private *dev_priv,
 	tmp = vmw_resource_reference(res);
 	ret = ttm_base_object_init(tfile, &ushader->base, false,
 				   VMW_RES_SHADER,
-				   &vmw_user_shader_base_release, NULL);
+				   &vmw_user_shader_base_release);
 
 	if (unlikely(ret != 0)) {
 		vmw_resource_unreference(&tmp);
@@ -793,31 +741,10 @@ static struct vmw_resource *vmw_shader_alloc(struct vmw_private *dev_priv,
 {
 	struct vmw_shader *shader;
 	struct vmw_resource *res;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = true,
-		.no_wait_gpu = false
-	};
 	int ret;
-
-	if (unlikely(vmw_shader_size == 0))
-		vmw_shader_size =
-			ttm_round_pot(sizeof(struct vmw_shader)) +
-			VMW_IDA_ACC_SIZE;
-
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
-				   vmw_shader_size,
-				   &ctx);
-	if (unlikely(ret != 0)) {
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for shader "
-				  "creation.\n");
-		goto out_err;
-	}
 
 	shader = kzalloc(sizeof(*shader), GFP_KERNEL);
 	if (unlikely(!shader)) {
-		ttm_mem_global_free(vmw_mem_glob(dev_priv),
-				    vmw_shader_size);
 		ret = -ENOMEM;
 		goto out_err;
 	}
@@ -849,15 +776,13 @@ static int vmw_shader_define(struct drm_device *dev, struct drm_file *file_priv,
 	int ret;
 
 	if (buffer_handle != SVGA3D_INVALID_ID) {
-		ret = vmw_user_bo_lookup(tfile, buffer_handle,
-					     &buffer, NULL);
+		ret = vmw_user_bo_lookup(file_priv, buffer_handle, &buffer);
 		if (unlikely(ret != 0)) {
 			VMW_DEBUG_USER("Couldn't find buffer for shader creation.\n");
 			return ret;
 		}
 
-		if ((u64)buffer->base.num_pages * PAGE_SIZE <
-		    (u64)size + (u64)offset) {
+		if ((u64)buffer->base.base.size < (u64)size + (u64)offset) {
 			VMW_DEBUG_USER("Illegal buffer- or shader size.\n");
 			ret = -EINVAL;
 			goto out_bad_arg;
@@ -877,15 +802,9 @@ static int vmw_shader_define(struct drm_device *dev, struct drm_file *file_priv,
 		goto out_bad_arg;
 	}
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		goto out_bad_arg;
-
 	ret = vmw_user_shader_alloc(dev_priv, buffer, size, offset,
 				    shader_type, num_input_sig,
 				    num_output_sig, tfile, shader_handle);
-
-	ttm_read_unlock(&dev_priv->reservation_sem);
 out_bad_arg:
 	vmw_bo_unreference(&buffer);
 	return ret;
@@ -946,13 +865,13 @@ int vmw_shader_remove(struct vmw_cmdbuf_res_manager *man,
  * vmw_compat_shader_add - Create a compat shader and stage it for addition
  * as a command buffer managed resource.
  *
+ * @dev_priv: Pointer to device private structure.
  * @man: Pointer to the compat shader manager identifying the shader namespace.
  * @user_key: The key that is used to identify the shader. The key is
  * unique to the shader type.
  * @bytecode: Pointer to the bytecode of the shader.
  * @shader_type: Shader type.
- * @tfile: Pointer to a struct ttm_object_file that the guest-backed shader is
- * to be created with.
+ * @size: Command size.
  * @list: Caller's list of staged command buffer resource actions.
  *
  */
@@ -973,13 +892,8 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 	if (!vmw_shader_id_ok(user_key, shader_type))
 		return -EINVAL;
 
-	/* Allocate and pin a DMA buffer */
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
-	if (unlikely(!buf))
-		return -ENOMEM;
-
-	ret = vmw_bo_init(dev_priv, buf, size, &vmw_sys_ne_placement,
-			      true, vmw_bo_bo_free);
+	ret = vmw_bo_create(dev_priv, size, &vmw_sys_placement,
+			    true, true, vmw_bo_bo_free, &buf);
 	if (unlikely(ret != 0))
 		goto out;
 
@@ -988,8 +902,7 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 		goto no_reserve;
 
 	/* Map and copy shader bytecode. */
-	ret = ttm_bo_kmap(&buf->base, 0, PAGE_ALIGN(size) >> PAGE_SHIFT,
-			  &map);
+	ret = ttm_bo_kmap(&buf->base, 0, PFN_UP(size), &map);
 	if (unlikely(ret != 0)) {
 		ttm_bo_unreserve(&buf->base);
 		goto no_reserve;

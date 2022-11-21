@@ -39,6 +39,19 @@ config XZ_DEC_SPARC
 	default y
 	select XZ_DEC_BCJ
 
+config XZ_DEC_MICROLZMA
+	bool "MicroLZMA decoder"
+	default n
+	help
+	  MicroLZMA is a header format variant where the first byte
+	  of a raw LZMA stream (without the end of stream marker) has
+	  been replaced with a bitwise-negation of the lc/lp/pb
+	  properties byte. MicroLZMA was created to be used in EROFS
+	  but can be used by other things too where wasting minimal
+	  amount of space for headers is important.
+
+	  Unless you know that you need this, say N.
+
 endif
 
 config XZ_DEC_BCJ

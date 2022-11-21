@@ -25,7 +25,8 @@ static void snd_emu10k1_pcm_interrupt(struct snd_emu10k1 *emu,
 {
 	struct snd_emu10k1_pcm *epcm;
 
-	if ((epcm = voice->epcm) == NULL)
+	epcm = voice->epcm;
+	if (!epcm)
 		return;
 	if (epcm->substream == NULL)
 		return;
@@ -399,7 +400,8 @@ static int snd_emu10k1_playback_hw_params(struct snd_pcm_substream *substream,
 	size_t alloc_size;
 	int err;
 
-	if ((err = snd_emu10k1_pcm_channel_alloc(epcm, params_channels(hw_params))) < 0)
+	err = snd_emu10k1_pcm_channel_alloc(epcm, params_channels(hw_params));
+	if (err < 0)
 		return err;
 
 	alloc_size = params_buffer_bytes(hw_params);
@@ -1124,11 +1126,13 @@ static int snd_emu10k1_playback_open(struct snd_pcm_substream *substream)
 	runtime->private_data = epcm;
 	runtime->private_free = snd_emu10k1_pcm_free_substream;
 	runtime->hw = snd_emu10k1_playback;
-	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0) {
+	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0) {
 		kfree(epcm);
 		return err;
 	}
-	if ((err = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 256, UINT_MAX)) < 0) {
+	err = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 256, UINT_MAX);
+	if (err < 0) {
 		kfree(epcm);
 		return err;
 	}
@@ -1380,7 +1384,8 @@ int snd_emu10k1_pcm(struct snd_emu10k1 *emu, int device)
 	struct snd_pcm_substream *substream;
 	int err;
 
-	if ((err = snd_pcm_new(emu->card, "emu10k1", device, 32, 1, &pcm)) < 0)
+	err = snd_pcm_new(emu->card, "emu10k1", device, 32, 1, &pcm);
+	if (err < 0)
 		return err;
 
 	pcm->private_data = emu;
@@ -1412,7 +1417,8 @@ int snd_emu10k1_pcm_multi(struct snd_emu10k1 *emu, int device)
 	struct snd_pcm_substream *substream;
 	int err;
 
-	if ((err = snd_pcm_new(emu->card, "emu10k1", device, 1, 0, &pcm)) < 0)
+	err = snd_pcm_new(emu->card, "emu10k1", device, 1, 0, &pcm);
+	if (err < 0)
 		return err;
 
 	pcm->private_data = emu;
@@ -1446,7 +1452,8 @@ int snd_emu10k1_pcm_mic(struct snd_emu10k1 *emu, int device)
 	struct snd_pcm *pcm;
 	int err;
 
-	if ((err = snd_pcm_new(emu->card, "emu10k1 mic", device, 0, 1, &pcm)) < 0)
+	err = snd_pcm_new(emu->card, "emu10k1 mic", device, 0, 1, &pcm);
+	if (err < 0)
 		return err;
 
 	pcm->private_data = emu;
@@ -1774,7 +1781,8 @@ int snd_emu10k1_pcm_efx(struct snd_emu10k1 *emu, int device)
 	struct snd_kcontrol *kctl;
 	int err;
 
-	if ((err = snd_pcm_new(emu->card, "emu10k1 efx", device, 8, 1, &pcm)) < 0)
+	err = snd_pcm_new(emu->card, "emu10k1 efx", device, 8, 1, &pcm);
+	if (err < 0)
 		return err;
 
 	pcm->private_data = emu;

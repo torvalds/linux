@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/*
  * dlmast.c
  *
  * AST and BAST functionality for local and remote nodes
@@ -163,16 +161,6 @@ void __dlm_queue_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 	list_add_tail(&lock->bast_list, &dlm->pending_basts);
 	lock->bast_pending = 1;
 	spin_unlock(&lock->spinlock);
-}
-
-void dlm_queue_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
-{
-	BUG_ON(!dlm);
-	BUG_ON(!lock);
-
-	spin_lock(&dlm->ast_lock);
-	__dlm_queue_bast(dlm, lock);
-	spin_unlock(&dlm->ast_lock);
 }
 
 static void dlm_update_lvb(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,

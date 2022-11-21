@@ -11,7 +11,8 @@
 #define HALL_GPIO_OFFSET 3
 
 struct bd71828_gpio {
-	struct rohm_regmap_dev chip;
+	struct regmap *regmap;
+	struct device *dev;
 	struct gpio_chip gpio;
 };
 
@@ -29,10 +30,10 @@ static void bd71828_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	if (offset == HALL_GPIO_OFFSET)
 		return;
 
-	ret = regmap_update_bits(bdgpio->chip.regmap, GPIO_OUT_REG(offset),
+	ret = regmap_update_bits(bdgpio->regmap, GPIO_OUT_REG(offset),
 				 BD71828_GPIO_OUT_MASK, val);
 	if (ret)
-		dev_err(bdgpio->chip.dev, "Could not set gpio to %d\n", value);
+		dev_err(bdgpio->dev, "Could not set gpio to %d\n", value);
 }
 
 static int bd71828_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -42,10 +43,10 @@ static int bd71828_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	struct bd71828_gpio *bdgpio = gpiochip_get_data(chip);
 
 	if (offset == HALL_GPIO_OFFSET)
-		ret = regmap_read(bdgpio->chip.regmap, BD71828_REG_IO_STAT,
+		ret = regmap_read(bdgpio->regmap, BD71828_REG_IO_STAT,
 				  &val);
 	else
-		ret = regmap_read(bdgpio->chip.regmap, GPIO_OUT_REG(offset),
+		ret = regmap_read(bdgpio->regmap, GPIO_OUT_REG(offset),
 				  &val);
 	if (!ret)
 		ret = (val & BD71828_GPIO_OUT_MASK);
@@ -63,12 +64,12 @@ static int bd71828_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 
 	switch (pinconf_to_config_param(config)) {
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-		return regmap_update_bits(bdgpio->chip.regmap,
+		return regmap_update_bits(bdgpio->regmap,
 					  GPIO_OUT_REG(offset),
 					  BD71828_GPIO_DRIVE_MASK,
 					  BD71828_GPIO_OPEN_DRAIN);
 	case PIN_CONFIG_DRIVE_PUSH_PULL:
-		return regmap_update_bits(bdgpio->chip.regmap,
+		return regmap_update_bits(bdgpio->regmap,
 					  GPIO_OUT_REG(offset),
 					  BD71828_GPIO_DRIVE_MASK,
 					  BD71828_GPIO_PUSH_PULL);
@@ -96,22 +97,15 @@ static int bd71828_get_direction(struct gpio_chip *chip, unsigned int offset)
 
 static int bd71828_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct bd71828_gpio *bdgpio;
-	struct rohm_regmap_dev *bd71828;
 
-	bd71828 = dev_get_drvdata(pdev->dev.parent);
-	if (!bd71828) {
-		dev_err(&pdev->dev, "No MFD driver data\n");
-		return -EINVAL;
-	}
-
-	bdgpio = devm_kzalloc(&pdev->dev, sizeof(*bdgpio),
-			      GFP_KERNEL);
+	bdgpio = devm_kzalloc(dev, sizeof(*bdgpio), GFP_KERNEL);
 	if (!bdgpio)
 		return -ENOMEM;
 
-	bdgpio->chip.dev = &pdev->dev;
-	bdgpio->gpio.parent = pdev->dev.parent;
+	bdgpio->dev = dev;
+	bdgpio->gpio.parent = dev->parent;
 	bdgpio->gpio.label = "bd71828-gpio";
 	bdgpio->gpio.owner = THIS_MODULE;
 	bdgpio->gpio.get_direction = bd71828_get_direction;
@@ -127,11 +121,11 @@ static int bd71828_probe(struct platform_device *pdev)
 	 * "gpio-reserved-ranges" and exclude them from control
 	 */
 	bdgpio->gpio.ngpio = 4;
-	bdgpio->gpio.of_node = pdev->dev.parent->of_node;
-	bdgpio->chip.regmap = bd71828->regmap;
+	bdgpio->regmap = dev_get_regmap(dev->parent, NULL);
+	if (!bdgpio->regmap)
+		return -ENODEV;
 
-	return devm_gpiochip_add_data(&pdev->dev, &bdgpio->gpio,
-				     bdgpio);
+	return devm_gpiochip_add_data(dev, &bdgpio->gpio, bdgpio);
 }
 
 static struct platform_driver bd71828_gpio = {

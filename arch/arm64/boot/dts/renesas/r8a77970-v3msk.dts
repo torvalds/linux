@@ -8,6 +8,7 @@
 
 /dts-v1/;
 #include "r8a77970.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Renesas V3M Starter Kit board";
@@ -59,7 +60,7 @@
 	memory@48000000 {
 		device_type = "memory";
 		/* first 128MB is reserved for secure area. */
-		reg = <0x0 0x48000000 0x0 0x38000000>;
+		reg = <0x0 0x48000000 0x0 0x78000000>;
 	};
 
 	osc5_clk: osc5-clock {
@@ -102,14 +103,18 @@
 
 	renesas,no-ether-link;
 	phy-handle = <&phy0>;
-	phy-mode = "rgmii-id";
+	rx-internal-delay-ps = <1800>;
+	tx-internal-delay-ps = <2000>;
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-id0022.1622",
+			     "ethernet-phy-ieee802.3-c22";
 		rxc-skew-ps = <1500>;
 		reg = <0>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 	};
 };
 

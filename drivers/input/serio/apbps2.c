@@ -103,7 +103,6 @@ static int apbps2_open(struct serio *io)
 {
 	struct apbps2_priv *priv = io->port_data;
 	int limit;
-	unsigned long tmp;
 
 	/* clear error flags */
 	iowrite32be(0, &priv->regs->status);
@@ -111,7 +110,7 @@ static int apbps2_open(struct serio *io)
 	/* Clear old data if available (unlikely) */
 	limit = 1024;
 	while ((ioread32be(&priv->regs->status) & APBPS2_STATUS_DR) && --limit)
-		tmp = ioread32be(&priv->regs->data);
+		ioread32be(&priv->regs->data);
 
 	/* Enable reciever and it's interrupt */
 	iowrite32be(APBPS2_CTRL_RE | APBPS2_CTRL_RI, &priv->regs->ctrl);

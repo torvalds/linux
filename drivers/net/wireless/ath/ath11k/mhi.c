@@ -3,14 +3,19 @@
 
 #include <linux/msi.h>
 #include <linux/pci.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/ioport.h>
 
 #include "core.h"
 #include "debug.h"
 #include "mhi.h"
+#include "pci.h"
 
 #define MHI_TIMEOUT_DEFAULT_MS	90000
+#define RDDM_DUMP_SIZE	0x420000
 
-static struct mhi_channel_config ath11k_mhi_channels[] = {
+static struct mhi_channel_config ath11k_mhi_channels_qca6390[] = {
 	{
 		.num = 0,
 		.name = "LOOPBACK",
@@ -24,7 +29,6 @@ static struct mhi_channel_config ath11k_mhi_channels[] = {
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
-		.auto_start = false,
 	},
 	{
 		.num = 1,
@@ -39,7 +43,6 @@ static struct mhi_channel_config ath11k_mhi_channels[] = {
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
-		.auto_start = false,
 	},
 	{
 		.num = 20,
@@ -54,7 +57,6 @@ static struct mhi_channel_config ath11k_mhi_channels[] = {
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
-		.auto_start = true,
 	},
 	{
 		.num = 21,
@@ -69,11 +71,10 @@ static struct mhi_channel_config ath11k_mhi_channels[] = {
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = true,
-		.auto_start = true,
 	},
 };
 
-static struct mhi_event_config ath11k_mhi_events[] = {
+static struct mhi_event_config ath11k_mhi_events_qca6390[] = {
 	{
 		.num_elements = 32,
 		.irq_moderation_ms = 0,
@@ -96,15 +97,108 @@ static struct mhi_event_config ath11k_mhi_events[] = {
 	},
 };
 
-static struct mhi_controller_config ath11k_mhi_config = {
+static struct mhi_controller_config ath11k_mhi_config_qca6390 = {
 	.max_channels = 128,
 	.timeout_ms = 2000,
 	.use_bounce_buf = false,
 	.buf_len = 0,
-	.num_channels = ARRAY_SIZE(ath11k_mhi_channels),
-	.ch_cfg = ath11k_mhi_channels,
-	.num_events = ARRAY_SIZE(ath11k_mhi_events),
-	.event_cfg = ath11k_mhi_events,
+	.num_channels = ARRAY_SIZE(ath11k_mhi_channels_qca6390),
+	.ch_cfg = ath11k_mhi_channels_qca6390,
+	.num_events = ARRAY_SIZE(ath11k_mhi_events_qca6390),
+	.event_cfg = ath11k_mhi_events_qca6390,
+};
+
+static struct mhi_channel_config ath11k_mhi_channels_qcn9074[] = {
+	{
+		.num = 0,
+		.name = "LOOPBACK",
+		.num_elements = 32,
+		.event_ring = 1,
+		.dir = DMA_TO_DEVICE,
+		.ee_mask = 0x14,
+		.pollcfg = 0,
+		.doorbell = MHI_DB_BRST_DISABLE,
+		.lpm_notify = false,
+		.offload_channel = false,
+		.doorbell_mode_switch = false,
+		.auto_queue = false,
+	},
+	{
+		.num = 1,
+		.name = "LOOPBACK",
+		.num_elements = 32,
+		.event_ring = 1,
+		.dir = DMA_FROM_DEVICE,
+		.ee_mask = 0x14,
+		.pollcfg = 0,
+		.doorbell = MHI_DB_BRST_DISABLE,
+		.lpm_notify = false,
+		.offload_channel = false,
+		.doorbell_mode_switch = false,
+		.auto_queue = false,
+	},
+	{
+		.num = 20,
+		.name = "IPCR",
+		.num_elements = 32,
+		.event_ring = 1,
+		.dir = DMA_TO_DEVICE,
+		.ee_mask = 0x14,
+		.pollcfg = 0,
+		.doorbell = MHI_DB_BRST_DISABLE,
+		.lpm_notify = false,
+		.offload_channel = false,
+		.doorbell_mode_switch = false,
+		.auto_queue = false,
+	},
+	{
+		.num = 21,
+		.name = "IPCR",
+		.num_elements = 32,
+		.event_ring = 1,
+		.dir = DMA_FROM_DEVICE,
+		.ee_mask = 0x14,
+		.pollcfg = 0,
+		.doorbell = MHI_DB_BRST_DISABLE,
+		.lpm_notify = false,
+		.offload_channel = false,
+		.doorbell_mode_switch = false,
+		.auto_queue = true,
+	},
+};
+
+static struct mhi_event_config ath11k_mhi_events_qcn9074[] = {
+	{
+		.num_elements = 32,
+		.irq_moderation_ms = 0,
+		.irq = 1,
+		.data_type = MHI_ER_CTRL,
+		.mode = MHI_DB_BRST_DISABLE,
+		.hardware_event = false,
+		.client_managed = false,
+		.offload_channel = false,
+	},
+	{
+		.num_elements = 256,
+		.irq_moderation_ms = 1,
+		.irq = 2,
+		.mode = MHI_DB_BRST_DISABLE,
+		.priority = 1,
+		.hardware_event = false,
+		.client_managed = false,
+		.offload_channel = false,
+	},
+};
+
+static struct mhi_controller_config ath11k_mhi_config_qcn9074 = {
+	.max_channels = 30,
+	.timeout_ms = 10000,
+	.use_bounce_buf = false,
+	.buf_len = 0,
+	.num_channels = ARRAY_SIZE(ath11k_mhi_channels_qcn9074),
+	.ch_cfg = ath11k_mhi_channels_qcn9074,
+	.num_events = ARRAY_SIZE(ath11k_mhi_events_qcn9074),
+	.event_cfg = ath11k_mhi_events_qcn9074,
 };
 
 void ath11k_mhi_set_mhictrl_reset(struct ath11k_base *ab)
@@ -158,6 +252,7 @@ static int ath11k_mhi_get_msi(struct ath11k_pci *ab_pci)
 	u32 user_base_data, base_vector;
 	int ret, num_vectors, i;
 	int *irq;
+	unsigned int msi_data;
 
 	ret = ath11k_pci_get_user_msi_assignment(ab_pci,
 						 "MHI", &num_vectors,
@@ -172,9 +267,15 @@ static int ath11k_mhi_get_msi(struct ath11k_pci *ab_pci)
 	if (!irq)
 		return -ENOMEM;
 
-	for (i = 0; i < num_vectors; i++)
+	for (i = 0; i < num_vectors; i++) {
+		msi_data = base_vector;
+
+		if (test_bit(ATH11K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
+			msi_data += i;
+
 		irq[i] = ath11k_pci_get_msi_irq(ab->dev,
-						base_vector + i);
+						msi_data);
+	}
 
 	ab_pci->mhi_ctrl->irq = irq;
 	ab_pci->mhi_ctrl->nr_irqs = num_vectors;
@@ -194,6 +295,15 @@ static void ath11k_mhi_op_runtime_put(struct mhi_controller *mhi_cntrl)
 static void ath11k_mhi_op_status_cb(struct mhi_controller *mhi_cntrl,
 				    enum mhi_callback cb)
 {
+	struct ath11k_base *ab = dev_get_drvdata(mhi_cntrl->cntrl_dev);
+
+	switch (cb) {
+	case MHI_CB_SYS_ERROR:
+		ath11k_warn(ab, "firmware crashed: MHI_CB_SYS_ERROR\n");
+		break;
+	default:
+		break;
+	}
 }
 
 static int ath11k_mhi_op_read_reg(struct mhi_controller *mhi_cntrl,
@@ -212,13 +322,35 @@ static void ath11k_mhi_op_write_reg(struct mhi_controller *mhi_cntrl,
 	writel(val, addr);
 }
 
+static int ath11k_mhi_read_addr_from_dt(struct mhi_controller *mhi_ctrl)
+{
+	struct device_node *np;
+	struct resource res;
+	int ret;
+
+	np = of_find_node_by_type(NULL, "memory");
+	if (!np)
+		return -ENOENT;
+
+	ret = of_address_to_resource(np, 0, &res);
+	of_node_put(np);
+	if (ret)
+		return ret;
+
+	mhi_ctrl->iova_start = res.start + 0x1000000;
+	mhi_ctrl->iova_stop = res.end;
+
+	return 0;
+}
+
 int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 {
 	struct ath11k_base *ab = ab_pci->ab;
 	struct mhi_controller *mhi_ctrl;
+	struct mhi_controller_config *ath11k_mhi_config;
 	int ret;
 
-	mhi_ctrl = kzalloc(sizeof(*mhi_ctrl), GFP_KERNEL);
+	mhi_ctrl = mhi_alloc_controller();
 	if (!mhi_ctrl)
 		return -ENOMEM;
 
@@ -230,16 +362,28 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 	mhi_ctrl->cntrl_dev = ab->dev;
 	mhi_ctrl->fw_image = ab_pci->amss_path;
 	mhi_ctrl->regs = ab->mem;
+	mhi_ctrl->reg_len = ab->mem_len;
 
 	ret = ath11k_mhi_get_msi(ab_pci);
 	if (ret) {
 		ath11k_err(ab, "failed to get msi for mhi\n");
-		kfree(mhi_ctrl);
+		mhi_free_controller(mhi_ctrl);
 		return ret;
 	}
 
-	mhi_ctrl->iova_start = 0;
-	mhi_ctrl->iova_stop = 0xffffffff;
+	if (!test_bit(ATH11K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
+		mhi_ctrl->irq_flags = IRQF_SHARED | IRQF_NOBALANCING;
+
+	if (test_bit(ATH11K_FLAG_FIXED_MEM_RGN, &ab->dev_flags)) {
+		ret = ath11k_mhi_read_addr_from_dt(mhi_ctrl);
+		if (ret < 0)
+			return ret;
+	} else {
+		mhi_ctrl->iova_start = 0;
+		mhi_ctrl->iova_stop = 0xFFFFFFFF;
+	}
+
+	mhi_ctrl->rddm_size = RDDM_DUMP_SIZE;
 	mhi_ctrl->sbl_size = SZ_512K;
 	mhi_ctrl->seg_len = SZ_512K;
 	mhi_ctrl->fbc_download = true;
@@ -249,10 +393,26 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 	mhi_ctrl->read_reg = ath11k_mhi_op_read_reg;
 	mhi_ctrl->write_reg = ath11k_mhi_op_write_reg;
 
-	ret = mhi_register_controller(mhi_ctrl, &ath11k_mhi_config);
+	switch (ab->hw_rev) {
+	case ATH11K_HW_QCN9074_HW10:
+		ath11k_mhi_config = &ath11k_mhi_config_qcn9074;
+		break;
+	case ATH11K_HW_QCA6390_HW20:
+	case ATH11K_HW_WCN6855_HW20:
+	case ATH11K_HW_WCN6855_HW21:
+		ath11k_mhi_config = &ath11k_mhi_config_qca6390;
+		break;
+	default:
+		ath11k_err(ab, "failed assign mhi_config for unknown hw rev %d\n",
+			   ab->hw_rev);
+		mhi_free_controller(mhi_ctrl);
+		return -EINVAL;
+	}
+
+	ret = mhi_register_controller(mhi_ctrl, ath11k_mhi_config);
 	if (ret) {
 		ath11k_err(ab, "failed to register to mhi bus, err = %d\n", ret);
-		kfree(mhi_ctrl);
+		mhi_free_controller(mhi_ctrl);
 		return ret;
 	}
 
@@ -265,6 +425,7 @@ void ath11k_mhi_unregister(struct ath11k_pci *ab_pci)
 
 	mhi_unregister_controller(mhi_ctrl);
 	kfree(mhi_ctrl->irq);
+	mhi_free_controller(mhi_ctrl);
 }
 
 static char *ath11k_mhi_state_to_str(enum ath11k_mhi_state mhi_state)
@@ -402,7 +563,7 @@ static int ath11k_mhi_set_state(struct ath11k_pci *ab_pci,
 		ret = 0;
 		break;
 	case ATH11K_MHI_POWER_ON:
-		ret = mhi_async_power_up(ab_pci->mhi_ctrl);
+		ret = mhi_sync_power_up(ab_pci->mhi_ctrl);
 		break;
 	case ATH11K_MHI_POWER_OFF:
 		mhi_power_down(ab_pci->mhi_ctrl, true);
@@ -413,8 +574,14 @@ static int ath11k_mhi_set_state(struct ath11k_pci *ab_pci,
 		ret = 0;
 		break;
 	case ATH11K_MHI_SUSPEND:
+		ret = mhi_pm_suspend(ab_pci->mhi_ctrl);
 		break;
 	case ATH11K_MHI_RESUME:
+		/* Do force MHI resume as some devices like QCA6390, WCN6855
+		 * are not in M3 state but they are functional. So just ignore
+		 * the MHI state while resuming.
+		 */
+		ret = mhi_pm_resume_force(ab_pci->mhi_ctrl);
 		break;
 	case ATH11K_MHI_TRIGGER_RDDM:
 		ret = mhi_force_rddm_mode(ab_pci->mhi_ctrl);
@@ -465,3 +632,12 @@ void ath11k_mhi_stop(struct ath11k_pci *ab_pci)
 	ath11k_mhi_set_state(ab_pci, ATH11K_MHI_DEINIT);
 }
 
+void ath11k_mhi_suspend(struct ath11k_pci *ab_pci)
+{
+	ath11k_mhi_set_state(ab_pci, ATH11K_MHI_SUSPEND);
+}
+
+void ath11k_mhi_resume(struct ath11k_pci *ab_pci)
+{
+	ath11k_mhi_set_state(ab_pci, ATH11K_MHI_RESUME);
+}

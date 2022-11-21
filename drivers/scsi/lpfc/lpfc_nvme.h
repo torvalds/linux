@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -34,11 +34,8 @@
 #define LPFC_NVME_FB_SHIFT		9
 #define LPFC_NVME_MAX_FB		(1 << 20)	/* 1M */
 
-#define LPFC_MAX_NVME_INFO_TMP_LEN	100
-#define LPFC_NVME_INFO_MORE_STR		"\nCould be more info...\n"
-
-#define lpfc_ndlp_get_nrport(ndlp)					\
-	((!ndlp->nrport || (ndlp->upcall_flags & NLP_WAIT_FOR_UNREG))	\
+#define lpfc_ndlp_get_nrport(ndlp)				\
+	((!ndlp->nrport || (ndlp->fc4_xpt_flags & NVME_XPT_UNREG_WAIT))\
 	? NULL : ndlp->nrport)
 
 struct lpfc_nvme_qhandle {
@@ -237,7 +234,7 @@ int __lpfc_nvme_ls_req(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		struct nvmefc_ls_req *pnvme_lsreq,
 		void (*gen_req_cmp)(struct lpfc_hba *phba,
 				struct lpfc_iocbq *cmdwqe,
-				struct lpfc_wcqe_complete *wcqe));
+				struct lpfc_iocbq *rspwqe));
 void __lpfc_nvme_ls_req_cmp(struct lpfc_hba *phba,  struct lpfc_vport *vport,
 		struct lpfc_iocbq *cmdwqe, struct lpfc_wcqe_complete *wcqe);
 int __lpfc_nvme_ls_abort(struct lpfc_vport *vport,
@@ -251,6 +248,6 @@ int __lpfc_nvme_xmt_ls_rsp(struct lpfc_async_xchg_ctx *axchg,
 			struct nvmefc_ls_rsp *ls_rsp,
 			void (*xmt_ls_rsp_cmp)(struct lpfc_hba *phba,
 				struct lpfc_iocbq *cmdwqe,
-				struct lpfc_wcqe_complete *wcqe));
+				struct lpfc_iocbq *rspwqe));
 void __lpfc_nvme_xmt_ls_rsp_cmp(struct lpfc_hba *phba,
-		struct lpfc_iocbq *cmdwqe, struct lpfc_wcqe_complete *wcqe);
+		struct lpfc_iocbq *cmdwqe, struct lpfc_iocbq *rspwqe);

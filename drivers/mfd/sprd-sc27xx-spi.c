@@ -18,6 +18,9 @@
 #define SPRD_PMIC_INT_RAW_STATUS	0x4
 #define SPRD_PMIC_INT_EN		0x8
 
+#define SPRD_SC2730_IRQ_BASE		0x80
+#define SPRD_SC2730_IRQ_NUMS		10
+#define SPRD_SC2730_CHG_DET		0x1b9c
 #define SPRD_SC2731_IRQ_BASE		0x140
 #define SPRD_SC2731_IRQ_NUMS		16
 #define SPRD_SC2731_CHG_DET		0xedc
@@ -52,6 +55,12 @@ struct sprd_pmic_data {
  * base address and irq number, we should save irq number and irq base
  * in the device data structure.
  */
+static const struct sprd_pmic_data sc2730_data = {
+	.irq_base = SPRD_SC2730_IRQ_BASE,
+	.num_irqs = SPRD_SC2730_IRQ_NUMS,
+	.charger_det = SPRD_SC2730_CHG_DET,
+};
+
 static const struct sprd_pmic_data sc2731_data = {
 	.irq_base = SPRD_SC2731_IRQ_BASE,
 	.num_irqs = SPRD_SC2731_IRQ_NUMS,
@@ -232,9 +241,16 @@ static SIMPLE_DEV_PM_OPS(sprd_pmic_pm_ops, sprd_pmic_suspend, sprd_pmic_resume);
 
 static const struct of_device_id sprd_pmic_match[] = {
 	{ .compatible = "sprd,sc2731", .data = &sc2731_data },
+	{ .compatible = "sprd,sc2730", .data = &sc2730_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sprd_pmic_match);
+
+static const struct spi_device_id sprd_pmic_spi_ids[] = {
+	{ .name = "sc2731", .driver_data = (unsigned long)&sc2731_data },
+	{},
+};
+MODULE_DEVICE_TABLE(spi, sprd_pmic_spi_ids);
 
 static struct spi_driver sprd_pmic_driver = {
 	.driver = {
@@ -243,6 +259,7 @@ static struct spi_driver sprd_pmic_driver = {
 		.pm = &sprd_pmic_pm_ops,
 	},
 	.probe = sprd_pmic_probe,
+	.id_table = sprd_pmic_spi_ids,
 };
 
 static int __init sprd_pmic_init(void)

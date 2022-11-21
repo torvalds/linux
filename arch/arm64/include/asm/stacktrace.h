@@ -9,6 +9,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/types.h>
+#include <linux/llist.h>
 
 #include <asm/memory.h>
 #include <asm/ptrace.h>
@@ -35,7 +36,7 @@ struct stack_info {
  * accounting information necessary for robust unwinding.
  *
  * @fp:          The fp value in the frame record (or the real fp)
- * @pc:          The fp value in the frame record (or the real lr)
+ * @pc:          The lr value in the frame record (or the real lr)
  *
  * @stacks_done: Stacks which have been entirely unwound, for which it is no
  *               longer valid to unwind to.
@@ -47,8 +48,9 @@ struct stack_info {
  *               value of STACK_TYPE_UNKNOWN. This is used to detect a
  *               transition from one stack to another.
  *
- * @graph:       When FUNCTION_GRAPH_TRACER is selected, holds the index of a
- *               replacement lr value in the ftrace graph stack.
+ * @kr_cur:      When KRETPROBES is selected, holds the kretprobe instance
+ *               associated with the most recently encountered replacement lr
+ *               value.
  */
 struct stackframe {
 	unsigned long fp;
@@ -56,27 +58,24 @@ struct stackframe {
 	DECLARE_BITMAP(stacks_done, __NR_STACK_TYPES);
 	unsigned long prev_fp;
 	enum stack_type prev_type;
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	int graph;
+#ifdef CONFIG_KRETPROBES
+	struct llist_node *kr_cur;
 #endif
 };
 
-extern int unwind_frame(struct task_struct *tsk, struct stackframe *frame);
-extern void walk_stackframe(struct task_struct *tsk, struct stackframe *frame,
-			    bool (*fn)(void *, unsigned long), void *data);
 extern void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 			   const char *loglvl);
 
 DECLARE_PER_CPU(unsigned long *, irq_stack_ptr);
 
-static inline bool on_stack(unsigned long sp, unsigned long low,
-				unsigned long high, enum stack_type type,
-				struct stack_info *info)
+static inline bool on_stack(unsigned long sp, unsigned long size,
+			    unsigned long low, unsigned long high,
+			    enum stack_type type, struct stack_info *info)
 {
 	if (!low)
 		return false;
 
-	if (sp < low || sp >= high)
+	if (sp < low || sp + size < sp || sp + size > high)
 		return false;
 
 	if (info) {
@@ -87,38 +86,38 @@ static inline bool on_stack(unsigned long sp, unsigned long low,
 	return true;
 }
 
-static inline bool on_irq_stack(unsigned long sp,
+static inline bool on_irq_stack(unsigned long sp, unsigned long size,
 				struct stack_info *info)
 {
 	unsigned long low = (unsigned long)raw_cpu_read(irq_stack_ptr);
 	unsigned long high = low + IRQ_STACK_SIZE;
 
-	return on_stack(sp, low, high, STACK_TYPE_IRQ, info);
+	return on_stack(sp, size, low, high, STACK_TYPE_IRQ, info);
 }
 
 static inline bool on_task_stack(const struct task_struct *tsk,
-				 unsigned long sp,
+				 unsigned long sp, unsigned long size,
 				 struct stack_info *info)
 {
 	unsigned long low = (unsigned long)task_stack_page(tsk);
 	unsigned long high = low + THREAD_SIZE;
 
-	return on_stack(sp, low, high, STACK_TYPE_TASK, info);
+	return on_stack(sp, size, low, high, STACK_TYPE_TASK, info);
 }
 
 #ifdef CONFIG_VMAP_STACK
 DECLARE_PER_CPU(unsigned long [OVERFLOW_STACK_SIZE/sizeof(long)], overflow_stack);
 
-static inline bool on_overflow_stack(unsigned long sp,
+static inline bool on_overflow_stack(unsigned long sp, unsigned long size,
 				struct stack_info *info)
 {
 	unsigned long low = (unsigned long)raw_cpu_ptr(overflow_stack);
 	unsigned long high = low + OVERFLOW_STACK_SIZE;
 
-	return on_stack(sp, low, high, STACK_TYPE_OVERFLOW, info);
+	return on_stack(sp, size, low, high, STACK_TYPE_OVERFLOW, info);
 }
 #else
-static inline bool on_overflow_stack(unsigned long sp,
+static inline bool on_overflow_stack(unsigned long sp, unsigned long size,
 			struct stack_info *info) { return false; }
 #endif
 
@@ -128,47 +127,24 @@ static inline bool on_overflow_stack(unsigned long sp,
  * context.
  */
 static inline bool on_accessible_stack(const struct task_struct *tsk,
-				       unsigned long sp,
+				       unsigned long sp, unsigned long size,
 				       struct stack_info *info)
 {
 	if (info)
 		info->type = STACK_TYPE_UNKNOWN;
 
-	if (on_task_stack(tsk, sp, info))
+	if (on_task_stack(tsk, sp, size, info))
 		return true;
 	if (tsk != current || preemptible())
 		return false;
-	if (on_irq_stack(sp, info))
+	if (on_irq_stack(sp, size, info))
 		return true;
-	if (on_overflow_stack(sp, info))
+	if (on_overflow_stack(sp, size, info))
 		return true;
-	if (on_sdei_stack(sp, info))
+	if (on_sdei_stack(sp, size, info))
 		return true;
 
 	return false;
-}
-
-static inline void start_backtrace(struct stackframe *frame,
-				   unsigned long fp, unsigned long pc)
-{
-	frame->fp = fp;
-	frame->pc = pc;
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame->graph = 0;
-#endif
-
-	/*
-	 * Prime the first unwind.
-	 *
-	 * In unwind_frame() we'll check that the FP points to a valid stack,
-	 * which can't be STACK_TYPE_UNKNOWN, and the first unwind will be
-	 * treated as a transition to whichever stack that happens to be. The
-	 * prev_fp value won't be used, but we set it to 0 such that it is
-	 * definitely not an accessible stack address.
-	 */
-	bitmap_zero(frame->stacks_done, __NR_STACK_TYPES);
-	frame->prev_fp = 0;
-	frame->prev_type = STACK_TYPE_UNKNOWN;
 }
 
 #endif	/* __ASM_STACKTRACE_H */

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * AES CBC routines supporting the Power 7+ Nest Accelerators driver
  *
  * Copyright (C) 2011-2012 International Business Machines Inc.
@@ -88,7 +88,7 @@ static int cbc_aes_nx_crypt(struct skcipher_request *req,
 
 		memcpy(req->iv, csbcpb->cpb.aes_cbc.cv, AES_BLOCK_SIZE);
 		atomic_inc(&(nx_ctx->stats->aes_ops));
-		atomic64_add(csbcpb->csb.processed_byte_count,
+		atomic64_add(be32_to_cpu(csbcpb->csb.processed_byte_count),
 			     &(nx_ctx->stats->aes_bytes));
 
 		processed += to_process;

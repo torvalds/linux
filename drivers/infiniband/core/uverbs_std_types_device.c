@@ -117,8 +117,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_INFO_HANDLES)(
 		return ret;
 
 	uapi_object = uapi_get_object(attrs->ufile->device->uapi, object_id);
-	if (!uapi_object)
-		return -EINVAL;
+	if (IS_ERR(uapi_object))
+		return PTR_ERR(uapi_object);
 
 	handles = gather_objects_handle(attrs->ufile, uapi_object, attrs,
 					out_len, &total);
@@ -317,8 +317,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_GID_TABLE)(
 	struct ib_device *ib_dev;
 	size_t user_entry_size;
 	ssize_t num_entries;
-	size_t max_entries;
-	size_t num_bytes;
+	int max_entries;
 	u32 flags;
 	int ret;
 
@@ -332,23 +331,23 @@ static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_GID_TABLE)(
 	if (ret)
 		return ret;
 
+	if (!user_entry_size)
+		return -EINVAL;
+
 	max_entries = uverbs_attr_ptr_get_array_size(
 		attrs, UVERBS_ATTR_QUERY_GID_TABLE_RESP_ENTRIES,
 		user_entry_size);
 	if (max_entries <= 0)
-		return -EINVAL;
+		return max_entries ?: -EINVAL;
 
 	ucontext = ib_uverbs_get_ucontext(attrs);
 	if (IS_ERR(ucontext))
 		return PTR_ERR(ucontext);
 	ib_dev = ucontext->device;
 
-	if (check_mul_overflow(max_entries, sizeof(*entries), &num_bytes))
-		return -EINVAL;
-
-	entries = uverbs_zalloc(attrs, num_bytes);
-	if (!entries)
-		return -ENOMEM;
+	entries = uverbs_kcalloc(attrs, max_entries, sizeof(*entries));
+	if (IS_ERR(entries))
+		return PTR_ERR(entries);
 
 	num_entries = rdma_query_gid_table(ib_dev, entries, max_entries);
 	if (num_entries < 0)

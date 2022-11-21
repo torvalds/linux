@@ -13,6 +13,8 @@
 #include <linux/kernel.h>
 #include <linux/wait.h>
 
+#include <drm/drm_device.h>
+
 #include "rcar_cmm.h"
 #include "rcar_du_crtc.h"
 #include "rcar_du_group.h"
@@ -20,17 +22,30 @@
 
 struct clk;
 struct device;
-struct drm_device;
+struct drm_bridge;
 struct drm_property;
 struct rcar_du_device;
-struct rcar_du_encoder;
 
-#define RCAR_DU_FEATURE_CRTC_IRQ_CLOCK	BIT(0)	/* Per-CRTC IRQ and clock */
-#define RCAR_DU_FEATURE_VSP1_SOURCE	BIT(1)	/* Has inputs from VSP1 */
-#define RCAR_DU_FEATURE_INTERLACED	BIT(2)	/* HW supports interlaced */
-#define RCAR_DU_FEATURE_TVM_SYNC	BIT(3)	/* Has TV switch/sync modes */
+#define RCAR_DU_FEATURE_CRTC_IRQ	BIT(0)	/* Per-CRTC IRQ */
+#define RCAR_DU_FEATURE_CRTC_CLOCK	BIT(1)	/* Per-CRTC clock */
+#define RCAR_DU_FEATURE_VSP1_SOURCE	BIT(2)	/* Has inputs from VSP1 */
+#define RCAR_DU_FEATURE_INTERLACED	BIT(3)	/* HW supports interlaced */
+#define RCAR_DU_FEATURE_TVM_SYNC	BIT(4)	/* Has TV switch/sync modes */
 
 #define RCAR_DU_QUIRK_ALIGN_128B	BIT(0)	/* Align pitches to 128 bytes */
+
+enum rcar_du_output {
+	RCAR_DU_OUTPUT_DPAD0,
+	RCAR_DU_OUTPUT_DPAD1,
+	RCAR_DU_OUTPUT_DSI0,
+	RCAR_DU_OUTPUT_DSI1,
+	RCAR_DU_OUTPUT_HDMI0,
+	RCAR_DU_OUTPUT_HDMI1,
+	RCAR_DU_OUTPUT_LVDS0,
+	RCAR_DU_OUTPUT_LVDS1,
+	RCAR_DU_OUTPUT_TCON,
+	RCAR_DU_OUTPUT_MAX,
+};
 
 /*
  * struct rcar_du_output_routing - Output routing specification
@@ -55,6 +70,7 @@ struct rcar_du_output_routing {
  * @routes: array of CRTC to output routes, indexed by output (RCAR_DU_OUTPUT_*)
  * @num_lvds: number of internal LVDS encoders
  * @dpll_mask: bit mask of DU channels equipped with a DPLL
+ * @dsi_clk_mask: bitmask of channels that can use the DSI clock as dot clock
  * @lvds_clk_mask: bitmask of channels that can use the LVDS clock as dot clock
  */
 struct rcar_du_device_info {
@@ -65,12 +81,14 @@ struct rcar_du_device_info {
 	struct rcar_du_output_routing routes[RCAR_DU_OUTPUT_MAX];
 	unsigned int num_lvds;
 	unsigned int dpll_mask;
+	unsigned int dsi_clk_mask;
 	unsigned int lvds_clk_mask;
 };
 
 #define RCAR_DU_MAX_CRTCS		4
 #define RCAR_DU_MAX_GROUPS		DIV_ROUND_UP(RCAR_DU_MAX_CRTCS, 2)
 #define RCAR_DU_MAX_VSPS		4
+#define RCAR_DU_MAX_LVDS		2
 
 struct rcar_du_device {
 	struct device *dev;
@@ -78,16 +96,15 @@ struct rcar_du_device {
 
 	void __iomem *mmio;
 
-	struct drm_device *ddev;
+	struct drm_device ddev;
 
 	struct rcar_du_crtc crtcs[RCAR_DU_MAX_CRTCS];
 	unsigned int num_crtcs;
 
-	struct rcar_du_encoder *encoders[RCAR_DU_OUTPUT_MAX];
-
 	struct rcar_du_group groups[RCAR_DU_MAX_GROUPS];
 	struct platform_device *cmms[RCAR_DU_MAX_CRTCS];
 	struct rcar_du_vsp vsps[RCAR_DU_MAX_VSPS];
+	struct drm_bridge *lvds[RCAR_DU_MAX_LVDS];
 
 	struct {
 		struct drm_property *colorkey;
@@ -97,6 +114,11 @@ struct rcar_du_device {
 	unsigned int dpad1_source;
 	unsigned int vspd1_sink;
 };
+
+static inline struct rcar_du_device *to_rcar_du_device(struct drm_device *dev)
+{
+	return container_of(dev, struct rcar_du_device, ddev);
+}
 
 static inline bool rcar_du_has(struct rcar_du_device *rcdu,
 			       unsigned int feature)
@@ -119,5 +141,7 @@ static inline void rcar_du_write(struct rcar_du_device *rcdu, u32 reg, u32 data)
 {
 	iowrite32(data, rcdu->mmio + reg);
 }
+
+const char *rcar_du_output_name(enum rcar_du_output output);
 
 #endif /* __RCAR_DU_DRV_H__ */

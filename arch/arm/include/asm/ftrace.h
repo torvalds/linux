@@ -2,6 +2,8 @@
 #ifndef _ASM_ARM_FTRACE
 #define _ASM_ARM_FTRACE
 
+#define HAVE_FUNCTION_GRAPH_FP_TEST
+
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 #define ARCH_SUPPORTS_FTRACE_OPS 1
 #endif
@@ -15,6 +17,9 @@ extern void __gnu_mcount_nc(void);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 struct dyn_arch_ftrace {
+#ifdef CONFIG_ARM_MODULE_PLTS
+	struct module *mod;
+#endif
 };
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
@@ -45,7 +50,7 @@ void *return_address(unsigned int);
 
 static inline void *return_address(unsigned int level)
 {
-	return NULL;
+       return NULL;
 }
 
 #endif

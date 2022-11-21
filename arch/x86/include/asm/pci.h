@@ -135,7 +135,7 @@ struct pci_setup_rom {
 	unsigned long bus;
 	unsigned long device;
 	unsigned long function;
-	uint8_t romdata[0];
+	uint8_t romdata[];
 };
 
 #endif /* _ASM_X86_PCI_H */

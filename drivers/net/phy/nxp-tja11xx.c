@@ -44,12 +44,17 @@
 #define MII_CFG2_SLEEP_REQUEST_TO_16MS	0x3
 
 #define MII_INTSRC			21
-#define MII_INTSRC_TEMP_ERR		BIT(1)
+#define MII_INTSRC_LINK_FAIL		BIT(10)
+#define MII_INTSRC_LINK_UP		BIT(9)
+#define MII_INTSRC_MASK			(MII_INTSRC_LINK_FAIL | MII_INTSRC_LINK_UP)
 #define MII_INTSRC_UV_ERR		BIT(3)
+#define MII_INTSRC_TEMP_ERR		BIT(1)
 
 #define MII_INTEN			22
 #define MII_INTEN_LINK_FAIL		BIT(10)
 #define MII_INTEN_LINK_UP		BIT(9)
+#define MII_INTEN_UV_ERR		BIT(3)
+#define MII_INTEN_TEMP_ERR		BIT(1)
 
 #define MII_COMMSTAT			23
 #define MII_COMMSTAT_LINK_UP		BIT(15)
@@ -597,11 +602,49 @@ static int tja11xx_ack_interrupt(struct phy_device *phydev)
 static int tja11xx_config_intr(struct phy_device *phydev)
 {
 	int value = 0;
+	int err;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		value = MII_INTEN_LINK_FAIL | MII_INTEN_LINK_UP;
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = tja11xx_ack_interrupt(phydev);
+		if (err)
+			return err;
 
-	return phy_write(phydev, MII_INTEN, value);
+		value = MII_INTEN_LINK_FAIL | MII_INTEN_LINK_UP |
+			MII_INTEN_UV_ERR | MII_INTEN_TEMP_ERR;
+		err = phy_write(phydev, MII_INTEN, value);
+	} else {
+		err = phy_write(phydev, MII_INTEN, value);
+		if (err)
+			return err;
+
+		err = tja11xx_ack_interrupt(phydev);
+	}
+
+	return err;
+}
+
+static irqreturn_t tja11xx_handle_interrupt(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	int irq_status;
+
+	irq_status = phy_read(phydev, MII_INTSRC);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (irq_status & MII_INTSRC_TEMP_ERR)
+		dev_warn(dev, "Overtemperature error detected (temp > 155C°).\n");
+	if (irq_status & MII_INTSRC_UV_ERR)
+		dev_warn(dev, "Undervoltage error detected.\n");
+
+	if (!(irq_status & MII_INTSRC_MASK))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int tja11xx_cable_test_start(struct phy_device *phydev)
@@ -747,8 +790,8 @@ static struct phy_driver tja11xx_driver[] = {
 		.get_sset_count = tja11xx_get_sset_count,
 		.get_strings	= tja11xx_get_strings,
 		.get_stats	= tja11xx_get_stats,
-		.ack_interrupt	= tja11xx_ack_interrupt,
 		.config_intr	= tja11xx_config_intr,
+		.handle_interrupt = tja11xx_handle_interrupt,
 		.cable_test_start = tja11xx_cable_test_start,
 		.cable_test_get_status = tja11xx_cable_test_get_status,
 	}, {
@@ -770,8 +813,8 @@ static struct phy_driver tja11xx_driver[] = {
 		.get_sset_count = tja11xx_get_sset_count,
 		.get_strings	= tja11xx_get_strings,
 		.get_stats	= tja11xx_get_stats,
-		.ack_interrupt	= tja11xx_ack_interrupt,
 		.config_intr	= tja11xx_config_intr,
+		.handle_interrupt = tja11xx_handle_interrupt,
 		.cable_test_start = tja11xx_cable_test_start,
 		.cable_test_get_status = tja11xx_cable_test_get_status,
 	}

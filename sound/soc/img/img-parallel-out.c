@@ -222,33 +222,26 @@ static int img_prl_out_probe(struct platform_device *pdev)
 
 	prl->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
 	prl->base = base;
 
 	prl->rst = devm_reset_control_get_exclusive(&pdev->dev, "rst");
-	if (IS_ERR(prl->rst)) {
-		if (PTR_ERR(prl->rst) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "No top level reset found\n");
-		return PTR_ERR(prl->rst);
-	}
+	if (IS_ERR(prl->rst))
+		return dev_err_probe(&pdev->dev, PTR_ERR(prl->rst),
+				     "No top level reset found\n");
 
 	prl->clk_sys = devm_clk_get(&pdev->dev, "sys");
-	if (IS_ERR(prl->clk_sys)) {
-		if (PTR_ERR(prl->clk_sys) != -EPROBE_DEFER)
-			dev_err(dev, "Failed to acquire clock 'sys'\n");
-		return PTR_ERR(prl->clk_sys);
-	}
+	if (IS_ERR(prl->clk_sys))
+		return dev_err_probe(dev, PTR_ERR(prl->clk_sys),
+				     "Failed to acquire clock 'sys'\n");
 
 	prl->clk_ref = devm_clk_get(&pdev->dev, "ref");
-	if (IS_ERR(prl->clk_ref)) {
-		if (PTR_ERR(prl->clk_ref) != -EPROBE_DEFER)
-			dev_err(dev, "Failed to acquire clock 'ref'\n");
-		return PTR_ERR(prl->clk_ref);
-	}
+	if (IS_ERR(prl->clk_ref))
+		return dev_err_probe(dev, PTR_ERR(prl->clk_ref),
+				     "Failed to acquire clock 'ref'\n");
 
 	ret = clk_prepare_enable(prl->clk_sys);
 	if (ret)

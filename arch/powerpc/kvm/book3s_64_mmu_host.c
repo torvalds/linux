@@ -8,6 +8,7 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/pkeys.h>
 
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -133,6 +134,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 	else
 		kvmppc_mmu_flush_icache(pfn);
 
+	rflags |= pte_to_hpte_pkey_bits(0, HPTE_USE_KERNEL_KEY);
 	rflags = (rflags & ~HPTE_R_WIMG) | orig_pte->wimg;
 
 	/*
@@ -226,7 +228,7 @@ static struct kvmppc_sid_map *create_sid_map(struct kvm_vcpu *vcpu, u64 gvsid)
 	struct kvmppc_sid_map *map;
 	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
 	u16 sid_map_mask;
-	static int backwards_map = 0;
+	static int backwards_map;
 
 	if (kvmppc_get_msr(vcpu) & MSR_PR)
 		gvsid |= VSID_PR;

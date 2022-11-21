@@ -203,7 +203,7 @@ int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 		wh->frame_control |= cpu_to_le16(RSI_SET_PS_ENABLE);
 
 	if ((!(info->flags & IEEE80211_TX_INTFL_DONT_ENCRYPT)) &&
-	    (common->secinfo.security_enable)) {
+	    tx_params->have_key) {
 		if (rsi_is_cipher_wep(common))
 			ieee80211_size += 4;
 		else
@@ -214,15 +214,17 @@ int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 			RSI_WIFI_DATA_Q);
 	data_desc->header_len = ieee80211_size;
 
-	if (common->min_rate != RSI_RATE_AUTO) {
+	if (common->rate_config[common->band].fixed_enabled) {
 		/* Send fixed rate */
+		u16 fixed_rate = common->rate_config[common->band].fixed_hw_rate;
+
 		data_desc->frame_info = cpu_to_le16(RATE_INFO_ENABLE);
-		data_desc->rate_info = cpu_to_le16(common->min_rate);
+		data_desc->rate_info = cpu_to_le16(fixed_rate);
 
 		if (conf_is_ht40(&common->priv->hw->conf))
 			data_desc->bbp_info = cpu_to_le16(FULL40M_ENABLE);
 
-		if ((common->vif_info[0].sgi) && (common->min_rate & 0x100)) {
+		if (common->vif_info[0].sgi && (fixed_rate & 0x100)) {
 		       /* Only MCS rates */
 			data_desc->rate_info |=
 				cpu_to_le16(ENABLE_SHORTGI_RATE);
@@ -248,7 +250,8 @@ int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 			rsi_set_len_qno(&data_desc->len_qno,
 					(skb->len - FRAME_DESC_SZ),
 					RSI_WIFI_MGMT_Q);
-		if ((skb->len - header_size) == EAPOL4_PACKET_LEN) {
+		if (((skb->len - header_size) == EAPOL4_PACKET_LEN) ||
+		    ((skb->len - header_size) == EAPOL4_PACKET_LEN - 2)) {
 			data_desc->misc_flags |=
 				RSI_DESC_REQUIRE_CFM_TO_HOST;
 			xtend_desc->confirm_frame_type = EAPOL4_CONFIRM;
@@ -469,9 +472,9 @@ int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb)
 	}
 
 	if (common->band == NL80211_BAND_2GHZ)
-		bcn_frm->bbp_info |= cpu_to_le16(RSI_RATE_1);
+		bcn_frm->rate_info |= cpu_to_le16(RSI_RATE_1);
 	else
-		bcn_frm->bbp_info |= cpu_to_le16(RSI_RATE_6);
+		bcn_frm->rate_info |= cpu_to_le16(RSI_RATE_6);
 
 	if (mac_bcn->data[tim_offset + 2] == 0)
 		bcn_frm->frame_info |= cpu_to_le16(RSI_DATA_DESC_DTIM_BEACON);
@@ -1037,8 +1040,10 @@ static int rsi_load_9116_firmware(struct rsi_hw *adapter)
 	}
 
 	ta_firmware = kmemdup(fw_entry->data, fw_entry->size, GFP_KERNEL);
-	if (!ta_firmware)
+	if (!ta_firmware) {
+		status = -ENOMEM;
 		goto fail_release_fw;
+	}
 	fw_p = ta_firmware;
 	instructions_sz = fw_entry->size;
 	rsi_dbg(INFO_ZONE, "FW Length = %d bytes\n", instructions_sz);

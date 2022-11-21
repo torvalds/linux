@@ -30,8 +30,8 @@ static struct kvm_vm *vm;
 static void l2_guest_code(void)
 {
 	/* Exit to L0 */
-        asm volatile("inb %%dx, %%al"
-                     : : [port] "d" (PORT_L0_EXIT) : "rax");
+	asm volatile("inb %%dx, %%al"
+		     : : [port] "d" (PORT_L0_EXIT) : "rax");
 }
 
 static void l1_guest_code(struct vmx_pages *vmx_pages)
@@ -57,7 +57,6 @@ int main(int argc, char *argv[])
 	nested_vmx_check_supported();
 
 	vm = vm_create_default(VCPU_ID, 0, (void *) l1_guest_code);
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 
 	/* Allocate VMX pages and shared descriptors (vmx_pages). */
 	vcpu_alloc_vmx(vm, &vmx_pages_gva);

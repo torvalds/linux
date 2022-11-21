@@ -126,7 +126,7 @@ static int byt_cht_cx2072x_fixup(struct snd_soc_pcm_runtime *rtd,
 	ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0),
 				SND_SOC_DAIFMT_I2S     |
 				SND_SOC_DAIFMT_NB_NF   |
-				SND_SOC_DAIFMT_CBS_CFS);
+				SND_SOC_DAIFMT_CBC_CFC);
 	if (ret < 0) {
 		dev_err(rtd->dev, "can't set format to I2S, err %d\n", ret);
 		return ret;
@@ -147,7 +147,7 @@ static int byt_cht_cx2072x_aif1_startup(struct snd_pcm_substream *substream)
 					    SNDRV_PCM_HW_PARAM_RATE, 48000);
 }
 
-static struct snd_soc_ops byt_cht_cx2072x_aif1_ops = {
+static const struct snd_soc_ops byt_cht_cx2072x_aif1_ops = {
 	.startup = byt_cht_cx2072x_aif1_startup,
 };
 
@@ -195,24 +195,21 @@ static struct snd_soc_dai_link byt_cht_cx2072x_dais[] = {
 		.id = 0,
 		.no_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
-					      | SND_SOC_DAIFMT_CBS_CFS,
+					      | SND_SOC_DAIFMT_CBC_CFC,
 		.init = byt_cht_cx2072x_init,
 		.be_hw_params_fixup = byt_cht_cx2072x_fixup,
-		.nonatomic = true,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(ssp2, cx2072x, platform),
 	},
 };
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 /* use space before codec name to simplify card ID, and simplify driver name */
-#define CARD_NAME "bytcht cx2072x" /* card name will be 'sof-bytcht cx2072x' */
-#define DRIVER_NAME "SOF"
-#else
+#define SOF_CARD_NAME "bytcht cx2072x" /* card name will be 'sof-bytcht cx2072x' */
+#define SOF_DRIVER_NAME "SOF"
+
 #define CARD_NAME "bytcht-cx2072x"
 #define DRIVER_NAME NULL /* card name will be used for driver name */
-#endif
 
 /* SoC card */
 static struct snd_soc_card byt_cht_cx2072x_card = {
@@ -236,6 +233,7 @@ static int snd_byt_cht_cx2072x_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach;
 	struct acpi_device *adev;
 	int dai_index = 0;
+	bool sof_parent;
 	int i, ret;
 
 	byt_cht_cx2072x_card.dev = &pdev->dev;
@@ -259,11 +257,26 @@ static int snd_byt_cht_cx2072x_probe(struct platform_device *pdev)
 		byt_cht_cx2072x_dais[dai_index].codecs->name = codec_name;
 	}
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	ret = snd_soc_fixup_dai_links_platform_name(&byt_cht_cx2072x_card,
 						    mach->mach_params.platform);
 	if (ret)
 		return ret;
+
+	sof_parent = snd_soc_acpi_sof_parent(&pdev->dev);
+
+	/* set card and driver name */
+	if (sof_parent) {
+		byt_cht_cx2072x_card.name = SOF_CARD_NAME;
+		byt_cht_cx2072x_card.driver_name = SOF_DRIVER_NAME;
+	} else {
+		byt_cht_cx2072x_card.name = CARD_NAME;
+		byt_cht_cx2072x_card.driver_name = DRIVER_NAME;
+	}
+
+	/* set pm ops */
+	if (sof_parent)
+		pdev->dev.driver->pm = &snd_soc_pm_ops;
 
 	return devm_snd_soc_register_card(&pdev->dev, &byt_cht_cx2072x_card);
 }
@@ -271,9 +284,6 @@ static int snd_byt_cht_cx2072x_probe(struct platform_device *pdev)
 static struct platform_driver snd_byt_cht_cx2072x_driver = {
 	.driver = {
 		.name = "bytcht_cx2072x",
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-		.pm = &snd_soc_pm_ops,
-#endif
 	},
 	.probe = snd_byt_cht_cx2072x_probe,
 };

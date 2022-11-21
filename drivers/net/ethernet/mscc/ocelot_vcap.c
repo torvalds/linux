@@ -335,6 +335,7 @@ static void is2_action_set(struct ocelot *ocelot, struct vcap_data *data,
 
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_MASK_MODE, a->mask_mode);
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_PORT_MASK, a->port_mask);
+	vcap_action_set(vcap, data, VCAP_IS2_ACT_MIRROR_ENA, a->mirror_ena);
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_POLICE_ENA, a->police_ena);
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_POLICE_IDX, a->pol_ix);
 	vcap_action_set(vcap, data, VCAP_IS2_ACT_CPU_QU_NUM, a->cpu_qu_num);
@@ -373,7 +374,6 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 			 OCELOT_VCAP_BIT_0);
 	vcap_key_set(vcap, &data, VCAP_IS2_HK_IGR_PORT_MASK, 0,
 		     ~filter->ingress_port_mask);
-	vcap_key_bit_set(vcap, &data, VCAP_IS2_HK_FIRST, OCELOT_VCAP_BIT_ANY);
 	vcap_key_bit_set(vcap, &data, VCAP_IS2_HK_HOST_MATCH,
 			 OCELOT_VCAP_BIT_ANY);
 	vcap_key_bit_set(vcap, &data, VCAP_IS2_HK_L2_MC, filter->dmac_mc);
@@ -564,9 +564,9 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 		val = proto.value[0];
 		msk = proto.mask[0];
 		type = IS2_TYPE_IP_UDP_TCP;
-		if (msk == 0xff && (val == 6 || val == 17)) {
+		if (msk == 0xff && (val == IPPROTO_TCP || val == IPPROTO_UDP)) {
 			/* UDP/TCP protocol match */
-			tcp = (val == 6 ?
+			tcp = (val == IPPROTO_TCP ?
 			       OCELOT_VCAP_BIT_1 : OCELOT_VCAP_BIT_0);
 			vcap_key_bit_set(vcap, &data, VCAP_IS2_HK_TCP, tcp);
 			vcap_key_l4_port_set(vcap, &data,
@@ -761,6 +761,7 @@ static void is1_entry_set(struct ocelot *ocelot, int ix,
 			vcap_key_bytes_set(vcap, &data, VCAP_IS1_HK_ETYPE,
 					   etype.value, etype.mask);
 		}
+		break;
 	}
 	default:
 		break;
@@ -886,10 +887,18 @@ static void vcap_entry_set(struct ocelot *ocelot, int ix,
 		return es0_entry_set(ocelot, ix, filter);
 }
 
-static int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
-				   struct ocelot_policer *pol)
+struct vcap_policer_entry {
+	struct list_head list;
+	refcount_t refcount;
+	u32 pol_ix;
+};
+
+int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
+			    struct ocelot_policer *pol)
 {
 	struct qos_policer_conf pp = { 0 };
+	struct vcap_policer_entry *tmp;
+	int ret;
 
 	if (!pol)
 		return -EINVAL;
@@ -898,57 +907,108 @@ static int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
 	pp.pir = pol->rate;
 	pp.pbs = pol->burst;
 
-	return qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
-}
-
-static void ocelot_vcap_policer_del(struct ocelot *ocelot,
-				    struct ocelot_vcap_block *block,
-				    u32 pol_ix)
-{
-	struct ocelot_vcap_filter *filter;
-	struct qos_policer_conf pp = {0};
-	int index = -1;
-
-	if (pol_ix < block->pol_lpr)
-		return;
-
-	list_for_each_entry(filter, &block->rules, list) {
-		index++;
-		if (filter->block_id == VCAP_IS2 &&
-		    filter->action.police_ena &&
-		    filter->action.pol_ix < pol_ix) {
-			filter->action.pol_ix += 1;
-			ocelot_vcap_policer_add(ocelot, filter->action.pol_ix,
-						&filter->action.pol);
-			is2_entry_set(ocelot, index, filter);
+	list_for_each_entry(tmp, &ocelot->vcap_pol.pol_list, list)
+		if (tmp->pol_ix == pol_ix) {
+			refcount_inc(&tmp->refcount);
+			return 0;
 		}
+
+	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	ret = qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
+	if (ret) {
+		kfree(tmp);
+		return ret;
 	}
 
-	pp.mode = MSCC_QOS_RATE_MODE_DISABLED;
-	qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
+	tmp->pol_ix = pol_ix;
+	refcount_set(&tmp->refcount, 1);
+	list_add_tail(&tmp->list, &ocelot->vcap_pol.pol_list);
 
-	block->pol_lpr++;
+	return 0;
+}
+EXPORT_SYMBOL(ocelot_vcap_policer_add);
+
+int ocelot_vcap_policer_del(struct ocelot *ocelot, u32 pol_ix)
+{
+	struct qos_policer_conf pp = {0};
+	struct vcap_policer_entry *tmp, *n;
+	u8 z = 0;
+
+	list_for_each_entry_safe(tmp, n, &ocelot->vcap_pol.pol_list, list)
+		if (tmp->pol_ix == pol_ix) {
+			z = refcount_dec_and_test(&tmp->refcount);
+			if (z) {
+				list_del(&tmp->list);
+				kfree(tmp);
+			}
+		}
+
+	if (z) {
+		pp.mode = MSCC_QOS_RATE_MODE_DISABLED;
+		return qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ocelot_vcap_policer_del);
+
+static int
+ocelot_vcap_filter_add_aux_resources(struct ocelot *ocelot,
+				     struct ocelot_vcap_filter *filter,
+				     struct netlink_ext_ack *extack)
+{
+	struct ocelot_mirror *m;
+	int ret;
+
+	if (filter->block_id == VCAP_IS2 && filter->action.mirror_ena) {
+		m = ocelot_mirror_get(ocelot, filter->egress_port.value,
+				      extack);
+		if (IS_ERR(m))
+			return PTR_ERR(m);
+	}
+
+	if (filter->block_id == VCAP_IS2 && filter->action.police_ena) {
+		ret = ocelot_vcap_policer_add(ocelot, filter->action.pol_ix,
+					      &filter->action.pol);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
-static void ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
-					    struct ocelot_vcap_block *block,
-					    struct ocelot_vcap_filter *filter)
+static void
+ocelot_vcap_filter_del_aux_resources(struct ocelot *ocelot,
+				     struct ocelot_vcap_filter *filter)
+{
+	if (filter->block_id == VCAP_IS2 && filter->action.police_ena)
+		ocelot_vcap_policer_del(ocelot, filter->action.pol_ix);
+
+	if (filter->block_id == VCAP_IS2 && filter->action.mirror_ena)
+		ocelot_mirror_put(ocelot);
+}
+
+static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
+					   struct ocelot_vcap_block *block,
+					   struct ocelot_vcap_filter *filter,
+					   struct netlink_ext_ack *extack)
 {
 	struct ocelot_vcap_filter *tmp;
 	struct list_head *pos, *n;
+	int ret;
 
-	if (filter->block_id == VCAP_IS2 && filter->action.police_ena) {
-		block->pol_lpr--;
-		filter->action.pol_ix = block->pol_lpr;
-		ocelot_vcap_policer_add(ocelot, filter->action.pol_ix,
-					&filter->action.pol);
-	}
+	ret = ocelot_vcap_filter_add_aux_resources(ocelot, filter, extack);
+	if (ret)
+		return ret;
 
 	block->count++;
 
 	if (list_empty(&block->rules)) {
 		list_add(&filter->list, &block->rules);
-		return;
+		return 0;
 	}
 
 	list_for_each_safe(pos, n, &block->rules) {
@@ -957,6 +1017,14 @@ static void ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
 			break;
 	}
 	list_add(&filter->list, pos->prev);
+
+	return 0;
+}
+
+static bool ocelot_vcap_filter_equal(const struct ocelot_vcap_filter *a,
+				     const struct ocelot_vcap_filter *b)
+{
+	return !memcmp(&a->id, &b->id, sizeof(struct ocelot_vcap_id));
 }
 
 static int ocelot_vcap_block_get_filter_index(struct ocelot_vcap_block *block,
@@ -966,7 +1034,7 @@ static int ocelot_vcap_block_get_filter_index(struct ocelot_vcap_block *block,
 	int index = 0;
 
 	list_for_each_entry(tmp, &block->rules, list) {
-		if (filter->id == tmp->id)
+		if (ocelot_vcap_filter_equal(filter, tmp))
 			return index;
 		index++;
 	}
@@ -991,16 +1059,19 @@ ocelot_vcap_block_find_filter_by_index(struct ocelot_vcap_block *block,
 }
 
 struct ocelot_vcap_filter *
-ocelot_vcap_block_find_filter_by_id(struct ocelot_vcap_block *block, int id)
+ocelot_vcap_block_find_filter_by_id(struct ocelot_vcap_block *block,
+				    unsigned long cookie, bool tc_offload)
 {
 	struct ocelot_vcap_filter *filter;
 
 	list_for_each_entry(filter, &block->rules, list)
-		if (filter->id == id)
+		if (filter->id.tc_offload == tc_offload &&
+		    filter->id.cookie == cookie)
 			return filter;
 
 	return NULL;
 }
+EXPORT_SYMBOL(ocelot_vcap_block_find_filter_by_id);
 
 /* If @on=false, then SNAP, ARP, IP and OAM frames will not match on keys based
  * on destination and source MAC addresses, but only on higher-level protocol
@@ -1122,7 +1193,7 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 			   struct netlink_ext_ack *extack)
 {
 	struct ocelot_vcap_block *block = &ocelot->block[filter->block_id];
-	int i, index;
+	int i, index, ret;
 
 	if (!ocelot_exclusive_mac_etype_filter_rules(ocelot, filter)) {
 		NL_SET_ERR_MSG_MOD(extack,
@@ -1131,7 +1202,9 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 	}
 
 	/* Add filter to the linked list */
-	ocelot_vcap_filter_add_to_block(ocelot, block, filter);
+	ret = ocelot_vcap_filter_add_to_block(ocelot, block, filter, extack);
+	if (ret)
+		return ret;
 
 	/* Get the index of the inserted filter */
 	index = ocelot_vcap_block_get_filter_index(block, filter);
@@ -1143,6 +1216,8 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 		struct ocelot_vcap_filter *tmp;
 
 		tmp = ocelot_vcap_block_find_filter_by_index(block, i);
+		/* Read back the filter's counters before moving it */
+		vcap_entry_get(ocelot, i - 1, tmp);
 		vcap_entry_set(ocelot, i, tmp);
 	}
 
@@ -1150,23 +1225,18 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 	vcap_entry_set(ocelot, index, filter);
 	return 0;
 }
+EXPORT_SYMBOL(ocelot_vcap_filter_add);
 
 static void ocelot_vcap_block_remove_filter(struct ocelot *ocelot,
 					    struct ocelot_vcap_block *block,
 					    struct ocelot_vcap_filter *filter)
 {
-	struct ocelot_vcap_filter *tmp;
-	struct list_head *pos, *q;
+	struct ocelot_vcap_filter *tmp, *n;
 
-	list_for_each_safe(pos, q, &block->rules) {
-		tmp = list_entry(pos, struct ocelot_vcap_filter, list);
-		if (tmp->id == filter->id) {
-			if (tmp->block_id == VCAP_IS2 &&
-			    tmp->action.police_ena)
-				ocelot_vcap_policer_del(ocelot, block,
-							tmp->action.pol_ix);
-
-			list_del(pos);
+	list_for_each_entry_safe(tmp, n, &block->rules, list) {
+		if (ocelot_vcap_filter_equal(filter, tmp)) {
+			ocelot_vcap_filter_del_aux_resources(ocelot, tmp);
+			list_del(&tmp->list);
 			kfree(tmp);
 		}
 	}
@@ -1181,7 +1251,11 @@ int ocelot_vcap_filter_del(struct ocelot *ocelot,
 	struct ocelot_vcap_filter del_filter;
 	int i, index;
 
+	/* Need to inherit the block_id so that vcap_entry_set()
+	 * does not get confused and knows where to install it.
+	 */
 	memset(&del_filter, 0, sizeof(del_filter));
+	del_filter.block_id = filter->block_id;
 
 	/* Gets index of the filter */
 	index = ocelot_vcap_block_get_filter_index(block, filter);
@@ -1196,6 +1270,8 @@ int ocelot_vcap_filter_del(struct ocelot *ocelot,
 		struct ocelot_vcap_filter *tmp;
 
 		tmp = ocelot_vcap_block_find_filter_by_index(block, i);
+		/* Read back the filter's counters before moving it */
+		vcap_entry_get(ocelot, i + 1, tmp);
 		vcap_entry_set(ocelot, i, tmp);
 	}
 
@@ -1204,6 +1280,23 @@ int ocelot_vcap_filter_del(struct ocelot *ocelot,
 
 	return 0;
 }
+EXPORT_SYMBOL(ocelot_vcap_filter_del);
+
+int ocelot_vcap_filter_replace(struct ocelot *ocelot,
+			       struct ocelot_vcap_filter *filter)
+{
+	struct ocelot_vcap_block *block = &ocelot->block[filter->block_id];
+	int index;
+
+	index = ocelot_vcap_block_get_filter_index(block, filter);
+	if (index < 0)
+		return index;
+
+	vcap_entry_set(ocelot, index, filter);
+
+	return 0;
+}
+EXPORT_SYMBOL(ocelot_vcap_filter_replace);
 
 int ocelot_vcap_filter_stats_update(struct ocelot *ocelot,
 				    struct ocelot_vcap_filter *filter)
@@ -1338,13 +1431,14 @@ int ocelot_vcap_init(struct ocelot *ocelot)
 		struct vcap_props *vcap = &ocelot->vcap[i];
 
 		INIT_LIST_HEAD(&block->rules);
-		block->pol_lpr = OCELOT_POLICER_DISCARD - 1;
 
 		ocelot_vcap_detect_constants(ocelot, vcap);
 		ocelot_vcap_init_one(ocelot, vcap);
 	}
 
 	INIT_LIST_HEAD(&ocelot->dummy_rules);
+	INIT_LIST_HEAD(&ocelot->traps);
+	INIT_LIST_HEAD(&ocelot->vcap_pol.pol_list);
 
 	return 0;
 }

@@ -4,9 +4,7 @@
 #ifndef __HISI_SEC_V2_H
 #define __HISI_SEC_V2_H
 
-#include <linux/list.h>
-
-#include "../qm.h"
+#include <linux/hisi_acc_qm.h>
 #include "sec_crypto.h"
 
 /* Algorithm resource per hardware SEC queue */
@@ -15,14 +13,14 @@ struct sec_alg_res {
 	dma_addr_t pbuf_dma;
 	u8 *c_ivin;
 	dma_addr_t c_ivin_dma;
+	u8 *a_ivin;
+	dma_addr_t a_ivin_dma;
 	u8 *out_mac;
 	dma_addr_t out_mac_dma;
 };
 
 /* Cipher request of SEC private */
 struct sec_cipher_req {
-	struct hisi_acc_hw_sgl *c_in;
-	dma_addr_t c_in_dma;
 	struct hisi_acc_hw_sgl *c_out;
 	dma_addr_t c_out_dma;
 	u8 *c_ivin;
@@ -35,22 +33,32 @@ struct sec_cipher_req {
 struct sec_aead_req {
 	u8 *out_mac;
 	dma_addr_t out_mac_dma;
+	u8 *a_ivin;
+	dma_addr_t a_ivin_dma;
 	struct aead_request *aead_req;
 };
 
 /* SEC request of Crypto */
 struct sec_req {
-	struct sec_sqe sec_sqe;
+	union {
+		struct sec_sqe sec_sqe;
+		struct sec_sqe3 sec_sqe3;
+	};
 	struct sec_ctx *ctx;
 	struct sec_qp_ctx *qp_ctx;
 
+	/**
+	 * Common parameter of the SEC request.
+	 */
+	struct hisi_acc_hw_sgl *in;
+	dma_addr_t in_dma;
 	struct sec_cipher_req c_req;
 	struct sec_aead_req aead_req;
 	struct list_head backlog_head;
 
 	int err_type;
 	int req_id;
-	int flag;
+	u32 flag;
 
 	/* Status of the SEC request */
 	bool fake_busy;
@@ -83,7 +91,9 @@ struct sec_auth_ctx {
 	u8 a_key_len;
 	u8 mac_len;
 	u8 a_alg;
+	bool fallback;
 	struct crypto_shash *hash_tfm;
+	struct crypto_aead *fallback_aead_tfm;
 };
 
 /* SEC cipher context which cipher's relatives */
@@ -96,6 +106,10 @@ struct sec_cipher_ctx {
 	u8 c_mode;
 	u8 c_alg;
 	u8 c_key_len;
+
+	/* add software support */
+	bool fallback;
+	struct crypto_sync_skcipher *fbtfm;
 };
 
 /* SEC queue context which defines queue's relatives */
@@ -109,7 +123,6 @@ struct sec_qp_ctx {
 	struct list_head backlog;
 	struct hisi_acc_sgl_pool *c_in_pool;
 	struct hisi_acc_sgl_pool *c_out_pool;
-	atomic_t pending_reqs;
 };
 
 enum sec_alg_type {
@@ -140,16 +153,12 @@ struct sec_ctx {
 	bool pbuf_supported;
 	struct sec_cipher_ctx c_ctx;
 	struct sec_auth_ctx a_ctx;
+	u8 type_supported;
+	struct device *dev;
 };
 
-enum sec_endian {
-	SEC_LE = 0,
-	SEC_32BE,
-	SEC_64BE
-};
 
 enum sec_debug_file_index {
-	SEC_CURRENT_QM,
 	SEC_CLEAR_ENABLE,
 	SEC_DEBUG_FILE_NUM,
 };
@@ -180,11 +189,10 @@ struct sec_dev {
 	struct sec_debug debug;
 	u32 ctx_q_num;
 	bool iommu_used;
-	unsigned long status;
 };
 
 void sec_destroy_qps(struct hisi_qp **qps, int qp_num);
 struct hisi_qp **sec_create_qps(void);
-int sec_register_to_crypto(void);
-void sec_unregister_from_crypto(void);
+int sec_register_to_crypto(struct hisi_qm *qm);
+void sec_unregister_from_crypto(struct hisi_qm *qm);
 #endif

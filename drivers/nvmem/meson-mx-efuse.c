@@ -209,8 +209,7 @@ static int meson_mx_efuse_probe(struct platform_device *pdev)
 	if (IS_ERR(efuse->base))
 		return PTR_ERR(efuse->base);
 
-	efuse->config.name = devm_kstrdup(&pdev->dev, drvdata->name,
-					  GFP_KERNEL);
+	efuse->config.name = drvdata->name;
 	efuse->config.owner = THIS_MODULE;
 	efuse->config.dev = &pdev->dev;
 	efuse->config.priv = efuse;

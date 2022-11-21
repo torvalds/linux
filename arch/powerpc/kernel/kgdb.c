@@ -48,7 +48,7 @@ static struct hard_trap_info
 	{ 0x0800, 0x08 /* SIGFPE */  },		/* fp unavailable */
 	{ 0x0900, 0x0e /* SIGALRM */ },		/* decrementer */
 	{ 0x0c00, 0x14 /* SIGCHLD */ },		/* system call */
-#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_BOOKE_OR_40x
 	{ 0x2002, 0x05 /* SIGTRAP */ },		/* debug */
 #if defined(CONFIG_FSL_BOOKE)
 	{ 0x2010, 0x08 /* SIGFPE */  },		/* spe unavailable */
@@ -67,7 +67,7 @@ static struct hard_trap_info
 	{ 0x2010, 0x08 /* SIGFPE */  },		/* fp unavailable */
 	{ 0x2020, 0x08 /* SIGFPE */  },		/* ap unavailable */
 #endif
-#else /* ! (defined(CONFIG_40x) || defined(CONFIG_BOOKE)) */
+#else /* !CONFIG_BOOKE_OR_40x */
 	{ 0x0d00, 0x05 /* SIGTRAP */ },		/* single-step */
 #if defined(CONFIG_PPC_8xx)
 	{ 0x1000, 0x04 /* SIGILL */  },		/* software emulation */
@@ -147,7 +147,7 @@ static int kgdb_handle_breakpoint(struct pt_regs *regs)
 		return 0;
 
 	if (*(u32 *)regs->nip == BREAK_INSTR)
-		regs->nip += BREAK_INSTR_SIZE;
+		regs_add_return_ip(regs, BREAK_INSTR_SIZE);
 
 	return 1;
 }
@@ -372,11 +372,11 @@ int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
 
 void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc)
 {
-	regs->nip = pc;
+	regs_set_return_ip(regs, pc);
 }
 
 /*
- * This function does PowerPC specific procesing for interfacing to gdb.
+ * This function does PowerPC specific processing for interfacing to gdb.
  */
 int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 			       char *remcom_in_buffer, char *remcom_out_buffer,
@@ -394,7 +394,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 	case 'c':
 		/* handle the optional parameter */
 		if (kgdb_hex2long(&ptr, &addr))
-			linux_regs->nip = addr;
+			regs_set_return_ip(linux_regs, addr);
 
 		atomic_set(&kgdb_cpu_doing_single_step, -1);
 		/* set the trace bit if we're stepping */
@@ -402,9 +402,9 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 			mtspr(SPRN_DBCR0,
 			      mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
-			linux_regs->msr |= MSR_DE;
+			regs_set_return_msr(linux_regs, linux_regs->msr | MSR_DE);
 #else
-			linux_regs->msr |= MSR_SE;
+			regs_set_return_msr(linux_regs, linux_regs->msr | MSR_SE);
 #endif
 			atomic_set(&kgdb_cpu_doing_single_step,
 				   raw_smp_processor_id());
@@ -417,11 +417,10 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 
 int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 {
+	u32 instr, *addr = (u32 *)bpt->bpt_addr;
 	int err;
-	unsigned int instr;
-	struct ppc_inst *addr = (struct ppc_inst *)bpt->bpt_addr;
 
-	err = get_kernel_nofault(instr, (unsigned *) addr);
+	err = get_kernel_nofault(instr, addr);
 	if (err)
 		return err;
 
@@ -429,7 +428,7 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 	if (err)
 		return -EFAULT;
 
-	*(unsigned int *)bpt->saved_instr = instr;
+	*(u32 *)bpt->saved_instr = instr;
 
 	return 0;
 }
@@ -438,7 +437,7 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
 {
 	int err;
 	unsigned int instr = *(unsigned int *)bpt->saved_instr;
-	struct ppc_inst *addr = (struct ppc_inst *)bpt->bpt_addr;
+	u32 *addr = (u32 *)bpt->bpt_addr;
 
 	err = patch_instruction(addr, ppc_inst(instr));
 	if (err)

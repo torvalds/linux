@@ -258,6 +258,7 @@ static int sis900_get_mac_addr(struct pci_dev *pci_dev,
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
+	u16 addr[ETH_ALEN / 2];
 	u16 signature;
 	int i;
 
@@ -271,7 +272,8 @@ static int sis900_get_mac_addr(struct pci_dev *pci_dev,
 
 	/* get MAC address from EEPROM */
 	for (i = 0; i < 3; i++)
-	        ((u16 *)(net_dev->dev_addr))[i] = read_eeprom(ioaddr, i+EEPROMMACAddr);
+	        addr[i] = read_eeprom(ioaddr, i+EEPROMMACAddr);
+	eth_hw_addr_set(net_dev, (u8 *)addr);
 
 	return 1;
 }
@@ -290,6 +292,7 @@ static int sis630e_get_mac_addr(struct pci_dev *pci_dev,
 				struct net_device *net_dev)
 {
 	struct pci_dev *isa_bridge = NULL;
+	u8 addr[ETH_ALEN];
 	u8 reg;
 	int i;
 
@@ -306,8 +309,9 @@ static int sis630e_get_mac_addr(struct pci_dev *pci_dev,
 
 	for (i = 0; i < 6; i++) {
 		outb(0x09 + i, 0x70);
-		((u8 *)(net_dev->dev_addr))[i] = inb(0x71);
+		addr[i] = inb(0x71);
 	}
+	eth_hw_addr_set(net_dev, addr);
 
 	pci_write_config_byte(isa_bridge, 0x48, reg & ~0x40);
 	pci_dev_put(isa_bridge);
@@ -331,6 +335,7 @@ static int sis635_get_mac_addr(struct pci_dev *pci_dev,
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
+	u16 addr[ETH_ALEN / 2];
 	u32 rfcrSave;
 	u32 i;
 
@@ -345,8 +350,9 @@ static int sis635_get_mac_addr(struct pci_dev *pci_dev,
 	/* load MAC addr to filter data register */
 	for (i = 0 ; i < 3 ; i++) {
 		sw32(rfcr, (i << RFADDR_shift));
-		*( ((u16 *)net_dev->dev_addr) + i) = sr16(rfdr);
+		addr[i] = sr16(rfdr);
 	}
+	eth_hw_addr_set(net_dev, (u8 *)addr);
 
 	/* enable packet filtering */
 	sw32(rfcr, rfcrSave | RFEN);
@@ -375,17 +381,18 @@ static int sis96x_get_mac_addr(struct pci_dev *pci_dev,
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
+	u16 addr[ETH_ALEN / 2];
 	int wait, rc = 0;
 
 	sw32(mear, EEREQ);
 	for (wait = 0; wait < 2000; wait++) {
 		if (sr32(mear) & EEGNT) {
-			u16 *mac = (u16 *)net_dev->dev_addr;
 			int i;
 
 			/* get MAC address from EEPROM */
 			for (i = 0; i < 3; i++)
-			        mac[i] = read_eeprom(ioaddr, i + EEPROMMACAddr);
+			        addr[i] = read_eeprom(ioaddr, i + EEPROMMACAddr);
+			eth_hw_addr_set(net_dev, (u8 *)addr);
 
 			rc = 1;
 			break;
@@ -404,7 +411,7 @@ static const struct net_device_ops sis900_netdev_ops = {
 	.ndo_set_rx_mode	= set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= eth_mac_addr,
-	.ndo_do_ioctl		= mii_ioctl,
+	.ndo_eth_ioctl		= mii_ioctl,
 	.ndo_tx_timeout		= sis900_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
         .ndo_poll_controller	= sis900_poll,
@@ -443,7 +450,7 @@ static int sis900_probe(struct pci_dev *pci_dev,
 #endif
 
 	/* setup various bits in PCI command register */
-	ret = pci_enable_device(pci_dev);
+	ret = pcim_enable_device(pci_dev);
 	if(ret) return ret;
 
 	i = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32));
@@ -469,7 +476,7 @@ static int sis900_probe(struct pci_dev *pci_dev,
 	ioaddr = pci_iomap(pci_dev, 0, 0);
 	if (!ioaddr) {
 		ret = -ENOMEM;
-		goto err_out_cleardev;
+		goto err_out;
 	}
 
 	sis_priv = netdev_priv(net_dev);
@@ -581,8 +588,6 @@ err_unmap_tx:
 			  sis_priv->tx_ring_dma);
 err_out_unmap:
 	pci_iounmap(pci_dev, ioaddr);
-err_out_cleardev:
-	pci_release_regions(pci_dev);
  err_out:
 	free_netdev(net_dev);
 	return ret;
@@ -678,12 +683,12 @@ static int sis900_mii_probe(struct net_device *net_dev)
 	/* Reset phy if default phy is internal sis900 */
         if ((sis_priv->mii->phy_id0 == 0x001D) &&
 	    ((sis_priv->mii->phy_id1&0xFFF0) == 0x8000))
-        	status = sis900_reset_phy(net_dev, sis_priv->cur_phy);
+		status = sis900_reset_phy(net_dev, sis_priv->cur_phy);
 
         /* workaround for ICS1893 PHY */
         if ((sis_priv->mii->phy_id0 == 0x0015) &&
             ((sis_priv->mii->phy_id1&0xFFF0) == 0xF440))
-            	mdio_write(net_dev, sis_priv->cur_phy, 0x0018, 0xD200);
+		mdio_write(net_dev, sis_priv->cur_phy, 0x0018, 0xD200);
 
 	if(status & MII_STAT_LINK){
 		while (poll_bit) {
@@ -727,7 +732,7 @@ static int sis900_mii_probe(struct net_device *net_dev)
 static u16 sis900_default_phy(struct net_device * net_dev)
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
- 	struct mii_phy *phy = NULL, *phy_home = NULL,
+	struct mii_phy *phy = NULL, *phy_home = NULL,
 		*default_phy = NULL, *phy_lan = NULL;
 	u16 status;
 
@@ -1100,7 +1105,7 @@ sis900_init_rxfilter (struct net_device * net_dev)
 
 	/* load MAC addr to filter data register */
 	for (i = 0 ; i < 3 ; i++) {
-		u32 w = (u32) *((u16 *)(net_dev->dev_addr)+i);
+		u32 w = (u32) *((const u16 *)(net_dev->dev_addr)+i);
 
 		sw32(rfcr, i << RFADDR_shift);
 		sw32(rfdr, w);
@@ -1339,18 +1344,18 @@ static void sis900_timer(struct timer_list *t)
 	} else {
 	/* Link ON -> OFF */
                 if (!(status & MII_STAT_LINK)){
-                	netif_carrier_off(net_dev);
+			netif_carrier_off(net_dev);
 			if(netif_msg_link(sis_priv))
-                		printk(KERN_INFO "%s: Media Link Off\n", net_dev->name);
+				printk(KERN_INFO "%s: Media Link Off\n", net_dev->name);
 
-                	/* Change mode issue */
-                	if ((mii_phy->phy_id0 == 0x001D) &&
-			    ((mii_phy->phy_id1 & 0xFFF0) == 0x8000))
-               			sis900_reset_phy(net_dev,  sis_priv->cur_phy);
+			/* Change mode issue */
+			if ((mii_phy->phy_id0 == 0x001D) &&
+				((mii_phy->phy_id1 & 0xFFF0) == 0x8000))
+					sis900_reset_phy(net_dev,  sis_priv->cur_phy);
 
 			sis630_set_eq(net_dev, sis_priv->chipset_rev);
 
-                	goto LookForLink;
+			goto LookForLink;
                 }
 	}
 
@@ -2331,7 +2336,7 @@ static int sis900_set_config(struct net_device *dev, struct ifmap *map)
 		case IF_PORT_10BASE2: /* 10Base2 */
 		case IF_PORT_AUI: /* AUI */
 		case IF_PORT_100BASEFX: /* 100BaseFx */
-                	/* These Modes are not supported (are they?)*/
+			/* These Modes are not supported (are they?)*/
 			return -EOPNOTSUPP;
 
 		default:
@@ -2499,7 +2504,6 @@ static void sis900_remove(struct pci_dev *pci_dev)
 			  sis_priv->tx_ring_dma);
 	pci_iounmap(pci_dev, sis_priv->ioaddr);
 	free_netdev(net_dev);
-	pci_release_regions(pci_dev);
 }
 
 static int __maybe_unused sis900_suspend(struct device *dev)

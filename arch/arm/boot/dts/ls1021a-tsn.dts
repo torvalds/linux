@@ -8,6 +8,7 @@
 
 / {
 	model = "NXP LS1021A-TSN Board";
+	compatible = "fsl,ls1021a-tsn", "fsl,ls1021a";
 
 	sys_mclk: clock-mclk {
 		compatible = "fixed-clock";
@@ -90,6 +91,8 @@
 				/* Internal port connected to eth2 */
 				ethernet = <&enet2>;
 				phy-mode = "rgmii";
+				rx-internal-delay-ps = <0>;
+				tx-internal-delay-ps = <0>;
 				reg = <4>;
 
 				fixed-link {
@@ -136,7 +139,6 @@
 	/* 3 axis accelerometer */
 	accelerometer@1e {
 		compatible = "fsl,fxls8471";
-		position = <0>;
 		reg = <0x1e>;
 	};
 
@@ -251,7 +253,7 @@
 
 	flash@0 {
 		/* Rev. A uses 64MB flash, Rev. B & C use 32MB flash */
-		compatible = "jedec,spi-nor", "s25fl256s1", "s25fl512s";
+		compatible = "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		#address-cells = <1>;
 		#size-cells = <1>;

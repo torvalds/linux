@@ -12,25 +12,6 @@
 #include "mac.h"
 
 static int
-mt7615_init_tx_queue(struct mt7615_dev *dev, int qid, int idx, int n_desc)
-{
-	struct mt76_queue *hwq;
-	int err;
-
-	hwq = devm_kzalloc(dev->mt76.dev, sizeof(*hwq), GFP_KERNEL);
-	if (!hwq)
-		return -ENOMEM;
-
-	err = mt76_queue_alloc(dev, hwq, idx, n_desc, 0, MT_TX_RING_BASE);
-	if (err < 0)
-		return err;
-
-	dev->mt76.q_tx[qid] = hwq;
-
-	return 0;
-}
-
-static int
 mt7622_init_tx_queues_multi(struct mt7615_dev *dev)
 {
 	static const u8 wmm_queue_map[] = {
@@ -43,20 +24,21 @@ mt7622_init_tx_queues_multi(struct mt7615_dev *dev)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(wmm_queue_map); i++) {
-		ret = mt7615_init_tx_queue(dev, i, wmm_queue_map[i],
-					   MT7615_TX_RING_SIZE / 2);
+		ret = mt76_init_tx_queue(&dev->mphy, i, wmm_queue_map[i],
+					 MT7615_TX_RING_SIZE / 2,
+					 MT_TX_RING_BASE);
 		if (ret)
 			return ret;
 	}
 
-	ret = mt7615_init_tx_queue(dev, MT_TXQ_PSD,
-				   MT7622_TXQ_MGMT, MT7615_TX_MGMT_RING_SIZE);
+	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_PSD, MT7622_TXQ_MGMT,
+				 MT7615_TX_MGMT_RING_SIZE,
+				 MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 
-	ret = mt7615_init_tx_queue(dev, MT_TXQ_MCU,
-				   MT7622_TXQ_MCU, MT7615_TX_MCU_RING_SIZE);
-	return ret;
+	return mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_WM, MT7622_TXQ_MCU,
+				   MT7615_TX_MCU_RING_SIZE, MT_TX_RING_BASE);
 }
 
 static int
@@ -64,25 +46,24 @@ mt7615_init_tx_queues(struct mt7615_dev *dev)
 {
 	int ret, i;
 
-	ret = mt7615_init_tx_queue(dev, MT_TXQ_FWDL,
-				   MT7615_TXQ_FWDL,
-				   MT7615_TX_FWDL_RING_SIZE);
+	ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_FWDL, MT7615_TXQ_FWDL,
+				  MT7615_TX_FWDL_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 
 	if (!is_mt7615(&dev->mt76))
 		return mt7622_init_tx_queues_multi(dev);
 
-	ret = mt7615_init_tx_queue(dev, 0, 0, MT7615_TX_RING_SIZE);
+	ret = mt76_init_tx_queue(&dev->mphy, 0, 0, MT7615_TX_RING_SIZE,
+				 MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 
-	for (i = 1; i < MT_TXQ_MCU; i++)
-		dev->mt76.q_tx[i] = dev->mt76.q_tx[0];
+	for (i = 1; i <= MT_TXQ_PSD ; i++)
+		dev->mphy.q_tx[i] = dev->mphy.q_tx[0];
 
-	ret = mt7615_init_tx_queue(dev, MT_TXQ_MCU, MT7615_TXQ_MCU,
-				   MT7615_TX_MCU_RING_SIZE);
-	return 0;
+	return mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_WM, MT7615_TXQ_MCU,
+				   MT7615_TX_MCU_RING_SIZE, MT_TX_RING_BASE);
 }
 
 static int mt7615_poll_tx(struct napi_struct *napi, int budget)
@@ -90,13 +71,37 @@ static int mt7615_poll_tx(struct napi_struct *napi, int budget)
 	struct mt7615_dev *dev;
 
 	dev = container_of(napi, struct mt7615_dev, mt76.tx_napi);
+	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
+		napi_complete(napi);
+		queue_work(dev->mt76.wq, &dev->pm.wake_work);
+		return 0;
+	}
 
-	mt76_queue_tx_cleanup(dev, MT_TXQ_MCU, false);
-
-	if (napi_complete_done(napi, 0))
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
+	if (napi_complete(napi))
 		mt7615_irq_enable(dev, mt7615_tx_mcu_int_mask(dev));
 
+	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
+
 	return 0;
+}
+
+static int mt7615_poll_rx(struct napi_struct *napi, int budget)
+{
+	struct mt7615_dev *dev;
+	int done;
+
+	dev = container_of(napi->dev, struct mt7615_dev, mt76.napi_dev);
+
+	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
+		napi_complete(napi);
+		queue_work(dev->mt76.wq, &dev->pm.wake_work);
+		return 0;
+	}
+	done = mt76_dma_rx_poll(napi, budget);
+	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
+
+	return done;
 }
 
 int mt7615_wait_pdma_busy(struct mt7615_dev *dev)
@@ -195,15 +200,30 @@ static void mt7663_dma_sched_init(struct mt7615_dev *dev)
 	mt76_wr(dev, MT_DMA_SHDL(MT_DMASHDL_SCHED_SET1), 0xedcba987);
 }
 
+void mt7615_dma_start(struct mt7615_dev *dev)
+{
+	/* start dma engine */
+	mt76_set(dev, MT_WPDMA_GLO_CFG,
+		 MT_WPDMA_GLO_CFG_TX_DMA_EN |
+		 MT_WPDMA_GLO_CFG_RX_DMA_EN |
+		 MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
+
+	if (is_mt7622(&dev->mt76))
+		mt7622_dma_sched_init(dev);
+
+	if (is_mt7663(&dev->mt76)) {
+		mt7663_dma_sched_init(dev);
+
+		mt76_wr(dev, MT_MCU2HOST_INT_ENABLE, MT7663_MCU_CMD_ERROR_MASK);
+	}
+
+}
+
 int mt7615_dma_init(struct mt7615_dev *dev)
 {
 	int rx_ring_size = MT7615_RX_RING_SIZE;
-	int rx_buf_size = MT_RX_BUF_SIZE;
+	u32 mask;
 	int ret;
-
-	/* Increase buffer size to receive large VHT MPDUs */
-	if (dev->mt76.cap.has_5ghz)
-		rx_buf_size *= 2;
 
 	mt76_dma_attach(&dev->mt76);
 
@@ -245,7 +265,7 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 
 	/* init rx queues */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU], 1,
-			       MT7615_RX_MCU_RING_SIZE, rx_buf_size,
+			       MT7615_RX_MCU_RING_SIZE, MT_RX_BUF_SIZE,
 			       MT_RX_RING_BASE);
 	if (ret)
 		return ret;
@@ -254,17 +274,17 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 	    rx_ring_size /= 2;
 
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN], 0,
-			       rx_ring_size, rx_buf_size, MT_RX_RING_BASE);
+			       rx_ring_size, MT_RX_BUF_SIZE, MT_RX_RING_BASE);
 	if (ret)
 		return ret;
 
 	mt76_wr(dev, MT_DELAY_INT_CFG, 0);
 
-	ret = mt76_init_queues(dev);
+	ret = mt76_init_queues(dev, mt7615_poll_rx);
 	if (ret < 0)
 		return ret;
 
-	netif_tx_napi_add(&dev->mt76.napi_dev, &dev->mt76.tx_napi,
+	netif_tx_napi_add(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
 			  mt7615_poll_tx, NAPI_POLL_WEIGHT);
 	napi_enable(&dev->mt76.tx_napi);
 
@@ -272,20 +292,17 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 		  MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
 		  MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 1000);
 
-	/* start dma engine */
-	mt76_set(dev, MT_WPDMA_GLO_CFG,
-		 MT_WPDMA_GLO_CFG_TX_DMA_EN |
-		 MT_WPDMA_GLO_CFG_RX_DMA_EN);
-
 	/* enable interrupts for TX/RX rings */
-	mt7615_irq_enable(dev, MT_INT_RX_DONE_ALL | mt7615_tx_mcu_int_mask(dev) |
-			       MT_INT_MCU_CMD);
 
-	if (is_mt7622(&dev->mt76))
-		mt7622_dma_sched_init(dev);
-
+	mask = MT_INT_RX_DONE_ALL | mt7615_tx_mcu_int_mask(dev);
 	if (is_mt7663(&dev->mt76))
-		mt7663_dma_sched_init(dev);
+	    mask |= MT7663_INT_MCU_CMD;
+	else
+	    mask |= MT_INT_MCU_CMD;
+
+	mt7615_irq_enable(dev, mask);
+
+	mt7615_dma_start(dev);
 
 	return 0;
 }

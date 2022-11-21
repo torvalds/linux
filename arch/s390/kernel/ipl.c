@@ -4,7 +4,6 @@
  *
  *    Copyright IBM Corp. 2005, 2012
  *    Author(s): Michael Holzheu <holzheu@de.ibm.com>
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  *		 Volker Sameske <sameske@de.ibm.com>
  */
 
@@ -13,12 +12,14 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/panic_notifier.h>
 #include <linux/reboot.h>
 #include <linux/ctype.h>
 #include <linux/fs.h>
 #include <linux/gfp.h>
 #include <linux/crash_dump.h>
 #include <linux/debug_locks.h>
+#include <asm/asm-extable.h>
 #include <asm/diag.h>
 #include <asm/ipl.h>
 #include <asm/smp.h>
@@ -162,22 +163,22 @@ static bool reipl_ccw_clear;
 
 static inline int __diag308(unsigned long subcode, void *addr)
 {
-	register unsigned long _addr asm("0") = (unsigned long) addr;
-	register unsigned long _rc asm("1") = 0;
+	union register_pair r1;
 
+	r1.even = (unsigned long) addr;
+	r1.odd	= 0;
 	asm volatile(
-		"	diag	%0,%2,0x308\n"
+		"	diag	%[r1],%[subcode],0x308\n"
 		"0:	nopr	%%r7\n"
 		EX_TABLE(0b,0b)
-		: "+d" (_addr), "+d" (_rc)
-		: "d" (subcode) : "cc", "memory");
-	return _rc;
+		: [r1] "+&d" (r1.pair)
+		: [subcode] "d" (subcode)
+		: "cc", "memory");
+	return r1.odd;
 }
 
 int diag308(unsigned long subcode, void *addr)
 {
-	if (IS_ENABLED(CONFIG_KASAN))
-		__arch_local_irq_stosm(0x04); /* enable DAT */
 	diag_stat_inc(DIAG_STAT_X308);
 	return __diag308(subcode, addr);
 }
@@ -1512,7 +1513,7 @@ static void diag308_dump(void *dump_block)
 	while (1) {
 		if (diag308(DIAG308_LOAD_NORMAL_DUMP, NULL) != 0x302)
 			break;
-		udelay_simple(USEC_PER_SEC);
+		udelay(USEC_PER_SEC);
 	}
 }
 
@@ -1645,8 +1646,8 @@ static void dump_reipl_run(struct shutdown_trigger *trigger)
 
 	csum = (__force unsigned int)
 	       csum_partial(reipl_block_actual, reipl_block_actual->hdr.len, 0);
-	mem_assign_absolute(S390_lowcore.ipib, ipib);
-	mem_assign_absolute(S390_lowcore.ipib_checksum, csum);
+	put_abs_lowcore(ipib, ipib);
+	put_abs_lowcore(ipib_checksum, csum);
 	dump_run(trigger);
 }
 
@@ -1840,7 +1841,6 @@ static struct kobj_attribute on_restart_attr = __ATTR_RW(on_restart);
 
 static void __do_restart(void *ignore)
 {
-	__arch_local_irq_stosm(0x04); /* enable DAT */
 	smp_send_stop();
 #ifdef CONFIG_CRASH_DUMP
 	crash_kexec(NULL);
@@ -1849,12 +1849,12 @@ static void __do_restart(void *ignore)
 	stop_run(&on_restart_trigger);
 }
 
-void do_restart(void)
+void do_restart(void *arg)
 {
 	tracing_off();
 	debug_locks_off();
 	lgr_info_log();
-	smp_call_online_cpu(__do_restart, NULL);
+	smp_call_online_cpu(__do_restart, arg);
 }
 
 /* on halt */
@@ -2079,7 +2079,7 @@ void s390_reset_system(void)
 
 	/* Disable lowcore protection */
 	__ctl_clear_bit(0, 28);
-	diag_dma_ops.diag308_reset();
+	diag_amode31_ops.diag308_reset();
 }
 
 #ifdef CONFIG_KEXEC_FILE
@@ -2156,7 +2156,7 @@ void *ipl_report_finish(struct ipl_report *report)
 
 	buf = vzalloc(report->size);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		goto out;
 	ptr = buf;
 
 	memcpy(ptr, report->ipib, report->ipib->hdr.len);
@@ -2195,6 +2195,7 @@ void *ipl_report_finish(struct ipl_report *report)
 	}
 
 	BUG_ON(ptr > buf + report->size);
+out:
 	return buf;
 }
 

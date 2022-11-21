@@ -117,10 +117,14 @@ rw_attribute(writeback_running);
 rw_attribute(writeback_percent);
 rw_attribute(writeback_delay);
 rw_attribute(writeback_rate);
+rw_attribute(writeback_consider_fragment);
 
 rw_attribute(writeback_rate_update_seconds);
 rw_attribute(writeback_rate_i_term_inverse);
 rw_attribute(writeback_rate_p_term_inverse);
+rw_attribute(writeback_rate_fp_term_low);
+rw_attribute(writeback_rate_fp_term_mid);
+rw_attribute(writeback_rate_fp_term_high);
 rw_attribute(writeback_rate_minimum);
 read_attribute(writeback_rate_debug);
 
@@ -133,7 +137,6 @@ rw_attribute(io_disable);
 rw_attribute(discard);
 rw_attribute(running);
 rw_attribute(label);
-rw_attribute(readahead);
 rw_attribute(errors);
 rw_attribute(io_error_limit);
 rw_attribute(io_error_halflife);
@@ -195,6 +198,7 @@ SHOW(__bch_cached_dev)
 	var_printf(bypass_torture_test,	"%i");
 	var_printf(writeback_metadata,	"%i");
 	var_printf(writeback_running,	"%i");
+	var_printf(writeback_consider_fragment,	"%i");
 	var_print(writeback_delay);
 	var_print(writeback_percent);
 	sysfs_hprint(writeback_rate,
@@ -205,6 +209,9 @@ SHOW(__bch_cached_dev)
 	var_print(writeback_rate_update_seconds);
 	var_print(writeback_rate_i_term_inverse);
 	var_print(writeback_rate_p_term_inverse);
+	var_print(writeback_rate_fp_term_low);
+	var_print(writeback_rate_fp_term_mid);
+	var_print(writeback_rate_fp_term_high);
 	var_print(writeback_rate_minimum);
 
 	if (attr == &sysfs_writeback_rate_debug) {
@@ -252,7 +259,6 @@ SHOW(__bch_cached_dev)
 	var_printf(partial_stripes_expensive,	"%u");
 
 	var_hprint(sequential_cutoff);
-	var_hprint(readahead);
 
 	sysfs_print(running,		atomic_read(&dc->running));
 	sysfs_print(state,		states[BDEV_STATE(&dc->sb)]);
@@ -265,7 +271,7 @@ SHOW(__bch_cached_dev)
 	}
 
 	if (attr == &sysfs_backing_dev_name) {
-		snprintf(buf, BDEVNAME_SIZE + 1, "%s", dc->backing_dev_name);
+		snprintf(buf, BDEVNAME_SIZE + 1, "%pg", dc->bdev);
 		strcat(buf, "\n");
 		return strlen(buf);
 	}
@@ -303,6 +309,7 @@ STORE(__cached_dev)
 	sysfs_strtoul_bool(bypass_torture_test, dc->bypass_torture_test);
 	sysfs_strtoul_bool(writeback_metadata, dc->writeback_metadata);
 	sysfs_strtoul_bool(writeback_running, dc->writeback_running);
+	sysfs_strtoul_bool(writeback_consider_fragment, dc->writeback_consider_fragment);
 	sysfs_strtoul_clamp(writeback_delay, dc->writeback_delay, 0, UINT_MAX);
 
 	sysfs_strtoul_clamp(writeback_percent, dc->writeback_percent,
@@ -331,6 +338,16 @@ STORE(__cached_dev)
 	sysfs_strtoul_clamp(writeback_rate_p_term_inverse,
 			    dc->writeback_rate_p_term_inverse,
 			    1, UINT_MAX);
+	sysfs_strtoul_clamp(writeback_rate_fp_term_low,
+			    dc->writeback_rate_fp_term_low,
+			    1, dc->writeback_rate_fp_term_mid - 1);
+	sysfs_strtoul_clamp(writeback_rate_fp_term_mid,
+			    dc->writeback_rate_fp_term_mid,
+			    dc->writeback_rate_fp_term_low + 1,
+			    dc->writeback_rate_fp_term_high - 1);
+	sysfs_strtoul_clamp(writeback_rate_fp_term_high,
+			    dc->writeback_rate_fp_term_high,
+			    dc->writeback_rate_fp_term_mid + 1, UINT_MAX);
 	sysfs_strtoul_clamp(writeback_rate_minimum,
 			    dc->writeback_rate_minimum,
 			    1, UINT_MAX);
@@ -346,7 +363,6 @@ STORE(__cached_dev)
 	sysfs_strtoul_clamp(sequential_cutoff,
 			    dc->sequential_cutoff,
 			    0, UINT_MAX);
-	d_strtoi_h(readahead);
 
 	if (attr == &sysfs_clear_stats)
 		bch_cache_accounting_clear(&dc->accounting);
@@ -404,7 +420,7 @@ STORE(__cached_dev)
 		if (!env)
 			return -ENOMEM;
 		add_uevent_var(env, "DRIVER=bcache");
-		add_uevent_var(env, "CACHED_UUID=%pU", dc->sb.uuid),
+		add_uevent_var(env, "CACHED_UUID=%pU", dc->sb.uuid);
 		add_uevent_var(env, "CACHED_LABEL=%s", buf);
 		kobject_uevent_env(&disk_to_dev(dc->disk.disk)->kobj,
 				   KOBJ_CHANGE,
@@ -484,7 +500,7 @@ STORE(bch_cached_dev)
 	return size;
 }
 
-static struct attribute *bch_cached_dev_files[] = {
+static struct attribute *bch_cached_dev_attrs[] = {
 	&sysfs_attach,
 	&sysfs_detach,
 	&sysfs_stop,
@@ -499,9 +515,13 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_writeback_delay,
 	&sysfs_writeback_percent,
 	&sysfs_writeback_rate,
+	&sysfs_writeback_consider_fragment,
 	&sysfs_writeback_rate_update_seconds,
 	&sysfs_writeback_rate_i_term_inverse,
 	&sysfs_writeback_rate_p_term_inverse,
+	&sysfs_writeback_rate_fp_term_low,
+	&sysfs_writeback_rate_fp_term_mid,
+	&sysfs_writeback_rate_fp_term_high,
 	&sysfs_writeback_rate_minimum,
 	&sysfs_writeback_rate_debug,
 	&sysfs_io_errors,
@@ -515,7 +535,6 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_running,
 	&sysfs_state,
 	&sysfs_label,
-	&sysfs_readahead,
 #ifdef CONFIG_BCACHE_DEBUG
 	&sysfs_verify,
 	&sysfs_bypass_torture_test,
@@ -524,6 +543,7 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_backing_dev_uuid,
 	NULL
 };
+ATTRIBUTE_GROUPS(bch_cached_dev);
 KTYPE(bch_cached_dev);
 
 SHOW(bch_flash_dev)
@@ -581,7 +601,7 @@ STORE(__bch_flash_dev)
 }
 STORE_LOCKED(bch_flash_dev)
 
-static struct attribute *bch_flash_dev_files[] = {
+static struct attribute *bch_flash_dev_attrs[] = {
 	&sysfs_unregister,
 #if 0
 	&sysfs_data_csum,
@@ -590,6 +610,7 @@ static struct attribute *bch_flash_dev_files[] = {
 	&sysfs_size,
 	NULL
 };
+ATTRIBUTE_GROUPS(bch_flash_dev);
 KTYPE(bch_flash_dev);
 
 struct bset_stats_op {
@@ -936,7 +957,7 @@ static void bch_cache_set_internal_release(struct kobject *k)
 {
 }
 
-static struct attribute *bch_cache_set_files[] = {
+static struct attribute *bch_cache_set_attrs[] = {
 	&sysfs_unregister,
 	&sysfs_stop,
 	&sysfs_synchronous,
@@ -961,9 +982,10 @@ static struct attribute *bch_cache_set_files[] = {
 	&sysfs_clear_stats,
 	NULL
 };
+ATTRIBUTE_GROUPS(bch_cache_set);
 KTYPE(bch_cache_set);
 
-static struct attribute *bch_cache_set_internal_files[] = {
+static struct attribute *bch_cache_set_internal_attrs[] = {
 	&sysfs_active_journal_entries,
 
 	sysfs_time_stats_attribute_list(btree_gc, sec, ms)
@@ -1003,6 +1025,7 @@ static struct attribute *bch_cache_set_internal_files[] = {
 	&sysfs_feature_incompat,
 	NULL
 };
+ATTRIBUTE_GROUPS(bch_cache_set_internal);
 KTYPE(bch_cache_set_internal);
 
 static int __bch_cache_cmp(const void *l, const void *r)
@@ -1071,8 +1094,10 @@ SHOW(__bch_cache)
 			--n;
 
 		while (cached < p + n &&
-		       *cached == BTREE_PRIO)
-			cached++, n--;
+		       *cached == BTREE_PRIO) {
+			cached++;
+			n--;
+		}
 
 		for (i = 0; i < n; i++)
 			sum += INITIAL_PRIO - cached[i];
@@ -1161,7 +1186,7 @@ STORE(__bch_cache)
 }
 STORE_LOCKED(bch_cache)
 
-static struct attribute *bch_cache_files[] = {
+static struct attribute *bch_cache_attrs[] = {
 	&sysfs_bucket_size,
 	&sysfs_block_size,
 	&sysfs_nbuckets,
@@ -1175,4 +1200,5 @@ static struct attribute *bch_cache_files[] = {
 	&sysfs_cache_replacement_policy,
 	NULL
 };
+ATTRIBUTE_GROUPS(bch_cache);
 KTYPE(bch_cache);

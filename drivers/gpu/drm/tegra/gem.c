@@ -12,6 +12,7 @@
 
 #include <linux/dma-buf.h>
 #include <linux/iommu.h>
+#include <linux/module.h>
 
 #include <drm/drm_drv.h>
 #include <drm/drm_prime.h>
@@ -20,6 +21,33 @@
 #include "drm.h"
 #include "gem.h"
 
+MODULE_IMPORT_NS(DMA_BUF);
+
+static unsigned int sg_dma_count_chunks(struct scatterlist *sgl, unsigned int nents)
+{
+	dma_addr_t next = ~(dma_addr_t)0;
+	unsigned int count = 0, i;
+	struct scatterlist *s;
+
+	for_each_sg(sgl, s, nents, i) {
+		/* sg_dma_address(s) is only valid for entries that have sg_dma_len(s) != 0. */
+		if (!sg_dma_len(s))
+			continue;
+
+		if (sg_dma_address(s) != next) {
+			next = sg_dma_address(s) + sg_dma_len(s);
+			count++;
+		}
+	}
+
+	return count;
+}
+
+static inline unsigned int sgt_dma_count_chunks(struct sg_table *sgt)
+{
+	return sg_dma_count_chunks(sgt->sgl, sgt->nents);
+}
+
 static void tegra_bo_put(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
@@ -27,79 +55,65 @@ static void tegra_bo_put(struct host1x_bo *bo)
 	drm_gem_object_put(&obj->gem);
 }
 
-/* XXX move this into lib/scatterlist.c? */
-static int sg_alloc_table_from_sg(struct sg_table *sgt, struct scatterlist *sg,
-				  unsigned int nents, gfp_t gfp_mask)
-{
-	struct scatterlist *dst;
-	unsigned int i;
-	int err;
-
-	err = sg_alloc_table(sgt, nents, gfp_mask);
-	if (err < 0)
-		return err;
-
-	dst = sgt->sgl;
-
-	for (i = 0; i < nents; i++) {
-		sg_set_page(dst, sg_page(sg), sg->length, 0);
-		dst = sg_next(dst);
-		sg = sg_next(sg);
-	}
-
-	return 0;
-}
-
-static struct sg_table *tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
-				     dma_addr_t *phys)
+static struct host1x_bo_mapping *tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
+					      enum dma_data_direction direction)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
-	struct sg_table *sgt;
+	struct drm_gem_object *gem = &obj->gem;
+	struct host1x_bo_mapping *map;
 	int err;
 
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	if (!map)
+		return ERR_PTR(-ENOMEM);
+
+	kref_init(&map->ref);
+	map->bo = host1x_bo_get(bo);
+	map->direction = direction;
+	map->dev = dev;
+
 	/*
-	 * If we've manually mapped the buffer object through the IOMMU, make
-	 * sure to return the IOVA address of our mapping.
-	 *
-	 * Similarly, for buffers that have been allocated by the DMA API the
-	 * physical address can be used for devices that are not attached to
-	 * an IOMMU. For these devices, callers must pass a valid pointer via
-	 * the @phys argument.
-	 *
-	 * Imported buffers were also already mapped at import time, so the
-	 * existing mapping can be reused.
+	 * Imported buffers need special treatment to satisfy the semantics of DMA-BUF.
 	 */
-	if (phys) {
-		*phys = obj->iova;
-		return NULL;
+	if (gem->import_attach) {
+		struct dma_buf *buf = gem->import_attach->dmabuf;
+
+		map->attach = dma_buf_attach(buf, dev);
+		if (IS_ERR(map->attach)) {
+			err = PTR_ERR(map->attach);
+			goto free;
+		}
+
+		map->sgt = dma_buf_map_attachment(map->attach, direction);
+		if (IS_ERR(map->sgt)) {
+			dma_buf_detach(buf, map->attach);
+			err = PTR_ERR(map->sgt);
+			goto free;
+		}
+
+		err = sgt_dma_count_chunks(map->sgt);
+		map->size = gem->size;
+
+		goto out;
 	}
 
 	/*
 	 * If we don't have a mapping for this buffer yet, return an SG table
 	 * so that host1x can do the mapping for us via the DMA API.
 	 */
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
-	if (!sgt)
-		return ERR_PTR(-ENOMEM);
+	map->sgt = kzalloc(sizeof(*map->sgt), GFP_KERNEL);
+	if (!map->sgt) {
+		err = -ENOMEM;
+		goto free;
+	}
 
 	if (obj->pages) {
 		/*
 		 * If the buffer object was allocated from the explicit IOMMU
 		 * API code paths, construct an SG table from the pages.
 		 */
-		err = sg_alloc_table_from_pages(sgt, obj->pages, obj->num_pages,
-						0, obj->gem.size, GFP_KERNEL);
-		if (err < 0)
-			goto free;
-	} else if (obj->sgt) {
-		/*
-		 * If the buffer object already has an SG table but no pages
-		 * were allocated for it, it means the buffer was imported and
-		 * the SG table needs to be copied to avoid overwriting any
-		 * other potential users of the original SG table.
-		 */
-		err = sg_alloc_table_from_sg(sgt, obj->sgt->sgl,
-					     obj->sgt->orig_nents, GFP_KERNEL);
+		err = sg_alloc_table_from_pages(map->sgt, obj->pages, obj->num_pages, 0, gem->size,
+						GFP_KERNEL);
 		if (err < 0)
 			goto free;
 	} else {
@@ -108,48 +122,81 @@ static struct sg_table *tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
 		 * not imported, it had to be allocated with the DMA API, so
 		 * the DMA API helper can be used.
 		 */
-		err = dma_get_sgtable(dev, sgt, obj->vaddr, obj->iova,
-				      obj->gem.size);
+		err = dma_get_sgtable(dev, map->sgt, obj->vaddr, obj->iova, gem->size);
 		if (err < 0)
 			goto free;
 	}
 
-	return sgt;
+	err = dma_map_sgtable(dev, map->sgt, direction, 0);
+	if (err)
+		goto free_sgt;
 
+out:
+	/*
+	 * If we've manually mapped the buffer object through the IOMMU, make sure to return the
+	 * existing IOVA address of our mapping.
+	 */
+	if (!obj->mm) {
+		map->phys = sg_dma_address(map->sgt->sgl);
+		map->chunks = err;
+	} else {
+		map->phys = obj->iova;
+		map->chunks = 1;
+	}
+
+	map->size = gem->size;
+
+	return map;
+
+free_sgt:
+	sg_free_table(map->sgt);
 free:
-	kfree(sgt);
+	kfree(map->sgt);
+	kfree(map);
 	return ERR_PTR(err);
 }
 
-static void tegra_bo_unpin(struct device *dev, struct sg_table *sgt)
+static void tegra_bo_unpin(struct host1x_bo_mapping *map)
 {
-	if (sgt) {
-		sg_free_table(sgt);
-		kfree(sgt);
+	if (map->attach) {
+		dma_buf_unmap_attachment(map->attach, map->sgt, map->direction);
+		dma_buf_detach(map->attach->dmabuf, map->attach);
+	} else {
+		dma_unmap_sgtable(map->dev, map->sgt, map->direction, 0);
+		sg_free_table(map->sgt);
+		kfree(map->sgt);
 	}
+
+	host1x_bo_put(map->bo);
+	kfree(map);
 }
 
 static void *tegra_bo_mmap(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
+	struct iosys_map map;
+	int ret;
 
-	if (obj->vaddr)
+	if (obj->vaddr) {
 		return obj->vaddr;
-	else if (obj->gem.import_attach)
-		return dma_buf_vmap(obj->gem.import_attach->dmabuf);
-	else
+	} else if (obj->gem.import_attach) {
+		ret = dma_buf_vmap(obj->gem.import_attach->dmabuf, &map);
+		return ret ? NULL : map.vaddr;
+	} else {
 		return vmap(obj->pages, obj->num_pages, VM_MAP,
 			    pgprot_writecombine(PAGE_KERNEL));
+	}
 }
 
 static void tegra_bo_munmap(struct host1x_bo *bo, void *addr)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
+	struct iosys_map map = IOSYS_MAP_INIT_VADDR(addr);
 
 	if (obj->vaddr)
 		return;
 	else if (obj->gem.import_attach)
-		dma_buf_vunmap(obj->gem.import_attach->dmabuf, addr);
+		dma_buf_vunmap(obj->gem.import_attach->dmabuf, &map);
 	else
 		vunmap(addr);
 }
@@ -230,6 +277,12 @@ static int tegra_bo_iommu_unmap(struct tegra_drm *tegra, struct tegra_bo *bo)
 	return 0;
 }
 
+static const struct drm_gem_object_funcs tegra_gem_object_funcs = {
+	.free = tegra_bo_free_object,
+	.export = tegra_gem_prime_export,
+	.vm_ops = &tegra_bo_vm_ops,
+};
+
 static struct tegra_bo *tegra_bo_alloc_object(struct drm_device *drm,
 					      size_t size)
 {
@@ -239,6 +292,8 @@ static struct tegra_bo *tegra_bo_alloc_object(struct drm_device *drm,
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
+
+	bo->gem.funcs = &tegra_gem_object_funcs;
 
 	host1x_bo_init(&bo->base, &tegra_bo_ops);
 	size = round_up(size, PAGE_SIZE);
@@ -436,7 +491,17 @@ free:
 void tegra_bo_free_object(struct drm_gem_object *gem)
 {
 	struct tegra_drm *tegra = gem->dev->dev_private;
+	struct host1x_bo_mapping *mapping, *tmp;
 	struct tegra_bo *bo = to_tegra_bo(gem);
+
+	/* remove all mappings of this buffer object from any caches */
+	list_for_each_entry_safe(mapping, tmp, &bo->base.mappings, list) {
+		if (mapping->cache)
+			host1x_bo_unpin(mapping);
+		else
+			dev_err(gem->dev->dev, "mapping %p stale for device %s\n", mapping,
+				dev_name(mapping->dev));
+	}
 
 	if (tegra->domain)
 		tegra_bo_iommu_unmap(tegra, bo);
@@ -634,15 +699,17 @@ static int tegra_gem_prime_mmap(struct dma_buf *buf, struct vm_area_struct *vma)
 	return __tegra_gem_mmap(gem, vma);
 }
 
-static void *tegra_gem_prime_vmap(struct dma_buf *buf)
+static int tegra_gem_prime_vmap(struct dma_buf *buf, struct iosys_map *map)
 {
 	struct drm_gem_object *gem = buf->priv;
 	struct tegra_bo *bo = to_tegra_bo(gem);
 
-	return bo->vaddr;
+	iosys_map_set_vaddr(map, bo->vaddr);
+
+	return 0;
 }
 
-static void tegra_gem_prime_vunmap(struct dma_buf *buf, void *vaddr)
+static void tegra_gem_prime_vunmap(struct dma_buf *buf, struct iosys_map *map)
 {
 }
 
@@ -691,4 +758,17 @@ struct drm_gem_object *tegra_gem_prime_import(struct drm_device *drm,
 		return ERR_CAST(bo);
 
 	return &bo->gem;
+}
+
+struct host1x_bo *tegra_gem_lookup(struct drm_file *file, u32 handle)
+{
+	struct drm_gem_object *gem;
+	struct tegra_bo *bo;
+
+	gem = drm_gem_object_lookup(file, handle);
+	if (!gem)
+		return NULL;
+
+	bo = to_tegra_bo(gem);
+	return &bo->base;
 }

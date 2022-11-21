@@ -21,12 +21,12 @@
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x00000000 0x08000000
-		       0x88000000 0x08000000>;
+		reg = <0x00000000 0x08000000>,
+		      <0x88000000 0x08000000>;
 	};
 
-	nand: nand@18028000 {
-		nandcs@0 {
+	nand_controller: nand-controller@18028000 {
+		nand@0 {
 			partitions {
 				compatible = "fixed-partitions";
 				#address-cells = <1>;
@@ -117,4 +117,46 @@
 
 &usb3_phy {
 	status = "okay";
+};
+
+&srab {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+			label = "lan4";
+		};
+
+		port@1 {
+			reg = <1>;
+			label = "lan3";
+		};
+
+		port@2 {
+			reg = <2>;
+			label = "lan2";
+		};
+
+		port@3 {
+			reg = <3>;
+			label = "lan1";
+		};
+
+		port@4 {
+			reg = <4>;
+			label = "wan";
+		};
+
+		port@8 {
+			reg = <8>;
+			label = "cpu";
+			ethernet = <&gmac2>;
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
+		};
+	};
 };

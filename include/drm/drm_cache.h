@@ -35,6 +35,8 @@
 
 #include <linux/scatterlist.h>
 
+struct iosys_map;
+
 void drm_clflush_pages(struct page *pages[], unsigned long num_pages);
 void drm_clflush_sg(struct sg_table *st);
 void drm_clflush_virt_range(void *addr, unsigned long length);
@@ -70,4 +72,9 @@ static inline bool drm_arch_can_wc_memory(void)
 #endif
 }
 
+void drm_memcpy_init_early(void);
+
+void drm_memcpy_from_wc(struct iosys_map *dst,
+			const struct iosys_map *src,
+			unsigned long len);
 #endif

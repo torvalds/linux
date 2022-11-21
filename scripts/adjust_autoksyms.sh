@@ -34,9 +34,6 @@ case "$KBUILD_VERBOSE" in
 	;;
 esac
 
-# We need access to CONFIG_ symbols
-. include/config/auto.conf
-
 # Generate a new symbol list file
 $CONFIG_SHELL $srctree/scripts/gen_autoksyms.sh "$new_ksyms_file"
 
@@ -45,10 +42,10 @@ $CONFIG_SHELL $srctree/scripts/gen_autoksyms.sh "$new_ksyms_file"
 changed=$(
 count=0
 sort "$cur_ksyms_file" "$new_ksyms_file" | uniq -u |
-sed -n 's/^#define __KSYM_\(.*\) 1/\1/p' | tr "A-Z_" "a-z/" |
+sed -n 's/^#define __KSYM_\(.*\) 1/\1/p' |
 while read sympath; do
 	if [ -z "$sympath" ]; then continue; fi
-	depfile="include/ksym/${sympath}.h"
+	depfile="include/ksym/${sympath}"
 	mkdir -p "$(dirname "$depfile")"
 	touch "$depfile"
 	# Filesystems with coarse time precision may create timestamps

@@ -7,6 +7,8 @@
 
 #include "pmc.h"
 
+static DEFINE_SPINLOCK(at91sam9g45_mck_lock);
+
 static const struct clk_master_characteristics mck_characteristics = {
 	.output = { .min = 0, .max = 133333333 },
 	.divisors = { 1, 2, 4, 3 },
@@ -40,10 +42,10 @@ static const struct {
 	char *p;
 	u8 id;
 } at91sam9g45_systemck[] = {
-	{ .n = "ddrck", .p = "masterck", .id = 2 },
-	{ .n = "uhpck", .p = "usbck",    .id = 6 },
-	{ .n = "pck0",  .p = "prog0",    .id = 8 },
-	{ .n = "pck1",  .p = "prog1",    .id = 9 },
+	{ .n = "ddrck", .p = "masterck_div", .id = 2 },
+	{ .n = "uhpck", .p = "usbck",        .id = 6 },
+	{ .n = "pck0",  .p = "prog0",        .id = 8 },
+	{ .n = "pck1",  .p = "prog1",        .id = 9 },
 };
 
 struct pck {
@@ -148,9 +150,20 @@ static void __init at91sam9g45_pmc_setup(struct device_node *np)
 	parent_names[1] = "mainck";
 	parent_names[2] = "plladivck";
 	parent_names[3] = "utmick";
-	hw = at91_clk_register_master(regmap, "masterck", 4, parent_names,
-				      &at91rm9200_master_layout,
-				      &mck_characteristics);
+	hw = at91_clk_register_master_pres(regmap, "masterck_pres", 4,
+					   parent_names,
+					   &at91rm9200_master_layout,
+					   &mck_characteristics,
+					   &at91sam9g45_mck_lock);
+	if (IS_ERR(hw))
+		goto err_free;
+
+	hw = at91_clk_register_master_div(regmap, "masterck_div",
+					  "masterck_pres",
+					  &at91rm9200_master_layout,
+					  &mck_characteristics,
+					  &at91sam9g45_mck_lock,
+					  CLK_SET_RATE_GATE, 0);
 	if (IS_ERR(hw))
 		goto err_free;
 
@@ -166,7 +179,7 @@ static void __init at91sam9g45_pmc_setup(struct device_node *np)
 	parent_names[1] = "mainck";
 	parent_names[2] = "plladivck";
 	parent_names[3] = "utmick";
-	parent_names[4] = "masterck";
+	parent_names[4] = "masterck_div";
 	for (i = 0; i < 2; i++) {
 		char name[6];
 
@@ -195,7 +208,7 @@ static void __init at91sam9g45_pmc_setup(struct device_node *np)
 	for (i = 0; i < ARRAY_SIZE(at91sam9g45_periphck); i++) {
 		hw = at91_clk_register_peripheral(regmap,
 						  at91sam9g45_periphck[i].n,
-						  "masterck",
+						  "masterck_div",
 						  at91sam9g45_periphck[i].id);
 		if (IS_ERR(hw))
 			goto err_free;
@@ -214,5 +227,4 @@ err_free:
  * The TCB is used as the clocksource so its clock is needed early. This means
  * this can't be a platform driver.
  */
-CLK_OF_DECLARE_DRIVER(at91sam9g45_pmc, "atmel,at91sam9g45-pmc",
-		      at91sam9g45_pmc_setup);
+CLK_OF_DECLARE(at91sam9g45_pmc, "atmel,at91sam9g45-pmc", at91sam9g45_pmc_setup);

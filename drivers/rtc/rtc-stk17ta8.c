@@ -311,14 +311,13 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(pdata->rtc);
 
 	pdata->rtc->ops = &stk17ta8_rtc_ops;
-	pdata->rtc->nvram_old_abi = true;
 
 	nvmem_cfg.priv = pdata;
-	ret = rtc_nvmem_register(pdata->rtc, &nvmem_cfg);
+	ret = devm_rtc_nvmem_register(pdata->rtc, &nvmem_cfg);
 	if (ret)
 		return ret;
 
-	return rtc_register_device(pdata->rtc);
+	return devm_rtc_register_device(pdata->rtc);
 }
 
 /* work with hotplug and coldplug */

@@ -75,7 +75,7 @@ static inline void spear_pwm_writel(struct spear_pwm_chip *chip,
 }
 
 static int spear_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			    int duty_ns, int period_ns)
+			    u64 duty_ns, u64 period_ns)
 {
 	struct spear_pwm_chip *pc = to_spear_pwm_chip(chip);
 	u64 val, div, clk_rate;
@@ -163,10 +163,32 @@ static void spear_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	clk_disable(pc->clk);
 }
 
+static int spear_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			   const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			spear_pwm_disable(chip, pwm);
+		return 0;
+	}
+
+	err = spear_pwm_config(chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		return spear_pwm_enable(chip, pwm);
+
+	return 0;
+}
+
 static const struct pwm_ops spear_pwm_ops = {
-	.config = spear_pwm_config,
-	.enable = spear_pwm_enable,
-	.disable = spear_pwm_disable,
+	.apply = spear_pwm_apply,
 	.owner = THIS_MODULE,
 };
 
@@ -174,7 +196,6 @@ static int spear_pwm_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct spear_pwm_chip *pc;
-	struct resource *r;
 	int ret;
 	u32 val;
 
@@ -182,8 +203,7 @@ static int spear_pwm_probe(struct platform_device *pdev)
 	if (!pc)
 		return -ENOMEM;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pc->mmio_base = devm_ioremap_resource(&pdev->dev, r);
+	pc->mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pc->mmio_base))
 		return PTR_ERR(pc->mmio_base);
 
@@ -195,7 +215,6 @@ static int spear_pwm_probe(struct platform_device *pdev)
 
 	pc->chip.dev = &pdev->dev;
 	pc->chip.ops = &spear_pwm_ops;
-	pc->chip.base = -1;
 	pc->chip.npwm = NUM_PWM;
 
 	ret = clk_prepare(pc->clk);
@@ -231,14 +250,13 @@ static int spear_pwm_probe(struct platform_device *pdev)
 static int spear_pwm_remove(struct platform_device *pdev)
 {
 	struct spear_pwm_chip *pc = platform_get_drvdata(pdev);
-	int i;
 
-	for (i = 0; i < NUM_PWM; i++)
-		pwm_disable(&pc->chip.pwms[i]);
+	pwmchip_remove(&pc->chip);
 
 	/* clk was prepared in probe, hence unprepare it here */
 	clk_unprepare(pc->clk);
-	return pwmchip_remove(&pc->chip);
+
+	return 0;
 }
 
 static const struct of_device_id spear_pwm_of_match[] = {

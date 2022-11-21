@@ -83,7 +83,7 @@ and encrypted shares and stronger signing and authentication algorithms.
 There are additional mount options that may be helpful for SMB3 to get
 improved POSIX behavior (NB: can use vers=3.0 to force only SMB3, never 2.1):
 
-     ``mfsymlinks`` and ``cifsacl`` and ``idsfromsid``
+   ``mfsymlinks`` and either ``cifsacl`` or ``modefromsid`` (usually with ``idsfromsid``)
 
 Allowing User Mounts
 ====================
@@ -115,7 +115,7 @@ later source tree in docs/manpages/mount.cifs.8
 Allowing User Unmounts
 ======================
 
-To permit users to ummount directories that they have user mounted (see above),
+To permit users to unmount directories that they have user mounted (see above),
 the utility umount.cifs may be used.  It may be invoked directly, or if
 umount.cifs is placed in /sbin, umount can invoke the cifs umount helper
 (at least for most versions of the umount utility) for umount of cifs
@@ -197,7 +197,7 @@ that is ignored by local server applications and non-cifs clients and that will
 not be traversed by the Samba server).  This is opaque to the Linux client
 application using the cifs vfs. Absolute symlinks will work to Samba 3.0.5 or
 later, but only for remote clients using the CIFS Unix extensions, and will
-be invisbile to Windows clients and typically will not affect local
+be invisible to Windows clients and typically will not affect local
 applications running on the same server as Samba.
 
 Use instructions
@@ -267,7 +267,7 @@ would be forbidden for Windows/CIFS semantics) as long as the server is
 configured for Unix Extensions (and the client has not disabled
 /proc/fs/cifs/LinuxExtensionsEnabled). In addition the mount option
 ``mapposix`` can be used on CIFS (vers=1.0) to force the mapping of
-illegal Windows/NTFS/SMB characters to a remap range (this mount parm
+illegal Windows/NTFS/SMB characters to a remap range (this mount parameter
 is the default for SMB3). This remap (``mapposix``) range is also
 compatible with Mac (and "Services for Mac" on some older Windows).
 
@@ -714,6 +714,7 @@ DebugData		Displays information about active CIFS sessions and
 			version.
 Stats			Lists summary resource usage information as well as per
 			share statistics.
+open_files		List all the open file handles on all active SMB sessions.
 ======================= =======================================================
 
 Configuration pseudo-files:
@@ -733,10 +734,9 @@ SecurityFlags		Flags which control security negotiation and
 			using weaker password hashes is 0x37037 (lanman,
 			plaintext, ntlm, ntlmv2, signing allowed).  Some
 			SecurityFlags require the corresponding menuconfig
-			options to be enabled (lanman and plaintext require
-			CONFIG_CIFS_WEAK_PW_HASH for example).  Enabling
-			plaintext authentication currently requires also
-			enabling lanman authentication in the security flags
+			options to be enabled.  Enabling plaintext
+			authentication currently requires also enabling
+			lanman authentication in the security flags
 			because the cifs module only supports sending
 			laintext passwords using the older lanman dialect
 			form of the session setup SMB.  (e.g. for authentication
@@ -794,6 +794,8 @@ LinuxExtensionsEnabled	If set to one then the client will attempt to
 			support and want to map the uid and gid fields
 			to values supplied at mount (rather than the
 			actual values, then set this to zero. (default 1)
+dfscache		List the content of the DFS cache.
+			If set to 0, the client will clear the cache.
 ======================= =======================================================
 
 These experimental features and tracing can be enabled by changing flags in

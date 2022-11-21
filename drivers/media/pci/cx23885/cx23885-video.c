@@ -24,7 +24,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
 #include "cx23885-ioctl.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 
 #include <media/drv-intf/cx25840.h>
 

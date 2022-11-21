@@ -122,6 +122,7 @@ enum dpaa2_eth_swa_type {
 	DPAA2_ETH_SWA_SINGLE,
 	DPAA2_ETH_SWA_SG,
 	DPAA2_ETH_SWA_XDP,
+	DPAA2_ETH_SWA_SW_TSO,
 };
 
 /* Must keep this struct smaller than DPAA2_ETH_SWA_SIZE */
@@ -142,6 +143,12 @@ struct dpaa2_eth_swa {
 			int dma_size;
 			struct xdp_frame *xdpf;
 		} xdp;
+		struct {
+			struct sk_buff *skb;
+			int num_sg;
+			int sgt_size;
+			int is_last_fd;
+		} tso;
 	};
 };
 
@@ -354,6 +361,8 @@ struct dpaa2_eth_drv_stats {
 	__u64	tx_conf_bytes;
 	__u64	tx_sg_frames;
 	__u64	tx_sg_bytes;
+	__u64	tx_tso_frames;
+	__u64	tx_tso_bytes;
 	__u64	rx_sg_frames;
 	__u64	rx_sg_bytes;
 	/* Linear skbs sent as a S/G FD due to insufficient headroom */
@@ -384,7 +393,11 @@ struct dpaa2_eth_ch_stats {
 	__u64 xdp_redirect;
 	/* Must be last, does not show up in ethtool stats */
 	__u64 frames;
+	__u64 frames_per_cdan;
+	__u64 bytes_per_cdan;
 };
+
+#define DPAA2_ETH_CH_STATS	7
 
 /* Maximum number of queues associated with a DPNI */
 #define DPAA2_ETH_MAX_TCS		8
@@ -438,8 +451,6 @@ struct dpaa2_eth_fq {
 
 struct dpaa2_eth_ch_xdp {
 	struct bpf_prog *prog;
-	u64 drop_bufs[DPAA2_ETH_BUFS_PER_CMD];
-	int drop_cnt;
 	unsigned int res;
 };
 
@@ -457,6 +468,10 @@ struct dpaa2_eth_channel {
 	struct dpaa2_eth_ch_xdp xdp;
 	struct xdp_rxq_info xdp_rxq;
 	struct list_head *rx_list;
+
+	/* Buffers to be recycled back in the buffer pool */
+	u64 recycled_bufs[DPAA2_ETH_BUFS_PER_CMD];
+	int recycled_bufs_cnt;
 };
 
 struct dpaa2_eth_dist_fields {
@@ -487,6 +502,15 @@ struct dpaa2_eth_trap_data {
 	struct dpaa2_eth_priv *priv;
 };
 
+#define DPAA2_ETH_SG_ENTRIES_MAX	(PAGE_SIZE / sizeof(struct scatterlist))
+
+#define DPAA2_ETH_DEFAULT_COPYBREAK	512
+
+#define DPAA2_ETH_ENQUEUE_MAX_FDS	200
+struct dpaa2_eth_fds {
+	struct dpaa2_fd array[DPAA2_ETH_ENQUEUE_MAX_FDS];
+};
+
 /* Driver private data */
 struct dpaa2_eth_priv {
 	struct net_device *net_dev;
@@ -502,12 +526,15 @@ struct dpaa2_eth_priv {
 	u8 num_channels;
 	struct dpaa2_eth_channel *channel[DPAA2_ETH_MAX_DPCONS];
 	struct dpaa2_eth_sgt_cache __percpu *sgt_cache;
-
+	unsigned long features;
 	struct dpni_attr dpni_attrs;
 	u16 dpni_ver_major;
 	u16 dpni_ver_minor;
 	u16 tx_data_offset;
-
+	void __iomem *onestep_reg_base;
+	u8 ptp_correction_off;
+	void (*dpaa2_set_onestep_params_cb)(struct dpaa2_eth_priv *priv,
+					    u32 offset, u8 udp);
 	struct fsl_mc_device *dpbp_dev;
 	u16 rx_buf_size;
 	u16 bpid;
@@ -567,6 +594,10 @@ struct dpaa2_eth_priv {
 	struct devlink *devlink;
 	struct dpaa2_eth_trap_data *trap_data;
 	struct devlink_port devlink_port;
+
+	u32 rx_copybreak;
+
+	struct dpaa2_eth_fds __percpu *fd;
 };
 
 struct dpaa2_eth_devlink_priv {
@@ -645,6 +676,13 @@ enum dpaa2_eth_rx_dist {
 #define DPAA2_ETH_DIST_L4DST		BIT(8)
 #define DPAA2_ETH_DIST_ALL		(~0ULL)
 
+#define DPNI_PTP_ONESTEP_VER_MAJOR 8
+#define DPNI_PTP_ONESTEP_VER_MINOR 2
+#define DPAA2_ETH_FEATURE_ONESTEP_CFG_DIRECT BIT(0)
+#define DPAA2_PTP_SINGLE_STEP_ENABLE	BIT(31)
+#define DPAA2_PTP_SINGLE_STEP_CH	BIT(7)
+#define DPAA2_PTP_SINGLE_CORRECTION_OFF(v) ((v) << 8)
+
 #define DPNI_PAUSE_VER_MAJOR		7
 #define DPNI_PAUSE_VER_MINOR		13
 #define dpaa2_eth_has_pause_support(priv)			\
@@ -693,6 +731,21 @@ static inline unsigned int dpaa2_eth_rx_head_room(struct dpaa2_eth_priv *priv)
 	return priv->tx_data_offset - DPAA2_ETH_RX_HWA_SIZE;
 }
 
+static inline bool dpaa2_eth_is_type_phy(struct dpaa2_eth_priv *priv)
+{
+	if (priv->mac &&
+	    (priv->mac->attr.link_type == DPMAC_LINK_TYPE_PHY ||
+	     priv->mac->attr.link_type == DPMAC_LINK_TYPE_BACKPLANE))
+		return true;
+
+	return false;
+}
+
+static inline bool dpaa2_eth_has_mac(struct dpaa2_eth_priv *priv)
+{
+	return priv->mac ? true : false;
+}
+
 int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);
 int dpaa2_eth_set_cls(struct net_device *net_dev, u64 key);
 int dpaa2_eth_cls_key_size(u64 key);
@@ -704,7 +757,10 @@ void dpaa2_eth_set_rx_taildrop(struct dpaa2_eth_priv *priv,
 
 extern const struct dcbnl_rtnl_ops dpaa2_eth_dcbnl_ops;
 
-int dpaa2_eth_dl_register(struct dpaa2_eth_priv *priv);
+int dpaa2_eth_dl_alloc(struct dpaa2_eth_priv *priv);
+void dpaa2_eth_dl_free(struct dpaa2_eth_priv *priv);
+
+void dpaa2_eth_dl_register(struct dpaa2_eth_priv *priv);
 void dpaa2_eth_dl_unregister(struct dpaa2_eth_priv *priv);
 
 int dpaa2_eth_dl_port_add(struct dpaa2_eth_priv *priv);

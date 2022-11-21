@@ -215,20 +215,13 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (!sysdev)
 		sysdev = &pdev->dev;
 
-	/* Try to set 64-bit DMA first */
 	if (WARN_ON(!sysdev->dma_mask))
 		/* Platform did not initialize dma_mask */
-		ret = dma_coerce_mask_and_coherent(sysdev,
-						   DMA_BIT_MASK(64));
+		ret = dma_coerce_mask_and_coherent(sysdev, DMA_BIT_MASK(64));
 	else
 		ret = dma_set_mask_and_coherent(sysdev, DMA_BIT_MASK(64));
-
-	/* If seting 64-bit DMA mask fails, fall back to 32-bit DMA mask */
-	if (ret) {
-		ret = dma_set_mask_and_coherent(sysdev, DMA_BIT_MASK(32));
-		if (ret)
-			return ret;
-	}
+	if (ret)
+		return ret;
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
@@ -333,6 +326,9 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (priv && (priv->quirks & XHCI_SKIP_PHY_INIT))
 		hcd->skip_phy_initialization = 1;
 
+	if (priv && (priv->quirks & XHCI_SG_TRB_CACHE_SIZE_QUIRK))
+		xhci->quirks |= XHCI_SG_TRB_CACHE_SIZE_QUIRK;
+
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
 		goto disable_usb_phy;
@@ -415,6 +411,9 @@ static int __maybe_unused xhci_plat_suspend(struct device *dev)
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ret;
+
+	if (pm_runtime_suspended(dev))
+		pm_runtime_resume(dev);
 
 	ret = xhci_priv_suspend_quirk(hcd);
 	if (ret)

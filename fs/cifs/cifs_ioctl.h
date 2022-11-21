@@ -1,19 +1,9 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/cifs_ioctl.h
  *
  *   Structure definitions for io control for cifs/smb3
  *
  *   Copyright (c) 2015 Steve French <steve.french@primarydata.com>
- *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
  *
  */
 
@@ -57,12 +47,43 @@ struct smb_query_info {
 	/* char buffer[]; */
 } __packed;
 
+/*
+ * Dumping the commonly used 16 byte (e.g. CCM and GCM128) keys still supported
+ * for backlevel compatibility, but is not sufficient for dumping the less
+ * frequently used GCM256 (32 byte) keys (see the newer "CIFS_DUMP_FULL_KEY"
+ * ioctl for dumping decryption info for GCM256 mounts)
+ */
 struct smb3_key_debug_info {
 	__u64	Suid;
 	__u16	cipher_type;
 	__u8	auth_key[16]; /* SMB2_NTLMV2_SESSKEY_SIZE */
 	__u8	smb3encryptionkey[SMB3_SIGN_KEY_SIZE];
 	__u8	smb3decryptionkey[SMB3_SIGN_KEY_SIZE];
+} __packed;
+
+/*
+ * Dump variable-sized keys
+ */
+struct smb3_full_key_debug_info {
+	/* INPUT: size of userspace buffer */
+	__u32   in_size;
+
+	/*
+	 * INPUT: 0 for current user, otherwise session to dump
+	 * OUTPUT: session id that was dumped
+	 */
+	__u64	session_id;
+	__u16	cipher_type;
+	__u8    session_key_length;
+	__u8    server_in_key_length;
+	__u8    server_out_key_length;
+	__u8    data[];
+	/*
+	 * return this struct with the keys appended at the end:
+	 * __u8 session_key[session_key_length];
+	 * __u8 server_in_key[server_in_key_length];
+	 * __u8 server_out_key[server_out_key_length];
+	 */
 } __packed;
 
 struct smb3_notify {
@@ -78,3 +99,20 @@ struct smb3_notify {
 #define CIFS_QUERY_INFO _IOWR(CIFS_IOCTL_MAGIC, 7, struct smb_query_info)
 #define CIFS_DUMP_KEY _IOWR(CIFS_IOCTL_MAGIC, 8, struct smb3_key_debug_info)
 #define CIFS_IOC_NOTIFY _IOW(CIFS_IOCTL_MAGIC, 9, struct smb3_notify)
+#define CIFS_DUMP_FULL_KEY _IOWR(CIFS_IOCTL_MAGIC, 10, struct smb3_full_key_debug_info)
+#define CIFS_IOC_SHUTDOWN _IOR ('X', 125, __u32)
+
+/*
+ * Flags for going down operation
+ */
+#define CIFS_GOING_FLAGS_DEFAULT                0x0     /* going down */
+#define CIFS_GOING_FLAGS_LOGFLUSH               0x1     /* flush log but not data */
+#define CIFS_GOING_FLAGS_NOLOGFLUSH             0x2     /* don't flush log nor data */
+
+static inline bool cifs_forced_shutdown(struct cifs_sb_info *sbi)
+{
+	if (CIFS_MOUNT_SHUTDOWN & sbi->mnt_cifs_flags)
+		return true;
+	else
+		return false;
+}

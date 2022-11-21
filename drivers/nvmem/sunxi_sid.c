@@ -142,6 +142,7 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 
 	nvmem_cfg->dev = dev;
 	nvmem_cfg->name = "sunxi-sid";
+	nvmem_cfg->type = NVMEM_TYPE_OTP;
 	nvmem_cfg->read_only = true;
 	nvmem_cfg->size = cfg->size;
 	nvmem_cfg->word_size = 1;
@@ -183,6 +184,11 @@ static const struct sunxi_sid_cfg sun8i_h3_cfg = {
 	.need_register_readout = true,
 };
 
+static const struct sunxi_sid_cfg sun20i_d1_cfg = {
+	.value_offset = 0x200,
+	.size = 0x100,
+};
+
 static const struct sunxi_sid_cfg sun50i_a64_cfg = {
 	.value_offset = 0x200,
 	.size = 0x100,
@@ -199,6 +205,7 @@ static const struct of_device_id sunxi_sid_of_match[] = {
 	{ .compatible = "allwinner,sun7i-a20-sid", .data = &sun7i_a20_cfg },
 	{ .compatible = "allwinner,sun8i-a83t-sid", .data = &sun50i_a64_cfg },
 	{ .compatible = "allwinner,sun8i-h3-sid", .data = &sun8i_h3_cfg },
+	{ .compatible = "allwinner,sun20i-d1-sid", .data = &sun20i_d1_cfg },
 	{ .compatible = "allwinner,sun50i-a64-sid", .data = &sun50i_a64_cfg },
 	{ .compatible = "allwinner,sun50i-h5-sid", .data = &sun50i_a64_cfg },
 	{ .compatible = "allwinner,sun50i-h6-sid", .data = &sun50i_h6_cfg },

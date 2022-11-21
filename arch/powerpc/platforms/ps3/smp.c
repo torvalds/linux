@@ -112,7 +112,7 @@ static struct smp_ops_t ps3_smp_ops = {
 	.kick_cpu	= smp_generic_kick_cpu,
 };
 
-void smp_init_ps3(void)
+void __init smp_init_ps3(void)
 {
 	DBG(" -> %s\n", __func__);
 	smp_ops = &ps3_smp_ops;

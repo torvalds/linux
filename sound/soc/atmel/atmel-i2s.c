@@ -200,6 +200,7 @@ struct atmel_i2s_dev {
 	unsigned int				fmt;
 	const struct atmel_i2s_gck_param	*gck_param;
 	const struct atmel_i2s_caps		*caps;
+	int					clk_use_no;
 };
 
 static irqreturn_t atmel_i2s_interrupt(int irq, void *dev_id)
@@ -321,8 +322,15 @@ static int atmel_i2s_hw_params(struct snd_pcm_substream *substream,
 {
 	struct atmel_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
 	bool is_playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
-	unsigned int mr = 0;
+	unsigned int mr = 0, mr_mask;
 	int ret;
+
+	mr_mask = ATMEL_I2SC_MR_FORMAT_MASK | ATMEL_I2SC_MR_MODE_MASK |
+		ATMEL_I2SC_MR_DATALENGTH_MASK;
+	if (is_playback)
+		mr_mask |= ATMEL_I2SC_MR_TXMONO;
+	else
+		mr_mask |= ATMEL_I2SC_MR_RXMONO;
 
 	switch (dev->fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
@@ -334,8 +342,8 @@ static int atmel_i2s_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	switch (dev->fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (dev->fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		/* codec is slave, so cpu is master */
 		mr |= ATMEL_I2SC_MR_MODE_MASTER;
 		ret = atmel_i2s_get_gck_param(dev, params_rate(params));
@@ -343,7 +351,7 @@ static int atmel_i2s_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 		break;
 
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		/* codec is master, so cpu is slave */
 		mr |= ATMEL_I2SC_MR_MODE_SLAVE;
 		dev->gck_param = NULL;
@@ -402,7 +410,7 @@ static int atmel_i2s_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	return regmap_write(dev->regmap, ATMEL_I2SC_MR, mr);
+	return regmap_update_bits(dev->regmap, ATMEL_I2SC_MR, mr_mask, mr);
 }
 
 static int atmel_i2s_switch_mck_generator(struct atmel_i2s_dev *dev,
@@ -495,18 +503,28 @@ static int atmel_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	is_master = (mr & ATMEL_I2SC_MR_MODE_MASK) == ATMEL_I2SC_MR_MODE_MASTER;
 
 	/* If master starts, enable the audio clock. */
-	if (is_master && mck_enabled)
-		err = atmel_i2s_switch_mck_generator(dev, true);
-	if (err)
-		return err;
+	if (is_master && mck_enabled) {
+		if (!dev->clk_use_no) {
+			err = atmel_i2s_switch_mck_generator(dev, true);
+			if (err)
+				return err;
+		}
+		dev->clk_use_no++;
+	}
 
 	err = regmap_write(dev->regmap, ATMEL_I2SC_CR, cr);
 	if (err)
 		return err;
 
 	/* If master stops, disable the audio clock. */
-	if (is_master && !mck_enabled)
-		err = atmel_i2s_switch_mck_generator(dev, false);
+	if (is_master && !mck_enabled) {
+		if (dev->clk_use_no == 1) {
+			err = atmel_i2s_switch_mck_generator(dev, false);
+			if (err)
+				return err;
+		}
+		dev->clk_use_no--;
+	}
 
 	return err;
 }
@@ -541,7 +559,8 @@ static struct snd_soc_dai_driver atmel_i2s_dai = {
 		.formats = ATMEL_I2S_FORMATS,
 	},
 	.ops = &atmel_i2s_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
+	.symmetric_sample_bits = 1,
 };
 
 static const struct snd_soc_component_driver atmel_i2s_component = {
@@ -563,8 +582,8 @@ static int atmel_i2s_sama5d2_mck_init(struct atmel_i2s_dev *dev,
 		err = PTR_ERR(muxclk);
 		if (err == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_warn(dev->dev,
-			 "failed to get the I2S clock control: %d\n", err);
+		dev_dbg(dev->dev,
+			"failed to get the I2S clock control: %d\n", err);
 		return 0;
 	}
 
@@ -595,7 +614,7 @@ static int atmel_i2s_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	void __iomem *base;
 	int irq;
-	int err = -ENXIO;
+	int err;
 	unsigned int pcm_flags = 0;
 	unsigned int version;
 
@@ -610,8 +629,7 @@ static int atmel_i2s_probe(struct platform_device *pdev)
 		dev->caps = match->data;
 
 	/* Map I/O registers. */
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, mem);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

@@ -28,12 +28,25 @@ config BINFMT_ELF
 	  ld.so (check the file <file:Documentation/Changes> for location and
 	  latest version).
 
+config BINFMT_ELF_KUNIT_TEST
+	bool "Build KUnit tests for ELF binary support" if !KUNIT_ALL_TESTS
+	depends on KUNIT=y && BINFMT_ELF=y
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the ELF loader KUnit tests, which try to gather
+	  prior bug fixes into a regression test collection. This is really
+	  only needed for debugging. Note that with CONFIG_COMPAT=y, the
+	  compat_binfmt_elf KUnit test is also created.
+
 config COMPAT_BINFMT_ELF
-	bool
+	def_bool y
 	depends on COMPAT && BINFMT_ELF
 	select ELFCORE
 
 config ARCH_BINFMT_ELF_STATE
+	bool
+
+config ARCH_BINFMT_ELF_EXTRA_PHDRS
 	bool
 
 config ARCH_HAVE_ELF_PROT
@@ -45,7 +58,7 @@ config ARCH_USE_GNU_PROPERTY
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y if !BINFMT_ELF
-	depends on (ARM || (SUPERH && !MMU) || C6X)
+	depends on (ARM || (SUPERH && !MMU))
 	select ELFCORE
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
@@ -112,6 +125,9 @@ config BINFMT_FLAT_ARGVP_ENVP_ON_STACK
 config BINFMT_FLAT_OLD_ALWAYS_RAM
 	bool
 
+config BINFMT_FLAT_NO_DATA_START_OFFSET
+	bool
+
 config BINFMT_FLAT_OLD
 	bool "Enable support for very old legacy flat binaries"
 	depends on BINFMT_FLAT
@@ -164,21 +180,6 @@ config OSF4_COMPAT
 	  Say Y if you are using OSF/1 binaries (like Netscape and Acrobat)
 	  with v4 shared libraries freely available from Compaq. If you're
 	  going to use shared libraries from Tru64 version 5.0 or later, say N.
-
-config BINFMT_EM86
-	tristate "Kernel support for Linux/Intel ELF binaries"
-	depends on ALPHA
-	help
-	  Say Y here if you want to be able to execute Linux/Intel ELF
-	  binaries just like native Alpha binaries on your Alpha machine. For
-	  this to work, you need to have the emulator /usr/bin/em86 in place.
-
-	  You can get the same functionality by saying N here and saying Y to
-	  "Kernel support for MISC binaries".
-
-	  You may answer M to compile the emulation support as a module and
-	  later load the module when you want to use a Linux/Intel binary. The
-	  module will be called binfmt_em86. If unsure, say Y.
 
 config BINFMT_MISC
 	tristate "Kernel support for MISC binaries"

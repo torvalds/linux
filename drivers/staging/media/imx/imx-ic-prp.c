@@ -79,13 +79,13 @@ static void prp_stop(struct prp_priv *priv)
 }
 
 static struct v4l2_mbus_framefmt *
-__prp_get_fmt(struct prp_priv *priv, struct v4l2_subdev_pad_config *cfg,
+__prp_get_fmt(struct prp_priv *priv, struct v4l2_subdev_state *sd_state,
 	      unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	struct imx_ic_priv *ic_priv = priv->ic_priv;
 
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&ic_priv->sd, cfg, pad);
+		return v4l2_subdev_get_try_format(&ic_priv->sd, sd_state, pad);
 	else
 		return &priv->format_mbus;
 }
@@ -95,7 +95,7 @@ __prp_get_fmt(struct prp_priv *priv, struct v4l2_subdev_pad_config *cfg,
  */
 
 static int prp_enum_mbus_code(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
@@ -115,7 +115,8 @@ static int prp_enum_mbus_code(struct v4l2_subdev *sd,
 			ret = -EINVAL;
 			goto out;
 		}
-		infmt = __prp_get_fmt(priv, cfg, PRP_SINK_PAD, code->which);
+		infmt = __prp_get_fmt(priv, sd_state, PRP_SINK_PAD,
+				      code->which);
 		code->code = infmt->code;
 		break;
 	default:
@@ -127,7 +128,7 @@ out:
 }
 
 static int prp_get_fmt(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_pad_config *cfg,
+		       struct v4l2_subdev_state *sd_state,
 		       struct v4l2_subdev_format *sdformat)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
@@ -139,7 +140,7 @@ static int prp_get_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&priv->lock);
 
-	fmt = __prp_get_fmt(priv, cfg, sdformat->pad, sdformat->which);
+	fmt = __prp_get_fmt(priv, sd_state, sdformat->pad, sdformat->which);
 	if (!fmt) {
 		ret = -EINVAL;
 		goto out;
@@ -152,7 +153,7 @@ out:
 }
 
 static int prp_set_fmt(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_pad_config *cfg,
+		       struct v4l2_subdev_state *sd_state,
 		       struct v4l2_subdev_format *sdformat)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
@@ -171,7 +172,7 @@ static int prp_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 	}
 
-	infmt = __prp_get_fmt(priv, cfg, PRP_SINK_PAD, sdformat->which);
+	infmt = __prp_get_fmt(priv, sd_state, PRP_SINK_PAD, sdformat->which);
 
 	switch (sdformat->pad) {
 	case PRP_SINK_PAD:
@@ -201,7 +202,7 @@ static int prp_set_fmt(struct v4l2_subdev *sd,
 
 	imx_media_try_colorimetry(&sdformat->format, true);
 
-	fmt = __prp_get_fmt(priv, cfg, sdformat->pad, sdformat->which);
+	fmt = __prp_get_fmt(priv, sd_state, sdformat->pad, sdformat->which);
 	*fmt = sdformat->format;
 out:
 	mutex_unlock(&priv->lock);
@@ -442,7 +443,9 @@ static int prp_registered(struct v4l2_subdev *sd)
 	/* set a default mbus format  */
 	imx_media_enum_ipu_formats(&code, 0, PIXFMT_SEL_YUV);
 
-	return imx_media_init_mbus_fmt(&priv->format_mbus, 640, 480, code,
+	return imx_media_init_mbus_fmt(&priv->format_mbus,
+				       IMX_MEDIA_DEF_PIX_WIDTH,
+				       IMX_MEDIA_DEF_PIX_HEIGHT, code,
 				       V4L2_FIELD_NONE, NULL);
 }
 

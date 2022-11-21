@@ -36,7 +36,8 @@ static int tcf_simp_act(struct sk_buff *skb, const struct tc_action *a,
 	 * then it would look like "hello_3" (without quotes)
 	 */
 	pr_info("simple: %s_%llu\n",
-	       (char *)d->tcfd_defdata, d->tcf_bstats.packets);
+		(char *)d->tcfd_defdata,
+		u64_stats_read(&d->tcf_bstats.packets));
 	spin_unlock(&d->tcf_lock);
 	return d->tcf_action;
 }
@@ -52,7 +53,7 @@ static int alloc_defdata(struct tcf_defact *d, const struct nlattr *defdata)
 	d->tcfd_defdata = kzalloc(SIMP_MAX_DATA, GFP_KERNEL);
 	if (unlikely(!d->tcfd_defdata))
 		return -ENOMEM;
-	nla_strlcpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
+	nla_strscpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
 	return 0;
 }
 
@@ -71,7 +72,7 @@ static int reset_policy(struct tc_action *a, const struct nlattr *defdata,
 	spin_lock_bh(&d->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(a, p->action, goto_ch);
 	memset(d->tcfd_defdata, 0, SIMP_MAX_DATA);
-	nla_strlcpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
+	nla_strscpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
 	spin_unlock_bh(&d->tcf_lock);
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
@@ -85,11 +86,11 @@ static const struct nla_policy simple_policy[TCA_DEF_MAX + 1] = {
 
 static int tcf_simp_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
-			 int ovr, int bind, bool rtnl_held,
 			 struct tcf_proto *tp, u32 flags,
 			 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, simp_net_id);
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_DEF_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
 	struct tc_defact *parm;
@@ -128,7 +129,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, index, est, a,
-				     &act_simp_ops, bind, false, 0);
+				     &act_simp_ops, bind, false, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;
@@ -147,7 +148,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 		tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 		ret = ACT_P_CREATED;
 	} else {
-		if (!ovr) {
+		if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 			err = -EEXIST;
 			goto release_idr;
 		}

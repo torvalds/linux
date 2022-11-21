@@ -103,6 +103,13 @@ struct irq_domain *pci_host_bridge_of_msi_domain(struct pci_bus *bus)
 #endif
 }
 
+bool pci_host_of_has_msi_map(struct device *dev)
+{
+	if (dev && dev->of_node)
+		return of_get_property(dev->of_node, "msi-map", NULL);
+	return false;
+}
+
 static inline int __of_pci_pci_compare(struct device_node *node,
 				       unsigned int data)
 {
@@ -190,10 +197,18 @@ int of_pci_parse_bus_range(struct device_node *node, struct resource *res)
 EXPORT_SYMBOL_GPL(of_pci_parse_bus_range);
 
 /**
- * This function will try to obtain the host bridge domain number by
- * finding a property called "linux,pci-domain" of the given device node.
+ * of_get_pci_domain_nr - Find the host bridge domain number
+ *			  of the given device node.
+ * @node: Device tree node with the domain information.
  *
- * @node: device tree node with the domain information
+ * This function will try to obtain the host bridge domain number by finding
+ * a property called "linux,pci-domain" of the given device node.
+ *
+ * Return:
+ * * > 0	- On success, an associated domain number.
+ * * -EINVAL	- The property "linux,pci-domain" does not exist.
+ * * -ENODATA	- The linux,pci-domain" property does not have value.
+ * * -EOVERFLOW	- Invalid "linux,pci-domain" property value.
  *
  * Returns the associated domain number from DT in the range [0-0xffff], or
  * a negative value if the required property is not found.
@@ -232,7 +247,7 @@ void of_pci_check_probe_only(void)
 	else
 		pci_clear_flags(PCI_PROBE_ONLY);
 
-	pr_info("PROBE_ONLY %sabled\n", val ? "en" : "dis");
+	pr_info("PROBE_ONLY %s\n", val ? "enabled" : "disabled");
 }
 EXPORT_SYMBOL_GPL(of_pci_check_probe_only);
 
@@ -295,7 +310,7 @@ static int devm_of_pci_get_host_bridge_resources(struct device *dev,
 	/* Check for ranges property */
 	err = of_pci_range_parser_init(&parser, dev_node);
 	if (err)
-		goto failed;
+		return 0;
 
 	dev_dbg(dev, "Parsing ranges property...\n");
 	for_each_of_pci_range(&parser, &range) {
@@ -338,6 +353,8 @@ static int devm_of_pci_get_host_bridge_resources(struct device *dev,
 				dev_warn(dev, "More than one I/O resource converted for %pOF. CPU base address for old range lost!\n",
 					 dev_node);
 			*io_base = range.cpu_addr;
+		} else if (resource_type(res) == IORESOURCE_MEM) {
+			res->flags &= ~IORESOURCE_MEM_64;
 		}
 
 		pci_add_resource_offset(resources, res,	res->start - range.pci_addr);
@@ -406,7 +423,7 @@ failed:
  */
 static int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq)
 {
-	struct device_node *dn, *ppnode;
+	struct device_node *dn, *ppnode = NULL;
 	struct pci_dev *ppdev;
 	__be32 laddr[3];
 	u8 pin;
@@ -435,8 +452,14 @@ static int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *
 	if (pin == 0)
 		return -ENODEV;
 
+	/* Local interrupt-map in the device node? Use it! */
+	if (of_get_property(dn, "interrupt-map", NULL)) {
+		pin = pci_swizzle_interrupt_pin(pdev, pin);
+		ppnode = dn;
+	}
+
 	/* Now we walk up the PCI tree */
-	for (;;) {
+	while (!ppnode) {
 		/* Get the pci_dev of our parent */
 		ppdev = pdev->bus->self;
 
@@ -556,6 +579,11 @@ static int pci_parse_request_of_pci_ranges(struct device *dev,
 			break;
 		case IORESOURCE_MEM:
 			res_valid |= !(res->flags & IORESOURCE_PREFETCH);
+
+			if (!(res->flags & IORESOURCE_PREFETCH))
+				if (upper_32_bits(resource_size(res)))
+					dev_warn(dev, "Memory resource size exceeds max for 32 bits\n");
+
 			break;
 		}
 	}
@@ -580,10 +608,16 @@ int devm_of_pci_bridge_init(struct device *dev, struct pci_host_bridge *bridge)
 #endif /* CONFIG_PCI */
 
 /**
+ * of_pci_get_max_link_speed - Find the maximum link speed of the given device node.
+ * @node: Device tree node with the maximum link speed information.
+ *
  * This function will try to find the limitation of link speed by finding
  * a property called "max-link-speed" of the given device node.
  *
- * @node: device tree node with the max link speed information
+ * Return:
+ * * > 0	- On success, a maximum link speed.
+ * * -EINVAL	- Invalid "max-link-speed" property value, or failure to access
+ *		  the property of the device tree node.
  *
  * Returns the associated max link speed from DT, or a negative value if the
  * required property is not found or is invalid.

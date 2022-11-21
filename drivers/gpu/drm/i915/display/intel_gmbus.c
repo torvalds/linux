@@ -34,6 +34,7 @@
 #include <drm/drm_hdcp.h>
 
 #include "i915_drv.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_gmbus.h"
 
@@ -90,17 +91,36 @@ static const struct gmbus_pin gmbus_pins_icp[] = {
 	[GMBUS_PIN_14_TC6_TGP] = { "tc6", GPIOO },
 };
 
+static const struct gmbus_pin gmbus_pins_dg1[] = {
+	[GMBUS_PIN_1_BXT] = { "dpa", GPIOB },
+	[GMBUS_PIN_2_BXT] = { "dpb", GPIOC },
+	[GMBUS_PIN_3_BXT] = { "dpc", GPIOD },
+	[GMBUS_PIN_4_CNP] = { "dpd", GPIOE },
+};
+
+static const struct gmbus_pin gmbus_pins_dg2[] = {
+	[GMBUS_PIN_1_BXT] = { "dpa", GPIOB },
+	[GMBUS_PIN_2_BXT] = { "dpb", GPIOC },
+	[GMBUS_PIN_3_BXT] = { "dpc", GPIOD },
+	[GMBUS_PIN_4_CNP] = { "dpd", GPIOE },
+	[GMBUS_PIN_9_TC1_ICP] = { "tc1", GPIOJ },
+};
+
 /* pin is expected to be valid */
 static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *dev_priv,
 					     unsigned int pin)
 {
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG2)
+		return &gmbus_pins_dg2[pin];
+	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
+		return &gmbus_pins_dg1[pin];
+	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		return &gmbus_pins_icp[pin];
 	else if (HAS_PCH_CNP(dev_priv))
 		return &gmbus_pins_cnp[pin];
-	else if (IS_GEN9_LP(dev_priv))
+	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		return &gmbus_pins_bxt[pin];
-	else if (IS_GEN9_BC(dev_priv))
+	else if (DISPLAY_VER(dev_priv) == 9)
 		return &gmbus_pins_skl[pin];
 	else if (IS_BROADWELL(dev_priv))
 		return &gmbus_pins_bdw[pin];
@@ -113,13 +133,17 @@ bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
 {
 	unsigned int size;
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG2)
+		size = ARRAY_SIZE(gmbus_pins_dg2);
+	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
+		size = ARRAY_SIZE(gmbus_pins_dg1);
+	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		size = ARRAY_SIZE(gmbus_pins_icp);
 	else if (HAS_PCH_CNP(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_cnp);
-	else if (IS_GEN9_LP(dev_priv))
+	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_bxt);
-	else if (IS_GEN9_BC(dev_priv))
+	else if (DISPLAY_VER(dev_priv) == 9)
 		size = ARRAY_SIZE(gmbus_pins_skl);
 	else if (IS_BROADWELL(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_bdw);
@@ -322,6 +346,15 @@ intel_gpio_setup(struct intel_gmbus *bus, unsigned int pin)
 	algo->data = bus;
 }
 
+static bool has_gmbus_irq(struct drm_i915_private *i915)
+{
+	/*
+	 * encoder->shutdown() may want to use GMBUS
+	 * after irqs have already been disabled.
+	 */
+	return HAS_GMBUS_IRQ(i915) && intel_irqs_enabled(i915);
+}
+
 static int gmbus_wait(struct drm_i915_private *dev_priv, u32 status, u32 irq_en)
 {
 	DEFINE_WAIT(wait);
@@ -332,7 +365,7 @@ static int gmbus_wait(struct drm_i915_private *dev_priv, u32 status, u32 irq_en)
 	 * we also need to check for NAKs besides the hw ready/idle signal, we
 	 * need to wake up periodically and check that ourselves.
 	 */
-	if (!HAS_GMBUS_IRQ(dev_priv))
+	if (!has_gmbus_irq(dev_priv))
 		irq_en = 0;
 
 	add_wait_queue(&dev_priv->gmbus_wait_queue, &wait);
@@ -363,7 +396,7 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 
 	/* Important: The hw handles only the first bit, so set only one! */
 	irq_enable = 0;
-	if (HAS_GMBUS_IRQ(dev_priv))
+	if (has_gmbus_irq(dev_priv))
 		irq_enable = GMBUS_IDLE_EN;
 
 	add_wait_queue(&dev_priv->gmbus_wait_queue, &wait);
@@ -381,7 +414,7 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 
 static unsigned int gmbus_max_xfer_size(struct drm_i915_private *dev_priv)
 {
-	return INTEL_GEN(dev_priv) >= 9 ? GEN9_GMBUS_BYTE_COUNT_MAX :
+	return DISPLAY_VER(dev_priv) >= 9 ? GEN9_GMBUS_BYTE_COUNT_MAX :
 	       GMBUS_BYTE_COUNT_MAX;
 }
 
@@ -588,8 +621,8 @@ do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num,
 	int i = 0, inc, try = 0;
 	int ret = 0;
 
-	/* Display WA #0868: skl,bxt,kbl,cfl,glk,cnl */
-	if (IS_GEN9_LP(dev_priv))
+	/* Display WA #0868: skl,bxt,kbl,cfl,glk */
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		bxt_gmbus_clock_gating(dev_priv, false);
 	else if (HAS_PCH_SPT(dev_priv) || HAS_PCH_CNP(dev_priv))
 		pch_gmbus_clock_gating(dev_priv, false);
@@ -701,8 +734,8 @@ timeout:
 	ret = -EAGAIN;
 
 out:
-	/* Display WA #0868: skl,bxt,kbl,cfl,glk,cnl */
-	if (IS_GEN9_LP(dev_priv))
+	/* Display WA #0868: skl,bxt,kbl,cfl,glk */
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		bxt_gmbus_clock_gating(dev_priv, true);
 	else if (HAS_PCH_SPT(dev_priv) || HAS_PCH_CNP(dev_priv))
 		pch_gmbus_clock_gating(dev_priv, true);
@@ -829,13 +862,10 @@ static const struct i2c_lock_operations gmbus_lock_ops = {
  */
 int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	struct intel_gmbus *bus;
 	unsigned int pin;
 	int ret;
-
-	if (!HAS_DISPLAY(dev_priv))
-		return 0;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;
@@ -911,13 +941,6 @@ struct i2c_adapter *intel_gmbus_get_adapter(struct drm_i915_private *dev_priv,
 		return NULL;
 
 	return &dev_priv->gmbus[pin].adapter;
-}
-
-void intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed)
-{
-	struct intel_gmbus *bus = to_intel_gmbus(adapter);
-
-	bus->reg0 = (bus->reg0 & ~(0x3 << 8)) | speed;
 }
 
 void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)

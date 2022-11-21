@@ -516,7 +516,7 @@ qlafx00_pci_config(scsi_qla_host_t *vha)
 }
 
 /**
- * qlafx00_warm_reset() - Perform warm reset of iSA(CPUs being reset on SOC).
+ * qlafx00_soc_cpu_reset() - Perform warm reset of iSA(CPUs being reset on SOC).
  * @vha: HA context
  *
  */
@@ -736,29 +736,6 @@ int
 qlafx00_lun_reset(fc_port_t *fcport, uint64_t l, int tag)
 {
 	return qla2x00_async_tm_cmd(fcport, TCF_LUN_RESET, l, tag);
-}
-
-int
-qlafx00_loop_reset(scsi_qla_host_t *vha)
-{
-	int ret;
-	struct fc_port *fcport;
-	struct qla_hw_data *ha = vha->hw;
-
-	if (ql2xtargetreset) {
-		list_for_each_entry(fcport, &vha->vp_fcports, list) {
-			if (fcport->port_type != FCT_TARGET)
-				continue;
-
-			ret = ha->isp_ops->target_reset(fcport, 0, 0);
-			if (ret != QLA_SUCCESS) {
-				ql_dbg(ql_dbg_taskm, vha, 0x803d,
-				    "Bus Reset failed: Reset=%d "
-				    "d_id=%x.\n", ret, fcport->d_id.b24);
-			}
-		}
-	}
-	return QLA_SUCCESS;
 }
 
 int
@@ -1810,17 +1787,18 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 	struct register_host_info *preg_hsi;
 	struct new_utsname *p_sysid = NULL;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp)
 		goto done;
 
 	sp->type = SRB_FXIOCB_DCMD;
 	sp->name = "fxdisc";
+	qla2x00_init_async_sp(sp, FXDISC_TIMEOUT,
+			      qla2x00_fxdisc_sp_done);
+	sp->u.iocb_cmd.timeout = qla2x00_fxdisc_iocb_timeout;
 
 	fdisc = &sp->u.iocb_cmd;
-	fdisc->timeout = qla2x00_fxdisc_iocb_timeout;
-	qla2x00_init_timer(sp, FXDISC_TIMEOUT);
-
 	switch (fx_type) {
 	case FXDISC_GET_CONFIG_INFO:
 	fdisc->u.fxiocb.flags =
@@ -1921,7 +1899,6 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 	}
 
 	fdisc->u.fxiocb.req_func_type = cpu_to_le16(fx_type);
-	sp->done = qla2x00_fxdisc_sp_done;
 
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS)
@@ -1997,7 +1974,8 @@ done_unmap_req:
 		dma_free_coherent(&ha->pdev->dev, fdisc->u.fxiocb.req_len,
 		    fdisc->u.fxiocb.req_addr, fdisc->u.fxiocb.req_dma_handle);
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -2860,7 +2838,7 @@ qlafx00_async_event(scsi_qla_host_t *vha)
 }
 
 /**
- * qlafx00x_mbx_completion() - Process mailbox command completions.
+ * qlafx00_mbx_completion() - Process mailbox command completions.
  * @vha: SCSI driver HA context
  * @mb0: value to be written into mailbox register 0
  */
@@ -3266,8 +3244,8 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 			fx_iocb.req_xfrcnt =
 			    cpu_to_le16(fxio->u.fxiocb.req_len);
 			put_unaligned_le64(fxio->u.fxiocb.req_dma_handle,
-					   &fx_iocb.dseg_rq.address);
-			fx_iocb.dseg_rq.length =
+					   &fx_iocb.dseg_rq[0].address);
+			fx_iocb.dseg_rq[0].length =
 			    cpu_to_le32(fxio->u.fxiocb.req_len);
 		}
 
@@ -3276,8 +3254,8 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 			fx_iocb.rsp_xfrcnt =
 			    cpu_to_le16(fxio->u.fxiocb.rsp_len);
 			put_unaligned_le64(fxio->u.fxiocb.rsp_dma_handle,
-					   &fx_iocb.dseg_rsp.address);
-			fx_iocb.dseg_rsp.length =
+					   &fx_iocb.dseg_rsp[0].address);
+			fx_iocb.dseg_rsp[0].length =
 			    cpu_to_le32(fxio->u.fxiocb.rsp_len);
 		}
 
@@ -3314,7 +3292,7 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 			    cpu_to_le16(bsg_job->request_payload.sg_cnt);
 			tot_dsds =
 			    bsg_job->request_payload.sg_cnt;
-			cur_dsd = &fx_iocb.dseg_rq;
+			cur_dsd = &fx_iocb.dseg_rq[0];
 			avail_dsds = 1;
 			for_each_sg(bsg_job->request_payload.sg_list, sg,
 			    tot_dsds, index) {
@@ -3369,7 +3347,7 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 			fx_iocb.rsp_dsdcnt =
 			   cpu_to_le16(bsg_job->reply_payload.sg_cnt);
 			tot_dsds = bsg_job->reply_payload.sg_cnt;
-			cur_dsd = &fx_iocb.dseg_rsp;
+			cur_dsd = &fx_iocb.dseg_rsp[0];
 			avail_dsds = 1;
 
 			for_each_sg(bsg_job->reply_payload.sg_list, sg,

@@ -34,8 +34,15 @@
 #define TB_DP_AUX_PATH_OUT		1
 #define TB_DP_AUX_PATH_IN		2
 
-#define TB_DMA_PATH_OUT			0
-#define TB_DMA_PATH_IN			1
+/* Minimum number of credits needed for PCIe path */
+#define TB_MIN_PCIE_CREDITS		6U
+/*
+ * Number of credits we try to allocate for each DMA path if not limited
+ * by the host router baMaxHI.
+ */
+#define TB_DMA_CREDITS			14U
+/* Minimum number of credits for DMA path */
+#define TB_MIN_DMA_CREDITS		1U
 
 static const char * const tb_tunnel_names[] = { "PCI", "DP", "DMA", "USB3" };
 
@@ -59,6 +66,55 @@ static const char * const tb_tunnel_names[] = { "PCI", "DP", "DMA", "USB3" };
 	__TB_TUNNEL_PRINT(tb_info, tunnel, fmt, ##arg)
 #define tb_tunnel_dbg(tunnel, fmt, arg...) \
 	__TB_TUNNEL_PRINT(tb_dbg, tunnel, fmt, ##arg)
+
+static inline unsigned int tb_usable_credits(const struct tb_port *port)
+{
+	return port->total_credits - port->ctl_credits;
+}
+
+/**
+ * tb_available_credits() - Available credits for PCIe and DMA
+ * @port: Lane adapter to check
+ * @max_dp_streams: If non-%NULL stores maximum number of simultaneous DP
+ *		    streams possible through this lane adapter
+ */
+static unsigned int tb_available_credits(const struct tb_port *port,
+					 size_t *max_dp_streams)
+{
+	const struct tb_switch *sw = port->sw;
+	int credits, usb3, pcie, spare;
+	size_t ndp;
+
+	usb3 = tb_acpi_may_tunnel_usb3() ? sw->max_usb3_credits : 0;
+	pcie = tb_acpi_may_tunnel_pcie() ? sw->max_pcie_credits : 0;
+
+	if (tb_acpi_is_xdomain_allowed()) {
+		spare = min_not_zero(sw->max_dma_credits, TB_DMA_CREDITS);
+		/* Add some credits for potential second DMA tunnel */
+		spare += TB_MIN_DMA_CREDITS;
+	} else {
+		spare = 0;
+	}
+
+	credits = tb_usable_credits(port);
+	if (tb_acpi_may_tunnel_dp()) {
+		/*
+		 * Maximum number of DP streams possible through the
+		 * lane adapter.
+		 */
+		ndp = (credits - (usb3 + pcie + spare)) /
+		      (sw->min_dp_aux_credits + sw->min_dp_main_credits);
+	} else {
+		ndp = 0;
+	}
+	credits -= ndp * (sw->min_dp_aux_credits + sw->min_dp_main_credits);
+	credits -= usb3;
+
+	if (max_dp_streams)
+		*max_dp_streams = ndp;
+
+	return credits > 0 ? credits : 0;
+}
 
 static struct tb_tunnel *tb_tunnel_alloc(struct tb *tb, size_t npaths,
 					 enum tb_tunnel_type type)
@@ -97,24 +153,37 @@ static int tb_pci_activate(struct tb_tunnel *tunnel, bool activate)
 	return 0;
 }
 
-static int tb_initial_credits(const struct tb_switch *sw)
+static int tb_pci_init_credits(struct tb_path_hop *hop)
 {
-	/* If the path is complete sw is not NULL */
-	if (sw) {
-		/* More credits for faster link */
-		switch (sw->link_speed * sw->link_width) {
-		case 40:
-			return 32;
-		case 20:
-			return 24;
-		}
+	struct tb_port *port = hop->in_port;
+	struct tb_switch *sw = port->sw;
+	unsigned int credits;
+
+	if (tb_port_use_credit_allocation(port)) {
+		unsigned int available;
+
+		available = tb_available_credits(port, NULL);
+		credits = min(sw->max_pcie_credits, available);
+
+		if (credits < TB_MIN_PCIE_CREDITS)
+			return -ENOSPC;
+
+		credits = max(TB_MIN_PCIE_CREDITS, credits);
+	} else {
+		if (tb_port_is_null(port))
+			credits = port->bonded ? 32 : 16;
+		else
+			credits = 7;
 	}
 
-	return 16;
+	hop->initial_credits = credits;
+	return 0;
 }
 
-static void tb_pci_init_path(struct tb_path *path)
+static int tb_pci_init_path(struct tb_path *path)
 {
+	struct tb_path_hop *hop;
+
 	path->egress_fc_enable = TB_PATH_SOURCE | TB_PATH_INTERNAL;
 	path->egress_shared_buffer = TB_PATH_NONE;
 	path->ingress_fc_enable = TB_PATH_ALL;
@@ -122,23 +191,30 @@ static void tb_pci_init_path(struct tb_path *path)
 	path->priority = 3;
 	path->weight = 1;
 	path->drop_packages = 0;
-	path->nfc_credits = 0;
-	path->hops[0].initial_credits = 7;
-	if (path->path_length > 1)
-		path->hops[1].initial_credits =
-			tb_initial_credits(path->hops[1].in_port->sw);
+
+	tb_path_for_each_hop(path, hop) {
+		int ret;
+
+		ret = tb_pci_init_credits(hop);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 /**
  * tb_tunnel_discover_pci() - Discover existing PCIe tunnels
  * @tb: Pointer to the domain structure
  * @down: PCIe downstream adapter
+ * @alloc_hopid: Allocate HopIDs from visited ports
  *
  * If @down adapter is active, follows the tunnel to the PCIe upstream
  * adapter and back. Returns the discovered tunnel or %NULL if there was
  * no tunnel.
  */
-struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down)
+struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down,
+					 bool alloc_hopid)
 {
 	struct tb_tunnel *tunnel;
 	struct tb_path *path;
@@ -159,21 +235,23 @@ struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down)
 	 * case.
 	 */
 	path = tb_path_discover(down, TB_PCI_HOPID, NULL, -1,
-				&tunnel->dst_port, "PCIe Up");
+				&tunnel->dst_port, "PCIe Up", alloc_hopid);
 	if (!path) {
 		/* Just disable the downstream port */
 		tb_pci_port_enable(down, false);
 		goto err_free;
 	}
 	tunnel->paths[TB_PCI_PATH_UP] = path;
-	tb_pci_init_path(tunnel->paths[TB_PCI_PATH_UP]);
+	if (tb_pci_init_path(tunnel->paths[TB_PCI_PATH_UP]))
+		goto err_free;
 
 	path = tb_path_discover(tunnel->dst_port, -1, down, TB_PCI_HOPID, NULL,
-				"PCIe Down");
+				"PCIe Down", alloc_hopid);
 	if (!path)
 		goto err_deactivate;
 	tunnel->paths[TB_PCI_PATH_DOWN] = path;
-	tb_pci_init_path(tunnel->paths[TB_PCI_PATH_DOWN]);
+	if (tb_pci_init_path(tunnel->paths[TB_PCI_PATH_DOWN]))
+		goto err_deactivate;
 
 	/* Validate that the tunnel is complete */
 	if (!tb_port_is_pcie_up(tunnel->dst_port)) {
@@ -231,23 +309,25 @@ struct tb_tunnel *tb_tunnel_alloc_pci(struct tb *tb, struct tb_port *up,
 
 	path = tb_path_alloc(tb, down, TB_PCI_HOPID, up, TB_PCI_HOPID, 0,
 			     "PCIe Down");
-	if (!path) {
-		tb_tunnel_free(tunnel);
-		return NULL;
-	}
-	tb_pci_init_path(path);
+	if (!path)
+		goto err_free;
 	tunnel->paths[TB_PCI_PATH_DOWN] = path;
+	if (tb_pci_init_path(path))
+		goto err_free;
 
 	path = tb_path_alloc(tb, up, TB_PCI_HOPID, down, TB_PCI_HOPID, 0,
 			     "PCIe Up");
-	if (!path) {
-		tb_tunnel_free(tunnel);
-		return NULL;
-	}
-	tb_pci_init_path(path);
+	if (!path)
+		goto err_free;
 	tunnel->paths[TB_PCI_PATH_UP] = path;
+	if (tb_pci_init_path(path))
+		goto err_free;
 
 	return tunnel;
+
+err_free:
+	tb_tunnel_free(tunnel);
+	return NULL;
 }
 
 static bool tb_dp_is_usb4(const struct tb_switch *sw)
@@ -500,6 +580,16 @@ static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 		out_dp_cap = tb_dp_cap_set_lanes(out_dp_cap, new_lanes);
 	}
 
+	/*
+	 * Titan Ridge does not disable AUX timers when it gets
+	 * SET_CONFIG with SET_LTTPR_MODE set. This causes problems with
+	 * DP tunneling.
+	 */
+	if (tb_route(out->sw) && tb_switch_is_titan_ridge(out->sw)) {
+		out_dp_cap |= DP_COMMON_CAP_LTTPR_NS;
+		tb_port_dbg(out, "disabling LTTPR\n");
+	}
+
 	return tb_port_write(in, &out_dp_cap, TB_CFG_PORT,
 			     in->cap_adap + DP_REMOTE_CAP, 1);
 }
@@ -602,9 +692,20 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 	return 0;
 }
 
+static void tb_dp_init_aux_credits(struct tb_path_hop *hop)
+{
+	struct tb_port *port = hop->in_port;
+	struct tb_switch *sw = port->sw;
+
+	if (tb_port_use_credit_allocation(port))
+		hop->initial_credits = sw->min_dp_aux_credits;
+	else
+		hop->initial_credits = 1;
+}
+
 static void tb_dp_init_aux_path(struct tb_path *path)
 {
-	int i;
+	struct tb_path_hop *hop;
 
 	path->egress_fc_enable = TB_PATH_SOURCE | TB_PATH_INTERNAL;
 	path->egress_shared_buffer = TB_PATH_NONE;
@@ -613,13 +714,42 @@ static void tb_dp_init_aux_path(struct tb_path *path)
 	path->priority = 2;
 	path->weight = 1;
 
-	for (i = 0; i < path->path_length; i++)
-		path->hops[i].initial_credits = 1;
+	tb_path_for_each_hop(path, hop)
+		tb_dp_init_aux_credits(hop);
 }
 
-static void tb_dp_init_video_path(struct tb_path *path, bool discover)
+static int tb_dp_init_video_credits(struct tb_path_hop *hop)
 {
-	u32 nfc_credits = path->hops[0].in_port->config.nfc_credits;
+	struct tb_port *port = hop->in_port;
+	struct tb_switch *sw = port->sw;
+
+	if (tb_port_use_credit_allocation(port)) {
+		unsigned int nfc_credits;
+		size_t max_dp_streams;
+
+		tb_available_credits(port, &max_dp_streams);
+		/*
+		 * Read the number of currently allocated NFC credits
+		 * from the lane adapter. Since we only use them for DP
+		 * tunneling we can use that to figure out how many DP
+		 * tunnels already go through the lane adapter.
+		 */
+		nfc_credits = port->config.nfc_credits &
+				ADP_CS_4_NFC_BUFFERS_MASK;
+		if (nfc_credits / sw->min_dp_main_credits > max_dp_streams)
+			return -ENOSPC;
+
+		hop->nfc_credits = sw->min_dp_main_credits;
+	} else {
+		hop->nfc_credits = min(port->total_credits - 2, 12U);
+	}
+
+	return 0;
+}
+
+static int tb_dp_init_video_path(struct tb_path *path)
+{
+	struct tb_path_hop *hop;
 
 	path->egress_fc_enable = TB_PATH_NONE;
 	path->egress_shared_buffer = TB_PATH_NONE;
@@ -628,22 +758,22 @@ static void tb_dp_init_video_path(struct tb_path *path, bool discover)
 	path->priority = 1;
 	path->weight = 1;
 
-	if (discover) {
-		path->nfc_credits = nfc_credits & ADP_CS_4_NFC_BUFFERS_MASK;
-	} else {
-		u32 max_credits;
+	tb_path_for_each_hop(path, hop) {
+		int ret;
 
-		max_credits = (nfc_credits & ADP_CS_4_TOTAL_BUFFERS_MASK) >>
-			ADP_CS_4_TOTAL_BUFFERS_SHIFT;
-		/* Leave some credits for AUX path */
-		path->nfc_credits = min(max_credits - 2, 12U);
+		ret = tb_dp_init_video_credits(hop);
+		if (ret)
+			return ret;
 	}
+
+	return 0;
 }
 
 /**
  * tb_tunnel_discover_dp() - Discover existing Display Port tunnels
  * @tb: Pointer to the domain structure
  * @in: DP in adapter
+ * @alloc_hopid: Allocate HopIDs from visited ports
  *
  * If @in adapter is active, follows the tunnel to the DP out adapter
  * and back. Returns the discovered tunnel or %NULL if there was no
@@ -651,7 +781,8 @@ static void tb_dp_init_video_path(struct tb_path *path, bool discover)
  *
  * Return: DP tunnel or %NULL if no tunnel found.
  */
-struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in)
+struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in,
+					bool alloc_hopid)
 {
 	struct tb_tunnel *tunnel;
 	struct tb_port *port;
@@ -670,23 +801,25 @@ struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in)
 	tunnel->src_port = in;
 
 	path = tb_path_discover(in, TB_DP_VIDEO_HOPID, NULL, -1,
-				&tunnel->dst_port, "Video");
+				&tunnel->dst_port, "Video", alloc_hopid);
 	if (!path) {
 		/* Just disable the DP IN port */
 		tb_dp_port_enable(in, false);
 		goto err_free;
 	}
 	tunnel->paths[TB_DP_VIDEO_PATH_OUT] = path;
-	tb_dp_init_video_path(tunnel->paths[TB_DP_VIDEO_PATH_OUT], true);
+	if (tb_dp_init_video_path(tunnel->paths[TB_DP_VIDEO_PATH_OUT]))
+		goto err_free;
 
-	path = tb_path_discover(in, TB_DP_AUX_TX_HOPID, NULL, -1, NULL, "AUX TX");
+	path = tb_path_discover(in, TB_DP_AUX_TX_HOPID, NULL, -1, NULL, "AUX TX",
+				alloc_hopid);
 	if (!path)
 		goto err_deactivate;
 	tunnel->paths[TB_DP_AUX_PATH_OUT] = path;
 	tb_dp_init_aux_path(tunnel->paths[TB_DP_AUX_PATH_OUT]);
 
 	path = tb_path_discover(tunnel->dst_port, -1, in, TB_DP_AUX_RX_HOPID,
-				&port, "AUX RX");
+				&port, "AUX RX", alloc_hopid);
 	if (!path)
 		goto err_deactivate;
 	tunnel->paths[TB_DP_AUX_PATH_IN] = path;
@@ -764,7 +897,7 @@ struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
 			     1, "Video");
 	if (!path)
 		goto err_free;
-	tb_dp_init_video_path(path, false);
+	tb_dp_init_video_path(path);
 	paths[TB_DP_VIDEO_PATH_OUT] = path;
 
 	path = tb_path_alloc(tb, in, TB_DP_AUX_TX_HOPID, out,
@@ -788,39 +921,139 @@ err_free:
 	return NULL;
 }
 
-static u32 tb_dma_credits(struct tb_port *nhi)
+static unsigned int tb_dma_available_credits(const struct tb_port *port)
 {
-	u32 max_credits;
+	const struct tb_switch *sw = port->sw;
+	int credits;
 
-	max_credits = (nhi->config.nfc_credits & ADP_CS_4_TOTAL_BUFFERS_MASK) >>
-		ADP_CS_4_TOTAL_BUFFERS_SHIFT;
-	return min(max_credits, 13U);
+	credits = tb_available_credits(port, NULL);
+	if (tb_acpi_may_tunnel_pcie())
+		credits -= sw->max_pcie_credits;
+	credits -= port->dma_credits;
+
+	return credits > 0 ? credits : 0;
 }
 
-static int tb_dma_activate(struct tb_tunnel *tunnel, bool active)
+static int tb_dma_reserve_credits(struct tb_path_hop *hop, unsigned int credits)
 {
-	struct tb_port *nhi = tunnel->src_port;
-	u32 credits;
+	struct tb_port *port = hop->in_port;
 
-	credits = active ? tb_dma_credits(nhi) : 0;
-	return tb_port_set_initial_credits(nhi, credits);
+	if (tb_port_use_credit_allocation(port)) {
+		unsigned int available = tb_dma_available_credits(port);
+
+		/*
+		 * Need to have at least TB_MIN_DMA_CREDITS, otherwise
+		 * DMA path cannot be established.
+		 */
+		if (available < TB_MIN_DMA_CREDITS)
+			return -ENOSPC;
+
+		while (credits > available)
+			credits--;
+
+		tb_port_dbg(port, "reserving %u credits for DMA path\n",
+			    credits);
+
+		port->dma_credits += credits;
+	} else {
+		if (tb_port_is_null(port))
+			credits = port->bonded ? 14 : 6;
+		else
+			credits = min(port->total_credits, credits);
+	}
+
+	hop->initial_credits = credits;
+	return 0;
 }
 
-static void tb_dma_init_path(struct tb_path *path, unsigned int isb,
-			     unsigned int efc, u32 credits)
+/* Path from lane adapter to NHI */
+static int tb_dma_init_rx_path(struct tb_path *path, unsigned int credits)
 {
-	int i;
+	struct tb_path_hop *hop;
+	unsigned int i, tmp;
 
-	path->egress_fc_enable = efc;
+	path->egress_fc_enable = TB_PATH_SOURCE | TB_PATH_INTERNAL;
 	path->ingress_fc_enable = TB_PATH_ALL;
 	path->egress_shared_buffer = TB_PATH_NONE;
-	path->ingress_shared_buffer = isb;
+	path->ingress_shared_buffer = TB_PATH_NONE;
 	path->priority = 5;
 	path->weight = 1;
 	path->clear_fc = true;
 
-	for (i = 0; i < path->path_length; i++)
-		path->hops[i].initial_credits = credits;
+	/*
+	 * First lane adapter is the one connected to the remote host.
+	 * We don't tunnel other traffic over this link so can use all
+	 * the credits (except the ones reserved for control traffic).
+	 */
+	hop = &path->hops[0];
+	tmp = min(tb_usable_credits(hop->in_port), credits);
+	hop->initial_credits = tmp;
+	hop->in_port->dma_credits += tmp;
+
+	for (i = 1; i < path->path_length; i++) {
+		int ret;
+
+		ret = tb_dma_reserve_credits(&path->hops[i], credits);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/* Path from NHI to lane adapter */
+static int tb_dma_init_tx_path(struct tb_path *path, unsigned int credits)
+{
+	struct tb_path_hop *hop;
+
+	path->egress_fc_enable = TB_PATH_ALL;
+	path->ingress_fc_enable = TB_PATH_ALL;
+	path->egress_shared_buffer = TB_PATH_NONE;
+	path->ingress_shared_buffer = TB_PATH_NONE;
+	path->priority = 5;
+	path->weight = 1;
+	path->clear_fc = true;
+
+	tb_path_for_each_hop(path, hop) {
+		int ret;
+
+		ret = tb_dma_reserve_credits(hop, credits);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void tb_dma_release_credits(struct tb_path_hop *hop)
+{
+	struct tb_port *port = hop->in_port;
+
+	if (tb_port_use_credit_allocation(port)) {
+		port->dma_credits -= hop->initial_credits;
+
+		tb_port_dbg(port, "released %u DMA path credits\n",
+			    hop->initial_credits);
+	}
+}
+
+static void tb_dma_deinit_path(struct tb_path *path)
+{
+	struct tb_path_hop *hop;
+
+	tb_path_for_each_hop(path, hop)
+		tb_dma_release_credits(hop);
+}
+
+static void tb_dma_deinit(struct tb_tunnel *tunnel)
+{
+	int i;
+
+	for (i = 0; i < tunnel->npaths; i++) {
+		if (!tunnel->paths[i])
+			continue;
+		tb_dma_deinit_path(tunnel->paths[i]);
+	}
 }
 
 /**
@@ -828,52 +1061,132 @@ static void tb_dma_init_path(struct tb_path *path, unsigned int isb,
  * @tb: Pointer to the domain structure
  * @nhi: Host controller port
  * @dst: Destination null port which the other domain is connected to
- * @transmit_ring: NHI ring number used to send packets towards the
- *		   other domain
  * @transmit_path: HopID used for transmitting packets
+ * @transmit_ring: NHI ring number used to send packets towards the
+ *		   other domain. Set to %-1 if TX path is not needed.
+ * @receive_path: HopID used for receiving packets
  * @receive_ring: NHI ring number used to receive packets from the
- *		  other domain
- * @reveive_path: HopID used for receiving packets
+ *		  other domain. Set to %-1 if RX path is not needed.
  *
  * Return: Returns a tb_tunnel on success or NULL on failure.
  */
 struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
-				      struct tb_port *dst, int transmit_ring,
-				      int transmit_path, int receive_ring,
-				      int receive_path)
+				      struct tb_port *dst, int transmit_path,
+				      int transmit_ring, int receive_path,
+				      int receive_ring)
 {
 	struct tb_tunnel *tunnel;
+	size_t npaths = 0, i = 0;
 	struct tb_path *path;
-	u32 credits;
+	int credits;
 
-	tunnel = tb_tunnel_alloc(tb, 2, TB_TUNNEL_DMA);
+	if (receive_ring > 0)
+		npaths++;
+	if (transmit_ring > 0)
+		npaths++;
+
+	if (WARN_ON(!npaths))
+		return NULL;
+
+	tunnel = tb_tunnel_alloc(tb, npaths, TB_TUNNEL_DMA);
 	if (!tunnel)
 		return NULL;
 
-	tunnel->activate = tb_dma_activate;
 	tunnel->src_port = nhi;
 	tunnel->dst_port = dst;
+	tunnel->deinit = tb_dma_deinit;
 
-	credits = tb_dma_credits(nhi);
+	credits = min_not_zero(TB_DMA_CREDITS, nhi->sw->max_dma_credits);
 
-	path = tb_path_alloc(tb, dst, receive_path, nhi, receive_ring, 0, "DMA RX");
-	if (!path) {
-		tb_tunnel_free(tunnel);
-		return NULL;
+	if (receive_ring > 0) {
+		path = tb_path_alloc(tb, dst, receive_path, nhi, receive_ring, 0,
+				     "DMA RX");
+		if (!path)
+			goto err_free;
+		tunnel->paths[i++] = path;
+		if (tb_dma_init_rx_path(path, credits)) {
+			tb_tunnel_dbg(tunnel, "not enough buffers for RX path\n");
+			goto err_free;
+		}
 	}
-	tb_dma_init_path(path, TB_PATH_NONE, TB_PATH_SOURCE | TB_PATH_INTERNAL,
-			 credits);
-	tunnel->paths[TB_DMA_PATH_IN] = path;
 
-	path = tb_path_alloc(tb, nhi, transmit_ring, dst, transmit_path, 0, "DMA TX");
-	if (!path) {
-		tb_tunnel_free(tunnel);
-		return NULL;
+	if (transmit_ring > 0) {
+		path = tb_path_alloc(tb, nhi, transmit_ring, dst, transmit_path, 0,
+				     "DMA TX");
+		if (!path)
+			goto err_free;
+		tunnel->paths[i++] = path;
+		if (tb_dma_init_tx_path(path, credits)) {
+			tb_tunnel_dbg(tunnel, "not enough buffers for TX path\n");
+			goto err_free;
+		}
 	}
-	tb_dma_init_path(path, TB_PATH_SOURCE, TB_PATH_ALL, credits);
-	tunnel->paths[TB_DMA_PATH_OUT] = path;
 
 	return tunnel;
+
+err_free:
+	tb_tunnel_free(tunnel);
+	return NULL;
+}
+
+/**
+ * tb_tunnel_match_dma() - Match DMA tunnel
+ * @tunnel: Tunnel to match
+ * @transmit_path: HopID used for transmitting packets. Pass %-1 to ignore.
+ * @transmit_ring: NHI ring number used to send packets towards the
+ *		   other domain. Pass %-1 to ignore.
+ * @receive_path: HopID used for receiving packets. Pass %-1 to ignore.
+ * @receive_ring: NHI ring number used to receive packets from the
+ *		  other domain. Pass %-1 to ignore.
+ *
+ * This function can be used to match specific DMA tunnel, if there are
+ * multiple DMA tunnels going through the same XDomain connection.
+ * Returns true if there is match and false otherwise.
+ */
+bool tb_tunnel_match_dma(const struct tb_tunnel *tunnel, int transmit_path,
+			 int transmit_ring, int receive_path, int receive_ring)
+{
+	const struct tb_path *tx_path = NULL, *rx_path = NULL;
+	int i;
+
+	if (!receive_ring || !transmit_ring)
+		return false;
+
+	for (i = 0; i < tunnel->npaths; i++) {
+		const struct tb_path *path = tunnel->paths[i];
+
+		if (!path)
+			continue;
+
+		if (tb_port_is_nhi(path->hops[0].in_port))
+			tx_path = path;
+		else if (tb_port_is_nhi(path->hops[path->path_length - 1].out_port))
+			rx_path = path;
+	}
+
+	if (transmit_ring > 0 || transmit_path > 0) {
+		if (!tx_path)
+			return false;
+		if (transmit_ring > 0 &&
+		    (tx_path->hops[0].in_hop_index != transmit_ring))
+			return false;
+		if (transmit_path > 0 &&
+		    (tx_path->hops[tx_path->path_length - 1].next_hop_index != transmit_path))
+			return false;
+	}
+
+	if (receive_ring > 0 || receive_path > 0) {
+		if (!rx_path)
+			return false;
+		if (receive_path > 0 &&
+		    (rx_path->hops[0].in_hop_index != receive_path))
+			return false;
+		if (receive_ring > 0 &&
+		    (rx_path->hops[rx_path->path_length - 1].next_hop_index != receive_ring))
+			return false;
+	}
+
+	return true;
 }
 
 static int tb_usb3_max_link_rate(struct tb_port *up, struct tb_port *down)
@@ -920,12 +1233,14 @@ static int tb_usb3_activate(struct tb_tunnel *tunnel, bool activate)
 static int tb_usb3_consumed_bandwidth(struct tb_tunnel *tunnel,
 		int *consumed_up, int *consumed_down)
 {
+	int pcie_enabled = tb_acpi_may_tunnel_pcie();
+
 	/*
-	 * PCIe tunneling affects the USB3 bandwidth so take that it
-	 * into account here.
+	 * PCIe tunneling, if enabled, affects the USB3 bandwidth so
+	 * take that it into account here.
 	 */
-	*consumed_up = tunnel->allocated_up * (3 + 1) / 3;
-	*consumed_down = tunnel->allocated_down * (3 + 1) / 3;
+	*consumed_up = tunnel->allocated_up * (3 + pcie_enabled) / 3;
+	*consumed_down = tunnel->allocated_down * (3 + pcie_enabled) / 3;
 	return 0;
 }
 
@@ -1005,8 +1320,28 @@ static void tb_usb3_reclaim_available_bandwidth(struct tb_tunnel *tunnel,
 		      tunnel->allocated_up, tunnel->allocated_down);
 }
 
+static void tb_usb3_init_credits(struct tb_path_hop *hop)
+{
+	struct tb_port *port = hop->in_port;
+	struct tb_switch *sw = port->sw;
+	unsigned int credits;
+
+	if (tb_port_use_credit_allocation(port)) {
+		credits = sw->max_usb3_credits;
+	} else {
+		if (tb_port_is_null(port))
+			credits = port->bonded ? 32 : 16;
+		else
+			credits = 7;
+	}
+
+	hop->initial_credits = credits;
+}
+
 static void tb_usb3_init_path(struct tb_path *path)
 {
+	struct tb_path_hop *hop;
+
 	path->egress_fc_enable = TB_PATH_SOURCE | TB_PATH_INTERNAL;
 	path->egress_shared_buffer = TB_PATH_NONE;
 	path->ingress_fc_enable = TB_PATH_ALL;
@@ -1014,23 +1349,23 @@ static void tb_usb3_init_path(struct tb_path *path)
 	path->priority = 3;
 	path->weight = 3;
 	path->drop_packages = 0;
-	path->nfc_credits = 0;
-	path->hops[0].initial_credits = 7;
-	if (path->path_length > 1)
-		path->hops[1].initial_credits =
-			tb_initial_credits(path->hops[1].in_port->sw);
+
+	tb_path_for_each_hop(path, hop)
+		tb_usb3_init_credits(hop);
 }
 
 /**
  * tb_tunnel_discover_usb3() - Discover existing USB3 tunnels
  * @tb: Pointer to the domain structure
  * @down: USB3 downstream adapter
+ * @alloc_hopid: Allocate HopIDs from visited ports
  *
  * If @down adapter is active, follows the tunnel to the USB3 upstream
  * adapter and back. Returns the discovered tunnel or %NULL if there was
  * no tunnel.
  */
-struct tb_tunnel *tb_tunnel_discover_usb3(struct tb *tb, struct tb_port *down)
+struct tb_tunnel *tb_tunnel_discover_usb3(struct tb *tb, struct tb_port *down,
+					  bool alloc_hopid)
 {
 	struct tb_tunnel *tunnel;
 	struct tb_path *path;
@@ -1051,7 +1386,7 @@ struct tb_tunnel *tb_tunnel_discover_usb3(struct tb *tb, struct tb_port *down)
 	 * case.
 	 */
 	path = tb_path_discover(down, TB_USB3_HOPID, NULL, -1,
-				&tunnel->dst_port, "USB3 Down");
+				&tunnel->dst_port, "USB3 Down", alloc_hopid);
 	if (!path) {
 		/* Just disable the downstream port */
 		tb_usb3_port_enable(down, false);
@@ -1061,7 +1396,7 @@ struct tb_tunnel *tb_tunnel_discover_usb3(struct tb *tb, struct tb_port *down)
 	tb_usb3_init_path(tunnel->paths[TB_USB3_PATH_DOWN]);
 
 	path = tb_path_discover(tunnel->dst_port, -1, down, TB_USB3_HOPID, NULL,
-				"USB3 Up");
+				"USB3 Up", alloc_hopid);
 	if (!path)
 		goto err_deactivate;
 	tunnel->paths[TB_USB3_PATH_UP] = path;
@@ -1217,6 +1552,9 @@ void tb_tunnel_free(struct tb_tunnel *tunnel)
 
 	if (!tunnel)
 		return;
+
+	if (tunnel->deinit)
+		tunnel->deinit(tunnel);
 
 	for (i = 0; i < tunnel->npaths; i++) {
 		if (tunnel->paths[i])

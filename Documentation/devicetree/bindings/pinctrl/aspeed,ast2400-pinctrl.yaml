@@ -23,8 +23,7 @@ properties:
   compatible:
     const: aspeed,ast2400-pinctrl
   reg:
-    description: |
-      A hint for the memory regions associated with the pin-controller
+    maxItems: 2
 
 patternProperties:
   '^.*$':
@@ -51,6 +50,9 @@ patternProperties:
                   TXD3, TXD4, UART6, USB11D1, USB11H2, USB2D1, USB2H1, USBCKI, VGABIOS_ROM,
                   VGAHS, VGAVS, VPI18, VPI24, VPI30, VPO12, VPO24, WDTRST1, WDTRST2]
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
 
@@ -63,7 +65,7 @@ examples:
         reg = <0x1e6e2000 0x1a8>;
 
         pinctrl: pinctrl {
-            compatible = "aspeed,g4-pinctrl";
+            compatible = "aspeed,ast2400-pinctrl";
 
             pinctrl_i2c3_default: i2c3_default {
                 function = "I2C3";

@@ -200,7 +200,7 @@ extern char _end;
 	START_ADDR	KSEG address of the entry point of kernel code.
 
 	ZERO_PGE	KSEG address of page full of zeroes, but 
-			upon entry to kerne cvan be expected
+			upon entry to kernel, it can be expected
 			to hold the parameter list and possible
 			INTRD information.
 

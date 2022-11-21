@@ -119,14 +119,6 @@ void dpp_read_state(struct dpp *dpp_base,
 	}
 }
 
-/* Program gamut remap in bypass mode */
-void dpp_set_gamut_remap_bypass(struct dcn10_dpp *dpp)
-{
-	REG_SET(CM_GAMUT_REMAP_CONTROL, 0,
-			CM_GAMUT_REMAP_MODE, 0);
-	/* Gamut remap in bypass */
-}
-
 #define IDENTITY_RATIO(ratio) (dc_fixpt_u2d19(ratio) == (1 << 19))
 
 bool dpp1_get_optimal_number_of_taps(
@@ -257,7 +249,8 @@ static void dpp1_setup_format_flags(enum surface_pixel_format input_format,\
 	if (input_format == SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F ||
 		input_format == SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F)
 		*fmt = PIXEL_FORMAT_FLOAT;
-	else if (input_format == SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616)
+	else if (input_format == SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ||
+		input_format == SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616)
 		*fmt = PIXEL_FORMAT_FIXED16;
 	else
 		*fmt = PIXEL_FORMAT_FIXED;
@@ -368,7 +361,8 @@ void dpp1_cnv_setup (
 		select = INPUT_CSC_SELECT_ICSC;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
-		pixel_format = 22;
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
+		pixel_format = 26; /* ARGB16161616_UNORM */
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
 		pixel_format = 24;
@@ -566,7 +560,8 @@ void dpp1_construct(
 	dpp->lb_pixel_depth_supported =
 		LB_PIXEL_DEPTH_18BPP |
 		LB_PIXEL_DEPTH_24BPP |
-		LB_PIXEL_DEPTH_30BPP;
+		LB_PIXEL_DEPTH_30BPP |
+		LB_PIXEL_DEPTH_36BPP;
 
 	dpp->lb_bits_per_entry = LB_BITS_PER_ENTRY;
 	dpp->lb_memory_size = LB_TOTAL_NUMBER_OF_ENTRIES; /*0x1404*/

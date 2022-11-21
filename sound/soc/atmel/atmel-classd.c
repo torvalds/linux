@@ -48,7 +48,7 @@ static struct atmel_classd_pdata *atmel_classd_dt_init(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
 	struct atmel_classd_pdata *pdata;
-	const char *pwm_type;
+	const char *pwm_type_s;
 	int ret;
 
 	if (!np) {
@@ -60,8 +60,8 @@ static struct atmel_classd_pdata *atmel_classd_dt_init(struct device *dev)
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	ret = of_property_read_string(np, "atmel,pwm-type", &pwm_type);
-	if ((ret == 0) && (strcmp(pwm_type, "diff") == 0))
+	ret = of_property_read_string(np, "atmel,pwm-type", &pwm_type_s);
+	if ((ret == 0) && (strcmp(pwm_type_s, "diff") == 0))
 		pdata->pwm_type = CLASSD_MR_PWMTYP_DIFF;
 	else
 		pdata->pwm_type = CLASSD_MR_PWMTYP_SINGLE;
@@ -558,8 +558,7 @@ static int atmel_classd_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	io_base = devm_ioremap_resource(dev, res);
+	io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(io_base))
 		return PTR_ERR(io_base);
 

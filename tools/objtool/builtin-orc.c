@@ -13,8 +13,8 @@
  */
 
 #include <string.h>
-#include "builtin.h"
-#include "objtool.h"
+#include <objtool/builtin.h>
+#include <objtool/objtool.h>
 
 static const char *orc_usage[] = {
 	"objtool orc generate [<options>] file.o",
@@ -34,10 +34,7 @@ int cmd_orc(int argc, const char **argv)
 		struct objtool_file *file;
 		int ret;
 
-		argc = parse_options(argc, argv, check_options, orc_usage, 0);
-		if (argc != 1)
-			usage_with_options(orc_usage, check_options);
-
+		argc = cmd_parse_options(argc, argv, orc_usage);
 		objname = argv[0];
 
 		file = objtool_open_read(objname);
@@ -51,11 +48,7 @@ int cmd_orc(int argc, const char **argv)
 		if (list_empty(&file->insn_list))
 			return 0;
 
-		ret = create_orc(file);
-		if (ret)
-			return ret;
-
-		ret = create_orc_sections(file);
+		ret = orc_create(file);
 		if (ret)
 			return ret;
 

@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
+#include <linux/extable.h>
 
 #include <asm/page.h>
 #include <asm/openprom.h>
@@ -54,54 +55,6 @@ static void __noreturn unhandled_fault(unsigned long address,
 	die_if_kernel("Oops", regs);
 }
 
-asmlinkage int lookup_fault(unsigned long pc, unsigned long ret_pc,
-			    unsigned long address)
-{
-	struct pt_regs regs;
-	unsigned long g2;
-	unsigned int insn;
-	int i;
-
-	i = search_extables_range(ret_pc, &g2);
-	switch (i) {
-	case 3:
-		/* load & store will be handled by fixup */
-		return 3;
-
-	case 1:
-		/* store will be handled by fixup, load will bump out */
-		/* for _to_ macros */
-		insn = *((unsigned int *) pc);
-		if ((insn >> 21) & 1)
-			return 1;
-		break;
-
-	case 2:
-		/* load will be handled by fixup, store will bump out */
-		/* for _from_ macros */
-		insn = *((unsigned int *) pc);
-		if (!((insn >> 21) & 1) || ((insn>>19)&0x3f) == 15)
-			return 2;
-		break;
-
-	default:
-		break;
-	}
-
-	memset(&regs, 0, sizeof(regs));
-	regs.pc = pc;
-	regs.npc = pc + 4;
-	__asm__ __volatile__(
-		"rd %%psr, %0\n\t"
-		"nop\n\t"
-		"nop\n\t"
-		"nop\n" : "=r" (regs.psr));
-	unhandled_fault(address, current, &regs);
-
-	/* Not reached */
-	return 0;
-}
-
 static inline void
 show_signal_msg(struct pt_regs *regs, int sig, int code,
 		unsigned long address, struct task_struct *tsk)
@@ -130,7 +83,7 @@ static void __do_fault_siginfo(int code, int sig, struct pt_regs *regs,
 		show_signal_msg(regs, sig, code,
 				addr, current);
 
-	force_sig_fault(sig, code, (void __user *) addr, 0);
+	force_sig_fault(sig, code, (void __user *) addr);
 }
 
 static unsigned long compute_si_addr(struct pt_regs *regs, int text_fault)
@@ -162,8 +115,6 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
 	struct vm_area_struct *vma;
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
-	unsigned int fixup;
-	unsigned long g2;
 	int from_user = !(regs->psr & PSR_PS);
 	int code;
 	vm_fault_t fault;
@@ -249,17 +200,15 @@ good_area:
 		BUG();
 	}
 
-	if (flags & FAULT_FLAG_ALLOW_RETRY) {
-		if (fault & VM_FAULT_RETRY) {
-			flags |= FAULT_FLAG_TRIED;
+	if (fault & VM_FAULT_RETRY) {
+		flags |= FAULT_FLAG_TRIED;
 
-			/* No need to mmap_read_unlock(mm) as we would
-			 * have already released it in __lock_page_or_retry
-			 * in mm/filemap.c.
-			 */
+		/* No need to mmap_read_unlock(mm) as we would
+		 * have already released it in __lock_page_or_retry
+		 * in mm/filemap.c.
+		 */
 
-			goto retry;
-		}
+		goto retry;
 	}
 
 	mmap_read_unlock(mm);
@@ -281,34 +230,22 @@ bad_area_nosemaphore:
 
 	/* Is this in ex_table? */
 no_context:
-	g2 = regs->u_regs[UREG_G2];
 	if (!from_user) {
-		fixup = search_extables_range(regs->pc, &g2);
-		/* Values below 10 are reserved for other things */
-		if (fixup > 10) {
-			extern const unsigned int __memset_start[];
-			extern const unsigned int __memset_end[];
+		const struct exception_table_entry *entry;
 
+		entry = search_exception_tables(regs->pc);
 #ifdef DEBUG_EXCEPTIONS
-			printk("Exception: PC<%08lx> faddr<%08lx>\n",
-			       regs->pc, address);
-			printk("EX_TABLE: insn<%08lx> fixup<%08x> g2<%08lx>\n",
-				regs->pc, fixup, g2);
+		printk("Exception: PC<%08lx> faddr<%08lx>\n",
+		       regs->pc, address);
+		printk("EX_TABLE: insn<%08lx> fixup<%08x>\n",
+			regs->pc, entry->fixup);
 #endif
-			if ((regs->pc >= (unsigned long)__memset_start &&
-			     regs->pc < (unsigned long)__memset_end)) {
-				regs->u_regs[UREG_I4] = address;
-				regs->u_regs[UREG_I5] = regs->pc;
-			}
-			regs->u_regs[UREG_G2] = g2;
-			regs->pc = fixup;
-			regs->npc = regs->pc + 4;
-			return;
-		}
+		regs->pc = entry->fixup;
+		regs->npc = regs->pc + 4;
+		return;
 	}
 
 	unhandled_fault(address, tsk, regs);
-	do_exit(SIGKILL);
 
 /*
  * We ran out of memory, or some other thing happened to us that made

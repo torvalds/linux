@@ -9,8 +9,8 @@
 char _license[] SEC("license") = "GPL";
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(int));
+	__type(key, int);
+	__type(value, int);
 } perf_buf_map SEC(".maps");
 
 #define _(P) (__builtin_preserve_access_index(P))
@@ -109,10 +109,10 @@ int BPF_PROG(trace_kfree_skb, struct sk_buff *skb, void *location)
 	return 0;
 }
 
-static volatile struct {
+struct {
 	bool fentry_test_ok;
 	bool fexit_test_ok;
-} result;
+} result = {};
 
 SEC("fentry/eth_type_trans")
 int BPF_PROG(fentry_eth_type_trans, struct sk_buff *skb, struct net_device *dev,

@@ -152,6 +152,8 @@ struct bp_transmitter_control {
 	enum signal_type signal;
 	enum dc_color_depth color_depth; /* not used for DCE6.0 */
 	enum hpd_source_id hpd_sel; /* ucHPDSel, used for DCe6.0 */
+	enum tx_ffe_id txffe_sel; /* used for DCN3 */
+	enum engine_id hpo_engine_id; /* used for DCN3 */
 	struct graphics_object_id connector_obj_id;
 	/* symClock; in 10kHz, pixel clock, in HDMI deep color mode, it should
 	 * be pixel clock * deep_color_ratio (in KHz)
@@ -309,11 +311,20 @@ struct bp_spread_spectrum_parameters {
 	struct spread_spectrum_flags flags;
 };
 
+struct bp_disp_connector_caps_info {
+	uint32_t INTERNAL_DISPLAY    : 1;
+	uint32_t INTERNAL_DISPLAY_BL : 1;
+};
+
 struct bp_encoder_cap_info {
 	uint32_t DP_HBR2_CAP:1;
 	uint32_t DP_HBR2_EN:1;
 	uint32_t DP_HBR3_EN:1;
 	uint32_t HDMI_6GB_EN:1;
+	uint32_t IS_DP2_CAPABLE:1;
+	uint32_t DP_UHBR10_EN:1;
+	uint32_t DP_UHBR13_5_EN:1;
+	uint32_t DP_UHBR20_EN:1;
 	uint32_t DP_IS_USB_C:1;
 	uint32_t RESERVED:27;
 };

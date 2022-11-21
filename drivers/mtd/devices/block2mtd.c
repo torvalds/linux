@@ -31,6 +31,9 @@
 #include <linux/slab.h>
 #include <linux/major.h>
 
+/* Maximum number of comma-separated items in the 'block2mtd=' parameter */
+#define BLOCK2MTD_PARAM_MAX_COUNT 3
+
 /* Info for the block device */
 struct block2mtd_dev {
 	struct list_head list;
@@ -214,7 +217,7 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
 
 
 static struct block2mtd_dev *add_device(char *devname, int erase_size,
-		int timeout)
+		char *label, int timeout)
 {
 #ifndef MODULE
 	int i;
@@ -278,7 +281,10 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 
 	/* Setup the MTD structure */
 	/* make the name contain the block device in */
-	name = kasprintf(GFP_KERNEL, "block2mtd: %s", devname);
+	if (!label)
+		name = kasprintf(GFP_KERNEL, "block2mtd: %s", devname);
+	else
+		name = kstrdup(label, GFP_KERNEL);
 	if (!name)
 		goto err_destroy_mutex;
 
@@ -305,7 +311,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 	list_add(&dev->list, &blkmtd_device_list);
 	pr_info("mtd%d: [%s] erase_size = %dKiB [%d]\n",
 		dev->mtd.index,
-		dev->mtd.name + strlen("block2mtd: "),
+		label ? label : dev->mtd.name + strlen("block2mtd: "),
 		dev->mtd.erasesize >> 10, dev->mtd.erasesize);
 	return dev;
 
@@ -381,8 +387,9 @@ static int block2mtd_setup2(const char *val)
 	/* 80 for device, 12 for erase size, 80 for name, 8 for timeout */
 	char buf[80 + 12 + 80 + 8];
 	char *str = buf;
-	char *token[2];
+	char *token[BLOCK2MTD_PARAM_MAX_COUNT];
 	char *name;
+	char *label = NULL;
 	size_t erase_size = PAGE_SIZE;
 	unsigned long timeout = MTD_DEFAULT_TIMEOUT;
 	int i, ret;
@@ -395,7 +402,7 @@ static int block2mtd_setup2(const char *val)
 	strcpy(str, val);
 	kill_final_newline(str);
 
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < BLOCK2MTD_PARAM_MAX_COUNT; i++)
 		token[i] = strsep(&str, ",");
 
 	if (str) {
@@ -414,7 +421,8 @@ static int block2mtd_setup2(const char *val)
 		return 0;
 	}
 
-	if (token[1]) {
+	/* Optional argument when custom label is used */
+	if (token[1] && strlen(token[1])) {
 		ret = parse_num(&erase_size, token[1]);
 		if (ret) {
 			pr_err("illegal erase size\n");
@@ -422,7 +430,12 @@ static int block2mtd_setup2(const char *val)
 		}
 	}
 
-	add_device(name, erase_size, timeout);
+	if (token[2]) {
+		label = token[2];
+		pr_info("Using custom MTD label '%s' for dev %s\n", label, name);
+	}
+
+	add_device(name, erase_size, label, timeout);
 
 	return 0;
 }
@@ -456,7 +469,7 @@ static int block2mtd_setup(const char *val, const struct kernel_param *kp)
 
 
 module_param_call(block2mtd, block2mtd_setup, NULL, NULL, 0200);
-MODULE_PARM_DESC(block2mtd, "Device to use. \"block2mtd=<dev>[,<erasesize>]\"");
+MODULE_PARM_DESC(block2mtd, "Device to use. \"block2mtd=<dev>[,[<erasesize>][,<label>]]\"");
 
 static int __init block2mtd_init(void)
 {

@@ -42,8 +42,8 @@ enum adv748x_page {
 	ADV748X_PAGE_EOR,		/* End Mark */
 };
 
-/**
- * enum adv748x_ports - Device tree port number definitions
+/*
+ * Device tree port number definitions
  *
  * The ADV748X ports define the mapping between subdevices
  * and the device tree specification
@@ -173,9 +173,9 @@ struct adv748x_afe {
  *
  * @endpoints:		parsed device node endpoints for each port
  *
- * @i2c_addresses	I2C Page addresses
- * @i2c_clients		I2C clients for the page accesses
- * @regmap		regmap configuration pages.
+ * @i2c_addresses:	I2C Page addresses
+ * @i2c_clients:	I2C clients for the page accesses
+ * @regmap:		regmap configuration pages.
  *
  * @hdmi:		state of HDMI receiver context
  * @afe:		state of AFE receiver context
@@ -435,9 +435,11 @@ int adv748x_tx_power(struct adv748x_csi2 *tx, bool on);
 
 int adv748x_afe_init(struct adv748x_afe *afe);
 void adv748x_afe_cleanup(struct adv748x_afe *afe);
+int adv748x_afe_s_input(struct adv748x_afe *afe, unsigned int input);
 
 int adv748x_csi2_init(struct adv748x_state *state, struct adv748x_csi2 *tx);
 void adv748x_csi2_cleanup(struct adv748x_csi2 *tx);
+int adv748x_csi2_set_virtual_channel(struct adv748x_csi2 *tx, unsigned int vc);
 int adv748x_csi2_set_pixelrate(struct v4l2_subdev *sd, s64 rate);
 
 int adv748x_hdmi_init(struct adv748x_hdmi *hdmi);

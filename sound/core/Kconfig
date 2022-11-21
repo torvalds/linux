@@ -84,7 +84,7 @@ config SND_PCM_TIMER
 	help
 	  If you disable this option, pcm timer will be unavailable, so
 	  those stubs that use pcm timer (e.g. dmix, dsnoop & co) may work
-	  incorrectlly.
+	  incorrectly.
 
 	  For some embedded devices, we may disable it to reduce memory
 	  footprint, about 20KB on x86_64 platform.
@@ -187,11 +187,26 @@ config SND_CTL_VALIDATION
 	  from the driver are in the proper ranges or the check of the invalid
 	  access at out-of-array areas.
 
+config SND_JACK_INJECTION_DEBUG
+	bool "Sound jack injection interface via debugfs"
+	depends on SND_JACK && SND_DEBUG && DEBUG_FS
+	help
+	  This option can be used to enable or disable sound jack
+	  software injection.
+	  Say Y if you are debugging via jack injection interface.
+	  If unsure select "N".
+
 config SND_VMASTER
 	bool
 
 config SND_DMA_SGBUF
 	def_bool y
 	depends on X86
+
+config SND_CTL_LED
+	tristate
+	select NEW_LEDS if SND_CTL_LED
+	select LEDS_TRIGGERS if SND_CTL_LED
+	select LEDS_TRIGGER_AUDIO if SND_CTL_LED
 
 source "sound/core/seq/Kconfig"

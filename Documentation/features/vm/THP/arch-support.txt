@@ -10,7 +10,6 @@
     |         arc: |  ok  |
     |         arm: |  ok  |
     |       arm64: |  ok  |
-    |         c6x: |  ..  |
     |        csky: |  ..  |
     |       h8300: |  ..  |
     |     hexagon: |  ..  |
@@ -18,12 +17,11 @@
     |        m68k: |  ..  |
     |  microblaze: |  ..  |
     |        mips: |  ok  |
-    |       nds32: | TODO |
     |       nios2: |  ..  |
     |    openrisc: |  ..  |
     |      parisc: | TODO |
     |     powerpc: |  ok  |
-    |       riscv: | TODO |
+    |       riscv: |  ok  |
     |        s390: |  ok  |
     |          sh: |  ..  |
     |       sparc: |  ok  |

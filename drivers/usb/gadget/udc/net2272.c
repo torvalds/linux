@@ -539,7 +539,6 @@ net2272_read_fifo(struct net2272_ep *ep, struct net2272_request *req)
 	int count;
 	int tmp;
 	int cleanup = 0;
-	int status = -1;
 
 	dev_vdbg(ep->dev->dev, "read_fifo %s actual %d len %d\n",
 		ep->ep.name, req->req.actual, req->req.length);
@@ -591,6 +590,8 @@ net2272_read_fifo(struct net2272_ep *ep, struct net2272_request *req)
 			}
 
 			if (!list_empty(&ep->queue)) {
+				int status;
+
 				req = list_entry(ep->queue.next,
 					struct net2272_request, queue);
 				status = net2272_kick_dma(ep, req);
@@ -925,7 +926,7 @@ static int
 net2272_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct net2272_ep *ep;
-	struct net2272_request *req;
+	struct net2272_request *req = NULL, *iter;
 	unsigned long flags;
 	int stopped;
 
@@ -938,11 +939,13 @@ net2272_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	ep->stopped = 1;
 
 	/* make sure it's still queued on this endpoint */
-	list_for_each_entry(req, &ep->queue, queue) {
-		if (&req->req == _req)
-			break;
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		req = iter;
+		break;
 	}
-	if (&req->req != _req) {
+	if (!req) {
 		ep->stopped = stopped;
 		spin_unlock_irqrestore(&ep->dev->lock, flags);
 		return -EINVAL;
@@ -953,7 +956,6 @@ net2272_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		dev_dbg(ep->dev->dev, "unlink (%s) pio\n", _ep->name);
 		net2272_done(ep, req, -ECONNRESET);
 	}
-	req = NULL;
 	ep->stopped = stopped;
 
 	spin_unlock_irqrestore(&ep->dev->lock, flags);
@@ -1149,6 +1151,7 @@ net2272_pullup(struct usb_gadget *_gadget, int is_on)
 static int net2272_start(struct usb_gadget *_gadget,
 		struct usb_gadget_driver *driver);
 static int net2272_stop(struct usb_gadget *_gadget);
+static void net2272_async_callbacks(struct usb_gadget *_gadget, bool enable);
 
 static const struct usb_gadget_ops net2272_ops = {
 	.get_frame	= net2272_get_frame,
@@ -1157,6 +1160,7 @@ static const struct usb_gadget_ops net2272_ops = {
 	.pullup		= net2272_pullup,
 	.udc_start	= net2272_start,
 	.udc_stop	= net2272_stop,
+	.udc_async_callbacks = net2272_async_callbacks,
 };
 
 /*---------------------------------------------------------------------------*/
@@ -1475,7 +1479,7 @@ stop_activity(struct net2272 *dev, struct usb_gadget_driver *driver)
 		net2272_dequeue_all(&dev->ep[i]);
 
 	/* report disconnect; the driver is already quiesced */
-	if (driver) {
+	if (dev->async_callbacks && driver) {
 		spin_unlock(&dev->lock);
 		driver->disconnect(&dev->gadget);
 		spin_lock(&dev->lock);
@@ -1498,6 +1502,15 @@ static int net2272_stop(struct usb_gadget *_gadget)
 	dev->driver = NULL;
 
 	return 0;
+}
+
+static void net2272_async_callbacks(struct usb_gadget *_gadget, bool enable)
+{
+	struct net2272	*dev = container_of(_gadget, struct net2272, gadget);
+
+	spin_lock_irq(&dev->lock);
+	dev->async_callbacks = enable;
+	spin_unlock_irq(&dev->lock);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1909,9 +1922,11 @@ net2272_handle_stat0_irqs(struct net2272 *dev, u8 stat)
 				u.r.bRequestType, u.r.bRequest,
 				u.r.wValue, u.r.wIndex,
 				net2272_ep_read(ep, EP_CFG));
-			spin_unlock(&dev->lock);
-			tmp = dev->driver->setup(&dev->gadget, &u.r);
-			spin_lock(&dev->lock);
+			if (dev->async_callbacks) {
+				spin_unlock(&dev->lock);
+				tmp = dev->driver->setup(&dev->gadget, &u.r);
+				spin_lock(&dev->lock);
+			}
 		}
 
 		/* stall ep0 on error */
@@ -1993,14 +2008,14 @@ net2272_handle_stat1_irqs(struct net2272 *dev, u8 stat)
 			if (disconnect || reset) {
 				stop_activity(dev, dev->driver);
 				net2272_ep0_start(dev);
-				spin_unlock(&dev->lock);
-				if (reset)
-					usb_gadget_udc_reset
-						(&dev->gadget, dev->driver);
-				else
-					(dev->driver->disconnect)
-						(&dev->gadget);
-				spin_lock(&dev->lock);
+				if (dev->async_callbacks) {
+					spin_unlock(&dev->lock);
+					if (reset)
+						usb_gadget_udc_reset(&dev->gadget, dev->driver);
+					else
+						(dev->driver->disconnect)(&dev->gadget);
+					spin_lock(&dev->lock);
+				}
 				return;
 			}
 		}
@@ -2014,14 +2029,14 @@ net2272_handle_stat1_irqs(struct net2272 *dev, u8 stat)
 	if (stat & tmp) {
 		net2272_write(dev, IRQSTAT1, tmp);
 		if (stat & (1 << SUSPEND_REQUEST_INTERRUPT)) {
-			if (dev->driver->suspend)
+			if (dev->async_callbacks && dev->driver->suspend)
 				dev->driver->suspend(&dev->gadget);
 			if (!enable_suspend) {
 				stat &= ~(1 << SUSPEND_REQUEST_INTERRUPT);
 				dev_dbg(dev->dev, "Suspend disabled, ignoring\n");
 			}
 		} else {
-			if (dev->driver->resume)
+			if (dev->async_callbacks && dev->driver->resume)
 				dev->driver->resume(&dev->gadget);
 		}
 		stat &= ~tmp;

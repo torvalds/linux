@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 menu "Generic Driver Options"
 
+config AUXILIARY_BUS
+	bool
+
 config UEVENT_HELPER
 	bool "Support for uevent helper"
 	help
@@ -58,6 +61,17 @@ config DEVTMPFS_MOUNT
 	  With this option enabled, it allows to bring up a system in
 	  rescue mode with init=/bin/sh, even when the /dev directory
 	  on the rootfs is completely empty.
+
+config DEVTMPFS_SAFE
+	bool "Use nosuid,noexec mount options on devtmpfs"
+	depends on DEVTMPFS
+	help
+	  This instructs the kernel to include the MS_NOEXEC and MS_NOSUID mount
+	  flags when mounting devtmpfs.
+
+	  Notice: If enabled, things like /dev/mem cannot be mmapped
+	  with the PROT_EXEC flag. This can break, for example, non-KMS
+	  video drivers.
 
 config STANDALONE
 	bool "Select only drivers that don't need compile-time external firmware"
@@ -158,7 +172,7 @@ config HMEM_REPORTING
 	default n
 	depends on NUMA
 	help
-	  Enable reporting for heterogenous memory access attributes under
+	  Enable reporting for heterogeneous memory access attributes under
 	  their non-uniform memory nodes.
 
 source "drivers/base/test/Kconfig"
@@ -209,5 +223,11 @@ config GENERIC_ARCH_TOPOLOGY
 	  CPU capacity information from DT, usage of such information for
 	  appropriate scaling, sysfs interface for reading capacity values at
 	  runtime.
+
+config GENERIC_ARCH_NUMA
+	bool
+	help
+	  Enable support for generic NUMA implementation. Currently, RISC-V
+	  and ARM64 use it.
 
 endmenu

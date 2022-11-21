@@ -106,7 +106,7 @@ static void sun3x_82072_fd_outb(unsigned char value, int port)
 	case 4: /* FD_STATUS */
 		*(sun3x_fdc.status_r) = value;
 		break;
-	};
+	}
 	return;
 }
 

@@ -326,7 +326,7 @@ EXCEPTION_ENTRY(_data_page_fault_handler)
 1:	l.ori   r6,r0,0x0                  // !write access
 2:
 
-	/* call fault.c handler in or32/mm/fault.c */
+	/* call fault.c handler in openrisc/mm/fault.c */
 	l.jal   do_page_fault
 	 l.nop
 	l.j     _ret_from_exception
@@ -348,7 +348,7 @@ EXCEPTION_ENTRY(_insn_page_fault_handler)
 	/* r4 set be EXCEPTION_HANDLE */   // effective address of fault
 	l.ori	r6,r0,0x0		   // !write access
 
-	/* call fault.c handler in or32/mm/fault.c */
+	/* call fault.c handler in openrisc/mm/fault.c */
 	l.jal   do_page_fault
 	 l.nop
 	l.j     _ret_from_exception
@@ -547,11 +547,12 @@ EXCEPTION_ENTRY(_external_irq_handler)
 	l.bnf	1f			// ext irq enabled, all ok.
 	l.nop
 
+#ifdef CONFIG_PRINTK
 	l.addi  r1,r1,-0x8
 	l.movhi r3,hi(42f)
 	l.ori	r3,r3,lo(42f)
 	l.sw    0x0(r1),r3
-	l.jal   printk
+	l.jal   _printk
 	l.sw    0x4(r1),r4
 	l.addi  r1,r1,0x8
 
@@ -560,6 +561,7 @@ EXCEPTION_ENTRY(_external_irq_handler)
 		.string "\n\rESR interrupt bug: in _external_irq_handler (ESR %x)\n\r"
 		.align 4
 	.previous
+#endif
 
 	l.ori	r4,r4,SPR_SR_IEE	// fix the bug
 //	l.sw	PT_SR(r1),r4
@@ -567,8 +569,8 @@ EXCEPTION_ENTRY(_external_irq_handler)
 #endif
 	CLEAR_LWA_FLAG(r3)
 	l.addi	r3,r1,0
-	l.movhi	r8,hi(do_IRQ)
-	l.ori	r8,r8,lo(do_IRQ)
+	l.movhi	r8,hi(generic_handle_arch_irq)
+	l.ori	r8,r8,lo(generic_handle_arch_irq)
 	l.jalr r8
 	l.nop
 	l.j    _ret_from_intr
@@ -681,8 +683,8 @@ _syscall_debug:
 	l.sw    -4(r1),r27
 	l.sw    -8(r1),r11
 	l.addi  r1,r1,-8
-	l.movhi r27,hi(printk)
-	l.ori   r27,r27,lo(printk)
+	l.movhi r27,hi(_printk)
+	l.ori   r27,r27,lo(_printk)
 	l.jalr  r27
 	 l.nop
 	l.addi  r1,r1,8
@@ -999,11 +1001,10 @@ ENTRY(ret_from_fork)
 	l.lwz	r11,PT_GPR11(r1)
 
 	/* The syscall fast path return expects call-saved registers
-	 * r12-r28 to be untouched, so we restore them here as they
+	 * r14-r28 to be untouched, so we restore them here as they
 	 * will have been effectively clobbered when arriving here
 	 * via the call to switch()
 	 */
-	l.lwz	r12,PT_GPR12(r1)
 	l.lwz	r14,PT_GPR14(r1)
 	l.lwz	r16,PT_GPR16(r1)
 	l.lwz	r18,PT_GPR18(r1)
@@ -1035,10 +1036,10 @@ ENTRY(ret_from_fork)
 
 /* _switch MUST never lay on page boundry, cause it runs from
  * effective addresses and beeing interrupted by iTLB miss would kill it.
- * dTLB miss seams to never accour in the bad place since data accesses
+ * dTLB miss seems to never accour in the bad place since data accesses
  * are from task structures which are always page aligned.
  *
- * The problem happens in RESTORE_ALL_NO_R11 where we first set the EPCR
+ * The problem happens in RESTORE_ALL where we first set the EPCR
  * register, then load the previous register values and only at the end call
  * the l.rfe instruction. If get TLB miss in beetwen the EPCR register gets
  * garbled and we end up calling l.rfe with the wrong EPCR. (same probably
@@ -1066,9 +1067,8 @@ ENTRY(_switch)
 	/* No need to store r1/PT_SP as it goes into KSP below */
 	l.sw    PT_GPR2(r1),r2
 	l.sw    PT_GPR9(r1),r9
-	/* This is wrong, r12 shouldn't be here... but GCC is broken for the time being
-	 * and expects r12 to be callee-saved... */
-	l.sw    PT_GPR12(r1),r12
+
+	/* Save callee-saved registers to the new pt_regs */
 	l.sw    PT_GPR14(r1),r14
 	l.sw    PT_GPR16(r1),r16
 	l.sw    PT_GPR18(r1),r18
@@ -1109,9 +1109,7 @@ ENTRY(_switch)
 	/* No need to restore r10 */
 	/* ...and do not restore r11 */
 
-	/* This is wrong, r12 shouldn't be here... but GCC is broken for the time being
-	 * and expects r12 to be callee-saved... */
-	l.lwz   r12,PT_GPR12(r1)
+	/* Restore callee-saved registers */
 	l.lwz   r14,PT_GPR14(r1)
 	l.lwz   r16,PT_GPR16(r1)
 	l.lwz   r18,PT_GPR18(r1)
@@ -1164,15 +1162,18 @@ _fork_save_extra_regs_and_call:
 
 ENTRY(__sys_clone)
 	l.movhi	r29,hi(sys_clone)
-	l.ori	r29,r29,lo(sys_clone)
 	l.j	_fork_save_extra_regs_and_call
-	 l.nop
+	 l.ori	r29,r29,lo(sys_clone)
+
+ENTRY(__sys_clone3)
+	l.movhi	r29,hi(sys_clone3)
+	l.j	_fork_save_extra_regs_and_call
+	 l.ori	r29,r29,lo(sys_clone3)
 
 ENTRY(__sys_fork)
 	l.movhi	r29,hi(sys_fork)
-	l.ori	r29,r29,lo(sys_fork)
 	l.j	_fork_save_extra_regs_and_call
-	 l.nop
+	 l.ori	r29,r29,lo(sys_fork)
 
 ENTRY(sys_rt_sigreturn)
 	l.jal	_sys_rt_sigreturn

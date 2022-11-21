@@ -139,6 +139,9 @@ static s32 dpot_read_spi(struct dpot_data *dpot, u8 reg)
 			value = dpot_read_r8d8(dpot,
 				DPOT_AD5291_READ_RDAC << 2);
 
+			if (value < 0)
+				return value;
+
 			if (dpot->uid == DPOT_UID(AD5291_ID))
 				value = value >> 2;
 
@@ -740,7 +743,7 @@ exit:
 }
 EXPORT_SYMBOL(ad_dpot_probe);
 
-int ad_dpot_remove(struct device *dev)
+void ad_dpot_remove(struct device *dev)
 {
 	struct dpot_data *data = dev_get_drvdata(dev);
 	int i;
@@ -750,8 +753,6 @@ int ad_dpot_remove(struct device *dev)
 			ad_dpot_remove_files(dev, data->feat, i);
 
 	kfree(data);
-
-	return 0;
 }
 EXPORT_SYMBOL(ad_dpot_remove);
 

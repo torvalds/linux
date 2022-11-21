@@ -14,6 +14,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -28,6 +29,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-event.h>
 
 #define VIDEO_NUM_DEVICES	256
 #define VIDEO_NAME              "video4linux"
@@ -36,7 +38,6 @@
 		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
 		       __func__, ##arg);				\
 } while (0)
-
 
 /*
  *	sysfs stuff
@@ -338,15 +339,18 @@ static ssize_t v4l2_write(struct file *filp, const char __user *buf,
 static __poll_t v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 {
 	struct video_device *vdev = video_devdata(filp);
-	__poll_t res = EPOLLERR | EPOLLHUP;
+	__poll_t res = EPOLLERR | EPOLLHUP | EPOLLPRI;
 
-	if (!vdev->fops->poll)
-		return DEFAULT_POLLMASK;
-	if (video_is_registered(vdev))
-		res = vdev->fops->poll(filp, poll);
+	if (video_is_registered(vdev)) {
+		if (!vdev->fops->poll)
+			res = DEFAULT_POLLMASK;
+		else
+			res = vdev->fops->poll(filp, poll);
+	}
 	if (vdev->dev_debug & V4L2_DEV_DEBUG_POLL)
-		dprintk("%s: poll: %08x\n",
-			video_device_node_name(vdev), res);
+		dprintk("%s: poll: %08x %08x\n",
+			video_device_node_name(vdev), res,
+			poll_requested_events(poll));
 	return res;
 }
 
@@ -507,16 +511,15 @@ static int get_index(struct video_device *vdev)
 	for (i = 0; i < VIDEO_NUM_DEVICES; i++) {
 		if (video_devices[i] != NULL &&
 		    video_devices[i]->v4l2_dev == vdev->v4l2_dev) {
-			set_bit(video_devices[i]->index, used);
+			__set_bit(video_devices[i]->index, used);
 		}
 	}
 
 	return find_first_zero_bit(used, VIDEO_NUM_DEVICES);
 }
 
-#define SET_VALID_IOCTL(ops, cmd, op)			\
-	if (ops->op)					\
-		set_bit(_IOC_NR(cmd), valid_ioctls)
+#define SET_VALID_IOCTL(ops, cmd, op) \
+	do { if ((ops)->op) __set_bit(_IOC_NR(cmd), valid_ioctls); } while (0)
 
 /* This determines which ioctls are actually implemented in the driver.
    It's a one-time thing which simplifies video_ioctl2 as it can just do
@@ -559,73 +562,73 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	/* vfl_type and vfl_dir independent ioctls */
 
 	SET_VALID_IOCTL(ops, VIDIOC_QUERYCAP, vidioc_querycap);
-	set_bit(_IOC_NR(VIDIOC_G_PRIORITY), valid_ioctls);
-	set_bit(_IOC_NR(VIDIOC_S_PRIORITY), valid_ioctls);
+	__set_bit(_IOC_NR(VIDIOC_G_PRIORITY), valid_ioctls);
+	__set_bit(_IOC_NR(VIDIOC_S_PRIORITY), valid_ioctls);
 
 	/* Note: the control handler can also be passed through the filehandle,
 	   and that can't be tested here. If the bit for these control ioctls
 	   is set, then the ioctl is valid. But if it is 0, then it can still
 	   be valid if the filehandle passed the control handler. */
 	if (vdev->ctrl_handler || ops->vidioc_queryctrl)
-		set_bit(_IOC_NR(VIDIOC_QUERYCTRL), valid_ioctls);
+		__set_bit(_IOC_NR(VIDIOC_QUERYCTRL), valid_ioctls);
 	if (vdev->ctrl_handler || ops->vidioc_query_ext_ctrl)
-		set_bit(_IOC_NR(VIDIOC_QUERY_EXT_CTRL), valid_ioctls);
+		__set_bit(_IOC_NR(VIDIOC_QUERY_EXT_CTRL), valid_ioctls);
 	if (vdev->ctrl_handler || ops->vidioc_g_ctrl || ops->vidioc_g_ext_ctrls)
-		set_bit(_IOC_NR(VIDIOC_G_CTRL), valid_ioctls);
+		__set_bit(_IOC_NR(VIDIOC_G_CTRL), valid_ioctls);
 	if (vdev->ctrl_handler || ops->vidioc_s_ctrl || ops->vidioc_s_ext_ctrls)
-		set_bit(_IOC_NR(VIDIOC_S_CTRL), valid_ioctls);
+		__set_bit(_IOC_NR(VIDIOC_S_CTRL), valid_ioctls);
 	if (vdev->ctrl_handler || ops->vidioc_g_ext_ctrls)
-		set_bit(_IOC_NR(VIDIOC_G_EXT_CTRLS), valid_ioctls);
+		__set_bit(_IOC_NR(VIDIOC_G_EXT_CTRLS), valid_ioctls);
 	if (vdev->ctrl_handler || ops->vidioc_s_ext_ctrls)
-		set_bit(_IOC_NR(VIDIOC_S_EXT_CTRLS), valid_ioctls);
+		__set_bit(_IOC_NR(VIDIOC_S_EXT_CTRLS), valid_ioctls);
 	if (vdev->ctrl_handler || ops->vidioc_try_ext_ctrls)
-		set_bit(_IOC_NR(VIDIOC_TRY_EXT_CTRLS), valid_ioctls);
+		__set_bit(_IOC_NR(VIDIOC_TRY_EXT_CTRLS), valid_ioctls);
 	if (vdev->ctrl_handler || ops->vidioc_querymenu)
-		set_bit(_IOC_NR(VIDIOC_QUERYMENU), valid_ioctls);
+		__set_bit(_IOC_NR(VIDIOC_QUERYMENU), valid_ioctls);
 	if (!is_tch) {
 		SET_VALID_IOCTL(ops, VIDIOC_G_FREQUENCY, vidioc_g_frequency);
 		SET_VALID_IOCTL(ops, VIDIOC_S_FREQUENCY, vidioc_s_frequency);
 	}
 	SET_VALID_IOCTL(ops, VIDIOC_LOG_STATUS, vidioc_log_status);
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	set_bit(_IOC_NR(VIDIOC_DBG_G_CHIP_INFO), valid_ioctls);
-	set_bit(_IOC_NR(VIDIOC_DBG_G_REGISTER), valid_ioctls);
-	set_bit(_IOC_NR(VIDIOC_DBG_S_REGISTER), valid_ioctls);
+	__set_bit(_IOC_NR(VIDIOC_DBG_G_CHIP_INFO), valid_ioctls);
+	__set_bit(_IOC_NR(VIDIOC_DBG_G_REGISTER), valid_ioctls);
+	__set_bit(_IOC_NR(VIDIOC_DBG_S_REGISTER), valid_ioctls);
 #endif
 	/* yes, really vidioc_subscribe_event */
 	SET_VALID_IOCTL(ops, VIDIOC_DQEVENT, vidioc_subscribe_event);
 	SET_VALID_IOCTL(ops, VIDIOC_SUBSCRIBE_EVENT, vidioc_subscribe_event);
 	SET_VALID_IOCTL(ops, VIDIOC_UNSUBSCRIBE_EVENT, vidioc_unsubscribe_event);
 	if (ops->vidioc_enum_freq_bands || ops->vidioc_g_tuner || ops->vidioc_g_modulator)
-		set_bit(_IOC_NR(VIDIOC_ENUM_FREQ_BANDS), valid_ioctls);
+		__set_bit(_IOC_NR(VIDIOC_ENUM_FREQ_BANDS), valid_ioctls);
 
 	if (is_vid) {
 		/* video specific ioctls */
 		if ((is_rx && (ops->vidioc_enum_fmt_vid_cap ||
 			       ops->vidioc_enum_fmt_vid_overlay)) ||
 		    (is_tx && ops->vidioc_enum_fmt_vid_out))
-			set_bit(_IOC_NR(VIDIOC_ENUM_FMT), valid_ioctls);
+			__set_bit(_IOC_NR(VIDIOC_ENUM_FMT), valid_ioctls);
 		if ((is_rx && (ops->vidioc_g_fmt_vid_cap ||
 			       ops->vidioc_g_fmt_vid_cap_mplane ||
 			       ops->vidioc_g_fmt_vid_overlay)) ||
 		    (is_tx && (ops->vidioc_g_fmt_vid_out ||
 			       ops->vidioc_g_fmt_vid_out_mplane ||
 			       ops->vidioc_g_fmt_vid_out_overlay)))
-			 set_bit(_IOC_NR(VIDIOC_G_FMT), valid_ioctls);
+			__set_bit(_IOC_NR(VIDIOC_G_FMT), valid_ioctls);
 		if ((is_rx && (ops->vidioc_s_fmt_vid_cap ||
 			       ops->vidioc_s_fmt_vid_cap_mplane ||
 			       ops->vidioc_s_fmt_vid_overlay)) ||
 		    (is_tx && (ops->vidioc_s_fmt_vid_out ||
 			       ops->vidioc_s_fmt_vid_out_mplane ||
 			       ops->vidioc_s_fmt_vid_out_overlay)))
-			 set_bit(_IOC_NR(VIDIOC_S_FMT), valid_ioctls);
+			__set_bit(_IOC_NR(VIDIOC_S_FMT), valid_ioctls);
 		if ((is_rx && (ops->vidioc_try_fmt_vid_cap ||
 			       ops->vidioc_try_fmt_vid_cap_mplane ||
 			       ops->vidioc_try_fmt_vid_overlay)) ||
 		    (is_tx && (ops->vidioc_try_fmt_vid_out ||
 			       ops->vidioc_try_fmt_vid_out_mplane ||
 			       ops->vidioc_try_fmt_vid_out_overlay)))
-			 set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
+			__set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
 		SET_VALID_IOCTL(ops, VIDIOC_OVERLAY, vidioc_overlay);
 		SET_VALID_IOCTL(ops, VIDIOC_G_FBUF, vidioc_g_fbuf);
 		SET_VALID_IOCTL(ops, VIDIOC_S_FBUF, vidioc_s_fbuf);
@@ -639,11 +642,11 @@ static void determine_valid_ioctls(struct video_device *vdev)
 		SET_VALID_IOCTL(ops, VIDIOC_ENUM_FRAMESIZES, vidioc_enum_framesizes);
 		SET_VALID_IOCTL(ops, VIDIOC_ENUM_FRAMEINTERVALS, vidioc_enum_frameintervals);
 		if (ops->vidioc_g_selection) {
-			set_bit(_IOC_NR(VIDIOC_G_CROP), valid_ioctls);
-			set_bit(_IOC_NR(VIDIOC_CROPCAP), valid_ioctls);
+			__set_bit(_IOC_NR(VIDIOC_G_CROP), valid_ioctls);
+			__set_bit(_IOC_NR(VIDIOC_CROPCAP), valid_ioctls);
 		}
 		if (ops->vidioc_s_selection)
-			set_bit(_IOC_NR(VIDIOC_S_CROP), valid_ioctls);
+			__set_bit(_IOC_NR(VIDIOC_S_CROP), valid_ioctls);
 		SET_VALID_IOCTL(ops, VIDIOC_G_SELECTION, vidioc_g_selection);
 		SET_VALID_IOCTL(ops, VIDIOC_S_SELECTION, vidioc_s_selection);
 	}
@@ -666,17 +669,17 @@ static void determine_valid_ioctls(struct video_device *vdev)
 			       ops->vidioc_g_fmt_sliced_vbi_cap)) ||
 		    (is_tx && (ops->vidioc_g_fmt_vbi_out ||
 			       ops->vidioc_g_fmt_sliced_vbi_out)))
-			set_bit(_IOC_NR(VIDIOC_G_FMT), valid_ioctls);
+			__set_bit(_IOC_NR(VIDIOC_G_FMT), valid_ioctls);
 		if ((is_rx && (ops->vidioc_s_fmt_vbi_cap ||
 			       ops->vidioc_s_fmt_sliced_vbi_cap)) ||
 		    (is_tx && (ops->vidioc_s_fmt_vbi_out ||
 			       ops->vidioc_s_fmt_sliced_vbi_out)))
-			set_bit(_IOC_NR(VIDIOC_S_FMT), valid_ioctls);
+			__set_bit(_IOC_NR(VIDIOC_S_FMT), valid_ioctls);
 		if ((is_rx && (ops->vidioc_try_fmt_vbi_cap ||
 			       ops->vidioc_try_fmt_sliced_vbi_cap)) ||
 		    (is_tx && (ops->vidioc_try_fmt_vbi_out ||
 			       ops->vidioc_try_fmt_sliced_vbi_out)))
-			set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
+			__set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
 		SET_VALID_IOCTL(ops, VIDIOC_G_SLICED_VBI_CAP, vidioc_g_sliced_vbi_cap);
 	} else if (is_tch) {
 		/* touch specific ioctls */
@@ -721,15 +724,15 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	if (is_vid || is_vbi || is_meta) {
 		/* ioctls valid for video, vbi and metadata */
 		if (ops->vidioc_s_std)
-			set_bit(_IOC_NR(VIDIOC_ENUMSTD), valid_ioctls);
+			__set_bit(_IOC_NR(VIDIOC_ENUMSTD), valid_ioctls);
 		SET_VALID_IOCTL(ops, VIDIOC_S_STD, vidioc_s_std);
 		SET_VALID_IOCTL(ops, VIDIOC_G_STD, vidioc_g_std);
 		if (is_rx) {
 			SET_VALID_IOCTL(ops, VIDIOC_QUERYSTD, vidioc_querystd);
 			if (is_io_mc) {
-				set_bit(_IOC_NR(VIDIOC_ENUMINPUT), valid_ioctls);
-				set_bit(_IOC_NR(VIDIOC_G_INPUT), valid_ioctls);
-				set_bit(_IOC_NR(VIDIOC_S_INPUT), valid_ioctls);
+				__set_bit(_IOC_NR(VIDIOC_ENUMINPUT), valid_ioctls);
+				__set_bit(_IOC_NR(VIDIOC_G_INPUT), valid_ioctls);
+				__set_bit(_IOC_NR(VIDIOC_S_INPUT), valid_ioctls);
 			} else {
 				SET_VALID_IOCTL(ops, VIDIOC_ENUMINPUT, vidioc_enum_input);
 				SET_VALID_IOCTL(ops, VIDIOC_G_INPUT, vidioc_g_input);
@@ -743,9 +746,9 @@ static void determine_valid_ioctls(struct video_device *vdev)
 		}
 		if (is_tx) {
 			if (is_io_mc) {
-				set_bit(_IOC_NR(VIDIOC_ENUMOUTPUT), valid_ioctls);
-				set_bit(_IOC_NR(VIDIOC_G_OUTPUT), valid_ioctls);
-				set_bit(_IOC_NR(VIDIOC_S_OUTPUT), valid_ioctls);
+				__set_bit(_IOC_NR(VIDIOC_ENUMOUTPUT), valid_ioctls);
+				__set_bit(_IOC_NR(VIDIOC_G_OUTPUT), valid_ioctls);
+				__set_bit(_IOC_NR(VIDIOC_S_OUTPUT), valid_ioctls);
 			} else {
 				SET_VALID_IOCTL(ops, VIDIOC_ENUMOUTPUT, vidioc_enum_output);
 				SET_VALID_IOCTL(ops, VIDIOC_G_OUTPUT, vidioc_g_output);
@@ -756,7 +759,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 			SET_VALID_IOCTL(ops, VIDIOC_S_AUDOUT, vidioc_s_audout);
 		}
 		if (ops->vidioc_g_parm || ops->vidioc_g_std)
-			set_bit(_IOC_NR(VIDIOC_G_PARM), valid_ioctls);
+			__set_bit(_IOC_NR(VIDIOC_G_PARM), valid_ioctls);
 		SET_VALID_IOCTL(ops, VIDIOC_S_PARM, vidioc_s_parm);
 		SET_VALID_IOCTL(ops, VIDIOC_S_DV_TIMINGS, vidioc_s_dv_timings);
 		SET_VALID_IOCTL(ops, VIDIOC_G_DV_TIMINGS, vidioc_g_dv_timings);
@@ -1086,6 +1089,8 @@ void video_unregister_device(struct video_device *vdev)
 	 */
 	clear_bit(V4L2_FL_REGISTERED, &vdev->flags);
 	mutex_unlock(&videodev_lock);
+	if (test_bit(V4L2_FL_USES_V4L2_FH, &vdev->flags))
+		v4l2_event_wake_all(vdev);
 	device_unregister(&vdev->dev);
 }
 EXPORT_SYMBOL(video_unregister_device);

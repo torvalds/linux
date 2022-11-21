@@ -235,6 +235,8 @@ static const struct sh_cmt_info sh_cmt_info[] = {
 #define CMCNT 1 /* channel register */
 #define CMCOR 2 /* channel register */
 
+#define CMCLKE	0x1000	/* CLK Enable Register (R-Car Gen2) */
+
 static inline u32 sh_cmt_read_cmstr(struct sh_cmt_channel *ch)
 {
 	if (ch->iostart)
@@ -319,7 +321,6 @@ static int sh_cmt_enable(struct sh_cmt_channel *ch)
 {
 	int k, ret;
 
-	pm_runtime_get_sync(&ch->cmt->pdev->dev);
 	dev_pm_syscore_device(&ch->cmt->pdev->dev, true);
 
 	/* enable clock */
@@ -338,8 +339,9 @@ static int sh_cmt_enable(struct sh_cmt_channel *ch)
 		sh_cmt_write_cmcsr(ch, SH_CMT16_CMCSR_CMIE |
 				   SH_CMT16_CMCSR_CKS512);
 	} else {
-		sh_cmt_write_cmcsr(ch, SH_CMT32_CMCSR_CMM |
-				   SH_CMT32_CMCSR_CMTOUT_IE |
+		u32 cmtout = ch->cmt->info->model <= SH_CMT_48BIT ?
+			      SH_CMT32_CMCSR_CMTOUT_IE : 0;
+		sh_cmt_write_cmcsr(ch, cmtout | SH_CMT32_CMCSR_CMM |
 				   SH_CMT32_CMCSR_CMR_IRQ |
 				   SH_CMT32_CMCSR_CKS_RCLK8);
 	}
@@ -394,7 +396,6 @@ static void sh_cmt_disable(struct sh_cmt_channel *ch)
 	clk_disable(ch->cmt->clk);
 
 	dev_pm_syscore_device(&ch->cmt->pdev->dev, false);
-	pm_runtime_put(&ch->cmt->pdev->dev);
 }
 
 /* private flags */
@@ -562,17 +563,24 @@ static int sh_cmt_start(struct sh_cmt_channel *ch, unsigned long flag)
 	int ret = 0;
 	unsigned long flags;
 
+	if (flag & FLAG_CLOCKSOURCE)
+		pm_runtime_get_sync(&ch->cmt->pdev->dev);
+
 	raw_spin_lock_irqsave(&ch->lock, flags);
 
-	if (!(ch->flags & (FLAG_CLOCKEVENT | FLAG_CLOCKSOURCE)))
+	if (!(ch->flags & (FLAG_CLOCKEVENT | FLAG_CLOCKSOURCE))) {
+		if (flag & FLAG_CLOCKEVENT)
+			pm_runtime_get_sync(&ch->cmt->pdev->dev);
 		ret = sh_cmt_enable(ch);
+	}
 
 	if (ret)
 		goto out;
 	ch->flags |= flag;
 
 	/* setup timeout if no clockevent */
-	if ((flag == FLAG_CLOCKSOURCE) && (!(ch->flags & FLAG_CLOCKEVENT)))
+	if (ch->cmt->num_channels == 1 &&
+	    flag == FLAG_CLOCKSOURCE && (!(ch->flags & FLAG_CLOCKEVENT)))
 		__sh_cmt_set_next(ch, ch->max_match_value);
  out:
 	raw_spin_unlock_irqrestore(&ch->lock, flags);
@@ -590,14 +598,20 @@ static void sh_cmt_stop(struct sh_cmt_channel *ch, unsigned long flag)
 	f = ch->flags & (FLAG_CLOCKEVENT | FLAG_CLOCKSOURCE);
 	ch->flags &= ~flag;
 
-	if (f && !(ch->flags & (FLAG_CLOCKEVENT | FLAG_CLOCKSOURCE)))
+	if (f && !(ch->flags & (FLAG_CLOCKEVENT | FLAG_CLOCKSOURCE))) {
 		sh_cmt_disable(ch);
+		if (flag & FLAG_CLOCKEVENT)
+			pm_runtime_put(&ch->cmt->pdev->dev);
+	}
 
 	/* adjust the timeout to maximum if only clocksource left */
 	if ((flag == FLAG_CLOCKEVENT) && (ch->flags & FLAG_CLOCKSOURCE))
 		__sh_cmt_set_next(ch, ch->max_match_value);
 
 	raw_spin_unlock_irqrestore(&ch->lock, flags);
+
+	if (flag & FLAG_CLOCKSOURCE)
+		pm_runtime_put(&ch->cmt->pdev->dev);
 }
 
 static struct sh_cmt_channel *cs_to_sh_cmt(struct clocksource *cs)
@@ -608,20 +622,25 @@ static struct sh_cmt_channel *cs_to_sh_cmt(struct clocksource *cs)
 static u64 sh_cmt_clocksource_read(struct clocksource *cs)
 {
 	struct sh_cmt_channel *ch = cs_to_sh_cmt(cs);
-	unsigned long flags;
 	u32 has_wrapped;
-	u64 value;
-	u32 raw;
 
-	raw_spin_lock_irqsave(&ch->lock, flags);
-	value = ch->total_cycles;
-	raw = sh_cmt_get_counter(ch, &has_wrapped);
+	if (ch->cmt->num_channels == 1) {
+		unsigned long flags;
+		u64 value;
+		u32 raw;
 
-	if (unlikely(has_wrapped))
-		raw += ch->match_value + 1;
-	raw_spin_unlock_irqrestore(&ch->lock, flags);
+		raw_spin_lock_irqsave(&ch->lock, flags);
+		value = ch->total_cycles;
+		raw = sh_cmt_get_counter(ch, &has_wrapped);
 
-	return value + raw;
+		if (unlikely(has_wrapped))
+			raw += ch->match_value + 1;
+		raw_spin_unlock_irqrestore(&ch->lock, flags);
+
+		return value + raw;
+	}
+
+	return sh_cmt_get_counter(ch, &has_wrapped);
 }
 
 static int sh_cmt_clocksource_enable(struct clocksource *cs)
@@ -658,7 +677,7 @@ static void sh_cmt_clocksource_suspend(struct clocksource *cs)
 		return;
 
 	sh_cmt_stop(ch, FLAG_CLOCKSOURCE);
-	pm_genpd_syscore_poweroff(&ch->cmt->pdev->dev);
+	dev_pm_genpd_suspend(&ch->cmt->pdev->dev);
 }
 
 static void sh_cmt_clocksource_resume(struct clocksource *cs)
@@ -668,7 +687,7 @@ static void sh_cmt_clocksource_resume(struct clocksource *cs)
 	if (!ch->cs_enabled)
 		return;
 
-	pm_genpd_syscore_poweron(&ch->cmt->pdev->dev);
+	dev_pm_genpd_resume(&ch->cmt->pdev->dev);
 	sh_cmt_start(ch, FLAG_CLOCKSOURCE);
 }
 
@@ -684,7 +703,7 @@ static int sh_cmt_register_clocksource(struct sh_cmt_channel *ch,
 	cs->disable = sh_cmt_clocksource_disable;
 	cs->suspend = sh_cmt_clocksource_suspend;
 	cs->resume = sh_cmt_clocksource_resume;
-	cs->mask = CLOCKSOURCE_MASK(sizeof(u64) * 8);
+	cs->mask = CLOCKSOURCE_MASK(ch->cmt->info->width);
 	cs->flags = CLOCK_SOURCE_IS_CONTINUOUS;
 
 	dev_info(&ch->cmt->pdev->dev, "ch%u: used as clock source\n",
@@ -760,7 +779,7 @@ static void sh_cmt_clock_event_suspend(struct clock_event_device *ced)
 {
 	struct sh_cmt_channel *ch = ced_to_sh_cmt(ced);
 
-	pm_genpd_syscore_poweroff(&ch->cmt->pdev->dev);
+	dev_pm_genpd_suspend(&ch->cmt->pdev->dev);
 	clk_unprepare(ch->cmt->clk);
 }
 
@@ -769,7 +788,7 @@ static void sh_cmt_clock_event_resume(struct clock_event_device *ced)
 	struct sh_cmt_channel *ch = ced_to_sh_cmt(ced);
 
 	clk_prepare(ch->cmt->clk);
-	pm_genpd_syscore_poweron(&ch->cmt->pdev->dev);
+	dev_pm_genpd_resume(&ch->cmt->pdev->dev);
 }
 
 static int sh_cmt_register_clockevent(struct sh_cmt_channel *ch,
@@ -843,6 +862,7 @@ static int sh_cmt_setup_channel(struct sh_cmt_channel *ch, unsigned int index,
 				unsigned int hwidx, bool clockevent,
 				bool clocksource, struct sh_cmt_device *cmt)
 {
+	u32 value;
 	int ret;
 
 	/* Skip unused channels. */
@@ -872,6 +892,11 @@ static int sh_cmt_setup_channel(struct sh_cmt_channel *ch, unsigned int index,
 		ch->iostart = cmt->mapbase + ch->hwidx * 0x100;
 		ch->ioctrl = ch->iostart + 0x10;
 		ch->timer_bit = 0;
+
+		/* Enable the clock supply to the channel */
+		value = ioread32(cmt->mapbase + CMCLKE);
+		value |= BIT(hwidx);
+		iowrite32(value, cmt->mapbase + CMCLKE);
 		break;
 	}
 
@@ -1004,12 +1029,10 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 	else
 		cmt->rate = clk_get_rate(cmt->clk) / 8;
 
-	clk_disable(cmt->clk);
-
 	/* Map the memory resource(s). */
 	ret = sh_cmt_map_memory(cmt);
 	if (ret < 0)
-		goto err_clk_unprepare;
+		goto err_clk_disable;
 
 	/* Allocate and setup the channels. */
 	cmt->num_channels = hweight8(cmt->hw_channels);
@@ -1037,6 +1060,8 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 		mask &= ~(1 << hwidx);
 	}
 
+	clk_disable(cmt->clk);
+
 	platform_set_drvdata(pdev, cmt);
 
 	return 0;
@@ -1044,6 +1069,8 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 err_unmap:
 	kfree(cmt->channels);
 	iounmap(cmt->mapbase);
+err_clk_disable:
+	clk_disable(cmt->clk);
 err_clk_unprepare:
 	clk_unprepare(cmt->clk);
 err_clk_put:

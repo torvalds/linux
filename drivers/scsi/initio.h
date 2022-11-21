@@ -433,31 +433,6 @@ struct scsi_ctrl_blk {
 #define TARGET_BUSY     0x08
 #define INI_QUEUE_FULL	0x28
 
-/* SCSI MESSAGE */
-#define MSG_COMP        0x00
-#define MSG_EXTEND      0x01
-#define MSG_SDP         0x02
-#define MSG_RESTORE     0x03
-#define MSG_DISC        0x04
-#define MSG_IDE         0x05
-#define MSG_ABORT       0x06
-#define MSG_REJ         0x07
-#define MSG_NOP         0x08
-#define MSG_PARITY      0x09
-#define MSG_LINK_COMP   0x0A
-#define MSG_LINK_FLAG   0x0B
-#define MSG_DEVRST      0x0C
-#define MSG_ABORT_TAG   0x0D
-
-/* Queue tag msg: Simple_quque_tag, Head_of_queue_tag, Ordered_queue_tag */
-#define MSG_STAG        0x20
-#define MSG_HTAG        0x21
-#define MSG_OTAG        0x22
-
-#define MSG_IGNOREWIDE  0x23
-
-#define MSG_IDENT   0x80
-
 /***********************************************************************
 		Target Device Control Structure
 **********************************************************************/
@@ -665,3 +640,12 @@ typedef struct _NVRAM {
 #define SCSI_RESET_HOST_RESET 0x200
 #define SCSI_RESET_ACTION   0xff
 
+struct initio_cmd_priv {
+	dma_addr_t sense_dma_addr;
+	dma_addr_t sglist_dma_addr;
+};
+
+static inline struct initio_cmd_priv *initio_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}

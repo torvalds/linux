@@ -39,31 +39,39 @@ properties:
           - const: lvds-encoder # Generic LVDS encoder compatible fallback
       - items:
           - enum:
+              - ti,ds90cf364a # For the DS90CF364A FPD-Link LVDS Receiver
               - ti,ds90cf384a # For the DS90CF384A FPD-Link LVDS Receiver
           - const: lvds-decoder # Generic LVDS decoders compatible fallback
       - enum:
           - thine,thc63lvdm83d # For the THC63LVDM83D LVDS serializer
 
   ports:
-    type: object
-    description: |
-      This device has two video ports. Their connections are modeled using the
-      OF graph bindings specified in Documentation/devicetree/bindings/graph.txt
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
-      '#address-cells':
-        const: 1
-
-      '#size-cells':
-        const: 0
-
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/$defs/port-base
         description: |
           For LVDS encoders, port 0 is the parallel input
           For LVDS decoders, port 0 is the LVDS input
 
+        properties:
+          endpoint:
+            $ref: /schemas/media/video-interfaces.yaml#
+            unevaluatedProperties: false
+
+            properties:
+              data-mapping:
+                enum:
+                  - jeida-18
+                  - jeida-24
+                  - vesa-24
+                description: |
+                  The color signals mapping order. See details in
+                  Documentation/devicetree/bindings/display/lvds.yaml
+
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           For LVDS encoders, port 1 is the LVDS output
           For LVDS decoders, port 1 is the parallel output
@@ -72,15 +80,47 @@ properties:
       - port@0
       - port@1
 
-    additionalProperties: false
+  pclk-sample:
+    description:
+      Data sampling on rising or falling edge.
+    enum:
+      - 0  # Falling edge
+      - 1  # Rising edge
+    default: 0
 
   powerdown-gpios:
     description:
       The GPIO used to control the power down line of this device.
     maxItems: 1
 
-  power-supply:
-    maxItems: 1
+  power-supply: true
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: lvds-decoder
+    then:
+      properties:
+        ports:
+          properties:
+            port@0:
+              properties:
+                endpoint:
+                  properties:
+                    data-mapping: false
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: lvds-encoder
+    then:
+      properties:
+        pclk-sample: false
 
 required:
   - compatible

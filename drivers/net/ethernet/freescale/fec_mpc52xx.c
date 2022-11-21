@@ -99,20 +99,20 @@ static void mpc52xx_fec_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	netif_wake_queue(dev);
 }
 
-static void mpc52xx_fec_set_paddr(struct net_device *dev, u8 *mac)
+static void mpc52xx_fec_set_paddr(struct net_device *dev, const u8 *mac)
 {
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
 	struct mpc52xx_fec __iomem *fec = priv->fec;
 
-	out_be32(&fec->paddr1, *(u32 *)(&mac[0]));
-	out_be32(&fec->paddr2, (*(u16 *)(&mac[4]) << 16) | FEC_PADDR2_TYPE);
+	out_be32(&fec->paddr1, *(const u32 *)(&mac[0]));
+	out_be32(&fec->paddr2, (*(const u16 *)(&mac[4]) << 16) | FEC_PADDR2_TYPE);
 }
 
 static int mpc52xx_fec_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr *sock = addr;
 
-	memcpy(dev->dev_addr, sock->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, sock->sa_data);
 
 	mpc52xx_fec_set_paddr(dev, sock->sa_data);
 	return 0;
@@ -792,7 +792,7 @@ static const struct net_device_ops mpc52xx_fec_netdev_ops = {
 	.ndo_set_rx_mode = mpc52xx_fec_set_multicast_list,
 	.ndo_set_mac_address = mpc52xx_fec_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
-	.ndo_do_ioctl = phy_do_ioctl,
+	.ndo_eth_ioctl = phy_do_ioctl,
 	.ndo_tx_timeout = mpc52xx_fec_tx_timeout,
 	.ndo_get_stats = mpc52xx_fec_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -813,7 +813,6 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	const u32 *prop;
 	int prop_size;
 	struct device_node *np = op->dev.of_node;
-	const char *mac_addr;
 
 	phys_addr_t rx_fifo;
 	phys_addr_t tx_fifo;
@@ -891,18 +890,18 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	 *
 	 * First try to read MAC address from DT
 	 */
-	mac_addr = of_get_mac_address(np);
-	if (!IS_ERR(mac_addr)) {
-		ether_addr_copy(ndev->dev_addr, mac_addr);
-	} else {
+	rv = of_get_ethdev_address(np, ndev);
+	if (rv) {
 		struct mpc52xx_fec __iomem *fec = priv->fec;
+		u8 addr[ETH_ALEN] __aligned(4);
 
 		/*
 		 * If the MAC addresse is not provided via DT then read
 		 * it back from the controller regs
 		 */
-		*(u32 *)(&ndev->dev_addr[0]) = in_be32(&fec->paddr1);
-		*(u16 *)(&ndev->dev_addr[4]) = in_be32(&fec->paddr2) >> 16;
+		*(u32 *)(&addr[0]) = in_be32(&fec->paddr1);
+		*(u16 *)(&addr[4]) = in_be32(&fec->paddr2) >> 16;
+		eth_hw_addr_set(ndev, addr);
 	}
 
 	/*

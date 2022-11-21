@@ -9,12 +9,13 @@ Copyright (c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
 
 Copyright (c) 2009,        Shen Feng<shen@cn.fujitsu.com>
 
-For general info and legal blurb, please look in :doc:`index`.
+For general info and legal blurb, please look in
+Documentation/admin-guide/sysctl/index.rst.
 
 ------------------------------------------------------------------------------
 
 This file contains documentation for the sysctl files in
-``/proc/sys/kernel/`` and is valid for Linux kernel version 2.2.
+``/proc/sys/kernel/``.
 
 The files in this directory can be used to tune and monitor
 miscellaneous and general things in the operation of the Linux
@@ -54,7 +55,7 @@ free space valid for 30 seconds.
 acpi_video_flags
 ================
 
-See :doc:`/power/video`. This allows the video resume mode to be set,
+See Documentation/power/video.rst. This allows the video resume mode to be set,
 in a similar fashion to the ``acpi_sleep`` kernel parameter, by
 combining the following values:
 
@@ -89,7 +90,7 @@ is 0x15 and the full version number is 0x234, this file will contain
 the value 340 = 0x154.
 
 See the ``type_of_loader`` and ``ext_loader_type`` fields in
-:doc:`/x86/boot` for additional information.
+Documentation/x86/boot.rst for additional information.
 
 
 bootloader_version (x86 only)
@@ -99,7 +100,7 @@ The complete bootloader version number.  In the example above, this
 file will contain the value 564 = 0x234.
 
 See the ``type_of_loader`` and ``ext_loader_ver`` fields in
-:doc:`/x86/boot` for additional information.
+Documentation/x86/boot.rst for additional information.
 
 
 bpf_stats_enabled
@@ -269,7 +270,7 @@ see the ``hostname(1)`` man page.
 firmware_config
 ===============
 
-See :doc:`/driver-api/firmware/fallback-mechanisms`.
+See Documentation/driver-api/firmware/fallback-mechanisms.rst.
 
 The entries in this directory allow the firmware loader helper
 fallback to be controlled:
@@ -297,7 +298,7 @@ crashes and outputting them to a serial console.
 ftrace_enabled, stack_tracer_enabled
 ====================================
 
-See :doc:`/trace/ftrace`.
+See Documentation/trace/ftrace.rst.
 
 
 hardlockup_all_cpu_backtrace
@@ -325,7 +326,7 @@ when a hard lockup is detected.
 1 Panic on hard lockup.
 = ===========================
 
-See :doc:`/admin-guide/lockup-watchdogs` for more information.
+See Documentation/admin-guide/lockup-watchdogs.rst for more information.
 This can also be set using the nmi_watchdog kernel parameter.
 
 
@@ -333,7 +334,12 @@ hotplug
 =======
 
 Path for the hotplug policy agent.
-Default value is "``/sbin/hotplug``".
+Default value is ``CONFIG_UEVENT_HELPER_PATH``, which in turn defaults
+to the empty string.
+
+This file only exists when ``CONFIG_UEVENT_HELPER`` is enabled. Most
+modern systems rely exclusively on the netlink-based uevent source and
+don't need this.
 
 
 hung_task_all_cpu_backtrace
@@ -483,10 +489,11 @@ modprobe
 ========
 
 The full path to the usermode helper for autoloading kernel modules,
-by default "/sbin/modprobe".  This binary is executed when the kernel
-requests a module.  For example, if userspace passes an unknown
-filesystem type to mount(), then the kernel will automatically request
-the corresponding filesystem module by executing this usermode helper.
+by default ``CONFIG_MODPROBE_PATH``, which in turn defaults to
+"/sbin/modprobe".  This binary is executed when the kernel requests a
+module.  For example, if userspace passes an unknown filesystem type
+to mount(), then the kernel will automatically request the
+corresponding filesystem module by executing this usermode helper.
 This usermode helper should insert the needed module into the kernel.
 
 This sysctl only affects module autoloading.  It has no effect on the
@@ -581,71 +588,40 @@ in a KVM virtual machine. This default can be overridden by adding::
 
    nmi_watchdog=1
 
-to the guest kernel command line (see :doc:`/admin-guide/kernel-parameters`).
+to the guest kernel command line (see
+Documentation/admin-guide/kernel-parameters.rst).
 
 
 numa_balancing
 ==============
 
-Enables/disables automatic page fault based NUMA memory
-balancing. Memory is moved automatically to nodes
-that access it often.
+Enables/disables and configures automatic page fault based NUMA memory
+balancing.  Memory is moved automatically to nodes that access it often.
+The value to set can be the result of ORing the following:
 
-Enables/disables automatic NUMA memory balancing. On NUMA machines, there
-is a performance penalty if remote memory is accessed by a CPU. When this
-feature is enabled the kernel samples what task thread is accessing memory
-by periodically unmapping pages and later trapping a page fault. At the
-time of the page fault, it is determined if the data being accessed should
-be migrated to a local memory node.
+= =================================
+0 NUMA_BALANCING_DISABLED
+1 NUMA_BALANCING_NORMAL
+2 NUMA_BALANCING_MEMORY_TIERING
+= =================================
+
+Or NUMA_BALANCING_NORMAL to optimize page placement among different
+NUMA nodes to reduce remote accessing.  On NUMA machines, there is a
+performance penalty if remote memory is accessed by a CPU. When this
+feature is enabled the kernel samples what task thread is accessing
+memory by periodically unmapping pages and later trapping a page
+fault. At the time of the page fault, it is determined if the data
+being accessed should be migrated to a local memory node.
 
 The unmapping of pages and trapping faults incur additional overhead that
 ideally is offset by improved memory locality but there is no universal
 guarantee. If the target workload is already bound to NUMA nodes then this
-feature should be disabled. Otherwise, if the system overhead from the
-feature is too high then the rate the kernel samples for NUMA hinting
-faults may be controlled by the `numa_balancing_scan_period_min_ms,
-numa_balancing_scan_delay_ms, numa_balancing_scan_period_max_ms,
-numa_balancing_scan_size_mb`_, and numa_balancing_settle_count sysctls.
+feature should be disabled.
 
-
-numa_balancing_scan_period_min_ms, numa_balancing_scan_delay_ms, numa_balancing_scan_period_max_ms, numa_balancing_scan_size_mb
-===============================================================================================================================
-
-
-Automatic NUMA balancing scans tasks address space and unmaps pages to
-detect if pages are properly placed or if the data should be migrated to a
-memory node local to where the task is running.  Every "scan delay" the task
-scans the next "scan size" number of pages in its address space. When the
-end of the address space is reached the scanner restarts from the beginning.
-
-In combination, the "scan delay" and "scan size" determine the scan rate.
-When "scan delay" decreases, the scan rate increases.  The scan delay and
-hence the scan rate of every task is adaptive and depends on historical
-behaviour. If pages are properly placed then the scan delay increases,
-otherwise the scan delay decreases.  The "scan size" is not adaptive but
-the higher the "scan size", the higher the scan rate.
-
-Higher scan rates incur higher system overhead as page faults must be
-trapped and potentially data must be migrated. However, the higher the scan
-rate, the more quickly a tasks memory is migrated to a local node if the
-workload pattern changes and minimises performance impact due to remote
-memory accesses. These sysctls control the thresholds for scan delays and
-the number of pages scanned.
-
-``numa_balancing_scan_period_min_ms`` is the minimum time in milliseconds to
-scan a tasks virtual memory. It effectively controls the maximum scanning
-rate for each task.
-
-``numa_balancing_scan_delay_ms`` is the starting "scan delay" used for a task
-when it initially forks.
-
-``numa_balancing_scan_period_max_ms`` is the maximum time in milliseconds to
-scan a tasks virtual memory. It effectively controls the minimum scanning
-rate for each task.
-
-``numa_balancing_scan_size_mb`` is how many megabytes worth of pages are
-scanned for a given scan.
-
+Or NUMA_BALANCING_MEMORY_TIERING to optimize page placement among
+different types of memory (represented as different NUMA nodes) to
+place the hot pages in the fast memory.  This is implemented based on
+unmapping and page fault too.
 
 oops_all_cpu_backtrace
 ======================
@@ -787,6 +763,8 @@ bit 1  print system memory info
 bit 2  print timer info
 bit 3  print locks info if ``CONFIG_LOCKDEP`` is on
 bit 4  print ftrace buffer
+bit 5  print all printk messages in buffer
+bit 6  print all CPUs backtrace (if available in the arch)
 =====  ============================================
 
 So for example to print tasks and memory info on panic, user can::
@@ -879,7 +857,7 @@ The default value is 127.
 perf_event_mlock_kb
 ===================
 
-Control size of per-cpu ring buffer not counted agains mlock limit.
+Control size of per-cpu ring buffer not counted against mlock limit.
 
 The default value is 512 + 1 page
 
@@ -895,6 +873,17 @@ This can only be done when no events are in use that have callchains
 enabled, otherwise writing to this file will return ``-EBUSY``.
 
 The default value is 8.
+
+
+perf_user_access (arm64 only)
+=================================
+
+Controls user space access for reading perf event counters. When set to 1,
+user space can read performance monitor counter registers directly.
+
+The default value is 0 (access disabled).
+
+See Documentation/arm64/perf.rst for more information.
 
 
 pid_max
@@ -1010,23 +999,17 @@ This is a directory, with the following entries:
 * ``poolsize``: the entropy pool size, in bits;
 
 * ``urandom_min_reseed_secs``: obsolete (used to determine the minimum
-  number of seconds between urandom pool reseeding).
+  number of seconds between urandom pool reseeding). This file is
+  writable for compatibility purposes, but writing to it has no effect
+  on any RNG behavior.
 
 * ``uuid``: a UUID generated every time this is retrieved (this can
   thus be used to generate UUIDs at will);
 
 * ``write_wakeup_threshold``: when the entropy count drops below this
   (as a number of bits), processes waiting to write to ``/dev/random``
-  are woken up.
-
-If ``drivers/char/random.c`` is built with ``ADD_INTERRUPT_BENCH``
-defined, these additional entries are present:
-
-* ``add_interrupt_avg_cycles``: the average number of cycles between
-  interrupts used to feed the pool;
-
-* ``add_interrupt_avg_deviation``: the standard deviation seen on the
-  number of cycles between interrupts used to feed the pool.
+  are woken up. This file is writable for compatibility purposes, but
+  writing to it has no effect on any RNG behavior.
 
 
 randomize_va_space
@@ -1066,7 +1049,7 @@ that support this feature.
 real-root-dev
 =============
 
-See :doc:`/admin-guide/initrd`.
+See Documentation/admin-guide/initrd.rst.
 
 
 reboot-cmd (SPARC only)
@@ -1087,6 +1070,13 @@ Model available). If your platform happens to meet the
 requirements for EAS but you do not want to use it, change
 this value to 0.
 
+task_delayacct
+===============
+
+Enables/disables task delay accounting (see
+Documentation/accounting/delay-accounting.rst. Enabling this feature incurs
+a small amount of overhead in the scheduler but is useful for debugging
+and performance tuning. It is required by some tools such as iotop.
 
 sched_schedstats
 ================
@@ -1095,8 +1085,8 @@ Enables/disables scheduler statistics. Enabling this feature
 incurs a small amount of overhead in the scheduler but is
 useful for debugging and performance tuning.
 
-sched_util_clamp_min:
-=====================
+sched_util_clamp_min
+====================
 
 Max allowed *minimum* utilization.
 
@@ -1106,8 +1096,8 @@ It means that any requested uclamp.min value cannot be greater than
 sched_util_clamp_min, i.e., it is restricted to the range
 [0:sched_util_clamp_min].
 
-sched_util_clamp_max:
-=====================
+sched_util_clamp_max
+====================
 
 Max allowed *maximum* utilization.
 
@@ -1117,8 +1107,8 @@ It means that any requested uclamp.max value cannot be greater than
 sched_util_clamp_max, i.e., it is restricted to the range
 [0:sched_util_clamp_max].
 
-sched_util_clamp_min_rt_default:
-================================
+sched_util_clamp_min_rt_default
+===============================
 
 By default Linux is tuned for performance. Which means that RT tasks always run
 at the highest frequency and most capable (highest capacity) CPU (in
@@ -1153,7 +1143,7 @@ will take effect.
 seccomp
 =======
 
-See :doc:`/userspace-api/seccomp_filter`.
+See Documentation/userspace-api/seccomp_filter.rst.
 
 
 sg-big-buff
@@ -1282,11 +1272,11 @@ This parameter can be used to control the soft lockup detector.
 = =================================
 
 The soft lockup detector monitors CPUs for threads that are hogging the CPUs
-without rescheduling voluntarily, and thus prevent the 'watchdog/N' threads
-from running. The mechanism depends on the CPUs ability to respond to timer
-interrupts which are needed for the 'watchdog/N' threads to be woken up by
-the watchdog timer function, otherwise the NMI watchdog — if enabled — can
-detect a hard lockup condition.
+without rescheduling voluntarily, and thus prevent the 'migration/N' threads
+from running, causing the watchdog work fail to execute. The mechanism depends
+on the CPUs ability to respond to timer interrupts which are needed for the
+watchdog work to be queued by the watchdog timer function, otherwise the NMI
+watchdog — if enabled — can detect a hard lockup condition.
 
 
 stack_erasing
@@ -1324,7 +1314,7 @@ the boot PROM.
 sysrq
 =====
 
-See :doc:`/admin-guide/sysrq`.
+See Documentation/admin-guide/sysrq.rst.
 
 
 tainted
@@ -1336,7 +1326,7 @@ ORed together. The letters are seen in "Tainted" line of Oops reports.
 ======  =====  ==============================================================
      1  `(P)`  proprietary module was loaded
      2  `(F)`  module was force loaded
-     4  `(S)`  SMP kernel oops on an officially SMP incapable processor
+     4  `(S)`  kernel running on an out of specification system
      8  `(R)`  module was force unloaded
     16  `(M)`  processor reported a Machine Check Exception (MCE)
     32  `(B)`  bad page referenced or some unexpected page flags
@@ -1354,15 +1344,16 @@ ORed together. The letters are seen in "Tainted" line of Oops reports.
 131072  `(T)`  The kernel was built with the struct randomization plugin
 ======  =====  ==============================================================
 
-See :doc:`/admin-guide/tainted-kernels` for more information.
+See Documentation/admin-guide/tainted-kernels.rst for more information.
 
 Note:
   writes to this sysctl interface will fail with ``EINVAL`` if the kernel is
   booted with the command line option ``panic_on_taint=<bitmask>,nousertaint``
   and any of the ORed together values being written to ``tainted`` match with
   the bitmask declared on panic_on_taint.
-  See :doc:`/admin-guide/kernel-parameters` for more details on that particular
-  kernel command line option and its optional ``nousertaint`` switch.
+  See Documentation/admin-guide/kernel-parameters.rst for more details on
+  that particular kernel command line option and its optional
+  ``nousertaint`` switch.
 
 threads-max
 ===========
@@ -1386,7 +1377,7 @@ If a value outside of this range is written to ``threads-max`` an
 traceoff_on_warning
 ===================
 
-When set, disables tracing (see :doc:`/trace/ftrace`) when a
+When set, disables tracing (see Documentation/trace/ftrace.rst) when a
 ``WARN()`` is hit.
 
 
@@ -1406,8 +1397,8 @@ will send them to printk() again.
 
 This only works if the kernel was booted with ``tp_printk`` enabled.
 
-See :doc:`/admin-guide/kernel-parameters` and
-:doc:`/trace/boottime-trace`.
+See Documentation/admin-guide/kernel-parameters.rst and
+Documentation/trace/boottime-trace.rst.
 
 
 .. _unaligned-dump-stack:
@@ -1457,11 +1448,22 @@ unprivileged_bpf_disabled
 =========================
 
 Writing 1 to this entry will disable unprivileged calls to ``bpf()``;
-once disabled, calling ``bpf()`` without ``CAP_SYS_ADMIN`` will return
-``-EPERM``.
+once disabled, calling ``bpf()`` without ``CAP_SYS_ADMIN`` or ``CAP_BPF``
+will return ``-EPERM``. Once set to 1, this can't be cleared from the
+running kernel anymore.
 
-Once set, this can't be cleared.
+Writing 2 to this entry will also disable unprivileged calls to ``bpf()``,
+however, an admin can still change this setting later on, if needed, by
+writing 0 or 1 to this entry.
 
+If ``BPF_UNPRIV_DEFAULT_OFF`` is enabled in the kernel config, then this
+entry will default to 2 instead of 0.
+
+= =============================================================
+0 Unprivileged calls to ``bpf()`` are enabled
+1 Unprivileged calls to ``bpf()`` are disabled without recovery
+2 Unprivileged calls to ``bpf()`` are disabled
+= =============================================================
 
 watchdog
 ========

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2009-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -20,6 +20,7 @@
  * included with this package.                                     *
  *******************************************************************/
 
+#include <uapi/scsi/fc/fc_fs.h>
 #include <uapi/scsi/fc/fc_els.h>
 
 /* Macros to deal with bit fields. Each bit field must have 3 #defines
@@ -59,6 +60,14 @@
 	((ptr)->name##_WORD = ((((value) & name##_MASK) << name##_SHIFT) | \
 		 ((ptr)->name##_WORD & ~(name##_MASK << name##_SHIFT))))
 
+#define get_wqe_reqtag(x)	(((x)->wqe.words[9] >>  0) & 0xFFFF)
+#define get_wqe_tmo(x)		(((x)->wqe.words[7] >> 24) & 0x00FF)
+
+#define get_job_ulpword(x, y)	((x)->iocb.un.ulpWord[y])
+
+#define set_job_ulpstatus(x, y)	bf_set(lpfc_wcqe_c_status, &(x)->wcqe_cmpl, y)
+#define set_job_ulpword4(x, y)	((&(x)->wcqe_cmpl)->parameter = y)
+
 struct dma_address {
 	uint32_t addr_lo;
 	uint32_t addr_hi;
@@ -94,6 +103,9 @@ struct lpfc_sli_intf {
 #define LPFC_SLI_INTF_FAMILY_BE3	0x1
 #define LPFC_SLI_INTF_FAMILY_LNCR_A0	0xa
 #define LPFC_SLI_INTF_FAMILY_LNCR_B0	0xb
+#define LPFC_SLI_INTF_FAMILY_G6		0xc
+#define LPFC_SLI_INTF_FAMILY_G7		0xd
+#define LPFC_SLI_INTF_FAMILY_G7P	0xe
 #define lpfc_sli_intf_slirev_SHIFT		4
 #define lpfc_sli_intf_slirev_MASK		0x0000000F
 #define lpfc_sli_intf_slirev_WORD		word0
@@ -124,6 +136,7 @@ struct lpfc_sli_intf {
 /* Define SLI4 Alignment requirements. */
 #define LPFC_ALIGN_16_BYTE	16
 #define LPFC_ALIGN_64_BYTE	64
+#define SLI4_PAGE_SIZE		4096
 
 /* Define SLI4 specific definitions. */
 #define LPFC_MQ_CQE_BYTE_OFFSET	256
@@ -225,6 +238,34 @@ struct lpfc_sli_intf {
 /* PORT_CAPABILITIES constants. */
 #define LPFC_MAX_SUPPORTED_PAGES	8
 
+enum ulp_bde64_word3 {
+	ULP_BDE64_SIZE_MASK		= 0xffffff,
+
+	ULP_BDE64_TYPE_SHIFT		= 24,
+	ULP_BDE64_TYPE_MASK		= (0xff << ULP_BDE64_TYPE_SHIFT),
+
+	/* BDE (Host_resident) */
+	ULP_BDE64_TYPE_BDE_64		= (0x00 << ULP_BDE64_TYPE_SHIFT),
+	/* Immediate Data BDE */
+	ULP_BDE64_TYPE_BDE_IMMED	= (0x01 << ULP_BDE64_TYPE_SHIFT),
+	/* BDE (Port-resident) */
+	ULP_BDE64_TYPE_BDE_64P		= (0x02 << ULP_BDE64_TYPE_SHIFT),
+	/* Input BDE (Host-resident) */
+	ULP_BDE64_TYPE_BDE_64I		= (0x08 << ULP_BDE64_TYPE_SHIFT),
+	/* Input BDE (Port-resident) */
+	ULP_BDE64_TYPE_BDE_64IP		= (0x0A << ULP_BDE64_TYPE_SHIFT),
+	/* BLP (Host-resident) */
+	ULP_BDE64_TYPE_BLP_64		= (0x40 << ULP_BDE64_TYPE_SHIFT),
+	/* BLP (Port-resident) */
+	ULP_BDE64_TYPE_BLP_64P		= (0x42 << ULP_BDE64_TYPE_SHIFT),
+};
+
+struct ulp_bde64_le {
+	__le32 type_size; /* type 31:24, size 23:0 */
+	__le32 addr_low;
+	__le32 addr_high;
+};
+
 struct ulp_bde64 {
 	union ULP_BDE_TUS {
 		uint32_t w;
@@ -272,6 +313,9 @@ struct lpfc_sli4_flags {
 #define lpfc_vfi_rsrc_rdy_MASK		0x00000001
 #define lpfc_vfi_rsrc_rdy_WORD		word0
 #define LPFC_VFI_RSRC_RDY		1
+#define lpfc_ftr_ashdr_SHIFT            4
+#define lpfc_ftr_ashdr_MASK             0x00000001
+#define lpfc_ftr_ashdr_WORD             word0
 };
 
 struct sli4_bls_rsp {
@@ -389,6 +433,12 @@ struct lpfc_wcqe_complete {
 #define lpfc_wcqe_c_ersp0_MASK		0x0000FFFF
 #define lpfc_wcqe_c_ersp0_WORD		word0
 	uint32_t total_data_placed;
+#define lpfc_wcqe_c_cmf_cg_SHIFT	31
+#define lpfc_wcqe_c_cmf_cg_MASK		0x00000001
+#define lpfc_wcqe_c_cmf_cg_WORD		total_data_placed
+#define lpfc_wcqe_c_cmf_bw_SHIFT	0
+#define lpfc_wcqe_c_cmf_bw_MASK		0x0FFFFFFF
+#define lpfc_wcqe_c_cmf_bw_WORD		total_data_placed
 	uint32_t parameter;
 #define lpfc_wcqe_c_bg_edir_SHIFT	5
 #define lpfc_wcqe_c_bg_edir_MASK	0x00000001
@@ -659,6 +709,10 @@ struct lpfc_register {
 #define lpfc_sliport_status_rdy_SHIFT	23
 #define lpfc_sliport_status_rdy_MASK	0x1
 #define lpfc_sliport_status_rdy_WORD	word0
+#define lpfc_sliport_status_pldv_SHIFT	0
+#define lpfc_sliport_status_pldv_MASK	0x1
+#define lpfc_sliport_status_pldv_WORD	word0
+#define CFG_PLD				0x3C
 #define MAX_IF_TYPE_2_RESETS		6
 
 #define LPFC_CTL_PORT_CTL_OFFSET	0x408
@@ -683,6 +737,7 @@ struct lpfc_register {
 #define lpfc_sliport_eqdelay_id_MASK	0xfff
 #define lpfc_sliport_eqdelay_id_WORD	word0
 #define LPFC_SEC_TO_USEC		1000000
+#define LPFC_SEC_TO_MSEC		1000
 
 /* The following Registers apply to SLI4 if_type 0 UCNAs. They typically
  * reside in BAR 2.
@@ -955,6 +1010,12 @@ union lpfc_sli4_cfg_shdr {
 #define lpfc_mbox_hdr_add_status_SHIFT		8
 #define lpfc_mbox_hdr_add_status_MASK		0x000000FF
 #define lpfc_mbox_hdr_add_status_WORD		word7
+#define LPFC_ADD_STATUS_INCOMPAT_OBJ		0xA2
+#define lpfc_mbox_hdr_add_status_2_SHIFT	16
+#define lpfc_mbox_hdr_add_status_2_MASK		0x000000FF
+#define lpfc_mbox_hdr_add_status_2_WORD		word7
+#define LPFC_ADD_STATUS_2_INCOMPAT_FLASH	0x01
+#define LPFC_ADD_STATUS_2_INCORRECT_ASIC	0x02
 		uint32_t response_length;
 		uint32_t actual_response_length;
 	} response;
@@ -1011,6 +1072,7 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_SET_HOST_DATA			0x5D
 #define LPFC_MBOX_OPCODE_SEND_ACTIVATION		0x73
 #define LPFC_MBOX_OPCODE_RESET_LICENSES			0x74
+#define LPFC_MBOX_OPCODE_REG_CONGESTION_BUF		0x8E
 #define LPFC_MBOX_OPCODE_GET_RSRC_EXTENT_INFO		0x9A
 #define LPFC_MBOX_OPCODE_GET_ALLOC_RSRC_EXTENT		0x9B
 #define LPFC_MBOX_OPCODE_ALLOC_RSRC_EXTENT		0x9C
@@ -1119,6 +1181,12 @@ struct lpfc_mbx_sge {
 	uint32_t length;
 };
 
+struct lpfc_mbx_host_buf {
+	uint32_t length;
+	uint32_t pa_lo;
+	uint32_t pa_hi;
+};
+
 struct lpfc_mbx_nembed_cmd {
 	struct lpfc_sli4_cfg_mhdr cfg_mhdr;
 #define LPFC_SLI4_MBX_SGE_MAX_PAGES	19
@@ -1127,6 +1195,31 @@ struct lpfc_mbx_nembed_cmd {
 
 struct lpfc_mbx_nembed_sge_virt {
 	void *addr[LPFC_SLI4_MBX_SGE_MAX_PAGES];
+};
+
+#define LPFC_MBX_OBJECT_NAME_LEN_DW	26
+struct lpfc_mbx_read_object {  /* Version 0 */
+	struct mbox_header header;
+	union {
+		struct {
+			uint32_t word0;
+#define lpfc_mbx_rd_object_rlen_SHIFT	0
+#define lpfc_mbx_rd_object_rlen_MASK	0x00FFFFFF
+#define lpfc_mbx_rd_object_rlen_WORD	word0
+			uint32_t rd_object_offset;
+			__le32 rd_object_name[LPFC_MBX_OBJECT_NAME_LEN_DW];
+#define LPFC_OBJ_NAME_SZ 104   /* 26 x sizeof(uint32_t) is 104. */
+			uint32_t rd_object_cnt;
+			struct lpfc_mbx_host_buf rd_object_hbuf[4];
+		} request;
+		struct {
+			uint32_t rd_object_actual_rlen;
+			uint32_t word1;
+#define lpfc_mbx_rd_object_eof_SHIFT	31
+#define lpfc_mbx_rd_object_eof_MASK	0x1
+#define lpfc_mbx_rd_object_eof_WORD	word1
+		} response;
+	} u;
 };
 
 struct lpfc_mbx_eq_create {
@@ -1551,7 +1644,7 @@ struct rq_context {
 #define lpfc_rq_context_hdr_size_WORD	word1
 	uint32_t word2;
 #define lpfc_rq_context_cq_id_SHIFT	16
-#define lpfc_rq_context_cq_id_MASK	0x000003FF
+#define lpfc_rq_context_cq_id_MASK	0x0000FFFF
 #define lpfc_rq_context_cq_id_WORD	word2
 #define lpfc_rq_context_buf_size_SHIFT	0
 #define lpfc_rq_context_buf_size_MASK	0x0000FFFF
@@ -2324,6 +2417,7 @@ struct lpfc_mbx_redisc_fcf_tbl {
 #define ADD_STATUS_OPERATION_ALREADY_ACTIVE		0x67
 #define ADD_STATUS_FW_NOT_SUPPORTED			0xEB
 #define ADD_STATUS_INVALID_REQUEST			0x4B
+#define ADD_STATUS_INVALID_OBJECT_NAME			0xA0
 #define ADD_STATUS_FW_DOWNLOAD_HW_DISABLED              0x58
 
 struct lpfc_mbx_sli4_config {
@@ -2799,6 +2893,12 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_extnts_inuse_SHIFT	31
 #define lpfc_mbx_rd_conf_extnts_inuse_MASK	0x00000001
 #define lpfc_mbx_rd_conf_extnts_inuse_WORD	word1
+#define lpfc_mbx_rd_conf_wcs_SHIFT		28	/* warning signaling */
+#define lpfc_mbx_rd_conf_wcs_MASK		0x00000001
+#define lpfc_mbx_rd_conf_wcs_WORD		word1
+#define lpfc_mbx_rd_conf_acs_SHIFT		27	/* alarm signaling */
+#define lpfc_mbx_rd_conf_acs_MASK		0x00000001
+#define lpfc_mbx_rd_conf_acs_WORD		word1
 	uint32_t word2;
 #define lpfc_mbx_rd_conf_lnk_numb_SHIFT		0
 #define lpfc_mbx_rd_conf_lnk_numb_MASK		0x0000003F
@@ -2943,6 +3043,9 @@ struct lpfc_mbx_request_features {
 #define lpfc_mbx_rq_ftr_rq_mrqp_SHIFT		16
 #define lpfc_mbx_rq_ftr_rq_mrqp_MASK		0x00000001
 #define lpfc_mbx_rq_ftr_rq_mrqp_WORD		word2
+#define lpfc_mbx_rq_ftr_rq_ashdr_SHIFT          17
+#define lpfc_mbx_rq_ftr_rq_ashdr_MASK           0x00000001
+#define lpfc_mbx_rq_ftr_rq_ashdr_WORD           word2
 	uint32_t word3;
 #define lpfc_mbx_rq_ftr_rsp_iaab_SHIFT		0
 #define lpfc_mbx_rq_ftr_rsp_iaab_MASK		0x00000001
@@ -2974,62 +3077,9 @@ struct lpfc_mbx_request_features {
 #define lpfc_mbx_rq_ftr_rsp_mrqp_SHIFT		16
 #define lpfc_mbx_rq_ftr_rsp_mrqp_MASK		0x00000001
 #define lpfc_mbx_rq_ftr_rsp_mrqp_WORD		word3
-};
-
-struct lpfc_mbx_supp_pages {
-	uint32_t word1;
-#define qs_SHIFT 				0
-#define qs_MASK					0x00000001
-#define qs_WORD					word1
-#define wr_SHIFT				1
-#define wr_MASK 				0x00000001
-#define wr_WORD					word1
-#define pf_SHIFT				8
-#define pf_MASK					0x000000ff
-#define pf_WORD					word1
-#define cpn_SHIFT				16
-#define cpn_MASK				0x000000ff
-#define cpn_WORD				word1
-	uint32_t word2;
-#define list_offset_SHIFT 			0
-#define list_offset_MASK			0x000000ff
-#define list_offset_WORD			word2
-#define next_offset_SHIFT			8
-#define next_offset_MASK			0x000000ff
-#define next_offset_WORD			word2
-#define elem_cnt_SHIFT				16
-#define elem_cnt_MASK				0x000000ff
-#define elem_cnt_WORD				word2
-	uint32_t word3;
-#define pn_0_SHIFT				24
-#define pn_0_MASK  				0x000000ff
-#define pn_0_WORD				word3
-#define pn_1_SHIFT				16
-#define pn_1_MASK				0x000000ff
-#define pn_1_WORD				word3
-#define pn_2_SHIFT				8
-#define pn_2_MASK				0x000000ff
-#define pn_2_WORD				word3
-#define pn_3_SHIFT				0
-#define pn_3_MASK				0x000000ff
-#define pn_3_WORD				word3
-	uint32_t word4;
-#define pn_4_SHIFT				24
-#define pn_4_MASK				0x000000ff
-#define pn_4_WORD				word4
-#define pn_5_SHIFT				16
-#define pn_5_MASK				0x000000ff
-#define pn_5_WORD				word4
-#define pn_6_SHIFT				8
-#define pn_6_MASK				0x000000ff
-#define pn_6_WORD				word4
-#define pn_7_SHIFT				0
-#define pn_7_MASK				0x000000ff
-#define pn_7_WORD				word4
-	uint32_t rsvd[27];
-#define LPFC_SUPP_PAGES			0
-#define LPFC_BLOCK_GUARD_PROFILES	1
-#define LPFC_SLI4_PARAMETERS		2
+#define lpfc_mbx_rq_ftr_rsp_ashdr_SHIFT         17
+#define lpfc_mbx_rq_ftr_rsp_ashdr_MASK          0x00000001
+#define lpfc_mbx_rq_ftr_rsp_ashdr_WORD          word3
 };
 
 struct lpfc_mbx_memory_dump_type3 {
@@ -3248,121 +3298,6 @@ struct user_eeprom {
 	uint8_t reserved191[57];
 };
 
-struct lpfc_mbx_pc_sli4_params {
-	uint32_t word1;
-#define qs_SHIFT				0
-#define qs_MASK					0x00000001
-#define qs_WORD					word1
-#define wr_SHIFT				1
-#define wr_MASK					0x00000001
-#define wr_WORD					word1
-#define pf_SHIFT				8
-#define pf_MASK					0x000000ff
-#define pf_WORD					word1
-#define cpn_SHIFT				16
-#define cpn_MASK				0x000000ff
-#define cpn_WORD				word1
-	uint32_t word2;
-#define if_type_SHIFT				0
-#define if_type_MASK				0x00000007
-#define if_type_WORD				word2
-#define sli_rev_SHIFT				4
-#define sli_rev_MASK				0x0000000f
-#define sli_rev_WORD				word2
-#define sli_family_SHIFT			8
-#define sli_family_MASK				0x000000ff
-#define sli_family_WORD				word2
-#define featurelevel_1_SHIFT			16
-#define featurelevel_1_MASK			0x000000ff
-#define featurelevel_1_WORD			word2
-#define featurelevel_2_SHIFT			24
-#define featurelevel_2_MASK			0x0000001f
-#define featurelevel_2_WORD			word2
-	uint32_t word3;
-#define fcoe_SHIFT 				0
-#define fcoe_MASK				0x00000001
-#define fcoe_WORD				word3
-#define fc_SHIFT				1
-#define fc_MASK					0x00000001
-#define fc_WORD					word3
-#define nic_SHIFT				2
-#define nic_MASK				0x00000001
-#define nic_WORD				word3
-#define iscsi_SHIFT				3
-#define iscsi_MASK				0x00000001
-#define iscsi_WORD				word3
-#define rdma_SHIFT				4
-#define rdma_MASK				0x00000001
-#define rdma_WORD				word3
-	uint32_t sge_supp_len;
-#define SLI4_PAGE_SIZE 4096
-	uint32_t word5;
-#define if_page_sz_SHIFT			0
-#define if_page_sz_MASK				0x0000ffff
-#define if_page_sz_WORD				word5
-#define loopbk_scope_SHIFT			24
-#define loopbk_scope_MASK			0x0000000f
-#define loopbk_scope_WORD			word5
-#define rq_db_window_SHIFT			28
-#define rq_db_window_MASK			0x0000000f
-#define rq_db_window_WORD			word5
-	uint32_t word6;
-#define eq_pages_SHIFT				0
-#define eq_pages_MASK				0x0000000f
-#define eq_pages_WORD				word6
-#define eqe_size_SHIFT				8
-#define eqe_size_MASK				0x000000ff
-#define eqe_size_WORD				word6
-	uint32_t word7;
-#define cq_pages_SHIFT				0
-#define cq_pages_MASK				0x0000000f
-#define cq_pages_WORD				word7
-#define cqe_size_SHIFT				8
-#define cqe_size_MASK				0x000000ff
-#define cqe_size_WORD				word7
-	uint32_t word8;
-#define mq_pages_SHIFT				0
-#define mq_pages_MASK				0x0000000f
-#define mq_pages_WORD				word8
-#define mqe_size_SHIFT				8
-#define mqe_size_MASK				0x000000ff
-#define mqe_size_WORD				word8
-#define mq_elem_cnt_SHIFT			16
-#define mq_elem_cnt_MASK			0x000000ff
-#define mq_elem_cnt_WORD			word8
-	uint32_t word9;
-#define wq_pages_SHIFT				0
-#define wq_pages_MASK				0x0000ffff
-#define wq_pages_WORD				word9
-#define wqe_size_SHIFT				8
-#define wqe_size_MASK				0x000000ff
-#define wqe_size_WORD				word9
-	uint32_t word10;
-#define rq_pages_SHIFT				0
-#define rq_pages_MASK				0x0000ffff
-#define rq_pages_WORD				word10
-#define rqe_size_SHIFT				8
-#define rqe_size_MASK				0x000000ff
-#define rqe_size_WORD				word10
-	uint32_t word11;
-#define hdr_pages_SHIFT				0
-#define hdr_pages_MASK				0x0000000f
-#define hdr_pages_WORD				word11
-#define hdr_size_SHIFT				8
-#define hdr_size_MASK				0x0000000f
-#define hdr_size_WORD				word11
-#define hdr_pp_align_SHIFT			16
-#define hdr_pp_align_MASK			0x0000ffff
-#define hdr_pp_align_WORD			word11
-	uint32_t word12;
-#define sgl_pages_SHIFT				0
-#define sgl_pages_MASK				0x0000000f
-#define sgl_pages_WORD				word12
-#define sgl_pp_align_SHIFT			16
-#define sgl_pp_align_MASK			0x0000ffff
-#define sgl_pp_align_WORD			word12
-	uint32_t rsvd_13_63[51];
-};
 #define SLI4_PAGE_ALIGN(addr) (((addr)+((SLI4_PAGE_SIZE)-1)) \
 			       &(~((SLI4_PAGE_SIZE)-1)))
 
@@ -3489,25 +3424,35 @@ struct lpfc_sli4_parameters {
 #define cfg_nosr_SHIFT				9
 #define cfg_nosr_MASK				0x00000001
 #define cfg_nosr_WORD				word19
-
 #define cfg_bv1s_SHIFT                          10
 #define cfg_bv1s_MASK                           0x00000001
 #define cfg_bv1s_WORD                           word19
-#define cfg_pvl_SHIFT				13
-#define cfg_pvl_MASK				0x00000001
-#define cfg_pvl_WORD				word19
 
 #define cfg_nsler_SHIFT                         12
 #define cfg_nsler_MASK                          0x00000001
 #define cfg_nsler_WORD                          word19
+#define cfg_pvl_SHIFT				13
+#define cfg_pvl_MASK				0x00000001
+#define cfg_pvl_WORD				word19
+
+#define cfg_pbde_SHIFT				20
+#define cfg_pbde_MASK				0x00000001
+#define cfg_pbde_WORD				word19
 
 	uint32_t word20;
 #define cfg_max_tow_xri_SHIFT			0
 #define cfg_max_tow_xri_MASK			0x0000ffff
 #define cfg_max_tow_xri_WORD			word20
 
-	uint32_t word21;                        /* RESERVED */
-	uint32_t word22;                        /* RESERVED */
+	uint32_t word21;
+#define cfg_mi_ver_SHIFT			0
+#define cfg_mi_ver_MASK				0x0000ffff
+#define cfg_mi_ver_WORD				word21
+#define cfg_cmf_SHIFT				24
+#define cfg_cmf_MASK				0x000000ff
+#define cfg_cmf_WORD				word21
+
+	uint32_t mib_size;
 	uint32_t word23;                        /* RESERVED */
 
 	uint32_t word24;
@@ -3535,7 +3480,10 @@ struct lpfc_sli4_parameters {
 
 #define LPFC_SET_UE_RECOVERY		0x10
 #define LPFC_SET_MDS_DIAGS		0x12
+#define LPFC_SET_CGN_SIGNAL		0x1f
 #define LPFC_SET_DUAL_DUMP		0x1e
+#define LPFC_SET_ENABLE_MI		0x21
+#define LPFC_SET_ENABLE_CMF		0x24
 struct lpfc_mbx_set_feature {
 	struct mbox_header header;
 	uint32_t feature;
@@ -3550,6 +3498,9 @@ struct lpfc_mbx_set_feature {
 #define lpfc_mbx_set_feature_mds_deep_loopbk_SHIFT  1
 #define lpfc_mbx_set_feature_mds_deep_loopbk_MASK   0x00000001
 #define lpfc_mbx_set_feature_mds_deep_loopbk_WORD   word6
+#define lpfc_mbx_set_feature_CGN_warn_freq_SHIFT 0
+#define lpfc_mbx_set_feature_CGN_warn_freq_MASK  0x0000ffff
+#define lpfc_mbx_set_feature_CGN_warn_freq_WORD  word6
 #define lpfc_mbx_set_feature_dd_SHIFT		0
 #define lpfc_mbx_set_feature_dd_MASK		0x00000001
 #define lpfc_mbx_set_feature_dd_WORD		word6
@@ -3559,6 +3510,15 @@ struct lpfc_mbx_set_feature {
 #define LPFC_DISABLE_DUAL_DUMP		0
 #define LPFC_ENABLE_DUAL_DUMP		1
 #define LPFC_QUERY_OP_DUAL_DUMP		2
+#define lpfc_mbx_set_feature_cmf_SHIFT		0
+#define lpfc_mbx_set_feature_cmf_MASK		0x00000001
+#define lpfc_mbx_set_feature_cmf_WORD		word6
+#define lpfc_mbx_set_feature_mi_SHIFT		0
+#define lpfc_mbx_set_feature_mi_MASK		0x0000ffff
+#define lpfc_mbx_set_feature_mi_WORD		word6
+#define lpfc_mbx_set_feature_milunq_SHIFT	16
+#define lpfc_mbx_set_feature_milunq_MASK	0x0000ffff
+#define lpfc_mbx_set_feature_milunq_WORD	word6
 	uint32_t word7;
 #define lpfc_mbx_set_feature_UERP_SHIFT 0
 #define lpfc_mbx_set_feature_UERP_MASK  0x0000ffff
@@ -3566,16 +3526,51 @@ struct lpfc_mbx_set_feature {
 #define lpfc_mbx_set_feature_UESR_SHIFT 16
 #define lpfc_mbx_set_feature_UESR_MASK  0x0000ffff
 #define lpfc_mbx_set_feature_UESR_WORD  word7
+#define lpfc_mbx_set_feature_CGN_alarm_freq_SHIFT 0
+#define lpfc_mbx_set_feature_CGN_alarm_freq_MASK  0x0000ffff
+#define lpfc_mbx_set_feature_CGN_alarm_freq_WORD  word7
+	u32 word8;
+#define lpfc_mbx_set_feature_CGN_acqe_freq_SHIFT 0
+#define lpfc_mbx_set_feature_CGN_acqe_freq_MASK  0x000000ff
+#define lpfc_mbx_set_feature_CGN_acqe_freq_WORD  word8
 };
 
 
 #define LPFC_SET_HOST_OS_DRIVER_VERSION    0x2
+#define LPFC_SET_HOST_DATE_TIME		   0x4
+
+struct lpfc_mbx_set_host_date_time {
+	uint32_t word6;
+#define lpfc_mbx_set_host_month_WORD	word6
+#define lpfc_mbx_set_host_month_SHIFT	16
+#define lpfc_mbx_set_host_month_MASK	0xFF
+#define lpfc_mbx_set_host_day_WORD	word6
+#define lpfc_mbx_set_host_day_SHIFT	8
+#define lpfc_mbx_set_host_day_MASK	0xFF
+#define lpfc_mbx_set_host_year_WORD	word6
+#define lpfc_mbx_set_host_year_SHIFT	0
+#define lpfc_mbx_set_host_year_MASK	0xFF
+	uint32_t word7;
+#define lpfc_mbx_set_host_hour_WORD	word7
+#define lpfc_mbx_set_host_hour_SHIFT	16
+#define lpfc_mbx_set_host_hour_MASK	0xFF
+#define lpfc_mbx_set_host_min_WORD	word7
+#define lpfc_mbx_set_host_min_SHIFT	8
+#define lpfc_mbx_set_host_min_MASK	0xFF
+#define lpfc_mbx_set_host_sec_WORD	word7
+#define lpfc_mbx_set_host_sec_SHIFT     0
+#define lpfc_mbx_set_host_sec_MASK      0xFF
+};
+
 struct lpfc_mbx_set_host_data {
 #define LPFC_HOST_OS_DRIVER_VERSION_SIZE   48
 	struct mbox_header header;
 	uint32_t param_id;
 	uint32_t param_len;
-	uint8_t  data[LPFC_HOST_OS_DRIVER_VERSION_SIZE];
+	union {
+		uint8_t data[LPFC_HOST_OS_DRIVER_VERSION_SIZE];
+		struct  lpfc_mbx_set_host_date_time tm;
+	} un;
 };
 
 struct lpfc_mbx_set_trunk_mode {
@@ -3591,6 +3586,21 @@ struct lpfc_mbx_set_trunk_mode {
 struct lpfc_mbx_get_sli4_parameters {
 	struct mbox_header header;
 	struct lpfc_sli4_parameters sli4_parameters;
+};
+
+struct lpfc_mbx_reg_congestion_buf {
+	struct mbox_header header;
+	uint32_t word0;
+#define lpfc_mbx_reg_cgn_buf_type_WORD		word0
+#define lpfc_mbx_reg_cgn_buf_type_SHIFT		0
+#define lpfc_mbx_reg_cgn_buf_type_MASK		0xFF
+#define lpfc_mbx_reg_cgn_buf_cnt_WORD		word0
+#define lpfc_mbx_reg_cgn_buf_cnt_SHIFT		16
+#define lpfc_mbx_reg_cgn_buf_cnt_MASK		0xFF
+	uint32_t word1;
+	uint32_t length;
+	uint32_t addr_lo;
+	uint32_t addr_hi;
 };
 
 struct lpfc_rscr_desc_generic {
@@ -3758,6 +3768,9 @@ struct lpfc_controller_attribute {
 #define lpfc_cntl_attr_eprom_ver_hi_SHIFT	8
 #define lpfc_cntl_attr_eprom_ver_hi_MASK	0x000000ff
 #define lpfc_cntl_attr_eprom_ver_hi_WORD	word17
+#define lpfc_cntl_attr_flash_id_SHIFT		16
+#define lpfc_cntl_attr_flash_id_MASK		0x000000ff
+#define lpfc_cntl_attr_flash_id_WORD		word17
 	uint32_t mbx_da_struct_ver;
 	uint32_t ep_fw_da_struct_ver;
 	uint32_t ncsi_ver_str[3];
@@ -3899,6 +3912,7 @@ struct lpfc_mbx_get_port_name {
 #define MB_CEQ_STATUS_QUEUE_FLUSHING		0x4
 #define MB_CQE_STATUS_DMA_FAILED		0x5
 
+
 #define LPFC_MBX_WR_CONFIG_MAX_BDE		1
 struct lpfc_mbx_wr_object {
 	struct mbox_header header;
@@ -3915,7 +3929,7 @@ struct lpfc_mbx_wr_object {
 #define lpfc_wr_object_write_length_MASK	0x00FFFFFF
 #define lpfc_wr_object_write_length_WORD	word4
 			uint32_t write_offset;
-			uint32_t object_name[26];
+			uint32_t object_name[LPFC_MBX_OBJECT_NAME_LEN_DW];
 			uint32_t bde_count;
 			struct ulp_bde64 bde[LPFC_MBX_WR_CONFIG_MAX_BDE];
 		} request;
@@ -3964,6 +3978,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_unreg_fcfi unreg_fcfi;
 		struct lpfc_mbx_mq_create mq_create;
 		struct lpfc_mbx_mq_create_ext mq_create_ext;
+		struct lpfc_mbx_read_object read_object;
 		struct lpfc_mbx_eq_create eq_create;
 		struct lpfc_mbx_modify_eq_delay eq_delay;
 		struct lpfc_mbx_cq_create cq_create;
@@ -3988,9 +4003,8 @@ struct lpfc_mqe {
 		struct lpfc_mbx_post_hdr_tmpl hdr_tmpl;
 		struct lpfc_mbx_query_fw_config query_fw_cfg;
 		struct lpfc_mbx_set_beacon_config beacon_config;
-		struct lpfc_mbx_supp_pages supp_pages;
-		struct lpfc_mbx_pc_sli4_params sli4_params;
 		struct lpfc_mbx_get_sli4_parameters get_sli4_parameters;
+		struct lpfc_mbx_reg_congestion_buf reg_congestion_buf;
 		struct lpfc_mbx_set_link_diag_state link_diag_state;
 		struct lpfc_mbx_set_link_diag_loopback link_diag_loopback;
 		struct lpfc_mbx_run_link_diag_test link_diag_test;
@@ -4045,6 +4059,7 @@ struct lpfc_mcqe {
 #define LPFC_TRAILER_CODE_GRP5	0x5
 #define LPFC_TRAILER_CODE_FC	0x10
 #define LPFC_TRAILER_CODE_SLI	0x11
+#define LPFC_TRAILER_CODE_CMSTAT        0x13
 };
 
 struct lpfc_acqe_link {
@@ -4279,6 +4294,19 @@ struct lpfc_acqe_misconfigured_event {
 #define LPFC_SLI_EVENT_STATUS_UNCERTIFIED	0x05
 };
 
+struct lpfc_acqe_cgn_signal {
+	u32 word0;
+#define lpfc_warn_acqe_SHIFT		0
+#define lpfc_warn_acqe_MASK		0x7FFFFFFF
+#define lpfc_warn_acqe_WORD		word0
+#define lpfc_imm_acqe_SHIFT		31
+#define lpfc_imm_acqe_MASK		0x1
+#define lpfc_imm_acqe_WORD		word0
+	u32 alarm_cnt;
+	u32 word2;
+	u32 trailer;
+};
+
 struct lpfc_acqe_sli {
 	uint32_t event_data1;
 	uint32_t event_data2;
@@ -4291,8 +4319,10 @@ struct lpfc_acqe_sli {
 #define LPFC_SLI_EVENT_TYPE_DIAG_DUMP		0x5
 #define LPFC_SLI_EVENT_TYPE_MISCONFIGURED	0x9
 #define LPFC_SLI_EVENT_TYPE_REMOTE_DPORT	0xA
+#define LPFC_SLI_EVENT_TYPE_PORT_PARAMS_CHG	0xE
 #define LPFC_SLI_EVENT_TYPE_MISCONF_FAWWN	0xF
 #define LPFC_SLI_EVENT_TYPE_EEPROM_FAILURE	0x10
+#define LPFC_SLI_EVENT_TYPE_CGN_SIGNAL		0x11
 };
 
 /*
@@ -4380,9 +4410,14 @@ struct wqe_common {
 #define wqe_ebde_cnt_SHIFT    0
 #define wqe_ebde_cnt_MASK     0x0000000f
 #define wqe_ebde_cnt_WORD     word10
-#define wqe_nvme_SHIFT        4
-#define wqe_nvme_MASK         0x00000001
-#define wqe_nvme_WORD         word10
+#define wqe_xchg_SHIFT        4
+#define wqe_xchg_MASK         0x00000001
+#define wqe_xchg_WORD         word10
+#define LPFC_SCSI_XCHG	      0x0
+#define LPFC_NVME_XCHG	      0x1
+#define wqe_appid_SHIFT       5
+#define wqe_appid_MASK        0x00000001
+#define wqe_appid_WORD        word10
 #define wqe_oas_SHIFT         6
 #define wqe_oas_MASK          0x00000001
 #define wqe_oas_WORD          word10
@@ -4695,6 +4730,69 @@ struct create_xri_wqe {
 #define T_REQUEST_TAG 3
 #define T_XRI_TAG 1
 
+struct cmf_sync_wqe {
+	uint32_t rsrvd[3];
+	uint32_t word3;
+#define	cmf_sync_interval_SHIFT	0
+#define	cmf_sync_interval_MASK	0x00000ffff
+#define	cmf_sync_interval_WORD	word3
+#define	cmf_sync_afpin_SHIFT	16
+#define	cmf_sync_afpin_MASK	0x000000001
+#define	cmf_sync_afpin_WORD	word3
+#define	cmf_sync_asig_SHIFT	17
+#define	cmf_sync_asig_MASK	0x000000001
+#define	cmf_sync_asig_WORD	word3
+#define	cmf_sync_op_SHIFT	20
+#define	cmf_sync_op_MASK	0x00000000f
+#define	cmf_sync_op_WORD	word3
+#define	cmf_sync_ver_SHIFT	24
+#define	cmf_sync_ver_MASK	0x0000000ff
+#define	cmf_sync_ver_WORD	word3
+#define LPFC_CMF_SYNC_VER	1
+	uint32_t event_tag;
+	uint32_t word5;
+#define	cmf_sync_wsigmax_SHIFT	0
+#define	cmf_sync_wsigmax_MASK	0x00000ffff
+#define	cmf_sync_wsigmax_WORD	word5
+#define	cmf_sync_wsigcnt_SHIFT	16
+#define	cmf_sync_wsigcnt_MASK	0x00000ffff
+#define	cmf_sync_wsigcnt_WORD	word5
+	uint32_t word6;
+	uint32_t word7;
+#define	cmf_sync_cmnd_SHIFT	8
+#define	cmf_sync_cmnd_MASK	0x0000000ff
+#define	cmf_sync_cmnd_WORD	word7
+	uint32_t word8;
+	uint32_t word9;
+#define	cmf_sync_reqtag_SHIFT	0
+#define	cmf_sync_reqtag_MASK	0x00000ffff
+#define	cmf_sync_reqtag_WORD	word9
+#define	cmf_sync_wfpinmax_SHIFT	16
+#define	cmf_sync_wfpinmax_MASK	0x0000000ff
+#define	cmf_sync_wfpinmax_WORD	word9
+#define	cmf_sync_wfpincnt_SHIFT	24
+#define	cmf_sync_wfpincnt_MASK	0x0000000ff
+#define	cmf_sync_wfpincnt_WORD	word9
+	uint32_t word10;
+#define cmf_sync_qosd_SHIFT	9
+#define cmf_sync_qosd_MASK	0x00000001
+#define cmf_sync_qosd_WORD	word10
+	uint32_t word11;
+#define cmf_sync_cmd_type_SHIFT	0
+#define cmf_sync_cmd_type_MASK	0x0000000f
+#define cmf_sync_cmd_type_WORD	word11
+#define cmf_sync_wqec_SHIFT	7
+#define cmf_sync_wqec_MASK	0x00000001
+#define cmf_sync_wqec_WORD	word11
+#define cmf_sync_cqid_SHIFT	16
+#define cmf_sync_cqid_MASK	0x0000ffff
+#define cmf_sync_cqid_WORD	word11
+	uint32_t read_bytes;
+	uint32_t word13;
+	uint32_t word14;
+	uint32_t word15;
+};
+
 struct abort_cmd_wqe {
 	uint32_t rsrvd[3];
 	uint32_t word3;
@@ -4824,6 +4922,7 @@ union lpfc_wqe {
 	struct fcp_iread64_wqe fcp_iread;
 	struct fcp_iwrite64_wqe fcp_iwrite;
 	struct abort_cmd_wqe abort_cmd;
+	struct cmf_sync_wqe cmf_sync;
 	struct create_xri_wqe create_xri;
 	struct xmit_bcast64_wqe xmit_bcast64;
 	struct xmit_seq64_wqe xmit_sequence;
@@ -4844,6 +4943,7 @@ union lpfc_wqe128 {
 	struct fcp_iread64_wqe fcp_iread;
 	struct fcp_iwrite64_wqe fcp_iwrite;
 	struct abort_cmd_wqe abort_cmd;
+	struct cmf_sync_wqe cmf_sync;
 	struct create_xri_wqe create_xri;
 	struct xmit_bcast64_wqe xmit_bcast64;
 	struct xmit_seq64_wqe xmit_sequence;
@@ -4859,6 +4959,7 @@ union lpfc_wqe128 {
 
 #define MAGIC_NUMBER_G6 0xFEAA0003
 #define MAGIC_NUMBER_G7 0xFEAA0005
+#define MAGIC_NUMBER_G7P 0xFEAA0020
 
 struct lpfc_grp_hdr {
 	uint32_t size;
@@ -4880,10 +4981,13 @@ struct lpfc_grp_hdr {
 #define NVME_READ_CMD		0x0
 #define FCP_COMMAND_DATA_OUT	0x1
 #define NVME_WRITE_CMD		0x1
+#define COMMAND_DATA_IN		0x0
+#define COMMAND_DATA_OUT	0x1
 #define FCP_COMMAND_TRECEIVE	0x2
 #define FCP_COMMAND_TRSP	0x3
 #define FCP_COMMAND_TSEND	0x7
 #define OTHER_COMMAND		0x8
+#define CMF_SYNC_COMMAND	0xA
 #define ELS_COMMAND_NON_FIP	0xC
 #define ELS_COMMAND_FIP		0xD
 
@@ -4905,6 +5009,7 @@ struct lpfc_grp_hdr {
 #define CMD_FCP_TRECEIVE64_WQE  0xA1
 #define CMD_FCP_TRSP64_WQE      0xA3
 #define CMD_GEN_REQUEST64_WQE   0xC2
+#define CMD_CMF_SYNC_WQE	0xE8
 
 #define CMD_WQE_MASK            0xff
 
@@ -4912,3 +5017,43 @@ struct lpfc_grp_hdr {
 #define LPFC_FW_DUMP	1
 #define LPFC_FW_RESET	2
 #define LPFC_DV_RESET	3
+
+/* On some kernels, enum fc_ls_tlv_dtag does not have
+ * these 2 enums defined, on other kernels it does.
+ * To get aound this we need to add these 2 defines here.
+ */
+#ifndef ELS_DTAG_LNK_FAULT_CAP
+#define ELS_DTAG_LNK_FAULT_CAP        0x0001000D
+#endif
+#ifndef ELS_DTAG_CG_SIGNAL_CAP
+#define ELS_DTAG_CG_SIGNAL_CAP        0x0001000F
+#endif
+
+/*
+ * Initializer useful for decoding FPIN string table.
+ */
+#define FC_FPIN_CONGN_SEVERITY_INIT {				\
+	{ FPIN_CONGN_SEVERITY_WARNING,		"Warning" },	\
+	{ FPIN_CONGN_SEVERITY_ERROR,		"Alarm" },	\
+}
+
+/* EDC supports two descriptors.  When allocated, it is the
+ * size of this structure plus each supported descriptor.
+ */
+struct lpfc_els_edc_req {
+	struct fc_els_edc               edc;       /* hdr up to descriptors */
+	struct fc_diag_cg_sig_desc      cgn_desc;  /* 1st descriptor */
+};
+
+/* Minimum structure defines for the EDC response.
+ * Balance is in buffer.
+ */
+struct lpfc_els_edc_rsp {
+	struct fc_els_edc_resp          edc_rsp;   /* hdr up to descriptors */
+	struct fc_diag_cg_sig_desc      cgn_desc;  /* 1st descriptor */
+};
+
+/* Used for logging FPIN messages */
+#define LPFC_FPIN_WWPN_LINE_SZ  128
+#define LPFC_FPIN_WWPN_LINE_CNT 6
+#define LPFC_FPIN_WWPN_NUM_LINE 6

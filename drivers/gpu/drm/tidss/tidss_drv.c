@@ -16,8 +16,8 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_irq.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 
 #include "tidss_dispc.h"
@@ -89,15 +89,10 @@ static int __maybe_unused tidss_resume(struct device *dev)
 	return drm_mode_config_helper_resume(&tidss->ddev);
 }
 
-#ifdef CONFIG_PM
-
-static const struct dev_pm_ops tidss_pm_ops = {
-	.runtime_suspend = tidss_pm_runtime_suspend,
-	.runtime_resume = tidss_pm_runtime_resume,
+static __maybe_unused const struct dev_pm_ops tidss_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(tidss_suspend, tidss_resume)
+	SET_RUNTIME_PM_OPS(tidss_pm_runtime_suspend, tidss_pm_runtime_resume, NULL)
 };
-
-#endif /* CONFIG_PM */
 
 /* DRM device Information */
 
@@ -108,7 +103,7 @@ static void tidss_release(struct drm_device *ddev)
 
 DEFINE_DRM_GEM_CMA_FOPS(tidss_fops);
 
-static struct drm_driver tidss_driver = {
+static const struct drm_driver tidss_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &tidss_fops,
 	.release		= tidss_release,
@@ -118,11 +113,6 @@ static struct drm_driver tidss_driver = {
 	.date			= "20180215",
 	.major			= 1,
 	.minor			= 0,
-
-	.irq_preinstall		= tidss_irq_preinstall,
-	.irq_postinstall	= tidss_irq_postinstall,
-	.irq_handler		= tidss_irq_handler,
-	.irq_uninstall		= tidss_irq_uninstall,
 };
 
 static int tidss_probe(struct platform_device *pdev)
@@ -172,10 +162,11 @@ static int tidss_probe(struct platform_device *pdev)
 		ret = irq;
 		goto err_runtime_suspend;
 	}
+	tidss->irq = irq;
 
-	ret = drm_irq_install(ddev, irq);
+	ret = tidss_irq_install(ddev, irq);
 	if (ret) {
-		dev_err(dev, "drm_irq_install failed: %d\n", ret);
+		dev_err(dev, "tidss_irq_install failed: %d\n", ret);
 		goto err_runtime_suspend;
 	}
 
@@ -196,7 +187,7 @@ static int tidss_probe(struct platform_device *pdev)
 	return 0;
 
 err_irq_uninstall:
-	drm_irq_uninstall(ddev);
+	tidss_irq_uninstall(ddev);
 
 err_runtime_suspend:
 #ifndef CONFIG_PM
@@ -219,7 +210,7 @@ static int tidss_remove(struct platform_device *pdev)
 
 	drm_atomic_helper_shutdown(ddev);
 
-	drm_irq_uninstall(ddev);
+	tidss_irq_uninstall(ddev);
 
 #ifndef CONFIG_PM
 	/* If we don't have PM, we need to call suspend manually */
@@ -255,15 +246,13 @@ static struct platform_driver tidss_platform_driver = {
 	.shutdown	= tidss_shutdown,
 	.driver		= {
 		.name	= "tidss",
-#ifdef CONFIG_PM
-		.pm	= &tidss_pm_ops,
-#endif
+		.pm	= pm_ptr(&tidss_pm_ops),
 		.of_match_table = tidss_of_table,
 		.suppress_bind_attrs = true,
 	},
 };
 
-module_platform_driver(tidss_platform_driver);
+drm_module_platform_driver(tidss_platform_driver);
 
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
 MODULE_DESCRIPTION("TI Keystone DSS Driver");

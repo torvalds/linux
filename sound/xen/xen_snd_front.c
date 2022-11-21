@@ -358,6 +358,7 @@ static struct xenbus_driver xen_driver = {
 	.probe = xen_drv_probe,
 	.remove = xen_drv_remove,
 	.otherend_changed = sndback_changed,
+	.not_essential = true,
 };
 
 static int __init xen_drv_init(void)
@@ -391,4 +392,3 @@ module_exit(xen_drv_fini);
 MODULE_DESCRIPTION("Xen virtual sound device frontend");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("xen:" XENSND_DRIVER_NAME);
-MODULE_SUPPORTED_DEVICE("{{ALSA,Virtual soundcard}}");

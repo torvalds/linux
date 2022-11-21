@@ -39,8 +39,23 @@ as-instr = $(success,printf "%b\n" "$(1)" | $(CC) $(CLANG_FLAGS) -c -x assembler
 $(error-if,$(failure,command -v $(CC)),compiler '$(CC)' not found)
 $(error-if,$(failure,command -v $(LD)),linker '$(LD)' not found)
 
-# Fail if the linker is gold as it's not capable of linking the kernel proper
-$(error-if,$(success, $(LD) -v | grep -q gold), gold linker '$(LD)' not supported)
+# Get the compiler name, version, and error out if it is not supported.
+cc-info := $(shell,$(srctree)/scripts/cc-version.sh $(CC))
+$(error-if,$(success,test -z "$(cc-info)"),Sorry$(comma) this compiler is not supported.)
+cc-name := $(shell,set -- $(cc-info) && echo $1)
+cc-version := $(shell,set -- $(cc-info) && echo $2)
+
+# Get the assembler name, version, and error out if it is not supported.
+as-info := $(shell,$(srctree)/scripts/as-version.sh $(CC) $(CLANG_FLAGS))
+$(error-if,$(success,test -z "$(as-info)"),Sorry$(comma) this assembler is not supported.)
+as-name := $(shell,set -- $(as-info) && echo $1)
+as-version := $(shell,set -- $(as-info) && echo $2)
+
+# Get the linker name, version, and error out if it is not supported.
+ld-info := $(shell,$(srctree)/scripts/ld-version.sh $(LD))
+$(error-if,$(success,test -z "$(ld-info)"),Sorry$(comma) this linker is not supported.)
+ld-name := $(shell,set -- $(ld-info) && echo $1)
+ld-version := $(shell,set -- $(ld-info) && echo $2)
 
 # machine bit flags
 #  $(m32-flag): -m32 if the compiler supports it, or an empty string otherwise.

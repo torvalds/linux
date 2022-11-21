@@ -189,7 +189,7 @@
 			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		pdma0: pdma@121a0000 {
+		pdma0: dma-controller@121a0000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x121a0000 0x1000>;
 			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
@@ -200,7 +200,7 @@
 			#dma-requests = <32>;
 		};
 
-		pdma1: pdma@121b0000 {
+		pdma1: dma-controller@121b0000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x121b0000 0x1000>;
 			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
@@ -390,6 +390,8 @@
 &usbdrd3_0 {
 	clocks = <&clock CLK_USBD300>;
 	clock-names = "usbdrd30";
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb3_0_oc>, <&usb3_0_vbusctrl>;
 };
 
 &usbdrd_phy0 {
@@ -401,6 +403,8 @@
 &usbdrd3_1 {
 	clocks = <&clock CLK_USBD301>;
 	clock-names = "usbdrd30";
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb3_1_oc>, <&usb3_1_vbusctrl>;
 };
 
 &usbdrd_dwc3_1 {

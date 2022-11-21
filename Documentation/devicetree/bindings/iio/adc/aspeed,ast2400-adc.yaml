@@ -23,6 +23,7 @@ properties:
     maxItems: 1
 
   clocks:
+    maxItems: 1
     description:
       Input clock used to derive the sample clock. Expected to be the
       SoC's APB clock.

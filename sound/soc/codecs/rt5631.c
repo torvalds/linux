@@ -436,7 +436,7 @@ static void onebit_depop_mute_stage(struct snd_soc_component *component, int ena
 }
 
 /**
- * onebit_depop_power_stage - step by step depop sequence in power stage.
+ * depop_seq_power_stage - step by step depop sequence in power stage.
  * @component: ASoC component
  * @enable: power on/off
  *
@@ -1283,7 +1283,7 @@ static const struct pll_div codec_slave_pll_div[] = {
 	{3072000,  12288000,  0x0a90},
 };
 
-static struct coeff_clk_div coeff_div[] = {
+static const struct coeff_clk_div coeff_div[] = {
 	/* sysclk is 256fs */
 	{2048000,  8000 * 32,  8000, 0x1000},
 	{2048000,  8000 * 64,  8000, 0x0000},
@@ -1695,6 +1695,8 @@ static const struct regmap_config rt5631_regmap_config = {
 	.reg_defaults = rt5631_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5631_reg),
 	.cache_type = REGCACHE_RBTREE,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static int rt5631_i2c_probe(struct i2c_client *i2c,

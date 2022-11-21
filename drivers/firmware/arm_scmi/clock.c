@@ -2,9 +2,10 @@
 /*
  * System Control and Management Interface (SCMI) Clock Protocol
  *
- * Copyright (C) 2018 ARM Ltd.
+ * Copyright (C) 2018-2021 ARM Ltd.
  */
 
+#include <linux/module.h>
 #include <linux/sort.h>
 
 #include "common.h"
@@ -26,7 +27,8 @@ struct scmi_msg_resp_clock_protocol_attributes {
 struct scmi_msg_resp_clock_attributes {
 	__le32 attributes;
 #define	CLOCK_ENABLE	BIT(0)
-	    u8 name[SCMI_MAX_STR_SIZE];
+	u8 name[SCMI_MAX_STR_SIZE];
+	__le32 clock_enable_latency;
 };
 
 struct scmi_clock_set_config {
@@ -47,7 +49,7 @@ struct scmi_msg_resp_clock_describe_rates {
 	struct {
 		__le32 value_low;
 		__le32 value_high;
-	} rate[0];
+	} rate[];
 #define RATE_TO_U64(X)		\
 ({				\
 	typeof(X) x = (X);	\
@@ -74,52 +76,58 @@ struct clock_info {
 	struct scmi_clock_info *clk;
 };
 
-static int scmi_clock_protocol_attributes_get(const struct scmi_handle *handle,
-					      struct clock_info *ci)
+static int
+scmi_clock_protocol_attributes_get(const struct scmi_protocol_handle *ph,
+				   struct clock_info *ci)
 {
 	int ret;
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_clock_protocol_attributes *attr;
 
-	ret = scmi_xfer_get_init(handle, PROTOCOL_ATTRIBUTES,
-				 SCMI_PROTOCOL_CLOCK, 0, sizeof(*attr), &t);
+	ret = ph->xops->xfer_get_init(ph, PROTOCOL_ATTRIBUTES,
+				      0, sizeof(*attr), &t);
 	if (ret)
 		return ret;
 
 	attr = t->rx.buf;
 
-	ret = scmi_do_xfer(handle, t);
+	ret = ph->xops->do_xfer(ph, t);
 	if (!ret) {
 		ci->num_clocks = le16_to_cpu(attr->num_clocks);
 		ci->max_async_req = attr->max_async_req;
 	}
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
-static int scmi_clock_attributes_get(const struct scmi_handle *handle,
+static int scmi_clock_attributes_get(const struct scmi_protocol_handle *ph,
 				     u32 clk_id, struct scmi_clock_info *clk)
 {
 	int ret;
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_clock_attributes *attr;
 
-	ret = scmi_xfer_get_init(handle, CLOCK_ATTRIBUTES, SCMI_PROTOCOL_CLOCK,
-				 sizeof(clk_id), sizeof(*attr), &t);
+	ret = ph->xops->xfer_get_init(ph, CLOCK_ATTRIBUTES,
+				      sizeof(clk_id), sizeof(*attr), &t);
 	if (ret)
 		return ret;
 
 	put_unaligned_le32(clk_id, t->tx.buf);
 	attr = t->rx.buf;
 
-	ret = scmi_do_xfer(handle, t);
-	if (!ret)
+	ret = ph->xops->do_xfer(ph, t);
+	if (!ret) {
 		strlcpy(clk->name, attr->name, SCMI_MAX_STR_SIZE);
-	else
+		/* Is optional field clock_enable_latency provided ? */
+		if (t->rx.len == sizeof(*attr))
+			clk->enable_latency =
+				le32_to_cpu(attr->clock_enable_latency);
+	} else {
 		clk->name[0] = '\0';
+	}
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
@@ -136,7 +144,7 @@ static int rate_cmp_func(const void *_r1, const void *_r2)
 }
 
 static int
-scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
+scmi_clock_describe_rates_get(const struct scmi_protocol_handle *ph, u32 clk_id,
 			      struct scmi_clock_info *clk)
 {
 	u64 *rate = NULL;
@@ -148,8 +156,8 @@ scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
 	struct scmi_msg_clock_describe_rates *clk_desc;
 	struct scmi_msg_resp_clock_describe_rates *rlist;
 
-	ret = scmi_xfer_get_init(handle, CLOCK_DESCRIBE_RATES,
-				 SCMI_PROTOCOL_CLOCK, sizeof(*clk_desc), 0, &t);
+	ret = ph->xops->xfer_get_init(ph, CLOCK_DESCRIBE_RATES,
+				      sizeof(*clk_desc), 0, &t);
 	if (ret)
 		return ret;
 
@@ -161,7 +169,7 @@ scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
 		/* Set the number of rates to be skipped/already read */
 		clk_desc->rate_index = cpu_to_le32(tot_rate_cnt);
 
-		ret = scmi_do_xfer(handle, t);
+		ret = ph->xops->do_xfer(ph, t);
 		if (ret)
 			goto err;
 
@@ -171,7 +179,7 @@ scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
 		num_returned = NUM_RETURNED(rates_flag);
 
 		if (tot_rate_cnt + num_returned > SCMI_MAX_NUM_RATES) {
-			dev_err(handle->dev, "No. of rates > MAX_NUM_RATES");
+			dev_err(ph->dev, "No. of rates > MAX_NUM_RATES");
 			break;
 		}
 
@@ -179,7 +187,7 @@ scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
 			clk->range.min_rate = RATE_TO_U64(rlist->rate[0]);
 			clk->range.max_rate = RATE_TO_U64(rlist->rate[1]);
 			clk->range.step_size = RATE_TO_U64(rlist->rate[2]);
-			dev_dbg(handle->dev, "Min %llu Max %llu Step %llu Hz\n",
+			dev_dbg(ph->dev, "Min %llu Max %llu Step %llu Hz\n",
 				clk->range.min_rate, clk->range.max_rate,
 				clk->range.step_size);
 			break;
@@ -188,12 +196,12 @@ scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
 		rate = &clk->list.rates[tot_rate_cnt];
 		for (cnt = 0; cnt < num_returned; cnt++, rate++) {
 			*rate = RATE_TO_U64(rlist->rate[cnt]);
-			dev_dbg(handle->dev, "Rate %llu Hz\n", *rate);
+			dev_dbg(ph->dev, "Rate %llu Hz\n", *rate);
 		}
 
 		tot_rate_cnt += num_returned;
 
-		scmi_reset_rx_to_maxsz(handle, t);
+		ph->xops->reset_rx_to_maxsz(ph, t);
 		/*
 		 * check for both returned and remaining to avoid infinite
 		 * loop due to buggy firmware
@@ -202,48 +210,49 @@ scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
 
 	if (rate_discrete && rate) {
 		clk->list.num_rates = tot_rate_cnt;
-		sort(rate, tot_rate_cnt, sizeof(*rate), rate_cmp_func, NULL);
+		sort(clk->list.rates, tot_rate_cnt, sizeof(*rate),
+		     rate_cmp_func, NULL);
 	}
 
 	clk->rate_discrete = rate_discrete;
 
 err:
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
 static int
-scmi_clock_rate_get(const struct scmi_handle *handle, u32 clk_id, u64 *value)
+scmi_clock_rate_get(const struct scmi_protocol_handle *ph,
+		    u32 clk_id, u64 *value)
 {
 	int ret;
 	struct scmi_xfer *t;
 
-	ret = scmi_xfer_get_init(handle, CLOCK_RATE_GET, SCMI_PROTOCOL_CLOCK,
-				 sizeof(__le32), sizeof(u64), &t);
+	ret = ph->xops->xfer_get_init(ph, CLOCK_RATE_GET,
+				      sizeof(__le32), sizeof(u64), &t);
 	if (ret)
 		return ret;
 
 	put_unaligned_le32(clk_id, t->tx.buf);
 
-	ret = scmi_do_xfer(handle, t);
+	ret = ph->xops->do_xfer(ph, t);
 	if (!ret)
 		*value = get_unaligned_le64(t->rx.buf);
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
-static int scmi_clock_rate_set(const struct scmi_handle *handle, u32 clk_id,
-			       u64 rate)
+static int scmi_clock_rate_set(const struct scmi_protocol_handle *ph,
+			       u32 clk_id, u64 rate)
 {
 	int ret;
 	u32 flags = 0;
 	struct scmi_xfer *t;
 	struct scmi_clock_set_rate *cfg;
-	struct clock_info *ci = handle->clk_priv;
+	struct clock_info *ci = ph->get_priv(ph);
 
-	ret = scmi_xfer_get_init(handle, CLOCK_RATE_SET, SCMI_PROTOCOL_CLOCK,
-				 sizeof(*cfg), 0, &t);
+	ret = ph->xops->xfer_get_init(ph, CLOCK_RATE_SET, sizeof(*cfg), 0, &t);
 	if (ret)
 		return ret;
 
@@ -258,60 +267,75 @@ static int scmi_clock_rate_set(const struct scmi_handle *handle, u32 clk_id,
 	cfg->value_high = cpu_to_le32(rate >> 32);
 
 	if (flags & CLOCK_SET_ASYNC)
-		ret = scmi_do_xfer_with_response(handle, t);
+		ret = ph->xops->do_xfer_with_response(ph, t);
 	else
-		ret = scmi_do_xfer(handle, t);
+		ret = ph->xops->do_xfer(ph, t);
 
 	if (ci->max_async_req)
 		atomic_dec(&ci->cur_async_req);
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
 static int
-scmi_clock_config_set(const struct scmi_handle *handle, u32 clk_id, u32 config)
+scmi_clock_config_set(const struct scmi_protocol_handle *ph, u32 clk_id,
+		      u32 config, bool atomic)
 {
 	int ret;
 	struct scmi_xfer *t;
 	struct scmi_clock_set_config *cfg;
 
-	ret = scmi_xfer_get_init(handle, CLOCK_CONFIG_SET, SCMI_PROTOCOL_CLOCK,
-				 sizeof(*cfg), 0, &t);
+	ret = ph->xops->xfer_get_init(ph, CLOCK_CONFIG_SET,
+				      sizeof(*cfg), 0, &t);
 	if (ret)
 		return ret;
+
+	t->hdr.poll_completion = atomic;
 
 	cfg = t->tx.buf;
 	cfg->id = cpu_to_le32(clk_id);
 	cfg->attributes = cpu_to_le32(config);
 
-	ret = scmi_do_xfer(handle, t);
+	ret = ph->xops->do_xfer(ph, t);
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
-static int scmi_clock_enable(const struct scmi_handle *handle, u32 clk_id)
+static int scmi_clock_enable(const struct scmi_protocol_handle *ph, u32 clk_id)
 {
-	return scmi_clock_config_set(handle, clk_id, CLOCK_ENABLE);
+	return scmi_clock_config_set(ph, clk_id, CLOCK_ENABLE, false);
 }
 
-static int scmi_clock_disable(const struct scmi_handle *handle, u32 clk_id)
+static int scmi_clock_disable(const struct scmi_protocol_handle *ph, u32 clk_id)
 {
-	return scmi_clock_config_set(handle, clk_id, 0);
+	return scmi_clock_config_set(ph, clk_id, 0, false);
 }
 
-static int scmi_clock_count_get(const struct scmi_handle *handle)
+static int scmi_clock_enable_atomic(const struct scmi_protocol_handle *ph,
+				    u32 clk_id)
 {
-	struct clock_info *ci = handle->clk_priv;
+	return scmi_clock_config_set(ph, clk_id, CLOCK_ENABLE, true);
+}
+
+static int scmi_clock_disable_atomic(const struct scmi_protocol_handle *ph,
+				     u32 clk_id)
+{
+	return scmi_clock_config_set(ph, clk_id, 0, true);
+}
+
+static int scmi_clock_count_get(const struct scmi_protocol_handle *ph)
+{
+	struct clock_info *ci = ph->get_priv(ph);
 
 	return ci->num_clocks;
 }
 
 static const struct scmi_clock_info *
-scmi_clock_info_get(const struct scmi_handle *handle, u32 clk_id)
+scmi_clock_info_get(const struct scmi_protocol_handle *ph, u32 clk_id)
 {
-	struct clock_info *ci = handle->clk_priv;
+	struct clock_info *ci = ph->get_priv(ph);
 	struct scmi_clock_info *clk = ci->clk + clk_id;
 
 	if (!clk->name[0])
@@ -320,33 +344,35 @@ scmi_clock_info_get(const struct scmi_handle *handle, u32 clk_id)
 	return clk;
 }
 
-static const struct scmi_clk_ops clk_ops = {
+static const struct scmi_clk_proto_ops clk_proto_ops = {
 	.count_get = scmi_clock_count_get,
 	.info_get = scmi_clock_info_get,
 	.rate_get = scmi_clock_rate_get,
 	.rate_set = scmi_clock_rate_set,
 	.enable = scmi_clock_enable,
 	.disable = scmi_clock_disable,
+	.enable_atomic = scmi_clock_enable_atomic,
+	.disable_atomic = scmi_clock_disable_atomic,
 };
 
-static int scmi_clock_protocol_init(struct scmi_handle *handle)
+static int scmi_clock_protocol_init(const struct scmi_protocol_handle *ph)
 {
 	u32 version;
 	int clkid, ret;
 	struct clock_info *cinfo;
 
-	scmi_version_get(handle, SCMI_PROTOCOL_CLOCK, &version);
+	ph->xops->version_get(ph, &version);
 
-	dev_dbg(handle->dev, "Clock Version %d.%d\n",
+	dev_dbg(ph->dev, "Clock Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
 
-	cinfo = devm_kzalloc(handle->dev, sizeof(*cinfo), GFP_KERNEL);
+	cinfo = devm_kzalloc(ph->dev, sizeof(*cinfo), GFP_KERNEL);
 	if (!cinfo)
 		return -ENOMEM;
 
-	scmi_clock_protocol_attributes_get(handle, cinfo);
+	scmi_clock_protocol_attributes_get(ph, cinfo);
 
-	cinfo->clk = devm_kcalloc(handle->dev, cinfo->num_clocks,
+	cinfo->clk = devm_kcalloc(ph->dev, cinfo->num_clocks,
 				  sizeof(*cinfo->clk), GFP_KERNEL);
 	if (!cinfo->clk)
 		return -ENOMEM;
@@ -354,16 +380,20 @@ static int scmi_clock_protocol_init(struct scmi_handle *handle)
 	for (clkid = 0; clkid < cinfo->num_clocks; clkid++) {
 		struct scmi_clock_info *clk = cinfo->clk + clkid;
 
-		ret = scmi_clock_attributes_get(handle, clkid, clk);
+		ret = scmi_clock_attributes_get(ph, clkid, clk);
 		if (!ret)
-			scmi_clock_describe_rates_get(handle, clkid, clk);
+			scmi_clock_describe_rates_get(ph, clkid, clk);
 	}
 
 	cinfo->version = version;
-	handle->clk_ops = &clk_ops;
-	handle->clk_priv = cinfo;
-
-	return 0;
+	return ph->set_priv(ph, cinfo);
 }
 
-DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_CLOCK, clock)
+static const struct scmi_protocol scmi_clock = {
+	.id = SCMI_PROTOCOL_CLOCK,
+	.owner = THIS_MODULE,
+	.instance_init = &scmi_clock_protocol_init,
+	.ops = &clk_proto_ops,
+};
+
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(clock, scmi_clock)

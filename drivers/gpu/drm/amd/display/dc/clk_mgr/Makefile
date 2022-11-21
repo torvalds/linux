@@ -94,6 +94,15 @@ AMD_DAL_CLK_MGR_DCN20 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn20/,$(CLK_MGR_DC
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN20)
 
 ###############################################################################
+# DCN201
+###############################################################################
+CLK_MGR_DCN201 = dcn201_clk_mgr.o
+
+AMD_DAL_CLK_MGR_DCN201 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn201/,$(CLK_MGR_DCN201))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN201)
+
+###############################################################################
 # DCN21
 ###############################################################################
 CLK_MGR_DCN21 = rn_clk_mgr.o rn_clk_mgr_vbios_smu.o
@@ -104,24 +113,63 @@ ifdef CONFIG_PPC64
 CFLAGS_$(AMDDALPATH)/dc/clk_mgr/dcn21/rn_clk_mgr.o := $(call cc-option,-mno-gnu-attribute)
 endif
 
-# prevent build errors:
-# ...: '-mgeneral-regs-only' is incompatible with the use of floating-point types
-# this file is unused on arm64, just like on ppc64
-ifdef CONFIG_ARM64
-CFLAGS_REMOVE_$(AMDDALPATH)/dc/clk_mgr/dcn21/rn_clk_mgr.o := -mgeneral-regs-only
-endif
-
 AMD_DAL_CLK_MGR_DCN21 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn21/,$(CLK_MGR_DCN21))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN21)
-endif
-ifdef CONFIG_DRM_AMD_DC_DCN3_0
 ###############################################################################
 # DCN30
 ###############################################################################
 CLK_MGR_DCN30 = dcn30_clk_mgr.o dcn30_clk_mgr_smu_msg.o
 
+# prevent build errors regarding soft-float vs hard-float FP ABI tags
+# this code is currently unused on ppc64, as it applies to VanGogh APUs only
+ifdef CONFIG_PPC64
+CFLAGS_$(AMDDALPATH)/dc/clk_mgr/dcn30/dcn30_clk_mgr.o := $(call cc-option,-mno-gnu-attribute)
+endif
+
 AMD_DAL_CLK_MGR_DCN30 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn30/,$(CLK_MGR_DCN30))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN30)
+###############################################################################
+# DCN301
+###############################################################################
+CLK_MGR_DCN301 = vg_clk_mgr.o dcn301_smu.o
+
+# prevent build errors regarding soft-float vs hard-float FP ABI tags
+# this code is currently unused on ppc64, as it applies to VanGogh APUs only
+ifdef CONFIG_PPC64
+CFLAGS_$(AMDDALPATH)/dc/clk_mgr/dcn301/vg_clk_mgr.o := $(call cc-option,-mno-gnu-attribute)
+endif
+
+AMD_DAL_CLK_MGR_DCN301 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn301/,$(CLK_MGR_DCN301))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN301)
+
+###############################################################################
+# DCN31
+###############################################################################
+CLK_MGR_DCN31 = dcn31_smu.o dcn31_clk_mgr.o
+
+AMD_DAL_CLK_MGR_DCN31 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn31/,$(CLK_MGR_DCN31))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN31)
+
+###############################################################################
+# DCN315
+###############################################################################
+CLK_MGR_DCN315 = dcn315_smu.o dcn315_clk_mgr.o
+
+AMD_DAL_CLK_MGR_DCN315 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn315/,$(CLK_MGR_DCN315))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN315)
+
+###############################################################################
+# DCN316
+###############################################################################
+CLK_MGR_DCN316 = dcn316_smu.o dcn316_clk_mgr.o
+
+AMD_DAL_CLK_MGR_DCN316 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn316/,$(CLK_MGR_DCN316))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN316)
+
 endif

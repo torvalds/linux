@@ -98,6 +98,8 @@ struct cdc_ncm_ctx {
 	struct hrtimer tx_timer;
 	struct tasklet_struct bh;
 
+	struct usbnet *dev;
+
 	const struct usb_cdc_ncm_desc *func_desc;
 	const struct usb_cdc_mbim_desc *mbim_desc;
 	const struct usb_cdc_mbim_extended_desc *mbim_extended_desc;

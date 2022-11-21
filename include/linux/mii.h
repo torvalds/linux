@@ -32,7 +32,7 @@ struct mii_if_info {
 
 extern int mii_link_ok (struct mii_if_info *mii);
 extern int mii_nway_restart (struct mii_if_info *mii);
-extern int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd);
+extern void mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd);
 extern void mii_ethtool_get_link_ksettings(
 	struct mii_if_info *mii, struct ethtool_link_ksettings *cmd);
 extern int mii_ethtool_sset(struct mii_if_info *mii, struct ethtool_cmd *ecmd);
@@ -352,56 +352,6 @@ static inline u32 mii_adv_to_ethtool_adv_x(u32 adv)
 		result |= ADVERTISED_Asym_Pause;
 
 	return result;
-}
-
-/**
- * mii_lpa_mod_linkmode_adv_sgmii
- * @lp_advertising: pointer to destination link mode.
- * @lpa: value of the MII_LPA register
- *
- * A small helper function that translates MII_LPA bits to
- * linkmode advertisement settings for SGMII.
- * Leaves other bits unchanged.
- */
-static inline void
-mii_lpa_mod_linkmode_lpa_sgmii(unsigned long *lp_advertising, u32 lpa)
-{
-	u32 speed_duplex = lpa & LPA_SGMII_DPX_SPD_MASK;
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT, lp_advertising,
-			 speed_duplex == LPA_SGMII_1000HALF);
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, lp_advertising,
-			 speed_duplex == LPA_SGMII_1000FULL);
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, lp_advertising,
-			 speed_duplex == LPA_SGMII_100HALF);
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, lp_advertising,
-			 speed_duplex == LPA_SGMII_100FULL);
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, lp_advertising,
-			 speed_duplex == LPA_SGMII_10HALF);
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, lp_advertising,
-			 speed_duplex == LPA_SGMII_10FULL);
-}
-
-/**
- * mii_lpa_to_linkmode_adv_sgmii
- * @advertising: pointer to destination link mode.
- * @lpa: value of the MII_LPA register
- *
- * A small helper function that translates MII_ADVERTISE bits
- * to linkmode advertisement settings when in SGMII mode.
- * Clears the old value of advertising.
- */
-static inline void mii_lpa_to_linkmode_lpa_sgmii(unsigned long *lp_advertising,
-						 u32 lpa)
-{
-	linkmode_zero(lp_advertising);
-
-	mii_lpa_mod_linkmode_lpa_sgmii(lp_advertising, lpa);
 }
 
 /**

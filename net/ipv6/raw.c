@@ -298,7 +298,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		 */
 		v4addr = LOOPBACK4_IPV6;
 		if (!(addr_type & IPV6_ADDR_MULTICAST) &&
-		    !sock_net(sk)->ipv6.sysctl.ip_nonlocal_bind) {
+		    !ipv6_can_nonlocal_bind(sock_net(sk), inet)) {
 			err = -EADDRNOTAVAIL;
 			if (!ipv6_chk_addr(sock_net(sk), &addr->sin6_addr,
 					   dev, 0)) {
@@ -354,7 +354,7 @@ static void rawv6_err(struct sock *sk, struct sk_buff *skb,
 
 	if (np->recverr || harderr) {
 		sk->sk_err = err;
-		sk->sk_error_report(sk);
+		sk_error_report(sk);
 	}
 }
 
@@ -915,7 +915,7 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		fl6.flowi6_oif = np->mcast_oif;
 	else if (!fl6.flowi6_oif)
 		fl6.flowi6_oif = np->ucast_oif;
-	security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
+	security_sk_classify_flow(sk, flowi6_to_flowi_common(&fl6));
 
 	if (hdrincl)
 		fl6.flowi6_flags |= FLOWI_FLAG_KNOWN_NH;
@@ -1019,6 +1019,9 @@ static int do_rawv6_setsockopt(struct sock *sk, int level, int optname,
 {
 	struct raw6_sock *rp = raw6_sk(sk);
 	int val;
+
+	if (optlen < sizeof(val))
+		return -EINVAL;
 
 	if (copy_from_sockptr(&val, optval, sizeof(val)))
 		return -EFAULT;

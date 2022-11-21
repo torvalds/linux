@@ -34,6 +34,10 @@
 #define MEMORY_TYPE_HBM 2
 
 
+#define IS_PIPE_SYNCD_VALID(pipe) ((((pipe)->pipe_idx_syncd) & 0x80)?1:0)
+#define GET_PIPE_SYNCD_FROM_PIPE(pipe) ((pipe)->pipe_idx_syncd & 0x7F)
+#define SET_PIPE_SYNCD_TO_PIPE(pipe, pipe_syncd) ((pipe)->pipe_idx_syncd = (0x80 | pipe_syncd))
+
 enum dce_version resource_parse_asic_id(
 		struct hw_asic_id asic_id);
 
@@ -48,9 +52,11 @@ struct resource_caps {
 	int num_ddc;
 	int num_vmid;
 	int num_dsc;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	unsigned int num_dig_link_enc; // Total number of DIGs (digital encoders) in DIO (Display Input/Output).
+	unsigned int num_usb4_dpia; // Total number of USB4 DPIA (DisplayPort Input Adapters).
+	int num_hpo_dp_stream_encoder;
+	int num_hpo_dp_link_encoder;
 	int num_mpc_3dlut;
-#endif
 };
 
 struct resource_straps {
@@ -68,6 +74,13 @@ struct resource_create_funcs {
 
 	struct stream_encoder *(*create_stream_encoder)(
 			enum engine_id eng_id, struct dc_context *ctx);
+
+	struct hpo_dp_stream_encoder *(*create_hpo_dp_stream_encoder)(
+			enum engine_id eng_id, struct dc_context *ctx);
+
+	struct hpo_dp_link_encoder *(*create_hpo_dp_link_encoder)(
+			uint8_t inst,
+			struct dc_context *ctx);
 
 	struct dce_hwseq *(*create_hwseq)(
 			struct dc_context *ctx);
@@ -114,6 +127,10 @@ int resource_get_clock_source_reference(
 		struct clock_source *clock_source);
 
 bool resource_are_streams_timing_synchronizable(
+		struct dc_stream_state *stream1,
+		struct dc_stream_state *stream2);
+
+bool resource_are_vblanks_synchronizable(
 		struct dc_stream_state *stream1,
 		struct dc_stream_state *stream2);
 
@@ -183,5 +200,21 @@ void get_audio_check(struct audio_info *aud_modes,
 int get_num_mpc_splits(struct pipe_ctx *pipe);
 
 int get_num_odm_splits(struct pipe_ctx *pipe);
+
+bool get_temp_dp_link_res(struct dc_link *link,
+		struct link_resource *link_res,
+		struct dc_link_settings *link_settings);
+
+void reset_syncd_pipes_from_disabled_pipes(struct dc *dc,
+	struct dc_state *context);
+
+void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
+	struct dc_state *context,
+	uint8_t disabled_master_pipe_idx);
+
+uint8_t resource_transmitter_to_phy_idx(const struct dc *dc, enum transmitter transmitter);
+
+const struct link_hwss *get_link_hwss(const struct dc_link *link,
+		const struct link_resource *link_res);
 
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

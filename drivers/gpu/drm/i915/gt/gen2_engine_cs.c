@@ -5,7 +5,9 @@
 
 #include "gen2_engine_cs.h"
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_engine.h"
+#include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
 #include "intel_gt.h"
 #include "intel_gt_irq.h"
@@ -74,7 +76,7 @@ int gen4_emit_flush_rcs(struct i915_request *rq, u32 mode)
 	cmd = MI_FLUSH;
 	if (mode & EMIT_INVALIDATE) {
 		cmd |= MI_EXE_FLUSH;
-		if (IS_G4X(rq->engine->i915) || IS_GEN(rq->engine->i915, 5))
+		if (IS_G4X(rq->engine->i915) || GRAPHICS_VER(rq->engine->i915) == 5)
 			cmd |= MI_INVALIDATE_ISP;
 	}
 
@@ -143,7 +145,7 @@ static u32 *__gen2_emit_breadcrumb(struct i915_request *rq, u32 *cs,
 				   int flush, int post)
 {
 	GEM_BUG_ON(i915_request_active_timeline(rq)->hwsp_ggtt != rq->engine->status_page.vma);
-	GEM_BUG_ON(offset_in_page(i915_request_active_timeline(rq)->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
+	GEM_BUG_ON(offset_in_page(rq->hwsp_seqno) != I915_GEM_HWS_SEQNO_ADDR);
 
 	*cs++ = MI_FLUSH;
 

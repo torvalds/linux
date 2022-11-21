@@ -883,10 +883,12 @@ static int atmel_nand_pmecc_correct_data(struct nand_chip *chip, void *buf,
 							  NULL, 0,
 							  chip->ecc.strength);
 
-		if (ret >= 0)
+		if (ret >= 0) {
+			mtd->ecc_stats.corrected += ret;
 			max_bitflips = max(ret, max_bitflips);
-		else
+		} else {
 			mtd->ecc_stats.failed++;
+		}
 
 		databuf += chip->ecc.size;
 		eccbuf += chip->ecc.bytes;
@@ -1244,7 +1246,7 @@ static int atmel_smc_nand_prepare_smcconf(struct atmel_nand *nand,
 	nc = to_nand_controller(nand->base.controller);
 
 	/* DDR interface not supported. */
-	if (conf->type != NAND_SDR_IFACE)
+	if (!nand_interface_is_sdr(conf))
 		return -ENOTSUPP;
 
 	/*
@@ -1522,7 +1524,12 @@ static int atmel_nand_setup_interface(struct nand_chip *chip, int csline,
 				      const struct nand_interface_config *conf)
 {
 	struct atmel_nand *nand = to_atmel_nand(chip);
+	const struct nand_sdr_timings *sdr;
 	struct atmel_nand_controller *nc;
+
+	sdr = nand_get_sdr_timings(conf);
+	if (IS_ERR(sdr))
+		return PTR_ERR(sdr);
 
 	nc = to_nand_controller(nand->base.controller);
 
@@ -1627,10 +1634,8 @@ static struct atmel_nand *atmel_nand_create(struct atmel_nand_controller *nc,
 	}
 
 	nand = devm_kzalloc(nc->dev, struct_size(nand, cs, numcs), GFP_KERNEL);
-	if (!nand) {
-		dev_err(nc->dev, "Failed to allocate NAND object\n");
+	if (!nand)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	nand->numcs = numcs;
 
@@ -1933,7 +1938,7 @@ static const struct atmel_smc_nand_ebi_csa_cfg sam9x60_ebi_csa = {
 	.nfd0_on_d16 = AT91_SFR_CCFG_NFD0_ON_D16,
 };
 
-static const struct of_device_id atmel_ebi_csa_regmap_of_ids[] = {
+static const struct of_device_id __maybe_unused atmel_ebi_csa_regmap_of_ids[] = {
 	{
 		.compatible = "atmel,at91sam9260-matrix",
 		.data = &at91sam9260_ebi_csa,
@@ -2055,13 +2060,15 @@ static int atmel_nand_controller_init(struct atmel_nand_controller *nc,
 	nc->mck = of_clk_get(dev->parent->of_node, 0);
 	if (IS_ERR(nc->mck)) {
 		dev_err(dev, "Failed to retrieve MCK clk\n");
-		return PTR_ERR(nc->mck);
+		ret = PTR_ERR(nc->mck);
+		goto out_release_dma;
 	}
 
 	np = of_parse_phandle(dev->parent->of_node, "atmel,smc", 0);
 	if (!np) {
 		dev_err(dev, "Missing or invalid atmel,smc property\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_release_dma;
 	}
 
 	nc->smc = syscon_node_to_regmap(np);
@@ -2069,10 +2076,16 @@ static int atmel_nand_controller_init(struct atmel_nand_controller *nc,
 	if (IS_ERR(nc->smc)) {
 		ret = PTR_ERR(nc->smc);
 		dev_err(dev, "Could not get SMC regmap (err = %d)\n", ret);
-		return ret;
+		goto out_release_dma;
 	}
 
 	return 0;
+
+out_release_dma:
+	if (nc->dmac)
+		dma_release_channel(nc->dmac);
+
+	return ret;
 }
 
 static int
@@ -2643,7 +2656,7 @@ static SIMPLE_DEV_PM_OPS(atmel_nand_controller_pm_ops, NULL,
 static struct platform_driver atmel_nand_controller_driver = {
 	.driver = {
 		.name = "atmel-nand-controller",
-		.of_match_table = of_match_ptr(atmel_nand_controller_of_ids),
+		.of_match_table = atmel_nand_controller_of_ids,
 		.pm = &atmel_nand_controller_pm_ops,
 	},
 	.probe = atmel_nand_controller_probe,

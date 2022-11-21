@@ -64,7 +64,6 @@ static struct dentry *
 nfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 		 int fh_len, int fh_type)
 {
-	struct nfs4_label *label = NULL;
 	struct nfs_fattr *fattr = NULL;
 	struct nfs_fh *server_fh = nfs_exp_embedfh(fid->raw);
 	size_t fh_size = offsetof(struct nfs_fh, data) + server_fh->size;
@@ -79,7 +78,7 @@ nfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 	if (fh_len < len || fh_type != len)
 		return NULL;
 
-	fattr = nfs_alloc_fattr();
+	fattr = nfs_alloc_fattr_with_label(NFS_SB(sb));
 	if (fattr == NULL) {
 		dentry = ERR_PTR(-ENOMEM);
 		goto out;
@@ -95,28 +94,19 @@ nfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 	if (inode)
 		goto out_found;
 
-	label = nfs4_label_alloc(NFS_SB(sb), GFP_KERNEL);
-	if (IS_ERR(label)) {
-		dentry = ERR_CAST(label);
-		goto out_free_fattr;
-	}
-
 	rpc_ops = NFS_SB(sb)->nfs_client->rpc_ops;
-	ret = rpc_ops->getattr(NFS_SB(sb), server_fh, fattr, label, NULL);
+	ret = rpc_ops->getattr(NFS_SB(sb), server_fh, fattr, NULL);
 	if (ret) {
 		dprintk("%s: getattr failed %d\n", __func__, ret);
 		trace_nfs_fh_to_dentry(sb, server_fh, fattr->fileid, ret);
 		dentry = ERR_PTR(ret);
-		goto out_free_label;
+		goto out_free_fattr;
 	}
 
-	inode = nfs_fhget(sb, server_fh, fattr, label);
+	inode = nfs_fhget(sb, server_fh, fattr);
 
 out_found:
 	dentry = d_obtain_alias(inode);
-
-out_free_label:
-	nfs4_label_free(label);
 out_free_fattr:
 	nfs_free_fattr(fattr);
 out:
@@ -131,7 +121,6 @@ nfs_get_parent(struct dentry *dentry)
 	struct super_block *sb = inode->i_sb;
 	struct nfs_server *server = NFS_SB(sb);
 	struct nfs_fattr *fattr = NULL;
-	struct nfs4_label *label = NULL;
 	struct dentry *parent;
 	struct nfs_rpc_ops const *ops = server->nfs_client->rpc_ops;
 	struct nfs_fh fh;
@@ -139,36 +128,35 @@ nfs_get_parent(struct dentry *dentry)
 	if (!ops->lookupp)
 		return ERR_PTR(-EACCES);
 
-	fattr = nfs_alloc_fattr();
-	if (fattr == NULL) {
-		parent = ERR_PTR(-ENOMEM);
+	fattr = nfs_alloc_fattr_with_label(server);
+	if (fattr == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	ret = ops->lookupp(inode, &fh, fattr);
+	if (ret) {
+		parent = ERR_PTR(ret);
 		goto out;
 	}
 
-	label = nfs4_label_alloc(server, GFP_KERNEL);
-	if (IS_ERR(label)) {
-		parent = ERR_CAST(label);
-		goto out_free_fattr;
-	}
-
-	ret = ops->lookupp(inode, &fh, fattr, label);
-	if (ret) {
-		parent = ERR_PTR(ret);
-		goto out_free_label;
-	}
-
-	pinode = nfs_fhget(sb, &fh, fattr, label);
+	pinode = nfs_fhget(sb, &fh, fattr);
 	parent = d_obtain_alias(pinode);
-out_free_label:
-	nfs4_label_free(label);
-out_free_fattr:
-	nfs_free_fattr(fattr);
 out:
+	nfs_free_fattr(fattr);
 	return parent;
+}
+
+static u64 nfs_fetch_iversion(struct inode *inode)
+{
+	nfs_revalidate_inode(inode, NFS_INO_INVALID_CHANGE);
+	return inode_peek_iversion_raw(inode);
 }
 
 const struct export_operations nfs_export_ops = {
 	.encode_fh = nfs_encode_fh,
 	.fh_to_dentry = nfs_fh_to_dentry,
 	.get_parent = nfs_get_parent,
+	.fetch_iversion = nfs_fetch_iversion,
+	.flags = EXPORT_OP_NOWCC|EXPORT_OP_NOSUBTREECHK|
+		EXPORT_OP_CLOSE_BEFORE_UNLINK|EXPORT_OP_REMOTE_FS|
+		EXPORT_OP_NOATOMIC_ATTR,
 };

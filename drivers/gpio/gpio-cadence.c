@@ -133,7 +133,7 @@ static void cdns_gpio_irq_handler(struct irq_desc *desc)
 		~ioread32(cgpio->regs + CDNS_GPIO_IRQ_MASK);
 
 	for_each_set_bit(hwirq, &status, chip->ngpio)
-		generic_handle_irq(irq_find_mapping(chip->irq.domain, hwirq));
+		generic_handle_domain_irq(chip->irq.domain, hwirq);
 
 	chained_irq_exit(irqchip, desc);
 }
@@ -278,6 +278,7 @@ static const struct of_device_id cdns_of_ids[] = {
 	{ .compatible = "cdns,gpio-r1p02" },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, cdns_of_ids);
 
 static struct platform_driver cdns_gpio_driver = {
 	.driver = {

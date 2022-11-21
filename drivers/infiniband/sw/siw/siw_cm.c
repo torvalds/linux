@@ -968,14 +968,15 @@ static void siw_accept_newconn(struct siw_cep *cep)
 
 		siw_cep_set_inuse(new_cep);
 		rv = siw_proc_mpareq(new_cep);
-		siw_cep_set_free(new_cep);
-
 		if (rv != -EAGAIN) {
 			siw_cep_put(cep);
 			new_cep->listen_cep = NULL;
-			if (rv)
+			if (rv) {
+				siw_cep_set_free(new_cep);
 				goto error;
+			}
 		}
+		siw_cep_set_free(new_cep);
 	}
 	return;
 
@@ -1047,7 +1048,7 @@ static void siw_cm_work_handler(struct work_struct *w)
 					    cep->state);
 			}
 		}
-		if (rv && rv != EAGAIN)
+		if (rv && rv != -EAGAIN)
 			release_cep = 1;
 		break;
 
@@ -1300,7 +1301,7 @@ static void siw_cm_llp_state_change(struct sock *sk)
 }
 
 static int kernel_bindconnect(struct socket *s, struct sockaddr *laddr,
-			      struct sockaddr *raddr)
+			      struct sockaddr *raddr, bool afonly)
 {
 	int rv, flags = 0;
 	size_t size = laddr->sa_family == AF_INET ?
@@ -1310,6 +1311,12 @@ static int kernel_bindconnect(struct socket *s, struct sockaddr *laddr,
 	 * Make address available again asap.
 	 */
 	sock_set_reuseaddr(s->sk);
+
+	if (afonly) {
+		rv = ip6_sock_set_v6only(s->sk);
+		if (rv)
+			return rv;
+	}
 
 	rv = s->ops->bind(s, laddr, size);
 	if (rv < 0)
@@ -1371,7 +1378,7 @@ int siw_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 	 * mode. Might be reconsidered for async connection setup at
 	 * TCP level.
 	 */
-	rv = kernel_bindconnect(s, laddr, raddr);
+	rv = kernel_bindconnect(s, laddr, raddr, id->afonly);
 	if (rv != 0) {
 		siw_dbg_qp(qp, "kernel_bindconnect: error %d\n", rv);
 		goto error;
@@ -1786,6 +1793,15 @@ int siw_create_listen(struct iw_cm_id *id, int backlog)
 	} else {
 		struct sockaddr_in6 *laddr = &to_sockaddr_in6(id->local_addr);
 
+		if (id->afonly) {
+			rv = ip6_sock_set_v6only(s->sk);
+			if (rv) {
+				siw_dbg(id->device,
+					"ip6_sock_set_v6only erro: %d\n", rv);
+				goto error;
+			}
+		}
+
 		/* For wildcard addr, limit binding to current device only */
 		if (ipv6_addr_any(&laddr->sin6_addr))
 			s->sk->sk_bound_dev_if = sdev->netdev->ifindex;
@@ -1936,8 +1952,6 @@ int siw_cm_init(void)
 
 void siw_cm_exit(void)
 {
-	if (siw_cm_wq) {
-		flush_workqueue(siw_cm_wq);
+	if (siw_cm_wq)
 		destroy_workqueue(siw_cm_wq);
-	}
 }

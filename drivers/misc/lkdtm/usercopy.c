@@ -173,6 +173,8 @@ static void do_usercopy_heap_size(bool to_user)
 			goto free_user;
 		}
 	}
+	pr_err("FAIL: bad usercopy not detected!\n");
+	pr_expected_config_param(CONFIG_HARDENED_USERCOPY, "hardened_usercopy");
 
 free_user:
 	vm_munmap(user_addr, PAGE_SIZE);
@@ -248,6 +250,8 @@ static void do_usercopy_heap_whitelist(bool to_user)
 			goto free_user;
 		}
 	}
+	pr_err("FAIL: bad usercopy not detected!\n");
+	pr_expected_config_param(CONFIG_HARDENED_USERCOPY, "hardened_usercopy");
 
 free_user:
 	vm_munmap(user_alloc, PAGE_SIZE);
@@ -314,12 +318,13 @@ void lkdtm_USERCOPY_KERNEL(void)
 
 	pr_info("attempting bad copy_to_user from kernel text: %px\n",
 		vm_mmap);
-	if (copy_to_user((void __user *)user_addr, vm_mmap,
+	if (copy_to_user((void __user *)user_addr, function_nocfi(vm_mmap),
 			 unconst + PAGE_SIZE)) {
 		pr_warn("copy_to_user failed, but lacked Oops\n");
 		goto free_user;
 	}
-	pr_err("FAIL: survived bad copy_to_user()\n");
+	pr_err("FAIL: bad copy_to_user() not detected!\n");
+	pr_expected_config_param(CONFIG_HARDENED_USERCOPY, "hardened_usercopy");
 
 free_user:
 	vm_munmap(user_addr, PAGE_SIZE);

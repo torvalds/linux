@@ -464,8 +464,18 @@ static inline int rdev_assoc(struct cfg80211_registered_device *rdev,
 			     struct net_device *dev,
 			     struct cfg80211_assoc_request *req)
 {
+	const struct cfg80211_bss_ies *bss_ies;
 	int ret;
-	trace_rdev_assoc(&rdev->wiphy, dev, req);
+
+	/*
+	 * Note: we might trace not exactly the data that's processed,
+	 * due to races and the driver/mac80211 getting a newer copy.
+	 */
+	rcu_read_lock();
+	bss_ies = rcu_dereference(req->bss->ies);
+	trace_rdev_assoc(&rdev->wiphy, dev, req, bss_ies);
+	rcu_read_unlock();
+
 	ret = rdev->ops->assoc(&rdev->wiphy, dev, req);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
@@ -579,16 +589,6 @@ static inline int rdev_get_tx_power(struct cfg80211_registered_device *rdev,
 	trace_rdev_get_tx_power(&rdev->wiphy, wdev);
 	ret = rdev->ops->get_tx_power(&rdev->wiphy, wdev, dbm);
 	trace_rdev_return_int_int(&rdev->wiphy, ret, *dbm);
-	return ret;
-}
-
-static inline int rdev_set_wds_peer(struct cfg80211_registered_device *rdev,
-				    struct net_device *dev, const u8 *addr)
-{
-	int ret;
-	trace_rdev_set_wds_peer(&rdev->wiphy, dev, addr);
-	ret = rdev->ops->set_wds_peer(&rdev->wiphy, dev, addr);
-	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
 
@@ -1353,6 +1353,62 @@ static inline int rdev_reset_tid_config(struct cfg80211_registered_device *rdev,
 	trace_rdev_reset_tid_config(&rdev->wiphy, dev, peer, tids);
 	ret = rdev->ops->reset_tid_config(&rdev->wiphy, dev, peer, tids);
 	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int rdev_set_sar_specs(struct cfg80211_registered_device *rdev,
+				     struct cfg80211_sar_specs *sar)
+{
+	int ret;
+
+	trace_rdev_set_sar_specs(&rdev->wiphy, sar);
+	ret = rdev->ops->set_sar_specs(&rdev->wiphy, sar);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+
+	return ret;
+}
+
+static inline int rdev_color_change(struct cfg80211_registered_device *rdev,
+				    struct net_device *dev,
+				    struct cfg80211_color_change_settings *params)
+{
+	int ret;
+
+	trace_rdev_color_change(&rdev->wiphy, dev, params);
+	ret = rdev->ops->color_change(&rdev->wiphy, dev, params);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+
+	return ret;
+}
+
+static inline int
+rdev_set_fils_aad(struct cfg80211_registered_device *rdev,
+		  struct net_device *dev, struct cfg80211_fils_aad *fils_aad)
+{
+	int ret = -EOPNOTSUPP;
+
+	trace_rdev_set_fils_aad(&rdev->wiphy, dev, fils_aad);
+	if (rdev->ops->set_fils_aad)
+		ret = rdev->ops->set_fils_aad(&rdev->wiphy, dev, fils_aad);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+
+	return ret;
+}
+
+static inline int
+rdev_set_radar_background(struct cfg80211_registered_device *rdev,
+			  struct cfg80211_chan_def *chandef)
+{
+	struct wiphy *wiphy = &rdev->wiphy;
+	int ret;
+
+	if (!rdev->ops->set_radar_background)
+		return -EOPNOTSUPP;
+
+	trace_rdev_set_radar_background(wiphy, chandef);
+	ret = rdev->ops->set_radar_background(wiphy, chandef);
+	trace_rdev_return_int(wiphy, ret);
+
 	return ret;
 }
 

@@ -9,14 +9,18 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <linux/tcp.h>
+#include <linux/udp.h>
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <netdb.h>
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
+#include <sched.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +28,11 @@
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>
+#include <getopt.h>
+
+#include <linux/xfrm.h>
+#include <linux/ipsec.h>
+#include <linux/pfkeyv2.h>
 
 #ifndef IPV6_UNICAST_IF
 #define IPV6_UNICAST_IF         76
@@ -34,6 +43,8 @@
 
 #define DEFAULT_PORT 12345
 
+#define NS_PREFIX "/run/netns/"
+
 #ifndef MAX
 #define MAX(a, b)  ((a) > (b) ? (a) : (b))
 #endif
@@ -43,12 +54,15 @@
 
 struct sock_args {
 	/* local address */
+	const char *local_addr_str;
+	const char *client_local_addr_str;
 	union {
 		struct in_addr  in;
 		struct in6_addr in6;
 	} local_addr;
 
 	/* remote address */
+	const char *remote_addr_str;
 	union {
 		struct in_addr  in;
 		struct in6_addr in6;
@@ -71,32 +85,48 @@ struct sock_args {
 	int version;   /* AF_INET/AF_INET6 */
 
 	int use_setsockopt;
+	int use_freebind;
 	int use_cmsg;
 	const char *dev;
+	const char *server_dev;
 	int ifindex;
 
+	const char *clientns;
+	const char *serverns;
+
 	const char *password;
+	const char *client_pw;
 	/* prefix for MD5 password */
+	const char *md5_prefix_str;
 	union {
 		struct sockaddr_in v4;
 		struct sockaddr_in6 v6;
 	} md5_prefix;
 	unsigned int prefix_len;
+	/* 0: default, -1: force off, +1: force on */
+	int bind_key_ifindex;
 
 	/* expected addresses and device index for connection */
+	const char *expected_dev;
+	const char *expected_server_dev;
 	int expected_ifindex;
 
 	/* local address */
+	const char *expected_laddr_str;
 	union {
 		struct in_addr  in;
 		struct in6_addr in6;
 	} expected_laddr;
 
 	/* remote address */
+	const char *expected_raddr_str;
 	union {
 		struct in_addr  in;
 		struct in6_addr in6;
 	} expected_raddr;
+
+	/* ESP in UDP encap test */
+	int use_xfrm;
 };
 
 static int server_mode;
@@ -186,7 +216,7 @@ static void log_address(const char *desc, struct sockaddr *sa)
 	if (sa->sa_family == AF_INET) {
 		struct sockaddr_in *s = (struct sockaddr_in *) sa;
 
-		log_msg("%s %s:%d",
+		log_msg("%s %s:%d\n",
 			desc,
 			inet_ntop(AF_INET, &s->sin_addr, addrstr,
 				  sizeof(addrstr)),
@@ -195,16 +225,35 @@ static void log_address(const char *desc, struct sockaddr *sa)
 	} else if (sa->sa_family == AF_INET6) {
 		struct sockaddr_in6 *s6 = (struct sockaddr_in6 *) sa;
 
-		log_msg("%s [%s]:%d",
+		log_msg("%s [%s]:%d\n",
 			desc,
 			inet_ntop(AF_INET6, &s6->sin6_addr, addrstr,
 				  sizeof(addrstr)),
 			ntohs(s6->sin6_port));
 	}
 
-	printf("\n");
-
 	fflush(stdout);
+}
+
+static int switch_ns(const char *ns)
+{
+	char path[PATH_MAX];
+	int fd, ret;
+
+	if (geteuid())
+		log_error("warning: likely need root to set netns %s!\n", ns);
+
+	snprintf(path, sizeof(path), "%s%s", NS_PREFIX, ns);
+	fd = open(path, 0);
+	if (fd < 0) {
+		log_err_errno("Failed to open netns path; can not switch netns");
+		return 1;
+	}
+
+	ret = setns(fd, CLONE_NEWNET);
+	close(fd);
+
+	return ret;
 }
 
 static int tcp_md5sig(int sd, void *addr, socklen_t alen, struct sock_args *args)
@@ -226,11 +275,14 @@ static int tcp_md5sig(int sd, void *addr, socklen_t alen, struct sock_args *args
 	}
 	memcpy(&md5sig.tcpm_addr, addr, alen);
 
-	if (args->ifindex) {
+	if ((args->ifindex && args->bind_key_ifindex >= 0) || args->bind_key_ifindex >= 1) {
 		opt = TCP_MD5SIG_EXT;
 		md5sig.tcpm_flags |= TCP_MD5SIG_FLAG_IFINDEX;
 
 		md5sig.tcpm_ifindex = args->ifindex;
+		log_msg("TCP_MD5SIG_FLAG_IFINDEX set tcpm_ifindex=%d\n", md5sig.tcpm_ifindex);
+	} else {
+		log_msg("TCP_MD5SIG_FLAG_IFINDEX off\n", md5sig.tcpm_ifindex);
 	}
 
 	rc = setsockopt(sd, IPPROTO_TCP, opt, &md5sig, sizeof(md5sig));
@@ -259,13 +311,13 @@ static int tcp_md5_remote(int sd, struct sock_args *args)
 	switch (args->version) {
 	case AF_INET:
 		sin.sin_port = htons(args->port);
-		sin.sin_addr = args->remote_addr.in;
+		sin.sin_addr = args->md5_prefix.v4.sin_addr;
 		addr = &sin;
 		alen = sizeof(sin);
 		break;
 	case AF_INET6:
 		sin6.sin6_port = htons(args->port);
-		sin6.sin6_addr = args->remote_addr.in6;
+		sin6.sin6_addr = args->md5_prefix.v6.sin6_addr;
 		addr = &sin6;
 		alen = sizeof(sin6);
 		break;
@@ -463,6 +515,29 @@ static int set_membership(int sd, uint32_t grp, uint32_t addr, int ifindex)
 	return 0;
 }
 
+static int set_freebind(int sd, int version)
+{
+	unsigned int one = 1;
+	int rc = 0;
+
+	switch (version) {
+	case AF_INET:
+		if (setsockopt(sd, SOL_IP, IP_FREEBIND, &one, sizeof(one))) {
+			log_err_errno("setsockopt(IP_FREEBIND)");
+			rc = -1;
+		}
+		break;
+	case AF_INET6:
+		if (setsockopt(sd, SOL_IPV6, IPV6_FREEBIND, &one, sizeof(one))) {
+			log_err_errno("setsockopt(IPV6_FREEBIND");
+			rc = -1;
+		}
+		break;
+	}
+
+	return rc;
+}
+
 static int set_broadcast(int sd)
 {
 	unsigned int one = 1;
@@ -522,6 +597,33 @@ static int str_to_uint(const char *str, int min, int max, unsigned int *value)
 	return -1;
 }
 
+static int resolve_devices(struct sock_args *args)
+{
+	if (args->dev) {
+		args->ifindex = get_ifidx(args->dev);
+		if (args->ifindex < 0) {
+			log_error("Invalid device name\n");
+			return 1;
+		}
+	}
+
+	if (args->expected_dev) {
+		unsigned int tmp;
+
+		if (str_to_uint(args->expected_dev, 0, INT_MAX, &tmp) == 0) {
+			args->expected_ifindex = (int)tmp;
+		} else {
+			args->expected_ifindex = get_ifidx(args->expected_dev);
+			if (args->expected_ifindex < 0) {
+				fprintf(stderr, "Invalid expected device\n");
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static int expected_addr_match(struct sockaddr *sa, void *expected,
 			       const char *desc)
 {
@@ -533,7 +635,7 @@ static int expected_addr_match(struct sockaddr *sa, void *expected,
 		struct in_addr *exp_in = (struct in_addr *) expected;
 
 		if (s->sin_addr.s_addr != exp_in->s_addr) {
-			log_error("%s address does not match expected %s",
+			log_error("%s address does not match expected %s\n",
 				  desc,
 				  inet_ntop(AF_INET, exp_in,
 					    addrstr, sizeof(addrstr)));
@@ -544,14 +646,14 @@ static int expected_addr_match(struct sockaddr *sa, void *expected,
 		struct in6_addr *exp_in = (struct in6_addr *) expected;
 
 		if (memcmp(&s6->sin6_addr, exp_in, sizeof(*exp_in))) {
-			log_error("%s address does not match expected %s",
+			log_error("%s address does not match expected %s\n",
 				  desc,
 				  inet_ntop(AF_INET6, exp_in,
 					    addrstr, sizeof(addrstr)));
 			rc = 1;
 		}
 	} else {
-		log_error("%s address does not match expected - unknown family",
+		log_error("%s address does not match expected - unknown family\n",
 			  desc);
 		rc = 1;
 	}
@@ -597,6 +699,160 @@ static int show_sockstat(int sd, struct sock_args *args)
 	}
 
 	return rc;
+}
+
+enum addr_type {
+	ADDR_TYPE_LOCAL,
+	ADDR_TYPE_REMOTE,
+	ADDR_TYPE_MCAST,
+	ADDR_TYPE_EXPECTED_LOCAL,
+	ADDR_TYPE_EXPECTED_REMOTE,
+	ADDR_TYPE_MD5_PREFIX,
+};
+
+static int convert_addr(struct sock_args *args, const char *_str,
+			enum addr_type atype)
+{
+	int pfx_len_max = args->version == AF_INET6 ? 128 : 32;
+	int family = args->version;
+	char *str, *dev, *sep;
+	struct in6_addr *in6;
+	struct in_addr  *in;
+	const char *desc;
+	void *addr;
+	int rc = 0;
+
+	str = strdup(_str);
+	if (!str)
+		return -ENOMEM;
+
+	switch (atype) {
+	case ADDR_TYPE_LOCAL:
+		desc = "local";
+		addr = &args->local_addr;
+		break;
+	case ADDR_TYPE_REMOTE:
+		desc = "remote";
+		addr = &args->remote_addr;
+		break;
+	case ADDR_TYPE_MCAST:
+		desc = "mcast grp";
+		addr = &args->grp;
+		break;
+	case ADDR_TYPE_EXPECTED_LOCAL:
+		desc = "expected local";
+		addr = &args->expected_laddr;
+		break;
+	case ADDR_TYPE_EXPECTED_REMOTE:
+		desc = "expected remote";
+		addr = &args->expected_raddr;
+		break;
+	case ADDR_TYPE_MD5_PREFIX:
+		desc = "md5 prefix";
+		if (family == AF_INET) {
+			args->md5_prefix.v4.sin_family = AF_INET;
+			addr = &args->md5_prefix.v4.sin_addr;
+		} else if (family == AF_INET6) {
+			args->md5_prefix.v6.sin6_family = AF_INET6;
+			addr = &args->md5_prefix.v6.sin6_addr;
+		} else
+			return 1;
+
+		sep = strchr(str, '/');
+		if (sep) {
+			*sep = '\0';
+			sep++;
+			if (str_to_uint(sep, 1, pfx_len_max,
+					&args->prefix_len) != 0) {
+				fprintf(stderr, "Invalid port\n");
+				return 1;
+			}
+		} else {
+			args->prefix_len = 0;
+		}
+		break;
+	default:
+		log_error("unknown address type\n");
+		exit(1);
+	}
+
+	switch (family) {
+	case AF_INET:
+		in  = (struct in_addr *) addr;
+		if (str) {
+			if (inet_pton(AF_INET, str, in) == 0) {
+				log_error("Invalid %s IP address\n", desc);
+				rc = -1;
+				goto out;
+			}
+		} else {
+			in->s_addr = htonl(INADDR_ANY);
+		}
+		break;
+
+	case AF_INET6:
+		dev = strchr(str, '%');
+		if (dev) {
+			*dev = '\0';
+			dev++;
+		}
+
+		in6 = (struct in6_addr *) addr;
+		if (str) {
+			if (inet_pton(AF_INET6, str, in6) == 0) {
+				log_error("Invalid %s IPv6 address\n", desc);
+				rc = -1;
+				goto out;
+			}
+		} else {
+			*in6 = in6addr_any;
+		}
+		if (dev) {
+			args->scope_id = get_ifidx(dev);
+			if (args->scope_id < 0) {
+				log_error("Invalid scope on %s IPv6 address\n",
+					  desc);
+				rc = -1;
+				goto out;
+			}
+		}
+		break;
+
+	default:
+		log_error("Invalid address family\n");
+	}
+
+out:
+	free(str);
+	return rc;
+}
+
+static int validate_addresses(struct sock_args *args)
+{
+	if (args->local_addr_str &&
+	    convert_addr(args, args->local_addr_str, ADDR_TYPE_LOCAL) < 0)
+		return 1;
+
+	if (args->remote_addr_str &&
+	    convert_addr(args, args->remote_addr_str, ADDR_TYPE_REMOTE) < 0)
+		return 1;
+
+	if (args->md5_prefix_str &&
+	    convert_addr(args, args->md5_prefix_str,
+			 ADDR_TYPE_MD5_PREFIX) < 0)
+		return 1;
+
+	if (args->expected_laddr_str &&
+	    convert_addr(args, args->expected_laddr_str,
+			 ADDR_TYPE_EXPECTED_LOCAL))
+		return 1;
+
+	if (args->expected_raddr_str &&
+	    convert_addr(args, args->expected_raddr_str,
+			 ADDR_TYPE_EXPECTED_REMOTE))
+		return 1;
+
+	return 0;
 }
 
 static int get_index_from_cmsg(struct msghdr *m)
@@ -1129,6 +1385,41 @@ static int bind_socket(int sd, struct sock_args *args)
 	return 0;
 }
 
+static int config_xfrm_policy(int sd, struct sock_args *args)
+{
+	struct xfrm_userpolicy_info policy = {};
+	int type = UDP_ENCAP_ESPINUDP;
+	int xfrm_af = IP_XFRM_POLICY;
+	int level = SOL_IP;
+
+	if (args->type != SOCK_DGRAM) {
+		log_error("Invalid socket type. Only DGRAM could be used for XFRM\n");
+		return 1;
+	}
+
+	policy.action = XFRM_POLICY_ALLOW;
+	policy.sel.family = args->version;
+	if (args->version == AF_INET6) {
+		xfrm_af = IPV6_XFRM_POLICY;
+		level = SOL_IPV6;
+	}
+
+	policy.dir = XFRM_POLICY_OUT;
+	if (setsockopt(sd, level, xfrm_af, &policy, sizeof(policy)) < 0)
+		return 1;
+
+	policy.dir = XFRM_POLICY_IN;
+	if (setsockopt(sd, level, xfrm_af, &policy, sizeof(policy)) < 0)
+		return 1;
+
+	if (setsockopt(sd, IPPROTO_UDP, UDP_ENCAP, &type, sizeof(type)) < 0) {
+		log_err_errno("Failed to set xfrm encap");
+		return 1;
+	}
+
+	return 0;
+}
+
 static int lsock_init(struct sock_args *args)
 {
 	long flags;
@@ -1152,6 +1443,9 @@ static int lsock_init(struct sock_args *args)
 		 set_unicast_if(sd, args->ifindex, args->version))
 		goto err;
 
+	if (args->use_freebind && set_freebind(sd, args->version))
+		goto err;
+
 	if (bind_socket(sd, args))
 		goto err;
 
@@ -1172,6 +1466,11 @@ static int lsock_init(struct sock_args *args)
 	if (fcntl(sd, F_SETFD, FD_CLOEXEC) < 0)
 		log_err_errno("Failed to set close-on-exec flag");
 
+	if (args->use_xfrm && config_xfrm_policy(sd, args)) {
+		log_err_errno("Failed to set xfrm policy");
+		goto err;
+	}
+
 out:
 	return sd;
 
@@ -1180,8 +1479,19 @@ err:
 	return -1;
 }
 
-static int do_server(struct sock_args *args)
+static void ipc_write(int fd, int message)
 {
+	/* Not in both_mode, so there's no process to signal */
+	if (fd < 0)
+		return;
+
+	if (write(fd, &message, sizeof(message)) < 0)
+		log_err_errno("Failed to send client status");
+}
+
+static int do_server(struct sock_args *args, int ipc_fd)
+{
+	/* ipc_fd = -1 if no parent process to signal */
 	struct timeval timeout = { .tv_sec = prog_timeout }, *ptval = NULL;
 	unsigned char addr[sizeof(struct sockaddr_in6)] = {};
 	socklen_t alen = sizeof(addr);
@@ -1189,6 +1499,20 @@ static int do_server(struct sock_args *args)
 
 	fd_set rfds;
 	int rc;
+
+	if (args->serverns) {
+		if (switch_ns(args->serverns)) {
+			log_error("Could not set server netns to %s\n",
+				  args->serverns);
+			goto err_exit;
+		}
+		log_msg("Switched server netns\n");
+	}
+
+	args->dev = args->server_dev;
+	args->expected_dev = args->expected_server_dev;
+	if (resolve_devices(args) || validate_addresses(args))
+		goto err_exit;
 
 	if (prog_timeout)
 		ptval = &timeout;
@@ -1199,14 +1523,16 @@ static int do_server(struct sock_args *args)
 		lsd = lsock_init(args);
 
 	if (lsd < 0)
-		return 1;
+		goto err_exit;
 
 	if (args->bind_test_only) {
 		close(lsd);
+		ipc_write(ipc_fd, 1);
 		return 0;
 	}
 
 	if (args->type != SOCK_STREAM) {
+		ipc_write(ipc_fd, 1);
 		rc = msg_loop(0, lsd, (void *) addr, alen, args);
 		close(lsd);
 		return rc;
@@ -1214,11 +1540,11 @@ static int do_server(struct sock_args *args)
 
 	if (args->password && tcp_md5_remote(lsd, args)) {
 		close(lsd);
-		return 1;
+		goto err_exit;
 	}
 
+	ipc_write(ipc_fd, 1);
 	while (1) {
-		log_msg("\n");
 		log_msg("waiting for client connection.\n");
 		FD_ZERO(&rfds);
 		FD_SET(lsd, &rfds);
@@ -1264,6 +1590,9 @@ static int do_server(struct sock_args *args)
 	close(lsd);
 
 	return rc;
+err_exit:
+	ipc_write(ipc_fd, 0);
+	return 1;
 }
 
 static int wait_for_connect(int sd)
@@ -1375,6 +1704,26 @@ static int do_client(struct sock_args *args)
 		return 1;
 	}
 
+	if (args->clientns) {
+		if (switch_ns(args->clientns)) {
+			log_error("Could not set client netns to %s\n",
+				  args->clientns);
+			return 1;
+		}
+		log_msg("Switched client netns\n");
+	}
+
+	args->local_addr_str = args->client_local_addr_str;
+	if (resolve_devices(args) || validate_addresses(args))
+		return 1;
+
+	if ((args->use_setsockopt || args->use_cmsg) && !args->ifindex) {
+		fprintf(stderr, "Device binding not specified\n");
+		return 1;
+	}
+	if (args->use_setsockopt || args->use_cmsg)
+		args->dev = NULL;
+
 	switch (args->version) {
 	case AF_INET:
 		sin.sin_port = htons(args->port);
@@ -1393,6 +1742,8 @@ static int do_client(struct sock_args *args)
 		alen = sizeof(sin6);
 		break;
 	}
+
+	args->password = args->client_pw;
 
 	if (args->has_grp)
 		sd = msock_client(args);
@@ -1419,132 +1770,6 @@ out:
 	return rc;
 }
 
-enum addr_type {
-	ADDR_TYPE_LOCAL,
-	ADDR_TYPE_REMOTE,
-	ADDR_TYPE_MCAST,
-	ADDR_TYPE_EXPECTED_LOCAL,
-	ADDR_TYPE_EXPECTED_REMOTE,
-	ADDR_TYPE_MD5_PREFIX,
-};
-
-static int convert_addr(struct sock_args *args, const char *_str,
-			enum addr_type atype)
-{
-	int pfx_len_max = args->version == AF_INET6 ? 128 : 32;
-	int family = args->version;
-	char *str, *dev, *sep;
-	struct in6_addr *in6;
-	struct in_addr  *in;
-	const char *desc;
-	void *addr;
-	int rc = 0;
-
-	str = strdup(_str);
-	if (!str)
-		return -ENOMEM;
-
-	switch (atype) {
-	case ADDR_TYPE_LOCAL:
-		desc = "local";
-		addr = &args->local_addr;
-		break;
-	case ADDR_TYPE_REMOTE:
-		desc = "remote";
-		addr = &args->remote_addr;
-		break;
-	case ADDR_TYPE_MCAST:
-		desc = "mcast grp";
-		addr = &args->grp;
-		break;
-	case ADDR_TYPE_EXPECTED_LOCAL:
-		desc = "expected local";
-		addr = &args->expected_laddr;
-		break;
-	case ADDR_TYPE_EXPECTED_REMOTE:
-		desc = "expected remote";
-		addr = &args->expected_raddr;
-		break;
-	case ADDR_TYPE_MD5_PREFIX:
-		desc = "md5 prefix";
-		if (family == AF_INET) {
-			args->md5_prefix.v4.sin_family = AF_INET;
-			addr = &args->md5_prefix.v4.sin_addr;
-		} else if (family == AF_INET6) {
-			args->md5_prefix.v6.sin6_family = AF_INET6;
-			addr = &args->md5_prefix.v6.sin6_addr;
-		} else
-			return 1;
-
-		sep = strchr(str, '/');
-		if (sep) {
-			*sep = '\0';
-			sep++;
-			if (str_to_uint(sep, 1, pfx_len_max,
-					&args->prefix_len) != 0) {
-				fprintf(stderr, "Invalid port\n");
-				return 1;
-			}
-		} else {
-			args->prefix_len = pfx_len_max;
-		}
-		break;
-	default:
-		log_error("unknown address type");
-		exit(1);
-	}
-
-	switch (family) {
-	case AF_INET:
-		in  = (struct in_addr *) addr;
-		if (str) {
-			if (inet_pton(AF_INET, str, in) == 0) {
-				log_error("Invalid %s IP address\n", desc);
-				rc = -1;
-				goto out;
-			}
-		} else {
-			in->s_addr = htonl(INADDR_ANY);
-		}
-		break;
-
-	case AF_INET6:
-		dev = strchr(str, '%');
-		if (dev) {
-			*dev = '\0';
-			dev++;
-		}
-
-		in6 = (struct in6_addr *) addr;
-		if (str) {
-			if (inet_pton(AF_INET6, str, in6) == 0) {
-				log_error("Invalid %s IPv6 address\n", desc);
-				rc = -1;
-				goto out;
-			}
-		} else {
-			*in6 = in6addr_any;
-		}
-		if (dev) {
-			args->scope_id = get_ifidx(dev);
-			if (args->scope_id < 0) {
-				log_error("Invalid scope on %s IPv6 address\n",
-					  desc);
-				rc = -1;
-				goto out;
-			}
-		}
-		break;
-
-	default:
-		log_error("Invalid address family\n");
-	}
-
-out:
-	free(str);
-	return rc;
-}
-
 static char *random_msg(int len)
 {
 	int i, n = 0, olen = len + 1;
@@ -1568,7 +1793,76 @@ static char *random_msg(int len)
 	return m;
 }
 
-#define GETOPT_STR  "sr:l:p:t:g:P:DRn:M:m:d:SCi6L:0:1:2:Fbq"
+static int ipc_child(int fd, struct sock_args *args)
+{
+	char *outbuf, *errbuf;
+	int rc = 1;
+
+	outbuf = malloc(4096);
+	errbuf = malloc(4096);
+	if (!outbuf || !errbuf) {
+		fprintf(stderr, "server: Failed to allocate buffers for stdout and stderr\n");
+		goto out;
+	}
+
+	setbuffer(stdout, outbuf, 4096);
+	setbuffer(stderr, errbuf, 4096);
+
+	server_mode = 1; /* to tell log_msg in case we are in both_mode */
+
+	/* when running in both mode, address validation applies
+	 * solely to client side
+	 */
+	args->has_expected_laddr = 0;
+	args->has_expected_raddr = 0;
+
+	rc = do_server(args, fd);
+
+out:
+	free(outbuf);
+	free(errbuf);
+
+	return rc;
+}
+
+static int ipc_parent(int cpid, int fd, struct sock_args *args)
+{
+	int client_status;
+	int status;
+	int buf;
+
+	/* do the client-side function here in the parent process,
+	 * waiting to be told when to continue
+	 */
+	if (read(fd, &buf, sizeof(buf)) <= 0) {
+		log_err_errno("Failed to read IPC status from status");
+		return 1;
+	}
+	if (!buf) {
+		log_error("Server failed; can not continue\n");
+		return 1;
+	}
+	log_msg("Server is ready\n");
+
+	client_status = do_client(args);
+	log_msg("parent is done!\n");
+
+	if (kill(cpid, 0) == 0)
+		kill(cpid, SIGKILL);
+
+	wait(&status);
+	return client_status;
+}
+
+#define GETOPT_STR  "sr:l:c:p:t:g:P:DRn:M:X:m:d:I:BN:O:SCi6xL:0:1:2:3:Fbqf"
+#define OPT_FORCE_BIND_KEY_IFINDEX 1001
+#define OPT_NO_BIND_KEY_IFINDEX 1002
+
+static struct option long_opts[] = {
+	{"force-bind-key-ifindex", 0, 0, OPT_FORCE_BIND_KEY_IFINDEX},
+	{"no-bind-key-ifindex", 0, 0, OPT_NO_BIND_KEY_IFINDEX},
+	{0, 0, 0, 0}
+};
 
 static void print_usage(char *prog)
 {
@@ -1582,28 +1876,41 @@ static void print_usage(char *prog)
 	"    -t            timeout seconds (default: none)\n"
 	"\n"
 	"Optional:\n"
+	"    -B            do both client and server via fork and IPC\n"
+	"    -N ns         set client to network namespace ns (requires root)\n"
+	"    -O ns         set server to network namespace ns (requires root)\n"
 	"    -F            Restart server loop\n"
 	"    -6            IPv6 (default is IPv4)\n"
 	"    -P proto      protocol for socket: icmp, ospf (default: none)\n"
 	"    -D|R          datagram (D) / raw (R) socket (default stream)\n"
-	"    -l addr       local address to bind to\n"
+	"    -l addr       local address to bind to in server mode\n"
+	"    -c addr       local address to bind to in client mode\n"
+	"    -x            configure XFRM policy on socket\n"
 	"\n"
 	"    -d dev        bind socket to given device name\n"
+	"    -I dev        bind socket to given device name - server mode\n"
 	"    -S            use setsockopt (IP_UNICAST_IF or IP_MULTICAST_IF)\n"
 	"                  to set device binding\n"
+	"    -f            bind socket with the IP[V6]_FREEBIND option\n"
 	"    -C            use cmsg and IP_PKTINFO to specify device binding\n"
 	"\n"
 	"    -L len        send random message of given length\n"
 	"    -n num        number of times to send message\n"
 	"\n"
 	"    -M password   use MD5 sum protection\n"
+	"    -X password   MD5 password for client mode\n"
 	"    -m prefix/len prefix and length to use for MD5 key\n"
+	"    --no-bind-key-ifindex: Force TCP_MD5SIG_FLAG_IFINDEX off\n"
+	"    --force-bind-key-ifindex: Force TCP_MD5SIG_FLAG_IFINDEX on\n"
+	"        (default: only if -I is passed)\n"
+	"\n"
 	"    -g grp        multicast group (e.g., 239.1.1.1)\n"
 	"    -i            interactive mode (default is echo and terminate)\n"
 	"\n"
 	"    -0 addr       Expected local address\n"
 	"    -1 addr       Expected remote address\n"
 	"    -2 dev        Expected device name (or index) to receive packet\n"
+	"    -3 dev        Expected device name (or index) to receive packets - server mode\n"
 	"\n"
 	"    -b            Bind test only.\n"
 	"    -q            Be quiet. Run test without printing anything.\n"
@@ -1618,8 +1925,11 @@ int main(int argc, char *argv[])
 		.port    = DEFAULT_PORT,
 	};
 	struct protoent *pe;
+	int both_mode = 0;
 	unsigned int tmp;
 	int forever = 0;
+	int fd[2];
+	int cpid;
 
 	/* process inputs */
 	extern char *optarg;
@@ -1629,8 +1939,11 @@ int main(int argc, char *argv[])
 	 * process input args
 	 */
 
-	while ((rc = getopt(argc, argv, GETOPT_STR)) != -1) {
+	while ((rc = getopt_long(argc, argv, GETOPT_STR, long_opts, NULL)) != -1) {
 		switch (rc) {
+		case 'B':
+			both_mode = 1;
+			break;
 		case 's':
 			server_mode = 1;
 			break;
@@ -1639,13 +1952,15 @@ int main(int argc, char *argv[])
 			break;
 		case 'l':
 			args.has_local_ip = 1;
-			if (convert_addr(&args, optarg, ADDR_TYPE_LOCAL) < 0)
-				return 1;
+			args.local_addr_str = optarg;
 			break;
 		case 'r':
 			args.has_remote_ip = 1;
-			if (convert_addr(&args, optarg, ADDR_TYPE_REMOTE) < 0)
-				return 1;
+			args.remote_addr_str = optarg;
+			break;
+		case 'c':
+			args.has_local_ip = 1;
+			args.client_local_addr_str = optarg;
 			break;
 		case 'p':
 			if (str_to_uint(optarg, 1, 65535, &tmp) != 0) {
@@ -1685,29 +2000,44 @@ int main(int argc, char *argv[])
 		case 'n':
 			iter = atoi(optarg);
 			break;
+		case 'N':
+			args.clientns = optarg;
+			break;
+		case 'O':
+			args.serverns = optarg;
+			break;
 		case 'L':
 			msg = random_msg(atoi(optarg));
 			break;
 		case 'M':
 			args.password = optarg;
 			break;
+		case OPT_FORCE_BIND_KEY_IFINDEX:
+			args.bind_key_ifindex = 1;
+			break;
+		case OPT_NO_BIND_KEY_IFINDEX:
+			args.bind_key_ifindex = -1;
+			break;
+		case 'X':
+			args.client_pw = optarg;
+			break;
 		case 'm':
-			if (convert_addr(&args, optarg, ADDR_TYPE_MD5_PREFIX) < 0)
-				return 1;
+			args.md5_prefix_str = optarg;
 			break;
 		case 'S':
 			args.use_setsockopt = 1;
+			break;
+		case 'f':
+			args.use_freebind = 1;
 			break;
 		case 'C':
 			args.use_cmsg = 1;
 			break;
 		case 'd':
 			args.dev = optarg;
-			args.ifindex = get_ifidx(optarg);
-			if (args.ifindex < 0) {
-				fprintf(stderr, "Invalid device name\n");
-				return 1;
-			}
+			break;
+		case 'I':
+			args.server_dev = optarg;
 			break;
 		case 'i':
 			interactive = 1;
@@ -1726,31 +2056,23 @@ int main(int argc, char *argv[])
 			break;
 		case '0':
 			args.has_expected_laddr = 1;
-			if (convert_addr(&args, optarg,
-					 ADDR_TYPE_EXPECTED_LOCAL))
-				return 1;
+			args.expected_laddr_str = optarg;
 			break;
 		case '1':
 			args.has_expected_raddr = 1;
-			if (convert_addr(&args, optarg,
-					 ADDR_TYPE_EXPECTED_REMOTE))
-				return 1;
-
+			args.expected_raddr_str = optarg;
 			break;
 		case '2':
-			if (str_to_uint(optarg, 0, INT_MAX, &tmp) == 0) {
-				args.expected_ifindex = (int)tmp;
-			} else {
-				args.expected_ifindex = get_ifidx(optarg);
-				if (args.expected_ifindex < 0) {
-					fprintf(stderr,
-						"Invalid expected device\n");
-					return 1;
-				}
-			}
+			args.expected_dev = optarg;
+			break;
+		case '3':
+			args.expected_server_dev = optarg;
 			break;
 		case 'q':
 			quiet = 1;
+			break;
+		case 'x':
+			args.use_xfrm = 1;
 			break;
 		default:
 			print_usage(argv[0]);
@@ -1759,22 +2081,16 @@ int main(int argc, char *argv[])
 	}
 
 	if (args.password &&
-	    ((!args.has_remote_ip && !args.prefix_len) || args.type != SOCK_STREAM)) {
+	    ((!args.has_remote_ip && !args.md5_prefix_str) ||
+	      args.type != SOCK_STREAM)) {
 		log_error("MD5 passwords apply to TCP only and require a remote ip for the password\n");
 		return 1;
 	}
 
-	if (args.prefix_len && !args.password) {
+	if (args.md5_prefix_str && !args.password) {
 		log_error("Prefix range for MD5 protection specified without a password\n");
 		return 1;
 	}
-
-	if ((args.use_setsockopt || args.use_cmsg) && !args.ifindex) {
-		fprintf(stderr, "Device binding not specified\n");
-		return 1;
-	}
-	if (args.use_setsockopt || args.use_cmsg)
-		args.dev = NULL;
 
 	if (iter == 0) {
 		fprintf(stderr, "Invalid number of messages to send\n");
@@ -1792,7 +2108,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (!server_mode && !args.has_grp &&
+	if ((both_mode || !server_mode) && !args.has_grp &&
 	    !args.has_remote_ip && !args.has_local_ip) {
 		fprintf(stderr,
 			"Local (server mode) or remote IP (client IP) required\n");
@@ -1804,9 +2120,26 @@ int main(int argc, char *argv[])
 		msg = NULL;
 	}
 
+	if (both_mode) {
+		if (pipe(fd) < 0) {
+			perror("pipe");
+			exit(1);
+		}
+
+		cpid = fork();
+		if (cpid < 0) {
+			perror("fork");
+			exit(1);
+		}
+		if (cpid)
+			return ipc_parent(cpid, fd[0], &args);
+
+		return ipc_child(fd[1], &args);
+	}
+
 	if (server_mode) {
 		do {
-			rc = do_server(&args);
+			rc = do_server(&args, -1);
 		} while (forever);
 
 		return rc;

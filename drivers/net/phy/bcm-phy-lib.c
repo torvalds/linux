@@ -181,20 +181,61 @@ EXPORT_SYMBOL_GPL(bcm_phy_ack_intr);
 
 int bcm_phy_config_intr(struct phy_device *phydev)
 {
-	int reg;
+	int reg, err;
 
 	reg = phy_read(phydev, MII_BCM54XX_ECR);
 	if (reg < 0)
 		return reg;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		reg &= ~MII_BCM54XX_ECR_IM;
-	else
-		reg |= MII_BCM54XX_ECR_IM;
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = bcm_phy_ack_intr(phydev);
+		if (err)
+			return err;
 
-	return phy_write(phydev, MII_BCM54XX_ECR, reg);
+		reg &= ~MII_BCM54XX_ECR_IM;
+		err = phy_write(phydev, MII_BCM54XX_ECR, reg);
+	} else {
+		reg |= MII_BCM54XX_ECR_IM;
+		err = phy_write(phydev, MII_BCM54XX_ECR, reg);
+		if (err)
+			return err;
+
+		err = bcm_phy_ack_intr(phydev);
+	}
+	return err;
 }
 EXPORT_SYMBOL_GPL(bcm_phy_config_intr);
+
+irqreturn_t bcm_phy_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status, irq_mask;
+
+	irq_status = phy_read(phydev, MII_BCM54XX_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	/* If a bit from the Interrupt Mask register is set, the corresponding
+	 * bit from the Interrupt Status register is masked. So read the IMR
+	 * and then flip the bits to get the list of possible interrupt
+	 * sources.
+	 */
+	irq_mask = phy_read(phydev, MII_BCM54XX_IMR);
+	if (irq_mask < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+	irq_mask = ~irq_mask;
+
+	if (!(irq_status & irq_mask))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+EXPORT_SYMBOL_GPL(bcm_phy_handle_interrupt);
 
 int bcm_phy_read_shadow(struct phy_device *phydev, u16 shadow)
 {
@@ -328,7 +369,7 @@ EXPORT_SYMBOL_GPL(bcm_phy_enable_apd);
 
 int bcm_phy_set_eee(struct phy_device *phydev, bool enable)
 {
-	int val;
+	int val, mask = 0;
 
 	/* Enable EEE at PHY level */
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, BRCM_CL45VEN_EEE_CONTROL);
@@ -347,10 +388,17 @@ int bcm_phy_set_eee(struct phy_device *phydev, bool enable)
 	if (val < 0)
 		return val;
 
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			      phydev->supported))
+		mask |= MDIO_EEE_1000T;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+			      phydev->supported))
+		mask |= MDIO_EEE_100TX;
+
 	if (enable)
-		val |= (MDIO_EEE_100TX | MDIO_EEE_1000T);
+		val |= mask;
 	else
-		val &= ~(MDIO_EEE_100TX | MDIO_EEE_1000T);
+		val &= ~mask;
 
 	phy_write_mmd(phydev, MDIO_MMD_AN, BCM_CL45VEN_EEE_ADV, (u32)val);
 

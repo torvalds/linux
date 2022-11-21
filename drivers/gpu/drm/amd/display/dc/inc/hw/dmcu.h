@@ -56,6 +56,20 @@ struct dmcu {
 	bool auto_load_dmcu;
 };
 
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+struct crc_region {
+	uint16_t x_start;
+	uint16_t y_start;
+	uint16_t x_end;
+	uint16_t y_end;
+};
+
+struct otg_phy_mux {
+	uint8_t phy_output_num;
+	uint8_t otg_output_num;
+};
+#endif
+
 struct dmcu_funcs {
 	bool (*dmcu_init)(struct dmcu *dmcu);
 	bool (*load_iram)(struct dmcu *dmcu,
@@ -66,7 +80,7 @@ struct dmcu_funcs {
 	bool (*setup_psr)(struct dmcu *dmcu,
 			struct dc_link *link,
 			struct psr_context *psr_context);
-	void (*get_psr_state)(struct dmcu *dmcu, uint32_t *psr_state);
+	void (*get_psr_state)(struct dmcu *dmcu, enum dc_psr_state *dc_psr_state);
 	void (*set_psr_wait_loop)(struct dmcu *dmcu,
 			unsigned int wait_loop_number);
 	void (*get_psr_wait_loop)(struct dmcu *dmcu,
@@ -74,6 +88,23 @@ struct dmcu_funcs {
 	bool (*is_dmcu_initialized)(struct dmcu *dmcu);
 	bool (*lock_phy)(struct dmcu *dmcu);
 	bool (*unlock_phy)(struct dmcu *dmcu);
+	bool (*send_edid_cea)(struct dmcu *dmcu,
+			int offset,
+			int total_length,
+			uint8_t *data,
+			int length);
+	bool (*recv_amd_vsdb)(struct dmcu *dmcu,
+			int *version,
+			int *min_frame_rate,
+			int *max_frame_rate);
+	bool (*recv_edid_cea_ack)(struct dmcu *dmcu, int *offset);
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	void (*forward_crc_window)(struct dmcu *dmcu,
+			struct crc_region *crc_win,
+			struct otg_phy_mux *mux_mapping);
+	void (*stop_crc_win_update)(struct dmcu *dmcu,
+			struct otg_phy_mux *mux_mapping);
+#endif
 };
 
 #endif

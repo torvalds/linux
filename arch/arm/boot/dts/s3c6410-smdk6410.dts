@@ -17,7 +17,7 @@
 
 / {
 	model = "Samsung SMDK6410 board based on S3C6410";
-	compatible = "samsung,mini6410", "samsung,s3c6410";
+	compatible = "samsung,smdk6410", "samsung,s3c6410";
 
 	memory@50000000 {
 		device_type = "memory";

@@ -1016,7 +1016,7 @@ static int quicktest1(unsigned long arg)
 			break;
 	}
 	if (ret != MQE_QUEUE_FULL || i != 4) {
-		printk(KERN_DEBUG "GRU:%d quicktest1: unexpect status %d, i %d\n",
+		printk(KERN_DEBUG "GRU:%d quicktest1: unexpected status %d, i %d\n",
 		       smp_processor_id(), ret, i);
 		goto done;
 	}

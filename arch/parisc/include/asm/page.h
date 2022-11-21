@@ -26,12 +26,14 @@
 #define copy_page(to, from)	copy_page_asm((void *)(to), (void *)(from))
 
 struct page;
+struct vm_area_struct;
 
 void clear_page_asm(void *page);
 void copy_page_asm(void *to, void *from);
 #define clear_user_page(vto, vaddr, page) clear_page_asm(vto)
-void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
-			struct page *pg);
+void copy_user_highpage(struct page *to, struct page *from, unsigned long vaddr,
+		struct vm_area_struct *vma);
+#define __HAVE_ARCH_COPY_USER_HIGHPAGE
 
 /*
  * These are used to make use of C type-checking..
@@ -112,7 +114,7 @@ extern int npmem_ranges;
 #else
 #define BITS_PER_PTE_ENTRY	2
 #define BITS_PER_PMD_ENTRY	2
-#define BITS_PER_PGD_ENTRY	BITS_PER_PMD_ENTRY
+#define BITS_PER_PGD_ENTRY	2
 #endif
 #define PGD_ENTRY_SIZE	(1UL << BITS_PER_PGD_ENTRY)
 #define PMD_ENTRY_SIZE	(1UL << BITS_PER_PMD_ENTRY)
@@ -184,7 +186,7 @@ extern int npmem_ranges;
 #include <asm-generic/getorder.h>
 #include <asm/pdc.h>
 
-#define PAGE0   ((struct zeropage *)__PAGE_OFFSET)
+#define PAGE0   ((struct zeropage *)absolute_pointer(__PAGE_OFFSET))
 
 /* DEFINITION OF THE ZERO-PAGE (PAG0) */
 /* based on work by Jason Eckhardt (jason@equator.com) */

@@ -74,28 +74,37 @@ static void seqbuf_seek(struct seqbuf *seqbuf, ssize_t offset)
 static const char *get_filename(struct tegra_bpmp *bpmp,
 				const struct file *file, char *buf, int size)
 {
-	char root_path_buf[512];
-	const char *root_path;
-	const char *filename;
+	const char *root_path, *filename = NULL;
+	char *root_path_buf;
 	size_t root_len;
+	size_t root_path_buf_len = 512;
+
+	root_path_buf = kzalloc(root_path_buf_len, GFP_KERNEL);
+	if (!root_path_buf)
+		goto out;
 
 	root_path = dentry_path(bpmp->debugfs_mirror, root_path_buf,
-				sizeof(root_path_buf));
+				root_path_buf_len);
 	if (IS_ERR(root_path))
-		return NULL;
+		goto out;
 
 	root_len = strlen(root_path);
 
 	filename = dentry_path(file->f_path.dentry, buf, size);
-	if (IS_ERR(filename))
-		return NULL;
+	if (IS_ERR(filename)) {
+		filename = NULL;
+		goto out;
+	}
 
-	if (strlen(filename) < root_len ||
-			strncmp(filename, root_path, root_len))
-		return NULL;
+	if (strlen(filename) < root_len || strncmp(filename, root_path, root_len)) {
+		filename = NULL;
+		goto out;
+	}
 
 	filename += root_len;
 
+out:
+	kfree(root_path_buf);
 	return filename;
 }
 
@@ -296,25 +305,61 @@ static int bpmp_debug_show(struct seq_file *m, void *p)
 	struct file *file = m->private;
 	struct inode *inode = file_inode(file);
 	struct tegra_bpmp *bpmp = inode->i_private;
-	char *databuf = NULL;
 	char fnamebuf[256];
 	const char *filename;
-	uint32_t nbytes = 0;
-	size_t len;
-	int err;
-
-	len = seq_get_buf(m, &databuf);
-	if (!databuf)
-		return -ENOMEM;
+	struct mrq_debug_request req = {
+		.cmd = cpu_to_le32(CMD_DEBUG_READ),
+	};
+	struct mrq_debug_response resp;
+	struct tegra_bpmp_message msg = {
+		.mrq = MRQ_DEBUG,
+		.tx = {
+			.data = &req,
+			.size = sizeof(req),
+		},
+		.rx = {
+			.data = &resp,
+			.size = sizeof(resp),
+		},
+	};
+	uint32_t fd = 0, len = 0;
+	int remaining, err;
 
 	filename = get_filename(bpmp, file, fnamebuf, sizeof(fnamebuf));
 	if (!filename)
 		return -ENOENT;
 
-	err = mrq_debug_read(bpmp, filename, databuf, len, &nbytes);
-	if (!err)
-		seq_commit(m, nbytes);
+	mutex_lock(&bpmp_debug_lock);
+	err = mrq_debug_open(bpmp, filename, &fd, &len, 0);
+	if (err)
+		goto out;
 
+	req.frd.fd = fd;
+	remaining = len;
+
+	while (remaining > 0) {
+		err = tegra_bpmp_transfer(bpmp, &msg);
+		if (err < 0) {
+			goto close;
+		} else if (msg.rx.ret < 0) {
+			err = -EINVAL;
+			goto close;
+		}
+
+		if (resp.frd.readlen > remaining) {
+			pr_err("%s: read data length invalid\n", __func__);
+			err = -EINVAL;
+			goto close;
+		}
+
+		seq_write(m, resp.frd.data, resp.frd.readlen);
+		remaining -= resp.frd.readlen;
+	}
+
+close:
+	err = mrq_debug_close(bpmp, fd);
+out:
+	mutex_unlock(&bpmp_debug_lock);
 	return err;
 }
 
@@ -412,15 +457,11 @@ static int bpmp_populate_debugfs_inband(struct tegra_bpmp *bpmp,
 				goto out;
 			}
 
-			len = strlen(ppath) + strlen(name) + 1;
+			len = snprintf(pathbuf, pathlen, "%s%s/", ppath, name);
 			if (len >= pathlen) {
 				err = -EINVAL;
 				goto out;
 			}
-
-			strncpy(pathbuf, ppath, pathlen);
-			strncat(pathbuf, name, strlen(name));
-			strcat(pathbuf, "/");
 
 			err = bpmp_populate_debugfs_inband(bpmp, dentry,
 							   pathbuf);

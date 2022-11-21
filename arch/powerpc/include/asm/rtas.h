@@ -19,14 +19,19 @@
 #define RTAS_UNKNOWN_SERVICE (-1)
 #define RTAS_INSTANTIATE_MAX (1ULL<<30) /* Don't instantiate rtas at/above this value */
 
-/* Buffer size for ppc_rtas system call. */
-#define RTAS_RMOBUF_MAX (64 * 1024)
+/* Memory set aside for sys_rtas to use with calls that need a work area. */
+#define RTAS_USER_REGION_SIZE (64 * 1024)
 
 /* RTAS return status codes */
-#define RTAS_NOT_SUSPENDABLE	-9004
 #define RTAS_BUSY		-2    /* RTAS Busy */
 #define RTAS_EXTENDED_DELAY_MIN	9900
 #define RTAS_EXTENDED_DELAY_MAX	9905
+
+/* statuses specific to ibm,suspend-me */
+#define RTAS_SUSPEND_ABORTED     9000 /* Suspension aborted */
+#define RTAS_NOT_SUSPENDABLE    -9004 /* Partition not suspendable */
+#define RTAS_THREADS_ACTIVE     -9005 /* Multiple processor threads active */
+#define RTAS_OUTSTANDING_COPROC -9006 /* Outstanding coprocessor operations */
 
 /*
  * In general to call RTAS use rtas_token("string") to lookup
@@ -242,6 +247,7 @@ extern void __noreturn rtas_restart(char *cmd);
 extern void rtas_power_off(void);
 extern void __noreturn rtas_halt(void);
 extern void rtas_os_term(char *str);
+void rtas_activate_firmware(void);
 extern int rtas_get_sensor(int sensor, int index, int *state);
 extern int rtas_get_sensor_fast(int sensor, int index, int *state);
 extern int rtas_get_power_level(int powerdomain, int *level);
@@ -250,9 +256,7 @@ extern bool rtas_indicator_present(int token, int *maxindex);
 extern int rtas_set_indicator(int indicator, int index, int new_value);
 extern int rtas_set_indicator_fast(int indicator, int index, int new_value);
 extern void rtas_progress(char *s, unsigned short hex);
-extern int rtas_suspend_cpu(struct rtas_suspend_me_data *data);
-extern int rtas_suspend_last_cpu(struct rtas_suspend_me_data *data);
-extern int rtas_ibm_suspend_me(u64 handle);
+int rtas_ibm_suspend_me(int *fw_status);
 
 struct rtc_time;
 extern time64_t rtas_get_boot_time(void);
@@ -260,7 +264,7 @@ extern void rtas_get_rtc_time(struct rtc_time *rtc_time);
 extern int rtas_set_rtc_time(struct rtc_time *rtc_time);
 
 extern unsigned int rtas_busy_delay_time(int status);
-extern unsigned int rtas_busy_delay(int status);
+bool rtas_busy_delay(int status);
 
 extern int early_init_dt_scan_rtas(unsigned long node,
 		const char *uname, int depth, void *data);
@@ -270,10 +274,14 @@ extern void pSeries_log_error(char *buf, unsigned int err_type, int fatal);
 #ifdef CONFIG_PPC_PSERIES
 extern time64_t last_rtas_event;
 extern int clobbering_unread_rtas_event(void);
-extern int pseries_devicetree_update(s32 scope);
 extern void post_mobility_fixup(void);
+int rtas_syscall_dispatch_ibm_suspend_me(u64 handle);
 #else
 static inline int clobbering_unread_rtas_event(void) { return 0; }
+static inline int rtas_syscall_dispatch_ibm_suspend_me(u64 handle)
+{
+	return -EINVAL;
+}
 #endif
 
 #ifdef CONFIG_PPC_RTAS_DAEMON
@@ -348,7 +356,7 @@ extern void rtas_take_timebase(void);
 static inline int page_is_rtas_user_buf(unsigned long pfn)
 {
 	unsigned long paddr = (pfn << PAGE_SHIFT);
-	if (paddr >= rtas_rmo_buf && paddr < (rtas_rmo_buf + RTAS_RMOBUF_MAX))
+	if (paddr >= rtas_rmo_buf && paddr < (rtas_rmo_buf + RTAS_USER_REGION_SIZE))
 		return 1;
 	return 0;
 }
@@ -360,7 +368,7 @@ void rtas_initialize(void);
 #else
 static inline int page_is_rtas_user_buf(unsigned long pfn) { return 0;}
 static inline void pSeries_coalesce_init(void) { }
-static inline void rtas_initialize(void) { };
+static inline void rtas_initialize(void) { }
 #endif
 
 extern int call_rtas(const char *, int, int, unsigned long *, ...);

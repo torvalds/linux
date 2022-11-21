@@ -10,6 +10,12 @@
 #include "mt8173.dtsi"
 
 / {
+	aliases {
+		mmc0 = &mmc0;
+		mmc1 = &mmc1;
+		mmc2 = &mmc3;
+	};
+
 	memory@40000000 {
 		device_type = "memory";
 		reg = <0 0x40000000 0 0x80000000>;
@@ -22,7 +28,7 @@
 		enable-gpios = <&pio 95 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&disp_pwm0_pins>;
+		pinctrl-0 = <&panel_backlight_en_pins>;
 		status = "okay";
 	};
 
@@ -87,7 +93,6 @@
 	panel: panel {
 		compatible = "lg,lp120up1";
 		power-supply = <&panel_fixed_3v3>;
-		ddc-i2c-bus = <&i2c0>;
 		backlight = <&backlight>;
 
 		port {
@@ -156,6 +161,10 @@
 			};
 		};
 	};
+};
+
+&mfg_async {
+	domain-supply = <&da9211_vgpu_reg>;
 };
 
 &cec {
@@ -818,6 +827,12 @@
 		};
 	};
 
+	panel_backlight_en_pins: panel_backlight_en_pins {
+		pins1 {
+			pinmux = <MT8173_PIN_95_PCM_TX__FUNC_GPIO95>;
+		};
+	};
+
 	panel_fixed_pins: panel_fixed_pins {
 		pins1 {
 			pinmux = <MT8173_PIN_41_CMMCLK__FUNC_GPIO41>;
@@ -892,6 +907,8 @@
 };
 
 &pwm0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&disp_pwm0_pins>;
 	status = "okay";
 };
 

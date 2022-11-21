@@ -11,10 +11,11 @@ struct pt_regs;
 struct task_struct;
 
 #include <asm/ptrace.h>
-#include <registers.h>
 #include <sysdep/archsetjmp.h>
 
 #include <linux/prefetch.h>
+
+#include <asm/cpufeatures.h>
 
 struct mm_struct;
 
@@ -90,14 +91,21 @@ extern void start_thread(struct pt_regs *regs, unsigned long entry,
 struct cpuinfo_um {
 	unsigned long loops_per_jiffy;
 	int ipi_pipe[2];
+	int cache_alignment;
+	union {
+		__u32		x86_capability[NCAPINTS + NBUGINTS];
+		unsigned long	x86_capability_alignment;
+	};
 };
 
 extern struct cpuinfo_um boot_cpu_data;
 
 #define cpu_data (&boot_cpu_data)
 #define current_cpu_data boot_cpu_data
+#define cache_line_size()	(boot_cpu_data.cache_alignment)
 
+extern unsigned long get_thread_reg(int reg, jmp_buf *buf);
 #define KSTK_REG(tsk, reg) get_thread_reg(reg, &tsk->thread.switch_buf)
-extern unsigned long get_wchan(struct task_struct *p);
+extern unsigned long __get_wchan(struct task_struct *p);
 
 #endif

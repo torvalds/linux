@@ -127,6 +127,7 @@ static const struct nla_policy compat_policy[XFRMA_MAX+1] = {
 	[XFRMA_SET_MARK]	= { .type = NLA_U32 },
 	[XFRMA_SET_MARK_MASK]	= { .type = NLA_U32 },
 	[XFRMA_IF_ID]		= { .type = NLA_U32 },
+	[XFRMA_MTIMER_THRESH]	= { .type = NLA_U32 },
 };
 
 static struct nlmsghdr *xfrm_nlmsg_put_compat(struct sk_buff *skb,
@@ -216,7 +217,7 @@ static struct nlmsghdr *xfrm_nlmsg_put_compat(struct sk_buff *skb,
 	case XFRM_MSG_GETSADINFO:
 	case XFRM_MSG_GETSPDINFO:
 	default:
-		WARN_ONCE(1, "unsupported nlmsg_type %d", nlh_src->nlmsg_type);
+		pr_warn_once("unsupported nlmsg_type %d\n", nlh_src->nlmsg_type);
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
@@ -274,10 +275,11 @@ static int xfrm_xlate64_attr(struct sk_buff *dst, const struct nlattr *src)
 	case XFRMA_SET_MARK:
 	case XFRMA_SET_MARK_MASK:
 	case XFRMA_IF_ID:
+	case XFRMA_MTIMER_THRESH:
 		return xfrm_nla_cpy(dst, src, nla_len(src));
 	default:
-		BUILD_BUG_ON(XFRMA_MAX != XFRMA_IF_ID);
-		WARN_ONCE(1, "unsupported nla_type %d", src->nla_type);
+		BUILD_BUG_ON(XFRMA_MAX != XFRMA_MTIMER_THRESH);
+		pr_warn_once("unsupported nla_type %d\n", src->nla_type);
 		return -EOPNOTSUPP;
 	}
 }
@@ -298,8 +300,16 @@ static int xfrm_xlate64(struct sk_buff *dst, const struct nlmsghdr *nlh_src)
 	len = nlmsg_attrlen(nlh_src, xfrm_msg_min[type]);
 
 	nla_for_each_attr(nla, attrs, len, remaining) {
-		int err = xfrm_xlate64_attr(dst, nla);
+		int err;
 
+		switch (type) {
+		case XFRM_MSG_NEWSPDINFO:
+			err = xfrm_nla_cpy(dst, nla, nla_len(nla));
+			break;
+		default:
+			err = xfrm_xlate64_attr(dst, nla);
+			break;
+		}
 		if (err)
 			return err;
 	}
@@ -315,8 +325,10 @@ static int xfrm_alloc_compat(struct sk_buff *skb, const struct nlmsghdr *nlh_src
 	struct sk_buff *new = NULL;
 	int err;
 
-	if (WARN_ON_ONCE(type >= ARRAY_SIZE(xfrm_msg_min)))
+	if (type >= ARRAY_SIZE(xfrm_msg_min)) {
+		pr_warn_once("unsupported nlmsg_type %d\n", nlh_src->nlmsg_type);
 		return -EOPNOTSUPP;
+	}
 
 	if (skb_shinfo(skb)->frag_list == NULL) {
 		new = alloc_skb(skb->len + skb_tailroom(skb), GFP_ATOMIC);
@@ -339,7 +351,8 @@ static int xfrm_alloc_compat(struct sk_buff *skb, const struct nlmsghdr *nlh_src
 
 /* Calculates len of translated 64-bit message. */
 static size_t xfrm_user_rcv_calculate_len64(const struct nlmsghdr *src,
-					    struct nlattr *attrs[XFRMA_MAX+1])
+					    struct nlattr *attrs[XFRMA_MAX + 1],
+					    int maxtype)
 {
 	size_t len = nlmsg_len(src);
 
@@ -356,9 +369,19 @@ static size_t xfrm_user_rcv_calculate_len64(const struct nlmsghdr *src,
 	case XFRM_MSG_POLEXPIRE:
 		len += 8;
 		break;
+	case XFRM_MSG_NEWSPDINFO:
+		/* attirbutes are xfrm_spdattr_type_t, not xfrm_attr_type_t */
+		return len;
 	default:
 		break;
 	}
+
+	/* Unexpected for anything, but XFRM_MSG_NEWSPDINFO, please
+	 * correct both 64=>32-bit and 32=>64-bit translators to copy
+	 * new attributes.
+	 */
+	if (WARN_ON_ONCE(maxtype))
+		return len;
 
 	if (attrs[XFRMA_SA])
 		len += 4;
@@ -378,6 +401,10 @@ static int xfrm_attr_cpy32(void *dst, size_t *pos, const struct nlattr *src,
 	struct nlmsghdr *nlmsg = dst;
 	struct nlattr *nla;
 
+	/* xfrm_user_rcv_msg_compat() relies on fact that 32-bit messages
+	 * have the same len or shorted than 64-bit ones.
+	 * 32-bit translation that is bigger than 64-bit original is unexpected.
+	 */
 	if (WARN_ON_ONCE(copy_len > payload))
 		copy_len = payload;
 
@@ -406,7 +433,7 @@ static int xfrm_xlate32_attr(void *dst, const struct nlattr *nla,
 	int err;
 
 	if (type > XFRMA_MAX) {
-		BUILD_BUG_ON(XFRMA_MAX != XFRMA_IF_ID);
+		BUILD_BUG_ON(XFRMA_MAX != XFRMA_MTIMER_THRESH);
 		NL_SET_ERR_MSG(extack, "Bad attribute");
 		return -EOPNOTSUPP;
 	}
@@ -434,7 +461,8 @@ static int xfrm_xlate32_attr(void *dst, const struct nlattr *nla,
 
 static int xfrm_xlate32(struct nlmsghdr *dst, const struct nlmsghdr *src,
 			struct nlattr *attrs[XFRMA_MAX+1],
-			size_t size, u8 type, struct netlink_ext_ack *extack)
+			size_t size, u8 type, int maxtype,
+			struct netlink_ext_ack *extack)
 {
 	size_t pos;
 	int i;
@@ -514,6 +542,25 @@ static int xfrm_xlate32(struct nlmsghdr *dst, const struct nlmsghdr *src,
 	}
 	pos = dst->nlmsg_len;
 
+	if (maxtype) {
+		/* attirbutes are xfrm_spdattr_type_t, not xfrm_attr_type_t */
+		WARN_ON_ONCE(src->nlmsg_type != XFRM_MSG_NEWSPDINFO);
+
+		for (i = 1; i <= maxtype; i++) {
+			int err;
+
+			if (!attrs[i])
+				continue;
+
+			/* just copy - no need for translation */
+			err = xfrm_attr_cpy32(dst, &pos, attrs[i], size,
+					nla_len(attrs[i]), nla_len(attrs[i]));
+			if (err)
+				return err;
+		}
+		return 0;
+	}
+
 	for (i = 1; i < XFRMA_MAX + 1; i++) {
 		int err;
 
@@ -558,7 +605,7 @@ static struct nlmsghdr *xfrm_user_rcv_msg_compat(const struct nlmsghdr *h32,
 	if (err < 0)
 		return ERR_PTR(err);
 
-	len = xfrm_user_rcv_calculate_len64(h32, attrs);
+	len = xfrm_user_rcv_calculate_len64(h32, attrs, maxtype);
 	/* The message doesn't need translation */
 	if (len == nlmsg_len(h32))
 		return NULL;
@@ -568,7 +615,7 @@ static struct nlmsghdr *xfrm_user_rcv_msg_compat(const struct nlmsghdr *h32,
 	if (!h64)
 		return ERR_PTR(-ENOMEM);
 
-	err = xfrm_xlate32(h64, h32, attrs, len, type, extack);
+	err = xfrm_xlate32(h64, h32, attrs, len, type, maxtype, extack);
 	if (err < 0) {
 		kvfree(h64);
 		return ERR_PTR(err);

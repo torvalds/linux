@@ -55,8 +55,8 @@ controls in that array and a control class. Control classes are used to
 group similar controls into a single class. For example, control class
 ``V4L2_CTRL_CLASS_USER`` contains all user controls (i. e. all controls
 that can also be set using the old :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>`
-ioctl). Control class ``V4L2_CTRL_CLASS_MPEG`` contains all controls
-relating to MPEG encoding, etc.
+ioctl). Control class ``V4L2_CTRL_CLASS_CODEC`` contains controls
+relating to codecs.
 
 All controls in the control array must belong to the specified control
 class. An error is returned if this is not the case.
@@ -130,9 +130,9 @@ control class is found:
 
 .. code-block:: c
 
-    qctrl.id = V4L2_CTRL_CLASS_MPEG | V4L2_CTRL_FLAG_NEXT_CTRL;
+    qctrl.id = V4L2_CTRL_CLASS_CODEC | V4L2_CTRL_FLAG_NEXT_CTRL;
     while (0 == ioctl(fd, VIDIOC_QUERYCTRL, &qctrl)) {
-	if (V4L2_CTRL_ID2CLASS(qctrl.id) != V4L2_CTRL_CLASS_MPEG)
+	if (V4L2_CTRL_ID2CLASS(qctrl.id) != V4L2_CTRL_CLASS_CODEC)
 	    break;
 	/* ... */
 	qctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;

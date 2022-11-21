@@ -254,7 +254,7 @@ EXPORT_SYMBOL_GPL(fsl_mc_resource_free);
  * @mc_dev: fsl-mc device which is used in conjunction with the
  * allocated object
  * @pool_type: pool type
- * @new_mc_dev: pointer to area where the pointer to the allocated device
+ * @new_mc_adev: pointer to area where the pointer to the allocated device
  * is to be returned
  *
  * Allocatable objects are always used in conjunction with some functional
@@ -292,8 +292,10 @@ int __must_check fsl_mc_object_allocate(struct fsl_mc_device *mc_dev,
 		goto error;
 
 	mc_adev = resource->data;
-	if (!mc_adev)
+	if (!mc_adev) {
+		error = -EINVAL;
 		goto error;
+	}
 
 	mc_adev->consumer_link = device_link_add(&mc_dev->dev,
 						 &mc_adev->dev,
@@ -348,7 +350,6 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_device *mc_bus_dev,
 			     unsigned int irq_count)
 {
 	unsigned int i;
-	struct msi_desc *msi_desc;
 	struct fsl_mc_device_irq *irq_resources;
 	struct fsl_mc_device_irq *mc_dev_irq;
 	int error;
@@ -386,14 +387,10 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_device *mc_bus_dev,
 		mc_dev_irq->resource.type = res_pool->type;
 		mc_dev_irq->resource.data = mc_dev_irq;
 		mc_dev_irq->resource.parent_pool = res_pool;
+		mc_dev_irq->virq = msi_get_virq(&mc_bus_dev->dev, i);
+		mc_dev_irq->resource.id = mc_dev_irq->virq;
 		INIT_LIST_HEAD(&mc_dev_irq->resource.node);
 		list_add_tail(&mc_dev_irq->resource.node, &res_pool->free_list);
-	}
-
-	for_each_msi_entry(msi_desc, &mc_bus_dev->dev) {
-		mc_dev_irq = &irq_resources[msi_desc->fsl_mc.msi_index];
-		mc_dev_irq->msi_desc = msi_desc;
-		mc_dev_irq->resource.id = msi_desc->irq;
 	}
 
 	res_pool->max_count = irq_count;
@@ -407,7 +404,7 @@ cleanup_msi_irqs:
 }
 EXPORT_SYMBOL_GPL(fsl_mc_populate_irq_pool);
 
-/**
+/*
  * Teardown the interrupt pool associated with an fsl-mc bus.
  * It frees the IRQs that were allocated to the pool, back to the GIC-ITS.
  */
@@ -434,7 +431,7 @@ void fsl_mc_cleanup_irq_pool(struct fsl_mc_device *mc_bus_dev)
 }
 EXPORT_SYMBOL_GPL(fsl_mc_cleanup_irq_pool);
 
-/**
+/*
  * Allocate the IRQs required by a given fsl-mc device.
  */
 int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev)
@@ -576,7 +573,7 @@ void fsl_mc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
 		fsl_mc_cleanup_resource_pool(mc_bus_dev, pool_type);
 }
 
-/**
+/*
  * fsl_mc_allocator_probe - callback invoked when an allocatable device is
  * being added to the system
  */
@@ -608,7 +605,7 @@ static int fsl_mc_allocator_probe(struct fsl_mc_device *mc_dev)
 	return 0;
 }
 
-/**
+/*
  * fsl_mc_allocator_remove - callback invoked when an allocatable device is
  * being removed from the system
  */

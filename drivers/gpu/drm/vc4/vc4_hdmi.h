@@ -12,7 +12,6 @@
 struct vc4_hdmi_encoder {
 	struct vc4_encoder base;
 	bool hdmi_monitor;
-	bool limited_rgb_range;
 };
 
 static inline struct vc4_hdmi_encoder *
@@ -21,10 +20,9 @@ to_vc4_hdmi_encoder(struct drm_encoder *encoder)
 	return container_of(encoder, struct vc4_hdmi_encoder, base.base);
 }
 
-struct drm_display_mode;
-
 struct vc4_hdmi;
 struct vc4_hdmi_register;
+struct vc4_hdmi_connector_state;
 
 enum vc4_hdmi_phy_channel {
 	PHY_LANE_0 = 0,
@@ -42,9 +40,6 @@ struct vc4_hdmi_variant {
 
 	/* Filename to expose the registers in debugfs */
 	const char *debugfs_name;
-
-	/* Set to true when the CEC support is available */
-	bool cec_available;
 
 	/* Maximum pixel clock supported by the controller (in Hz) */
 	unsigned long long max_pixel_clock;
@@ -65,6 +60,13 @@ struct vc4_hdmi_variant {
 	/* The BCM2711 cannot deal with odd horizontal pixel timings */
 	bool unsupported_odd_h_timings;
 
+	/*
+	 * The BCM2711 CEC/hotplug IRQ controller is shared between the
+	 * two HDMI controllers, and we have a proper irqchip driver for
+	 * it.
+	 */
+	bool external_irq_controller;
+
 	/* Callback to get the resources (memory region, interrupts,
 	 * clocks, etc) for that variant.
 	 */
@@ -74,15 +76,18 @@ struct vc4_hdmi_variant {
 	void (*reset)(struct vc4_hdmi *vc4_hdmi);
 
 	/* Callback to enable / disable the CSC */
-	void (*csc_setup)(struct vc4_hdmi *vc4_hdmi, bool enable);
+	void (*csc_setup)(struct vc4_hdmi *vc4_hdmi,
+			  struct drm_connector_state *state,
+			  const struct drm_display_mode *mode);
 
 	/* Callback to configure the video timings in the HDMI block */
 	void (*set_timings)(struct vc4_hdmi *vc4_hdmi,
+			    struct drm_connector_state *state,
 			    struct drm_display_mode *mode);
 
-	/* Callback to initialize the PHY according to the mode */
+	/* Callback to initialize the PHY according to the connector state */
 	void (*phy_init)(struct vc4_hdmi *vc4_hdmi,
-			 struct drm_display_mode *mode);
+			 struct vc4_hdmi_connector_state *vc4_conn_state);
 
 	/* Callback to disable the PHY */
 	void (*phy_disable)(struct vc4_hdmi *vc4_hdmi);
@@ -95,6 +100,12 @@ struct vc4_hdmi_variant {
 
 	/* Callback to get channel map */
 	u32 (*channel_map)(struct vc4_hdmi *vc4_hdmi, u32 channel_mask);
+
+	/* Enables HDR metadata */
+	bool supports_hdr;
+
+	/* Callback for hardware specific hotplug detect */
+	bool (*hp_detect)(struct vc4_hdmi *vc4_hdmi);
 };
 
 /* HDMI audio information */
@@ -104,11 +115,9 @@ struct vc4_hdmi_audio {
 	struct snd_soc_dai_link_component cpu;
 	struct snd_soc_dai_link_component codec;
 	struct snd_soc_dai_link_component platform;
-	int samplerate;
-	int channels;
 	struct snd_dmaengine_dai_dma_data dma_data;
-	struct snd_pcm_substream *substream;
-
+	struct hdmi_audio_infoframe infoframe;
+	struct platform_device *codec_pdev;
 	bool streaming;
 };
 
@@ -121,6 +130,8 @@ struct vc4_hdmi {
 
 	struct vc4_hdmi_encoder encoder;
 	struct drm_connector connector;
+
+	struct delayed_work scrambling_work;
 
 	struct i2c_adapter *ddc;
 	void __iomem *hdmicore_regs;
@@ -139,8 +150,7 @@ struct vc4_hdmi {
 	/* VC5 Only */
 	void __iomem *rm_regs;
 
-	int hpd_gpio;
-	bool hpd_active_low;
+	struct gpio_desc *hpd_gpio;
 
 	/*
 	 * On some systems (like the RPi4), some modes are in the same
@@ -150,11 +160,20 @@ struct vc4_hdmi {
 	 */
 	bool disable_wifi_frequencies;
 
+	/*
+	 * Even if HDMI0 on the RPi4 can output modes requiring a pixel
+	 * rate higher than 297MHz, it needs some adjustments in the
+	 * config.txt file to be able to do so and thus won't always be
+	 * available.
+	 */
+	bool disable_4kp60;
+
 	struct cec_adapter *cec_adap;
 	struct cec_msg cec_rx_msg;
 	bool cec_tx_ok;
 	bool cec_irq_was_rx;
 
+	struct clk *cec_clock;
 	struct clk *pixel_clock;
 	struct clk *hsm_clock;
 	struct clk *audio_clock;
@@ -164,6 +183,43 @@ struct vc4_hdmi {
 
 	struct debugfs_regset32 hdmi_regset;
 	struct debugfs_regset32 hd_regset;
+
+	/**
+	 * @hw_lock: Spinlock protecting device register access.
+	 */
+	spinlock_t hw_lock;
+
+	/**
+	 * @mutex: Mutex protecting the driver access across multiple
+	 * frameworks (KMS, ALSA).
+	 *
+	 * NOTE: While supported, CEC has been left out since
+	 * cec_s_phys_addr_from_edid() might call .adap_enable and lead to a
+	 * reentrancy issue between .get_modes (or .detect) and .adap_enable.
+	 * Since we don't share any state between the CEC hooks and KMS', it's
+	 * not a big deal. The only trouble might come from updating the CEC
+	 * clock divider which might be affected by a modeset, but CEC should
+	 * be resilient to that.
+	 */
+	struct mutex mutex;
+
+	/**
+	 * @saved_adjusted_mode: Copy of @drm_crtc_state.adjusted_mode
+	 * for use by ALSA hooks and interrupt handlers. Protected by @mutex.
+	 */
+	struct drm_display_mode saved_adjusted_mode;
+
+	/**
+	 * @output_enabled: Is the HDMI controller currently active?
+	 * Protected by @mutex.
+	 */
+	bool output_enabled;
+
+	/**
+	 * @scdc_enabled: Is the HDMI controller currently running with
+	 * the scrambler on? Protected by @mutex.
+	 */
+	bool scdc_enabled;
 };
 
 static inline struct vc4_hdmi *
@@ -180,14 +236,25 @@ encoder_to_vc4_hdmi(struct drm_encoder *encoder)
 	return container_of(_encoder, struct vc4_hdmi, encoder);
 }
 
+struct vc4_hdmi_connector_state {
+	struct drm_connector_state	base;
+	unsigned long long		pixel_rate;
+};
+
+static inline struct vc4_hdmi_connector_state *
+conn_state_to_vc4_hdmi_conn_state(struct drm_connector_state *conn_state)
+{
+	return container_of(conn_state, struct vc4_hdmi_connector_state, base);
+}
+
 void vc4_hdmi_phy_init(struct vc4_hdmi *vc4_hdmi,
-		       struct drm_display_mode *mode);
+		       struct vc4_hdmi_connector_state *vc4_conn_state);
 void vc4_hdmi_phy_disable(struct vc4_hdmi *vc4_hdmi);
 void vc4_hdmi_phy_rng_enable(struct vc4_hdmi *vc4_hdmi);
 void vc4_hdmi_phy_rng_disable(struct vc4_hdmi *vc4_hdmi);
 
 void vc5_hdmi_phy_init(struct vc4_hdmi *vc4_hdmi,
-		       struct drm_display_mode *mode);
+		       struct vc4_hdmi_connector_state *vc4_conn_state);
 void vc5_hdmi_phy_disable(struct vc4_hdmi *vc4_hdmi);
 void vc5_hdmi_phy_rng_enable(struct vc4_hdmi *vc4_hdmi);
 void vc5_hdmi_phy_rng_disable(struct vc4_hdmi *vc4_hdmi);

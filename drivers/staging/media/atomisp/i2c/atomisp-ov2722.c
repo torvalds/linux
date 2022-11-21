@@ -49,8 +49,8 @@ static int ov2722_read_reg(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	if (data_length != OV2722_8BIT && data_length != OV2722_16BIT
-	    && data_length != OV2722_32BIT) {
+	if (data_length != OV2722_8BIT && data_length != OV2722_16BIT &&
+	    data_length != OV2722_32BIT) {
 		dev_err(&client->dev, "%s error, invalid data length\n",
 			__func__);
 		return -EINVAL;
@@ -212,8 +212,8 @@ static int __ov2722_buf_reg_array(struct i2c_client *client,
 }
 
 static int __ov2722_write_reg_is_consecutive(struct i2c_client *client,
-	struct ov2722_write_ctrl *ctrl,
-	const struct ov2722_reg *next)
+					     struct ov2722_write_ctrl *ctrl,
+					     const struct ov2722_reg *next)
 {
 	if (ctrl->index == 0)
 		return 1;
@@ -557,7 +557,7 @@ static int ov2722_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		ret = ov2722_g_fnumber_range(&dev->sd, &ctrl->val);
 		break;
 	case V4L2_CID_LINK_FREQ:
-		val = ov2722_res[dev->fmt_idx].mipi_freq;
+		val = dev->res->mipi_freq;
 		if (val == 0)
 			return -EINVAL;
 
@@ -774,82 +774,12 @@ static int ov2722_s_power(struct v4l2_subdev *sd, int on)
 
 	if (on == 0)
 		return power_down(sd);
-	else {
-		ret = power_up(sd);
-		if (!ret)
-			return ov2722_init(sd);
-	}
+
+	ret = power_up(sd);
+	if (!ret)
+		return ov2722_init(sd);
+
 	return ret;
-}
-
-/*
- * distance - calculate the distance
- * @res: resolution
- * @w: width
- * @h: height
- *
- * Get the gap between resolution and w/h.
- * res->width/height smaller than w/h wouldn't be considered.
- * Returns the value of gap or -1 if fail.
- */
-#define LARGEST_ALLOWED_RATIO_MISMATCH 800
-static int distance(struct ov2722_resolution *res, u32 w, u32 h)
-{
-	unsigned int w_ratio = (res->width << 13) / w;
-	unsigned int h_ratio;
-	int match;
-
-	if (h == 0)
-		return -1;
-	h_ratio = (res->height << 13) / h;
-	if (h_ratio == 0)
-		return -1;
-	match   = abs(((w_ratio << 13) / h_ratio) - 8192);
-
-	if ((w_ratio < 8192) || (h_ratio < 8192) ||
-	    (match > LARGEST_ALLOWED_RATIO_MISMATCH))
-		return -1;
-
-	return w_ratio + h_ratio;
-}
-
-/* Return the nearest higher resolution index */
-static int nearest_resolution_index(int w, int h)
-{
-	int i;
-	int idx = -1;
-	int dist;
-	int min_dist = INT_MAX;
-	struct ov2722_resolution *tmp_res = NULL;
-
-	for (i = 0; i < N_RES; i++) {
-		tmp_res = &ov2722_res[i];
-		dist = distance(tmp_res, w, h);
-		if (dist == -1)
-			continue;
-		if (dist < min_dist) {
-			min_dist = dist;
-			idx = i;
-		}
-	}
-
-	return idx;
-}
-
-static int get_resolution_index(int w, int h)
-{
-	int i;
-
-	for (i = 0; i < N_RES; i++) {
-		if (w != ov2722_res[i].width)
-			continue;
-		if (h != ov2722_res[i].height)
-			continue;
-
-		return i;
-	}
-
-	return -1;
 }
 
 /* TODO: remove it. */
@@ -866,7 +796,7 @@ static int startup(struct v4l2_subdev *sd)
 		return ret;
 	}
 
-	ret = ov2722_write_reg_array(client, ov2722_res[dev->fmt_idx].regs);
+	ret = ov2722_write_reg_array(client, dev->res->regs);
 	if (ret) {
 		dev_err(&client->dev, "ov2722 write register err.\n");
 		return ret;
@@ -876,15 +806,15 @@ static int startup(struct v4l2_subdev *sd)
 }
 
 static int ov2722_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct ov2722_device *dev = to_ov2722_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct ov2722_resolution *res;
 	struct camera_mipi_info *ov2722_info = NULL;
 	int ret = 0;
-	int idx;
 
 	if (format->pad)
 		return -EINVAL;
@@ -895,31 +825,26 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	mutex_lock(&dev->input_lock);
-	idx = nearest_resolution_index(fmt->width, fmt->height);
-	if (idx == -1) {
-		/* return the largest resolution */
-		fmt->width = ov2722_res[N_RES - 1].width;
-		fmt->height = ov2722_res[N_RES - 1].height;
-	} else {
-		fmt->width = ov2722_res[idx].width;
-		fmt->height = ov2722_res[idx].height;
-	}
+	res = v4l2_find_nearest_size(ov2722_res_preview,
+				     ARRAY_SIZE(ov2722_res_preview), width,
+				     height, fmt->width, fmt->height);
+	if (!res)
+		res = &ov2722_res_preview[N_RES - 1];
+
+	fmt->width = res->width;
+	fmt->height = res->height;
+	dev->res = res;
+
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		cfg->try_fmt = *fmt;
+		sd_state->pads->try_fmt = *fmt;
 		mutex_unlock(&dev->input_lock);
 		return 0;
 	}
 
-	dev->fmt_idx = get_resolution_index(fmt->width, fmt->height);
-	if (dev->fmt_idx == -1) {
-		dev_err(&client->dev, "get resolution fail\n");
-		mutex_unlock(&dev->input_lock);
-		return -EINVAL;
-	}
 
-	dev->pixels_per_line = ov2722_res[dev->fmt_idx].pixels_per_line;
-	dev->lines_per_frame = ov2722_res[dev->fmt_idx].lines_per_frame;
+	dev->pixels_per_line = dev->res->pixels_per_line;
+	dev->lines_per_frame = dev->res->lines_per_frame;
 
 	ret = startup(sd);
 	if (ret) {
@@ -950,8 +875,7 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 		}
 	}
 
-	ret = ov2722_get_intg_factor(client, ov2722_info,
-				     &ov2722_res[dev->fmt_idx]);
+	ret = ov2722_get_intg_factor(client, ov2722_info, dev->res);
 	if (ret)
 		dev_err(&client->dev, "failed to get integration_factor\n");
 
@@ -961,7 +885,7 @@ err:
 }
 
 static int ov2722_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
@@ -972,8 +896,8 @@ static int ov2722_get_fmt(struct v4l2_subdev *sd,
 	if (!fmt)
 		return -EINVAL;
 
-	fmt->width = ov2722_res[dev->fmt_idx].width;
-	fmt->height = ov2722_res[dev->fmt_idx].height;
+	fmt->width = dev->res->width;
+	fmt->height = dev->res->height;
 	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
 
 	return 0;
@@ -1098,13 +1022,13 @@ static int ov2722_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov2722_device *dev = to_ov2722_sensor(sd);
 
 	interval->interval.numerator = 1;
-	interval->interval.denominator = ov2722_res[dev->fmt_idx].fps;
+	interval->interval.denominator = dev->res->fps;
 
 	return 0;
 }
 
 static int ov2722_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= MAX_FMTS)
@@ -1115,7 +1039,7 @@ static int ov2722_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov2722_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	int index = fse->index;
@@ -1136,7 +1060,7 @@ static int ov2722_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 	struct ov2722_device *dev = to_ov2722_sensor(sd);
 
 	mutex_lock(&dev->input_lock);
-	*frames = ov2722_res[dev->fmt_idx].skip_frames;
+	*frames = dev->res->skip_frames;
 	mutex_unlock(&dev->input_lock);
 
 	return 0;
@@ -1174,8 +1098,6 @@ static int ov2722_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov2722_device *dev = to_ov2722_sensor(sd);
-
-	dev_dbg(&client->dev, "ov2722_remove...\n");
 
 	dev->platform_data->csi_cfg(sd, 0);
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
@@ -1222,7 +1144,7 @@ static int ov2722_probe(struct i2c_client *client)
 
 	mutex_init(&dev->input_lock);
 
-	dev->fmt_idx = 0;
+	dev->res = &ov2722_res_preview[0];
 	v4l2_i2c_subdev_init(&dev->sd, client, &ov2722_ops);
 
 	ovpdev = gmin_camera_platform_data(&dev->sd,

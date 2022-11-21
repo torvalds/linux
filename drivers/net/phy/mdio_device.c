@@ -77,7 +77,7 @@ int mdio_device_register(struct mdio_device *mdiodev)
 {
 	int err;
 
-	dev_dbg(&mdiodev->dev, "mdio_device_register\n");
+	dev_dbg(&mdiodev->dev, "%s\n", __func__);
 
 	err = mdiobus_register_device(mdiodev);
 	if (err)
@@ -179,6 +179,16 @@ static int mdio_remove(struct device *dev)
 	return 0;
 }
 
+static void mdio_shutdown(struct device *dev)
+{
+	struct mdio_device *mdiodev = to_mdio_device(dev);
+	struct device_driver *drv = mdiodev->dev.driver;
+	struct mdio_driver *mdiodrv = to_mdio_driver(drv);
+
+	if (mdiodrv->shutdown)
+		mdiodrv->shutdown(mdiodev);
+}
+
 /**
  * mdio_driver_register - register an mdio_driver with the MDIO layer
  * @drv: new mdio_driver to register
@@ -188,11 +198,12 @@ int mdio_driver_register(struct mdio_driver *drv)
 	struct mdio_driver_common *mdiodrv = &drv->mdiodrv;
 	int retval;
 
-	pr_debug("mdio_driver_register: %s\n", mdiodrv->driver.name);
+	pr_debug("%s: %s\n", __func__, mdiodrv->driver.name);
 
 	mdiodrv->driver.bus = &mdio_bus_type;
 	mdiodrv->driver.probe = mdio_probe;
 	mdiodrv->driver.remove = mdio_remove;
+	mdiodrv->driver.shutdown = mdio_shutdown;
 
 	retval = driver_register(&mdiodrv->driver);
 	if (retval) {

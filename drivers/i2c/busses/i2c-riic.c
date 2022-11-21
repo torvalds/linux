@@ -42,8 +42,10 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 
 #define RIIC_ICCR1	0x00
 #define RIIC_ICCR2	0x04
@@ -389,12 +391,18 @@ static struct riic_irq_desc riic_irqs[] = {
 	{ .res_num = 5, .isr = riic_tend_isr, .name = "riic-nack" },
 };
 
+static void riic_reset_control_assert(void *data)
+{
+	reset_control_assert(data);
+}
+
 static int riic_i2c_probe(struct platform_device *pdev)
 {
 	struct riic_dev *riic;
 	struct i2c_adapter *adap;
 	struct resource *res;
 	struct i2c_timings i2c_t;
+	struct reset_control *rstc;
 	int i, ret;
 
 	riic = devm_kzalloc(&pdev->dev, sizeof(*riic), GFP_KERNEL);
@@ -412,13 +420,26 @@ static int riic_i2c_probe(struct platform_device *pdev)
 		return PTR_ERR(riic->clk);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(riic_irqs); i++) {
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, riic_irqs[i].res_num);
-		if (!res)
-			return -ENODEV;
+	rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
+	if (IS_ERR(rstc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rstc),
+				     "Error: missing reset ctrl\n");
 
-		ret = devm_request_irq(&pdev->dev, res->start, riic_irqs[i].isr,
-					0, riic_irqs[i].name, riic);
+	ret = reset_control_deassert(rstc);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&pdev->dev, riic_reset_control_assert, rstc);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(riic_irqs); i++) {
+		ret = platform_get_irq(pdev, riic_irqs[i].res_num);
+		if (ret < 0)
+			return ret;
+
+		ret = devm_request_irq(&pdev->dev, ret, riic_irqs[i].isr,
+				       0, riic_irqs[i].name, riic);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to request irq %s\n", riic_irqs[i].name);
 			return ret;
@@ -472,7 +493,7 @@ static int riic_i2c_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id riic_i2c_dt_ids[] = {
-	{ .compatible = "renesas,riic-rz" },
+	{ .compatible = "renesas,riic-rz", },
 	{ /* Sentinel */ },
 };
 

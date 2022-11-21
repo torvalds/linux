@@ -2,9 +2,7 @@
 generic-y += early_ioremap.h
 generic-y += extable.h
 generic-y += flat.h
-generic-y += local64.h
 generic-y += parport.h
-generic-y += seccomp.h
 
 generated-y += mach-types.h
 generated-y += unistd-nr.h

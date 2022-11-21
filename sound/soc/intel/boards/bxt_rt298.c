@@ -468,7 +468,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.no_pcm = 1,
 		.init = broxton_rt298_codec_init,
 		.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_NB_NF |
-						SND_SOC_DAIFMT_CBS_CFS,
+						SND_SOC_DAIFMT_CBC_CFC,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = broxton_ssp5_fixup,
 		.ops = &broxton_rt298_ops,
@@ -628,7 +628,7 @@ static int broxton_audio_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 	snd_soc_card_set_drvdata(card, ctx);
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	mach = pdev->dev.platform_data;
 	platform_name = mach->mach_params.platform;
 
@@ -649,6 +649,7 @@ static const struct platform_device_id bxt_board_ids[] = {
 				(unsigned long)&geminilake_rt298 },
 	{}
 };
+MODULE_DEVICE_TABLE(platform, bxt_board_ids);
 
 static struct platform_driver broxton_audio = {
 	.probe = broxton_audio_probe,
@@ -665,5 +666,4 @@ MODULE_AUTHOR("Ramesh Babu <Ramesh.Babu@intel.com>");
 MODULE_AUTHOR("Senthilnathan Veppur <senthilnathanx.veppur@intel.com>");
 MODULE_DESCRIPTION("Intel SST Audio for Broxton");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:bxt_alc298s_i2s");
-MODULE_ALIAS("platform:glk_alc298s_i2s");
+MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);

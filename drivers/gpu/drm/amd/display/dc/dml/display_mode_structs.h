@@ -74,6 +74,8 @@ struct _vcs_dpi_soc_bounding_box_st {
 	unsigned int num_states;
 	double sr_exit_time_us;
 	double sr_enter_plus_exit_time_us;
+	double sr_exit_z8_time_us;
+	double sr_enter_plus_exit_z8_time_us;
 	double urgent_latency_us;
 	double urgent_latency_pixel_data_only_us;
 	double urgent_latency_pixel_mixed_with_vm_data_us;
@@ -126,9 +128,7 @@ struct _vcs_dpi_soc_bounding_box_st {
 
 struct _vcs_dpi_ip_params_st {
 	bool use_min_dcfclk;
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	bool clamp_min_dcfclk;
-#endif
 	bool gpuvm_enable;
 	bool hostvm_enable;
 	bool dsc422_native_support;
@@ -141,6 +141,7 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int odm_capable;
 	unsigned int rob_buffer_size_kbytes;
 	unsigned int det_buffer_size_kbytes;
+	unsigned int min_comp_buffer_size_kbytes;
 	unsigned int dpte_buffer_size_in_pte_reqs_luma;
 	unsigned int dpte_buffer_size_in_pte_reqs_chroma;
 	unsigned int pde_proc_buffer_size_64k_reqs;
@@ -166,7 +167,7 @@ struct _vcs_dpi_ip_params_st {
 	double writeback_max_vscl_ratio;
 	double writeback_min_hscl_ratio;
 	double writeback_min_vscl_ratio;
-	double maximum_dsc_bits_per_component;
+	unsigned int maximum_dsc_bits_per_component;
 	unsigned int writeback_max_hscl_taps;
 	unsigned int writeback_max_vscl_taps;
 	unsigned int writeback_line_buffer_luma_buffer_size;
@@ -211,6 +212,12 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int is_line_buffer_bpp_fixed;
 	unsigned int line_buffer_fixed_bpp;
 	unsigned int dcc_supported;
+	unsigned int config_return_buffer_size_in_kbytes;
+	unsigned int compressed_buffer_segment_size_in_kbytes;
+	unsigned int meta_fifo_size_in_kentries;
+	unsigned int zero_size_buffer_entries;
+	unsigned int compbuf_reserved_space_64b;
+	unsigned int compbuf_reserved_space_zs;
 
 	unsigned int IsLineBufferBppFixed;
 	unsigned int LineBufferFixedBpp;
@@ -255,6 +262,8 @@ struct _vcs_dpi_display_pipe_source_params_st {
 	unsigned int viewport_y_c;
 	unsigned int viewport_width_c;
 	unsigned int viewport_height_c;
+	unsigned int viewport_width_max;
+	unsigned int viewport_height_max;
 	unsigned int data_pitch;
 	unsigned int data_pitch_c;
 	unsigned int meta_pitch;
@@ -294,11 +303,12 @@ struct writeback_st {
 struct _vcs_dpi_display_output_params_st {
 	int dp_lanes;
 	double output_bpp;
+	unsigned int dsc_input_bpc;
 	int dsc_enable;
 	int wb_enable;
 	int num_active_wb;
-	int output_bpc;
 	int output_type;
+	int is_virtual;
 	int output_format;
 	int dsc_slices;
 	int max_audio_sample_rate;
@@ -336,7 +346,6 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned int vblank_end;
 	unsigned int htotal;
 	unsigned int vtotal;
-	unsigned int refresh_rate;
 	unsigned int vfront_porch;
 	unsigned int vactive;
 	unsigned int hactive;
@@ -347,7 +356,6 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned char interlaced;
 	double pixel_rate_mhz;
 	unsigned char synchronized_vblank_all_planes;
-	unsigned char synchronize_timing_if_single_refresh_rate;
 	unsigned char otg_inst;
 	unsigned int odm_combine;
 	unsigned char use_maximum_vstartup;
@@ -438,6 +446,8 @@ struct _vcs_dpi_display_dlg_regs_st {
 	unsigned int refcyc_h_blank_end;
 	unsigned int dlg_vblank_end;
 	unsigned int min_dst_y_next_start;
+	unsigned int optimized_min_dst_y_next_start;
+	unsigned int optimized_min_dst_y_next_start_us;
 	unsigned int refcyc_per_htotal;
 	unsigned int refcyc_x_after_scaler;
 	unsigned int dst_y_after_scaler;
@@ -529,6 +539,8 @@ struct _vcs_dpi_display_rq_regs_st {
 	unsigned int mrq_expansion_mode;
 	unsigned int crq_expansion_mode;
 	unsigned int plane1_base_address;
+	unsigned int aperture_low_addr;   // bits [47:18]
+	unsigned int aperture_high_addr;  // bits [47:18]
 };
 
 struct _vcs_dpi_display_dlg_sys_params_st {
@@ -537,7 +549,6 @@ struct _vcs_dpi_display_dlg_sys_params_st {
 	double t_sr_wm_us;
 	double t_extra_us;
 	double mem_trip_us;
-	double t_srx_delay_us;
 	double deepsleep_dcfclk_mhz;
 	double total_flip_bw;
 	unsigned int total_flip_bytes;

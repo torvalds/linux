@@ -162,18 +162,15 @@ static int stm32_iwdg_clk_init(struct platform_device *pdev,
 	u32 ret;
 
 	wdt->clk_lsi = devm_clk_get(dev, "lsi");
-	if (IS_ERR(wdt->clk_lsi)) {
-		dev_err(dev, "Unable to get lsi clock\n");
-		return PTR_ERR(wdt->clk_lsi);
-	}
+	if (IS_ERR(wdt->clk_lsi))
+		return dev_err_probe(dev, PTR_ERR(wdt->clk_lsi), "Unable to get lsi clock\n");
 
 	/* optional peripheral clock */
 	if (wdt->data->has_pclk) {
 		wdt->clk_pclk = devm_clk_get(dev, "pclk");
-		if (IS_ERR(wdt->clk_pclk)) {
-			dev_err(dev, "Unable to get pclk clock\n");
-			return PTR_ERR(wdt->clk_pclk);
-		}
+		if (IS_ERR(wdt->clk_pclk))
+			return dev_err_probe(dev, PTR_ERR(wdt->clk_pclk),
+					     "Unable to get pclk clock\n");
 
 		ret = clk_prepare_enable(wdt->clk_pclk);
 		if (ret) {
@@ -240,10 +237,8 @@ static int stm32_iwdg_probe(struct platform_device *pdev)
 
 	/* This is the timer base. */
 	wdt->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(wdt->regs)) {
-		dev_err(dev, "Could not get resource\n");
+	if (IS_ERR(wdt->regs))
 		return PTR_ERR(wdt->regs);
-	}
 
 	ret = stm32_iwdg_clk_init(pdev, wdt);
 	if (ret)

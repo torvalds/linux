@@ -64,7 +64,8 @@ static const u32 speedo_to_vmin[] = {
 };
 
 int
-gm20b_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
+gm20b_volt_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_volt **pvolt)
 {
 	struct nvkm_device_tegra *tdev = device->func->tegra(device);
 	struct gk20a_volt *volt;
@@ -84,9 +85,9 @@ gm20b_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
 	vmin = speedo_to_vmin[tdev->gpu_speedo_id];
 
 	if (tdev->gpu_speedo_id >= 1)
-		return gk20a_volt_ctor(device, index, gm20b_na_cvb_coef,
-				     ARRAY_SIZE(gm20b_na_cvb_coef), vmin, volt);
+		return gk20a_volt_ctor(device, type, inst, gm20b_na_cvb_coef,
+				       ARRAY_SIZE(gm20b_na_cvb_coef), vmin, volt);
 	else
-		return gk20a_volt_ctor(device, index, gm20b_cvb_coef,
-					ARRAY_SIZE(gm20b_cvb_coef), vmin, volt);
+		return gk20a_volt_ctor(device, type, inst, gm20b_cvb_coef,
+				       ARRAY_SIZE(gm20b_cvb_coef), vmin, volt);
 }

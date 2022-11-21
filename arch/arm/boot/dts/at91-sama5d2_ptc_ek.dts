@@ -11,6 +11,7 @@
 #include "sama5d2-pinfunc.h"
 #include <dt-bindings/mfd/atmel-flexcom.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/at91.h>
 
 / {
@@ -92,12 +93,12 @@
 							reg = <0x40000 0xc0000>;
 						};
 
-						bootloaderenvred@0x100000 {
+						bootloaderenvred@100000 {
 							label = "bootloader env redundant";
 							reg = <0x100000 0x40000>;
 						};
 
-						bootloaderenv@0x140000 {
+						bootloaderenv@140000 {
 							label = "bootloader env";
 							reg = <0x140000 0x40000>;
 						};
@@ -202,11 +203,10 @@
 			};
 
 			shdwc@f8048010 {
-				atmel,shdwc-debouncer = <976>;
+				debounce-delay-us = <976>;
 
 				input@0 {
 					reg = <0>;
-					atmel,wakeup-type = "low";
 				};
 			};
 
@@ -403,7 +403,7 @@
 		bp1 {
 			label = "PB_USER";
 			gpios = <&pioA PIN_PA10 GPIO_ACTIVE_LOW>;
-			linux,code = <0x104>;
+			linux,code = <KEY_PROG1>;
 			wakeup-source;
 		};
 	};

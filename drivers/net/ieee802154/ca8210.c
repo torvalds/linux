@@ -316,6 +316,7 @@ struct cas_control {
  * struct ca8210_test - ca8210 test interface structure
  * @ca8210_dfs_spi_int: pointer to the entry in the debug fs for this device
  * @up_fifo:            fifo for upstream messages
+ * @readq:              read wait queue
  *
  * This structure stores all the data pertaining to the debug interface
  */
@@ -346,12 +347,12 @@ struct ca8210_test {
  * @ca8210_is_awake:        nonzero if ca8210 is initialised, ready for comms
  * @sync_down:              counts number of downstream synchronous commands
  * @sync_up:                counts number of upstream synchronous commands
- * @spi_transfer_complete   completion object for a single spi_transfer
- * @sync_exchange_complete  completion object for a complete synchronous API
- *                           exchange
- * @promiscuous             whether the ca8210 is in promiscuous mode or not
+ * @spi_transfer_complete:  completion object for a single spi_transfer
+ * @sync_exchange_complete: completion object for a complete synchronous API
+ *                          exchange
+ * @promiscuous:            whether the ca8210 is in promiscuous mode or not
  * @retries:                records how many times the current pending spi
- *                           transfer has been retried
+ *                          transfer has been retried
  */
 struct ca8210_priv {
 	struct spi_device *spi;
@@ -420,8 +421,8 @@ struct fulladdr {
 
 /**
  * union macaddr: generic MAC address container
- * @short_addr:   16-bit short address
- * @ieee_address: 64-bit extended address as LE byte array
+ * @short_address: 16-bit short address
+ * @ieee_address:  64-bit extended address as LE byte array
  *
  */
 union macaddr {
@@ -714,7 +715,7 @@ static void ca8210_mlme_reset_worker(struct work_struct *work)
 /**
  * ca8210_rx_done() - Calls various message dispatches responding to a received
  *                    command
- * @arg:  Pointer to the cas_control object for the relevant spi transfer
+ * @cas_ctl: Pointer to the cas_control object for the relevant spi transfer
  *
  * Presents a received SAP command from the ca8210 to the Cascoda EVBME, test
  * interface and network driver.
@@ -830,7 +831,7 @@ static void ca8210_rx_done(struct cas_control *cas_ctl)
 finish:;
 }
 
-static int ca8210_remove(struct spi_device *spi_device);
+static void ca8210_remove(struct spi_device *spi_device);
 
 /**
  * ca8210_spi_transfer_complete() - Called when a single spi transfer has
@@ -1277,7 +1278,6 @@ static u8 tdme_channelinit(u8 channel, void *device_ref)
  * @pib_attribute:        Attribute Number
  * @pib_attribute_length: Attribute length
  * @pib_attribute_value:  Pointer to Attribute Value
- * @device_ref:           Nondescript pointer to target device
  *
  * Return: 802.15.4 status code of checks
  */
@@ -1771,6 +1771,7 @@ static int ca8210_async_xmit_complete(
 			status
 		);
 		if (status != MAC_TRANSACTION_OVERFLOW) {
+			dev_kfree_skb_any(priv->tx_skb);
 			ieee802154_wake_queue(priv->hw);
 			return 0;
 		}
@@ -2938,9 +2939,7 @@ static int ca8210_dev_com_init(struct ca8210_priv *priv)
  */
 static void ca8210_dev_com_clear(struct ca8210_priv *priv)
 {
-	flush_workqueue(priv->mlme_workqueue);
 	destroy_workqueue(priv->mlme_workqueue);
-	flush_workqueue(priv->irq_workqueue);
 	destroy_workqueue(priv->irq_workqueue);
 }
 
@@ -2976,8 +2975,8 @@ static void ca8210_hw_setup(struct ieee802154_hw *ca8210_hw)
 	ca8210_hw->phy->cca.opt = NL802154_CCA_OPT_ENERGY_CARRIER_AND;
 	ca8210_hw->phy->cca_ed_level = -9800;
 	ca8210_hw->phy->symbol_duration = 16;
-	ca8210_hw->phy->lifs_period = 40;
-	ca8210_hw->phy->sifs_period = 12;
+	ca8210_hw->phy->lifs_period = 40 * ca8210_hw->phy->symbol_duration;
+	ca8210_hw->phy->sifs_period = 12 * ca8210_hw->phy->symbol_duration;
 	ca8210_hw->flags =
 		IEEE802154_HW_AFILT |
 		IEEE802154_HW_OMIT_CKSUM |
@@ -3046,11 +3045,11 @@ static void ca8210_test_interface_clear(struct ca8210_priv *priv)
 
 /**
  * ca8210_remove() - Shut down a ca8210 upon being disconnected
- * @priv:  Pointer to private data structure
+ * @spi_device:  Pointer to spi device data structure
  *
  * Return: 0 or linux error code
  */
-static int ca8210_remove(struct spi_device *spi_device)
+static void ca8210_remove(struct spi_device *spi_device)
 {
 	struct ca8210_priv *priv;
 	struct ca8210_platform_data *pdata;
@@ -3090,13 +3089,11 @@ static int ca8210_remove(struct spi_device *spi_device)
 		if (IS_ENABLED(CONFIG_IEEE802154_CA8210_DEBUGFS))
 			ca8210_test_interface_clear(priv);
 	}
-
-	return 0;
 }
 
 /**
  * ca8210_probe() - Set up a connected ca8210 upon being detected by the system
- * @priv:  Pointer to private data structure
+ * @spi_device:  Pointer to spi device data structure
  *
  * Return: 0 or linux error code
  */

@@ -248,33 +248,30 @@ static int ad7766_probe(struct spi_device *spi)
 
 	if (spi->irq > 0) {
 		ad7766->trig = devm_iio_trigger_alloc(&spi->dev, "%s-dev%d",
-			indio_dev->name, indio_dev->id);
+						      indio_dev->name,
+						      iio_device_id(indio_dev));
 		if (!ad7766->trig)
 			return -ENOMEM;
 
 		ad7766->trig->ops = &ad7766_trigger_ops;
-		ad7766->trig->dev.parent = &spi->dev;
 		iio_trigger_set_drvdata(ad7766->trig, ad7766);
-
-		ret = devm_request_irq(&spi->dev, spi->irq, ad7766_irq,
-			IRQF_TRIGGER_FALLING, dev_name(&spi->dev),
-			ad7766->trig);
-		if (ret < 0)
-			return ret;
 
 		/*
 		 * The device generates interrupts as long as it is powered up.
 		 * Some platforms might not allow the option to power it down so
-		 * disable the interrupt to avoid extra load on the system
+		 * don't enable the interrupt to avoid extra load on the system
 		 */
-		disable_irq(spi->irq);
+		ret = devm_request_irq(&spi->dev, spi->irq, ad7766_irq,
+				       IRQF_TRIGGER_FALLING | IRQF_NO_AUTOEN,
+				       dev_name(&spi->dev),
+				       ad7766->trig);
+		if (ret < 0)
+			return ret;
 
 		ret = devm_iio_trigger_register(&spi->dev, ad7766->trig);
 		if (ret)
 			return ret;
 	}
-
-	spi_set_drvdata(spi, indio_dev);
 
 	ad7766->spi = spi;
 
@@ -291,10 +288,7 @@ static int ad7766_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = devm_iio_device_register(&spi->dev, indio_dev);
-	if (ret)
-		return ret;
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad7766_id[] = {

@@ -55,17 +55,26 @@ unsigned int dcn30_calc_max_scaled_time(
 
 bool dcn30_validate_bandwidth(struct dc *dc, struct dc_state *context,
 		bool fast_validate);
+bool dcn30_internal_validate_bw(
+		struct dc *dc,
+		struct dc_state *context,
+		display_e2e_pipe_params_st *pipes,
+		int *pipe_cnt_out,
+		int *vlevel_out,
+		bool fast_validate);
 void dcn30_calculate_wm_and_dlg(
 		struct dc *dc, struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt,
 		int vlevel);
+void dcn30_update_soc_for_wm_a(struct dc *dc, struct dc_state *context);
 void dcn30_populate_dml_writeback_from_context(
 		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes);
 
 int dcn30_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
-	display_e2e_pipe_params_st *pipes);
+	display_e2e_pipe_params_st *pipes,
+	bool fast_validate);
 
 bool dcn30_acquire_post_bldn_3dlut(
 		struct resource_context *res_ctx,

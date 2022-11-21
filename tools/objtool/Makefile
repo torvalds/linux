@@ -3,15 +3,6 @@ include ../scripts/Makefile.include
 include ../scripts/Makefile.arch
 
 # always use the host compiler
-ifneq ($(LLVM),)
-HOSTAR	?= llvm-ar
-HOSTCC	?= clang
-HOSTLD	?= ld.lld
-else
-HOSTAR	?= ar
-HOSTCC	?= gcc
-HOSTLD	?= ld
-endif
 AR	 = $(HOSTAR)
 CC	 = $(HOSTCC)
 LD	 = $(HOSTLD)
@@ -22,7 +13,7 @@ srctree := $(patsubst %/,%,$(dir $(srctree)))
 endif
 
 SUBCMD_SRCDIR		= $(srctree)/tools/lib/subcmd/
-LIBSUBCMD_OUTPUT	= $(if $(OUTPUT),$(OUTPUT),$(CURDIR)/)
+LIBSUBCMD_OUTPUT	= $(or $(OUTPUT),$(CURDIR)/)
 LIBSUBCMD		= $(LIBSUBCMD_OUTPUT)libsubcmd.a
 
 OBJTOOL    := $(OUTPUT)objtool
@@ -36,6 +27,7 @@ all: $(OBJTOOL)
 INCLUDES := -I$(srctree)/tools/include \
 	    -I$(srctree)/tools/arch/$(HOSTARCH)/include/uapi \
 	    -I$(srctree)/tools/arch/$(SRCARCH)/include	\
+	    -I$(srctree)/tools/objtool/include \
 	    -I$(srctree)/tools/objtool/arch/$(SRCARCH)/include
 WARNINGS := $(EXTRA_WARNINGS) -Wno-switch-default -Wno-switch-enum -Wno-packed -Wno-nested-externs
 CFLAGS   := -Werror $(WARNINGS) $(KBUILD_HOSTCFLAGS) -g $(INCLUDES) $(LIBELF_FLAGS)
@@ -53,10 +45,6 @@ SUBCMD_ORC := n
 ifeq ($(SRCARCH),x86)
 	SUBCMD_CHECK := y
 	SUBCMD_ORC := y
-endif
-
-ifeq ($(SUBCMD_ORC),y)
-	CFLAGS += -DINSN_USE_ORC
 endif
 
 export SUBCMD_CHECK SUBCMD_ORC

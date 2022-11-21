@@ -53,7 +53,7 @@ void icc_bulk_put(int num_paths, struct icc_bulk_data *paths)
 EXPORT_SYMBOL_GPL(icc_bulk_put);
 
 /**
- * icc_bulk_set() - set bandwidth to a set of paths
+ * icc_bulk_set_bw() - set bandwidth to a set of paths
  * @num_paths: the number of icc_bulk_data
  * @paths: the icc_bulk_data table containing the paths and bandwidth
  *

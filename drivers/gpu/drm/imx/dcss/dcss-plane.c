@@ -6,7 +6,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 
 #include "dcss-dev.h"
@@ -103,15 +103,15 @@ static bool dcss_plane_can_rotate(const struct drm_format_info *format,
 				  bool mod_present, u64 modifier,
 				  unsigned int rotation)
 {
-	bool linear_format = !mod_present ||
-			     (mod_present && modifier == DRM_FORMAT_MOD_LINEAR);
+	bool linear_format = !mod_present || modifier == DRM_FORMAT_MOD_LINEAR;
 	u32 supported_rotation = DRM_MODE_ROTATE_0;
 
 	if (!format->is_yuv && linear_format)
 		supported_rotation = DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180 |
 				     DRM_MODE_REFLECT_MASK;
 	else if (!format->is_yuv &&
-		 modifier == DRM_FORMAT_MOD_VIVANTE_TILED)
+		 (modifier == DRM_FORMAT_MOD_VIVANTE_TILED ||
+		  modifier == DRM_FORMAT_MOD_VIVANTE_SUPER_TILED))
 		supported_rotation = DRM_MODE_ROTATE_MASK |
 				     DRM_MODE_REFLECT_MASK;
 	else if (format->is_yuv && linear_format &&
@@ -137,11 +137,13 @@ static bool dcss_plane_is_source_size_allowed(u16 src_w, u16 src_h, u32 pix_fmt)
 }
 
 static int dcss_plane_atomic_check(struct drm_plane *plane,
-				   struct drm_plane_state *state)
+				   struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct dcss_plane *dcss_plane = to_dcss_plane(plane);
 	struct dcss_dev *dcss = plane->dev->dev_private;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = new_plane_state->fb;
 	bool is_primary_plane = plane->type == DRM_PLANE_TYPE_PRIMARY;
 	struct drm_gem_cma_object *cma_obj;
 	struct drm_crtc_state *crtc_state;
@@ -149,20 +151,20 @@ static int dcss_plane_atomic_check(struct drm_plane *plane,
 	int min, max;
 	int ret;
 
-	if (!fb || !state->crtc)
+	if (!fb || !new_plane_state->crtc)
 		return 0;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	WARN_ON(!cma_obj);
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
-							state->crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(state,
+							new_plane_state->crtc);
 
 	hdisplay = crtc_state->adjusted_mode.hdisplay;
 	vdisplay = crtc_state->adjusted_mode.vdisplay;
 
-	if (!dcss_plane_is_source_size_allowed(state->src_w >> 16,
-					       state->src_h >> 16,
+	if (!dcss_plane_is_source_size_allowed(new_plane_state->src_w >> 16,
+					       new_plane_state->src_h >> 16,
 					       fb->format->format)) {
 		DRM_DEBUG_KMS("Source plane size is not allowed!\n");
 		return -EINVAL;
@@ -171,26 +173,26 @@ static int dcss_plane_atomic_check(struct drm_plane *plane,
 	dcss_scaler_get_min_max_ratios(dcss->scaler, dcss_plane->ch_num,
 				       &min, &max);
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  min, max, !is_primary_plane,
 						  false);
 	if (ret)
 		return ret;
 
-	if (!state->visible)
+	if (!new_plane_state->visible)
 		return 0;
 
 	if (!dcss_plane_can_rotate(fb->format,
 				   !!(fb->flags & DRM_MODE_FB_MODIFIERS),
 				   fb->modifier,
-				   state->rotation)) {
+				   new_plane_state->rotation)) {
 		DRM_DEBUG_KMS("requested rotation is not allowed!\n");
 		return -EINVAL;
 	}
 
-	if ((state->crtc_x < 0 || state->crtc_y < 0 ||
-	     state->crtc_x + state->crtc_w > hdisplay ||
-	     state->crtc_y + state->crtc_h > vdisplay) &&
+	if ((new_plane_state->crtc_x < 0 || new_plane_state->crtc_y < 0 ||
+	     new_plane_state->crtc_x + new_plane_state->crtc_w > hdisplay ||
+	     new_plane_state->crtc_y + new_plane_state->crtc_h > vdisplay) &&
 	    !dcss_plane_fb_is_linear(fb)) {
 		DRM_DEBUG_KMS("requested cropping operation is not allowed!\n");
 		return -EINVAL;
@@ -257,32 +259,35 @@ static bool dcss_plane_needs_setup(struct drm_plane_state *state,
 	       state->src_h  != old_state->src_h  ||
 	       fb->format->format != old_fb->format->format ||
 	       fb->modifier  != old_fb->modifier ||
-	       state->rotation != old_state->rotation;
+	       state->rotation != old_state->rotation ||
+	       state->scaling_filter != old_state->scaling_filter;
 }
 
 static void dcss_plane_atomic_update(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
+				     struct drm_atomic_state *state)
 {
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct dcss_plane *dcss_plane = to_dcss_plane(plane);
 	struct dcss_dev *dcss = plane->dev->dev_private;
-	struct drm_framebuffer *fb = state->fb;
-	u32 pixel_format;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_crtc_state *crtc_state;
 	bool modifiers_present;
 	u32 src_w, src_h, dst_w, dst_h;
 	struct drm_rect src, dst;
 	bool enable = true;
+	bool is_rotation_90_or_270;
 
-	if (!fb || !state->crtc || !state->visible)
+	if (!fb || !new_state->crtc || !new_state->visible)
 		return;
 
-	pixel_format = state->fb->format->format;
-	crtc_state = state->crtc->state;
+	crtc_state = new_state->crtc->state;
 	modifiers_present = !!(fb->flags & DRM_MODE_FB_MODIFIERS);
 
 	if (old_state->fb && !drm_atomic_crtc_needs_modeset(crtc_state) &&
-	    !dcss_plane_needs_setup(state, old_state)) {
+	    !dcss_plane_needs_setup(new_state, old_state)) {
 		dcss_plane_atomic_set_base(dcss_plane);
 		return;
 	}
@@ -302,26 +307,35 @@ static void dcss_plane_atomic_update(struct drm_plane *plane,
 	    modifiers_present && fb->modifier == DRM_FORMAT_MOD_LINEAR)
 		modifiers_present = false;
 
-	dcss_dpr_format_set(dcss->dpr, dcss_plane->ch_num, state->fb->format,
+	dcss_dpr_format_set(dcss->dpr, dcss_plane->ch_num,
+			    new_state->fb->format,
 			    modifiers_present ? fb->modifier :
 						DRM_FORMAT_MOD_LINEAR);
 	dcss_dpr_set_res(dcss->dpr, dcss_plane->ch_num, src_w, src_h);
 	dcss_dpr_set_rotation(dcss->dpr, dcss_plane->ch_num,
-			      state->rotation);
+			      new_state->rotation);
 
 	dcss_plane_atomic_set_base(dcss_plane);
 
+	is_rotation_90_or_270 = new_state->rotation & (DRM_MODE_ROTATE_90 |
+						   DRM_MODE_ROTATE_270);
+
+	dcss_scaler_set_filter(dcss->scaler, dcss_plane->ch_num,
+			       new_state->scaling_filter);
+
 	dcss_scaler_setup(dcss->scaler, dcss_plane->ch_num,
-			  state->fb->format, src_w, src_h,
+			  new_state->fb->format,
+			  is_rotation_90_or_270 ? src_h : src_w,
+			  is_rotation_90_or_270 ? src_w : src_h,
 			  dst_w, dst_h,
 			  drm_mode_vrefresh(&crtc_state->mode));
 
 	dcss_dtg_plane_pos_set(dcss->dtg, dcss_plane->ch_num,
 			       dst.x1, dst.y1, dst_w, dst_h);
 	dcss_dtg_plane_alpha_set(dcss->dtg, dcss_plane->ch_num,
-				 fb->format, state->alpha >> 8);
+				 fb->format, new_state->alpha >> 8);
 
-	if (!dcss_plane->ch_num && (state->alpha >> 8) == 0)
+	if (!dcss_plane->ch_num && (new_state->alpha >> 8) == 0)
 		enable = false;
 
 	dcss_dpr_enable(dcss->dpr, dcss_plane->ch_num, enable);
@@ -335,7 +349,7 @@ static void dcss_plane_atomic_update(struct drm_plane *plane,
 }
 
 static void dcss_plane_atomic_disable(struct drm_plane *plane,
-				      struct drm_plane_state *old_state)
+				      struct drm_atomic_state *state)
 {
 	struct dcss_plane *dcss_plane = to_dcss_plane(plane);
 	struct dcss_dev *dcss = plane->dev->dev_private;
@@ -347,7 +361,6 @@ static void dcss_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs dcss_plane_helper_funcs = {
-	.prepare_fb = drm_gem_fb_prepare_fb,
 	.atomic_check = dcss_plane_atomic_check,
 	.atomic_update = dcss_plane_atomic_update,
 	.atomic_disable = dcss_plane_atomic_disable,
@@ -389,6 +402,10 @@ struct dcss_plane *dcss_plane_init(struct drm_device *drm,
 	ret = drm_plane_create_zpos_immutable_property(&dcss_plane->base, zpos);
 	if (ret)
 		return ERR_PTR(ret);
+
+	drm_plane_create_scaling_filter_property(&dcss_plane->base,
+					BIT(DRM_SCALING_FILTER_DEFAULT) |
+					BIT(DRM_SCALING_FILTER_NEAREST_NEIGHBOR));
 
 	drm_plane_create_rotation_property(&dcss_plane->base,
 					   DRM_MODE_ROTATE_0,

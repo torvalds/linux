@@ -30,10 +30,10 @@
 #include <linux/atomic.h>
 #include <linux/crc32poly.h>
 #include <linux/semaphore.h>
+#include <linux/ieee80211.h>
 
 #include "osdep_service.h"
 #include "drv_types.h"
-#include "wifi.h"
 #include "osdep_intf.h"
 
 /* =====WEP related===== */
@@ -259,7 +259,7 @@ static void secmicputuint32(u8 *p, u32 val)
 	long i;
 
 	for (i = 0; i < 4; i++) {
-		*p++ = (u8) (val & 0xff);
+		*p++ = (u8)(val & 0xff);
 		val >>= 8;
 	}
 }
@@ -907,8 +907,8 @@ static void construct_mic_iv(u8 *mic_iv, sint qc_exists, sint a4_exists,
 		mic_iv[i] = mpdu[i + 8];
 	for (i = 8; i < 14; i++)
 		mic_iv[i] = pn_vector[13 - i]; /* mic_iv[8:13] = PN[5:0] */
-	mic_iv[14] = (unsigned char) (payload_length / 256);
-	mic_iv[15] = (unsigned char) (payload_length % 256);
+	mic_iv[14] = (unsigned char)(payload_length / 256);
+	mic_iv[15] = (unsigned char)(payload_length % 256);
 }
 
 /************************************************/
@@ -995,8 +995,8 @@ static void construct_ctr_preload(u8 *ctr_preload,
 		ctr_preload[i] = mpdu[i + 8];
 	for (i = 8; i < 14; i++)
 		ctr_preload[i] = pn_vector[13 - i];
-	ctr_preload[14] = (unsigned char) (c / 256); /* Ctr */
-	ctr_preload[15] = (unsigned char) (c % 256);
+	ctr_preload[14] = (unsigned char)(c / 256); /* Ctr */
+	ctr_preload[15] = (unsigned char)(c % 256);
 }
 
 /************************************/
@@ -1045,9 +1045,9 @@ static void aes_cipher(u8 *key, uint hdrlen,
 	else
 		a4_exists = 1;
 
-	if ((frtype == WIFI_DATA_CFACK) ||
-	     (frtype == WIFI_DATA_CFPOLL) ||
-	     (frtype == WIFI_DATA_CFACKPOLL)) {
+	if ((frtype == (IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA_CFACK)) ||
+	    (frtype == (IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA_CFPOLL)) ||
+	    (frtype == (IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA_CFACKPOLL))) {
 		qc_exists = 1;
 		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
 			hdrlen += 2;
@@ -1225,9 +1225,9 @@ static void aes_decipher(u8 *key, uint hdrlen,
 		a4_exists = 0;
 	else
 		a4_exists = 1;
-	if ((frtype == WIFI_DATA_CFACK) ||
-	    (frtype == WIFI_DATA_CFPOLL) ||
-	    (frtype == WIFI_DATA_CFACKPOLL)) {
+	if ((frtype == (IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA_CFACK)) ||
+	    (frtype == (IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA_CFPOLL)) ||
+	    (frtype == (IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA_CFACKPOLL))) {
 		qc_exists = 1;
 		if (hdrlen != WLAN_HDR_A3_QOS_LEN)
 			hdrlen += 2;

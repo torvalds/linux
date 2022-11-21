@@ -30,7 +30,7 @@ struct traffic_shaper_cfg {
 
 /**
  * struct split_pipe_cfg - pipe configuration for dual display panels
- * @en        : Enable/disable dual pipe confguration
+ * @en        : Enable/disable dual pipe configuration
  * @mode      : Panel interface mode
  * @intf      : Interface id for main control path
  * @split_flush_en: Allows both the paths to be flushed when master path is
@@ -76,7 +76,7 @@ struct dpu_vsync_source_cfg {
  * @setup_traffic_shaper : programs traffic shaper control
  */
 struct dpu_hw_mdp_ops {
-	/** setup_split_pipe() : Regsiters are not double buffered, thisk
+	/** setup_split_pipe() : Registers are not double buffered, thisk
 	 * function should be called before timing control enable
 	 * @mdp  : mdp top context driver
 	 * @cfg  : upper and lower part of pipe configuration

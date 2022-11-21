@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2016 NVIDIA Corporation
+ * Copyright (C) 2016-2020 NVIDIA Corporation
  */
 
 #include <linux/clk-provider.h>
@@ -174,7 +174,7 @@ static long tegra_bpmp_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	int err;
 
 	memset(&request, 0, sizeof(request));
-	request.rate = rate;
+	request.rate = min_t(u64, rate, S64_MAX);
 
 	memset(&msg, 0, sizeof(msg));
 	msg.cmd = CMD_CLK_ROUND_RATE;
@@ -256,7 +256,7 @@ static int tegra_bpmp_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct tegra_bpmp_clk_message msg;
 
 	memset(&request, 0, sizeof(request));
-	request.rate = rate;
+	request.rate = min_t(u64, rate, S64_MAX);
 
 	memset(&msg, 0, sizeof(msg));
 	msg.cmd = CMD_CLK_SET_RATE;

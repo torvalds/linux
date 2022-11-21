@@ -351,7 +351,7 @@ static struct snd_soc_dai_link bdw_rt5677_dais[] = {
 		.id = 0,
 		.no_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
+			SND_SOC_DAIFMT_CBC_CFC,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = broadwell_ssp0_fixup,
 		.ops = &bdw_rt5677_ops,
@@ -387,14 +387,12 @@ static int bdw_rt5677_resume_post(struct snd_soc_card *card)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
 /* use space before codec name to simplify card ID, and simplify driver name */
-#define CARD_NAME "bdw rt5677" /* card name will be 'sof-bdw rt5677' */
-#define DRIVER_NAME "SOF"
-#else
+#define SOF_CARD_NAME "bdw rt5677" /* card name will be 'sof-bdw rt5677' */
+#define SOF_DRIVER_NAME "SOF"
+
 #define CARD_NAME "bdw-rt5677"
 #define DRIVER_NAME NULL /* card name will be used for driver name */
-#endif
 
 /* ASoC machine driver for Broadwell DSP + RT5677 */
 static struct snd_soc_card bdw_rt5677_card = {
@@ -425,17 +423,24 @@ static int bdw_rt5677_probe(struct platform_device *pdev)
 	/* Allocate driver private struct */
 	bdw_rt5677 = devm_kzalloc(&pdev->dev, sizeof(struct bdw_rt5677_priv),
 		GFP_KERNEL);
-	if (!bdw_rt5677) {
-		dev_err(&pdev->dev, "Can't allocate bdw_rt5677\n");
+	if (!bdw_rt5677)
 		return -ENOMEM;
-	}
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	mach = pdev->dev.platform_data;
 	ret = snd_soc_fixup_dai_links_platform_name(&bdw_rt5677_card,
 						    mach->mach_params.platform);
 	if (ret)
 		return ret;
+
+	/* set card and driver name */
+	if (snd_soc_acpi_sof_parent(&pdev->dev)) {
+		bdw_rt5677_card.name = SOF_CARD_NAME;
+		bdw_rt5677_card.driver_name = SOF_DRIVER_NAME;
+	} else {
+		bdw_rt5677_card.name = CARD_NAME;
+		bdw_rt5677_card.driver_name = DRIVER_NAME;
+	}
 
 	snd_soc_card_set_drvdata(&bdw_rt5677_card, bdw_rt5677);
 
@@ -446,6 +451,7 @@ static struct platform_driver bdw_rt5677_audio = {
 	.probe = bdw_rt5677_probe,
 	.driver = {
 		.name = "bdw-rt5677",
+		.pm = &snd_soc_pm_ops
 	},
 };
 

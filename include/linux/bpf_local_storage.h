@@ -8,6 +8,7 @@
 #define _BPF_LOCAL_STORAGE_H
 
 #include <linux/bpf.h>
+#include <linux/filter.h>
 #include <linux/rculist.h>
 #include <linux/list.h>
 #include <linux/hash.h>
@@ -16,6 +17,9 @@
 
 #define BPF_LOCAL_STORAGE_CACHE_SIZE	16
 
+#define bpf_rcu_lock_held()                                                    \
+	(rcu_read_lock_held() || rcu_read_lock_trace_held() ||                 \
+	 rcu_read_lock_bh_held())
 struct bpf_local_storage_map_bucket {
 	struct hlist_head list;
 	raw_spinlock_t lock;
@@ -58,7 +62,7 @@ struct bpf_local_storage_data {
 	 * from the object's bpf_local_storage.
 	 *
 	 * Put it in the same cacheline as the data to minimize
-	 * the number of cachelines access during the cache hit case.
+	 * the number of cachelines accessed during the cache hit case.
 	 */
 	struct bpf_local_storage_map __rcu *smap;
 	u8 data[] __aligned(8);
@@ -71,7 +75,7 @@ struct bpf_local_storage_elem {
 	struct bpf_local_storage __rcu *local_storage;
 	struct rcu_head rcu;
 	/* 8 bytes hole */
-	/* The data is stored in aother cacheline to minimize
+	/* The data is stored in another cacheline to minimize
 	 * the number of cachelines access during a cache hit.
 	 */
 	struct bpf_local_storage_data sdata ____cacheline_aligned;
@@ -126,7 +130,8 @@ bpf_local_storage_lookup(struct bpf_local_storage *local_storage,
 			 struct bpf_local_storage_map *smap,
 			 bool cacheit_lockit);
 
-void bpf_local_storage_map_free(struct bpf_local_storage_map *smap);
+void bpf_local_storage_map_free(struct bpf_local_storage_map *smap,
+				int __percpu *busy_counter);
 
 int bpf_local_storage_map_check_btf(const struct bpf_map *map,
 				    const struct btf *btf,
@@ -149,15 +154,18 @@ void bpf_selem_unlink_map(struct bpf_local_storage_elem *selem);
 
 struct bpf_local_storage_elem *
 bpf_selem_alloc(struct bpf_local_storage_map *smap, void *owner, void *value,
-		bool charge_mem);
+		bool charge_mem, gfp_t gfp_flags);
 
 int
 bpf_local_storage_alloc(void *owner,
 			struct bpf_local_storage_map *smap,
-			struct bpf_local_storage_elem *first_selem);
+			struct bpf_local_storage_elem *first_selem,
+			gfp_t gfp_flags);
 
 struct bpf_local_storage_data *
 bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
-			 void *value, u64 map_flags);
+			 void *value, u64 map_flags, gfp_t gfp_flags);
+
+void bpf_local_storage_free_rcu(struct rcu_head *rcu);
 
 #endif /* _BPF_LOCAL_STORAGE_H */

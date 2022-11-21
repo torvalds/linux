@@ -6,6 +6,8 @@
 #ifndef __SOC_TEGRA_FUSE_H__
 #define __SOC_TEGRA_FUSE_H__
 
+#include <linux/types.h>
+
 #define TEGRA20		0x20
 #define TEGRA30		0x30
 #define TEGRA114	0x35
@@ -21,11 +23,6 @@
 #define TEGRA_FUSE_USB_CALIB_EXT_0 0x250
 
 #ifndef __ASSEMBLY__
-
-u32 tegra_read_chipid(void);
-u8 tegra_get_chip_id(void);
-u8 tegra_get_platform(void);
-bool tegra_is_silicon(void);
 
 enum tegra_revision {
 	TEGRA_REVISION_UNKNOWN = 0,
@@ -52,11 +49,53 @@ struct tegra_sku_info {
 	enum tegra_revision revision;
 };
 
+#ifdef CONFIG_ARCH_TEGRA
+extern struct tegra_sku_info tegra_sku_info;
 u32 tegra_read_straps(void);
 u32 tegra_read_ram_code(void);
 int tegra_fuse_readl(unsigned long offset, u32 *value);
+u32 tegra_read_chipid(void);
+u8 tegra_get_chip_id(void);
+u8 tegra_get_platform(void);
+bool tegra_is_silicon(void);
+#else
+static struct tegra_sku_info tegra_sku_info __maybe_unused;
 
-extern struct tegra_sku_info tegra_sku_info;
+static inline u32 tegra_read_straps(void)
+{
+	return 0;
+}
+
+static inline u32 tegra_read_ram_code(void)
+{
+	return 0;
+}
+
+static inline int tegra_fuse_readl(unsigned long offset, u32 *value)
+{
+	return -ENODEV;
+}
+
+static inline u32 tegra_read_chipid(void)
+{
+	return 0;
+}
+
+static inline u8 tegra_get_chip_id(void)
+{
+	return 0;
+}
+
+static inline u8 tegra_get_platform(void)
+{
+	return 0;
+}
+
+static inline bool tegra_is_silicon(void)
+{
+	return false;
+}
+#endif
 
 struct device *tegra_soc_device_register(void);
 

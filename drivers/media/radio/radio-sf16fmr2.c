@@ -215,7 +215,7 @@ static int fmr2_probe(struct fmr2 *fmr2, struct device *pdev, int io)
 			return -EBUSY;
 
 	strscpy(fmr2->v4l2_dev.name, "radio-sf16fmr2",
-		sizeof(fmr2->v4l2_dev.name)),
+		sizeof(fmr2->v4l2_dev.name));
 	fmr2->io = io;
 
 	if (!request_region(fmr2->io, 2, fmr2->v4l2_dev.name)) {
@@ -293,11 +293,9 @@ static void fmr2_remove(struct fmr2 *fmr2)
 	kfree(fmr2);
 }
 
-static int fmr2_isa_remove(struct device *pdev, unsigned int ndev)
+static void fmr2_isa_remove(struct device *pdev, unsigned int ndev)
 {
 	fmr2_remove(dev_get_drvdata(pdev));
-
-	return 0;
 }
 
 static void fmr2_pnp_remove(struct pnp_dev *pdev)

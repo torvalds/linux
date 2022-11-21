@@ -105,6 +105,8 @@ extern unsigned long mm_cachebits;
 #define __S110	PAGE_SHARED_C
 #define __S111	PAGE_SHARED_C
 
+#define pmd_pgtable(pmd) ((pgtable_t)pmd_page_vaddr(pmd))
+
 /*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
@@ -129,7 +131,7 @@ static inline void pud_set(pud_t *pudp, pmd_t *pmdp)
 
 #define __pte_page(pte) ((unsigned long)__va(pte_val(pte) & PAGE_MASK))
 #define pmd_page_vaddr(pmd) ((unsigned long)__va(pmd_val(pmd) & _TABLE_MASK))
-#define pud_page_vaddr(pud) ((unsigned long)__va(pud_val(pud) & _TABLE_MASK))
+#define pud_pgtable(pud) ((pmd_t *)__va(pud_val(pud) & _TABLE_MASK))
 
 
 #define pte_none(pte)		(!pte_val(pte))
@@ -145,6 +147,7 @@ static inline void pud_set(pud_t *pudp, pmd_t *pmdp)
 #define pmd_present(pmd)	(pmd_val(pmd) & _PAGE_TABLE)
 #define pmd_clear(pmdp)		({ pmd_val(*pmdp) = 0; })
 
+#define pmd_pfn(pmd)		((pmd_val(pmd) & _TABLE_MASK) >> PAGE_SHIFT)
 /*
  * m68k does not have huge pages (020/030 actually could), but generic code
  * expects pmd_page() to exists, only to then DCE it all. Provide a dummy to

@@ -231,12 +231,14 @@ struct nand_ops {
 /**
  * struct nand_ecc_context - Context for the ECC engine
  * @conf: basic ECC engine parameters
+ * @nsteps: number of ECC steps
  * @total: total number of bytes used for storing ECC codes, this is used by
  *         generic OOB layouts
  * @priv: ECC engine driver private data
  */
 struct nand_ecc_context {
 	struct nand_ecc_props conf;
+	unsigned int nsteps;
 	unsigned int total;
 	void *priv;
 };
@@ -262,11 +264,35 @@ struct nand_ecc_engine_ops {
 };
 
 /**
+ * enum nand_ecc_engine_integration - How the NAND ECC engine is integrated
+ * @NAND_ECC_ENGINE_INTEGRATION_INVALID: Invalid value
+ * @NAND_ECC_ENGINE_INTEGRATION_PIPELINED: Pipelined engine, performs on-the-fly
+ *                                         correction, does not need to copy
+ *                                         data around
+ * @NAND_ECC_ENGINE_INTEGRATION_EXTERNAL: External engine, needs to bring the
+ *                                        data into its own area before use
+ */
+enum nand_ecc_engine_integration {
+	NAND_ECC_ENGINE_INTEGRATION_INVALID,
+	NAND_ECC_ENGINE_INTEGRATION_PIPELINED,
+	NAND_ECC_ENGINE_INTEGRATION_EXTERNAL,
+};
+
+/**
  * struct nand_ecc_engine - ECC engine abstraction for NAND devices
+ * @dev: Host device
+ * @node: Private field for registration time
  * @ops: ECC engine operations
+ * @integration: How the engine is integrated with the host
+ *               (only relevant on %NAND_ECC_ENGINE_TYPE_ON_HOST engines)
+ * @priv: Private data
  */
 struct nand_ecc_engine {
+	struct device *dev;
+	struct list_head node;
 	struct nand_ecc_engine_ops *ops;
+	enum nand_ecc_engine_integration integration;
+	void *priv;
 };
 
 void of_get_nand_ecc_user_config(struct nand_device *nand);
@@ -277,6 +303,78 @@ int nand_ecc_prepare_io_req(struct nand_device *nand,
 int nand_ecc_finish_io_req(struct nand_device *nand,
 			   struct nand_page_io_req *req);
 bool nand_ecc_is_strong_enough(struct nand_device *nand);
+
+#if IS_REACHABLE(CONFIG_MTD_NAND_CORE)
+int nand_ecc_register_on_host_hw_engine(struct nand_ecc_engine *engine);
+int nand_ecc_unregister_on_host_hw_engine(struct nand_ecc_engine *engine);
+#else
+static inline int
+nand_ecc_register_on_host_hw_engine(struct nand_ecc_engine *engine)
+{
+	return -ENOTSUPP;
+}
+static inline int
+nand_ecc_unregister_on_host_hw_engine(struct nand_ecc_engine *engine)
+{
+	return -ENOTSUPP;
+}
+#endif
+
+struct nand_ecc_engine *nand_ecc_get_sw_engine(struct nand_device *nand);
+struct nand_ecc_engine *nand_ecc_get_on_die_hw_engine(struct nand_device *nand);
+struct nand_ecc_engine *nand_ecc_get_on_host_hw_engine(struct nand_device *nand);
+void nand_ecc_put_on_host_hw_engine(struct nand_device *nand);
+struct device *nand_ecc_get_engine_dev(struct device *host);
+
+#if IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_HAMMING)
+struct nand_ecc_engine *nand_ecc_sw_hamming_get_engine(void);
+#else
+static inline struct nand_ecc_engine *nand_ecc_sw_hamming_get_engine(void)
+{
+	return NULL;
+}
+#endif /* CONFIG_MTD_NAND_ECC_SW_HAMMING */
+
+#if IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_BCH)
+struct nand_ecc_engine *nand_ecc_sw_bch_get_engine(void);
+#else
+static inline struct nand_ecc_engine *nand_ecc_sw_bch_get_engine(void)
+{
+	return NULL;
+}
+#endif /* CONFIG_MTD_NAND_ECC_SW_BCH */
+
+/**
+ * struct nand_ecc_req_tweak_ctx - Help for automatically tweaking requests
+ * @orig_req: Pointer to the original IO request
+ * @nand: Related NAND device, to have access to its memory organization
+ * @page_buffer_size: Real size of the page buffer to use (can be set by the
+ *                    user before the tweaking mechanism initialization)
+ * @oob_buffer_size: Real size of the OOB buffer to use (can be set by the
+ *                   user before the tweaking mechanism initialization)
+ * @spare_databuf: Data bounce buffer
+ * @spare_oobbuf: OOB bounce buffer
+ * @bounce_data: Flag indicating a data bounce buffer is used
+ * @bounce_oob: Flag indicating an OOB bounce buffer is used
+ */
+struct nand_ecc_req_tweak_ctx {
+	struct nand_page_io_req orig_req;
+	struct nand_device *nand;
+	unsigned int page_buffer_size;
+	unsigned int oob_buffer_size;
+	void *spare_databuf;
+	void *spare_oobbuf;
+	bool bounce_data;
+	bool bounce_oob;
+};
+
+int nand_ecc_init_req_tweaking(struct nand_ecc_req_tweak_ctx *ctx,
+			       struct nand_device *nand);
+void nand_ecc_cleanup_req_tweaking(struct nand_ecc_req_tweak_ctx *ctx);
+void nand_ecc_tweak_req(struct nand_ecc_req_tweak_ctx *ctx,
+			struct nand_page_io_req *req);
+void nand_ecc_restore_req(struct nand_ecc_req_tweak_ctx *ctx,
+			  struct nand_page_io_req *req);
 
 /**
  * struct nand_ecc - Information relative to the ECC
@@ -531,6 +629,26 @@ static inline const struct nand_ecc_props *
 nanddev_get_ecc_conf(struct nand_device *nand)
 {
 	return &nand->ecc.ctx.conf;
+}
+
+/**
+ * nanddev_get_ecc_nsteps() - Extract the number of ECC steps
+ * @nand: NAND device
+ */
+static inline unsigned int
+nanddev_get_ecc_nsteps(struct nand_device *nand)
+{
+	return nand->ecc.ctx.nsteps;
+}
+
+/**
+ * nanddev_get_ecc_bytes_per_step() - Extract the number of ECC bytes per step
+ * @nand: NAND device
+ */
+static inline unsigned int
+nanddev_get_ecc_bytes_per_step(struct nand_device *nand)
+{
+	return nand->ecc.ctx.total / nand->ecc.ctx.nsteps;
 }
 
 /**
@@ -883,6 +1001,15 @@ bool nanddev_isbad(struct nand_device *nand, const struct nand_pos *pos);
 bool nanddev_isreserved(struct nand_device *nand, const struct nand_pos *pos);
 int nanddev_erase(struct nand_device *nand, const struct nand_pos *pos);
 int nanddev_markbad(struct nand_device *nand, const struct nand_pos *pos);
+
+/* ECC related functions */
+int nanddev_ecc_engine_init(struct nand_device *nand);
+void nanddev_ecc_engine_cleanup(struct nand_device *nand);
+
+static inline void *nand_to_ecc_ctx(struct nand_device *nand)
+{
+	return nand->ecc.ctx.priv;
+}
 
 /* BBT related functions */
 enum nand_bbt_block_status {

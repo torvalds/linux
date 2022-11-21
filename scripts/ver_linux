@@ -15,7 +15,7 @@ BEGIN {
 
 	vernum = "[0-9]+([.]?[0-9]+)+"
 	libc = "libc[.]so[.][0-9]+$"
-	libcpp = "(libg|stdc)[+]+[.]so[.][0-9]+$"
+	libcpp = "(libg|stdc)[+]+[.]so([.][0-9]+)+$"
 
 	printversion("GNU C", version("gcc -dumpversion"))
 	printversion("GNU Make", version("make --version"))
@@ -37,19 +37,16 @@ BEGIN {
 	printversion("Bison", version("bison --version"))
 	printversion("Flex", version("flex --version"))
 
-	while ("ldconfig -p 2>/dev/null" | getline > 0) {
-		if ($NF ~ libc && !seen[ver = version("readlink " $NF)]++)
-			printversion("Linux C Library", ver)
-		else if ($NF ~ libcpp && !seen[ver = version("readlink " $NF)]++)
-			printversion("Linux C++ Library", ver)
-	}
+	while ("ldconfig -p 2>/dev/null" | getline > 0)
+		if ($NF ~ libc || $NF ~ libcpp)
+			if (!seen[ver = version("readlink " $NF)]++)
+				printversion("Linux C" ($NF ~ libcpp? "++" : "") " Library", ver)
 
 	printversion("Dynamic linker (ldd)", version("ldd --version"))
 	printversion("Procps", version("ps --version"))
 	printversion("Net-tools", version("ifconfig --version"))
 	printversion("Kbd", version("loadkeys -V"))
 	printversion("Console-tools", version("loadkeys -V"))
-	printversion("Oprofile", version("oprofiled --version"))
 	printversion("Sh-utils", version("expr --v"))
 	printversion("Udev", version("udevadm --version"))
 	printversion("Wireless-tools", version("iwconfig --version"))

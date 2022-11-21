@@ -17,10 +17,6 @@
  * Include the stateless codec compound control definitions.
  * This will move to the public headers once this API is fully stable.
  */
-#include <media/mpeg2-ctrls.h>
-#include <media/fwht-ctrls.h>
-#include <media/h264-ctrls.h>
-#include <media/vp8-ctrls.h>
 #include <media/hevc-ctrls.h>
 
 /* forward references */
@@ -43,8 +39,9 @@ struct video_device;
  * @p_u16:			Pointer to a 16-bit unsigned value.
  * @p_u32:			Pointer to a 32-bit unsigned value.
  * @p_char:			Pointer to a string.
- * @p_mpeg2_slice_params:	Pointer to a MPEG2 slice parameters structure.
- * @p_mpeg2_quantization:	Pointer to a MPEG2 quantization data structure.
+ * @p_mpeg2_sequence:		Pointer to a MPEG2 sequence structure.
+ * @p_mpeg2_picture:		Pointer to a MPEG2 picture structure.
+ * @p_mpeg2_quantisation:	Pointer to a MPEG2 quantisation data structure.
  * @p_fwht_params:		Pointer to a FWHT stateless parameters structure.
  * @p_h264_sps:			Pointer to a struct v4l2_ctrl_h264_sps.
  * @p_h264_pps:			Pointer to a struct v4l2_ctrl_h264_pps.
@@ -52,10 +49,14 @@ struct video_device;
  * @p_h264_slice_params:	Pointer to a struct v4l2_ctrl_h264_slice_params.
  * @p_h264_decode_params:	Pointer to a struct v4l2_ctrl_h264_decode_params.
  * @p_h264_pred_weights:	Pointer to a struct v4l2_ctrl_h264_pred_weights.
- * @p_vp8_frame_header:		Pointer to a VP8 frame header structure.
+ * @p_vp8_frame:		Pointer to a VP8 frame params structure.
+ * @p_vp9_compressed_hdr_probs:	Pointer to a VP9 frame compressed header probs structure.
+ * @p_vp9_frame:		Pointer to a VP9 frame params structure.
  * @p_hevc_sps:			Pointer to an HEVC sequence parameter set structure.
  * @p_hevc_pps:			Pointer to an HEVC picture parameter set structure.
  * @p_hevc_slice_params:	Pointer to an HEVC slice parameters structure.
+ * @p_hdr10_cll:		Pointer to an HDR10 Content Light Level structure.
+ * @p_hdr10_mastering:		Pointer to an HDR10 Mastering Display structure.
  * @p_area:			Pointer to an area.
  * @p:				Pointer to a compound value.
  * @p_const:			Pointer to a constant compound value.
@@ -67,8 +68,9 @@ union v4l2_ctrl_ptr {
 	u16 *p_u16;
 	u32 *p_u32;
 	char *p_char;
-	struct v4l2_ctrl_mpeg2_slice_params *p_mpeg2_slice_params;
-	struct v4l2_ctrl_mpeg2_quantization *p_mpeg2_quantization;
+	struct v4l2_ctrl_mpeg2_sequence *p_mpeg2_sequence;
+	struct v4l2_ctrl_mpeg2_picture *p_mpeg2_picture;
+	struct v4l2_ctrl_mpeg2_quantisation *p_mpeg2_quantisation;
 	struct v4l2_ctrl_fwht_params *p_fwht_params;
 	struct v4l2_ctrl_h264_sps *p_h264_sps;
 	struct v4l2_ctrl_h264_pps *p_h264_pps;
@@ -76,10 +78,14 @@ union v4l2_ctrl_ptr {
 	struct v4l2_ctrl_h264_slice_params *p_h264_slice_params;
 	struct v4l2_ctrl_h264_decode_params *p_h264_decode_params;
 	struct v4l2_ctrl_h264_pred_weights *p_h264_pred_weights;
-	struct v4l2_ctrl_vp8_frame_header *p_vp8_frame_header;
+	struct v4l2_ctrl_vp8_frame *p_vp8_frame;
 	struct v4l2_ctrl_hevc_sps *p_hevc_sps;
 	struct v4l2_ctrl_hevc_pps *p_hevc_pps;
 	struct v4l2_ctrl_hevc_slice_params *p_hevc_slice_params;
+	struct v4l2_ctrl_vp9_compressed_hdr *p_vp9_compressed_hdr_probs;
+	struct v4l2_ctrl_vp9_frame *p_vp9_frame;
+	struct v4l2_ctrl_hdr10_cll_info *p_hdr10_cll;
+	struct v4l2_ctrl_hdr10_mastering_display *p_hdr10_mastering;
 	struct v4l2_area *p_area;
 	void *p;
 	const void *p_const;
@@ -303,12 +309,14 @@ struct v4l2_ctrl {
  *		the control has been applied. This prevents applying controls
  *		from a cluster with multiple controls twice (when the first
  *		control of a cluster is applied, they all are).
- * @req:	If set, this refers to another request that sets this control.
+ * @valid_p_req: If set, then p_req contains the control value for the request.
  * @p_req:	If the control handler containing this control reference
  *		is bound to a media request, then this points to the
- *		value of the control that should be applied when the request
+ *		value of the control that must be applied when the request
  *		is executed, or to the value of the control at the time
- *		that the request was completed.
+ *		that the request was completed. If @valid_p_req is false,
+ *		then this control was never set for this request and the
+ *		control will not be updated when this request is applied.
  *
  * Each control handler has a list of these refs. The list_head is used to
  * keep a sorted-by-control-ID list of all controls, while the next pointer
@@ -321,7 +329,7 @@ struct v4l2_ctrl_ref {
 	struct v4l2_ctrl_helper *helper;
 	bool from_other_dev;
 	bool req_done;
-	struct v4l2_ctrl_ref *req;
+	bool valid_p_req;
 	union v4l2_ctrl_ptr p_req;
 };
 
@@ -348,7 +356,7 @@ struct v4l2_ctrl_ref {
  * @error:	The error code of the first failed control addition.
  * @request_is_queued: True if the request was queued.
  * @requests:	List to keep track of open control handler request objects.
- *		For the parent control handler (@req_obj.req == NULL) this
+ *		For the parent control handler (@req_obj.ops == NULL) this
  *		is the list header. When the parent control handler is
  *		removed, it has to unbind and put all these requests since
  *		they refer to the parent.
@@ -1292,7 +1300,7 @@ static inline void v4l2_ctrl_request_hdl_put(struct v4l2_ctrl_handler *hdl)
 }
 
 /**
- * v4l2_ctrl_request_ctrl_find() - Find a control with the given ID.
+ * v4l2_ctrl_request_hdl_ctrl_find() - Find a control with the given ID.
  *
  * @hdl: The control handler from the request.
  * @id: The ID of the control to find.

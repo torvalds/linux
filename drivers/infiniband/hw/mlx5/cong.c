@@ -267,7 +267,7 @@ static void mlx5_ib_set_cc_param_mask_val(void *field, int offset,
 	}
 }
 
-static int mlx5_ib_get_cc_params(struct mlx5_ib_dev *dev, u8 port_num,
+static int mlx5_ib_get_cc_params(struct mlx5_ib_dev *dev, u32 port_num,
 				 int offset, u32 *var)
 {
 	int outlen = MLX5_ST_SZ_BYTES(query_cong_params_out);
@@ -304,7 +304,7 @@ alloc_err:
 	return err;
 }
 
-static int mlx5_ib_set_cc_params(struct mlx5_ib_dev *dev, u8 port_num,
+static int mlx5_ib_set_cc_params(struct mlx5_ib_dev *dev, u32 port_num,
 				 int offset, u32 var)
 {
 	int inlen = MLX5_ST_SZ_BYTES(modify_cong_params_in);
@@ -397,7 +397,7 @@ static const struct file_operations dbg_cc_fops = {
 	.read	= get_param,
 };
 
-void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
+void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u32 port_num)
 {
 	if (!mlx5_debugfs_root ||
 	    !dev->port[port_num].dbg_cc_params ||
@@ -409,7 +409,7 @@ void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 	dev->port[port_num].dbg_cc_params = NULL;
 }
 
-void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
+void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u32 port_num)
 {
 	struct mlx5_ib_dbg_cc_params *dbg_cc_params;
 	struct mlx5_core_dev *mdev;
@@ -433,8 +433,7 @@ void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 
 	dev->port[port_num].dbg_cc_params = dbg_cc_params;
 
-	dbg_cc_params->root = debugfs_create_dir("cc_params",
-						 mdev->priv.dbg_root);
+	dbg_cc_params->root = debugfs_create_dir("cc_params", mlx5_debugfs_get_dev_root(mdev));
 
 	for (i = 0; i < MLX5_IB_DBG_CC_MAX; i++) {
 		dbg_cc_params->params[i].offset = i;

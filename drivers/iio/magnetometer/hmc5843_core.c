@@ -246,7 +246,7 @@ static const struct iio_enum hmc5843_meas_conf_enum = {
 
 static const struct iio_chan_spec_ext_info hmc5843_ext_info[] = {
 	IIO_ENUM("meas_conf", IIO_SHARED_BY_TYPE, &hmc5843_meas_conf_enum),
-	IIO_ENUM_AVAILABLE("meas_conf", &hmc5843_meas_conf_enum),
+	IIO_ENUM_AVAILABLE("meas_conf", IIO_SHARED_BY_TYPE, &hmc5843_meas_conf_enum),
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, hmc5843_get_mount_matrix),
 	{ }
 };
@@ -260,7 +260,7 @@ static const struct iio_enum hmc5983_meas_conf_enum = {
 
 static const struct iio_chan_spec_ext_info hmc5983_ext_info[] = {
 	IIO_ENUM("meas_conf", IIO_SHARED_BY_TYPE, &hmc5983_meas_conf_enum),
-	IIO_ENUM_AVAILABLE("meas_conf", &hmc5983_meas_conf_enum),
+	IIO_ENUM_AVAILABLE("meas_conf", IIO_SHARED_BY_TYPE, &hmc5983_meas_conf_enum),
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, hmc5843_get_mount_matrix),
 	{ }
 };
@@ -446,13 +446,13 @@ static irqreturn_t hmc5843_trigger_handler(int irq, void *p)
 	}
 
 	ret = regmap_bulk_read(data->regmap, HMC5843_DATA_OUT_MSB_REGS,
-			       data->buffer, 3 * sizeof(__be16));
+			       data->scan.chans, sizeof(data->scan.chans));
 
 	mutex_unlock(&data->lock);
 	if (ret < 0)
 		goto done;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 					   iio_get_time_ns(indio_dev));
 
 done:
@@ -608,14 +608,14 @@ int hmc5843_common_suspend(struct device *dev)
 	return hmc5843_set_mode(iio_priv(dev_get_drvdata(dev)),
 				HMC5843_MODE_SLEEP);
 }
-EXPORT_SYMBOL(hmc5843_common_suspend);
+EXPORT_SYMBOL_NS(hmc5843_common_suspend, IIO_HMC5843);
 
 int hmc5843_common_resume(struct device *dev)
 {
 	return hmc5843_set_mode(iio_priv(dev_get_drvdata(dev)),
 		HMC5843_MODE_CONVERSION_CONTINUOUS);
 }
-EXPORT_SYMBOL(hmc5843_common_resume);
+EXPORT_SYMBOL_NS(hmc5843_common_resume, IIO_HMC5843);
 
 int hmc5843_common_probe(struct device *dev, struct regmap *regmap,
 			 enum hmc5843_ids id, const char *name)
@@ -637,8 +637,7 @@ int hmc5843_common_probe(struct device *dev, struct regmap *regmap,
 	data->variant = &hmc5843_chip_info_tbl[id];
 	mutex_init(&data->lock);
 
-	ret = iio_read_mount_matrix(dev, "mount-matrix",
-				&data->orientation);
+	ret = iio_read_mount_matrix(dev, &data->orientation);
 	if (ret)
 		return ret;
 
@@ -670,9 +669,9 @@ buffer_setup_err:
 	hmc5843_set_mode(iio_priv(indio_dev), HMC5843_MODE_SLEEP);
 	return ret;
 }
-EXPORT_SYMBOL(hmc5843_common_probe);
+EXPORT_SYMBOL_NS(hmc5843_common_probe, IIO_HMC5843);
 
-int hmc5843_common_remove(struct device *dev)
+void hmc5843_common_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
@@ -681,10 +680,8 @@ int hmc5843_common_remove(struct device *dev)
 
 	/*  sleep mode to save power */
 	hmc5843_set_mode(iio_priv(indio_dev), HMC5843_MODE_SLEEP);
-
-	return 0;
 }
-EXPORT_SYMBOL(hmc5843_common_remove);
+EXPORT_SYMBOL_NS(hmc5843_common_remove, IIO_HMC5843);
 
 MODULE_AUTHOR("Shubhrajyoti Datta <shubhrajyoti@ti.com>");
 MODULE_DESCRIPTION("HMC5843/5883/5883L/5983 core driver");

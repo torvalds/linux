@@ -32,7 +32,6 @@
 MODULE_AUTHOR("Digigram <alsa@digigram.com>");
 MODULE_DESCRIPTION("Digigram " CARD_NAME);
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Digigram," CARD_NAME "}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;             /* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;              /* ID for this card */
@@ -955,9 +954,10 @@ static int snd_mixart_pcm_analog(struct snd_mixart *chip)
 	char name[32];
 
 	sprintf(name, "miXart analog %d", chip->chip_idx);
-	if ((err = snd_pcm_new(chip->card, name, MIXART_PCM_ANALOG,
-			       MIXART_PLAYBACK_STREAMS,
-			       MIXART_CAPTURE_STREAMS, &pcm)) < 0) {
+	err = snd_pcm_new(chip->card, name, MIXART_PCM_ANALOG,
+			  MIXART_PLAYBACK_STREAMS,
+			  MIXART_CAPTURE_STREAMS, &pcm);
+	if (err < 0) {
 		dev_err(chip->card->dev,
 			"cannot create the analog pcm %d\n", chip->chip_idx);
 		return err;
@@ -988,9 +988,10 @@ static int snd_mixart_pcm_digital(struct snd_mixart *chip)
 	char name[32];
 
 	sprintf(name, "miXart AES/EBU %d", chip->chip_idx);
-	if ((err = snd_pcm_new(chip->card, name, MIXART_PCM_DIGITAL,
-			       MIXART_PLAYBACK_STREAMS,
-			       MIXART_CAPTURE_STREAMS, &pcm)) < 0) {
+	err = snd_pcm_new(chip->card, name, MIXART_PCM_DIGITAL,
+			  MIXART_PLAYBACK_STREAMS,
+			  MIXART_CAPTURE_STREAMS, &pcm);
+	if (err < 0) {
 		dev_err(chip->card->dev,
 			"cannot create the digital pcm %d\n", chip->chip_idx);
 		return err;
@@ -1043,7 +1044,8 @@ static int snd_mixart_create(struct mixart_mgr *mgr, struct snd_card *card, int 
 	chip->mgr = mgr;
 	card->sync_irq = mgr->irq;
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0) {
 		snd_mixart_chip_free(chip);
 		return err;
 	}
@@ -1244,7 +1246,8 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	}
 
 	/* enable PCI device */
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 	pci_set_master(pci);
 
@@ -1268,7 +1271,8 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	mgr->irq = -1;
 
 	/* resource assignment */
-	if ((err = pci_request_regions(pci, CARD_NAME)) < 0) {
+	err = pci_request_regions(pci, CARD_NAME);
+	if (err < 0) {
 		kfree(mgr);
 		pci_disable_device(pci);
 		return err;
@@ -1333,7 +1337,8 @@ static int snd_mixart_probe(struct pci_dev *pci,
 			"Digigram miXart at 0x%lx & 0x%lx, irq %i [PCM #%d]",
 			mgr->mem[0].phys, mgr->mem[1].phys, mgr->irq, i);
 
-		if ((err = snd_mixart_create(mgr, card, i)) < 0) {
+		err = snd_mixart_create(mgr, card, i);
+		if (err < 0) {
 			snd_card_free(card);
 			snd_mixart_free(mgr);
 			return err;
@@ -1344,7 +1349,8 @@ static int snd_mixart_probe(struct pci_dev *pci,
 			snd_mixart_proc_init(mgr->chip[i]);
 		}
 
-		if ((err = snd_card_register(card)) < 0) {
+		err = snd_card_register(card);
+		if (err < 0) {
 			snd_mixart_free(mgr);
 			return err;
 		}

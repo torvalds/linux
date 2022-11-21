@@ -161,7 +161,7 @@ unsigned int yield_mod_cnt, nr_abort;
 	"	cbnz	" INJECT_ASM_REG ", 222b\n"			\
 	"333:\n"
 
-#elif __PPC__
+#elif defined(__PPC__)
 
 #define RSEQ_INJECT_INPUT \
 	, [loop_cnt_1]"m"(loop_cnt[1]) \
@@ -207,6 +207,29 @@ unsigned int yield_mod_cnt, nr_abort;
 	"addiu " INJECT_ASM_REG ", -1\n\t" \
 	"bnez " INJECT_ASM_REG ", 222b\n\t" \
 	"333:\n\t"
+#elif defined(__riscv)
+
+#define RSEQ_INJECT_INPUT \
+	, [loop_cnt_1]"m"(loop_cnt[1]) \
+	, [loop_cnt_2]"m"(loop_cnt[2]) \
+	, [loop_cnt_3]"m"(loop_cnt[3]) \
+	, [loop_cnt_4]"m"(loop_cnt[4]) \
+	, [loop_cnt_5]"m"(loop_cnt[5]) \
+	, [loop_cnt_6]"m"(loop_cnt[6])
+
+#define INJECT_ASM_REG	"t1"
+
+#define RSEQ_INJECT_CLOBBER \
+	, INJECT_ASM_REG
+
+#define RSEQ_INJECT_ASM(n)					\
+	"lw " INJECT_ASM_REG ", %[loop_cnt_" #n "]\n\t"		\
+	"beqz " INJECT_ASM_REG ", 333f\n\t"			\
+	"222:\n\t"						\
+	"addi  " INJECT_ASM_REG "," INJECT_ASM_REG ", -1\n\t"	\
+	"bnez " INJECT_ASM_REG ", 222b\n\t"			\
+	"333:\n\t"
+
 
 #else
 #error unsupported target
@@ -368,9 +391,7 @@ void *test_percpu_spinlock_thread(void *arg)
 		abort();
 	reps = thread_data->reps;
 	for (i = 0; i < reps; i++) {
-		int cpu = rseq_cpu_start();
-
-		cpu = rseq_this_cpu_lock(&data->lock);
+		int cpu = rseq_this_cpu_lock(&data->lock);
 		data->c[cpu].count++;
 		rseq_percpu_unlock(&data->lock, cpu);
 #ifndef BENCHMARK
@@ -551,7 +572,7 @@ struct percpu_list_node *this_cpu_list_pop(struct percpu_list *list,
 	for (;;) {
 		struct percpu_list_node *head;
 		intptr_t *targetptr, expectnot, *load;
-		off_t offset;
+		long offset;
 		int ret;
 
 		cpu = rseq_cpu_start();
@@ -1133,6 +1154,8 @@ static int set_signal_handler(void)
 	return ret;
 }
 
+/* Test MEMBARRIER_CMD_PRIVATE_RESTART_RSEQ_ON_CPU membarrier command. */
+#ifdef RSEQ_ARCH_HAS_OFFSET_DEREF_ADDV
 struct test_membarrier_thread_args {
 	int stop;
 	intptr_t percpu_list_ptr;
@@ -1286,8 +1309,6 @@ void *test_membarrier_manager_thread(void *arg)
 	return NULL;
 }
 
-/* Test MEMBARRIER_CMD_PRIVATE_RESTART_RSEQ_ON_CPU membarrier command. */
-#ifdef RSEQ_ARCH_HAS_OFFSET_DEREF_ADDV
 void test_membarrier(void)
 {
 	const int num_threads = opt_threads;

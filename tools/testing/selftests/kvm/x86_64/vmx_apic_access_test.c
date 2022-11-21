@@ -87,7 +87,6 @@ int main(int argc, char *argv[])
 	nested_vmx_check_supported();
 
 	vm = vm_create_default(VCPU_ID, 0, (void *) l1_guest_code);
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 
 	kvm_get_cpu_address_width(&paddr_width, &vaddr_width);
 	high_gpa = (1ul << paddr_width) - getpagesize();
@@ -97,7 +96,7 @@ int main(int argc, char *argv[])
 	}
 
 	vmx = vcpu_alloc_vmx(vm, &vmx_pages_gva);
-	prepare_virtualize_apic_accesses(vmx, vm, 0);
+	prepare_virtualize_apic_accesses(vmx, vm);
 	vcpu_args_set(vm, VCPU_ID, 2, vmx_pages_gva, high_gpa);
 
 	while (!done) {

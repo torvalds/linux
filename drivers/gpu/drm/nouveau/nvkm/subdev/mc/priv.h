@@ -4,14 +4,15 @@
 #define nvkm_mc(p) container_of((p), struct nvkm_mc, subdev)
 #include <subdev/mc.h>
 
-void nvkm_mc_ctor(const struct nvkm_mc_func *, struct nvkm_device *,
-		  int index, struct nvkm_mc *);
-int nvkm_mc_new_(const struct nvkm_mc_func *, struct nvkm_device *,
-		 int index, struct nvkm_mc **);
+void nvkm_mc_ctor(const struct nvkm_mc_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_mc *);
+int nvkm_mc_new_(const struct nvkm_mc_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		 struct nvkm_mc **);
 
 struct nvkm_mc_map {
 	u32 stat;
-	u32 unit;
+	enum nvkm_subdev_type type;
+	int inst;
 	bool noauto;
 };
 
@@ -26,7 +27,6 @@ struct nvkm_mc_func {
 	void (*intr_mask)(struct nvkm_mc *, u32 mask, u32 stat);
 	/* retrieve pending interrupt mask (NV_PMC_INTR) */
 	u32 (*intr_stat)(struct nvkm_mc *);
-	void (*intr_hack)(struct nvkm_mc *, bool *handled);
 	const struct nvkm_mc_map *reset;
 	void (*unk260)(struct nvkm_mc *, u32);
 };
@@ -53,7 +53,7 @@ void gf100_mc_unk260(struct nvkm_mc *, u32);
 void gp100_mc_intr_unarm(struct nvkm_mc *);
 void gp100_mc_intr_rearm(struct nvkm_mc *);
 void gp100_mc_intr_mask(struct nvkm_mc *, u32, u32);
-int gp100_mc_new_(const struct nvkm_mc_func *, struct nvkm_device *, int,
+int gp100_mc_new_(const struct nvkm_mc_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		  struct nvkm_mc **);
 
 extern const struct nvkm_mc_map gk104_mc_intr[];

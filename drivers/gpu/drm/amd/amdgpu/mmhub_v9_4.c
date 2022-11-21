@@ -136,8 +136,7 @@ static void mmhub_v9_4_init_system_aperture_regs(struct amdgpu_device *adev,
 			max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18);
 
 		/* Set default page address. */
-		value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start +
-			adev->vm_manager.vram_base_offset;
+		value = amdgpu_gmc_vram_mc2pa(adev, adev->vram_scratch.gpu_addr);
 		WREG32_SOC15_OFFSET(
 			MMHUB, 0,
 			mmVMSHAREDPF0_MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
@@ -190,8 +189,6 @@ static void mmhub_v9_4_init_tlb_regs(struct amdgpu_device *adev, int hubid)
 			    ENABLE_ADVANCED_DRIVER_MODEL, 1);
 	tmp = REG_SET_FIELD(tmp, VMSHAREDVC0_MC_VM_MX_L1_TLB_CNTL,
 			    SYSTEM_APERTURE_UNMAPPED_ACCESS, 0);
-	tmp = REG_SET_FIELD(tmp, VMSHAREDVC0_MC_VM_MX_L1_TLB_CNTL,
-			    ECO_BITS, 0);
 	tmp = REG_SET_FIELD(tmp, VMSHAREDVC0_MC_VM_MX_L1_TLB_CNTL,
 			    MTYPE, MTYPE_UC);/* XXX for emulation. */
 	tmp = REG_SET_FIELD(tmp, VMSHAREDVC0_MC_VM_MX_L1_TLB_CNTL,
@@ -405,7 +402,7 @@ static void mmhub_v9_4_gart_disable(struct amdgpu_device *adev)
 
 	for (j = 0; j < MMHUB_NUM_INSTANCES; j++) {
 		/* Disable all tables */
-		for (i = 0; i < 16; i++)
+		for (i = 0; i < AMDGPU_NUM_VMID; i++)
 			WREG32_SOC15_OFFSET(MMHUB, 0,
 					    mmVML2VC0_VM_CONTEXT0_CNTL,
 					    j * MMHUB_INSTANCE_REGISTER_OFFSET +
@@ -437,7 +434,7 @@ static void mmhub_v9_4_gart_disable(struct amdgpu_device *adev)
 }
 
 /**
- * mmhub_v1_0_set_fault_enable_default - update GART/VM fault handling
+ * mmhub_v9_4_set_fault_enable_default - update GART/VM fault handling
  *
  * @adev: amdgpu_device pointer
  * @value: true redirects VM faults to the default page
@@ -1646,16 +1643,31 @@ static void mmhub_v9_4_query_ras_error_status(struct amdgpu_device *adev)
 	for (i = 0; i < ARRAY_SIZE(mmhub_v9_4_err_status_regs); i++) {
 		reg_value =
 			RREG32(SOC15_REG_ENTRY_OFFSET(mmhub_v9_4_err_status_regs[i]));
-		if (reg_value)
+		if (REG_GET_FIELD(reg_value, MMEA0_ERR_STATUS, SDP_RDRSP_STATUS) ||
+		    REG_GET_FIELD(reg_value, MMEA0_ERR_STATUS, SDP_WRRSP_STATUS) ||
+		    REG_GET_FIELD(reg_value, MMEA0_ERR_STATUS, SDP_RDRSP_DATAPARITY_ERROR)) {
+			/* SDP read/write error/parity error in FUE_IS_FATAL mode
+			 * can cause system fatal error in arcturas. Harvest the error
+			 * status before GPU reset */
 			dev_warn(adev->dev, "MMHUB EA err detected at instance: %d, status: 0x%x!\n",
 					i, reg_value);
+		}
 	}
 }
 
-const struct amdgpu_mmhub_funcs mmhub_v9_4_funcs = {
-	.ras_late_init = amdgpu_mmhub_ras_late_init,
+const struct amdgpu_ras_block_hw_ops mmhub_v9_4_ras_hw_ops = {
 	.query_ras_error_count = mmhub_v9_4_query_ras_error_count,
 	.reset_ras_error_count = mmhub_v9_4_reset_ras_error_count,
+	.query_ras_error_status = mmhub_v9_4_query_ras_error_status,
+};
+
+struct amdgpu_mmhub_ras mmhub_v9_4_ras = {
+	.ras_block = {
+		.hw_ops = &mmhub_v9_4_ras_hw_ops,
+	},
+};
+
+const struct amdgpu_mmhub_funcs mmhub_v9_4_funcs = {
 	.get_fb_location = mmhub_v9_4_get_fb_location,
 	.init = mmhub_v9_4_init,
 	.gart_enable = mmhub_v9_4_gart_enable,
@@ -1664,5 +1676,4 @@ const struct amdgpu_mmhub_funcs mmhub_v9_4_funcs = {
 	.set_clockgating = mmhub_v9_4_set_clockgating,
 	.get_clockgating = mmhub_v9_4_get_clockgating,
 	.setup_vm_pt_regs = mmhub_v9_4_setup_vm_pt_regs,
-	.query_ras_error_status = mmhub_v9_4_query_ras_error_status,
 };

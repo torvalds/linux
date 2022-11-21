@@ -55,6 +55,8 @@ properties:
     maxItems: 1
 
   dmas:
+    minItems: 2
+    maxItems: 4
     description:
       Must contain a list of pairs of references to DMA specifiers, one for
       transmission, and one for reception.

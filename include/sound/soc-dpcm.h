@@ -101,6 +101,8 @@ struct snd_soc_dpcm_runtime {
 	enum snd_soc_dpcm_state state;
 
 	int trigger_pending; /* trigger cmd + 1 if pending, 0 if not */
+
+	int be_start; /* refcount protected by BE stream pcm lock */
 };
 
 #define for_each_dpcm_fe(be, stream, _dpcm)				\
@@ -149,14 +151,21 @@ void dpcm_path_put(struct snd_soc_dapm_widget_list **list);
 int dpcm_process_paths(struct snd_soc_pcm_runtime *fe,
 	int stream, struct snd_soc_dapm_widget_list **list, int new);
 int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream);
-int dpcm_be_dai_shutdown(struct snd_soc_pcm_runtime *fe, int stream);
+void dpcm_be_dai_stop(struct snd_soc_pcm_runtime *fe, int stream,
+		      int do_hw_free, struct snd_soc_dpcm *last);
 void dpcm_be_disconnect(struct snd_soc_pcm_runtime *fe, int stream);
 void dpcm_clear_pending_state(struct snd_soc_pcm_runtime *fe, int stream);
-int dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream);
+void dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream);
 int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int tream);
 int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream, int cmd);
 int dpcm_be_dai_prepare(struct snd_soc_pcm_runtime *fe, int stream);
 int dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir,
 	int event);
+bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget, enum snd_soc_dapm_direction dir);
+
+#define dpcm_be_dai_startup_rollback(fe, stream, last)	\
+						dpcm_be_dai_stop(fe, stream, 0, last)
+#define dpcm_be_dai_startup_unwind(fe, stream)	dpcm_be_dai_stop(fe, stream, 0, NULL)
+#define dpcm_be_dai_shutdown(fe, stream)	dpcm_be_dai_stop(fe, stream, 1, NULL)
 
 #endif

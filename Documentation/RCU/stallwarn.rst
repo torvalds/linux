@@ -25,14 +25,14 @@ warnings:
 
 -	A CPU looping with bottom halves disabled.
 
--	For !CONFIG_PREEMPT kernels, a CPU looping anywhere in the kernel
+-	For !CONFIG_PREEMPTION kernels, a CPU looping anywhere in the kernel
 	without invoking schedule().  If the looping in the kernel is
 	really expected and desirable behavior, you might need to add
 	some calls to cond_resched().
 
 -	Booting Linux using a console connection that is too slow to
 	keep up with the boot-time console-message rate.  For example,
-	a 115Kbaud serial console can be -way- too slow to keep up
+	a 115Kbaud serial console can be *way* too slow to keep up
 	with boot-time message rates, and will frequently result in
 	RCU CPU stall warning messages.  Especially if you have added
 	debug printk()s.
@@ -44,7 +44,7 @@ warnings:
 	result in the ``rcu_.*kthread starved for`` console-log message,
 	which will include additional debugging information.
 
--	A CPU-bound real-time task in a CONFIG_PREEMPT kernel, which might
+-	A CPU-bound real-time task in a CONFIG_PREEMPTION kernel, which might
 	happen to preempt a low-priority task in the middle of an RCU
 	read-side critical section.   This is especially damaging if
 	that low-priority task is not permitted to run on any other CPU,
@@ -92,7 +92,19 @@ warnings:
 	buggy timer hardware through bugs in the interrupt or exception
 	path (whether hardware, firmware, or software) through bugs
 	in Linux's timer subsystem through bugs in the scheduler, and,
-	yes, even including bugs in RCU itself.
+	yes, even including bugs in RCU itself.  It can also result in
+	the ``rcu_.*timer wakeup didn't happen for`` console-log message,
+	which will include additional debugging information.
+
+-	A low-level kernel issue that either fails to invoke one of the
+	variants of rcu_user_enter(), rcu_user_exit(), rcu_idle_enter(),
+	rcu_idle_exit(), rcu_irq_enter(), or rcu_irq_exit() on the one
+	hand, or that invokes one of them too many times on the other.
+	Historically, the most frequent issue has been an omission
+	of either irq_enter() or irq_exit(), which in turn invoke
+	rcu_irq_enter() or rcu_irq_exit(), respectively.  Building your
+	kernel with CONFIG_RCU_EQS_DEBUG=y can help track down these types
+	of issues, which sometimes arise in architecture-specific code.
 
 -	A bug in the RCU implementation.
 
@@ -103,7 +115,7 @@ warnings:
 	leading the realization that the CPU had failed.
 
 The RCU, RCU-sched, and RCU-tasks implementations have CPU stall warning.
-Note that SRCU does -not- have CPU stall warnings.  Please note that
+Note that SRCU does *not* have CPU stall warnings.  Please note that
 RCU only detects CPU stalls when there is a grace period in progress.
 No grace period, no CPU stall warnings.
 
@@ -143,7 +155,7 @@ CONFIG_RCU_CPU_STALL_TIMEOUT
 	this parameter is checked only at the beginning of a cycle.
 	So if you are 10 seconds into a 40-second stall, setting this
 	sysfs parameter to (say) five will shorten the timeout for the
-	-next- stall, or the following warning for the current stall
+	*next* stall, or the following warning for the current stall
 	(assuming the stall lasts long enough).  It will not affect the
 	timing of the next warning for the current stall.
 
@@ -187,8 +199,8 @@ rcupdate.rcu_task_stall_timeout
 Interpreting RCU's CPU Stall-Detector "Splats"
 ==============================================
 
-For non-RCU-tasks flavors of RCU, when a CPU detects that it is stalling,
-it will print a message similar to the following::
+For non-RCU-tasks flavors of RCU, when a CPU detects that some other
+CPU is stalling, it will print a message similar to the following::
 
 	INFO: rcu_sched detected stalls on CPUs/tasks:
 	2-...: (3 GPs behind) idle=06c/0/0 softirq=1453/1455 fqs=0
@@ -200,8 +212,10 @@ causing stalls, and that the stall was affecting RCU-sched.  This message
 will normally be followed by stack dumps for each CPU.  Please note that
 PREEMPT_RCU builds can be stalled by tasks as well as by CPUs, and that
 the tasks will be indicated by PID, for example, "P3421".  It is even
-possible for an rcu_state stall to be caused by both CPUs -and- tasks,
+possible for an rcu_state stall to be caused by both CPUs *and* tasks,
 in which case the offending CPUs and tasks will all be called out in the list.
+In some cases, CPUs will detect themselves stalling, which will result
+in a self-detected stall.
 
 CPU 2's "(3 GPs behind)" indicates that this CPU has not interacted with
 the RCU core for the past three grace periods.  In contrast, CPU 16's "(0
@@ -222,7 +236,7 @@ is the number that had executed since boot at the time that this CPU
 last noted the beginning of a grace period, which might be the current
 (stalled) grace period, or it might be some earlier grace period (for
 example, if the CPU might have been in dyntick-idle mode for an extended
-time period.  The number after the "/" is the number that have executed
+time period).  The number after the "/" is the number that have executed
 since boot until the current time.  If this latter number stays constant
 across repeated stall-warning messages, it is possible that RCU's softirq
 handlers are no longer able to execute on this CPU.  This can happen if
@@ -239,17 +253,6 @@ case, CPU 32), how many jiffies have elapsed since the start of the grace
 period (in this case 2603), the grace-period sequence number (7075), and
 an estimate of the total number of RCU callbacks queued across all CPUs
 (625 in this case).
-
-In kernels with CONFIG_RCU_FAST_NO_HZ, more information is printed
-for each CPU::
-
-	0: (64628 ticks this GP) idle=dd5/3fffffffffffffff/0 softirq=82/543 last_accelerate: a345/d342 dyntick_enabled: 1
-
-The "last_accelerate:" prints the low-order 16 bits (in hex) of the
-jiffies counter when this CPU last invoked rcu_try_advance_all_cbs()
-from rcu_needs_cpu() or last invoked rcu_accelerate_cbs() from
-rcu_prepare_for_idle(). "dyntick_enabled: 1" indicates that dyntick-idle
-processing is enabled.
 
 If the grace period ends just as the stall warning starts printing,
 there will be a spurious stall-warning message, which will include
@@ -281,7 +284,8 @@ If the relevant grace-period kthread has been unable to run prior to
 the stall warning, as was the case in the "All QSes seen" line above,
 the following additional line is printed::
 
-	kthread starved for 23807 jiffies! g7075 f0x0 RCU_GP_WAIT_FQS(3) ->state=0x1 ->cpu=5
+	rcu_sched kthread starved for 23807 jiffies! g7075 f0x0 RCU_GP_WAIT_FQS(3) ->state=0x1 ->cpu=5
+	Unless rcu_sched kthread gets sufficient CPU time, OOM is now expected behavior.
 
 Starving the grace-period kthreads of CPU time can of course result
 in RCU CPU stall warnings even when all CPUs and tasks have passed
@@ -292,15 +296,40 @@ kthread is waiting for a short timeout, the "state" precedes value of the
 task_struct ->state field, and the "cpu" indicates that the grace-period
 kthread last ran on CPU 5.
 
+If the relevant grace-period kthread does not wake from FQS wait in a
+reasonable time, then the following additional line is printed::
+
+	kthread timer wakeup didn't happen for 23804 jiffies! g7076 f0x0 RCU_GP_WAIT_FQS(5) ->state=0x402
+
+The "23804" indicates that kthread's timer expired more than 23 thousand
+jiffies ago.  The rest of the line has meaning similar to the kthread
+starvation case.
+
+Additionally, the following line is printed::
+
+	Possible timer handling issue on cpu=4 timer-softirq=11142
+
+Here "cpu" indicates that the grace-period kthread last ran on CPU 4,
+where it queued the fqs timer.  The number following the "timer-softirq"
+is the current ``TIMER_SOFTIRQ`` count on cpu 4.  If this value does not
+change on successive RCU CPU stall warnings, there is further reason to
+suspect a timer problem.
+
+These messages are usually followed by stack dumps of the CPUs and tasks
+involved in the stall.  These stack traces can help you locate the cause
+of the stall, keeping in mind that the CPU detecting the stall will have
+an interrupt frame that is mainly devoted to detecting the stall.
+
 
 Multiple Warnings From One Stall
 ================================
 
-If a stall lasts long enough, multiple stall-warning messages will be
-printed for it.  The second and subsequent messages are printed at
+If a stall lasts long enough, multiple stall-warning messages will
+be printed for it.  The second and subsequent messages are printed at
 longer intervals, so that the time between (say) the first and second
 message will be about three times the interval between the beginning
-of the stall and the first message.
+of the stall and the first message.  It can be helpful to compare the
+stack dumps for the different messages for the same stalled grace period.
 
 
 Stall Warnings for Expedited Grace Periods

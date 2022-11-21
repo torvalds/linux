@@ -18,6 +18,10 @@
 
 #if defined(CONFIG_PCI_HISI) || (defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS))
 
+struct hisi_pcie {
+	void __iomem	*reg_base;
+};
+
 static int hisi_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 			     int size, u32 *val)
 {
@@ -58,10 +62,10 @@ static void __iomem *hisi_pcie_map_bus(struct pci_bus *bus, unsigned int devfn,
 				       int where)
 {
 	struct pci_config_window *cfg = bus->sysdata;
-	void __iomem *reg_base = cfg->priv;
+	struct hisi_pcie *pcie = cfg->priv;
 
 	if (bus->number == cfg->busr.start)
-		return reg_base + where;
+		return pcie->reg_base + where;
 	else
 		return pci_ecam_map_bus(bus, devfn, where);
 }
@@ -71,11 +75,15 @@ static void __iomem *hisi_pcie_map_bus(struct pci_bus *bus, unsigned int devfn,
 static int hisi_pcie_init(struct pci_config_window *cfg)
 {
 	struct device *dev = cfg->parent;
+	struct hisi_pcie *pcie;
 	struct acpi_device *adev = to_acpi_device(dev);
 	struct acpi_pci_root *root = acpi_driver_data(adev);
 	struct resource *res;
-	void __iomem *reg_base;
 	int ret;
+
+	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
+	if (!pcie)
+		return -ENOMEM;
 
 	/*
 	 * Retrieve RC base and size from a HISI0081 device with _UID
@@ -91,16 +99,15 @@ static int hisi_pcie_init(struct pci_config_window *cfg)
 		return -ENOMEM;
 	}
 
-	reg_base = devm_pci_remap_cfgspace(dev, res->start, resource_size(res));
-	if (!reg_base)
+	pcie->reg_base = devm_pci_remap_cfgspace(dev, res->start, resource_size(res));
+	if (!pcie->reg_base)
 		return -ENOMEM;
 
-	cfg->priv = reg_base;
+	cfg->priv = pcie;
 	return 0;
 }
 
 const struct pci_ecam_ops hisi_pcie_ops = {
-	.bus_shift    = 20,
 	.init         =  hisi_pcie_init,
 	.pci_ops      = {
 		.map_bus    = hisi_pcie_map_bus,
@@ -116,9 +123,13 @@ const struct pci_ecam_ops hisi_pcie_ops = {
 static int hisi_pcie_platform_init(struct pci_config_window *cfg)
 {
 	struct device *dev = cfg->parent;
+	struct hisi_pcie *pcie;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *res;
-	void __iomem *reg_base;
+
+	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
+	if (!pcie)
+		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
@@ -126,16 +137,15 @@ static int hisi_pcie_platform_init(struct pci_config_window *cfg)
 		return -EINVAL;
 	}
 
-	reg_base = devm_pci_remap_cfgspace(dev, res->start, resource_size(res));
-	if (!reg_base)
+	pcie->reg_base = devm_pci_remap_cfgspace(dev, res->start, resource_size(res));
+	if (!pcie->reg_base)
 		return -ENOMEM;
 
-	cfg->priv = reg_base;
+	cfg->priv = pcie;
 	return 0;
 }
 
 static const struct pci_ecam_ops hisi_pcie_platform_ops = {
-	.bus_shift    = 20,
 	.init         =  hisi_pcie_platform_init,
 	.pci_ops      = {
 		.map_bus    = hisi_pcie_map_bus,

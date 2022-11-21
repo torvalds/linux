@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for Kamstrup OMNIA Flex Concentrator in
+ * manufacturing/debugging mode.
+ *
+ * Copyright (C) 2020 Kamstrup A/S
+ * Author: Bruno Thomsen <bruno.thomsen@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "imx7d-flex-concentrator.dts"
+
+/ {
+	model = "Kamstrup OMNIA Flex Concentrator - Manufacturing";
+	compatible = "kam,imx7d-flex-concentrator-mfg", "fsl,imx7d";
+
+	chosen {
+		stdout-path = &uart4;
+	};
+};
+
+&uart4 {
+	status = "okay";
+};

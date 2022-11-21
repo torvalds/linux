@@ -53,7 +53,7 @@ struct pt_regs {
 
 static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
 {
-	return regs->regs[31];
+	return regs->regs[29];
 }
 
 static inline void instruction_pointer_set(struct pt_regs *regs,

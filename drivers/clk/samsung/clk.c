@@ -268,20 +268,6 @@ void __init samsung_clk_of_register_fixed_ext(struct samsung_clk_provider *ctx,
 	samsung_clk_register_fixed_rate(ctx, fixed_rate_clk, nr_fixed_rate_clk);
 }
 
-/* utility function to get the rate of a specified clock */
-unsigned long _get_rate(const char *clk_name)
-{
-	struct clk *clk;
-
-	clk = __clk_lookup(clk_name);
-	if (!clk) {
-		pr_err("%s: could not find clock %s\n", __func__, clk_name);
-		return 0;
-	}
-
-	return clk_get_rate(clk);
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int samsung_clk_suspend(void)
 {
@@ -378,6 +364,8 @@ struct samsung_clk_provider * __init samsung_cmu_register_one(
 		samsung_clk_extended_sleep_init(reg_base,
 			cmu->clk_regs, cmu->nr_clk_regs,
 			cmu->suspend_regs, cmu->nr_suspend_regs);
+	if (cmu->cpu_clks)
+		samsung_clk_register_cpu(ctx, cmu->cpu_clks, cmu->nr_cpu_clks);
 
 	samsung_clk_of_add_provider(np, ctx);
 

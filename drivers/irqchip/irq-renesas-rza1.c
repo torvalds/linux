@@ -223,12 +223,12 @@ static int rza1_irqc_probe(struct platform_device *pdev)
 		goto out_put_node;
 	}
 
-	priv->chip.name = "rza1-irqc",
-	priv->chip.irq_mask = irq_chip_mask_parent,
-	priv->chip.irq_unmask = irq_chip_unmask_parent,
-	priv->chip.irq_eoi = rza1_irqc_eoi,
-	priv->chip.irq_retrigger = irq_chip_retrigger_hierarchy,
-	priv->chip.irq_set_type = rza1_irqc_set_type,
+	priv->chip.name = "rza1-irqc";
+	priv->chip.irq_mask = irq_chip_mask_parent;
+	priv->chip.irq_unmask = irq_chip_unmask_parent;
+	priv->chip.irq_eoi = rza1_irqc_eoi;
+	priv->chip.irq_retrigger = irq_chip_retrigger_hierarchy;
+	priv->chip.irq_set_type = rza1_irqc_set_type;
 	priv->chip.flags = IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_SKIP_SET_WAKE;
 
 	priv->irq_domain = irq_domain_add_hierarchy(parent, 0, IRQC_NUM_IRQ,

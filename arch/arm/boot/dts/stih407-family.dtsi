@@ -115,37 +115,140 @@
 		status = "okay";
 	};
 
+	restart: restart-controller {
+		compatible = "st,stih407-restart";
+		st,syscfg = <&syscfg_sbc_reg>;
+		status = "okay";
+	};
+
+	powerdown: powerdown-controller {
+		compatible = "st,stih407-powerdown";
+		#reset-cells = <1>;
+	};
+
+	softreset: softreset-controller {
+		compatible = "st,stih407-softreset";
+		#reset-cells = <1>;
+	};
+
+	picophyreset: picophyreset-controller {
+		compatible = "st,stih407-picophyreset";
+		#reset-cells = <1>;
+	};
+
+	irq-syscfg {
+		compatible    = "st,stih407-irq-syscfg";
+		st,syscfg     = <&syscfg_core>;
+		st,irq-device = <ST_IRQ_SYSCFG_PMU_0>,
+				<ST_IRQ_SYSCFG_PMU_1>;
+		st,fiq-device = <ST_IRQ_SYSCFG_DISABLED>,
+				<ST_IRQ_SYSCFG_DISABLED>;
+	};
+
+	usb2_picophy0: phy1 {
+		compatible = "st,stih407-usb2-phy";
+		#phy-cells = <0>;
+		st,syscfg = <&syscfg_core 0x100 0xf4>;
+		resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
+			 <&picophyreset STIH407_PICOPHY2_RESET>;
+		reset-names = "global", "port";
+	};
+
+	miphy28lp_phy: miphy28lp {
+		compatible = "st,miphy28lp-phy";
+		st,syscfg = <&syscfg_core>;
+		#address-cells	= <1>;
+		#size-cells	= <1>;
+		ranges;
+
+		phy_port0: port@9b22000 {
+			reg = <0x9b22000 0xff>,
+			      <0x9b09000 0xff>,
+			      <0x9b04000 0xff>;
+			reg-names = "sata-up",
+				    "pcie-up",
+				    "pipew";
+
+			st,syscfg = <0x114 0x818 0xe0 0xec>;
+			#phy-cells = <1>;
+
+			reset-names = "miphy-sw-rst";
+			resets = <&softreset STIH407_MIPHY0_SOFTRESET>;
+		};
+
+		phy_port1: port@9b2a000 {
+			reg = <0x9b2a000 0xff>,
+			      <0x9b19000 0xff>,
+			      <0x9b14000 0xff>;
+			reg-names = "sata-up",
+				    "pcie-up",
+				    "pipew";
+
+			st,syscfg = <0x118 0x81c 0xe4 0xf0>;
+
+			#phy-cells = <1>;
+
+			reset-names = "miphy-sw-rst";
+			resets = <&softreset STIH407_MIPHY1_SOFTRESET>;
+		};
+
+		phy_port2: port@8f95000 {
+			reg = <0x8f95000 0xff>,
+			      <0x8f90000 0xff>;
+			reg-names = "pipew",
+				    "usb3-up";
+
+			st,syscfg = <0x11c 0x820>;
+
+			#phy-cells = <1>;
+
+			reset-names = "miphy-sw-rst";
+			resets = <&softreset STIH407_MIPHY2_SOFTRESET>;
+		};
+	};
+
+	st231_gp0: st231-gp0 {
+		compatible	= "st,st231-rproc";
+		memory-region	= <&gp0_reserved>;
+		resets		= <&softreset STIH407_ST231_GP0_SOFTRESET>;
+		reset-names	= "sw_reset";
+		clocks		= <&clk_s_c0_flexgen CLK_ST231_GP_0>;
+		clock-frequency	= <600000000>;
+		st,syscfg	= <&syscfg_core 0x22c>;
+		#mbox-cells = <1>;
+		mbox-names = "vq0_rx", "vq0_tx", "vq1_rx", "vq1_tx";
+		mboxes = <&mailbox0 0 2>, <&mailbox2 0 1>, <&mailbox0 0 3>, <&mailbox2 0 0>;
+	};
+
+	st231_delta: st231-delta {
+		compatible	= "st,st231-rproc";
+		memory-region	= <&delta_reserved>;
+		resets		= <&softreset STIH407_ST231_DMU_SOFTRESET>;
+		reset-names	= "sw_reset";
+		clocks		= <&clk_s_c0_flexgen CLK_ST231_DMU>;
+		clock-frequency	= <600000000>;
+		st,syscfg	= <&syscfg_core 0x224>;
+		#mbox-cells = <1>;
+		mbox-names = "vq0_rx", "vq0_tx", "vq1_rx", "vq1_tx";
+		mboxes = <&mailbox0 0 0>, <&mailbox3 0 1>, <&mailbox0 0 1>, <&mailbox3 0 0>;
+	};
+
+	delta0 {
+		compatible = "st,st-delta";
+		clock-names = "delta",
+			      "delta-st231",
+			      "delta-flash-promip";
+		clocks = <&clk_s_c0_flexgen CLK_VID_DMU>,
+			 <&clk_s_c0_flexgen CLK_ST231_DMU>,
+			 <&clk_s_c0_flexgen CLK_FLASH_PROMIP>;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		interrupt-parent = <&intc>;
 		ranges;
 		compatible = "simple-bus";
-
-		restart: restart-controller@0 {
-			compatible = "st,stih407-restart";
-			reg = <0 0>;
-			st,syscfg = <&syscfg_sbc_reg>;
-			status = "okay";
-		};
-
-		powerdown: powerdown-controller@0 {
-			compatible = "st,stih407-powerdown";
-			reg = <0 0>;
-			#reset-cells = <1>;
-		};
-
-		softreset: softreset-controller@0 {
-			compatible = "st,stih407-softreset";
-			reg = <0 0>;
-			#reset-cells = <1>;
-		};
-
-		picophyreset: picophyreset-controller@0 {
-			compatible = "st,stih407-picophyreset";
-			reg = <0 0>;
-			#reset-cells = <1>;
-		};
 
 		syscfg_sbc: sbc-syscfg@9620000 {
 			compatible = "st,stih407-sbc-syscfg", "syscon";
@@ -187,16 +290,6 @@
 		syscfg_lpm: lpm-syscfg@94b5100 {
 			compatible = "st,stih407-lpm-syscfg", "syscon";
 			reg = <0x94b5100 0x1000>;
-		};
-
-		irq-syscfg@0 {
-			compatible    = "st,stih407-irq-syscfg";
-			reg = <0 0>;
-			st,syscfg     = <&syscfg_core>;
-			st,irq-device = <ST_IRQ_SYSCFG_PMU_0>,
-					<ST_IRQ_SYSCFG_PMU_1>;
-			st,fiq-device = <ST_IRQ_SYSCFG_DISABLED>,
-					<ST_IRQ_SYSCFG_DISABLED>;
 		};
 
 		/* Display */
@@ -389,70 +482,6 @@
 			status = "disabled";
 		};
 
-		usb2_picophy0: phy1@0 {
-			compatible = "st,stih407-usb2-phy";
-			reg = <0 0>;
-			#phy-cells = <0>;
-			st,syscfg = <&syscfg_core 0x100 0xf4>;
-			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
-				 <&picophyreset STIH407_PICOPHY2_RESET>;
-			reset-names = "global", "port";
-		};
-
-		miphy28lp_phy: miphy28lp@0 {
-			compatible = "st,miphy28lp-phy";
-			st,syscfg = <&syscfg_core>;
-			#address-cells	= <1>;
-			#size-cells	= <1>;
-			ranges;
-			reg = <0 0>;
-
-			phy_port0: port@9b22000 {
-				reg = <0x9b22000 0xff>,
-				      <0x9b09000 0xff>,
-				      <0x9b04000 0xff>;
-				reg-names = "sata-up",
-					    "pcie-up",
-					    "pipew";
-
-				st,syscfg = <0x114 0x818 0xe0 0xec>;
-				#phy-cells = <1>;
-
-				reset-names = "miphy-sw-rst";
-				resets = <&softreset STIH407_MIPHY0_SOFTRESET>;
-			};
-
-			phy_port1: port@9b2a000 {
-				reg = <0x9b2a000 0xff>,
-				      <0x9b19000 0xff>,
-				      <0x9b14000 0xff>;
-				reg-names = "sata-up",
-					    "pcie-up",
-					    "pipew";
-
-				st,syscfg = <0x118 0x81c 0xe4 0xf0>;
-
-				#phy-cells = <1>;
-
-				reset-names = "miphy-sw-rst";
-				resets = <&softreset STIH407_MIPHY1_SOFTRESET>;
-			};
-
-			phy_port2: port@8f95000 {
-				reg = <0x8f95000 0xff>,
-				      <0x8f90000 0xff>;
-				reg-names = "pipew",
-					    "usb3-up";
-
-				st,syscfg = <0x11c 0x820>;
-
-				#phy-cells = <1>;
-
-				reset-names = "miphy-sw-rst";
-				resets = <&softreset STIH407_MIPHY2_SOFTRESET>;
-			};
-		};
-
 		spi@9840000 {
 			compatible = "st,comms-ssc4-spi";
 			reg = <0x9840000 0x110>;
@@ -614,6 +643,21 @@
 			interrupts = <GIC_SPI 130 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clk_s_d3_flexgen CLK_LPC_1>;
 			st,lpc-mode = <ST_LPC_MODE_CLKSRC>;
+		};
+
+		spifsm: spifsm@9022000{
+			compatible = "st,spi-fsm";
+			reg = <0x9022000 0x1000>;
+			reg-names = "spi-fsm";
+			clocks = <&clk_s_c0_flexgen CLK_FLASH_PROMIP>;
+			clock-names = "emi_clk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_fsm>;
+			st,syscfg = <&syscfg_core>;
+			st,boot-device-reg = <0x8c4>;
+			st,boot-device-spi = <0x68>;
+
+			status = "disabled";
 		};
 
 		sata0: sata@9b20000 {
@@ -800,34 +844,6 @@
 			status		= "okay";
 		};
 
-		st231_gp0: st231-gp0@0 {
-			compatible	= "st,st231-rproc";
-			reg		= <0 0>;
-			memory-region	= <&gp0_reserved>;
-			resets		= <&softreset STIH407_ST231_GP0_SOFTRESET>;
-			reset-names	= "sw_reset";
-			clocks		= <&clk_s_c0_flexgen CLK_ST231_GP_0>;
-			clock-frequency	= <600000000>;
-			st,syscfg	= <&syscfg_core 0x22c>;
-			#mbox-cells = <1>;
-			mbox-names = "vq0_rx", "vq0_tx", "vq1_rx", "vq1_tx";
-			mboxes = <&mailbox0 0 2>, <&mailbox2 0 1>, <&mailbox0 0 3>, <&mailbox2 0 0>;
-		};
-
-		st231_delta: st231-delta@0 {
-			compatible	= "st,st231-rproc";
-			reg		= <0 0>;
-			memory-region	= <&delta_reserved>;
-			resets		= <&softreset STIH407_ST231_DMU_SOFTRESET>;
-			reset-names	= "sw_reset";
-			clocks		= <&clk_s_c0_flexgen CLK_ST231_DMU>;
-			clock-frequency	= <600000000>;
-			st,syscfg	= <&syscfg_core 0x224>;
-			#mbox-cells = <1>;
-			mbox-names = "vq0_rx", "vq0_tx", "vq1_rx", "vq1_tx";
-			mboxes = <&mailbox0 0 0>, <&mailbox3 0 1>, <&mailbox0 0 1>, <&mailbox3 0 0>;
-		};
-
 		/* fdma audio */
 		fdma0: dma-controller@8e20000 {
 			compatible = "st,stih407-fdma-mpe31-11", "st,slim-rproc";
@@ -970,17 +986,6 @@
 			dma-names = "rx";
 
 			status = "disabled";
-		};
-
-		delta0@0 {
-			compatible = "st,st-delta";
-			reg = <0 0>;
-			clock-names = "delta",
-				      "delta-st231",
-				      "delta-flash-promip";
-			clocks = <&clk_s_c0_flexgen CLK_VID_DMU>,
-				 <&clk_s_c0_flexgen CLK_ST231_DMU>,
-				 <&clk_s_c0_flexgen CLK_FLASH_PROMIP>;
 		};
 	};
 };

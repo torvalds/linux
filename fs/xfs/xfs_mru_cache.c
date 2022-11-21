@@ -219,7 +219,7 @@ _xfs_mru_cache_list_insert(
  * When destroying or reaping, all the elements that were migrated to the reap
  * list need to be deleted.  For each element this involves removing it from the
  * data store, removing it from the reap list, calling the client's free
- * function and deleting the element from the element zone.
+ * function and deleting the element from the element cache.
  *
  * We get called holding the mru->lock, which we drop and then reacquire.
  * Sparse need special help with this to tell it we know what we are doing.
@@ -294,7 +294,7 @@ int
 xfs_mru_cache_init(void)
 {
 	xfs_mru_reap_wq = alloc_workqueue("xfs_mru_cache",
-				WQ_MEM_RECLAIM|WQ_FREEZABLE, 1);
+			XFS_WQFLAGS(WQ_MEM_RECLAIM | WQ_FREEZABLE), 1);
 	if (!xfs_mru_reap_wq)
 		return -ENOMEM;
 	return 0;

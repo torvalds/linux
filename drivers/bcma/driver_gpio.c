@@ -181,7 +181,6 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->set		= bcma_gpio_set_value;
 	chip->direction_input	= bcma_gpio_direction_input;
 	chip->direction_output	= bcma_gpio_direction_output;
-	chip->owner		= THIS_MODULE;
 	chip->parent		= bus->dev;
 #if IS_BUILTIN(CONFIG_OF)
 	chip->of_node		= cc->core->dev.of_node;

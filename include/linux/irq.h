@@ -72,6 +72,7 @@ enum irqchip_irq_state;
  *				  mechanism and from core side polling.
  * IRQ_DISABLE_UNLAZY		- Disable lazy irq disable
  * IRQ_HIDDEN			- Don't show up in /proc/interrupts
+ * IRQ_NO_DEBUG			- Exclude from note_interrupt() debugging
  */
 enum {
 	IRQ_TYPE_NONE		= 0x00000000,
@@ -99,6 +100,7 @@ enum {
 	IRQ_IS_POLLED		= (1 << 18),
 	IRQ_DISABLE_UNLAZY	= (1 << 19),
 	IRQ_HIDDEN		= (1 << 20),
+	IRQ_NO_DEBUG		= (1 << 21),
 };
 
 #define IRQF_MODIFY_MASK	\
@@ -116,7 +118,7 @@ enum {
  * IRQ_SET_MASK_NOCPY	- OK, chip did update irq_common_data.affinity
  * IRQ_SET_MASK_OK_DONE	- Same as IRQ_SET_MASK_OK for core. Special code to
  *			  support stacked irqchips, which indicates skipping
- *			  all descendent irqchips.
+ *			  all descendant irqchips.
  */
 enum {
 	IRQ_SET_MASK_OK = 0,
@@ -302,7 +304,7 @@ static inline bool irqd_is_level_type(struct irq_data *d)
 
 /*
  * Must only be called of irqchip.irq_set_affinity() or low level
- * hieararchy domain allocation functions.
+ * hierarchy domain allocation functions.
  */
 static inline void irqd_set_single_target(struct irq_data *d)
 {
@@ -454,7 +456,6 @@ static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
 /**
  * struct irq_chip - hardware interrupt chip descriptor
  *
- * @parent_device:	pointer to parent device for irqchip
  * @name:		name for /proc/interrupts
  * @irq_startup:	start up the interrupt (defaults to ->enable if NULL)
  * @irq_shutdown:	shut down the interrupt (defaults to ->disable if NULL)
@@ -501,7 +502,6 @@ static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
  * @flags:		chip specific flags
  */
 struct irq_chip {
-	struct device	*parent_device;
 	const char	*name;
 	unsigned int	(*irq_startup)(struct irq_data *data);
 	void		(*irq_shutdown)(struct irq_data *data);
@@ -522,9 +522,10 @@ struct irq_chip {
 	void		(*irq_bus_lock)(struct irq_data *data);
 	void		(*irq_bus_sync_unlock)(struct irq_data *data);
 
+#ifdef CONFIG_DEPRECATED_IRQ_CPU_ONOFFLINE
 	void		(*irq_cpu_online)(struct irq_data *data);
 	void		(*irq_cpu_offline)(struct irq_data *data);
-
+#endif
 	void		(*irq_suspend)(struct irq_data *data);
 	void		(*irq_resume)(struct irq_data *data);
 	void		(*irq_pm_shutdown)(struct irq_data *data);
@@ -567,6 +568,7 @@ struct irq_chip {
  * IRQCHIP_SUPPORTS_NMI:              Chip can deliver NMIs, only for root irqchips
  * IRQCHIP_ENABLE_WAKEUP_ON_SUSPEND:  Invokes __enable_irq()/__disable_irq() for wake irqs
  *                                    in the suspend path if they are in disabled state
+ * IRQCHIP_AFFINITY_PRE_STARTUP:      Default affinity update before startup
  */
 enum {
 	IRQCHIP_SET_TYPE_MASKED			= (1 <<  0),
@@ -579,6 +581,7 @@ enum {
 	IRQCHIP_SUPPORTS_LEVEL_MSI		= (1 <<  7),
 	IRQCHIP_SUPPORTS_NMI			= (1 <<  8),
 	IRQCHIP_ENABLE_WAKEUP_ON_SUSPEND	= (1 <<  9),
+	IRQCHIP_AFFINITY_PRE_STARTUP		= (1 << 10),
 };
 
 #include <linux/irqdesc.h>
@@ -602,8 +605,10 @@ struct irqaction;
 extern int setup_percpu_irq(unsigned int irq, struct irqaction *new);
 extern void remove_percpu_irq(unsigned int irq, struct irqaction *act);
 
+#ifdef CONFIG_DEPRECATED_IRQ_CPU_ONOFFLINE
 extern void irq_cpu_online(void);
 extern void irq_cpu_offline(void);
+#endif
 extern int irq_set_affinity_locked(struct irq_data *data,
 				   const struct cpumask *cpumask, bool force);
 extern int irq_set_vcpu_affinity(unsigned int irq, void *vcpu_info);
@@ -647,7 +652,6 @@ static inline int irq_set_parent(int irq, int parent_irq)
  */
 extern void handle_level_irq(struct irq_desc *desc);
 extern void handle_fasteoi_irq(struct irq_desc *desc);
-extern void handle_percpu_devid_fasteoi_ipi(struct irq_desc *desc);
 extern void handle_edge_irq(struct irq_desc *desc);
 extern void handle_edge_eoi_irq(struct irq_desc *desc);
 extern void handle_simple_irq(struct irq_desc *desc);
@@ -706,10 +710,11 @@ extern struct irq_chip no_irq_chip;
 extern struct irq_chip dummy_irq_chip;
 
 extern void
-irq_set_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
+irq_set_chip_and_handler_name(unsigned int irq, const struct irq_chip *chip,
 			      irq_flow_handler_t handle, const char *name);
 
-static inline void irq_set_chip_and_handler(unsigned int irq, struct irq_chip *chip,
+static inline void irq_set_chip_and_handler(unsigned int irq,
+					    const struct irq_chip *chip,
 					    irq_flow_handler_t handle)
 {
 	irq_set_chip_and_handler_name(irq, chip, handle, NULL);
@@ -799,7 +804,7 @@ static inline void irq_set_percpu_devid_flags(unsigned int irq)
 }
 
 /* Set/get chip/data for an IRQ: */
-extern int irq_set_chip(unsigned int irq, struct irq_chip *chip);
+extern int irq_set_chip(unsigned int irq, const struct irq_chip *chip);
 extern int irq_set_handler_data(unsigned int irq, void *data);
 extern int irq_set_chip_data(unsigned int irq, void *data);
 extern int irq_set_irq_type(unsigned int irq, unsigned int type);
@@ -907,6 +912,13 @@ struct cpumask *irq_data_get_effective_affinity_mask(struct irq_data *d)
 }
 #endif
 
+static inline struct cpumask *irq_get_effective_affinity_mask(unsigned int irq)
+{
+	struct irq_data *d = irq_get_irq_data(irq);
+
+	return d ? irq_data_get_effective_affinity_mask(d) : NULL;
+}
+
 unsigned int arch_dynirq_lower_bound(unsigned int from);
 
 int __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
@@ -922,7 +934,7 @@ int __devm_irq_alloc_descs(struct device *dev, int irq, unsigned int from,
 	__irq_alloc_descs(irq, from, cnt, node, THIS_MODULE, NULL)
 
 #define irq_alloc_desc(node)			\
-	irq_alloc_descs(-1, 0, 1, node)
+	irq_alloc_descs(-1, 1, 1, node)
 
 #define irq_alloc_desc_at(at, node)		\
 	irq_alloc_descs(at, at, 1, node)
@@ -937,7 +949,7 @@ int __devm_irq_alloc_descs(struct device *dev, int irq, unsigned int from,
 	__devm_irq_alloc_descs(dev, irq, from, cnt, node, THIS_MODULE, NULL)
 
 #define devm_irq_alloc_desc(dev, node)				\
-	devm_irq_alloc_descs(dev, -1, 0, 1, node)
+	devm_irq_alloc_descs(dev, -1, 1, 1, node)
 
 #define devm_irq_alloc_desc_at(dev, at, node)			\
 	devm_irq_alloc_descs(dev, at, at, 1, node)
@@ -953,21 +965,6 @@ static inline void irq_free_desc(unsigned int irq)
 {
 	irq_free_descs(irq, 1);
 }
-
-#ifdef CONFIG_GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
-unsigned int irq_alloc_hwirqs(int cnt, int node);
-static inline unsigned int irq_alloc_hwirq(int node)
-{
-	return irq_alloc_hwirqs(1, node);
-}
-void irq_free_hwirqs(unsigned int from, int cnt);
-static inline void irq_free_hwirq(unsigned int irq)
-{
-	return irq_free_hwirqs(irq, 1);
-}
-int arch_setup_hwirq(unsigned int irq, int node);
-void arch_teardown_hwirq(unsigned int irq);
-#endif
 
 #ifdef CONFIG_GENERIC_IRQ_LEGACY
 void irq_init_desc(unsigned int irq);
@@ -1266,12 +1263,15 @@ int __init set_handle_irq(void (*handle_irq)(struct pt_regs *));
  * top-level IRQ handler.
  */
 extern void (*handle_arch_irq)(struct pt_regs *) __ro_after_init;
+asmlinkage void generic_handle_arch_irq(struct pt_regs *regs);
 #else
+#ifndef set_handle_irq
 #define set_handle_irq(handle_irq)		\
 	do {					\
 		(void)handle_irq;		\
 		WARN_ON(1);			\
 	} while (0)
+#endif
 #endif
 
 #endif /* _LINUX_IRQ_H */

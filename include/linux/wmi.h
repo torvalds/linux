@@ -35,9 +35,10 @@ extern int set_required_buffer_size(struct wmi_device *wdev, u64 length);
 struct wmi_driver {
 	struct device_driver driver;
 	const struct wmi_device_id *id_table;
+	bool no_notify_data;
 
 	int (*probe)(struct wmi_device *wdev, const void *context);
-	int (*remove)(struct wmi_device *wdev);
+	void (*remove)(struct wmi_device *wdev);
 	void (*notify)(struct wmi_device *device, union acpi_object *data);
 	long (*filter_callback)(struct wmi_device *wdev, unsigned int cmd,
 				struct wmi_ioctl_buffer *arg);

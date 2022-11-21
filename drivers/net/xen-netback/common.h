@@ -203,6 +203,7 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	unsigned int rx_queue_max;
 	unsigned int rx_queue_len;
 	unsigned long last_rx_time;
+	unsigned int rx_slots_needed;
 	bool stalled;
 
 	struct xenvif_copy_state rx_copy;
@@ -399,7 +400,8 @@ void xenvif_rx_queue_tail(struct xenvif_queue *queue, struct sk_buff *skb);
 void xenvif_carrier_on(struct xenvif *vif);
 
 /* Callback from stack when TX packet can be released */
-void xenvif_zerocopy_callback(struct ubuf_info *ubuf, bool zerocopy_success);
+void xenvif_zerocopy_callback(struct sk_buff *skb, struct ubuf_info *ubuf,
+			      bool zerocopy_success);
 
 /* Unmap a pending page and release it back to the guest */
 void xenvif_idx_unmap(struct xenvif_queue *queue, u16 pending_idx);

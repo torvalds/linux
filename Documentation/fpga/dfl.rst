@@ -7,9 +7,10 @@ Authors:
 - Enno Luebbers <enno.luebbers@intel.com>
 - Xiao Guangrong <guangrong.xiao@linux.intel.com>
 - Wu Hao <hao.wu@intel.com>
+- Xu Yilun <yilun.xu@intel.com>
 
 The Device Feature List (DFL) FPGA framework (and drivers according to
-this framework) hides the very details of low layer hardwares and provides
+this framework) hides the very details of low layer hardware and provides
 unified interfaces to userspace. Applications could use these interfaces to
 configure, enumerate, open and access FPGA accelerators on platforms which
 implement the DFL in the device memory. Besides this, the DFL framework
@@ -56,7 +57,7 @@ FPGA Interface Unit (FIU) represents a standalone functional unit for the
 interface to FPGA, e.g. the FPGA Management Engine (FME) and Port (more
 descriptions on FME and Port in later sections).
 
-Accelerated Function Unit (AFU) represents a FPGA programmable region and
+Accelerated Function Unit (AFU) represents an FPGA programmable region and
 always connects to a FIU (e.g. a Port) as its child as illustrated above.
 
 Private Features represent sub features of the FIU and AFU. They could be
@@ -204,7 +205,7 @@ given Device Feature Lists and create platform devices for feature devices
 also abstracts operations for the private features and exposes common ops to
 feature device drivers.
 
-The FPGA DFL Device could be different hardwares, e.g. PCIe device, platform
+The FPGA DFL Device could be different hardware, e.g. PCIe device, platform
 device and etc. Its driver module is always loaded first once the device is
 created by the system. This driver plays an infrastructural role in the
 driver architecture. It locates the DFLs in the device memory, handles them
@@ -310,7 +311,7 @@ The driver organization in virtualization case is illustrated below:
              | PCI PF Device |            |          | PCI VF Device |
              +---------------+            |          +---------------+
 
-FPGA PCIe device driver is always loaded first once a FPGA PCIe PF or VF device
+FPGA PCIe device driver is always loaded first once an FPGA PCIe PF or VF device
 is detected. It:
 
 * Finishes enumeration on both FPGA PCIe PF and VF device using common
@@ -500,6 +501,59 @@ mmio resources can be found under FIU platform device created by DFL framework.
 Developer only needs to provide a sub feature driver with matched feature id.
 FME Partial Reconfiguration Sub Feature driver (see drivers/fpga/dfl-fme-pr.c)
 could be a reference.
+
+Location of DFLs on a PCI Device
+================================
+The original method for finding a DFL on a PCI device assumed the start of the
+first DFL to offset 0 of bar 0.  If the first node of the DFL is an FME,
+then further DFLs in the port(s) are specified in FME header registers.
+Alternatively, a PCIe vendor specific capability structure can be used to
+specify the location of all the DFLs on the device, providing flexibility
+for the type of starting node in the DFL.  Intel has reserved the
+VSEC ID of 0x43 for this purpose.  The vendor specific
+data begins with a 4 byte vendor specific register for the number of DFLs followed 4 byte
+Offset/BIR vendor specific registers for each DFL. Bits 2:0 of Offset/BIR register
+indicates the BAR, and bits 31:3 form the 8 byte aligned offset where bits 2:0 are
+zero.
+::
+
+        +----------------------------+
+        |31     Number of DFLS      0|
+        +----------------------------+
+        |31     Offset     3|2 BIR  0|
+        +----------------------------+
+                      . . .
+        +----------------------------+
+        |31     Offset     3|2 BIR  0|
+        +----------------------------+
+
+Being able to specify more than one DFL per BAR has been considered, but it
+was determined the use case did not provide value.  Specifying a single DFL
+per BAR simplifies the implementation and allows for extra error checking.
+
+
+Userspace driver support for DFL devices
+========================================
+The purpose of an FPGA is to be reprogrammed with newly developed hardware
+components. New hardware can instantiate a new private feature in the DFL, and
+then present a DFL device in the system. In some cases users may need a
+userspace driver for the DFL device:
+
+* Users may need to run some diagnostic test for their hardware.
+* Users may prototype the kernel driver in user space.
+* Some hardware is designed for specific purposes and does not fit into one of
+  the standard kernel subsystems.
+
+This requires direct access to MMIO space and interrupt handling from
+userspace. The uio_dfl module exposes the UIO device interfaces for this
+purpose.
+
+Currently the uio_dfl driver only supports the Ether Group sub feature, which
+has no irq in hardware. So the interrupt handling is not added in this driver.
+
+UIO_DFL should be selected to enable the uio_dfl module driver. To support a
+new DFL feature via UIO direct access, its feature id should be added to the
+driver's id_table.
 
 
 Open discussion

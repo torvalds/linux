@@ -46,25 +46,38 @@ stack frame LR and CR save fields are not used.
 
 Register preservation rules
 ---------------------------
-Register preservation rules match the ELF ABI calling sequence with the
-following differences:
+Register preservation rules match the ELF ABI calling sequence with some
+differences.
 
-+------------------------------------------------------------------------+
-|        For the sc instruction, differences with the ELF ABI		 |
-+--------------+--------------+------------------------------------------+
-| r0           | Volatile     | (System call number.)			 |
-| rr3          | Volatile     | (Parameter 1, and return value.)	 |
-| rr4-r8       | Volatile     | (Parameters 2-6.)			 |
-| rcr0         | Volatile     | (cr0.SO is the return error condition.)	 |
-| rcr1, cr5-7  | Nonvolatile  |						 |
-| rlr          | Nonvolatile  |						 |
-+--------------+--------------+------------------------------------------+
-|      For the scv 0 instruction, differences with the ELF ABI		 |
-+--------------+--------------+------------------------------------------+
-| r0           | Volatile     | (System call number.)			 |
-| r3           | Volatile     | (Parameter 1, and return value.)	 |
-| r4-r8        | Volatile     | (Parameters 2-6.)			 |
-+--------------+--------------+------------------------------------------+
+For the sc instruction, the differences from the ELF ABI are as follows:
+
++--------------+--------------------+-----------------------------------------+
+| Register     | Preservation Rules | Purpose                                 |
++==============+====================+=========================================+
+| r0           | Volatile           | (System call number.)                   |
++--------------+--------------------+-----------------------------------------+
+| r3           | Volatile           | (Parameter 1, and return value.)        |
++--------------+--------------------+-----------------------------------------+
+| r4-r8        | Volatile           | (Parameters 2-6.)                       |
++--------------+--------------------+-----------------------------------------+
+| cr0          | Volatile           | (cr0.SO is the return error condition.) |
++--------------+--------------------+-----------------------------------------+
+| cr1, cr5-7   | Nonvolatile        |                                         |
++--------------+--------------------+-----------------------------------------+
+| lr           | Nonvolatile        |                                         |
++--------------+--------------------+-----------------------------------------+
+
+For the scv 0 instruction, the differences from the ELF ABI are as follows:
+
++--------------+--------------------+-----------------------------------------+
+| Register     | Preservation Rules | Purpose                                 |
++==============+====================+=========================================+
+| r0           | Volatile           | (System call number.)                   |
++--------------+--------------------+-----------------------------------------+
+| r3           | Volatile           | (Parameter 1, and return value.)        |
++--------------+--------------------+-----------------------------------------+
+| r4-r8        | Volatile           | (Parameters 2-6.)                       |
++--------------+--------------------+-----------------------------------------+
 
 All floating point and vector data registers as well as control and status
 registers are nonvolatile.
@@ -95,6 +108,16 @@ auxiliary vector.
   behavior should not be relied upon.
 
 scv 0 syscalls will always behave as PPC_FEATURE2_HTM_NOSC.
+
+ptrace
+------
+When ptracing system calls (PTRACE_SYSCALL), the pt_regs.trap value contains
+the system call type that can be used to distinguish between sc and scv 0
+system calls, and the different register conventions can be accounted for.
+
+If the value of (pt_regs.trap & 0xfff0) is 0xc00 then the system call was
+performed with the sc instruction, if it is 0x3000 then the system call was
+performed with the scv 0 instruction.
 
 vsyscall
 ========

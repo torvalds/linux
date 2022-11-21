@@ -48,6 +48,7 @@
 #include <linux/efi.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
+#include <linux/ktime.h>
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -286,6 +287,15 @@ struct command_protocol_bl {
  *		structure (after re-assembly in case of being split over
  *		multiple spi-packets), minus the trailing crc. The total size
  *		of the message struct is therefore @length + 10.
+ *
+ * @keyboard:		Keyboard message
+ * @touchpad:		Touchpad message
+ * @tp_info:		Touchpad info (response)
+ * @tp_info_command:	Touchpad info (CRC)
+ * @init_mt_command:	Initialise Multitouch
+ * @capsl_command:	Toggle caps-lock LED
+ * @bl_command:		Keyboard brightness
+ * @data:		Buffer data
  */
 struct message {
 	__le16		type;
@@ -400,7 +410,7 @@ struct applespi_data {
 	unsigned int			cmd_msg_cntr;
 	/* lock to protect the above parameters and flags below */
 	spinlock_t			cmd_msg_lock;
-	bool				cmd_msg_queued;
+	ktime_t				cmd_msg_queued;
 	enum applespi_evt_type		cmd_evt_type;
 
 	struct led_classdev		backlight_info;
@@ -545,7 +555,8 @@ static void applespi_setup_read_txfrs(struct applespi_data *applespi)
 	memset(dl_t, 0, sizeof(*dl_t));
 	memset(rd_t, 0, sizeof(*rd_t));
 
-	dl_t->delay_usecs = applespi->spi_settings.spi_cs_delay;
+	dl_t->delay.value = applespi->spi_settings.spi_cs_delay;
+	dl_t->delay.unit = SPI_DELAY_UNIT_USECS;
 
 	rd_t->rx_buf = applespi->rx_buffer;
 	rd_t->len = APPLESPI_PACKET_SIZE;
@@ -574,14 +585,17 @@ static void applespi_setup_write_txfrs(struct applespi_data *applespi)
 	 * end up with an extra unnecessary (but harmless) cs assertion and
 	 * deassertion.
 	 */
-	wt_t->delay_usecs = SPI_RW_CHG_DELAY_US;
+	wt_t->delay.value = SPI_RW_CHG_DELAY_US;
+	wt_t->delay.unit = SPI_DELAY_UNIT_USECS;
 	wt_t->cs_change = 1;
 
-	dl_t->delay_usecs = applespi->spi_settings.spi_cs_delay;
+	dl_t->delay.value = applespi->spi_settings.spi_cs_delay;
+	dl_t->delay.unit = SPI_DELAY_UNIT_USECS;
 
 	wr_t->tx_buf = applespi->tx_buffer;
 	wr_t->len = APPLESPI_PACKET_SIZE;
-	wr_t->delay_usecs = SPI_RW_CHG_DELAY_US;
+	wr_t->delay.value = SPI_RW_CHG_DELAY_US;
+	wr_t->delay.unit = SPI_DELAY_UNIT_USECS;
 
 	st_t->rx_buf = applespi->tx_status;
 	st_t->len = APPLESPI_STATUS_SIZE;
@@ -716,7 +730,7 @@ static void applespi_msg_complete(struct applespi_data *applespi,
 		wake_up_all(&applespi->drain_complete);
 
 	if (is_write_msg) {
-		applespi->cmd_msg_queued = false;
+		applespi->cmd_msg_queued = 0;
 		applespi_send_cmd_msg(applespi);
 	}
 
@@ -734,6 +748,8 @@ static void applespi_async_write_complete(void *context)
 	applespi_get_trace_fun(evt_type)(evt_type, PT_STATUS,
 					 applespi->tx_status,
 					 APPLESPI_STATUS_SIZE);
+
+	udelay(SPI_RW_CHG_DELAY_US);
 
 	if (!applespi_check_write_status(applespi, applespi->wr_m.status)) {
 		/*
@@ -758,8 +774,16 @@ static int applespi_send_cmd_msg(struct applespi_data *applespi)
 		return 0;
 
 	/* check whether send is in progress */
-	if (applespi->cmd_msg_queued)
-		return 0;
+	if (applespi->cmd_msg_queued) {
+		if (ktime_ms_delta(ktime_get(), applespi->cmd_msg_queued) < 1000)
+			return 0;
+
+		dev_warn(&applespi->spi->dev, "Command %d timed out\n",
+			 applespi->cmd_evt_type);
+
+		applespi->cmd_msg_queued = 0;
+		applespi->write_active = false;
+	}
 
 	/* set up packet */
 	memset(packet, 0, APPLESPI_PACKET_SIZE);
@@ -856,7 +880,7 @@ static int applespi_send_cmd_msg(struct applespi_data *applespi)
 		return sts;
 	}
 
-	applespi->cmd_msg_queued = true;
+	applespi->cmd_msg_queued = ktime_get_coarse();
 	applespi->write_active = true;
 
 	return 0;
@@ -1834,7 +1858,7 @@ static void applespi_drain_reads(struct applespi_data *applespi)
 	spin_unlock_irqrestore(&applespi->cmd_msg_lock, flags);
 }
 
-static int applespi_remove(struct spi_device *spi)
+static void applespi_remove(struct spi_device *spi)
 {
 	struct applespi_data *applespi = spi_get_drvdata(spi);
 
@@ -1847,8 +1871,6 @@ static int applespi_remove(struct spi_device *spi)
 	applespi_drain_reads(applespi);
 
 	debugfs_remove_recursive(applespi->debugfs_root);
-
-	return 0;
 }
 
 static void applespi_shutdown(struct spi_device *spi)
@@ -1908,7 +1930,7 @@ static int __maybe_unused applespi_resume(struct device *dev)
 	applespi->drain = false;
 	applespi->have_cl_led_on = false;
 	applespi->have_bl_level = 0;
-	applespi->cmd_msg_queued = false;
+	applespi->cmd_msg_queued = 0;
 	applespi->read_active = false;
 	applespi->write_active = false;
 

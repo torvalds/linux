@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/string_helpers.h>
 
 #include "../pinctrl-utils.h"
 
@@ -167,10 +168,14 @@ static struct armada_37xx_pin_group armada_37xx_nb_groups[] = {
 	PIN_GRP_GPIO("jtag", 20, 5, BIT(0), "jtag"),
 	PIN_GRP_GPIO("sdio0", 8, 3, BIT(1), "sdio"),
 	PIN_GRP_GPIO("emmc_nb", 27, 9, BIT(2), "emmc"),
-	PIN_GRP_GPIO("pwm0", 11, 1, BIT(3), "pwm"),
-	PIN_GRP_GPIO("pwm1", 12, 1, BIT(4), "pwm"),
-	PIN_GRP_GPIO("pwm2", 13, 1, BIT(5), "pwm"),
-	PIN_GRP_GPIO("pwm3", 14, 1, BIT(6), "pwm"),
+	PIN_GRP_GPIO_3("pwm0", 11, 1, BIT(3) | BIT(20), 0, BIT(20), BIT(3),
+		       "pwm", "led"),
+	PIN_GRP_GPIO_3("pwm1", 12, 1, BIT(4) | BIT(21), 0, BIT(21), BIT(4),
+		       "pwm", "led"),
+	PIN_GRP_GPIO_3("pwm2", 13, 1, BIT(5) | BIT(22), 0, BIT(22), BIT(5),
+		       "pwm", "led"),
+	PIN_GRP_GPIO_3("pwm3", 14, 1, BIT(6) | BIT(23), 0, BIT(23), BIT(6),
+		       "pwm", "led"),
 	PIN_GRP_GPIO("pmic1", 7, 1, BIT(7), "pmic"),
 	PIN_GRP_GPIO("pmic0", 6, 1, BIT(8), "pmic"),
 	PIN_GRP_GPIO("i2c2", 2, 2, BIT(9), "i2c"),
@@ -184,11 +189,6 @@ static struct armada_37xx_pin_group armada_37xx_nb_groups[] = {
 	PIN_GRP_EXTRA("uart2", 9, 2, BIT(1) | BIT(13) | BIT(14) | BIT(19),
 		      BIT(1) | BIT(13) | BIT(14), BIT(1) | BIT(19),
 		      18, 2, "gpio", "uart"),
-	PIN_GRP_GPIO_2("led0_od", 11, 1, BIT(20), BIT(20), 0, "led"),
-	PIN_GRP_GPIO_2("led1_od", 12, 1, BIT(21), BIT(21), 0, "led"),
-	PIN_GRP_GPIO_2("led2_od", 13, 1, BIT(22), BIT(22), 0, "led"),
-	PIN_GRP_GPIO_2("led3_od", 14, 1, BIT(23), BIT(23), 0, "led"),
-
 };
 
 static struct armada_37xx_pin_group armada_37xx_sb_groups[] = {
@@ -342,12 +342,12 @@ static int armada_37xx_pmx_set_by_name(struct pinctrl_dev *pctldev,
 				       struct armada_37xx_pin_group *grp)
 {
 	struct armada_37xx_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
+	struct device *dev = info->dev;
 	unsigned int reg = SELECTION;
 	unsigned int mask = grp->reg_mask;
 	int func, val;
 
-	dev_dbg(info->dev, "enable function %s group %s\n",
-		name, grp->name);
+	dev_dbg(dev, "enable function %s group %s\n", name, grp->name);
 
 	func = match_string(grp->funcs, NB_FUNCS, name);
 	if (func < 0)
@@ -723,25 +723,22 @@ static unsigned int armada_37xx_irq_startup(struct irq_data *d)
 static int armada_37xx_irqchip_register(struct platform_device *pdev,
 					struct armada_37xx_pinctrl *info)
 {
-	struct device_node *np = info->dev->of_node;
 	struct gpio_chip *gc = &info->gpio_chip;
 	struct irq_chip *irqchip = &info->irq_chip;
 	struct gpio_irq_chip *girq = &gc->irq;
 	struct device *dev = &pdev->dev;
-	struct resource res;
+	struct device_node *np;
 	int ret = -ENODEV, i, nr_irq_parent;
 
 	/* Check if we have at least one gpio-controller child node */
-	for_each_child_of_node(info->dev->of_node, np) {
+	for_each_child_of_node(dev->of_node, np) {
 		if (of_property_read_bool(np, "gpio-controller")) {
 			ret = 0;
 			break;
 		}
 	}
-	if (ret) {
-		dev_err(dev, "no gpio-controller child node\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "no gpio-controller child node\n");
 
 	nr_irq_parent = of_irq_count(np);
 	spin_lock_init(&info->irq_lock);
@@ -751,12 +748,7 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 		return 0;
 	}
 
-	if (of_address_to_resource(info->dev->of_node, 1, &res)) {
-		dev_err(dev, "cannot find IO resource\n");
-		return -ENOENT;
-	}
-
-	info->base = devm_ioremap_resource(info->dev, &res);
+	info->base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(info->base))
 		return PTR_ERR(info->base);
 
@@ -775,8 +767,7 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 	 * the chained irq with all of them.
 	 */
 	girq->num_parents = nr_irq_parent;
-	girq->parents = devm_kcalloc(&pdev->dev, nr_irq_parent,
-				     sizeof(*girq->parents), GFP_KERNEL);
+	girq->parents = devm_kcalloc(dev, nr_irq_parent, sizeof(*girq->parents), GFP_KERNEL);
 	if (!girq->parents)
 		return -ENOMEM;
 	for (i = 0; i < nr_irq_parent; i++) {
@@ -795,11 +786,12 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 static int armada_37xx_gpiochip_register(struct platform_device *pdev,
 					struct armada_37xx_pinctrl *info)
 {
+	struct device *dev = &pdev->dev;
 	struct device_node *np;
 	struct gpio_chip *gc;
 	int ret = -ENODEV;
 
-	for_each_child_of_node(info->dev->of_node, np) {
+	for_each_child_of_node(dev->of_node, np) {
 		if (of_find_property(np, "gpio-controller", NULL)) {
 			ret = 0;
 			break;
@@ -812,7 +804,7 @@ static int armada_37xx_gpiochip_register(struct platform_device *pdev,
 
 	gc = &info->gpio_chip;
 	gc->ngpio = info->data->nr_pins;
-	gc->parent = &pdev->dev;
+	gc->parent = dev;
 	gc->base = -1;
 	gc->of_node = np;
 	gc->label = info->data->name;
@@ -820,11 +812,8 @@ static int armada_37xx_gpiochip_register(struct platform_device *pdev,
 	ret = armada_37xx_irqchip_register(pdev, info);
 	if (ret)
 		return ret;
-	ret = devm_gpiochip_add_data(&pdev->dev, gc, info);
-	if (ret)
-		return ret;
 
-	return 0;
+	return devm_gpiochip_add_data(dev, gc, info);
 }
 
 /**
@@ -875,13 +864,13 @@ static int armada_37xx_add_function(struct armada_37xx_pmx_func *funcs,
 static int armada_37xx_fill_group(struct armada_37xx_pinctrl *info)
 {
 	int n, num = 0, funcsize = info->data->nr_pins;
+	struct device *dev = info->dev;
 
 	for (n = 0; n < info->ngroups; n++) {
 		struct armada_37xx_pin_group *grp = &info->groups[n];
 		int i, j, f;
 
-		grp->pins = devm_kcalloc(info->dev,
-					 grp->npins + grp->extra_npins,
+		grp->pins = devm_kcalloc(dev, grp->npins + grp->extra_npins,
 					 sizeof(*grp->pins),
 					 GFP_KERNEL);
 		if (!grp->pins)
@@ -899,8 +888,7 @@ static int armada_37xx_fill_group(struct armada_37xx_pinctrl *info)
 			ret = armada_37xx_add_function(info->funcs, &funcsize,
 					    grp->funcs[f]);
 			if (ret == -EOVERFLOW)
-				dev_err(info->dev,
-					"More functions than pins(%d)\n",
+				dev_err(dev, "More functions than pins(%d)\n",
 					info->data->nr_pins);
 			if (ret < 0)
 				continue;
@@ -914,7 +902,7 @@ static int armada_37xx_fill_group(struct armada_37xx_pinctrl *info)
 }
 
 /**
- * armada_37xx_fill_funcs() - complete the funcs array
+ * armada_37xx_fill_func() - complete the funcs array
  * @info: info driver instance
  *
  * Based on the data available from the armada_37xx_pin_group array
@@ -926,6 +914,7 @@ static int armada_37xx_fill_group(struct armada_37xx_pinctrl *info)
 static int armada_37xx_fill_func(struct armada_37xx_pinctrl *info)
 {
 	struct armada_37xx_pmx_func *funcs = info->funcs;
+	struct device *dev = info->dev;
 	int n;
 
 	for (n = 0; n < info->nfuncs; n++) {
@@ -933,8 +922,7 @@ static int armada_37xx_fill_func(struct armada_37xx_pinctrl *info)
 		const char **groups;
 		int g;
 
-		funcs[n].groups = devm_kcalloc(info->dev,
-					       funcs[n].ngroups,
+		funcs[n].groups = devm_kcalloc(dev, funcs[n].ngroups,
 					       sizeof(*(funcs[n].groups)),
 					       GFP_KERNEL);
 		if (!funcs[n].groups)
@@ -963,6 +951,8 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	const struct armada_37xx_pin_data *pin_data = info->data;
 	struct pinctrl_desc *ctrldesc = &info->pctl;
 	struct pinctrl_pin_desc *pindesc, *pdesc;
+	struct device *dev = &pdev->dev;
+	char **pin_names;
 	int pin, ret;
 
 	info->groups = pin_data->groups;
@@ -974,20 +964,21 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	ctrldesc->pmxops = &armada_37xx_pmx_ops;
 	ctrldesc->confops = &armada_37xx_pinconf_ops;
 
-	pindesc = devm_kcalloc(&pdev->dev,
-			       pin_data->nr_pins, sizeof(*pindesc),
-			       GFP_KERNEL);
+	pindesc = devm_kcalloc(dev, pin_data->nr_pins, sizeof(*pindesc), GFP_KERNEL);
 	if (!pindesc)
 		return -ENOMEM;
 
 	ctrldesc->pins = pindesc;
 	ctrldesc->npins = pin_data->nr_pins;
 
+	pin_names = devm_kasprintf_strarray(dev, pin_data->name, pin_data->nr_pins);
+	if (IS_ERR(pin_names))
+		return PTR_ERR(pin_names);
+
 	pdesc = pindesc;
 	for (pin = 0; pin < pin_data->nr_pins; pin++) {
 		pdesc->number = pin;
-		pdesc->name = kasprintf(GFP_KERNEL, "%s-%d",
-					pin_data->name, pin);
+		pdesc->name = pin_names[pin];
 		pdesc++;
 	}
 
@@ -995,13 +986,9 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	 * we allocate functions for number of pins and hope there are
 	 * fewer unique functions than pins available
 	 */
-	info->funcs = devm_kcalloc(&pdev->dev,
-				   pin_data->nr_pins,
-				   sizeof(struct armada_37xx_pmx_func),
-				   GFP_KERNEL);
+	info->funcs = devm_kcalloc(dev, pin_data->nr_pins, sizeof(*info->funcs), GFP_KERNEL);
 	if (!info->funcs)
 		return -ENOMEM;
-
 
 	ret = armada_37xx_fill_group(info);
 	if (ret)
@@ -1011,11 +998,9 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	info->pctl_dev = devm_pinctrl_register(&pdev->dev, ctrldesc, info);
-	if (IS_ERR(info->pctl_dev)) {
-		dev_err(&pdev->dev, "could not register pinctrl driver\n");
-		return PTR_ERR(info->pctl_dev);
-	}
+	info->pctl_dev = devm_pinctrl_register(dev, ctrldesc, info);
+	if (IS_ERR(info->pctl_dev))
+		return dev_err_probe(dev, PTR_ERR(info->pctl_dev), "could not register pinctrl driver\n");
 
 	return 0;
 }
@@ -1144,18 +1129,15 @@ static int __init armada_37xx_pinctrl_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	int ret;
 
-	info = devm_kzalloc(dev, sizeof(struct armada_37xx_pinctrl),
-			    GFP_KERNEL);
+	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
 	info->dev = dev;
 
 	regmap = syscon_node_to_regmap(np);
-	if (IS_ERR(regmap)) {
-		dev_err(&pdev->dev, "cannot get regmap\n");
-		return PTR_ERR(regmap);
-	}
+	if (IS_ERR(regmap))
+		return dev_err_probe(dev, PTR_ERR(regmap), "cannot get regmap\n");
 	info->regmap = regmap;
 
 	info->data = of_device_get_match_data(dev);

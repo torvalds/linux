@@ -266,7 +266,7 @@ static void parse_options(char *options)
  */
 static int pstore_show_options(struct seq_file *m, struct dentry *root)
 {
-	if (kmsg_bytes != PSTORE_DEFAULT_KMSG_BYTES)
+	if (kmsg_bytes != CONFIG_PSTORE_DEFAULT_KMSG_BYTES)
 		seq_printf(m, ",kmsg_bytes=%lu", kmsg_bytes);
 	return 0;
 }
@@ -467,7 +467,7 @@ static struct dentry *pstore_mount(struct file_system_type *fs_type,
 static void pstore_kill_sb(struct super_block *sb)
 {
 	mutex_lock(&pstore_sb_lock);
-	WARN_ON(pstore_sb != sb);
+	WARN_ON(pstore_sb && pstore_sb != sb);
 
 	kill_litter_super(sb);
 	pstore_sb = NULL;

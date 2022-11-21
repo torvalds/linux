@@ -2,7 +2,7 @@
 /*
  * HDMI PLL
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #define DSS_SUBSYS_NAME "HDMIPLL"
@@ -162,13 +162,11 @@ int hdmi_pll_init(struct dss_device *dss, struct platform_device *pdev,
 		  struct hdmi_pll_data *pll, struct hdmi_wp_data *wp)
 {
 	int r;
-	struct resource *res;
 
 	pll->pdev = pdev;
 	pll->wp = wp;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pll");
-	pll->base = devm_ioremap_resource(&pdev->dev, res);
+	pll->base = devm_platform_ioremap_resource_byname(pdev, "pll");
 	if (IS_ERR(pll->base))
 		return PTR_ERR(pll->base);
 

@@ -152,36 +152,22 @@ i915_active_fence_isset(const struct i915_active_fence *active)
 void __i915_active_init(struct i915_active *ref,
 			int (*active)(struct i915_active *ref),
 			void (*retire)(struct i915_active *ref),
+			unsigned long flags,
 			struct lock_class_key *mkey,
 			struct lock_class_key *wkey);
 
 /* Specialise each class of i915_active to avoid impossible lockdep cycles. */
-#define i915_active_init(ref, active, retire) do {		\
-	static struct lock_class_key __mkey;				\
-	static struct lock_class_key __wkey;				\
-									\
-	__i915_active_init(ref, active, retire, &__mkey, &__wkey);	\
+#define i915_active_init(ref, active, retire, flags) do {			\
+	static struct lock_class_key __mkey;					\
+	static struct lock_class_key __wkey;					\
+										\
+	__i915_active_init(ref, active, retire, flags, &__mkey, &__wkey);	\
 } while (0)
 
-struct dma_fence *
-__i915_active_ref(struct i915_active *ref, u64 idx, struct dma_fence *fence);
-int i915_active_ref(struct i915_active *ref, u64 idx, struct dma_fence *fence);
-
-static inline int
-i915_active_add_request(struct i915_active *ref, struct i915_request *rq)
-{
-	return i915_active_ref(ref,
-			       i915_request_timeline(rq)->fence_context,
-			       &rq->fence);
-}
+int i915_active_add_request(struct i915_active *ref, struct i915_request *rq);
 
 struct dma_fence *
 i915_active_set_exclusive(struct i915_active *ref, struct dma_fence *f);
-
-static inline bool i915_active_has_exclusive(struct i915_active *ref)
-{
-	return rcu_access_pointer(ref->excl.fence);
-}
 
 int __i915_active_wait(struct i915_active *ref, int state);
 static inline int i915_active_wait(struct i915_active *ref)
@@ -245,5 +231,8 @@ static inline int __i915_request_await_exclusive(struct i915_request *rq,
 
 	return err;
 }
+
+void i915_active_module_exit(void);
+int i915_active_module_init(void);
 
 #endif /* _I915_ACTIVE_H_ */

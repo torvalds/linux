@@ -454,6 +454,10 @@ static const struct property_entry da830_evm_i2c_eeprom_properties[] = {
 	{ }
 };
 
+static const struct software_node da830_evm_i2c_eeprom_node = {
+	.properties = da830_evm_i2c_eeprom_properties,
+};
+
 static int __init da830_evm_ui_expander_setup(struct i2c_client *client,
 		int gpio, unsigned ngpio, void *context)
 {
@@ -485,7 +489,7 @@ static struct pcf857x_platform_data __initdata da830_evm_ui_expander_info = {
 static struct i2c_board_info __initdata da830_evm_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("24c256", 0x50),
-		.properties = da830_evm_i2c_eeprom_properties,
+		.swnode = &da830_evm_i2c_eeprom_node,
 	},
 	{
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),

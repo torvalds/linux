@@ -1,48 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
 /*
  * Copyright(c) 2015-2020 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * Copyright(c) 2021 Cornelis Networks.
  */
 
 #include <linux/spinlock.h>
@@ -98,7 +57,7 @@ module_param_cb(cap_mask, &cap_ops, &hfi1_cap_mask, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(cap_mask, "Bit mask of enabled/disabled HW features");
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION("Intel Omni-Path Architecture driver");
+MODULE_DESCRIPTION("Cornelis Omni-Path Express driver");
 
 /*
  * MAX_PKT_RCV is the max # if packets processed per receive interrupt.
@@ -1026,7 +985,7 @@ static bool __set_armed_to_active(struct hfi1_packet *packet)
 }
 
 /**
- * armed to active - the fast path for armed to active
+ * set_armed_to_active  - the fast path for armed to active
  * @packet: the packet structure
  *
  * Return true if packet processing needs to bail.
@@ -1053,6 +1012,8 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 	struct hfi1_packet packet;
 	int skip_pkt = 0;
 
+	if (!rcd->rcvhdrq)
+		return RCV_PKT_OK;
 	/* Control context will always use the slow path interrupt handler */
 	needset = (rcd->ctxt == HFI1_CTRL_CTXT) ? 0 : 1;
 
@@ -1686,7 +1647,6 @@ static void hfi1_ipoib_ib_rcv(struct hfi1_packet *packet)
 	u32 extra_bytes;
 	u32 tlen, qpnum;
 	bool do_work, do_cnp;
-	struct hfi1_ipoib_dev_priv *priv;
 
 	trace_hfi1_rcvhdr(packet);
 
@@ -1734,8 +1694,7 @@ static void hfi1_ipoib_ib_rcv(struct hfi1_packet *packet)
 	if (unlikely(!skb))
 		goto drop;
 
-	priv = hfi1_ipoib_priv(netdev);
-	hfi1_ipoib_update_rx_netstats(priv, 1, skb->len);
+	dev_sw_netstats_rx_add(netdev, skb->len);
 
 	skb->dev = netdev;
 	skb->pkt_type = PACKET_HOST;

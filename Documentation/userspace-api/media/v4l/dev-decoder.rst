@@ -38,7 +38,7 @@ Conventions and Notations Used in This Document
 6. i = [a..b]: sequence of integers from a to b, inclusive, i.e. i =
    [0..2]: i = 0, 1, 2.
 
-7. Given an ``OUTPUT`` buffer A, then A’ represents a buffer on the ``CAPTURE``
+7. Given an ``OUTPUT`` buffer A, then A' represents a buffer on the ``CAPTURE``
    queue containing data that resulted from processing buffer A.
 
 .. _decoder-glossary:
@@ -288,7 +288,7 @@ Initialization
 
       Changing the ``OUTPUT`` format may change the currently set ``CAPTURE``
       format. How the new ``CAPTURE`` format is determined is up to the decoder
-      and the client must ensure it matches its needs afterwards.
+      and the client must ensure it matches its needs afterwards.
 
 2.  Allocate source (bytestream) buffers via :c:func:`VIDIOC_REQBUFS` on
     ``OUTPUT``.
@@ -752,6 +752,23 @@ available to dequeue. Specifically:
      buffers are out-of-order compared to the ``OUTPUT`` buffers): ``CAPTURE``
      timestamps will not retain the order of ``OUTPUT`` timestamps.
 
+.. note::
+
+   The backing memory of ``CAPTURE`` buffers that are used as reference frames
+   by the stream may be read by the hardware even after they are dequeued.
+   Consequently, the client should avoid writing into this memory while the
+   ``CAPTURE`` queue is streaming. Failure to observe this may result in
+   corruption of decoded frames.
+
+   Similarly, when using a memory type other than ``V4L2_MEMORY_MMAP``, the
+   client should make sure that each ``CAPTURE`` buffer is always queued with
+   the same backing memory for as long as the ``CAPTURE`` queue is streaming.
+   The reason for this is that V4L2 buffer indices can be used by drivers to
+   identify frames. Thus, if the backing memory of a reference frame is
+   submitted under a different buffer ID, the driver may misidentify it and
+   decode a new frame into it while it is still in use, resulting in corruption
+   of the following frames.
+
 During the decoding, the decoder may initiate one of the special sequences, as
 listed below. The sequences will result in the decoder returning all the
 ``CAPTURE`` buffers that originated from all the ``OUTPUT`` buffers processed
@@ -874,7 +891,7 @@ it may be affected as per normal decoder operation.
 
    any of the following results on the ``CAPTURE`` queue is allowed:
 
-     {A’, B’, G’, H’}, {A’, G’, H’}, {G’, H’}.
+     {A', B', G', H'}, {A', G', H'}, {G', H'}.
 
    To determine the CAPTURE buffer containing the first decoded frame after the
    seek, the client may observe the timestamps to match the CAPTURE and OUTPUT

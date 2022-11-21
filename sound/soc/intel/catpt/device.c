@@ -19,6 +19,7 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <sound/intel-dsp-config.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
@@ -69,7 +70,7 @@ release_dma_chan:
 	dma_release_channel(chan);
 	if (ret)
 		return ret;
-	return cdev->spec->power_down(cdev);
+	return catpt_dsp_power_down(cdev);
 }
 
 static int __maybe_unused catpt_resume(struct device *dev)
@@ -77,7 +78,7 @@ static int __maybe_unused catpt_resume(struct device *dev)
 	struct catpt_dev *cdev = dev_get_drvdata(dev);
 	int ret, i;
 
-	ret = cdev->spec->power_up(cdev);
+	ret = catpt_dsp_power_up(cdev);
 	if (ret)
 		return ret;
 
@@ -162,7 +163,7 @@ static int catpt_probe_components(struct catpt_dev *cdev)
 {
 	int ret;
 
-	ret = cdev->spec->power_up(cdev);
+	ret = catpt_dsp_power_up(cdev);
 	if (ret)
 		return ret;
 
@@ -204,7 +205,7 @@ err_reg_board:
 err_boot_fw:
 	catpt_dmac_remove(cdev);
 err_dmac_probe:
-	cdev->spec->power_down(cdev);
+	catpt_dsp_power_down(cdev);
 
 	return ret;
 }
@@ -239,8 +240,19 @@ static int catpt_acpi_probe(struct platform_device *pdev)
 	const struct catpt_spec *spec;
 	struct catpt_dev *cdev;
 	struct device *dev = &pdev->dev;
+	const struct acpi_device_id *id;
 	struct resource *res;
 	int ret;
+
+	id = acpi_match_device(dev->driver->acpi_match_table, dev);
+	if (!id)
+		return -ENODEV;
+
+	ret = snd_intel_acpi_dsp_driver_probe(dev, id->id);
+	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SST) {
+		dev_dbg(dev, "CATPT ACPI driver not selected, aborting probe\n");
+		return -ENODEV;
+	}
 
 	spec = device_get_match_data(dev);
 	if (!spec)
@@ -293,7 +305,7 @@ static int catpt_acpi_remove(struct platform_device *pdev)
 
 	snd_soc_unregister_component(cdev->dev);
 	catpt_dmac_remove(cdev);
-	cdev->spec->power_down(cdev);
+	catpt_dsp_power_down(cdev);
 
 	catpt_sram_free(&cdev->iram);
 	catpt_sram_free(&cdev->dram);
@@ -311,9 +323,9 @@ static struct catpt_spec lpt_desc = {
 	.host_ssp_offset = { 0x0E8000, 0x0E9000 },
 	.dram_mask = LPT_VDRTCTL0_DSRAMPGE_MASK,
 	.iram_mask = LPT_VDRTCTL0_ISRAMPGE_MASK,
+	.d3srampgd_bit = LPT_VDRTCTL0_D3SRAMPGD,
+	.d3pgd_bit = LPT_VDRTCTL0_D3PGD,
 	.pll_shutdown = lpt_dsp_pll_shutdown,
-	.power_up = lpt_dsp_power_up,
-	.power_down = lpt_dsp_power_down,
 };
 
 static struct catpt_spec wpt_desc = {
@@ -326,9 +338,9 @@ static struct catpt_spec wpt_desc = {
 	.host_ssp_offset = { 0x0FC000, 0x0FD000 },
 	.dram_mask = WPT_VDRTCTL0_DSRAMPGE_MASK,
 	.iram_mask = WPT_VDRTCTL0_ISRAMPGE_MASK,
+	.d3srampgd_bit = WPT_VDRTCTL0_D3SRAMPGD,
+	.d3pgd_bit = WPT_VDRTCTL0_D3PGD,
 	.pll_shutdown = wpt_dsp_pll_shutdown,
-	.power_up = wpt_dsp_power_up,
-	.power_down = wpt_dsp_power_down,
 };
 
 static const struct acpi_device_id catpt_ids[] = {

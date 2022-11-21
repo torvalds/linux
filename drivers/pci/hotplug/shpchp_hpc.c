@@ -174,11 +174,6 @@ static inline u8 shpc_readb(struct controller *ctrl, int reg)
 	return readb(ctrl->creg + reg);
 }
 
-static inline void shpc_writeb(struct controller *ctrl, int reg, u8 val)
-{
-	writeb(val, ctrl->creg + reg);
-}
-
 static inline u16 shpc_readw(struct controller *ctrl, int reg)
 {
 	return readw(ctrl->creg + reg);
@@ -300,7 +295,7 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 	mutex_lock(&slot->ctrl->cmd_lock);
 
 	if (!shpc_poll_ctrl_busy(ctrl)) {
-		/* After 1 sec and and the controller is still busy */
+		/* After 1 sec and the controller is still busy */
 		ctrl_err(ctrl, "Controller is still busy after 1 sec\n");
 		retval = -EBUSY;
 		goto out;

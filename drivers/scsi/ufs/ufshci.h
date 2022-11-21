@@ -74,13 +74,17 @@ enum {
 #define MINOR_VERSION_NUM_MASK		UFS_MASK(0xFFFF, 0)
 #define MAJOR_VERSION_NUM_MASK		UFS_MASK(0xFFFF, 16)
 
-/* Controller UFSHCI version */
-enum {
-	UFSHCI_VERSION_10 = 0x00010000, /* 1.0 */
-	UFSHCI_VERSION_11 = 0x00010100, /* 1.1 */
-	UFSHCI_VERSION_20 = 0x00000200, /* 2.0 */
-	UFSHCI_VERSION_21 = 0x00000210, /* 2.1 */
-};
+/*
+ * Controller UFSHCI version
+ * - 2.x and newer use the following scheme:
+ *   major << 8 + minor << 4
+ * - 1.x has been converted to match this in
+ *   ufshcd_get_ufs_version()
+ */
+static inline u32 ufshci_version(u32 major, u32 minor)
+{
+	return (major << 8) + (minor << 4);
+}
 
 /*
  * HCDDID - Host Controller Identification Descriptor
@@ -138,7 +142,8 @@ enum {
 #define INT_FATAL_ERRORS	(DEVICE_FATAL_ERROR |\
 				CONTROLLER_FATAL_ERROR |\
 				SYSTEM_BUS_FATAL_ERROR |\
-				CRYPTO_ENGINE_FATAL_ERROR)
+				CRYPTO_ENGINE_FATAL_ERROR |\
+				UIC_LINK_LOST)
 
 /* HCS - Host Controller Status 30h */
 #define DEVICE_PRESENT				0x1
@@ -385,7 +390,7 @@ enum {
 };
 
 /* Overall command status values */
-enum {
+enum utp_ocs {
 	OCS_SUCCESS			= 0x0,
 	OCS_INVALID_CMD_TABLE_ATTR	= 0x1,
 	OCS_INVALID_PRDT_ATTR		= 0x2,
@@ -398,6 +403,9 @@ enum {
 	OCS_INVALID_CRYPTO_CONFIG	= 0x9,
 	OCS_GENERAL_CRYPTO_ERROR	= 0xA,
 	OCS_INVALID_COMMAND_STATUS	= 0x0F,
+};
+
+enum {
 	MASK_OCS			= 0x0F,
 };
 
@@ -408,20 +416,18 @@ enum {
 
 /**
  * struct ufshcd_sg_entry - UFSHCI PRD Entry
- * @base_addr: Lower 32bit physical address DW-0
- * @upper_addr: Upper 32bit physical address DW-1
+ * @addr: Physical address; DW-0 and DW-1.
  * @reserved: Reserved for future use DW-2
  * @size: size of physical segment DW-3
  */
 struct ufshcd_sg_entry {
-	__le32    base_addr;
-	__le32    upper_addr;
+	__le64    addr;
 	__le32    reserved;
 	__le32    size;
 };
 
 /**
- * struct utp_transfer_cmd_desc - UFS Command Descriptor structure
+ * struct utp_transfer_cmd_desc - UTP Command Descriptor (UCD)
  * @command_upiu: Command UPIU Frame address
  * @response_upiu: Response UPIU Frame address
  * @prd_table: Physical Region Descriptor
@@ -447,7 +453,7 @@ struct request_desc_header {
 };
 
 /**
- * struct utp_transfer_req_desc - UTRD structure
+ * struct utp_transfer_req_desc - UTP Transfer Request Descriptor (UTRD)
  * @header: UTRD header DW-0 to DW-3
  * @command_desc_base_addr_lo: UCD base address low DW-4
  * @command_desc_base_addr_hi: UCD base address high DW-5
@@ -482,17 +488,21 @@ struct utp_task_req_desc {
 	struct request_desc_header header;
 
 	/* DW 4-11 - Task request UPIU structure */
-	struct utp_upiu_header	req_header;
-	__be32			input_param1;
-	__be32			input_param2;
-	__be32			input_param3;
-	__be32			__reserved1[2];
+	struct {
+		struct utp_upiu_header	req_header;
+		__be32			input_param1;
+		__be32			input_param2;
+		__be32			input_param3;
+		__be32			__reserved1[2];
+	} upiu_req;
 
 	/* DW 12-19 - Task Management Response UPIU structure */
-	struct utp_upiu_header	rsp_header;
-	__be32			output_param1;
-	__be32			output_param2;
-	__be32			__reserved2[3];
+	struct {
+		struct utp_upiu_header	rsp_header;
+		__be32			output_param1;
+		__be32			output_param2;
+		__be32			__reserved2[3];
+	} upiu_rsp;
 };
 
 #endif /* End of Header */

@@ -4,6 +4,7 @@
 
 #include <linux/atomic.h>
 #include <linux/list.h>
+#include <linux/math.h>
 #include <linux/rculist.h>
 #include <linux/rculist_bl.h>
 #include <linux/spinlock.h>
@@ -58,16 +59,7 @@ struct qstr {
 
 extern const struct qstr empty_name;
 extern const struct qstr slash_name;
-
-struct dentry_stat_t {
-	long nr_dentry;
-	long nr_unused;
-	long age_limit;		/* age in seconds */
-	long want_pages;	/* pages requested by system */
-	long nr_negative;	/* # of unused negative dentries */
-	long dummy;		/* Reserved for future use */
-};
-extern struct dentry_stat_t dentry_stat;
+extern const struct qstr dotdot_name;
 
 /*
  * Try to keep struct dentry aligned on 64 byte cachelines (this will
@@ -261,6 +253,8 @@ extern void d_tmpfile(struct dentry *, struct inode *);
 extern struct dentry *d_find_alias(struct inode *);
 extern void d_prune_aliases(struct inode *);
 
+extern struct dentry *d_find_alias_rcu(struct inode *);
+
 /* test whether we have any submounts in a subdir tree */
 extern int path_has_submounts(const struct path *);
 
@@ -297,8 +291,8 @@ char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
 extern char *__d_path(const struct path *, const struct path *, char *, int);
 extern char *d_absolute_path(const struct path *, char *, int);
 extern char *d_path(const struct path *, char *, int);
-extern char *dentry_path_raw(struct dentry *, char *, int);
-extern char *dentry_path(struct dentry *, char *, int);
+extern char *dentry_path_raw(const struct dentry *, char *, int);
+extern char *dentry_path(const struct dentry *, char *, int);
 
 /* Allocation counts.. */
 

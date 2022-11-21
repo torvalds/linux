@@ -7,14 +7,25 @@
 
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include "bpf_misc.h"
 
 static struct sockaddr_in old;
 
-SEC("kprobe/__sys_connect")
+SEC("kprobe/" SYS_PREFIX "sys_connect")
 int BPF_KPROBE(handle_sys_connect)
 {
-	void *ptr = (void *)PT_REGS_PARM2(ctx);
+#if SYSCALL_WRAPPER == 1
+	struct pt_regs *real_regs;
+#endif
 	struct sockaddr_in new;
+	void *ptr;
+
+#if SYSCALL_WRAPPER == 0
+	ptr = (void *)PT_REGS_PARM2(ctx);
+#else
+	real_regs = (struct pt_regs *)PT_REGS_PARM1(ctx);
+	bpf_probe_read_kernel(&ptr, sizeof(ptr), &PT_REGS_PARM2(real_regs));
+#endif
 
 	bpf_probe_read_user(&old, sizeof(old), ptr);
 	__builtin_memset(&new, 0xab, sizeof(new));

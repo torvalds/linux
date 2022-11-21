@@ -18,11 +18,6 @@
  * properties.
  */
 
-static void drm_release_of(struct device *dev, void *data)
-{
-	of_node_put(data);
-}
-
 /**
  * drm_of_crtc_port_mask - find the mask of a registered CRTC by port OF node
  * @dev: DRM device
@@ -94,7 +89,7 @@ void drm_of_component_match_add(struct device *master,
 				struct device_node *node)
 {
 	of_node_get(node);
-	component_match_add_release(master, matchptr, drm_release_of,
+	component_match_add_release(master, matchptr, component_release_of,
 				    compare, node);
 }
 EXPORT_SYMBOL_GPL(drm_of_component_match_add);
@@ -231,6 +226,9 @@ EXPORT_SYMBOL_GPL(drm_of_encoder_active_endpoint);
  * return either the associated struct drm_panel or drm_bridge device. Either
  * @panel or @bridge must not be NULL.
  *
+ * This function is deprecated and should not be used in new drivers. Use
+ * devm_drm_of_get_bridge() instead.
+ *
  * Returns zero if successful, or one of the standard error codes if it fails.
  */
 int drm_of_find_panel_or_bridge(const struct device_node *np,
@@ -315,7 +313,7 @@ static int drm_of_lvds_get_remote_pixels_type(
 
 		remote_port = of_graph_get_remote_port(endpoint);
 		if (!remote_port) {
-			of_node_put(remote_port);
+			of_node_put(endpoint);
 			return -EPIPE;
 		}
 
@@ -331,8 +329,10 @@ static int drm_of_lvds_get_remote_pixels_type(
 		 * configurations by passing the endpoints explicitly to
 		 * drm_of_lvds_get_dual_link_pixel_order().
 		 */
-		if (!current_pt || pixels_type != current_pt)
+		if (!current_pt || pixels_type != current_pt) {
+			of_node_put(endpoint);
 			return -EINVAL;
+		}
 	}
 
 	return pixels_type;
@@ -397,3 +397,36 @@ int drm_of_lvds_get_dual_link_pixel_order(const struct device_node *port1,
 		DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS;
 }
 EXPORT_SYMBOL_GPL(drm_of_lvds_get_dual_link_pixel_order);
+
+/**
+ * drm_of_lvds_get_data_mapping - Get LVDS data mapping
+ * @port: DT port node of the LVDS source or sink
+ *
+ * Convert DT "data-mapping" property string value into media bus format value.
+ *
+ * Return:
+ * * MEDIA_BUS_FMT_RGB666_1X7X3_SPWG - data-mapping is "jeida-18"
+ * * MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA - data-mapping is "jeida-24"
+ * * MEDIA_BUS_FMT_RGB888_1X7X4_SPWG - data-mapping is "vesa-24"
+ * * -EINVAL - the "data-mapping" property is unsupported
+ * * -ENODEV - the "data-mapping" property is missing
+ */
+int drm_of_lvds_get_data_mapping(const struct device_node *port)
+{
+	const char *mapping;
+	int ret;
+
+	ret = of_property_read_string(port, "data-mapping", &mapping);
+	if (ret < 0)
+		return -ENODEV;
+
+	if (!strcmp(mapping, "jeida-18"))
+		return MEDIA_BUS_FMT_RGB666_1X7X3_SPWG;
+	if (!strcmp(mapping, "jeida-24"))
+		return MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA;
+	if (!strcmp(mapping, "vesa-24"))
+		return MEDIA_BUS_FMT_RGB888_1X7X4_SPWG;
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(drm_of_lvds_get_data_mapping);

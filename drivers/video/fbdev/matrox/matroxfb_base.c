@@ -1377,7 +1377,7 @@ static struct video_board vbG200 = {
 	.lowlevel = &matrox_G100
 };
 static struct video_board vbG200eW = {
-	.maxvram = 0x800000,
+	.maxvram = 0x100000,
 	.maxdisplayable = 0x800000,
 	.accelID = FB_ACCEL_MATROX_MGAG200,
 	.lowlevel = &matrox_G100
@@ -1970,9 +1970,7 @@ int matroxfb_register_driver(struct matroxfb_driver* drv) {
 	struct matrox_fb_info* minfo;
 
 	list_add(&drv->node, &matroxfb_driver_list);
-	for (minfo = matroxfb_l(matroxfb_list.next);
-	     minfo != matroxfb_l(&matroxfb_list);
-	     minfo = matroxfb_l(minfo->next_fb.next)) {
+	list_for_each_entry(minfo, &matroxfb_list, next_fb) {
 		void* p;
 
 		if (minfo->drivers_count == MATROXFB_MAX_FB_DRIVERS)
@@ -1990,9 +1988,7 @@ void matroxfb_unregister_driver(struct matroxfb_driver* drv) {
 	struct matrox_fb_info* minfo;
 
 	list_del(&drv->node);
-	for (minfo = matroxfb_l(matroxfb_list.next);
-	     minfo != matroxfb_l(&matroxfb_list);
-	     minfo = matroxfb_l(minfo->next_fb.next)) {
+	list_for_each_entry(minfo, &matroxfb_list, next_fb) {
 		int i;
 
 		for (i = 0; i < minfo->drivers_count; ) {
@@ -2490,8 +2486,6 @@ static int __init matroxfb_init(void)
 	return err;
 }
 
-module_init(matroxfb_init);
-
 #else
 
 /* *************************** init module code **************************** */
@@ -2576,7 +2570,7 @@ module_param_named(cmode, default_cmode, int, 0);
 MODULE_PARM_DESC(cmode, "Specify the video depth that should be used (8bit default)");
 #endif
 
-int __init init_module(void){
+static int __init matroxfb_init(void){
 
 	DBG(__func__)
 
@@ -2607,17 +2601,9 @@ int __init init_module(void){
 }
 #endif	/* MODULE */
 
+module_init(matroxfb_init);
 module_exit(matrox_done);
 EXPORT_SYMBOL(matroxfb_register_driver);
 EXPORT_SYMBOL(matroxfb_unregister_driver);
 EXPORT_SYMBOL(matroxfb_wait_for_sync);
 EXPORT_SYMBOL(matroxfb_enable_irq);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
-

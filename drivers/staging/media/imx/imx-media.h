@@ -15,6 +15,9 @@
 #include <media/videobuf2-dma-contig.h>
 #include <video/imx-ipu-v3.h>
 
+#define IMX_MEDIA_DEF_PIX_WIDTH		640
+#define IMX_MEDIA_DEF_PIX_HEIGHT	480
+
 /*
  * Enumeration of the IPU internal sub-devices
  */
@@ -65,7 +68,7 @@ enum {
 };
 
 /* How long to wait for EOF interrupts in the buffer-capture subdevs */
-#define IMX_MEDIA_EOF_TIMEOUT       1000
+#define IMX_MEDIA_EOF_TIMEOUT       2000
 
 struct imx_media_pixfmt {
 	/* the in-memory FourCC pixel format */
@@ -102,7 +105,7 @@ struct imx_media_video_dev {
 	struct video_device *vfd;
 
 	/* the user format */
-	struct v4l2_format fmt;
+	struct v4l2_pix_format fmt;
 	/* the compose rectangle */
 	struct v4l2_rect compose;
 	const struct imx_media_pixfmt *cc;
@@ -167,7 +170,7 @@ struct imx_media_dev {
 const struct imx_media_pixfmt *
 imx_media_find_pixel_format(u32 fourcc, enum imx_pixfmt_sel sel);
 int imx_media_enum_pixel_formats(u32 *fourcc, u32 index,
-				 enum imx_pixfmt_sel sel);
+				 enum imx_pixfmt_sel sel, u32 code);
 const struct imx_media_pixfmt *
 imx_media_find_mbus_format(u32 code, enum imx_pixfmt_sel sel);
 int imx_media_enum_mbus_formats(u32 *code, u32 index,
@@ -190,16 +193,12 @@ int imx_media_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 			    u32 width, u32 height, u32 code, u32 field,
 			    const struct imx_media_pixfmt **cc);
 int imx_media_init_cfg(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_pad_config *cfg);
+		       struct v4l2_subdev_state *sd_state);
 void imx_media_try_colorimetry(struct v4l2_mbus_framefmt *tryfmt,
 			       bool ic_route);
 int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 				  const struct v4l2_mbus_framefmt *mbus,
 				  const struct imx_media_pixfmt *cc);
-int imx_media_mbus_fmt_to_ipu_image(struct ipu_image *image,
-				    const struct v4l2_mbus_framefmt *mbus);
-int imx_media_ipu_image_to_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
-				    const struct ipu_image *image);
 void imx_media_grp_id_to_sd_name(char *sd_name, int sz,
 				 u32 grp_id, int ipu_id);
 struct v4l2_subdev *
@@ -283,9 +282,10 @@ int imx_media_ic_unregister(struct v4l2_subdev *sd);
 /* imx-media-capture.c */
 struct imx_media_video_dev *
 imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
-			      int pad);
+			      int pad, bool legacy_api);
 void imx_media_capture_device_remove(struct imx_media_video_dev *vdev);
-int imx_media_capture_device_register(struct imx_media_video_dev *vdev);
+int imx_media_capture_device_register(struct imx_media_video_dev *vdev,
+				      u32 link_flags);
 void imx_media_capture_device_unregister(struct imx_media_video_dev *vdev);
 struct imx_media_buffer *
 imx_media_capture_device_next_buf(struct imx_media_video_dev *vdev);

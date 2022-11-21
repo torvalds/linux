@@ -16,6 +16,7 @@
 #define LLCC_AUDIO       6
 #define LLCC_MDMHPGRW    7
 #define LLCC_MDM         8
+#define LLCC_MODHW       9
 #define LLCC_CMPT        10
 #define LLCC_GPUHTW      11
 #define LLCC_GPU         12
@@ -26,9 +27,23 @@
 #define LLCC_MDMHPFX     20
 #define LLCC_MDMPNG      21
 #define LLCC_AUDHW       22
+#define LLCC_NPU         23
+#define LLCC_WLHW        24
+#define LLCC_CVP         28
+#define LLCC_MODPE       29
+#define LLCC_APTCM       30
+#define LLCC_WRCACHE     31
+#define LLCC_CVPFW       32
+#define LLCC_CPUSS1      33
+#define LLCC_CAMEXP0     34
+#define LLCC_CPUMTE      35
+#define LLCC_CPUHWT      36
+#define LLCC_MDMCLAD2    37
+#define LLCC_CAMEXP1     38
+#define LLCC_AENPU       45
 
 /**
- * llcc_slice_desc - Cache slice descriptor
+ * struct llcc_slice_desc - Cache slice descriptor
  * @slice_id: llcc slice id
  * @slice_size: Size allocated for the llcc slice
  */
@@ -38,7 +53,7 @@ struct llcc_slice_desc {
 };
 
 /**
- * llcc_edac_reg_data - llcc edac registers data for each error type
+ * struct llcc_edac_reg_data - llcc edac registers data for each error type
  * @name: Name of the error
  * @synd_reg: Syndrome register address
  * @count_status_reg: Status register address to read the error count
@@ -62,7 +77,7 @@ struct llcc_edac_reg_data {
 };
 
 /**
- * llcc_drv_data - Data associated with the llcc driver
+ * struct llcc_drv_data - Data associated with the llcc driver
  * @regmap: regmap associated with the llcc device
  * @bcast_regmap: regmap associated with llcc broadcast offset
  * @cfg: pointer to the data structure for slice configuration
@@ -73,6 +88,7 @@ struct llcc_edac_reg_data {
  * @bitmap: Bit map to track the active slice ids
  * @offsets: Pointer to the bank offsets array
  * @ecc_irq: interrupt for llcc cache error detection and reporting
+ * @version: Indicates the LLCC version
  */
 struct llcc_drv_data {
 	struct regmap *regmap;
@@ -85,6 +101,7 @@ struct llcc_drv_data {
 	unsigned long *bitmap;
 	u32 *offsets;
 	int ecc_irq;
+	u32 version;
 };
 
 #if IS_ENABLED(CONFIG_QCOM_LLCC)

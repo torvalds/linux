@@ -109,6 +109,19 @@ int phm_irq_process(struct amdgpu_device *adev,
 			   struct amdgpu_irq_src *source,
 			   struct amdgpu_iv_entry *entry);
 
+/*
+ * Helper function to make sysfs_emit_at() happy. Align buf to
+ * the current page boundary and record the offset.
+ */
+static inline void phm_get_sysfs_buf(char **buf, int *offset)
+{
+	if (!*buf || !offset)
+		return;
+
+	*offset = offset_in_page(*buf);
+	*buf -= *offset;
+}
+
 int smu9_register_irq_handlers(struct pp_hwmgr *hwmgr);
 
 void *smu_atom_get_data_table(void *dev, uint32_t table, uint16_t *size,

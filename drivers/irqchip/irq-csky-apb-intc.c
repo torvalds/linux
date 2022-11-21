@@ -138,7 +138,7 @@ static inline bool handle_irq_perbit(struct pt_regs *regs, u32 hwirq,
 	if (hwirq == 0)
 		return 0;
 
-	handle_domain_irq(root_domain, irq_base + __fls(hwirq), regs);
+	generic_handle_domain_irq(root_domain, irq_base + __fls(hwirq));
 
 	return 1;
 }
@@ -176,7 +176,7 @@ gx_intc_init(struct device_node *node, struct device_node *parent)
 	writel(0x0, reg_base + GX_INTC_NEN63_32);
 
 	/*
-	 * Initial mask reg with all unmasked, because we only use enalbe reg
+	 * Initial mask reg with all unmasked, because we only use enable reg
 	 */
 	writel(0x0, reg_base + GX_INTC_NMASK31_00);
 	writel(0x0, reg_base + GX_INTC_NMASK63_32);

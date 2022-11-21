@@ -29,8 +29,11 @@ DEFINE_PER_CPU(struct cpu_cf_events, cpu_cf_events) = {
 	},
 	.alert = ATOMIC64_INIT(0),
 	.state = 0,
+	.dev_state = 0,
 	.flags = 0,
-	.txn_flags = 0,
+	.used = 0,
+	.usedss = 0,
+	.sets = 0
 };
 /* Indicator whether the CPU-Measurement Counter Facility Support is ready */
 static bool cpum_cf_initalized;
@@ -97,25 +100,10 @@ bool kernel_cpumcf_avail(void)
 }
 EXPORT_SYMBOL(kernel_cpumcf_avail);
 
-
-/* Reserve/release functions for sharing perf hardware */
-static DEFINE_SPINLOCK(cpumcf_owner_lock);
-static void *cpumcf_owner;
-
 /* Initialize the CPU-measurement counter facility */
 int __kernel_cpumcf_begin(void)
 {
 	int flags = PMC_INIT;
-	int err = 0;
-
-	spin_lock(&cpumcf_owner_lock);
-	if (cpumcf_owner)
-		err = -EBUSY;
-	else
-		cpumcf_owner = __builtin_return_address(0);
-	spin_unlock(&cpumcf_owner_lock);
-	if (err)
-		return err;
 
 	on_each_cpu(cpum_cf_setup_cpu, &flags, 1);
 	irq_subclass_register(IRQ_SUBCLASS_MEASUREMENT_ALERT);
@@ -145,10 +133,6 @@ void __kernel_cpumcf_end(void)
 
 	on_each_cpu(cpum_cf_setup_cpu, &flags, 1);
 	irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
-
-	spin_lock(&cpumcf_owner_lock);
-	cpumcf_owner = NULL;
-	spin_unlock(&cpumcf_owner_lock);
 }
 EXPORT_SYMBOL(__kernel_cpumcf_end);
 
@@ -162,12 +146,60 @@ static int cpum_cf_setup(unsigned int cpu, int flags)
 
 static int cpum_cf_online_cpu(unsigned int cpu)
 {
-	return cpum_cf_setup(cpu, PMC_INIT);
+	cpum_cf_setup(cpu, PMC_INIT);
+	return cfset_online_cpu(cpu);
 }
 
 static int cpum_cf_offline_cpu(unsigned int cpu)
 {
+	cfset_offline_cpu(cpu);
 	return cpum_cf_setup(cpu, PMC_RELEASE);
+}
+
+/* Return the maximum possible counter set size (in number of 8 byte counters)
+ * depending on type and model number.
+ */
+size_t cpum_cf_ctrset_size(enum cpumf_ctr_set ctrset,
+			   struct cpumf_ctr_info *info)
+{
+	size_t ctrset_size = 0;
+
+	switch (ctrset) {
+	case CPUMF_CTR_SET_BASIC:
+		if (info->cfvn >= 1)
+			ctrset_size = 6;
+		break;
+	case CPUMF_CTR_SET_USER:
+		if (info->cfvn == 1)
+			ctrset_size = 6;
+		else if (info->cfvn >= 3)
+			ctrset_size = 2;
+		break;
+	case CPUMF_CTR_SET_CRYPTO:
+		if (info->csvn >= 1 && info->csvn <= 5)
+			ctrset_size = 16;
+		else if (info->csvn == 6 || info->csvn == 7)
+			ctrset_size = 20;
+		break;
+	case CPUMF_CTR_SET_EXT:
+		if (info->csvn == 1)
+			ctrset_size = 32;
+		else if (info->csvn == 2)
+			ctrset_size = 48;
+		else if (info->csvn >= 3 && info->csvn <= 5)
+			ctrset_size = 128;
+		else if (info->csvn == 6 || info->csvn == 7)
+			ctrset_size = 160;
+		break;
+	case CPUMF_CTR_SET_MT_DIAG:
+		if (info->csvn > 3)
+			ctrset_size = 48;
+		break;
+	case CPUMF_CTR_SET_MAX:
+		break;
+	}
+
+	return ctrset_size;
 }
 
 static int __init cpum_cf_init(void)

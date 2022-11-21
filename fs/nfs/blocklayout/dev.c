@@ -252,7 +252,7 @@ bl_parse_simple(struct nfs_server *server, struct pnfs_block_dev *d,
 	d->bdev = bdev;
 
 
-	d->len = i_size_read(d->bdev->bd_inode);
+	d->len = bdev_nr_bytes(d->bdev);
 	d->map = bl_map_simple;
 
 	printk(KERN_INFO "pNFS: using block device %s\n",
@@ -367,7 +367,7 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 		return PTR_ERR(bdev);
 	d->bdev = bdev;
 
-	d->len = i_size_read(d->bdev->bd_inode);
+	d->len = bdev_nr_bytes(d->bdev);
 	d->map = bl_map_simple;
 	d->pr_key = v->scsi.pr_key;
 
@@ -510,7 +510,7 @@ bl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 		goto out;
 
 	xdr_init_decode_pages(&xdr, &buf, pdev->pages, pdev->pglen);
-	xdr_set_scratch_buffer(&xdr, page_address(scratch), PAGE_SIZE);
+	xdr_set_scratch_page(&xdr, scratch);
 
 	p = xdr_inline_decode(&xdr, sizeof(__be32));
 	if (!p)

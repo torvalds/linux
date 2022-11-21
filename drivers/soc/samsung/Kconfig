@@ -7,26 +7,41 @@ menuconfig SOC_SAMSUNG
 
 if SOC_SAMSUNG
 
-config EXYNOS_ASV
-	bool "Exynos Adaptive Supply Voltage support" if COMPILE_TEST
-	depends on (ARCH_EXYNOS && EXYNOS_CHIPID) || COMPILE_TEST
-	select EXYNOS_ASV_ARM if ARM && ARCH_EXYNOS
-
 # There is no need to enable these drivers for ARMv8
 config EXYNOS_ASV_ARM
 	bool "Exynos ASV ARMv7-specific driver extensions" if COMPILE_TEST
-	depends on EXYNOS_ASV
+	depends on EXYNOS_CHIPID
 
 config EXYNOS_CHIPID
-	bool "Exynos Chipid controller driver" if COMPILE_TEST
+	tristate "Exynos ChipID controller and ASV driver"
 	depends on ARCH_EXYNOS || COMPILE_TEST
+	default ARCH_EXYNOS
+	select EXYNOS_ASV_ARM if ARM && ARCH_EXYNOS
 	select MFD_SYSCON
 	select SOC_BUS
+	help
+	  Support for Samsung Exynos SoC ChipID and Adaptive Supply Voltage.
+	  This driver can also be built as module (exynos_chipid).
+
+config EXYNOS_USI
+	tristate "Exynos USI (Universal Serial Interface) driver"
+	default ARCH_EXYNOS && ARM64
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  Enable support for USI block. USI (Universal Serial Interface) is an
+	  IP-core found in modern Samsung Exynos SoCs, like Exynos850 and
+	  ExynosAutoV9. USI block can be configured to provide one of the
+	  following serial protocols: UART, SPI or High Speed I2C.
+
+	  This driver allows one to configure USI for desired protocol, which
+	  is usually done in USI node in Device Tree.
 
 config EXYNOS_PMU
 	bool "Exynos PMU controller driver" if COMPILE_TEST
 	depends on ARCH_EXYNOS || ((ARM || ARM64) && COMPILE_TEST)
 	select EXYNOS_PMU_ARM_DRIVERS if ARM && ARCH_EXYNOS
+	select MFD_CORE
 
 # There is no need to enable these drivers for ARMv8
 config EXYNOS_PMU_ARM_DRIVERS

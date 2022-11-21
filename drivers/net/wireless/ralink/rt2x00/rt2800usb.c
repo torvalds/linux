@@ -988,6 +988,7 @@ static const struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x177f, 0x0313) },
 	{ USB_DEVICE(0x177f, 0x0323) },
 	{ USB_DEVICE(0x177f, 0x0324) },
+	{ USB_DEVICE(0x177f, 0x1163) },
 	/* U-Media */
 	{ USB_DEVICE(0x157e, 0x300e) },
 	{ USB_DEVICE(0x157e, 0x3013) },
@@ -1100,7 +1101,6 @@ static const struct usb_device_id rt2800usb_device_table[] = {
 #ifdef CONFIG_RT2800USB_RT53XX
 	/* Arcadyan */
 	{ USB_DEVICE(0x043e, 0x7a12) },
-	{ USB_DEVICE(0x043e, 0x7a32) },
 	/* ASUS */
 	{ USB_DEVICE(0x0b05, 0x17e8) },
 	/* Azurewave */
@@ -1247,7 +1247,6 @@ static const struct usb_device_id rt2800usb_device_table[] = {
 MODULE_AUTHOR(DRV_PROJECT);
 MODULE_VERSION(DRV_VERSION);
 MODULE_DESCRIPTION("Ralink RT2800 USB Wireless LAN driver.");
-MODULE_SUPPORTED_DEVICE("Ralink RT2870 USB chipset based cards");
 MODULE_DEVICE_TABLE(usb, rt2800usb_device_table);
 MODULE_FIRMWARE(FIRMWARE_RT2870);
 MODULE_LICENSE("GPL");

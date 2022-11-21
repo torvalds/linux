@@ -22,10 +22,10 @@
 #define MODULE_PROC_FAMILY "MIPS64_R6 "
 #elif defined CONFIG_CPU_R3000
 #define MODULE_PROC_FAMILY "R3000 "
-#elif defined CONFIG_CPU_TX39XX
-#define MODULE_PROC_FAMILY "TX39XX "
 #elif defined CONFIG_CPU_VR41XX
 #define MODULE_PROC_FAMILY "VR41XX "
+#elif defined CONFIG_CPU_R4300
+#define MODULE_PROC_FAMILY "R4300 "
 #elif defined CONFIG_CPU_R4X00
 #define MODULE_PROC_FAMILY "R4X00 "
 #elif defined CONFIG_CPU_TX49XX
@@ -52,10 +52,6 @@
 #define MODULE_PROC_FAMILY "OCTEON "
 #elif defined CONFIG_CPU_P5600
 #define MODULE_PROC_FAMILY "P5600 "
-#elif defined CONFIG_CPU_XLR
-#define MODULE_PROC_FAMILY "XLR "
-#elif defined CONFIG_CPU_XLP
-#define MODULE_PROC_FAMILY "XLP "
 #else
 #error MODULE_PROC_FAMILY undefined for your processor configuration
 #endif

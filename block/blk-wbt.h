@@ -34,6 +34,7 @@ enum {
 enum {
 	WBT_STATE_ON_DEFAULT	= 1,
 	WBT_STATE_ON_MANUAL	= 2,
+	WBT_STATE_OFF_DEFAULT
 };
 
 struct rq_wb {
@@ -100,9 +101,6 @@ u64 wbt_default_latency_nsec(struct request_queue *);
 
 #else
 
-static inline void wbt_track(struct request *rq, enum wbt_flags flags)
-{
-}
 static inline int wbt_init(struct request_queue *q)
 {
 	return -EINVAL;

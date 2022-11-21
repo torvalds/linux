@@ -529,7 +529,6 @@ static void qla2x00_async_sns_sp_done(srb_t *sp, int rc)
 		if (!e)
 			goto err2;
 
-		del_timer(&sp->u.iocb_cmd.timer);
 		e->u.iosb.sp = sp;
 		qla2x00_post_work(vha, e);
 		return;
@@ -556,8 +555,8 @@ err2:
 			sp->u.iocb_cmd.u.ctarg.rsp = NULL;
 		}
 
-		sp->free(sp);
-
+		/* ref: INIT */
+		kref_put(&sp->cmd_kref, qla2x00_sp_release);
 		return;
 	}
 
@@ -592,13 +591,15 @@ static int qla_async_rftid(scsi_qla_host_t *vha, port_id_t *d_id)
 	if (!vha->flags.online)
 		goto done;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, NULL, GFP_KERNEL);
 	if (!sp)
 		goto done;
 
 	sp->type = SRB_CT_PTHRU_CMD;
 	sp->name = "rft_id";
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_sns_sp_done);
 
 	sp->u.iocb_cmd.u.ctarg.req = dma_alloc_coherent(&vha->hw->pdev->dev,
 	    sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.req_dma,
@@ -632,14 +633,12 @@ static int qla_async_rftid(scsi_qla_host_t *vha, port_id_t *d_id)
 	ct_req->req.rft_id.port_id = port_id_to_be_id(vha->d_id);
 	ct_req->req.rft_id.fc4_types[2] = 0x01;		/* FCP-3 */
 
-	if (vha->flags.nvme_enabled)
+	if (vha->flags.nvme_enabled && qla_ini_mode_enabled(vha))
 		ct_req->req.rft_id.fc4_types[6] = 1;    /* NVMe type 28h */
 
 	sp->u.iocb_cmd.u.ctarg.req_size = RFT_ID_REQ_SIZE;
 	sp->u.iocb_cmd.u.ctarg.rsp_size = RFT_ID_RSP_SIZE;
 	sp->u.iocb_cmd.u.ctarg.nport_handle = NPH_SNS;
-	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
-	sp->done = qla2x00_async_sns_sp_done;
 
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "Async-%s - hdl=%x portid %06x.\n",
@@ -653,7 +652,8 @@ static int qla_async_rftid(scsi_qla_host_t *vha, port_id_t *d_id)
 	}
 	return rval;
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -676,8 +676,7 @@ qla2x00_rff_id(scsi_qla_host_t *vha, u8 type)
 		return (QLA_SUCCESS);
 	}
 
-	return qla_async_rffid(vha, &vha->d_id, qlt_rff_id(vha),
-	    FC4_TYPE_FCP_SCSI);
+	return qla_async_rffid(vha, &vha->d_id, qlt_rff_id(vha), type);
 }
 
 static int qla_async_rffid(scsi_qla_host_t *vha, port_id_t *d_id,
@@ -688,13 +687,15 @@ static int qla_async_rffid(scsi_qla_host_t *vha, port_id_t *d_id,
 	srb_t *sp;
 	struct ct_sns_pkt *ct_sns;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, NULL, GFP_KERNEL);
 	if (!sp)
 		goto done;
 
 	sp->type = SRB_CT_PTHRU_CMD;
 	sp->name = "rff_id";
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_sns_sp_done);
 
 	sp->u.iocb_cmd.u.ctarg.req = dma_alloc_coherent(&vha->hw->pdev->dev,
 	    sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.req_dma,
@@ -727,13 +728,11 @@ static int qla_async_rffid(scsi_qla_host_t *vha, port_id_t *d_id,
 	/* Prepare CT arguments -- port_id, FC-4 feature, FC-4 type */
 	ct_req->req.rff_id.port_id = port_id_to_be_id(*d_id);
 	ct_req->req.rff_id.fc4_feature = fc4feature;
-	ct_req->req.rff_id.fc4_type = fc4type;		/* SCSI - FCP */
+	ct_req->req.rff_id.fc4_type = fc4type;		/* SCSI-FCP or FC-NVMe */
 
 	sp->u.iocb_cmd.u.ctarg.req_size = RFF_ID_REQ_SIZE;
 	sp->u.iocb_cmd.u.ctarg.rsp_size = RFF_ID_RSP_SIZE;
 	sp->u.iocb_cmd.u.ctarg.nport_handle = NPH_SNS;
-	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
-	sp->done = qla2x00_async_sns_sp_done;
 
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "Async-%s - hdl=%x portid %06x feature %x type %x.\n",
@@ -749,7 +748,8 @@ static int qla_async_rffid(scsi_qla_host_t *vha, port_id_t *d_id,
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -779,13 +779,15 @@ static int qla_async_rnnid(scsi_qla_host_t *vha, port_id_t *d_id,
 	srb_t *sp;
 	struct ct_sns_pkt *ct_sns;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, NULL, GFP_KERNEL);
 	if (!sp)
 		goto done;
 
 	sp->type = SRB_CT_PTHRU_CMD;
 	sp->name = "rnid";
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_sns_sp_done);
 
 	sp->u.iocb_cmd.u.ctarg.req = dma_alloc_coherent(&vha->hw->pdev->dev,
 	    sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.req_dma,
@@ -823,9 +825,6 @@ static int qla_async_rnnid(scsi_qla_host_t *vha, port_id_t *d_id,
 	sp->u.iocb_cmd.u.ctarg.rsp_size = RNN_ID_RSP_SIZE;
 	sp->u.iocb_cmd.u.ctarg.nport_handle = NPH_SNS;
 
-	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
-	sp->done = qla2x00_async_sns_sp_done;
-
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "Async-%s - hdl=%x portid %06x\n",
 	    sp->name, sp->handle, d_id->b24);
@@ -840,7 +839,8 @@ static int qla_async_rnnid(scsi_qla_host_t *vha, port_id_t *d_id,
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -886,13 +886,15 @@ static int qla_async_rsnn_nn(scsi_qla_host_t *vha)
 	srb_t *sp;
 	struct ct_sns_pkt *ct_sns;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, NULL, GFP_KERNEL);
 	if (!sp)
 		goto done;
 
 	sp->type = SRB_CT_PTHRU_CMD;
 	sp->name = "rsnn_nn";
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_sns_sp_done);
 
 	sp->u.iocb_cmd.u.ctarg.req = dma_alloc_coherent(&vha->hw->pdev->dev,
 	    sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.req_dma,
@@ -936,9 +938,6 @@ static int qla_async_rsnn_nn(scsi_qla_host_t *vha)
 	sp->u.iocb_cmd.u.ctarg.rsp_size = RSNN_NN_RSP_SIZE;
 	sp->u.iocb_cmd.u.ctarg.nport_handle = NPH_SNS;
 
-	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
-	sp->done = qla2x00_async_sns_sp_done;
-
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "Async-%s - hdl=%x.\n",
 	    sp->name, sp->handle);
@@ -953,7 +952,8 @@ static int qla_async_rsnn_nn(scsi_qla_host_t *vha)
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -1247,7 +1247,7 @@ qla2x00_sns_gnn_id(scsi_qla_host_t *vha, sw_info_t *list)
 }
 
 /**
- * qla2x00_snd_rft_id() - SNS Register FC-4 TYPEs (RFT_ID) supported by the HBA.
+ * qla2x00_sns_rft_id() - SNS Register FC-4 TYPEs (RFT_ID) supported by the HBA.
  * @vha: HA context
  *
  * This command uses the old Exectute SNS Command mailbox routine.
@@ -1479,7 +1479,7 @@ qla2x00_update_ms_fdmi_iocb(scsi_qla_host_t *vha, uint32_t req_size)
 }
 
 /**
- * qla2x00_prep_ct_req() - Prepare common CT request fields for SNS query.
+ * qla2x00_prep_ct_fdmi_req() - Prepare common CT request fields for SNS query.
  * @p: CT request buffer
  * @cmd: GS command
  * @rsp_size: response size in bytes
@@ -1537,7 +1537,8 @@ qla25xx_fdmi_port_speed_capability(struct qla_hw_data *ha)
 	}
 	if (IS_QLA2031(ha)) {
 		if ((ha->pdev->subsystem_vendor == 0x103C) &&
-		    (ha->pdev->subsystem_device == 0x8002)) {
+		    ((ha->pdev->subsystem_device == 0x8002) ||
+		    (ha->pdev->subsystem_device == 0x8086))) {
 			speeds = FDMI_PORT_SPEED_16GB;
 		} else {
 			speeds = FDMI_PORT_SPEED_16GB|FDMI_PORT_SPEED_8GB|
@@ -1582,7 +1583,7 @@ qla25xx_fdmi_port_speed_currently(struct qla_hw_data *ha)
 }
 
 /**
- * qla2x00_hba_attributes() perform HBA attributes registration
+ * qla2x00_hba_attributes() - perform HBA attributes registration
  * @vha: HA context
  * @entries: number of entries to use
  * @callopt: Option to issue extended or standard FDMI
@@ -1730,8 +1731,6 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 	size += alen;
 	ql_dbg(ql_dbg_disc, vha, 0x20a8,
 	    "FIRMWARE VERSION = %s.\n", eiter->a.fw_version);
-	if (callopt == CALLOPT_FDMI1)
-		goto done;
 	/* OS Name and Version */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_OS_NAME_AND_VERSION);
@@ -1754,6 +1753,8 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 	size += alen;
 	ql_dbg(ql_dbg_disc, vha, 0x20a9,
 	    "OS VERSION = %s.\n", eiter->a.os_version);
+	if (callopt == CALLOPT_FDMI1)
+		goto done;
 	/* MAX CT Payload Length */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_MAXIMUM_CT_PAYLOAD_LENGTH);
@@ -1765,7 +1766,7 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 	size += alen;
 	ql_dbg(ql_dbg_disc, vha, 0x20aa,
 	    "CT PAYLOAD LENGTH = 0x%x.\n", be32_to_cpu(eiter->a.max_ct_len));
-	/* Node Sybolic Name */
+	/* Node Symbolic Name */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_NODE_SYMBOLIC_NAME);
 	alen = qla2x00_get_sym_node_name(vha, eiter->a.sym_name,
@@ -1837,7 +1838,7 @@ done:
 }
 
 /**
- * qla2x00_port_attributes() perform Port attributes registration
+ * qla2x00_port_attributes() - perform Port attributes registration
  * @vha: HA context
  * @entries: number of entries to use
  * @callopt: Option to issue extended or standard FDMI
@@ -2272,7 +2273,7 @@ qla2x00_fdmi_dhba(scsi_qla_host_t *vha)
 }
 
 /**
- * qla2x00_fdmi_rprt() perform RPRT registration
+ * qla2x00_fdmi_rprt() - perform RPRT registration
  * @vha: HA context
  * @callopt: Option to issue extended or standard FDMI
  *           command parameter
@@ -2826,6 +2827,10 @@ void qla24xx_handle_gpsc_event(scsi_qla_host_t *vha, struct event_arg *ea)
 	if (fcport->disc_state == DSC_DELETE_PEND)
 		return;
 
+	/* We will figure-out what happen after AUTH completes */
+	if (fcport->disc_state == DSC_LOGIN_AUTH_PEND)
+		return;
+
 	if (ea->sp->gen2 != fcport->login_gen) {
 		/* target side must have changed it. */
 		ql_dbg(ql_dbg_disc, vha, 0x20d3,
@@ -2888,7 +2893,8 @@ static void qla24xx_async_gpsc_sp_done(srb_t *sp, int res)
 	qla24xx_handle_gpsc_event(vha, &ea);
 
 done:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
@@ -2900,6 +2906,7 @@ int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (!vha->flags.online || (fcport->flags & FCF_ASYNC_SENT))
 		return rval;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -2908,8 +2915,8 @@ int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
 	sp->name = "gpsc";
 	sp->gen1 = fcport->rscn_gen;
 	sp->gen2 = fcport->login_gen;
-
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla24xx_async_gpsc_sp_done);
 
 	/* CT_IU preamble  */
 	ct_req = qla24xx_prep_ct_fm_req(fcport->ct_desc.ct_sns, GPSC_CMD,
@@ -2927,9 +2934,6 @@ int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
 	sp->u.iocb_cmd.u.ctarg.rsp_size = GPSC_RSP_SIZE;
 	sp->u.iocb_cmd.u.ctarg.nport_handle = vha->mgmt_svr_loop_id;
 
-	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
-	sp->done = qla24xx_async_gpsc_sp_done;
-
 	ql_dbg(ql_dbg_disc, vha, 0x205e,
 	    "Async-%s %8phC hdl=%x loopid=%x portid=%02x%02x%02x.\n",
 	    sp->name, fcport->port_name, sp->handle,
@@ -2942,7 +2946,8 @@ int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -2991,7 +2996,8 @@ void qla24xx_sp_unmap(scsi_qla_host_t *vha, srb_t *sp)
 		break;
 	}
 
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
@@ -3130,13 +3136,15 @@ static void qla2x00_async_gpnid_sp_done(srb_t *sp, int res)
 	if (res) {
 		if (res == QLA_FUNCTION_TIMEOUT) {
 			qla24xx_post_gpnid_work(sp->vha, &ea.id);
-			sp->free(sp);
+			/* ref: INIT */
+			kref_put(&sp->cmd_kref, qla2x00_sp_release);
 			return;
 		}
 	} else if (sp->gen1) {
 		/* There was another RSCN for this Nport ID */
 		qla24xx_post_gpnid_work(sp->vha, &ea.id);
-		sp->free(sp);
+		/* ref: INIT */
+		kref_put(&sp->cmd_kref, qla2x00_sp_release);
 		return;
 	}
 
@@ -3157,7 +3165,8 @@ static void qla2x00_async_gpnid_sp_done(srb_t *sp, int res)
 				  sp->u.iocb_cmd.u.ctarg.rsp_dma);
 		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
 
-		sp->free(sp);
+		/* ref: INIT */
+		kref_put(&sp->cmd_kref, qla2x00_sp_release);
 		return;
 	}
 
@@ -3177,6 +3186,7 @@ int qla24xx_async_gpnid(scsi_qla_host_t *vha, port_id_t *id)
 	if (!vha->flags.online)
 		goto done;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, NULL, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -3185,14 +3195,16 @@ int qla24xx_async_gpnid(scsi_qla_host_t *vha, port_id_t *id)
 	sp->name = "gpnid";
 	sp->u.iocb_cmd.u.ctarg.id = *id;
 	sp->gen1 = 0;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_gpnid_sp_done);
 
 	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 	list_for_each_entry(tsp, &vha->gpnid_list, elem) {
 		if (tsp->u.iocb_cmd.u.ctarg.id.b24 == id->b24) {
 			tsp->gen1++;
 			spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
-			sp->free(sp);
+			/* ref: INIT */
+			kref_put(&sp->cmd_kref, qla2x00_sp_release);
 			goto done;
 		}
 	}
@@ -3233,9 +3245,6 @@ int qla24xx_async_gpnid(scsi_qla_host_t *vha, port_id_t *id)
 	sp->u.iocb_cmd.u.ctarg.rsp_size = GPN_ID_RSP_SIZE;
 	sp->u.iocb_cmd.u.ctarg.nport_handle = NPH_SNS;
 
-	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
-	sp->done = qla2x00_async_gpnid_sp_done;
-
 	ql_dbg(ql_dbg_disc, vha, 0x2067,
 	    "Async-%s hdl=%x ID %3phC.\n", sp->name,
 	    sp->handle, &ct_req->req.port_id.port_id);
@@ -3265,8 +3274,8 @@ done_free_sp:
 			sp->u.iocb_cmd.u.ctarg.rsp_dma);
 		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
 	}
-
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -3321,7 +3330,8 @@ void qla24xx_async_gffid_sp_done(srb_t *sp, int res)
 	ea.rc = res;
 
 	qla24xx_handle_gffid_event(vha, &ea);
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 /* Get FC4 Feature with Nport ID. */
@@ -3334,6 +3344,7 @@ int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (!vha->flags.online || (fcport->flags & FCF_ASYNC_SENT))
 		return rval;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp)
 		return rval;
@@ -3343,9 +3354,8 @@ int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	sp->name = "gffid";
 	sp->gen1 = fcport->rscn_gen;
 	sp->gen2 = fcport->login_gen;
-
-	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla24xx_async_gffid_sp_done);
 
 	/* CT_IU preamble  */
 	ct_req = qla2x00_prep_ct_req(fcport->ct_desc.ct_sns, GFF_ID_CMD,
@@ -3363,8 +3373,6 @@ int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	sp->u.iocb_cmd.u.ctarg.rsp_size = GFF_ID_RSP_SIZE;
 	sp->u.iocb_cmd.u.ctarg.nport_handle = NPH_SNS;
 
-	sp->done = qla24xx_async_gffid_sp_done;
-
 	ql_dbg(ql_dbg_disc, vha, 0x2132,
 	    "Async-%s hdl=%x  %8phC.\n", sp->name,
 	    sp->handle, fcport->port_name);
@@ -3375,7 +3383,8 @@ int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 	return rval;
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	fcport->flags &= ~FCF_ASYNC_SENT;
 	return rval;
 }
@@ -3443,6 +3452,10 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 			list_for_each_entry(fcport, &vha->vp_fcports, list) {
 				if ((fcport->flags & FCF_FABRIC_DEVICE) != 0) {
 					fcport->scan_state = QLA_FCPORT_SCAN;
+					if (fcport->loop_id == FC_NO_LOOP_ID)
+						fcport->logout_on_delete = 0;
+					else
+						fcport->logout_on_delete = 1;
 				}
 			}
 			goto login_logout;
@@ -3494,7 +3507,16 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 				continue;
 			fcport->scan_state = QLA_FCPORT_FOUND;
 			fcport->last_rscn_gen = fcport->rscn_gen;
+			fcport->fc4_type = rp->fc4type;
 			found = true;
+
+			if (fcport->scan_needed) {
+				if (NVME_PRIORITY(vha->hw, fcport))
+					fcport->do_prli_nvme = 1;
+				else
+					fcport->do_prli_nvme = 0;
+			}
+
 			/*
 			 * If device was not a fabric device before.
 			 */
@@ -3558,11 +3580,12 @@ login_logout:
 					if (fcport->flags & FCF_FCP2_DEVICE)
 						fcport->logout_on_delete = 0;
 
-					ql_dbg(ql_dbg_disc, vha, 0x20f0,
-					    "%s %d %8phC post del sess\n",
-					    __func__, __LINE__,
-					    fcport->port_name);
+					ql_log(ql_log_warn, vha, 0x20f0,
+					       "%s %d %8phC post del sess\n",
+					       __func__, __LINE__,
+					       fcport->port_name);
 
+					fcport->tgt_link_down_time = 0;
 					qlt_schedule_sess_for_deletion(fcport);
 					continue;
 				}
@@ -3748,7 +3771,6 @@ static void qla2x00_async_gpnft_gnnft_sp_done(srb_t *sp, int res)
 	    "Async done-%s res %x FC4Type %x\n",
 	    sp->name, res, sp->gen2);
 
-	del_timer(&sp->u.iocb_cmd.timer);
 	sp->rc = res;
 	if (res) {
 		unsigned long flags;
@@ -3873,9 +3895,8 @@ static int qla24xx_async_gnnft(scsi_qla_host_t *vha, struct srb *sp,
 	sp->name = "gnnft";
 	sp->gen1 = vha->hw->base_qpair->chip_reset;
 	sp->gen2 = fc4_type;
-
-	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_gpnft_gnnft_sp_done);
 
 	memset(sp->u.iocb_cmd.u.ctarg.rsp, 0, sp->u.iocb_cmd.u.ctarg.rsp_size);
 	memset(sp->u.iocb_cmd.u.ctarg.req, 0, sp->u.iocb_cmd.u.ctarg.req_size);
@@ -3890,8 +3911,6 @@ static int qla24xx_async_gnnft(scsi_qla_host_t *vha, struct srb *sp,
 
 	sp->u.iocb_cmd.u.ctarg.req_size = GNN_FT_REQ_SIZE;
 	sp->u.iocb_cmd.u.ctarg.nport_handle = NPH_SNS;
-
-	sp->done = qla2x00_async_gpnft_gnnft_sp_done;
 
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "Async-%s hdl=%x FC4Type %x.\n", sp->name,
@@ -3919,8 +3938,8 @@ done_free_sp:
 		    sp->u.iocb_cmd.u.ctarg.rsp_dma);
 		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
 	}
-
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 
 	spin_lock_irqsave(&vha->work_lock, flags);
 	vha->scan.scan_flags &= ~SF_SCANNING;
@@ -3972,9 +3991,12 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
 		    "%s: Performing FCP Scan\n", __func__);
 
-		if (sp)
-			sp->free(sp); /* should not happen */
+		if (sp) {
+			/* ref: INIT */
+			kref_put(&sp->cmd_kref, qla2x00_sp_release);
+		}
 
+		/* ref: INIT */
 		sp = qla2x00_get_sp(vha, NULL, GFP_KERNEL);
 		if (!sp) {
 			spin_lock_irqsave(&vha->work_lock, flags);
@@ -4019,6 +4041,7 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 			    sp->u.iocb_cmd.u.ctarg.req,
 			    sp->u.iocb_cmd.u.ctarg.req_dma);
 			sp->u.iocb_cmd.u.ctarg.req = NULL;
+			/* ref: INIT */
 			qla2x00_rel_sp(sp);
 			return rval;
 		}
@@ -4038,9 +4061,8 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 	sp->name = "gpnft";
 	sp->gen1 = vha->hw->base_qpair->chip_reset;
 	sp->gen2 = fc4_type;
-
-	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_gpnft_gnnft_sp_done);
 
 	rspsz = sp->u.iocb_cmd.u.ctarg.rsp_size;
 	memset(sp->u.iocb_cmd.u.ctarg.rsp, 0, sp->u.iocb_cmd.u.ctarg.rsp_size);
@@ -4054,8 +4076,6 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 	ct_req->req.gpn_ft.port_type = fc4_type;
 
 	sp->u.iocb_cmd.u.ctarg.nport_handle = NPH_SNS;
-
-	sp->done = qla2x00_async_gpnft_gnnft_sp_done;
 
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "Async-%s hdl=%x FC4Type %x.\n", sp->name,
@@ -4084,7 +4104,8 @@ done_free_sp:
 		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
 	}
 
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 
 	spin_lock_irqsave(&vha->work_lock, flags);
 	vha->scan.scan_flags &= ~SF_SCANNING;
@@ -4148,7 +4169,8 @@ static void qla2x00_async_gnnid_sp_done(srb_t *sp, int res)
 
 	qla24xx_handle_gnnid_event(vha, &ea);
 
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int qla24xx_async_gnnid(scsi_qla_host_t *vha, fc_port_t *fcport)
@@ -4161,6 +4183,7 @@ int qla24xx_async_gnnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 		return rval;
 
 	qla2x00_set_fcport_disc_state(fcport, DSC_GNN_ID);
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_ATOMIC);
 	if (!sp)
 		goto done;
@@ -4170,9 +4193,8 @@ int qla24xx_async_gnnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	sp->name = "gnnid";
 	sp->gen1 = fcport->rscn_gen;
 	sp->gen2 = fcport->login_gen;
-
-	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_gnnid_sp_done);
 
 	/* CT_IU preamble  */
 	ct_req = qla2x00_prep_ct_req(fcport->ct_desc.ct_sns, GNN_ID_CMD,
@@ -4191,8 +4213,6 @@ int qla24xx_async_gnnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	sp->u.iocb_cmd.u.ctarg.rsp_size = GNN_ID_RSP_SIZE;
 	sp->u.iocb_cmd.u.ctarg.nport_handle = NPH_SNS;
 
-	sp->done = qla2x00_async_gnnid_sp_done;
-
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "Async-%s - %8phC hdl=%x loopid=%x portid %06x.\n",
 	    sp->name, fcport->port_name,
@@ -4204,7 +4224,8 @@ int qla24xx_async_gnnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	fcport->flags &= ~FCF_ASYNC_SENT;
 done:
 	return rval;
@@ -4278,7 +4299,8 @@ static void qla2x00_async_gfpnid_sp_done(srb_t *sp, int res)
 
 	qla24xx_handle_gfpnid_event(vha, &ea);
 
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int qla24xx_async_gfpnid(scsi_qla_host_t *vha, fc_port_t *fcport)
@@ -4290,6 +4312,7 @@ int qla24xx_async_gfpnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (!vha->flags.online || (fcport->flags & FCF_ASYNC_SENT))
 		return rval;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_ATOMIC);
 	if (!sp)
 		goto done;
@@ -4298,9 +4321,8 @@ int qla24xx_async_gfpnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	sp->name = "gfpnid";
 	sp->gen1 = fcport->rscn_gen;
 	sp->gen2 = fcport->login_gen;
-
-	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_gfpnid_sp_done);
 
 	/* CT_IU preamble  */
 	ct_req = qla2x00_prep_ct_req(fcport->ct_desc.ct_sns, GFPN_ID_CMD,
@@ -4319,8 +4341,6 @@ int qla24xx_async_gfpnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	sp->u.iocb_cmd.u.ctarg.rsp_size = GFPN_ID_RSP_SIZE;
 	sp->u.iocb_cmd.u.ctarg.nport_handle = NPH_SNS;
 
-	sp->done = qla2x00_async_gfpnid_sp_done;
-
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "Async-%s - %8phC hdl=%x loopid=%x portid %06x.\n",
 	    sp->name, fcport->port_name,
@@ -4333,7 +4353,8 @@ int qla24xx_async_gfpnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }

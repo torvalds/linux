@@ -4,9 +4,9 @@
 /*
  * Check OpenCSD library version is sufficient to provide required features
  */
-#define OCSD_MIN_VER ((0 << 16) | (14 << 8) | (0))
+#define OCSD_MIN_VER ((1 << 16) | (1 << 8) | (1))
 #if !defined(OCSD_VER_NUM) || (OCSD_VER_NUM < OCSD_MIN_VER)
-#error "OpenCSD >= 0.14.0 is required"
+#error "OpenCSD >= 1.1.1 is required"
 #endif
 
 int main(void)

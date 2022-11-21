@@ -860,7 +860,9 @@ static int pcnet32_nway_reset(struct net_device *dev)
 }
 
 static void pcnet32_get_ringparam(struct net_device *dev,
-				  struct ethtool_ringparam *ering)
+				  struct ethtool_ringparam *ering,
+				  struct kernel_ethtool_ringparam *kernel_ering,
+				  struct netlink_ext_ack *extack)
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
 
@@ -871,7 +873,9 @@ static void pcnet32_get_ringparam(struct net_device *dev,
 }
 
 static int pcnet32_set_ringparam(struct net_device *dev,
-				 struct ethtool_ringparam *ering)
+				 struct ethtool_ringparam *ering,
+				 struct kernel_ethtool_ringparam *kernel_ering,
+				 struct netlink_ext_ack *extack)
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
 	unsigned long flags;
@@ -1534,8 +1538,7 @@ pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	pci_set_master(pdev);
 
-	ioaddr = pci_resource_start(pdev, 0);
-	if (!ioaddr) {
+	if (!pci_resource_len(pdev, 0)) {
 		if (pcnet32_debug & NETIF_MSG_PROBE)
 			pr_err("card has no PCI IO resources, aborting\n");
 		err = -ENODEV;
@@ -1548,6 +1551,8 @@ pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 			pr_err("architecture does not support 32bit PCI busmaster DMA\n");
 		goto err_disable_dev;
 	}
+
+	ioaddr = pci_resource_start(pdev, 0);
 	if (!request_region(ioaddr, PCNET32_TOTAL_SIZE, "pcnet32_probe_pci")) {
 		if (pcnet32_debug & NETIF_MSG_PROBE)
 			pr_err("io address range already allocated\n");
@@ -1571,7 +1576,7 @@ static const struct net_device_ops pcnet32_netdev_ops = {
 	.ndo_tx_timeout		= pcnet32_tx_timeout,
 	.ndo_get_stats		= pcnet32_get_stats,
 	.ndo_set_rx_mode	= pcnet32_set_multicast_list,
-	.ndo_do_ioctl		= pcnet32_ioctl,
+	.ndo_eth_ioctl		= pcnet32_ioctl,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1594,6 +1599,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	struct net_device *dev;
 	const struct pcnet32_access *a = NULL;
 	u8 promaddr[ETH_ALEN];
+	u8 addr[ETH_ALEN];
 	int ret = -ENODEV;
 
 	/* reset the chip */
@@ -1759,9 +1765,10 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		unsigned int val;
 		val = a->read_csr(ioaddr, i + 12) & 0x0ffff;
 		/* There may be endianness issues here. */
-		dev->dev_addr[2 * i] = val & 0x0ff;
-		dev->dev_addr[2 * i + 1] = (val >> 8) & 0x0ff;
+		addr[2 * i] = val & 0x0ff;
+		addr[2 * i + 1] = (val >> 8) & 0x0ff;
 	}
+	eth_hw_addr_set(dev, addr);
 
 	/* read PROM address and compare with CSR address */
 	for (i = 0; i < ETH_ALEN; i++)
@@ -1774,13 +1781,16 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 				pr_cont(" warning: CSR address invalid,\n");
 				pr_info("    using instead PROM address of");
 			}
-			memcpy(dev->dev_addr, promaddr, ETH_ALEN);
+			eth_hw_addr_set(dev, promaddr);
 		}
 	}
 
 	/* if the ethernet address is not valid, force to 00:00:00:00:00:00 */
-	if (!is_valid_ether_addr(dev->dev_addr))
-		eth_zero_addr(dev->dev_addr);
+	if (!is_valid_ether_addr(dev->dev_addr)) {
+		static const u8 zero_addr[ETH_ALEN] = {};
+
+		eth_hw_addr_set(dev, zero_addr);
+	}
 
 	if (pcnet32_debug & NETIF_MSG_PROBE) {
 		pr_cont(" %pM", dev->dev_addr);
@@ -2852,8 +2862,7 @@ static void pcnet32_check_media(struct net_device *dev, int verbose)
 			netif_info(lp, link, dev, "link down\n");
 		}
 		if (lp->phycount > 1) {
-			curr_link = pcnet32_check_otherphy(dev);
-			prev_link = 0;
+			pcnet32_check_otherphy(dev);
 		}
 	} else if (verbose || !prev_link) {
 		netif_carrier_on(dev);
@@ -3029,10 +3038,3 @@ static void __exit pcnet32_cleanup_module(void)
 
 module_init(pcnet32_init_module);
 module_exit(pcnet32_cleanup_module);
-
-/*
- * Local variables:
- *  c-indent-level: 4
- *  tab-width: 8
- * End:
- */

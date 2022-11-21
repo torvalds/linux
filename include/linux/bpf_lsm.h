@@ -7,6 +7,7 @@
 #ifndef _LINUX_BPF_LSM_H
 #define _LINUX_BPF_LSM_H
 
+#include <linux/sched.h>
 #include <linux/bpf.h>
 #include <linux/lsm_hooks.h>
 
@@ -26,6 +27,8 @@ extern struct lsm_blob_sizes bpf_lsm_blob_sizes;
 int bpf_lsm_verify_prog(struct bpf_verifier_log *vlog,
 			const struct bpf_prog *prog);
 
+bool bpf_lsm_is_sleepable_hook(u32 btf_id);
+
 static inline struct bpf_storage_blob *bpf_inode(
 	const struct inode *inode)
 {
@@ -40,6 +43,11 @@ extern const struct bpf_func_proto bpf_inode_storage_delete_proto;
 void bpf_inode_storage_free(struct inode *inode);
 
 #else /* !CONFIG_BPF_LSM */
+
+static inline bool bpf_lsm_is_sleepable_hook(u32 btf_id)
+{
+	return false;
+}
 
 static inline int bpf_lsm_verify_prog(struct bpf_verifier_log *vlog,
 				      const struct bpf_prog *prog)

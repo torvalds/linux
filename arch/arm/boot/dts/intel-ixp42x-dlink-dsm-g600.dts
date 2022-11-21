@@ -1,0 +1,147 @@
+// SPDX-License-Identifier: ISC
+/*
+ * Device Tree file for D-Link DSM-G600 revision A based on IXP420
+ * NOTE: revision B of this device uses PowerPC and is NOT supported by
+ * this device tree.
+ *
+ * Inspired by the boardfile by Rod Whitby, Tower Technologies, Alessandro Zummo
+ * and Michael Westerhof.
+ */
+
+/dts-v1/;
+
+#include "intel-ixp42x.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "D-Link DSM-G600 rev A";
+	compatible = "dlink,dsm-g600-a", "intel,ixp42x";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory@0 {
+		/* 64 MB SDRAM */
+		device_type = "memory";
+		reg = <0x00000000 0x4000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 root=/dev/sda1 rw rootwait";
+		stdout-path = "uart0:115200n8";
+	};
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led-power {
+			label = "dsmg600:green:power";
+			gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+		led-wlan {
+			label = "dsmg600:green:wlan";
+			/* CHECKME: flagged as active low in the old board file */
+			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+			/* We don't have WLAN trigger in the kernel (yet) */
+			linux,default-trigger = "netdev";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		button-reset {
+			wakeup-source;
+			linux,code = <KEY_ESC>;
+			label = "reset";
+			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio_keys_polled {
+		compatible = "gpio-keys-polled";
+
+		/*
+		 * According to the board file this key cannot handle interrupts and
+		 * need to be polled. Investigate if this is really the case or if
+		 * this can be moved adjacent to the ordinary gpio-keys above.
+		 */
+		button-power {
+			wakeup-source;
+			linux,code = <KEY_POWER>;
+			label = "power";
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	i2c {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpio0 5 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio0 4 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rtc@51 {
+			compatible = "nxp,pcf8563";
+			reg = <0x51>;
+		};
+	};
+
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+		timeout-ms = <5000>;
+	};
+
+	soc {
+		bus@c4000000 {
+			/* The first 16MB region at CS0 on the expansion bus */
+			flash@0,0 {
+				compatible = "intel,ixp4xx-flash", "cfi-flash";
+				bank-width = <2>;
+				/*
+				 * 16 MB of Flash in 128 0x20000 sized blocks
+				 * mapped in at CS0.
+				 */
+				reg = <0 0x00000000 0x1000000>;
+
+				partitions {
+					compatible = "redboot-fis";
+					/*
+					 * A boot log says the directory is at 0xfe0000
+					 * 0x7f * 0x20000 = 0xfe0000
+					 */
+					fis-index-block = <0x7f>;
+				};
+			};
+		};
+
+		pci@c0000000 {
+			status = "ok";
+
+			/*
+			 * Taken from DSM-G600 PCI boardfile (dsmg600-pci.c)
+			 * We have slots (IDSEL) 1, 2, 3, 4 and pins 1, 2 and 3.
+			 * Only slot 3 have three IRQs.
+			 */
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map =
+			/* IDSEL 1 */
+			<0x0800 0 0 1 &gpio0 7  IRQ_TYPE_LEVEL_LOW>, /* INT E on slot 1 is irq 7 */
+			/* IDSEL 2 */
+			<0x1000 0 0 1 &gpio0 11 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 2 is irq 11 */
+			/* IDSEL 3 */
+			<0x1800 0 0 1 &gpio0 10 IRQ_TYPE_LEVEL_LOW>, /* INT B on slot 3 is irq 10 */
+			<0x1800 0 0 2 &gpio0 9  IRQ_TYPE_LEVEL_LOW>, /* INT C on slot 3 is irq 9 */
+			<0x1800 0 0 3 &gpio0 8  IRQ_TYPE_LEVEL_LOW>, /* INT D on slot 3 is irq 8 */
+			/* IDSEL 4 */
+			<0x2000 0 0 3 &gpio0 6  IRQ_TYPE_LEVEL_LOW>; /* INT F on slot 4 is irq 6 */
+		};
+	};
+};

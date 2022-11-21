@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/module.h>
+#include <linux/timekeeping.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/netlink.h>
@@ -309,10 +310,10 @@ static int psample_tunnel_meta_len(struct ip_tunnel_info *tun_info)
 	unsigned short tun_proto = ip_tunnel_info_af(tun_info);
 	const struct ip_tunnel_key *tun_key = &tun_info->key;
 	int tun_opts_len = tun_info->options_len;
-	int sum = 0;
+	int sum = nla_total_size(0);	/* PSAMPLE_ATTR_TUNNEL */
 
 	if (tun_key->tun_flags & TUNNEL_KEY)
-		sum += nla_total_size(sizeof(u64));
+		sum += nla_total_size_64bit(sizeof(u64));
 
 	if (tun_info->mode & IP_TUNNEL_INFO_BRIDGE)
 		sum += nla_total_size(0);
@@ -356,9 +357,12 @@ static int psample_tunnel_meta_len(struct ip_tunnel_info *tun_info)
 #endif
 
 void psample_sample_packet(struct psample_group *group, struct sk_buff *skb,
-			   u32 trunc_size, int in_ifindex, int out_ifindex,
-			   u32 sample_rate)
+			   u32 sample_rate, const struct psample_metadata *md)
 {
+	ktime_t tstamp = ktime_get_real();
+	int out_ifindex = md->out_ifindex;
+	int in_ifindex = md->in_ifindex;
+	u32 trunc_size = md->trunc_size;
 #ifdef CONFIG_INET
 	struct ip_tunnel_info *tun_info;
 #endif
@@ -370,10 +374,15 @@ void psample_sample_packet(struct psample_group *group, struct sk_buff *skb,
 
 	meta_len = (in_ifindex ? nla_total_size(sizeof(u16)) : 0) +
 		   (out_ifindex ? nla_total_size(sizeof(u16)) : 0) +
+		   (md->out_tc_valid ? nla_total_size(sizeof(u16)) : 0) +
+		   (md->out_tc_occ_valid ? nla_total_size_64bit(sizeof(u64)) : 0) +
+		   (md->latency_valid ? nla_total_size_64bit(sizeof(u64)) : 0) +
 		   nla_total_size(sizeof(u32)) +	/* sample_rate */
 		   nla_total_size(sizeof(u32)) +	/* orig_size */
 		   nla_total_size(sizeof(u32)) +	/* group_num */
-		   nla_total_size(sizeof(u32));		/* seq */
+		   nla_total_size(sizeof(u32)) +	/* seq */
+		   nla_total_size_64bit(sizeof(u64)) +	/* timestamp */
+		   nla_total_size(sizeof(u16));		/* protocol */
 
 #ifdef CONFIG_INET
 	tun_info = skb_tunnel_info(skb);
@@ -420,6 +429,36 @@ void psample_sample_packet(struct psample_group *group, struct sk_buff *skb,
 		goto error;
 
 	ret = nla_put_u32(nl_skb, PSAMPLE_ATTR_GROUP_SEQ, group->seq++);
+	if (unlikely(ret < 0))
+		goto error;
+
+	if (md->out_tc_valid) {
+		ret = nla_put_u16(nl_skb, PSAMPLE_ATTR_OUT_TC, md->out_tc);
+		if (unlikely(ret < 0))
+			goto error;
+	}
+
+	if (md->out_tc_occ_valid) {
+		ret = nla_put_u64_64bit(nl_skb, PSAMPLE_ATTR_OUT_TC_OCC,
+					md->out_tc_occ, PSAMPLE_ATTR_PAD);
+		if (unlikely(ret < 0))
+			goto error;
+	}
+
+	if (md->latency_valid) {
+		ret = nla_put_u64_64bit(nl_skb, PSAMPLE_ATTR_LATENCY,
+					md->latency, PSAMPLE_ATTR_PAD);
+		if (unlikely(ret < 0))
+			goto error;
+	}
+
+	ret = nla_put_u64_64bit(nl_skb, PSAMPLE_ATTR_TIMESTAMP,
+				ktime_to_ns(tstamp), PSAMPLE_ATTR_PAD);
+	if (unlikely(ret < 0))
+		goto error;
+
+	ret = nla_put_u16(nl_skb, PSAMPLE_ATTR_PROTO,
+			  be16_to_cpu(skb->protocol));
 	if (unlikely(ret < 0))
 		goto error;
 

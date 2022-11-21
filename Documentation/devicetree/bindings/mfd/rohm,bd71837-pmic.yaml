@@ -32,8 +32,14 @@ properties:
   clocks:
     maxItems: 1
 
+  clock-names:
+    const: osc
+
   "#clock-cells":
     const: 0
+
+  clock-output-names:
+    const: pmic_clk
 
 # The BD718x7 supports two different HW states as reset target states. States
 # are called as SNVS and READY. At READY state all the PMIC power outputs go

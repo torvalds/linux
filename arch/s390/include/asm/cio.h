@@ -5,10 +5,10 @@
 #ifndef _ASM_S390_CIO_H_
 #define _ASM_S390_CIO_H_
 
-#include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/genalloc.h>
 #include <asm/types.h>
+#include <asm/tpi.h>
 
 #define LPM_ANYPATH 0xff
 #define __MAX_CSSID 0
@@ -329,7 +329,7 @@ struct ccw_dev_id {
 };
 
 /**
- * ccw_device_id_is_equal() - compare two ccw_dev_ids
+ * ccw_dev_id_is_equal() - compare two ccw_dev_ids
  * @dev_id1: a ccw_dev_id
  * @dev_id2: another ccw_dev_id
  * Returns:
@@ -373,5 +373,6 @@ int chsc_sstpc(void *page, unsigned int op, u16 ctrl, u64 *clock_delta);
 int chsc_sstpi(void *page, void *result, size_t size);
 int chsc_stzi(void *page, void *result, size_t size);
 int chsc_sgib(u32 origin);
+int chsc_scud(u16 cu, u64 *esm, u8 *esm_valid);
 
 #endif

@@ -52,6 +52,7 @@ static int parse_timing_property(const struct device_node *np, const char *name,
 /**
  * of_parse_display_timing - parse display_timing entry from device_node
  * @np: device_node with the properties
+ * @dt: display_timing that contains the result. I may be partially written in case of errors
  **/
 static int of_parse_display_timing(const struct device_node *np,
 		struct display_timing *dt)
@@ -198,7 +199,7 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 		struct display_timing *dt;
 		int r;
 
-		dt = kzalloc(sizeof(*dt), GFP_KERNEL);
+		dt = kmalloc(sizeof(*dt), GFP_KERNEL);
 		if (!dt) {
 			pr_err("%pOF: could not allocate display_timing struct\n",
 				np);

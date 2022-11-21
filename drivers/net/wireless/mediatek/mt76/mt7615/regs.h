@@ -61,6 +61,11 @@ enum mt7615_reg_base {
 #define MT_MCU_PCIE_REMAP_2_BASE	GENMASK(31, 19)
 #define MT_PCIE_REMAP_BASE_2		((dev)->reg_map[MT_PCIE_REMAP_BASE2])
 
+#define MT_MCU_CIRQ_BASE		0xc0000
+#define MT_MCU_CIRQ(ofs)		(MT_MCU_CIRQ_BASE + (ofs))
+
+#define MT_MCU_CIRQ_IRQ_SEL(n)		MT_MCU_CIRQ((n) << 2)
+
 #define MT_HIF(ofs)			((dev)->reg_map[MT_HIF_BASE] + (ofs))
 #define MT_HIF_RST			MT_HIF(0x100)
 #define MT_HIF_LOGIC_RST_N		BIT(4)
@@ -88,6 +93,10 @@ enum mt7615_reg_base {
 #define MT_CFG_LPCR_HOST_FW_OWN		BIT(0)
 #define MT_CFG_LPCR_HOST_DRV_OWN	BIT(1)
 
+#define MT_MCU2HOST_INT_STATUS		MT_HIF(0x1f0)
+#define MT_MCU2HOST_INT_ENABLE		MT_HIF(0x1f4)
+
+#define MT7663_MCU_INT_EVENT		MT_HIF(0x108)
 #define MT_MCU_INT_EVENT		MT_HIF(0x1f8)
 #define MT_MCU_INT_EVENT_PDMA_STOPPED	BIT(0)
 #define MT_MCU_INT_EVENT_PDMA_INIT	BIT(1)
@@ -102,6 +111,7 @@ enum mt7615_reg_base {
 #define MT_INT_RX_DONE_ALL		GENMASK(1, 0)
 #define MT_INT_TX_DONE_ALL		GENMASK(19, 4)
 #define MT_INT_TX_DONE(_n)		BIT((_n) + 4)
+#define MT7663_INT_MCU_CMD		BIT(29)
 #define MT_INT_MCU_CMD			BIT(30)
 
 #define MT_WPDMA_GLO_CFG		MT_HIF(0x208)
@@ -138,6 +148,7 @@ enum mt7615_reg_base {
 #define MT_MCU_CMD_PDMA_ERROR		BIT(27)
 #define MT_MCU_CMD_PCIE_ERROR		BIT(28)
 #define MT_MCU_CMD_ERROR_MASK		(GENMASK(5, 1) | GENMASK(28, 24))
+#define MT7663_MCU_CMD_ERROR_MASK	GENMASK(5, 2)
 
 #define MT_TX_RING_BASE			MT_HIF(0x300)
 #define MT_RX_RING_BASE			MT_HIF(0x400)
@@ -333,6 +344,9 @@ enum mt7615_reg_base {
 #define MT_WF_RFCR_DROP_NDPA		BIT(20)
 #define MT_WF_RFCR_DROP_UNWANTED_CTL	BIT(21)
 
+#define MT_WF_RMAC_MORE(_band)		MT_WF_RMAC((_band) ? 0x124 : 0x024)
+#define MT_WF_RMAC_MORE_MUAR_MODE	GENMASK(31, 30)
+
 #define MT_WF_RFCR1(_band)		MT_WF_RMAC((_band) ? 0x104 : 0x004)
 #define MT_WF_RFCR1_DROP_ACK		BIT(4)
 #define MT_WF_RFCR1_DROP_BF_POLL	BIT(5)
@@ -341,6 +355,14 @@ enum mt7615_reg_base {
 #define MT_WF_RFCR1_DROP_CFACK		BIT(8)
 
 #define MT_CHFREQ(_band)		MT_WF_RMAC((_band) ? 0x130 : 0x030)
+
+#define MT_WF_RMAC_MAR0			MT_WF_RMAC(0x025c)
+#define MT_WF_RMAC_MAR1			MT_WF_RMAC(0x0260)
+#define MT_WF_RMAC_MAR1_ADDR		GENMASK(15, 0)
+#define MT_WF_RMAC_MAR1_START		BIT(16)
+#define MT_WF_RMAC_MAR1_WRITE		BIT(17)
+#define MT_WF_RMAC_MAR1_IDX		GENMASK(29, 24)
+#define MT_WF_RMAC_MAR1_GROUP		GENMASK(31, 30)
 
 #define MT_WF_RMAC_MIB_TIME0		MT_WF_RMAC(0x03c4)
 #define MT_WF_RMAC_MIB_RXTIME_CLR	BIT(31)
@@ -357,7 +379,9 @@ enum mt7615_reg_base {
 
 #define MT_DMA_DCR0			MT_WF_DMA(0x000)
 #define MT_DMA_DCR0_MAX_RX_LEN		GENMASK(15, 2)
+#define MT_DMA_DCR0_DAMSDU_EN		BIT(16)
 #define MT_DMA_DCR0_RX_VEC_DROP		BIT(17)
+#define MT_DMA_DCR0_RX_HDR_TRANS_EN	BIT(19)
 
 #define MT_DMA_RCFR0(_band)		MT_WF_DMA(0x070 + (_band) * 0x40)
 #define MT_DMA_RCFR0_MCU_RX_MGMT	BIT(2)
@@ -436,9 +460,12 @@ enum mt7615_reg_base {
 
 #define MT_LPON(_n)			((dev)->reg_map[MT_LPON_BASE] + (_n))
 
-#define MT_LPON_T0CR			MT_LPON(0x010)
-#define MT_LPON_T0CR_MODE		GENMASK(1, 0)
-#define MT_LPON_T0CR_WRITE		BIT(0)
+#define MT_LPON_TCR0(_n)		MT_LPON(0x010 + ((_n) * 4))
+#define MT_LPON_TCR2(_n)		MT_LPON(0x0f8 + ((_n) - 2) * 4)
+#define MT_LPON_TCR_MODE		GENMASK(1, 0)
+#define MT_LPON_TCR_READ		GENMASK(1, 0)
+#define MT_LPON_TCR_WRITE		BIT(0)
+#define MT_LPON_TCR_ADJUST		BIT(1)
 
 #define MT_LPON_UTTR0			MT_LPON(0x018)
 #define MT_LPON_UTTR1			MT_LPON(0x01c)

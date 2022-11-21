@@ -7,6 +7,7 @@
 #ifndef __MSM_RINGBUFFER_H__
 #define __MSM_RINGBUFFER_H__
 
+#include "drm/gpu_scheduler.h"
 #include "msm_drv.h"
 
 #define rbmemptr(ring, member)  \
@@ -39,14 +40,36 @@ struct msm_ringbuffer {
 	int id;
 	struct drm_gem_object *bo;
 	uint32_t *start, *end, *cur, *next;
+
+	/*
+	 * The job scheduler for this ring.
+	 */
+	struct drm_gpu_scheduler sched;
+
+	/*
+	 * List of in-flight submits on this ring.  Protected by submit_lock.
+	 *
+	 * Currently just submits that are already written into the ring, not
+	 * submits that are still in drm_gpu_scheduler's queues.  At a later
+	 * step we could probably move to letting drm_gpu_scheduler manage
+	 * hangcheck detection and keep track of submit jobs that are in-
+	 * flight.
+	 */
 	struct list_head submits;
+	spinlock_t submit_lock;
+
 	uint64_t iova;
 	uint32_t seqno;
 	uint32_t hangcheck_fence;
 	struct msm_rbmemptrs *memptrs;
 	uint64_t memptrs_iova;
 	struct msm_fence_context *fctx;
-	spinlock_t lock;
+
+	/*
+	 * preempt_lock protects preemption and serializes wptr updates against
+	 * preemption.  Can be aquired from irq context.
+	 */
+	spinlock_t preempt_lock;
 };
 
 struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,

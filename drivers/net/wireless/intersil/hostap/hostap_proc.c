@@ -97,20 +97,20 @@ static int prism2_wds_proc_show(struct seq_file *m, void *v)
 
 static void *prism2_wds_proc_start(struct seq_file *m, loff_t *_pos)
 {
-	local_info_t *local = PDE_DATA(file_inode(m->file));
+	local_info_t *local = pde_data(file_inode(m->file));
 	read_lock_bh(&local->iface_lock);
 	return seq_list_start(&local->hostap_interfaces, *_pos);
 }
 
 static void *prism2_wds_proc_next(struct seq_file *m, void *v, loff_t *_pos)
 {
-	local_info_t *local = PDE_DATA(file_inode(m->file));
+	local_info_t *local = pde_data(file_inode(m->file));
 	return seq_list_next(v, &local->hostap_interfaces, _pos);
 }
 
 static void prism2_wds_proc_stop(struct seq_file *m, void *v)
 {
-	local_info_t *local = PDE_DATA(file_inode(m->file));
+	local_info_t *local = pde_data(file_inode(m->file));
 	read_unlock_bh(&local->iface_lock);
 }
 
@@ -123,7 +123,7 @@ static const struct seq_operations prism2_wds_proc_seqops = {
 
 static int prism2_bss_list_proc_show(struct seq_file *m, void *v)
 {
-	local_info_t *local = PDE_DATA(file_inode(m->file));
+	local_info_t *local = pde_data(file_inode(m->file));
 	struct list_head *ptr = v;
 	struct hostap_bss_info *bss;
 
@@ -151,21 +151,21 @@ static int prism2_bss_list_proc_show(struct seq_file *m, void *v)
 static void *prism2_bss_list_proc_start(struct seq_file *m, loff_t *_pos)
 	__acquires(&local->lock)
 {
-	local_info_t *local = PDE_DATA(file_inode(m->file));
+	local_info_t *local = pde_data(file_inode(m->file));
 	spin_lock_bh(&local->lock);
 	return seq_list_start_head(&local->bss_list, *_pos);
 }
 
 static void *prism2_bss_list_proc_next(struct seq_file *m, void *v, loff_t *_pos)
 {
-	local_info_t *local = PDE_DATA(file_inode(m->file));
+	local_info_t *local = pde_data(file_inode(m->file));
 	return seq_list_next(v, &local->bss_list, _pos);
 }
 
 static void prism2_bss_list_proc_stop(struct seq_file *m, void *v)
 	__releases(&local->lock)
 {
-	local_info_t *local = PDE_DATA(file_inode(m->file));
+	local_info_t *local = pde_data(file_inode(m->file));
 	spin_unlock_bh(&local->lock);
 }
 
@@ -198,7 +198,7 @@ static int prism2_crypt_proc_show(struct seq_file *m, void *v)
 static ssize_t prism2_pda_proc_read(struct file *file, char __user *buf,
 				    size_t count, loff_t *_pos)
 {
-	local_info_t *local = PDE_DATA(file_inode(file));
+	local_info_t *local = pde_data(file_inode(file));
 	size_t off;
 
 	if (local->pda == NULL || *_pos >= PRISM2_PDA_SIZE)
@@ -227,6 +227,7 @@ static ssize_t prism2_aux_dump_proc_no_read(struct file *file, char __user *buf,
 
 static const struct proc_ops prism2_aux_dump_proc_ops = {
 	.proc_read	= prism2_aux_dump_proc_no_read,
+	.proc_lseek	= default_llseek,
 };
 
 
@@ -271,7 +272,7 @@ static int prism2_io_debug_proc_read(char *page, char **start, off_t off,
 #ifndef PRISM2_NO_STATION_MODES
 static int prism2_scan_results_proc_show(struct seq_file *m, void *v)
 {
-	local_info_t *local = PDE_DATA(file_inode(m->file));
+	local_info_t *local = pde_data(file_inode(m->file));
 	unsigned long entry;
 	int i, len;
 	struct hfa384x_hostscan_result *scanres;
@@ -321,7 +322,7 @@ static int prism2_scan_results_proc_show(struct seq_file *m, void *v)
 
 static void *prism2_scan_results_proc_start(struct seq_file *m, loff_t *_pos)
 {
-	local_info_t *local = PDE_DATA(file_inode(m->file));
+	local_info_t *local = pde_data(file_inode(m->file));
 	spin_lock_bh(&local->lock);
 
 	/* We have a header (pos 0) + N results to show (pos 1...N) */
@@ -332,7 +333,7 @@ static void *prism2_scan_results_proc_start(struct seq_file *m, loff_t *_pos)
 
 static void *prism2_scan_results_proc_next(struct seq_file *m, void *v, loff_t *_pos)
 {
-	local_info_t *local = PDE_DATA(file_inode(m->file));
+	local_info_t *local = pde_data(file_inode(m->file));
 
 	++*_pos;
 	if (*_pos > local->last_scan_results_count)
@@ -342,7 +343,7 @@ static void *prism2_scan_results_proc_next(struct seq_file *m, void *v, loff_t *
 
 static void prism2_scan_results_proc_stop(struct seq_file *m, void *v)
 {
-	local_info_t *local = PDE_DATA(file_inode(m->file));
+	local_info_t *local = pde_data(file_inode(m->file));
 	spin_unlock_bh(&local->lock);
 }
 

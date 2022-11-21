@@ -1052,7 +1052,7 @@ static u64 haswell_get_tohm(struct sbridge_pvt *pvt)
 	pci_read_config_dword(pvt->info.pci_vtd, HASWELL_TOHM_1, &reg);
 	rc = ((reg << 6) | rc) << 26;
 
-	return rc | 0x1ffffff;
+	return rc | 0x3ffffff;
 }
 
 static u64 knl_get_tolm(struct sbridge_pvt *pvt)
@@ -3439,7 +3439,7 @@ MODULE_DEVICE_TABLE(x86cpu, sbridge_cpuids);
 
 static int sbridge_probe(const struct x86_cpu_id *id)
 {
-	int rc = -ENODEV;
+	int rc;
 	u8 mc, num_mc = 0;
 	struct sbridge_dev *sbridge_dev;
 	struct pci_id_table *ptable = (struct pci_id_table *)id->driver_data;
@@ -3509,6 +3509,9 @@ static int __init sbridge_init(void)
 	owner = edac_get_owner();
 	if (owner && strncmp(owner, EDAC_MOD_STR, sizeof(EDAC_MOD_STR)))
 		return -EBUSY;
+
+	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
+		return -ENODEV;
 
 	id = x86_match_cpu(sbridge_cpuids);
 	if (!id)

@@ -40,7 +40,8 @@ after usage with pwm_free().
 
 New users should use the pwm_get() function and pass to it the consumer
 device or a consumer name. pwm_put() is used to free the PWM device. Managed
-variants of these functions, devm_pwm_get() and devm_pwm_put(), also exist.
+variants of the getter, devm_pwm_get(), devm_of_pwm_get(),
+devm_fwnode_pwm_get(), also exist.
 
 After being requested, a PWM has to be configured using::
 
@@ -48,6 +49,10 @@ After being requested, a PWM has to be configured using::
 
 This API controls both the PWM period/duty_cycle config and the
 enable/disable state.
+There is also a usage_power setting: If set, the PWM driver is only required to
+maintain the power output but has more freedom regarding signal form.
+If supported by the driver, the signal can be optimized, for example to improve
+EMI by phase shifting the individual channels of a chip.
 
 The pwm_config(), pwm_enable() and pwm_disable() functions are just wrappers
 around pwm_apply_state() and should not be used if the user wants to change
@@ -55,7 +60,11 @@ several parameter at once. For example, if you see pwm_config() and
 pwm_{enable,disable}() calls in the same function, this probably means you
 should switch to pwm_apply_state().
 
-The PWM user API also allows one to query the PWM state with pwm_get_state().
+The PWM user API also allows one to query the PWM state that was passed to the
+last invocation of pwm_apply_state() using pwm_get_state(). Note this is
+different to what the driver has actually implemented if the request cannot be
+satisfied exactly with the hardware in use. There is currently no way for
+consumers to get the actually implemented settings.
 
 In addition to the PWM state, the PWM API also exposes PWM arguments, which
 are the reference PWM config one should use on this PWM.

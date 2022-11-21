@@ -23,10 +23,10 @@
  *
  */
 
-#include <linux/version.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_dp_mst_helper.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_mst_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 #include "dm_services.h"
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
@@ -36,14 +36,20 @@
 #include "dm_helpers.h"
 
 #include "dc_link_ddc.h"
+#include "ddc_service_types.h"
+#include "dpcd_defs.h"
 
 #include "i2caux_interface.h"
+#include "dmub_cmd.h"
 #if defined(CONFIG_DEBUG_FS)
 #include "amdgpu_dm_debugfs.h"
 #endif
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "dc/dcn20/dcn20_resource.h"
+bool is_timing_changed(struct dc_stream_state *cur_stream,
+		       struct dc_stream_state *new_stream);
+
 #endif
 
 static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
@@ -51,7 +57,7 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 {
 	ssize_t result = 0;
 	struct aux_payload payload;
-	enum aux_channel_operation_result operation_result;
+	enum aux_return_code_type operation_result;
 
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
@@ -63,6 +69,8 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 	payload.i2c_over_aux = (msg->request & DP_AUX_NATIVE_WRITE) == 0;
 	payload.write = (msg->request & DP_AUX_I2C_READ) == 0;
 	payload.mot = (msg->request & DP_AUX_I2C_MOT) != 0;
+	payload.write_status_update =
+			(msg->request & DP_AUX_I2C_WRITE_STATUS_UPDATE) != 0;
 	payload.defer_delay = 0;
 
 	result = dc_link_aux_transfer_raw(TO_DM_AUX(aux)->ddc_service, &payload,
@@ -73,17 +81,19 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 
 	if (result < 0)
 		switch (operation_result) {
-		case AUX_CHANNEL_OPERATION_SUCCEEDED:
+		case AUX_RET_SUCCESS:
 			break;
-		case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
-		case AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN:
+		case AUX_RET_ERROR_HPD_DISCON:
+		case AUX_RET_ERROR_UNKNOWN:
+		case AUX_RET_ERROR_INVALID_OPERATION:
+		case AUX_RET_ERROR_PROTOCOL_ERROR:
 			result = -EIO;
 			break;
-		case AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY:
-		case AUX_CHANNEL_OPERATION_FAILED_ENGINE_ACQUIRE:
+		case AUX_RET_ERROR_INVALID_REPLY:
+		case AUX_RET_ERROR_ENGINE_ACQUIRE:
 			result = -EBUSY;
 			break;
-		case AUX_CHANNEL_OPERATION_FAILED_TIMEOUT:
+		case AUX_RET_ERROR_TIMEOUT:
 			result = -ETIMEDOUT;
 			break;
 		}
@@ -152,14 +162,26 @@ static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
 };
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
+bool needs_dsc_aux_workaround(struct dc_link *link)
+{
+	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_90CC24 &&
+	    (link->dpcd_caps.dpcd_rev.raw == DPCD_REV_14 || link->dpcd_caps.dpcd_rev.raw == DPCD_REV_12) &&
+	    link->dpcd_caps.sink_count.bits.SINK_COUNT >= 2)
+		return true;
+
+	return false;
+}
+
 static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnector)
 {
 	struct dc_sink *dc_sink = aconnector->dc_sink;
 	struct drm_dp_mst_port *port = aconnector->port;
 	u8 dsc_caps[16] = { 0 };
+	u8 dsc_branch_dec_caps_raw[3] = { 0 };	// DSC branch decoder caps 0xA0 ~ 0xA2
+	u8 *dsc_branch_dec_caps = NULL;
 
 	aconnector->dsc_aux = drm_dp_mst_dsc_aux_for_port(port);
-#if defined(CONFIG_HP_HOOK_WORKAROUND)
+
 	/*
 	 * drm_dp_mst_dsc_aux_for_port() will return NULL for certain configs
 	 * because it only check the dsc/fec caps of the "port variable" and not the dock
@@ -169,20 +191,43 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 	 * Workaround: explicitly check the use case above and use the mst dock's aux as dsc_aux
 	 *
 	 */
-
-	if (!aconnector->dsc_aux && !port->parent->port_parent)
+	if (!aconnector->dsc_aux && !port->parent->port_parent &&
+	    needs_dsc_aux_workaround(aconnector->dc_link))
 		aconnector->dsc_aux = &aconnector->mst_port->dm_dp_aux.aux;
-#endif
+
 	if (!aconnector->dsc_aux)
 		return false;
 
 	if (drm_dp_dpcd_read(aconnector->dsc_aux, DP_DSC_SUPPORT, dsc_caps, 16) < 0)
 		return false;
 
+	if (drm_dp_dpcd_read(aconnector->dsc_aux,
+			DP_DSC_BRANCH_OVERALL_THROUGHPUT_0, dsc_branch_dec_caps_raw, 3) == 3)
+		dsc_branch_dec_caps = dsc_branch_dec_caps_raw;
+
 	if (!dc_dsc_parse_dsc_dpcd(aconnector->dc_link->ctx->dc,
-				   dsc_caps, NULL,
-				   &dc_sink->dsc_caps.dsc_dec_caps))
+				  dsc_caps, dsc_branch_dec_caps,
+				  &dc_sink->dsc_caps.dsc_dec_caps))
 		return false;
+
+	return true;
+}
+
+static bool retrieve_downstream_port_device(struct amdgpu_dm_connector *aconnector)
+{
+	union dp_downstream_port_present ds_port_present;
+
+	if (!aconnector->dsc_aux)
+		return false;
+
+	if (drm_dp_dpcd_read(aconnector->dsc_aux, DP_DOWNSTREAMPORT_PRESENT, &ds_port_present, 1) < 0) {
+		DRM_INFO("Failed to read downstream_port_present 0x05 from DFP of branch device\n");
+		return false;
+	}
+
+	aconnector->mst_downstream_port_present = ds_port_present;
+	DRM_INFO("Downstream port present %d, type %d\n",
+			ds_port_present.fields.PORT_PRESENT, ds_port_present.fields.PORT_TYPE);
 
 	return true;
 }
@@ -204,6 +249,29 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 			drm_connector_update_edid_property(
 				&aconnector->base,
 				NULL);
+
+			DRM_DEBUG_KMS("Can't get EDID of %s. Add default remote sink.", connector->name);
+			if (!aconnector->dc_sink) {
+				struct dc_sink *dc_sink;
+				struct dc_sink_init_data init_params = {
+					.link = aconnector->dc_link,
+					.sink_signal = SIGNAL_TYPE_DISPLAY_PORT_MST };
+
+				dc_sink = dc_link_add_remote_sink(
+					aconnector->dc_link,
+					NULL,
+					0,
+					&init_params);
+
+				if (!dc_sink) {
+					DRM_ERROR("Unable to add a remote sink\n");
+					return 0;
+				}
+
+				dc_sink->priv = aconnector;
+				aconnector->dc_sink = dc_sink;
+			}
+
 			return ret;
 		}
 
@@ -226,6 +294,11 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 			(aconnector->edid->extensions + 1) * EDID_LENGTH,
 			&init_params);
 
+		if (!dc_sink) {
+			DRM_ERROR("Unable to add a remote sink\n");
+			return 0;
+		}
+
 		dc_sink->priv = aconnector;
 		/* dc_link_add_remote_sink returns a new reference */
 		aconnector->dc_sink = dc_sink;
@@ -238,6 +311,10 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 			if (!validate_dsc_caps_on_connector(aconnector))
 				memset(&aconnector->dc_sink->dsc_caps,
 				       0, sizeof(aconnector->dc_sink->dsc_caps));
+
+			if (!retrieve_downstream_port_device(aconnector))
+				memset(&aconnector->mst_downstream_port_present,
+					0, sizeof(aconnector->mst_downstream_port_present));
 #endif
 		}
 	}
@@ -252,8 +329,10 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 
 static struct drm_encoder *
 dm_mst_atomic_best_encoder(struct drm_connector *connector,
-			   struct drm_connector_state *connector_state)
+			   struct drm_atomic_state *state)
 {
+	struct drm_connector_state *connector_state = drm_atomic_get_new_connector_state(state,
+											 connector);
 	struct drm_device *dev = connector->dev;
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(connector_state->crtc);
@@ -267,6 +346,9 @@ dm_dp_mst_detect(struct drm_connector *connector,
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 	struct amdgpu_dm_connector *master = aconnector->mst_port;
+
+	if (drm_connector_is_unregistered(connector))
+		return connector_status_disconnected;
 
 	return drm_dp_mst_detect_port(connector, ctx, &master->mst_mgr,
 				      aconnector->port);
@@ -424,10 +506,13 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 				       struct amdgpu_dm_connector *aconnector,
 				       int link_index)
 {
+	struct dc_link_settings max_link_enc_cap = {0};
+
 	aconnector->dm_dp_aux.aux.name =
 		kasprintf(GFP_KERNEL, "AMDGPU DM aux hw bus %d",
 			  link_index);
 	aconnector->dm_dp_aux.aux.transfer = dm_dp_aux_transfer;
+	aconnector->dm_dp_aux.aux.drm_dev = dm->ddev;
 	aconnector->dm_dp_aux.ddc_service = aconnector->dc_link->ddc;
 
 	drm_dp_aux_init(&aconnector->dm_dp_aux.aux);
@@ -437,6 +522,7 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 	if (aconnector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
 		return;
 
+	dc_link_dp_get_max_link_enc_cap(aconnector->dc_link, &max_link_enc_cap);
 	aconnector->mst_mgr.cbs = &dm_mst_cbs;
 	drm_dp_mst_topology_mgr_init(
 		&aconnector->mst_mgr,
@@ -444,6 +530,8 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 		&aconnector->dm_dp_aux.aux,
 		16,
 		4,
+		max_link_enc_cap.lane_count,
+		drm_dp_bw_code_to_link_rate(max_link_enc_cap.link_rate),
 		aconnector->connector_id);
 
 	drm_connector_attach_dp_subconnector_property(&aconnector->base);
@@ -470,12 +558,7 @@ struct dsc_mst_fairness_params {
 	uint32_t num_slices_h;
 	uint32_t num_slices_v;
 	uint32_t bpp_overwrite;
-};
-
-struct dsc_mst_fairness_vars {
-	int pbn;
-	bool dsc_enabled;
-	int bpp_x16;
+	struct amdgpu_dm_connector *aconnector;
 };
 
 static int kbps_to_peak_pbn(int kbps)
@@ -489,16 +572,18 @@ static int kbps_to_peak_pbn(int kbps)
 
 static void set_dsc_configs_from_fairness_vars(struct dsc_mst_fairness_params *params,
 		struct dsc_mst_fairness_vars *vars,
-		int count)
+		int count,
+		int k)
 {
 	int i;
 
 	for (i = 0; i < count; i++) {
 		memset(&params[i].timing->dsc_cfg, 0, sizeof(params[i].timing->dsc_cfg));
-		if (vars[i].dsc_enabled && dc_dsc_compute_config(
+		if (vars[i + k].dsc_enabled && dc_dsc_compute_config(
 					params[i].sink->ctx->dc->res_pool->dscs[0],
 					&params[i].sink->dsc_caps.dsc_dec_caps,
 					params[i].sink->ctx->dc->debug.dsc_min_slice_height_override,
+					params[i].sink->edid_caps.panel_patch.max_dsc_target_bpp_limit,
 					0,
 					params[i].timing,
 					&params[i].timing->dsc_cfg)) {
@@ -507,7 +592,7 @@ static void set_dsc_configs_from_fairness_vars(struct dsc_mst_fairness_params *p
 			if (params[i].bpp_overwrite)
 				params[i].timing->dsc_cfg.bits_per_pixel = params[i].bpp_overwrite;
 			else
-				params[i].timing->dsc_cfg.bits_per_pixel = vars[i].bpp_x16;
+				params[i].timing->dsc_cfg.bits_per_pixel = vars[i + k].bpp_x16;
 
 			if (params[i].num_slices_h)
 				params[i].timing->dsc_cfg.num_slices_h = params[i].num_slices_h;
@@ -517,6 +602,21 @@ static void set_dsc_configs_from_fairness_vars(struct dsc_mst_fairness_params *p
 		} else {
 			params[i].timing->flags.DSC = 0;
 		}
+		params[i].timing->dsc_cfg.mst_pbn = vars[i + k].pbn;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (params[i].sink) {
+			if (params[i].sink->sink_signal != SIGNAL_TYPE_VIRTUAL &&
+				params[i].sink->sink_signal != SIGNAL_TYPE_NONE)
+				DRM_DEBUG_DRIVER("%s i=%d dispname=%s\n", __func__, i,
+					params[i].sink->edid_caps.display_name);
+		}
+
+		DRM_DEBUG_DRIVER("dsc=%d bits_per_pixel=%d pbn=%d\n",
+			params[i].timing->flags.DSC,
+			params[i].timing->dsc_cfg.bits_per_pixel,
+			vars[i + k].pbn);
 	}
 }
 
@@ -530,6 +630,7 @@ static int bpp_x16_from_pbn(struct dsc_mst_fairness_params param, int pbn)
 			param.sink->ctx->dc->res_pool->dscs[0],
 			&param.sink->dsc_caps.dsc_dec_caps,
 			param.sink->ctx->dc->debug.dsc_min_slice_height_override,
+			param.sink->edid_caps.panel_patch.max_dsc_target_bpp_limit,
 			(int) kbps, param.timing, &dsc_config);
 
 	return dsc_config.bits_per_pixel;
@@ -539,7 +640,8 @@ static void increase_dsc_bpp(struct drm_atomic_state *state,
 			     struct dc_link *dc_link,
 			     struct dsc_mst_fairness_params *params,
 			     struct dsc_mst_fairness_vars *vars,
-			     int count)
+			     int count,
+			     int k)
 {
 	int i;
 	bool bpp_increased[MAX_PIPES];
@@ -554,8 +656,9 @@ static void increase_dsc_bpp(struct drm_atomic_state *state,
 	pbn_per_timeslot = dm_mst_get_pbn_divider(dc_link);
 
 	for (i = 0; i < count; i++) {
-		if (vars[i].dsc_enabled) {
-			initial_slack[i] = kbps_to_peak_pbn(params[i].bw_range.max_kbps) - vars[i].pbn;
+		if (vars[i + k].dsc_enabled) {
+			initial_slack[i] =
+			kbps_to_peak_pbn(params[i].bw_range.max_kbps) - vars[i + k].pbn;
 			bpp_increased[i] = false;
 			remaining_to_increase += 1;
 		} else {
@@ -582,7 +685,7 @@ static void increase_dsc_bpp(struct drm_atomic_state *state,
 		link_timeslots_used = 0;
 
 		for (i = 0; i < count; i++)
-			link_timeslots_used += DIV_ROUND_UP(vars[i].pbn, pbn_per_timeslot);
+			link_timeslots_used += DIV_ROUND_UP(vars[i + k].pbn, pbn_per_timeslot);
 
 		fair_pbn_alloc = (63 - link_timeslots_used) / remaining_to_increase * pbn_per_timeslot;
 
@@ -635,7 +738,8 @@ static void try_disable_dsc(struct drm_atomic_state *state,
 			    struct dc_link *dc_link,
 			    struct dsc_mst_fairness_params *params,
 			    struct dsc_mst_fairness_vars *vars,
-			    int count)
+			    int count,
+			    int k)
 {
 	int i;
 	bool tried[MAX_PIPES];
@@ -645,8 +749,8 @@ static void try_disable_dsc(struct drm_atomic_state *state,
 	int remaining_to_try = 0;
 
 	for (i = 0; i < count; i++) {
-		if (vars[i].dsc_enabled
-				&& vars[i].bpp_x16 == params[i].bw_range.max_target_bpp_x16
+		if (vars[i + k].dsc_enabled
+				&& vars[i + k].bpp_x16 == params[i].bw_range.max_target_bpp_x16
 				&& params[i].clock_force_enable == DSC_CLK_FORCE_DEFAULT) {
 			kbps_increase[i] = params[i].bw_range.stream_kbps - params[i].bw_range.max_kbps;
 			tried[i] = false;
@@ -700,12 +804,13 @@ static void try_disable_dsc(struct drm_atomic_state *state,
 
 static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 					     struct dc_state *dc_state,
-					     struct dc_link *dc_link)
+					     struct dc_link *dc_link,
+					     struct dsc_mst_fairness_vars *vars,
+					     int *link_vars_start_index)
 {
-	int i;
+	int i, k;
 	struct dc_stream_state *stream;
 	struct dsc_mst_fairness_params params[MAX_PIPES];
-	struct dsc_mst_fairness_vars vars[MAX_PIPES];
 	struct amdgpu_dm_connector *aconnector;
 	int count = 0;
 	bool debugfs_overwrite = false;
@@ -721,11 +826,18 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		if (stream->link != dc_link)
 			continue;
 
+		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
+		if (!aconnector)
+			continue;
+
+		if (!aconnector->port)
+			continue;
+
 		stream->timing.flags.DSC = 0;
 
 		params[count].timing = &stream->timing;
 		params[count].sink = stream->sink;
-		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
+		params[count].aconnector = aconnector;
 		params[count].port = aconnector->port;
 		params[count].clock_force_enable = aconnector->dsc_settings.dsc_force_enable;
 		if (params[count].clock_force_enable == DSC_CLK_FORCE_ENABLE)
@@ -734,55 +846,67 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		params[count].num_slices_v = aconnector->dsc_settings.dsc_num_slices_v;
 		params[count].bpp_overwrite = aconnector->dsc_settings.dsc_bits_per_pixel;
 		params[count].compression_possible = stream->sink->dsc_caps.dsc_dec_caps.is_dsc_supported;
-		dc_dsc_get_policy_for_timing(params[count].timing, &dsc_policy);
+		dc_dsc_get_policy_for_timing(params[count].timing, 0, &dsc_policy);
 		if (!dc_dsc_compute_bandwidth_range(
 				stream->sink->ctx->dc->res_pool->dscs[0],
 				stream->sink->ctx->dc->debug.dsc_min_slice_height_override,
-				dsc_policy.min_target_bpp,
-				dsc_policy.max_target_bpp,
+				dsc_policy.min_target_bpp * 16,
+				dsc_policy.max_target_bpp * 16,
 				&stream->sink->dsc_caps.dsc_dec_caps,
 				&stream->timing, &params[count].bw_range))
 			params[count].bw_range.stream_kbps = dc_bandwidth_in_kbps_from_timing(&stream->timing);
 
 		count++;
 	}
+
+	if (count == 0) {
+		ASSERT(0);
+		return true;
+	}
+
+	/* k is start index of vars for current phy link used by mst hub */
+	k = *link_vars_start_index;
+	/* set vars start index for next mst hub phy link */
+	*link_vars_start_index += count;
+
 	/* Try no compression */
 	for (i = 0; i < count; i++) {
-		vars[i].pbn = kbps_to_peak_pbn(params[i].bw_range.stream_kbps);
-		vars[i].dsc_enabled = false;
-		vars[i].bpp_x16 = 0;
+		vars[i + k].aconnector = params[i].aconnector;
+		vars[i + k].pbn = kbps_to_peak_pbn(params[i].bw_range.stream_kbps);
+		vars[i + k].dsc_enabled = false;
+		vars[i + k].bpp_x16 = 0;
 		if (drm_dp_atomic_find_vcpi_slots(state,
 						 params[i].port->mgr,
 						 params[i].port,
-						 vars[i].pbn,
+						 vars[i + k].pbn,
 						 dm_mst_get_pbn_divider(dc_link)) < 0)
 			return false;
 	}
 	if (!drm_dp_mst_atomic_check(state) && !debugfs_overwrite) {
-		set_dsc_configs_from_fairness_vars(params, vars, count);
+		set_dsc_configs_from_fairness_vars(params, vars, count, k);
 		return true;
 	}
 
 	/* Try max compression */
 	for (i = 0; i < count; i++) {
 		if (params[i].compression_possible && params[i].clock_force_enable != DSC_CLK_FORCE_DISABLE) {
-			vars[i].pbn = kbps_to_peak_pbn(params[i].bw_range.min_kbps);
-			vars[i].dsc_enabled = true;
-			vars[i].bpp_x16 = params[i].bw_range.min_target_bpp_x16;
+			vars[i + k].pbn = kbps_to_peak_pbn(params[i].bw_range.min_kbps);
+			vars[i + k].dsc_enabled = true;
+			vars[i + k].bpp_x16 = params[i].bw_range.min_target_bpp_x16;
 			if (drm_dp_atomic_find_vcpi_slots(state,
 							  params[i].port->mgr,
 							  params[i].port,
-							  vars[i].pbn,
+							  vars[i + k].pbn,
 							  dm_mst_get_pbn_divider(dc_link)) < 0)
 				return false;
 		} else {
-			vars[i].pbn = kbps_to_peak_pbn(params[i].bw_range.stream_kbps);
-			vars[i].dsc_enabled = false;
-			vars[i].bpp_x16 = 0;
+			vars[i + k].pbn = kbps_to_peak_pbn(params[i].bw_range.stream_kbps);
+			vars[i + k].dsc_enabled = false;
+			vars[i + k].bpp_x16 = 0;
 			if (drm_dp_atomic_find_vcpi_slots(state,
 							  params[i].port->mgr,
 							  params[i].port,
-							  vars[i].pbn,
+							  vars[i + k].pbn,
 							  dm_mst_get_pbn_divider(dc_link)) < 0)
 				return false;
 		}
@@ -791,22 +915,122 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		return false;
 
 	/* Optimize degree of compression */
-	increase_dsc_bpp(state, dc_link, params, vars, count);
+	increase_dsc_bpp(state, dc_link, params, vars, count, k);
 
-	try_disable_dsc(state, dc_link, params, vars, count);
+	try_disable_dsc(state, dc_link, params, vars, count, k);
 
-	set_dsc_configs_from_fairness_vars(params, vars, count);
+	set_dsc_configs_from_fairness_vars(params, vars, count, k);
 
 	return true;
 }
 
+static bool is_dsc_need_re_compute(
+	struct drm_atomic_state *state,
+	struct dc_state *dc_state,
+	struct dc_link *dc_link)
+{
+	int i, j;
+	bool is_dsc_need_re_compute = false;
+	struct amdgpu_dm_connector *stream_on_link[MAX_PIPES];
+	int new_stream_on_link_num = 0;
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_stream_state *stream;
+	const struct dc *dc = dc_link->dc;
+
+	/* only check phy used by dsc mst branch */
+	if (dc_link->type != dc_connection_mst_branch)
+		return false;
+
+	if (!(dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT ||
+		dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_PASSTHROUGH_SUPPORT))
+		return false;
+
+	for (i = 0; i < MAX_PIPES; i++)
+		stream_on_link[i] = NULL;
+
+	/* check if there is mode change in new request */
+	for (i = 0; i < dc_state->stream_count; i++) {
+		struct drm_crtc_state *new_crtc_state;
+		struct drm_connector_state *new_conn_state;
+
+		stream = dc_state->streams[i];
+		if (!stream)
+			continue;
+
+		/* check if stream using the same link for mst */
+		if (stream->link != dc_link)
+			continue;
+
+		aconnector = (struct amdgpu_dm_connector *) stream->dm_stream_context;
+		if (!aconnector)
+			continue;
+
+		stream_on_link[new_stream_on_link_num] = aconnector;
+		new_stream_on_link_num++;
+
+		new_conn_state = drm_atomic_get_new_connector_state(state, &aconnector->base);
+		if (!new_conn_state)
+			continue;
+
+		if (IS_ERR(new_conn_state))
+			continue;
+
+		if (!new_conn_state->crtc)
+			continue;
+
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_conn_state->crtc);
+		if (!new_crtc_state)
+			continue;
+
+		if (IS_ERR(new_crtc_state))
+			continue;
+
+		if (new_crtc_state->enable && new_crtc_state->active) {
+			if (new_crtc_state->mode_changed || new_crtc_state->active_changed ||
+				new_crtc_state->connectors_changed)
+				return true;
+		}
+	}
+
+	/* check current_state if there stream on link but it is not in
+	 * new request state
+	 */
+	for (i = 0; i < dc->current_state->stream_count; i++) {
+		stream = dc->current_state->streams[i];
+		/* only check stream on the mst hub */
+		if (stream->link != dc_link)
+			continue;
+
+		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
+		if (!aconnector)
+			continue;
+
+		for (j = 0; j < new_stream_on_link_num; j++) {
+			if (stream_on_link[j]) {
+				if (aconnector == stream_on_link[j])
+					break;
+			}
+		}
+
+		if (j == new_stream_on_link_num) {
+			/* not in new state */
+			is_dsc_need_re_compute = true;
+			break;
+		}
+	}
+
+	return is_dsc_need_re_compute;
+}
+
 bool compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
-				       struct dc_state *dc_state)
+				       struct dc_state *dc_state,
+				       struct dsc_mst_fairness_vars *vars)
 {
 	int i, j;
 	struct dc_stream_state *stream;
 	bool computed_streams[MAX_PIPES];
 	struct amdgpu_dm_connector *aconnector;
+	int link_vars_start_index = 0;
 
 	for (i = 0; i < dc_state->stream_count; i++)
 		computed_streams[i] = false;
@@ -828,8 +1052,15 @@ bool compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 		if (computed_streams[i])
 			continue;
 
+		if (dcn20_remove_stream_from_ctx(stream->ctx->dc, dc_state, stream) != DC_OK)
+			return false;
+
+		if (!is_dsc_need_re_compute(state, dc_state, stream->link))
+			continue;
+
 		mutex_lock(&aconnector->mst_mgr.lock);
-		if (!compute_mst_dsc_configs_for_link(state, dc_state, stream->link)) {
+		if (!compute_mst_dsc_configs_for_link(state, dc_state, stream->link,
+			vars, &link_vars_start_index)) {
 			mutex_unlock(&aconnector->mst_mgr.lock);
 			return false;
 		}
@@ -845,10 +1076,204 @@ bool compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 		stream = dc_state->streams[i];
 
 		if (stream->timing.flags.DSC == 1)
-			dc_stream_add_dsc_to_resource(stream->ctx->dc, dc_state, stream);
+			if (dc_stream_add_dsc_to_resource(stream->ctx->dc, dc_state, stream) != DC_OK)
+				return false;
 	}
 
 	return true;
 }
 
+static bool
+	pre_compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
+					      struct dc_state *dc_state,
+					      struct dsc_mst_fairness_vars *vars)
+{
+	int i, j;
+	struct dc_stream_state *stream;
+	bool computed_streams[MAX_PIPES];
+	struct amdgpu_dm_connector *aconnector;
+	int link_vars_start_index = 0;
+
+	for (i = 0; i < dc_state->stream_count; i++)
+		computed_streams[i] = false;
+
+	for (i = 0; i < dc_state->stream_count; i++) {
+		stream = dc_state->streams[i];
+
+		if (stream->signal != SIGNAL_TYPE_DISPLAY_PORT_MST)
+			continue;
+
+		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
+
+		if (!aconnector || !aconnector->dc_sink)
+			continue;
+
+		if (!aconnector->dc_sink->dsc_caps.dsc_dec_caps.is_dsc_supported)
+			continue;
+
+		if (computed_streams[i])
+			continue;
+
+		if (!is_dsc_need_re_compute(state, dc_state, stream->link))
+			continue;
+
+		mutex_lock(&aconnector->mst_mgr.lock);
+		if (!compute_mst_dsc_configs_for_link(state,
+						      dc_state,
+						      stream->link,
+						      vars,
+						      &link_vars_start_index)) {
+			mutex_unlock(&aconnector->mst_mgr.lock);
+			return false;
+		}
+		mutex_unlock(&aconnector->mst_mgr.lock);
+
+		for (j = 0; j < dc_state->stream_count; j++) {
+			if (dc_state->streams[j]->link == stream->link)
+				computed_streams[j] = true;
+		}
+	}
+
+	return true;
+}
+
+static int find_crtc_index_in_state_by_stream(struct drm_atomic_state *state,
+					      struct dc_stream_state *stream)
+{
+	int i;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *new_state, *old_state;
+
+	for_each_oldnew_crtc_in_state(state, crtc, old_state, new_state, i) {
+		struct dm_crtc_state *dm_state = to_dm_crtc_state(new_state);
+
+		if (dm_state->stream == stream)
+			return i;
+	}
+	return -1;
+}
+
+static bool is_link_to_dschub(struct dc_link *dc_link)
+{
+	union dpcd_dsc_basic_capabilities *dsc_caps =
+			&dc_link->dpcd_caps.dsc_caps.dsc_basic_caps;
+
+	/* only check phy used by dsc mst branch */
+	if (dc_link->type != dc_connection_mst_branch)
+		return false;
+
+	if (!(dsc_caps->fields.dsc_support.DSC_SUPPORT ||
+	      dsc_caps->fields.dsc_support.DSC_PASSTHROUGH_SUPPORT))
+		return false;
+	return true;
+}
+
+static bool is_dsc_precompute_needed(struct drm_atomic_state *state)
+{
+	int i;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	bool ret = false;
+
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		struct dm_crtc_state *dm_crtc_state = to_dm_crtc_state(new_crtc_state);
+
+		if (!amdgpu_dm_find_first_crtc_matching_connector(state, crtc)) {
+			ret =  false;
+			break;
+		}
+		if (dm_crtc_state->stream && dm_crtc_state->stream->link)
+			if (is_link_to_dschub(dm_crtc_state->stream->link))
+				ret = true;
+	}
+	return ret;
+}
+
+void pre_validate_dsc(struct drm_atomic_state *state,
+		      struct dm_atomic_state **dm_state_ptr,
+		      struct dsc_mst_fairness_vars *vars)
+{
+	int i;
+	struct dm_atomic_state *dm_state;
+	struct dc_state *local_dc_state = NULL;
+
+	if (!is_dsc_precompute_needed(state)) {
+		DRM_INFO_ONCE("DSC precompute is not needed.\n");
+		return;
+	}
+	if (dm_atomic_get_state(state, dm_state_ptr)) {
+		DRM_INFO_ONCE("dm_atomic_get_state() failed\n");
+		return;
+	}
+	dm_state = *dm_state_ptr;
+
+	/*
+	 * create local vailable for dc_state. copy content of streams of dm_state->context
+	 * to local variable. make sure stream pointer of local variable not the same as stream
+	 * from dm_state->context.
+	 */
+
+	local_dc_state = kmemdup(dm_state->context, sizeof(struct dc_state), GFP_KERNEL);
+	if (!local_dc_state)
+		return;
+
+	for (i = 0; i < local_dc_state->stream_count; i++) {
+		struct dc_stream_state *stream = dm_state->context->streams[i];
+		int ind = find_crtc_index_in_state_by_stream(state, stream);
+
+		if (ind >= 0) {
+			struct amdgpu_dm_connector *aconnector;
+			struct drm_connector_state *drm_new_conn_state;
+			struct dm_connector_state *dm_new_conn_state;
+			struct dm_crtc_state *dm_old_crtc_state;
+
+			aconnector =
+				amdgpu_dm_find_first_crtc_matching_connector(state,
+									     state->crtcs[ind].ptr);
+			drm_new_conn_state =
+				drm_atomic_get_new_connector_state(state,
+								   &aconnector->base);
+			dm_new_conn_state = to_dm_connector_state(drm_new_conn_state);
+			dm_old_crtc_state = to_dm_crtc_state(state->crtcs[ind].old_state);
+
+			local_dc_state->streams[i] =
+				create_validate_stream_for_sink(aconnector,
+								&state->crtcs[ind].new_state->mode,
+								dm_new_conn_state,
+								dm_old_crtc_state->stream);
+		}
+	}
+
+	if (!pre_compute_mst_dsc_configs_for_state(state, local_dc_state, vars)) {
+		DRM_INFO_ONCE("pre_compute_mst_dsc_configs_for_state() failed\n");
+		goto clean_exit;
+	}
+
+	/*
+	 * compare local_streams -> timing  with dm_state->context,
+	 * if the same set crtc_state->mode-change = 0;
+	 */
+	for (i = 0; i < local_dc_state->stream_count; i++) {
+		struct dc_stream_state *stream = dm_state->context->streams[i];
+
+		if (local_dc_state->streams[i] &&
+		    is_timing_changed(stream, local_dc_state->streams[i])) {
+			DRM_INFO_ONCE("crtc[%d] needs mode_changed\n", i);
+		} else {
+			int ind = find_crtc_index_in_state_by_stream(state, stream);
+
+			if (ind >= 0)
+				state->crtcs[ind].new_state->mode_changed = 0;
+		}
+	}
+clean_exit:
+	for (i = 0; i < local_dc_state->stream_count; i++) {
+		struct dc_stream_state *stream = dm_state->context->streams[i];
+
+		if (local_dc_state->streams[i] != stream)
+			dc_stream_release(local_dc_state->streams[i]);
+	}
+
+	kfree(local_dc_state);
+}
 #endif

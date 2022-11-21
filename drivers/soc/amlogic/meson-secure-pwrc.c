@@ -11,8 +11,10 @@
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <dt-bindings/power/meson-a1-power.h>
+#include <dt-bindings/power/meson-s4-power.h>
 #include <linux/arm-smccc.h>
 #include <linux/firmware/meson/meson_sm.h>
+#include <linux/module.h>
 
 #define PWRC_ON		1
 #define PWRC_OFF	0
@@ -118,6 +120,18 @@ static struct meson_secure_pwrc_domain_desc a1_pwrc_domains[] = {
 	SEC_PD(RSA,	0),
 };
 
+static struct meson_secure_pwrc_domain_desc s4_pwrc_domains[] = {
+	SEC_PD(S4_DOS_HEVC,	0),
+	SEC_PD(S4_DOS_VDEC,	0),
+	SEC_PD(S4_VPU_HDMI,	0),
+	SEC_PD(S4_USB_COMB,	0),
+	SEC_PD(S4_GE2D,		0),
+	/* ETH is for ethernet online wakeup, and should be always on */
+	SEC_PD(S4_ETH,		GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(S4_DEMOD,	0),
+	SEC_PD(S4_AUDIO,	0),
+};
+
 static int meson_secure_pwrc_probe(struct platform_device *pdev)
 {
 	int i;
@@ -186,13 +200,23 @@ static struct meson_secure_pwrc_domain_data meson_secure_a1_pwrc_data = {
 	.count = ARRAY_SIZE(a1_pwrc_domains),
 };
 
+static struct meson_secure_pwrc_domain_data meson_secure_s4_pwrc_data = {
+	.domains = s4_pwrc_domains,
+	.count = ARRAY_SIZE(s4_pwrc_domains),
+};
+
 static const struct of_device_id meson_secure_pwrc_match_table[] = {
 	{
 		.compatible = "amlogic,meson-a1-pwrc",
 		.data = &meson_secure_a1_pwrc_data,
 	},
+	{
+		.compatible = "amlogic,meson-s4-pwrc",
+		.data = &meson_secure_s4_pwrc_data,
+	},
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, meson_secure_pwrc_match_table);
 
 static struct platform_driver meson_secure_pwrc_driver = {
 	.probe = meson_secure_pwrc_probe,
@@ -201,4 +225,5 @@ static struct platform_driver meson_secure_pwrc_driver = {
 		.of_match_table	= meson_secure_pwrc_match_table,
 	},
 };
-builtin_platform_driver(meson_secure_pwrc_driver);
+module_platform_driver(meson_secure_pwrc_driver);
+MODULE_LICENSE("Dual MIT/GPL");

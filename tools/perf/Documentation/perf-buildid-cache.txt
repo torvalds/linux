@@ -57,7 +57,7 @@ OPTIONS
 -u::
 --update=::
 	Update specified file of the cache. Note that this doesn't remove
-	older entires since those may be still needed for annotating old
+	older entries since those may be still needed for annotating old
 	(or remote) perf.data. Only if there is already a cache which has
 	exactly same build-id, that is replaced by new one. It can be used
 	to update kallsyms and kernel dso to vmlinux in order to support
@@ -73,6 +73,15 @@ OPTIONS
 	Obtain mount namespace information from the target pid.  This is
 	used when creating a uprobe for a process that resides in a
 	different mount namespace from the perf(1) utility.
+
+--debuginfod[=URLs]::
+	Specify debuginfod URL to be used when retrieving perf.data binaries,
+	it follows the same syntax as the DEBUGINFOD_URLS variable, like:
+
+	  buildid-cache.debuginfod=http://192.168.122.174:8002
+
+	If the URLs is not specified, the value of DEBUGINFOD_URLS
+	system environment variable is used.
 
 SEE ALSO
 --------

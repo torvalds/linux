@@ -4,6 +4,7 @@
 #ifndef _MLXSW_SPECTRUM_H
 #define _MLXSW_SPECTRUM_H
 
+#include <linux/ethtool.h>
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/rhashtable.h>
@@ -15,11 +16,13 @@
 #include <linux/in6.h>
 #include <linux/notifier.h>
 #include <linux/net_namespace.h>
+#include <linux/spinlock.h>
 #include <net/psample.h>
 #include <net/pkt_cls.h>
 #include <net/red.h>
 #include <net/vxlan.h>
 #include <net/flow_offload.h>
+#include <net/inet_ecn.h>
 
 #include "port.h"
 #include "core.h"
@@ -51,7 +54,7 @@
 #define MLXSW_SP_RESOURCE_NAME_COUNTERS_RIF "rif"
 
 enum mlxsw_sp_resource_id {
-	MLXSW_SP_RESOURCE_KVD = 1,
+	MLXSW_SP_RESOURCE_KVD = MLXSW_CORE_RESOURCE_MAX,
 	MLXSW_SP_RESOURCE_KVD_LINEAR,
 	MLXSW_SP_RESOURCE_KVD_HASH_SINGLE,
 	MLXSW_SP_RESOURCE_KVD_HASH_DOUBLE,
@@ -64,6 +67,7 @@ enum mlxsw_sp_resource_id {
 	MLXSW_SP_RESOURCE_COUNTERS_RIF,
 	MLXSW_SP_RESOURCE_GLOBAL_POLICERS,
 	MLXSW_SP_RESOURCE_SINGLE_RATE_POLICERS,
+	MLXSW_SP_RESOURCE_RIF_MAC_PROFILES,
 };
 
 struct mlxsw_sp_port;
@@ -85,10 +89,15 @@ enum mlxsw_sp_rif_type {
 	MLXSW_SP_RIF_TYPE_MAX,
 };
 
-struct mlxsw_sp_rif_ops;
+struct mlxsw_sp_router_ops;
 
-extern const struct mlxsw_sp_rif_ops *mlxsw_sp1_rif_ops_arr[];
-extern const struct mlxsw_sp_rif_ops *mlxsw_sp2_rif_ops_arr[];
+extern const struct mlxsw_sp_router_ops mlxsw_sp1_router_ops;
+extern const struct mlxsw_sp_router_ops mlxsw_sp2_router_ops;
+
+struct mlxsw_sp_switchdev_ops;
+
+extern const struct mlxsw_sp_switchdev_ops mlxsw_sp1_switchdev_ops;
+extern const struct mlxsw_sp_switchdev_ops mlxsw_sp2_switchdev_ops;
 
 enum mlxsw_sp_fid_type {
 	MLXSW_SP_FID_TYPE_8021Q,
@@ -132,11 +141,20 @@ struct mlxsw_sp_ptp_state;
 struct mlxsw_sp_ptp_ops;
 struct mlxsw_sp_span_ops;
 struct mlxsw_sp_qdisc_state;
+struct mlxsw_sp_mall_entry;
 
 struct mlxsw_sp_port_mapping {
 	u8 module;
-	u8 width;
+	u8 width; /* Number of lanes used by the port */
+	u8 module_width; /* Number of lanes in the module (static) */
 	u8 lane;
+};
+
+struct mlxsw_sp_parsing {
+	refcount_t parsing_depth_ref;
+	u16 parsing_depth;
+	u16 vxlan_udp_dport;
+	struct mutex lock; /* Protects parsing configuration */
 };
 
 struct mlxsw_sp {
@@ -147,6 +165,7 @@ struct mlxsw_sp {
 	const unsigned char *mac_mask;
 	struct mlxsw_sp_upper *lags;
 	struct mlxsw_sp_port_mapping **port_mapping;
+	struct rhashtable sample_trigger_ht;
 	struct mlxsw_sp_sb *sb;
 	struct mlxsw_sp_bridge *bridge;
 	struct mlxsw_sp_router *router;
@@ -163,14 +182,16 @@ struct mlxsw_sp {
 	struct mlxsw_sp_counter_pool *counter_pool;
 	struct mlxsw_sp_span *span;
 	struct mlxsw_sp_trap *trap;
+	struct mlxsw_sp_parsing parsing;
+	const struct mlxsw_sp_switchdev_ops *switchdev_ops;
 	const struct mlxsw_sp_kvdl_ops *kvdl_ops;
 	const struct mlxsw_afa_ops *afa_ops;
 	const struct mlxsw_afk_ops *afk_ops;
 	const struct mlxsw_sp_mr_tcam_ops *mr_tcam_ops;
 	const struct mlxsw_sp_acl_rulei_ops *acl_rulei_ops;
 	const struct mlxsw_sp_acl_tcam_ops *acl_tcam_ops;
+	const struct mlxsw_sp_acl_bf_ops *acl_bf_ops;
 	const struct mlxsw_sp_nve_ops **nve_ops_arr;
-	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_sb_vals *sb_vals;
 	const struct mlxsw_sp_sb_ops *sb_ops;
 	const struct mlxsw_sp_port_type_speed_ops *port_type_speed_ops;
@@ -178,9 +199,13 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_span_ops *span_ops;
 	const struct mlxsw_sp_policer_core_ops *policer_core_ops;
 	const struct mlxsw_sp_trap_ops *trap_ops;
+	const struct mlxsw_sp_mall_ops *mall_ops;
+	const struct mlxsw_sp_router_ops *router_ops;
 	const struct mlxsw_listener *listeners;
 	size_t listeners_count;
 	u32 lowest_shaper_bs;
+	struct rhashtable ipv6_addr_ht;
+	struct mutex ipv6_addr_ht_lock; /* Protects ipv6_addr_ht */
 };
 
 struct mlxsw_sp_ptp_ops {
@@ -195,13 +220,13 @@ struct mlxsw_sp_ptp_ops {
 	 * is responsible for freeing the passed-in SKB.
 	 */
 	void (*receive)(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
-			u8 local_port);
+			u16 local_port);
 
 	/* Notify a driver that a timestamped packet was transmitted. Driver
 	 * is responsible for freeing the passed-in SKB.
 	 */
 	void (*transmitted)(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
-			    u8 local_port);
+			    u16 local_port);
 
 	int (*hwtstamp_get)(struct mlxsw_sp_port *mlxsw_sp_port,
 			    struct hwtstamp_config *config);
@@ -231,7 +256,18 @@ struct mlxsw_sp_port_pcpu_stats {
 	u32			tx_dropped;
 };
 
-struct mlxsw_sp_port_sample {
+enum mlxsw_sp_sample_trigger_type {
+	MLXSW_SP_SAMPLE_TRIGGER_TYPE_INGRESS,
+	MLXSW_SP_SAMPLE_TRIGGER_TYPE_EGRESS,
+	MLXSW_SP_SAMPLE_TRIGGER_TYPE_POLICY_ENGINE,
+};
+
+struct mlxsw_sp_sample_trigger {
+	enum mlxsw_sp_sample_trigger_type type;
+	u16 local_port; /* Reserved when trigger type is not ingress / egress. */
+};
+
+struct mlxsw_sp_sample_params {
 	struct psample_group *psample_group;
 	u32 trunc_size;
 	u32 rate;
@@ -253,6 +289,7 @@ struct mlxsw_sp_port_vlan {
 /* No need an internal lock; At worse - miss a single periodic iteration */
 struct mlxsw_sp_port_xstats {
 	u64 ecn;
+	u64 tc_ecn[TC_MAX_QUEUE];
 	u64 wred_drop[TC_MAX_QUEUE];
 	u64 tail_drop[TC_MAX_QUEUE];
 	u64 backlog[TC_MAX_QUEUE];
@@ -274,7 +311,7 @@ struct mlxsw_sp_port {
 	struct net_device *dev;
 	struct mlxsw_sp_port_pcpu_stats __percpu *pcpu_stats;
 	struct mlxsw_sp *mlxsw_sp;
-	u8 local_port;
+	u16 local_port;
 	u8 lagged:1,
 	   split:1;
 	u16 pvid;
@@ -301,7 +338,6 @@ struct mlxsw_sp_port {
 		struct mlxsw_sp_port_xstats xstats;
 		struct delayed_work update_dw;
 	} periodic_hw_stats;
-	struct mlxsw_sp_port_sample __rcu *sample;
 	struct list_head vlans_list;
 	struct mlxsw_sp_port_vlan *default_vlan;
 	struct mlxsw_sp_qdisc_state *qdisc;
@@ -315,7 +351,6 @@ struct mlxsw_sp_port {
 		u16 egr_types;
 		struct mlxsw_sp_ptp_port_stats stats;
 	} ptp;
-	u8 split_base_local_port;
 	int max_mtu;
 	u32 max_speed;
 	struct mlxsw_sp_hdroom *hdroom;
@@ -327,23 +362,38 @@ struct mlxsw_sp_port_type_speed_ops {
 					 u32 ptys_eth_proto,
 					 struct ethtool_link_ksettings *cmd);
 	void (*from_ptys_link)(struct mlxsw_sp *mlxsw_sp, u32 ptys_eth_proto,
-			       u8 width, unsigned long *mode);
+			       unsigned long *mode);
 	u32 (*from_ptys_speed)(struct mlxsw_sp *mlxsw_sp, u32 ptys_eth_proto);
-	void (*from_ptys_speed_duplex)(struct mlxsw_sp *mlxsw_sp,
-				       bool carrier_ok, u32 ptys_eth_proto,
-				       struct ethtool_link_ksettings *cmd);
+	void (*from_ptys_link_mode)(struct mlxsw_sp *mlxsw_sp,
+				    bool carrier_ok, u32 ptys_eth_proto,
+				    struct ethtool_link_ksettings *cmd);
 	int (*ptys_max_speed)(struct mlxsw_sp_port *mlxsw_sp_port, u32 *p_max_speed);
-	u32 (*to_ptys_advert_link)(struct mlxsw_sp *mlxsw_sp, u8 width,
+	u32 (*to_ptys_advert_link)(struct mlxsw_sp *mlxsw_sp,
 				   const struct ethtool_link_ksettings *cmd);
-	u32 (*to_ptys_speed)(struct mlxsw_sp *mlxsw_sp, u8 width, u32 speed);
+	u32 (*to_ptys_speed_lanes)(struct mlxsw_sp *mlxsw_sp, u8 width,
+				   const struct ethtool_link_ksettings *cmd);
 	void (*reg_ptys_eth_pack)(struct mlxsw_sp *mlxsw_sp, char *payload,
-				  u8 local_port, u32 proto_admin, bool autoneg);
+				  u16 local_port, u32 proto_admin, bool autoneg);
 	void (*reg_ptys_eth_unpack)(struct mlxsw_sp *mlxsw_sp, char *payload,
 				    u32 *p_eth_proto_cap,
 				    u32 *p_eth_proto_admin,
 				    u32 *p_eth_proto_oper);
 	u32 (*ptys_proto_cap_masked_get)(u32 eth_proto_cap);
 };
+
+static inline u8 mlxsw_sp_tunnel_ecn_decap(u8 outer_ecn, u8 inner_ecn,
+					   bool *trap_en)
+{
+	bool set_ce = false;
+
+	*trap_en = !!__INET_ECN_decapsulate(outer_ecn, inner_ecn, &set_ce);
+	if (set_ce)
+		return INET_ECN_CE;
+	else if (outer_ecn == INET_ECN_ECT_1 && inner_ecn == INET_ECN_ECT_0)
+		return INET_ECN_ECT_1;
+	else
+		return inner_ecn;
+}
 
 static inline struct net_device *
 mlxsw_sp_bridge_vxlan_dev_find(struct net_device *br_dev)
@@ -394,7 +444,7 @@ static inline struct mlxsw_sp_port *
 mlxsw_sp_port_lagged_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id, u8 port_index)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port;
-	u8 local_port;
+	u16 local_port;
 
 	local_port = mlxsw_core_lag_mapping_get(mlxsw_sp->core,
 						lag_id, port_index);
@@ -427,6 +477,17 @@ int mlxsw_sp_port_get_stats_raw(struct net_device *dev, int grp,
 				int prio, char *ppcnt_pl);
 int mlxsw_sp_port_admin_status_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				   bool is_up);
+int
+mlxsw_sp_port_vlan_classification_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				      bool is_8021ad_tagged,
+				      bool is_8021q_tagged);
+static inline bool
+mlxsw_sp_local_port_is_valid(struct mlxsw_sp *mlxsw_sp, u16 local_port)
+{
+	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
+
+	return local_port < max_ports && local_port;
+}
 
 /* spectrum_buffers.c */
 struct mlxsw_sp_hdroom_prio {
@@ -525,6 +586,22 @@ void mlxsw_sp_hdroom_bufs_reset_sizes(struct mlxsw_sp_port *mlxsw_sp_port,
 				      struct mlxsw_sp_hdroom *hdroom);
 int mlxsw_sp_hdroom_configure(struct mlxsw_sp_port *mlxsw_sp_port,
 			      const struct mlxsw_sp_hdroom *hdroom);
+struct mlxsw_sp_sample_params *
+mlxsw_sp_sample_trigger_params_lookup(struct mlxsw_sp *mlxsw_sp,
+				      const struct mlxsw_sp_sample_trigger *trigger);
+int
+mlxsw_sp_sample_trigger_params_set(struct mlxsw_sp *mlxsw_sp,
+				   const struct mlxsw_sp_sample_trigger *trigger,
+				   const struct mlxsw_sp_sample_params *params,
+				   struct netlink_ext_ack *extack);
+void
+mlxsw_sp_sample_trigger_params_unset(struct mlxsw_sp *mlxsw_sp,
+				     const struct mlxsw_sp_sample_trigger *trigger);
+int mlxsw_sp_ipv6_addr_kvdl_index_get(struct mlxsw_sp *mlxsw_sp,
+				      const struct in6_addr *addr6,
+				      u32 *p_kvdl_index);
+void
+mlxsw_sp_ipv6_addr_put(struct mlxsw_sp *mlxsw_sp, const struct in6_addr *addr6);
 
 extern const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals;
 extern const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals;
@@ -559,11 +636,9 @@ extern struct notifier_block mlxsw_sp_switchdev_notifier;
 
 /* spectrum.c */
 void mlxsw_sp_rx_listener_no_mark_func(struct sk_buff *skb,
-				       u8 local_port, void *priv);
+				       u16 local_port, void *priv);
 void mlxsw_sp_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
-			  u8 local_port);
-void mlxsw_sp_sample_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
-			     u8 local_port);
+			  u16 local_port);
 int mlxsw_sp_port_speed_get(struct mlxsw_sp_port *mlxsw_sp_port, u32 *speed);
 int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			  enum mlxsw_reg_qeec_hr hr, u8 index, u8 next_index,
@@ -579,7 +654,11 @@ int mlxsw_sp_port_vid_stp_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
 int mlxsw_sp_port_vp_mode_set(struct mlxsw_sp_port *mlxsw_sp_port, bool enable);
 int mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
 				   bool learn_enable);
-int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
+int mlxsw_sp_ethtype_to_sver_type(u16 ethtype, u8 *p_sver_type);
+int mlxsw_sp_port_egress_ethtype_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				     u16 ethtype);
+int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
+			   u16 ethtype);
 struct mlxsw_sp_port_vlan *
 mlxsw_sp_port_vlan_create(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
 void mlxsw_sp_port_vlan_destroy(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
@@ -598,6 +677,10 @@ struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find(struct net_device *dev);
 struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev);
 void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port);
 struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find_rcu(struct net_device *dev);
+int mlxsw_sp_parsing_depth_inc(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_parsing_depth_dec(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_parsing_vxlan_udp_dport_set(struct mlxsw_sp *mlxsw_sp,
+					 __be16 udp_dport);
 
 /* spectrum_dcb.c */
 #ifdef CONFIG_MLXSW_SPECTRUM_DCB
@@ -650,6 +733,10 @@ mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
 				 struct net_device *l3_dev,
 				 unsigned long event,
 				 struct netdev_notifier_info *info);
+int
+mlxsw_sp_port_vlan_router_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
+			       struct net_device *l3_dev,
+			       struct netlink_ext_ack *extack);
 void
 mlxsw_sp_port_vlan_router_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 void mlxsw_sp_rif_destroy_by_dev(struct mlxsw_sp *mlxsw_sp,
@@ -657,7 +744,7 @@ void mlxsw_sp_rif_destroy_by_dev(struct mlxsw_sp *mlxsw_sp,
 bool mlxsw_sp_rif_exists(struct mlxsw_sp *mlxsw_sp,
 			 const struct net_device *dev);
 u16 mlxsw_sp_rif_vid(struct mlxsw_sp *mlxsw_sp, const struct net_device *dev);
-u8 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp);
+u16 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_router_nve_promote_decap(struct mlxsw_sp *mlxsw_sp, u32 ul_tb_id,
 				      enum mlxsw_sp_l3proto ul_proto,
 				      const union mlxsw_sp_l3addr *ul_sip,
@@ -677,6 +764,7 @@ enum mlxsw_sp_kvdl_entry_type {
 	MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
 	MLXSW_SP_KVDL_ENTRY_TYPE_PBS,
 	MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR,
+	MLXSW_SP_KVDL_ENTRY_TYPE_IPV6_ADDRESS,
 	MLXSW_SP_KVDL_ENTRY_TYPE_TNUMT,
 };
 
@@ -688,6 +776,7 @@ mlxsw_sp_kvdl_entry_size(enum mlxsw_sp_kvdl_entry_type type)
 	case MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET:
 	case MLXSW_SP_KVDL_ENTRY_TYPE_PBS:
 	case MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR:
+	case MLXSW_SP_KVDL_ENTRY_TYPE_IPV6_ADDRESS:
 	case MLXSW_SP_KVDL_ENTRY_TYPE_TNUMT:
 	default:
 		return 1;
@@ -731,6 +820,24 @@ int mlxsw_sp1_kvdl_resources_register(struct mlxsw_core *mlxsw_core);
 /* spectrum2_kvdl.c */
 extern const struct mlxsw_sp_kvdl_ops mlxsw_sp2_kvdl_ops;
 
+enum mlxsw_sp_acl_mangle_field {
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_DSFIELD,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_DSCP,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_ECN,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_SPORT,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_DPORT,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP4_SIP,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP4_DIP,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_1,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_2,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_3,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_4,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_1,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_2,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_3,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_4,
+};
+
 struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;
 	struct mlxsw_afk_element_values values;
@@ -739,9 +846,14 @@ struct mlxsw_sp_acl_rule_info {
 	   ingress_bind_blocker:1,
 	   egress_bind_blocker:1,
 	   counter_valid:1,
-	   policer_index_valid:1;
+	   policer_index_valid:1,
+	   ipv6_valid:1;
 	unsigned int counter_index;
 	u16 policer_index;
+	struct {
+		u32 prev_val;
+		enum mlxsw_sp_acl_mangle_field prev_field;
+	} ipv6;
 };
 
 /* spectrum_flow.c */
@@ -912,6 +1024,12 @@ int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_acl_rulei_act_fid_set(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_acl_rule_info *rulei,
 				   u16 fid, struct netlink_ext_ack *extack);
+int mlxsw_sp_acl_rulei_act_sample(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_rule_info *rulei,
+				  struct mlxsw_sp_flow_block *block,
+				  struct psample_group *psample_group, u32 rate,
+				  u32 trunc_size, bool truncate,
+				  struct netlink_ext_ack *extack);
 
 struct mlxsw_sp_acl_rule;
 
@@ -1019,8 +1137,26 @@ extern const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops;
 /* spectrum_acl_flex_keys.c */
 extern const struct mlxsw_afk_ops mlxsw_sp1_afk_ops;
 extern const struct mlxsw_afk_ops mlxsw_sp2_afk_ops;
+extern const struct mlxsw_afk_ops mlxsw_sp4_afk_ops;
+
+/* spectrum_acl_bloom_filter.c */
+extern const struct mlxsw_sp_acl_bf_ops mlxsw_sp2_acl_bf_ops;
+extern const struct mlxsw_sp_acl_bf_ops mlxsw_sp4_acl_bf_ops;
 
 /* spectrum_matchall.c */
+struct mlxsw_sp_mall_ops {
+	int (*sample_add)(struct mlxsw_sp *mlxsw_sp,
+			  struct mlxsw_sp_port *mlxsw_sp_port,
+			  struct mlxsw_sp_mall_entry *mall_entry,
+			  struct netlink_ext_ack *extack);
+	void (*sample_del)(struct mlxsw_sp *mlxsw_sp,
+			   struct mlxsw_sp_port *mlxsw_sp_port,
+			   struct mlxsw_sp_mall_entry *mall_entry);
+};
+
+extern const struct mlxsw_sp_mall_ops mlxsw_sp1_mall_ops;
+extern const struct mlxsw_sp_mall_ops mlxsw_sp2_mall_ops;
+
 enum mlxsw_sp_mall_action_type {
 	MLXSW_SP_MALL_ACTION_TYPE_MIRROR,
 	MLXSW_SP_MALL_ACTION_TYPE_SAMPLE,
@@ -1036,6 +1172,11 @@ struct mlxsw_sp_mall_trap_entry {
 	int span_id;
 };
 
+struct mlxsw_sp_mall_sample_entry {
+	struct mlxsw_sp_sample_params params;
+	int span_id;	/* Relevant for Spectrum-2 onwards. */
+};
+
 struct mlxsw_sp_mall_entry {
 	struct list_head list;
 	unsigned long cookie;
@@ -1045,7 +1186,7 @@ struct mlxsw_sp_mall_entry {
 	union {
 		struct mlxsw_sp_mall_mirror_entry mirror;
 		struct mlxsw_sp_mall_trap_entry trap;
-		struct mlxsw_sp_port_sample sample;
+		struct mlxsw_sp_mall_sample_entry sample;
 	};
 	struct rcu_head rcu;
 };
@@ -1056,7 +1197,8 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 void mlxsw_sp_mall_destroy(struct mlxsw_sp_flow_block *block,
 			   struct tc_cls_matchall_offload *f);
 int mlxsw_sp_mall_port_bind(struct mlxsw_sp_flow_block *block,
-			    struct mlxsw_sp_port *mlxsw_sp_port);
+			    struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct netlink_ext_ack *extack);
 void mlxsw_sp_mall_port_unbind(struct mlxsw_sp_flow_block *block,
 			       struct mlxsw_sp_port *mlxsw_sp_port);
 int mlxsw_sp_mall_prio_get(struct mlxsw_sp_flow_block *block, u32 chain_index,
@@ -1098,6 +1240,8 @@ int mlxsw_sp_setup_tc_fifo(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct tc_fifo_qopt_offload *p);
 int mlxsw_sp_setup_tc_block_qevent_early_drop(struct mlxsw_sp_port *mlxsw_sp_port,
 					      struct flow_block_offload *f);
+int mlxsw_sp_setup_tc_block_qevent_mark(struct mlxsw_sp_port *mlxsw_sp_port,
+					struct flow_block_offload *f);
 
 /* spectrum_fid.c */
 bool mlxsw_sp_fid_is_dummy(struct mlxsw_sp *mlxsw_sp, u16 fid_index);
@@ -1121,7 +1265,7 @@ bool mlxsw_sp_fid_vni_is_set(const struct mlxsw_sp_fid *fid);
 void mlxsw_sp_fid_fdb_clear_offload(const struct mlxsw_sp_fid *fid,
 				    const struct net_device *nve_dev);
 int mlxsw_sp_fid_flood_set(struct mlxsw_sp_fid *fid,
-			   enum mlxsw_sp_flood_type packet_type, u8 local_port,
+			   enum mlxsw_sp_flood_type packet_type, u16 local_port,
 			   bool member);
 int mlxsw_sp_fid_port_vid_map(struct mlxsw_sp_fid *fid,
 			      struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
@@ -1192,6 +1336,7 @@ struct mlxsw_sp_nve_params {
 	enum mlxsw_sp_nve_type type;
 	__be32 vni;
 	const struct net_device *dev;
+	u16 ethertype;
 };
 
 extern const struct mlxsw_sp_nve_ops *mlxsw_sp1_nve_ops_arr[];
@@ -1208,6 +1353,17 @@ void mlxsw_sp_nve_flood_ip_del(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_fid *fid,
 			       enum mlxsw_sp_l3proto proto,
 			       union mlxsw_sp_l3addr *addr);
+int mlxsw_sp_nve_ipv6_addr_kvdl_set(struct mlxsw_sp *mlxsw_sp,
+				    const struct in6_addr *addr6,
+				    u32 *p_kvdl_index);
+void mlxsw_sp_nve_ipv6_addr_kvdl_unset(struct mlxsw_sp *mlxsw_sp,
+				       const struct in6_addr *addr6);
+int
+mlxsw_sp_nve_ipv6_addr_map_replace(struct mlxsw_sp *mlxsw_sp, const char *mac,
+				   u16 fid_index,
+				   const struct in6_addr *new_addr6);
+void mlxsw_sp_nve_ipv6_addr_map_del(struct mlxsw_sp *mlxsw_sp, const char *mac,
+				    u16 fid_index);
 int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 			    struct mlxsw_sp_nve_params *params,
 			    struct netlink_ext_ack *extack);

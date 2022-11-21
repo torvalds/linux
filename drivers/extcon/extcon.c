@@ -576,19 +576,7 @@ EXPORT_SYMBOL_GPL(extcon_set_state);
  */
 int extcon_set_state_sync(struct extcon_dev *edev, unsigned int id, bool state)
 {
-	int ret, index;
-	unsigned long flags;
-
-	index = find_cable_index_by_id(edev, id);
-	if (index < 0)
-		return index;
-
-	/* Check whether the external connector's state is changed. */
-	spin_lock_irqsave(&edev->lock, flags);
-	ret = is_extcon_changed(edev, index, state);
-	spin_unlock_irqrestore(&edev->lock, flags);
-	if (!ret)
-		return 0;
+	int ret;
 
 	ret = extcon_set_state(edev, id, state);
 	if (ret < 0)
@@ -1241,6 +1229,7 @@ int extcon_dev_register(struct extcon_dev *edev)
 				sizeof(*edev->nh), GFP_KERNEL);
 	if (!edev->nh) {
 		ret = -ENOMEM;
+		device_unregister(&edev->dev);
 		goto err_dev;
 	}
 

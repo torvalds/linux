@@ -47,6 +47,7 @@ struct ipv6_stub {
 			    struct fib6_config *cfg, gfp_t gfp_flags,
 			    struct netlink_ext_ack *extack);
 	void (*fib6_nh_release)(struct fib6_nh *fib6_nh);
+	void (*fib6_nh_release_dsts)(struct fib6_nh *fib6_nh);
 	void (*fib6_update_sernum)(struct net *net, struct fib6_info *rt);
 	int (*ip6_del_rt)(struct net *net, struct fib6_info *rt, bool skip_notify);
 	void (*fib6_rt_update)(struct net *net, struct fib6_info *rt,
@@ -66,6 +67,8 @@ struct ipv6_stub {
 
 	int (*ipv6_fragment)(struct net *net, struct sock *sk, struct sk_buff *skb,
 			     int (*output)(struct net *, struct sock *, struct sk_buff *));
+	struct net_device *(*ipv6_dev_find)(struct net *net, const struct in6_addr *addr,
+					    struct net_device *dev);
 };
 extern const struct ipv6_stub *ipv6_stub __read_mostly;
 

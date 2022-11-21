@@ -85,12 +85,13 @@ static int jfs_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
+int jfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	int rc;
 
-	rc = setattr_prepare(dentry, iattr);
+	rc = setattr_prepare(&init_user_ns, dentry, iattr);
 	if (rc)
 		return rc;
 
@@ -118,17 +119,19 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 		jfs_truncate(inode);
 	}
 
-	setattr_copy(inode, iattr);
+	setattr_copy(&init_user_ns, inode, iattr);
 	mark_inode_dirty(inode);
 
 	if (iattr->ia_valid & ATTR_MODE)
-		rc = posix_acl_chmod(inode, inode->i_mode);
+		rc = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
 	return rc;
 }
 
 const struct inode_operations jfs_file_inode_operations = {
 	.listxattr	= jfs_listxattr,
 	.setattr	= jfs_setattr,
+	.fileattr_get	= jfs_fileattr_get,
+	.fileattr_set	= jfs_fileattr_set,
 #ifdef CONFIG_JFS_POSIX_ACL
 	.get_acl	= jfs_get_acl,
 	.set_acl	= jfs_set_acl,
@@ -146,7 +149,5 @@ const struct file_operations jfs_file_operations = {
 	.fsync		= jfs_fsync,
 	.release	= jfs_release,
 	.unlocked_ioctl = jfs_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= jfs_compat_ioctl,
-#endif
+	.compat_ioctl	= compat_ptr_ioctl,
 };

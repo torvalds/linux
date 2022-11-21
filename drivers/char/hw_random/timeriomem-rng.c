@@ -69,7 +69,7 @@ static int timeriomem_rng_read(struct hwrng *hwrng, void *data,
 		 */
 		if (retval > 0)
 			usleep_range(period_us,
-					period_us + min(1, period_us / 100));
+					period_us + max(1, period_us / 100));
 
 		*(u32 *)data = readl(priv->io_base);
 		retval += sizeof(u32);
@@ -169,7 +169,7 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 	priv->present = 1;
 	complete(&priv->completion);
 
-	err = hwrng_register(&priv->rng_ops);
+	err = devm_hwrng_register(&pdev->dev, &priv->rng_ops);
 	if (err) {
 		dev_err(&pdev->dev, "problem registering\n");
 		return err;
@@ -185,7 +185,6 @@ static int timeriomem_rng_remove(struct platform_device *pdev)
 {
 	struct timeriomem_rng_private *priv = platform_get_drvdata(pdev);
 
-	hwrng_unregister(&priv->rng_ops);
 	hrtimer_cancel(&priv->timer);
 
 	return 0;

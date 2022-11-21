@@ -48,6 +48,7 @@ config BPQETHER
 config DMASCC
 	tristate "High-speed (DMA) SCC driver for AX.25"
 	depends on ISA && AX25 && BROKEN_ON_SMP && ISA_DMA_API
+	depends on VIRT_TO_BUS
 	help
 	  This is a driver for high-speed SCC boards, i.e. those supporting
 	  DMA on one port. You usually use those boards to connect your

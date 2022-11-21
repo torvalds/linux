@@ -113,7 +113,7 @@ static const struct rhashtable_params mlxsw_afa_set_ht_params = {
 };
 
 struct mlxsw_afa_fwd_entry_ht_key {
-	u8 local_port;
+	u16 local_port;
 };
 
 struct mlxsw_afa_fwd_entry {
@@ -555,7 +555,7 @@ int mlxsw_afa_block_terminate(struct mlxsw_afa_block *block)
 EXPORT_SYMBOL(mlxsw_afa_block_terminate);
 
 static struct mlxsw_afa_fwd_entry *
-mlxsw_afa_fwd_entry_create(struct mlxsw_afa *mlxsw_afa, u8 local_port)
+mlxsw_afa_fwd_entry_create(struct mlxsw_afa *mlxsw_afa, u16 local_port)
 {
 	struct mlxsw_afa_fwd_entry *fwd_entry;
 	int err;
@@ -598,7 +598,7 @@ static void mlxsw_afa_fwd_entry_destroy(struct mlxsw_afa *mlxsw_afa,
 }
 
 static struct mlxsw_afa_fwd_entry *
-mlxsw_afa_fwd_entry_get(struct mlxsw_afa *mlxsw_afa, u8 local_port)
+mlxsw_afa_fwd_entry_get(struct mlxsw_afa *mlxsw_afa, u16 local_port)
 {
 	struct mlxsw_afa_fwd_entry_ht_key ht_key = {0};
 	struct mlxsw_afa_fwd_entry *fwd_entry;
@@ -647,7 +647,7 @@ mlxsw_afa_fwd_entry_ref_destructor(struct mlxsw_afa_block *block,
 }
 
 static struct mlxsw_afa_fwd_entry_ref *
-mlxsw_afa_fwd_entry_ref_create(struct mlxsw_afa_block *block, u8 local_port)
+mlxsw_afa_fwd_entry_ref_create(struct mlxsw_afa_block *block, u16 local_port)
 {
 	struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref;
 	struct mlxsw_afa_fwd_entry *fwd_entry;
@@ -1352,7 +1352,7 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_trap_and_forward);
 struct mlxsw_afa_mirror {
 	struct mlxsw_afa_resource resource;
 	int span_id;
-	u8 local_in_port;
+	u16 local_in_port;
 	bool ingress;
 };
 
@@ -1379,7 +1379,7 @@ mlxsw_afa_mirror_destructor(struct mlxsw_afa_block *block,
 }
 
 static struct mlxsw_afa_mirror *
-mlxsw_afa_mirror_create(struct mlxsw_afa_block *block, u8 local_in_port,
+mlxsw_afa_mirror_create(struct mlxsw_afa_block *block, u16 local_in_port,
 			const struct net_device *out_dev, bool ingress)
 {
 	struct mlxsw_afa_mirror *mirror;
@@ -1423,7 +1423,7 @@ mlxsw_afa_block_append_allocated_mirror(struct mlxsw_afa_block *block,
 }
 
 int
-mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block, u8 local_in_port,
+mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block, u16 local_in_port,
 			      const struct net_device *out_dev, bool ingress,
 			      struct netlink_ext_ack *extack)
 {
@@ -1663,7 +1663,7 @@ mlxsw_afa_forward_pack(char *payload, enum mlxsw_afa_forward_type type,
 }
 
 int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
-			       u8 local_port, bool in_port,
+			       u16 local_port, bool in_port,
 			       struct netlink_ext_ack *extack)
 {
 	struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref;
@@ -1957,6 +1957,83 @@ int mlxsw_afa_block_append_mcrouter(struct mlxsw_afa_block *block,
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_mcrouter);
 
+/* SIP DIP Action
+ * --------------
+ * The SIP_DIP_ACTION is used for modifying the SIP and DIP fields of the
+ * packet, e.g. for NAT. The L3 checksum is updated. Also, if the L4 is TCP or
+ * if the L4 is UDP and the checksum field is not zero, then the L4 checksum is
+ * updated.
+ */
+
+#define MLXSW_AFA_IP_CODE 0x11
+#define MLXSW_AFA_IP_SIZE 2
+
+enum mlxsw_afa_ip_s_d {
+	/* ip refers to dip */
+	MLXSW_AFA_IP_S_D_DIP,
+	/* ip refers to sip */
+	MLXSW_AFA_IP_S_D_SIP,
+};
+
+/* afa_ip_s_d
+ * Source or destination.
+ */
+MLXSW_ITEM32(afa, ip, s_d, 0x00, 31, 1);
+
+enum mlxsw_afa_ip_m_l {
+	/* LSB: ip[63:0] refers to ip[63:0] */
+	MLXSW_AFA_IP_M_L_LSB,
+	/* MSB: ip[63:0] refers to ip[127:64] */
+	MLXSW_AFA_IP_M_L_MSB,
+};
+
+/* afa_ip_m_l
+ * MSB or LSB.
+ */
+MLXSW_ITEM32(afa, ip, m_l, 0x00, 30, 1);
+
+/* afa_ip_ip_63_32
+ * Bits [63:32] in the IP address to change to.
+ */
+MLXSW_ITEM32(afa, ip, ip_63_32, 0x08, 0, 32);
+
+/* afa_ip_ip_31_0
+ * Bits [31:0] in the IP address to change to.
+ */
+MLXSW_ITEM32(afa, ip, ip_31_0, 0x0C, 0, 32);
+
+static void mlxsw_afa_ip_pack(char *payload, enum mlxsw_afa_ip_s_d s_d,
+			      enum mlxsw_afa_ip_m_l m_l, u32 ip_31_0,
+			      u32 ip_63_32)
+{
+	mlxsw_afa_ip_s_d_set(payload, s_d);
+	mlxsw_afa_ip_m_l_set(payload, m_l);
+	mlxsw_afa_ip_ip_31_0_set(payload, ip_31_0);
+	mlxsw_afa_ip_ip_63_32_set(payload, ip_63_32);
+}
+
+int mlxsw_afa_block_append_ip(struct mlxsw_afa_block *block, bool is_dip,
+			      bool is_lsb, u32 val_31_0, u32 val_63_32,
+			      struct netlink_ext_ack *extack)
+{
+	enum mlxsw_afa_ip_s_d s_d = is_dip ? MLXSW_AFA_IP_S_D_DIP :
+					     MLXSW_AFA_IP_S_D_SIP;
+	enum mlxsw_afa_ip_m_l m_l = is_lsb ? MLXSW_AFA_IP_M_L_LSB :
+					     MLXSW_AFA_IP_M_L_MSB;
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_IP_CODE,
+						  MLXSW_AFA_IP_SIZE);
+
+	if (IS_ERR(act)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append IP action");
+		return PTR_ERR(act);
+	}
+
+	mlxsw_afa_ip_pack(act, s_d, m_l, val_31_0, val_63_32);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_ip);
+
 /* L4 Port Action
  * --------------
  * The L4_PORT_ACTION is used for modifying the sport and dport fields of the packet, e.g. for NAT.
@@ -2007,3 +2084,134 @@ int mlxsw_afa_block_append_l4port(struct mlxsw_afa_block *block, bool is_dport, 
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_l4port);
+
+/* Mirror Sampler Action
+ * ---------------------
+ * The SAMPLER_ACTION is used to mirror packets with a probability (sampling).
+ */
+
+#define MLXSW_AFA_SAMPLER_CODE 0x13
+#define MLXSW_AFA_SAMPLER_SIZE 1
+
+/* afa_sampler_mirror_agent
+ * Mirror (SPAN) agent.
+ */
+MLXSW_ITEM32(afa, sampler, mirror_agent, 0x04, 0, 3);
+
+#define MLXSW_AFA_SAMPLER_RATE_MAX (BIT(24) - 1)
+
+/* afa_sampler_mirror_probability_rate
+ * Mirroring probability.
+ * Valid values are 1 to 2^24 - 1
+ */
+MLXSW_ITEM32(afa, sampler, mirror_probability_rate, 0x08, 0, 24);
+
+static void mlxsw_afa_sampler_pack(char *payload, u8 mirror_agent, u32 rate)
+{
+	mlxsw_afa_sampler_mirror_agent_set(payload, mirror_agent);
+	mlxsw_afa_sampler_mirror_probability_rate_set(payload, rate);
+}
+
+struct mlxsw_afa_sampler {
+	struct mlxsw_afa_resource resource;
+	int span_id;
+	u16 local_port;
+	bool ingress;
+};
+
+static void mlxsw_afa_sampler_destroy(struct mlxsw_afa_block *block,
+				      struct mlxsw_afa_sampler *sampler)
+{
+	mlxsw_afa_resource_del(&sampler->resource);
+	block->afa->ops->sampler_del(block->afa->ops_priv, sampler->local_port,
+				     sampler->span_id, sampler->ingress);
+	kfree(sampler);
+}
+
+static void mlxsw_afa_sampler_destructor(struct mlxsw_afa_block *block,
+					 struct mlxsw_afa_resource *resource)
+{
+	struct mlxsw_afa_sampler *sampler;
+
+	sampler = container_of(resource, struct mlxsw_afa_sampler, resource);
+	mlxsw_afa_sampler_destroy(block, sampler);
+}
+
+static struct mlxsw_afa_sampler *
+mlxsw_afa_sampler_create(struct mlxsw_afa_block *block, u16 local_port,
+			 struct psample_group *psample_group, u32 rate,
+			 u32 trunc_size, bool truncate, bool ingress,
+			 struct netlink_ext_ack *extack)
+{
+	struct mlxsw_afa_sampler *sampler;
+	int err;
+
+	sampler = kzalloc(sizeof(*sampler), GFP_KERNEL);
+	if (!sampler)
+		return ERR_PTR(-ENOMEM);
+
+	err = block->afa->ops->sampler_add(block->afa->ops_priv, local_port,
+					   psample_group, rate, trunc_size,
+					   truncate, ingress, &sampler->span_id,
+					   extack);
+	if (err)
+		goto err_sampler_add;
+
+	sampler->ingress = ingress;
+	sampler->local_port = local_port;
+	sampler->resource.destructor = mlxsw_afa_sampler_destructor;
+	mlxsw_afa_resource_add(block, &sampler->resource);
+	return sampler;
+
+err_sampler_add:
+	kfree(sampler);
+	return ERR_PTR(err);
+}
+
+static int
+mlxsw_afa_block_append_allocated_sampler(struct mlxsw_afa_block *block,
+					 u8 mirror_agent, u32 rate)
+{
+	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_SAMPLER_CODE,
+						  MLXSW_AFA_SAMPLER_SIZE);
+
+	if (IS_ERR(act))
+		return PTR_ERR(act);
+	mlxsw_afa_sampler_pack(act, mirror_agent, rate);
+	return 0;
+}
+
+int mlxsw_afa_block_append_sampler(struct mlxsw_afa_block *block, u16 local_port,
+				   struct psample_group *psample_group,
+				   u32 rate, u32 trunc_size, bool truncate,
+				   bool ingress,
+				   struct netlink_ext_ack *extack)
+{
+	struct mlxsw_afa_sampler *sampler;
+	int err;
+
+	if (rate > MLXSW_AFA_SAMPLER_RATE_MAX) {
+		NL_SET_ERR_MSG_MOD(extack, "Sampling rate is too high");
+		return -EINVAL;
+	}
+
+	sampler = mlxsw_afa_sampler_create(block, local_port, psample_group,
+					   rate, trunc_size, truncate, ingress,
+					   extack);
+	if (IS_ERR(sampler))
+		return PTR_ERR(sampler);
+
+	err = mlxsw_afa_block_append_allocated_sampler(block, sampler->span_id,
+						       rate);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append sampler action");
+		goto err_append_allocated_sampler;
+	}
+
+	return 0;
+
+err_append_allocated_sampler:
+	mlxsw_afa_sampler_destroy(block, sampler);
+	return err;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_sampler);

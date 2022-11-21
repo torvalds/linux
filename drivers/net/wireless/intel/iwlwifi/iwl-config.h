@@ -1,62 +1,8 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2007 - 2014, 2018 - 2020 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2005 - 2014, 2018 - 2020 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #ifndef __IWL_CONFIG_H__
 #define __IWL_CONFIG_H__
 
@@ -87,6 +33,7 @@ enum iwl_device_family {
 	IWL_DEVICE_FAMILY_9000,
 	IWL_DEVICE_FAMILY_22000,
 	IWL_DEVICE_FAMILY_AX210,
+	IWL_DEVICE_FAMILY_BZ,
 };
 
 /*
@@ -137,6 +84,10 @@ enum iwl_nvm_type {
 #define IWL_DEFAULT_MAX_TX_POWER 22
 #define IWL_TX_CSUM_NETIF_FLAGS (NETIF_F_IPV6_CSUM | NETIF_F_IP_CSUM |\
 				 NETIF_F_TSO | NETIF_F_TSO6)
+#define IWL_TX_CSUM_NETIF_FLAGS_BZ (NETIF_F_HW_CSUM | NETIF_F_TSO | NETIF_F_TSO6)
+#define IWL_CSUM_NETIF_FLAGS_MASK (IWL_TX_CSUM_NETIF_FLAGS | \
+				   IWL_TX_CSUM_NETIF_FLAGS_BZ | \
+				   NETIF_F_RXCSUM)
 
 /* Antenna presence definitions */
 #define	ANT_NONE	0x0
@@ -148,7 +99,6 @@ enum iwl_nvm_type {
 #define	ANT_AC		(ANT_A | ANT_C)
 #define ANT_BC		(ANT_B | ANT_C)
 #define ANT_ABC		(ANT_A | ANT_B | ANT_C)
-#define MAX_ANT_NUM 3
 
 
 static inline u8 num_of_ant(u8 mask)
@@ -310,6 +260,7 @@ enum iwl_cfg_trans_ltr_delay {
  * @integrated: discrete or integrated
  * @low_latency_xtal: use the low latency xtal if supported
  * @ltr_delay: LTR delay parameter, &enum iwl_cfg_trans_ltr_delay.
+ * @imr_enabled: use the IMR if supported.
  */
 struct iwl_cfg_trans_params {
 	const struct iwl_base_params *base_params;
@@ -324,7 +275,8 @@ struct iwl_cfg_trans_params {
 	    integrated:1,
 	    low_latency_xtal:1,
 	    bisr_workaround:1,
-	    ltr_delay:2;
+	    ltr_delay:2,
+	    imr_enabled:1;
 };
 
 /**
@@ -375,14 +327,10 @@ struct iwl_fw_mon_regs {
  * @host_interrupt_operation_mode: device needs host interrupt operation
  *	mode set
  * @nvm_hw_section_num: the ID of the HW NVM section
- * @mac_addr_from_csr: read HW address from CSR registers
- * @features: hw features, any combination of feature_whitelist
+ * @mac_addr_from_csr: read HW address from CSR registers at this offset
+ * @features: hw features, any combination of feature_passlist
  * @pwr_tx_backoffs: translation table between power limits and backoffs
  * @max_tx_agg_size: max TX aggregation size of the ADDBA request/response
- * @max_ht_ampdu_factor: the exponent of the max length of A-MPDU that the
- *	station can receive in HT
- * @max_vht_ampdu_exponent: the exponent of the max length of A-MPDU that the
- *	station can receive in VHT
  * @dccm_offset: offset from which DCCM begins
  * @dccm_len: length of DCCM (including runtime stack CCM)
  * @dccm2_offset: offset from which the second DCCM begins
@@ -397,10 +345,12 @@ struct iwl_fw_mon_regs {
  * @bisr_workaround: BISR hardware workaround (for 22260 series devices)
  * @min_txq_size: minimum number of slots required in a TX queue
  * @uhb_supported: ultra high band channels supported
- * @min_256_ba_txq_size: minimum number of slots required in a TX queue which
- *	supports 256 BA aggregation
+ * @min_ba_txq_size: minimum number of slots required in a TX queue which
+ *	based on hardware support (HE - 256, EHT - 1K).
  * @num_rbds: number of receive buffer descriptors to use
  *	(only used for multi-queue capable devices)
+ * @mac_addr_csr_base: CSR base register for MAC address access, if not set
+ *	assume 0x380
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -436,7 +386,7 @@ struct iwl_cfg {
 	    internal_wimax_coex:1,
 	    host_interrupt_operation_mode:1,
 	    high_temp:1,
-	    mac_addr_from_csr:1,
+	    mac_addr_from_csr:10,
 	    lp_xtal_workaround:1,
 	    disable_dummy_notification:1,
 	    apmg_not_supported:1,
@@ -449,8 +399,6 @@ struct iwl_cfg {
 	u8 non_shared_ant;
 	u8 nvm_hw_section_num;
 	u8 max_tx_agg_size;
-	u8 max_ht_ampdu_exponent;
-	u8 max_vht_ampdu_exponent;
 	u8 ucode_api_max;
 	u8 ucode_api_min;
 	u16 num_rbds;
@@ -459,9 +407,10 @@ struct iwl_cfg {
 	u32 d3_debug_data_length;
 	u32 min_txq_size;
 	u32 gp2_reg_addr;
-	u32 min_256_ba_txq_size;
+	u32 min_ba_txq_size;
 	const struct iwl_fw_mon_regs mon_dram_regs;
 	const struct iwl_fw_mon_regs mon_smem_regs;
+	const struct iwl_fw_mon_regs mon_dbgi_regs;
 };
 
 #define IWL_CFG_ANY (~0)
@@ -472,7 +421,12 @@ struct iwl_cfg {
 #define IWL_CFG_MAC_TYPE_QU		0x33
 #define IWL_CFG_MAC_TYPE_QUZ		0x35
 #define IWL_CFG_MAC_TYPE_QNJ		0x36
+#define IWL_CFG_MAC_TYPE_SO		0x37
+#define IWL_CFG_MAC_TYPE_SNJ		0x42
+#define IWL_CFG_MAC_TYPE_SOF		0x43
 #define IWL_CFG_MAC_TYPE_MA		0x44
+#define IWL_CFG_MAC_TYPE_BZ		0x46
+#define IWL_CFG_MAC_TYPE_GL		0x47
 
 #define IWL_CFG_RF_TYPE_TH		0x105
 #define IWL_CFG_RF_TYPE_TH1		0x108
@@ -482,6 +436,8 @@ struct iwl_cfg {
 #define IWL_CFG_RF_TYPE_HR1		0x10C
 #define IWL_CFG_RF_TYPE_GF		0x10D
 #define IWL_CFG_RF_TYPE_MR		0x110
+#define IWL_CFG_RF_TYPE_MS		0x111
+#define IWL_CFG_RF_TYPE_FM		0x112
 
 #define IWL_CFG_RF_ID_TH		0x1
 #define IWL_CFG_RF_ID_TH1		0x1
@@ -497,8 +453,14 @@ struct iwl_cfg {
 #define IWL_CFG_CORES_BT		0x0
 #define IWL_CFG_CORES_BT_GNSS		0x5
 
+#define IWL_CFG_NO_CDB			0x0
+#define IWL_CFG_CDB			0x1
+
+#define IWL_CFG_NO_JACKET		0x0
+#define IWL_CFG_IS_JACKET		0x1
+
 #define IWL_SUBDEVICE_RF_ID(subdevice)	((u16)((subdevice) & 0x00F0) >> 4)
-#define IWL_SUBDEVICE_NO_160(subdevice)	((u16)((subdevice) & 0x0100) >> 9)
+#define IWL_SUBDEVICE_NO_160(subdevice)	((u16)((subdevice) & 0x0200) >> 9)
 #define IWL_SUBDEVICE_CORES(subdevice)	((u16)((subdevice) & 0x1C00) >> 10)
 
 struct iwl_dev_info {
@@ -510,6 +472,8 @@ struct iwl_dev_info {
 	u8 rf_id;
 	u8 no_160;
 	u8 cores;
+	u8 cdb;
+	u8 jacket;
 	const struct iwl_cfg *cfg;
 	const char *name;
 };
@@ -526,7 +490,12 @@ extern const struct iwl_cfg_trans_params iwl_qu_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_qu_medium_latency_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_ax200_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_snj_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_so_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_so_long_latency_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_so_long_latency_imr_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_ma_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_bz_trans_cfg;
 extern const char iwl9162_name[];
 extern const char iwl9260_name[];
 extern const char iwl9260_1_name[];
@@ -544,15 +513,27 @@ extern const char iwl9260_killer_1550_name[];
 extern const char iwl9560_killer_1550i_name[];
 extern const char iwl9560_killer_1550s_name[];
 extern const char iwl_ax200_name[];
+extern const char iwl_ax203_name[];
+extern const char iwl_ax204_name[];
 extern const char iwl_ax201_name[];
 extern const char iwl_ax101_name[];
 extern const char iwl_ax200_killer_1650w_name[];
 extern const char iwl_ax200_killer_1650x_name[];
 extern const char iwl_ax201_killer_1650s_name[];
 extern const char iwl_ax201_killer_1650i_name[];
-extern const char iwl_ma_name[];
+extern const char iwl_ax210_killer_1675w_name[];
+extern const char iwl_ax210_killer_1675x_name[];
+extern const char iwl9560_killer_1550i_160_name[];
+extern const char iwl9560_killer_1550s_160_name[];
+extern const char iwl_ax211_killer_1675s_name[];
+extern const char iwl_ax211_killer_1675i_name[];
+extern const char iwl_ax411_killer_1690s_name[];
+extern const char iwl_ax411_killer_1690i_name[];
 extern const char iwl_ax211_name[];
+extern const char iwl_ax221_name[];
+extern const char iwl_ax231_name[];
 extern const char iwl_ax411_name[];
+extern const char iwl_bz_name[];
 #if IS_ENABLED(CONFIG_IWLDVM)
 extern const struct iwl_cfg iwl5300_agn_cfg;
 extern const struct iwl_cfg iwl5100_agn_cfg;
@@ -627,8 +608,9 @@ extern const struct iwl_cfg iwl9560_2ac_cfg_soc;
 extern const struct iwl_cfg iwl_qu_b0_hr1_b0;
 extern const struct iwl_cfg iwl_qu_c0_hr1_b0;
 extern const struct iwl_cfg iwl_quz_a0_hr1_b0;
+extern const struct iwl_cfg iwl_qu_b0_hr_b0;
+extern const struct iwl_cfg iwl_qu_c0_hr_b0;
 extern const struct iwl_cfg iwl_ax200_cfg_cc;
-extern const struct iwl_cfg iwl_ax201_cfg_qu_hr;
 extern const struct iwl_cfg iwl_ax201_cfg_qu_hr;
 extern const struct iwl_cfg iwl_ax201_cfg_qu_c0_hr_b0;
 extern const struct iwl_cfg iwl_ax201_cfg_quz_hr;
@@ -641,8 +623,7 @@ extern const struct iwl_cfg killer1650i_2ax_cfg_qu_c0_hr_b0;
 extern const struct iwl_cfg killer1650x_2ax_cfg;
 extern const struct iwl_cfg killer1650w_2ax_cfg;
 extern const struct iwl_cfg iwl_qnj_b0_hr_b0_cfg;
-extern const struct iwl_cfg iwlax210_2ax_cfg_so_jf_a0;
-extern const struct iwl_cfg iwlax210_2ax_cfg_so_hr_a0;
+extern const struct iwl_cfg iwlax210_2ax_cfg_so_jf_b0;
 extern const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0;
 extern const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0_long;
 extern const struct iwl_cfg iwlax210_2ax_cfg_ty_gf_a0;
@@ -650,9 +631,31 @@ extern const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0;
 extern const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0_long;
 extern const struct iwl_cfg iwlax411_2ax_cfg_sosnj_gf4_a0;
 extern const struct iwl_cfg iwlax211_cfg_snj_gf_a0;
-extern const struct iwl_cfg iwlax201_cfg_snj_hr_b0;
+extern const struct iwl_cfg iwl_cfg_snj_hr_b0;
+extern const struct iwl_cfg iwl_cfg_snj_a0_jf_b0;
+extern const struct iwl_cfg iwl_cfg_ma_a0_hr_b0;
 extern const struct iwl_cfg iwl_cfg_ma_a0_gf_a0;
+extern const struct iwl_cfg iwl_cfg_ma_a0_gf4_a0;
 extern const struct iwl_cfg iwl_cfg_ma_a0_mr_a0;
+extern const struct iwl_cfg iwl_cfg_ma_a0_ms_a0;
+extern const struct iwl_cfg iwl_cfg_ma_a0_fm_a0;
+extern const struct iwl_cfg iwl_cfg_snj_a0_mr_a0;
+extern const struct iwl_cfg iwl_cfg_snj_a0_ms_a0;
+extern const struct iwl_cfg iwl_cfg_so_a0_hr_a0;
+extern const struct iwl_cfg iwl_cfg_so_a0_ms_a0;
+extern const struct iwl_cfg iwl_cfg_quz_a0_hr_b0;
+extern const struct iwl_cfg iwl_cfg_bz_a0_hr_b0;
+extern const struct iwl_cfg iwl_cfg_bz_a0_gf_a0;
+extern const struct iwl_cfg iwl_cfg_bz_a0_gf4_a0;
+extern const struct iwl_cfg iwl_cfg_bz_a0_mr_a0;
+extern const struct iwl_cfg iwl_cfg_bz_a0_fm_a0;
+extern const struct iwl_cfg iwl_cfg_gl_a0_fm_a0;
+extern const struct iwl_cfg iwl_cfg_bz_z0_gf_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_a0_fm_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_a0_fm4_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_a0_gf_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_a0_gf4_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_a0_hr_b0;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

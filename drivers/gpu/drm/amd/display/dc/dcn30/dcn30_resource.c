@@ -60,6 +60,7 @@
 #include "dml/display_mode_vba.h"
 #include "dcn30/dcn30_dccg.h"
 #include "dcn10/dcn10_resource.h"
+#include "dc_link_ddc.h"
 #include "dce/dce_panel_cntl.h"
 
 #include "dcn30/dcn30_dwb.h"
@@ -71,8 +72,8 @@
 
 #include "nbio/nbio_7_4_offset.h"
 
-#include "dcn/dpcs_3_0_0_offset.h"
-#include "dcn/dpcs_3_0_0_sh_mask.h"
+#include "dpcs/dpcs_3_0_0_offset.h"
+#include "dpcs/dpcs_3_0_0_sh_mask.h"
 
 #include "mmhub/mmhub_2_0_0_offset.h"
 #include "mmhub/mmhub_2_0_0_sh_mask.h"
@@ -91,7 +92,7 @@
 #define DC_LOGGER_INIT(logger)
 
 struct _vcs_dpi_ip_params_st dcn3_0_ip = {
-	.use_min_dcfclk = 1,
+	.use_min_dcfclk = 0,
 	.clamp_min_dcfclk = 0,
 	.odm_capable = 1,
 	.gpuvm_enable = 0,
@@ -180,7 +181,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_0_soc = {
 		},
 	.min_dcfclk = 500.0, /* TODO: set this to actual min DCFCLK */
 	.num_states = 1,
-	.sr_exit_time_us = 12,
+	.sr_exit_time_us = 15.5,
 	.sr_enter_plus_exit_time_us = 20,
 	.urgent_latency_us = 4.0,
 	.urgent_latency_pixel_data_only_us = 4.0,
@@ -354,11 +355,11 @@ static const struct dce_abm_registers abm_regs[] = {
 };
 
 static const struct dce_abm_shift abm_shift = {
-		ABM_MASK_SH_LIST_DCN301(__SHIFT)
+		ABM_MASK_SH_LIST_DCN30(__SHIFT)
 };
 
 static const struct dce_abm_mask abm_mask = {
-		ABM_MASK_SH_LIST_DCN301(_MASK)
+		ABM_MASK_SH_LIST_DCN30(_MASK)
 };
 
 
@@ -815,7 +816,7 @@ static const struct dc_plane_cap plane_cap = {
 			.argb8888 = true,
 			.nv12 = true,
 			.fp16 = true,
-			.p010 = false,
+			.p010 = true,
 			.ayuv = false,
 	},
 
@@ -825,10 +826,11 @@ static const struct dc_plane_cap plane_cap = {
 			.fp16 = 16000
 	},
 
+	/* 6:1 downscaling ratio: 1000/6 = 166.666 */
 	.max_downscale_factor = {
-			.argb8888 = 600,
-			.nv12 = 600,
-			.fp16 = 600
+			.argb8888 = 167,
+			.nv12 = 167,
+			.fp16 = 167
 	}
 };
 
@@ -851,6 +853,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.dwb_fi_phase = -1, // -1 = disable,
 	.dmub_command_table = true,
 	.disable_psr = false,
+	.use_max_lb = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -869,9 +872,10 @@ static const struct dc_debug_options debug_defaults_diags = {
 	.dmub_command_table = true,
 	.disable_psr = true,
 	.enable_tri_buf = true,
+	.use_max_lb = true
 };
 
-void dcn30_dpp_destroy(struct dpp **dpp)
+static void dcn30_dpp_destroy(struct dpp **dpp)
 {
 	kfree(TO_DCN20_DPP(*dpp));
 	*dpp = NULL;
@@ -932,7 +936,7 @@ static struct dce_aux *dcn30_aux_engine_create(
 	return &aux_engine->base;
 }
 
-#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST(id) }
+#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST_DCN30(id) }
 
 static const struct dce_i2c_registers i2c_hw_regs[] = {
 		i2c_inst_regs(1),
@@ -944,11 +948,11 @@ static const struct dce_i2c_registers i2c_hw_regs[] = {
 };
 
 static const struct dce_i2c_shift i2c_shifts = {
-		I2C_COMMON_MASK_SH_LIST_DCN2(__SHIFT)
+		I2C_COMMON_MASK_SH_LIST_DCN30(__SHIFT)
 };
 
 static const struct dce_i2c_mask i2c_masks = {
-		I2C_COMMON_MASK_SH_LIST_DCN2(_MASK)
+		I2C_COMMON_MASK_SH_LIST_DCN30(_MASK)
 };
 
 static struct dce_i2c_hw *dcn30_i2c_hw_create(
@@ -988,7 +992,7 @@ static struct mpc *dcn30_mpc_create(
 	return &mpc30->base;
 }
 
-struct hubbub *dcn30_hubbub_create(struct dc_context *ctx)
+static struct hubbub *dcn30_hubbub_create(struct dc_context *ctx)
 {
 	int i;
 
@@ -1139,9 +1143,8 @@ static struct afmt *dcn30_afmt_create(
 	return &afmt3->base;
 }
 
-struct stream_encoder *dcn30_stream_encoder_create(
-	enum engine_id eng_id,
-	struct dc_context *ctx)
+static struct stream_encoder *dcn30_stream_encoder_create(enum engine_id eng_id,
+							  struct dc_context *ctx)
 {
 	struct dcn10_stream_encoder *enc1;
 	struct vpg *vpg;
@@ -1160,8 +1163,12 @@ struct stream_encoder *dcn30_stream_encoder_create(
 	vpg = dcn30_vpg_create(ctx, vpg_inst);
 	afmt = dcn30_afmt_create(ctx, afmt_inst);
 
-	if (!enc1 || !vpg || !afmt)
+	if (!enc1 || !vpg || !afmt) {
+		kfree(enc1);
+		kfree(vpg);
+		kfree(afmt);
 		return NULL;
+	}
 
 	dcn30_dio_stream_encoder_construct(enc1, ctx, ctx->dc_bios,
 					eng_id, vpg, afmt,
@@ -1171,8 +1178,7 @@ struct stream_encoder *dcn30_stream_encoder_create(
 	return &enc1->base;
 }
 
-struct dce_hwseq *dcn30_hwseq_create(
-	struct dc_context *ctx)
+static struct dce_hwseq *dcn30_hwseq_create(struct dc_context *ctx)
 {
 	struct dce_hwseq *hws = kzalloc(sizeof(struct dce_hwseq), GFP_KERNEL);
 
@@ -1321,6 +1327,9 @@ static void dcn30_resource_destruct(struct dcn30_resource_pool *pool)
 
 	if (pool->base.dccg != NULL)
 		dcn_dccg_destroy(&pool->base.dccg);
+
+	if (pool->base.oem_device != NULL)
+		dal_ddc_service_destroy(&pool->base.oem_device);
 }
 
 static struct hubp *dcn30_hubp_create(
@@ -1447,12 +1456,15 @@ static struct clock_source *dcn30_clock_source_create(
 
 int dcn30_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
-	display_e2e_pipe_params_st *pipes)
+	display_e2e_pipe_params_st *pipes,
+	bool fast_validate)
 {
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
 
-	dcn20_populate_dml_pipes_from_context(dc, context, pipes);
+	DC_FP_START();
+	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
+	DC_FP_END();
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!res_ctx->pipe_ctx[i].stream)
@@ -1466,7 +1478,7 @@ int dcn30_populate_dml_pipes_from_context(
 }
 
 void dcn30_populate_dml_writeback_from_context(
-		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes)
+	struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes)
 {
 	int pipe_cnt, i, j;
 	double max_calc_writeback_dispclk;
@@ -1695,9 +1707,6 @@ bool dcn30_release_post_bldn_3dlut(
 	return ret;
 }
 
-#define fixed16_to_double(x) (((double) x) / ((double) (1 << 16)))
-#define fixed16_to_double_to_cpu(x) fixed16_to_double(le32_to_cpu(x))
-
 static bool is_soc_bounding_box_valid(struct dc *dc)
 {
 	uint32_t hw_internal_rev = dc->ctx->asic_id.hw_internal_rev;
@@ -1711,125 +1720,25 @@ static bool is_soc_bounding_box_valid(struct dc *dc)
 static bool init_soc_bounding_box(struct dc *dc,
 				  struct dcn30_resource_pool *pool)
 {
-	const struct gpu_info_soc_bounding_box_v1_0 *bb = dc->soc_bounding_box;
 	struct _vcs_dpi_soc_bounding_box_st *loaded_bb = &dcn3_0_soc;
 	struct _vcs_dpi_ip_params_st *loaded_ip = &dcn3_0_ip;
 
 	DC_LOGGER_INIT(dc->ctx->logger);
 
-	if (!bb && !is_soc_bounding_box_valid(dc)) {
-		DC_LOG_ERROR("%s: not valid soc bounding box/n", __func__);
+	if (!is_soc_bounding_box_valid(dc)) {
+		DC_LOG_ERROR("%s: not valid soc bounding box\n", __func__);
 		return false;
-	}
-
-	if (bb && !is_soc_bounding_box_valid(dc)) {
-		int i;
-
-		dcn3_0_soc.sr_exit_time_us =
-				fixed16_to_double_to_cpu(bb->sr_exit_time_us);
-		dcn3_0_soc.sr_enter_plus_exit_time_us =
-				fixed16_to_double_to_cpu(bb->sr_enter_plus_exit_time_us);
-		dcn3_0_soc.urgent_latency_us =
-				fixed16_to_double_to_cpu(bb->urgent_latency_us);
-		dcn3_0_soc.urgent_latency_pixel_data_only_us =
-				fixed16_to_double_to_cpu(bb->urgent_latency_pixel_data_only_us);
-		dcn3_0_soc.urgent_latency_pixel_mixed_with_vm_data_us =
-				fixed16_to_double_to_cpu(bb->urgent_latency_pixel_mixed_with_vm_data_us);
-		dcn3_0_soc.urgent_latency_vm_data_only_us =
-				fixed16_to_double_to_cpu(bb->urgent_latency_vm_data_only_us);
-		dcn3_0_soc.urgent_out_of_order_return_per_channel_pixel_only_bytes =
-				le32_to_cpu(bb->urgent_out_of_order_return_per_channel_pixel_only_bytes);
-		dcn3_0_soc.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes =
-				le32_to_cpu(bb->urgent_out_of_order_return_per_channel_pixel_and_vm_bytes);
-		dcn3_0_soc.urgent_out_of_order_return_per_channel_vm_only_bytes =
-				le32_to_cpu(bb->urgent_out_of_order_return_per_channel_vm_only_bytes);
-		dcn3_0_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only =
-				fixed16_to_double_to_cpu(bb->pct_ideal_dram_sdp_bw_after_urgent_pixel_only);
-		dcn3_0_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm =
-				fixed16_to_double_to_cpu(bb->pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm);
-		dcn3_0_soc.pct_ideal_dram_sdp_bw_after_urgent_vm_only =
-				fixed16_to_double_to_cpu(bb->pct_ideal_dram_sdp_bw_after_urgent_vm_only);
-		dcn3_0_soc.max_avg_sdp_bw_use_normal_percent =
-				fixed16_to_double_to_cpu(bb->max_avg_sdp_bw_use_normal_percent);
-		dcn3_0_soc.max_avg_dram_bw_use_normal_percent =
-				fixed16_to_double_to_cpu(bb->max_avg_dram_bw_use_normal_percent);
-		dcn3_0_soc.writeback_latency_us =
-				fixed16_to_double_to_cpu(bb->writeback_latency_us);
-		dcn3_0_soc.ideal_dram_bw_after_urgent_percent =
-				fixed16_to_double_to_cpu(bb->ideal_dram_bw_after_urgent_percent);
-		dcn3_0_soc.max_request_size_bytes =
-				le32_to_cpu(bb->max_request_size_bytes);
-		dcn3_0_soc.dram_channel_width_bytes =
-				le32_to_cpu(bb->dram_channel_width_bytes);
-		dcn3_0_soc.fabric_datapath_to_dcn_data_return_bytes =
-				le32_to_cpu(bb->fabric_datapath_to_dcn_data_return_bytes);
-		dcn3_0_soc.dcn_downspread_percent =
-				fixed16_to_double_to_cpu(bb->dcn_downspread_percent);
-		dcn3_0_soc.downspread_percent =
-				fixed16_to_double_to_cpu(bb->downspread_percent);
-		dcn3_0_soc.dram_page_open_time_ns =
-				fixed16_to_double_to_cpu(bb->dram_page_open_time_ns);
-		dcn3_0_soc.dram_rw_turnaround_time_ns =
-				fixed16_to_double_to_cpu(bb->dram_rw_turnaround_time_ns);
-		dcn3_0_soc.dram_return_buffer_per_channel_bytes =
-				le32_to_cpu(bb->dram_return_buffer_per_channel_bytes);
-		dcn3_0_soc.round_trip_ping_latency_dcfclk_cycles =
-				le32_to_cpu(bb->round_trip_ping_latency_dcfclk_cycles);
-		dcn3_0_soc.urgent_out_of_order_return_per_channel_bytes =
-				le32_to_cpu(bb->urgent_out_of_order_return_per_channel_bytes);
-		dcn3_0_soc.channel_interleave_bytes =
-				le32_to_cpu(bb->channel_interleave_bytes);
-		dcn3_0_soc.num_banks =
-				le32_to_cpu(bb->num_banks);
-		dcn3_0_soc.num_chans =
-				le32_to_cpu(bb->num_chans);
-		dcn3_0_soc.gpuvm_min_page_size_bytes =
-				le32_to_cpu(bb->vmm_page_size_bytes);
-		dcn3_0_soc.dram_clock_change_latency_us =
-				fixed16_to_double_to_cpu(bb->dram_clock_change_latency_us);
-		dcn3_0_soc.writeback_dram_clock_change_latency_us =
-				fixed16_to_double_to_cpu(bb->writeback_dram_clock_change_latency_us);
-		dcn3_0_soc.return_bus_width_bytes =
-				le32_to_cpu(bb->return_bus_width_bytes);
-		dcn3_0_soc.dispclk_dppclk_vco_speed_mhz =
-				le32_to_cpu(bb->dispclk_dppclk_vco_speed_mhz);
-		dcn3_0_soc.xfc_bus_transport_time_us =
-				le32_to_cpu(bb->xfc_bus_transport_time_us);
-		dcn3_0_soc.xfc_xbuf_latency_tolerance_us =
-				le32_to_cpu(bb->xfc_xbuf_latency_tolerance_us);
-		dcn3_0_soc.use_urgent_burst_bw =
-				le32_to_cpu(bb->use_urgent_burst_bw);
-		dcn3_0_soc.num_states =
-				le32_to_cpu(bb->num_states);
-
-		for (i = 0; i < dcn3_0_soc.num_states; i++) {
-			dcn3_0_soc.clock_limits[i].state =
-					le32_to_cpu(bb->clock_limits[i].state);
-			dcn3_0_soc.clock_limits[i].dcfclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].dcfclk_mhz);
-			dcn3_0_soc.clock_limits[i].fabricclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].fabricclk_mhz);
-			dcn3_0_soc.clock_limits[i].dispclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].dispclk_mhz);
-			dcn3_0_soc.clock_limits[i].dppclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].dppclk_mhz);
-			dcn3_0_soc.clock_limits[i].phyclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].phyclk_mhz);
-			dcn3_0_soc.clock_limits[i].socclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].socclk_mhz);
-			dcn3_0_soc.clock_limits[i].dscclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].dscclk_mhz);
-			dcn3_0_soc.clock_limits[i].dram_speed_mts =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].dram_speed_mts);
-		}
 	}
 
 	loaded_ip->max_num_otg = pool->base.res_cap->num_timing_generator;
 	loaded_ip->max_num_dpp = pool->base.pipe_count;
 	loaded_ip->clamp_min_dcfclk = dc->config.clamp_min_dcfclk;
-	dcn20_patch_bounding_box(dc, loaded_bb);
 
-	if (!bb && dc->ctx->dc_bios->funcs->get_soc_bb_info) {
+	DC_FP_START();
+	dcn20_patch_bounding_box(dc, loaded_bb);
+	DC_FP_END();
+
+	if (dc->ctx->dc_bios->funcs->get_soc_bb_info) {
 		struct bp_soc_bb_info bb_info = {0};
 
 		if (dc->ctx->dc_bios->funcs->get_soc_bb_info(dc->ctx->dc_bios, &bb_info) == BP_RESULT_OK) {
@@ -1873,11 +1782,21 @@ static bool dcn30_split_stream_for_mpc_or_odm(
 			sec_pipe->next_odm_pipe = pri_pipe->next_odm_pipe;
 			sec_pipe->next_odm_pipe->prev_odm_pipe = sec_pipe;
 		}
+		if (pri_pipe->top_pipe && pri_pipe->top_pipe->next_odm_pipe) {
+			pri_pipe->top_pipe->next_odm_pipe->bottom_pipe = sec_pipe;
+			sec_pipe->top_pipe = pri_pipe->top_pipe->next_odm_pipe;
+		}
+		if (pri_pipe->bottom_pipe && pri_pipe->bottom_pipe->next_odm_pipe) {
+			pri_pipe->bottom_pipe->next_odm_pipe->top_pipe = sec_pipe;
+			sec_pipe->bottom_pipe = pri_pipe->bottom_pipe->next_odm_pipe;
+		}
 		pri_pipe->next_odm_pipe = sec_pipe;
 		sec_pipe->prev_odm_pipe = pri_pipe;
-		ASSERT(sec_pipe->top_pipe == NULL);
 
-		sec_pipe->stream_res.opp = pool->opps[pipe_idx];
+		if (!sec_pipe->top_pipe)
+			sec_pipe->stream_res.opp = pool->opps[pipe_idx];
+		else
+			sec_pipe->stream_res.opp = sec_pipe->top_pipe->stream_res.opp;
 		if (sec_pipe->stream->timing.flags.DSC == 1) {
 			dcn20_acquire_dsc(dc, res_ctx, &sec_pipe->stream_res.dsc, pipe_idx);
 			ASSERT(sec_pipe->stream_res.dsc);
@@ -1941,7 +1860,7 @@ static struct pipe_ctx *dcn30_find_split_pipe(
 	return pipe;
 }
 
-static bool dcn30_internal_validate_bw(
+noinline bool dcn30_internal_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
@@ -1961,7 +1880,8 @@ static bool dcn30_internal_validate_bw(
 	if (!pipes)
 		return false;
 
-	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes);
+	dc->res_pool->funcs->update_soc_for_wm_a(dc, context);
+	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
 
 	if (!pipe_cnt) {
 		out = true;
@@ -2005,40 +1925,28 @@ static bool dcn30_internal_validate_bw(
 
 	dml_log_mode_support_params(&context->bw_ctx.dml);
 
-	/* TODO: Need to check calculated vlevel why that fails validation of below resolutions */
-	if (context->res_ctx.pipe_ctx[0].stream != NULL) {
-		if (context->res_ctx.pipe_ctx[0].stream->timing.h_addressable == 640  && context->res_ctx.pipe_ctx[0].stream->timing.v_addressable == 480)
-			vlevel = 0;
-		if (context->res_ctx.pipe_ctx[0].stream->timing.h_addressable == 1280 && context->res_ctx.pipe_ctx[0].stream->timing.v_addressable == 800)
-			vlevel = 0;
-		if (context->res_ctx.pipe_ctx[0].stream->timing.h_addressable == 1280 && context->res_ctx.pipe_ctx[0].stream->timing.v_addressable == 768)
-			vlevel = 0;
-		if (context->res_ctx.pipe_ctx[0].stream->timing.h_addressable == 1280 && context->res_ctx.pipe_ctx[0].stream->timing.v_addressable == 1024)
-			vlevel = 0;
-		if (context->res_ctx.pipe_ctx[0].stream->timing.h_addressable == 2048 && context->res_ctx.pipe_ctx[0].stream->timing.v_addressable == 1536)
-			vlevel = 0;
-	}
-
 	if (vlevel == context->bw_ctx.dml.soc.num_states)
 		goto validate_fail;
 
-	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *mpo_pipe = pipe->bottom_pipe;
+	if (!dc->config.enable_windowed_mpo_odm) {
+		for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+			struct pipe_ctx *mpo_pipe = pipe->bottom_pipe;
 
-		if (!pipe->stream)
-			continue;
+			if (!pipe->stream)
+				continue;
 
-		/* We only support full screen mpo with ODM */
-		if (vba->ODMCombineEnabled[vba->pipe_plane[pipe_idx]] != dm_odm_combine_mode_disabled
-				&& pipe->plane_state && mpo_pipe
-				&& memcmp(&mpo_pipe->plane_res.scl_data.recout,
-						&pipe->plane_res.scl_data.recout,
-						sizeof(struct rect)) != 0) {
-			ASSERT(mpo_pipe->plane_state != pipe->plane_state);
-			goto validate_fail;
+			/* We only support full screen mpo with ODM */
+			if (vba->ODMCombineEnabled[vba->pipe_plane[pipe_idx]] != dm_odm_combine_mode_disabled
+					&& pipe->plane_state && mpo_pipe
+					&& memcmp(&mpo_pipe->plane_res.scl_data.recout,
+							&pipe->plane_res.scl_data.recout,
+							sizeof(struct rect)) != 0) {
+				ASSERT(mpo_pipe->plane_state != pipe->plane_state);
+				goto validate_fail;
+			}
+			pipe_idx++;
 		}
-		pipe_idx++;
 	}
 
 	/* merge pipes if necessary */
@@ -2189,7 +2097,7 @@ static bool dcn30_internal_validate_bw(
 	}
 
 	if (repopulate_pipes)
-		pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes);
+		pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
 	*vlevel_out = vlevel;
 	*pipe_cnt_out = pipe_cnt;
 
@@ -2203,16 +2111,28 @@ validate_out:
 	return out;
 }
 
-void dcn30_calculate_wm_and_dlg(
+/*
+ * This must be noinline to ensure anything that deals with FP registers
+ * is contained within this call; previously our compiling with hard-float
+ * would result in fp instructions being emitted outside of the boundaries
+ * of the DC_FP_START/END macros, which makes sense as the compiler has no
+ * idea about what is wrapped and what is not
+ *
+ * This is largely just a workaround to avoid breakage introduced with 5.6,
+ * ideally all fp-using code should be moved into its own file, only that
+ * should be compiled with hard-float, and all code exported from there
+ * should be strictly wrapped with DC_FP_START/END
+ */
+static noinline void dcn30_calculate_wm_and_dlg_fp(
 		struct dc *dc, struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt,
 		int vlevel)
 {
+	int maxMpcComb = context->bw_ctx.dml.vba.maxMpcComb;
 	int i, pipe_idx;
-	double dcfclk = context->bw_ctx.dml.vba.DCFCLKState[vlevel][context->bw_ctx.dml.vba.maxMpcComb];
-	bool pstate_en = context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb] !=
-			dm_dram_clock_change_unsupported;
+	double dcfclk = context->bw_ctx.dml.vba.DCFCLKState[vlevel][maxMpcComb];
+	bool pstate_en = context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][maxMpcComb] != dm_dram_clock_change_unsupported;
 
 	if (context->bw_ctx.dml.soc.min_dcfclk > dcfclk)
 		dcfclk = context->bw_ctx.dml.soc.min_dcfclk;
@@ -2249,7 +2169,7 @@ void dcn30_calculate_wm_and_dlg(
 	/* Set D:
 	 * DCFCLK: Min Required
 	 * FCLK(proportional to UCLK): 1GHz or Max
-	 * sr_enter_exit = 4, sr_exit = 2us
+	 * MALL stutter, sr_enter_exit = 4, sr_exit = 2us
 	 */
 	/*
 	if (dc->clk_mgr->bw_params->wm_table.nv_entries[WM_D].valid) {
@@ -2276,20 +2196,19 @@ void dcn30_calculate_wm_and_dlg(
 		unsigned int min_dram_speed_mts = context->bw_ctx.dml.vba.DRAMSpeed;
 		unsigned int min_dram_speed_mts_margin = 160;
 
-		context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->dummy_pstate_table[0].dummy_pstate_latency_us;
-
 		if (context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb] == dm_dram_clock_change_unsupported)
 			min_dram_speed_mts = dc->clk_mgr->bw_params->clk_table.entries[dc->clk_mgr->bw_params->clk_table.num_entries - 1].memclk_mhz * 16;
 
-		for (i = 3; i > 0; i--) {
-			if ((min_dram_speed_mts + min_dram_speed_mts_margin > dc->clk_mgr->bw_params->dummy_pstate_table[i].dram_speed_mts) &&
-					(min_dram_speed_mts - min_dram_speed_mts_margin < dc->clk_mgr->bw_params->dummy_pstate_table[i].dram_speed_mts))
-				context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->dummy_pstate_table[i].dummy_pstate_latency_us;
-		}
+		/* find largest table entry that is lower than dram speed, but lower than DPM0 still uses DPM0 */
+		for (i = 3; i > 0; i--)
+			if (min_dram_speed_mts + min_dram_speed_mts_margin > dc->clk_mgr->bw_params->dummy_pstate_table[i].dram_speed_mts)
+				break;
 
+		context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->dummy_pstate_table[i].dummy_pstate_latency_us;
 		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_C].dml_input.sr_enter_plus_exit_time_us;
 		context->bw_ctx.dml.soc.sr_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_C].dml_input.sr_exit_time_us;
 	}
+
 	context->bw_ctx.bw.dcn.watermarks.c.urgent_ns = get_wm_urgent(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.cstate_enter_plus_exit_ns = get_wm_stutter_enter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.cstate_exit_ns = get_wm_stutter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
@@ -2304,7 +2223,7 @@ void dcn30_calculate_wm_and_dlg(
 		 * calculate DLG based on dummy p-state latency, and max out the set A p-state watermark
 		 */
 		context->bw_ctx.bw.dcn.watermarks.a = context->bw_ctx.bw.dcn.watermarks.c;
-		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = 0x13FFFF;
+		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = 0;
 	} else {
 		/* Set A:
 		 * DCFCLK: Min Required
@@ -2312,11 +2231,7 @@ void dcn30_calculate_wm_and_dlg(
 		 *
 		 * Set A calculated last so that following calculations are based on Set A
 		 */
-		if (dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].valid) {
-			context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
-			context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_enter_plus_exit_time_us;
-			context->bw_ctx.dml.soc.sr_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_exit_time_us;
-		}
+		dc->res_pool->funcs->update_soc_for_wm_a(dc, context);
 		context->bw_ctx.bw.dcn.watermarks.a.urgent_ns = get_wm_urgent(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns = get_wm_stutter_enter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns = get_wm_stutter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
@@ -2351,12 +2266,34 @@ void dcn30_calculate_wm_and_dlg(
 		pipe_idx++;
 	}
 
+	DC_FP_START();
 	dcn20_calculate_dlg_params(dc, context, pipes, pipe_cnt, vlevel);
+	DC_FP_END();
 
 	if (!pstate_en)
 		/* Restore full p-state latency */
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
 				dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
+}
+
+void dcn30_update_soc_for_wm_a(struct dc *dc, struct dc_state *context)
+{
+	if (dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].valid) {
+		context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
+		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_enter_plus_exit_time_us;
+		context->bw_ctx.dml.soc.sr_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_exit_time_us;
+	}
+}
+
+void dcn30_calculate_wm_and_dlg(
+		struct dc *dc, struct dc_state *context,
+		display_e2e_pipe_params_st *pipes,
+		int pipe_cnt,
+		int vlevel)
+{
+	DC_FP_START();
+	dcn30_calculate_wm_and_dlg_fp(dc, context, pipes, pipe_cnt, vlevel);
+	DC_FP_END();
 }
 
 bool dcn30_validate_bandwidth(struct dc *dc,
@@ -2374,7 +2311,9 @@ bool dcn30_validate_bandwidth(struct dc *dc,
 
 	BW_VAL_TRACE_COUNT();
 
+	DC_FP_START();
 	out = dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate);
+	DC_FP_END();
 
 	if (pipe_cnt == 0)
 		goto validate_out;
@@ -2389,7 +2328,9 @@ bool dcn30_validate_bandwidth(struct dc *dc,
 		goto validate_out;
 	}
 
+	DC_FP_START();
 	dc->res_pool->funcs->calculate_wm_and_dlg(dc, context, pipes, pipe_cnt, vlevel);
+	DC_FP_END();
 
 	BW_VAL_TRACE_END_WATERMARKS();
 
@@ -2410,16 +2351,28 @@ validate_out:
 	return out;
 }
 
-static void get_optimal_dcfclk_fclk_for_uclk(unsigned int uclk_mts,
-                                                       unsigned int *optimal_dcfclk,
-                                                       unsigned int *optimal_fclk)
+/*
+ * This must be noinline to ensure anything that deals with FP registers
+ * is contained within this call; previously our compiling with hard-float
+ * would result in fp instructions being emitted outside of the boundaries
+ * of the DC_FP_START/END macros, which makes sense as the compiler has no
+ * idea about what is wrapped and what is not
+ *
+ * This is largely just a workaround to avoid breakage introduced with 5.6,
+ * ideally all fp-using code should be moved into its own file, only that
+ * should be compiled with hard-float, and all code exported from there
+ * should be strictly wrapped with DC_FP_START/END
+ */
+static noinline void dcn30_get_optimal_dcfclk_fclk_for_uclk(unsigned int uclk_mts,
+		unsigned int *optimal_dcfclk,
+		unsigned int *optimal_fclk)
 {
        double bw_from_dram, bw_from_dram1, bw_from_dram2;
 
        bw_from_dram1 = uclk_mts * dcn3_0_soc.num_chans *
-                       dcn3_0_soc.dram_channel_width_bytes * (dcn3_0_soc.max_avg_dram_bw_use_normal_percent / 100);
+		dcn3_0_soc.dram_channel_width_bytes * (dcn3_0_soc.max_avg_dram_bw_use_normal_percent / 100);
        bw_from_dram2 = uclk_mts * dcn3_0_soc.num_chans *
-                       dcn3_0_soc.dram_channel_width_bytes * (dcn3_0_soc.max_avg_sdp_bw_use_normal_percent / 100);
+		dcn3_0_soc.dram_channel_width_bytes * (dcn3_0_soc.max_avg_sdp_bw_use_normal_percent / 100);
 
        bw_from_dram = (bw_from_dram1 < bw_from_dram2) ? bw_from_dram1 : bw_from_dram2;
 
@@ -2456,16 +2409,37 @@ void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params
 	dc->dml.soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
 
 	if (bw_params->clk_table.entries[0].memclk_mhz) {
+		int max_dcfclk_mhz = 0, max_dispclk_mhz = 0, max_dppclk_mhz = 0, max_phyclk_mhz = 0;
 
-		if (bw_params->clk_table.entries[1].dcfclk_mhz > dcfclk_sta_targets[num_dcfclk_sta_targets-1]) {
+		for (i = 0; i < MAX_NUM_DPM_LVL; i++) {
+			if (bw_params->clk_table.entries[i].dcfclk_mhz > max_dcfclk_mhz)
+				max_dcfclk_mhz = bw_params->clk_table.entries[i].dcfclk_mhz;
+			if (bw_params->clk_table.entries[i].dispclk_mhz > max_dispclk_mhz)
+				max_dispclk_mhz = bw_params->clk_table.entries[i].dispclk_mhz;
+			if (bw_params->clk_table.entries[i].dppclk_mhz > max_dppclk_mhz)
+				max_dppclk_mhz = bw_params->clk_table.entries[i].dppclk_mhz;
+			if (bw_params->clk_table.entries[i].phyclk_mhz > max_phyclk_mhz)
+				max_phyclk_mhz = bw_params->clk_table.entries[i].phyclk_mhz;
+		}
+
+		if (!max_dcfclk_mhz)
+			max_dcfclk_mhz = dcn3_0_soc.clock_limits[0].dcfclk_mhz;
+		if (!max_dispclk_mhz)
+			max_dispclk_mhz = dcn3_0_soc.clock_limits[0].dispclk_mhz;
+		if (!max_dppclk_mhz)
+			max_dppclk_mhz = dcn3_0_soc.clock_limits[0].dppclk_mhz;
+		if (!max_phyclk_mhz)
+			max_phyclk_mhz = dcn3_0_soc.clock_limits[0].phyclk_mhz;
+
+		if (max_dcfclk_mhz > dcfclk_sta_targets[num_dcfclk_sta_targets-1]) {
 			// If max DCFCLK is greater than the max DCFCLK STA target, insert into the DCFCLK STA target array
-			dcfclk_sta_targets[num_dcfclk_sta_targets] = bw_params->clk_table.entries[1].dcfclk_mhz;
+			dcfclk_sta_targets[num_dcfclk_sta_targets] = max_dcfclk_mhz;
 			num_dcfclk_sta_targets++;
-		} else if (bw_params->clk_table.entries[1].dcfclk_mhz < dcfclk_sta_targets[num_dcfclk_sta_targets-1]) {
+		} else if (max_dcfclk_mhz < dcfclk_sta_targets[num_dcfclk_sta_targets-1]) {
 			// If max DCFCLK is less than the max DCFCLK STA target, cap values and remove duplicates
 			for (i = 0; i < num_dcfclk_sta_targets; i++) {
-				if (dcfclk_sta_targets[i] > bw_params->clk_table.entries[1].dcfclk_mhz) {
-					dcfclk_sta_targets[i] = bw_params->clk_table.entries[1].dcfclk_mhz;
+				if (dcfclk_sta_targets[i] > max_dcfclk_mhz) {
+					dcfclk_sta_targets[i] = max_dcfclk_mhz;
 					break;
 				}
 			}
@@ -2477,8 +2451,10 @@ void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params
 
 		// Calculate optimal dcfclk for each uclk
 		for (i = 0; i < num_uclk_states; i++) {
-			get_optimal_dcfclk_fclk_for_uclk(bw_params->clk_table.entries[i].memclk_mhz * 16,
+			DC_FP_START();
+			dcn30_get_optimal_dcfclk_fclk_for_uclk(bw_params->clk_table.entries[i].memclk_mhz * 16,
 					&optimal_dcfclk_for_uclk[i], NULL);
+			DC_FP_END();
 			if (optimal_dcfclk_for_uclk[i] < bw_params->clk_table.entries[0].dcfclk_mhz) {
 				optimal_dcfclk_for_uclk[i] = bw_params->clk_table.entries[0].dcfclk_mhz;
 			}
@@ -2503,7 +2479,7 @@ void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params
 				dcfclk_mhz[num_states] = dcfclk_sta_targets[i];
 				dram_speed_mts[num_states++] = optimal_uclk_for_dcfclk_sta_targets[i++];
 			} else {
-				if (j < num_uclk_states && optimal_dcfclk_for_uclk[j] <= bw_params->clk_table.entries[1].dcfclk_mhz) {
+				if (j < num_uclk_states && optimal_dcfclk_for_uclk[j] <= max_dcfclk_mhz) {
 					dcfclk_mhz[num_states] = optimal_dcfclk_for_uclk[j];
 					dram_speed_mts[num_states++] = bw_params->clk_table.entries[j++].memclk_mhz * 16;
 				} else {
@@ -2518,11 +2494,12 @@ void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params
 		}
 
 		while (j < num_uclk_states && num_states < DC__VOLTAGE_STATES &&
-				optimal_dcfclk_for_uclk[j] <= bw_params->clk_table.entries[1].dcfclk_mhz) {
+				optimal_dcfclk_for_uclk[j] <= max_dcfclk_mhz) {
 			dcfclk_mhz[num_states] = optimal_dcfclk_for_uclk[j];
 			dram_speed_mts[num_states++] = bw_params->clk_table.entries[j++].memclk_mhz * 16;
 		}
 
+		dcn3_0_soc.num_states = num_states;
 		for (i = 0; i < dcn3_0_soc.num_states; i++) {
 			dcn3_0_soc.clock_limits[i].state = i;
 			dcn3_0_soc.clock_limits[i].dcfclk_mhz = dcfclk_mhz[i];
@@ -2530,9 +2507,9 @@ void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params
 			dcn3_0_soc.clock_limits[i].dram_speed_mts = dram_speed_mts[i];
 
 			/* Fill all states with max values of all other clocks */
-			dcn3_0_soc.clock_limits[i].dispclk_mhz = bw_params->clk_table.entries[1].dispclk_mhz;
-			dcn3_0_soc.clock_limits[i].dppclk_mhz  = bw_params->clk_table.entries[1].dppclk_mhz;
-			dcn3_0_soc.clock_limits[i].phyclk_mhz  = bw_params->clk_table.entries[1].phyclk_mhz;
+			dcn3_0_soc.clock_limits[i].dispclk_mhz = max_dispclk_mhz;
+			dcn3_0_soc.clock_limits[i].dppclk_mhz  = max_dppclk_mhz;
+			dcn3_0_soc.clock_limits[i].phyclk_mhz  = max_phyclk_mhz;
 			dcn3_0_soc.clock_limits[i].dtbclk_mhz = dcn3_0_soc.clock_limits[0].dtbclk_mhz;
 			/* These clocks cannot come from bw_params, always fill from dcn3_0_soc[1] */
 			/* FCLK, PHYCLK_D18, SOCCLK, DSCCLK */
@@ -2545,11 +2522,6 @@ void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params
 		if (dc->current_state)
 			dml_init_instance(&dc->current_state->bw_ctx.dml, &dcn3_0_soc, &dcn3_0_ip, DML_PROJECT_DCN30);
 	}
-
-	/* re-init DML with updated bb */
-	dml_init_instance(&dc->dml, &dcn3_0_soc, &dcn3_0_ip, DML_PROJECT_DCN30);
-	if (dc->current_state)
-		dml_init_instance(&dc->current_state->bw_ctx.dml, &dcn3_0_soc, &dcn3_0_ip, DML_PROJECT_DCN30);
 }
 
 static const struct resource_funcs dcn30_res_pool_funcs = {
@@ -2558,6 +2530,7 @@ static const struct resource_funcs dcn30_res_pool_funcs = {
 	.panel_cntl_create = dcn30_panel_cntl_create,
 	.validate_bandwidth = dcn30_validate_bandwidth,
 	.calculate_wm_and_dlg = dcn30_calculate_wm_and_dlg,
+	.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
 	.populate_dml_pipes = dcn30_populate_dml_pipes_from_context,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
@@ -2572,6 +2545,19 @@ static const struct resource_funcs dcn30_res_pool_funcs = {
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 };
 
+#define CTX ctx
+
+#define REG(reg_name) \
+	(DCN_BASE.instance[0].segment[mm ## reg_name ## _BASE_IDX] + mm ## reg_name)
+
+static uint32_t read_pipe_fuses(struct dc_context *ctx)
+{
+	uint32_t value = REG_READ(CC_DC_PIPE_DIS);
+	/* Support for max 6 pipes */
+	value = value & 0x3f;
+	return value;
+}
+
 static bool dcn30_resource_construct(
 	uint8_t num_virtual_links,
 	struct dc *dc,
@@ -2580,6 +2566,18 @@ static bool dcn30_resource_construct(
 	int i;
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data init_data;
+	struct ddc_service_init_data ddc_init_data = {0};
+	uint32_t pipe_fuses = read_pipe_fuses(ctx);
+	uint32_t num_pipes = 0;
+
+	if (!(pipe_fuses == 0 || pipe_fuses == 0x3e)) {
+		BREAK_TO_DEBUGGER();
+		dm_error("DC: Unexpected fuse recipe for navi2x !\n");
+		/* fault to single pipe */
+		pipe_fuses = 0x3e;
+	}
+
+	DC_FP_START();
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -2595,10 +2593,18 @@ static bool dcn30_resource_construct(
 	pool->base.mpcc_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 600;
 	dc->caps.i2c_speed_in_khz = 100;
+	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a not applied by default*/
 	dc->caps.max_cursor_size = 256;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
+	dc->caps.mall_size_per_mem_channel = 8;
+	/* total size = mall per channel * num channels * 1024 * 1024 */
+	dc->caps.mall_size_total = dc->caps.mall_size_per_mem_channel * dc->ctx->dc_bios->vram_info.num_chans * 1048576;
+	dc->caps.cursor_cache_size = dc->caps.max_cursor_size * dc->caps.max_cursor_size * 8;
 
 	dc->caps.max_slave_planes = 1;
+	dc->caps.max_slave_yuv_planes = 1;
+	dc->caps.max_slave_rgb_planes = 1;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.extended_aux_timeout_support = true;
@@ -2616,6 +2622,7 @@ static bool dcn30_resource_construct(
 	dc->caps.color.dpp.dgam_rom_caps.hlg = 1;
 	dc->caps.color.dpp.post_csc = 1;
 	dc->caps.color.dpp.gamma_corr = 1;
+	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;
@@ -2636,6 +2643,28 @@ static bool dcn30_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
+
+	dc->caps.hdmi_frl_pcon_support = true;
+
+	/* read VBIOS LTTPR caps */
+	{
+		if (ctx->dc_bios->funcs->get_lttpr_caps) {
+			enum bp_result bp_query_result;
+			uint8_t is_vbios_lttpr_enable = 0;
+
+			bp_query_result = ctx->dc_bios->funcs->get_lttpr_caps(ctx->dc_bios, &is_vbios_lttpr_enable);
+			dc->caps.vbios_lttpr_enable = (bp_query_result == BP_RESULT_OK) && !!is_vbios_lttpr_enable;
+		}
+
+		if (ctx->dc_bios->funcs->get_lttpr_interop) {
+			enum bp_result bp_query_result;
+			uint8_t is_vbios_interop_enabled = 0;
+
+			bp_query_result = ctx->dc_bios->funcs->get_lttpr_interop(ctx->dc_bios,
+					&is_vbios_interop_enabled);
+			dc->caps.vbios_lttpr_aware = (bp_query_result == BP_RESULT_OK) && !!is_vbios_interop_enabled;
+		}
+	}
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
@@ -2703,6 +2732,15 @@ static bool dcn30_resource_construct(
 
 	/* PP Lib and SMU interfaces */
 	init_soc_bounding_box(dc, pool);
+
+	num_pipes = dcn3_0_ip.max_num_dpp;
+
+	for (i = 0; i < dcn3_0_ip.max_num_dpp; i++)
+		if (pipe_fuses & 1 << i)
+			num_pipes--;
+
+	dcn3_0_ip.max_num_dpp = num_pipes;
+	dcn3_0_ip.max_num_otg = num_pipes;
 
 	dml_init_instance(&dc->dml, &dcn3_0_soc, &dcn3_0_ip, DML_PROJECT_DCN30);
 
@@ -2845,10 +2883,24 @@ static bool dcn30_resource_construct(
 
 	dc->cap_funcs = cap_funcs;
 
+	if (dc->ctx->dc_bios->fw_info.oem_i2c_present) {
+		ddc_init_data.ctx = dc->ctx;
+		ddc_init_data.link = NULL;
+		ddc_init_data.id.id = dc->ctx->dc_bios->fw_info.oem_i2c_obj_id;
+		ddc_init_data.id.enum_id = 0;
+		ddc_init_data.id.type = OBJECT_TYPE_GENERIC;
+		pool->base.oem_device = dal_ddc_service_create(&ddc_init_data);
+	} else {
+		pool->base.oem_device = NULL;
+	}
+
+	DC_FP_END();
+
 	return true;
 
 create_fail:
 
+	DC_FP_END();
 	dcn30_resource_destruct(pool);
 
 	return false;

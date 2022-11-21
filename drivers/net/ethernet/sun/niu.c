@@ -2603,7 +2603,7 @@ static int niu_init_link(struct niu *np)
 	return 0;
 }
 
-static void niu_set_primary_mac(struct niu *np, unsigned char *addr)
+static void niu_set_primary_mac(struct niu *np, const unsigned char *addr)
 {
 	u16 reg0 = addr[4] << 8 | addr[5];
 	u16 reg1 = addr[2] << 8 | addr[3];
@@ -3929,8 +3929,6 @@ static void niu_xmac_interrupt(struct niu *np)
 		mp->rx_frags += RXMAC_FRAG_CNT_COUNT;
 	if (val & XRXMAC_STATUS_RXMULTF_CNT_EXP)
 		mp->rx_mcasts += RXMAC_MC_FRM_CNT_COUNT;
-	if (val & XRXMAC_STATUS_RXBCAST_CNT_EXP)
-		mp->rx_bcasts += RXMAC_BC_FRM_CNT_COUNT;
 	if (val & XRXMAC_STATUS_RXBCAST_CNT_EXP)
 		mp->rx_bcasts += RXMAC_BC_FRM_CNT_COUNT;
 	if (val & XRXMAC_STATUS_RXHIST1_CNT_EXP)
@@ -6388,7 +6386,7 @@ static int niu_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	if (!netif_running(dev))
 		return 0;
@@ -7911,7 +7909,7 @@ static int niu_ldg_assign_ldn(struct niu *np, struct niu_parent *parent,
 		 * won't get any interrupts and that's painful to debug.
 		 */
 		if (nr64(LDG_NUM(ldn)) != ldg) {
-			dev_err(np->device, "Port %u, mis-matched LDG assignment for ldn %d, should be %d is %llu\n",
+			dev_err(np->device, "Port %u, mismatched LDG assignment for ldn %d, should be %d is %llu\n",
 				np->port, ldn, ldg,
 				(unsigned long long) nr64(LDG_NUM(ldn)));
 			return -EINVAL;
@@ -8146,10 +8144,10 @@ static int niu_pci_vpd_scan_props(struct niu *np, u32 start, u32 end)
 				     "VPD_SCAN: Reading in property [%s] len[%d]\n",
 				     namebuf, prop_len);
 			for (i = 0; i < prop_len; i++) {
-				err = niu_pci_eeprom_read(np, off + i);
-				if (err >= 0)
-					*prop_buf = err;
-				++prop_buf;
+				err =  niu_pci_eeprom_read(np, off + i);
+				if (err < 0)
+					return err;
+				*prop_buf++ = err;
 			}
 		}
 
@@ -8160,14 +8158,14 @@ static int niu_pci_vpd_scan_props(struct niu *np, u32 start, u32 end)
 }
 
 /* ESPC_PIO_EN_ENABLE must be set */
-static void niu_pci_vpd_fetch(struct niu *np, u32 start)
+static int niu_pci_vpd_fetch(struct niu *np, u32 start)
 {
 	u32 offset;
 	int err;
 
 	err = niu_pci_eeprom_read16_swp(np, start + 1);
 	if (err < 0)
-		return;
+		return err;
 
 	offset = err + 3;
 
@@ -8176,12 +8174,14 @@ static void niu_pci_vpd_fetch(struct niu *np, u32 start)
 		u32 end;
 
 		err = niu_pci_eeprom_read(np, here);
+		if (err < 0)
+			return err;
 		if (err != 0x90)
-			return;
+			return -EINVAL;
 
 		err = niu_pci_eeprom_read16_swp(np, here + 1);
 		if (err < 0)
-			return;
+			return err;
 
 		here = start + offset + 3;
 		end = start + offset + err;
@@ -8189,9 +8189,13 @@ static void niu_pci_vpd_fetch(struct niu *np, u32 start)
 		offset += err;
 
 		err = niu_pci_vpd_scan_props(np, here, end);
-		if (err < 0 || err == 1)
-			return;
+		if (err < 0)
+			return err;
+		/* ret == 1 is not an error */
+		if (err == 1)
+			return 0;
 	}
+	return 0;
 }
 
 /* ESPC_PIO_EN_ENABLE must be set */
@@ -8308,6 +8312,7 @@ static void niu_pci_vpd_validate(struct niu *np)
 {
 	struct net_device *dev = np->dev;
 	struct niu_vpd *vpd = &np->vpd;
+	u8 addr[ETH_ALEN];
 	u8 val8;
 
 	if (!is_valid_ether_addr(&vpd->local_mac[0])) {
@@ -8340,17 +8345,20 @@ static void niu_pci_vpd_validate(struct niu *np)
 		return;
 	}
 
-	memcpy(dev->dev_addr, vpd->local_mac, ETH_ALEN);
+	ether_addr_copy(addr, vpd->local_mac);
 
-	val8 = dev->dev_addr[5];
-	dev->dev_addr[5] += np->port;
-	if (dev->dev_addr[5] < val8)
-		dev->dev_addr[4]++;
+	val8 = addr[5];
+	addr[5] += np->port;
+	if (addr[5] < val8)
+		addr[4]++;
+
+	eth_hw_addr_set(dev, addr);
 }
 
 static int niu_pci_probe_sprom(struct niu *np)
 {
 	struct net_device *dev = np->dev;
+	u8 addr[ETH_ALEN];
 	int len, i;
 	u64 val, sum;
 	u8 val8;
@@ -8442,27 +8450,29 @@ static int niu_pci_probe_sprom(struct niu *np)
 	val = nr64(ESPC_MAC_ADDR0);
 	netif_printk(np, probe, KERN_DEBUG, np->dev,
 		     "SPROM: MAC_ADDR0[%08llx]\n", (unsigned long long)val);
-	dev->dev_addr[0] = (val >>  0) & 0xff;
-	dev->dev_addr[1] = (val >>  8) & 0xff;
-	dev->dev_addr[2] = (val >> 16) & 0xff;
-	dev->dev_addr[3] = (val >> 24) & 0xff;
+	addr[0] = (val >>  0) & 0xff;
+	addr[1] = (val >>  8) & 0xff;
+	addr[2] = (val >> 16) & 0xff;
+	addr[3] = (val >> 24) & 0xff;
 
 	val = nr64(ESPC_MAC_ADDR1);
 	netif_printk(np, probe, KERN_DEBUG, np->dev,
 		     "SPROM: MAC_ADDR1[%08llx]\n", (unsigned long long)val);
-	dev->dev_addr[4] = (val >>  0) & 0xff;
-	dev->dev_addr[5] = (val >>  8) & 0xff;
+	addr[4] = (val >>  0) & 0xff;
+	addr[5] = (val >>  8) & 0xff;
 
-	if (!is_valid_ether_addr(&dev->dev_addr[0])) {
+	if (!is_valid_ether_addr(addr)) {
 		dev_err(np->device, "SPROM MAC address invalid [ %pM ]\n",
-			dev->dev_addr);
+			addr);
 		return -EINVAL;
 	}
 
-	val8 = dev->dev_addr[5];
-	dev->dev_addr[5] += np->port;
-	if (dev->dev_addr[5] < val8)
-		dev->dev_addr[4]++;
+	val8 = addr[5];
+	addr[5] += np->port;
+	if (addr[5] < val8)
+		addr[4]++;
+
+	eth_hw_addr_set(dev, addr);
 
 	val = nr64(ESPC_MOD_STR_LEN);
 	netif_printk(np, probe, KERN_DEBUG, np->dev,
@@ -9204,7 +9214,7 @@ static int niu_get_of_props(struct niu *np)
 	else
 		dp = pci_device_to_OF_node(np->pdev);
 
-	phy_type = of_get_property(dp, "phy-type", &prop_len);
+	phy_type = of_get_property(dp, "phy-type", NULL);
 	if (!phy_type) {
 		netdev_err(dev, "%pOF: OF node lacks phy-type property\n", dp);
 		return -EINVAL;
@@ -9231,19 +9241,19 @@ static int niu_get_of_props(struct niu *np)
 		netdev_err(dev, "%pOF: OF MAC address prop len (%d) is wrong\n",
 			   dp, prop_len);
 	}
-	memcpy(dev->dev_addr, mac_addr, dev->addr_len);
+	eth_hw_addr_set(dev, mac_addr);
 	if (!is_valid_ether_addr(&dev->dev_addr[0])) {
 		netdev_err(dev, "%pOF: OF MAC address is invalid\n", dp);
 		netdev_err(dev, "%pOF: [ %pM ]\n", dp, dev->dev_addr);
 		return -EINVAL;
 	}
 
-	model = of_get_property(dp, "model", &prop_len);
+	model = of_get_property(dp, "model", NULL);
 
 	if (model)
 		strcpy(np->vpd.model, model);
 
-	if (of_find_property(dp, "hot-swappable-phy", &prop_len)) {
+	if (of_find_property(dp, "hot-swappable-phy", NULL)) {
 		np->flags |= (NIU_FLAGS_10G | NIU_FLAGS_FIBER |
 			NIU_FLAGS_HOTPLUG_PHY);
 	}
@@ -9282,8 +9292,11 @@ static int niu_get_invariants(struct niu *np)
 		offset = niu_pci_vpd_offset(np);
 		netif_printk(np, probe, KERN_DEBUG, np->dev,
 			     "%s() VPD offset [%08x]\n", __func__, offset);
-		if (offset)
-			niu_pci_vpd_fetch(np, offset);
+		if (offset) {
+			err = niu_pci_vpd_fetch(np, offset);
+			if (err < 0)
+				return err;
+		}
 		nw64(ESPC_PIO_EN, 0);
 
 		if (np->flags & NIU_FLAGS_VPD_VALID) {
@@ -9661,7 +9674,7 @@ static const struct net_device_ops niu_netdev_ops = {
 	.ndo_set_rx_mode	= niu_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= niu_set_mac_addr,
-	.ndo_do_ioctl		= niu_ioctl,
+	.ndo_eth_ioctl		= niu_ioctl,
 	.ndo_tx_timeout		= niu_tx_timeout,
 	.ndo_change_mtu		= niu_change_mtu,
 };
@@ -9715,7 +9728,6 @@ static int niu_pci_init_one(struct pci_dev *pdev,
 	struct net_device *dev;
 	struct niu *np;
 	int err;
-	u64 dma_mask;
 
 	niu_driver_version();
 
@@ -9770,18 +9782,11 @@ static int niu_pci_init_one(struct pci_dev *pdev,
 		PCI_EXP_DEVCTL_FERE | PCI_EXP_DEVCTL_URRE |
 		PCI_EXP_DEVCTL_RELAX_EN);
 
-	dma_mask = DMA_BIT_MASK(44);
-	err = pci_set_dma_mask(pdev, dma_mask);
-	if (!err) {
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(44));
+	if (!err)
 		dev->features |= NETIF_F_HIGHDMA;
-		err = pci_set_consistent_dma_mask(pdev, dma_mask);
-		if (err) {
-			dev_err(&pdev->dev, "Unable to obtain 44 bit DMA for consistent allocations, aborting\n");
-			goto err_out_release_parent;
-		}
-	}
 	if (err) {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev, "No usable DMA configuration, aborting\n");
 			goto err_out_release_parent;

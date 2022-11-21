@@ -179,17 +179,36 @@
  * the pud: the pud entry is never bad, always exists, and can't be set or
  * cleared.
  */
-#define pud_none(pud)		(0)
-#define pud_bad(pud)		(0)
-#define pud_present(pud)	(1)
-#define pud_clear(pudp)		do { } while (0)
-#define set_pud(pud,pudp)	do { } while (0)
+static inline int pud_none(pud_t pud)
+{
+	return 0;
+}
+
+static inline int pud_bad(pud_t pud)
+{
+	return 0;
+}
+
+static inline int pud_present(pud_t pud)
+{
+	return 1;
+}
+
+static inline void pud_clear(pud_t *pudp)
+{
+}
+
+static inline void set_pud(pud_t *pudp, pud_t pud)
+{
+}
 
 static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
 {
 	return (pmd_t *)pud;
 }
 #define pmd_offset pmd_offset
+
+#define pmd_pfn(pmd)		(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
 
 #define pmd_large(pmd)		(pmd_val(pmd) & 2)
 #define pmd_leaf(pmd)		(pmd_val(pmd) & 2)

@@ -43,7 +43,7 @@ static void si_ih_enable_interrupts(struct amdgpu_device *adev)
 	WREG32(IH_RB_CNTL, ih_rb_cntl);
 	adev->irq.ih.enabled = true;
 }
-  
+
 static void si_ih_disable_interrupts(struct amdgpu_device *adev)
 {
 	u32 ih_rb_cntl = RREG32(IH_RB_CNTL);
@@ -175,8 +175,7 @@ static int si_ih_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_irq_fini(adev);
-	amdgpu_ih_ring_fini(adev, &adev->irq.ih);
+	amdgpu_irq_fini_sw(adev);
 
 	return 0;
 }

@@ -38,6 +38,8 @@ Required properties:
 
 Optional properties:
   - ceva,broken-gen2: limit to gen1 speed instead of gen2.
+  - phys: phandle for the PHY device
+  - resets: phandle to the reset controller for the SATA IP
 
 Examples:
 	ahci@fd0c0000 {
@@ -56,4 +58,6 @@ Examples:
 		ceva,p1-burst-params = /bits/ 8 <0x0A 0x08 0x4A 0x06>;
 		ceva,p1-retry-params = /bits/ 16 <0x0216 0x7F06>;
 		ceva,broken-gen2;
+		phys = <&psgtr 1 PHY_TYPE_SATA 1 1>;
+		resets = <&zynqmp_reset ZYNQMP_RESET_SATA>;
 	};

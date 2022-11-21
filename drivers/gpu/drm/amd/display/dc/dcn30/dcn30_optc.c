@@ -73,16 +73,23 @@ void optc3_lock_doublebuffer_enable(struct timing_generator *optc)
 		OTG_H_BLANK_END, &h_blank_end);
 
 	REG_UPDATE_2(OTG_GLOBAL_CONTROL1,
-		MASTER_UPDATE_LOCK_DB_START_Y, v_blank_start,
-		MASTER_UPDATE_LOCK_DB_END_Y, v_blank_end);
+		MASTER_UPDATE_LOCK_DB_START_Y, v_blank_start - 1,
+		MASTER_UPDATE_LOCK_DB_END_Y, v_blank_start);
 	REG_UPDATE_2(OTG_GLOBAL_CONTROL4,
-		DIG_UPDATE_POSITION_X, 20,
-		DIG_UPDATE_POSITION_Y, v_blank_start);
+		DIG_UPDATE_POSITION_X, h_blank_start - 180 - 1,
+		DIG_UPDATE_POSITION_Y, v_blank_start - 1);
+	// there is a DIG_UPDATE_VCOUNT_MODE and it is 0.
+
 	REG_UPDATE_3(OTG_GLOBAL_CONTROL0,
 		MASTER_UPDATE_LOCK_DB_START_X, h_blank_start - 200 - 1,
-		MASTER_UPDATE_LOCK_DB_END_X, h_blank_end,
+		MASTER_UPDATE_LOCK_DB_END_X, h_blank_start - 180,
 		MASTER_UPDATE_LOCK_DB_EN, 1);
 	REG_UPDATE(OTG_GLOBAL_CONTROL2, GLOBAL_UPDATE_LOCK_EN, 1);
+
+	REG_SET_3(OTG_VUPDATE_KEEPOUT, 0,
+		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_START_OFFSET, 0,
+		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_END_OFFSET, 100,
+		OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN, 1);
 }
 
 void optc3_lock_doublebuffer_disable(struct timing_generator *optc)
@@ -97,7 +104,7 @@ void optc3_lock_doublebuffer_disable(struct timing_generator *optc)
 		MASTER_UPDATE_LOCK_DB_END_Y, 0);
 
 	REG_UPDATE(OTG_GLOBAL_CONTROL2, GLOBAL_UPDATE_LOCK_EN, 0);
-	REG_UPDATE(OTG_GLOBAL_CONTROL0, MASTER_UPDATE_LOCK_DB_EN, 1);
+	REG_UPDATE(OTG_GLOBAL_CONTROL0, MASTER_UPDATE_LOCK_DB_EN, 0);
 }
 
 void optc3_lock(struct timing_generator *optc)
@@ -109,11 +116,9 @@ void optc3_lock(struct timing_generator *optc)
 	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
 		OTG_MASTER_UPDATE_LOCK, 1);
 
-	/* Should be fast, status does not update on maximus */
-	if (optc->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
-		REG_WAIT(OTG_MASTER_UPDATE_LOCK,
-				UPDATE_LOCK_STATUS, 1,
-				1, 10);
+	REG_WAIT(OTG_MASTER_UPDATE_LOCK,
+			UPDATE_LOCK_STATUS, 1,
+			1, 10);
 }
 
 void optc3_set_out_mux(struct timing_generator *optc, enum otg_out_mux_dest dest)
@@ -309,11 +314,13 @@ static struct timing_generator_funcs dcn30_tg_funcs = {
 		.enable_crtc_reset = optc1_enable_crtc_reset,
 		.disable_reset_trigger = optc1_disable_reset_trigger,
 		.lock = optc3_lock,
+		.is_locked = optc1_is_locked,
 		.unlock = optc1_unlock,
 		.lock_doublebuffer_enable = optc3_lock_doublebuffer_enable,
 		.lock_doublebuffer_disable = optc3_lock_doublebuffer_disable,
 		.enable_optc_clock = optc1_enable_optc_clock,
 		.set_drr = optc1_set_drr,
+		.get_last_used_drr_vtotal = optc2_get_last_used_drr_vtotal,
 		.set_static_screen_control = optc1_set_static_screen_control,
 		.program_stereo = optc1_program_stereo,
 		.is_stereo_left_eye = optc1_is_stereo_left_eye,
@@ -325,6 +332,7 @@ static struct timing_generator_funcs dcn30_tg_funcs = {
 		.get_crc = optc1_get_crc,
 		.configure_crc = optc2_configure_crc,
 		.set_dsc_config = optc3_set_dsc_config,
+		.get_dsc_status = optc2_get_dsc_status,
 		.set_dwb_source = NULL,
 		.set_odm_bypass = optc3_set_odm_bypass,
 		.set_odm_combine = optc3_set_odm_combine,
@@ -350,7 +358,7 @@ void dcn30_timing_generator_init(struct optc *optc1)
 	optc1->min_h_blank = 32;
 	optc1->min_v_blank = 3;
 	optc1->min_v_blank_interlace = 5;
-	optc1->min_h_sync_width = 8;
+	optc1->min_h_sync_width = 4;
 	optc1->min_v_sync_width = 1;
 }
 

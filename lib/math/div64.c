@@ -18,9 +18,11 @@
  * or by defining a preprocessor macro in arch/include/asm/div64.h.
  */
 
+#include <linux/bitops.h>
 #include <linux/export.h>
-#include <linux/kernel.h>
+#include <linux/math.h>
 #include <linux/math64.h>
+#include <linux/log2.h>
 
 /* Not needed on 64bit architectures */
 #if BITS_PER_LONG == 32
@@ -230,4 +232,5 @@ u64 mul_u64_u64_div_u64(u64 a, u64 b, u64 c)
 
 	return res + div64_u64(a * b, c);
 }
+EXPORT_SYMBOL(mul_u64_u64_div_u64);
 #endif

@@ -1,0 +1,228 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/microchip,sparx5-switch.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip Sparx5 Ethernet switch controller
+
+maintainers:
+  - Steen Hegelund <steen.hegelund@microchip.com>
+  - Lars Povlsen <lars.povlsen@microchip.com>
+
+description: |
+  The SparX-5 Enterprise Ethernet switch family provides a rich set of
+  Enterprise switching features such as advanced TCAM-based VLAN and
+  QoS processing enabling delivery of differentiated services, and
+  security through TCAM-based frame processing using versatile content
+  aware processor (VCAP).
+
+  IPv4/IPv6 Layer 3 (L3) unicast and multicast routing is supported
+  with up to 18K IPv4/9K IPv6 unicast LPM entries and up to 9K IPv4/3K
+  IPv6 (S,G) multicast groups.
+
+  L3 security features include source guard and reverse path
+  forwarding (uRPF) tasks. Additional L3 features include VRF-Lite and
+  IP tunnels (IP over GRE/IP).
+
+  The SparX-5 switch family targets managed Layer 2 and Layer 3
+  equipment in SMB, SME, and Enterprise where high port count
+  1G/2.5G/5G/10G switching with 10G/25G aggregation links is required.
+
+properties:
+  $nodename:
+    pattern: "^switch@[0-9a-f]+$"
+
+  compatible:
+    const: microchip,sparx5-switch
+
+  reg:
+    items:
+      - description: cpu target
+      - description: devices target
+      - description: general control block target
+
+  reg-names:
+    items:
+      - const: cpu
+      - const: devices
+      - const: gcb
+
+  interrupts:
+    minItems: 1
+    items:
+      - description: register based extraction
+      - description: frame dma based extraction
+      - description: ptp interrupt
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: xtr
+      - const: fdma
+      - const: ptp
+
+  resets:
+    items:
+      - description: Reset controller used for switch core reset (soft reset)
+
+  reset-names:
+    items:
+      - const: switch
+
+  mac-address: true
+
+  ethernet-ports:
+    type: object
+    patternProperties:
+      "^port@[0-9a-f]+$":
+        type: object
+
+        properties:
+          '#address-cells':
+            const: 1
+          '#size-cells':
+            const: 0
+
+          reg:
+            description: Switch port number
+
+          phys:
+            maxItems: 1
+            description:
+              phandle of a Ethernet SerDes PHY.  This defines which SerDes
+              instance will handle the Ethernet traffic.
+
+          phy-mode:
+            description:
+              This specifies the interface used by the Ethernet SerDes towards
+              the PHY or SFP.
+
+          microchip,bandwidth:
+            description: Specifies bandwidth in Mbit/s allocated to the port.
+            $ref: "/schemas/types.yaml#/definitions/uint32"
+            maximum: 25000
+
+          phy-handle:
+            description:
+              phandle of a Ethernet PHY.  This is optional and if provided it
+              points to the cuPHY used by the Ethernet SerDes.
+
+          sfp:
+            description:
+              phandle of an SFP.  This is optional and used when not specifying
+              a cuPHY.  It points to the SFP node that describes the SFP used by
+              the Ethernet SerDes.
+
+          managed: true
+
+          microchip,sd-sgpio:
+            description:
+              Index of the ports Signal Detect SGPIO in the set of 384 SGPIOs
+              This is optional, and only needed if the default used index is
+              is not correct.
+            $ref: "/schemas/types.yaml#/definitions/uint32"
+            minimum: 0
+            maximum: 383
+
+        required:
+          - reg
+          - phys
+          - phy-mode
+          - microchip,bandwidth
+
+        oneOf:
+          - required:
+              - phy-handle
+          - required:
+              - sfp
+              - managed
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - interrupt-names
+  - resets
+  - reset-names
+  - ethernet-ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    switch: switch@600000000 {
+      compatible = "microchip,sparx5-switch";
+      reg =  <0 0x401000>,
+             <0x10004000 0x7fc000>,
+             <0x11010000 0xaf0000>;
+      reg-names = "cpu", "devices", "gcb";
+      interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+      interrupt-names = "xtr";
+      resets = <&reset 0>;
+      reset-names = "switch";
+      ethernet-ports {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        port0: port@0 {
+          reg = <0>;
+          microchip,bandwidth = <1000>;
+          phys = <&serdes 13>;
+          phy-handle = <&phy0>;
+          phy-mode = "qsgmii";
+        };
+        /* ... */
+        /* Then the 25G interfaces */
+        port60: port@60 {
+          reg = <60>;
+          microchip,bandwidth = <25000>;
+          phys = <&serdes 29>;
+          phy-mode = "10gbase-r";
+          sfp = <&sfp_eth60>;
+          managed = "in-band-status";
+          microchip,sd-sgpio = <365>;
+        };
+        port61: port@61 {
+          reg = <61>;
+          microchip,bandwidth = <25000>;
+          phys = <&serdes 30>;
+          phy-mode = "10gbase-r";
+          sfp = <&sfp_eth61>;
+          managed = "in-band-status";
+          microchip,sd-sgpio = <369>;
+        };
+        port62: port@62 {
+          reg = <62>;
+          microchip,bandwidth = <25000>;
+          phys = <&serdes 31>;
+          phy-mode = "10gbase-r";
+          sfp = <&sfp_eth62>;
+          managed = "in-band-status";
+          microchip,sd-sgpio = <373>;
+        };
+        port63: port@63 {
+          reg = <63>;
+          microchip,bandwidth = <25000>;
+          phys = <&serdes 32>;
+          phy-mode = "10gbase-r";
+          sfp = <&sfp_eth63>;
+          managed = "in-band-status";
+          microchip,sd-sgpio = <377>;
+        };
+        /* Finally the Management interface */
+        port64: port@64 {
+          reg = <64>;
+          microchip,bandwidth = <1000>;
+          phys = <&serdes 0>;
+          phy-handle = <&phy64>;
+          phy-mode = "sgmii";
+          mac-address = [ 00 00 00 01 02 03 ];
+        };
+      };
+    };
+
+...
+#  vim: set ts=2 sw=2 sts=2 tw=80 et cc=80 ft=yaml :

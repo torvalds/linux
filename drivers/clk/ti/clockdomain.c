@@ -97,7 +97,7 @@ void omap2_clkops_disable_clkdm(struct clk_hw *hw)
 
 /**
  * omap2_init_clk_clkdm - look up a clockdomain name, store pointer in clk
- * @clk: OMAP clock struct ptr to use
+ * @hw: Pointer to clk_hw_omap used to obtain OMAP clock struct ptr to use
  *
  * Convert a clockdomain name stored in a struct clk 'clk' into a
  * clockdomain pointer, and save it into the struct clk.  Intended to be
@@ -131,7 +131,7 @@ static void __init of_ti_clockdomain_setup(struct device_node *node)
 {
 	struct clk *clk;
 	struct clk_hw *clk_hw;
-	const char *clkdm_name = node->name;
+	const char *clkdm_name = ti_dt_clk_name(node);
 	int i;
 	unsigned int num_clks;
 

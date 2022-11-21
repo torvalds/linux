@@ -42,30 +42,7 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 
-#include <drm/drm_hashtab.h>
-#include <drm/ttm/ttm_memory.h>
-
-/**
- * enum ttm_ref_type
- *
- * Describes what type of reference a ref object holds.
- *
- * TTM_REF_USAGE is a simple refcount on a base object.
- *
- * TTM_REF_SYNCCPU_READ is a SYNCCPU_READ reference on a
- * buffer object.
- *
- * TTM_REF_SYNCCPU_WRITE is a SYNCCPU_WRITE reference on a
- * buffer object.
- *
- */
-
-enum ttm_ref_type {
-	TTM_REF_USAGE,
-	TTM_REF_SYNCCPU_READ,
-	TTM_REF_SYNCCPU_WRITE,
-	TTM_REF_NUM
-};
+#include "vmwgfx_hashtab.h"
 
 /**
  * enum ttm_object_type
@@ -77,7 +54,6 @@ enum ttm_ref_type {
 
 enum ttm_object_type {
 	ttm_fence_type,
-	ttm_buffer_type,
 	ttm_lock_type,
 	ttm_prime_type,
 	ttm_driver_type0 = 256,
@@ -128,8 +104,6 @@ struct ttm_base_object {
 	struct ttm_object_file *tfile;
 	struct kref refcount;
 	void (*refcount_release) (struct ttm_base_object **base);
-	void (*ref_obj_release) (struct ttm_base_object *base,
-				 enum ttm_ref_type ref_type);
 	u32 handle;
 	enum ttm_object_type object_type;
 	u32 shareable;
@@ -178,11 +152,7 @@ extern int ttm_base_object_init(struct ttm_object_file *tfile,
 				bool shareable,
 				enum ttm_object_type type,
 				void (*refcount_release) (struct ttm_base_object
-							  **),
-				void (*ref_obj_release) (struct ttm_base_object
-							 *,
-							 enum ttm_ref_type
-							 ref_type));
+							  **));
 
 /**
  * ttm_base_object_lookup
@@ -246,11 +216,8 @@ extern void ttm_base_object_unref(struct ttm_base_object **p_base);
  */
 extern int ttm_ref_object_add(struct ttm_object_file *tfile,
 			      struct ttm_base_object *base,
-			      enum ttm_ref_type ref_type, bool *existed,
+			      bool *existed,
 			      bool require_existed);
-
-extern bool ttm_ref_object_exists(struct ttm_object_file *tfile,
-				  struct ttm_base_object *base);
 
 /**
  * ttm_ref_object_base_unref
@@ -264,8 +231,7 @@ extern bool ttm_ref_object_exists(struct ttm_object_file *tfile,
  * will be unreferenced.
  */
 extern int ttm_ref_object_base_unref(struct ttm_object_file *tfile,
-				     unsigned long key,
-				     enum ttm_ref_type ref_type);
+				     unsigned long key);
 
 /**
  * ttm_object_file_init - initialize a struct ttm_object file
@@ -296,7 +262,6 @@ extern void ttm_object_file_release(struct ttm_object_file **p_tfile);
 /**
  * ttm_object device init - initialize a struct ttm_object_device
  *
- * @mem_glob: struct ttm_mem_global for memory accounting.
  * @hash_order: Order of hash table used to hash the base objects.
  * @ops: DMA buf ops for prime objects of this device.
  *
@@ -305,8 +270,7 @@ extern void ttm_object_file_release(struct ttm_object_file **p_tfile);
  */
 
 extern struct ttm_object_device *
-ttm_object_device_init(struct ttm_mem_global *mem_glob,
-		       unsigned int hash_order,
+ttm_object_device_init(unsigned int hash_order,
 		       const struct dma_buf_ops *ops);
 
 /**
@@ -331,10 +295,7 @@ extern int ttm_prime_object_init(struct ttm_object_file *tfile,
 				 bool shareable,
 				 enum ttm_object_type type,
 				 void (*refcount_release)
-				 (struct ttm_base_object **),
-				 void (*ref_obj_release)
-				 (struct ttm_base_object *,
-				  enum ttm_ref_type ref_type));
+				 (struct ttm_base_object **));
 
 static inline enum ttm_object_type
 ttm_base_object_type(struct ttm_base_object *base)
@@ -351,13 +312,6 @@ extern int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 
 #define ttm_prime_object_kfree(__obj, __prime)		\
 	kfree_rcu(__obj, __prime.base.rhead)
-
-/*
- * Extra memory required by the base object's idr storage, which is allocated
- * separately from the base object itself. We estimate an on-average 128 bytes
- * per idr.
- */
-#define TTM_OBJ_EXTRA_SIZE 128
 
 struct ttm_base_object *
 ttm_base_object_noref_lookup(struct ttm_object_file *tfile, uint32_t key);

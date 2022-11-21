@@ -77,9 +77,6 @@ asmlinkage noinstr void __noreturn doublefault_shim(void)
 	 * some way to reconstruct CR3.  We could make a credible guess based
 	 * on cpu_tlbstate, but that would be racy and would not account for
 	 * PTI.
-	 *
-	 * Instead, don't bother.  We can return through
-	 * rewind_stack_do_exit() instead.
 	 */
 	panic("cannot return from double fault\n");
 }
@@ -100,9 +97,7 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct doublefault_stack, doublefault_stack) = {
 		.ss		= __KERNEL_DS,
 		.ds		= __USER_DS,
 		.fs		= __KERNEL_PERCPU,
-#ifndef CONFIG_X86_32_LAZY_GS
-		.gs		= __KERNEL_STACK_CANARY,
-#endif
+		.gs		= 0,
 
 		.__cr3		= __pa_nodebug(swapper_pg_dir),
 	},

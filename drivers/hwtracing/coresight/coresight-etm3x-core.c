@@ -340,6 +340,10 @@ static int etm_parse_event_config(struct etm_drvdata *drvdata,
 
 	config->ctrl = attr->config;
 
+	/* Don't trace contextID when runs in non-root PID namespace */
+	if (!task_is_in_init_pid_ns(current))
+		config->ctrl &= ~ETMCR_CTXID_SIZE;
+
 	/*
 	 * Possible to have cores with PTM (supports ret stack) and ETM
 	 * (never has ret stack) on the same SoC. So if we have a request
@@ -358,10 +362,11 @@ static int etm_enable_hw(struct etm_drvdata *drvdata)
 	int i, rc;
 	u32 etmcr;
 	struct etm_config *config = &drvdata->config;
+	struct coresight_device *csdev = drvdata->csdev;
 
 	CS_UNLOCK(drvdata->base);
 
-	rc = coresight_claim_device_unlocked(drvdata->base);
+	rc = coresight_claim_device_unlocked(csdev);
 	if (rc)
 		goto done;
 
@@ -566,6 +571,7 @@ static void etm_disable_hw(void *info)
 	int i;
 	struct etm_drvdata *drvdata = info;
 	struct etm_config *config = &drvdata->config;
+	struct coresight_device *csdev = drvdata->csdev;
 
 	CS_UNLOCK(drvdata->base);
 	etm_set_prog(drvdata);
@@ -577,7 +583,7 @@ static void etm_disable_hw(void *info)
 		config->cntr_val[i] = etm_readl(drvdata, ETMCNTVRn(i));
 
 	etm_set_pwrdwn(drvdata);
-	coresight_disclaim_device_unlocked(drvdata->base);
+	coresight_disclaim_device_unlocked(csdev);
 
 	CS_LOCK(drvdata->base);
 
@@ -602,7 +608,7 @@ static void etm_disable_perf(struct coresight_device *csdev)
 	 * power down the tracer.
 	 */
 	etm_set_pwrdwn(drvdata);
-	coresight_disclaim_device_unlocked(drvdata->base);
+	coresight_disclaim_device_unlocked(csdev);
 
 	CS_LOCK(drvdata->base);
 }
@@ -839,6 +845,7 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 		return PTR_ERR(base);
 
 	drvdata->base = base;
+	desc.access = CSDEV_ACCESS_IOMEM(base);
 
 	spin_lock_init(&drvdata->spinlock);
 
@@ -902,14 +909,14 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 	return 0;
 }
 
-static void __exit clear_etmdrvdata(void *info)
+static void clear_etmdrvdata(void *info)
 {
 	int cpu = *(int *)info;
 
 	etmdrvdata[cpu] = NULL;
 }
 
-static int __exit etm_remove(struct amba_device *adev)
+static void etm_remove(struct amba_device *adev)
 {
 	struct etm_drvdata *drvdata = dev_get_drvdata(&adev->dev);
 
@@ -932,8 +939,6 @@ static int __exit etm_remove(struct amba_device *adev)
 	cpus_read_unlock();
 
 	coresight_unregister(drvdata->csdev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

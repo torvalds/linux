@@ -509,8 +509,7 @@ static irqreturn_t max3420_vbus_handler(int irq, void *dev_id)
 			     ? USB_STATE_POWERED : USB_STATE_NOTATTACHED);
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	if (udc->thread_task &&
-	    udc->thread_task->state != TASK_RUNNING)
+	if (udc->thread_task)
 		wake_up_process(udc->thread_task);
 
 	return IRQ_HANDLED;
@@ -529,8 +528,7 @@ static irqreturn_t max3420_irq_handler(int irq, void *dev_id)
 	}
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	if (udc->thread_task &&
-	    udc->thread_task->state != TASK_RUNNING)
+	if (udc->thread_task)
 		wake_up_process(udc->thread_task);
 
 	return IRQ_HANDLED;
@@ -1046,22 +1044,26 @@ static int max3420_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 
 static int max3420_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
-	struct max3420_req *t, *req = to_max3420_req(_req);
+	struct max3420_req *t = NULL;
+	struct max3420_req *req = to_max3420_req(_req);
+	struct max3420_req *iter;
 	struct max3420_ep *ep = to_max3420_ep(_ep);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ep->lock, flags);
 
 	/* Pluck the descriptor from queue */
-	list_for_each_entry(t, &ep->queue, queue)
-		if (t == req) {
-			list_del_init(&req->queue);
-			break;
-		}
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (iter != req)
+			continue;
+		list_del_init(&req->queue);
+		t = iter;
+		break;
+	}
 
 	spin_unlock_irqrestore(&ep->lock, flags);
 
-	if (t == req)
+	if (t)
 		max3420_req_done(req, -ECONNRESET);
 
 	return 0;
@@ -1093,8 +1095,7 @@ static int max3420_wakeup(struct usb_gadget *gadget)
 
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	if (udc->thread_task &&
-	    udc->thread_task->state != TASK_RUNNING)
+	if (udc->thread_task)
 		wake_up_process(udc->thread_task);
 	return ret;
 }
@@ -1117,8 +1118,7 @@ static int max3420_udc_start(struct usb_gadget *gadget,
 	udc->todo |= UDC_START;
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	if (udc->thread_task &&
-	    udc->thread_task->state != TASK_RUNNING)
+	if (udc->thread_task)
 		wake_up_process(udc->thread_task);
 
 	return 0;
@@ -1137,8 +1137,7 @@ static int max3420_udc_stop(struct usb_gadget *gadget)
 	udc->todo |= UDC_START;
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	if (udc->thread_task &&
-	    udc->thread_task->state != TASK_RUNNING)
+	if (udc->thread_task)
 		wake_up_process(udc->thread_task);
 
 	return 0;
@@ -1260,12 +1259,14 @@ static int max3420_probe(struct spi_device *spi)
 	err = devm_request_irq(&spi->dev, irq, max3420_irq_handler, 0,
 			       "max3420", udc);
 	if (err < 0)
-		return err;
+		goto del_gadget;
 
 	udc->thread_task = kthread_create(max3420_thread, udc,
 					  "max3420-thread");
-	if (IS_ERR(udc->thread_task))
-		return PTR_ERR(udc->thread_task);
+	if (IS_ERR(udc->thread_task)) {
+		err = PTR_ERR(udc->thread_task);
+		goto del_gadget;
+	}
 
 	irq = of_irq_get_byname(spi->dev.of_node, "vbus");
 	if (irq <= 0) { /* no vbus irq implies self-powered design */
@@ -1285,13 +1286,17 @@ static int max3420_probe(struct spi_device *spi)
 		err = devm_request_irq(&spi->dev, irq,
 				       max3420_vbus_handler, 0, "vbus", udc);
 		if (err < 0)
-			return err;
+			goto del_gadget;
 	}
 
 	return 0;
+
+del_gadget:
+	usb_del_gadget_udc(&udc->gadget);
+	return err;
 }
 
-static int max3420_remove(struct spi_device *spi)
+static void max3420_remove(struct spi_device *spi)
 {
 	struct max3420_udc *udc = spi_get_drvdata(spi);
 	unsigned long flags;
@@ -1303,8 +1308,6 @@ static int max3420_remove(struct spi_device *spi)
 	kthread_stop(udc->thread_task);
 
 	spin_unlock_irqrestore(&udc->lock, flags);
-
-	return 0;
 }
 
 static const struct of_device_id max3420_udc_of_match[] = {

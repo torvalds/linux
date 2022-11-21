@@ -347,6 +347,7 @@ static struct acpi_pptt_cache *acpi_find_cache_node(struct acpi_table_header *ta
  * @this_leaf: Kernel cache info structure being updated
  * @found_cache: The PPTT node describing this cache instance
  * @cpu_node: A unique reference to describe this cache instance
+ * @revision: The revision of the PPTT table
  *
  * The ACPI spec implies that the fields in the cache structures are used to
  * extend and correct the information probed from the hardware. Lets only
@@ -356,8 +357,11 @@ static struct acpi_pptt_cache *acpi_find_cache_node(struct acpi_table_header *ta
  */
 static void update_cache_properties(struct cacheinfo *this_leaf,
 				    struct acpi_pptt_cache *found_cache,
-				    struct acpi_pptt_processor *cpu_node)
+				    struct acpi_pptt_processor *cpu_node,
+				    u8 revision)
 {
+	struct acpi_pptt_cache_v1* found_cache_v1;
+
 	this_leaf->fw_token = cpu_node;
 	if (found_cache->flags & ACPI_PPTT_SIZE_PROPERTY_VALID)
 		this_leaf->size = found_cache->size;
@@ -405,6 +409,13 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 	if (this_leaf->type == CACHE_TYPE_NOCACHE &&
 	    found_cache->flags & ACPI_PPTT_CACHE_TYPE_VALID)
 		this_leaf->type = CACHE_TYPE_UNIFIED;
+
+	if (revision >= 3 && (found_cache->flags & ACPI_PPTT_CACHE_ID_VALID)) {
+		found_cache_v1 = ACPI_ADD_PTR(struct acpi_pptt_cache_v1,
+	                                      found_cache, sizeof(struct acpi_pptt_cache));
+		this_leaf->id = found_cache_v1->cache_id;
+		this_leaf->attributes |= CACHE_ID;
+	}
 }
 
 static void cache_setup_acpi_cpu(struct acpi_table_header *table,
@@ -425,9 +436,8 @@ static void cache_setup_acpi_cpu(struct acpi_table_header *table,
 						   &cpu_node);
 		pr_debug("found = %p %p\n", found_cache, cpu_node);
 		if (found_cache)
-			update_cache_properties(this_leaf,
-						found_cache,
-						cpu_node);
+			update_cache_properties(this_leaf, found_cache,
+			                        cpu_node, table->revision);
 
 		index++;
 	}
@@ -734,6 +744,73 @@ int find_acpi_cpu_topology_package(unsigned int cpu)
 {
 	return find_acpi_cpu_topology_tag(cpu, PPTT_ABORT_PACKAGE,
 					  ACPI_PPTT_PHYSICAL_PACKAGE);
+}
+
+/**
+ * find_acpi_cpu_topology_cluster() - Determine a unique CPU cluster value
+ * @cpu: Kernel logical CPU number
+ *
+ * Determine a topology unique cluster ID for the given CPU/thread.
+ * This ID can then be used to group peers, which will have matching ids.
+ *
+ * The cluster, if present is the level of topology above CPUs. In a
+ * multi-thread CPU, it will be the level above the CPU, not the thread.
+ * It may not exist in single CPU systems. In simple multi-CPU systems,
+ * it may be equal to the package topology level.
+ *
+ * Return: -ENOENT if the PPTT doesn't exist, the CPU cannot be found
+ * or there is no toplogy level above the CPU..
+ * Otherwise returns a value which represents the package for this CPU.
+ */
+
+int find_acpi_cpu_topology_cluster(unsigned int cpu)
+{
+	struct acpi_table_header *table;
+	acpi_status status;
+	struct acpi_pptt_processor *cpu_node, *cluster_node;
+	u32 acpi_cpu_id;
+	int retval;
+	int is_thread;
+
+	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
+	if (ACPI_FAILURE(status)) {
+		acpi_pptt_warn_missing();
+		return -ENOENT;
+	}
+
+	acpi_cpu_id = get_acpi_id_for_cpu(cpu);
+	cpu_node = acpi_find_processor_node(table, acpi_cpu_id);
+	if (cpu_node == NULL || !cpu_node->parent) {
+		retval = -ENOENT;
+		goto put_table;
+	}
+
+	is_thread = cpu_node->flags & ACPI_PPTT_ACPI_PROCESSOR_IS_THREAD;
+	cluster_node = fetch_pptt_node(table, cpu_node->parent);
+	if (cluster_node == NULL) {
+		retval = -ENOENT;
+		goto put_table;
+	}
+	if (is_thread) {
+		if (!cluster_node->parent) {
+			retval = -ENOENT;
+			goto put_table;
+		}
+		cluster_node = fetch_pptt_node(table, cluster_node->parent);
+		if (cluster_node == NULL) {
+			retval = -ENOENT;
+			goto put_table;
+		}
+	}
+	if (cluster_node->flags & ACPI_PPTT_ACPI_PROCESSOR_ID_VALID)
+		retval = cluster_node->acpi_processor_id;
+	else
+		retval = ACPI_PTR_DIFF(cluster_node, table);
+
+put_table:
+	acpi_put_table(table);
+
+	return retval;
 }
 
 /**

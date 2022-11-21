@@ -141,7 +141,7 @@ static void falcon_gpe_enable(void)
 	unsigned int freq;
 	unsigned int status;
 
-	/* if if the clock is already enabled */
+	/* if the clock is already enabled */
 	status = sysctl_r32(SYSCTL_SYS1, SYS1_INFRAC);
 	if (status & (1 << (GPPC_OFFSET + 1)))
 		return;
@@ -167,6 +167,8 @@ static inline void clkdev_add_sys(const char *dev, unsigned int module,
 {
 	struct clk *clk = kzalloc(sizeof(struct clk), GFP_KERNEL);
 
+	if (!clk)
+		return;
 	clk->cl.dev_id = dev;
 	clk->cl.con_id = NULL;
 	clk->cl.clk = clk;

@@ -25,7 +25,7 @@
 #define PROCSPEECH '\r'
 
 static int synth_probe(struct spk_synth *synth);
-static void accent_release(void);
+static void accent_release(struct spk_synth *synth);
 static const char *synth_immediate(struct spk_synth *synth, const char *buf);
 static void do_catch_up(struct spk_synth *synth);
 static void synth_flush(struct spk_synth *synth);
@@ -247,7 +247,7 @@ static void synth_flush(struct spk_synth *synth)
 static int synth_probe(struct spk_synth *synth)
 {
 	unsigned int port_val = 0;
-	int i = 0;
+	int i;
 
 	pr_info("Probing for %s.\n", synth->long_name);
 	if (port_forced) {
@@ -294,7 +294,7 @@ static int synth_probe(struct spk_synth *synth)
 	return 0;
 }
 
-static void accent_release(void)
+static void accent_release(struct spk_synth *synth)
 {
 	spk_stop_serial_interrupt();
 	if (speakup_info.port_tts)

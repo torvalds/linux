@@ -197,6 +197,7 @@ static const struct of_device_id ti_edac_of_match[] = {
 	{ .compatible = "ti,emif-dra7xx", .data = (void *)EMIF_TYPE_DRA7 },
 	{},
 };
+MODULE_DEVICE_TABLE(of, ti_edac_of_match);
 
 static int _emif_get_id(struct device_node *node)
 {
@@ -244,11 +245,8 @@ static int ti_edac_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(dev, res);
-	if (IS_ERR(reg)) {
-		edac_printk(KERN_ERR, EDAC_MOD_NAME,
-			    "EMIF controller regs not defined\n");
+	if (IS_ERR(reg))
 		return PTR_ERR(reg);
-	}
 
 	layers[0].type = EDAC_MC_LAYER_ALL_MEM;
 	layers[0].size = 1;
@@ -280,8 +278,6 @@ static int ti_edac_probe(struct platform_device *pdev)
 	error_irq = platform_get_irq(pdev, 0);
 	if (error_irq < 0) {
 		ret = error_irq;
-		edac_printk(KERN_ERR, EDAC_MOD_NAME,
-			    "EMIF irq number not defined.\n");
 		goto err;
 	}
 

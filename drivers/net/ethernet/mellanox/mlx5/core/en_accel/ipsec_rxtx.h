@@ -57,8 +57,6 @@ struct sk_buff *mlx5e_ipsec_handle_rx_skb(struct net_device *netdev,
 					  struct sk_buff *skb, u32 *cqe_bcnt);
 
 void mlx5e_ipsec_inverse_table_init(void);
-bool mlx5e_ipsec_feature_check(struct sk_buff *skb, struct net_device *netdev,
-			       netdev_features_t features);
 void mlx5e_ipsec_set_iv_esn(struct sk_buff *skb, struct xfrm_state *x,
 			    struct xfrm_offload *xo);
 void mlx5e_ipsec_set_iv(struct sk_buff *skb, struct xfrm_state *x,
@@ -87,8 +85,70 @@ static inline bool mlx5e_ipsec_is_tx_flow(struct mlx5e_accel_tx_ipsec_state *ips
 	return ipsec_st->x;
 }
 
+static inline bool mlx5e_ipsec_eseg_meta(struct mlx5_wqe_eth_seg *eseg)
+{
+	return eseg->flow_table_metadata & cpu_to_be32(MLX5_ETH_WQE_FT_META_IPSEC);
+}
+
 void mlx5e_ipsec_tx_build_eseg(struct mlx5e_priv *priv, struct sk_buff *skb,
 			       struct mlx5_wqe_eth_seg *eseg);
+
+static inline netdev_features_t
+mlx5e_ipsec_feature_check(struct sk_buff *skb, netdev_features_t features)
+{
+	struct xfrm_offload *xo = xfrm_offload(skb);
+	struct sec_path *sp = skb_sec_path(skb);
+
+	if (sp && sp->len && xo) {
+		struct xfrm_state *x = sp->xvec[0];
+
+		if (!x || !x->xso.offload_handle)
+			goto out_disable;
+
+		if (xo->inner_ipproto) {
+			/* Cannot support tunnel packet over IPsec tunnel mode
+			 * because we cannot offload three IP header csum
+			 */
+			if (x->props.mode == XFRM_MODE_TUNNEL)
+				goto out_disable;
+
+			/* Only support UDP or TCP L4 checksum */
+			if (xo->inner_ipproto != IPPROTO_UDP &&
+			    xo->inner_ipproto != IPPROTO_TCP)
+				goto out_disable;
+		}
+
+		return features;
+
+	}
+
+	/* Disable CSUM and GSO for software IPsec */
+out_disable:
+	return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
+}
+
+static inline bool
+mlx5e_ipsec_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+				  struct mlx5_wqe_eth_seg *eseg)
+{
+	u8 inner_ipproto;
+
+	if (!mlx5e_ipsec_eseg_meta(eseg))
+		return false;
+
+	eseg->cs_flags = MLX5_ETH_WQE_L3_CSUM;
+	inner_ipproto = xfrm_offload(skb)->inner_ipproto;
+	if (inner_ipproto) {
+		eseg->cs_flags |= MLX5_ETH_WQE_L3_INNER_CSUM;
+		if (inner_ipproto == IPPROTO_TCP || inner_ipproto == IPPROTO_UDP)
+			eseg->cs_flags |= MLX5_ETH_WQE_L4_INNER_CSUM;
+	} else if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
+		eseg->cs_flags |= MLX5_ETH_WQE_L4_CSUM;
+		sq->stats->csum_partial_inner++;
+	}
+
+	return true;
+}
 #else
 static inline
 void mlx5e_ipsec_offload_handle_rx_skb(struct net_device *netdev,
@@ -96,7 +156,22 @@ void mlx5e_ipsec_offload_handle_rx_skb(struct net_device *netdev,
 				       struct mlx5_cqe64 *cqe)
 {}
 
+static inline bool mlx5e_ipsec_eseg_meta(struct mlx5_wqe_eth_seg *eseg)
+{
+	return false;
+}
+
 static inline bool mlx5_ipsec_is_rx_flow(struct mlx5_cqe64 *cqe) { return false; }
+static inline netdev_features_t
+mlx5e_ipsec_feature_check(struct sk_buff *skb, netdev_features_t features)
+{ return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK); }
+
+static inline bool
+mlx5e_ipsec_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+				  struct mlx5_wqe_eth_seg *eseg)
+{
+	return false;
+}
 #endif /* CONFIG_MLX5_EN_IPSEC */
 
 #endif /* __MLX5E_IPSEC_RXTX_H__ */

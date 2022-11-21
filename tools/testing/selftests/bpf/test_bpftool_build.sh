@@ -22,7 +22,7 @@ KDIR_ROOT_DIR=$(realpath $PWD/$SCRIPT_REL_DIR/../../../../)
 cd $KDIR_ROOT_DIR
 if [ ! -e tools/bpf/bpftool/Makefile ]; then
 	echo -e "skip:    bpftool files not found!\n"
-	exit 0
+	exit 4 # KSFT_SKIP=4
 fi
 
 ERROR=0
@@ -85,28 +85,15 @@ make_with_tmpdir() {
 	echo
 }
 
-make_doc_and_clean() {
-	echo -e "\$PWD:    $PWD"
-	echo -e "command: make -s $* doc >/dev/null"
-	RST2MAN_OPTS="--exit-status=1" make $J -s $* doc
-	if [ $? -ne 0 ] ; then
-		ERROR=1
-		printf "FAILURE: Errors or warnings when building documentation\n"
-	fi
-	(
-		if [ $# -ge 1 ] ; then
-			cd ${@: -1}
-		fi
-		make -s doc-clean
-	)
-	echo
-}
-
 echo "Trying to build bpftool"
 echo -e "... through kbuild\n"
 
 if [ -f ".config" ] ; then
 	make_and_clean tools/bpf
+	## "make tools/bpf" sets $(OUTPUT) to ...tools/bpf/runqslower for
+	## runqslower, but the default (used for the "clean" target) is .output.
+	## Let's make sure we clean runqslower's directory properly.
+	make -C tools/bpf/runqslower OUTPUT=${KDIR_ROOT_DIR}/tools/bpf/runqslower/ clean
 
 	## $OUTPUT is overwritten in kbuild Makefile, and thus cannot be passed
 	## down from toplevel Makefile to bpftool's Makefile.
@@ -162,7 +149,3 @@ make_and_clean
 make_with_tmpdir OUTPUT
 
 make_with_tmpdir O
-
-echo -e "Checking documentation build\n"
-# From tools/bpf/bpftool
-make_doc_and_clean

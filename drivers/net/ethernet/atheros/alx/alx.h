@@ -137,6 +137,8 @@ struct alx_priv {
 
 	/* protects hw.stats */
 	spinlock_t stats_lock;
+
+	struct mutex mtx;
 };
 
 extern const struct ethtool_ops alx_ethtool_ops;

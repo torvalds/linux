@@ -27,12 +27,14 @@ EXPORT_SYMBOL_GPL(nf_br_ops);
 /* net device transmit always called with BH disabled */
 netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+	struct net_bridge_mcast_port *pmctx_null = NULL;
 	struct net_bridge *br = netdev_priv(dev);
+	struct net_bridge_mcast *brmctx = &br->multicast_ctx;
 	struct net_bridge_fdb_entry *dst;
 	struct net_bridge_mdb_entry *mdst;
-	struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
 	const struct nf_br_ops *nf_ops;
 	u8 state = BR_STATE_FORWARDING;
+	struct net_bridge_vlan *vlan;
 	const unsigned char *dest;
 	u16 vid = 0;
 
@@ -45,10 +47,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
-	u64_stats_update_begin(&brstats->syncp);
-	brstats->tx_packets++;
-	brstats->tx_bytes += skb->len;
-	u64_stats_update_end(&brstats->syncp);
+	dev_sw_netstats_tx_add(dev, 1, skb->len);
 
 	br_switchdev_frame_unmark(skb);
 	BR_INPUT_SKB_CB(skb)->brdev = dev;
@@ -57,7 +56,8 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 
-	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &vid, &state))
+	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &vid,
+				&state, &vlan))
 		goto out;
 
 	if (IS_ENABLED(CONFIG_INET) &&
@@ -86,15 +86,15 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 			br_flood(br, skb, BR_PKT_MULTICAST, false, true);
 			goto out;
 		}
-		if (br_multicast_rcv(br, NULL, skb, vid)) {
+		if (br_multicast_rcv(&brmctx, &pmctx_null, vlan, skb, vid)) {
 			kfree_skb(skb);
 			goto out;
 		}
 
-		mdst = br_mdb_get(br, skb, vid);
+		mdst = br_mdb_get(brmctx, skb, vid);
 		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
-		    br_multicast_querier_exists(br, eth_hdr(skb)))
-			br_multicast_flood(mdst, skb, false, true);
+		    br_multicast_querier_exists(brmctx, eth_hdr(skb), mdst))
+			br_multicast_flood(mdst, skb, brmctx, false, true);
 		else
 			br_flood(br, skb, BR_PKT_MULTICAST, false, true);
 	} else if ((dst = br_fdb_find_rcu(br, dest, vid)) != NULL) {
@@ -119,26 +119,26 @@ static int br_dev_init(struct net_device *dev)
 	struct net_bridge *br = netdev_priv(dev);
 	int err;
 
-	br->stats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!br->stats)
+	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
+	if (!dev->tstats)
 		return -ENOMEM;
 
 	err = br_fdb_hash_init(br);
 	if (err) {
-		free_percpu(br->stats);
+		free_percpu(dev->tstats);
 		return err;
 	}
 
 	err = br_mdb_hash_init(br);
 	if (err) {
-		free_percpu(br->stats);
+		free_percpu(dev->tstats);
 		br_fdb_hash_fini(br);
 		return err;
 	}
 
 	err = br_vlan_init(br);
 	if (err) {
-		free_percpu(br->stats);
+		free_percpu(dev->tstats);
 		br_mdb_hash_fini(br);
 		br_fdb_hash_fini(br);
 		return err;
@@ -146,7 +146,7 @@ static int br_dev_init(struct net_device *dev)
 
 	err = br_multicast_init_stats(br);
 	if (err) {
-		free_percpu(br->stats);
+		free_percpu(dev->tstats);
 		br_vlan_flush(br);
 		br_mdb_hash_fini(br);
 		br_fdb_hash_fini(br);
@@ -165,7 +165,7 @@ static void br_dev_uninit(struct net_device *dev)
 	br_vlan_flush(br);
 	br_mdb_hash_fini(br);
 	br_fdb_hash_fini(br);
-	free_percpu(br->stats);
+	free_percpu(dev->tstats);
 }
 
 static int br_dev_open(struct net_device *dev)
@@ -206,15 +206,6 @@ static int br_dev_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	return 0;
-}
-
-static void br_get_stats64(struct net_device *dev,
-			   struct rtnl_link_stats64 *stats)
-{
-	struct net_bridge *br = netdev_priv(dev);
-
-	netdev_stats_to_stats64(stats, &dev->stats);
-	dev_fetch_sw_netstats(stats, br->stats);
 }
 
 static int br_change_mtu(struct net_device *dev, int new_mtu)
@@ -398,6 +389,54 @@ static int br_del_slave(struct net_device *dev, struct net_device *slave_dev)
 	return br_del_if(br, slave_dev);
 }
 
+static int br_fill_forward_path(struct net_device_path_ctx *ctx,
+				struct net_device_path *path)
+{
+	struct net_bridge_fdb_entry *f;
+	struct net_bridge_port *dst;
+	struct net_bridge *br;
+
+	if (netif_is_bridge_port(ctx->dev))
+		return -1;
+
+	br = netdev_priv(ctx->dev);
+
+	br_vlan_fill_forward_path_pvid(br, ctx, path);
+
+	f = br_fdb_find_rcu(br, ctx->daddr, path->bridge.vlan_id);
+	if (!f || !f->dst)
+		return -1;
+
+	dst = READ_ONCE(f->dst);
+	if (!dst)
+		return -1;
+
+	if (br_vlan_fill_forward_path_mode(br, dst, path))
+		return -1;
+
+	path->type = DEV_PATH_BRIDGE;
+	path->dev = dst->br->dev;
+	ctx->dev = dst->dev;
+
+	switch (path->bridge.vlan_mode) {
+	case DEV_PATH_BR_VLAN_TAG:
+		if (ctx->num_vlans >= ARRAY_SIZE(ctx->vlan))
+			return -ENOSPC;
+		ctx->vlan[ctx->num_vlans].id = path->bridge.vlan_id;
+		ctx->vlan[ctx->num_vlans].proto = path->bridge.vlan_proto;
+		ctx->num_vlans++;
+		break;
+	case DEV_PATH_BR_VLAN_UNTAG_HW:
+	case DEV_PATH_BR_VLAN_UNTAG:
+		ctx->num_vlans--;
+		break;
+	case DEV_PATH_BR_VLAN_KEEP:
+		break;
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops br_ethtool_ops = {
 	.get_drvinfo		 = br_getinfo,
 	.get_link		 = ethtool_op_get_link,
@@ -410,12 +449,12 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_init		 = br_dev_init,
 	.ndo_uninit		 = br_dev_uninit,
 	.ndo_start_xmit		 = br_dev_xmit,
-	.ndo_get_stats64	 = br_get_stats64,
+	.ndo_get_stats64	 = dev_get_tstats64,
 	.ndo_set_mac_address	 = br_set_mac_address,
 	.ndo_set_rx_mode	 = br_dev_set_multicast_list,
 	.ndo_change_rx_flags	 = br_dev_change_rx_flags,
 	.ndo_change_mtu		 = br_change_mtu,
-	.ndo_do_ioctl		 = br_dev_ioctl,
+	.ndo_siocdevprivate	 = br_dev_siocdevprivate,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_netpoll_setup	 = br_netpoll_setup,
 	.ndo_netpoll_cleanup	 = br_netpoll_cleanup,
@@ -432,6 +471,7 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_bridge_setlink	 = br_setlink,
 	.ndo_bridge_dellink	 = br_dellink,
 	.ndo_features_check	 = passthru_features_check,
+	.ndo_fill_forward_path	 = br_fill_forward_path,
 };
 
 static struct device_type br_type = {
@@ -461,8 +501,12 @@ void br_dev_setup(struct net_device *dev)
 	spin_lock_init(&br->lock);
 	INIT_LIST_HEAD(&br->port_list);
 	INIT_HLIST_HEAD(&br->fdb_list);
+	INIT_HLIST_HEAD(&br->frame_type_list);
 #if IS_ENABLED(CONFIG_BRIDGE_MRP)
-	INIT_LIST_HEAD(&br->mrp_list);
+	INIT_HLIST_HEAD(&br->mrp_list);
+#endif
+#if IS_ENABLED(CONFIG_BRIDGE_CFM)
+	INIT_HLIST_HEAD(&br->mep_list);
 #endif
 	spin_lock_init(&br->hash_lock);
 

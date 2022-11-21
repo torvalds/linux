@@ -15,6 +15,7 @@
 
 #include "bnxt_hsi.h"
 #include "bnxt.h"
+#include "bnxt_hwrm.h"
 #include "bnxt_vfr.h"
 #include "bnxt_devlink.h"
 #include "bnxt_tc.h"
@@ -27,38 +28,40 @@
 static int hwrm_cfa_vfr_alloc(struct bnxt *bp, u16 vf_idx,
 			      u16 *tx_cfa_action, u16 *rx_cfa_code)
 {
-	struct hwrm_cfa_vfr_alloc_output *resp = bp->hwrm_cmd_resp_addr;
-	struct hwrm_cfa_vfr_alloc_input req = { 0 };
+	struct hwrm_cfa_vfr_alloc_output *resp;
+	struct hwrm_cfa_vfr_alloc_input *req;
 	int rc;
 
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_VFR_ALLOC, -1, -1);
-	req.vf_id = cpu_to_le16(vf_idx);
-	sprintf(req.vfr_name, "vfr%d", vf_idx);
-
-	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	rc = hwrm_req_init(bp, req, HWRM_CFA_VFR_ALLOC);
 	if (!rc) {
-		*tx_cfa_action = le16_to_cpu(resp->tx_cfa_action);
-		*rx_cfa_code = le16_to_cpu(resp->rx_cfa_code);
-		netdev_dbg(bp->dev, "tx_cfa_action=0x%x, rx_cfa_code=0x%x",
-			   *tx_cfa_action, *rx_cfa_code);
-	} else {
-		netdev_info(bp->dev, "%s error rc=%d\n", __func__, rc);
-	}
+		req->vf_id = cpu_to_le16(vf_idx);
+		sprintf(req->vfr_name, "vfr%d", vf_idx);
 
-	mutex_unlock(&bp->hwrm_cmd_lock);
+		resp = hwrm_req_hold(bp, req);
+		rc = hwrm_req_send(bp, req);
+		if (!rc) {
+			*tx_cfa_action = le16_to_cpu(resp->tx_cfa_action);
+			*rx_cfa_code = le16_to_cpu(resp->rx_cfa_code);
+			netdev_dbg(bp->dev, "tx_cfa_action=0x%x, rx_cfa_code=0x%x",
+				   *tx_cfa_action, *rx_cfa_code);
+		}
+		hwrm_req_drop(bp, req);
+	}
+	if (rc)
+		netdev_info(bp->dev, "%s error rc=%d\n", __func__, rc);
 	return rc;
 }
 
 static int hwrm_cfa_vfr_free(struct bnxt *bp, u16 vf_idx)
 {
-	struct hwrm_cfa_vfr_free_input req = { 0 };
+	struct hwrm_cfa_vfr_free_input *req;
 	int rc;
 
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_VFR_FREE, -1, -1);
-	sprintf(req.vfr_name, "vfr%d", vf_idx);
-
-	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	rc = hwrm_req_init(bp, req, HWRM_CFA_VFR_FREE);
+	if (!rc) {
+		sprintf(req->vfr_name, "vfr%d", vf_idx);
+		rc = hwrm_req_send(bp, req);
+	}
 	if (rc)
 		netdev_info(bp->dev, "%s error rc=%d\n", __func__, rc);
 	return rc;
@@ -67,17 +70,18 @@ static int hwrm_cfa_vfr_free(struct bnxt *bp, u16 vf_idx)
 static int bnxt_hwrm_vfr_qcfg(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 			      u16 *max_mtu)
 {
-	struct hwrm_func_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
-	struct hwrm_func_qcfg_input req = {0};
+	struct hwrm_func_qcfg_output *resp;
+	struct hwrm_func_qcfg_input *req;
 	u16 mtu;
 	int rc;
 
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCFG, -1, -1);
-	req.fid = cpu_to_le16(bp->pf.vf[vf_rep->vf_idx].fw_fid);
+	rc = hwrm_req_init(bp, req, HWRM_FUNC_QCFG);
+	if (rc)
+		return rc;
 
-	mutex_lock(&bp->hwrm_cmd_lock);
-
-	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	req->fid = cpu_to_le16(bp->pf.vf[vf_rep->vf_idx].fw_fid);
+	resp = hwrm_req_hold(bp, req);
+	rc = hwrm_req_send(bp, req);
 	if (!rc) {
 		mtu = le16_to_cpu(resp->max_mtu_configured);
 		if (!mtu)
@@ -85,7 +89,7 @@ static int bnxt_hwrm_vfr_qcfg(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 		else
 			*max_mtu = mtu;
 	}
-	mutex_unlock(&bp->hwrm_cmd_lock);
+	hwrm_req_drop(bp, req);
 	return rc;
 }
 
@@ -284,8 +288,26 @@ void bnxt_vf_reps_open(struct bnxt *bp)
 	if (bp->eswitch_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV)
 		return;
 
-	for (i = 0; i < pci_num_vf(bp->pdev); i++)
-		bnxt_vf_rep_open(bp->vf_reps[i]->dev);
+	for (i = 0; i < pci_num_vf(bp->pdev); i++) {
+		/* Open the VF-Rep only if it is allocated in the FW */
+		if (bp->vf_reps[i]->tx_cfa_action != CFA_HANDLE_INVALID)
+			bnxt_vf_rep_open(bp->vf_reps[i]->dev);
+	}
+}
+
+static void __bnxt_free_one_vf_rep(struct bnxt *bp, struct bnxt_vf_rep *vf_rep)
+{
+	if (!vf_rep)
+		return;
+
+	if (vf_rep->dst) {
+		dst_release((struct dst_entry *)vf_rep->dst);
+		vf_rep->dst = NULL;
+	}
+	if (vf_rep->tx_cfa_action != CFA_HANDLE_INVALID) {
+		hwrm_cfa_vfr_free(bp, vf_rep->vf_idx);
+		vf_rep->tx_cfa_action = CFA_HANDLE_INVALID;
+	}
 }
 
 static void __bnxt_vf_reps_destroy(struct bnxt *bp)
@@ -297,11 +319,7 @@ static void __bnxt_vf_reps_destroy(struct bnxt *bp)
 	for (i = 0; i < num_vfs; i++) {
 		vf_rep = bp->vf_reps[i];
 		if (vf_rep) {
-			dst_release((struct dst_entry *)vf_rep->dst);
-
-			if (vf_rep->tx_cfa_action != CFA_HANDLE_INVALID)
-				hwrm_cfa_vfr_free(bp, vf_rep->vf_idx);
-
+			__bnxt_free_one_vf_rep(bp, vf_rep);
 			if (vf_rep->dev) {
 				/* if register_netdev failed, then netdev_ops
 				 * would have been set to NULL
@@ -350,6 +368,80 @@ void bnxt_vf_reps_destroy(struct bnxt *bp)
 	__bnxt_vf_reps_destroy(bp);
 }
 
+/* Free the VF-Reps in firmware, during firmware hot-reset processing.
+ * Note that the VF-Rep netdevs are still active (not unregistered) during
+ * this process. As the mode transition from SWITCHDEV to LEGACY happens
+ * under the rtnl_lock() this routine is safe under the rtnl_lock().
+ */
+void bnxt_vf_reps_free(struct bnxt *bp)
+{
+	u16 num_vfs = pci_num_vf(bp->pdev);
+	int i;
+
+	if (bp->eswitch_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV)
+		return;
+
+	for (i = 0; i < num_vfs; i++)
+		__bnxt_free_one_vf_rep(bp, bp->vf_reps[i]);
+}
+
+static int bnxt_alloc_vf_rep(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
+			     u16 *cfa_code_map)
+{
+	/* get cfa handles from FW */
+	if (hwrm_cfa_vfr_alloc(bp, vf_rep->vf_idx, &vf_rep->tx_cfa_action,
+			       &vf_rep->rx_cfa_code))
+		return -ENOLINK;
+
+	cfa_code_map[vf_rep->rx_cfa_code] = vf_rep->vf_idx;
+	vf_rep->dst = metadata_dst_alloc(0, METADATA_HW_PORT_MUX, GFP_KERNEL);
+	if (!vf_rep->dst)
+		return -ENOMEM;
+
+	/* only cfa_action is needed to mux a packet while TXing */
+	vf_rep->dst->u.port_info.port_id = vf_rep->tx_cfa_action;
+	vf_rep->dst->u.port_info.lower_dev = bp->dev;
+
+	return 0;
+}
+
+/* Allocate the VF-Reps in firmware, during firmware hot-reset processing.
+ * Note that the VF-Rep netdevs are still active (not unregistered) during
+ * this process. As the mode transition from SWITCHDEV to LEGACY happens
+ * under the rtnl_lock() this routine is safe under the rtnl_lock().
+ */
+int bnxt_vf_reps_alloc(struct bnxt *bp)
+{
+	u16 *cfa_code_map = bp->cfa_code_map, num_vfs = pci_num_vf(bp->pdev);
+	struct bnxt_vf_rep *vf_rep;
+	int rc, i;
+
+	if (bp->eswitch_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV)
+		return 0;
+
+	if (!cfa_code_map)
+		return -EINVAL;
+
+	for (i = 0; i < MAX_CFA_CODE; i++)
+		cfa_code_map[i] = VF_IDX_INVALID;
+
+	for (i = 0; i < num_vfs; i++) {
+		vf_rep = bp->vf_reps[i];
+		vf_rep->vf_idx = i;
+
+		rc = bnxt_alloc_vf_rep(bp, vf_rep, cfa_code_map);
+		if (rc)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	netdev_info(bp->dev, "%s error=%d\n", __func__, rc);
+	bnxt_vf_reps_free(bp);
+	return rc;
+}
+
 /* Use the OUI of the PF's perm addr and report the same mac addr
  * for the same VF-rep each time
  */
@@ -383,7 +475,7 @@ static void bnxt_vf_rep_netdev_init(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 	dev->features |= pf_dev->features;
 	bnxt_vf_rep_eth_addr_gen(bp->pf.mac_addr, vf_rep->vf_idx,
 				 dev->perm_addr);
-	ether_addr_copy(dev->dev_addr, dev->perm_addr);
+	eth_hw_addr_set(dev, dev->perm_addr);
 	/* Set VF-Rep's max-mtu to the corresponding VF's max-mtu */
 	if (!bnxt_hwrm_vfr_qcfg(bp, vf_rep, &max_mtu))
 		dev->max_mtu = max_mtu;
@@ -428,25 +520,9 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 		vf_rep->vf_idx = i;
 		vf_rep->tx_cfa_action = CFA_HANDLE_INVALID;
 
-		/* get cfa handles from FW */
-		rc = hwrm_cfa_vfr_alloc(bp, vf_rep->vf_idx,
-					&vf_rep->tx_cfa_action,
-					&vf_rep->rx_cfa_code);
-		if (rc) {
-			rc = -ENOLINK;
+		rc = bnxt_alloc_vf_rep(bp, vf_rep, cfa_code_map);
+		if (rc)
 			goto err;
-		}
-		cfa_code_map[vf_rep->rx_cfa_code] = vf_rep->vf_idx;
-
-		vf_rep->dst = metadata_dst_alloc(0, METADATA_HW_PORT_MUX,
-						 GFP_KERNEL);
-		if (!vf_rep->dst) {
-			rc = -ENOMEM;
-			goto err;
-		}
-		/* only cfa_action is needed to mux a packet while TXing */
-		vf_rep->dst->u.port_info.port_id = vf_rep->tx_cfa_action;
-		vf_rep->dst->u.port_info.lower_dev = bp->dev;
 
 		bnxt_vf_rep_netdev_init(bp, vf_rep, dev);
 		rc = register_netdev(dev);
@@ -483,44 +559,34 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
 			     struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = bnxt_get_bp_from_dl(devlink);
-	int rc = 0;
 
-	mutex_lock(&bp->sriov_lock);
 	if (bp->eswitch_mode == mode) {
 		netdev_info(bp->dev, "already in %s eswitch mode\n",
 			    mode == DEVLINK_ESWITCH_MODE_LEGACY ?
 			    "legacy" : "switchdev");
-		rc = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
 
 	switch (mode) {
 	case DEVLINK_ESWITCH_MODE_LEGACY:
 		bnxt_vf_reps_destroy(bp);
-		break;
+		return 0;
 
 	case DEVLINK_ESWITCH_MODE_SWITCHDEV:
 		if (bp->hwrm_spec_code < 0x10803) {
 			netdev_warn(bp->dev, "FW does not support SRIOV E-Switch SWITCHDEV mode\n");
-			rc = -ENOTSUPP;
-			goto done;
+			return -ENOTSUPP;
 		}
 
 		if (pci_num_vf(bp->pdev) == 0) {
 			netdev_info(bp->dev, "Enable VFs before setting switchdev mode\n");
-			rc = -EPERM;
-			goto done;
+			return -EPERM;
 		}
-		rc = bnxt_vf_reps_create(bp);
-		break;
+		return bnxt_vf_reps_create(bp);
 
 	default:
-		rc = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
-done:
-	mutex_unlock(&bp->sriov_lock);
-	return rc;
 }
 
 #endif

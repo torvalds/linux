@@ -44,17 +44,17 @@
 	leds {
 		compatible = "gpio-leds";
 
-		heartbeat {
+		led-0 {
 			label = "pine-h64:green:heartbeat";
 			gpios = <&r_pio 0 4 GPIO_ACTIVE_HIGH>; /* PL4 */
 		};
 
-		link {
+		led-1 {
 			label = "pine-h64:white:link";
 			gpios = <&r_pio 0 3 GPIO_ACTIVE_HIGH>; /* PL3 */
 		};
 
-		status {
+		led-2 {
 			label = "pine-h64:blue:status";
 			gpios = <&r_pio 0 7 GPIO_ACTIVE_HIGH>; /* PL7 */
 		};
@@ -142,6 +142,7 @@
 	vqmmc-supply = <&reg_bldo2>;
 	non-removable;
 	cap-mmc-hw-reset;
+	mmc-hs200-1_8v;
 	bus-width = <8>;
 	status = "okay";
 };
@@ -167,7 +168,7 @@
 		compatible = "x-powers,axp805", "x-powers,axp806";
 		reg = <0x36>;
 		interrupt-parent = <&r_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
 		x-powers,self-working-mode;
@@ -280,7 +281,7 @@
 		compatible = "nxp,pcf8563";
 		reg = <0x51>;
 		interrupt-parent = <&r_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_LOW>;
 		#clock-cells = <0>;
 	};
 };

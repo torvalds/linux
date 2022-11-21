@@ -1,9 +1,7 @@
 # BK Id: %F% %I% %G% %U% %#%
 #
 # This file is included by the global makefile so that you can add your own
-# architecture-specific flags and dependencies. Remember to do have actions
-# for "archclean" and "archdep" for cleaning up and making dependencies for
-# this architecture
+# architecture-specific flags and dependencies.
 #
 # This file is subject to the terms and conditions of the GNU General Public
 # License.  See the file "COPYING" in the main directory of this archive
@@ -24,6 +22,10 @@ LIBGCC 		:= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 KBUILD_CFLAGS	+= -pipe -ffixed-r10 -D__linux__
 
+all: vmlinux.bin
+
+boot := arch/$(ARCH)/boot
+
 ifeq ($(CONFIG_OPENRISC_HAVE_INST_MUL),y)
 	KBUILD_CFLAGS += $(call cc-option,-mhard-mul)
 else
@@ -38,14 +40,9 @@ endif
 
 head-y 		:= arch/openrisc/kernel/head.o
 
-core-y		+= arch/openrisc/lib/ \
-		   arch/openrisc/kernel/ \
-		   arch/openrisc/mm/
 libs-y		+= $(LIBGCC)
 
-ifneq '$(CONFIG_OPENRISC_BUILTIN_DTB)' '""'
-BUILTIN_DTB := y
-else
-BUILTIN_DTB := n
-endif
-core-$(BUILTIN_DTB) += arch/openrisc/boot/dts/
+PHONY += vmlinux.bin
+
+vmlinux.bin: vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@

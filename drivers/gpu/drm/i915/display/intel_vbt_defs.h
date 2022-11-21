@@ -162,6 +162,14 @@ struct bdb_general_features {
 	u8 dp_ssc_freq:1;	/* SSC freq for PCH attached eDP */
 	u8 dp_ssc_dongle_supported:1;
 	u8 rsvd11:2; /* finish byte */
+
+	/* bits 6 */
+	u8 tc_hpd_retry_timeout:7; /* 242 */
+	u8 rsvd12:1;
+
+	/* bits 7 */
+	u8 afc_startup_config:2;/* 249 */
+	u8 rsvd13:6;
 } __packed;
 
 /*
@@ -225,32 +233,6 @@ struct bdb_general_features {
 #define DEVICE_TYPE_DISPLAYPORT_OUTPUT	(1 << 2)
 #define DEVICE_TYPE_DIGITAL_OUTPUT	(1 << 1)
 #define DEVICE_TYPE_ANALOG_OUTPUT	(1 << 0)
-
-/*
- * Bits we care about when checking for DEVICE_TYPE_eDP. Depending on the
- * system, the other bits may or may not be set for eDP outputs.
- */
-#define DEVICE_TYPE_eDP_BITS \
-	(DEVICE_TYPE_INTERNAL_CONNECTOR |	\
-	 DEVICE_TYPE_MIPI_OUTPUT |		\
-	 DEVICE_TYPE_COMPOSITE_OUTPUT |		\
-	 DEVICE_TYPE_DUAL_CHANNEL |		\
-	 DEVICE_TYPE_LVDS_SIGNALING |		\
-	 DEVICE_TYPE_TMDS_DVI_SIGNALING |	\
-	 DEVICE_TYPE_VIDEO_SIGNALING |		\
-	 DEVICE_TYPE_DISPLAYPORT_OUTPUT |	\
-	 DEVICE_TYPE_ANALOG_OUTPUT)
-
-#define DEVICE_TYPE_DP_DUAL_MODE_BITS \
-	(DEVICE_TYPE_INTERNAL_CONNECTOR |	\
-	 DEVICE_TYPE_MIPI_OUTPUT |		\
-	 DEVICE_TYPE_COMPOSITE_OUTPUT |		\
-	 DEVICE_TYPE_LVDS_SIGNALING |		\
-	 DEVICE_TYPE_TMDS_DVI_SIGNALING |	\
-	 DEVICE_TYPE_VIDEO_SIGNALING |		\
-	 DEVICE_TYPE_DISPLAYPORT_OUTPUT |	\
-	 DEVICE_TYPE_DIGITAL_OUTPUT |		\
-	 DEVICE_TYPE_ANALOG_OUTPUT)
 
 #define DEVICE_CFG_NONE		0x00
 #define DEVICE_CFG_12BIT_DVOB	0x01
@@ -319,12 +301,23 @@ enum vbt_gmbus_ddi {
 	ICL_DDC_BUS_DDI_A = 0x1,
 	ICL_DDC_BUS_DDI_B,
 	TGL_DDC_BUS_DDI_C,
+	RKL_DDC_BUS_DDI_D = 0x3,
+	RKL_DDC_BUS_DDI_E,
 	ICL_DDC_BUS_PORT_1 = 0x4,
 	ICL_DDC_BUS_PORT_2,
 	ICL_DDC_BUS_PORT_3,
 	ICL_DDC_BUS_PORT_4,
 	TGL_DDC_BUS_PORT_5,
 	TGL_DDC_BUS_PORT_6,
+	ADLS_DDC_BUS_PORT_TC1 = 0x2,
+	ADLS_DDC_BUS_PORT_TC2,
+	ADLS_DDC_BUS_PORT_TC3,
+	ADLS_DDC_BUS_PORT_TC4,
+	ADLP_DDC_BUS_PORT_TC1 = 0x3,
+	ADLP_DDC_BUS_PORT_TC2,
+	ADLP_DDC_BUS_PORT_TC3,
+	ADLP_DDC_BUS_PORT_TC4
+
 };
 
 #define DP_AUX_A 0x40
@@ -337,10 +330,21 @@ enum vbt_gmbus_ddi {
 #define DP_AUX_H 0x80
 #define DP_AUX_I 0x90
 
-#define VBT_DP_MAX_LINK_RATE_HBR3	0
-#define VBT_DP_MAX_LINK_RATE_HBR2	1
-#define VBT_DP_MAX_LINK_RATE_HBR	2
-#define VBT_DP_MAX_LINK_RATE_LBR	3
+/* DP max link rate 216+ */
+#define BDB_216_VBT_DP_MAX_LINK_RATE_HBR3	0
+#define BDB_216_VBT_DP_MAX_LINK_RATE_HBR2	1
+#define BDB_216_VBT_DP_MAX_LINK_RATE_HBR	2
+#define BDB_216_VBT_DP_MAX_LINK_RATE_LBR	3
+
+/* DP max link rate 230+ */
+#define BDB_230_VBT_DP_MAX_LINK_RATE_DEF	0
+#define BDB_230_VBT_DP_MAX_LINK_RATE_LBR	1
+#define BDB_230_VBT_DP_MAX_LINK_RATE_HBR	2
+#define BDB_230_VBT_DP_MAX_LINK_RATE_HBR2	3
+#define BDB_230_VBT_DP_MAX_LINK_RATE_HBR3	4
+#define BDB_230_VBT_DP_MAX_LINK_RATE_UHBR10	5
+#define BDB_230_VBT_DP_MAX_LINK_RATE_UHBR13P5	6
+#define BDB_230_VBT_DP_MAX_LINK_RATE_UHBR20	7
 
 /*
  * The child device config, aka the display device data structure, provides a
@@ -439,8 +443,8 @@ struct child_device_config {
 	u16 dp_gpio_pin_num;					/* 195 */
 	u8 dp_iboost_level:4;					/* 196 */
 	u8 hdmi_iboost_level:4;					/* 196 */
-	u8 dp_max_link_rate:2;					/* 216 CNL+ */
-	u8 dp_max_link_rate_reserved:6;				/* 216 */
+	u8 dp_max_link_rate:3;					/* 216/230 GLK+ */
+	u8 dp_max_link_rate_reserved:5;				/* 216/230 */
 } __packed;
 
 struct bdb_general_definitions {
@@ -782,7 +786,7 @@ struct lfp_backlight_data_entry {
 	u8 active_low_pwm:1;
 	u8 obsolete1:5;
 	u16 pwm_freq_hz;
-	u8 min_brightness;
+	u8 min_brightness; /* Obsolete from 234+ */
 	u8 obsolete2;
 	u8 obsolete3;
 } __packed;
@@ -792,11 +796,24 @@ struct lfp_backlight_control_method {
 	u8 controller:4;
 } __packed;
 
+struct lfp_brightness_level {
+	u16 level;
+	u16 reserved;
+} __packed;
+
+#define EXP_BDB_LFP_BL_DATA_SIZE_REV_191 \
+	offsetof(struct bdb_lfp_backlight_data, brightness_level)
+#define EXP_BDB_LFP_BL_DATA_SIZE_REV_234 \
+	offsetof(struct bdb_lfp_backlight_data, brightness_precision_bits)
+
 struct bdb_lfp_backlight_data {
 	u8 entry_size;
 	struct lfp_backlight_data_entry data[16];
-	u8 level[16];
+	u8 level[16]; /* Obsolete from 234+ */
 	struct lfp_backlight_control_method backlight_control[16];
+	struct lfp_brightness_level brightness_level[16];		/* 234+ */
+	struct lfp_brightness_level brightness_min_level[16];	/* 234+ */
+	u8 brightness_precision_bits[16];						/* 236+ */
 } __packed;
 
 /*
@@ -827,6 +844,7 @@ struct bdb_lfp_power {
 	u16 lace_enabled_status;
 	struct agressiveness_profile_entry aggressivenes[16];
 	u16 hobl; /* 232+ */
+	u16 vrr_feature_enabled; /* 233+ */
 } __packed;
 
 /*

@@ -36,7 +36,7 @@ static int imgu_subdev_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	for (i = 0; i < IMGU_NODE_NUM; i++) {
 		struct v4l2_mbus_framefmt *try_fmt =
-			v4l2_subdev_get_try_format(sd, fh->pad, i);
+			v4l2_subdev_get_try_format(sd, fh->state, i);
 
 		try_fmt->width = try_crop.width;
 		try_fmt->height = try_crop.height;
@@ -44,8 +44,8 @@ static int imgu_subdev_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		try_fmt->field = V4L2_FIELD_NONE;
 	}
 
-	*v4l2_subdev_get_try_crop(sd, fh->pad, IMGU_NODE_IN) = try_crop;
-	*v4l2_subdev_get_try_compose(sd, fh->pad, IMGU_NODE_IN) = try_crop;
+	*v4l2_subdev_get_try_crop(sd, fh->state, IMGU_NODE_IN) = try_crop;
+	*v4l2_subdev_get_try_compose(sd, fh->state, IMGU_NODE_IN) = try_crop;
 
 	return 0;
 }
@@ -120,7 +120,7 @@ static int imgu_subdev_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int imgu_subdev_get_fmt(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_format *fmt)
 {
 	struct imgu_device *imgu = v4l2_get_subdevdata(sd);
@@ -136,7 +136,7 @@ static int imgu_subdev_get_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		fmt->format = imgu_pipe->nodes[pad].pad_fmt;
 	} else {
-		mf = v4l2_subdev_get_try_format(sd, cfg, pad);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, pad);
 		fmt->format = *mf;
 	}
 
@@ -144,7 +144,7 @@ static int imgu_subdev_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int imgu_subdev_set_fmt(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_format *fmt)
 {
 	struct imgu_media_pipe *imgu_pipe;
@@ -161,7 +161,7 @@ static int imgu_subdev_set_fmt(struct v4l2_subdev *sd,
 
 	imgu_pipe = &imgu->imgu_pipe[pipe];
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		mf = v4l2_subdev_get_try_format(sd, cfg, pad);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, pad);
 	else
 		mf = &imgu_pipe->nodes[pad].pad_fmt;
 
@@ -189,7 +189,7 @@ static int imgu_subdev_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int imgu_subdev_get_selection(struct v4l2_subdev *sd,
-				     struct v4l2_subdev_pad_config *cfg,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_selection *sel)
 {
 	struct v4l2_rect *try_sel, *r;
@@ -202,11 +202,11 @@ static int imgu_subdev_get_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
-		try_sel = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
+		try_sel = v4l2_subdev_get_try_crop(sd, sd_state, sel->pad);
 		r = &imgu_sd->rect.eff;
 		break;
 	case V4L2_SEL_TGT_COMPOSE:
-		try_sel = v4l2_subdev_get_try_compose(sd, cfg, sel->pad);
+		try_sel = v4l2_subdev_get_try_compose(sd, sd_state, sel->pad);
 		r = &imgu_sd->rect.bds;
 		break;
 	default:
@@ -222,7 +222,7 @@ static int imgu_subdev_get_selection(struct v4l2_subdev *sd,
 }
 
 static int imgu_subdev_set_selection(struct v4l2_subdev *sd,
-				     struct v4l2_subdev_pad_config *cfg,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_selection *sel)
 {
 	struct imgu_device *imgu = v4l2_get_subdevdata(sd);
@@ -241,11 +241,11 @@ static int imgu_subdev_set_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
-		try_sel = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
+		try_sel = v4l2_subdev_get_try_crop(sd, sd_state, sel->pad);
 		rect = &imgu_sd->rect.eff;
 		break;
 	case V4L2_SEL_TGT_COMPOSE:
-		try_sel = v4l2_subdev_get_try_compose(sd, cfg, sel->pad);
+		try_sel = v4l2_subdev_get_try_compose(sd, sd_state, sel->pad);
 		rect = &imgu_sd->rect.bds;
 		break;
 	default:
@@ -592,11 +592,12 @@ static const struct imgu_fmt *find_format(struct v4l2_format *f, u32 type)
 static int imgu_vidioc_querycap(struct file *file, void *fh,
 				struct v4l2_capability *cap)
 {
-	struct imgu_video_device *node = file_to_intel_imgu_node(file);
+	struct imgu_device *imgu = video_drvdata(file);
 
 	strscpy(cap->driver, IMGU_NAME, sizeof(cap->driver));
 	strscpy(cap->card, IMGU_NAME, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s", node->name);
+	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
+		 pci_name(imgu->pci_dev));
 
 	return 0;
 }
@@ -686,12 +687,25 @@ static int imgu_fmt(struct imgu_device *imgu, unsigned int pipe, int node,
 
 	dev_dbg(dev, "IPU3 pipe %u pipe_id = %u", pipe, css_pipe->pipe_id);
 
+	css_q = imgu_node_to_queue(node);
 	for (i = 0; i < IPU3_CSS_QUEUES; i++) {
 		unsigned int inode = imgu_map_node(imgu, i);
 
 		/* Skip the meta node */
 		if (inode == IMGU_NODE_STAT_3A || inode == IMGU_NODE_PARAMS)
 			continue;
+
+		/* CSS expects some format on OUT queue */
+		if (i != IPU3_CSS_QUEUE_OUT &&
+		    !imgu_pipe->nodes[inode].enabled && !try) {
+			fmts[i] = NULL;
+			continue;
+		}
+
+		if (i == css_q) {
+			fmts[i] = &f->fmt.pix_mp;
+			continue;
+		}
 
 		if (try) {
 			fmts[i] = kmemdup(&imgu_pipe->nodes[inode].vdev_fmt.fmt.pix_mp,
@@ -705,10 +719,6 @@ static int imgu_fmt(struct imgu_device *imgu, unsigned int pipe, int node,
 			fmts[i] = &imgu_pipe->nodes[inode].vdev_fmt.fmt.pix_mp;
 		}
 
-		/* CSS expects some format on OUT queue */
-		if (i != IPU3_CSS_QUEUE_OUT &&
-		    !imgu_pipe->nodes[inode].enabled)
-			fmts[i] = NULL;
 	}
 
 	if (!try) {
@@ -725,16 +735,10 @@ static int imgu_fmt(struct imgu_device *imgu, unsigned int pipe, int node,
 		rects[IPU3_CSS_RECT_GDC]->height = pad_fmt.height;
 	}
 
-	/*
-	 * imgu doesn't set the node to the value given by user
-	 * before we return success from this function, so set it here.
-	 */
-	css_q = imgu_node_to_queue(node);
 	if (!fmts[css_q]) {
 		ret = -EINVAL;
 		goto out;
 	}
-	*fmts[css_q] = f->fmt.pix_mp;
 
 	if (try)
 		ret = imgu_css_fmt_try(&imgu->css, fmts, rects, pipe);
@@ -745,15 +749,18 @@ static int imgu_fmt(struct imgu_device *imgu, unsigned int pipe, int node,
 	if (ret < 0)
 		goto out;
 
-	if (try)
-		f->fmt.pix_mp = *fmts[css_q];
-	else
-		f->fmt = imgu_pipe->nodes[node].vdev_fmt.fmt;
+	/*
+	 * imgu doesn't set the node to the value given by user
+	 * before we return success from this function, so set it here.
+	 */
+	if (!try)
+		imgu_pipe->nodes[node].vdev_fmt.fmt.pix_mp = f->fmt.pix_mp;
 
 out:
 	if (try) {
 		for (i = 0; i < IPU3_CSS_QUEUES; i++)
-			kfree(fmts[i]);
+			if (i != css_q)
+				kfree(fmts[i]);
 	}
 
 	return ret;
@@ -772,9 +779,6 @@ static int imgu_try_fmt(struct file *file, void *fh, struct v4l2_format *f)
 		return -EINVAL;
 
 	pixm->pixelformat = fmt->fourcc;
-
-	memset(pixm->plane_fmt[0].reserved, 0,
-	       sizeof(pixm->plane_fmt[0].reserved));
 
 	return 0;
 }
@@ -861,7 +865,7 @@ static int imgu_vidioc_g_meta_fmt(struct file *file, void *fh,
 
 /******************** function pointers ********************/
 
-static struct v4l2_subdev_internal_ops imgu_subdev_internal_ops = {
+static const struct v4l2_subdev_internal_ops imgu_subdev_internal_ops = {
 	.open = imgu_subdev_open,
 };
 
@@ -1133,7 +1137,9 @@ static int imgu_v4l2_node_setup(struct imgu_device *imgu, unsigned int pipe,
 	def_pix_fmt.height = def_bus_fmt.height;
 	def_pix_fmt.field = def_bus_fmt.field;
 	def_pix_fmt.num_planes = 1;
-	def_pix_fmt.plane_fmt[0].bytesperline = def_pix_fmt.width * 2;
+	def_pix_fmt.plane_fmt[0].bytesperline =
+		imgu_bytesperline(def_pix_fmt.width,
+				  IMGU_ABI_FRAME_FORMAT_RAW_PACKED);
 	def_pix_fmt.plane_fmt[0].sizeimage =
 		def_pix_fmt.height * def_pix_fmt.plane_fmt[0].bytesperline;
 	def_pix_fmt.flags = 0;

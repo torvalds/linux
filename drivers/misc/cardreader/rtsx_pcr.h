@@ -15,6 +15,8 @@
 #define MIN_DIV_N_PCR		80
 #define MAX_DIV_N_PCR		208
 
+#define RTS522A_PME_FORCE_CTL	0xFF78
+#define RTS522A_AUTOLOAD_CFG1	0xFF7C
 #define RTS522A_PM_CTRL3		0xFF7E
 
 #define RTS524A_PME_FORCE_CTL		0xFF78
@@ -25,6 +27,7 @@
 #define REG_EFUSE_POWEROFF		0x00
 #define RTS5250_CLK_CFG3		0xFF79
 #define RTS525A_CFG_MEM_PD		0xF0
+#define RTS524A_AUTOLOAD_CFG1		0xFF7C
 #define RTS524A_PM_CTRL3		0xFF7E
 #define RTS525A_BIOS_CFG		0xFF2D
 #define RTS525A_LOAD_BIOS_FLAG	0x01
@@ -90,6 +93,7 @@ static inline u8 map_sd_drive(int idx)
 
 #define rtsx_check_mmc_support(reg)		((reg) & 0x10)
 #define rtsx_reg_to_rtd3(reg)				((reg) & 0x02)
+#define rtsx_reg_to_rtd3_uhsii(reg)				((reg) & 0x04)
 #define rtsx_reg_to_aspm(reg)			(((reg) >> 28) & 0x03)
 #define rtsx_reg_to_sd30_drive_sel_1v8(reg)	(((reg) >> 26) & 0x03)
 #define rtsx_reg_to_sd30_drive_sel_3v3(reg)	(((reg) >> 5) & 0x03)

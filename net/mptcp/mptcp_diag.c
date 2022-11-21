@@ -36,7 +36,7 @@ static int mptcp_diag_dump_one(struct netlink_callback *cb,
 	struct sock *sk;
 
 	net = sock_net(in_skb->sk);
-	msk = mptcp_token_get_sock(req->id.idiag_cookie[0]);
+	msk = mptcp_token_get_sock(net, req->id.idiag_cookie[0]);
 	if (!msk)
 		goto out_nosk;
 
@@ -57,10 +57,8 @@ static int mptcp_diag_dump_one(struct netlink_callback *cb,
 		kfree_skb(rep);
 		goto out;
 	}
-	err = netlink_unicast(net->diag_nlsk, rep, NETLINK_CB(in_skb).portid,
-			      MSG_DONTWAIT);
-	if (err > 0)
-		err = 0;
+	err = nlmsg_unicast(net->diag_nlsk, rep, NETLINK_CB(in_skb).portid);
+
 out:
 	sock_put(sk);
 
@@ -115,34 +113,13 @@ static void mptcp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	struct mptcp_info *info = _info;
-	u32 flags = 0;
-	bool slow;
-	u8 val;
 
 	r->idiag_rqueue = sk_rmem_alloc_get(sk);
 	r->idiag_wqueue = sk_wmem_alloc_get(sk);
 	if (!info)
 		return;
 
-	slow = lock_sock_fast(sk);
-	info->mptcpi_subflows = READ_ONCE(msk->pm.subflows);
-	info->mptcpi_add_addr_signal = READ_ONCE(msk->pm.add_addr_signaled);
-	info->mptcpi_add_addr_accepted = READ_ONCE(msk->pm.add_addr_accepted);
-	info->mptcpi_subflows_max = READ_ONCE(msk->pm.subflows_max);
-	val = READ_ONCE(msk->pm.add_addr_signal_max);
-	info->mptcpi_add_addr_signal_max = val;
-	val = READ_ONCE(msk->pm.add_addr_accept_max);
-	info->mptcpi_add_addr_accepted_max = val;
-	if (test_bit(MPTCP_FALLBACK_DONE, &msk->flags))
-		flags |= MPTCP_INFO_FLAG_FALLBACK;
-	if (READ_ONCE(msk->can_ack))
-		flags |= MPTCP_INFO_FLAG_REMOTE_KEY_RECEIVED;
-	info->mptcpi_flags = flags;
-	info->mptcpi_token = READ_ONCE(msk->token);
-	info->mptcpi_write_seq = READ_ONCE(msk->write_seq);
-	info->mptcpi_snd_una = atomic64_read(&msk->snd_una);
-	info->mptcpi_rcv_nxt = READ_ONCE(msk->ack_seq);
-	unlock_sock_fast(sk, slow);
+	mptcp_diag_fill_info(msk, info);
 }
 
 static const struct inet_diag_handler mptcp_diag_handler = {

@@ -72,7 +72,7 @@ static void __ath10k_htt_tx_txq_recalc(struct ieee80211_hw *hw,
 
 	if (unlikely(peer_id >= ar->htt.tx_q_state.num_peers) ||
 	    unlikely(tid >= ar->htt.tx_q_state.num_tids)) {
-		ath10k_warn(ar, "refusing to update txq for peer_id %hu tid %hhu due to out of bounds\n",
+		ath10k_warn(ar, "refusing to update txq for peer_id %u tid %u due to out of bounds\n",
 			    peer_id, tid);
 		return;
 	}
@@ -81,7 +81,7 @@ static void __ath10k_htt_tx_txq_recalc(struct ieee80211_hw *hw,
 	ar->htt.tx_q_state.vaddr->map[tid][idx] &= ~bit;
 	ar->htt.tx_q_state.vaddr->map[tid][idx] |= count ? bit : 0;
 
-	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx txq state update peer_id %hu tid %hhu count %hhu\n",
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx txq state update peer_id %u tid %u count %u\n",
 		   peer_id, tid, count);
 }
 
@@ -147,6 +147,9 @@ void ath10k_htt_tx_dec_pending(struct ath10k_htt *htt)
 	htt->num_pending_tx--;
 	if (htt->num_pending_tx == htt->max_num_pending_tx - 1)
 		ath10k_mac_tx_unlock(htt->ar, ATH10K_TX_PAUSE_Q_FULL);
+
+	if (htt->num_pending_tx == 0)
+		wake_up(&htt->empty_tx_wq);
 }
 
 int ath10k_htt_tx_inc_pending(struct ath10k_htt *htt)
@@ -213,7 +216,7 @@ void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id)
 
 	lockdep_assert_held(&htt->tx_lock);
 
-	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx free msdu_id %hu\n", msdu_id);
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx free msdu_id %u\n", msdu_id);
 
 	idr_remove(&htt->pending_tx, msdu_id);
 }
@@ -507,7 +510,7 @@ static int ath10k_htt_tx_clean_up_pending(int msdu_id, void *skb, void *ctx)
 	struct ath10k_htt *htt = &ar->htt;
 	struct htt_tx_done tx_done = {0};
 
-	ath10k_dbg(ar, ATH10K_DBG_HTT, "force cleanup msdu_id %hu\n", msdu_id);
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "force cleanup msdu_id %u\n", msdu_id);
 
 	tx_done.msdu_id = msdu_id;
 	tx_done.status = HTT_TX_COMPL_STATE_DISCARD;
@@ -569,6 +572,8 @@ void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
 			desc_hdr = (struct htt_data_tx_desc *)
 				(skb->data + sizeof(*htt_hdr));
 			flags1 = __le16_to_cpu(desc_hdr->flags1);
+			skb_pull(skb, sizeof(struct htt_cmd_hdr));
+			skb_pull(skb, sizeof(struct htt_data_tx_desc));
 		}
 	}
 
@@ -791,47 +796,26 @@ static int ath10k_htt_send_frag_desc_bank_cfg_64(struct ath10k_htt *htt)
 	return 0;
 }
 
-static void ath10k_htt_fill_rx_desc_offset_32(void *rx_ring)
+static void ath10k_htt_fill_rx_desc_offset_32(struct ath10k_hw_params *hw, void *rx_ring)
 {
 	struct htt_rx_ring_setup_ring32 *ring =
 			(struct htt_rx_ring_setup_ring32 *)rx_ring;
 
-#define desc_offset(x) (offsetof(struct htt_rx_desc, x) / 4)
-	ring->mac80211_hdr_offset = __cpu_to_le16(desc_offset(rx_hdr_status));
-	ring->msdu_payload_offset = __cpu_to_le16(desc_offset(msdu_payload));
-	ring->ppdu_start_offset = __cpu_to_le16(desc_offset(ppdu_start));
-	ring->ppdu_end_offset = __cpu_to_le16(desc_offset(ppdu_end));
-	ring->mpdu_start_offset = __cpu_to_le16(desc_offset(mpdu_start));
-	ring->mpdu_end_offset = __cpu_to_le16(desc_offset(mpdu_end));
-	ring->msdu_start_offset = __cpu_to_le16(desc_offset(msdu_start));
-	ring->msdu_end_offset = __cpu_to_le16(desc_offset(msdu_end));
-	ring->rx_attention_offset = __cpu_to_le16(desc_offset(attention));
-	ring->frag_info_offset = __cpu_to_le16(desc_offset(frag_info));
-#undef desc_offset
+	ath10k_htt_rx_desc_get_offsets(hw, &ring->offsets);
 }
 
-static void ath10k_htt_fill_rx_desc_offset_64(void *rx_ring)
+static void ath10k_htt_fill_rx_desc_offset_64(struct ath10k_hw_params *hw, void *rx_ring)
 {
 	struct htt_rx_ring_setup_ring64 *ring =
 			(struct htt_rx_ring_setup_ring64 *)rx_ring;
 
-#define desc_offset(x) (offsetof(struct htt_rx_desc, x) / 4)
-	ring->mac80211_hdr_offset = __cpu_to_le16(desc_offset(rx_hdr_status));
-	ring->msdu_payload_offset = __cpu_to_le16(desc_offset(msdu_payload));
-	ring->ppdu_start_offset = __cpu_to_le16(desc_offset(ppdu_start));
-	ring->ppdu_end_offset = __cpu_to_le16(desc_offset(ppdu_end));
-	ring->mpdu_start_offset = __cpu_to_le16(desc_offset(mpdu_start));
-	ring->mpdu_end_offset = __cpu_to_le16(desc_offset(mpdu_end));
-	ring->msdu_start_offset = __cpu_to_le16(desc_offset(msdu_start));
-	ring->msdu_end_offset = __cpu_to_le16(desc_offset(msdu_end));
-	ring->rx_attention_offset = __cpu_to_le16(desc_offset(attention));
-	ring->frag_info_offset = __cpu_to_le16(desc_offset(frag_info));
-#undef desc_offset
+	ath10k_htt_rx_desc_get_offsets(hw, &ring->offsets);
 }
 
 static int ath10k_htt_send_rx_ring_cfg_32(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
+	struct ath10k_hw_params *hw = &ar->hw_params;
 	struct sk_buff *skb;
 	struct htt_cmd *cmd;
 	struct htt_rx_ring_setup_ring32 *ring;
@@ -891,7 +875,7 @@ static int ath10k_htt_send_rx_ring_cfg_32(struct ath10k_htt *htt)
 	ring->flags = __cpu_to_le16(flags);
 	ring->fw_idx_init_val = __cpu_to_le16(fw_idx);
 
-	ath10k_htt_fill_rx_desc_offset_32(ring);
+	ath10k_htt_fill_rx_desc_offset_32(hw, ring);
 	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
 	if (ret) {
 		dev_kfree_skb_any(skb);
@@ -904,6 +888,7 @@ static int ath10k_htt_send_rx_ring_cfg_32(struct ath10k_htt *htt)
 static int ath10k_htt_send_rx_ring_cfg_64(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
+	struct ath10k_hw_params *hw = &ar->hw_params;
 	struct sk_buff *skb;
 	struct htt_cmd *cmd;
 	struct htt_rx_ring_setup_ring64 *ring;
@@ -960,7 +945,7 @@ static int ath10k_htt_send_rx_ring_cfg_64(struct ath10k_htt *htt)
 	ring->flags = __cpu_to_le16(flags);
 	ring->fw_idx_init_val = __cpu_to_le16(fw_idx);
 
-	ath10k_htt_fill_rx_desc_offset_64(ring);
+	ath10k_htt_fill_rx_desc_offset_64(hw, ring);
 	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
 	if (ret) {
 		dev_kfree_skb_any(skb);
@@ -1557,7 +1542,7 @@ static int ath10k_htt_tx_32(struct ath10k_htt *htt,
 
 	trace_ath10k_htt_tx(ar, msdu_id, msdu->len, vdev_id, tid);
 	ath10k_dbg(ar, ATH10K_DBG_HTT,
-		   "htt tx flags0 %hhu flags1 %hu len %d id %hu frags_paddr %pad, msdu_paddr %pad vdev %hhu tid %hhu freq %hu\n",
+		   "htt tx flags0 %u flags1 %u len %d id %u frags_paddr %pad, msdu_paddr %pad vdev %u tid %u freq %u\n",
 		   flags0, flags1, msdu->len, msdu_id, &frags_paddr,
 		   &skb_cb->paddr, vdev_id, tid, freq);
 	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt tx msdu: ",
@@ -1766,7 +1751,7 @@ static int ath10k_htt_tx_64(struct ath10k_htt *htt,
 
 	trace_ath10k_htt_tx(ar, msdu_id, msdu->len, vdev_id, tid);
 	ath10k_dbg(ar, ATH10K_DBG_HTT,
-		   "htt tx flags0 %hhu flags1 %hu len %d id %hu frags_paddr %pad, msdu_paddr %pad vdev %hhu tid %hhu freq %hu\n",
+		   "htt tx flags0 %u flags1 %u len %d id %u frags_paddr %pad, msdu_paddr %pad vdev %u tid %u freq %u\n",
 		   flags0, flags1, msdu->len, msdu_id, &frags_paddr,
 		   &skb_cb->paddr, vdev_id, tid, freq);
 	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt tx msdu: ",

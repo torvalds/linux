@@ -348,7 +348,7 @@ struct mac_driver {
 	/*disable mac when disable nic or dsaf*/
 	void (*mac_disable)(void *mac_drv, enum mac_commom_mode mode);
 	/* config mac address*/
-	void (*set_mac_addr)(void *mac_drv,	char *mac_addr);
+	void (*set_mac_addr)(void *mac_drv,	const char *mac_addr);
 	/*adjust mac mode of port,include speed and duplex*/
 	int (*adjust_link)(void *mac_drv, enum mac_speed speed,
 			   u32 full_duplex);
@@ -364,12 +364,8 @@ struct mac_driver {
 	void (*config_max_frame_length)(void *mac_drv, u16 newval);
 	/*config PAD and CRC enable */
 	void (*config_pad_and_crc)(void *mac_drv, u8 newval);
-	/* config duplex mode*/
-	void (*config_half_duplex)(void *mac_drv, u8 newval);
 	/*config tx pause time,if pause_time is zero,disable tx pause enable*/
 	void (*set_tx_auto_pause_frames)(void *mac_drv, u16 pause_time);
-	/*config rx pause enable*/
-	void (*set_rx_ignore_pause_frames)(void *mac_drv, u32 enable);
 	/* config rx mode for promiscuous*/
 	void (*set_promiscuous)(void *mac_drv, u8 enable);
 	void (*mac_pausefrm_cfg)(void *mac_drv, u32 rx_en, u32 tx_en);
@@ -429,7 +425,8 @@ int hns_mac_init(struct dsaf_device *dsaf_dev);
 void mac_adjust_link(struct net_device *net_dev);
 bool hns_mac_need_adjust_link(struct hns_mac_cb *mac_cb, int speed, int duplex);
 void hns_mac_get_link_status(struct hns_mac_cb *mac_cb,	u32 *link_status);
-int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb, u32 vmid, char *addr);
+int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb, u32 vmid,
+			   const char *addr);
 int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
 		      u32 port_num, char *addr, bool enable);
 int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vm, bool enable);

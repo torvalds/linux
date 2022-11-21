@@ -14,17 +14,20 @@
 #include <linux/string.h>
 #include <asm/facility.h>
 #include "vfio_ap_private.h"
+#include "vfio_ap_debug.h"
 
 #define VFIO_AP_ROOT_NAME "vfio_ap"
 #define VFIO_AP_DEV_NAME "matrix"
+#define AP_QUEUE_ASSIGNED "assigned"
+#define AP_QUEUE_UNASSIGNED "unassigned"
+#define AP_QUEUE_IN_USE "in use"
 
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("VFIO AP device driver, Copyright IBM Corp. 2018");
 MODULE_LICENSE("GPL v2");
 
-static struct ap_driver vfio_ap_drv;
-
 struct ap_matrix_dev *matrix_dev;
+debug_info_t *vfio_ap_dbf_info;
 
 /* Only type 10 adapters (CEX4 and later) are supported
  * by the AP matrix device driver
@@ -38,51 +41,129 @@ static struct ap_device_id ap_queue_ids[] = {
 	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
 	{ .dev_type = AP_DEVICE_TYPE_CEX7,
 	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
+	{ .dev_type = AP_DEVICE_TYPE_CEX8,
+	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
 	{ /* end of sibling */ },
 };
 
 MODULE_DEVICE_TABLE(vfio_ap, ap_queue_ids);
 
+static struct ap_matrix_mdev *vfio_ap_mdev_for_queue(struct vfio_ap_queue *q)
+{
+	struct ap_matrix_mdev *matrix_mdev;
+	unsigned long apid = AP_QID_CARD(q->apqn);
+	unsigned long apqi = AP_QID_QUEUE(q->apqn);
+
+	list_for_each_entry(matrix_mdev, &matrix_dev->mdev_list, node) {
+		if (test_bit_inv(apid, matrix_mdev->matrix.apm) &&
+		    test_bit_inv(apqi, matrix_mdev->matrix.aqm))
+			return matrix_mdev;
+	}
+
+	return NULL;
+}
+
+static ssize_t status_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	ssize_t nchars = 0;
+	struct vfio_ap_queue *q;
+	struct ap_matrix_mdev *matrix_mdev;
+	struct ap_device *apdev = to_ap_dev(dev);
+
+	mutex_lock(&matrix_dev->lock);
+	q = dev_get_drvdata(&apdev->device);
+	matrix_mdev = vfio_ap_mdev_for_queue(q);
+
+	if (matrix_mdev) {
+		if (matrix_mdev->kvm)
+			nchars = scnprintf(buf, PAGE_SIZE, "%s\n",
+					   AP_QUEUE_IN_USE);
+		else
+			nchars = scnprintf(buf, PAGE_SIZE, "%s\n",
+					   AP_QUEUE_ASSIGNED);
+	} else {
+		nchars = scnprintf(buf, PAGE_SIZE, "%s\n",
+				   AP_QUEUE_UNASSIGNED);
+	}
+
+	mutex_unlock(&matrix_dev->lock);
+
+	return nchars;
+}
+
+static DEVICE_ATTR_RO(status);
+
+static struct attribute *vfio_queue_attrs[] = {
+	&dev_attr_status.attr,
+	NULL,
+};
+
+static const struct attribute_group vfio_queue_attr_group = {
+	.attrs = vfio_queue_attrs,
+};
+
 /**
- * vfio_ap_queue_dev_probe:
+ * vfio_ap_queue_dev_probe: Allocate a vfio_ap_queue structure and associate it
+ *			    with the device as driver_data.
  *
- * Allocate a vfio_ap_queue structure and associate it
- * with the device as driver_data.
+ * @apdev: the AP device being probed
+ *
+ * Return: returns 0 if the probe succeeded; otherwise, returns an error if
+ *	   storage could not be allocated for a vfio_ap_queue object or the
+ *	   sysfs 'status' attribute could not be created for the queue device.
  */
 static int vfio_ap_queue_dev_probe(struct ap_device *apdev)
 {
+	int ret;
 	struct vfio_ap_queue *q;
 
 	q = kzalloc(sizeof(*q), GFP_KERNEL);
 	if (!q)
 		return -ENOMEM;
+
+	mutex_lock(&matrix_dev->lock);
 	dev_set_drvdata(&apdev->device, q);
 	q->apqn = to_ap_queue(&apdev->device)->qid;
 	q->saved_isc = VFIO_AP_ISC_INVALID;
-	return 0;
+
+	ret = sysfs_create_group(&apdev->device.kobj, &vfio_queue_attr_group);
+	if (ret) {
+		dev_set_drvdata(&apdev->device, NULL);
+		kfree(q);
+	}
+
+	mutex_unlock(&matrix_dev->lock);
+
+	return ret;
 }
 
 /**
- * vfio_ap_queue_dev_remove:
+ * vfio_ap_queue_dev_remove: Free the associated vfio_ap_queue structure.
  *
- * Takes the matrix lock to avoid actions on this device while removing
- * Free the associated vfio_ap_queue structure
+ * @apdev: the AP device being removed
+ *
+ * Takes the matrix lock to avoid actions on this device while doing the remove.
  */
 static void vfio_ap_queue_dev_remove(struct ap_device *apdev)
 {
 	struct vfio_ap_queue *q;
-	int apid, apqi;
 
 	mutex_lock(&matrix_dev->lock);
+	sysfs_remove_group(&apdev->device.kobj, &vfio_queue_attr_group);
 	q = dev_get_drvdata(&apdev->device);
+	vfio_ap_mdev_reset_queue(q, 1);
 	dev_set_drvdata(&apdev->device, NULL);
-	apid = AP_QID_CARD(q->apqn);
-	apqi = AP_QID_QUEUE(q->apqn);
-	vfio_ap_mdev_reset_queue(apid, apqi, 1);
-	vfio_ap_irq_disable(q);
 	kfree(q);
 	mutex_unlock(&matrix_dev->lock);
 }
+
+static struct ap_driver vfio_ap_drv = {
+	.probe = vfio_ap_queue_dev_probe,
+	.remove = vfio_ap_queue_dev_remove,
+	.ids = ap_queue_ids,
+};
 
 static void vfio_ap_matrix_dev_release(struct device *dev)
 {
@@ -173,9 +254,27 @@ static void vfio_ap_matrix_dev_destroy(void)
 	root_device_unregister(root_device);
 }
 
+static int __init vfio_ap_dbf_info_init(void)
+{
+	vfio_ap_dbf_info = debug_register("vfio_ap", 1, 1,
+					  DBF_MAX_SPRINTF_ARGS * sizeof(long));
+
+	if (!vfio_ap_dbf_info)
+		return -ENOENT;
+
+	debug_register_view(vfio_ap_dbf_info, &debug_sprintf_view);
+	debug_set_level(vfio_ap_dbf_info, DBF_WARN);
+
+	return 0;
+}
+
 static int __init vfio_ap_init(void)
 {
 	int ret;
+
+	ret = vfio_ap_dbf_info_init();
+	if (ret)
+		return ret;
 
 	/* If there are no AP instructions, there is nothing to pass through. */
 	if (!ap_instructions_available())
@@ -184,11 +283,6 @@ static int __init vfio_ap_init(void)
 	ret = vfio_ap_matrix_dev_create();
 	if (ret)
 		return ret;
-
-	memset(&vfio_ap_drv, 0, sizeof(vfio_ap_drv));
-	vfio_ap_drv.probe = vfio_ap_queue_dev_probe;
-	vfio_ap_drv.remove = vfio_ap_queue_dev_remove;
-	vfio_ap_drv.ids = ap_queue_ids;
 
 	ret = ap_driver_register(&vfio_ap_drv, THIS_MODULE, VFIO_AP_DRV_NAME);
 	if (ret) {
@@ -212,6 +306,7 @@ static void __exit vfio_ap_exit(void)
 	vfio_ap_mdev_unregister();
 	ap_driver_unregister(&vfio_ap_drv);
 	vfio_ap_matrix_dev_destroy();
+	debug_unregister(vfio_ap_dbf_info);
 }
 
 module_init(vfio_ap_init);

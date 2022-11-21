@@ -28,28 +28,26 @@ static int kdb_hello_cmd(int argc, const char **argv)
 	return 0;
 }
 
+static kdbtab_t hello_cmd = {
+	.name = "hello",
+	.func = kdb_hello_cmd,
+	.usage = "[string]",
+	.help = "Say Hello World or Hello [string]",
+};
 
 static int __init kdb_hello_cmd_init(void)
 {
 	/*
 	 * Registration of a dynamically added kdb command is done with
-	 * kdb_register() with the arguments being:
-	 *   1: The name of the shell command
-	 *   2: The function that processes the command
-	 *   3: Description of the usage of any arguments
-	 *   4: Descriptive text when you run help
-	 *   5: Number of characters to complete the command
-	 *      0 == type the whole command
-	 *      1 == match both "g" and "go" for example
+	 * kdb_register().
 	 */
-	kdb_register("hello", kdb_hello_cmd, "[string]",
-		     "Say Hello World or Hello [string]", 0);
+	kdb_register(&hello_cmd);
 	return 0;
 }
 
 static void __exit kdb_hello_cmd_exit(void)
 {
-	kdb_unregister("hello");
+	kdb_unregister(&hello_cmd);
 }
 
 module_init(kdb_hello_cmd_init);

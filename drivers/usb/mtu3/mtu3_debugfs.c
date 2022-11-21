@@ -30,6 +30,7 @@ static const struct debugfs_reg32 mtu3_ippc_regs[] = {
 	dump_register(SSUSB_IP_PW_CTRL1),
 	dump_register(SSUSB_IP_PW_CTRL2),
 	dump_register(SSUSB_IP_PW_CTRL3),
+	dump_register(SSUSB_IP_PW_STS1),
 	dump_register(SSUSB_OTG_STS),
 	dump_register(SSUSB_IP_XHCI_CAP),
 	dump_register(SSUSB_IP_DEV_CAP),
@@ -127,7 +128,7 @@ static void mtu3_debugfs_regset(struct mtu3 *mtu, void __iomem *base,
 	struct debugfs_regset32 *regset;
 	struct mtu3_regset *mregs;
 
-	mregs = devm_kzalloc(mtu->dev, sizeof(*regset), GFP_KERNEL);
+	mregs = devm_kzalloc(mtu->dev, sizeof(*mregs), GFP_KERNEL);
 	if (!mregs)
 		return;
 

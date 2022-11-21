@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2014 Linaro Ltd.
- * Copyright (c) 2013-2014 Hisilicon Limited.
+ * Copyright (c) 2013-2014 HiSilicon Limited.
  */
 #include <linux/init.h>
 #include <linux/smp.h>
@@ -339,7 +339,7 @@ err_fabric:
 err_sysctrl:
 	iounmap(relocation);
 err_reloc:
-	memblock_free(hip04_boot_method[0], hip04_boot_method[1]);
+	memblock_phys_free(hip04_boot_method[0], hip04_boot_method[1]);
 err:
 	return ret;
 }

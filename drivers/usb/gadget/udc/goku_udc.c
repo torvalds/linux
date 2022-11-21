@@ -553,12 +553,12 @@ static int start_dma(struct goku_ep *ep, struct goku_request *req)
 
 		master &= ~MST_R_BITS;
 		if (unlikely(req->req.length == 0))
-			master = MST_RD_ENA | MST_RD_EOPB;
+			master |= MST_RD_ENA | MST_RD_EOPB;
 		else if ((req->req.length % ep->ep.maxpacket) != 0
 					|| req->req.zero)
-			master = MST_RD_ENA | MST_EOPB_ENA;
+			master |= MST_RD_ENA | MST_EOPB_ENA;
 		else
-			master = MST_RD_ENA | MST_EOPB_DIS;
+			master |= MST_RD_ENA | MST_EOPB_DIS;
 
 		ep->dev->int_enable |= INT_MSTRDEND;
 
@@ -809,7 +809,7 @@ static void nuke(struct goku_ep *ep, int status)
 /* dequeue JUST ONE request */
 static int goku_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
-	struct goku_request	*req;
+	struct goku_request	*req = NULL, *iter;
 	struct goku_ep		*ep;
 	struct goku_udc		*dev;
 	unsigned long		flags;
@@ -833,11 +833,13 @@ static int goku_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	spin_lock_irqsave(&dev->lock, flags);
 
 	/* make sure it's actually queued on this endpoint */
-	list_for_each_entry (req, &ep->queue, queue) {
-		if (&req->req == _req)
-			break;
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		req = iter;
+		break;
 	}
-	if (&req->req != _req) {
+	if (!req) {
 		spin_unlock_irqrestore (&dev->lock, flags);
 		return -EINVAL;
 	}

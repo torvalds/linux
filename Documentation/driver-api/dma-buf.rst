@@ -88,6 +88,9 @@ consider though:
 - The DMA buffer FD is also pollable, see `Implicit Fence Poll Support`_ below for
   details.
 
+- The DMA buffer FD also supports a few dma-buf-specific ioctls, see
+  `DMA Buffer ioctls`_ below for details.
+
 Basic Operation and Device DMA Access
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -105,6 +108,16 @@ Implicit Fence Poll Support
 
 .. kernel-doc:: drivers/dma-buf/dma-buf.c
    :doc: implicit fence polling
+
+DMA-BUF statistics
+~~~~~~~~~~~~~~~~~~
+.. kernel-doc:: drivers/dma-buf/dma-buf-sysfs-stats.c
+   :doc: overview
+
+DMA Buffer ioctls
+~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: include/uapi/linux/dma-buf.h
 
 Kernel Functions and Structures Reference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -154,12 +167,6 @@ DMA Fences Functions Reference
 .. kernel-doc:: include/linux/dma-fence.h
    :internal:
 
-Seqno Hardware Fences
-~~~~~~~~~~~~~~~~~~~~~
-
-.. kernel-doc:: include/linux/seqno-fence.h
-   :internal:
-
 DMA Fence Array
 ~~~~~~~~~~~~~~~
 
@@ -167,6 +174,21 @@ DMA Fence Array
    :export:
 
 .. kernel-doc:: include/linux/dma-fence-array.h
+   :internal:
+
+DMA Fence Chain
+~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/dma-buf/dma-fence-chain.c
+   :export:
+
+.. kernel-doc:: include/linux/dma-fence-chain.h
+   :internal:
+
+DMA Fence unwrap
+~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: include/linux/dma-fence-unwrap.h
    :internal:
 
 DMA Fence uABI/Sync File
@@ -181,7 +203,7 @@ DMA Fence uABI/Sync File
 Indefinite DMA Fences
 ~~~~~~~~~~~~~~~~~~~~~
 
-At various times &dma_fence with an indefinite time until dma_fence_wait()
+At various times struct dma_fence with an indefinite time until dma_fence_wait()
 finishes have been proposed. Examples include:
 
 * Future fences, used in HWC1 to signal when a buffer isn't used by the display
@@ -248,3 +270,79 @@ fences in the kernel. This means:
   userspace is allowed to use userspace fencing or long running compute
   workloads. This also means no implicit fencing for shared buffers in these
   cases.
+
+Recoverable Hardware Page Faults Implications
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Modern hardware supports recoverable page faults, which has a lot of
+implications for DMA fences.
+
+First, a pending page fault obviously holds up the work that's running on the
+accelerator and a memory allocation is usually required to resolve the fault.
+But memory allocations are not allowed to gate completion of DMA fences, which
+means any workload using recoverable page faults cannot use DMA fences for
+synchronization. Synchronization fences controlled by userspace must be used
+instead.
+
+On GPUs this poses a problem, because current desktop compositor protocols on
+Linux rely on DMA fences, which means without an entirely new userspace stack
+built on top of userspace fences, they cannot benefit from recoverable page
+faults. Specifically this means implicit synchronization will not be possible.
+The exception is when page faults are only used as migration hints and never to
+on-demand fill a memory request. For now this means recoverable page
+faults on GPUs are limited to pure compute workloads.
+
+Furthermore GPUs usually have shared resources between the 3D rendering and
+compute side, like compute units or command submission engines. If both a 3D
+job with a DMA fence and a compute workload using recoverable page faults are
+pending they could deadlock:
+
+- The 3D workload might need to wait for the compute job to finish and release
+  hardware resources first.
+
+- The compute workload might be stuck in a page fault, because the memory
+  allocation is waiting for the DMA fence of the 3D workload to complete.
+
+There are a few options to prevent this problem, one of which drivers need to
+ensure:
+
+- Compute workloads can always be preempted, even when a page fault is pending
+  and not yet repaired. Not all hardware supports this.
+
+- DMA fence workloads and workloads which need page fault handling have
+  independent hardware resources to guarantee forward progress. This could be
+  achieved through e.g. through dedicated engines and minimal compute unit
+  reservations for DMA fence workloads.
+
+- The reservation approach could be further refined by only reserving the
+  hardware resources for DMA fence workloads when they are in-flight. This must
+  cover the time from when the DMA fence is visible to other threads up to
+  moment when fence is completed through dma_fence_signal().
+
+- As a last resort, if the hardware provides no useful reservation mechanics,
+  all workloads must be flushed from the GPU when switching between jobs
+  requiring DMA fences or jobs requiring page fault handling: This means all DMA
+  fences must complete before a compute job with page fault handling can be
+  inserted into the scheduler queue. And vice versa, before a DMA fence can be
+  made visible anywhere in the system, all compute workloads must be preempted
+  to guarantee all pending GPU page faults are flushed.
+
+- Only a fairly theoretical option would be to untangle these dependencies when
+  allocating memory to repair hardware page faults, either through separate
+  memory blocks or runtime tracking of the full dependency graph of all DMA
+  fences. This results very wide impact on the kernel, since resolving the page
+  on the CPU side can itself involve a page fault. It is much more feasible and
+  robust to limit the impact of handling hardware page faults to the specific
+  driver.
+
+Note that workloads that run on independent hardware like copy engines or other
+GPUs do not have any impact. This allows us to keep using DMA fences internally
+in the kernel even for resolving hardware page faults, e.g. by using copy
+engines to clear or copy memory needed to resolve the page fault.
+
+In some ways this page fault problem is a special case of the `Infinite DMA
+Fences` discussions: Infinite fences from compute workloads are allowed to
+depend on DMA fences, but not the other way around. And not even the page fault
+problem is new, because some other CPU thread in userspace might
+hit a page fault which holds up a userspace fence - supporting page faults on
+GPUs doesn't anything fundamentally new.

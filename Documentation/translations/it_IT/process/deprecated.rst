@@ -95,6 +95,11 @@ Invece, usate la seguente funzione::
 
 	header = kzalloc(struct_size(header, item, count), GFP_KERNEL);
 
+.. note:: Se per caso state usando struct_size() su una struttura dati che
+	  in coda contiene un array di lunghezza zero o uno, allora siete
+	  invitati a riorganizzare il vostro codice usando il
+	  `flexible array member <#zero-length-and-one-element-arrays>`_.
+
 Per maggiori dettagli fate riferimento a array_size(),
 array3_size(), e struct_size(), così come la famiglia di
 funzioni check_add_overflow() e check_mul_overflow().
@@ -116,7 +121,11 @@ di destinazione. Questo può portare ad un overflow oltre i limiti del
 buffer e generare svariati tipi di malfunzionamenti. Nonostante l'opzione
 `CONFIG_FORTIFY_SOURCE=y` e svariate opzioni del compilatore aiutano
 a ridurne il rischio, non c'è alcuna buona ragione per continuare ad usare
-questa funzione. La versione sicura da usare è strscpy().
+questa funzione. La versione sicura da usare è strscpy(), tuttavia va
+prestata attenzione a tutti quei casi dove viene usato il valore di
+ritorno di strcpy().  La funzione strscpy() non ritorna un puntatore
+alla destinazione, ma un contatore dei byte non NUL copiati (oppure
+un errno negativo se la stringa è stata troncata).
 
 strncpy() su stringe terminate con NUL
 --------------------------------------
@@ -127,8 +136,12 @@ causati, appunto, dalla mancanza del terminatore. Questa estende la
 terminazione nel buffer di destinazione quando la stringa d'origine è più
 corta; questo potrebbe portare ad una penalizzazione delle prestazioni per
 chi usa solo stringe terminate. La versione sicura da usare è
-strscpy(). (chi usa strscpy() e necessita di estendere la
-terminazione con NUL deve aggiungere una chiamata a memset())
+strscpy(), tuttavia va prestata attenzione a tutti quei casi dove
+viene usato il valore di ritorno di strncpy().  La funzione strscpy()
+non ritorna un puntatore alla destinazione, ma un contatore dei byte
+non NUL copiati (oppure un errno negativo se la stringa è stata
+troncata). Tutti i casi che necessitano di estendere la
+terminazione con NUL dovrebbero usare strscpy_pad().
 
 Se il chiamate no usa stringhe terminate con NUL, allore strncpy()
 può continuare ad essere usata, ma i buffer di destinazione devono essere
@@ -140,7 +153,10 @@ strlcpy()
 La funzione strlcpy(), per prima cosa, legge interamente il buffer di
 origine, magari leggendo più di quanto verrà effettivamente copiato. Questo
 è inefficiente e può portare a overflow di lettura quando la stringa non è
-terminata con NUL. La versione sicura da usare è strscpy().
+terminata con NUL. La versione sicura da usare è strscpy(), tuttavia
+va prestata attenzione a tutti quei casi dove viene usato il valore di
+ritorno di strlcpy(), dato che strscpy() ritorna un valore di errno
+negativo quanto la stringa viene troncata.
 
 Segnaposto %p nella stringa di formato
 --------------------------------------
@@ -167,9 +183,11 @@ di Linus:
   affrontare il giudizio di Linus, allora forse potrai usare "%px",
   assicurandosi anche di averne il permesso.
 
-Infine, sappi che un cambio in favore di "%p" con hash `non verrà
-accettato
-<https://lore.kernel.org/lkml/CA+55aFwieC1-nAs+NFq9RTwaR8ef9hWa4MjNBWL41F-8wM49eA@mail.gmail.com/>`_.
+Potete disabilitare temporaneamente l'hashing di "%p" nel caso in cui questa
+funzionalità vi sia d'ostacolo durante una sessione di debug. Per farlo
+aggiungete l'opzione di debug "`no_hash_pointers
+<https://git.kernel.org/linus/5ead723a20e0447bc7db33dc3070b420e5f80aa6>`_" alla
+riga di comando del kernel.
 
 Vettori a dimensione variabile (VLA)
 ------------------------------------
@@ -227,3 +245,126 @@ modi:
 * ``continue;``
 * ``goto <label>;``
 * ``return [expression];``
+
+Array di lunghezza zero o con un solo elemento
+----------------------------------------------
+All'interno del kernel ricorre spesso la necessita di avere membri
+di dimensione variabile all'interno di una struttura dati. In questi
+casi il codice del kernel dovrebbe usare sempre i `"flexible array
+member" <https://en.wikipedia.org/wiki/Flexible_array_member>`_. La
+tecnica degli array a lunghezza nulla o di un solo elemento non
+dovrebbe essere più usata.
+
+Nel codice C più vecchio, la dichiarazione di un membro di dimensione
+variabile in coda ad una struttura dati veniva fatto dichiarando un
+array di un solo elemento posizionato alla fine della struttura dati::
+
+        struct something {
+                size_t count;
+                struct foo items[1];
+        };
+
+Questo ha portato ad un calcolo di sizeof() traballante (dovrebbe
+rimuovere la dimensione del singolo elemento in coda per calcolare la
+dimensione esatta dell' "intestazione"). Per evitare questi problemi è
+stata introdotta un' `estensione a GNU C
+<https://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html>`_ che
+permettesse la dichiarazione di array a lungezza zero::
+
+        struct something {
+                size_t count;
+                struct foo items[0];
+        };
+
+Ma questo ha portato nuovi problemi, e non ha risolto alcuni dei
+problemi che affliggono entrambe le tecniche: per esempio
+l'impossibilità di riconoscere se un array di quel tipo viene usato
+nel mezzo di una struttura dati e _non_ alla fine (potrebbe accadere
+sia direttamente, sia indirettamente quando si usano le unioni o le
+strutture di strutture).
+
+Lo standard C99 introduce i "flexible array members". Questi array non
+hanno una dimensione nella loro dichiarazione::
+
+        struct something {
+                size_t count;
+                struct foo items[];
+        };
+
+Questo è il modo con cui ci si aspetta che vengano dichiarati gli
+elementi di lunghezza variabile in coda alle strutture dati.  Permette
+al compilatore di produrre errori quando gli array flessibili non si
+trovano alla fine della struttura dati, il che permette di prevenire
+alcuni tipi di bachi dovuti a `comportamenti inaspettati
+<https://git.kernel.org/linus/76497732932f15e7323dc805e8ea8dc11bb587cf>`_.
+Inoltre, permette al compilatore di analizzare correttamente le
+dimensioni degli array (attraverso sizeof(), `CONFIG_FORTIFY_SOURCE`,
+e `CONFIG_UBSAN_BOUNDS`). Per esempio, non esiste alcun meccanismo in
+grado di avvisarci che il seguente uso di sizeof() dia sempre come
+zero come risultato::
+
+        struct something {
+                size_t count;
+                struct foo items[0];
+        };
+
+        struct something *instance;
+
+        instance = kmalloc(struct_size(instance, items, count), GFP_KERNEL);
+        instance->count = count;
+
+        size = sizeof(instance->items) * instance->count;
+        memcpy(instance->items, source, size);
+
+Il valore di ``size`` nell'ultima riga sarà ``zero``, quando uno
+invece si aspetterebbe che il suo valore sia la dimensione totale in
+byte dell'allocazione dynamica che abbiamo appena fatto per l'array
+``items``. Qui un paio di esempi reali del problema: `collegamento 1
+<https://git.kernel.org/linus/f2cd32a443da694ac4e28fbf4ac6f9d5cc63a539>`_,
+`collegamento 2
+<https://git.kernel.org/linus/ab91c2a89f86be2898cee208d492816ec238b2cf>`_.
+Invece, `i flexible array members hanno un tipo incompleto, e quindi
+sizeof() non può essere applicato
+<https://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html>`_; dunque ogni
+uso scorretto di questo operatore verrà identificato immediatamente
+durante la compilazione.
+
+Per quanto riguarda gli array di un solo elemento, bisogna essere
+consapevoli che `questi array occupano almeno quanto lo spazio di un
+singolo oggetti dello stesso tipo
+<https://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html>`_, e quindi
+contribuiscono al calcolo della dimensione della struttura che li
+contiene. In questo caso è facile commettere errori quando si vuole
+calcolare la dimensione totale della memoria totale da allocare per
+una struttura dati::
+
+        struct something {
+                size_t count;
+                struct foo items[1];
+        };
+
+        struct something *instance;
+
+        instance = kmalloc(struct_size(instance, items, count - 1), GFP_KERNEL);
+        instance->count = count;
+
+        size = sizeof(instance->items) * instance->count;
+        memcpy(instance->items, source, size);
+
+In questo esempio ci siamo dovuti ricordare di usare ``count - 1`` in
+struct_size(), altrimenti avremmo --inavvertitamente-- allocato
+memoria per un oggetti ``items`` in più. Il modo più pulito e meno
+propenso agli errori è quello di usare i `flexible array member`, in
+combinazione con struct_size() e flex_array_size()::
+
+        struct something {
+                size_t count;
+                struct foo items[];
+        };
+
+        struct something *instance;
+
+        instance = kmalloc(struct_size(instance, items, count), GFP_KERNEL);
+        instance->count = count;
+
+	memcpy(instance->items, source, flex_array_size(instance, items, instance->count));

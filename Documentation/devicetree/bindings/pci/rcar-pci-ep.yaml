@@ -19,6 +19,7 @@ properties:
           - renesas,r8a774b1-pcie-ep     # RZ/G2N
           - renesas,r8a774c0-pcie-ep     # RZ/G2E
           - renesas,r8a774e1-pcie-ep     # RZ/G2H
+          - renesas,r8a7795-pcie-ep      # R-Car H3
       - const: renesas,rcar-gen3-pcie-ep # R-Car Gen3 and RZ/G2
 
   reg:
@@ -31,6 +32,10 @@ properties:
       - const: memory1
       - const: memory2
       - const: memory3
+
+  interrupts:
+    minItems: 3
+    maxItems: 3
 
   power-domains:
     maxItems: 1
@@ -53,6 +58,7 @@ required:
   - compatible
   - reg
   - reg-names
+  - interrupts
   - resets
   - power-domains
   - clocks
@@ -64,6 +70,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/clock/r8a774c0-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/power/r8a774c0-sysc.h>
 
      pcie0_ep: pcie-ep@fe000000 {
@@ -75,6 +82,9 @@ examples:
                   <0x30000000 0x8000000>,
                   <0x38000000 0x8000000>;
             reg-names = "apb-base", "memory0", "memory1", "memory2", "memory3";
+            interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
             resets = <&cpg 319>;
             power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;
             clocks = <&cpg CPG_MOD 319>;

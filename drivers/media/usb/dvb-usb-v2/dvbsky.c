@@ -287,8 +287,8 @@ static int dvbsky_s960_attach(struct dvb_usb_adapter *adap)
 	m88ds3103_pdata.ts_clk = 16000;
 	m88ds3103_pdata.ts_clk_pol = 0;
 	m88ds3103_pdata.agc = 0x99;
-	m88ds3103_pdata.lnb_hv_pol = 1,
-	m88ds3103_pdata.lnb_en_pol = 1,
+	m88ds3103_pdata.lnb_hv_pol = 1;
+	m88ds3103_pdata.lnb_en_pol = 1;
 
 	state->i2c_client_demod = dvb_module_probe("m88ds3103", NULL,
 						   &d->i2c_adap,
@@ -383,15 +383,15 @@ static int dvbsky_s960c_attach(struct dvb_usb_adapter *adap)
 	struct sp2_config sp2_config = {};
 
 	/* attach demod */
-	m88ds3103_pdata.clk = 27000000,
-	m88ds3103_pdata.i2c_wr_max = 33,
-	m88ds3103_pdata.clk_out = 0,
-	m88ds3103_pdata.ts_mode = M88DS3103_TS_CI,
-	m88ds3103_pdata.ts_clk = 10000,
-	m88ds3103_pdata.ts_clk_pol = 1,
-	m88ds3103_pdata.agc = 0x99,
-	m88ds3103_pdata.lnb_hv_pol = 0,
-	m88ds3103_pdata.lnb_en_pol = 1,
+	m88ds3103_pdata.clk = 27000000;
+	m88ds3103_pdata.i2c_wr_max = 33;
+	m88ds3103_pdata.clk_out = 0;
+	m88ds3103_pdata.ts_mode = M88DS3103_TS_CI;
+	m88ds3103_pdata.ts_clk = 10000;
+	m88ds3103_pdata.ts_clk_pol = 1;
+	m88ds3103_pdata.agc = 0x99;
+	m88ds3103_pdata.lnb_hv_pol = 0;
+	m88ds3103_pdata.lnb_en_pol = 1;
 
 	state->i2c_client_demod = dvb_module_probe("m88ds3103", NULL,
 						   &d->i2c_adap,
@@ -541,7 +541,9 @@ static int dvbsky_mygica_t230c_attach(struct dvb_usb_adapter *adap)
 	si2168_config.i2c_adapter = &i2c_adapter;
 	si2168_config.fe = &adap->fe[0];
 	si2168_config.ts_mode = SI2168_TS_PARALLEL;
-	if (le16_to_cpu(d->udev->descriptor.idProduct) == USB_PID_MYGICA_T230C2)
+	if (le16_to_cpu(d->udev->descriptor.idProduct) == USB_PID_MYGICA_T230C2 ||
+	    le16_to_cpu(d->udev->descriptor.idProduct) == USB_PID_MYGICA_T230C2_LITE ||
+	    le16_to_cpu(d->udev->descriptor.idProduct) == USB_PID_MYGICA_T230A)
 		si2168_config.ts_mode |= SI2168_TS_CLK_MANUAL;
 	si2168_config.ts_clock_inv = 1;
 
@@ -577,15 +579,24 @@ static int dvbsky_mygica_t230c_attach(struct dvb_usb_adapter *adap)
 
 static int dvbsky_identify_state(struct dvb_usb_device *d, const char **name)
 {
-	dvbsky_gpio_ctrl(d, 0x04, 1);
-	msleep(20);
-	dvbsky_gpio_ctrl(d, 0x83, 0);
-	dvbsky_gpio_ctrl(d, 0xc0, 1);
-	msleep(100);
-	dvbsky_gpio_ctrl(d, 0x83, 1);
-	dvbsky_gpio_ctrl(d, 0xc0, 0);
-	msleep(50);
-
+	if (le16_to_cpu(d->udev->descriptor.idProduct) == USB_PID_MYGICA_T230A) {
+		dvbsky_gpio_ctrl(d, 0x87, 0);
+		msleep(20);
+		dvbsky_gpio_ctrl(d, 0x86, 1);
+		dvbsky_gpio_ctrl(d, 0x80, 0);
+		msleep(100);
+		dvbsky_gpio_ctrl(d, 0x80, 1);
+		msleep(50);
+	} else {
+		dvbsky_gpio_ctrl(d, 0x04, 1);
+		msleep(20);
+		dvbsky_gpio_ctrl(d, 0x83, 0);
+		dvbsky_gpio_ctrl(d, 0xc0, 1);
+		msleep(100);
+		dvbsky_gpio_ctrl(d, 0x83, 1);
+		dvbsky_gpio_ctrl(d, 0xc0, 0);
+		msleep(50);
+	}
 	return WARM;
 }
 
@@ -789,6 +800,12 @@ static const struct usb_device_id dvbsky_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_CONEXANT, USB_PID_MYGICA_T230C2,
 		&mygica_t230c_props, "MyGica Mini DVB-(T/T2/C) USB Stick T230C v2",
 		RC_MAP_TOTAL_MEDIA_IN_HAND_02) },
+	{ DVB_USB_DEVICE(USB_VID_CONEXANT, USB_PID_MYGICA_T230C2_LITE,
+		 &mygica_t230c_props, "MyGica Mini DVB-(T/T2/C) USB Stick T230C v2  Lite",
+		 NULL) },
+	{ DVB_USB_DEVICE(USB_VID_CONEXANT, USB_PID_MYGICA_T230A,
+		 &mygica_t230c_props, "MyGica Mini DVB-(T/T2/C) USB Stick T230A",
+		 NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, dvbsky_id_table);

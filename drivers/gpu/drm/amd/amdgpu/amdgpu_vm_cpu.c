@@ -29,17 +29,17 @@
  *
  * @table: newly allocated or validated PD/PT
  */
-static int amdgpu_vm_cpu_map_table(struct amdgpu_bo *table)
+static int amdgpu_vm_cpu_map_table(struct amdgpu_bo_vm *table)
 {
-	return amdgpu_bo_kmap(table, NULL);
+	return amdgpu_bo_kmap(&table->bo, NULL);
 }
 
 /**
  * amdgpu_vm_cpu_prepare - prepare page table update with the CPU
  *
  * @p: see amdgpu_vm_update_params definition
- * @owner: owner we need to sync to
- * @exclusive: exclusive move fence we need to sync to
+ * @resv: reservation object with embedded fence
+ * @sync_mode: synchronization mode
  *
  * Returns:
  * Negativ errno, 0 for success.
@@ -58,7 +58,7 @@ static int amdgpu_vm_cpu_prepare(struct amdgpu_vm_update_params *p,
  * amdgpu_vm_cpu_update - helper to update page tables via CPU
  *
  * @p: see amdgpu_vm_update_params definition
- * @bo: PD/PT to update
+ * @vmbo: PD/PT to update
  * @pe: byte offset of the PDE/PTE, relative to start of PDB/PTB
  * @addr: dst addr to write into pe
  * @count: number of page entries to update
@@ -68,7 +68,7 @@ static int amdgpu_vm_cpu_prepare(struct amdgpu_vm_update_params *p,
  * Write count number of PT/PD entries directly.
  */
 static int amdgpu_vm_cpu_update(struct amdgpu_vm_update_params *p,
-				struct amdgpu_bo *bo, uint64_t pe,
+				struct amdgpu_bo_vm *vmbo, uint64_t pe,
 				uint64_t addr, unsigned count, uint32_t incr,
 				uint64_t flags)
 {
@@ -76,13 +76,13 @@ static int amdgpu_vm_cpu_update(struct amdgpu_vm_update_params *p,
 	uint64_t value;
 	int r;
 
-	if (bo->tbo.moving) {
-		r = dma_fence_wait(bo->tbo.moving, true);
+	if (vmbo->bo.tbo.moving) {
+		r = dma_fence_wait(vmbo->bo.tbo.moving, true);
 		if (r)
 			return r;
 	}
 
-	pe += (unsigned long)amdgpu_bo_kptr(bo);
+	pe += (unsigned long)amdgpu_bo_kptr(&vmbo->bo);
 
 	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags, p->immediate);
 
@@ -110,7 +110,7 @@ static int amdgpu_vm_cpu_commit(struct amdgpu_vm_update_params *p,
 {
 	/* Flush HDP */
 	mb();
-	amdgpu_asic_flush_hdp(p->adev, NULL);
+	amdgpu_device_flush_hdp(p->adev, NULL);
 	return 0;
 }
 

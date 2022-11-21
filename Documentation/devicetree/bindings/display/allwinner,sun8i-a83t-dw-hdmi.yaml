@@ -12,8 +12,8 @@ description: |
   and CEC.
 
   These DT bindings follow the Synopsys DWC HDMI TX bindings defined
-  in Documentation/devicetree/bindings/display/bridge/dw_hdmi.txt with
-  the following device-specific properties.
+  in bridge/synopsys,dw-hdmi.yaml with the following device-specific
+  properties.
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
@@ -46,7 +46,6 @@ properties:
 
   clocks:
     minItems: 3
-    maxItems: 6
     items:
       - description: Bus Clock
       - description: Register Clock
@@ -57,7 +56,6 @@ properties:
 
   clock-names:
     minItems: 3
-    maxItems: 6
     items:
       - const: iahb
       - const: isfr
@@ -68,14 +66,12 @@ properties:
 
   resets:
     minItems: 1
-    maxItems: 2
     items:
       - description: HDMI Controller Reset
       - description: HDCP Reset
 
   reset-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: ctrl
       - const: hdcp
@@ -93,37 +89,24 @@ properties:
       The VCC power supply of the controller
 
   ports:
-    type: object
-    description: |
-      A ports node with endpoint definitions as defined in
-      Documentation/devicetree/bindings/media/video-interfaces.txt.
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Input endpoints of the controller. Usually the associated
           TCON.
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Output endpoints of the controller. Usually an HDMI
           connector.
 
     required:
-      - "#address-cells"
-      - "#size-cells"
       - port@0
       - port@1
-
-    additionalProperties: false
 
 required:
   - compatible
@@ -191,7 +174,6 @@ examples:
         phy-names = "phy";
         pinctrl-names = "default";
         pinctrl-0 = <&hdmi_pins>;
-        status = "disabled";
 
         ports {
             #address-cells = <1>;
@@ -250,7 +232,6 @@ examples:
         phy-names = "phy";
         pinctrl-names = "default";
         pinctrl-0 = <&hdmi_pins>;
-        status = "disabled";
 
         ports {
             #address-cells = <1>;

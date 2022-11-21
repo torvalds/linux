@@ -8,8 +8,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#define DEBUG
-
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -323,13 +321,17 @@ static int ks8851_probe_par(struct platform_device *pdev)
 		return ret;
 
 	netdev->irq = platform_get_irq(pdev, 0);
+	if (netdev->irq < 0)
+		return netdev->irq;
 
 	return ks8851_probe_common(netdev, dev, msg_enable);
 }
 
 static int ks8851_remove_par(struct platform_device *pdev)
 {
-	return ks8851_remove_common(&pdev->dev);
+	ks8851_remove_common(&pdev->dev);
+
+	return 0;
 }
 
 static const struct of_device_id ks8851_match_table[] = {

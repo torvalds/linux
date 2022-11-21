@@ -43,7 +43,6 @@ allOf:
       properties:
         clocks:
           minItems: 3
-          maxItems: 4
           items:
             - description: GMAC main clock
             - description: First parent clock of the internal mux
@@ -52,7 +51,6 @@ allOf:
 
         clock-names:
           minItems: 3
-          maxItems: 4
           items:
             - const: stmmaceth
             - const: clkin0
@@ -60,7 +58,7 @@ allOf:
             - const: timing-adjustment
 
         amlogic,tx-delay-ns:
-          $ref: /schemas/types.yaml#definitions/uint32
+          $ref: /schemas/types.yaml#/definitions/uint32
           description:
             The internal RGMII TX clock delay (provided by this driver) in
             nanoseconds. Allowed values are 0ns, 2ns, 4ns, 6ns.
@@ -74,17 +72,60 @@ allOf:
             Any configuration is ignored when the phy-mode is set to "rmii".
 
         amlogic,rx-delay-ns:
+          deprecated: true
           enum:
             - 0
             - 2
           default: 0
           description:
-            The internal RGMII RX clock delay (provided by this IP block) in
-            nanoseconds. When phy-mode is set to "rgmii" then the RX delay
-            should be explicitly configured. When the phy-mode is set to
-            either "rgmii-id" or "rgmii-rxid" the RX clock delay is already
-            provided by the PHY. Any configuration is ignored when the
-            phy-mode is set to "rmii".
+            The internal RGMII RX clock delay in nanoseconds. Deprecated, use
+            rx-internal-delay-ps instead.
+
+        rx-internal-delay-ps:
+          default: 0
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - amlogic,meson8b-dwmac
+              - amlogic,meson8m2-dwmac
+              - amlogic,meson-gxbb-dwmac
+              - amlogic,meson-axg-dwmac
+    then:
+      properties:
+        rx-internal-delay-ps:
+          enum:
+            - 0
+            - 2000
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - amlogic,meson-g12a-dwmac
+    then:
+      properties:
+        rx-internal-delay-ps:
+          enum:
+            - 0
+            - 200
+            - 400
+            - 600
+            - 800
+            - 1000
+            - 1200
+            - 1400
+            - 1600
+            - 1800
+            - 2000
+            - 2200
+            - 2400
+            - 2600
+            - 2800
+            - 3000
 
 properties:
   compatible:

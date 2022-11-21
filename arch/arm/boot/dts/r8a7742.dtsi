@@ -47,7 +47,6 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		enable-method = "renesas,apmu";
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
@@ -56,6 +55,7 @@
 			clock-frequency = <1400000000>;
 			clocks = <&cpg CPG_CORE R8A7742_CLK_Z>;
 			power-domains = <&sysc R8A7742_PD_CA15_CPU0>;
+			enable-method = "renesas,apmu";
 			next-level-cache = <&L2_CA15>;
 			capacity-dmips-mhz = <1024>;
 			voltage-tolerance = <1>; /* 1% */
@@ -77,6 +77,7 @@
 			clock-frequency = <1400000000>;
 			clocks = <&cpg CPG_CORE R8A7742_CLK_Z>;
 			power-domains = <&sysc R8A7742_PD_CA15_CPU1>;
+			enable-method = "renesas,apmu";
 			next-level-cache = <&L2_CA15>;
 			capacity-dmips-mhz = <1024>;
 			voltage-tolerance = <1>; /* 1% */
@@ -98,6 +99,7 @@
 			clock-frequency = <1400000000>;
 			clocks = <&cpg CPG_CORE R8A7742_CLK_Z>;
 			power-domains = <&sysc R8A7742_PD_CA15_CPU2>;
+			enable-method = "renesas,apmu";
 			next-level-cache = <&L2_CA15>;
 			capacity-dmips-mhz = <1024>;
 			voltage-tolerance = <1>; /* 1% */
@@ -119,6 +121,7 @@
 			clock-frequency = <1400000000>;
 			clocks = <&cpg CPG_CORE R8A7742_CLK_Z>;
 			power-domains = <&sysc R8A7742_PD_CA15_CPU3>;
+			enable-method = "renesas,apmu";
 			next-level-cache = <&L2_CA15>;
 			capacity-dmips-mhz = <1024>;
 			voltage-tolerance = <1>; /* 1% */
@@ -367,13 +370,13 @@
 		apmu@e6151000 {
 			compatible = "renesas,r8a7742-apmu", "renesas,apmu";
 			reg = <0 0xe6151000 0 0x188>;
-			cpus = <&cpu4 &cpu5 &cpu6 &cpu7>;
+			cpus = <&cpu4>, <&cpu5>, <&cpu6>, <&cpu7>;
 		};
 
 		apmu@e6152000 {
 			compatible = "renesas,r8a7742-apmu", "renesas,apmu";
 			reg = <0 0xe6152000 0 0x188>;
-			cpus = <&cpu0 &cpu1 &cpu2 &cpu3>;
+			cpus = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 		};
 
 		rst: reset-controller@e6160000 {
@@ -599,7 +602,9 @@
 		iic3: i2c@e60b0000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "renesas,iic-r8a7742";
+			compatible = "renesas,iic-r8a7742",
+				     "renesas,rcar-gen2-iic",
+				     "renesas,rmobile-iic";
 			reg = <0 0xe60b0000 0 0x425>;
 			interrupts = <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 926>;
@@ -750,6 +755,7 @@
 			reg = <0 0xe6800000 0 0x800>, <0 0xee0e8000 0 0x4000>;
 			interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 812>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A7742_PD_ALWAYS_ON>;
 			resets = <&cpg 812>;
 			#address-cells = <1>;

@@ -187,15 +187,6 @@ config USB_EHCI_PCI
 	depends on USB_PCI
 	default y
 
-config USB_EHCI_HCD_PMC_MSP
-	tristate "EHCI support for on-chip PMC MSP71xx USB controller"
-	depends on MSP_HAS_USB
-	select USB_EHCI_BIG_ENDIAN_DESC
-	select USB_EHCI_BIG_ENDIAN_MMIO
-	help
-		Enables support for the onchip USB controller on the PMC_MSP7100 Family SoC's.
-		If unsure, say N.
-
 config XPS_USB_HCD_XILINX
 	bool "Use Xilinx usb host EHCI controller core"
 	depends on (PPC32 || MICROBLAZE)
@@ -209,13 +200,6 @@ config XPS_USB_HCD_XILINX
 
 config USB_EHCI_FSL
 	tristate "Support for Freescale on-chip EHCI USB controller"
-	select USB_EHCI_ROOT_HUB_TT
-	help
-	  Variation of ARC USB block used in some Freescale chips.
-
-config USB_EHCI_MXC
-	tristate "Support for Freescale i.MX on-chip EHCI USB controller"
-	depends on ARCH_MXC || COMPILE_TEST
 	select USB_EHCI_ROOT_HUB_TT
 	help
 	  Variation of ARC USB block used in some Freescale chips.
@@ -276,10 +260,15 @@ config USB_EHCI_HCD_AT91
 config USB_EHCI_TEGRA
 	tristate "NVIDIA Tegra HCD support"
 	depends on ARCH_TEGRA
-	select USB_EHCI_ROOT_HUB_TT
-	select USB_TEGRA_PHY
+	select USB_CHIPIDEA
+	select USB_CHIPIDEA_HOST
+	select USB_CHIPIDEA_TEGRA
+	select USB_GADGET
 	help
-	  This driver enables support for the internal USB Host Controllers
+	  This option is deprecated now and the driver was removed, use
+	  USB_CHIPIDEA_TEGRA instead.
+
+	  Enable support for the internal USB Host Controllers
 	  found in NVIDIA Tegra SoCs. The controllers are EHCI compliant.
 
 config USB_EHCI_HCD_PPC_OF
@@ -301,7 +290,8 @@ config USB_EHCI_EXYNOS
 	tristate "EHCI support for Samsung S5P/Exynos SoC Series"
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	help
-	  Enable support for the Samsung Exynos SOC's on-chip EHCI controller.
+	  Enable support for the Samsung S5Pv210 and Exynos SOC's on-chip EHCI
+	  controller.
 
 config USB_EHCI_MV
 	tristate "EHCI support for Marvell PXA/MMP USB controller"
@@ -574,7 +564,8 @@ config USB_OHCI_EXYNOS
 	tristate "OHCI support for Samsung S5P/Exynos SoC Series"
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	help
-	  Enable support for the Samsung Exynos SOC's on-chip OHCI controller.
+	  Enable support for the Samsung S5Pv210 and Exynos SOC's on-chip OHCI
+	  controller.
 
 config USB_CNS3XXX_OHCI
 	bool "Cavium CNS3XXX OHCI Module (DEPRECATED)"
@@ -741,16 +732,6 @@ config USB_RENESAS_USBHS_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called renesas-usbhs.
 
-config USB_IMX21_HCD
-	tristate "i.MX21 HCD support"
-	depends on ARM && ARCH_MXC
-	help
-	  This driver enables support for the on-chip USB host in the
-	  i.MX21 processor.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called "imx21-hcd".
-
 config USB_HCD_BCMA
 	tristate "BCMA usb host driver"
 	depends on BCMA
@@ -791,3 +772,14 @@ config USB_HCD_TEST_MODE
 	  This option is of interest only to developers who need to validate
 	  their USB hardware designs.  It is not needed for normal use.  If
 	  unsure, say N.
+
+config USB_XEN_HCD
+	tristate "Xen usb virtual host driver"
+	depends on XEN
+	select XEN_XENBUS_FRONTEND
+	help
+	  The Xen usb virtual host driver serves as a frontend driver enabling
+	  a Xen guest system to access USB Devices passed through to the guest
+	  by the Xen host (usually Dom0).
+	  Only needed if the kernel is running in a Xen guest and generic
+	  access to a USB device is needed.

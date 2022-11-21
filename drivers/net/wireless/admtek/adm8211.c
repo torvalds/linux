@@ -28,7 +28,6 @@
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
 MODULE_AUTHOR("Jouni Malinen <j@w1.fi>");
 MODULE_DESCRIPTION("Driver for IEEE 802.11b wireless cards based on ADMtek ADM8211");
-MODULE_SUPPORTED_DEVICE("ADM8211");
 MODULE_LICENSE("GPL");
 
 static unsigned int tx_ring_size __read_mostly = 16;
@@ -1796,6 +1795,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 	if (io_len < 256 || mem_len < 1024) {
 		printk(KERN_ERR "%s (adm8211): Too short PCI resources\n",
 		       pci_name(pdev));
+		err = -ENOMEM;
 		goto err_disable_pdev;
 	}
 
@@ -1805,6 +1805,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 	if (reg != ADM8211_SIG1 && reg != ADM8211_SIG2) {
 		printk(KERN_ERR "%s (adm8211): Invalid signature (0x%x)\n",
 		       pci_name(pdev), reg);
+		err = -EINVAL;
 		goto err_disable_pdev;
 	}
 
@@ -1815,8 +1816,8 @@ static int adm8211_probe(struct pci_dev *pdev,
 		return err; /* someone else grabbed it? don't disable it */
 	}
 
-	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)) ||
-	    dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32))) {
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (err) {
 		printk(KERN_ERR "%s (adm8211): No suitable DMA available\n",
 		       pci_name(pdev));
 		goto err_free_reg;

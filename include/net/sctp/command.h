@@ -59,6 +59,7 @@ enum sctp_verb {
 	SCTP_CMD_HB_TIMERS_START,    /* Start the heartbeat timers. */
 	SCTP_CMD_HB_TIMER_UPDATE,    /* Update a heartbeat timers.  */
 	SCTP_CMD_HB_TIMERS_STOP,     /* Stop the heartbeat timers.  */
+	SCTP_CMD_PROBE_TIMER_UPDATE, /* Update a probe timer.  */
 	SCTP_CMD_TRANSPORT_HB_SENT,  /* Reset the status of a transport. */
 	SCTP_CMD_TRANSPORT_IDLE,     /* Do manipulations on idle transport */
 	SCTP_CMD_TRANSPORT_ON,       /* Mark the transport as active. */
@@ -68,7 +69,6 @@ enum sctp_verb {
 	SCTP_CMD_ASSOC_FAILED,	 /* Handle association failure. */
 	SCTP_CMD_DISCARD_PACKET, /* Discard the whole packet. */
 	SCTP_CMD_GEN_SHUTDOWN,   /* Generate a SHUTDOWN chunk. */
-	SCTP_CMD_UPDATE_ASSOC,   /* Update association information. */
 	SCTP_CMD_PURGE_OUTQUEUE, /* Purge all data waiting to be sent. */
 	SCTP_CMD_SETUP_T2,       /* Hi-level, setup T2-shutdown parms.  */
 	SCTP_CMD_RTO_PENDING,	 /* Set transport's rto_pending. */

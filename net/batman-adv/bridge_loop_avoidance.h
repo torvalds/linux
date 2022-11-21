@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2011-2020  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich
  */
@@ -12,7 +12,6 @@
 #include <linux/compiler.h>
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
-#include <linux/seq_file.h>
 #include <linux/skbuff.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
@@ -41,10 +40,7 @@ bool batadv_bla_tx(struct batadv_priv *bat_priv, struct sk_buff *skb,
 bool batadv_bla_is_backbone_gw(struct sk_buff *skb,
 			       struct batadv_orig_node *orig_node,
 			       int hdr_size);
-int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset);
 int batadv_bla_claim_dump(struct sk_buff *msg, struct netlink_callback *cb);
-int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq,
-					     void *offset);
 int batadv_bla_backbone_dump(struct sk_buff *msg, struct netlink_callback *cb);
 bool batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, u8 *orig,
 				    unsigned short vid);
@@ -56,7 +52,6 @@ void batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
 void batadv_bla_status_update(struct net_device *net_dev);
 int batadv_bla_init(struct batadv_priv *bat_priv);
 void batadv_bla_free(struct batadv_priv *bat_priv);
-int batadv_bla_claim_dump(struct sk_buff *msg, struct netlink_callback *cb);
 #ifdef CONFIG_BATMAN_ADV_DAT
 bool batadv_bla_check_claim(struct batadv_priv *bat_priv, u8 *addr,
 			    unsigned short vid);
@@ -82,18 +77,6 @@ static inline bool batadv_bla_is_backbone_gw(struct sk_buff *skb,
 					     int hdr_size)
 {
 	return false;
-}
-
-static inline int batadv_bla_claim_table_seq_print_text(struct seq_file *seq,
-							void *offset)
-{
-	return 0;
-}
-
-static inline int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq,
-							   void *offset)
-{
-	return 0;
 }
 
 static inline bool batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv,

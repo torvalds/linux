@@ -327,10 +327,10 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	list_del(&port->list);
 	write_unlock_irq(&adapter->port_list_lock);
 
-	put_device(&port->dev);
-
 	zfcp_erp_port_shutdown(port, 0, "syprs_1");
 	device_unregister(&port->dev);
+
+	put_device(&port->dev); /* undo zfcp_get_port_by_wwpn() */
  out:
 	zfcp_ccw_adapter_put(adapter);
 	return retval ? retval : (ssize_t) count;
@@ -435,7 +435,7 @@ static struct attribute *zfcp_adapter_attrs[] = {
 	NULL
 };
 
-struct attribute_group zfcp_sysfs_adapter_attrs = {
+static const struct attribute_group zfcp_sysfs_adapter_attr_group = {
 	.attrs = zfcp_adapter_attrs,
 };
 
@@ -487,6 +487,7 @@ static ssize_t zfcp_sysfs_port_fc_security_show(struct device *dev,
 	if (0 == (status & ZFCP_STATUS_COMMON_OPEN) ||
 	    0 == (status & ZFCP_STATUS_COMMON_UNBLOCKED) ||
 	    0 == (status & ZFCP_STATUS_PORT_PHYS_OPEN) ||
+	    0 != (status & ZFCP_STATUS_PORT_LINK_TEST) ||
 	    0 != (status & ZFCP_STATUS_COMMON_ERP_FAILED) ||
 	    0 != (status & ZFCP_STATUS_COMMON_ACCESS_BOXED))
 		i = sprintf(buf, "unknown\n");
@@ -671,17 +672,26 @@ ZFCP_DEFINE_SCSI_ATTR(zfcp_in_recovery, "%d\n",
 ZFCP_DEFINE_SCSI_ATTR(zfcp_status, "0x%08x\n",
 		      atomic_read(&zfcp_sdev->status));
 
-struct device_attribute *zfcp_sysfs_sdev_attrs[] = {
-	&dev_attr_fcp_lun,
-	&dev_attr_wwpn,
-	&dev_attr_hba_id,
-	&dev_attr_read_latency,
-	&dev_attr_write_latency,
-	&dev_attr_cmd_latency,
-	&dev_attr_zfcp_access_denied,
-	&dev_attr_zfcp_failed,
-	&dev_attr_zfcp_in_recovery,
-	&dev_attr_zfcp_status,
+struct attribute *zfcp_sdev_attrs[] = {
+	&dev_attr_fcp_lun.attr,
+	&dev_attr_wwpn.attr,
+	&dev_attr_hba_id.attr,
+	&dev_attr_read_latency.attr,
+	&dev_attr_write_latency.attr,
+	&dev_attr_cmd_latency.attr,
+	&dev_attr_zfcp_access_denied.attr,
+	&dev_attr_zfcp_failed.attr,
+	&dev_attr_zfcp_in_recovery.attr,
+	&dev_attr_zfcp_status.attr,
+	NULL
+};
+
+static const struct attribute_group zfcp_sysfs_sdev_attr_group = {
+	.attrs = zfcp_sdev_attrs
+};
+
+const struct attribute_group *zfcp_sysfs_sdev_attr_groups[] = {
+	&zfcp_sysfs_sdev_attr_group,
 	NULL
 };
 
@@ -782,12 +792,21 @@ static ssize_t zfcp_sysfs_adapter_q_full_show(struct device *dev,
 }
 static DEVICE_ATTR(queue_full, S_IRUGO, zfcp_sysfs_adapter_q_full_show, NULL);
 
-struct device_attribute *zfcp_sysfs_shost_attrs[] = {
-	&dev_attr_utilization,
-	&dev_attr_requests,
-	&dev_attr_megabytes,
-	&dev_attr_seconds_active,
-	&dev_attr_queue_full,
+static struct attribute *zfcp_sysfs_shost_attrs[] = {
+	&dev_attr_utilization.attr,
+	&dev_attr_requests.attr,
+	&dev_attr_megabytes.attr,
+	&dev_attr_seconds_active.attr,
+	&dev_attr_queue_full.attr,
+	NULL
+};
+
+static const struct attribute_group zfcp_sysfs_shost_attr_group = {
+	.attrs = zfcp_sysfs_shost_attrs
+};
+
+const struct attribute_group *zfcp_sysfs_shost_attr_groups[] = {
+	&zfcp_sysfs_shost_attr_group,
 	NULL
 };
 
@@ -906,7 +925,13 @@ static struct attribute *zfcp_sysfs_diag_attrs[] = {
 	NULL,
 };
 
-const struct attribute_group zfcp_sysfs_diag_attr_group = {
+static const struct attribute_group zfcp_sysfs_diag_attr_group = {
 	.name = "diagnostics",
 	.attrs = zfcp_sysfs_diag_attrs,
+};
+
+const struct attribute_group *zfcp_sysfs_adapter_attr_groups[] = {
+	&zfcp_sysfs_adapter_attr_group,
+	&zfcp_sysfs_diag_attr_group,
+	NULL,
 };

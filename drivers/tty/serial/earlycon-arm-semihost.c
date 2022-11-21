@@ -21,7 +21,7 @@
 /*
  * Semihosting-based debug console
  */
-static void smh_putc(struct uart_port *port, int c)
+static void smh_putc(struct uart_port *port, unsigned char c)
 {
 #ifdef CONFIG_ARM64
 	asm volatile("mov  x1, %0\n"

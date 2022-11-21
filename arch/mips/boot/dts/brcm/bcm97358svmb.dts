@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
-/include/ "bcm7358.dtsi"
-/include/ "bcm97xxx-nand-cs1-bch4.dtsi"
+#include "bcm7358.dtsi"
+#include "bcm97xxx-nand-cs1-bch4.dtsi"
 
 / {
 	compatible = "brcm,bcm97358svmb", "brcm,bcm7358";

@@ -16,6 +16,11 @@
 #define CurrentEL_EL1		(1 << 2)
 #define CurrentEL_EL2		(2 << 2)
 
+#define INIT_PSTATE_EL1 \
+	(PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT | PSR_MODE_EL1h)
+#define INIT_PSTATE_EL2 \
+	(PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT | PSR_MODE_EL2h)
+
 /*
  * PMR values used to mask/unmask interrupts.
  *
@@ -188,8 +193,7 @@ struct pt_regs {
 	s32 syscallno;
 	u32 unused2;
 #endif
-
-	u64 orig_addr_limit;
+	u64 sdei_ttbr1;
 	/* Only valid when ARM64_HAS_IRQ_PRIO_MASKING is enabled. */
 	u64 pmr_save;
 	u64 stackframe[2];
@@ -316,7 +320,17 @@ static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
 
 static inline unsigned long regs_return_value(struct pt_regs *regs)
 {
-	return regs->regs[0];
+	unsigned long val = regs->regs[0];
+
+	/*
+	 * Audit currently uses regs_return_value() instead of
+	 * syscall_get_return_value(). Apply the same sign-extension here until
+	 * audit is updated to use syscall_get_return_value().
+	 */
+	if (compat_user_mode(regs))
+		val = sign_extend64(val, 31);
+
+	return val;
 }
 
 static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)

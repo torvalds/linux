@@ -6,6 +6,7 @@
 /dts-v1/;
 #include "imx50.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "Kobo Aura (N514)";
@@ -119,7 +120,14 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	/* TODO: ektf2132 touch controller at 0x15 */
+	touchscreen@15 {
+		reg = <0x15>;
+		compatible = "elan,ektf2132";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ts>;
+		power-gpios = <&gpio4 9 GPIO_ACTIVE_HIGH>;
+		interrupts-extended = <&gpio5 13 IRQ_TYPE_EDGE_FALLING>;
+	};
 };
 
 &i2c2 {
@@ -135,11 +143,25 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
-	/* TODO: embedded controller at 0x43 */
+	embedded-controller@43 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ec>;
+		compatible = "netronix,ntxec";
+		reg = <0x43>;
+		system-power-controller;
+		interrupts-extended = <&gpio4 11 IRQ_TYPE_EDGE_FALLING>;
+		#pwm-cells = <2>;
+	};
 };
 
 &iomuxc {
-	pinctrl_gpiokeys: gpiokeys {
+	pinctrl_ec: ecgrp {
+		fsl,pins = <
+			MX50_PAD_CSPI_SS0__GPIO4_11		0x0	/* INT */
+		>;
+	};
+
+	pinctrl_gpiokeys: gpiokeysgrp {
 		fsl,pins = <
 			MX50_PAD_CSPI_MISO__GPIO4_10		0x0
 			MX50_PAD_SD2_D7__GPIO5_15		0x0
@@ -147,34 +169,34 @@
 		>;
 	};
 
-	pinctrl_i2c1: i2c1 {
+	pinctrl_i2c1: i2c1grp {
 		fsl,pins = <
 			MX50_PAD_I2C1_SCL__I2C1_SCL		0x400001fd
 			MX50_PAD_I2C1_SDA__I2C1_SDA		0x400001fd
 		>;
 	};
 
-	pinctrl_i2c2: i2c2 {
+	pinctrl_i2c2: i2c2grp {
 		fsl,pins = <
 			MX50_PAD_I2C2_SCL__I2C2_SCL		0x400001fd
 			MX50_PAD_I2C2_SDA__I2C2_SDA		0x400001fd
 		>;
 	};
 
-	pinctrl_i2c3: i2c3 {
+	pinctrl_i2c3: i2c3grp {
 		fsl,pins = <
 			MX50_PAD_I2C3_SCL__I2C3_SCL		0x400001fd
 			MX50_PAD_I2C3_SDA__I2C3_SDA		0x400001fd
 		>;
 	};
 
-	pinctrl_leds: leds {
+	pinctrl_leds: ledsgrp {
 		fsl,pins = <
 			MX50_PAD_PWM1__GPIO6_24			0x0
 		>;
 	};
 
-	pinctrl_sd1: sd1 {
+	pinctrl_sd1: sd1grp {
 		fsl,pins = <
 			MX50_PAD_SD1_CMD__ESDHC1_CMD		0x1e4
 			MX50_PAD_SD1_CLK__ESDHC1_CLK		0xd4
@@ -187,7 +209,7 @@
 		>;
 	};
 
-	pinctrl_sd2: sd2 {
+	pinctrl_sd2: sd2grp {
 		fsl,pins = <
 			MX50_PAD_SD2_CMD__ESDHC2_CMD		0x1e4
 			MX50_PAD_SD2_CLK__ESDHC2_CLK		0xd4
@@ -198,19 +220,19 @@
 		>;
 	};
 
-	pinctrl_sd2_reset: sd2-reset {
+	pinctrl_sd2_reset: sd2-resetgrp {
 		fsl,pins = <
 			MX50_PAD_ECSPI2_MOSI__GPIO4_17		0x0
 		>;
 	};
 
-	pinctrl_sd2_vmmc: sd2-vmmc {
+	pinctrl_sd2_vmmc: sd2-vmmcgrp {
 		fsl,pins = <
 			MX50_PAD_ECSPI1_SCLK__GPIO4_12		0x0
 		>;
 	};
 
-	pinctrl_sd3: sd3 {
+	pinctrl_sd3: sd3grp {
 		fsl,pins = <
 			MX50_PAD_SD3_CMD__ESDHC3_CMD		0x1e4
 			MX50_PAD_SD3_CLK__ESDHC3_CLK		0xd4
@@ -225,14 +247,21 @@
 		>;
 	};
 
-	pinctrl_uart2: uart2 {
+	pinctrl_ts: tsgrp {
+		fsl,pins = <
+			MX50_PAD_CSPI_MOSI__GPIO4_9		0x0
+			MX50_PAD_SD2_D5__GPIO5_13		0x0
+		>;
+	};
+
+	pinctrl_uart2: uart2grp {
 		fsl,pins = <
 			MX50_PAD_UART2_TXD__UART2_TXD_MUX	0x1e4
 			MX50_PAD_UART2_RXD__UART2_RXD_MUX	0x1e4
 		>;
 	};
 
-	pinctrl_usbphy: usbphy {
+	pinctrl_usbphy: usbphygrp {
 		fsl,pins = <
 			MX50_PAD_ECSPI2_SS0__GPIO4_19		0x0
 		>;

@@ -29,7 +29,7 @@
 #include <linux/uaccess.h>
 
 
-static struct resource da9063_regulators_resources[] = {
+static const struct resource da9063_regulators_resources[] = {
 	{
 		.name	= "LDO_LIM",
 		.start	= DA9063_IRQ_LDO_LIM,
@@ -38,7 +38,7 @@ static struct resource da9063_regulators_resources[] = {
 	},
 };
 
-static struct resource da9063_rtc_resources[] = {
+static const struct resource da9063_rtc_resources[] = {
 	{
 		.name	= "ALARM",
 		.start	= DA9063_IRQ_ALARM,
@@ -53,7 +53,7 @@ static struct resource da9063_rtc_resources[] = {
 	}
 };
 
-static struct resource da9063_onkey_resources[] = {
+static const struct resource da9063_onkey_resources[] = {
 	{
 		.name	= "ONKEY",
 		.start	= DA9063_IRQ_ONKEY,
@@ -62,7 +62,7 @@ static struct resource da9063_onkey_resources[] = {
 	},
 };
 
-static struct resource da9063_hwmon_resources[] = {
+static const struct resource da9063_hwmon_resources[] = {
 	{
 		.start	= DA9063_IRQ_ADC_RDY,
 		.end	= DA9063_IRQ_ADC_RDY,

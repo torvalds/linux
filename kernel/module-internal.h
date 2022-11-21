@@ -23,9 +23,28 @@ struct load_info {
 #ifdef CONFIG_KALLSYMS
 	unsigned long mod_kallsyms_init_off;
 #endif
+#ifdef CONFIG_MODULE_DECOMPRESS
+	struct page **pages;
+	unsigned int max_pages;
+	unsigned int used_pages;
+#endif
 	struct {
 		unsigned int sym, str, mod, vers, info, pcpu;
 	} index;
 };
 
 extern int mod_verify_sig(const void *mod, struct load_info *info);
+
+#ifdef CONFIG_MODULE_DECOMPRESS
+int module_decompress(struct load_info *info, const void *buf, size_t size);
+void module_decompress_cleanup(struct load_info *info);
+#else
+static inline int module_decompress(struct load_info *info,
+				    const void *buf, size_t size)
+{
+	return -EOPNOTSUPP;
+}
+static inline void module_decompress_cleanup(struct load_info *info)
+{
+}
+#endif

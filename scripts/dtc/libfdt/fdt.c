@@ -22,6 +22,10 @@ int32_t fdt_ro_probe_(const void *fdt)
 	if (can_assume(VALID_DTB))
 		return totalsize;
 
+	/* The device tree must be at an 8-byte aligned address */
+	if ((uintptr_t)fdt & 7)
+		return -FDT_ERR_ALIGNMENT;
+
 	if (fdt_magic(fdt) == FDT_MAGIC) {
 		/* Complete tree */
 		if (!can_assume(LATEST)) {
@@ -85,6 +89,10 @@ size_t fdt_header_size(const void *fdt)
 int fdt_check_header(const void *fdt)
 {
 	size_t hdrsize;
+
+	/* The device tree must be at an 8-byte aligned address */
+	if ((uintptr_t)fdt & 7)
+		return -FDT_ERR_ALIGNMENT;
 
 	if (fdt_magic(fdt) != FDT_MAGIC)
 		return -FDT_ERR_BADMAGIC;

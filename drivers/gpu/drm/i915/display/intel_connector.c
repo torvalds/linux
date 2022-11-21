@@ -29,13 +29,13 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 
-#include "display/intel_panel.h"
-
 #include "i915_drv.h"
+#include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_display_debugfs.h"
 #include "intel_display_types.h"
 #include "intel_hdcp.h"
+#include "intel_panel.h"
 
 int intel_connector_init(struct intel_connector *connector)
 {
@@ -124,7 +124,7 @@ int intel_connector_register(struct drm_connector *connector)
 		goto err_backlight;
 	}
 
-	intel_connector_debugfs_add(connector);
+	intel_connector_debugfs_add(intel_connector);
 
 	return 0;
 
@@ -279,24 +279,15 @@ intel_attach_aspect_ratio_property(struct drm_connector *connector)
 }
 
 void
-intel_attach_colorspace_property(struct drm_connector *connector)
+intel_attach_hdmi_colorspace_property(struct drm_connector *connector)
 {
-	switch (connector->connector_type) {
-	case DRM_MODE_CONNECTOR_HDMIA:
-	case DRM_MODE_CONNECTOR_HDMIB:
-		if (drm_mode_create_hdmi_colorspace_property(connector))
-			return;
-		break;
-	case DRM_MODE_CONNECTOR_DisplayPort:
-	case DRM_MODE_CONNECTOR_eDP:
-		if (drm_mode_create_dp_colorspace_property(connector))
-			return;
-		break;
-	default:
-		MISSING_CASE(connector->connector_type);
-		return;
-	}
+	if (!drm_mode_create_hdmi_colorspace_property(connector))
+		drm_connector_attach_colorspace_property(connector);
+}
 
-	drm_object_attach_property(&connector->base,
-				   connector->colorspace_property, 0);
+void
+intel_attach_dp_colorspace_property(struct drm_connector *connector)
+{
+	if (!drm_mode_create_dp_colorspace_property(connector))
+		drm_connector_attach_colorspace_property(connector);
 }

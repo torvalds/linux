@@ -17,16 +17,6 @@ struct cpu_spec;
 typedef	void (*cpu_setup_t)(unsigned long offset, struct cpu_spec* spec);
 typedef	void (*cpu_restore_t)(void);
 
-enum powerpc_oprofile_type {
-	PPC_OPROFILE_INVALID = 0,
-	PPC_OPROFILE_RS64 = 1,
-	PPC_OPROFILE_POWER4 = 2,
-	PPC_OPROFILE_G4 = 3,
-	PPC_OPROFILE_FSL_EMB = 4,
-	PPC_OPROFILE_CELL = 5,
-	PPC_OPROFILE_PA6T = 6,
-};
-
 enum powerpc_pmc_type {
 	PPC_PMC_DEFAULT = 0,
 	PPC_PMC_IBM = 1,
@@ -41,7 +31,6 @@ extern int machine_check_4xx(struct pt_regs *regs);
 extern int machine_check_440A(struct pt_regs *regs);
 extern int machine_check_e500mc(struct pt_regs *regs);
 extern int machine_check_e500(struct pt_regs *regs);
-extern int machine_check_e200(struct pt_regs *regs);
 extern int machine_check_47x(struct pt_regs *regs);
 int machine_check_8xx(struct pt_regs *regs);
 int machine_check_83xx(struct pt_regs *regs);
@@ -83,16 +72,6 @@ struct cpu_spec {
 
 	/* Used by oprofile userspace to select the right counters */
 	char		*oprofile_cpu_type;
-
-	/* Processor specific oprofile operations */
-	enum powerpc_oprofile_type oprofile_type;
-
-	/* Bit locations inside the mmcra change */
-	unsigned long	oprofile_mmcra_sihv;
-	unsigned long	oprofile_mmcra_sipr;
-
-	/* Bits to clear during an oprofile exception */
-	unsigned long	oprofile_mmcra_clear;
 
 	/* Name of processor class, for the ELF AT_PLATFORM entry */
 	char		*platform;
@@ -137,7 +116,7 @@ static inline void cpu_feature_keys_init(void) { }
 #define CPU_FTR_DBELL			ASM_CONST(0x00000004)
 #define CPU_FTR_CAN_NAP			ASM_CONST(0x00000008)
 #define CPU_FTR_DEBUG_LVL_EXC		ASM_CONST(0x00000010)
-#define CPU_FTR_NODSISRALIGN		ASM_CONST(0x00000020)
+// ASM_CONST(0x00000020) Free
 #define CPU_FTR_FPU_UNAVAILABLE		ASM_CONST(0x00000040)
 #define CPU_FTR_LWSYNC			ASM_CONST(0x00000080)
 #define CPU_FTR_NOEXECUTE		ASM_CONST(0x00000100)
@@ -219,9 +198,7 @@ static inline void cpu_feature_keys_init(void) { }
 
 #ifndef __ASSEMBLY__
 
-#define CPU_FTR_PPCAS_ARCH_V2	(CPU_FTR_NOEXECUTE | CPU_FTR_NODSISRALIGN)
-
-#define MMU_FTR_PPCAS_ARCH_V2 	(MMU_FTR_TLBIEL | MMU_FTR_16M_PAGE)
+#define CPU_FTR_PPCAS_ARCH_V2	(CPU_FTR_NOEXECUTE)
 
 /* We only set the altivec features if the kernel was compiled with altivec
  * support
@@ -369,7 +346,7 @@ static inline void cpu_feature_keys_init(void) { }
 	    CPU_FTR_PPC_LE | CPU_FTR_NEED_PAIRED_STWCX)
 #define CPU_FTRS_82XX	(CPU_FTR_COMMON | CPU_FTR_MAYBE_CAN_DOZE | CPU_FTR_NOEXECUTE)
 #define CPU_FTRS_G2_LE	(CPU_FTR_COMMON | CPU_FTR_MAYBE_CAN_DOZE | \
-	    CPU_FTR_MAYBE_CAN_NAP)
+	    CPU_FTR_MAYBE_CAN_NAP | CPU_FTR_NOEXECUTE)
 #define CPU_FTRS_E300	(CPU_FTR_MAYBE_CAN_DOZE | \
 	    CPU_FTR_MAYBE_CAN_NAP | \
 	    CPU_FTR_COMMON  | CPU_FTR_NOEXECUTE)
@@ -378,38 +355,33 @@ static inline void cpu_feature_keys_init(void) { }
 	    CPU_FTR_COMMON | CPU_FTR_FPU_UNAVAILABLE  | CPU_FTR_NOEXECUTE)
 #define CPU_FTRS_CLASSIC32	(CPU_FTR_COMMON)
 #define CPU_FTRS_8XX	(CPU_FTR_NOEXECUTE)
-#define CPU_FTRS_40X	(CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
-#define CPU_FTRS_44X	(CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
-#define CPU_FTRS_440x6	(CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE | \
+#define CPU_FTRS_40X	(CPU_FTR_NOEXECUTE)
+#define CPU_FTRS_44X	(CPU_FTR_NOEXECUTE)
+#define CPU_FTRS_440x6	(CPU_FTR_NOEXECUTE | \
 	    CPU_FTR_INDEXED_DCR)
 #define CPU_FTRS_47X	(CPU_FTRS_440x6)
-#define CPU_FTRS_E200	(CPU_FTR_SPE_COMP | \
-	    CPU_FTR_NODSISRALIGN | CPU_FTR_COHERENT_ICACHE | \
-	    CPU_FTR_NOEXECUTE | \
-	    CPU_FTR_DEBUG_LVL_EXC)
 #define CPU_FTRS_E500	(CPU_FTR_MAYBE_CAN_DOZE | \
-	    CPU_FTR_SPE_COMP | CPU_FTR_MAYBE_CAN_NAP | CPU_FTR_NODSISRALIGN | \
+	    CPU_FTR_SPE_COMP | CPU_FTR_MAYBE_CAN_NAP | \
 	    CPU_FTR_NOEXECUTE)
 #define CPU_FTRS_E500_2	(CPU_FTR_MAYBE_CAN_DOZE | \
 	    CPU_FTR_SPE_COMP | CPU_FTR_MAYBE_CAN_NAP | \
-	    CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
-#define CPU_FTRS_E500MC	(CPU_FTR_NODSISRALIGN | \
+	    CPU_FTR_NOEXECUTE)
+#define CPU_FTRS_E500MC	( \
 	    CPU_FTR_LWSYNC | CPU_FTR_NOEXECUTE | \
 	    CPU_FTR_DBELL | CPU_FTR_DEBUG_LVL_EXC | CPU_FTR_EMB_HV)
 /*
  * e5500/e6500 erratum A-006958 is a timebase bug that can use the
  * same workaround as CPU_FTR_CELL_TB_BUG.
  */
-#define CPU_FTRS_E5500	(CPU_FTR_NODSISRALIGN | \
+#define CPU_FTRS_E5500	( \
 	    CPU_FTR_LWSYNC | CPU_FTR_NOEXECUTE | \
 	    CPU_FTR_DBELL | CPU_FTR_POPCNTB | CPU_FTR_POPCNTD | \
 	    CPU_FTR_DEBUG_LVL_EXC | CPU_FTR_EMB_HV | CPU_FTR_CELL_TB_BUG)
-#define CPU_FTRS_E6500	(CPU_FTR_NODSISRALIGN | \
+#define CPU_FTRS_E6500	( \
 	    CPU_FTR_LWSYNC | CPU_FTR_NOEXECUTE | \
 	    CPU_FTR_DBELL | CPU_FTR_POPCNTB | CPU_FTR_POPCNTD | \
 	    CPU_FTR_DEBUG_LVL_EXC | CPU_FTR_EMB_HV | CPU_FTR_ALTIVEC_COMP | \
 	    CPU_FTR_CELL_TB_BUG | CPU_FTR_SMT)
-#define CPU_FTRS_GENERIC_32	(CPU_FTR_COMMON | CPU_FTR_NODSISRALIGN)
 
 /* 64-bit CPUs */
 #define CPU_FTRS_PPC970	(CPU_FTR_LWSYNC | \
@@ -489,7 +461,7 @@ static inline void cpu_feature_keys_init(void) { }
 	    CPU_FTR_PURR | CPU_FTR_REAL_LE | CPU_FTR_DABRX)
 #define CPU_FTRS_COMPATIBLE	(CPU_FTR_PPCAS_ARCH_V2)
 
-#ifdef __powerpc64__
+#ifdef CONFIG_PPC64
 #ifdef CONFIG_PPC_BOOK3E
 #define CPU_FTRS_POSSIBLE	(CPU_FTRS_E6500 | CPU_FTRS_E5500)
 #else
@@ -510,18 +482,19 @@ static inline void cpu_feature_keys_init(void) { }
 #else
 enum {
 	CPU_FTRS_POSSIBLE =
-#ifdef CONFIG_PPC_BOOK3S_32
-	    CPU_FTRS_603 | CPU_FTRS_604 | CPU_FTRS_740_NOTAU |
+#ifdef CONFIG_PPC_BOOK3S_604
+	    CPU_FTRS_604 | CPU_FTRS_740_NOTAU |
 	    CPU_FTRS_740 | CPU_FTRS_750 | CPU_FTRS_750FX1 |
 	    CPU_FTRS_750FX2 | CPU_FTRS_750FX | CPU_FTRS_750GX |
 	    CPU_FTRS_7400_NOTAU | CPU_FTRS_7400 | CPU_FTRS_7450_20 |
 	    CPU_FTRS_7450_21 | CPU_FTRS_7450_23 | CPU_FTRS_7455_1 |
 	    CPU_FTRS_7455_20 | CPU_FTRS_7455 | CPU_FTRS_7447_10 |
-	    CPU_FTRS_7447 | CPU_FTRS_7447A | CPU_FTRS_82XX |
-	    CPU_FTRS_G2_LE | CPU_FTRS_E300 | CPU_FTRS_E300C2 |
+	    CPU_FTRS_7447 | CPU_FTRS_7447A |
 	    CPU_FTRS_CLASSIC32 |
-#else
-	    CPU_FTRS_GENERIC_32 |
+#endif
+#ifdef CONFIG_PPC_BOOK3S_603
+	    CPU_FTRS_603 | CPU_FTRS_82XX |
+	    CPU_FTRS_G2_LE | CPU_FTRS_E300 | CPU_FTRS_E300C2 |
 #endif
 #ifdef CONFIG_PPC_8xx
 	    CPU_FTRS_8XX |
@@ -529,14 +502,10 @@ enum {
 #ifdef CONFIG_40x
 	    CPU_FTRS_40X |
 #endif
-#ifdef CONFIG_44x
-	    CPU_FTRS_44X | CPU_FTRS_440x6 |
-#endif
 #ifdef CONFIG_PPC_47x
 	    CPU_FTRS_47X | CPU_FTR_476_DD2 |
-#endif
-#ifdef CONFIG_E200
-	    CPU_FTRS_E200 |
+#elif defined(CONFIG_44x)
+	    CPU_FTRS_44X | CPU_FTRS_440x6 |
 #endif
 #ifdef CONFIG_E500
 	    CPU_FTRS_E500 | CPU_FTRS_E500_2 |
@@ -548,7 +517,7 @@ enum {
 };
 #endif /* __powerpc64__ */
 
-#ifdef __powerpc64__
+#ifdef CONFIG_PPC64
 #ifdef CONFIG_PPC_BOOK3E
 #define CPU_FTRS_ALWAYS		(CPU_FTRS_E6500 & CPU_FTRS_E5500)
 #else
@@ -557,7 +526,6 @@ enum {
 #define CPU_FTRS_DT_CPU_BASE			\
 	(CPU_FTR_LWSYNC |			\
 	 CPU_FTR_FPU_UNAVAILABLE |		\
-	 CPU_FTR_NODSISRALIGN |			\
 	 CPU_FTR_NOEXECUTE |			\
 	 CPU_FTR_COHERENT_ICACHE |		\
 	 CPU_FTR_STCX_CHECKS_ADDRESS |		\
@@ -586,18 +554,19 @@ enum {
 #else
 enum {
 	CPU_FTRS_ALWAYS =
-#ifdef CONFIG_PPC_BOOK3S_32
-	    CPU_FTRS_603 & CPU_FTRS_604 & CPU_FTRS_740_NOTAU &
+#ifdef CONFIG_PPC_BOOK3S_604
+	    CPU_FTRS_604 & CPU_FTRS_740_NOTAU &
 	    CPU_FTRS_740 & CPU_FTRS_750 & CPU_FTRS_750FX1 &
 	    CPU_FTRS_750FX2 & CPU_FTRS_750FX & CPU_FTRS_750GX &
 	    CPU_FTRS_7400_NOTAU & CPU_FTRS_7400 & CPU_FTRS_7450_20 &
 	    CPU_FTRS_7450_21 & CPU_FTRS_7450_23 & CPU_FTRS_7455_1 &
 	    CPU_FTRS_7455_20 & CPU_FTRS_7455 & CPU_FTRS_7447_10 &
-	    CPU_FTRS_7447 & CPU_FTRS_7447A & CPU_FTRS_82XX &
-	    CPU_FTRS_G2_LE & CPU_FTRS_E300 & CPU_FTRS_E300C2 &
+	    CPU_FTRS_7447 & CPU_FTRS_7447A &
 	    CPU_FTRS_CLASSIC32 &
-#else
-	    CPU_FTRS_GENERIC_32 &
+#endif
+#ifdef CONFIG_PPC_BOOK3S_603
+	    CPU_FTRS_603 & CPU_FTRS_82XX &
+	    CPU_FTRS_G2_LE & CPU_FTRS_E300 & CPU_FTRS_E300C2 &
 #endif
 #ifdef CONFIG_PPC_8xx
 	    CPU_FTRS_8XX &
@@ -605,11 +574,10 @@ enum {
 #ifdef CONFIG_40x
 	    CPU_FTRS_40X &
 #endif
-#ifdef CONFIG_44x
+#ifdef CONFIG_PPC_47x
+	    CPU_FTRS_47X &
+#elif defined(CONFIG_44x)
 	    CPU_FTRS_44X & CPU_FTRS_440x6 &
-#endif
-#ifdef CONFIG_E200
-	    CPU_FTRS_E200 &
 #endif
 #ifdef CONFIG_E500
 	    CPU_FTRS_E500 & CPU_FTRS_E500_2 &

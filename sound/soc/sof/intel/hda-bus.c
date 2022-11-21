@@ -9,6 +9,9 @@
 
 #include <linux/io.h>
 #include <sound/hdaudio.h>
+#include <sound/hda_i915.h>
+#include <sound/hda_codec.h>
+#include <sound/hda_register.h>
 #include "../sof-priv.h"
 #include "hda.h"
 
@@ -19,13 +22,58 @@
 #define sof_hda_ext_ops	NULL
 #endif
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+static void update_codec_wake_enable(struct hdac_bus *bus, unsigned int addr, bool link_power)
+{
+	unsigned int mask = snd_hdac_chip_readw(bus, WAKEEN);
+
+	if (link_power)
+		mask &= ~BIT(addr);
+	else
+		mask |= BIT(addr);
+
+	snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK, mask);
+}
+
+static void sof_hda_bus_link_power(struct hdac_device *codec, bool enable)
+{
+	struct hdac_bus *bus = codec->bus;
+	bool oldstate = test_bit(codec->addr, &bus->codec_powered);
+
+	snd_hdac_ext_bus_link_power(codec, enable);
+
+	if (enable == oldstate)
+		return;
+
+	/*
+	 * Both codec driver and controller can hold references to
+	 * display power. To avoid unnecessary power-up/down cycles,
+	 * controller doesn't immediately release its reference.
+	 *
+	 * If the codec driver powers down the link, release
+	 * the controller reference as well.
+	 */
+	if (codec->addr == HDA_IDISP_ADDR && !enable)
+		snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
+
+	/* WAKEEN needs to be set for disabled links */
+	update_codec_wake_enable(bus, codec->addr, enable);
+}
+
+static const struct hdac_bus_ops bus_core_ops = {
+	.command = snd_hdac_bus_send_cmd,
+	.get_response = snd_hdac_bus_get_response,
+	.link_power = sof_hda_bus_link_power,
+};
+#endif
+
 /*
  * This can be used for both with/without hda link support.
  */
 void sof_hda_bus_init(struct hdac_bus *bus, struct device *dev)
 {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	snd_hdac_ext_bus_init(bus, dev, NULL, sof_hda_ext_ops);
+	snd_hdac_ext_bus_init(bus, dev, &bus_core_ops, sof_hda_ext_ops);
 #else /* CONFIG_SND_SOC_SOF_HDA */
 	memset(bus, 0, sizeof(*bus));
 	bus->dev = dev;

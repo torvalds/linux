@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
+#include <dt-bindings/input/atmel-maxtouch.h>
 #include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/thermal/thermal.h>
@@ -375,22 +376,36 @@
 		};
 	};
 
+	tegra_spdif: spdif@70002400 {
+		status = "okay";
+
+		nvidia,fixed-parent-rate;
+	};
+
 	tegra_i2s1: i2s@70002800 {
 		status = "okay";
+
+		nvidia,fixed-parent-rate;
 	};
 
 	uartb: serial@70006040 {
 		compatible = "nvidia,tegra20-hsuart";
+		/delete-property/ reg-shift;
 		/* GPS BCM4751 */
 	};
 
 	uartc: serial@70006200 {
 		compatible = "nvidia,tegra20-hsuart";
+		/delete-property/ reg-shift;
 		status = "okay";
 
 		/* Azurewave AW-NH665 BCM4329B1 */
 		bluetooth {
 			compatible = "brcm,bcm4329-bt";
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(U, 6) IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "host-wakeup";
 
 			/* PLLP 216MHz / 16 / 4 */
 			max-speed = <3375000>;
@@ -402,7 +417,6 @@
 			vddio-supply = <&vdd_1v8_sys>;
 
 			device-wakeup-gpios = <&gpio TEGRA_GPIO(U, 1) GPIO_ACTIVE_HIGH>;
-			host-wakeup-gpios =   <&gpio TEGRA_GPIO(U, 6) GPIO_ACTIVE_HIGH>;
 			shutdown-gpios =      <&gpio TEGRA_GPIO(U, 0) GPIO_ACTIVE_HIGH>;
 		};
 	};
@@ -420,10 +434,13 @@
 			reg = <0x1a>;
 
 			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(X, 3) IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <TEGRA_GPIO(X, 3) IRQ_TYPE_EDGE_BOTH>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
+
+			micdet-cfg = <0>;
+			micdet-delay = <100>;
 
 			gpio-cfg = <
 				0x0000 /* MIC_LR_OUT#    GPIO, output, low */
@@ -446,10 +463,12 @@
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(V, 6) IRQ_TYPE_LEVEL_LOW>;
 
-			reset-gpios = <&gpio TEGRA_GPIO(Q, 7) GPIO_ACTIVE_HIGH>;
+			reset-gpios = <&gpio TEGRA_GPIO(Q, 7) GPIO_ACTIVE_LOW>;
 
-			avdd-supply = <&vdd_3v3_sys>;
+			vdda-supply = <&vdd_3v3_sys>;
 			vdd-supply  = <&vdd_3v3_sys>;
+
+			atmel,wakeup-method = <ATMEL_MXT_WAKEUP_I2C_SCL>;
 		};
 
 		gyroscope@68 {
@@ -476,6 +495,9 @@
 
 					interrupt-parent = <&gpio>;
 					interrupts = <TEGRA_GPIO(S, 7) IRQ_TYPE_EDGE_RISING>;
+
+					vdd-supply   = <&vdd_1v8_sys>;
+					vddio-supply = <&vdd_1v8_sys>;
 
 					mount-matrix =	 "0",  "1",  "0",
 							 "1",  "0",  "0",
@@ -512,6 +534,16 @@
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			embedded-controller@58 {
+				compatible = "acer,a500-iconia-ec", "ene,kb930";
+				reg = <0x58>;
+
+				system-power-controller;
+
+				monitored-battery = <&bat1010>;
+				power-supplies = <&mains>;
+			};
 		};
 	};
 
@@ -524,7 +556,7 @@
 		status = "okay";
 
 		magnetometer@c {
-			compatible = "ak,ak8975";
+			compatible = "asahi-kasei,ak8975";
 			reg = <0x0c>;
 
 			interrupt-parent = <&gpio>;
@@ -565,7 +597,7 @@
 
 				vdd_core: sm0 {
 					regulator-name = "vdd_sm0,vdd_core";
-					regulator-min-microvolt = <1200000>;
+					regulator-min-microvolt = <950000>;
 					regulator-max-microvolt = <1300000>;
 					regulator-coupled-with = <&rtc_vdd &vdd_cpu>;
 					regulator-coupled-max-spread = <170000 550000>;
@@ -606,7 +638,7 @@
 
 				rtc_vdd: ldo2 {
 					regulator-name = "vdd_ldo2,vdd_rtc";
-					regulator-min-microvolt = <1200000>;
+					regulator-min-microvolt = <950000>;
 					regulator-max-microvolt = <1300000>;
 					regulator-coupled-with = <&vdd_core &vdd_cpu>;
 					regulator-coupled-max-spread = <170000 550000>;
@@ -678,6 +710,10 @@
 			compatible = "onnn,nct1008";
 			reg = <0x4c>;
 			vcc-supply = <&vdd_3v3_sys>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(N, 6) IRQ_TYPE_EDGE_FALLING>;
+
 			#thermal-sensor-cells = <1>;
 		};
 	};
@@ -690,6 +726,7 @@
 		nvidia,core-pwr-good-time = <3845 3845>;
 		nvidia,core-pwr-off-time = <458>;
 		nvidia,sys-clock-req-active-high;
+		core-supply = <&vdd_core>;
 	};
 
 	usb@c5000000 {
@@ -704,7 +741,6 @@
 		nvidia,xcvr-setup-use-fuses;
 		nvidia,xcvr-lsfslew = <2>;
 		nvidia,xcvr-lsrslew = <2>;
-		vbus-supply = <&vdd_vbus1>;
 	};
 
 	usb@c5008000 {
@@ -716,7 +752,7 @@
 		nvidia,xcvr-setup-use-fuses;
 		nvidia,xcvr-lsfslew = <2>;
 		nvidia,xcvr-lsrslew = <2>;
-		vbus-supply = <&vdd_vbus3>;
+		vbus-supply = <&vdd_5v0_sys>;
 	};
 
 	brcm_wifi_pwrseq: wifi-pwrseq {
@@ -747,7 +783,7 @@
 
 		mmc-pwrseq = <&brcm_wifi_pwrseq>;
 		vmmc-supply = <&vdd_3v3_sys>;
-		vqmmc-supply = <&vdd_3v3_sys>;
+		vqmmc-supply = <&vdd_1v8_sys>;
 
 		/* Azurewave AW-NH611 BCM4329 */
 		wifi@1 {
@@ -794,8 +830,15 @@
 		default-brightness-level = <20>;
 	};
 
+	bat1010: battery-2s1p {
+		compatible = "simple-battery";
+		charge-full-design-microamp-hours = <3260000>;
+		energy-full-design-microwatt-hours = <24000000>;
+		operating-range-celsius = <0 40>;
+	};
+
 	/* PMIC has a built-in 32KHz oscillator which is used by PMC */
-	clk32k_in: clock@0 {
+	clk32k_in: clock-32k-in {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
@@ -807,7 +850,7 @@
 	 * oscillator is used as a reference clock-source by the
 	 * Azurewave WiFi/BT module.
 	 */
-	rtc_32k_wifi: clock@1 {
+	rtc_32k_wifi: clock-32k-wifi {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
@@ -821,9 +864,10 @@
 			#cooling-cells = <2>;
 		};
 
-		cpu@1 {
+		cpu1: cpu@1 {
 			cpu-supply = <&vdd_cpu>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			#cooling-cells = <2>;
 		};
 	};
 
@@ -907,6 +951,7 @@
 		compatible = "ti,sn75lvds83", "lvds-encoder";
 
 		powerdown-gpios = <&gpio TEGRA_GPIO(B, 2) GPIO_ACTIVE_LOW>;
+		power-supply = <&vdd_3v3_sys>;
 
 		ports {
 			#address-cells = <1>;
@@ -930,7 +975,7 @@
 		};
 	};
 
-	vdd_5v0_sys: regulator@0 {
+	vdd_5v0_sys: regulator-5v0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_5v0";
 		regulator-min-microvolt = <5000000>;
@@ -938,7 +983,7 @@
 		regulator-always-on;
 	};
 
-	vdd_3v3_sys: regulator@1 {
+	vdd_3v3_sys: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_3v3_vs";
 		regulator-min-microvolt = <3300000>;
@@ -947,7 +992,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_1v8_sys: regulator@2 {
+	vdd_1v8_sys: regulator-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_1v8_vs";
 		regulator-min-microvolt = <1800000>;
@@ -956,35 +1001,13 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_pnl: regulator@3 {
+	vdd_pnl: regulator-panel {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_panel";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-enable-ramp-delay = <300000>;
 		gpio = <&gpio TEGRA_GPIO(C, 6) GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		vin-supply = <&vdd_5v0_sys>;
-	};
-
-	vdd_vbus1: regulator@4 {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_usb1_vbus";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
-		gpio = <&gpio TEGRA_GPIO(D, 0) GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		vin-supply = <&vdd_5v0_sys>;
-	};
-
-	vdd_vbus3: regulator@5 {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_usb3_vbus";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
-		gpio = <&gpio TEGRA_GPIO(D, 3) GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		vin-supply = <&vdd_5v0_sys>;
 	};
@@ -1009,7 +1032,7 @@
 		nvidia,audio-codec = <&wm8903>;
 
 		nvidia,spkr-en-gpios = <&wm8903 2 GPIO_ACTIVE_HIGH>;
-		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_HIGH>;
+		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_LOW>;
 		nvidia,int-mic-en-gpios = <&wm8903 1 GPIO_ACTIVE_HIGH>;
 		nvidia,headset;
 
@@ -1020,30 +1043,36 @@
 	};
 
 	thermal-zones {
-		nct1008-local {
-			polling-delay-passive = <1000>; /* milliseconds */
-			polling-delay = <0>; /* milliseconds */
+		/*
+		 * NCT1008 has two sensors:
+		 *
+		 *	0: internal that monitors ambient/skin temperature
+		 *	1: external that is connected to the CPU's diode
+		 *
+		 * Ideally we should use userspace thermal governor,
+		 * but it's a much more complex solution.  The "skin"
+		 * zone is a simpler solution which prevents A500 from
+		 * getting too hot from a user's tactile perspective.
+		 * The CPU zone is intended to protect silicon from damage.
+		 */
 
-			thermal-sensors = <&nct1008 0>;
-		};
-
-		nct1008-remote {
+		skin-thermal {
 			polling-delay-passive = <1000>; /* milliseconds */
 			polling-delay = <5000>; /* milliseconds */
 
-			thermal-sensors = <&nct1008 1>;
+			thermal-sensors = <&nct1008 0>;
 
 			trips {
-				trip0: cpu-alert0 {
-					/* start throttling at 50C */
-					temperature = <50000>;
-					hysteresis = <3000>;
+				trip0: skin-alert {
+					/* start throttling at 60C */
+					temperature = <60000>;
+					hysteresis = <200>;
 					type = "passive";
 				};
 
-				trip1: cpu-crit {
-					/* shut down at 60C */
-					temperature = <60000>;
+				trip1: skin-crit {
+					/* shut down at 70C */
+					temperature = <70000>;
 					hysteresis = <2000>;
 					type = "critical";
 				};
@@ -1052,7 +1081,39 @@
 			cooling-maps {
 				map0 {
 					trip = <&trip0>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+
+		cpu-thermal {
+			polling-delay-passive = <1000>; /* milliseconds */
+			polling-delay = <5000>; /* milliseconds */
+
+			thermal-sensors = <&nct1008 1>;
+
+			trips {
+				trip2: cpu-alert {
+					/* throttle at 85C until temperature drops to 84.8C */
+					temperature = <85000>;
+					hysteresis = <200>;
+					type = "passive";
+				};
+
+				trip3: cpu-crit {
+					/* shut down at 90C */
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map1 {
+					trip = <&trip2>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -1063,6 +1124,7 @@
 
 		emc-tables@0 {
 			nvidia,ram-code = <0>; /* elpida-8gb */
+			reg = <0>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1160,6 +1222,7 @@
 
 		emc-tables@1 {
 			nvidia,ram-code = <1>; /* elpida-4gb */
+			reg = <1>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1257,6 +1320,7 @@
 
 		emc-tables@2 {
 			nvidia,ram-code = <2>; /* hynix-8gb */
+			reg = <2>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1354,6 +1418,7 @@
 
 		emc-tables@3 {
 			nvidia,ram-code = <3>; /* hynix-4gb */
+			reg = <3>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1449,4 +1514,9 @@
 			};
 		};
 	};
+};
+
+&emc_icc_dvfs_opp_table {
+	/delete-node/ opp-666000000;
+	/delete-node/ opp-760000000;
 };

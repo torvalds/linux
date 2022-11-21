@@ -50,7 +50,7 @@ struct hisi_mux_clock {
 	u8			shift;
 	u8			width;
 	u8			mux_flags;
-	u32			*table;
+	const u32		*table;
 	const char		*alias;
 };
 

@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics STM32 booster for ADC analog input switches bindings
 
 maintainers:
-  - Fabrice Gasnier <fabrice.gasnier@st.com>
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
 
 description: |
   Some STM32 devices embed a 3.3V booster supplied by Vdda, that can be used
@@ -23,7 +23,7 @@ properties:
       - st,stm32mp1-booster
 
   st,syscfg:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: "/schemas/types.yaml#/definitions/phandle"
     description: phandle to system configuration controller.
 
   vdda-supply:

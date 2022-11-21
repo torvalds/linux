@@ -545,19 +545,6 @@ static const struct mmc_host_ops mxs_mmc_ops = {
 	.enable_sdio_irq = mxs_mmc_enable_sdio_irq,
 };
 
-static const struct platform_device_id mxs_ssp_ids[] = {
-	{
-		.name = "imx23-mmc",
-		.driver_data = IMX23_SSP,
-	}, {
-		.name = "imx28-mmc",
-		.driver_data = IMX28_SSP,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, mxs_ssp_ids);
-
 static const struct of_device_id mxs_mmc_dt_ids[] = {
 	{ .compatible = "fsl,imx23-mmc", .data = (void *) IMX23_SSP, },
 	{ .compatible = "fsl,imx28-mmc", .data = (void *) IMX28_SSP, },
@@ -565,10 +552,13 @@ static const struct of_device_id mxs_mmc_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mxs_mmc_dt_ids);
 
+static void mxs_mmc_regulator_disable(void *regulator)
+{
+	regulator_disable(regulator);
+}
+
 static int mxs_mmc_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-			of_match_device(mxs_mmc_dt_ids, &pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct mxs_mmc_host *host;
 	struct mmc_host *mmc;
@@ -593,7 +583,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 		goto out_mmc_free;
 	}
 
-	ssp->devid = (enum mxs_ssp_id) of_id->data;
+	ssp->devid = (enum mxs_ssp_id)of_device_get_match_data(&pdev->dev);
 
 	host->mmc = mmc;
 	host->sdio_irq_en = 0;
@@ -606,6 +596,11 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 				"Failed to enable vmmc regulator: %d\n", ret);
 			goto out_mmc_free;
 		}
+
+		ret = devm_add_action_or_reset(&pdev->dev, mxs_mmc_regulator_disable,
+					       reg_vmmc);
+		if (ret)
+			goto out_mmc_free;
 	}
 
 	ssp->clk = devm_clk_get(&pdev->dev, NULL);
@@ -643,7 +638,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
-		goto out_clk_disable;
+		goto out_free_dma;
 
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
@@ -723,7 +718,6 @@ static SIMPLE_DEV_PM_OPS(mxs_mmc_pm_ops, mxs_mmc_suspend, mxs_mmc_resume);
 static struct platform_driver mxs_mmc_driver = {
 	.probe		= mxs_mmc_probe,
 	.remove		= mxs_mmc_remove,
-	.id_table	= mxs_ssp_ids,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

@@ -1,0 +1,189 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ata/ahci-platform.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: AHCI SATA Controller
+
+description: |
+  SATA nodes are defined to describe on-chip Serial ATA controllers.
+  Each SATA controller should have its own node.
+
+  It is possible, but not required, to represent each port as a sub-node.
+  It allows to enable each port independently when dealing with multiple
+  PHYs.
+
+maintainers:
+  - Hans de Goede <hdegoede@redhat.com>
+  - Jens Axboe <axboe@kernel.dk>
+
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - brcm,iproc-ahci
+          - cavium,octeon-7130-ahci
+          - hisilicon,hisi-ahci
+          - ibm,476gtr-ahci
+          - marvell,armada-3700-ahci
+          - marvell,armada-8k-ahci
+          - marvell,berlin2q-ahci
+          - snps,dwc-ahci
+          - snps,spear-ahci
+  required:
+    - compatible
+
+allOf:
+  - $ref: "sata-common.yaml#"
+
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - brcm,iproc-ahci
+              - marvell,armada-8k-ahci
+              - marvell,berlin2-ahci
+              - marvell,berlin2q-ahci
+          - const: generic-ahci
+      - items:
+          - enum:
+              - rockchip,rk3568-dwc-ahci
+          - const: snps,dwc-ahci
+      - enum:
+          - cavium,octeon-7130-ahci
+          - hisilicon,hisi-ahci
+          - ibm,476gtr-ahci
+          - marvell,armada-3700-ahci
+          - snps,dwc-ahci
+          - snps,spear-ahci
+
+  reg:
+    minItems: 1
+    maxItems: 2
+
+  reg-names:
+    maxItems: 1
+
+  clocks:
+    description:
+      Clock IDs array as required by the controller.
+    minItems: 1
+    maxItems: 3
+
+  clock-names:
+    description:
+      Names of clocks corresponding to IDs in the clock property.
+    minItems: 1
+    maxItems: 3
+
+  interrupts:
+    maxItems: 1
+
+  ahci-supply:
+    description:
+      regulator for AHCI controller
+
+  dma-coherent: true
+
+  phy-supply:
+    description:
+      regulator for PHY power
+
+  phys:
+    description:
+      List of all PHYs on this controller
+    maxItems: 1
+
+  phy-names:
+    description:
+      Name specifier for the PHYs
+    maxItems: 1
+
+  ports-implemented:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: |
+      Mask that indicates which ports that the HBA supports
+      are available for software to use. Useful if PORTS_IMPL
+      is not programmed by the BIOS, which is true with
+      some embedded SoCs.
+    maximum: 0x1f
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  target-supply:
+    description:
+      regulator for SATA target power
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+patternProperties:
+  "^sata-port@[0-9a-f]+$":
+    type: object
+    additionalProperties: false
+    description:
+      Subnode with configuration of the Ports.
+
+    properties:
+      reg:
+        maxItems: 1
+
+      phys:
+        maxItems: 1
+
+      phy-names:
+        maxItems: 1
+
+      target-supply:
+        description:
+          regulator for SATA target power
+
+    required:
+      - reg
+
+    anyOf:
+      - required: [ phys ]
+      - required: [ target-supply ]
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    sata@ffe08000 {
+        compatible = "snps,spear-ahci";
+        reg = <0xffe08000 0x1000>;
+        interrupts = <115>;
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/berlin2q.h>
+    sata@f7e90000 {
+        compatible = "marvell,berlin2q-ahci", "generic-ahci";
+        reg = <0xf7e90000 0x1000>;
+        interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&chip CLKID_SATA>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        sata0: sata-port@0 {
+            reg = <0>;
+            phys = <&sata_phy 0>;
+            target-supply = <&reg_sata0>;
+        };
+
+        sata1: sata-port@1 {
+            reg = <1>;
+            phys = <&sata_phy 1>;
+            target-supply = <&reg_sata1>;
+        };
+    };

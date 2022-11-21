@@ -112,6 +112,22 @@ setup()
 	ip netns add "${NS2}"
 	ip netns add "${NS3}"
 
+	# rp_filter gets confused by what these tests are doing, so disable it
+	ip netns exec ${NS1} sysctl -wq net.ipv4.conf.all.rp_filter=0
+	ip netns exec ${NS2} sysctl -wq net.ipv4.conf.all.rp_filter=0
+	ip netns exec ${NS3} sysctl -wq net.ipv4.conf.all.rp_filter=0
+	ip netns exec ${NS1} sysctl -wq net.ipv4.conf.default.rp_filter=0
+	ip netns exec ${NS2} sysctl -wq net.ipv4.conf.default.rp_filter=0
+	ip netns exec ${NS3} sysctl -wq net.ipv4.conf.default.rp_filter=0
+
+	# disable IPv6 DAD because it sometimes takes too long and fails tests
+	ip netns exec ${NS1} sysctl -wq net.ipv6.conf.all.accept_dad=0
+	ip netns exec ${NS2} sysctl -wq net.ipv6.conf.all.accept_dad=0
+	ip netns exec ${NS3} sysctl -wq net.ipv6.conf.all.accept_dad=0
+	ip netns exec ${NS1} sysctl -wq net.ipv6.conf.default.accept_dad=0
+	ip netns exec ${NS2} sysctl -wq net.ipv6.conf.default.accept_dad=0
+	ip netns exec ${NS3} sysctl -wq net.ipv6.conf.default.accept_dad=0
+
 	ip link add veth1 type veth peer name veth2
 	ip link add veth3 type veth peer name veth4
 	ip link add veth5 type veth peer name veth6
@@ -236,11 +252,6 @@ setup()
 	ip -netns ${NS1} -6 route add ${IPv6_GRE}/128 dev veth5 via ${IPv6_6} ${VRF}
 	ip -netns ${NS2} -6 route add ${IPv6_GRE}/128 dev veth7 via ${IPv6_8} ${VRF}
 
-	# rp_filter gets confused by what these tests are doing, so disable it
-	ip netns exec ${NS1} sysctl -wq net.ipv4.conf.all.rp_filter=0
-	ip netns exec ${NS2} sysctl -wq net.ipv4.conf.all.rp_filter=0
-	ip netns exec ${NS3} sysctl -wq net.ipv4.conf.all.rp_filter=0
-
 	TMPFILE=$(mktemp /tmp/test_lwt_ip_encap.XXXXXX)
 
 	sleep 1  # reduce flakiness
@@ -286,7 +297,7 @@ test_ping()
 		ip netns exec ${NS1} ping  -c 1 -W 1 -I veth1 ${IPv4_DST} 2>&1 > /dev/null
 		RET=$?
 	elif [ "${PROTO}" == "IPv6" ] ; then
-		ip netns exec ${NS1} ping6 -c 1 -W 6 -I veth1 ${IPv6_DST} 2>&1 > /dev/null
+		ip netns exec ${NS1} ping6 -c 1 -W 1 -I veth1 ${IPv6_DST} 2>&1 > /dev/null
 		RET=$?
 	else
 		echo "    test_ping: unknown PROTO: ${PROTO}"

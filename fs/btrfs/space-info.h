@@ -17,10 +17,16 @@ struct btrfs_space_info {
 	u64 bytes_may_use;	/* number of bytes that may be used for
 				   delalloc/allocations */
 	u64 bytes_readonly;	/* total bytes that are read only */
+	u64 bytes_zone_unusable;	/* total bytes that are unusable until
+					   resetting the device zone */
 
 	u64 max_extent_size;	/* This will hold the maximum extent size of
 				   the space info if we had an ENOSPC in the
 				   allocator. */
+
+	int clamp;		/* Used to scale our threshold for preemptive
+				   flushing. The value is >> clamp, so turns
+				   out to be a 2^clamp divisor. */
 
 	unsigned int full:1;	/* indicates that we cannot allocate any more
 				   chunks for this space */
@@ -36,18 +42,6 @@ struct btrfs_space_info {
 				   account */
 
 	u64 flags;
-
-	/*
-	 * bytes_pinned is kept in line with what is actually pinned, as in
-	 * we've called update_block_group and dropped the bytes_used counter
-	 * and increased the bytes_pinned counter.  However this means that
-	 * bytes_pinned does not reflect the bytes that will be pinned once the
-	 * delayed refs are flushed, so this counter is inc'ed every time we
-	 * call btrfs_free_extent so it is a realtime count of what will be
-	 * freed once the transaction is committed.  It will be zeroed every
-	 * time the transaction commits.
-	 */
-	struct percpu_counter total_bytes_pinned;
 
 	struct list_head list;
 	/* Protected by the spinlock 'lock'. */
@@ -119,7 +113,7 @@ DECLARE_SPACE_INFO_UPDATE(bytes_pinned, "pinned");
 int btrfs_init_space_info(struct btrfs_fs_info *fs_info);
 void btrfs_update_space_info(struct btrfs_fs_info *info, u64 flags,
 			     u64 total_bytes, u64 bytes_used,
-			     u64 bytes_readonly,
+			     u64 bytes_readonly, u64 bytes_zone_unusable,
 			     struct btrfs_space_info **space_info);
 struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
 					       u64 flags);
@@ -129,7 +123,7 @@ void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
 void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
 			   struct btrfs_space_info *info, u64 bytes,
 			   int dump_block_groups);
-int btrfs_reserve_metadata_bytes(struct btrfs_root *root,
+int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 				 struct btrfs_block_rsv *block_rsv,
 				 u64 orig_bytes,
 				 enum btrfs_reserve_flush_enum flush);
@@ -151,5 +145,4 @@ static inline void btrfs_space_info_free_bytes_may_use(
 }
 int btrfs_reserve_data_bytes(struct btrfs_fs_info *fs_info, u64 bytes,
 			     enum btrfs_reserve_flush_enum flush);
-
 #endif /* BTRFS_SPACE_INFO_H */

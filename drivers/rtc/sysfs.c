@@ -102,7 +102,7 @@ max_user_freq_store(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RW(max_user_freq);
 
 /**
- * rtc_sysfs_show_hctosys - indicate if the given RTC set the system time
+ * hctosys_show - indicate if the given RTC set the system time
  * @dev: The device that the attribute belongs to.
  * @attr: The attribute being read.
  * @buf: The result buffer.
@@ -273,7 +273,7 @@ static bool rtc_does_wakealarm(struct rtc_device *rtc)
 	if (!device_can_wakeup(rtc->dev.parent))
 		return false;
 
-	return rtc->ops->set_alarm != NULL;
+	return !!test_bit(RTC_FEATURE_ALARM, rtc->features);
 }
 
 static umode_t rtc_attr_is_visible(struct kobject *kobj,
@@ -317,8 +317,6 @@ int rtc_add_groups(struct rtc_device *rtc, const struct attribute_group **grps)
 	size_t old_cnt = 0, add_cnt = 0, new_cnt;
 	const struct attribute_group **groups, **old;
 
-	if (rtc->registered)
-		return -EINVAL;
 	if (!grps)
 		return -EINVAL;
 

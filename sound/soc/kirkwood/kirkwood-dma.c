@@ -104,8 +104,6 @@ static int kirkwood_dma_open(struct snd_soc_component *component,
 	int err;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct kirkwood_dma_data *priv = kirkwood_priv(substream);
-	const struct mbus_dram_target_info *dram;
-	unsigned long addr;
 
 	snd_soc_set_runtime_hwparams(substream, &kirkwood_dma_snd_hw);
 
@@ -142,20 +140,14 @@ static int kirkwood_dma_open(struct snd_soc_component *component,
 		writel((unsigned int)-1, priv->io + KIRKWOOD_ERR_MASK);
 	}
 
-	dram = mv_mbus_dram_info();
-	addr = substream->dma_buffer.addr;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (priv->substream_play)
 			return -EBUSY;
 		priv->substream_play = substream;
-		kirkwood_dma_conf_mbus_windows(priv->io,
-			KIRKWOOD_PLAYBACK_WIN, addr, dram);
 	} else {
 		if (priv->substream_rec)
 			return -EBUSY;
 		priv->substream_rec = substream;
-		kirkwood_dma_conf_mbus_windows(priv->io,
-			KIRKWOOD_RECORD_WIN, addr, dram);
 	}
 
 	return 0;
@@ -186,18 +178,16 @@ static int kirkwood_dma_hw_params(struct snd_soc_component *component,
 				  struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct kirkwood_dma_data *priv = kirkwood_priv(substream);
+	const struct mbus_dram_target_info *dram = mv_mbus_dram_info();
+	unsigned long addr = substream->runtime->dma_addr;
 
-	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
-	runtime->dma_bytes = params_buffer_bytes(params);
-
-	return 0;
-}
-
-static int kirkwood_dma_hw_free(struct snd_soc_component *component,
-				struct snd_pcm_substream *substream)
-{
-	snd_pcm_set_runtime_buffer(substream, NULL);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		kirkwood_dma_conf_mbus_windows(priv->io,
+			KIRKWOOD_PLAYBACK_WIN, addr, dram);
+	else
+		kirkwood_dma_conf_mbus_windows(priv->io,
+			KIRKWOOD_RECORD_WIN, addr, dram);
 	return 0;
 }
 
@@ -244,72 +234,21 @@ static snd_pcm_uframes_t kirkwood_dma_pointer(
 	return count;
 }
 
-static int kirkwood_dma_preallocate_dma_buffer(struct snd_pcm *pcm,
-		int stream)
-{
-	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
-	struct snd_dma_buffer *buf = &substream->dma_buffer;
-	size_t size = kirkwood_dma_snd_hw.buffer_bytes_max;
-
-	buf->dev.type = SNDRV_DMA_TYPE_DEV;
-	buf->dev.dev = pcm->card->dev;
-	buf->area = dma_alloc_coherent(pcm->card->dev, size,
-			&buf->addr, GFP_KERNEL);
-	if (!buf->area)
-		return -ENOMEM;
-	buf->bytes = size;
-	buf->private_data = NULL;
-
-	return 0;
-}
-
 static int kirkwood_dma_new(struct snd_soc_component *component,
 			    struct snd_soc_pcm_runtime *rtd)
 {
+	size_t size = kirkwood_dma_snd_hw.buffer_bytes_max;
 	struct snd_card *card = rtd->card->snd_card;
-	struct snd_pcm *pcm = rtd->pcm;
 	int ret;
 
 	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
 	if (ret)
 		return ret;
 
-	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
-		ret = kirkwood_dma_preallocate_dma_buffer(pcm,
-				SNDRV_PCM_STREAM_PLAYBACK);
-		if (ret)
-			return ret;
-	}
-
-	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
-		ret = kirkwood_dma_preallocate_dma_buffer(pcm,
-				SNDRV_PCM_STREAM_CAPTURE);
-		if (ret)
-			return ret;
-	}
+	snd_pcm_set_managed_buffer_all(rtd->pcm, SNDRV_DMA_TYPE_DEV,
+				       card->dev, size, size);
 
 	return 0;
-}
-
-static void kirkwood_dma_free_dma_buffers(struct snd_soc_component *component,
-					  struct snd_pcm *pcm)
-{
-	struct snd_pcm_substream *substream;
-	struct snd_dma_buffer *buf;
-	int stream;
-
-	for (stream = 0; stream < 2; stream++) {
-		substream = pcm->streams[stream].substream;
-		if (!substream)
-			continue;
-		buf = &substream->dma_buffer;
-		if (!buf->area)
-			continue;
-
-		dma_free_coherent(pcm->card->dev, buf->bytes,
-				buf->area, buf->addr);
-		buf->area = NULL;
-	}
 }
 
 const struct snd_soc_component_driver kirkwood_soc_component = {
@@ -317,9 +256,7 @@ const struct snd_soc_component_driver kirkwood_soc_component = {
 	.open		= kirkwood_dma_open,
 	.close		= kirkwood_dma_close,
 	.hw_params	= kirkwood_dma_hw_params,
-	.hw_free	= kirkwood_dma_hw_free,
 	.prepare	= kirkwood_dma_prepare,
 	.pointer	= kirkwood_dma_pointer,
 	.pcm_construct	= kirkwood_dma_new,
-	.pcm_destruct	= kirkwood_dma_free_dma_buffers,
 };

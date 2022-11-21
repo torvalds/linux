@@ -90,4 +90,18 @@ int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
 			       u32 key_type, u32 *p_key_id);
 void mlx5_destroy_encryption_key(struct mlx5_core_dev *mdev, u32 key_id);
 
+static inline struct net *mlx5_core_net(struct mlx5_core_dev *dev)
+{
+	return devlink_net(priv_to_devlink(dev));
+}
+
+static inline void mlx5_uplink_netdev_set(struct mlx5_core_dev *mdev, struct net_device *netdev)
+{
+	mdev->mlx5e_res.uplink_netdev = netdev;
+}
+
+static inline struct net_device *mlx5_uplink_netdev_get(struct mlx5_core_dev *mdev)
+{
+	return mdev->mlx5e_res.uplink_netdev;
+}
 #endif

@@ -31,7 +31,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/refcount.h>
 #include <linux/mlx5/driver.h>
 #include <net/vxlan.h>
@@ -40,7 +39,7 @@
 
 struct mlx5_vxlan {
 	struct mlx5_core_dev		*mdev;
-	/* max_num_ports is usuallly 4, 16 buckets is more than enough */
+	/* max_num_ports is usually 4, 16 buckets is more than enough */
 	DECLARE_HASHTABLE(htable, 4);
 	struct mutex                    sync_lock; /* sync add/del port HW operations */
 };

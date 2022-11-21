@@ -235,15 +235,27 @@ void hv_fcopy_onchannelcallback(void *context)
 	if (fcopy_transaction.state > HVUTIL_READY)
 		return;
 
-	vmbus_recvpacket(channel, recv_buffer, HV_HYP_PAGE_SIZE * 2, &recvlen,
-			 &requestid);
-	if (recvlen <= 0)
+	if (vmbus_recvpacket(channel, recv_buffer, HV_HYP_PAGE_SIZE * 2, &recvlen, &requestid)) {
+		pr_err_ratelimited("Fcopy request received. Could not read into recv buf\n");
 		return;
+	}
+
+	if (!recvlen)
+		return;
+
+	/* Ensure recvlen is big enough to read header data */
+	if (recvlen < ICMSG_HDR) {
+		pr_err_ratelimited("Fcopy request received. Packet length too small: %d\n",
+				   recvlen);
+		return;
+	}
 
 	icmsghdr = (struct icmsg_hdr *)&recv_buffer[
 			sizeof(struct vmbuspipe_hdr)];
+
 	if (icmsghdr->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-		if (vmbus_prep_negotiate_resp(icmsghdr, recv_buffer,
+		if (vmbus_prep_negotiate_resp(icmsghdr,
+				recv_buffer, recvlen,
 				fw_versions, FW_VER_COUNT,
 				fcopy_versions, FCOPY_VER_COUNT,
 				NULL, &fcopy_srv_version)) {
@@ -252,10 +264,14 @@ void hv_fcopy_onchannelcallback(void *context)
 				fcopy_srv_version >> 16,
 				fcopy_srv_version & 0xFFFF);
 		}
-	} else {
-		fcopy_msg = (struct hv_fcopy_hdr *)&recv_buffer[
-				sizeof(struct vmbuspipe_hdr) +
-				sizeof(struct icmsg_hdr)];
+	} else if (icmsghdr->icmsgtype == ICMSGTYPE_FCOPY) {
+		/* Ensure recvlen is big enough to contain hv_fcopy_hdr */
+		if (recvlen < ICMSG_HDR + sizeof(struct hv_fcopy_hdr)) {
+			pr_err_ratelimited("Invalid Fcopy hdr. Packet length too small: %u\n",
+					   recvlen);
+			return;
+		}
+		fcopy_msg = (struct hv_fcopy_hdr *)&recv_buffer[ICMSG_HDR];
 
 		/*
 		 * Stash away this global state for completing the
@@ -279,6 +295,10 @@ void hv_fcopy_onchannelcallback(void *context)
 		schedule_work(&fcopy_send_work);
 		schedule_delayed_work(&fcopy_timeout_work,
 				      HV_UTIL_TIMEOUT * HZ);
+		return;
+	} else {
+		pr_err_ratelimited("Fcopy request received. Invalid msg type: %d\n",
+				   icmsghdr->icmsgtype);
 		return;
 	}
 	icmsghdr->icflags = ICMSGHDRFLAG_TRANSACTION | ICMSGHDRFLAG_RESPONSE;
@@ -329,6 +349,7 @@ int hv_fcopy_init(struct hv_util_service *srv)
 {
 	recv_buffer = srv->recv_buffer;
 	fcopy_transaction.recv_channel = srv->channel;
+	fcopy_transaction.recv_channel->max_pkt_size = HV_HYP_PAGE_SIZE * 2;
 
 	/*
 	 * When this driver loads, the user level daemon that

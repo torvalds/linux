@@ -11,8 +11,7 @@ struct ccw_driver;
  * @count: number of attached slave devices
  * @dev: embedded device structure
  * @cdev: variable number of slave devices, allocated as needed
- * @ungroup_work: work to be done when a ccwgroup notifier has action
- *	type %BUS_NOTIFY_UNBIND_DRIVER
+ * @ungroup_work: used to ungroup the ccwgroup device
  */
 struct ccwgroup_device {
 	enum {
@@ -26,7 +25,7 @@ struct ccwgroup_device {
 	unsigned int count;
 	struct device	dev;
 	struct work_struct ungroup_work;
-	struct ccw_device *cdev[0];
+	struct ccw_device *cdev[];
 };
 
 /**
@@ -54,11 +53,9 @@ extern int  ccwgroup_driver_register   (struct ccwgroup_driver *cdriver);
 extern void ccwgroup_driver_unregister (struct ccwgroup_driver *cdriver);
 int ccwgroup_create_dev(struct device *root, struct ccwgroup_driver *gdrv,
 			int num_devices, const char *buf);
-struct ccwgroup_device *get_ccwgroupdev_by_busid(struct ccwgroup_driver *gdrv,
-						 char *bus_id);
 
 extern int ccwgroup_set_online(struct ccwgroup_device *gdev);
-extern int ccwgroup_set_offline(struct ccwgroup_device *gdev);
+int ccwgroup_set_offline(struct ccwgroup_device *gdev, bool call_gdrv);
 
 extern int ccwgroup_probe_ccwdev(struct ccw_device *cdev);
 extern void ccwgroup_remove_ccwdev(struct ccw_device *cdev);

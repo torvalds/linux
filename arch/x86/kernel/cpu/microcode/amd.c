@@ -215,7 +215,6 @@ static unsigned int __verify_patch_size(u8 family, u32 sh_psize, size_t buf_size
 	default:
 		WARN(1, "%s: WTF family: 0x%x\n", __func__, family);
 		return 0;
-		break;
 	}
 
 	if (sh_psize > min_t(u32, buf_size, max_size))
@@ -457,17 +456,23 @@ apply_microcode_early_amd(u32 cpuid_1_eax, void *ucode, size_t size, bool save_p
 
 static bool get_builtin_microcode(struct cpio_data *cp, unsigned int family)
 {
-#ifdef CONFIG_X86_64
 	char fw_name[36] = "amd-ucode/microcode_amd.bin";
+	struct firmware fw;
+
+	if (IS_ENABLED(CONFIG_X86_32))
+		return false;
 
 	if (family >= 0x15)
 		snprintf(fw_name, sizeof(fw_name),
 			 "amd-ucode/microcode_amd_fam%.2xh.bin", family);
 
-	return get_builtin_firmware(cp, fw_name);
-#else
+	if (firmware_request_builtin(&fw, fw_name)) {
+		cp->size = fw.size;
+		cp->data = (void *)fw.data;
+		return true;
+	}
+
 	return false;
-#endif
 }
 
 static void __load_ucode_amd(unsigned int cpuid_1_eax, struct cpio_data *ret)

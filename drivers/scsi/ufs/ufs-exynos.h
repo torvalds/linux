@@ -56,6 +56,22 @@
 #define TX_GRAN_NVAL_10_08	0x0296
 #define TX_GRAN_NVAL_H(v)	(((v) >> 8) & 0x3)
 
+#define VND_TX_CLK_PRD		0xAA
+#define VND_TX_CLK_PRD_EN	0xA9
+#define VND_TX_LINERESET_PVALUE0	0xAD
+#define VND_TX_LINERESET_PVALUE1	0xAC
+#define VND_TX_LINERESET_PVALUE2	0xAB
+
+#define TX_LINE_RESET_TIME	3200
+
+#define VND_RX_CLK_PRD		0x12
+#define VND_RX_CLK_PRD_EN	0x11
+#define VND_RX_LINERESET_VALUE0	0x1D
+#define VND_RX_LINERESET_VALUE1	0x1C
+#define VND_RX_LINERESET_VALUE2	0x1B
+
+#define RX_LINE_RESET_TIME	1000
+
 #define RX_FILLER_ENABLE	0x0316
 #define RX_FILLER_EN		(1 << 1)
 #define RX_LINERESET_VAL	0x0317
@@ -90,19 +106,6 @@ struct exynos_ufs;
 #define SLOW 1
 #define FAST 2
 
-#define UFS_EXYNOS_LIMIT_NUM_LANES_RX	2
-#define UFS_EXYNOS_LIMIT_NUM_LANES_TX	2
-#define UFS_EXYNOS_LIMIT_HSGEAR_RX	UFS_HS_G3
-#define UFS_EXYNOS_LIMIT_HSGEAR_TX	UFS_HS_G3
-#define UFS_EXYNOS_LIMIT_PWMGEAR_RX	UFS_PWM_G4
-#define UFS_EXYNOS_LIMIT_PWMGEAR_TX	UFS_PWM_G4
-#define UFS_EXYNOS_LIMIT_RX_PWR_PWM	SLOW_MODE
-#define UFS_EXYNOS_LIMIT_TX_PWR_PWM	SLOW_MODE
-#define UFS_EXYNOS_LIMIT_RX_PWR_HS	FAST_MODE
-#define UFS_EXYNOS_LIMIT_TX_PWR_HS	FAST_MODE
-#define UFS_EXYNOS_LIMIT_HS_RATE		PA_HS_MODE_B
-#define UFS_EXYNOS_LIMIT_DESIRED_MODE	FAST
-
 #define RX_ADV_FINE_GRAN_SUP_EN	0x1
 #define RX_ADV_FINE_GRAN_STEP_VAL	0x3
 #define RX_ADV_MIN_ACTV_TIME_CAP	0x9
@@ -112,7 +115,7 @@ struct exynos_ufs;
 #define PA_HIBERN8TIME_VAL	0x20
 
 #define PCLK_AVAIL_MIN	70000000
-#define PCLK_AVAIL_MAX	133000000
+#define PCLK_AVAIL_MAX	167000000
 
 struct exynos_ufs_uic_attr {
 	/* TX Attributes */
@@ -155,7 +158,7 @@ struct exynos_ufs_uic_attr {
 };
 
 struct exynos_ufs_drv_data {
-	char *compatible;
+	const struct ufs_hba_variant_ops *vops;
 	struct exynos_ufs_uic_attr *uic_attr;
 	unsigned int quirks;
 	unsigned int opts;
@@ -167,6 +170,8 @@ struct exynos_ufs_drv_data {
 				struct ufs_pa_layer_attr *pwr);
 	int (*post_pwr_change)(struct exynos_ufs *ufs,
 				struct ufs_pa_layer_attr *pwr);
+	int (*pre_hce_enable)(struct exynos_ufs *ufs);
+	int (*post_hce_enable)(struct exynos_ufs *ufs);
 };
 
 struct ufs_phy_time_cfg {
@@ -197,14 +202,16 @@ struct exynos_ufs {
 	u32 pclk_div;
 	u32 pclk_avail_min;
 	u32 pclk_avail_max;
-	u32 mclk_rate;
+	unsigned long mclk_rate;
 	int avail_ln_rx;
 	int avail_ln_tx;
 	int rx_sel_idx;
 	struct ufs_pa_layer_attr dev_req_params;
 	struct ufs_phy_time_cfg t_cfg;
 	ktime_t entry_hibern8_t;
-	struct exynos_ufs_drv_data *drv_data;
+	const struct exynos_ufs_drv_data *drv_data;
+	struct regmap *sysreg;
+	u32 shareability_reg_offset;
 
 	u32 opts;
 #define EXYNOS_UFS_OPT_HAS_APB_CLK_CTRL		BIT(0)
@@ -212,6 +219,7 @@ struct exynos_ufs {
 #define EXYNOS_UFS_OPT_BROKEN_AUTO_CLK_CTRL	BIT(2)
 #define EXYNOS_UFS_OPT_BROKEN_RX_SEL_IDX	BIT(3)
 #define EXYNOS_UFS_OPT_USE_SW_HIBERN8_TIMER	BIT(4)
+#define EXYNOS_UFS_OPT_SKIP_CONFIG_PHY_ATTR	BIT(5)
 };
 
 #define for_each_ufs_rx_lane(ufs, i) \
@@ -258,30 +266,4 @@ static inline void exynos_ufs_disable_dbg_mode(struct ufs_hba *hba)
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_MODE), FALSE);
 }
 
-struct exynos_ufs_drv_data exynos_ufs_drvs;
-
-struct exynos_ufs_uic_attr exynos7_uic_attr = {
-	.tx_trailingclks		= 0x10,
-	.tx_dif_p_nsec			= 3000000,	/* unit: ns */
-	.tx_dif_n_nsec			= 1000000,	/* unit: ns */
-	.tx_high_z_cnt_nsec		= 20000,	/* unit: ns */
-	.tx_base_unit_nsec		= 100000,	/* unit: ns */
-	.tx_gran_unit_nsec		= 4000,		/* unit: ns */
-	.tx_sleep_cnt			= 1000,		/* unit: ns */
-	.tx_min_activatetime		= 0xa,
-	.rx_filler_enable		= 0x2,
-	.rx_dif_p_nsec			= 1000000,	/* unit: ns */
-	.rx_hibern8_wait_nsec		= 4000000,	/* unit: ns */
-	.rx_base_unit_nsec		= 100000,	/* unit: ns */
-	.rx_gran_unit_nsec		= 4000,		/* unit: ns */
-	.rx_sleep_cnt			= 1280,		/* unit: ns */
-	.rx_stall_cnt			= 320,		/* unit: ns */
-	.rx_hs_g1_sync_len_cap		= SYNC_LEN_COARSE(0xf),
-	.rx_hs_g2_sync_len_cap		= SYNC_LEN_COARSE(0xf),
-	.rx_hs_g3_sync_len_cap		= SYNC_LEN_COARSE(0xf),
-	.rx_hs_g1_prep_sync_len_cap	= PREP_LEN(0xf),
-	.rx_hs_g2_prep_sync_len_cap	= PREP_LEN(0xf),
-	.rx_hs_g3_prep_sync_len_cap	= PREP_LEN(0xf),
-	.pa_dbg_option_suite		= 0x30103,
-};
 #endif /* _UFS_EXYNOS_H_ */

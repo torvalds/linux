@@ -88,7 +88,6 @@ static struct irq_chip gicv2m_msi_irq_chip = {
 	.irq_mask		= gicv2m_mask_msi_irq,
 	.irq_unmask		= gicv2m_unmask_msi_irq,
 	.irq_eoi		= irq_chip_eoi_parent,
-	.irq_write_msi_msg	= pci_msi_domain_write_msg,
 };
 
 static struct msi_domain_info gicv2m_msi_domain_info = {
@@ -269,7 +268,7 @@ static void gicv2m_teardown(void)
 
 	list_for_each_entry_safe(v2m, tmp, &v2m_nodes, entry) {
 		list_del(&v2m->entry);
-		kfree(v2m->bm);
+		bitmap_free(v2m->bm);
 		iounmap(v2m->base);
 		of_node_put(to_of_node(v2m->fwnode));
 		if (is_fwnode_irqchip(v2m->fwnode))
@@ -323,10 +322,8 @@ static int __init gicv2m_init_one(struct fwnode_handle *fwnode,
 	struct v2m_data *v2m;
 
 	v2m = kzalloc(sizeof(struct v2m_data), GFP_KERNEL);
-	if (!v2m) {
-		pr_err("Failed to allocate struct v2m_data.\n");
+	if (!v2m)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&v2m->entry);
 	v2m->fwnode = fwnode;
@@ -371,7 +368,7 @@ static int __init gicv2m_init_one(struct fwnode_handle *fwnode,
 	 * the MSI data is the absolute value within the range from
 	 * spi_start to (spi_start + num_spis).
 	 *
-	 * Broadom NS2 GICv2m implementation has an erratum where the MSI data
+	 * Broadcom NS2 GICv2m implementation has an erratum where the MSI data
 	 * is 'spi_number - 32'
 	 *
 	 * Reading that register fails on the Graviton implementation
@@ -388,8 +385,7 @@ static int __init gicv2m_init_one(struct fwnode_handle *fwnode,
 			break;
 		}
 	}
-	v2m->bm = kcalloc(BITS_TO_LONGS(v2m->nr_spis), sizeof(long),
-			  GFP_KERNEL);
+	v2m->bm = bitmap_zalloc(v2m->nr_spis, GFP_KERNEL);
 	if (!v2m->bm) {
 		ret = -ENOMEM;
 		goto err_iounmap;
@@ -408,7 +404,7 @@ err_free_v2m:
 	return ret;
 }
 
-static struct of_device_id gicv2m_device_id[] = {
+static const struct of_device_id gicv2m_device_id[] = {
 	{	.compatible	= "arm,gic-v2m-frame",	},
 	{},
 };

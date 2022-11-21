@@ -47,6 +47,8 @@ void imx8_get_registers(struct snd_sof_dev *sdev,
 /**
  * imx8_dump() - This function is called when a panic message is
  * received from the firmware.
+ * @sdev: SOF device
+ * @flags: parameter not used but required by ops prototype
  */
 void imx8_dump(struct snd_sof_dev *sdev, u32 flags)
 {
@@ -67,9 +69,33 @@ void imx8_dump(struct snd_sof_dev *sdev, u32 flags)
 			   IMX8_STACK_DUMP_SIZE);
 
 	/* Print the information to the console */
-	snd_sof_get_status(sdev, status, status, &xoops, &panic_info, stack,
-			   IMX8_STACK_DUMP_SIZE);
+	sof_print_oops_and_stack(sdev, KERN_ERR, status, status, &xoops,
+				 &panic_info, stack, IMX8_STACK_DUMP_SIZE);
 }
 EXPORT_SYMBOL(imx8_dump);
+
+int imx8_parse_clocks(struct snd_sof_dev *sdev, struct imx_clocks *clks)
+{
+	int ret;
+
+	ret = devm_clk_bulk_get(sdev->dev, clks->num_dsp_clks, clks->dsp_clks);
+	if (ret)
+		dev_err(sdev->dev, "Failed to request DSP clocks\n");
+
+	return ret;
+}
+EXPORT_SYMBOL(imx8_parse_clocks);
+
+int imx8_enable_clocks(struct snd_sof_dev *sdev, struct imx_clocks *clks)
+{
+	return clk_bulk_prepare_enable(clks->num_dsp_clks, clks->dsp_clks);
+}
+EXPORT_SYMBOL(imx8_enable_clocks);
+
+void imx8_disable_clocks(struct snd_sof_dev *sdev, struct imx_clocks *clks)
+{
+	clk_bulk_disable_unprepare(clks->num_dsp_clks, clks->dsp_clks);
+}
+EXPORT_SYMBOL(imx8_disable_clocks);
 
 MODULE_LICENSE("Dual BSD/GPL");

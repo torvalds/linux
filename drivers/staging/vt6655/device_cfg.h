@@ -3,14 +3,13 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: device_cfg.h
- *
  * Purpose: Driver configuration header
  * Author: Lyndon Chen
  *
  * Date: Dec 17, 2002
  *
  */
+
 #ifndef __DEVICE_CONFIG_H
 #define __DEVICE_CONFIG_H
 
@@ -39,9 +38,6 @@
 
 #include <linux/fs.h>
 #include <linux/fcntl.h>
-#ifndef CONFIG_PATH
-#define CONFIG_PATH            "/etc/vntconfiguration.dat"
-#endif
 
 #define PKT_BUF_SZ          2390
 

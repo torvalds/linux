@@ -27,7 +27,7 @@ static void huge_free_pages(struct drm_i915_gem_object *obj,
 
 static int huge_get_pages(struct drm_i915_gem_object *obj)
 {
-#define GFP (GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY)
+#define GFP (GFP_KERNEL | __GFP_NOWARN | __GFP_RETRY_MAYFAIL)
 	const unsigned long nreal = obj->scratch / PAGE_SIZE;
 	const unsigned long npages = obj->base.size / PAGE_SIZE;
 	struct scatterlist *sg, *src, *end;
@@ -89,7 +89,6 @@ static void huge_put_pages(struct drm_i915_gem_object *obj,
 
 static const struct drm_i915_gem_object_ops huge_ops = {
 	.name = "huge-gem",
-	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE,
 	.get_pages = huge_get_pages,
 	.put_pages = huge_put_pages,
 };
@@ -115,7 +114,8 @@ huge_gem_object(struct drm_i915_private *i915,
 		return ERR_PTR(-ENOMEM);
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, dma_size);
-	i915_gem_object_init(obj, &huge_ops, &lock_class);
+	i915_gem_object_init(obj, &huge_ops, &lock_class, 0);
+	obj->mem_flags |= I915_BO_FLAG_STRUCT_PAGE;
 
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->write_domain = I915_GEM_DOMAIN_CPU;

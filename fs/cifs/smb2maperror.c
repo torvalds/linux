@@ -1,24 +1,11 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/smb2/smb2maperror.c
  *
  *   Functions which do error mapping of SMB2 status codes to POSIX errors
  *
  *   Copyright (C) International Business Machines  Corp., 2009
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/errno.h>
 #include "cifsglob.h"
@@ -2452,14 +2439,16 @@ smb2_print_status(__le32 status)
 int
 map_smb2_to_linux_error(char *buf, bool log_err)
 {
-	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
+	struct smb2_hdr *shdr = (struct smb2_hdr *)buf;
 	unsigned int i;
 	int rc = -EIO;
 	__le32 smb2err = shdr->Status;
 
 	if (smb2err == 0) {
-		trace_smb3_cmd_done(shdr->TreeId, shdr->SessionId,
-			le16_to_cpu(shdr->Command), le64_to_cpu(shdr->MessageId));
+		trace_smb3_cmd_done(le32_to_cpu(shdr->Id.SyncId.TreeId),
+			      le64_to_cpu(shdr->SessionId),
+			      le16_to_cpu(shdr->Command),
+			      le64_to_cpu(shdr->MessageId));
 		return 0;
 	}
 
@@ -2483,8 +2472,10 @@ map_smb2_to_linux_error(char *buf, bool log_err)
 	cifs_dbg(FYI, "Mapping SMB2 status code 0x%08x to POSIX err %d\n",
 		 __le32_to_cpu(smb2err), rc);
 
-	trace_smb3_cmd_err(shdr->TreeId, shdr->SessionId,
-			le16_to_cpu(shdr->Command),
-			le64_to_cpu(shdr->MessageId), le32_to_cpu(smb2err), rc);
+	trace_smb3_cmd_err(le32_to_cpu(shdr->Id.SyncId.TreeId),
+			   le64_to_cpu(shdr->SessionId),
+			   le16_to_cpu(shdr->Command),
+			   le64_to_cpu(shdr->MessageId),
+			   le32_to_cpu(smb2err), rc);
 	return rc;
 }

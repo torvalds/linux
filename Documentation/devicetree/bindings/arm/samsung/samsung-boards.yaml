@@ -14,6 +14,19 @@ properties:
     const: '/'
   compatible:
     oneOf:
+      - description: S3C2416 based boards
+        items:
+          - enum:
+              - samsung,smdk2416                # Samsung SMDK2416
+          - const: samsung,s3c2416
+
+      - description: S3C6410 based boards
+        items:
+          - enum:
+              - friendlyarm,mini6410            # FriendlyARM Mini6410
+              - samsung,smdk6410                # Samsung SMDK6410
+          - const: samsung,s3c6410
+
       - description: S5PV210 based boards
         items:
           - enum:
@@ -83,6 +96,14 @@ properties:
           - const: samsung,exynos4412
           - const: samsung,exynos4
 
+      - description: Samsung p4note family boards
+        items:
+          - enum:
+              - samsung,n8010                   # Samsung GT-N8010/GT-N8013
+          - const: samsung,p4note
+          - const: samsung,exynos4412
+          - const: samsung,exynos4
+
       - description: Exynos5250 based boards
         items:
           - enum:
@@ -119,6 +140,8 @@ properties:
         items:
           - enum:
               - insignal,arndale-octa           # Insignal Arndale Octa
+              - samsung,chagall-wifi            # Samsung SM-T800
+              - samsung,klimt-wifi              # Samsung SM-T700
               - samsung,smdk5420                # Samsung SMDK5420 eval
           - const: samsung,exynos5420
           - const: samsung,exynos5
@@ -177,6 +200,24 @@ properties:
           - enum:
               - samsung,exynos7-espresso        # Samsung Exynos7 Espresso
           - const: samsung,exynos7
+
+      - description: Exynos7885 based boards
+        items:
+          - enum:
+              - samsung,jackpotlte              # Samsung Galaxy A8 (2018)
+          - const: samsung,exynos7885
+
+      - description: Exynos850 based boards
+        items:
+          - enum:
+              - winlink,e850-96                 # WinLink E850-96
+          - const: samsung,exynos850
+
+      - description: Exynos Auto v9 based boards
+        items:
+          - enum:
+              - samsung,exynosautov9-sadk   # Samsung Exynos Auto v9 SADK
+          - const: samsung,exynosautov9
 
 required:
   - compatible

@@ -26,7 +26,7 @@ static struct bin_attribute bin_attr_btf_vmlinux __ro_after_init = {
 	.read = btf_vmlinux_read,
 };
 
-static struct kobject *btf_kobj;
+struct kobject *btf_kobj;
 
 static int __init btf_vmlinux_init(void)
 {

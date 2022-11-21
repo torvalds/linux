@@ -55,7 +55,7 @@ static void check_hw_pbc(struct _adapter *padapter)
 		/* Here we only set bPbcPressed to true
 		 * After trigger PBC, the variable will be set to false
 		 */
-		DBG_8712("CheckPbcGPIO - PBC is pressed !!!!\n");
+		netdev_dbg(padapter->pnetdev, "CheckPbcGPIO - PBC is pressed !!!!\n");
 		/* 0 is the default value and it means the application monitors
 		 * the HW PBC doesn't provide its pid to driver.
 		 */
@@ -393,7 +393,7 @@ _next:
 		r8712_free_cmd_obj(pcmd);
 	} while (1);
 	complete(&pcmdpriv->terminate_cmdthread_comp);
-	thread_exit();
+	return 0;
 }
 
 void r8712_event_handle(struct _adapter *padapter, __le32 *peventbuf)

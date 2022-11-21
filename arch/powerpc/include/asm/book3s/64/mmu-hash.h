@@ -18,7 +18,6 @@
  * complete pgtable.h but only a portion of it.
  */
 #include <asm/book3s/64/pgtable.h>
-#include <asm/bug.h>
 #include <asm/task_size_64.h>
 #include <asm/cpu_has_feature.h>
 
@@ -452,7 +451,10 @@ static inline unsigned long hpt_hash(unsigned long vpn,
 
 #define HPTE_LOCAL_UPDATE	0x1
 #define HPTE_NOHPTE_UPDATE	0x2
+#define HPTE_USE_KERNEL_KEY	0x4
 
+long hpte_insert_repeating(unsigned long hash, unsigned long vpn, unsigned long pa,
+			   unsigned long rlags, unsigned long vflags, int psize, int ssize);
 extern int __hash_page_4K(unsigned long ea, unsigned long access,
 			  unsigned long vsid, pte_t *ptep, unsigned long trap,
 			  unsigned long flags, int ssize, int subpage_prot);
@@ -466,6 +468,8 @@ extern int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 			unsigned long flags);
 extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap,
 		     unsigned long dsisr);
+void low_hash_fault(struct pt_regs *regs, unsigned long address, int rc);
+int __hash_page(unsigned long trap, unsigned long ea, unsigned long dsisr, unsigned long msr);
 int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		     pte_t *ptep, unsigned long trap, unsigned long flags,
 		     int ssize, unsigned int shift, unsigned int mmu_psize);
@@ -519,7 +523,14 @@ void slb_save_contents(struct slb_entry *slb_ptr);
 void slb_dump_contents(struct slb_entry *slb_ptr);
 
 extern void slb_vmalloc_update(void);
-extern void slb_set_size(u16 size);
+void preload_new_slb_context(unsigned long start, unsigned long sp);
+
+#ifdef CONFIG_PPC_64S_HASH_MMU
+void slb_set_size(u16 size);
+#else
+static inline void slb_set_size(u16 size) { }
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 /*
@@ -842,6 +853,32 @@ static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 
 unsigned htab_shift_for_mem_size(unsigned long mem_size);
 
-#endif /* __ASSEMBLY__ */
+enum slb_index {
+	LINEAR_INDEX	= 0, /* Kernel linear map  (0xc000000000000000) */
+	KSTACK_INDEX	= 1, /* Kernel stack map */
+};
 
+#define slb_esid_mask(ssize)	\
+	(((ssize) == MMU_SEGSIZE_256M) ? ESID_MASK : ESID_MASK_1T)
+
+static inline unsigned long mk_esid_data(unsigned long ea, int ssize,
+					 enum slb_index index)
+{
+	return (ea & slb_esid_mask(ssize)) | SLB_ESID_V | index;
+}
+
+static inline unsigned long __mk_vsid_data(unsigned long vsid, int ssize,
+					   unsigned long flags)
+{
+	return (vsid << slb_vsid_shift(ssize)) | flags |
+		((unsigned long)ssize << SLB_VSID_SSIZE_SHIFT);
+}
+
+static inline unsigned long mk_vsid_data(unsigned long ea, int ssize,
+					 unsigned long flags)
+{
+	return __mk_vsid_data(get_kernel_vsid(ea, ssize), ssize, flags);
+}
+
+#endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_ */

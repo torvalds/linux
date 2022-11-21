@@ -183,7 +183,6 @@ struct esd_usb2_net_priv;
 struct esd_tx_urb_context {
 	struct esd_usb2_net_priv *priv;
 	u32 echo_index;
-	int dlc;
 };
 
 struct esd_usb2 {
@@ -195,6 +194,8 @@ struct esd_usb2 {
 	int net_count;
 	u32 version;
 	int rxinitdone;
+	void *rxbuf[MAX_RX_URBS];
+	dma_addr_t rxbuf_dma[MAX_RX_URBS];
 };
 
 struct esd_usb2_net_priv {
@@ -222,8 +223,8 @@ static void esd_usb2_rx_event(struct esd_usb2_net_priv *priv,
 	if (id == ESD_EV_CAN_ERROR_EXT) {
 		u8 state = msg->msg.rx.data[0];
 		u8 ecc = msg->msg.rx.data[1];
-		u8 txerr = msg->msg.rx.data[2];
-		u8 rxerr = msg->msg.rx.data[3];
+		u8 rxerr = msg->msg.rx.data[2];
+		u8 txerr = msg->msg.rx.data[3];
 
 		skb = alloc_can_err_skb(priv->netdev, &cf);
 		if (skb == NULL) {
@@ -291,8 +292,6 @@ static void esd_usb2_rx_event(struct esd_usb2_net_priv *priv,
 		priv->bec.txerr = txerr;
 		priv->bec.rxerr = rxerr;
 
-		stats->rx_packets++;
-		stats->rx_bytes += cf->can_dlc;
 		netif_rx(skb);
 	}
 }
@@ -321,7 +320,8 @@ static void esd_usb2_rx_can_msg(struct esd_usb2_net_priv *priv,
 		}
 
 		cf->can_id = id & ESD_IDMASK;
-		cf->can_dlc = get_can_dlc(msg->msg.rx.dlc & ~ESD_RTR);
+		can_frame_set_cc_len(cf, msg->msg.rx.dlc & ~ESD_RTR,
+				     priv->can.ctrlmode);
 
 		if (id & ESD_EXTID)
 			cf->can_id |= CAN_EFF_FLAG;
@@ -329,12 +329,13 @@ static void esd_usb2_rx_can_msg(struct esd_usb2_net_priv *priv,
 		if (msg->msg.rx.dlc & ESD_RTR) {
 			cf->can_id |= CAN_RTR_FLAG;
 		} else {
-			for (i = 0; i < cf->can_dlc; i++)
+			for (i = 0; i < cf->len; i++)
 				cf->data[i] = msg->msg.rx.data[i];
-		}
 
+			stats->rx_bytes += cf->len;
+		}
 		stats->rx_packets++;
-		stats->rx_bytes += cf->can_dlc;
+
 		netif_rx(skb);
 	}
 
@@ -355,11 +356,11 @@ static void esd_usb2_tx_done_msg(struct esd_usb2_net_priv *priv,
 
 	if (!msg->msg.txdone.status) {
 		stats->tx_packets++;
-		stats->tx_bytes += context->dlc;
-		can_get_echo_skb(netdev, context->echo_index);
+		stats->tx_bytes += can_get_echo_skb(netdev, context->echo_index,
+						    NULL);
 	} else {
 		stats->tx_errors++;
-		can_free_echo_skb(netdev, context->echo_index);
+		can_free_echo_skb(netdev, context->echo_index, NULL);
 	}
 
 	/* Release context */
@@ -473,7 +474,7 @@ static void esd_usb2_write_bulk_callback(struct urb *urb)
 	netif_trans_update(netdev);
 }
 
-static ssize_t show_firmware(struct device *d,
+static ssize_t firmware_show(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(d);
@@ -484,9 +485,9 @@ static ssize_t show_firmware(struct device *d,
 		       (dev->version >> 8) & 0xf,
 		       dev->version & 0xff);
 }
-static DEVICE_ATTR(firmware, 0444, show_firmware, NULL);
+static DEVICE_ATTR_RO(firmware);
 
-static ssize_t show_hardware(struct device *d,
+static ssize_t hardware_show(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(d);
@@ -497,9 +498,9 @@ static ssize_t show_hardware(struct device *d,
 		       (dev->version >> 24) & 0xf,
 		       (dev->version >> 16) & 0xff);
 }
-static DEVICE_ATTR(hardware, 0444, show_hardware, NULL);
+static DEVICE_ATTR_RO(hardware);
 
-static ssize_t show_nets(struct device *d,
+static ssize_t nets_show(struct device *d,
 			 struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(d);
@@ -507,7 +508,7 @@ static ssize_t show_nets(struct device *d,
 
 	return sprintf(buf, "%d", dev->net_count);
 }
-static DEVICE_ATTR(nets, 0444, show_nets, NULL);
+static DEVICE_ATTR_RO(nets);
 
 static int esd_usb2_send_msg(struct esd_usb2 *dev, struct esd_usb2_msg *msg)
 {
@@ -544,6 +545,7 @@ static int esd_usb2_setup_rx_urbs(struct esd_usb2 *dev)
 	for (i = 0; i < MAX_RX_URBS; i++) {
 		struct urb *urb = NULL;
 		u8 *buf = NULL;
+		dma_addr_t buf_dma;
 
 		/* create a URB, and a buffer for it */
 		urb = usb_alloc_urb(0, GFP_KERNEL);
@@ -553,13 +555,15 @@ static int esd_usb2_setup_rx_urbs(struct esd_usb2 *dev)
 		}
 
 		buf = usb_alloc_coherent(dev->udev, RX_BUFFER_SIZE, GFP_KERNEL,
-					 &urb->transfer_dma);
+					 &buf_dma);
 		if (!buf) {
 			dev_warn(dev->udev->dev.parent,
 				 "No memory left for USB buffer\n");
 			err = -ENOMEM;
 			goto freeurb;
 		}
+
+		urb->transfer_dma = buf_dma;
 
 		usb_fill_bulk_urb(urb, dev->udev,
 				  usb_rcvbulkpipe(dev->udev, 1),
@@ -573,7 +577,11 @@ static int esd_usb2_setup_rx_urbs(struct esd_usb2 *dev)
 			usb_unanchor_urb(urb);
 			usb_free_coherent(dev->udev, RX_BUFFER_SIZE, buf,
 					  urb->transfer_dma);
+			goto freeurb;
 		}
+
+		dev->rxbuf[i] = buf;
+		dev->rxbuf_dma[i] = buf_dma;
 
 freeurb:
 		/* Drop reference, USB core will take care of freeing it */
@@ -662,6 +670,11 @@ static void unlink_all_urbs(struct esd_usb2 *dev)
 	int i, j;
 
 	usb_kill_anchored_urbs(&dev->rx_submitted);
+
+	for (i = 0; i < MAX_RX_URBS; ++i)
+		usb_free_coherent(dev->udev, RX_BUFFER_SIZE,
+				  dev->rxbuf[i], dev->rxbuf_dma[i]);
+
 	for (i = 0; i < dev->net_count; i++) {
 		priv = dev->nets[i];
 		if (priv) {
@@ -737,7 +750,7 @@ static netdev_tx_t esd_usb2_start_xmit(struct sk_buff *skb,
 	msg->msg.hdr.len = 3; /* minimal length */
 	msg->msg.hdr.cmd = CMD_CAN_TX;
 	msg->msg.tx.net = priv->index;
-	msg->msg.tx.dlc = cf->can_dlc;
+	msg->msg.tx.dlc = can_get_cc_dlc(cf, priv->can.ctrlmode);
 	msg->msg.tx.id = cpu_to_le32(cf->can_id & CAN_ERR_MASK);
 
 	if (cf->can_id & CAN_RTR_FLAG)
@@ -746,10 +759,10 @@ static netdev_tx_t esd_usb2_start_xmit(struct sk_buff *skb,
 	if (cf->can_id & CAN_EFF_FLAG)
 		msg->msg.tx.id |= cpu_to_le32(ESD_EXTID);
 
-	for (i = 0; i < cf->can_dlc; i++)
+	for (i = 0; i < cf->len; i++)
 		msg->msg.tx.data[i] = cf->data[i];
 
-	msg->msg.hdr.len += (cf->can_dlc + 3) >> 2;
+	msg->msg.hdr.len += (cf->len + 3) >> 2;
 
 	for (i = 0; i < MAX_TX_URBS; i++) {
 		if (priv->tx_contexts[i].echo_index == MAX_TX_URBS) {
@@ -769,7 +782,6 @@ static netdev_tx_t esd_usb2_start_xmit(struct sk_buff *skb,
 
 	context->priv = priv;
 	context->echo_index = i;
-	context->dlc = cf->can_dlc;
 
 	/* hnd must not be 0 - MSB is stripped in txdone handling */
 	msg->msg.tx.hnd = 0x80000000 | i; /* returned in TX done message */
@@ -782,7 +794,7 @@ static netdev_tx_t esd_usb2_start_xmit(struct sk_buff *skb,
 
 	usb_anchor_urb(urb, &priv->tx_submitted);
 
-	can_put_echo_skb(skb, netdev, context->echo_index);
+	can_put_echo_skb(skb, netdev, context->echo_index, 0);
 
 	atomic_inc(&priv->active_tx_jobs);
 
@@ -792,7 +804,7 @@ static netdev_tx_t esd_usb2_start_xmit(struct sk_buff *skb,
 
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err) {
-		can_free_echo_skb(netdev, context->echo_index);
+		can_free_echo_skb(netdev, context->echo_index, NULL);
 
 		atomic_dec(&priv->active_tx_jobs);
 		usb_unanchor_urb(urb);
@@ -988,7 +1000,8 @@ static int esd_usb2_probe_one_net(struct usb_interface *intf, int index)
 	priv->index = index;
 
 	priv->can.state = CAN_STATE_STOPPED;
-	priv->can.ctrlmode_supported = CAN_CTRLMODE_LISTENONLY;
+	priv->can.ctrlmode_supported = CAN_CTRLMODE_LISTENONLY |
+		CAN_CTRLMODE_CC_LEN8_DLC;
 
 	if (le16_to_cpu(dev->udev->descriptor.idProduct) ==
 	    USB_CANUSBM_PRODUCT_ID)

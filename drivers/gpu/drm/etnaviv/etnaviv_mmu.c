@@ -124,6 +124,8 @@ static void etnaviv_iommu_remove_mapping(struct etnaviv_iommu_context *context,
 {
 	struct etnaviv_gem_object *etnaviv_obj = mapping->object;
 
+	lockdep_assert_held(&context->lock);
+
 	etnaviv_iommu_unmap(context, mapping->vram_node.start,
 			    etnaviv_obj->sgt, etnaviv_obj->base.size);
 	drm_mm_remove_node(&mapping->vram_node);
@@ -197,6 +199,7 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu_context *context,
 		 */
 		list_for_each_entry_safe(m, n, &list, scan_node) {
 			etnaviv_iommu_remove_mapping(context, m);
+			etnaviv_iommu_context_put(m->context);
 			m->context = NULL;
 			list_del_init(&m->mmu_node);
 			list_del_init(&m->scan_node);
@@ -216,6 +219,8 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu_context *context,
 static int etnaviv_iommu_insert_exact(struct etnaviv_iommu_context *context,
 		   struct drm_mm_node *node, size_t size, u64 va)
 {
+	lockdep_assert_held(&context->lock);
+
 	return drm_mm_insert_node_in_range(&context->mm, node, size, 0, 0, va,
 					   va + size, DRM_MM_INSERT_LOWEST);
 }

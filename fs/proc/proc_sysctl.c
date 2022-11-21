@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/bpf-cgroup.h>
 #include <linux/mount.h>
+#include <linux/kmemleak.h>
 #include "internal.h"
 
 static const struct dentry_operations proc_sys_dentry_operations;
@@ -25,14 +26,31 @@ static const struct file_operations proc_sys_dir_file_operations;
 static const struct inode_operations proc_sys_dir_operations;
 
 /* shared constants to be used in various sysctls */
-const int sysctl_vals[] = { 0, 1, INT_MAX };
+const int sysctl_vals[] = { -1, 0, 1, 2, 4, 100, 200, 1000, 3000, INT_MAX, 65535 };
 EXPORT_SYMBOL(sysctl_vals);
+
+const unsigned long sysctl_long_vals[] = { 0, 1, LONG_MAX };
+EXPORT_SYMBOL_GPL(sysctl_long_vals);
 
 /* Support for permanently empty directories */
 
 struct ctl_table sysctl_mount_point[] = {
 	{ }
 };
+
+/**
+ * register_sysctl_mount_point() - registers a sysctl mount point
+ * @path: path for the mount point
+ *
+ * Used to create a permanently empty directory to serve as mount point.
+ * There are some subtle but important permission checks this allows in the
+ * case of unprivileged mounts.
+ */
+struct ctl_table_header *register_sysctl_mount_point(const char *path)
+{
+	return register_sysctl(path, sysctl_mount_point);
+}
+EXPORT_SYMBOL(register_sysctl_mount_point);
 
 static bool is_empty_dir(struct ctl_table_header *head)
 {
@@ -94,14 +112,9 @@ static void sysctl_print_dir(struct ctl_dir *dir)
 
 static int namecmp(const char *name1, int len1, const char *name2, int len2)
 {
-	int minlen;
 	int cmp;
 
-	minlen = len1;
-	if (minlen > len2)
-		minlen = len2;
-
-	cmp = memcmp(name1, name2, minlen);
+	cmp = memcmp(name1, name2, min(len1, len2));
 	if (cmp == 0)
 		cmp = len1 - len2;
 	return cmp;
@@ -168,7 +181,7 @@ static int insert_entry(struct ctl_table_header *head, struct ctl_table *entry)
 		else {
 			pr_err("sysctl duplicate entry: ");
 			sysctl_print_dir(head->parent);
-			pr_cont("/%s\n", entry->procname);
+			pr_cont("%s\n", entry->procname);
 			return -EEXIST;
 		}
 	}
@@ -571,7 +584,7 @@ static ssize_t proc_sys_call_handler(struct kiocb *iocb, struct iov_iter *iter,
 	error = -ENOMEM;
 	if (count >= KMALLOC_MAX_SIZE)
 		goto out;
-	kbuf = kzalloc(count + 1, GFP_KERNEL);
+	kbuf = kvzalloc(count + 1, GFP_KERNEL);
 	if (!kbuf)
 		goto out;
 
@@ -600,7 +613,7 @@ static ssize_t proc_sys_call_handler(struct kiocb *iocb, struct iov_iter *iter,
 
 	error = count;
 out_free_buf:
-	kfree(kbuf);
+	kvfree(kbuf);
 out:
 	sysctl_head_finish(head);
 
@@ -785,7 +798,8 @@ out:
 	return 0;
 }
 
-static int proc_sys_permission(struct inode *inode, int mask)
+static int proc_sys_permission(struct user_namespace *mnt_userns,
+			       struct inode *inode, int mask)
 {
 	/*
 	 * sysctl entries that are not writeable,
@@ -813,7 +827,8 @@ static int proc_sys_permission(struct inode *inode, int mask)
 	return error;
 }
 
-static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
+static int proc_sys_setattr(struct user_namespace *mnt_userns,
+			    struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;
@@ -821,16 +836,17 @@ static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 	if (attr->ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
 		return -EPERM;
 
-	error = setattr_prepare(dentry, attr);
+	error = setattr_prepare(&init_user_ns, dentry, attr);
 	if (error)
 		return error;
 
-	setattr_copy(inode, attr);
+	setattr_copy(&init_user_ns, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }
 
-static int proc_sys_getattr(const struct path *path, struct kstat *stat,
+static int proc_sys_getattr(struct user_namespace *mnt_userns,
+			    const struct path *path, struct kstat *stat,
 			    u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -840,7 +856,7 @@ static int proc_sys_getattr(const struct path *path, struct kstat *stat,
 	if (IS_ERR(head))
 		return PTR_ERR(head);
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(&init_user_ns, inode, stat);
 	if (table)
 		stat->mode = (stat->mode & S_IFMT) | table->mode;
 
@@ -1022,8 +1038,8 @@ failed:
 	if (IS_ERR(subdir)) {
 		pr_err("sysctl could not get directory: ");
 		sysctl_print_dir(dir);
-		pr_cont("/%*.*s %ld\n",
-			namelen, namelen, name, PTR_ERR(subdir));
+		pr_cont("%*.*s %ld\n", namelen, namelen, name,
+			PTR_ERR(subdir));
 	}
 	drop_sysctl_table(&dir->header);
 	if (new)
@@ -1055,7 +1071,6 @@ static int sysctl_follow_link(struct ctl_table_header **phead,
 	struct ctl_dir *dir;
 	int ret;
 
-	ret = 0;
 	spin_lock(&sysctl_lock);
 	root = (*pentry)->data;
 	set = lookup_header_set(root);
@@ -1105,6 +1120,11 @@ static int sysctl_check_table_array(const char *path, struct ctl_table *table)
 			err |= sysctl_err(path, table, "array not allowed");
 	}
 
+	if (table->proc_handler == proc_dou8vec_minmax) {
+		if (table->maxlen != sizeof(u8))
+			err |= sysctl_err(path, table, "array not allowed");
+	}
+
 	return err;
 }
 
@@ -1120,6 +1140,7 @@ static int sysctl_check_table(const char *path, struct ctl_table *table)
 		    (table->proc_handler == proc_douintvec) ||
 		    (table->proc_handler == proc_douintvec_minmax) ||
 		    (table->proc_handler == proc_dointvec_minmax) ||
+		    (table->proc_handler == proc_dou8vec_minmax) ||
 		    (table->proc_handler == proc_dointvec_jiffies) ||
 		    (table->proc_handler == proc_dointvec_userhz_jiffies) ||
 		    (table->proc_handler == proc_dointvec_ms_jiffies) ||
@@ -1380,6 +1401,38 @@ struct ctl_table_header *register_sysctl(const char *path, struct ctl_table *tab
 }
 EXPORT_SYMBOL(register_sysctl);
 
+/**
+ * __register_sysctl_init() - register sysctl table to path
+ * @path: path name for sysctl base
+ * @table: This is the sysctl table that needs to be registered to the path
+ * @table_name: The name of sysctl table, only used for log printing when
+ *              registration fails
+ *
+ * The sysctl interface is used by userspace to query or modify at runtime
+ * a predefined value set on a variable. These variables however have default
+ * values pre-set. Code which depends on these variables will always work even
+ * if register_sysctl() fails. If register_sysctl() fails you'd just loose the
+ * ability to query or modify the sysctls dynamically at run time. Chances of
+ * register_sysctl() failing on init are extremely low, and so for both reasons
+ * this function does not return any error as it is used by initialization code.
+ *
+ * Context: Can only be called after your respective sysctl base path has been
+ * registered. So for instance, most base directories are registered early on
+ * init before init levels are processed through proc_sys_init() and
+ * sysctl_init_bases().
+ */
+void __init __register_sysctl_init(const char *path, struct ctl_table *table,
+				 const char *table_name)
+{
+	struct ctl_table_header *hdr = register_sysctl(path, table);
+
+	if (unlikely(!hdr)) {
+		pr_err("failed when register_sysctl %s to %s\n", table_name, path);
+		return;
+	}
+	kmemleak_not_leak(hdr);
+}
+
 static char *append_path(const char *path, char *pos, const char *name)
 {
 	int namelen;
@@ -1559,7 +1612,7 @@ err_register_leaves:
 }
 
 /**
- * register_sysctl_table_path - register a sysctl table hierarchy
+ * register_sysctl_paths - register a sysctl table hierarchy
  * @path: The path to the directory the sysctl table is in.
  * @table: the top-level table structure
  *
@@ -1593,6 +1646,15 @@ struct ctl_table_header *register_sysctl_table(struct ctl_table *table)
 }
 EXPORT_SYMBOL(register_sysctl_table);
 
+int __register_sysctl_base(struct ctl_table *base_table)
+{
+	struct ctl_table_header *hdr;
+
+	hdr = register_sysctl_table(base_table);
+	kmemleak_not_leak(hdr);
+	return 0;
+}
+
 static void put_links(struct ctl_table_header *header)
 {
 	struct ctl_table_set *root_set = &sysctl_table_root.default_set;
@@ -1622,7 +1684,7 @@ static void put_links(struct ctl_table_header *header)
 		else {
 			pr_err("sysctl link missing during unregister: ");
 			sysctl_print_dir(parent);
-			pr_cont("/%s\n", name);
+			pr_cont("%s\n", name);
 		}
 	}
 }
@@ -1706,7 +1768,7 @@ int __init proc_sys_init(void)
 	proc_sys_root->proc_dir_ops = &proc_sys_dir_file_operations;
 	proc_sys_root->nlink = 0;
 
-	return sysctl_init();
+	return sysctl_init_bases();
 }
 
 struct sysctl_alias {
@@ -1770,6 +1832,12 @@ static int process_sysctl_arg(char *param, char *val,
 			return 0;
 	}
 
+	if (!val)
+		return -EINVAL;
+	len = strlen(val);
+	if (len == 0)
+		return -EINVAL;
+
 	/*
 	 * To set sysctl options, we use a temporary mount of proc, look up the
 	 * respective sys/ file and write to it. To avoid mounting it when no
@@ -1797,7 +1865,7 @@ static int process_sysctl_arg(char *param, char *val,
 		panic("%s: Failed to allocate path for %s\n", __func__, param);
 	strreplace(path, '.', '/');
 
-	file = file_open_root((*proc_mnt)->mnt_root, *proc_mnt, path, O_WRONLY, 0);
+	file = file_open_root_mnt(*proc_mnt, path, O_WRONLY, 0);
 	if (IS_ERR(file)) {
 		err = PTR_ERR(file);
 		if (err == -ENOENT)
@@ -1811,7 +1879,6 @@ static int process_sysctl_arg(char *param, char *val,
 				file, param, val);
 		goto out;
 	}
-	len = strlen(val);
 	wret = kernel_write(file, val, len, &pos);
 	if (wret < 0) {
 		err = wret;

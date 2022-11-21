@@ -188,17 +188,14 @@ device is already correct.
 		/* memory alloc */
 		nftl->EUNtable = kmalloc_array(nftl->nb_blocks, sizeof(u16),
 					       GFP_KERNEL);
-		if (!nftl->EUNtable) {
-			printk(KERN_NOTICE "NFTL: allocation of EUNtable failed\n");
+		if (!nftl->EUNtable)
 			return -ENOMEM;
-		}
 
 		nftl->ReplUnitTable = kmalloc_array(nftl->nb_blocks,
 						    sizeof(u16),
 						    GFP_KERNEL);
 		if (!nftl->ReplUnitTable) {
 			kfree(nftl->EUNtable);
-			printk(KERN_NOTICE "NFTL: allocation of ReplUnitTable failed\n");
 			return -ENOMEM;
 		}
 
@@ -269,7 +266,7 @@ static int check_free_sectors(struct NFTLrecord *nftl, unsigned int address, int
 
 	buf = kmalloc(SECTORSIZE + mtd->oobsize, GFP_KERNEL);
 	if (!buf)
-		return -1;
+		return -ENOMEM;
 
 	ret = -1;
 	for (i = 0; i < len; i += SECTORSIZE) {

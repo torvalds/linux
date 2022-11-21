@@ -30,9 +30,12 @@ properties:
       power supply for LCM (1.8V)
 
   dcdc-en-gpios:
+    maxItems: 1
     description: |
       phandle of the gpio for power ic line
       Power IC supply enable, High active
+
+  port: true
 
 required:
   - compatible

@@ -257,19 +257,18 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 	u8 cf_len;
 
 	if (rx_msg_flags & PUCAN_MSG_EXT_DATA_LEN)
-		cf_len = can_dlc2len(get_canfd_dlc(pucan_msg_get_dlc(msg)));
+		cf_len = can_fd_dlc2len(pucan_msg_get_dlc(msg));
 	else
-		cf_len = get_can_dlc(pucan_msg_get_dlc(msg));
+		cf_len = can_cc_dlc2len(pucan_msg_get_dlc(msg));
 
 	/* if this frame is an echo, */
 	if (rx_msg_flags & PUCAN_MSG_LOOPED_BACK) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&priv->echo_lock, flags);
-		can_get_echo_skb(priv->ndev, msg->client);
 
 		/* count bytes of the echo instead of skb */
-		stats->tx_bytes += cf_len;
+		stats->tx_bytes += can_get_echo_skb(priv->ndev, msg->client, NULL);
 		stats->tx_packets++;
 
 		/* restart tx queue (a slot is free) */
@@ -310,12 +309,13 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 	if (rx_msg_flags & PUCAN_MSG_EXT_ID)
 		cf->can_id |= CAN_EFF_FLAG;
 
-	if (rx_msg_flags & PUCAN_MSG_RTR)
+	if (rx_msg_flags & PUCAN_MSG_RTR) {
 		cf->can_id |= CAN_RTR_FLAG;
-	else
+	} else {
 		memcpy(cf->data, msg->d, cf->len);
 
-	stats->rx_bytes += cf->len;
+		stats->rx_bytes += cf->len;
+	}
 	stats->rx_packets++;
 
 	pucan_netif_rx(skb, msg->ts_low, msg->ts_high);
@@ -351,8 +351,8 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 				return err;
 		}
 
-		/* start network queue (echo_skb array is empty) */
-		netif_start_queue(ndev);
+		/* wake network queue up (echo_skb array is empty) */
+		netif_wake_queue(ndev);
 
 		return 0;
 	}
@@ -409,8 +409,6 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 		return -ENOMEM;
 	}
 
-	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
 	pucan_netif_rx(skb, msg->ts_low, msg->ts_high);
 
 	return 0;
@@ -438,8 +436,6 @@ static int pucan_handle_cache_critical(struct peak_canfd_priv *priv)
 	cf->data[6] = priv->bec.txerr;
 	cf->data[7] = priv->bec.rxerr;
 
-	stats->rx_bytes += cf->can_dlc;
-	stats->rx_packets++;
 	netif_rx(skb);
 
 	return 0;
@@ -652,7 +648,7 @@ static netdev_tx_t peak_canfd_start_xmit(struct sk_buff *skb,
 	unsigned long flags;
 	bool should_stop_tx_queue;
 	int room_left;
-	u8 can_dlc;
+	u8 len;
 
 	if (can_dropped_invalid_skb(ndev, skb))
 		return NETDEV_TX_OK;
@@ -682,7 +678,7 @@ static netdev_tx_t peak_canfd_start_xmit(struct sk_buff *skb,
 
 	if (can_is_canfd_skb(skb)) {
 		/* CAN FD frame format */
-		can_dlc = can_len2dlc(cf->len);
+		len = can_fd_len2dlc(cf->len);
 
 		msg_flags |= PUCAN_MSG_EXT_DATA_LEN;
 
@@ -693,7 +689,7 @@ static netdev_tx_t peak_canfd_start_xmit(struct sk_buff *skb,
 			msg_flags |= PUCAN_MSG_ERROR_STATE_IND;
 	} else {
 		/* CAN 2.0 frame format */
-		can_dlc = cf->len;
+		len = cf->len;
 
 		if (cf->can_id & CAN_RTR_FLAG)
 			msg_flags |= PUCAN_MSG_RTR;
@@ -707,7 +703,7 @@ static netdev_tx_t peak_canfd_start_xmit(struct sk_buff *skb,
 		msg_flags |= PUCAN_MSG_SELF_RECEIVE;
 
 	msg->flags = cpu_to_le16(msg_flags);
-	msg->channel_dlc = PUCAN_MSG_CHANNEL_DLC(priv->index, can_dlc);
+	msg->channel_dlc = PUCAN_MSG_CHANNEL_DLC(priv->index, len);
 	memcpy(msg->d, cf->data, cf->len);
 
 	/* struct msg client field is used as an index in the echo skbs ring */
@@ -716,7 +712,7 @@ static netdev_tx_t peak_canfd_start_xmit(struct sk_buff *skb,
 	spin_lock_irqsave(&priv->echo_lock, flags);
 
 	/* prepare and save echo skb in internal slot */
-	can_put_echo_skb(skb, ndev, priv->echo_idx);
+	can_put_echo_skb(skb, ndev, priv->echo_idx, 0);
 
 	/* move echo index to the next slot */
 	priv->echo_idx = (priv->echo_idx + 1) % priv->can.echo_skb_max;

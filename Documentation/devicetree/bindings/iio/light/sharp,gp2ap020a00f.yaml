@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/light/sharp,gp2ap020a00f.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sharp GP2AP020A00F I2C Proximity/ALS sensor
+
+maintainers:
+  - Kyungmin Park <kyungmin.park@samsung.com>
+
+description: |
+  The proximity detector sensor requires power supply for its built-in led.
+
+properties:
+  compatible:
+    const: sharp,gp2ap020a00f
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  vled-supply: true
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - vled-supply
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        light-sensor@39 {
+            compatible = "sharp,gp2ap020a00f";
+            reg = <0x39>;
+            interrupts = <2 0>;
+            vled-supply = <&als_reg>;
+        };
+    };
+...

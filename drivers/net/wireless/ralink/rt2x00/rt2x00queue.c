@@ -446,8 +446,9 @@ static void rt2x00queue_create_tx_descriptor(struct rt2x00_dev *rt2x00dev,
 	 * Beacons and probe responses require the tsf timestamp
 	 * to be inserted into the frame.
 	 */
-	if (ieee80211_is_beacon(hdr->frame_control) ||
-	    ieee80211_is_probe_resp(hdr->frame_control))
+	if ((ieee80211_is_beacon(hdr->frame_control) ||
+	     ieee80211_is_probe_resp(hdr->frame_control)) &&
+	    !(tx_info->flags & IEEE80211_TX_CTL_INJECTED))
 		__set_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags);
 
 	if ((tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT) &&
@@ -941,6 +942,7 @@ void rt2x00queue_unpause_queue(struct data_queue *queue)
 		 * receive frames.
 		 */
 		queue->rt2x00dev->ops->lib->kick_queue(queue);
+		break;
 	default:
 		break;
 	}

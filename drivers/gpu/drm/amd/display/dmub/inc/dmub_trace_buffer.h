@@ -25,7 +25,7 @@
 #ifndef _DMUB_TRACE_BUFFER_H_
 #define _DMUB_TRACE_BUFFER_H_
 
-#include "dmub_types.h"
+#include "dmub_cmd.h"
 
 #define LOAD_DMCU_FW	1
 #define LOAD_PHY_FW	2
@@ -64,6 +64,5 @@ struct dmcub_trace_buf {
 	uint32_t clk_freq;
 	struct dmcub_trace_buf_entry entries[PERF_TRACE_MAX_ENTRY];
 };
-
 
 #endif /* _DMUB_TRACE_BUFFER_H_ */

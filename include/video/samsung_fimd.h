@@ -476,6 +476,10 @@
  * 1111		-none-	 -none-   -none-   -none-    -none-
 */
 
+#define WIN_RGB_ORDER(_win)			(0x2020 + ((_win) * 4))
+#define WIN_RGB_ORDER_FORWARD			(0 << 11)
+#define WIN_RGB_ORDER_REVERSE			(1 << 11)
+
 /* FIMD Version 8 register offset definitions */
 #define FIMD_V8_VIDTCON0	0x20010
 #define FIMD_V8_VIDTCON1	0x20014

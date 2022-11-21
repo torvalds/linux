@@ -12,7 +12,7 @@
 PHONY := __headers
 __headers:
 
-include scripts/Kbuild.include
+include $(srctree)/scripts/Kbuild.include
 
 src := $(srctree)/$(obj)
 gen := $(objtree)/$(subst include/,include/generated/,$(obj))

@@ -10,6 +10,8 @@
 #include <linux/netfilter/nf_conntrack_tuple_common.h>
 #include <net/flow_offload.h>
 #include <net/dst.h>
+#include <linux/if_pppox.h>
+#include <linux/ppp_defs.h>
 
 struct nf_flowtable;
 struct nf_flow_rule;
@@ -21,6 +23,8 @@ struct nf_flow_key {
 	struct flow_dissector_key_control		control;
 	struct flow_dissector_key_control		enc_control;
 	struct flow_dissector_key_basic			basic;
+	struct flow_dissector_key_vlan			vlan;
+	struct flow_dissector_key_vlan			cvlan;
 	union {
 		struct flow_dissector_key_ipv4_addrs	ipv4;
 		struct flow_dissector_key_ipv6_addrs	ipv6;
@@ -86,8 +90,18 @@ static inline bool nf_flowtable_hw_offload(struct nf_flowtable *flowtable)
 enum flow_offload_tuple_dir {
 	FLOW_OFFLOAD_DIR_ORIGINAL = IP_CT_DIR_ORIGINAL,
 	FLOW_OFFLOAD_DIR_REPLY = IP_CT_DIR_REPLY,
-	FLOW_OFFLOAD_DIR_MAX = IP_CT_DIR_MAX
 };
+#define FLOW_OFFLOAD_DIR_MAX	IP_CT_DIR_MAX
+
+enum flow_offload_xmit_type {
+	FLOW_OFFLOAD_XMIT_UNSPEC	= 0,
+	FLOW_OFFLOAD_XMIT_NEIGH,
+	FLOW_OFFLOAD_XMIT_XFRM,
+	FLOW_OFFLOAD_XMIT_DIRECT,
+	FLOW_OFFLOAD_XMIT_TC,
+};
+
+#define NF_FLOW_TABLE_ENCAP_MAX		2
 
 struct flow_offload_tuple {
 	union {
@@ -107,11 +121,34 @@ struct flow_offload_tuple {
 
 	u8				l3proto;
 	u8				l4proto;
-	u8				dir;
+	struct {
+		u16			id;
+		__be16			proto;
+	} encap[NF_FLOW_TABLE_ENCAP_MAX];
 
+	/* All members above are keys for lookups, see flow_offload_hash(). */
+	struct { }			__hash;
+
+	u8				dir:2,
+					xmit_type:3,
+					encap_num:2,
+					in_vlan_ingress:2;
 	u16				mtu;
-
-	struct dst_entry		*dst_cache;
+	union {
+		struct {
+			struct dst_entry *dst_cache;
+			u32		dst_cookie;
+		};
+		struct {
+			u32		ifidx;
+			u32		hw_ifidx;
+			u8		h_source[ETH_ALEN];
+			u8		h_dest[ETH_ALEN];
+		} out;
+		struct {
+			u32		iifidx;
+		} tc;
+	};
 };
 
 struct flow_offload_tuple_rhash {
@@ -126,7 +163,6 @@ enum nf_flow_flags {
 	NF_FLOW_HW,
 	NF_FLOW_HW_DYING,
 	NF_FLOW_HW_DEAD,
-	NF_FLOW_HW_REFRESH,
 	NF_FLOW_HW_PENDING,
 };
 
@@ -147,6 +183,8 @@ struct flow_offload {
 #define NF_FLOW_TIMEOUT (30 * HZ)
 #define nf_flowtable_time_stamp	(u32)jiffies
 
+unsigned long flow_offload_get_timeout(struct flow_offload *flow);
+
 static inline __s32 nf_flow_timeout_delta(unsigned int timeout)
 {
 	return (__s32)(timeout - nf_flowtable_time_stamp);
@@ -154,7 +192,23 @@ static inline __s32 nf_flow_timeout_delta(unsigned int timeout)
 
 struct nf_flow_route {
 	struct {
-		struct dst_entry	*dst;
+		struct dst_entry		*dst;
+		struct {
+			u32			ifindex;
+			struct {
+				u16		id;
+				__be16		proto;
+			} encap[NF_FLOW_TABLE_ENCAP_MAX];
+			u8			num_encaps:2,
+						ingress_vlans:2;
+		} in;
+		struct {
+			u32			ifindex;
+			u32			hw_ifindex;
+			u8			h_source[ETH_ALEN];
+			u8			h_dest[ETH_ALEN];
+		} out;
+		enum flow_offload_xmit_type	xmit_type;
 	} tuple[FLOW_OFFLOAD_DIR_MAX];
 };
 
@@ -225,12 +279,12 @@ void nf_flow_table_free(struct nf_flowtable *flow_table);
 
 void flow_offload_teardown(struct flow_offload *flow);
 
-int nf_flow_snat_port(const struct flow_offload *flow,
-		      struct sk_buff *skb, unsigned int thoff,
-		      u8 protocol, enum flow_offload_tuple_dir dir);
-int nf_flow_dnat_port(const struct flow_offload *flow,
-		      struct sk_buff *skb, unsigned int thoff,
-		      u8 protocol, enum flow_offload_tuple_dir dir);
+void nf_flow_snat_port(const struct flow_offload *flow,
+		       struct sk_buff *skb, unsigned int thoff,
+		       u8 protocol, enum flow_offload_tuple_dir dir);
+void nf_flow_dnat_port(const struct flow_offload *flow,
+		       struct sk_buff *skb, unsigned int thoff,
+		       u8 protocol, enum flow_offload_tuple_dir dir);
 
 struct flow_ports {
 	__be16 source, dest;
@@ -264,5 +318,21 @@ int nf_flow_rule_route_ipv6(struct net *net, const struct flow_offload *flow,
 
 int nf_flow_table_offload_init(void);
 void nf_flow_table_offload_exit(void);
+
+static inline __be16 nf_flow_pppoe_proto(const struct sk_buff *skb)
+{
+	__be16 proto;
+
+	proto = *((__be16 *)(skb_mac_header(skb) + ETH_HLEN +
+			     sizeof(struct pppoe_hdr)));
+	switch (proto) {
+	case htons(PPP_IP):
+		return htons(ETH_P_IP);
+	case htons(PPP_IPV6):
+		return htons(ETH_P_IPV6);
+	}
+
+	return 0;
+}
 
 #endif /* _NF_FLOW_TABLE_H */

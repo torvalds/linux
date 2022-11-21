@@ -15,8 +15,16 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - ti,j721e-pcie-ep
+    oneOf:
+      - const: ti,j721e-pcie-ep
+      - description: PCIe EP controller in AM64
+        items:
+          - const: ti,am64-pcie-ep
+          - const: ti,j721e-pcie-ep
+      - description: PCIe EP controller in J7200
+        items:
+          - const: ti,j7200-pcie-ep
+          - const: ti,j721e-pcie-ep
 
   reg:
     maxItems: 4
@@ -29,9 +37,12 @@ properties:
       - const: mem
 
   ti,syscon-pcie-ctrl:
-    description: Phandle to the SYSCON entry required for configuring PCIe mode
-                 and link speed.
-    $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: Phandle to the SYSCON entry
+          - description: pcie_ctrl register offset within SYSCON
+    description: Specifier for configuring PCIe mode and link speed.
 
   power-domains:
     maxItems: 1
@@ -57,8 +68,6 @@ required:
   - power-domains
   - clocks
   - clock-names
-  - cdns,max-outbound-regions
-  - dma-coherent
   - max-functions
   - phys
   - phy-names
@@ -80,13 +89,12 @@ examples:
                  <0x00 0x0d000000 0x00 0x00800000>,
                  <0x00 0x10000000 0x00 0x08000000>;
            reg-names = "intd_cfg", "user_cfg", "reg", "mem";
-           ti,syscon-pcie-ctrl = <&pcie0_ctrl>;
+           ti,syscon-pcie-ctrl = <&pcie0_ctrl 0x4070>;
            max-link-speed = <3>;
            num-lanes = <2>;
            power-domains = <&k3_pds 239 TI_SCI_PD_EXCLUSIVE>;
            clocks = <&k3_clks 239 1>;
            clock-names = "fck";
-           cdns,max-outbound-regions = <16>;
            max-functions = /bits/ 8 <6>;
            dma-coherent;
            phys = <&serdes0_pcie_link>;

@@ -93,8 +93,8 @@ struct br2684_dev {
  * This lock should be held for writing any time the list of devices or
  * their attached vcc's could be altered.  It should be held for reading
  * any time these are being queried.  Note that we sometimes need to
- * do read-locking under interrupt context, so write locking must block
- * the current CPU's interrupts
+ * do read-locking under interrupting context, so write locking must block
+ * the current CPU's interrupts.
  */
 static DEFINE_RWLOCK(devs_lock);
 
@@ -577,10 +577,12 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	pr_debug("vcc=%p, encaps=%d, brvcc=%p\n", atmvcc, be.encaps, brvcc);
 	if (list_empty(&brdev->brvccs) && !brdev->mac_was_set) {
 		unsigned char *esi = atmvcc->dev->esi;
+		const u8 one = 1;
+
 		if (esi[0] | esi[1] | esi[2] | esi[3] | esi[4] | esi[5])
-			memcpy(net_dev->dev_addr, esi, net_dev->addr_len);
+			dev_addr_set(net_dev, esi);
 		else
-			net_dev->dev_addr[2] = 1;
+			dev_addr_mod(net_dev, 2, &one, 1);
 	}
 	list_add(&brvcc->brvccs, &brdev->brvccs);
 	write_unlock_irq(&devs_lock);

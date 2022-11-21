@@ -31,6 +31,7 @@
  * @flags:		file operations related flags including busy flag.
  * @group:		event interface sysfs attribute group
  * @read_lock:		lock to protect kfifo read operations
+ * @ioctl_handler:	handler for event ioctl() calls
  */
 struct iio_event_interface {
 	wait_queue_head_t	wait;
@@ -40,6 +41,7 @@ struct iio_event_interface {
 	unsigned long		flags;
 	struct attribute_group	group;
 	struct mutex		read_lock;
+	struct iio_ioctl_handler	ioctl_handler;
 };
 
 bool iio_event_enabled(const struct iio_event_interface *ev_int)
@@ -187,7 +189,7 @@ static const struct file_operations iio_event_chrdev_fileops = {
 	.llseek = noop_llseek,
 };
 
-int iio_event_getfd(struct iio_dev *indio_dev)
+static int iio_event_getfd(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	struct iio_event_interface *ev_int = iio_dev_opaque->event_interface;
@@ -228,6 +230,7 @@ static const char * const iio_ev_type_text[] = {
 	[IIO_EV_TYPE_THRESH_ADAPTIVE] = "thresh_adaptive",
 	[IIO_EV_TYPE_MAG_ADAPTIVE] = "mag_adaptive",
 	[IIO_EV_TYPE_CHANGE] = "change",
+	[IIO_EV_TYPE_MAG_REFERENCED] = "mag_referenced",
 };
 
 static const char * const iio_ev_dir_text[] = {
@@ -243,6 +246,7 @@ static const char * const iio_ev_info_text[] = {
 	[IIO_EV_INFO_PERIOD] = "period",
 	[IIO_EV_INFO_HIGH_PASS_FILTER_3DB] = "high_pass_filter_3db",
 	[IIO_EV_INFO_LOW_PASS_FILTER_3DB] = "low_pass_filter_3db",
+	[IIO_EV_INFO_TIMEOUT] = "timeout",
 };
 
 static enum iio_event_direction iio_ev_attr_dir(struct iio_dev_attr *attr)
@@ -295,7 +299,7 @@ static ssize_t iio_ev_state_show(struct device *dev,
 	if (val < 0)
 		return val;
 	else
-		return sprintf(buf, "%d\n", val);
+		return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t iio_ev_value_show(struct device *dev,
@@ -383,6 +387,7 @@ static int iio_device_add_event(struct iio_dev *indio_dev,
 
 		ret = __iio_add_chan_devattr(postfix, chan, show, store,
 			 (i << 16) | spec_index, shared_by, &indio_dev->dev,
+			 NULL,
 			&iio_dev_opaque->event_interface->dev_attr_list);
 		kfree(postfix);
 
@@ -473,6 +478,24 @@ static void iio_setup_ev_int(struct iio_event_interface *ev_int)
 	mutex_init(&ev_int->read_lock);
 }
 
+static long iio_event_ioctl(struct iio_dev *indio_dev, struct file *filp,
+			    unsigned int cmd, unsigned long arg)
+{
+	int __user *ip = (int __user *)arg;
+	int fd;
+
+	if (cmd == IIO_GET_EVENT_FD_IOCTL) {
+		fd = iio_event_getfd(indio_dev);
+		if (fd < 0)
+			return fd;
+		if (copy_to_user(ip, &fd, sizeof(fd)))
+			return -EFAULT;
+		return 0;
+	}
+
+	return IIO_IOCTL_UNHANDLED;
+}
+
 static const char *iio_event_group_name = "events";
 int iio_device_register_eventset(struct iio_dev *indio_dev)
 {
@@ -524,7 +547,14 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 	/* Add all elements from the list. */
 	list_for_each_entry(p, &ev_int->dev_attr_list, l)
 		ev_int->group.attrs[attrn++] = &p->dev_attr.attr;
-	indio_dev->groups[indio_dev->groupcounter++] = &ev_int->group;
+
+	ret = iio_device_register_sysfs_group(indio_dev, &ev_int->group);
+	if (ret)
+		goto error_free_setup_event_lines;
+
+	ev_int->ioctl_handler.ioctl = iio_event_ioctl;
+	iio_device_ioctl_handler_register(&iio_dev_opaque->indio_dev,
+					  &ev_int->ioctl_handler);
 
 	return 0;
 
@@ -558,6 +588,8 @@ void iio_device_unregister_eventset(struct iio_dev *indio_dev)
 
 	if (ev_int == NULL)
 		return;
+
+	iio_device_ioctl_handler_unregister(&ev_int->ioctl_handler);
 	iio_free_chan_devattr_list(&ev_int->dev_attr_list);
 	kfree(ev_int->group.attrs);
 	kfree(ev_int);

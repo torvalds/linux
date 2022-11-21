@@ -52,7 +52,6 @@ static const struct iio_buffer_access_funcs iio_hw_buf_access = {
 static struct hw_consumer_buffer *iio_hw_consumer_get_buffer(
 	struct iio_hw_consumer *hwc, struct iio_dev *indio_dev)
 {
-	size_t mask_size = BITS_TO_LONGS(indio_dev->masklength) * sizeof(long);
 	struct hw_consumer_buffer *buf;
 
 	list_for_each_entry(buf, &hwc->buffers, head) {
@@ -60,7 +59,8 @@ static struct hw_consumer_buffer *iio_hw_consumer_get_buffer(
 			return buf;
 	}
 
-	buf = kzalloc(sizeof(*buf) + mask_size, GFP_KERNEL);
+	buf = kzalloc(struct_size(buf, scan_mask, BITS_TO_LONGS(indio_dev->masklength)),
+		      GFP_KERNEL);
 	if (!buf)
 		return NULL;
 
@@ -137,9 +137,9 @@ void iio_hw_consumer_free(struct iio_hw_consumer *hwc)
 }
 EXPORT_SYMBOL_GPL(iio_hw_consumer_free);
 
-static void devm_iio_hw_consumer_release(struct device *dev, void *res)
+static void devm_iio_hw_consumer_release(void *iio_hwc)
 {
-	iio_hw_consumer_free(*(struct iio_hw_consumer **)res);
+	iio_hw_consumer_free(iio_hwc);
 }
 
 /**
@@ -153,20 +153,17 @@ static void devm_iio_hw_consumer_release(struct device *dev, void *res)
  */
 struct iio_hw_consumer *devm_iio_hw_consumer_alloc(struct device *dev)
 {
-	struct iio_hw_consumer **ptr, *iio_hwc;
-
-	ptr = devres_alloc(devm_iio_hw_consumer_release, sizeof(*ptr),
-			   GFP_KERNEL);
-	if (!ptr)
-		return NULL;
+	struct iio_hw_consumer *iio_hwc;
+	int ret;
 
 	iio_hwc = iio_hw_consumer_alloc(dev);
-	if (IS_ERR(iio_hwc)) {
-		devres_free(ptr);
-	} else {
-		*ptr = iio_hwc;
-		devres_add(dev, ptr);
-	}
+	if (IS_ERR(iio_hwc))
+		return iio_hwc;
+
+	ret = devm_add_action_or_reset(dev, devm_iio_hw_consumer_release,
+				       iio_hwc);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return iio_hwc;
 }

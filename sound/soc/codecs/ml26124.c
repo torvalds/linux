@@ -402,12 +402,11 @@ static int ml26124_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	unsigned char mode;
 	struct snd_soc_component *component = codec_dai->component;
 
-	/* set master/slave audio interface */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		mode = 1;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		mode = 0;
 		break;
 	default:
@@ -513,7 +512,7 @@ static struct snd_soc_dai_driver ml26124_dai = {
 		.rates = ML26124_RATES,
 		.formats = ML26124_FORMATS,},
 	.ops = &ml26124_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int ml26124_probe(struct snd_soc_component *component)

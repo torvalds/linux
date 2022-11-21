@@ -33,8 +33,6 @@ struct i2c_pca_pf_data {
 	wait_queue_head_t		wait;
 	struct i2c_adapter		adap;
 	struct i2c_algo_pca_data	algo_data;
-	unsigned long			io_base;
-	unsigned long			io_size;
 };
 
 /* Read/Write functions for different register alignments */
@@ -156,8 +154,6 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&i2c->wait);
 
-	i2c->io_base = res->start;
-	i2c->io_size = resource_size(res);
 	i2c->irq = irq;
 
 	i2c->adap.nr = pdev->id;

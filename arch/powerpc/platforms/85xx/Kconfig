@@ -208,12 +208,6 @@ config TQM8560
 	select TQM85xx
 	select CPM2
 
-config SBC8548
-	bool "Wind River SBC8548"
-	select DEFAULT_UIMAGE
-	help
-	  This option enables support for the Wind River SBC8548 board
-
 config PPA8548
 	bool "Prodrive PPA8548"
 	help

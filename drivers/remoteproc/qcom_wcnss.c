@@ -17,13 +17,14 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 #include <linux/qcom_scm.h>
 #include <linux/regulator/consumer.h>
 #include <linux/remoteproc.h>
 #include <linux/soc/qcom/mdt_loader.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
-#include <linux/rpmsg/qcom_smd.h>
 
 #include "qcom_common.h"
 #include "remoteproc_internal.h"
@@ -51,12 +52,15 @@
 #define WCNSS_PMU_XO_MODE_19p2		0
 #define WCNSS_PMU_XO_MODE_48		3
 
+#define WCNSS_MAX_PDS			2
+
 struct wcnss_data {
 	size_t pmu_offset;
 	size_t spare_offset;
 
+	const char *pd_names[WCNSS_MAX_PDS];
 	const struct wcnss_vreg_info *vregs;
-	size_t num_vregs;
+	size_t num_vregs, num_pd_vregs;
 };
 
 struct qcom_wcnss {
@@ -80,6 +84,8 @@ struct qcom_wcnss {
 	struct mutex iris_lock;
 	struct qcom_iris *iris;
 
+	struct device *pds[WCNSS_MAX_PDS];
+	size_t num_pds;
 	struct regulator_bulk_data *vregs;
 	size_t num_vregs;
 
@@ -111,37 +117,29 @@ static const struct wcnss_data pronto_v1_data = {
 	.pmu_offset = 0x1004,
 	.spare_offset = 0x1088,
 
+	.pd_names = { "mx", "cx" },
 	.vregs = (struct wcnss_vreg_info[]) {
 		{ "vddmx", 950000, 1150000, 0 },
 		{ "vddcx", .super_turbo = true},
 		{ "vddpx", 1800000, 1800000, 0 },
 	},
-	.num_vregs = 3,
+	.num_pd_vregs = 2,
+	.num_vregs = 1,
 };
 
 static const struct wcnss_data pronto_v2_data = {
 	.pmu_offset = 0x1004,
 	.spare_offset = 0x1088,
 
+	.pd_names = { "mx", "cx" },
 	.vregs = (struct wcnss_vreg_info[]) {
 		{ "vddmx", 1287500, 1287500, 0 },
 		{ "vddcx", .super_turbo = true },
 		{ "vddpx", 1800000, 1800000, 0 },
 	},
-	.num_vregs = 3,
+	.num_pd_vregs = 2,
+	.num_vregs = 1,
 };
-
-void qcom_wcnss_assign_iris(struct qcom_wcnss *wcnss,
-			    struct qcom_iris *iris,
-			    bool use_48mhz_xo)
-{
-	mutex_lock(&wcnss->iris_lock);
-
-	wcnss->iris = iris;
-	wcnss->use_48mhz_xo = use_48mhz_xo;
-
-	mutex_unlock(&wcnss->iris_lock);
-}
 
 static int wcnss_load(struct rproc *rproc, const struct firmware *fw)
 {
@@ -219,7 +217,7 @@ static void wcnss_configure_iris(struct qcom_wcnss *wcnss)
 static int wcnss_start(struct rproc *rproc)
 {
 	struct qcom_wcnss *wcnss = (struct qcom_wcnss *)rproc->priv;
-	int ret;
+	int ret, i;
 
 	mutex_lock(&wcnss->iris_lock);
 	if (!wcnss->iris) {
@@ -228,9 +226,18 @@ static int wcnss_start(struct rproc *rproc)
 		goto release_iris_lock;
 	}
 
+	for (i = 0; i < wcnss->num_pds; i++) {
+		dev_pm_genpd_set_performance_state(wcnss->pds[i], INT_MAX);
+		ret = pm_runtime_get_sync(wcnss->pds[i]);
+		if (ret < 0) {
+			pm_runtime_put_noidle(wcnss->pds[i]);
+			goto disable_pds;
+		}
+	}
+
 	ret = regulator_bulk_enable(wcnss->num_vregs, wcnss->vregs);
 	if (ret)
-		goto release_iris_lock;
+		goto disable_pds;
 
 	ret = qcom_iris_enable(wcnss->iris);
 	if (ret)
@@ -262,6 +269,11 @@ disable_iris:
 	qcom_iris_disable(wcnss->iris);
 disable_regulators:
 	regulator_bulk_disable(wcnss->num_vregs, wcnss->vregs);
+disable_pds:
+	for (i--; i >= 0; i--) {
+		pm_runtime_put(wcnss->pds[i]);
+		dev_pm_genpd_set_performance_state(wcnss->pds[i], 0);
+	}
 release_iris_lock:
 	mutex_unlock(&wcnss->iris_lock);
 
@@ -295,7 +307,7 @@ static int wcnss_stop(struct rproc *rproc)
 	return ret;
 }
 
-static void *wcnss_da_to_va(struct rproc *rproc, u64 da, size_t len)
+static void *wcnss_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
 {
 	struct qcom_wcnss *wcnss = (struct qcom_wcnss *)rproc->priv;
 	int offset;
@@ -371,13 +383,53 @@ static irqreturn_t wcnss_stop_ack_interrupt(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static int wcnss_init_pds(struct qcom_wcnss *wcnss,
+			  const char * const pd_names[WCNSS_MAX_PDS])
+{
+	int i, ret;
+
+	for (i = 0; i < WCNSS_MAX_PDS; i++) {
+		if (!pd_names[i])
+			break;
+
+		wcnss->pds[i] = dev_pm_domain_attach_by_name(wcnss->dev, pd_names[i]);
+		if (IS_ERR_OR_NULL(wcnss->pds[i])) {
+			ret = PTR_ERR(wcnss->pds[i]) ? : -ENODATA;
+			for (i--; i >= 0; i--)
+				dev_pm_domain_detach(wcnss->pds[i], false);
+			return ret;
+		}
+	}
+	wcnss->num_pds = i;
+
+	return 0;
+}
+
+static void wcnss_release_pds(struct qcom_wcnss *wcnss)
+{
+	int i;
+
+	for (i = 0; i < wcnss->num_pds; i++)
+		dev_pm_domain_detach(wcnss->pds[i], false);
+}
+
 static int wcnss_init_regulators(struct qcom_wcnss *wcnss,
 				 const struct wcnss_vreg_info *info,
-				 int num_vregs)
+				 int num_vregs, int num_pd_vregs)
 {
 	struct regulator_bulk_data *bulk;
 	int ret;
 	int i;
+
+	/*
+	 * If attaching the power domains suceeded we can skip requesting
+	 * the regulators for the power domains. For old device trees we need to
+	 * reserve extra space to manage them through the regulator interface.
+	 */
+	if (wcnss->num_pds)
+		info += num_pd_vregs;
+	else
+		num_vregs += num_pd_vregs;
 
 	bulk = devm_kcalloc(wcnss->dev,
 			    num_vregs, sizeof(struct regulator_bulk_data),
@@ -448,6 +500,7 @@ static int wcnss_alloc_memory_region(struct qcom_wcnss *wcnss)
 	}
 
 	ret = of_address_to_resource(node, 0, &r);
+	of_node_put(node);
 	if (ret)
 		return ret;
 
@@ -465,6 +518,7 @@ static int wcnss_alloc_memory_region(struct qcom_wcnss *wcnss)
 
 static int wcnss_probe(struct platform_device *pdev)
 {
+	const char *fw_name = WCNSS_FIRMWARE_NAME;
 	const struct wcnss_data *data;
 	struct qcom_wcnss *wcnss;
 	struct resource *res;
@@ -482,8 +536,13 @@ static int wcnss_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	ret = of_property_read_string(pdev->dev.of_node, "firmware-name",
+				      &fw_name);
+	if (ret < 0 && ret != -EINVAL)
+		return ret;
+
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &wcnss_ops,
-			    WCNSS_FIRMWARE_NAME, sizeof(*wcnss));
+			    fw_name, sizeof(*wcnss));
 	if (!rproc) {
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
 		return -ENOMEM;
@@ -505,7 +564,7 @@ static int wcnss_probe(struct platform_device *pdev)
 	if (IS_ERR(mmio)) {
 		ret = PTR_ERR(mmio);
 		goto free_rproc;
-	};
+	}
 
 	ret = wcnss_alloc_memory_region(wcnss);
 	if (ret)
@@ -514,41 +573,50 @@ static int wcnss_probe(struct platform_device *pdev)
 	wcnss->pmu_cfg = mmio + data->pmu_offset;
 	wcnss->spare_out = mmio + data->spare_offset;
 
-	ret = wcnss_init_regulators(wcnss, data->vregs, data->num_vregs);
-	if (ret)
+	/*
+	 * We might need to fallback to regulators instead of power domains
+	 * for old device trees. Don't report an error in that case.
+	 */
+	ret = wcnss_init_pds(wcnss, data->pd_names);
+	if (ret && (ret != -ENODATA || !data->num_pd_vregs))
 		goto free_rproc;
+
+	ret = wcnss_init_regulators(wcnss, data->vregs, data->num_vregs,
+				    data->num_pd_vregs);
+	if (ret)
+		goto detach_pds;
 
 	ret = wcnss_request_irq(wcnss, pdev, "wdog", false, wcnss_wdog_interrupt);
 	if (ret < 0)
-		goto free_rproc;
+		goto detach_pds;
 	wcnss->wdog_irq = ret;
 
 	ret = wcnss_request_irq(wcnss, pdev, "fatal", false, wcnss_fatal_interrupt);
 	if (ret < 0)
-		goto free_rproc;
+		goto detach_pds;
 	wcnss->fatal_irq = ret;
 
 	ret = wcnss_request_irq(wcnss, pdev, "ready", true, wcnss_ready_interrupt);
 	if (ret < 0)
-		goto free_rproc;
+		goto detach_pds;
 	wcnss->ready_irq = ret;
 
 	ret = wcnss_request_irq(wcnss, pdev, "handover", true, wcnss_handover_interrupt);
 	if (ret < 0)
-		goto free_rproc;
+		goto detach_pds;
 	wcnss->handover_irq = ret;
 
 	ret = wcnss_request_irq(wcnss, pdev, "stop-ack", true, wcnss_stop_ack_interrupt);
 	if (ret < 0)
-		goto free_rproc;
+		goto detach_pds;
 	wcnss->stop_ack_irq = ret;
 
 	if (wcnss->stop_ack_irq) {
-		wcnss->state = qcom_smem_state_get(&pdev->dev, "stop",
-						   &wcnss->stop_bit);
+		wcnss->state = devm_qcom_smem_state_get(&pdev->dev, "stop",
+							&wcnss->stop_bit);
 		if (IS_ERR(wcnss->state)) {
 			ret = PTR_ERR(wcnss->state);
-			goto free_rproc;
+			goto detach_pds;
 		}
 	}
 
@@ -556,15 +624,25 @@ static int wcnss_probe(struct platform_device *pdev)
 	wcnss->sysmon = qcom_add_sysmon_subdev(rproc, "wcnss", WCNSS_SSCTL_ID);
 	if (IS_ERR(wcnss->sysmon)) {
 		ret = PTR_ERR(wcnss->sysmon);
-		goto free_rproc;
+		goto detach_pds;
+	}
+
+	wcnss->iris = qcom_iris_probe(&pdev->dev, &wcnss->use_48mhz_xo);
+	if (IS_ERR(wcnss->iris)) {
+		ret = PTR_ERR(wcnss->iris);
+		goto detach_pds;
 	}
 
 	ret = rproc_add(rproc);
 	if (ret)
-		goto free_rproc;
+		goto remove_iris;
 
-	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	return 0;
 
+remove_iris:
+	qcom_iris_remove(wcnss->iris);
+detach_pds:
+	wcnss_release_pds(wcnss);
 free_rproc:
 	rproc_free(rproc);
 
@@ -575,13 +653,13 @@ static int wcnss_remove(struct platform_device *pdev)
 {
 	struct qcom_wcnss *wcnss = platform_get_drvdata(pdev);
 
-	of_platform_depopulate(&pdev->dev);
+	qcom_iris_remove(wcnss->iris);
 
-	qcom_smem_state_put(wcnss->state);
 	rproc_del(wcnss->rproc);
 
 	qcom_remove_sysmon_subdev(wcnss->sysmon);
 	qcom_remove_smd_subdev(wcnss->rproc, &wcnss->smd_subdev);
+	wcnss_release_pds(wcnss);
 	rproc_free(wcnss->rproc);
 
 	return 0;
@@ -604,28 +682,7 @@ static struct platform_driver wcnss_driver = {
 	},
 };
 
-static int __init wcnss_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&wcnss_driver);
-	if (ret)
-		return ret;
-
-	ret = platform_driver_register(&qcom_iris_driver);
-	if (ret)
-		platform_driver_unregister(&wcnss_driver);
-
-	return ret;
-}
-module_init(wcnss_init);
-
-static void __exit wcnss_exit(void)
-{
-	platform_driver_unregister(&qcom_iris_driver);
-	platform_driver_unregister(&wcnss_driver);
-}
-module_exit(wcnss_exit);
+module_platform_driver(wcnss_driver);
 
 MODULE_DESCRIPTION("Qualcomm Peripheral Image Loader for Wireless Subsystem");
 MODULE_LICENSE("GPL v2");

@@ -106,6 +106,7 @@
 struct rv3032_data {
 	struct regmap *regmap;
 	struct rtc_device *rtc;
+	bool trickle_charger_set;
 #ifdef CONFIG_COMMON_CLK
 	struct clk_hw clkout_hw;
 #endif
@@ -310,14 +311,6 @@ static int rv3032_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u8 ctrl = 0;
 	int ret;
 
-	/* The alarm has no seconds, round up to nearest minute */
-	if (alrm->time.tm_sec) {
-		time64_t alarm_time = rtc_tm_to_time64(&alrm->time);
-
-		alarm_time += 60 - alrm->time.tm_sec;
-		rtc_time64_to_tm(alarm_time, &alrm->time);
-	}
-
 	ret = regmap_update_bits(rv3032->regmap, RV3032_CTRL2,
 				 RV3032_CTRL2_AIE | RV3032_CTRL2_UIE, 0);
 	if (ret)
@@ -400,6 +393,75 @@ static int rv3032_set_offset(struct device *dev, long offset)
 
 	return rv3032_update_cfg(rv3032, RV3032_OFFSET, RV3032_OFFSET_MSK,
 				 FIELD_PREP(RV3032_OFFSET_MSK, offset));
+}
+
+static int rv3032_param_get(struct device *dev, struct rtc_param *param)
+{
+	struct rv3032_data *rv3032 = dev_get_drvdata(dev);
+	int ret;
+
+	switch(param->param) {
+		u32 value;
+
+	case RTC_PARAM_BACKUP_SWITCH_MODE:
+		ret = regmap_read(rv3032->regmap, RV3032_PMU, &value);
+		if (ret < 0)
+			return ret;
+
+		value = FIELD_GET(RV3032_PMU_BSM, value);
+
+		switch(value) {
+		case RV3032_PMU_BSM_DSM:
+			param->uvalue = RTC_BSM_DIRECT;
+			break;
+		case RV3032_PMU_BSM_LSM:
+			param->uvalue = RTC_BSM_LEVEL;
+			break;
+		default:
+			param->uvalue = RTC_BSM_DISABLED;
+		}
+
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rv3032_param_set(struct device *dev, struct rtc_param *param)
+{
+	struct rv3032_data *rv3032 = dev_get_drvdata(dev);
+
+	switch(param->param) {
+		u8 mode;
+	case RTC_PARAM_BACKUP_SWITCH_MODE:
+		if (rv3032->trickle_charger_set)
+			return -EINVAL;
+
+		switch (param->uvalue) {
+		case RTC_BSM_DISABLED:
+			mode = 0;
+			break;
+		case RTC_BSM_DIRECT:
+			mode = RV3032_PMU_BSM_DSM;
+			break;
+		case RTC_BSM_LEVEL:
+			mode = RV3032_PMU_BSM_LSM;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		return rv3032_update_cfg(rv3032, RV3032_PMU, RV3032_PMU_BSM,
+					 FIELD_PREP(RV3032_PMU_BSM, mode));
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int rv3032_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
@@ -541,6 +603,8 @@ static int rv3032_trickle_charger_setup(struct device *dev, struct rv3032_data *
 		return 0;
 	}
 
+	rv3032->trickle_charger_set = true;
+
 	return rv3032_update_cfg(rv3032, RV3032_PMU,
 				 RV3032_PMU_TCR | RV3032_PMU_TCM | RV3032_PMU_BSM,
 				 val | FIELD_PREP(RV3032_PMU_TCR, i));
@@ -617,11 +681,11 @@ static int rv3032_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	ret = rv3032_enter_eerd(rv3032, &eerd);
 	if (ret)
-		goto exit_eerd;
+		return ret;
 
 	ret = regmap_write(rv3032->regmap, RV3032_CLKOUT1, hfd & 0xff);
 	if (ret)
-		return ret;
+		goto exit_eerd;
 
 	ret = regmap_write(rv3032->regmap, RV3032_CLKOUT2, RV3032_CLKOUT2_OS |
 			    FIELD_PREP(RV3032_CLKOUT2_HFD_MSK, hfd >> 8));
@@ -804,12 +868,17 @@ static void rv3032_hwmon_register(struct device *dev)
 	devm_hwmon_device_register_with_info(dev, "rv3032", rv3032, &rv3032_hwmon_chip_info, NULL);
 }
 
-static struct rtc_class_ops rv3032_rtc_ops = {
+static const struct rtc_class_ops rv3032_rtc_ops = {
 	.read_time = rv3032_get_time,
 	.set_time = rv3032_set_time,
 	.read_offset = rv3032_read_offset,
 	.set_offset = rv3032_set_offset,
 	.ioctl = rv3032_ioctl,
+	.read_alarm = rv3032_get_alarm,
+	.set_alarm = rv3032_set_alarm,
+	.alarm_irq_enable = rv3032_alarm_irq_enable,
+	.param_get = rv3032_param_get,
+	.param_set = rv3032_param_set,
 };
 
 static const struct regmap_config regmap_config = {
@@ -868,12 +937,10 @@ static int rv3032_probe(struct i2c_client *client)
 		if (ret) {
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
 			client->irq = 0;
-		} else {
-			rv3032_rtc_ops.read_alarm = rv3032_get_alarm;
-			rv3032_rtc_ops.set_alarm = rv3032_set_alarm;
-			rv3032_rtc_ops.alarm_irq_enable = rv3032_alarm_irq_enable;
 		}
 	}
+	if (!client->irq)
+		clear_bit(RTC_FEATURE_ALARM, rv3032->rtc->features);
 
 	ret = regmap_update_bits(rv3032->regmap, RV3032_CTRL1,
 				 RV3032_CTRL1_WADA, RV3032_CTRL1_WADA);
@@ -882,17 +949,20 @@ static int rv3032_probe(struct i2c_client *client)
 
 	rv3032_trickle_charger_setup(&client->dev, rv3032);
 
+	set_bit(RTC_FEATURE_BACKUP_SWITCH_MODE, rv3032->rtc->features);
+	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, rv3032->rtc->features);
+
 	rv3032->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rv3032->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	rv3032->rtc->ops = &rv3032_rtc_ops;
-	ret = rtc_register_device(rv3032->rtc);
+	ret = devm_rtc_register_device(rv3032->rtc);
 	if (ret)
 		return ret;
 
-	nvmem_cfg.priv = rv3032;
-	rtc_nvmem_register(rv3032->rtc, &nvmem_cfg);
+	nvmem_cfg.priv = rv3032->regmap;
+	devm_rtc_nvmem_register(rv3032->rtc, &nvmem_cfg);
 	eeprom_cfg.priv = rv3032;
-	rtc_nvmem_register(rv3032->rtc, &eeprom_cfg);
+	devm_rtc_nvmem_register(rv3032->rtc, &eeprom_cfg);
 
 	rv3032->rtc->max_user_freq = 1;
 
@@ -905,7 +975,7 @@ static int rv3032_probe(struct i2c_client *client)
 	return 0;
 }
 
-static const struct of_device_id rv3032_of_match[] = {
+static const __maybe_unused struct of_device_id rv3032_of_match[] = {
 	{ .compatible = "microcrystal,rv3032", },
 	{ }
 };

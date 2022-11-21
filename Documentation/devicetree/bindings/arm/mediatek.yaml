@@ -32,6 +32,11 @@ properties:
           - const: mediatek,mt6580
       - items:
           - enum:
+              - prestigio,pmt5008-3g
+          - const: mediatek,mt6582
+      - items:
+          - enum:
+              - fairphone,fp1
               - mundoreader,bq-aquaris5
           - const: mediatek,mt6589
       - items:
@@ -78,12 +83,24 @@ properties:
           - const: mediatek,mt7629
       - items:
           - enum:
+              - mediatek,mt7986a-rfb
+          - const: mediatek,mt7986a
+      - items:
+          - enum:
+              - mediatek,mt7986b-rfb
+          - const: mediatek,mt7986b
+      - items:
+          - enum:
               - mediatek,mt8127-moose
           - const: mediatek,mt8127
       - items:
           - enum:
               - mediatek,mt8135-evbp1
           - const: mediatek,mt8135
+      - items:
+          - enum:
+              - mediatek,mt8167-pumpkin
+          - const: mediatek,mt8167
       - description: Google Elm (Acer Chromebook R13)
         items:
           - const: google,elm-rev8
@@ -114,11 +131,86 @@ properties:
           - enum:
               - mediatek,mt8183-evb
           - const: mediatek,mt8183
+      - items:
+          - enum:
+              - mediatek,mt8195-evb
+          - const: mediatek,mt8195
+      - description: Google Burnet (HP Chromebook x360 11MK G3 EE)
+        items:
+          - const: google,burnet
+          - const: mediatek,mt8183
       - description: Google Krane (Lenovo IdeaPad Duet, 10e,...)
         items:
-          - const: google,krane-sku176
+          - enum:
+              - google,krane-sku0
+              - google,krane-sku176
           - const: google,krane
           - const: mediatek,mt8183
+      - description: Google Cozmo (Acer Chromebook 314)
+        items:
+          - const: google,cozmo
+          - const: mediatek,mt8183
+      - description: Google Damu (ASUS Chromebook Flip CM3)
+        items:
+          - const: google,damu
+          - const: mediatek,mt8183
+      - description: Google Fennel (Lenovo IdeaPad 3 Chromebook)
+        items:
+          - enum:
+              - google,fennel-sku0
+              - google,fennel-sku1
+              - google,fennel-sku2
+              - google,fennel-sku6
+              - google,fennel-sku7
+          - const: google,fennel
+          - const: mediatek,mt8183
+      - description: Google Juniper (Acer Chromebook Spin 311) / Kenzo (Acer Chromebook 311)
+        items:
+          - enum:
+              - google,juniper-sku16
+              - google,juniper-sku17
+          - const: google,juniper
+          - const: mediatek,mt8183
+      - description: Google Kakadu (ASUS Chromebook Detachable CM3)
+        items:
+          - const: google,kakadu-rev3
+          - const: google,kakadu-rev2
+          - const: google,kakadu
+          - const: mediatek,mt8183
+      - description: Google Kakadu (ASUS Chromebook Detachable CM3)
+        items:
+          - const: google,kakadu-rev3-sku22
+          - const: google,kakadu-rev2-sku22
+          - const: google,kakadu
+          - const: mediatek,mt8183
+      - description: Google Kappa (HP Chromebook 11a)
+        items:
+          - const: google,kappa
+          - const: mediatek,mt8183
+      - description: Google Kodama (Lenovo 10e Chromebook Tablet)
+        items:
+          - enum:
+              - google,kodama-sku16
+              - google,kodama-sku272
+              - google,kodama-sku288
+              - google,kodama-sku32
+          - const: google,kodama
+          - const: mediatek,mt8183
+      - description: Google Willow (Acer Chromebook 311 C722/C722T)
+        items:
+          - enum:
+              - google,willow-sku0
+              - google,willow-sku1
+          - const: google,willow
+          - const: mediatek,mt8183
+      - items:
+          - enum:
+              - mediatek,mt8183-pumpkin
+          - const: mediatek,mt8183
+      - items:
+          - enum:
+              - mediatek,mt8516-pumpkin
+          - const: mediatek,mt8516
 
 additionalProperties: true
 

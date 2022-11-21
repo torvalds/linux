@@ -35,7 +35,7 @@
 #include <linux/init.h>
 #include <linux/of_device.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
 #include <asm/setup.h>
@@ -846,7 +846,7 @@ static struct uart_sunsab_port *sunsab_ports;
 
 #ifdef CONFIG_SERIAL_SUNSAB_CONSOLE
 
-static void sunsab_console_putchar(struct uart_port *port, int c)
+static void sunsab_console_putchar(struct uart_port *port, unsigned char c)
 {
 	struct uart_sunsab_port *up =
 		container_of(port, struct uart_sunsab_port, port);

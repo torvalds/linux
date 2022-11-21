@@ -28,23 +28,6 @@
 #include "iscsi_target_util.h"
 #include "iscsi_target.h"
 
-#define PRINT_BUFF(buff, len)					\
-{								\
-	int zzz;						\
-								\
-	pr_debug("%d:\n", __LINE__);				\
-	for (zzz = 0; zzz < len; zzz++) {			\
-		if (zzz % 16 == 0) {				\
-			if (zzz)				\
-				pr_debug("\n");			\
-			pr_debug("%4i: ", zzz);			\
-		}						\
-		pr_debug("%02x ", (unsigned char) (buff)[zzz]);	\
-	}							\
-	if ((len + 1) % 16)					\
-		pr_debug("\n");					\
-}
-
 extern struct list_head g_tiqn_list;
 extern spinlock_t tiqn_lock;
 
@@ -779,21 +762,22 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 }
 EXPORT_SYMBOL(iscsit_free_cmd);
 
-int iscsit_check_session_usage_count(struct iscsi_session *sess)
+bool iscsit_check_session_usage_count(struct iscsi_session *sess,
+				      bool can_sleep)
 {
 	spin_lock_bh(&sess->session_usage_lock);
 	if (sess->session_usage_count != 0) {
 		sess->session_waiting_on_uc = 1;
 		spin_unlock_bh(&sess->session_usage_lock);
-		if (in_interrupt())
-			return 2;
+		if (!can_sleep)
+			return true;
 
 		wait_for_completion(&sess->session_waiting_on_uc_comp);
-		return 1;
+		return false;
 	}
 	spin_unlock_bh(&sess->session_usage_lock);
 
-	return 0;
+	return false;
 }
 
 void iscsit_dec_session_usage_count(struct iscsi_session *sess)

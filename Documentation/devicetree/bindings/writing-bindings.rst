@@ -44,7 +44,7 @@ Properties
   of prior implementations. DO add new compatibles in case there are new
   features or bugs.
 
-- DO use a vendor prefix on device specific property names. Consider if
+- DO use a vendor prefix on device-specific property names. Consider if
   properties could be common among devices of the same class. Check other
   existing bindings for similar devices.
 
@@ -52,7 +52,8 @@ Properties
   constraints specific to the device.
 
 - DO use common property unit suffixes for properties with scientific units.
-  See property-units.txt.
+  Recommended suffixes are listed at
+  https://github.com/devicetree-org/dt-schema/blob/master/schemas/property-units.yaml
 
 - DO define properties in terms of constraints. How many entries? What are
   possible values? What is the order?

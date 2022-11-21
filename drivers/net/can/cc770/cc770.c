@@ -390,7 +390,7 @@ static void cc770_tx(struct net_device *dev, int mo)
 	u32 id;
 	int i;
 
-	dlc = cf->can_dlc;
+	dlc = cf->len;
 	id = cf->can_id;
 	rtr = cf->can_id & CAN_RTR_FLAG ? 0 : MSGCFG_DIR;
 
@@ -470,7 +470,7 @@ static void cc770_rx(struct net_device *dev, unsigned int mo, u8 ctrl1)
 		cf->can_id = CAN_RTR_FLAG;
 		if (config & MSGCFG_XTD)
 			cf->can_id |= CAN_EFF_FLAG;
-		cf->can_dlc = 0;
+		cf->len = 0;
 	} else {
 		if (config & MSGCFG_XTD) {
 			id = cc770_read_reg(priv, msgobj[mo].id[3]);
@@ -486,20 +486,20 @@ static void cc770_rx(struct net_device *dev, unsigned int mo, u8 ctrl1)
 		}
 
 		cf->can_id = id;
-		cf->can_dlc = get_can_dlc((config & 0xf0) >> 4);
-		for (i = 0; i < cf->can_dlc; i++)
+		cf->len = can_cc_dlc2len((config & 0xf0) >> 4);
+		for (i = 0; i < cf->len; i++)
 			cf->data[i] = cc770_read_reg(priv, msgobj[mo].data[i]);
-	}
 
+		stats->rx_bytes += cf->len;
+	}
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+
 	netif_rx(skb);
 }
 
 static int cc770_err(struct net_device *dev, u8 status)
 {
 	struct cc770_priv *priv = netdev_priv(dev);
-	struct net_device_stats *stats = &dev->stats;
 	struct can_frame *cf;
 	struct sk_buff *skb;
 	u8 lec;
@@ -571,8 +571,6 @@ static int cc770_err(struct net_device *dev, u8 status)
 	}
 
 
-	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
 	netif_rx(skb);
 
 	return 0;
@@ -666,7 +664,6 @@ static void cc770_tx_interrupt(struct net_device *dev, unsigned int o)
 	struct cc770_priv *priv = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	unsigned int mo = obj2msgobj(o);
-	struct can_frame *cf;
 	u8 ctrl1;
 
 	ctrl1 = cc770_read_reg(priv, msgobj[mo].ctrl1);
@@ -698,12 +695,9 @@ static void cc770_tx_interrupt(struct net_device *dev, unsigned int o)
 		return;
 	}
 
-	cf = (struct can_frame *)priv->tx_skb->data;
-	stats->tx_bytes += cf->can_dlc;
+	can_put_echo_skb(priv->tx_skb, dev, 0, 0);
+	stats->tx_bytes += can_get_echo_skb(dev, 0, NULL);
 	stats->tx_packets++;
-
-	can_put_echo_skb(priv->tx_skb, dev, 0);
-	can_get_echo_skb(dev, 0);
 	priv->tx_skb = NULL;
 
 	netif_wake_queue(dev);

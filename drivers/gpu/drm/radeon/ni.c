@@ -32,6 +32,8 @@
 #include "atom.h"
 #include "cayman_blit_shaders.h"
 #include "clearstate_cayman.h"
+#include "evergreen.h"
+#include "ni.h"
 #include "ni_reg.h"
 #include "nid.h"
 #include "radeon.h"
@@ -189,21 +191,6 @@ static const u32 tn_rlc_save_restore_register_list[] =
 	0x9830,
 	0x802c,
 };
-
-extern bool evergreen_is_display_hung(struct radeon_device *rdev);
-extern void evergreen_print_gpu_status_regs(struct radeon_device *rdev);
-extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
-extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
-extern int evergreen_mc_wait_for_idle(struct radeon_device *rdev);
-extern void evergreen_mc_program(struct radeon_device *rdev);
-extern void evergreen_irq_suspend(struct radeon_device *rdev);
-extern int evergreen_mc_init(struct radeon_device *rdev);
-extern void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev);
-extern void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
-extern void evergreen_program_aspm(struct radeon_device *rdev);
-extern void sumo_rlc_fini(struct radeon_device *rdev);
-extern int sumo_rlc_init(struct radeon_device *rdev);
-extern void evergreen_gpu_pci_config_reset(struct radeon_device *rdev);
 
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/BARTS_pfp.bin");
@@ -891,7 +878,7 @@ int tn_get_temp(struct radeon_device *rdev)
 static void cayman_gpu_init(struct radeon_device *rdev)
 {
 	u32 gb_addr_config = 0;
-	u32 mc_shared_chmap, mc_arb_ramcfg;
+	u32 mc_arb_ramcfg;
 	u32 cgts_tcc_disable;
 	u32 sx_debug_1;
 	u32 smx_dc_ctl0;
@@ -1016,7 +1003,7 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 
 	evergreen_fix_pci_max_read_req_size(rdev);
 
-	mc_shared_chmap = RREG32(MC_SHARED_CHMAP);
+	RREG32(MC_SHARED_CHMAP);
 	mc_arb_ramcfg = RREG32(MC_ARB_RAMCFG);
 
 	tmp = (mc_arb_ramcfg & NOOFCOLS_MASK) >> NOOFCOLS_SHIFT;
@@ -2336,8 +2323,8 @@ int cayman_suspend(struct radeon_device *rdev)
 	cayman_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);
 	if (rdev->has_uvd) {
-		uvd_v1_0_fini(rdev);
 		radeon_uvd_suspend(rdev);
+		uvd_v1_0_fini(rdev);
 	}
 	evergreen_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
@@ -2388,9 +2375,7 @@ int cayman_init(struct radeon_device *rdev)
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
-	if (r)
-		return r;
+	radeon_fence_driver_init(rdev);
 	/* initialize memory controller */
 	r = evergreen_mc_init(rdev);
 	if (r)
@@ -2682,10 +2667,8 @@ void cayman_vm_decode_fault(struct radeon_device *rdev,
 	       block, mc_id);
 }
 
-/**
+/*
  * cayman_vm_flush - vm flush using the CP
- *
- * @rdev: radeon_device pointer
  *
  * Update the page table base and flush the VM TLB
  * using the CP (cayman-si).

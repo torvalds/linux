@@ -83,12 +83,15 @@ enum rxrpc_call_trace {
 	rxrpc_call_error,
 	rxrpc_call_got,
 	rxrpc_call_got_kernel,
+	rxrpc_call_got_timer,
 	rxrpc_call_got_userid,
 	rxrpc_call_new_client,
 	rxrpc_call_new_service,
 	rxrpc_call_put,
 	rxrpc_call_put_kernel,
 	rxrpc_call_put_noqueue,
+	rxrpc_call_put_notimer,
+	rxrpc_call_put_timer,
 	rxrpc_call_put_userid,
 	rxrpc_call_queued,
 	rxrpc_call_queued_ref,
@@ -278,12 +281,15 @@ enum rxrpc_tx_point {
 	EM(rxrpc_call_error,			"*E*") \
 	EM(rxrpc_call_got,			"GOT") \
 	EM(rxrpc_call_got_kernel,		"Gke") \
+	EM(rxrpc_call_got_timer,		"GTM") \
 	EM(rxrpc_call_got_userid,		"Gus") \
 	EM(rxrpc_call_new_client,		"NWc") \
 	EM(rxrpc_call_new_service,		"NWs") \
 	EM(rxrpc_call_put,			"PUT") \
 	EM(rxrpc_call_put_kernel,		"Pke") \
-	EM(rxrpc_call_put_noqueue,		"PNQ") \
+	EM(rxrpc_call_put_noqueue,		"PnQ") \
+	EM(rxrpc_call_put_notimer,		"PnT") \
+	EM(rxrpc_call_put_timer,		"PTM") \
 	EM(rxrpc_call_put_userid,		"Pus") \
 	EM(rxrpc_call_queued,			"QUE") \
 	EM(rxrpc_call_queued_ref,		"QUR") \

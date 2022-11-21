@@ -90,7 +90,8 @@ void sg_free_table_chained(struct sg_table *table,
 	if (nents_first_chunk == 1)
 		nents_first_chunk = 0;
 
-	__sg_free_table(table, SG_CHUNK_SIZE, nents_first_chunk, sg_pool_free);
+	__sg_free_table(table, SG_CHUNK_SIZE, nents_first_chunk, sg_pool_free,
+			table->orig_nents);
 }
 EXPORT_SYMBOL_GPL(sg_free_table_chained);
 

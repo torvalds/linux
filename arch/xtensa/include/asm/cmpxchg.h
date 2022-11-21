@@ -52,16 +52,16 @@ __cmpxchg_u32(volatile int *p, int old, int new)
 	return new;
 #else
 	__asm__ __volatile__(
-			"       rsil    a15, "__stringify(TOPLEVEL)"\n"
+			"       rsil    a14, "__stringify(TOPLEVEL)"\n"
 			"       l32i    %[old], %[mem]\n"
 			"       bne     %[old], %[cmp], 1f\n"
 			"       s32i    %[new], %[mem]\n"
 			"1:\n"
-			"       wsr     a15, ps\n"
+			"       wsr     a14, ps\n"
 			"       rsync\n"
 			: [old] "=&a" (old), [mem] "+m" (*p)
 			: [cmp] "a" (old), [new] "r" (new)
-			: "a15", "memory");
+			: "a14", "memory");
 	return old;
 #endif
 }
@@ -80,7 +80,7 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 	}
 }
 
-#define cmpxchg(ptr,o,n)						      \
+#define arch_cmpxchg(ptr,o,n)						      \
 	({ __typeof__(*(ptr)) _o_ = (o);				      \
 	   __typeof__(*(ptr)) _n_ = (n);				      \
 	   (__typeof__(*(ptr))) __cmpxchg((ptr), (unsigned long)_o_,	      \
@@ -97,7 +97,7 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 	case 4:
 		return __cmpxchg_u32(ptr, old, new);
 	default:
-		return __cmpxchg_local_generic(ptr, old, new, size);
+		return __generic_cmpxchg_local(ptr, old, new, size);
 	}
 
 	return old;
@@ -107,19 +107,19 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
  * cmpxchg_local and cmpxchg64_local are atomic wrt current CPU. Always make
  * them available.
  */
-#define cmpxchg_local(ptr, o, n)				  	       \
-	((__typeof__(*(ptr)))__cmpxchg_local_generic((ptr), (unsigned long)(o),\
+#define arch_cmpxchg_local(ptr, o, n)				  	       \
+	((__typeof__(*(ptr)))__generic_cmpxchg_local((ptr), (unsigned long)(o),\
 			(unsigned long)(n), sizeof(*(ptr))))
-#define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
-#define cmpxchg64(ptr, o, n)    cmpxchg64_local((ptr), (o), (n))
+#define arch_cmpxchg64_local(ptr, o, n) __generic_cmpxchg64_local((ptr), (o), (n))
+#define arch_cmpxchg64(ptr, o, n)    arch_cmpxchg64_local((ptr), (o), (n))
 
 /*
  * xchg_u32
  *
- * Note that a15 is used here because the register allocation
+ * Note that a14 is used here because the register allocation
  * done by the compiler is not guaranteed and a window overflow
  * may not occur between the rsil and wsr instructions. By using
- * a15 in the rsil, the machine is guaranteed to be in a state
+ * a14 in the rsil, the machine is guaranteed to be in a state
  * where no register reference will cause an overflow.
  */
 
@@ -157,19 +157,19 @@ static inline unsigned long xchg_u32(volatile int * m, unsigned long val)
 #else
 	unsigned long tmp;
 	__asm__ __volatile__(
-			"       rsil    a15, "__stringify(TOPLEVEL)"\n"
+			"       rsil    a14, "__stringify(TOPLEVEL)"\n"
 			"       l32i    %[tmp], %[mem]\n"
 			"       s32i    %[val], %[mem]\n"
-			"       wsr     a15, ps\n"
+			"       wsr     a14, ps\n"
 			"       rsync\n"
 			: [tmp] "=&a" (tmp), [mem] "+m" (*m)
 			: [val] "a" (val)
-			: "a15", "memory");
+			: "a14", "memory");
 	return tmp;
 #endif
 }
 
-#define xchg(ptr,x) \
+#define arch_xchg(ptr,x) \
 	((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
 
 static inline u32 xchg_small(volatile void *ptr, u32 x, int size)

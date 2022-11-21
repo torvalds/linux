@@ -73,6 +73,8 @@
 enum ctrl_register {
 	CTRL_IN,
 	CTRL_OUT,
+	IRQ_STATUS,
+	IRQ_MASK,
 };
 
 /*
@@ -97,45 +99,44 @@ struct wcove_gpio {
 	bool set_irq_mask;
 };
 
-static inline int to_reg(int gpio, enum ctrl_register reg_type)
+static inline int to_reg(int gpio, enum ctrl_register type)
 {
-	unsigned int reg;
+	unsigned int reg = type == CTRL_IN ? GPIO_IN_CTRL_BASE : GPIO_OUT_CTRL_BASE;
 
 	if (gpio >= WCOVE_GPIO_NUM)
 		return -EOPNOTSUPP;
 
-	if (reg_type == CTRL_IN)
-		reg = GPIO_IN_CTRL_BASE + gpio;
-	else
-		reg = GPIO_OUT_CTRL_BASE + gpio;
+	return reg + gpio;
+}
+
+static inline int to_ireg(int gpio, enum ctrl_register type, unsigned int *mask)
+{
+	unsigned int reg = type == IRQ_STATUS ? IRQ_STATUS_BASE : IRQ_MASK_BASE;
+
+	if (gpio < GROUP0_NR_IRQS) {
+		reg += 0;
+		*mask = BIT(gpio);
+	} else {
+		reg += 1;
+		*mask = BIT(gpio - GROUP0_NR_IRQS);
+	}
 
 	return reg;
 }
 
-static void wcove_update_irq_mask(struct wcove_gpio *wg, int gpio)
+static void wcove_update_irq_mask(struct wcove_gpio *wg, irq_hw_number_t gpio)
 {
-	unsigned int reg, mask;
-
-	if (gpio < GROUP0_NR_IRQS) {
-		reg = IRQ_MASK_BASE;
-		mask = BIT(gpio % GROUP0_NR_IRQS);
-	} else {
-		reg = IRQ_MASK_BASE + 1;
-		mask = BIT((gpio - GROUP0_NR_IRQS) % GROUP1_NR_IRQS);
-	}
+	unsigned int mask, reg = to_ireg(gpio, IRQ_MASK, &mask);
 
 	if (wg->set_irq_mask)
-		regmap_update_bits(wg->regmap, reg, mask, mask);
+		regmap_set_bits(wg->regmap, reg, mask);
 	else
-		regmap_update_bits(wg->regmap, reg, mask, 0);
+		regmap_clear_bits(wg->regmap, reg, mask);
 }
 
-static void wcove_update_irq_ctrl(struct wcove_gpio *wg, int gpio)
+static void wcove_update_irq_ctrl(struct wcove_gpio *wg, irq_hw_number_t gpio)
 {
 	int reg = to_reg(gpio, CTRL_IN);
-
-	if (reg < 0)
-		return;
 
 	regmap_update_bits(wg->regmap, reg, CTLI_INTCNT_BE, wg->intcnt);
 }
@@ -207,9 +208,9 @@ static void wcove_gpio_set(struct gpio_chip *chip, unsigned int gpio, int value)
 		return;
 
 	if (value)
-		regmap_update_bits(wg->regmap, reg, 1, 1);
+		regmap_set_bits(wg->regmap, reg, 1);
 	else
-		regmap_update_bits(wg->regmap, reg, 1, 0);
+		regmap_clear_bits(wg->regmap, reg, 1);
 }
 
 static int wcove_gpio_set_config(struct gpio_chip *chip, unsigned int gpio,
@@ -239,8 +240,9 @@ static int wcove_irq_type(struct irq_data *data, unsigned int type)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
+	irq_hw_number_t gpio = irqd_to_hwirq(data);
 
-	if (data->hwirq >= WCOVE_GPIO_NUM)
+	if (gpio >= WCOVE_GPIO_NUM)
 		return 0;
 
 	switch (type) {
@@ -277,7 +279,7 @@ static void wcove_bus_sync_unlock(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
-	int gpio = data->hwirq;
+	irq_hw_number_t gpio = irqd_to_hwirq(data);
 
 	if (wg->update & UPDATE_IRQ_TYPE)
 		wcove_update_irq_ctrl(wg, gpio);
@@ -292,8 +294,9 @@ static void wcove_irq_unmask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
+	irq_hw_number_t gpio = irqd_to_hwirq(data);
 
-	if (data->hwirq >= WCOVE_GPIO_NUM)
+	if (gpio >= WCOVE_GPIO_NUM)
 		return;
 
 	wg->set_irq_mask = false;
@@ -304,8 +307,9 @@ static void wcove_irq_mask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
+	irq_hw_number_t gpio = irqd_to_hwirq(data);
 
-	if (data->hwirq >= WCOVE_GPIO_NUM)
+	if (gpio >= WCOVE_GPIO_NUM)
 		return;
 
 	wg->set_irq_mask = true;
@@ -324,7 +328,8 @@ static struct irq_chip wcove_irqchip = {
 static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 {
 	struct wcove_gpio *wg = (struct wcove_gpio *)data;
-	unsigned int pending, virq, gpio, mask, offset;
+	unsigned int virq, gpio;
+	unsigned long pending;
 	u8 p[2];
 
 	if (regmap_bulk_read(wg->regmap, IRQ_STATUS_BASE, p, 2)) {
@@ -339,15 +344,12 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 	/* Iterate until no interrupt is pending */
 	while (pending) {
 		/* One iteration is for all pending bits */
-		for_each_set_bit(gpio, (const unsigned long *)&pending,
-						 WCOVE_GPIO_NUM) {
-			offset = (gpio > GROUP0_NR_IRQS) ? 1 : 0;
-			mask = (offset == 1) ? BIT(gpio - GROUP0_NR_IRQS) :
-								BIT(gpio);
+		for_each_set_bit(gpio, &pending, WCOVE_GPIO_NUM) {
+			unsigned int mask, reg = to_ireg(gpio, IRQ_STATUS, &mask);
+
 			virq = irq_find_mapping(wg->chip.irq.domain, gpio);
 			handle_nested_irq(virq);
-			regmap_update_bits(wg->regmap, IRQ_STATUS_BASE + offset,
-								mask, mask);
+			regmap_set_bits(wg->regmap, reg, mask);
 		}
 
 		/* Next iteration */
@@ -362,35 +364,35 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void wcove_gpio_dbg_show(struct seq_file *s,
-				      struct gpio_chip *chip)
+static void wcove_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	unsigned int ctlo, ctli, irq_mask, irq_status;
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
-	int gpio, offset, group, ret = 0;
+	int gpio, mask, ret = 0;
 
 	for (gpio = 0; gpio < WCOVE_GPIO_NUM; gpio++) {
-		group = gpio < GROUP0_NR_IRQS ? 0 : 1;
 		ret += regmap_read(wg->regmap, to_reg(gpio, CTRL_OUT), &ctlo);
 		ret += regmap_read(wg->regmap, to_reg(gpio, CTRL_IN), &ctli);
-		ret += regmap_read(wg->regmap, IRQ_MASK_BASE + group,
-							&irq_mask);
-		ret += regmap_read(wg->regmap, IRQ_STATUS_BASE + group,
-							&irq_status);
 		if (ret) {
-			pr_err("Failed to read registers: ctrl out/in or irq status/mask\n");
+			dev_err(wg->dev, "Failed to read registers: CTRL out/in\n");
 			break;
 		}
 
-		offset = gpio % 8;
+		ret += regmap_read(wg->regmap, to_ireg(gpio, IRQ_MASK, &mask), &irq_mask);
+		ret += regmap_read(wg->regmap, to_ireg(gpio, IRQ_STATUS, &mask), &irq_status);
+		if (ret) {
+			dev_err(wg->dev, "Failed to read registers: IRQ status/mask\n");
+			break;
+		}
+
 		seq_printf(s, " gpio-%-2d %s %s %s %s ctlo=%2x,%s %s\n",
 			   gpio, ctlo & CTLO_DIR_OUT ? "out" : "in ",
 			   ctli & 0x1 ? "hi" : "lo",
 			   ctli & CTLI_INTCNT_NE ? "fall" : "    ",
 			   ctli & CTLI_INTCNT_PE ? "rise" : "    ",
 			   ctlo,
-			   irq_mask & BIT(offset) ? "mask  " : "unmask",
-			   irq_status & BIT(offset) ? "pending" : "       ");
+			   irq_mask & mask ? "mask  " : "unmask",
+			   irq_status & mask ? "pending" : "       ");
 	}
 }
 
@@ -434,7 +436,7 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	wg->chip.get_direction = wcove_gpio_get_direction;
 	wg->chip.get = wcove_gpio_get;
 	wg->chip.set = wcove_gpio_set;
-	wg->chip.set_config = wcove_gpio_set_config,
+	wg->chip.set_config = wcove_gpio_set_config;
 	wg->chip.base = -1;
 	wg->chip.ngpio = WCOVE_VGPIO_NUM;
 	wg->chip.can_sleep = true;
@@ -473,14 +475,12 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* Enable GPIO0 interrupts */
-	ret = regmap_update_bits(wg->regmap, IRQ_MASK_BASE, GPIO_IRQ0_MASK,
-				 0x00);
+	ret = regmap_clear_bits(wg->regmap, IRQ_MASK_BASE + 0, GPIO_IRQ0_MASK);
 	if (ret)
 		return ret;
 
 	/* Enable GPIO1 interrupts */
-	ret = regmap_update_bits(wg->regmap, IRQ_MASK_BASE + 1, GPIO_IRQ1_MASK,
-				 0x00);
+	ret = regmap_clear_bits(wg->regmap, IRQ_MASK_BASE + 1, GPIO_IRQ1_MASK);
 	if (ret)
 		return ret;
 

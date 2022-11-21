@@ -110,7 +110,7 @@ static void pdr_locator_del_server(struct qmi_handle *qmi,
 	pdr->locator_addr.sq_port = 0;
 }
 
-static struct qmi_ops pdr_locator_ops = {
+static const struct qmi_ops pdr_locator_ops = {
 	.new_server = pdr_locator_new_server,
 	.del_server = pdr_locator_del_server,
 };
@@ -131,7 +131,7 @@ static int pdr_register_listener(struct pdr_handle *pdr,
 		return ret;
 
 	req.enable = enable;
-	strcpy(req.service_path, pds->service_path);
+	strscpy(req.service_path, pds->service_path, sizeof(req.service_path));
 
 	ret = qmi_send_request(&pdr->notifier_hdl, &pds->addr,
 			       &txn, SERVREG_REGISTER_LISTENER_REQ,
@@ -153,7 +153,7 @@ static int pdr_register_listener(struct pdr_handle *pdr,
 	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
 		pr_err("PDR: %s register listener failed: 0x%x\n",
 		       pds->service_path, resp.resp.error);
-		return ret;
+		return -EREMOTEIO;
 	}
 
 	pds->state = resp.curr_state;
@@ -238,7 +238,7 @@ static void pdr_notifier_del_server(struct qmi_handle *qmi,
 	mutex_unlock(&pdr->list_lock);
 }
 
-static struct qmi_ops pdr_notifier_ops = {
+static const struct qmi_ops pdr_notifier_ops = {
 	.new_server = pdr_notifier_new_server,
 	.del_server = pdr_notifier_del_server,
 };
@@ -257,7 +257,7 @@ static int pdr_send_indack_msg(struct pdr_handle *pdr, struct pdr_service *pds,
 		return ret;
 
 	req.transaction_id = tid;
-	strcpy(req.service_path, pds->service_path);
+	strscpy(req.service_path, pds->service_path, sizeof(req.service_path));
 
 	ret = qmi_send_request(&pdr->notifier_hdl, &pds->addr,
 			       &txn, SERVREG_SET_ACK_REQ,
@@ -343,7 +343,7 @@ static void pdr_indication_cb(struct qmi_handle *qmi,
 	queue_work(pdr->indack_wq, &pdr->indack_work);
 }
 
-static struct qmi_msg_handler qmi_indication_handler[] = {
+static const struct qmi_msg_handler qmi_indication_handler[] = {
 	{
 		.type = QMI_INDICATION,
 		.msg_id = SERVREG_STATE_UPDATED_IND_ID,
@@ -406,7 +406,7 @@ static int pdr_locate_service(struct pdr_handle *pdr, struct pdr_service *pds)
 		return -ENOMEM;
 
 	/* Prepare req message */
-	strcpy(req.service_name, pds->service_name);
+	strscpy(req.service_name, pds->service_name, sizeof(req.service_name));
 	req.domain_offset_valid = true;
 	req.domain_offset = 0;
 
@@ -531,8 +531,8 @@ struct pdr_service *pdr_add_lookup(struct pdr_handle *pdr,
 		return ERR_PTR(-ENOMEM);
 
 	pds->service = SERVREG_NOTIFIER_SERVICE;
-	strcpy(pds->service_name, service_name);
-	strcpy(pds->service_path, service_path);
+	strscpy(pds->service_name, service_name, sizeof(pds->service_name));
+	strscpy(pds->service_path, service_path, sizeof(pds->service_path));
 	pds->need_locator_lookup = true;
 
 	mutex_lock(&pdr->list_lock);
@@ -569,7 +569,7 @@ EXPORT_SYMBOL(pdr_add_lookup);
 int pdr_restart_pd(struct pdr_handle *pdr, struct pdr_service *pds)
 {
 	struct servreg_restart_pd_resp resp;
-	struct servreg_restart_pd_req req;
+	struct servreg_restart_pd_req req = { 0 };
 	struct sockaddr_qrtr addr;
 	struct pdr_service *tmp;
 	struct qmi_txn txn;
@@ -587,7 +587,7 @@ int pdr_restart_pd(struct pdr_handle *pdr, struct pdr_service *pds)
 			break;
 
 		/* Prepare req message */
-		strcpy(req.service_path, pds->service_path);
+		strscpy(req.service_path, pds->service_path, sizeof(req.service_path));
 		addr = pds->addr;
 		break;
 	}

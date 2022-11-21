@@ -9,7 +9,9 @@
  */
 
 #include <linux/bug.h>
-#include <crypto/sha.h>
+#include <linux/kernel.h>
+#include <linux/types.h>
+#include <crypto/sha2.h>
 #include <asm/purgatory.h>
 
 #include "../boot/string.h"

@@ -4,6 +4,7 @@
 #
 config GAMEPORT
 	tristate "Gameport support"
+	depends on !UML
 	help
 	  Gameport support is for the standard 15-pin PC gameport. If you
 	  have a joystick, gamepad, gameport card, a soundcard with a gameport

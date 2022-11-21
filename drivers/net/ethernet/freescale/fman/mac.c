@@ -94,14 +94,17 @@ static void mac_exception(void *handle, enum fman_mac_exceptions ex)
 		__func__, ex);
 }
 
-static void set_fman_mac_params(struct mac_device *mac_dev,
-				struct fman_mac_params *params)
+static int set_fman_mac_params(struct mac_device *mac_dev,
+			       struct fman_mac_params *params)
 {
 	struct mac_priv_s *priv = mac_dev->priv;
 
 	params->base_addr = (typeof(params->base_addr))
 		devm_ioremap(priv->dev, mac_dev->res->start,
 			     resource_size(mac_dev->res));
+	if (!params->base_addr)
+		return -ENOMEM;
+
 	memcpy(&params->addr, mac_dev->addr, sizeof(mac_dev->addr));
 	params->max_speed	= priv->max_speed;
 	params->phy_if		= mac_dev->phy_if;
@@ -112,6 +115,8 @@ static void set_fman_mac_params(struct mac_device *mac_dev,
 	params->event_cb	= mac_exception;
 	params->dev_id		= mac_dev;
 	params->internal_phy_node = priv->internal_phy_node;
+
+	return 0;
 }
 
 static int tgec_initialization(struct mac_device *mac_dev)
@@ -123,7 +128,9 @@ static int tgec_initialization(struct mac_device *mac_dev)
 
 	priv = mac_dev->priv;
 
-	set_fman_mac_params(mac_dev, &params);
+	err = set_fman_mac_params(mac_dev, &params);
+	if (err)
+		goto _return;
 
 	mac_dev->fman_mac = tgec_config(&params);
 	if (!mac_dev->fman_mac) {
@@ -169,7 +176,9 @@ static int dtsec_initialization(struct mac_device *mac_dev)
 
 	priv = mac_dev->priv;
 
-	set_fman_mac_params(mac_dev, &params);
+	err = set_fman_mac_params(mac_dev, &params);
+	if (err)
+		goto _return;
 
 	mac_dev->fman_mac = dtsec_config(&params);
 	if (!mac_dev->fman_mac) {
@@ -218,7 +227,9 @@ static int memac_initialization(struct mac_device *mac_dev)
 
 	priv = mac_dev->priv;
 
-	set_fman_mac_params(mac_dev, &params);
+	err = set_fman_mac_params(mac_dev, &params);
+	if (err)
+		goto _return;
 
 	if (priv->max_speed == SPEED_10000)
 		params.phy_if = PHY_INTERFACE_MODE_XGMII;
@@ -524,6 +535,7 @@ static void setup_memac(struct mac_device *mac_dev)
 	| SUPPORTED_Autoneg \
 	| SUPPORTED_Pause \
 	| SUPPORTED_Asym_Pause \
+	| SUPPORTED_FIBRE \
 	| SUPPORTED_MII)
 
 static DEFINE_MUTEX(eth_lock);
@@ -605,7 +617,6 @@ static int mac_probe(struct platform_device *_of_dev)
 	struct platform_device	*of_dev;
 	struct resource		 res;
 	struct mac_priv_s	*priv;
-	const u8		*mac_addr;
 	u32			 val;
 	u8			fman_id;
 	phy_interface_t          phy_if;
@@ -723,11 +734,9 @@ static int mac_probe(struct platform_device *_of_dev)
 	priv->cell_index = (u8)val;
 
 	/* Get the MAC address */
-	mac_addr = of_get_mac_address(mac_node);
-	if (IS_ERR(mac_addr))
+	err = of_get_mac_address(mac_node, mac_dev->addr);
+	if (err)
 		dev_warn(dev, "of_get_mac_address(%pOF) failed\n", mac_node);
-	else
-		ether_addr_copy(mac_dev->addr, mac_addr);
 
 	/* Get the port handles */
 	nph = of_count_phandle_with_args(mac_node, "fsl,fman-ports", NULL);
@@ -853,7 +862,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	if (err < 0)
 		dev_err(dev, "fman_set_mac_active_pause() = %d\n", err);
 
-	if (!IS_ERR(mac_addr))
+	if (!is_zero_ether_addr(mac_dev->addr))
 		dev_info(dev, "FMan MAC address: %pM\n", mac_dev->addr);
 
 	priv->eth_dev = dpaa_eth_add_device(fman_id, mac_dev);

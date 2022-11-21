@@ -22,6 +22,7 @@
 #include <linux/virtio_scsi.h>
 #include <linux/cpu.h>
 #include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
@@ -97,7 +98,7 @@ static inline struct Scsi_Host *virtio_scsi_host(struct virtio_device *vdev)
 static void virtscsi_compute_resid(struct scsi_cmnd *sc, u32 resid)
 {
 	if (resid)
-		scsi_set_resid(sc, resid);
+		scsi_set_resid(sc, min(resid, scsi_bufflen(sc)));
 }
 
 /*
@@ -156,16 +157,14 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 
 	WARN_ON(virtio32_to_cpu(vscsi->vdev, resp->sense_len) >
 		VIRTIO_SCSI_SENSE_SIZE);
-	if (sc->sense_buffer) {
+	if (resp->sense_len) {
 		memcpy(sc->sense_buffer, resp->sense,
 		       min_t(u32,
 			     virtio32_to_cpu(vscsi->vdev, resp->sense_len),
 			     VIRTIO_SCSI_SENSE_SIZE));
-		if (resp->sense_len)
-			set_driver_byte(sc, DRIVER_SENSE);
 	}
 
-	sc->scsi_done(sc);
+	scsi_done(sc);
 }
 
 static void virtscsi_vq_done(struct virtio_scsi *vscsi,
@@ -302,7 +301,7 @@ static void virtscsi_handle_transport_reset(struct virtio_scsi *vscsi,
 		}
 		break;
 	default:
-		pr_info("Unsupport virtio scsi event reason %x\n", event->reason);
+		pr_info("Unsupported virtio scsi event reason %x\n", event->reason);
 	}
 }
 
@@ -355,7 +354,7 @@ static void virtscsi_rescan_hotunplug(struct virtio_scsi *vscsi)
 		if (result == 0 && inq_result[0] >> 5) {
 			/* PQ indicates the LUN is not attached */
 			scsi_remove_device(sdev);
-		} else if (host_byte(result) == DID_BAD_TARGET) {
+		} else if (result > 0 && host_byte(result) == DID_BAD_TARGET) {
 			/*
 			 * If all LUNs of a virtio-scsi device are unplugged
 			 * it will respond with BAD TARGET on any INQUIRY
@@ -394,7 +393,7 @@ static void virtscsi_handle_event(struct work_struct *work)
 		virtscsi_handle_param_change(vscsi, event);
 		break;
 	default:
-		pr_err("Unsupport virtio scsi event %x\n", event->event);
+		pr_err("Unsupported virtio scsi event %x\n", event->event);
 	}
 	virtscsi_kick_event(vscsi, event_node);
 }
@@ -521,7 +520,7 @@ static void virtio_scsi_init_hdr_pi(struct virtio_device *vdev,
 				    struct virtio_scsi_cmd_req_pi *cmd_pi,
 				    struct scsi_cmnd *sc)
 {
-	struct request *rq = sc->request;
+	struct request *rq = scsi_cmd_to_rq(sc);
 	struct blk_integrity *bi;
 
 	virtio_scsi_init_hdr(vdev, (struct virtio_scsi_cmd_req *)cmd_pi, sc);
@@ -529,7 +528,7 @@ static void virtio_scsi_init_hdr_pi(struct virtio_device *vdev,
 	if (!rq || !scsi_prot_sg_count(sc))
 		return;
 
-	bi = blk_get_integrity(rq->rq_disk);
+	bi = blk_get_integrity(rq->q->disk);
 
 	if (sc->sc_data_direction == DMA_TO_DEVICE)
 		cmd_pi->pi_bytesout = cpu_to_virtio32(vdev,
@@ -545,7 +544,7 @@ static void virtio_scsi_init_hdr_pi(struct virtio_device *vdev,
 static struct virtio_scsi_vq *virtscsi_pick_vq_mq(struct virtio_scsi *vscsi,
 						  struct scsi_cmnd *sc)
 {
-	u32 tag = blk_mq_unique_tag(sc->request);
+	u32 tag = blk_mq_unique_tag(scsi_cmd_to_rq(sc));
 	u16 hwq = blk_mq_unique_tag_to_hwq(tag);
 
 	return &vscsi->req_vqs[hwq];
@@ -621,9 +620,8 @@ static int virtscsi_tmf(struct virtio_scsi *vscsi, struct virtio_scsi_cmd *cmd)
 	 * we're using independent interrupts (e.g. MSI).  Poll the
 	 * virtqueues once.
 	 *
-	 * In the abort case, sc->scsi_done will do nothing, because
-	 * the block layer must have detected a timeout and as a result
-	 * REQ_ATOM_COMPLETE has been set.
+	 * In the abort case, scsi_done() will do nothing, because the
+	 * command timed out and hence SCMD_STATE_COMPLETE has been set.
 	 */
 	virtscsi_poll_requests(vscsi);
 
@@ -780,7 +778,7 @@ static void virtscsi_init_vq(struct virtio_scsi_vq *virtscsi_vq,
 static void virtscsi_remove_vqs(struct virtio_device *vdev)
 {
 	/* Stop all the virtqueues. */
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	vdev->config->del_vqs(vdev);
 }
 
@@ -990,7 +988,7 @@ static struct virtio_driver virtio_scsi_driver = {
 	.remove = virtscsi_remove,
 };
 
-static int __init init(void)
+static int __init virtio_scsi_init(void)
 {
 	int ret = -ENOMEM;
 
@@ -1022,14 +1020,14 @@ error:
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit virtio_scsi_fini(void)
 {
 	unregister_virtio_driver(&virtio_scsi_driver);
 	mempool_destroy(virtscsi_cmd_pool);
 	kmem_cache_destroy(virtscsi_cmd_cache);
 }
-module_init(init);
-module_exit(fini);
+module_init(virtio_scsi_init);
+module_exit(virtio_scsi_fini);
 
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_DESCRIPTION("Virtio SCSI HBA driver");

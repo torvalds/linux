@@ -42,7 +42,6 @@
 #include <linux/tcp.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
-#include <linux/moduleparam.h>
 #include <linux/indirect_call_wrapper.h>
 
 #include "mlx4_en.h"
@@ -130,6 +129,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 		ring->bf_enabled = !!(priv->pflags &
 				      MLX4_EN_PRIV_FLAGS_BLUEFLAME);
 	}
+	ring->doorbell_address = ring->bf.uar->map + MLX4_SEND_DOORBELL;
 
 	ring->hwtstamp_tx_type = priv->hwtstamp_config.tx_type;
 	ring->queue_index = queue_index;
@@ -297,12 +297,12 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 			dma_unmap_single(priv->ddev,
 					 tx_info->map0_dma,
 					 tx_info->map0_byte_count,
-					 PCI_DMA_TODEVICE);
+					 DMA_TO_DEVICE);
 		else
 			dma_unmap_page(priv->ddev,
 				       tx_info->map0_dma,
 				       tx_info->map0_byte_count,
-				       PCI_DMA_TODEVICE);
+				       DMA_TO_DEVICE);
 		/* Optimize the common case when there are no wraparounds */
 		if (likely((void *)tx_desc +
 			   (tx_info->nr_txbb << LOG_TXBB_SIZE) <= end)) {
@@ -311,7 +311,7 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				dma_unmap_page(priv->ddev,
 					(dma_addr_t)be64_to_cpu(data->addr),
 					be32_to_cpu(data->byte_count),
-					PCI_DMA_TODEVICE);
+					DMA_TO_DEVICE);
 			}
 		} else {
 			if ((void *)data >= end)
@@ -325,7 +325,7 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				dma_unmap_page(priv->ddev,
 					(dma_addr_t)be64_to_cpu(data->addr),
 					be32_to_cpu(data->byte_count),
-					PCI_DMA_TODEVICE);
+					DMA_TO_DEVICE);
 			}
 		}
 	}
@@ -753,8 +753,7 @@ void mlx4_en_xmit_doorbell(struct mlx4_en_tx_ring *ring)
 #else
 	iowrite32be(
 #endif
-		  (__force u32)ring->doorbell_qpn,
-		  ring->bf.uar->map + MLX4_SEND_DOORBELL);
+		  (__force u32)ring->doorbell_qpn, ring->doorbell_address);
 }
 
 static void mlx4_en_tx_write_desc(struct mlx4_en_tx_ring *ring,
@@ -831,7 +830,7 @@ static bool mlx4_en_build_dma_wqe(struct mlx4_en_priv *priv,
 
 		dma = dma_map_single(ddev, skb->data +
 				     lso_header_size, byte_count,
-				     PCI_DMA_TODEVICE);
+				     DMA_TO_DEVICE);
 		if (dma_mapping_error(ddev, dma))
 			goto tx_drop_unmap;
 
@@ -853,7 +852,7 @@ tx_drop_unmap:
 		++data;
 		dma_unmap_page(ddev, (dma_addr_t)be64_to_cpu(data->addr),
 			       be32_to_cpu(data->byte_count),
-			       PCI_DMA_TODEVICE);
+			       DMA_TO_DEVICE);
 	}
 
 	return false;
@@ -890,9 +889,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(!priv->port_up))
 		goto tx_drop;
 
-	/* fetch ring->cons far ahead before needing it to avoid stall */
-	ring_cons = READ_ONCE(ring->cons);
-
 	real_size = get_real_size(skb, shinfo, dev, &lso_header_size,
 				  &inline_ok, &fragptr);
 	if (unlikely(!real_size))
@@ -923,10 +919,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	netdev_txq_bql_enqueue_prefetchw(ring->tx_queue);
-
-	/* Track current inflight packets for performance analysis */
-	AVG_PERF_COUNTER(priv->pstats.inflight_avg,
-			 (u32)(ring->prod - ring_cons - 1));
 
 	/* Packet is good - grab an index and transmit it */
 	index = ring->prod & ring->size_mask;
@@ -1038,7 +1030,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		ring->packets++;
 	}
 	ring->bytes += tx_info->nr_bytes;
-	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, skb->len);
 
 	if (tx_info->inl)
 		build_inline_wqe(tx_desc, skb, shinfo, fragptr);
@@ -1167,10 +1158,6 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 	index = ring->prod & ring->size_mask;
 	tx_info = &ring->tx_info[index];
 
-	/* Track current inflight packets for performance analysis */
-	AVG_PERF_COUNTER(priv->pstats.inflight_avg,
-			 (u32)(ring->prod - READ_ONCE(ring->cons) - 1));
-
 	tx_desc = ring->buf + (index << LOG_TXBB_SIZE);
 	data = &tx_desc->data;
 
@@ -1182,7 +1169,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 	tx_info->nr_bytes = max_t(unsigned int, length, ETH_ZLEN);
 
 	dma_sync_single_range_for_device(priv->ddev, dma, frame->page_offset,
-					 length, PCI_DMA_TODEVICE);
+					 length, DMA_TO_DEVICE);
 
 	data->addr = cpu_to_be64(dma + frame->page_offset);
 	dma_wmb();
@@ -1195,7 +1182,6 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 		 cpu_to_be32(MLX4_EN_BIT_DESC_OWN) : 0);
 
 	rx_ring->xdp_tx++;
-	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, length);
 
 	ring->prod += MLX4_EN_XDP_TX_NRTXBB;
 

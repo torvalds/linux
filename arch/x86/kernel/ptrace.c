@@ -13,7 +13,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/ptrace.h>
-#include <linux/tracehook.h>
 #include <linux/user.h>
 #include <linux/elf.h>
 #include <linux/security.h>
@@ -29,9 +28,9 @@
 
 #include <linux/uaccess.h>
 #include <asm/processor.h>
-#include <asm/fpu/internal.h>
 #include <asm/fpu/signal.h>
 #include <asm/fpu/regset.h>
+#include <asm/fpu/xstate.h>
 #include <asm/debugreg.h>
 #include <asm/ldt.h>
 #include <asm/desc.h>
@@ -704,12 +703,23 @@ void ptrace_disable(struct task_struct *child)
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
 static const struct user_regset_view user_x86_32_view; /* Initialized below. */
 #endif
+#ifdef CONFIG_X86_64
+static const struct user_regset_view user_x86_64_view; /* Initialized below. */
+#endif
 
 long arch_ptrace(struct task_struct *child, long request,
 		 unsigned long addr, unsigned long data)
 {
 	int ret;
 	unsigned long __user *datap = (unsigned long __user *)data;
+
+#ifdef CONFIG_X86_64
+	/* This is native 64-bit ptrace() */
+	const struct user_regset_view *regset_view = &user_x86_64_view;
+#else
+	/* This is native 32-bit ptrace() */
+	const struct user_regset_view *regset_view = &user_x86_32_view;
+#endif
 
 	switch (request) {
 	/* read the word at location addr in the USER area. */
@@ -749,28 +759,28 @@ long arch_ptrace(struct task_struct *child, long request,
 
 	case PTRACE_GETREGS:	/* Get all gp regs from the child. */
 		return copy_regset_to_user(child,
-					   task_user_regset_view(current),
+					   regset_view,
 					   REGSET_GENERAL,
 					   0, sizeof(struct user_regs_struct),
 					   datap);
 
 	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
 		return copy_regset_from_user(child,
-					     task_user_regset_view(current),
+					     regset_view,
 					     REGSET_GENERAL,
 					     0, sizeof(struct user_regs_struct),
 					     datap);
 
 	case PTRACE_GETFPREGS:	/* Get the child FPU state. */
 		return copy_regset_to_user(child,
-					   task_user_regset_view(current),
+					   regset_view,
 					   REGSET_FP,
 					   0, sizeof(struct user_i387_struct),
 					   datap);
 
 	case PTRACE_SETFPREGS:	/* Set the child FPU state. */
 		return copy_regset_from_user(child,
-					     task_user_regset_view(current),
+					     regset_view,
 					     REGSET_FP,
 					     0, sizeof(struct user_i387_struct),
 					     datap);
@@ -900,7 +910,7 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 		 * syscall with TS_COMPAT still set.
 		 */
 		regs->orig_ax = value;
-		if (syscall_get_nr(child, regs) >= 0)
+		if (syscall_get_nr(child, regs) != -1)
 			child->thread_info.status |= TS_I386_REGS_POKED;
 		break;
 
@@ -1152,28 +1162,28 @@ static long x32_arch_ptrace(struct task_struct *child,
 
 	case PTRACE_GETREGS:	/* Get all gp regs from the child. */
 		return copy_regset_to_user(child,
-					   task_user_regset_view(current),
+					   &user_x86_64_view,
 					   REGSET_GENERAL,
 					   0, sizeof(struct user_regs_struct),
 					   datap);
 
 	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
 		return copy_regset_from_user(child,
-					     task_user_regset_view(current),
+					     &user_x86_64_view,
 					     REGSET_GENERAL,
 					     0, sizeof(struct user_regs_struct),
 					     datap);
 
 	case PTRACE_GETFPREGS:	/* Get the child FPU state. */
 		return copy_regset_to_user(child,
-					   task_user_regset_view(current),
+					   &user_x86_64_view,
 					   REGSET_FP,
 					   0, sizeof(struct user_i387_struct),
 					   datap);
 
 	case PTRACE_SETFPREGS:	/* Set the child FPU state. */
 		return copy_regset_from_user(child,
-					     task_user_regset_view(current),
+					     &user_x86_64_view,
 					     REGSET_FP,
 					     0, sizeof(struct user_i387_struct),
 					     datap);
@@ -1213,7 +1223,7 @@ static struct user_regset x86_64_regsets[] __ro_after_init = {
 	},
 	[REGSET_FP] = {
 		.core_note_type = NT_PRFPREG,
-		.n = sizeof(struct user_i387_struct) / sizeof(long),
+		.n = sizeof(struct fxregs_state) / sizeof(long),
 		.size = sizeof(long), .align = sizeof(long),
 		.active = regset_xregset_fpregs_active, .regset_get = xfpregs_get, .set = xfpregs_set
 	},
@@ -1260,7 +1270,7 @@ static struct user_regset x86_32_regsets[] __ro_after_init = {
 	},
 	[REGSET_XFP] = {
 		.core_note_type = NT_PRXFPREG,
-		.n = sizeof(struct user32_fxsr_struct) / sizeof(u32),
+		.n = sizeof(struct fxregs_state) / sizeof(u32),
 		.size = sizeof(u32), .align = sizeof(u32),
 		.active = regset_xregset_fpregs_active, .regset_get = xfpregs_get, .set = xfpregs_set
 	},
@@ -1309,6 +1319,25 @@ void __init update_regset_xstate_info(unsigned int size, u64 xstate_mask)
 	xstate_fx_sw_bytes[USER_XSTATE_XCR0_WORD] = xstate_mask;
 }
 
+/*
+ * This is used by the core dump code to decide which regset to dump.  The
+ * core dump code writes out the resulting .e_machine and the corresponding
+ * regsets.  This is suboptimal if the task is messing around with its CS.L
+ * field, but at worst the core dump will end up missing some information.
+ *
+ * Unfortunately, it is also used by the broken PTRACE_GETREGSET and
+ * PTRACE_SETREGSET APIs.  These APIs look at the .regsets field but have
+ * no way to make sure that the e_machine they use matches the caller's
+ * expectations.  The result is that the data format returned by
+ * PTRACE_GETREGSET depends on the returned CS field (and even the offset
+ * of the returned CS field depends on its value!) and the data format
+ * accepted by PTRACE_SETREGSET is determined by the old CS value.  The
+ * upshot is that it is basically impossible to use these APIs correctly.
+ *
+ * The best way to fix it in the long run would probably be to add new
+ * improved ptrace() APIs to read and write registers reliably, possibly by
+ * allowing userspace to select the ELF e_machine variant that they expect.
+ */
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
 #ifdef CONFIG_IA32_EMULATION

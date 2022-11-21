@@ -90,6 +90,13 @@ static char *speakup_default_msgs[MSG_LAST_INDEX] = {
 	[MSG_COLOR_YELLOW] = "yellow",
 	[MSG_COLOR_WHITE] = "white",
 	[MSG_COLOR_GREY] = "grey",
+	[MSG_COLOR_BRIGHTBLUE] = "bright blue",
+	[MSG_COLOR_BRIGHTGREEN] = "bright green",
+	[MSG_COLOR_BRIGHTCYAN] = "bright cyan",
+	[MSG_COLOR_BRIGHTRED] = "bright red",
+	[MSG_COLOR_BRIGHTMAGENTA] = "bright magenta",
+	[MSG_COLOR_BRIGHTYELLOW] = "bright yellow",
+	[MSG_COLOR_BRIGHTWHITE] = "bright white",
 
 	/* Names of key states. */
 	[MSG_STATE_DOUBLE] = "double",
@@ -548,12 +555,10 @@ ssize_t spk_msg_set(enum msg_index_t index, char *text, size_t length)
 	if ((index < MSG_FIRST_INDEX) || (index >= MSG_LAST_INDEX))
 		return -EINVAL;
 
-	newstr = kmalloc(length + 1, GFP_KERNEL);
+	newstr = kmemdup_nul(text, length, GFP_KERNEL);
 	if (!newstr)
 		return -ENOMEM;
 
-	memcpy(newstr, text, length);
-	newstr[length] = '\0';
 	if (index >= MSG_FORMATTED_START &&
 	    index <= MSG_FORMATTED_END &&
 	    !fmt_validate(speakup_default_msgs[index], newstr)) {

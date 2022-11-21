@@ -185,7 +185,6 @@ config ARCH_BCM_53573
 config ARCH_BCM_63XX
 	bool "Broadcom BCM63xx DSL SoC"
 	depends on ARCH_MULTI_V7
-	depends on MMU
 	select ARCH_HAS_RESET_CONTROLLER
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369 if SMP
@@ -208,10 +207,6 @@ config ARCH_BRCMSTB
 	select ARM_GIC
 	select ARM_ERRATA_798181 if SMP
 	select HAVE_ARM_ARCH_TIMER
-	select BCM7038_L1_IRQ
-	select BRCMSTB_L2_IRQ
-	select BCM7120_L2_IRQ
-	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ZONE_DMA if ARM_LPAE
 	select SOC_BRCMSTB
 	select SOC_BUS

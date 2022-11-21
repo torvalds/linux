@@ -62,23 +62,29 @@ out:
 	return pfn;
 }
 
-/* flush SLBs and reload */
-#ifdef CONFIG_PPC_BOOK3S_64
-void flush_and_reload_slb(void)
+static bool mce_in_guest(void)
 {
-	/* Invalidate all SLBs */
-	slb_flush_all_realmode();
-
 #ifdef CONFIG_KVM_BOOK3S_HANDLER
 	/*
-	 * If machine check is hit when in guest or in transition, we will
-	 * only flush the SLBs and continue.
+	 * If machine check is hit when in guest context or low level KVM
+	 * code, avoid looking up any translations or making any attempts
+	 * to recover, just record the event and pass to KVM.
 	 */
 	if (get_paca()->kvm_hstate.in_guest)
-		return;
+		return true;
 #endif
+	return false;
+}
+
+/* flush SLBs and reload */
+#ifdef CONFIG_PPC_64S_HASH_MMU
+void flush_and_reload_slb(void)
+{
 	if (early_radix_enabled())
 		return;
+
+	/* Invalidate all SLBs */
+	slb_flush_all_realmode();
 
 	/*
 	 * This probably shouldn't happen, but it may be possible it's
@@ -91,9 +97,9 @@ void flush_and_reload_slb(void)
 }
 #endif
 
-static void flush_erat(void)
+void flush_erat(void)
 {
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	if (!early_cpu_has_feature(CPU_FTR_ARCH_300)) {
 		flush_and_reload_slb();
 		return;
@@ -108,7 +114,7 @@ static void flush_erat(void)
 
 static int mce_flush(int what)
 {
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	if (what == MCE_FLUSH_SLB) {
 		flush_and_reload_slb();
 		return 1;
@@ -449,7 +455,7 @@ static int mce_find_instr_ea_and_phys(struct pt_regs *regs, uint64_t *addr,
 	 * in real-mode is tricky and can lead to recursive
 	 * faults
 	 */
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 	unsigned long pfn, instr_addr;
 	struct instruction_op op;
 	struct pt_regs tmp = *regs;
@@ -457,7 +463,7 @@ static int mce_find_instr_ea_and_phys(struct pt_regs *regs, uint64_t *addr,
 	pfn = addr_to_pfn(regs, regs->nip);
 	if (pfn != ULONG_MAX) {
 		instr_addr = (pfn << PAGE_SHIFT) + (regs->nip & ~PAGE_MASK);
-		instr = ppc_inst_read((struct ppc_inst *)instr_addr);
+		instr = ppc_inst_read((u32 *)instr_addr);
 		if (!analyse_instr(&op, &tmp, instr)) {
 			pfn = addr_to_pfn(regs, op.ea);
 			*addr = op.ea;
@@ -475,12 +481,11 @@ static int mce_find_instr_ea_and_phys(struct pt_regs *regs, uint64_t *addr,
 	return -1;
 }
 
-static int mce_handle_ierror(struct pt_regs *regs,
+static int mce_handle_ierror(struct pt_regs *regs, unsigned long srr1,
 		const struct mce_ierror_table table[],
 		struct mce_error_info *mce_err, uint64_t *addr,
 		uint64_t *phys_addr)
 {
-	uint64_t srr1 = regs->msr;
 	int handled = 0;
 	int i;
 
@@ -490,19 +495,23 @@ static int mce_handle_ierror(struct pt_regs *regs,
 		if ((srr1 & table[i].srr1_mask) != table[i].srr1_value)
 			continue;
 
-		/* attempt to correct the error */
-		switch (table[i].error_type) {
-		case MCE_ERROR_TYPE_SLB:
-			if (local_paca->in_mce == 1)
-				slb_save_contents(local_paca->mce_faulty_slbs);
-			handled = mce_flush(MCE_FLUSH_SLB);
-			break;
-		case MCE_ERROR_TYPE_ERAT:
-			handled = mce_flush(MCE_FLUSH_ERAT);
-			break;
-		case MCE_ERROR_TYPE_TLB:
-			handled = mce_flush(MCE_FLUSH_TLB);
-			break;
+		if (!mce_in_guest()) {
+			/* attempt to correct the error */
+			switch (table[i].error_type) {
+			case MCE_ERROR_TYPE_SLB:
+#ifdef CONFIG_PPC_64S_HASH_MMU
+				if (local_paca->in_mce == 1)
+					slb_save_contents(local_paca->mce_faulty_slbs);
+#endif
+				handled = mce_flush(MCE_FLUSH_SLB);
+				break;
+			case MCE_ERROR_TYPE_ERAT:
+				handled = mce_flush(MCE_FLUSH_ERAT);
+				break;
+			case MCE_ERROR_TYPE_TLB:
+				handled = mce_flush(MCE_FLUSH_TLB);
+				break;
+			}
 		}
 
 		/* now fill in mce_error_info */
@@ -534,7 +543,7 @@ static int mce_handle_ierror(struct pt_regs *regs,
 		mce_err->sync_error = table[i].sync_error;
 		mce_err->severity = table[i].severity;
 		mce_err->initiator = table[i].initiator;
-		if (table[i].nip_valid) {
+		if (table[i].nip_valid && !mce_in_guest()) {
 			*addr = regs->nip;
 			if (mce_err->sync_error &&
 				table[i].error_type == MCE_ERROR_TYPE_UE) {
@@ -577,22 +586,26 @@ static int mce_handle_derror(struct pt_regs *regs,
 		if (!(dsisr & table[i].dsisr_value))
 			continue;
 
-		/* attempt to correct the error */
-		switch (table[i].error_type) {
-		case MCE_ERROR_TYPE_SLB:
-			if (local_paca->in_mce == 1)
-				slb_save_contents(local_paca->mce_faulty_slbs);
-			if (mce_flush(MCE_FLUSH_SLB))
-				handled = 1;
-			break;
-		case MCE_ERROR_TYPE_ERAT:
-			if (mce_flush(MCE_FLUSH_ERAT))
-				handled = 1;
-			break;
-		case MCE_ERROR_TYPE_TLB:
-			if (mce_flush(MCE_FLUSH_TLB))
-				handled = 1;
-			break;
+		if (!mce_in_guest()) {
+			/* attempt to correct the error */
+			switch (table[i].error_type) {
+			case MCE_ERROR_TYPE_SLB:
+#ifdef CONFIG_PPC_64S_HASH_MMU
+				if (local_paca->in_mce == 1)
+					slb_save_contents(local_paca->mce_faulty_slbs);
+#endif
+				if (mce_flush(MCE_FLUSH_SLB))
+					handled = 1;
+				break;
+			case MCE_ERROR_TYPE_ERAT:
+				if (mce_flush(MCE_FLUSH_ERAT))
+					handled = 1;
+				break;
+			case MCE_ERROR_TYPE_TLB:
+				if (mce_flush(MCE_FLUSH_TLB))
+					handled = 1;
+				break;
+			}
 		}
 
 		/*
@@ -634,7 +647,7 @@ static int mce_handle_derror(struct pt_regs *regs,
 		mce_err->initiator = table[i].initiator;
 		if (table[i].dar_valid)
 			*addr = regs->dar;
-		else if (mce_err->sync_error &&
+		else if (mce_err->sync_error && !mce_in_guest() &&
 				table[i].error_type == MCE_ERROR_TYPE_UE) {
 			/*
 			 * We do a maximum of 4 nested MCE calls, see
@@ -662,7 +675,8 @@ static int mce_handle_derror(struct pt_regs *regs,
 static long mce_handle_ue_error(struct pt_regs *regs,
 				struct mce_error_info *mce_err)
 {
-	long handled = 0;
+	if (mce_in_guest())
+		return 0;
 
 	mce_common_process_ue(regs, mce_err);
 	if (mce_err->ignore_event)
@@ -677,25 +691,26 @@ static long mce_handle_ue_error(struct pt_regs *regs,
 
 	if (ppc_md.mce_check_early_recovery) {
 		if (ppc_md.mce_check_early_recovery(regs))
-			handled = 1;
+			return 1;
 	}
-	return handled;
+
+	return 0;
 }
 
 static long mce_handle_error(struct pt_regs *regs,
+		unsigned long srr1,
 		const struct mce_derror_table dtable[],
 		const struct mce_ierror_table itable[])
 {
 	struct mce_error_info mce_err = { 0 };
 	uint64_t addr, phys_addr = ULONG_MAX;
-	uint64_t srr1 = regs->msr;
 	long handled;
 
 	if (SRR1_MC_LOADSTORE(srr1))
 		handled = mce_handle_derror(regs, dtable, &mce_err, &addr,
 				&phys_addr);
 	else
-		handled = mce_handle_ierror(regs, itable, &mce_err, &addr,
+		handled = mce_handle_ierror(regs, srr1, itable, &mce_err, &addr,
 				&phys_addr);
 
 	if (!handled && mce_err.error_type == MCE_ERROR_TYPE_UE)
@@ -711,16 +726,20 @@ long __machine_check_early_realmode_p7(struct pt_regs *regs)
 	/* P7 DD1 leaves top bits of DSISR undefined */
 	regs->dsisr &= 0x0000ffff;
 
-	return mce_handle_error(regs, mce_p7_derror_table, mce_p7_ierror_table);
+	return mce_handle_error(regs, regs->msr,
+			mce_p7_derror_table, mce_p7_ierror_table);
 }
 
 long __machine_check_early_realmode_p8(struct pt_regs *regs)
 {
-	return mce_handle_error(regs, mce_p8_derror_table, mce_p8_ierror_table);
+	return mce_handle_error(regs, regs->msr,
+			mce_p8_derror_table, mce_p8_ierror_table);
 }
 
 long __machine_check_early_realmode_p9(struct pt_regs *regs)
 {
+	unsigned long srr1 = regs->msr;
+
 	/*
 	 * On POWER9 DD2.1 and below, it's possible to get a machine check
 	 * caused by a paste instruction where only DSISR bit 25 is set. This
@@ -734,10 +753,39 @@ long __machine_check_early_realmode_p9(struct pt_regs *regs)
 	if (SRR1_MC_LOADSTORE(regs->msr) && regs->dsisr == 0x02000000)
 		return 1;
 
-	return mce_handle_error(regs, mce_p9_derror_table, mce_p9_ierror_table);
+	/*
+	 * Async machine check due to bad real address from store or foreign
+	 * link time out comes with the load/store bit (PPC bit 42) set in
+	 * SRR1, but the cause comes in SRR1 not DSISR. Clear bit 42 so we're
+	 * directed to the ierror table so it will find the cause (which
+	 * describes it correctly as a store error).
+	 */
+	if (SRR1_MC_LOADSTORE(srr1) &&
+			((srr1 & 0x081c0000) == 0x08140000 ||
+			 (srr1 & 0x081c0000) == 0x08180000)) {
+		srr1 &= ~PPC_BIT(42);
+	}
+
+	return mce_handle_error(regs, srr1,
+			mce_p9_derror_table, mce_p9_ierror_table);
 }
 
 long __machine_check_early_realmode_p10(struct pt_regs *regs)
 {
-	return mce_handle_error(regs, mce_p10_derror_table, mce_p10_ierror_table);
+	unsigned long srr1 = regs->msr;
+
+	/*
+	 * Async machine check due to bad real address from store comes with
+	 * the load/store bit (PPC bit 42) set in SRR1, but the cause comes in
+	 * SRR1 not DSISR. Clear bit 42 so we're directed to the ierror table
+	 * so it will find the cause (which describes it correctly as a store
+	 * error).
+	 */
+	if (SRR1_MC_LOADSTORE(srr1) &&
+			(srr1 & 0x081c0000) == 0x08140000) {
+		srr1 &= ~PPC_BIT(42);
+	}
+
+	return mce_handle_error(regs, srr1,
+			mce_p10_derror_table, mce_p10_ierror_table);
 }

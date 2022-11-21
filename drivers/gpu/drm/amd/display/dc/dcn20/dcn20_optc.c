@@ -73,21 +73,6 @@ bool optc2_enable_crtc(struct timing_generator *optc)
 }
 
 /**
- * DRR double buffering control to select buffer point
- * for V_TOTAL, H_TOTAL, VTOTAL_MIN, VTOTAL_MAX, VTOTAL_MIN_SEL and VTOTAL_MAX_SEL registers
- * Options: anytime, start of frame, dp start of frame (range timing)
- */
-void optc2_set_timing_db_mode(struct timing_generator *optc, bool enable)
-{
-	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-
-	uint32_t blank_data_double_buffer_enable = enable ? 1 : 0;
-
-	REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
-		OTG_RANGE_TIMING_DBUF_UPDATE_MODE, blank_data_double_buffer_enable);
-}
-
-/**
  *For the below, I'm not sure how your GSL parameters are stored in your env,
  * so I will assume a gsl_params struct for now
  */
@@ -109,46 +94,6 @@ void optc2_set_gsl(struct timing_generator *optc,
 		OTG_GSL_MASTER_MODE, params->gsl_master_mode);
 }
 
-
-/* Use the gsl allow flip as the master update lock */
-void optc2_use_gsl_as_master_update_lock(struct timing_generator *optc,
-		   const struct gsl_params *params)
-{
-	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-
-	REG_UPDATE(OTG_GSL_CONTROL,
-		OTG_MASTER_UPDATE_LOCK_GSL_EN, params->master_update_lock_gsl_en);
-}
-
-/* You can control the GSL timing by limiting GSL to a window (X,Y) */
-void optc2_set_gsl_window(struct timing_generator *optc,
-		   const struct gsl_params *params)
-{
-	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-
-	REG_SET_2(OTG_GSL_WINDOW_X, 0,
-		OTG_GSL_WINDOW_START_X, params->gsl_window_start_x,
-		OTG_GSL_WINDOW_END_X, params->gsl_window_end_x);
-	REG_SET_2(OTG_GSL_WINDOW_Y, 0,
-		OTG_GSL_WINDOW_START_Y, params->gsl_window_start_y,
-		OTG_GSL_WINDOW_END_Y, params->gsl_window_end_y);
-}
-
-/**
- * Vupdate keepout can be set to a window to block the update lock for that pipe from changing.
- * Start offset begins with vstartup and goes for x number of clocks,
- * end offset starts from end of vupdate to x number of clocks.
- */
-void optc2_set_vupdate_keepout(struct timing_generator *optc,
-		   const struct vupdate_keepout_params *params)
-{
-	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-
-	REG_SET_3(OTG_VUPDATE_KEEPOUT, 0,
-		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_START_OFFSET, params->start_offset,
-		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_END_OFFSET, params->end_offset,
-		OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN, params->enable);
-}
 
 void optc2_set_gsl_source_select(
 		struct timing_generator *optc,
@@ -172,18 +117,6 @@ void optc2_set_gsl_source_select(
 	}
 }
 
-/* DSC encoder frame start controls: x = h position, line_num = # of lines from vstartup */
-void optc2_set_dsc_encoder_frame_start(struct timing_generator *optc,
-					int x_position,
-					int line_num)
-{
-	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-
-	REG_SET_2(OTG_DSC_START_POSITION, 0,
-			OTG_DSC_START_POSITION_X, x_position,
-			OTG_DSC_START_POSITION_LINE_NUM, line_num);
-}
-
 /* Set DSC-related configuration.
  *   dsc_mode: 0 disables DSC, other values enable DSC in specified format
  *   sc_bytes_per_pixel: Bytes per pixel in u3.28 format
@@ -205,6 +138,19 @@ void optc2_set_dsc_config(struct timing_generator *optc,
 	REG_UPDATE(OPTC_WIDTH_CONTROL,
 		OPTC_DSC_SLICE_WIDTH, dsc_slice_width);
 }
+
+/* Get DSC-related configuration.
+ *   dsc_mode: 0 disables DSC, other values enable DSC in specified format
+ */
+void optc2_get_dsc_status(struct timing_generator *optc,
+					uint32_t *dsc_mode)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_GET(OPTC_DATA_FORMAT_CONTROL,
+		OPTC_DSC_MODE, dsc_mode);
+}
+
 
 /*TEMP: Need to figure out inheritance model here.*/
 bool optc2_is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
@@ -296,8 +242,8 @@ void optc2_get_optc_source(struct timing_generator *optc,
 		*num_of_src_opp = 1;
 }
 
-void optc2_set_dwb_source(struct timing_generator *optc,
-		uint32_t dwb_pipe_inst)
+static void optc2_set_dwb_source(struct timing_generator *optc,
+				 uint32_t dwb_pipe_inst)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -307,6 +253,129 @@ void optc2_set_dwb_source(struct timing_generator *optc,
 	else if (dwb_pipe_inst == 1)
 		REG_UPDATE(DWB_SOURCE_SELECT,
 				OPTC_DWB1_SOURCE_SELECT, optc->inst);
+}
+
+static void optc2_align_vblanks(
+	struct timing_generator *optc_master,
+	struct timing_generator *optc_slave,
+	uint32_t master_pixel_clock_100Hz,
+	uint32_t slave_pixel_clock_100Hz,
+	uint8_t master_clock_divider,
+	uint8_t slave_clock_divider)
+{
+	/* accessing slave OTG registers */
+	struct optc *optc1 = DCN10TG_FROM_TG(optc_slave);
+
+	uint32_t master_v_active = 0;
+	uint32_t master_h_total = 0;
+	uint32_t slave_h_total = 0;
+	uint64_t L, XY;
+	uint32_t X, Y, p = 10000;
+	uint32_t master_update_lock;
+
+	/* disable slave OTG */
+	REG_UPDATE(OTG_CONTROL, OTG_MASTER_EN, 0);
+	/* wait until disabled */
+	REG_WAIT(OTG_CONTROL,
+			 OTG_CURRENT_MASTER_EN_STATE,
+			 0, 10, 5000);
+
+	REG_GET(OTG_H_TOTAL, OTG_H_TOTAL, &slave_h_total);
+
+	/* assign slave OTG to be controlled by master update lock */
+	REG_SET(OTG_GLOBAL_CONTROL0, 0,
+			OTG_MASTER_UPDATE_LOCK_SEL, optc_master->inst);
+
+	/* accessing master OTG registers */
+	optc1 = DCN10TG_FROM_TG(optc_master);
+
+	/* saving update lock state, not sure if it's needed */
+	REG_GET(OTG_MASTER_UPDATE_LOCK,
+			OTG_MASTER_UPDATE_LOCK, &master_update_lock);
+	/* unlocking master OTG */
+	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
+			OTG_MASTER_UPDATE_LOCK, 0);
+
+	REG_GET(OTG_V_BLANK_START_END,
+			OTG_V_BLANK_START, &master_v_active);
+	REG_GET(OTG_H_TOTAL, OTG_H_TOTAL, &master_h_total);
+
+	/* calculate when to enable slave OTG */
+	L = (uint64_t)p * slave_h_total * master_pixel_clock_100Hz;
+	L = div_u64(L, master_h_total);
+	L = div_u64(L, slave_pixel_clock_100Hz);
+	XY = div_u64(L, p);
+	Y = master_v_active - XY - 1;
+	X = div_u64(((XY + 1) * p - L) * master_h_total, p * master_clock_divider);
+
+	/*
+	 * set master OTG to unlock when V/H
+	 * counters reach calculated values
+	 */
+	REG_UPDATE(OTG_GLOBAL_CONTROL1,
+			   MASTER_UPDATE_LOCK_DB_EN, 1);
+	REG_UPDATE_2(OTG_GLOBAL_CONTROL1,
+				 MASTER_UPDATE_LOCK_DB_X,
+				 X,
+				 MASTER_UPDATE_LOCK_DB_Y,
+				 Y);
+
+	/* lock master OTG */
+	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
+			OTG_MASTER_UPDATE_LOCK, 1);
+	REG_WAIT(OTG_MASTER_UPDATE_LOCK,
+			 UPDATE_LOCK_STATUS, 1, 1, 10);
+
+	/* accessing slave OTG registers */
+	optc1 = DCN10TG_FROM_TG(optc_slave);
+
+	/*
+	 * enable slave OTG, the OTG is locked with
+	 * master's update lock, so it will not run
+	 */
+	REG_UPDATE(OTG_CONTROL,
+			   OTG_MASTER_EN, 1);
+
+	/* accessing master OTG registers */
+	optc1 = DCN10TG_FROM_TG(optc_master);
+
+	/*
+	 * unlock master OTG. When master H/V counters reach
+	 * DB_XY point, slave OTG will start
+	 */
+	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
+			OTG_MASTER_UPDATE_LOCK, 0);
+
+	/* accessing slave OTG registers */
+	optc1 = DCN10TG_FROM_TG(optc_slave);
+
+	/* wait for slave OTG to start running*/
+	REG_WAIT(OTG_CONTROL,
+			 OTG_CURRENT_MASTER_EN_STATE,
+			 1, 10, 5000);
+
+	/* accessing master OTG registers */
+	optc1 = DCN10TG_FROM_TG(optc_master);
+
+	/* disable the XY point*/
+	REG_UPDATE(OTG_GLOBAL_CONTROL1,
+			   MASTER_UPDATE_LOCK_DB_EN, 0);
+	REG_UPDATE_2(OTG_GLOBAL_CONTROL1,
+				 MASTER_UPDATE_LOCK_DB_X,
+				 0,
+				 MASTER_UPDATE_LOCK_DB_Y,
+				 0);
+
+	/*restore master update lock*/
+	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
+			OTG_MASTER_UPDATE_LOCK, master_update_lock);
+
+	/* accessing slave OTG registers */
+	optc1 = DCN10TG_FROM_TG(optc_slave);
+	/* restore slave to be controlled by it's own */
+	REG_SET(OTG_GLOBAL_CONTROL0, 0,
+			OTG_MASTER_UPDATE_LOCK_SEL, optc_slave->inst);
+
 }
 
 void optc2_triplebuffer_lock(struct timing_generator *optc)
@@ -357,9 +426,14 @@ void optc2_lock_doublebuffer_enable(struct timing_generator *optc)
 
 	REG_UPDATE_2(OTG_GLOBAL_CONTROL1,
 			MASTER_UPDATE_LOCK_DB_X,
-			h_blank_start - 200 - 1,
+			(h_blank_start - 200 - 1) / optc1->opp_count,
 			MASTER_UPDATE_LOCK_DB_Y,
 			v_blank_start - 1);
+
+	REG_SET_3(OTG_VUPDATE_KEEPOUT, 0,
+		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_START_OFFSET, 0,
+		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_END_OFFSET, 100,
+		OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN, 1);
 }
 
 void optc2_lock_doublebuffer_disable(struct timing_generator *optc)
@@ -413,6 +487,14 @@ bool optc2_configure_crc(struct timing_generator *optc,
 	return optc1_configure_crc(optc, params);
 }
 
+
+void optc2_get_last_used_drr_vtotal(struct timing_generator *optc, uint32_t *refresh_rate)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_GET(OTG_DRR_CONTROL, OTG_V_TOTAL_LAST_USED_BY_DRR, refresh_rate);
+}
+
 static struct timing_generator_funcs dcn20_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
@@ -446,6 +528,7 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.lock_doublebuffer_disable = optc2_lock_doublebuffer_disable,
 		.enable_optc_clock = optc1_enable_optc_clock,
 		.set_drr = optc1_set_drr,
+		.get_last_used_drr_vtotal = optc2_get_last_used_drr_vtotal,
 		.set_static_screen_control = optc1_set_static_screen_control,
 		.program_stereo = optc1_program_stereo,
 		.is_stereo_left_eye = optc1_is_stereo_left_eye,
@@ -458,6 +541,7 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.get_crc = optc1_get_crc,
 		.configure_crc = optc2_configure_crc,
 		.set_dsc_config = optc2_set_dsc_config,
+		.get_dsc_status = optc2_get_dsc_status,
 		.set_dwb_source = optc2_set_dwb_source,
 		.set_odm_bypass = optc2_set_odm_bypass,
 		.set_odm_combine = optc2_set_odm_combine,
@@ -468,6 +552,7 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.program_manual_trigger = optc2_program_manual_trigger,
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
+		.align_vblanks = optc2_align_vblanks,
 };
 
 void dcn20_timing_generator_init(struct optc *optc1)
@@ -483,4 +568,3 @@ void dcn20_timing_generator_init(struct optc *optc1)
 	optc1->min_h_sync_width = 4;//	Minimum HSYNC = 8 pixels asked By HW in the first place for no actual reason. Oculus Rift S will not light up with 8 as it's hsyncWidth is 6. Changing it to 4 to fix that issue.
 	optc1->min_v_sync_width = 1;
 }
-

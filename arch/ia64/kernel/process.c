@@ -32,7 +32,7 @@
 #include <linux/delay.h>
 #include <linux/kdebug.h>
 #include <linux/utsname.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/rcupdate.h>
 
 #include <asm/cpu.h>
@@ -171,14 +171,15 @@ do_notify_resume_user(sigset_t *unused, struct sigscratch *scr, long in_syscall)
 	}
 
 	/* deal with pending signal delivery */
-	if (test_thread_flag(TIF_SIGPENDING)) {
+	if (test_thread_flag(TIF_SIGPENDING) ||
+	    test_thread_flag(TIF_NOTIFY_SIGNAL)) {
 		local_irq_enable();	/* force interrupt enable */
 		ia64_do_signal(scr, in_syscall);
 	}
 
 	if (test_thread_flag(TIF_NOTIFY_RESUME)) {
 		local_irq_enable();	/* force interrupt enable */
-		tracehook_notify_resume(&scr->pt);
+		resume_user_mode_work(&scr->pt);
 	}
 
 	/* copy user rbs to kernel rbs */
@@ -337,7 +338,7 @@ copy_thread(unsigned long clone_flags, unsigned long user_stack_base,
 
 	ia64_drop_fpu(p);	/* don't pick up stale state from a CPU's fph */
 
-	if (unlikely(p->flags & PF_KTHREAD)) {
+	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
 		if (unlikely(!user_stack_base)) {
 			/* fork_idle() called us */
 			return 0;
@@ -487,7 +488,7 @@ do_copy_task_regs (struct task_struct *task, struct unw_frame_info *info, void *
 	unw_get_ar(info, UNW_AR_SSD, &dst[56]);
 }
 
-void
+static void
 do_copy_regs (struct unw_frame_info *info, void *arg)
 {
 	do_copy_task_regs(current, info, arg);
@@ -522,14 +523,11 @@ exit_thread (struct task_struct *tsk)
 }
 
 unsigned long
-get_wchan (struct task_struct *p)
+__get_wchan (struct task_struct *p)
 {
 	struct unw_frame_info info;
 	unsigned long ip;
 	int count = 0;
-
-	if (!p || p == current || p->state == TASK_RUNNING)
-		return 0;
 
 	/*
 	 * Note: p may not be a blocked task (it could be current or
@@ -541,7 +539,7 @@ get_wchan (struct task_struct *p)
 	 */
 	unw_init_from_blocked_task(&info, p);
 	do {
-		if (p->state == TASK_RUNNING)
+		if (task_is_running(p))
 			return 0;
 		if (unw_unwind(&info) < 0)
 			return 0;

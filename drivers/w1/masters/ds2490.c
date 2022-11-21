@@ -219,10 +219,8 @@ static void ds_dump_status(struct ds_device *dev, unsigned char *buf, int count)
 {
 	int i;
 
-	pr_info("0x%x: count=%d, status: ", dev->ep[EP_STATUS], count);
-	for (i = 0; i < count; ++i)
-		pr_info("%02x ", buf[i]);
-	pr_info("\n");
+	dev_info(&dev->udev->dev, "ep_status=0x%x, count=%d, status=%*phC",
+		dev->ep[EP_STATUS], count, count, buf);
 
 	if (count >= 16) {
 		ds_print_msg(buf, "enable flag", 0);
@@ -331,7 +329,7 @@ static int ds_recv_data(struct ds_device *dev, unsigned char *buf, int size)
 	err = usb_bulk_msg(dev->udev, usb_rcvbulkpipe(dev->udev, dev->ep[EP_DATA_IN]),
 				buf, size, &count, 1000);
 	if (err < 0) {
-		pr_info("Clearing ep0x%x.\n", dev->ep[EP_DATA_IN]);
+		dev_info(&dev->udev->dev, "Clearing ep0x%x.\n", dev->ep[EP_DATA_IN]);
 		usb_clear_halt(dev->udev, usb_rcvbulkpipe(dev->udev, dev->ep[EP_DATA_IN]));
 		ds_recv_status(dev, NULL, true);
 		return err;
@@ -688,11 +686,21 @@ static void ds9490r_search(void *data, struct w1_master *master,
 	 * packet size.
 	 */
 	const size_t bufsize = 2 * 64;
-	u64 *buf;
+	u64 *buf, *found_ids;
 
 	buf = kmalloc(bufsize, GFP_KERNEL);
 	if (!buf)
 		return;
+
+	/*
+	 * We are holding the bus mutex during the scan, but adding devices via the
+	 * callback needs the bus to be unlocked. So we queue up found ids here.
+	 */
+	found_ids = kmalloc_array(master->max_slave_count, sizeof(u64), GFP_KERNEL);
+	if (!found_ids) {
+		kfree(buf);
+		return;
+	}
 
 	mutex_lock(&master->bus_mutex);
 
@@ -729,13 +737,13 @@ static void ds9490r_search(void *data, struct w1_master *master,
 			if (err < 0)
 				break;
 			for (i = 0; i < err/8; ++i) {
-				++found;
-				if (found <= search_limit)
-					callback(master, buf[i]);
+				found_ids[found++] = buf[i];
 				/* can't know if there will be a discrepancy
 				 * value after until the next id */
-				if (found == search_limit)
+				if (found == search_limit) {
 					master->search_id = buf[i];
+					break;
+				}
 			}
 		}
 
@@ -759,9 +767,14 @@ static void ds9490r_search(void *data, struct w1_master *master,
 			master->max_slave_count);
 		set_bit(W1_WARN_MAX_COUNT, &master->flags);
 	}
+
 search_out:
 	mutex_unlock(&master->bus_mutex);
 	kfree(buf);
+
+	for (i = 0; i < found; i++) /* run callback for all queued up IDs */
+		callback(master, found_ids[i]);
+	kfree(found_ids);
 }
 
 #if 0

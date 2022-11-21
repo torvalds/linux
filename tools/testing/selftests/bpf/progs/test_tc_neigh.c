@@ -33,17 +33,8 @@
 				 a.s6_addr32[3] == b.s6_addr32[3])
 #endif
 
-enum {
-	dev_src,
-	dev_dst,
-};
-
-struct bpf_map_def SEC("maps") ifindex_map = {
-	.type		= BPF_MAP_TYPE_ARRAY,
-	.key_size	= sizeof(int),
-	.value_size	= sizeof(int),
-	.max_entries	= 2,
-};
+volatile const __u32 IFINDEX_SRC;
+volatile const __u32 IFINDEX_DST;
 
 static __always_inline bool is_remote_ep_v4(struct __sk_buff *skb,
 					    __be32 addr)
@@ -79,14 +70,8 @@ static __always_inline bool is_remote_ep_v6(struct __sk_buff *skb,
 	return v6_equal(ip6h->daddr, addr);
 }
 
-static __always_inline int get_dev_ifindex(int which)
-{
-	int *ifindex = bpf_map_lookup_elem(&ifindex_map, &which);
-
-	return ifindex ? *ifindex : 0;
-}
-
-SEC("chk_egress") int tc_chk(struct __sk_buff *skb)
+SEC("tc")
+int tc_chk(struct __sk_buff *skb)
 {
 	void *data_end = ctx_ptr(skb->data_end);
 	void *data = ctx_ptr(skb->data);
@@ -98,7 +83,8 @@ SEC("chk_egress") int tc_chk(struct __sk_buff *skb)
 	return !raw[0] && !raw[1] && !raw[2] ? TC_ACT_SHOT : TC_ACT_OK;
 }
 
-SEC("dst_ingress") int tc_dst(struct __sk_buff *skb)
+SEC("tc")
+int tc_dst(struct __sk_buff *skb)
 {
 	__u8 zero[ETH_ALEN * 2];
 	bool redirect = false;
@@ -119,10 +105,11 @@ SEC("dst_ingress") int tc_dst(struct __sk_buff *skb)
 	if (bpf_skb_store_bytes(skb, 0, &zero, sizeof(zero), 0) < 0)
 		return TC_ACT_SHOT;
 
-	return bpf_redirect_neigh(get_dev_ifindex(dev_src), NULL, 0, 0);
+	return bpf_redirect_neigh(IFINDEX_SRC, NULL, 0, 0);
 }
 
-SEC("src_ingress") int tc_src(struct __sk_buff *skb)
+SEC("tc")
+int tc_src(struct __sk_buff *skb)
 {
 	__u8 zero[ETH_ALEN * 2];
 	bool redirect = false;
@@ -143,7 +130,7 @@ SEC("src_ingress") int tc_src(struct __sk_buff *skb)
 	if (bpf_skb_store_bytes(skb, 0, &zero, sizeof(zero), 0) < 0)
 		return TC_ACT_SHOT;
 
-	return bpf_redirect_neigh(get_dev_ifindex(dev_dst), NULL, 0, 0);
+	return bpf_redirect_neigh(IFINDEX_DST, NULL, 0, 0);
 }
 
 char __license[] SEC("license") = "GPL";

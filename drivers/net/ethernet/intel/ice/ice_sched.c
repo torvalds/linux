@@ -11,7 +11,7 @@
  * This function inserts the root node of the scheduling tree topology
  * to the SW DB.
  */
-static enum ice_status
+static int
 ice_sched_add_root_node(struct ice_port_info *pi,
 			struct ice_aqc_txsched_elem_data *info)
 {
@@ -19,20 +19,20 @@ ice_sched_add_root_node(struct ice_port_info *pi,
 	struct ice_hw *hw;
 
 	if (!pi)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	hw = pi->hw;
 
 	root = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*root), GFP_KERNEL);
 	if (!root)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	/* coverity[suspicious_sizeof] */
 	root->children = devm_kcalloc(ice_hw_to_dev(hw), hw->max_children[0],
 				      sizeof(*root), GFP_KERNEL);
 	if (!root->children) {
 		devm_kfree(ice_hw_to_dev(hw), root);
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 	}
 
 	memcpy(&root->info, info, sizeof(*info));
@@ -96,14 +96,14 @@ ice_sched_find_node_by_teid(struct ice_sched_node *start_node, u32 teid)
  *
  * This function sends a scheduling elements cmd (cmd_opc)
  */
-static enum ice_status
+static int
 ice_aqc_send_sched_elem_cmd(struct ice_hw *hw, enum ice_adminq_opc cmd_opc,
 			    u16 elems_req, void *buf, u16 buf_size,
 			    u16 *elems_resp, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_sched_elem_cmd *cmd;
 	struct ice_aq_desc desc;
-	enum ice_status status;
+	int status;
 
 	cmd = &desc.params.sched_elem_cmd;
 	ice_fill_dflt_direct_cmd_desc(&desc, cmd_opc);
@@ -127,7 +127,7 @@ ice_aqc_send_sched_elem_cmd(struct ice_hw *hw, enum ice_adminq_opc cmd_opc,
  *
  * Query scheduling elements (0x0404)
  */
-enum ice_status
+int
 ice_aq_query_sched_elems(struct ice_hw *hw, u16 elems_req,
 			 struct ice_aqc_txsched_elem_data *buf, u16 buf_size,
 			 u16 *elems_ret, struct ice_sq_cd *cd)
@@ -145,18 +145,18 @@ ice_aq_query_sched_elems(struct ice_hw *hw, u16 elems_req,
  *
  * This function inserts a scheduler node to the SW DB.
  */
-enum ice_status
+int
 ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 		   struct ice_aqc_txsched_elem_data *info)
 {
 	struct ice_aqc_txsched_elem_data elem;
 	struct ice_sched_node *parent;
 	struct ice_sched_node *node;
-	enum ice_status status;
 	struct ice_hw *hw;
+	int status;
 
 	if (!pi)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	hw = pi->hw;
 
@@ -164,10 +164,9 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 	parent = ice_sched_find_node_by_teid(pi->root,
 					     le32_to_cpu(info->parent_teid));
 	if (!parent) {
-		ice_debug(hw, ICE_DBG_SCHED,
-			  "Parent Node not found for parent_teid=0x%x\n",
+		ice_debug(hw, ICE_DBG_SCHED, "Parent Node not found for parent_teid=0x%x\n",
 			  le32_to_cpu(info->parent_teid));
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	/* query the current node information from FW before adding it
@@ -179,7 +178,7 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 
 	node = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*node), GFP_KERNEL);
 	if (!node)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 	if (hw->max_children[layer]) {
 		/* coverity[suspicious_sizeof] */
 		node->children = devm_kcalloc(ice_hw_to_dev(hw),
@@ -187,7 +186,7 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 					      sizeof(*node), GFP_KERNEL);
 		if (!node->children) {
 			devm_kfree(ice_hw_to_dev(hw), node);
-			return ICE_ERR_NO_MEMORY;
+			return -ENOMEM;
 		}
 	}
 
@@ -210,7 +209,7 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
  *
  * Delete scheduling elements (0x040F)
  */
-static enum ice_status
+static int
 ice_aq_delete_sched_elems(struct ice_hw *hw, u16 grps_req,
 			  struct ice_aqc_delete_elem *buf, u16 buf_size,
 			  u16 *grps_del, struct ice_sq_cd *cd)
@@ -229,19 +228,19 @@ ice_aq_delete_sched_elems(struct ice_hw *hw, u16 grps_req,
  *
  * This function remove nodes from HW
  */
-static enum ice_status
+static int
 ice_sched_remove_elems(struct ice_hw *hw, struct ice_sched_node *parent,
 		       u16 num_nodes, u32 *node_teids)
 {
 	struct ice_aqc_delete_elem *buf;
 	u16 i, num_groups_removed = 0;
-	enum ice_status status;
 	u16 buf_size;
+	int status;
 
 	buf_size = struct_size(buf, teid, num_nodes);
 	buf = devm_kzalloc(ice_hw_to_dev(hw), buf_size, GFP_KERNEL);
 	if (!buf)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	buf->hdr.parent_teid = parent->info.node_teid;
 	buf->hdr.num_elems = cpu_to_le16(num_nodes);
@@ -370,14 +369,14 @@ void ice_free_sched_node(struct ice_port_info *pi, struct ice_sched_node *node)
  *
  * Get default scheduler topology (0x400)
  */
-static enum ice_status
+static int
 ice_aq_get_dflt_topo(struct ice_hw *hw, u8 lport,
 		     struct ice_aqc_get_topo_elem *buf, u16 buf_size,
 		     u8 *num_branches, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_get_topo *cmd;
 	struct ice_aq_desc desc;
-	enum ice_status status;
+	int status;
 
 	cmd = &desc.params.get_topo;
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_dflt_topo);
@@ -400,7 +399,7 @@ ice_aq_get_dflt_topo(struct ice_hw *hw, u8 lport,
  *
  * Add scheduling elements (0x0401)
  */
-static enum ice_status
+static int
 ice_aq_add_sched_elems(struct ice_hw *hw, u16 grps_req,
 		       struct ice_aqc_add_elem *buf, u16 buf_size,
 		       u16 *grps_added, struct ice_sq_cd *cd)
@@ -421,7 +420,7 @@ ice_aq_add_sched_elems(struct ice_hw *hw, u16 grps_req,
  *
  * Configure scheduling elements (0x0403)
  */
-static enum ice_status
+static int
 ice_aq_cfg_sched_elems(struct ice_hw *hw, u16 elems_req,
 		       struct ice_aqc_txsched_elem_data *buf, u16 buf_size,
 		       u16 *elems_cfgd, struct ice_sq_cd *cd)
@@ -429,6 +428,27 @@ ice_aq_cfg_sched_elems(struct ice_hw *hw, u16 elems_req,
 	return ice_aqc_send_sched_elem_cmd(hw, ice_aqc_opc_cfg_sched_elems,
 					   elems_req, (void *)buf, buf_size,
 					   elems_cfgd, cd);
+}
+
+/**
+ * ice_aq_move_sched_elems - move scheduler elements
+ * @hw: pointer to the HW struct
+ * @grps_req: number of groups to move
+ * @buf: pointer to buffer
+ * @buf_size: buffer size in bytes
+ * @grps_movd: returns total number of groups moved
+ * @cd: pointer to command details structure or NULL
+ *
+ * Move scheduling elements (0x0408)
+ */
+static int
+ice_aq_move_sched_elems(struct ice_hw *hw, u16 grps_req,
+			struct ice_aqc_move_elem *buf, u16 buf_size,
+			u16 *grps_movd, struct ice_sq_cd *cd)
+{
+	return ice_aqc_send_sched_elem_cmd(hw, ice_aqc_opc_move_sched_elems,
+					   grps_req, (void *)buf, buf_size,
+					   grps_movd, cd);
 }
 
 /**
@@ -442,7 +462,7 @@ ice_aq_cfg_sched_elems(struct ice_hw *hw, u16 elems_req,
  *
  * Suspend scheduling elements (0x0409)
  */
-static enum ice_status
+static int
 ice_aq_suspend_sched_elems(struct ice_hw *hw, u16 elems_req, __le32 *buf,
 			   u16 buf_size, u16 *elems_ret, struct ice_sq_cd *cd)
 {
@@ -462,7 +482,7 @@ ice_aq_suspend_sched_elems(struct ice_hw *hw, u16 elems_req, __le32 *buf,
  *
  * resume scheduling elements (0x040A)
  */
-static enum ice_status
+static int
 ice_aq_resume_sched_elems(struct ice_hw *hw, u16 elems_req, __le32 *buf,
 			  u16 buf_size, u16 *elems_ret, struct ice_sq_cd *cd)
 {
@@ -480,7 +500,7 @@ ice_aq_resume_sched_elems(struct ice_hw *hw, u16 elems_req, __le32 *buf,
  *
  * Query scheduler resource allocation (0x0412)
  */
-static enum ice_status
+static int
 ice_aq_query_sched_res(struct ice_hw *hw, u16 buf_size,
 		       struct ice_aqc_query_txsched_res_resp *buf,
 		       struct ice_sq_cd *cd)
@@ -500,18 +520,18 @@ ice_aq_query_sched_res(struct ice_hw *hw, u16 buf_size,
  *
  * This function suspends or resumes HW nodes
  */
-static enum ice_status
+static int
 ice_sched_suspend_resume_elems(struct ice_hw *hw, u8 num_nodes, u32 *node_teids,
 			       bool suspend)
 {
 	u16 i, buf_size, num_elem_ret = 0;
-	enum ice_status status;
 	__le32 *buf;
+	int status;
 
 	buf_size = sizeof(*buf) * num_nodes;
 	buf = devm_kzalloc(ice_hw_to_dev(hw), buf_size, GFP_KERNEL);
 	if (!buf)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	for (i = 0; i < num_nodes; i++)
 		buf[i] = cpu_to_le32(node_teids[i]);
@@ -538,7 +558,7 @@ ice_sched_suspend_resume_elems(struct ice_hw *hw, u8 num_nodes, u32 *node_teids,
  * @tc: TC number
  * @new_numqs: number of queues
  */
-static enum ice_status
+static int
 ice_alloc_lan_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 new_numqs)
 {
 	struct ice_vsi_ctx *vsi_ctx;
@@ -546,7 +566,7 @@ ice_alloc_lan_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 new_numqs)
 
 	vsi_ctx = ice_get_vsi_ctx(hw, vsi_handle);
 	if (!vsi_ctx)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	/* allocate LAN queue contexts */
 	if (!vsi_ctx->lan_q_ctx[tc]) {
 		vsi_ctx->lan_q_ctx[tc] = devm_kcalloc(ice_hw_to_dev(hw),
@@ -554,7 +574,7 @@ ice_alloc_lan_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 new_numqs)
 						      sizeof(*q_ctx),
 						      GFP_KERNEL);
 		if (!vsi_ctx->lan_q_ctx[tc])
-			return ICE_ERR_NO_MEMORY;
+			return -ENOMEM;
 		vsi_ctx->num_lan_q_entries[tc] = new_numqs;
 		return 0;
 	}
@@ -565,12 +585,56 @@ ice_alloc_lan_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 new_numqs)
 		q_ctx = devm_kcalloc(ice_hw_to_dev(hw), new_numqs,
 				     sizeof(*q_ctx), GFP_KERNEL);
 		if (!q_ctx)
-			return ICE_ERR_NO_MEMORY;
+			return -ENOMEM;
 		memcpy(q_ctx, vsi_ctx->lan_q_ctx[tc],
 		       prev_num * sizeof(*q_ctx));
 		devm_kfree(ice_hw_to_dev(hw), vsi_ctx->lan_q_ctx[tc]);
 		vsi_ctx->lan_q_ctx[tc] = q_ctx;
 		vsi_ctx->num_lan_q_entries[tc] = new_numqs;
+	}
+	return 0;
+}
+
+/**
+ * ice_alloc_rdma_q_ctx - allocate RDMA queue contexts for the given VSI and TC
+ * @hw: pointer to the HW struct
+ * @vsi_handle: VSI handle
+ * @tc: TC number
+ * @new_numqs: number of queues
+ */
+static int
+ice_alloc_rdma_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 new_numqs)
+{
+	struct ice_vsi_ctx *vsi_ctx;
+	struct ice_q_ctx *q_ctx;
+
+	vsi_ctx = ice_get_vsi_ctx(hw, vsi_handle);
+	if (!vsi_ctx)
+		return -EINVAL;
+	/* allocate RDMA queue contexts */
+	if (!vsi_ctx->rdma_q_ctx[tc]) {
+		vsi_ctx->rdma_q_ctx[tc] = devm_kcalloc(ice_hw_to_dev(hw),
+						       new_numqs,
+						       sizeof(*q_ctx),
+						       GFP_KERNEL);
+		if (!vsi_ctx->rdma_q_ctx[tc])
+			return -ENOMEM;
+		vsi_ctx->num_rdma_q_entries[tc] = new_numqs;
+		return 0;
+	}
+	/* num queues are increased, update the queue contexts */
+	if (new_numqs > vsi_ctx->num_rdma_q_entries[tc]) {
+		u16 prev_num = vsi_ctx->num_rdma_q_entries[tc];
+
+		q_ctx = devm_kcalloc(ice_hw_to_dev(hw), new_numqs,
+				     sizeof(*q_ctx), GFP_KERNEL);
+		if (!q_ctx)
+			return -ENOMEM;
+		memcpy(q_ctx, vsi_ctx->rdma_q_ctx[tc],
+		       prev_num * sizeof(*q_ctx));
+		devm_kfree(ice_hw_to_dev(hw), vsi_ctx->rdma_q_ctx[tc]);
+		vsi_ctx->rdma_q_ctx[tc] = q_ctx;
+		vsi_ctx->num_rdma_q_entries[tc] = new_numqs;
 	}
 	return 0;
 }
@@ -587,14 +651,14 @@ ice_alloc_lan_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 new_numqs)
  *
  * RL profile function to add, query, or remove profile(s)
  */
-static enum ice_status
+static int
 ice_aq_rl_profile(struct ice_hw *hw, enum ice_adminq_opc opcode,
 		  u16 num_profiles, struct ice_aqc_rl_profile_elem *buf,
 		  u16 buf_size, u16 *num_processed, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_rl_profile *cmd;
 	struct ice_aq_desc desc;
-	enum ice_status status;
+	int status;
 
 	cmd = &desc.params.rl_profile;
 
@@ -618,7 +682,7 @@ ice_aq_rl_profile(struct ice_hw *hw, enum ice_adminq_opc opcode,
  *
  * Add RL profile (0x0410)
  */
-static enum ice_status
+static int
 ice_aq_add_rl_profile(struct ice_hw *hw, u16 num_profiles,
 		      struct ice_aqc_rl_profile_elem *buf, u16 buf_size,
 		      u16 *num_profiles_added, struct ice_sq_cd *cd)
@@ -638,7 +702,7 @@ ice_aq_add_rl_profile(struct ice_hw *hw, u16 num_profiles,
  *
  * Remove RL profile (0x0415)
  */
-static enum ice_status
+static int
 ice_aq_remove_rl_profile(struct ice_hw *hw, u16 num_profiles,
 			 struct ice_aqc_rl_profile_elem *buf, u16 buf_size,
 			 u16 *num_profiles_removed, struct ice_sq_cd *cd)
@@ -657,24 +721,24 @@ ice_aq_remove_rl_profile(struct ice_hw *hw, u16 num_profiles,
  * its associated parameters from HW DB,and locally. The caller needs to
  * hold scheduler lock.
  */
-static enum ice_status
+static int
 ice_sched_del_rl_profile(struct ice_hw *hw,
 			 struct ice_aqc_rl_profile_info *rl_info)
 {
 	struct ice_aqc_rl_profile_elem *buf;
 	u16 num_profiles_removed;
-	enum ice_status status;
 	u16 num_profiles = 1;
+	int status;
 
 	if (rl_info->prof_id_ref != 0)
-		return ICE_ERR_IN_USE;
+		return -EBUSY;
 
 	/* Safe to remove profile ID */
 	buf = &rl_info->profile;
 	status = ice_aq_remove_rl_profile(hw, num_profiles, buf, sizeof(*buf),
 					  &num_profiles_removed, NULL);
 	if (status || num_profiles_removed != num_profiles)
-		return ICE_ERR_CFG;
+		return -EIO;
 
 	/* Delete stale entry now */
 	list_del(&rl_info->list_entry);
@@ -699,13 +763,12 @@ static void ice_sched_clear_rl_prof(struct ice_port_info *pi)
 		list_for_each_entry_safe(rl_prof_elem, rl_prof_tmp,
 					 &pi->rl_prof_list[ln], list_entry) {
 			struct ice_hw *hw = pi->hw;
-			enum ice_status status;
+			int status;
 
 			rl_prof_elem->prof_id_ref = 0;
 			status = ice_sched_del_rl_profile(hw, rl_prof_elem);
 			if (status) {
-				ice_debug(hw, ICE_DBG_SCHED,
-					  "Remove rl profile failed\n");
+				ice_debug(hw, ICE_DBG_SCHED, "Remove rl profile failed\n");
 				/* On error, free mem required */
 				list_del(&rl_prof_elem->list_entry);
 				devm_kfree(ice_hw_to_dev(hw), rl_prof_elem);
@@ -812,7 +875,7 @@ void ice_sched_cleanup_all(struct ice_hw *hw)
  *
  * This function add nodes to HW as well as to SW DB for a given layer
  */
-static enum ice_status
+static int
 ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 		    struct ice_sched_node *parent, u8 layer, u16 num_nodes,
 		    u16 *num_nodes_added, u32 *first_node_teid)
@@ -820,15 +883,15 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 	struct ice_sched_node *prev, *new_node;
 	struct ice_aqc_add_elem *buf;
 	u16 i, num_groups_added = 0;
-	enum ice_status status = 0;
 	struct ice_hw *hw = pi->hw;
 	size_t buf_size;
+	int status = 0;
 	u32 teid;
 
 	buf_size = struct_size(buf, generic, num_nodes);
 	buf = devm_kzalloc(ice_hw_to_dev(hw), buf_size, GFP_KERNEL);
 	if (!buf)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	buf->hdr.parent_teid = parent->info.node_teid;
 	buf->hdr.num_elems = cpu_to_le16(num_nodes);
@@ -855,7 +918,7 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 		ice_debug(hw, ICE_DBG_SCHED, "add node failed FW Error %d\n",
 			  hw->adminq.sq_last_status);
 		devm_kfree(ice_hw_to_dev(hw), buf);
-		return ICE_ERR_CFG;
+		return -EIO;
 	}
 
 	*num_nodes_added = num_nodes;
@@ -863,8 +926,7 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 	for (i = 0; i < num_nodes; i++) {
 		status = ice_sched_add_node(pi, layer, &buf->generic[i]);
 		if (status) {
-			ice_debug(hw, ICE_DBG_SCHED,
-				  "add nodes in SW DB failed status =%d\n",
+			ice_debug(hw, ICE_DBG_SCHED, "add nodes in SW DB failed status =%d\n",
 				  status);
 			break;
 		}
@@ -872,8 +934,7 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 		teid = le32_to_cpu(buf->generic[i].node_teid);
 		new_node = ice_sched_find_node_by_teid(parent, teid);
 		if (!new_node) {
-			ice_debug(hw, ICE_DBG_SCHED,
-				  "Node is missing for teid =%d\n", teid);
+			ice_debug(hw, ICE_DBG_SCHED, "Node is missing for teid =%d\n", teid);
 			break;
 		}
 
@@ -902,6 +963,50 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 }
 
 /**
+ * ice_sched_add_nodes_to_hw_layer - Add nodes to HW layer
+ * @pi: port information structure
+ * @tc_node: pointer to TC node
+ * @parent: pointer to parent node
+ * @layer: layer number to add nodes
+ * @num_nodes: number of nodes to be added
+ * @first_node_teid: pointer to the first node TEID
+ * @num_nodes_added: pointer to number of nodes added
+ *
+ * Add nodes into specific HW layer.
+ */
+static int
+ice_sched_add_nodes_to_hw_layer(struct ice_port_info *pi,
+				struct ice_sched_node *tc_node,
+				struct ice_sched_node *parent, u8 layer,
+				u16 num_nodes, u32 *first_node_teid,
+				u16 *num_nodes_added)
+{
+	u16 max_child_nodes;
+
+	*num_nodes_added = 0;
+
+	if (!num_nodes)
+		return 0;
+
+	if (!parent || layer < pi->hw->sw_entry_point_layer)
+		return -EINVAL;
+
+	/* max children per node per layer */
+	max_child_nodes = pi->hw->max_children[parent->tx_sched_layer];
+
+	/* current number of children + required nodes exceed max children */
+	if ((parent->num_children + num_nodes) > max_child_nodes) {
+		/* Fail if the parent is a TC node */
+		if (parent == tc_node)
+			return -EIO;
+		return -ENOSPC;
+	}
+
+	return ice_sched_add_elems(pi, tc_node, parent, layer, num_nodes,
+				   num_nodes_added, first_node_teid);
+}
+
+/**
  * ice_sched_add_nodes_to_layer - Add nodes to a given layer
  * @pi: port information structure
  * @tc_node: pointer to TC node
@@ -913,7 +1018,7 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
  *
  * This function add nodes to a given layer.
  */
-static enum ice_status
+static int
 ice_sched_add_nodes_to_layer(struct ice_port_info *pi,
 			     struct ice_sched_node *tc_node,
 			     struct ice_sched_node *parent, u8 layer,
@@ -921,72 +1026,53 @@ ice_sched_add_nodes_to_layer(struct ice_port_info *pi,
 			     u16 *num_nodes_added)
 {
 	u32 *first_teid_ptr = first_node_teid;
-	u16 new_num_nodes, max_child_nodes;
-	enum ice_status status = 0;
-	struct ice_hw *hw = pi->hw;
-	u16 num_added = 0;
-	u32 temp;
+	u16 new_num_nodes = num_nodes;
+	int status = 0;
 
 	*num_nodes_added = 0;
+	while (*num_nodes_added < num_nodes) {
+		u16 max_child_nodes, num_added = 0;
+		/* cppcheck-suppress unusedVariable */
+		u32 temp;
 
-	if (!num_nodes)
-		return status;
-
-	if (!parent || layer < hw->sw_entry_point_layer)
-		return ICE_ERR_PARAM;
-
-	/* max children per node per layer */
-	max_child_nodes = hw->max_children[parent->tx_sched_layer];
-
-	/* current number of children + required nodes exceed max children ? */
-	if ((parent->num_children + num_nodes) > max_child_nodes) {
-		/* Fail if the parent is a TC node */
-		if (parent == tc_node)
-			return ICE_ERR_CFG;
-
+		status = ice_sched_add_nodes_to_hw_layer(pi, tc_node, parent,
+							 layer,	new_num_nodes,
+							 first_teid_ptr,
+							 &num_added);
+		if (!status)
+			*num_nodes_added += num_added;
+		/* added more nodes than requested ? */
+		if (*num_nodes_added > num_nodes) {
+			ice_debug(pi->hw, ICE_DBG_SCHED, "added extra nodes %d %d\n", num_nodes,
+				  *num_nodes_added);
+			status = -EIO;
+			break;
+		}
+		/* break if all the nodes are added successfully */
+		if (!status && (*num_nodes_added == num_nodes))
+			break;
+		/* break if the error is not max limit */
+		if (status && status != -ENOSPC)
+			break;
+		/* Exceeded the max children */
+		max_child_nodes = pi->hw->max_children[parent->tx_sched_layer];
 		/* utilize all the spaces if the parent is not full */
 		if (parent->num_children < max_child_nodes) {
 			new_num_nodes = max_child_nodes - parent->num_children;
-			/* this recursion is intentional, and wouldn't
-			 * go more than 2 calls
+		} else {
+			/* This parent is full, try the next sibling */
+			parent = parent->sibling;
+			/* Don't modify the first node TEID memory if the
+			 * first node was added already in the above call.
+			 * Instead send some temp memory for all other
+			 * recursive calls.
 			 */
-			status = ice_sched_add_nodes_to_layer(pi, tc_node,
-							      parent, layer,
-							      new_num_nodes,
-							      first_node_teid,
-							      &num_added);
-			if (status)
-				return status;
+			if (num_added)
+				first_teid_ptr = &temp;
 
-			*num_nodes_added += num_added;
+			new_num_nodes = num_nodes - *num_nodes_added;
 		}
-		/* Don't modify the first node TEID memory if the first node was
-		 * added already in the above call. Instead send some temp
-		 * memory for all other recursive calls.
-		 */
-		if (num_added)
-			first_teid_ptr = &temp;
-
-		new_num_nodes = num_nodes - num_added;
-
-		/* This parent is full, try the next sibling */
-		parent = parent->sibling;
-
-		/* this recursion is intentional, for 1024 queues
-		 * per VSI, it goes max of 16 iterations.
-		 * 1024 / 8 = 128 layer 8 nodes
-		 * 128 /8 = 16 (add 8 nodes per iteration)
-		 */
-		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent,
-						      layer, new_num_nodes,
-						      first_teid_ptr,
-						      &num_added);
-		*num_nodes_added += num_added;
-		return status;
 	}
-
-	status = ice_sched_add_elems(pi, tc_node, parent, layer, num_nodes,
-				     num_nodes_added, first_node_teid);
 	return status;
 }
 
@@ -1026,6 +1112,28 @@ static u8 ice_sched_get_vsi_layer(struct ice_hw *hw)
 }
 
 /**
+ * ice_sched_get_agg_layer - get the current aggregator layer number
+ * @hw: pointer to the HW struct
+ *
+ * This function returns the current aggregator layer number
+ */
+static u8 ice_sched_get_agg_layer(struct ice_hw *hw)
+{
+	/* Num Layers       aggregator layer
+	 *     9               4
+	 *     7 or less       sw_entry_point_layer
+	 */
+	/* calculate the aggregator layer based on number of layers. */
+	if (hw->num_tx_sched_layers > ICE_AGG_LAYER_OFFSET + 1) {
+		u8 layer = hw->num_tx_sched_layers - ICE_AGG_LAYER_OFFSET;
+
+		if (layer > hw->sw_entry_point_layer)
+			return layer;
+	}
+	return hw->sw_entry_point_layer;
+}
+
+/**
  * ice_rm_dflt_leaf_node - remove the default leaf node in the tree
  * @pi: port information structure
  *
@@ -1044,7 +1152,7 @@ static void ice_rm_dflt_leaf_node(struct ice_port_info *pi)
 	}
 	if (node && node->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF) {
 		u32 teid = le32_to_cpu(node->info.node_teid);
-		enum ice_status status;
+		int status;
 
 		/* remove the default leaf node */
 		status = ice_sched_remove_elems(pi->hw, node->parent, 1, &teid);
@@ -1090,23 +1198,23 @@ static void ice_sched_rm_dflt_nodes(struct ice_port_info *pi)
  * resources, default topology created by firmware and storing the information
  * in SW DB.
  */
-enum ice_status ice_sched_init_port(struct ice_port_info *pi)
+int ice_sched_init_port(struct ice_port_info *pi)
 {
 	struct ice_aqc_get_topo_elem *buf;
-	enum ice_status status;
 	struct ice_hw *hw;
 	u8 num_branches;
 	u16 num_elems;
+	int status;
 	u8 i, j;
 
 	if (!pi)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	hw = pi->hw;
 
 	/* Query the Default Topology from FW */
 	buf = devm_kzalloc(ice_hw_to_dev(hw), ICE_AQ_MAX_BUF_LEN, GFP_KERNEL);
 	if (!buf)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	/* Query default scheduling tree topology */
 	status = ice_aq_get_dflt_topo(hw, pi->lport, buf, ICE_AQ_MAX_BUF_LEN,
@@ -1118,7 +1226,7 @@ enum ice_status ice_sched_init_port(struct ice_port_info *pi)
 	if (num_branches < 1 || num_branches > ICE_TXSCHED_MAX_BRANCHES) {
 		ice_debug(hw, ICE_DBG_SCHED, "num_branches unexpected %d\n",
 			  num_branches);
-		status = ICE_ERR_PARAM;
+		status = -EINVAL;
 		goto err_init_port;
 	}
 
@@ -1129,7 +1237,7 @@ enum ice_status ice_sched_init_port(struct ice_port_info *pi)
 	if (num_elems < 1 || num_elems > ICE_AQC_TOPO_MAX_LEVEL_NUM) {
 		ice_debug(hw, ICE_DBG_SCHED, "num_elems unexpected %d\n",
 			  num_elems);
-		status = ICE_ERR_PARAM;
+		status = -EINVAL;
 		goto err_init_port;
 	}
 
@@ -1192,11 +1300,11 @@ err_init_port:
  *
  * query FW for allocated scheduler resources and store in HW struct
  */
-enum ice_status ice_sched_query_res_alloc(struct ice_hw *hw)
+int ice_sched_query_res_alloc(struct ice_hw *hw)
 {
 	struct ice_aqc_query_txsched_res_resp *buf;
-	enum ice_status status = 0;
 	__le16 max_sibl;
+	int status = 0;
 	u16 i;
 
 	if (hw->layer_info)
@@ -1204,7 +1312,7 @@ enum ice_status ice_sched_query_res_alloc(struct ice_hw *hw)
 
 	buf = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*buf), GFP_KERNEL);
 	if (!buf)
-		return ICE_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	status = ice_aq_query_sched_res(hw, sizeof(*buf), buf, NULL);
 	if (status)
@@ -1233,13 +1341,53 @@ enum ice_status ice_sched_query_res_alloc(struct ice_hw *hw)
 				       sizeof(*hw->layer_info)),
 				      GFP_KERNEL);
 	if (!hw->layer_info) {
-		status = ICE_ERR_NO_MEMORY;
+		status = -ENOMEM;
 		goto sched_query_out;
 	}
 
 sched_query_out:
 	devm_kfree(ice_hw_to_dev(hw), buf);
 	return status;
+}
+
+/**
+ * ice_sched_get_psm_clk_freq - determine the PSM clock frequency
+ * @hw: pointer to the HW struct
+ *
+ * Determine the PSM clock frequency and store in HW struct
+ */
+void ice_sched_get_psm_clk_freq(struct ice_hw *hw)
+{
+	u32 val, clk_src;
+
+	val = rd32(hw, GLGEN_CLKSTAT_SRC);
+	clk_src = (val & GLGEN_CLKSTAT_SRC_PSM_CLK_SRC_M) >>
+		GLGEN_CLKSTAT_SRC_PSM_CLK_SRC_S;
+
+#define PSM_CLK_SRC_367_MHZ 0x0
+#define PSM_CLK_SRC_416_MHZ 0x1
+#define PSM_CLK_SRC_446_MHZ 0x2
+#define PSM_CLK_SRC_390_MHZ 0x3
+
+	switch (clk_src) {
+	case PSM_CLK_SRC_367_MHZ:
+		hw->psm_clk_freq = ICE_PSM_CLK_367MHZ_IN_HZ;
+		break;
+	case PSM_CLK_SRC_416_MHZ:
+		hw->psm_clk_freq = ICE_PSM_CLK_416MHZ_IN_HZ;
+		break;
+	case PSM_CLK_SRC_446_MHZ:
+		hw->psm_clk_freq = ICE_PSM_CLK_446MHZ_IN_HZ;
+		break;
+	case PSM_CLK_SRC_390_MHZ:
+		hw->psm_clk_freq = ICE_PSM_CLK_390MHZ_IN_HZ;
+		break;
+	default:
+		ice_debug(hw, ICE_DBG_SCHED, "PSM clk_src unexpected %u\n",
+			  clk_src);
+		/* fall back to a safe default */
+		hw->psm_clk_freq = ICE_PSM_CLK_446MHZ_IN_HZ;
+	}
 }
 
 /**
@@ -1368,7 +1516,7 @@ ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 
 /**
  * ice_sched_get_vsi_node - Get a VSI node based on VSI ID
- * @hw: pointer to the HW struct
+ * @pi: pointer to the port information structure
  * @tc_node: pointer to the TC node
  * @vsi_handle: software VSI handle
  *
@@ -1376,18 +1524,50 @@ ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
  * TC branch
  */
 static struct ice_sched_node *
-ice_sched_get_vsi_node(struct ice_hw *hw, struct ice_sched_node *tc_node,
+ice_sched_get_vsi_node(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 		       u16 vsi_handle)
 {
 	struct ice_sched_node *node;
 	u8 vsi_layer;
 
-	vsi_layer = ice_sched_get_vsi_layer(hw);
-	node = ice_sched_get_first_node(hw->port_info, tc_node, vsi_layer);
+	vsi_layer = ice_sched_get_vsi_layer(pi->hw);
+	node = ice_sched_get_first_node(pi, tc_node, vsi_layer);
 
 	/* Check whether it already exists */
 	while (node) {
 		if (node->vsi_handle == vsi_handle)
+			return node;
+		node = node->sibling;
+	}
+
+	return node;
+}
+
+/**
+ * ice_sched_get_agg_node - Get an aggregator node based on aggregator ID
+ * @pi: pointer to the port information structure
+ * @tc_node: pointer to the TC node
+ * @agg_id: aggregator ID
+ *
+ * This function retrieves an aggregator node for a given aggregator ID from
+ * a given TC branch
+ */
+static struct ice_sched_node *
+ice_sched_get_agg_node(struct ice_port_info *pi, struct ice_sched_node *tc_node,
+		       u32 agg_id)
+{
+	struct ice_sched_node *node;
+	struct ice_hw *hw = pi->hw;
+	u8 agg_layer;
+
+	if (!hw)
+		return NULL;
+	agg_layer = ice_sched_get_agg_layer(hw);
+	node = ice_sched_get_first_node(pi, tc_node, agg_layer);
+
+	/* Check whether it already exists */
+	while (node) {
+		if (node->agg_id == agg_id)
 			return node;
 		node = node->sibling;
 	}
@@ -1434,31 +1614,31 @@ ice_sched_calc_vsi_child_nodes(struct ice_hw *hw, u16 num_qs, u16 *num_nodes)
  * This function adds the VSI child nodes to tree. It gets called for
  * LAN and RDMA separately.
  */
-static enum ice_status
+static int
 ice_sched_add_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 			      struct ice_sched_node *tc_node, u16 *num_nodes,
 			      u8 owner)
 {
 	struct ice_sched_node *parent, *node;
 	struct ice_hw *hw = pi->hw;
-	enum ice_status status;
 	u32 first_node_teid;
 	u16 num_added = 0;
 	u8 i, qgl, vsil;
+	int status;
 
 	qgl = ice_sched_get_qgrp_layer(hw);
 	vsil = ice_sched_get_vsi_layer(hw);
-	parent = ice_sched_get_vsi_node(hw, tc_node, vsi_handle);
+	parent = ice_sched_get_vsi_node(pi, tc_node, vsi_handle);
 	for (i = vsil + 1; i <= qgl; i++) {
 		if (!parent)
-			return ICE_ERR_CFG;
+			return -EIO;
 
 		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent, i,
 						      num_nodes[i],
 						      &first_node_teid,
 						      &num_added);
 		if (status || num_nodes[i] != num_added)
-			return ICE_ERR_CFG;
+			return -EIO;
 
 		/* The newly added node can be a new parent for the next
 		 * layer nodes
@@ -1481,7 +1661,7 @@ ice_sched_add_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 
 /**
  * ice_sched_calc_vsi_support_nodes - calculate number of VSI support nodes
- * @hw: pointer to the HW struct
+ * @pi: pointer to the port info structure
  * @tc_node: pointer to TC node
  * @num_nodes: pointer to num nodes array
  *
@@ -1490,15 +1670,15 @@ ice_sched_add_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
  * layers
  */
 static void
-ice_sched_calc_vsi_support_nodes(struct ice_hw *hw,
+ice_sched_calc_vsi_support_nodes(struct ice_port_info *pi,
 				 struct ice_sched_node *tc_node, u16 *num_nodes)
 {
 	struct ice_sched_node *node;
 	u8 vsil;
 	int i;
 
-	vsil = ice_sched_get_vsi_layer(hw);
-	for (i = vsil; i >= hw->sw_entry_point_layer; i--)
+	vsil = ice_sched_get_vsi_layer(pi->hw);
+	for (i = vsil; i >= pi->hw->sw_entry_point_layer; i--)
 		/* Add intermediate nodes if TC has no children and
 		 * need at least one node for VSI
 		 */
@@ -1508,11 +1688,10 @@ ice_sched_calc_vsi_support_nodes(struct ice_hw *hw,
 			/* If intermediate nodes are reached max children
 			 * then add a new one.
 			 */
-			node = ice_sched_get_first_node(hw->port_info, tc_node,
-							(u8)i);
+			node = ice_sched_get_first_node(pi, tc_node, (u8)i);
 			/* scan all the siblings */
 			while (node) {
-				if (node->num_children < hw->max_children[i])
+				if (node->num_children < pi->hw->max_children[i])
 					break;
 				node = node->sibling;
 			}
@@ -1538,18 +1717,18 @@ ice_sched_calc_vsi_support_nodes(struct ice_hw *hw,
  * This function adds the VSI supported nodes into Tx tree including the
  * VSI, its parent and intermediate nodes in below layers
  */
-static enum ice_status
+static int
 ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_handle,
 				struct ice_sched_node *tc_node, u16 *num_nodes)
 {
 	struct ice_sched_node *parent = tc_node;
-	enum ice_status status;
 	u32 first_node_teid;
 	u16 num_added = 0;
 	u8 i, vsil;
+	int status;
 
 	if (!pi)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	vsil = ice_sched_get_vsi_layer(pi->hw);
 	for (i = pi->hw->sw_entry_point_layer; i <= vsil; i++) {
@@ -1558,7 +1737,7 @@ ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_handle,
 						      &first_node_teid,
 						      &num_added);
 		if (status || num_nodes[i] != num_added)
-			return ICE_ERR_CFG;
+			return -EIO;
 
 		/* The newly added node can be a new parent for the next
 		 * layer nodes
@@ -1570,7 +1749,7 @@ ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_handle,
 			parent = parent->children[0];
 
 		if (!parent)
-			return ICE_ERR_CFG;
+			return -EIO;
 
 		if (i == vsil)
 			parent->vsi_handle = vsi_handle;
@@ -1587,19 +1766,18 @@ ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_handle,
  *
  * This function adds a new VSI into scheduler tree
  */
-static enum ice_status
+static int
 ice_sched_add_vsi_to_topo(struct ice_port_info *pi, u16 vsi_handle, u8 tc)
 {
 	u16 num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
 	struct ice_sched_node *tc_node;
-	struct ice_hw *hw = pi->hw;
 
 	tc_node = ice_sched_get_tc_node(pi, tc);
 	if (!tc_node)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	/* calculate number of supported nodes needed for this VSI */
-	ice_sched_calc_vsi_support_nodes(hw, tc_node, num_nodes);
+	ice_sched_calc_vsi_support_nodes(pi, tc_node, num_nodes);
 
 	/* add VSI supported nodes to TC subtree */
 	return ice_sched_add_vsi_support_nodes(pi, vsi_handle, tc_node,
@@ -1616,7 +1794,7 @@ ice_sched_add_vsi_to_topo(struct ice_port_info *pi, u16 vsi_handle, u8 tc)
  *
  * This function updates the VSI child nodes based on the number of queues
  */
-static enum ice_status
+static int
 ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 				 u8 tc, u16 new_numqs, u8 owner)
 {
@@ -1624,29 +1802,38 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 	struct ice_sched_node *vsi_node;
 	struct ice_sched_node *tc_node;
 	struct ice_vsi_ctx *vsi_ctx;
-	enum ice_status status = 0;
 	struct ice_hw *hw = pi->hw;
 	u16 prev_numqs;
+	int status = 0;
 
 	tc_node = ice_sched_get_tc_node(pi, tc);
 	if (!tc_node)
-		return ICE_ERR_CFG;
+		return -EIO;
 
-	vsi_node = ice_sched_get_vsi_node(hw, tc_node, vsi_handle);
+	vsi_node = ice_sched_get_vsi_node(pi, tc_node, vsi_handle);
 	if (!vsi_node)
-		return ICE_ERR_CFG;
+		return -EIO;
 
 	vsi_ctx = ice_get_vsi_ctx(hw, vsi_handle);
 	if (!vsi_ctx)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
-	prev_numqs = vsi_ctx->sched.max_lanq[tc];
+	if (owner == ICE_SCHED_NODE_OWNER_LAN)
+		prev_numqs = vsi_ctx->sched.max_lanq[tc];
+	else
+		prev_numqs = vsi_ctx->sched.max_rdmaq[tc];
 	/* num queues are not changed or less than the previous number */
 	if (new_numqs <= prev_numqs)
 		return status;
-	status = ice_alloc_lan_q_ctx(hw, vsi_handle, tc, new_numqs);
-	if (status)
-		return status;
+	if (owner == ICE_SCHED_NODE_OWNER_LAN) {
+		status = ice_alloc_lan_q_ctx(hw, vsi_handle, tc, new_numqs);
+		if (status)
+			return status;
+	} else {
+		status = ice_alloc_rdma_q_ctx(hw, vsi_handle, tc, new_numqs);
+		if (status)
+			return status;
+	}
 
 	if (new_numqs)
 		ice_sched_calc_vsi_child_nodes(hw, new_numqs, new_num_nodes);
@@ -1661,7 +1848,10 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 					       new_num_nodes, owner);
 	if (status)
 		return status;
-	vsi_ctx->sched.max_lanq[tc] = new_numqs;
+	if (owner == ICE_SCHED_NODE_OWNER_LAN)
+		vsi_ctx->sched.max_lanq[tc] = new_numqs;
+	else
+		vsi_ctx->sched.max_rdmaq[tc] = new_numqs;
 
 	return 0;
 }
@@ -1679,23 +1869,23 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
  * enabled and VSI is in suspended state then resume the VSI back. If TC is
  * disabled then suspend the VSI if it is not already.
  */
-enum ice_status
+int
 ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 		  u8 owner, bool enable)
 {
 	struct ice_sched_node *vsi_node, *tc_node;
 	struct ice_vsi_ctx *vsi_ctx;
-	enum ice_status status = 0;
 	struct ice_hw *hw = pi->hw;
+	int status = 0;
 
 	ice_debug(pi->hw, ICE_DBG_SCHED, "add/config VSI %d\n", vsi_handle);
 	tc_node = ice_sched_get_tc_node(pi, tc);
 	if (!tc_node)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	vsi_ctx = ice_get_vsi_ctx(hw, vsi_handle);
 	if (!vsi_ctx)
-		return ICE_ERR_PARAM;
-	vsi_node = ice_sched_get_vsi_node(hw, tc_node, vsi_handle);
+		return -EINVAL;
+	vsi_node = ice_sched_get_vsi_node(pi, tc_node, vsi_handle);
 
 	/* suspend the VSI if TC is not enabled */
 	if (!enable) {
@@ -1716,9 +1906,9 @@ ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 		if (status)
 			return status;
 
-		vsi_node = ice_sched_get_vsi_node(hw, tc_node, vsi_handle);
+		vsi_node = ice_sched_get_vsi_node(pi, tc_node, vsi_handle);
 		if (!vsi_node)
-			return ICE_ERR_CFG;
+			return -EIO;
 
 		vsi_ctx->sched.vsi_node[tc] = vsi_node;
 		vsi_node->in_use = true;
@@ -1727,6 +1917,7 @@ ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 		 * recreate the child nodes all the time in these cases.
 		 */
 		vsi_ctx->sched.max_lanq[tc] = 0;
+		vsi_ctx->sched.max_rdmaq[tc] = 0;
 	}
 
 	/* update the VSI child nodes */
@@ -1748,7 +1939,7 @@ ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 }
 
 /**
- * ice_sched_rm_agg_vsi_entry - remove aggregator related VSI info entry
+ * ice_sched_rm_agg_vsi_info - remove aggregator related VSI info entry
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  *
@@ -1802,11 +1993,11 @@ static bool ice_sched_is_leaf_node_present(struct ice_sched_node *node)
  * This function removes the VSI and its LAN or RDMA children nodes from the
  * scheduler tree.
  */
-static enum ice_status
+static int
 ice_sched_rm_vsi_cfg(struct ice_port_info *pi, u16 vsi_handle, u8 owner)
 {
-	enum ice_status status = ICE_ERR_PARAM;
 	struct ice_vsi_ctx *vsi_ctx;
+	int status = -EINVAL;
 	u8 i;
 
 	ice_debug(pi->hw, ICE_DBG_SCHED, "removing VSI %d\n", vsi_handle);
@@ -1825,14 +2016,13 @@ ice_sched_rm_vsi_cfg(struct ice_port_info *pi, u16 vsi_handle, u8 owner)
 		if (!tc_node)
 			continue;
 
-		vsi_node = ice_sched_get_vsi_node(pi->hw, tc_node, vsi_handle);
+		vsi_node = ice_sched_get_vsi_node(pi, tc_node, vsi_handle);
 		if (!vsi_node)
 			continue;
 
 		if (ice_sched_is_leaf_node_present(vsi_node)) {
-			ice_debug(pi->hw, ICE_DBG_SCHED,
-				  "VSI has leaf nodes in TC %d\n", i);
-			status = ICE_ERR_IN_USE;
+			ice_debug(pi->hw, ICE_DBG_SCHED, "VSI has leaf nodes in TC %d\n", i);
+			status = -EBUSY;
 			goto exit_sched_rm_vsi_cfg;
 		}
 		while (j < vsi_node->num_children) {
@@ -1857,6 +2047,8 @@ ice_sched_rm_vsi_cfg(struct ice_port_info *pi, u16 vsi_handle, u8 owner)
 		}
 		if (owner == ICE_SCHED_NODE_OWNER_LAN)
 			vsi_ctx->sched.max_lanq[i] = 0;
+		else
+			vsi_ctx->sched.max_rdmaq[i] = 0;
 	}
 	status = 0;
 
@@ -1873,9 +2065,754 @@ exit_sched_rm_vsi_cfg:
  * This function clears the VSI and its LAN children nodes from scheduler tree
  * for all TCs.
  */
-enum ice_status ice_rm_vsi_lan_cfg(struct ice_port_info *pi, u16 vsi_handle)
+int ice_rm_vsi_lan_cfg(struct ice_port_info *pi, u16 vsi_handle)
 {
 	return ice_sched_rm_vsi_cfg(pi, vsi_handle, ICE_SCHED_NODE_OWNER_LAN);
+}
+
+/**
+ * ice_rm_vsi_rdma_cfg - remove VSI and its RDMA children nodes
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ *
+ * This function clears the VSI and its RDMA children nodes from scheduler tree
+ * for all TCs.
+ */
+int ice_rm_vsi_rdma_cfg(struct ice_port_info *pi, u16 vsi_handle)
+{
+	return ice_sched_rm_vsi_cfg(pi, vsi_handle, ICE_SCHED_NODE_OWNER_RDMA);
+}
+
+/**
+ * ice_get_agg_info - get the aggregator ID
+ * @hw: pointer to the hardware structure
+ * @agg_id: aggregator ID
+ *
+ * This function validates aggregator ID. The function returns info if
+ * aggregator ID is present in list otherwise it returns null.
+ */
+static struct ice_sched_agg_info *
+ice_get_agg_info(struct ice_hw *hw, u32 agg_id)
+{
+	struct ice_sched_agg_info *agg_info;
+
+	list_for_each_entry(agg_info, &hw->agg_list, list_entry)
+		if (agg_info->agg_id == agg_id)
+			return agg_info;
+
+	return NULL;
+}
+
+/**
+ * ice_sched_get_free_vsi_parent - Find a free parent node in aggregator subtree
+ * @hw: pointer to the HW struct
+ * @node: pointer to a child node
+ * @num_nodes: num nodes count array
+ *
+ * This function walks through the aggregator subtree to find a free parent
+ * node
+ */
+static struct ice_sched_node *
+ice_sched_get_free_vsi_parent(struct ice_hw *hw, struct ice_sched_node *node,
+			      u16 *num_nodes)
+{
+	u8 l = node->tx_sched_layer;
+	u8 vsil, i;
+
+	vsil = ice_sched_get_vsi_layer(hw);
+
+	/* Is it VSI parent layer ? */
+	if (l == vsil - 1)
+		return (node->num_children < hw->max_children[l]) ? node : NULL;
+
+	/* We have intermediate nodes. Let's walk through the subtree. If the
+	 * intermediate node has space to add a new node then clear the count
+	 */
+	if (node->num_children < hw->max_children[l])
+		num_nodes[l] = 0;
+	/* The below recursive call is intentional and wouldn't go more than
+	 * 2 or 3 iterations.
+	 */
+
+	for (i = 0; i < node->num_children; i++) {
+		struct ice_sched_node *parent;
+
+		parent = ice_sched_get_free_vsi_parent(hw, node->children[i],
+						       num_nodes);
+		if (parent)
+			return parent;
+	}
+
+	return NULL;
+}
+
+/**
+ * ice_sched_update_parent - update the new parent in SW DB
+ * @new_parent: pointer to a new parent node
+ * @node: pointer to a child node
+ *
+ * This function removes the child from the old parent and adds it to a new
+ * parent
+ */
+static void
+ice_sched_update_parent(struct ice_sched_node *new_parent,
+			struct ice_sched_node *node)
+{
+	struct ice_sched_node *old_parent;
+	u8 i, j;
+
+	old_parent = node->parent;
+
+	/* update the old parent children */
+	for (i = 0; i < old_parent->num_children; i++)
+		if (old_parent->children[i] == node) {
+			for (j = i + 1; j < old_parent->num_children; j++)
+				old_parent->children[j - 1] =
+					old_parent->children[j];
+			old_parent->num_children--;
+			break;
+		}
+
+	/* now move the node to a new parent */
+	new_parent->children[new_parent->num_children++] = node;
+	node->parent = new_parent;
+	node->info.parent_teid = new_parent->info.node_teid;
+}
+
+/**
+ * ice_sched_move_nodes - move child nodes to a given parent
+ * @pi: port information structure
+ * @parent: pointer to parent node
+ * @num_items: number of child nodes to be moved
+ * @list: pointer to child node teids
+ *
+ * This function move the child nodes to a given parent.
+ */
+static int
+ice_sched_move_nodes(struct ice_port_info *pi, struct ice_sched_node *parent,
+		     u16 num_items, u32 *list)
+{
+	struct ice_aqc_move_elem *buf;
+	struct ice_sched_node *node;
+	u16 i, grps_movd = 0;
+	struct ice_hw *hw;
+	int status = 0;
+	u16 buf_len;
+
+	hw = pi->hw;
+
+	if (!parent || !num_items)
+		return -EINVAL;
+
+	/* Does parent have enough space */
+	if (parent->num_children + num_items >
+	    hw->max_children[parent->tx_sched_layer])
+		return -ENOSPC;
+
+	buf_len = struct_size(buf, teid, 1);
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	for (i = 0; i < num_items; i++) {
+		node = ice_sched_find_node_by_teid(pi->root, list[i]);
+		if (!node) {
+			status = -EINVAL;
+			goto move_err_exit;
+		}
+
+		buf->hdr.src_parent_teid = node->info.parent_teid;
+		buf->hdr.dest_parent_teid = parent->info.node_teid;
+		buf->teid[0] = node->info.node_teid;
+		buf->hdr.num_elems = cpu_to_le16(1);
+		status = ice_aq_move_sched_elems(hw, 1, buf, buf_len,
+						 &grps_movd, NULL);
+		if (status && grps_movd != 1) {
+			status = -EIO;
+			goto move_err_exit;
+		}
+
+		/* update the SW DB */
+		ice_sched_update_parent(parent, node);
+	}
+
+move_err_exit:
+	kfree(buf);
+	return status;
+}
+
+/**
+ * ice_sched_move_vsi_to_agg - move VSI to aggregator node
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ * @agg_id: aggregator ID
+ * @tc: TC number
+ *
+ * This function moves a VSI to an aggregator node or its subtree.
+ * Intermediate nodes may be created if required.
+ */
+static int
+ice_sched_move_vsi_to_agg(struct ice_port_info *pi, u16 vsi_handle, u32 agg_id,
+			  u8 tc)
+{
+	struct ice_sched_node *vsi_node, *agg_node, *tc_node, *parent;
+	u16 num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
+	u32 first_node_teid, vsi_teid;
+	u16 num_nodes_added;
+	u8 aggl, vsil, i;
+	int status;
+
+	tc_node = ice_sched_get_tc_node(pi, tc);
+	if (!tc_node)
+		return -EIO;
+
+	agg_node = ice_sched_get_agg_node(pi, tc_node, agg_id);
+	if (!agg_node)
+		return -ENOENT;
+
+	vsi_node = ice_sched_get_vsi_node(pi, tc_node, vsi_handle);
+	if (!vsi_node)
+		return -ENOENT;
+
+	/* Is this VSI already part of given aggregator? */
+	if (ice_sched_find_node_in_subtree(pi->hw, agg_node, vsi_node))
+		return 0;
+
+	aggl = ice_sched_get_agg_layer(pi->hw);
+	vsil = ice_sched_get_vsi_layer(pi->hw);
+
+	/* set intermediate node count to 1 between aggregator and VSI layers */
+	for (i = aggl + 1; i < vsil; i++)
+		num_nodes[i] = 1;
+
+	/* Check if the aggregator subtree has any free node to add the VSI */
+	for (i = 0; i < agg_node->num_children; i++) {
+		parent = ice_sched_get_free_vsi_parent(pi->hw,
+						       agg_node->children[i],
+						       num_nodes);
+		if (parent)
+			goto move_nodes;
+	}
+
+	/* add new nodes */
+	parent = agg_node;
+	for (i = aggl + 1; i < vsil; i++) {
+		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent, i,
+						      num_nodes[i],
+						      &first_node_teid,
+						      &num_nodes_added);
+		if (status || num_nodes[i] != num_nodes_added)
+			return -EIO;
+
+		/* The newly added node can be a new parent for the next
+		 * layer nodes
+		 */
+		if (num_nodes_added)
+			parent = ice_sched_find_node_by_teid(tc_node,
+							     first_node_teid);
+		else
+			parent = parent->children[0];
+
+		if (!parent)
+			return -EIO;
+	}
+
+move_nodes:
+	vsi_teid = le32_to_cpu(vsi_node->info.node_teid);
+	return ice_sched_move_nodes(pi, parent, 1, &vsi_teid);
+}
+
+/**
+ * ice_move_all_vsi_to_dflt_agg - move all VSI(s) to default aggregator
+ * @pi: port information structure
+ * @agg_info: aggregator info
+ * @tc: traffic class number
+ * @rm_vsi_info: true or false
+ *
+ * This function move all the VSI(s) to the default aggregator and delete
+ * aggregator VSI info based on passed in boolean parameter rm_vsi_info. The
+ * caller holds the scheduler lock.
+ */
+static int
+ice_move_all_vsi_to_dflt_agg(struct ice_port_info *pi,
+			     struct ice_sched_agg_info *agg_info, u8 tc,
+			     bool rm_vsi_info)
+{
+	struct ice_sched_agg_vsi_info *agg_vsi_info;
+	struct ice_sched_agg_vsi_info *tmp;
+	int status = 0;
+
+	list_for_each_entry_safe(agg_vsi_info, tmp, &agg_info->agg_vsi_list,
+				 list_entry) {
+		u16 vsi_handle = agg_vsi_info->vsi_handle;
+
+		/* Move VSI to default aggregator */
+		if (!ice_is_tc_ena(agg_vsi_info->tc_bitmap[0], tc))
+			continue;
+
+		status = ice_sched_move_vsi_to_agg(pi, vsi_handle,
+						   ICE_DFLT_AGG_ID, tc);
+		if (status)
+			break;
+
+		clear_bit(tc, agg_vsi_info->tc_bitmap);
+		if (rm_vsi_info && !agg_vsi_info->tc_bitmap[0]) {
+			list_del(&agg_vsi_info->list_entry);
+			devm_kfree(ice_hw_to_dev(pi->hw), agg_vsi_info);
+		}
+	}
+
+	return status;
+}
+
+/**
+ * ice_sched_is_agg_inuse - check whether the aggregator is in use or not
+ * @pi: port information structure
+ * @node: node pointer
+ *
+ * This function checks whether the aggregator is attached with any VSI or not.
+ */
+static bool
+ice_sched_is_agg_inuse(struct ice_port_info *pi, struct ice_sched_node *node)
+{
+	u8 vsil, i;
+
+	vsil = ice_sched_get_vsi_layer(pi->hw);
+	if (node->tx_sched_layer < vsil - 1) {
+		for (i = 0; i < node->num_children; i++)
+			if (ice_sched_is_agg_inuse(pi, node->children[i]))
+				return true;
+		return false;
+	} else {
+		return node->num_children ? true : false;
+	}
+}
+
+/**
+ * ice_sched_rm_agg_cfg - remove the aggregator node
+ * @pi: port information structure
+ * @agg_id: aggregator ID
+ * @tc: TC number
+ *
+ * This function removes the aggregator node and intermediate nodes if any
+ * from the given TC
+ */
+static int
+ice_sched_rm_agg_cfg(struct ice_port_info *pi, u32 agg_id, u8 tc)
+{
+	struct ice_sched_node *tc_node, *agg_node;
+	struct ice_hw *hw = pi->hw;
+
+	tc_node = ice_sched_get_tc_node(pi, tc);
+	if (!tc_node)
+		return -EIO;
+
+	agg_node = ice_sched_get_agg_node(pi, tc_node, agg_id);
+	if (!agg_node)
+		return -ENOENT;
+
+	/* Can't remove the aggregator node if it has children */
+	if (ice_sched_is_agg_inuse(pi, agg_node))
+		return -EBUSY;
+
+	/* need to remove the whole subtree if aggregator node is the
+	 * only child.
+	 */
+	while (agg_node->tx_sched_layer > hw->sw_entry_point_layer) {
+		struct ice_sched_node *parent = agg_node->parent;
+
+		if (!parent)
+			return -EIO;
+
+		if (parent->num_children > 1)
+			break;
+
+		agg_node = parent;
+	}
+
+	ice_free_sched_node(pi, agg_node);
+	return 0;
+}
+
+/**
+ * ice_rm_agg_cfg_tc - remove aggregator configuration for TC
+ * @pi: port information structure
+ * @agg_info: aggregator ID
+ * @tc: TC number
+ * @rm_vsi_info: bool value true or false
+ *
+ * This function removes aggregator reference to VSI of given TC. It removes
+ * the aggregator configuration completely for requested TC. The caller needs
+ * to hold the scheduler lock.
+ */
+static int
+ice_rm_agg_cfg_tc(struct ice_port_info *pi, struct ice_sched_agg_info *agg_info,
+		  u8 tc, bool rm_vsi_info)
+{
+	int status = 0;
+
+	/* If nothing to remove - return success */
+	if (!ice_is_tc_ena(agg_info->tc_bitmap[0], tc))
+		goto exit_rm_agg_cfg_tc;
+
+	status = ice_move_all_vsi_to_dflt_agg(pi, agg_info, tc, rm_vsi_info);
+	if (status)
+		goto exit_rm_agg_cfg_tc;
+
+	/* Delete aggregator node(s) */
+	status = ice_sched_rm_agg_cfg(pi, agg_info->agg_id, tc);
+	if (status)
+		goto exit_rm_agg_cfg_tc;
+
+	clear_bit(tc, agg_info->tc_bitmap);
+exit_rm_agg_cfg_tc:
+	return status;
+}
+
+/**
+ * ice_save_agg_tc_bitmap - save aggregator TC bitmap
+ * @pi: port information structure
+ * @agg_id: aggregator ID
+ * @tc_bitmap: 8 bits TC bitmap
+ *
+ * Save aggregator TC bitmap. This function needs to be called with scheduler
+ * lock held.
+ */
+static int
+ice_save_agg_tc_bitmap(struct ice_port_info *pi, u32 agg_id,
+		       unsigned long *tc_bitmap)
+{
+	struct ice_sched_agg_info *agg_info;
+
+	agg_info = ice_get_agg_info(pi->hw, agg_id);
+	if (!agg_info)
+		return -EINVAL;
+	bitmap_copy(agg_info->replay_tc_bitmap, tc_bitmap,
+		    ICE_MAX_TRAFFIC_CLASS);
+	return 0;
+}
+
+/**
+ * ice_sched_add_agg_cfg - create an aggregator node
+ * @pi: port information structure
+ * @agg_id: aggregator ID
+ * @tc: TC number
+ *
+ * This function creates an aggregator node and intermediate nodes if required
+ * for the given TC
+ */
+static int
+ice_sched_add_agg_cfg(struct ice_port_info *pi, u32 agg_id, u8 tc)
+{
+	struct ice_sched_node *parent, *agg_node, *tc_node;
+	u16 num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
+	struct ice_hw *hw = pi->hw;
+	u32 first_node_teid;
+	u16 num_nodes_added;
+	int status = 0;
+	u8 i, aggl;
+
+	tc_node = ice_sched_get_tc_node(pi, tc);
+	if (!tc_node)
+		return -EIO;
+
+	agg_node = ice_sched_get_agg_node(pi, tc_node, agg_id);
+	/* Does Agg node already exist ? */
+	if (agg_node)
+		return status;
+
+	aggl = ice_sched_get_agg_layer(hw);
+
+	/* need one node in Agg layer */
+	num_nodes[aggl] = 1;
+
+	/* Check whether the intermediate nodes have space to add the
+	 * new aggregator. If they are full, then SW needs to allocate a new
+	 * intermediate node on those layers
+	 */
+	for (i = hw->sw_entry_point_layer; i < aggl; i++) {
+		parent = ice_sched_get_first_node(pi, tc_node, i);
+
+		/* scan all the siblings */
+		while (parent) {
+			if (parent->num_children < hw->max_children[i])
+				break;
+			parent = parent->sibling;
+		}
+
+		/* all the nodes are full, reserve one for this layer */
+		if (!parent)
+			num_nodes[i]++;
+	}
+
+	/* add the aggregator node */
+	parent = tc_node;
+	for (i = hw->sw_entry_point_layer; i <= aggl; i++) {
+		if (!parent)
+			return -EIO;
+
+		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent, i,
+						      num_nodes[i],
+						      &first_node_teid,
+						      &num_nodes_added);
+		if (status || num_nodes[i] != num_nodes_added)
+			return -EIO;
+
+		/* The newly added node can be a new parent for the next
+		 * layer nodes
+		 */
+		if (num_nodes_added) {
+			parent = ice_sched_find_node_by_teid(tc_node,
+							     first_node_teid);
+			/* register aggregator ID with the aggregator node */
+			if (parent && i == aggl)
+				parent->agg_id = agg_id;
+		} else {
+			parent = parent->children[0];
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * ice_sched_cfg_agg - configure aggregator node
+ * @pi: port information structure
+ * @agg_id: aggregator ID
+ * @agg_type: aggregator type queue, VSI, or aggregator group
+ * @tc_bitmap: bits TC bitmap
+ *
+ * It registers a unique aggregator node into scheduler services. It
+ * allows a user to register with a unique ID to track it's resources.
+ * The aggregator type determines if this is a queue group, VSI group
+ * or aggregator group. It then creates the aggregator node(s) for requested
+ * TC(s) or removes an existing aggregator node including its configuration
+ * if indicated via tc_bitmap. Call ice_rm_agg_cfg to release aggregator
+ * resources and remove aggregator ID.
+ * This function needs to be called with scheduler lock held.
+ */
+static int
+ice_sched_cfg_agg(struct ice_port_info *pi, u32 agg_id,
+		  enum ice_agg_type agg_type, unsigned long *tc_bitmap)
+{
+	struct ice_sched_agg_info *agg_info;
+	struct ice_hw *hw = pi->hw;
+	int status = 0;
+	u8 tc;
+
+	agg_info = ice_get_agg_info(hw, agg_id);
+	if (!agg_info) {
+		/* Create new entry for new aggregator ID */
+		agg_info = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*agg_info),
+					GFP_KERNEL);
+		if (!agg_info)
+			return -ENOMEM;
+
+		agg_info->agg_id = agg_id;
+		agg_info->agg_type = agg_type;
+		agg_info->tc_bitmap[0] = 0;
+
+		/* Initialize the aggregator VSI list head */
+		INIT_LIST_HEAD(&agg_info->agg_vsi_list);
+
+		/* Add new entry in aggregator list */
+		list_add(&agg_info->list_entry, &hw->agg_list);
+	}
+	/* Create aggregator node(s) for requested TC(s) */
+	ice_for_each_traffic_class(tc) {
+		if (!ice_is_tc_ena(*tc_bitmap, tc)) {
+			/* Delete aggregator cfg TC if it exists previously */
+			status = ice_rm_agg_cfg_tc(pi, agg_info, tc, false);
+			if (status)
+				break;
+			continue;
+		}
+
+		/* Check if aggregator node for TC already exists */
+		if (ice_is_tc_ena(agg_info->tc_bitmap[0], tc))
+			continue;
+
+		/* Create new aggregator node for TC */
+		status = ice_sched_add_agg_cfg(pi, agg_id, tc);
+		if (status)
+			break;
+
+		/* Save aggregator node's TC information */
+		set_bit(tc, agg_info->tc_bitmap);
+	}
+
+	return status;
+}
+
+/**
+ * ice_cfg_agg - config aggregator node
+ * @pi: port information structure
+ * @agg_id: aggregator ID
+ * @agg_type: aggregator type queue, VSI, or aggregator group
+ * @tc_bitmap: bits TC bitmap
+ *
+ * This function configures aggregator node(s).
+ */
+int
+ice_cfg_agg(struct ice_port_info *pi, u32 agg_id, enum ice_agg_type agg_type,
+	    u8 tc_bitmap)
+{
+	unsigned long bitmap = tc_bitmap;
+	int status;
+
+	mutex_lock(&pi->sched_lock);
+	status = ice_sched_cfg_agg(pi, agg_id, agg_type, &bitmap);
+	if (!status)
+		status = ice_save_agg_tc_bitmap(pi, agg_id, &bitmap);
+	mutex_unlock(&pi->sched_lock);
+	return status;
+}
+
+/**
+ * ice_get_agg_vsi_info - get the aggregator ID
+ * @agg_info: aggregator info
+ * @vsi_handle: software VSI handle
+ *
+ * The function returns aggregator VSI info based on VSI handle. This function
+ * needs to be called with scheduler lock held.
+ */
+static struct ice_sched_agg_vsi_info *
+ice_get_agg_vsi_info(struct ice_sched_agg_info *agg_info, u16 vsi_handle)
+{
+	struct ice_sched_agg_vsi_info *agg_vsi_info;
+
+	list_for_each_entry(agg_vsi_info, &agg_info->agg_vsi_list, list_entry)
+		if (agg_vsi_info->vsi_handle == vsi_handle)
+			return agg_vsi_info;
+
+	return NULL;
+}
+
+/**
+ * ice_get_vsi_agg_info - get the aggregator info of VSI
+ * @hw: pointer to the hardware structure
+ * @vsi_handle: Sw VSI handle
+ *
+ * The function returns aggregator info of VSI represented via vsi_handle. The
+ * VSI has in this case a different aggregator than the default one. This
+ * function needs to be called with scheduler lock held.
+ */
+static struct ice_sched_agg_info *
+ice_get_vsi_agg_info(struct ice_hw *hw, u16 vsi_handle)
+{
+	struct ice_sched_agg_info *agg_info;
+
+	list_for_each_entry(agg_info, &hw->agg_list, list_entry) {
+		struct ice_sched_agg_vsi_info *agg_vsi_info;
+
+		agg_vsi_info = ice_get_agg_vsi_info(agg_info, vsi_handle);
+		if (agg_vsi_info)
+			return agg_info;
+	}
+	return NULL;
+}
+
+/**
+ * ice_save_agg_vsi_tc_bitmap - save aggregator VSI TC bitmap
+ * @pi: port information structure
+ * @agg_id: aggregator ID
+ * @vsi_handle: software VSI handle
+ * @tc_bitmap: TC bitmap of enabled TC(s)
+ *
+ * Save VSI to aggregator TC bitmap. This function needs to call with scheduler
+ * lock held.
+ */
+static int
+ice_save_agg_vsi_tc_bitmap(struct ice_port_info *pi, u32 agg_id, u16 vsi_handle,
+			   unsigned long *tc_bitmap)
+{
+	struct ice_sched_agg_vsi_info *agg_vsi_info;
+	struct ice_sched_agg_info *agg_info;
+
+	agg_info = ice_get_agg_info(pi->hw, agg_id);
+	if (!agg_info)
+		return -EINVAL;
+	/* check if entry already exist */
+	agg_vsi_info = ice_get_agg_vsi_info(agg_info, vsi_handle);
+	if (!agg_vsi_info)
+		return -EINVAL;
+	bitmap_copy(agg_vsi_info->replay_tc_bitmap, tc_bitmap,
+		    ICE_MAX_TRAFFIC_CLASS);
+	return 0;
+}
+
+/**
+ * ice_sched_assoc_vsi_to_agg - associate/move VSI to new/default aggregator
+ * @pi: port information structure
+ * @agg_id: aggregator ID
+ * @vsi_handle: software VSI handle
+ * @tc_bitmap: TC bitmap of enabled TC(s)
+ *
+ * This function moves VSI to a new or default aggregator node. If VSI is
+ * already associated to the aggregator node then no operation is performed on
+ * the tree. This function needs to be called with scheduler lock held.
+ */
+static int
+ice_sched_assoc_vsi_to_agg(struct ice_port_info *pi, u32 agg_id,
+			   u16 vsi_handle, unsigned long *tc_bitmap)
+{
+	struct ice_sched_agg_vsi_info *agg_vsi_info, *old_agg_vsi_info = NULL;
+	struct ice_sched_agg_info *agg_info, *old_agg_info;
+	struct ice_hw *hw = pi->hw;
+	int status = 0;
+	u8 tc;
+
+	if (!ice_is_vsi_valid(pi->hw, vsi_handle))
+		return -EINVAL;
+	agg_info = ice_get_agg_info(hw, agg_id);
+	if (!agg_info)
+		return -EINVAL;
+	/* If the VSI is already part of another aggregator then update
+	 * its VSI info list
+	 */
+	old_agg_info = ice_get_vsi_agg_info(hw, vsi_handle);
+	if (old_agg_info && old_agg_info != agg_info) {
+		struct ice_sched_agg_vsi_info *vtmp;
+
+		list_for_each_entry_safe(old_agg_vsi_info, vtmp,
+					 &old_agg_info->agg_vsi_list,
+					 list_entry)
+			if (old_agg_vsi_info->vsi_handle == vsi_handle)
+				break;
+	}
+
+	/* check if entry already exist */
+	agg_vsi_info = ice_get_agg_vsi_info(agg_info, vsi_handle);
+	if (!agg_vsi_info) {
+		/* Create new entry for VSI under aggregator list */
+		agg_vsi_info = devm_kzalloc(ice_hw_to_dev(hw),
+					    sizeof(*agg_vsi_info), GFP_KERNEL);
+		if (!agg_vsi_info)
+			return -EINVAL;
+
+		/* add VSI ID into the aggregator list */
+		agg_vsi_info->vsi_handle = vsi_handle;
+		list_add(&agg_vsi_info->list_entry, &agg_info->agg_vsi_list);
+	}
+	/* Move VSI node to new aggregator node for requested TC(s) */
+	ice_for_each_traffic_class(tc) {
+		if (!ice_is_tc_ena(*tc_bitmap, tc))
+			continue;
+
+		/* Move VSI to new aggregator */
+		status = ice_sched_move_vsi_to_agg(pi, vsi_handle, agg_id, tc);
+		if (status)
+			break;
+
+		set_bit(tc, agg_vsi_info->tc_bitmap);
+		if (old_agg_vsi_info)
+			clear_bit(tc, old_agg_vsi_info->tc_bitmap);
+	}
+	if (old_agg_vsi_info && !old_agg_vsi_info->tc_bitmap[0]) {
+		list_del(&old_agg_vsi_info->list_entry);
+		devm_kfree(ice_hw_to_dev(pi->hw), old_agg_vsi_info);
+	}
+	return status;
 }
 
 /**
@@ -1896,8 +2833,7 @@ static void ice_sched_rm_unused_rl_prof(struct ice_port_info *pi)
 		list_for_each_entry_safe(rl_prof_elem, rl_prof_tmp,
 					 &pi->rl_prof_list[ln], list_entry) {
 			if (!ice_sched_del_rl_profile(pi->hw, rl_prof_elem))
-				ice_debug(pi->hw, ICE_DBG_SCHED,
-					  "Removed rl profile\n");
+				ice_debug(pi->hw, ICE_DBG_SCHED, "Removed rl profile\n");
 		}
 	}
 }
@@ -1913,14 +2849,14 @@ static void ice_sched_rm_unused_rl_prof(struct ice_port_info *pi)
  * returns success or error on config sched element failure. The caller
  * needs to hold scheduler lock.
  */
-static enum ice_status
+static int
 ice_sched_update_elem(struct ice_hw *hw, struct ice_sched_node *node,
 		      struct ice_aqc_txsched_elem_data *info)
 {
 	struct ice_aqc_txsched_elem_data buf;
-	enum ice_status status;
 	u16 elem_cfgd = 0;
 	u16 num_elems = 1;
+	int status;
 
 	buf = *info;
 	/* Parent TEID is reserved field in this aq call */
@@ -1936,7 +2872,7 @@ ice_sched_update_elem(struct ice_hw *hw, struct ice_sched_node *node,
 					&elem_cfgd, NULL);
 	if (status || elem_cfgd != num_elems) {
 		ice_debug(hw, ICE_DBG_SCHED, "Config sched elem error\n");
-		return ICE_ERR_CFG;
+		return -EIO;
 	}
 
 	/* Config success case */
@@ -1955,13 +2891,12 @@ ice_sched_update_elem(struct ice_hw *hw, struct ice_sched_node *node,
  *
  * This function configures node element's BW allocation.
  */
-static enum ice_status
+static int
 ice_sched_cfg_node_bw_alloc(struct ice_hw *hw, struct ice_sched_node *node,
 			    enum ice_rl_type rl_type, u16 bw_alloc)
 {
 	struct ice_aqc_txsched_elem_data buf;
 	struct ice_aqc_txsched_elem *data;
-	enum ice_status status;
 
 	buf = node->info;
 	data = &buf.data;
@@ -1972,11 +2907,36 @@ ice_sched_cfg_node_bw_alloc(struct ice_hw *hw, struct ice_sched_node *node,
 		data->valid_sections |= ICE_AQC_ELEM_VALID_EIR;
 		data->eir_bw.bw_alloc = cpu_to_le16(bw_alloc);
 	} else {
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	/* Configure element */
-	status = ice_sched_update_elem(hw, node, &buf);
+	return ice_sched_update_elem(hw, node, &buf);
+}
+
+/**
+ * ice_move_vsi_to_agg - moves VSI to new or default aggregator
+ * @pi: port information structure
+ * @agg_id: aggregator ID
+ * @vsi_handle: software VSI handle
+ * @tc_bitmap: TC bitmap of enabled TC(s)
+ *
+ * Move or associate VSI to a new or default aggregator node.
+ */
+int
+ice_move_vsi_to_agg(struct ice_port_info *pi, u32 agg_id, u16 vsi_handle,
+		    u8 tc_bitmap)
+{
+	unsigned long bitmap = tc_bitmap;
+	int status;
+
+	mutex_lock(&pi->sched_lock);
+	status = ice_sched_assoc_vsi_to_agg(pi, agg_id, vsi_handle,
+					    (unsigned long *)&bitmap);
+	if (!status)
+		status = ice_save_agg_vsi_tc_bitmap(pi, agg_id, vsi_handle,
+						    (unsigned long *)&bitmap);
+	mutex_unlock(&pi->sched_lock);
 	return status;
 }
 
@@ -2050,12 +3010,50 @@ static void ice_set_clear_shared_bw(struct ice_bw_type_info *bw_t_info, u32 bw)
 }
 
 /**
+ * ice_sched_save_vsi_bw - save VSI node's BW information
+ * @pi: port information structure
+ * @vsi_handle: sw VSI handle
+ * @tc: traffic class
+ * @rl_type: rate limit type min, max, or shared
+ * @bw: bandwidth in Kbps - Kilo bits per sec
+ *
+ * Save BW information of VSI type node for post replay use.
+ */
+static int
+ice_sched_save_vsi_bw(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
+		      enum ice_rl_type rl_type, u32 bw)
+{
+	struct ice_vsi_ctx *vsi_ctx;
+
+	if (!ice_is_vsi_valid(pi->hw, vsi_handle))
+		return -EINVAL;
+	vsi_ctx = ice_get_vsi_ctx(pi->hw, vsi_handle);
+	if (!vsi_ctx)
+		return -EINVAL;
+	switch (rl_type) {
+	case ICE_MIN_BW:
+		ice_set_clear_cir_bw(&vsi_ctx->sched.bw_t_info[tc], bw);
+		break;
+	case ICE_MAX_BW:
+		ice_set_clear_eir_bw(&vsi_ctx->sched.bw_t_info[tc], bw);
+		break;
+	case ICE_SHARED_BW:
+		ice_set_clear_shared_bw(&vsi_ctx->sched.bw_t_info[tc], bw);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/**
  * ice_sched_calc_wakeup - calculate RL profile wakeup parameter
+ * @hw: pointer to the HW struct
  * @bw: bandwidth in Kbps
  *
  * This function calculates the wakeup parameter of RL profile.
  */
-static u16 ice_sched_calc_wakeup(s32 bw)
+static u16 ice_sched_calc_wakeup(struct ice_hw *hw, s32 bw)
 {
 	s64 bytes_per_sec, wakeup_int, wakeup_a, wakeup_b, wakeup_f;
 	s32 wakeup_f_int;
@@ -2063,7 +3061,7 @@ static u16 ice_sched_calc_wakeup(s32 bw)
 
 	/* Get the wakeup integer value */
 	bytes_per_sec = div64_long(((s64)bw * 1000), BITS_PER_BYTE);
-	wakeup_int = div64_long(ICE_RL_PROF_FREQUENCY, bytes_per_sec);
+	wakeup_int = div64_long(hw->psm_clk_freq, bytes_per_sec);
 	if (wakeup_int > 63) {
 		wakeup = (u16)((1 << 15) | wakeup_int);
 	} else {
@@ -2072,8 +3070,7 @@ static u16 ice_sched_calc_wakeup(s32 bw)
 		 */
 		wakeup_b = (s64)ICE_RL_PROF_MULTIPLIER * wakeup_int;
 		wakeup_a = div64_long((s64)ICE_RL_PROF_MULTIPLIER *
-					   ICE_RL_PROF_FREQUENCY,
-				      bytes_per_sec);
+					   hw->psm_clk_freq, bytes_per_sec);
 
 		/* Get Fraction value */
 		wakeup_f = wakeup_a - wakeup_b;
@@ -2093,16 +3090,18 @@ static u16 ice_sched_calc_wakeup(s32 bw)
 
 /**
  * ice_sched_bw_to_rl_profile - convert BW to profile parameters
+ * @hw: pointer to the HW struct
  * @bw: bandwidth in Kbps
  * @profile: profile parameters to return
  *
  * This function converts the BW to profile structure format.
  */
-static enum ice_status
-ice_sched_bw_to_rl_profile(u32 bw, struct ice_aqc_rl_profile_elem *profile)
+static int
+ice_sched_bw_to_rl_profile(struct ice_hw *hw, u32 bw,
+			   struct ice_aqc_rl_profile_elem *profile)
 {
-	enum ice_status status = ICE_ERR_PARAM;
 	s64 bytes_per_sec, ts_rate, mv_tmp;
+	int status = -EINVAL;
 	bool found = false;
 	s32 encode = 0;
 	s64 mv = 0;
@@ -2119,7 +3118,7 @@ ice_sched_bw_to_rl_profile(u32 bw, struct ice_aqc_rl_profile_elem *profile)
 	for (i = 0; i < 64; i++) {
 		u64 pow_result = BIT_ULL(i);
 
-		ts_rate = div64_long((s64)ICE_RL_PROF_FREQUENCY,
+		ts_rate = div64_long((s64)hw->psm_clk_freq,
 				     pow_result * ICE_RL_PROF_TS_MULTIPLIER);
 		if (ts_rate <= 0)
 			continue;
@@ -2143,13 +3142,13 @@ ice_sched_bw_to_rl_profile(u32 bw, struct ice_aqc_rl_profile_elem *profile)
 	if (found) {
 		u16 wm;
 
-		wm = ice_sched_calc_wakeup(bw);
+		wm = ice_sched_calc_wakeup(hw, bw);
 		profile->rl_multiply = cpu_to_le16(mv);
 		profile->wake_up_calc = cpu_to_le16(wm);
 		profile->rl_encode = cpu_to_le16(encode);
 		status = 0;
 	} else {
-		status = ICE_ERR_DOES_NOT_EXIST;
+		status = -ENOENT;
 	}
 
 	return status;
@@ -2175,9 +3174,9 @@ ice_sched_add_rl_profile(struct ice_port_info *pi,
 	struct ice_aqc_rl_profile_info *rl_prof_elem;
 	u16 profiles_added = 0, num_profiles = 1;
 	struct ice_aqc_rl_profile_elem *buf;
-	enum ice_status status;
 	struct ice_hw *hw;
 	u8 profile_type;
+	int status;
 
 	if (layer_num >= ICE_AQC_TOPO_MAX_LEVEL_NUM)
 		return NULL;
@@ -2212,7 +3211,7 @@ ice_sched_add_rl_profile(struct ice_port_info *pi,
 	if (!rl_prof_elem)
 		return NULL;
 
-	status = ice_sched_bw_to_rl_profile(bw, &rl_prof_elem->profile);
+	status = ice_sched_bw_to_rl_profile(hw, bw, &rl_prof_elem->profile);
 	if (status)
 		goto exit_add_rl_prof;
 
@@ -2248,7 +3247,7 @@ exit_add_rl_prof:
  *
  * This function configures node element's BW limit.
  */
-static enum ice_status
+static int
 ice_sched_cfg_node_bw_lmt(struct ice_hw *hw, struct ice_sched_node *node,
 			  enum ice_rl_type rl_type, u16 rl_prof_id)
 {
@@ -2267,7 +3266,7 @@ ice_sched_cfg_node_bw_lmt(struct ice_hw *hw, struct ice_sched_node *node,
 		 * hence only one of them may be set for any given element
 		 */
 		if (data->valid_sections & ICE_AQC_ELEM_VALID_SHARED)
-			return ICE_ERR_CFG;
+			return -EIO;
 		data->valid_sections |= ICE_AQC_ELEM_VALID_EIR;
 		data->eir_bw.bw_profile_idx = cpu_to_le16(rl_prof_id);
 		break;
@@ -2290,7 +3289,7 @@ ice_sched_cfg_node_bw_lmt(struct ice_hw *hw, struct ice_sched_node *node,
 		if ((data->valid_sections & ICE_AQC_ELEM_VALID_EIR) &&
 		    (le16_to_cpu(data->eir_bw.bw_profile_idx) !=
 			    ICE_SCHED_DFLT_RL_PROF_ID))
-			return ICE_ERR_CFG;
+			return -EIO;
 		/* EIR BW is set to default, disable it */
 		data->valid_sections &= ~ICE_AQC_ELEM_VALID_EIR;
 		/* Okay to enable shared BW now */
@@ -2299,7 +3298,7 @@ ice_sched_cfg_node_bw_lmt(struct ice_hw *hw, struct ice_sched_node *node,
 		break;
 	default:
 		/* Unknown rate limit type */
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	/* Configure element */
@@ -2419,15 +3418,15 @@ ice_sched_get_srl_node(struct ice_sched_node *node, u8 srl_layer)
  * 'profile_type' and profile ID as 'profile_id'. The caller needs to hold
  * scheduler lock.
  */
-static enum ice_status
+static int
 ice_sched_rm_rl_profile(struct ice_port_info *pi, u8 layer_num, u8 profile_type,
 			u16 profile_id)
 {
 	struct ice_aqc_rl_profile_info *rl_prof_elem;
-	enum ice_status status = 0;
+	int status = 0;
 
 	if (layer_num >= ICE_AQC_TOPO_MAX_LEVEL_NUM)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	/* Check the existing list for RL profile */
 	list_for_each_entry(rl_prof_elem, &pi->rl_prof_list[layer_num],
 			    list_entry)
@@ -2440,12 +3439,11 @@ ice_sched_rm_rl_profile(struct ice_port_info *pi, u8 layer_num, u8 profile_type,
 
 			/* Remove old profile ID from database */
 			status = ice_sched_del_rl_profile(pi->hw, rl_prof_elem);
-			if (status && status != ICE_ERR_IN_USE)
-				ice_debug(pi->hw, ICE_DBG_SCHED,
-					  "Remove rl profile failed\n");
+			if (status && status != -EBUSY)
+				ice_debug(pi->hw, ICE_DBG_SCHED, "Remove rl profile failed\n");
 			break;
 		}
-	if (status == ICE_ERR_IN_USE)
+	if (status == -EBUSY)
 		status = 0;
 	return status;
 }
@@ -2461,16 +3459,16 @@ ice_sched_rm_rl_profile(struct ice_port_info *pi, u8 layer_num, u8 profile_type,
  * type CIR, EIR, or SRL to default. This function needs to be called
  * with the scheduler lock held.
  */
-static enum ice_status
+static int
 ice_sched_set_node_bw_dflt(struct ice_port_info *pi,
 			   struct ice_sched_node *node,
 			   enum ice_rl_type rl_type, u8 layer_num)
 {
-	enum ice_status status;
 	struct ice_hw *hw;
 	u8 profile_type;
 	u16 rl_prof_id;
 	u16 old_id;
+	int status;
 
 	hw = pi->hw;
 	switch (rl_type) {
@@ -2488,7 +3486,7 @@ ice_sched_set_node_bw_dflt(struct ice_port_info *pi,
 		rl_prof_id = ICE_SCHED_NO_SHARED_RL_PROF_ID;
 		break;
 	default:
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	}
 	/* Save existing RL prof ID for later clean up */
 	old_id = ice_sched_get_node_rl_prof_id(node, rl_type);
@@ -2518,7 +3516,7 @@ ice_sched_set_node_bw_dflt(struct ice_port_info *pi,
  * them may be set for any given element. This function needs to be called
  * with the scheduler lock held.
  */
-static enum ice_status
+static int
 ice_sched_set_eir_srl_excl(struct ice_port_info *pi,
 			   struct ice_sched_node *node,
 			   u8 layer_num, enum ice_rl_type rl_type, u32 bw)
@@ -2562,14 +3560,14 @@ ice_sched_set_eir_srl_excl(struct ice_port_info *pi,
  * node's RL profile ID of type CIR, EIR, or SRL, and removes old profile
  * ID from local database. The caller needs to hold scheduler lock.
  */
-static enum ice_status
+static int
 ice_sched_set_node_bw(struct ice_port_info *pi, struct ice_sched_node *node,
 		      enum ice_rl_type rl_type, u32 bw, u8 layer_num)
 {
 	struct ice_aqc_rl_profile_info *rl_prof_info;
-	enum ice_status status = ICE_ERR_PARAM;
 	struct ice_hw *hw = pi->hw;
 	u16 old_id, rl_prof_id;
+	int status = -EINVAL;
 
 	rl_prof_info = ice_sched_add_rl_profile(pi, rl_type, bw, layer_num);
 	if (!rl_prof_info)
@@ -2608,31 +3606,31 @@ ice_sched_set_node_bw(struct ice_port_info *pi, struct ice_sched_node *node,
  * It updates node's BW limit parameters like BW RL profile ID of type CIR,
  * EIR, or SRL. The caller needs to hold scheduler lock.
  */
-static enum ice_status
+static int
 ice_sched_set_node_bw_lmt(struct ice_port_info *pi, struct ice_sched_node *node,
 			  enum ice_rl_type rl_type, u32 bw)
 {
 	struct ice_sched_node *cfg_node = node;
-	enum ice_status status;
+	int status;
 
 	struct ice_hw *hw;
 	u8 layer_num;
 
 	if (!pi)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	hw = pi->hw;
 	/* Remove unused RL profile IDs from HW and SW DB */
 	ice_sched_rm_unused_rl_prof(pi);
 	layer_num = ice_sched_get_rl_prof_layer(pi, rl_type,
 						node->tx_sched_layer);
 	if (layer_num >= hw->num_tx_sched_layers)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 
 	if (rl_type == ICE_SHARED_BW) {
 		/* SRL node may be different */
 		cfg_node = ice_sched_get_srl_node(node, layer_num);
 		if (!cfg_node)
-			return ICE_ERR_CFG;
+			return -EIO;
 	}
 	/* EIR BW and Shared BW profiles are mutually exclusive and
 	 * hence only one of them may be set for any given element
@@ -2657,7 +3655,7 @@ ice_sched_set_node_bw_lmt(struct ice_port_info *pi, struct ice_sched_node *node,
  * type CIR, EIR, or SRL to default. This function needs to be called
  * with the scheduler lock held.
  */
-static enum ice_status
+static int
 ice_sched_set_node_bw_dflt_lmt(struct ice_port_info *pi,
 			       struct ice_sched_node *node,
 			       enum ice_rl_type rl_type)
@@ -2675,7 +3673,7 @@ ice_sched_set_node_bw_dflt_lmt(struct ice_port_info *pi,
  * behalf of the requested node (first argument). This function needs to be
  * called with scheduler lock held.
  */
-static enum ice_status
+static int
 ice_sched_validate_srl_node(struct ice_sched_node *node, u8 sel_layer)
 {
 	/* SRL profiles are not available on all layers. Check if the
@@ -2690,7 +3688,7 @@ ice_sched_validate_srl_node(struct ice_sched_node *node, u8 sel_layer)
 	    (node->parent && node->parent->num_children == 1)))
 		return 0;
 
-	return ICE_ERR_CFG;
+	return -EIO;
 }
 
 /**
@@ -2701,7 +3699,7 @@ ice_sched_validate_srl_node(struct ice_sched_node *node, u8 sel_layer)
  *
  * Save BW information of queue type node for post replay use.
  */
-static enum ice_status
+static int
 ice_sched_save_q_bw(struct ice_q_ctx *q_ctx, enum ice_rl_type rl_type, u32 bw)
 {
 	switch (rl_type) {
@@ -2715,7 +3713,7 @@ ice_sched_save_q_bw(struct ice_q_ctx *q_ctx, enum ice_rl_type rl_type, u32 bw)
 		ice_set_clear_shared_bw(&q_ctx->bw_t_info, bw);
 		break;
 	default:
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -2731,16 +3729,16 @@ ice_sched_save_q_bw(struct ice_q_ctx *q_ctx, enum ice_rl_type rl_type, u32 bw)
  *
  * This function sets BW limit of queue scheduling node.
  */
-static enum ice_status
+static int
 ice_sched_set_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 		       u16 q_handle, enum ice_rl_type rl_type, u32 bw)
 {
-	enum ice_status status = ICE_ERR_PARAM;
 	struct ice_sched_node *node;
 	struct ice_q_ctx *q_ctx;
+	int status = -EINVAL;
 
 	if (!ice_is_vsi_valid(pi->hw, vsi_handle))
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	mutex_lock(&pi->sched_lock);
 	q_ctx = ice_get_lan_q_ctx(pi->hw, vsi_handle, tc, q_handle);
 	if (!q_ctx)
@@ -2762,7 +3760,7 @@ ice_sched_set_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 		sel_layer = ice_sched_get_rl_prof_layer(pi, rl_type,
 							node->tx_sched_layer);
 		if (sel_layer >= pi->hw->num_tx_sched_layers) {
-			status = ICE_ERR_PARAM;
+			status = -EINVAL;
 			goto exit_q_bw_lmt;
 		}
 		status = ice_sched_validate_srl_node(node, sel_layer);
@@ -2794,7 +3792,7 @@ exit_q_bw_lmt:
  *
  * This function configures BW limit of queue scheduling node.
  */
-enum ice_status
+int
 ice_cfg_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 		 u16 q_handle, enum ice_rl_type rl_type, u32 bw)
 {
@@ -2812,12 +3810,159 @@ ice_cfg_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
  *
  * This function configures BW default limit of queue scheduling node.
  */
-enum ice_status
+int
 ice_cfg_q_bw_dflt_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 		      u16 q_handle, enum ice_rl_type rl_type)
 {
 	return ice_sched_set_q_bw_lmt(pi, vsi_handle, tc, q_handle, rl_type,
 				      ICE_SCHED_DFLT_BW);
+}
+
+/**
+ * ice_sched_get_node_by_id_type - get node from ID type
+ * @pi: port information structure
+ * @id: identifier
+ * @agg_type: type of aggregator
+ * @tc: traffic class
+ *
+ * This function returns node identified by ID of type aggregator, and
+ * based on traffic class (TC). This function needs to be called with
+ * the scheduler lock held.
+ */
+static struct ice_sched_node *
+ice_sched_get_node_by_id_type(struct ice_port_info *pi, u32 id,
+			      enum ice_agg_type agg_type, u8 tc)
+{
+	struct ice_sched_node *node = NULL;
+
+	switch (agg_type) {
+	case ICE_AGG_TYPE_VSI: {
+		struct ice_vsi_ctx *vsi_ctx;
+		u16 vsi_handle = (u16)id;
+
+		if (!ice_is_vsi_valid(pi->hw, vsi_handle))
+			break;
+		/* Get sched_vsi_info */
+		vsi_ctx = ice_get_vsi_ctx(pi->hw, vsi_handle);
+		if (!vsi_ctx)
+			break;
+		node = vsi_ctx->sched.vsi_node[tc];
+		break;
+	}
+
+	case ICE_AGG_TYPE_AGG: {
+		struct ice_sched_node *tc_node;
+
+		tc_node = ice_sched_get_tc_node(pi, tc);
+		if (tc_node)
+			node = ice_sched_get_agg_node(pi, tc_node, id);
+		break;
+	}
+
+	default:
+		break;
+	}
+
+	return node;
+}
+
+/**
+ * ice_sched_set_node_bw_lmt_per_tc - set node BW limit per TC
+ * @pi: port information structure
+ * @id: ID (software VSI handle or AGG ID)
+ * @agg_type: aggregator type (VSI or AGG type node)
+ * @tc: traffic class
+ * @rl_type: min or max
+ * @bw: bandwidth in Kbps
+ *
+ * This function sets BW limit of VSI or Aggregator scheduling node
+ * based on TC information from passed in argument BW.
+ */
+int
+ice_sched_set_node_bw_lmt_per_tc(struct ice_port_info *pi, u32 id,
+				 enum ice_agg_type agg_type, u8 tc,
+				 enum ice_rl_type rl_type, u32 bw)
+{
+	struct ice_sched_node *node;
+	int status = -EINVAL;
+
+	if (!pi)
+		return status;
+
+	if (rl_type == ICE_UNKNOWN_BW)
+		return status;
+
+	mutex_lock(&pi->sched_lock);
+	node = ice_sched_get_node_by_id_type(pi, id, agg_type, tc);
+	if (!node) {
+		ice_debug(pi->hw, ICE_DBG_SCHED, "Wrong id, agg type, or tc\n");
+		goto exit_set_node_bw_lmt_per_tc;
+	}
+	if (bw == ICE_SCHED_DFLT_BW)
+		status = ice_sched_set_node_bw_dflt_lmt(pi, node, rl_type);
+	else
+		status = ice_sched_set_node_bw_lmt(pi, node, rl_type, bw);
+
+exit_set_node_bw_lmt_per_tc:
+	mutex_unlock(&pi->sched_lock);
+	return status;
+}
+
+/**
+ * ice_cfg_vsi_bw_lmt_per_tc - configure VSI BW limit per TC
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ * @tc: traffic class
+ * @rl_type: min or max
+ * @bw: bandwidth in Kbps
+ *
+ * This function configures BW limit of VSI scheduling node based on TC
+ * information.
+ */
+int
+ice_cfg_vsi_bw_lmt_per_tc(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
+			  enum ice_rl_type rl_type, u32 bw)
+{
+	int status;
+
+	status = ice_sched_set_node_bw_lmt_per_tc(pi, vsi_handle,
+						  ICE_AGG_TYPE_VSI,
+						  tc, rl_type, bw);
+	if (!status) {
+		mutex_lock(&pi->sched_lock);
+		status = ice_sched_save_vsi_bw(pi, vsi_handle, tc, rl_type, bw);
+		mutex_unlock(&pi->sched_lock);
+	}
+	return status;
+}
+
+/**
+ * ice_cfg_vsi_bw_dflt_lmt_per_tc - configure default VSI BW limit per TC
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ * @tc: traffic class
+ * @rl_type: min or max
+ *
+ * This function configures default BW limit of VSI scheduling node based on TC
+ * information.
+ */
+int
+ice_cfg_vsi_bw_dflt_lmt_per_tc(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
+			       enum ice_rl_type rl_type)
+{
+	int status;
+
+	status = ice_sched_set_node_bw_lmt_per_tc(pi, vsi_handle,
+						  ICE_AGG_TYPE_VSI,
+						  tc, rl_type,
+						  ICE_SCHED_DFLT_BW);
+	if (!status) {
+		mutex_lock(&pi->sched_lock);
+		status = ice_sched_save_vsi_bw(pi, vsi_handle, tc, rl_type,
+					       ICE_SCHED_DFLT_BW);
+		mutex_unlock(&pi->sched_lock);
+	}
+	return status;
 }
 
 /**
@@ -2829,13 +3974,13 @@ ice_cfg_q_bw_dflt_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
  * burst size value is used for future rate limit calls. It doesn't change the
  * existing or previously created RL profiles.
  */
-enum ice_status ice_cfg_rl_burst_size(struct ice_hw *hw, u32 bytes)
+int ice_cfg_rl_burst_size(struct ice_hw *hw, u32 bytes)
 {
 	u16 burst_size_to_prog;
 
 	if (bytes < ICE_MIN_BURST_SIZE_ALLOWED ||
 	    bytes > ICE_MAX_BURST_SIZE_ALLOWED)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	if (ice_round_to_num(bytes, 64) <=
 	    ICE_MAX_BURST_SIZE_64_BYTE_GRANULARITY) {
 		/* 64 byte granularity case */
@@ -2870,13 +4015,13 @@ enum ice_status ice_cfg_rl_burst_size(struct ice_hw *hw, u32 bytes)
  * This function configures node element's priority value. It
  * needs to be called with scheduler lock held.
  */
-static enum ice_status
+static int
 ice_sched_replay_node_prio(struct ice_hw *hw, struct ice_sched_node *node,
 			   u8 priority)
 {
 	struct ice_aqc_txsched_elem_data buf;
 	struct ice_aqc_txsched_elem *data;
-	enum ice_status status;
+	int status;
 
 	buf = node->info;
 	data = &buf.data;
@@ -2897,12 +4042,12 @@ ice_sched_replay_node_prio(struct ice_hw *hw, struct ice_sched_node *node,
  * This function restores node's BW from bw_t_info. The caller needs
  * to hold the scheduler lock.
  */
-static enum ice_status
+static int
 ice_sched_replay_node_bw(struct ice_hw *hw, struct ice_sched_node *node,
 			 struct ice_bw_type_info *bw_t_info)
 {
 	struct ice_port_info *pi = hw->port_info;
-	enum ice_status status = ICE_ERR_PARAM;
+	int status = -EINVAL;
 	u16 bw_alloc;
 
 	if (!node)
@@ -2948,6 +4093,155 @@ ice_sched_replay_node_bw(struct ice_hw *hw, struct ice_sched_node *node,
 }
 
 /**
+ * ice_sched_get_ena_tc_bitmap - get enabled TC bitmap
+ * @pi: port info struct
+ * @tc_bitmap: 8 bits TC bitmap to check
+ * @ena_tc_bitmap: 8 bits enabled TC bitmap to return
+ *
+ * This function returns enabled TC bitmap in variable ena_tc_bitmap. Some TCs
+ * may be missing, it returns enabled TCs. This function needs to be called with
+ * scheduler lock held.
+ */
+static void
+ice_sched_get_ena_tc_bitmap(struct ice_port_info *pi,
+			    unsigned long *tc_bitmap,
+			    unsigned long *ena_tc_bitmap)
+{
+	u8 tc;
+
+	/* Some TC(s) may be missing after reset, adjust for replay */
+	ice_for_each_traffic_class(tc)
+		if (ice_is_tc_ena(*tc_bitmap, tc) &&
+		    (ice_sched_get_tc_node(pi, tc)))
+			set_bit(tc, ena_tc_bitmap);
+}
+
+/**
+ * ice_sched_replay_agg - recreate aggregator node(s)
+ * @hw: pointer to the HW struct
+ *
+ * This function recreate aggregator type nodes which are not replayed earlier.
+ * It also replay aggregator BW information. These aggregator nodes are not
+ * associated with VSI type node yet.
+ */
+void ice_sched_replay_agg(struct ice_hw *hw)
+{
+	struct ice_port_info *pi = hw->port_info;
+	struct ice_sched_agg_info *agg_info;
+
+	mutex_lock(&pi->sched_lock);
+	list_for_each_entry(agg_info, &hw->agg_list, list_entry)
+		/* replay aggregator (re-create aggregator node) */
+		if (!bitmap_equal(agg_info->tc_bitmap, agg_info->replay_tc_bitmap,
+				  ICE_MAX_TRAFFIC_CLASS)) {
+			DECLARE_BITMAP(replay_bitmap, ICE_MAX_TRAFFIC_CLASS);
+			int status;
+
+			bitmap_zero(replay_bitmap, ICE_MAX_TRAFFIC_CLASS);
+			ice_sched_get_ena_tc_bitmap(pi,
+						    agg_info->replay_tc_bitmap,
+						    replay_bitmap);
+			status = ice_sched_cfg_agg(hw->port_info,
+						   agg_info->agg_id,
+						   ICE_AGG_TYPE_AGG,
+						   replay_bitmap);
+			if (status) {
+				dev_info(ice_hw_to_dev(hw),
+					 "Replay agg id[%d] failed\n",
+					 agg_info->agg_id);
+				/* Move on to next one */
+				continue;
+			}
+		}
+	mutex_unlock(&pi->sched_lock);
+}
+
+/**
+ * ice_sched_replay_agg_vsi_preinit - Agg/VSI replay pre initialization
+ * @hw: pointer to the HW struct
+ *
+ * This function initialize aggregator(s) TC bitmap to zero. A required
+ * preinit step for replaying aggregators.
+ */
+void ice_sched_replay_agg_vsi_preinit(struct ice_hw *hw)
+{
+	struct ice_port_info *pi = hw->port_info;
+	struct ice_sched_agg_info *agg_info;
+
+	mutex_lock(&pi->sched_lock);
+	list_for_each_entry(agg_info, &hw->agg_list, list_entry) {
+		struct ice_sched_agg_vsi_info *agg_vsi_info;
+
+		agg_info->tc_bitmap[0] = 0;
+		list_for_each_entry(agg_vsi_info, &agg_info->agg_vsi_list,
+				    list_entry)
+			agg_vsi_info->tc_bitmap[0] = 0;
+	}
+	mutex_unlock(&pi->sched_lock);
+}
+
+/**
+ * ice_sched_replay_vsi_agg - replay aggregator & VSI to aggregator node(s)
+ * @hw: pointer to the HW struct
+ * @vsi_handle: software VSI handle
+ *
+ * This function replays aggregator node, VSI to aggregator type nodes, and
+ * their node bandwidth information. This function needs to be called with
+ * scheduler lock held.
+ */
+static int ice_sched_replay_vsi_agg(struct ice_hw *hw, u16 vsi_handle)
+{
+	DECLARE_BITMAP(replay_bitmap, ICE_MAX_TRAFFIC_CLASS);
+	struct ice_sched_agg_vsi_info *agg_vsi_info;
+	struct ice_port_info *pi = hw->port_info;
+	struct ice_sched_agg_info *agg_info;
+	int status;
+
+	bitmap_zero(replay_bitmap, ICE_MAX_TRAFFIC_CLASS);
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return -EINVAL;
+	agg_info = ice_get_vsi_agg_info(hw, vsi_handle);
+	if (!agg_info)
+		return 0; /* Not present in list - default Agg case */
+	agg_vsi_info = ice_get_agg_vsi_info(agg_info, vsi_handle);
+	if (!agg_vsi_info)
+		return 0; /* Not present in list - default Agg case */
+	ice_sched_get_ena_tc_bitmap(pi, agg_info->replay_tc_bitmap,
+				    replay_bitmap);
+	/* Replay aggregator node associated to vsi_handle */
+	status = ice_sched_cfg_agg(hw->port_info, agg_info->agg_id,
+				   ICE_AGG_TYPE_AGG, replay_bitmap);
+	if (status)
+		return status;
+
+	bitmap_zero(replay_bitmap, ICE_MAX_TRAFFIC_CLASS);
+	ice_sched_get_ena_tc_bitmap(pi, agg_vsi_info->replay_tc_bitmap,
+				    replay_bitmap);
+	/* Move this VSI (vsi_handle) to above aggregator */
+	return ice_sched_assoc_vsi_to_agg(pi, agg_info->agg_id, vsi_handle,
+					  replay_bitmap);
+}
+
+/**
+ * ice_replay_vsi_agg - replay VSI to aggregator node
+ * @hw: pointer to the HW struct
+ * @vsi_handle: software VSI handle
+ *
+ * This function replays association of VSI to aggregator type nodes, and
+ * node bandwidth information.
+ */
+int ice_replay_vsi_agg(struct ice_hw *hw, u16 vsi_handle)
+{
+	struct ice_port_info *pi = hw->port_info;
+	int status;
+
+	mutex_lock(&pi->sched_lock);
+	status = ice_sched_replay_vsi_agg(hw, vsi_handle);
+	mutex_unlock(&pi->sched_lock);
+	return status;
+}
+
+/**
  * ice_sched_replay_q_bw - replay queue type node BW
  * @pi: port information structure
  * @q_ctx: queue context structure
@@ -2955,14 +4249,13 @@ ice_sched_replay_node_bw(struct ice_hw *hw, struct ice_sched_node *node,
  * This function replays queue type node bandwidth. This function needs to be
  * called with scheduler lock held.
  */
-enum ice_status
-ice_sched_replay_q_bw(struct ice_port_info *pi, struct ice_q_ctx *q_ctx)
+int ice_sched_replay_q_bw(struct ice_port_info *pi, struct ice_q_ctx *q_ctx)
 {
 	struct ice_sched_node *q_node;
 
 	/* Following also checks the presence of node in tree */
 	q_node = ice_sched_find_node_by_teid(pi->root, q_ctx->q_teid);
 	if (!q_node)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	return ice_sched_replay_node_bw(pi->hw, q_node, &q_ctx->bw_t_info);
 }

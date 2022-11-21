@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "efa_com.h"
@@ -20,9 +20,6 @@
 #define EFA_CTRL_MINOR          0
 #define EFA_CTRL_SUB_MINOR      1
 
-#define EFA_DMA_ADDR_TO_UINT32_LOW(x)   ((u32)((u64)(x)))
-#define EFA_DMA_ADDR_TO_UINT32_HIGH(x)  ((u32)(((u64)(x)) >> 32))
-
 enum efa_cmd_status {
 	EFA_CMD_SUBMITTED,
 	EFA_CMD_COMPLETED,
@@ -33,8 +30,6 @@ struct efa_comp_ctx {
 	struct efa_admin_acq_entry *user_cqe;
 	u32 comp_size;
 	enum efa_cmd_status status;
-	/* status from the device */
-	u8 comp_status;
 	u8 cmd_opcode;
 	u8 occupied;
 };
@@ -61,9 +56,17 @@ static const char *efa_com_cmd_str(u8 cmd)
 	EFA_CMD_STR_CASE(DEALLOC_PD);
 	EFA_CMD_STR_CASE(ALLOC_UAR);
 	EFA_CMD_STR_CASE(DEALLOC_UAR);
+	EFA_CMD_STR_CASE(CREATE_EQ);
+	EFA_CMD_STR_CASE(DESTROY_EQ);
 	default: return "unknown command opcode";
 	}
 #undef EFA_CMD_STR_CASE
+}
+
+void efa_com_set_dma_addr(dma_addr_t addr, u32 *addr_high, u32 *addr_low)
+{
+	*addr_low = lower_32_bits(addr);
+	*addr_high = upper_32_bits(addr);
 }
 
 static u32 efa_com_reg_read32(struct efa_com_dev *edev, u16 offset)
@@ -140,8 +143,8 @@ static int efa_com_admin_init_sq(struct efa_com_dev *edev)
 
 	sq->db_addr = (u32 __iomem *)(edev->reg_bar + EFA_REGS_AQ_PROD_DB_OFF);
 
-	addr_high = EFA_DMA_ADDR_TO_UINT32_HIGH(sq->dma_addr);
-	addr_low = EFA_DMA_ADDR_TO_UINT32_LOW(sq->dma_addr);
+	addr_high = upper_32_bits(sq->dma_addr);
+	addr_low = lower_32_bits(sq->dma_addr);
 
 	writel(addr_low, edev->reg_bar + EFA_REGS_AQ_BASE_LO_OFF);
 	writel(addr_high, edev->reg_bar + EFA_REGS_AQ_BASE_HI_OFF);
@@ -174,8 +177,8 @@ static int efa_com_admin_init_cq(struct efa_com_dev *edev)
 	cq->cc = 0;
 	cq->phase = 1;
 
-	addr_high = EFA_DMA_ADDR_TO_UINT32_HIGH(cq->dma_addr);
-	addr_low = EFA_DMA_ADDR_TO_UINT32_LOW(cq->dma_addr);
+	addr_high = upper_32_bits(cq->dma_addr);
+	addr_low = lower_32_bits(cq->dma_addr);
 
 	writel(addr_low, edev->reg_bar + EFA_REGS_ACQ_BASE_LO_OFF);
 	writel(addr_high, edev->reg_bar + EFA_REGS_ACQ_BASE_HI_OFF);
@@ -215,8 +218,8 @@ static int efa_com_admin_init_aenq(struct efa_com_dev *edev,
 	aenq->cc = 0;
 	aenq->phase = 1;
 
-	addr_low = EFA_DMA_ADDR_TO_UINT32_LOW(aenq->dma_addr);
-	addr_high = EFA_DMA_ADDR_TO_UINT32_HIGH(aenq->dma_addr);
+	addr_low = lower_32_bits(aenq->dma_addr);
+	addr_high = upper_32_bits(aenq->dma_addr);
 
 	writel(addr_low, edev->reg_bar + EFA_REGS_AENQ_BASE_LO_OFF);
 	writel(addr_high, edev->reg_bar + EFA_REGS_AENQ_BASE_HI_OFF);
@@ -421,9 +424,7 @@ static void efa_com_handle_single_admin_completion(struct efa_com_admin_queue *a
 	}
 
 	comp_ctx->status = EFA_CMD_COMPLETED;
-	comp_ctx->comp_status = cqe->acq_common_descriptor.status;
-	if (comp_ctx->user_cqe)
-		memcpy(comp_ctx->user_cqe, cqe, comp_ctx->comp_size);
+	memcpy(comp_ctx->user_cqe, cqe, comp_ctx->comp_size);
 
 	if (!test_bit(EFA_AQ_STATE_POLLING_BIT, &aq->state))
 		complete(&comp_ctx->wait_event);
@@ -521,7 +522,7 @@ static int efa_com_wait_and_process_admin_cq_polling(struct efa_comp_ctx *comp_c
 		msleep(aq->poll_interval);
 	}
 
-	err = efa_com_comp_status_to_errno(comp_ctx->comp_status);
+	err = efa_com_comp_status_to_errno(comp_ctx->user_cqe->acq_common_descriptor.status);
 out:
 	efa_com_put_comp_ctx(aq, comp_ctx);
 	return err;
@@ -569,7 +570,7 @@ static int efa_com_wait_and_process_admin_cq_interrupts(struct efa_comp_ctx *com
 		goto out;
 	}
 
-	err = efa_com_comp_status_to_errno(comp_ctx->comp_status);
+	err = efa_com_comp_status_to_errno(comp_ctx->user_cqe->acq_common_descriptor.status);
 out:
 	efa_com_put_comp_ctx(aq, comp_ctx);
 	return err;
@@ -641,8 +642,8 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
 			aq->efa_dev,
 			"Failed to process command %s (opcode %u) comp_status %d err %d\n",
 			efa_com_cmd_str(cmd->aq_common_descriptor.opcode),
-			cmd->aq_common_descriptor.opcode, comp_ctx->comp_status,
-			err);
+			cmd->aq_common_descriptor.opcode,
+			comp_ctx->user_cqe->acq_common_descriptor.status, err);
 		atomic64_inc(&aq->stats.cmd_err);
 	}
 
@@ -795,7 +796,7 @@ err_destroy_comp_ctxt:
  * This method goes over the admin completion queue and wakes up
  * all the pending threads that wait on the commands wait event.
  *
- * @note: Should be called after MSI-X interrupt.
+ * Note: Should be called after MSI-X interrupt.
  */
 void efa_com_admin_q_comp_intr_handler(struct efa_com_dev *edev)
 {
@@ -1087,4 +1088,160 @@ int efa_com_dev_reset(struct efa_com_dev *edev,
 		edev->aq.completion_timeout = ADMIN_CMD_TIMEOUT_US;
 
 	return 0;
+}
+
+static int efa_com_create_eq(struct efa_com_dev *edev,
+			     struct efa_com_create_eq_params *params,
+			     struct efa_com_create_eq_result *result)
+{
+	struct efa_com_admin_queue *aq = &edev->aq;
+	struct efa_admin_create_eq_resp resp = {};
+	struct efa_admin_create_eq_cmd cmd = {};
+	int err;
+
+	cmd.aq_common_descriptor.opcode = EFA_ADMIN_CREATE_EQ;
+	EFA_SET(&cmd.caps, EFA_ADMIN_CREATE_EQ_CMD_ENTRY_SIZE_WORDS,
+		params->entry_size_in_bytes / 4);
+	cmd.depth = params->depth;
+	cmd.event_bitmask = params->event_bitmask;
+	cmd.msix_vec = params->msix_vec;
+
+	efa_com_set_dma_addr(params->dma_addr, &cmd.ba.mem_addr_high,
+			     &cmd.ba.mem_addr_low);
+
+	err = efa_com_cmd_exec(aq,
+			       (struct efa_admin_aq_entry *)&cmd,
+			       sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp,
+			       sizeof(resp));
+	if (err) {
+		ibdev_err_ratelimited(edev->efa_dev,
+				      "Failed to create eq[%d]\n", err);
+		return err;
+	}
+
+	result->eqn = resp.eqn;
+
+	return 0;
+}
+
+static void efa_com_destroy_eq(struct efa_com_dev *edev,
+			       struct efa_com_destroy_eq_params *params)
+{
+	struct efa_com_admin_queue *aq = &edev->aq;
+	struct efa_admin_destroy_eq_resp resp = {};
+	struct efa_admin_destroy_eq_cmd cmd = {};
+	int err;
+
+	cmd.aq_common_descriptor.opcode = EFA_ADMIN_DESTROY_EQ;
+	cmd.eqn = params->eqn;
+
+	err = efa_com_cmd_exec(aq,
+			       (struct efa_admin_aq_entry *)&cmd,
+			       sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp,
+			       sizeof(resp));
+	if (err)
+		ibdev_err_ratelimited(edev->efa_dev,
+				      "Failed to destroy EQ-%u [%d]\n", cmd.eqn,
+				      err);
+}
+
+static void efa_com_arm_eq(struct efa_com_dev *edev, struct efa_com_eq *eeq)
+{
+	u32 val = 0;
+
+	EFA_SET(&val, EFA_REGS_EQ_DB_EQN, eeq->eqn);
+	EFA_SET(&val, EFA_REGS_EQ_DB_ARM, 1);
+
+	writel(val, edev->reg_bar + EFA_REGS_EQ_DB_OFF);
+}
+
+void efa_com_eq_comp_intr_handler(struct efa_com_dev *edev,
+				  struct efa_com_eq *eeq)
+{
+	struct efa_admin_eqe *eqe;
+	u32 processed = 0;
+	u8 phase;
+	u32 ci;
+
+	ci = eeq->cc & (eeq->depth - 1);
+	phase = eeq->phase;
+	eqe = &eeq->eqes[ci];
+
+	/* Go over all the events */
+	while ((READ_ONCE(eqe->common) & EFA_ADMIN_EQE_PHASE_MASK) == phase) {
+		/*
+		 * Do not read the rest of the completion entry before the
+		 * phase bit was validated
+		 */
+		dma_rmb();
+
+		eeq->cb(eeq, eqe);
+
+		/* Get next event entry */
+		ci++;
+		processed++;
+
+		if (ci == eeq->depth) {
+			ci = 0;
+			phase = !phase;
+		}
+
+		eqe = &eeq->eqes[ci];
+	}
+
+	eeq->cc += processed;
+	eeq->phase = phase;
+	efa_com_arm_eq(eeq->edev, eeq);
+}
+
+void efa_com_eq_destroy(struct efa_com_dev *edev, struct efa_com_eq *eeq)
+{
+	struct efa_com_destroy_eq_params params = {
+		.eqn = eeq->eqn,
+	};
+
+	efa_com_destroy_eq(edev, &params);
+	dma_free_coherent(edev->dmadev, eeq->depth * sizeof(*eeq->eqes),
+			  eeq->eqes, eeq->dma_addr);
+}
+
+int efa_com_eq_init(struct efa_com_dev *edev, struct efa_com_eq *eeq,
+		    efa_eqe_handler cb, u16 depth, u8 msix_vec)
+{
+	struct efa_com_create_eq_params params = {};
+	struct efa_com_create_eq_result result = {};
+	int err;
+
+	params.depth = depth;
+	params.entry_size_in_bytes = sizeof(*eeq->eqes);
+	EFA_SET(&params.event_bitmask,
+		EFA_ADMIN_CREATE_EQ_CMD_COMPLETION_EVENTS, 1);
+	params.msix_vec = msix_vec;
+
+	eeq->eqes = dma_alloc_coherent(edev->dmadev,
+				       params.depth * sizeof(*eeq->eqes),
+				       &params.dma_addr, GFP_KERNEL);
+	if (!eeq->eqes)
+		return -ENOMEM;
+
+	err = efa_com_create_eq(edev, &params, &result);
+	if (err)
+		goto err_free_coherent;
+
+	eeq->eqn = result.eqn;
+	eeq->edev = edev;
+	eeq->dma_addr = params.dma_addr;
+	eeq->phase = 1;
+	eeq->depth = params.depth;
+	eeq->cb = cb;
+	efa_com_arm_eq(edev, eeq);
+
+	return 0;
+
+err_free_coherent:
+	dma_free_coherent(edev->dmadev, params.depth * sizeof(*eeq->eqes),
+			  eeq->eqes, params.dma_addr);
+	return err;
 }

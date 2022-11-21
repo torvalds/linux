@@ -267,11 +267,16 @@ static int rt298_jack_detect(struct rt298_priv *rt298, bool *hp, bool *mic)
 				msleep(300);
 				regmap_read(rt298->regmap,
 					RT298_CBJ_CTRL2, &val);
-				if (0x0070 == (val & 0x0070))
+				if (0x0070 == (val & 0x0070)) {
 					*mic = true;
-				else
+				} else {
 					*mic = false;
+					regmap_update_bits(rt298->regmap,
+						RT298_CBJ_CTRL1,
+						0xfcc0, 0xc400);
+				}
 			}
+
 			regmap_update_bits(rt298->regmap,
 				RT298_DC_GAIN, 0x200, 0x0);
 
@@ -1084,7 +1089,7 @@ static struct snd_soc_dai_driver rt298_dai[] = {
 			.formats = RT298_FORMATS,
 		},
 		.ops = &rt298_aif_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "rt298-aif2",
@@ -1104,7 +1109,7 @@ static struct snd_soc_dai_driver rt298_dai[] = {
 			.formats = RT298_FORMATS,
 		},
 		.ops = &rt298_aif_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 
 };

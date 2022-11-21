@@ -95,13 +95,13 @@
 		};
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0>;
 	};
 
 	thermal-zones {
-		cpu-thermal0 {
+		cpu0-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -122,7 +122,7 @@
 			};
 		};
 
-		cpu-thermal1 {
+		cpu1-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -143,7 +143,7 @@
 			};
 		};
 
-		cpu-thermal2 {
+		cpu2-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -164,7 +164,7 @@
 			};
 		};
 
-		cpu-thermal3 {
+		cpu3-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -198,7 +198,7 @@
 			clock-frequency = <19200000>;
 		};
 
-		pxo_board {
+		pxo_board: pxo_board {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <27000000>;
@@ -683,12 +683,11 @@
 				pm8821_mpps: mpps@50 {
 					compatible = "qcom,pm8821-mpp", "qcom,ssbi-mpp";
 					reg = <0x50>;
-					interrupts = <24 IRQ_TYPE_NONE>,
-						     <25 IRQ_TYPE_NONE>,
-						     <26 IRQ_TYPE_NONE>,
-						     <27 IRQ_TYPE_NONE>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
 					gpio-controller;
 					#gpio-cells = <2>;
+					gpio-ranges = <&pm8821_mpps 0 0 4>;
 				};
 			};
 		};
@@ -726,19 +725,9 @@
 					reg = <0x50>;
 					gpio-controller;
 					#gpio-cells = <2>;
-					interrupts =
-					<128 IRQ_TYPE_NONE>,
-					<129 IRQ_TYPE_NONE>,
-					<130 IRQ_TYPE_NONE>,
-					<131 IRQ_TYPE_NONE>,
-					<132 IRQ_TYPE_NONE>,
-					<133 IRQ_TYPE_NONE>,
-					<134 IRQ_TYPE_NONE>,
-					<135 IRQ_TYPE_NONE>,
-					<136 IRQ_TYPE_NONE>,
-					<137 IRQ_TYPE_NONE>,
-					<138 IRQ_TYPE_NONE>,
-					<139 IRQ_TYPE_NONE>;
+					gpio-ranges = <&pm8921_mpps 0 0 12>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
 				};
 
 				rtc@11d {
@@ -766,40 +755,40 @@
 					#size-cells = <0>;
 					#io-channel-cells = <2>;
 
-					vcoin: adc-channel@00 {
+					vcoin: adc-channel@0 {
 						reg = <0x00 0x00>;
 					};
-					vbat: adc-channel@01 {
+					vbat: adc-channel@1 {
 						reg = <0x00 0x01>;
 					};
-					dcin: adc-channel@02 {
+					dcin: adc-channel@2 {
 						reg = <0x00 0x02>;
 					};
-					vph_pwr: adc-channel@04 {
+					vph_pwr: adc-channel@4 {
 						reg = <0x00 0x04>;
 					};
-					batt_therm: adc-channel@08 {
+					batt_therm: adc-channel@8 {
 						reg = <0x00 0x08>;
 					};
-					batt_id: adc-channel@09 {
+					batt_id: adc-channel@9 {
 						reg = <0x00 0x09>;
 					};
-					usb_vbus: adc-channel@0a {
+					usb_vbus: adc-channel@a {
 						reg = <0x00 0x0a>;
 					};
-					die_temp: adc-channel@0b {
+					die_temp: adc-channel@b {
 						reg = <0x00 0x0b>;
 					};
-					ref_625mv: adc-channel@0c {
+					ref_625mv: adc-channel@c {
 						reg = <0x00 0x0c>;
 					};
-					ref_1250mv: adc-channel@0d {
+					ref_1250mv: adc-channel@d {
 						reg = <0x00 0x0d>;
 					};
-					chg_temp: adc-channel@0e {
+					chg_temp: adc-channel@e {
 						reg = <0x00 0x0e>;
 					};
-					ref_muxoff: adc-channel@0f {
+					ref_muxoff: adc-channel@f {
 						reg = <0x00 0x0f>;
 					};
 				};
@@ -826,6 +815,7 @@
 			nvmem-cells = <&tsens_calib>, <&tsens_backup>;
 			nvmem-cell-names = "calib", "calib_backup";
 			#clock-cells = <1>;
+			#power-domain-cells = <1>;
 			#reset-cells = <1>;
 			#thermal-sensor-cells = <1>;
 		};
@@ -841,11 +831,12 @@
 			compatible = "qcom,mmcc-apq8064";
 			reg = <0x4000000 0x1000>;
 			#clock-cells = <1>;
+			#power-domain-cells = <1>;
 			#reset-cells = <1>;
 		};
 
 		l2cc: clock-controller@2011000 {
-			compatible	= "syscon";
+			compatible	= "qcom,kpss-gcc", "syscon";
 			reg		= <0x2011000 0x1000>;
 		};
 
@@ -1084,7 +1075,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-			sdcc1: sdcc@12400000 {
+			sdcc1: mmc@12400000 {
 				status		= "disabled";
 				compatible	= "arm,pl18x", "arm,primecell";
 				pinctrl-names	= "default";
@@ -1104,7 +1095,7 @@
 				dma-names = "tx", "rx";
 			};
 
-			sdcc3: sdcc@12180000 {
+			sdcc3: mmc@12180000 {
 				compatible	= "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
 				status		= "disabled";
@@ -1122,7 +1113,7 @@
 				dma-names = "tx", "rx";
 			};
 
-			sdcc4: sdcc@121c0000 {
+			sdcc4: mmc@121c0000 {
 				compatible	= "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
 				status		= "disabled";
@@ -1148,22 +1139,21 @@
 		};
 
 		gpu: adreno-3xx@4300000 {
-			compatible = "qcom,adreno-3xx";
+			compatible = "qcom,adreno-320.2", "qcom,adreno";
 			reg = <0x04300000 0x20000>;
 			reg-names = "kgsl_3d0_reg_memory";
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "kgsl_3d0_irq";
 			clock-names =
-			    "core_clk",
-			    "iface_clk",
-			    "mem_clk",
-			    "mem_iface_clk";
+			    "core",
+			    "iface",
+			    "mem",
+			    "mem_iface";
 			clocks =
 			    <&mmcc GFX3D_CLK>,
 			    <&mmcc GFX3D_AHB_CLK>,
 			    <&mmcc GFX3D_AXI_CLK>,
 			    <&mmcc MMSS_IMEM_AHB_CLK>;
-			qcom,chipid = <0x03020002>;
 
 			iommus = <&gfx3d 0
 				  &gfx3d 1
@@ -1230,13 +1220,17 @@
 				  &gfx3d1 30
 				  &gfx3d1 31>;
 
-			qcom,gpu-pwrlevels {
-				compatible = "qcom,gpu-pwrlevels";
-				qcom,gpu-pwrlevel@0 {
-					qcom,gpu-freq = <450000000>;
+			operating-points-v2 = <&gpu_opp_table>;
+
+			gpu_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-320000000 {
+					opp-hz = /bits/ 64 <450000000>;
 				};
-				qcom,gpu-pwrlevel@1 {
-					qcom,gpu-freq = <27000000>;
+
+				opp-27000000 {
+					opp-hz = /bits/ 64 <27000000>;
 				};
 			};
 		};
@@ -1246,7 +1240,7 @@
 			reg = <0x5700000 0x70>;
 		};
 
-		dsi0: mdss_dsi@4700000 {
+		dsi0: dsi@4700000 {
 			compatible = "qcom,mdss-dsi-ctrl";
 			label = "MDSS DSI CTRL->0";
 			#address-cells = <1>;
@@ -1262,9 +1256,9 @@
 				<&mmcc DSI1_BYTE_CLK>,
 				<&mmcc DSI_PIXEL_CLK>,
 				<&mmcc DSI1_ESC_CLK>;
-			clock-names = "iface_clk", "bus_clk", "core_mmss_clk",
-					"src_clk", "byte_clk", "pixel_clk",
-					"core_clk";
+			clock-names = "iface", "bus", "core_mmss",
+					"src", "byte", "pixel",
+					"core";
 
 			assigned-clocks = <&mmcc DSI1_BYTE_SRC>,
 					<&mmcc DSI1_ESC_SRC>,
@@ -1276,6 +1270,7 @@
 						<&dsi0_phy 1>;
 			syscon-sfpb = <&mmss_sfpb>;
 			phys = <&dsi0_phy>;
+			phy-names = "dsi";
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1306,7 +1301,7 @@
 			reg-names = "dsi_pll", "dsi_phy", "dsi_phy_regulator";
 			clock-names = "iface_clk", "ref";
 			clocks = <&mmcc DSI_M_AHB_CLK>,
-				 <&cxo_board>;
+				 <&pxo_board>;
 		};
 
 
@@ -1376,10 +1371,10 @@
 
 		pcie: pci@1b500000 {
 			compatible = "qcom,pcie-apq8064", "snps,dw-pcie";
-			reg = <0x1b500000 0x1000
-			       0x1b502000 0x80
-			       0x1b600000 0x100
-			       0x0ff00000 0x100000>;
+			reg = <0x1b500000 0x1000>,
+			      <0x1b502000 0x80>,
+			      <0x1b600000 0x100>,
+			      <0x0ff00000 0x100000>;
 			reg-names = "dbi", "elbi", "parf", "config";
 			device_type = "pci";
 			linux,pci-domain = <0>;
@@ -1387,8 +1382,8 @@
 			num-lanes = <1>;
 			#address-cells = <3>;
 			#size-cells = <2>;
-			ranges = <0x81000000 0 0 0x0fe00000 0 0x00100000   /* I/O */
-				  0x82000000 0 0x08000000 0x08000000 0 0x07e00000>; /* memory */
+			ranges = <0x81000000 0 0          0x0fe00000 0 0x00100000>, /* I/O */
+				 <0x82000000 0 0x08000000 0x08000000 0 0x07e00000>; /* mem */
 			interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "msi";
 			#interrupt-cells = <1>;
@@ -1420,9 +1415,9 @@
 			clocks = <&mmcc HDMI_APP_CLK>,
 				 <&mmcc HDMI_M_AHB_CLK>,
 				 <&mmcc HDMI_S_AHB_CLK>;
-			clock-names = "core_clk",
-				      "master_iface_clk",
-				      "slave_iface_clk";
+			clock-names = "core",
+				      "master_iface",
+				      "slave_iface";
 
 			phys = <&hdmi_phy>;
 			phy-names = "hdmi-phy";
@@ -1453,7 +1448,7 @@
 				    "hdmi_pll";
 
 			clocks = <&mmcc HDMI_S_AHB_CLK>;
-			clock-names = "slave_iface_clk";
+			clock-names = "slave_iface";
 			#phy-cells = <0>;
 		};
 

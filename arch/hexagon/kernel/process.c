@@ -14,7 +14,7 @@
 #include <linux/tick.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 
 /*
  * Program thread launch.  Often defined as a macro in processor.h,
@@ -73,7 +73,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
 						    sizeof(*ss));
 	ss->lr = (unsigned long)ret_from_fork;
 	p->thread.switch_sp = ss;
-	if (unlikely(p->flags & PF_KTHREAD)) {
+	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		/* r24 <- fn, r25 <- arg */
 		ss->r24 = usp;
@@ -105,7 +105,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
 	/*
 	 * Parent sees new pid -- not necessary, not even possible at
 	 * this point in the fork process
-	 * Might also want to set things like ti->addr_limit
 	 */
 
 	return 0;
@@ -130,13 +129,11 @@ void flush_thread(void)
  * is an identification of the point at which the scheduler
  * was invoked by a blocked thread.
  */
-unsigned long get_wchan(struct task_struct *p)
+unsigned long __get_wchan(struct task_struct *p)
 {
 	unsigned long fp, pc;
 	unsigned long stack_page;
 	int count = 0;
-	if (!p || p == current || p->state == TASK_RUNNING)
-		return 0;
 
 	stack_page = (unsigned long)task_stack_page(p);
 	fp = ((struct hexagon_switch_stack *)p->thread.switch_sp)->fp;
@@ -174,13 +171,13 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 		return 1;
 	}
 
-	if (thread_info_flags & _TIF_SIGPENDING) {
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL)) {
 		do_signal(regs);
 		return 1;
 	}
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		tracehook_notify_resume(regs);
+		resume_user_mode_work(regs);
 		return 1;
 	}
 

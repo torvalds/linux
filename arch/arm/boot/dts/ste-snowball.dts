@@ -4,7 +4,7 @@
  */
 
 /dts-v1/;
-#include "ste-db8500.dtsi"
+#include "ste-db9500.dtsi"
 #include "ste-href-ab8500.dtsi"
 #include "ste-href-family-pinctrl.dtsi"
 
@@ -15,6 +15,29 @@
 	memory {
 		device_type = "memory";
 		reg = <0x00000000 0x20000000>;
+	};
+
+	battery: battery {
+		compatible = "simple-battery";
+		battery-type = "lithium-ion-polymer";
+	};
+
+	thermal-zones {
+		battery-thermal {
+			/* This zone will be polled by the battery temperature code */
+			polling-delay = <0>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&bat_therm>;
+		};
+	};
+
+	bat_therm: thermistor {
+		compatible = "murata,ncp18wb473";
+		io-channels = <&gpadc 0x02>; /* BatTemp */
+		pullup-uv = <1800000>;
+		pullup-ohm = <230000>;
+		pulldown-ohm = <0>;
+		#thermal-sensor-cells = <0>;
 	};
 
 	en_3v3_reg: en_3v3 {
@@ -213,7 +236,7 @@
 		};
 
 		// External Micro SD slot
-		sdi0_per1@80126000 {
+		mmc@80126000 {
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <100000000>;
 			bus-width = <4>;
@@ -241,7 +264,7 @@
 		};
 
 		// WLAN SDIO channel
-		sdi1_per2@80118000 {
+		mmc@80118000 {
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <100000000>;
 			bus-width = <4>;
@@ -253,7 +276,7 @@
 		};
 
 		// Unused PoP eMMC - register and put it to sleep by default */
-		sdi2_per3@80005000 {
+		mmc@80005000 {
 			arm,primecell-periphid = <0x10480180>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&mc2_a_1_sleep>;
@@ -262,11 +285,13 @@
 		};
 
 		// On-board eMMC
-		sdi4_per2@80114000 {
+		mmc@80114000 {
 			arm,primecell-periphid = <0x10480180>;
 		        max-frequency = <100000000>;
 			bus-width = <8>;
 			cap-mmc-highspeed;
+			no-sdio;
+			no-sd;
 			vmmc-supply = <&ab8500_ldo_aux2_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc4_a_1_default>;
@@ -376,7 +401,7 @@
 
 		prcmu@80157000 {
 			ab8500 {
-				ab8500-gpio {
+				gpio {
 					/*
 					 * AB8500 GPIOs are numbered starting from 1, so the first
 					 * index 0 is what in the datasheet is called "GPIO1", and
@@ -398,13 +423,13 @@
 						     "PM_GPIO42"; /* AB8500 GPIO42 */
 				};
 
-				ab8500_usb {
+				phy {
 					pinctrl-names = "default", "sleep";
 					pinctrl-0 = <&usb_a_1_default>;
 					pinctrl-1 = <&usb_a_1_sleep>;
 				};
 
-				ext_regulators: ab8500-ext-regulators {
+				ext_regulators: regulator-external {
 					ab8500_ext1_reg: ab8500_ext1 {
 						regulator-name = "ab8500-ext-supply1";
 					};
@@ -418,7 +443,7 @@
 					};
 				};
 
-				ab8500-regulators {
+				regulator {
 					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
 						regulator-name = "V-DISPLAY";
 					};

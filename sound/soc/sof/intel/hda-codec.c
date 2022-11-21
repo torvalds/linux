@@ -20,6 +20,8 @@
 #include "../../codecs/hdac_hda.h"
 #endif /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
 
+#define CODEC_PROBE_RETRIES	3
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 #define IDISP_VID_INTEL	0x80860000
 
@@ -63,16 +65,18 @@ static int hda_codec_load_module(struct hda_codec *codec)
 }
 
 /* enable controller wake up event for all codecs with jack connectors */
-void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev)
+void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev, bool enable)
 {
 	struct hda_bus *hbus = sof_to_hbus(sdev);
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hda_codec *codec;
 	unsigned int mask = 0;
 
-	list_for_each_codec(codec, hbus)
-		if (codec->jacktbl.used)
-			mask |= BIT(codec->core.addr);
+	if (enable) {
+		list_for_each_codec(codec, hbus)
+			if (codec->jacktbl.used)
+				mask |= BIT(codec->core.addr);
+	}
 
 	snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK, mask);
 }
@@ -81,11 +85,7 @@ void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev)
 void hda_codec_jack_check(struct snd_sof_dev *sdev)
 {
 	struct hda_bus *hbus = sof_to_hbus(sdev);
-	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hda_codec *codec;
-
-	/* disable controller Wake Up event*/
-	snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK, 0);
 
 	list_for_each_codec(codec, hbus)
 		/*
@@ -93,11 +93,10 @@ void hda_codec_jack_check(struct snd_sof_dev *sdev)
 		 * has been recorded in STATESTS
 		 */
 		if (codec->jacktbl.used)
-			schedule_delayed_work(&codec->jackpoll_work,
-					      codec->jackpoll_interval);
+			pm_request_resume(&codec->core.dev);
 }
 #else
-void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev) {}
+void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev, bool enable) {}
 void hda_codec_jack_check(struct snd_sof_dev *sdev) {}
 #endif /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
 EXPORT_SYMBOL_NS(hda_codec_jack_wake_enable, SND_SOC_SOF_HDA_AUDIO_CODEC);
@@ -124,12 +123,15 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
 	u32 hda_cmd = (address << 28) | (AC_NODE_ROOT << 20) |
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
 	u32 resp = -1;
-	int ret;
+	int ret, retry = 0;
 
-	mutex_lock(&hbus->core.cmd_mutex);
-	snd_hdac_bus_send_cmd(&hbus->core, hda_cmd);
-	snd_hdac_bus_get_response(&hbus->core, address, &resp);
-	mutex_unlock(&hbus->core.cmd_mutex);
+	do {
+		mutex_lock(&hbus->core.cmd_mutex);
+		snd_hdac_bus_send_cmd(&hbus->core, hda_cmd);
+		snd_hdac_bus_get_response(&hbus->core, address, &resp);
+		mutex_unlock(&hbus->core.cmd_mutex);
+	} while (resp == -1 && retry++ < CODEC_PROBE_RETRIES);
+
 	if (resp == -1)
 		return -EIO;
 	dev_dbg(sdev->dev, "HDA codec #%d probed OK: response: %x\n",
@@ -156,7 +158,8 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
 		if (!hdev->bus->audio_component) {
 			dev_dbg(sdev->dev,
 				"iDisp hw present but no driver\n");
-			goto error;
+			ret = -ENOENT;
+			goto out;
 		}
 		hda_priv->need_display_power = true;
 	}
@@ -173,24 +176,23 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
 		 * other return codes without modification
 		 */
 		if (ret == 0)
-			goto error;
+			ret = -ENOENT;
 	}
 
-	return ret;
-
-error:
-	snd_hdac_ext_bus_device_exit(hdev);
-	return -ENOENT;
-
+out:
+	if (ret < 0) {
+		snd_hdac_device_unregister(hdev);
+		put_device(&hdev->dev);
+	}
 #else
 	hdev = devm_kzalloc(sdev->dev, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
 		return -ENOMEM;
 
 	ret = snd_hdac_ext_bus_device_init(&hbus->core, address, hdev, HDA_DEV_ASOC);
+#endif
 
 	return ret;
-#endif
 }
 
 /* Codec initialization */

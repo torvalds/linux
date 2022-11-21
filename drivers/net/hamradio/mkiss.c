@@ -31,6 +31,8 @@
 
 #define AX_MTU		236
 
+/* some arch define END as assembly function ending, just undef it */
+#undef	END
 /* SLIP/KISS protocol characters. */
 #define END             0300		/* indicates end of frame	*/
 #define ESC             0333		/* indicates byte stuffing	*/
@@ -276,7 +278,7 @@ static void ax_bump(struct mkiss *ax)
 			 */
 			*ax->rbuff &= ~0x20;
 		}
- 	}
+	}
 
 	count = ax->rcount;
 
@@ -344,7 +346,7 @@ static int ax_set_mac_address(struct net_device *dev, void *addr)
 
 	netif_tx_lock_bh(dev);
 	netif_addr_lock(dev);
-	memcpy(dev->dev_addr, &sa->sax25_call, AX25_ADDR_LEN);
+	__dev_addr_set(dev, &sa->sax25_call, AX25_ADDR_LEN);
 	netif_addr_unlock(dev);
 	netif_tx_unlock_bh(dev);
 
@@ -501,7 +503,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 		default:
 			count = kiss_esc(p, ax->xbuff, len);
 		}
-  	}
+	}
 	spin_unlock_bh(&ax->buflock);
 
 	set_bit(TTY_DO_WRITE_WAKEUP, &ax->tty->flags);
@@ -647,7 +649,7 @@ static void ax_setup(struct net_device *dev)
 
 
 	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr,  &ax25_defaddr,  AX25_ADDR_LEN);
+	dev_addr_set(dev, (u8 *)&ax25_defaddr);
 
 	dev->flags      = IFF_BROADCAST | IFF_MULTICAST;
 }
@@ -792,18 +794,20 @@ static void mkiss_close(struct tty_struct *tty)
 	 */
 	netif_stop_queue(ax->dev);
 
-	/* Free all AX25 frame buffers. */
+	unregister_netdev(ax->dev);
+
+	/* Free all AX25 frame buffers after unreg. */
 	kfree(ax->rbuff);
 	kfree(ax->xbuff);
 
 	ax->tty = NULL;
 
-	unregister_netdev(ax->dev);
+	free_netdev(ax->dev);
 }
 
 /* Perform I/O control on an active ax25 channel. */
-static int mkiss_ioctl(struct tty_struct *tty, struct file *file,
-	unsigned int cmd, unsigned long arg)
+static int mkiss_ioctl(struct tty_struct *tty, unsigned int cmd,
+		unsigned long arg)
 {
 	struct mkiss *ax = mkiss_get(tty);
 	struct net_device *dev;
@@ -815,7 +819,7 @@ static int mkiss_ioctl(struct tty_struct *tty, struct file *file,
 	dev = ax->dev;
 
 	switch (cmd) {
- 	case SIOCGIFNAME:
+	case SIOCGIFNAME:
 		err = copy_to_user((void __user *) arg, ax->dev->name,
 		                   strlen(ax->dev->name) + 1) ? -EFAULT : 0;
 		break;
@@ -849,7 +853,7 @@ static int mkiss_ioctl(struct tty_struct *tty, struct file *file,
 		}
 
 		netif_tx_lock_bh(dev);
-		memcpy(dev->dev_addr, addr, AX25_ADDR_LEN);
+		__dev_addr_set(dev, addr, AX25_ADDR_LEN);
 		netif_tx_unlock_bh(dev);
 
 		err = 0;
@@ -871,7 +875,7 @@ static int mkiss_ioctl(struct tty_struct *tty, struct file *file,
  * and sent on to the AX.25 layer for further processing.
  */
 static void mkiss_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-	char *fp, int count)
+	const char *fp, int count)
 {
 	struct mkiss *ax = mkiss_get(tty);
 
@@ -933,7 +937,7 @@ out:
 
 static struct tty_ldisc_ops ax_ldisc = {
 	.owner		= THIS_MODULE,
-	.magic		= TTY_LDISC_MAGIC,
+	.num		= N_AX25,
 	.name		= "mkiss",
 	.open		= mkiss_open,
 	.close		= mkiss_close,
@@ -953,22 +957,16 @@ static int __init mkiss_init_driver(void)
 
 	printk(banner);
 
-	status = tty_register_ldisc(N_AX25, &ax_ldisc);
+	status = tty_register_ldisc(&ax_ldisc);
 	if (status != 0)
 		printk(msg_regfail, status);
 
 	return status;
 }
 
-static const char msg_unregfail[] = KERN_ERR \
-	"mkiss: can't unregister line discipline (err = %d)\n";
-
 static void __exit mkiss_exit_driver(void)
 {
-	int ret;
-
-	if ((ret = tty_unregister_ldisc(N_AX25)))
-		printk(msg_unregfail, ret);
+	tty_unregister_ldisc(&ax_ldisc);
 }
 
 MODULE_AUTHOR("Ralf Baechle DL5RB <ralf@linux-mips.org>");

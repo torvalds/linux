@@ -36,6 +36,24 @@ config SND_SOC_COMPRESS
 
 config SND_SOC_TOPOLOGY
 	bool
+	select SND_DYNAMIC_MINORS
+
+config SND_SOC_TOPOLOGY_KUNIT_TEST
+	tristate "KUnit tests for SoC topology"
+	depends on KUNIT
+	depends on SND_SOC_TOPOLOGY
+	default KUNIT_ALL_TESTS
+	help
+	  If you want to perform tests on ALSA SoC topology support say Y here.
+
+	  This builds a module which can be later manually loaded to run KUNIT
+	  test cases against soc-topology.c API. This should be primarily used
+	  by developers to test their changes to ASoC.
+
+	  Do note that it creates fake playback devices which do not interact
+	  well with userspace. When running tests one may want to disable
+	  userspace applications such as pulseaudio, to prevent unnecessary
+	  problems.
 
 config SND_SOC_ACPI
 	tristate
@@ -62,7 +80,6 @@ source "sound/soc/qcom/Kconfig"
 source "sound/soc/rockchip/Kconfig"
 source "sound/soc/samsung/Kconfig"
 source "sound/soc/sh/Kconfig"
-source "sound/soc/sirf/Kconfig"
 source "sound/soc/sof/Kconfig"
 source "sound/soc/spear/Kconfig"
 source "sound/soc/sprd/Kconfig"
@@ -71,12 +88,10 @@ source "sound/soc/stm/Kconfig"
 source "sound/soc/sunxi/Kconfig"
 source "sound/soc/tegra/Kconfig"
 source "sound/soc/ti/Kconfig"
-source "sound/soc/txx9/Kconfig"
 source "sound/soc/uniphier/Kconfig"
 source "sound/soc/ux500/Kconfig"
 source "sound/soc/xilinx/Kconfig"
 source "sound/soc/xtensa/Kconfig"
-source "sound/soc/zte/Kconfig"
 
 # Supported codecs
 source "sound/soc/codecs/Kconfig"

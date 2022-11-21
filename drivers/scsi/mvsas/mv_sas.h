@@ -40,7 +40,7 @@
 #define mv_dprintk(format, arg...)	\
 	printk(KERN_DEBUG"%s %d:" format, __FILE__, __LINE__, ## arg)
 #else
-#define mv_dprintk(format, arg...)
+#define mv_dprintk(format, arg...) no_printk(format, ## arg)
 #endif
 #define MV_MAX_U32			0xffffffff
 
@@ -440,9 +440,6 @@ void mvs_scan_start(struct Scsi_Host *shost);
 int mvs_scan_finished(struct Scsi_Host *shost, unsigned long time);
 int mvs_queue_command(struct sas_task *task, gfp_t gfp_flags);
 int mvs_abort_task(struct sas_task *task);
-int mvs_abort_task_set(struct domain_device *dev, u8 *lun);
-int mvs_clear_aca(struct domain_device *dev, u8 *lun);
-int mvs_clear_task_set(struct domain_device *dev, u8 * lun);
 void mvs_port_formed(struct asd_sas_phy *sas_phy);
 void mvs_port_deformed(struct asd_sas_phy *sas_phy);
 int mvs_dev_found(struct domain_device *dev);

@@ -36,15 +36,9 @@
         "ArchStdEvent": "EXC_TRAP_FIQ"
     },
     {
-        "PublicDescription": "Exception taken",
-        "EventCode": "0x09",
-        "EventName": "EXC_TAKEN",
-        "BriefDescription": "Exception taken"
+        "ArchStdEvent": "EXC_TAKEN"
     },
     {
-        "PublicDescription": "Instruction architecturally executed, condition check pass, exception return",
-        "EventCode": "0x0a",
-        "EventName": "EXC_RETURN",
-        "BriefDescription": "Exception return"
+        "ArchStdEvent": "EXC_RETURN"
     }
 ]

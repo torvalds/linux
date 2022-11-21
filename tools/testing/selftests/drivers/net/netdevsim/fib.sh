@@ -33,12 +33,14 @@ ALL_TESTS="
 NETDEVSIM_PATH=/sys/bus/netdevsim/
 DEV_ADDR=1337
 DEV=netdevsim${DEV_ADDR}
-DEVLINK_DEV=netdevsim/${DEV}
 SYSFS_NET_DIR=/sys/bus/netdevsim/devices/$DEV/net/
 NUM_NETIFS=0
 source $lib_dir/lib.sh
-source $lib_dir/devlink_lib.sh
 source $lib_dir/fib_offload_lib.sh
+
+DEVLINK_DEV=
+source $lib_dir/devlink_lib.sh
+DEVLINK_DEV=netdevsim/${DEV}
 
 ipv4_identical_routes()
 {
@@ -302,6 +304,16 @@ ipv6_error_path()
 	ipv6_error_path_replay
 }
 
+fib_notify_on_flag_change_set()
+{
+	local notify=$1; shift
+
+	ip netns exec testns1 sysctl -qw net.ipv4.fib_notify_on_flag_change=$notify
+	ip netns exec testns1 sysctl -qw net.ipv6.fib_notify_on_flag_change=$notify
+
+	log_info "Set fib_notify_on_flag_change to $notify"
+}
+
 setup_prepare()
 {
 	local netdev
@@ -336,6 +348,10 @@ trap cleanup EXIT
 
 setup_prepare
 
+fib_notify_on_flag_change_set 1
+tests_run
+
+fib_notify_on_flag_change_set 0
 tests_run
 
 exit $EXIT_STATUS

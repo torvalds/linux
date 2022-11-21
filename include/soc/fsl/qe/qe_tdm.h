@@ -10,14 +10,16 @@
 #ifndef _QE_TDM_H_
 #define _QE_TDM_H_
 
-#include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/types.h>
 
 #include <soc/fsl/qe/immap_qe.h>
 #include <soc/fsl/qe/qe.h>
 
 #include <soc/fsl/qe/ucc.h>
 #include <soc/fsl/qe/ucc_fast.h>
+
+struct device_node;
 
 /* SI RAM entries */
 #define SIR_LAST	0x0001

@@ -341,11 +341,6 @@ static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
 	return container_of(ibdev, struct c4iw_dev, ibdev);
 }
 
-static inline struct c4iw_dev *rdev_to_c4iw_dev(struct c4iw_rdev *rdev)
-{
-	return container_of(rdev, struct c4iw_dev, rdev);
-}
-
 static inline struct c4iw_cq *get_chp(struct c4iw_dev *rhp, u32 cqid)
 {
 	return xa_load(&rhp->cqs, cqid);
@@ -432,8 +427,8 @@ struct c4iw_cq {
 	struct t4_cq cq;
 	spinlock_t lock;
 	spinlock_t comp_handler_lock;
-	atomic_t refcnt;
-	wait_queue_head_t wait;
+	refcount_t refcnt;
+	struct completion cq_rel_comp;
 	struct c4iw_wr_wait *wr_waitp;
 };
 
@@ -657,12 +652,6 @@ static inline u32 c4iw_ib_to_tpt_access(int a)
 	       (a & IB_ACCESS_REMOTE_READ ? FW_RI_MEM_ACCESS_REM_READ : 0) |
 	       (a & IB_ACCESS_LOCAL_WRITE ? FW_RI_MEM_ACCESS_LOCAL_WRITE : 0) |
 	       FW_RI_MEM_ACCESS_LOCAL_READ;
-}
-
-static inline u32 c4iw_ib_to_tpt_bind_access(int acc)
-{
-	return (acc & IB_ACCESS_REMOTE_WRITE ? FW_RI_MEM_ACCESS_REM_WRITE : 0) |
-	       (acc & IB_ACCESS_REMOTE_READ ? FW_RI_MEM_ACCESS_REM_READ : 0);
 }
 
 enum c4iw_mmid_state {
@@ -983,15 +972,14 @@ struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 			    u32 max_num_sg);
 int c4iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		   unsigned int *sg_offset);
-int c4iw_dealloc_mw(struct ib_mw *mw);
 void c4iw_dealloc(struct uld_ctx *ctx);
-int c4iw_alloc_mw(struct ib_mw *mw, struct ib_udata *udata);
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
 					   u64 length, u64 virt, int acc,
 					   struct ib_udata *udata);
 struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc);
 int c4iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
 int c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata);
+void c4iw_cq_rem_ref(struct c4iw_cq *chp);
 int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		   struct ib_udata *udata);
 int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
@@ -1002,9 +990,8 @@ int c4iw_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata);
 int c4iw_create_srq(struct ib_srq *srq, struct ib_srq_init_attr *attrs,
 		    struct ib_udata *udata);
 int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata);
-struct ib_qp *c4iw_create_qp(struct ib_pd *pd,
-			     struct ib_qp_init_attr *attrs,
-			     struct ib_udata *udata);
+int c4iw_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attrs,
+		   struct ib_udata *udata);
 int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				 int attr_mask, struct ib_udata *udata);
 int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,

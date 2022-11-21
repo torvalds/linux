@@ -7,50 +7,277 @@
 #include "sparx5_pcb_common.dtsi"
 
 /{
-	aliases {
-	    i2c0   = &i2c0;
-	    i2c100 = &i2c100;
-	    i2c101 = &i2c101;
-	    i2c102 = &i2c102;
-	    i2c103 = &i2c103;
-	    i2c104 = &i2c104;
-	    i2c105 = &i2c105;
-	    i2c106 = &i2c106;
-	    i2c107 = &i2c107;
-	    i2c108 = &i2c108;
-	    i2c109 = &i2c109;
-	    i2c110 = &i2c110;
-	    i2c111 = &i2c111;
-	    i2c112 = &i2c112;
-	    i2c113 = &i2c113;
-	    i2c114 = &i2c114;
-	    i2c115 = &i2c115;
-	    i2c116 = &i2c116;
-	    i2c117 = &i2c117;
-	    i2c118 = &i2c118;
-	    i2c119 = &i2c119;
-	};
-
 	gpio-restart {
 		compatible = "gpio-restart";
 		gpios = <&gpio 37 GPIO_ACTIVE_LOW>;
 		priority = <200>;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		led@0 {
+			label = "twr0:green";
+			gpios = <&sgpio_out0 8 0 GPIO_ACTIVE_LOW>;
+		};
+		led@1 {
+			label = "twr0:yellow";
+			gpios = <&sgpio_out0 8 1 GPIO_ACTIVE_LOW>;
+		};
+		led@2 {
+			label = "twr1:green";
+			gpios = <&sgpio_out0 9 0 GPIO_ACTIVE_LOW>;
+		};
+		led@3 {
+			label = "twr1:yellow";
+			gpios = <&sgpio_out0 9 1 GPIO_ACTIVE_LOW>;
+		};
+		led@4 {
+			label = "twr2:green";
+			gpios = <&sgpio_out0 10 0 GPIO_ACTIVE_LOW>;
+		};
+		led@5 {
+			label = "twr2:yellow";
+			gpios = <&sgpio_out0 10 1 GPIO_ACTIVE_LOW>;
+		};
+		led@6 {
+			label = "twr3:green";
+			gpios = <&sgpio_out0 11 0 GPIO_ACTIVE_LOW>;
+		};
+		led@7 {
+			label = "twr3:yellow";
+			gpios = <&sgpio_out0 11 1 GPIO_ACTIVE_LOW>;
+		};
+		led@8 {
+			label = "eth12:green";
+			gpios = <&sgpio_out0 12 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@9 {
+			label = "eth12:yellow";
+			gpios = <&sgpio_out0 12 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@10 {
+			label = "eth13:green";
+			gpios = <&sgpio_out0 13 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@11 {
+			label = "eth13:yellow";
+			gpios = <&sgpio_out0 13 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@12 {
+			label = "eth14:green";
+			gpios = <&sgpio_out0 14 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@13 {
+			label = "eth14:yellow";
+			gpios = <&sgpio_out0 14 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@14 {
+			label = "eth15:green";
+			gpios = <&sgpio_out0 15 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@15 {
+			label = "eth15:yellow";
+			gpios = <&sgpio_out0 15 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@16 {
+			label = "eth48:green";
+			gpios = <&sgpio_out1 16 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@17 {
+			label = "eth48:yellow";
+			gpios = <&sgpio_out1 16 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@18 {
+			label = "eth49:green";
+			gpios = <&sgpio_out1 17 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@19 {
+			label = "eth49:yellow";
+			gpios = <&sgpio_out1 17 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@20 {
+			label = "eth50:green";
+			gpios = <&sgpio_out1 18 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@21 {
+			label = "eth50:yellow";
+			gpios = <&sgpio_out1 18 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@22 {
+			label = "eth51:green";
+			gpios = <&sgpio_out1 19 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@23 {
+			label = "eth51:yellow";
+			gpios = <&sgpio_out1 19 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@24 {
+			label = "eth52:green";
+			gpios = <&sgpio_out1 20 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@25 {
+			label = "eth52:yellow";
+			gpios = <&sgpio_out1 20 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@26 {
+			label = "eth53:green";
+			gpios = <&sgpio_out1 21 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@27 {
+			label = "eth53:yellow";
+			gpios = <&sgpio_out1 21 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@28 {
+			label = "eth54:green";
+			gpios = <&sgpio_out1 22 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@29 {
+			label = "eth54:yellow";
+			gpios = <&sgpio_out1 22 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@30 {
+			label = "eth55:green";
+			gpios = <&sgpio_out1 23 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@31 {
+			label = "eth55:yellow";
+			gpios = <&sgpio_out1 23 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@32 {
+			label = "eth56:green";
+			gpios = <&sgpio_out1 24 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@33 {
+			label = "eth56:yellow";
+			gpios = <&sgpio_out1 24 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@34 {
+			label = "eth57:green";
+			gpios = <&sgpio_out1 25 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@35 {
+			label = "eth57:yellow";
+			gpios = <&sgpio_out1 25 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@36 {
+			label = "eth58:green";
+			gpios = <&sgpio_out1 26 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@37 {
+			label = "eth58:yellow";
+			gpios = <&sgpio_out1 26 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@38 {
+			label = "eth59:green";
+			gpios = <&sgpio_out1 27 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@39 {
+			label = "eth59:yellow";
+			gpios = <&sgpio_out1 27 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@40 {
+			label = "eth60:green";
+			gpios = <&sgpio_out1 28 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@41 {
+			label = "eth60:yellow";
+			gpios = <&sgpio_out1 28 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@42 {
+			label = "eth61:green";
+			gpios = <&sgpio_out1 29 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@43 {
+			label = "eth61:yellow";
+			gpios = <&sgpio_out1 29 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@44 {
+			label = "eth62:green";
+			gpios = <&sgpio_out1 30 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@45 {
+			label = "eth62:yellow";
+			gpios = <&sgpio_out1 30 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@46 {
+			label = "eth63:green";
+			gpios = <&sgpio_out1 31 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led@47 {
+			label = "eth63:yellow";
+			gpios = <&sgpio_out1 31 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+};
+
+&sgpio0 {
+	status = "okay";
+	microchip,sgpio-port-ranges = <8 15>;
+	gpio@0 {
+		ngpios = <64>;
+	};
+	gpio@1 {
+		ngpios = <64>;
+	};
+};
+
+&sgpio1 {
+	status = "okay";
+	microchip,sgpio-port-ranges = <24 31>;
+	gpio@0 {
+		ngpios = <64>;
+	};
+	gpio@1 {
+		ngpios = <64>;
+	};
 };
 
 &spi0 {
 	status = "okay";
-	spi@0 {
-		compatible = "spi-mux";
-		mux-controls = <&mux>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0>;	/* CS0 */
-		spi-flash@9 {
-			compatible = "jedec,spi-nor";
-			spi-max-frequency = <8000000>;
-			reg = <0x9>;	/* SPI */
-		};
+	spi-flash@0 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <8000000>;
+		reg = <0>;
 	};
 };
 
@@ -68,6 +295,33 @@
 			reg = <0x9>;	/* SPI */
 		};
 	};
+};
+
+&sgpio0 {
+	status = "okay";
+	microchip,sgpio-port-ranges = <8 15>;
+	gpio@0 {
+		ngpios = <64>;
+	};
+	gpio@1 {
+		ngpios = <64>;
+	};
+};
+
+&sgpio1 {
+	status = "okay";
+	microchip,sgpio-port-ranges = <24 31>;
+	gpio@0 {
+		ngpios = <64>;
+	};
+	gpio@1 {
+		ngpios = <64>;
+	};
+};
+
+&sgpio2 {
+	status = "okay";
+	microchip,sgpio-port-ranges = <0 0>, <11 31>;
 };
 
 &gpio {
@@ -157,9 +411,9 @@
 
 &i2c0_imux {
 	pinctrl-names =
-		"i2c100", "i2c101", "i2c102", "i2c103",
-		"i2c104", "i2c105", "i2c106", "i2c107",
-		"i2c108", "i2c109", "i2c110", "i2c111", "idle";
+		"i2c_sfp1", "i2c_sfp2", "i2c_sfp3", "i2c_sfp4",
+		"i2c_sfp5", "i2c_sfp6", "i2c_sfp7", "i2c_sfp8",
+		"i2c_sfp9", "i2c_sfp10", "i2c_sfp11", "i2c_sfp12", "idle";
 	pinctrl-0 = <&i2cmux_0>;
 	pinctrl-1 = <&i2cmux_1>;
 	pinctrl-2 = <&i2cmux_2>;
@@ -173,62 +427,62 @@
 	pinctrl-10 = <&i2cmux_10>;
 	pinctrl-11 = <&i2cmux_11>;
 	pinctrl-12 = <&i2cmux_pins_i>;
-	i2c100: i2c_sfp1 {
+	i2c_sfp1: i2c_sfp1 {
 		reg = <0x0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c101: i2c_sfp2 {
+	i2c_sfp2: i2c_sfp2 {
 		reg = <0x1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c102: i2c_sfp3 {
+	i2c_sfp3: i2c_sfp3 {
 		reg = <0x2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c103: i2c_sfp4 {
+	i2c_sfp4: i2c_sfp4 {
 		reg = <0x3>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c104: i2c_sfp5 {
+	i2c_sfp5: i2c_sfp5 {
 		reg = <0x4>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c105: i2c_sfp6 {
+	i2c_sfp6: i2c_sfp6 {
 		reg = <0x5>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c106: i2c_sfp7 {
+	i2c_sfp7: i2c_sfp7 {
 		reg = <0x6>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c107: i2c_sfp8 {
+	i2c_sfp8: i2c_sfp8 {
 		reg = <0x7>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c108: i2c_sfp9 {
+	i2c_sfp9: i2c_sfp9 {
 		reg = <0x8>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c109: i2c_sfp10 {
+	i2c_sfp10: i2c_sfp10 {
 		reg = <0x9>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c110: i2c_sfp11 {
+	i2c_sfp11: i2c_sfp11 {
 		reg = <0xa>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c111: i2c_sfp12 {
+	i2c_sfp12: i2c_sfp12 {
 		reg = <0xb>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -241,44 +495,413 @@
 		     &gpio 61 GPIO_ACTIVE_HIGH
 		     &gpio 54 GPIO_ACTIVE_HIGH>;
 	idle-state = <0x8>;
-	i2c112: i2c_sfp13 {
+	i2c_sfp13: i2c_sfp13 {
 		reg = <0x0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c113: i2c_sfp14 {
+	i2c_sfp14: i2c_sfp14 {
 		reg = <0x1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c114: i2c_sfp15 {
+	i2c_sfp15: i2c_sfp15 {
 		reg = <0x2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c115: i2c_sfp16 {
+	i2c_sfp16: i2c_sfp16 {
 		reg = <0x3>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c116: i2c_sfp17 {
+	i2c_sfp17: i2c_sfp17 {
 		reg = <0x4>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c117: i2c_sfp18 {
+	i2c_sfp18: i2c_sfp18 {
 		reg = <0x5>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c118: i2c_sfp19 {
+	i2c_sfp19: i2c_sfp19 {
 		reg = <0x6>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c119: i2c_sfp20 {
+	i2c_sfp20: i2c_sfp20 {
 		reg = <0x7>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+	};
+};
+
+&mdio3 {
+	status = "ok";
+	phy64: ethernet-phy@64 {
+		reg = <28>;
+	};
+};
+
+&axi {
+	sfp_eth12: sfp-eth12 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp1>;
+		tx-disable-gpios = <&sgpio_out2 11 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 11 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 11 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 12 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth13: sfp-eth13 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp2>;
+		tx-disable-gpios = <&sgpio_out2 12 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 12 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 12 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 13 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth14: sfp-eth14 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp3>;
+		tx-disable-gpios = <&sgpio_out2 13 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 13 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 13 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 14 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth15: sfp-eth15 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp4>;
+		tx-disable-gpios = <&sgpio_out2 14 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 14 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 14 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 15 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth48: sfp-eth48 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp5>;
+		tx-disable-gpios = <&sgpio_out2 15 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 15 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 15 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 16 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth49: sfp-eth49 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp6>;
+		tx-disable-gpios = <&sgpio_out2 16 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 16 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 16 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 17 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth50: sfp-eth50 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp7>;
+		tx-disable-gpios = <&sgpio_out2 17 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 17 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 17 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 18 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth51: sfp-eth51 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp8>;
+		tx-disable-gpios = <&sgpio_out2 18 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 18 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 18 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 19 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth52: sfp-eth52 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp9>;
+		tx-disable-gpios = <&sgpio_out2 19 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 19 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 19 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 20 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth53: sfp-eth53 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp10>;
+		tx-disable-gpios = <&sgpio_out2 20 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 20 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 20 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 21 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth54: sfp-eth54 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp11>;
+		tx-disable-gpios = <&sgpio_out2 21 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 21 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 21 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 22 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth55: sfp-eth55 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp12>;
+		tx-disable-gpios = <&sgpio_out2 22 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 22 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 22 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 23 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth56: sfp-eth56 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp13>;
+		tx-disable-gpios = <&sgpio_out2 23 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 23 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 23 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 24 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth57: sfp-eth57 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp14>;
+		tx-disable-gpios = <&sgpio_out2 24 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 24 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 24 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 25 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth58: sfp-eth58 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp15>;
+		tx-disable-gpios = <&sgpio_out2 25 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 25 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 25 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 26 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth59: sfp-eth59 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp16>;
+		tx-disable-gpios = <&sgpio_out2 26 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 26 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 26 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 27 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth60: sfp-eth60 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp17>;
+		tx-disable-gpios = <&sgpio_out2 27 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 27 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 27 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 28 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth61: sfp-eth61 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp18>;
+		tx-disable-gpios = <&sgpio_out2 28 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 28 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 28 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 29 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth62: sfp-eth62 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp19>;
+		tx-disable-gpios = <&sgpio_out2 29 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 29 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 29 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 30 0 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth63: sfp-eth63 {
+		compatible       = "sff,sfp";
+		i2c-bus          = <&i2c_sfp20>;
+		tx-disable-gpios = <&sgpio_out2 30 1 GPIO_ACTIVE_LOW>;
+		los-gpios        = <&sgpio_in2 30 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios   = <&sgpio_in2 30 2 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios   = <&sgpio_in2 31 0 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&switch {
+	ethernet-ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* 10G SFPs */
+		port12: port@12 {
+			reg = <12>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 13>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth12>;
+			microchip,sd-sgpio = <301>;
+			managed = "in-band-status";
+		};
+		port13: port@13 {
+			reg = <13>;
+			/* Example: CU SFP, 1G speed */
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 14>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth13>;
+			microchip,sd-sgpio = <305>;
+			managed = "in-band-status";
+		};
+		port14: port@14 {
+			reg = <14>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 15>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth14>;
+			microchip,sd-sgpio = <309>;
+			managed = "in-band-status";
+		};
+		port15: port@15 {
+			reg = <15>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 16>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth15>;
+			microchip,sd-sgpio = <313>;
+			managed = "in-band-status";
+		};
+		port48: port@48 {
+			reg = <48>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 17>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth48>;
+			microchip,sd-sgpio = <317>;
+			managed = "in-band-status";
+		};
+		port49: port@49 {
+			reg = <49>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 18>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth49>;
+			microchip,sd-sgpio = <321>;
+			managed = "in-band-status";
+		};
+		port50: port@50 {
+			reg = <50>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 19>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth50>;
+			microchip,sd-sgpio = <325>;
+			managed = "in-band-status";
+		};
+		port51: port@51 {
+			reg = <51>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 20>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth51>;
+			microchip,sd-sgpio = <329>;
+			managed = "in-band-status";
+		};
+		port52: port@52 {
+			reg = <52>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 21>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth52>;
+			microchip,sd-sgpio = <333>;
+			managed = "in-band-status";
+		};
+		port53: port@53 {
+			reg = <53>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 22>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth53>;
+			microchip,sd-sgpio = <337>;
+			managed = "in-band-status";
+		};
+		port54: port@54 {
+			reg = <54>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 23>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth54>;
+			microchip,sd-sgpio = <341>;
+			managed = "in-band-status";
+		};
+		port55: port@55 {
+			reg = <55>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 24>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth55>;
+			microchip,sd-sgpio = <345>;
+			managed = "in-band-status";
+		};
+		/* 25G SFPs */
+		port56: port@56 {
+			reg = <56>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 25>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth56>;
+			microchip,sd-sgpio = <349>;
+			managed = "in-band-status";
+		};
+		port57: port@57 {
+			reg = <57>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 26>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth57>;
+			microchip,sd-sgpio = <353>;
+			managed = "in-band-status";
+		};
+		port58: port@58 {
+			reg = <58>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 27>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth58>;
+			microchip,sd-sgpio = <357>;
+			managed = "in-band-status";
+		};
+		port59: port@59 {
+			reg = <59>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 28>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth59>;
+			microchip,sd-sgpio = <361>;
+			managed = "in-band-status";
+		};
+		port60: port@60 {
+			reg = <60>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 29>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth60>;
+			microchip,sd-sgpio = <365>;
+			managed = "in-band-status";
+		};
+		port61: port@61 {
+			reg = <61>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 30>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth61>;
+			microchip,sd-sgpio = <369>;
+			managed = "in-band-status";
+		};
+		port62: port@62 {
+			reg = <62>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 31>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth62>;
+			microchip,sd-sgpio = <373>;
+			managed = "in-band-status";
+		};
+		port63: port@63 {
+			reg = <63>;
+			microchip,bandwidth = <10000>;
+			phys = <&serdes 32>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth63>;
+			microchip,sd-sgpio = <377>;
+			managed = "in-band-status";
+		};
+		/* Finally the Management interface */
+		port64: port@64 {
+			reg = <64>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 0>;
+			phy-handle = <&phy64>;
+			phy-mode = "sgmii";
+		};
 	};
 };

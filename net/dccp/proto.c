@@ -42,8 +42,8 @@ DEFINE_SNMP_STAT(struct dccp_mib, dccp_statistics) __read_mostly;
 
 EXPORT_SYMBOL_GPL(dccp_statistics);
 
-struct percpu_counter dccp_orphan_count;
-EXPORT_SYMBOL_GPL(dccp_orphan_count);
+DEFINE_PER_CPU(unsigned int, dccp_orphan_count);
+EXPORT_PER_CPU_SYMBOL_GPL(dccp_orphan_count);
 
 struct inet_hashinfo dccp_hashinfo;
 EXPORT_SYMBOL_GPL(dccp_hashinfo);
@@ -238,17 +238,6 @@ void dccp_destroy_sock(struct sock *sk)
 
 EXPORT_SYMBOL_GPL(dccp_destroy_sock);
 
-static inline int dccp_listen_start(struct sock *sk, int backlog)
-{
-	struct dccp_sock *dp = dccp_sk(sk);
-
-	dp->dccps_role = DCCP_ROLE_LISTEN;
-	/* do not start to listen if feature negotiation setup fails */
-	if (dccp_feat_finalise_settings(dp))
-		return -EPROTO;
-	return inet_csk_listen_start(sk, backlog);
-}
-
 static inline int dccp_need_reset(int state)
 {
 	return state != DCCP_CLOSED && state != DCCP_LISTEN &&
@@ -302,7 +291,7 @@ int dccp_disconnect(struct sock *sk, int flags)
 
 	WARN_ON(inet->inet_num && !icsk->icsk_bind_hash);
 
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 	return 0;
 }
 
@@ -931,11 +920,17 @@ int inet_dccp_listen(struct socket *sock, int backlog)
 	 * we can only allow the backlog to be adjusted.
 	 */
 	if (old_state != DCCP_LISTEN) {
-		/*
-		 * FIXME: here it probably should be sk->sk_prot->listen_start
-		 * see tcp_listen_start
-		 */
-		err = dccp_listen_start(sk, backlog);
+		struct dccp_sock *dp = dccp_sk(sk);
+
+		dp->dccps_role = DCCP_ROLE_LISTEN;
+
+		/* do not start to listen if feature negotiation setup fails */
+		if (dccp_feat_finalise_settings(dp)) {
+			err = -EPROTO;
+			goto out;
+		}
+
+		err = inet_csk_listen_start(sk);
 		if (err)
 			goto out;
 	}
@@ -1055,7 +1050,7 @@ adjudge_to_death:
 	bh_lock_sock(sk);
 	WARN_ON(sock_owned_by_user(sk));
 
-	percpu_counter_inc(sk->sk_prot->orphan_count);
+	this_cpu_inc(dccp_orphan_count);
 
 	/* Have we already been destroyed by a softirq or backlog? */
 	if (state != DCCP_CLOSED && sk->sk_state == DCCP_CLOSED)
@@ -1115,18 +1110,15 @@ static int __init dccp_init(void)
 
 	BUILD_BUG_ON(sizeof(struct dccp_skb_cb) >
 		     sizeof_field(struct sk_buff, cb));
-	rc = percpu_counter_init(&dccp_orphan_count, 0, GFP_KERNEL);
-	if (rc)
-		goto out_fail;
 	inet_hashinfo_init(&dccp_hashinfo);
 	rc = inet_hashinfo2_init_mod(&dccp_hashinfo);
 	if (rc)
-		goto out_free_percpu;
+		goto out_fail;
 	rc = -ENOBUFS;
 	dccp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("dccp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,
-				  SLAB_HWCACHE_ALIGN, NULL);
+				  SLAB_HWCACHE_ALIGN | SLAB_ACCOUNT, NULL);
 	if (!dccp_hashinfo.bind_bucket_cachep)
 		goto out_free_hashinfo2;
 
@@ -1226,8 +1218,6 @@ out_free_bind_bucket_cachep:
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
 out_free_hashinfo2:
 	inet_hashinfo2_free_mod(&dccp_hashinfo);
-out_free_percpu:
-	percpu_counter_destroy(&dccp_orphan_count);
 out_fail:
 	dccp_hashinfo.bhash = NULL;
 	dccp_hashinfo.ehash = NULL;
@@ -1250,7 +1240,6 @@ static void __exit dccp_fini(void)
 	dccp_ackvec_exit();
 	dccp_sysctl_exit();
 	inet_hashinfo2_free_mod(&dccp_hashinfo);
-	percpu_counter_destroy(&dccp_orphan_count);
 }
 
 module_init(dccp_init);

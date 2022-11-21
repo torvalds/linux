@@ -18,7 +18,7 @@
 
 #include "mpc83xx.h"
 
-static void mpc837x_rdb_sd_cfg(void)
+static void __init mpc837x_rdb_sd_cfg(void)
 {
 	void __iomem *im;
 
@@ -73,6 +73,7 @@ define_machine(mpc837x_rdb) {
 	.name			= "MPC837x RDB/WLAN",
 	.probe			= mpc837x_rdb_probe,
 	.setup_arch		= mpc837x_rdb_setup_arch,
+	.discover_phbs  	= mpc83xx_setup_pci,
 	.init_IRQ		= mpc83xx_ipic_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.restart		= mpc83xx_restart,

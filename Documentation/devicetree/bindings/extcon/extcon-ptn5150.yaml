@@ -19,6 +19,7 @@ properties:
     const: nxp,ptn5150
 
   int-gpios:
+    maxItems: 1
     deprecated: true
     description:
       GPIO pin (input) connected to the PTN5150's INTB pin.
@@ -31,6 +32,7 @@ properties:
     maxItems: 1
 
   vbus-gpios:
+    maxItems: 1
     description:
       GPIO pin (output) used to control VBUS. If skipped, no such control
       takes place.

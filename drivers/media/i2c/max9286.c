@@ -15,6 +15,7 @@
 #include <linux/fwnode.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/machine.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
 #include <linux/module.h>
@@ -113,6 +114,7 @@
 #define MAX9286_REV_TRF(n)		((n) << 4)
 #define MAX9286_REV_AMP(n)		((((n) - 30) / 10) << 1) /* in mV */
 #define MAX9286_REV_AMP_X		BIT(0)
+#define MAX9286_REV_AMP_HIGH		170
 /* Register 0x3f */
 #define MAX9286_EN_REV_CFG		BIT(6)
 #define MAX9286_REV_FLEN(n)		((n) - 20)
@@ -162,6 +164,12 @@ struct max9286_priv {
 	struct i2c_mux_core *mux;
 	unsigned int mux_channel;
 	bool mux_open;
+
+	/* The initial reverse control channel amplitude. */
+	u32 init_rev_chan_mv;
+	u32 rev_chan_mv;
+
+	u32 gpio_poc[2];
 
 	struct v4l2_ctrl_handler ctrls;
 	struct v4l2_ctrl *pixelrate;
@@ -285,9 +293,8 @@ static int max9286_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
 
 	priv->mux_channel = chan;
 
-	max9286_i2c_mux_configure(priv,
-				  MAX9286_FWDCCEN(chan) |
-				  MAX9286_REVCCEN(chan));
+	max9286_i2c_mux_configure(priv, MAX9286_FWDCCEN(chan) |
+					MAX9286_REVCCEN(chan));
 
 	return 0;
 }
@@ -334,6 +341,38 @@ static void max9286_configure_i2c(struct max9286_priv *priv, bool localack)
 
 	max9286_write(priv, 0x34, config);
 	usleep_range(3000, 5000);
+}
+
+static void max9286_reverse_channel_setup(struct max9286_priv *priv,
+					  unsigned int chan_amplitude)
+{
+	u8 chan_config;
+
+	if (priv->rev_chan_mv == chan_amplitude)
+		return;
+
+	priv->rev_chan_mv = chan_amplitude;
+
+	/* Reverse channel transmission time: default to 1. */
+	chan_config = MAX9286_REV_TRF(1);
+
+	/*
+	 * Reverse channel setup.
+	 *
+	 * - Enable custom reverse channel configuration (through register 0x3f)
+	 *   and set the first pulse length to 35 clock cycles.
+	 * - Adjust reverse channel amplitude: values > 130 are programmed
+	 *   using the additional +100mV REV_AMP_X boost flag
+	 */
+	max9286_write(priv, 0x3f, MAX9286_EN_REV_CFG | MAX9286_REV_FLEN(35));
+
+	if (chan_amplitude > 100) {
+		/* It is not possible to express values (100 < x < 130) */
+		chan_amplitude = max(30U, chan_amplitude - 100);
+		chan_config |= MAX9286_REV_AMP_X;
+	}
+	max9286_write(priv, 0x3b, chan_config | MAX9286_REV_AMP(chan_amplitude));
+	usleep_range(2000, 2500);
 }
 
 /*
@@ -520,9 +559,9 @@ static int max9286_notify_bound(struct v4l2_async_notifier *notifier,
 		subdev->name, src_pad, index);
 
 	/*
-	 * We can only register v4l2_async_notifiers, which do not provide a
-	 * means to register a complete callback. bound_sources allows us to
-	 * identify when all remote serializers have completed their probe.
+	 * As we register a subdev notifiers we won't get a .complete() callback
+	 * here, so we have to use bound_sources to identify when all remote
+	 * serializers have probed.
 	 */
 	if (priv->bound_sources != priv->source_mask)
 		return 0;
@@ -531,16 +570,14 @@ static int max9286_notify_bound(struct v4l2_async_notifier *notifier,
 	 * All enabled sources have probed and enabled their reverse control
 	 * channels:
 	 *
+	 * - Increase the reverse channel amplitude to compensate for the
+	 *   remote ends high threshold
 	 * - Verify all configuration links are properly detected
 	 * - Disable auto-ack as communication on the control channel are now
 	 *   stable.
 	 */
+	max9286_reverse_channel_setup(priv, MAX9286_REV_AMP_HIGH);
 	max9286_check_config_link(priv, priv->source_mask);
-
-	/*
-	 * Re-configure I2C with local acknowledge disabled after cameras have
-	 * probed.
-	 */
 	max9286_configure_i2c(priv, false);
 
 	return max9286_set_pixelrate(priv);
@@ -572,31 +609,30 @@ static int max9286_v4l2_notifier_register(struct max9286_priv *priv)
 	if (!priv->nsources)
 		return 0;
 
-	v4l2_async_notifier_init(&priv->notifier);
+	v4l2_async_nf_init(&priv->notifier);
 
 	for_each_source(priv, source) {
 		unsigned int i = to_index(priv, source);
-		struct v4l2_async_subdev *asd;
+		struct max9286_asd *mas;
 
-		asd = v4l2_async_notifier_add_fwnode_subdev(&priv->notifier,
-							    source->fwnode,
-							    sizeof(*asd));
-		if (IS_ERR(asd)) {
+		mas = v4l2_async_nf_add_fwnode(&priv->notifier, source->fwnode,
+					       struct max9286_asd);
+		if (IS_ERR(mas)) {
 			dev_err(dev, "Failed to add subdev for source %u: %ld",
-				i, PTR_ERR(asd));
-			v4l2_async_notifier_cleanup(&priv->notifier);
-			return PTR_ERR(asd);
+				i, PTR_ERR(mas));
+			v4l2_async_nf_cleanup(&priv->notifier);
+			return PTR_ERR(mas);
 		}
 
-		to_max9286_asd(asd)->source = source;
+		mas->source = source;
 	}
 
 	priv->notifier.ops = &max9286_notify_ops;
 
-	ret = v4l2_async_subdev_notifier_register(&priv->sd, &priv->notifier);
+	ret = v4l2_async_subdev_nf_register(&priv->sd, &priv->notifier);
 	if (ret) {
 		dev_err(dev, "Failed to register subdev_notifier");
-		v4l2_async_notifier_cleanup(&priv->notifier);
+		v4l2_async_nf_cleanup(&priv->notifier);
 		return ret;
 	}
 
@@ -608,8 +644,8 @@ static void max9286_v4l2_notifier_unregister(struct max9286_priv *priv)
 	if (!priv->nsources)
 		return;
 
-	v4l2_async_notifier_unregister(&priv->notifier);
-	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->notifier);
+	v4l2_async_nf_cleanup(&priv->notifier);
 }
 
 static int max9286_s_stream(struct v4l2_subdev *sd, int enable)
@@ -681,7 +717,7 @@ static int max9286_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int max9286_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index > 0)
@@ -694,12 +730,12 @@ static int max9286_enum_mbus_code(struct v4l2_subdev *sd,
 
 static struct v4l2_mbus_framefmt *
 max9286_get_pad_format(struct max9286_priv *priv,
-		       struct v4l2_subdev_pad_config *cfg,
+		       struct v4l2_subdev_state *sd_state,
 		       unsigned int pad, u32 which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&priv->sd, cfg, pad);
+		return v4l2_subdev_get_try_format(&priv->sd, sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &priv->fmt[pad];
 	default:
@@ -708,7 +744,7 @@ max9286_get_pad_format(struct max9286_priv *priv,
 }
 
 static int max9286_set_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
 	struct max9286_priv *priv = sd_to_max9286(sd);
@@ -729,7 +765,8 @@ static int max9286_set_fmt(struct v4l2_subdev *sd,
 		break;
 	}
 
-	cfg_fmt = max9286_get_pad_format(priv, cfg, format->pad, format->which);
+	cfg_fmt = max9286_get_pad_format(priv, sd_state, format->pad,
+					 format->which);
 	if (!cfg_fmt)
 		return -EINVAL;
 
@@ -741,7 +778,7 @@ static int max9286_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int max9286_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
 	struct max9286_priv *priv = sd_to_max9286(sd);
@@ -757,7 +794,7 @@ static int max9286_get_fmt(struct v4l2_subdev *sd,
 	if (pad == MAX9286_SRC_PAD)
 		pad = __ffs(priv->bound_sources);
 
-	cfg_fmt = max9286_get_pad_format(priv, cfg, pad, format->which);
+	cfg_fmt = max9286_get_pad_format(priv, sd_state, pad, format->which);
 	if (!cfg_fmt)
 		return -EINVAL;
 
@@ -801,7 +838,7 @@ static int max9286_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	unsigned int i;
 
 	for (i = 0; i < MAX9286_N_SINKS; i++) {
-		format = v4l2_subdev_get_try_format(subdev, fh->pad, i);
+		format = v4l2_subdev_get_try_format(subdev, fh->state, i);
 		max9286_init_format(format);
 	}
 
@@ -810,6 +847,10 @@ static int max9286_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 
 static const struct v4l2_subdev_internal_ops max9286_subdev_internal_ops = {
 	.open = max9286_open,
+};
+
+static const struct media_entity_operations max9286_media_ops = {
+	.link_validate = v4l2_subdev_link_validate
 };
 
 static int max9286_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -861,6 +902,7 @@ static int max9286_v4l2_register(struct max9286_priv *priv)
 		goto err_async;
 
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
+	priv->sd.entity.ops = &max9286_media_ops;
 
 	priv->pads[MAX9286_SRC_PAD].flags = MEDIA_PAD_FL_SOURCE;
 	for (i = 0; i < MAX9286_SRC_PAD; i++)
@@ -941,19 +983,7 @@ static int max9286_setup(struct max9286_priv *priv)
 	 * only. This should be disabled after the mux is initialised.
 	 */
 	max9286_configure_i2c(priv, true);
-
-	/*
-	 * Reverse channel setup.
-	 *
-	 * - Enable custom reverse channel configuration (through register 0x3f)
-	 *   and set the first pulse length to 35 clock cycles.
-	 * - Increase the reverse channel amplitude to 170mV to accommodate the
-	 *   high threshold enabled by the serializer driver.
-	 */
-	max9286_write(priv, 0x3f, MAX9286_EN_REV_CFG | MAX9286_REV_FLEN(35));
-	max9286_write(priv, 0x3b, MAX9286_REV_TRF(1) | MAX9286_REV_AMP(70) |
-		      MAX9286_REV_AMP_X);
-	usleep_range(2000, 2500);
+	max9286_reverse_channel_setup(priv, priv->init_rev_chan_mv);
 
 	/*
 	 * Enable GMSL links, mask unused ones and autodetect link
@@ -1003,20 +1033,27 @@ static int max9286_setup(struct max9286_priv *priv)
 	return 0;
 }
 
-static void max9286_gpio_set(struct gpio_chip *chip,
-			     unsigned int offset, int value)
+static int max9286_gpio_set(struct max9286_priv *priv, unsigned int offset,
+			    int value)
 {
-	struct max9286_priv *priv = gpiochip_get_data(chip);
-
 	if (value)
 		priv->gpio_state |= BIT(offset);
 	else
 		priv->gpio_state &= ~BIT(offset);
 
-	max9286_write(priv, 0x0f, MAX9286_0X0F_RESERVED | priv->gpio_state);
+	return max9286_write(priv, 0x0f,
+			     MAX9286_0X0F_RESERVED | priv->gpio_state);
 }
 
-static int max9286_gpio_get(struct gpio_chip *chip, unsigned int offset)
+static void max9286_gpiochip_set(struct gpio_chip *chip,
+				 unsigned int offset, int value)
+{
+	struct max9286_priv *priv = gpiochip_get_data(chip);
+
+	max9286_gpio_set(priv, offset, value);
+}
+
+static int max9286_gpiochip_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct max9286_priv *priv = gpiochip_get_data(chip);
 
@@ -1033,19 +1070,79 @@ static int max9286_register_gpio(struct max9286_priv *priv)
 	gpio->label = dev_name(dev);
 	gpio->parent = dev;
 	gpio->owner = THIS_MODULE;
-	gpio->of_node = dev->of_node;
 	gpio->ngpio = 2;
 	gpio->base = -1;
-	gpio->set = max9286_gpio_set;
-	gpio->get = max9286_gpio_get;
+	gpio->set = max9286_gpiochip_set;
+	gpio->get = max9286_gpiochip_get;
 	gpio->can_sleep = true;
-
-	/* GPIO values default to high */
-	priv->gpio_state = BIT(0) | BIT(1);
 
 	ret = devm_gpiochip_add_data(dev, gpio, priv);
 	if (ret)
 		dev_err(dev, "Unable to create gpio_chip\n");
+
+	return ret;
+}
+
+static int max9286_parse_gpios(struct max9286_priv *priv)
+{
+	struct device *dev = &priv->client->dev;
+	int ret;
+
+	/* GPIO values default to high */
+	priv->gpio_state = BIT(0) | BIT(1);
+
+	/*
+	 * Parse the "gpio-poc" vendor property. If the property is not
+	 * specified the camera power is controlled by a regulator.
+	 */
+	ret = of_property_read_u32_array(dev->of_node, "maxim,gpio-poc",
+					 priv->gpio_poc, 2);
+	if (ret == -EINVAL) {
+		/*
+		 * If gpio lines are not used for the camera power, register
+		 * a gpio controller for consumers.
+		 */
+		ret = max9286_register_gpio(priv);
+		if (ret)
+			return ret;
+
+		priv->regulator = devm_regulator_get(dev, "poc");
+		if (IS_ERR(priv->regulator)) {
+			return dev_err_probe(dev, PTR_ERR(priv->regulator),
+					     "Unable to get PoC regulator (%ld)\n",
+					     PTR_ERR(priv->regulator));
+		}
+
+		return 0;
+	}
+
+	/* If the property is specified make sure it is well formed. */
+	if (ret || priv->gpio_poc[0] > 1 ||
+	    (priv->gpio_poc[1] != GPIO_ACTIVE_HIGH &&
+	     priv->gpio_poc[1] != GPIO_ACTIVE_LOW)) {
+		dev_err(dev, "Invalid 'gpio-poc' property\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int max9286_poc_enable(struct max9286_priv *priv, bool enable)
+{
+	int ret;
+
+	/* If the regulator is not available, use gpio to control power. */
+	if (!priv->regulator)
+		ret = max9286_gpio_set(priv, priv->gpio_poc[0],
+				       enable ^ priv->gpio_poc[1]);
+	else if (enable)
+		ret = regulator_enable(priv->regulator);
+	else
+		ret = regulator_disable(priv->regulator);
+
+	if (ret < 0)
+		dev_err(&priv->client->dev, "Unable to turn power %s\n",
+			enable ? "on" : "off");
 
 	return ret;
 }
@@ -1059,17 +1156,14 @@ static int max9286_init(struct device *dev)
 	client = to_i2c_client(dev);
 	priv = i2c_get_clientdata(client);
 
-	/* Enable the bus power. */
-	ret = regulator_enable(priv->regulator);
-	if (ret < 0) {
-		dev_err(&client->dev, "Unable to turn PoC on\n");
+	ret = max9286_poc_enable(priv, true);
+	if (ret)
 		return ret;
-	}
 
 	ret = max9286_setup(priv);
 	if (ret) {
 		dev_err(dev, "Unable to setup max9286\n");
-		goto err_regulator;
+		goto err_poc_disable;
 	}
 
 	/*
@@ -1079,7 +1173,7 @@ static int max9286_init(struct device *dev)
 	ret = max9286_v4l2_register(priv);
 	if (ret) {
 		dev_err(dev, "Failed to register with V4L2\n");
-		goto err_regulator;
+		goto err_poc_disable;
 	}
 
 	ret = max9286_i2c_mux_init(priv);
@@ -1095,8 +1189,8 @@ static int max9286_init(struct device *dev)
 
 err_v4l2_register:
 	max9286_v4l2_unregister(priv);
-err_regulator:
-	regulator_disable(priv->regulator);
+err_poc_disable:
+	max9286_poc_enable(priv, false);
 
 	return ret;
 }
@@ -1117,6 +1211,7 @@ static int max9286_parse_dt(struct max9286_priv *priv)
 	struct device_node *i2c_mux;
 	struct device_node *node = NULL;
 	unsigned int i2c_mux_mask = 0;
+	u32 reverse_channel_microvolt;
 
 	/* Balance the of_node_put() performed by of_find_node_by_name(). */
 	of_node_get(dev->of_node);
@@ -1207,6 +1302,20 @@ static int max9286_parse_dt(struct max9286_priv *priv)
 	}
 	of_node_put(node);
 
+	/*
+	 * Parse the initial value of the reverse channel amplitude from
+	 * the firmware interface and convert it to millivolts.
+	 *
+	 * Default it to 170mV for backward compatibility with DTBs that do not
+	 * provide the property.
+	 */
+	if (of_property_read_u32(dev->of_node,
+				 "maxim,reverse-channel-microvolt",
+				 &reverse_channel_microvolt))
+		priv->init_rev_chan_mv = 170;
+	else
+		priv->init_rev_chan_mv = reverse_channel_microvolt / 1000U;
+
 	priv->route_mask = priv->source_mask;
 
 	return 0;
@@ -1252,19 +1361,9 @@ static int max9286_probe(struct i2c_client *client)
 	 */
 	max9286_configure_i2c(priv, false);
 
-	ret = max9286_register_gpio(priv);
+	ret = max9286_parse_gpios(priv);
 	if (ret)
 		goto err_powerdown;
-
-	priv->regulator = devm_regulator_get(&client->dev, "poc");
-	if (IS_ERR(priv->regulator)) {
-		if (PTR_ERR(priv->regulator) != -EPROBE_DEFER)
-			dev_err(&client->dev,
-				"Unable to get PoC regulator (%ld)\n",
-				PTR_ERR(priv->regulator));
-		ret = PTR_ERR(priv->regulator);
-		goto err_powerdown;
-	}
 
 	ret = max9286_parse_dt(priv);
 	if (ret)
@@ -1292,7 +1391,7 @@ static int max9286_remove(struct i2c_client *client)
 
 	max9286_v4l2_unregister(priv);
 
-	regulator_disable(priv->regulator);
+	max9286_poc_enable(priv, false);
 
 	gpiod_set_value_cansleep(priv->gpiod_pwdn, 0);
 

@@ -3,7 +3,7 @@
  *
  * Name: acevents.h - Event subcomponent prototypes and defines
  *
- * Copyright (C) 2000 - 2020, Intel Corp.
+ * Copyright (C) 2000 - 2021, Intel Corp.
  *
  *****************************************************************************/
 
@@ -222,6 +222,11 @@ acpi_status
 acpi_ev_pci_bar_region_setup(acpi_handle handle,
 			     u32 function,
 			     void *handler_context, void **region_context);
+
+acpi_status
+acpi_ev_data_table_region_setup(acpi_handle handle,
+				u32 function,
+				void *handler_context, void **region_context);
 
 acpi_status
 acpi_ev_default_region_setup(acpi_handle handle,

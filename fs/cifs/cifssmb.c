@@ -1,24 +1,11 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/cifssmb.c
  *
  *   Copyright (C) International Business Machines  Corp., 2002,2010
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   Contains the routines for constructing the SMB PDUs themselves
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
  /* SMB/CIFS PDU handling routines here - except for leftovers in connect.c   */
@@ -54,10 +41,6 @@ static struct {
 	int index;
 	char *name;
 } protocols[] = {
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-	{LANMAN_PROT, "\2LM1.2X002"},
-	{LANMAN2_PROT, "\2LANMAN2.1"},
-#endif /* weak password hashing for legacy clients */
 	{CIFS_PROT, "\2NT LM 0.12"},
 	{POSIX_PROT, "\2POSIX 2"},
 	{BAD_PROT, "\2"}
@@ -67,10 +50,6 @@ static struct {
 	int index;
 	char *name;
 } protocols[] = {
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-	{LANMAN_PROT, "\2LM1.2X002"},
-	{LANMAN2_PROT, "\2LANMAN2.1"},
-#endif /* weak password hashing for legacy clients */
 	{CIFS_PROT, "\2NT LM 0.12"},
 	{BAD_PROT, "\2"}
 };
@@ -78,17 +57,9 @@ static struct {
 
 /* define the number of elements in the cifs dialect array */
 #ifdef CONFIG_CIFS_POSIX
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-#define CIFS_NUM_PROT 4
-#else
 #define CIFS_NUM_PROT 2
-#endif /* CIFS_WEAK_PW_HASH */
 #else /* not posix */
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-#define CIFS_NUM_PROT 3
-#else
 #define CIFS_NUM_PROT 1
-#endif /* CONFIG_CIFS_WEAK_PW_HASH */
 #endif /* CIFS_POSIX */
 
 /*
@@ -102,6 +73,15 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 	struct list_head *tmp;
 	struct list_head *tmp1;
 
+	/* only send once per connect */
+	spin_lock(&cifs_tcp_ses_lock);
+	if ((tcon->ses->status != CifsGood) || (tcon->status != TID_NEED_RECON)) {
+		spin_unlock(&cifs_tcp_ses_lock);
+		return;
+	}
+	tcon->status = TID_IN_FILES_INVALIDATE;
+	spin_unlock(&cifs_tcp_ses_lock);
+
 	/* list all files open on tree connection and mark them invalid */
 	spin_lock(&tcon->open_file_lock);
 	list_for_each_safe(tmp, tmp1, &tcon->openFileList) {
@@ -114,9 +94,14 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 	mutex_lock(&tcon->crfid.fid_mutex);
 	tcon->crfid.is_valid = false;
 	/* cached handle is not valid, so SMB2_CLOSE won't be sent below */
-	close_shroot_lease_locked(&tcon->crfid);
+	close_cached_dir_lease_locked(&tcon->crfid);
 	memset(tcon->crfid.fid, 0, sizeof(struct cifs_fid));
 	mutex_unlock(&tcon->crfid.fid_mutex);
+
+	spin_lock(&cifs_tcp_ses_lock);
+	if (tcon->status == TID_IN_FILES_INVALIDATE)
+		tcon->status = TID_NEED_TCON;
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	/*
 	 * BB Add call to invalidate_inodes(sb) for all superblocks mounted
@@ -149,15 +134,18 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	 * only tree disconnect, open, and write, (and ulogoff which does not
 	 * have tcon) are allowed as we start force umount
 	 */
-	if (tcon->tidStatus == CifsExiting) {
+	spin_lock(&cifs_tcp_ses_lock);
+	if (tcon->status == TID_EXITING) {
 		if (smb_command != SMB_COM_WRITE_ANDX &&
 		    smb_command != SMB_COM_OPEN_ANDX &&
 		    smb_command != SMB_COM_TREE_DISCONNECT) {
+			spin_unlock(&cifs_tcp_ses_lock);
 			cifs_dbg(FYI, "can not send cmd %d while umounting\n",
 				 smb_command);
 			return -ENODEV;
 		}
 	}
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	retries = server->nr_targets;
 
@@ -177,8 +165,12 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 		}
 
 		/* are we still trying to reconnect? */
-		if (server->tcpStatus != CifsNeedReconnect)
+		spin_lock(&cifs_tcp_ses_lock);
+		if (server->tcpStatus != CifsNeedReconnect) {
+			spin_unlock(&cifs_tcp_ses_lock);
 			break;
+		}
+		spin_unlock(&cifs_tcp_ses_lock);
 
 		if (retries && --retries)
 			continue;
@@ -195,31 +187,49 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 		retries = server->nr_targets;
 	}
 
-	if (!ses->need_reconnect && !tcon->need_reconnect)
+	spin_lock(&ses->chan_lock);
+	if (!cifs_chan_needs_reconnect(ses, server) && !tcon->need_reconnect) {
+		spin_unlock(&ses->chan_lock);
 		return 0;
+	}
+	spin_unlock(&ses->chan_lock);
 
 	nls_codepage = load_nls_default();
-
-	/*
-	 * need to prevent multiple threads trying to simultaneously
-	 * reconnect the same SMB session
-	 */
-	mutex_lock(&ses->session_mutex);
 
 	/*
 	 * Recheck after acquire mutex. If another thread is negotiating
 	 * and the server never sends an answer the socket will be closed
 	 * and tcpStatus set to reconnect.
 	 */
+	spin_lock(&cifs_tcp_ses_lock);
 	if (server->tcpStatus == CifsNeedReconnect) {
+		spin_unlock(&cifs_tcp_ses_lock);
 		rc = -EHOSTDOWN;
-		mutex_unlock(&ses->session_mutex);
 		goto out;
 	}
+	spin_unlock(&cifs_tcp_ses_lock);
 
-	rc = cifs_negotiate_protocol(0, ses);
-	if (rc == 0 && ses->need_reconnect)
-		rc = cifs_setup_session(0, ses, nls_codepage);
+	/*
+	 * need to prevent multiple threads trying to simultaneously
+	 * reconnect the same SMB session
+	 */
+	spin_lock(&ses->chan_lock);
+	if (!cifs_chan_needs_reconnect(ses, server)) {
+		spin_unlock(&ses->chan_lock);
+
+		/* this means that we only need to tree connect */
+		if (tcon->need_reconnect)
+			goto skip_sess_setup;
+
+		rc = -EHOSTDOWN;
+		goto out;
+	}
+	spin_unlock(&ses->chan_lock);
+
+	mutex_lock(&ses->session_mutex);
+	rc = cifs_negotiate_protocol(0, ses, server);
+	if (!rc)
+		rc = cifs_setup_session(0, ses, server, nls_codepage);
 
 	/* do we need to reconnect tcon? */
 	if (rc || !tcon->need_reconnect) {
@@ -227,6 +237,7 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 		goto out;
 	}
 
+skip_sess_setup:
 	cifs_mark_open_files_invalid(tcon);
 	rc = cifs_tree_connect(0, tcon, nls_codepage);
 	mutex_unlock(&ses->session_mutex);
@@ -366,8 +377,13 @@ static int
 smb_init_no_reconnect(int smb_command, int wct, struct cifs_tcon *tcon,
 			void **request_buf, void **response_buf)
 {
-	if (tcon->ses->need_reconnect || tcon->need_reconnect)
+	spin_lock(&tcon->ses->chan_lock);
+	if (cifs_chan_needs_reconnect(tcon->ses, tcon->ses->server) ||
+	    tcon->need_reconnect) {
+		spin_unlock(&tcon->ses->chan_lock);
 		return -EHOSTDOWN;
+	}
+	spin_unlock(&tcon->ses->chan_lock);
 
 	return __smb_init(smb_command, wct, tcon, request_buf, response_buf);
 }
@@ -487,89 +503,6 @@ cifs_enable_signing(struct TCP_Server_Info *server, bool mnt_sign_required)
 	return 0;
 }
 
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-static int
-decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
-{
-	__s16 tmp;
-	struct lanman_neg_rsp *rsp = (struct lanman_neg_rsp *)pSMBr;
-
-	if (server->dialect != LANMAN_PROT && server->dialect != LANMAN2_PROT)
-		return -EOPNOTSUPP;
-
-	server->sec_mode = le16_to_cpu(rsp->SecurityMode);
-	server->maxReq = min_t(unsigned int,
-			       le16_to_cpu(rsp->MaxMpxCount),
-			       cifs_max_pending);
-	set_credits(server, server->maxReq);
-	server->maxBuf = le16_to_cpu(rsp->MaxBufSize);
-	/* set up max_read for readpages check */
-	server->max_read = server->maxBuf;
-	/* even though we do not use raw we might as well set this
-	accurately, in case we ever find a need for it */
-	if ((le16_to_cpu(rsp->RawMode) & RAW_ENABLE) == RAW_ENABLE) {
-		server->max_rw = 0xFF00;
-		server->capabilities = CAP_MPX_MODE | CAP_RAW_MODE;
-	} else {
-		server->max_rw = 0;/* do not need to use raw anyway */
-		server->capabilities = CAP_MPX_MODE;
-	}
-	tmp = (__s16)le16_to_cpu(rsp->ServerTimeZone);
-	if (tmp == -1) {
-		/* OS/2 often does not set timezone therefore
-		 * we must use server time to calc time zone.
-		 * Could deviate slightly from the right zone.
-		 * Smallest defined timezone difference is 15 minutes
-		 * (i.e. Nepal).  Rounding up/down is done to match
-		 * this requirement.
-		 */
-		int val, seconds, remain, result;
-		struct timespec64 ts;
-		time64_t utc = ktime_get_real_seconds();
-		ts = cnvrtDosUnixTm(rsp->SrvTime.Date,
-				    rsp->SrvTime.Time, 0);
-		cifs_dbg(FYI, "SrvTime %lld sec since 1970 (utc: %lld) diff: %lld\n",
-			 ts.tv_sec, utc,
-			 utc - ts.tv_sec);
-		val = (int)(utc - ts.tv_sec);
-		seconds = abs(val);
-		result = (seconds / MIN_TZ_ADJ) * MIN_TZ_ADJ;
-		remain = seconds % MIN_TZ_ADJ;
-		if (remain >= (MIN_TZ_ADJ / 2))
-			result += MIN_TZ_ADJ;
-		if (val < 0)
-			result = -result;
-		server->timeAdj = result;
-	} else {
-		server->timeAdj = (int)tmp;
-		server->timeAdj *= 60; /* also in seconds */
-	}
-	cifs_dbg(FYI, "server->timeAdj: %d seconds\n", server->timeAdj);
-
-
-	/* BB get server time for time conversions and add
-	code to use it and timezone since this is not UTC */
-
-	if (rsp->EncryptionKeyLength ==
-			cpu_to_le16(CIFS_CRYPTO_KEY_SIZE)) {
-		memcpy(server->cryptkey, rsp->EncryptionKey,
-			CIFS_CRYPTO_KEY_SIZE);
-	} else if (server->sec_mode & SECMODE_PW_ENCRYPT) {
-		return -EIO; /* need cryptkey unless plain text */
-	}
-
-	cifs_dbg(FYI, "LANMAN negotiated\n");
-	return 0;
-}
-#else
-static inline int
-decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
-{
-	cifs_dbg(VFS, "mount failed, cifs module not built with CIFS_WEAK_PW_HASH support\n");
-	return -EOPNOTSUPP;
-}
-#endif
-
 static bool
 should_set_ext_sec_flag(enum securityEnum sectype)
 {
@@ -588,14 +521,15 @@ should_set_ext_sec_flag(enum securityEnum sectype)
 }
 
 int
-CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
+CIFSSMBNegotiate(const unsigned int xid,
+		 struct cifs_ses *ses,
+		 struct TCP_Server_Info *server)
 {
 	NEGOTIATE_REQ *pSMB;
 	NEGOTIATE_RSP *pSMBr;
 	int rc = 0;
 	int bytes_returned;
 	int i;
-	struct TCP_Server_Info *server = ses->server;
 	u16 count;
 
 	if (!server) {
@@ -638,16 +572,12 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	server->dialect = le16_to_cpu(pSMBr->DialectIndex);
 	cifs_dbg(FYI, "Dialect: %d\n", server->dialect);
 	/* Check wct = 1 error case */
-	if ((pSMBr->hdr.WordCount < 13) || (server->dialect == BAD_PROT)) {
+	if ((pSMBr->hdr.WordCount <= 13) || (server->dialect == BAD_PROT)) {
 		/* core returns wct = 1, but we do not ask for core - otherwise
 		small wct just comes when dialect index is -1 indicating we
 		could not negotiate a common dialect */
 		rc = -EOPNOTSUPP;
 		goto neg_err_exit;
-	} else if (pSMBr->hdr.WordCount == 13) {
-		server->negflavor = CIFS_NEGFLAVOR_LANMAN;
-		rc = decode_lanman_negprot_rsp(server, pSMBr);
-		goto signing_check;
 	} else if (pSMBr->hdr.WordCount != 17) {
 		/* unknown wct */
 		rc = -EOPNOTSUPP;
@@ -666,7 +596,7 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	set_credits(server, server->maxReq);
 	/* probably no need to store and check maxvcs */
 	server->maxBuf = le32_to_cpu(pSMBr->MaxBufferSize);
-	/* set up max_read for readpages check */
+	/* set up max_read for readahead check */
 	server->max_read = server->maxBuf;
 	server->max_rw = le32_to_cpu(pSMBr->MaxRawSize);
 	cifs_dbg(NOISY, "Max buf = %d\n", ses->server->maxBuf);
@@ -689,7 +619,6 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 		server->capabilities &= ~CAP_EXTENDED_SECURITY;
 	}
 
-signing_check:
 	if (!rc)
 		rc = cifs_enable_signing(server, ses->sign);
 neg_err_exit:
@@ -717,8 +646,12 @@ CIFSSMBTDis(const unsigned int xid, struct cifs_tcon *tcon)
 	 * the tcon is no longer on the list, so no need to take lock before
 	 * checking this.
 	 */
-	if ((tcon->need_reconnect) || (tcon->ses->need_reconnect))
-		return 0;
+	spin_lock(&tcon->ses->chan_lock);
+	if ((tcon->need_reconnect) || CIFS_ALL_CHANS_NEED_RECONNECT(tcon->ses)) {
+		spin_unlock(&tcon->ses->chan_lock);
+		return -EIO;
+	}
+	spin_unlock(&tcon->ses->chan_lock);
 
 	rc = small_smb_init(SMB_COM_TREE_DISCONNECT, 0, tcon,
 			    (void **)&smb_buffer);
@@ -813,9 +746,14 @@ CIFSSMBLogoff(const unsigned int xid, struct cifs_ses *ses)
 		return -EIO;
 
 	mutex_lock(&ses->session_mutex);
-	if (ses->need_reconnect)
+	spin_lock(&ses->chan_lock);
+	if (CIFS_ALL_CHANS_NEED_RECONNECT(ses)) {
+		spin_unlock(&ses->chan_lock);
 		goto session_already_dead; /* no need to send SMBlogoff if uid
 					      already closed due to reconnect */
+	}
+	spin_unlock(&ses->chan_lock);
+
 	rc = small_smb_init(SMB_COM_LOGOFF_ANDX, 2, NULL, (void **)&pSMB);
 	if (rc) {
 		mutex_unlock(&ses->session_mutex);
@@ -885,8 +823,11 @@ PsxDelete:
 				InformationLevel) - 4;
 	offset = param_offset + params;
 
-	/* Setup pointer to Request Data (inode type) */
-	pRqD = (struct unlink_psx_rq *)(((char *)&pSMB->hdr.Protocol) + offset);
+	/* Setup pointer to Request Data (inode type).
+	 * Note that SMB offsets are from the beginning of SMB which is 4 bytes
+	 * in, after RFC1001 field
+	 */
+	pRqD = (struct unlink_psx_rq *)((char *)(pSMB) + offset + 4);
 	pRqD->type = cpu_to_le16(type);
 	pSMB->ParameterOffset = cpu_to_le16(param_offset);
 	pSMB->DataOffset = cpu_to_le16(offset);
@@ -1093,7 +1034,8 @@ PsxCreat:
 	param_offset = offsetof(struct smb_com_transaction2_spi_req,
 				InformationLevel) - 4;
 	offset = param_offset + params;
-	pdata = (OPEN_PSX_REQ *)(((char *)&pSMB->hdr.Protocol) + offset);
+	/* SMB offsets are from the beginning of SMB which is 4 bytes in, after RFC1001 field */
+	pdata = (OPEN_PSX_REQ *)((char *)(pSMB) + offset + 4);
 	pdata->Level = cpu_to_le16(SMB_QUERY_FILE_UNIX_BASIC);
 	pdata->Permissions = cpu_to_le64(mode);
 	pdata->PosixOpenFlags = cpu_to_le32(posix_flags);
@@ -1220,7 +1162,7 @@ SMBLegacyOpen(const unsigned int xid, struct cifs_tcon *tcon,
 	    int *pOplock, FILE_ALL_INFO *pfile_info,
 	    const struct nls_table *nls_codepage, int remap)
 {
-	int rc = -EACCES;
+	int rc;
 	OPENX_REQ *pSMB = NULL;
 	OPENX_RSP *pSMBr = NULL;
 	int bytes_returned;
@@ -1451,9 +1393,9 @@ cifs_discard_remaining_data(struct TCP_Server_Info *server)
 	while (remaining > 0) {
 		int length;
 
-		length = cifs_read_from_socket(server, server->bigbuf,
-				min_t(unsigned int, remaining,
-				    CIFSMaxBufSize + MAX_HEADER_SIZE(server)));
+		length = cifs_discard_from_socket(server,
+				min_t(size_t, remaining,
+				      CIFSMaxBufSize + MAX_HEADER_SIZE(server)));
 		if (length < 0)
 			return length;
 		server->total_read += length;
@@ -1514,7 +1456,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 
 	if (server->ops->is_session_expired &&
 	    server->ops->is_session_expired(buf)) {
-		cifs_reconnect(server);
+		cifs_reconnect(server, true);
 		return -1;
 	}
 
@@ -2109,6 +2051,7 @@ cifs_writev_complete(struct work_struct *work)
 		else if (wdata->result < 0)
 			SetPageError(page);
 		end_page_writeback(page);
+		cifs_readpage_to_fscache(inode, page);
 		put_page(page);
 	}
 	if (wdata->result != -EAGAIN)
@@ -2549,8 +2492,9 @@ CIFSSMBPosixLock(const unsigned int xid, struct cifs_tcon *tcon,
 	pSMB->TotalDataCount = pSMB->DataCount;
 	pSMB->TotalParameterCount = pSMB->ParameterCount;
 	pSMB->ParameterOffset = cpu_to_le16(param_offset);
+	/* SMB offsets are from the beginning of SMB which is 4 bytes in, after RFC1001 field */
 	parm_data = (struct cifs_posix_lock *)
-			(((char *) &pSMB->hdr.Protocol) + offset);
+			(((char *)pSMB) + offset + 4);
 
 	parm_data->lock_type = cpu_to_le16(lock_type);
 	if (waitFlag) {
@@ -2779,7 +2723,8 @@ int CIFSSMBRenameOpenFile(const unsigned int xid, struct cifs_tcon *pTcon,
 	param_offset = offsetof(struct smb_com_transaction2_sfi_req, Fid) - 4;
 	offset = param_offset + params;
 
-	data_offset = (char *) (&pSMB->hdr.Protocol) + offset;
+	/* SMB offsets are from the beginning of SMB which is 4 bytes in, after RFC1001 field */
+	data_offset = (char *)(pSMB) + offset + 4;
 	rename_info = (struct set_file_rename *) data_offset;
 	pSMB->MaxParameterCount = cpu_to_le16(2);
 	pSMB->MaxDataCount = cpu_to_le16(1000); /* BB find max SMB from sess */
@@ -2937,7 +2882,8 @@ createSymLinkRetry:
 				InformationLevel) - 4;
 	offset = param_offset + params;
 
-	data_offset = (char *) (&pSMB->hdr.Protocol) + offset;
+	/* SMB offsets are from the beginning of SMB which is 4 bytes in, after RFC1001 field */
+	data_offset = (char *)pSMB + offset + 4;
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len_target =
 		    cifsConvertToUTF16((__le16 *) data_offset, toName,
@@ -3021,7 +2967,8 @@ createHardLinkRetry:
 				InformationLevel) - 4;
 	offset = param_offset + params;
 
-	data_offset = (char *) (&pSMB->hdr.Protocol) + offset;
+	/* SMB offsets are from the beginning of SMB which is 4 bytes in, after RFC1001 field */
+	data_offset = (char *)pSMB + offset + 4;
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len_target =
 		    cifsConvertToUTF16((__le16 *) data_offset, fromName,
@@ -5638,9 +5585,9 @@ CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon,
 	pSMB->TotalDataCount = pSMB->DataCount;
 	pSMB->TotalParameterCount = pSMB->ParameterCount;
 	pSMB->ParameterOffset = cpu_to_le16(param_offset);
+	/* SMB offsets are from the beginning of SMB which is 4 bytes in, after RFC1001 field */
 	parm_data =
-		(struct file_end_of_file_info *) (((char *) &pSMB->hdr.Protocol)
-				+ offset);
+		(struct file_end_of_file_info *)(((char *)pSMB) + offset + 4);
 	pSMB->DataOffset = cpu_to_le16(offset);
 	parm_data->FileSize = cpu_to_le64(size);
 	pSMB->Fid = cfile->fid.netfid;
@@ -5773,7 +5720,8 @@ CIFSSMBSetFileDisposition(const unsigned int xid, struct cifs_tcon *tcon,
 	param_offset = offsetof(struct smb_com_transaction2_sfi_req, Fid) - 4;
 	offset = param_offset + params;
 
-	data_offset = (char *) (&pSMB->hdr.Protocol) + offset;
+	/* SMB offsets are from the beginning of SMB which is 4 bytes in, after RFC1001 field */
+	data_offset = (char *)(pSMB) + offset + 4;
 
 	count = 1;
 	pSMB->MaxParameterCount = cpu_to_le16(2);
@@ -5916,56 +5864,6 @@ SetTimesRetry:
 
 	return rc;
 }
-
-/* Can not be used to set time stamps yet (due to old DOS time format) */
-/* Can be used to set attributes */
-#if 0  /* Possibly not needed - since it turns out that strangely NT4 has a bug
-	  handling it anyway and NT4 was what we thought it would be needed for
-	  Do not delete it until we prove whether needed for Win9x though */
-int
-CIFSSMBSetAttrLegacy(unsigned int xid, struct cifs_tcon *tcon, char *fileName,
-		__u16 dos_attrs, const struct nls_table *nls_codepage)
-{
-	SETATTR_REQ *pSMB = NULL;
-	SETATTR_RSP *pSMBr = NULL;
-	int rc = 0;
-	int bytes_returned;
-	int name_len;
-
-	cifs_dbg(FYI, "In SetAttrLegacy\n");
-
-SetAttrLgcyRetry:
-	rc = smb_init(SMB_COM_SETATTR, 8, tcon, (void **) &pSMB,
-		      (void **) &pSMBr);
-	if (rc)
-		return rc;
-
-	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
-		name_len =
-			ConvertToUTF16((__le16 *) pSMB->fileName, fileName,
-				       PATH_MAX, nls_codepage);
-		name_len++;     /* trailing null */
-		name_len *= 2;
-	} else {
-		name_len = copy_path_name(pSMB->fileName, fileName);
-	}
-	pSMB->attr = cpu_to_le16(dos_attrs);
-	pSMB->BufferFormat = 0x04;
-	inc_rfc1001_len(pSMB, name_len + 1);
-	pSMB->ByteCount = cpu_to_le16(name_len + 1);
-	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
-			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-	if (rc)
-		cifs_dbg(FYI, "Error in LegacySetAttr = %d\n", rc);
-
-	cifs_buf_release(pSMB);
-
-	if (rc == -EAGAIN)
-		goto SetAttrLgcyRetry;
-
-	return rc;
-}
-#endif /* temporarily unneeded SetAttr legacy function */
 
 static void
 cifs_fill_unix_set_info(FILE_UNIX_BASIC_INFO *data_offset,
@@ -6124,9 +6022,8 @@ setPermsRetry:
 	param_offset = offsetof(struct smb_com_transaction2_spi_req,
 				InformationLevel) - 4;
 	offset = param_offset + params;
-	data_offset =
-	    (FILE_UNIX_BASIC_INFO *) ((char *) &pSMB->hdr.Protocol +
-				      offset);
+	/* SMB offsets are from the beginning of SMB which is 4 bytes in, after RFC1001 field */
+	data_offset = (FILE_UNIX_BASIC_INFO *)((char *) pSMB + offset + 4);
 	memset(data_offset, 0, count);
 	pSMB->DataOffset = cpu_to_le16(offset);
 	pSMB->ParameterOffset = cpu_to_le16(param_offset);

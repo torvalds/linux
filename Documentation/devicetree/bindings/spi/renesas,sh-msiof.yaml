@@ -47,6 +47,7 @@ properties:
               - renesas,msiof-r8a77980      # R-Car V3H
               - renesas,msiof-r8a77990      # R-Car E3
               - renesas,msiof-r8a77995      # R-Car D3
+              - renesas,msiof-r8a779a0      # R-Car V3U
           - const: renesas,rcar-gen3-msiof  # generic R-Car Gen3 and RZ/G2
                                             # compatible device
       - items:
@@ -123,7 +124,6 @@ properties:
     description: |
       Override the default TX fifo size.  Unit is words.  Ignored if 0.
     $ref: /schemas/types.yaml#/definitions/uint32
-    maxItems: 1
     default: 64
 
   renesas,rx-fifo-size:
@@ -131,7 +131,6 @@ properties:
     description: |
       Override the default RX fifo size.  Unit is words.  Ignored if 0.
     $ref: /schemas/types.yaml#/definitions/uint32
-    maxItems: 1
     default: 64
 
 required:

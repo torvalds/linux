@@ -13,7 +13,7 @@
 #include <linux/iopoll.h>
 #include <linux/of.h>
 
-#include <dt-bindings/clock/jz4780-cgu.h>
+#include <dt-bindings/clock/ingenic,jz4780-cgu.h>
 
 #include "cgu.h"
 #include "pm.h"

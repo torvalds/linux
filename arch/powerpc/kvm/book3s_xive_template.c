@@ -61,9 +61,6 @@ static u8 GLUE(X_PFX,esb_load)(struct xive_irq_data *xd, u32 offset)
 	if (offset == XIVE_ESB_SET_PQ_10 && xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
 		offset |= XIVE_ESB_LD_ST_MO;
 
-	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
-		offset |= offset << 4;
-
 	val =__x_readq(__x_eoi_page(xd) + offset);
 #ifdef __LITTLE_ENDIAN__
 	val >>= 64-8;
@@ -77,8 +74,6 @@ static void GLUE(X_PFX,source_eoi)(u32 hw_irq, struct xive_irq_data *xd)
 	/* If the XIVE supports the new "store EOI facility, use it */
 	if (xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
 		__x_writeq(0, __x_eoi_page(xd) + XIVE_ESB_STORE_EOI);
-	else if (hw_irq && xd->flags & XIVE_IRQ_FLAG_EOI_FW)
-		opal_int_eoi(hw_irq);
 	else if (xd->flags & XIVE_IRQ_FLAG_LSI) {
 		/*
 		 * For LSIs the HW EOI cycle is used rather than PQ bits,

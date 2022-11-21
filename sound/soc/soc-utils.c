@@ -63,10 +63,23 @@ static const struct snd_pcm_hardware dummy_dma_hardware = {
 	.periods_max		= 128,
 };
 
+
+static const struct snd_soc_component_driver dummy_platform;
+
 static int dummy_dma_open(struct snd_soc_component *component,
 			  struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	int i;
+
+	/*
+	 * If there are other components associated with rtd, we shouldn't
+	 * override their hwparams
+	 */
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver == &dummy_platform)
+			return 0;
+	}
 
 	/* BE's dont need dummy params */
 	if (!rtd->dai_link->no_pcm)
@@ -97,6 +110,34 @@ static const struct snd_soc_component_driver dummy_codec = {
 			SNDRV_PCM_FMTBIT_S32_LE | \
 			SNDRV_PCM_FMTBIT_U32_LE | \
 			SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE)
+
+/*
+ * Select these from Sound Card Manually
+ *	SND_SOC_POSSIBLE_DAIFMT_CBP_CFP
+ *	SND_SOC_POSSIBLE_DAIFMT_CBP_CFC
+ *	SND_SOC_POSSIBLE_DAIFMT_CBC_CFP
+ *	SND_SOC_POSSIBLE_DAIFMT_CBC_CFC
+ */
+static u64 dummy_dai_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_AC97	|
+	SND_SOC_POSSIBLE_DAIFMT_PDM	|
+	SND_SOC_POSSIBLE_DAIFMT_GATED	|
+	SND_SOC_POSSIBLE_DAIFMT_CONT	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
+static const struct snd_soc_dai_ops dummy_dai_ops = {
+	.auto_selectable_formats	= &dummy_dai_formats,
+	.num_auto_selectable_formats	= 1,
+};
+
 /*
  * The dummy CODEC is only meant to be used in situations where there is no
  * actual hardware.
@@ -122,6 +163,7 @@ static struct snd_soc_dai_driver dummy_dai = {
 		.rates = STUB_RATES,
 		.formats = STUB_FORMATS,
 	 },
+	.ops = &dummy_dai_ops,
 };
 
 int snd_soc_dai_is_dummy(struct snd_soc_dai *dai)
@@ -129,6 +171,12 @@ int snd_soc_dai_is_dummy(struct snd_soc_dai *dai)
 	if (dai->driver == &dummy_dai)
 		return 1;
 	return 0;
+}
+
+int snd_soc_component_is_dummy(struct snd_soc_component *component)
+{
+	return ((component->driver == &dummy_platform) ||
+		(component->driver == &dummy_codec));
 }
 
 static int snd_soc_dummy_probe(struct platform_device *pdev)

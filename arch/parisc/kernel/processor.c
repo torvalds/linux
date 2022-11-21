@@ -19,6 +19,7 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
+#include <asm/topology.h>
 #include <asm/param.h>
 #include <asm/cache.h>
 #include <asm/hardware.h>	/* for register_parisc_driver() stuff */
@@ -163,7 +164,6 @@ static int __init processor_probe(struct parisc_device *dev)
 	if (cpuid)
 		memset(p, 0, sizeof(struct cpuinfo_parisc));
 
-	p->loops_per_jiffy = loops_per_jiffy;
 	p->dev = dev;		/* Save IODC data in case we need it */
 	p->hpa = dev->hpa.start;	/* save CPU hpa */
 	p->cpuid = cpuid;	/* save CPU id */
@@ -171,6 +171,7 @@ static int __init processor_probe(struct parisc_device *dev)
 	p->cpu_num = cpu_info.cpu_num;
 	p->cpu_loc = cpu_info.cpu_loc;
 
+	set_cpu_possible(cpuid, true);
 	store_cpu_topology(cpuid);
 
 #ifdef CONFIG_SMP
@@ -318,7 +319,7 @@ void __init collect_boot_cpu_data(void)
  *
  * o Enable CPU profiling hooks.
  */
-int __init init_per_cpu(int cpunum)
+int init_per_cpu(int cpunum)
 {
 	int ret;
 	struct pdc_coproc_cfg coproc_cfg;
@@ -391,7 +392,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 				 boot_cpu_data.cpu_hz / 1000000,
 				 boot_cpu_data.cpu_hz % 1000000  );
 
-#ifdef CONFIG_PARISC_CPU_TOPOLOGY
+#ifdef CONFIG_GENERIC_ARCH_TOPOLOGY
 		seq_printf(m, "physical id\t: %d\n",
 				topology_physical_package_id(cpu));
 		seq_printf(m, "siblings\t: %d\n",
@@ -419,8 +420,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 		}
 		seq_printf(m, " (0x%02lx)\n", boot_cpu_data.pdc.capabilities);
 
-		seq_printf(m, "model\t\t: %s\n"
-				"model name\t: %s\n",
+		seq_printf(m, "model\t\t: %s - %s\n",
 				 boot_cpu_data.pdc.sys_model_name,
 				 cpuinfo->dev ?
 				 cpuinfo->dev->name : "Unknown");
@@ -434,8 +434,8 @@ show_cpuinfo (struct seq_file *m, void *v)
 		show_cache_info(m);
 
 		seq_printf(m, "bogomips\t: %lu.%02lu\n",
-			     cpuinfo->loops_per_jiffy / (500000 / HZ),
-			     (cpuinfo->loops_per_jiffy / (5000 / HZ)) % 100);
+			     loops_per_jiffy / (500000 / HZ),
+			     loops_per_jiffy / (5000 / HZ) % 100);
 
 		seq_printf(m, "software id\t: %ld\n\n",
 				boot_cpu_data.pdc.model.sw_id);
@@ -461,5 +461,13 @@ static struct parisc_driver cpu_driver __refdata = {
  */
 void __init processor_init(void)
 {
+	unsigned int cpu;
+
+	reset_cpu_topology();
+
+	/* reset possible mask. We will mark those which are possible. */
+	for_each_possible_cpu(cpu)
+		set_cpu_possible(cpu, false);
+
 	register_parisc_driver(&cpu_driver);
 }

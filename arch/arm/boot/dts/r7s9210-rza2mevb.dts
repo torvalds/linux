@@ -4,6 +4,28 @@
  *
  * Copyright (C) 2018 Renesas Electronics
  *
+ * As upstream Linux does not support XIP, it cannot run in 8 MiB of HyperRAM.
+ * Hence the 64 MiB of SDRAM on the sub-board needs to be enabled, which has
+ * the following ramifications:
+ *   - SCIF4 connected to the on-board USB-serial can no longer be used as the
+ *     serial console,
+ *   - Instead, SCIF2 is used as the serial console, by connecting a 3.3V TTL
+ *     USB-to-Serial adapter to the CMOS camera connector:
+ *       - RXD = CN17-9,
+ *       - TXD = CN17-10,
+ *       - GND = CN17-2 or CN17-17,
+ *   - The first Ethernet channel can no longer be used,
+ *   - USB Channel 1 loses the overcurrent input signal.
+ *
+ * Please make sure your sub-board matches the following switch settings:
+ *
+ *           SW6                SW6-1 set to SDRAM
+ *  ON                          SW6-2 set to Audio
+ * +---------------------+      SW6-3 set to DRP
+ * | =   =   = = =       |      SW6-4 set to CEU
+ * |   =   =             |      SW6-5 set to Ether2
+ * | 1 2 3 4 5 6 7 8 9 0 |      SW6-6 set to VDC6
+ * +---------------------+      SW6-7 set to VDC6
  */
 
 /dts-v1/;
@@ -17,9 +39,8 @@
 	compatible = "renesas,rza2mevb", "renesas,r7s9210";
 
 	aliases {
-		serial0 = &scif4;
-		ethernet0 = &ether0;
-		ethernet1 = &ether1;
+		serial0 = &scif2;
+		ethernet0 = &ether1;
 	};
 
 	chosen {
@@ -58,9 +79,9 @@
 		};
 	};
 
-	memory@40000000 {
+	memory@c000000 {
 		device_type = "memory";
-		reg = <0x40000000 0x00800000>;	 /* HyperRAM */
+		reg = <0x0c000000 0x04000000>;	/* SDRAM */
 	};
 };
 
@@ -72,17 +93,6 @@
 	status = "okay";
 };
 
-&ether0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&eth0_pins>;
-	status = "okay";
-	renesas,no-ether-link;
-	phy-handle = <&phy0>;
-	phy0: ethernet-phy@0 {
-		reg = <0>;
-	};
-};
-
 &ether1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&eth1_pins>;
@@ -90,6 +100,8 @@
 	renesas,no-ether-link;
 	phy-handle = <&phy1>;
 	phy1: ethernet-phy@1 {
+		compatible = "ethernet-phy-id001c.c816",
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
 	};
 };
@@ -97,6 +109,20 @@
 /* EXTAL */
 &extal_clk {
 	clock-frequency = <24000000>;	/* 24MHz */
+};
+
+&i2c3 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+
+	eeprom@50 {
+		compatible = "renesas,r1ex24128", "atmel,24c128";
+		reg = <0x50>;
+		pagesize = <64>;
+	};
 };
 
 /* High resolution System tick timers */
@@ -137,14 +163,19 @@
 			 <RZA2_PINMUX(PORTL, 1, 5)>; /* IRQ5 */
 	};
 
+	i2c3_pins: i2c3 {
+		pinmux = <RZA2_PINMUX(PORTD, 6, 1)>,	/* RIIC3SCL */
+			 <RZA2_PINMUX(PORTD, 7, 1)>;	/* RIIC3SDA */
+	};
+
 	keyboard_pins: keyboard {
 		pinmux = <RZA2_PINMUX(PORTJ, 1, 6)>;	/* IRQ0 */
 	};
 
 	/* Serial Console */
-	scif4_pins: serial4 {
-		pinmux = <RZA2_PINMUX(PORT9, 0, 4)>,	/* TxD4 */
-			 <RZA2_PINMUX(PORT9, 1, 4)>;	/* RxD4 */
+	scif2_pins: serial2 {
+		pinmux = <RZA2_PINMUX(PORTE, 2, 3)>,	/* TxD2 */
+			 <RZA2_PINMUX(PORTE, 1, 3)>;	/* RxD2 */
 	};
 
 	sdhi0_pins: sdhi0 {
@@ -165,8 +196,7 @@
 
 	usb1_pins: usb1 {
 		pinmux = <RZA2_PINMUX(PORTC, 0, 1)>,	/* VBUSIN1 */
-			 <RZA2_PINMUX(PORTC, 5, 1)>,	/* VBUSEN1 */
-			 <RZA2_PINMUX(PORT7, 5, 5)>;	/* OVRCUR1 */
+			 <RZA2_PINMUX(PORTC, 5, 1)>;	/* VBUSEN1 */
 	};
 };
 
@@ -176,9 +206,9 @@
 };
 
 /* Serial Console */
-&scif4 {
+&scif2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&scif4_pins>;
+	pinctrl-0 = <&scif2_pins>;
 
 	status = "okay";
 };

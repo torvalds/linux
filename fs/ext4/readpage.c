@@ -43,7 +43,6 @@
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
 #include <linux/pagevec.h>
-#include <linux/cleancache.h>
 
 #include "ext4.h"
 
@@ -110,7 +109,7 @@ static void verity_work(struct work_struct *work)
 	struct bio *bio = ctx->bio;
 
 	/*
-	 * fsverity_verify_bio() may call readpages() again, and although verity
+	 * fsverity_verify_bio() may call readahead() again, and although verity
 	 * will be disabled for that, decryption may still be needed, causing
 	 * another bio_post_read_ctx to be allocated.  So to guarantee that
 	 * mempool_alloc() never deadlocks we must free the current ctx first.
@@ -350,11 +349,6 @@ int ext4_mpage_readpages(struct inode *inode,
 		} else if (fully_mapped) {
 			SetPageMappedToDisk(page);
 		}
-		if (fully_mapped && blocks_per_page == 1 &&
-		    !PageUptodate(page) && cleancache_get_page(page) == 0) {
-			SetPageUptodate(page);
-			goto confused;
-		}
 
 		/*
 		 * This page will go to BIO.  Do we need to send this
@@ -371,16 +365,15 @@ int ext4_mpage_readpages(struct inode *inode,
 			 * bio_alloc will _always_ be able to allocate a bio if
 			 * __GFP_DIRECT_RECLAIM is set, see bio_alloc_bioset().
 			 */
-			bio = bio_alloc(GFP_KERNEL,
-				min_t(int, nr_pages, BIO_MAX_PAGES));
+			bio = bio_alloc(bdev, bio_max_segs(nr_pages),
+					REQ_OP_READ, GFP_KERNEL);
 			fscrypt_set_bio_crypt_ctx(bio, inode, next_block,
 						  GFP_KERNEL);
 			ext4_set_bio_post_read_ctx(bio, inode, page->index);
-			bio_set_dev(bio, bdev);
 			bio->bi_iter.bi_sector = blocks[0] << (blkbits - 9);
 			bio->bi_end_io = mpage_end_io;
-			bio_set_op_attrs(bio, REQ_OP_READ,
-						rac ? REQ_RAHEAD : 0);
+			if (rac)
+				bio->bi_opf |= REQ_RAHEAD;
 		}
 
 		length = first_hole << blkbits;

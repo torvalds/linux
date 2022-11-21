@@ -60,7 +60,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory@00000000 {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x1000000>;
 	};
@@ -104,12 +104,10 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		autorepeat;
-		button@0 {
+		button-0 {
 			label = "User";
 			linux,code = <KEY_WAKEUP>;
 			gpios = <&gpioa 0 GPIO_ACTIVE_HIGH>;
@@ -132,6 +130,10 @@
 
 &clk_hse {
 	clock-frequency = <8000000>;
+};
+
+&dma2d {
+	status = "okay";
 };
 
 &dsi {
@@ -224,6 +226,18 @@
 	pinctrl-0 = <&sdio_pins>;
 	pinctrl-1 = <&sdio_pins_od>;
 	bus-width = <4>;
+};
+
+&timers5 {
+	/* Override timer5 to act as clockevent */
+	compatible = "st,stm32-timer";
+	interrupts = <50>;
+	status = "okay";
+	/delete-property/#address-cells;
+	/delete-property/#size-cells;
+	/delete-property/clock-names;
+	/delete-node/pwm;
+	/delete-node/timer@4;
 };
 
 &usart3 {

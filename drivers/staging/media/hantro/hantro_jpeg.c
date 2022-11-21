@@ -6,21 +6,23 @@
  * Copyright (C) Jean-Francois Moine (http://moinejf.free.fr)
  * Copyright (C) 2014 Philipp Zabel, Pengutronix
  */
-#include <linux/dma-mapping.h>
+
+#include <linux/align.h>
+#include <linux/build_bug.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include "hantro_jpeg.h"
 #include "hantro.h"
 
-#define LUMA_QUANT_OFF		7
-#define CHROMA_QUANT_OFF	72
-#define HEIGHT_OFF		141
-#define WIDTH_OFF		143
+#define LUMA_QUANT_OFF		25
+#define CHROMA_QUANT_OFF	90
+#define HEIGHT_OFF		159
+#define WIDTH_OFF		161
 
-#define HUFF_LUMA_DC_OFF	160
-#define HUFF_LUMA_AC_OFF	193
-#define HUFF_CHROMA_DC_OFF	376
-#define HUFF_CHROMA_AC_OFF	409
+#define HUFF_LUMA_DC_OFF	178
+#define HUFF_LUMA_AC_OFF	211
+#define HUFF_CHROMA_DC_OFF	394
+#define HUFF_CHROMA_AC_OFF	427
 
 /* Default tables from JPEG ITU-T.81
  * (ISO/IEC 10918-1) Annex K, tables K.1 and K.2
@@ -36,8 +38,6 @@ static const unsigned char luma_q_table[] = {
 	0x48, 0x5c, 0x5f, 0x62, 0x70, 0x64, 0x67, 0x63
 };
 
-static unsigned char luma_q_table_reordered[ARRAY_SIZE(luma_q_table)];
-
 static const unsigned char chroma_q_table[] = {
 	0x11, 0x12, 0x18, 0x2f, 0x63, 0x63, 0x63, 0x63,
 	0x12, 0x15, 0x1a, 0x42, 0x63, 0x63, 0x63, 0x63,
@@ -49,9 +49,7 @@ static const unsigned char chroma_q_table[] = {
 	0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63
 };
 
-static unsigned char chroma_q_table_reordered[ARRAY_SIZE(chroma_q_table)];
-
-static const unsigned char zigzag[64] = {
+static const unsigned char zigzag[] = {
 	 0,  1,  8, 16,  9,  2,  3, 10,
 	17, 24, 32, 25, 18, 11,  4,  5,
 	12, 19, 26, 33, 40, 48, 41, 34,
@@ -62,7 +60,7 @@ static const unsigned char zigzag[64] = {
 	53, 60, 61, 54, 47, 55, 62, 63
 };
 
-static const u32 hw_reorder[64] = {
+static const u32 hw_reorder[] = {
 	 0,  8, 16, 24,  1,  9, 17, 25,
 	32, 40, 48, 56, 33, 41, 49, 57,
 	 2, 10, 18, 26,  3, 11, 19, 27,
@@ -144,9 +142,14 @@ static const unsigned char chroma_ac_table[] = {
  * and we'll use fixed offsets to change the width, height
  * quantization tables, etc.
  */
-static const unsigned char hantro_jpeg_header[JPEG_HEADER_SIZE] = {
+static const unsigned char hantro_jpeg_header[] = {
 	/* SOI */
 	0xff, 0xd8,
+
+	/* JFIF-APP0 */
+	0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46,
+	0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01,
+	0x00, 0x00,
 
 	/* DQT */
 	0xff, 0xdb, 0x00, 0x84,
@@ -246,10 +249,28 @@ static const unsigned char hantro_jpeg_header[JPEG_HEADER_SIZE] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 
+	/* COM */
+	0xff, 0xfe, 0x00, 0x03, 0x00,
+
 	/* SOS */
 	0xff, 0xda, 0x00, 0x0c, 0x03, 0x01, 0x00, 0x02,
 	0x11, 0x03, 0x11, 0x00, 0x3f, 0x00,
 };
+
+/*
+ * JPEG_HEADER_SIZE is used in other parts of the driver in lieu of
+ * "sizeof(hantro_jpeg_header)". The two must be equal.
+ */
+static_assert(sizeof(hantro_jpeg_header) == JPEG_HEADER_SIZE);
+
+/*
+ * hantro_jpeg_header is padded with a COM segment, so that the payload
+ * of the SOS segment (the entropy-encoded image scan), which should
+ * trail the whole header, is 8-byte aligned for the hardware to write
+ * to directly.
+ */
+static_assert(IS_ALIGNED(sizeof(hantro_jpeg_header), 8),
+	      "Hantro JPEG header size needs to be 8-byte aligned.");
 
 static unsigned char jpeg_scale_qp(const unsigned char qp, int scale)
 {
@@ -271,13 +292,16 @@ jpeg_scale_quant_table(unsigned char *file_q_tab,
 {
 	int i;
 
-	for (i = 0; i < 64; i++) {
+	BUILD_BUG_ON(ARRAY_SIZE(zigzag) != JPEG_QUANT_SIZE);
+	BUILD_BUG_ON(ARRAY_SIZE(hw_reorder) != JPEG_QUANT_SIZE);
+
+	for (i = 0; i < JPEG_QUANT_SIZE; i++) {
 		file_q_tab[i] = jpeg_scale_qp(tab[zigzag[i]], scale);
 		reordered_q_tab[i] = jpeg_scale_qp(tab[hw_reorder[i]], scale);
 	}
 }
 
-static void jpeg_set_quality(unsigned char *buffer, int quality)
+static void jpeg_set_quality(struct hantro_jpeg_ctx *ctx)
 {
 	int scale;
 
@@ -285,24 +309,20 @@ static void jpeg_set_quality(unsigned char *buffer, int quality)
 	 * Non-linear scaling factor:
 	 * [5,50] -> [1000..100], [51,100] -> [98..0]
 	 */
-	if (quality < 50)
-		scale = 5000 / quality;
+	if (ctx->quality < 50)
+		scale = 5000 / ctx->quality;
 	else
-		scale = 200 - 2 * quality;
+		scale = 200 - 2 * ctx->quality;
 
-	jpeg_scale_quant_table(buffer + LUMA_QUANT_OFF,
-			       luma_q_table_reordered,
-			       luma_q_table, scale);
-	jpeg_scale_quant_table(buffer + CHROMA_QUANT_OFF,
-			       chroma_q_table_reordered,
-			       chroma_q_table, scale);
-}
+	BUILD_BUG_ON(ARRAY_SIZE(luma_q_table) != JPEG_QUANT_SIZE);
+	BUILD_BUG_ON(ARRAY_SIZE(chroma_q_table) != JPEG_QUANT_SIZE);
+	BUILD_BUG_ON(ARRAY_SIZE(ctx->hw_luma_qtable) != JPEG_QUANT_SIZE);
+	BUILD_BUG_ON(ARRAY_SIZE(ctx->hw_chroma_qtable) != JPEG_QUANT_SIZE);
 
-unsigned char *hantro_jpeg_get_qtable(int index)
-{
-	if (index == 0)
-		return luma_q_table_reordered;
-	return chroma_q_table_reordered;
+	jpeg_scale_quant_table(ctx->buffer + LUMA_QUANT_OFF,
+			       ctx->hw_luma_qtable, luma_q_table, scale);
+	jpeg_scale_quant_table(ctx->buffer + CHROMA_QUANT_OFF,
+			       ctx->hw_chroma_qtable, chroma_q_table, scale);
 }
 
 void hantro_jpeg_header_assemble(struct hantro_jpeg_ctx *ctx)
@@ -324,32 +344,5 @@ void hantro_jpeg_header_assemble(struct hantro_jpeg_ctx *ctx)
 	memcpy(buf + HUFF_CHROMA_AC_OFF, chroma_ac_table,
 	       sizeof(chroma_ac_table));
 
-	jpeg_set_quality(buf, ctx->quality);
-}
-
-int hantro_jpeg_enc_init(struct hantro_ctx *ctx)
-{
-	ctx->jpeg_enc.bounce_buffer.size =
-		ctx->dst_fmt.plane_fmt[0].sizeimage -
-		ctx->vpu_dst_fmt->header_size;
-
-	ctx->jpeg_enc.bounce_buffer.cpu =
-		dma_alloc_attrs(ctx->dev->dev,
-				ctx->jpeg_enc.bounce_buffer.size,
-				&ctx->jpeg_enc.bounce_buffer.dma,
-				GFP_KERNEL,
-				DMA_ATTR_ALLOC_SINGLE_PAGES);
-	if (!ctx->jpeg_enc.bounce_buffer.cpu)
-		return -ENOMEM;
-
-	return 0;
-}
-
-void hantro_jpeg_enc_exit(struct hantro_ctx *ctx)
-{
-	dma_free_attrs(ctx->dev->dev,
-		       ctx->jpeg_enc.bounce_buffer.size,
-		       ctx->jpeg_enc.bounce_buffer.cpu,
-		       ctx->jpeg_enc.bounce_buffer.dma,
-		       DMA_ATTR_ALLOC_SINGLE_PAGES);
+	jpeg_set_quality(ctx);
 }

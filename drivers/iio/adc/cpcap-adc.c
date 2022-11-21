@@ -100,7 +100,7 @@ struct cpcap_adc_ato {
 };
 
 /**
- * struct cpcap-adc - cpcap adc device driver data
+ * struct cpcap_adc - cpcap adc device driver data
  * @reg: cpcap regmap
  * @dev: struct device
  * @vendor: cpcap vendor
@@ -474,7 +474,7 @@ static int cpcap_adc_calibrate_one(struct cpcap_adc *ddata,
 	for (i = 0; i < CPCAP_ADC_MAX_RETRIES; i++) {
 		calibration_data[0]  = 0;
 		calibration_data[1]  = 0;
-		cal_data_diff = 0;
+
 		cpcap_adc_setup_calibrate(ddata, channel);
 		error = regmap_read(ddata->reg, calibration_register,
 				    &calibration_data[0]);
@@ -557,6 +557,7 @@ static void cpcap_adc_setup_bank(struct cpcap_adc *ddata,
 		break;
 	case CPCAP_ADC_BATTP_PI16 ... CPCAP_ADC_BATTI_PI17:
 		value1 |= CPCAP_BIT_RAND1;
+		break;
 	default:
 		break;
 	}

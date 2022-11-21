@@ -637,7 +637,8 @@ static int bdx_range_check(struct bdx_priv *priv, u32 offset)
 		-EINVAL : 0;
 }
 
-static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
+static int bdx_siocdevprivate(struct net_device *ndev, struct ifreq *ifr,
+			      void __user *udata, int cmd)
 {
 	struct bdx_priv *priv = netdev_priv(ndev);
 	u32 data[3];
@@ -647,7 +648,7 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 
 	DBG("jiffies=%ld cmd=%d\n", jiffies, cmd);
 	if (cmd != SIOCDEVPRIVATE) {
-		error = copy_from_user(data, ifr->ifr_data, sizeof(data));
+		error = copy_from_user(data, udata, sizeof(data));
 		if (error) {
 			pr_err("can't copy from user\n");
 			RET(-EFAULT);
@@ -669,7 +670,7 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 		data[2] = READ_REG(priv, data[1]);
 		DBG("read_reg(0x%x)=0x%x (dec %d)\n", data[1], data[2],
 		    data[2]);
-		error = copy_to_user(ifr->ifr_data, data, sizeof(data));
+		error = copy_to_user(udata, data, sizeof(data));
 		if (error)
 			RET(-EFAULT);
 		break;
@@ -686,15 +687,6 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 		RET(-EOPNOTSUPP);
 	}
 	return 0;
-}
-
-static int bdx_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
-{
-	ENTER;
-	if (cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15))
-		RET(bdx_ioctl_priv(ndev, ifr, cmd));
-	else
-		RET(-EOPNOTSUPP);
 }
 
 /**
@@ -840,7 +832,7 @@ static int bdx_set_mac(struct net_device *ndev, void *p)
 	   if (netif_running(dev))
 	   return -EBUSY
 	 */
-	memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, addr->sa_data);
 	bdx_restore_mac(ndev, priv);
 	RET(0);
 }
@@ -848,6 +840,7 @@ static int bdx_set_mac(struct net_device *ndev, void *p)
 static int bdx_read_mac(struct bdx_priv *priv)
 {
 	u16 macAddress[3], i;
+	u8 addr[ETH_ALEN];
 	ENTER;
 
 	macAddress[2] = READ_REG(priv, regUNC_MAC0_A);
@@ -857,9 +850,10 @@ static int bdx_read_mac(struct bdx_priv *priv)
 	macAddress[0] = READ_REG(priv, regUNC_MAC2_A);
 	macAddress[0] = READ_REG(priv, regUNC_MAC2_A);
 	for (i = 0; i < 3; i++) {
-		priv->ndev->dev_addr[i * 2 + 1] = macAddress[i];
-		priv->ndev->dev_addr[i * 2] = macAddress[i] >> 8;
+		addr[i * 2 + 1] = macAddress[i];
+		addr[i * 2] = macAddress[i] >> 8;
 	}
+	eth_hw_addr_set(priv->ndev, addr);
 	RET(0);
 }
 
@@ -1860,7 +1854,7 @@ static const struct net_device_ops bdx_netdev_ops = {
 	.ndo_stop		= bdx_close,
 	.ndo_start_xmit		= bdx_tx_transmit,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= bdx_ioctl,
+	.ndo_siocdevprivate	= bdx_siocdevprivate,
 	.ndo_set_rx_mode	= bdx_setmulti,
 	.ndo_change_mtu		= bdx_change_mtu,
 	.ndo_set_mac_address	= bdx_set_mac,
@@ -1890,10 +1884,10 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *ndev;
 	struct bdx_priv *priv;
-	int err, pci_using_dac, port;
 	unsigned long pciaddr;
 	u32 regionSize;
 	struct pci_nic *nic;
+	int err, port;
 
 	ENTER;
 
@@ -1906,16 +1900,10 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)			/* it triggers interrupt, dunno why. */
 		goto err_pci;		/* it's not a problem though */
 
-	if (!(err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) &&
-	    !(err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64)))) {
-		pci_using_dac = 1;
-	} else {
-		if ((err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) ||
-		    (err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32)))) {
-			pr_err("No usable DMA configuration, aborting\n");
-			goto err_dma;
-		}
-		pci_using_dac = 0;
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		pr_err("No usable DMA configuration, aborting\n");
+		goto err_dma;
 	}
 
 	err = pci_request_regions(pdev, BDX_DRV_NAME);
@@ -1988,15 +1976,13 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/* these fields are used for info purposes only
 		 * so we can have them same for all ports of the board */
 		ndev->if_port = port;
-		ndev->features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO
-		    | NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
-		    NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXCSUM
-		    ;
+		ndev->features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO |
+		    NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
+		    NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXCSUM |
+		    NETIF_F_HIGHDMA;
+
 		ndev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
 			NETIF_F_TSO | NETIF_F_HW_VLAN_CTAG_TX;
-
-		if (pci_using_dac)
-			ndev->features |= NETIF_F_HIGHDMA;
 
 	/************** priv ****************/
 		priv = nic->priv[port] = netdev_priv(ndev);
@@ -2044,6 +2030,7 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/*bdx_hw_reset(priv); */
 		if (bdx_read_mac(priv)) {
 			pr_err("load MAC address failed\n");
+			err = -EFAULT;
 			goto err_out_iomap;
 		}
 		SET_NETDEV_DEV(ndev, &pdev->dev);
@@ -2158,8 +2145,10 @@ bdx_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
  * @netdev
  * @ecoal
  */
-static int
-bdx_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecoal)
+static int bdx_get_coalesce(struct net_device *netdev,
+			    struct ethtool_coalesce *ecoal,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	u32 rdintcm;
 	u32 tdintcm;
@@ -2187,8 +2176,10 @@ bdx_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecoal)
  * @netdev
  * @ecoal
  */
-static int
-bdx_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecoal)
+static int bdx_set_coalesce(struct net_device *netdev,
+			    struct ethtool_coalesce *ecoal,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	u32 rdintcm;
 	u32 tdintcm;
@@ -2246,9 +2237,13 @@ static inline int bdx_tx_fifo_size_to_packets(int tx_size)
  * bdx_get_ringparam - report ring sizes
  * @netdev
  * @ring
+ * @kernel_ring
+ * @extack
  */
 static void
-bdx_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
+bdx_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
+		  struct kernel_ethtool_ringparam *kernel_ring,
+		  struct netlink_ext_ack *extack)
 {
 	struct bdx_priv *priv = netdev_priv(netdev);
 
@@ -2263,9 +2258,13 @@ bdx_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
  * bdx_set_ringparam - set ring sizes
  * @netdev
  * @ring
+ * @kernel_ring
+ * @extack
  */
 static int
-bdx_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
+bdx_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
+		  struct kernel_ethtool_ringparam *kernel_ring,
+		  struct netlink_ext_ack *extack)
 {
 	struct bdx_priv *priv = netdev_priv(netdev);
 	int rx_size = 0;

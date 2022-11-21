@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-bpf-direct
-bpf-fancy
-dropper
-user-trap
+/bpf-direct
+/bpf-fancy
+/dropper
+/user-trap

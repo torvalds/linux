@@ -5,17 +5,13 @@
 #ifndef __RTW_COEX_H__
 #define __RTW_COEX_H__
 
-/* BT profile map bit definition */
-#define BPM_HFP		BIT(0)
-#define BPM_HID		BIT(1)
-#define BPM_A2DP		BIT(2)
-#define BPM_PAN		BIT(3)
-
+#define COEX_CCK_2	0x1
 #define COEX_RESP_ACK_BY_WL_FW	0x1
 #define COEX_REQUEST_TIMEOUT	msecs_to_jiffies(10)
 
 #define COEX_MIN_DELAY		10 /* delay unit in ms */
 #define COEX_RFK_TIMEOUT	600 /* RFK timeout in ms */
+#define COEX_BT_GAMEHID_CNT	800
 
 #define COEX_RF_OFF	0x0
 #define COEX_RF_ON	0x1
@@ -27,10 +23,19 @@
 #define COEX_H2C69_TDMA_SLOT	0xb
 #define PARA1_H2C69_TDMA_4SLOT	0xc1
 #define PARA1_H2C69_TDMA_2SLOT	0x1
+#define PARA1_H2C69_TBTT_TIMES	GENMASK(5, 0)
+#define PARA1_H2C69_TBTT_DIV100	BIT(7)
+
+#define COEX_H2C69_TOGGLE_TABLE_A 0xd
+#define COEX_H2C69_TOGGLE_TABLE_B 0x7
 
 #define TDMA_4SLOT	BIT(8)
 
+#define TDMA_TIMER_TYPE_2SLOT 0
+#define TDMA_TIMER_TYPE_4SLOT 3
+
 #define COEX_RSSI_STEP		4
+
 #define COEX_RSSI_HIGH(rssi) \
 	({ typeof(rssi) __rssi__ = rssi; \
 	   (__rssi__ == COEX_RSSI_STATE_HIGH || \
@@ -146,9 +151,29 @@ enum coex_algorithm {
 	COEX_ALGO_MAX
 };
 
+enum coex_bt_profile {
+	BPM_NOPROFILE		= 0,
+	BPM_HFP			= BIT(0),
+	BPM_HID			= BIT(1),
+	BPM_A2DP		= BIT(2),
+	BPM_PAN			= BIT(3),
+	BPM_HID_HFP		= BPM_HID | BPM_HFP,
+	BPM_A2DP_HFP		= BPM_A2DP | BPM_HFP,
+	BPM_A2DP_HID		= BPM_A2DP | BPM_HID,
+	BPM_A2DP_HID_HFP	= BPM_A2DP | BPM_HID | BPM_HFP,
+	BPM_PAN_HFP		= BPM_PAN | BPM_HFP,
+	BPM_PAN_HID		= BPM_PAN | BPM_HID,
+	BPM_PAN_HID_HFP		= BPM_PAN | BPM_HID | BPM_HFP,
+	BPM_PAN_A2DP		= BPM_PAN | BPM_A2DP,
+	BPM_PAN_A2DP_HFP	= BPM_PAN | BPM_A2DP | BPM_HFP,
+	BPM_PAN_A2DP_HID	= BPM_PAN | BPM_A2DP | BPM_HID,
+	BPM_PAN_A2DP_HID_HFP	= BPM_PAN | BPM_A2DP | BPM_HID | BPM_HFP,
+};
+
 enum coex_wl_link_mode {
 	COEX_WLINK_2G1PORT	= 0x0,
 	COEX_WLINK_5G		= 0x3,
+	COEX_WLINK_2GFREE	= 0x7,
 	COEX_WLINK_MAX
 };
 
@@ -365,19 +390,33 @@ void rtw_coex_bt_reenable_work(struct work_struct *work);
 void rtw_coex_defreeze_work(struct work_struct *work);
 void rtw_coex_wl_remain_work(struct work_struct *work);
 void rtw_coex_bt_remain_work(struct work_struct *work);
+void rtw_coex_wl_connecting_work(struct work_struct *work);
+void rtw_coex_bt_multi_link_remain_work(struct work_struct *work);
+void rtw_coex_wl_ccklock_work(struct work_struct *work);
 
 void rtw_coex_power_on_setting(struct rtw_dev *rtwdev);
+void rtw_coex_power_off_setting(struct rtw_dev *rtwdev);
 void rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only);
 void rtw_coex_ips_notify(struct rtw_dev *rtwdev, u8 type);
 void rtw_coex_lps_notify(struct rtw_dev *rtwdev, u8 type);
 void rtw_coex_scan_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_connect_notify(struct rtw_dev *rtwdev, u8 action);
-void rtw_coex_media_status_notify(struct rtw_dev *rtwdev, u8 status);
-void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 len);
+void rtw_coex_connect_notify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_media_status_notify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
+void rtw_coex_bt_hid_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
 void rtw_coex_wl_fwdbginfo_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
 void rtw_coex_switchband_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_wl_status_change_notify(struct rtw_dev *rtwdev);
-
+void rtw_coex_wl_status_change_notify(struct rtw_dev *rtwdev, u32 type);
+void rtw_coex_wl_status_check(struct rtw_dev *rtwdev);
+void rtw_coex_query_bt_hid_list(struct rtw_dev *rtwdev);
 void rtw_coex_display_coex_info(struct rtw_dev *rtwdev, struct seq_file *m);
+
+static inline bool rtw_coex_disabled(struct rtw_dev *rtwdev)
+{
+	struct rtw_coex *coex = &rtwdev->coex;
+	struct rtw_coex_stat *coex_stat = &coex->stat;
+
+	return coex_stat->bt_disabled;
+}
 
 #endif

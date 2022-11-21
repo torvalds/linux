@@ -248,7 +248,7 @@ static ssize_t adc128_alarm_show(struct device *dev,
 static umode_t adc128_is_visible(struct kobject *kobj,
 				 struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct adc128_data *data = dev_get_drvdata(dev);
 
 	if (index < ADC128_ATTR_NUM_VOLT) {

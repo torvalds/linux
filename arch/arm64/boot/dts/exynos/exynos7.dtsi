@@ -54,6 +54,13 @@
 			compatible = "arm,cortex-a57";
 			reg = <0x0>;
 			enable-method = "psci";
+			i-cache-size = <0xc000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&atlas_l2>;
 		};
 
 		cpu_atlas1: cpu@1 {
@@ -61,6 +68,13 @@
 			compatible = "arm,cortex-a57";
 			reg = <0x1>;
 			enable-method = "psci";
+			i-cache-size = <0xc000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&atlas_l2>;
 		};
 
 		cpu_atlas2: cpu@2 {
@@ -68,6 +82,13 @@
 			compatible = "arm,cortex-a57";
 			reg = <0x2>;
 			enable-method = "psci";
+			i-cache-size = <0xc000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&atlas_l2>;
 		};
 
 		cpu_atlas3: cpu@3 {
@@ -75,12 +96,28 @@
 			compatible = "arm,cortex-a57";
 			reg = <0x3>;
 			enable-method = "psci";
+			i-cache-size = <0xc000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&atlas_l2>;
+		};
+
+		atlas_l2: l2-cache0 {
+			compatible = "cache";
+			cache-size = <0x200000>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
 		};
 	};
 
 	psci {
-		compatible = "arm,psci-0.2";
+		compatible = "arm,psci";
 		method = "smc";
+		cpu_off = <0x84000002>;
+		cpu_on = <0xC4000003>;
 	};
 
 	soc: soc@0 {
@@ -100,12 +137,12 @@
 			#address-cells = <0>;
 			interrupt-controller;
 			reg =	<0x11001000 0x1000>,
-				<0x11002000 0x1000>,
+				<0x11002000 0x2000>,
 				<0x11004000 0x2000>,
 				<0x11006000 0x2000>;
 		};
 
-		pdma0: pdma@10e10000 {
+		pdma0: dma-controller@10e10000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x10E10000 0x1000>;
 			interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
@@ -116,7 +153,7 @@
 			#dma-requests = <32>;
 		};
 
-		pdma1: pdma@10eb0000 {
+		pdma1: dma-controller@10eb0000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x10EB0000 0x1000>;
 			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
@@ -140,10 +177,11 @@
 			clocks = <&fin_pll>, <&clock_topc DOUT_SCLK_BUS0_PLL>,
 				 <&clock_topc DOUT_SCLK_BUS1_PLL>,
 				 <&clock_topc DOUT_SCLK_CC_PLL>,
-				 <&clock_topc DOUT_SCLK_MFC_PLL>;
+				 <&clock_topc DOUT_SCLK_MFC_PLL>,
+				 <&clock_topc DOUT_SCLK_AUD_PLL>;
 			clock-names = "fin_pll", "dout_sclk_bus0_pll",
 				      "dout_sclk_bus1_pll", "dout_sclk_cc_pll",
-				      "dout_sclk_mfc_pll";
+				      "dout_sclk_mfc_pll", "dout_sclk_aud_pll";
 		};
 
 		clock_top1: clock-controller@105e0000 {
@@ -181,12 +219,32 @@
 			compatible = "samsung,exynos7-clock-peric1";
 			reg = <0x14c80000 0xd00>;
 			#clock-cells = <1>;
-			clocks = <&fin_pll>, <&clock_top0 DOUT_ACLK_PERIC1>,
+			clocks = <&fin_pll>,
+				 <&clock_top0 DOUT_ACLK_PERIC1>,
 				 <&clock_top0 CLK_SCLK_UART1>,
 				 <&clock_top0 CLK_SCLK_UART2>,
-				 <&clock_top0 CLK_SCLK_UART3>;
-			clock-names = "fin_pll", "dout_aclk_peric1_66",
-				      "sclk_uart1", "sclk_uart2", "sclk_uart3";
+				 <&clock_top0 CLK_SCLK_UART3>,
+				 <&clock_top0 CLK_SCLK_SPI0>,
+				 <&clock_top0 CLK_SCLK_SPI1>,
+				 <&clock_top0 CLK_SCLK_SPI2>,
+				 <&clock_top0 CLK_SCLK_SPI3>,
+				 <&clock_top0 CLK_SCLK_SPI4>,
+				 <&clock_top0 CLK_SCLK_I2S1>,
+				 <&clock_top0 CLK_SCLK_PCM1>,
+				 <&clock_top0 CLK_SCLK_SPDIF>;
+			clock-names = "fin_pll",
+				      "dout_aclk_peric1_66",
+				      "sclk_uart1",
+				      "sclk_uart2",
+				      "sclk_uart3",
+				      "sclk_spi0",
+				      "sclk_spi1",
+				      "sclk_spi2",
+				      "sclk_spi3",
+				      "sclk_spi4",
+				      "sclk_i2s1",
+				      "sclk_pcm1",
+				      "sclk_spdif";
 		};
 
 		clock_peris: clock-controller@10040000 {
@@ -322,7 +380,7 @@
 			interrupts = <GIC_SPI 384 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		hsi2c_0: hsi2c@13640000 {
+		hsi2c_0: i2c@13640000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13640000 0x1000>;
 			interrupts = <GIC_SPI 441 IRQ_TYPE_LEVEL_HIGH>;
@@ -335,7 +393,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_1: hsi2c@13650000 {
+		hsi2c_1: i2c@13650000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13650000 0x1000>;
 			interrupts = <GIC_SPI 442 IRQ_TYPE_LEVEL_HIGH>;
@@ -348,7 +406,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_2: hsi2c@14e60000 {
+		hsi2c_2: i2c@14e60000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x14e60000 0x1000>;
 			interrupts = <GIC_SPI 459 IRQ_TYPE_LEVEL_HIGH>;
@@ -361,7 +419,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_3: hsi2c@14e70000 {
+		hsi2c_3: i2c@14e70000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x14e70000 0x1000>;
 			interrupts = <GIC_SPI 460 IRQ_TYPE_LEVEL_HIGH>;
@@ -374,7 +432,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_4: hsi2c@13660000 {
+		hsi2c_4: i2c@13660000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13660000 0x1000>;
 			interrupts = <GIC_SPI 443 IRQ_TYPE_LEVEL_HIGH>;
@@ -387,7 +445,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_5: hsi2c@13670000 {
+		hsi2c_5: i2c@13670000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13670000 0x1000>;
 			interrupts = <GIC_SPI 444 IRQ_TYPE_LEVEL_HIGH>;
@@ -400,7 +458,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_6: hsi2c@14e00000 {
+		hsi2c_6: i2c@14e00000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x14e00000 0x1000>;
 			interrupts = <GIC_SPI 461 IRQ_TYPE_LEVEL_HIGH>;
@@ -413,7 +471,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_7: hsi2c@13e10000 {
+		hsi2c_7: i2c@13e10000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13e10000 0x1000>;
 			interrupts = <GIC_SPI 462 IRQ_TYPE_LEVEL_HIGH>;
@@ -426,7 +484,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_8: hsi2c@14e20000 {
+		hsi2c_8: i2c@14e20000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x14e20000 0x1000>;
 			interrupts = <GIC_SPI 463 IRQ_TYPE_LEVEL_HIGH>;
@@ -439,7 +497,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_9: hsi2c@13680000 {
+		hsi2c_9: i2c@13680000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13680000 0x1000>;
 			interrupts = <GIC_SPI 445 IRQ_TYPE_LEVEL_HIGH>;
@@ -452,7 +510,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_10: hsi2c@13690000 {
+		hsi2c_10: i2c@13690000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13690000 0x1000>;
 			interrupts = <GIC_SPI 446 IRQ_TYPE_LEVEL_HIGH>;
@@ -465,7 +523,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_11: hsi2c@136a0000 {
+		hsi2c_11: i2c@136a0000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x136a0000 0x1000>;
 			interrupts = <GIC_SPI 447 IRQ_TYPE_LEVEL_HIGH>;
@@ -481,13 +539,6 @@
 		pmu_system_controller: system-controller@105c0000 {
 			compatible = "samsung,exynos7-pmu", "syscon";
 			reg = <0x105c0000 0x5000>;
-
-			reboot: syscon-reboot {
-				compatible = "syscon-reboot";
-				regmap = <&pmu_system_controller>;
-				offset = <0x0400>;
-				mask = <0x1>;
-			};
 		};
 
 		rtc: rtc@10590000 {
@@ -567,7 +618,6 @@
 			clocks = <&clock_peric0 PCLK_ADCIF>;
 			clock-names = "adc";
 			#io-channel-cells = <1>;
-			io-channel-ranges;
 			status = "disabled";
 		};
 
@@ -634,16 +684,15 @@
 			reg = <0x15500000 0x100>;
 			clocks = <&clock_fsys0 ACLK_USBDRD300>,
 			       <&clock_fsys0 OSCCLK_PHY_CLKOUT_USB30_PHY>,
-			       <&clock_fsys0 PHYCLK_USBDRD300_UDRD30_PIPE_PCLK_USER>,
 			       <&clock_fsys0 PHYCLK_USBDRD300_UDRD30_PHYCLK_USER>,
+			       <&clock_fsys0 PHYCLK_USBDRD300_UDRD30_PIPE_PCLK_USER>,
 			       <&clock_fsys0 SCLK_USBDRD300_REFCLK>;
-			clock-names = "phy", "ref", "phy_pipe",
-				"phy_utmi", "itp";
+			clock-names = "phy", "ref", "phy_utmi", "phy_pipe", "itp";
 			samsung,pmu-syscon = <&pmu_system_controller>;
 			#phy-cells = <1>;
 		};
 
-		usbdrd3 {
+		usbdrd: usb {
 			compatible = "samsung,exynos7-dwusb3";
 			clocks = <&clock_fsys0 ACLK_USBDRD300>,
 			       <&clock_fsys0 SCLK_USBDRD300_SUSPENDCLK>,
@@ -654,7 +703,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			dwc3@15400000 {
+			usb@15400000 {
 				compatible = "snps,dwc3";
 				reg = <0x15400000 0x10000>;
 				interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
@@ -687,3 +736,4 @@
 };
 
 #include "exynos7-pinctrl.dtsi"
+#include "arm/exynos-syscon-restart.dtsi"

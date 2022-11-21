@@ -38,6 +38,8 @@
 #include "i915_drv.h"
 #include "intel_atomic.h"
 #include "intel_connector.h"
+#include "intel_crtc.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fifo_underrun.h"
 #include "intel_gmbus.h"
@@ -1333,6 +1335,13 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 							   adjusted_mode);
 		pipe_config->sdvo_tv_clock = true;
 	} else if (IS_LVDS(intel_sdvo_connector)) {
+		int ret;
+
+		ret = intel_panel_compute_config(&intel_sdvo_connector->base,
+						 adjusted_mode);
+		if (ret)
+			return ret;
+
 		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo,
 							     intel_sdvo_connector->base.panel.fixed_mode))
 			return -EINVAL;
@@ -1540,11 +1549,11 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 		return;
 
 	/* Set the SDVO control regs. */
-	if (INTEL_GEN(dev_priv) >= 4) {
+	if (DISPLAY_VER(dev_priv) >= 4) {
 		/* The real mode polarity is set by the SDVO commands, using
 		 * struct intel_sdvo_dtd. */
 		sdvox = SDVO_VSYNC_ACTIVE_HIGH | SDVO_HSYNC_ACTIVE_HIGH;
-		if (INTEL_GEN(dev_priv) < 5)
+		if (DISPLAY_VER(dev_priv) < 5)
 			sdvox |= SDVO_BORDER_ENABLE;
 	} else {
 		sdvox = intel_de_read(dev_priv, intel_sdvo->sdvo_reg);
@@ -1560,7 +1569,7 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 	else
 		sdvox |= SDVO_PIPE_SEL(crtc->pipe);
 
-	if (INTEL_GEN(dev_priv) >= 4) {
+	if (DISPLAY_VER(dev_priv) >= 4) {
 		/* done in crtc_mode_set as the dpll_md reg must be written early */
 	} else if (IS_I945G(dev_priv) || IS_I945GM(dev_priv) ||
 		   IS_G33(dev_priv) || IS_PINEVIEW(dev_priv)) {
@@ -1571,7 +1580,7 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 	}
 
 	if (input_dtd.part2.sdvo_flags & SDVO_NEED_TO_STALL &&
-	    INTEL_GEN(dev_priv) < 5)
+	    DISPLAY_VER(dev_priv) < 5)
 		sdvox |= SDVO_STALL_SELECT;
 	intel_sdvo_write_sdvox(intel_sdvo, sdvox);
 }
@@ -1822,7 +1831,7 @@ static void intel_enable_sdvo(struct intel_atomic_state *state,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
-	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	u32 temp;
 	bool input1, input2;
 	int i;
@@ -1833,7 +1842,7 @@ static void intel_enable_sdvo(struct intel_atomic_state *state,
 	intel_sdvo_write_sdvox(intel_sdvo, temp);
 
 	for (i = 0; i < 2; i++)
-		intel_wait_for_vblank(dev_priv, intel_crtc->pipe);
+		intel_crtc_wait_for_next_vblank(crtc);
 
 	success = intel_sdvo_get_trained_inputs(intel_sdvo, &input1, &input2);
 	/*
@@ -1871,7 +1880,6 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 
-
 	if (clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
 
@@ -1888,14 +1896,11 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 		return MODE_CLOCK_HIGH;
 
 	if (IS_LVDS(intel_sdvo_connector)) {
-		const struct drm_display_mode *fixed_mode =
-			intel_sdvo_connector->base.panel.fixed_mode;
+		enum drm_mode_status status;
 
-		if (mode->hdisplay > fixed_mode->hdisplay)
-			return MODE_PANEL;
-
-		if (mode->vdisplay > fixed_mode->vdisplay)
-			return MODE_PANEL;
+		status = intel_panel_mode_valid(&intel_sdvo_connector->base, mode);
+		if (status != MODE_OK)
+			return status;
 	}
 
 	return MODE_OK;
@@ -3281,7 +3286,7 @@ static bool
 intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo,
 			  struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 
 	sdvo->ddc.owner = THIS_MODULE;
 	sdvo->ddc.class = I2C_CLASS_DDC;

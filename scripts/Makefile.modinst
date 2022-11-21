@@ -6,30 +6,109 @@
 PHONY := __modinst
 __modinst:
 
-include scripts/Kbuild.include
+include include/config/auto.conf
+include $(srctree)/scripts/Kbuild.include
 
-modules := $(sort $(shell cat $(if $(KBUILD_EXTMOD),$(KBUILD_EXTMOD)/)modules.order))
+modules := $(sort $(shell cat $(MODORDER)))
 
-PHONY += $(modules)
+ifeq ($(KBUILD_EXTMOD),)
+dst := $(MODLIB)/kernel
+else
+INSTALL_MOD_DIR ?= extra
+dst := $(MODLIB)/$(INSTALL_MOD_DIR)
+endif
+
+suffix-y				:=
+suffix-$(CONFIG_MODULE_COMPRESS_GZIP)	:= .gz
+suffix-$(CONFIG_MODULE_COMPRESS_XZ)	:= .xz
+suffix-$(CONFIG_MODULE_COMPRESS_ZSTD)	:= .zst
+
+modules := $(patsubst $(extmod_prefix)%, $(dst)/%$(suffix-y), $(modules))
+
 __modinst: $(modules)
 	@:
 
-# Don't stop modules_install if we can't sign external modules.
-quiet_cmd_modules_install = INSTALL $@
-      cmd_modules_install = \
-    mkdir -p $(2) ; \
-    cp $@ $(2) ; \
-    $(mod_strip_cmd) $(2)/$(notdir $@) ; \
-    $(mod_sign_cmd) $(2)/$(notdir $@) $(patsubst %,|| true,$(KBUILD_EXTMOD)) ; \
-    $(mod_compress_cmd) $(2)/$(notdir $@)
+quiet_cmd_none =
+      cmd_none = :
 
-# Modules built outside the kernel source tree go into extra by default
-INSTALL_MOD_DIR ?= extra
-ext-mod-dir = $(INSTALL_MOD_DIR)$(subst $(patsubst %/,%,$(KBUILD_EXTMOD)),,$(@D))
+#
+# Installation
+#
+quiet_cmd_install = INSTALL $@
+      cmd_install = mkdir -p $(dir $@); cp $< $@
 
-modinst_dir = $(if $(KBUILD_EXTMOD),$(ext-mod-dir),kernel/$(@D))
+# Strip
+#
+# INSTALL_MOD_STRIP, if defined, will cause modules to be stripped after they
+# are installed. If INSTALL_MOD_STRIP is '1', then the default option
+# --strip-debug will be used. Otherwise, INSTALL_MOD_STRIP value will be used
+# as the options to the strip command.
+ifdef INSTALL_MOD_STRIP
 
-$(modules):
-	$(call cmd,modules_install,$(MODLIB)/$(modinst_dir))
+ifeq ($(INSTALL_MOD_STRIP),1)
+strip-option := --strip-debug
+else
+strip-option := $(INSTALL_MOD_STRIP)
+endif
+
+quiet_cmd_strip = STRIP   $@
+      cmd_strip = $(STRIP) $(strip-option) $@
+
+else
+
+quiet_cmd_strip =
+      cmd_strip = :
+
+endif
+
+#
+# Signing
+# Don't stop modules_install even if we can't sign external modules.
+#
+ifeq ($(CONFIG_MODULE_SIG_ALL),y)
+sig-key := $(if $(wildcard $(CONFIG_MODULE_SIG_KEY)),,$(srctree)/)$(CONFIG_MODULE_SIG_KEY)
+quiet_cmd_sign = SIGN    $@
+      cmd_sign = scripts/sign-file $(CONFIG_MODULE_SIG_HASH) $(sig-key) certs/signing_key.x509 $@ \
+                 $(if $(KBUILD_EXTMOD),|| true)
+else
+quiet_cmd_sign :=
+      cmd_sign := :
+endif
+
+ifeq ($(modules_sign_only),)
+
+$(dst)/%.ko: $(extmod_prefix)%.ko FORCE
+	$(call cmd,install)
+	$(call cmd,strip)
+	$(call cmd,sign)
+
+else
+
+$(dst)/%.ko: FORCE
+	$(call cmd,sign)
+
+endif
+
+#
+# Compression
+#
+quiet_cmd_gzip = GZIP    $@
+      cmd_gzip = $(KGZIP) -n -f $<
+quiet_cmd_xz = XZ      $@
+      cmd_xz = $(XZ) --lzma2=dict=2MiB -f $<
+quiet_cmd_zstd = ZSTD    $@
+      cmd_zstd = $(ZSTD) -T0 --rm -f -q $<
+
+$(dst)/%.ko.gz: $(dst)/%.ko FORCE
+	$(call cmd,gzip)
+
+$(dst)/%.ko.xz: $(dst)/%.ko FORCE
+	$(call cmd,xz)
+
+$(dst)/%.ko.zst: $(dst)/%.ko FORCE
+	$(call cmd,zstd)
+
+PHONY += FORCE
+FORCE:
 
 .PHONY: $(PHONY)

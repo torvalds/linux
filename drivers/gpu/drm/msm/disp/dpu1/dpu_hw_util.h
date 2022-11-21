@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
 #ifndef _DPU_HW_UTIL_H
@@ -97,6 +98,7 @@ struct dpu_hw_scaler3_de_cfg {
  * @ cir_lut:      pointer to circular filter LUT
  * @ sep_lut:      pointer to separable filter LUT
  * @ de: detail enhancer configuration
+ * @ dir_weight:   Directional weight
  */
 struct dpu_hw_scaler3_cfg {
 	u32 enable;
@@ -137,6 +139,8 @@ struct dpu_hw_scaler3_cfg {
 	 * Detail enhancer settings
 	 */
 	struct dpu_hw_scaler3_de_cfg de;
+
+	u32 dir_weight;
 };
 
 /**
@@ -318,6 +322,6 @@ u32 dpu_hw_get_scaler3_ver(struct dpu_hw_blk_reg_map *c,
 
 void dpu_hw_csc_setup(struct dpu_hw_blk_reg_map  *c,
 		u32 csc_reg_off,
-		struct dpu_csc_cfg *data, bool csc10);
+		const struct dpu_csc_cfg *data, bool csc10);
 
 #endif /* _DPU_HW_UTIL_H */

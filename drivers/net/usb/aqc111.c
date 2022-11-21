@@ -119,7 +119,7 @@ static int aqc111_write_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
 }
 
 static int aqc111_write_cmd(struct usbnet *dev, u8 cmd, u16 value,
-			    u16 index, u16 size, void *data)
+			    u16 index, u16 size, const void *data)
 {
 	int ret;
 
@@ -641,7 +641,7 @@ static const struct net_device_ops aqc111_netdev_ops = {
 	.ndo_stop		= usbnet_stop,
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
-	.ndo_get_stats64	= usbnet_get_stats64,
+	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_change_mtu		= aqc111_change_mtu,
 	.ndo_set_mac_address	= aqc111_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -714,7 +714,7 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (ret)
 		goto out;
 
-	ether_addr_copy(dev->net->dev_addr, dev->net->perm_addr);
+	eth_hw_addr_set(dev->net, dev->net->perm_addr);
 
 	/* Set Rx urb size */
 	dev->rx_urb_size = URB_SIZE;
@@ -1102,9 +1102,14 @@ static int aqc111_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	if (start_of_descs != desc_offset)
 		goto err;
 
-	/* self check desc_offset from header*/
-	if (desc_offset >= skb_len)
+	/* self check desc_offset from header and make sure that the
+	 * bounds of the metadata array are inside the SKB
+	 */
+	if (pkt_count * 2 + desc_offset >= skb_len)
 		goto err;
+
+	/* Packets must not overlap the metadata array */
+	skb_trim(skb, desc_offset);
 
 	if (pkt_count == 0)
 		goto err;

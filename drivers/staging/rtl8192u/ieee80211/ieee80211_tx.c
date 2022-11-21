@@ -301,9 +301,9 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 	if (is_multicast_ether_addr(hdr->addr1))
 		return;
 	//check packet and mode later
-	if (!ieee->GetNmodeSupportBySecCfg(ieee->dev)) {
+	if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
 		return;
-	}
+
 	if (pHTInfo->bCurrentAMPDUEnable) {
 		if (!GetTs(ieee, (struct ts_common_info **)(&pTxTs), hdr->addr1, skb->priority, TX_DIR, true)) {
 			printk("===>can't get TS\n");
@@ -327,20 +327,20 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 	}
 FORCED_AGG_SETTING:
 	switch (pHTInfo->ForcedAMPDUMode) {
-		case HT_AGG_AUTO:
-			break;
+	case HT_AGG_AUTO:
+		break;
 
-		case HT_AGG_FORCE_ENABLE:
-			tcb_desc->bAMPDUEnable = true;
-			tcb_desc->ampdu_density = pHTInfo->ForcedMPDUDensity;
-			tcb_desc->ampdu_factor = pHTInfo->ForcedAMPDUFactor;
-			break;
+	case HT_AGG_FORCE_ENABLE:
+		tcb_desc->bAMPDUEnable = true;
+		tcb_desc->ampdu_density = pHTInfo->ForcedMPDUDensity;
+		tcb_desc->ampdu_factor = pHTInfo->ForcedAMPDUFactor;
+		break;
 
-		case HT_AGG_FORCE_DISABLE:
-			tcb_desc->bAMPDUEnable = false;
-			tcb_desc->ampdu_density = 0;
-			tcb_desc->ampdu_factor = 0;
-			break;
+	case HT_AGG_FORCE_DISABLE:
+		tcb_desc->bAMPDUEnable = false;
+		tcb_desc->ampdu_density = 0;
+		tcb_desc->ampdu_factor = 0;
+		break;
 
 	}
 		return;
@@ -795,7 +795,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
  success:
 //WB add to fill data tcb_desc here. only first fragment is considered, need to change, and you may remove to other place.
 	if (txb) {
-		struct cb_desc *tcb_desc = (struct cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
+		tcb_desc = (struct cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->bTxEnableFwCalcDur = 1;
 		if (is_multicast_ether_addr(header.addr1))
 			tcb_desc->bMulticast = 1;

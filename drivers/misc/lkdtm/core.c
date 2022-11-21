@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
+#include <linux/utsname.h>
 
 #define DEFAULT_COUNT 10
 
@@ -81,8 +82,7 @@ static struct crashpoint crashpoints[] = {
 	CRASHPOINT("FS_DEVRW",		 "ll_rw_block"),
 	CRASHPOINT("MEM_SWAPOUT",	 "shrink_inactive_list"),
 	CRASHPOINT("TIMERADD",		 "hrtimer_start"),
-	CRASHPOINT("SCSI_DISPATCH_CMD",	 "scsi_dispatch_cmd"),
-	CRASHPOINT("IDE_CORE_CP",	 "generic_ide_ioctl"),
+	CRASHPOINT("SCSI_QUEUE_RQ",	 "scsi_queue_rq"),
 #endif
 };
 
@@ -110,6 +110,8 @@ static const struct crashtype crashtypes[] = {
 	CRASHTYPE(EXHAUST_STACK),
 	CRASHTYPE(CORRUPT_STACK),
 	CRASHTYPE(CORRUPT_STACK_STRONG),
+	CRASHTYPE(REPORT_STACK),
+	CRASHTYPE(REPORT_STACK_CANARY),
 	CRASHTYPE(CORRUPT_LIST_ADD),
 	CRASHTYPE(CORRUPT_LIST_DEL),
 	CRASHTYPE(STACK_GUARD_PAGE_LEADING),
@@ -117,11 +119,14 @@ static const struct crashtype crashtypes[] = {
 	CRASHTYPE(UNSET_SMEP),
 	CRASHTYPE(CORRUPT_PAC),
 	CRASHTYPE(UNALIGNED_LOAD_STORE_WRITE),
-	CRASHTYPE(OVERWRITE_ALLOCATION),
+	CRASHTYPE(SLAB_LINEAR_OVERFLOW),
+	CRASHTYPE(VMALLOC_LINEAR_OVERFLOW),
 	CRASHTYPE(WRITE_AFTER_FREE),
 	CRASHTYPE(READ_AFTER_FREE),
 	CRASHTYPE(WRITE_BUDDY_AFTER_FREE),
 	CRASHTYPE(READ_BUDDY_AFTER_FREE),
+	CRASHTYPE(SLAB_INIT_ON_ALLOC),
+	CRASHTYPE(BUDDY_INIT_ON_ALLOC),
 	CRASHTYPE(SLAB_FREE_DOUBLE),
 	CRASHTYPE(SLAB_FREE_CROSS),
 	CRASHTYPE(SLAB_FREE_PAGE),
@@ -144,6 +149,7 @@ static const struct crashtype crashtypes[] = {
 	CRASHTYPE(WRITE_RO),
 	CRASHTYPE(WRITE_RO_AFTER_INIT),
 	CRASHTYPE(WRITE_KERN),
+	CRASHTYPE(WRITE_OPD),
 	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
 	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
 	CRASHTYPE(REFCOUNT_INC_NOT_ZERO_OVERFLOW),
@@ -173,8 +179,12 @@ static const struct crashtype crashtypes[] = {
 	CRASHTYPE(USERCOPY_KERNEL),
 	CRASHTYPE(STACKLEAK_ERASING),
 	CRASHTYPE(CFI_FORWARD_PROTO),
-#ifdef CONFIG_X86_32
+	CRASHTYPE(FORTIFIED_OBJECT),
+	CRASHTYPE(FORTIFIED_SUBOBJECT),
+	CRASHTYPE(FORTIFIED_STRSCPY),
 	CRASHTYPE(DOUBLE_FAULT),
+#ifdef CONFIG_PPC_64S_HASH_MMU
+	CRASHTYPE(PPC_SLB_MULTIHIT),
 #endif
 };
 
@@ -203,6 +213,12 @@ module_param(cpoint_count, int, 0644);
 MODULE_PARM_DESC(cpoint_count, " Crash Point Count, number of times the "\
 				"crash point is to be hit to trigger action");
 
+/*
+ * For test debug reporting when CI systems provide terse summaries.
+ * TODO: Remove this once reasonable reporting exists in most CI systems:
+ * https://lore.kernel.org/lkml/CAHk-=wiFvfkoFixTapvvyPMN9pq5G-+Dys2eSyBa1vzDGAO5+A@mail.gmail.com
+ */
+char *lkdtm_kernel_info;
 
 /* Return the crashtype number or NULL if the name is invalid */
 static const struct crashtype *find_crashtype(const char *name)
@@ -392,6 +408,56 @@ static ssize_t direct_entry(struct file *f, const char __user *user_buf,
 	return count;
 }
 
+#ifndef MODULE
+/*
+ * To avoid needing to export parse_args(), just don't use this code
+ * when LKDTM is built as a module.
+ */
+struct check_cmdline_args {
+	const char *param;
+	int value;
+};
+
+static int lkdtm_parse_one(char *param, char *val,
+			   const char *unused, void *arg)
+{
+	struct check_cmdline_args *args = arg;
+
+	/* short circuit if we already found a value. */
+	if (args->value != -ESRCH)
+		return 0;
+	if (strncmp(param, args->param, strlen(args->param)) == 0) {
+		bool bool_result;
+		int ret;
+
+		ret = kstrtobool(val, &bool_result);
+		if (ret == 0)
+			args->value = bool_result;
+	}
+	return 0;
+}
+
+int lkdtm_check_bool_cmdline(const char *param)
+{
+	char *command_line;
+	struct check_cmdline_args args = {
+		.param = param,
+		.value = -ESRCH,
+	};
+
+	command_line = kstrdup(saved_command_line, GFP_KERNEL);
+	if (!command_line)
+		return -ENOMEM;
+
+	parse_args("Setting sysctl args", command_line,
+		   NULL, 0, -1, -1, &args, lkdtm_parse_one);
+
+	kfree(command_line);
+
+	return args.value;
+}
+#endif
+
 static struct dentry *lkdtm_debugfs_root;
 
 static int __init lkdtm_module_init(void)
@@ -432,6 +498,11 @@ static int __init lkdtm_module_init(void)
 	/* Set crash count. */
 	crash_count = cpoint_count;
 #endif
+
+	/* Common initialization. */
+	lkdtm_kernel_info = kasprintf(GFP_KERNEL, "kernel (%s %s)",
+				      init_uts_ns.name.release,
+				      init_uts_ns.name.machine);
 
 	/* Handle test-specific initialization. */
 	lkdtm_bugs_init(&recur_count);
@@ -480,6 +551,8 @@ static void __exit lkdtm_module_exit(void)
 
 	if (lkdtm_kprobe != NULL)
 		unregister_kprobe(lkdtm_kprobe);
+
+	kfree(lkdtm_kernel_info);
 
 	pr_info("Crash point unregistered\n");
 }

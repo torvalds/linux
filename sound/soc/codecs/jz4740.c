@@ -214,17 +214,16 @@ static struct snd_soc_dai_driver jz4740_codec_dai = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8,
 	},
 	.ops = &jz4740_codec_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static void jz4740_codec_wakeup(struct regmap *regmap)
 {
-	regmap_update_bits(regmap, JZ4740_REG_CODEC_1,
-		JZ4740_CODEC_1_RESET, JZ4740_CODEC_1_RESET);
+	regmap_set_bits(regmap, JZ4740_REG_CODEC_1, JZ4740_CODEC_1_RESET);
 	udelay(2);
 
-	regmap_update_bits(regmap, JZ4740_REG_CODEC_1,
-		JZ4740_CODEC_1_SUSPEND | JZ4740_CODEC_1_RESET, 0);
+	regmap_clear_bits(regmap, JZ4740_REG_CODEC_1,
+			  JZ4740_CODEC_1_SUSPEND | JZ4740_CODEC_1_RESET);
 
 	regcache_sync(regmap);
 }
@@ -235,7 +234,6 @@ static int jz4740_codec_set_bias_level(struct snd_soc_component *component,
 	struct jz4740_codec *jz4740_codec = snd_soc_component_get_drvdata(component);
 	struct regmap *regmap = jz4740_codec->regmap;
 	unsigned int mask;
-	unsigned int value;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -244,9 +242,8 @@ static int jz4740_codec_set_bias_level(struct snd_soc_component *component,
 		mask = JZ4740_CODEC_1_VREF_DISABLE |
 				JZ4740_CODEC_1_VREF_AMP_DISABLE |
 				JZ4740_CODEC_1_HEADPHONE_POWERDOWN_M;
-		value = 0;
 
-		regmap_update_bits(regmap, JZ4740_REG_CODEC_1, mask, value);
+		regmap_clear_bits(regmap, JZ4740_REG_CODEC_1, mask);
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* The only way to clear the suspend flag is to reset the codec */
@@ -256,17 +253,12 @@ static int jz4740_codec_set_bias_level(struct snd_soc_component *component,
 		mask = JZ4740_CODEC_1_VREF_DISABLE |
 			JZ4740_CODEC_1_VREF_AMP_DISABLE |
 			JZ4740_CODEC_1_HEADPHONE_POWERDOWN_M;
-		value = JZ4740_CODEC_1_VREF_DISABLE |
-			JZ4740_CODEC_1_VREF_AMP_DISABLE |
-			JZ4740_CODEC_1_HEADPHONE_POWERDOWN_M;
 
-		regmap_update_bits(regmap, JZ4740_REG_CODEC_1, mask, value);
+		regmap_set_bits(regmap, JZ4740_REG_CODEC_1, mask);
 		break;
 	case SND_SOC_BIAS_OFF:
 		mask = JZ4740_CODEC_1_SUSPEND;
-		value = JZ4740_CODEC_1_SUSPEND;
-
-		regmap_update_bits(regmap, JZ4740_REG_CODEC_1, mask, value);
+		regmap_set_bits(regmap, JZ4740_REG_CODEC_1, mask);
 		regcache_mark_dirty(regmap);
 		break;
 	default:

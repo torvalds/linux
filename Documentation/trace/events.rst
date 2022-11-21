@@ -198,6 +198,15 @@ The glob (~) accepts a wild card character (\*,?) and character classes
   prev_comm ~ "*sh*"
   prev_comm ~ "ba*sh"
 
+If the field is a pointer that points into user space (for example
+"filename" from sys_enter_openat), then you have to append ".ustring" to the
+field name::
+
+  filename.ustring ~ "password"
+
+As the kernel will have to know how to retrieve the memory that the pointer
+is at from user space.
+
 5.2 Setting filters
 -------------------
 
@@ -229,6 +238,16 @@ an error message can be seen by looking at the filter e.g.::
 Currently the caret ('^') for an error always appears at the beginning of
 the filter string; the error message should still be useful though
 even without more accurate position info.
+
+5.2.1 Filter limitations
+------------------------
+
+If a filter is placed on a string pointer ``(char *)`` that does not point
+to a string on the ring buffer, but instead points to kernel or user space
+memory, then, for safety reasons, at most 1024 bytes of the content is
+copied onto a temporary buffer to do the compare. If the copy of the memory
+faults (the pointer points to memory that should not be accessed), then the
+string compare will be treated as not matching.
 
 5.3 Clearing filters
 --------------------
@@ -798,13 +817,13 @@ To trace a synthetic using the piecewise method described above, the
 synth_event_trace_start() function is used to 'open' the synthetic
 event trace::
 
-       struct synth_trace_state trace_state;
+       struct synth_event_trace_state trace_state;
 
        ret = synth_event_trace_start(schedtest_event_file, &trace_state);
 
 It's passed the trace_event_file representing the synthetic event
 using the same methods as described above, along with a pointer to a
-struct synth_trace_state object, which will be zeroed before use and
+struct synth_event_trace_state object, which will be zeroed before use and
 used to maintain state between this and following calls.
 
 Once the event has been opened, which means space for it has been
@@ -816,7 +835,7 @@ lookup per field.
 
 To assign the values one after the other without lookups,
 synth_event_add_next_val() should be used.  Each call is passed the
-same synth_trace_state object used in the synth_event_trace_start(),
+same synth_event_trace_state object used in the synth_event_trace_start(),
 along with the value to set the next field in the event.  After each
 field is set, the 'cursor' points to the next field, which will be set
 by the subsequent call, continuing until all the fields have been set
@@ -845,7 +864,7 @@ this method would be (without error-handling code)::
        ret = synth_event_add_next_val(395, &trace_state);
 
 To assign the values in any order, synth_event_add_val() should be
-used.  Each call is passed the same synth_trace_state object used in
+used.  Each call is passed the same synth_event_trace_state object used in
 the synth_event_trace_start(), along with the field name of the field
 to set and the value to set it to.  The same sequence of calls as in
 the above examples using this method would be (without error-handling
@@ -867,7 +886,7 @@ can be used but not both at the same time.
 
 Finally, the event won't be actually traced until it's 'closed',
 which is done using synth_event_trace_end(), which takes only the
-struct synth_trace_state object used in the previous calls::
+struct synth_event_trace_state object used in the previous calls::
 
        ret = synth_event_trace_end(&trace_state);
 

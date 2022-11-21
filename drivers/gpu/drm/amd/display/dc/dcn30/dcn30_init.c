@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2016-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,13 +29,14 @@
 #include "dcn21/dcn21_hwseq.h"
 #include "dcn30_hwseq.h"
 
+#include "dcn30_init.h"
+
 static const struct hw_sequencer_funcs dcn30_funcs = {
 	.program_gamut_remap = dcn10_program_gamut_remap,
 	.init_hw = dcn30_init_hw,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = NULL,
 	.program_front_end_for_ctx = dcn20_program_front_end_for_ctx,
-	.disconnect_pipes = dcn10_disconnect_pipes,
 	.wait_for_pending_cleared = dcn10_wait_for_pending_cleared,
 	.post_unlock_program_front_end = dcn20_post_unlock_program_front_end,
 	.update_plane_addr = dcn20_update_plane_addr,
@@ -54,6 +55,7 @@ static const struct hw_sequencer_funcs dcn30_funcs = {
 	.enable_audio_stream = dce110_enable_audio_stream,
 	.disable_audio_stream = dce110_disable_audio_stream,
 	.disable_plane = dcn20_disable_plane,
+	.disable_pixel_data = dcn20_disable_pixel_data,
 	.pipe_control_lock = dcn20_pipe_control_lock,
 	.interdependent_update_lock = dcn10_lock_all_pipes,
 	.cursor_lock = dcn10_cursor_lock,
@@ -72,6 +74,7 @@ static const struct hw_sequencer_funcs dcn30_funcs = {
 	.edp_backlight_control = dce110_edp_backlight_control,
 	.edp_power_control = dce110_edp_power_control,
 	.edp_wait_for_hpd_ready = dce110_edp_wait_for_hpd_ready,
+	.edp_wait_for_T12 = dce110_edp_wait_for_T12,
 	.set_cursor_position = dcn10_set_cursor_position,
 	.set_cursor_attribute = dcn10_set_cursor_attribute,
 	.set_cursor_sdr_white_level = dcn10_set_cursor_sdr_white_level,
@@ -90,9 +93,17 @@ static const struct hw_sequencer_funcs dcn30_funcs = {
 	.init_vm_ctx = dcn20_init_vm_ctx,
 	.set_flip_control_gsl = dcn20_set_flip_control_gsl,
 	.get_vupdate_offset_from_vsync = dcn10_get_vupdate_offset_from_vsync,
+	.calc_vupdate_position = dcn10_calc_vupdate_position,
 	.apply_idle_power_optimizations = dcn30_apply_idle_power_optimizations,
+	.does_plane_fit_in_mall = dcn30_does_plane_fit_in_mall,
 	.set_backlight_level = dcn21_set_backlight_level,
 	.set_abm_immediate_disable = dcn21_set_abm_immediate_disable,
+	.hardware_release = dcn30_hardware_release,
+	.set_pipe = dcn21_set_pipe,
+	.set_disp_pattern_generator = dcn30_set_disp_pattern_generator,
+	.get_dcc_en_bits = dcn10_get_dcc_en_bits,
+	.update_visual_confirm_color = dcn20_update_visual_confirm_color,
+	.is_abm_supported = dcn21_is_abm_supported
 };
 
 static const struct hwseq_private_funcs dcn30_private_funcs = {
@@ -123,8 +134,6 @@ static const struct hwseq_private_funcs dcn30_private_funcs = {
 	.program_all_writeback_pipes_in_tree = dcn30_program_all_writeback_pipes_in_tree,
 	.update_odm = dcn20_update_odm,
 	.dsc_pg_control = dcn20_dsc_pg_control,
-	.get_surface_visual_confirm_color = dcn10_get_surface_visual_confirm_color,
-	.get_hdr_visual_confirm_color = dcn10_get_hdr_visual_confirm_color,
 	.set_hdr_multiplier = dcn10_set_hdr_multiplier,
 	.verify_allow_pstate_change_high = dcn10_verify_allow_pstate_change_high,
 	.wait_for_blank_complete = dcn20_wait_for_blank_complete,

@@ -41,6 +41,8 @@
 #define __BNXT_RE_HW_STATS_H__
 
 enum bnxt_re_hw_stats {
+	BNXT_RE_ACTIVE_PD,
+	BNXT_RE_ACTIVE_AH,
 	BNXT_RE_ACTIVE_QP,
 	BNXT_RE_ACTIVE_SRQ,
 	BNXT_RE_ACTIVE_CQ,
@@ -51,7 +53,7 @@ enum bnxt_re_hw_stats {
 	BNXT_RE_TX_PKTS,
 	BNXT_RE_TX_BYTES,
 	BNXT_RE_RECOVERABLE_ERRORS,
-	BNXT_RE_RX_DROPS,
+	BNXT_RE_RX_ERRORS,
 	BNXT_RE_RX_DISCARDS,
 	BNXT_RE_TO_RETRANSMITS,
 	BNXT_RE_SEQ_ERR_NAKS_RCVD,
@@ -93,12 +95,36 @@ enum bnxt_re_hw_stats {
 	BNXT_RE_RES_TX_PCI_ERR,
 	BNXT_RE_RES_RX_PCI_ERR,
 	BNXT_RE_OUT_OF_SEQ_ERR,
-	BNXT_RE_NUM_COUNTERS
+	BNXT_RE_TX_ATOMIC_REQ,
+	BNXT_RE_TX_READ_REQ,
+	BNXT_RE_TX_READ_RES,
+	BNXT_RE_TX_WRITE_REQ,
+	BNXT_RE_TX_SEND_REQ,
+	BNXT_RE_RX_ATOMIC_REQ,
+	BNXT_RE_RX_READ_REQ,
+	BNXT_RE_RX_READ_RESP,
+	BNXT_RE_RX_WRITE_REQ,
+	BNXT_RE_RX_SEND_REQ,
+	BNXT_RE_RX_ROCE_GOOD_PKTS,
+	BNXT_RE_RX_ROCE_GOOD_BYTES,
+	BNXT_RE_OOB,
+	BNXT_RE_NUM_EXT_COUNTERS
 };
 
-struct rdma_hw_stats *bnxt_re_ib_alloc_hw_stats(struct ib_device *ibdev,
-						u8 port_num);
+#define BNXT_RE_NUM_STD_COUNTERS (BNXT_RE_OUT_OF_SEQ_ERR + 1)
+
+struct bnxt_re_rstat {
+	struct bnxt_qplib_roce_stats    errs;
+	struct bnxt_qplib_ext_stat      ext_stat;
+};
+
+struct bnxt_re_stats {
+	struct bnxt_re_rstat            rstat;
+};
+
+struct rdma_hw_stats *bnxt_re_ib_alloc_hw_port_stats(struct ib_device *ibdev,
+						     u32 port_num);
 int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 			    struct rdma_hw_stats *stats,
-			    u8 port, int index);
+			    u32 port, int index);
 #endif /* __BNXT_RE_HW_STATS_H__ */

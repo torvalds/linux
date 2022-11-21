@@ -12,7 +12,7 @@ Guidelines for GPIOs consumers
 
 Drivers that can't work without standard GPIO calls should have Kconfig entries
 that depend on GPIOLIB or select GPIOLIB. The functions that allow a driver to
-obtain and use GPIOs are available by including the following file:
+obtain and use GPIOs are available by including the following file::
 
 	#include <linux/gpio/consumer.h>
 
@@ -71,6 +71,10 @@ for the GPIO. Values can be:
   to be electrically used with open drain.
 * GPIOD_OUT_HIGH_OPEN_DRAIN same as GPIOD_OUT_HIGH but also enforce the line
   to be electrically used with open drain.
+
+Note that the initial value is *logical* and the physical line level depends on
+whether the line is configured active high or active low (see
+:ref:`active_low_semantics`).
 
 The two last flags are used for use cases where open drain is mandatory, such
 as I2C: if the line is not already configured as open drain in the mappings
@@ -252,6 +256,8 @@ that can't be accessed from hardIRQ handlers, these calls act the same as the
 spinlock-safe calls.
 
 
+.. _active_low_semantics:
+
 The active low and open drain semantics
 ---------------------------------------
 As a consumer should not have to care about the physical line level, all of the
@@ -309,9 +315,11 @@ work on the raw line value::
 	void gpiod_set_raw_value_cansleep(struct gpio_desc *desc, int value)
 	int gpiod_direction_output_raw(struct gpio_desc *desc, int value)
 
-The active low state of a GPIO can also be queried using the following call::
+The active low state of a GPIO can also be queried and toggled using the
+following calls::
 
 	int gpiod_is_active_low(const struct gpio_desc *desc)
+	void gpiod_toggle_active_low(struct gpio_desc *desc)
 
 Note that these functions should only be used with great moderation; a driver
 should not have to care about the physical line level or open drain semantics.
@@ -361,12 +369,13 @@ corresponding chip driver. In that case a significantly improved performance
 can be expected. If simultaneous access is not possible the GPIOs will be
 accessed sequentially.
 
-The functions take three arguments:
+The functions take four arguments:
+
 	* array_size	- the number of array elements
 	* desc_array	- an array of GPIO descriptors
 	* array_info	- optional information obtained from gpiod_get_array()
 	* value_bitmap	- a bitmap to store the GPIOs' values (get) or
-			  a bitmap of values to assign to the GPIOs (set)
+          a bitmap of values to assign to the GPIOs (set)
 
 The descriptor array can be obtained using the gpiod_get_array() function
 or one of its variants. If the group of descriptors returned by that function
@@ -440,18 +449,20 @@ For details refer to Documentation/firmware-guide/acpi/gpio-properties.rst
 
 Interacting With the Legacy GPIO Subsystem
 ==========================================
-Many kernel subsystems still handle GPIOs using the legacy integer-based
-interface. Although it is strongly encouraged to upgrade them to the safer
-descriptor-based API, the following two functions allow you to convert a GPIO
-descriptor into the GPIO integer namespace and vice-versa::
+Many kernel subsystems and drivers still handle GPIOs using the legacy
+integer-based interface. It is strongly recommended to update these to the new
+gpiod interface. For cases where both interfaces need to be used, the following
+two functions allow to convert a GPIO descriptor into the GPIO integer namespace
+and vice-versa::
 
 	int desc_to_gpio(const struct gpio_desc *desc)
 	struct gpio_desc *gpio_to_desc(unsigned gpio)
 
-The GPIO number returned by desc_to_gpio() can be safely used as long as the
-GPIO descriptor has not been freed. All the same, a GPIO number passed to
-gpio_to_desc() must have been properly acquired, and usage of the returned GPIO
-descriptor is only possible after the GPIO number has been released.
+The GPIO number returned by desc_to_gpio() can safely be used as a parameter of
+the gpio\_*() functions for as long as the GPIO descriptor `desc` is not freed.
+All the same, a GPIO number passed to gpio_to_desc() must first be properly
+acquired using e.g. gpio_request_one(), and the returned GPIO descriptor is only
+considered valid until that GPIO number is released using gpio_free().
 
 Freeing a GPIO obtained by one API with the other API is forbidden and an
 unchecked error.

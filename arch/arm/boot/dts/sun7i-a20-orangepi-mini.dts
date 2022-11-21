@@ -75,12 +75,12 @@
 	leds {
 		compatible = "gpio-leds";
 
-		green {
+		led-0 {
 			label = "orangepi:green:usr";
 			gpios = <&pio 7 24 GPIO_ACTIVE_HIGH>; /* PH24 */
 		};
 
-		blue {
+		led-1 {
 			label = "orangepi:blue:usr";
 			gpios = <&pio 7 25 GPIO_ACTIVE_HIGH>; /* PH25 */
 		};

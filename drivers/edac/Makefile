@@ -32,6 +32,7 @@ obj-$(CONFIG_EDAC_I7300)		+= i7300_edac.o
 obj-$(CONFIG_EDAC_I7CORE)		+= i7core_edac.o
 obj-$(CONFIG_EDAC_SBRIDGE)		+= sb_edac.o
 obj-$(CONFIG_EDAC_PND2)			+= pnd2_edac.o
+obj-$(CONFIG_EDAC_IGEN6)			+= igen6_edac.o
 obj-$(CONFIG_EDAC_E7XXX)		+= e7xxx_edac.o
 obj-$(CONFIG_EDAC_E752X)		+= e752x_edac.o
 obj-$(CONFIG_EDAC_I82443BXGX)		+= i82443bxgx_edac.o
@@ -43,12 +44,7 @@ obj-$(CONFIG_EDAC_IE31200)		+= ie31200_edac.o
 obj-$(CONFIG_EDAC_X38)			+= x38_edac.o
 obj-$(CONFIG_EDAC_I82860)		+= i82860_edac.o
 obj-$(CONFIG_EDAC_R82600)		+= r82600_edac.o
-
-amd64_edac_mod-y := amd64_edac.o
-amd64_edac_mod-$(CONFIG_EDAC_DEBUG) += amd64_edac_dbg.o
-amd64_edac_mod-$(CONFIG_EDAC_AMD64_ERROR_INJECTION) += amd64_edac_inj.o
-
-obj-$(CONFIG_EDAC_AMD64)		+= amd64_edac_mod.o
+obj-$(CONFIG_EDAC_AMD64)		+= amd64_edac.o
 
 obj-$(CONFIG_EDAC_PASEMI)		+= pasemi_edac.o
 
@@ -64,7 +60,6 @@ obj-$(CONFIG_EDAC_SKX)			+= skx_edac.o
 i10nm_edac-y				:= skx_common.o i10nm_base.o
 obj-$(CONFIG_EDAC_I10NM)		+= i10nm_edac.o
 
-obj-$(CONFIG_EDAC_MV64X60)		+= mv64x60_edac.o
 obj-$(CONFIG_EDAC_CELL)			+= cell_edac.o
 obj-$(CONFIG_EDAC_PPC4XX)		+= ppc4xx_edac.o
 obj-$(CONFIG_EDAC_AMD8111)		+= amd8111_edac.o

@@ -10,10 +10,9 @@
 struct pci_dn;
 
 enum pnv_phb_type {
-	PNV_PHB_IODA1		= 0,
-	PNV_PHB_IODA2		= 1,
-	PNV_PHB_NPU_NVLINK	= 2,
-	PNV_PHB_NPU_OCAPI	= 3,
+	PNV_PHB_IODA1,
+	PNV_PHB_IODA2,
+	PNV_PHB_NPU_OCAPI,
 };
 
 /* Precise PHB model for error management */
@@ -21,8 +20,6 @@ enum pnv_phb_model {
 	PNV_PHB_MODEL_UNKNOWN,
 	PNV_PHB_MODEL_P7IOC,
 	PNV_PHB_MODEL_PHB3,
-	PNV_PHB_MODEL_NPU,
-	PNV_PHB_MODEL_NPU2,
 };
 
 #define PNV_PCI_DIAG_BUF_SIZE	8192
@@ -81,7 +78,6 @@ struct pnv_ioda_pe {
 
 	/* "Base" iommu table, ie, 4K TCEs, 32-bit DMA */
 	struct iommu_table_group table_group;
-	struct npu_comp		*npucomp;
 
 	/* 64-bit TCE bypass region */
 	bool			tce_bypass_enabled;
@@ -119,7 +115,6 @@ struct pnv_phb {
 	int			flags;
 	void __iomem		*regs;
 	u64			regs_phys;
-	int			initialized;
 	spinlock_t		lock;
 
 #ifdef CONFIG_DEBUG_FS
@@ -128,11 +123,7 @@ struct pnv_phb {
 #endif
 
 	unsigned int		msi_base;
-	unsigned int		msi32_support;
 	struct msi_bitmap	msi_bmp;
-	int (*msi_setup)(struct pnv_phb *phb, struct pci_dev *dev,
-			 unsigned int hwirq, unsigned int virq,
-			 unsigned int is_64, struct msi_msg *msg);
 	int (*init_m64)(struct pnv_phb *phb);
 	int (*get_pe_state)(struct pnv_phb *phb, int pe_no);
 	void (*freeze_pe)(struct pnv_phb *phb, int pe_no);
@@ -290,14 +281,10 @@ extern struct iommu_table *pnv_pci_table_alloc(int nid);
 
 extern void pnv_pci_init_ioda_hub(struct device_node *np);
 extern void pnv_pci_init_ioda2_phb(struct device_node *np);
-extern void pnv_pci_init_npu_phb(struct device_node *np);
 extern void pnv_pci_init_npu2_opencapi_phb(struct device_node *np);
-extern void pnv_npu2_map_lpar(struct pnv_ioda_pe *gpe, unsigned long msr);
 extern void pnv_pci_reset_secondary_bus(struct pci_dev *dev);
 extern int pnv_eeh_phb_reset(struct pci_controller *hose, int option);
 
-extern int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type);
-extern void pnv_teardown_msi_irqs(struct pci_dev *pdev);
 extern struct pnv_ioda_pe *pnv_pci_bdfn_to_pe(struct pnv_phb *phb, u16 bdfn);
 extern struct pnv_ioda_pe *pnv_ioda_get_pe(struct pci_dev *dev);
 extern void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq);
@@ -314,11 +301,6 @@ extern void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 	pe_level_printk(pe, KERN_WARNING, fmt, ##__VA_ARGS__)
 #define pe_info(pe, fmt, ...)					\
 	pe_level_printk(pe, KERN_INFO, fmt, ##__VA_ARGS__)
-
-/* Nvlink functions */
-extern void pnv_npu_try_dma_set_bypass(struct pci_dev *gpdev, bool bypass);
-extern void pnv_pci_ioda2_tce_invalidate_entire(struct pnv_phb *phb, bool rm);
-extern void pnv_pci_npu_setup_iommu_groups(void);
 
 /* pci-ioda-tce.c */
 #define POWERNV_IOMMU_DEFAULT_LEVELS	2

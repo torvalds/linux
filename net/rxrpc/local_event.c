@@ -77,7 +77,7 @@ static void rxrpc_send_version_request(struct rxrpc_local *local,
 }
 
 /*
- * Process event packets targetted at a local endpoint.
+ * Process event packets targeted at a local endpoint.
  */
 void rxrpc_process_local_events(struct rxrpc_local *local)
 {

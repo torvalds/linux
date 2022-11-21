@@ -1580,10 +1580,10 @@ static void gfx_v7_0_tiling_mode_table_init(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  * @se_num: shader engine to address
  * @sh_num: sh block to address
+ * @instance: Certain registers are instanced per SE or SH.
+ *            0xffffffff means broadcast to all SEs or SHs (CIK).
  *
- * Select which SE, SH combinations to address. Certain
- * registers are instanced per SE or SH.  0xffffffff means
- * broadcast to all SEs or SHs (CIK).
+ * Select which SE, SH combinations to address.
  */
 static void gfx_v7_0_select_se_sh(struct amdgpu_device *adev,
 				  u32 se_num, u32 sh_num, u32 instance)
@@ -1779,8 +1779,6 @@ gfx_v7_0_write_harvested_raster_configs(struct amdgpu_device *adev,
  * gfx_v7_0_setup_rb - setup the RBs on the asic
  *
  * @adev: amdgpu_device pointer
- * @se_num: number of SEs (shader engines) for the asic
- * @sh_per_se: number of SH blocks per SE for the asic
  *
  * Configures per-SE/SH RB registers (CIK).
  */
@@ -1841,6 +1839,7 @@ static void gfx_v7_0_setup_rb(struct amdgpu_device *adev)
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
+#define DEFAULT_SH_MEM_BASES	(0x6000)
 /**
  * gfx_v7_0_init_compute_vmid - gart enable
  *
@@ -1849,7 +1848,6 @@ static void gfx_v7_0_setup_rb(struct amdgpu_device *adev)
  * Initialize compute vmid sh_mem registers
  *
  */
-#define DEFAULT_SH_MEM_BASES	(0x6000)
 static void gfx_v7_0_init_compute_vmid(struct amdgpu_device *adev)
 {
 	int i;
@@ -1879,7 +1877,7 @@ static void gfx_v7_0_init_compute_vmid(struct amdgpu_device *adev)
 	mutex_unlock(&adev->srbm_mutex);
 
 	/* Initialize all compute VMIDs to have no GDS, GWS, or OA
-	   acccess. These should be enabled by FW for target VMIDs. */
+	   access. These should be enabled by FW for target VMIDs. */
 	for (i = adev->vm_manager.first_kfd_vmid; i < AMDGPU_NUM_VMID; i++) {
 		WREG32(amdgpu_gds_reg_offset[i].mem_base, 0);
 		WREG32(amdgpu_gds_reg_offset[i].mem_size, 0);
@@ -1898,7 +1896,7 @@ static void gfx_v7_0_init_gds_vmid(struct amdgpu_device *adev)
 	 * the driver can enable them for graphics. VMID0 should maintain
 	 * access so that HWS firmware can save/restore entries.
 	 */
-	for (vmid = 1; vmid < 16; vmid++) {
+	for (vmid = 1; vmid < AMDGPU_NUM_VMID; vmid++) {
 		WREG32(amdgpu_gds_reg_offset[vmid].mem_base, 0);
 		WREG32(amdgpu_gds_reg_offset[vmid].mem_size, 0);
 		WREG32(amdgpu_gds_reg_offset[vmid].gws, 0);
@@ -2060,7 +2058,7 @@ static void gfx_v7_0_constants_init(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  *
  * Set up the number and offset of the CP scratch registers.
- * NOTE: use of CP scratch registers is a legacy inferface and
+ * NOTE: use of CP scratch registers is a legacy interface and
  * is not used by default on newer asics (r6xx+).  On newer asics,
  * memory buffers are used for fences rather than scratch regs.
  */
@@ -2074,7 +2072,6 @@ static void gfx_v7_0_scratch_init(struct amdgpu_device *adev)
 /**
  * gfx_v7_0_ring_test_ring - basic gfx ring test
  *
- * @adev: amdgpu_device pointer
  * @ring: amdgpu_ring structure holding ring information
  *
  * Allocate a scratch register and write to it using the gfx ring (CIK).
@@ -2119,10 +2116,9 @@ error_free_scratch:
 }
 
 /**
- * gfx_v7_0_ring_emit_hdp - emit an hdp flush on the cp
+ * gfx_v7_0_ring_emit_hdp_flush - emit an hdp flush on the cp
  *
- * @adev: amdgpu_device pointer
- * @ridx: amdgpu ring index
+ * @ring: amdgpu_ring structure holding ring information
  *
  * Emits an hdp flush on the cp.
  */
@@ -2171,10 +2167,12 @@ static void gfx_v7_0_ring_emit_vgt_flush(struct amdgpu_ring *ring)
 /**
  * gfx_v7_0_ring_emit_fence_gfx - emit a fence on the gfx ring
  *
- * @adev: amdgpu_device pointer
- * @fence: amdgpu fence object
+ * @ring: amdgpu_ring structure holding ring information
+ * @addr: address
+ * @seq: sequence number
+ * @flags: fence related flags
  *
- * Emits a fence sequnce number on the gfx ring and flushes
+ * Emits a fence sequence number on the gfx ring and flushes
  * GPU caches.
  */
 static void gfx_v7_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
@@ -2212,10 +2210,12 @@ static void gfx_v7_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
 /**
  * gfx_v7_0_ring_emit_fence_compute - emit a fence on the compute ring
  *
- * @adev: amdgpu_device pointer
- * @fence: amdgpu fence object
+ * @ring: amdgpu_ring structure holding ring information
+ * @addr: address
+ * @seq: sequence number
+ * @flags: fence related flags
  *
- * Emits a fence sequnce number on the compute ring and flushes
+ * Emits a fence sequence number on the compute ring and flushes
  * GPU caches.
  */
 static void gfx_v7_0_ring_emit_fence_compute(struct amdgpu_ring *ring,
@@ -2242,15 +2242,17 @@ static void gfx_v7_0_ring_emit_fence_compute(struct amdgpu_ring *ring,
  * IB stuff
  */
 /**
- * gfx_v7_0_ring_emit_ib - emit an IB (Indirect Buffer) on the ring
+ * gfx_v7_0_ring_emit_ib_gfx - emit an IB (Indirect Buffer) on the ring
  *
  * @ring: amdgpu_ring structure holding ring information
+ * @job: job to retrieve vmid from
  * @ib: amdgpu indirect buffer object
+ * @flags: options (AMDGPU_HAVE_CTX_SWITCH)
  *
  * Emits an DE (drawing engine) or CE (constant engine) IB
  * on the gfx ring.  IBs are usually generated by userspace
  * acceleration drivers and submitted to the kernel for
- * sheduling on the ring.  This function schedules the IB
+ * scheduling on the ring.  This function schedules the IB
  * on the gfx ring for execution by the GPU.
  */
 static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
@@ -2342,6 +2344,7 @@ static void gfx_v7_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
  * gfx_v7_0_ring_test_ib - basic ring IB test
  *
  * @ring: amdgpu_ring structure holding ring information
+ * @timeout: timeout value in jiffies, or MAX_SCHEDULE_TIMEOUT
  *
  * Allocate an IB and execute it on the gfx ring (CIK).
  * Provides a basic gfx ring test to verify that IBs are working.
@@ -2399,7 +2402,7 @@ err1:
 
 /*
  * CP.
- * On CIK, gfx and compute now have independant command processors.
+ * On CIK, gfx and compute now have independent command processors.
  *
  * GFX
  * Gfx consists of a single ring and can process both gfx jobs and
@@ -2627,7 +2630,7 @@ static int gfx_v7_0_cp_gfx_resume(struct amdgpu_device *adev)
 	ring->wptr = 0;
 	WREG32(mmCP_RB0_WPTR, lower_32_bits(ring->wptr));
 
-	/* set the wb address wether it's enabled or not */
+	/* set the wb address whether it's enabled or not */
 	rptr_addr = adev->wb.gpu_addr + (ring->rptr_offs * 4);
 	WREG32(mmCP_RB0_RPTR_ADDR, lower_32_bits(rptr_addr));
 	WREG32(mmCP_RB0_RPTR_ADDR_HI, upper_32_bits(rptr_addr) & 0xFF);
@@ -2982,7 +2985,7 @@ static void gfx_v7_0_mqd_init(struct amdgpu_device *adev,
 	mqd->cp_hqd_pq_wptr_poll_addr_lo = wb_gpu_addr & 0xfffffffc;
 	mqd->cp_hqd_pq_wptr_poll_addr_hi = upper_32_bits(wb_gpu_addr) & 0xffff;
 
-	/* set the wb address wether it's enabled or not */
+	/* set the wb address whether it's enabled or not */
 	wb_gpu_addr = adev->wb.gpu_addr + (ring->rptr_offs * 4);
 	mqd->cp_hqd_pq_rptr_report_addr_lo = wb_gpu_addr & 0xfffffffc;
 	mqd->cp_hqd_pq_rptr_report_addr_hi =
@@ -3193,9 +3196,9 @@ static int gfx_v7_0_cp_resume(struct amdgpu_device *adev)
 }
 
 /**
- * gfx_v7_0_ring_emit_vm_flush - cik vm flush using the CP
+ * gfx_v7_0_ring_emit_pipeline_sync - cik vm flush using the CP
  *
- * @ring: the ring to emmit the commands to
+ * @ring: the ring to emit the commands to
  *
  * Sync the command pipeline with the PFP. E.g. wait for everything
  * to be completed.
@@ -3217,7 +3220,7 @@ static void gfx_v7_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, 4); /* poll interval */
 
 	if (usepfp) {
-		/* synce CE with ME to prevent CE fetch CEIB before context switch done */
+		/* sync CE with ME to prevent CE fetch CEIB before context switch done */
 		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
 		amdgpu_ring_write(ring, 0);
 		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
@@ -3234,7 +3237,9 @@ static void gfx_v7_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 /**
  * gfx_v7_0_ring_emit_vm_flush - cik vm flush using the CP
  *
- * @adev: amdgpu_device pointer
+ * @ring: amdgpu_ring pointer
+ * @vmid: vmid number to use
+ * @pd_addr: address
  *
  * Update the page table base and flush the VM TLB
  * using the CP (CIK).
@@ -3570,12 +3575,16 @@ static void gfx_v7_0_update_spm_vmid(struct amdgpu_device *adev, unsigned vmid)
 {
 	u32 data;
 
+	amdgpu_gfx_off_ctrl(adev, false);
+
 	data = RREG32(mmRLC_SPM_VMID);
 
 	data &= ~RLC_SPM_VMID__RLC_SPM_VMID_MASK;
 	data |= (vmid & RLC_SPM_VMID__RLC_SPM_VMID_MASK) << RLC_SPM_VMID__RLC_SPM_VMID__SHIFT;
 
 	WREG32(mmRLC_SPM_VMID, data);
+
+	amdgpu_gfx_off_ctrl(adev, true);
 }
 
 static void gfx_v7_0_enable_cgcg(struct amdgpu_device *adev, bool enable)
@@ -4193,6 +4202,7 @@ static void gfx_v7_0_read_wave_data(struct amdgpu_device *adev, uint32_t simd, u
 	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TMA_HI);
 	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_IB_DBG0);
 	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_M0);
+	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_MODE);
 }
 
 static void gfx_v7_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t simd,
@@ -4238,7 +4248,8 @@ static int gfx_v7_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->gfx.num_gfx_rings = GFX7_NUM_GFX_RINGS;
-	adev->gfx.num_compute_rings = AMDGPU_MAX_COMPUTE_RINGS;
+	adev->gfx.num_compute_rings = min(amdgpu_gfx_get_num_kcq(adev),
+					  AMDGPU_MAX_COMPUTE_RINGS);
 	adev->gfx.funcs = &gfx_v7_0_gfx_funcs;
 	adev->gfx.rlc.funcs = &gfx_v7_0_rlc_funcs;
 	gfx_v7_0_set_ring_funcs(adev);
@@ -4432,7 +4443,7 @@ static int gfx_v7_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 	/* type-2 packets are deprecated on MEC, use type-3 instead */
 	r = amdgpu_ring_init(adev, ring, 1024,
 			     &adev->gfx.eop_irq, irq_type,
-			     AMDGPU_RING_PRIO_DEFAULT);
+			     AMDGPU_RING_PRIO_DEFAULT, NULL);
 	if (r)
 		return r;
 
@@ -4506,7 +4517,7 @@ static int gfx_v7_0_sw_init(void *handle)
 		r = amdgpu_ring_init(adev, ring, 1024,
 				     &adev->gfx.eop_irq,
 				     AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP,
-				     AMDGPU_RING_PRIO_DEFAULT);
+				     AMDGPU_RING_PRIO_DEFAULT, NULL);
 		if (r)
 			return r;
 	}
@@ -5206,15 +5217,6 @@ static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev)
 	cu_info->wave_front_size = 64;
 	cu_info->lds_size = 64;
 }
-
-static const struct amdgpu_ip_block_version gfx_v7_0_ip_block =
-{
-	.type = AMD_IP_BLOCK_TYPE_GFX,
-	.major = 7,
-	.minor = 0,
-	.rev = 0,
-	.funcs = &gfx_v7_0_ip_funcs,
-};
 
 const struct amdgpu_ip_block_version gfx_v7_1_ip_block =
 {

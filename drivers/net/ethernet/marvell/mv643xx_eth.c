@@ -700,7 +700,8 @@ static int skb_tx_csum(struct mv643xx_eth_private *mp, struct sk_buff *skb,
 			   ip_hdr(skb)->ihl << TX_IHL_SHIFT;
 
 		/* TODO: Revisit this. With the usage of GEN_TCP_UDP_CHK_FULL
-		 * it seems we don't need to pass the initial checksum. */
+		 * it seems we don't need to pass the initial checksum.
+		 */
 		switch (ip_hdr(skb)->protocol) {
 		case IPPROTO_UDP:
 			cmd |= UDP_FRAME;
@@ -790,7 +791,8 @@ txq_put_hdr_tso(struct sk_buff *skb, struct tx_queue *txq, int length,
 		WARN(1, "failed to prepare checksum!");
 
 	/* Should we set this? Can't use the value from skb_tx_csum()
-	 * as it's not the correct initial L4 checksum to use. */
+	 * as it's not the correct initial L4 checksum to use.
+	 */
 	desc->l4i_chk = 0;
 
 	desc->byte_cnt = hdr_len;
@@ -1609,8 +1611,10 @@ static void mv643xx_eth_get_drvinfo(struct net_device *dev,
 	strlcpy(drvinfo->bus_info, "platform", sizeof(drvinfo->bus_info));
 }
 
-static int
-mv643xx_eth_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
+static int mv643xx_eth_get_coalesce(struct net_device *dev,
+				    struct ethtool_coalesce *ec,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
@@ -1620,8 +1624,10 @@ mv643xx_eth_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	return 0;
 }
 
-static int
-mv643xx_eth_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
+static int mv643xx_eth_set_coalesce(struct net_device *dev,
+				    struct ethtool_coalesce *ec,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
@@ -1632,7 +1638,9 @@ mv643xx_eth_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 }
 
 static void
-mv643xx_eth_get_ringparam(struct net_device *dev, struct ethtool_ringparam *er)
+mv643xx_eth_get_ringparam(struct net_device *dev, struct ethtool_ringparam *er,
+			  struct kernel_ethtool_ringparam *kernel_er,
+			  struct netlink_ext_ack *extack)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
@@ -1644,14 +1652,16 @@ mv643xx_eth_get_ringparam(struct net_device *dev, struct ethtool_ringparam *er)
 }
 
 static int
-mv643xx_eth_set_ringparam(struct net_device *dev, struct ethtool_ringparam *er)
+mv643xx_eth_set_ringparam(struct net_device *dev, struct ethtool_ringparam *er,
+			  struct kernel_ethtool_ringparam *kernel_er,
+			  struct netlink_ext_ack *extack)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	if (er->rx_mini_pending || er->rx_jumbo_pending)
 		return -EINVAL;
 
-	mp->rx_ring_size = er->rx_pending < 4096 ? er->rx_pending : 4096;
+	mp->rx_ring_size = min(er->rx_pending, 4096U);
 	mp->tx_ring_size = clamp_t(unsigned int, er->tx_pending,
 				   MV643XX_MAX_SKB_DESCS * 2, 4096);
 	if (mp->tx_ring_size != er->tx_pending)
@@ -1764,7 +1774,7 @@ static void uc_addr_get(struct mv643xx_eth_private *mp, unsigned char *addr)
 	addr[5] = mac_l & 0xff;
 }
 
-static void uc_addr_set(struct mv643xx_eth_private *mp, unsigned char *addr)
+static void uc_addr_set(struct mv643xx_eth_private *mp, const u8 *addr)
 {
 	wrlp(mp, MAC_ADDR_HIGH,
 		(addr[0] << 24) | (addr[1] << 16) | (addr[2] << 8) | addr[3]);
@@ -1913,7 +1923,7 @@ static int mv643xx_eth_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(sa->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, sa->sa_data);
 
 	netif_addr_lock_bh(dev);
 	mv643xx_eth_program_unicast_filter(dev);
@@ -2684,7 +2694,7 @@ static const struct of_device_id mv643xx_eth_shared_ids[] = {
 MODULE_DEVICE_TABLE(of, mv643xx_eth_shared_ids);
 #endif
 
-#if defined(CONFIG_OF_IRQ) && !defined(CONFIG_MV64X60)
+#ifdef CONFIG_OF_IRQ
 #define mv643xx_eth_property(_np, _name, _v)				\
 	do {								\
 		u32 tmp;						\
@@ -2694,13 +2704,22 @@ MODULE_DEVICE_TABLE(of, mv643xx_eth_shared_ids);
 
 static struct platform_device *port_platdev[3];
 
+static void mv643xx_eth_shared_of_remove(void)
+{
+	int n;
+
+	for (n = 0; n < 3; n++) {
+		platform_device_del(port_platdev[n]);
+		port_platdev[n] = NULL;
+	}
+}
+
 static int mv643xx_eth_shared_of_add_port(struct platform_device *pdev,
 					  struct device_node *pnp)
 {
 	struct platform_device *ppdev;
 	struct mv643xx_eth_platform_data ppd;
 	struct resource res;
-	const char *mac_addr;
 	int ret;
 	int dev_num = 0;
 
@@ -2731,9 +2750,9 @@ static int mv643xx_eth_shared_of_add_port(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	mac_addr = of_get_mac_address(pnp);
-	if (!IS_ERR(mac_addr))
-		ether_addr_copy(ppd.mac_addr, mac_addr);
+	ret = of_get_mac_address(pnp, ppd.mac_addr);
+	if (ret == -EPROBE_DEFER)
+		return ret;
 
 	mv643xx_eth_property(pnp, "tx-queue-size", ppd.tx_queue_size);
 	mv643xx_eth_property(pnp, "tx-sram-addr", ppd.tx_sram_addr);
@@ -2797,21 +2816,13 @@ static int mv643xx_eth_shared_of_probe(struct platform_device *pdev)
 		ret = mv643xx_eth_shared_of_add_port(pdev, pnp);
 		if (ret) {
 			of_node_put(pnp);
+			mv643xx_eth_shared_of_remove();
 			return ret;
 		}
 	}
 	return 0;
 }
 
-static void mv643xx_eth_shared_of_remove(void)
-{
-	int n;
-
-	for (n = 0; n < 3; n++) {
-		platform_device_del(port_platdev[n]);
-		port_platdev[n] = NULL;
-	}
-}
 #else
 static inline int mv643xx_eth_shared_of_probe(struct platform_device *pdev)
 {
@@ -2922,10 +2933,14 @@ static void set_params(struct mv643xx_eth_private *mp,
 	struct net_device *dev = mp->dev;
 	unsigned int tx_ring_size;
 
-	if (is_valid_ether_addr(pd->mac_addr))
-		memcpy(dev->dev_addr, pd->mac_addr, ETH_ALEN);
-	else
-		uc_addr_get(mp, dev->dev_addr);
+	if (is_valid_ether_addr(pd->mac_addr)) {
+		eth_hw_addr_set(dev, pd->mac_addr);
+	} else {
+		u8 addr[ETH_ALEN];
+
+		uc_addr_get(mp, addr);
+		eth_hw_addr_set(dev, addr);
+	}
 
 	mp->rx_ring_size = DEFAULT_RX_QUEUE_SIZE;
 	if (pd->rx_queue_size)
@@ -3061,7 +3076,7 @@ static const struct net_device_ops mv643xx_eth_netdev_ops = {
 	.ndo_set_rx_mode	= mv643xx_eth_set_rx_mode,
 	.ndo_set_mac_address	= mv643xx_eth_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= mv643xx_eth_ioctl,
+	.ndo_eth_ioctl		= mv643xx_eth_ioctl,
 	.ndo_change_mtu		= mv643xx_eth_change_mtu,
 	.ndo_set_features	= mv643xx_eth_set_features,
 	.ndo_tx_timeout		= mv643xx_eth_tx_timeout,
@@ -3077,8 +3092,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	struct mv643xx_eth_private *mp;
 	struct net_device *dev;
 	struct phy_device *phydev = NULL;
-	struct resource *res;
-	int err;
+	int err, irq;
 
 	pd = dev_get_platdata(&pdev->dev);
 	if (pd == NULL) {
@@ -3174,9 +3188,12 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	timer_setup(&mp->rx_oom, oom_timer_wrapper, 0);
 
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	BUG_ON(!res);
-	dev->irq = res->start;
+	irq = platform_get_irq(pdev, 0);
+	if (WARN_ON(irq < 0)) {
+		err = irq;
+		goto out;
+	}
+	dev->irq = irq;
 
 	dev->netdev_ops = &mv643xx_eth_netdev_ops;
 
@@ -3190,7 +3207,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->hw_features = dev->features;
 
 	dev->priv_flags |= IFF_UNICAST_FLT;
-	dev->gso_max_segs = MV643XX_MAX_TSO_SEGS;
+	netif_set_gso_max_segs(dev, MV643XX_MAX_TSO_SEGS);
 
 	/* MTU range: 64 - 9500 */
 	dev->min_mtu = 64;

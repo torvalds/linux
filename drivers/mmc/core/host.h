@@ -21,6 +21,12 @@ int mmc_retune(struct mmc_host *host);
 void mmc_retune_pause(struct mmc_host *host);
 void mmc_retune_unpause(struct mmc_host *host);
 
+static inline void mmc_retune_clear(struct mmc_host *host)
+{
+	host->retune_now = 0;
+	host->need_retune = 0;
+}
+
 static inline void mmc_retune_hold_now(struct mmc_host *host)
 {
 	host->retune_now = 0;
@@ -75,6 +81,12 @@ static inline bool mmc_card_hs400(struct mmc_card *card)
 static inline bool mmc_card_hs400es(struct mmc_card *card)
 {
 	return card->host->ios.enhanced_strobe;
+}
+
+static inline bool mmc_card_sd_express(struct mmc_host *host)
+{
+	return host->ios.timing == MMC_TIMING_SD_EXP ||
+		host->ios.timing == MMC_TIMING_SD_EXP_1_2V;
 }
 
 #endif

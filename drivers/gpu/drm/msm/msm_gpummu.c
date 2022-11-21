@@ -68,6 +68,10 @@ static int msm_gpummu_unmap(struct msm_mmu *mmu, uint64_t iova, size_t len)
 	return 0;
 }
 
+static void msm_gpummu_resume_translation(struct msm_mmu *mmu)
+{
+}
+
 static void msm_gpummu_destroy(struct msm_mmu *mmu)
 {
 	struct msm_gpummu *gpummu = to_msm_gpummu(mmu);
@@ -83,6 +87,7 @@ static const struct msm_mmu_funcs funcs = {
 		.map = msm_gpummu_map,
 		.unmap = msm_gpummu_unmap,
 		.destroy = msm_gpummu_destroy,
+		.resume_translation = msm_gpummu_resume_translation,
 };
 
 struct msm_mmu *msm_gpummu_new(struct device *dev, struct msm_gpu *gpu)

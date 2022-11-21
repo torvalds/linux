@@ -24,7 +24,6 @@
 MODULE_AUTHOR("David Dillow <dave@thedillows.org>");
 MODULE_DESCRIPTION("SiS7019");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{SiS,SiS7019 Audio Accelerator}}");
 
 static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
@@ -363,7 +362,7 @@ static u32 sis_rate_to_delta(unsigned int rate)
 	else if (rate == 48000)
 		delta = 0x1000;
 	else
-		delta = (((rate << 12) + 24000) / 48000) & 0x0000ffff;
+		delta = DIV_ROUND_CLOSEST(rate << 12, 48000) & 0x0000ffff;
 	return delta;
 }
 
@@ -1008,16 +1007,10 @@ static int sis_mixer_create(struct sis7019 *sis)
 	return rc;
 }
 
-static void sis_free_suspend(struct sis7019 *sis)
+static void sis_chip_free(struct snd_card *card)
 {
-	int i;
+	struct sis7019 *sis = card->private_data;
 
-	for (i = 0; i < SIS_SUSPEND_PAGES; i++)
-		kfree(sis->suspend_state[i]);
-}
-
-static int sis_chip_free(struct sis7019 *sis)
-{
 	/* Reset the chip, and disable all interrputs.
 	 */
 	outl(SIS_GCR_SOFTWARE_RESET, sis->ioport + SIS_GCR);
@@ -1029,18 +1022,6 @@ static int sis_chip_free(struct sis7019 *sis)
 	 */
 	if (sis->irq >= 0)
 		free_irq(sis->irq, sis);
-
-	iounmap(sis->ioaddr);
-	pci_release_regions(sis->pci);
-	pci_disable_device(sis->pci);
-	sis_free_suspend(sis);
-	return 0;
-}
-
-static int sis_dev_free(struct snd_device *dev)
-{
-	struct sis7019 *sis = dev->device_data;
-	return sis_chip_free(sis);
 }
 
 static int sis_chip_init(struct sis7019 *sis)
@@ -1266,7 +1247,8 @@ static int sis_alloc_suspend(struct sis7019 *sis)
 	 * buffer.
 	 */
 	for (i = 0; i < SIS_SUSPEND_PAGES; i++) {
-		sis->suspend_state[i] = kmalloc(4096, GFP_KERNEL);
+		sis->suspend_state[i] = devm_kmalloc(&sis->pci->dev, 4096,
+						     GFP_KERNEL);
 		if (!sis->suspend_state[i])
 			return -ENOMEM;
 	}
@@ -1280,23 +1262,19 @@ static int sis_chip_create(struct snd_card *card,
 {
 	struct sis7019 *sis = card->private_data;
 	struct voice *voice;
-	static const struct snd_device_ops ops = {
-		.dev_free = sis_dev_free,
-	};
 	int rc;
 	int i;
 
-	rc = pci_enable_device(pci);
+	rc = pcim_enable_device(pci);
 	if (rc)
-		goto error_out;
+		return rc;
 
 	rc = dma_set_mask(&pci->dev, DMA_BIT_MASK(30));
 	if (rc < 0) {
 		dev_err(&pci->dev, "architecture does not support 30-bit PCI busmaster DMA");
-		goto error_out_enabled;
+		return -ENXIO;
 	}
 
-	memset(sis, 0, sizeof(*sis));
 	mutex_init(&sis->ac97_mutex);
 	spin_lock_init(&sis->voice_lock);
 	sis->card = card;
@@ -1307,31 +1285,31 @@ static int sis_chip_create(struct snd_card *card,
 	rc = pci_request_regions(pci, "SiS7019");
 	if (rc) {
 		dev_err(&pci->dev, "unable request regions\n");
-		goto error_out_enabled;
+		return rc;
 	}
 
-	rc = -EIO;
-	sis->ioaddr = ioremap(pci_resource_start(pci, 1), 0x4000);
+	sis->ioaddr = devm_ioremap(&pci->dev, pci_resource_start(pci, 1), 0x4000);
 	if (!sis->ioaddr) {
 		dev_err(&pci->dev, "unable to remap MMIO, aborting\n");
-		goto error_out_cleanup;
+		return -EIO;
 	}
 
 	rc = sis_alloc_suspend(sis);
 	if (rc < 0) {
 		dev_err(&pci->dev, "unable to allocate state storage\n");
-		goto error_out_cleanup;
+		return rc;
 	}
 
 	rc = sis_chip_init(sis);
 	if (rc)
-		goto error_out_cleanup;
+		return rc;
+	card->private_free = sis_chip_free;
 
 	rc = request_irq(pci->irq, sis_interrupt, IRQF_SHARED, KBUILD_MODNAME,
 			 sis);
 	if (rc) {
 		dev_err(&pci->dev, "unable to allocate irq %d\n", sis->irq);
-		goto error_out_cleanup;
+		return rc;
 	}
 
 	sis->irq = pci->irq;
@@ -1350,32 +1328,18 @@ static int sis_chip_create(struct snd_card *card,
 	voice->num = SIS_CAPTURE_CHAN_AC97_PCM_IN;
 	voice->ctrl_base = SIS_CAPTURE_DMA_ADDR(sis->ioaddr, voice->num);
 
-	rc = snd_device_new(card, SNDRV_DEV_LOWLEVEL, sis, &ops);
-	if (rc)
-		goto error_out_cleanup;
-
 	return 0;
-
-error_out_cleanup:
-	sis_chip_free(sis);
-
-error_out_enabled:
-	pci_disable_device(pci);
-
-error_out:
-	return rc;
 }
 
-static int snd_sis7019_probe(struct pci_dev *pci,
-			     const struct pci_device_id *pci_id)
+static int __snd_sis7019_probe(struct pci_dev *pci,
+			       const struct pci_device_id *pci_id)
 {
 	struct snd_card *card;
 	struct sis7019 *sis;
 	int rc;
 
-	rc = -ENOENT;
 	if (!enable)
-		goto error_out;
+		return -ENOENT;
 
 	/* The user can specify which codecs should be present so that we
 	 * can wait for them to show up if they are slow to recover from
@@ -1388,26 +1352,26 @@ static int snd_sis7019_probe(struct pci_dev *pci,
 	if (!codecs)
 		codecs = SIS_PRIMARY_CODEC_PRESENT;
 
-	rc = snd_card_new(&pci->dev, index, id, THIS_MODULE,
-			  sizeof(*sis), &card);
+	rc = snd_devm_card_new(&pci->dev, index, id, THIS_MODULE,
+			       sizeof(*sis), &card);
 	if (rc < 0)
-		goto error_out;
+		return rc;
 
 	strcpy(card->driver, "SiS7019");
 	strcpy(card->shortname, "SiS7019");
 	rc = sis_chip_create(card, pci);
 	if (rc)
-		goto card_error_out;
+		return rc;
 
 	sis = card->private_data;
 
 	rc = sis_mixer_create(sis);
 	if (rc)
-		goto card_error_out;
+		return rc;
 
 	rc = sis_pcm_create(sis);
 	if (rc)
-		goto card_error_out;
+		return rc;
 
 	snprintf(card->longname, sizeof(card->longname),
 			"%s Audio Accelerator with %s at 0x%lx, irq %d",
@@ -1416,28 +1380,22 @@ static int snd_sis7019_probe(struct pci_dev *pci,
 
 	rc = snd_card_register(card);
 	if (rc)
-		goto card_error_out;
+		return rc;
 
 	pci_set_drvdata(pci, card);
 	return 0;
-
-card_error_out:
-	snd_card_free(card);
-
-error_out:
-	return rc;
 }
 
-static void snd_sis7019_remove(struct pci_dev *pci)
+static int snd_sis7019_probe(struct pci_dev *pci,
+			     const struct pci_device_id *pci_id)
 {
-	snd_card_free(pci_get_drvdata(pci));
+	return snd_card_free_on_error(&pci->dev, __snd_sis7019_probe(pci, pci_id));
 }
 
 static struct pci_driver sis7019_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_sis7019_ids,
 	.probe = snd_sis7019_probe,
-	.remove = snd_sis7019_remove,
 	.driver = {
 		.pm = SIS_PM_OPS,
 	},

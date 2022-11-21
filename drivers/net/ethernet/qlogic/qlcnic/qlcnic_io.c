@@ -10,6 +10,7 @@
 #include <linux/ipv6.h>
 #include <net/checksum.h>
 #include <linux/printk.h>
+#include <linux/jiffies.h>
 
 #include "qlcnic.h"
 
@@ -332,7 +333,7 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	hlist_for_each_entry_safe(tmp_fil, n, head, fnode) {
 		if (ether_addr_equal(tmp_fil->faddr, (u8 *)&src_addr) &&
 		    tmp_fil->vlan_id == vlan_id) {
-			if (jiffies > (QLCNIC_READD_AGE * HZ + tmp_fil->ftime))
+			if (time_is_before_jiffies(QLCNIC_READD_AGE * HZ + tmp_fil->ftime))
 				qlcnic_change_filter(adapter, &src_addr,
 						     vlan_id, tx_ring);
 			tmp_fil->ftime = jiffies;
@@ -587,9 +588,9 @@ static int qlcnic_map_tx_skb(struct pci_dev *pdev, struct sk_buff *skb,
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	nf = &pbuf->frag_array[0];
 
-	map = pci_map_single(pdev, skb->data, skb_headlen(skb),
-			     PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(pdev, map))
+	map = dma_map_single(&pdev->dev, skb->data, skb_headlen(skb),
+			     DMA_TO_DEVICE);
+	if (dma_mapping_error(&pdev->dev, map))
 		goto out_err;
 
 	nf->dma = map;
@@ -612,11 +613,11 @@ static int qlcnic_map_tx_skb(struct pci_dev *pdev, struct sk_buff *skb,
 unwind:
 	while (--i >= 0) {
 		nf = &pbuf->frag_array[i+1];
-		pci_unmap_page(pdev, nf->dma, nf->length, PCI_DMA_TODEVICE);
+		dma_unmap_page(&pdev->dev, nf->dma, nf->length, DMA_TO_DEVICE);
 	}
 
 	nf = &pbuf->frag_array[0];
-	pci_unmap_single(pdev, nf->dma, skb_headlen(skb), PCI_DMA_TODEVICE);
+	dma_unmap_single(&pdev->dev, nf->dma, skb_headlen(skb), DMA_TO_DEVICE);
 
 out_err:
 	return -ENOMEM;
@@ -630,11 +631,11 @@ static void qlcnic_unmap_buffers(struct pci_dev *pdev, struct sk_buff *skb,
 
 	for (i = 0; i < nr_frags; i++) {
 		nf = &pbuf->frag_array[i+1];
-		pci_unmap_page(pdev, nf->dma, nf->length, PCI_DMA_TODEVICE);
+		dma_unmap_page(&pdev->dev, nf->dma, nf->length, DMA_TO_DEVICE);
 	}
 
 	nf = &pbuf->frag_array[0];
-	pci_unmap_single(pdev, nf->dma, skb_headlen(skb), PCI_DMA_TODEVICE);
+	dma_unmap_single(&pdev->dev, nf->dma, skb_headlen(skb), DMA_TO_DEVICE);
 	pbuf->skb = NULL;
 }
 
@@ -825,10 +826,10 @@ static int qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 	}
 
 	skb_reserve(skb, NET_IP_ALIGN);
-	dma = pci_map_single(pdev, skb->data,
-			     rds_ring->dma_size, PCI_DMA_FROMDEVICE);
+	dma = dma_map_single(&pdev->dev, skb->data, rds_ring->dma_size,
+			     DMA_FROM_DEVICE);
 
-	if (pci_dma_mapping_error(pdev, dma)) {
+	if (dma_mapping_error(&pdev->dev, dma)) {
 		adapter->stats.rx_dma_map_error++;
 		dev_kfree_skb_any(skb);
 		return -ENOMEM;
@@ -903,13 +904,13 @@ static int qlcnic_process_cmd_ring(struct qlcnic_adapter *adapter,
 		buffer = &tx_ring->cmd_buf_arr[sw_consumer];
 		if (buffer->skb) {
 			frag = &buffer->frag_array[0];
-			pci_unmap_single(pdev, frag->dma, frag->length,
-					 PCI_DMA_TODEVICE);
+			dma_unmap_single(&pdev->dev, frag->dma, frag->length,
+					 DMA_TO_DEVICE);
 			frag->dma = 0ULL;
 			for (i = 1; i < buffer->frag_count; i++) {
 				frag++;
-				pci_unmap_page(pdev, frag->dma, frag->length,
-					       PCI_DMA_TODEVICE);
+				dma_unmap_page(&pdev->dev, frag->dma,
+					       frag->length, DMA_TO_DEVICE);
 				frag->dma = 0ULL;
 			}
 			tx_ring->tx_stats.xmit_finished++;
@@ -1147,8 +1148,8 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *adapter,
 		return NULL;
 	}
 
-	pci_unmap_single(adapter->pdev, buffer->dma, ring->dma_size,
-			 PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&adapter->pdev->dev, buffer->dma, ring->dma_size,
+			 DMA_FROM_DEVICE);
 
 	skb = buffer->skb;
 	if (likely((adapter->netdev->features & NETIF_F_RXCSUM) &&
@@ -1390,6 +1391,7 @@ static int qlcnic_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring, int ma
 			break;
 		case QLCNIC_RESPONSE_DESC:
 			qlcnic_handle_fw_message(desc_cnt, consumer, sds_ring);
+			goto skip;
 		default:
 			goto skip;
 		}

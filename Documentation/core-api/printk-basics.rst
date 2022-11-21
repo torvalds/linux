@@ -107,9 +107,6 @@ also ``CONFIG_DYNAMIC_DEBUG`` in the case of pr_debug()) is defined.
 Function reference
 ==================
 
-.. kernel-doc:: kernel/printk/printk.c
-   :functions: printk
-
 .. kernel-doc:: include/linux/printk.h
-   :functions: pr_emerg pr_alert pr_crit pr_err pr_warn pr_notice pr_info
+   :functions: printk pr_emerg pr_alert pr_crit pr_err pr_warn pr_notice pr_info
       pr_fmt pr_debug pr_devel pr_cont

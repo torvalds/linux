@@ -52,7 +52,7 @@
 9:		___BUILD_EVA_INSN(insn, reg, addr);	\
 	.endif;						\
 	.section __ex_table,"a";			\
-	PTR	9b, handler;				\
+	PTR_WD	9b, handler;				\
 	.previous
 
 	.macro	f_fill64 dst, offset, val, fixup, mode
@@ -314,9 +314,6 @@ EXPORT_SYMBOL(memset)
 #ifndef CONFIG_EVA
 FEXPORT(__bzero)
 EXPORT_SYMBOL(__bzero)
-#else
-FEXPORT(__bzero_kernel)
-EXPORT_SYMBOL(__bzero_kernel)
 #endif
 	__BUILD_BZERO LEGACY_MODE
 

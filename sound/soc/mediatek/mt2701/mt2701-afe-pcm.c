@@ -655,7 +655,7 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 
 		},
 		.ops = &mt2701_afe_i2s_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "I2S1",
@@ -679,7 +679,7 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 				| SNDRV_PCM_FMTBIT_S32_LE)
 			},
 		.ops = &mt2701_afe_i2s_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "I2S2",
@@ -703,7 +703,7 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 				| SNDRV_PCM_FMTBIT_S32_LE)
 			},
 		.ops = &mt2701_afe_i2s_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "I2S3",
@@ -727,7 +727,7 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 				| SNDRV_PCM_FMTBIT_S32_LE)
 			},
 		.ops = &mt2701_afe_i2s_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "MRG BT",
@@ -749,7 +749,7 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,
 		},
 		.ops = &mt2701_btmrg_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	}
 };
 
@@ -974,7 +974,7 @@ static const struct snd_soc_component_driver mt2701_afe_pcm_dai_component = {
 	.resume = mtk_afe_resume,
 };
 
-static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
+static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 	{
 		.name = "DL1",
 		.id = MT2701_MEMIF_DL1,
@@ -1366,7 +1366,7 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	for (i = 0; i < afe->memif_size; i++) {
-		afe->memif[i].data = &memif_data[i];
+		afe->memif[i].data = &memif_data_array[i];
 		afe->memif[i].irq_usage = -1;
 	}
 
@@ -1474,9 +1474,7 @@ static struct platform_driver mt2701_afe_pcm_driver = {
 	.driver = {
 		   .name = "mt2701-audio",
 		   .of_match_table = mt2701_afe_pcm_dt_match,
-#ifdef CONFIG_PM
 		   .pm = &mt2701_afe_pm_ops,
-#endif
 	},
 	.probe = mt2701_afe_pcm_dev_probe,
 	.remove = mt2701_afe_pcm_dev_remove,

@@ -178,23 +178,9 @@ static int ice40_fpga_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	mgr = devm_fpga_mgr_create(dev, "Lattice iCE40 FPGA Manager",
-				   &ice40_fpga_ops, priv);
-	if (!mgr)
-		return -ENOMEM;
-
-	spi_set_drvdata(spi, mgr);
-
-	return fpga_mgr_register(mgr);
-}
-
-static int ice40_fpga_remove(struct spi_device *spi)
-{
-	struct fpga_manager *mgr = spi_get_drvdata(spi);
-
-	fpga_mgr_unregister(mgr);
-
-	return 0;
+	mgr = devm_fpga_mgr_register(dev, "Lattice iCE40 FPGA Manager",
+				     &ice40_fpga_ops, priv);
+	return PTR_ERR_OR_ZERO(mgr);
 }
 
 static const struct of_device_id ice40_fpga_of_match[] = {
@@ -203,13 +189,19 @@ static const struct of_device_id ice40_fpga_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ice40_fpga_of_match);
 
+static const struct spi_device_id ice40_fpga_spi_ids[] = {
+	{ .name = "ice40-fpga-mgr", },
+	{},
+};
+MODULE_DEVICE_TABLE(spi, ice40_fpga_spi_ids);
+
 static struct spi_driver ice40_fpga_driver = {
 	.probe = ice40_fpga_probe,
-	.remove = ice40_fpga_remove,
 	.driver = {
 		.name = "ice40spi",
 		.of_match_table = of_match_ptr(ice40_fpga_of_match),
 	},
+	.id_table = ice40_fpga_spi_ids,
 };
 
 module_spi_driver(ice40_fpga_driver);

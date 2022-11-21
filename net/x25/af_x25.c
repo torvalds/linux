@@ -200,22 +200,6 @@ static void x25_remove_socket(struct sock *sk)
 }
 
 /*
- *	Kill all bound sockets on a dropped device.
- */
-static void x25_kill_by_device(struct net_device *dev)
-{
-	struct sock *s;
-
-	write_lock_bh(&x25_list_lock);
-
-	sk_for_each(s, &x25_list)
-		if (x25_sk(s)->neighbour && x25_sk(s)->neighbour->dev == dev)
-			x25_disconnect(s, ENETUNREACH, 0, 0);
-
-	write_unlock_bh(&x25_list_lock);
-}
-
-/*
  *	Handle device status changes.
  */
 static int x25_device_event(struct notifier_block *this, unsigned long event,
@@ -227,26 +211,32 @@ static int x25_device_event(struct notifier_block *this, unsigned long event,
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
-	if (dev->type == ARPHRD_X25
-#if IS_ENABLED(CONFIG_LLC)
-	 || dev->type == ARPHRD_ETHER
-#endif
-	 ) {
+	if (dev->type == ARPHRD_X25) {
 		switch (event) {
-		case NETDEV_UP:
+		case NETDEV_REGISTER:
+		case NETDEV_POST_TYPE_CHANGE:
 			x25_link_device_up(dev);
 			break;
-		case NETDEV_GOING_DOWN:
+		case NETDEV_DOWN:
 			nb = x25_get_neigh(dev);
 			if (nb) {
-				x25_terminate_link(nb);
+				x25_link_terminated(nb);
 				x25_neigh_put(nb);
 			}
-			break;
-		case NETDEV_DOWN:
-			x25_kill_by_device(dev);
 			x25_route_device_down(dev);
+			break;
+		case NETDEV_PRE_TYPE_CHANGE:
+		case NETDEV_UNREGISTER:
 			x25_link_device_down(dev);
+			break;
+		case NETDEV_CHANGE:
+			if (!netif_carrier_ok(dev)) {
+				nb = x25_get_neigh(dev);
+				if (nb) {
+					x25_link_terminated(nb);
+					x25_neigh_put(nb);
+				}
+			}
 			break;
 		}
 	}
@@ -376,7 +366,7 @@ static void x25_destroy_timer(struct timer_list *t)
 
 /*
  *	This is called from user mode and the timers. Thus it protects itself
- *	against interrupt users but doesn't worry about being called during
+ *	against interrupting users but doesn't worry about being called during
  *	work. Once it is removed from the queue no interrupt or bottom half
  *	will touch it and we are (fairly 8-) ) safe.
  *	Not static as it's used by the timer
@@ -546,7 +536,7 @@ static int x25_create(struct net *net, struct socket *sock, int protocol,
 	if (protocol)
 		goto out;
 
-	rc = -ENOBUFS;
+	rc = -ENOMEM;
 	if ((sk = x25_alloc_socket(net, kern)) == NULL)
 		goto out;
 
@@ -1028,7 +1018,7 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 
 	/*
 	 * current neighbour/link might impose additional limits
-	 * on certain facilties
+	 * on certain facilities
 	 */
 
 	x25_limit_facilities(&facilities, nb);
@@ -1775,10 +1765,15 @@ void x25_kill_by_neigh(struct x25_neigh *nb)
 
 	write_lock_bh(&x25_list_lock);
 
-	sk_for_each(s, &x25_list)
-		if (x25_sk(s)->neighbour == nb)
+	sk_for_each(s, &x25_list) {
+		if (x25_sk(s)->neighbour == nb) {
+			write_unlock_bh(&x25_list_lock);
+			lock_sock(s);
 			x25_disconnect(s, ENETUNREACH, 0, 0);
-
+			release_sock(s);
+			write_lock_bh(&x25_list_lock);
+		}
+	}
 	write_unlock_bh(&x25_list_lock);
 
 	/* Remove any related forwards */

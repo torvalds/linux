@@ -939,8 +939,8 @@ static void ks7010_private_init(struct ks_wlan_private *priv,
 	memset(&priv->wstats, 0, sizeof(priv->wstats));
 
 	/* sleep mode */
+	atomic_set(&priv->sleepstatus.status, 0);
 	atomic_set(&priv->sleepstatus.doze_request, 0);
-	atomic_set(&priv->sleepstatus.wakeup_request, 0);
 	atomic_set(&priv->sleepstatus.wakeup_request, 0);
 
 	trx_device_init(priv);
@@ -1029,10 +1029,12 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 
 	ret = register_netdev(priv->net_dev);
 	if (ret)
-		goto err_free_netdev;
+		goto err_destroy_wq;
 
 	return 0;
 
+ err_destroy_wq:
+	destroy_workqueue(priv->wq);
  err_free_netdev:
 	free_netdev(netdev);
  err_release_irq:
@@ -1100,10 +1102,8 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 	if (ret)	/* memory allocation failure */
 		goto err_free_card;
 
-	if (priv->wq) {
-		flush_workqueue(priv->wq);
+	if (priv->wq)
 		destroy_workqueue(priv->wq);
-	}
 
 	hostif_exit(priv);
 

@@ -26,7 +26,7 @@
  * the queue, and the other indicating the current tail. The lock is acquired
  * by atomically noting the tail and incrementing it by one (thus adding
  * ourself to the queue and noting our position), then waiting until the head
- * becomes equal to the the initial value of the tail.
+ * becomes equal to the initial value of the tail.
  * The pad bits in the middle are used to prevent the next_ticket number
  * overflowing into the now_serving number.
  *
@@ -124,18 +124,13 @@ static __always_inline void arch_spin_unlock(arch_spinlock_t *lock)
 	__ticket_spin_unlock(lock);
 }
 
-static __always_inline void arch_spin_lock_flags(arch_spinlock_t *lock,
-						  unsigned long flags)
-{
-	arch_spin_lock(lock);
-}
-#define arch_spin_lock_flags	arch_spin_lock_flags
-
 #ifdef ASM_SUPPORTED
 
 static __always_inline void
-arch_read_lock_flags(arch_rwlock_t *lock, unsigned long flags)
+arch_read_lock(arch_rwlock_t *lock)
 {
+	unsigned long flags = 0;
+
 	__asm__ __volatile__ (
 		"tbit.nz p6, p0 = %1,%2\n"
 		"br.few 3f\n"
@@ -157,12 +152,7 @@ arch_read_lock_flags(arch_rwlock_t *lock, unsigned long flags)
 		: "p6", "p7", "r2", "memory");
 }
 
-#define arch_read_lock_flags arch_read_lock_flags
-#define arch_read_lock(lock) arch_read_lock_flags(lock, 0)
-
 #else /* !ASM_SUPPORTED */
-
-#define arch_read_lock_flags(rw, flags) arch_read_lock(rw)
 
 #define arch_read_lock(rw)								\
 do {											\
@@ -186,8 +176,10 @@ do {								\
 #ifdef ASM_SUPPORTED
 
 static __always_inline void
-arch_write_lock_flags(arch_rwlock_t *lock, unsigned long flags)
+arch_write_lock(arch_rwlock_t *lock)
 {
+	unsigned long flags = 0;
+
 	__asm__ __volatile__ (
 		"tbit.nz p6, p0 = %1, %2\n"
 		"mov ar.ccv = r0\n"
@@ -209,9 +201,6 @@ arch_write_lock_flags(arch_rwlock_t *lock, unsigned long flags)
 		: : "r"(lock), "r"(flags), "i"(IA64_PSR_I_BIT)
 		: "ar.ccv", "p6", "p7", "r2", "r29", "memory");
 }
-
-#define arch_write_lock_flags arch_write_lock_flags
-#define arch_write_lock(rw) arch_write_lock_flags(rw, 0)
 
 #define arch_write_trylock(rw)							\
 ({										\

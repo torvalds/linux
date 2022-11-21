@@ -994,7 +994,7 @@ do_syscall:
 	andcc	%l5, _TIF_SYSCALL_TRACE, %g0
 	mov	%i4, %o4
 	bne	linux_syscall_trace
-	 mov	%i0, %l5
+	 mov	%i0, %l6
 2:
 	call	%l7
 	 mov	%i5, %o5
@@ -1003,16 +1003,15 @@ do_syscall:
 	st	%o0, [%sp + STACKFRAME_SZ + PT_I0]
 
 ret_sys_call:
-	ld	[%curptr + TI_FLAGS], %l6
+	ld	[%curptr + TI_FLAGS], %l5
 	cmp	%o0, -ERESTART_RESTARTBLOCK
 	ld	[%sp + STACKFRAME_SZ + PT_PSR], %g3
 	set	PSR_C, %g2
 	bgeu	1f
-	 andcc	%l6, _TIF_SYSCALL_TRACE, %g0
+	 andcc	%l5, _TIF_SYSCALL_TRACE, %g0
 
 	/* System call success, clear Carry condition code. */
 	andn	%g3, %g2, %g3
-	clr	%l6
 	st	%g3, [%sp + STACKFRAME_SZ + PT_PSR]	
 	bne	linux_syscall_trace2
 	 ld	[%sp + STACKFRAME_SZ + PT_NPC], %l1 /* pc = npc */
@@ -1027,7 +1026,6 @@ ret_sys_call:
 	sub	%g0, %o0, %o0
 	or	%g3, %g2, %g3
 	st	%o0, [%sp + STACKFRAME_SZ + PT_I0]
-	mov	1, %l6
 	st	%g3, [%sp + STACKFRAME_SZ + PT_PSR]
 	bne	linux_syscall_trace2
 	 ld	[%sp + STACKFRAME_SZ + PT_NPC], %l1 /* pc = npc */

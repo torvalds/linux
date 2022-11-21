@@ -51,10 +51,11 @@ to userspace as a V4L2 sub-device node and has two pads:
 .. tabularcolumns:: |p{0.8cm}|p{4.0cm}|p{4.0cm}|
 
 .. flat-table::
+    :header-rows: 1
 
-    * - pad
-      - direction
-      - purpose
+    * - Pad
+      - Direction
+      - Purpose
 
     * - 0
       - sink
@@ -86,7 +87,7 @@ raw Bayer format that is specific to IPU3.
 Let us take the example of ov5670 sensor connected to CSI2 port 0, for a
 2592x1944 image capture.
 
-Using the media contorller APIs, the ov5670 sensor is configured to send
+Using the media controller APIs, the ov5670 sensor is configured to send
 frames in packed raw Bayer format to IPU3 CSI2 receiver.
 
 .. code-block:: none
@@ -148,10 +149,11 @@ Each pipe has two sink pads and three source pads for the following purpose:
 .. tabularcolumns:: |p{0.8cm}|p{4.0cm}|p{4.0cm}|
 
 .. flat-table::
+    :header-rows: 1
 
-    * - pad
-      - direction
-      - purpose
+    * - Pad
+      - Direction
+      - Purpose
 
     * - 0
       - sink
@@ -234,22 +236,23 @@ The IPU3 ImgU pipelines can be configured using the Media Controller, defined at
 Running mode and firmware binary selection
 ------------------------------------------
 
-ImgU works based on firmware, currently the ImgU firmware support run 2 pipes in
-time-sharing with single input frame data. Each pipe can run at certain mode -
-"VIDEO" or "STILL", "VIDEO" mode is commonly used for video frames capture, and
-"STILL" is used for still frame capture. However, you can also select "VIDEO" to
-capture still frames if you want to capture images with less system load and
-power. For "STILL" mode, ImgU will try to use smaller BDS factor and output
-larger bayer frame for further YUV processing than "VIDEO" mode to get high
-quality images. Besides, "STILL" mode need XNR3 to do noise reduction, hence
-"STILL" mode will need more power and memory bandwidth than "VIDEO" mode. TNR
-will be enabled in "VIDEO" mode and bypassed by "STILL" mode. ImgU is running at
-“VIDEO” mode by default, the user can use v4l2 control V4L2_CID_INTEL_IPU3_MODE
-(currently defined in drivers/staging/media/ipu3/include/intel-ipu3.h) to query
-and set the running mode. For user, there is no difference for buffer queueing
-between the "VIDEO" and "STILL" mode, mandatory input and main output node
-should be enabled and buffers need be queued, the statistics and the view-finder
-queues are optional.
+ImgU works based on firmware, currently the ImgU firmware support run 2 pipes
+in time-sharing with single input frame data. Each pipe can run at certain mode
+- "VIDEO" or "STILL", "VIDEO" mode is commonly used for video frames capture,
+and "STILL" is used for still frame capture. However, you can also select
+"VIDEO" to capture still frames if you want to capture images with less system
+load and power. For "STILL" mode, ImgU will try to use smaller BDS factor and
+output larger bayer frame for further YUV processing than "VIDEO" mode to get
+high quality images. Besides, "STILL" mode need XNR3 to do noise reduction,
+hence "STILL" mode will need more power and memory bandwidth than "VIDEO" mode.
+TNR will be enabled in "VIDEO" mode and bypassed by "STILL" mode. ImgU is
+running at "VIDEO" mode by default, the user can use v4l2 control
+V4L2_CID_INTEL_IPU3_MODE (currently defined in
+drivers/staging/media/ipu3/include/uapi/intel-ipu3.h) to query and set the
+running mode. For user, there is no difference for buffer queueing between the
+"VIDEO" and "STILL" mode, mandatory input and main output node should be
+enabled and buffers need be queued, the statistics and the view-finder queues
+are optional.
 
 The firmware binary will be selected according to current running mode, such log
 "using binary if_to_osys_striped " or "using binary if_to_osys_primary_striped"
@@ -313,8 +316,8 @@ configuration steps of 0.03125 (1/32).
 
 **Geometric Distortion Correction**
 
-Geometric Distortion Correction is used to performe correction of distortions
-and image filtering. It needs some extra filter and envelop padding pixels to
+Geometric Distortion Correction is used to perform correction of distortions
+and image filtering. It needs some extra filter and envelope padding pixels to
 work, so the input resolution of GDC should be larger than the output
 resolution.
 
@@ -586,7 +589,7 @@ preserved.
 References
 ==========
 
-.. [#f5] drivers/staging/media/ipu3/include/intel-ipu3.h
+.. [#f5] drivers/staging/media/ipu3/include/uapi/intel-ipu3.h
 
 .. [#f1] https://github.com/intel/nvt
 

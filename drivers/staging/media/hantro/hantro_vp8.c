@@ -23,11 +23,11 @@ struct vp8_prob_tbl_packed {
 	u8 padding1;
 
 	/* mv prob */
-	u8 prob_mv_context[2][19];
+	u8 prob_mv_context[2][V4L2_VP8_MV_PROB_CNT];
 	u8 padding2[2];
 
 	/* coeff probs */
-	u8 prob_coeffs[4][8][3][11];
+	u8 prob_coeffs[4][8][3][V4L2_VP8_COEFF_PROB_CNT];
 	u8 padding3[96];
 };
 
@@ -47,9 +47,9 @@ const u32 hantro_vp8_dec_mc_filter[8][6] = {
 };
 
 void hantro_vp8_prob_update(struct hantro_ctx *ctx,
-			    const struct v4l2_ctrl_vp8_frame_header *hdr)
+			    const struct v4l2_ctrl_vp8_frame *hdr)
 {
-	const struct v4l2_vp8_entropy_header *entropy = &hdr->entropy_header;
+	const struct v4l2_vp8_entropy *entropy = &hdr->entropy;
 	u32 i, j, k;
 	u8 *dst;
 
@@ -60,9 +60,9 @@ void hantro_vp8_prob_update(struct hantro_ctx *ctx,
 	dst[1] = hdr->prob_intra;
 	dst[2] = hdr->prob_last;
 	dst[3] = hdr->prob_gf;
-	dst[4] = hdr->segment_header.segment_probs[0];
-	dst[5] = hdr->segment_header.segment_probs[1];
-	dst[6] = hdr->segment_header.segment_probs[2];
+	dst[4] = hdr->segment.segment_probs[0];
+	dst[5] = hdr->segment.segment_probs[1];
+	dst[6] = hdr->segment.segment_probs[2];
 	dst[7] = 0;
 
 	dst += 8;

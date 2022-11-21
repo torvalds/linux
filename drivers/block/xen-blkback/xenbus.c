@@ -8,9 +8,9 @@
 
 #define pr_fmt(fmt) "xen-blkback: " fmt
 
-#include <stdarg.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
+#include <linux/pagemap.h>
 #include <xen/events.h>
 #include <xen/grant_table.h>
 #include "common.h"
@@ -99,7 +99,7 @@ static void xen_update_blkif_status(struct xen_blkif *blkif)
 		return;
 	}
 
-	err = filemap_write_and_wait(blkif->vbd.bdev->bd_inode->i_mapping);
+	err = sync_blockdev(blkif->vbd.bdev);
 	if (err) {
 		xenbus_dev_error(blkif->be->dev, err, "block flush");
 		return;
@@ -245,7 +245,7 @@ static int xen_blkif_map(struct xen_blkif_ring *ring, grant_ref_t *gref,
 	if (req_prod - rsp_prod > size)
 		goto fail;
 
-	err = bind_interdomain_evtchn_to_irqhandler_lateeoi(blkif->domid,
+	err = bind_interdomain_evtchn_to_irqhandler_lateeoi(blkif->be->dev,
 			evtchn, xen_blkif_be_int, 0, "blkif-backend", ring);
 	if (err < 0)
 		goto fail;
@@ -274,6 +274,7 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 
 		if (ring->xenblkd) {
 			kthread_stop(ring->xenblkd);
+			ring->xenblkd = NULL;
 			wake_up(&ring->shutdown_wq);
 		}
 
@@ -510,7 +511,7 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 	}
 	vbd->size = vbd_sz(vbd);
 
-	if (vbd->bdev->bd_disk->flags & GENHD_FL_CD || cdrom)
+	if (cdrom || disk_to_cdi(vbd->bdev->bd_disk))
 		vbd->type |= VDISK_CDROM;
 	if (vbd->bdev->bd_disk->flags & GENHD_FL_REMOVABLE)
 		vbd->type |= VDISK_REMOVABLE;
@@ -675,7 +676,8 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 	/* setup back pointer */
 	be->blkif->be = be;
 
-	err = xenbus_watch_pathfmt(dev, &be->backend_watch, backend_changed,
+	err = xenbus_watch_pathfmt(dev, &be->backend_watch, NULL,
+				   backend_changed,
 				   "%s/%s", dev->nodename, "physical-device");
 	if (err)
 		goto fail;
@@ -996,29 +998,20 @@ static int read_per_ring_refs(struct xen_blkif_ring *ring, const char *dir)
 	for (i = 0; i < nr_grefs; i++) {
 		char ring_ref_name[RINGREF_NAME_LEN];
 
-		snprintf(ring_ref_name, RINGREF_NAME_LEN, "ring-ref%u", i);
+		if (blkif->multi_ref)
+			snprintf(ring_ref_name, RINGREF_NAME_LEN, "ring-ref%u", i);
+		else {
+			WARN_ON(i != 0);
+			snprintf(ring_ref_name, RINGREF_NAME_LEN, "ring-ref");
+		}
+
 		err = xenbus_scanf(XBT_NIL, dir, ring_ref_name,
 				   "%u", &ring_ref[i]);
 
 		if (err != 1) {
-			if (nr_grefs == 1)
-				break;
-
 			err = -EINVAL;
 			xenbus_dev_fatal(dev, err, "reading %s/%s",
 					 dir, ring_ref_name);
-			return err;
-		}
-	}
-
-	if (err != 1) {
-		WARN_ON(nr_grefs != 1);
-
-		err = xenbus_scanf(XBT_NIL, dir, "ring-ref", "%u",
-				   &ring_ref[0]);
-		if (err != 1) {
-			err = -EINVAL;
-			xenbus_dev_fatal(dev, err, "reading %s/ring-ref", dir);
 			return err;
 		}
 	}
@@ -1127,10 +1120,15 @@ static int connect_ring(struct backend_info *be)
 		 blkif->nr_rings, blkif->blk_protocol, protocol,
 		 blkif->vbd.feature_gnt_persistent ? "persistent grants" : "");
 
-	ring_page_order = xenbus_read_unsigned(dev->otherend,
-					       "ring-page-order", 0);
-
-	if (ring_page_order > xen_blkif_max_ring_order) {
+	err = xenbus_scanf(XBT_NIL, dev->otherend, "ring-page-order", "%u",
+			   &ring_page_order);
+	if (err != 1) {
+		blkif->nr_ring_pages = 1;
+		blkif->multi_ref = false;
+	} else if (ring_page_order <= xen_blkif_max_ring_order) {
+		blkif->nr_ring_pages = 1 << ring_page_order;
+		blkif->multi_ref = true;
+	} else {
 		err = -EINVAL;
 		xenbus_dev_fatal(dev, err,
 				 "requested ring page order %d exceed max:%d",
@@ -1138,8 +1136,6 @@ static int connect_ring(struct backend_info *be)
 				 xen_blkif_max_ring_order);
 		return err;
 	}
-
-	blkif->nr_ring_pages = 1 << ring_page_order;
 
 	if (blkif->nr_rings == 1)
 		return read_per_ring_refs(&blkif->rings[0], dev->otherend);

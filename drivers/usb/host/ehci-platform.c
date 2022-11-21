@@ -43,7 +43,6 @@
 #define hcd_to_ehci_priv(h) ((struct ehci_platform_priv *)hcd_to_ehci(h)->priv)
 
 #define BCM_USB_FIFO_THRESHOLD	0x00800040
-#define bcm_iproc_insnreg01	hostpc[0]
 
 struct ehci_platform_priv {
 	struct clk *clks[EHCI_MAX_CLKS];
@@ -81,7 +80,7 @@ static int ehci_platform_reset(struct usb_hcd *hcd)
 
 	if (of_device_is_compatible(pdev->dev.of_node, "brcm,xgs-iproc-ehci"))
 		ehci_writel(ehci, BCM_USB_FIFO_THRESHOLD,
-			    &ehci->regs->bcm_iproc_insnreg01);
+			    &ehci->regs->brcm_insnreg[1]);
 
 	return 0;
 }
@@ -286,6 +285,9 @@ static int ehci_platform_probe(struct platform_device *dev)
 		if (of_property_read_bool(dev->dev.of_node, "big-endian"))
 			ehci->big_endian_mmio = ehci->big_endian_desc = 1;
 
+		if (of_property_read_bool(dev->dev.of_node, "spurious-oc"))
+			ehci->spurious_oc = 1;
+
 		if (of_property_read_bool(dev->dev.of_node,
 					  "needs-reset-on-resume"))
 			priv->reset_on_resume = true;
@@ -293,6 +295,12 @@ static int ehci_platform_probe(struct platform_device *dev)
 		if (of_property_read_bool(dev->dev.of_node,
 					  "has-transaction-translator"))
 			hcd->has_tt = 1;
+
+		if (of_device_is_compatible(dev->dev.of_node,
+					    "aspeed,ast2500-ehci") ||
+		    of_device_is_compatible(dev->dev.of_node,
+					    "aspeed,ast2600-ehci"))
+			ehci->is_aspeed = 1;
 
 		if (soc_device_match(quirk_poll_match))
 			priv->quirk_poll = true;
@@ -327,6 +335,8 @@ static int ehci_platform_probe(struct platform_device *dev)
 		hcd->has_tt = 1;
 	if (pdata->reset_on_resume)
 		priv->reset_on_resume = true;
+	if (pdata->spurious_oc)
+		ehci->spurious_oc = 1;
 
 #ifndef CONFIG_USB_EHCI_BIG_ENDIAN_MMIO
 	if (ehci->big_endian_mmio) {

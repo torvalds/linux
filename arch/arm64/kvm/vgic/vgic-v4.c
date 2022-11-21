@@ -189,7 +189,7 @@ void vgic_v4_configure_vsgis(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu;
-	int i;
+	unsigned long i;
 
 	kvm_arm_halt_guest(kvm);
 
@@ -201,6 +201,25 @@ void vgic_v4_configure_vsgis(struct kvm *kvm)
 	}
 
 	kvm_arm_resume_guest(kvm);
+}
+
+/*
+ * Must be called with GICv4.1 and the vPE unmapped, which
+ * indicates the invalidation of any VPT caches associated
+ * with the vPE, thus we can get the VLPI state by peeking
+ * at the VPT.
+ */
+void vgic_v4_get_vlpi_state(struct vgic_irq *irq, bool *val)
+{
+	struct its_vpe *vpe = &irq->target_vcpu->arch.vgic_cpu.vgic_v3.its_vpe;
+	int mask = BIT(irq->intid % BITS_PER_BYTE);
+	void *va;
+	u8 *ptr;
+
+	va = page_address(vpe->vpt_page);
+	ptr = va + irq->intid / BITS_PER_BYTE;
+
+	*val = !!(*ptr & mask);
 }
 
 /**
@@ -216,7 +235,8 @@ int vgic_v4_init(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu;
-	int i, nr_vcpus, ret;
+	int nr_vcpus, ret;
+	unsigned long i;
 
 	if (!kvm_vgic_global_state.has_gicv4)
 		return 0; /* Nothing to see here... move along. */
@@ -227,7 +247,7 @@ int vgic_v4_init(struct kvm *kvm)
 	nr_vcpus = atomic_read(&kvm->online_vcpus);
 
 	dist->its_vm.vpes = kcalloc(nr_vcpus, sizeof(*dist->its_vm.vpes),
-				    GFP_KERNEL);
+				    GFP_KERNEL_ACCOUNT);
 	if (!dist->its_vm.vpes)
 		return -ENOMEM;
 
@@ -353,6 +373,18 @@ int vgic_v4_load(struct kvm_vcpu *vcpu)
 	return err;
 }
 
+void vgic_v4_commit(struct kvm_vcpu *vcpu)
+{
+	struct its_vpe *vpe = &vcpu->arch.vgic_cpu.vgic_v3.its_vpe;
+
+	/*
+	 * No need to wait for the vPE to be ready across a shallow guest
+	 * exit, as only a vcpu_put will invalidate it.
+	 */
+	if (!vpe->ready)
+		its_commit_vpe(vpe);
+}
+
 static struct vgic_its *vgic_get_its(struct kvm *kvm,
 				     struct kvm_kernel_irq_routing_entry *irq_entry)
 {
@@ -373,6 +405,7 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 	struct vgic_its *its;
 	struct vgic_irq *irq;
 	struct its_vlpi_map map;
+	unsigned long flags;
 	int ret;
 
 	if (!vgic_supports_direct_msis(kvm))
@@ -417,6 +450,24 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 	irq->hw		= true;
 	irq->host_irq	= virq;
 	atomic_inc(&map.vpe->vlpi_count);
+
+	/* Transfer pending state */
+	raw_spin_lock_irqsave(&irq->irq_lock, flags);
+	if (irq->pending_latch) {
+		ret = irq_set_irqchip_state(irq->host_irq,
+					    IRQCHIP_STATE_PENDING,
+					    irq->pending_latch);
+		WARN_RATELIMIT(ret, "IRQ %d", irq->host_irq);
+
+		/*
+		 * Clear pending_latch and communicate this state
+		 * change via vgic_queue_irq_unlock.
+		 */
+		irq->pending_latch = false;
+		vgic_queue_irq_unlock(kvm, irq, flags);
+	} else {
+		raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
+	}
 
 out:
 	mutex_unlock(&its->its_lock);

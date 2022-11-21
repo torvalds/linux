@@ -71,7 +71,7 @@ static struct omap_voltdm_pmic omap_cpcap_iva = {
 	.vp_vstepmin = OMAP4_VP_VSTEPMIN_VSTEPMIN,
 	.vp_vstepmax = OMAP4_VP_VSTEPMAX_VSTEPMAX,
 	.vddmin = 900000,
-	.vddmax = 1350000,
+	.vddmax = 1375000,
 	.vp_timeout_us = OMAP4_VP_VLIMITTO_TIMEOUT_US,
 	.i2c_slave_addr = 0x44,
 	.volt_reg_addr = 0x0,
@@ -246,10 +246,10 @@ int __init omap4_cpcap_init(void)
 	omap_voltage_register_pmic(voltdm, &omap443x_max8952_mpu);
 
 	if (of_machine_is_compatible("motorola,droid-bionic")) {
-		voltdm = voltdm_lookup("mpu");
+		voltdm = voltdm_lookup("core");
 		omap_voltage_register_pmic(voltdm, &omap_cpcap_core);
 
-		voltdm = voltdm_lookup("mpu");
+		voltdm = voltdm_lookup("iva");
 		omap_voltage_register_pmic(voltdm, &omap_cpcap_iva);
 	} else {
 		voltdm = voltdm_lookup("core");

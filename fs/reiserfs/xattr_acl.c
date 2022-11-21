@@ -18,7 +18,8 @@ static int __reiserfs_set_acl(struct reiserfs_transaction_handle *th,
 
 
 int
-reiserfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+reiserfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		 struct posix_acl *acl, int type)
 {
 	int error, error2;
 	struct reiserfs_transaction_handle th;
@@ -40,7 +41,8 @@ reiserfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	reiserfs_write_unlock(inode->i_sb);
 	if (error == 0) {
 		if (type == ACL_TYPE_ACCESS && acl) {
-			error = posix_acl_update_mode(inode, &mode, &acl);
+			error = posix_acl_update_mode(&init_user_ns, inode,
+						      &mode, &acl);
 			if (error)
 				goto unlock;
 			update_mode = 1;
@@ -188,12 +190,15 @@ fail:
  * inode->i_mutex: down
  * BKL held [before 2.5.x]
  */
-struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
+struct posix_acl *reiserfs_get_acl(struct inode *inode, int type, bool rcu)
 {
 	char *name, *value;
 	struct posix_acl *acl;
 	int size;
 	int retval;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
@@ -399,5 +404,5 @@ int reiserfs_acl_chmod(struct inode *inode)
 	    !reiserfs_posixacl(inode->i_sb))
 		return 0;
 
-	return posix_acl_chmod(inode, inode->i_mode);
+	return posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
 }

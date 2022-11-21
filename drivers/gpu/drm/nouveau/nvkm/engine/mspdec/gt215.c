@@ -35,8 +35,8 @@ gt215_mspdec = {
 };
 
 int
-gt215_mspdec_new(struct nvkm_device *device, int index,
-	     struct nvkm_engine **pengine)
+gt215_mspdec_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+		 struct nvkm_engine **pengine)
 {
-	return nvkm_mspdec_new_(&gt215_mspdec, device, index, pengine);
+	return nvkm_mspdec_new_(&gt215_mspdec, device, type, inst, pengine);
 }

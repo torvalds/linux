@@ -81,6 +81,7 @@
 #include "sif_rtr_ctrl_6_regs.h"
 #include "sif_rtr_ctrl_7_regs.h"
 #include "psoc_etr_regs.h"
+#include "psoc_cpu_pll_regs.h"
 
 #include "dma0_qm_masks.h"
 #include "mme0_qm_masks.h"
@@ -89,9 +90,18 @@
 #include "tpc0_cfg_masks.h"
 #include "psoc_global_conf_masks.h"
 
-#include "psoc_pci_pll_regs.h"
-#include "psoc_hbm_pll_regs.h"
-#include "psoc_cpu_pll_regs.h"
+#include "nic0_qm0_regs.h"
+#include "nic1_qm0_regs.h"
+#include "nic2_qm0_regs.h"
+#include "nic3_qm0_regs.h"
+#include "nic4_qm0_regs.h"
+#include "nic0_qm1_regs.h"
+#include "nic1_qm1_regs.h"
+#include "nic2_qm1_regs.h"
+#include "nic3_qm1_regs.h"
+#include "nic4_qm1_regs.h"
+
+#include "nic0_qm0_masks.h"
 
 #define GAUDI_ECC_MEM_SEL_OFFSET		0xF18
 #define GAUDI_ECC_ADDRESS_OFFSET		0xF1C
@@ -116,6 +126,9 @@
 #define mmSYNC_MNGR_E_N_SYNC_MNGR_OBJS_SOB_OBJ_1                     0x4F2004
 #define mmSYNC_MNGR_E_N_SYNC_MNGR_OBJS_SOB_OBJ_2047                  0x4F3FFC
 #define mmSYNC_MNGR_E_N_SYNC_MNGR_OBJS_MON_PAY_ADDRL_0               0x4F4000
+#define mmSYNC_MNGR_E_N_SYNC_MNGR_OBJS_MON_PAY_ADDRH_0               0x4F4800
+#define mmSYNC_MNGR_E_N_SYNC_MNGR_OBJS_MON_PAY_DATA_0                0x4F5000
+#define mmSYNC_MNGR_E_N_SYNC_MNGR_OBJS_MON_ARM_0                     0x4F5800
 #define mmSYNC_MNGR_E_N_SYNC_MNGR_OBJS_MON_STATUS_0                  0x4F6000
 #define mmSYNC_MNGR_E_N_SYNC_MNGR_OBJS_MON_STATUS_511                0x4F67FC
 
@@ -294,5 +307,17 @@
 
 #define mmPCIE_AUX_FLR_CTRL                                          0xC07394
 #define mmPCIE_AUX_DBI                                               0xC07490
+
+#define mmPCIE_CORE_MSI_REQ                                          0xC04100
+
+#define mmPSOC_PCI_PLL_NR                                            0xC72100
+#define mmSRAM_W_PLL_NR                                              0x4C8100
+#define mmPSOC_HBM_PLL_NR                                            0xC74100
+#define mmNIC0_PLL_NR                                                0xCF9100
+#define mmDMA_W_PLL_NR                                               0x487100
+#define mmMESH_W_PLL_NR                                              0x4C7100
+#define mmPSOC_MME_PLL_NR                                            0xC71100
+#define mmPSOC_TPC_PLL_NR                                            0xC73100
+#define mmIF_W_PLL_NR                                                0x488100
 
 #endif /* ASIC_REG_GAUDI_REGS_H_ */

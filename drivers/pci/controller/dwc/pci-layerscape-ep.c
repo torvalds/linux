@@ -18,8 +18,6 @@
 
 #include "pcie-designware.h"
 
-#define PCIE_DBI2_OFFSET		0x1000	/* DBI2 base address*/
-
 #define to_ls_pcie_ep(x)	dev_get_drvdata((x)->dev)
 
 struct ls_pcie_ep_drvdata {
@@ -117,40 +115,19 @@ static const struct ls_pcie_ep_drvdata ls2_ep_drvdata = {
 	.dw_pcie_ops = &dw_ls_pcie_ep_ops,
 };
 
+static const struct ls_pcie_ep_drvdata lx2_ep_drvdata = {
+	.func_offset = 0x8000,
+	.ops = &ls_pcie_ep_ops,
+	.dw_pcie_ops = &dw_ls_pcie_ep_ops,
+};
+
 static const struct of_device_id ls_pcie_ep_of_match[] = {
 	{ .compatible = "fsl,ls1046a-pcie-ep", .data = &ls1_ep_drvdata },
 	{ .compatible = "fsl,ls1088a-pcie-ep", .data = &ls2_ep_drvdata },
 	{ .compatible = "fsl,ls2088a-pcie-ep", .data = &ls2_ep_drvdata },
+	{ .compatible = "fsl,lx2160ar2-pcie-ep", .data = &lx2_ep_drvdata },
 	{ },
 };
-
-static int __init ls_add_pcie_ep(struct ls_pcie_ep *pcie,
-				 struct platform_device *pdev)
-{
-	struct dw_pcie *pci = pcie->pci;
-	struct device *dev = pci->dev;
-	struct dw_pcie_ep *ep;
-	struct resource *res;
-	int ret;
-
-	ep = &pci->ep;
-	ep->ops = pcie->drvdata->ops;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
-	if (!res)
-		return -EINVAL;
-
-	ep->phys_base = res->start;
-	ep->addr_size = resource_size(res);
-
-	ret = dw_pcie_ep_init(ep);
-	if (ret) {
-		dev_err(dev, "failed to initialize endpoint\n");
-		return ret;
-	}
-
-	return 0;
-}
 
 static int __init ls_pcie_ep_probe(struct platform_device *pdev)
 {
@@ -159,7 +136,6 @@ static int __init ls_pcie_ep_probe(struct platform_device *pdev)
 	struct ls_pcie_ep *pcie;
 	struct pci_epc_features *ls_epc;
 	struct resource *dbi_base;
-	int ret;
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
@@ -178,7 +154,7 @@ static int __init ls_pcie_ep_probe(struct platform_device *pdev)
 	pci->dev = dev;
 	pci->ops = pcie->drvdata->dw_pcie_ops;
 
-	ls_epc->bar_fixed_64bit = (1 << BAR_2) | (1 << BAR_4),
+	ls_epc->bar_fixed_64bit = (1 << BAR_2) | (1 << BAR_4);
 
 	pcie->pci = pci;
 	pcie->ls_epc = ls_epc;
@@ -188,13 +164,11 @@ static int __init ls_pcie_ep_probe(struct platform_device *pdev)
 	if (IS_ERR(pci->dbi_base))
 		return PTR_ERR(pci->dbi_base);
 
-	pci->dbi_base2 = pci->dbi_base + PCIE_DBI2_OFFSET;
+	pci->ep.ops = &ls_pcie_ep_ops;
 
 	platform_set_drvdata(pdev, pcie);
 
-	ret = ls_add_pcie_ep(pcie, pdev);
-
-	return ret;
+	return dw_pcie_ep_init(&pci->ep);
 }
 
 static struct platform_driver ls_pcie_ep_driver = {

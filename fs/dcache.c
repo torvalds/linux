@@ -84,6 +84,8 @@ const struct qstr empty_name = QSTR_INIT("", 0);
 EXPORT_SYMBOL(empty_name);
 const struct qstr slash_name = QSTR_INIT("/", 1);
 EXPORT_SYMBOL(slash_name);
+const struct qstr dotdot_name = QSTR_INIT("..", 2);
+EXPORT_SYMBOL(dotdot_name);
 
 /*
  * This is the single most critical data structure when it comes
@@ -113,10 +115,13 @@ static inline struct hlist_bl_head *in_lookup_hash(const struct dentry *parent,
 	return in_lookup_hashtable + hash_32(hash, IN_LOOKUP_SHIFT);
 }
 
-
-/* Statistics gathering. */
-struct dentry_stat_t dentry_stat = {
-	.age_limit = 45,
+struct dentry_stat_t {
+	long nr_dentry;
+	long nr_unused;
+	long age_limit;		/* age in seconds */
+	long want_pages;	/* pages requested by system */
+	long nr_negative;	/* # of unused negative dentries */
+	long dummy;		/* Reserved for future use */
 };
 
 static DEFINE_PER_CPU(long, nr_dentry);
@@ -124,6 +129,10 @@ static DEFINE_PER_CPU(long, nr_dentry_unused);
 static DEFINE_PER_CPU(long, nr_dentry_negative);
 
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
+/* Statistics gathering. */
+static struct dentry_stat_t dentry_stat = {
+	.age_limit = 45,
+};
 
 /*
  * Here we resort to our own counters instead of using generic per-cpu counters
@@ -165,14 +174,32 @@ static long get_nr_dentry_negative(void)
 	return sum < 0 ? 0 : sum;
 }
 
-int proc_nr_dentry(struct ctl_table *table, int write, void *buffer,
-		   size_t *lenp, loff_t *ppos)
+static int proc_nr_dentry(struct ctl_table *table, int write, void *buffer,
+			  size_t *lenp, loff_t *ppos)
 {
 	dentry_stat.nr_dentry = get_nr_dentry();
 	dentry_stat.nr_unused = get_nr_dentry_unused();
 	dentry_stat.nr_negative = get_nr_dentry_negative();
 	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
 }
+
+static struct ctl_table fs_dcache_sysctls[] = {
+	{
+		.procname	= "dentry-state",
+		.data		= &dentry_stat,
+		.maxlen		= 6*sizeof(long),
+		.mode		= 0444,
+		.proc_handler	= proc_nr_dentry,
+	},
+	{ }
+};
+
+static int __init init_fs_dcache_sysctls(void)
+{
+	register_sysctl_init("fs", fs_dcache_sysctls);
+	return 0;
+}
+fs_initcall(init_fs_dcache_sysctls);
 #endif
 
 /*
@@ -456,23 +483,6 @@ static void d_lru_shrink_move(struct list_lru_one *lru, struct dentry *dentry,
 	list_lru_isolate_move(lru, &dentry->d_lru, list);
 }
 
-/**
- * d_drop - drop a dentry
- * @dentry: dentry to drop
- *
- * d_drop() unhashes the entry from the parent dentry hashes, so that it won't
- * be found through a VFS lookup any more. Note that this is different from
- * deleting the dentry - d_delete will try to mark the dentry negative if
- * possible, giving a successful _negative_ lookup, while d_drop will
- * just make the cache lookup fail.
- *
- * d_drop() is used mainly for stuff that wants to invalidate a dentry for some
- * reason (NFS timeouts or autofs deletes).
- *
- * __d_drop requires dentry->d_lock
- * ___d_drop doesn't mark dentry as "unhashed"
- *   (dentry->d_hash.pprev will be LIST_POISON2, not NULL).
- */
 static void ___d_drop(struct dentry *dentry)
 {
 	struct hlist_bl_head *b;
@@ -501,6 +511,24 @@ void __d_drop(struct dentry *dentry)
 }
 EXPORT_SYMBOL(__d_drop);
 
+/**
+ * d_drop - drop a dentry
+ * @dentry: dentry to drop
+ *
+ * d_drop() unhashes the entry from the parent dentry hashes, so that it won't
+ * be found through a VFS lookup any more. Note that this is different from
+ * deleting the dentry - d_delete will try to mark the dentry negative if
+ * possible, giving a successful _negative_ lookup, while d_drop will
+ * just make the cache lookup fail.
+ *
+ * d_drop() is used mainly for stuff that wants to invalidate a dentry for some
+ * reason (NFS timeouts or autofs deletes).
+ *
+ * __d_drop requires dentry->d_lock
+ *
+ * ___d_drop doesn't mark dentry as "unhashed"
+ * (dentry->d_hash.pprev will be LIST_POISON2, not NULL).
+ */
 void d_drop(struct dentry *dentry)
 {
 	spin_lock(&dentry->d_lock);
@@ -793,10 +821,17 @@ static inline bool fast_dput(struct dentry *dentry)
 	 * a reference to the dentry and change that, but
 	 * our work is done - we can leave the dentry
 	 * around with a zero refcount.
+	 *
+	 * Nevertheless, there are two cases that we should kill
+	 * the dentry anyway.
+	 * 1. free disconnected dentries as soon as their refcount
+	 *    reached zero.
+	 * 2. free dentries if they should not be cached.
 	 */
 	smp_rmb();
 	d_flags = READ_ONCE(dentry->d_flags);
-	d_flags &= DCACHE_REFERENCED | DCACHE_LRU_LIST | DCACHE_DISCONNECTED;
+	d_flags &= DCACHE_REFERENCED | DCACHE_LRU_LIST |
+			DCACHE_DISCONNECTED | DCACHE_DONTCACHE;
 
 	/* Nothing to do? Dropping the reference was all we needed? */
 	if (d_flags == (DCACHE_REFERENCED | DCACHE_LRU_LIST) && !d_unhashed(dentry))
@@ -989,20 +1024,6 @@ struct dentry *d_find_any_alias(struct inode *inode)
 }
 EXPORT_SYMBOL(d_find_any_alias);
 
-/**
- * d_find_alias - grab a hashed alias of inode
- * @inode: inode in question
- *
- * If inode has a hashed alias, or is a directory and has any alias,
- * acquire the reference to alias and return it. Otherwise return NULL.
- * Notice that if inode is a directory there can be only one alias and
- * it can be unhashed only if it has no children, or if it is the root
- * of a filesystem, or if the directory was renamed and d_revalidate
- * was the first vfs operation to notice.
- *
- * If the inode has an IS_ROOT, DCACHE_DISCONNECTED alias, then prefer
- * any other hashed alias over that one.
- */
 static struct dentry *__d_find_alias(struct inode *inode)
 {
 	struct dentry *alias;
@@ -1022,6 +1043,20 @@ static struct dentry *__d_find_alias(struct inode *inode)
 	return NULL;
 }
 
+/**
+ * d_find_alias - grab a hashed alias of inode
+ * @inode: inode in question
+ *
+ * If inode has a hashed alias, or is a directory and has any alias,
+ * acquire the reference to alias and return it. Otherwise return NULL.
+ * Notice that if inode is a directory there can be only one alias and
+ * it can be unhashed only if it has no children, or if it is the root
+ * of a filesystem, or if the directory was renamed and d_revalidate
+ * was the first vfs operation to notice.
+ *
+ * If the inode has an IS_ROOT, DCACHE_DISCONNECTED alias, then prefer
+ * any other hashed alias over that one.
+ */
 struct dentry *d_find_alias(struct inode *inode)
 {
 	struct dentry *de = NULL;
@@ -1034,6 +1069,31 @@ struct dentry *d_find_alias(struct inode *inode)
 	return de;
 }
 EXPORT_SYMBOL(d_find_alias);
+
+/*
+ *  Caller MUST be holding rcu_read_lock() and be guaranteed
+ *  that inode won't get freed until rcu_read_unlock().
+ */
+struct dentry *d_find_alias_rcu(struct inode *inode)
+{
+	struct hlist_head *l = &inode->i_dentry;
+	struct dentry *de = NULL;
+
+	spin_lock(&inode->i_lock);
+	// ->i_dentry and ->i_rcu are colocated, but the latter won't be
+	// used without having I_FREEING set, which means no aliases left
+	if (likely(!(inode->i_state & I_FREEING) && !hlist_empty(l))) {
+		if (S_ISDIR(inode->i_mode)) {
+			de = hlist_entry(l->first, struct dentry, d_u.d_alias);
+		} else {
+			hlist_for_each_entry(de, l, d_u.d_alias)
+				if (!d_unhashed(de))
+					break;
+		}
+	}
+	spin_unlock(&inode->i_lock);
+	return de;
+}
 
 /*
  *	Try to kill dentries associated with this inode.
@@ -1706,7 +1766,8 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	char *dname;
 	int err;
 
-	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL);
+	dentry = kmem_cache_alloc_lru(dentry_cache, &sb->s_dentry_lru,
+				      GFP_KERNEL);
 	if (!dentry)
 		return NULL;
 
@@ -2143,8 +2204,8 @@ EXPORT_SYMBOL(d_obtain_root);
  * same inode, only the actual correct case is stored in the dcache for
  * case-insensitive filesystems.
  *
- * For a case-insensitive lookup match and if the the case-exact dentry
- * already exists in in the dcache, use it and return it.
+ * For a case-insensitive lookup match and if the case-exact dentry
+ * already exists in the dcache, use it and return it.
  *
  * If no entry exists with the exact case name, allocate new dentry with
  * the exact case, and return the spliced entry.

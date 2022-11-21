@@ -23,6 +23,8 @@ properties:
   $nodename:
     pattern: "^serial(@.*)?$"
 
+  label: true
+
   cts-gpios:
     maxItems: 1
     description:
@@ -74,6 +76,16 @@ properties:
   cts-rts-swap:
     type: boolean
     description: CTS and RTS pins are swapped.
+
+  rx-threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      RX FIFO threshold configuration (in bytes).
+
+  tx-threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      TX FIFO threshold configuration (in bytes).
 
 if:
   required:
@@ -134,7 +146,7 @@ examples:
             interrupts = <1>;
 
             bluetooth {
-                    compatible = "brcm,bcm43341-bt";
+                    compatible = "brcm,bcm4330-bt";
                     interrupt-parent = <&gpio>;
                     interrupts = <10>;
             };

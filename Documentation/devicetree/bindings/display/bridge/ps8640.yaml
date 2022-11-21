@@ -8,7 +8,6 @@ title: MIPI DSI to eDP Video Format Converter Device Tree Bindings
 
 maintainers:
   - Nicolas Boichat <drinkcat@chromium.org>
-  - Enric Balletbo i Serra <enric.balletbo@collabora.com>
 
 description: |
   The PS8640 is a low power MIPI-to-eDP video format converter supporting
@@ -35,41 +34,30 @@ properties:
     description: GPIO connected to active low reset.
 
   vdd12-supply:
-    maxItems: 1
     description: Regulator for 1.2V digital core power.
 
   vdd33-supply:
-    maxItems: 1
     description: Regulator for 3.3V digital core power.
 
+  aux-bus:
+    $ref: /schemas/display/dp-aux-bus.yaml#
+
   ports:
-    type: object
-    description:
-      A node containing DSI input & output port nodes with endpoint
-      definitions as documented in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
-      Documentation/devicetree/bindings/graph.txt
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
-      '#address-cells':
-        const: 1
-
-      '#size-cells':
-        const: 0
-
       port@0:
-        type: object
-        description: |
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
           Video port for DSI input
 
       port@1:
-        type: object
-        description: |
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
           Video port for eDP output (panel or connector).
 
     required:
       - port@0
-
-    additionalProperties: false
 
 required:
   - compatible
@@ -112,7 +100,21 @@ examples:
                     reg = <1>;
                     ps8640_out: endpoint {
                         remote-endpoint = <&panel_in>;
-                   };
+                    };
+                };
+            };
+
+            aux-bus {
+                panel {
+                    compatible = "boe,nv133fhm-n62";
+                    power-supply = <&pp3300_dx_edp>;
+                    backlight = <&backlight>;
+
+                    port {
+                        panel_in: endpoint {
+                            remote-endpoint = <&ps8640_out>;
+                        };
+                    };
                 };
             };
         };

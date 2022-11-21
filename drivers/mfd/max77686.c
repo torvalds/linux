@@ -87,7 +87,7 @@ static bool max77802_rtc_is_volatile_reg(struct device *dev, unsigned int reg)
 		reg == MAX77802_RTC_WEEKDAY ||
 		reg == MAX77802_RTC_MONTH ||
 		reg == MAX77802_RTC_YEAR ||
-		reg == MAX77802_RTC_DATE);
+		reg == MAX77802_RTC_MONTHDAY);
 }
 
 static bool max77802_is_volatile_reg(struct device *dev, unsigned int reg)
@@ -209,8 +209,7 @@ static int max77686_i2c_probe(struct i2c_client *i2c)
 
 	ret = devm_regmap_add_irq_chip(&i2c->dev, max77686->regmap,
 				       max77686->irq,
-				       IRQF_TRIGGER_FALLING | IRQF_ONESHOT |
-				       IRQF_SHARED, 0, irq_chip,
+				       IRQF_ONESHOT | IRQF_SHARED, 0, irq_chip,
 				       &max77686->irq_data);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "failed to add PMIC irq chip: %d\n", ret);
@@ -270,7 +269,7 @@ static struct i2c_driver max77686_i2c_driver = {
 	.driver = {
 		   .name = "max77686",
 		   .pm = &max77686_pm,
-		   .of_match_table = of_match_ptr(max77686_pmic_dt_match),
+		   .of_match_table = max77686_pmic_dt_match,
 	},
 	.probe_new = max77686_i2c_probe,
 };

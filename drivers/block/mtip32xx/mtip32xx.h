@@ -15,7 +15,6 @@
 #include <linux/rwsem.h>
 #include <linux/ata.h>
 #include <linux/interrupt.h>
-#include <linux/genhd.h>
 
 /* Offset of Subsystem Device ID in pci confoguration space */
 #define PCI_SUBSYSTEM_DEVICEID	0x2E
@@ -462,8 +461,6 @@ struct driver_data {
 	struct mtip_work work[MTIP_MAX_SLOT_GROUPS];
 
 	int isr_binding;
-
-	struct block_device *bdev;
 
 	struct list_head online_list; /* linkage for online list */
 

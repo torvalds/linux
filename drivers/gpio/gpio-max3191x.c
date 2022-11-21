@@ -326,7 +326,7 @@ static void gpiod_set_array_single_value_cansleep(unsigned int ndescs,
 		bitmap_zero(values, ndescs);
 
 	gpiod_set_array_value_cansleep(ndescs, desc, info, values);
-	kfree(values);
+	bitmap_free(values);
 }
 
 static struct gpio_descs *devm_gpiod_get_array_optional_count(
@@ -443,14 +443,12 @@ static int max3191x_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int max3191x_remove(struct spi_device *spi)
+static void max3191x_remove(struct spi_device *spi)
 {
 	struct max3191x_chip *max3191x = spi_get_drvdata(spi);
 
 	gpiochip_remove(&max3191x->gpio);
 	mutex_destroy(&max3191x->lock);
-
-	return 0;
 }
 
 static int __init max3191x_register_driver(struct spi_driver *sdrv)

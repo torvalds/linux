@@ -14,11 +14,11 @@ static unsigned long *get_bitmap(const char *str, int nbits)
 	unsigned long *bm = NULL;
 	int i;
 
-	bm = bitmap_alloc(nbits);
+	bm = bitmap_zalloc(nbits);
 
 	if (map && bm) {
-		for (i = 0; i < map->nr; i++)
-			set_bit(map->map[i], bm);
+		for (i = 0; i < perf_cpu_map__nr(map); i++)
+			set_bit(perf_cpu_map__cpu(map, i).cpu, bm);
 	}
 
 	if (map)
@@ -40,7 +40,7 @@ static int test_bitmap(const char *str)
 	return ret;
 }
 
-int test__bitmap_print(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__bitmap_print(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	TEST_ASSERT_VAL("failed to convert map", test_bitmap("1"));
 	TEST_ASSERT_VAL("failed to convert map", test_bitmap("1,5"));
@@ -51,3 +51,5 @@ int test__bitmap_print(struct test *test __maybe_unused, int subtest __maybe_unu
 	TEST_ASSERT_VAL("failed to convert map", test_bitmap("1-10,12-20,22-30,32-40"));
 	return 0;
 }
+
+DEFINE_SUITE("Print bitmap", bitmap_print);

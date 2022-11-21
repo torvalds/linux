@@ -43,15 +43,15 @@ static bool cik_event_interrupt_isr(struct kfd_dev *dev,
 	 */
 	if ((ihre->source_id == CIK_INTSRC_GFX_PAGE_INV_FAULT ||
 		ihre->source_id == CIK_INTSRC_GFX_MEM_PROT_FAULT) &&
-		dev->device_info->asic_family == CHIP_HAWAII) {
+		dev->adev->asic_type == CHIP_HAWAII) {
 		struct cik_ih_ring_entry *tmp_ihre =
 			(struct cik_ih_ring_entry *)patched_ihre;
 
 		*patched_flag = true;
 		*tmp_ihre = *ihre;
 
-		vmid = f2g->read_vmid_from_vmfault_reg(dev->kgd);
-		ret = f2g->get_atc_vmid_pasid_mapping_info(dev->kgd, vmid, &pasid);
+		vmid = f2g->read_vmid_from_vmfault_reg(dev->adev);
+		ret = f2g->get_atc_vmid_pasid_mapping_info(dev->adev, vmid, &pasid);
 
 		tmp_ihre->ring_id &= 0x000000ff;
 		tmp_ihre->ring_id |= vmid << 8;
@@ -66,12 +66,12 @@ static bool cik_event_interrupt_isr(struct kfd_dev *dev,
 	vmid  = (ihre->ring_id & 0x0000ff00) >> 8;
 	if (vmid < dev->vm_info.first_vmid_kfd ||
 	    vmid > dev->vm_info.last_vmid_kfd)
-		return 0;
+		return false;
 
 	/* If there is no valid PASID, it's likely a firmware bug */
 	pasid = (ihre->ring_id & 0xffff0000) >> 16;
 	if (WARN_ONCE(pasid == 0, "FW bug: No PASID in KFD interrupt"))
-		return 0;
+		return false;
 
 	/* Interrupt types we care about: various signals and faults.
 	 * They will be forwarded to a work queue (see below).
@@ -80,8 +80,9 @@ static bool cik_event_interrupt_isr(struct kfd_dev *dev,
 		ihre->source_id == CIK_INTSRC_SDMA_TRAP ||
 		ihre->source_id == CIK_INTSRC_SQ_INTERRUPT_MSG ||
 		ihre->source_id == CIK_INTSRC_CP_BAD_OPCODE ||
-		ihre->source_id == CIK_INTSRC_GFX_PAGE_INV_FAULT ||
-		ihre->source_id == CIK_INTSRC_GFX_MEM_PROT_FAULT;
+		((ihre->source_id == CIK_INTSRC_GFX_PAGE_INV_FAULT ||
+		ihre->source_id == CIK_INTSRC_GFX_MEM_PROT_FAULT) &&
+		!amdgpu_no_queue_eviction_on_vm_fault);
 }
 
 static void cik_event_interrupt_wq(struct kfd_dev *dev,
@@ -109,10 +110,10 @@ static void cik_event_interrupt_wq(struct kfd_dev *dev,
 		struct kfd_vm_fault_info info;
 
 		kfd_smi_event_update_vmfault(dev, pasid);
-		kfd_process_vm_fault(dev->dqm, pasid);
+		kfd_dqm_evict_pasid(dev->dqm, pasid);
 
 		memset(&info, 0, sizeof(info));
-		amdgpu_amdkfd_gpuvm_get_vm_fault_info(dev->kgd, &info);
+		amdgpu_amdkfd_gpuvm_get_vm_fault_info(dev->adev, &info);
 		if (!info.page_addr && !info.status)
 			return;
 

@@ -44,25 +44,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("VIA ICEnsemble ICE1724/1720 (Envy24HT/PT)");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{"
-	       REVO_DEVICE_DESC
-	       AMP_AUDIO2000_DEVICE_DESC
-	       AUREON_DEVICE_DESC
-	       VT1720_MOBO_DEVICE_DESC
-	       PONTIS_DEVICE_DESC
-	       PRODIGY192_DEVICE_DESC
-	       PRODIGY_HIFI_DEVICE_DESC
-	       JULI_DEVICE_DESC
-	       MAYA44_DEVICE_DESC
-	       PHASE_DEVICE_DESC
-	       WTM_DEVICE_DESC
-	       SE_DEVICE_DESC
-	       QTET_DEVICE_DESC
-		"{VIA,VT1720},"
-		"{VIA,VT1724},"
-		"{ICEnsemble,Generic ICE1724},"
-		"{ICEnsemble,Generic Envy24HT}"
-		"{ICEnsemble,Generic Envy24PT}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -2170,13 +2151,6 @@ static const struct snd_kcontrol_new snd_vt1724_mixer_pro_peak = {
 };
 
 /*
- *
- */
-
-static const struct snd_ice1712_card_info no_matched;
-
-
-/*
   ooAoo cards with no controls
 */
 static const unsigned char ooaoo_sq210_eeprom[] = {
@@ -2473,54 +2447,29 @@ static int snd_vt1724_build_controls(struct snd_ice1712 *ice)
 			   snd_ctl_new1(&snd_vt1724_mixer_pro_peak, ice));
 }
 
-static int snd_vt1724_free(struct snd_ice1712 *ice)
+static void snd_vt1724_free(struct snd_card *card)
 {
-	if (!ice->port)
-		goto __hw_end;
+	struct snd_ice1712 *ice = card->private_data;
+
 	/* mask all interrupts */
 	outb(0xff, ICEMT1724(ice, DMA_INT_MASK));
 	outb(0xff, ICEREG1724(ice, IRQMASK));
-	/* --- */
-__hw_end:
-	if (ice->irq >= 0)
-		free_irq(ice->irq, ice);
-	pci_release_regions(ice->pci);
-	snd_ice1712_akm4xxx_free(ice);
-	pci_disable_device(ice->pci);
-	kfree(ice->spec);
-	kfree(ice);
-	return 0;
-}
 
-static int snd_vt1724_dev_free(struct snd_device *device)
-{
-	struct snd_ice1712 *ice = device->device_data;
-	return snd_vt1724_free(ice);
+	snd_ice1712_akm4xxx_free(ice);
 }
 
 static int snd_vt1724_create(struct snd_card *card,
 			     struct pci_dev *pci,
-			     const char *modelname,
-			     struct snd_ice1712 **r_ice1712)
+			     const char *modelname)
 {
-	struct snd_ice1712 *ice;
+	struct snd_ice1712 *ice = card->private_data;
 	int err;
-	static const struct snd_device_ops ops = {
-		.dev_free =	snd_vt1724_dev_free,
-	};
-
-	*r_ice1712 = NULL;
 
 	/* enable PCI device */
-	err = pci_enable_device(pci);
+	err = pcim_enable_device(pci);
 	if (err < 0)
 		return err;
 
-	ice = kzalloc(sizeof(*ice), GFP_KERNEL);
-	if (ice == NULL) {
-		pci_disable_device(pci);
-		return -ENOMEM;
-	}
 	ice->vt1724 = 1;
 	spin_lock_init(&ice->reg_lock);
 	mutex_init(&ice->gpio_mutex);
@@ -2538,44 +2487,28 @@ static int snd_vt1724_create(struct snd_card *card,
 	pci_set_master(pci);
 	snd_vt1724_proc_init(ice);
 
-	card->private_data = ice;
-
 	err = pci_request_regions(pci, "ICE1724");
-	if (err < 0) {
-		kfree(ice);
-		pci_disable_device(pci);
+	if (err < 0)
 		return err;
-	}
 	ice->port = pci_resource_start(pci, 0);
 	ice->profi_port = pci_resource_start(pci, 1);
 
-	if (request_irq(pci->irq, snd_vt1724_interrupt,
-			IRQF_SHARED, KBUILD_MODNAME, ice)) {
+	if (devm_request_irq(&pci->dev, pci->irq, snd_vt1724_interrupt,
+			     IRQF_SHARED, KBUILD_MODNAME, ice)) {
 		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
-		snd_vt1724_free(ice);
 		return -EIO;
 	}
 
 	ice->irq = pci->irq;
 	card->sync_irq = ice->irq;
+	card->private_free = snd_vt1724_free;
 
 	snd_vt1724_chip_reset(ice);
-	if (snd_vt1724_read_eeprom(ice, modelname) < 0) {
-		snd_vt1724_free(ice);
+	if (snd_vt1724_read_eeprom(ice, modelname) < 0)
 		return -EIO;
-	}
-	if (snd_vt1724_chip_init(ice) < 0) {
-		snd_vt1724_free(ice);
+	if (snd_vt1724_chip_init(ice) < 0)
 		return -EIO;
-	}
 
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, ice, &ops);
-	if (err < 0) {
-		snd_vt1724_free(ice);
-		return err;
-	}
-
-	*r_ice1712 = ice;
 	return 0;
 }
 
@@ -2586,14 +2519,14 @@ static int snd_vt1724_create(struct snd_card *card,
  *
  */
 
-static int snd_vt1724_probe(struct pci_dev *pci,
-			    const struct pci_device_id *pci_id)
+static int __snd_vt1724_probe(struct pci_dev *pci,
+			      const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
 	struct snd_ice1712 *ice;
 	int pcm_dev = 0, err;
-	const struct snd_ice1712_card_info * const *tbl, *c;
+	const struct snd_ice1712_card_info *c;
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
@@ -2602,44 +2535,34 @@ static int snd_vt1724_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-			   0, &card);
+	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+				sizeof(*ice), &card);
 	if (err < 0)
 		return err;
+	ice = card->private_data;
 
 	strcpy(card->driver, "ICE1724");
 	strcpy(card->shortname, "ICEnsemble ICE1724");
 
-	err = snd_vt1724_create(card, pci, model[dev], &ice);
-	if (err < 0) {
-		snd_card_free(card);
+	err = snd_vt1724_create(card, pci, model[dev]);
+	if (err < 0)
 		return err;
-	}
 
 	/* field init before calling chip_init */
 	ice->ext_clock_count = 0;
 
-	for (tbl = card_tables; *tbl; tbl++) {
-		for (c = *tbl; c->name; c++) {
-			if ((model[dev] && c->model &&
-			     !strcmp(model[dev], c->model)) ||
-			    (c->subvendor == ice->eeprom.subvendor)) {
-				strcpy(card->shortname, c->name);
-				if (c->driver) /* specific driver? */
-					strcpy(card->driver, c->driver);
-				if (c->chip_init) {
-					err = c->chip_init(ice);
-					if (err < 0) {
-						snd_card_free(card);
-						return err;
-					}
-				}
-				goto __found;
-			}
+	c = ice->card_info;
+	if (c) {
+		strcpy(card->shortname, c->name);
+		if (c->driver) /* specific driver? */
+			strcpy(card->driver, c->driver);
+		if (c->chip_init) {
+			err = c->chip_init(ice);
+			if (err < 0)
+				return err;
 		}
 	}
-	c = &no_matched;
-__found:
+
 	/*
 	* VT1724 has separate DMAs for the analog and the SPDIF streams while
 	* ICE1712 has only one for both (mixed up).
@@ -2670,60 +2593,44 @@ __found:
 		set_std_hw_rates(ice);
 
 	err = snd_vt1724_pcm_profi(ice, pcm_dev++);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
 	err = snd_vt1724_pcm_spdif(ice, pcm_dev++);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
 	err = snd_vt1724_pcm_indep(ice, pcm_dev++);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
 	err = snd_vt1724_ac97_mixer(ice);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
 	err = snd_vt1724_build_controls(ice);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 
 	if (ice->pcm && ice->has_spdif) { /* has SPDIF I/O */
 		err = snd_vt1724_spdif_build_controls(ice);
-		if (err < 0) {
-			snd_card_free(card);
+		if (err < 0)
 			return err;
-		}
 	}
 
-	if (c->build_controls) {
+	if (c && c->build_controls) {
 		err = c->build_controls(ice);
-		if (err < 0) {
-			snd_card_free(card);
+		if (err < 0)
 			return err;
-		}
 	}
 
-	if (!c->no_mpu401) {
+	if (!c || !c->no_mpu401) {
 		if (ice->eeprom.data[ICE_EEP2_SYSCONF] & VT1724_CFG_MPU401) {
 			struct snd_rawmidi *rmidi;
 
 			err = snd_rawmidi_new(card, "MIDI", 0, 1, 1, &rmidi);
-			if (err < 0) {
-				snd_card_free(card);
+			if (err < 0)
 				return err;
-			}
 			ice->rmidi[0] = rmidi;
 			rmidi->private_data = ice;
 			strcpy(rmidi->name, "ICE1724 MIDI");
@@ -2748,23 +2655,17 @@ __found:
 		card->shortname, ice->port, ice->irq);
 
 	err = snd_card_register(card);
-	if (err < 0) {
-		snd_card_free(card);
+	if (err < 0)
 		return err;
-	}
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
 }
 
-static void snd_vt1724_remove(struct pci_dev *pci)
+static int snd_vt1724_probe(struct pci_dev *pci,
+			    const struct pci_device_id *pci_id)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
-	struct snd_ice1712 *ice = card->private_data;
-
-	if (ice->card_info && ice->card_info->chip_exit)
-		ice->card_info->chip_exit(ice);
-	snd_card_free(card);
+	return snd_card_free_on_error(&pci->dev, __snd_vt1724_probe(pci, pci_id));
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2844,7 +2745,6 @@ static struct pci_driver vt1724_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_vt1724_ids,
 	.probe = snd_vt1724_probe,
-	.remove = snd_vt1724_remove,
 	.driver = {
 		.pm = SND_VT1724_PM_OPS,
 	},

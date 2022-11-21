@@ -82,7 +82,7 @@ static int do_test(struct evlist *evlist, int mmap_pages,
 }
 
 
-int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__backward_ring_buffer(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret = TEST_SKIP, err, sample_count = 0, comm_count = 0;
 	char pid[16], sbuf[STRERR_BUFSIZE];
@@ -109,25 +109,26 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 		return TEST_FAIL;
 	}
 
-	err = perf_evlist__create_maps(evlist, &opts.target);
+	err = evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
 		pr_debug("Not enough memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
 	}
 
-	bzero(&parse_error, sizeof(parse_error));
+	parse_events_error__init(&parse_error);
 	/*
 	 * Set backward bit, ring buffer should be writing from end. Record
 	 * it in aux evlist
 	 */
 	err = parse_events(evlist, "syscalls:sys_enter_prctl/overwrite/", &parse_error);
+	parse_events_error__exit(&parse_error);
 	if (err) {
 		pr_debug("Failed to parse tracepoint event, try use root\n");
 		ret = TEST_SKIP;
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__config(evlist, &opts, NULL);
+	evlist__config(evlist, &opts, NULL);
 
 	err = evlist__open(evlist);
 	if (err < 0) {
@@ -166,3 +167,5 @@ out_delete_evlist:
 	evlist__delete(evlist);
 	return ret;
 }
+
+DEFINE_SUITE("Read backward ring buffer", backward_ring_buffer);

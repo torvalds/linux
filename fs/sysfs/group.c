@@ -61,8 +61,8 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 			     (*attr)->name, mode);
 
 			mode &= SYSFS_PREALLOC | 0664;
-			error = sysfs_add_file_mode_ns(parent, *attr, false,
-						       mode, uid, gid, NULL);
+			error = sysfs_add_file_mode_ns(parent, *attr, mode, uid,
+						       gid, NULL);
 			if (unlikely(error))
 				break;
 		}
@@ -90,10 +90,9 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 			     (*bin_attr)->attr.name, mode);
 
 			mode &= SYSFS_PREALLOC | 0664;
-			error = sysfs_add_file_mode_ns(parent,
-					&(*bin_attr)->attr, true,
-					mode,
-					uid, gid, NULL);
+			error = sysfs_add_bin_file_mode_ns(parent, *bin_attr,
+							   mode, uid, gid,
+							   NULL);
 			if (error)
 				break;
 		}
@@ -340,8 +339,8 @@ int sysfs_merge_group(struct kobject *kobj,
 	kobject_get_ownership(kobj, &uid, &gid);
 
 	for ((i = 0, attr = grp->attrs); *attr && !error; (++i, ++attr))
-		error = sysfs_add_file_mode_ns(parent, *attr, false,
-					       (*attr)->mode, uid, gid, NULL);
+		error = sysfs_add_file_mode_ns(parent, *attr, (*attr)->mode,
+					       uid, gid, NULL);
 	if (error) {
 		while (--i >= 0)
 			kernfs_remove_by_name(parent, (*--attr)->name);
@@ -446,7 +445,7 @@ int compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
 	if (!target)
 		return -ENOENT;
 
-	entry = kernfs_find_and_get(target_kobj->sd, target_name);
+	entry = kernfs_find_and_get(target, target_name);
 	if (!entry) {
 		kernfs_put(target);
 		return -ENOENT;

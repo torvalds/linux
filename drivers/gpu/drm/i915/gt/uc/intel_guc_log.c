@@ -7,6 +7,7 @@
 
 #include "gt/intel_gt.h"
 #include "i915_drv.h"
+#include "i915_irq.h"
 #include "i915_memcpy.h"
 #include "intel_guc_log.h"
 
@@ -53,20 +54,6 @@ static int guc_action_control_log(struct intel_guc *guc, bool enable,
 	GEM_BUG_ON(verbosity > GUC_LOG_VERBOSITY_MAX);
 
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
-}
-
-static void guc_log_enable_flush_events(struct intel_guc_log *log)
-{
-	intel_guc_enable_msg(log_to_guc(log),
-			     INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER |
-			     INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED);
-}
-
-static void guc_log_disable_flush_events(struct intel_guc_log *log)
-{
-	intel_guc_disable_msg(log_to_guc(log),
-			      INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER |
-			      INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED);
 }
 
 /*
@@ -134,7 +121,7 @@ static int remove_buf_file_callback(struct dentry *dentry)
 }
 
 /* relay channel callbacks */
-static struct rchan_callbacks relay_callbacks = {
+static const struct rchan_callbacks relay_callbacks = {
 	.subbuf_start = subbuf_start_callback,
 	.create_buf_file = create_buf_file_callback,
 	.remove_buf_file = remove_buf_file_callback,
@@ -197,12 +184,12 @@ static bool guc_check_log_buf_overflow(struct intel_guc_log *log,
 static unsigned int guc_get_log_buffer_size(enum guc_log_buffer_type type)
 {
 	switch (type) {
-	case GUC_ISR_LOG_BUFFER:
-		return ISR_BUFFER_SIZE;
-	case GUC_DPC_LOG_BUFFER:
-		return DPC_BUFFER_SIZE;
+	case GUC_DEBUG_LOG_BUFFER:
+		return DEBUG_BUFFER_SIZE;
 	case GUC_CRASH_DUMP_LOG_BUFFER:
 		return CRASH_BUFFER_SIZE;
+	case GUC_CAPTURE_LOG_BUFFER:
+		return CAPTURE_BUFFER_SIZE;
 	default:
 		MISSING_CASE(type);
 	}
@@ -245,7 +232,7 @@ static void guc_read_update_log_buffer(struct intel_guc_log *log)
 	src_data += PAGE_SIZE;
 	dst_data += PAGE_SIZE;
 
-	for (type = GUC_ISR_LOG_BUFFER; type < GUC_MAX_LOG_BUFFER; type++) {
+	for (type = GUC_DEBUG_LOG_BUFFER; type < GUC_MAX_LOG_BUFFER; type++) {
 		/*
 		 * Make a copy of the state structure, inside GuC log buffer
 		 * (which is uncached mapped), on the stack to avoid reading
@@ -335,7 +322,7 @@ static int guc_log_map(struct intel_guc_log *log)
 	 * buffer pages, so that we can directly get the data
 	 * (up-to-date) from memory.
 	 */
-	vaddr = i915_gem_object_pin_map(log->vma->obj, I915_MAP_WC);
+	vaddr = i915_gem_object_pin_map_unlocked(log->vma->obj, I915_MAP_WC);
 	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
 
@@ -463,21 +450,21 @@ int intel_guc_log_create(struct intel_guc_log *log)
 	 *  +===============================+ 00B
 	 *  |    Crash dump state header    |
 	 *  +-------------------------------+ 32B
-	 *  |       DPC state header        |
+	 *  |      Debug state header       |
 	 *  +-------------------------------+ 64B
-	 *  |       ISR state header        |
+	 *  |     Capture state header      |
 	 *  +-------------------------------+ 96B
 	 *  |                               |
 	 *  +===============================+ PAGE_SIZE (4KB)
 	 *  |        Crash Dump logs        |
 	 *  +===============================+ + CRASH_SIZE
-	 *  |           DPC logs            |
-	 *  +===============================+ + DPC_SIZE
-	 *  |           ISR logs            |
-	 *  +===============================+ + ISR_SIZE
+	 *  |          Debug logs           |
+	 *  +===============================+ + DEBUG_SIZE
+	 *  |         Capture logs          |
+	 *  +===============================+ + CAPTURE_SIZE
 	 */
-	guc_log_size = PAGE_SIZE + CRASH_BUFFER_SIZE + DPC_BUFFER_SIZE +
-			ISR_BUFFER_SIZE;
+	guc_log_size = PAGE_SIZE + CRASH_BUFFER_SIZE + DEBUG_BUFFER_SIZE +
+		       CAPTURE_BUFFER_SIZE;
 
 	vma = intel_guc_allocate_vma(guc, guc_log_size);
 	if (IS_ERR(vma)) {
@@ -599,8 +586,6 @@ int intel_guc_log_relay_start(struct intel_guc_log *log)
 	if (log->relay.started)
 		return -EEXIST;
 
-	guc_log_enable_flush_events(log);
-
 	/*
 	 * When GuC is logging without us relaying to userspace, we're ignoring
 	 * the flush notification. This means that we need to unconditionally
@@ -647,7 +632,6 @@ static void guc_log_relay_stop(struct intel_guc_log *log)
 	if (!log->relay.started)
 		return;
 
-	guc_log_disable_flush_events(log);
 	intel_synchronize_irq(i915);
 
 	flush_work(&log->relay.flush_work);
@@ -668,19 +652,20 @@ void intel_guc_log_relay_close(struct intel_guc_log *log)
 
 void intel_guc_log_handle_flush_event(struct intel_guc_log *log)
 {
-	queue_work(system_highpri_wq, &log->relay.flush_work);
+	if (log->relay.started)
+		queue_work(system_highpri_wq, &log->relay.flush_work);
 }
 
 static const char *
 stringify_guc_log_type(enum guc_log_buffer_type type)
 {
 	switch (type) {
-	case GUC_ISR_LOG_BUFFER:
-		return "ISR";
-	case GUC_DPC_LOG_BUFFER:
-		return "DPC";
+	case GUC_DEBUG_LOG_BUFFER:
+		return "DEBUG";
 	case GUC_CRASH_DUMP_LOG_BUFFER:
 		return "CRASH";
+	case GUC_CAPTURE_LOG_BUFFER:
+		return "CAPTURE";
 	default:
 		MISSING_CASE(type);
 	}
@@ -708,7 +693,7 @@ void intel_guc_log_info(struct intel_guc_log *log, struct drm_printer *p)
 
 	drm_printf(p, "\tRelay full count: %u\n", log->relay.full_count);
 
-	for (type = GUC_ISR_LOG_BUFFER; type < GUC_MAX_LOG_BUFFER; type++) {
+	for (type = GUC_DEBUG_LOG_BUFFER; type < GUC_MAX_LOG_BUFFER; type++) {
 		drm_printf(p, "\t%s:\tflush count %10u, overflow count %10u\n",
 			   stringify_guc_log_type(type),
 			   log->stats[type].flush,
@@ -744,7 +729,7 @@ int intel_guc_log_dump(struct intel_guc_log *log, struct drm_printer *p,
 	if (!obj)
 		return 0;
 
-	map = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	map = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(map)) {
 		DRM_DEBUG("Failed to pin object\n");
 		drm_puts(p, "(log data unaccessible)\n");

@@ -40,7 +40,6 @@
 #ifdef ESS
 
 #ifndef lint
-static const char ID_sccs[] = "@(#)ess.c	1.10 96/02/23 (C) SK" ;
 #define LINT_USE(x)
 #else
 #define LINT_USE(x)	(x)=(x)
@@ -380,17 +379,17 @@ static int process_bw_alloc(struct s_smc *smc, long int payload, long int overhe
 	 * if the payload is greater than zero.
 	 * For the SBAPayload and the SBAOverhead we have the following
 	 * unite quations
- 	 *		      _		  _
+	 *		      _		  _
 	 *		     |	     bytes |
 	 *	SBAPayload = | 8000 ------ |
 	 *		     |		s  |
 	 *		      -		  -
- 	 *		       _       _
+	 *		       _       _
 	 *		      |	 bytes	|
 	 *	SBAOverhead = | ------	|
 	 *		      |	 T-NEG	|
 	 *		       -       -
- 	 *
+	 *
 	 * T-NEG is described by the equation:
 	 *
 	 *		     (-) fddiMACT-NEG

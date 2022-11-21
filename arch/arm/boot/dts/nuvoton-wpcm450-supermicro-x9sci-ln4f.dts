@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+// Copyright 2021 Jonathan Neuschäfer
+
+/dts-v1/;
+
+/* The last 16 MiB are dedicated to the GPU */
+/memreserve/ 0x07000000 0x01000000;
+
+#include "nuvoton-wpcm450.dtsi"
+
+#include <dt-bindings/input/linux-event-codes.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Supermicro X9SCi-LN4F BMC";
+	compatible = "supermicro,x9sci-ln4f-bmc", "nuvoton,wpcm450";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0x08000000>; /* 128 MiB */
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&key_pins>;
+
+		uid {
+			label = "UID button";
+			linux,code = <KEY_HOME>;
+			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins>;
+
+		uid {
+			label = "UID";
+			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+		};
+
+		heartbeat {
+			label = "heartbeat";
+			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&pinctrl {
+	key_pins: mux-keys {
+		groups = "gspi", "sspi";
+		function = "gpio";
+	};
+
+	led_pins: mux-leds {
+		groups = "hg3", "hg0", "pwm4";
+		function = "gpio";
+	};
+};
+
+&serial0 {
+	/*
+	 * Debug serial port. TX is exposed on the right pad of unpopulated
+	 * resistor R1247, RX on the right pad of R1162.
+	 */
+	status = "okay";
+};
+
+&serial1 {
+	/* "Serial over LAN" port. Connected to ttyS2 of the host system. */
+	status = "okay";
+};
+
+&watchdog0 {
+	status = "okay";
+};

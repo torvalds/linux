@@ -583,8 +583,8 @@ static void r852_update_card_detect(struct r852_device *dev)
 	r852_write_reg(dev, R852_CARD_IRQ_ENABLE, card_detect_reg);
 }
 
-static ssize_t r852_media_type_show(struct device *sys_dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t media_type_show(struct device *sys_dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = container_of(sys_dev, struct mtd_info, dev);
 	struct r852_device *dev = r852_get_dev(mtd);
@@ -593,8 +593,7 @@ static ssize_t r852_media_type_show(struct device *sys_dev,
 	strcpy(buf, data);
 	return strlen(data);
 }
-
-static DEVICE_ATTR(media_type, S_IRUGO, r852_media_type_show, NULL);
+static DEVICE_ATTR_RO(media_type);
 
 
 /* Detect properties of card in slot */
@@ -724,10 +723,9 @@ static irqreturn_t r852_irq(int irq, void *data)
 	struct r852_device *dev = (struct r852_device *)data;
 
 	uint8_t card_status, dma_status;
-	unsigned long flags;
 	irqreturn_t ret = IRQ_NONE;
 
-	spin_lock_irqsave(&dev->irqlock, flags);
+	spin_lock(&dev->irqlock);
 
 	/* handle card detection interrupts first */
 	card_status = r852_read_reg(dev, R852_CARD_IRQ_STA);
@@ -813,7 +811,7 @@ static irqreturn_t r852_irq(int irq, void *data)
 		dbg("strange card status = %x", card_status);
 
 out:
-	spin_unlock_irqrestore(&dev->irqlock, flags);
+	spin_unlock(&dev->irqlock);
 	return ret;
 }
 

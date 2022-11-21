@@ -23,6 +23,20 @@ current size and related sub resources. To access a sub resource, you
 specify the path of the resource. For example ``/IPv4/fib`` is the id for
 the ``fib`` sub-resource under the ``IPv4`` resource.
 
+Generic Resources
+=================
+
+Generic resources are used to describe resources that can be shared by multiple
+device drivers and their description must be added to the following table:
+
+.. list-table:: List of Generic Resources
+   :widths: 10 90
+
+   * - Name
+     - Description
+   * - ``physical_ports``
+     - A limited capacity of physical ports that the switch ASIC can support
+
 example usage
 -------------
 

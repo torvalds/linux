@@ -256,7 +256,6 @@ config ISL29125
 config HID_SENSOR_ALS
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
 	select HID_SENSOR_IIO_COMMON
 	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID ALS"
@@ -270,7 +269,6 @@ config HID_SENSOR_ALS
 config HID_SENSOR_PROX
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
 	select HID_SENSOR_IIO_COMMON
 	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID PROX"
@@ -500,6 +498,17 @@ config TSL2583
 	help
 	  Provides support for the TAOS tsl2580, tsl2581 and tsl2583 devices.
 	  Access ALS data via iio, sysfs.
+
+config TSL2591
+        tristate "TAOS TSL2591 ambient light sensor"
+        depends on I2C
+        help
+          Select Y here for support of the AMS/TAOS TSL2591 ambient light sensor,
+          featuring channels for combined visible + IR intensity and lux illuminance.
+          Access data via iio and sysfs. Supports iio_events.
+
+          To compile this driver as a module, select M: the
+          module will be called tsl2591.
 
 config TSL2772
 	tristate "TAOS TSL/TMD2x71 and TSL/TMD2x72 Family of light and proximity sensors"

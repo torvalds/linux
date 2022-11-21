@@ -7,8 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics STM32 lcd-tft display controller
 
 maintainers:
-  - Philippe Cornu <philippe.cornu@st.com>
-  - Yannick Fertre <yannick.fertre@st.com>
+  - Philippe Cornu <philippe.cornu@foss.st.com>
+  - Yannick Fertre <yannick.fertre@foss.st.com>
 
 properties:
   compatible:
@@ -22,7 +22,6 @@ properties:
       - description: events interrupt line.
       - description: errors interrupt line.
     minItems: 1
-    maxItems: 2
 
   clocks:
     maxItems: 1
@@ -35,15 +34,13 @@ properties:
     maxItems: 1
 
   port:
-    type: object
-    description:
-      "Video port for DPI RGB output.
+    $ref: /schemas/graph.yaml#/properties/port
+    description: |
+      Video port for DPI RGB output.
       ltdc has one video port with up to 2 endpoints:
       - for external dpi rgb panel or bridge, using gpios.
       - for internal dpi input of the MIPI DSI host controller.
       Note: These 2 endpoints cannot be activated simultaneously.
-      Please refer to the bindings defined in
-      Documentation/devicetree/bindings/media/video-interfaces.txt."
 
 required:
   - compatible

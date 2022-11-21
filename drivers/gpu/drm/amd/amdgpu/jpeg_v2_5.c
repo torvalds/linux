@@ -115,7 +115,7 @@ static int jpeg_v2_5_sw_init(void *handle)
 		ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 1 + 8 * i;
 		sprintf(ring->name, "jpeg_dec_%d", i);
 		r = amdgpu_ring_init(adev, ring, 512, &adev->jpeg.inst[i].irq,
-				     0, AMDGPU_RING_PRIO_DEFAULT);
+				     0, AMDGPU_RING_PRIO_DEFAULT, NULL);
 		if (r)
 			return r;
 
@@ -187,19 +187,17 @@ static int jpeg_v2_5_hw_init(void *handle)
 static int jpeg_v2_5_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct amdgpu_ring *ring;
 	int i;
+
+	cancel_delayed_work_sync(&adev->vcn.idle_work);
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 		if (adev->jpeg.harvest_config & (1 << i))
 			continue;
 
-		ring = &adev->jpeg.inst[i].ring_dec;
 		if (adev->jpeg.cur_state != AMD_PG_STATE_GATE &&
 		      RREG32_SOC15(JPEG, i, mmUVD_JRBC_STATUS))
 			jpeg_v2_5_set_powergating_state(adev, AMD_PG_STATE_GATE);
-
-		ring->sched.ready = false;
 	}
 
 	return 0;
@@ -247,7 +245,7 @@ static int jpeg_v2_5_resume(void *handle)
 	return r;
 }
 
-static void jpeg_v2_5_disable_clock_gating(struct amdgpu_device* adev, int inst)
+static void jpeg_v2_5_disable_clock_gating(struct amdgpu_device *adev, int inst)
 {
 	uint32_t data;
 
@@ -276,7 +274,7 @@ static void jpeg_v2_5_disable_clock_gating(struct amdgpu_device* adev, int inst)
 	WREG32_SOC15(JPEG, inst, mmJPEG_CGC_CTRL, data);
 }
 
-static void jpeg_v2_5_enable_clock_gating(struct amdgpu_device* adev, int inst)
+static void jpeg_v2_5_enable_clock_gating(struct amdgpu_device *adev, int inst)
 {
 	uint32_t data;
 
@@ -425,6 +423,42 @@ static void jpeg_v2_5_dec_ring_set_wptr(struct amdgpu_ring *ring)
 	}
 }
 
+/**
+ * jpeg_v2_6_dec_ring_insert_start - insert a start command
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Write a start command to the ring.
+ */
+static void jpeg_v2_6_dec_ring_insert_start(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKETJ(mmUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
+		0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x6aa04); /* PCTL0_MMHUB_DEEPSLEEP_IB */
+
+	amdgpu_ring_write(ring, PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR,
+		0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x80000000 | (1 << (ring->me * 2 + 14)));
+}
+
+/**
+ * jpeg_v2_6_dec_ring_insert_end - insert a end command
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Write a end command to the ring.
+ */
+static void jpeg_v2_6_dec_ring_insert_end(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKETJ(mmUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
+		0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x6aa04); /* PCTL0_MMHUB_DEEPSLEEP_IB */
+
+	amdgpu_ring_write(ring, PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR,
+		0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, (1 << (ring->me * 2 + 14)));
+}
+
 static bool jpeg_v2_5_is_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -565,6 +599,26 @@ static const struct amd_ip_funcs jpeg_v2_5_ip_funcs = {
 	.set_powergating_state = jpeg_v2_5_set_powergating_state,
 };
 
+static const struct amd_ip_funcs jpeg_v2_6_ip_funcs = {
+	.name = "jpeg_v2_6",
+	.early_init = jpeg_v2_5_early_init,
+	.late_init = NULL,
+	.sw_init = jpeg_v2_5_sw_init,
+	.sw_fini = jpeg_v2_5_sw_fini,
+	.hw_init = jpeg_v2_5_hw_init,
+	.hw_fini = jpeg_v2_5_hw_fini,
+	.suspend = jpeg_v2_5_suspend,
+	.resume = jpeg_v2_5_resume,
+	.is_idle = jpeg_v2_5_is_idle,
+	.wait_for_idle = jpeg_v2_5_wait_for_idle,
+	.check_soft_reset = NULL,
+	.pre_soft_reset = NULL,
+	.soft_reset = NULL,
+	.post_soft_reset = NULL,
+	.set_clockgating_state = jpeg_v2_5_set_clockgating_state,
+	.set_powergating_state = jpeg_v2_5_set_powergating_state,
+};
+
 static const struct amdgpu_ring_funcs jpeg_v2_5_dec_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCN_JPEG,
 	.align_mask = 0xf,
@@ -595,6 +649,36 @@ static const struct amdgpu_ring_funcs jpeg_v2_5_dec_ring_vm_funcs = {
 	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
 };
 
+static const struct amdgpu_ring_funcs jpeg_v2_6_dec_ring_vm_funcs = {
+	.type = AMDGPU_RING_TYPE_VCN_JPEG,
+	.align_mask = 0xf,
+	.vmhub = AMDGPU_MMHUB_0,
+	.get_rptr = jpeg_v2_5_dec_ring_get_rptr,
+	.get_wptr = jpeg_v2_5_dec_ring_get_wptr,
+	.set_wptr = jpeg_v2_5_dec_ring_set_wptr,
+	.emit_frame_size =
+		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
+		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +
+		8 + /* jpeg_v2_5_dec_ring_emit_vm_flush */
+		18 + 18 + /* jpeg_v2_5_dec_ring_emit_fence x2 vm fence */
+		8 + 16,
+	.emit_ib_size = 22, /* jpeg_v2_5_dec_ring_emit_ib */
+	.emit_ib = jpeg_v2_0_dec_ring_emit_ib,
+	.emit_fence = jpeg_v2_0_dec_ring_emit_fence,
+	.emit_vm_flush = jpeg_v2_0_dec_ring_emit_vm_flush,
+	.test_ring = amdgpu_jpeg_dec_ring_test_ring,
+	.test_ib = amdgpu_jpeg_dec_ring_test_ib,
+	.insert_nop = jpeg_v2_0_dec_ring_nop,
+	.insert_start = jpeg_v2_6_dec_ring_insert_start,
+	.insert_end = jpeg_v2_6_dec_ring_insert_end,
+	.pad_ib = amdgpu_ring_generic_pad_ib,
+	.begin_use = amdgpu_jpeg_ring_begin_use,
+	.end_use = amdgpu_jpeg_ring_end_use,
+	.emit_wreg = jpeg_v2_0_dec_ring_emit_wreg,
+	.emit_reg_wait = jpeg_v2_0_dec_ring_emit_reg_wait,
+	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
+};
+
 static void jpeg_v2_5_set_dec_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
@@ -602,8 +686,10 @@ static void jpeg_v2_5_set_dec_ring_funcs(struct amdgpu_device *adev)
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 		if (adev->jpeg.harvest_config & (1 << i))
 			continue;
-
-		adev->jpeg.inst[i].ring_dec.funcs = &jpeg_v2_5_dec_ring_vm_funcs;
+		if (adev->asic_type == CHIP_ARCTURUS)
+			adev->jpeg.inst[i].ring_dec.funcs = &jpeg_v2_5_dec_ring_vm_funcs;
+		else  /* CHIP_ALDEBARAN */
+			adev->jpeg.inst[i].ring_dec.funcs = &jpeg_v2_6_dec_ring_vm_funcs;
 		adev->jpeg.inst[i].ring_dec.me = i;
 		DRM_INFO("JPEG(%d) JPEG decode is enabled in VM mode\n", i);
 	}
@@ -634,4 +720,13 @@ const struct amdgpu_ip_block_version jpeg_v2_5_ip_block =
 		.minor = 5,
 		.rev = 0,
 		.funcs = &jpeg_v2_5_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version jpeg_v2_6_ip_block =
+{
+		.type = AMD_IP_BLOCK_TYPE_JPEG,
+		.major = 2,
+		.minor = 6,
+		.rev = 0,
+		.funcs = &jpeg_v2_6_ip_funcs,
 };

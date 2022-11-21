@@ -7,6 +7,7 @@
 #include <linux/prime_numbers.h>
 
 #include "gt/intel_engine_pm.h"
+#include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_ring.h"
@@ -159,7 +160,7 @@ static int wc_set(struct context *ctx, unsigned long offset, u32 v)
 	if (err)
 		return err;
 
-	map = i915_gem_object_pin_map(ctx->obj, I915_MAP_WC);
+	map = i915_gem_object_pin_map_unlocked(ctx->obj, I915_MAP_WC);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
@@ -182,7 +183,7 @@ static int wc_get(struct context *ctx, unsigned long offset, u32 *v)
 	if (err)
 		return err;
 
-	map = i915_gem_object_pin_map(ctx->obj, I915_MAP_WC);
+	map = i915_gem_object_pin_map_unlocked(ctx->obj, I915_MAP_WC);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
@@ -199,16 +200,14 @@ static int gpu_set(struct context *ctx, unsigned long offset, u32 v)
 	u32 *cs;
 	int err;
 
+	vma = i915_gem_object_ggtt_pin(ctx->obj, NULL, 0, 0, 0);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
 	i915_gem_object_lock(ctx->obj, NULL);
 	err = i915_gem_object_set_to_gtt_domain(ctx->obj, true);
 	if (err)
 		goto out_unlock;
-
-	vma = i915_gem_object_ggtt_pin(ctx->obj, NULL, 0, 0, 0);
-	if (IS_ERR(vma)) {
-		err = PTR_ERR(vma);
-		goto out_unlock;
-	}
 
 	rq = intel_engine_create_kernel_request(ctx->engine);
 	if (IS_ERR(rq)) {
@@ -222,12 +221,12 @@ static int gpu_set(struct context *ctx, unsigned long offset, u32 v)
 		goto out_rq;
 	}
 
-	if (INTEL_GEN(ctx->engine->i915) >= 8) {
+	if (GRAPHICS_VER(ctx->engine->i915) >= 8) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | 1 << 22;
 		*cs++ = lower_32_bits(i915_ggtt_offset(vma) + offset);
 		*cs++ = upper_32_bits(i915_ggtt_offset(vma) + offset);
 		*cs++ = v;
-	} else if (INTEL_GEN(ctx->engine->i915) >= 4) {
+	} else if (GRAPHICS_VER(ctx->engine->i915) >= 4) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = 0;
 		*cs++ = i915_ggtt_offset(vma) + offset;

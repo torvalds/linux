@@ -91,9 +91,9 @@ The ECM function provides these attributes in its function directory:
 
 and after creating the functions/ecm.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-Except for ifname they can be written to until the function is linked to a
-configuration. The ifname is read-only and contains the name of the interface
-which was assigned by the net core, e. g. usb0.
+The ifname can be written to if the function is not bound. A write must be an
+interface pattern such as "usb%d", which will cause the net core to choose the
+next free usbX interface. By default, it is set to "usb%d".
 
 Testing the ECM function
 ------------------------
@@ -131,9 +131,9 @@ The ECM subset function provides these attributes in its function directory:
 
 and after creating the functions/ecm.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-Except for ifname they can be written to until the function is linked to a
-configuration. The ifname is read-only and contains the name of the interface
-which was assigned by the net core, e. g. usb0.
+The ifname can be written to if the function is not bound. A write must be an
+interface pattern such as "usb%d", which will cause the net core to choose the
+next free usbX interface. By default, it is set to "usb%d".
 
 Testing the ECM subset function
 -------------------------------
@@ -171,9 +171,9 @@ The EEM function provides these attributes in its function directory:
 
 and after creating the functions/eem.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-Except for ifname they can be written to until the function is linked to a
-configuration. The ifname is read-only and contains the name of the interface
-which was assigned by the net core, e. g. usb0.
+The ifname can be written to if the function is not bound. A write must be an
+interface pattern such as "usb%d", which will cause the net core to choose the
+next free usbX interface. By default, it is set to "usb%d".
 
 Testing the EEM function
 ------------------------
@@ -453,9 +453,9 @@ The NCM function provides these attributes in its function directory:
 
 and after creating the functions/ncm.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-Except for ifname they can be written to until the function is linked to a
-configuration. The ifname is read-only and contains the name of the interface
-which was assigned by the net core, e. g. usb0.
+The ifname can be written to if the function is not bound. A write must be an
+interface pattern such as "usb%d", which will cause the net core to choose the
+next free usbX interface. By default, it is set to "usb%d".
 
 Testing the NCM function
 ------------------------
@@ -591,9 +591,9 @@ The RNDIS function provides these attributes in its function directory:
 
 and after creating the functions/rndis.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-Except for ifname they can be written to until the function is linked to a
-configuration. The ifname is read-only and contains the name of the interface
-which was assigned by the net core, e. g. usb0.
+The ifname can be written to if the function is not bound. A write must be an
+interface pattern such as "usb%d", which will cause the net core to choose the
+next free usbX interface. By default, it is set to "usb%d".
 
 Testing the RNDIS function
 --------------------------
@@ -724,16 +724,31 @@ Function-specific configfs interface
 The function name to use when creating the function directory is "uac2".
 The uac2 function provides these attributes in its function directory:
 
-	=============== ====================================================
-	c_chmask	capture channel mask
-	c_srate		capture sampling rate
-	c_ssize		capture sample size (bytes)
-	p_chmask	playback channel mask
-	p_srate		playback sampling rate
-	p_ssize		playback sample size (bytes)
-	req_number	the number of pre-allocated request for both capture
-			and playback
-	=============== ====================================================
+	================ ====================================================
+	c_chmask         capture channel mask
+	c_srate          list of capture sampling rates (comma-separated)
+	c_ssize          capture sample size (bytes)
+	c_sync           capture synchronization type (async/adaptive)
+	c_mute_present   capture mute control enable
+	c_volume_present capture volume control enable
+	c_volume_min     capture volume control min value (in 1/256 dB)
+	c_volume_max     capture volume control max value (in 1/256 dB)
+	c_volume_res     capture volume control resolution (in 1/256 dB)
+	c_hs_bint        capture bInterval for HS/SS (1-4: fixed, 0: auto)
+	fb_max           maximum extra bandwidth in async mode
+	p_chmask         playback channel mask
+	p_srate          list of playback sampling rates (comma-separated)
+	p_ssize          playback sample size (bytes)
+	p_mute_present   playback mute control enable
+	p_volume_present playback volume control enable
+	p_volume_min     playback volume control min value (in 1/256 dB)
+	p_volume_max     playback volume control max value (in 1/256 dB)
+	p_volume_res     playback volume control resolution (in 1/256 dB)
+	p_hs_bint        playback bInterval for HS/SS (1-4: fixed, 0: auto)
+	req_number       the number of pre-allocated request for both capture
+	                 and playback
+	function_name    name of the interface
+	================ ====================================================
 
 The attributes have sane default values.
 
@@ -902,16 +917,27 @@ Function-specific configfs interface
 The function name to use when creating the function directory is "uac1".
 The uac1 function provides these attributes in its function directory:
 
-	========== ====================================================
-	c_chmask   capture channel mask
-	c_srate    capture sampling rate
-	c_ssize    capture sample size (bytes)
-	p_chmask   playback channel mask
-	p_srate    playback sampling rate
-	p_ssize    playback sample size (bytes)
-	req_number the number of pre-allocated request for both capture
-		   and playback
-	========== ====================================================
+	================ ====================================================
+	c_chmask         capture channel mask
+	c_srate          list of capture sampling rates (comma-separated)
+	c_ssize          capture sample size (bytes)
+	c_mute_present   capture mute control enable
+	c_volume_present capture volume control enable
+	c_volume_min     capture volume control min value (in 1/256 dB)
+	c_volume_max     capture volume control max value (in 1/256 dB)
+	c_volume_res     capture volume control resolution (in 1/256 dB)
+	p_chmask         playback channel mask
+	p_srate          list of playback sampling rates (comma-separated)
+	p_ssize          playback sample size (bytes)
+	p_mute_present   playback mute control enable
+	p_volume_present playback volume control enable
+	p_volume_min     playback volume control min value (in 1/256 dB)
+	p_volume_max     playback volume control max value (in 1/256 dB)
+	p_volume_res     playback volume control resolution (in 1/256 dB)
+	req_number       the number of pre-allocated requests for both capture
+	                 and playback
+	function_name    name of the interface
+	================ ====================================================
 
 The attributes have sane default values.
 

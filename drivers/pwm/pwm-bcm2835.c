@@ -58,68 +58,69 @@ static void bcm2835_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	writel(value, pc->base + PWM_CONTROL);
 }
 
-static int bcm2835_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			      int duty_ns, int period_ns)
+static int bcm2835_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			     const struct pwm_state *state)
 {
+
 	struct bcm2835_pwm *pc = to_bcm2835_pwm(chip);
 	unsigned long rate = clk_get_rate(pc->clk);
-	unsigned long scaler;
-	u32 period;
+	unsigned long long period_cycles;
+	u64 max_period;
+
+	u32 val;
 
 	if (!rate) {
 		dev_err(pc->dev, "failed to get clock rate\n");
 		return -EINVAL;
 	}
 
-	scaler = DIV_ROUND_CLOSEST(NSEC_PER_SEC, rate);
-	period = DIV_ROUND_CLOSEST(period_ns, scaler);
+	/*
+	 * period_cycles must be a 32 bit value, so period * rate / NSEC_PER_SEC
+	 * must be <= U32_MAX. As U32_MAX * NSEC_PER_SEC < U64_MAX the
+	 * multiplication period * rate doesn't overflow.
+	 * To calculate the maximal possible period that guarantees the
+	 * above inequality:
+	 *
+	 *     round(period * rate / NSEC_PER_SEC) <= U32_MAX
+	 * <=> period * rate / NSEC_PER_SEC < U32_MAX + 0.5
+	 * <=> period * rate < (U32_MAX + 0.5) * NSEC_PER_SEC
+	 * <=> period < ((U32_MAX + 0.5) * NSEC_PER_SEC) / rate
+	 * <=> period < ((U32_MAX * NSEC_PER_SEC + NSEC_PER_SEC/2) / rate
+	 * <=> period <= ceil((U32_MAX * NSEC_PER_SEC + NSEC_PER_SEC/2) / rate) - 1
+	 */
+	max_period = DIV_ROUND_UP_ULL((u64)U32_MAX * NSEC_PER_SEC + NSEC_PER_SEC / 2, rate) - 1;
 
-	if (period < PERIOD_MIN)
+	if (state->period > max_period)
 		return -EINVAL;
 
-	writel(DIV_ROUND_CLOSEST(duty_ns, scaler),
-	       pc->base + DUTY(pwm->hwpwm));
-	writel(period, pc->base + PERIOD(pwm->hwpwm));
+	/* set period */
+	period_cycles = DIV_ROUND_CLOSEST_ULL(state->period * rate, NSEC_PER_SEC);
 
-	return 0;
-}
+	/* don't accept a period that is too small */
+	if (period_cycles < PERIOD_MIN)
+		return -EINVAL;
 
-static int bcm2835_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct bcm2835_pwm *pc = to_bcm2835_pwm(chip);
-	u32 value;
+	writel(period_cycles, pc->base + PERIOD(pwm->hwpwm));
 
-	value = readl(pc->base + PWM_CONTROL);
-	value |= PWM_ENABLE << PWM_CONTROL_SHIFT(pwm->hwpwm);
-	writel(value, pc->base + PWM_CONTROL);
+	/* set duty cycle */
+	val = DIV_ROUND_CLOSEST_ULL(state->duty_cycle * rate, NSEC_PER_SEC);
+	writel(val, pc->base + DUTY(pwm->hwpwm));
 
-	return 0;
-}
+	/* set polarity */
+	val = readl(pc->base + PWM_CONTROL);
 
-static void bcm2835_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct bcm2835_pwm *pc = to_bcm2835_pwm(chip);
-	u32 value;
-
-	value = readl(pc->base + PWM_CONTROL);
-	value &= ~(PWM_ENABLE << PWM_CONTROL_SHIFT(pwm->hwpwm));
-	writel(value, pc->base + PWM_CONTROL);
-}
-
-static int bcm2835_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm,
-				enum pwm_polarity polarity)
-{
-	struct bcm2835_pwm *pc = to_bcm2835_pwm(chip);
-	u32 value;
-
-	value = readl(pc->base + PWM_CONTROL);
-
-	if (polarity == PWM_POLARITY_NORMAL)
-		value &= ~(PWM_POLARITY << PWM_CONTROL_SHIFT(pwm->hwpwm));
+	if (state->polarity == PWM_POLARITY_NORMAL)
+		val &= ~(PWM_POLARITY << PWM_CONTROL_SHIFT(pwm->hwpwm));
 	else
-		value |= PWM_POLARITY << PWM_CONTROL_SHIFT(pwm->hwpwm);
+		val |= PWM_POLARITY << PWM_CONTROL_SHIFT(pwm->hwpwm);
 
-	writel(value, pc->base + PWM_CONTROL);
+	/* enable/disable */
+	if (state->enabled)
+		val |= PWM_ENABLE << PWM_CONTROL_SHIFT(pwm->hwpwm);
+	else
+		val &= ~(PWM_ENABLE << PWM_CONTROL_SHIFT(pwm->hwpwm));
+
+	writel(val, pc->base + PWM_CONTROL);
 
 	return 0;
 }
@@ -127,17 +128,13 @@ static int bcm2835_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops bcm2835_pwm_ops = {
 	.request = bcm2835_pwm_request,
 	.free = bcm2835_pwm_free,
-	.config = bcm2835_pwm_config,
-	.enable = bcm2835_pwm_enable,
-	.disable = bcm2835_pwm_disable,
-	.set_polarity = bcm2835_set_polarity,
+	.apply = bcm2835_pwm_apply,
 	.owner = THIS_MODULE,
 };
 
 static int bcm2835_pwm_probe(struct platform_device *pdev)
 {
 	struct bcm2835_pwm *pc;
-	struct resource *res;
 	int ret;
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
@@ -146,8 +143,7 @@ static int bcm2835_pwm_probe(struct platform_device *pdev)
 
 	pc->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pc->base = devm_ioremap_resource(&pdev->dev, res);
+	pc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pc->base))
 		return PTR_ERR(pc->base);
 
@@ -162,10 +158,7 @@ static int bcm2835_pwm_probe(struct platform_device *pdev)
 
 	pc->chip.dev = &pdev->dev;
 	pc->chip.ops = &bcm2835_pwm_ops;
-	pc->chip.base = -1;
 	pc->chip.npwm = 2;
-	pc->chip.of_xlate = of_pwm_xlate_with_flags;
-	pc->chip.of_pwm_n_cells = 3;
 
 	platform_set_drvdata(pdev, pc);
 
@@ -184,9 +177,11 @@ static int bcm2835_pwm_remove(struct platform_device *pdev)
 {
 	struct bcm2835_pwm *pc = platform_get_drvdata(pdev);
 
+	pwmchip_remove(&pc->chip);
+
 	clk_disable_unprepare(pc->clk);
 
-	return pwmchip_remove(&pc->chip);
+	return 0;
 }
 
 static const struct of_device_id bcm2835_pwm_of_match[] = {

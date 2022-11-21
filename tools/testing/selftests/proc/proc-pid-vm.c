@@ -46,6 +46,8 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#include "../kselftest.h"
+
 static inline long sys_execveat(int dirfd, const char *pathname, char **argv, char **envp, int flags)
 {
 	return syscall(SYS_execveat, dirfd, pathname, argv, envp, flags);
@@ -368,7 +370,7 @@ int main(void)
 		};
 		int i;
 
-		for (i = 0; i < sizeof(S)/sizeof(S[0]); i++) {
+		for (i = 0; i < ARRAY_SIZE(S); i++) {
 			assert(memmem(buf, rv, S[i], strlen(S[i])));
 		}
 
@@ -417,7 +419,7 @@ int main(void)
 		};
 		int i;
 
-		for (i = 0; i < sizeof(S)/sizeof(S[0]); i++) {
+		for (i = 0; i < ARRAY_SIZE(S); i++) {
 			assert(memmem(buf, rv, S[i], strlen(S[i])));
 		}
 	}

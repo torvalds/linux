@@ -11,6 +11,7 @@
 #define ZFCP_EXT_H
 
 #include <linux/types.h>
+#include <linux/sysfs.h>
 #include <scsi/fc/fc_els.h>
 #include "zfcp_def.h"
 #include "zfcp_fc.h"
@@ -20,8 +21,6 @@ extern struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *, u64);
 extern struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *);
 extern struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *, u64, u32,
 					   u32);
-extern void zfcp_sg_free_table(struct scatterlist *, int);
-extern int zfcp_sg_setup_table(struct scatterlist *, int);
 extern void zfcp_adapter_release(struct kref *);
 extern void zfcp_adapter_unregister(struct zfcp_adapter *);
 
@@ -49,7 +48,6 @@ extern void zfcp_dbf_hba_fsf_fces(char *tag, const struct zfcp_fsf_req *req,
 				  u32 fc_security_new);
 extern void zfcp_dbf_hba_bit_err(char *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_hba_def_err(struct zfcp_adapter *, u64, u16, void **);
-extern void zfcp_dbf_hba_basic(char *, struct zfcp_adapter *);
 extern void zfcp_dbf_san_req(char *, struct zfcp_fsf_req *, u32);
 extern void zfcp_dbf_san_res(char *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_san_in_els(char *, struct zfcp_fsf_req *);
@@ -182,13 +180,12 @@ extern void zfcp_scsi_shost_update_port_data(
 	const struct fsf_qtcb_bottom_port *const bottom);
 
 /* zfcp_sysfs.c */
+extern const struct attribute_group *zfcp_sysfs_adapter_attr_groups[];
 extern const struct attribute_group *zfcp_unit_attr_groups[];
-extern struct attribute_group zfcp_sysfs_adapter_attrs;
 extern const struct attribute_group *zfcp_port_attr_groups[];
 extern struct mutex zfcp_sysfs_port_units_mutex;
-extern struct device_attribute *zfcp_sysfs_sdev_attrs[];
-extern struct device_attribute *zfcp_sysfs_shost_attrs[];
-extern const struct attribute_group zfcp_sysfs_diag_attr_group;
+extern const struct attribute_group *zfcp_sysfs_sdev_attr_groups[];
+extern const struct attribute_group *zfcp_sysfs_shost_attr_groups[];
 bool zfcp_sysfs_port_is_removing(const struct zfcp_port *const port);
 
 /* zfcp_unit.c */

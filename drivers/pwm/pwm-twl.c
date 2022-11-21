@@ -58,9 +58,9 @@ static inline struct twl_pwm_chip *to_twl(struct pwm_chip *chip)
 }
 
 static int twl_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			      int duty_ns, int period_ns)
+			  u64 duty_ns, u64 period_ns)
 {
-	int duty_cycle = DIV_ROUND_UP(duty_ns * TWL_PWM_MAX, period_ns) + 1;
+	int duty_cycle = DIV64_U64_ROUND_UP(duty_ns * TWL_PWM_MAX, period_ns) + 1;
 	u8 pwm_config[2] = { 1, 0 };
 	int base, ret;
 
@@ -279,26 +279,71 @@ out:
 	mutex_unlock(&twl->mutex);
 }
 
+static int twl4030_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			     const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			twl4030_pwm_disable(chip, pwm);
+
+		return 0;
+	}
+
+	err = twl_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		err = twl4030_pwm_enable(chip, pwm);
+
+	return err;
+}
+
+static int twl6030_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			     const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			twl6030_pwm_disable(chip, pwm);
+
+		return 0;
+	}
+
+	err = twl_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		err = twl6030_pwm_enable(chip, pwm);
+
+	return err;
+}
+
 static const struct pwm_ops twl4030_pwm_ops = {
-	.config = twl_pwm_config,
-	.enable = twl4030_pwm_enable,
-	.disable = twl4030_pwm_disable,
+	.apply = twl4030_pwm_apply,
 	.request = twl4030_pwm_request,
 	.free = twl4030_pwm_free,
 	.owner = THIS_MODULE,
 };
 
 static const struct pwm_ops twl6030_pwm_ops = {
-	.config = twl_pwm_config,
-	.enable = twl6030_pwm_enable,
-	.disable = twl6030_pwm_disable,
+	.apply = twl6030_pwm_apply,
 	.owner = THIS_MODULE,
 };
 
 static int twl_pwm_probe(struct platform_device *pdev)
 {
 	struct twl_pwm_chip *twl;
-	int ret;
 
 	twl = devm_kzalloc(&pdev->dev, sizeof(*twl), GFP_KERNEL);
 	if (!twl)
@@ -310,25 +355,11 @@ static int twl_pwm_probe(struct platform_device *pdev)
 		twl->chip.ops = &twl6030_pwm_ops;
 
 	twl->chip.dev = &pdev->dev;
-	twl->chip.base = -1;
 	twl->chip.npwm = 2;
 
 	mutex_init(&twl->mutex);
 
-	ret = pwmchip_add(&twl->chip);
-	if (ret < 0)
-		return ret;
-
-	platform_set_drvdata(pdev, twl);
-
-	return 0;
-}
-
-static int twl_pwm_remove(struct platform_device *pdev)
-{
-	struct twl_pwm_chip *twl = platform_get_drvdata(pdev);
-
-	return pwmchip_remove(&twl->chip);
+	return devm_pwmchip_add(&pdev->dev, &twl->chip);
 }
 
 #ifdef CONFIG_OF
@@ -346,7 +377,6 @@ static struct platform_driver twl_pwm_driver = {
 		.of_match_table = of_match_ptr(twl_pwm_of_match),
 	},
 	.probe = twl_pwm_probe,
-	.remove = twl_pwm_remove,
 };
 module_platform_driver(twl_pwm_driver);
 

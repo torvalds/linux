@@ -5,10 +5,10 @@ Authors
 Original Author
 ---------------
 
-Steve French (sfrench@samba.org)
+Steve French (smfrench@gmail.com, sfrench@samba.org)
 
 The author wishes to express his appreciation and thanks to:
-Andrew Tridgell (Samba team) for his early suggestions about smb/cifs VFS
+Andrew Tridgell (Samba team) for his early suggestions about SMB/CIFS VFS
 improvements. Thanks to IBM for allowing me time and test resources to pursue
 this project, to Jim McDonough from IBM (and the Samba Team) for his help, to
 the IBM Linux JFS team for explaining many esoteric Linux filesystem features.
@@ -51,7 +51,7 @@ Patch Contributors
 - Ronnie Sahlberg (for SMB3 xattr work, bug fixes, and lots of great work on compounding)
 - Shirish Pargaonkar (for many ACL patches over the years)
 - Sachin Prabhu (many bug fixes, including for reconnect, copy offload and security)
-- Paulo Alcantara
+- Paulo Alcantara (for some excellent work in DFS, and in booting from SMB3)
 - Long Li (some great work on RDMA, SMB Direct)
 
 

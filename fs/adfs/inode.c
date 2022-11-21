@@ -73,6 +73,8 @@ static sector_t _adfs_bmap(struct address_space *mapping, sector_t block)
 }
 
 static const struct address_space_operations adfs_aops = {
+	.dirty_folio	= block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
 	.readpage	= adfs_readpage,
 	.writepage	= adfs_writepage,
 	.write_begin	= adfs_write_begin,
@@ -292,14 +294,15 @@ out:
  * later.
  */
 int
-adfs_notify_change(struct dentry *dentry, struct iattr *attr)
+adfs_notify_change(struct user_namespace *mnt_userns, struct dentry *dentry,
+		   struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;
 	unsigned int ia_valid = attr->ia_valid;
 	int error;
 	
-	error = setattr_prepare(dentry, attr);
+	error = setattr_prepare(&init_user_ns, dentry, attr);
 
 	/*
 	 * we can't change the UID or GID of any file -
@@ -353,7 +356,6 @@ int adfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct super_block *sb = inode->i_sb;
 	struct object_info obj;
-	int ret;
 
 	obj.indaddr	= ADFS_I(inode)->indaddr;
 	obj.name_len	= 0;
@@ -363,6 +365,5 @@ int adfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	obj.attr	= ADFS_I(inode)->attr;
 	obj.size	= inode->i_size;
 
-	ret = adfs_dir_update(sb, &obj, wbc->sync_mode == WB_SYNC_ALL);
-	return ret;
+	return adfs_dir_update(sb, &obj, wbc->sync_mode == WB_SYNC_ALL);
 }

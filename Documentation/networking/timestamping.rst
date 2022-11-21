@@ -55,7 +55,8 @@ struct __kernel_sock_timeval format.
 SO_TIMESTAMP_OLD returns incorrect timestamps after the year 2038
 on 32 bit machines.
 
-1.2 SO_TIMESTAMPNS (also SO_TIMESTAMPNS_OLD and SO_TIMESTAMPNS_NEW):
+1.2 SO_TIMESTAMPNS (also SO_TIMESTAMPNS_OLD and SO_TIMESTAMPNS_NEW)
+-------------------------------------------------------------------
 
 This option is identical to SO_TIMESTAMP except for the returned data type.
 Its struct timespec allows for higher resolution (ns) timestamps than the
@@ -485,8 +486,8 @@ of packets.
 Drivers are free to use a more permissive configuration than the requested
 configuration. It is expected that drivers should only implement directly the
 most generic mode that can be supported. For example if the hardware can
-support HWTSTAMP_FILTER_V2_EVENT, then it should generally always upscale
-HWTSTAMP_FILTER_V2_L2_SYNC_MESSAGE, and so forth, as HWTSTAMP_FILTER_V2_EVENT
+support HWTSTAMP_FILTER_PTP_V2_EVENT, then it should generally always upscale
+HWTSTAMP_FILTER_PTP_V2_L2_SYNC, and so forth, as HWTSTAMP_FILTER_PTP_V2_EVENT
 is more generic (and more useful to applications).
 
 A driver which supports hardware time stamping shall update the struct
@@ -581,8 +582,8 @@ Time stamps for outgoing packets are to be generated as follows:
   and hardware timestamping is not possible (SKBTX_IN_PROGRESS not set).
 - As soon as the driver has sent the packet and/or obtained a
   hardware time stamp for it, it passes the time stamp back by
-  calling skb_hwtstamp_tx() with the original skb, the raw
-  hardware time stamp. skb_hwtstamp_tx() clones the original skb and
+  calling skb_tstamp_tx() with the original skb, the raw
+  hardware time stamp. skb_tstamp_tx() clones the original skb and
   adds the timestamps, therefore the original skb has to be freed now.
   If obtaining the hardware time stamp somehow fails, then the driver
   should not fall back to software time stamping. The rationale is that
@@ -624,35 +625,50 @@ interfaces of a DSA switch to share the same PHC.
 By design, PTP timestamping with a DSA switch does not need any special
 handling in the driver for the host port it is attached to.  However, when the
 host port also supports PTP timestamping, DSA will take care of intercepting
-the ``.ndo_do_ioctl`` calls towards the host port, and block attempts to enable
+the ``.ndo_eth_ioctl`` calls towards the host port, and block attempts to enable
 hardware timestamping on it. This is because the SO_TIMESTAMPING API does not
 allow the delivery of multiple hardware timestamps for the same packet, so
 anybody else except for the DSA switch port must be prevented from doing so.
 
-In code, DSA provides for most of the infrastructure for timestamping already,
-in generic code: a BPF classifier (``ptp_classify_raw``) is used to identify
-PTP event messages (any other packets, including PTP general messages, are not
-timestamped), and provides two hooks to drivers:
+In the generic layer, DSA provides the following infrastructure for PTP
+timestamping:
 
-- ``.port_txtstamp()``: The driver is passed a clone of the timestampable skb
-  to be transmitted, before actually transmitting it. Typically, a switch will
-  have a PTP TX timestamp register (or sometimes a FIFO) where the timestamp
-  becomes available. There may be an IRQ that is raised upon this timestamp's
-  availability, or the driver might have to poll after invoking
-  ``dev_queue_xmit()`` towards the host interface. Either way, in the
-  ``.port_txtstamp()`` method, the driver only needs to save the clone for
-  later use (when the timestamp becomes available). Each skb is annotated with
-  a pointer to its clone, in ``DSA_SKB_CB(skb)->clone``, to ease the driver's
-  job of keeping track of which clone belongs to which skb.
+- ``.port_txtstamp()``: a hook called prior to the transmission of
+  packets with a hardware TX timestamping request from user space.
+  This is required for two-step timestamping, since the hardware
+  timestamp becomes available after the actual MAC transmission, so the
+  driver must be prepared to correlate the timestamp with the original
+  packet so that it can re-enqueue the packet back into the socket's
+  error queue. To save the packet for when the timestamp becomes
+  available, the driver can call ``skb_clone_sk`` , save the clone pointer
+  in skb->cb and enqueue a tx skb queue. Typically, a switch will have a
+  PTP TX timestamp register (or sometimes a FIFO) where the timestamp
+  becomes available. In case of a FIFO, the hardware might store
+  key-value pairs of PTP sequence ID/message type/domain number and the
+  actual timestamp. To perform the correlation correctly between the
+  packets in a queue waiting for timestamping and the actual timestamps,
+  drivers can use a BPF classifier (``ptp_classify_raw``) to identify
+  the PTP transport type, and ``ptp_parse_header`` to interpret the PTP
+  header fields. There may be an IRQ that is raised upon this
+  timestamp's availability, or the driver might have to poll after
+  invoking ``dev_queue_xmit()`` towards the host interface.
+  One-step TX timestamping do not require packet cloning, since there is
+  no follow-up message required by the PTP protocol (because the
+  TX timestamp is embedded into the packet by the MAC), and therefore
+  user space does not expect the packet annotated with the TX timestamp
+  to be re-enqueued into its socket's error queue.
 
-- ``.port_rxtstamp()``: The original (and only) timestampable skb is provided
-  to the driver, for it to annotate it with a timestamp, if that is immediately
-  available, or defer to later. On reception, timestamps might either be
-  available in-band (through metadata in the DSA header, or attached in other
-  ways to the packet), or out-of-band (through another RX timestamping FIFO).
-  Deferral on RX is typically necessary when retrieving the timestamp needs a
-  sleepable context. In that case, it is the responsibility of the DSA driver
-  to call ``netif_rx_ni()`` on the freshly timestamped skb.
+- ``.port_rxtstamp()``: On RX, the BPF classifier is run by DSA to
+  identify PTP event messages (any other packets, including PTP general
+  messages, are not timestamped). The original (and only) timestampable
+  skb is provided to the driver, for it to annotate it with a timestamp,
+  if that is immediately available, or defer to later. On reception,
+  timestamps might either be available in-band (through metadata in the
+  DSA header, or attached in other ways to the packet), or out-of-band
+  (through another RX timestamping FIFO). Deferral on RX is typically
+  necessary when retrieving the timestamp needs a sleepable context. In
+  that case, it is the responsibility of the DSA driver to call
+  ``netif_rx()`` on the freshly timestamped skb.
 
 3.2.2 Ethernet PHYs
 ^^^^^^^^^^^^^^^^^^^
@@ -672,7 +688,7 @@ ethtool ioctl operations for them need to be mediated by their respective MAC
 driver.  Therefore, as opposed to DSA switches, modifications need to be done
 to each individual MAC driver for PHY timestamping support. This entails:
 
-- Checking, in ``.ndo_do_ioctl``, whether ``phy_has_hwtstamp(netdev->phydev)``
+- Checking, in ``.ndo_eth_ioctl``, whether ``phy_has_hwtstamp(netdev->phydev)``
   is true or not. If it is, then the MAC driver should not process this request
   but instead pass it on to the PHY using ``phy_mii_ioctl()``.
 
@@ -731,7 +747,7 @@ For example, a typical driver design for TX timestamping might be to split the
 transmission part into 2 portions:
 
 1. "TX": checks whether PTP timestamping has been previously enabled through
-   the ``.ndo_do_ioctl`` ("``priv->hwtstamp_tx_enabled == true``") and the
+   the ``.ndo_eth_ioctl`` ("``priv->hwtstamp_tx_enabled == true``") and the
    current skb requires a TX timestamp ("``skb_shinfo(skb)->tx_flags &
    SKBTX_HW_TSTAMP``"). If this is true, it sets the
    "``skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS``" flag. Note: as

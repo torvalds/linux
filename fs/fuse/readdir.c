@@ -76,11 +76,11 @@ static void fuse_add_dirent_to_cache(struct file *file,
 	    WARN_ON(fi->rdc.pos != pos))
 		goto unlock;
 
-	addr = kmap_atomic(page);
+	addr = kmap_local_page(page);
 	if (!offset)
 		clear_page(addr);
 	memcpy(addr + offset, dirent, reclen);
-	kunmap_atomic(addr);
+	kunmap_local(addr);
 	fi->rdc.size = (index << PAGE_SHIFT) + offset + reclen;
 	fi->rdc.pos = dirent->off;
 unlock:
@@ -200,14 +200,17 @@ retry:
 	if (!d_in_lookup(dentry)) {
 		struct fuse_inode *fi;
 		inode = d_inode(dentry);
+		if (inode && get_node_id(inode) != o->nodeid)
+			inode = NULL;
 		if (!inode ||
-		    get_node_id(inode) != o->nodeid ||
-		    ((o->attr.mode ^ inode->i_mode) & S_IFMT)) {
+		    fuse_stale_inode(inode, o->generation, &o->attr)) {
+			if (inode)
+				fuse_make_bad(inode);
 			d_invalidate(dentry);
 			dput(dentry);
 			goto retry;
 		}
-		if (is_bad_inode(inode)) {
+		if (fuse_is_bad(inode)) {
 			dput(dentry);
 			return -EIO;
 		}
@@ -451,7 +454,7 @@ static int fuse_readdir_cached(struct file *file, struct dir_context *ctx)
 	 * cache; both cases require an up-to-date mtime value.
 	 */
 	if (!ctx->pos && fc->auto_inval_data) {
-		int err = fuse_update_attributes(inode, file);
+		int err = fuse_update_attributes(inode, file, STATX_MTIME);
 
 		if (err)
 			return err;
@@ -568,7 +571,7 @@ int fuse_readdir(struct file *file, struct dir_context *ctx)
 	struct inode *inode = file_inode(file);
 	int err;
 
-	if (is_bad_inode(inode))
+	if (fuse_is_bad(inode))
 		return -EIO;
 
 	mutex_lock(&ff->readdir.lock);

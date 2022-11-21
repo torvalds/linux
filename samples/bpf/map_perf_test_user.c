@@ -134,19 +134,22 @@ static void do_test_lru(enum test_type test, int cpu)
 		 */
 		int outer_fd = map_fd[array_of_lru_hashs_idx];
 		unsigned int mycpu, mynode;
+		LIBBPF_OPTS(bpf_map_create_opts, opts,
+			.map_flags = BPF_F_NUMA_NODE,
+		);
 
 		assert(cpu < MAX_NR_CPUS);
 
 		ret = syscall(__NR_getcpu, &mycpu, &mynode, NULL);
 		assert(!ret);
 
+		opts.numa_node = mynode;
 		inner_lru_map_fds[cpu] =
-			bpf_create_map_node(BPF_MAP_TYPE_LRU_HASH,
-					    test_map_names[INNER_LRU_HASH_PREALLOC],
-					    sizeof(uint32_t),
-					    sizeof(long),
-					    inner_lru_hash_size, 0,
-					    mynode);
+			bpf_map_create(BPF_MAP_TYPE_LRU_HASH,
+				       test_map_names[INNER_LRU_HASH_PREALLOC],
+				       sizeof(uint32_t),
+				       sizeof(long),
+				       inner_lru_hash_size, &opts);
 		if (inner_lru_map_fds[cpu] == -1) {
 			printf("cannot create BPF_MAP_TYPE_LRU_HASH %s(%d)\n",
 			       strerror(errno), errno);
@@ -410,7 +413,7 @@ static void fixup_map(struct bpf_object *obj)
 		for (i = 0; i < NR_TESTS; i++) {
 			if (!strcmp(test_map_names[i], name) &&
 			    (check_test_flags(i))) {
-				bpf_map__resize(map, num_map_entries);
+				bpf_map__set_max_entries(map, num_map_entries);
 				continue;
 			}
 		}
@@ -421,7 +424,6 @@ static void fixup_map(struct bpf_object *obj)
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	int nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	struct bpf_link *links[8];
 	struct bpf_program *prog;
@@ -429,11 +431,6 @@ int main(int argc, char **argv)
 	struct bpf_map *map;
 	char filename[256];
 	int i = 0;
-
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK)");
-		return 1;
-	}
 
 	if (argc > 1)
 		test_flags = atoi(argv[1]) ? : test_flags;

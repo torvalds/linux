@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics STM32 Digital Camera Memory Interface (DCMI) binding
 
 maintainers:
-  - Hugues Fruchet <hugues.fruchet@st.com>
+  - Hugues Fruchet <hugues.fruchet@foss.st.com>
 
 properties:
   compatible:
@@ -37,12 +37,41 @@ properties:
     maxItems: 1
 
   port:
-    type: object
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
     description:
-      DCMI supports a single port node with parallel bus. It should contain
-      one 'port' child node with child 'endpoint' node. Please refer to the
-      bindings defined in
-      Documentation/devicetree/bindings/media/video-interfaces.txt.
+      DCMI supports a single port node with parallel bus.
+
+    properties:
+      endpoint:
+        $ref: video-interfaces.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          bus-type:
+            enum: [5, 6]
+            default: 5
+
+          bus-width:
+            enum: [8, 10, 12, 14]
+            default: 8
+
+        allOf:
+          - if:
+              properties:
+                bus-type:
+                  const: 6
+
+            then:
+              properties:
+                hsync-active: false
+                vsync-active: false
+                bus-width:
+                  enum: [8]
+
+        required:
+          - bus-type
+          - pclk-sample
 
 required:
   - compatible
@@ -75,6 +104,7 @@ examples:
         port {
              dcmi_0: endpoint {
                    remote-endpoint = <&ov5640_0>;
+                   bus-type = <5>;
                    bus-width = <8>;
                    hsync-active = <0>;
                    vsync-active = <0>;

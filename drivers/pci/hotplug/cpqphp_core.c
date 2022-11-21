@@ -296,9 +296,10 @@ static int ctrl_slot_cleanup(struct controller *ctrl)
  *
  * Won't work for more than one PCI-PCI bridge in a slot.
  *
- * @bus_num - bus number of PCI device
- * @dev_num - device number of PCI device
- * @slot - Pointer to u8 where slot number will	be returned
+ * @bus: pointer to the PCI bus structure
+ * @bus_num: bus number of PCI device
+ * @dev_num: device number of PCI device
+ * @slot: Pointer to u8 where slot number will	be returned
  *
  * Output:	SUCCESS or FAILURE
  */
@@ -1253,7 +1254,7 @@ static void __exit unload_cpqphpd(void)
 	struct pci_resource *res;
 	struct pci_resource *tres;
 
-	rc = compaq_nvram_store(cpqhp_rom_start);
+	compaq_nvram_store(cpqhp_rom_start);
 
 	ctrl = cpqhp_ctrl_list;
 

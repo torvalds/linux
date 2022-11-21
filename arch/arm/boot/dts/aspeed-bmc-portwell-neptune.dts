@@ -14,7 +14,7 @@
 	};
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "console=ttyS4,115200 earlyprintk";
+		bootargs = "console=ttyS4,115200 earlycon";
 	};
 
 	memory@80000000 {
@@ -121,6 +121,8 @@
 	pca9555@27 {
 		compatible = "nxp,pca9555";
 		reg = <0x27>;
+		gpio-controller;
+		#gpio-cells = <2>;
 	};
 };
 

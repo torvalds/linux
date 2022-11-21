@@ -24,7 +24,7 @@ static inline int xt_ct_target(struct sk_buff *skb, struct nf_conn *ct)
 		return XT_CONTINUE;
 
 	if (ct) {
-		atomic_inc(&ct->ct_general.use);
+		refcount_inc(&ct->ct_general.use);
 		nf_ct_set(skb, ct, IP_CT_NEW);
 	} else {
 		nf_ct_set(skb, ct, IP_CT_UNTRACKED);
@@ -172,7 +172,6 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 		goto err2;
 	}
 
-	ret = 0;
 	if ((info->ct_events || info->exp_events) &&
 	    !nf_ct_ecache_ext_add(ct, info->ct_events, info->exp_events,
 				  GFP_KERNEL)) {
@@ -202,7 +201,6 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 			goto err4;
 	}
 	__set_bit(IPS_CONFIRMED_BIT, &ct->status);
-	nf_conntrack_get(&ct->ct_general);
 out:
 	info->ct = ct;
 	return 0;
@@ -352,21 +350,10 @@ notrack_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	return XT_CONTINUE;
 }
 
-static int notrack_chk(const struct xt_tgchk_param *par)
-{
-	if (!par->net->xt.notrack_deprecated_warning) {
-		pr_info("netfilter: NOTRACK target is deprecated, "
-			"use CT instead or upgrade iptables\n");
-		par->net->xt.notrack_deprecated_warning = true;
-	}
-	return 0;
-}
-
 static struct xt_target notrack_tg_reg __read_mostly = {
 	.name		= "NOTRACK",
 	.revision	= 0,
 	.family		= NFPROTO_UNSPEC,
-	.checkentry	= notrack_chk,
 	.target		= notrack_tg,
 	.table		= "raw",
 	.me		= THIS_MODULE,

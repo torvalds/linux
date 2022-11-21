@@ -35,6 +35,9 @@
 
 #include "i915_drv.h"
 #include "gt/intel_context.h"
+#include "gt/intel_engine_regs.h"
+#include "gt/intel_gpu_commands.h"
+#include "gt/intel_gt_regs.h"
 #include "gt/intel_ring.h"
 #include "gvt.h"
 #include "trace.h"
@@ -43,7 +46,7 @@
 
 /* Raw offset is appened to each line for convenience. */
 static struct engine_mmio gen8_engine_mmio_list[] __cacheline_aligned = {
-	{RCS0, GFX_MODE_GEN7, 0xffff, false}, /* 0x229c */
+	{RCS0, RING_MODE_GEN7(RENDER_RING_BASE), 0xffff, false}, /* 0x229c */
 	{RCS0, GEN9_CTX_PREEMPT_REG, 0x0, false}, /* 0x2248 */
 	{RCS0, HWSTAM, 0x0, false}, /* 0x2098 */
 	{RCS0, INSTPM, 0xffff, true}, /* 0x20c0 */
@@ -75,7 +78,7 @@ static struct engine_mmio gen8_engine_mmio_list[] __cacheline_aligned = {
 };
 
 static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
-	{RCS0, GFX_MODE_GEN7, 0xffff, false}, /* 0x229c */
+	{RCS0, RING_MODE_GEN7(RENDER_RING_BASE), 0xffff, false}, /* 0x229c */
 	{RCS0, GEN9_CTX_PREEMPT_REG, 0x0, false}, /* 0x2248 */
 	{RCS0, HWSTAM, 0x0, false}, /* 0x2098 */
 	{RCS0, INSTPM, 0xffff, true}, /* 0x20c0 */
@@ -104,6 +107,8 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{RCS0, COMMON_SLICE_CHICKEN2, 0xffff, true}, /* 0x7014 */
 	{RCS0, GEN9_CS_DEBUG_MODE1, 0xffff, false}, /* 0x20ec */
 	{RCS0, GEN8_L3SQCREG4, 0, false}, /* 0xb118 */
+	{RCS0, GEN9_SCRATCH1, 0, false}, /* 0xb11c */
+	{RCS0, GEN9_SCRATCH_LNCF1, 0, false}, /* 0xb008 */
 	{RCS0, GEN7_HALF_SLICE_CHICKEN1, 0xffff, true}, /* 0xe100 */
 	{RCS0, HALF_SLICE_CHICKEN2, 0xffff, true}, /* 0xe180 */
 	{RCS0, HALF_SLICE_CHICKEN3, 0xffff, true}, /* 0xe184 */
@@ -372,7 +377,7 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu,
 	 */
 	fw = intel_uncore_forcewake_for_reg(uncore, reg,
 					    FW_REG_READ | FW_REG_WRITE);
-	if (engine->id == RCS0 && INTEL_GEN(engine->i915) >= 9)
+	if (engine->id == RCS0 && GRAPHICS_VER(engine->i915) >= 9)
 		fw |= FORCEWAKE_RENDER;
 
 	intel_uncore_forcewake_get(uncore, fw);
@@ -408,7 +413,7 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 	if (drm_WARN_ON(&engine->i915->drm, engine->id >= ARRAY_SIZE(regs)))
 		return;
 
-	if (engine->id == RCS0 && IS_GEN(engine->i915, 9))
+	if (engine->id == RCS0 && GRAPHICS_VER(engine->i915) == 9)
 		return;
 
 	if (!pre && !gen9_render_mocs.initialized)
@@ -473,7 +478,7 @@ static void switch_mmio(struct intel_vgpu *pre,
 	struct engine_mmio *mmio;
 	u32 old_v, new_v;
 
-	if (INTEL_GEN(engine->i915) >= 9)
+	if (GRAPHICS_VER(engine->i915) >= 9)
 		switch_mocs(pre, next, engine);
 
 	for (mmio = engine->i915->gvt->engine_mmio_list.mmio;
@@ -485,7 +490,7 @@ static void switch_mmio(struct intel_vgpu *pre,
 		 * state image on gen9, it's initialized by lri command and
 		 * save or restore with context together.
 		 */
-		if (IS_GEN(engine->i915, 9) && mmio->in_context)
+		if (GRAPHICS_VER(engine->i915) == 9 && mmio->in_context)
 			continue;
 
 		// save
@@ -579,7 +584,7 @@ void intel_gvt_init_engine_mmio_context(struct intel_gvt *gvt)
 {
 	struct engine_mmio *mmio;
 
-	if (INTEL_GEN(gvt->gt->i915) >= 9) {
+	if (GRAPHICS_VER(gvt->gt->i915) >= 9) {
 		gvt->engine_mmio_list.mmio = gen9_engine_mmio_list;
 		gvt->engine_mmio_list.tlb_mmio_offset_list = gen8_tlb_mmio_offset_list;
 		gvt->engine_mmio_list.tlb_mmio_offset_list_cnt = ARRAY_SIZE(gen8_tlb_mmio_offset_list);

@@ -11,6 +11,11 @@
 	model = "Rockchip PX3-EVB";
 	compatible = "rockchip,px3-evb", "rockchip,px3", "rockchip,rk3188";
 
+	aliases {
+		mmc0 = &mmc0;
+		mmc1 = &emmc;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};
@@ -207,7 +212,7 @@
 				regulator-name = "wl_18";
 			};
 
-			lcd_33: SWITCH_REG1 {
+			lcd_33: SWITCH_REG {
 				regulator-name = "lcd_33";
 			};
 		};

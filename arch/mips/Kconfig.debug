@@ -1,9 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-config TRACE_IRQFLAGS_SUPPORT
-	bool
-	default y
-
 config EARLY_PRINTK
 	bool "Early printk" if EXPERT
 	depends on SYS_HAS_EARLY_PRINTK
@@ -77,6 +73,7 @@ config CMDLINE_OVERRIDE
 config SB1XXX_CORELIS
 	bool "Corelis Debugger"
 	depends on SIBYTE_SB1xxx_SOC
+	select DEBUG_KERNEL if !COMPILE_TEST
 	select DEBUG_INFO if !COMPILE_TEST
 	help
 	  Select compile flags that produce code that can be processed by the
@@ -100,6 +97,14 @@ config DEBUG_ZBOOT
 	  After the compressed kernel support works, please disable this option
 	  to reduce the kernel image size and speed up the booting procedure a
 	  little.
+
+config ZBOOT_INGENIC_UART
+	int "UART to use for compressed kernel debugging"
+	depends on DEBUG_ZBOOT && MACH_INGENIC_SOC
+	default 0
+	range 0 4
+	help
+	  Specify the UART that should be used for compressed kernel debugging.
 
 config SPINLOCK_TEST
 	bool "Enable spinlock timing tests in debugfs"

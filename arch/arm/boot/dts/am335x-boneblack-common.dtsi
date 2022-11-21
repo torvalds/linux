@@ -3,9 +3,6 @@
  * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  */
 
-#include <dt-bindings/display/tda998x.h>
-#include <dt-bindings/interrupt-controller/irq.h>
-
 &ldo3_reg {
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
@@ -25,145 +22,9 @@
 	non-removable;
 };
 
-&am33xx_pinmux {
-	nxp_hdmi_bonelt_pins: nxp_hdmi_bonelt_pins {
-		pinctrl-single,pins = <
-			AM33XX_PADCONF(AM335X_PIN_XDMA_EVENT_INTR0, PIN_OUTPUT_PULLDOWN, MUX_MODE3)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA0, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA1, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA2, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA3, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA4, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA5, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA6, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA7, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA8, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA9, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA10, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA11, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA12, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA13, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA14, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_DATA15, PIN_OUTPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_VSYNC, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_HSYNC, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_PCLK, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_LCD_AC_BIAS_EN, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
-		>;
-	};
-
-	nxp_hdmi_bonelt_off_pins: nxp_hdmi_bonelt_off_pins {
-		pinctrl-single,pins = <
-			AM33XX_PADCONF(AM335X_PIN_XDMA_EVENT_INTR0, PIN_OUTPUT_PULLDOWN, MUX_MODE3)
-		>;
-	};
-
-	mcasp0_pins: mcasp0_pins {
-		pinctrl-single,pins = <
-			AM33XX_PADCONF(AM335X_PIN_MCASP0_AHCLKX, PIN_INPUT_PULLUP, MUX_MODE0) /* mcasp0_ahcklx.mcasp0_ahclkx */
-			AM33XX_PADCONF(AM335X_PIN_MCASP0_AHCLKR, PIN_OUTPUT_PULLDOWN, MUX_MODE2) /* mcasp0_ahclkr.mcasp0_axr2*/
-			AM33XX_PADCONF(AM335X_PIN_MCASP0_FSX, PIN_OUTPUT_PULLUP, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_MCASP0_ACLKX, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_GPMC_A11, PIN_OUTPUT_PULLDOWN, MUX_MODE7) /* gpmc_a11.GPIO1_27 */
-		>;
-	};
-};
-
-&lcdc {
-	status = "okay";
-
-	/* If you want to get 24 bit RGB and 16 BGR mode instead of
-	 * current 16 bit RGB and 24 BGR modes, set the propety
-	 * below to "crossed" and uncomment the video-ports -property
-	 * in tda19988 node.
-	 */
-	blue-and-red-wiring = "straight";
-
-	port {
-		lcdc_0: endpoint@0 {
-			remote-endpoint = <&hdmi_0>;
-		};
-	};
-};
-
-&i2c0 {
-	tda19988: tda19988@70 {
-		compatible = "nxp,tda998x";
-		reg = <0x70>;
-		nxp,calib-gpios = <&gpio1 25 0>;
-		interrupts-extended = <&gpio1 25 IRQ_TYPE_LEVEL_LOW>;
-
-		pinctrl-names = "default", "off";
-		pinctrl-0 = <&nxp_hdmi_bonelt_pins>;
-		pinctrl-1 = <&nxp_hdmi_bonelt_off_pins>;
-
-		/* Convert 24bit BGR to RGB, e.g. cross red and blue wiring */
-		/* video-ports = <0x234501>; */
-
-		#sound-dai-cells = <0>;
-		audio-ports = <	TDA998x_I2S	0x03>;
-
-		ports {
-			port@0 {
-				hdmi_0: endpoint@0 {
-					remote-endpoint = <&lcdc_0>;
-				};
-			};
-		};
-	};
-};
-
-&rtc {
-	system-power-controller;
-};
-
-&mcasp0	{
-	#sound-dai-cells = <0>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&mcasp0_pins>;
-	status = "okay";
-	op-mode = <0>;	/* MCASP_IIS_MODE */
-	tdm-slots = <2>;
-	serial-dir = <	/* 0: INACTIVE, 1: TX, 2: RX */
-			0 0 1 0
-		>;
-	tx-num-evt = <32>;
-	rx-num-evt = <32>;
-};
-
 / {
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>; /* 512 MB */
-	};
-
-	clk_mcasp0_fixed: clk_mcasp0_fixed {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <24576000>;
-	};
-
-	clk_mcasp0: clk_mcasp0 {
-		#clock-cells = <0>;
-		compatible = "gpio-gate-clock";
-		clocks = <&clk_mcasp0_fixed>;
-		enable-gpios = <&gpio1 27 0>; /* BeagleBone Black Clk enable on GPIO1_27 */
-	};
-
-	sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "TI BeagleBone Black";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,bitclock-master = <&dailink0_master>;
-		simple-audio-card,frame-master = <&dailink0_master>;
-
-		dailink0_master: simple-audio-card,cpu {
-			sound-dai = <&mcasp0>;
-			clocks = <&clk_mcasp0>;
-		};
-
-		simple-audio-card,codec {
-			sound-dai = <&tda19988>;
-		};
 	};
 };

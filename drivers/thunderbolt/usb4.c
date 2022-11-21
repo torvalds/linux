@@ -13,20 +13,7 @@
 #include "sb_regs.h"
 #include "tb.h"
 
-#define USB4_DATA_DWORDS		16
 #define USB4_DATA_RETRIES		3
-
-enum usb4_switch_op {
-	USB4_SWITCH_OP_QUERY_DP_RESOURCE = 0x10,
-	USB4_SWITCH_OP_ALLOC_DP_RESOURCE = 0x11,
-	USB4_SWITCH_OP_DEALLOC_DP_RESOURCE = 0x12,
-	USB4_SWITCH_OP_NVM_WRITE = 0x20,
-	USB4_SWITCH_OP_NVM_AUTH = 0x21,
-	USB4_SWITCH_OP_NVM_READ = 0x22,
-	USB4_SWITCH_OP_NVM_SET_OFFSET = 0x23,
-	USB4_SWITCH_OP_DROM_READ = 0x24,
-	USB4_SWITCH_OP_NVM_SECTOR_SIZE = 0x25,
-};
 
 enum usb4_sb_target {
 	USB4_SB_TARGET_ROUTER,
@@ -49,139 +36,46 @@ enum usb4_sb_target {
 
 #define USB4_NVM_SECTOR_SIZE_MASK	GENMASK(23, 0)
 
-typedef int (*read_block_fn)(void *, unsigned int, void *, size_t);
-typedef int (*write_block_fn)(void *, const void *, size_t);
+#define USB4_BA_LENGTH_MASK		GENMASK(7, 0)
+#define USB4_BA_INDEX_MASK		GENMASK(15, 0)
 
-static int usb4_switch_wait_for_bit(struct tb_switch *sw, u32 offset, u32 bit,
-				    u32 value, int timeout_msec)
-{
-	ktime_t timeout = ktime_add_ms(ktime_get(), timeout_msec);
+enum usb4_ba_index {
+	USB4_BA_MAX_USB3 = 0x1,
+	USB4_BA_MIN_DP_AUX = 0x2,
+	USB4_BA_MIN_DP_MAIN = 0x3,
+	USB4_BA_MAX_PCIE = 0x4,
+	USB4_BA_MAX_HI = 0x5,
+};
 
-	do {
-		u32 val;
-		int ret;
+#define USB4_BA_VALUE_MASK		GENMASK(31, 16)
+#define USB4_BA_VALUE_SHIFT		16
 
-		ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, offset, 1);
-		if (ret)
-			return ret;
-
-		if ((val & bit) == value)
-			return 0;
-
-		usleep_range(50, 100);
-	} while (ktime_before(ktime_get(), timeout));
-
-	return -ETIMEDOUT;
-}
-
-static int usb4_switch_op_read_data(struct tb_switch *sw, void *data,
-				    size_t dwords)
-{
-	if (dwords > USB4_DATA_DWORDS)
-		return -EINVAL;
-
-	return tb_sw_read(sw, data, TB_CFG_SWITCH, ROUTER_CS_9, dwords);
-}
-
-static int usb4_switch_op_write_data(struct tb_switch *sw, const void *data,
-				     size_t dwords)
-{
-	if (dwords > USB4_DATA_DWORDS)
-		return -EINVAL;
-
-	return tb_sw_write(sw, data, TB_CFG_SWITCH, ROUTER_CS_9, dwords);
-}
-
-static int usb4_switch_op_read_metadata(struct tb_switch *sw, u32 *metadata)
-{
-	return tb_sw_read(sw, metadata, TB_CFG_SWITCH, ROUTER_CS_25, 1);
-}
-
-static int usb4_switch_op_write_metadata(struct tb_switch *sw, u32 metadata)
-{
-	return tb_sw_write(sw, &metadata, TB_CFG_SWITCH, ROUTER_CS_25, 1);
-}
-
-static int usb4_do_read_data(u16 address, void *buf, size_t size,
-			     read_block_fn read_block, void *read_block_data)
-{
-	unsigned int retries = USB4_DATA_RETRIES;
-	unsigned int offset;
-
-	offset = address & 3;
-	address = address & ~3;
-
-	do {
-		size_t nbytes = min_t(size_t, size, USB4_DATA_DWORDS * 4);
-		unsigned int dwaddress, dwords;
-		u8 data[USB4_DATA_DWORDS * 4];
-		int ret;
-
-		dwaddress = address / 4;
-		dwords = ALIGN(nbytes, 4) / 4;
-
-		ret = read_block(read_block_data, dwaddress, data, dwords);
-		if (ret) {
-			if (ret != -ENODEV && retries--)
-				continue;
-			return ret;
-		}
-
-		memcpy(buf, data + offset, nbytes);
-
-		size -= nbytes;
-		address += nbytes;
-		buf += nbytes;
-	} while (size > 0);
-
-	return 0;
-}
-
-static int usb4_do_write_data(unsigned int address, const void *buf, size_t size,
-	write_block_fn write_next_block, void *write_block_data)
-{
-	unsigned int retries = USB4_DATA_RETRIES;
-	unsigned int offset;
-
-	offset = address & 3;
-	address = address & ~3;
-
-	do {
-		u32 nbytes = min_t(u32, size, USB4_DATA_DWORDS * 4);
-		u8 data[USB4_DATA_DWORDS * 4];
-		int ret;
-
-		memcpy(data + offset, buf, nbytes);
-
-		ret = write_next_block(write_block_data, data, nbytes / 4);
-		if (ret) {
-			if (ret == -ETIMEDOUT) {
-				if (retries--)
-					continue;
-				ret = -EIO;
-			}
-			return ret;
-		}
-
-		size -= nbytes;
-		address += nbytes;
-		buf += nbytes;
-	} while (size > 0);
-
-	return 0;
-}
-
-static int usb4_switch_op(struct tb_switch *sw, u16 opcode, u8 *status)
+static int usb4_native_switch_op(struct tb_switch *sw, u16 opcode,
+				 u32 *metadata, u8 *status,
+				 const void *tx_data, size_t tx_dwords,
+				 void *rx_data, size_t rx_dwords)
 {
 	u32 val;
 	int ret;
+
+	if (metadata) {
+		ret = tb_sw_write(sw, metadata, TB_CFG_SWITCH, ROUTER_CS_25, 1);
+		if (ret)
+			return ret;
+	}
+	if (tx_dwords) {
+		ret = tb_sw_write(sw, tx_data, TB_CFG_SWITCH, ROUTER_CS_9,
+				  tx_dwords);
+		if (ret)
+			return ret;
+	}
 
 	val = opcode | ROUTER_CS_26_OV;
 	ret = tb_sw_write(sw, &val, TB_CFG_SWITCH, ROUTER_CS_26, 1);
 	if (ret)
 		return ret;
 
-	ret = usb4_switch_wait_for_bit(sw, ROUTER_CS_26, ROUTER_CS_26_OV, 0, 500);
+	ret = tb_switch_wait_for_bit(sw, ROUTER_CS_26, ROUTER_CS_26_OV, 0, 500);
 	if (ret)
 		return ret;
 
@@ -192,8 +86,71 @@ static int usb4_switch_op(struct tb_switch *sw, u16 opcode, u8 *status)
 	if (val & ROUTER_CS_26_ONS)
 		return -EOPNOTSUPP;
 
-	*status = (val & ROUTER_CS_26_STATUS_MASK) >> ROUTER_CS_26_STATUS_SHIFT;
+	if (status)
+		*status = (val & ROUTER_CS_26_STATUS_MASK) >>
+			ROUTER_CS_26_STATUS_SHIFT;
+
+	if (metadata) {
+		ret = tb_sw_read(sw, metadata, TB_CFG_SWITCH, ROUTER_CS_25, 1);
+		if (ret)
+			return ret;
+	}
+	if (rx_dwords) {
+		ret = tb_sw_read(sw, rx_data, TB_CFG_SWITCH, ROUTER_CS_9,
+				 rx_dwords);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
+}
+
+static int __usb4_switch_op(struct tb_switch *sw, u16 opcode, u32 *metadata,
+			    u8 *status, const void *tx_data, size_t tx_dwords,
+			    void *rx_data, size_t rx_dwords)
+{
+	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
+
+	if (tx_dwords > NVM_DATA_DWORDS || rx_dwords > NVM_DATA_DWORDS)
+		return -EINVAL;
+
+	/*
+	 * If the connection manager implementation provides USB4 router
+	 * operation proxy callback, call it here instead of running the
+	 * operation natively.
+	 */
+	if (cm_ops->usb4_switch_op) {
+		int ret;
+
+		ret = cm_ops->usb4_switch_op(sw, opcode, metadata, status,
+					     tx_data, tx_dwords, rx_data,
+					     rx_dwords);
+		if (ret != -EOPNOTSUPP)
+			return ret;
+
+		/*
+		 * If the proxy was not supported then run the native
+		 * router operation instead.
+		 */
+	}
+
+	return usb4_native_switch_op(sw, opcode, metadata, status, tx_data,
+				     tx_dwords, rx_data, rx_dwords);
+}
+
+static inline int usb4_switch_op(struct tb_switch *sw, u16 opcode,
+				 u32 *metadata, u8 *status)
+{
+	return __usb4_switch_op(sw, opcode, metadata, status, NULL, 0, NULL, 0);
+}
+
+static inline int usb4_switch_op_data(struct tb_switch *sw, u16 opcode,
+				      u32 *metadata, u8 *status,
+				      const void *tx_data, size_t tx_dwords,
+				      void *rx_data, size_t rx_dwords)
+{
+	return __usb4_switch_op(sw, opcode, metadata, status, tx_data,
+				tx_dwords, rx_data, rx_dwords);
 }
 
 static void usb4_switch_check_wakes(struct tb_switch *sw)
@@ -281,7 +238,7 @@ int usb4_switch_setup(struct tb_switch *sw)
 	parent = tb_switch_parent(sw);
 	downstream_port = tb_port_at(tb_route(sw), parent);
 	sw->link_usb4 = link_is_usb4(downstream_port);
-	tb_sw_dbg(sw, "link: %s\n", sw->link_usb4 ? "USB4" : "TBT3");
+	tb_sw_dbg(sw, "link: %s\n", sw->link_usb4 ? "USB4" : "TBT");
 
 	xhci = val & ROUTER_CS_6_HCI;
 	tbt3 = !(val & ROUTER_CS_6_TNS);
@@ -293,13 +250,18 @@ int usb4_switch_setup(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
-	if (sw->link_usb4 && tb_switch_find_port(parent, TB_TYPE_USB3_DOWN)) {
+	if (tb_acpi_may_tunnel_usb3() && sw->link_usb4 &&
+	    tb_switch_find_port(parent, TB_TYPE_USB3_DOWN)) {
 		val |= ROUTER_CS_5_UTO;
 		xhci = false;
 	}
 
-	/* Only enable PCIe tunneling if the parent router supports it */
-	if (tb_switch_find_port(parent, TB_TYPE_PCIE_DOWN)) {
+	/*
+	 * Only enable PCIe tunneling if the parent router supports it
+	 * and it is not disabled.
+	 */
+	if (tb_acpi_may_tunnel_pcie() &&
+	    tb_switch_find_port(parent, TB_TYPE_PCIE_DOWN)) {
 		val |= ROUTER_CS_5_PTO;
 		/*
 		 * xHCI can be enabled if PCIe tunneling is supported
@@ -319,8 +281,8 @@ int usb4_switch_setup(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
-	return usb4_switch_wait_for_bit(sw, ROUTER_CS_6, ROUTER_CS_6_CR,
-					ROUTER_CS_6_CR, 50);
+	return tb_switch_wait_for_bit(sw, ROUTER_CS_6, ROUTER_CS_6_CR,
+				      ROUTER_CS_6_CR, 50);
 }
 
 /**
@@ -348,18 +310,12 @@ static int usb4_switch_drom_read_block(void *data,
 	metadata |= (dwaddress << USB4_DROM_ADDRESS_SHIFT) &
 		USB4_DROM_ADDRESS_MASK;
 
-	ret = usb4_switch_op_write_metadata(sw, metadata);
+	ret = usb4_switch_op_data(sw, USB4_SWITCH_OP_DROM_READ, &metadata,
+				  &status, NULL, 0, buf, dwords);
 	if (ret)
 		return ret;
 
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_DROM_READ, &status);
-	if (ret)
-		return ret;
-
-	if (status)
-		return -EIO;
-
-	return usb4_switch_op_read_data(sw, buf, dwords);
+	return status ? -EIO : 0;
 }
 
 /**
@@ -376,8 +332,8 @@ static int usb4_switch_drom_read_block(void *data,
 int usb4_switch_drom_read(struct tb_switch *sw, unsigned int address, void *buf,
 			  size_t size)
 {
-	return usb4_do_read_data(address, buf, size,
-				 usb4_switch_drom_read_block, sw);
+	return tb_nvm_read_data(address, buf, size, USB4_DATA_RETRIES,
+				usb4_switch_drom_read_block, sw);
 }
 
 /**
@@ -435,12 +391,18 @@ int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags)
 
 		val &= ~(PORT_CS_19_WOC | PORT_CS_19_WOD | PORT_CS_19_WOU4);
 
-		if (flags & TB_WAKE_ON_CONNECT)
-			val |= PORT_CS_19_WOC;
-		if (flags & TB_WAKE_ON_DISCONNECT)
-			val |= PORT_CS_19_WOD;
-		if (flags & TB_WAKE_ON_USB4)
+		if (tb_is_upstream_port(port)) {
 			val |= PORT_CS_19_WOU4;
+		} else {
+			bool configured = val & PORT_CS_19_PC;
+
+			if ((flags & TB_WAKE_ON_CONNECT) && !configured)
+				val |= PORT_CS_19_WOC;
+			if ((flags & TB_WAKE_ON_DISCONNECT) && configured)
+				val |= PORT_CS_19_WOD;
+			if ((flags & TB_WAKE_ON_USB4) && configured)
+				val |= PORT_CS_19_WOU4;
+		}
 
 		ret = tb_port_write(port, &val, TB_CFG_PORT,
 				    port->cap_usb4 + PORT_CS_19, 1);
@@ -449,7 +411,7 @@ int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags)
 	}
 
 	/*
-	 * Enable wakes from PCIe and USB 3.x on this router. Only
+	 * Enable wakes from PCIe, USB 3.x and DP on this router. Only
 	 * needed for device routers.
 	 */
 	if (route) {
@@ -457,11 +419,13 @@ int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags)
 		if (ret)
 			return ret;
 
-		val &= ~(ROUTER_CS_5_WOP | ROUTER_CS_5_WOU);
+		val &= ~(ROUTER_CS_5_WOP | ROUTER_CS_5_WOU | ROUTER_CS_5_WOD);
 		if (flags & TB_WAKE_ON_USB3)
 			val |= ROUTER_CS_5_WOU;
 		if (flags & TB_WAKE_ON_PCIE)
 			val |= ROUTER_CS_5_WOP;
+		if (flags & TB_WAKE_ON_DP)
+			val |= ROUTER_CS_5_WOD;
 
 		ret = tb_sw_write(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
 		if (ret)
@@ -494,8 +458,8 @@ int usb4_switch_set_sleep(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
-	return usb4_switch_wait_for_bit(sw, ROUTER_CS_6, ROUTER_CS_6_SLPR,
-					ROUTER_CS_6_SLPR, 500);
+	return tb_switch_wait_for_bit(sw, ROUTER_CS_6, ROUTER_CS_6_SLPR,
+				      ROUTER_CS_6_SLPR, 500);
 }
 
 /**
@@ -512,16 +476,13 @@ int usb4_switch_nvm_sector_size(struct tb_switch *sw)
 	u8 status;
 	int ret;
 
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_SECTOR_SIZE, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_SECTOR_SIZE, &metadata,
+			     &status);
 	if (ret)
 		return ret;
 
 	if (status)
 		return status == 0x2 ? -EOPNOTSUPP : -EIO;
-
-	ret = usb4_switch_op_read_metadata(sw, &metadata);
-	if (ret)
-		return ret;
 
 	return metadata & USB4_NVM_SECTOR_SIZE_MASK;
 }
@@ -539,18 +500,12 @@ static int usb4_switch_nvm_read_block(void *data,
 	metadata |= (dwaddress << USB4_NVM_READ_OFFSET_SHIFT) &
 		   USB4_NVM_READ_OFFSET_MASK;
 
-	ret = usb4_switch_op_write_metadata(sw, metadata);
+	ret = usb4_switch_op_data(sw, USB4_SWITCH_OP_NVM_READ, &metadata,
+				  &status, NULL, 0, buf, dwords);
 	if (ret)
 		return ret;
 
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_READ, &status);
-	if (ret)
-		return ret;
-
-	if (status)
-		return -EIO;
-
-	return usb4_switch_op_read_data(sw, buf, dwords);
+	return status ? -EIO : 0;
 }
 
 /**
@@ -566,12 +521,21 @@ static int usb4_switch_nvm_read_block(void *data,
 int usb4_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
 			 size_t size)
 {
-	return usb4_do_read_data(address, buf, size,
-				 usb4_switch_nvm_read_block, sw);
+	return tb_nvm_read_data(address, buf, size, USB4_DATA_RETRIES,
+				usb4_switch_nvm_read_block, sw);
 }
 
-static int usb4_switch_nvm_set_offset(struct tb_switch *sw,
-				      unsigned int address)
+/**
+ * usb4_switch_nvm_set_offset() - Set NVM write offset
+ * @sw: USB4 router
+ * @address: Start offset
+ *
+ * Explicitly sets NVM write offset. Normally when writing to NVM this
+ * is done automatically by usb4_switch_nvm_write().
+ *
+ * Returns %0 in success and negative errno if there was a failure.
+ */
+int usb4_switch_nvm_set_offset(struct tb_switch *sw, unsigned int address)
 {
 	u32 metadata, dwaddress;
 	u8 status = 0;
@@ -581,29 +545,23 @@ static int usb4_switch_nvm_set_offset(struct tb_switch *sw,
 	metadata = (dwaddress << USB4_NVM_SET_OFFSET_SHIFT) &
 		   USB4_NVM_SET_OFFSET_MASK;
 
-	ret = usb4_switch_op_write_metadata(sw, metadata);
-	if (ret)
-		return ret;
-
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_SET_OFFSET, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_SET_OFFSET, &metadata,
+			     &status);
 	if (ret)
 		return ret;
 
 	return status ? -EIO : 0;
 }
 
-static int usb4_switch_nvm_write_next_block(void *data, const void *buf,
-					    size_t dwords)
+static int usb4_switch_nvm_write_next_block(void *data, unsigned int dwaddress,
+					    const void *buf, size_t dwords)
 {
 	struct tb_switch *sw = data;
 	u8 status;
 	int ret;
 
-	ret = usb4_switch_op_write_data(sw, buf, dwords);
-	if (ret)
-		return ret;
-
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_WRITE, &status);
+	ret = usb4_switch_op_data(sw, USB4_SWITCH_OP_NVM_WRITE, NULL, &status,
+				  buf, dwords, NULL, 0);
 	if (ret)
 		return ret;
 
@@ -629,8 +587,8 @@ int usb4_switch_nvm_write(struct tb_switch *sw, unsigned int address,
 	if (ret)
 		return ret;
 
-	return usb4_do_write_data(address, buf, size,
-				  usb4_switch_nvm_write_next_block, sw);
+	return tb_nvm_write_data(address, buf, size, USB4_DATA_RETRIES,
+				 usb4_switch_nvm_write_next_block, sw);
 }
 
 /**
@@ -638,32 +596,219 @@ int usb4_switch_nvm_write(struct tb_switch *sw, unsigned int address,
  * @sw: USB4 router
  *
  * After the new NVM has been written via usb4_switch_nvm_write(), this
- * function triggers NVM authentication process. If the authentication
- * is successful the router is power cycled and the new NVM starts
+ * function triggers NVM authentication process. The router gets power
+ * cycled and if the authentication is successful the new NVM starts
  * running. In case of failure returns negative errno.
+ *
+ * The caller should call usb4_switch_nvm_authenticate_status() to read
+ * the status of the authentication after power cycle. It should be the
+ * first router operation to avoid the status being lost.
  */
 int usb4_switch_nvm_authenticate(struct tb_switch *sw)
 {
-	u8 status = 0;
 	int ret;
 
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_AUTH, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_AUTH, NULL, NULL);
+	switch (ret) {
+	/*
+	 * The router is power cycled once NVM_AUTH is started so it is
+	 * expected to get any of the following errors back.
+	 */
+	case -EACCES:
+	case -ENOTCONN:
+	case -ETIMEDOUT:
+		return 0;
+
+	default:
+		return ret;
+	}
+}
+
+/**
+ * usb4_switch_nvm_authenticate_status() - Read status of last NVM authenticate
+ * @sw: USB4 router
+ * @status: Status code of the operation
+ *
+ * The function checks if there is status available from the last NVM
+ * authenticate router operation. If there is status then %0 is returned
+ * and the status code is placed in @status. Returns negative errno in case
+ * of failure.
+ *
+ * Must be called before any other router operation.
+ */
+int usb4_switch_nvm_authenticate_status(struct tb_switch *sw, u32 *status)
+{
+	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
+	u16 opcode;
+	u32 val;
+	int ret;
+
+	if (cm_ops->usb4_switch_nvm_authenticate_status) {
+		ret = cm_ops->usb4_switch_nvm_authenticate_status(sw, status);
+		if (ret != -EOPNOTSUPP)
+			return ret;
+	}
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_26, 1);
 	if (ret)
 		return ret;
 
-	switch (status) {
-	case 0x0:
-		tb_sw_dbg(sw, "NVM authentication successful\n");
-		return 0;
-	case 0x1:
-		return -EINVAL;
-	case 0x2:
-		return -EAGAIN;
-	case 0x3:
-		return -EOPNOTSUPP;
-	default:
-		return -EIO;
+	/* Check that the opcode is correct */
+	opcode = val & ROUTER_CS_26_OPCODE_MASK;
+	if (opcode == USB4_SWITCH_OP_NVM_AUTH) {
+		if (val & ROUTER_CS_26_OV)
+			return -EBUSY;
+		if (val & ROUTER_CS_26_ONS)
+			return -EOPNOTSUPP;
+
+		*status = (val & ROUTER_CS_26_STATUS_MASK) >>
+			ROUTER_CS_26_STATUS_SHIFT;
+	} else {
+		*status = 0;
 	}
+
+	return 0;
+}
+
+/**
+ * usb4_switch_credits_init() - Read buffer allocation parameters
+ * @sw: USB4 router
+ *
+ * Reads @sw buffer allocation parameters and initializes @sw buffer
+ * allocation fields accordingly. Specifically @sw->credits_allocation
+ * is set to %true if these parameters can be used in tunneling.
+ *
+ * Returns %0 on success and negative errno otherwise.
+ */
+int usb4_switch_credits_init(struct tb_switch *sw)
+{
+	int max_usb3, min_dp_aux, min_dp_main, max_pcie, max_dma;
+	int ret, length, i, nports;
+	const struct tb_port *port;
+	u32 data[NVM_DATA_DWORDS];
+	u32 metadata = 0;
+	u8 status = 0;
+
+	memset(data, 0, sizeof(data));
+	ret = usb4_switch_op_data(sw, USB4_SWITCH_OP_BUFFER_ALLOC, &metadata,
+				  &status, NULL, 0, data, ARRAY_SIZE(data));
+	if (ret)
+		return ret;
+	if (status)
+		return -EIO;
+
+	length = metadata & USB4_BA_LENGTH_MASK;
+	if (WARN_ON(length > ARRAY_SIZE(data)))
+		return -EMSGSIZE;
+
+	max_usb3 = -1;
+	min_dp_aux = -1;
+	min_dp_main = -1;
+	max_pcie = -1;
+	max_dma = -1;
+
+	tb_sw_dbg(sw, "credit allocation parameters:\n");
+
+	for (i = 0; i < length; i++) {
+		u16 index, value;
+
+		index = data[i] & USB4_BA_INDEX_MASK;
+		value = (data[i] & USB4_BA_VALUE_MASK) >> USB4_BA_VALUE_SHIFT;
+
+		switch (index) {
+		case USB4_BA_MAX_USB3:
+			tb_sw_dbg(sw, " USB3: %u\n", value);
+			max_usb3 = value;
+			break;
+		case USB4_BA_MIN_DP_AUX:
+			tb_sw_dbg(sw, " DP AUX: %u\n", value);
+			min_dp_aux = value;
+			break;
+		case USB4_BA_MIN_DP_MAIN:
+			tb_sw_dbg(sw, " DP main: %u\n", value);
+			min_dp_main = value;
+			break;
+		case USB4_BA_MAX_PCIE:
+			tb_sw_dbg(sw, " PCIe: %u\n", value);
+			max_pcie = value;
+			break;
+		case USB4_BA_MAX_HI:
+			tb_sw_dbg(sw, " DMA: %u\n", value);
+			max_dma = value;
+			break;
+		default:
+			tb_sw_dbg(sw, " unknown credit allocation index %#x, skipping\n",
+				  index);
+			break;
+		}
+	}
+
+	/*
+	 * Validate the buffer allocation preferences. If we find
+	 * issues, log a warning and fall back using the hard-coded
+	 * values.
+	 */
+
+	/* Host router must report baMaxHI */
+	if (!tb_route(sw) && max_dma < 0) {
+		tb_sw_warn(sw, "host router is missing baMaxHI\n");
+		goto err_invalid;
+	}
+
+	nports = 0;
+	tb_switch_for_each_port(sw, port) {
+		if (tb_port_is_null(port))
+			nports++;
+	}
+
+	/* Must have DP buffer allocation (multiple USB4 ports) */
+	if (nports > 2 && (min_dp_aux < 0 || min_dp_main < 0)) {
+		tb_sw_warn(sw, "multiple USB4 ports require baMinDPaux/baMinDPmain\n");
+		goto err_invalid;
+	}
+
+	tb_switch_for_each_port(sw, port) {
+		if (tb_port_is_dpout(port) && min_dp_main < 0) {
+			tb_sw_warn(sw, "missing baMinDPmain");
+			goto err_invalid;
+		}
+		if ((tb_port_is_dpin(port) || tb_port_is_dpout(port)) &&
+		    min_dp_aux < 0) {
+			tb_sw_warn(sw, "missing baMinDPaux");
+			goto err_invalid;
+		}
+		if ((tb_port_is_usb3_down(port) || tb_port_is_usb3_up(port)) &&
+		    max_usb3 < 0) {
+			tb_sw_warn(sw, "missing baMaxUSB3");
+			goto err_invalid;
+		}
+		if ((tb_port_is_pcie_down(port) || tb_port_is_pcie_up(port)) &&
+		    max_pcie < 0) {
+			tb_sw_warn(sw, "missing baMaxPCIe");
+			goto err_invalid;
+		}
+	}
+
+	/*
+	 * Buffer allocation passed the validation so we can use it in
+	 * path creation.
+	 */
+	sw->credit_allocation = true;
+	if (max_usb3 > 0)
+		sw->max_usb3_credits = max_usb3;
+	if (min_dp_aux > 0)
+		sw->min_dp_aux_credits = min_dp_aux;
+	if (min_dp_main > 0)
+		sw->min_dp_main_credits = min_dp_main;
+	if (max_pcie > 0)
+		sw->max_pcie_credits = max_pcie;
+	if (max_dma > 0)
+		sw->max_dma_credits = max_dma;
+
+	return 0;
+
+err_invalid:
+	return -EINVAL;
 }
 
 /**
@@ -677,14 +822,12 @@ int usb4_switch_nvm_authenticate(struct tb_switch *sw)
  */
 bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
 {
+	u32 metadata = in->port;
 	u8 status;
 	int ret;
 
-	ret = usb4_switch_op_write_metadata(sw, in->port);
-	if (ret)
-		return false;
-
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_QUERY_DP_RESOURCE, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_QUERY_DP_RESOURCE, &metadata,
+			     &status);
 	/*
 	 * If DP resource allocation is not supported assume it is
 	 * always available.
@@ -709,14 +852,12 @@ bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
  */
 int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 {
+	u32 metadata = in->port;
 	u8 status;
 	int ret;
 
-	ret = usb4_switch_op_write_metadata(sw, in->port);
-	if (ret)
-		return ret;
-
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_ALLOC_DP_RESOURCE, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_ALLOC_DP_RESOURCE, &metadata,
+			     &status);
 	if (ret == -EOPNOTSUPP)
 		return 0;
 	else if (ret)
@@ -734,14 +875,12 @@ int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
  */
 int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 {
+	u32 metadata = in->port;
 	u8 status;
 	int ret;
 
-	ret = usb4_switch_op_write_metadata(sw, in->port);
-	if (ret)
-		return ret;
-
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_DEALLOC_DP_RESOURCE, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_DEALLOC_DP_RESOURCE, &metadata,
+			     &status);
 	if (ret == -EOPNOTSUPP)
 		return 0;
 	else if (ret)
@@ -831,6 +970,60 @@ struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
 	}
 
 	return NULL;
+}
+
+/**
+ * usb4_switch_add_ports() - Add USB4 ports for this router
+ * @sw: USB4 router
+ *
+ * For USB4 router finds all USB4 ports and registers devices for each.
+ * Can be called to any router.
+ *
+ * Return %0 in case of success and negative errno in case of failure.
+ */
+int usb4_switch_add_ports(struct tb_switch *sw)
+{
+	struct tb_port *port;
+
+	if (tb_switch_is_icm(sw) || !tb_switch_is_usb4(sw))
+		return 0;
+
+	tb_switch_for_each_port(sw, port) {
+		struct usb4_port *usb4;
+
+		if (!tb_port_is_null(port))
+			continue;
+		if (!port->cap_usb4)
+			continue;
+
+		usb4 = usb4_port_device_add(port);
+		if (IS_ERR(usb4)) {
+			usb4_switch_remove_ports(sw);
+			return PTR_ERR(usb4);
+		}
+
+		port->usb4 = usb4;
+	}
+
+	return 0;
+}
+
+/**
+ * usb4_switch_remove_ports() - Removes USB4 ports from this router
+ * @sw: USB4 router
+ *
+ * Unregisters previously registered USB4 ports.
+ */
+void usb4_switch_remove_ports(struct tb_switch *sw)
+{
+	struct tb_port *port;
+
+	tb_switch_for_each_port(sw, port) {
+		if (port->usb4) {
+			usb4_port_device_remove(port->usb4);
+			port->usb4 = NULL;
+		}
+	}
 }
 
 /**
@@ -966,7 +1159,7 @@ static int usb4_port_wait_for_bit(struct tb_port *port, u32 offset, u32 bit,
 
 static int usb4_port_read_data(struct tb_port *port, void *data, size_t dwords)
 {
-	if (dwords > USB4_DATA_DWORDS)
+	if (dwords > NVM_DATA_DWORDS)
 		return -EINVAL;
 
 	return tb_port_read(port, data, TB_CFG_PORT, port->cap_usb4 + PORT_CS_2,
@@ -976,7 +1169,7 @@ static int usb4_port_read_data(struct tb_port *port, void *data, size_t dwords)
 static int usb4_port_write_data(struct tb_port *port, const void *data,
 				size_t dwords)
 {
-	if (dwords > USB4_DATA_DWORDS)
+	if (dwords > NVM_DATA_DWORDS)
 		return -EINVAL;
 
 	return tb_port_write(port, data, TB_CFG_PORT, port->cap_usb4 + PORT_CS_2,
@@ -1112,6 +1305,48 @@ static int usb4_port_sb_op(struct tb_port *port, enum usb4_sb_target target,
 	return -ETIMEDOUT;
 }
 
+static int usb4_port_set_router_offline(struct tb_port *port, bool offline)
+{
+	u32 val = !offline;
+	int ret;
+
+	ret = usb4_port_sb_write(port, USB4_SB_TARGET_ROUTER, 0,
+				  USB4_SB_METADATA, &val, sizeof(val));
+	if (ret)
+		return ret;
+
+	val = USB4_SB_OPCODE_ROUTER_OFFLINE;
+	return usb4_port_sb_write(port, USB4_SB_TARGET_ROUTER, 0,
+				  USB4_SB_OPCODE, &val, sizeof(val));
+}
+
+/**
+ * usb4_port_router_offline() - Put the USB4 port to offline mode
+ * @port: USB4 port
+ *
+ * This function puts the USB4 port into offline mode. In this mode the
+ * port does not react on hotplug events anymore. This needs to be
+ * called before retimer access is done when the USB4 links is not up.
+ *
+ * Returns %0 in case of success and negative errno if there was an
+ * error.
+ */
+int usb4_port_router_offline(struct tb_port *port)
+{
+	return usb4_port_set_router_offline(port, true);
+}
+
+/**
+ * usb4_port_router_online() - Put the USB4 port back to online
+ * @port: USB4 port
+ *
+ * Makes the USB4 port functional again.
+ */
+int usb4_port_router_online(struct tb_port *port)
+{
+	return usb4_port_set_router_offline(port, false);
+}
+
 /**
  * usb4_port_enumerate_retimers() - Send RT broadcast transaction
  * @port: USB4 port
@@ -1129,12 +1364,59 @@ int usb4_port_enumerate_retimers(struct tb_port *port)
 				  USB4_SB_OPCODE, &val, sizeof(val));
 }
 
+/**
+ * usb4_port_clx_supported() - Check if CLx is supported by the link
+ * @port: Port to check for CLx support for
+ *
+ * PORT_CS_18_CPS bit reflects if the link supports CLx including
+ * active cables (if connected on the link).
+ */
+bool usb4_port_clx_supported(struct tb_port *port)
+{
+	int ret;
+	u32 val;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_usb4 + PORT_CS_18, 1);
+	if (ret)
+		return false;
+
+	return !!(val & PORT_CS_18_CPS);
+}
+
 static inline int usb4_port_retimer_op(struct tb_port *port, u8 index,
 				       enum usb4_sb_opcode opcode,
 				       int timeout_msec)
 {
 	return usb4_port_sb_op(port, USB4_SB_TARGET_RETIMER, index, opcode,
 			       timeout_msec);
+}
+
+/**
+ * usb4_port_retimer_set_inbound_sbtx() - Enable sideband channel transactions
+ * @port: USB4 port
+ * @index: Retimer index
+ *
+ * Enables sideband channel transations on SBTX. Can be used when USB4
+ * link does not go up, for example if there is no device connected.
+ */
+int usb4_port_retimer_set_inbound_sbtx(struct tb_port *port, u8 index)
+{
+	int ret;
+
+	ret = usb4_port_retimer_op(port, index, USB4_SB_OPCODE_SET_INBOUND_SBTX,
+				   500);
+
+	if (ret != -ENODEV)
+		return ret;
+
+	/*
+	 * Per the USB4 retimer spec, the retimer is not required to
+	 * send an RT (Retimer Transaction) response for the first
+	 * SET_INBOUND_SBTX command
+	 */
+	return usb4_port_retimer_op(port, index, USB4_SB_OPCODE_SET_INBOUND_SBTX,
+				    500);
 }
 
 /**
@@ -1229,8 +1511,19 @@ int usb4_port_retimer_nvm_sector_size(struct tb_port *port, u8 index)
 	return ret ? ret : metadata & USB4_NVM_SECTOR_SIZE_MASK;
 }
 
-static int usb4_port_retimer_nvm_set_offset(struct tb_port *port, u8 index,
-					    unsigned int address)
+/**
+ * usb4_port_retimer_nvm_set_offset() - Set NVM write offset
+ * @port: USB4 port
+ * @index: Retimer index
+ * @address: Start offset
+ *
+ * Exlicitly sets NVM write offset. Normally when writing to NVM this is
+ * done automatically by usb4_port_retimer_nvm_write().
+ *
+ * Returns %0 in success and negative errno if there was a failure.
+ */
+int usb4_port_retimer_nvm_set_offset(struct tb_port *port, u8 index,
+				     unsigned int address)
 {
 	u32 metadata, dwaddress;
 	int ret;
@@ -1253,8 +1546,8 @@ struct retimer_info {
 	u8 index;
 };
 
-static int usb4_port_retimer_nvm_write_next_block(void *data, const void *buf,
-						  size_t dwords)
+static int usb4_port_retimer_nvm_write_next_block(void *data,
+	unsigned int dwaddress, const void *buf, size_t dwords)
 
 {
 	const struct retimer_info *info = data;
@@ -1294,8 +1587,8 @@ int usb4_port_retimer_nvm_write(struct tb_port *port, u8 index, unsigned int add
 	if (ret)
 		return ret;
 
-	return usb4_do_write_data(address, buf, size,
-			usb4_port_retimer_nvm_write_next_block, &info);
+	return tb_nvm_write_data(address, buf, size, USB4_DATA_RETRIES,
+				 usb4_port_retimer_nvm_write_next_block, &info);
 }
 
 /**
@@ -1379,7 +1672,7 @@ static int usb4_port_retimer_nvm_read_block(void *data, unsigned int dwaddress,
 	int ret;
 
 	metadata = dwaddress << USB4_NVM_READ_OFFSET_SHIFT;
-	if (dwords < USB4_DATA_DWORDS)
+	if (dwords < NVM_DATA_DWORDS)
 		metadata |= dwords << USB4_NVM_READ_LENGTH_SHIFT;
 
 	ret = usb4_port_retimer_write(port, index, USB4_SB_METADATA, &metadata,
@@ -1412,8 +1705,8 @@ int usb4_port_retimer_nvm_read(struct tb_port *port, u8 index,
 {
 	struct retimer_info info = { .port = port, .index = index };
 
-	return usb4_do_read_data(address, buf, size,
-			usb4_port_retimer_nvm_read_block, &info);
+	return tb_nvm_read_data(address, buf, size, USB4_DATA_RETRIES,
+				usb4_port_retimer_nvm_read_block, &info);
 }
 
 /**

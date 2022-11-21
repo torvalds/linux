@@ -39,7 +39,7 @@
 
 #define SVR_REV(svr)    (((svr) >>  0) & 0xFFFF) /* Revision field */
 
-static void quirk_mpc8360e_qe_enet10(void)
+static void __init quirk_mpc8360e_qe_enet10(void)
 {
 	/*
 	 * handle mpc8360E Erratum QE_ENET10:
@@ -180,6 +180,7 @@ define_machine(mpc83xx_km) {
 	.name		= "mpc83xx-km-platform",
 	.probe		= mpc83xx_km_probe,
 	.setup_arch	= mpc83xx_km_setup_arch,
+	.discover_phbs	= mpc83xx_setup_pci,
 	.init_IRQ	= mpc83xx_ipic_init_IRQ,
 	.get_irq	= ipic_get_irq,
 	.restart	= mpc83xx_restart,

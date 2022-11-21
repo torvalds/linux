@@ -434,8 +434,8 @@ qcaspi_receive(struct qcaspi *qca)
 				skb_put(qca->rx_skb, retcode);
 				qca->rx_skb->protocol = eth_type_trans(
 					qca->rx_skb, qca->rx_skb->dev);
-				qca->rx_skb->ip_summed = CHECKSUM_UNNECESSARY;
-				netif_rx_ni(qca->rx_skb);
+				skb_checksum_none_assert(qca->rx_skb);
+				netif_rx(qca->rx_skb);
 				qca->rx_skb = netdev_alloc_skb_ip_align(net_dev,
 					net_dev->mtu + VLAN_ETH_HLEN);
 				if (!qca->rx_skb) {
@@ -504,8 +504,12 @@ qcaspi_qca7k_sync(struct qcaspi *qca, int event)
 		qcaspi_read_register(qca, SPI_REG_SIGNATURE, &signature);
 		qcaspi_read_register(qca, SPI_REG_SIGNATURE, &signature);
 		if (signature != QCASPI_GOOD_SIGNATURE) {
+			if (qca->sync == QCASPI_SYNC_READY)
+				qca->stats.bad_signature++;
+
 			qca->sync = QCASPI_SYNC_UNKNOWN;
 			netdev_dbg(qca->net_dev, "sync: got CPU on, but signature was invalid, restart\n");
+			return;
 		} else {
 			/* ensure that the WRBUF is empty */
 			qcaspi_read_register(qca, SPI_REG_WRBUF_SPC_AVA,
@@ -523,10 +527,14 @@ qcaspi_qca7k_sync(struct qcaspi *qca, int event)
 
 	switch (qca->sync) {
 	case QCASPI_SYNC_READY:
-		/* Read signature, if not valid go to unknown state. */
+		/* Check signature twice, if not valid go to unknown state. */
 		qcaspi_read_register(qca, SPI_REG_SIGNATURE, &signature);
+		if (signature != QCASPI_GOOD_SIGNATURE)
+			qcaspi_read_register(qca, SPI_REG_SIGNATURE, &signature);
+
 		if (signature != QCASPI_GOOD_SIGNATURE) {
 			qca->sync = QCASPI_SYNC_UNKNOWN;
+			qca->stats.bad_signature++;
 			netdev_dbg(qca->net_dev, "sync: bad signature, restart\n");
 			/* don't reset right away */
 			return;
@@ -653,8 +661,7 @@ qcaspi_intr_handler(int irq, void *data)
 	struct qcaspi *qca = data;
 
 	qca->intr_req++;
-	if (qca->spi_thread &&
-	    qca->spi_thread->state != TASK_RUNNING)
+	if (qca->spi_thread)
 		wake_up_process(qca->spi_thread);
 
 	return IRQ_HANDLED;
@@ -777,8 +784,7 @@ qcaspi_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	netif_trans_update(dev);
 
-	if (qca->spi_thread &&
-	    qca->spi_thread->state != TASK_RUNNING)
+	if (qca->spi_thread)
 		wake_up_process(qca->spi_thread);
 
 	return NETDEV_TX_OK;
@@ -885,7 +891,7 @@ qca_spi_probe(struct spi_device *spi)
 	struct net_device *qcaspi_devs = NULL;
 	u8 legacy_mode = 0;
 	u16 signature;
-	const char *mac;
+	int ret;
 
 	if (!spi->dev.of_node) {
 		dev_err(&spi->dev, "Missing device tree\n");
@@ -962,12 +968,8 @@ qca_spi_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, qcaspi_devs);
 
-	mac = of_get_mac_address(spi->dev.of_node);
-
-	if (!IS_ERR(mac))
-		ether_addr_copy(qca->net_dev->dev_addr, mac);
-
-	if (!is_valid_ether_addr(qca->net_dev->dev_addr)) {
+	ret = of_get_ethdev_address(spi->dev.of_node, qca->net_dev);
+	if (ret) {
 		eth_hw_addr_random(qca->net_dev);
 		dev_info(&spi->dev, "Using random MAC address: %pM\n",
 			 qca->net_dev->dev_addr);
@@ -999,7 +1001,7 @@ qca_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int
+static void
 qca_spi_remove(struct spi_device *spi)
 {
 	struct net_device *qcaspi_devs = spi_get_drvdata(spi);
@@ -1009,8 +1011,6 @@ qca_spi_remove(struct spi_device *spi)
 
 	unregister_netdev(qcaspi_devs);
 	free_netdev(qcaspi_devs);
-
-	return 0;
 }
 
 static const struct spi_device_id qca_spi_id[] = {

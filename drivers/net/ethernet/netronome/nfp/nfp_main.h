@@ -13,7 +13,6 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/msi.h>
-#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/workqueue.h>
 #include <net/devlink.h>
@@ -48,6 +47,7 @@ struct nfp_dumpspec {
 /**
  * struct nfp_pf - NFP PF-specific device structure
  * @pdev:		Backpointer to PCI device
+ * @dev_info:		NFP ASIC params
  * @cpp:		Pointer to the CPP handle
  * @app:		Pointer to the APP handle
  * @data_vnic_bar:	Pointer to the CPP area for the data vNICs' BARs
@@ -84,10 +84,12 @@ struct nfp_dumpspec {
  * @port_refresh_work:	Work entry for taking netdevs out
  * @shared_bufs:	Array of shared buffer structures if FW has any SBs
  * @num_shared_bufs:	Number of elements in @shared_bufs
- * @lock:		Protects all fields which may change after probe
+ *
+ * Fields which may change after proble are protected by devlink instance lock.
  */
 struct nfp_pf {
 	struct pci_dev *pdev;
+	const struct nfp_dev_info *dev_info;
 
 	struct nfp_cpp *cpp;
 
@@ -139,8 +141,6 @@ struct nfp_pf {
 
 	struct nfp_shared_buf *shared_bufs;
 	unsigned int num_shared_bufs;
-
-	struct mutex lock;
 };
 
 extern struct pci_driver nfp_netvf_pci_driver;
@@ -166,7 +166,7 @@ nfp_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
 		 unsigned int min_size, struct nfp_cpp_area **area);
 int nfp_mbox_cmd(struct nfp_pf *pf, u32 cmd, void *in_data, u64 in_length,
 		 void *out_data, u64 out_length);
-int nfp_flash_update_common(struct nfp_pf *pf, const char *path,
+int nfp_flash_update_common(struct nfp_pf *pf, const struct firmware *fw,
 			    struct netlink_ext_ack *extack);
 
 enum nfp_dump_diag {

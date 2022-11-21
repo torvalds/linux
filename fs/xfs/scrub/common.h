@@ -72,66 +72,68 @@ bool xchk_should_check_xref(struct xfs_scrub *sc, int *error,
 			   struct xfs_btree_cur **curpp);
 
 /* Setup functions */
-int xchk_setup_fs(struct xfs_scrub *sc, struct xfs_inode *ip);
-int xchk_setup_ag_allocbt(struct xfs_scrub *sc,
-			       struct xfs_inode *ip);
-int xchk_setup_ag_iallocbt(struct xfs_scrub *sc,
-				struct xfs_inode *ip);
-int xchk_setup_ag_rmapbt(struct xfs_scrub *sc,
-			      struct xfs_inode *ip);
-int xchk_setup_ag_refcountbt(struct xfs_scrub *sc,
-				  struct xfs_inode *ip);
-int xchk_setup_inode(struct xfs_scrub *sc,
-			  struct xfs_inode *ip);
-int xchk_setup_inode_bmap(struct xfs_scrub *sc,
-			       struct xfs_inode *ip);
-int xchk_setup_inode_bmap_data(struct xfs_scrub *sc,
-				    struct xfs_inode *ip);
-int xchk_setup_directory(struct xfs_scrub *sc,
-			      struct xfs_inode *ip);
-int xchk_setup_xattr(struct xfs_scrub *sc,
-			  struct xfs_inode *ip);
-int xchk_setup_symlink(struct xfs_scrub *sc,
-			    struct xfs_inode *ip);
-int xchk_setup_parent(struct xfs_scrub *sc,
-			   struct xfs_inode *ip);
+int xchk_setup_fs(struct xfs_scrub *sc);
+int xchk_setup_ag_allocbt(struct xfs_scrub *sc);
+int xchk_setup_ag_iallocbt(struct xfs_scrub *sc);
+int xchk_setup_ag_rmapbt(struct xfs_scrub *sc);
+int xchk_setup_ag_refcountbt(struct xfs_scrub *sc);
+int xchk_setup_inode(struct xfs_scrub *sc);
+int xchk_setup_inode_bmap(struct xfs_scrub *sc);
+int xchk_setup_inode_bmap_data(struct xfs_scrub *sc);
+int xchk_setup_directory(struct xfs_scrub *sc);
+int xchk_setup_xattr(struct xfs_scrub *sc);
+int xchk_setup_symlink(struct xfs_scrub *sc);
+int xchk_setup_parent(struct xfs_scrub *sc);
 #ifdef CONFIG_XFS_RT
-int xchk_setup_rt(struct xfs_scrub *sc, struct xfs_inode *ip);
+int xchk_setup_rt(struct xfs_scrub *sc);
 #else
 static inline int
-xchk_setup_rt(struct xfs_scrub *sc, struct xfs_inode *ip)
+xchk_setup_rt(struct xfs_scrub *sc)
 {
 	return -ENOENT;
 }
 #endif
 #ifdef CONFIG_XFS_QUOTA
-int xchk_setup_quota(struct xfs_scrub *sc, struct xfs_inode *ip);
+int xchk_setup_quota(struct xfs_scrub *sc);
 #else
 static inline int
-xchk_setup_quota(struct xfs_scrub *sc, struct xfs_inode *ip)
+xchk_setup_quota(struct xfs_scrub *sc)
 {
 	return -ENOENT;
 }
 #endif
-int xchk_setup_fscounters(struct xfs_scrub *sc, struct xfs_inode *ip);
+int xchk_setup_fscounters(struct xfs_scrub *sc);
 
 void xchk_ag_free(struct xfs_scrub *sc, struct xchk_ag *sa);
 int xchk_ag_init(struct xfs_scrub *sc, xfs_agnumber_t agno,
 		struct xchk_ag *sa);
-void xchk_perag_get(struct xfs_mount *mp, struct xchk_ag *sa);
+
+/*
+ * Grab all AG resources, treating the inability to grab the perag structure as
+ * a fs corruption.  This is intended for callers checking an ondisk reference
+ * to a given AG, which means that the AG must still exist.
+ */
+static inline int
+xchk_ag_init_existing(
+	struct xfs_scrub	*sc,
+	xfs_agnumber_t		agno,
+	struct xchk_ag		*sa)
+{
+	int			error = xchk_ag_init(sc, agno, sa);
+
+	return error == -ENOENT ? -EFSCORRUPTED : error;
+}
+
 int xchk_ag_read_headers(struct xfs_scrub *sc, xfs_agnumber_t agno,
-		struct xfs_buf **agi, struct xfs_buf **agf,
-		struct xfs_buf **agfl);
+		struct xchk_ag *sa);
 void xchk_ag_btcur_free(struct xchk_ag *sa);
-int xchk_ag_btcur_init(struct xfs_scrub *sc, struct xchk_ag *sa);
+void xchk_ag_btcur_init(struct xfs_scrub *sc, struct xchk_ag *sa);
 int xchk_count_rmap_ownedby_ag(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
 		const struct xfs_owner_info *oinfo, xfs_filblks_t *blocks);
 
-int xchk_setup_ag_btree(struct xfs_scrub *sc, struct xfs_inode *ip,
-		bool force_log);
-int xchk_get_inode(struct xfs_scrub *sc, struct xfs_inode *ip_in);
-int xchk_setup_inode_contents(struct xfs_scrub *sc, struct xfs_inode *ip,
-		unsigned int resblks);
+int xchk_setup_ag_btree(struct xfs_scrub *sc, bool force_log);
+int xchk_get_inode(struct xfs_scrub *sc);
+int xchk_setup_inode_contents(struct xfs_scrub *sc, unsigned int resblks);
 void xchk_buffer_recheck(struct xfs_scrub *sc, struct xfs_buf *bp);
 
 /*

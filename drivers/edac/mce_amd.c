@@ -323,6 +323,21 @@ static const char * const smca_umc_mce_desc[] = {
 	"AES SRAM ECC error",
 };
 
+static const char * const smca_umc2_mce_desc[] = {
+	"DRAM ECC error",
+	"Data poison error",
+	"SDP parity error",
+	"Reserved",
+	"Address/Command parity error",
+	"Write data parity error",
+	"DCQ SRAM ECC error",
+	"Reserved",
+	"Read data parity error",
+	"Rdb SRAM ECC error",
+	"RdRsp SRAM ECC error",
+	"LM32 MP errors",
+};
+
 static const char * const smca_pb_mce_desc[] = {
 	"An ECC error in the Parameter Block RAM array",
 };
@@ -384,6 +399,63 @@ static const char * const smca_mp5_mce_desc[] = {
 	"Instruction Tag Cache Bank B ECC or parity error",
 };
 
+static const char * const smca_mpdma_mce_desc[] = {
+	"Main SRAM [31:0] bank ECC or parity error",
+	"Main SRAM [63:32] bank ECC or parity error",
+	"Main SRAM [95:64] bank ECC or parity error",
+	"Main SRAM [127:96] bank ECC or parity error",
+	"Data Cache Bank A ECC or parity error",
+	"Data Cache Bank B ECC or parity error",
+	"Data Tag Cache Bank A ECC or parity error",
+	"Data Tag Cache Bank B ECC or parity error",
+	"Instruction Cache Bank A ECC or parity error",
+	"Instruction Cache Bank B ECC or parity error",
+	"Instruction Tag Cache Bank A ECC or parity error",
+	"Instruction Tag Cache Bank B ECC or parity error",
+	"Data Cache Bank A ECC or parity error",
+	"Data Cache Bank B ECC or parity error",
+	"Data Tag Cache Bank A ECC or parity error",
+	"Data Tag Cache Bank B ECC or parity error",
+	"Instruction Cache Bank A ECC or parity error",
+	"Instruction Cache Bank B ECC or parity error",
+	"Instruction Tag Cache Bank A ECC or parity error",
+	"Instruction Tag Cache Bank B ECC or parity error",
+	"Data Cache Bank A ECC or parity error",
+	"Data Cache Bank B ECC or parity error",
+	"Data Tag Cache Bank A ECC or parity error",
+	"Data Tag Cache Bank B ECC or parity error",
+	"Instruction Cache Bank A ECC or parity error",
+	"Instruction Cache Bank B ECC or parity error",
+	"Instruction Tag Cache Bank A ECC or parity error",
+	"Instruction Tag Cache Bank B ECC or parity error",
+	"System Hub Read Buffer ECC or parity error",
+	"MPDMA TVF DVSEC Memory ECC or parity error",
+	"MPDMA TVF MMIO Mailbox0 ECC or parity error",
+	"MPDMA TVF MMIO Mailbox1 ECC or parity error",
+	"MPDMA TVF Doorbell Memory ECC or parity error",
+	"MPDMA TVF SDP Slave Memory 0 ECC or parity error",
+	"MPDMA TVF SDP Slave Memory 1 ECC or parity error",
+	"MPDMA TVF SDP Slave Memory 2 ECC or parity error",
+	"MPDMA TVF SDP Master Memory 0 ECC or parity error",
+	"MPDMA TVF SDP Master Memory 1 ECC or parity error",
+	"MPDMA TVF SDP Master Memory 2 ECC or parity error",
+	"MPDMA TVF SDP Master Memory 3 ECC or parity error",
+	"MPDMA TVF SDP Master Memory 4 ECC or parity error",
+	"MPDMA TVF SDP Master Memory 5 ECC or parity error",
+	"MPDMA TVF SDP Master Memory 6 ECC or parity error",
+	"MPDMA PTE Command FIFO ECC or parity error",
+	"MPDMA PTE Hub Data FIFO ECC or parity error",
+	"MPDMA PTE Internal Data FIFO ECC or parity error",
+	"MPDMA PTE Command Memory DMA ECC or parity error",
+	"MPDMA PTE Command Memory Internal ECC or parity error",
+	"MPDMA PTE DMA Completion FIFO ECC or parity error",
+	"MPDMA PTE Tablewalk Completion FIFO ECC or parity error",
+	"MPDMA PTE Descriptor Completion FIFO ECC or parity error",
+	"MPDMA PTE ReadOnly Completion FIFO ECC or parity error",
+	"MPDMA PTE DirectWrite Completion FIFO ECC or parity error",
+	"SDP Watchdog Timer expired",
+};
+
 static const char * const smca_nbio_mce_desc[] = {
 	"ECC or Parity error",
 	"PCIE error",
@@ -398,6 +470,111 @@ static const char * const smca_pcie_mce_desc[] = {
 	"CCIX Write Response with Status: Non-Data Error",
 	"CCIX Read Response with Status: Data Error",
 	"CCIX Non-okay write response with data error",
+};
+
+static const char * const smca_pcie2_mce_desc[] = {
+	"SDP Parity Error logging",
+};
+
+static const char * const smca_xgmipcs_mce_desc[] = {
+	"Data Loss Error",
+	"Training Error",
+	"Flow Control Acknowledge Error",
+	"Rx Fifo Underflow Error",
+	"Rx Fifo Overflow Error",
+	"CRC Error",
+	"BER Exceeded Error",
+	"Tx Vcid Data Error",
+	"Replay Buffer Parity Error",
+	"Data Parity Error",
+	"Replay Fifo Overflow Error",
+	"Replay Fifo Underflow Error",
+	"Elastic Fifo Overflow Error",
+	"Deskew Error",
+	"Flow Control CRC Error",
+	"Data Startup Limit Error",
+	"FC Init Timeout Error",
+	"Recovery Timeout Error",
+	"Ready Serial Timeout Error",
+	"Ready Serial Attempt Error",
+	"Recovery Attempt Error",
+	"Recovery Relock Attempt Error",
+	"Replay Attempt Error",
+	"Sync Header Error",
+	"Tx Replay Timeout Error",
+	"Rx Replay Timeout Error",
+	"LinkSub Tx Timeout Error",
+	"LinkSub Rx Timeout Error",
+	"Rx CMD Packet Error",
+};
+
+static const char * const smca_xgmiphy_mce_desc[] = {
+	"RAM ECC Error",
+	"ARC instruction buffer parity error",
+	"ARC data buffer parity error",
+	"PHY APB error",
+};
+
+static const char * const smca_nbif_mce_desc[] = {
+	"Timeout error from GMI",
+	"SRAM ECC error",
+	"NTB Error Event",
+	"SDP Parity error",
+};
+
+static const char * const smca_sata_mce_desc[] = {
+	"Parity error for port 0",
+	"Parity error for port 1",
+	"Parity error for port 2",
+	"Parity error for port 3",
+	"Parity error for port 4",
+	"Parity error for port 5",
+	"Parity error for port 6",
+	"Parity error for port 7",
+};
+
+static const char * const smca_usb_mce_desc[] = {
+	"Parity error or ECC error for S0 RAM0",
+	"Parity error or ECC error for S0 RAM1",
+	"Parity error or ECC error for S0 RAM2",
+	"Parity error for PHY RAM0",
+	"Parity error for PHY RAM1",
+	"AXI Slave Response error",
+};
+
+static const char * const smca_gmipcs_mce_desc[] = {
+	"Data Loss Error",
+	"Training Error",
+	"Replay Parity Error",
+	"Rx Fifo Underflow Error",
+	"Rx Fifo Overflow Error",
+	"CRC Error",
+	"BER Exceeded Error",
+	"Tx Fifo Underflow Error",
+	"Replay Buffer Parity Error",
+	"Tx Overflow Error",
+	"Replay Fifo Overflow Error",
+	"Replay Fifo Underflow Error",
+	"Elastic Fifo Overflow Error",
+	"Deskew Error",
+	"Offline Error",
+	"Data Startup Limit Error",
+	"FC Init Timeout Error",
+	"Recovery Timeout Error",
+	"Ready Serial Timeout Error",
+	"Ready Serial Attempt Error",
+	"Recovery Attempt Error",
+	"Recovery Relock Attempt Error",
+	"Deskew Abort Error",
+	"Rx Buffer Error",
+	"Rx LFDS Fifo Overflow Error",
+	"Rx LFDS Fifo Underflow Error",
+	"LinkSub Tx Timeout Error",
+	"LinkSub Rx Timeout Error",
+	"Rx CMD Packet Error",
+	"LFDS Training Timeout Error",
+	"LFDS FC Init Timeout Error",
+	"Data Loss Error",
 };
 
 struct smca_mce_desc {
@@ -418,14 +595,28 @@ static struct smca_mce_desc smca_mce_descs[] = {
 	[SMCA_CS_V2]	= { smca_cs2_mce_desc,	ARRAY_SIZE(smca_cs2_mce_desc)	},
 	[SMCA_PIE]	= { smca_pie_mce_desc,	ARRAY_SIZE(smca_pie_mce_desc)	},
 	[SMCA_UMC]	= { smca_umc_mce_desc,	ARRAY_SIZE(smca_umc_mce_desc)	},
+	[SMCA_UMC_V2]	= { smca_umc2_mce_desc,	ARRAY_SIZE(smca_umc2_mce_desc)	},
 	[SMCA_PB]	= { smca_pb_mce_desc,	ARRAY_SIZE(smca_pb_mce_desc)	},
 	[SMCA_PSP]	= { smca_psp_mce_desc,	ARRAY_SIZE(smca_psp_mce_desc)	},
 	[SMCA_PSP_V2]	= { smca_psp2_mce_desc,	ARRAY_SIZE(smca_psp2_mce_desc)	},
 	[SMCA_SMU]	= { smca_smu_mce_desc,	ARRAY_SIZE(smca_smu_mce_desc)	},
 	[SMCA_SMU_V2]	= { smca_smu2_mce_desc,	ARRAY_SIZE(smca_smu2_mce_desc)	},
 	[SMCA_MP5]	= { smca_mp5_mce_desc,	ARRAY_SIZE(smca_mp5_mce_desc)	},
+	[SMCA_MPDMA]	= { smca_mpdma_mce_desc,	ARRAY_SIZE(smca_mpdma_mce_desc)	},
 	[SMCA_NBIO]	= { smca_nbio_mce_desc,	ARRAY_SIZE(smca_nbio_mce_desc)	},
 	[SMCA_PCIE]	= { smca_pcie_mce_desc,	ARRAY_SIZE(smca_pcie_mce_desc)	},
+	[SMCA_PCIE_V2]	= { smca_pcie2_mce_desc,   ARRAY_SIZE(smca_pcie2_mce_desc)	},
+	[SMCA_XGMI_PCS]	= { smca_xgmipcs_mce_desc, ARRAY_SIZE(smca_xgmipcs_mce_desc)	},
+	/* NBIF and SHUB have the same error descriptions, for now. */
+	[SMCA_NBIF]	= { smca_nbif_mce_desc, ARRAY_SIZE(smca_nbif_mce_desc)	},
+	[SMCA_SHUB]	= { smca_nbif_mce_desc, ARRAY_SIZE(smca_nbif_mce_desc)	},
+	[SMCA_SATA]	= { smca_sata_mce_desc, ARRAY_SIZE(smca_sata_mce_desc)	},
+	[SMCA_USB]	= { smca_usb_mce_desc,	ARRAY_SIZE(smca_usb_mce_desc)	},
+	[SMCA_GMI_PCS]	= { smca_gmipcs_mce_desc,  ARRAY_SIZE(smca_gmipcs_mce_desc)	},
+	/* All the PHY bank types have the same error descriptions, for now. */
+	[SMCA_XGMI_PHY]	= { smca_xgmiphy_mce_desc, ARRAY_SIZE(smca_xgmiphy_mce_desc)	},
+	[SMCA_WAFL_PHY]	= { smca_xgmiphy_mce_desc, ARRAY_SIZE(smca_xgmiphy_mce_desc)	},
+	[SMCA_GMI_PHY]	= { smca_xgmiphy_mce_desc, ARRAY_SIZE(smca_xgmiphy_mce_desc)	},
 };
 
 static bool f12h_mc0_mce(u16 ec, u8 xec)
@@ -869,7 +1060,7 @@ static void decode_mc3_mce(struct mce *m)
 static void decode_mc4_mce(struct mce *m)
 {
 	unsigned int fam = x86_family(m->cpuid);
-	int node_id = amd_get_nb_id(m->extcpu);
+	int node_id = topology_die_id(m->extcpu);
 	u16 ec = EC(m->status);
 	u8 xec = XEC(m->status, 0x1f);
 	u8 offset = 0;
@@ -975,19 +1166,12 @@ static void decode_mc6_mce(struct mce *m)
 /* Decode errors according to Scalable MCA specification */
 static void decode_smca_error(struct mce *m)
 {
-	struct smca_hwid *hwid;
-	enum smca_bank_types bank_type;
+	enum smca_bank_types bank_type = smca_get_bank_type(m->extcpu, m->bank);
 	const char *ip_name;
 	u8 xec = XEC(m->status, xec_mask);
 
-	if (m->bank >= ARRAY_SIZE(smca_banks))
+	if (bank_type >= N_SMCA_BANK_TYPES)
 		return;
-
-	hwid = smca_banks[m->bank].hwid;
-	if (!hwid)
-		return;
-
-	bank_type = hwid->bank_type;
 
 	if (bank_type == SMCA_RESERVED) {
 		pr_emerg(HW_ERR "Bank %d is reserved.\n", m->bank);
@@ -1003,7 +1187,7 @@ static void decode_smca_error(struct mce *m)
 		pr_cont(", %s.\n", smca_mce_descs[bank_type].descs[xec]);
 
 	if (bank_type == SMCA_UMC && xec == 0 && decode_dram_ecc)
-		decode_dram_ecc(cpu_to_node(m->extcpu), m);
+		decode_dram_ecc(topology_die_id(m->extcpu), m);
 }
 
 static inline void amd_decode_err_code(u16 ec)
@@ -1174,6 +1358,9 @@ static int __init mce_amd_init(void)
 
 	if (c->x86_vendor != X86_VENDOR_AMD &&
 	    c->x86_vendor != X86_VENDOR_HYGON)
+		return -ENODEV;
+
+	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
 		return -ENODEV;
 
 	if (boot_cpu_has(X86_FEATURE_SMCA)) {

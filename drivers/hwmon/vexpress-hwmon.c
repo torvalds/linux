@@ -27,7 +27,7 @@ static ssize_t vexpress_hwmon_label_show(struct device *dev,
 {
 	const char *label = of_get_property(dev->of_node, "label", NULL);
 
-	return snprintf(buffer, PAGE_SIZE, "%s\n", label);
+	return sysfs_emit(buffer, "%s\n", label);
 }
 
 static ssize_t vexpress_hwmon_u32_show(struct device *dev,
@@ -41,8 +41,8 @@ static ssize_t vexpress_hwmon_u32_show(struct device *dev,
 	if (err)
 		return err;
 
-	return snprintf(buffer, PAGE_SIZE, "%u\n", value /
-			to_sensor_dev_attr(dev_attr)->index);
+	return sysfs_emit(buffer, "%u\n", value /
+			  to_sensor_dev_attr(dev_attr)->index);
 }
 
 static ssize_t vexpress_hwmon_u64_show(struct device *dev,
@@ -60,9 +60,9 @@ static ssize_t vexpress_hwmon_u64_show(struct device *dev,
 	if (err)
 		return err;
 
-	return snprintf(buffer, PAGE_SIZE, "%llu\n",
-			div_u64(((u64)value_hi << 32) | value_lo,
-			to_sensor_dev_attr(dev_attr)->index));
+	return sysfs_emit(buffer, "%llu\n",
+			  div_u64(((u64)value_hi << 32) | value_lo,
+				  to_sensor_dev_attr(dev_attr)->index));
 }
 
 static umode_t vexpress_hwmon_attr_is_visible(struct kobject *kobj,
@@ -207,7 +207,6 @@ MODULE_DEVICE_TABLE(of, vexpress_hwmon_of_match);
 
 static int vexpress_hwmon_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct vexpress_hwmon_data *data;
 	const struct vexpress_hwmon_type *type;
 
@@ -216,10 +215,9 @@ static int vexpress_hwmon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, data);
 
-	match = of_match_device(vexpress_hwmon_of_match, &pdev->dev);
-	if (!match)
+	type = of_device_get_match_data(&pdev->dev);
+	if (!type)
 		return -ENODEV;
-	type = match->data;
 
 	data->reg = devm_regmap_init_vexpress_config(&pdev->dev);
 	if (IS_ERR(data->reg))

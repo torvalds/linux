@@ -52,6 +52,7 @@ static const struct pio_clocks cs5520_pio_clocks[]={
  *	cs5520_set_timings	-	program PIO timings
  *	@ap: ATA port
  *	@adev: ATA device
+ *	@pio: PIO ID
  *
  *	Program the PIO mode timings for the controller according to the pio
  *	clocking table.
@@ -94,8 +95,9 @@ static void cs5520_set_piomode(struct ata_port *ap, struct ata_device *adev)
 }
 
 static struct scsi_host_template cs5520_sht = {
-	ATA_BMDMA_SHT(DRV_NAME),
+	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize		= LIBATA_DUMB_MAX_PRD,
+	.dma_boundary		= ATA_DMA_BOUNDARY,
 };
 
 static struct ata_port_operations cs5520_port_ops = {
@@ -151,12 +153,12 @@ static int cs5520_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Perform set up for DMA */
 	if (pci_enable_device_io(pdev)) {
-		printk(KERN_ERR DRV_NAME ": unable to configure BAR2.\n");
+		dev_err(&pdev->dev, "unable to configure BAR2.\n");
 		return -ENODEV;
 	}
 
 	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))) {
-		printk(KERN_ERR DRV_NAME ": unable to configure DMA mask.\n");
+		dev_err(&pdev->dev, "unable to configure DMA mask.\n");
 		return -ENODEV;
 	}
 
@@ -246,6 +248,7 @@ static int cs5520_reinit_one(struct pci_dev *pdev)
 /**
  *	cs5520_pci_device_suspend	-	device suspend
  *	@pdev: PCI device
+ *	@mesg: PM event message
  *
  *	We have to cut and waste bits from the standard method because
  *	the 5520 is a bit odd and not just a pure ATA device. As a result
@@ -256,11 +259,8 @@ static int cs5520_reinit_one(struct pci_dev *pdev)
 static int cs5520_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
 	struct ata_host *host = pci_get_drvdata(pdev);
-	int rc = 0;
 
-	rc = ata_host_suspend(host, mesg);
-	if (rc)
-		return rc;
+	ata_host_suspend(host, mesg);
 
 	pci_save_state(pdev);
 	return 0;

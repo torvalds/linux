@@ -13,9 +13,9 @@
 #include <linux/scatterlist.h>
 
 struct rtrs_permit;
-struct rtrs_clt;
+struct rtrs_clt_sess;
 struct rtrs_srv_ctx;
-struct rtrs_srv;
+struct rtrs_srv_sess;
 struct rtrs_srv_op;
 
 /*
@@ -52,27 +52,18 @@ struct rtrs_clt_ops {
 	void	(*link_ev)(void *priv, enum rtrs_clt_link_ev ev);
 };
 
-struct rtrs_clt *rtrs_clt_open(struct rtrs_clt_ops *ops,
-				 const char *sessname,
+struct rtrs_clt_sess *rtrs_clt_open(struct rtrs_clt_ops *ops,
+				 const char *pathname,
 				 const struct rtrs_addr *paths,
 				 size_t path_cnt, u16 port,
 				 size_t pdu_sz, u8 reconnect_delay_sec,
-				 u16 max_segments,
-				 size_t max_segment_size,
-				 s16 max_reconnect_attempts);
+				 s16 max_reconnect_attempts, u32 nr_poll_queues);
 
-void rtrs_clt_close(struct rtrs_clt *sess);
+void rtrs_clt_close(struct rtrs_clt_sess *clt);
 
-/**
- * rtrs_permit_to_pdu() - converts rtrs_permit to opaque pdu pointer
- * @permit: RTRS permit pointer, it associates the memory allocation for future
- *          RDMA operation.
- */
-void *rtrs_permit_to_pdu(struct rtrs_permit *permit);
-
-enum {
+enum wait_type {
 	RTRS_PERMIT_NOWAIT = 0,
-	RTRS_PERMIT_WAIT   = 1,
+	RTRS_PERMIT_WAIT   = 1
 };
 
 /**
@@ -86,11 +77,12 @@ enum rtrs_clt_con_type {
 	RTRS_IO_CON
 };
 
-struct rtrs_permit *rtrs_clt_get_permit(struct rtrs_clt *sess,
-				    enum rtrs_clt_con_type con_type,
-				    int wait);
+struct rtrs_permit *rtrs_clt_get_permit(struct rtrs_clt_sess *sess,
+					enum rtrs_clt_con_type con_type,
+					enum wait_type wait);
 
-void rtrs_clt_put_permit(struct rtrs_clt *sess, struct rtrs_permit *permit);
+void rtrs_clt_put_permit(struct rtrs_clt_sess *sess,
+			 struct rtrs_permit *permit);
 
 /**
  * rtrs_clt_req_ops - it holds the request confirmation callback
@@ -107,9 +99,10 @@ struct rtrs_clt_req_ops {
 };
 
 int rtrs_clt_request(int dir, struct rtrs_clt_req_ops *ops,
-		     struct rtrs_clt *sess, struct rtrs_permit *permit,
+		     struct rtrs_clt_sess *sess, struct rtrs_permit *permit,
 		     const struct kvec *vec, size_t nr, size_t len,
 		     struct scatterlist *sg, unsigned int sg_cnt);
+int rtrs_clt_rdma_cq_direct(struct rtrs_clt_sess *clt, unsigned int index);
 
 /**
  * rtrs_attrs - RTRS session attributes
@@ -117,11 +110,10 @@ int rtrs_clt_request(int dir, struct rtrs_clt_req_ops *ops,
 struct rtrs_attrs {
 	u32		queue_depth;
 	u32		max_io_size;
-	u8		sessname[NAME_MAX];
-	struct kobject	*sess_kobj;
+	u32		max_segments;
 };
 
-int rtrs_clt_query(struct rtrs_clt *sess, struct rtrs_attrs *attr);
+int rtrs_clt_query(struct rtrs_clt_sess *sess, struct rtrs_attrs *attr);
 
 /*
  * Here goes RTRS server API
@@ -145,7 +137,6 @@ struct rtrs_srv_ops {
 	 *			message for the data transfer will be sent to
 	 *			the client.
 
-	 *	@sess:		Session
 	 *	@priv:		Private data set by rtrs_srv_set_sess_priv()
 	 *	@id:		internal RTRS operation id
 	 *	@dir:		READ/WRITE
@@ -159,7 +150,7 @@ struct rtrs_srv_ops {
 	 *	@usr:		The extra user message sent by the client (%vec)
 	 *	@usrlen:	Size of the user message
 	 */
-	int (*rdma_ev)(struct rtrs_srv *sess, void *priv,
+	int (*rdma_ev)(void *priv,
 		       struct rtrs_srv_op *id, int dir,
 		       void *data, size_t datalen, const void *usr,
 		       size_t usrlen);
@@ -173,7 +164,7 @@ struct rtrs_srv_ops {
 	 *	@priv:		Private data from user if previously set with
 	 *			rtrs_srv_set_sess_priv()
 	 */
-	int (*link_ev)(struct rtrs_srv *sess, enum rtrs_srv_link_ev ev,
+	int (*link_ev)(struct rtrs_srv_sess *sess, enum rtrs_srv_link_ev ev,
 		       void *priv);
 };
 
@@ -183,14 +174,16 @@ void rtrs_srv_close(struct rtrs_srv_ctx *ctx);
 
 bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int errno);
 
-void rtrs_srv_set_sess_priv(struct rtrs_srv *sess, void *priv);
+void rtrs_srv_set_sess_priv(struct rtrs_srv_sess *sess, void *priv);
 
-int rtrs_srv_get_sess_name(struct rtrs_srv *sess, char *sessname, size_t len);
+int rtrs_srv_get_path_name(struct rtrs_srv_sess *sess, char *pathname,
+			   size_t len);
 
-int rtrs_srv_get_queue_depth(struct rtrs_srv *sess);
+int rtrs_srv_get_queue_depth(struct rtrs_srv_sess *sess);
 
 int rtrs_addr_to_sockaddr(const char *str, size_t len, u16 port,
 			  struct rtrs_addr *addr);
 
 int sockaddr_to_str(const struct sockaddr *addr, char *buf, size_t len);
+int rtrs_addr_to_str(const struct rtrs_addr *addr, char *buf, size_t len);
 #endif

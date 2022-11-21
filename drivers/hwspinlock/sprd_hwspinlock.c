@@ -4,7 +4,6 @@
  * Copyright (C) 2017 Spreadtrum  - http://www.spreadtrum.com
  */
 
-#include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -15,7 +14,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
 
 #include "hwspinlock_internal.h"
 
@@ -95,8 +93,7 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	sprd_hwlock = devm_kzalloc(&pdev->dev,
-				   sizeof(struct sprd_hwspinlock_dev) +
-				   SPRD_HWLOCKS_NUM * sizeof(*lock),
+				   struct_size(sprd_hwlock, bank.lock, SPRD_HWLOCKS_NUM),
 				   GFP_KERNEL);
 	if (!sprd_hwlock)
 		return -ENOMEM;
@@ -148,21 +145,10 @@ static struct platform_driver sprd_hwspinlock_driver = {
 	.probe = sprd_hwspinlock_probe,
 	.driver = {
 		.name = "sprd_hwspinlock",
-		.of_match_table = of_match_ptr(sprd_hwspinlock_of_match),
+		.of_match_table = sprd_hwspinlock_of_match,
 	},
 };
-
-static int __init sprd_hwspinlock_init(void)
-{
-	return platform_driver_register(&sprd_hwspinlock_driver);
-}
-postcore_initcall(sprd_hwspinlock_init);
-
-static void __exit sprd_hwspinlock_exit(void)
-{
-	platform_driver_unregister(&sprd_hwspinlock_driver);
-}
-module_exit(sprd_hwspinlock_exit);
+module_platform_driver(sprd_hwspinlock_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Hardware spinlock driver for Spreadtrum");

@@ -49,7 +49,7 @@
 #include <linux/personality.h>
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/sched/task_stack.h>
 
 #include <asm/ucontext.h>
@@ -60,6 +60,41 @@ struct rt_sigframe {
 #define MAGIC_SIGALTSTK		0x07302004
 	unsigned int sigret_magic;
 };
+
+static int save_arcv2_regs(struct sigcontext *mctx, struct pt_regs *regs)
+{
+	int err = 0;
+#ifndef CONFIG_ISA_ARCOMPACT
+	struct user_regs_arcv2 v2abi;
+
+	v2abi.r30 = regs->r30;
+#ifdef CONFIG_ARC_HAS_ACCL_REGS
+	v2abi.r58 = regs->r58;
+	v2abi.r59 = regs->r59;
+#else
+	v2abi.r58 = v2abi.r59 = 0;
+#endif
+	err = __copy_to_user(&mctx->v2abi, &v2abi, sizeof(v2abi));
+#endif
+	return err;
+}
+
+static int restore_arcv2_regs(struct sigcontext *mctx, struct pt_regs *regs)
+{
+	int err = 0;
+#ifndef CONFIG_ISA_ARCOMPACT
+	struct user_regs_arcv2 v2abi;
+
+	err = __copy_from_user(&v2abi, &mctx->v2abi, sizeof(v2abi));
+
+	regs->r30 = v2abi.r30;
+#ifdef CONFIG_ARC_HAS_ACCL_REGS
+	regs->r58 = v2abi.r58;
+	regs->r59 = v2abi.r59;
+#endif
+#endif
+	return err;
+}
 
 static int
 stash_usr_regs(struct rt_sigframe __user *sf, struct pt_regs *regs,
@@ -94,9 +129,13 @@ stash_usr_regs(struct rt_sigframe __user *sf, struct pt_regs *regs,
 
 	err = __copy_to_user(&(sf->uc.uc_mcontext.regs.scratch), &uregs.scratch,
 			     sizeof(sf->uc.uc_mcontext.regs.scratch));
+
+	if (is_isa_arcv2())
+		err |= save_arcv2_regs(&(sf->uc.uc_mcontext), regs);
+
 	err |= __copy_to_user(&sf->uc.uc_sigmask, set, sizeof(sigset_t));
 
-	return err;
+	return err ? -EFAULT : 0;
 }
 
 static int restore_usr_regs(struct pt_regs *regs, struct rt_sigframe __user *sf)
@@ -109,8 +148,12 @@ static int restore_usr_regs(struct pt_regs *regs, struct rt_sigframe __user *sf)
 	err |= __copy_from_user(&uregs.scratch,
 				&(sf->uc.uc_mcontext.regs.scratch),
 				sizeof(sf->uc.uc_mcontext.regs.scratch));
+
+	if (is_isa_arcv2())
+		err |= restore_arcv2_regs(&(sf->uc.uc_mcontext), regs);
+
 	if (err)
-		return err;
+		return -EFAULT;
 
 	set_current_blocked(&set);
 	regs->bta	= uregs.scratch.bta;
@@ -259,7 +302,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 		regs->r2 = (unsigned long)&sf->uc;
 
 		/*
-		 * small optim to avoid unconditonally calling do_sigaltstack
+		 * small optim to avoid unconditionally calling do_sigaltstack
 		 * in sigreturn path, now that we only have rt_sigreturn
 		 */
 		magic = MAGIC_SIGALTSTK;
@@ -276,7 +319,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	regs->ret = (unsigned long)ksig->ka.sa.sa_handler;
 
 	/*
-	 * handler returns using sigreturn stub provided already by userpsace
+	 * handler returns using sigreturn stub provided already by userspace
 	 * If not, nuke the process right away
 	 */
 	if(!(ksig->ka.sa.sa_flags & SA_RESTORER))
@@ -362,7 +405,7 @@ void do_signal(struct pt_regs *regs)
 
 	restart_scall = in_syscall(regs) && syscall_restartable(regs);
 
-	if (get_signal(&ksig)) {
+	if (test_thread_flag(TIF_SIGPENDING) && get_signal(&ksig)) {
 		if (restart_scall) {
 			arc_restart_syscall(&ksig.ka, regs);
 			syscall_wont_restart(regs);	/* No more restarts */
@@ -391,9 +434,9 @@ void do_signal(struct pt_regs *regs)
 void do_notify_resume(struct pt_regs *regs)
 {
 	/*
-	 * ASM glue gaurantees that this is only called when returning to
+	 * ASM glue guarantees that this is only called when returning to
 	 * user mode
 	 */
 	if (test_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+		resume_user_mode_work(regs);
 }

@@ -136,7 +136,6 @@ static void myrs_exec_cmd(struct myrs_hba *cs,
 	myrs_qcmd(cs, cmd_blk);
 	spin_unlock_irqrestore(&cs->queue_lock, flags);
 
-	WARN_ON(in_interrupt());
 	wait_for_completion(&complete);
 }
 
@@ -539,13 +538,11 @@ static bool myrs_enable_mmio_mbox(struct myrs_hba *cs,
 		cs->fwstat_buf = NULL;
 		goto out_free;
 	}
-	cs->ctlr_info = kzalloc(sizeof(struct myrs_ctlr_info),
-				GFP_KERNEL | GFP_DMA);
+	cs->ctlr_info = kzalloc(sizeof(struct myrs_ctlr_info), GFP_KERNEL);
 	if (!cs->ctlr_info)
 		goto out_free;
 
-	cs->event_buf = kzalloc(sizeof(struct myrs_event),
-				GFP_KERNEL | GFP_DMA);
+	cs->event_buf = kzalloc(sizeof(struct myrs_event), GFP_KERNEL);
 	if (!cs->event_buf)
 		goto out_free;
 
@@ -1191,7 +1188,6 @@ static ssize_t consistency_check_show(struct device *dev,
 	struct myrs_hba *cs = shost_priv(sdev->host);
 	struct myrs_ldev_info *ldev_info;
 	unsigned short ldev_num;
-	unsigned char status;
 
 	if (sdev->channel < cs->ctlr_info->physchan_present)
 		return snprintf(buf, 32, "physical device - not checking\n");
@@ -1200,7 +1196,7 @@ static ssize_t consistency_check_show(struct device *dev,
 	if (!ldev_info)
 		return -ENXIO;
 	ldev_num = ldev_info->ldev_num;
-	status = myrs_get_ldev_info(cs, ldev_num, ldev_info);
+	myrs_get_ldev_info(cs, ldev_num, ldev_info);
 	if (ldev_info->cc_active)
 		return snprintf(buf, 32, "checking block %zu of %zu\n",
 				(size_t)ldev_info->cc_lba,
@@ -1288,13 +1284,15 @@ static ssize_t consistency_check_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(consistency_check);
 
-static struct device_attribute *myrs_sdev_attrs[] = {
-	&dev_attr_consistency_check,
-	&dev_attr_rebuild,
-	&dev_attr_raid_state,
-	&dev_attr_raid_level,
+static struct attribute *myrs_sdev_attrs[] = {
+	&dev_attr_consistency_check.attr,
+	&dev_attr_rebuild.attr,
+	&dev_attr_raid_state.attr,
+	&dev_attr_raid_level.attr,
 	NULL,
 };
+
+ATTRIBUTE_GROUPS(myrs_sdev);
 
 static ssize_t serial_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1512,19 +1510,21 @@ static ssize_t disable_enclosure_messages_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(disable_enclosure_messages);
 
-static struct device_attribute *myrs_shost_attrs[] = {
-	&dev_attr_serial,
-	&dev_attr_ctlr_num,
-	&dev_attr_processor,
-	&dev_attr_model,
-	&dev_attr_ctlr_type,
-	&dev_attr_cache_size,
-	&dev_attr_firmware,
-	&dev_attr_discovery,
-	&dev_attr_flush_cache,
-	&dev_attr_disable_enclosure_messages,
+static struct attribute *myrs_shost_attrs[] = {
+	&dev_attr_serial.attr,
+	&dev_attr_ctlr_num.attr,
+	&dev_attr_processor.attr,
+	&dev_attr_model.attr,
+	&dev_attr_ctlr_type.attr,
+	&dev_attr_cache_size.attr,
+	&dev_attr_firmware.attr,
+	&dev_attr_discovery.attr,
+	&dev_attr_flush_cache.attr,
+	&dev_attr_disable_enclosure_messages.attr,
 	NULL,
 };
+
+ATTRIBUTE_GROUPS(myrs_shost);
 
 /*
  * SCSI midlayer interface
@@ -1584,6 +1584,7 @@ static void myrs_mode_sense(struct myrs_hba *cs, struct scsi_cmnd *scmd,
 static int myrs_queuecommand(struct Scsi_Host *shost,
 		struct scsi_cmnd *scmd)
 {
+	struct request *rq = scsi_cmd_to_rq(scmd);
 	struct myrs_hba *cs = shost_priv(shost);
 	struct myrs_cmdblk *cmd_blk = scsi_cmd_priv(scmd);
 	union myrs_cmd_mbox *mbox = &cmd_blk->mbox;
@@ -1596,16 +1597,14 @@ static int myrs_queuecommand(struct Scsi_Host *shost,
 
 	if (!scmd->device->hostdata) {
 		scmd->result = (DID_NO_CONNECT << 16);
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		return 0;
 	}
 
 	switch (scmd->cmnd[0]) {
 	case REPORT_LUNS:
-		scsi_build_sense_buffer(0, scmd->sense_buffer, ILLEGAL_REQUEST,
-					0x20, 0x0);
-		scmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
-		scmd->scsi_done(scmd);
+		scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x20, 0x0);
+		scsi_done(scmd);
 		return 0;
 	case MODE_SENSE:
 		if (scmd->device->channel >= cs->ctlr_info->physchan_present) {
@@ -1614,15 +1613,12 @@ static int myrs_queuecommand(struct Scsi_Host *shost,
 			if ((scmd->cmnd[2] & 0x3F) != 0x3F &&
 			    (scmd->cmnd[2] & 0x3F) != 0x08) {
 				/* Illegal request, invalid field in CDB */
-				scsi_build_sense_buffer(0, scmd->sense_buffer,
-					ILLEGAL_REQUEST, 0x24, 0);
-				scmd->result = (DRIVER_SENSE << 24) |
-					SAM_STAT_CHECK_CONDITION;
+				scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x24, 0);
 			} else {
 				myrs_mode_sense(cs, scmd, ldev_info);
 				scmd->result = (DID_OK << 16);
 			}
-			scmd->scsi_done(scmd);
+			scsi_done(scmd);
 			return 0;
 		}
 		break;
@@ -1635,7 +1631,7 @@ static int myrs_queuecommand(struct Scsi_Host *shost,
 		return SCSI_MLQUEUE_HOST_BUSY;
 	cmd_blk->sense_addr = sense_addr;
 
-	timeout = scmd->request->timeout;
+	timeout = rq->timeout;
 	if (scmd->cmd_len <= 10) {
 		if (scmd->device->channel >= cs->ctlr_info->physchan_present) {
 			struct myrs_ldev_info *ldev_info = sdev->hostdata;
@@ -1651,10 +1647,10 @@ static int myrs_queuecommand(struct Scsi_Host *shost,
 			mbox->SCSI_10.pdev.target = sdev->id;
 			mbox->SCSI_10.pdev.channel = sdev->channel;
 		}
-		mbox->SCSI_10.id = scmd->request->tag + 3;
+		mbox->SCSI_10.id = rq->tag + 3;
 		mbox->SCSI_10.control.dma_ctrl_to_host =
 			(scmd->sc_data_direction == DMA_FROM_DEVICE);
-		if (scmd->request->cmd_flags & REQ_FUA)
+		if (rq->cmd_flags & REQ_FUA)
 			mbox->SCSI_10.control.fua = true;
 		mbox->SCSI_10.dma_size = scsi_bufflen(scmd);
 		mbox->SCSI_10.sense_addr = cmd_blk->sense_addr;
@@ -1697,10 +1693,10 @@ static int myrs_queuecommand(struct Scsi_Host *shost,
 			mbox->SCSI_255.pdev.target = sdev->id;
 			mbox->SCSI_255.pdev.channel = sdev->channel;
 		}
-		mbox->SCSI_255.id = scmd->request->tag + 3;
+		mbox->SCSI_255.id = rq->tag + 3;
 		mbox->SCSI_255.control.dma_ctrl_to_host =
 			(scmd->sc_data_direction == DMA_FROM_DEVICE);
-		if (scmd->request->cmd_flags & REQ_FUA)
+		if (rq->cmd_flags & REQ_FUA)
 			mbox->SCSI_255.control.fua = true;
 		mbox->SCSI_255.dma_size = scsi_bufflen(scmd);
 		mbox->SCSI_255.sense_addr = cmd_blk->sense_addr;
@@ -1762,7 +1758,7 @@ static int myrs_queuecommand(struct Scsi_Host *shost,
 			if (WARN_ON(!hw_sgl)) {
 				scsi_dma_unmap(scmd);
 				scmd->result = (DID_ERROR << 16);
-				scmd->scsi_done(scmd);
+				scsi_done(scmd);
 				return 0;
 			}
 			hw_sgl->sge_addr = (u64)sg_dma_address(sgl);
@@ -1807,7 +1803,7 @@ static int myrs_slave_alloc(struct scsi_device *sdev)
 
 		ldev_num = myrs_translate_ldev(cs, sdev);
 
-		ldev_info = kzalloc(sizeof(*ldev_info), GFP_KERNEL|GFP_DMA);
+		ldev_info = kzalloc(sizeof(*ldev_info), GFP_KERNEL);
 		if (!ldev_info)
 			return -ENOMEM;
 
@@ -1869,7 +1865,7 @@ static int myrs_slave_alloc(struct scsi_device *sdev)
 	} else {
 		struct myrs_pdev_info *pdev_info;
 
-		pdev_info = kzalloc(sizeof(*pdev_info), GFP_KERNEL|GFP_DMA);
+		pdev_info = kzalloc(sizeof(*pdev_info), GFP_KERNEL);
 		if (!pdev_info)
 			return -ENOMEM;
 
@@ -1929,8 +1925,8 @@ static struct scsi_host_template myrs_template = {
 	.slave_configure	= myrs_slave_configure,
 	.slave_destroy		= myrs_slave_destroy,
 	.cmd_size		= sizeof(struct myrs_cmdblk),
-	.shost_attrs		= myrs_shost_attrs,
-	.sdev_attrs		= myrs_sdev_attrs,
+	.shost_groups		= myrs_shost_groups,
+	.sdev_groups		= myrs_sdev_groups,
 	.this_id		= -1,
 };
 
@@ -1960,7 +1956,7 @@ static struct myrs_hba *myrs_alloc_host(struct pci_dev *pdev,
 
 /**
  * myrs_is_raid - return boolean indicating device is raid volume
- * @dev the device struct object
+ * @dev: the device struct object
  */
 static int
 myrs_is_raid(struct device *dev)
@@ -1973,7 +1969,7 @@ myrs_is_raid(struct device *dev)
 
 /**
  * myrs_get_resync - get raid volume resync percent complete
- * @dev the device struct object
+ * @dev: the device struct object
  */
 static void
 myrs_get_resync(struct device *dev)
@@ -1982,14 +1978,13 @@ myrs_get_resync(struct device *dev)
 	struct myrs_hba *cs = shost_priv(sdev->host);
 	struct myrs_ldev_info *ldev_info = sdev->hostdata;
 	u64 percent_complete = 0;
-	u8 status;
 
 	if (sdev->channel < cs->ctlr_info->physchan_present || !ldev_info)
 		return;
 	if (ldev_info->rbld_active) {
 		unsigned short ldev_num = ldev_info->ldev_num;
 
-		status = myrs_get_ldev_info(cs, ldev_num, ldev_info);
+		myrs_get_ldev_info(cs, ldev_num, ldev_info);
 		percent_complete = ldev_info->rbld_lba * 100;
 		do_div(percent_complete, ldev_info->cfg_devsize);
 	}
@@ -1998,7 +1993,7 @@ myrs_get_resync(struct device *dev)
 
 /**
  * myrs_get_state - get raid volume status
- * @dev the device struct object
+ * @dev: the device struct object
  */
 static void
 myrs_get_state(struct device *dev)
@@ -2090,7 +2085,7 @@ static void myrs_handle_scsi(struct myrs_hba *cs, struct myrs_cmdblk *cmd_blk,
 		scmd->result = (DID_BAD_TARGET << 16);
 	else
 		scmd->result = (DID_OK << 16) | status;
-	scmd->scsi_done(scmd);
+	scsi_done(scmd);
 }
 
 static void myrs_handle_cmdblk(struct myrs_hba *cs, struct myrs_cmdblk *cmd_blk)
@@ -2272,14 +2267,15 @@ static void myrs_cleanup(struct myrs_hba *cs)
 	myrs_unmap(cs);
 
 	if (cs->mmio_base) {
-		cs->disable_intr(cs);
+		if (cs->disable_intr)
+			cs->disable_intr(cs);
 		iounmap(cs->mmio_base);
+		cs->mmio_base = NULL;
 	}
 	if (cs->irq)
 		free_irq(cs->irq, cs);
 	if (cs->io_addr)
 		release_region(cs->io_addr, 0x80);
-	iounmap(cs->mmio_base);
 	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 	scsi_host_put(cs->host);
@@ -2413,13 +2409,6 @@ static inline void DAC960_GEM_ack_hw_mbox_status(void __iomem *base)
 	writel(val, base + DAC960_GEM_IDB_CLEAR_OFFSET);
 }
 
-static inline void DAC960_GEM_gen_intr(void __iomem *base)
-{
-	__le32 val = cpu_to_le32(DAC960_GEM_IDB_GEN_IRQ << 24);
-
-	writel(val, base + DAC960_GEM_IDB_READ_OFFSET);
-}
-
 static inline void DAC960_GEM_reset_ctrl(void __iomem *base)
 {
 	__le32 val = cpu_to_le32(DAC960_GEM_IDB_CTRL_RESET << 24);
@@ -2457,13 +2446,6 @@ static inline void DAC960_GEM_ack_hw_mbox_intr(void __iomem *base)
 	writel(val, base + DAC960_GEM_ODB_CLEAR_OFFSET);
 }
 
-static inline void DAC960_GEM_ack_mem_mbox_intr(void __iomem *base)
-{
-	__le32 val = cpu_to_le32(DAC960_GEM_ODB_MMBOX_ACK_IRQ << 24);
-
-	writel(val, base + DAC960_GEM_ODB_CLEAR_OFFSET);
-}
-
 static inline void DAC960_GEM_ack_intr(void __iomem *base)
 {
 	__le32 val = cpu_to_le32((DAC960_GEM_ODB_HWMBOX_ACK_IRQ |
@@ -2480,14 +2462,6 @@ static inline bool DAC960_GEM_hw_mbox_status_available(void __iomem *base)
 	return (le32_to_cpu(val) >> 24) & DAC960_GEM_ODB_HWMBOX_STS_AVAIL;
 }
 
-static inline bool DAC960_GEM_mem_mbox_status_available(void __iomem *base)
-{
-	__le32 val;
-
-	val = readl(base + DAC960_GEM_ODB_READ_OFFSET);
-	return (le32_to_cpu(val) >> 24) & DAC960_GEM_ODB_MMBOX_STS_AVAIL;
-}
-
 static inline void DAC960_GEM_enable_intr(void __iomem *base)
 {
 	__le32 val = cpu_to_le32((DAC960_GEM_IRQMASK_HWMBOX_IRQ |
@@ -2500,16 +2474,6 @@ static inline void DAC960_GEM_disable_intr(void __iomem *base)
 	__le32 val = 0;
 
 	writel(val, base + DAC960_GEM_IRQMASK_READ_OFFSET);
-}
-
-static inline bool DAC960_GEM_intr_enabled(void __iomem *base)
-{
-	__le32 val;
-
-	val = readl(base + DAC960_GEM_IRQMASK_READ_OFFSET);
-	return !((le32_to_cpu(val) >> 24) &
-		 (DAC960_GEM_IRQMASK_HWMBOX_IRQ |
-		  DAC960_GEM_IRQMASK_MMBOX_IRQ));
 }
 
 static inline void DAC960_GEM_write_cmd_mbox(union myrs_cmd_mbox *mem_mbox,
@@ -2528,11 +2492,6 @@ static inline void DAC960_GEM_write_hw_mbox(void __iomem *base,
 		dma_addr_t cmd_mbox_addr)
 {
 	dma_addr_writeql(cmd_mbox_addr, base + DAC960_GEM_CMDMBX_OFFSET);
-}
-
-static inline unsigned short DAC960_GEM_read_cmd_ident(void __iomem *base)
-{
-	return readw(base + DAC960_GEM_CMDSTS_OFFSET);
 }
 
 static inline unsigned char DAC960_GEM_read_cmd_status(void __iomem *base)
@@ -2659,7 +2618,7 @@ static irqreturn_t DAC960_GEM_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrs_privdata DAC960_GEM_privdata = {
+static struct myrs_privdata DAC960_GEM_privdata = {
 	.hw_init =		DAC960_GEM_hw_init,
 	.irq_handler =		DAC960_GEM_intr_handler,
 	.mmio_size =		DAC960_GEM_mmio_size,
@@ -2677,11 +2636,6 @@ static inline void DAC960_BA_hw_mbox_new_cmd(void __iomem *base)
 static inline void DAC960_BA_ack_hw_mbox_status(void __iomem *base)
 {
 	writeb(DAC960_BA_IDB_HWMBOX_ACK_STS, base + DAC960_BA_IDB_OFFSET);
-}
-
-static inline void DAC960_BA_gen_intr(void __iomem *base)
-{
-	writeb(DAC960_BA_IDB_GEN_IRQ, base + DAC960_BA_IDB_OFFSET);
 }
 
 static inline void DAC960_BA_reset_ctrl(void __iomem *base)
@@ -2715,11 +2669,6 @@ static inline void DAC960_BA_ack_hw_mbox_intr(void __iomem *base)
 	writeb(DAC960_BA_ODB_HWMBOX_ACK_IRQ, base + DAC960_BA_ODB_OFFSET);
 }
 
-static inline void DAC960_BA_ack_mem_mbox_intr(void __iomem *base)
-{
-	writeb(DAC960_BA_ODB_MMBOX_ACK_IRQ, base + DAC960_BA_ODB_OFFSET);
-}
-
 static inline void DAC960_BA_ack_intr(void __iomem *base)
 {
 	writeb(DAC960_BA_ODB_HWMBOX_ACK_IRQ | DAC960_BA_ODB_MMBOX_ACK_IRQ,
@@ -2734,14 +2683,6 @@ static inline bool DAC960_BA_hw_mbox_status_available(void __iomem *base)
 	return val & DAC960_BA_ODB_HWMBOX_STS_AVAIL;
 }
 
-static inline bool DAC960_BA_mem_mbox_status_available(void __iomem *base)
-{
-	u8 val;
-
-	val = readb(base + DAC960_BA_ODB_OFFSET);
-	return val & DAC960_BA_ODB_MMBOX_STS_AVAIL;
-}
-
 static inline void DAC960_BA_enable_intr(void __iomem *base)
 {
 	writeb(~DAC960_BA_IRQMASK_DISABLE_IRQ, base + DAC960_BA_IRQMASK_OFFSET);
@@ -2750,14 +2691,6 @@ static inline void DAC960_BA_enable_intr(void __iomem *base)
 static inline void DAC960_BA_disable_intr(void __iomem *base)
 {
 	writeb(0xFF, base + DAC960_BA_IRQMASK_OFFSET);
-}
-
-static inline bool DAC960_BA_intr_enabled(void __iomem *base)
-{
-	u8 val;
-
-	val = readb(base + DAC960_BA_IRQMASK_OFFSET);
-	return !(val & DAC960_BA_IRQMASK_DISABLE_IRQ);
 }
 
 static inline void DAC960_BA_write_cmd_mbox(union myrs_cmd_mbox *mem_mbox,
@@ -2777,11 +2710,6 @@ static inline void DAC960_BA_write_hw_mbox(void __iomem *base,
 		dma_addr_t cmd_mbox_addr)
 {
 	dma_addr_writeql(cmd_mbox_addr, base + DAC960_BA_CMDMBX_OFFSET);
-}
-
-static inline unsigned short DAC960_BA_read_cmd_ident(void __iomem *base)
-{
-	return readw(base + DAC960_BA_CMDSTS_OFFSET);
 }
 
 static inline unsigned char DAC960_BA_read_cmd_status(void __iomem *base)
@@ -2909,7 +2837,7 @@ static irqreturn_t DAC960_BA_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrs_privdata DAC960_BA_privdata = {
+static struct myrs_privdata DAC960_BA_privdata = {
 	.hw_init =		DAC960_BA_hw_init,
 	.irq_handler =		DAC960_BA_intr_handler,
 	.mmio_size =		DAC960_BA_mmio_size,
@@ -2927,11 +2855,6 @@ static inline void DAC960_LP_hw_mbox_new_cmd(void __iomem *base)
 static inline void DAC960_LP_ack_hw_mbox_status(void __iomem *base)
 {
 	writeb(DAC960_LP_IDB_HWMBOX_ACK_STS, base + DAC960_LP_IDB_OFFSET);
-}
-
-static inline void DAC960_LP_gen_intr(void __iomem *base)
-{
-	writeb(DAC960_LP_IDB_GEN_IRQ, base + DAC960_LP_IDB_OFFSET);
 }
 
 static inline void DAC960_LP_reset_ctrl(void __iomem *base)
@@ -2965,11 +2888,6 @@ static inline void DAC960_LP_ack_hw_mbox_intr(void __iomem *base)
 	writeb(DAC960_LP_ODB_HWMBOX_ACK_IRQ, base + DAC960_LP_ODB_OFFSET);
 }
 
-static inline void DAC960_LP_ack_mem_mbox_intr(void __iomem *base)
-{
-	writeb(DAC960_LP_ODB_MMBOX_ACK_IRQ, base + DAC960_LP_ODB_OFFSET);
-}
-
 static inline void DAC960_LP_ack_intr(void __iomem *base)
 {
 	writeb(DAC960_LP_ODB_HWMBOX_ACK_IRQ | DAC960_LP_ODB_MMBOX_ACK_IRQ,
@@ -2984,14 +2902,6 @@ static inline bool DAC960_LP_hw_mbox_status_available(void __iomem *base)
 	return val & DAC960_LP_ODB_HWMBOX_STS_AVAIL;
 }
 
-static inline bool DAC960_LP_mem_mbox_status_available(void __iomem *base)
-{
-	u8 val;
-
-	val = readb(base + DAC960_LP_ODB_OFFSET);
-	return val & DAC960_LP_ODB_MMBOX_STS_AVAIL;
-}
-
 static inline void DAC960_LP_enable_intr(void __iomem *base)
 {
 	writeb(~DAC960_LP_IRQMASK_DISABLE_IRQ, base + DAC960_LP_IRQMASK_OFFSET);
@@ -3000,14 +2910,6 @@ static inline void DAC960_LP_enable_intr(void __iomem *base)
 static inline void DAC960_LP_disable_intr(void __iomem *base)
 {
 	writeb(0xFF, base + DAC960_LP_IRQMASK_OFFSET);
-}
-
-static inline bool DAC960_LP_intr_enabled(void __iomem *base)
-{
-	u8 val;
-
-	val = readb(base + DAC960_LP_IRQMASK_OFFSET);
-	return !(val & DAC960_LP_IRQMASK_DISABLE_IRQ);
 }
 
 static inline void DAC960_LP_write_cmd_mbox(union myrs_cmd_mbox *mem_mbox,
@@ -3026,11 +2928,6 @@ static inline void DAC960_LP_write_hw_mbox(void __iomem *base,
 		dma_addr_t cmd_mbox_addr)
 {
 	dma_addr_writeql(cmd_mbox_addr, base + DAC960_LP_CMDMBX_OFFSET);
-}
-
-static inline unsigned short DAC960_LP_read_cmd_ident(void __iomem *base)
-{
-	return readw(base + DAC960_LP_CMDSTS_OFFSET);
 }
 
 static inline unsigned char DAC960_LP_read_cmd_status(void __iomem *base)
@@ -3159,7 +3056,7 @@ static irqreturn_t DAC960_LP_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrs_privdata DAC960_LP_privdata = {
+static struct myrs_privdata DAC960_LP_privdata = {
 	.hw_init =		DAC960_LP_hw_init,
 	.irq_handler =		DAC960_LP_intr_handler,
 	.mmio_size =		DAC960_LP_mmio_size,

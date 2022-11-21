@@ -2265,11 +2265,6 @@ static int altera_check_crc(u8 *p, s32 program_size)
 				"actual %04x\n", __func__, local_expected,
 				local_actual);
 			break;
-		case -ENODATA:
-			printk(KERN_ERR "%s: expected CRC not found, "
-				"actual CRC = %04x\n", __func__,
-				local_actual);
-			break;
 		case -EIO:
 			printk(KERN_ERR "%s: error: format isn't "
 				"recognized.\n", __func__);

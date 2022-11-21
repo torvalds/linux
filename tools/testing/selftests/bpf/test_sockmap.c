@@ -139,6 +139,7 @@ struct sockmap_options {
 	bool sendpage;
 	bool data_test;
 	bool drop_expected;
+	bool check_recved_len;
 	int iov_count;
 	int iov_length;
 	int rate;
@@ -556,8 +557,12 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 	int err, i, flags = MSG_NOSIGNAL;
 	bool drop = opt->drop_expected;
 	bool data = opt->data_test;
+	int iov_alloc_length = iov_length;
 
-	err = msg_alloc_iov(&msg, iov_count, iov_length, data, tx);
+	if (!tx && opt->check_recved_len)
+		iov_alloc_length *= 2;
+
+	err = msg_alloc_iov(&msg, iov_count, iov_alloc_length, data, tx);
 	if (err)
 		goto out_errno;
 	if (peek_flag) {
@@ -665,6 +670,13 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 
 			s->bytes_recvd += recv;
 
+			if (opt->check_recved_len && s->bytes_recvd > total_bytes) {
+				errno = EMSGSIZE;
+				fprintf(stderr, "recv failed(), bytes_recvd:%zd, total_bytes:%f\n",
+						s->bytes_recvd, total_bytes);
+				goto out_errno;
+			}
+
 			if (data) {
 				int chunk_sz = opt->sendpage ?
 						iov_length * cnt :
@@ -732,7 +744,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 		 * socket is not a valid test. So in this case lets not
 		 * enable kTLS but still run the test.
 		 */
-		if (!txmsg_redir || (txmsg_redir && txmsg_ingress)) {
+		if (!txmsg_redir || txmsg_ingress) {
 			err = sockmap_init_ktls(opt->verbose, rx_fd);
 			if (err)
 				return err;
@@ -744,7 +756,8 @@ static int sendmsg_test(struct sockmap_options *opt)
 
 	rxpid = fork();
 	if (rxpid == 0) {
-		iov_buf -= (txmsg_pop - txmsg_start_pop + 1);
+		if (txmsg_pop || txmsg_start_pop)
+			iov_buf -= (txmsg_pop - txmsg_start_pop + 1);
 		if (opt->drop_expected || txmsg_ktls_skb_drop)
 			_exit(0);
 
@@ -1273,6 +1286,16 @@ static char *test_to_str(int test)
 	return "unknown";
 }
 
+static void append_str(char *dst, const char *src, size_t dst_cap)
+{
+	size_t avail = dst_cap - strlen(dst);
+
+	if (avail <= 1) /* just zero byte could be written */
+		return;
+
+	strncat(dst, src, avail - 1); /* strncat() adds + 1 for zero byte */
+}
+
 #define OPTSTRING 60
 static void test_options(char *options)
 {
@@ -1281,42 +1304,42 @@ static void test_options(char *options)
 	memset(options, 0, OPTSTRING);
 
 	if (txmsg_pass)
-		strncat(options, "pass,", OPTSTRING);
+		append_str(options, "pass,", OPTSTRING);
 	if (txmsg_redir)
-		strncat(options, "redir,", OPTSTRING);
+		append_str(options, "redir,", OPTSTRING);
 	if (txmsg_drop)
-		strncat(options, "drop,", OPTSTRING);
+		append_str(options, "drop,", OPTSTRING);
 	if (txmsg_apply) {
 		snprintf(tstr, OPTSTRING, "apply %d,", txmsg_apply);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_cork) {
 		snprintf(tstr, OPTSTRING, "cork %d,", txmsg_cork);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_start) {
 		snprintf(tstr, OPTSTRING, "start %d,", txmsg_start);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_end) {
 		snprintf(tstr, OPTSTRING, "end %d,", txmsg_end);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_start_pop) {
 		snprintf(tstr, OPTSTRING, "pop (%d,%d),",
 			 txmsg_start_pop, txmsg_start_pop + txmsg_pop);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_ingress)
-		strncat(options, "ingress,", OPTSTRING);
+		append_str(options, "ingress,", OPTSTRING);
 	if (txmsg_redir_skb)
-		strncat(options, "redir_skb,", OPTSTRING);
+		append_str(options, "redir_skb,", OPTSTRING);
 	if (txmsg_ktls_skb)
-		strncat(options, "ktls_skb,", OPTSTRING);
+		append_str(options, "ktls_skb,", OPTSTRING);
 	if (ktls)
-		strncat(options, "ktls,", OPTSTRING);
+		append_str(options, "ktls,", OPTSTRING);
 	if (peek_flag)
-		strncat(options, "peek,", OPTSTRING);
+		append_str(options, "peek,", OPTSTRING);
 }
 
 static int __test_exec(int cgrp, int test, struct sockmap_options *opt)
@@ -1670,10 +1693,25 @@ static void test_txmsg_ingress_parser(int cgrp, struct sockmap_options *opt)
 {
 	txmsg_pass = 1;
 	skb_use_parser = 512;
+	if (ktls == 1)
+		skb_use_parser = 570;
 	opt->iov_length = 256;
 	opt->iov_count = 1;
 	opt->rate = 2;
 	test_exec(cgrp, opt);
+}
+
+static void test_txmsg_ingress_parser2(int cgrp, struct sockmap_options *opt)
+{
+	if (ktls == 1)
+		return;
+	skb_use_parser = 10;
+	opt->iov_length = 20;
+	opt->iov_count = 1;
+	opt->rate = 1;
+	opt->check_recved_len = true;
+	test_exec(cgrp, opt);
+	opt->check_recved_len = false;
 }
 
 char *map_names[] = {
@@ -1748,7 +1786,7 @@ static int populate_progs(char *bpf_file)
 		i++;
 	}
 
-	for (i = 0; i < sizeof(map_fd)/sizeof(int); i++) {
+	for (i = 0; i < ARRAY_SIZE(map_fd); i++) {
 		maps[i] = bpf_object__find_map_by_name(obj, map_names[i]);
 		map_fd[i] = bpf_map__fd(maps[i]);
 		if (map_fd[i] < 0) {
@@ -1774,7 +1812,8 @@ struct _test test[] = {
 	{"txmsg test pull-data", test_txmsg_pull},
 	{"txmsg test pop-data", test_txmsg_pop},
 	{"txmsg test push/pop data", test_txmsg_push_pop},
-	{"txmsg text ingress parser", test_txmsg_ingress_parser},
+	{"txmsg test ingress parser", test_txmsg_ingress_parser},
+	{"txmsg test ingress parser2", test_txmsg_ingress_parser2},
 };
 
 static int check_whitelist(struct _test *t, struct sockmap_options *opt)
@@ -1828,7 +1867,7 @@ static int __test_selftests(int cg_fd, struct sockmap_options *opt)
 	}
 
 	/* Tests basic commands and APIs */
-	for (i = 0; i < sizeof(test)/sizeof(struct _test); i++) {
+	for (i = 0; i < ARRAY_SIZE(test); i++) {
 		struct _test t = test[i];
 
 		if (check_whitelist(&t, opt) != 0)

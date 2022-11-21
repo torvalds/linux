@@ -4,20 +4,20 @@ config CIFS
 	depends on INET
 	select NLS
 	select CRYPTO
-	select CRYPTO_MD4
 	select CRYPTO_MD5
 	select CRYPTO_SHA256
 	select CRYPTO_SHA512
 	select CRYPTO_CMAC
 	select CRYPTO_HMAC
-	select CRYPTO_LIB_ARC4
 	select CRYPTO_AEAD2
 	select CRYPTO_CCM
 	select CRYPTO_GCM
 	select CRYPTO_ECB
 	select CRYPTO_AES
-	select CRYPTO_LIB_DES
 	select KEYS
+	select DNS_RESOLVER
+	select ASN1
+	select OID_REGISTRY
 	help
 	  This is the client VFS module for the SMB3 family of NAS protocols,
 	  (including support for the most recent, most secure dialect SMB3.1.1)
@@ -56,16 +56,16 @@ config CIFS
 config CIFS_STATS2
 	bool "Extended statistics"
 	depends on CIFS
+	default y
 	help
 	  Enabling this option will allow more detailed statistics on SMB
 	  request timing to be displayed in /proc/fs/cifs/DebugData and also
 	  allow optional logging of slow responses to dmesg (depending on the
-	  value of /proc/fs/cifs/cifsFYI, see fs/cifs/README for more details).
-	  These additional statistics may have a minor effect on performance
-	  and memory utilization.
+	  value of /proc/fs/cifs/cifsFYI). See Documentation/admin-guide/cifs/usage.rst
+	  for more details. These additional statistics may have a minor effect
+	  on performance and memory utilization.
 
-	  Unless you are a developer or are doing network performance analysis
-	  or tuning, say N.
+	  If unsure, say Y.
 
 config CIFS_ALLOW_INSECURE_LEGACY
 	bool "Support legacy servers which use less secure dialects"
@@ -82,37 +82,9 @@ config CIFS_ALLOW_INSECURE_LEGACY
 
 	  If unsure, say Y.
 
-config CIFS_WEAK_PW_HASH
-	bool "Support legacy servers which use weaker LANMAN security"
-	depends on CIFS && CIFS_ALLOW_INSECURE_LEGACY
-	help
-	  Modern CIFS servers including Samba and most Windows versions
-	  (since 1997) support stronger NTLM (and even NTLMv2 and Kerberos)
-	  security mechanisms. These hash the password more securely
-	  than the mechanisms used in the older LANMAN version of the
-	  SMB protocol but LANMAN based authentication is needed to
-	  establish sessions with some old SMB servers.
-
-	  Enabling this option allows the cifs module to mount to older
-	  LANMAN based servers such as OS/2 and Windows 95, but such
-	  mounts may be less secure than mounts using NTLM or more recent
-	  security mechanisms if you are on a public network.  Unless you
-	  have a need to access old SMB servers (and are on a private
-	  network) you probably want to say N.  Even if this support
-	  is enabled in the kernel build, LANMAN authentication will not be
-	  used automatically. At runtime LANMAN mounts are disabled but
-	  can be set to required (or optional) either in
-	  /proc/fs/cifs (see fs/cifs/README for more detail) or via an
-	  option on the mount command. This support is disabled by
-	  default in order to reduce the possibility of a downgrade
-	  attack.
-
-	  If unsure, say N.
-
 config CIFS_UPCALL
 	bool "Kerberos/SPNEGO advanced session setup"
 	depends on CIFS
-	select DNS_RESOLVER
 	help
 	  Enables an upcall mechanism for CIFS which accesses userspace helper
 	  utilities to provide SPNEGO packaged (RFC 4178) Kerberos tickets
@@ -179,7 +151,6 @@ config CIFS_DEBUG_DUMP_KEYS
 config CIFS_DFS_UPCALL
 	bool "DFS feature support"
 	depends on CIFS
-	select DNS_RESOLVER
 	help
 	  Distributed File System (DFS) support is used to access shares
 	  transparently in an enterprise name space, even if the share
@@ -189,6 +160,17 @@ config CIFS_DFS_UPCALL
 	  IP addresses) which is needed in order to reconnect to
 	  servers if their addresses change or for implicit mounts of
 	  DFS junction points. If unsure, say Y.
+
+config CIFS_SWN_UPCALL
+	bool "SWN feature support"
+	depends on CIFS
+	help
+	  The Service Witness Protocol (SWN) is used to get notifications
+	  from a highly available server of resource state changes. This
+	  feature enables an upcall mechanism for CIFS which contacts a
+	  userspace daemon to establish the DCE/RPC connection to retrieve
+	  the cluster available interfaces and resource change notifications.
+	  If unsure, say Y.
 
 config CIFS_NFSD_EXPORT
 	bool "Allow nfsd to export CIFS file system"

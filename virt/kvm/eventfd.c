@@ -77,7 +77,8 @@ irqfd_resampler_ack(struct kvm_irq_ack_notifier *kian)
 
 	idx = srcu_read_lock(&kvm->irq_srcu);
 
-	list_for_each_entry_rcu(irqfd, &resampler->list, resampler_link)
+	list_for_each_entry_srcu(irqfd, &resampler->list, resampler_link,
+	    srcu_read_lock_held(&kvm->irq_srcu))
 		eventfd_signal(irqfd->resamplefd, 1);
 
 	srcu_read_unlock(&kvm->irq_srcu, idx);
@@ -191,8 +192,12 @@ irqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 	struct kvm *kvm = irqfd->kvm;
 	unsigned seq;
 	int idx;
+	int ret = 0;
 
 	if (flags & EPOLLIN) {
+		u64 cnt;
+		eventfd_ctx_do_read(irqfd->eventfd, &cnt);
+
 		idx = srcu_read_lock(&kvm->irq_srcu);
 		do {
 			seq = read_seqcount_begin(&irqfd->irq_entry_sc);
@@ -204,6 +209,7 @@ irqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 					      false) == -EWOULDBLOCK)
 			schedule_work(&irqfd->inject);
 		srcu_read_unlock(&kvm->irq_srcu, idx);
+		ret = 1;
 	}
 
 	if (flags & EPOLLHUP) {
@@ -227,7 +233,7 @@ irqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 		spin_unlock_irqrestore(&kvm->irqfds.lock, iflags);
 	}
 
-	return 0;
+	return ret;
 }
 
 static void
@@ -236,7 +242,7 @@ irqfd_ptable_queue_proc(struct file *file, wait_queue_head_t *wqh,
 {
 	struct kvm_kernel_irqfd *irqfd =
 		container_of(pt, struct kvm_kernel_irqfd, pt);
-	add_wait_queue(wqh, &irqfd->wait);
+	add_wait_queue_priority(wqh, &irqfd->wait);
 }
 
 /* Must be called under irqfds.lock */
@@ -275,6 +281,13 @@ int  __attribute__((weak)) kvm_arch_update_irqfd_routing(
 				uint32_t guest_irq, bool set)
 {
 	return 0;
+}
+
+bool __attribute__((weak)) kvm_arch_irqfd_route_changed(
+				struct kvm_kernel_irq_routing_entry *old,
+				struct kvm_kernel_irq_routing_entry *new)
+{
+	return true;
 }
 #endif
 
@@ -451,8 +464,8 @@ bool kvm_irq_has_notifier(struct kvm *kvm, unsigned irqchip, unsigned pin)
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	gsi = kvm_irq_map_chip_pin(kvm, irqchip, pin);
 	if (gsi != -1)
-		hlist_for_each_entry_rcu(kian, &kvm->irq_ack_notifier_list,
-					 link)
+		hlist_for_each_entry_srcu(kian, &kvm->irq_ack_notifier_list,
+					  link, srcu_read_lock_held(&kvm->irq_srcu))
 			if (kian->gsi == gsi) {
 				srcu_read_unlock(&kvm->irq_srcu, idx);
 				return true;
@@ -468,8 +481,8 @@ void kvm_notify_acked_gsi(struct kvm *kvm, int gsi)
 {
 	struct kvm_irq_ack_notifier *kian;
 
-	hlist_for_each_entry_rcu(kian, &kvm->irq_ack_notifier_list,
-				 link)
+	hlist_for_each_entry_srcu(kian, &kvm->irq_ack_notifier_list,
+				  link, srcu_read_lock_held(&kvm->irq_srcu))
 		if (kian->gsi == gsi)
 			kian->irq_acked(kian);
 }
@@ -610,10 +623,16 @@ void kvm_irq_routing_update(struct kvm *kvm)
 	spin_lock_irq(&kvm->irqfds.lock);
 
 	list_for_each_entry(irqfd, &kvm->irqfds.items, list) {
+#ifdef CONFIG_HAVE_KVM_IRQ_BYPASS
+		/* Under irqfds.lock, so can read irq_entry safely */
+		struct kvm_kernel_irq_routing_entry old = irqfd->irq_entry;
+#endif
+
 		irqfd_update(kvm, irqfd);
 
 #ifdef CONFIG_HAVE_KVM_IRQ_BYPASS
-		if (irqfd->producer) {
+		if (irqfd->producer &&
+		    kvm_arch_irqfd_route_changed(&old, &irqfd->irq_entry)) {
 			int ret = kvm_arch_update_irqfd_routing(
 					irqfd->kvm, irqfd->producer->irq,
 					irqfd->gsi, 1);

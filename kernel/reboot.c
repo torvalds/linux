@@ -7,6 +7,7 @@
 
 #define pr_fmt(fmt)	"reboot: " fmt
 
+#include <linux/atomic.h>
 #include <linux/ctype.h>
 #include <linux/export.h>
 #include <linux/kexec.h>
@@ -32,6 +33,7 @@ EXPORT_SYMBOL(cad_pid);
 #define DEFAULT_REBOOT_MODE
 #endif
 enum reboot_mode reboot_mode DEFAULT_REBOOT_MODE;
+EXPORT_SYMBOL_GPL(reboot_mode);
 enum reboot_mode panic_reboot_mode = REBOOT_UNDEFINED;
 
 /*
@@ -358,7 +360,6 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 	case LINUX_REBOOT_CMD_HALT:
 		kernel_halt();
 		do_exit(0);
-		panic("cannot halt");
 
 	case LINUX_REBOOT_CMD_POWER_OFF:
 		kernel_power_off();
@@ -518,6 +519,84 @@ void orderly_reboot(void)
 }
 EXPORT_SYMBOL_GPL(orderly_reboot);
 
+/**
+ * hw_failure_emergency_poweroff_func - emergency poweroff work after a known delay
+ * @work: work_struct associated with the emergency poweroff function
+ *
+ * This function is called in very critical situations to force
+ * a kernel poweroff after a configurable timeout value.
+ */
+static void hw_failure_emergency_poweroff_func(struct work_struct *work)
+{
+	/*
+	 * We have reached here after the emergency shutdown waiting period has
+	 * expired. This means orderly_poweroff has not been able to shut off
+	 * the system for some reason.
+	 *
+	 * Try to shut down the system immediately using kernel_power_off
+	 * if populated
+	 */
+	pr_emerg("Hardware protection timed-out. Trying forced poweroff\n");
+	kernel_power_off();
+
+	/*
+	 * Worst of the worst case trigger emergency restart
+	 */
+	pr_emerg("Hardware protection shutdown failed. Trying emergency restart\n");
+	emergency_restart();
+}
+
+static DECLARE_DELAYED_WORK(hw_failure_emergency_poweroff_work,
+			    hw_failure_emergency_poweroff_func);
+
+/**
+ * hw_failure_emergency_poweroff - Trigger an emergency system poweroff
+ *
+ * This may be called from any critical situation to trigger a system shutdown
+ * after a given period of time. If time is negative this is not scheduled.
+ */
+static void hw_failure_emergency_poweroff(int poweroff_delay_ms)
+{
+	if (poweroff_delay_ms <= 0)
+		return;
+	schedule_delayed_work(&hw_failure_emergency_poweroff_work,
+			      msecs_to_jiffies(poweroff_delay_ms));
+}
+
+/**
+ * hw_protection_shutdown - Trigger an emergency system poweroff
+ *
+ * @reason:		Reason of emergency shutdown to be printed.
+ * @ms_until_forced:	Time to wait for orderly shutdown before tiggering a
+ *			forced shudown. Negative value disables the forced
+ *			shutdown.
+ *
+ * Initiate an emergency system shutdown in order to protect hardware from
+ * further damage. Usage examples include a thermal protection or a voltage or
+ * current regulator failures.
+ * NOTE: The request is ignored if protection shutdown is already pending even
+ * if the previous request has given a large timeout for forced shutdown.
+ * Can be called from any context.
+ */
+void hw_protection_shutdown(const char *reason, int ms_until_forced)
+{
+	static atomic_t allow_proceed = ATOMIC_INIT(1);
+
+	pr_emerg("HARDWARE PROTECTION shutdown (%s)\n", reason);
+
+	/* Shutdown should be initiated only once. */
+	if (!atomic_dec_and_test(&allow_proceed))
+		return;
+
+	/*
+	 * Queue a backup emergency shutdown in the event of
+	 * orderly_poweroff failure
+	 */
+	hw_failure_emergency_poweroff(ms_until_forced);
+	orderly_poweroff(true);
+}
+EXPORT_SYMBOL_GPL(hw_protection_shutdown);
+
 static int __init reboot_setup(char *str)
 {
 	for (;;) {
@@ -551,20 +630,24 @@ static int __init reboot_setup(char *str)
 			break;
 
 		case 's':
-			if (isdigit(*(str+1)))
-				reboot_cpu = simple_strtoul(str+1, NULL, 0);
-			else if (str[1] == 'm' && str[2] == 'p' &&
-							isdigit(*(str+3)))
-				reboot_cpu = simple_strtoul(str+3, NULL, 0);
-			else
+			/*
+			 * reboot_cpu is s[mp]#### with #### being the processor
+			 * to be used for rebooting. Skip 's' or 'smp' prefix.
+			 */
+			str += str[1] == 'm' && str[2] == 'p' ? 3 : 1;
+
+			if (isdigit(str[0])) {
+				int cpu = simple_strtoul(str, NULL, 0);
+
+				if (cpu >= num_possible_cpus()) {
+					pr_err("Ignoring the CPU number in reboot= option. "
+					"CPU %d exceeds possible cpu number %d\n",
+					cpu, num_possible_cpus());
+					break;
+				}
+				reboot_cpu = cpu;
+			} else
 				*mode = REBOOT_SOFT;
-			if (reboot_cpu >= num_possible_cpus()) {
-				pr_err("Ignoring the CPU number in reboot= option. "
-				       "CPU %d exceeds possible cpu number %d\n",
-				       reboot_cpu, num_possible_cpus());
-				reboot_cpu = 0;
-				break;
-			}
 			break;
 
 		case 'g':
@@ -594,3 +677,217 @@ static int __init reboot_setup(char *str)
 	return 1;
 }
 __setup("reboot=", reboot_setup);
+
+#ifdef CONFIG_SYSFS
+
+#define REBOOT_COLD_STR		"cold"
+#define REBOOT_WARM_STR		"warm"
+#define REBOOT_HARD_STR		"hard"
+#define REBOOT_SOFT_STR		"soft"
+#define REBOOT_GPIO_STR		"gpio"
+#define REBOOT_UNDEFINED_STR	"undefined"
+
+#define BOOT_TRIPLE_STR		"triple"
+#define BOOT_KBD_STR		"kbd"
+#define BOOT_BIOS_STR		"bios"
+#define BOOT_ACPI_STR		"acpi"
+#define BOOT_EFI_STR		"efi"
+#define BOOT_PCI_STR		"pci"
+
+static ssize_t mode_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	const char *val;
+
+	switch (reboot_mode) {
+	case REBOOT_COLD:
+		val = REBOOT_COLD_STR;
+		break;
+	case REBOOT_WARM:
+		val = REBOOT_WARM_STR;
+		break;
+	case REBOOT_HARD:
+		val = REBOOT_HARD_STR;
+		break;
+	case REBOOT_SOFT:
+		val = REBOOT_SOFT_STR;
+		break;
+	case REBOOT_GPIO:
+		val = REBOOT_GPIO_STR;
+		break;
+	default:
+		val = REBOOT_UNDEFINED_STR;
+	}
+
+	return sprintf(buf, "%s\n", val);
+}
+static ssize_t mode_store(struct kobject *kobj, struct kobj_attribute *attr,
+			  const char *buf, size_t count)
+{
+	if (!capable(CAP_SYS_BOOT))
+		return -EPERM;
+
+	if (!strncmp(buf, REBOOT_COLD_STR, strlen(REBOOT_COLD_STR)))
+		reboot_mode = REBOOT_COLD;
+	else if (!strncmp(buf, REBOOT_WARM_STR, strlen(REBOOT_WARM_STR)))
+		reboot_mode = REBOOT_WARM;
+	else if (!strncmp(buf, REBOOT_HARD_STR, strlen(REBOOT_HARD_STR)))
+		reboot_mode = REBOOT_HARD;
+	else if (!strncmp(buf, REBOOT_SOFT_STR, strlen(REBOOT_SOFT_STR)))
+		reboot_mode = REBOOT_SOFT;
+	else if (!strncmp(buf, REBOOT_GPIO_STR, strlen(REBOOT_GPIO_STR)))
+		reboot_mode = REBOOT_GPIO;
+	else
+		return -EINVAL;
+
+	reboot_default = 0;
+
+	return count;
+}
+static struct kobj_attribute reboot_mode_attr = __ATTR_RW(mode);
+
+#ifdef CONFIG_X86
+static ssize_t force_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", reboot_force);
+}
+static ssize_t force_store(struct kobject *kobj, struct kobj_attribute *attr,
+			  const char *buf, size_t count)
+{
+	bool res;
+
+	if (!capable(CAP_SYS_BOOT))
+		return -EPERM;
+
+	if (kstrtobool(buf, &res))
+		return -EINVAL;
+
+	reboot_default = 0;
+	reboot_force = res;
+
+	return count;
+}
+static struct kobj_attribute reboot_force_attr = __ATTR_RW(force);
+
+static ssize_t type_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	const char *val;
+
+	switch (reboot_type) {
+	case BOOT_TRIPLE:
+		val = BOOT_TRIPLE_STR;
+		break;
+	case BOOT_KBD:
+		val = BOOT_KBD_STR;
+		break;
+	case BOOT_BIOS:
+		val = BOOT_BIOS_STR;
+		break;
+	case BOOT_ACPI:
+		val = BOOT_ACPI_STR;
+		break;
+	case BOOT_EFI:
+		val = BOOT_EFI_STR;
+		break;
+	case BOOT_CF9_FORCE:
+		val = BOOT_PCI_STR;
+		break;
+	default:
+		val = REBOOT_UNDEFINED_STR;
+	}
+
+	return sprintf(buf, "%s\n", val);
+}
+static ssize_t type_store(struct kobject *kobj, struct kobj_attribute *attr,
+			  const char *buf, size_t count)
+{
+	if (!capable(CAP_SYS_BOOT))
+		return -EPERM;
+
+	if (!strncmp(buf, BOOT_TRIPLE_STR, strlen(BOOT_TRIPLE_STR)))
+		reboot_type = BOOT_TRIPLE;
+	else if (!strncmp(buf, BOOT_KBD_STR, strlen(BOOT_KBD_STR)))
+		reboot_type = BOOT_KBD;
+	else if (!strncmp(buf, BOOT_BIOS_STR, strlen(BOOT_BIOS_STR)))
+		reboot_type = BOOT_BIOS;
+	else if (!strncmp(buf, BOOT_ACPI_STR, strlen(BOOT_ACPI_STR)))
+		reboot_type = BOOT_ACPI;
+	else if (!strncmp(buf, BOOT_EFI_STR, strlen(BOOT_EFI_STR)))
+		reboot_type = BOOT_EFI;
+	else if (!strncmp(buf, BOOT_PCI_STR, strlen(BOOT_PCI_STR)))
+		reboot_type = BOOT_CF9_FORCE;
+	else
+		return -EINVAL;
+
+	reboot_default = 0;
+
+	return count;
+}
+static struct kobj_attribute reboot_type_attr = __ATTR_RW(type);
+#endif
+
+#ifdef CONFIG_SMP
+static ssize_t cpu_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", reboot_cpu);
+}
+static ssize_t cpu_store(struct kobject *kobj, struct kobj_attribute *attr,
+			  const char *buf, size_t count)
+{
+	unsigned int cpunum;
+	int rc;
+
+	if (!capable(CAP_SYS_BOOT))
+		return -EPERM;
+
+	rc = kstrtouint(buf, 0, &cpunum);
+
+	if (rc)
+		return rc;
+
+	if (cpunum >= num_possible_cpus())
+		return -ERANGE;
+
+	reboot_default = 0;
+	reboot_cpu = cpunum;
+
+	return count;
+}
+static struct kobj_attribute reboot_cpu_attr = __ATTR_RW(cpu);
+#endif
+
+static struct attribute *reboot_attrs[] = {
+	&reboot_mode_attr.attr,
+#ifdef CONFIG_X86
+	&reboot_force_attr.attr,
+	&reboot_type_attr.attr,
+#endif
+#ifdef CONFIG_SMP
+	&reboot_cpu_attr.attr,
+#endif
+	NULL,
+};
+
+static const struct attribute_group reboot_attr_group = {
+	.attrs = reboot_attrs,
+};
+
+static int __init reboot_ksysfs_init(void)
+{
+	struct kobject *reboot_kobj;
+	int ret;
+
+	reboot_kobj = kobject_create_and_add("reboot", kernel_kobj);
+	if (!reboot_kobj)
+		return -ENOMEM;
+
+	ret = sysfs_create_group(reboot_kobj, &reboot_attr_group);
+	if (ret) {
+		kobject_put(reboot_kobj);
+		return ret;
+	}
+
+	return 0;
+}
+late_initcall(reboot_ksysfs_init);
+
+#endif

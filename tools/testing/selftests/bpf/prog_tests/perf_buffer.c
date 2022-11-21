@@ -43,10 +43,10 @@ int trigger_on_cpu(int cpu)
 	return 0;
 }
 
-void test_perf_buffer(void)
+void serial_test_perf_buffer(void)
 {
-	int err, on_len, nr_on_cpus = 0, nr_cpus, i;
-	struct perf_buffer_opts pb_opts = {};
+	int err, on_len, nr_on_cpus = 0, nr_cpus, i, j;
+	int zero = 0, my_pid = getpid();
 	struct test_perf_buffer *skel;
 	cpu_set_t cpu_seen;
 	struct perf_buffer *pb;
@@ -71,16 +71,19 @@ void test_perf_buffer(void)
 	if (CHECK(!skel, "skel_load", "skeleton open/load failed\n"))
 		goto out_close;
 
+	err = bpf_map_update_elem(bpf_map__fd(skel->maps.my_pid_map), &zero, &my_pid, 0);
+	if (!ASSERT_OK(err, "my_pid_update"))
+		goto out_close;
+
 	/* attach probe */
 	err = test_perf_buffer__attach(skel);
 	if (CHECK(err, "attach_kprobe", "err %d\n", err))
 		goto out_close;
 
 	/* set up perf buffer */
-	pb_opts.sample_cb = on_sample;
-	pb_opts.ctx = &cpu_seen;
-	pb = perf_buffer__new(bpf_map__fd(skel->maps.perf_buf_map), 1, &pb_opts);
-	if (CHECK(IS_ERR(pb), "perf_buf__new", "err %ld\n", PTR_ERR(pb)))
+	pb = perf_buffer__new(bpf_map__fd(skel->maps.perf_buf_map), 1,
+			      on_sample, NULL, &cpu_seen, NULL);
+	if (!ASSERT_OK_PTR(pb, "perf_buf__new"))
 		goto out_close;
 
 	CHECK(perf_buffer__epoll_fd(pb) < 0, "epoll_fd",
@@ -107,19 +110,19 @@ void test_perf_buffer(void)
 		  "expect %d, seen %d\n", nr_on_cpus, CPU_COUNT(&cpu_seen)))
 		goto out_free_pb;
 
-	if (CHECK(perf_buffer__buffer_cnt(pb) != nr_cpus, "buf_cnt",
-		  "got %zu, expected %d\n", perf_buffer__buffer_cnt(pb), nr_cpus))
+	if (CHECK(perf_buffer__buffer_cnt(pb) != nr_on_cpus, "buf_cnt",
+		  "got %zu, expected %d\n", perf_buffer__buffer_cnt(pb), nr_on_cpus))
 		goto out_close;
 
-	for (i = 0; i < nr_cpus; i++) {
+	for (i = 0, j = 0; i < nr_cpus; i++) {
 		if (i >= on_len || !online[i])
 			continue;
 
-		fd = perf_buffer__buffer_fd(pb, i);
+		fd = perf_buffer__buffer_fd(pb, j);
 		CHECK(fd < 0 || last_fd == fd, "fd_check", "last fd %d == fd %d\n", last_fd, fd);
 		last_fd = fd;
 
-		err = perf_buffer__consume_buffer(pb, i);
+		err = perf_buffer__consume_buffer(pb, j);
 		if (CHECK(err, "drain_buf", "cpu %d, err %d\n", i, err))
 			goto out_close;
 
@@ -127,12 +130,13 @@ void test_perf_buffer(void)
 		if (trigger_on_cpu(i))
 			goto out_close;
 
-		err = perf_buffer__consume_buffer(pb, i);
-		if (CHECK(err, "consume_buf", "cpu %d, err %d\n", i, err))
+		err = perf_buffer__consume_buffer(pb, j);
+		if (CHECK(err, "consume_buf", "cpu %d, err %d\n", j, err))
 			goto out_close;
 
 		if (CHECK(!CPU_ISSET(i, &cpu_seen), "cpu_seen", "cpu %d not seen\n", i))
 			goto out_close;
+		j++;
 	}
 
 out_free_pb:

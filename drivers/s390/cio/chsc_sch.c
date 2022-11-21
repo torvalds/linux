@@ -91,16 +91,11 @@ static int chsc_subchannel_probe(struct subchannel *sch)
 			 sch->schid.ssid, sch->schid.sch_no, ret);
 		dev_set_drvdata(&sch->dev, NULL);
 		kfree(private);
-	} else {
-		if (dev_get_uevent_suppress(&sch->dev)) {
-			dev_set_uevent_suppress(&sch->dev, 0);
-			kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
-		}
 	}
 	return ret;
 }
 
-static int chsc_subchannel_remove(struct subchannel *sch)
+static void chsc_subchannel_remove(struct subchannel *sch)
 {
 	struct chsc_private *private;
 
@@ -112,37 +107,11 @@ static int chsc_subchannel_remove(struct subchannel *sch)
 		put_device(&sch->dev);
 	}
 	kfree(private);
-	return 0;
 }
 
 static void chsc_subchannel_shutdown(struct subchannel *sch)
 {
 	cio_disable_subchannel(sch);
-}
-
-static int chsc_subchannel_prepare(struct subchannel *sch)
-{
-	int cc;
-	struct schib schib;
-	/*
-	 * Don't allow suspend while the subchannel is not idle
-	 * since we don't have a way to clear the subchannel and
-	 * cannot disable it with a request running.
-	 */
-	cc = stsch(sch->schid, &schib);
-	if (!cc && scsw_stctl(&schib.scsw))
-		return -EAGAIN;
-	return 0;
-}
-
-static int chsc_subchannel_freeze(struct subchannel *sch)
-{
-	return cio_disable_subchannel(sch);
-}
-
-static int chsc_subchannel_restore(struct subchannel *sch)
-{
-	return cio_enable_subchannel(sch, (u32)(unsigned long)sch);
 }
 
 static struct css_device_id chsc_subchannel_ids[] = {
@@ -161,10 +130,6 @@ static struct css_driver chsc_subchannel_driver = {
 	.probe = chsc_subchannel_probe,
 	.remove = chsc_subchannel_remove,
 	.shutdown = chsc_subchannel_shutdown,
-	.prepare = chsc_subchannel_prepare,
-	.freeze = chsc_subchannel_freeze,
-	.thaw = chsc_subchannel_restore,
-	.restore = chsc_subchannel_restore,
 };
 
 static int __init chsc_init_dbfs(void)

@@ -22,7 +22,7 @@ properties:
       The default brightness that should be applied to the LED by the operating
       system on start-up. The brightness should not exceed the brightness the
       LED can provide.
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   max-brightness:
     description:
@@ -31,6 +31,6 @@ properties:
       on the brightness apart from what the driver says, as it could happen
       that a LED can be made so bright that it gets damaged or causes damage
       due to restrictions in a specific system, such as mounting conditions.
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
 
 additionalProperties: true

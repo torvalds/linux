@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
 ================
 bpftool-link
 ================
@@ -7,12 +9,14 @@ tool for inspection and simple manipulation of eBPF links
 
 :Manual section: 8
 
+.. include:: substitutions.rst
+
 SYNOPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **link** *COMMAND*
 
-	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-f** | **--bpffs** } }
+	*OPTIONS* := { |COMMON_OPTIONS| | { **-f** | **--bpffs** } | { **-n** | **--nomount** } }
 
 	*COMMANDS* := { **show** | **list** | **pin** | **help** }
 

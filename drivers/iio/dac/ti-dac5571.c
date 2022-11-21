@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
 enum chip_id {
@@ -166,7 +167,7 @@ static ssize_t dac5571_read_powerdown(struct iio_dev *indio_dev,
 {
 	struct dac5571_data *data = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", data->powerdown[chan->channel]);
+	return sysfs_emit(buf, "%d\n", data->powerdown[chan->channel]);
 }
 
 static ssize_t dac5571_write_powerdown(struct iio_dev *indio_dev,
@@ -212,7 +213,7 @@ static const struct iio_chan_spec_ext_info dac5571_ext_info[] = {
 		.shared	   = IIO_SEPARATE,
 	},
 	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &dac5571_powerdown_mode),
-	IIO_ENUM_AVAILABLE("powerdown_mode", &dac5571_powerdown_mode),
+	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &dac5571_powerdown_mode),
 	{},
 };
 
@@ -311,6 +312,7 @@ static int dac5571_probe(struct i2c_client *client,
 	const struct dac5571_spec *spec;
 	struct dac5571_data *data;
 	struct iio_dev *indio_dev;
+	enum chip_id chip_id;
 	int ret, i;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
@@ -326,7 +328,13 @@ static int dac5571_probe(struct i2c_client *client,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = dac5571_channels;
 
-	spec = &dac5571_spec[id->driver_data];
+	if (dev_fwnode(dev))
+		chip_id = (uintptr_t)device_get_match_data(dev);
+	else
+		chip_id = id->driver_data;
+
+	spec = &dac5571_spec[chip_id];
+
 	indio_dev->num_channels = spec->num_channels;
 	data->spec = spec;
 
@@ -350,6 +358,7 @@ static int dac5571_probe(struct i2c_client *client,
 		data->dac5571_pwrdwn = dac5571_pwrdwn_quad;
 		break;
 	default:
+		ret = -EINVAL;
 		goto err;
 	}
 
@@ -384,15 +393,15 @@ static int dac5571_remove(struct i2c_client *i2c)
 }
 
 static const struct of_device_id dac5571_of_id[] = {
-	{.compatible = "ti,dac5571"},
-	{.compatible = "ti,dac6571"},
-	{.compatible = "ti,dac7571"},
-	{.compatible = "ti,dac5574"},
-	{.compatible = "ti,dac6574"},
-	{.compatible = "ti,dac7574"},
-	{.compatible = "ti,dac5573"},
-	{.compatible = "ti,dac6573"},
-	{.compatible = "ti,dac7573"},
+	{.compatible = "ti,dac5571", .data = (void *)single_8bit},
+	{.compatible = "ti,dac6571", .data = (void *)single_10bit},
+	{.compatible = "ti,dac7571", .data = (void *)single_12bit},
+	{.compatible = "ti,dac5574", .data = (void *)quad_8bit},
+	{.compatible = "ti,dac6574", .data = (void *)quad_10bit},
+	{.compatible = "ti,dac7574", .data = (void *)quad_12bit},
+	{.compatible = "ti,dac5573", .data = (void *)quad_8bit},
+	{.compatible = "ti,dac6573", .data = (void *)quad_10bit},
+	{.compatible = "ti,dac7573", .data = (void *)quad_12bit},
 	{}
 };
 MODULE_DEVICE_TABLE(of, dac5571_of_id);

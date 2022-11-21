@@ -72,7 +72,7 @@ always call :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`.
 
 Available initiator modes are:
 
-.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{10.8cm}|
 
 .. _cec-mode-initiator_e:
 
@@ -106,7 +106,7 @@ Available initiator modes are:
 
 Available follower modes are:
 
-.. tabularcolumns:: |p{6.6cm}|p{0.9cm}|p{10.0cm}|
+.. tabularcolumns:: |p{6.6cm}|p{0.9cm}|p{9.8cm}|
 
 .. _cec-mode-follower_e:
 
@@ -188,7 +188,7 @@ Available follower modes are:
 	in combination with :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`, otherwise
 	the ``EINVAL`` error code will be returned. In 'monitor all' mode all messages
 	this CEC device transmits and all messages it receives, including
-	directed messages for other CEC devices will be reported. This is
+	directed messages for other CEC devices, will be reported. This is
 	very useful for debugging, but not all devices support this. This
 	mode requires that the :ref:`CEC_CAP_MONITOR_ALL <CEC-CAP-MONITOR-ALL>` capability is set,
 	otherwise the ``EINVAL`` error code is returned. This is only allowed if

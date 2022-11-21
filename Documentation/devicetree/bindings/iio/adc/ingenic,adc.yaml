@@ -14,14 +14,17 @@ description: >
   Industrial I/O subsystem bindings for ADC controller found in
   Ingenic JZ47xx SoCs.
 
-  ADC clients must use the format described in iio-bindings.txt, giving
-  a phandle and IIO specifier pair ("io-channels") to the ADC controller.
+  ADC clients must use the format described in
+  https://github.com/devicetree-org/dt-schema/blob/master/schemas/iio/iio-consumer.yaml,
+  giving a phandle and IIO specifier pair ("io-channels") to the ADC controller.
 
 properties:
   compatible:
     enum:
       - ingenic,jz4725b-adc
       - ingenic,jz4740-adc
+      - ingenic,jz4760-adc
+      - ingenic,jz4760b-adc
       - ingenic,jz4770-adc
 
   '#io-channel-cells':
@@ -42,6 +45,23 @@ properties:
   interrupts:
     maxItems: 1
 
+  ingenic,use-internal-divider:
+    description:
+      If present, battery voltage is read from the VBAT_IR pin, which has an
+      internal 1/4 divider. If absent, it is read through the VBAT_ER pin,
+      which does not have such a divider.
+    type: boolean
+
+if:
+  not:
+    properties:
+      compatible:
+        contains:
+          const: ingenic,jz4760b-adc
+then:
+  properties:
+    ingenic,use-internal-divider: false
+
 required:
   - compatible
   - '#io-channel-cells'
@@ -54,7 +74,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4740-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4740-cgu.h>
     #include <dt-bindings/iio/adc/ingenic,adc.h>
 
     adc@10070000 {

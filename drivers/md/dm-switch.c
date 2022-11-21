@@ -504,6 +504,10 @@ static void switch_status(struct dm_target *ti, status_type_t type,
 			DMEMIT(" %s %llu", sctx->path_list[path_nr].dmdev->name,
 			       (unsigned long long)sctx->path_list[path_nr].start);
 		break;
+
+	case STATUSTYPE_IMA:
+		result[0] = '\0';
+		break;
 	}
 }
 
@@ -525,7 +529,7 @@ static int switch_prepare_ioctl(struct dm_target *ti, struct block_device **bdev
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
 	if (ti->len + sctx->path_list[path_nr].start !=
-	    i_size_read((*bdev)->bd_inode) >> SECTOR_SHIFT)
+	    bdev_nr_sectors((*bdev)))
 		return 1;
 	return 0;
 }
@@ -550,6 +554,7 @@ static int switch_iterate_devices(struct dm_target *ti,
 static struct target_type switch_target = {
 	.name = "switch",
 	.version = {1, 1, 0},
+	.features = DM_TARGET_NOWAIT,
 	.module = THIS_MODULE,
 	.ctr = switch_ctr,
 	.dtr = switch_dtr,

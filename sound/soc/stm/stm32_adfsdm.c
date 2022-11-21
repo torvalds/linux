@@ -12,7 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-
+#include <linux/pm_runtime.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/consumer.h>
 #include <linux/iio/adc/stm32-dfsdm-adc.h>
@@ -117,7 +117,7 @@ static int stm32_adfsdm_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 	/* Set IIO frequency if CODEC is master as clock comes from SPI_IN */
 
-	snprintf(str_freq, sizeof(str_freq), "%d\n", freq);
+	snprintf(str_freq, sizeof(str_freq), "%u\n", freq);
 	size = iio_write_channel_ext_info(priv->iio_ch, "spi_clk_freq",
 					  str_freq, sizeof(str_freq));
 	if (size != sizeof(str_freq)) {
@@ -293,6 +293,16 @@ static int stm32_adfsdm_pcm_new(struct snd_soc_component *component,
 	return 0;
 }
 
+static int stm32_adfsdm_dummy_cb(const void *data, void *private)
+{
+	/*
+	 * This dummmy callback is requested by iio_channel_get_all_cb() API,
+	 * but the stm32_dfsdm_get_buff_cb() API is used instead, to optimize
+	 * DMA transfers.
+	 */
+	return 0;
+}
+
 static struct snd_soc_component_driver stm32_adfsdm_soc_platform = {
 	.open		= stm32_adfsdm_pcm_open,
 	.close		= stm32_adfsdm_pcm_close,
@@ -324,6 +334,8 @@ static int stm32_adfsdm_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, priv);
 
+	pm_runtime_enable(&pdev->dev);
+
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &stm32_adfsdm_dai_component,
 					      &priv->dai_drv, 1);
@@ -335,7 +347,7 @@ static int stm32_adfsdm_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->iio_ch))
 		return PTR_ERR(priv->iio_ch);
 
-	priv->iio_cb = iio_channel_get_all_cb(&pdev->dev, NULL, NULL);
+	priv->iio_cb = iio_channel_get_all_cb(&pdev->dev, &stm32_adfsdm_dummy_cb, NULL);
 	if (IS_ERR(priv->iio_cb))
 		return PTR_ERR(priv->iio_cb);
 
@@ -363,6 +375,7 @@ static int stm32_adfsdm_probe(struct platform_device *pdev)
 static int stm32_adfsdm_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_component(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }

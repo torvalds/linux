@@ -24,8 +24,8 @@
 #include <uapi/linux/nfsd/debug.h>
 
 #include "netns.h"
-#include "stats.h"
 #include "export.h"
+#include "stats.h"
 
 #undef ifdebug
 #ifdef CONFIG_SUNRPC_DEBUG
@@ -74,6 +74,16 @@ extern unsigned long		nfsd_drc_mem_used;
 extern const struct seq_operations nfs_exports_op;
 
 /*
+ * Common void argument and result helpers
+ */
+struct nfsd_voidargs { };
+struct nfsd_voidres { };
+bool		nfssvc_decode_voidarg(struct svc_rqst *rqstp,
+				      struct xdr_stream *xdr);
+bool		nfssvc_encode_voidres(struct svc_rqst *rqstp,
+				      struct xdr_stream *xdr);
+
+/*
  * Function prototypes.
  */
 int		nfsd_svc(int nrservs, struct net *net, const struct cred *cred);
@@ -85,12 +95,11 @@ int		nfsd_get_nrthreads(int n, int *, struct net *);
 int		nfsd_set_nrthreads(int n, int *, struct net *);
 int		nfsd_pool_stats_open(struct inode *, struct file *);
 int		nfsd_pool_stats_release(struct inode *, struct file *);
+void		nfsd_shutdown_threads(struct net *net);
 
-void		nfsd_destroy(struct net *net);
+void		nfsd_put(struct net *net);
 
 bool		i_am_nfsd(void);
-
-int get_nfsdfs(struct net *);
 
 struct nfsdfs_client {
 	struct kref cl_ref;
@@ -99,7 +108,9 @@ struct nfsdfs_client {
 
 struct nfsdfs_client *get_nfsdfs_client(struct inode *);
 struct dentry *nfsd_client_mkdir(struct nfsd_net *nn,
-		struct nfsdfs_client *ncl, u32 id, const struct tree_descr *);
+				 struct nfsdfs_client *ncl, u32 id,
+				 const struct tree_descr *,
+				 struct dentry **fdentries);
 void nfsd_client_rmdir(struct dentry *dentry);
 
 
@@ -353,7 +364,7 @@ void		nfsd_lockd_shutdown(void);
  | FATTR4_WORD1_OWNER	        | FATTR4_WORD1_OWNER_GROUP  | FATTR4_WORD1_RAWDEV           \
  | FATTR4_WORD1_SPACE_AVAIL     | FATTR4_WORD1_SPACE_FREE   | FATTR4_WORD1_SPACE_TOTAL      \
  | FATTR4_WORD1_SPACE_USED      | FATTR4_WORD1_TIME_ACCESS  | FATTR4_WORD1_TIME_ACCESS_SET  \
- | FATTR4_WORD1_TIME_DELTA   | FATTR4_WORD1_TIME_METADATA    \
+ | FATTR4_WORD1_TIME_DELTA      | FATTR4_WORD1_TIME_METADATA   | FATTR4_WORD1_TIME_CREATE      \
  | FATTR4_WORD1_TIME_MODIFY     | FATTR4_WORD1_TIME_MODIFY_SET | FATTR4_WORD1_MOUNTED_ON_FILEID)
 
 #define NFSD4_SUPPORTED_ATTRS_WORD2 0
@@ -387,7 +398,6 @@ void		nfsd_lockd_shutdown(void);
 
 #define NFSD4_2_SUPPORTED_ATTRS_WORD2 \
 	(NFSD4_1_SUPPORTED_ATTRS_WORD2 | \
-	FATTR4_WORD2_CHANGE_ATTR_TYPE | \
 	FATTR4_WORD2_MODE_UMASK | \
 	NFSD4_2_SECURITY_ATTRS | \
 	FATTR4_WORD2_XATTR_SUPPORT)
@@ -476,6 +486,10 @@ static inline bool nfsd_attrs_supported(u32 minorversion, const u32 *bmval)
 extern int nfsd4_is_junction(struct dentry *dentry);
 extern int register_cld_notifier(void);
 extern void unregister_cld_notifier(void);
+#ifdef CONFIG_NFSD_V4_2_INTER_SSC
+extern void nfsd4_ssc_init_umount_work(struct nfsd_net *nn);
+#endif
+
 #else /* CONFIG_NFSD_V4 */
 static inline int nfsd4_is_junction(struct dentry *dentry)
 {

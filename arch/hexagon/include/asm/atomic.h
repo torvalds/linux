@@ -14,7 +14,7 @@
 
 /*  Normal writes in our arch don't clear lock reservations  */
 
-static inline void atomic_set(atomic_t *v, int new)
+static inline void arch_atomic_set(atomic_t *v, int new)
 {
 	asm volatile(
 		"1:	r6 = memw_locked(%0);\n"
@@ -26,26 +26,26 @@ static inline void atomic_set(atomic_t *v, int new)
 	);
 }
 
-#define atomic_set_release(v, i)	atomic_set((v), (i))
+#define arch_atomic_set_release(v, i)	arch_atomic_set((v), (i))
 
 /**
- * atomic_read - reads a word, atomically
+ * arch_atomic_read - reads a word, atomically
  * @v: pointer to atomic value
  *
  * Assumes all word reads on our architecture are atomic.
  */
-#define atomic_read(v)		READ_ONCE((v)->counter)
+#define arch_atomic_read(v)		READ_ONCE((v)->counter)
 
 /**
- * atomic_xchg - atomic
+ * arch_atomic_xchg - atomic
  * @v: pointer to memory to change
  * @new: new value (technically passed in a register -- see xchg)
  */
-#define atomic_xchg(v, new)	(xchg(&((v)->counter), (new)))
+#define arch_atomic_xchg(v, new)	(arch_xchg(&((v)->counter), (new)))
 
 
 /**
- * atomic_cmpxchg - atomic compare-and-exchange values
+ * arch_atomic_cmpxchg - atomic compare-and-exchange values
  * @v: pointer to value to change
  * @old:  desired old value to match
  * @new:  new value to put in
@@ -61,7 +61,7 @@ static inline void atomic_set(atomic_t *v, int new)
  *
  * "old" is "expected" old val, __oldval is actual old value
  */
-static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
+static inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 {
 	int __oldval;
 
@@ -81,7 +81,7 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 }
 
 #define ATOMIC_OP(op)							\
-static inline void atomic_##op(int i, atomic_t *v)			\
+static inline void arch_atomic_##op(int i, atomic_t *v)			\
 {									\
 	int output;							\
 									\
@@ -97,7 +97,7 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 }									\
 
 #define ATOMIC_OP_RETURN(op)						\
-static inline int atomic_##op##_return(int i, atomic_t *v)		\
+static inline int arch_atomic_##op##_return(int i, atomic_t *v)		\
 {									\
 	int output;							\
 									\
@@ -114,7 +114,7 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 }
 
 #define ATOMIC_FETCH_OP(op)						\
-static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+static inline int arch_atomic_fetch_##op(int i, atomic_t *v)		\
 {									\
 	int output, val;						\
 									\
@@ -148,7 +148,7 @@ ATOMIC_OPS(xor)
 #undef ATOMIC_OP
 
 /**
- * atomic_fetch_add_unless - add unless the number is a given value
+ * arch_atomic_fetch_add_unless - add unless the number is a given value
  * @v: pointer to value
  * @a: amount to add
  * @u: unless value is equal to u
@@ -157,7 +157,7 @@ ATOMIC_OPS(xor)
  *
  */
 
-static inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
+static inline int arch_atomic_fetch_add_unless(atomic_t *v, int a, int u)
 {
 	int __oldval;
 	register int tmp;
@@ -180,6 +180,6 @@ static inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 	);
 	return __oldval;
 }
-#define atomic_fetch_add_unless atomic_fetch_add_unless
+#define arch_atomic_fetch_add_unless arch_atomic_fetch_add_unless
 
 #endif

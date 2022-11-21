@@ -74,10 +74,11 @@ struct vc4_perfmon {
 struct vc4_dev {
 	struct drm_device base;
 
+	unsigned int irq;
+
 	struct vc4_hvs *hvs;
 	struct vc4_v3d *v3d;
 	struct vc4_dpi *dpi;
-	struct vc4_dsi *dsi1;
 	struct vc4_vec *vec;
 	struct vc4_txp *txp;
 
@@ -201,9 +202,6 @@ struct vc4_dev {
 
 	int power_refcount;
 
-	/* Set to true when the load tracker is supported. */
-	bool load_tracker_available;
-
 	/* Set to true when the load tracker is active. */
 	bool load_tracker_enabled;
 
@@ -214,8 +212,6 @@ struct vc4_dev {
 		struct timer_list timer;
 		struct work_struct reset_work;
 	} hangcheck;
-
-	struct semaphore async_modeset;
 
 	struct drm_modeset_lock ctm_state_lock;
 	struct drm_private_obj ctm_manager;
@@ -444,12 +440,12 @@ struct vc4_encoder {
 	enum vc4_encoder_type type;
 	u32 clock_select;
 
-	void (*pre_crtc_configure)(struct drm_encoder *encoder);
-	void (*pre_crtc_enable)(struct drm_encoder *encoder);
-	void (*post_crtc_enable)(struct drm_encoder *encoder);
+	void (*pre_crtc_configure)(struct drm_encoder *encoder, struct drm_atomic_state *state);
+	void (*pre_crtc_enable)(struct drm_encoder *encoder, struct drm_atomic_state *state);
+	void (*post_crtc_enable)(struct drm_encoder *encoder, struct drm_atomic_state *state);
 
-	void (*post_crtc_disable)(struct drm_encoder *encoder);
-	void (*post_crtc_powerdown)(struct drm_encoder *encoder);
+	void (*post_crtc_disable)(struct drm_encoder *encoder, struct drm_atomic_state *state);
+	void (*post_crtc_powerdown)(struct drm_encoder *encoder, struct drm_atomic_state *state);
 };
 
 static inline struct vc4_encoder *
@@ -496,6 +492,33 @@ struct vc4_crtc {
 	struct drm_pending_vblank_event *event;
 
 	struct debugfs_regset32 regset;
+
+	/**
+	 * @feeds_txp: True if the CRTC feeds our writeback controller.
+	 */
+	bool feeds_txp;
+
+	/**
+	 * @irq_lock: Spinlock protecting the resources shared between
+	 * the atomic code and our vblank handler.
+	 */
+	spinlock_t irq_lock;
+
+	/**
+	 * @current_dlist: Start offset of the display list currently
+	 * set in the HVS for that CRTC. Protected by @irq_lock, and
+	 * copied in vc4_hvs_update_dlist() for the CRTC interrupt
+	 * handler to have access to that value.
+	 */
+	unsigned int current_dlist;
+
+	/**
+	 * @current_hvs_channel: HVS channel currently assigned to the
+	 * CRTC. Protected by @irq_lock, and copied in
+	 * vc4_hvs_atomic_begin() for the CRTC interrupt handler to have
+	 * access to that value.
+	 */
+	unsigned int current_hvs_channel;
 };
 
 static inline struct vc4_crtc *
@@ -518,11 +541,13 @@ vc4_crtc_to_vc4_pv_data(const struct vc4_crtc *crtc)
 	return container_of(data, struct vc4_pv_data, base);
 }
 
+struct drm_encoder *vc4_get_crtc_encoder(struct drm_crtc *crtc,
+					 struct drm_crtc_state *state);
+
 struct vc4_crtc_state {
 	struct drm_crtc_state base;
 	/* Dlist area for this CRTC configuration. */
 	struct drm_mm_node mm;
-	bool feed_txp;
 	bool txp_armed;
 	unsigned int assigned_channel;
 
@@ -532,6 +557,8 @@ struct vc4_crtc_state {
 		unsigned int top;
 		unsigned int bottom;
 	} margins;
+
+	unsigned long hvs_load;
 
 	/* Transitional state below, only valid during atomic commits */
 	bool update_muxing;
@@ -785,13 +812,11 @@ struct vc4_validated_shader_info {
 
 /* vc4_bo.c */
 struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size);
-void vc4_free_object(struct drm_gem_object *gem_obj);
 struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t size,
 			     bool from_cache, enum vc4_kernel_bo_type type);
 int vc4_dumb_create(struct drm_file *file_priv,
 		    struct drm_device *dev,
 		    struct drm_mode_create_dumb *args);
-struct dma_buf *vc4_prime_export(struct drm_gem_object *obj, int flags);
 int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
@@ -806,13 +831,6 @@ int vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
-vm_fault_t vc4_fault(struct vm_fault *vmf);
-int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
-int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
-struct drm_gem_object *vc4_prime_import_sg_table(struct drm_device *dev,
-						 struct dma_buf_attachment *attach,
-						 struct sg_table *sgt);
-void *vc4_prime_vmap(struct drm_gem_object *obj);
 int vc4_bo_cache_init(struct drm_device *dev);
 int vc4_bo_inc_usecnt(struct vc4_bo *bo);
 void vc4_bo_dec_usecnt(struct vc4_bo *bo);
@@ -837,7 +855,7 @@ void vc4_crtc_destroy_state(struct drm_crtc *crtc,
 void vc4_crtc_reset(struct drm_crtc *crtc);
 void vc4_crtc_handle_vblank(struct vc4_crtc *crtc);
 void vc4_crtc_get_margins(struct drm_crtc_state *state,
-			  unsigned int *right, unsigned int *left,
+			  unsigned int *left, unsigned int *right,
 			  unsigned int *top, unsigned int *bottom);
 
 /* vc4_debugfs.c */
@@ -907,9 +925,9 @@ extern struct platform_driver vc4_vec_driver;
 extern struct platform_driver vc4_txp_driver;
 
 /* vc4_irq.c */
-irqreturn_t vc4_irq(int irq, void *arg);
-void vc4_irq_preinstall(struct drm_device *dev);
-int vc4_irq_postinstall(struct drm_device *dev);
+void vc4_irq_enable(struct drm_device *dev);
+void vc4_irq_disable(struct drm_device *dev);
+int vc4_irq_install(struct drm_device *dev, int irq);
 void vc4_irq_uninstall(struct drm_device *dev);
 void vc4_irq_reset(struct drm_device *dev);
 
@@ -917,10 +935,11 @@ void vc4_irq_reset(struct drm_device *dev);
 extern struct platform_driver vc4_hvs_driver;
 void vc4_hvs_stop_channel(struct drm_device *dev, unsigned int output);
 int vc4_hvs_get_fifo_from_output(struct drm_device *dev, unsigned int output);
-int vc4_hvs_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state);
-void vc4_hvs_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state *old_state);
-void vc4_hvs_atomic_disable(struct drm_crtc *crtc, struct drm_crtc_state *old_state);
-void vc4_hvs_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state *state);
+int vc4_hvs_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state);
+void vc4_hvs_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_state *state);
+void vc4_hvs_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state);
+void vc4_hvs_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *state);
+void vc4_hvs_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *state);
 void vc4_hvs_dump_state(struct drm_device *dev);
 void vc4_hvs_unmask_underrun(struct drm_device *dev, int channel);
 void vc4_hvs_mask_underrun(struct drm_device *dev, int channel);

@@ -13,7 +13,6 @@
 
 #include <linux/nfc.h>
 #include <net/nfc/hci.h>
-#include <net/nfc/llc.h>
 
 #include "pn544.h"
 
@@ -86,7 +85,7 @@ enum pn544_state {
 #define PN544_HCI_CMD_ATTREQUEST		0x12
 #define PN544_HCI_CMD_CONTINUE_ACTIVATION	0x13
 
-static struct nfc_hci_gate pn544_gates[] = {
+static const struct nfc_hci_gate pn544_gates[] = {
 	{NFC_HCI_ADMIN_GATE, NFC_HCI_INVALID_PIPE},
 	{NFC_HCI_LOOPBACK_GATE, NFC_HCI_INVALID_PIPE},
 	{NFC_HCI_ID_MGMT_GATE, NFC_HCI_INVALID_PIPE},
@@ -108,7 +107,7 @@ static struct nfc_hci_gate pn544_gates[] = {
 #define PN544_CMDS_HEADROOM	2
 
 struct pn544_hci_info {
-	struct nfc_phy_ops *phy_ops;
+	const struct nfc_phy_ops *phy_ops;
 	void *phy_id;
 
 	struct nfc_hci_dev *hdev;
@@ -809,7 +808,7 @@ static int pn544_hci_discover_se(struct nfc_hci_dev *hdev)
 #define PN544_SE_MODE_ON	0x01
 static int pn544_hci_enable_se(struct nfc_hci_dev *hdev, u32 se_idx)
 {
-	struct nfc_se *se;
+	const struct nfc_se *se;
 	u8 enable = PN544_SE_MODE_ON;
 	static struct uicc_gatelist {
 		u8 head;
@@ -864,7 +863,7 @@ static int pn544_hci_enable_se(struct nfc_hci_dev *hdev, u32 se_idx)
 
 static int pn544_hci_disable_se(struct nfc_hci_dev *hdev, u32 se_idx)
 {
-	struct nfc_se *se;
+	const struct nfc_se *se;
 	u8 disable = PN544_SE_MODE_OFF;
 
 	se = nfc_find_se(hdev->ndev, se_idx);
@@ -881,7 +880,7 @@ static int pn544_hci_disable_se(struct nfc_hci_dev *hdev, u32 se_idx)
 	}
 }
 
-static struct nfc_hci_ops pn544_hci_ops = {
+static const struct nfc_hci_ops pn544_hci_ops = {
 	.open = pn544_hci_open,
 	.close = pn544_hci_close,
 	.hci_ready = pn544_hci_ready,
@@ -901,9 +900,10 @@ static struct nfc_hci_ops pn544_hci_ops = {
 	.disable_se = pn544_hci_disable_se,
 };
 
-int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
-		    int phy_headroom, int phy_tailroom, int phy_payload,
-		    fw_download_t fw_download, struct nfc_hci_dev **hdev)
+int pn544_hci_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
+		    char *llc_name, int phy_headroom, int phy_tailroom,
+		    int phy_payload, fw_download_t fw_download,
+		    struct nfc_hci_dev **hdev)
 {
 	struct pn544_hci_info *info;
 	u32 protocols;

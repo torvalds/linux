@@ -16,9 +16,7 @@
 
 #define BIT63		((uint64_t)1 << 63)
 
-#define NR_FLAG		BIT63
-
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define le16_to_cpu bswap_16
 #define le32_to_cpu bswap_32
 #define le64_to_cpu bswap_64
@@ -66,6 +64,9 @@ static const char * const packet_name[] = {
 	[INTEL_PT_BIP]		= "BIP",
 	[INTEL_PT_BEP]		= "BEP",
 	[INTEL_PT_BEP_IP]	= "BEP",
+	[INTEL_PT_CFE]		= "CFE",
+	[INTEL_PT_CFE_IP]	= "CFE",
+	[INTEL_PT_EVD]		= "EVD",
 };
 
 const char *intel_pt_pkt_name(enum intel_pt_pkt_type type)
@@ -106,9 +107,7 @@ static int intel_pt_get_pip(const unsigned char *buf, size_t len,
 
 	packet->type = INTEL_PT_PIP;
 	memcpy_le64(&payload, buf + 2, 6);
-	packet->payload = payload >> 1;
-	if (payload & 1)
-		packet->payload |= NR_FLAG;
+	packet->payload = payload;
 
 	return 8;
 }
@@ -201,8 +200,7 @@ static int intel_pt_get_mnt(const unsigned char *buf, size_t len,
 		return INTEL_PT_NEED_MORE_BYTES;
 	packet->type = INTEL_PT_MNT;
 	memcpy_le64(&packet->payload, buf + 3, 8);
-	return 11
-;
+	return 11;
 }
 
 static int intel_pt_get_3byte(const unsigned char *buf, size_t len,
@@ -333,6 +331,29 @@ static int intel_pt_get_bep_ip(size_t len, struct intel_pt_pkt *packet)
 	return 2;
 }
 
+static int intel_pt_get_cfe(const unsigned char *buf, size_t len,
+			    struct intel_pt_pkt *packet)
+{
+	if (len < 4)
+		return INTEL_PT_NEED_MORE_BYTES;
+	packet->type = buf[2] & 0x80 ? INTEL_PT_CFE_IP : INTEL_PT_CFE;
+	packet->count = buf[2] & 0x1f;
+	packet->payload = buf[3];
+	return 4;
+}
+
+static int intel_pt_get_evd(const unsigned char *buf, size_t len,
+			    struct intel_pt_pkt *packet)
+{
+	if (len < 11)
+		return INTEL_PT_NEED_MORE_BYTES;
+	packet->type = INTEL_PT_EVD;
+	packet->count = buf[2] & 0x3f;
+	packet->payload = buf[3];
+	memcpy_le64(&packet->payload, buf + 3, 8);
+	return 11;
+}
+
 static int intel_pt_get_ext(const unsigned char *buf, size_t len,
 			    struct intel_pt_pkt *packet)
 {
@@ -379,6 +400,10 @@ static int intel_pt_get_ext(const unsigned char *buf, size_t len,
 		return intel_pt_get_bep(len, packet);
 	case 0xb3: /* BEP with IP */
 		return intel_pt_get_bep_ip(len, packet);
+	case 0x13: /* CFE */
+		return intel_pt_get_cfe(buf, len, packet);
+	case 0x53: /* EVD */
+		return intel_pt_get_evd(buf, len, packet);
 	default:
 		return INTEL_PT_BAD_PACKET;
 	}
@@ -479,6 +504,7 @@ static int intel_pt_get_mode(const unsigned char *buf, size_t len,
 	switch (buf[1] >> 5) {
 	case 0:
 		packet->type = INTEL_PT_MODE_EXEC;
+		packet->count = buf[1];
 		switch (buf[1] & 3) {
 		case 0:
 			packet->payload = 16;
@@ -628,6 +654,9 @@ void intel_pt_upd_pkt_ctx(const struct intel_pt_pkt *packet,
 	case INTEL_PT_MWAIT:
 	case INTEL_PT_BEP:
 	case INTEL_PT_BEP_IP:
+	case INTEL_PT_CFE:
+	case INTEL_PT_CFE_IP:
+	case INTEL_PT_EVD:
 		*ctx = INTEL_PT_NO_CTX;
 		break;
 	case INTEL_PT_BBP:
@@ -713,16 +742,17 @@ int intel_pt_pkt_desc(const struct intel_pt_pkt *packet, char *buf,
 		return snprintf(buf, buf_len, "%s CTC 0x%x FC 0x%x", name,
 				(unsigned)payload, packet->count);
 	case INTEL_PT_MODE_EXEC:
-		return snprintf(buf, buf_len, "%s %lld", name, payload);
+		return snprintf(buf, buf_len, "%s IF:%d %lld",
+				name, !!(packet->count & 4), payload);
 	case INTEL_PT_MODE_TSX:
 		return snprintf(buf, buf_len, "%s TXAbort:%u InTX:%u",
 				name, (unsigned)(payload >> 1) & 1,
 				(unsigned)payload & 1);
 	case INTEL_PT_PIP:
-		nr = packet->payload & NR_FLAG ? 1 : 0;
-		payload &= ~NR_FLAG;
+		nr = packet->payload & INTEL_PT_VMX_NR_FLAG ? 1 : 0;
+		payload &= ~INTEL_PT_VMX_NR_FLAG;
 		ret = snprintf(buf, buf_len, "%s 0x%llx (NR=%d)",
-			       name, payload, nr);
+			       name, payload >> 1, nr);
 		return ret;
 	case INTEL_PT_PTWRITE:
 		return snprintf(buf, buf_len, "%s 0x%llx IP:0", name, payload);
@@ -754,6 +784,13 @@ int intel_pt_pkt_desc(const struct intel_pt_pkt *packet, char *buf,
 				name, packet->count ? "4" : "8", payload);
 	case INTEL_PT_BIP:
 		return snprintf(buf, buf_len, "%s ID 0x%02x Value 0x%llx",
+				name, packet->count, payload);
+	case INTEL_PT_CFE:
+	case INTEL_PT_CFE_IP:
+		return snprintf(buf, buf_len, "%s IP:%d Type 0x%02x Vector 0x%llx",
+				name, packet->type == INTEL_PT_CFE_IP, packet->count, payload);
+	case INTEL_PT_EVD:
+		return snprintf(buf, buf_len, "%s Type 0x%02x Payload 0x%llx",
 				name, packet->count, payload);
 	default:
 		break;

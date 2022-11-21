@@ -25,14 +25,15 @@ static unsigned long *get_bitmap(const char *str, int nbits)
 {
 	struct perf_cpu_map *map = perf_cpu_map__new(str);
 	unsigned long *bm = NULL;
-	int i;
 
-	bm = bitmap_alloc(nbits);
+	bm = bitmap_zalloc(nbits);
 
 	if (map && bm) {
-		for (i = 0; i < map->nr; i++) {
-			set_bit(map->map[i], bm);
-		}
+		struct perf_cpu cpu;
+		int i;
+
+		perf_cpu_map__for_each_cpu(cpu, i, map)
+			set_bit(cpu.cpu, bm);
 	}
 
 	if (map)
@@ -43,7 +44,7 @@ static unsigned long *get_bitmap(const char *str, int nbits)
 	return bm && map ? bm : NULL;
 }
 
-int test__mem2node(struct test *t __maybe_unused, int subtest __maybe_unused)
+static int test__mem2node(struct test_suite *t __maybe_unused, int subtest __maybe_unused)
 {
 	struct mem2node map;
 	struct memory_node nodes[3];
@@ -77,3 +78,5 @@ int test__mem2node(struct test *t __maybe_unused, int subtest __maybe_unused)
 	mem2node__exit(&map);
 	return 0;
 }
+
+DEFINE_SUITE("mem2node", mem2node);

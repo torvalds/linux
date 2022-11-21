@@ -419,7 +419,7 @@ struct netdata_local {
 /*
  * MAC support functions
  */
-static void __lpc_set_mac(struct netdata_local *pldat, u8 *mac)
+static void __lpc_set_mac(struct netdata_local *pldat, const u8 *mac)
 {
 	u32 tmp;
 
@@ -1015,9 +1015,6 @@ static int lpc_eth_close(struct net_device *ndev)
 	napi_disable(&pldat->napi);
 	netif_stop_queue(ndev);
 
-	if (ndev->phydev)
-		phy_stop(ndev->phydev);
-
 	spin_lock_irqsave(&pldat->lock, flags);
 	__lpc_eth_reset(pldat);
 	netif_carrier_off(ndev);
@@ -1025,6 +1022,8 @@ static int lpc_eth_close(struct net_device *ndev)
 	writel(0, LPC_ENET_MAC2(pldat->net_base));
 	spin_unlock_irqrestore(&pldat->lock, flags);
 
+	if (ndev->phydev)
+		phy_stop(ndev->phydev);
 	clk_disable_unprepare(pldat->clk);
 
 	return 0;
@@ -1044,7 +1043,8 @@ static netdev_tx_t lpc_eth_hard_start_xmit(struct sk_buff *skb,
 
 	if (pldat->num_used_tx_buffs >= (ENET_TX_DESC - 1)) {
 		/* This function should never be called when there are no
-		   buffers */
+		 * buffers
+		 */
 		netif_stop_queue(ndev);
 		spin_unlock_irq(&pldat->lock);
 		WARN(1, "BUG! TX request when no free TX buffers!\n");
@@ -1092,7 +1092,7 @@ static int lpc_set_mac_address(struct net_device *ndev, void *p)
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(ndev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(ndev, addr->sa_data);
 
 	spin_lock_irqsave(&pldat->lock, flags);
 
@@ -1218,7 +1218,7 @@ static const struct net_device_ops lpc_netdev_ops = {
 	.ndo_stop		= lpc_eth_close,
 	.ndo_start_xmit		= lpc_eth_hard_start_xmit,
 	.ndo_set_rx_mode	= lpc_eth_set_multicast_list,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_set_mac_address	= lpc_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -1231,6 +1231,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	dma_addr_t dma_handle;
 	struct resource *res;
+	u8 addr[ETH_ALEN];
 	int irq, ret;
 
 	/* Setup network interface for RMII or MII mode */
@@ -1318,7 +1319,8 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 		pldat->dma_buff_size = PAGE_ALIGN(pldat->dma_buff_size);
 
 		/* Allocate a chunk of memory for the DMA ethernet buffers
-		   and descriptors */
+		 * and descriptors
+		 */
 		pldat->dma_buff_base_v =
 			dma_alloc_coherent(dev,
 					   pldat->dma_buff_size, &dma_handle,
@@ -1345,12 +1347,11 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	pldat->phy_node = of_parse_phandle(np, "phy-handle", 0);
 
 	/* Get MAC address from current HW setting (POR state is all zeros) */
-	__lpc_get_mac(pldat, ndev->dev_addr);
+	__lpc_get_mac(pldat, addr);
+	eth_hw_addr_set(ndev, addr);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
-		const char *macaddr = of_get_mac_address(np);
-		if (!IS_ERR(macaddr))
-			ether_addr_copy(ndev->dev_addr, macaddr);
+		of_get_ethdev_address(np, ndev);
 	}
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);
@@ -1365,7 +1366,8 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	__lpc_mii_mngt_reset(pldat);
 
 	/* Force default PHY interface setup in chip, this will probably be
-	   changed by the PHY driver */
+	 * changed by the PHY driver
+	 */
 	pldat->link = 0;
 	pldat->speed = 100;
 	pldat->duplex = DUPLEX_FULL;
@@ -1469,6 +1471,7 @@ static int lpc_eth_drv_resume(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct netdata_local *pldat;
+	int ret;
 
 	if (device_may_wakeup(&pdev->dev))
 		disable_irq_wake(ndev->irq);
@@ -1478,7 +1481,9 @@ static int lpc_eth_drv_resume(struct platform_device *pdev)
 			pldat = netdev_priv(ndev);
 
 			/* Enable interface clock */
-			clk_enable(pldat->clk);
+			ret = clk_enable(pldat->clk);
+			if (ret)
+				return ret;
 
 			/* Reset and initialize */
 			__lpc_eth_reset(pldat);

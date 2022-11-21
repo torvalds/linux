@@ -121,7 +121,6 @@ static struct i2c_driver pfe_pmbus_driver = {
 		   .name = "bel-pfe",
 	},
 	.probe_new = pfe_pmbus_probe,
-	.remove = pmbus_do_remove,
 	.id_table = pfe_device_id,
 };
 
@@ -130,3 +129,4 @@ module_i2c_driver(pfe_pmbus_driver);
 MODULE_AUTHOR("Tao Ren <rentao.bupt@gmail.com>");
 MODULE_DESCRIPTION("PMBus driver for BEL PFE Family Power Supplies");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

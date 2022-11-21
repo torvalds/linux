@@ -42,7 +42,7 @@ static int mv88e6xxx_g2_scratch_write(struct mv88e6xxx_chip *chip, int reg,
 }
 
 /**
- * mv88e6xxx_g2_scratch_gpio_get_bit - get a bit
+ * mv88e6xxx_g2_scratch_get_bit - get a bit
  * @chip: chip private data
  * @base_reg: base of scratch bits
  * @offset: index of bit within the register
@@ -67,7 +67,7 @@ static int mv88e6xxx_g2_scratch_get_bit(struct mv88e6xxx_chip *chip,
 }
 
 /**
- * mv88e6xxx_g2_scratch_gpio_set_bit - set (or clear) a bit
+ * mv88e6xxx_g2_scratch_set_bit - set (or clear) a bit
  * @chip: chip private data
  * @base_reg: base of scratch bits
  * @offset: index of bit within the register
@@ -240,7 +240,7 @@ const struct mv88e6xxx_gpio_ops mv88e6352_gpio_ops = {
 };
 
 /**
- * mv88e6xxx_g2_gpio_set_smi - set gpio muxing for external smi
+ * mv88e6xxx_g2_scratch_gpio_set_smi - set gpio muxing for external smi
  * @chip: chip private data
  * @external: set mux for external smi, or free for gpio usage
  *
@@ -288,4 +288,32 @@ int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
 		val &= ~MV88E6352_G2_SCRATCH_MISC_CFG_NORMALSMI;
 
 	return mv88e6xxx_g2_scratch_write(chip, misc_cfg, val);
+}
+
+/**
+ * mv88e6352_g2_scratch_port_has_serdes - indicate if a port can have a serdes
+ * @chip: chip private data
+ * @port: port number to check for serdes
+ *
+ * Indicates whether the port may have a serdes attached according to the
+ * pin strapping. Returns negative error number, 0 if the port is not
+ * configured to have a serdes, and 1 if the port is configured to have a
+ * serdes attached.
+ */
+int mv88e6352_g2_scratch_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
+{
+	u8 config3, p;
+	int err;
+
+	err = mv88e6xxx_g2_scratch_read(chip, MV88E6352_G2_SCRATCH_CONFIG_DATA3,
+					&config3);
+	if (err)
+		return err;
+
+	if (config3 & MV88E6352_G2_SCRATCH_CONFIG_DATA3_S_SEL)
+		p = 5;
+	else
+		p = 4;
+
+	return port == p;
 }

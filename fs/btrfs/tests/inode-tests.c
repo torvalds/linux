@@ -33,7 +33,7 @@ static void insert_extent(struct btrfs_root *root, u64 start, u64 len,
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = start;
 
-	setup_items_for_insert(root, &path, &key, &value_len, 1);
+	btrfs_setup_item_for_insert(root, &path, &key, value_len);
 	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
 	btrfs_set_file_extent_generation(leaf, fi, 1);
 	btrfs_set_file_extent_type(leaf, fi, type);
@@ -63,7 +63,7 @@ static void insert_inode_item_key(struct btrfs_root *root)
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 
-	setup_items_for_insert(root, &path, &key, &value_len, 1);
+	btrfs_setup_item_for_insert(root, &path, &key, value_len);
 }
 
 /*
@@ -231,11 +231,6 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_std_err(TEST_ALLOC_INODE);
 		return ret;
 	}
-
-	inode->i_mode = S_IFREG;
-	BTRFS_I(inode)->location.type = BTRFS_INODE_ITEM_KEY;
-	BTRFS_I(inode)->location.objectid = BTRFS_FIRST_FREE_OBJECTID;
-	BTRFS_I(inode)->location.offset = 0;
 
 	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {
@@ -834,10 +829,6 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 		test_std_err(TEST_ALLOC_INODE);
 		return ret;
 	}
-
-	BTRFS_I(inode)->location.type = BTRFS_INODE_ITEM_KEY;
-	BTRFS_I(inode)->location.objectid = BTRFS_FIRST_FREE_OBJECTID;
-	BTRFS_I(inode)->location.offset = 0;
 
 	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {

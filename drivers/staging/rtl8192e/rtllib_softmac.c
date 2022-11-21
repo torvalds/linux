@@ -730,7 +730,6 @@ EXPORT_SYMBOL(rtllib_act_scanning);
 /* called with ieee->lock held */
 static void rtllib_start_scan(struct rtllib_device *ieee)
 {
-	RT_TRACE(COMP_DBG, "===>%s()\n", __func__);
 	if (ieee->rtllib_ips_leave_wq != NULL)
 		ieee->rtllib_ips_leave_wq(ieee->dev);
 
@@ -1352,9 +1351,8 @@ rtllib_association_req(struct rtllib_network *beacon,
 		rtllib_WMM_Info(ieee, &tag);
 	}
 
-	if (wps_ie_len && ieee->wps_ie) {
+	if (wps_ie_len && ieee->wps_ie)
 		skb_put_data(skb, ieee->wps_ie, wps_ie_len);
-	}
 
 	if (turbo_info_len) {
 		tag = skb_put(skb, turbo_info_len);
@@ -1693,7 +1691,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 				    ieee->current_network.channel,
 				    ieee->current_network.qos_data.supported,
 				    ieee->pHTInfo->bEnableHT,
-				    ieee->current_network.bssht.bdSupportHT,
+				    ieee->current_network.bssht.bd_support_ht,
 				    ieee->current_network.mode,
 				    ieee->current_network.flags);
 
@@ -1707,7 +1705,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 				/* Join the network for the first time */
 				ieee->AsocRetryCount = 0;
 				if ((ieee->current_network.qos_data.supported == 1) &&
-				    ieee->current_network.bssht.bdSupportHT)
+				    ieee->current_network.bssht.bd_support_ht)
 					HTResetSelfAndSavePeerSetting(ieee,
 						 &(ieee->current_network));
 				else
@@ -2239,11 +2237,11 @@ rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 					return 1;
 				}
 				memcpy(ieee->pHTInfo->PeerHTCapBuf,
-				       network->bssht.bdHTCapBuf,
-				       network->bssht.bdHTCapLen);
+				       network->bssht.bd_ht_cap_buf,
+				       network->bssht.bd_ht_cap_len);
 				memcpy(ieee->pHTInfo->PeerHTInfoBuf,
-				       network->bssht.bdHTInfoBuf,
-				       network->bssht.bdHTInfoLen);
+				       network->bssht.bd_ht_info_buf,
+				       network->bssht.bd_ht_info_len);
 				if (ieee->handle_assoc_response != NULL)
 					ieee->handle_assoc_response(ieee->dev,
 						 (struct rtllib_assoc_response_frame *)header,
@@ -2444,7 +2442,7 @@ inline int rtllib_rx_frame_softmac(struct rtllib_device *ieee,
  * N = MAX_PACKET_SIZE / MIN_FRAG_TRESHOLD
  * In this way you need just one and the 802.11 stack
  * will take care of buffering fragments and pass them to
- * to the driver later, when it wakes the queue.
+ * the driver later, when it wakes the queue.
  */
 void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 {
@@ -2517,7 +2515,7 @@ void rtllib_stop_all_queues(struct rtllib_device *ieee)
 	unsigned int i;
 
 	for (i = 0; i < ieee->dev->num_tx_queues; i++)
-		netdev_get_tx_queue(ieee->dev, i)->trans_start = jiffies;
+		txq_trans_cond_update(netdev_get_tx_queue(ieee->dev, i));
 
 	netif_tx_stop_all_queues(ieee->dev);
 }
@@ -2584,7 +2582,8 @@ static void rtllib_start_ibss_wq(void *data)
 	mutex_lock(&ieee->wx_mutex);
 
 	if (ieee->current_network.ssid_len == 0) {
-		strcpy(ieee->current_network.ssid, RTLLIB_DEFAULT_TX_ESSID);
+		strscpy(ieee->current_network.ssid, RTLLIB_DEFAULT_TX_ESSID,
+			sizeof(ieee->current_network.ssid));
 		ieee->current_network.ssid_len = strlen(RTLLIB_DEFAULT_TX_ESSID);
 		ieee->ssid_set = 1;
 	}
@@ -2953,7 +2952,7 @@ void rtllib_start_protocol(struct rtllib_device *ieee)
 	}
 }
 
-void rtllib_softmac_init(struct rtllib_device *ieee)
+int rtllib_softmac_init(struct rtllib_device *ieee)
 {
 	int i;
 
@@ -2964,7 +2963,8 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 		ieee->seq_ctrl[i] = 0;
 	ieee->dot11d_info = kzalloc(sizeof(struct rt_dot11d_info), GFP_ATOMIC);
 	if (!ieee->dot11d_info)
-		netdev_err(ieee->dev, "Can't alloc memory for DOT11D\n");
+		return -ENOMEM;
+
 	ieee->LinkDetectInfo.SlotIndex = 0;
 	ieee->LinkDetectInfo.SlotNum = 2;
 	ieee->LinkDetectInfo.NumRecvBcnInPeriod = 0;
@@ -3030,6 +3030,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 
 	tasklet_setup(&ieee->ps_task, rtllib_sta_ps);
 
+	return 0;
 }
 
 void rtllib_softmac_free(struct rtllib_device *ieee)

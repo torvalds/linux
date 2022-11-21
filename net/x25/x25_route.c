@@ -27,14 +27,11 @@ static int x25_add_route(struct x25_address *address, unsigned int sigdigits,
 			 struct net_device *dev)
 {
 	struct x25_route *rt;
-	struct list_head *entry;
 	int rc = -EINVAL;
 
 	write_lock_bh(&x25_route_list_lock);
 
-	list_for_each(entry, &x25_route_list) {
-		rt = list_entry(entry, struct x25_route, node);
-
+	list_for_each_entry(rt, &x25_route_list, node) {
 		if (!memcmp(&rt->address, address, sigdigits) &&
 		    rt->sigdigits == sigdigits)
 			goto out;
@@ -78,14 +75,11 @@ static int x25_del_route(struct x25_address *address, unsigned int sigdigits,
 			 struct net_device *dev)
 {
 	struct x25_route *rt;
-	struct list_head *entry;
 	int rc = -EINVAL;
 
 	write_lock_bh(&x25_route_list_lock);
 
-	list_for_each(entry, &x25_route_list) {
-		rt = list_entry(entry, struct x25_route, node);
-
+	list_for_each_entry(rt, &x25_route_list, node) {
 		if (!memcmp(&rt->address, address, sigdigits) &&
 		    rt->sigdigits == sigdigits && rt->dev == dev) {
 			__x25_remove_route(rt);
@@ -115,9 +109,6 @@ void x25_route_device_down(struct net_device *dev)
 			__x25_remove_route(rt);
 	}
 	write_unlock_bh(&x25_route_list_lock);
-
-	/* Remove any related forwarding */
-	x25_clear_forward_by_dev(dev);
 }
 
 /*
@@ -127,12 +118,7 @@ struct net_device *x25_dev_get(char *devname)
 {
 	struct net_device *dev = dev_get_by_name(&init_net, devname);
 
-	if (dev &&
-	    (!(dev->flags & IFF_UP) || (dev->type != ARPHRD_X25
-#if IS_ENABLED(CONFIG_LLC)
-					&& dev->type != ARPHRD_ETHER
-#endif
-					))){
+	if (dev && (!(dev->flags & IFF_UP) || dev->type != ARPHRD_X25)) {
 		dev_put(dev);
 		dev = NULL;
 	}
@@ -149,13 +135,10 @@ struct net_device *x25_dev_get(char *devname)
 struct x25_route *x25_get_route(struct x25_address *addr)
 {
 	struct x25_route *rt, *use = NULL;
-	struct list_head *entry;
 
 	read_lock_bh(&x25_route_list_lock);
 
-	list_for_each(entry, &x25_route_list) {
-		rt = list_entry(entry, struct x25_route, node);
-
+	list_for_each_entry(rt, &x25_route_list, node) {
 		if (!memcmp(&rt->address, addr, rt->sigdigits)) {
 			if (!use)
 				use = rt;

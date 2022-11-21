@@ -37,7 +37,7 @@
 };
 
 &gpio5 {
-	irda_en {
+	irda-en-hog {
 		gpio-hog;
 		gpios = <(175-160) GPIO_ACTIVE_HIGH>;
 		output-high;	/* activate gpio_175 to disable IrDA receiver */
@@ -79,7 +79,7 @@
 
 /*
  * for WL183x module see
- * Documentation/devicetree/bindings/net/wireless/ti,wlcore.txt
+ * Documentation/devicetree/bindings/net/wireless/ti,wlcore.yaml
  */
 
 &wifi_pwrseq {
@@ -133,5 +133,7 @@
 	bme280@76 {
 		compatible = "bosch,bme280";
 		reg = <0x76>;
+		vdda-supply = <&vio>;
+		vddd-supply = <&vio>;
 	};
 };

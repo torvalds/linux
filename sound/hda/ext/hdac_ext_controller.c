@@ -133,15 +133,33 @@ void snd_hdac_link_free_all(struct hdac_bus *bus)
 EXPORT_SYMBOL_GPL(snd_hdac_link_free_all);
 
 /**
- * snd_hdac_ext_bus_get_link_index - get link based on codec name
+ * snd_hdac_ext_bus_link_at - get link at specified address
+ * @bus: link's parent bus device
+ * @addr: codec device address
+ *
+ * Returns link object or NULL if matching link is not found.
+ */
+struct hdac_ext_link *snd_hdac_ext_bus_link_at(struct hdac_bus *bus, int addr)
+{
+	struct hdac_ext_link *hlink;
+	int i;
+
+	list_for_each_entry(hlink, &bus->hlink_list, list)
+		for (i = 0; i < HDA_MAX_CODECS; i++)
+			if (hlink->lsdiid & (0x1 << addr))
+				return hlink;
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_at);
+
+/**
+ * snd_hdac_ext_bus_get_link - get link based on codec name
  * @bus: the pointer to HDAC bus object
  * @codec_name: codec name
  */
 struct hdac_ext_link *snd_hdac_ext_bus_get_link(struct hdac_bus *bus,
 						 const char *codec_name)
 {
-	int i;
-	struct hdac_ext_link *hlink = NULL;
 	int bus_idx, addr;
 
 	if (sscanf(codec_name, "ehdaudio%dD%d", &bus_idx, &addr) != 2)
@@ -151,14 +169,7 @@ struct hdac_ext_link *snd_hdac_ext_bus_get_link(struct hdac_bus *bus,
 	if (addr < 0 || addr > 31)
 		return NULL;
 
-	list_for_each_entry(hlink, &bus->hlink_list, list) {
-		for (i = 0; i < HDA_MAX_CODECS; i++) {
-			if (hlink->lsdiid & (0x1 << addr))
-				return hlink;
-		}
-	}
-
-	return NULL;
+	return snd_hdac_ext_bus_link_at(bus, addr);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_get_link);
 
@@ -332,3 +343,40 @@ int snd_hdac_ext_bus_link_put(struct hdac_bus *bus,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_put);
+
+static void hdac_ext_codec_link_up(struct hdac_device *codec)
+{
+	const char *devname = dev_name(&codec->dev);
+	struct hdac_ext_link *hlink =
+		snd_hdac_ext_bus_get_link(codec->bus, devname);
+
+	if (hlink)
+		snd_hdac_ext_bus_link_get(codec->bus, hlink);
+}
+
+static void hdac_ext_codec_link_down(struct hdac_device *codec)
+{
+	const char *devname = dev_name(&codec->dev);
+	struct hdac_ext_link *hlink =
+		snd_hdac_ext_bus_get_link(codec->bus, devname);
+
+	if (hlink)
+		snd_hdac_ext_bus_link_put(codec->bus, hlink);
+}
+
+void snd_hdac_ext_bus_link_power(struct hdac_device *codec, bool enable)
+{
+	struct hdac_bus *bus = codec->bus;
+	bool oldstate = test_bit(codec->addr, &bus->codec_powered);
+
+	if (enable == oldstate)
+		return;
+
+	snd_hdac_bus_link_power(codec, enable);
+
+	if (enable)
+		hdac_ext_codec_link_up(codec);
+	else
+		hdac_ext_codec_link_down(codec);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power);

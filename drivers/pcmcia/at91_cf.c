@@ -13,7 +13,6 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
-#include <linux/platform_data/atmel.h>
 #include <linux/io.h>
 #include <linux/sizes.h>
 #include <linux/mfd/syscon.h>
@@ -21,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/pci.h>
 #include <linux/regmap.h>
 
 #include <pcmcia/ss.h>
@@ -34,6 +34,17 @@
 #define	CF_ATTR_PHYS	(0)
 #define	CF_IO_PHYS	(1 << 23)
 #define	CF_MEM_PHYS	(0x017ff800)
+
+struct at91_cf_data {
+	int	irq_pin;		/* I/O IRQ */
+	int	det_pin;		/* Card detect */
+	int	vcc_pin;		/* power switching */
+	int	rst_pin;		/* card reset */
+	u8	chipselect;		/* EBI Chip Select number */
+	u8	flags;
+#define AT91_CF_TRUE_IDE	0x01
+#define AT91_IDE_SWAP_A0_A2	0x02
+};
 
 struct regmap *mc;
 
@@ -209,16 +220,19 @@ static struct pccard_operations at91_cf_ops = {
 
 /*--------------------------------------------------------------------------*/
 
-#if defined(CONFIG_OF)
 static const struct of_device_id at91_cf_dt_ids[] = {
 	{ .compatible = "atmel,at91rm9200-cf" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, at91_cf_dt_ids);
 
-static int at91_cf_dt_init(struct platform_device *pdev)
+static int at91_cf_probe(struct platform_device *pdev)
 {
-	struct at91_cf_data *board;
+	struct at91_cf_socket	*cf;
+	struct at91_cf_data	*board;
+	struct resource		*io;
+	struct resource		realio;
+	int			status;
 
 	board = devm_kzalloc(&pdev->dev, sizeof(*board), GFP_KERNEL);
 	if (!board)
@@ -229,33 +243,9 @@ static int at91_cf_dt_init(struct platform_device *pdev)
 	board->vcc_pin = of_get_gpio(pdev->dev.of_node, 2);
 	board->rst_pin = of_get_gpio(pdev->dev.of_node, 3);
 
-	pdev->dev.platform_data = board;
-
 	mc = syscon_regmap_lookup_by_compatible("atmel,at91rm9200-sdramc");
-
-	return PTR_ERR_OR_ZERO(mc);
-}
-#else
-static int at91_cf_dt_init(struct platform_device *pdev)
-{
-	return -ENODEV;
-}
-#endif
-
-static int at91_cf_probe(struct platform_device *pdev)
-{
-	struct at91_cf_socket	*cf;
-	struct at91_cf_data	*board = pdev->dev.platform_data;
-	struct resource		*io;
-	int			status;
-
-	if (!board) {
-		status = at91_cf_dt_init(pdev);
-		if (status)
-			return status;
-
-		board = pdev->dev.platform_data;
-	}
+	if (IS_ERR(mc))
+		return PTR_ERR(mc);
 
 	if (!gpio_is_valid(board->det_pin) || !gpio_is_valid(board->rst_pin))
 		return -ENODEV;
@@ -319,7 +309,9 @@ static int at91_cf_probe(struct platform_device *pdev)
 	 * io_offset is set to 0x10000 to avoid the check in static_find_io().
 	 * */
 	cf->socket.io_offset = 0x10000;
-	status = pci_ioremap_io(0x10000, cf->phys_baseaddr + CF_IO_PHYS);
+	realio.start = cf->socket.io_offset;
+	realio.end = realio.start + SZ_64K - 1;
+	status = pci_remap_iospace(&realio, cf->phys_baseaddr + CF_IO_PHYS);
 	if (status)
 		goto fail0a;
 
@@ -399,7 +391,7 @@ static int at91_cf_resume(struct platform_device *pdev)
 static struct platform_driver at91_cf_driver = {
 	.driver = {
 		.name		= "at91_cf",
-		.of_match_table = of_match_ptr(at91_cf_dt_ids),
+		.of_match_table = at91_cf_dt_ids,
 	},
 	.probe		= at91_cf_probe,
 	.remove		= at91_cf_remove,

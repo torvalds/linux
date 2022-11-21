@@ -37,11 +37,6 @@ extern int  data_start;
 extern void parisc_kernel_start(void);	/* Kernel entry point in head.S */
 
 #if CONFIG_PGTABLE_LEVELS == 3
-/* NOTE: This layout exactly conforms to the hybrid L2/L3 page table layout
- * with the first pmd adjacent to the pgd and below it. gcc doesn't actually
- * guarantee that global objects will be laid out in memory in the same order
- * as the order of declaration, so put these in different sections and use
- * the linker script to order them. */
 pmd_t pmd0[PTRS_PER_PMD] __section(".data..vm0.pmd") __attribute__ ((aligned(PAGE_SIZE)));
 #endif
 
@@ -132,16 +127,12 @@ static void __init setup_bootmem(void)
 		int j;
 
 		for (j = i; j > 0; j--) {
-			physmem_range_t tmp;
-
 			if (pmem_ranges[j-1].start_pfn <
 			    pmem_ranges[j].start_pfn) {
 
 				break;
 			}
-			tmp = pmem_ranges[j-1];
-			pmem_ranges[j-1] = pmem_ranges[j];
-			pmem_ranges[j] = tmp;
+			swap(pmem_ranges[j-1], pmem_ranges[j]);
 		}
 	}
 
@@ -346,9 +337,9 @@ static void __init setup_bootmem(void)
 
 static bool kernel_set_to_readonly;
 
-static void __init map_pages(unsigned long start_vaddr,
-			     unsigned long start_paddr, unsigned long size,
-			     pgprot_t pgprot, int force)
+static void __ref map_pages(unsigned long start_vaddr,
+			    unsigned long start_paddr, unsigned long size,
+			    pgprot_t pgprot, int force)
 {
 	pmd_t *pmd;
 	pte_t *pg_table;
@@ -383,8 +374,8 @@ static void __init map_pages(unsigned long start_vaddr,
 
 #if CONFIG_PGTABLE_LEVELS == 3
 		if (pud_none(*pud)) {
-			pmd = memblock_alloc(PAGE_SIZE << PMD_ORDER,
-					     PAGE_SIZE << PMD_ORDER);
+			pmd = memblock_alloc(PAGE_SIZE << PMD_TABLE_ORDER,
+					     PAGE_SIZE << PMD_TABLE_ORDER);
 			if (!pmd)
 				panic("pmd allocation failed.\n");
 			pud_populate(NULL, pud, pmd);
@@ -458,7 +449,7 @@ void __init set_kernel_text_rw(int enable_read_write)
 	flush_tlb_all();
 }
 
-void __ref free_initmem(void)
+void free_initmem(void)
 {
 	unsigned long init_begin = (unsigned long)__init_begin;
 	unsigned long init_end = (unsigned long)__init_end;
@@ -472,7 +463,6 @@ void __ref free_initmem(void)
 	/* The init text pages are marked R-X.  We have to
 	 * flush the icache and mark them RW-
 	 *
-	 * This is tricky, because map_pages is in the init section.
 	 * Do a dummy remap of the data section first (the data
 	 * section is already PAGE_KERNEL) to pull in the TLB entries
 	 * for map_kernel */
@@ -559,6 +549,11 @@ void __init mem_init(void)
 	BUILD_BUG_ON(PGD_ENTRY_SIZE != sizeof(pgd_t));
 	BUILD_BUG_ON(PAGE_SHIFT + BITS_PER_PTE + BITS_PER_PMD + BITS_PER_PGD
 			> BITS_PER_LONG);
+#if CONFIG_PGTABLE_LEVELS == 3
+	BUILD_BUG_ON(PT_INITIAL > PTRS_PER_PMD);
+#else
+	BUILD_BUG_ON(PT_INITIAL > PTRS_PER_PGD);
+#endif
 
 	high_memory = __va((max_pfn << PAGE_SHIFT));
 	set_max_mapnr(max_low_pfn);
@@ -572,8 +567,6 @@ void __init mem_init(void)
 	} else
 #endif
 		parisc_vmalloc_start = SET_MAP_OFFSET(MAP_START);
-
-	mem_init_print_info(NULL);
 
 #if 0
 	/*
@@ -844,9 +837,9 @@ void flush_tlb_all(void)
 {
 	int do_recycle;
 
-	__inc_irq_stat(irq_tlb_count);
 	do_recycle = 0;
 	spin_lock(&sid_lock);
+	__inc_irq_stat(irq_tlb_count);
 	if (dirty_space_ids > RECYCLE_THRESHOLD) {
 	    BUG_ON(recycle_inuse);  /* FIXME: Use a semaphore/wait queue here */
 	    get_dirty_sids(&recycle_ndirty,recycle_dirty_array);
@@ -865,8 +858,8 @@ void flush_tlb_all(void)
 #else
 void flush_tlb_all(void)
 {
-	__inc_irq_stat(irq_tlb_count);
 	spin_lock(&sid_lock);
+	__inc_irq_stat(irq_tlb_count);
 	flush_tlb_all_local(NULL);
 	recycle_sids();
 	spin_unlock(&sid_lock);

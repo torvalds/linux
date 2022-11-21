@@ -50,6 +50,7 @@ enum lm75_type {		/* keep sorted in alphabetical order */
 	tmp75,
 	tmp75b,
 	tmp75c,
+	tmp1075,
 };
 
 /**
@@ -293,6 +294,13 @@ static const struct lm75_params device_params[] = {
 		.clr_mask = 1 << 5,	/*not one-shot mode*/
 		.default_resolution = 12,
 		.default_sample_time = MSEC_PER_SEC / 12,
+	},
+	[tmp1075] = { /* not one-shot mode, 27.5 ms sample rate */
+		.clr_mask = 1 << 5 | 1 << 6 | 1 << 7,
+		.default_resolution = 12,
+		.default_sample_time = 28,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 28, 55, 110, 220 },
 	}
 };
 
@@ -662,6 +670,7 @@ static const struct i2c_device_id lm75_ids[] = {
 	{ "tmp75", tmp75, },
 	{ "tmp75b", tmp75b, },
 	{ "tmp75c", tmp75c, },
+	{ "tmp1075", tmp1075, },
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, lm75_ids);
@@ -770,6 +779,10 @@ static const struct of_device_id __maybe_unused lm75_of_match[] = {
 	{
 		.compatible = "ti,tmp75c",
 		.data = (void *)tmp75c
+	},
+	{
+		.compatible = "ti,tmp1075",
+		.data = (void *)tmp1075
 	},
 	{ },
 };

@@ -129,7 +129,7 @@ relocate_kernel(unsigned long indirection_page,
 		unsigned long page_list,
 		unsigned long start_address,
 		unsigned int preserve_context,
-		unsigned int sme_active);
+		unsigned int host_mem_enc_active);
 #endif
 
 #define ARCH_HAS_KIMAGE_ARCH
@@ -150,11 +150,6 @@ struct kimage_arch {
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
-
-	/* Core ELF header buffer */
-	void *elf_headers;
-	unsigned long elf_headers_sz;
-	unsigned long elf_load_addr;
 };
 #endif /* CONFIG_X86_32 */
 

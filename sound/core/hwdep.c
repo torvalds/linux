@@ -177,8 +177,8 @@ static int snd_hwdep_info(struct snd_hwdep *hw,
 	
 	memset(&info, 0, sizeof(info));
 	info.card = hw->card->number;
-	strlcpy(info.id, hw->id, sizeof(info.id));	
-	strlcpy(info.name, hw->name, sizeof(info.name));
+	strscpy(info.id, hw->id, sizeof(info.id));
+	strscpy(info.name, hw->name, sizeof(info.name));
 	info.iface = hw->iface;
 	if (copy_to_user(_info, &info, sizeof(info)))
 		return -EFAULT;
@@ -195,7 +195,8 @@ static int snd_hwdep_dsp_status(struct snd_hwdep *hw,
 		return -ENXIO;
 	memset(&info, 0, sizeof(info));
 	info.dsp_loaded = hw->dsp_loaded;
-	if ((err = hw->ops.dsp_status(hw, &info)) < 0)
+	err = hw->ops.dsp_status(hw, &info);
+	if (err < 0)
 		return err;
 	if (copy_to_user(_info, &info, sizeof(info)))
 		return -EFAULT;
@@ -379,7 +380,7 @@ int snd_hwdep_new(struct snd_card *card, char *id, int device,
 	hwdep->card = card;
 	hwdep->device = device;
 	if (id)
-		strlcpy(hwdep->id, id, sizeof(hwdep->id));
+		strscpy(hwdep->id, id, sizeof(hwdep->id));
 
 	snd_device_initialize(&hwdep->dev, card);
 	hwdep->dev.release = release_hwdep_device;
@@ -500,7 +501,8 @@ static void __init snd_hwdep_proc_init(void)
 {
 	struct snd_info_entry *entry;
 
-	if ((entry = snd_info_create_module_entry(THIS_MODULE, "hwdep", NULL)) != NULL) {
+	entry = snd_info_create_module_entry(THIS_MODULE, "hwdep", NULL);
+	if (entry) {
 		entry->c.text.read = snd_hwdep_proc_read;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);

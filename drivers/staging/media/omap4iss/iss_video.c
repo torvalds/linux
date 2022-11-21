@@ -399,7 +399,7 @@ static void iss_video_buf_queue(struct vb2_buffer *vb)
 
 		if (start)
 			omap4iss_pipeline_set_stream(pipe,
-						ISS_PIPELINE_STREAM_SINGLESHOT);
+						     ISS_PIPELINE_STREAM_SINGLESHOT);
 	}
 }
 
@@ -854,6 +854,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	struct iss_video *video = video_drvdata(file);
 	struct media_graph graph;
 	struct media_entity *entity = &video->video.entity;
+	struct media_device *mdev = entity->graph_obj.mdev;
 	enum iss_pipeline_state state;
 	struct iss_pipeline *pipe;
 	struct iss_video *far_end;
@@ -890,9 +891,11 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	if (ret < 0)
 		goto err_media_pipeline_start;
 
+	mutex_lock(&mdev->graph_mutex);
 	media_graph_walk_start(&graph, entity);
 	while ((entity = media_graph_walk_next(&graph)))
 		media_entity_enum_set(&pipe->ent_enum, entity);
+	mutex_unlock(&mdev->graph_mutex);
 
 	/*
 	 * Verify that the currently configured format matches the output of
@@ -957,7 +960,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		unsigned long flags;
 
 		ret = omap4iss_pipeline_set_stream(pipe,
-					      ISS_PIPELINE_STREAM_CONTINUOUS);
+						   ISS_PIPELINE_STREAM_CONTINUOUS);
 		if (ret < 0)
 			goto err_omap4iss_set_stream;
 		spin_lock_irqsave(&video->qlock, flags);

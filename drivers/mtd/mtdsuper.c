@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/major.h>
 #include <linux/backing-dev.h>
+#include <linux/blkdev.h>
 #include <linux/fs_context.h>
 #include "mtdcore.h"
 
@@ -120,8 +121,8 @@ int get_tree_mtd(struct fs_context *fc,
 				struct fs_context *fc))
 {
 #ifdef CONFIG_BLOCK
-	struct block_device *bdev;
-	int ret, major;
+	dev_t dev;
+	int ret;
 #endif
 	int mtdnr;
 
@@ -169,20 +170,15 @@ int get_tree_mtd(struct fs_context *fc,
 	/* try the old way - the hack where we allowed users to mount
 	 * /dev/mtdblock$(n) but didn't actually _use_ the blockdev
 	 */
-	bdev = lookup_bdev(fc->source);
-	if (IS_ERR(bdev)) {
-		ret = PTR_ERR(bdev);
+	ret = lookup_bdev(fc->source, &dev);
+	if (ret) {
 		errorf(fc, "MTD: Couldn't look up '%s': %d", fc->source, ret);
 		return ret;
 	}
 	pr_debug("MTDSB: lookup_bdev() returned 0\n");
 
-	major = MAJOR(bdev->bd_dev);
-	mtdnr = MINOR(bdev->bd_dev);
-	bdput(bdev);
-
-	if (major == MTD_BLOCK_MAJOR)
-		return mtd_get_sb_by_nr(fc, mtdnr, fill_super);
+	if (MAJOR(dev) == MTD_BLOCK_MAJOR)
+		return mtd_get_sb_by_nr(fc, MINOR(dev), fill_super);
 
 #endif /* CONFIG_BLOCK */
 

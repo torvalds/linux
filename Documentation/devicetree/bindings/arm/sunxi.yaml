@@ -201,6 +201,19 @@ properties:
           - const: dserve,dsrv9703c
           - const: allwinner,sun4i-a10
 
+      - description: Elimo Engineering Impetus SoM
+        items:
+          - const: elimo,impetus
+          - const: sochip,s3
+          - const: allwinner,sun8i-v3
+
+      - description: Elimo Engineering Initium
+        items:
+          - const: elimo,initium
+          - const: elimo,impetus
+          - const: sochip,s3
+          - const: allwinner,sun8i-v3
+
       - description: Empire Electronix D709 Tablet
         items:
           - const: empire-electronix,d709
@@ -210,6 +223,12 @@ properties:
         items:
           - const: empire-electronix,m712
           - const: allwinner,sun5i-a13
+
+      - description: Forlinx OKA40i-C Development board
+        items:
+          - const: forlinx,oka40i-c
+          - const: forlinx,feta40i-c
+          - const: allwinner,sun8i-r40
 
       - description: FriendlyARM NanoPi A64
         items:
@@ -250,6 +269,21 @@ properties:
         items:
           - const: friendlyarm,nanopi-neo-plus2
           - const: allwinner,sun50i-h5
+
+      - description: FriendlyARM NanoPi R1
+        items:
+          - const: friendlyarm,nanopi-r1
+          - const: allwinner,sun8i-h3
+
+      - description: FriendlyARM NanoPi R1S H5
+        items:
+          - const: friendlyarm,nanopi-r1s-h5
+          - const: allwinner,sun50i-h5
+
+      - description: FriendlyARM ZeroPi
+        items:
+          - const: friendlyarm,zeropi
+          - const: allwinner,sun8i-h3
 
       - description: Gemei G9 Tablet
         items:
@@ -409,6 +443,11 @@ properties:
         items:
           - const: haoyu,a10-marsboard
           - const: allwinner,sun4i-a10
+
+      - description: HAOYU Electronics Marsboard A20
+        items:
+          - const: haoyu,a20-marsboard
+          - const: allwinner,sun7i-a20
 
       - description: MapleBoard MP130
         items:
@@ -634,7 +673,8 @@ properties:
       - description: Pine64 PineCube
         items:
           - const: pine64,pinecube
-          - const: allwinner,sun8i-s3
+          - const: sochip,s3
+          - const: allwinner,sun8i-v3
 
       - description: Pine64 PineH64 model A
         items:
@@ -660,21 +700,29 @@ properties:
       - description: Pine64 PinePhone Developer Batch (1.0)
         items:
           - const: pine64,pinephone-1.0
+          - const: pine64,pinephone
           - const: allwinner,sun50i-a64
 
       - description: Pine64 PinePhone Braveheart (1.1)
         items:
           - const: pine64,pinephone-1.1
+          - const: pine64,pinephone
           - const: allwinner,sun50i-a64
 
       - description: Pine64 PinePhone (1.2)
         items:
           - const: pine64,pinephone-1.2
+          - const: pine64,pinephone
           - const: allwinner,sun50i-a64
 
-      - description: Pine64 PineTab
+      - description: Pine64 PineTab, Development Sample
         items:
           - const: pine64,pinetab
+          - const: allwinner,sun50i-a64
+
+      - description: Pine64 PineTab, Early Adopter's batch (and maybe later ones)
+        items:
+          - const: pine64,pinetab-early-adopter
           - const: allwinner,sun50i-a64
 
       - description: Pine64 SoPine Baseboard
@@ -754,15 +802,31 @@ properties:
           - const: sinlinx,sina33
           - const: allwinner,sun8i-a33
 
+      - description: SL631 Action Camera with IMX179
+        items:
+          - const: allwinner,sl631-imx179
+          - const: allwinner,sl631
+          - const: allwinner,sun8i-v3
+
       - description: Tanix TX6
         items:
           - const: oranth,tanix-tx6
+          - const: allwinner,sun50i-h6
+
+      - description: Tanix TX6 mini
+        items:
+          - const: oranth,tanix-tx6-mini
           - const: allwinner,sun50i-h6
 
       - description: TBS A711 Tablet
         items:
           - const: tbs-biometrics,a711
           - const: allwinner,sun8i-a83t
+
+      - description: Topwise A721 Tablet
+        items:
+          - const: topwise,a721
+          - const: allwinner,sun4i-a10
 
       - description: Utoo P66
         items:

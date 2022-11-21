@@ -108,11 +108,6 @@ MODULE_LICENSE("GPL");
 #define MESSAGE_TYPE_P_DELAY_RESP	3
 #define MESSAGE_TYPE_DELAY_REQ		4
 
-#define SYNC				0x0
-#define DELAY_REQ			0x1
-#define PDELAY_REQ			0x2
-#define PDELAY_RESP			0x3
-
 static LIST_HEAD(ines_clocks);
 static DEFINE_MUTEX(ines_clocks_lock);
 
@@ -342,10 +337,6 @@ static int ines_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
-
-	/* reserved for future extensions */
-	if (cfg.flags)
-		return -EINVAL;
 
 	switch (cfg.tx_type) {
 	case HWTSTAMP_TX_OFF:
@@ -683,9 +674,9 @@ static bool is_sync_pdelay_resp(struct sk_buff *skb, int type)
 
 	msgtype = ptp_get_msgtype(hdr, type);
 
-	switch ((msgtype & 0xf)) {
-	case SYNC:
-	case PDELAY_RESP:
+	switch (msgtype) {
+	case PTP_MSGTYPE_SYNC:
+	case PTP_MSGTYPE_PDELAY_RESP:
 		return true;
 	default:
 		return false;
@@ -696,13 +687,13 @@ static u8 tag_to_msgtype(u8 tag)
 {
 	switch (tag) {
 	case MESSAGE_TYPE_SYNC:
-		return SYNC;
+		return PTP_MSGTYPE_SYNC;
 	case MESSAGE_TYPE_P_DELAY_REQ:
-		return PDELAY_REQ;
+		return PTP_MSGTYPE_PDELAY_REQ;
 	case MESSAGE_TYPE_P_DELAY_RESP:
-		return PDELAY_RESP;
+		return PTP_MSGTYPE_PDELAY_RESP;
 	case MESSAGE_TYPE_DELAY_REQ:
-		return DELAY_REQ;
+		return PTP_MSGTYPE_DELAY_REQ;
 	}
 	return 0xf;
 }

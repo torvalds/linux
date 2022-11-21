@@ -97,8 +97,11 @@
 		compatible = "fsl,imx6q-sabresd-wm8962",
 			   "fsl,imx-audio-wm8962";
 		model = "wm8962-audio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hp>;
 		ssi-controller = <&ssi2>;
 		audio-codec = <&codec>;
+		audio-asrc = <&asrc>;
 		audio-routing =
 			"Headphone Jack", "HPOUTL",
 			"Headphone Jack", "HPOUTR",
@@ -542,6 +545,13 @@
 		pinctrl_hdmi_cec: hdmicecgrp {
 			fsl,pins = <
 				MX6QDL_PAD_KEY_ROW2__HDMI_TX_CEC_LINE	0x1f8b0
+			>;
+		};
+
+		pinctrl_hp: hpgrp {
+			fsl,pins = <
+				MX6QDL_PAD_SD3_RST__GPIO7_IO08          0x1b0b0
+				MX6QDL_PAD_GPIO_9__GPIO1_IO09           0x1b0b0
 			>;
 		};
 

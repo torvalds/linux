@@ -82,6 +82,7 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(copro_handle_mm_fault);
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 int copro_calculate_slb(struct mm_struct *mm, u64 ea, struct copro_slb *slb)
 {
 	u64 vsid, vsidkey;
@@ -146,3 +147,4 @@ void copro_flush_all_slbs(struct mm_struct *mm)
 	cxl_slbia(mm);
 }
 EXPORT_SYMBOL_GPL(copro_flush_all_slbs);
+#endif

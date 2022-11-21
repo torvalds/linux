@@ -43,6 +43,7 @@
 #define RT_CONN_FLAGS(sk)   (RT_TOS(inet_sk(sk)->tos) | sock_flag(sk, SOCK_LOCALROUTE))
 #define RT_CONN_FLAGS_TOS(sk,tos)   (RT_TOS(tos) | sock_flag(sk, SOCK_LOCALROUTE))
 
+struct ip_tunnel_info;
 struct fib_nh;
 struct fib_info;
 struct uncached_list;
@@ -165,7 +166,7 @@ static inline struct rtable *ip_route_output_ports(struct net *net, struct flowi
 			   sk ? inet_sk_flowi_flags(sk) : 0,
 			   daddr, saddr, dport, sport, sock_net_uid(net, sk));
 	if (sk)
-		security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
+		security_sk_classify_flow(sk, flowi4_to_flowi_common(fl4));
 	return ip_route_output_flow(net, fl4, sk);
 }
 
@@ -322,7 +323,7 @@ static inline struct rtable *ip_route_connect(struct flowi4 *fl4,
 		ip_rt_put(rt);
 		flowi4_update_output(fl4, oif, tos, fl4->daddr, fl4->saddr);
 	}
-	security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
+	security_sk_classify_flow(sk, flowi4_to_flowi_common(fl4));
 	return ip_route_output_flow(net, fl4, sk);
 }
 
@@ -338,7 +339,7 @@ static inline struct rtable *ip_route_newports(struct flowi4 *fl4, struct rtable
 		flowi4_update_output(fl4, sk->sk_bound_dev_if,
 				     RT_CONN_FLAGS(sk), fl4->daddr,
 				     fl4->saddr);
-		security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
+		security_sk_classify_flow(sk, flowi4_to_flowi_common(fl4));
 		return ip_route_output_flow(sock_net(sk), fl4, sk);
 	}
 	return rt;
@@ -369,7 +370,7 @@ static inline struct neighbour *ip_neigh_gw4(struct net_device *dev,
 {
 	struct neighbour *neigh;
 
-	neigh = __ipv4_neigh_lookup_noref(dev, daddr);
+	neigh = __ipv4_neigh_lookup_noref(dev, (__force u32)daddr);
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&arp_tbl, &daddr, dev, false);
 

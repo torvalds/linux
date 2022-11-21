@@ -421,8 +421,9 @@ int snd_hdac_bus_reset_link(struct hdac_bus *bus, bool full_reset)
 	if (!full_reset)
 		goto skip_reset;
 
-	/* clear STATESTS */
-	snd_hdac_chip_writew(bus, STATESTS, STATESTS_INT_MASK);
+	/* clear STATESTS if not in reset */
+	if (snd_hdac_chip_readb(bus, GCTL) & AZX_GCTL_RESET)
+		snd_hdac_chip_writew(bus, STATESTS, STATESTS_INT_MASK);
 
 	/* reset controller */
 	snd_hdac_bus_enter_link_reset(bus);
@@ -648,3 +649,17 @@ void snd_hdac_bus_free_stream_pages(struct hdac_bus *bus)
 		snd_dma_free_pages(&bus->posbuf);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_free_stream_pages);
+
+/**
+ * snd_hdac_bus_link_power - power up/down codec link
+ * @codec: HD-audio device
+ * @enable: whether to power-up the link
+ */
+void snd_hdac_bus_link_power(struct hdac_device *codec, bool enable)
+{
+	if (enable)
+		set_bit(codec->addr, &codec->bus->codec_powered);
+	else
+		clear_bit(codec->addr, &codec->bus->codec_powered);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_bus_link_power);

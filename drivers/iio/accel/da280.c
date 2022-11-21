@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * IIO driver for the MiraMEMS DA280 3-axis accelerometer and
  * IIO driver for the MiraMEMS DA226 2-axis accelerometer
  *
@@ -100,6 +100,11 @@ static enum da280_chipset da280_match_acpi_device(struct device *dev)
 	return (enum da280_chipset) id->driver_data;
 }
 
+static void da280_disable(void *client)
+{
+	da280_enable(client, false);
+}
+
 static int da280_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -118,7 +123,6 @@ static int da280_probe(struct i2c_client *client,
 
 	data = iio_priv(indio_dev);
 	data->client = client;
-	i2c_set_clientdata(client, indio_dev);
 
 	indio_dev->info = &da280_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -142,25 +146,13 @@ static int da280_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&client->dev, "device_register failed\n");
-		da280_enable(client, false);
-	}
+	ret = devm_add_action_or_reset(&client->dev, da280_disable, client);
+	if (ret)
+		return ret;
 
-	return ret;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-static int da280_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-
-	return da280_enable(client, false);
-}
-
-#ifdef CONFIG_PM_SLEEP
 static int da280_suspend(struct device *dev)
 {
 	return da280_enable(to_i2c_client(dev), false);
@@ -170,9 +162,8 @@ static int da280_resume(struct device *dev)
 {
 	return da280_enable(to_i2c_client(dev), true);
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(da280_pm_ops, da280_suspend, da280_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(da280_pm_ops, da280_suspend, da280_resume);
 
 static const struct acpi_device_id da280_acpi_match[] = {
 	{"MIRAACC", da280},
@@ -191,10 +182,9 @@ static struct i2c_driver da280_driver = {
 	.driver = {
 		.name = "da280",
 		.acpi_match_table = ACPI_PTR(da280_acpi_match),
-		.pm = &da280_pm_ops,
+		.pm = pm_sleep_ptr(&da280_pm_ops),
 	},
 	.probe		= da280_probe,
-	.remove		= da280_remove,
 	.id_table	= da280_i2c_id,
 };
 

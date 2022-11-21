@@ -361,7 +361,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *netdev = NULL;
 	struct ixgb_adapter *adapter;
 	static int cards_found = 0;
-	int pci_using_dac;
+	u8 addr[ETH_ALEN];
 	int i;
 	int err;
 
@@ -369,16 +369,10 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		return err;
 
-	pci_using_dac = 0;
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
-	if (!err) {
-		pci_using_dac = 1;
-	} else {
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			pr_err("No usable DMA configuration, aborting\n");
-			goto err_dma_mask;
-		}
+	if (err) {
+		pr_err("No usable DMA configuration, aborting\n");
+		goto err_dma_mask;
 	}
 
 	err = pci_request_regions(pdev, ixgb_driver_name);
@@ -443,10 +437,8 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			   NETIF_F_HW_VLAN_CTAG_FILTER;
 	netdev->hw_features |= NETIF_F_RXCSUM;
 
-	if (pci_using_dac) {
-		netdev->features |= NETIF_F_HIGHDMA;
-		netdev->vlan_features |= NETIF_F_HIGHDMA;
-	}
+	netdev->features |= NETIF_F_HIGHDMA;
+	netdev->vlan_features |= NETIF_F_HIGHDMA;
 
 	/* MTU range: 68 - 16114 */
 	netdev->min_mtu = ETH_MIN_MTU;
@@ -461,7 +453,8 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_eeprom;
 	}
 
-	ixgb_get_ee_mac_addr(&adapter->hw, netdev->dev_addr);
+	ixgb_get_ee_mac_addr(&adapter->hw, addr);
+	eth_hw_addr_set(netdev, addr);
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		netif_err(adapter, probe, adapter->netdev, "Invalid MAC Address\n");
@@ -1030,7 +1023,7 @@ ixgb_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 
 	ixgb_rar_set(&adapter->hw, addr->sa_data, 0);
 
@@ -2227,6 +2220,7 @@ static pci_ers_result_t ixgb_io_slot_reset(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
+	u8 addr[ETH_ALEN];
 
 	if (pci_enable_device(pdev)) {
 		netif_err(adapter, probe, adapter->netdev,
@@ -2250,7 +2244,8 @@ static pci_ers_result_t ixgb_io_slot_reset(struct pci_dev *pdev)
 			  "After reset, the EEPROM checksum is not valid\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
-	ixgb_get_ee_mac_addr(&adapter->hw, netdev->dev_addr);
+	ixgb_get_ee_mac_addr(&adapter->hw, addr);
+	eth_hw_addr_set(netdev, addr);
 	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
 
 	if (!is_valid_ether_addr(netdev->perm_addr)) {

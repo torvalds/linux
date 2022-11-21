@@ -33,6 +33,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "gvt.h"
 
 static int get_edp_pipe(struct intel_vgpu *vgpu)
@@ -173,23 +174,179 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 	int pipe;
 
 	if (IS_BROXTON(dev_priv)) {
-		vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) &= ~(BXT_DE_PORT_HP_DDIA |
-			BXT_DE_PORT_HP_DDIB |
-			BXT_DE_PORT_HP_DDIC);
+		enum transcoder trans;
+		enum port port;
 
+		/* Clear PIPE, DDI, PHY, HPD before setting new */
+		vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) &=
+			~(GEN8_DE_PORT_HOTPLUG(HPD_PORT_A) |
+			  GEN8_DE_PORT_HOTPLUG(HPD_PORT_B) |
+			  GEN8_DE_PORT_HOTPLUG(HPD_PORT_C));
+
+		for_each_pipe(dev_priv, pipe) {
+			vgpu_vreg_t(vgpu, PIPECONF(pipe)) &=
+				~(PIPECONF_ENABLE | PIPECONF_STATE_ENABLE);
+			vgpu_vreg_t(vgpu, DSPCNTR(pipe)) &= ~DISP_ENABLE;
+			vgpu_vreg_t(vgpu, SPRCTL(pipe)) &= ~SPRITE_ENABLE;
+			vgpu_vreg_t(vgpu, CURCNTR(pipe)) &= ~MCURSOR_MODE_MASK;
+			vgpu_vreg_t(vgpu, CURCNTR(pipe)) |= MCURSOR_MODE_DISABLE;
+		}
+
+		for (trans = TRANSCODER_A; trans <= TRANSCODER_EDP; trans++) {
+			vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(trans)) &=
+				~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
+				  TRANS_DDI_PORT_MASK | TRANS_DDI_FUNC_ENABLE);
+		}
+		vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &=
+			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
+			  TRANS_DDI_PORT_MASK);
+
+		for (port = PORT_A; port <= PORT_C; port++) {
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(port)) &=
+				~BXT_PHY_LANE_ENABLED;
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(port)) |=
+				(BXT_PHY_CMNLANE_POWERDOWN_ACK |
+				 BXT_PHY_LANE_POWERDOWN_ACK);
+
+			vgpu_vreg_t(vgpu, BXT_PORT_PLL_ENABLE(port)) &=
+				~(PORT_PLL_POWER_STATE | PORT_PLL_POWER_ENABLE |
+				  PORT_PLL_REF_SEL | PORT_PLL_LOCK |
+				  PORT_PLL_ENABLE);
+
+			vgpu_vreg_t(vgpu, DDI_BUF_CTL(port)) &=
+				~(DDI_INIT_DISPLAY_DETECTED |
+				  DDI_BUF_CTL_ENABLE);
+			vgpu_vreg_t(vgpu, DDI_BUF_CTL(port)) |= DDI_BUF_IS_IDLE;
+		}
+		vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) &=
+			~(PORTA_HOTPLUG_ENABLE | PORTA_HOTPLUG_STATUS_MASK);
+		vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) &=
+			~(PORTB_HOTPLUG_ENABLE | PORTB_HOTPLUG_STATUS_MASK);
+		vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) &=
+			~(PORTC_HOTPLUG_ENABLE | PORTC_HOTPLUG_STATUS_MASK);
+		/* No hpd_invert set in vgpu vbt, need to clear invert mask */
+		vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) &= ~BXT_DDI_HPD_INVERT_MASK;
+		vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) &= ~BXT_DE_PORT_HOTPLUG_MASK;
+
+		vgpu_vreg_t(vgpu, BXT_P_CR_GT_DISP_PWRON) &= ~(BIT(0) | BIT(1));
+		vgpu_vreg_t(vgpu, BXT_PORT_CL1CM_DW0(DPIO_PHY0)) &=
+			~PHY_POWER_GOOD;
+		vgpu_vreg_t(vgpu, BXT_PORT_CL1CM_DW0(DPIO_PHY1)) &=
+			~PHY_POWER_GOOD;
+		vgpu_vreg_t(vgpu, BXT_PHY_CTL_FAMILY(DPIO_PHY0)) &= ~BIT(30);
+		vgpu_vreg_t(vgpu, BXT_PHY_CTL_FAMILY(DPIO_PHY1)) &= ~BIT(30);
+
+		vgpu_vreg_t(vgpu, SFUSE_STRAP) &= ~SFUSE_STRAP_DDIB_DETECTED;
+		vgpu_vreg_t(vgpu, SFUSE_STRAP) &= ~SFUSE_STRAP_DDIC_DETECTED;
+
+		/*
+		 * Only 1 PIPE enabled in current vGPU display and PIPE_A is
+		 *  tied to TRANSCODER_A in HW, so it's safe to assume PIPE_A,
+		 *   TRANSCODER_A can be enabled. PORT_x depends on the input of
+		 *   setup_virtual_dp_monitor.
+		 */
+		vgpu_vreg_t(vgpu, PIPECONF(PIPE_A)) |= PIPECONF_ENABLE;
+		vgpu_vreg_t(vgpu, PIPECONF(PIPE_A)) |= PIPECONF_STATE_ENABLE;
+
+		/*
+		 * Golden M/N are calculated based on:
+		 *   24 bpp, 4 lanes, 154000 pixel clk (from virtual EDID),
+		 *   DP link clk 1620 MHz and non-constant_n.
+		 * TODO: calculate DP link symbol clk and stream clk m/n.
+		 */
+		vgpu_vreg_t(vgpu, PIPE_DATA_M1(TRANSCODER_A)) = TU_SIZE(64);
+		vgpu_vreg_t(vgpu, PIPE_DATA_M1(TRANSCODER_A)) |= 0x5b425e;
+		vgpu_vreg_t(vgpu, PIPE_DATA_N1(TRANSCODER_A)) = 0x800000;
+		vgpu_vreg_t(vgpu, PIPE_LINK_M1(TRANSCODER_A)) = 0x3cd6e;
+		vgpu_vreg_t(vgpu, PIPE_LINK_N1(TRANSCODER_A)) = 0x80000;
+
+		/* Enable per-DDI/PORT vreg */
 		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_A)) {
+			vgpu_vreg_t(vgpu, BXT_P_CR_GT_DISP_PWRON) |= BIT(1);
+			vgpu_vreg_t(vgpu, BXT_PORT_CL1CM_DW0(DPIO_PHY1)) |=
+				PHY_POWER_GOOD;
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL_FAMILY(DPIO_PHY1)) |=
+				BIT(30);
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(PORT_A)) |=
+				BXT_PHY_LANE_ENABLED;
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(PORT_A)) &=
+				~(BXT_PHY_CMNLANE_POWERDOWN_ACK |
+				  BXT_PHY_LANE_POWERDOWN_ACK);
+			vgpu_vreg_t(vgpu, BXT_PORT_PLL_ENABLE(PORT_A)) |=
+				(PORT_PLL_POWER_STATE | PORT_PLL_POWER_ENABLE |
+				 PORT_PLL_REF_SEL | PORT_PLL_LOCK |
+				 PORT_PLL_ENABLE);
+			vgpu_vreg_t(vgpu, DDI_BUF_CTL(PORT_A)) |=
+				(DDI_BUF_CTL_ENABLE | DDI_INIT_DISPLAY_DETECTED);
+			vgpu_vreg_t(vgpu, DDI_BUF_CTL(PORT_A)) &=
+				~DDI_BUF_IS_IDLE;
+			vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_EDP)) |=
+				(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+				 TRANS_DDI_FUNC_ENABLE);
+			vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) |=
+				PORTA_HOTPLUG_ENABLE;
 			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
-				BXT_DE_PORT_HP_DDIA;
+				GEN8_DE_PORT_HOTPLUG(HPD_PORT_A);
 		}
 
 		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_B)) {
+			vgpu_vreg_t(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDIB_DETECTED;
+			vgpu_vreg_t(vgpu, BXT_P_CR_GT_DISP_PWRON) |= BIT(0);
+			vgpu_vreg_t(vgpu, BXT_PORT_CL1CM_DW0(DPIO_PHY0)) |=
+				PHY_POWER_GOOD;
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL_FAMILY(DPIO_PHY0)) |=
+				BIT(30);
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(PORT_B)) |=
+				BXT_PHY_LANE_ENABLED;
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(PORT_B)) &=
+				~(BXT_PHY_CMNLANE_POWERDOWN_ACK |
+				  BXT_PHY_LANE_POWERDOWN_ACK);
+			vgpu_vreg_t(vgpu, BXT_PORT_PLL_ENABLE(PORT_B)) |=
+				(PORT_PLL_POWER_STATE | PORT_PLL_POWER_ENABLE |
+				 PORT_PLL_REF_SEL | PORT_PLL_LOCK |
+				 PORT_PLL_ENABLE);
+			vgpu_vreg_t(vgpu, DDI_BUF_CTL(PORT_B)) |=
+				DDI_BUF_CTL_ENABLE;
+			vgpu_vreg_t(vgpu, DDI_BUF_CTL(PORT_B)) &=
+				~DDI_BUF_IS_IDLE;
+			vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
+				(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+				 (PORT_B << TRANS_DDI_PORT_SHIFT) |
+				 TRANS_DDI_FUNC_ENABLE);
+			vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) |=
+				PORTB_HOTPLUG_ENABLE;
 			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
-				BXT_DE_PORT_HP_DDIB;
+				GEN8_DE_PORT_HOTPLUG(HPD_PORT_B);
 		}
 
 		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_C)) {
+			vgpu_vreg_t(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDIC_DETECTED;
+			vgpu_vreg_t(vgpu, BXT_P_CR_GT_DISP_PWRON) |= BIT(0);
+			vgpu_vreg_t(vgpu, BXT_PORT_CL1CM_DW0(DPIO_PHY0)) |=
+				PHY_POWER_GOOD;
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL_FAMILY(DPIO_PHY0)) |=
+				BIT(30);
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(PORT_C)) |=
+				BXT_PHY_LANE_ENABLED;
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(PORT_C)) &=
+				~(BXT_PHY_CMNLANE_POWERDOWN_ACK |
+				  BXT_PHY_LANE_POWERDOWN_ACK);
+			vgpu_vreg_t(vgpu, BXT_PORT_PLL_ENABLE(PORT_C)) |=
+				(PORT_PLL_POWER_STATE | PORT_PLL_POWER_ENABLE |
+				 PORT_PLL_REF_SEL | PORT_PLL_LOCK |
+				 PORT_PLL_ENABLE);
+			vgpu_vreg_t(vgpu, DDI_BUF_CTL(PORT_C)) |=
+				DDI_BUF_CTL_ENABLE;
+			vgpu_vreg_t(vgpu, DDI_BUF_CTL(PORT_C)) &=
+				~DDI_BUF_IS_IDLE;
+			vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
+				(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+				 (PORT_B << TRANS_DDI_PORT_SHIFT) |
+				 TRANS_DDI_FUNC_ENABLE);
+			vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) |=
+				PORTC_HOTPLUG_ENABLE;
 			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
-				BXT_DE_PORT_HP_DDIC;
+				GEN8_DE_PORT_HOTPLUG(HPD_PORT_C);
 		}
 
 		return;
@@ -231,7 +388,7 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 		 *   DP link clk 1620 MHz and non-constant_n.
 		 * TODO: calculate DP link symbol clk and stream clk m/n.
 		 */
-		vgpu_vreg_t(vgpu, PIPE_DATA_M1(TRANSCODER_A)) = 63 << TU_SIZE_SHIFT;
+		vgpu_vreg_t(vgpu, PIPE_DATA_M1(TRANSCODER_A)) = TU_SIZE(64);
 		vgpu_vreg_t(vgpu, PIPE_DATA_M1(TRANSCODER_A)) |= 0x5b425e;
 		vgpu_vreg_t(vgpu, PIPE_DATA_N1(TRANSCODER_A)) = 0x800000;
 		vgpu_vreg_t(vgpu, PIPE_LINK_M1(TRANSCODER_A)) = 0x3cd6e;
@@ -327,7 +484,7 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_A)) {
 		if (IS_BROADWELL(dev_priv))
 			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
-				GEN8_PORT_DP_A_HOTPLUG;
+				GEN8_DE_PORT_HOTPLUG(HPD_PORT_A);
 		else
 			vgpu_vreg_t(vgpu, SDEISR) |= SDE_PORTA_HOTPLUG_SPT;
 
@@ -340,9 +497,9 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 
 	/* Disable Primary/Sprite/Cursor plane */
 	for_each_pipe(dev_priv, pipe) {
-		vgpu_vreg_t(vgpu, DSPCNTR(pipe)) &= ~DISPLAY_PLANE_ENABLE;
+		vgpu_vreg_t(vgpu, DSPCNTR(pipe)) &= ~DISP_ENABLE;
 		vgpu_vreg_t(vgpu, SPRCTL(pipe)) &= ~SPRITE_ENABLE;
-		vgpu_vreg_t(vgpu, CURCNTR(pipe)) &= ~MCURSOR_MODE;
+		vgpu_vreg_t(vgpu, CURCNTR(pipe)) &= ~MCURSOR_MODE_MASK;
 		vgpu_vreg_t(vgpu, CURCNTR(pipe)) |= MCURSOR_MODE_DISABLE;
 	}
 
@@ -360,11 +517,27 @@ static void clean_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num)
 	port->dpcd = NULL;
 }
 
+static enum hrtimer_restart vblank_timer_fn(struct hrtimer *data)
+{
+	struct intel_vgpu_vblank_timer *vblank_timer;
+	struct intel_vgpu *vgpu;
+
+	vblank_timer = container_of(data, struct intel_vgpu_vblank_timer, timer);
+	vgpu = container_of(vblank_timer, struct intel_vgpu, vblank_timer);
+
+	/* Set vblank emulation request per-vGPU bit */
+	intel_gvt_request_service(vgpu->gvt,
+				  INTEL_GVT_REQUEST_EMULATE_VBLANK + vgpu->id);
+	hrtimer_add_expires_ns(&vblank_timer->timer, vblank_timer->period);
+	return HRTIMER_RESTART;
+}
+
 static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 				    int type, unsigned int resolution)
 {
 	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
 	struct intel_vgpu_port *port = intel_vgpu_port(vgpu, port_num);
+	struct intel_vgpu_vblank_timer *vblank_timer = &vgpu->vblank_timer;
 
 	if (drm_WARN_ON(&i915->drm, resolution >= GVT_EDID_NUM))
 		return -EINVAL;
@@ -388,6 +561,14 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 	port->dpcd->data[DPCD_SINK_COUNT] = 0x1;
 	port->type = type;
 	port->id = resolution;
+	port->vrefresh_k = GVT_DEFAULT_REFRESH_RATE * MSEC_PER_SEC;
+	vgpu->display.port_num = port_num;
+
+	/* Init hrtimer based on default refresh rate */
+	hrtimer_init(&vblank_timer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	vblank_timer->timer.function = vblank_timer_fn;
+	vblank_timer->vrefresh_k = port->vrefresh_k;
+	vblank_timer->period = DIV64_U64_ROUND_CLOSEST(NSEC_PER_SEC * MSEC_PER_SEC, vblank_timer->vrefresh_k);
 
 	emulate_monitor_status_change(vgpu);
 
@@ -395,41 +576,44 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 }
 
 /**
- * intel_gvt_check_vblank_emulation - check if vblank emulation timer should
- * be turned on/off when a virtual pipe is enabled/disabled.
- * @gvt: a GVT device
+ * vgpu_update_vblank_emulation - Update per-vGPU vblank_timer
+ * @vgpu: vGPU operated
+ * @turnon: Turn ON/OFF vblank_timer
  *
- * This function is used to turn on/off vblank timer according to currently
- * enabled/disabled virtual pipes.
+ * This function is used to turn on/off or update the per-vGPU vblank_timer
+ * when PIPECONF is enabled or disabled. vblank_timer period is also updated
+ * if guest changed the refresh rate.
  *
  */
-void intel_gvt_check_vblank_emulation(struct intel_gvt *gvt)
+void vgpu_update_vblank_emulation(struct intel_vgpu *vgpu, bool turnon)
 {
-	struct intel_gvt_irq *irq = &gvt->irq;
-	struct intel_vgpu *vgpu;
-	int pipe, id;
-	int found = false;
+	struct intel_vgpu_vblank_timer *vblank_timer = &vgpu->vblank_timer;
+	struct intel_vgpu_port *port =
+		intel_vgpu_port(vgpu, vgpu->display.port_num);
 
-	mutex_lock(&gvt->lock);
-	for_each_active_vgpu(gvt, vgpu, id) {
-		for (pipe = 0; pipe < I915_MAX_PIPES; pipe++) {
-			if (pipe_is_enabled(vgpu, pipe)) {
-				found = true;
-				break;
-			}
+	if (turnon) {
+		/*
+		 * Skip the re-enable if already active and vrefresh unchanged.
+		 * Otherwise, stop timer if already active and restart with new
+		 *   period.
+		 */
+		if (vblank_timer->vrefresh_k != port->vrefresh_k ||
+		    !hrtimer_active(&vblank_timer->timer)) {
+			/* Stop timer before start with new period if active */
+			if (hrtimer_active(&vblank_timer->timer))
+				hrtimer_cancel(&vblank_timer->timer);
+
+			/* Make sure new refresh rate updated to timer period */
+			vblank_timer->vrefresh_k = port->vrefresh_k;
+			vblank_timer->period = DIV64_U64_ROUND_CLOSEST(NSEC_PER_SEC * MSEC_PER_SEC, vblank_timer->vrefresh_k);
+			hrtimer_start(&vblank_timer->timer,
+				      ktime_add_ns(ktime_get(), vblank_timer->period),
+				      HRTIMER_MODE_ABS);
 		}
-		if (found)
-			break;
+	} else {
+		/* Caller request to stop vblank */
+		hrtimer_cancel(&vblank_timer->timer);
 	}
-
-	/* all the pipes are disabled */
-	if (!found)
-		hrtimer_cancel(&irq->vblank_timer.timer);
-	else
-		hrtimer_start(&irq->vblank_timer.timer,
-			ktime_add_ns(ktime_get(), irq->vblank_timer.period),
-			HRTIMER_MODE_ABS);
-	mutex_unlock(&gvt->lock);
 }
 
 static void emulate_vblank_on_pipe(struct intel_vgpu *vgpu, int pipe)
@@ -461,7 +645,7 @@ static void emulate_vblank_on_pipe(struct intel_vgpu *vgpu, int pipe)
 	}
 }
 
-static void emulate_vblank(struct intel_vgpu *vgpu)
+void intel_vgpu_emulate_vblank(struct intel_vgpu *vgpu)
 {
 	int pipe;
 
@@ -469,24 +653,6 @@ static void emulate_vblank(struct intel_vgpu *vgpu)
 	for_each_pipe(vgpu->gvt->gt->i915, pipe)
 		emulate_vblank_on_pipe(vgpu, pipe);
 	mutex_unlock(&vgpu->vgpu_lock);
-}
-
-/**
- * intel_gvt_emulate_vblank - trigger vblank events for vGPUs on GVT device
- * @gvt: a GVT device
- *
- * This function is used to trigger vblank interrupts for vGPUs on GVT device
- *
- */
-void intel_gvt_emulate_vblank(struct intel_gvt *gvt)
-{
-	struct intel_vgpu *vgpu;
-	int id;
-
-	mutex_lock(&gvt->lock);
-	for_each_active_vgpu(gvt, vgpu, id)
-		emulate_vblank(vgpu);
-	mutex_unlock(&gvt->lock);
 }
 
 /**
@@ -519,6 +685,63 @@ void intel_vgpu_emulate_hotplug(struct intel_vgpu *vgpu, bool connected)
 		vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) |=
 				PORTD_HOTPLUG_STATUS_MASK;
 		intel_vgpu_trigger_virtual_event(vgpu, DP_D_HOTPLUG);
+	} else if (IS_BROXTON(i915)) {
+		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_A)) {
+			if (connected) {
+				vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
+					GEN8_DE_PORT_HOTPLUG(HPD_PORT_A);
+			} else {
+				vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) &=
+					~GEN8_DE_PORT_HOTPLUG(HPD_PORT_A);
+			}
+			vgpu_vreg_t(vgpu, GEN8_DE_PORT_IIR) |=
+				GEN8_DE_PORT_HOTPLUG(HPD_PORT_A);
+			vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) &=
+				~PORTA_HOTPLUG_STATUS_MASK;
+			vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) |=
+				PORTA_HOTPLUG_LONG_DETECT;
+			intel_vgpu_trigger_virtual_event(vgpu, DP_A_HOTPLUG);
+		}
+		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_B)) {
+			if (connected) {
+				vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
+					GEN8_DE_PORT_HOTPLUG(HPD_PORT_B);
+				vgpu_vreg_t(vgpu, SFUSE_STRAP) |=
+					SFUSE_STRAP_DDIB_DETECTED;
+			} else {
+				vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) &=
+					~GEN8_DE_PORT_HOTPLUG(HPD_PORT_B);
+				vgpu_vreg_t(vgpu, SFUSE_STRAP) &=
+					~SFUSE_STRAP_DDIB_DETECTED;
+			}
+			vgpu_vreg_t(vgpu, GEN8_DE_PORT_IIR) |=
+				GEN8_DE_PORT_HOTPLUG(HPD_PORT_B);
+			vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) &=
+				~PORTB_HOTPLUG_STATUS_MASK;
+			vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) |=
+				PORTB_HOTPLUG_LONG_DETECT;
+			intel_vgpu_trigger_virtual_event(vgpu, DP_B_HOTPLUG);
+		}
+		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_C)) {
+			if (connected) {
+				vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
+					GEN8_DE_PORT_HOTPLUG(HPD_PORT_C);
+				vgpu_vreg_t(vgpu, SFUSE_STRAP) |=
+					SFUSE_STRAP_DDIC_DETECTED;
+			} else {
+				vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) &=
+					~GEN8_DE_PORT_HOTPLUG(HPD_PORT_C);
+				vgpu_vreg_t(vgpu, SFUSE_STRAP) &=
+					~SFUSE_STRAP_DDIC_DETECTED;
+			}
+			vgpu_vreg_t(vgpu, GEN8_DE_PORT_IIR) |=
+				GEN8_DE_PORT_HOTPLUG(HPD_PORT_C);
+			vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) &=
+				~PORTC_HOTPLUG_STATUS_MASK;
+			vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) |=
+				PORTC_HOTPLUG_LONG_DETECT;
+			intel_vgpu_trigger_virtual_event(vgpu, DP_C_HOTPLUG);
+		}
 	}
 }
 
@@ -540,6 +763,8 @@ void intel_vgpu_clean_display(struct intel_vgpu *vgpu)
 		clean_virtual_dp_monitor(vgpu, PORT_D);
 	else
 		clean_virtual_dp_monitor(vgpu, PORT_B);
+
+	vgpu_update_vblank_emulation(vgpu, false);
 }
 
 /**

@@ -851,7 +851,7 @@ Protocol:	2.09+
     struct setup_data {
       __u64 next = 0 or <addr_of_next_setup_data_struct>;
       __u32 type = SETUP_INDIRECT;
-      __u32 len = sizeof(setup_data);
+      __u32 len = sizeof(setup_indirect);
       __u8 data[sizeof(setup_indirect)] = struct setup_indirect {
         __u32 type = SETUP_INDIRECT | SETUP_E820_EXT;
         __u32 reserved = 0;
@@ -1343,7 +1343,7 @@ follow::
 In addition to read/modify/write the setup header of the struct
 boot_params as that of 16-bit boot protocol, the boot loader should
 also fill the additional fields of the struct boot_params as
-described in chapter :doc:`zero-page`.
+described in chapter Documentation/x86/zero-page.rst.
 
 After setting up the struct boot_params, the boot loader can load the
 32/64-bit kernel in the same way as that of 16-bit boot protocol.
@@ -1379,7 +1379,7 @@ can be calculated as follows::
 In addition to read/modify/write the setup header of the struct
 boot_params as that of 16-bit boot protocol, the boot loader should
 also fill the additional fields of the struct boot_params as described
-in chapter :doc:`zero-page`.
+in chapter Documentation/x86/zero-page.rst.
 
 After setting up the struct boot_params, the boot loader can load
 64-bit kernel in the same way as that of 16-bit boot protocol, but

@@ -149,7 +149,7 @@ struct ahash_alg {
 
 struct shash_desc {
 	struct crypto_shash *tfm;
-	void *__ctx[] CRYPTO_MINALIGN_ATTR;
+	void *__ctx[] __aligned(ARCH_SLAB_MINALIGN);
 };
 
 #define HASH_MAX_DIGESTSIZE	 64
@@ -162,9 +162,9 @@ struct shash_desc {
 
 #define HASH_MAX_STATESIZE	512
 
-#define SHASH_DESC_ON_STACK(shash, ctx)				  \
-	char __##shash##_desc[sizeof(struct shash_desc) +	  \
-		HASH_MAX_DESCSIZE] CRYPTO_MINALIGN_ATTR; \
+#define SHASH_DESC_ON_STACK(shash, ctx)					     \
+	char __##shash##_desc[sizeof(struct shash_desc) + HASH_MAX_DESCSIZE] \
+		__aligned(__alignof__(struct shash_desc));		     \
 	struct shash_desc *shash = (struct shash_desc *)__##shash##_desc
 
 /**
@@ -281,6 +281,8 @@ static inline struct crypto_tfm *crypto_ahash_tfm(struct crypto_ahash *tfm)
 /**
  * crypto_free_ahash() - zeroize and free the ahash handle
  * @tfm: cipher handle to be freed
+ *
+ * If @tfm is a NULL or error pointer, this function does nothing.
  */
 static inline void crypto_free_ahash(struct crypto_ahash *tfm)
 {
@@ -456,7 +458,7 @@ int crypto_ahash_finup(struct ahash_request *req);
  *
  * Return:
  * 0		if the message digest was successfully calculated;
- * -EINPROGRESS	if data is feeded into hardware (DMA) or queued for later;
+ * -EINPROGRESS	if data is fed into hardware (DMA) or queued for later;
  * -EBUSY	if queue is full and request should be resubmitted later;
  * other < 0	if an error occurred
  */
@@ -724,6 +726,8 @@ static inline struct crypto_tfm *crypto_shash_tfm(struct crypto_shash *tfm)
 /**
  * crypto_free_shash() - zeroize and free the message digest handle
  * @tfm: cipher handle to be freed
+ *
+ * If @tfm is a NULL or error pointer, this function does nothing.
  */
 static inline void crypto_free_shash(struct crypto_shash *tfm)
 {

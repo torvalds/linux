@@ -1726,6 +1726,20 @@
 		};
 	};
 
+	iva_cm: iva-cm@f00 {
+		compatible = "ti,omap4-cm";
+		reg = <0xf00 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0xf00 0x100>;
+
+		iva_clkctrl: iva-clkctrl@20 {
+			compatible = "ti,clkctrl";
+			reg = <0x20 0xc>;
+			#clock-cells = <2>;
+		};
+	};
+
 	cam_cm: cam-cm@1000 {
 		compatible = "ti,omap4-cm";
 		reg = <0x1000 0x100>;

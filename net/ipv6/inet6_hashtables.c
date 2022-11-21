@@ -106,7 +106,7 @@ static inline int compute_score(struct sock *sk, struct net *net,
 		if (!inet_sk_bound_dev_eq(net, sk->sk_bound_dev_if, dif, sdif))
 			return -1;
 
-		score = 1;
+		score =  sk->sk_bound_dev_if ? 2 : 1;
 		if (READ_ONCE(sk->sk_incoming_cpu) == raw_smp_processor_id())
 			score++;
 	}
@@ -165,7 +165,7 @@ static inline struct sock *inet6_lookup_run_bpf(struct net *net,
 						const struct in6_addr *saddr,
 						const __be16 sport,
 						const struct in6_addr *daddr,
-						const u16 hnum)
+						const u16 hnum, const int dif)
 {
 	struct sock *sk, *reuse_sk;
 	bool no_reuseport;
@@ -173,8 +173,8 @@ static inline struct sock *inet6_lookup_run_bpf(struct net *net,
 	if (hashinfo != &tcp_hashinfo)
 		return NULL; /* only TCP is supported */
 
-	no_reuseport = bpf_sk_lookup_run_v6(net, IPPROTO_TCP,
-					    saddr, sport, daddr, hnum, &sk);
+	no_reuseport = bpf_sk_lookup_run_v6(net, IPPROTO_TCP, saddr, sport,
+					    daddr, hnum, dif, &sk);
 	if (no_reuseport || IS_ERR_OR_NULL(sk))
 		return sk;
 
@@ -198,7 +198,7 @@ struct sock *inet6_lookup_listener(struct net *net,
 	/* Lookup redirect from BPF */
 	if (static_branch_unlikely(&bpf_sk_lookup_enabled)) {
 		result = inet6_lookup_run_bpf(net, hashinfo, skb, doff,
-					      saddr, sport, daddr, hnum);
+					      saddr, sport, daddr, hnum, dif);
 		if (result)
 			goto done;
 	}
@@ -308,7 +308,7 @@ not_unique:
 	return -EADDRNOTAVAIL;
 }
 
-static u32 inet6_sk_port_offset(const struct sock *sk)
+static u64 inet6_sk_port_offset(const struct sock *sk)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 
@@ -320,7 +320,7 @@ static u32 inet6_sk_port_offset(const struct sock *sk)
 int inet6_hash_connect(struct inet_timewait_death_row *death_row,
 		       struct sock *sk)
 {
-	u32 port_offset = 0;
+	u64 port_offset = 0;
 
 	if (!inet_sk(sk)->inet_num)
 		port_offset = inet6_sk_port_offset(sk);
@@ -333,11 +333,8 @@ int inet6_hash(struct sock *sk)
 {
 	int err = 0;
 
-	if (sk->sk_state != TCP_CLOSE) {
-		local_bh_disable();
+	if (sk->sk_state != TCP_CLOSE)
 		err = __inet_hash(sk, NULL);
-		local_bh_enable();
-	}
 
 	return err;
 }

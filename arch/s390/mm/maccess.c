@@ -4,8 +4,6 @@
  *
  * Copyright IBM Corp. 2009, 2015
  *
- *   Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
- *
  */
 
 #include <linux/uaccess.h>
@@ -14,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/gfp.h>
 #include <linux/cpu.h>
+#include <asm/asm-extable.h>
 #include <asm/ctl_reg.h>
 #include <asm/io.h>
 #include <asm/stacktrace.h>
@@ -79,22 +78,21 @@ notrace void *s390_kernel_write(void *dst, const void *src, size_t size)
 
 static int __no_sanitize_address __memcpy_real(void *dest, void *src, size_t count)
 {
-	register unsigned long _dest asm("2") = (unsigned long) dest;
-	register unsigned long _len1 asm("3") = (unsigned long) count;
-	register unsigned long _src  asm("4") = (unsigned long) src;
-	register unsigned long _len2 asm("5") = (unsigned long) count;
+	union register_pair _dst, _src;
 	int rc = -EFAULT;
 
+	_dst.even = (unsigned long) dest;
+	_dst.odd  = (unsigned long) count;
+	_src.even = (unsigned long) src;
+	_src.odd  = (unsigned long) count;
 	asm volatile (
-		"0:	mvcle	%1,%2,0x0\n"
+		"0:	mvcle	%[dst],%[src],0\n"
 		"1:	jo	0b\n"
-		"	lhi	%0,0x0\n"
+		"	lhi	%[rc],0\n"
 		"2:\n"
 		EX_TABLE(1b,2b)
-		: "+d" (rc), "+d" (_dest), "+d" (_src), "+d" (_len1),
-		  "+d" (_len2), "=m" (*((long *) dest))
-		: "m" (*((long *) src))
-		: "cc", "memory");
+		: [rc] "+&d" (rc), [dst] "+&d" (_dst.pair), [src] "+&d" (_src.pair)
+		: : "cc", "memory");
 	return rc;
 }
 
@@ -124,14 +122,20 @@ static unsigned long __no_sanitize_address _memcpy_real(unsigned long dest,
 /*
  * Copy memory in real mode (kernel to kernel)
  */
-int memcpy_real(void *dest, void *src, size_t count)
+int memcpy_real(void *dest, unsigned long src, size_t count)
 {
+	unsigned long _dest  = (unsigned long)dest;
+	unsigned long _src   = (unsigned long)src;
+	unsigned long _count = (unsigned long)count;
 	int rc;
 
 	if (S390_lowcore.nodat_stack != 0) {
 		preempt_disable();
-		rc = CALL_ON_STACK(_memcpy_real, S390_lowcore.nodat_stack, 3,
-				   dest, src, count);
+		rc = call_on_stack(3, S390_lowcore.nodat_stack,
+				   unsigned long, _memcpy_real,
+				   unsigned long, _dest,
+				   unsigned long, _src,
+				   unsigned long, _count);
 		preempt_enable();
 		return rc;
 	}
@@ -140,8 +144,7 @@ int memcpy_real(void *dest, void *src, size_t count)
 	 * not set up yet. Just call _memcpy_real on the early boot
 	 * stack
 	 */
-	return _memcpy_real((unsigned long) dest,(unsigned long) src,
-			    (unsigned long) count);
+	return _memcpy_real(_dest, _src, _count);
 }
 
 /*
@@ -171,7 +174,7 @@ void memcpy_absolute(void *dest, void *src, size_t count)
 /*
  * Copy memory from kernel (real) to user (virtual)
  */
-int copy_to_user_real(void __user *dest, void *src, unsigned long count)
+int copy_to_user_real(void __user *dest, unsigned long src, unsigned long count)
 {
 	int offs = 0, size, rc;
 	char *buf;
@@ -197,15 +200,15 @@ out:
 /*
  * Check if physical address is within prefix or zero page
  */
-static int is_swapped(unsigned long addr)
+static int is_swapped(phys_addr_t addr)
 {
-	unsigned long lc;
+	phys_addr_t lc;
 	int cpu;
 
 	if (addr < sizeof(struct lowcore))
 		return 1;
 	for_each_online_cpu(cpu) {
-		lc = (unsigned long) lowcore_ptr[cpu];
+		lc = virt_to_phys(lowcore_ptr[cpu]);
 		if (addr > lc + sizeof(struct lowcore) - 1 || addr < lc)
 			continue;
 		return 1;
@@ -221,27 +224,28 @@ static int is_swapped(unsigned long addr)
  */
 void *xlate_dev_mem_ptr(phys_addr_t addr)
 {
-	void *bounce = (void *) addr;
+	void *ptr = phys_to_virt(addr);
+	void *bounce = ptr;
 	unsigned long size;
 
-	get_online_cpus();
+	cpus_read_lock();
 	preempt_disable();
 	if (is_swapped(addr)) {
 		size = PAGE_SIZE - (addr & ~PAGE_MASK);
 		bounce = (void *) __get_free_page(GFP_ATOMIC);
 		if (bounce)
-			memcpy_absolute(bounce, (void *) addr, size);
+			memcpy_absolute(bounce, ptr, size);
 	}
 	preempt_enable();
-	put_online_cpus();
+	cpus_read_unlock();
 	return bounce;
 }
 
 /*
  * Free converted buffer for /dev/mem access (if necessary)
  */
-void unxlate_dev_mem_ptr(phys_addr_t addr, void *buf)
+void unxlate_dev_mem_ptr(phys_addr_t addr, void *ptr)
 {
-	if ((void *) addr != buf)
-		free_page((unsigned long) buf);
+	if (addr != virt_to_phys(ptr))
+		free_page((unsigned long)ptr);
 }

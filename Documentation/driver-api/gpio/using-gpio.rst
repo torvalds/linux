@@ -9,13 +9,13 @@ with them.
 
 For examples of already existing generic drivers that will also be good
 examples for any other kernel drivers you want to author, refer to
-:doc:`drivers-on-gpio`
+Documentation/driver-api/gpio/drivers-on-gpio.rst
 
 For any kind of mass produced system you want to support, such as servers,
 laptops, phones, tablets, routers, and any consumer or office or business goods
 using appropriate kernel drivers is paramount. Submit your code for inclusion
 in the upstream Linux kernel when you feel it is mature enough and you will get
-help to refine it, see :doc:`../../process/submitting-patches`.
+help to refine it, see Documentation/process/submitting-patches.rst.
 
 In Linux GPIO lines also have a userspace ABI.
 

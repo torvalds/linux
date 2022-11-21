@@ -10,7 +10,7 @@
 #ifndef __UCC_FAST_H__
 #define __UCC_FAST_H__
 
-#include <linux/kernel.h>
+#include <linux/types.h>
 
 #include <soc/fsl/qe/immap_qe.h>
 #include <soc/fsl/qe/qe.h>
@@ -146,7 +146,6 @@ struct ucc_fast_info {
 	resource_size_t regs;
 	int irq;
 	u32 uccm_mask;
-	int bd_mem_part;
 	int brkpt_support;
 	int grant_support;
 	int tsa;

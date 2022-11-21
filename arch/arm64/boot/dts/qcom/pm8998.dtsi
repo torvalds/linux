@@ -9,7 +9,7 @@
 
 / {
 	thermal-zones {
-		pm8998 {
+		pm8998-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -82,6 +82,16 @@
 				reg = <ADC5_DIE_TEMP>;
 				label = "die_temp";
 			};
+		};
+
+		pm8998_adc_tm: adc-tm@3400 {
+			compatible = "qcom,spmi-adc-tm-hc";
+			reg = <0x3400>;
+			interrupts = <0x0 0x34 0x0 IRQ_TYPE_EDGE_RISING>;
+			#thermal-sensor-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		rtc@6000 {

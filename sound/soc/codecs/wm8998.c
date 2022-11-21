@@ -1161,8 +1161,8 @@ static struct snd_soc_dai_driver wm8998_dai[] = {
 			 .formats = WM8998_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm8998-aif2",
@@ -1183,8 +1183,8 @@ static struct snd_soc_dai_driver wm8998_dai[] = {
 			 .formats = WM8998_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm8998-aif3",
@@ -1205,8 +1205,8 @@ static struct snd_soc_dai_driver wm8998_dai[] = {
 			 .formats = WM8998_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm8998-slim1",
@@ -1316,6 +1316,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8998 = {
 	.remove			= wm8998_component_remove,
 	.set_sysclk		= arizona_set_sysclk,
 	.set_pll		= wm8998_set_fll,
+	.set_jack		= arizona_jack_set_jack,
 	.controls		= wm8998_snd_controls,
 	.num_controls		= ARRAY_SIZE(wm8998_snd_controls),
 	.dapm_widgets		= wm8998_dapm_widgets,
@@ -1350,6 +1351,11 @@ static int wm8998_probe(struct platform_device *pdev)
 	wm8998->core.arizona = arizona;
 	wm8998->core.num_inputs = 3;	/* IN1L, IN1R, IN2 */
 
+	/* This may return -EPROBE_DEFER, so do this early on */
+	ret = arizona_jack_codec_dev_probe(&wm8998->core, &pdev->dev);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < ARRAY_SIZE(wm8998->fll); i++)
 		wm8998->fll[i].vco_mult = 1;
 
@@ -1375,7 +1381,7 @@ static int wm8998_probe(struct platform_device *pdev)
 
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
-		return ret;
+		goto err_pm_disable;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &soc_component_dev_wm8998,
@@ -1390,6 +1396,9 @@ static int wm8998_probe(struct platform_device *pdev)
 
 err_spk_irqs:
 	arizona_free_spk_irqs(arizona);
+err_pm_disable:
+	pm_runtime_disable(&pdev->dev);
+	arizona_jack_codec_dev_remove(&wm8998->core);
 
 	return ret;
 }
@@ -1402,6 +1411,8 @@ static int wm8998_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	arizona_free_spk_irqs(arizona);
+
+	arizona_jack_codec_dev_remove(&wm8998->core);
 
 	return 0;
 }

@@ -42,27 +42,42 @@ enum psil_endpoint_type {
 /**
  * struct psil_endpoint_config - PSI-L Endpoint configuration
  * @ep_type:		PSI-L endpoint type
+ * @channel_tpl:	Desired throughput level for the channel
  * @pkt_mode:		If set, the channel must be in Packet mode, otherwise in
  *			TR mode
  * @notdpkt:		TDCM must be suppressed on the TX channel
  * @needs_epib:		Endpoint needs EPIB
- * @psd_size:		If set, PSdata is used by the endpoint
- * @channel_tpl:	Desired throughput level for the channel
  * @pdma_acc32:		ACC32 must be enabled on the PDMA side
  * @pdma_burst:		BURST must be enabled on the PDMA side
+ * @psd_size:		If set, PSdata is used by the endpoint
+ * @mapped_channel_id:	PKTDMA thread to channel mapping for mapped channels.
+ *			The thread must be serviced by the specified channel if
+ *			mapped_channel_id is >= 0 in case of PKTDMA
+ * @flow_start:		PKDMA flow range start of mapped channel. Unmapped
+ *			channels use flow_id == chan_id
+ * @flow_num:		PKDMA flow count of mapped channel. Unmapped channels
+ *			use flow_id == chan_id
+ * @default_flow_id:	PKDMA default (r)flow index of mapped channel.
+ *			Must be within the flow range of the mapped channel.
  */
 struct psil_endpoint_config {
 	enum psil_endpoint_type ep_type;
+	enum udma_tp_level channel_tpl;
 
 	unsigned pkt_mode:1;
 	unsigned notdpkt:1;
 	unsigned needs_epib:1;
-	u32 psd_size;
-	enum udma_tp_level channel_tpl;
-
 	/* PDMA properties, valid for PSIL_EP_PDMA_* */
 	unsigned pdma_acc32:1;
 	unsigned pdma_burst:1;
+
+	u32 psd_size;
+	/* PKDMA mapped channel */
+	s16 mapped_channel_id;
+	/* PKTDMA tflow and rflow ranges for mapped channel */
+	u16 flow_start;
+	u16 flow_num;
+	s16 default_flow_id;
 };
 
 int psil_set_new_ep_config(struct device *dev, const char *name,

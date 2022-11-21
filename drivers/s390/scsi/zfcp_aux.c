@@ -292,6 +292,14 @@ static void _zfcp_status_read_scheduler(struct work_struct *work)
 					     stat_work));
 }
 
+static void zfcp_version_change_lost_work(struct work_struct *work)
+{
+	struct zfcp_adapter *adapter = container_of(work, struct zfcp_adapter,
+						    version_change_lost_work);
+
+	zfcp_fsf_exchange_config_data_sync(adapter->qdio, NULL);
+}
+
 static void zfcp_print_sl(struct seq_file *m, struct service_level *sl)
 {
 	struct zfcp_adapter *adapter =
@@ -353,6 +361,8 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	INIT_WORK(&adapter->stat_work, _zfcp_status_read_scheduler);
 	INIT_DELAYED_WORK(&adapter->scan_work, zfcp_fc_scan_ports);
 	INIT_WORK(&adapter->ns_up_work, zfcp_fc_sym_name_update);
+	INIT_WORK(&adapter->version_change_lost_work,
+		  zfcp_version_change_lost_work);
 
 	adapter->next_port_scan = jiffies;
 
@@ -403,12 +413,8 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	dev_set_drvdata(&ccw_device->dev, adapter);
 
-	if (sysfs_create_group(&ccw_device->dev.kobj,
-			       &zfcp_sysfs_adapter_attrs))
-		goto failed;
-
-	if (zfcp_diag_sysfs_setup(adapter))
-		goto failed;
+	if (device_add_groups(&ccw_device->dev, zfcp_sysfs_adapter_attr_groups))
+		goto err_sysfs;
 
 	/* report size limit per scatter-gather segment */
 	adapter->ccw_device->dev.dma_parms = &adapter->dma_parms;
@@ -417,8 +423,23 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	return adapter;
 
+err_sysfs:
 failed:
-	zfcp_adapter_unregister(adapter);
+	/* TODO: make this more fine-granular */
+	cancel_delayed_work_sync(&adapter->scan_work);
+	cancel_work_sync(&adapter->stat_work);
+	cancel_work_sync(&adapter->ns_up_work);
+	cancel_work_sync(&adapter->version_change_lost_work);
+	zfcp_destroy_adapter_work_queue(adapter);
+
+	zfcp_fc_wka_ports_force_offline(adapter->gs);
+	zfcp_scsi_adapter_unregister(adapter);
+
+	zfcp_erp_thread_kill(adapter);
+	zfcp_dbf_adapter_unregister(adapter);
+	zfcp_qdio_destroy(adapter->qdio);
+
+	zfcp_ccw_adapter_put(adapter); /* final put to release */
 	return ERR_PTR(-ENOMEM);
 }
 
@@ -429,12 +450,12 @@ void zfcp_adapter_unregister(struct zfcp_adapter *adapter)
 	cancel_delayed_work_sync(&adapter->scan_work);
 	cancel_work_sync(&adapter->stat_work);
 	cancel_work_sync(&adapter->ns_up_work);
+	cancel_work_sync(&adapter->version_change_lost_work);
 	zfcp_destroy_adapter_work_queue(adapter);
 
 	zfcp_fc_wka_ports_force_offline(adapter->gs);
 	zfcp_scsi_adapter_unregister(adapter);
-	zfcp_diag_sysfs_destroy(adapter);
-	sysfs_remove_group(&cdev->dev.kobj, &zfcp_sysfs_adapter_attrs);
+	device_remove_groups(&cdev->dev, zfcp_sysfs_adapter_attr_groups);
 
 	zfcp_erp_thread_kill(adapter);
 	zfcp_dbf_adapter_unregister(adapter);

@@ -1,229 +1,229 @@
 [
     {
-        "PEBS": "1",
-        "EventCode": "0xF7",
+        "BriefDescription": "X87 Floating point assists (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0xF7",
         "EventName": "FP_ASSIST.ALL",
+        "PEBS": "1",
         "SampleAfterValue": "20000",
-        "BriefDescription": "X87 Floating point assists (Precise Event)"
+        "UMask": "0x1"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xF7",
+        "BriefDescription": "X87 Floating poiint assists for invalid input value (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
+        "EventCode": "0xF7",
         "EventName": "FP_ASSIST.INPUT",
-        "SampleAfterValue": "20000",
-        "BriefDescription": "X87 Floating poiint assists for invalid input value (Precise Event)"
-    },
-    {
         "PEBS": "1",
-        "EventCode": "0xF7",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "FP_ASSIST.OUTPUT",
         "SampleAfterValue": "20000",
-        "BriefDescription": "X87 Floating point assists for invalid output value (Precise Event)"
+        "UMask": "0x4"
     },
     {
-        "EventCode": "0x10",
+        "BriefDescription": "X87 Floating point assists for invalid output value (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0xF7",
+        "EventName": "FP_ASSIST.OUTPUT",
+        "PEBS": "1",
+        "SampleAfterValue": "20000",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "MMX Uops",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x10",
         "EventName": "FP_COMP_OPS_EXE.MMX",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "MMX Uops"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0x10",
+        "BriefDescription": "SSE2 integer Uops",
         "Counter": "0,1,2,3",
-        "UMask": "0x80",
-        "EventName": "FP_COMP_OPS_EXE.SSE_DOUBLE_PRECISION",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SSE* FP double precision Uops"
-    },
-    {
         "EventCode": "0x10",
-        "Counter": "0,1,2,3",
-        "UMask": "0x4",
-        "EventName": "FP_COMP_OPS_EXE.SSE_FP",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SSE and SSE2 FP Uops"
-    },
-    {
-        "EventCode": "0x10",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
-        "EventName": "FP_COMP_OPS_EXE.SSE_FP_PACKED",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SSE FP packed Uops"
-    },
-    {
-        "EventCode": "0x10",
-        "Counter": "0,1,2,3",
-        "UMask": "0x20",
-        "EventName": "FP_COMP_OPS_EXE.SSE_FP_SCALAR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SSE FP scalar Uops"
-    },
-    {
-        "EventCode": "0x10",
-        "Counter": "0,1,2,3",
-        "UMask": "0x40",
-        "EventName": "FP_COMP_OPS_EXE.SSE_SINGLE_PRECISION",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SSE* FP single precision Uops"
-    },
-    {
-        "EventCode": "0x10",
-        "Counter": "0,1,2,3",
-        "UMask": "0x8",
         "EventName": "FP_COMP_OPS_EXE.SSE2_INTEGER",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "SSE2 integer Uops"
+        "UMask": "0x8"
     },
     {
-        "EventCode": "0x10",
+        "BriefDescription": "SSE* FP double precision Uops",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0x10",
+        "EventName": "FP_COMP_OPS_EXE.SSE_DOUBLE_PRECISION",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x80"
+    },
+    {
+        "BriefDescription": "SSE and SSE2 FP Uops",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x10",
+        "EventName": "FP_COMP_OPS_EXE.SSE_FP",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "SSE FP packed Uops",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x10",
+        "EventName": "FP_COMP_OPS_EXE.SSE_FP_PACKED",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "SSE FP scalar Uops",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x10",
+        "EventName": "FP_COMP_OPS_EXE.SSE_FP_SCALAR",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "SSE* FP single precision Uops",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x10",
+        "EventName": "FP_COMP_OPS_EXE.SSE_SINGLE_PRECISION",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "Computational floating-point operations executed",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x10",
         "EventName": "FP_COMP_OPS_EXE.X87",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Computational floating-point operations executed"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xCC",
+        "BriefDescription": "All Floating Point to and from MMX transitions",
         "Counter": "0,1,2,3",
-        "UMask": "0x3",
+        "EventCode": "0xCC",
         "EventName": "FP_MMX_TRANS.ANY",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "All Floating Point to and from MMX transitions"
+        "UMask": "0x3"
     },
     {
-        "EventCode": "0xCC",
+        "BriefDescription": "Transitions from MMX to Floating Point instructions",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0xCC",
         "EventName": "FP_MMX_TRANS.TO_FP",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Transitions from MMX to Floating Point instructions"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xCC",
+        "BriefDescription": "Transitions from Floating Point to MMX instructions",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0xCC",
         "EventName": "FP_MMX_TRANS.TO_MMX",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Transitions from Floating Point to MMX instructions"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0x12",
+        "BriefDescription": "128 bit SIMD integer pack operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
+        "EventCode": "0x12",
         "EventName": "SIMD_INT_128.PACK",
         "SampleAfterValue": "200000",
-        "BriefDescription": "128 bit SIMD integer pack operations"
+        "UMask": "0x4"
     },
     {
-        "EventCode": "0x12",
+        "BriefDescription": "128 bit SIMD integer arithmetic operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x20",
+        "EventCode": "0x12",
         "EventName": "SIMD_INT_128.PACKED_ARITH",
         "SampleAfterValue": "200000",
-        "BriefDescription": "128 bit SIMD integer arithmetic operations"
+        "UMask": "0x20"
     },
     {
-        "EventCode": "0x12",
+        "BriefDescription": "128 bit SIMD integer logical operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x10",
+        "EventCode": "0x12",
         "EventName": "SIMD_INT_128.PACKED_LOGICAL",
         "SampleAfterValue": "200000",
-        "BriefDescription": "128 bit SIMD integer logical operations"
+        "UMask": "0x10"
     },
     {
-        "EventCode": "0x12",
+        "BriefDescription": "128 bit SIMD integer multiply operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0x12",
         "EventName": "SIMD_INT_128.PACKED_MPY",
         "SampleAfterValue": "200000",
-        "BriefDescription": "128 bit SIMD integer multiply operations"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x12",
+        "BriefDescription": "128 bit SIMD integer shift operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0x12",
         "EventName": "SIMD_INT_128.PACKED_SHIFT",
         "SampleAfterValue": "200000",
-        "BriefDescription": "128 bit SIMD integer shift operations"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0x12",
+        "BriefDescription": "128 bit SIMD integer shuffle/move operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x40",
+        "EventCode": "0x12",
         "EventName": "SIMD_INT_128.SHUFFLE_MOVE",
         "SampleAfterValue": "200000",
-        "BriefDescription": "128 bit SIMD integer shuffle/move operations"
+        "UMask": "0x40"
     },
     {
-        "EventCode": "0x12",
+        "BriefDescription": "128 bit SIMD integer unpack operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x8",
+        "EventCode": "0x12",
         "EventName": "SIMD_INT_128.UNPACK",
         "SampleAfterValue": "200000",
-        "BriefDescription": "128 bit SIMD integer unpack operations"
+        "UMask": "0x8"
     },
     {
-        "EventCode": "0xFD",
+        "BriefDescription": "SIMD integer 64 bit pack operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
+        "EventCode": "0xFD",
         "EventName": "SIMD_INT_64.PACK",
         "SampleAfterValue": "200000",
-        "BriefDescription": "SIMD integer 64 bit pack operations"
+        "UMask": "0x4"
     },
     {
-        "EventCode": "0xFD",
+        "BriefDescription": "SIMD integer 64 bit arithmetic operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x20",
+        "EventCode": "0xFD",
         "EventName": "SIMD_INT_64.PACKED_ARITH",
         "SampleAfterValue": "200000",
-        "BriefDescription": "SIMD integer 64 bit arithmetic operations"
+        "UMask": "0x20"
     },
     {
-        "EventCode": "0xFD",
+        "BriefDescription": "SIMD integer 64 bit logical operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x10",
+        "EventCode": "0xFD",
         "EventName": "SIMD_INT_64.PACKED_LOGICAL",
         "SampleAfterValue": "200000",
-        "BriefDescription": "SIMD integer 64 bit logical operations"
+        "UMask": "0x10"
     },
     {
-        "EventCode": "0xFD",
+        "BriefDescription": "SIMD integer 64 bit packed multiply operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0xFD",
         "EventName": "SIMD_INT_64.PACKED_MPY",
         "SampleAfterValue": "200000",
-        "BriefDescription": "SIMD integer 64 bit packed multiply operations"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xFD",
+        "BriefDescription": "SIMD integer 64 bit shift operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0xFD",
         "EventName": "SIMD_INT_64.PACKED_SHIFT",
         "SampleAfterValue": "200000",
-        "BriefDescription": "SIMD integer 64 bit shift operations"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0xFD",
+        "BriefDescription": "SIMD integer 64 bit shuffle/move operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x40",
+        "EventCode": "0xFD",
         "EventName": "SIMD_INT_64.SHUFFLE_MOVE",
         "SampleAfterValue": "200000",
-        "BriefDescription": "SIMD integer 64 bit shuffle/move operations"
+        "UMask": "0x40"
     },
     {
-        "EventCode": "0xFD",
+        "BriefDescription": "SIMD integer 64 bit unpack operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x8",
+        "EventCode": "0xFD",
         "EventName": "SIMD_INT_64.UNPACK",
         "SampleAfterValue": "200000",
-        "BriefDescription": "SIMD integer 64 bit unpack operations"
+        "UMask": "0x8"
     }
 ]

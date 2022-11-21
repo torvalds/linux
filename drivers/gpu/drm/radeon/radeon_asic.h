@@ -99,8 +99,8 @@ void r100_hpd_fini(struct radeon_device *rdev);
 bool r100_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 void r100_hpd_set_polarity(struct radeon_device *rdev,
 			   enum radeon_hpd_id hpd);
-int r100_debugfs_rbbm_init(struct radeon_device *rdev);
-int r100_debugfs_cp_init(struct radeon_device *rdev);
+void r100_debugfs_rbbm_init(struct radeon_device *rdev);
+void r100_debugfs_cp_init(struct radeon_device *rdev);
 void r100_cp_disable(struct radeon_device *rdev);
 int r100_cp_init(struct radeon_device *rdev, unsigned ring_size);
 void r100_cp_fini(struct radeon_device *rdev);
@@ -108,7 +108,7 @@ int r100_pci_gart_init(struct radeon_device *rdev);
 void r100_pci_gart_fini(struct radeon_device *rdev);
 int r100_pci_gart_enable(struct radeon_device *rdev);
 void r100_pci_gart_disable(struct radeon_device *rdev);
-int r100_debugfs_mc_info_init(struct radeon_device *rdev);
+void  r100_debugfs_mc_info_init(struct radeon_device *rdev);
 int r100_gui_wait_for_idle(struct radeon_device *rdev);
 int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 void r100_irq_disable(struct radeon_device *rdev);
@@ -187,7 +187,6 @@ extern int rv370_pcie_gart_init(struct radeon_device *rdev);
 extern void rv370_pcie_gart_fini(struct radeon_device *rdev);
 extern int rv370_pcie_gart_enable(struct radeon_device *rdev);
 extern void rv370_pcie_gart_disable(struct radeon_device *rdev);
-extern int r300_mc_wait_for_idle(struct radeon_device *rdev);
 
 /*
  * r420,r423,rv410
@@ -199,7 +198,7 @@ extern int r420_resume(struct radeon_device *rdev);
 extern void r420_pm_init_profile(struct radeon_device *rdev);
 extern u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg);
 extern void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v);
-extern int r420_debugfs_pipes_info_init(struct radeon_device *rdev);
+extern void r420_debugfs_pipes_info_init(struct radeon_device *rdev);
 extern void r420_pipes_init(struct radeon_device *rdev);
 
 /*
@@ -404,7 +403,6 @@ void r600_hdmi_update_ACR(struct drm_encoder *encoder, uint32_t clock);
 void r600_hdmi_audio_workaround(struct drm_encoder *encoder);
 int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
-int r600_mc_wait_for_idle(struct radeon_device *rdev);
 u32 r600_get_xclk(struct radeon_device *rdev);
 uint64_t r600_get_gpu_clock_counter(struct radeon_device *rdev);
 int rv6xx_get_temp(struct radeon_device *rdev);
@@ -596,6 +594,7 @@ int sumo_dpm_force_performance_level(struct radeon_device *rdev,
 				     enum radeon_dpm_forced_level level);
 u32 sumo_dpm_get_current_sclk(struct radeon_device *rdev);
 u32 sumo_dpm_get_current_mclk(struct radeon_device *rdev);
+u16 sumo_dpm_get_current_vddc(struct radeon_device *rdev);
 
 /*
  * cayman

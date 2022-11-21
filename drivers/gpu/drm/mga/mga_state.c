@@ -942,7 +942,6 @@ static int mga_dma_iload(struct drm_device *dev, void *data, struct drm_file *fi
 	struct drm_device_dma *dma = dev->dma;
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	struct drm_buf *buf;
-	drm_mga_buf_priv_t *buf_priv;
 	drm_mga_iload_t *iload = data;
 	DRM_DEBUG("\n");
 
@@ -959,7 +958,6 @@ static int mga_dma_iload(struct drm_device *dev, void *data, struct drm_file *fi
 		return -EINVAL;
 
 	buf = dma->buflist[iload->idx];
-	buf_priv = buf->dev_private;
 
 	if (mga_verify_iload(dev_priv, iload->dstorg, iload->length)) {
 		mga_freelist_put(dev, buf);
@@ -1007,6 +1005,7 @@ int mga_getparam(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_mga_getparam_t *param = data;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int value;
 
 	if (!dev_priv) {
@@ -1018,7 +1017,7 @@ int mga_getparam(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 	switch (param->param) {
 	case MGA_PARAM_IRQ_NR:
-		value = dev->pdev->irq;
+		value = pdev->irq;
 		break;
 	case MGA_PARAM_CARD_TYPE:
 		value = dev_priv->chipset;

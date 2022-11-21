@@ -74,7 +74,7 @@
  *                |↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓|   updates the
  *                |                                        |   frame as it
  *                |                                        |   travels down
- *                |                                        |   ("sacn out")
+ *                |                                        |   ("scan out")
  *                |               Old frame                |
  *                |                                        |
  *                |                                        |
@@ -191,7 +191,7 @@ static u32 drm_max_vblank_count(struct drm_device *dev, unsigned int pipe)
 
 /*
  * "No hw counter" fallback implementation of .get_vblank_counter() hook,
- * if there is no useable hardware frame counter available.
+ * if there is no usable hardware frame counter available.
  */
 static u32 drm_vblank_no_hw_counter(struct drm_device *dev, unsigned int pipe)
 {
@@ -209,9 +209,12 @@ static u32 __get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 
 		if (crtc->funcs->get_vblank_counter)
 			return crtc->funcs->get_vblank_counter(crtc);
-	} else if (dev->driver->get_vblank_counter) {
+	}
+#ifdef CONFIG_DRM_LEGACY
+	else if (dev->driver->get_vblank_counter) {
 		return dev->driver->get_vblank_counter(dev, pipe);
 	}
+#endif
 
 	return drm_vblank_no_hw_counter(dev, pipe);
 }
@@ -429,9 +432,12 @@ static void __disable_vblank(struct drm_device *dev, unsigned int pipe)
 
 		if (crtc->funcs->disable_vblank)
 			crtc->funcs->disable_vblank(crtc);
-	} else {
+	}
+#ifdef CONFIG_DRM_LEGACY
+	else {
 		dev->driver->disable_vblank(dev, pipe);
 	}
+#endif
 }
 
 /*
@@ -899,7 +905,7 @@ drm_get_last_vbltimestamp(struct drm_device *dev, unsigned int pipe,
  * and drm_crtc_vblank_count() or drm_crtc_vblank_count_and_time()
  * provide a barrier: Any writes done before calling
  * drm_crtc_handle_vblank() will be visible to callers of the later
- * functions, iff the vblank count is the same or a later one.
+ * functions, if the vblank count is the same or a later one.
  *
  * See also &drm_vblank_crtc.count.
  *
@@ -962,7 +968,7 @@ static u64 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
  * and drm_crtc_vblank_count() or drm_crtc_vblank_count_and_time()
  * provide a barrier: Any writes done before calling
  * drm_crtc_handle_vblank() will be visible to callers of the later
- * functions, iff the vblank count is the same or a later one.
+ * functions, if the vblank count is the same or a later one.
  *
  * See also &drm_vblank_crtc.count.
  */
@@ -1000,7 +1006,14 @@ static void send_vblank_event(struct drm_device *dev,
 		break;
 	}
 	trace_drm_vblank_event_delivered(e->base.file_priv, e->pipe, seq);
-	drm_send_event_locked(dev, &e->base);
+	/*
+	 * Use the same timestamp for any associated fence signal to avoid
+	 * mismatch in timestamps for vsync & fence events triggered by the
+	 * same HW event. Frameworks like SurfaceFlinger in Android expects the
+	 * retire-fence timestamp to match exactly with HW vsync as it uses it
+	 * for its software vsync modeling.
+	 */
+	drm_send_event_timestamp_locked(dev, &e->base, now);
 }
 
 /**
@@ -1096,9 +1109,12 @@ static int __enable_vblank(struct drm_device *dev, unsigned int pipe)
 
 		if (crtc->funcs->enable_vblank)
 			return crtc->funcs->enable_vblank(crtc);
-	} else if (dev->driver->enable_vblank) {
+	}
+#ifdef CONFIG_DRM_LEGACY
+	else if (dev->driver->enable_vblank) {
 		return dev->driver->enable_vblank(dev, pipe);
 	}
+#endif
 
 	return -EINVAL;
 }
@@ -1454,20 +1470,7 @@ void drm_crtc_vblank_on(struct drm_crtc *crtc)
 }
 EXPORT_SYMBOL(drm_crtc_vblank_on);
 
-/**
- * drm_vblank_restore - estimate missed vblanks and update vblank count.
- * @dev: DRM device
- * @pipe: CRTC index
- *
- * Power manamement features can cause frame counter resets between vblank
- * disable and enable. Drivers can use this function in their
- * &drm_crtc_funcs.enable_vblank implementation to estimate missed vblanks since
- * the last &drm_crtc_funcs.disable_vblank using timestamps and update the
- * vblank counter.
- *
- * This function is the legacy version of drm_crtc_vblank_restore().
- */
-void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
+static void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
 {
 	ktime_t t_vblank;
 	struct drm_vblank_crtc *vblank;
@@ -1475,6 +1478,7 @@ void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
 	u64 diff_ns;
 	u32 cur_vblank, diff = 1;
 	int count = DRM_TIMESTAMP_MAXRETRIES;
+	u32 max_vblank_count = drm_max_vblank_count(dev, pipe);
 
 	if (drm_WARN_ON(dev, pipe >= dev->num_crtcs))
 		return;
@@ -1501,9 +1505,8 @@ void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
 	drm_dbg_vbl(dev,
 		    "missed %d vblanks in %lld ns, frame duration=%d ns, hw_diff=%d\n",
 		    diff, diff_ns, framedur_ns, cur_vblank - vblank->last);
-	store_vblank(dev, pipe, diff, t_vblank, cur_vblank);
+	vblank->last = (cur_vblank - diff) & max_vblank_count;
 }
-EXPORT_SYMBOL(drm_vblank_restore);
 
 /**
  * drm_crtc_vblank_restore - estimate missed vblanks and update vblank count.
@@ -1514,9 +1517,18 @@ EXPORT_SYMBOL(drm_vblank_restore);
  * &drm_crtc_funcs.enable_vblank implementation to estimate missed vblanks since
  * the last &drm_crtc_funcs.disable_vblank using timestamps and update the
  * vblank counter.
+ *
+ * Note that drivers must have race-free high-precision timestamping support,
+ * i.e.  &drm_crtc_funcs.get_vblank_timestamp must be hooked up and
+ * &drm_driver.vblank_disable_immediate must be set to indicate the
+ * time-stamping functions are race-free against vblank hardware counter
+ * increments.
  */
 void drm_crtc_vblank_restore(struct drm_crtc *crtc)
 {
+	WARN_ON_ONCE(!crtc->funcs->get_vblank_timestamp);
+	WARN_ON_ONCE(!crtc->dev->vblank_disable_immediate);
+
 	drm_vblank_restore(crtc->dev, drm_crtc_index(crtc));
 }
 EXPORT_SYMBOL(drm_crtc_vblank_restore);
@@ -1725,6 +1737,15 @@ static void drm_wait_vblank_reply(struct drm_device *dev, unsigned int pipe,
 	reply->tval_usec = ts.tv_nsec / 1000;
 }
 
+static bool drm_wait_vblank_supported(struct drm_device *dev)
+{
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
+	if (unlikely(drm_core_check_feature(dev, DRIVER_LEGACY)))
+		return dev->irq_enabled;
+#endif
+	return drm_dev_has_vblank(dev);
+}
+
 int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
@@ -1736,7 +1757,7 @@ int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
 	unsigned int pipe_index;
 	unsigned int flags, pipe, high_pipe;
 
-	if (!dev->irq_enabled)
+	if (!drm_wait_vblank_supported(dev))
 		return -EOPNOTSUPP;
 
 	if (vblwait->request.type & _DRM_VBLANK_SIGNAL)
@@ -1976,7 +1997,7 @@ EXPORT_SYMBOL(drm_handle_vblank);
  * and drm_crtc_vblank_count() or drm_crtc_vblank_count_and_time()
  * provide a barrier: Any writes done before calling
  * drm_crtc_handle_vblank() will be visible to callers of the later
- * functions, iff the vblank count is the same or a later one.
+ * functions, if the vblank count is the same or a later one.
  *
  * See also &drm_vblank_crtc.count.
  *
@@ -1993,7 +2014,7 @@ EXPORT_SYMBOL(drm_crtc_handle_vblank);
  * Get crtc VBLANK count.
  *
  * \param dev DRM device
- * \param data user arguement, pointing to a drm_crtc_get_sequence structure.
+ * \param data user argument, pointing to a drm_crtc_get_sequence structure.
  * \param file_priv drm file private for the user's open file descriptor
  */
 
@@ -2011,7 +2032,7 @@ int drm_crtc_get_sequence_ioctl(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EOPNOTSUPP;
 
-	if (!dev->irq_enabled)
+	if (!drm_dev_has_vblank(dev))
 		return -EOPNOTSUPP;
 
 	crtc = drm_crtc_find(dev, file_priv, get_seq->crtc_id);
@@ -2049,7 +2070,7 @@ int drm_crtc_get_sequence_ioctl(struct drm_device *dev, void *data,
  * Queue a event for VBLANK sequence
  *
  * \param dev DRM device
- * \param data user arguement, pointing to a drm_crtc_queue_sequence structure.
+ * \param data user argument, pointing to a drm_crtc_queue_sequence structure.
  * \param file_priv drm file private for the user's open file descriptor
  */
 
@@ -2070,7 +2091,7 @@ int drm_crtc_queue_sequence_ioctl(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EOPNOTSUPP;
 
-	if (!dev->irq_enabled)
+	if (!drm_dev_has_vblank(dev))
 		return -EOPNOTSUPP;
 
 	crtc = drm_crtc_find(dev, file_priv, queue_seq->crtc_id);

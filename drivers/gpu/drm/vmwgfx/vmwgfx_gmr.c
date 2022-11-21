@@ -51,7 +51,7 @@ static int vmw_gmr2_bind(struct vmw_private *dev_priv,
 	uint32_t cmd_size = define_size + remap_size;
 	uint32_t i;
 
-	cmd_orig = cmd = VMW_FIFO_RESERVE(dev_priv, cmd_size);
+	cmd_orig = cmd = VMW_CMD_RESERVE(dev_priv, cmd_size);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -72,7 +72,7 @@ static int vmw_gmr2_bind(struct vmw_private *dev_priv,
 		SVGA_REMAP_GMR2_PPN64 : SVGA_REMAP_GMR2_PPN32;
 
 	while (num_pages > 0) {
-		unsigned long nr = min(num_pages, (unsigned long)VMW_PPN_PER_REMAP);
+		unsigned long nr = min_t(unsigned long, num_pages, VMW_PPN_PER_REMAP);
 
 		remap_cmd.offsetPages = remap_pos;
 		remap_cmd.numPages = nr;
@@ -98,7 +98,7 @@ static int vmw_gmr2_bind(struct vmw_private *dev_priv,
 
 	BUG_ON(cmd != cmd_orig + cmd_size / sizeof(*cmd));
 
-	vmw_fifo_commit(dev_priv, cmd_size);
+	vmw_cmd_commit(dev_priv, cmd_size);
 
 	return 0;
 }
@@ -110,7 +110,7 @@ static void vmw_gmr2_unbind(struct vmw_private *dev_priv,
 	uint32_t define_size = sizeof(define_cmd) + 4;
 	uint32_t *cmd;
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, define_size);
+	cmd = VMW_CMD_RESERVE(dev_priv, define_size);
 	if (unlikely(cmd == NULL))
 		return;
 
@@ -120,7 +120,7 @@ static void vmw_gmr2_unbind(struct vmw_private *dev_priv,
 	*cmd++ = SVGA_CMD_DEFINE_GMR2;
 	memcpy(cmd, &define_cmd, sizeof(define_cmd));
 
-	vmw_fifo_commit(dev_priv, define_size);
+	vmw_cmd_commit(dev_priv, define_size);
 }
 
 

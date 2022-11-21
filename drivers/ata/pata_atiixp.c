@@ -93,6 +93,7 @@ static int atiixp_prereset(struct ata_link *link, unsigned long deadline)
  *	atiixp_set_pio_timing	-	set initial PIO mode data
  *	@ap: ATA interface
  *	@adev: ATA device
+ *	@pio: Requested PIO
  *
  *	Called by both the pio and dma setup functions to set the controller
  *	timings for PIO transfers. We must load both the mode number and
@@ -101,7 +102,7 @@ static int atiixp_prereset(struct ata_link *link, unsigned long deadline)
 
 static void atiixp_set_pio_timing(struct ata_port *ap, struct ata_device *adev, int pio)
 {
-	static u8 pio_timings[5] = { 0x5D, 0x47, 0x34, 0x22, 0x20 };
+	static const u8 pio_timings[5] = { 0x5D, 0x47, 0x34, 0x22, 0x20 };
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int dn = 2 * ap->port_no + adev->devno;
@@ -148,7 +149,7 @@ static void atiixp_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 static void atiixp_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
-	static u8 mwdma_timings[5] = { 0x77, 0x21, 0x20 };
+	static const u8 mwdma_timings[5] = { 0x77, 0x21, 0x20 };
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int dma = adev->dma_mode;
@@ -227,7 +228,7 @@ static void atiixp_bmdma_start(struct ata_queued_cmd *qc)
 }
 
 /**
- *	atiixp_dma_stop	-	DMA stop callback
+ *	atiixp_bmdma_stop	-	DMA stop callback
  *	@qc: Command in progress
  *
  *	DMA has completed. Clear the UDMA flag as the next operations will
@@ -251,8 +252,9 @@ static void atiixp_bmdma_stop(struct ata_queued_cmd *qc)
 }
 
 static struct scsi_host_template atiixp_sht = {
-	ATA_BMDMA_SHT(DRV_NAME),
+	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize		= LIBATA_DUMB_MAX_PRD,
+	.dma_boundary		= ATA_DMA_BOUNDARY,
 };
 
 static struct ata_port_operations atiixp_port_ops = {

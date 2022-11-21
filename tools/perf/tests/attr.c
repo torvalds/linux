@@ -34,6 +34,7 @@
 #include "event.h"
 #include "util.h"
 #include "tests.h"
+#include "pmu.h"
 
 #define ENV "PERF_TEST_ATTR"
 
@@ -64,7 +65,7 @@ do {									\
 
 #define WRITE_ASS(field, fmt) __WRITE_ASS(field, fmt, attr->field)
 
-static int store_event(struct perf_event_attr *attr, pid_t pid, int cpu,
+static int store_event(struct perf_event_attr *attr, pid_t pid, struct perf_cpu cpu,
 		       int fd, int group_fd, unsigned long flags)
 {
 	FILE *file;
@@ -92,7 +93,7 @@ static int store_event(struct perf_event_attr *attr, pid_t pid, int cpu,
 	/* syscall arguments */
 	__WRITE_ASS(fd,       "d", fd);
 	__WRITE_ASS(group_fd, "d", group_fd);
-	__WRITE_ASS(cpu,      "d", cpu);
+	__WRITE_ASS(cpu,      "d", cpu.cpu);
 	__WRITE_ASS(pid,      "d", pid);
 	__WRITE_ASS(flags,   "lu", flags);
 
@@ -143,7 +144,7 @@ static int store_event(struct perf_event_attr *attr, pid_t pid, int cpu,
 	return 0;
 }
 
-void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
+void test_attr__open(struct perf_event_attr *attr, pid_t pid, struct perf_cpu cpu,
 		     int fd, int group_fd, unsigned long flags)
 {
 	int errno_saved = errno;
@@ -177,19 +178,28 @@ static int run_dir(const char *d, const char *perf)
 	return system(cmd) ? TEST_FAIL : TEST_OK;
 }
 
-int test__attr(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__attr(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct stat st;
 	char path_perf[PATH_MAX];
 	char path_dir[PATH_MAX];
+	char *exec_path;
+
+	if (perf_pmu__has_hybrid())
+		return TEST_SKIP;
 
 	/* First try development tree tests. */
 	if (!lstat("./tests", &st))
 		return run_dir("./tests", "./perf");
 
+	exec_path = get_argv_exec_path();
+	if (exec_path == NULL)
+		return -1;
+
 	/* Then installed path. */
-	snprintf(path_dir,  PATH_MAX, "%s/tests", get_argv_exec_path());
+	snprintf(path_dir,  PATH_MAX, "%s/tests", exec_path);
 	snprintf(path_perf, PATH_MAX, "%s/perf", BINDIR);
+	free(exec_path);
 
 	if (!lstat(path_dir, &st) &&
 	    !lstat(path_perf, &st))
@@ -197,3 +207,5 @@ int test__attr(struct test *test __maybe_unused, int subtest __maybe_unused)
 
 	return TEST_SKIP;
 }
+
+DEFINE_SUITE("Setup struct perf_event_attr", attr);

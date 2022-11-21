@@ -770,7 +770,7 @@ static u32 smooth_alg(u32 new_param, u32 old_param)
 }
 
 /**
- * hns_nic_adp_coalesce - self adapte coalesce according to rx rate
+ * hns_nic_adpt_coalesce - self adapte coalesce according to rx rate
  * @ring_data: pointer to hns_nic_ring_data
  **/
 static void hns_nic_adpt_coalesce(struct hns_nic_ring_data *ring_data)
@@ -872,7 +872,7 @@ out:
 static bool hns_nic_rx_fini_pro(struct hns_nic_ring_data *ring_data)
 {
 	struct hnae_ring *ring = ring_data->ring;
-	int num = 0;
+	int num;
 	bool rx_stopped;
 
 	hns_update_rx_rate(ring);
@@ -1194,7 +1194,7 @@ static int hns_nic_net_set_mac_address(struct net_device *ndev, void *p)
 		return ret;
 	}
 
-	memcpy(ndev->dev_addr, mac_addr->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, mac_addr->sa_data);
 
 	return 0;
 }
@@ -1212,7 +1212,7 @@ static void hns_init_mac_addr(struct net_device *ndev)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 
-	if (!device_get_mac_address(priv->dev, ndev->dev_addr, ETH_ALEN)) {
+	if (device_get_ethdev_address(priv->dev, ndev)) {
 		eth_hw_addr_random(ndev);
 		dev_warn(priv->dev, "No valid mac, use random mac %pM",
 			 ndev->dev_addr);
@@ -1235,7 +1235,7 @@ static int hns_nic_init_affinity_mask(int q_num, int ring_idx,
 {
 	int cpu;
 
-	/* Diffrent irq banlance between 16core and 32core.
+	/* Different irq balance between 16core and 32core.
 	 * The cpu mask set by ring index according to the ring flag
 	 * which indicate the ring is tx or rx.
 	 */
@@ -1502,7 +1502,7 @@ static netdev_tx_t hns_nic_net_xmit(struct sk_buff *skb,
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 
-	assert(skb->queue_mapping < ndev->ae_handle->q_num);
+	assert(skb->queue_mapping < priv->ae_handle->q_num);
 
 	return hns_nic_net_xmit_hw(ndev, skb,
 				   &tx_ring_data(priv, skb->queue_mapping));
@@ -1592,7 +1592,7 @@ static void hns_disable_serdes_lb(struct net_device *ndev)
  *       which buffer size is 4096.
  *    2. we set the chip serdes loopback and set rss indirection to the ring.
  *    3. construct 64-bytes ip broadcast packages, wait the associated rx ring
- *       recieving all packages and it will fetch new descriptions.
+ *       receiving all packages and it will fetch new descriptions.
  *    4. recover to the original state.
  *
  *@ndev: net device
@@ -1621,7 +1621,7 @@ static int hns_nic_clear_all_rx_fetch(struct net_device *ndev)
 	if (!org_indir)
 		return -ENOMEM;
 
-	/* store the orginal indirection */
+	/* store the original indirection */
 	ops->get_rss(h, org_indir, NULL, NULL);
 
 	cur_indir = kzalloc(indir_size, GFP_KERNEL);
@@ -1663,8 +1663,10 @@ static int hns_nic_clear_all_rx_fetch(struct net_device *ndev)
 			for (j = 0; j < fetch_num; j++) {
 				/* alloc one skb and init */
 				skb = hns_assemble_skb(ndev);
-				if (!skb)
+				if (!skb) {
+					ret = -ENOMEM;
 					goto out;
+				}
 				rd = &tx_ring_data(priv, skb->queue_mapping);
 				hns_nic_net_xmit_hw(ndev, skb, rd);
 
@@ -1879,7 +1881,7 @@ static void hns_nic_set_rx_mode(struct net_device *ndev)
 static void hns_nic_get_stats64(struct net_device *ndev,
 				struct rtnl_link_stats64 *stats)
 {
-	int idx = 0;
+	int idx;
 	u64 tx_bytes = 0;
 	u64 rx_bytes = 0;
 	u64 tx_pkts = 0;
@@ -1943,7 +1945,7 @@ static const struct net_device_ops hns_nic_netdev_ops = {
 	.ndo_tx_timeout = hns_nic_net_timeout,
 	.ndo_set_mac_address = hns_nic_net_set_mac_address,
 	.ndo_change_mtu = hns_nic_change_mtu,
-	.ndo_do_ioctl = phy_do_ioctl_running,
+	.ndo_eth_ioctl = phy_do_ioctl_running,
 	.ndo_set_features = hns_nic_set_features,
 	.ndo_fix_features = hns_nic_fix_features,
 	.ndo_get_stats64 = hns_nic_get_stats64,

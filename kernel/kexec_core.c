@@ -26,6 +26,7 @@
 #include <linux/suspend.h>
 #include <linux/device.h>
 #include <linux/freezer.h>
+#include <linux/panic_notifier.h>
 #include <linux/pm.h>
 #include <linux/cpu.h>
 #include <linux/uaccess.h>
@@ -37,12 +38,12 @@
 #include <linux/compiler.h>
 #include <linux/hugetlb.h>
 #include <linux/objtool.h>
+#include <linux/kmsg_dump.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>
 
 #include <crypto/hash.h>
-#include <crypto/sha.h>
 #include "kexec_internal.h"
 
 DEFINE_MUTEX(kexec_mutex);
@@ -80,7 +81,7 @@ int kexec_should_crash(struct task_struct *p)
 	if (crash_kexec_post_notifiers)
 		return 0;
 	/*
-	 * There are 4 panic() calls in do_exit() path, each of which
+	 * There are 4 panic() calls in make_task_dead() path, each of which
 	 * corresponds to each of these 4 conditions.
 	 */
 	if (in_interrupt() || !p->pid || is_global_init(p) || panic_on_oops)
@@ -978,7 +979,6 @@ void crash_kexec(struct pt_regs *regs)
 	old_cpu = atomic_cmpxchg(&panic_cpu, PANIC_CPU_INVALID, this_cpu);
 	if (old_cpu == PANIC_CPU_INVALID) {
 		/* This is the 1st CPU which comes here, so go ahead. */
-		printk_safe_flush_on_panic();
 		__crash_kexec(regs);
 
 		/*
@@ -1077,7 +1077,7 @@ void crash_save_cpu(struct pt_regs *regs, int cpu)
 	if (!buf)
 		return;
 	memset(&prstatus, 0, sizeof(prstatus));
-	prstatus.pr_pid = current->pid;
+	prstatus.common.pr_pid = current->pid;
 	elf_core_copy_kernel_regs(&prstatus.pr_reg, regs);
 	buf = append_elf_note(buf, KEXEC_CORE_NOTE_NAME, NT_PRSTATUS,
 			      &prstatus, sizeof(prstatus));
@@ -1135,7 +1135,6 @@ int kernel_kexec(void)
 
 #ifdef CONFIG_KEXEC_JUMP
 	if (kexec_image->preserve_context) {
-		lock_system_sleep();
 		pm_prepare_console();
 		error = freeze_processes();
 		if (error) {
@@ -1167,7 +1166,7 @@ int kernel_kexec(void)
 #endif
 	{
 		kexec_in_progress = true;
-		kernel_restart_prepare(NULL);
+		kernel_restart_prepare("kexec reboot");
 		migrate_to_reboot_cpu();
 
 		/*
@@ -1181,6 +1180,7 @@ int kernel_kexec(void)
 		machine_shutdown();
 	}
 
+	kmsg_dump(KMSG_DUMP_SHUTDOWN);
 	machine_kexec(kexec_image);
 
 #ifdef CONFIG_KEXEC_JUMP
@@ -1198,7 +1198,6 @@ int kernel_kexec(void)
 		thaw_processes();
  Restore_console:
 		pm_restore_console();
-		unlock_system_sleep();
 	}
 #endif
 

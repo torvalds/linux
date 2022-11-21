@@ -14,6 +14,7 @@
 	model = "Google Snow Rev 5+";
 	compatible = "google,snow-rev5", "samsung,exynos5250",
 		"samsung,exynos5";
+	chassis-type = "laptop";
 
 	sound {
 		compatible = "google,snow-audio-max98090";
@@ -32,7 +33,7 @@
 };
 
 &i2c_7 {
-	max98090: codec@10 {
+	max98090: audio-codec@10 {
 		compatible = "maxim,max98090";
 		reg = <0x10>;
 		interrupts = <4 IRQ_TYPE_NONE>;
@@ -46,7 +47,7 @@
 };
 
 &pinctrl_0 {
-	max98090_irq: max98090-irq {
+	max98090_irq: max98090-irq-pins {
 		samsung,pins = "gpx0-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;

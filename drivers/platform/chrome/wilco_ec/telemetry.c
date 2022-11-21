@@ -256,7 +256,7 @@ static int telem_open(struct inode *inode, struct file *filp)
 	sess_data->dev_data = dev_data;
 	sess_data->has_msg = false;
 
-	nonseekable_open(inode, filp);
+	stream_open(inode, filp);
 	filp->private_data = sess_data;
 
 	return 0;

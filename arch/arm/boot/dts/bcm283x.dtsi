@@ -126,6 +126,8 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
+			gpio-ranges = <&gpio 0 0 54>;
+
 			/* Defines common pin muxing groups
 			 *
 			 * While each pin can have its mux selected
@@ -420,7 +422,7 @@
 			status = "disabled";
 		};
 
-		sdhci: sdhci@7e300000 {
+		sdhci: mmc@7e300000 {
 			compatible = "brcm,bcm2835-sdhci";
 			reg = <0x7e300000 0x100>;
 			interrupts = <2 30>;
@@ -461,14 +463,6 @@
 			clocks = <&clocks BCM2835_CLOCK_VPU>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "disabled";
-		};
-
-		vec: vec@7e806000 {
-			compatible = "brcm,bcm2835-vec";
-			reg = <0x7e806000 0x1000>;
-			clocks = <&clocks BCM2835_CLOCK_VEC>;
-			interrupts = <2 27>;
 			status = "disabled";
 		};
 

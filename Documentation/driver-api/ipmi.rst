@@ -166,8 +166,8 @@ and the type is IPMI_SYSTEM_INTERFACE_ADDR_TYPE.  This is used for talking
 straight to the BMC on the current card.  The channel must be
 IPMI_BMC_CHANNEL.
 
-Messages that are destined to go out on the IPMB bus use the
-IPMI_IPMB_ADDR_TYPE address type.  The format is::
+Messages that are destined to go out on the IPMB bus going through the
+BMC use the IPMI_IPMB_ADDR_TYPE address type.  The format is::
 
   struct ipmi_ipmb_addr
   {
@@ -181,6 +181,23 @@ The "channel" here is generally zero, but some devices support more
 than one channel, it corresponds to the channel as defined in the IPMI
 spec.
 
+There is also an IPMB direct address for a situation where the sender
+is directly on an IPMB bus and doesn't have to go through the BMC.
+You can send messages to a specific management controller (MC) on the
+IPMB using the IPMI_IPMB_DIRECT_ADDR_TYPE with the following format::
+
+  struct ipmi_ipmb_direct_addr
+  {
+	int           addr_type;
+	short         channel;
+	unsigned char slave_addr;
+	unsigned char rq_lun;
+	unsigned char rs_lun;
+  };
+
+The channel is always zero.  You can also receive commands from other
+MCs that you have registered to handle and respond to them, so you can
+use this to implement a management controller on a bus..
 
 Messages
 --------
@@ -347,6 +364,10 @@ specify a bitmask of the channels you want to receive the command from
 user may be registered for each netfn/cmd/channel, but different users
 may register for different commands, or the same command if the
 channel bitmasks do not overlap.
+
+To respond to a received command, set the response bit in the returned
+netfn, use the address from the received message, and use the same
+msgid that you got in the receive message.
 
 From userland, equivalent IOCTLs are provided to do these functions.
 
@@ -569,6 +590,45 @@ web page.
 
 The driver supports a hot add and remove of interfaces through the I2C
 sysfs interface.
+
+The IPMI IPMB Driver
+--------------------
+
+This driver is for supporting a system that sits on an IPMB bus; it
+allows the interface to look like a normal IPMI interface.  Sending
+system interface addressed messages to it will cause the message to go
+to the registered BMC on the system (default at IPMI address 0x20).
+
+It also allows you to directly address other MCs on the bus using the
+ipmb direct addressing.  You can receive commands from other MCs on
+the bus and they will be handled through the normal received command
+mechanism described above.
+
+Parameters are::
+
+  ipmi_ipmb.bmcaddr=<address to use for system interface addresses messages>
+	ipmi_ipmb.retry_time_ms=<Time between retries on IPMB>
+	ipmi_ipmb.max_retries=<Number of times to retry a message>
+
+Loading the module will not result in the driver automatcially
+starting unless there is device tree information setting it up.  If
+you want to instantiate one of these by hand, do::
+
+  echo ipmi-ipmb <addr> > /sys/class/i2c-dev/i2c-<n>/device/new_device
+
+Note that the address you give here is the I2C address, not the IPMI
+address.  So if you want your MC address to be 0x60, you put 0x30
+here.  See the I2C driver info for more details.
+
+Command bridging to other IPMB busses through this interface does not
+work.  The receive message queue is not implemented, by design.  There
+is only one receive message queue on a BMC, and that is meant for the
+host drivers, not something on the IPMB bus.
+
+A BMC may have multiple IPMB busses, which bus your device sits on
+depends on how the system is wired.  You can fetch the channels with
+"ipmitool channel info <n>" where <n> is the channel, with the
+channels being 0-7 and try the IPMB channels.
 
 Other Pieces
 ------------

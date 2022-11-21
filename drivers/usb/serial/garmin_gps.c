@@ -1113,7 +1113,7 @@ static int garmin_write(struct tty_struct *tty, struct usb_serial_port *port,
 }
 
 
-static int garmin_write_room(struct tty_struct *tty)
+static unsigned int garmin_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	/*
@@ -1401,7 +1401,7 @@ err_free:
 }
 
 
-static int garmin_port_remove(struct usb_serial_port *port)
+static void garmin_port_remove(struct usb_serial_port *port)
 {
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 
@@ -1409,7 +1409,6 @@ static int garmin_port_remove(struct usb_serial_port *port)
 	usb_kill_urb(port->interrupt_in_urb);
 	del_timer_sync(&garmin_data_p->timer);
 	kfree(garmin_data_p);
-	return 0;
 }
 
 
@@ -1445,5 +1444,5 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-module_param(initial_mode, int, S_IRUGO);
+module_param(initial_mode, int, 0444);
 MODULE_PARM_DESC(initial_mode, "Initial mode");

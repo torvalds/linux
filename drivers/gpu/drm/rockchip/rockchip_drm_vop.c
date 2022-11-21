@@ -23,6 +23,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
@@ -693,7 +694,7 @@ static void rockchip_drm_set_win_enabled(struct drm_crtc *crtc, bool enabled)
 }
 
 static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_state)
+				    struct drm_atomic_state *state)
 {
 	struct vop *vop = to_vop(crtc);
 
@@ -725,7 +726,9 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	spin_unlock(&vop->reg_lock);
 
-	wait_for_completion(&vop->dsp_hold_completion);
+	if (!wait_for_completion_timeout(&vop->dsp_hold_completion,
+					 msecs_to_jiffies(200)))
+		WARN(1, "%s: timed out waiting for DSP hold", crtc->name);
 
 	vop_dsp_hold_valid_irq_disable(vop);
 
@@ -778,11 +781,13 @@ static bool rockchip_mod_supported(struct drm_plane *plane,
 }
 
 static int vop_plane_atomic_check(struct drm_plane *plane,
-			   struct drm_plane_state *state)
+			   struct drm_atomic_state *state)
 {
-	struct drm_crtc *crtc = state->crtc;
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
+	struct drm_crtc *crtc = new_plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = new_plane_state->fb;
 	struct vop_win *vop_win = to_vop_win(plane);
 	const struct vop_win_data *win = vop_win->data;
 	int ret;
@@ -794,17 +799,18 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	if (!crtc || WARN_ON(!fb))
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(state,
+							crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  min_scale, max_scale,
 						  true, true);
 	if (ret)
 		return ret;
 
-	if (!state->visible)
+	if (!new_plane_state->visible)
 		return 0;
 
 	ret = vop_convert_format(fb->format->format);
@@ -815,12 +821,12 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	 * Src.x1 can be odd when do clip, but yuv plane start point
 	 * need align with 2 pixel.
 	 */
-	if (fb->format->is_yuv && ((state->src.x1 >> 16) % 2)) {
+	if (fb->format->is_yuv && ((new_plane_state->src.x1 >> 16) % 2)) {
 		DRM_ERROR("Invalid Source: Yuv format not support odd xpos\n");
 		return -EINVAL;
 	}
 
-	if (fb->format->is_yuv && state->rotation & DRM_MODE_REFLECT_Y) {
+	if (fb->format->is_yuv && new_plane_state->rotation & DRM_MODE_REFLECT_Y) {
 		DRM_ERROR("Invalid Source: Yuv format does not support this rotation\n");
 		return -EINVAL;
 	}
@@ -837,14 +843,16 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 		if (ret < 0)
 			return ret;
 
-		if (state->src.x1 || state->src.y1) {
-			DRM_ERROR("AFBC does not support offset display, xpos=%d, ypos=%d, offset=%d\n", state->src.x1, state->src.y1, fb->offsets[0]);
+		if (new_plane_state->src.x1 || new_plane_state->src.y1) {
+			DRM_ERROR("AFBC does not support offset display, xpos=%d, ypos=%d, offset=%d\n",
+				  new_plane_state->src.x1,
+				  new_plane_state->src.y1, fb->offsets[0]);
 			return -EINVAL;
 		}
 
-		if (state->rotation && state->rotation != DRM_MODE_ROTATE_0) {
+		if (new_plane_state->rotation && new_plane_state->rotation != DRM_MODE_ROTATE_0) {
 			DRM_ERROR("No rotation support in AFBC, rotation=%d\n",
-				  state->rotation);
+				  new_plane_state->rotation);
 			return -EINVAL;
 		}
 	}
@@ -853,8 +861,10 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void vop_plane_atomic_disable(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
+				     struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct vop_win *vop_win = to_vop_win(plane);
 	struct vop *vop = to_vop(old_state->crtc);
 
@@ -869,20 +879,21 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static void vop_plane_atomic_update(struct drm_plane *plane,
-		struct drm_plane_state *old_state)
+		struct drm_atomic_state *state)
 {
-	struct drm_plane_state *state = plane->state;
-	struct drm_crtc *crtc = state->crtc;
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
+	struct drm_crtc *crtc = new_state->crtc;
 	struct vop_win *vop_win = to_vop_win(plane);
 	const struct vop_win_data *win = vop_win->data;
 	const struct vop_win_yuv2yuv_data *win_yuv2yuv = vop_win->yuv2yuv_data;
-	struct vop *vop = to_vop(state->crtc);
-	struct drm_framebuffer *fb = state->fb;
+	struct vop *vop = to_vop(new_state->crtc);
+	struct drm_framebuffer *fb = new_state->fb;
 	unsigned int actual_w, actual_h;
 	unsigned int dsp_stx, dsp_sty;
 	uint32_t act_info, dsp_info, dsp_st;
-	struct drm_rect *src = &state->src;
-	struct drm_rect *dest = &state->dst;
+	struct drm_rect *src = &new_state->src;
+	struct drm_rect *dest = &new_state->dst;
 	struct drm_gem_object *obj, *uv_obj;
 	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
 	unsigned long offset;
@@ -903,8 +914,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	if (WARN_ON(!vop->is_enabled))
 		return;
 
-	if (!state->visible) {
-		vop_plane_atomic_disable(plane, old_state);
+	if (!new_state->visible) {
+		vop_plane_atomic_disable(plane, state);
 		return;
 	}
 
@@ -930,7 +941,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	 * For y-mirroring we need to move address
 	 * to the beginning of the last line.
 	 */
-	if (state->rotation & DRM_MODE_REFLECT_Y)
+	if (new_state->rotation & DRM_MODE_REFLECT_Y)
 		dma_addr += (actual_h - 1) * fb->pitches[0];
 
 	format = vop_convert_format(fb->format->format);
@@ -952,9 +963,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	VOP_WIN_SET(vop, win, yrgb_mst, dma_addr);
 	VOP_WIN_YUV2YUV_SET(vop, win_yuv2yuv, y2r_en, is_yuv);
 	VOP_WIN_SET(vop, win, y_mir_en,
-		    (state->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0);
+		    (new_state->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0);
 	VOP_WIN_SET(vop, win, x_mir_en,
-		    (state->rotation & DRM_MODE_REFLECT_X) ? 1 : 0);
+		    (new_state->rotation & DRM_MODE_REFLECT_X) ? 1 : 0);
 
 	if (is_yuv) {
 		int hsub = fb->format->hsub;
@@ -1013,6 +1024,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		VOP_WIN_SET(vop, win, alpha_en, 1);
 	} else {
 		VOP_WIN_SET(vop, win, src_alpha_ctl, SRC_ALPHA_EN(0));
+		VOP_WIN_SET(vop, win, alpha_en, 0);
 	}
 
 	VOP_WIN_SET(vop, win, enable, 1);
@@ -1021,8 +1033,10 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 }
 
 static int vop_plane_atomic_async_check(struct drm_plane *plane,
-					struct drm_plane_state *state)
+					struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct vop_win *vop_win = to_vop_win(plane);
 	const struct vop_win_data *win = vop_win->data;
 	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
@@ -1031,7 +1045,7 @@ static int vop_plane_atomic_async_check(struct drm_plane *plane,
 					DRM_PLANE_HELPER_NO_SCALING;
 	struct drm_crtc_state *crtc_state;
 
-	if (plane != state->crtc->cursor)
+	if (plane != new_plane_state->crtc->cursor)
 		return -EINVAL;
 
 	if (!plane->state)
@@ -1040,9 +1054,9 @@ static int vop_plane_atomic_async_check(struct drm_plane *plane,
 	if (!plane->state->fb)
 		return -EINVAL;
 
-	if (state->state)
-		crtc_state = drm_atomic_get_existing_crtc_state(state->state,
-								state->crtc);
+	if (state)
+		crtc_state = drm_atomic_get_existing_crtc_state(state,
+								new_plane_state->crtc);
 	else /* Special case for asynchronous cursor updates. */
 		crtc_state = plane->crtc->state;
 
@@ -1052,8 +1066,10 @@ static int vop_plane_atomic_async_check(struct drm_plane *plane,
 }
 
 static void vop_plane_atomic_async_update(struct drm_plane *plane,
-					  struct drm_plane_state *new_state)
+					  struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct vop *vop = to_vop(plane->state->crtc);
 	struct drm_framebuffer *old_fb = plane->state->fb;
 
@@ -1068,7 +1084,7 @@ static void vop_plane_atomic_async_update(struct drm_plane *plane,
 	swap(plane->state->fb, new_state->fb);
 
 	if (vop->is_enabled) {
-		vop_plane_atomic_update(plane, plane->state);
+		vop_plane_atomic_update(plane, state);
 		spin_lock(&vop->reg_lock);
 		vop_cfg_done(vop);
 		spin_unlock(&vop->reg_lock);
@@ -1096,7 +1112,6 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 	.atomic_disable = vop_plane_atomic_disable,
 	.atomic_async_check = vop_plane_atomic_async_check,
 	.atomic_async_update = vop_plane_atomic_async_update,
-	.prepare_fb = drm_gem_fb_prepare_fb,
 };
 
 static const struct drm_plane_funcs vop_plane_funcs = {
@@ -1161,26 +1176,24 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 	 *
 	 * Action plan:
 	 *
-	 * 1. When DRM gives us a mode, we should add 999 Hz to it.  That way
-	 *    if the clock we need is 60000001 Hz (~60 MHz) and DRM tells us to
-	 *    make 60000 kHz then the clock framework will actually give us
-	 *    the right clock.
+	 * 1. Try to set the exact rate first, and confirm the clock framework
+	 *    can provide it.
 	 *
-	 *    NOTE: if the PLL (maybe through a divider) could actually make
-	 *    a clock rate 999 Hz higher instead of the one we want then this
-	 *    could be a problem.  Unfortunately there's not much we can do
-	 *    since it's baked into DRM to use kHz.  It shouldn't matter in
-	 *    practice since Rockchip PLLs are controlled by tables and
-	 *    even if there is a divider in the middle I wouldn't expect PLL
-	 *    rates in the table that are just a few kHz different.
+	 * 2. If the clock framework cannot provide the exact rate, we should
+	 *    add 999 Hz to the requested rate.  That way if the clock we need
+	 *    is 60000001 Hz (~60 MHz) and DRM tells us to make 60000 kHz then
+	 *    the clock framework will actually give us the right clock.
 	 *
-	 * 2. Get the clock framework to round the rate for us to tell us
+	 * 3. Get the clock framework to round the rate for us to tell us
 	 *    what it will actually make.
 	 *
-	 * 3. Store the rounded up rate so that we don't need to worry about
+	 * 4. Store the rounded up rate so that we don't need to worry about
 	 *    this in the actual clk_set_rate().
 	 */
-	rate = clk_round_rate(vop->dclk, adjusted_mode->clock * 1000 + 999);
+	rate = clk_round_rate(vop->dclk, adjusted_mode->clock * 1000);
+	if (rate / 1000 != adjusted_mode->clock)
+		rate = clk_round_rate(vop->dclk,
+				      adjusted_mode->clock * 1000 + 999);
 	adjusted_mode->clock = DIV_ROUND_UP(rate, 1000);
 
 	return true;
@@ -1246,22 +1259,28 @@ static void vop_crtc_gamma_set(struct vop *vop, struct drm_crtc *crtc,
 }
 
 static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_crtc_state)
+				  struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
+									      crtc);
 	struct vop *vop = to_vop(crtc);
 
 	/*
 	 * Only update GAMMA if the 'active' flag is not changed,
 	 * otherwise it's updated by .atomic_enable.
 	 */
-	if (crtc->state->color_mgmt_changed &&
-	    !crtc->state->active_changed)
+	if (crtc_state->color_mgmt_changed &&
+	    !crtc_state->active_changed)
 		vop_crtc_gamma_set(vop, crtc, old_crtc_state);
 }
 
 static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_state)
+				   struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state,
+									 crtc);
 	struct vop *vop = to_vop(crtc);
 	const struct vop_data *vop_data = vop->data;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
@@ -1413,8 +1432,10 @@ static void vop_wait_for_irq_handler(struct vop *vop)
 }
 
 static int vop_crtc_atomic_check(struct drm_crtc *crtc,
-				 struct drm_crtc_state *crtc_state)
+				 struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct vop *vop = to_vop(crtc);
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
@@ -1458,8 +1479,10 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_crtc_state)
+				  struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
+									      crtc);
 	struct drm_atomic_state *old_state = old_crtc_state->state;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct vop *vop = to_vop(crtc);
@@ -1633,7 +1656,6 @@ static const struct drm_crtc_funcs vop_crtc_funcs = {
 	.disable_vblank = vop_crtc_disable_vblank,
 	.set_crc_source = vop_crtc_set_crc_source,
 	.verify_crc_source = vop_crtc_verify_crc_source,
-	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 };
 
 static void vop_fb_unref_worker(struct drm_flip_work *work, void *val)

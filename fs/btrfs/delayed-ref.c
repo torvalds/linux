@@ -11,6 +11,7 @@
 #include "transaction.h"
 #include "qgroup.h"
 #include "space-info.h"
+#include "tree-mod-log.h"
 
 struct kmem_cache *btrfs_delayed_ref_head_cachep;
 struct kmem_cache *btrfs_delayed_tree_ref_cachep;
@@ -69,9 +70,10 @@ int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans)
 }
 
 /**
- * btrfs_delayed_refs_rsv_release - release a ref head's reservation.
- * @fs_info - the fs_info for our fs.
- * @nr - the number of items to drop.
+ * Release a ref head's reservation
+ *
+ * @fs_info:  the filesystem
+ * @nr:       number of items to drop
  *
  * This drops the delayed ref head's count from the delayed refs rsv and frees
  * any excess reservation we had.
@@ -81,6 +83,17 @@ void btrfs_delayed_refs_rsv_release(struct btrfs_fs_info *fs_info, int nr)
 	struct btrfs_block_rsv *block_rsv = &fs_info->delayed_refs_rsv;
 	u64 num_bytes = btrfs_calc_insert_metadata_size(fs_info, nr);
 	u64 released = 0;
+
+	/*
+	 * We have to check the mount option here because we could be enabling
+	 * the free space tree for the first time and don't have the compat_ro
+	 * option set yet.
+	 *
+	 * We need extra reservations if we have the free space tree because
+	 * we'll have to modify that tree as well.
+	 */
+	if (btrfs_test_opt(fs_info, FREE_SPACE_TREE))
+		num_bytes *= 2;
 
 	released = btrfs_block_rsv_release(fs_info, block_rsv, num_bytes, NULL);
 	if (released)
@@ -106,6 +119,17 @@ void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans)
 
 	num_bytes = btrfs_calc_insert_metadata_size(fs_info,
 						    trans->delayed_ref_updates);
+	/*
+	 * We have to check the mount option here because we could be enabling
+	 * the free space tree for the first time and don't have the compat_ro
+	 * option set yet.
+	 *
+	 * We need extra reservations if we have the free space tree because
+	 * we'll have to modify that tree as well.
+	 */
+	if (btrfs_test_opt(fs_info, FREE_SPACE_TREE))
+		num_bytes *= 2;
+
 	spin_lock(&delayed_rsv->lock);
 	delayed_rsv->size += num_bytes;
 	delayed_rsv->full = 0;
@@ -114,10 +138,11 @@ void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans)
 }
 
 /**
- * btrfs_migrate_to_delayed_refs_rsv - transfer bytes to our delayed refs rsv.
- * @fs_info - the fs info for our fs.
- * @src - the source block rsv to transfer from.
- * @num_bytes - the number of bytes to transfer.
+ * Transfer bytes to our delayed refs rsv
+ *
+ * @fs_info:   the filesystem
+ * @src:       source block rsv to transfer from
+ * @num_bytes: number of bytes to transfer
  *
  * This transfers up to the num_bytes amount from the src rsv to the
  * delayed_refs_rsv.  Any extra bytes are returned to the space info.
@@ -162,9 +187,10 @@ void btrfs_migrate_to_delayed_refs_rsv(struct btrfs_fs_info *fs_info,
 }
 
 /**
- * btrfs_delayed_refs_rsv_refill - refill based on our delayed refs usage.
- * @fs_info - the fs_info for our fs.
- * @flush - control how we can flush for this reservation.
+ * Refill based on our delayed refs usage
+ *
+ * @fs_info: the filesystem
+ * @flush:   control how we can flush for this reservation.
  *
  * This will refill the delayed block_rsv up to 1 items size worth of space and
  * will return -ENOSPC if we can't make the reservation.
@@ -187,8 +213,7 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 	if (!num_bytes)
 		return 0;
 
-	ret = btrfs_reserve_metadata_bytes(fs_info->extent_root, block_rsv,
-					   num_bytes, flush);
+	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, num_bytes, flush);
 	if (ret)
 		return ret;
 	btrfs_block_rsv_add_bytes(block_rsv, num_bytes, 0);
@@ -491,16 +516,7 @@ void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
 	if (head->is_data)
 		return;
 
-	read_lock(&fs_info->tree_mod_log_lock);
-	if (!list_empty(&fs_info->tree_mod_seq_list)) {
-		struct seq_list *elem;
-
-		elem = list_first_entry(&fs_info->tree_mod_seq_list,
-					struct seq_list, list);
-		seq = elem->seq;
-	}
-	read_unlock(&fs_info->tree_mod_log_lock);
-
+	seq = btrfs_tree_mod_log_lowest_seq(fs_info);
 again:
 	for (node = rb_first_cached(&head->ref_tree); node;
 	     node = rb_next(node)) {
@@ -514,23 +530,16 @@ again:
 
 int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq)
 {
-	struct seq_list *elem;
 	int ret = 0;
+	u64 min_seq = btrfs_tree_mod_log_lowest_seq(fs_info);
 
-	read_lock(&fs_info->tree_mod_log_lock);
-	if (!list_empty(&fs_info->tree_mod_seq_list)) {
-		elem = list_first_entry(&fs_info->tree_mod_seq_list,
-					struct seq_list, list);
-		if (seq >= elem->seq) {
-			btrfs_debug(fs_info,
-				"holding back delayed_ref %#x.%x, lowest is %#x.%x",
-				(u32)(seq >> 32), (u32)seq,
-				(u32)(elem->seq >> 32), (u32)elem->seq);
-			ret = 1;
-		}
+	if (min_seq != 0 && seq >= min_seq) {
+		btrfs_debug(fs_info,
+			    "holding back delayed_ref %llu, lowest is %llu",
+			    seq, min_seq);
+		ret = 1;
 	}
 
-	read_unlock(&fs_info->tree_mod_log_lock);
 	return ret;
 }
 
@@ -648,8 +657,7 @@ inserted:
  */
 static noinline void update_existing_head_ref(struct btrfs_trans_handle *trans,
 			 struct btrfs_delayed_ref_head *existing,
-			 struct btrfs_delayed_ref_head *update,
-			 int *old_ref_mod_ret)
+			 struct btrfs_delayed_ref_head *update)
 {
 	struct btrfs_delayed_ref_root *delayed_refs =
 		&trans->transaction->delayed_refs;
@@ -701,8 +709,6 @@ static noinline void update_existing_head_ref(struct btrfs_trans_handle *trans,
 	 * currently, for refs we just added we know we're a-ok.
 	 */
 	old_ref_mod = existing->total_ref_mod;
-	if (old_ref_mod_ret)
-		*old_ref_mod_ret = old_ref_mod;
 	existing->ref_mod += update->ref_mod;
 	existing->total_ref_mod += update->ref_mod;
 
@@ -724,6 +730,7 @@ static noinline void update_existing_head_ref(struct btrfs_trans_handle *trans,
 			trans->delayed_ref_updates += csum_leaves;
 		}
 	}
+
 	spin_unlock(&existing->lock);
 }
 
@@ -798,8 +805,7 @@ static noinline struct btrfs_delayed_ref_head *
 add_delayed_ref_head(struct btrfs_trans_handle *trans,
 		     struct btrfs_delayed_ref_head *head_ref,
 		     struct btrfs_qgroup_extent_record *qrecord,
-		     int action, int *qrecord_inserted_ret,
-		     int *old_ref_mod, int *new_ref_mod)
+		     int action, int *qrecord_inserted_ret)
 {
 	struct btrfs_delayed_ref_head *existing;
 	struct btrfs_delayed_ref_root *delayed_refs;
@@ -821,8 +827,7 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
 	existing = htree_insert(&delayed_refs->href_root,
 				&head_ref->href_node);
 	if (existing) {
-		update_existing_head_ref(trans, existing, head_ref,
-					 old_ref_mod);
+		update_existing_head_ref(trans, existing, head_ref);
 		/*
 		 * we've updated the existing ref, free the newly
 		 * allocated ref
@@ -830,8 +835,6 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
 		kmem_cache_free(btrfs_delayed_ref_head_cachep, head_ref);
 		head_ref = existing;
 	} else {
-		if (old_ref_mod)
-			*old_ref_mod = 0;
 		if (head_ref->is_data && head_ref->ref_mod < 0) {
 			delayed_refs->pending_csums += head_ref->num_bytes;
 			trans->delayed_ref_updates +=
@@ -845,8 +848,6 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
 	}
 	if (qrecord_inserted_ret)
 		*qrecord_inserted_ret = qrecord_inserted;
-	if (new_ref_mod)
-		*new_ref_mod = head_ref->total_ref_mod;
 
 	return head_ref;
 }
@@ -909,8 +910,7 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
  */
 int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 			       struct btrfs_ref *generic_ref,
-			       struct btrfs_delayed_extent_op *extent_op,
-			       int *old_ref_mod, int *new_ref_mod)
+			       struct btrfs_delayed_extent_op *extent_op)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_tree_ref *ref;
@@ -927,7 +927,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	u64 parent = generic_ref->parent;
 	u8 ref_type;
 
-	is_system = (generic_ref->real_root == BTRFS_CHUNK_TREE_OBJECTID);
+	is_system = (generic_ref->tree_ref.owning_root == BTRFS_CHUNK_TREE_OBJECTID);
 
 	ASSERT(generic_ref->type == BTRFS_REF_METADATA && generic_ref->action);
 	BUG_ON(extent_op && extent_op->is_data);
@@ -942,8 +942,6 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	}
 
 	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) &&
-	    is_fstree(generic_ref->real_root) &&
-	    is_fstree(generic_ref->tree_ref.root) &&
 	    !generic_ref->skip_qgroup) {
 		record = kzalloc(sizeof(*record), GFP_NOFS);
 		if (!record) {
@@ -959,14 +957,15 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 		ref_type = BTRFS_TREE_BLOCK_REF_KEY;
 
 	init_delayed_ref_common(fs_info, &ref->node, bytenr, num_bytes,
-				generic_ref->tree_ref.root, action, ref_type);
-	ref->root = generic_ref->tree_ref.root;
+				generic_ref->tree_ref.owning_root, action,
+				ref_type);
+	ref->root = generic_ref->tree_ref.owning_root;
 	ref->parent = parent;
 	ref->level = level;
 
 	init_delayed_ref_head(head_ref, record, bytenr, num_bytes,
-			      generic_ref->tree_ref.root, 0, action, false,
-			      is_system);
+			      generic_ref->tree_ref.owning_root, 0, action,
+			      false, is_system);
 	head_ref->extent_op = extent_op;
 
 	delayed_refs = &trans->transaction->delayed_refs;
@@ -977,8 +976,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	 * the spin lock
 	 */
 	head_ref = add_delayed_ref_head(trans, head_ref, record,
-					action, &qrecord_inserted,
-					old_ref_mod, new_ref_mod);
+					action, &qrecord_inserted);
 
 	ret = insert_delayed_ref(trans, delayed_refs, head_ref, &ref->node);
 	spin_unlock(&delayed_refs->lock);
@@ -996,7 +994,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 		kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
 
 	if (qrecord_inserted)
-		btrfs_qgroup_trace_extent_post(fs_info, record);
+		btrfs_qgroup_trace_extent_post(trans, record);
 
 	return 0;
 }
@@ -1006,8 +1004,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
  */
 int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 			       struct btrfs_ref *generic_ref,
-			       u64 reserved, int *old_ref_mod,
-			       int *new_ref_mod)
+			       u64 reserved)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_data_ref *ref;
@@ -1020,7 +1017,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	u64 bytenr = generic_ref->bytenr;
 	u64 num_bytes = generic_ref->len;
 	u64 parent = generic_ref->parent;
-	u64 ref_root = generic_ref->data_ref.ref_root;
+	u64 ref_root = generic_ref->data_ref.owning_root;
 	u64 owner = generic_ref->data_ref.ino;
 	u64 offset = generic_ref->data_ref.offset;
 	u8 ref_type;
@@ -1049,8 +1046,6 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	}
 
 	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) &&
-	    is_fstree(ref_root) &&
-	    is_fstree(generic_ref->real_root) &&
 	    !generic_ref->skip_qgroup) {
 		record = kzalloc(sizeof(*record), GFP_NOFS);
 		if (!record) {
@@ -1073,8 +1068,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	 * the spin lock
 	 */
 	head_ref = add_delayed_ref_head(trans, head_ref, record,
-					action, &qrecord_inserted,
-					old_ref_mod, new_ref_mod);
+					action, &qrecord_inserted);
 
 	ret = insert_delayed_ref(trans, delayed_refs, head_ref, &ref->node);
 	spin_unlock(&delayed_refs->lock);
@@ -1093,7 +1087,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 
 
 	if (qrecord_inserted)
-		return btrfs_qgroup_trace_extent_post(fs_info, record);
+		return btrfs_qgroup_trace_extent_post(trans, record);
 	return 0;
 }
 
@@ -1117,7 +1111,7 @@ int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 	spin_lock(&delayed_refs->lock);
 
 	add_delayed_ref_head(trans, head_ref, NULL, BTRFS_UPDATE_DELAYED_HEAD,
-			     NULL, NULL, NULL);
+			     NULL);
 
 	spin_unlock(&delayed_refs->lock);
 

@@ -28,11 +28,6 @@ Copyright (C) 2006-2008, Uri Shkolnik, Anatoly Greenblat
 
 #include "smsir.h"
 
-#define kmutex_init(_p_) mutex_init(_p_)
-#define kmutex_lock(_p_) mutex_lock(_p_)
-#define kmutex_trylock(_p_) mutex_trylock(_p_)
-#define kmutex_unlock(_p_) mutex_unlock(_p_)
-
 /*
  * Define the firmware names used by the driver.
  * Those should match what's used at smscoreapi.c and sms-cards.c
@@ -629,9 +624,9 @@ struct sms_msg_data2 {
 	u32 msg_data[2];
 };
 
-struct sms_msg_data4 {
+struct sms_msg_data5 {
 	struct sms_msg_hdr x_msg_header;
-	u32 msg_data[4];
+	u32 msg_data[5];
 };
 
 struct sms_data_download {

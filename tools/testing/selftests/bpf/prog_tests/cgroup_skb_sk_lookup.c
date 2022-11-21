@@ -60,7 +60,7 @@ static void run_cgroup_bpf_test(const char *cg_path, int out_sk)
 		goto cleanup;
 
 	link = bpf_program__attach_cgroup(skel->progs.ingress_lookup, cgfd);
-	if (CHECK(IS_ERR(link), "cgroup_attach", "err: %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "cgroup_attach"))
 		goto cleanup;
 
 	run_lookup_test(&skel->bss->g_serv_port, out_sk);

@@ -111,7 +111,6 @@ int qxl_device_init(struct qxl_device *qdev,
 {
 	int r, sb;
 
-	qdev->ddev.pdev = pdev;
 	pci_set_drvdata(pdev, &qdev->ddev);
 
 	mutex_init(&qdev->gem.mutex);
@@ -231,11 +230,11 @@ int qxl_device_init(struct qxl_device *qdev,
 		goto cursor_ring_free;
 	}
 
-	idr_init(&qdev->release_idr);
+	idr_init_base(&qdev->release_idr, 1);
 	spin_lock_init(&qdev->release_idr_lock);
 	spin_lock_init(&qdev->release_lock);
 
-	idr_init(&qdev->surf_id_idr);
+	idr_init_base(&qdev->surf_id_idr, 1);
 	spin_lock_init(&qdev->surf_id_idr_lock);
 
 	mutex_init(&qdev->async_io_mutex);
@@ -287,11 +286,35 @@ vram_mapping_free:
 
 void qxl_device_fini(struct qxl_device *qdev)
 {
-	qxl_bo_unref(&qdev->current_release_bo[0]);
-	qxl_bo_unref(&qdev->current_release_bo[1]);
+	int cur_idx;
+
+	/* check if qxl_device_init() was successful (gc_work is initialized last) */
+	if (!qdev->gc_work.func)
+		return;
+
+	for (cur_idx = 0; cur_idx < 3; cur_idx++) {
+		if (!qdev->current_release_bo[cur_idx])
+			continue;
+		qxl_bo_unpin(qdev->current_release_bo[cur_idx]);
+		qxl_bo_unref(&qdev->current_release_bo[cur_idx]);
+		qdev->current_release_bo_offset[cur_idx] = 0;
+		qdev->current_release_bo[cur_idx] = NULL;
+	}
+
+	/*
+	 * Ask host to release resources (+fill release ring),
+	 * then wait for the release actually happening.
+	 */
+	qxl_io_notify_oom(qdev);
+	wait_event_timeout(qdev->release_event,
+			   atomic_read(&qdev->release_count) == 0,
+			   HZ);
+	flush_work(&qdev->gc_work);
+	qxl_surf_evict(qdev);
+	qxl_vram_evict(qdev);
+
 	qxl_gem_fini(qdev);
 	qxl_bo_fini(qdev);
-	flush_work(&qdev->gc_work);
 	qxl_ring_free(qdev->command_ring);
 	qxl_ring_free(qdev->cursor_ring);
 	qxl_ring_free(qdev->release_ring);

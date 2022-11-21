@@ -1,18 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0
 KBUILD_DEFCONFIG := mmu_defconfig
 
-ifeq ($(CONFIG_MMU),y)
 UTS_SYSNAME = -DUTS_SYSNAME=\"Linux\"
-else
-UTS_SYSNAME = -DUTS_SYSNAME=\"uClinux\"
-endif
 
-# What CPU vesion are we building for, and crack it open
+# What CPU version are we building for, and crack it open
 # as major.minor.rev
-CPU_VER   := $(shell echo $(CONFIG_XILINX_MICROBLAZE0_HW_VER))
-CPU_MAJOR := $(shell echo $(CPU_VER) | cut -d '.' -f 1)
-CPU_MINOR := $(shell echo $(CPU_VER) | cut -d '.' -f 2)
-CPU_REV   := $(shell echo $(CPU_VER) | cut -d '.' -f 3)
+CPU_VER   := $(CONFIG_XILINX_MICROBLAZE0_HW_VER)
+CPU_MAJOR := $(word 1, $(subst ., , $(CPU_VER)))
+CPU_MINOR := $(word 2, $(subst ., , $(CPU_VER)))
+CPU_REV   := $(word 3, $(subst ., , $(CPU_VER)))
 
 export CPU_VER CPU_MAJOR CPU_MINOR CPU_REV
 
@@ -54,30 +50,15 @@ KBUILD_CFLAGS += -ffixed-r31 $(CPUFLAGS-y) $(CPUFLAGS-1) $(CPUFLAGS-2)
 
 head-y := arch/microblaze/kernel/head.o
 libs-y += arch/microblaze/lib/
-core-y += arch/microblaze/kernel/
-core-y += arch/microblaze/mm/
-core-$(CONFIG_PCI) += arch/microblaze/pci/
-
-drivers-$(CONFIG_OPROFILE) += arch/microblaze/oprofile/
 
 boot := arch/microblaze/boot
 
 # Are we making a simpleImage.<boardname> target? If so, crack out the boardname
 DTB:=$(subst simpleImage.,,$(filter simpleImage.%, $(MAKECMDGOALS)))
 
-core-y	+= $(boot)/dts/
-
-# defines filename extension depending memory management type
-ifeq ($(CONFIG_MMU),)
-MMU := -nommu
-endif
-
-export MMU DTB
+export DTB
 
 all: linux.bin
-
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
 
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/microblaze/kernel/syscalls all

@@ -19,7 +19,7 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/personality.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/sched/task_stack.h>
 
 #include <asm/ucontext.h>
@@ -45,12 +45,13 @@ struct rt_sigframe
 	unsigned int window[4];
 };
 
-/* 
+#if defined(USER_SUPPORT_WINDOWED)
+/*
  * Flush register windows stored in pt_regs to stack.
  * Returns 1 for errors.
  */
 
-int
+static int
 flush_window_regs_user(struct pt_regs *regs)
 {
 	const unsigned long ws = regs->windowstart;
@@ -121,6 +122,13 @@ flush_window_regs_user(struct pt_regs *regs)
 errout:
 	return err;
 }
+#else
+static int
+flush_window_regs_user(struct pt_regs *regs)
+{
+	return 0;
+}
+#endif
 
 /*
  * Note: We don't copy double exception 'regs', we have to finish double exc. 
@@ -498,9 +506,10 @@ static void do_signal(struct pt_regs *regs)
 
 void do_notify_resume(struct pt_regs *regs)
 {
-	if (test_thread_flag(TIF_SIGPENDING))
+	if (test_thread_flag(TIF_SIGPENDING) ||
+	    test_thread_flag(TIF_NOTIFY_SIGNAL))
 		do_signal(regs);
 
 	if (test_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+		resume_user_mode_work(regs);
 }

@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/relay.h>
 #include <linux/dmi.h>
 #include <net/ieee80211_radiotap.h>
@@ -37,7 +38,6 @@ static char *dev_info = "ath9k";
 
 MODULE_AUTHOR("Atheros Communications");
 MODULE_DESCRIPTION("Support for Atheros 802.11n wireless LAN cards.");
-MODULE_SUPPORTED_DEVICE("Atheros 802.11n WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
 static unsigned int ath9k_debug = ATH_DBG_DEFAULT;
@@ -569,6 +569,57 @@ static void ath9k_eeprom_release(struct ath_softc *sc)
 	release_firmware(sc->sc_ah->eeprom_blob);
 }
 
+static int ath9k_nvmem_request_eeprom(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct nvmem_cell *cell;
+	void *buf;
+	size_t len;
+	int err;
+
+	cell = devm_nvmem_cell_get(sc->dev, "calibration");
+	if (IS_ERR(cell)) {
+		err = PTR_ERR(cell);
+
+		/* nvmem cell might not be defined, or the nvmem
+		 * subsystem isn't included. In this case, follow
+		 * the established "just return 0;" convention of
+		 * ath9k_init_platform to say:
+		 * "All good. Nothing to see here. Please go on."
+		 */
+		if (err == -ENOENT || err == -EOPNOTSUPP)
+			return 0;
+
+		return err;
+	}
+
+	buf = nvmem_cell_read(cell, &len);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	/* run basic sanity checks on the returned nvram cell length.
+	 * That length has to be a multiple of a "u16" (i.e.: & 1).
+	 * Furthermore, it has to be more than "let's say" 512 bytes
+	 * but less than the maximum of AR9300_EEPROM_SIZE (16kb).
+	 */
+	if ((len & 1) == 1 || len < 512 || len >= AR9300_EEPROM_SIZE) {
+		kfree(buf);
+		return -EINVAL;
+	}
+
+	/* devres manages the calibration values release on shutdown */
+	ah->nvmem_blob = (u16 *)devm_kmemdup(sc->dev, buf, len, GFP_KERNEL);
+	kfree(buf);
+	if (!ah->nvmem_blob)
+		return -ENOMEM;
+
+	ah->nvmem_blob_len = len;
+	ah->ah_flags &= ~AH_USE_EEPROM;
+	ah->ah_flags |= AH_NO_EEP_SWAP;
+
+	return 0;
+}
+
 static int ath9k_init_platform(struct ath_softc *sc)
 {
 	struct ath9k_platform_data *pdata = sc->dev->platform_data;
@@ -618,7 +669,6 @@ static int ath9k_of_init(struct ath_softc *sc)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	enum ath_bus_type bus_type = common->bus_ops->ath_bus_type;
-	const char *mac;
 	char eeprom_name[100];
 	int ret;
 
@@ -641,9 +691,7 @@ static int ath9k_of_init(struct ath_softc *sc)
 		ah->ah_flags |= AH_NO_EEP_SWAP;
 	}
 
-	mac = of_get_mac_address(np);
-	if (!IS_ERR(mac))
-		ether_addr_copy(common->macaddr, mac);
+	of_get_mac_address(np, common->macaddr);
 
 	return 0;
 }
@@ -705,6 +753,10 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 		return ret;
 
 	ret = ath9k_of_init(sc);
+	if (ret)
+		return ret;
+
+	ret = ath9k_nvmem_request_eeprom(sc);
 	if (ret)
 		return ret;
 
@@ -832,12 +884,6 @@ static const struct ieee80211_iface_limit if_limits[] = {
 				 BIT(NL80211_IFTYPE_P2P_GO) },
 };
 
-#ifdef CONFIG_WIRELESS_WDS
-static const struct ieee80211_iface_limit wds_limits[] = {
-	{ .max = 2048,	.types = BIT(NL80211_IFTYPE_WDS) },
-};
-#endif
-
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 
 static const struct ieee80211_iface_limit if_limits_multi[] = {
@@ -874,15 +920,6 @@ static const struct ieee80211_iface_combination if_comb[] = {
 					BIT(NL80211_CHAN_WIDTH_40),
 #endif
 	},
-#ifdef CONFIG_WIRELESS_WDS
-	{
-		.limits = wds_limits,
-		.n_limits = ARRAY_SIZE(wds_limits),
-		.max_interfaces = 2048,
-		.num_different_channels = 1,
-		.beacon_int_infra_match = true,
-	},
-#endif
 };
 
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
@@ -897,7 +934,6 @@ static void ath9k_set_mcc_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, QUEUE_CONTROL);
 	hw->queues = ATH9K_NUM_TX_QUEUES;
 	hw->offchannel_tx_hw_queue = hw->queues - 1;
-	hw->wiphy->interface_modes &= ~ BIT(NL80211_IFTYPE_WDS);
 	hw->wiphy->iface_combinations = if_comb_multi;
 	hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb_multi);
 	hw->wiphy->max_scan_ssids = 255;
@@ -953,9 +989,6 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_ADHOC) |
 			BIT(NL80211_IFTYPE_MESH_POINT) |
-#ifdef CONFIG_WIRELESS_WDS
-			BIT(NL80211_IFTYPE_WDS) |
-#endif
 			BIT(NL80211_IFTYPE_OCB);
 
 		if (ath9k_is_chanctx_enabled())
@@ -1060,6 +1093,8 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 		IEEE80211_TPT_LEDTRIG_FL_RADIO, ath9k_tpt_blink,
 		ARRAY_SIZE(ath9k_tpt_blink));
 #endif
+
+	wiphy_read_of_freq_limits(hw->wiphy);
 
 	/* Register with mac80211 */
 	error = ieee80211_register_hw(hw);

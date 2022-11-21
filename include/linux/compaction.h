@@ -35,12 +35,12 @@ enum compact_result {
 	COMPACT_CONTINUE,
 
 	/*
-	 * The full zone was compacted scanned but wasn't successfull to compact
+	 * The full zone was compacted scanned but wasn't successful to compact
 	 * suitable pages.
 	 */
 	COMPACT_COMPLETE,
 	/*
-	 * direct compaction has scanned part of the zone but wasn't successfull
+	 * direct compaction has scanned part of the zone but wasn't successful
 	 * to compact suitable pages.
 	 */
 	COMPACT_PARTIAL_SKIPPED,
@@ -81,10 +81,11 @@ static inline unsigned long compact_gap(unsigned int order)
 }
 
 #ifdef CONFIG_COMPACTION
-extern int sysctl_compact_memory;
 extern unsigned int sysctl_compaction_proactiveness;
 extern int sysctl_compaction_handler(struct ctl_table *table, int write,
 			void *buffer, size_t *length, loff_t *ppos);
+extern int compaction_proactiveness_sysctl_handler(struct ctl_table *table,
+		int write, void *buffer, size_t *length, loff_t *ppos);
 extern int sysctl_extfrag_threshold;
 extern int sysctl_compact_unevictable_allowed;
 
@@ -98,11 +99,8 @@ extern void reset_isolation_suitable(pg_data_t *pgdat);
 extern enum compact_result compaction_suitable(struct zone *zone, int order,
 		unsigned int alloc_flags, int highest_zoneidx);
 
-extern void defer_compaction(struct zone *zone, int order);
-extern bool compaction_deferred(struct zone *zone, int order);
 extern void compaction_defer_reset(struct zone *zone, int order,
 				bool alloc_success);
-extern bool compaction_restarting(struct zone *zone, int order);
 
 /* Compaction has made some progress and retrying makes sense */
 static inline bool compaction_made_progress(enum compact_result result)
@@ -192,15 +190,6 @@ static inline enum compact_result compaction_suitable(struct zone *zone, int ord
 					int alloc_flags, int highest_zoneidx)
 {
 	return COMPACT_SKIPPED;
-}
-
-static inline void defer_compaction(struct zone *zone, int order)
-{
-}
-
-static inline bool compaction_deferred(struct zone *zone, int order)
-{
-	return true;
 }
 
 static inline bool compaction_made_progress(enum compact_result result)

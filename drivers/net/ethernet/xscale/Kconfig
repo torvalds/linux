@@ -20,17 +20,18 @@ if NET_VENDOR_XSCALE
 
 config IXP4XX_ETH
 	tristate "Intel IXP4xx Ethernet support"
-	depends on ARM && ARCH_IXP4XX && IXP4XX_NPE && IXP4XX_QMGR
+	depends on ARM && ARCH_IXP4XX && IXP4XX_NPE && IXP4XX_QMGR && OF
 	select PHYLIB
+	select OF_MDIO
 	select NET_PTP_CLASSIFY
 	help
 	  Say Y here if you want to use built-in Ethernet ports
 	  on IXP4xx processor.
 
 config PTP_1588_CLOCK_IXP46X
-	tristate "Intel IXP46x as PTP clock"
+	bool "Intel IXP46x as PTP clock"
 	depends on IXP4XX_ETH
-	depends on PTP_1588_CLOCK
+	depends on PTP_1588_CLOCK=y || PTP_1588_CLOCK=IXP4XX_ETH
 	default y
 	help
 	  This driver adds support for using the IXP46X as a PTP

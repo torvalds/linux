@@ -88,8 +88,8 @@ struct mlx4_rcv_tunnel_mad {
 	struct ib_mad mad;
 } __packed;
 
-static void handle_client_rereg_event(struct mlx4_ib_dev *dev, u8 port_num);
-static void handle_lid_change_event(struct mlx4_ib_dev *dev, u8 port_num);
+static void handle_client_rereg_event(struct mlx4_ib_dev *dev, u32 port_num);
+static void handle_lid_change_event(struct mlx4_ib_dev *dev, u32 port_num);
 static void __propagate_pkey_ev(struct mlx4_ib_dev *dev, int port_num,
 				int block, u32 change_bitmap);
 
@@ -186,7 +186,7 @@ int mlx4_MAD_IFC(struct mlx4_ib_dev *dev, int mad_ifc_flags,
 	return err;
 }
 
-static void update_sm_ah(struct mlx4_ib_dev *dev, u8 port_num, u16 lid, u8 sl)
+static void update_sm_ah(struct mlx4_ib_dev *dev, u32 port_num, u16 lid, u8 sl)
 {
 	struct ib_ah *new_ah;
 	struct rdma_ah_attr ah_attr;
@@ -217,8 +217,8 @@ static void update_sm_ah(struct mlx4_ib_dev *dev, u8 port_num, u16 lid, u8 sl)
  * Snoop SM MADs for port info, GUID info, and  P_Key table sets, so we can
  * synthesize LID change, Client-Rereg, GID change, and P_Key change events.
  */
-static void smp_snoop(struct ib_device *ibdev, u8 port_num, const struct ib_mad *mad,
-		      u16 prev_lid)
+static void smp_snoop(struct ib_device *ibdev, u32 port_num,
+		      const struct ib_mad *mad, u16 prev_lid)
 {
 	struct ib_port_info *pinfo;
 	u16 lid;
@@ -274,7 +274,7 @@ static void smp_snoop(struct ib_device *ibdev, u8 port_num, const struct ib_mad 
 						be16_to_cpu(base[i]);
 				}
 			}
-			pr_debug("PKEY Change event: port=%d, "
+			pr_debug("PKEY Change event: port=%u, "
 				 "block=0x%x, change_bitmap=0x%x\n",
 				 port_num, bn, pkey_change_bitmap);
 
@@ -380,7 +380,8 @@ static void node_desc_override(struct ib_device *dev,
 	}
 }
 
-static void forward_trap(struct mlx4_ib_dev *dev, u8 port_num, const struct ib_mad *mad)
+static void forward_trap(struct mlx4_ib_dev *dev, u32 port_num,
+			 const struct ib_mad *mad)
 {
 	int qpn = mad->mad_hdr.mgmt_class != IB_MGMT_CLASS_SUBN_LID_ROUTED;
 	struct ib_mad_send_buf *send_buf;
@@ -429,7 +430,7 @@ static int mlx4_ib_demux_sa_handler(struct ib_device *ibdev, int port, int slave
 	return ret;
 }
 
-int mlx4_ib_find_real_gid(struct ib_device *ibdev, u8 port, __be64 guid)
+int mlx4_ib_find_real_gid(struct ib_device *ibdev, u32 port, __be64 guid)
 {
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	int i;
@@ -443,7 +444,7 @@ int mlx4_ib_find_real_gid(struct ib_device *ibdev, u8 port, __be64 guid)
 
 
 static int find_slave_port_pkey_ix(struct mlx4_ib_dev *dev, int slave,
-				   u8 port, u16 pkey, u16 *ix)
+				   u32 port, u16 pkey, u16 *ix)
 {
 	int i, ret;
 	u8 unassigned_pkey_ix, pkey_ix, partial_ix = 0xFF;
@@ -507,7 +508,7 @@ static int is_proxy_qp0(struct mlx4_ib_dev *dev, int qpn, int slave)
 	return (qpn >= proxy_start && qpn <= proxy_start + 1);
 }
 
-int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
+int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u32 port,
 			  enum ib_qp_type dest_qpt, struct ib_wc *wc,
 			  struct ib_grh *grh, struct ib_mad *mad)
 {
@@ -678,7 +679,7 @@ end:
 	return ret;
 }
 
-static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
+static int mlx4_ib_demux_mad(struct ib_device *ibdev, u32 port,
 			struct ib_wc *wc, struct ib_grh *grh,
 			struct ib_mad *mad)
 {
@@ -818,7 +819,7 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 	return 0;
 }
 
-static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
+static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 			const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 			const struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
@@ -932,9 +933,10 @@ static int iboe_process_mad_port_info(void *out_mad)
 	return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
 }
 
-static int iboe_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
-			const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-			const struct ib_mad *in_mad, struct ib_mad *out_mad)
+static int iboe_process_mad(struct ib_device *ibdev, int mad_flags,
+			    u32 port_num, const struct ib_wc *in_wc,
+			    const struct ib_grh *in_grh,
+			    const struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
 	struct mlx4_counter counter_stats;
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
@@ -979,7 +981,7 @@ static int iboe_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	return err;
 }
 
-int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
+int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 			const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 			const struct ib_mad *in, struct ib_mad *out,
 			size_t *out_mad_size, u16 *out_mad_pkey_index)
@@ -1073,7 +1075,7 @@ void mlx4_ib_mad_cleanup(struct mlx4_ib_dev *dev)
 	}
 }
 
-static void handle_lid_change_event(struct mlx4_ib_dev *dev, u8 port_num)
+static void handle_lid_change_event(struct mlx4_ib_dev *dev, u32 port_num)
 {
 	mlx4_ib_dispatch_event(dev, port_num, IB_EVENT_LID_CHANGE);
 
@@ -1082,7 +1084,7 @@ static void handle_lid_change_event(struct mlx4_ib_dev *dev, u8 port_num)
 					    MLX4_EQ_PORT_INFO_LID_CHANGE_MASK);
 }
 
-static void handle_client_rereg_event(struct mlx4_ib_dev *dev, u8 port_num)
+static void handle_client_rereg_event(struct mlx4_ib_dev *dev, u32 port_num)
 {
 	/* re-configure the alias-guid and mcg's */
 	if (mlx4_is_master(dev->dev)) {
@@ -1121,7 +1123,7 @@ static void propagate_pkey_ev(struct mlx4_ib_dev *dev, int port_num,
 			    GET_MASK_FROM_EQE(eqe));
 }
 
-static void handle_slaves_guid_change(struct mlx4_ib_dev *dev, u8 port_num,
+static void handle_slaves_guid_change(struct mlx4_ib_dev *dev, u32 port_num,
 				      u32 guid_tbl_blk_num, u32 change_bitmap)
 {
 	struct ib_smp *in_mad  = NULL;
@@ -1177,7 +1179,7 @@ void handle_port_mgmt_change_event(struct work_struct *work)
 	struct ib_event_work *ew = container_of(work, struct ib_event_work, work);
 	struct mlx4_ib_dev *dev = ew->ib_dev;
 	struct mlx4_eqe *eqe = &(ew->ib_eqe);
-	u8 port = eqe->event.port_mgmt_change.port;
+	u32 port = eqe->event.port_mgmt_change.port;
 	u32 changed_attr;
 	u32 tbl_block;
 	u32 change_bitmap;
@@ -1274,7 +1276,7 @@ void handle_port_mgmt_change_event(struct work_struct *work)
 	kfree(ew);
 }
 
-void mlx4_ib_dispatch_event(struct mlx4_ib_dev *dev, u8 port_num,
+void mlx4_ib_dispatch_event(struct mlx4_ib_dev *dev, u32 port_num,
 			    enum ib_event_type type)
 {
 	struct ib_event event;
@@ -1351,7 +1353,7 @@ static int mlx4_ib_multiplex_sa_handler(struct ib_device *ibdev, int port,
 	return ret;
 }
 
-int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
+int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u32 port,
 			 enum ib_qp_type dest_qpt, u16 pkey_index,
 			 u32 remote_qpn, u32 qkey, struct rdma_ah_attr *attr,
 			 u8 *s_mac, u16 vlan_id, struct ib_mad *mad)
@@ -1523,6 +1525,7 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 			return;
 		} else
 			*slave_id = slave;
+		break;
 	default:
 		/* nothing */;
 	}

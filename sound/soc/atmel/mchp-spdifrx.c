@@ -56,7 +56,7 @@
 /* Validity Bit Mode */
 #define SPDIFRX_MR_VBMODE_MASK		GENAMSK(1, 1)
 #define SPDIFRX_MR_VBMODE_ALWAYS_LOAD \
-	(0 << 1)	/* Load sample regardles of validity bit value */
+	(0 << 1)	/* Load sample regardless of validity bit value */
 #define SPDIFRX_MR_VBMODE_DISCARD_IF_VB1 \
 	(1 << 1)	/* Load sample only if validity bit is 0 */
 
@@ -519,7 +519,7 @@ static int mchp_spdifrx_cs_get(struct mchp_spdifrx_dev *dev,
 	/* check for new data available */
 	ret = wait_for_completion_interruptible_timeout(&ch_stat->done,
 							msecs_to_jiffies(100));
-	/* IP might not be started or valid stream might not be prezent */
+	/* IP might not be started or valid stream might not be present */
 	if (ret < 0) {
 		dev_dbg(dev->dev, "channel status for channel %d timeout\n",
 			channel);
@@ -571,7 +571,7 @@ static int mchp_spdifrx_subcode_ch_get(struct mchp_spdifrx_dev *dev,
 	mchp_spdifrx_isr_blockend_en(dev);
 	ret = wait_for_completion_interruptible_timeout(&user_data->done,
 							msecs_to_jiffies(100));
-	/* IP might not be started or valid stream might not be prezent */
+	/* IP might not be started or valid stream might not be present */
 	if (ret <= 0) {
 		dev_dbg(dev->dev, "user data for channel %d timeout\n",
 			channel);
@@ -920,7 +920,7 @@ static int mchp_spdifrx_probe(struct platform_device *pdev)
 
 	err = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (err) {
-		dev_err(&pdev->dev, "failed to register PMC: %d\n", err);
+		dev_err(&pdev->dev, "failed to register PCM: %d\n", err);
 		return err;
 	}
 

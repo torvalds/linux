@@ -22,13 +22,13 @@
  * The hardware has four display pipes, and the layout is a little
  * bit like this::
  *
- *   Memory     -> Overlay -> Channel -> FIFO -> 5 formatters -> DSI/DPI
- *   External      0..5       0..3       A,B,    3 x DSI         bridge
+ *   Memory     -> Overlay -> Channel -> FIFO -> 8 formatters -> DSI/DPI
+ *   External      0..5       0..3       A,B,    6 x DSI         bridge
  *   source 0..9                         C0,C1   2 x DPI
  *
  * FIFOs A and B are for LCD and HDMI while FIFO CO/C1 are for
  * panels with embedded buffer.
- * 3 of the formatters are for DSI.
+ * 6 of the formatters are for DSI, 3 pairs for VID/CMD respectively.
  * 2 of the formatters are for DPI.
  *
  * Behind the formatters are the DSI or DPI ports that route to
@@ -130,9 +130,37 @@ static int mcde_modeset_init(struct drm_device *drm)
 	struct mcde *mcde = to_mcde(drm);
 	int ret;
 
+	/*
+	 * If no other bridge was found, check if we have a DPI panel or
+	 * any other bridge connected directly to the MCDE DPI output.
+	 * If a DSI bridge is found, DSI will take precedence.
+	 *
+	 * TODO: more elaborate bridge selection if we have more than one
+	 * thing attached to the system.
+	 */
 	if (!mcde->bridge) {
-		dev_err(drm->dev, "no display output bridge yet\n");
-		return -EPROBE_DEFER;
+		struct drm_panel *panel;
+		struct drm_bridge *bridge;
+
+		ret = drm_of_find_panel_or_bridge(drm->dev->of_node,
+						  0, 0, &panel, &bridge);
+		if (ret) {
+			dev_err(drm->dev,
+				"Could not locate any output bridge or panel\n");
+			return ret;
+		}
+		if (panel) {
+			bridge = drm_panel_bridge_add_typed(panel,
+					DRM_MODE_CONNECTOR_DPI);
+			if (IS_ERR(bridge)) {
+				dev_err(drm->dev,
+					"Could not connect panel bridge\n");
+				return PTR_ERR(bridge);
+			}
+		}
+		mcde->dpi_output = true;
+		mcde->bridge = bridge;
+		mcde->flow_mode = MCDE_DPI_FORMATTER_FLOW;
 	}
 
 	mode_config = &drm->mode_config;
@@ -156,13 +184,7 @@ static int mcde_modeset_init(struct drm_device *drm)
 		return ret;
 	}
 
-	/*
-	 * Attach the DSI bridge
-	 *
-	 * TODO: when adding support for the DPI bridge or several DSI bridges,
-	 * we selectively connect the bridge(s) here instead of this simple
-	 * attachment.
-	 */
+	/* Attach the bridge. */
 	ret = drm_simple_display_pipe_attach_bridge(&mcde->pipe,
 						    mcde->bridge);
 	if (ret) {
@@ -178,7 +200,7 @@ static int mcde_modeset_init(struct drm_device *drm)
 
 DEFINE_DRM_GEM_CMA_FOPS(drm_fops);
 
-static struct drm_driver mcde_drm_driver = {
+static const struct drm_driver mcde_drm_driver = {
 	.driver_features =
 		DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.lastclose = drm_fb_helper_lastclose,
@@ -243,18 +265,12 @@ static struct platform_driver *const mcde_component_drivers[] = {
 	&mcde_dsi_driver,
 };
 
-static int mcde_compare_dev(struct device *dev, void *data)
-{
-	return dev == data;
-}
-
 static int mcde_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct drm_device *drm;
 	struct mcde *mcde;
 	struct component_match *match = NULL;
-	struct resource *res;
 	u32 pid;
 	int irq;
 	int ret;
@@ -322,8 +338,7 @@ static int mcde_probe(struct platform_device *pdev)
 		goto clk_disable;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mcde->regs = devm_ioremap_resource(dev, res);
+	mcde->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mcde->regs)) {
 		dev_err(dev, "no MCDE regs\n");
 		ret = -EINVAL;
@@ -331,8 +346,8 @@ static int mcde_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq) {
-		ret = -EINVAL;
+	if (irq < 0) {
+		ret = irq;
 		goto clk_disable;
 	}
 
@@ -379,7 +394,7 @@ static int mcde_probe(struct platform_device *pdev)
 
 		while ((d = platform_find_device_by_driver(p, drv))) {
 			put_device(p);
-			component_match_add(dev, &match, mcde_compare_dev, d);
+			component_match_add(dev, &match, component_compare_dev, d);
 			p = d;
 		}
 		put_device(p);
@@ -470,6 +485,9 @@ static struct platform_driver *const component_drivers[] = {
 static int __init mcde_drm_register(void)
 {
 	int ret;
+
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
 
 	ret = platform_register_drivers(component_drivers,
 					ARRAY_SIZE(component_drivers));

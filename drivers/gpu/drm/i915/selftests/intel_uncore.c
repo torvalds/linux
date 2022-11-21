@@ -62,29 +62,40 @@ static int intel_fw_table_check(const struct intel_forcewake_range *ranges,
 static int intel_shadow_table_check(void)
 {
 	struct {
-		const i915_reg_t *regs;
+		const struct i915_range *regs;
 		unsigned int size;
-	} reg_lists[] = {
+	} range_lists[] = {
 		{ gen8_shadowed_regs, ARRAY_SIZE(gen8_shadowed_regs) },
 		{ gen11_shadowed_regs, ARRAY_SIZE(gen11_shadowed_regs) },
 		{ gen12_shadowed_regs, ARRAY_SIZE(gen12_shadowed_regs) },
+		{ dg2_shadowed_regs, ARRAY_SIZE(dg2_shadowed_regs) },
 	};
-	const i915_reg_t *reg;
+	const struct i915_range *range;
 	unsigned int i, j;
 	s32 prev;
 
-	for (j = 0; j < ARRAY_SIZE(reg_lists); ++j) {
-		reg = reg_lists[j].regs;
-		for (i = 0, prev = -1; i < reg_lists[j].size; i++, reg++) {
-			u32 offset = i915_mmio_reg_offset(*reg);
-
-			if (prev >= (s32)offset) {
-				pr_err("%s: entry[%d]:(%x) is before previous (%x)\n",
-				       __func__, i, offset, prev);
+	for (j = 0; j < ARRAY_SIZE(range_lists); ++j) {
+		range = range_lists[j].regs;
+		for (i = 0, prev = -1; i < range_lists[j].size; i++, range++) {
+			if (range->end < range->start) {
+				pr_err("%s: range[%d]:(%06x-%06x) has end before start\n",
+				       __func__, i, range->start, range->end);
 				return -EINVAL;
 			}
 
-			prev = offset;
+			if (prev >= (s32)range->start) {
+				pr_err("%s: range[%d]:(%06x-%06x) is before end of previous (%06x)\n",
+				       __func__, i, range->start, range->end, prev);
+				return -EINVAL;
+			}
+
+			if (range->start % 4) {
+				pr_err("%s: range[%d]:(%06x-%06x) has non-dword-aligned start\n",
+				       __func__, i, range->start, range->end);
+				return -EINVAL;
+			}
+
+			prev = range->end;
 		}
 	}
 
@@ -103,6 +114,7 @@ int intel_uncore_mock_selftests(void)
 		{ __gen9_fw_ranges, ARRAY_SIZE(__gen9_fw_ranges), true },
 		{ __gen11_fw_ranges, ARRAY_SIZE(__gen11_fw_ranges), true },
 		{ __gen12_fw_ranges, ARRAY_SIZE(__gen12_fw_ranges), true },
+		{ __xehp_fw_ranges, ARRAY_SIZE(__xehp_fw_ranges), true },
 	};
 	int err, i;
 
@@ -125,17 +137,19 @@ static int live_forcewake_ops(void *arg)
 {
 	static const struct reg {
 		const char *name;
+		u8 min_graphics_ver;
+		u8 max_graphics_ver;
 		unsigned long platforms;
 		unsigned int offset;
 	} registers[] = {
 		{
 			"RING_START",
-			INTEL_GEN_MASK(6, 7),
+			6, 7,
 			0x38,
 		},
 		{
 			"RING_MI_MODE",
-			INTEL_GEN_MASK(8, BITS_PER_LONG),
+			8, U8_MAX,
 			0x9c,
 		}
 	};
@@ -170,7 +184,7 @@ static int live_forcewake_ops(void *arg)
 
 	/* We have to pick carefully to get the exact behaviour we need */
 	for (r = registers; r->name; r++)
-		if (r->platforms & INTEL_INFO(gt->i915)->gen_mask)
+		if (IS_GRAPHICS_VER(gt->i915, r->min_graphics_ver, r->max_graphics_ver))
 			break;
 	if (!r->name) {
 		pr_debug("Forcewaked register not known for %s; skipping\n",
@@ -319,7 +333,7 @@ static int live_fw_table(void *arg)
 	/* Confirm the table we load is still valid */
 	return intel_fw_table_check(gt->uncore->fw_domains_table,
 				    gt->uncore->fw_domains_table_entries,
-				    INTEL_GEN(gt->i915) >= 9);
+				    GRAPHICS_VER(gt->i915) >= 9);
 }
 
 int intel_uncore_live_selftests(struct drm_i915_private *i915)
@@ -330,5 +344,5 @@ int intel_uncore_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_forcewake_domains),
 	};
 
-	return intel_gt_live_subtests(tests, &i915->gt);
+	return intel_gt_live_subtests(tests, to_gt(i915));
 }

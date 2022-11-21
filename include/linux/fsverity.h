@@ -138,6 +138,10 @@ int fsverity_file_open(struct inode *inode, struct file *filp);
 int fsverity_prepare_setattr(struct dentry *dentry, struct iattr *attr);
 void fsverity_cleanup_inode(struct inode *inode);
 
+/* read_metadata.c */
+
+int fsverity_ioctl_read_metadata(struct file *filp, const void __user *uarg);
+
 /* verify.c */
 
 bool fsverity_verify_page(struct page *page);
@@ -183,6 +187,14 @@ static inline void fsverity_cleanup_inode(struct inode *inode)
 {
 }
 
+/* read_metadata.c */
+
+static inline int fsverity_ioctl_read_metadata(struct file *filp,
+					       const void __user *uarg)
+{
+	return -EOPNOTSUPP;
+}
+
 /* verify.c */
 
 static inline bool fsverity_verify_page(struct page *page)
@@ -209,7 +221,7 @@ static inline void fsverity_enqueue_verify_work(struct work_struct *work)
  *
  * This checks whether ->i_verity_info has been set.
  *
- * Filesystems call this from ->readpages() to check whether the pages need to
+ * Filesystems call this from ->readahead() to check whether the pages need to
  * be verified or not.  Don't use IS_VERITY() for this purpose; it's subject to
  * a race condition where the file is being read concurrently with
  * FS_IOC_ENABLE_VERITY completing.  (S_VERITY is set before ->i_verity_info.)

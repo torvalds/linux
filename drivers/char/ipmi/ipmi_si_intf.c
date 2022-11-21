@@ -70,7 +70,8 @@ enum si_intf_state {
 #define IPMI_BT_INTMASK_CLEAR_IRQ_BIT	2
 #define IPMI_BT_INTMASK_ENABLE_IRQ_BIT	1
 
-static const char * const si_to_str[] = { "invalid", "kcs", "smic", "bt" };
+/* 'invalid' to allow a firmware-specified interface to be disabled */
+const char *const si_to_str[] = { "invalid", "kcs", "smic", "bt", NULL };
 
 static bool initialized;
 
@@ -590,7 +591,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 		smi_info->handlers->get_result(smi_info->si_sm, msg, 3);
 		if (msg[2] != 0) {
 			/* Error clearing flags */
-			dev_warn(smi_info->io.dev,
+			dev_warn_ratelimited(smi_info->io.dev,
 				 "Error clearing flags: %2.2x\n", msg[2]);
 		}
 		smi_info->si_state = SI_NORMAL;
@@ -682,10 +683,10 @@ static void handle_transaction_done(struct smi_info *smi_info)
 		/* We got the flags from the SMI, now handle them. */
 		smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
 		if (msg[2] != 0) {
-			dev_warn(smi_info->io.dev,
-				 "Couldn't get irq info: %x.\n", msg[2]);
-			dev_warn(smi_info->io.dev,
-				 "Maybe ok, but ipmi might run very slowly.\n");
+			dev_warn_ratelimited(smi_info->io.dev,
+				"Couldn't get irq info: %x,\n"
+				"Maybe ok, but ipmi might run very slowly.\n",
+				msg[2]);
 			smi_info->si_state = SI_NORMAL;
 			break;
 		}
@@ -720,7 +721,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 
 		smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
 		if (msg[2] != 0)
-			dev_warn(smi_info->io.dev,
+			dev_warn_ratelimited(smi_info->io.dev,
 				 "Could not set the global enables: 0x%x.\n",
 				 msg[2]);
 
@@ -1169,9 +1170,8 @@ static int smi_start_processing(void            *send_info,
 		new_smi->thread = kthread_run(ipmi_thread, new_smi,
 					      "kipmi%d", new_smi->si_num);
 		if (IS_ERR(new_smi->thread)) {
-			dev_notice(new_smi->io.dev, "Could not start"
-				   " kernel thread due to error %ld, only using"
-				   " timers to drive the interface\n",
+			dev_notice(new_smi->io.dev,
+				   "Could not start kernel thread due to error %ld, only using timers to drive the interface\n",
 				   PTR_ERR(new_smi->thread));
 			new_smi->thread = NULL;
 		}
@@ -1223,18 +1223,14 @@ static int smi_num; /* Used to sequence the SMIs */
 static const char * const addr_space_to_str[] = { "i/o", "mem" };
 
 module_param_array(force_kipmid, int, &num_force_kipmid, 0);
-MODULE_PARM_DESC(force_kipmid, "Force the kipmi daemon to be enabled (1) or"
-		 " disabled(0).  Normally the IPMI driver auto-detects"
-		 " this, but the value may be overridden by this parm.");
+MODULE_PARM_DESC(force_kipmid,
+		 "Force the kipmi daemon to be enabled (1) or disabled(0).  Normally the IPMI driver auto-detects this, but the value may be overridden by this parm.");
 module_param(unload_when_empty, bool, 0);
-MODULE_PARM_DESC(unload_when_empty, "Unload the module if no interfaces are"
-		 " specified or found, default is 1.  Setting to 0"
-		 " is useful for hot add of devices using hotmod.");
+MODULE_PARM_DESC(unload_when_empty,
+		 "Unload the module if no interfaces are specified or found, default is 1.  Setting to 0 is useful for hot add of devices using hotmod.");
 module_param_array(kipmid_max_busy_us, uint, &num_max_busy_us, 0644);
 MODULE_PARM_DESC(kipmid_max_busy_us,
-		 "Max time (in microseconds) to busy-wait for IPMI data before"
-		 " sleeping. 0 (default) means to wait forever. Set to 100-500"
-		 " if kipmid is using up a lot of CPU time.");
+		 "Max time (in microseconds) to busy-wait for IPMI data before sleeping. 0 (default) means to wait forever. Set to 100-500 if kipmid is using up a lot of CPU time.");
 
 void ipmi_irq_finish_setup(struct si_sm_io *io)
 {
@@ -1270,8 +1266,7 @@ int ipmi_std_irq_setup(struct si_sm_io *io)
 			 SI_DEVICE_NAME,
 			 io->irq_handler_data);
 	if (rv) {
-		dev_warn(io->dev, "%s unable to claim interrupt %d,"
-			 " running polled\n",
+		dev_warn(io->dev, "%s unable to claim interrupt %d, running polled\n",
 			 SI_DEVICE_NAME, io->irq);
 		io->irq = 0;
 	} else {
@@ -1346,11 +1341,9 @@ retry:
 		/* record completion code */
 		unsigned char cc = *(resp + 2);
 
-		if ((cc == IPMI_DEVICE_IN_FW_UPDATE_ERR
-		    || cc == IPMI_DEVICE_IN_INIT_ERR
-		    || cc == IPMI_NOT_IN_MY_STATE_ERR)
-		    && ++retry_count <= GET_DEVICE_ID_MAX_RETRY) {
-			dev_warn(smi_info->io.dev,
+		if (cc != IPMI_CC_NO_ERROR &&
+		    ++retry_count <= GET_DEVICE_ID_MAX_RETRY) {
+			dev_warn_ratelimited(smi_info->io.dev,
 			    "BMC returned 0x%2.2x, retry get bmc device id\n",
 			    cc);
 			goto retry;
@@ -1610,9 +1603,9 @@ static ssize_t name##_show(struct device *dev,			\
 {									\
 	struct smi_info *smi_info = dev_get_drvdata(dev);		\
 									\
-	return snprintf(buf, 10, "%u\n", smi_get_stat(smi_info, name));	\
+	return sysfs_emit(buf, "%u\n", smi_get_stat(smi_info, name));	\
 }									\
-static DEVICE_ATTR(name, 0444, name##_show, NULL)
+static DEVICE_ATTR_RO(name)
 
 static ssize_t type_show(struct device *dev,
 			 struct device_attribute *attr,
@@ -1620,9 +1613,9 @@ static ssize_t type_show(struct device *dev,
 {
 	struct smi_info *smi_info = dev_get_drvdata(dev);
 
-	return snprintf(buf, 10, "%s\n", si_to_str[smi_info->io.si_type]);
+	return sysfs_emit(buf, "%s\n", si_to_str[smi_info->io.si_type]);
 }
-static DEVICE_ATTR(type, 0444, type_show, NULL);
+static DEVICE_ATTR_RO(type);
 
 static ssize_t interrupts_enabled_show(struct device *dev,
 				       struct device_attribute *attr,
@@ -1631,10 +1624,9 @@ static ssize_t interrupts_enabled_show(struct device *dev,
 	struct smi_info *smi_info = dev_get_drvdata(dev);
 	int enabled = smi_info->io.irq && !smi_info->interrupt_disabled;
 
-	return snprintf(buf, 10, "%d\n", enabled);
+	return sysfs_emit(buf, "%d\n", enabled);
 }
-static DEVICE_ATTR(interrupts_enabled, 0444,
-		   interrupts_enabled_show, NULL);
+static DEVICE_ATTR_RO(interrupts_enabled);
 
 IPMI_SI_ATTR(short_timeouts);
 IPMI_SI_ATTR(long_timeouts);
@@ -1654,7 +1646,7 @@ static ssize_t params_show(struct device *dev,
 {
 	struct smi_info *smi_info = dev_get_drvdata(dev);
 
-	return snprintf(buf, 200,
+	return sysfs_emit(buf,
 			"%s,%s,0x%lx,rsp=%d,rsi=%d,rsh=%d,irq=%d,ipmb=%d\n",
 			si_to_str[smi_info->io.si_type],
 			addr_space_to_str[smi_info->io.addr_space],
@@ -1665,7 +1657,7 @@ static ssize_t params_show(struct device *dev,
 			smi_info->io.irq,
 			smi_info->io.slave_addr);
 }
-static DEVICE_ATTR(params, 0444, params_show, NULL);
+static DEVICE_ATTR_RO(params);
 
 static struct attribute *ipmi_si_dev_attrs[] = {
 	&dev_attr_type.attr,
@@ -2207,10 +2199,6 @@ static void shutdown_smi(void *send_info)
 	if (smi_info->handlers)
 		smi_info->handlers->cleanup(smi_info->si_sm);
 
-	if (smi_info->io.addr_source_cleanup) {
-		smi_info->io.addr_source_cleanup(&smi_info->io);
-		smi_info->io.addr_source_cleanup = NULL;
-	}
 	if (smi_info->io.io_cleanup) {
 		smi_info->io.io_cleanup(&smi_info->io);
 		smi_info->io.io_cleanup = NULL;
@@ -2232,29 +2220,22 @@ static void cleanup_one_si(struct smi_info *smi_info)
 		return;
 
 	list_del(&smi_info->link);
-
-	if (smi_info->intf)
-		ipmi_unregister_smi(smi_info->intf);
-
+	ipmi_unregister_smi(smi_info->intf);
 	kfree(smi_info);
 }
 
-int ipmi_si_remove_by_dev(struct device *dev)
+void ipmi_si_remove_by_dev(struct device *dev)
 {
 	struct smi_info *e;
-	int rv = -ENOENT;
 
 	mutex_lock(&smi_infos_lock);
 	list_for_each_entry(e, &smi_infos, link) {
 		if (e->io.dev == dev) {
 			cleanup_one_si(e);
-			rv = 0;
 			break;
 		}
 	}
 	mutex_unlock(&smi_infos_lock);
-
-	return rv;
 }
 
 struct device *ipmi_si_remove_by_data(int addr_space, enum si_type si_type,
@@ -2306,5 +2287,4 @@ module_exit(cleanup_ipmi_si);
 MODULE_ALIAS("platform:dmi-ipmi-si");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Corey Minyard <minyard@mvista.com>");
-MODULE_DESCRIPTION("Interface to the IPMI driver for the KCS, SMIC, and BT"
-		   " system interfaces.");
+MODULE_DESCRIPTION("Interface to the IPMI driver for the KCS, SMIC, and BT system interfaces.");

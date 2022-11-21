@@ -9,6 +9,7 @@
 #include <net/pkt_cls.h>
 
 #include "cmsg.h"
+#include "conntrack.h"
 #include "main.h"
 #include "../nfp_app.h"
 
@@ -42,15 +43,14 @@ static int nfp_release_stats_entry(struct nfp_app *app, u32 stats_context_id)
 	struct circ_buf *ring;
 
 	ring = &priv->stats_ids.free_list;
-	/* Check if buffer is full. */
-	if (!CIRC_SPACE(ring->head, ring->tail,
-			priv->stats_ring_size * NFP_FL_STATS_ELEM_RS -
-			NFP_FL_STATS_ELEM_RS + 1))
+	/* Check if buffer is full, stats_ring_size must be power of 2 */
+	if (!CIRC_SPACE(ring->head, ring->tail, priv->stats_ring_size))
 		return -ENOBUFS;
 
-	memcpy(&ring->buf[ring->head], &stats_context_id, NFP_FL_STATS_ELEM_RS);
-	ring->head = (ring->head + NFP_FL_STATS_ELEM_RS) %
-		     (priv->stats_ring_size * NFP_FL_STATS_ELEM_RS);
+	/* Each increment of head represents size of NFP_FL_STATS_ELEM_RS */
+	memcpy(&ring->buf[ring->head * NFP_FL_STATS_ELEM_RS],
+	       &stats_context_id, NFP_FL_STATS_ELEM_RS);
+	ring->head = (ring->head + 1) & (priv->stats_ring_size - 1);
 
 	return 0;
 }
@@ -85,11 +85,14 @@ static int nfp_get_stats_entry(struct nfp_app *app, u32 *stats_context_id)
 		return -ENOENT;
 	}
 
-	memcpy(&temp_stats_id, &ring->buf[ring->tail], NFP_FL_STATS_ELEM_RS);
+	/* Each increment of tail represents size of NFP_FL_STATS_ELEM_RS */
+	memcpy(&temp_stats_id, &ring->buf[ring->tail * NFP_FL_STATS_ELEM_RS],
+	       NFP_FL_STATS_ELEM_RS);
 	*stats_context_id = temp_stats_id;
-	memcpy(&ring->buf[ring->tail], &freed_stats_id, NFP_FL_STATS_ELEM_RS);
-	ring->tail = (ring->tail + NFP_FL_STATS_ELEM_RS) %
-		     (priv->stats_ring_size * NFP_FL_STATS_ELEM_RS);
+	memcpy(&ring->buf[ring->tail * NFP_FL_STATS_ELEM_RS], &freed_stats_id,
+	       NFP_FL_STATS_ELEM_RS);
+	/* stats_ring_size must be power of 2 */
+	ring->tail = (ring->tail + 1) & (priv->stats_ring_size - 1);
 
 	return 0;
 }
@@ -137,13 +140,18 @@ static int nfp_release_mask_id(struct nfp_app *app, u8 mask_id)
 	struct circ_buf *ring;
 
 	ring = &priv->mask_ids.mask_id_free_list;
-	/* Checking if buffer is full. */
+	/* Checking if buffer is full,
+	 * NFP_FLOWER_MASK_ENTRY_RS must be power of 2
+	 */
 	if (CIRC_SPACE(ring->head, ring->tail, NFP_FLOWER_MASK_ENTRY_RS) == 0)
 		return -ENOBUFS;
 
-	memcpy(&ring->buf[ring->head], &mask_id, NFP_FLOWER_MASK_ELEMENT_RS);
-	ring->head = (ring->head + NFP_FLOWER_MASK_ELEMENT_RS) %
-		     (NFP_FLOWER_MASK_ENTRY_RS * NFP_FLOWER_MASK_ELEMENT_RS);
+	/* Each increment of head represents size of
+	 * NFP_FLOWER_MASK_ELEMENT_RS
+	 */
+	memcpy(&ring->buf[ring->head * NFP_FLOWER_MASK_ELEMENT_RS], &mask_id,
+	       NFP_FLOWER_MASK_ELEMENT_RS);
+	ring->head = (ring->head + 1) & (NFP_FLOWER_MASK_ENTRY_RS - 1);
 
 	priv->mask_ids.last_used[mask_id] = ktime_get();
 
@@ -170,7 +178,11 @@ static int nfp_mask_alloc(struct nfp_app *app, u8 *mask_id)
 	if (ring->head == ring->tail)
 		goto err_not_found;
 
-	memcpy(&temp_id, &ring->buf[ring->tail], NFP_FLOWER_MASK_ELEMENT_RS);
+	/* Each increment of tail represents size of
+	 * NFP_FLOWER_MASK_ELEMENT_RS
+	 */
+	memcpy(&temp_id, &ring->buf[ring->tail * NFP_FLOWER_MASK_ELEMENT_RS],
+	       NFP_FLOWER_MASK_ELEMENT_RS);
 	*mask_id = temp_id;
 
 	reuse_timeout = ktime_add_ns(priv->mask_ids.last_used[*mask_id],
@@ -179,9 +191,10 @@ static int nfp_mask_alloc(struct nfp_app *app, u8 *mask_id)
 	if (ktime_before(ktime_get(), reuse_timeout))
 		goto err_not_found;
 
-	memcpy(&ring->buf[ring->tail], &freed_id, NFP_FLOWER_MASK_ELEMENT_RS);
-	ring->tail = (ring->tail + NFP_FLOWER_MASK_ELEMENT_RS) %
-		     (NFP_FLOWER_MASK_ENTRY_RS * NFP_FLOWER_MASK_ELEMENT_RS);
+	memcpy(&ring->buf[ring->tail * NFP_FLOWER_MASK_ELEMENT_RS], &freed_id,
+	       NFP_FLOWER_MASK_ELEMENT_RS);
+	/* NFP_FLOWER_MASK_ENTRY_RS must be power of 2 */
+	ring->tail = (ring->tail + 1) & (NFP_FLOWER_MASK_ENTRY_RS - 1);
 
 	return 0;
 
@@ -289,8 +302,7 @@ nfp_check_mask_remove(struct nfp_app *app, char *mask_data, u32 mask_len,
 	return true;
 }
 
-int nfp_compile_flow_metadata(struct nfp_app *app,
-			      struct flow_cls_offload *flow,
+int nfp_compile_flow_metadata(struct nfp_app *app, u32 cookie,
 			      struct nfp_fl_payload *nfp_flow,
 			      struct net_device *netdev,
 			      struct netlink_ext_ack *extack)
@@ -309,7 +321,7 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 	}
 
 	nfp_flow->meta.host_ctx_id = cpu_to_be32(stats_cxt);
-	nfp_flow->meta.host_cookie = cpu_to_be64(flow->cookie);
+	nfp_flow->meta.host_cookie = cpu_to_be64(cookie);
 	nfp_flow->ingress_dev = netdev;
 
 	ctx_entry = kzalloc(sizeof(*ctx_entry), GFP_KERNEL);
@@ -327,16 +339,17 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 		goto err_free_ctx_entry;
 	}
 
+	/* Do net allocate a mask-id for pre_tun_rules. These flows are used to
+	 * configure the pre_tun table and are never actually send to the
+	 * firmware as an add-flow message. This causes the mask-id allocation
+	 * on the firmware to get out of sync if allocated here.
+	 */
 	new_mask_id = 0;
-	if (!nfp_check_mask_add(app, nfp_flow->mask_data,
+	if (!nfp_flow->pre_tun_rule.dev &&
+	    !nfp_check_mask_add(app, nfp_flow->mask_data,
 				nfp_flow->meta.mask_len,
 				&nfp_flow->meta.flags, &new_mask_id)) {
 		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot allocate a new mask id");
-		if (nfp_release_stats_entry(app, stats_cxt)) {
-			NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot release stats context");
-			err = -EINVAL;
-			goto err_remove_rhash;
-		}
 		err = -ENOENT;
 		goto err_remove_rhash;
 	}
@@ -350,23 +363,9 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 	priv->stats[stats_cxt].bytes = 0;
 	priv->stats[stats_cxt].used = jiffies;
 
-	check_entry = nfp_flower_search_fl_table(app, flow->cookie, netdev);
+	check_entry = nfp_flower_search_fl_table(app, cookie, netdev);
 	if (check_entry) {
 		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot offload duplicate flow entry");
-		if (nfp_release_stats_entry(app, stats_cxt)) {
-			NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot release stats context");
-			err = -EINVAL;
-			goto err_remove_mask;
-		}
-
-		if (!nfp_check_mask_remove(app, nfp_flow->mask_data,
-					   nfp_flow->meta.mask_len,
-					   NULL, &new_mask_id)) {
-			NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot release mask id");
-			err = -EINVAL;
-			goto err_remove_mask;
-		}
-
 		err = -EEXIST;
 		goto err_remove_mask;
 	}
@@ -374,8 +373,10 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 	return 0;
 
 err_remove_mask:
-	nfp_check_mask_remove(app, nfp_flow->mask_data, nfp_flow->meta.mask_len,
-			      NULL, &new_mask_id);
+	if (!nfp_flow->pre_tun_rule.dev)
+		nfp_check_mask_remove(app, nfp_flow->mask_data,
+				      nfp_flow->meta.mask_len,
+				      NULL, &new_mask_id);
 err_remove_rhash:
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->stats_ctx_table,
 					    &ctx_entry->ht_node,
@@ -406,9 +407,10 @@ int nfp_modify_flow_metadata(struct nfp_app *app,
 
 	__nfp_modify_flow_metadata(priv, nfp_flow);
 
-	nfp_check_mask_remove(app, nfp_flow->mask_data,
-			      nfp_flow->meta.mask_len, &nfp_flow->meta.flags,
-			      &new_mask_id);
+	if (!nfp_flow->pre_tun_rule.dev)
+		nfp_check_mask_remove(app, nfp_flow->mask_data,
+				      nfp_flow->meta.mask_len, &nfp_flow->meta.flags,
+				      &new_mask_id);
 
 	/* Update flow payload with mask ids. */
 	nfp_flow->unmasked_data[NFP_FL_MASK_ID_LOCATION] = new_mask_id;
@@ -480,6 +482,26 @@ const struct rhashtable_params nfp_flower_table_params = {
 	.automatic_shrinking	= true,
 };
 
+const struct rhashtable_params merge_table_params = {
+	.key_offset	= offsetof(struct nfp_merge_info, parent_ctx),
+	.head_offset	= offsetof(struct nfp_merge_info, ht_node),
+	.key_len	= sizeof(u64),
+};
+
+const struct rhashtable_params nfp_zone_table_params = {
+	.head_offset		= offsetof(struct nfp_fl_ct_zone_entry, hash_node),
+	.key_len		= sizeof(u16),
+	.key_offset		= offsetof(struct nfp_fl_ct_zone_entry, zone),
+	.automatic_shrinking	= false,
+};
+
+const struct rhashtable_params nfp_ct_map_params = {
+	.head_offset		= offsetof(struct nfp_fl_ct_map_entry, hash_node),
+	.key_len		= sizeof(unsigned long),
+	.key_offset		= offsetof(struct nfp_fl_ct_map_entry, cookie),
+	.automatic_shrinking	= true,
+};
+
 int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
 			     unsigned int host_num_mems)
 {
@@ -496,6 +518,18 @@ int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
 	if (err)
 		goto err_free_flow_table;
 
+	err = rhashtable_init(&priv->merge_table, &merge_table_params);
+	if (err)
+		goto err_free_stats_ctx_table;
+
+	err = rhashtable_init(&priv->ct_zone_table, &nfp_zone_table_params);
+	if (err)
+		goto err_free_merge_table;
+
+	err = rhashtable_init(&priv->ct_map_table, &nfp_ct_map_params);
+	if (err)
+		goto err_free_ct_zone_table;
+
 	get_random_bytes(&priv->mask_id_seed, sizeof(priv->mask_id_seed));
 
 	/* Init ring buffer and unallocated mask_ids. */
@@ -503,7 +537,7 @@ int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
 		kmalloc_array(NFP_FLOWER_MASK_ENTRY_RS,
 			      NFP_FLOWER_MASK_ELEMENT_RS, GFP_KERNEL);
 	if (!priv->mask_ids.mask_id_free_list.buf)
-		goto err_free_stats_ctx_table;
+		goto err_free_ct_map_table;
 
 	priv->mask_ids.init_unallocated = NFP_FLOWER_MASK_ENTRY_RS - 1;
 
@@ -540,11 +574,111 @@ err_free_last_used:
 	kfree(priv->mask_ids.last_used);
 err_free_mask_id:
 	kfree(priv->mask_ids.mask_id_free_list.buf);
+err_free_ct_map_table:
+	rhashtable_destroy(&priv->ct_map_table);
+err_free_ct_zone_table:
+	rhashtable_destroy(&priv->ct_zone_table);
+err_free_merge_table:
+	rhashtable_destroy(&priv->merge_table);
 err_free_stats_ctx_table:
 	rhashtable_destroy(&priv->stats_ctx_table);
 err_free_flow_table:
 	rhashtable_destroy(&priv->flow_table);
 	return -ENOMEM;
+}
+
+static void nfp_zone_table_entry_destroy(struct nfp_fl_ct_zone_entry *zt)
+{
+	if (!zt)
+		return;
+
+	if (!list_empty(&zt->pre_ct_list)) {
+		struct rhashtable *m_table = &zt->priv->ct_map_table;
+		struct nfp_fl_ct_flow_entry *entry, *tmp;
+		struct nfp_fl_ct_map_entry *map;
+
+		WARN_ONCE(1, "pre_ct_list not empty as expected, cleaning up\n");
+		list_for_each_entry_safe(entry, tmp, &zt->pre_ct_list,
+					 list_node) {
+			map = rhashtable_lookup_fast(m_table,
+						     &entry->cookie,
+						     nfp_ct_map_params);
+			WARN_ON_ONCE(rhashtable_remove_fast(m_table,
+							    &map->hash_node,
+							    nfp_ct_map_params));
+			nfp_fl_ct_clean_flow_entry(entry);
+			kfree(map);
+		}
+	}
+
+	if (!list_empty(&zt->post_ct_list)) {
+		struct rhashtable *m_table = &zt->priv->ct_map_table;
+		struct nfp_fl_ct_flow_entry *entry, *tmp;
+		struct nfp_fl_ct_map_entry *map;
+
+		WARN_ONCE(1, "post_ct_list not empty as expected, cleaning up\n");
+		list_for_each_entry_safe(entry, tmp, &zt->post_ct_list,
+					 list_node) {
+			map = rhashtable_lookup_fast(m_table,
+						     &entry->cookie,
+						     nfp_ct_map_params);
+			WARN_ON_ONCE(rhashtable_remove_fast(m_table,
+							    &map->hash_node,
+							    nfp_ct_map_params));
+			nfp_fl_ct_clean_flow_entry(entry);
+			kfree(map);
+		}
+	}
+
+	if (zt->nft) {
+		nf_flow_table_offload_del_cb(zt->nft,
+					     nfp_fl_ct_handle_nft_flow,
+					     zt);
+		zt->nft = NULL;
+	}
+
+	if (!list_empty(&zt->nft_flows_list)) {
+		struct rhashtable *m_table = &zt->priv->ct_map_table;
+		struct nfp_fl_ct_flow_entry *entry, *tmp;
+		struct nfp_fl_ct_map_entry *map;
+
+		WARN_ONCE(1, "nft_flows_list not empty as expected, cleaning up\n");
+		list_for_each_entry_safe(entry, tmp, &zt->nft_flows_list,
+					 list_node) {
+			map = rhashtable_lookup_fast(m_table,
+						     &entry->cookie,
+						     nfp_ct_map_params);
+			WARN_ON_ONCE(rhashtable_remove_fast(m_table,
+							    &map->hash_node,
+							    nfp_ct_map_params));
+			nfp_fl_ct_clean_flow_entry(entry);
+			kfree(map);
+		}
+	}
+
+	rhashtable_free_and_destroy(&zt->tc_merge_tb,
+				    nfp_check_rhashtable_empty, NULL);
+	rhashtable_free_and_destroy(&zt->nft_merge_tb,
+				    nfp_check_rhashtable_empty, NULL);
+
+	kfree(zt);
+}
+
+static void nfp_free_zone_table_entry(void *ptr, void *arg)
+{
+	struct nfp_fl_ct_zone_entry *zt = ptr;
+
+	nfp_zone_table_entry_destroy(zt);
+}
+
+static void nfp_free_map_table_entry(void *ptr, void *arg)
+{
+	struct nfp_fl_ct_map_entry *map = ptr;
+
+	if (!map)
+		return;
+
+	kfree(map);
 }
 
 void nfp_flower_metadata_cleanup(struct nfp_app *app)
@@ -558,6 +692,14 @@ void nfp_flower_metadata_cleanup(struct nfp_app *app)
 				    nfp_check_rhashtable_empty, NULL);
 	rhashtable_free_and_destroy(&priv->stats_ctx_table,
 				    nfp_check_rhashtable_empty, NULL);
+	rhashtable_free_and_destroy(&priv->merge_table,
+				    nfp_check_rhashtable_empty, NULL);
+	rhashtable_free_and_destroy(&priv->ct_zone_table,
+				    nfp_free_zone_table_entry, NULL);
+	nfp_zone_table_entry_destroy(priv->ct_zone_wc);
+
+	rhashtable_free_and_destroy(&priv->ct_map_table,
+				    nfp_free_map_table_entry, NULL);
 	kvfree(priv->stats);
 	kfree(priv->mask_ids.mask_id_free_list.buf);
 	kfree(priv->mask_ids.last_used);

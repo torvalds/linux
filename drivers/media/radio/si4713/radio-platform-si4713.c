@@ -110,7 +110,7 @@ static long radio_si4713_default(struct file *file, void *p,
 					  ioctl, cmd, arg);
 }
 
-static struct v4l2_ioctl_ops radio_si4713_ioctl_ops = {
+static const struct v4l2_ioctl_ops radio_si4713_ioctl_ops = {
 	.vidioc_querycap	= radio_si4713_querycap,
 	.vidioc_g_modulator	= radio_si4713_g_modulator,
 	.vidioc_s_modulator	= radio_si4713_s_modulator,

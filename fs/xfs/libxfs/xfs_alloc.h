@@ -75,6 +75,9 @@ typedef struct xfs_alloc_arg {
 	char		wasfromfl;	/* set if allocation is from freelist */
 	struct xfs_owner_info	oinfo;	/* owner of blocks being allocated */
 	enum xfs_ag_resv_type	resv;	/* block reservation to use */
+#ifdef DEBUG
+	bool		alloc_minlen_only; /* allocate exact minlen extent */
+#endif
 } xfs_alloc_arg_t;
 
 /*
@@ -85,7 +88,6 @@ typedef struct xfs_alloc_arg {
 #define XFS_ALLOC_NOBUSY		(1 << 2)/* Busy extents not allowed */
 
 /* freespace limit calculations */
-#define XFS_ALLOC_AGFL_RESERVE	4
 unsigned int xfs_alloc_set_aside(struct xfs_mount *mp);
 unsigned int xfs_alloc_ag_max_usable(struct xfs_mount *mp);
 
@@ -95,7 +97,7 @@ unsigned int xfs_alloc_min_freelist(struct xfs_mount *mp,
 		struct xfs_perag *pag);
 
 /*
- * Compute and fill in value of m_ag_maxlevels.
+ * Compute and fill in value of m_alloc_maxlevels.
  */
 void
 xfs_alloc_compute_maxlevels(
@@ -211,19 +213,19 @@ int xfs_alloc_read_agfl(struct xfs_mount *mp, struct xfs_trans *tp,
 int xfs_free_agfl_block(struct xfs_trans *, xfs_agnumber_t, xfs_agblock_t,
 			struct xfs_buf *, struct xfs_owner_info *);
 int xfs_alloc_fix_freelist(struct xfs_alloc_arg *args, int flags);
-int xfs_free_extent_fix_freelist(struct xfs_trans *tp, xfs_agnumber_t agno,
+int xfs_free_extent_fix_freelist(struct xfs_trans *tp, struct xfs_perag *pag,
 		struct xfs_buf **agbp);
 
 xfs_extlen_t xfs_prealloc_blocks(struct xfs_mount *mp);
 
 typedef int (*xfs_alloc_query_range_fn)(
-	struct xfs_btree_cur		*cur,
-	struct xfs_alloc_rec_incore	*rec,
-	void				*priv);
+	struct xfs_btree_cur			*cur,
+	const struct xfs_alloc_rec_incore	*rec,
+	void					*priv);
 
 int xfs_alloc_query_range(struct xfs_btree_cur *cur,
-		struct xfs_alloc_rec_incore *low_rec,
-		struct xfs_alloc_rec_incore *high_rec,
+		const struct xfs_alloc_rec_incore *low_rec,
+		const struct xfs_alloc_rec_incore *high_rec,
 		xfs_alloc_query_range_fn fn, void *priv);
 int xfs_alloc_query_all(struct xfs_btree_cur *cur, xfs_alloc_query_range_fn fn,
 		void *priv);
@@ -240,9 +242,45 @@ static inline __be32 *
 xfs_buf_to_agfl_bno(
 	struct xfs_buf		*bp)
 {
-	if (xfs_sb_version_hascrc(&bp->b_mount->m_sb))
+	if (xfs_has_crc(bp->b_mount))
 		return bp->b_addr + sizeof(struct xfs_agfl);
 	return bp->b_addr;
 }
+
+void __xfs_free_extent_later(struct xfs_trans *tp, xfs_fsblock_t bno,
+		xfs_filblks_t len, const struct xfs_owner_info *oinfo,
+		bool skip_discard);
+
+/*
+ * List of extents to be free "later".
+ * The list is kept sorted on xbf_startblock.
+ */
+struct xfs_extent_free_item {
+	struct list_head	xefi_list;
+	uint64_t		xefi_owner;
+	xfs_fsblock_t		xefi_startblock;/* starting fs block number */
+	xfs_extlen_t		xefi_blockcount;/* number of blocks in extent */
+	unsigned int		xefi_flags;
+};
+
+#define XFS_EFI_SKIP_DISCARD	(1U << 0) /* don't issue discard */
+#define XFS_EFI_ATTR_FORK	(1U << 1) /* freeing attr fork block */
+#define XFS_EFI_BMBT_BLOCK	(1U << 2) /* freeing bmap btree block */
+
+static inline void
+xfs_free_extent_later(
+	struct xfs_trans		*tp,
+	xfs_fsblock_t			bno,
+	xfs_filblks_t			len,
+	const struct xfs_owner_info	*oinfo)
+{
+	__xfs_free_extent_later(tp, bno, len, oinfo, false);
+}
+
+
+extern struct kmem_cache	*xfs_extfree_item_cache;
+
+int __init xfs_extfree_intent_init_cache(void);
+void xfs_extfree_intent_destroy_cache(void);
 
 #endif	/* __XFS_ALLOC_H__ */

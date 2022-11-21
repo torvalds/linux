@@ -257,7 +257,7 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 
 /*======================================================================*/
 
-/**
+/*
  * readable() - iomem validation function for cards with a valid CIS
  */
 static int readable(struct pcmcia_socket *s, struct resource *res,
@@ -288,7 +288,7 @@ static int readable(struct pcmcia_socket *s, struct resource *res,
 	return 0;
 }
 
-/**
+/*
  * checksum() - iomem validation function for simple memory cards
  */
 static int checksum(struct pcmcia_socket *s, struct resource *res,
@@ -343,9 +343,9 @@ static int checksum(struct pcmcia_socket *s, struct resource *res,
  */
 static int do_validate_mem(struct pcmcia_socket *s,
 			   unsigned long base, unsigned long size,
-			   int validate (struct pcmcia_socket *s,
-					 struct resource *res,
-					 unsigned int *value))
+			   int (*validate)(struct pcmcia_socket *s,
+					   struct resource *res,
+					   unsigned int *value))
 {
 	struct socket_data *s_data = s->resource_data;
 	struct resource *res1, *res2;
@@ -398,12 +398,12 @@ static int do_validate_mem(struct pcmcia_socket *s,
  * function returns the size of the usable memory area.
  */
 static int do_mem_probe(struct pcmcia_socket *s, u_long base, u_long num,
-			int validate (struct pcmcia_socket *s,
-				      struct resource *res,
-				      unsigned int *value),
-			int fallback (struct pcmcia_socket *s,
-				      struct resource *res,
-				      unsigned int *value))
+			int (*validate)(struct pcmcia_socket *s,
+					struct resource *res,
+					unsigned int *value),
+			int (*fallback)(struct pcmcia_socket *s,
+					struct resource *res,
+					unsigned int *value))
 {
 	struct socket_data *s_data = s->resource_data;
 	u_long i, j, bad, fail, step;
@@ -690,6 +690,9 @@ static struct resource *__nonstatic_find_io_region(struct pcmcia_socket *s,
 	unsigned long min = base;
 	int ret;
 
+	if (!res)
+		return NULL;
+
 	data.mask = align - 1;
 	data.offset = base & data.mask;
 	data.map = &s_data->io_db;
@@ -808,6 +811,9 @@ static struct resource *nonstatic_find_mem_region(u_long base, u_long num,
 	struct pcmcia_align_data data;
 	unsigned long min, max;
 	int ret, i, j;
+
+	if (!res)
+		return NULL;
 
 	low = low || !(s->features & SS_CAP_PAGE_REGS);
 
@@ -1076,7 +1082,7 @@ static ssize_t show_io_db(struct device *dev,
 	for (p = data->io_db.next; p != &data->io_db; p = p->next) {
 		if (ret > (PAGE_SIZE - 10))
 			continue;
-		ret += scnprintf(&buf[ret], (PAGE_SIZE - ret - 1),
+		ret += sysfs_emit_at(buf, ret,
 				"0x%08lx - 0x%08lx\n",
 				((unsigned long) p->base),
 				((unsigned long) p->base + p->num - 1));
@@ -1133,7 +1139,7 @@ static ssize_t show_mem_db(struct device *dev,
 	     p = p->next) {
 		if (ret > (PAGE_SIZE - 10))
 			continue;
-		ret += scnprintf(&buf[ret], (PAGE_SIZE - ret - 1),
+		ret += sysfs_emit_at(buf, ret,
 				"0x%08lx - 0x%08lx\n",
 				((unsigned long) p->base),
 				((unsigned long) p->base + p->num - 1));
@@ -1142,7 +1148,7 @@ static ssize_t show_mem_db(struct device *dev,
 	for (p = data->mem_db.next; p != &data->mem_db; p = p->next) {
 		if (ret > (PAGE_SIZE - 10))
 			continue;
-		ret += scnprintf(&buf[ret], (PAGE_SIZE - ret - 1),
+		ret += sysfs_emit_at(buf, ret,
 				"0x%08lx - 0x%08lx\n",
 				((unsigned long) p->base),
 				((unsigned long) p->base + p->num - 1));

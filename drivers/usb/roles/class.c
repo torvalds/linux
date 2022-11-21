@@ -189,6 +189,8 @@ usb_role_switch_find_by_fwnode(const struct fwnode_handle *fwnode)
 		return NULL;
 
 	dev = class_find_device_by_fwnode(role_class, fwnode);
+	if (dev)
+		WARN_ON(!try_module_get(dev->parent->driver->owner));
 
 	return dev ? to_role_switch(dev) : NULL;
 }
@@ -211,6 +213,15 @@ static const char * const usb_roles[] = {
 	[USB_ROLE_HOST]		= "host",
 	[USB_ROLE_DEVICE]	= "device",
 };
+
+const char *usb_role_string(enum usb_role role)
+{
+	if (role < 0 || role >= ARRAY_SIZE(usb_roles))
+		return "unknown";
+
+	return usb_roles[role];
+}
+EXPORT_SYMBOL_GPL(usb_role_string);
 
 static ssize_t
 role_show(struct device *dev, struct device_attribute *attr, char *buf)

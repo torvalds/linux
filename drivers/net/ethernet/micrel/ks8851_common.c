@@ -8,8 +8,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#define DEBUG
-
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -23,6 +21,7 @@
 
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/of_mdio.h>
 #include <linux/of_net.h>
 
 #include "ks8851.h"
@@ -166,6 +165,7 @@ static void ks8851_read_mac_addr(struct net_device *dev)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
 	unsigned long flags;
+	u8 addr[ETH_ALEN];
 	u16 reg;
 	int i;
 
@@ -173,9 +173,10 @@ static void ks8851_read_mac_addr(struct net_device *dev)
 
 	for (i = 0; i < ETH_ALEN; i += 2) {
 		reg = ks8851_rdreg16(ks, KS_MAR(i));
-		dev->dev_addr[i] = reg >> 8;
-		dev->dev_addr[i + 1] = reg & 0xff;
+		addr[i] = reg >> 8;
+		addr[i + 1] = reg & 0xff;
 	}
+	eth_hw_addr_set(dev, addr);
 
 	ks8851_unlock(ks, &flags);
 }
@@ -194,11 +195,10 @@ static void ks8851_read_mac_addr(struct net_device *dev)
 static void ks8851_init_mac(struct ks8851_net *ks, struct device_node *np)
 {
 	struct net_device *dev = ks->netdev;
-	const u8 *mac_addr;
+	int ret;
 
-	mac_addr = of_get_mac_address(np);
-	if (!IS_ERR(mac_addr)) {
-		ether_addr_copy(dev->dev_addr, mac_addr);
+	ret = of_get_ethdev_address(np, dev);
+	if (!ret) {
 		ks8851_write_mac_addr(dev);
 		return;
 	}
@@ -674,7 +674,7 @@ static int ks8851_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(sa->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, sa->sa_data);
 	return ks8851_write_mac_addr(dev);
 }
 
@@ -691,7 +691,7 @@ static int ks8851_net_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 static const struct net_device_ops ks8851_netdev_ops = {
 	.ndo_open		= ks8851_net_open,
 	.ndo_stop		= ks8851_net_stop,
-	.ndo_do_ioctl		= ks8851_net_ioctl,
+	.ndo_eth_ioctl		= ks8851_net_ioctl,
 	.ndo_start_xmit		= ks8851_start_xmit,
 	.ndo_set_mac_address	= ks8851_set_mac_address,
 	.ndo_set_rx_mode	= ks8851_set_rx_mode,
@@ -932,7 +932,25 @@ static int ks8851_phy_reg(int reg)
 		return KS_P1ANLPR;
 	}
 
-	return 0x0;
+	return -EOPNOTSUPP;
+}
+
+static int ks8851_phy_read_common(struct net_device *dev, int phy_addr, int reg)
+{
+	struct ks8851_net *ks = netdev_priv(dev);
+	unsigned long flags;
+	int result;
+	int ksreg;
+
+	ksreg = ks8851_phy_reg(reg);
+	if (ksreg < 0)
+		return ksreg;
+
+	ks8851_lock(ks, &flags);
+	result = ks8851_rdreg16(ks, ksreg);
+	ks8851_unlock(ks, &flags);
+
+	return result;
 }
 
 /**
@@ -952,20 +970,13 @@ static int ks8851_phy_reg(int reg)
  */
 static int ks8851_phy_read(struct net_device *dev, int phy_addr, int reg)
 {
-	struct ks8851_net *ks = netdev_priv(dev);
-	unsigned long flags;
-	int ksreg;
-	int result;
+	int ret;
 
-	ksreg = ks8851_phy_reg(reg);
-	if (!ksreg)
+	ret = ks8851_phy_read_common(dev, phy_addr, reg);
+	if (ret < 0)
 		return 0x0;	/* no error return allowed, so use zero */
 
-	ks8851_lock(ks, &flags);
-	result = ks8851_rdreg16(ks, ksreg);
-	ks8851_unlock(ks, &flags);
-
-	return result;
+	return ret;
 }
 
 static void ks8851_phy_write(struct net_device *dev,
@@ -976,11 +987,35 @@ static void ks8851_phy_write(struct net_device *dev,
 	int ksreg;
 
 	ksreg = ks8851_phy_reg(reg);
-	if (ksreg) {
+	if (ksreg >= 0) {
 		ks8851_lock(ks, &flags);
 		ks8851_wrreg16(ks, ksreg, value);
 		ks8851_unlock(ks, &flags);
 	}
+}
+
+static int ks8851_mdio_read(struct mii_bus *bus, int phy_id, int reg)
+{
+	struct ks8851_net *ks = bus->priv;
+
+	if (phy_id != 0)
+		return -EOPNOTSUPP;
+
+	/* KS8851 PHY ID registers are swapped in HW, swap them back. */
+	if (reg == MII_PHYSID1)
+		reg = MII_PHYSID2;
+	else if (reg == MII_PHYSID2)
+		reg = MII_PHYSID1;
+
+	return ks8851_phy_read_common(ks->netdev, phy_id, reg);
+}
+
+static int ks8851_mdio_write(struct mii_bus *bus, int phy_id, int reg, u16 val)
+{
+	struct ks8851_net *ks = bus->priv;
+
+	ks8851_phy_write(ks->netdev, phy_id, reg, val);
+	return 0;
 }
 
 /**
@@ -989,30 +1024,23 @@ static void ks8851_phy_write(struct net_device *dev,
  *
  * Read and check the TX/RX memory selftest information.
  */
-static int ks8851_read_selftest(struct ks8851_net *ks)
+static void ks8851_read_selftest(struct ks8851_net *ks)
 {
 	unsigned both_done = MBIR_TXMBF | MBIR_RXMBF;
-	int ret = 0;
 	unsigned rd;
 
 	rd = ks8851_rdreg16(ks, KS_MBIR);
 
 	if ((rd & both_done) != both_done) {
 		netdev_warn(ks->netdev, "Memory selftest not finished\n");
-		return 0;
+		return;
 	}
 
-	if (rd & MBIR_TXMBFA) {
+	if (rd & MBIR_TXMBFA)
 		netdev_err(ks->netdev, "TX memory selftest fail\n");
-		ret |= 1;
-	}
 
-	if (rd & MBIR_RXMBFA) {
+	if (rd & MBIR_RXMBFA)
 		netdev_err(ks->netdev, "RX memory selftest fail\n");
-		ret |= 2;
-	}
-
-	return 0;
 }
 
 /* driver bus management functions */
@@ -1031,6 +1059,7 @@ int ks8851_suspend(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ks8851_suspend);
 
 int ks8851_resume(struct device *dev)
 {
@@ -1044,7 +1073,44 @@ int ks8851_resume(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ks8851_resume);
 #endif
+
+static int ks8851_register_mdiobus(struct ks8851_net *ks, struct device *dev)
+{
+	struct mii_bus *mii_bus;
+	int ret;
+
+	mii_bus = mdiobus_alloc();
+	if (!mii_bus)
+		return -ENOMEM;
+
+	mii_bus->name = "ks8851_eth_mii";
+	mii_bus->read = ks8851_mdio_read;
+	mii_bus->write = ks8851_mdio_write;
+	mii_bus->priv = ks;
+	mii_bus->parent = dev;
+	mii_bus->phy_mask = ~((u32)BIT(0));
+	snprintf(mii_bus->id, MII_BUS_ID_SIZE, "%s", dev_name(dev));
+
+	ret = mdiobus_register(mii_bus);
+	if (ret)
+		goto err_mdiobus_register;
+
+	ks->mii_bus = mii_bus;
+
+	return 0;
+
+err_mdiobus_register:
+	mdiobus_free(mii_bus);
+	return ret;
+}
+
+static void ks8851_unregister_mdiobus(struct ks8851_net *ks)
+{
+	mdiobus_unregister(ks->mii_bus);
+	mdiobus_free(ks->mii_bus);
+}
 
 int ks8851_probe_common(struct net_device *netdev, struct device *dev,
 			int msg_en)
@@ -1104,6 +1170,8 @@ int ks8851_probe_common(struct net_device *netdev, struct device *dev,
 
 	INIT_WORK(&ks->rxctrl_work, ks8851_rxctrl_work);
 
+	SET_NETDEV_DEV(netdev, dev);
+
 	/* setup EEPROM state */
 	ks->eeprom.data = ks;
 	ks->eeprom.width = PCI_EEPROM_WIDTH_93C46;
@@ -1112,13 +1180,17 @@ int ks8851_probe_common(struct net_device *netdev, struct device *dev,
 
 	/* setup mii state */
 	ks->mii.dev		= netdev;
-	ks->mii.phy_id		= 1,
+	ks->mii.phy_id		= 1;
 	ks->mii.phy_id_mask	= 1;
 	ks->mii.reg_num_mask	= 0xf;
 	ks->mii.mdio_read	= ks8851_phy_read;
 	ks->mii.mdio_write	= ks8851_phy_write;
 
 	dev_info(dev, "message enable is %d\n", msg_en);
+
+	ret = ks8851_register_mdiobus(ks, dev);
+	if (ret)
+		goto err_mdio;
 
 	/* set the default message enable */
 	ks->msg_enable = netif_msg_init(msg_en, NETIF_MSG_DRV |
@@ -1128,7 +1200,6 @@ int ks8851_probe_common(struct net_device *netdev, struct device *dev,
 	skb_queue_head_init(&ks->txq);
 
 	netdev->ethtool_ops = &ks8851_ethtool_ops;
-	SET_NETDEV_DEV(netdev, dev);
 
 	dev_set_drvdata(dev, ks);
 
@@ -1156,7 +1227,7 @@ int ks8851_probe_common(struct net_device *netdev, struct device *dev,
 	ret = register_netdev(netdev);
 	if (ret) {
 		dev_err(dev, "failed to register network device\n");
-		goto err_netdev;
+		goto err_id;
 	}
 
 	netdev_info(netdev, "revision %d, MAC %pM, IRQ %d, %s EEPROM\n",
@@ -1165,8 +1236,9 @@ int ks8851_probe_common(struct net_device *netdev, struct device *dev,
 
 	return 0;
 
-err_netdev:
 err_id:
+	ks8851_unregister_mdiobus(ks);
+err_mdio:
 	if (gpio_is_valid(gpio))
 		gpio_set_value(gpio, 0);
 	regulator_disable(ks->vdd_reg);
@@ -1175,10 +1247,13 @@ err_reg:
 err_reg_io:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ks8851_probe_common);
 
-int ks8851_remove_common(struct device *dev)
+void ks8851_remove_common(struct device *dev)
 {
 	struct ks8851_net *priv = dev_get_drvdata(dev);
+
+	ks8851_unregister_mdiobus(priv);
 
 	if (netif_msg_drv(priv))
 		dev_info(dev, "remove\n");
@@ -1188,6 +1263,9 @@ int ks8851_remove_common(struct device *dev)
 		gpio_set_value(priv->gpio, 0);
 	regulator_disable(priv->vdd_reg);
 	regulator_disable(priv->vdd_io);
-
-	return 0;
 }
+EXPORT_SYMBOL_GPL(ks8851_remove_common);
+
+MODULE_DESCRIPTION("KS8851 Network driver");
+MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
+MODULE_LICENSE("GPL");

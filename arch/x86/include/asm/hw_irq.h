@@ -39,18 +39,16 @@ enum irq_alloc_type {
 	X86_IRQ_ALLOC_TYPE_PCI_MSI,
 	X86_IRQ_ALLOC_TYPE_PCI_MSIX,
 	X86_IRQ_ALLOC_TYPE_DMAR,
+	X86_IRQ_ALLOC_TYPE_AMDVI,
 	X86_IRQ_ALLOC_TYPE_UV,
-	X86_IRQ_ALLOC_TYPE_IOAPIC_GET_PARENT,
-	X86_IRQ_ALLOC_TYPE_HPET_GET_PARENT,
 };
 
 struct ioapic_alloc_info {
-	int				pin;
-	int				node;
-	u32				trigger : 1;
-	u32				polarity : 1;
-	u32				valid : 1;
-	struct IO_APIC_route_entry	*entry;
+	int		pin;
+	int		node;
+	u32		is_level	: 1;
+	u32		active_low	: 1;
+	u32		valid		: 1;
 };
 
 struct uv_alloc_info {

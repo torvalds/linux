@@ -193,6 +193,33 @@ static void ish_clr_host_rdy(struct ishtp_device *dev)
 	ish_reg_write(dev, IPC_REG_HOST_COMM, host_status);
 }
 
+static bool ish_chk_host_rdy(struct ishtp_device *dev)
+{
+	uint32_t host_status = ish_reg_read(dev, IPC_REG_HOST_COMM);
+
+	return (host_status & IPC_HOSTCOMM_READY_BIT);
+}
+
+/**
+ * ish_set_host_ready() - reconfig ipc host registers
+ * @dev: ishtp device pointer
+ *
+ * Set host to ready state
+ * This API is called in some case:
+ *    fw is still on, but ipc is powered down.
+ *    such as OOB case.
+ *
+ * Return: 0 for success else error fault code
+ */
+void ish_set_host_ready(struct ishtp_device *dev)
+{
+	if (ish_chk_host_rdy(dev))
+		return;
+
+	ish_set_host_rdy(dev);
+	set_host_ready(dev);
+}
+
 /**
  * _ishtp_read_hdr() - Read message header
  * @dev: ISHTP device pointer
@@ -517,7 +544,7 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 #define TIMEOUT_FOR_HW_RDY_MS			300
 
 /**
- * ish_fw_reset_work_fn() - FW reset worker function
+ * fw_reset_work_fn() - FW reset worker function
  * @unused: not used
  *
  * Call ish_fw_reset_handler to complete FW reset
@@ -862,6 +889,33 @@ static uint32_t ish_ipc_get_header(struct ishtp_device *dev, int length,
 	return drbl_val;
 }
 
+/**
+ * _dma_no_cache_snooping()
+ *
+ * Check on current platform, DMA supports cache snooping or not.
+ * This callback is used to notify uplayer driver if manully cache
+ * flush is needed when do DMA operation.
+ *
+ * Please pay attention to this callback implementation, if declare
+ * having cache snooping on a cache snooping not supported platform
+ * will cause uplayer driver receiving mismatched data; and if
+ * declare no cache snooping on a cache snooping supported platform
+ * will cause cache be flushed twice and performance hit.
+ *
+ * @dev: ishtp device pointer
+ *
+ * Return: false - has cache snooping capability
+ *         true - no cache snooping, need manually cache flush
+ */
+static bool _dma_no_cache_snooping(struct ishtp_device *dev)
+{
+	return (dev->pdev->device == EHL_Ax_DEVICE_ID ||
+		dev->pdev->device == TGL_LP_DEVICE_ID ||
+		dev->pdev->device == TGL_H_DEVICE_ID ||
+		dev->pdev->device == ADL_S_DEVICE_ID ||
+		dev->pdev->device == ADL_P_DEVICE_ID);
+}
+
 static const struct ishtp_hw_ops ish_hw_ops = {
 	.hw_reset = _ish_hw_reset,
 	.ipc_reset = _ish_ipc_reset,
@@ -870,7 +924,8 @@ static const struct ishtp_hw_ops ish_hw_ops = {
 	.write = write_ipc_to_queue,
 	.get_fw_status = _ish_read_fw_sts_reg,
 	.sync_fw_clock = _ish_sync_fw_clock,
-	.ishtp_read_hdr = _ishtp_read_hdr
+	.ishtp_read_hdr = _ishtp_read_hdr,
+	.dma_no_cache_snooping = _dma_no_cache_snooping
 };
 
 /**

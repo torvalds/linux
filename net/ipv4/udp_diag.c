@@ -30,7 +30,7 @@ static int udp_dump_one(struct udp_table *tbl,
 			const struct inet_diag_req_v2 *req)
 {
 	struct sk_buff *in_skb = cb->skb;
-	int err = -EINVAL;
+	int err;
 	struct sock *sk = NULL;
 	struct sk_buff *rep;
 	struct net *net = sock_net(in_skb->sk);
@@ -77,10 +77,8 @@ static int udp_dump_one(struct udp_table *tbl,
 		kfree_skb(rep);
 		goto out;
 	}
-	err = netlink_unicast(net->diag_nlsk, rep, NETLINK_CB(in_skb).portid,
-			      MSG_DONTWAIT);
-	if (err > 0)
-		err = 0;
+	err = nlmsg_unicast(net->diag_nlsk, rep, NETLINK_CB(in_skb).portid);
+
 out:
 	if (sk)
 		sock_put(sk);

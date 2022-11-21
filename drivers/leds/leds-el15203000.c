@@ -4,8 +4,9 @@
 
 #include <linux/delay.h>
 #include <linux/leds.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 
 /*
@@ -68,8 +69,8 @@ enum el15203000_command {
 };
 
 struct el15203000_led {
-	struct el15203000	*priv;
 	struct led_classdev	ldev;
+	struct el15203000	*priv;
 	u32			reg;
 };
 
@@ -81,6 +82,8 @@ struct el15203000 {
 	size_t			count;
 	struct el15203000_led	leds[];
 };
+
+#define to_el15203000_led(d)	container_of(d, struct el15203000_led, ldev)
 
 static int el15203000_cmd(struct el15203000_led *led, u8 brightness)
 {
@@ -128,9 +131,7 @@ static int el15203000_cmd(struct el15203000_led *led, u8 brightness)
 static int el15203000_set_blocking(struct led_classdev *ldev,
 				   enum led_brightness brightness)
 {
-	struct el15203000_led *led = container_of(ldev,
-						  struct el15203000_led,
-						  ldev);
+	struct el15203000_led *led = to_el15203000_led(ldev);
 
 	return el15203000_cmd(led, brightness == LED_OFF ? EL_OFF : EL_ON);
 }
@@ -139,9 +140,7 @@ static int el15203000_pattern_set_S(struct led_classdev *ldev,
 				    struct led_pattern *pattern,
 				    u32 len, int repeat)
 {
-	struct el15203000_led *led = container_of(ldev,
-						  struct el15203000_led,
-						  ldev);
+	struct el15203000_led *led = to_el15203000_led(ldev);
 
 	if (repeat > 0 || len != 2 ||
 	    pattern[0].delta_t != 4000 || pattern[0].brightness != 0 ||
@@ -192,10 +191,8 @@ static int el15203000_pattern_set_P(struct led_classdev *ldev,
 				    struct led_pattern *pattern,
 				    u32 len, int repeat)
 {
+	struct el15203000_led	*led = to_el15203000_led(ldev);
 	u8			cmd;
-	struct el15203000_led	*led = container_of(ldev,
-						    struct el15203000_led,
-						    ldev);
 
 	if (repeat > 0)
 		return -EINVAL;
@@ -232,9 +229,7 @@ static int el15203000_pattern_set_P(struct led_classdev *ldev,
 
 static int el15203000_pattern_clear(struct led_classdev *ldev)
 {
-	struct el15203000_led	*led = container_of(ldev,
-						    struct el15203000_led,
-						    ldev);
+	struct el15203000_led *led = to_el15203000_led(ldev);
 
 	return el15203000_cmd(led, EL_OFF);
 }
@@ -251,16 +246,13 @@ static int el15203000_probe_dt(struct el15203000 *priv)
 		ret = fwnode_property_read_u32(child, "reg", &led->reg);
 		if (ret) {
 			dev_err(priv->dev, "LED without ID number");
-			fwnode_handle_put(child);
-
-			break;
+			goto err_child_out;
 		}
 
 		if (led->reg > U8_MAX) {
 			dev_err(priv->dev, "LED value %d is invalid", led->reg);
-			fwnode_handle_put(child);
-
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_child_out;
 		}
 
 		led->priv			  = priv;
@@ -282,14 +274,16 @@ static int el15203000_probe_dt(struct el15203000 *priv)
 			dev_err(priv->dev,
 				"failed to register LED device %s, err %d",
 				led->ldev.name, ret);
-			fwnode_handle_put(child);
-
-			break;
+			goto err_child_out;
 		}
 
 		led++;
 	}
 
+	return 0;
+
+err_child_out:
+	fwnode_handle_put(child);
 	return ret;
 }
 
@@ -321,13 +315,11 @@ static int el15203000_probe(struct spi_device *spi)
 	return el15203000_probe_dt(priv);
 }
 
-static int el15203000_remove(struct spi_device *spi)
+static void el15203000_remove(struct spi_device *spi)
 {
 	struct el15203000 *priv = spi_get_drvdata(spi);
 
 	mutex_destroy(&priv->lock);
-
-	return 0;
 }
 
 static const struct of_device_id el15203000_dt_ids[] = {

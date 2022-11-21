@@ -61,7 +61,6 @@ struct file_security_struct {
 };
 
 struct superblock_security_struct {
-	struct super_block *sb;		/* back pointer to sb object */
 	u32 sid;			/* SID of file system superblock */
 	u32 def_sid;			/* default SID for labeling */
 	u32 mntpoint_sid;		/* SECURITY_FS_USE_MNTPOINT context for files */
@@ -187,6 +186,12 @@ static inline u32 current_sid(void)
 	const struct task_security_struct *tsec = selinux_cred(current_cred());
 
 	return tsec->sid;
+}
+
+static inline struct superblock_security_struct *selinux_superblock(
+					const struct super_block *superblock)
+{
+	return superblock->s_security + selinux_blob_sizes.lbs_superblock;
 }
 
 #endif /* _SELINUX_OBJSEC_H_ */

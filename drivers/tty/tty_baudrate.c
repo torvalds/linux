@@ -8,6 +8,7 @@
 #include <linux/termios.h>
 #include <linux/tty.h>
 #include <linux/export.h>
+#include "tty.h"
 
 
 /*
@@ -146,20 +147,21 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 	int iclose = ibaud/50, oclose = obaud/50;
 	int ibinput = 0;
 
-	if (obaud == 0)			/* CD dropped 		  */
+	if (obaud == 0)			/* CD dropped */
 		ibaud = 0;		/* Clear ibaud to be sure */
 
 	termios->c_ispeed = ibaud;
 	termios->c_ospeed = obaud;
 
 #ifdef IBSHIFT
-	if ((termios->c_cflag >> IBSHIFT) & CBAUD)
+	if (((termios->c_cflag >> IBSHIFT) & CBAUD) != B0)
 		ibinput = 1;	/* An input speed was specified */
 #endif
 #ifdef BOTHER
 	/* If the user asked for a precise weird speed give a precise weird
-	   answer. If they asked for a Bfoo speed they may have problems
-	   digesting non-exact replies so fuzz a bit */
+	 * answer. If they asked for a Bfoo speed they may have problems
+	 * digesting non-exact replies so fuzz a bit.
+	 */
 
 	if ((termios->c_cflag & CBAUD) == BOTHER) {
 		oclose = 0;
@@ -190,7 +192,8 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 		if (ibaud - iclose <= baud_table[i] &&
 		    ibaud + iclose >= baud_table[i]) {
 			/* For the case input == output don't set IBAUD bits
-			   if the user didn't do so */
+			 * if the user didn't do so.
+			 */
 			if (ofound == i && !ibinput)
 				ifound  = i;
 #ifdef IBSHIFT
@@ -210,7 +213,8 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 	if (ofound == -1)
 		termios->c_cflag |= BOTHER;
 	/* Set exact input bits only if the input and output differ or the
-	   user already did */
+	 * user already did.
+	 */
 	if (ifound == -1 && (ibaud != obaud || ibinput))
 		termios->c_cflag |= (BOTHER << IBSHIFT);
 #else
@@ -222,6 +226,7 @@ EXPORT_SYMBOL_GPL(tty_termios_encode_baud_rate);
 
 /**
  *	tty_encode_baud_rate		-	set baud rate of the tty
+ *	@tty:   terminal device
  *	@ibaud: input baud rate
  *	@obaud: output baud rate
  *

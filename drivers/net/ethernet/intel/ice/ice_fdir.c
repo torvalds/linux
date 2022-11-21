@@ -40,6 +40,204 @@ static const u8 ice_fdir_ipv4_pkt[] = {
 	0x00, 0x00
 };
 
+static const u8 ice_fdir_udp4_gtpu4_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x45, 0x00,
+	0x00, 0x4c, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x08, 0x68, 0x08, 0x68, 0x00, 0x00,
+	0x00, 0x00, 0x34, 0xff, 0x00, 0x28, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x85, 0x02, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x45, 0x00,
+	0x00, 0x1c, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00,
+};
+
+static const u8 ice_fdir_tcp4_gtpu4_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x45, 0x00,
+	0x00, 0x58, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x08, 0x68, 0x08, 0x68, 0x00, 0x00,
+	0x00, 0x00, 0x34, 0xff, 0x00, 0x28, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x85, 0x02, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x45, 0x00,
+	0x00, 0x28, 0x00, 0x00, 0x40, 0x00, 0x40, 0x06,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const u8 ice_fdir_icmp4_gtpu4_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x45, 0x00,
+	0x00, 0x4c, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x08, 0x68, 0x08, 0x68, 0x00, 0x00,
+	0x00, 0x00, 0x34, 0xff, 0x00, 0x28, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x85, 0x02, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x45, 0x00,
+	0x00, 0x1c, 0x00, 0x00, 0x40, 0x00, 0x40, 0x01,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00,
+};
+
+static const u8 ice_fdir_ipv4_gtpu4_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x45, 0x00,
+	0x00, 0x44, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x08, 0x68, 0x08, 0x68, 0x00, 0x00,
+	0x00, 0x00, 0x34, 0xff, 0x00, 0x28, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x85, 0x02, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x45, 0x00,
+	0x00, 0x14, 0x00, 0x00, 0x40, 0x00, 0x40, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00,
+};
+
+static const u8 ice_fdir_ipv4_l2tpv3_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x45, 0x00,
+	0x00, 0x14, 0x00, 0x00, 0x40, 0x00, 0x40, 0x73,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const u8 ice_fdir_ipv6_l2tpv3_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x86, 0xDD, 0x60, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x73, 0x40, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00,
+};
+
+static const u8 ice_fdir_ipv4_esp_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x45, 0x00,
+	0x00, 0x14, 0x00, 0x00, 0x40, 0x00, 0x40, 0x32,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00
+};
+
+static const u8 ice_fdir_ipv6_esp_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x86, 0xDD, 0x60, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x32, 0x40, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const u8 ice_fdir_ipv4_ah_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x45, 0x00,
+	0x00, 0x14, 0x00, 0x00, 0x40, 0x00, 0x40, 0x33,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00
+};
+
+static const u8 ice_fdir_ipv6_ah_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x86, 0xDD, 0x60, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x33, 0x40, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const u8 ice_fdir_ipv4_nat_t_esp_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x45, 0x00,
+	0x00, 0x1C, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x11, 0x94, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00,
+};
+
+static const u8 ice_fdir_ipv6_nat_t_esp_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x86, 0xDD, 0x60, 0x00,
+	0x00, 0x00, 0x00, 0x08, 0x11, 0x40, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x11, 0x94, 0x00, 0x00, 0x00, 0x08,
+};
+
+static const u8 ice_fdir_ipv4_pfcp_node_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x45, 0x00,
+	0x00, 0x2C, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x22, 0x65, 0x22, 0x65, 0x00, 0x00,
+	0x00, 0x00, 0x20, 0x00, 0x00, 0x10, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00,
+};
+
+static const u8 ice_fdir_ipv4_pfcp_session_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x45, 0x00,
+	0x00, 0x2C, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x22, 0x65, 0x22, 0x65, 0x00, 0x00,
+	0x00, 0x00, 0x21, 0x00, 0x00, 0x10, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00,
+};
+
+static const u8 ice_fdir_ipv6_pfcp_node_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x86, 0xDD, 0x60, 0x00,
+	0x00, 0x00, 0x00, 0x18, 0x11, 0x40, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x22, 0x65,
+	0x22, 0x65, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00,
+	0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const u8 ice_fdir_ipv6_pfcp_session_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x86, 0xDD, 0x60, 0x00,
+	0x00, 0x00, 0x00, 0x18, 0x11, 0x40, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x22, 0x65,
+	0x22, 0x65, 0x00, 0x00, 0x00, 0x00, 0x21, 0x00,
+	0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const u8 ice_fdir_non_ip_l2_pkt[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
 static const u8 ice_fdir_tcpv6_pkt[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x86, 0xDD, 0x60, 0x00,
@@ -239,6 +437,111 @@ static const struct ice_fdir_base_pkt ice_fdir_pkt[] = {
 		sizeof(ice_fdir_ip4_tun_pkt), ice_fdir_ip4_tun_pkt,
 	},
 	{
+		ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_UDP,
+		sizeof(ice_fdir_udp4_gtpu4_pkt),
+		ice_fdir_udp4_gtpu4_pkt,
+		sizeof(ice_fdir_udp4_gtpu4_pkt),
+		ice_fdir_udp4_gtpu4_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_TCP,
+		sizeof(ice_fdir_tcp4_gtpu4_pkt),
+		ice_fdir_tcp4_gtpu4_pkt,
+		sizeof(ice_fdir_tcp4_gtpu4_pkt),
+		ice_fdir_tcp4_gtpu4_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_ICMP,
+		sizeof(ice_fdir_icmp4_gtpu4_pkt),
+		ice_fdir_icmp4_gtpu4_pkt,
+		sizeof(ice_fdir_icmp4_gtpu4_pkt),
+		ice_fdir_icmp4_gtpu4_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_OTHER,
+		sizeof(ice_fdir_ipv4_gtpu4_pkt),
+		ice_fdir_ipv4_gtpu4_pkt,
+		sizeof(ice_fdir_ipv4_gtpu4_pkt),
+		ice_fdir_ipv4_gtpu4_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV4_L2TPV3,
+		sizeof(ice_fdir_ipv4_l2tpv3_pkt), ice_fdir_ipv4_l2tpv3_pkt,
+		sizeof(ice_fdir_ipv4_l2tpv3_pkt), ice_fdir_ipv4_l2tpv3_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV6_L2TPV3,
+		sizeof(ice_fdir_ipv6_l2tpv3_pkt), ice_fdir_ipv6_l2tpv3_pkt,
+		sizeof(ice_fdir_ipv6_l2tpv3_pkt), ice_fdir_ipv6_l2tpv3_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV4_ESP,
+		sizeof(ice_fdir_ipv4_esp_pkt), ice_fdir_ipv4_esp_pkt,
+		sizeof(ice_fdir_ipv4_esp_pkt), ice_fdir_ipv4_esp_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV6_ESP,
+		sizeof(ice_fdir_ipv6_esp_pkt), ice_fdir_ipv6_esp_pkt,
+		sizeof(ice_fdir_ipv6_esp_pkt), ice_fdir_ipv6_esp_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV4_AH,
+		sizeof(ice_fdir_ipv4_ah_pkt), ice_fdir_ipv4_ah_pkt,
+		sizeof(ice_fdir_ipv4_ah_pkt), ice_fdir_ipv4_ah_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV6_AH,
+		sizeof(ice_fdir_ipv6_ah_pkt), ice_fdir_ipv6_ah_pkt,
+		sizeof(ice_fdir_ipv6_ah_pkt), ice_fdir_ipv6_ah_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV4_NAT_T_ESP,
+		sizeof(ice_fdir_ipv4_nat_t_esp_pkt),
+		ice_fdir_ipv4_nat_t_esp_pkt,
+		sizeof(ice_fdir_ipv4_nat_t_esp_pkt),
+		ice_fdir_ipv4_nat_t_esp_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV6_NAT_T_ESP,
+		sizeof(ice_fdir_ipv6_nat_t_esp_pkt),
+		ice_fdir_ipv6_nat_t_esp_pkt,
+		sizeof(ice_fdir_ipv6_nat_t_esp_pkt),
+		ice_fdir_ipv6_nat_t_esp_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV4_PFCP_NODE,
+		sizeof(ice_fdir_ipv4_pfcp_node_pkt),
+		ice_fdir_ipv4_pfcp_node_pkt,
+		sizeof(ice_fdir_ipv4_pfcp_node_pkt),
+		ice_fdir_ipv4_pfcp_node_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV4_PFCP_SESSION,
+		sizeof(ice_fdir_ipv4_pfcp_session_pkt),
+		ice_fdir_ipv4_pfcp_session_pkt,
+		sizeof(ice_fdir_ipv4_pfcp_session_pkt),
+		ice_fdir_ipv4_pfcp_session_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV6_PFCP_NODE,
+		sizeof(ice_fdir_ipv6_pfcp_node_pkt),
+		ice_fdir_ipv6_pfcp_node_pkt,
+		sizeof(ice_fdir_ipv6_pfcp_node_pkt),
+		ice_fdir_ipv6_pfcp_node_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NONF_IPV6_PFCP_SESSION,
+		sizeof(ice_fdir_ipv6_pfcp_session_pkt),
+		ice_fdir_ipv6_pfcp_session_pkt,
+		sizeof(ice_fdir_ipv6_pfcp_session_pkt),
+		ice_fdir_ipv6_pfcp_session_pkt,
+	},
+	{
+		ICE_FLTR_PTYPE_NON_IP_L2,
+		sizeof(ice_fdir_non_ip_l2_pkt), ice_fdir_non_ip_l2_pkt,
+		sizeof(ice_fdir_non_ip_l2_pkt), ice_fdir_non_ip_l2_pkt,
+	},
+	{
 		ICE_FLTR_PTYPE_NONF_IPV6_TCP,
 		sizeof(ice_fdir_tcpv6_pkt), ice_fdir_tcpv6_pkt,
 		sizeof(ice_fdir_tcp6_tun_pkt), ice_fdir_tcp6_tun_pkt,
@@ -374,21 +677,31 @@ ice_fdir_get_prgm_desc(struct ice_hw *hw, struct ice_fdir_fltr *input,
 	if (input->dest_ctl == ICE_FLTR_PRGM_DESC_DEST_DROP_PKT) {
 		fdir_fltr_ctx.drop = ICE_FXD_FLTR_QW0_DROP_YES;
 		fdir_fltr_ctx.qindex = 0;
+	} else if (input->dest_ctl ==
+		   ICE_FLTR_PRGM_DESC_DEST_DIRECT_PKT_OTHER) {
+		fdir_fltr_ctx.drop = ICE_FXD_FLTR_QW0_DROP_NO;
+		fdir_fltr_ctx.qindex = 0;
 	} else {
+		if (input->dest_ctl ==
+		    ICE_FLTR_PRGM_DESC_DEST_DIRECT_PKT_QGROUP)
+			fdir_fltr_ctx.toq = input->q_region;
 		fdir_fltr_ctx.drop = ICE_FXD_FLTR_QW0_DROP_NO;
 		fdir_fltr_ctx.qindex = input->q_index;
 	}
-	fdir_fltr_ctx.cnt_ena = ICE_FXD_FLTR_QW0_STAT_ENA_PKTS;
+	fdir_fltr_ctx.cnt_ena = input->cnt_ena;
 	fdir_fltr_ctx.cnt_index = input->cnt_index;
 	fdir_fltr_ctx.fd_vsi = ice_get_hw_vsi_num(hw, input->dest_vsi);
 	fdir_fltr_ctx.evict_ena = ICE_FXD_FLTR_QW0_EVICT_ENA_FALSE;
-	fdir_fltr_ctx.toq_prio = 3;
+	if (input->dest_ctl == ICE_FLTR_PRGM_DESC_DEST_DIRECT_PKT_OTHER)
+		fdir_fltr_ctx.toq_prio = 0;
+	else
+		fdir_fltr_ctx.toq_prio = 3;
 	fdir_fltr_ctx.pcmd = add ? ICE_FXD_FLTR_QW1_PCMD_ADD :
 		ICE_FXD_FLTR_QW1_PCMD_REMOVE;
 	fdir_fltr_ctx.swap = ICE_FXD_FLTR_QW1_SWAP_NOT_SET;
 	fdir_fltr_ctx.comp_q = ICE_FXD_FLTR_QW0_COMP_Q_ZERO;
-	fdir_fltr_ctx.comp_report = ICE_FXD_FLTR_QW0_COMP_REPORT_SW_FAIL;
-	fdir_fltr_ctx.fdid_prio = 3;
+	fdir_fltr_ctx.comp_report = input->comp_report;
+	fdir_fltr_ctx.fdid_prio = input->fdid_prio;
 	fdir_fltr_ctx.desc_prof = 1;
 	fdir_fltr_ctx.desc_prof_prio = 3;
 	ice_set_fd_desc_val(&fdir_fltr_ctx, fdesc);
@@ -399,7 +712,7 @@ ice_fdir_get_prgm_desc(struct ice_hw *hw, struct ice_fdir_fltr *input,
  * @hw: pointer to the hardware structure
  * @cntr_id: returns counter index
  */
-enum ice_status ice_alloc_fd_res_cntr(struct ice_hw *hw, u16 *cntr_id)
+int ice_alloc_fd_res_cntr(struct ice_hw *hw, u16 *cntr_id)
 {
 	return ice_alloc_res_cntr(hw, ICE_AQC_RES_TYPE_FDIR_COUNTER_BLOCK,
 				  ICE_AQC_RES_TYPE_FLAG_DEDICATED, 1, cntr_id);
@@ -410,7 +723,7 @@ enum ice_status ice_alloc_fd_res_cntr(struct ice_hw *hw, u16 *cntr_id)
  * @hw: pointer to the hardware structure
  * @cntr_id: counter index to be freed
  */
-enum ice_status ice_free_fd_res_cntr(struct ice_hw *hw, u16 cntr_id)
+int ice_free_fd_res_cntr(struct ice_hw *hw, u16 cntr_id)
 {
 	return ice_free_res_cntr(hw, ICE_AQC_RES_TYPE_FDIR_COUNTER_BLOCK,
 				 ICE_AQC_RES_TYPE_FLAG_DEDICATED, 1, cntr_id);
@@ -422,8 +735,7 @@ enum ice_status ice_free_fd_res_cntr(struct ice_hw *hw, u16 cntr_id)
  * @cntr_id: returns counter index
  * @num_fltr: number of filter entries to be allocated
  */
-enum ice_status
-ice_alloc_fd_guar_item(struct ice_hw *hw, u16 *cntr_id, u16 num_fltr)
+int ice_alloc_fd_guar_item(struct ice_hw *hw, u16 *cntr_id, u16 num_fltr)
 {
 	return ice_alloc_res_cntr(hw, ICE_AQC_RES_TYPE_FDIR_GUARANTEED_ENTRIES,
 				  ICE_AQC_RES_TYPE_FLAG_DEDICATED, num_fltr,
@@ -436,8 +748,7 @@ ice_alloc_fd_guar_item(struct ice_hw *hw, u16 *cntr_id, u16 num_fltr)
  * @cntr_id: returns counter index
  * @num_fltr: number of filter entries to be allocated
  */
-enum ice_status
-ice_alloc_fd_shrd_item(struct ice_hw *hw, u16 *cntr_id, u16 num_fltr)
+int ice_alloc_fd_shrd_item(struct ice_hw *hw, u16 *cntr_id, u16 num_fltr)
 {
 	return ice_alloc_res_cntr(hw, ICE_AQC_RES_TYPE_FDIR_SHARED_ENTRIES,
 				  ICE_AQC_RES_TYPE_FLAG_DEDICATED, num_fltr,
@@ -471,6 +782,55 @@ static void ice_pkt_insert_ipv6_addr(u8 *pkt, int offset, __be32 *addr)
 }
 
 /**
+ * ice_pkt_insert_u6_qfi - insert a u6 value QFI into a memory buffer for GTPU
+ * @pkt: packet buffer
+ * @offset: offset into buffer
+ * @data: 8 bit value to convert and insert into pkt at offset
+ *
+ * This function is designed for inserting QFI (6 bits) for GTPU.
+ */
+static void ice_pkt_insert_u6_qfi(u8 *pkt, int offset, u8 data)
+{
+	u8 ret;
+
+	ret = (data & 0x3F) + (*(pkt + offset) & 0xC0);
+	memcpy(pkt + offset, &ret, sizeof(ret));
+}
+
+/**
+ * ice_pkt_insert_u8 - insert a u8 value into a memory buffer.
+ * @pkt: packet buffer
+ * @offset: offset into buffer
+ * @data: 8 bit value to convert and insert into pkt at offset
+ */
+static void ice_pkt_insert_u8(u8 *pkt, int offset, u8 data)
+{
+	memcpy(pkt + offset, &data, sizeof(data));
+}
+
+/**
+ * ice_pkt_insert_u8_tc - insert a u8 value into a memory buffer for TC ipv6.
+ * @pkt: packet buffer
+ * @offset: offset into buffer
+ * @data: 8 bit value to convert and insert into pkt at offset
+ *
+ * This function is designed for inserting Traffic Class (TC) for IPv6,
+ * since that TC is not aligned in number of bytes. Here we split it out
+ * into two part and fill each byte with data copy from pkt, then insert
+ * the two bytes data one by one.
+ */
+static void ice_pkt_insert_u8_tc(u8 *pkt, int offset, u8 data)
+{
+	u8 high, low;
+
+	high = (data >> 4) + (*(pkt + offset) & 0xF0);
+	memcpy(pkt + offset, &high, sizeof(high));
+
+	low = (*(pkt + offset + 1) & 0x0F) + ((data & 0x0F) << 4);
+	memcpy(pkt + offset + 1, &low, sizeof(low));
+}
+
+/**
  * ice_pkt_insert_u16 - insert a be16 value into a memory buffer
  * @pkt: packet buffer
  * @offset: offset into buffer
@@ -493,6 +853,16 @@ static void ice_pkt_insert_u32(u8 *pkt, int offset, __be32 data)
 }
 
 /**
+ * ice_pkt_insert_mac_addr - insert a MAC addr into a memory buffer.
+ * @pkt: packet buffer
+ * @addr: MAC address to convert and insert into pkt at offset
+ */
+static void ice_pkt_insert_mac_addr(u8 *pkt, u8 *addr)
+{
+	ether_addr_copy(pkt, addr);
+}
+
+/**
  * ice_fdir_get_gen_prgm_pkt - generate a training packet
  * @hw: pointer to the hardware structure
  * @input: flow director filter data structure
@@ -500,7 +870,7 @@ static void ice_pkt_insert_u32(u8 *pkt, int offset, __be32 data)
  * @frag: generate a fragment packet
  * @tun: true implies generate a tunnel packet
  */
-enum ice_status
+int
 ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 			  u8 *pkt, bool frag, bool tun)
 {
@@ -520,11 +890,9 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		case IPPROTO_SCTP:
 			flow = ICE_FLTR_PTYPE_NONF_IPV4_SCTP;
 			break;
-		case IPPROTO_IP:
+		default:
 			flow = ICE_FLTR_PTYPE_NONF_IPV4_OTHER;
 			break;
-		default:
-			return ICE_ERR_PARAM;
 		}
 	} else if (input->flow_type == ICE_FLTR_PTYPE_NONF_IPV6_OTHER) {
 		switch (input->ip.v6.proto) {
@@ -537,11 +905,9 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		case IPPROTO_SCTP:
 			flow = ICE_FLTR_PTYPE_NONF_IPV6_SCTP;
 			break;
-		case IPPROTO_IP:
+		default:
 			flow = ICE_FLTR_PTYPE_NONF_IPV6_OTHER;
 			break;
-		default:
-			return ICE_ERR_PARAM;
 		}
 	} else {
 		flow = input->flow_type;
@@ -551,15 +917,15 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		if (ice_fdir_pkt[idx].flow == flow)
 			break;
 	if (idx == ICE_FDIR_NUM_PKT)
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	if (!tun) {
 		memcpy(pkt, ice_fdir_pkt[idx].pkt, ice_fdir_pkt[idx].pkt_len);
 		loc = pkt;
 	} else {
-		if (!ice_get_open_tunnel_port(hw, &tnl_port))
-			return ICE_ERR_DOES_NOT_EXIST;
+		if (!ice_get_open_tunnel_port(hw, &tnl_port, TNL_ALL))
+			return -ENOENT;
 		if (!ice_fdir_pkt[idx].tun_pkt)
-			return ICE_ERR_PARAM;
+			return -EINVAL;
 		memcpy(pkt, ice_fdir_pkt[idx].tun_pkt,
 		       ice_fdir_pkt[idx].tun_pkt_len);
 		ice_pkt_insert_u16(pkt, ICE_IPV4_UDP_DST_PORT_OFFSET,
@@ -580,8 +946,11 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 				   input->ip.v4.dst_ip);
 		ice_pkt_insert_u16(loc, ICE_IPV4_TCP_SRC_PORT_OFFSET,
 				   input->ip.v4.dst_port);
+		ice_pkt_insert_u8(loc, ICE_IPV4_TOS_OFFSET, input->ip.v4.tos);
+		ice_pkt_insert_u8(loc, ICE_IPV4_TTL_OFFSET, input->ip.v4.ttl);
+		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
 		if (frag)
-			loc[20] = ICE_FDIR_IPV4_PKT_FLAG_DF;
+			loc[20] = ICE_FDIR_IPV4_PKT_FLAG_MF;
 		break;
 	case ICE_FLTR_PTYPE_NONF_IPV4_UDP:
 		ice_pkt_insert_u32(loc, ICE_IPV4_DST_ADDR_OFFSET,
@@ -592,6 +961,11 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 				   input->ip.v4.dst_ip);
 		ice_pkt_insert_u16(loc, ICE_IPV4_UDP_SRC_PORT_OFFSET,
 				   input->ip.v4.dst_port);
+		ice_pkt_insert_u8(loc, ICE_IPV4_TOS_OFFSET, input->ip.v4.tos);
+		ice_pkt_insert_u8(loc, ICE_IPV4_TTL_OFFSET, input->ip.v4.ttl);
+		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
+		ice_pkt_insert_mac_addr(loc + ETH_ALEN,
+					input->ext_data.src_mac);
 		break;
 	case ICE_FLTR_PTYPE_NONF_IPV4_SCTP:
 		ice_pkt_insert_u32(loc, ICE_IPV4_DST_ADDR_OFFSET,
@@ -602,13 +976,87 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 				   input->ip.v4.dst_ip);
 		ice_pkt_insert_u16(loc, ICE_IPV4_SCTP_SRC_PORT_OFFSET,
 				   input->ip.v4.dst_port);
+		ice_pkt_insert_u8(loc, ICE_IPV4_TOS_OFFSET, input->ip.v4.tos);
+		ice_pkt_insert_u8(loc, ICE_IPV4_TTL_OFFSET, input->ip.v4.ttl);
+		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
 		break;
 	case ICE_FLTR_PTYPE_NONF_IPV4_OTHER:
 		ice_pkt_insert_u32(loc, ICE_IPV4_DST_ADDR_OFFSET,
 				   input->ip.v4.src_ip);
 		ice_pkt_insert_u32(loc, ICE_IPV4_SRC_ADDR_OFFSET,
 				   input->ip.v4.dst_ip);
-		ice_pkt_insert_u16(loc, ICE_IPV4_PROTO_OFFSET, 0);
+		ice_pkt_insert_u8(loc, ICE_IPV4_TOS_OFFSET, input->ip.v4.tos);
+		ice_pkt_insert_u8(loc, ICE_IPV4_TTL_OFFSET, input->ip.v4.ttl);
+		ice_pkt_insert_u8(loc, ICE_IPV4_PROTO_OFFSET,
+				  input->ip.v4.proto);
+		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_UDP:
+	case ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_TCP:
+	case ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_ICMP:
+	case ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_OTHER:
+		ice_pkt_insert_u32(loc, ICE_IPV4_DST_ADDR_OFFSET,
+				   input->ip.v4.src_ip);
+		ice_pkt_insert_u32(loc, ICE_IPV4_SRC_ADDR_OFFSET,
+				   input->ip.v4.dst_ip);
+		ice_pkt_insert_u32(loc, ICE_IPV4_GTPU_TEID_OFFSET,
+				   input->gtpu_data.teid);
+		ice_pkt_insert_u6_qfi(loc, ICE_IPV4_GTPU_QFI_OFFSET,
+				      input->gtpu_data.qfi);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV4_L2TPV3:
+		ice_pkt_insert_u32(loc, ICE_IPV4_L2TPV3_SESS_ID_OFFSET,
+				   input->l2tpv3_data.session_id);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV6_L2TPV3:
+		ice_pkt_insert_u32(loc, ICE_IPV6_L2TPV3_SESS_ID_OFFSET,
+				   input->l2tpv3_data.session_id);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV4_ESP:
+		ice_pkt_insert_u32(loc, ICE_IPV4_ESP_SPI_OFFSET,
+				   input->ip.v4.sec_parm_idx);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV6_ESP:
+		ice_pkt_insert_u32(loc, ICE_IPV6_ESP_SPI_OFFSET,
+				   input->ip.v6.sec_parm_idx);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV4_AH:
+		ice_pkt_insert_u32(loc, ICE_IPV4_AH_SPI_OFFSET,
+				   input->ip.v4.sec_parm_idx);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV6_AH:
+		ice_pkt_insert_u32(loc, ICE_IPV6_AH_SPI_OFFSET,
+				   input->ip.v6.sec_parm_idx);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV4_NAT_T_ESP:
+		ice_pkt_insert_u32(loc, ICE_IPV4_DST_ADDR_OFFSET,
+				   input->ip.v4.src_ip);
+		ice_pkt_insert_u32(loc, ICE_IPV4_SRC_ADDR_OFFSET,
+				   input->ip.v4.dst_ip);
+		ice_pkt_insert_u32(loc, ICE_IPV4_NAT_T_ESP_SPI_OFFSET,
+				   input->ip.v4.sec_parm_idx);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV6_NAT_T_ESP:
+		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_DST_ADDR_OFFSET,
+					 input->ip.v6.src_ip);
+		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_SRC_ADDR_OFFSET,
+					 input->ip.v6.dst_ip);
+		ice_pkt_insert_u32(loc, ICE_IPV6_NAT_T_ESP_SPI_OFFSET,
+				   input->ip.v6.sec_parm_idx);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV4_PFCP_NODE:
+	case ICE_FLTR_PTYPE_NONF_IPV4_PFCP_SESSION:
+		ice_pkt_insert_u16(loc, ICE_IPV4_UDP_SRC_PORT_OFFSET,
+				   input->ip.v4.dst_port);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV6_PFCP_NODE:
+	case ICE_FLTR_PTYPE_NONF_IPV6_PFCP_SESSION:
+		ice_pkt_insert_u16(loc, ICE_IPV6_UDP_SRC_PORT_OFFSET,
+				   input->ip.v6.dst_port);
+		break;
+	case ICE_FLTR_PTYPE_NON_IP_L2:
+		ice_pkt_insert_u16(loc, ICE_MAC_ETHTYPE_OFFSET,
+				   input->ext_data.ether_type);
 		break;
 	case ICE_FLTR_PTYPE_NONF_IPV6_TCP:
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_DST_ADDR_OFFSET,
@@ -619,6 +1067,9 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 				   input->ip.v6.src_port);
 		ice_pkt_insert_u16(loc, ICE_IPV6_TCP_SRC_PORT_OFFSET,
 				   input->ip.v6.dst_port);
+		ice_pkt_insert_u8_tc(loc, ICE_IPV6_TC_OFFSET, input->ip.v6.tc);
+		ice_pkt_insert_u8(loc, ICE_IPV6_HLIM_OFFSET, input->ip.v6.hlim);
+		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
 		break;
 	case ICE_FLTR_PTYPE_NONF_IPV6_UDP:
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_DST_ADDR_OFFSET,
@@ -629,6 +1080,9 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 				   input->ip.v6.src_port);
 		ice_pkt_insert_u16(loc, ICE_IPV6_UDP_SRC_PORT_OFFSET,
 				   input->ip.v6.dst_port);
+		ice_pkt_insert_u8_tc(loc, ICE_IPV6_TC_OFFSET, input->ip.v6.tc);
+		ice_pkt_insert_u8(loc, ICE_IPV6_HLIM_OFFSET, input->ip.v6.hlim);
+		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
 		break;
 	case ICE_FLTR_PTYPE_NONF_IPV6_SCTP:
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_DST_ADDR_OFFSET,
@@ -639,15 +1093,23 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 				   input->ip.v6.src_port);
 		ice_pkt_insert_u16(loc, ICE_IPV6_SCTP_SRC_PORT_OFFSET,
 				   input->ip.v6.dst_port);
+		ice_pkt_insert_u8_tc(loc, ICE_IPV6_TC_OFFSET, input->ip.v6.tc);
+		ice_pkt_insert_u8(loc, ICE_IPV6_HLIM_OFFSET, input->ip.v6.hlim);
+		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
 		break;
 	case ICE_FLTR_PTYPE_NONF_IPV6_OTHER:
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_DST_ADDR_OFFSET,
 					 input->ip.v6.src_ip);
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_SRC_ADDR_OFFSET,
 					 input->ip.v6.dst_ip);
+		ice_pkt_insert_u8_tc(loc, ICE_IPV6_TC_OFFSET, input->ip.v6.tc);
+		ice_pkt_insert_u8(loc, ICE_IPV6_HLIM_OFFSET, input->ip.v6.hlim);
+		ice_pkt_insert_u8(loc, ICE_IPV6_PROTO_OFFSET,
+				  input->ip.v6.proto);
+		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
 		break;
 	default:
-		return ICE_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	if (input->flex_fltr)
@@ -671,7 +1133,7 @@ bool ice_fdir_has_frag(enum ice_fltr_ptype flow)
 }
 
 /**
- * ice_fdir_find_by_idx - find filter with idx
+ * ice_fdir_find_fltr_by_idx - find filter with idx
  * @hw: pointer to hardware structure
  * @fltr_idx: index to find.
  *

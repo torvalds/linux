@@ -293,18 +293,7 @@ static int ufs_hisi_link_startup_notify(struct ufs_hba *hba,
 
 static void ufs_hisi_set_dev_cap(struct ufs_dev_params *hisi_param)
 {
-	hisi_param->rx_lanes = UFS_HISI_LIMIT_NUM_LANES_RX;
-	hisi_param->tx_lanes = UFS_HISI_LIMIT_NUM_LANES_TX;
-	hisi_param->hs_rx_gear = UFS_HISI_LIMIT_HSGEAR_RX;
-	hisi_param->hs_tx_gear = UFS_HISI_LIMIT_HSGEAR_TX;
-	hisi_param->pwm_rx_gear = UFS_HISI_LIMIT_PWMGEAR_RX;
-	hisi_param->pwm_tx_gear = UFS_HISI_LIMIT_PWMGEAR_TX;
-	hisi_param->rx_pwr_pwm = UFS_HISI_LIMIT_RX_PWR_PWM;
-	hisi_param->tx_pwr_pwm = UFS_HISI_LIMIT_TX_PWR_PWM;
-	hisi_param->rx_pwr_hs = UFS_HISI_LIMIT_RX_PWR_HS;
-	hisi_param->tx_pwr_hs = UFS_HISI_LIMIT_TX_PWR_HS;
-	hisi_param->hs_rate = UFS_HISI_LIMIT_HS_RATE;
-	hisi_param->desired_working_mode = UFS_HISI_LIMIT_DESIRED_MODE;
+	ufshcd_init_pwr_dev_param(hisi_param);
 }
 
 static void ufs_hisi_pwr_change_pre_change(struct ufs_hba *hba)
@@ -407,11 +396,21 @@ out:
 	return ret;
 }
 
-static int ufs_hisi_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
+static int ufs_hisi_suspend_prepare(struct device *dev)
+{
+	/* RPM and SPM are different. Refer ufs_hisi_suspend() */
+	return __ufshcd_suspend_prepare(dev, false);
+}
+
+static int ufs_hisi_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
+	enum ufs_notify_change_status status)
 {
 	struct ufs_hisi_host *host = ufshcd_get_variant(hba);
 
-	if (ufshcd_is_runtime_pm(pm_op))
+	if (status == PRE_CHANGE)
+		return 0;
+
+	if (pm_op == UFS_RUNTIME_PM)
 		return 0;
 
 	if (host->in_suspend) {
@@ -478,21 +477,24 @@ static int ufs_hisi_init_common(struct ufs_hba *hba)
 	host->hba = hba;
 	ufshcd_set_variant(hba, host);
 
-	host->rst  = devm_reset_control_get(dev, "rst");
+	host->rst = devm_reset_control_get(dev, "rst");
 	if (IS_ERR(host->rst)) {
 		dev_err(dev, "%s: failed to get reset control\n", __func__);
-		return PTR_ERR(host->rst);
+		err = PTR_ERR(host->rst);
+		goto error;
 	}
 
 	ufs_hisi_set_pm_lvl(hba);
 
 	err = ufs_hisi_get_resource(host);
-	if (err) {
-		ufshcd_set_variant(hba, NULL);
-		return err;
-	}
+	if (err)
+		goto error;
 
 	return 0;
+
+error:
+	ufshcd_set_variant(hba, NULL);
+	return err;
 }
 
 static int ufs_hi3660_init(struct ufs_hba *hba)
@@ -580,11 +582,10 @@ static int ufs_hisi_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops ufs_hisi_pm_ops = {
-	.suspend	= ufshcd_pltfrm_suspend,
-	.resume		= ufshcd_pltfrm_resume,
-	.runtime_suspend = ufshcd_pltfrm_runtime_suspend,
-	.runtime_resume  = ufshcd_pltfrm_runtime_resume,
-	.runtime_idle    = ufshcd_pltfrm_runtime_idle,
+	SET_SYSTEM_SLEEP_PM_OPS(ufshcd_system_suspend, ufshcd_system_resume)
+	SET_RUNTIME_PM_OPS(ufshcd_runtime_suspend, ufshcd_runtime_resume, NULL)
+	.prepare	 = ufs_hisi_suspend_prepare,
+	.complete	 = ufshcd_resume_complete,
 };
 
 static struct platform_driver ufs_hisi_pltform = {

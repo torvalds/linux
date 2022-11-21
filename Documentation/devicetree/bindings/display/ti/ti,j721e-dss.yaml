@@ -77,6 +77,14 @@ properties:
       - const: vp3
       - const: vp4
 
+  assigned-clocks:
+    minItems: 1
+    maxItems: 5
+
+  assigned-clock-parents:
+    minItems: 1
+    maxItems: 5
+
   interrupts:
     items:
       - description: common_m DSS Master common
@@ -95,40 +103,32 @@ properties:
     maxItems: 1
     description: phandle to the associated power domain
 
+  dma-coherent:
+    type: boolean
+
   ports:
-    type: object
-    description:
-      Ports as described in Documentation/devicetree/bindings/graph.txt
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description:
           The output port node form video port 1
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description:
           The output port node from video port 2
 
       port@2:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description:
           The output port node from video port 3
 
       port@3:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description:
           The output port node from video port 4
-
-    required:
-      - "#address-cells"
-      - "#size-cells"
 
   max-memory-bandwidth:
     $ref: /schemas/types.yaml#/definitions/uint32

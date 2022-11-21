@@ -10,6 +10,7 @@
 #include <asm/proto.h>
 #include <asm/desc.h>
 #include <asm/hw_irq.h>
+#include <asm/idtentry.h>
 
 #define DPL0		0x0
 #define DPL3		0x3
@@ -35,12 +36,16 @@
 #define SYSG(_vector, _addr)				\
 	G(_vector, _addr, DEFAULT_STACK, GATE_INTERRUPT, DPL3, __KERNEL_CS)
 
+#ifdef CONFIG_X86_64
 /*
  * Interrupt gate with interrupt stack. The _ist index is the index in
  * the tss.ist[] array, but for the descriptor it needs to start at 1.
  */
 #define ISTG(_vector, _addr, _ist)			\
 	G(_vector, _addr, _ist + 1, GATE_INTERRUPT, DPL0, __KERNEL_CS)
+#else
+#define ISTG(_vector, _addr, _ist)	INTG(_vector, _addr)
+#endif
 
 /* Task gate */
 #define TSKG(_vector, _gdt)				\
@@ -74,7 +79,7 @@ static const __initconst struct idt_data early_idts[] = {
  */
 static const __initconst struct idt_data def_idts[] = {
 	INTG(X86_TRAP_DE,		asm_exc_divide_error),
-	INTG(X86_TRAP_NMI,		asm_exc_nmi),
+	ISTG(X86_TRAP_NMI,		asm_exc_nmi, IST_INDEX_NMI),
 	INTG(X86_TRAP_BR,		asm_exc_bounds),
 	INTG(X86_TRAP_UD,		asm_exc_invalid_op),
 	INTG(X86_TRAP_NM,		asm_exc_device_not_available),
@@ -91,12 +96,20 @@ static const __initconst struct idt_data def_idts[] = {
 #ifdef CONFIG_X86_32
 	TSKG(X86_TRAP_DF,		GDT_ENTRY_DOUBLEFAULT_TSS),
 #else
-	INTG(X86_TRAP_DF,		asm_exc_double_fault),
+	ISTG(X86_TRAP_DF,		asm_exc_double_fault, IST_INDEX_DF),
 #endif
-	INTG(X86_TRAP_DB,		asm_exc_debug),
+	ISTG(X86_TRAP_DB,		asm_exc_debug, IST_INDEX_DB),
 
 #ifdef CONFIG_X86_MCE
-	INTG(X86_TRAP_MC,		asm_exc_machine_check),
+	ISTG(X86_TRAP_MC,		asm_exc_machine_check, IST_INDEX_MCE),
+#endif
+
+#ifdef CONFIG_X86_KERNEL_IBT
+	INTG(X86_TRAP_CP,		asm_exc_control_protection),
+#endif
+
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+	ISTG(X86_TRAP_VC,		asm_exc_vmm_communication, IST_INDEX_VC),
 #endif
 
 	SYSG(X86_TRAP_OF,		asm_exc_overflow),
@@ -221,22 +234,6 @@ static const __initconst struct idt_data early_pf_idts[] = {
 	INTG(X86_TRAP_PF,		asm_exc_page_fault),
 };
 
-/*
- * The exceptions which use Interrupt stacks. They are setup after
- * cpu_init() when the TSS has been initialized.
- */
-static const __initconst struct idt_data ist_idts[] = {
-	ISTG(X86_TRAP_DB,	asm_exc_debug,			IST_INDEX_DB),
-	ISTG(X86_TRAP_NMI,	asm_exc_nmi,			IST_INDEX_NMI),
-	ISTG(X86_TRAP_DF,	asm_exc_double_fault,		IST_INDEX_DF),
-#ifdef CONFIG_X86_MCE
-	ISTG(X86_TRAP_MC,	asm_exc_machine_check,		IST_INDEX_MCE),
-#endif
-#ifdef CONFIG_AMD_MEM_ENCRYPT
-	ISTG(X86_TRAP_VC,	asm_exc_vmm_communication,	IST_INDEX_VC),
-#endif
-};
-
 /**
  * idt_setup_early_pf - Initialize the idt table with early pagefault handler
  *
@@ -245,7 +242,7 @@ static const __initconst struct idt_data ist_idts[] = {
  * after that.
  *
  * Note, that X86_64 cannot install the real #PF handler in
- * idt_setup_early_traps() because the memory intialization needs the #PF
+ * idt_setup_early_traps() because the memory initialization needs the #PF
  * handler from the early_idt_handler_array to initialize the early page
  * tables.
  */
@@ -253,14 +250,6 @@ void __init idt_setup_early_pf(void)
 {
 	idt_setup_from_table(idt_table, early_pf_idts,
 			     ARRAY_SIZE(early_pf_idts), true);
-}
-
-/**
- * idt_setup_ist_traps - Initialize the idt table with traps using IST
- */
-void __init idt_setup_ist_traps(void)
-{
-	idt_setup_from_table(idt_table, ist_idts, ARRAY_SIZE(ist_idts), true);
 }
 #endif
 
@@ -288,7 +277,7 @@ void __init idt_setup_apic_and_irq_gates(void)
 	idt_setup_from_table(idt_table, apic_idts, ARRAY_SIZE(apic_idts), true);
 
 	for_each_clear_bit_from(i, system_vectors, FIRST_SYSTEM_VECTOR) {
-		entry = irq_entries_start + 8 * (i - FIRST_EXTERNAL_VECTOR);
+		entry = irq_entries_start + IDT_ALIGN * (i - FIRST_EXTERNAL_VECTOR);
 		set_intr_gate(i, entry);
 	}
 
@@ -299,7 +288,7 @@ void __init idt_setup_apic_and_irq_gates(void)
 		 * system_vectors bitmap. Otherwise they show up in
 		 * /proc/interrupts.
 		 */
-		entry = spurious_entries_start + 8 * (i - FIRST_SYSTEM_VECTOR);
+		entry = spurious_entries_start + IDT_ALIGN * (i - FIRST_SYSTEM_VECTOR);
 		set_intr_gate(i, entry);
 	}
 #endif
@@ -331,11 +320,10 @@ void __init idt_setup_early_handler(void)
 
 /**
  * idt_invalidate - Invalidate interrupt descriptor table
- * @addr:	The virtual address of the 'invalid' IDT
  */
-void idt_invalidate(void *addr)
+void idt_invalidate(void)
 {
-	struct desc_ptr idt = { .address = (unsigned long) addr, .size = 0 };
+	static const struct desc_ptr idt = { .address = 0, .size = 0 };
 
 	load_idt(&idt);
 }

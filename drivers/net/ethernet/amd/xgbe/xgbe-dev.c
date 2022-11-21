@@ -1080,7 +1080,7 @@ static int xgbe_add_mac_addresses(struct xgbe_prv_data *pdata)
 	return 0;
 }
 
-static int xgbe_set_mac_address(struct xgbe_prv_data *pdata, u8 *addr)
+static int xgbe_set_mac_address(struct xgbe_prv_data *pdata, const u8 *addr)
 {
 	unsigned int mac_addr_hi, mac_addr_lo;
 

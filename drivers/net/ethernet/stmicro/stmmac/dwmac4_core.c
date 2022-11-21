@@ -53,6 +53,10 @@ static void dwmac4_core_init(struct mac_device_info *hw,
 	if (hw->pcs)
 		value |= GMAC_PCS_IRQ_DEFAULT;
 
+	/* Enable FPE interrupt */
+	if ((GMAC_HW_FEAT_FPESEL & readl(ioaddr + GMAC_HW_FEATURE3)) >> 26)
+		value |= GMAC_INT_FPE_EN;
+
 	writel(value, ioaddr + GMAC_INT_EN);
 }
 
@@ -318,7 +322,7 @@ static void dwmac4_pmt(struct mac_device_info *hw, unsigned long mode)
 }
 
 static void dwmac4_set_umac_addr(struct mac_device_info *hw,
-				 unsigned char *addr, unsigned int reg_n)
+				 const unsigned char *addr, unsigned int reg_n)
 {
 	void __iomem *ioaddr = hw->pcsr;
 
@@ -377,6 +381,27 @@ static void dwmac4_set_eee_pls(struct mac_device_info *hw, int link)
 		value &= ~GMAC4_LPI_CTRL_STATUS_PLS;
 
 	writel(value, ioaddr + GMAC4_LPI_CTRL_STATUS);
+}
+
+static void dwmac4_set_eee_lpi_entry_timer(struct mac_device_info *hw, int et)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	int value = et & STMMAC_ET_MAX;
+	int regval;
+
+	/* Program LPI entry timer value into register */
+	writel(value, ioaddr + GMAC4_LPI_ENTRY_TIMER);
+
+	/* Enable/disable LPI entry timer */
+	regval = readl(ioaddr + GMAC4_LPI_CTRL_STATUS);
+	regval |= GMAC4_LPI_CTRL_STATUS_LPIEN | GMAC4_LPI_CTRL_STATUS_LPITXA;
+
+	if (et)
+		regval |= GMAC4_LPI_CTRL_STATUS_LPIATE;
+	else
+		regval &= ~GMAC4_LPI_CTRL_STATUS_LPIATE;
+
+	writel(regval, ioaddr + GMAC4_LPI_CTRL_STATUS);
 }
 
 static void dwmac4_set_eee_timer(struct mac_device_info *hw, int ls, int tw)
@@ -617,6 +642,7 @@ static void dwmac4_set_filter(struct mac_device_info *hw,
 	value &= ~GMAC_PACKET_FILTER_PCF;
 	value &= ~GMAC_PACKET_FILTER_PM;
 	value &= ~GMAC_PACKET_FILTER_PR;
+	value &= ~GMAC_PACKET_FILTER_RA;
 	if (dev->flags & IFF_PROMISC) {
 		/* VLAN Tag Filter Fail Packets Queuing */
 		if (hw->vlan_fail_q_en) {
@@ -1164,6 +1190,7 @@ const struct stmmac_ops dwmac4_ops = {
 	.get_umac_addr = dwmac4_get_umac_addr,
 	.set_eee_mode = dwmac4_set_eee_mode,
 	.reset_eee_mode = dwmac4_reset_eee_mode,
+	.set_eee_lpi_entry_timer = dwmac4_set_eee_lpi_entry_timer,
 	.set_eee_timer = dwmac4_set_eee_timer,
 	.set_eee_pls = dwmac4_set_eee_pls,
 	.pcs_ctrl_ane = dwmac4_ctrl_ane,
@@ -1205,6 +1232,7 @@ const struct stmmac_ops dwmac410_ops = {
 	.get_umac_addr = dwmac4_get_umac_addr,
 	.set_eee_mode = dwmac4_set_eee_mode,
 	.reset_eee_mode = dwmac4_reset_eee_mode,
+	.set_eee_lpi_entry_timer = dwmac4_set_eee_lpi_entry_timer,
 	.set_eee_timer = dwmac4_set_eee_timer,
 	.set_eee_pls = dwmac4_set_eee_pls,
 	.pcs_ctrl_ane = dwmac4_ctrl_ane,
@@ -1221,7 +1249,10 @@ const struct stmmac_ops dwmac410_ops = {
 	.config_l3_filter = dwmac4_config_l3_filter,
 	.config_l4_filter = dwmac4_config_l4_filter,
 	.est_configure = dwmac5_est_configure,
+	.est_irq_status = dwmac5_est_irq_status,
 	.fpe_configure = dwmac5_fpe_configure,
+	.fpe_send_mpacket = dwmac5_fpe_send_mpacket,
+	.fpe_irq_status = dwmac5_fpe_irq_status,
 	.add_hw_vlan_rx_fltr = dwmac4_add_hw_vlan_rx_fltr,
 	.del_hw_vlan_rx_fltr = dwmac4_del_hw_vlan_rx_fltr,
 	.restore_hw_vlan_rx_fltr = dwmac4_restore_hw_vlan_rx_fltr,
@@ -1249,6 +1280,7 @@ const struct stmmac_ops dwmac510_ops = {
 	.get_umac_addr = dwmac4_get_umac_addr,
 	.set_eee_mode = dwmac4_set_eee_mode,
 	.reset_eee_mode = dwmac4_reset_eee_mode,
+	.set_eee_lpi_entry_timer = dwmac4_set_eee_lpi_entry_timer,
 	.set_eee_timer = dwmac4_set_eee_timer,
 	.set_eee_pls = dwmac4_set_eee_pls,
 	.pcs_ctrl_ane = dwmac4_ctrl_ane,
@@ -1269,7 +1301,10 @@ const struct stmmac_ops dwmac510_ops = {
 	.config_l3_filter = dwmac4_config_l3_filter,
 	.config_l4_filter = dwmac4_config_l4_filter,
 	.est_configure = dwmac5_est_configure,
+	.est_irq_status = dwmac5_est_irq_status,
 	.fpe_configure = dwmac5_fpe_configure,
+	.fpe_send_mpacket = dwmac5_fpe_send_mpacket,
+	.fpe_irq_status = dwmac5_fpe_irq_status,
 	.add_hw_vlan_rx_fltr = dwmac4_add_hw_vlan_rx_fltr,
 	.del_hw_vlan_rx_fltr = dwmac4_del_hw_vlan_rx_fltr,
 	.restore_hw_vlan_rx_fltr = dwmac4_restore_hw_vlan_rx_fltr,
@@ -1325,6 +1360,7 @@ int dwmac4_setup(struct stmmac_priv *priv)
 	mac->link.speed10 = GMAC_CONFIG_PS;
 	mac->link.speed100 = GMAC_CONFIG_FES | GMAC_CONFIG_PS;
 	mac->link.speed1000 = 0;
+	mac->link.speed2500 = GMAC_CONFIG_FES;
 	mac->link.speed_mask = GMAC_CONFIG_FES | GMAC_CONFIG_PS;
 	mac->mii.addr = GMAC_MDIO_ADDR;
 	mac->mii.data = GMAC_MDIO_DATA;

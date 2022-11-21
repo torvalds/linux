@@ -18,6 +18,7 @@ obj-$(CONFIG_USB_ISIGHTFW)		+= isight_firmware.o
 obj-$(CONFIG_USB_LCD)			+= usblcd.o
 obj-$(CONFIG_USB_LD)			+= ldusb.o
 obj-$(CONFIG_USB_LEGOTOWER)		+= legousbtower.o
+obj-$(CONFIG_USB_QCOM_EUD)		+= qcom_eud.o
 obj-$(CONFIG_USB_TEST)			+= usbtest.o
 obj-$(CONFIG_USB_EHSET_TEST_FIXTURE)    += ehset.o
 obj-$(CONFIG_USB_TRANCEVIBRATOR)	+= trancevibrator.o
@@ -31,3 +32,4 @@ obj-$(CONFIG_USB_CHAOSKEY)		+= chaoskey.o
 
 obj-$(CONFIG_USB_SISUSBVGA)		+= sisusbvga/
 obj-$(CONFIG_USB_LINK_LAYER_TEST)	+= lvstest.o
+obj-$(CONFIG_BRCM_USB_PINMAP)		+= brcmstb-usb-pinmap.o

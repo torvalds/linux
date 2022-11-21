@@ -4,7 +4,7 @@
 #
 config DNS_RESOLVER
 	tristate "DNS Resolver support"
-	depends on NET && KEYS
+	depends on KEYS
 	help
 	  Saying Y here will include support for the DNS Resolver key type
 	  which can be used to make upcalls to perform DNS lookups in

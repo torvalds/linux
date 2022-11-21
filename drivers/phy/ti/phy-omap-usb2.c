@@ -89,9 +89,9 @@ static inline void omap_usb_writel(void __iomem *addr, unsigned int offset,
 }
 
 /**
- * omap_usb2_set_comparator - links the comparator present in the system with
- *	this phy
- * @comparator - the companion phy(comparator) for this phy
+ * omap_usb2_set_comparator() - links the comparator present in the system with this phy
+ *
+ * @comparator:  the companion phy(comparator) for this phy
  *
  * The phy companion driver should call this API passing the phy_companion
  * filled with set_vbus and start_srp to be used by usb phy.
@@ -215,7 +215,7 @@ static int omap_usb2_enable_clocks(struct omap_usb *phy)
 	return 0;
 
 err1:
-	clk_disable(phy->wkupclk);
+	clk_disable_unprepare(phy->wkupclk);
 
 err0:
 	return ret;
@@ -366,7 +366,6 @@ static int omap_usb2_probe(struct platform_device *pdev)
 {
 	struct omap_usb	*phy;
 	struct phy *generic_phy;
-	struct resource *res;
 	struct phy_provider *phy_provider;
 	struct usb_otg *otg;
 	struct device_node *node = pdev->dev.of_node;
@@ -403,8 +402,7 @@ static int omap_usb2_probe(struct platform_device *pdev)
 
 	omap_usb2_init_errata(phy);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	phy->phy_base = devm_ioremap_resource(&pdev->dev, res);
+	phy->phy_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(phy->phy_base))
 		return PTR_ERR(phy->phy_base);
 

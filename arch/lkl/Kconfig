@@ -38,6 +38,8 @@ config LKL
        select NO_BOOTMEM
        select BLK_DEV_NVME
        select UACCESS_MEMCPY
+       select GENERIC_STRNCPY_FROM_USER
+       select GENERIC_STRNLEN_USER
 
 config OUTPUT_FORMAT
        string "Output format"
@@ -94,3 +96,7 @@ config PCI
 	select NO_GENERIC_PCI_IOPORT_MAP
 	select GENERIC_PCI_IOMAP
 	default y
+
+config RAID6_PQ_BENCHMARK
+	bool
+	default n

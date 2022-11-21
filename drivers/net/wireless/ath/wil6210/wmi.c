@@ -224,7 +224,7 @@ struct auth_no_hdr {
 u8 led_polarity = LED_POLARITY_LOW_ACTIVE;
 
 /**
- * return AHB address for given firmware internal (linker) address
+ * wmi_addr_remap - return AHB address for given firmware internal (linker) address
  * @x: internal address
  * If address have no valid AHB mapping, return 0
  */
@@ -242,7 +242,7 @@ static u32 wmi_addr_remap(u32 x)
 }
 
 /**
- * find fw_mapping entry by section name
+ * wil_find_fw_mapping - find fw_mapping entry by section name
  * @section: section name
  *
  * Return pointer to section or NULL if not found
@@ -260,9 +260,9 @@ struct fw_map *wil_find_fw_mapping(const char *section)
 }
 
 /**
- * Check address validity for WMI buffer; remap if needed
+ * wmi_buffer_block - Check address validity for WMI buffer; remap if needed
  * @wil: driver data
- * @ptr: internal (linker) fw/ucode address
+ * @ptr_: internal (linker) fw/ucode address
  * @size: if non zero, validate the block does not
  *  exceed the device memory (bar)
  *
@@ -851,9 +851,9 @@ static void wmi_evt_rx_mgmt(struct wil6210_vif *vif, int id, void *d, int len)
 	d_status = le16_to_cpu(data->info.status);
 	fc = rx_mgmt_frame->frame_control;
 
-	wil_dbg_wmi(wil, "MGMT Rx: channel %d MCS %d RSSI %d SQI %d%%\n",
-		    data->info.channel, data->info.mcs, data->info.rssi,
-		    data->info.sqi);
+	wil_dbg_wmi(wil, "MGMT Rx: channel %d MCS %s RSSI %d SQI %d%%\n",
+		    data->info.channel, WIL_EXTENDED_MCS_CHECK(data->info.mcs),
+		    data->info.rssi, data->info.sqi);
 	wil_dbg_wmi(wil, "status 0x%04x len %d fc 0x%04x\n", d_status, d_len,
 		    le16_to_cpu(fc));
 	wil_dbg_wmi(wil, "qid %d mid %d cid %d\n",
@@ -1199,7 +1199,7 @@ static void wmi_evt_eapol_rx(struct wil6210_vif *vif, int id, void *d, int len)
 	eth->h_proto = cpu_to_be16(ETH_P_PAE);
 	skb_put_data(skb, evt->eapol, eapol_len);
 	skb->protocol = eth_type_trans(skb, ndev);
-	if (likely(netif_rx_ni(skb) == NET_RX_SUCCESS)) {
+	if (likely(netif_rx(skb) == NET_RX_SUCCESS)) {
 		ndev->stats.rx_packets++;
 		ndev->stats.rx_bytes += sz;
 		if (stats) {
@@ -1422,8 +1422,9 @@ wmi_evt_sched_scan_result(struct wil6210_vif *vif, int id, void *d, int len)
 	else
 		signal = data->info.sqi;
 
-	wil_dbg_wmi(wil, "sched scan result: channel %d MCS %d RSSI %d\n",
-		    data->info.channel, data->info.mcs, data->info.rssi);
+	wil_dbg_wmi(wil, "sched scan result: channel %d MCS %s RSSI %d\n",
+		    data->info.channel, WIL_EXTENDED_MCS_CHECK(data->info.mcs),
+		    data->info.rssi);
 	wil_dbg_wmi(wil, "len %d qid %d mid %d cid %d\n",
 		    d_len, data->info.qid, data->info.mid, data->info.cid);
 	wil_hex_dump_wmi("PROBE ", DUMP_PREFIX_OFFSET, 16, 1, rx_mgmt_frame,
@@ -1455,7 +1456,7 @@ static void wil_link_stats_store_basic(struct wil6210_vif *vif,
 	u8 cid = basic->cid;
 	struct wil_sta_info *sta;
 
-	if (cid < 0 || cid >= wil->max_assoc_sta) {
+	if (cid >= wil->max_assoc_sta) {
 		wil_err(wil, "invalid cid %d\n", cid);
 		return;
 	}
@@ -2096,7 +2097,7 @@ int wmi_echo(struct wil6210_priv *wil)
 			WIL_WMI_CALL_GENERAL_TO_MS);
 }
 
-int wmi_set_mac_address(struct wil6210_priv *wil, void *addr)
+int wmi_set_mac_address(struct wil6210_priv *wil, const void *addr)
 {
 	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
 	struct wmi_set_mac_address_cmd cmd;

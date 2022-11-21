@@ -12,4 +12,4 @@ struct wfx_dev;
 
 int wfx_init_device(struct wfx_dev *wdev);
 
-#endif /* WFX_FWIO_H */
+#endif

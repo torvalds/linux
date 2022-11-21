@@ -23,13 +23,14 @@
 #undef ERRORS
 #define ERRORS	\
 	C(BAD_NAME,		"Illegal name"),		\
-	C(CMD_INCOMPLETE,	"Incomplete command"),		\
+	C(INVALID_CMD,		"Command must be of the form: <name> field[;field] ..."),\
+	C(INVALID_DYN_CMD,	"Command must be of the form: s or -:[synthetic/]<name> field[;field] ..."),\
 	C(EVENT_EXISTS,		"Event already exists"),	\
 	C(TOO_MANY_FIELDS,	"Too many fields"),		\
 	C(INCOMPLETE_TYPE,	"Incomplete type"),		\
 	C(INVALID_TYPE,		"Invalid type"),		\
-	C(INVALID_FIELD,	"Invalid field"),		\
-	C(CMD_TOO_LONG,		"Command too long"),
+	C(INVALID_FIELD,        "Invalid field"),		\
+	C(INVALID_ARRAY_SPEC,	"Invalid array specification"),
 
 #undef C
 #define C(a, b)		SYNTH_ERR_##a
@@ -41,28 +42,36 @@ enum { ERRORS };
 
 static const char *err_text[] = { ERRORS };
 
-static char last_cmd[MAX_FILTER_STR_VAL];
+static char *last_cmd;
 
 static int errpos(const char *str)
 {
+	if (!str || !last_cmd)
+		return 0;
+
 	return err_pos(last_cmd, str);
 }
 
-static void last_cmd_set(char *str)
+static void last_cmd_set(const char *str)
 {
 	if (!str)
 		return;
 
-	strncpy(last_cmd, str, MAX_FILTER_STR_VAL - 1);
+	kfree(last_cmd);
+
+	last_cmd = kstrdup(str, GFP_KERNEL);
 }
 
-static void synth_err(u8 err_type, u8 err_pos)
+static void synth_err(u8 err_type, u16 err_pos)
 {
+	if (!last_cmd)
+		return;
+
 	tracing_log_err(NULL, "synthetic_events", last_cmd, err_text,
 			err_type, err_pos);
 }
 
-static int create_synth_event(int argc, const char **argv);
+static int create_synth_event(const char *raw_command);
 static int synth_event_show(struct seq_file *m, struct dyn_event *ev);
 static int synth_event_release(struct dyn_event *ev);
 static bool synth_event_is_busy(struct dyn_event *ev);
@@ -579,17 +588,31 @@ static void free_synth_field(struct synth_field *field)
 	kfree(field);
 }
 
-static struct synth_field *parse_synth_field(int argc, const char **argv,
-					     int *consumed)
+static int check_field_version(const char *prefix, const char *field_type,
+			       const char *field_name)
 {
-	struct synth_field *field;
+	/*
+	 * For backward compatibility, the old synthetic event command
+	 * format did not require semicolons, and in order to not
+	 * break user space, that old format must still work. If a new
+	 * feature is added, then the format that uses the new feature
+	 * will be required to have semicolons, as nothing that uses
+	 * the old format would be using the new, yet to be created,
+	 * feature. When a new feature is added, this will detect it,
+	 * and return a number greater than 1, and require the format
+	 * to use semicolons.
+	 */
+	return 1;
+}
+
+static struct synth_field *parse_synth_field(int argc, char **argv,
+					     int *consumed, int *field_version)
+{
 	const char *prefix = NULL, *field_type = argv[0], *field_name, *array;
+	struct synth_field *field;
 	int len, ret = -ENOMEM;
 	struct seq_buf s;
 	ssize_t size;
-
-	if (field_type[0] == ';')
-		field_type++;
 
 	if (!strcmp(field_type, "unsigned")) {
 		if (argc < 3) {
@@ -599,11 +622,18 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 		prefix = "unsigned ";
 		field_type = argv[1];
 		field_name = argv[2];
-		*consumed = 3;
+		*consumed += 3;
 	} else {
 		field_name = argv[1];
-		*consumed = 2;
+		*consumed += 2;
 	}
+
+	if (!field_name) {
+		synth_err(SYNTH_ERR_INVALID_FIELD, errpos(field_type));
+		return ERR_PTR(-EINVAL);
+	}
+
+	*field_version = check_field_version(prefix, field_type, field_name);
 
 	field = kzalloc(sizeof(*field), GFP_KERNEL);
 	if (!field)
@@ -613,8 +643,6 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 	array = strchr(field_name, '[');
 	if (array)
 		len -= strlen(array);
-	else if (field_name[len - 1] == ';')
-		len--;
 
 	field->name = kmemdup_nul(field_name, len, GFP_KERNEL);
 	if (!field->name)
@@ -626,8 +654,6 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 		goto free;
 	}
 
-	if (field_type[0] == ';')
-		field_type++;
 	len = strlen(field_type) + 1;
 
 	if (array)
@@ -644,11 +670,8 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 	if (prefix)
 		seq_buf_puts(&s, prefix);
 	seq_buf_puts(&s, field_type);
-	if (array) {
+	if (array)
 		seq_buf_puts(&s, array);
-		if (s.buffer[s.len - 1] == ';')
-			s.len--;
-	}
 	if (WARN_ON_ONCE(!seq_buf_buffer_left(&s)))
 		goto free;
 
@@ -656,7 +679,10 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 
 	size = synth_field_size(field->type);
 	if (size < 0) {
-		synth_err(SYNTH_ERR_INVALID_TYPE, errpos(field_type));
+		if (array)
+			synth_err(SYNTH_ERR_INVALID_ARRAY_SPEC, errpos(field_name));
+		else
+			synth_err(SYNTH_ERR_INVALID_TYPE, errpos(field_type));
 		ret = -EINVAL;
 		goto free;
 	} else if (size == 0) {
@@ -875,15 +901,13 @@ static struct synth_event *alloc_synth_event(const char *name, int n_fields,
 	dyn_event_init(&event->devent, &synth_event_ops);
 
 	for (i = 0, j = 0; i < n_fields; i++) {
+		fields[i]->field_pos = i;
 		event->fields[i] = fields[i];
 
-		if (fields[i]->is_dynamic) {
-			event->dynamic_fields[j] = fields[i];
-			event->dynamic_fields[j]->field_pos = i;
+		if (fields[i]->is_dynamic)
 			event->dynamic_fields[j++] = fields[i];
-			event->n_dynamic_fields++;
-		}
 	}
+	event->n_dynamic_fields = j;
 	event->n_fields = n_fields;
  out:
 	return event;
@@ -1160,46 +1184,13 @@ int synth_event_gen_cmd_array_start(struct dynevent_cmd *cmd, const char *name,
 }
 EXPORT_SYMBOL_GPL(synth_event_gen_cmd_array_start);
 
-static int save_cmdstr(int argc, const char *name, const char **argv)
+static int __create_synth_event(const char *name, const char *raw_fields)
 {
-	struct seq_buf s;
-	char *buf;
-	int i;
-
-	buf = kzalloc(MAX_DYNEVENT_CMD_LEN, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	seq_buf_init(&s, buf, MAX_DYNEVENT_CMD_LEN);
-
-	seq_buf_puts(&s, name);
-
-	for (i = 0; i < argc; i++) {
-		seq_buf_putc(&s, ' ');
-		seq_buf_puts(&s, argv[i]);
-	}
-
-	if (!seq_buf_buffer_left(&s)) {
-		synth_err(SYNTH_ERR_CMD_TOO_LONG, 0);
-		kfree(buf);
-		return -EINVAL;
-	}
-	buf[s.len] = 0;
-	last_cmd_set(buf);
-
-	kfree(buf);
-	return 0;
-}
-
-static int __create_synth_event(int argc, const char *name, const char **argv)
-{
+	char **argv, *field_str, *tmp_fields, *saved_fields = NULL;
 	struct synth_field *field, *fields[SYNTH_FIELDS_MAX];
+	int consumed, cmd_version = 1, n_fields_this_loop;
+	int i, argc, n_fields = 0, ret = 0;
 	struct synth_event *event = NULL;
-	int i, consumed = 0, n_fields = 0, ret = 0;
-
-	ret = save_cmdstr(argc, name, argv);
-	if (ret)
-		return ret;
 
 	/*
 	 * Argument syntax:
@@ -1208,46 +1199,100 @@ static int __create_synth_event(int argc, const char *name, const char **argv)
 	 *      where 'field' = type field_name
 	 */
 
-	if (name[0] == '\0' || argc < 1) {
-		synth_err(SYNTH_ERR_CMD_INCOMPLETE, 0);
+	if (name[0] == '\0') {
+		synth_err(SYNTH_ERR_INVALID_CMD, 0);
+		return -EINVAL;
+	}
+
+	if (!is_good_name(name)) {
+		synth_err(SYNTH_ERR_BAD_NAME, errpos(name));
 		return -EINVAL;
 	}
 
 	mutex_lock(&event_mutex);
 
-	if (!is_good_name(name)) {
-		synth_err(SYNTH_ERR_BAD_NAME, errpos(name));
-		ret = -EINVAL;
-		goto out;
-	}
-
 	event = find_synth_event(name);
 	if (event) {
 		synth_err(SYNTH_ERR_EVENT_EXISTS, errpos(name));
 		ret = -EEXIST;
-		goto out;
+		goto err;
 	}
 
-	for (i = 0; i < argc - 1; i++) {
-		if (strcmp(argv[i], ";") == 0)
+	tmp_fields = saved_fields = kstrdup(raw_fields, GFP_KERNEL);
+	if (!tmp_fields) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	while ((field_str = strsep(&tmp_fields, ";")) != NULL) {
+		argv = argv_split(GFP_KERNEL, field_str, &argc);
+		if (!argv) {
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		if (!argc) {
+			argv_free(argv);
 			continue;
-		if (n_fields == SYNTH_FIELDS_MAX) {
-			synth_err(SYNTH_ERR_TOO_MANY_FIELDS, 0);
+		}
+
+		n_fields_this_loop = 0;
+		consumed = 0;
+		while (argc > consumed) {
+			int field_version;
+
+			field = parse_synth_field(argc - consumed,
+						  argv + consumed, &consumed,
+						  &field_version);
+			if (IS_ERR(field)) {
+				ret = PTR_ERR(field);
+				goto err_free_arg;
+			}
+
+			/*
+			 * Track the highest version of any field we
+			 * found in the command.
+			 */
+			if (field_version > cmd_version)
+				cmd_version = field_version;
+
+			/*
+			 * Now sort out what is and isn't valid for
+			 * each supported version.
+			 *
+			 * If we see more than 1 field per loop, it
+			 * means we have multiple fields between
+			 * semicolons, and that's something we no
+			 * longer support in a version 2 or greater
+			 * command.
+			 */
+			if (cmd_version > 1 && n_fields_this_loop >= 1) {
+				synth_err(SYNTH_ERR_INVALID_CMD, errpos(field_str));
+				ret = -EINVAL;
+				goto err_free_arg;
+			}
+
+			fields[n_fields++] = field;
+			if (n_fields == SYNTH_FIELDS_MAX) {
+				synth_err(SYNTH_ERR_TOO_MANY_FIELDS, 0);
+				ret = -EINVAL;
+				goto err_free_arg;
+			}
+
+			n_fields_this_loop++;
+		}
+		argv_free(argv);
+
+		if (consumed < argc) {
+			synth_err(SYNTH_ERR_INVALID_CMD, 0);
 			ret = -EINVAL;
 			goto err;
 		}
 
-		field = parse_synth_field(argc - i, &argv[i], &consumed);
-		if (IS_ERR(field)) {
-			ret = PTR_ERR(field);
-			goto err;
-		}
-		fields[n_fields++] = field;
-		i += consumed - 1;
 	}
 
-	if (i < argc && strcmp(argv[i], ";") != 0) {
-		synth_err(SYNTH_ERR_INVALID_FIELD, errpos(argv[i]));
+	if (n_fields == 0) {
+		synth_err(SYNTH_ERR_INVALID_CMD, 0);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -1260,13 +1305,17 @@ static int __create_synth_event(int argc, const char *name, const char **argv)
 	}
 	ret = register_synth_event(event);
 	if (!ret)
-		dyn_event_add(&event->devent);
+		dyn_event_add(&event->devent, &event->call);
 	else
 		free_synth_event(event);
  out:
 	mutex_unlock(&event_mutex);
 
+	kfree(saved_fields);
+
 	return ret;
+ err_free_arg:
+	argv_free(argv);
  err:
 	for (i = 0; i < n_fields; i++)
 		free_synth_field(fields[i]);
@@ -1276,7 +1325,7 @@ static int __create_synth_event(int argc, const char *name, const char **argv)
 
 /**
  * synth_event_create - Create a new synthetic event
- * @name: The name of the new sythetic event
+ * @name: The name of the new synthetic event
  * @fields: An array of type/name field descriptions
  * @n_fields: The number of field descriptions contained in the fields array
  * @mod: The module creating the event, NULL if not created from a module
@@ -1329,13 +1378,15 @@ static int destroy_synth_event(struct synth_event *se)
 	int ret;
 
 	if (se->ref)
-		ret = -EBUSY;
-	else {
-		ret = unregister_synth_event(se);
-		if (!ret) {
-			dyn_event_remove(&se->devent);
-			free_synth_event(se);
-		}
+		return -EBUSY;
+
+	if (trace_event_dyn_busy(&se->call))
+		return -EBUSY;
+
+	ret = unregister_synth_event(se);
+	if (!ret) {
+		dyn_event_remove(&se->devent);
+		free_synth_event(se);
 	}
 
 	return ret;
@@ -1343,7 +1394,7 @@ static int destroy_synth_event(struct synth_event *se)
 
 /**
  * synth_event_delete - Delete a synthetic event
- * @event_name: The name of the new sythetic event
+ * @event_name: The name of the new synthetic event
  *
  * Delete a synthetic event that was created with synth_event_create().
  *
@@ -1383,19 +1434,79 @@ int synth_event_delete(const char *event_name)
 }
 EXPORT_SYMBOL_GPL(synth_event_delete);
 
-static int create_or_delete_synth_event(int argc, char **argv)
+static int check_command(const char *raw_command)
 {
-	const char *name = argv[0];
-	int ret;
+	char **argv = NULL, *cmd, *saved_cmd, *name_and_field;
+	int argc, ret = 0;
 
-	/* trace_run_command() ensures argc != 0 */
-	if (name[0] == '!') {
-		ret = synth_event_delete(name + 1);
+	cmd = saved_cmd = kstrdup(raw_command, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	name_and_field = strsep(&cmd, ";");
+	if (!name_and_field) {
+		ret = -EINVAL;
+		goto free;
+	}
+
+	if (name_and_field[0] == '!')
+		goto free;
+
+	argv = argv_split(GFP_KERNEL, name_and_field, &argc);
+	if (!argv) {
+		ret = -ENOMEM;
+		goto free;
+	}
+	argv_free(argv);
+
+	if (argc < 3)
+		ret = -EINVAL;
+free:
+	kfree(saved_cmd);
+
+	return ret;
+}
+
+static int create_or_delete_synth_event(const char *raw_command)
+{
+	char *name = NULL, *fields, *p;
+	int ret = 0;
+
+	raw_command = skip_spaces(raw_command);
+	if (raw_command[0] == '\0')
+		return ret;
+
+	last_cmd_set(raw_command);
+
+	ret = check_command(raw_command);
+	if (ret) {
+		synth_err(SYNTH_ERR_INVALID_CMD, 0);
 		return ret;
 	}
 
-	ret = __create_synth_event(argc - 1, name, (const char **)argv + 1);
-	return ret == -ECANCELED ? -EINVAL : ret;
+	p = strpbrk(raw_command, " \t");
+	if (!p && raw_command[0] != '!') {
+		synth_err(SYNTH_ERR_INVALID_CMD, 0);
+		ret = -EINVAL;
+		goto free;
+	}
+
+	name = kmemdup_nul(raw_command, p ? p - raw_command : strlen(raw_command), GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+
+	if (name[0] == '!') {
+		ret = synth_event_delete(name + 1);
+		goto free;
+	}
+
+	fields = skip_spaces(p);
+
+	ret = __create_synth_event(name, fields);
+free:
+	kfree(name);
+
+	return ret;
 }
 
 static int synth_event_run_command(struct dynevent_cmd *cmd)
@@ -1403,7 +1514,7 @@ static int synth_event_run_command(struct dynevent_cmd *cmd)
 	struct synth_event *se;
 	int ret;
 
-	ret = trace_run_command(cmd->seq.buffer, create_or_delete_synth_event);
+	ret = create_or_delete_synth_event(cmd->seq.buffer);
 	if (ret)
 		return ret;
 
@@ -1446,7 +1557,7 @@ __synth_event_trace_init(struct trace_event_file *file,
 	 * this code to be called, etc).  Because this is called
 	 * directly by the user, we don't have that but we still need
 	 * to honor not logging when disabled.  For the iterated
-	 * trace case, we save the enabed state upon start and just
+	 * trace case, we save the enabled state upon start and just
 	 * ignore the following data calls.
 	 */
 	if (!(file->flags & EVENT_FILE_FL_ENABLED) ||
@@ -1876,7 +1987,7 @@ EXPORT_SYMBOL_GPL(synth_event_add_next_val);
 /**
  * synth_event_add_val - Add a named field's value to an open synth trace
  * @field_name: The name of the synthetic event field value to set
- * @val: The value to set the next field to
+ * @val: The value to set the named field to
  * @trace_state: A pointer to object tracking the piecewise trace state
  *
  * Set the value of the named field in an event that's been opened by
@@ -1939,23 +2050,60 @@ int synth_event_trace_end(struct synth_event_trace_state *trace_state)
 }
 EXPORT_SYMBOL_GPL(synth_event_trace_end);
 
-static int create_synth_event(int argc, const char **argv)
+static int create_synth_event(const char *raw_command)
 {
-	const char *name = argv[0];
-	int len;
+	char *fields, *p;
+	const char *name;
+	int len, ret = 0;
 
+	raw_command = skip_spaces(raw_command);
+	if (raw_command[0] == '\0')
+		return ret;
+
+	last_cmd_set(raw_command);
+
+	name = raw_command;
+
+	/* Don't try to process if not our system */
 	if (name[0] != 's' || name[1] != ':')
 		return -ECANCELED;
 	name += 2;
 
+	p = strpbrk(raw_command, " \t");
+	if (!p) {
+		synth_err(SYNTH_ERR_INVALID_CMD, 0);
+		return -EINVAL;
+	}
+
+	fields = skip_spaces(p);
+
 	/* This interface accepts group name prefix */
 	if (strchr(name, '/')) {
 		len = str_has_prefix(name, SYNTH_SYSTEM "/");
-		if (len == 0)
+		if (len == 0) {
+			synth_err(SYNTH_ERR_INVALID_DYN_CMD, 0);
 			return -EINVAL;
+		}
 		name += len;
 	}
-	return __create_synth_event(argc - 1, name, argv + 1);
+
+	len = name - raw_command;
+
+	ret = check_command(raw_command + len);
+	if (ret) {
+		synth_err(SYNTH_ERR_INVALID_CMD, 0);
+		return ret;
+	}
+
+	name = kmemdup_nul(raw_command + len, p - raw_command - len, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+
+	ret = __create_synth_event(name, fields);
+
+	kfree(name);
+
+	return ret;
 }
 
 static int synth_event_release(struct dyn_event *ev)
@@ -1964,6 +2112,9 @@ static int synth_event_release(struct dyn_event *ev)
 	int ret;
 
 	if (event->ref)
+		return -EBUSY;
+
+	if (trace_event_dyn_busy(&event->call))
 		return -EBUSY;
 
 	ret = unregister_synth_event(event);
@@ -2086,8 +2237,8 @@ static __init int trace_events_synth_init(void)
 	if (err)
 		goto err;
 
-	entry = tracefs_create_file("synthetic_events", 0644, NULL,
-				    NULL, &synth_events_fops);
+	entry = tracefs_create_file("synthetic_events", TRACE_MODE_WRITE,
+				    NULL, NULL, &synth_events_fops);
 	if (!entry) {
 		err = -ENODEV;
 		goto err;

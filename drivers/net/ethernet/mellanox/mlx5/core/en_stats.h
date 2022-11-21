@@ -51,6 +51,13 @@
 #define MLX5E_DECLARE_XSKSQ_STAT(type, fld) "tx%d_xsk_"#fld, offsetof(type, fld)
 #define MLX5E_DECLARE_CH_STAT(type, fld) "ch%d_"#fld, offsetof(type, fld)
 
+#define MLX5E_DECLARE_PTP_TX_STAT(type, fld) "ptp_tx%d_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_PTP_CH_STAT(type, fld) "ptp_ch_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_PTP_CQ_STAT(type, fld) "ptp_cq%d_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_PTP_RQ_STAT(type, fld) "ptp_rq%d_"#fld, offsetof(type, fld)
+
+#define MLX5E_DECLARE_QOS_TX_STAT(type, fld) "qos_tx%d_"#fld, offsetof(type, fld)
+
 struct counter_desc {
 	char		format[ETH_GSTRING_LEN];
 	size_t		offset; /* Byte offset */
@@ -107,6 +114,18 @@ void mlx5e_stats_update_ndo_stats(struct mlx5e_priv *priv);
 
 void mlx5e_stats_pause_get(struct mlx5e_priv *priv,
 			   struct ethtool_pause_stats *pause_stats);
+void mlx5e_stats_fec_get(struct mlx5e_priv *priv,
+			 struct ethtool_fec_stats *fec_stats);
+
+void mlx5e_stats_eth_phy_get(struct mlx5e_priv *priv,
+			     struct ethtool_eth_phy_stats *phy_stats);
+void mlx5e_stats_eth_mac_get(struct mlx5e_priv *priv,
+			     struct ethtool_eth_mac_stats *mac_stats);
+void mlx5e_stats_eth_ctrl_get(struct mlx5e_priv *priv,
+			      struct ethtool_eth_ctrl_stats *ctrl_stats);
+void mlx5e_stats_rmon_get(struct mlx5e_priv *priv,
+			  struct ethtool_rmon_stats *rmon,
+			  const struct ethtool_rmon_hist_range **ranges);
 
 /* Concrete NIC Stats */
 
@@ -125,6 +144,11 @@ struct mlx5e_sw_stats {
 	u64 tx_mpwqe_pkts;
 	u64 rx_lro_packets;
 	u64 rx_lro_bytes;
+	u64 rx_gro_packets;
+	u64 rx_gro_bytes;
+	u64 rx_gro_skbs;
+	u64 rx_gro_match_packets;
+	u64 rx_gro_large_hds;
 	u64 rx_mcast_packets;
 	u64 rx_ecn_mark;
 	u64 rx_removed_vlan_packets;
@@ -181,11 +205,22 @@ struct mlx5e_sw_stats {
 	u64 ch_aff_change;
 	u64 ch_force_irq;
 	u64 ch_eq_rearm;
-
+#ifdef CONFIG_PAGE_POOL_STATS
+	u64 rx_pp_alloc_fast;
+	u64 rx_pp_alloc_slow;
+	u64 rx_pp_alloc_slow_high_order;
+	u64 rx_pp_alloc_empty;
+	u64 rx_pp_alloc_refill;
+	u64 rx_pp_alloc_waive;
+	u64 rx_pp_recycle_cached;
+	u64 rx_pp_recycle_cache_full;
+	u64 rx_pp_recycle_ring;
+	u64 rx_pp_recycle_ring_full;
+	u64 rx_pp_recycle_released_ref;
+#endif
 #ifdef CONFIG_MLX5_EN_TLS
 	u64 tx_tls_encrypted_packets;
 	u64 tx_tls_encrypted_bytes;
-	u64 tx_tls_ctx;
 	u64 tx_tls_ooo;
 	u64 tx_tls_dump_packets;
 	u64 tx_tls_dump_bytes;
@@ -196,13 +231,12 @@ struct mlx5e_sw_stats {
 
 	u64 rx_tls_decrypted_packets;
 	u64 rx_tls_decrypted_bytes;
-	u64 rx_tls_ctx;
-	u64 rx_tls_del;
 	u64 rx_tls_resync_req_pkt;
 	u64 rx_tls_resync_req_start;
 	u64 rx_tls_resync_req_end;
 	u64 rx_tls_resync_req_skip;
 	u64 rx_tls_resync_res_ok;
+	u64 rx_tls_resync_res_retry;
 	u64 rx_tls_resync_res_skip;
 	u64 rx_tls_err;
 #endif
@@ -305,6 +339,11 @@ struct mlx5e_rq_stats {
 	u64 csum_none;
 	u64 lro_packets;
 	u64 lro_bytes;
+	u64 gro_packets;
+	u64 gro_bytes;
+	u64 gro_skbs;
+	u64 gro_match_packets;
+	u64 gro_large_hds;
 	u64 mcast_packets;
 	u64 ecn_mark;
 	u64 removed_vlan_packets;
@@ -325,16 +364,28 @@ struct mlx5e_rq_stats {
 	u64 congst_umr;
 	u64 arfs_err;
 	u64 recover;
+#ifdef CONFIG_PAGE_POOL_STATS
+	u64 pp_alloc_fast;
+	u64 pp_alloc_slow;
+	u64 pp_alloc_slow_high_order;
+	u64 pp_alloc_empty;
+	u64 pp_alloc_refill;
+	u64 pp_alloc_waive;
+	u64 pp_recycle_cached;
+	u64 pp_recycle_cache_full;
+	u64 pp_recycle_ring;
+	u64 pp_recycle_ring_full;
+	u64 pp_recycle_released_ref;
+#endif
 #ifdef CONFIG_MLX5_EN_TLS
 	u64 tls_decrypted_packets;
 	u64 tls_decrypted_bytes;
-	u64 tls_ctx;
-	u64 tls_del;
 	u64 tls_resync_req_pkt;
 	u64 tls_resync_req_start;
 	u64 tls_resync_req_end;
 	u64 tls_resync_req_skip;
 	u64 tls_resync_res_ok;
+	u64 tls_resync_res_retry;
 	u64 tls_resync_res_skip;
 	u64 tls_err;
 #endif
@@ -358,7 +409,6 @@ struct mlx5e_sq_stats {
 #ifdef CONFIG_MLX5_EN_TLS
 	u64 tls_encrypted_packets;
 	u64 tls_encrypted_bytes;
-	u64 tls_ctx;
 	u64 tls_ooo;
 	u64 tls_dump_packets;
 	u64 tls_dump_bytes;
@@ -398,6 +448,13 @@ struct mlx5e_ch_stats {
 	u64 eq_rearm;
 };
 
+struct mlx5e_ptp_cq_stats {
+	u64 cqe;
+	u64 err_cqe;
+	u64 abort;
+	u64 abort_abs_diff_ns;
+};
+
 struct mlx5e_stats {
 	struct mlx5e_sw_stats sw;
 	struct mlx5e_qcounter_stats qcnt;
@@ -427,5 +484,6 @@ extern MLX5E_DECLARE_STATS_GRP(channels);
 extern MLX5E_DECLARE_STATS_GRP(per_port_buff_congest);
 extern MLX5E_DECLARE_STATS_GRP(ipsec_hw);
 extern MLX5E_DECLARE_STATS_GRP(ipsec_sw);
+extern MLX5E_DECLARE_STATS_GRP(ptp);
 
 #endif /* __MLX5_EN_STATS_H__ */

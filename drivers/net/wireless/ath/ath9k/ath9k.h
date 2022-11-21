@@ -177,7 +177,8 @@ struct ath_frame_info {
 	s8 txq;
 	u8 keyix;
 	u8 rtscts_rate;
-	u8 retries : 7;
+	u8 retries : 6;
+	u8 dyn_smps : 1;
 	u8 baw_tracked : 1;
 	u8 tx_power;
 	enum ath9k_key_type keytype:2;
@@ -661,7 +662,6 @@ struct ath9k_vif_iter_data {
 	int naps;      /* number of AP vifs */
 	int nmeshes;   /* number of mesh vifs */
 	int nstations; /* number of station vifs */
-	int nwds;      /* number of WDS vifs */
 	int nadhocs;   /* number of adhoc vifs */
 	int nocbs;     /* number of OCB vifs */
 	int nbcnvifs;  /* number of beaconing vifs */
@@ -1071,8 +1071,9 @@ struct ath_softc {
 #endif
 
 #ifdef CONFIG_ATH9K_HWRNG
+	struct hwrng rng_ops;
 	u32 rng_last;
-	struct task_struct *rng_task;
+	char rng_name[sizeof("ath9k_65535")];
 #endif
 };
 

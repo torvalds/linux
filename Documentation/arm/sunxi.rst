@@ -158,3 +158,13 @@ SunXi family
 	* User Manual
 
 	  https://linux-sunxi.org/images/4/46/Allwinner_H6_V200_User_Manual_V1.1.pdf
+
+      - Allwinner H616
+
+	* Datasheet
+
+	  https://linux-sunxi.org/images/b/b9/H616_Datasheet_V1.0_cleaned.pdf
+
+	* User Manual
+
+	  https://linux-sunxi.org/images/2/24/H616_User_Manual_V1.0_cleaned.pdf

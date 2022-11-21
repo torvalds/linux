@@ -34,7 +34,7 @@ struct hci_packet {
 struct tlv {
 	u8 type;
 	u8 len;
-	u8 *data[1];
+	u8 *data[];
 } __packed;
 
 struct sdu_header {

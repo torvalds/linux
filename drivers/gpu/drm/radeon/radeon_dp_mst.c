@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-#include <drm/drm_debugfs.h>
-#include <drm/drm_dp_mst_helper.h>
+#include <drm/dp/drm_dp_mst_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_probe_helper.h>
@@ -242,6 +241,9 @@ radeon_dp_mst_detect(struct drm_connector *connector,
 		to_radeon_connector(connector);
 	struct radeon_connector *master = radeon_connector->mst_port;
 
+	if (drm_connector_is_unregistered(connector))
+		return connector_status_disconnected;
+
 	return drm_dp_mst_detect_port(connector, ctx, &master->mst_mgr,
 				      radeon_connector->port);
 }
@@ -363,7 +365,7 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct radeon_connector *radeon_connector;
 	struct drm_crtc *crtc;
 	struct radeon_crtc *radeon_crtc;
-	int ret, slots;
+	int slots;
 	s64 fixed_pbn, fixed_pbn_per_slot, avg_time_slots_per_mtp;
 	if (!ASIC_IS_DCE5(rdev)) {
 		DRM_ERROR("got mst dpms on non-DCE5\n");
@@ -418,10 +420,10 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 		slots = drm_dp_find_vcpi_slots(&radeon_connector->mst_port->mst_mgr,
 					       mst_enc->pbn);
-		ret = drm_dp_mst_allocate_vcpi(&radeon_connector->mst_port->mst_mgr,
-					       radeon_connector->port,
-					       mst_enc->pbn, slots);
-		ret = drm_dp_update_payload_part1(&radeon_connector->mst_port->mst_mgr);
+		drm_dp_mst_allocate_vcpi(&radeon_connector->mst_port->mst_mgr,
+					 radeon_connector->port,
+					 mst_enc->pbn, slots);
+		drm_dp_update_payload_part1(&radeon_connector->mst_port->mst_mgr, 1);
 
 		radeon_dp_mst_set_be_cntl(primary, mst_enc,
 					  radeon_connector->mst_port->hpd.hpd, true);
@@ -436,9 +438,9 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 		atombios_dig_encoder_setup2(&primary->base, ATOM_ENCODER_CMD_DP_VIDEO_ON, 0,
 					    mst_enc->fe);
-		ret = drm_dp_check_act_status(&radeon_connector->mst_port->mst_mgr);
+		drm_dp_check_act_status(&radeon_connector->mst_port->mst_mgr);
 
-		ret = drm_dp_update_payload_part2(&radeon_connector->mst_port->mst_mgr);
+		drm_dp_update_payload_part2(&radeon_connector->mst_port->mst_mgr);
 
 		break;
 	case DRM_MODE_DPMS_STANDBY:
@@ -450,7 +452,7 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 			return;
 
 		drm_dp_mst_reset_vcpi_slots(&radeon_connector->mst_port->mst_mgr, mst_enc->port);
-		ret = drm_dp_update_payload_part1(&radeon_connector->mst_port->mst_mgr);
+		drm_dp_update_payload_part1(&radeon_connector->mst_port->mst_mgr, 1);
 
 		drm_dp_check_act_status(&radeon_connector->mst_port->mst_mgr);
 		/* and this can also fail */
@@ -627,13 +629,20 @@ int
 radeon_dp_mst_init(struct radeon_connector *radeon_connector)
 {
 	struct drm_device *dev = radeon_connector->base.dev;
+	int max_link_rate;
 
 	if (!radeon_connector->ddc_bus->has_aux)
 		return 0;
 
+	if (radeon_connector_is_dp12_capable(&radeon_connector->base))
+		max_link_rate = 0x14;
+	else
+		max_link_rate = 0x0a;
+
 	radeon_connector->mst_mgr.cbs = &mst_cbs;
 	return drm_dp_mst_topology_mgr_init(&radeon_connector->mst_mgr, dev,
 					    &radeon_connector->ddc_bus->aux, 16, 6,
+					    4, drm_dp_bw_code_to_link_rate(max_link_rate),
 					    radeon_connector->base.base.id);
 }
 
@@ -723,10 +732,10 @@ go_again:
 
 #if defined(CONFIG_DEBUG_FS)
 
-static int radeon_debugfs_mst_info(struct seq_file *m, void *data)
+static int radeon_debugfs_mst_info_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct drm_device *dev = rdev->ddev;
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector;
 	struct radeon_connector_atom_dig *dig_connector;
@@ -754,15 +763,16 @@ static int radeon_debugfs_mst_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list radeon_debugfs_mst_list[] = {
-	{"radeon_mst_info", &radeon_debugfs_mst_info, 0, NULL},
-};
+DEFINE_SHOW_ATTRIBUTE(radeon_debugfs_mst_info);
 #endif
 
-int radeon_mst_debugfs_init(struct radeon_device *rdev)
+void radeon_mst_debugfs_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_debugfs_mst_list, 1);
+	struct dentry *root = rdev->ddev->primary->debugfs_root;
+
+	debugfs_create_file("radeon_mst_info", 0444, root, rdev,
+			    &radeon_debugfs_mst_info_fops);
+
 #endif
-	return 0;
 }

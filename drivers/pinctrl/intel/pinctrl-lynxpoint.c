@@ -496,7 +496,7 @@ static int lp_pin_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	enum pin_config_param param = pinconf_to_config_param(*config);
 	unsigned long flags;
 	u32 value, pull;
-	u16 arg = 0;
+	u16 arg;
 
 	raw_spin_lock_irqsave(&lg->lock, flags);
 	value = ioread32(conf2);
@@ -506,8 +506,9 @@ static int lp_pin_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
-		if (pull)
+		if (pull != GPIWP_NONE)
 			return -EINVAL;
+		arg = 0;
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		if (pull != GPIWP_DOWN)
@@ -550,6 +551,7 @@ static int lp_pin_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:
 			value &= ~GPIWP_MASK;
+			value |= GPIWP_NONE;
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			value &= ~GPIWP_MASK;
@@ -651,12 +653,8 @@ static void lp_gpio_irq_handler(struct irq_desc *desc)
 		/* Only interrupts that are enabled */
 		pending = ioread32(reg) & ioread32(ena);
 
-		for_each_set_bit(pin, &pending, 32) {
-			unsigned int irq;
-
-			irq = irq_find_mapping(lg->chip.irq.domain, base + pin);
-			generic_handle_irq(irq);
-		}
+		for_each_set_bit(pin, &pending, 32)
+			generic_handle_domain_irq(lg->chip.irq.domain, base + pin);
 	}
 	chip->irq_eoi(data);
 }
@@ -872,6 +870,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->direction_output = lp_gpio_direction_output;
 	gc->get = lp_gpio_get;
 	gc->set = lp_gpio_set;
+	gc->set_config = gpiochip_generic_config;
 	gc->get_direction = lp_gpio_get_direction;
 	gc->base = -1;
 	gc->ngpio = LP_NUM_GPIO;
@@ -967,13 +966,12 @@ static int __init lp_gpio_init(void)
 {
 	return platform_driver_register(&lp_gpio_driver);
 }
+subsys_initcall(lp_gpio_init);
 
 static void __exit lp_gpio_exit(void)
 {
 	platform_driver_unregister(&lp_gpio_driver);
 }
-
-subsys_initcall(lp_gpio_init);
 module_exit(lp_gpio_exit);
 
 MODULE_AUTHOR("Mathias Nyman (Intel)");

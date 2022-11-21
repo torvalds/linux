@@ -28,9 +28,9 @@ __kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n)
 	return 0;
 }
 
-__kernel_size_t __clear_user(void *to, __kernel_size_t n)
+__kernel_size_t __clear_user(void __user *to, __kernel_size_t n)
 {
-	memset(to, 0, n);
+	memset((__force void *)to, 0, n);
 	return 0;
 }
 

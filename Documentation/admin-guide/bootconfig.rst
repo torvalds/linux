@@ -89,13 +89,35 @@ you can use ``+=`` operator. For example::
 
 In this case, the key ``foo`` has ``bar``, ``baz`` and ``qux``.
 
-However, a sub-key and a value can not co-exist under a parent key.
-For example, following config is NOT allowed.::
+Moreover, sub-keys and a value can coexist under a parent key.
+For example, following config is allowed.::
 
  foo = value1
- foo.bar = value2 # !ERROR! subkey "bar" and value "value1" can NOT co-exist
- foo.bar := value2 # !ERROR! even with the override operator, this is NOT allowed.
+ foo.bar = value2
+ foo := value3 # This will update foo's value.
 
+Note, since there is no syntax to put a raw value directly under a
+structured key, you have to define it outside of the brace. For example::
+
+ foo {
+     bar = value1
+     bar {
+         baz = value2
+         qux = value3
+     }
+ }
+
+Also, the order of the value node under a key is fixed. If there
+are a value and subkeys, the value is always the first child node
+of the key. Thus if user specifies subkeys first, e.g.::
+
+ foo.bar = value1
+ foo = value2
+
+In the program (and /proc/bootconfig), it will be shown as below::
+
+ foo = value2
+ foo.bar = value1
 
 Comments
 --------
@@ -154,9 +176,9 @@ get the boot configuration data.
 Because of this "piggyback" method, there is no need to change or
 update the boot loader and the kernel image itself as long as the boot
 loader passes the correct initrd file size. If by any chance, the boot
-loader passes a longer size, the kernel feils to find the bootconfig data.
+loader passes a longer size, the kernel fails to find the bootconfig data.
 
-To do this operation, Linux kernel provides "bootconfig" command under
+To do this operation, Linux kernel provides ``bootconfig`` command under
 tools/bootconfig, which allows admin to apply or delete the config file
 to/from initrd image. You can build it by the following command::
 
@@ -173,6 +195,43 @@ To remove the config from the image, you can use -d option as below::
 
 Then add "bootconfig" on the normal kernel command line to tell the
 kernel to look for the bootconfig at the end of the initrd file.
+
+
+Kernel parameters via Boot Config
+=================================
+
+In addition to the kernel command line, the boot config can be used for
+passing the kernel parameters. All the key-value pairs under ``kernel``
+key will be passed to kernel cmdline directly. Moreover, the key-value
+pairs under ``init`` will be passed to init process via the cmdline.
+The parameters are concatinated with user-given kernel cmdline string
+as the following order, so that the command line parameter can override
+bootconfig parameters (this depends on how the subsystem handles parameters
+but in general, earlier parameter will be overwritten by later one.)::
+
+ [bootconfig params][cmdline params] -- [bootconfig init params][cmdline init params]
+
+Here is an example of the bootconfig file for kernel/init parameters.::
+
+ kernel {
+   root = 01234567-89ab-cdef-0123-456789abcd
+ }
+ init {
+  splash
+ }
+
+This will be copied into the kernel cmdline string as the following::
+
+ root="01234567-89ab-cdef-0123-456789abcd" -- splash
+
+If user gives some other command line like,::
+
+ ro bootconfig -- quiet
+
+The final kernel cmdline will be the following::
+
+ root="01234567-89ab-cdef-0123-456789abcd" ro bootconfig -- splash quiet
+
 
 Config File Limitation
 ======================

@@ -16,8 +16,8 @@
 #include <net/netfilter/nf_tables_offload.h>
 
 struct nft_bitwise {
-	enum nft_registers	sreg:8;
-	enum nft_registers	dreg:8;
+	u8			sreg;
+	u8			dreg;
 	enum nft_bitwise_ops	op:8;
 	u8			len;
 	struct nft_data		mask;
@@ -169,14 +169,14 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 
 	priv->len = len;
 
-	priv->sreg = nft_parse_register(tb[NFTA_BITWISE_SREG]);
-	err = nft_validate_register_load(priv->sreg, priv->len);
+	err = nft_parse_register_load(tb[NFTA_BITWISE_SREG], &priv->sreg,
+				      priv->len);
 	if (err < 0)
 		return err;
 
-	priv->dreg = nft_parse_register(tb[NFTA_BITWISE_DREG]);
-	err = nft_validate_register_store(ctx, priv->dreg, NULL,
-					  NFT_DATA_VALUE, priv->len);
+	err = nft_parse_register_store(ctx, tb[NFTA_BITWISE_DREG],
+				       &priv->dreg, NULL, NFT_DATA_VALUE,
+				       priv->len);
 	if (err < 0)
 		return err;
 
@@ -278,12 +278,60 @@ static int nft_bitwise_offload(struct nft_offload_ctx *ctx,
 	return 0;
 }
 
+static bool nft_bitwise_reduce(struct nft_regs_track *track,
+			       const struct nft_expr *expr)
+{
+	const struct nft_bitwise *priv = nft_expr_priv(expr);
+	const struct nft_bitwise *bitwise;
+	unsigned int regcount;
+	u8 dreg;
+	int i;
+
+	if (!track->regs[priv->sreg].selector)
+		return false;
+
+	bitwise = nft_expr_priv(track->regs[priv->dreg].selector);
+	if (track->regs[priv->sreg].selector == track->regs[priv->dreg].selector &&
+	    track->regs[priv->sreg].num_reg == 0 &&
+	    track->regs[priv->dreg].bitwise &&
+	    track->regs[priv->dreg].bitwise->ops == expr->ops &&
+	    priv->sreg == bitwise->sreg &&
+	    priv->dreg == bitwise->dreg &&
+	    priv->op == bitwise->op &&
+	    priv->len == bitwise->len &&
+	    !memcmp(&priv->mask, &bitwise->mask, sizeof(priv->mask)) &&
+	    !memcmp(&priv->xor, &bitwise->xor, sizeof(priv->xor)) &&
+	    !memcmp(&priv->data, &bitwise->data, sizeof(priv->data))) {
+		track->cur = expr;
+		return true;
+	}
+
+	if (track->regs[priv->sreg].bitwise ||
+	    track->regs[priv->sreg].num_reg != 0) {
+		nft_reg_track_cancel(track, priv->dreg, priv->len);
+		return false;
+	}
+
+	if (priv->sreg != priv->dreg) {
+		nft_reg_track_update(track, track->regs[priv->sreg].selector,
+				     priv->dreg, priv->len);
+	}
+
+	dreg = priv->dreg;
+	regcount = DIV_ROUND_UP(priv->len, NFT_REG32_SIZE);
+	for (i = 0; i < regcount; i++, dreg++)
+		track->regs[priv->dreg].bitwise = expr;
+
+	return false;
+}
+
 static const struct nft_expr_ops nft_bitwise_ops = {
 	.type		= &nft_bitwise_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_bitwise)),
 	.eval		= nft_bitwise_eval,
 	.init		= nft_bitwise_init,
 	.dump		= nft_bitwise_dump,
+	.reduce		= nft_bitwise_reduce,
 	.offload	= nft_bitwise_offload,
 };
 
@@ -315,14 +363,13 @@ static int nft_bitwise_fast_init(const struct nft_ctx *ctx,
 	struct nft_bitwise_fast_expr *priv = nft_expr_priv(expr);
 	int err;
 
-	priv->sreg = nft_parse_register(tb[NFTA_BITWISE_SREG]);
-	err = nft_validate_register_load(priv->sreg, sizeof(u32));
+	err = nft_parse_register_load(tb[NFTA_BITWISE_SREG], &priv->sreg,
+				      sizeof(u32));
 	if (err < 0)
 		return err;
 
-	priv->dreg = nft_parse_register(tb[NFTA_BITWISE_DREG]);
-	err = nft_validate_register_store(ctx, priv->dreg, NULL,
-					  NFT_DATA_VALUE, sizeof(u32));
+	err = nft_parse_register_store(ctx, tb[NFTA_BITWISE_DREG], &priv->dreg,
+				       NULL, NFT_DATA_VALUE, sizeof(u32));
 	if (err < 0)
 		return err;
 
@@ -386,12 +433,48 @@ static int nft_bitwise_fast_offload(struct nft_offload_ctx *ctx,
 	return 0;
 }
 
+static bool nft_bitwise_fast_reduce(struct nft_regs_track *track,
+				    const struct nft_expr *expr)
+{
+	const struct nft_bitwise_fast_expr *priv = nft_expr_priv(expr);
+	const struct nft_bitwise_fast_expr *bitwise;
+
+	if (!track->regs[priv->sreg].selector)
+		return false;
+
+	bitwise = nft_expr_priv(track->regs[priv->dreg].selector);
+	if (track->regs[priv->sreg].selector == track->regs[priv->dreg].selector &&
+	    track->regs[priv->dreg].bitwise &&
+	    track->regs[priv->dreg].bitwise->ops == expr->ops &&
+	    priv->sreg == bitwise->sreg &&
+	    priv->dreg == bitwise->dreg &&
+	    priv->mask == bitwise->mask &&
+	    priv->xor == bitwise->xor) {
+		track->cur = expr;
+		return true;
+	}
+
+	if (track->regs[priv->sreg].bitwise) {
+		nft_reg_track_cancel(track, priv->dreg, NFT_REG32_SIZE);
+		return false;
+	}
+
+	if (priv->sreg != priv->dreg) {
+		track->regs[priv->dreg].selector =
+			track->regs[priv->sreg].selector;
+	}
+	track->regs[priv->dreg].bitwise = expr;
+
+	return false;
+}
+
 const struct nft_expr_ops nft_bitwise_fast_ops = {
 	.type		= &nft_bitwise_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_bitwise_fast_expr)),
 	.eval		= NULL, /* inlined */
 	.init		= nft_bitwise_fast_init,
 	.dump		= nft_bitwise_fast_dump,
+	.reduce		= nft_bitwise_fast_reduce,
 	.offload	= nft_bitwise_fast_offload,
 };
 
@@ -428,3 +511,22 @@ struct nft_expr_type nft_bitwise_type __read_mostly = {
 	.maxattr	= NFTA_BITWISE_MAX,
 	.owner		= THIS_MODULE,
 };
+
+bool nft_expr_reduce_bitwise(struct nft_regs_track *track,
+			     const struct nft_expr *expr)
+{
+	const struct nft_expr *last = track->last;
+	const struct nft_expr *next;
+
+	if (expr == last)
+		return false;
+
+	next = nft_expr_next(expr);
+	if (next->ops == &nft_bitwise_ops)
+		return nft_bitwise_reduce(track, next);
+	else if (next->ops == &nft_bitwise_fast_ops)
+		return nft_bitwise_fast_reduce(track, next);
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(nft_expr_reduce_bitwise);

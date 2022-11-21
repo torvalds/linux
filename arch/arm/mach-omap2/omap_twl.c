@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * OMAP and TWL PMIC specific initializations.
  *
  * Copyright (C) 2010 Texas Instruments Incorporated.

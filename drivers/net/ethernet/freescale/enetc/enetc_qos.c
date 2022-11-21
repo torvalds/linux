@@ -52,10 +52,11 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	struct enetc_cbd cbd = {.cmd = 0};
 	struct tgs_gcl_conf *gcl_config;
 	struct tgs_gcl_data *gcl_data;
-	struct gce *gce;
 	dma_addr_t dma;
+	struct gce *gce;
 	u16 data_size;
 	u16 gcl_len;
+	void *tmp;
 	u32 tge;
 	int err;
 	int i;
@@ -82,8 +83,9 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	gcl_config = &cbd.gcl_conf;
 
 	data_size = struct_size(gcl_data, entry, gcl_len);
-	gcl_data = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
-	if (!gcl_data)
+	tmp = enetc_cbd_alloc_data_mem(priv->si, &cbd, data_size,
+				       &dma, (void *)&gcl_data);
+	if (!tmp)
 		return -ENOMEM;
 
 	gce = (struct gce *)(gcl_data + 1);
@@ -107,19 +109,8 @@ static int enetc_setup_taprio(struct net_device *ndev,
 		temp_gce->period = cpu_to_le32(temp_entry->interval);
 	}
 
-	cbd.length = cpu_to_le16(data_size);
 	cbd.status_flags = 0;
 
-	dma = dma_map_single(&priv->si->pdev->dev, gcl_data,
-			     data_size, DMA_TO_DEVICE);
-	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
-		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
-		kfree(gcl_data);
-		return -ENOMEM;
-	}
-
-	cbd.addr[0] = lower_32_bits(dma);
-	cbd.addr[1] = upper_32_bits(dma);
 	cbd.cls = BDCR_CMD_PORT_GCL;
 	cbd.status_flags = 0;
 
@@ -132,8 +123,7 @@ static int enetc_setup_taprio(struct net_device *ndev,
 			 ENETC_QBV_PTGCR_OFFSET,
 			 tge & (~ENETC_QBV_TGE));
 
-	dma_unmap_single(&priv->si->pdev->dev, dma, data_size, DMA_TO_DEVICE);
-	kfree(gcl_data);
+	enetc_cbd_free_data_mem(priv->si, data_size, tmp, &dma);
 
 	return err;
 }
@@ -307,10 +297,6 @@ int enetc_setup_tc_txtime(struct net_device *ndev, void *type_data)
 	if (tc < 0 || tc >= priv->num_tx_rings)
 		return -EINVAL;
 
-	/* Do not support TXSTART and TX CSUM offload simutaniously */
-	if (ndev->features & NETIF_F_CSUM_MASK)
-		return -EBUSY;
-
 	/* TSD and Qbv are mutually exclusive in hardware */
 	if (enetc_rd(&priv->si->hw, ENETC_QBV_PTGCR_OFFSET) & ENETC_QBV_TGE)
 		return -EBUSY;
@@ -450,15 +436,11 @@ static struct actions_fwd enetc_act_fwd[] = {
 };
 
 static struct enetc_psfp epsfp = {
+	.dev_bitmap = 0,
 	.psfp_sfi_bitmap = NULL,
 };
 
 static LIST_HEAD(enetc_block_cb_list);
-
-static inline int enetc_get_port(struct enetc_ndev_priv *priv)
-{
-	return priv->si->pdev->devfn & 0x7;
-}
 
 /* Stream Identity Entry Set Descriptor */
 static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
@@ -468,9 +450,15 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 	struct enetc_cbd cbd = {.cmd = 0};
 	struct streamid_data *si_data;
 	struct streamid_conf *si_conf;
-	u16 data_size;
 	dma_addr_t dma;
+	u16 data_size;
+	void *tmp;
+	int port;
 	int err;
+
+	port = enetc_pf_to_port(priv->si->pdev);
+	if (port < 0)
+		return -EINVAL;
 
 	if (sid->index >= priv->psfp_cap.max_streamid)
 		return -EINVAL;
@@ -485,27 +473,18 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 	cbd.status_flags = 0;
 
 	data_size = sizeof(struct streamid_data);
-	si_data = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
-	cbd.length = cpu_to_le16(data_size);
-
-	dma = dma_map_single(&priv->si->pdev->dev, si_data,
-			     data_size, DMA_FROM_DEVICE);
-	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
-		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
-		kfree(si_data);
+	tmp = enetc_cbd_alloc_data_mem(priv->si, &cbd, data_size,
+				       &dma, (void *)&si_data);
+	if (!tmp)
 		return -ENOMEM;
-	}
 
-	cbd.addr[0] = lower_32_bits(dma);
-	cbd.addr[1] = upper_32_bits(dma);
 	eth_broadcast_addr(si_data->dmac);
-	si_data->vid_vidm_tg =
-		cpu_to_le16(ENETC_CBDR_SID_VID_MASK
-			    + ((0x3 << 14) | ENETC_CBDR_SID_VIDM));
+	si_data->vid_vidm_tg = (ENETC_CBDR_SID_VID_MASK
+			       + ((0x3 << 14) | ENETC_CBDR_SID_VIDM));
 
 	si_conf = &cbd.sid_set;
 	/* Only one port supported for one entry, set itself */
-	si_conf->iports = 1 << enetc_get_port(priv);
+	si_conf->iports = cpu_to_le32(1 << port);
 	si_conf->id_type = 1;
 	si_conf->oui[2] = 0x0;
 	si_conf->oui[1] = 0x80;
@@ -513,35 +492,23 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 
 	err = enetc_send_cmd(priv->si, &cbd);
 	if (err)
-		return -EINVAL;
+		goto out;
 
-	if (!enable) {
-		kfree(si_data);
-		return 0;
-	}
+	if (!enable)
+		goto out;
 
 	/* Enable the entry overwrite again incase space flushed by hardware */
-	memset(&cbd, 0, sizeof(cbd));
-
-	cbd.index = cpu_to_le16((u16)sid->index);
-	cbd.cmd = 0;
-	cbd.cls = BDCR_CMD_STREAM_IDENTIFY;
 	cbd.status_flags = 0;
 
 	si_conf->en = 0x80;
 	si_conf->stream_handle = cpu_to_le32(sid->handle);
-	si_conf->iports = 1 << enetc_get_port(priv);
+	si_conf->iports = cpu_to_le32(1 << port);
 	si_conf->id_type = sid->filtertype;
 	si_conf->oui[2] = 0x0;
 	si_conf->oui[1] = 0x80;
 	si_conf->oui[0] = 0xC2;
 
 	memset(si_data, 0, data_size);
-
-	cbd.length = cpu_to_le16(data_size);
-
-	cbd.addr[0] = lower_32_bits(dma);
-	cbd.addr[1] = upper_32_bits(dma);
 
 	/* VIDM default to be 1.
 	 * VID Match. If set (b1) then the VID must match, otherwise
@@ -550,20 +517,19 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 	 */
 	if (si_conf->id_type == STREAMID_TYPE_NULL) {
 		ether_addr_copy(si_data->dmac, sid->dst_mac);
-		si_data->vid_vidm_tg =
-		cpu_to_le16((sid->vid & ENETC_CBDR_SID_VID_MASK) +
-			    ((((u16)(sid->tagged) & 0x3) << 14)
-			     | ENETC_CBDR_SID_VIDM));
+		si_data->vid_vidm_tg = (sid->vid & ENETC_CBDR_SID_VID_MASK) +
+				       ((((u16)(sid->tagged) & 0x3) << 14)
+				       | ENETC_CBDR_SID_VIDM);
 	} else if (si_conf->id_type == STREAMID_TYPE_SMAC) {
 		ether_addr_copy(si_data->smac, sid->src_mac);
-		si_data->vid_vidm_tg =
-		cpu_to_le16((sid->vid & ENETC_CBDR_SID_VID_MASK) +
-			    ((((u16)(sid->tagged) & 0x3) << 14)
-			     | ENETC_CBDR_SID_VIDM));
+		si_data->vid_vidm_tg = (sid->vid & ENETC_CBDR_SID_VID_MASK) +
+				       ((((u16)(sid->tagged) & 0x3) << 14)
+				       | ENETC_CBDR_SID_VIDM);
 	}
 
 	err = enetc_send_cmd(priv->si, &cbd);
-	kfree(si_data);
+out:
+	enetc_cbd_free_data_mem(priv->si, data_size, tmp, &dma);
 
 	return err;
 }
@@ -575,6 +541,11 @@ static int enetc_streamfilter_hw_set(struct enetc_ndev_priv *priv,
 {
 	struct enetc_cbd cbd = {.cmd = 0};
 	struct sfi_conf *sfi_config;
+	int port;
+
+	port = enetc_pf_to_port(priv->si->pdev);
+	if (port < 0)
+		return -EINVAL;
 
 	cbd.index = cpu_to_le16(sfi->index);
 	cbd.cls = BDCR_CMD_STREAM_FILTER;
@@ -594,7 +565,7 @@ static int enetc_streamfilter_hw_set(struct enetc_ndev_priv *priv,
 	}
 
 	sfi_config->sg_inst_table_index = cpu_to_le16(sfi->gate_id);
-	sfi_config->input_ports = 1 << enetc_get_port(priv);
+	sfi_config->input_ports = cpu_to_le32(1 << port);
 
 	/* The priority value which may be matched against the
 	 * frame’s priority value to determine a match for this entry.
@@ -629,6 +600,7 @@ static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
 	struct sfi_counter_data *data_buf;
 	dma_addr_t dma;
 	u16 data_size;
+	void *tmp;
 	int err;
 
 	cbd.index = cpu_to_le16((u16)index);
@@ -637,51 +609,39 @@ static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
 	cbd.status_flags = 0;
 
 	data_size = sizeof(struct sfi_counter_data);
-	data_buf = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
-	if (!data_buf)
+
+	tmp = enetc_cbd_alloc_data_mem(priv->si, &cbd, data_size,
+				       &dma, (void *)&data_buf);
+	if (!tmp)
 		return -ENOMEM;
-
-	dma = dma_map_single(&priv->si->pdev->dev, data_buf,
-			     data_size, DMA_FROM_DEVICE);
-	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
-		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
-		err = -ENOMEM;
-		goto exit;
-	}
-	cbd.addr[0] = lower_32_bits(dma);
-	cbd.addr[1] = upper_32_bits(dma);
-
-	cbd.length = cpu_to_le16(data_size);
 
 	err = enetc_send_cmd(priv->si, &cbd);
 	if (err)
 		goto exit;
 
-	cnt->matching_frames_count =
-			((u64)le32_to_cpu(data_buf->matchh) << 32)
-			+ data_buf->matchl;
+	cnt->matching_frames_count = ((u64)data_buf->matchh << 32) +
+				     data_buf->matchl;
 
-	cnt->not_passing_sdu_count =
-			((u64)le32_to_cpu(data_buf->msdu_droph) << 32)
-			+ data_buf->msdu_dropl;
+	cnt->not_passing_sdu_count = ((u64)data_buf->msdu_droph << 32) +
+				     data_buf->msdu_dropl;
 
 	cnt->passing_sdu_count = cnt->matching_frames_count
 				- cnt->not_passing_sdu_count;
 
 	cnt->not_passing_frames_count =
-		((u64)le32_to_cpu(data_buf->stream_gate_droph) << 32)
-		+ le32_to_cpu(data_buf->stream_gate_dropl);
+				((u64)data_buf->stream_gate_droph << 32) +
+				data_buf->stream_gate_dropl;
 
-	cnt->passing_frames_count = cnt->matching_frames_count
-				- cnt->not_passing_sdu_count
-				- cnt->not_passing_frames_count;
+	cnt->passing_frames_count = cnt->matching_frames_count -
+				    cnt->not_passing_sdu_count -
+				    cnt->not_passing_frames_count;
 
-	cnt->red_frames_count =
-		((u64)le32_to_cpu(data_buf->flow_meter_droph) << 32)
-		+ le32_to_cpu(data_buf->flow_meter_dropl);
+	cnt->red_frames_count =	((u64)data_buf->flow_meter_droph << 32)	+
+				data_buf->flow_meter_dropl;
 
 exit:
-	kfree(data_buf);
+	enetc_cbd_free_data_mem(priv->si, data_size, tmp, &dma);
+
 	return err;
 }
 
@@ -723,6 +683,7 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 	dma_addr_t dma;
 	u16 data_size;
 	int err, i;
+	void *tmp;
 	u64 now;
 
 	cbd.index = cpu_to_le16(sgi->index);
@@ -769,31 +730,17 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 	sgcl_config->acl_len = (sgi->num_entries - 1) & 0x3;
 
 	data_size = struct_size(sgcl_data, sgcl, sgi->num_entries);
-
-	sgcl_data = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
-	if (!sgcl_data)
+	tmp = enetc_cbd_alloc_data_mem(priv->si, &cbd, data_size,
+				       &dma, (void *)&sgcl_data);
+	if (!tmp)
 		return -ENOMEM;
-
-	cbd.length = cpu_to_le16(data_size);
-
-	dma = dma_map_single(&priv->si->pdev->dev,
-			     sgcl_data, data_size,
-			     DMA_FROM_DEVICE);
-	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
-		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
-		kfree(sgcl_data);
-		return -ENOMEM;
-	}
-
-	cbd.addr[0] = lower_32_bits(dma);
-	cbd.addr[1] = upper_32_bits(dma);
 
 	sgce = &sgcl_data->sgcl[0];
 
 	sgcl_config->agtst = 0x80;
 
-	sgcl_data->ct = cpu_to_le32(sgi->cycletime);
-	sgcl_data->cte = cpu_to_le32(sgi->cycletimext);
+	sgcl_data->ct = sgi->cycletime;
+	sgcl_data->cte = sgi->cycletimext;
 
 	if (sgi->init_ipv >= 0)
 		sgcl_config->aipv = (sgi->init_ipv & 0x7) | 0x8;
@@ -815,7 +762,7 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 			to->msdu[2] = (from->maxoctets >> 16) & 0xFF;
 		}
 
-		to->interval = cpu_to_le32(from->interval);
+		to->interval = from->interval;
 	}
 
 	/* If basetime is less than now, calculate start time */
@@ -827,22 +774,21 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 		err = get_start_ns(now, sgi->cycletime, &start);
 		if (err)
 			goto exit;
-		sgcl_data->btl = cpu_to_le32(lower_32_bits(start));
-		sgcl_data->bth = cpu_to_le32(upper_32_bits(start));
+		sgcl_data->btl = lower_32_bits(start);
+		sgcl_data->bth = upper_32_bits(start);
 	} else {
 		u32 hi, lo;
 
 		hi = upper_32_bits(sgi->basetime);
 		lo = lower_32_bits(sgi->basetime);
-		sgcl_data->bth = cpu_to_le32(hi);
-		sgcl_data->btl = cpu_to_le32(lo);
+		sgcl_data->bth = hi;
+		sgcl_data->btl = lo;
 	}
 
 	err = enetc_send_cmd(priv->si, &cbd);
 
 exit:
-	kfree(sgcl_data);
-
+	enetc_cbd_free_data_mem(priv->si, data_size, tmp, &dma);
 	return err;
 }
 
@@ -1071,6 +1017,46 @@ static struct actions_fwd *enetc_check_flow_actions(u64 acts,
 	return NULL;
 }
 
+static int enetc_psfp_policer_validate(const struct flow_action *action,
+				       const struct flow_action_entry *act,
+				       struct netlink_ext_ack *extack)
+{
+	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when exceed action is not drop");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is not pipe or ok");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	    !flow_action_is_last_entry(action, act)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is ok, but action is not last");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.peakrate_bytes_ps ||
+	    act->police.avrate || act->police.overhead) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when peakrate/avrate/overhead is configured");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "QoS offload not support packets per second");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 				      struct flow_cls_offload *f)
 {
@@ -1179,7 +1165,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 	}
 
 	/* parsing gate action */
-	if (entryg->gate.index >= priv->psfp_cap.max_psfp_gate) {
+	if (entryg->hw_index >= priv->psfp_cap.max_psfp_gate) {
 		NL_SET_ERR_MSG_MOD(extack, "No Stream Gate resource!");
 		err = -ENOSPC;
 		goto free_filter;
@@ -1199,7 +1185,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 	}
 
 	refcount_set(&sgi->refcount, 1);
-	sgi->index = entryg->gate.index;
+	sgi->index = entryg->hw_index;
 	sgi->init_ipv = entryg->gate.prio;
 	sgi->basetime = entryg->gate.basetime;
 	sgi->cycletime = entryg->gate.cycletime;
@@ -1227,6 +1213,10 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 
 	/* Flow meter and max frame size */
 	if (entryp) {
+		err = enetc_psfp_policer_validate(&rule->action, entryp, extack);
+		if (err)
+			goto free_sfi;
+
 		if (entryp->police.burst) {
 			fmi = kzalloc(sizeof(*fmi), GFP_KERNEL);
 			if (!fmi) {
@@ -1236,7 +1226,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 			refcount_set(&fmi->refcount, 1);
 			fmi->cir = entryp->police.rate_bytes_ps;
 			fmi->cbs = entryp->police.burst;
-			fmi->index = entryp->police.index;
+			fmi->index = entryp->hw_index;
 			filter->flags |= ENETC_PSFP_FLAGS_FMI;
 			filter->fmi_index = fmi->index;
 			sfi->meter_id = fmi->index;
@@ -1553,7 +1543,7 @@ int enetc_setup_tc_psfp(struct net_device *ndev, void *type_data)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct flow_block_offload *f = type_data;
-	int err;
+	int port, err;
 
 	err = flow_block_cb_setup_simple(f, &enetc_block_cb_list,
 					 enetc_setup_tc_block_cb,
@@ -1563,10 +1553,18 @@ int enetc_setup_tc_psfp(struct net_device *ndev, void *type_data)
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
-		set_bit(enetc_get_port(priv), &epsfp.dev_bitmap);
+		port = enetc_pf_to_port(priv->si->pdev);
+		if (port < 0)
+			return -EINVAL;
+
+		set_bit(port, &epsfp.dev_bitmap);
 		break;
 	case FLOW_BLOCK_UNBIND:
-		clear_bit(enetc_get_port(priv), &epsfp.dev_bitmap);
+		port = enetc_pf_to_port(priv->si->pdev);
+		if (port < 0)
+			return -EINVAL;
+
+		clear_bit(port, &epsfp.dev_bitmap);
 		if (!epsfp.dev_bitmap)
 			clean_psfp_all();
 		break;

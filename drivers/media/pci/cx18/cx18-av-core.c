@@ -89,7 +89,7 @@ static void cx18_av_init(struct cx18 *cx)
 	/*
 	 * The crystal freq used in calculations in this driver will be
 	 * 28.636360 MHz.
-	 * Aim to run the PLLs' VCOs near 400 MHz to minimze errors.
+	 * Aim to run the PLLs' VCOs near 400 MHz to minimize errors.
 	 */
 
 	/*
@@ -122,7 +122,7 @@ static void cx18_av_initialize(struct v4l2_subdev *sd)
 	cx18_av_write4_expect(cx, CXADEC_DL_CTL, 0x03000000,
 						 0x03000000, 0x13000000);
 
-	/* initallize the PLL by toggling sleep bit */
+	/* initialize the PLL by toggling sleep bit */
 	v = cx18_av_read4(cx, CXADEC_HOST_REG1);
 	/* enable sleep mode - register appears to be read only... */
 	cx18_av_write4_expect(cx, CXADEC_HOST_REG1, v | 1, v, 0xfffe);
@@ -930,7 +930,7 @@ static int cx18_av_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 static int cx18_av_set_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;

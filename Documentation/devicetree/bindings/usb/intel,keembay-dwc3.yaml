@@ -13,6 +13,9 @@ properties:
   compatible:
     const: intel,keembay-dwc3
 
+  reg:
+    maxItems: 1
+
   clocks:
     maxItems: 4
 
@@ -34,11 +37,8 @@ properties:
 # Required child node:
 
 patternProperties:
-  "^dwc3@[0-9a-f]+$":
-    type: object
-    description:
-      A child node must exist to represent the core DWC3 IP block.
-      The content of the node is defined in dwc3.txt.
+  "^usb@[0-9a-f]+$":
+    $ref: snps,dwc3.yaml#
 
 required:
   - compatible
@@ -68,7 +68,7 @@ examples:
           #address-cells = <1>;
           #size-cells = <1>;
 
-          dwc3@34000000 {
+          usb@34000000 {
                 compatible = "snps,dwc3";
                 reg = <0x34000000 0x10000>;
                 interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;

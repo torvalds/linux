@@ -32,6 +32,7 @@ config PHY_ROCKCHIP_INNO_HDMI
 	tristate "Rockchip INNO HDMI PHY Driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
 	depends on COMMON_CLK
+	depends on HAS_IOMEM
 	select GENERIC_PHY
 	help
 	  Enable this to support the Rockchip Innosilicon HDMI PHY.
@@ -47,6 +48,15 @@ config PHY_ROCKCHIP_INNO_USB2
 	help
 	  Support for Rockchip USB2.0 PHY with Innosilicon IP block.
 
+config PHY_ROCKCHIP_INNO_CSIDPHY
+	tristate "Rockchip Innosilicon MIPI CSI PHY driver"
+	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  Enable this to support the Rockchip MIPI CSI PHY with
+	  Innosilicon IP block.
+
 config PHY_ROCKCHIP_INNO_DSIDPHY
 	tristate "Rockchip Innosilicon MIPI/LVDS/TTL PHY driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
@@ -55,6 +65,14 @@ config PHY_ROCKCHIP_INNO_DSIDPHY
 	help
 	  Enable this to support the Rockchip MIPI/LVDS/TTL PHY with
 	  Innosilicon IP block.
+
+config PHY_ROCKCHIP_NANENG_COMBO_PHY
+	tristate "Rockchip NANENG COMBO PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip PCIe/USB3.0/SATA/QSGMII
+	  combo PHY with NaNeng IP block.
 
 config PHY_ROCKCHIP_PCIE
 	tristate "Rockchip PCIe PHY Driver"

@@ -34,8 +34,6 @@ extern const struct dmub_srv_common_regs dmub_srv_dcn21_regs;
 
 /* Hardware functions. */
 
-bool dmub_dcn21_is_auto_load_done(struct dmub_srv *dmub);
-
 bool dmub_dcn21_is_phy_init(struct dmub_srv *dmub);
 
 #endif /* _DMUB_DCN21_H_ */

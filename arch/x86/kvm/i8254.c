@@ -220,7 +220,8 @@ void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
 	struct kvm_pit *pit = vcpu->kvm->arch.vpit;
 	struct hrtimer *timer;
 
-	if (!kvm_vcpu_is_bsp(vcpu) || !pit)
+	/* Somewhat arbitrarily make vcpu0 the owner of the PIT. */
+	if (vcpu->vcpu_id || !pit)
 		return;
 
 	timer = &pit->pit_state.timer;
@@ -241,7 +242,7 @@ static void pit_do_work(struct kthread_work *work)
 	struct kvm_pit *pit = container_of(work, struct kvm_pit, expired);
 	struct kvm *kvm = pit->kvm;
 	struct kvm_vcpu *vcpu;
-	int i;
+	unsigned long i;
 	struct kvm_kpit_state *ps = &pit->pit_state;
 
 	if (atomic_read(&ps->reinject) && !atomic_xchg(&ps->irq_ack, 0))
@@ -304,15 +305,13 @@ void kvm_pit_set_reinject(struct kvm_pit *pit, bool reinject)
 	 * So, deactivate APICv when PIT is in reinject mode.
 	 */
 	if (reinject) {
-		kvm_request_apicv_update(kvm, false,
-					 APICV_INHIBIT_REASON_PIT_REINJ);
+		kvm_set_apicv_inhibit(kvm, APICV_INHIBIT_REASON_PIT_REINJ);
 		/* The initial state is preserved while ps->reinject == 0. */
 		kvm_pit_reset_reinject(pit);
 		kvm_register_irq_ack_notifier(kvm, &ps->irq_ack_notifier);
 		kvm_register_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
 	} else {
-		kvm_request_apicv_update(kvm, true,
-					 APICV_INHIBIT_REASON_PIT_REINJ);
+		kvm_clear_apicv_inhibit(kvm, APICV_INHIBIT_REASON_PIT_REINJ);
 		kvm_unregister_irq_ack_notifier(kvm, &ps->irq_ack_notifier);
 		kvm_unregister_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
 	}

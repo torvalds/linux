@@ -90,7 +90,6 @@ static int stm32_dac_probe(struct platform_device *pdev)
 	const struct stm32_dac_cfg *cfg;
 	struct stm32_dac_priv *priv;
 	struct regmap *regmap;
-	struct resource *res;
 	void __iomem *mmio;
 	struct reset_control *rst;
 	int ret;
@@ -106,8 +105,7 @@ static int stm32_dac_probe(struct platform_device *pdev)
 	cfg = (const struct stm32_dac_cfg *)
 		of_match_device(dev->driver->of_match_table, dev)->data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mmio = devm_ioremap_resource(dev, res);
+	mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mmio))
 		return PTR_ERR(mmio);
 
@@ -118,18 +116,12 @@ static int stm32_dac_probe(struct platform_device *pdev)
 	priv->common.regmap = regmap;
 
 	priv->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(priv->pclk)) {
-		ret = PTR_ERR(priv->pclk);
-		dev_err(dev, "pclk get failed\n");
-		return ret;
-	}
+	if (IS_ERR(priv->pclk))
+		return dev_err_probe(dev, PTR_ERR(priv->pclk), "pclk get failed\n");
 
 	priv->vref = devm_regulator_get(dev, "vref");
-	if (IS_ERR(priv->vref)) {
-		ret = PTR_ERR(priv->vref);
-		dev_err(dev, "vref get failed, %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(priv->vref))
+		return dev_err_probe(dev, PTR_ERR(priv->vref), "vref get failed\n");
 
 	pm_runtime_get_noresume(dev);
 	pm_runtime_set_active(dev);
@@ -203,7 +195,7 @@ static int stm32_dac_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused stm32_dac_core_resume(struct device *dev)
+static int stm32_dac_core_resume(struct device *dev)
 {
 	struct stm32_dac_common *common = dev_get_drvdata(dev);
 	struct stm32_dac_priv *priv = to_stm32_dac_priv(common);
@@ -221,23 +213,23 @@ static int __maybe_unused stm32_dac_core_resume(struct device *dev)
 	return pm_runtime_force_resume(dev);
 }
 
-static int __maybe_unused stm32_dac_core_runtime_suspend(struct device *dev)
+static int stm32_dac_core_runtime_suspend(struct device *dev)
 {
 	stm32_dac_core_hw_stop(dev);
 
 	return 0;
 }
 
-static int __maybe_unused stm32_dac_core_runtime_resume(struct device *dev)
+static int stm32_dac_core_runtime_resume(struct device *dev)
 {
 	return stm32_dac_core_hw_start(dev);
 }
 
 static const struct dev_pm_ops stm32_dac_core_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, stm32_dac_core_resume)
-	SET_RUNTIME_PM_OPS(stm32_dac_core_runtime_suspend,
-			   stm32_dac_core_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, stm32_dac_core_resume)
+	RUNTIME_PM_OPS(stm32_dac_core_runtime_suspend,
+		       stm32_dac_core_runtime_resume,
+		       NULL)
 };
 
 static const struct stm32_dac_cfg stm32h7_dac_cfg = {
@@ -261,7 +253,7 @@ static struct platform_driver stm32_dac_driver = {
 	.driver = {
 		.name = "stm32-dac-core",
 		.of_match_table = stm32_dac_of_match,
-		.pm = &stm32_dac_core_pm_ops,
+		.pm = pm_ptr(&stm32_dac_core_pm_ops),
 	},
 };
 module_platform_driver(stm32_dac_driver);

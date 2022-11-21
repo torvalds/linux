@@ -26,7 +26,6 @@ properties:
       - description: PAD Pull Control + PAD Schmitt Trigger Enable + PAD Control
       - description: PAD Drive Capacity Select
     minItems: 1
-    maxItems: 4
 
   clocks:
     maxItems: 1
@@ -184,6 +183,9 @@ patternProperties:
         additionalProperties: false
 
     additionalProperties: false
+
+allOf:
+  - $ref: "pinctrl.yaml#"
 
 required:
   - compatible

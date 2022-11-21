@@ -510,7 +510,6 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 		struct sun4i_layer_state *layer_state =
 			state_to_sun4i_layer_state(plane_state);
 		struct drm_framebuffer *fb = plane_state->fb;
-		struct drm_format_name_buf format_name;
 
 		if (!sun4i_backend_plane_is_supported(plane_state,
 						      &layer_state->uses_frontend))
@@ -527,9 +526,8 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 			}
 		}
 
-		DRM_DEBUG_DRIVER("Plane FB format is %s\n",
-				 drm_get_format_name(fb->format->format,
-						     &format_name));
+		DRM_DEBUG_DRIVER("Plane FB format is %p4cc\n",
+				 &fb->format->format);
 		if (fb->format->has_alpha || (plane_state->alpha != DRM_BLEND_ALPHA_OPAQUE))
 			num_alpha_planes++;
 
@@ -784,7 +782,6 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	struct sun4i_drv *drv = drm->dev_private;
 	struct sun4i_backend *backend;
 	const struct sun4i_backend_quirks *quirks;
-	struct resource *res;
 	void __iomem *regs;
 	int i, ret;
 
@@ -805,25 +802,6 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		ret = of_dma_configure(drm->dev, dev->of_node, true);
 		if (ret)
 			return ret;
-	} else {
-		/*
-		 * If we don't have the interconnect property, most likely
-		 * because of an old DT, we need to set the DMA offset by hand
-		 * on our device since the RAM mapping is at 0 for the DMA bus,
-		 * unlike the CPU.
-		 *
-		 * XXX(hch): this has no business in a driver and needs to move
-		 * to the device tree.
-		 *
-		 * If we have two subsequent calls to dma_direct_set_offset
-		 * returns -EINVAL. Unfortunately, this happens when we have two
-		 * backends in the system, and will result in the driver
-		 * reporting an error while it has been setup properly before.
-		 * Ignore EINVAL, but it should really be removed eventually.
-		 */
-		ret = dma_direct_set_offset(drm->dev, PHYS_OFFSET, 0, SZ_4G);
-		if (ret && ret != -EINVAL)
-			return ret;
 	}
 
 	backend->engine.node = dev->of_node;
@@ -836,8 +814,7 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	if (IS_ERR(backend->frontend))
 		dev_warn(dev, "Couldn't find matching frontend, frontend features disabled\n");
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(dev, res);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 

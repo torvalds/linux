@@ -391,7 +391,7 @@ static int wl12xx_spi_set_power(struct device *child, bool enable)
 	return ret;
 }
 
-/**
+/*
  * wl12xx_spi_set_block_size
  *
  * This function is not needed for spi mode, but need to be present.
@@ -431,7 +431,6 @@ MODULE_DEVICE_TABLE(of, wlcore_spi_of_match_table);
 /**
  * wlcore_probe_of - DT node parsing.
  * @spi: SPI slave device parameters.
- * @res: resource parameters.
  * @glue: wl12xx SPI bus to slave device glue parameters.
  * @pdev_data: wlcore device parameters
  */
@@ -489,12 +488,9 @@ static int wl1271_probe(struct spi_device *spi)
 	spi->bits_per_word = 32;
 
 	glue->reg = devm_regulator_get(&spi->dev, "vwlan");
-	if (PTR_ERR(glue->reg) == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-	if (IS_ERR(glue->reg)) {
-		dev_err(glue->dev, "can't get regulator\n");
-		return PTR_ERR(glue->reg);
-	}
+	if (IS_ERR(glue->reg))
+		return dev_err_probe(glue->dev, PTR_ERR(glue->reg),
+				     "can't get regulator\n");
 
 	ret = wlcore_probe_of(spi, glue, pdev_data);
 	if (ret) {
@@ -550,13 +546,11 @@ out_dev_put:
 	return ret;
 }
 
-static int wl1271_remove(struct spi_device *spi)
+static void wl1271_remove(struct spi_device *spi)
 {
 	struct wl12xx_spi_glue *glue = spi_get_drvdata(spi);
 
 	platform_device_unregister(glue->core);
-
-	return 0;
 }
 
 static struct spi_driver wl1271_spi_driver = {

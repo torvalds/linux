@@ -210,6 +210,7 @@ read the file /proc/PID/status::
   NoNewPrivs:     0
   Seccomp:        0
   Speculation_Store_Bypass:       thread vulnerable
+  SpeculationIndirectBranch:      conditional enabled
   voluntary_ctxt_switches:        0
   nonvoluntary_ctxt_switches:     1
 
@@ -292,6 +293,7 @@ It's slow but very precise.
  NoNewPrivs                  no_new_privs, like prctl(PR_GET_NO_NEW_PRIV, ...)
  Seccomp                     seccomp mode, like prctl(PR_GET_SECCOMP, ...)
  Speculation_Store_Bypass    speculative store bypass mitigation status
+ SpeculationIndirectBranch   indirect branch speculation mode
  Cpus_allowed                mask of CPUs on which this process may run
  Cpus_allowed_list           Same as previous, but in "list format"
  Mems_allowed                mask of memory nodes allowed to this process
@@ -424,12 +426,14 @@ with the memory region, as the case would be with BSS (uninitialized data).
 The "pathname" shows the name associated file for this mapping.  If the mapping
 is not associated with a file:
 
- =======                    ====================================
+ =============              ====================================
  [heap]                     the heap of the program
  [stack]                    the stack of the main process
  [vdso]                     the "virtual dynamic shared object",
                             the kernel system call handler
- =======                    ====================================
+ [anon:<name>]              an anonymous mapping that has been
+                            named by userspace
+ =============              ====================================
 
  or if empty, the mapping is anonymous.
 
@@ -538,7 +542,9 @@ encoded manner. The codes are the following:
     ac    area is accountable
     nr    swap space is not reserved for the area
     ht    area uses huge tlb pages
+    sf    synchronous page fault
     ar    architecture specific flag
+    wf    wipe on fork
     dd    do not include area into core dump
     sd    soft dirty flag
     mm    mixed map area
@@ -546,6 +552,9 @@ encoded manner. The codes are the following:
     nh    no huge page advise flag
     mg    mergable advise flag
     bt    arm64 BTI guarded page
+    mt    arm64 MTE allocation tags are enabled
+    um    userfaultfd missing tracking
+    uw    userfaultfd wr-protect tracking
     ==    =======================================
 
 Note that there is no guarantee that every flag and associated mnemonic will
@@ -684,7 +693,14 @@ files are there, and which are missing.
  kcore        Kernel core image (can be ELF or A.OUT(deprecated in 2.4))
  kmsg         Kernel messages
  ksyms        Kernel symbol table
- loadavg      Load average of last 1, 5 & 15 minutes
+ loadavg      Load average of last 1, 5 & 15 minutes;
+                number of processes currently runnable (running or on ready queue);
+                total number of processes in system;
+                last pid created.
+                All fields are separated by one space except "number of
+                processes currently runnable" and "total number of processes
+                in system", which are separated by a slash ('/'). Example:
+                0.61 0.61 0.55 3/828 22084
  locks        Kernel locks
  meminfo      Memory info
  misc         Miscellaneous
@@ -919,8 +935,15 @@ meminfo
 ~~~~~~~
 
 Provides information about distribution and utilization of memory.  This
-varies by architecture and compile options.  The following is from a
-16GB PIII, which has highmem enabled.  You may not have all of these fields.
+varies by architecture and compile options.  Some of the counters reported
+here overlap.  The memory reported by the non overlapping counters may not
+add up to the overall memory usage and the difference for some workloads
+can be substantial.  In many cases there are other means to find out
+additional memory using subsystem specific interfaces, for instance
+/proc/net/sockstat for TCP memory allocations.
+
+The following is from a 16GB PIII, which has highmem enabled.
+You may not have all of these fields.
 
 ::
 
@@ -1836,19 +1859,19 @@ For example::
 This file contains lines of the form::
 
     36 35 98:0 /mnt1 /mnt2 rw,noatime master:1 - ext3 /dev/root rw,errors=continue
-    (1)(2)(3)   (4)   (5)      (6)      (7)   (8) (9)   (10)         (11)
+    (1)(2)(3)   (4)   (5)      (6)     (n…m) (m+1)(m+2) (m+3)         (m+4)
 
-    (1) mount ID:  unique identifier of the mount (may be reused after umount)
-    (2) parent ID:  ID of parent (or of self for the top of the mount tree)
-    (3) major:minor:  value of st_dev for files on filesystem
-    (4) root:  root of the mount within the filesystem
-    (5) mount point:  mount point relative to the process's root
-    (6) mount options:  per mount options
-    (7) optional fields:  zero or more fields of the form "tag[:value]"
-    (8) separator:  marks the end of the optional fields
-    (9) filesystem type:  name of filesystem of the form "type[.subtype]"
-    (10) mount source:  filesystem specific information or "none"
-    (11) super options:  per super block options
+    (1)   mount ID:        unique identifier of the mount (may be reused after umount)
+    (2)   parent ID:       ID of parent (or of self for the top of the mount tree)
+    (3)   major:minor:     value of st_dev for files on filesystem
+    (4)   root:            root of the mount within the filesystem
+    (5)   mount point:     mount point relative to the process's root
+    (6)   mount options:   per mount options
+    (n…m) optional fields: zero or more fields of the form "tag[:value]"
+    (m+1) separator:       marks the end of the optional fields
+    (m+2) filesystem type: name of filesystem of the form "type[.subtype]"
+    (m+3) mount source:    filesystem specific information or "none"
+    (m+4) super options:   per super block options
 
 Parsers should ignore all unrecognised optional fields.  Currently the
 possible optional fields are:
@@ -1899,18 +1922,20 @@ if precise results are needed.
 3.8	/proc/<pid>/fdinfo/<fd> - Information about opened file
 ---------------------------------------------------------------
 This file provides information associated with an opened file. The regular
-files have at least three fields -- 'pos', 'flags' and 'mnt_id'. The 'pos'
-represents the current offset of the opened file in decimal form [see lseek(2)
-for details], 'flags' denotes the octal O_xxx mask the file has been
-created with [see open(2) for details] and 'mnt_id' represents mount ID of
-the file system containing the opened file [see 3.5 /proc/<pid>/mountinfo
-for details].
+files have at least four fields -- 'pos', 'flags', 'mnt_id' and 'ino'.
+The 'pos' represents the current offset of the opened file in decimal
+form [see lseek(2) for details], 'flags' denotes the octal O_xxx mask the
+file has been created with [see open(2) for details] and 'mnt_id' represents
+mount ID of the file system containing the opened file [see 3.5
+/proc/<pid>/mountinfo for details]. 'ino' represents the inode number of
+the file.
 
 A typical output is::
 
 	pos:	0
 	flags:	0100002
 	mnt_id:	19
+	ino:	63107
 
 All locks associated with a file descriptor are shown in its fdinfo too::
 
@@ -1927,6 +1952,7 @@ Eventfd files
 	pos:	0
 	flags:	04002
 	mnt_id:	9
+	ino:	63107
 	eventfd-count:	5a
 
 where 'eventfd-count' is hex value of a counter.
@@ -1939,6 +1965,7 @@ Signalfd files
 	pos:	0
 	flags:	04002
 	mnt_id:	9
+	ino:	63107
 	sigmask:	0000000000000200
 
 where 'sigmask' is hex value of the signal mask associated
@@ -1952,6 +1979,7 @@ Epoll files
 	pos:	0
 	flags:	02
 	mnt_id:	9
+	ino:	63107
 	tfd:        5 events:       1d data: ffffffffffffffff pos:0 ino:61af sdev:7
 
 where 'tfd' is a target file descriptor number in decimal form,
@@ -1968,6 +1996,8 @@ For inotify files the format is the following::
 
 	pos:	0
 	flags:	02000000
+	mnt_id:	9
+	ino:	63107
 	inotify wd:3 ino:9e7e sdev:800013 mask:800afce ignored_mask:0 fhandle-bytes:8 fhandle-type:1 f_handle:7e9e0000640d1b6d
 
 where 'wd' is a watch descriptor in decimal form, i.e. a target file
@@ -1990,6 +2020,7 @@ For fanotify files the format is::
 	pos:	0
 	flags:	02
 	mnt_id:	9
+	ino:	63107
 	fanotify flags:10 event-flags:0
 	fanotify mnt_id:12 mflags:40 mask:38 ignored_mask:40000003
 	fanotify ino:4f969 sdev:800013 mflags:0 mask:3b ignored_mask:40000000 fhandle-bytes:8 fhandle-type:1 f_handle:69f90400c275b5b4
@@ -2014,6 +2045,7 @@ Timerfd files
 	pos:	0
 	flags:	02
 	mnt_id:	9
+	ino:	63107
 	clockid: 0
 	ticks: 0
 	settime flags: 01
@@ -2027,6 +2059,22 @@ details]. 'it_value' is remaining time until the timer expiration.
 'it_interval' is the interval for the timer. Note the timer might be set up
 with TIMER_ABSTIME option which will be shown in 'settime flags', but 'it_value'
 still exhibits timer's remaining time.
+
+DMA Buffer files
+~~~~~~~~~~~~~~~~
+
+::
+
+	pos:	0
+	flags:	04002
+	mnt_id:	9
+	ino:	63107
+	size:   32768
+	count:  2
+	exp_name:  system-heap
+
+where 'size' is the size of the DMA buffer in bytes. 'count' is the file count of
+the DMA buffer file. 'exp_name' is the name of the DMA buffer exporter.
 
 3.9	/proc/<pid>/map_files - Information about memory mapped files
 ---------------------------------------------------------------------

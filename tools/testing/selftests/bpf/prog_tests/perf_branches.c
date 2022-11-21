@@ -74,7 +74,7 @@ static void test_perf_branches_common(int perf_fd,
 
 	/* attach perf_event */
 	link = bpf_program__attach_perf_event(skel->progs.perf_branches, perf_fd);
-	if (CHECK(IS_ERR(link), "attach_perf_event", "err %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_perf_event"))
 		goto out_destroy_skel;
 
 	/* generate some branches on cpu 0 */
@@ -110,7 +110,7 @@ static void test_perf_branches_hw(void)
 	attr.type = PERF_TYPE_HARDWARE;
 	attr.config = PERF_COUNT_HW_CPU_CYCLES;
 	attr.freq = 1;
-	attr.sample_freq = 4000;
+	attr.sample_freq = 1000;
 	attr.sample_type = PERF_SAMPLE_BRANCH_STACK;
 	attr.branch_sample_type = PERF_SAMPLE_BRANCH_USER | PERF_SAMPLE_BRANCH_ANY;
 	pfd = syscall(__NR_perf_event_open, &attr, -1, 0, -1, PERF_FLAG_FD_CLOEXEC);
@@ -119,7 +119,7 @@ static void test_perf_branches_hw(void)
 	 * Some setups don't support branch records (virtual machines, !x86),
 	 * so skip test in this case.
 	 */
-	if (pfd == -1) {
+	if (pfd < 0) {
 		if (errno == ENOENT || errno == EOPNOTSUPP) {
 			printf("%s:SKIP:no PERF_SAMPLE_BRANCH_STACK\n",
 			       __func__);
@@ -151,7 +151,7 @@ static void test_perf_branches_no_hw(void)
 	attr.type = PERF_TYPE_SOFTWARE;
 	attr.config = PERF_COUNT_SW_CPU_CLOCK;
 	attr.freq = 1;
-	attr.sample_freq = 4000;
+	attr.sample_freq = 1000;
 	pfd = syscall(__NR_perf_event_open, &attr, -1, 0, -1, PERF_FLAG_FD_CLOEXEC);
 	if (CHECK(pfd < 0, "perf_event_open", "err %d\n", pfd))
 		return;

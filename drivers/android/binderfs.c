@@ -58,6 +58,10 @@ enum binderfs_stats_mode {
 	binderfs_stats_mode_global,
 };
 
+struct binder_features {
+	bool oneway_spam_detection;
+};
+
 static const struct constant_table binderfs_param_stats[] = {
 	{ "global", binderfs_stats_mode_global },
 	{}
@@ -67,6 +71,10 @@ static const struct fs_parameter_spec binderfs_fs_parameters[] = {
 	fsparam_u32("max",	Opt_max),
 	fsparam_enum("stats",	Opt_stats_mode, binderfs_param_stats),
 	{}
+};
+
+static struct binder_features binder_features = {
+	.oneway_spam_detection = true,
 };
 
 static inline struct binderfs_info *BINDERFS_SB(const struct super_block *sb)
@@ -355,7 +363,8 @@ static inline bool is_binderfs_control_device(const struct dentry *dentry)
 	return info->control_dentry == dentry;
 }
 
-static int binderfs_rename(struct inode *old_dir, struct dentry *old_dentry,
+static int binderfs_rename(struct user_namespace *mnt_userns,
+			   struct inode *old_dir, struct dentry *old_dentry,
 			   struct inode *new_dir, struct dentry *new_dentry,
 			   unsigned int flags)
 {
@@ -363,7 +372,8 @@ static int binderfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	    is_binderfs_control_device(new_dentry))
 		return -EPERM;
 
-	return simple_rename(old_dir, old_dentry, new_dir, new_dentry, flags);
+	return simple_rename(&init_user_ns, old_dir, old_dentry, new_dir,
+			     new_dentry, flags);
 }
 
 static int binderfs_unlink(struct inode *dir, struct dentry *dentry)
@@ -581,6 +591,33 @@ out:
 	return dentry;
 }
 
+static int binder_features_show(struct seq_file *m, void *unused)
+{
+	bool *feature = m->private;
+
+	seq_printf(m, "%d\n", *feature);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(binder_features);
+
+static int init_binder_features(struct super_block *sb)
+{
+	struct dentry *dentry, *dir;
+
+	dir = binderfs_create_dir(sb->s_root, "features");
+	if (IS_ERR(dir))
+		return PTR_ERR(dir);
+
+	dentry = binderfs_create_file(dir, "oneway_spam_detection",
+				      &binder_features_fops,
+				      &binder_features.oneway_spam_detection);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+
+	return 0;
+}
+
 static int init_binder_logs(struct super_block *sb)
 {
 	struct dentry *binder_logs_root_dir, *dentry, *proc_log_dir;
@@ -720,6 +757,10 @@ static int binderfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		if (*name == ',')
 			name++;
 	}
+
+	ret = init_binder_features(sb);
+	if (ret)
+		return ret;
 
 	if (info->mount_opts.stats_mode == binderfs_stats_mode_global)
 		return init_binder_logs(sb);

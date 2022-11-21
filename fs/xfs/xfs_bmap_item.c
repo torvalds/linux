@@ -24,10 +24,9 @@
 #include "xfs_error.h"
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
-#include "xfs_quota.h"
 
-kmem_zone_t	*xfs_bui_zone;
-kmem_zone_t	*xfs_bud_zone;
+struct kmem_cache	*xfs_bui_cache;
+struct kmem_cache	*xfs_bud_cache;
 
 static const struct xfs_item_ops xfs_bui_item_ops;
 
@@ -40,7 +39,7 @@ STATIC void
 xfs_bui_item_free(
 	struct xfs_bui_log_item	*buip)
 {
-	kmem_cache_free(xfs_bui_zone, buip);
+	kmem_cache_free(xfs_bui_cache, buip);
 }
 
 /*
@@ -139,7 +138,7 @@ xfs_bui_init(
 {
 	struct xfs_bui_log_item		*buip;
 
-	buip = kmem_cache_zalloc(xfs_bui_zone, GFP_KERNEL | __GFP_NOFAIL);
+	buip = kmem_cache_zalloc(xfs_bui_cache, GFP_KERNEL | __GFP_NOFAIL);
 
 	xfs_log_item_init(mp, &buip->bui_item, XFS_LI_BUI, &xfs_bui_item_ops);
 	buip->bui_format.bui_nextents = XFS_BUI_MAX_FAST_EXTENTS;
@@ -199,7 +198,7 @@ xfs_bud_item_release(
 	struct xfs_bud_log_item	*budp = BUD_ITEM(lip);
 
 	xfs_bui_release(budp->bud_buip);
-	kmem_cache_free(xfs_bud_zone, budp);
+	kmem_cache_free(xfs_bud_cache, budp);
 }
 
 static const struct xfs_item_ops xfs_bud_item_ops = {
@@ -216,7 +215,7 @@ xfs_trans_get_bud(
 {
 	struct xfs_bud_log_item		*budp;
 
-	budp = kmem_cache_zalloc(xfs_bud_zone, GFP_KERNEL | __GFP_NOFAIL);
+	budp = kmem_cache_zalloc(xfs_bud_cache, GFP_KERNEL | __GFP_NOFAIL);
 	xfs_log_item_init(tp->t_mountp, &budp->bud_item, XFS_LI_BUD,
 			  &xfs_bud_item_ops);
 	budp->bud_buip = buip;
@@ -265,8 +264,8 @@ xfs_trans_log_finish_bmap_update(
 static int
 xfs_bmap_update_diff_items(
 	void				*priv,
-	struct list_head		*a,
-	struct list_head		*b)
+	const struct list_head		*a,
+	const struct list_head		*b)
 {
 	struct xfs_bmap_intent		*ba;
 	struct xfs_bmap_intent		*bb;
@@ -385,7 +384,7 @@ xfs_bmap_update_finish_item(
 		bmap->bi_bmap.br_blockcount = count;
 		return -EAGAIN;
 	}
-	kmem_free(bmap);
+	kmem_cache_free(xfs_bmap_intent_cache, bmap);
 	return error;
 }
 
@@ -405,7 +404,7 @@ xfs_bmap_update_cancel_item(
 	struct xfs_bmap_intent		*bmap;
 
 	bmap = container_of(item, struct xfs_bmap_intent, bi_list);
-	kmem_free(bmap);
+	kmem_cache_free(xfs_bmap_intent_cache, bmap);
 }
 
 const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
@@ -416,6 +415,40 @@ const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
 	.finish_item	= xfs_bmap_update_finish_item,
 	.cancel_item	= xfs_bmap_update_cancel_item,
 };
+
+/* Is this recovered BUI ok? */
+static inline bool
+xfs_bui_validate(
+	struct xfs_mount		*mp,
+	struct xfs_bui_log_item		*buip)
+{
+	struct xfs_map_extent		*bmap;
+
+	/* Only one mapping operation per BUI... */
+	if (buip->bui_format.bui_nextents != XFS_BUI_MAX_FAST_EXTENTS)
+		return false;
+
+	bmap = &buip->bui_format.bui_extents[0];
+
+	if (bmap->me_flags & ~XFS_BMAP_EXTENT_FLAGS)
+		return false;
+
+	switch (bmap->me_flags & XFS_BMAP_EXTENT_TYPE_MASK) {
+	case XFS_BMAP_MAP:
+	case XFS_BMAP_UNMAP:
+		break;
+	default:
+		return false;
+	}
+
+	if (!xfs_verify_ino(mp, bmap->me_owner))
+		return false;
+
+	if (!xfs_verify_fileext(mp, bmap->me_startoff, bmap->me_len))
+		return false;
+
+	return xfs_verify_fsbext(mp, bmap->me_startblock, bmap->me_len);
+}
 
 /*
  * Process a bmap update intent item that was recovered from the log.
@@ -430,62 +463,32 @@ xfs_bui_item_recover(
 	struct xfs_bui_log_item		*buip = BUI_ITEM(lip);
 	struct xfs_trans		*tp;
 	struct xfs_inode		*ip = NULL;
-	struct xfs_mount		*mp = lip->li_mountp;
+	struct xfs_mount		*mp = lip->li_log->l_mp;
 	struct xfs_map_extent		*bmap;
 	struct xfs_bud_log_item		*budp;
-	xfs_fsblock_t			startblock_fsb;
-	xfs_fsblock_t			inode_fsb;
 	xfs_filblks_t			count;
 	xfs_exntst_t			state;
 	unsigned int			bui_type;
 	int				whichfork;
+	int				iext_delta;
 	int				error = 0;
 
-	/* Only one mapping operation per BUI... */
-	if (buip->bui_format.bui_nextents != XFS_BUI_MAX_FAST_EXTENTS)
+	if (!xfs_bui_validate(mp, buip)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				&buip->bui_format, sizeof(buip->bui_format));
 		return -EFSCORRUPTED;
+	}
 
-	/*
-	 * First check the validity of the extent described by the
-	 * BUI.  If anything is bad, then toss the BUI.
-	 */
 	bmap = &buip->bui_format.bui_extents[0];
-	startblock_fsb = XFS_BB_TO_FSB(mp,
-			   XFS_FSB_TO_DADDR(mp, bmap->me_startblock));
-	inode_fsb = XFS_BB_TO_FSB(mp, XFS_FSB_TO_DADDR(mp,
-			XFS_INO_TO_FSB(mp, bmap->me_owner)));
 	state = (bmap->me_flags & XFS_BMAP_EXTENT_UNWRITTEN) ?
 			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
 	whichfork = (bmap->me_flags & XFS_BMAP_EXTENT_ATTR_FORK) ?
 			XFS_ATTR_FORK : XFS_DATA_FORK;
 	bui_type = bmap->me_flags & XFS_BMAP_EXTENT_TYPE_MASK;
-	switch (bui_type) {
-	case XFS_BMAP_MAP:
-	case XFS_BMAP_UNMAP:
-		break;
-	default:
-		return -EFSCORRUPTED;
-	}
-	if (startblock_fsb == 0 ||
-	    bmap->me_len == 0 ||
-	    inode_fsb == 0 ||
-	    startblock_fsb >= mp->m_sb.sb_dblocks ||
-	    bmap->me_len >= mp->m_sb.sb_agblocks ||
-	    inode_fsb >= mp->m_sb.sb_dblocks ||
-	    (bmap->me_flags & ~XFS_BMAP_EXTENT_FLAGS))
-		return -EFSCORRUPTED;
 
-	/* Grab the inode. */
-	error = xfs_iget(mp, NULL, bmap->me_owner, 0, 0, &ip);
+	error = xlog_recover_iget(mp, bmap->me_owner, &ip);
 	if (error)
 		return error;
-
-	error = xfs_qm_dqattach(ip);
-	if (error)
-		goto err_rele;
-
-	if (VFS_I(ip)->i_nlink == 0)
-		xfs_iflags_set(ip, XFS_IRECOVERY);
 
 	/* Allocate transaction and do the work. */
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate,
@@ -497,10 +500,22 @@ xfs_bui_item_recover(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
+	if (bui_type == XFS_BMAP_MAP)
+		iext_delta = XFS_IEXT_ADD_NOSPLIT_CNT;
+	else
+		iext_delta = XFS_IEXT_PUNCH_HOLE_CNT;
+
+	error = xfs_iext_count_may_overflow(ip, whichfork, iext_delta);
+	if (error)
+		goto err_cancel;
+
 	count = bmap->me_len;
 	error = xfs_trans_log_finish_bmap_update(tp, budp, bui_type, ip,
 			whichfork, bmap->me_startoff, bmap->me_startblock,
 			&count, state);
+	if (error == -EFSCORRUPTED)
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bmap,
+				sizeof(*bmap));
 	if (error)
 		goto err_cancel;
 
@@ -517,7 +532,7 @@ xfs_bui_item_recover(
 	 * Commit transaction, which frees the transaction and saves the inode
 	 * for later replay activities.
 	 */
-	error = xfs_defer_ops_capture_and_commit(tp, ip, capture_list);
+	error = xfs_defer_ops_capture_and_commit(tp, capture_list);
 	if (error)
 		goto err_unlock;
 

@@ -36,7 +36,7 @@ Board Support
 -------------
 
   The driver attaches to a platform device, which will need to be
-  added by the board specific support file in linux/arch/arm/mach-s3c2410,
+  added by the board specific support file in arch/arm/mach-s3c,
   such as mach-bast.c or mach-smdk2410.c
 
   The platform device's platform_data field is only needed if the
@@ -51,9 +51,9 @@ Board Support
 Platform Data
 -------------
 
-  See arch/arm/mach-s3c2410/include/mach/usb-control.h for the
+  See include/linux/platform_data/usb-ohci-s3c2410.h for the
   descriptions of the platform device data. An implementation
-  can be found in linux/arch/arm/mach-s3c2410/usb-simtec.c .
+  can be found in arch/arm/mach-s3c/simtec-usb.c .
 
   The `struct s3c2410_hcd_info` contains a pair of functions
   that get called to enable over-current detection, and to

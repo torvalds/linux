@@ -14,8 +14,11 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - fsl,imx7ulp-wdt
+    oneOf:
+      - const: fsl,imx7ulp-wdt
+      - items:
+          - const: fsl,imx8ulp-wdt
+          - const: fsl,imx7ulp-wdt
 
   reg:
     maxItems: 1
@@ -24,12 +27,6 @@ properties:
     maxItems: 1
 
   clocks:
-    maxItems: 1
-
-  assigned-clocks:
-    maxItems: 1
-
-  assigned-clocks-parents:
     maxItems: 1
 
   timeout-sec: true
@@ -53,7 +50,7 @@ examples:
         interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&pcc2 IMX7ULP_CLK_WDG1>;
         assigned-clocks = <&pcc2 IMX7ULP_CLK_WDG1>;
-        assigned-clocks-parents = <&scg1 IMX7ULP_CLK_FIRC_BUS_CLK>;
+        assigned-clock-parents = <&scg1 IMX7ULP_CLK_FIRC_BUS_CLK>;
         timeout-sec = <40>;
     };
 

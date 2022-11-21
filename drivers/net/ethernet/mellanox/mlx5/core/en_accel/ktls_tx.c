@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 // Copyright (c) 2019 Mellanox Technologies.
 
+#include "en_accel/tls.h"
 #include "en_accel/ktls_txrx.h"
 #include "en_accel/ktls_utils.h"
 
@@ -13,24 +14,27 @@ struct mlx5e_dump_wqe {
 	(DIV_ROUND_UP(sizeof(struct mlx5e_dump_wqe), MLX5_SEND_WQE_BB))
 
 static u8
-mlx5e_ktls_dumps_num_wqes(struct mlx5e_txqsq *sq, unsigned int nfrags,
+mlx5e_ktls_dumps_num_wqes(struct mlx5e_params *params, unsigned int nfrags,
 			  unsigned int sync_len)
 {
 	/* Given the MTU and sync_len, calculates an upper bound for the
 	 * number of DUMP WQEs needed for the TX resync of a record.
 	 */
-	return nfrags + DIV_ROUND_UP(sync_len, sq->hw_mtu);
+	return nfrags + DIV_ROUND_UP(sync_len, MLX5E_SW2HW_MTU(params, params->sw_mtu));
 }
 
-u16 mlx5e_ktls_get_stop_room(struct mlx5e_txqsq *sq)
+u16 mlx5e_ktls_get_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 {
 	u16 num_dumps, stop_room = 0;
 
-	num_dumps = mlx5e_ktls_dumps_num_wqes(sq, MAX_SKB_FRAGS, TLS_MAX_PAYLOAD_SIZE);
+	if (!mlx5e_accel_is_ktls_tx(mdev))
+		return 0;
 
-	stop_room += mlx5e_stop_room_for_wqe(MLX5E_TLS_SET_STATIC_PARAMS_WQEBBS);
-	stop_room += mlx5e_stop_room_for_wqe(MLX5E_TLS_SET_PROGRESS_PARAMS_WQEBBS);
-	stop_room += num_dumps * mlx5e_stop_room_for_wqe(MLX5E_KTLS_DUMP_WQEBBS);
+	num_dumps = mlx5e_ktls_dumps_num_wqes(params, MAX_SKB_FRAGS, TLS_MAX_PAYLOAD_SIZE);
+
+	stop_room += mlx5e_stop_room_for_wqe(mdev, MLX5E_TLS_SET_STATIC_PARAMS_WQEBBS);
+	stop_room += mlx5e_stop_room_for_wqe(mdev, MLX5E_TLS_SET_PROGRESS_PARAMS_WQEBBS);
+	stop_room += num_dumps * mlx5e_stop_room_for_wqe(mdev, MLX5E_KTLS_DUMP_WQEBBS);
 
 	return stop_room;
 }
@@ -50,6 +54,7 @@ static int mlx5e_ktls_create_tis(struct mlx5_core_dev *mdev, u32 *tisn)
 struct mlx5e_ktls_offload_context_tx {
 	struct tls_offload_context_tx *tx_ctx;
 	struct tls12_crypto_info_aes_gcm_128 crypto_info;
+	struct mlx5e_tls_sw_stats *sw_stats;
 	u32 expected_seq;
 	u32 tisn;
 	u32 key_id;
@@ -99,6 +104,7 @@ int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
 	if (err)
 		goto err_create_key;
 
+	priv_tx->sw_stats = &priv->tls->sw_stats;
 	priv_tx->expected_seq = start_offload_tcp_sn;
 	priv_tx->crypto_info  =
 		*(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
@@ -111,6 +117,7 @@ int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
 		goto err_create_tis;
 
 	priv_tx->ctx_post_pending = true;
+	atomic64_inc(&priv_tx->sw_stats->tx_tls_ctx);
 
 	return 0;
 
@@ -131,6 +138,7 @@ void mlx5e_ktls_del_tx(struct net_device *netdev, struct tls_context *tls_ctx)
 	priv = netdev_priv(netdev);
 	mdev = priv->mdev;
 
+	atomic64_inc(&priv_tx->sw_stats->tx_tls_del);
 	mlx5e_destroy_tis(mdev, priv_tx->tisn);
 	mlx5_ktls_destroy_key(mdev, priv_tx->key_id);
 	kfree(priv_tx);
@@ -452,7 +460,6 @@ bool mlx5e_ktls_handle_tx_skb(struct tls_context *tls_ctx, struct mlx5e_txqsq *s
 
 	if (unlikely(mlx5e_ktls_tx_offload_test_and_clear_pending(priv_tx))) {
 		mlx5e_ktls_tx_post_param_wqes(sq, priv_tx, false, false);
-		stats->tls_ctx++;
 	}
 
 	seq = ntohl(tcp_hdr(skb)->seq);

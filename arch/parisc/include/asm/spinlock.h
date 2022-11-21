@@ -23,21 +23,6 @@ static inline void arch_spin_lock(arch_spinlock_t *x)
 			continue;
 }
 
-static inline void arch_spin_lock_flags(arch_spinlock_t *x,
-					unsigned long flags)
-{
-	volatile unsigned int *a;
-
-	a = __ldcw_align(x);
-	while (__ldcw(a) == 0)
-		while (*a == 0)
-			if (flags & PSW_SM_I) {
-				local_irq_enable();
-				local_irq_disable();
-			}
-}
-#define arch_spin_lock_flags arch_spin_lock_flags
-
 static inline void arch_spin_unlock(arch_spinlock_t *x)
 {
 	volatile unsigned int *a;

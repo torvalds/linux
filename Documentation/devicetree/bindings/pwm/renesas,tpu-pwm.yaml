@@ -9,6 +9,15 @@ title: Renesas R-Car Timer Pulse Unit PWM Controller
 maintainers:
   - Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
 
+select:
+  properties:
+    compatible:
+      contains:
+        const: renesas,tpu
+  required:
+    - compatible
+    - '#pwm-cells'
+
 properties:
   compatible:
     items:
@@ -26,9 +35,11 @@ properties:
           - renesas,tpu-r8a7794   # R-Car E2
           - renesas,tpu-r8a7795   # R-Car H3
           - renesas,tpu-r8a7796   # R-Car M3-W
+          - renesas,tpu-r8a77961  # R-Car M3-W+
           - renesas,tpu-r8a77965  # R-Car M3-N
           - renesas,tpu-r8a77970  # R-Car V3M
           - renesas,tpu-r8a77980  # R-Car V3H
+          - renesas,tpu-r8a779a0  # R-Car V3U
       - const: renesas,tpu
 
   reg:
@@ -57,7 +68,23 @@ properties:
 required:
   - compatible
   - reg
-  - '#pwm-cells'
+  - clocks
+  - power-domains
+
+allOf:
+  - $ref: pwm.yaml#
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - renesas,tpu-r8a73a4
+                - renesas,tpu-r8a7740
+    then:
+      required:
+        - resets
 
 additionalProperties: false
 

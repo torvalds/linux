@@ -125,6 +125,7 @@ vti6_tnl_lookup(struct net *net, const struct in6_addr *remote,
 
 /**
  * vti6_tnl_bucket - get head of list matching given tunnel parameters
+ *   @ip6n: the private data for ip6_vti in the netns
  *   @p: parameters containing tunnel end-points
  *
  * Description:
@@ -192,7 +193,6 @@ static int vti6_tnl_create2(struct net_device *dev)
 
 	strcpy(t->parms.name, dev->name);
 
-	dev_hold(dev);
 	vti6_tnl_link(ip6n, t);
 
 	return 0;
@@ -293,7 +293,7 @@ static void vti6_dev_uninit(struct net_device *dev)
 		RCU_INIT_POINTER(ip6n->tnls_wc[0], NULL);
 	else
 		vti6_tnl_unlink(ip6n, t);
-	dev_put(dev);
+	dev_put_track(dev, &t->dev_tracker);
 }
 
 static int vti6_input_proto(struct sk_buff *skb, int nexthdr, __be32 spi,
@@ -493,7 +493,7 @@ vti6_xmit(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 	}
 
 	if (dst->flags & DST_XFRM_QUEUE)
-		goto queued;
+		goto xmit;
 
 	x = dst->xfrm;
 	if (!vti6_state_check(x, &t->parms.raddr, &t->parms.laddr))
@@ -520,17 +520,19 @@ vti6_xmit(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 			if (mtu < IPV6_MIN_MTU)
 				mtu = IPV6_MIN_MTU;
 
-			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+			icmpv6_ndo_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		} else {
-			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
-				  htonl(mtu));
+			if (!(ip_hdr(skb)->frag_off & htons(IP_DF)))
+				goto xmit;
+			icmp_ndo_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
+				      htonl(mtu));
 		}
 
 		err = -EMSGSIZE;
 		goto tx_err_dst_release;
 	}
 
-queued:
+xmit:
 	skb_scrub_packet(skb, !net_eq(t->net, dev_net(dev)));
 	skb_dst_set(skb, dst);
 	skb->dev = skb_dst(skb)->dev;
@@ -658,7 +660,7 @@ static void vti6_link_config(struct ip6_tnl *t, bool keep_mtu)
 	struct net_device *tdev = NULL;
 	int mtu;
 
-	memcpy(dev->dev_addr, &p->laddr, sizeof(struct in6_addr));
+	__dev_addr_set(dev, &p->laddr, sizeof(struct in6_addr));
 	memcpy(dev->broadcast, &p->raddr, sizeof(struct in6_addr));
 
 	p->flags &= ~(IP6_TNL_F_CAP_XMIT | IP6_TNL_F_CAP_RCV |
@@ -769,13 +771,14 @@ vti6_parm_to_user(struct ip6_tnl_parm2 *u, const struct __ip6_tnl_parm *p)
 }
 
 /**
- * vti6_ioctl - configure vti6 tunnels from userspace
+ * vti6_siocdevprivate - configure vti6 tunnels from userspace
  *   @dev: virtual device associated with tunnel
- *   @ifr: parameters passed from userspace
+ *   @ifr: unused
+ *   @data: parameters passed from userspace
  *   @cmd: command to be performed
  *
  * Description:
- *   vti6_ioctl() is used for managing vti6 tunnels
+ *   vti6_siocdevprivate() is used for managing vti6 tunnels
  *   from userspace.
  *
  *   The possible commands are the following:
@@ -796,7 +799,7 @@ vti6_parm_to_user(struct ip6_tnl_parm2 *u, const struct __ip6_tnl_parm *p)
  *   %-ENODEV if attempting to change or delete a nonexisting device
  **/
 static int
-vti6_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+vti6_siocdevprivate(struct net_device *dev, struct ifreq *ifr, void __user *data, int cmd)
 {
 	int err = 0;
 	struct ip6_tnl_parm2 p;
@@ -805,10 +808,12 @@ vti6_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct net *net = dev_net(dev);
 	struct vti6_net *ip6n = net_generic(net, vti6_net_id);
 
+	memset(&p1, 0, sizeof(p1));
+
 	switch (cmd) {
 	case SIOCGETTUNNEL:
 		if (dev == ip6n->fb_tnl_dev) {
-			if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p))) {
+			if (copy_from_user(&p, data, sizeof(p))) {
 				err = -EFAULT;
 				break;
 			}
@@ -820,7 +825,7 @@ vti6_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (!t)
 			t = netdev_priv(dev);
 		vti6_parm_to_user(&p, &t->parms);
-		if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof(p)))
+		if (copy_to_user(data, &p, sizeof(p)))
 			err = -EFAULT;
 		break;
 	case SIOCADDTUNNEL:
@@ -829,7 +834,7 @@ vti6_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			break;
 		err = -EFAULT;
-		if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
+		if (copy_from_user(&p, data, sizeof(p)))
 			break;
 		err = -EINVAL;
 		if (p.proto != IPPROTO_IPV6  && p.proto != 0)
@@ -850,7 +855,7 @@ vti6_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (t) {
 			err = 0;
 			vti6_parm_to_user(&p, &t->parms);
-			if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof(p)))
+			if (copy_to_user(data, &p, sizeof(p)))
 				err = -EFAULT;
 
 		} else
@@ -863,7 +868,7 @@ vti6_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 		if (dev == ip6n->fb_tnl_dev) {
 			err = -EFAULT;
-			if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
+			if (copy_from_user(&p, data, sizeof(p)))
 				break;
 			err = -ENOENT;
 			vti6_parm_from_user(&p1, &p);
@@ -888,8 +893,8 @@ static const struct net_device_ops vti6_netdev_ops = {
 	.ndo_init	= vti6_dev_init,
 	.ndo_uninit	= vti6_dev_uninit,
 	.ndo_start_xmit = vti6_tnl_xmit,
-	.ndo_do_ioctl	= vti6_ioctl,
-	.ndo_get_stats64 = ip_tunnel_get_stats64,
+	.ndo_siocdevprivate = vti6_siocdevprivate,
+	.ndo_get_stats64 = dev_get_tstats64,
 	.ndo_get_iflink = ip6_tnl_get_iflink,
 };
 
@@ -931,6 +936,7 @@ static inline int vti6_dev_init_gen(struct net_device *dev)
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
+	dev_hold_track(dev, &t->dev_tracker, GFP_KERNEL);
 	return 0;
 }
 
@@ -962,7 +968,6 @@ static int __net_init vti6_fb_tnl_dev_init(struct net_device *dev)
 	struct vti6_net *ip6n = net_generic(net, vti6_net_id);
 
 	t->parms.proto = IPPROTO_IPV6;
-	dev_hold(dev);
 
 	rcu_assign_pointer(ip6n->tnls_wc[0], t);
 	return 0;

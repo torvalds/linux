@@ -441,11 +441,11 @@ static unsigned sysv_nblocks(struct super_block *s, loff_t size)
 	return blocks;
 }
 
-int sysv_getattr(const struct path *path, struct kstat *stat,
-		 u32 request_mask, unsigned int flags)
+int sysv_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct super_block *s = path->dentry->d_sb;
-	generic_fillattr(d_inode(path->dentry), stat);
+	generic_fillattr(&init_user_ns, d_inode(path->dentry), stat);
 	stat->blocks = (s->s_blocksize / 512) * sysv_nblocks(s, stat->size);
 	stat->blksize = s->s_blocksize;
 	return 0;
@@ -495,6 +495,8 @@ static sector_t sysv_bmap(struct address_space *mapping, sector_t block)
 }
 
 const struct address_space_operations sysv_aops = {
+	.dirty_folio = block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
 	.readpage = sysv_readpage,
 	.writepage = sysv_writepage,
 	.write_begin = sysv_write_begin,

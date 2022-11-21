@@ -111,9 +111,9 @@ static void zfcp_unit_release(struct device *dev)
 }
 
 /**
- * zfcp_unit_enqueue - enqueue unit to unit list of a port.
+ * zfcp_unit_add - add unit to unit list of a port.
  * @port: pointer to port where unit is added
- * @fcp_lun: FCP LUN of unit to be enqueued
+ * @fcp_lun: FCP LUN of unit to be added
  * Returns: 0 success
  *
  * Sets up some unit internal structures and creates sysfs entry.
@@ -255,9 +255,9 @@ int zfcp_unit_remove(struct zfcp_port *port, u64 fcp_lun)
 		scsi_device_put(sdev);
 	}
 
-	put_device(&unit->dev);
-
 	device_unregister(&unit->dev);
+
+	put_device(&unit->dev); /* undo _zfcp_unit_find() */
 
 	return 0;
 }

@@ -36,47 +36,26 @@ XFS_WPC(struct iomap_writepage_ctx *ctx)
 static inline bool xfs_ioend_is_append(struct iomap_ioend *ioend)
 {
 	return ioend->io_offset + ioend->io_size >
-		XFS_I(ioend->io_inode)->i_d.di_size;
-}
-
-STATIC int
-xfs_setfilesize_trans_alloc(
-	struct iomap_ioend	*ioend)
-{
-	struct xfs_mount	*mp = XFS_I(ioend->io_inode)->i_mount;
-	struct xfs_trans	*tp;
-	int			error;
-
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0, &tp);
-	if (error)
-		return error;
-
-	ioend->io_private = tp;
-
-	/*
-	 * We may pass freeze protection with a transaction.  So tell lockdep
-	 * we released it.
-	 */
-	__sb_writers_release(ioend->io_inode->i_sb, SB_FREEZE_FS);
-	/*
-	 * We hand off the transaction to the completion thread now, so
-	 * clear the flag here.
-	 */
-	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
-	return 0;
+		XFS_I(ioend->io_inode)->i_disk_size;
 }
 
 /*
  * Update on-disk file size now that data has been written to disk.
  */
-STATIC int
-__xfs_setfilesize(
+int
+xfs_setfilesize(
 	struct xfs_inode	*ip,
-	struct xfs_trans	*tp,
 	xfs_off_t		offset,
 	size_t			size)
 {
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
 	xfs_fsize_t		isize;
+	int			error;
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0, &tp);
+	if (error)
+		return error;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	isize = xfs_new_eof(ip, offset + size);
@@ -88,53 +67,11 @@ __xfs_setfilesize(
 
 	trace_xfs_setfilesize(ip, offset, size);
 
-	ip->i_d.di_size = isize;
+	ip->i_disk_size = isize;
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	return xfs_trans_commit(tp);
-}
-
-int
-xfs_setfilesize(
-	struct xfs_inode	*ip,
-	xfs_off_t		offset,
-	size_t			size)
-{
-	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_trans	*tp;
-	int			error;
-
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0, &tp);
-	if (error)
-		return error;
-
-	return __xfs_setfilesize(ip, tp, offset, size);
-}
-
-STATIC int
-xfs_setfilesize_ioend(
-	struct iomap_ioend	*ioend,
-	int			error)
-{
-	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
-	struct xfs_trans	*tp = ioend->io_private;
-
-	/*
-	 * The transaction may have been allocated in the I/O submission thread,
-	 * thus we need to mark ourselves as being in a transaction manually.
-	 * Similarly for freeze protection.
-	 */
-	current_set_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
-	__sb_writers_acquired(VFS_I(ip)->i_sb, SB_FREEZE_FS);
-
-	/* we abort the update if there was an IO error */
-	if (error) {
-		xfs_trans_cancel(tp);
-		return error;
-	}
-
-	return __xfs_setfilesize(ip, tp, ioend->io_offset, ioend->io_size);
 }
 
 /*
@@ -145,6 +82,7 @@ xfs_end_ioend(
 	struct iomap_ioend	*ioend)
 {
 	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
+	struct xfs_mount	*mp = ip->i_mount;
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
 	unsigned int		nofs_flag;
@@ -158,20 +96,28 @@ xfs_end_ioend(
 	nofs_flag = memalloc_nofs_save();
 
 	/*
-	 * Just clean up the in-memory strutures if the fs has been shut down.
+	 * Just clean up the in-memory structures if the fs has been shut down.
 	 */
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+	if (xfs_is_shutdown(mp)) {
 		error = -EIO;
 		goto done;
 	}
 
 	/*
-	 * Clean up any COW blocks on an I/O error.
+	 * Clean up all COW blocks and underlying data fork delalloc blocks on
+	 * I/O error. The delalloc punch is required because this ioend was
+	 * mapped to blocks in the COW fork and the associated pages are no
+	 * longer dirty. If we don't remove delalloc blocks here, they become
+	 * stale and can corrupt free space accounting on unmount.
 	 */
 	error = blk_status_to_errno(ioend->io_bio->bi_status);
 	if (unlikely(error)) {
-		if (ioend->io_flags & IOMAP_F_SHARED)
+		if (ioend->io_flags & IOMAP_F_SHARED) {
 			xfs_reflink_cancel_cow_range(ip, offset, size, true);
+			xfs_bmap_punch_delalloc_range(ip,
+						      XFS_B_TO_FSBT(mp, offset),
+						      XFS_B_TO_FSB(mp, size));
+		}
 		goto done;
 	}
 
@@ -182,36 +128,28 @@ xfs_end_ioend(
 		error = xfs_reflink_end_cow(ip, offset, size);
 	else if (ioend->io_type == IOMAP_UNWRITTEN)
 		error = xfs_iomap_write_unwritten(ip, offset, size, false);
-	else
-		ASSERT(!xfs_ioend_is_append(ioend) || ioend->io_private);
 
+	if (!error && xfs_ioend_is_append(ioend))
+		error = xfs_setfilesize(ip, ioend->io_offset, ioend->io_size);
 done:
-	if (ioend->io_private)
-		error = xfs_setfilesize_ioend(ioend, error);
 	iomap_finish_ioends(ioend, error);
 	memalloc_nofs_restore(nofs_flag);
 }
 
 /*
- * If the to be merged ioend has a preallocated transaction for file
- * size updates we need to ensure the ioend it is merged into also
- * has one.  If it already has one we can simply cancel the transaction
- * as it is guaranteed to be clean.
+ * Finish all pending IO completions that require transactional modifications.
+ *
+ * We try to merge physical and logically contiguous ioends before completion to
+ * minimise the number of transactions we need to perform during IO completion.
+ * Both unwritten extent conversion and COW remapping need to iterate and modify
+ * one physical extent at a time, so we gain nothing by merging physically
+ * discontiguous extents here.
+ *
+ * The ioend chain length that we can be processing here is largely unbound in
+ * length and we may have to perform significant amounts of work on each ioend
+ * to complete it. Hence we have to be careful about holding the CPU for too
+ * long in this loop.
  */
-static void
-xfs_ioend_merge_private(
-	struct iomap_ioend	*ioend,
-	struct iomap_ioend	*next)
-{
-	if (!ioend->io_private) {
-		ioend->io_private = next->io_private;
-		next->io_private = NULL;
-	} else {
-		xfs_setfilesize_ioend(next, -ECANCELED);
-	}
-}
-
-/* Finish all pending io completions. */
 void
 xfs_end_io(
 	struct work_struct	*work)
@@ -230,16 +168,10 @@ xfs_end_io(
 	while ((ioend = list_first_entry_or_null(&tmp, struct iomap_ioend,
 			io_list))) {
 		list_del_init(&ioend->io_list);
-		iomap_ioend_try_merge(ioend, &tmp, xfs_ioend_merge_private);
+		iomap_ioend_try_merge(ioend, &tmp);
 		xfs_end_ioend(ioend);
+		cond_resched();
 	}
-}
-
-static inline bool xfs_ioend_needs_workqueue(struct iomap_ioend *ioend)
-{
-	return ioend->io_private ||
-		ioend->io_type == IOMAP_UNWRITTEN ||
-		(ioend->io_flags & IOMAP_F_SHARED);
 }
 
 STATIC void
@@ -249,8 +181,6 @@ xfs_end_bio(
 	struct iomap_ioend	*ioend = bio->bi_private;
 	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
 	unsigned long		flags;
-
-	ASSERT(xfs_ioend_needs_workqueue(ioend));
 
 	spin_lock_irqsave(&ip->i_ioend_lock, flags);
 	if (list_empty(&ip->i_ioend_list))
@@ -353,7 +283,7 @@ xfs_map_blocks(
 	int			retries = 0;
 	int			error = 0;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	/*
@@ -384,8 +314,7 @@ retry:
 	cow_fsb = NULLFILEOFF;
 	whichfork = XFS_DATA_FORK;
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	ASSERT(ip->i_df.if_format != XFS_DINODE_FMT_BTREE ||
-	       (ip->i_df.if_flags & XFS_IFEXTENTS));
+	ASSERT(!xfs_need_iread_extents(&ip->i_df));
 
 	/*
 	 * Check if this is offset is covered by a COW extents, and if yes use
@@ -444,7 +373,7 @@ retry:
 	    isnullstartblock(imap.br_startblock))
 		goto allocate_blocks;
 
-	xfs_bmbt_to_iomap(ip, &wpc->iomap, &imap, 0);
+	xfs_bmbt_to_iomap(ip, &wpc->iomap, &imap, 0, 0);
 	trace_xfs_map_blocks_found(ip, offset, count, whichfork, &imap);
 	return 0;
 allocate_blocks:
@@ -501,17 +430,11 @@ xfs_prepare_ioend(
 				ioend->io_offset, ioend->io_size);
 	}
 
-	/* Reserve log space if we might write beyond the on-disk inode size. */
-	if (!status &&
-	    ((ioend->io_flags & IOMAP_F_SHARED) ||
-	     ioend->io_type != IOMAP_UNWRITTEN) &&
-	    xfs_ioend_is_append(ioend) &&
-	    !ioend->io_private)
-		status = xfs_setfilesize_trans_alloc(ioend);
-
 	memalloc_nofs_restore(nofs_flag);
 
-	if (xfs_ioend_needs_workqueue(ioend))
+	/* send ioends that might require a transaction to the completion wq */
+	if (xfs_ioend_is_append(ioend) || ioend->io_type == IOMAP_UNWRITTEN ||
+	    (ioend->io_flags & IOMAP_F_SHARED))
 		ioend->io_bio->bi_end_io = xfs_end_bio;
 	return status;
 }
@@ -528,48 +451,38 @@ xfs_prepare_ioend(
  * see a ENOSPC in writeback).
  */
 static void
-xfs_discard_page(
-	struct page		*page,
-	loff_t			fileoff)
+xfs_discard_folio(
+	struct folio		*folio,
+	loff_t			pos)
 {
-	struct inode		*inode = page->mapping->host;
+	struct inode		*inode = folio->mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	unsigned int		pageoff = offset_in_page(fileoff);
-	xfs_fileoff_t		start_fsb = XFS_B_TO_FSBT(mp, fileoff);
-	xfs_fileoff_t		pageoff_fsb = XFS_B_TO_FSBT(mp, pageoff);
+	size_t			offset = offset_in_folio(folio, pos);
+	xfs_fileoff_t		start_fsb = XFS_B_TO_FSBT(mp, pos);
+	xfs_fileoff_t		pageoff_fsb = XFS_B_TO_FSBT(mp, offset);
 	int			error;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		goto out_invalidate;
 
 	xfs_alert_ratelimited(mp,
-		"page discard on page "PTR_FMT", inode 0x%llx, offset %llu.",
-			page, ip->i_ino, fileoff);
+		"page discard on page "PTR_FMT", inode 0x%llx, pos %llu.",
+			folio, ip->i_ino, pos);
 
 	error = xfs_bmap_punch_delalloc_range(ip, start_fsb,
-			i_blocks_per_page(inode, page) - pageoff_fsb);
-	if (error && !XFS_FORCED_SHUTDOWN(mp))
+			i_blocks_per_folio(inode, folio) - pageoff_fsb);
+	if (error && !xfs_is_shutdown(mp))
 		xfs_alert(mp, "page discard unable to remove delalloc mapping.");
 out_invalidate:
-	iomap_invalidatepage(page, pageoff, PAGE_SIZE - pageoff);
+	iomap_invalidate_folio(folio, offset, folio_size(folio) - offset);
 }
 
 static const struct iomap_writeback_ops xfs_writeback_ops = {
 	.map_blocks		= xfs_map_blocks,
 	.prepare_ioend		= xfs_prepare_ioend,
-	.discard_page		= xfs_discard_page,
+	.discard_folio		= xfs_discard_folio,
 };
-
-STATIC int
-xfs_vm_writepage(
-	struct page		*page,
-	struct writeback_control *wbc)
-{
-	struct xfs_writepage_ctx wpc = { };
-
-	return iomap_writepage(page, wbc, &wpc.ctx, &xfs_writeback_ops);
-}
 
 STATIC int
 xfs_vm_writepages(
@@ -577,6 +490,13 @@ xfs_vm_writepages(
 	struct writeback_control *wbc)
 {
 	struct xfs_writepage_ctx wpc = { };
+
+	/*
+	 * Writing back data in a transaction context can result in recursive
+	 * transactions. This is bad, so issue a warning and get out of here.
+	 */
+	if (WARN_ON_ONCE(current->journal_info))
+		return 0;
 
 	xfs_iflags_clear(XFS_I(mapping->host), XFS_ITRUNCATED);
 	return iomap_writepages(mapping, wbc, &wpc.ctx, &xfs_writeback_ops);
@@ -646,11 +566,10 @@ xfs_iomap_swapfile_activate(
 const struct address_space_operations xfs_address_space_operations = {
 	.readpage		= xfs_vm_readpage,
 	.readahead		= xfs_vm_readahead,
-	.writepage		= xfs_vm_writepage,
 	.writepages		= xfs_vm_writepages,
-	.set_page_dirty		= iomap_set_page_dirty,
+	.dirty_folio		= filemap_dirty_folio,
 	.releasepage		= iomap_releasepage,
-	.invalidatepage		= iomap_invalidatepage,
+	.invalidate_folio	= iomap_invalidate_folio,
 	.bmap			= xfs_vm_bmap,
 	.direct_IO		= noop_direct_IO,
 	.migratepage		= iomap_migrate_page,
@@ -662,7 +581,6 @@ const struct address_space_operations xfs_address_space_operations = {
 const struct address_space_operations xfs_dax_aops = {
 	.writepages		= xfs_dax_writepages,
 	.direct_IO		= noop_direct_IO,
-	.set_page_dirty		= noop_set_page_dirty,
-	.invalidatepage		= noop_invalidatepage,
+	.dirty_folio		= noop_dirty_folio,
 	.swap_activate		= xfs_iomap_swapfile_activate,
 };

@@ -436,7 +436,7 @@ static struct snd_soc_dai_link kabylake_rt5660_dais[] = {
 		.exit = kabylake_rt5660_codec_exit,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF |
-		SND_SOC_DAIFMT_CBS_CFS,
+		SND_SOC_DAIFMT_CBC_CFC,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = kabylake_ssp0_fixup,
 		.ops = &kabylake_rt5660_ops,
@@ -548,6 +548,7 @@ static const struct platform_device_id kbl_board_ids[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(platform, kbl_board_ids);
 
 static struct platform_driver kabylake_audio = {
 	.probe = kabylake_audio_probe,
@@ -564,4 +565,3 @@ module_platform_driver(kabylake_audio)
 MODULE_DESCRIPTION("Audio Machine driver-RT5660 in I2S mode");
 MODULE_AUTHOR("Hui Wang <hui.wang@canonical.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:kbl_rt5660");

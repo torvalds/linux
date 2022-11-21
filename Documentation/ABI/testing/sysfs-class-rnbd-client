@@ -66,7 +66,7 @@ Description:	Expected format is the following::
 		    The rnbd_server prepends the <device_path> received from client
 		    with <dev_search_path> and tries to open the
 		    <dev_search_path>/<device_path> block device.  On success,
-		    a /dev/rnbd<N> device file, a /sys/block/rnbd_client/rnbd<N>/
+		    a /dev/rnbd<N> device file, a /sys/block/rnbd<N>/
 		    directory and an entry in /sys/class/rnbd-client/ctl/devices
 		    will be created.
 
@@ -85,6 +85,19 @@ Description:	Expected format is the following::
 
 		By default "rw" is used.
 
+		nr_poll_queues
+		  specifies the number of poll-mode queues. If the IO has HIPRI flag,
+		  the block-layer will send the IO via the poll-mode queue.
+		  For fast network and device the polling is faster than interrupt-base
+		  IO handling because it saves time for context switching, switching to
+		  another process, handling the interrupt and switching back to the
+		  issuing process.
+
+		  Set -1 if you want to set it as the number of CPUs
+		  By default rnbd client creates only irq-mode queues.
+
+		  NOTICE: MUST make a unique session for a device using the poll-mode queues.
+
 		Exit Codes:
 
 		If the device is already mapped it will fail with EEXIST. If the input
@@ -95,12 +108,12 @@ Description:	Expected format is the following::
 		---------------------------------
 
 		After mapping, the device file can be found by:
-		o  The symlink /sys/class/rnbd-client/ctl/devices/<device_id>
+		o  The symlink /sys/class/rnbd-client/ctl/devices/<device_id>@<session_name>
 		points to /sys/block/<dev-name>. The last part of the symlink destination
 		is the same as the device name.  By extracting the last part of the
 		path the path to the device /dev/<dev-name> can be build.
 
-		* /dev/block/$(cat /sys/class/rnbd-client/ctl/devices/<device_id>/dev)
+		* /dev/block/$(cat /sys/class/rnbd-client/ctl/devices/<device_id>@<session_name>/dev)
 
 		How to find the <device_id> of the device is described on the next
 		section.
@@ -110,7 +123,7 @@ Date:		Feb 2020
 KernelVersion:	5.7
 Contact:	Jack Wang <jinpu.wang@cloud.ionos.com> Danil Kipnis <danil.kipnis@cloud.ionos.com>
 Description:	For each device mapped on the client a new symbolic link is created as
-		/sys/class/rnbd-client/ctl/devices/<device_id>, which points
+		/sys/class/rnbd-client/ctl/devices/<device_id>@<session_name>, which points
 		to the block device created by rnbd (/sys/block/rnbd<N>/).
 		The <device_id> of each device is created as follows:
 

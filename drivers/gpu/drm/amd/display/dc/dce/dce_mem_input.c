@@ -566,6 +566,7 @@ static void program_grph_pixel_format(
 			 *  should problem swap endian*/
 		format == SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010 ||
 		format == SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS ||
+		format == SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616 ||
 		format == SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F) {
 		/* ABGR formats */
 		red_xbar = 2;
@@ -606,6 +607,7 @@ static void program_grph_pixel_format(
 		fallthrough;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F: /* shouldn't this get float too? */
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
 		grph_depth = 3;
 		grph_format = 0;
 		break;

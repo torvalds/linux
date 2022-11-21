@@ -47,7 +47,7 @@ static void rts5209_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	}
 }
 
-static void rts5209_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
+static void rts5209_force_power_down(struct rtsx_pcr *pcr, u8 pm_state, bool runtime)
 {
 	rtsx_pci_write_register(pcr, FPDCTL, 0x07, 0x07);
 }
@@ -255,6 +255,7 @@ void rts5209_init_params(struct rtsx_pcr *pcr)
 	pcr->sd30_drive_sel_1v8 = DRIVER_TYPE_B;
 	pcr->sd30_drive_sel_3v3 = DRIVER_TYPE_D;
 	pcr->aspm_en = ASPM_L1_EN;
+	pcr->aspm_mode = ASPM_MODE_CFG;
 	pcr->tx_initial_phase = SET_CLOCK_PHASE(27, 27, 16);
 	pcr->rx_initial_phase = SET_CLOCK_PHASE(24, 6, 5);
 

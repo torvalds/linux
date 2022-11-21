@@ -3,7 +3,8 @@
  * Copyright 2012 by Oracle Inc
  * Author: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
  *
- * This code borrows ideas from https://lkml.org/lkml/2011/11/30/249
+ * This code borrows ideas from
+ * https://lore.kernel.org/lkml/1322673664-14642-6-git-send-email-konrad.wilk@oracle.com
  * so many thanks go to Kevin Tian <kevin.tian@intel.com>
  * and Yu Ke <ke.yu@intel.com>.
  */
@@ -449,7 +450,7 @@ static struct acpi_processor_performance __percpu *acpi_perf_data;
 
 static void free_acpi_perf_data(void)
 {
-	unsigned int i;
+	int i;
 
 	/* Freeing a NULL pointer is OK, and alloc_percpu zeroes. */
 	for_each_possible_cpu(i)
@@ -461,7 +462,7 @@ static void free_acpi_perf_data(void)
 static int xen_upload_processor_pm_data(void)
 {
 	struct acpi_processor *pr_backup = NULL;
-	unsigned int i;
+	int i;
 	int rc = 0;
 
 	pr_info("Uploading Xen processor PM info\n");
@@ -517,7 +518,7 @@ static struct syscore_ops xap_syscore_ops = {
 
 static int __init xen_acpi_processor_init(void)
 {
-	unsigned int i;
+	int i;
 	int rc;
 
 	if (!xen_initial_domain())

@@ -18,21 +18,14 @@ properties:
           - const: allwinner,sun4i-a10-i2c
       - const: allwinner,sun6i-a31-i2c
       - items:
-          - const: allwinner,sun8i-a23-i2c
+          - enum:
+              - allwinner,sun8i-a23-i2c
+              - allwinner,sun8i-a83t-i2c
+              - allwinner,sun50i-a64-i2c
+              - allwinner,sun50i-a100-i2c
+              - allwinner,sun50i-h6-i2c
+              - allwinner,sun50i-h616-i2c
           - const: allwinner,sun6i-a31-i2c
-      - items:
-          - const: allwinner,sun8i-a83t-i2c
-          - const: allwinner,sun6i-a31-i2c
-      - items:
-          - const: allwinner,sun50i-a64-i2c
-          - const: allwinner,sun6i-a31-i2c
-      - items:
-          - const: allwinner,sun50i-a100-i2c
-          - const: allwinner,sun6i-a31-i2c
-      - items:
-          - const: allwinner,sun50i-h6-i2c
-          - const: allwinner,sun6i-a31-i2c
-
       - const: marvell,mv64xxx-i2c
       - const: marvell,mv78230-i2c
       - const: marvell,mv78230-a0-i2c
@@ -50,14 +43,12 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
     items:
       - description: Reference clock for the I2C bus
       - description: Bus clock (Only for Armada 7K/8K)
 
   clock-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: core
       - const: reg

@@ -173,7 +173,7 @@ static irqreturn_t em_gio_irq_handler(int irq, void *dev_id)
 	while ((pending = em_gio_read(p, GIO_MST))) {
 		offset = __ffs(pending);
 		em_gio_write(p, GIO_IIR, BIT(offset));
-		generic_handle_irq(irq_find_mapping(p->irq_domain, offset));
+		generic_handle_domain_irq(p->irq_domain, offset);
 		irqs_handled++;
 	}
 
@@ -306,7 +306,6 @@ static int em_gio_probe(struct platform_device *pdev)
 	}
 
 	gpio_chip = &p->gpio_chip;
-	gpio_chip->of_node = dev->of_node;
 	gpio_chip->direction_input = em_gio_direction_input;
 	gpio_chip->get = em_gio_get;
 	gpio_chip->direction_output = em_gio_direction_output;

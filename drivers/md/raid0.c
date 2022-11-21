@@ -356,7 +356,21 @@ static sector_t raid0_size(struct mddev *mddev, sector_t sectors, int raid_disks
 	return array_sectors;
 }
 
-static void raid0_free(struct mddev *mddev, void *priv);
+static void free_conf(struct mddev *mddev, struct r0conf *conf)
+{
+	kfree(conf->strip_zone);
+	kfree(conf->devlist);
+	kfree(conf);
+	mddev->private = NULL;
+}
+
+static void raid0_free(struct mddev *mddev, void *priv)
+{
+	struct r0conf *conf = priv;
+
+	free_conf(mddev, conf);
+	acct_bioset_exit(mddev);
+}
 
 static int raid0_run(struct mddev *mddev)
 {
@@ -370,11 +384,16 @@ static int raid0_run(struct mddev *mddev)
 	if (md_check_no_bitmap(mddev))
 		return -EINVAL;
 
+	if (acct_bioset_init(mddev)) {
+		pr_err("md/raid0:%s: alloc acct bioset failed.\n", mdname(mddev));
+		return -ENOMEM;
+	}
+
 	/* if private is not null, we are here after takeover */
 	if (mddev->private == NULL) {
 		ret = create_strip_zones(mddev, &conf);
 		if (ret < 0)
-			return ret;
+			goto exit_acct_set;
 		mddev->private = conf;
 	}
 	conf = mddev->private;
@@ -383,7 +402,6 @@ static int raid0_run(struct mddev *mddev)
 		bool discard_supported = false;
 
 		blk_queue_max_hw_sectors(mddev->queue, mddev->chunk_sectors);
-		blk_queue_max_write_same_sectors(mddev->queue, mddev->chunk_sectors);
 		blk_queue_max_write_zeroes_sectors(mddev->queue, mddev->chunk_sectors);
 		blk_queue_max_discard_sectors(mddev->queue, UINT_MAX);
 
@@ -413,17 +431,16 @@ static int raid0_run(struct mddev *mddev)
 	dump_zones(mddev);
 
 	ret = md_integrity_register(mddev);
+	if (ret)
+		goto free;
 
 	return ret;
-}
 
-static void raid0_free(struct mddev *mddev, void *priv)
-{
-	struct r0conf *conf = priv;
-
-	kfree(conf->strip_zone);
-	kfree(conf->devlist);
-	kfree(conf);
+free:
+	free_conf(mddev, conf);
+exit_acct_set:
+	acct_bioset_exit(mddev);
+	return ret;
 }
 
 static void raid0_handle_discard(struct mddev *mddev, struct bio *bio)
@@ -477,7 +494,6 @@ static void raid0_handle_discard(struct mddev *mddev, struct bio *bio)
 
 	for (disk = 0; disk < zone->nb_dev; disk++) {
 		sector_t dev_start, dev_end;
-		struct bio *discard_bio = NULL;
 		struct md_rdev *rdev;
 
 		if (disk < start_disk_index)
@@ -500,18 +516,9 @@ static void raid0_handle_discard(struct mddev *mddev, struct bio *bio)
 
 		rdev = conf->devlist[(zone - conf->strip_zone) *
 			conf->strip_zone[0].nb_dev + disk];
-		if (__blkdev_issue_discard(rdev->bdev,
+		md_submit_discard_bio(mddev, rdev, bio,
 			dev_start + zone->dev_start + rdev->data_offset,
-			dev_end - dev_start, GFP_NOIO, 0, &discard_bio) ||
-		    !discard_bio)
-			continue;
-		bio_chain(discard_bio, bio);
-		bio_clone_blkg_association(discard_bio, bio);
-		if (mddev->gendisk)
-			trace_block_bio_remap(bdev_get_queue(rdev->bdev),
-				discard_bio, disk_devt(mddev->gendisk),
-				bio->bi_iter.bi_sector);
-		submit_bio_noacct(discard_bio);
+			dev_end - dev_start);
 	}
 	bio_endio(bio);
 }
@@ -556,6 +563,9 @@ static bool raid0_make_request(struct mddev *mddev, struct bio *bio)
 		bio = split;
 	}
 
+	if (bio->bi_pool != &mddev->bio_set)
+		md_account_bio(mddev, &bio);
+
 	orig_sector = sector;
 	zone = find_zone(mddev->private, &sector);
 	switch (conf->layout) {
@@ -581,9 +591,8 @@ static bool raid0_make_request(struct mddev *mddev, struct bio *bio)
 		tmp_dev->data_offset;
 
 	if (mddev->gendisk)
-		trace_block_bio_remap(bio->bi_disk->queue, bio,
-				disk_devt(mddev->gendisk), bio_sector);
-	mddev_check_writesame(mddev, bio);
+		trace_block_bio_remap(bio, disk_devt(mddev->gendisk),
+				      bio_sector);
 	mddev_check_write_zeroes(mddev, bio);
 	submit_bio_noacct(bio);
 	return true;

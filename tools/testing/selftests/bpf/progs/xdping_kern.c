@@ -86,7 +86,7 @@ static __always_inline int icmp_check(struct xdp_md *ctx, int type)
 	return XDP_TX;
 }
 
-SEC("xdpclient")
+SEC("xdp")
 int xdping_client(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;
@@ -150,7 +150,7 @@ int xdping_client(struct xdp_md *ctx)
 	return XDP_TX;
 }
 
-SEC("xdpserver")
+SEC("xdp")
 int xdping_server(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;

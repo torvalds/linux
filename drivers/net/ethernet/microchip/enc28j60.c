@@ -517,7 +517,7 @@ static int enc28j60_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(address->sa_data))
 		return -EADDRNOTAVAIL;
 
-	ether_addr_copy(dev->dev_addr, address->sa_data);
+	eth_hw_addr_set(dev, address->sa_data);
 	return enc28j60_set_hw_macaddr(dev);
 }
 
@@ -975,7 +975,7 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 			/* update statistics */
 			ndev->stats.rx_packets++;
 			ndev->stats.rx_bytes += len;
-			netif_rx_ni(skb);
+			netif_rx(skb);
 		}
 	}
 	/*
@@ -1539,7 +1539,6 @@ static const struct net_device_ops enc28j60_netdev_ops = {
 
 static int enc28j60_probe(struct spi_device *spi)
 {
-	unsigned char macaddr[ETH_ALEN];
 	struct net_device *dev;
 	struct enc28j60_net *priv;
 	int ret = 0;
@@ -1572,9 +1571,7 @@ static int enc28j60_probe(struct spi_device *spi)
 		goto error_irq;
 	}
 
-	if (device_get_mac_address(&spi->dev, macaddr, sizeof(macaddr)))
-		ether_addr_copy(dev->dev_addr, macaddr);
-	else
+	if (device_get_ethdev_address(&spi->dev, dev))
 		eth_hw_addr_random(dev);
 	enc28j60_set_hw_macaddr(dev);
 
@@ -1615,15 +1612,13 @@ error_alloc:
 	return ret;
 }
 
-static int enc28j60_remove(struct spi_device *spi)
+static void enc28j60_remove(struct spi_device *spi)
 {
 	struct enc28j60_net *priv = spi_get_drvdata(spi);
 
 	unregister_netdev(priv->netdev);
 	free_irq(spi->irq, priv);
 	free_netdev(priv->netdev);
-
-	return 0;
 }
 
 static const struct of_device_id enc28j60_dt_ids[] = {

@@ -3,7 +3,6 @@
  *    Copyright IBM Corp. 1999, 2012
  *    Author(s): Denis Joseph Barrow,
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
  */
 #ifndef __ASM_SMP_H
 #define __ASM_SMP_H
@@ -18,6 +17,7 @@ extern struct mutex smp_cpu_state_mutex;
 extern unsigned int smp_cpu_mt_shift;
 extern unsigned int smp_cpu_mtid;
 extern __vector128 __initdata boot_cpu_vector_save_area[__NUM_VXRS];
+extern cpumask_t cpu_setup_mask;
 
 extern int __cpu_up(unsigned int cpu, struct task_struct *tidle);
 
@@ -63,5 +63,6 @@ extern void __noreturn cpu_die(void);
 extern void __cpu_die(unsigned int cpu);
 extern int __cpu_disable(void);
 extern void schedule_mcck_handler(void);
+void notrace smp_yield_cpu(int cpu);
 
 #endif /* __ASM_SMP_H */

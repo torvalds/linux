@@ -70,8 +70,9 @@ void kvm_vgic_early_init(struct kvm *kvm)
  */
 int kvm_vgic_create(struct kvm *kvm, u32 type)
 {
-	int i, ret;
 	struct kvm_vcpu *vcpu;
+	unsigned long i;
+	int ret;
 
 	if (irqchip_in_kernel(kvm))
 		return -EEXIST;
@@ -91,7 +92,7 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 		return ret;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
-		if (vcpu->arch.has_run_once)
+		if (vcpu_has_run_once(vcpu))
 			goto out_unlock;
 	}
 	ret = 0;
@@ -134,7 +135,7 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 	struct kvm_vcpu *vcpu0 = kvm_get_vcpu(kvm, 0);
 	int i;
 
-	dist->spis = kcalloc(nr_spis, sizeof(struct vgic_irq), GFP_KERNEL);
+	dist->spis = kcalloc(nr_spis, sizeof(struct vgic_irq), GFP_KERNEL_ACCOUNT);
 	if (!dist->spis)
 		return  -ENOMEM;
 
@@ -255,7 +256,8 @@ int vgic_init(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu;
-	int ret = 0, i, idx;
+	int ret = 0, i;
+	unsigned long idx;
 
 	if (vgic_initialized(kvm))
 		return 0;
@@ -308,7 +310,7 @@ int vgic_init(struct kvm *kvm)
 			goto out;
 	}
 
-	kvm_for_each_vcpu(i, vcpu, kvm)
+	kvm_for_each_vcpu(idx, vcpu, kvm)
 		kvm_vgic_vcpu_enable(vcpu);
 
 	ret = kvm_vgic_setup_default_irq_routing(kvm);
@@ -335,13 +337,14 @@ static void kvm_vgic_dist_destroy(struct kvm *kvm)
 	kfree(dist->spis);
 	dist->spis = NULL;
 	dist->nr_spis = 0;
+	dist->vgic_dist_base = VGIC_ADDR_UNDEF;
 
-	if (kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
-		list_for_each_entry_safe(rdreg, next, &dist->rd_regions, list) {
-			list_del(&rdreg->list);
-			kfree(rdreg);
-		}
+	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
+		list_for_each_entry_safe(rdreg, next, &dist->rd_regions, list)
+			vgic_v3_free_redist_region(rdreg);
 		INIT_LIST_HEAD(&dist->rd_regions);
+	} else {
+		dist->vgic_cpu_base = VGIC_ADDR_UNDEF;
 	}
 
 	if (vgic_has_its(kvm))
@@ -362,13 +365,14 @@ void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
 	vgic_flush_pending_lpis(vcpu);
 
 	INIT_LIST_HEAD(&vgic_cpu->ap_list_head);
+	vgic_cpu->rd_iodev.base_addr = VGIC_ADDR_UNDEF;
 }
 
 /* To be called with kvm->lock held */
 static void __kvm_vgic_destroy(struct kvm *kvm)
 {
 	struct kvm_vcpu *vcpu;
-	int i;
+	unsigned long i;
 
 	vgic_debug_destroy(kvm);
 
@@ -419,7 +423,8 @@ int vgic_lazy_init(struct kvm *kvm)
  * Map the MMIO regions depending on the VGIC model exposed to the guest
  * called on the first VCPU run.
  * Also map the virtual CPU interface into the VM.
- * v2/v3 derivatives call vgic_init if not already done.
+ * v2 calls vgic_init() if not already done.
+ * v3 and derivatives return an error if the VGIC is not initialized.
  * vgic_ready() returns true if this function has succeeded.
  * @kvm: kvm struct pointer
  */
@@ -428,7 +433,13 @@ int kvm_vgic_map_resources(struct kvm *kvm)
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	int ret = 0;
 
+	if (likely(vgic_ready(kvm)))
+		return 0;
+
 	mutex_lock(&kvm->lock);
+	if (vgic_ready(kvm))
+		goto out;
+
 	if (!irqchip_in_kernel(kvm))
 		goto out;
 
@@ -439,6 +450,8 @@ int kvm_vgic_map_resources(struct kvm *kvm)
 
 	if (ret)
 		__kvm_vgic_destroy(kvm);
+	else
+		dist->ready = true;
 
 out:
 	mutex_unlock(&kvm->lock);
@@ -471,6 +484,16 @@ static irqreturn_t vgic_maintenance_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static struct gic_kvm_info *gic_kvm_info;
+
+void __init vgic_set_kvm_info(const struct gic_kvm_info *info)
+{
+	BUG_ON(gic_kvm_info != NULL);
+	gic_kvm_info = kmalloc(sizeof(*info), GFP_KERNEL);
+	if (gic_kvm_info)
+		*gic_kvm_info = *info;
+}
+
 /**
  * kvm_vgic_init_cpu_hardware - initialize the GIC VE hardware
  *
@@ -498,16 +521,27 @@ void kvm_vgic_init_cpu_hardware(void)
  */
 int kvm_vgic_hyp_init(void)
 {
-	const struct gic_kvm_info *gic_kvm_info;
+	bool has_mask;
 	int ret;
 
-	gic_kvm_info = gic_get_kvm_info();
 	if (!gic_kvm_info)
 		return -ENODEV;
 
-	if (!gic_kvm_info->maint_irq) {
+	has_mask = !gic_kvm_info->no_maint_irq_mask;
+
+	if (has_mask && !gic_kvm_info->maint_irq) {
 		kvm_err("No vgic maintenance irq\n");
 		return -ENXIO;
+	}
+
+	/*
+	 * If we get one of these oddball non-GICs, taint the kernel,
+	 * as we have no idea of how they *really* behave.
+	 */
+	if (gic_kvm_info->no_hw_deactivation) {
+		kvm_info("Non-architectural vgic, tainting kernel\n");
+		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
+		kvm_vgic_global_state.no_hw_deactivation = true;
 	}
 
 	switch (gic_kvm_info->type) {
@@ -525,10 +559,17 @@ int kvm_vgic_hyp_init(void)
 		ret = -ENODEV;
 	}
 
+	kvm_vgic_global_state.maint_irq = gic_kvm_info->maint_irq;
+
+	kfree(gic_kvm_info);
+	gic_kvm_info = NULL;
+
 	if (ret)
 		return ret;
 
-	kvm_vgic_global_state.maint_irq = gic_kvm_info->maint_irq;
+	if (!has_mask)
+		return 0;
+
 	ret = request_percpu_irq(kvm_vgic_global_state.maint_irq,
 				 vgic_maintenance_handler,
 				 "vgic", kvm_get_running_vcpus());

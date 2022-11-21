@@ -6,11 +6,13 @@
 #include <linux/refcount.h>
 #include <linux/types.h>
 #include <stdbool.h>
+#include <internal/cpumap.h>
 
 /* perf sample has 16 bits size limit */
 #define PERF_SAMPLE_MAX_SIZE (1 << 16)
 
 struct perf_mmap;
+struct perf_counts_values;
 
 typedef void (*libperf_unmap_cb_t)(struct perf_mmap *map);
 
@@ -23,7 +25,7 @@ struct perf_mmap {
 	void			*base;
 	int			 mask;
 	int			 fd;
-	int			 cpu;
+	struct perf_cpu		 cpu;
 	refcount_t		 refcnt;
 	u64			 prev;
 	u64			 start;
@@ -45,11 +47,13 @@ size_t perf_mmap__mmap_len(struct perf_mmap *map);
 void perf_mmap__init(struct perf_mmap *map, struct perf_mmap *prev,
 		     bool overwrite, libperf_unmap_cb_t unmap_cb);
 int perf_mmap__mmap(struct perf_mmap *map, struct perf_mmap_param *mp,
-		    int fd, int cpu);
+		    int fd, struct perf_cpu cpu);
 void perf_mmap__munmap(struct perf_mmap *map);
 void perf_mmap__get(struct perf_mmap *map);
 void perf_mmap__put(struct perf_mmap *map);
 
 u64 perf_mmap__read_head(struct perf_mmap *map);
+
+int perf_mmap__read_self(struct perf_mmap *map, struct perf_counts_values *count);
 
 #endif /* __LIBPERF_INTERNAL_MMAP_H */

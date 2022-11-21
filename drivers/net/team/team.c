@@ -4,6 +4,7 @@
  * Copyright (c) 2011 Jiri Pirko <jpirko@redhat.com>
  */
 
+#include <linux/ethtool.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/module.h>
@@ -733,6 +734,11 @@ static rx_handler_result_t team_handle_frame(struct sk_buff **pskb)
 	port = team_port_get_rcu(skb->dev);
 	team = port->team;
 	if (!team_port_enabled(port)) {
+		if (is_link_local_ether_addr(eth_hdr(skb)->h_dest))
+			/* link-local packets are mostly useful when stack receives them
+			 * with the link they arrive on.
+			 */
+			return RX_HANDLER_PASS;
 		/* allow exact match delivery for disabled ports */
 		res = RX_HANDLER_EXACT;
 	} else {
@@ -975,11 +981,11 @@ static void team_port_disable(struct team *team,
 }
 
 #define TEAM_VLAN_FEATURES (NETIF_F_HW_CSUM | NETIF_F_SG | \
-			    NETIF_F_FRAGLIST | NETIF_F_ALL_TSO | \
+			    NETIF_F_FRAGLIST | NETIF_F_GSO_SOFTWARE | \
 			    NETIF_F_HIGHDMA | NETIF_F_LRO)
 
 #define TEAM_ENC_FEATURES	(NETIF_F_HW_CSUM | NETIF_F_SG | \
-				 NETIF_F_RXCSUM | NETIF_F_ALL_TSO)
+				 NETIF_F_RXCSUM | NETIF_F_GSO_SOFTWARE)
 
 static void __team_compute_features(struct team *team)
 {
@@ -991,7 +997,8 @@ static void __team_compute_features(struct team *team)
 	unsigned int dst_release_flag = IFF_XMIT_DST_RELEASE |
 					IFF_XMIT_DST_RELEASE_PERM;
 
-	list_for_each_entry(port, &team->port_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(port, &team->port_list, list) {
 		vlan_features = netdev_increment_features(vlan_features,
 					port->dev->vlan_features,
 					TEAM_VLAN_FEATURES);
@@ -1005,12 +1012,12 @@ static void __team_compute_features(struct team *team)
 		if (port->dev->hard_header_len > max_hard_header_len)
 			max_hard_header_len = port->dev->hard_header_len;
 	}
+	rcu_read_unlock();
 
 	team->dev->vlan_features = vlan_features;
 	team->dev->hw_enc_features = enc_features | NETIF_F_GSO_ENCAP_ALL |
 				     NETIF_F_HW_VLAN_CTAG_TX |
-				     NETIF_F_HW_VLAN_STAG_TX |
-				     NETIF_F_GSO_UDP_L4;
+				     NETIF_F_HW_VLAN_STAG_TX;
 	team->dev->hard_header_len = max_hard_header_len;
 
 	team->dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
@@ -1020,9 +1027,7 @@ static void __team_compute_features(struct team *team)
 
 static void team_compute_features(struct team *team)
 {
-	mutex_lock(&team->lock);
 	__team_compute_features(team);
-	mutex_unlock(&team->lock);
 	netdev_change_features(team->dev);
 }
 
@@ -1790,7 +1795,7 @@ static int team_set_mac_address(struct net_device *dev, void *p)
 
 	if (dev->type == ARPHRD_ETHER && !is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	dev_addr_set(dev, addr->sa_data);
 	mutex_lock(&team->lock);
 	list_for_each_entry(port, &team->port_list, list)
 		if (team->ops.port_change_dev_addr)
@@ -2175,7 +2180,7 @@ static void team_setup(struct net_device *dev)
 			   NETIF_F_HW_VLAN_CTAG_RX |
 			   NETIF_F_HW_VLAN_CTAG_FILTER;
 
-	dev->hw_features |= NETIF_F_GSO_ENCAP_ALL | NETIF_F_GSO_UDP_L4;
+	dev->hw_features |= NETIF_F_GSO_ENCAP_ALL;
 	dev->features |= dev->hw_features;
 	dev->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_STAG_TX;
 }

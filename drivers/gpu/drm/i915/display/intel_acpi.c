@@ -19,6 +19,12 @@ static const guid_t intel_dsm_guid =
 	GUID_INIT(0x7ed873d3, 0xc2d0, 0x4e4f,
 		  0xa8, 0x54, 0x0f, 0x13, 0x17, 0xb0, 0x1c, 0x2c);
 
+#define INTEL_DSM_FN_GET_BIOS_DATA_FUNCS_SUPPORTED 0 /* No args */
+
+static const guid_t intel_dsm_guid2 =
+	GUID_INIT(0x3e5b41c6, 0xeb1d, 0x4260,
+		  0x9d, 0x15, 0xc7, 0x1f, 0xba, 0xda, 0xe4, 0x14);
+
 static char *intel_dsm_port_name(u8 id)
 {
 	switch (id) {
@@ -84,13 +90,31 @@ static void intel_dsm_platform_mux_info(acpi_handle dhandle)
 		return;
 	}
 
+	if (!pkg->package.count) {
+		DRM_DEBUG_DRIVER("no connection in _DSM\n");
+		return;
+	}
+
 	connector_count = &pkg->package.elements[0];
 	DRM_DEBUG_DRIVER("MUX info connectors: %lld\n",
 		  (unsigned long long)connector_count->integer.value);
 	for (i = 1; i < pkg->package.count; i++) {
 		union acpi_object *obj = &pkg->package.elements[i];
-		union acpi_object *connector_id = &obj->package.elements[0];
-		union acpi_object *info = &obj->package.elements[1];
+		union acpi_object *connector_id;
+		union acpi_object *info;
+
+		if (obj->type != ACPI_TYPE_PACKAGE || obj->package.count < 2) {
+			DRM_DEBUG_DRIVER("Invalid object for MUX #%d\n", i);
+			continue;
+		}
+
+		connector_id = &obj->package.elements[0];
+		info = &obj->package.elements[1];
+		if (info->type != ACPI_TYPE_BUFFER || info->buffer.length < 4) {
+			DRM_DEBUG_DRIVER("Invalid info for MUX obj #%d\n", i);
+			continue;
+		}
+
 		DRM_DEBUG_DRIVER("Connector id: 0x%016llx\n",
 			  (unsigned long long)connector_id->integer.value);
 		DRM_DEBUG_DRIVER("  port id: %s\n",
@@ -156,6 +180,22 @@ void intel_register_dsm_handler(void)
 
 void intel_unregister_dsm_handler(void)
 {
+}
+
+void intel_dsm_get_bios_data_funcs_supported(struct drm_i915_private *i915)
+{
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	acpi_handle dhandle;
+	union acpi_object *obj;
+
+	dhandle = ACPI_HANDLE(&pdev->dev);
+	if (!dhandle)
+		return;
+
+	obj = acpi_evaluate_dsm(dhandle, &intel_dsm_guid2, INTEL_DSM_REVISION_ID,
+				INTEL_DSM_FN_GET_BIOS_DATA_FUNCS_SUPPORTED, NULL);
+	if (obj)
+		ACPI_FREE(obj);
 }
 
 /*
@@ -244,4 +284,50 @@ void intel_acpi_device_id_update(struct drm_i915_private *dev_priv)
 		connector->acpi_device_id = device_id;
 	}
 	drm_connector_list_iter_end(&conn_iter);
+}
+
+/* NOTE: The connector order must be final before this is called. */
+void intel_acpi_assign_connector_fwnodes(struct drm_i915_private *i915)
+{
+	struct drm_connector_list_iter conn_iter;
+	struct drm_device *drm_dev = &i915->drm;
+	struct fwnode_handle *fwnode = NULL;
+	struct drm_connector *connector;
+	struct acpi_device *adev;
+
+	drm_connector_list_iter_begin(drm_dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		/* Always getting the next, even when the last was not used. */
+		fwnode = device_get_next_child_node(drm_dev->dev, fwnode);
+		if (!fwnode)
+			break;
+
+		switch (connector->connector_type) {
+		case DRM_MODE_CONNECTOR_LVDS:
+		case DRM_MODE_CONNECTOR_eDP:
+		case DRM_MODE_CONNECTOR_DSI:
+			/*
+			 * Integrated displays have a specific address 0x1f on
+			 * most Intel platforms, but not on all of them.
+			 */
+			adev = acpi_find_child_device(ACPI_COMPANION(drm_dev->dev),
+						      0x1f, 0);
+			if (adev) {
+				connector->fwnode =
+					fwnode_handle_get(acpi_fwnode_handle(adev));
+				break;
+			}
+			fallthrough;
+		default:
+			connector->fwnode = fwnode_handle_get(fwnode);
+			break;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+	/*
+	 * device_get_next_child_node() takes a reference on the fwnode, if
+	 * we stopped iterating because we are out of connectors we need to
+	 * put this, otherwise fwnode is NULL and the put is a no-op.
+	 */
+	fwnode_handle_put(fwnode);
 }

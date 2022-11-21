@@ -279,6 +279,15 @@ static int cros_ec_host_command_proto_query(struct cros_ec_device *ec_dev,
 	msg->insize = sizeof(struct ec_response_get_protocol_info);
 
 	ret = send_command(ec_dev, msg);
+	/*
+	 * Send command once again when timeout occurred.
+	 * Fingerprint MCU (FPMCU) is restarted during system boot which
+	 * introduces small window in which FPMCU won't respond for any
+	 * messages sent by kernel. There is no need to wait before next
+	 * attempt because we waited at least EC_MSG_DEADLINE_MS.
+	 */
+	if (ret == -ETIMEDOUT)
+		ret = send_command(ec_dev, msg);
 
 	if (ret < 0) {
 		dev_dbg(ec_dev->dev,
@@ -526,11 +535,13 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 		 * power), not wake up.
 		 */
 		ec_dev->host_event_wake_mask = U32_MAX &
-			~(BIT(EC_HOST_EVENT_AC_DISCONNECTED) |
-			  BIT(EC_HOST_EVENT_BATTERY_LOW) |
-			  BIT(EC_HOST_EVENT_BATTERY_CRITICAL) |
-			  BIT(EC_HOST_EVENT_PD_MCU) |
-			  BIT(EC_HOST_EVENT_BATTERY_STATUS));
+			~(EC_HOST_EVENT_MASK(EC_HOST_EVENT_LID_CLOSED) |
+			  EC_HOST_EVENT_MASK(EC_HOST_EVENT_AC_DISCONNECTED) |
+			  EC_HOST_EVENT_MASK(EC_HOST_EVENT_BATTERY_LOW) |
+			  EC_HOST_EVENT_MASK(EC_HOST_EVENT_BATTERY_CRITICAL) |
+			  EC_HOST_EVENT_MASK(EC_HOST_EVENT_BATTERY) |
+			  EC_HOST_EVENT_MASK(EC_HOST_EVENT_PD_MCU) |
+			  EC_HOST_EVENT_MASK(EC_HOST_EVENT_BATTERY_STATUS));
 		/*
 		 * Old ECs may not support this command. Complain about all
 		 * other errors.
@@ -742,12 +753,16 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev,
 		 * Sensor events need to be parsed by the sensor sub-device.
 		 * Defer them, and don't report the wakeup here.
 		 */
-		if (event_type == EC_MKBP_EVENT_SENSOR_FIFO)
+		if (event_type == EC_MKBP_EVENT_SENSOR_FIFO) {
 			*wake_event = false;
-		/* Masked host-events should not count as wake events. */
-		else if (host_event &&
-			 !(host_event & ec_dev->host_event_wake_mask))
-			*wake_event = false;
+		} else if (host_event) {
+			/* rtc_update_irq() already handles wakeup events. */
+			if (host_event & EC_HOST_EVENT_MASK(EC_HOST_EVENT_RTC))
+				*wake_event = false;
+			/* Masked host-events should not count as wake events. */
+			if (!(host_event & ec_dev->host_event_wake_mask))
+				*wake_event = false;
+		}
 	}
 
 	return ret;
@@ -793,38 +808,27 @@ EXPORT_SYMBOL(cros_ec_get_host_event);
  *
  * Call this function to test whether the ChromeOS EC supports a feature.
  *
- * Return: 1 if supported, 0 if not
+ * Return: true if supported, false if not (or if an error was encountered).
  */
-int cros_ec_check_features(struct cros_ec_dev *ec, int feature)
+bool cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 {
-	struct cros_ec_command *msg;
+	struct ec_response_get_features *features = &ec->features;
 	int ret;
 
-	if (ec->features[0] == -1U && ec->features[1] == -1U) {
+	if (features->flags[0] == -1U && features->flags[1] == -1U) {
 		/* features bitmap not read yet */
-		msg = kzalloc(sizeof(*msg) + sizeof(ec->features), GFP_KERNEL);
-		if (!msg)
-			return -ENOMEM;
-
-		msg->command = EC_CMD_GET_FEATURES + ec->cmd_offset;
-		msg->insize = sizeof(ec->features);
-
-		ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
+		ret = cros_ec_command(ec->ec_dev, 0, EC_CMD_GET_FEATURES + ec->cmd_offset,
+				      NULL, 0, features, sizeof(*features));
 		if (ret < 0) {
-			dev_warn(ec->dev, "cannot get EC features: %d/%d\n",
-				 ret, msg->result);
-			memset(ec->features, 0, sizeof(ec->features));
-		} else {
-			memcpy(ec->features, msg->data, sizeof(ec->features));
+			dev_warn(ec->dev, "cannot get EC features: %d\n", ret);
+			memset(features, 0, sizeof(*features));
 		}
 
 		dev_dbg(ec->dev, "EC features %08x %08x\n",
-			ec->features[0], ec->features[1]);
-
-		kfree(msg);
+			features->flags[0], features->flags[1]);
 	}
 
-	return ec->features[feature / 32] & EC_FEATURE_MASK_0(feature);
+	return !!(features->flags[feature / 32] & EC_FEATURE_MASK_0(feature));
 }
 EXPORT_SYMBOL_GPL(cros_ec_check_features);
 
@@ -893,3 +897,51 @@ int cros_ec_get_sensor_count(struct cros_ec_dev *ec)
 	return sensor_count;
 }
 EXPORT_SYMBOL_GPL(cros_ec_get_sensor_count);
+
+/**
+ * cros_ec_command - Send a command to the EC.
+ *
+ * @ec_dev: EC device
+ * @version: EC command version
+ * @command: EC command
+ * @outdata: EC command output data
+ * @outsize: Size of outdata
+ * @indata: EC command input data
+ * @insize: Size of indata
+ *
+ * Return: >= 0 on success, negative error number on failure.
+ */
+int cros_ec_command(struct cros_ec_device *ec_dev,
+		    unsigned int version,
+		    int command,
+		    void *outdata,
+		    int outsize,
+		    void *indata,
+		    int insize)
+{
+	struct cros_ec_command *msg;
+	int ret;
+
+	msg = kzalloc(sizeof(*msg) + max(insize, outsize), GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	msg->version = version;
+	msg->command = command;
+	msg->outsize = outsize;
+	msg->insize = insize;
+
+	if (outsize)
+		memcpy(msg->data, outdata, outsize);
+
+	ret = cros_ec_cmd_xfer_status(ec_dev, msg);
+	if (ret < 0)
+		goto error;
+
+	if (insize)
+		memcpy(indata, msg->data, insize);
+error:
+	kfree(msg);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cros_ec_command);

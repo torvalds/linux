@@ -181,7 +181,7 @@ static void rda_gpio_irq_handler(struct irq_desc *desc)
 	struct irq_chip *ic = irq_desc_get_chip(desc);
 	struct rda_gpio *rda_gpio = gpiochip_get_data(chip);
 	unsigned long status;
-	u32 n, girq;
+	u32 n;
 
 	chained_irq_enter(ic, desc);
 
@@ -189,17 +189,14 @@ static void rda_gpio_irq_handler(struct irq_desc *desc)
 	/* Only lower 8 bits are capable of generating interrupts */
 	status &= RDA_GPIO_IRQ_MASK;
 
-	for_each_set_bit(n, &status, RDA_GPIO_BANK_NR) {
-		girq = irq_find_mapping(chip->irq.domain, n);
-		generic_handle_irq(girq);
-	}
+	for_each_set_bit(n, &status, RDA_GPIO_BANK_NR)
+		generic_handle_domain_irq(chip->irq.domain, n);
 
 	chained_irq_exit(ic, desc);
 }
 
 static int rda_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct gpio_irq_chip *girq;
 	struct rda_gpio *rda_gpio;
@@ -242,8 +239,6 @@ static int rda_gpio_probe(struct platform_device *pdev)
 	rda_gpio->chip.label = dev_name(dev);
 	rda_gpio->chip.ngpio = ngpios;
 	rda_gpio->chip.base = -1;
-	rda_gpio->chip.parent = dev;
-	rda_gpio->chip.of_node = np;
 
 	if (rda_gpio->irq >= 0) {
 		rda_gpio->irq_chip.name = "rda-gpio",

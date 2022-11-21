@@ -58,6 +58,13 @@ OPTIONS
 --ignore-vmlinux::
 	Ignore vmlinux files.
 
+--itrace::
+	Options for decoding instruction tracing data. The options are:
+
+include::itrace.txt[]
+
+	To disable decoding entirely, use --no-itrace.
+
 -m::
 --modules::
         Load module symbols. WARNING: use only with -k and LIVE kernel.
@@ -123,6 +130,13 @@ OPTIONS
 
 --group::
 	Show event group information together
+
+--demangle::
+	Demangle symbol names to human readable form. It's enabled by default,
+	disable with --no-demangle.
+
+--demangle-kernel::
+	Demangle kernel symbol names to human readable form (for C++ kernels).
 
 --percent-type::
 	Set annotation percent type from following choices:

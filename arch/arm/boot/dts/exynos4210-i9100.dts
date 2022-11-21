@@ -18,6 +18,7 @@
 / {
 	model = "Samsung Galaxy S2 (GT-I9100)";
 	compatible = "samsung,i9100", "samsung,exynos4210", "samsung,exynos4";
+	chassis-type = "handset";
 
 	memory@40000000 {
 		device_type = "memory";
@@ -136,7 +137,7 @@
 			compatible = "maxim,max17042";
 
 			interrupt-parent = <&gpx2>;
-			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+			interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 
 			pinctrl-0 = <&max17042_fuel_irq>;
 			pinctrl-names = "default";
@@ -144,6 +145,36 @@
 			reg = <0x36>;
 			maxim,over-heat-temp = <700>;
 			maxim,over-volt = <4500>;
+		};
+	};
+
+	i2c_s5k5baf: i2c-gpio-1 {
+		compatible = "i2c-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sda-gpios = <&gpc1 0 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpc1 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>;
+
+		image-sensor@2d {
+			compatible = "samsung,s5k5baf";
+			reg = <0x2d>;
+			vdda-supply = <&cam_io_en_reg>;
+			vddreg-supply = <&vt_core_15v_reg>;
+			vddio-supply = <&vtcam_reg>;
+			clocks = <&camera 0>;
+			clock-names = "mclk";
+			stbyn-gpios = <&gpl2 0 GPIO_ACTIVE_LOW>;
+			rstn-gpios = <&gpl2 1 GPIO_ACTIVE_LOW>;
+			clock-frequency = <24000000>;
+
+			port {
+				s5k5bafx_ep: endpoint {
+					remote-endpoint = <&csis1_ep>;
+					data-lanes = <1>;
+				};
+			};
 		};
 	};
 
@@ -220,7 +251,29 @@
 };
 
 &camera {
+	pinctrl-0 = <&cam_port_a_clk_active>;
+	pinctrl-names = "default";
 	status = "okay";
+	assigned-clocks = <&clock CLK_MOUT_CAM0>, <&clock CLK_MOUT_CAM1>;
+	assigned-clock-parents = <&clock CLK_XUSBXTI>, <&clock CLK_XUSBXTI>;
+};
+
+&csis_1 {
+	status = "okay";
+	vddcore-supply = <&vusb_reg>;
+	vddio-supply = <&vmipi_reg>;
+	clock-frequency = <160000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	port@4 {
+		reg = <4>;
+		csis1_ep: endpoint {
+			remote-endpoint = <&s5k5bafx_ep>;
+			data-lanes = <1>;
+			samsung,csis-hs-settle = <6>;
+		};
+	};
 };
 
 &cpu0 {
@@ -262,7 +315,8 @@
 };
 
 &fimc_1 {
-	status = "okay";
+	/* Back camera not implemented */
+	status = "disabled";
 
 	assigned-clocks = <&clock CLK_MOUT_FIMC1>, <&clock CLK_SCLK_FIMC1>;
 	assigned-clock-parents = <&clock CLK_SCLK_MPLL>;
@@ -278,7 +332,8 @@
 };
 
 &fimc_3 {
-	status = "okay";
+	/* Back camera not implemented */
+	status = "disabled";
 
 	assigned-clocks = <&clock CLK_MOUT_FIMC3>, <&clock CLK_SCLK_FIMC3>;
 	assigned-clock-parents = <&clock CLK_SCLK_MPLL>;
@@ -329,7 +384,7 @@
 	pinctrl-0 = <&i2c3_bus>;
 	pinctrl-names = "default";
 
-	mxt224-touchscreen@4a {
+	touchscreen@4a {
 		compatible = "atmel,maxtouch";
 		reg = <0x4a>;
 
@@ -348,7 +403,7 @@
 	pinctrl-0 = <&i2c5_bus>;
 	pinctrl-names = "default";
 
-	max8997_pmic@66 {
+	pmic@66 {
 		compatible = "maxim,max8997-pmic";
 		reg = <0x66>;
 
@@ -383,6 +438,8 @@
 
 		pinctrl-0 = <&max8997_irq>, <&otg_gp>, <&usb_sel>;
 		pinctrl-names = "default";
+
+		charger-supply = <&charger_reg>;
 
 		regulators {
 			vadc_reg: LDO1 {
@@ -560,20 +617,6 @@
 				regulator-boot-on;
 			};
 
-			charger_reg: CHARGER {
-				regulator-name = "CHARGER";
-				regulator-min-microamp = <60000>;
-				regulator-max-microamp = <2580000>;
-				regulator-always-on;
-			};
-
-			chargercv_reg: CHARGER_CV {
-				regulator-name = "CHARGER_CV";
-				regulator-min-microvolt = <3800000>;
-				regulator-max-microvolt = <4100000>;
-				regulator-always-on;
-			};
-
 			EN32KHZ_AP {
 				regulator-name = "EN32KHZ_AP";
 				regulator-always-on;
@@ -581,6 +624,26 @@
 
 			EN32KHZ_CP {
 				regulator-name = "EN32KHZ_CP";
+				regulator-always-on;
+			};
+
+			charger_reg: CHARGER {
+				regulator-name = "CHARGER";
+				regulator-min-microamp = <200000>;
+				regulator-max-microamp = <950000>;
+			};
+
+			chargercv_reg: CHARGER_CV {
+				regulator-name = "CHARGER_CV";
+				regulator-min-microvolt = <4200000>;
+				regulator-max-microvolt = <4200000>;
+				regulator-always-on;
+			};
+
+			CHARGER_TOPOFF {
+				regulator-name = "CHARGER_TOPOFF";
+				regulator-min-microamp = <200000>;
+				regulator-max-microamp = <200000>;
 				regulator-always-on;
 			};
 		};
@@ -597,7 +660,7 @@
 	pinctrl-0 = <&i2c7_bus>;
 	pinctrl-names = "default";
 
-	ak8975@c {
+	magnetometer@c {
 		compatible = "asahi-kasei,ak8975";
 		reg = <0x0c>;
 
@@ -609,26 +672,26 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep0>;
 
-	sleep0: sleep-states {
-		gpa0-0 {
+	sleep0: sleep-state {
+		gpa0-0-pin {
 			samsung,pins = "gpa0-0";
 			samsung,pin-con-pdn = <EXYNOS_PIN_PDN_INPUT>;
 			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 		};
 
-		gpa0-1 {
+		gpa0-1-pin {
 			samsung,pins = "gpa0-1";
 			samsung,pin-con-pdn = <EXYNOS_PIN_PDN_OUT0>;
 			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 		};
 
-		gpa0-2 {
+		gpa0-2-pin {
 			samsung,pins = "gpa0-2";
 			samsung,pin-con-pdn = <EXYNOS_PIN_PDN_INPUT>;
 			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 		};
 
-		gpa0-3 {
+		gpa0-3-pin {
 			samsung,pins = "gpa0-3";
 			samsung,pin-con-pdn = <EXYNOS_PIN_PDN_OUT1>;
 			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
@@ -637,19 +700,19 @@
 };
 
 &pinctrl_1 {
-	mhl_int: mhl-int {
+	mhl_int: mhl-int-pins {
 		samsung,pins = "gpf3-5";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	i2c_mhl_bus: i2c-mhl-bus {
+	i2c_mhl_bus: i2c-mhl-bus-pins {
 		samsung,pins = "gpf0-4", "gpf0-6";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	usb_sel: usb-sel {
+	usb_sel: usb-sel-pins {
 		samsung,pins = "gpl0-6";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -657,7 +720,7 @@
 		samsung,pin-val = <0>;
 	};
 
-	bt_en: bt-en {
+	bt_en: bt-en-pins {
 		samsung,pins = "gpl0-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -665,7 +728,7 @@
 		samsung,pin-val = <0>;
 	};
 
-	bt_res: bt-res {
+	bt_res: bt-res-pins {
 		samsung,pins = "gpl1-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -673,7 +736,7 @@
 		samsung,pin-val = <0>;
 	};
 
-	otg_gp: otg-gp {
+	otg_gp: otg-gp-pins {
 		samsung,pins = "gpx3-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -681,23 +744,23 @@
 		samsung,pin-val = <0>;
 	};
 
-	mag_mhl_gpio: mag-mhl {
+	mag_mhl_gpio: mag-mhl-pins {
 		samsung,pins = "gpd0-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	max8997_irq: max8997-irq {
+	max8997_irq: max8997-irq-pins {
 		samsung,pins = "gpx0-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	max17042_fuel_irq: max17042-fuel-irq {
+	max17042_fuel_irq: max17042-fuel-irq-pins {
 		samsung,pins = "gpx2-3";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	tsp224_irq: tsp224-irq {
+	tsp224_irq: tsp224-irq-pins {
 		samsung,pins = "gpx0-4";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 	};
@@ -746,7 +809,7 @@
 	pinctrl-0 = <&sd3_clk>, <&sd3_cmd>, <&sd3_bus4>;
 
 	brcmf: wifi@1 {
-		compatible = "brcm,bcm4330-fmac";
+		compatible = "brcm,bcm4330-fmac", "brcm,bcm4329-fmac";
 		reg = <1>;
 
 		interrupt-parent = <&gpx2>;
@@ -765,9 +828,12 @@
 		compatible = "brcm,bcm4330-bt";
 
 		shutdown-gpios = <&gpl0 4 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpl1 0 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpl1 0 GPIO_ACTIVE_LOW>;
 		device-wakeup-gpios = <&gpx3 1 GPIO_ACTIVE_HIGH>;
-		host-wakeup-gpios = <&gpx2 6 GPIO_ACTIVE_HIGH>;
+
+		interrupt-parent = <&gpx2>;
+		interrupts = <6 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-names = "host-wakeup";
 	};
 };
 

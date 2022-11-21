@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: TI Keystone Soc USB Controller
 
 maintainers:
-  - Roger Quadros <rogerq@ti.com>
+  - Roger Quadros <rogerq@kernel.org>
 
 properties:
   compatible:
@@ -43,12 +43,14 @@ properties:
     maxItems: 2
 
   power-domains:
+    maxItems: 1
     description: Should contain a phandle to a PM domain provider node
       and an args specifier containing the USB device id
       value. This property is as per the binding,
-      Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+      Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
 
   phys:
+    maxItems: 1
     description:
       PHY specifier for the USB3.0 PHY. Some SoCs need the USB3.0 PHY
       to be turned on before the controller.
@@ -64,9 +66,7 @@ properties:
 
 patternProperties:
   "usb@[a-f0-9]+$":
-    type: object
-    description: This is the node representing the DWC3 controller instance
-      Documentation/devicetree/bindings/usb/dwc3.txt
+    $ref: snps,dwc3.yaml#
 
 required:
   - compatible
@@ -92,7 +92,7 @@ examples:
       ranges;
 
       usb@2690000 {
-        compatible = "synopsys,dwc3";
+        compatible = "snps,dwc3";
         reg = <0x2690000 0x70000>;
         interrupts = <GIC_SPI 393 IRQ_TYPE_EDGE_RISING>;
         usb-phy = <&usb_phy>, <&usb_phy>;

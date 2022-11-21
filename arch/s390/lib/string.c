@@ -8,6 +8,9 @@
  */
 
 #define IN_ARCH_STRING_C 1
+#ifndef __NO_FORTIFY
+# define __NO_FORTIFY
+#endif
 
 #include <linux/types.h>
 #include <linux/string.h>
@@ -18,23 +21,30 @@
  */
 static inline char *__strend(const char *s)
 {
-	register unsigned long r0 asm("0") = 0;
+	unsigned long e = 0;
 
-	asm volatile ("0: srst  %0,%1\n"
-		      "   jo    0b"
-		      : "+d" (r0), "+a" (s) :  : "cc", "memory");
-	return (char *) r0;
+	asm volatile(
+		"	lghi	0,0\n"
+		"0:	srst	%[e],%[s]\n"
+		"	jo	0b\n"
+		: [e] "+&a" (e), [s] "+&a" (s)
+		:
+		: "cc", "memory", "0");
+	return (char *)e;
 }
 
 static inline char *__strnend(const char *s, size_t n)
 {
-	register unsigned long r0 asm("0") = 0;
 	const char *p = s + n;
 
-	asm volatile ("0: srst  %0,%1\n"
-		      "   jo    0b"
-		      : "+d" (p), "+a" (s) : "d" (r0) : "cc", "memory");
-	return (char *) p;
+	asm volatile(
+		"	lghi	0,0\n"
+		"0:	srst	%[p],%[s]\n"
+		"	jo	0b\n"
+		: [p] "+&d" (p), [s] "+&a" (s)
+		:
+		: "cc", "memory", "0");
+	return (char *)p;
 }
 
 /**
@@ -76,42 +86,18 @@ EXPORT_SYMBOL(strnlen);
 #ifdef __HAVE_ARCH_STRCPY
 char *strcpy(char *dest, const char *src)
 {
-	register int r0 asm("0") = 0;
 	char *ret = dest;
 
-	asm volatile ("0: mvst  %0,%1\n"
-		      "   jo    0b"
-		      : "+&a" (dest), "+&a" (src) : "d" (r0)
-		      : "cc", "memory" );
+	asm volatile(
+		"	lghi	0,0\n"
+		"0:	mvst	%[dest],%[src]\n"
+		"	jo	0b\n"
+		: [dest] "+&a" (dest), [src] "+&a" (src)
+		:
+		: "cc", "memory", "0");
 	return ret;
 }
 EXPORT_SYMBOL(strcpy);
-#endif
-
-/**
- * strlcpy - Copy a %NUL terminated string into a sized buffer
- * @dest: Where to copy the string to
- * @src: Where to copy the string from
- * @size: size of destination buffer
- *
- * Compatible with *BSD: the result is always a valid
- * NUL-terminated string that fits in the buffer (unless,
- * of course, the buffer size is zero). It does not pad
- * out the result like strncpy() does.
- */
-#ifdef __HAVE_ARCH_STRLCPY
-size_t strlcpy(char *dest, const char *src, size_t size)
-{
-	size_t ret = __strend(src) - src;
-
-	if (size) {
-		size_t len = (ret >= size) ? size-1 : ret;
-		dest[len] = '\0';
-		memcpy(dest, src, len);
-	}
-	return ret;
-}
-EXPORT_SYMBOL(strlcpy);
 #endif
 
 /**
@@ -144,16 +130,18 @@ EXPORT_SYMBOL(strncpy);
 #ifdef __HAVE_ARCH_STRCAT
 char *strcat(char *dest, const char *src)
 {
-	register int r0 asm("0") = 0;
-	unsigned long dummy;
+	unsigned long dummy = 0;
 	char *ret = dest;
 
-	asm volatile ("0: srst  %0,%1\n"
-		      "   jo    0b\n"
-		      "1: mvst  %0,%2\n"
-		      "   jo    1b"
-		      : "=&a" (dummy), "+a" (dest), "+a" (src)
-		      : "d" (r0), "0" (0UL) : "cc", "memory" );
+	asm volatile(
+		"	lghi	0,0\n"
+		"0:	srst	%[dummy],%[dest]\n"
+		"	jo	0b\n"
+		"1:	mvst	%[dummy],%[src]\n"
+		"	jo	1b\n"
+		: [dummy] "+&a" (dummy), [dest] "+&a" (dest), [src] "+&a" (src)
+		:
+		: "cc", "memory", "0");
 	return ret;
 }
 EXPORT_SYMBOL(strcat);
@@ -221,58 +209,40 @@ EXPORT_SYMBOL(strncat);
 #ifdef __HAVE_ARCH_STRCMP
 int strcmp(const char *s1, const char *s2)
 {
-	register int r0 asm("0") = 0;
 	int ret = 0;
 
-	asm volatile ("0: clst %2,%3\n"
-		      "   jo   0b\n"
-		      "   je   1f\n"
-		      "   ic   %0,0(%2)\n"
-		      "   ic   %1,0(%3)\n"
-		      "   sr   %0,%1\n"
-		      "1:"
-		      : "+d" (ret), "+d" (r0), "+a" (s1), "+a" (s2)
-		      : : "cc", "memory");
+	asm volatile(
+		"	lghi	0,0\n"
+		"0:	clst	%[s1],%[s2]\n"
+		"	jo	0b\n"
+		"	je	1f\n"
+		"	ic	%[ret],0(%[s1])\n"
+		"	ic	0,0(%[s2])\n"
+		"	sr	%[ret],0\n"
+		"1:"
+		: [ret] "+&d" (ret), [s1] "+&a" (s1), [s2] "+&a" (s2)
+		:
+		: "cc", "memory", "0");
 	return ret;
 }
 EXPORT_SYMBOL(strcmp);
 #endif
 
-/**
- * strrchr - Find the last occurrence of a character in a string
- * @s: The string to be searched
- * @c: The character to search for
- */
-#ifdef __HAVE_ARCH_STRRCHR
-char *strrchr(const char *s, int c)
-{
-       size_t len = __strend(s) - s;
-
-       if (len)
-	       do {
-		       if (s[len] == (char) c)
-			       return (char *) s + len;
-	       } while (--len > 0);
-       return NULL;
-}
-EXPORT_SYMBOL(strrchr);
-#endif
-
 static inline int clcle(const char *s1, unsigned long l1,
 			const char *s2, unsigned long l2)
 {
-	register unsigned long r2 asm("2") = (unsigned long) s1;
-	register unsigned long r3 asm("3") = (unsigned long) l1;
-	register unsigned long r4 asm("4") = (unsigned long) s2;
-	register unsigned long r5 asm("5") = (unsigned long) l2;
+	union register_pair r1 = { .even = (unsigned long)s1, .odd = l1, };
+	union register_pair r3 = { .even = (unsigned long)s2, .odd = l2, };
 	int cc;
 
-	asm volatile ("0: clcle %1,%3,0\n"
-		      "   jo    0b\n"
-		      "   ipm   %0\n"
-		      "   srl   %0,28"
-		      : "=&d" (cc), "+a" (r2), "+a" (r3),
-			"+a" (r4), "+a" (r5) : : "cc", "memory");
+	asm volatile(
+		"0:	clcle	%[r1],%[r3],0\n"
+		"	jo	0b\n"
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		: [cc] "=&d" (cc), [r1] "+&d" (r1.pair), [r3] "+&d" (r3.pair)
+		:
+		: "cc", "memory");
 	return cc;
 }
 
@@ -315,15 +285,18 @@ EXPORT_SYMBOL(strstr);
 #ifdef __HAVE_ARCH_MEMCHR
 void *memchr(const void *s, int c, size_t n)
 {
-	register int r0 asm("0") = (char) c;
 	const void *ret = s + n;
 
-	asm volatile ("0: srst  %0,%1\n"
-		      "   jo    0b\n"
-		      "   jl	1f\n"
-		      "   la    %0,0\n"
-		      "1:"
-		      : "+a" (ret), "+&a" (s) : "d" (r0) : "cc", "memory");
+	asm volatile(
+		"	lgr	0,%[c]\n"
+		"0:	srst	%[ret],%[s]\n"
+		"	jo	0b\n"
+		"	jl	1f\n"
+		"	la	%[ret],0\n"
+		"1:"
+		: [ret] "+&a" (ret), [s] "+&a" (s)
+		: [c] "d" (c)
+		: "cc", "memory", "0");
 	return (void *) ret;
 }
 EXPORT_SYMBOL(memchr);
@@ -360,13 +333,16 @@ EXPORT_SYMBOL(memcmp);
 #ifdef __HAVE_ARCH_MEMSCAN
 void *memscan(void *s, int c, size_t n)
 {
-	register int r0 asm("0") = (char) c;
 	const void *ret = s + n;
 
-	asm volatile ("0: srst  %0,%1\n"
-		      "   jo    0b\n"
-		      : "+a" (ret), "+&a" (s) : "d" (r0) : "cc", "memory");
-	return (void *) ret;
+	asm volatile(
+		"	lgr	0,%[c]\n"
+		"0:	srst	%[ret],%[s]\n"
+		"	jo	0b\n"
+		: [ret] "+&a" (ret), [s] "+&a" (s)
+		: [c] "d" (c)
+		: "cc", "memory", "0");
+	return (void *)ret;
 }
 EXPORT_SYMBOL(memscan);
 #endif

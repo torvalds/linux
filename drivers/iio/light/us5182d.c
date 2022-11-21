@@ -367,9 +367,7 @@ static int us5182d_set_power_state(struct us5182d_data *data, bool on)
 		return 0;
 
 	if (on) {
-		ret = pm_runtime_get_sync(&data->client->dev);
-		if (ret < 0)
-			pm_runtime_put_noidle(&data->client->dev);
+		ret = pm_runtime_resume_and_get(&data->client->dev);
 	} else {
 		pm_runtime_mark_last_busy(&data->client->dev);
 		ret = pm_runtime_put_autosuspend(&data->client->dev);
@@ -949,15 +947,15 @@ static const struct dev_pm_ops us5182d_pm_ops = {
 };
 
 static const struct acpi_device_id us5182d_acpi_match[] = {
-	{ "USD5182", 0},
+	{ "USD5182", 0 },
 	{}
 };
 
 MODULE_DEVICE_TABLE(acpi, us5182d_acpi_match);
 
 static const struct i2c_device_id us5182d_id[] = {
-		{"usd5182", 0},
-		{}
+	{ "usd5182", 0 },
+	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, us5182d_id);

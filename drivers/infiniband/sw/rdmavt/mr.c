@@ -1,48 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
 /*
  * Copyright(c) 2016 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 #include <linux/slab.h>
@@ -101,8 +59,8 @@ int rvt_driver_mr_init(struct rvt_dev_info *rdi)
 }
 
 /**
- *rvt_mr_exit: clean up MR
- *@rdi: rvt dev structure
+ * rvt_mr_exit - clean up MR
+ * @rdi: rvt dev structure
  *
  * called when drivers have unregistered or perhaps failed to register with us
  */
@@ -324,8 +282,6 @@ static void __rvt_free_mr(struct rvt_mr *mr)
  * @acc: access flags
  *
  * Return: the memory region on success, otherwise returns an errno.
- * Note that all DMA addresses should be created via the functions in
- * struct dma_virt_ops.
  */
 struct ib_mr *rvt_get_dma_mr(struct ib_pd *pd, int acc)
 {
@@ -371,6 +327,7 @@ bail:
  * @pd: protection domain for this memory region
  * @start: starting userspace address
  * @length: length of region to register
+ * @virt_addr: associated virtual address
  * @mr_access_flags: access flags for this memory region
  * @udata: unused by the driver
  *
@@ -411,7 +368,7 @@ struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->mr.page_shift = PAGE_SHIFT;
 	m = 0;
 	n = 0;
-	for_each_sg_page (umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+	for_each_sgtable_page (&umem->sgt_append.sgt, &sg_iter, 0) {
 		void *vaddr;
 
 		vaddr = page_address(sg_page_iter_page(&sg_iter));
@@ -440,8 +397,8 @@ bail_umem:
 
 /**
  * rvt_dereg_clean_qp_cb - callback from iterator
- * @qp - the qp
- * @v - the mregion (as u64)
+ * @qp: the qp
+ * @v: the mregion (as u64)
  *
  * This routine fields the callback for all QPs and
  * for QPs in the same PD as the MR will call the
@@ -459,7 +416,7 @@ static void rvt_dereg_clean_qp_cb(struct rvt_qp *qp, u64 v)
 
 /**
  * rvt_dereg_clean_qps - find QPs for reference cleanup
- * @mr - the MR that is being deregistered
+ * @mr: the MR that is being deregistered
  *
  * This routine iterates RC QPs looking for references
  * to the lkey noted in mr.
@@ -473,8 +430,8 @@ static void rvt_dereg_clean_qps(struct rvt_mregion *mr)
 
 /**
  * rvt_check_refs - check references
- * @mr - the megion
- * @t - the caller identification
+ * @mr: the megion
+ * @t: the caller identification
  *
  * This routine checks MRs holding a reference during
  * when being de-registered.
@@ -508,8 +465,8 @@ static int rvt_check_refs(struct rvt_mregion *mr, const char *t)
 
 /**
  * rvt_mr_has_lkey - is MR
- * @mr - the mregion
- * @lkey - the lkey
+ * @mr: the mregion
+ * @lkey: the lkey
  */
 bool rvt_mr_has_lkey(struct rvt_mregion *mr, u32 lkey)
 {
@@ -518,8 +475,8 @@ bool rvt_mr_has_lkey(struct rvt_mregion *mr, u32 lkey)
 
 /**
  * rvt_ss_has_lkey - is mr in sge tests
- * @ss - the sge state
- * @lkey
+ * @ss: the sge state
+ * @lkey: the lkey
  *
  * This code tests for an MR in the indicated
  * sge state.
@@ -542,7 +499,7 @@ bool rvt_ss_has_lkey(struct rvt_sge_state *ss, u32 lkey)
 /**
  * rvt_dereg_mr - unregister and free a memory region
  * @ibmr: the memory region to free
- *
+ * @udata: unused by the driver
  *
  * Note that this is called to free MRs created by rvt_get_dma_mr()
  * or rvt_reg_user_mr().
@@ -766,7 +723,7 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 
 	/*
 	 * We use LKEY == zero for kernel virtual addresses
-	 * (see rvt_get_dma_mr() and dma_virt_ops).
+	 * (see rvt_get_dma_mr()).
 	 */
 	if (sge->lkey == 0) {
 		struct rvt_dev_info *dev = ib_to_rvt(pd->ibpd.device);
@@ -877,7 +834,7 @@ int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 
 	/*
 	 * We use RKEY == zero for kernel virtual addresses
-	 * (see rvt_get_dma_mr() and dma_virt_ops).
+	 * (see rvt_get_dma_mr()).
 	 */
 	rcu_read_lock();
 	if (rkey == 0) {

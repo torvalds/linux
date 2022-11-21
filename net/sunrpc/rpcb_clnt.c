@@ -344,13 +344,15 @@ static struct rpc_clnt *rpcb_create(struct net *net, const char *nodename,
 				    const char *hostname,
 				    struct sockaddr *srvaddr, size_t salen,
 				    int proto, u32 version,
-				    const struct cred *cred)
+				    const struct cred *cred,
+				    const struct rpc_timeout *timeo)
 {
 	struct rpc_create_args args = {
 		.net		= net,
 		.protocol	= proto,
 		.address	= srvaddr,
 		.addrsize	= salen,
+		.timeout	= timeo,
 		.servername	= hostname,
 		.nodename	= nodename,
 		.program	= &rpcb_program,
@@ -705,13 +707,14 @@ void rpcb_getport_async(struct rpc_task *task)
 				clnt->cl_nodename,
 				xprt->servername, sap, salen,
 				xprt->prot, bind_version,
-				clnt->cl_cred);
+				clnt->cl_cred,
+				task->tk_client->cl_timeout);
 	if (IS_ERR(rpcb_clnt)) {
 		status = PTR_ERR(rpcb_clnt);
 		goto bailout_nofree;
 	}
 
-	map = kzalloc(sizeof(struct rpcbind_args), GFP_NOFS);
+	map = kzalloc(sizeof(struct rpcbind_args), rpc_task_gfp_mask());
 	if (!map) {
 		status = -ENOMEM;
 		goto bailout_release_client;
@@ -727,7 +730,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	case RPCBVERS_4:
 	case RPCBVERS_3:
 		map->r_netid = xprt->address_strings[RPC_DISPLAY_NETID];
-		map->r_addr = rpc_sockaddr2uaddr(sap, GFP_NOFS);
+		map->r_addr = rpc_sockaddr2uaddr(sap, rpc_task_gfp_mask());
 		if (!map->r_addr) {
 			status = -ENOMEM;
 			goto bailout_free_args;

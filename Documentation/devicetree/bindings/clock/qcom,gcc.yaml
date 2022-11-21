@@ -4,56 +4,17 @@
 $id: http://devicetree.org/schemas/clock/qcom,gcc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Global Clock & Reset Controller Binding
+title: Qualcomm Global Clock & Reset Controller Binding Common Bindings
 
 maintainers:
   - Stephen Boyd <sboyd@kernel.org>
   - Taniya Das <tdas@codeaurora.org>
 
 description: |
-  Qualcomm global clock control module which supports the clocks, resets and
-  power domains.
-
-  See also:
-  - dt-bindings/clock/qcom,gcc-apq8084.h
-  - dt-bindings/reset/qcom,gcc-apq8084.h
-  - dt-bindings/clock/qcom,gcc-ipq4019.h
-  - dt-bindings/clock/qcom,gcc-ipq6018.h
-  - dt-bindings/reset/qcom,gcc-ipq6018.h
-  - dt-bindings/clock/qcom,gcc-ipq806x.h (qcom,gcc-ipq8064)
-  - dt-bindings/reset/qcom,gcc-ipq806x.h (qcom,gcc-ipq8064)
-  - dt-bindings/clock/qcom,gcc-msm8939.h
-  - dt-bindings/reset/qcom,gcc-msm8939.h
-  - dt-bindings/clock/qcom,gcc-msm8660.h
-  - dt-bindings/reset/qcom,gcc-msm8660.h
-  - dt-bindings/clock/qcom,gcc-msm8974.h
-  - dt-bindings/reset/qcom,gcc-msm8974.h
-  - dt-bindings/clock/qcom,gcc-msm8994.h
-  - dt-bindings/clock/qcom,gcc-mdm9615.h
-  - dt-bindings/reset/qcom,gcc-mdm9615.h
-  - dt-bindings/clock/qcom,gcc-sdm660.h  (qcom,gcc-sdm630 and qcom,gcc-sdm660)
-  - dt-bindings/clock/qcom,gcc-sdm845.h
+  Common bindings for Qualcomm global clock control module which supports
+  the clocks, resets and power domains.
 
 properties:
-  compatible:
-    enum:
-      - qcom,gcc-apq8084
-      - qcom,gcc-ipq4019
-      - qcom,gcc-ipq6018
-      - qcom,gcc-ipq8064
-      - qcom,gcc-msm8660
-      - qcom,gcc-msm8916
-      - qcom,gcc-msm8939
-      - qcom,gcc-msm8960
-      - qcom,gcc-msm8974
-      - qcom,gcc-msm8974pro
-      - qcom,gcc-msm8974pro-ac
-      - qcom,gcc-msm8994
-      - qcom,gcc-mdm9615
-      - qcom,gcc-sdm630
-      - qcom,gcc-sdm660
-      - qcom,gcc-sdm845
-
   '#clock-cells':
     const: 1
 
@@ -71,22 +32,11 @@ properties:
       Protected clock specifier list as per common clock binding.
 
 required:
-  - compatible
   - reg
   - '#clock-cells'
   - '#reset-cells'
   - '#power-domain-cells'
 
-additionalProperties: false
+additionalProperties: true
 
-examples:
-  # Example for GCC for MSM8960:
-  - |
-    clock-controller@900000 {
-      compatible = "qcom,gcc-msm8960";
-      reg = <0x900000 0x4000>;
-      #clock-cells = <1>;
-      #reset-cells = <1>;
-      #power-domain-cells = <1>;
-    };
 ...

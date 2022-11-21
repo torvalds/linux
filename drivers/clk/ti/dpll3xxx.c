@@ -125,7 +125,7 @@ static u16 _omap3_dpll_compute_freqsel(struct clk_hw_omap *clk, u8 n)
 	return f;
 }
 
-/*
+/**
  * _omap3_noncore_dpll_lock - instruct a DPLL to lock and wait for readiness
  * @clk: pointer to a DPLL struct clk
  *
@@ -168,7 +168,7 @@ done:
 	return r;
 }
 
-/*
+/**
  * _omap3_noncore_dpll_bypass - instruct a DPLL to bypass and wait for readiness
  * @clk: pointer to a DPLL struct clk
  *
@@ -204,7 +204,7 @@ static int _omap3_noncore_dpll_bypass(struct clk_hw_omap *clk)
 	return r;
 }
 
-/*
+/**
  * _omap3_noncore_dpll_stop - instruct a DPLL to stop
  * @clk: pointer to a DPLL struct clk
  *
@@ -291,8 +291,90 @@ static void _lookup_sddiv(struct clk_hw_omap *clk, u8 *sd_div, u16 m, u8 n)
 	*sd_div = sd;
 }
 
-/*
- * _omap3_noncore_dpll_program - set non-core DPLL M,N values directly
+/**
+ * omap3_noncore_dpll_ssc_program - set spread-spectrum clocking registers
+ * @clk:	struct clk * of DPLL to set
+ *
+ * Enable the DPLL spread spectrum clocking if frequency modulation and
+ * frequency spreading have been set, otherwise disable it.
+ */
+static void omap3_noncore_dpll_ssc_program(struct clk_hw_omap *clk)
+{
+	struct dpll_data *dd = clk->dpll_data;
+	unsigned long ref_rate;
+	u32 v, ctrl, mod_freq_divider, exponent, mantissa;
+	u32 deltam_step, deltam_ceil;
+
+	ctrl = ti_clk_ll_ops->clk_readl(&dd->control_reg);
+
+	if (dd->ssc_modfreq && dd->ssc_deltam) {
+		ctrl |= dd->ssc_enable_mask;
+
+		if (dd->ssc_downspread)
+			ctrl |= dd->ssc_downspread_mask;
+		else
+			ctrl &= ~dd->ssc_downspread_mask;
+
+		ref_rate = clk_hw_get_rate(dd->clk_ref);
+		mod_freq_divider =
+		    (ref_rate / dd->last_rounded_n) / (4 * dd->ssc_modfreq);
+		if (dd->ssc_modfreq > (ref_rate / 70))
+			pr_warn("clock: SSC modulation frequency of DPLL %s greater than %ld\n",
+				__clk_get_name(clk->hw.clk), ref_rate / 70);
+
+		exponent = 0;
+		mantissa = mod_freq_divider;
+		while ((mantissa > 127) && (exponent < 7)) {
+			exponent++;
+			mantissa /= 2;
+		}
+		if (mantissa > 127)
+			mantissa = 127;
+
+		v = ti_clk_ll_ops->clk_readl(&dd->ssc_modfreq_reg);
+		v &= ~(dd->ssc_modfreq_mant_mask | dd->ssc_modfreq_exp_mask);
+		v |= mantissa << __ffs(dd->ssc_modfreq_mant_mask);
+		v |= exponent << __ffs(dd->ssc_modfreq_exp_mask);
+		ti_clk_ll_ops->clk_writel(v, &dd->ssc_modfreq_reg);
+
+		deltam_step = dd->last_rounded_m * dd->ssc_deltam;
+		deltam_step /= 10;
+		if (dd->ssc_downspread)
+			deltam_step /= 2;
+
+		deltam_step <<= __ffs(dd->ssc_deltam_int_mask);
+		deltam_step /= 100;
+		deltam_step /= mod_freq_divider;
+		if (deltam_step > 0xFFFFF)
+			deltam_step = 0xFFFFF;
+
+		deltam_ceil = (deltam_step & dd->ssc_deltam_int_mask) >>
+		    __ffs(dd->ssc_deltam_int_mask);
+		if (deltam_step & dd->ssc_deltam_frac_mask)
+			deltam_ceil++;
+
+		if ((dd->ssc_downspread &&
+		     ((dd->last_rounded_m - (2 * deltam_ceil)) < 20 ||
+		      dd->last_rounded_m > 2045)) ||
+		    ((dd->last_rounded_m - deltam_ceil) < 20 ||
+		     (dd->last_rounded_m + deltam_ceil) > 2045))
+			pr_warn("clock: SSC multiplier of DPLL %s is out of range\n",
+				__clk_get_name(clk->hw.clk));
+
+		v = ti_clk_ll_ops->clk_readl(&dd->ssc_deltam_reg);
+		v &= ~(dd->ssc_deltam_int_mask | dd->ssc_deltam_frac_mask);
+		v |= deltam_step << __ffs(dd->ssc_deltam_int_mask |
+					  dd->ssc_deltam_frac_mask);
+		ti_clk_ll_ops->clk_writel(v, &dd->ssc_deltam_reg);
+	} else {
+		ctrl &= ~dd->ssc_enable_mask;
+	}
+
+	ti_clk_ll_ops->clk_writel(ctrl, &dd->control_reg);
+}
+
+/**
+ * omap3_noncore_dpll_program - set non-core DPLL M,N values directly
  * @clk:	struct clk * of DPLL to set
  * @freqsel:	FREQSEL value to set
  *
@@ -390,6 +472,9 @@ static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 		ti_clk_ll_ops->clk_writel(v, &dd->control_reg);
 	}
 
+	if (dd->ssc_enable_mask)
+		omap3_noncore_dpll_ssc_program(clk);
+
 	/* We let the clock framework set the other output dividers later */
 
 	/* REVISIT: Set ramp-up delay? */
@@ -406,7 +491,8 @@ static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 
 /**
  * omap3_dpll_recalc - recalculate DPLL rate
- * @clk: DPLL struct clk
+ * @hw: struct clk_hw containing the DPLL struct clk
+ * @parent_rate: clock rate of the DPLL parent
  *
  * Recalculate and propagate the DPLL rate.
  */
@@ -421,7 +507,7 @@ unsigned long omap3_dpll_recalc(struct clk_hw *hw, unsigned long parent_rate)
 
 /**
  * omap3_noncore_dpll_enable - instruct a DPLL to enter bypass or lock mode
- * @clk: pointer to a DPLL struct clk
+ * @hw: struct clk_hw containing then pointer to a DPLL struct clk
  *
  * Instructs a non-CORE DPLL to enable, e.g., to enter bypass or lock.
  * The choice of modes depends on the DPLL's programmed rate: if it is
@@ -470,7 +556,7 @@ int omap3_noncore_dpll_enable(struct clk_hw *hw)
 
 /**
  * omap3_noncore_dpll_disable - instruct a DPLL to enter low-power stop
- * @clk: pointer to a DPLL struct clk
+ * @hw: struct clk_hw containing then pointer to a DPLL struct clk
  *
  * Instructs a non-CORE DPLL to enter low-power stop.  This function is
  * intended for use in struct clkops.  No return value.
@@ -745,7 +831,8 @@ static struct clk_hw_omap *omap3_find_clkoutx2_dpll(struct clk_hw *hw)
 
 /**
  * omap3_clkoutx2_recalc - recalculate DPLL X2 output virtual clock rate
- * @clk: DPLL output struct clk
+ * @hw: pointer  struct clk_hw
+ * @parent_rate: clock rate of the DPLL parent
  *
  * Using parent clock DPLL data, look up DPLL state.  If locked, set our
  * rate to the dpll_clk * 2; otherwise, just use dpll_clk.
@@ -913,7 +1000,7 @@ const struct clk_hw_omap_ops clkhwops_omap3_dpll = {
  * omap3_dpll4_set_rate - set rate for omap3 per-dpll
  * @hw: clock to change
  * @rate: target rate for clock
- * @parent_rate: rate of the parent clock
+ * @parent_rate: clock rate of the DPLL parent
  *
  * Check if the current SoC supports the per-dpll reprogram operation
  * or not, and then do the rate change if supported. Returns -EINVAL

@@ -34,7 +34,7 @@ static struct trace_array *blk_tr;
 static bool blk_tracer_enabled __read_mostly;
 
 static LIST_HEAD(running_trace_list);
-static __cacheline_aligned_in_smp DEFINE_SPINLOCK(running_trace_lock);
+static __cacheline_aligned_in_smp DEFINE_RAW_SPINLOCK(running_trace_lock);
 
 /* Select an alternative, minimalistic output than the original one */
 #define TRACE_BLK_OPT_CLASSIC	0x1
@@ -72,17 +72,17 @@ static void trace_note(struct blk_trace *bt, pid_t pid, int action,
 	struct blk_io_trace *t;
 	struct ring_buffer_event *event = NULL;
 	struct trace_buffer *buffer = NULL;
-	int pc = 0;
+	unsigned int trace_ctx = 0;
 	int cpu = smp_processor_id();
 	bool blk_tracer = blk_tracer_enabled;
 	ssize_t cgid_len = cgid ? sizeof(cgid) : 0;
 
 	if (blk_tracer) {
 		buffer = blk_tr->array_buffer.buffer;
-		pc = preempt_count();
+		trace_ctx = tracing_gen_ctx_flags(0);
 		event = trace_buffer_lock_reserve(buffer, TRACE_BLK,
 						  sizeof(*t) + len + cgid_len,
-						  0, pc);
+						  trace_ctx);
 		if (!event)
 			return;
 		t = ring_buffer_event_data(event);
@@ -107,7 +107,7 @@ record_it:
 		memcpy((void *) t + sizeof(*t) + cgid_len, data, len);
 
 		if (blk_tracer)
-			trace_buffer_unlock_commit(blk_tr, buffer, event, 0, pc);
+			trace_buffer_unlock_commit(blk_tr, buffer, event, trace_ctx);
 	}
 }
 
@@ -121,12 +121,12 @@ static void trace_note_tsk(struct task_struct *tsk)
 	struct blk_trace *bt;
 
 	tsk->btrace_seq = blktrace_seq;
-	spin_lock_irqsave(&running_trace_lock, flags);
+	raw_spin_lock_irqsave(&running_trace_lock, flags);
 	list_for_each_entry(bt, &running_trace_list, running_list) {
 		trace_note(bt, tsk->pid, BLK_TN_PROCESS, tsk->comm,
 			   sizeof(tsk->comm), 0);
 	}
-	spin_unlock_irqrestore(&running_trace_lock, flags);
+	raw_spin_unlock_irqrestore(&running_trace_lock, flags);
 }
 
 static void trace_note_time(struct blk_trace *bt)
@@ -222,8 +222,9 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	struct blk_io_trace *t;
 	unsigned long flags = 0;
 	unsigned long *sequence;
+	unsigned int trace_ctx = 0;
 	pid_t pid;
-	int cpu, pc = 0;
+	int cpu;
 	bool blk_tracer = blk_tracer_enabled;
 	ssize_t cgid_len = cgid ? sizeof(cgid) : 0;
 
@@ -252,10 +253,10 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 		tracing_record_cmdline(current);
 
 		buffer = blk_tr->array_buffer.buffer;
-		pc = preempt_count();
+		trace_ctx = tracing_gen_ctx_flags(0);
 		event = trace_buffer_lock_reserve(buffer, TRACE_BLK,
 						  sizeof(*t) + pdu_len + cgid_len,
-						  0, pc);
+						  trace_ctx);
 		if (!event)
 			return;
 		t = ring_buffer_event_data(event);
@@ -301,7 +302,7 @@ record_it:
 			memcpy((void *)t + sizeof(*t) + cgid_len, pdu_data, pdu_len);
 
 		if (blk_tracer) {
-			trace_buffer_unlock_commit(blk_tr, buffer, event, 0, pc);
+			trace_buffer_unlock_commit(blk_tr, buffer, event, trace_ctx);
 			return;
 		}
 	}
@@ -309,12 +310,20 @@ record_it:
 	local_irq_restore(flags);
 }
 
-static void blk_trace_free(struct blk_trace *bt)
+static void blk_trace_free(struct request_queue *q, struct blk_trace *bt)
 {
-	debugfs_remove(bt->msg_file);
-	debugfs_remove(bt->dropped_file);
 	relay_close(bt->rchan);
-	debugfs_remove(bt->dir);
+
+	/*
+	 * If 'bt->dir' is not set, then both 'dropped' and 'msg' are created
+	 * under 'q->debugfs_dir', thus lookup and remove them.
+	 */
+	if (!bt->dir) {
+		debugfs_remove(debugfs_lookup("dropped", q->debugfs_dir));
+		debugfs_remove(debugfs_lookup("msg", q->debugfs_dir));
+	} else {
+		debugfs_remove(bt->dir);
+	}
 	free_percpu(bt->sequence);
 	free_percpu(bt->msg_data);
 	kfree(bt);
@@ -336,10 +345,10 @@ static void put_probe_ref(void)
 	mutex_unlock(&blk_probe_mutex);
 }
 
-static void blk_trace_cleanup(struct blk_trace *bt)
+static void blk_trace_cleanup(struct request_queue *q, struct blk_trace *bt)
 {
 	synchronize_rcu();
-	blk_trace_free(bt);
+	blk_trace_free(q, bt);
 	put_probe_ref();
 }
 
@@ -353,7 +362,7 @@ static int __blk_trace_remove(struct request_queue *q)
 		return -EINVAL;
 
 	if (bt->trace_state != Blktrace_running)
-		blk_trace_cleanup(bt);
+		blk_trace_cleanup(q, bt);
 
 	return 0;
 }
@@ -449,7 +458,7 @@ static struct dentry *blk_create_buf_file_callback(const char *filename,
 					&relay_file_operations);
 }
 
-static struct rchan_callbacks blk_relay_callbacks = {
+static const struct rchan_callbacks blk_relay_callbacks = {
 	.subbuf_start		= blk_subbuf_start_callback,
 	.create_buf_file	= blk_create_buf_file_callback,
 	.remove_buf_file	= blk_remove_buf_file_callback,
@@ -458,14 +467,9 @@ static struct rchan_callbacks blk_relay_callbacks = {
 static void blk_trace_setup_lba(struct blk_trace *bt,
 				struct block_device *bdev)
 {
-	struct hd_struct *part = NULL;
-
-	if (bdev)
-		part = bdev->bd_part;
-
-	if (part) {
-		bt->start_lba = part->start_sect;
-		bt->end_lba = part->start_sect + part->nr_sects;
+	if (bdev) {
+		bt->start_lba = bdev->bd_start_sect;
+		bt->end_lba = bdev->bd_start_sect + bdev_nr_sectors(bdev);
 	} else {
 		bt->start_lba = 0;
 		bt->end_lba = -1ULL;
@@ -549,10 +553,8 @@ static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	INIT_LIST_HEAD(&bt->running_list);
 
 	ret = -EIO;
-	bt->dropped_file = debugfs_create_file("dropped", 0444, dir, bt,
-					       &blk_dropped_fops);
-
-	bt->msg_file = debugfs_create_file("msg", 0222, dir, bt, &blk_msg_fops);
+	debugfs_create_file("dropped", 0444, dir, bt, &blk_dropped_fops);
+	debugfs_create_file("msg", 0222, dir, bt, &blk_msg_fops);
 
 	bt->rchan = relay_open("trace", dir, buts->buf_size,
 				buts->buf_nr, &blk_relay_callbacks, bt);
@@ -580,7 +582,7 @@ static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	ret = 0;
 err:
 	if (ret)
-		blk_trace_free(bt);
+		blk_trace_free(q, bt);
 	return ret;
 }
 
@@ -674,9 +676,9 @@ static int __blk_trace_startstop(struct request_queue *q, int start)
 			blktrace_seq++;
 			smp_mb();
 			bt->trace_state = Blktrace_running;
-			spin_lock_irq(&running_trace_lock);
+			raw_spin_lock_irq(&running_trace_lock);
 			list_add(&bt->running_list, &running_trace_list);
-			spin_unlock_irq(&running_trace_lock);
+			raw_spin_unlock_irq(&running_trace_lock);
 
 			trace_note_time(bt);
 			ret = 0;
@@ -684,9 +686,9 @@ static int __blk_trace_startstop(struct request_queue *q, int start)
 	} else {
 		if (bt->trace_state == Blktrace_running) {
 			bt->trace_state = Blktrace_stopped;
-			spin_lock_irq(&running_trace_lock);
+			raw_spin_lock_irq(&running_trace_lock);
 			list_del_init(&bt->running_list);
-			spin_unlock_irq(&running_trace_lock);
+			raw_spin_unlock_irq(&running_trace_lock);
 			relay_flush(bt->rchan);
 			ret = 0;
 		}
@@ -800,12 +802,12 @@ static u64 blk_trace_bio_get_cgid(struct request_queue *q, struct bio *bio)
 #endif
 
 static u64
-blk_trace_request_get_cgid(struct request_queue *q, struct request *rq)
+blk_trace_request_get_cgid(struct request *rq)
 {
 	if (!rq->bio)
 		return 0;
 	/* Use the first bio */
-	return blk_trace_bio_get_cgid(q, rq->bio);
+	return blk_trace_bio_get_cgid(rq->q, rq->bio);
 }
 
 /*
@@ -824,7 +826,7 @@ blk_trace_request_get_cgid(struct request_queue *q, struct request *rq)
  *     Records an action against a request. Will log the bio offset + size.
  *
  **/
-static void blk_add_trace_rq(struct request *rq, int error,
+static void blk_add_trace_rq(struct request *rq, blk_status_t error,
 			     unsigned int nr_bytes, u32 what, u64 cgid)
 {
 	struct blk_trace *bt;
@@ -842,44 +844,40 @@ static void blk_add_trace_rq(struct request *rq, int error,
 		what |= BLK_TC_ACT(BLK_TC_FS);
 
 	__blk_add_trace(bt, blk_rq_trace_sector(rq), nr_bytes, req_op(rq),
-			rq->cmd_flags, what, error, 0, NULL, cgid);
+			rq->cmd_flags, what, blk_status_to_errno(error), 0,
+			NULL, cgid);
 	rcu_read_unlock();
 }
 
-static void blk_add_trace_rq_insert(void *ignore,
-				    struct request_queue *q, struct request *rq)
+static void blk_add_trace_rq_insert(void *ignore, struct request *rq)
 {
 	blk_add_trace_rq(rq, 0, blk_rq_bytes(rq), BLK_TA_INSERT,
-			 blk_trace_request_get_cgid(q, rq));
+			 blk_trace_request_get_cgid(rq));
 }
 
-static void blk_add_trace_rq_issue(void *ignore,
-				   struct request_queue *q, struct request *rq)
+static void blk_add_trace_rq_issue(void *ignore, struct request *rq)
 {
 	blk_add_trace_rq(rq, 0, blk_rq_bytes(rq), BLK_TA_ISSUE,
-			 blk_trace_request_get_cgid(q, rq));
+			 blk_trace_request_get_cgid(rq));
 }
 
-static void blk_add_trace_rq_merge(void *ignore,
-				   struct request_queue *q, struct request *rq)
+static void blk_add_trace_rq_merge(void *ignore, struct request *rq)
 {
 	blk_add_trace_rq(rq, 0, blk_rq_bytes(rq), BLK_TA_BACKMERGE,
-			 blk_trace_request_get_cgid(q, rq));
+			 blk_trace_request_get_cgid(rq));
 }
 
-static void blk_add_trace_rq_requeue(void *ignore,
-				     struct request_queue *q,
-				     struct request *rq)
+static void blk_add_trace_rq_requeue(void *ignore, struct request *rq)
 {
 	blk_add_trace_rq(rq, 0, blk_rq_bytes(rq), BLK_TA_REQUEUE,
-			 blk_trace_request_get_cgid(q, rq));
+			 blk_trace_request_get_cgid(rq));
 }
 
 static void blk_add_trace_rq_complete(void *ignore, struct request *rq,
-			int error, unsigned int nr_bytes)
+			blk_status_t error, unsigned int nr_bytes)
 {
 	blk_add_trace_rq(rq, error, nr_bytes, BLK_TA_COMPLETE,
-			 blk_trace_request_get_cgid(rq->q, rq));
+			 blk_trace_request_get_cgid(rq));
 }
 
 /**
@@ -911,10 +909,9 @@ static void blk_add_trace_bio(struct request_queue *q, struct bio *bio,
 	rcu_read_unlock();
 }
 
-static void blk_add_trace_bio_bounce(void *ignore,
-				     struct request_queue *q, struct bio *bio)
+static void blk_add_trace_bio_bounce(void *ignore, struct bio *bio)
 {
-	blk_add_trace_bio(q, bio, BLK_TA_BOUNCE, 0);
+	blk_add_trace_bio(bio->bi_bdev->bd_disk->queue, bio, BLK_TA_BOUNCE, 0);
 }
 
 static void blk_add_trace_bio_complete(void *ignore,
@@ -924,63 +921,26 @@ static void blk_add_trace_bio_complete(void *ignore,
 			  blk_status_to_errno(bio->bi_status));
 }
 
-static void blk_add_trace_bio_backmerge(void *ignore,
-					struct request_queue *q,
-					struct request *rq,
-					struct bio *bio)
+static void blk_add_trace_bio_backmerge(void *ignore, struct bio *bio)
 {
-	blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE, 0);
+	blk_add_trace_bio(bio->bi_bdev->bd_disk->queue, bio, BLK_TA_BACKMERGE,
+			0);
 }
 
-static void blk_add_trace_bio_frontmerge(void *ignore,
-					 struct request_queue *q,
-					 struct request *rq,
-					 struct bio *bio)
+static void blk_add_trace_bio_frontmerge(void *ignore, struct bio *bio)
 {
-	blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE, 0);
+	blk_add_trace_bio(bio->bi_bdev->bd_disk->queue, bio, BLK_TA_FRONTMERGE,
+			0);
 }
 
-static void blk_add_trace_bio_queue(void *ignore,
-				    struct request_queue *q, struct bio *bio)
+static void blk_add_trace_bio_queue(void *ignore, struct bio *bio)
 {
-	blk_add_trace_bio(q, bio, BLK_TA_QUEUE, 0);
+	blk_add_trace_bio(bio->bi_bdev->bd_disk->queue, bio, BLK_TA_QUEUE, 0);
 }
 
-static void blk_add_trace_getrq(void *ignore,
-				struct request_queue *q,
-				struct bio *bio, int rw)
+static void blk_add_trace_getrq(void *ignore, struct bio *bio)
 {
-	if (bio)
-		blk_add_trace_bio(q, bio, BLK_TA_GETRQ, 0);
-	else {
-		struct blk_trace *bt;
-
-		rcu_read_lock();
-		bt = rcu_dereference(q->blk_trace);
-		if (bt)
-			__blk_add_trace(bt, 0, 0, rw, 0, BLK_TA_GETRQ, 0, 0,
-					NULL, 0);
-		rcu_read_unlock();
-	}
-}
-
-
-static void blk_add_trace_sleeprq(void *ignore,
-				  struct request_queue *q,
-				  struct bio *bio, int rw)
-{
-	if (bio)
-		blk_add_trace_bio(q, bio, BLK_TA_SLEEPRQ, 0);
-	else {
-		struct blk_trace *bt;
-
-		rcu_read_lock();
-		bt = rcu_dereference(q->blk_trace);
-		if (bt)
-			__blk_add_trace(bt, 0, 0, rw, 0, BLK_TA_SLEEPRQ,
-					0, 0, NULL, 0);
-		rcu_read_unlock();
-	}
+	blk_add_trace_bio(bio->bi_bdev->bd_disk->queue, bio, BLK_TA_GETRQ, 0);
 }
 
 static void blk_add_trace_plug(void *ignore, struct request_queue *q)
@@ -1015,10 +975,9 @@ static void blk_add_trace_unplug(void *ignore, struct request_queue *q,
 	rcu_read_unlock();
 }
 
-static void blk_add_trace_split(void *ignore,
-				struct request_queue *q, struct bio *bio,
-				unsigned int pdu)
+static void blk_add_trace_split(void *ignore, struct bio *bio, unsigned int pdu)
 {
+	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
 	struct blk_trace *bt;
 
 	rcu_read_lock();
@@ -1039,20 +998,16 @@ static void blk_add_trace_split(void *ignore,
 /**
  * blk_add_trace_bio_remap - Add a trace for a bio-remap operation
  * @ignore:	trace callback data parameter (not used)
- * @q:		queue the io is for
  * @bio:	the source bio
- * @dev:	target device
+ * @dev:	source device
  * @from:	source sector
  *
- * Description:
- *     Device mapper or raid target sometimes need to split a bio because
- *     it spans a stripe (or similar). Add a trace for that action.
- *
+ * Called after a bio is remapped to a different device and/or sector.
  **/
-static void blk_add_trace_bio_remap(void *ignore,
-				    struct request_queue *q, struct bio *bio,
-				    dev_t dev, sector_t from)
+static void blk_add_trace_bio_remap(void *ignore, struct bio *bio, dev_t dev,
+				    sector_t from)
 {
+	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
 	struct blk_trace *bt;
 	struct blk_io_trace_remap r;
 
@@ -1077,7 +1032,6 @@ static void blk_add_trace_bio_remap(void *ignore,
 /**
  * blk_add_trace_rq_remap - Add a trace for a request-remap operation
  * @ignore:	trace callback data parameter (not used)
- * @q:		queue the io is for
  * @rq:		the source request
  * @dev:	target device
  * @from:	source sector
@@ -1087,34 +1041,31 @@ static void blk_add_trace_bio_remap(void *ignore,
  *     Add a trace for that action.
  *
  **/
-static void blk_add_trace_rq_remap(void *ignore,
-				   struct request_queue *q,
-				   struct request *rq, dev_t dev,
+static void blk_add_trace_rq_remap(void *ignore, struct request *rq, dev_t dev,
 				   sector_t from)
 {
 	struct blk_trace *bt;
 	struct blk_io_trace_remap r;
 
 	rcu_read_lock();
-	bt = rcu_dereference(q->blk_trace);
+	bt = rcu_dereference(rq->q->blk_trace);
 	if (likely(!bt)) {
 		rcu_read_unlock();
 		return;
 	}
 
 	r.device_from = cpu_to_be32(dev);
-	r.device_to   = cpu_to_be32(disk_devt(rq->rq_disk));
+	r.device_to   = cpu_to_be32(disk_devt(rq->q->disk));
 	r.sector_from = cpu_to_be64(from);
 
 	__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_bytes(rq),
 			rq_data_dir(rq), 0, BLK_TA_REMAP, 0,
-			sizeof(r), &r, blk_trace_request_get_cgid(q, rq));
+			sizeof(r), &r, blk_trace_request_get_cgid(rq));
 	rcu_read_unlock();
 }
 
 /**
  * blk_add_driver_data - Add binary message with driver-specific data
- * @q:		queue the io is for
  * @rq:		io request
  * @data:	driver-specific data
  * @len:	length of driver-specific data
@@ -1123,14 +1074,12 @@ static void blk_add_trace_rq_remap(void *ignore,
  *     Some drivers might want to write driver-specific data per request.
  *
  **/
-void blk_add_driver_data(struct request_queue *q,
-			 struct request *rq,
-			 void *data, size_t len)
+void blk_add_driver_data(struct request *rq, void *data, size_t len)
 {
 	struct blk_trace *bt;
 
 	rcu_read_lock();
-	bt = rcu_dereference(q->blk_trace);
+	bt = rcu_dereference(rq->q->blk_trace);
 	if (likely(!bt)) {
 		rcu_read_unlock();
 		return;
@@ -1138,7 +1087,7 @@ void blk_add_driver_data(struct request_queue *q,
 
 	__blk_add_trace(bt, blk_rq_trace_sector(rq), blk_rq_bytes(rq), 0, 0,
 				BLK_TA_DRV_DATA, 0, len, data,
-				blk_trace_request_get_cgid(q, rq));
+				blk_trace_request_get_cgid(rq));
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(blk_add_driver_data);
@@ -1169,8 +1118,6 @@ static void blk_register_tracepoints(void)
 	WARN_ON(ret);
 	ret = register_trace_block_getrq(blk_add_trace_getrq, NULL);
 	WARN_ON(ret);
-	ret = register_trace_block_sleeprq(blk_add_trace_sleeprq, NULL);
-	WARN_ON(ret);
 	ret = register_trace_block_plug(blk_add_trace_plug, NULL);
 	WARN_ON(ret);
 	ret = register_trace_block_unplug(blk_add_trace_unplug, NULL);
@@ -1190,7 +1137,6 @@ static void blk_unregister_tracepoints(void)
 	unregister_trace_block_split(blk_add_trace_split, NULL);
 	unregister_trace_block_unplug(blk_add_trace_unplug, NULL);
 	unregister_trace_block_plug(blk_add_trace_plug, NULL);
-	unregister_trace_block_sleeprq(blk_add_trace_sleeprq, NULL);
 	unregister_trace_block_getrq(blk_add_trace_getrq, NULL);
 	unregister_trace_block_bio_queue(blk_add_trace_bio_queue, NULL);
 	unregister_trace_block_bio_frontmerge(blk_add_trace_bio_frontmerge, NULL);
@@ -1343,7 +1289,7 @@ static void blk_log_action(struct trace_iterator *iter, const char *act,
 			 * ones now use the 64bit ino as the whole ID and
 			 * no longer use generation.
 			 *
-			 * Regarldess of the content, always output
+			 * Regardless of the content, always output
 			 * "LOW32,HIGH32" so that FILEID_INO32_GEN fid can
 			 * be mapped back to @id on both 64 and 32bit ino
 			 * setups.  See __kernfs_fh_to_dentry().
@@ -1385,7 +1331,7 @@ static void blk_log_dump_pdu(struct trace_seq *s,
 				 i == 0 ? "" : " ", pdu_buf[i]);
 
 		/*
-		 * stop when the rest is just zeroes and indicate so
+		 * stop when the rest is just zeros and indicate so
 		 * with a ".." appended
 		 */
 		if (i == end && end != pdu_len - 1) {
@@ -1670,9 +1616,17 @@ static int blk_trace_remove_queue(struct request_queue *q)
 	if (bt == NULL)
 		return -EINVAL;
 
+	if (bt->trace_state == Blktrace_running) {
+		bt->trace_state = Blktrace_stopped;
+		raw_spin_lock_irq(&running_trace_lock);
+		list_del_init(&bt->running_list);
+		raw_spin_unlock_irq(&running_trace_lock);
+		relay_flush(bt->rchan);
+	}
+
 	put_probe_ref();
 	synchronize_rcu();
-	blk_trace_free(bt);
+	blk_trace_free(q, bt);
 	return 0;
 }
 
@@ -1703,7 +1657,7 @@ static int blk_trace_setup_queue(struct request_queue *q,
 	return 0;
 
 free_bt:
-	blk_trace_free(bt);
+	blk_trace_free(q, bt);
 	return ret;
 }
 
@@ -1815,29 +1769,14 @@ static ssize_t blk_trace_mask2str(char *buf, int mask)
 	return p - buf;
 }
 
-static struct request_queue *blk_trace_get_queue(struct block_device *bdev)
-{
-	if (bdev->bd_disk == NULL)
-		return NULL;
-
-	return bdev_get_queue(bdev);
-}
-
 static ssize_t sysfs_blk_trace_attr_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct block_device *bdev = bdget_part(dev_to_part(dev));
-	struct request_queue *q;
+	struct block_device *bdev = dev_to_bdev(dev);
+	struct request_queue *q = bdev_get_queue(bdev);
 	struct blk_trace *bt;
 	ssize_t ret = -ENXIO;
-
-	if (bdev == NULL)
-		goto out;
-
-	q = blk_trace_get_queue(bdev);
-	if (q == NULL)
-		goto out_bdput;
 
 	mutex_lock(&q->debugfs_mutex);
 
@@ -1861,9 +1800,6 @@ static ssize_t sysfs_blk_trace_attr_show(struct device *dev,
 
 out_unlock_bdev:
 	mutex_unlock(&q->debugfs_mutex);
-out_bdput:
-	bdput(bdev);
-out:
 	return ret;
 }
 
@@ -1871,8 +1807,8 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
-	struct block_device *bdev;
-	struct request_queue *q;
+	struct block_device *bdev = dev_to_bdev(dev);
+	struct request_queue *q = bdev_get_queue(bdev);
 	struct blk_trace *bt;
 	u64 value;
 	ssize_t ret = -EINVAL;
@@ -1888,17 +1824,10 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
 				goto out;
 			value = ret;
 		}
-	} else if (kstrtoull(buf, 0, &value))
-		goto out;
-
-	ret = -ENXIO;
-	bdev = bdget_part(dev_to_part(dev));
-	if (bdev == NULL)
-		goto out;
-
-	q = blk_trace_get_queue(bdev);
-	if (q == NULL)
-		goto out_bdput;
+	} else {
+		if (kstrtoull(buf, 0, &value))
+			goto out;
+	}
 
 	mutex_lock(&q->debugfs_mutex);
 
@@ -1936,8 +1865,6 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
 
 out_unlock_bdev:
 	mutex_unlock(&q->debugfs_mutex);
-out_bdput:
-	bdput(bdev);
 out:
 	return ret ? ret : count;
 }
@@ -1956,7 +1883,17 @@ void blk_trace_remove_sysfs(struct device *dev)
 
 #ifdef CONFIG_EVENT_TRACING
 
-void blk_fill_rwbs(char *rwbs, unsigned int op, int bytes)
+/**
+ * blk_fill_rwbs - Fill the buffer rwbs by mapping op to character string.
+ * @rwbs:	buffer to be filled
+ * @op:		REQ_OP_XXX for the tracepoint
+ *
+ * Description:
+ *     Maps the REQ_OP_XXX to character and fills the buffer provided by the
+ *     caller with resulting string.
+ *
+ **/
+void blk_fill_rwbs(char *rwbs, unsigned int op)
 {
 	int i = 0;
 
@@ -1965,7 +1902,6 @@ void blk_fill_rwbs(char *rwbs, unsigned int op, int bytes)
 
 	switch (op & REQ_OP_MASK) {
 	case REQ_OP_WRITE:
-	case REQ_OP_WRITE_SAME:
 		rwbs[i++] = 'W';
 		break;
 	case REQ_OP_DISCARD:

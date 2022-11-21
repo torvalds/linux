@@ -75,12 +75,17 @@
 #define TEGRA_UART_FCR_IIR_FIFO_EN		0x40
 
 /**
- * tegra_uart_chip_data: SOC specific data.
+ * struct tegra_uart_chip_data: SOC specific data.
  *
  * @tx_fifo_full_status: Status flag available for checking tx fifo full.
  * @allow_txfifo_reset_fifo_mode: allow_tx fifo reset with fifo mode or not.
  *			Tegra30 does not allow this.
  * @support_clk_src_div: Clock source support the clock divider.
+ * @fifo_mode_enable_status: Is FIFO mode enabled?
+ * @uart_max_port: Maximum number of UART ports
+ * @max_dma_burst_bytes: Maximum size of DMA bursts
+ * @error_tolerance_low_range: Lowest number in the error tolerance range
+ * @error_tolerance_high_range: Highest number in the error tolerance range
  */
 struct tegra_uart_chip_data {
 	bool	tx_fifo_full_status;
@@ -333,7 +338,7 @@ static void tegra_uart_fifo_reset(struct tegra_uart_port *tup, u8 fcr_bits)
 
 	do {
 		lsr = tegra_uart_read(tup, UART_LSR);
-		if ((lsr | UART_LSR_TEMT) && !(lsr & UART_LSR_DR))
+		if ((lsr & UART_LSR_TEMT) && !(lsr & UART_LSR_DR))
 			break;
 		udelay(1);
 	} while (--tmout);
@@ -1040,9 +1045,11 @@ static int tegra_uart_hw_init(struct tegra_uart_port *tup)
 
 	if (tup->cdata->fifo_mode_enable_status) {
 		ret = tegra_uart_wait_fifo_mode_enabled(tup);
-		dev_err(tup->uport.dev, "FIFO mode not enabled\n");
-		if (ret < 0)
+		if (ret < 0) {
+			dev_err(tup->uport.dev,
+				"Failed to enable FIFO mode: %d\n", ret);
 			return ret;
+		}
 	} else {
 		/*
 		 * For all tegra devices (up to t210), there is a hardware
@@ -1270,6 +1277,7 @@ static void tegra_uart_set_termios(struct uart_port *u,
 	unsigned int baud;
 	unsigned long flags;
 	unsigned int lcr;
+	unsigned char char_bits;
 	int symb_bit = 1;
 	struct clk *parent_clk = clk_get_parent(tup->uart_clk);
 	unsigned long parent_clk_rate = clk_get_rate(parent_clk);
@@ -1309,25 +1317,10 @@ static void tegra_uart_set_termios(struct uart_port *u,
 		}
 	}
 
+	char_bits = tty_get_char_size(termios->c_cflag);
+	symb_bit += char_bits;
 	lcr &= ~UART_LCR_WLEN8;
-	switch (termios->c_cflag & CSIZE) {
-	case CS5:
-		lcr |= UART_LCR_WLEN5;
-		symb_bit += 5;
-		break;
-	case CS6:
-		lcr |= UART_LCR_WLEN6;
-		symb_bit += 6;
-		break;
-	case CS7:
-		lcr |= UART_LCR_WLEN7;
-		symb_bit += 7;
-		break;
-	default:
-		lcr |= UART_LCR_WLEN8;
-		symb_bit += 8;
-		break;
-	}
+	lcr |= UART_LCR_WLEN(char_bits);
 
 	/* Stop bits */
 	if (termios->c_cflag & CSTOPB) {
@@ -1499,7 +1492,7 @@ static struct tegra_uart_chip_data tegra20_uart_chip_data = {
 	.fifo_mode_enable_status	= false,
 	.uart_max_port			= 5,
 	.max_dma_burst_bytes		= 4,
-	.error_tolerance_low_range	= 0,
+	.error_tolerance_low_range	= -4,
 	.error_tolerance_high_range	= 4,
 };
 
@@ -1510,7 +1503,7 @@ static struct tegra_uart_chip_data tegra30_uart_chip_data = {
 	.fifo_mode_enable_status	= false,
 	.uart_max_port			= 5,
 	.max_dma_burst_bytes		= 4,
-	.error_tolerance_low_range	= 0,
+	.error_tolerance_low_range	= -4,
 	.error_tolerance_high_range	= 4,
 };
 
@@ -1561,14 +1554,12 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	struct resource *resource;
 	int ret;
 	const struct tegra_uart_chip_data *cdata;
-	const struct of_device_id *match;
 
-	match = of_match_device(tegra_uart_of_match, &pdev->dev);
-	if (!match) {
+	cdata = of_device_get_match_data(&pdev->dev);
+	if (!cdata) {
 		dev_err(&pdev->dev, "Error: No device match found\n");
 		return -ENODEV;
 	}
-	cdata = match->data;
 
 	tup = devm_kzalloc(&pdev->dev, sizeof(*tup), GFP_KERNEL);
 	if (!tup) {

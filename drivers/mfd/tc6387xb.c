@@ -25,7 +25,7 @@ struct tc6387xb {
 	struct resource rscr;
 };
 
-static struct resource tc6387xb_mmc_resources[] = {
+static const struct resource tc6387xb_mmc_resources[] = {
 	{
 		.start = 0x800,
 		.end   = 0x9ff,

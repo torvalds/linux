@@ -31,7 +31,6 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 
@@ -57,7 +56,7 @@ static ssize_t board_id_show(struct device *device,
 	subsystem_device_id = us_ibdev->pdev->subsystem_device;
 	mutex_unlock(&us_ibdev->usdev_lock);
 
-	return scnprintf(buf, PAGE_SIZE, "%hu\n", subsystem_device_id);
+	return sysfs_emit(buf, "%u\n", subsystem_device_id);
 }
 static DEVICE_ATTR_RO(board_id);
 
@@ -69,19 +68,13 @@ config_show(struct device *device, struct device_attribute *attr, char *buf)
 {
 	struct usnic_ib_dev *us_ibdev =
 		rdma_device_to_drv_device(device, struct usnic_ib_dev, ib_dev);
-	char *ptr;
-	unsigned left;
-	unsigned n;
 	enum usnic_vnic_res_type res_type;
-
-	/* Buffer space limit is 1 page */
-	ptr = buf;
-	left = PAGE_SIZE;
+	int len;
 
 	mutex_lock(&us_ibdev->usdev_lock);
 	if (kref_read(&us_ibdev->vf_cnt) > 0) {
 		char *busname;
-
+		char *sep = "";
 		/*
 		 * bus name seems to come with annoying prefix.
 		 * Remove it if it is predictable
@@ -90,39 +83,35 @@ config_show(struct device *device, struct device_attribute *attr, char *buf)
 		if (strncmp(busname, "PCI Bus ", 8) == 0)
 			busname += 8;
 
-		n = scnprintf(ptr, left,
-			"%s: %s:%d.%d, %s, %pM, %u VFs\n Per VF:",
-			dev_name(&us_ibdev->ib_dev.dev),
-			busname,
-			PCI_SLOT(us_ibdev->pdev->devfn),
-			PCI_FUNC(us_ibdev->pdev->devfn),
-			netdev_name(us_ibdev->netdev),
-			us_ibdev->ufdev->mac,
-			kref_read(&us_ibdev->vf_cnt));
-		UPDATE_PTR_LEFT(n, ptr, left);
+		len = sysfs_emit(buf, "%s: %s:%d.%d, %s, %pM, %u VFs\n",
+				 dev_name(&us_ibdev->ib_dev.dev),
+				 busname,
+				 PCI_SLOT(us_ibdev->pdev->devfn),
+				 PCI_FUNC(us_ibdev->pdev->devfn),
+				 netdev_name(us_ibdev->netdev),
+				 us_ibdev->ufdev->mac,
+				 kref_read(&us_ibdev->vf_cnt));
 
+		len += sysfs_emit_at(buf, len, " Per VF:");
 		for (res_type = USNIC_VNIC_RES_TYPE_EOL;
-				res_type < USNIC_VNIC_RES_TYPE_MAX;
-				res_type++) {
+		     res_type < USNIC_VNIC_RES_TYPE_MAX; res_type++) {
 			if (us_ibdev->vf_res_cnt[res_type] == 0)
 				continue;
-			n = scnprintf(ptr, left, " %d %s%s",
-				us_ibdev->vf_res_cnt[res_type],
-				usnic_vnic_res_type_to_str(res_type),
-				(res_type < (USNIC_VNIC_RES_TYPE_MAX - 1)) ?
-				 "," : "");
-			UPDATE_PTR_LEFT(n, ptr, left);
+			len += sysfs_emit_at(buf, len, "%s %d %s",
+					     sep,
+					     us_ibdev->vf_res_cnt[res_type],
+					     usnic_vnic_res_type_to_str(res_type));
+			sep = ",";
 		}
-		n = scnprintf(ptr, left, "\n");
-		UPDATE_PTR_LEFT(n, ptr, left);
+		len += sysfs_emit_at(buf, len, "\n");
 	} else {
-		n = scnprintf(ptr, left, "%s: no VFs\n",
-				dev_name(&us_ibdev->ib_dev.dev));
-		UPDATE_PTR_LEFT(n, ptr, left);
+		len = sysfs_emit(buf, "%s: no VFs\n",
+				 dev_name(&us_ibdev->ib_dev.dev));
 	}
+
 	mutex_unlock(&us_ibdev->usdev_lock);
 
-	return ptr - buf;
+	return len;
 }
 static DEVICE_ATTR_RO(config);
 
@@ -132,8 +121,7 @@ iface_show(struct device *device, struct device_attribute *attr, char *buf)
 	struct usnic_ib_dev *us_ibdev =
 		rdma_device_to_drv_device(device, struct usnic_ib_dev, ib_dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n",
-			netdev_name(us_ibdev->netdev));
+	return sysfs_emit(buf, "%s\n", netdev_name(us_ibdev->netdev));
 }
 static DEVICE_ATTR_RO(iface);
 
@@ -143,8 +131,7 @@ max_vf_show(struct device *device, struct device_attribute *attr, char *buf)
 	struct usnic_ib_dev *us_ibdev =
 		rdma_device_to_drv_device(device, struct usnic_ib_dev, ib_dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			kref_read(&us_ibdev->vf_cnt));
+	return sysfs_emit(buf, "%u\n", kref_read(&us_ibdev->vf_cnt));
 }
 static DEVICE_ATTR_RO(max_vf);
 
@@ -158,8 +145,7 @@ qp_per_vf_show(struct device *device, struct device_attribute *attr, char *buf)
 	qp_per_vf = max(us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_WQ],
 			us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_RQ]);
 
-	return scnprintf(buf, PAGE_SIZE,
-				"%d\n", qp_per_vf);
+	return sysfs_emit(buf, "%d\n", qp_per_vf);
 }
 static DEVICE_ATTR_RO(qp_per_vf);
 
@@ -169,8 +155,8 @@ cq_per_vf_show(struct device *device, struct device_attribute *attr, char *buf)
 	struct usnic_ib_dev *us_ibdev =
 		rdma_device_to_drv_device(device, struct usnic_ib_dev, ib_dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n",
-			us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_CQ]);
+	return sysfs_emit(buf, "%d\n",
+			  us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_CQ]);
 }
 static DEVICE_ATTR_RO(cq_per_vf);
 
@@ -217,43 +203,35 @@ struct qpn_attribute qpn_attr_##NAME = __ATTR_RO(NAME)
 
 static ssize_t context_show(struct usnic_ib_qp_grp *qp_grp, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "0x%p\n", qp_grp->ctx);
+	return sysfs_emit(buf, "0x%p\n", qp_grp->ctx);
 }
 
 static ssize_t summary_show(struct usnic_ib_qp_grp *qp_grp, char *buf)
 {
-	int i, j, n;
-	int left;
-	char *ptr;
+	int i, j;
 	struct usnic_vnic_res_chunk *res_chunk;
 	struct usnic_vnic_res *vnic_res;
+	int len;
 
-	left = PAGE_SIZE;
-	ptr = buf;
-
-	n = scnprintf(ptr, left,
-			"QPN: %d State: (%s) PID: %u VF Idx: %hu ",
-			qp_grp->ibqp.qp_num,
-			usnic_ib_qp_grp_state_to_string(qp_grp->state),
-			qp_grp->owner_pid,
-			usnic_vnic_get_index(qp_grp->vf->vnic));
-	UPDATE_PTR_LEFT(n, ptr, left);
+	len = sysfs_emit(buf, "QPN: %d State: (%s) PID: %u VF Idx: %hu",
+			 qp_grp->ibqp.qp_num,
+			 usnic_ib_qp_grp_state_to_string(qp_grp->state),
+			 qp_grp->owner_pid,
+			 usnic_vnic_get_index(qp_grp->vf->vnic));
 
 	for (i = 0; qp_grp->res_chunk_list[i]; i++) {
 		res_chunk = qp_grp->res_chunk_list[i];
 		for (j = 0; j < res_chunk->cnt; j++) {
 			vnic_res = res_chunk->res[j];
-			n = scnprintf(ptr, left, "%s[%d] ",
+			len += sysfs_emit_at(buf, len, " %s[%d]",
 				usnic_vnic_res_type_to_str(vnic_res->type),
 				vnic_res->vnic_idx);
-			UPDATE_PTR_LEFT(n, ptr, left);
 		}
 	}
 
-	n = scnprintf(ptr, left, "\n");
-	UPDATE_PTR_LEFT(n, ptr, left);
+	len += sysfs_emit_at(buf, len, "\n");
 
-	return ptr - buf;
+	return len;
 }
 
 static QPN_ATTR_RO(context);
@@ -264,10 +242,11 @@ static struct attribute *usnic_ib_qpn_default_attrs[] = {
 	&qpn_attr_summary.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(usnic_ib_qpn_default);
 
 static struct kobj_type usnic_ib_qpn_type = {
 	.sysfs_ops = &usnic_ib_qpn_sysfs_ops,
-	.default_attrs = usnic_ib_qpn_default_attrs
+	.default_groups = usnic_ib_qpn_default_groups,
 };
 
 int usnic_ib_sysfs_register_usdev(struct usnic_ib_dev *us_ibdev)

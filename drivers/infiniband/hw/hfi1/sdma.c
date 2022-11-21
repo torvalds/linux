@@ -1,48 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
 /*
  * Copyright(c) 2015 - 2018 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 #include <linux/spinlock.h>
@@ -880,8 +838,8 @@ struct sdma_engine *sdma_select_user_engine(struct hfi1_devdata *dd,
 	if (current->nr_cpus_allowed != 1)
 		goto out;
 
-	cpu_id = smp_processor_id();
 	rcu_read_lock();
+	cpu_id = smp_processor_id();
 	rht_node = rhashtable_lookup(dd->sdma_rht, &cpu_id,
 				     sdma_rht_params);
 
@@ -1285,7 +1243,7 @@ bail:
 }
 
 /**
- * sdma_clean()  Clean up allocated memory
+ * sdma_clean - Clean up allocated memory
  * @dd:          struct hfi1_devdata
  * @num_engines: num sdma engines
  *
@@ -1740,7 +1698,7 @@ retry:
 			sane = (hwhead == swhead);
 
 		if (unlikely(!sane)) {
-			dd_dev_err(dd, "SDMA(%u) bad head (%s) hwhd=%hu swhd=%hu swtl=%hu cnt=%hu\n",
+			dd_dev_err(dd, "SDMA(%u) bad head (%s) hwhd=%u swhd=%u swtl=%u cnt=%u\n",
 				   sde->this_idx,
 				   use_dmahead ? "dma" : "kreg",
 				   hwhead, swhead, swtail, cnt);
@@ -1860,7 +1818,7 @@ retry:
 
 	/*
 	 * The SDMA idle interrupt is not guaranteed to be ordered with respect
-	 * to updates to the the dma_head location in host memory. The head
+	 * to updates to the dma_head location in host memory. The head
 	 * value read might not be fully up to date. If there are pending
 	 * descriptors and the SDMA idle interrupt fired then read from the
 	 * CSR SDMA head instead to get the latest value from the hardware.
@@ -2448,11 +2406,11 @@ nodesc:
  * @sde: sdma engine to use
  * @wait: SE wait structure to use when full (may be NULL)
  * @tx_list: list of sdma_txreqs to submit
- * @count: pointer to a u16 which, after return will contain the total number of
- *         sdma_txreqs removed from the tx_list. This will include sdma_txreqs
- *         whose SDMA descriptors are submitted to the ring and the sdma_txreqs
- *         which are added to SDMA engine flush list if the SDMA engine state is
- *         not running.
+ * @count_out: pointer to a u16 which, after return will contain the total number of
+ *             sdma_txreqs removed from the tx_list. This will include sdma_txreqs
+ *             whose SDMA descriptors are submitted to the ring and the sdma_txreqs
+ *             which are added to SDMA engine flush list if the SDMA engine state is
+ *             not running.
  *
  * The call submits the list into the ring.
  *
@@ -3055,6 +3013,7 @@ static void __sdma_process_event(struct sdma_engine *sde,
 static int _extend_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx)
 {
 	int i;
+	struct sdma_desc *descp;
 
 	/* Handle last descriptor */
 	if (unlikely((tx->num_desc == (MAX_DESC - 1)))) {
@@ -3075,12 +3034,10 @@ static int _extend_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx)
 	if (unlikely(tx->num_desc == MAX_DESC))
 		goto enomem;
 
-	tx->descp = kmalloc_array(
-			MAX_DESC,
-			sizeof(struct sdma_desc),
-			GFP_ATOMIC);
-	if (!tx->descp)
+	descp = kmalloc_array(MAX_DESC, sizeof(struct sdma_desc), GFP_ATOMIC);
+	if (!descp)
 		goto enomem;
+	tx->descp = descp;
 
 	/* reserve last descriptor for coalescing */
 	tx->desc_limit = MAX_DESC - 1;
@@ -3130,7 +3087,7 @@ int ext_coal_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx,
 		}
 
 		if (type == SDMA_MAP_PAGE) {
-			kvaddr = kmap(page);
+			kvaddr = kmap_local_page(page);
 			kvaddr += offset;
 		} else if (WARN_ON(!kvaddr)) {
 			__sdma_txclean(dd, tx);
@@ -3140,7 +3097,7 @@ int ext_coal_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx,
 		memcpy(tx->coalesce_buf + tx->coalesce_idx, kvaddr, len);
 		tx->coalesce_idx += len;
 		if (type == SDMA_MAP_PAGE)
-			kunmap(page);
+			kunmap_local(kvaddr);
 
 		/* If there is more data, return */
 		if (tx->tlen - tx->coalesce_idx)

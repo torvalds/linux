@@ -72,6 +72,42 @@ alternative_cb kvm_update_va_mask
 alternative_cb_end
 .endm
 
+/*
+ * Convert a hypervisor VA to a PA
+ * reg: hypervisor address to be converted in place
+ * tmp: temporary register
+ */
+.macro hyp_pa reg, tmp
+	ldr_l	\tmp, hyp_physvirt_offset
+	add	\reg, \reg, \tmp
+.endm
+
+/*
+ * Convert a hypervisor VA to a kernel image address
+ * reg: hypervisor address to be converted in place
+ * tmp: temporary register
+ *
+ * The actual code generation takes place in kvm_get_kimage_voffset, and
+ * the instructions below are only there to reserve the space and
+ * perform the register allocation (kvm_get_kimage_voffset uses the
+ * specific registers encoded in the instructions).
+ */
+.macro hyp_kimg_va reg, tmp
+	/* Convert hyp VA -> PA. */
+	hyp_pa	\reg, \tmp
+
+	/* Load kimage_voffset. */
+alternative_cb kvm_get_kimage_voffset
+	movz	\tmp, #0
+	movk	\tmp, #0, lsl #16
+	movk	\tmp, #0, lsl #32
+	movk	\tmp, #0, lsl #48
+alternative_cb_end
+
+	/* Convert PA -> kimg VA. */
+	add	\reg, \reg, \tmp
+.endm
+
 #else
 
 #include <linux/pgtable.h>
@@ -79,10 +115,14 @@ alternative_cb_end
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
+#include <asm/kvm_host.h>
 
 void kvm_update_va_mask(struct alt_instr *alt,
 			__le32 *origptr, __le32 *updptr, int nr_inst);
 void kvm_compute_layout(void);
+void kvm_apply_hyp_relocations(void);
+
+#define __hyp_pa(x) (((phys_addr_t)(x)) + hyp_physvirt_offset)
 
 static __always_inline unsigned long __kern_hyp_va(unsigned long v)
 {
@@ -111,6 +151,8 @@ static __always_inline unsigned long __kern_hyp_va(unsigned long v)
 #include <asm/kvm_pgtable.h>
 #include <asm/stage2_pgtable.h>
 
+int kvm_share_hyp(void *from, void *to);
+void kvm_unshare_hyp(void *from, void *to);
 int create_hyp_mappings(void *from, void *to, enum kvm_pgtable_prot prot);
 int create_hyp_io_mappings(phys_addr_t phys_addr, size_t size,
 			   void __iomem **kaddr,
@@ -129,21 +171,28 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu);
 
 phys_addr_t kvm_mmu_get_httbr(void);
 phys_addr_t kvm_get_idmap_vector(void);
-int kvm_mmu_init(void);
+int kvm_mmu_init(u32 *hyp_va_bits);
+
+static inline void *__kvm_vector_slot2addr(void *base,
+					   enum arm64_hyp_spectre_vector slot)
+{
+	int idx = slot - (slot != HYP_VECTOR_DIRECT);
+
+	return base + (idx * SZ_2K);
+}
 
 struct kvm;
 
-#define kvm_flush_dcache_to_poc(a,l)	__flush_dcache_area((a), (l))
+#define kvm_flush_dcache_to_poc(a,l)	\
+	dcache_clean_inval_poc((unsigned long)(a), (unsigned long)(a)+(l))
 
 static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 {
 	return (vcpu_read_sys_reg(vcpu, SCTLR_EL1) & 0b101) == 0b101;
 }
 
-static inline void __clean_dcache_guest_page(kvm_pfn_t pfn, unsigned long size)
+static inline void __clean_dcache_guest_page(void *va, size_t size)
 {
-	void *va = page_address(pfn_to_page(pfn));
-
 	/*
 	 * With FWB, we ensure that the guest always accesses memory using
 	 * cacheable attributes, and we don't have to clean to PoC when
@@ -156,18 +205,14 @@ static inline void __clean_dcache_guest_page(kvm_pfn_t pfn, unsigned long size)
 	kvm_flush_dcache_to_poc(va, size);
 }
 
-static inline void __invalidate_icache_guest_page(kvm_pfn_t pfn,
-						  unsigned long size)
+static inline void __invalidate_icache_guest_page(void *va, size_t size)
 {
 	if (icache_is_aliasing()) {
 		/* any kind of VIPT cache */
-		__flush_icache_all();
+		icache_inval_all_pou();
 	} else if (is_kernel_in_hyp_mode() || !icache_is_vpipt()) {
 		/* PIPT or VPIPT at EL2 (see comment in __kvm_tlb_flush_vmid_ipa) */
-		void *va = page_address(pfn_to_page(pfn));
-
-		invalidate_icache_range((unsigned long)va,
-					(unsigned long)va + size);
+		icache_inval_pou((unsigned long)va, (unsigned long)va + size);
 	}
 }
 
@@ -208,54 +253,13 @@ static inline int kvm_write_guest_lock(struct kvm *kvm, gpa_t gpa,
 	return ret;
 }
 
-/*
- * EL2 vectors can be mapped and rerouted in a number of ways,
- * depending on the kernel configuration and CPU present:
- *
- * - If the CPU is affected by Spectre-v2, the hardening sequence is
- *   placed in one of the vector slots, which is executed before jumping
- *   to the real vectors.
- *
- * - If the CPU also has the ARM64_HARDEN_EL2_VECTORS cap, the slot
- *   containing the hardening sequence is mapped next to the idmap page,
- *   and executed before jumping to the real vectors.
- *
- * - If the CPU only has the ARM64_HARDEN_EL2_VECTORS cap, then an
- *   empty slot is selected, mapped next to the idmap page, and
- *   executed before jumping to the real vectors.
- *
- * Note that ARM64_HARDEN_EL2_VECTORS is somewhat incompatible with
- * VHE, as we don't have hypervisor-specific mappings. If the system
- * is VHE and yet selects this capability, it will be ignored.
- */
-extern void *__kvm_bp_vect_base;
-extern int __kvm_harden_el2_vector_slot;
-
-static inline void *kvm_get_hyp_vector(void)
-{
-	struct bp_hardening_data *data = arm64_get_bp_hardening_data();
-	void *vect = kern_hyp_va(kvm_ksym_ref(__kvm_hyp_vector));
-	int slot = -1;
-
-	if (cpus_have_const_cap(ARM64_SPECTRE_V2) && data->fn) {
-		vect = kern_hyp_va(kvm_ksym_ref(__bp_harden_hyp_vecs));
-		slot = data->hyp_vectors_slot;
-	}
-
-	if (this_cpu_has_cap(ARM64_HARDEN_EL2_VECTORS) && !has_vhe()) {
-		vect = __kvm_bp_vect_base;
-		if (slot == -1)
-			slot = __kvm_harden_el2_vector_slot;
-	}
-
-	if (slot != -1)
-		vect += slot * SZ_2K;
-
-	return vect;
-}
-
 #define kvm_phys_to_vttbr(addr)		phys_to_ttbr(addr)
 
+/*
+ * When this is (directly or indirectly) used on the TLB invalidation
+ * path, we rely on a previously issued DSB so that page table updates
+ * and VMID reads are correctly ordered.
+ */
 static __always_inline u64 kvm_get_vttbr(struct kvm_s2_mmu *mmu)
 {
 	struct kvm_vmid *vmid = &mmu->vmid;
@@ -263,7 +267,8 @@ static __always_inline u64 kvm_get_vttbr(struct kvm_s2_mmu *mmu)
 	u64 cnp = system_supports_cnp() ? VTTBR_CNP_BIT : 0;
 
 	baddr = mmu->pgd_phys;
-	vmid_field = (u64)vmid->vmid << VTTBR_VMID_SHIFT;
+	vmid_field = atomic64_read(&vmid->id) << VTTBR_VMID_SHIFT;
+	vmid_field &= VTTBR_VMID_MASK(kvm_arm_vmid_bits);
 	return kvm_phys_to_vttbr(baddr) | vmid_field | cnp;
 }
 
@@ -271,9 +276,10 @@ static __always_inline u64 kvm_get_vttbr(struct kvm_s2_mmu *mmu)
  * Must be called from hyp code running at EL2 with an updated VTTBR
  * and interrupts disabled.
  */
-static __always_inline void __load_guest_stage2(struct kvm_s2_mmu *mmu)
+static __always_inline void __load_stage2(struct kvm_s2_mmu *mmu,
+					  struct kvm_arch *arch)
 {
-	write_sysreg(kern_hyp_va(mmu->kvm)->arch.vtcr, vtcr_el2);
+	write_sysreg(arch->vtcr, vtcr_el2);
 	write_sysreg(kvm_get_vttbr(mmu), vttbr_el2);
 
 	/*
@@ -284,5 +290,9 @@ static __always_inline void __load_guest_stage2(struct kvm_s2_mmu *mmu)
 	asm(ALTERNATIVE("nop", "isb", ARM64_WORKAROUND_SPECULATIVE_AT));
 }
 
+static inline struct kvm *kvm_s2_mmu_to_kvm(struct kvm_s2_mmu *mmu)
+{
+	return container_of(mmu->arch, struct kvm, arch);
+}
 #endif /* __ASSEMBLY__ */
 #endif /* __ARM64_KVM_MMU_H__ */

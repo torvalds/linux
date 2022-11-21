@@ -3,8 +3,8 @@
 # Phy drivers for Marvell platforms
 #
 config ARMADA375_USBCLUSTER_PHY
-	def_bool y
-	depends on MACH_ARMADA_375 || COMPILE_TEST
+	bool "Armada 375 USB cluster PHY support" if COMPILE_TEST
+	default y if MACH_ARMADA_375
 	depends on OF && HAS_IOMEM
 	select GENERIC_PHY
 
@@ -67,6 +67,14 @@ config PHY_MVEBU_CP110_COMPHY
 	  lanes can be used by various controllers (Ethernet, sata, usb,
 	  PCIe...).
 
+config PHY_MVEBU_CP110_UTMI
+	tristate "Marvell CP110 UTMI driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF && USB_COMMON
+	select GENERIC_PHY
+	help
+	  Enable this to support Marvell CP110 UTMI PHY driver.
+
 config PHY_MVEBU_SATA
 	def_bool y
 	depends on ARCH_DOVE || MACH_DOVE || MACH_KIRKWOOD
@@ -114,5 +122,17 @@ config PHY_MMP3_USB
 	  Enable this to support Marvell MMP3 USB PHY driver for Marvell
 	  SoC. This driver will do the PHY initialization and shutdown.
 	  The PHY driver will be used by Marvell udc/ehci/otg driver.
+
+	  To compile this driver as a module, choose M here.
+
+config PHY_MMP3_HSIC
+	tristate "Marvell MMP3 USB HSIC PHY Driver"
+	depends on MACH_MMP3_DT || COMPILE_TEST
+	select GENERIC_PHY
+	help
+	  Enable this to support Marvell MMP3 USB HSIC PHY driver for
+	  Marvell MMP3 SoC. This driver will be used my the Marvell EHCI
+	  driver to initialize the interface to internal USB HSIC
+	  components on MMP3-based boards.
 
 	  To compile this driver as a module, choose M here.

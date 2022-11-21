@@ -197,7 +197,7 @@ void nommu_dump_state(struct pt_regs *regs,
 }
 
 /* This is normally the 'Oops' routine */
-void die(const char *str, struct pt_regs *regs, long err)
+void __noreturn die(const char *str, struct pt_regs *regs, long err)
 {
 
 	console_verbose();
@@ -212,7 +212,7 @@ void die(const char *str, struct pt_regs *regs, long err)
 	__asm__ __volatile__("l.nop   1");
 	do {} while (1);
 #endif
-	do_exit(SIGSEGV);
+	make_task_dead(SIGSEGV);
 }
 
 /* This is normally the 'Oops' routine */
@@ -231,16 +231,9 @@ void unhandled_exception(struct pt_regs *regs, int ea, int vector)
 	die("Oops", regs, 9);
 }
 
-void __init trap_init(void)
-{
-	/* Nothing needs to be done */
-}
-
 asmlinkage void do_trap(struct pt_regs *regs, unsigned long address)
 {
-	force_sig_fault(SIGTRAP, TRAP_TRACE, (void __user *)address);
-
-	regs->pc += 4;
+	force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)regs->pc);
 }
 
 asmlinkage void do_unaligned_access(struct pt_regs *regs, unsigned long address)

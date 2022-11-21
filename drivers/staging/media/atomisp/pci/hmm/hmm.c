@@ -39,7 +39,7 @@
 struct hmm_bo_device bo_device;
 struct hmm_pool	dynamic_pool;
 struct hmm_pool	reserved_pool;
-static ia_css_ptr dummy_ptr;
+static ia_css_ptr dummy_ptr = mmgr_EXCEPTION;
 static bool hmm_initialized;
 struct _hmm_mem_stat hmm_mem_stat;
 
@@ -209,7 +209,7 @@ int hmm_init(void)
 
 void hmm_cleanup(void)
 {
-	if (!dummy_ptr)
+	if (dummy_ptr == mmgr_EXCEPTION)
 		return;
 	sysfs_remove_group(&atomisp_dev->kobj, atomisp_attribute_group);
 
@@ -269,7 +269,7 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 		hmm_set(bo->start, 0, bytes);
 
 	dev_dbg(atomisp_dev,
-		"%s: pages: 0x%08x (%ld bytes), type: %d from highmem %d, user ptr %p, cached %d\n",
+		"%s: pages: 0x%08x (%zu bytes), type: %d from highmem %d, user ptr %p, cached %d\n",
 		__func__, bo->start, bytes, type, from_highmem, userptr, cached);
 
 	return bo->start;
@@ -288,7 +288,8 @@ void hmm_free(ia_css_ptr virt)
 
 	dev_dbg(atomisp_dev, "%s: free 0x%08x\n", __func__, virt);
 
-	WARN_ON(!virt);
+	if (WARN_ON(virt == mmgr_EXCEPTION))
+		return;
 
 	bo = hmm_bo_device_search_start(&bo_device, (unsigned int)virt);
 

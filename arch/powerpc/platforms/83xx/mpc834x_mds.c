@@ -35,7 +35,7 @@
 #include "mpc83xx.h"
 
 #define BCSR5_INT_USB		0x02
-static int mpc834xemds_usb_cfg(void)
+static int __init mpc834xemds_usb_cfg(void)
 {
 	struct device_node *np;
 	void __iomem *bcsr_regs = NULL;
@@ -91,6 +91,7 @@ define_machine(mpc834x_mds) {
 	.name			= "MPC834x MDS",
 	.probe			= mpc834x_mds_probe,
 	.setup_arch		= mpc834x_mds_setup_arch,
+	.discover_phbs  	= mpc83xx_setup_pci,
 	.init_IRQ		= mpc83xx_ipic_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.restart		= mpc83xx_restart,

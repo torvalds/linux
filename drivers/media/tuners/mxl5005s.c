@@ -3414,9 +3414,8 @@ static u16 MXL_ControlWrite_Group(struct dvb_frontend *fe, u16 controlNum,
 	u32 value, u16 controlGroup)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
-	u16 i, j, k;
+	u16 i, j;
 	u32 highLimit;
-	u32 ctrlVal;
 
 	if (controlGroup == 1) /* Initial Control */ {
 
@@ -3432,9 +3431,6 @@ static u16 MXL_ControlWrite_Group(struct dvb_frontend *fe, u16 controlNum,
 							(u8)(state->Init_Ctrl[i].bit[j]),
 							(u8)((value>>j) & 0x01));
 					}
-					ctrlVal = 0;
-					for (k = 0; k < state->Init_Ctrl[i].size; k++)
-						ctrlVal += state->Init_Ctrl[i].val[k] * (1 << k);
 				} else
 					return -1;
 			}
@@ -3454,9 +3450,6 @@ static u16 MXL_ControlWrite_Group(struct dvb_frontend *fe, u16 controlNum,
 							(u8)(state->CH_Ctrl[i].bit[j]),
 							(u8)((value>>j) & 0x01));
 					}
-					ctrlVal = 0;
-					for (k = 0; k < state->CH_Ctrl[i].size; k++)
-						ctrlVal += state->CH_Ctrl[i].val[k] * (1 << k);
 				} else
 					return -1;
 			}
@@ -3477,11 +3470,6 @@ static u16 MXL_ControlWrite_Group(struct dvb_frontend *fe, u16 controlNum,
 							(u8)(state->MXL_Ctrl[i].bit[j]),
 							(u8)((value>>j) & 0x01));
 					}
-					ctrlVal = 0;
-					for (k = 0; k < state->MXL_Ctrl[i].size; k++)
-						ctrlVal += state->
-							MXL_Ctrl[i].val[k] *
-							(1 << k);
 				} else
 					return -1;
 			}
@@ -3926,14 +3914,25 @@ static int mxl5005s_reconfigure(struct dvb_frontend *fe, u32 mod_type,
 	u32 bandwidth)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
-
-	u8 AddrTable[MXL5005S_REG_WRITING_TABLE_LEN_MAX];
-	u8 ByteTable[MXL5005S_REG_WRITING_TABLE_LEN_MAX];
+	u8 *AddrTable;
+	u8 *ByteTable;
 	int TableLen;
 
 	dprintk(1, "%s(type=%d, bw=%d)\n", __func__, mod_type, bandwidth);
 
 	mxl5005s_reset(fe);
+
+	AddrTable = kcalloc(MXL5005S_REG_WRITING_TABLE_LEN_MAX, sizeof(u8),
+			    GFP_KERNEL);
+	if (!AddrTable)
+		return -ENOMEM;
+
+	ByteTable = kcalloc(MXL5005S_REG_WRITING_TABLE_LEN_MAX, sizeof(u8),
+			    GFP_KERNEL);
+	if (!ByteTable) {
+		kfree(AddrTable);
+		return -ENOMEM;
+	}
 
 	/* Tuner initialization stage 0 */
 	MXL_GetMasterControl(ByteTable, MC_SYNTH_RESET);
@@ -3948,6 +3947,9 @@ static int mxl5005s_reconfigure(struct dvb_frontend *fe, u32 mod_type,
 	MXL_GetInitRegister(fe, AddrTable, ByteTable, &TableLen);
 
 	mxl5005s_writeregs(fe, AddrTable, ByteTable, TableLen);
+
+	kfree(AddrTable);
+	kfree(ByteTable);
 
 	return 0;
 }

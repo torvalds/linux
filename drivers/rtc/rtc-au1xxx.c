@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Au1xxx counter0 (aka Time-Of-Year counter) RTC interface driver.
  *
  * Copyright (C) 2008 Manuel Lauss <mano@roarinelk.homelinux.net>
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 /* All current Au1xxx SoCs have 2 counters fed by an external 32.768 kHz
@@ -104,7 +101,7 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtcdev);
 
-	return rtc_register_device(rtcdev);
+	return devm_rtc_register_device(rtcdev);
 }
 
 static struct platform_driver au1xrtc_driver = {

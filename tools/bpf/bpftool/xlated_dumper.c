@@ -8,6 +8,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <bpf/libbpf.h>
+#include <bpf/libbpf_internal.h>
 
 #include "disasm.h"
 #include "json_writer.h"
@@ -32,8 +33,8 @@ void kernel_syms_load(struct dump_data *dd)
 		return;
 
 	while (fgets(buff, sizeof(buff), fp)) {
-		tmp = reallocarray(dd->sym_mapping, dd->sym_count + 1,
-				   sizeof(*dd->sym_mapping));
+		tmp = libbpf_reallocarray(dd->sym_mapping, dd->sym_count + 1,
+					  sizeof(*dd->sym_mapping));
 		if (!tmp) {
 out:
 			free(dd->sym_mapping);
@@ -196,6 +197,12 @@ static const char *print_imm(void *private_data,
 	else if (insn->src_reg == BPF_PSEUDO_MAP_VALUE)
 		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
 			 "map[id:%u][0]+%u", insn->imm, (insn + 1)->imm);
+	else if (insn->src_reg == BPF_PSEUDO_MAP_IDX_VALUE)
+		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
+			 "map[idx:%u]+%u", insn->imm, (insn + 1)->imm);
+	else if (insn->src_reg == BPF_PSEUDO_FUNC)
+		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
+			 "subprog[%+d]", insn->imm);
 	else
 		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
 			 "0x%llx", (unsigned long long)full_imm);

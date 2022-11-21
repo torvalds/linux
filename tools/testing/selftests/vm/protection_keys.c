@@ -510,7 +510,7 @@ int alloc_pkey(void)
 			" shadow: 0x%016llx\n",
 			__func__, __LINE__, ret, __read_pkey_reg(),
 			shadow_pkey_reg);
-	if (ret) {
+	if (ret > 0) {
 		/* clear both the bits: */
 		shadow_pkey_reg = set_pkey_bits(shadow_pkey_reg, ret,
 						~PKEY_MASK);
@@ -561,7 +561,6 @@ int alloc_random_pkey(void)
 	int nr_alloced = 0;
 	int random_index;
 	memset(alloced_pkeys, 0, sizeof(alloced_pkeys));
-	srand((unsigned int)time(NULL));
 
 	/* allocate every possible key and make a note of which ones we got */
 	max_nr_pkey_allocs = NR_PKEYS;
@@ -1278,6 +1277,78 @@ void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
 	}
 }
 
+void arch_force_pkey_reg_init(void)
+{
+#if defined(__i386__) || defined(__x86_64__) /* arch */
+	u64 *buf;
+
+	/*
+	 * All keys should be allocated and set to allow reads and
+	 * writes, so the register should be all 0.  If not, just
+	 * skip the test.
+	 */
+	if (read_pkey_reg())
+		return;
+
+	/*
+	 * Just allocate an absurd about of memory rather than
+	 * doing the XSAVE size enumeration dance.
+	 */
+	buf = mmap(NULL, 1*MB, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+
+	/* These __builtins require compiling with -mxsave */
+
+	/* XSAVE to build a valid buffer: */
+	__builtin_ia32_xsave(buf, XSTATE_PKEY);
+	/* Clear XSTATE_BV[PKRU]: */
+	buf[XSTATE_BV_OFFSET/sizeof(u64)] &= ~XSTATE_PKEY;
+	/* XRSTOR will likely get PKRU back to the init state: */
+	__builtin_ia32_xrstor(buf, XSTATE_PKEY);
+
+	munmap(buf, 1*MB);
+#endif
+}
+
+
+/*
+ * This is mostly useless on ppc for now.  But it will not
+ * hurt anything and should give some better coverage as
+ * a long-running test that continually checks the pkey
+ * register.
+ */
+void test_pkey_init_state(int *ptr, u16 pkey)
+{
+	int err;
+	int allocated_pkeys[NR_PKEYS] = {0};
+	int nr_allocated_pkeys = 0;
+	int i;
+
+	for (i = 0; i < NR_PKEYS; i++) {
+		int new_pkey = alloc_pkey();
+
+		if (new_pkey < 0)
+			continue;
+		allocated_pkeys[nr_allocated_pkeys++] = new_pkey;
+	}
+
+	dprintf3("%s()::%d\n", __func__, __LINE__);
+
+	arch_force_pkey_reg_init();
+
+	/*
+	 * Loop for a bit, hoping to get exercise the kernel
+	 * context switch code.
+	 */
+	for (i = 0; i < 1000000; i++)
+		read_pkey_reg();
+
+	for (i = 0; i < nr_allocated_pkeys; i++) {
+		err = sys_pkey_free(allocated_pkeys[i]);
+		pkey_assert(!err);
+		read_pkey_reg(); /* for shadow checking */
+	}
+}
+
 /*
  * pkey 0 is special.  It is allocated by default, so you do not
  * have to call pkey_alloc() to use it first.  Make sure that it
@@ -1449,6 +1520,13 @@ void test_implicit_mprotect_exec_only_memory(int *ptr, u16 pkey)
 	ret = mprotect(p1, PAGE_SIZE, PROT_EXEC);
 	pkey_assert(!ret);
 
+	/*
+	 * Reset the shadow, assuming that the above mprotect()
+	 * correctly changed PKRU, but to an unknown value since
+	 * the actual alllocated pkey is unknown.
+	 */
+	shadow_pkey_reg = __read_pkey_reg();
+
 	dprintf2("pkey_reg: %016llx\n", read_pkey_reg());
 
 	/* Make sure this is an *instruction* fault */
@@ -1502,6 +1580,7 @@ void (*pkey_tests[])(int *ptr, u16 pkey) = {
 	test_implicit_mprotect_exec_only_memory,
 	test_mprotect_with_pkey_0,
 	test_ptrace_of_child,
+	test_pkey_init_state,
 	test_pkey_syscalls_on_non_allocated_pkey,
 	test_pkey_syscalls_bad_args,
 	test_pkey_alloc_exhaust,
@@ -1551,6 +1630,8 @@ int main(void)
 {
 	int nr_iterations = 22;
 	int pkeys_supported = is_pkeys_supported();
+
+	srand((unsigned int)time(NULL));
 
 	setup_handlers();
 

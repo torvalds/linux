@@ -97,6 +97,9 @@ struct kvmppc_xive_ops {
 	int (*reset_mapped)(struct kvm *kvm, unsigned long guest_irq);
 };
 
+#define KVMPPC_XIVE_FLAG_SINGLE_ESCALATION 0x1
+#define KVMPPC_XIVE_FLAG_SAVE_RESTORE 0x2
+
 struct kvmppc_xive {
 	struct kvm *kvm;
 	struct kvm_device *dev;
@@ -133,7 +136,7 @@ struct kvmppc_xive {
 	u32	q_page_order;
 
 	/* Flags */
-	u8	single_escalation;
+	u8	flags;
 
 	/* Number of entries in the VP block */
 	u32	nr_servers;
@@ -196,7 +199,7 @@ struct kvmppc_xive_vcpu {
 static inline struct kvm_vcpu *kvmppc_xive_find_server(struct kvm *kvm, u32 nr)
 {
 	struct kvm_vcpu *vcpu = NULL;
-	int i;
+	unsigned long i;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		if (vcpu->arch.xive_vcpu && nr == vcpu->arch.xive_vcpu->server_num)
@@ -218,6 +221,17 @@ static inline struct kvmppc_xive_src_block *kvmppc_xive_find_source(struct kvmpp
 	return xive->src_blocks[bid];
 }
 
+/*
+ * When the XIVE resources are allocated at the HW level, the VP
+ * structures describing the vCPUs of a guest are distributed among
+ * the chips to optimize the PowerBUS usage. For best performance, the
+ * guest vCPUs can be pinned to match the VP structure distribution.
+ *
+ * Currently, the VP identifiers are deduced from the vCPU id using
+ * the kvmppc_pack_vcpu_id() routine which is not incorrect but not
+ * optimal either. It VSMT is used, the result is not continuous and
+ * the constraints on HW resources described above can not be met.
+ */
 static inline u32 kvmppc_xive_vp(struct kvmppc_xive *xive, u32 server)
 {
 	return xive->vp_base + kvmppc_pack_vcpu_id(xive->kvm, server);
@@ -226,7 +240,7 @@ static inline u32 kvmppc_xive_vp(struct kvmppc_xive *xive, u32 server)
 static inline bool kvmppc_xive_vp_in_use(struct kvm *kvm, u32 vp_id)
 {
 	struct kvm_vcpu *vcpu = NULL;
-	int i;
+	unsigned long i;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		if (vcpu->arch.xive_vcpu && vp_id == vcpu->arch.xive_vcpu->vp_id)
@@ -278,18 +292,13 @@ extern int xive_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 extern int xive_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr);
 extern int xive_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr);
 
-extern unsigned long (*__xive_vm_h_xirr)(struct kvm_vcpu *vcpu);
-extern unsigned long (*__xive_vm_h_ipoll)(struct kvm_vcpu *vcpu, unsigned long server);
-extern int (*__xive_vm_h_ipi)(struct kvm_vcpu *vcpu, unsigned long server,
-			      unsigned long mfrr);
-extern int (*__xive_vm_h_cppr)(struct kvm_vcpu *vcpu, unsigned long cppr);
-extern int (*__xive_vm_h_eoi)(struct kvm_vcpu *vcpu, unsigned long xirr);
-
 /*
  * Common Xive routines for XICS-over-XIVE and XIVE native
  */
 void kvmppc_xive_disable_vcpu_interrupts(struct kvm_vcpu *vcpu);
 int kvmppc_xive_debug_show_queues(struct seq_file *m, struct kvm_vcpu *vcpu);
+void kvmppc_xive_debug_show_sources(struct seq_file *m,
+				    struct kvmppc_xive_src_block *sb);
 struct kvmppc_xive_src_block *kvmppc_xive_create_src_block(
 	struct kvmppc_xive *xive, int irq);
 void kvmppc_xive_free_sources(struct kvmppc_xive_src_block *sb);
@@ -301,6 +310,12 @@ void xive_cleanup_single_escalation(struct kvm_vcpu *vcpu,
 				    struct kvmppc_xive_vcpu *xc, int irq);
 int kvmppc_xive_compute_vp_id(struct kvmppc_xive *xive, u32 cpu, u32 *vp);
 int kvmppc_xive_set_nr_servers(struct kvmppc_xive *xive, u64 addr);
+bool kvmppc_xive_check_save_restore(struct kvm_vcpu *vcpu);
+
+static inline bool kvmppc_xive_has_single_escalation(struct kvmppc_xive *xive)
+{
+	return xive->flags & KVMPPC_XIVE_FLAG_SINGLE_ESCALATION;
+}
 
 #endif /* CONFIG_KVM_XICS */
 #endif /* _KVM_PPC_BOOK3S_XICS_H */

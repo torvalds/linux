@@ -55,7 +55,7 @@ static void altera_msi_isr(struct irq_desc *desc)
 	struct altera_msi *msi;
 	unsigned long status;
 	u32 bit;
-	u32 virq;
+	int ret;
 
 	chained_irq_enter(chip, desc);
 	msi = irq_desc_get_handler_data(desc);
@@ -65,11 +65,9 @@ static void altera_msi_isr(struct irq_desc *desc)
 			/* Dummy read from vector to clear the interrupt */
 			readl_relaxed(msi->vector_base + (bit * sizeof(u32)));
 
-			virq = irq_find_mapping(msi->inner_domain, bit);
-			if (virq)
-				generic_handle_irq(virq);
-			else
-				dev_err(&msi->pdev->dev, "unexpected MSI\n");
+			ret = generic_handle_domain_irq(msi->inner_domain, bit);
+			if (ret)
+				dev_err_ratelimited(&msi->pdev->dev, "unexpected MSI\n");
 		}
 	}
 
@@ -204,8 +202,7 @@ static int altera_msi_remove(struct platform_device *pdev)
 	struct altera_msi *msi = platform_get_drvdata(pdev);
 
 	msi_writel(msi, 0, MSI_INTMASK);
-	irq_set_chained_handler(msi->irq, NULL);
-	irq_set_handler_data(msi->irq, NULL);
+	irq_set_chained_handler_and_data(msi->irq, NULL, NULL);
 
 	altera_free_domains(msi);
 
@@ -237,10 +234,8 @@ static int altera_msi_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "vector_slave");
 	msi->vector_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(msi->vector_base)) {
-		dev_err(&pdev->dev, "failed to map vector_slave memory\n");
+	if (IS_ERR(msi->vector_base))
 		return PTR_ERR(msi->vector_base);
-	}
 
 	msi->vector_phy = res->start;
 

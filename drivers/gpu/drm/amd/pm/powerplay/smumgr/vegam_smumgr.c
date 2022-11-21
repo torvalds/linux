@@ -1495,12 +1495,11 @@ static int vegam_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_clock_voltage_dependency_table *sclk_table =
 			table_info->vdd_dep_on_sclk;
-	uint32_t mask = (1 << ((STRAP_ASIC_RO_MSB - STRAP_ASIC_RO_LSB) + 1)) - 1;
 
 	stretch_amount = (uint8_t)table_info->cac_dtp_table->usClockStretchAmount;
 
 	atomctrl_read_efuse(hwmgr, STRAP_ASIC_RO_LSB, STRAP_ASIC_RO_MSB,
-			mask, &efuse);
+			&efuse);
 
 	min = 1200;
 	max = 2500;
@@ -2247,7 +2246,7 @@ static int vegam_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-int vegam_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
+static int vegam_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	int ret;

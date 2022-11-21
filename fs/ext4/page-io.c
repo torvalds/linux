@@ -24,7 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
-#include <linux/backing-dev.h>
+#include <linux/sched/mm.h>
 
 #include "ext4_jbd2.h"
 #include "xattr.h"
@@ -111,9 +111,6 @@ static void ext4_finish_bio(struct bio *bio)
 		unsigned under_io = 0;
 		unsigned long flags;
 
-		if (!page)
-			continue;
-
 		if (fscrypt_is_bounce_page(page)) {
 			bounce_page = page;
 			page = fscrypt_pagecache_page(bounce_page);
@@ -137,8 +134,10 @@ static void ext4_finish_bio(struct bio *bio)
 				continue;
 			}
 			clear_buffer_async_write(bh);
-			if (bio->bi_status)
+			if (bio->bi_status) {
+				set_buffer_write_io_error(bh);
 				buffer_io_error(bh);
+			}
 		} while ((bh = bh->b_this_page) != head);
 		spin_unlock_irqrestore(&head->b_uptodate_lock, flags);
 		if (!under_io) {
@@ -282,14 +281,14 @@ ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
 		io_end->inode = inode;
 		INIT_LIST_HEAD(&io_end->list);
 		INIT_LIST_HEAD(&io_end->list_vec);
-		atomic_set(&io_end->count, 1);
+		refcount_set(&io_end->count, 1);
 	}
 	return io_end;
 }
 
 void ext4_put_io_end_defer(ext4_io_end_t *io_end)
 {
-	if (atomic_dec_and_test(&io_end->count)) {
+	if (refcount_dec_and_test(&io_end->count)) {
 		if (!(io_end->flag & EXT4_IO_END_UNWRITTEN) ||
 				list_empty(&io_end->list_vec)) {
 			ext4_release_io_end(io_end);
@@ -303,7 +302,7 @@ int ext4_put_io_end(ext4_io_end_t *io_end)
 {
 	int err = 0;
 
-	if (atomic_dec_and_test(&io_end->count)) {
+	if (refcount_dec_and_test(&io_end->count)) {
 		if (io_end->flag & EXT4_IO_END_UNWRITTEN) {
 			err = ext4_convert_unwritten_io_end_vec(io_end->handle,
 								io_end);
@@ -317,7 +316,7 @@ int ext4_put_io_end(ext4_io_end_t *io_end)
 
 ext4_io_end_t *ext4_get_io_end(ext4_io_end_t *io_end)
 {
-	atomic_inc(&io_end->count);
+	refcount_inc(&io_end->count);
 	return io_end;
 }
 
@@ -326,10 +325,9 @@ static void ext4_end_bio(struct bio *bio)
 {
 	ext4_io_end_t *io_end = bio->bi_private;
 	sector_t bi_sector = bio->bi_iter.bi_sector;
-	char b[BDEVNAME_SIZE];
 
-	if (WARN_ONCE(!io_end, "io_end is NULL: %s: sector %Lu len %u err %d\n",
-		      bio_devname(bio, b),
+	if (WARN_ONCE(!io_end, "io_end is NULL: %pg: sector %Lu len %u err %d\n",
+		      bio->bi_bdev,
 		      (long long) bio->bi_iter.bi_sector,
 		      (unsigned) bio_sectors(bio),
 		      bio->bi_status)) {
@@ -375,10 +373,8 @@ void ext4_io_submit(struct ext4_io_submit *io)
 	struct bio *bio = io->io_bio;
 
 	if (bio) {
-		int io_op_flags = io->io_wbc->sync_mode == WB_SYNC_ALL ?
-				  REQ_SYNC : 0;
-		io->io_bio->bi_write_hint = io->io_end->inode->i_write_hint;
-		bio_set_op_attrs(io->io_bio, REQ_OP_WRITE, io_op_flags);
+		if (io->io_wbc->sync_mode == WB_SYNC_ALL)
+			io->io_bio->bi_opf |= REQ_SYNC;
 		submit_bio(io->io_bio);
 	}
 	io->io_bio = NULL;
@@ -401,10 +397,9 @@ static void io_submit_init_bio(struct ext4_io_submit *io,
 	 * bio_alloc will _always_ be able to allocate a bio if
 	 * __GFP_DIRECT_RECLAIM is set, see comments for bio_alloc_bioset().
 	 */
-	bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
+	bio = bio_alloc(bh->b_bdev, BIO_MAX_VECS, REQ_OP_WRITE, GFP_NOIO);
 	fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_NOIO);
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
-	bio_set_dev(bio, bh->b_bdev);
 	bio->bi_end_io = ext4_end_bio;
 	bio->bi_private = ext4_get_io_end(io->io_end);
 	io->io_bio = bio;
@@ -424,10 +419,8 @@ static void io_submit_add_bh(struct ext4_io_submit *io,
 submit_and_retry:
 		ext4_io_submit(io);
 	}
-	if (io->io_bio == NULL) {
+	if (io->io_bio == NULL)
 		io_submit_init_bio(io, bh);
-		io->io_bio->bi_write_hint = inode->i_write_hint;
-	}
 	ret = bio_add_page(io->io_bio, page, bh->b_size, bh_offset(bh));
 	if (ret != bh->b_size)
 		goto submit_and_retry;
@@ -438,7 +431,6 @@ submit_and_retry:
 int ext4_bio_write_page(struct ext4_io_submit *io,
 			struct page *page,
 			int len,
-			struct writeback_control *wbc,
 			bool keep_towrite)
 {
 	struct page *bounce_page = NULL;
@@ -448,6 +440,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	int ret = 0;
 	int nr_submitted = 0;
 	int nr_to_submit = 0;
+	struct writeback_control *wbc = io->io_wbc;
 
 	BUG_ON(!PageLocked(page));
 	BUG_ON(PageWriteback(page));
@@ -526,12 +519,13 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 			ret = PTR_ERR(bounce_page);
 			if (ret == -ENOMEM &&
 			    (io->io_bio || wbc->sync_mode == WB_SYNC_ALL)) {
-				gfp_flags = GFP_NOFS;
+				gfp_t new_gfp_flags = GFP_NOFS;
 				if (io->io_bio)
 					ext4_io_submit(io);
 				else
-					gfp_flags |= __GFP_NOFAIL;
-				congestion_wait(BLK_RW_ASYNC, HZ/50);
+					new_gfp_flags |= __GFP_NOFAIL;
+				memalloc_retry_wait(gfp_flags);
+				gfp_flags = new_gfp_flags;
 				goto retry_encrypt;
 			}
 

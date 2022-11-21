@@ -3,7 +3,7 @@
  * OMAP mailbox driver
  *
  * Copyright (C) 2006-2009 Nokia Corporation. All rights reserved.
- * Copyright (C) 2013-2019 Texas Instruments Incorporated - https://www.ti.com
+ * Copyright (C) 2013-2021 Texas Instruments Incorporated - https://www.ti.com
  *
  * Contact: Hiroshi DOYU <Hiroshi.DOYU@nokia.com>
  *          Suman Anna <s-anna@ti.com>
@@ -664,6 +664,10 @@ static const struct of_device_id omap_mailbox_of_match[] = {
 		.data		= &omap4_data,
 	},
 	{
+		.compatible	= "ti,am64-mailbox",
+		.data		= &omap4_data,
+	},
+	{
 		/* end */
 	},
 };
@@ -695,7 +699,6 @@ static struct mbox_chan *omap_mbox_of_xlate(struct mbox_controller *controller,
 
 static int omap_mbox_probe(struct platform_device *pdev)
 {
-	struct resource *mem;
 	int ret;
 	struct mbox_chan *chnls;
 	struct omap_mbox **list, *mbox, *mboxblk;
@@ -772,8 +775,7 @@ static int omap_mbox_probe(struct platform_device *pdev)
 	if (!mdev)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mdev->mbox_base = devm_ioremap_resource(&pdev->dev, mem);
+	mdev->mbox_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mdev->mbox_base))
 		return PTR_ERR(mdev->mbox_base);
 

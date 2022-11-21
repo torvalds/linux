@@ -11,7 +11,6 @@
 	compatible = "st,stih418-b2199", "st,stih418";
 
 	chosen {
-		bootargs = "clk_ignore_unused";
 		stdout-path = &sbc_serial0;
 	};
 
@@ -35,6 +34,17 @@
 		green {
 			gpios = <&pio1 3 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
+		};
+	};
+
+	miphy28lp_phy: miphy28lp {
+
+		phy_port0: port@9b22000 {
+			st,osc-rdy;
+		};
+
+		phy_port1: port@9b2a000 {
+			st,osc-force-ext;
 		};
 	};
 
@@ -83,17 +93,6 @@
 			sd-uhs-sdr104;
 			sd-uhs-ddr50;
 			non-removable;
-		};
-
-		miphy28lp_phy: miphy28lp@0 {
-
-			phy_port0: port@9b22000 {
-				st,osc-rdy;
-			};
-
-			phy_port1: port@9b2a000 {
-				st,osc-force-ext;
-			};
 		};
 
 		st_dwc3: dwc3@8f94000 {

@@ -4,7 +4,6 @@
 #
 
 menu "Input device support"
-	depends on !UML
 
 config INPUT
 	tristate "Generic input layer (needed for keyboard, mouse, ...)" if EXPERT
@@ -52,19 +51,6 @@ config INPUT_FF_MEMLESS
 	  To compile this driver as a module, choose M here: the
 	  module will be called ff-memless.
 
-config INPUT_POLLDEV
-	tristate "Polled input device skeleton"
-	help
-	  Say Y here if you are using a driver for an input
-	  device that periodically polls hardware state. This
-	  option is only useful for out-of-tree drivers since
-	  in-tree drivers select it automatically.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called input-polldev.
-
 config INPUT_SPARSEKMAP
 	tristate "Sparse keymap support library"
 	help
@@ -90,6 +76,13 @@ config INPUT_MATRIXKMAP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called matrix-keymap.
+
+config INPUT_VIVALDIFMAP
+	tristate
+	help
+	  ChromeOS Vivaldi keymap support library. This is a hidden
+	  option so that drivers can use common code to parse and
+	  expose the vivaldi function row keymap.
 
 comment "Userland interfaces"
 

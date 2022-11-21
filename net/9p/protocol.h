@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * net/9p/protocol.h
- *
  * 9P Protocol Support Code
  *
  *  Copyright (C) 2008 by Eric Van Hensbergen <ericvh@gmail.com>
@@ -11,7 +9,7 @@
  */
 
 int p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
-								va_list ap);
+		  va_list ap);
 int p9pdu_readf(struct p9_fcall *pdu, int proto_version, const char *fmt, ...);
 int p9pdu_prepare(struct p9_fcall *pdu, int16_t tag, int8_t type);
 int p9pdu_finalize(struct p9_client *clnt, struct p9_fcall *pdu);

@@ -273,15 +273,13 @@ static int host1x_cdma_wait_pushbuffer_space(struct host1x *host1x,
 static void cdma_start_timer_locked(struct host1x_cdma *cdma,
 				    struct host1x_job *job)
 {
-	struct host1x *host = cdma_to_host1x(cdma);
-
 	if (cdma->timeout.client) {
 		/* timer already started */
 		return;
 	}
 
 	cdma->timeout.client = job->client;
-	cdma->timeout.syncpt = host1x_syncpt_get(host, job->syncpt_id);
+	cdma->timeout.syncpt = job->syncpt;
 	cdma->timeout.syncpt_val = job->syncpt_end;
 	cdma->timeout.start_ktime = ktime_get();
 
@@ -312,23 +310,18 @@ static void stop_cdma_timer_locked(struct host1x_cdma *cdma)
 static void update_cdma_locked(struct host1x_cdma *cdma)
 {
 	bool signal = false;
-	struct host1x *host1x = cdma_to_host1x(cdma);
 	struct host1x_job *job, *n;
-
-	/* If CDMA is stopped, queue is cleared and we can return */
-	if (!cdma->running)
-		return;
 
 	/*
 	 * Walk the sync queue, reading the sync point registers as necessary,
 	 * to consume as many sync queue entries as possible without blocking
 	 */
 	list_for_each_entry_safe(job, n, &cdma->sync_queue, list) {
-		struct host1x_syncpt *sp =
-			host1x_syncpt_get(host1x, job->syncpt_id);
+		struct host1x_syncpt *sp = job->syncpt;
 
 		/* Check whether this syncpt has completed, and bail if not */
-		if (!host1x_syncpt_is_expired(sp, job->syncpt_end)) {
+		if (!host1x_syncpt_is_expired(sp, job->syncpt_end) &&
+		    !job->cancelled) {
 			/* Start timer on next pending syncpt */
 			if (job->timeout)
 				cdma_start_timer_locked(cdma, job);
@@ -417,8 +410,11 @@ syncpt_incr:
 	else
 		restart_addr = cdma->last_pos;
 
+	if (!job)
+		goto resume;
+
 	/* do CPU increments for the remaining syncpts */
-	if (job) {
+	if (job->syncpt_recovery) {
 		dev_dbg(dev, "%s: perform CPU incr on pending buffers\n",
 			__func__);
 
@@ -437,8 +433,44 @@ syncpt_incr:
 
 		dev_dbg(dev, "%s: finished sync_queue modification\n",
 			__func__);
+	} else {
+		struct host1x_job *failed_job = job;
+
+		host1x_job_dump(dev, job);
+
+		host1x_syncpt_set_locked(job->syncpt);
+		failed_job->cancelled = true;
+
+		list_for_each_entry_continue(job, &cdma->sync_queue, list) {
+			unsigned int i;
+
+			if (job->syncpt != failed_job->syncpt)
+				continue;
+
+			for (i = 0; i < job->num_slots; i++) {
+				unsigned int slot = (job->first_get/8 + i) %
+						    HOST1X_PUSHBUFFER_SLOTS;
+				u32 *mapped = cdma->push_buffer.mapped;
+
+				/*
+				 * Overwrite opcodes with 0 word writes
+				 * to offset 0xbad. This does nothing but
+				 * has a easily detected signature in debug
+				 * traces.
+				 */
+				mapped[2*slot+0] = 0x1bad0000;
+				mapped[2*slot+1] = 0x1bad0000;
+			}
+
+			job->cancelled = true;
+		}
+
+		wmb();
+
+		update_cdma_locked(cdma);
 	}
 
+resume:
 	/* roll back DMAGET and start up channel again */
 	host1x_hw_cdma_resume(host1x, cdma, restart_addr);
 }
@@ -494,13 +526,22 @@ int host1x_cdma_begin(struct host1x_cdma *cdma, struct host1x_job *job)
 
 	mutex_lock(&cdma->lock);
 
+	/*
+	 * Check if syncpoint was locked due to previous job timeout.
+	 * This needs to be done within the cdma lock to avoid a race
+	 * with the timeout handler.
+	 */
+	if (job->syncpt->locked) {
+		mutex_unlock(&cdma->lock);
+		return -EPERM;
+	}
+
 	if (job->timeout) {
 		/* init state on first submit with timeout value */
 		if (!cdma->timeout.initialized) {
 			int err;
 
-			err = host1x_hw_cdma_timeout_init(host1x, cdma,
-							  job->syncpt_id);
+			err = host1x_hw_cdma_timeout_init(host1x, cdma);
 			if (err) {
 				mutex_unlock(&cdma->lock);
 				return err;

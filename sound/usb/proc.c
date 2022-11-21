@@ -108,7 +108,8 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 					    snd_pcm_format_name(fmt));
 		snd_iprintf(buffer, "\n");
 		snd_iprintf(buffer, "    Channels: %d\n", fp->channels);
-		snd_iprintf(buffer, "    Endpoint: %d %s (%s)\n",
+		snd_iprintf(buffer, "    Endpoint: 0x%02x (%d %s) (%s)\n",
+			    fp->endpoint,
 			    fp->endpoint & USB_ENDPOINT_NUMBER_MASK,
 			    fp->endpoint & USB_DIR_IN ? "IN" : "OUT",
 			    sync_types[(fp->ep_attr & USB_ENDPOINT_SYNCTYPE) >> 2]);
@@ -150,6 +151,19 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 			snd_iprintf(buffer, "\n");
 		}
 
+		if (fp->sync_ep) {
+			snd_iprintf(buffer, "    Sync Endpoint: 0x%02x (%d %s)\n",
+				    fp->sync_ep,
+				    fp->sync_ep & USB_ENDPOINT_NUMBER_MASK,
+				    fp->sync_ep & USB_DIR_IN ? "IN" : "OUT");
+			snd_iprintf(buffer, "    Sync EP Interface: %d\n",
+				    fp->sync_iface);
+			snd_iprintf(buffer, "    Sync EP Altset: %d\n",
+				    fp->sync_altsetting);
+			snd_iprintf(buffer, "    Implicit Feedback Mode: %s\n",
+				    fp->implicit_fb ? "Yes" : "No");
+		}
+
 		// snd_iprintf(buffer, "    Max Packet Size = %d\n", fp->maxpacksize);
 		// snd_iprintf(buffer, "    EP Attribute = %#x\n", fp->attributes);
 	}
@@ -175,32 +189,39 @@ static void proc_dump_ep_status(struct snd_usb_substream *subs,
 	}
 }
 
-static void proc_dump_substream_status(struct snd_usb_substream *subs, struct snd_info_buffer *buffer)
+static void proc_dump_substream_status(struct snd_usb_audio *chip,
+				       struct snd_usb_substream *subs,
+				       struct snd_info_buffer *buffer)
 {
+	mutex_lock(&chip->mutex);
 	if (subs->running) {
 		snd_iprintf(buffer, "  Status: Running\n");
-		snd_iprintf(buffer, "    Interface = %d\n", subs->interface);
-		snd_iprintf(buffer, "    Altset = %d\n", subs->altset_idx);
+		if (subs->cur_audiofmt) {
+			snd_iprintf(buffer, "    Interface = %d\n", subs->cur_audiofmt->iface);
+			snd_iprintf(buffer, "    Altset = %d\n", subs->cur_audiofmt->altsetting);
+		}
 		proc_dump_ep_status(subs, subs->data_endpoint, subs->sync_endpoint, buffer);
 	} else {
 		snd_iprintf(buffer, "  Status: Stop\n");
 	}
+	mutex_unlock(&chip->mutex);
 }
 
 static void proc_pcm_format_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
 	struct snd_usb_stream *stream = entry->private_data;
+	struct snd_usb_audio *chip = stream->chip;
 
-	snd_iprintf(buffer, "%s : %s\n", stream->chip->card->longname, stream->pcm->name);
+	snd_iprintf(buffer, "%s : %s\n", chip->card->longname, stream->pcm->name);
 
 	if (stream->substream[SNDRV_PCM_STREAM_PLAYBACK].num_formats) {
 		snd_iprintf(buffer, "\nPlayback:\n");
-		proc_dump_substream_status(&stream->substream[SNDRV_PCM_STREAM_PLAYBACK], buffer);
+		proc_dump_substream_status(chip, &stream->substream[SNDRV_PCM_STREAM_PLAYBACK], buffer);
 		proc_dump_substream_formats(&stream->substream[SNDRV_PCM_STREAM_PLAYBACK], buffer);
 	}
 	if (stream->substream[SNDRV_PCM_STREAM_CAPTURE].num_formats) {
 		snd_iprintf(buffer, "\nCapture:\n");
-		proc_dump_substream_status(&stream->substream[SNDRV_PCM_STREAM_CAPTURE], buffer);
+		proc_dump_substream_status(chip, &stream->substream[SNDRV_PCM_STREAM_CAPTURE], buffer);
 		proc_dump_substream_formats(&stream->substream[SNDRV_PCM_STREAM_CAPTURE], buffer);
 	}
 }

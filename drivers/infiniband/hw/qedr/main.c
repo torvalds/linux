@@ -53,7 +53,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define QEDR_WQ_MULTIPLIER_DFT	(3)
 
-static void qedr_ib_dispatch_event(struct qedr_dev *dev, u8 port_num,
+static void qedr_ib_dispatch_event(struct qedr_dev *dev, u32 port_num,
 				   enum ib_event_type type)
 {
 	struct ib_event ibev;
@@ -66,7 +66,7 @@ static void qedr_ib_dispatch_event(struct qedr_dev *dev, u8 port_num,
 }
 
 static enum rdma_link_layer qedr_link_layer(struct ib_device *device,
-					    u8 port_num)
+					    u32 port_num)
 {
 	return IB_LINK_LAYER_ETHERNET;
 }
@@ -81,7 +81,7 @@ static void qedr_get_dev_fw_str(struct ib_device *ibdev, char *str)
 		 (fw_ver >> 8) & 0xFF, fw_ver & 0xFF);
 }
 
-static int qedr_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
+static int qedr_roce_port_immutable(struct ib_device *ibdev, u32 port_num,
 				    struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;
@@ -100,7 +100,7 @@ static int qedr_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-static int qedr_iw_port_immutable(struct ib_device *ibdev, u8 port_num,
+static int qedr_iw_port_immutable(struct ib_device *ibdev, u32 port_num,
 				  struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;
@@ -124,7 +124,7 @@ static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 	struct qedr_dev *dev =
 		rdma_device_to_drv_device(device, struct qedr_dev, ibdev);
 
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->attr.hw_ver);
+	return sysfs_emit(buf, "0x%x\n", dev->attr.hw_ver);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
@@ -134,10 +134,9 @@ static ssize_t hca_type_show(struct device *device,
 	struct qedr_dev *dev =
 		rdma_device_to_drv_device(device, struct qedr_dev, ibdev);
 
-	return scnprintf(buf, PAGE_SIZE, "FastLinQ QL%x %s\n",
-			 dev->pdev->device,
-			 rdma_protocol_iwarp(&dev->ibdev, 1) ?
-			 "iWARP" : "RoCE");
+	return sysfs_emit(buf, "FastLinQ QL%x %s\n", dev->pdev->device,
+			  rdma_protocol_iwarp(&dev->ibdev, 1) ? "iWARP" :
+								"RoCE");
 }
 static DEVICE_ATTR_RO(hca_type);
 
@@ -188,10 +187,6 @@ static void qedr_roce_register_device(struct qedr_dev *dev)
 	dev->ibdev.node_type = RDMA_NODE_IB_CA;
 
 	ib_set_device_ops(&dev->ibdev, &qedr_roce_dev_ops);
-
-	dev->ibdev.uverbs_cmd_mask |= QEDR_UVERBS(OPEN_XRCD) |
-		QEDR_UVERBS(CLOSE_XRCD) |
-		QEDR_UVERBS(CREATE_XSRQ);
 }
 
 static const struct ib_device_ops qedr_dev_ops = {
@@ -213,6 +208,7 @@ static const struct ib_device_ops qedr_dev_ops = {
 	.destroy_cq = qedr_destroy_cq,
 	.destroy_qp = qedr_destroy_qp,
 	.destroy_srq = qedr_destroy_srq,
+	.device_group = &qedr_attr_group,
 	.get_dev_fw_str = qedr_get_dev_fw_str,
 	.get_dma_mr = qedr_get_dma_mr,
 	.get_link_layer = qedr_link_layer,
@@ -232,11 +228,11 @@ static const struct ib_device_ops qedr_dev_ops = {
 	.query_srq = qedr_query_srq,
 	.reg_user_mr = qedr_reg_user_mr,
 	.req_notify_cq = qedr_arm_cq,
-	.resize_cq = qedr_resize_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, qedr_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, qedr_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, qedr_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_qp, qedr_qp, ibqp),
 	INIT_RDMA_OBJ_SIZE(ib_srq, qedr_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_xrcd, qedr_xrcd, ibxrcd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, qedr_ucontext, ibucontext),
@@ -248,31 +244,6 @@ static int qedr_register_device(struct qedr_dev *dev)
 
 	dev->ibdev.node_guid = dev->attr.node_guid;
 	memcpy(dev->ibdev.node_desc, QEDR_NODE_DESC, sizeof(QEDR_NODE_DESC));
-
-	dev->ibdev.uverbs_cmd_mask = QEDR_UVERBS(GET_CONTEXT) |
-				     QEDR_UVERBS(QUERY_DEVICE) |
-				     QEDR_UVERBS(QUERY_PORT) |
-				     QEDR_UVERBS(ALLOC_PD) |
-				     QEDR_UVERBS(DEALLOC_PD) |
-				     QEDR_UVERBS(CREATE_COMP_CHANNEL) |
-				     QEDR_UVERBS(CREATE_CQ) |
-				     QEDR_UVERBS(RESIZE_CQ) |
-				     QEDR_UVERBS(DESTROY_CQ) |
-				     QEDR_UVERBS(REQ_NOTIFY_CQ) |
-				     QEDR_UVERBS(CREATE_QP) |
-				     QEDR_UVERBS(MODIFY_QP) |
-				     QEDR_UVERBS(QUERY_QP) |
-				     QEDR_UVERBS(DESTROY_QP) |
-				     QEDR_UVERBS(CREATE_SRQ) |
-				     QEDR_UVERBS(DESTROY_SRQ) |
-				     QEDR_UVERBS(QUERY_SRQ) |
-				     QEDR_UVERBS(MODIFY_SRQ) |
-				     QEDR_UVERBS(POST_SRQ_RECV) |
-				     QEDR_UVERBS(REG_MR) |
-				     QEDR_UVERBS(DEREG_MR) |
-				     QEDR_UVERBS(POLL_CQ) |
-				     QEDR_UVERBS(POST_SEND) |
-				     QEDR_UVERBS(POST_RECV);
 
 	if (IS_IWARP(dev)) {
 		rc = qedr_iw_register_device(dev);
@@ -286,7 +257,6 @@ static int qedr_register_device(struct qedr_dev *dev)
 	dev->ibdev.num_comp_vectors = dev->num_cnq;
 	dev->ibdev.dev.parent = &dev->pdev->dev;
 
-	rdma_set_device_sysfs_group(&dev->ibdev, &qedr_attr_group);
 	ib_set_device_ops(&dev->ibdev, &qedr_dev_ops);
 
 	rc = ib_device_set_netdev(&dev->ibdev, dev->ndev, 1);
@@ -301,7 +271,7 @@ static int qedr_register_device(struct qedr_dev *dev)
 static int qedr_alloc_mem_sb(struct qedr_dev *dev,
 			     struct qed_sb_info *sb_info, u16 sb_id)
 {
-	struct status_block_e4 *sb_virt;
+	struct status_block *sb_virt;
 	dma_addr_t sb_phys;
 	int rc;
 
@@ -796,6 +766,7 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 		}
 		xa_unlock_irqrestore(&dev->srqs, flags);
 		DP_NOTICE(dev, "SRQ event %d on handle %p\n", e_code, srq);
+		break;
 	default:
 		break;
 	}

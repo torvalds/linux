@@ -83,12 +83,12 @@ static void show_faulting_vma(unsigned long address)
 	 * non-inclusive vma
 	 */
 	mmap_read_lock(active_mm);
-	vma = find_vma(active_mm, address);
+	vma = vma_lookup(active_mm, address);
 
-	/* check against the find_vma( ) behaviour which returns the next VMA
-	 * if the container VMA is not found
+	/* Lookup the vma at the address and report if the container VMA is not
+	 * found
 	 */
-	if (vma && (vma->vm_start <= address)) {
+	if (vma) {
 		char buf[ARC_PATH_MAX];
 		char *nm = "?";
 

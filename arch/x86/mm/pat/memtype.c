@@ -583,7 +583,12 @@ int memtype_reserve(u64 start, u64 end, enum page_cache_mode req_type,
 	int err = 0;
 
 	start = sanitize_phys(start);
-	end = sanitize_phys(end);
+
+	/*
+	 * The end address passed into this function is exclusive, but
+	 * sanitize_phys() expects an inclusive address.
+	 */
+	end = sanitize_phys(end - 1) + 1;
 	if (start >= end) {
 		WARN(1, "%s failed: [mem %#010Lx-%#010Lx], req %s\n", __func__,
 				start, end - 1, cattr_name(req_type));
@@ -695,7 +700,7 @@ int memtype_free(u64 start, u64 end)
 
 
 /**
- * lookup_memtype - Looksup the memory type for a physical address
+ * lookup_memtype - Looks up the memory type for a physical address
  * @paddr: physical address of which memory type needs to be looked up
  *
  * Only to be called when PAT is enabled
@@ -800,6 +805,7 @@ void memtype_free_io(resource_size_t start, resource_size_t end)
 	memtype_free(start, end);
 }
 
+#ifdef CONFIG_X86_PAT
 int arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size)
 {
 	enum page_cache_mode type = _PAGE_CACHE_MODE_WC;
@@ -813,6 +819,7 @@ void arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
 	memtype_free_io(start, start + size);
 }
 EXPORT_SYMBOL(arch_io_free_memtype_wc);
+#endif
 
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				unsigned long size, pgprot_t vma_prot)
@@ -1164,12 +1171,14 @@ static void *memtype_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void *memtype_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
+	kfree(v);
 	++*pos;
 	return memtype_get_idx(*pos);
 }
 
 static void memtype_seq_stop(struct seq_file *seq, void *v)
 {
+	kfree(v);
 }
 
 static int memtype_seq_show(struct seq_file *seq, void *v)
@@ -1180,8 +1189,6 @@ static int memtype_seq_show(struct seq_file *seq, void *v)
 			entry_print->start,
 			entry_print->end,
 			cattr_name(entry_print->type));
-
-	kfree(entry_print);
 
 	return 0;
 }

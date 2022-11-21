@@ -70,11 +70,15 @@ properties:
 
   touchscreen-x-mm:
     description: horizontal length in mm of the touchscreen
-    $ref: /schemas/types.yaml#/definitions/uint32
 
   touchscreen-y-mm:
     description: vertical length in mm of the touchscreen
-    $ref: /schemas/types.yaml#/definitions/uint32
+
+  touchscreen-x-plate-ohms:
+    description: Resistance of the X-plate in Ohms
+
+  touchscreen-y-plate-ohms:
+    description: Resistance of the Y-plate in Ohms
 
 dependencies:
   touchscreen-size-x: [ touchscreen-size-y ]

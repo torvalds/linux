@@ -29,7 +29,7 @@ static void test_global_data_number(struct bpf_object *obj, __u32 duration)
 		{ "relocate .rodata reference", 10, ~0 },
 	};
 
-	for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		err = bpf_map_lookup_elem(map_fd, &tests[i].key, &num);
 		CHECK(err || num != tests[i].num, tests[i].name,
 		      "err %d result %llx expected %llx\n",
@@ -58,7 +58,7 @@ static void test_global_data_string(struct bpf_object *obj, __u32 duration)
 		{ "relocate .bss reference",    4, "\0\0hello" },
 	};
 
-	for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		err = bpf_map_lookup_elem(map_fd, &tests[i].key, str);
 		CHECK(err || memcmp(str, tests[i].str, sizeof(str)),
 		      tests[i].name, "err %d result \'%s\' expected \'%s\'\n",
@@ -92,7 +92,7 @@ static void test_global_data_struct(struct bpf_object *obj, __u32 duration)
 		{ "relocate .data reference",   3, { 41, 0xeeeeefef, 0x2111111111111111ULL, } },
 	};
 
-	for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		err = bpf_map_lookup_elem(map_fd, &tests[i].key, &val);
 		CHECK(err || memcmp(&val, &tests[i].val, sizeof(val)),
 		      tests[i].name, "err %d result { %u, %u, %llu } expected { %u, %u, %llu }\n",
@@ -103,18 +103,25 @@ static void test_global_data_struct(struct bpf_object *obj, __u32 duration)
 static void test_global_data_rdonly(struct bpf_object *obj, __u32 duration)
 {
 	int err = -ENOMEM, map_fd, zero = 0;
-	struct bpf_map *map;
+	struct bpf_map *map, *map2;
 	__u8 *buff;
 
 	map = bpf_object__find_map_by_name(obj, "test_glo.rodata");
-	if (CHECK_FAIL(!map || !bpf_map__is_internal(map)))
+	if (!ASSERT_OK_PTR(map, "map"))
+		return;
+	if (!ASSERT_TRUE(bpf_map__is_internal(map), "is_internal"))
+		return;
+
+	/* ensure we can lookup internal maps by their ELF names */
+	map2 = bpf_object__find_map_by_name(obj, ".rodata");
+	if (!ASSERT_EQ(map, map2, "same_maps"))
 		return;
 
 	map_fd = bpf_map__fd(map);
 	if (CHECK_FAIL(map_fd < 0))
 		return;
 
-	buff = malloc(bpf_map__def(map)->value_size);
+	buff = malloc(bpf_map__value_size(map));
 	if (buff)
 		err = bpf_map_update_elem(map_fd, &zero, buff, 0);
 	free(buff);
@@ -125,24 +132,26 @@ static void test_global_data_rdonly(struct bpf_object *obj, __u32 duration)
 void test_global_data(void)
 {
 	const char *file = "./test_global_data.o";
-	__u32 duration = 0, retval;
 	struct bpf_object *obj;
 	int err, prog_fd;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.repeat = 1,
+	);
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
-	if (CHECK(err, "load program", "error %d loading %s\n", err, file))
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
+	if (!ASSERT_OK(err, "load program"))
 		return;
 
-	err = bpf_prog_test_run(prog_fd, 1, &pkt_v4, sizeof(pkt_v4),
-				NULL, NULL, &retval, &duration);
-	CHECK(err || retval, "pass global data run",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "pass global data run err");
+	ASSERT_OK(topts.retval, "pass global data run retval");
 
-	test_global_data_number(obj, duration);
-	test_global_data_string(obj, duration);
-	test_global_data_struct(obj, duration);
-	test_global_data_rdonly(obj, duration);
+	test_global_data_number(obj, topts.duration);
+	test_global_data_string(obj, topts.duration);
+	test_global_data_struct(obj, topts.duration);
+	test_global_data_rdonly(obj, topts.duration);
 
 	bpf_object__close(obj);
 }

@@ -31,6 +31,32 @@ mt76x0_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 	mt76_txq_schedule_all(&dev->mphy);
 }
 
+int mt76x0_set_sar_specs(struct ieee80211_hw *hw,
+			 const struct cfg80211_sar_specs *sar)
+{
+	int err = -EINVAL, power = hw->conf.power_level * 2;
+	struct mt76x02_dev *dev = hw->priv;
+	struct mt76_phy *mphy = &dev->mphy;
+
+	mutex_lock(&dev->mt76.mutex);
+	if (!cfg80211_chandef_valid(&mphy->chandef))
+		goto out;
+
+	err = mt76_init_sar_power(hw, sar);
+	if (err)
+		goto out;
+
+	dev->txpower_conf = mt76_get_sar_power(mphy, mphy->chandef.chan,
+					       power);
+	if (test_bit(MT76_STATE_RUNNING, &mphy->state))
+		mt76x0_phy_set_txpower(dev);
+out:
+	mutex_unlock(&dev->mt76.mutex);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mt76x0_set_sar_specs);
+
 int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mt76x02_dev *dev = hw->priv;
@@ -44,9 +70,13 @@ int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		dev->txpower_conf = hw->conf.power_level * 2;
+		struct mt76_phy *mphy = &dev->mphy;
 
-		if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
+		dev->txpower_conf = hw->conf.power_level * 2;
+		dev->txpower_conf = mt76_get_sar_power(mphy,
+						       mphy->chandef.chan,
+						       dev->txpower_conf);
+		if (test_bit(MT76_STATE_RUNNING, &mphy->state))
 			mt76x0_phy_set_txpower(dev);
 	}
 

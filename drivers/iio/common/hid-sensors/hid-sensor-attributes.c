@@ -3,20 +3,13 @@
  * HID Sensors Driver
  * Copyright (c) 2012, Intel Corporation.
  */
-#include <linux/device.h>
-#include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/units.h>
 
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
-
-#define HZ_PER_MHZ	1000000L
 
 static struct {
 	u32 usage_id;
@@ -71,6 +64,8 @@ static struct {
 	{HID_USAGE_SENSOR_TEMPERATURE, HID_USAGE_SENSOR_UNITS_DEGREES, 1000, 0},
 
 	{HID_USAGE_SENSOR_HUMIDITY, 0, 1000, 0},
+	{HID_USAGE_SENSOR_HINGE, 0, 0, 17453293},
+	{HID_USAGE_SENSOR_HINGE, HID_USAGE_SENSOR_UNITS_DEGREES, 0, 17453293},
 };
 
 static void simple_div(int dividend, int divisor, int *whole,
@@ -174,7 +169,7 @@ s32 hid_sensor_read_poll_value(struct hid_sensor_common *st)
 
 	return value;
 }
-EXPORT_SYMBOL(hid_sensor_read_poll_value);
+EXPORT_SYMBOL_NS(hid_sensor_read_poll_value, IIO_HID_ATTRIBUTES);
 
 int hid_sensor_read_samp_freq_value(struct hid_sensor_common *st,
 				int *val1, int *val2)
@@ -201,7 +196,7 @@ int hid_sensor_read_samp_freq_value(struct hid_sensor_common *st,
 
 	return IIO_VAL_INT_PLUS_MICRO;
 }
-EXPORT_SYMBOL(hid_sensor_read_samp_freq_value);
+EXPORT_SYMBOL_NS(hid_sensor_read_samp_freq_value, IIO_HID);
 
 int hid_sensor_write_samp_freq_value(struct hid_sensor_common *st,
 				int val1, int val2)
@@ -236,7 +231,7 @@ int hid_sensor_write_samp_freq_value(struct hid_sensor_common *st,
 
 	return 0;
 }
-EXPORT_SYMBOL(hid_sensor_write_samp_freq_value);
+EXPORT_SYMBOL_NS(hid_sensor_write_samp_freq_value, IIO_HID);
 
 int hid_sensor_read_raw_hyst_value(struct hid_sensor_common *st,
 				int *val1, int *val2)
@@ -259,7 +254,30 @@ int hid_sensor_read_raw_hyst_value(struct hid_sensor_common *st,
 
 	return IIO_VAL_INT_PLUS_MICRO;
 }
-EXPORT_SYMBOL(hid_sensor_read_raw_hyst_value);
+EXPORT_SYMBOL_NS(hid_sensor_read_raw_hyst_value, IIO_HID);
+
+int hid_sensor_read_raw_hyst_rel_value(struct hid_sensor_common *st, int *val1,
+				       int *val2)
+{
+	s32 value;
+	int ret;
+
+	ret = sensor_hub_get_feature(st->hsdev,
+				     st->sensitivity_rel.report_id,
+				     st->sensitivity_rel.index, sizeof(value),
+				     &value);
+	if (ret < 0 || value < 0) {
+		*val1 = *val2 = 0;
+		return -EINVAL;
+	}
+
+	convert_from_vtf_format(value, st->sensitivity_rel.size,
+				st->sensitivity_rel.unit_expo, val1, val2);
+
+	return IIO_VAL_INT_PLUS_MICRO;
+}
+EXPORT_SYMBOL_NS(hid_sensor_read_raw_hyst_rel_value, IIO_HID);
+
 
 int hid_sensor_write_raw_hyst_value(struct hid_sensor_common *st,
 					int val1, int val2)
@@ -290,7 +308,38 @@ int hid_sensor_write_raw_hyst_value(struct hid_sensor_common *st,
 
 	return 0;
 }
-EXPORT_SYMBOL(hid_sensor_write_raw_hyst_value);
+EXPORT_SYMBOL_NS(hid_sensor_write_raw_hyst_value, IIO_HID);
+
+int hid_sensor_write_raw_hyst_rel_value(struct hid_sensor_common *st,
+					int val1, int val2)
+{
+	s32 value;
+	int ret;
+
+	if (val1 < 0 || val2 < 0)
+		return -EINVAL;
+
+	value = convert_to_vtf_format(st->sensitivity_rel.size,
+				st->sensitivity_rel.unit_expo,
+				val1, val2);
+	ret = sensor_hub_set_feature(st->hsdev, st->sensitivity_rel.report_id,
+				     st->sensitivity_rel.index, sizeof(value),
+				     &value);
+	if (ret < 0 || value < 0)
+		return -EINVAL;
+
+	ret = sensor_hub_get_feature(st->hsdev,
+				     st->sensitivity_rel.report_id,
+				     st->sensitivity_rel.index, sizeof(value),
+				     &value);
+	if (ret < 0 || value < 0)
+		return -EINVAL;
+
+	st->raw_hystersis = value;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(hid_sensor_write_raw_hyst_rel_value, IIO_HID);
 
 /*
  * This fuction applies the unit exponent to the scale.
@@ -374,14 +423,14 @@ int hid_sensor_format_scale(u32 usage_id,
 
 	return IIO_VAL_INT_PLUS_NANO;
 }
-EXPORT_SYMBOL(hid_sensor_format_scale);
+EXPORT_SYMBOL_NS(hid_sensor_format_scale, IIO_HID);
 
 int64_t hid_sensor_convert_timestamp(struct hid_sensor_common *st,
 				     int64_t raw_value)
 {
 	return st->timestamp_ns_scale * raw_value;
 }
-EXPORT_SYMBOL(hid_sensor_convert_timestamp);
+EXPORT_SYMBOL_NS(hid_sensor_convert_timestamp, IIO_HID);
 
 static
 int hid_sensor_get_reporting_interval(struct hid_sensor_hub_device *hsdev,
@@ -428,7 +477,7 @@ int hid_sensor_get_report_latency(struct hid_sensor_common *st)
 
 	return value;
 }
-EXPORT_SYMBOL(hid_sensor_get_report_latency);
+EXPORT_SYMBOL_NS(hid_sensor_get_report_latency, IIO_HID_ATTRIBUTES);
 
 int hid_sensor_set_report_latency(struct hid_sensor_common *st, int latency_ms)
 {
@@ -436,22 +485,25 @@ int hid_sensor_set_report_latency(struct hid_sensor_common *st, int latency_ms)
 				      st->report_latency.index,
 				      sizeof(latency_ms), &latency_ms);
 }
-EXPORT_SYMBOL(hid_sensor_set_report_latency);
+EXPORT_SYMBOL_NS(hid_sensor_set_report_latency, IIO_HID_ATTRIBUTES);
 
 bool hid_sensor_batch_mode_supported(struct hid_sensor_common *st)
 {
 	return st->report_latency.index > 0 && st->report_latency.report_id > 0;
 }
-EXPORT_SYMBOL(hid_sensor_batch_mode_supported);
+EXPORT_SYMBOL_NS(hid_sensor_batch_mode_supported, IIO_HID_ATTRIBUTES);
 
 int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 					u32 usage_id,
-					struct hid_sensor_common *st)
+					struct hid_sensor_common *st,
+					const u32 *sensitivity_addresses,
+					u32 sensitivity_addresses_len)
 {
 
 	struct hid_sensor_hub_attribute_info timestamp;
 	s32 value;
 	int ret;
+	int i;
 
 	hid_sensor_get_reporting_interval(hsdev, usage_id, st);
 
@@ -472,6 +524,30 @@ int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 			HID_FEATURE_REPORT, usage_id,
 			HID_USAGE_SENSOR_PROP_SENSITIVITY_ABS,
 			 &st->sensitivity);
+
+	sensor_hub_input_get_attribute_info(hsdev,
+			HID_FEATURE_REPORT, usage_id,
+			HID_USAGE_SENSOR_PROP_SENSITIVITY_REL_PCT,
+			&st->sensitivity_rel);
+	/*
+	 * Set Sensitivity field ids, when there is no individual modifier, will
+	 * check absolute sensitivity and relative sensitivity of data field
+	 */
+	for (i = 0; i < sensitivity_addresses_len; i++) {
+		if (st->sensitivity.index < 0)
+			sensor_hub_input_get_attribute_info(
+				hsdev, HID_FEATURE_REPORT, usage_id,
+				HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_ABS |
+					sensitivity_addresses[i],
+				&st->sensitivity);
+
+		if (st->sensitivity_rel.index < 0)
+			sensor_hub_input_get_attribute_info(
+				hsdev, HID_FEATURE_REPORT, usage_id,
+				HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_REL_PCT |
+					sensitivity_addresses[i],
+				&st->sensitivity_rel);
+	}
 
 	st->raw_hystersis = -1;
 
@@ -507,7 +583,7 @@ int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 
 	return 0;
 }
-EXPORT_SYMBOL(hid_sensor_parse_common_attributes);
+EXPORT_SYMBOL_NS(hid_sensor_parse_common_attributes, IIO_HID);
 
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@intel.com>");
 MODULE_DESCRIPTION("HID Sensor common attribute processing");

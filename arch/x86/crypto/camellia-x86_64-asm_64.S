@@ -213,13 +213,13 @@ SYM_FUNC_START(__camellia_enc_blk)
 	enc_outunpack(mov, RT1);
 
 	movq RR12, %r12;
-	ret;
+	RET;
 
 .L__enc_xor:
 	enc_outunpack(xor, RT1);
 
 	movq RR12, %r12;
-	ret;
+	RET;
 SYM_FUNC_END(__camellia_enc_blk)
 
 SYM_FUNC_START(camellia_dec_blk)
@@ -257,7 +257,7 @@ SYM_FUNC_START(camellia_dec_blk)
 	dec_outunpack();
 
 	movq RR12, %r12;
-	ret;
+	RET;
 SYM_FUNC_END(camellia_dec_blk)
 
 /**********************************************************************
@@ -448,14 +448,14 @@ SYM_FUNC_START(__camellia_enc_blk_2way)
 
 	movq RR12, %r12;
 	popq %rbx;
-	ret;
+	RET;
 
 .L__enc2_xor:
 	enc_outunpack2(xor, RT2);
 
 	movq RR12, %r12;
 	popq %rbx;
-	ret;
+	RET;
 SYM_FUNC_END(__camellia_enc_blk_2way)
 
 SYM_FUNC_START(camellia_dec_blk_2way)
@@ -495,5 +495,5 @@ SYM_FUNC_START(camellia_dec_blk_2way)
 
 	movq RR12, %r12;
 	movq RXOR, %rbx;
-	ret;
+	RET;
 SYM_FUNC_END(camellia_dec_blk_2way)

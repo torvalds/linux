@@ -32,12 +32,20 @@
 
 #include "i915_drv.h"
 #include "intel_atomic.h"
+#include "intel_backlight.h"
 #include "intel_connector.h"
+#include "intel_crtc.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
+#include "intel_dsi_vbt.h"
 #include "intel_fifo_underrun.h"
 #include "intel_panel.h"
-#include "intel_sideband.h"
+#include "skl_scaler.h"
+#include "vlv_dsi.h"
+#include "vlv_dsi_pll.h"
+#include "vlv_dsi_regs.h"
+#include "vlv_sideband.h"
 
 /* return pixels in terms of txbyteclkhs */
 static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,
@@ -267,23 +275,19 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
-	const struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	int ret;
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
-	if (fixed_mode) {
-		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
+	ret = intel_panel_compute_config(intel_connector, adjusted_mode);
+	if (ret)
+		return ret;
 
-		if (HAS_GMCH(dev_priv))
-			ret = intel_gmch_panel_fitting(pipe_config, conn_state);
-		else
-			ret = intel_pch_panel_fitting(pipe_config, conn_state);
-		if (ret)
-			return ret;
-	}
+	ret = intel_panel_fitting(pipe_config, conn_state);
+	if (ret)
+		return ret;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
@@ -296,7 +300,7 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	else
 		pipe_config->pipe_bpp = 18;
 
-	if (IS_GEN9_LP(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		/* Enable Frame time stamp based scanline reporting */
 		pipe_config->mode_flags |=
 			I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP;
@@ -521,7 +525,7 @@ static void intel_dsi_device_ready(struct intel_encoder *encoder)
 
 	if (IS_GEMINILAKE(dev_priv))
 		glk_dsi_device_ready(encoder);
-	else if (IS_GEN9_LP(dev_priv))
+	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		bxt_dsi_device_ready(encoder);
 	else
 		vlv_dsi_device_ready(encoder);
@@ -600,7 +604,7 @@ static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 	drm_dbg_kms(&dev_priv->drm, "\n");
 	for_each_dsi_port(port, intel_dsi->ports) {
 		/* Common bit for both MIPI Port A & MIPI Port C on VLV/CHV */
-		i915_reg_t port_ctrl = IS_GEN9_LP(dev_priv) ?
+		i915_reg_t port_ctrl = IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) ?
 			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(PORT_A);
 		u32 val;
 
@@ -620,7 +624,7 @@ static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 		 * On VLV/CHV, wait till Clock lanes are in LP-00 state for MIPI
 		 * Port A only. MIPI Port C has no similar bit for checking.
 		 */
-		if ((IS_GEN9_LP(dev_priv) || port == PORT_A) &&
+		if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) || port == PORT_A) &&
 		    intel_de_wait_for_clear(dev_priv, port_ctrl,
 					    AFE_LATCHOUT, 30))
 			drm_err(&dev_priv->drm, "DSI LP not going Low\n");
@@ -645,7 +649,7 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder,
 
 	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK) {
 		u32 temp;
-		if (IS_GEN9_LP(dev_priv)) {
+		if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 			for_each_dsi_port(port, intel_dsi->ports) {
 				temp = intel_de_read(dev_priv,
 						     MIPI_CTRL(port));
@@ -665,7 +669,7 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder,
 	}
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		i915_reg_t port_ctrl = IS_GEN9_LP(dev_priv) ?
+		i915_reg_t port_ctrl = IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) ?
 			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
 		u32 temp;
 
@@ -702,7 +706,7 @@ static void intel_dsi_port_disable(struct intel_encoder *encoder)
 	enum port port;
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		i915_reg_t port_ctrl = IS_GEN9_LP(dev_priv) ?
+		i915_reg_t port_ctrl = IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) ?
 			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
 		u32 temp;
 
@@ -711,6 +715,19 @@ static void intel_dsi_port_disable(struct intel_encoder *encoder)
 		intel_de_write(dev_priv, port_ctrl, temp & ~DPI_ENABLE);
 		intel_de_posting_read(dev_priv, port_ctrl);
 	}
+}
+
+static void intel_dsi_wait_panel_power_cycle(struct intel_dsi *intel_dsi)
+{
+	ktime_t panel_power_on_time;
+	s64 panel_power_off_duration;
+
+	panel_power_on_time = ktime_get_boottime();
+	panel_power_off_duration = ktime_ms_delta(panel_power_on_time,
+						  intel_dsi->panel_power_off_time);
+
+	if (panel_power_off_duration < (s64)intel_dsi->panel_pwr_cycle_delay)
+		msleep(intel_dsi->panel_pwr_cycle_delay - panel_power_off_duration);
 }
 
 static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
@@ -764,15 +781,16 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 				 const struct drm_connector_state *conn_state)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	struct drm_crtc *crtc = pipe_config->uapi.crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 	enum port port;
 	u32 val;
 	bool glk_cold_boot = false;
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
+
+	intel_dsi_wait_panel_power_cycle(intel_dsi);
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
@@ -780,7 +798,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 	 * The BIOS may leave the PLL in a wonky state where it doesn't
 	 * lock. It needs to be fully powered down to fix it.
 	 */
-	if (IS_GEN9_LP(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		bxt_dsi_pll_disable(encoder);
 		bxt_dsi_pll_enable(encoder, pipe_config);
 	} else {
@@ -812,10 +830,20 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 		intel_dsi_prepare(encoder, pipe_config);
 
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_ON);
-	intel_dsi_msleep(intel_dsi, intel_dsi->panel_on_delay);
 
-	/* Deassert reset */
-	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
+	/*
+	 * Give the panel time to power-on and then deassert its reset.
+	 * Depending on the VBT MIPI sequences version the deassert-seq
+	 * may contain the necessary delay, intel_dsi_msleep() will skip
+	 * the delay in that case. If there is no deassert-seq, then an
+	 * unconditional msleep is used to give the panel time to power-on.
+	 */
+	if (dev_priv->vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET]) {
+		intel_dsi_msleep(intel_dsi, intel_dsi->panel_on_delay);
+		intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
+	} else {
+		msleep(intel_dsi->panel_on_delay);
+	}
 
 	if (IS_GEMINILAKE(dev_priv)) {
 		glk_cold_boot = glk_dsi_enable_io(encoder);
@@ -835,8 +863,10 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 	/* Send initialization commands in LP mode */
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_INIT_OTP);
 
-	/* Enable port in pre-enable phase itself because as per hw team
-	 * recommendation, port should be enabled befor plane & pipe */
+	/*
+	 * Enable port in pre-enable phase itself because as per hw team
+	 * recommendation, port should be enabled before plane & pipe
+	 */
 	if (is_cmd_mode(intel_dsi)) {
 		for_each_dsi_port(port, intel_dsi->ports)
 			intel_de_write(dev_priv,
@@ -854,7 +884,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 		intel_dsi_port_enable(encoder, pipe_config);
 	}
 
-	intel_panel_enable_backlight(pipe_config, conn_state);
+	intel_backlight_enable(pipe_config, conn_state);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
 
@@ -884,7 +914,7 @@ static void intel_dsi_disable(struct intel_atomic_state *state,
 	drm_dbg_kms(&i915->drm, "\n");
 
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
-	intel_panel_disable_backlight(old_conn_state);
+	intel_backlight_disable(old_conn_state);
 
 	/*
 	 * According to the spec we should send SHUTDOWN before
@@ -921,7 +951,7 @@ static void intel_dsi_post_disable(struct intel_atomic_state *state,
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
 
-	if (IS_GEN9_LP(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		intel_crtc_vblank_off(old_crtc_state);
 
 		skl_scaler_disable(old_crtc_state);
@@ -960,7 +990,7 @@ static void intel_dsi_post_disable(struct intel_atomic_state *state,
 			       val & ~MIPIO_RST_CTRL);
 	}
 
-	if (IS_GEN9_LP(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		bxt_dsi_pll_disable(encoder);
 	} else {
 		u32 val;
@@ -978,11 +1008,14 @@ static void intel_dsi_post_disable(struct intel_atomic_state *state,
 	intel_dsi_msleep(intel_dsi, intel_dsi->panel_off_delay);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_OFF);
 
-	/*
-	 * FIXME As we do with eDP, just make a note of the time here
-	 * and perform the wait before the next panel power on.
-	 */
-	intel_dsi_msleep(intel_dsi, intel_dsi->panel_pwr_cycle_delay);
+	intel_dsi->panel_power_off_time = ktime_get_boottime();
+}
+
+static void intel_dsi_shutdown(struct intel_encoder *encoder)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+
+	intel_dsi_wait_panel_power_cycle(intel_dsi);
 }
 
 static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
@@ -1006,12 +1039,13 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	 * configuration, otherwise accessing DSI registers will hang the
 	 * machine. See BSpec North Display Engine registers/MIPI[BXT].
 	 */
-	if (IS_GEN9_LP(dev_priv) && !bxt_dsi_pll_is_enabled(dev_priv))
+	if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) &&
+	    !bxt_dsi_pll_is_enabled(dev_priv))
 		goto out_put_power;
 
 	/* XXX: this only works for one DSI output */
 	for_each_dsi_port(port, intel_dsi->ports) {
-		i915_reg_t ctrl_reg = IS_GEN9_LP(dev_priv) ?
+		i915_reg_t ctrl_reg = IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) ?
 			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
 		bool enabled = intel_de_read(dev_priv, ctrl_reg) & DPI_ENABLE;
 
@@ -1037,7 +1071,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 		if (!(intel_de_read(dev_priv, MIPI_DEVICE_READY(port)) & DEVICE_READY))
 			continue;
 
-		if (IS_GEN9_LP(dev_priv)) {
+		if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 			u32 tmp = intel_de_read(dev_priv, MIPI_CTRL(port));
 			tmp &= BXT_PIPE_SELECT_MASK;
 			tmp >>= BXT_PIPE_SELECT_SHIFT;
@@ -1228,17 +1262,22 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	u32 pclk;
+
 	drm_dbg_kms(&dev_priv->drm, "\n");
 
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
 
-	if (IS_GEN9_LP(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		bxt_dsi_get_pipe_config(encoder, pipe_config);
 		pclk = bxt_dsi_get_pclk(encoder, pipe_config);
 	} else {
 		pclk = vlv_dsi_get_pclk(encoder, pipe_config);
 	}
+
+	if (intel_dsi->dual_link)
+		pclk *= 2;
 
 	if (pclk) {
 		pipe_config->hw.adjusted_mode.crtc_clock = pclk;
@@ -1299,7 +1338,7 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 	hbp = txbyteclkhs(hbp, bpp, lane_count, intel_dsi->burst_mode_ratio);
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		if (IS_GEN9_LP(dev_priv)) {
+		if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 			/*
 			 * Program hdisplay and vdisplay on MIPI transcoder.
 			 * This is different from calculated hactive and
@@ -1355,7 +1394,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(to_intel_encoder(encoder));
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	enum port port;
@@ -1363,7 +1402,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 	u32 val, tmp;
 	u16 mode_hdisplay;
 
-	drm_dbg_kms(&dev_priv->drm, "pipe %c\n", pipe_name(intel_crtc->pipe));
+	drm_dbg_kms(&dev_priv->drm, "pipe %c\n", pipe_name(crtc->pipe));
 
 	mode_hdisplay = adjusted_mode->crtc_hdisplay;
 
@@ -1389,8 +1428,8 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			tmp &= ~READ_REQUEST_PRIORITY_MASK;
 			intel_de_write(dev_priv, MIPI_CTRL(port),
 				       tmp | READ_REQUEST_PRIORITY_HIGH);
-		} else if (IS_GEN9_LP(dev_priv)) {
-			enum pipe pipe = intel_crtc->pipe;
+		} else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
+			enum pipe pipe = crtc->pipe;
 
 			tmp = intel_de_read(dev_priv, MIPI_CTRL(port));
 			tmp &= ~BXT_PIPE_SELECT_MASK;
@@ -1427,7 +1466,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 	if (intel_dsi->clock_stop)
 		tmp |= CLOCKSTOP;
 
-	if (IS_GEN9_LP(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		tmp |= BXT_DPHY_DEFEATURE_EN;
 		if (!is_cmd_mode(intel_dsi))
 			tmp |= BXT_DEFEATURE_DPI_FIFO_CTR;
@@ -1454,7 +1493,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 		 */
 
 		if (is_vid_mode(intel_dsi) &&
-			intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
+			intel_dsi->video_mode == BURST_MODE) {
 			intel_de_write(dev_priv, MIPI_HS_TX_TIMEOUT(port),
 				       txbyteclkhs(adjusted_mode->crtc_htotal, bpp, intel_dsi->lane_count, intel_dsi->burst_mode_ratio) + 1);
 		} else {
@@ -1474,7 +1513,8 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 		intel_de_write(dev_priv, MIPI_INIT_COUNT(port),
 			       txclkesc(intel_dsi->escape_clk_div, 100));
 
-		if (IS_GEN9_LP(dev_priv) && (!intel_dsi->dual_link)) {
+		if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) &&
+		    !intel_dsi->dual_link) {
 			/*
 			 * BXT spec says write MIPI_INIT_COUNT for
 			 * both the ports, even if only one is
@@ -1529,12 +1569,33 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 		intel_de_write(dev_priv, MIPI_CLK_LANE_SWITCH_TIME_CNT(port),
 			       intel_dsi->clk_lp_to_hs_count << LP_HS_SSW_CNT_SHIFT | intel_dsi->clk_hs_to_lp_count << HS_LP_PWR_SW_CNT_SHIFT);
 
-		if (is_vid_mode(intel_dsi))
-			/* Some panels might have resolution which is not a
+		if (is_vid_mode(intel_dsi)) {
+			u32 fmt = intel_dsi->video_frmt_cfg_bits | IP_TG_CONFIG;
+
+			/*
+			 * Some panels might have resolution which is not a
 			 * multiple of 64 like 1366 x 768. Enable RANDOM
-			 * resolution support for such panels by default */
-			intel_de_write(dev_priv, MIPI_VIDEO_MODE_FORMAT(port),
-				       intel_dsi->video_frmt_cfg_bits | intel_dsi->video_mode_format | IP_TG_CONFIG | RANDOM_DPI_DISPLAY_RESOLUTION);
+			 * resolution support for such panels by default.
+			 */
+			fmt |= RANDOM_DPI_DISPLAY_RESOLUTION;
+
+			switch (intel_dsi->video_mode) {
+			default:
+				MISSING_CASE(intel_dsi->video_mode);
+				fallthrough;
+			case NON_BURST_SYNC_EVENTS:
+				fmt |= VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS;
+				break;
+			case NON_BURST_SYNC_PULSE:
+				fmt |= VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE;
+				break;
+			case BURST_MODE:
+				fmt |= VIDEO_MODE_BURST;
+				break;
+			}
+
+			intel_de_write(dev_priv, MIPI_VIDEO_MODE_FORMAT(port), fmt);
+		}
 	}
 }
 
@@ -1552,7 +1613,7 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder)
 		/* Panel commands can be sent when clock is in LP11 */
 		intel_de_write(dev_priv, MIPI_DEVICE_READY(port), 0x0);
 
-		if (IS_GEN9_LP(dev_priv))
+		if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 			bxt_dsi_reset_clocks(encoder, port);
 		else
 			vlv_dsi_reset_clocks(encoder, port);
@@ -1599,25 +1660,21 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 static void vlv_dsi_add_properties(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	u32 allowed_scalers;
 
-	if (connector->panel.fixed_mode) {
-		u32 allowed_scalers;
+	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
+	if (!HAS_GMCH(dev_priv))
+		allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
 
-		allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
-		if (!HAS_GMCH(dev_priv))
-			allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
+	drm_connector_attach_scaling_mode_property(&connector->base,
+						   allowed_scalers);
 
-		drm_connector_attach_scaling_mode_property(&connector->base,
-								allowed_scalers);
+	connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 
-		connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
-
-		drm_connector_set_panel_orientation_with_quirk(
-				&connector->base,
-				intel_dsi_get_panel_orientation(connector),
-				connector->panel.fixed_mode->hdisplay,
-				connector->panel.fixed_mode->vdisplay);
-	}
+	drm_connector_set_panel_orientation_with_quirk(&connector->base,
+						       intel_dsi_get_panel_orientation(connector),
+						       connector->panel.fixed_mode->hdisplay,
+						       connector->panel.fixed_mode->vdisplay);
 }
 
 #define NS_KHZ_RATIO		1000000
@@ -1810,7 +1867,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	if (!intel_bios_is_dsi_present(dev_priv, &port))
 		return;
 
-	if (IS_GEN9_LP(dev_priv))
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		dev_priv->mipi_mmio_base = BXT_MIPI_BASE;
 	else
 		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
@@ -1836,13 +1893,14 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	intel_encoder->compute_config = intel_dsi_compute_config;
 	intel_encoder->pre_enable = intel_dsi_pre_enable;
-	if (IS_GEN9_LP(dev_priv))
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		intel_encoder->enable = bxt_dsi_enable;
 	intel_encoder->disable = intel_dsi_disable;
 	intel_encoder->post_disable = intel_dsi_post_disable;
 	intel_encoder->get_hw_state = intel_dsi_get_hw_state;
 	intel_encoder->get_config = intel_dsi_get_config;
-	intel_encoder->update_pipe = intel_panel_update_backlight;
+	intel_encoder->update_pipe = intel_backlight_update;
+	intel_encoder->shutdown = intel_dsi_shutdown;
 
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
@@ -1855,12 +1913,14 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	 * On BYT/CHV, pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI
 	 * port C. BXT isn't limited like this.
 	 */
-	if (IS_GEN9_LP(dev_priv))
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		intel_encoder->pipe_mask = ~0;
 	else if (port == PORT_A)
 		intel_encoder->pipe_mask = BIT(PIPE_A);
 	else
 		intel_encoder->pipe_mask = BIT(PIPE_B);
+
+	intel_dsi->panel_power_off_time = ktime_get_boottime();
 
 	if (dev_priv->vbt.dsi.config->dual_link)
 		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_C);
@@ -1927,7 +1987,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
-	intel_panel_setup_backlight(connector, INVALID_PIPE);
+	intel_backlight_setup(intel_connector, INVALID_PIPE);
 
 	vlv_dsi_add_properties(intel_connector);
 

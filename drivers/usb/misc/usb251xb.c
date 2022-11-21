@@ -396,7 +396,7 @@ static void usb251xb_get_ports_field(struct usb251xb *hub,
 }
 
 static int usb251xb_get_ofdata(struct usb251xb *hub,
-			       struct usb251xb_data *data)
+			       const struct usb251xb_data *data)
 {
 	struct device *dev = hub->dev;
 	struct device_node *np = dev->of_node;
@@ -543,6 +543,9 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	if (of_property_read_u16_array(np, "language-id", &hub->lang_id, 1))
 		hub->lang_id = USB251XB_DEF_LANGUAGE_ID;
 
+	if (of_property_read_u8(np, "boost-up", &hub->boost_up))
+		hub->boost_up = USB251XB_DEF_BOOST_UP;
+
 	cproperty_char = of_get_property(np, "manufacturer", NULL);
 	strlcpy(str, cproperty_char ? : USB251XB_DEF_MANUFACTURER_STRING,
 		sizeof(str));
@@ -584,7 +587,6 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	 * may be as soon as needed.
 	 */
 	hub->bat_charge_en = USB251XB_DEF_BATTERY_CHARGING_ENABLE;
-	hub->boost_up = USB251XB_DEF_BOOST_UP;
 	hub->boost_57 = USB251XB_DEF_BOOST_57;
 	hub->boost_14 = USB251XB_DEF_BOOST_14;
 	hub->port_map12 = USB251XB_DEF_PORT_MAP_12;
@@ -630,7 +632,7 @@ static const struct of_device_id usb251xb_of_match[] = {
 MODULE_DEVICE_TABLE(of, usb251xb_of_match);
 #else /* CONFIG_OF */
 static int usb251xb_get_ofdata(struct usb251xb *hub,
-			       struct usb251xb_data *data)
+			       const struct usb251xb_data *data)
 {
 	return 0;
 }
@@ -647,13 +649,11 @@ static int usb251xb_probe(struct usb251xb *hub)
 {
 	struct device *dev = hub->dev;
 	struct device_node *np = dev->of_node;
-	const struct of_device_id *of_id = of_match_device(usb251xb_of_match,
-							   dev);
+	const struct usb251xb_data *usb_data = of_device_get_match_data(dev);
 	int err;
 
-	if (np && of_id) {
-		err = usb251xb_get_ofdata(hub,
-					  (struct usb251xb_data *)of_id->data);
+	if (np && usb_data) {
+		err = usb251xb_get_ofdata(hub, usb_data);
 		if (err) {
 			dev_err(dev, "failed to get ofdata: %d\n", err);
 			return err;

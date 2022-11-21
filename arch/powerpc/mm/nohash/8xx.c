@@ -8,11 +8,7 @@
  */
 
 #include <linux/memblock.h>
-#include <linux/mmu_context.h>
 #include <linux/hugetlb.h>
-#include <asm/fixmap.h>
-#include <asm/code-patching.h>
-#include <asm/inst.h>
 
 #include <mm/mmu_decl.h>
 
@@ -149,7 +145,7 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 {
 	unsigned long etext8 = ALIGN(__pa(_etext), SZ_8M);
 	unsigned long sinittext = __pa(_sinittext);
-	bool strict_boundary = strict_kernel_rwx_enabled() || debug_pagealloc_enabled();
+	bool strict_boundary = strict_kernel_rwx_enabled() || debug_pagealloc_enabled_or_kfence();
 	unsigned long boundary = strict_boundary ? sinittext : etext8;
 	unsigned long einittext8 = ALIGN(__pa(_einittext), SZ_8M);
 
@@ -161,7 +157,7 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 		return 0;
 
 	mmu_mapin_ram_chunk(0, boundary, PAGE_KERNEL_TEXT, true);
-	if (debug_pagealloc_enabled()) {
+	if (debug_pagealloc_enabled_or_kfence()) {
 		top = boundary;
 	} else {
 		mmu_mapin_ram_chunk(boundary, einittext8, PAGE_KERNEL_TEXT, true);
@@ -186,8 +182,7 @@ void mmu_mark_initmem_nx(void)
 	mmu_mapin_ram_chunk(0, boundary, PAGE_KERNEL_TEXT, false);
 	mmu_mapin_ram_chunk(boundary, einittext8, PAGE_KERNEL, false);
 
-	if (IS_ENABLED(CONFIG_PIN_TLB_TEXT))
-		mmu_pin_tlb(block_mapped_ram, false);
+	mmu_pin_tlb(block_mapped_ram, false);
 }
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
@@ -213,57 +208,12 @@ void __init setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	memblock_set_current_limit(min_t(u64, first_memblock_size, SZ_32M));
 }
 
-/*
- * Set up to use a given MMU context.
- * id is context number, pgd is PGD pointer.
- *
- * We place the physical address of the new task page directory loaded
- * into the MMU base register, and set the ASID compare register with
- * the new "context."
- */
-void set_context(unsigned long id, pgd_t *pgd)
+int pud_clear_huge(pud_t *pud)
 {
-	s16 offset = (s16)(__pa(swapper_pg_dir));
-
-	/* Context switch the PTE pointer for the Abatron BDI2000.
-	 * The PGDIR is passed as second argument.
-	 */
-	if (IS_ENABLED(CONFIG_BDI_SWITCH))
-		abatron_pteptrs[1] = pgd;
-
-	/* Register M_TWB will contain base address of level 1 table minus the
-	 * lower part of the kernel PGDIR base address, so that all accesses to
-	 * level 1 table are done relative to lower part of kernel PGDIR base
-	 * address.
-	 */
-	mtspr(SPRN_M_TWB, __pa(pgd) - offset);
-
-	/* Update context */
-	mtspr(SPRN_M_CASID, id - 1);
-	/* sync */
-	mb();
+	 return 0;
 }
 
-#ifdef CONFIG_PPC_KUEP
-void __init setup_kuep(bool disabled)
+int pmd_clear_huge(pmd_t *pmd)
 {
-	if (disabled)
-		return;
-
-	pr_info("Activating Kernel Userspace Execution Prevention\n");
-
-	mtspr(SPRN_MI_AP, MI_APG_KUEP);
+	 return 0;
 }
-#endif
-
-#ifdef CONFIG_PPC_KUAP
-void __init setup_kuap(bool disabled)
-{
-	pr_info("Activating Kernel Userspace Access Protection\n");
-
-	if (disabled)
-		pr_warn("KUAP cannot be disabled yet on 8xx when compiled in\n");
-
-	mtspr(SPRN_MD_AP, MD_APG_KUAP);
-}
-#endif

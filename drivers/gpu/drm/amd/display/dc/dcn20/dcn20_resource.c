@@ -35,6 +35,8 @@
 #include "include/irq_service_interface.h"
 #include "dcn20/dcn20_resource.h"
 
+#include "dml/dcn20/dcn20_fpu.h"
+
 #include "dcn10/dcn10_hubp.h"
 #include "dcn10/dcn10_ipp.h"
 #include "dcn20_hubbub.h"
@@ -84,371 +86,11 @@
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
 #include "vm_helper.h"
+#include "link_enc_cfg.h"
 
 #include "amdgpu_socbb.h"
 
 #define DC_LOGGER_INIT(logger)
-
-struct _vcs_dpi_ip_params_st dcn2_0_ip = {
-	.odm_capable = 1,
-	.gpuvm_enable = 0,
-	.hostvm_enable = 0,
-	.gpuvm_max_page_table_levels = 4,
-	.hostvm_max_page_table_levels = 4,
-	.hostvm_cached_page_table_levels = 0,
-	.pte_group_size_bytes = 2048,
-	.num_dsc = 6,
-	.rob_buffer_size_kbytes = 168,
-	.det_buffer_size_kbytes = 164,
-	.dpte_buffer_size_in_pte_reqs_luma = 84,
-	.pde_proc_buffer_size_64k_reqs = 48,
-	.dpp_output_buffer_pixels = 2560,
-	.opp_output_buffer_lines = 1,
-	.pixel_chunk_size_kbytes = 8,
-	.pte_chunk_size_kbytes = 2,
-	.meta_chunk_size_kbytes = 2,
-	.writeback_chunk_size_kbytes = 2,
-	.line_buffer_size_bits = 789504,
-	.is_line_buffer_bpp_fixed = 0,
-	.line_buffer_fixed_bpp = 0,
-	.dcc_supported = true,
-	.max_line_buffer_lines = 12,
-	.writeback_luma_buffer_size_kbytes = 12,
-	.writeback_chroma_buffer_size_kbytes = 8,
-	.writeback_chroma_line_buffer_width_pixels = 4,
-	.writeback_max_hscl_ratio = 1,
-	.writeback_max_vscl_ratio = 1,
-	.writeback_min_hscl_ratio = 1,
-	.writeback_min_vscl_ratio = 1,
-	.writeback_max_hscl_taps = 12,
-	.writeback_max_vscl_taps = 12,
-	.writeback_line_buffer_luma_buffer_size = 0,
-	.writeback_line_buffer_chroma_buffer_size = 14643,
-	.cursor_buffer_size = 8,
-	.cursor_chunk_size = 2,
-	.max_num_otg = 6,
-	.max_num_dpp = 6,
-	.max_num_wb = 1,
-	.max_dchub_pscl_bw_pix_per_clk = 4,
-	.max_pscl_lb_bw_pix_per_clk = 2,
-	.max_lb_vscl_bw_pix_per_clk = 4,
-	.max_vscl_hscl_bw_pix_per_clk = 4,
-	.max_hscl_ratio = 8,
-	.max_vscl_ratio = 8,
-	.hscl_mults = 4,
-	.vscl_mults = 4,
-	.max_hscl_taps = 8,
-	.max_vscl_taps = 8,
-	.dispclk_ramp_margin_percent = 1,
-	.underscan_factor = 1.10,
-	.min_vblank_lines = 32, //
-	.dppclk_delay_subtotal = 77, //
-	.dppclk_delay_scl_lb_only = 16,
-	.dppclk_delay_scl = 50,
-	.dppclk_delay_cnvc_formatter = 8,
-	.dppclk_delay_cnvc_cursor = 6,
-	.dispclk_delay_subtotal = 87, //
-	.dcfclk_cstate_latency = 10, // SRExitTime
-	.max_inter_dcn_tile_repeaters = 8,
-	.xfc_supported = true,
-	.xfc_fill_bw_overhead_percent = 10.0,
-	.xfc_fill_constant_bytes = 0,
-	.number_of_cursors = 1,
-};
-
-static struct _vcs_dpi_ip_params_st dcn2_0_nv14_ip = {
-	.odm_capable = 1,
-	.gpuvm_enable = 0,
-	.hostvm_enable = 0,
-	.gpuvm_max_page_table_levels = 4,
-	.hostvm_max_page_table_levels = 4,
-	.hostvm_cached_page_table_levels = 0,
-	.num_dsc = 5,
-	.rob_buffer_size_kbytes = 168,
-	.det_buffer_size_kbytes = 164,
-	.dpte_buffer_size_in_pte_reqs_luma = 84,
-	.dpte_buffer_size_in_pte_reqs_chroma = 42,//todo
-	.dpp_output_buffer_pixels = 2560,
-	.opp_output_buffer_lines = 1,
-	.pixel_chunk_size_kbytes = 8,
-	.pte_enable = 1,
-	.max_page_table_levels = 4,
-	.pte_chunk_size_kbytes = 2,
-	.meta_chunk_size_kbytes = 2,
-	.writeback_chunk_size_kbytes = 2,
-	.line_buffer_size_bits = 789504,
-	.is_line_buffer_bpp_fixed = 0,
-	.line_buffer_fixed_bpp = 0,
-	.dcc_supported = true,
-	.max_line_buffer_lines = 12,
-	.writeback_luma_buffer_size_kbytes = 12,
-	.writeback_chroma_buffer_size_kbytes = 8,
-	.writeback_chroma_line_buffer_width_pixels = 4,
-	.writeback_max_hscl_ratio = 1,
-	.writeback_max_vscl_ratio = 1,
-	.writeback_min_hscl_ratio = 1,
-	.writeback_min_vscl_ratio = 1,
-	.writeback_max_hscl_taps = 12,
-	.writeback_max_vscl_taps = 12,
-	.writeback_line_buffer_luma_buffer_size = 0,
-	.writeback_line_buffer_chroma_buffer_size = 14643,
-	.cursor_buffer_size = 8,
-	.cursor_chunk_size = 2,
-	.max_num_otg = 5,
-	.max_num_dpp = 5,
-	.max_num_wb = 1,
-	.max_dchub_pscl_bw_pix_per_clk = 4,
-	.max_pscl_lb_bw_pix_per_clk = 2,
-	.max_lb_vscl_bw_pix_per_clk = 4,
-	.max_vscl_hscl_bw_pix_per_clk = 4,
-	.max_hscl_ratio = 8,
-	.max_vscl_ratio = 8,
-	.hscl_mults = 4,
-	.vscl_mults = 4,
-	.max_hscl_taps = 8,
-	.max_vscl_taps = 8,
-	.dispclk_ramp_margin_percent = 1,
-	.underscan_factor = 1.10,
-	.min_vblank_lines = 32, //
-	.dppclk_delay_subtotal = 77, //
-	.dppclk_delay_scl_lb_only = 16,
-	.dppclk_delay_scl = 50,
-	.dppclk_delay_cnvc_formatter = 8,
-	.dppclk_delay_cnvc_cursor = 6,
-	.dispclk_delay_subtotal = 87, //
-	.dcfclk_cstate_latency = 10, // SRExitTime
-	.max_inter_dcn_tile_repeaters = 8,
-	.xfc_supported = true,
-	.xfc_fill_bw_overhead_percent = 10.0,
-	.xfc_fill_constant_bytes = 0,
-	.ptoi_supported = 0,
-	.number_of_cursors = 1,
-};
-
-static struct _vcs_dpi_soc_bounding_box_st dcn2_0_soc = {
-	/* Defaults that get patched on driver load from firmware. */
-	.clock_limits = {
-			{
-				.state = 0,
-				.dcfclk_mhz = 560.0,
-				.fabricclk_mhz = 560.0,
-				.dispclk_mhz = 513.0,
-				.dppclk_mhz = 513.0,
-				.phyclk_mhz = 540.0,
-				.socclk_mhz = 560.0,
-				.dscclk_mhz = 171.0,
-				.dram_speed_mts = 8960.0,
-			},
-			{
-				.state = 1,
-				.dcfclk_mhz = 694.0,
-				.fabricclk_mhz = 694.0,
-				.dispclk_mhz = 642.0,
-				.dppclk_mhz = 642.0,
-				.phyclk_mhz = 600.0,
-				.socclk_mhz = 694.0,
-				.dscclk_mhz = 214.0,
-				.dram_speed_mts = 11104.0,
-			},
-			{
-				.state = 2,
-				.dcfclk_mhz = 875.0,
-				.fabricclk_mhz = 875.0,
-				.dispclk_mhz = 734.0,
-				.dppclk_mhz = 734.0,
-				.phyclk_mhz = 810.0,
-				.socclk_mhz = 875.0,
-				.dscclk_mhz = 245.0,
-				.dram_speed_mts = 14000.0,
-			},
-			{
-				.state = 3,
-				.dcfclk_mhz = 1000.0,
-				.fabricclk_mhz = 1000.0,
-				.dispclk_mhz = 1100.0,
-				.dppclk_mhz = 1100.0,
-				.phyclk_mhz = 810.0,
-				.socclk_mhz = 1000.0,
-				.dscclk_mhz = 367.0,
-				.dram_speed_mts = 16000.0,
-			},
-			{
-				.state = 4,
-				.dcfclk_mhz = 1200.0,
-				.fabricclk_mhz = 1200.0,
-				.dispclk_mhz = 1284.0,
-				.dppclk_mhz = 1284.0,
-				.phyclk_mhz = 810.0,
-				.socclk_mhz = 1200.0,
-				.dscclk_mhz = 428.0,
-				.dram_speed_mts = 16000.0,
-			},
-			/*Extra state, no dispclk ramping*/
-			{
-				.state = 5,
-				.dcfclk_mhz = 1200.0,
-				.fabricclk_mhz = 1200.0,
-				.dispclk_mhz = 1284.0,
-				.dppclk_mhz = 1284.0,
-				.phyclk_mhz = 810.0,
-				.socclk_mhz = 1200.0,
-				.dscclk_mhz = 428.0,
-				.dram_speed_mts = 16000.0,
-			},
-		},
-	.num_states = 5,
-	.sr_exit_time_us = 11.6,
-	.sr_enter_plus_exit_time_us = 13.9,
-	.urgent_latency_us = 4.0,
-	.urgent_latency_pixel_data_only_us = 4.0,
-	.urgent_latency_pixel_mixed_with_vm_data_us = 4.0,
-	.urgent_latency_vm_data_only_us = 4.0,
-	.urgent_out_of_order_return_per_channel_pixel_only_bytes = 4096,
-	.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes = 4096,
-	.urgent_out_of_order_return_per_channel_vm_only_bytes = 4096,
-	.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 40.0,
-	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 40.0,
-	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 40.0,
-	.max_avg_sdp_bw_use_normal_percent = 40.0,
-	.max_avg_dram_bw_use_normal_percent = 40.0,
-	.writeback_latency_us = 12.0,
-	.ideal_dram_bw_after_urgent_percent = 40.0,
-	.max_request_size_bytes = 256,
-	.dram_channel_width_bytes = 2,
-	.fabric_datapath_to_dcn_data_return_bytes = 64,
-	.dcn_downspread_percent = 0.5,
-	.downspread_percent = 0.38,
-	.dram_page_open_time_ns = 50.0,
-	.dram_rw_turnaround_time_ns = 17.5,
-	.dram_return_buffer_per_channel_bytes = 8192,
-	.round_trip_ping_latency_dcfclk_cycles = 131,
-	.urgent_out_of_order_return_per_channel_bytes = 256,
-	.channel_interleave_bytes = 256,
-	.num_banks = 8,
-	.num_chans = 16,
-	.vmm_page_size_bytes = 4096,
-	.dram_clock_change_latency_us = 404.0,
-	.dummy_pstate_latency_us = 5.0,
-	.writeback_dram_clock_change_latency_us = 23.0,
-	.return_bus_width_bytes = 64,
-	.dispclk_dppclk_vco_speed_mhz = 3850,
-	.xfc_bus_transport_time_us = 20,
-	.xfc_xbuf_latency_tolerance_us = 4,
-	.use_urgent_burst_bw = 0
-};
-
-static struct _vcs_dpi_soc_bounding_box_st dcn2_0_nv14_soc = {
-	.clock_limits = {
-			{
-				.state = 0,
-				.dcfclk_mhz = 560.0,
-				.fabricclk_mhz = 560.0,
-				.dispclk_mhz = 513.0,
-				.dppclk_mhz = 513.0,
-				.phyclk_mhz = 540.0,
-				.socclk_mhz = 560.0,
-				.dscclk_mhz = 171.0,
-				.dram_speed_mts = 8960.0,
-			},
-			{
-				.state = 1,
-				.dcfclk_mhz = 694.0,
-				.fabricclk_mhz = 694.0,
-				.dispclk_mhz = 642.0,
-				.dppclk_mhz = 642.0,
-				.phyclk_mhz = 600.0,
-				.socclk_mhz = 694.0,
-				.dscclk_mhz = 214.0,
-				.dram_speed_mts = 11104.0,
-			},
-			{
-				.state = 2,
-				.dcfclk_mhz = 875.0,
-				.fabricclk_mhz = 875.0,
-				.dispclk_mhz = 734.0,
-				.dppclk_mhz = 734.0,
-				.phyclk_mhz = 810.0,
-				.socclk_mhz = 875.0,
-				.dscclk_mhz = 245.0,
-				.dram_speed_mts = 14000.0,
-			},
-			{
-				.state = 3,
-				.dcfclk_mhz = 1000.0,
-				.fabricclk_mhz = 1000.0,
-				.dispclk_mhz = 1100.0,
-				.dppclk_mhz = 1100.0,
-				.phyclk_mhz = 810.0,
-				.socclk_mhz = 1000.0,
-				.dscclk_mhz = 367.0,
-				.dram_speed_mts = 16000.0,
-			},
-			{
-				.state = 4,
-				.dcfclk_mhz = 1200.0,
-				.fabricclk_mhz = 1200.0,
-				.dispclk_mhz = 1284.0,
-				.dppclk_mhz = 1284.0,
-				.phyclk_mhz = 810.0,
-				.socclk_mhz = 1200.0,
-				.dscclk_mhz = 428.0,
-				.dram_speed_mts = 16000.0,
-			},
-			/*Extra state, no dispclk ramping*/
-			{
-				.state = 5,
-				.dcfclk_mhz = 1200.0,
-				.fabricclk_mhz = 1200.0,
-				.dispclk_mhz = 1284.0,
-				.dppclk_mhz = 1284.0,
-				.phyclk_mhz = 810.0,
-				.socclk_mhz = 1200.0,
-				.dscclk_mhz = 428.0,
-				.dram_speed_mts = 16000.0,
-			},
-		},
-	.num_states = 5,
-	.sr_exit_time_us = 11.6,
-	.sr_enter_plus_exit_time_us = 13.9,
-	.urgent_latency_us = 4.0,
-	.urgent_latency_pixel_data_only_us = 4.0,
-	.urgent_latency_pixel_mixed_with_vm_data_us = 4.0,
-	.urgent_latency_vm_data_only_us = 4.0,
-	.urgent_out_of_order_return_per_channel_pixel_only_bytes = 4096,
-	.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes = 4096,
-	.urgent_out_of_order_return_per_channel_vm_only_bytes = 4096,
-	.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 40.0,
-	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 40.0,
-	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 40.0,
-	.max_avg_sdp_bw_use_normal_percent = 40.0,
-	.max_avg_dram_bw_use_normal_percent = 40.0,
-	.writeback_latency_us = 12.0,
-	.ideal_dram_bw_after_urgent_percent = 40.0,
-	.max_request_size_bytes = 256,
-	.dram_channel_width_bytes = 2,
-	.fabric_datapath_to_dcn_data_return_bytes = 64,
-	.dcn_downspread_percent = 0.5,
-	.downspread_percent = 0.38,
-	.dram_page_open_time_ns = 50.0,
-	.dram_rw_turnaround_time_ns = 17.5,
-	.dram_return_buffer_per_channel_bytes = 8192,
-	.round_trip_ping_latency_dcfclk_cycles = 131,
-	.urgent_out_of_order_return_per_channel_bytes = 256,
-	.channel_interleave_bytes = 256,
-	.num_banks = 8,
-	.num_chans = 8,
-	.vmm_page_size_bytes = 4096,
-	.dram_clock_change_latency_us = 404.0,
-	.dummy_pstate_latency_us = 5.0,
-	.writeback_dram_clock_change_latency_us = 23.0,
-	.return_bus_width_bytes = 64,
-	.dispclk_dppclk_vco_speed_mhz = 3850,
-	.xfc_bus_transport_time_us = 20,
-	.xfc_xbuf_latency_tolerance_us = 4,
-	.use_urgent_burst_bw = 0
-};
-
-static struct _vcs_dpi_soc_bounding_box_st dcn2_0_nv12_soc = { 0 };
 
 #ifndef mmDP0_DP_DPHY_INTERNAL_CTRL
 	#define mmDP0_DP_DPHY_INTERNAL_CTRL		0x210f
@@ -1065,7 +707,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.timing_trace = false,
 		.clock_trace = true,
 		.disable_pplib_clock_request = true,
-		.pipe_split_policy = MPC_SPLIT_DYNAMIC,
+		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
 		.force_single_disp_pipe_split = false,
 		.disable_dcc = DCC_ENABLE,
 		.vsr_support = true,
@@ -1104,7 +746,7 @@ struct dpp *dcn20_dpp_create(
 	uint32_t inst)
 {
 	struct dcn20_dpp *dpp =
-		kzalloc(sizeof(struct dcn20_dpp), GFP_KERNEL);
+		kzalloc(sizeof(struct dcn20_dpp), GFP_ATOMIC);
 
 	if (!dpp)
 		return NULL;
@@ -1122,7 +764,7 @@ struct input_pixel_processor *dcn20_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn10_ipp *ipp =
-		kzalloc(sizeof(struct dcn10_ipp), GFP_KERNEL);
+		kzalloc(sizeof(struct dcn10_ipp), GFP_ATOMIC);
 
 	if (!ipp) {
 		BREAK_TO_DEBUGGER();
@@ -1139,7 +781,7 @@ struct output_pixel_processor *dcn20_opp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn20_opp *opp =
-		kzalloc(sizeof(struct dcn20_opp), GFP_KERNEL);
+		kzalloc(sizeof(struct dcn20_opp), GFP_ATOMIC);
 
 	if (!opp) {
 		BREAK_TO_DEBUGGER();
@@ -1156,7 +798,7 @@ struct dce_aux *dcn20_aux_engine_create(
 	uint32_t inst)
 {
 	struct aux_engine_dce110 *aux_engine =
-		kzalloc(sizeof(struct aux_engine_dce110), GFP_KERNEL);
+		kzalloc(sizeof(struct aux_engine_dce110), GFP_ATOMIC);
 
 	if (!aux_engine)
 		return NULL;
@@ -1194,7 +836,7 @@ struct dce_i2c_hw *dcn20_i2c_hw_create(
 	uint32_t inst)
 {
 	struct dce_i2c_hw *dce_i2c_hw =
-		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+		kzalloc(sizeof(struct dce_i2c_hw), GFP_ATOMIC);
 
 	if (!dce_i2c_hw)
 		return NULL;
@@ -1207,7 +849,7 @@ struct dce_i2c_hw *dcn20_i2c_hw_create(
 struct mpc *dcn20_mpc_create(struct dc_context *ctx)
 {
 	struct dcn20_mpc *mpc20 = kzalloc(sizeof(struct dcn20_mpc),
-					  GFP_KERNEL);
+					  GFP_ATOMIC);
 
 	if (!mpc20)
 		return NULL;
@@ -1225,7 +867,7 @@ struct hubbub *dcn20_hubbub_create(struct dc_context *ctx)
 {
 	int i;
 	struct dcn20_hubbub *hubbub = kzalloc(sizeof(struct dcn20_hubbub),
-					  GFP_KERNEL);
+					  GFP_ATOMIC);
 
 	if (!hubbub)
 		return NULL;
@@ -1253,7 +895,7 @@ struct timing_generator *dcn20_timing_generator_create(
 		uint32_t instance)
 {
 	struct optc *tgn10 =
-		kzalloc(sizeof(struct optc), GFP_KERNEL);
+		kzalloc(sizeof(struct optc), GFP_ATOMIC);
 
 	if (!tgn10)
 		return NULL;
@@ -1332,7 +974,7 @@ static struct clock_source *dcn20_clock_source_create(
 	bool dp_clk_src)
 {
 	struct dce110_clk_src *clk_src =
-		kzalloc(sizeof(struct dce110_clk_src), GFP_KERNEL);
+		kzalloc(sizeof(struct dce110_clk_src), GFP_ATOMIC);
 
 	if (!clk_src)
 		return NULL;
@@ -1438,7 +1080,7 @@ struct display_stream_compressor *dcn20_dsc_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn20_dsc *dsc =
-		kzalloc(sizeof(struct dcn20_dsc), GFP_KERNEL);
+		kzalloc(sizeof(struct dcn20_dsc), GFP_ATOMIC);
 
 	if (!dsc) {
 		BREAK_TO_DEBUGGER();
@@ -1572,7 +1214,7 @@ struct hubp *dcn20_hubp_create(
 	uint32_t inst)
 {
 	struct dcn20_hubp *hubp2 =
-		kzalloc(sizeof(struct dcn20_hubp), GFP_KERNEL);
+		kzalloc(sizeof(struct dcn20_hubp), GFP_ATOMIC);
 
 	if (!hubp2)
 		return NULL;
@@ -1593,15 +1235,23 @@ static void get_pixel_clock_parameters(
 	const struct dc_stream_state *stream = pipe_ctx->stream;
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
+	struct dc_link *link = stream->link;
+	struct link_encoder *link_enc = NULL;
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 		opp_cnt++;
 
 	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
-	pixel_clk_params->encoder_object_id = stream->link->link_enc->id;
+
+	link_enc = link_enc_cfg_get_link_enc(link);
+	ASSERT(link_enc);
+
+	if (link_enc)
+		pixel_clk_params->encoder_object_id = link_enc->id;
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
 	pixel_clk_params->controller_id = pipe_ctx->stream_res.tg->inst + 1;
 	/* TODO: un-hardcode*/
+	/* TODO - DP2.0 HW: calculate requested_sym_clk for UHBR rates */
 	pixel_clk_params->requested_sym_clk = LINK_RATE_LOW *
 		LINK_RATE_REF_FREQ_IN_KHZ;
 	pixel_clk_params->flags.ENABLE_SS = 0;
@@ -1798,67 +1448,6 @@ enum dc_status dcn20_remove_stream_from_ctx(struct dc *dc, struct dc_state *new_
 	return result;
 }
 
-
-static void swizzle_to_dml_params(
-		enum swizzle_mode_values swizzle,
-		unsigned int *sw_mode)
-{
-	switch (swizzle) {
-	case DC_SW_LINEAR:
-		*sw_mode = dm_sw_linear;
-		break;
-	case DC_SW_4KB_S:
-		*sw_mode = dm_sw_4kb_s;
-		break;
-	case DC_SW_4KB_S_X:
-		*sw_mode = dm_sw_4kb_s_x;
-		break;
-	case DC_SW_4KB_D:
-		*sw_mode = dm_sw_4kb_d;
-		break;
-	case DC_SW_4KB_D_X:
-		*sw_mode = dm_sw_4kb_d_x;
-		break;
-	case DC_SW_64KB_S:
-		*sw_mode = dm_sw_64kb_s;
-		break;
-	case DC_SW_64KB_S_X:
-		*sw_mode = dm_sw_64kb_s_x;
-		break;
-	case DC_SW_64KB_S_T:
-		*sw_mode = dm_sw_64kb_s_t;
-		break;
-	case DC_SW_64KB_D:
-		*sw_mode = dm_sw_64kb_d;
-		break;
-	case DC_SW_64KB_D_X:
-		*sw_mode = dm_sw_64kb_d_x;
-		break;
-	case DC_SW_64KB_D_T:
-		*sw_mode = dm_sw_64kb_d_t;
-		break;
-	case DC_SW_64KB_R_X:
-		*sw_mode = dm_sw_64kb_r_x;
-		break;
-	case DC_SW_VAR_S:
-		*sw_mode = dm_sw_var_s;
-		break;
-	case DC_SW_VAR_S_X:
-		*sw_mode = dm_sw_var_s_x;
-		break;
-	case DC_SW_VAR_D:
-		*sw_mode = dm_sw_var_d;
-		break;
-	case DC_SW_VAR_D_X:
-		*sw_mode = dm_sw_var_d_x;
-		break;
-
-	default:
-		ASSERT(0); /* Not supported */
-		break;
-	}
-}
-
 bool dcn20_split_stream_for_odm(
 		const struct dc *dc,
 		struct resource_context *res_ctx,
@@ -1882,9 +1471,16 @@ bool dcn20_split_stream_for_odm(
 		next_odm_pipe->next_odm_pipe = prev_odm_pipe->next_odm_pipe;
 		next_odm_pipe->next_odm_pipe->prev_odm_pipe = next_odm_pipe;
 	}
+	if (prev_odm_pipe->top_pipe && prev_odm_pipe->top_pipe->next_odm_pipe) {
+		prev_odm_pipe->top_pipe->next_odm_pipe->bottom_pipe = next_odm_pipe;
+		next_odm_pipe->top_pipe = prev_odm_pipe->top_pipe->next_odm_pipe;
+	}
+	if (prev_odm_pipe->bottom_pipe && prev_odm_pipe->bottom_pipe->next_odm_pipe) {
+		prev_odm_pipe->bottom_pipe->next_odm_pipe->top_pipe = next_odm_pipe;
+		next_odm_pipe->bottom_pipe = prev_odm_pipe->bottom_pipe->next_odm_pipe;
+	}
 	prev_odm_pipe->next_odm_pipe = next_odm_pipe;
 	next_odm_pipe->prev_odm_pipe = prev_odm_pipe;
-	ASSERT(next_odm_pipe->top_pipe == NULL);
 
 	if (prev_odm_pipe->plane_state) {
 		struct scaler_data *sd = &prev_odm_pipe->plane_res.scl_data;
@@ -1922,8 +1518,11 @@ bool dcn20_split_stream_for_odm(
 				sd->ratios.horz_c, sd->h_active - sd->recout.x));
 		sd->recout.x = 0;
 	}
-	next_odm_pipe->stream_res.opp = pool->opps[next_odm_pipe->pipe_idx];
-	if (next_odm_pipe->stream->timing.flags.DSC == 1) {
+	if (!next_odm_pipe->top_pipe)
+		next_odm_pipe->stream_res.opp = pool->opps[next_odm_pipe->pipe_idx];
+	else
+		next_odm_pipe->stream_res.opp = next_odm_pipe->top_pipe->stream_res.opp;
+	if (next_odm_pipe->stream->timing.flags.DSC == 1 && !next_odm_pipe->top_pipe) {
 		dcn20_acquire_dsc(dc, res_ctx, &next_odm_pipe->stream_res.dsc, next_odm_pipe->pipe_idx);
 		ASSERT(next_odm_pipe->stream_res.dsc);
 		if (next_odm_pipe->stream_res.dsc == NULL)
@@ -1964,430 +1563,6 @@ void dcn20_split_stream_for_mpc(
 	ASSERT(primary_pipe->plane_state);
 }
 
-void dcn20_populate_dml_writeback_from_context(
-		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes)
-{
-	int pipe_cnt, i;
-
-	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
-		struct dc_writeback_info *wb_info = &res_ctx->pipe_ctx[i].stream->writeback_info[0];
-
-		if (!res_ctx->pipe_ctx[i].stream)
-			continue;
-
-		/* Set writeback information */
-		pipes[pipe_cnt].dout.wb_enable = (wb_info->wb_enabled == true) ? 1 : 0;
-		pipes[pipe_cnt].dout.num_active_wb++;
-		pipes[pipe_cnt].dout.wb.wb_src_height = wb_info->dwb_params.cnv_params.crop_height;
-		pipes[pipe_cnt].dout.wb.wb_src_width = wb_info->dwb_params.cnv_params.crop_width;
-		pipes[pipe_cnt].dout.wb.wb_dst_width = wb_info->dwb_params.dest_width;
-		pipes[pipe_cnt].dout.wb.wb_dst_height = wb_info->dwb_params.dest_height;
-		pipes[pipe_cnt].dout.wb.wb_htaps_luma = 1;
-		pipes[pipe_cnt].dout.wb.wb_vtaps_luma = 1;
-		pipes[pipe_cnt].dout.wb.wb_htaps_chroma = wb_info->dwb_params.scaler_taps.h_taps_c;
-		pipes[pipe_cnt].dout.wb.wb_vtaps_chroma = wb_info->dwb_params.scaler_taps.v_taps_c;
-		pipes[pipe_cnt].dout.wb.wb_hratio = 1.0;
-		pipes[pipe_cnt].dout.wb.wb_vratio = 1.0;
-		if (wb_info->dwb_params.out_format == dwb_scaler_mode_yuv420) {
-			if (wb_info->dwb_params.output_depth == DWB_OUTPUT_PIXEL_DEPTH_8BPC)
-				pipes[pipe_cnt].dout.wb.wb_pixel_format = dm_420_8;
-			else
-				pipes[pipe_cnt].dout.wb.wb_pixel_format = dm_420_10;
-		} else
-			pipes[pipe_cnt].dout.wb.wb_pixel_format = dm_444_32;
-
-		pipe_cnt++;
-	}
-
-}
-
-int dcn20_populate_dml_pipes_from_context(
-		struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes)
-{
-	int pipe_cnt, i;
-	bool synchronized_vblank = true;
-	struct resource_context *res_ctx = &context->res_ctx;
-
-	for (i = 0, pipe_cnt = -1; i < dc->res_pool->pipe_count; i++) {
-		if (!res_ctx->pipe_ctx[i].stream)
-			continue;
-
-		if (pipe_cnt < 0) {
-			pipe_cnt = i;
-			continue;
-		}
-
-		if (res_ctx->pipe_ctx[pipe_cnt].stream == res_ctx->pipe_ctx[i].stream)
-			continue;
-
-		if (dc->debug.disable_timing_sync || !resource_are_streams_timing_synchronizable(
-				res_ctx->pipe_ctx[pipe_cnt].stream,
-				res_ctx->pipe_ctx[i].stream)) {
-			synchronized_vblank = false;
-			break;
-		}
-	}
-
-	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
-		struct dc_crtc_timing *timing = &res_ctx->pipe_ctx[i].stream->timing;
-		unsigned int v_total;
-		unsigned int front_porch;
-		int output_bpc;
-
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-		struct audio_check aud_check = {0};
-#endif
-		if (!res_ctx->pipe_ctx[i].stream)
-			continue;
-
-		v_total = timing->v_total;
-		front_porch = timing->v_front_porch;
-		/* todo:
-		pipes[pipe_cnt].pipe.src.dynamic_metadata_enable = 0;
-		pipes[pipe_cnt].pipe.src.dcc = 0;
-		pipes[pipe_cnt].pipe.src.vm = 0;*/
-
-		pipes[pipe_cnt].clks_cfg.refclk_mhz = dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000.0;
-
-		pipes[pipe_cnt].dout.dsc_enable = res_ctx->pipe_ctx[i].stream->timing.flags.DSC;
-		/* todo: rotation?*/
-		pipes[pipe_cnt].dout.dsc_slices = res_ctx->pipe_ctx[i].stream->timing.dsc_cfg.num_slices_h;
-		if (res_ctx->pipe_ctx[i].stream->use_dynamic_meta) {
-			pipes[pipe_cnt].pipe.src.dynamic_metadata_enable = true;
-			/* 1/2 vblank */
-			pipes[pipe_cnt].pipe.src.dynamic_metadata_lines_before_active =
-				(v_total - timing->v_addressable
-					- timing->v_border_top - timing->v_border_bottom) / 2;
-			/* 36 bytes dp, 32 hdmi */
-			pipes[pipe_cnt].pipe.src.dynamic_metadata_xmit_bytes =
-				dc_is_dp_signal(res_ctx->pipe_ctx[i].stream->signal) ? 36 : 32;
-		}
-		pipes[pipe_cnt].pipe.src.dcc = false;
-		pipes[pipe_cnt].pipe.src.dcc_rate = 1;
-		pipes[pipe_cnt].pipe.dest.synchronized_vblank_all_planes = synchronized_vblank;
-		pipes[pipe_cnt].pipe.dest.hblank_start = timing->h_total - timing->h_front_porch;
-		pipes[pipe_cnt].pipe.dest.hblank_end = pipes[pipe_cnt].pipe.dest.hblank_start
-				- timing->h_addressable
-				- timing->h_border_left
-				- timing->h_border_right;
-		pipes[pipe_cnt].pipe.dest.vblank_start = v_total - front_porch;
-		pipes[pipe_cnt].pipe.dest.vblank_end = pipes[pipe_cnt].pipe.dest.vblank_start
-				- timing->v_addressable
-				- timing->v_border_top
-				- timing->v_border_bottom;
-		pipes[pipe_cnt].pipe.dest.htotal = timing->h_total;
-		pipes[pipe_cnt].pipe.dest.vtotal = v_total;
-		pipes[pipe_cnt].pipe.dest.hactive = timing->h_addressable;
-		pipes[pipe_cnt].pipe.dest.vactive = timing->v_addressable;
-		pipes[pipe_cnt].pipe.dest.interlaced = timing->flags.INTERLACE;
-		pipes[pipe_cnt].pipe.dest.pixel_rate_mhz = timing->pix_clk_100hz/10000.0;
-		if (timing->timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
-			pipes[pipe_cnt].pipe.dest.pixel_rate_mhz *= 2;
-		pipes[pipe_cnt].pipe.dest.otg_inst = res_ctx->pipe_ctx[i].stream_res.tg->inst;
-		pipes[pipe_cnt].dout.dp_lanes = 4;
-		pipes[pipe_cnt].pipe.dest.vtotal_min = res_ctx->pipe_ctx[i].stream->adjust.v_total_min;
-		pipes[pipe_cnt].pipe.dest.vtotal_max = res_ctx->pipe_ctx[i].stream->adjust.v_total_max;
-		switch (get_num_odm_splits(&res_ctx->pipe_ctx[i])) {
-		case 1:
-			pipes[pipe_cnt].pipe.dest.odm_combine = dm_odm_combine_mode_2to1;
-			break;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-		case 3:
-			pipes[pipe_cnt].pipe.dest.odm_combine = dm_odm_combine_mode_4to1;
-			break;
-#endif
-		default:
-			pipes[pipe_cnt].pipe.dest.odm_combine = dm_odm_combine_mode_disabled;
-		}
-		pipes[pipe_cnt].pipe.src.hsplit_grp = res_ctx->pipe_ctx[i].pipe_idx;
-		if (res_ctx->pipe_ctx[i].top_pipe && res_ctx->pipe_ctx[i].top_pipe->plane_state
-				== res_ctx->pipe_ctx[i].plane_state) {
-			struct pipe_ctx *first_pipe = res_ctx->pipe_ctx[i].top_pipe;
-			int split_idx = 0;
-
-			while (first_pipe->top_pipe && first_pipe->top_pipe->plane_state
-					== res_ctx->pipe_ctx[i].plane_state) {
-				first_pipe = first_pipe->top_pipe;
-				split_idx++;
-			}
-			/* Treat 4to1 mpc combine as an mpo of 2 2-to-1 combines */
-			if (split_idx == 0)
-				pipes[pipe_cnt].pipe.src.hsplit_grp = first_pipe->pipe_idx;
-			else if (split_idx == 1)
-				pipes[pipe_cnt].pipe.src.hsplit_grp = res_ctx->pipe_ctx[i].pipe_idx;
-			else if (split_idx == 2)
-				pipes[pipe_cnt].pipe.src.hsplit_grp = res_ctx->pipe_ctx[i].top_pipe->pipe_idx;
-		} else if (res_ctx->pipe_ctx[i].prev_odm_pipe) {
-			struct pipe_ctx *first_pipe = res_ctx->pipe_ctx[i].prev_odm_pipe;
-
-			while (first_pipe->prev_odm_pipe)
-				first_pipe = first_pipe->prev_odm_pipe;
-			pipes[pipe_cnt].pipe.src.hsplit_grp = first_pipe->pipe_idx;
-		}
-
-		switch (res_ctx->pipe_ctx[i].stream->signal) {
-		case SIGNAL_TYPE_DISPLAY_PORT_MST:
-		case SIGNAL_TYPE_DISPLAY_PORT:
-			pipes[pipe_cnt].dout.output_type = dm_dp;
-			break;
-		case SIGNAL_TYPE_EDP:
-			pipes[pipe_cnt].dout.output_type = dm_edp;
-			break;
-		case SIGNAL_TYPE_HDMI_TYPE_A:
-		case SIGNAL_TYPE_DVI_SINGLE_LINK:
-		case SIGNAL_TYPE_DVI_DUAL_LINK:
-			pipes[pipe_cnt].dout.output_type = dm_hdmi;
-			break;
-		default:
-			/* In case there is no signal, set dp with 4 lanes to allow max config */
-			pipes[pipe_cnt].dout.output_type = dm_dp;
-			pipes[pipe_cnt].dout.dp_lanes = 4;
-		}
-
-		switch (res_ctx->pipe_ctx[i].stream->timing.display_color_depth) {
-		case COLOR_DEPTH_666:
-			output_bpc = 6;
-			break;
-		case COLOR_DEPTH_888:
-			output_bpc = 8;
-			break;
-		case COLOR_DEPTH_101010:
-			output_bpc = 10;
-			break;
-		case COLOR_DEPTH_121212:
-			output_bpc = 12;
-			break;
-		case COLOR_DEPTH_141414:
-			output_bpc = 14;
-			break;
-		case COLOR_DEPTH_161616:
-			output_bpc = 16;
-			break;
-		case COLOR_DEPTH_999:
-			output_bpc = 9;
-			break;
-		case COLOR_DEPTH_111111:
-			output_bpc = 11;
-			break;
-		default:
-			output_bpc = 8;
-			break;
-		}
-
-		switch (res_ctx->pipe_ctx[i].stream->timing.pixel_encoding) {
-		case PIXEL_ENCODING_RGB:
-		case PIXEL_ENCODING_YCBCR444:
-			pipes[pipe_cnt].dout.output_format = dm_444;
-			pipes[pipe_cnt].dout.output_bpp = output_bpc * 3;
-			break;
-		case PIXEL_ENCODING_YCBCR420:
-			pipes[pipe_cnt].dout.output_format = dm_420;
-			pipes[pipe_cnt].dout.output_bpp = (output_bpc * 3.0) / 2;
-			break;
-		case PIXEL_ENCODING_YCBCR422:
-			if (true) /* todo */
-				pipes[pipe_cnt].dout.output_format = dm_s422;
-			else
-				pipes[pipe_cnt].dout.output_format = dm_n422;
-			pipes[pipe_cnt].dout.output_bpp = output_bpc * 2;
-			break;
-		default:
-			pipes[pipe_cnt].dout.output_format = dm_444;
-			pipes[pipe_cnt].dout.output_bpp = output_bpc * 3;
-		}
-
-		if (res_ctx->pipe_ctx[i].stream->timing.flags.DSC)
-			pipes[pipe_cnt].dout.output_bpp = res_ctx->pipe_ctx[i].stream->timing.dsc_cfg.bits_per_pixel / 16.0;
-
-		/* todo: default max for now, until there is logic reflecting this in dc*/
-		pipes[pipe_cnt].dout.output_bpc = 12;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-		/*fill up the audio sample rate (unit in kHz)*/
-		get_audio_check(&res_ctx->pipe_ctx[i].stream->audio_info, &aud_check);
-		pipes[pipe_cnt].dout.max_audio_sample_rate = aud_check.max_audiosample_rate / 1000;
-#endif
-		/*
-		 * For graphic plane, cursor number is 1, nv12 is 0
-		 * bw calculations due to cursor on/off
-		 */
-		if (res_ctx->pipe_ctx[i].plane_state &&
-				res_ctx->pipe_ctx[i].plane_state->address.type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
-			pipes[pipe_cnt].pipe.src.num_cursors = 0;
-		else
-			pipes[pipe_cnt].pipe.src.num_cursors = dc->dml.ip.number_of_cursors;
-
-		pipes[pipe_cnt].pipe.src.cur0_src_width = 256;
-		pipes[pipe_cnt].pipe.src.cur0_bpp = dm_cur_32bit;
-
-		if (!res_ctx->pipe_ctx[i].plane_state) {
-			pipes[pipe_cnt].pipe.src.is_hsplit = pipes[pipe_cnt].pipe.dest.odm_combine != dm_odm_combine_mode_disabled;
-			pipes[pipe_cnt].pipe.src.source_scan = dm_horz;
-			pipes[pipe_cnt].pipe.src.sw_mode = dm_sw_4kb_s;
-			pipes[pipe_cnt].pipe.src.macro_tile_size = dm_64k_tile;
-			pipes[pipe_cnt].pipe.src.viewport_width = timing->h_addressable;
-			if (pipes[pipe_cnt].pipe.src.viewport_width > 1920)
-				pipes[pipe_cnt].pipe.src.viewport_width = 1920;
-			pipes[pipe_cnt].pipe.src.viewport_height = timing->v_addressable;
-			if (pipes[pipe_cnt].pipe.src.viewport_height > 1080)
-				pipes[pipe_cnt].pipe.src.viewport_height = 1080;
-			pipes[pipe_cnt].pipe.src.surface_height_y = pipes[pipe_cnt].pipe.src.viewport_height;
-			pipes[pipe_cnt].pipe.src.surface_width_y = pipes[pipe_cnt].pipe.src.viewport_width;
-			pipes[pipe_cnt].pipe.src.surface_height_c = pipes[pipe_cnt].pipe.src.viewport_height;
-			pipes[pipe_cnt].pipe.src.surface_width_c = pipes[pipe_cnt].pipe.src.viewport_width;
-			pipes[pipe_cnt].pipe.src.data_pitch = ((pipes[pipe_cnt].pipe.src.viewport_width + 255) / 256) * 256;
-			pipes[pipe_cnt].pipe.src.source_format = dm_444_32;
-			pipes[pipe_cnt].pipe.dest.recout_width = pipes[pipe_cnt].pipe.src.viewport_width; /*vp_width/hratio*/
-			pipes[pipe_cnt].pipe.dest.recout_height = pipes[pipe_cnt].pipe.src.viewport_height; /*vp_height/vratio*/
-			pipes[pipe_cnt].pipe.dest.full_recout_width = pipes[pipe_cnt].pipe.dest.recout_width;  /*when is_hsplit != 1*/
-			pipes[pipe_cnt].pipe.dest.full_recout_height = pipes[pipe_cnt].pipe.dest.recout_height; /*when is_hsplit != 1*/
-			pipes[pipe_cnt].pipe.scale_ratio_depth.lb_depth = dm_lb_16;
-			pipes[pipe_cnt].pipe.scale_ratio_depth.hscl_ratio = 1.0;
-			pipes[pipe_cnt].pipe.scale_ratio_depth.vscl_ratio = 1.0;
-			pipes[pipe_cnt].pipe.scale_ratio_depth.scl_enable = 0; /*Lb only or Full scl*/
-			pipes[pipe_cnt].pipe.scale_taps.htaps = 1;
-			pipes[pipe_cnt].pipe.scale_taps.vtaps = 1;
-			pipes[pipe_cnt].pipe.dest.vtotal_min = v_total;
-			pipes[pipe_cnt].pipe.dest.vtotal_max = v_total;
-
-			if (pipes[pipe_cnt].pipe.dest.odm_combine == dm_odm_combine_mode_2to1) {
-				pipes[pipe_cnt].pipe.src.viewport_width /= 2;
-				pipes[pipe_cnt].pipe.dest.recout_width /= 2;
-			}
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-			else if (pipes[pipe_cnt].pipe.dest.odm_combine == dm_odm_combine_mode_4to1) {
-				pipes[pipe_cnt].pipe.src.viewport_width /= 4;
-				pipes[pipe_cnt].pipe.dest.recout_width /= 4;
-			}
-#endif
-		} else {
-			struct dc_plane_state *pln = res_ctx->pipe_ctx[i].plane_state;
-			struct scaler_data *scl = &res_ctx->pipe_ctx[i].plane_res.scl_data;
-
-			pipes[pipe_cnt].pipe.src.immediate_flip = pln->flip_immediate;
-			pipes[pipe_cnt].pipe.src.is_hsplit = (res_ctx->pipe_ctx[i].bottom_pipe && res_ctx->pipe_ctx[i].bottom_pipe->plane_state == pln)
-					|| (res_ctx->pipe_ctx[i].top_pipe && res_ctx->pipe_ctx[i].top_pipe->plane_state == pln)
-					|| pipes[pipe_cnt].pipe.dest.odm_combine != dm_odm_combine_mode_disabled;
-
-			/* stereo is not split */
-			if (pln->stereo_format == PLANE_STEREO_FORMAT_SIDE_BY_SIDE ||
-			    pln->stereo_format == PLANE_STEREO_FORMAT_TOP_AND_BOTTOM) {
-				pipes[pipe_cnt].pipe.src.is_hsplit = false;
-				pipes[pipe_cnt].pipe.src.hsplit_grp = res_ctx->pipe_ctx[i].pipe_idx;
-			}
-
-			pipes[pipe_cnt].pipe.src.source_scan = pln->rotation == ROTATION_ANGLE_90
-					|| pln->rotation == ROTATION_ANGLE_270 ? dm_vert : dm_horz;
-			pipes[pipe_cnt].pipe.src.viewport_y_y = scl->viewport_unadjusted.y;
-			pipes[pipe_cnt].pipe.src.viewport_y_c = scl->viewport_c_unadjusted.y;
-			pipes[pipe_cnt].pipe.src.viewport_width = scl->viewport_unadjusted.width;
-			pipes[pipe_cnt].pipe.src.viewport_width_c = scl->viewport_c_unadjusted.width;
-			pipes[pipe_cnt].pipe.src.viewport_height = scl->viewport_unadjusted.height;
-			pipes[pipe_cnt].pipe.src.viewport_height_c = scl->viewport_c_unadjusted.height;
-			pipes[pipe_cnt].pipe.src.surface_width_y = pln->plane_size.surface_size.width;
-			pipes[pipe_cnt].pipe.src.surface_height_y = pln->plane_size.surface_size.height;
-			pipes[pipe_cnt].pipe.src.surface_width_c = pln->plane_size.chroma_size.width;
-			pipes[pipe_cnt].pipe.src.surface_height_c = pln->plane_size.chroma_size.height;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-			if (pln->format == SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA
-					|| pln->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
-#else
-			if (pln->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
-#endif
-				pipes[pipe_cnt].pipe.src.data_pitch = pln->plane_size.surface_pitch;
-				pipes[pipe_cnt].pipe.src.data_pitch_c = pln->plane_size.chroma_pitch;
-				pipes[pipe_cnt].pipe.src.meta_pitch = pln->dcc.meta_pitch;
-				pipes[pipe_cnt].pipe.src.meta_pitch_c = pln->dcc.meta_pitch_c;
-			} else {
-				pipes[pipe_cnt].pipe.src.data_pitch = pln->plane_size.surface_pitch;
-				pipes[pipe_cnt].pipe.src.meta_pitch = pln->dcc.meta_pitch;
-			}
-			pipes[pipe_cnt].pipe.src.dcc = pln->dcc.enable;
-			pipes[pipe_cnt].pipe.dest.recout_width = scl->recout.width;
-			pipes[pipe_cnt].pipe.dest.recout_height = scl->recout.height;
-			pipes[pipe_cnt].pipe.dest.full_recout_height = scl->recout.height;
-			pipes[pipe_cnt].pipe.dest.full_recout_width = scl->recout.width;
-			if (pipes[pipe_cnt].pipe.dest.odm_combine == dm_odm_combine_mode_2to1)
-				pipes[pipe_cnt].pipe.dest.full_recout_width *= 2;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-			else if (pipes[pipe_cnt].pipe.dest.odm_combine == dm_odm_combine_mode_4to1)
-				pipes[pipe_cnt].pipe.dest.full_recout_width *= 4;
-#endif
-			else {
-				struct pipe_ctx *split_pipe = res_ctx->pipe_ctx[i].bottom_pipe;
-
-				while (split_pipe && split_pipe->plane_state == pln) {
-					pipes[pipe_cnt].pipe.dest.full_recout_width += split_pipe->plane_res.scl_data.recout.width;
-					split_pipe = split_pipe->bottom_pipe;
-				}
-				split_pipe = res_ctx->pipe_ctx[i].top_pipe;
-				while (split_pipe && split_pipe->plane_state == pln) {
-					pipes[pipe_cnt].pipe.dest.full_recout_width += split_pipe->plane_res.scl_data.recout.width;
-					split_pipe = split_pipe->top_pipe;
-				}
-			}
-
-			pipes[pipe_cnt].pipe.scale_ratio_depth.lb_depth = dm_lb_16;
-			pipes[pipe_cnt].pipe.scale_ratio_depth.hscl_ratio = (double) scl->ratios.horz.value / (1ULL<<32);
-			pipes[pipe_cnt].pipe.scale_ratio_depth.hscl_ratio_c = (double) scl->ratios.horz_c.value / (1ULL<<32);
-			pipes[pipe_cnt].pipe.scale_ratio_depth.vscl_ratio = (double) scl->ratios.vert.value / (1ULL<<32);
-			pipes[pipe_cnt].pipe.scale_ratio_depth.vscl_ratio_c = (double) scl->ratios.vert_c.value / (1ULL<<32);
-			pipes[pipe_cnt].pipe.scale_ratio_depth.scl_enable =
-					scl->ratios.vert.value != dc_fixpt_one.value
-					|| scl->ratios.horz.value != dc_fixpt_one.value
-					|| scl->ratios.vert_c.value != dc_fixpt_one.value
-					|| scl->ratios.horz_c.value != dc_fixpt_one.value /*Lb only or Full scl*/
-					|| dc->debug.always_scale; /*support always scale*/
-			pipes[pipe_cnt].pipe.scale_taps.htaps = scl->taps.h_taps;
-			pipes[pipe_cnt].pipe.scale_taps.htaps_c = scl->taps.h_taps_c;
-			pipes[pipe_cnt].pipe.scale_taps.vtaps = scl->taps.v_taps;
-			pipes[pipe_cnt].pipe.scale_taps.vtaps_c = scl->taps.v_taps_c;
-
-			pipes[pipe_cnt].pipe.src.macro_tile_size =
-					swizzle_mode_to_macro_tile_size(pln->tiling_info.gfx9.swizzle);
-			swizzle_to_dml_params(pln->tiling_info.gfx9.swizzle,
-					&pipes[pipe_cnt].pipe.src.sw_mode);
-
-			switch (pln->format) {
-			case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
-			case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
-				pipes[pipe_cnt].pipe.src.source_format = dm_420_8;
-				break;
-			case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
-			case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
-				pipes[pipe_cnt].pipe.src.source_format = dm_420_10;
-				break;
-			case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
-			case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
-			case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
-				pipes[pipe_cnt].pipe.src.source_format = dm_444_64;
-				break;
-			case SURFACE_PIXEL_FORMAT_GRPH_ARGB1555:
-			case SURFACE_PIXEL_FORMAT_GRPH_RGB565:
-				pipes[pipe_cnt].pipe.src.source_format = dm_444_16;
-				break;
-			case SURFACE_PIXEL_FORMAT_GRPH_PALETA_256_COLORS:
-				pipes[pipe_cnt].pipe.src.source_format = dm_444_8;
-				break;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-			case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
-				pipes[pipe_cnt].pipe.src.source_format = dm_rgbe_alpha;
-				break;
-#endif
-			default:
-				pipes[pipe_cnt].pipe.src.source_format = dm_444_32;
-				break;
-			}
-		}
-
-		pipe_cnt++;
-	}
-
-	/* populate writeback information */
-	dc->res_pool->funcs->populate_dml_writeback_from_context(dc, res_ctx, pipes);
-
-	return pipe_cnt;
-}
-
 unsigned int dcn20_calc_max_scaled_time(
 		unsigned int time_per_pixel,
 		enum mmhubbub_wbif_mode mode,
@@ -2425,7 +1600,7 @@ void dcn20_set_mcif_arb_params(
 {
 	enum mmhubbub_wbif_mode wbif_mode;
 	struct mcif_arb_params *wb_arb_params;
-	int i, j, k, dwb_pipe;
+	int i, j, dwb_pipe;
 
 	/* Writeback MCIF_WB arbitration parameters */
 	dwb_pipe = 0;
@@ -2449,11 +1624,10 @@ void dcn20_set_mcif_arb_params(
 			} else
 				wbif_mode = PACKED_444;
 
-			for (k = 0; k < sizeof(wb_arb_params->cli_watermark)/sizeof(wb_arb_params->cli_watermark[0]); k++) {
-				wb_arb_params->cli_watermark[k] = get_wm_writeback_urgent(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-				wb_arb_params->pstate_watermark[k] = get_wm_writeback_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-			}
-			wb_arb_params->time_per_pixel = 16.0 / context->res_ctx.pipe_ctx[i].stream->phy_pix_clk; /* 4 bit fraction, ms */
+			DC_FP_START();
+			dcn20_fpu_set_wb_arb_params(wb_arb_params, context, pipes, pipe_cnt, i);
+			DC_FP_END();
+
 			wb_arb_params->slice_lines = 32;
 			wb_arb_params->arbitration_slice = 2;
 			wb_arb_params->max_scaled_time = dcn20_calc_max_scaled_time(wb_arb_params->time_per_pixel,
@@ -2520,17 +1694,18 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 		 * if this primary pipe has a bottom pipe in prev. state
 		 * and if the bottom pipe is still available (which it should be),
 		 * pick that pipe as secondary
-		 * Same logic applies for ODM pipes. Since mpo is not allowed with odm
-		 * check in else case.
+		 * Same logic applies for ODM pipes
 		 */
-		if (dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe) {
-			preferred_pipe_idx = dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe->pipe_idx;
+		if (dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].next_odm_pipe) {
+			preferred_pipe_idx = dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].next_odm_pipe->pipe_idx;
 			if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
 				secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
 				secondary_pipe->pipe_idx = preferred_pipe_idx;
 			}
-		} else if (dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].next_odm_pipe) {
-			preferred_pipe_idx = dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].next_odm_pipe->pipe_idx;
+		}
+		if (secondary_pipe == NULL &&
+				dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe) {
+			preferred_pipe_idx = dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe->pipe_idx;
 			if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
 				secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
 				secondary_pipe->pipe_idx = preferred_pipe_idx;
@@ -2582,7 +1757,7 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 	return secondary_pipe;
 }
 
-static void dcn20_merge_pipes_for_validate(
+void dcn20_merge_pipes_for_validate(
 		struct dc *dc,
 		struct dc_state *context)
 {
@@ -2749,7 +1924,6 @@ int dcn20_validate_apply_pipe_split_flags(
 			split[i] = 2;
 			v->ODMCombineEnablePerState[vlevel][pipe_plane] = dm_odm_combine_mode_2to1;
 		}
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 		if (dc->debug.force_odm_combine_4to1 & (1 << pipe->stream_res.tg->inst)) {
 			split[i] = 4;
 			v->ODMCombineEnablePerState[vlevel][pipe_plane] = dm_odm_combine_mode_4to1;
@@ -2759,7 +1933,6 @@ int dcn20_validate_apply_pipe_split_flags(
 				pipe->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
 			split[i] = 4;
 		}
-#endif
 		v->ODMCombineEnabled[pipe_plane] =
 			v->ODMCombineEnablePerState[vlevel][pipe_plane];
 
@@ -2783,7 +1956,6 @@ int dcn20_validate_apply_pipe_split_flags(
 				split[i] = 0;
 			} else if (get_num_odm_splits(pipe)) {
 				/* ODM -> MPC transition */
-				ASSERT(0); /* NOT expected yet */
 				if (pipe->prev_odm_pipe) {
 					split[i] = 0;
 					merge[i] = true;
@@ -2804,7 +1976,6 @@ int dcn20_validate_apply_pipe_split_flags(
 				/*If need split for odm but 4 way split already*/
 				if (split[i] == 2 && ((pipe->prev_odm_pipe && !pipe->prev_odm_pipe->prev_odm_pipe)
 						|| !pipe->next_odm_pipe)) {
-					ASSERT(0); /* NOT expected yet */
 					merge[i] = true; /* 4 -> 2 ODM */
 				} else if (split[i] == 0 && pipe->prev_odm_pipe) {
 					ASSERT(0); /* NOT expected yet */
@@ -2822,8 +1993,11 @@ int dcn20_validate_apply_pipe_split_flags(
 		}
 
 		/* Adjust dppclk when split is forced, do not bother with dispclk */
-		if (split[i] != 0 && v->NoOfDPP[vlevel][max_mpc_comb][pipe_idx] == 1)
-			v->RequiredDPPCLK[vlevel][max_mpc_comb][pipe_idx] /= 2;
+		if (split[i] != 0 && v->NoOfDPP[vlevel][max_mpc_comb][pipe_idx] == 1) {
+			DC_FP_START();
+			dcn20_fpu_adjust_dppclk(v, vlevel, max_mpc_comb, pipe_idx, false);
+			DC_FP_END();
+		}
 		pipe_idx++;
 	}
 
@@ -2836,7 +2010,8 @@ bool dcn20_fast_validate_bw(
 		display_e2e_pipe_params_st *pipes,
 		int *pipe_cnt_out,
 		int *pipe_split_from,
-		int *vlevel_out)
+		int *vlevel_out,
+		bool fast_validate)
 {
 	bool out = false;
 	int split[MAX_PIPES] = { 0 };
@@ -2848,7 +2023,9 @@ bool dcn20_fast_validate_bw(
 
 	dcn20_merge_pipes_for_validate(dc, context);
 
-	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes);
+	DC_FP_START();
+	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
+	DC_FP_END();
 
 	*pipe_cnt_out = pipe_cnt;
 
@@ -2905,7 +2082,9 @@ bool dcn20_fast_validate_bw(
 				hsplit_pipe = dcn20_find_secondary_pipe(dc, &context->res_ctx, dc->res_pool, pipe);
 				ASSERT(hsplit_pipe);
 				if (!hsplit_pipe) {
-					context->bw_ctx.dml.vba.RequiredDPPCLK[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] *= 2;
+					DC_FP_START();
+					dcn20_fpu_adjust_dppclk(&context->bw_ctx.dml.vba, vlevel, context->bw_ctx.dml.vba.maxMpcComb, pipe_idx, true);
+					DC_FP_END();
 					continue;
 				}
 				if (context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx]) {
@@ -2947,307 +2126,10 @@ validate_out:
 	return out;
 }
 
-static void dcn20_calculate_wm(
-		struct dc *dc, struct dc_state *context,
-		display_e2e_pipe_params_st *pipes,
-		int *out_pipe_cnt,
-		int *pipe_split_from,
-		int vlevel)
-{
-	int pipe_cnt, i, pipe_idx;
-
-	for (i = 0, pipe_idx = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
-		if (!context->res_ctx.pipe_ctx[i].stream)
-			continue;
-
-		pipes[pipe_cnt].clks_cfg.refclk_mhz = dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000.0;
-		pipes[pipe_cnt].clks_cfg.dispclk_mhz = context->bw_ctx.dml.vba.RequiredDISPCLK[vlevel][context->bw_ctx.dml.vba.maxMpcComb];
-
-		if (pipe_split_from[i] < 0) {
-			pipes[pipe_cnt].clks_cfg.dppclk_mhz =
-					context->bw_ctx.dml.vba.RequiredDPPCLK[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx];
-			if (context->bw_ctx.dml.vba.BlendingAndTiming[pipe_idx] == pipe_idx)
-				pipes[pipe_cnt].pipe.dest.odm_combine =
-						context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx];
-			else
-				pipes[pipe_cnt].pipe.dest.odm_combine = 0;
-			pipe_idx++;
-		} else {
-			pipes[pipe_cnt].clks_cfg.dppclk_mhz =
-					context->bw_ctx.dml.vba.RequiredDPPCLK[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_split_from[i]];
-			if (context->bw_ctx.dml.vba.BlendingAndTiming[pipe_split_from[i]] == pipe_split_from[i])
-				pipes[pipe_cnt].pipe.dest.odm_combine =
-						context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_split_from[i]];
-			else
-				pipes[pipe_cnt].pipe.dest.odm_combine = 0;
-		}
-
-		if (dc->config.forced_clocks) {
-			pipes[pipe_cnt].clks_cfg.dispclk_mhz = context->bw_ctx.dml.soc.clock_limits[0].dispclk_mhz;
-			pipes[pipe_cnt].clks_cfg.dppclk_mhz = context->bw_ctx.dml.soc.clock_limits[0].dppclk_mhz;
-		}
-		if (dc->debug.min_disp_clk_khz > pipes[pipe_cnt].clks_cfg.dispclk_mhz * 1000)
-			pipes[pipe_cnt].clks_cfg.dispclk_mhz = dc->debug.min_disp_clk_khz / 1000.0;
-		if (dc->debug.min_dpp_clk_khz > pipes[pipe_cnt].clks_cfg.dppclk_mhz * 1000)
-			pipes[pipe_cnt].clks_cfg.dppclk_mhz = dc->debug.min_dpp_clk_khz / 1000.0;
-
-		pipe_cnt++;
-	}
-
-	if (pipe_cnt != pipe_idx) {
-		if (dc->res_pool->funcs->populate_dml_pipes)
-			pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc,
-				context, pipes);
-		else
-			pipe_cnt = dcn20_populate_dml_pipes_from_context(dc,
-				context, pipes);
-	}
-
-	*out_pipe_cnt = pipe_cnt;
-
-	pipes[0].clks_cfg.voltage = vlevel;
-	pipes[0].clks_cfg.dcfclk_mhz = context->bw_ctx.dml.soc.clock_limits[vlevel].dcfclk_mhz;
-	pipes[0].clks_cfg.socclk_mhz = context->bw_ctx.dml.soc.clock_limits[vlevel].socclk_mhz;
-
-	/* only pipe 0 is read for voltage and dcf/soc clocks */
-	if (vlevel < 1) {
-		pipes[0].clks_cfg.voltage = 1;
-		pipes[0].clks_cfg.dcfclk_mhz = context->bw_ctx.dml.soc.clock_limits[1].dcfclk_mhz;
-		pipes[0].clks_cfg.socclk_mhz = context->bw_ctx.dml.soc.clock_limits[1].socclk_mhz;
-	}
-	context->bw_ctx.bw.dcn.watermarks.b.urgent_ns = get_wm_urgent(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.cstate_enter_plus_exit_ns = get_wm_stutter_enter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.cstate_exit_ns = get_wm_stutter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.b.pte_meta_urgent_ns = get_wm_memory_trip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.b.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.b.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.b.urgent_latency_ns = get_urgent_latency(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-
-	if (vlevel < 2) {
-		pipes[0].clks_cfg.voltage = 2;
-		pipes[0].clks_cfg.dcfclk_mhz = context->bw_ctx.dml.soc.clock_limits[2].dcfclk_mhz;
-		pipes[0].clks_cfg.socclk_mhz = context->bw_ctx.dml.soc.clock_limits[2].socclk_mhz;
-	}
-	context->bw_ctx.bw.dcn.watermarks.c.urgent_ns = get_wm_urgent(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.cstate_enter_plus_exit_ns = get_wm_stutter_enter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.cstate_exit_ns = get_wm_stutter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.c.pte_meta_urgent_ns = get_wm_memory_trip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.c.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.c.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-
-	if (vlevel < 3) {
-		pipes[0].clks_cfg.voltage = 3;
-		pipes[0].clks_cfg.dcfclk_mhz = context->bw_ctx.dml.soc.clock_limits[2].dcfclk_mhz;
-		pipes[0].clks_cfg.socclk_mhz = context->bw_ctx.dml.soc.clock_limits[2].socclk_mhz;
-	}
-	context->bw_ctx.bw.dcn.watermarks.d.urgent_ns = get_wm_urgent(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.cstate_enter_plus_exit_ns = get_wm_stutter_enter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.cstate_exit_ns = get_wm_stutter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.d.pte_meta_urgent_ns = get_wm_memory_trip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.d.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.d.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-
-	pipes[0].clks_cfg.voltage = vlevel;
-	pipes[0].clks_cfg.dcfclk_mhz = context->bw_ctx.dml.soc.clock_limits[vlevel].dcfclk_mhz;
-	pipes[0].clks_cfg.socclk_mhz = context->bw_ctx.dml.soc.clock_limits[vlevel].socclk_mhz;
-	context->bw_ctx.bw.dcn.watermarks.a.urgent_ns = get_wm_urgent(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns = get_wm_stutter_enter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns = get_wm_stutter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = get_wm_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.a.pte_meta_urgent_ns = get_wm_memory_trip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-}
-
-void dcn20_calculate_dlg_params(
-		struct dc *dc, struct dc_state *context,
-		display_e2e_pipe_params_st *pipes,
-		int pipe_cnt,
-		int vlevel)
-{
-	int i, pipe_idx;
-
-	/* Writeback MCIF_WB arbitration parameters */
-	dc->res_pool->funcs->set_mcif_arb_params(dc, context, pipes, pipe_cnt);
-
-	context->bw_ctx.bw.dcn.clk.dispclk_khz = context->bw_ctx.dml.vba.DISPCLK * 1000;
-	context->bw_ctx.bw.dcn.clk.dcfclk_khz = context->bw_ctx.dml.vba.DCFCLK * 1000;
-	context->bw_ctx.bw.dcn.clk.socclk_khz = context->bw_ctx.dml.vba.SOCCLK * 1000;
-	context->bw_ctx.bw.dcn.clk.dramclk_khz = context->bw_ctx.dml.vba.DRAMSpeed * 1000 / 16;
-	context->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz = context->bw_ctx.dml.vba.DCFCLKDeepSleep * 1000;
-	context->bw_ctx.bw.dcn.clk.fclk_khz = context->bw_ctx.dml.vba.FabricClock * 1000;
-	context->bw_ctx.bw.dcn.clk.p_state_change_support =
-		context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb]
-							!= dm_dram_clock_change_unsupported;
-	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
-
-	if (context->bw_ctx.bw.dcn.clk.dispclk_khz < dc->debug.min_disp_clk_khz)
-		context->bw_ctx.bw.dcn.clk.dispclk_khz = dc->debug.min_disp_clk_khz;
-
-	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
-		if (!context->res_ctx.pipe_ctx[i].stream)
-			continue;
-		pipes[pipe_idx].pipe.dest.vstartup_start = get_vstartup(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
-		pipes[pipe_idx].pipe.dest.vupdate_offset = get_vupdate_offset(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
-		pipes[pipe_idx].pipe.dest.vupdate_width = get_vupdate_width(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
-		pipes[pipe_idx].pipe.dest.vready_offset = get_vready_offset(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
-		if (context->bw_ctx.bw.dcn.clk.dppclk_khz < pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000)
-			context->bw_ctx.bw.dcn.clk.dppclk_khz = pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000;
-		context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz =
-						pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000;
-		context->res_ctx.pipe_ctx[i].pipe_dlg_param = pipes[pipe_idx].pipe.dest;
-		pipe_idx++;
-	}
-	/*save a original dppclock copy*/
-	context->bw_ctx.bw.dcn.clk.bw_dppclk_khz = context->bw_ctx.bw.dcn.clk.dppclk_khz;
-	context->bw_ctx.bw.dcn.clk.bw_dispclk_khz = context->bw_ctx.bw.dcn.clk.dispclk_khz;
-	context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz = context->bw_ctx.dml.soc.clock_limits[vlevel].dppclk_mhz * 1000;
-	context->bw_ctx.bw.dcn.clk.max_supported_dispclk_khz = context->bw_ctx.dml.soc.clock_limits[vlevel].dispclk_mhz * 1000;
-
-	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
-		bool cstate_en = context->bw_ctx.dml.vba.PrefetchMode[vlevel][context->bw_ctx.dml.vba.maxMpcComb] != 2;
-
-		if (!context->res_ctx.pipe_ctx[i].stream)
-			continue;
-
-		context->bw_ctx.dml.funcs.rq_dlg_get_dlg_reg(&context->bw_ctx.dml,
-				&context->res_ctx.pipe_ctx[i].dlg_regs,
-				&context->res_ctx.pipe_ctx[i].ttu_regs,
-				pipes,
-				pipe_cnt,
-				pipe_idx,
-				cstate_en,
-				context->bw_ctx.bw.dcn.clk.p_state_change_support,
-				false, false, true);
-
-		context->bw_ctx.dml.funcs.rq_dlg_get_rq_reg(&context->bw_ctx.dml,
-				&context->res_ctx.pipe_ctx[i].rq_regs,
-				pipes[pipe_idx].pipe);
-		pipe_idx++;
-	}
-}
-
-static bool dcn20_validate_bandwidth_internal(struct dc *dc, struct dc_state *context,
-		bool fast_validate)
-{
-	bool out = false;
-
-	BW_VAL_TRACE_SETUP();
-
-	int vlevel = 0;
-	int pipe_split_from[MAX_PIPES];
-	int pipe_cnt = 0;
-	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_ATOMIC);
-	DC_LOGGER_INIT(dc->ctx->logger);
-
-	BW_VAL_TRACE_COUNT();
-
-	out = dcn20_fast_validate_bw(dc, context, pipes, &pipe_cnt, pipe_split_from, &vlevel);
-
-	if (pipe_cnt == 0)
-		goto validate_out;
-
-	if (!out)
-		goto validate_fail;
-
-	BW_VAL_TRACE_END_VOLTAGE_LEVEL();
-
-	if (fast_validate) {
-		BW_VAL_TRACE_SKIP(fast);
-		goto validate_out;
-	}
-
-	dcn20_calculate_wm(dc, context, pipes, &pipe_cnt, pipe_split_from, vlevel);
-	dcn20_calculate_dlg_params(dc, context, pipes, pipe_cnt, vlevel);
-
-	BW_VAL_TRACE_END_WATERMARKS();
-
-	goto validate_out;
-
-validate_fail:
-	DC_LOG_WARNING("Mode Validation Warning: %s failed validation.\n",
-		dml_get_status_message(context->bw_ctx.dml.vba.ValidationStatus[context->bw_ctx.dml.vba.soc.num_states]));
-
-	BW_VAL_TRACE_SKIP(fail);
-	out = false;
-
-validate_out:
-	kfree(pipes);
-
-	BW_VAL_TRACE_FINISH();
-
-	return out;
-}
-
-/*
- * This must be noinline to ensure anything that deals with FP registers
- * is contained within this call; previously our compiling with hard-float
- * would result in fp instructions being emitted outside of the boundaries
- * of the DC_FP_START/END macros, which makes sense as the compiler has no
- * idea about what is wrapped and what is not
- *
- * This is largely just a workaround to avoid breakage introduced with 5.6,
- * ideally all fp-using code should be moved into its own file, only that
- * should be compiled with hard-float, and all code exported from there
- * should be strictly wrapped with DC_FP_START/END
- */
-static noinline bool dcn20_validate_bandwidth_fp(struct dc *dc,
-		struct dc_state *context, bool fast_validate)
-{
-	bool voltage_supported = false;
-	bool full_pstate_supported = false;
-	bool dummy_pstate_supported = false;
-	double p_state_latency_us;
-
-	p_state_latency_us = context->bw_ctx.dml.soc.dram_clock_change_latency_us;
-	context->bw_ctx.dml.soc.disable_dram_clock_change_vactive_support =
-		dc->debug.disable_dram_clock_change_vactive_support;
-	context->bw_ctx.dml.soc.allow_dram_clock_one_display_vactive =
-		dc->debug.enable_dram_clock_change_one_display_vactive;
-
-	/*Unsafe due to current pipe merge and split logic*/
-	ASSERT(context != dc->current_state);
-
-	if (fast_validate) {
-		return dcn20_validate_bandwidth_internal(dc, context, true);
-	}
-
-	// Best case, we support full UCLK switch latency
-	voltage_supported = dcn20_validate_bandwidth_internal(dc, context, false);
-	full_pstate_supported = context->bw_ctx.bw.dcn.clk.p_state_change_support;
-
-	if (context->bw_ctx.dml.soc.dummy_pstate_latency_us == 0 ||
-		(voltage_supported && full_pstate_supported)) {
-		context->bw_ctx.bw.dcn.clk.p_state_change_support = full_pstate_supported;
-		goto restore_dml_state;
-	}
-
-	// Fallback: Try to only support G6 temperature read latency
-	context->bw_ctx.dml.soc.dram_clock_change_latency_us = context->bw_ctx.dml.soc.dummy_pstate_latency_us;
-
-	voltage_supported = dcn20_validate_bandwidth_internal(dc, context, false);
-	dummy_pstate_supported = context->bw_ctx.bw.dcn.clk.p_state_change_support;
-
-	if (voltage_supported && dummy_pstate_supported) {
-		context->bw_ctx.bw.dcn.clk.p_state_change_support = false;
-		goto restore_dml_state;
-	}
-
-	// ERROR: fallback is supposed to always work.
-	ASSERT(false);
-
-restore_dml_state:
-	context->bw_ctx.dml.soc.dram_clock_change_latency_us = p_state_latency_us;
-	return voltage_supported;
-}
-
 bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 		bool fast_validate)
 {
-	bool voltage_supported = false;
+	bool voltage_supported;
 	DC_FP_START();
 	voltage_supported = dcn20_validate_bandwidth_fp(dc, context, fast_validate);
 	DC_FP_END();
@@ -3390,7 +2272,7 @@ bool dcn20_mmhubbub_create(struct dc_context *ctx, struct resource_pool *pool)
 
 static struct pp_smu_funcs *dcn20_pp_smu_create(struct dc_context *ctx)
 {
-	struct pp_smu_funcs *pp_smu = kzalloc(sizeof(*pp_smu), GFP_KERNEL);
+	struct pp_smu_funcs *pp_smu = kzalloc(sizeof(*pp_smu), GFP_ATOMIC);
 
 	if (!pp_smu)
 		return pp_smu;
@@ -3408,169 +2290,6 @@ static void dcn20_pp_smu_destroy(struct pp_smu_funcs **pp_smu)
 	if (pp_smu && *pp_smu) {
 		kfree(*pp_smu);
 		*pp_smu = NULL;
-	}
-}
-
-void dcn20_cap_soc_clocks(
-		struct _vcs_dpi_soc_bounding_box_st *bb,
-		struct pp_smu_nv_clock_table max_clocks)
-{
-	int i;
-
-	// First pass - cap all clocks higher than the reported max
-	for (i = 0; i < bb->num_states; i++) {
-		if ((bb->clock_limits[i].dcfclk_mhz > (max_clocks.dcfClockInKhz / 1000))
-				&& max_clocks.dcfClockInKhz != 0)
-			bb->clock_limits[i].dcfclk_mhz = (max_clocks.dcfClockInKhz / 1000);
-
-		if ((bb->clock_limits[i].dram_speed_mts > (max_clocks.uClockInKhz / 1000) * 16)
-						&& max_clocks.uClockInKhz != 0)
-			bb->clock_limits[i].dram_speed_mts = (max_clocks.uClockInKhz / 1000) * 16;
-
-		if ((bb->clock_limits[i].fabricclk_mhz > (max_clocks.fabricClockInKhz / 1000))
-						&& max_clocks.fabricClockInKhz != 0)
-			bb->clock_limits[i].fabricclk_mhz = (max_clocks.fabricClockInKhz / 1000);
-
-		if ((bb->clock_limits[i].dispclk_mhz > (max_clocks.displayClockInKhz / 1000))
-						&& max_clocks.displayClockInKhz != 0)
-			bb->clock_limits[i].dispclk_mhz = (max_clocks.displayClockInKhz / 1000);
-
-		if ((bb->clock_limits[i].dppclk_mhz > (max_clocks.dppClockInKhz / 1000))
-						&& max_clocks.dppClockInKhz != 0)
-			bb->clock_limits[i].dppclk_mhz = (max_clocks.dppClockInKhz / 1000);
-
-		if ((bb->clock_limits[i].phyclk_mhz > (max_clocks.phyClockInKhz / 1000))
-						&& max_clocks.phyClockInKhz != 0)
-			bb->clock_limits[i].phyclk_mhz = (max_clocks.phyClockInKhz / 1000);
-
-		if ((bb->clock_limits[i].socclk_mhz > (max_clocks.socClockInKhz / 1000))
-						&& max_clocks.socClockInKhz != 0)
-			bb->clock_limits[i].socclk_mhz = (max_clocks.socClockInKhz / 1000);
-
-		if ((bb->clock_limits[i].dscclk_mhz > (max_clocks.dscClockInKhz / 1000))
-						&& max_clocks.dscClockInKhz != 0)
-			bb->clock_limits[i].dscclk_mhz = (max_clocks.dscClockInKhz / 1000);
-	}
-
-	// Second pass - remove all duplicate clock states
-	for (i = bb->num_states - 1; i > 1; i--) {
-		bool duplicate = true;
-
-		if (bb->clock_limits[i-1].dcfclk_mhz != bb->clock_limits[i].dcfclk_mhz)
-			duplicate = false;
-		if (bb->clock_limits[i-1].dispclk_mhz != bb->clock_limits[i].dispclk_mhz)
-			duplicate = false;
-		if (bb->clock_limits[i-1].dppclk_mhz != bb->clock_limits[i].dppclk_mhz)
-			duplicate = false;
-		if (bb->clock_limits[i-1].dram_speed_mts != bb->clock_limits[i].dram_speed_mts)
-			duplicate = false;
-		if (bb->clock_limits[i-1].dscclk_mhz != bb->clock_limits[i].dscclk_mhz)
-			duplicate = false;
-		if (bb->clock_limits[i-1].fabricclk_mhz != bb->clock_limits[i].fabricclk_mhz)
-			duplicate = false;
-		if (bb->clock_limits[i-1].phyclk_mhz != bb->clock_limits[i].phyclk_mhz)
-			duplicate = false;
-		if (bb->clock_limits[i-1].socclk_mhz != bb->clock_limits[i].socclk_mhz)
-			duplicate = false;
-
-		if (duplicate)
-			bb->num_states--;
-	}
-}
-
-void dcn20_update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb,
-		struct pp_smu_nv_clock_table *max_clocks, unsigned int *uclk_states, unsigned int num_states)
-{
-	struct _vcs_dpi_voltage_scaling_st calculated_states[DC__VOLTAGE_STATES];
-	int i;
-	int num_calculated_states = 0;
-	int min_dcfclk = 0;
-
-	if (num_states == 0)
-		return;
-
-	memset(calculated_states, 0, sizeof(calculated_states));
-
-	if (dc->bb_overrides.min_dcfclk_mhz > 0)
-		min_dcfclk = dc->bb_overrides.min_dcfclk_mhz;
-	else {
-		if (ASICREV_IS_NAVI12_P(dc->ctx->asic_id.hw_internal_rev))
-			min_dcfclk = 310;
-		else
-			// Accounting for SOC/DCF relationship, we can go as high as
-			// 506Mhz in Vmin.
-			min_dcfclk = 506;
-	}
-
-	for (i = 0; i < num_states; i++) {
-		int min_fclk_required_by_uclk;
-		calculated_states[i].state = i;
-		calculated_states[i].dram_speed_mts = uclk_states[i] * 16 / 1000;
-
-		// FCLK:UCLK ratio is 1.08
-		min_fclk_required_by_uclk = mul_u64_u32_shr(BIT_ULL(32) * 1080 / 1000000, uclk_states[i], 32);
-
-		calculated_states[i].fabricclk_mhz = (min_fclk_required_by_uclk < min_dcfclk) ?
-				min_dcfclk : min_fclk_required_by_uclk;
-
-		calculated_states[i].socclk_mhz = (calculated_states[i].fabricclk_mhz > max_clocks->socClockInKhz / 1000) ?
-				max_clocks->socClockInKhz / 1000 : calculated_states[i].fabricclk_mhz;
-
-		calculated_states[i].dcfclk_mhz = (calculated_states[i].fabricclk_mhz > max_clocks->dcfClockInKhz / 1000) ?
-				max_clocks->dcfClockInKhz / 1000 : calculated_states[i].fabricclk_mhz;
-
-		calculated_states[i].dispclk_mhz = max_clocks->displayClockInKhz / 1000;
-		calculated_states[i].dppclk_mhz = max_clocks->displayClockInKhz / 1000;
-		calculated_states[i].dscclk_mhz = max_clocks->displayClockInKhz / (1000 * 3);
-
-		calculated_states[i].phyclk_mhz = max_clocks->phyClockInKhz / 1000;
-
-		num_calculated_states++;
-	}
-
-	calculated_states[num_calculated_states - 1].socclk_mhz = max_clocks->socClockInKhz / 1000;
-	calculated_states[num_calculated_states - 1].fabricclk_mhz = max_clocks->socClockInKhz / 1000;
-	calculated_states[num_calculated_states - 1].dcfclk_mhz = max_clocks->dcfClockInKhz / 1000;
-
-	memcpy(bb->clock_limits, calculated_states, sizeof(bb->clock_limits));
-	bb->num_states = num_calculated_states;
-
-	// Duplicate the last state, DML always an extra state identical to max state to work
-	memcpy(&bb->clock_limits[num_calculated_states], &bb->clock_limits[num_calculated_states - 1], sizeof(struct _vcs_dpi_voltage_scaling_st));
-	bb->clock_limits[num_calculated_states].state = bb->num_states;
-}
-
-void dcn20_patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb)
-{
-	if ((int)(bb->sr_exit_time_us * 1000) != dc->bb_overrides.sr_exit_time_ns
-			&& dc->bb_overrides.sr_exit_time_ns) {
-		bb->sr_exit_time_us = dc->bb_overrides.sr_exit_time_ns / 1000.0;
-	}
-
-	if ((int)(bb->sr_enter_plus_exit_time_us * 1000)
-				!= dc->bb_overrides.sr_enter_plus_exit_time_ns
-			&& dc->bb_overrides.sr_enter_plus_exit_time_ns) {
-		bb->sr_enter_plus_exit_time_us =
-				dc->bb_overrides.sr_enter_plus_exit_time_ns / 1000.0;
-	}
-
-	if ((int)(bb->urgent_latency_us * 1000) != dc->bb_overrides.urgent_latency_ns
-			&& dc->bb_overrides.urgent_latency_ns) {
-		bb->urgent_latency_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
-	}
-
-	if ((int)(bb->dram_clock_change_latency_us * 1000)
-				!= dc->bb_overrides.dram_clock_change_latency_ns
-			&& dc->bb_overrides.dram_clock_change_latency_ns) {
-		bb->dram_clock_change_latency_us =
-				dc->bb_overrides.dram_clock_change_latency_ns / 1000.0;
-	}
-
-	if ((int)(bb->dummy_pstate_latency_us * 1000)
-				!= dc->bb_overrides.dummy_clock_change_latency_ns
-			&& dc->bb_overrides.dummy_clock_change_latency_ns) {
-		bb->dummy_pstate_latency_us =
-				dc->bb_overrides.dummy_clock_change_latency_ns / 1000.0;
 	}
 }
 
@@ -3602,129 +2321,15 @@ static enum dml_project get_dml_project_version(uint32_t hw_internal_rev)
 	return DML_PROJECT_NAVI10v2;
 }
 
-#define fixed16_to_double(x) (((double) x) / ((double) (1 << 16)))
-#define fixed16_to_double_to_cpu(x) fixed16_to_double(le32_to_cpu(x))
-
 static bool init_soc_bounding_box(struct dc *dc,
 				  struct dcn20_resource_pool *pool)
 {
-	const struct gpu_info_soc_bounding_box_v1_0 *bb = dc->soc_bounding_box;
 	struct _vcs_dpi_soc_bounding_box_st *loaded_bb =
 			get_asic_rev_soc_bb(dc->ctx->asic_id.hw_internal_rev);
 	struct _vcs_dpi_ip_params_st *loaded_ip =
 			get_asic_rev_ip_params(dc->ctx->asic_id.hw_internal_rev);
 
 	DC_LOGGER_INIT(dc->ctx->logger);
-
-	/* TODO: upstream NV12 bounding box when its launched */
-	if (!bb && ASICREV_IS_NAVI12_P(dc->ctx->asic_id.hw_internal_rev)) {
-		DC_LOG_ERROR("%s: not valid soc bounding box/n", __func__);
-		return false;
-	}
-
-	if (bb && ASICREV_IS_NAVI12_P(dc->ctx->asic_id.hw_internal_rev)) {
-		int i;
-
-		dcn2_0_nv12_soc.sr_exit_time_us =
-				fixed16_to_double_to_cpu(bb->sr_exit_time_us);
-		dcn2_0_nv12_soc.sr_enter_plus_exit_time_us =
-				fixed16_to_double_to_cpu(bb->sr_enter_plus_exit_time_us);
-		dcn2_0_nv12_soc.urgent_latency_us =
-				fixed16_to_double_to_cpu(bb->urgent_latency_us);
-		dcn2_0_nv12_soc.urgent_latency_pixel_data_only_us =
-				fixed16_to_double_to_cpu(bb->urgent_latency_pixel_data_only_us);
-		dcn2_0_nv12_soc.urgent_latency_pixel_mixed_with_vm_data_us =
-				fixed16_to_double_to_cpu(bb->urgent_latency_pixel_mixed_with_vm_data_us);
-		dcn2_0_nv12_soc.urgent_latency_vm_data_only_us =
-				fixed16_to_double_to_cpu(bb->urgent_latency_vm_data_only_us);
-		dcn2_0_nv12_soc.urgent_out_of_order_return_per_channel_pixel_only_bytes =
-				le32_to_cpu(bb->urgent_out_of_order_return_per_channel_pixel_only_bytes);
-		dcn2_0_nv12_soc.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes =
-				le32_to_cpu(bb->urgent_out_of_order_return_per_channel_pixel_and_vm_bytes);
-		dcn2_0_nv12_soc.urgent_out_of_order_return_per_channel_vm_only_bytes =
-				le32_to_cpu(bb->urgent_out_of_order_return_per_channel_vm_only_bytes);
-		dcn2_0_nv12_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only =
-				fixed16_to_double_to_cpu(bb->pct_ideal_dram_sdp_bw_after_urgent_pixel_only);
-		dcn2_0_nv12_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm =
-				fixed16_to_double_to_cpu(bb->pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm);
-		dcn2_0_nv12_soc.pct_ideal_dram_sdp_bw_after_urgent_vm_only =
-				fixed16_to_double_to_cpu(bb->pct_ideal_dram_sdp_bw_after_urgent_vm_only);
-		dcn2_0_nv12_soc.max_avg_sdp_bw_use_normal_percent =
-				fixed16_to_double_to_cpu(bb->max_avg_sdp_bw_use_normal_percent);
-		dcn2_0_nv12_soc.max_avg_dram_bw_use_normal_percent =
-				fixed16_to_double_to_cpu(bb->max_avg_dram_bw_use_normal_percent);
-		dcn2_0_nv12_soc.writeback_latency_us =
-				fixed16_to_double_to_cpu(bb->writeback_latency_us);
-		dcn2_0_nv12_soc.ideal_dram_bw_after_urgent_percent =
-				fixed16_to_double_to_cpu(bb->ideal_dram_bw_after_urgent_percent);
-		dcn2_0_nv12_soc.max_request_size_bytes =
-				le32_to_cpu(bb->max_request_size_bytes);
-		dcn2_0_nv12_soc.dram_channel_width_bytes =
-				le32_to_cpu(bb->dram_channel_width_bytes);
-		dcn2_0_nv12_soc.fabric_datapath_to_dcn_data_return_bytes =
-				le32_to_cpu(bb->fabric_datapath_to_dcn_data_return_bytes);
-		dcn2_0_nv12_soc.dcn_downspread_percent =
-				fixed16_to_double_to_cpu(bb->dcn_downspread_percent);
-		dcn2_0_nv12_soc.downspread_percent =
-				fixed16_to_double_to_cpu(bb->downspread_percent);
-		dcn2_0_nv12_soc.dram_page_open_time_ns =
-				fixed16_to_double_to_cpu(bb->dram_page_open_time_ns);
-		dcn2_0_nv12_soc.dram_rw_turnaround_time_ns =
-				fixed16_to_double_to_cpu(bb->dram_rw_turnaround_time_ns);
-		dcn2_0_nv12_soc.dram_return_buffer_per_channel_bytes =
-				le32_to_cpu(bb->dram_return_buffer_per_channel_bytes);
-		dcn2_0_nv12_soc.round_trip_ping_latency_dcfclk_cycles =
-				le32_to_cpu(bb->round_trip_ping_latency_dcfclk_cycles);
-		dcn2_0_nv12_soc.urgent_out_of_order_return_per_channel_bytes =
-				le32_to_cpu(bb->urgent_out_of_order_return_per_channel_bytes);
-		dcn2_0_nv12_soc.channel_interleave_bytes =
-				le32_to_cpu(bb->channel_interleave_bytes);
-		dcn2_0_nv12_soc.num_banks =
-				le32_to_cpu(bb->num_banks);
-		dcn2_0_nv12_soc.num_chans =
-				le32_to_cpu(bb->num_chans);
-		dcn2_0_nv12_soc.vmm_page_size_bytes =
-				le32_to_cpu(bb->vmm_page_size_bytes);
-		dcn2_0_nv12_soc.dram_clock_change_latency_us =
-				fixed16_to_double_to_cpu(bb->dram_clock_change_latency_us);
-		// HACK!! Lower uclock latency switch time so we don't switch
-		dcn2_0_nv12_soc.dram_clock_change_latency_us = 10;
-		dcn2_0_nv12_soc.writeback_dram_clock_change_latency_us =
-				fixed16_to_double_to_cpu(bb->writeback_dram_clock_change_latency_us);
-		dcn2_0_nv12_soc.return_bus_width_bytes =
-				le32_to_cpu(bb->return_bus_width_bytes);
-		dcn2_0_nv12_soc.dispclk_dppclk_vco_speed_mhz =
-				le32_to_cpu(bb->dispclk_dppclk_vco_speed_mhz);
-		dcn2_0_nv12_soc.xfc_bus_transport_time_us =
-				le32_to_cpu(bb->xfc_bus_transport_time_us);
-		dcn2_0_nv12_soc.xfc_xbuf_latency_tolerance_us =
-				le32_to_cpu(bb->xfc_xbuf_latency_tolerance_us);
-		dcn2_0_nv12_soc.use_urgent_burst_bw =
-				le32_to_cpu(bb->use_urgent_burst_bw);
-		dcn2_0_nv12_soc.num_states =
-				le32_to_cpu(bb->num_states);
-
-		for (i = 0; i < dcn2_0_nv12_soc.num_states; i++) {
-			dcn2_0_nv12_soc.clock_limits[i].state =
-					le32_to_cpu(bb->clock_limits[i].state);
-			dcn2_0_nv12_soc.clock_limits[i].dcfclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].dcfclk_mhz);
-			dcn2_0_nv12_soc.clock_limits[i].fabricclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].fabricclk_mhz);
-			dcn2_0_nv12_soc.clock_limits[i].dispclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].dispclk_mhz);
-			dcn2_0_nv12_soc.clock_limits[i].dppclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].dppclk_mhz);
-			dcn2_0_nv12_soc.clock_limits[i].phyclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].phyclk_mhz);
-			dcn2_0_nv12_soc.clock_limits[i].socclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].socclk_mhz);
-			dcn2_0_nv12_soc.clock_limits[i].dscclk_mhz =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].dscclk_mhz);
-			dcn2_0_nv12_soc.clock_limits[i].dram_speed_mts =
-					fixed16_to_double_to_cpu(bb->clock_limits[i].dram_speed_mts);
-		}
-	}
 
 	if (pool->base.pp_smu) {
 		struct pp_smu_nv_clock_table max_clocks = {0};
@@ -3751,16 +2356,22 @@ static bool init_soc_bounding_box(struct dc *dc,
 			clock_limits_available = (status == PP_SMU_RESULT_OK);
 		}
 
-		if (clock_limits_available && uclk_states_available && num_states)
+		if (clock_limits_available && uclk_states_available && num_states) {
+			DC_FP_START();
 			dcn20_update_bounding_box(dc, loaded_bb, &max_clocks, uclk_states, num_states);
-		else if (clock_limits_available)
+			DC_FP_END();
+		} else if (clock_limits_available) {
+			DC_FP_START();
 			dcn20_cap_soc_clocks(loaded_bb, max_clocks);
+			DC_FP_END();
+		}
 	}
 
 	loaded_ip->max_num_otg = pool->base.res_cap->num_timing_generator;
 	loaded_ip->max_num_dpp = pool->base.pipe_count;
+	DC_FP_START();
 	dcn20_patch_bounding_box(dc, loaded_bb);
-
+	DC_FP_END();
 	return true;
 }
 
@@ -3772,15 +2383,13 @@ static bool dcn20_resource_construct(
 	int i;
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data init_data;
-	struct ddc_service_init_data ddc_init_data;
+	struct ddc_service_init_data ddc_init_data = {0};
 	struct _vcs_dpi_soc_bounding_box_st *loaded_bb =
 			get_asic_rev_soc_bb(ctx->asic_id.hw_internal_rev);
 	struct _vcs_dpi_ip_params_st *loaded_ip =
 			get_asic_rev_ip_params(ctx->asic_id.hw_internal_rev);
 	enum dml_project dml_project_version =
 			get_dml_project_version(ctx->asic_id.hw_internal_rev);
-
-	DC_FP_START();
 
 	ctx->dc_bios->regs = &bios_regs;
 	pool->base.funcs = &dcn20_res_pool_funcs;
@@ -3801,10 +2410,14 @@ static bool dcn20_resource_construct(
 
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
+	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a not applied by default*/
 	dc->caps.max_cursor_size = 256;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
 
 	dc->caps.max_slave_planes = 1;
+	dc->caps.max_slave_yuv_planes = 1;
+	dc->caps.max_slave_rgb_planes = 1;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.extended_aux_timeout_support = true;
@@ -3821,6 +2434,7 @@ static bool dcn20_resource_construct(
 	dc->caps.color.dpp.dgam_rom_caps.hlg = 0;
 	dc->caps.color.dpp.post_csc = 0;
 	dc->caps.color.dpp.gamma_corr = 0;
+	dc->caps.color.dpp.dgam_rom_for_yuv = 1;
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;
@@ -3842,6 +2456,8 @@ static bool dcn20_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
+
+	dc->caps.hdmi_frl_pcon_support = true;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV) {
 		dc->debug = debug_defaults_drv;
@@ -3959,8 +2575,9 @@ static bool dcn20_resource_construct(
 				ranges.reader_wm_sets[i].wm_inst = i;
 				ranges.reader_wm_sets[i].min_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
 				ranges.reader_wm_sets[i].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
-				ranges.reader_wm_sets[i].min_fill_clk_mhz = (i > 0) ? (loaded_bb->clock_limits[i - 1].dram_speed_mts / 16) + 1 : 0;
-				ranges.reader_wm_sets[i].max_fill_clk_mhz = loaded_bb->clock_limits[i].dram_speed_mts / 16;
+				DC_FP_START();
+				dcn20_fpu_set_wm_ranges(i, &ranges, loaded_bb);
+				DC_FP_END();
 
 				ranges.num_reader_wm_sets = i + 1;
 			}
@@ -4125,12 +2742,10 @@ static bool dcn20_resource_construct(
 		pool->base.oem_device = NULL;
 	}
 
-	DC_FP_END();
 	return true;
 
 create_fail:
 
-	DC_FP_END();
 	dcn20_resource_destruct(pool);
 
 	return false;
@@ -4141,7 +2756,7 @@ struct resource_pool *dcn20_create_resource_pool(
 		struct dc *dc)
 {
 	struct dcn20_resource_pool *pool =
-		kzalloc(sizeof(struct dcn20_resource_pool), GFP_KERNEL);
+		kzalloc(sizeof(struct dcn20_resource_pool), GFP_ATOMIC);
 
 	if (!pool)
 		return NULL;

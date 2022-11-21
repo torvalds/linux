@@ -17,7 +17,7 @@
 #include <linux/cpufreq.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
@@ -540,9 +540,9 @@ static void do_pio_write(struct s3cmci_host *host)
 	enable_imask(host, S3C2410_SDIIMSK_TXFIFOHALF);
 }
 
-static void pio_tasklet(unsigned long data)
+static void pio_tasklet(struct tasklet_struct *t)
 {
-	struct s3cmci_host *host = (struct s3cmci_host *) data;
+	struct s3cmci_host *host = from_tasklet(host, t, pio_tasklet);
 
 	s3cmci_disable_irq(host, true);
 
@@ -1532,7 +1532,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 	host->pdata = pdev->dev.platform_data;
 
 	spin_lock_init(&host->complete_lock);
-	tasklet_init(&host->pio_tasklet, pio_tasklet, (unsigned long) host);
+	tasklet_setup(&host->pio_tasklet, pio_tasklet);
 
 	if (host->is2440) {
 		host->sdiimsk	= S3C2440_SDIIMSK;
@@ -1578,17 +1578,12 @@ static int s3cmci_probe(struct platform_device *pdev)
 		goto probe_iounmap;
 	}
 
-	if (request_irq(host->irq, s3cmci_irq, 0, DRIVER_NAME, host)) {
+	if (request_irq(host->irq, s3cmci_irq, IRQF_NO_AUTOEN, DRIVER_NAME, host)) {
 		dev_err(&pdev->dev, "failed to request mci interrupt.\n");
 		ret = -ENOENT;
 		goto probe_iounmap;
 	}
 
-	/* We get spurious interrupts even when we have set the IMSK
-	 * register to ignore everything, so use disable_irq() to make
-	 * ensure we don't lock the system with un-serviceable requests. */
-
-	disable_irq(host->irq);
 	host->irq_state = false;
 
 	/* Depending on the dma state, get a DMA channel to use. */

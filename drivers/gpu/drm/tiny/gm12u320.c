@@ -3,7 +3,6 @@
  * Copyright 2019 Hans de Goede <hdegoede@redhat.com>
  */
 
-#include <linux/dma-buf.h>
 #include <linux/module.h>
 #include <linux/usb.h>
 
@@ -16,8 +15,9 @@
 #include <drm/drm_file.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_shmem_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
@@ -45,7 +45,7 @@ MODULE_PARM_DESC(eco_mode, "Turn on Eco mode (less bright, more silent)");
 #define GM12U320_BLOCK_COUNT		20
 
 #define GM12U320_ERR(fmt, ...) \
-	DRM_DEV_ERROR(&gm12u320->udev->dev, fmt, ##__VA_ARGS__)
+	DRM_DEV_ERROR(gm12u320->dev.dev, fmt, ##__VA_ARGS__)
 
 #define MISC_RCV_EPT			1
 #define DATA_RCV_EPT			2
@@ -83,9 +83,9 @@ MODULE_PARM_DESC(eco_mode, "Turn on Eco mode (less bright, more silent)");
 
 struct gm12u320_device {
 	struct drm_device	         dev;
+	struct device                   *dmadev;
 	struct drm_simple_display_pipe   pipe;
 	struct drm_connector	         conn;
-	struct usb_device               *udev;
 	unsigned char                   *cmd_buf;
 	unsigned char                   *data_buf[GM12U320_BLOCK_COUNT];
 	struct {
@@ -95,6 +95,7 @@ struct gm12u320_device {
 		struct drm_rect          rect;
 		int frame;
 		int draw_status_timeout;
+		struct iosys_map src_map;
 	} fb_update;
 };
 
@@ -155,6 +156,11 @@ static const char data_block_footer[DATA_BLOCK_FOOTER_SIZE] = {
 	0x80, 0x00, 0x00, 0x4f
 };
 
+static inline struct usb_device *gm12u320_to_usb_device(struct gm12u320_device *gm12u320)
+{
+	return interface_to_usbdev(to_usb_interface(gm12u320->dev.dev));
+}
+
 static int gm12u320_usb_alloc(struct gm12u320_device *gm12u320)
 {
 	int i, block_size;
@@ -191,6 +197,7 @@ static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
 				 u8 req_a, u8 req_b,
 				 u8 arg_a, u8 arg_b, u8 arg_c, u8 arg_d)
 {
+	struct usb_device *udev = gm12u320_to_usb_device(gm12u320);
 	int ret, len;
 
 	memcpy(gm12u320->cmd_buf, &cmd_misc, CMD_SIZE);
@@ -202,8 +209,7 @@ static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
 	gm12u320->cmd_buf[25] = arg_d;
 
 	/* Send request */
-	ret = usb_bulk_msg(gm12u320->udev,
-			   usb_sndbulkpipe(gm12u320->udev, MISC_SND_EPT),
+	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, MISC_SND_EPT),
 			   gm12u320->cmd_buf, CMD_SIZE, &len, CMD_TIMEOUT);
 	if (ret || len != CMD_SIZE) {
 		GM12U320_ERR("Misc. req. error %d\n", ret);
@@ -211,8 +217,7 @@ static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
 	}
 
 	/* Read value */
-	ret = usb_bulk_msg(gm12u320->udev,
-			   usb_rcvbulkpipe(gm12u320->udev, MISC_RCV_EPT),
+	ret = usb_bulk_msg(udev, usb_rcvbulkpipe(udev, MISC_RCV_EPT),
 			   gm12u320->cmd_buf, MISC_VALUE_SIZE, &len,
 			   DATA_TIMEOUT);
 	if (ret || len != MISC_VALUE_SIZE) {
@@ -222,8 +227,7 @@ static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
 	/* cmd_buf[0] now contains the read value, which we don't use */
 
 	/* Read status */
-	ret = usb_bulk_msg(gm12u320->udev,
-			   usb_rcvbulkpipe(gm12u320->udev, MISC_RCV_EPT),
+	ret = usb_bulk_msg(udev, usb_rcvbulkpipe(udev, MISC_RCV_EPT),
 			   gm12u320->cmd_buf, READ_STATUS_SIZE, &len,
 			   CMD_TIMEOUT);
 	if (ret || len != READ_STATUS_SIZE) {
@@ -261,20 +265,12 @@ static void gm12u320_copy_fb_to_blocks(struct gm12u320_device *gm12u320)
 	x2 = gm12u320->fb_update.rect.x2;
 	y1 = gm12u320->fb_update.rect.y1;
 	y2 = gm12u320->fb_update.rect.y2;
+	vaddr = gm12u320->fb_update.src_map.vaddr; /* TODO: Use mapping abstraction properly */
 
-	vaddr = drm_gem_shmem_vmap(fb->obj[0]);
-	if (IS_ERR(vaddr)) {
-		GM12U320_ERR("failed to vmap fb: %ld\n", PTR_ERR(vaddr));
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret) {
+		GM12U320_ERR("drm_gem_fb_begin_cpu_access err: %d\n", ret);
 		goto put_fb;
-	}
-
-	if (fb->obj[0]->import_attach) {
-		ret = dma_buf_begin_cpu_access(
-			fb->obj[0]->import_attach->dmabuf, DMA_FROM_DEVICE);
-		if (ret) {
-			GM12U320_ERR("dma_buf_begin_cpu_access err: %d\n", ret);
-			goto vunmap;
-		}
 	}
 
 	src = vaddr + y1 * fb->pitches[0] + x1 * 4;
@@ -311,14 +307,7 @@ static void gm12u320_copy_fb_to_blocks(struct gm12u320_device *gm12u320)
 		src += fb->pitches[0];
 	}
 
-	if (fb->obj[0]->import_attach) {
-		ret = dma_buf_end_cpu_access(fb->obj[0]->import_attach->dmabuf,
-					     DMA_FROM_DEVICE);
-		if (ret)
-			GM12U320_ERR("dma_buf_end_cpu_access err: %d\n", ret);
-	}
-vunmap:
-	drm_gem_shmem_vunmap(fb->obj[0], vaddr);
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 put_fb:
 	drm_framebuffer_put(fb);
 	gm12u320->fb_update.fb = NULL;
@@ -331,6 +320,7 @@ static void gm12u320_fb_update_work(struct work_struct *work)
 	struct gm12u320_device *gm12u320 =
 		container_of(to_delayed_work(work), struct gm12u320_device,
 			     fb_update.work);
+	struct usb_device *udev = gm12u320_to_usb_device(gm12u320);
 	int block, block_size, len;
 	int ret = 0;
 
@@ -350,43 +340,41 @@ static void gm12u320_fb_update_work(struct work_struct *work)
 		gm12u320->cmd_buf[21] =
 			block | (gm12u320->fb_update.frame << 7);
 
-		ret = usb_bulk_msg(gm12u320->udev,
-			usb_sndbulkpipe(gm12u320->udev, DATA_SND_EPT),
-			gm12u320->cmd_buf, CMD_SIZE, &len,
-			CMD_TIMEOUT);
+		ret = usb_bulk_msg(udev,
+				   usb_sndbulkpipe(udev, DATA_SND_EPT),
+				   gm12u320->cmd_buf, CMD_SIZE, &len,
+				   CMD_TIMEOUT);
 		if (ret || len != CMD_SIZE)
 			goto err;
 
 		/* Send data block to device */
-		ret = usb_bulk_msg(gm12u320->udev,
-			usb_sndbulkpipe(gm12u320->udev, DATA_SND_EPT),
-			gm12u320->data_buf[block], block_size,
-			&len, DATA_TIMEOUT);
+		ret = usb_bulk_msg(udev,
+				   usb_sndbulkpipe(udev, DATA_SND_EPT),
+				   gm12u320->data_buf[block], block_size,
+				   &len, DATA_TIMEOUT);
 		if (ret || len != block_size)
 			goto err;
 
 		/* Read status */
-		ret = usb_bulk_msg(gm12u320->udev,
-			usb_rcvbulkpipe(gm12u320->udev, DATA_RCV_EPT),
-			gm12u320->cmd_buf, READ_STATUS_SIZE, &len,
-			CMD_TIMEOUT);
+		ret = usb_bulk_msg(udev,
+				   usb_rcvbulkpipe(udev, DATA_RCV_EPT),
+				   gm12u320->cmd_buf, READ_STATUS_SIZE, &len,
+				   CMD_TIMEOUT);
 		if (ret || len != READ_STATUS_SIZE)
 			goto err;
 	}
 
 	/* Send draw command to device */
 	memcpy(gm12u320->cmd_buf, cmd_draw, CMD_SIZE);
-	ret = usb_bulk_msg(gm12u320->udev,
-		usb_sndbulkpipe(gm12u320->udev, DATA_SND_EPT),
-		gm12u320->cmd_buf, CMD_SIZE, &len, CMD_TIMEOUT);
+	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, DATA_SND_EPT),
+			   gm12u320->cmd_buf, CMD_SIZE, &len, CMD_TIMEOUT);
 	if (ret || len != CMD_SIZE)
 		goto err;
 
 	/* Read status */
-	ret = usb_bulk_msg(gm12u320->udev,
-		usb_rcvbulkpipe(gm12u320->udev, DATA_RCV_EPT),
-		gm12u320->cmd_buf, READ_STATUS_SIZE, &len,
-		gm12u320->fb_update.draw_status_timeout);
+	ret = usb_bulk_msg(udev, usb_rcvbulkpipe(udev, DATA_RCV_EPT),
+			   gm12u320->cmd_buf, READ_STATUS_SIZE, &len,
+			   gm12u320->fb_update.draw_status_timeout);
 	if (ret || len != READ_STATUS_SIZE)
 		goto err;
 
@@ -408,6 +396,7 @@ err:
 }
 
 static void gm12u320_fb_mark_dirty(struct drm_framebuffer *fb,
+				   const struct iosys_map *map,
 				   struct drm_rect *dirty)
 {
 	struct gm12u320_device *gm12u320 = to_gm12u320(fb->dev);
@@ -421,6 +410,7 @@ static void gm12u320_fb_mark_dirty(struct drm_framebuffer *fb,
 		drm_framebuffer_get(fb);
 		gm12u320->fb_update.fb = fb;
 		gm12u320->fb_update.rect = *dirty;
+		gm12u320->fb_update.src_map = *map;
 		wakeup = true;
 	} else {
 		struct drm_rect *rect = &gm12u320->fb_update.rect;
@@ -449,6 +439,7 @@ static void gm12u320_stop_fb_update(struct gm12u320_device *gm12u320)
 	mutex_lock(&gm12u320->fb_update.lock);
 	old_fb = gm12u320->fb_update.fb;
 	gm12u320->fb_update.fb = NULL;
+	iosys_map_clear(&gm12u320->fb_update.src_map);
 	mutex_unlock(&gm12u320->fb_update.lock);
 
 	drm_framebuffer_put(old_fb);
@@ -561,9 +552,10 @@ static void gm12u320_pipe_enable(struct drm_simple_display_pipe *pipe,
 {
 	struct drm_rect rect = { 0, 0, GM12U320_USER_WIDTH, GM12U320_HEIGHT };
 	struct gm12u320_device *gm12u320 = to_gm12u320(pipe->crtc.dev);
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 
 	gm12u320->fb_update.draw_status_timeout = FIRST_FRAME_TIMEOUT;
-	gm12u320_fb_mark_dirty(plane_state->fb, &rect);
+	gm12u320_fb_mark_dirty(plane_state->fb, &shadow_plane_state->data[0], &rect);
 }
 
 static void gm12u320_pipe_disable(struct drm_simple_display_pipe *pipe)
@@ -577,16 +569,18 @@ static void gm12u320_pipe_update(struct drm_simple_display_pipe *pipe,
 				 struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = pipe->plane.state;
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
 	struct drm_rect rect;
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
-		gm12u320_fb_mark_dirty(pipe->plane.state->fb, &rect);
+		gm12u320_fb_mark_dirty(state->fb, &shadow_plane_state->data[0], &rect);
 }
 
 static const struct drm_simple_display_pipe_funcs gm12u320_pipe_funcs = {
 	.enable	    = gm12u320_pipe_enable,
 	.disable    = gm12u320_pipe_disable,
 	.update	    = gm12u320_pipe_update,
+	DRM_GEM_SIMPLE_DISPLAY_PIPE_SHADOW_PLANE_FUNCS,
 };
 
 static const uint32_t gm12u320_pipe_formats[] = {
@@ -598,9 +592,25 @@ static const uint64_t gm12u320_pipe_modifiers[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
+/*
+ * FIXME: Dma-buf sharing requires DMA support by the importing device.
+ *        This function is a workaround to make USB devices work as well.
+ *        See todo.rst for how to fix the issue in the dma-buf framework.
+ */
+static struct drm_gem_object *gm12u320_gem_prime_import(struct drm_device *dev,
+							struct dma_buf *dma_buf)
+{
+	struct gm12u320_device *gm12u320 = to_gm12u320(dev);
+
+	if (!gm12u320->dmadev)
+		return ERR_PTR(-ENODEV);
+
+	return drm_gem_prime_import_dev(dev, dma_buf, gm12u320->dmadev);
+}
+
 DEFINE_DRM_GEM_FOPS(gm12u320_fops);
 
-static struct drm_driver gm12u320_drm_driver = {
+static const struct drm_driver gm12u320_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 
 	.name		 = DRIVER_NAME,
@@ -611,6 +621,7 @@ static struct drm_driver gm12u320_drm_driver = {
 
 	.fops		 = &gm12u320_fops,
 	DRM_GEM_SHMEM_DRIVER_OPS,
+	.gem_prime_import = gm12u320_gem_prime_import,
 };
 
 static const struct drm_mode_config_funcs gm12u320_mode_config_funcs = {
@@ -637,16 +648,18 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 				      struct gm12u320_device, dev);
 	if (IS_ERR(gm12u320))
 		return PTR_ERR(gm12u320);
+	dev = &gm12u320->dev;
 
-	gm12u320->udev = interface_to_usbdev(interface);
+	gm12u320->dmadev = usb_intf_get_dma_device(to_usb_interface(dev->dev));
+	if (!gm12u320->dmadev)
+		drm_warn(dev, "buffer sharing not supported"); /* not an error */
+
 	INIT_DELAYED_WORK(&gm12u320->fb_update.work, gm12u320_fb_update_work);
 	mutex_init(&gm12u320->fb_update.lock);
 
-	dev = &gm12u320->dev;
-
 	ret = drmm_mode_config_init(dev);
 	if (ret)
-		return ret;
+		goto err_put_device;
 
 	dev->mode_config.min_width = GM12U320_USER_WIDTH;
 	dev->mode_config.max_width = GM12U320_USER_WIDTH;
@@ -656,15 +669,15 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 
 	ret = gm12u320_usb_alloc(gm12u320);
 	if (ret)
-		return ret;
+		goto err_put_device;
 
 	ret = gm12u320_set_ecomode(gm12u320);
 	if (ret)
-		return ret;
+		goto err_put_device;
 
 	ret = gm12u320_conn_init(gm12u320);
 	if (ret)
-		return ret;
+		goto err_put_device;
 
 	ret = drm_simple_display_pipe_init(&gm12u320->dev,
 					   &gm12u320->pipe,
@@ -674,24 +687,31 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 					   gm12u320_pipe_modifiers,
 					   &gm12u320->conn);
 	if (ret)
-		return ret;
+		goto err_put_device;
 
 	drm_mode_config_reset(dev);
 
 	usb_set_intfdata(interface, dev);
 	ret = drm_dev_register(dev, 0);
 	if (ret)
-		return ret;
+		goto err_put_device;
 
 	drm_fbdev_generic_setup(dev, 0);
 
 	return 0;
+
+err_put_device:
+	put_device(gm12u320->dmadev);
+	return ret;
 }
 
 static void gm12u320_usb_disconnect(struct usb_interface *interface)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
+	struct gm12u320_device *gm12u320 = to_gm12u320(dev);
 
+	put_device(gm12u320->dmadev);
+	gm12u320->dmadev = NULL;
 	drm_dev_unplug(dev);
 	drm_atomic_helper_shutdown(dev);
 }

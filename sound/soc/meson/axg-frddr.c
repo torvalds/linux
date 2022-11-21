@@ -11,6 +11,7 @@
 #include <linux/regmap.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 
@@ -46,11 +47,28 @@ static int g12a_frddr_dai_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int axg_frddr_dai_hw_params(struct snd_pcm_substream *substream,
+				   struct snd_pcm_hw_params *params,
+				   struct snd_soc_dai *dai)
+{
+	struct axg_fifo *fifo = snd_soc_dai_get_drvdata(dai);
+	unsigned int period, depth, val;
+
+	period = params_period_bytes(params);
+
+	/* Trim the FIFO depth if the period is small to improve latency */
+	depth = min(period, fifo->depth);
+	val = (depth / AXG_FIFO_BURST) - 1;
+	regmap_update_bits(fifo->map, FIFO_CTRL1, CTRL1_FRDDR_DEPTH_MASK,
+			   CTRL1_FRDDR_DEPTH(val));
+
+	return 0;
+}
+
 static int axg_frddr_dai_startup(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct axg_fifo *fifo = snd_soc_dai_get_drvdata(dai);
-	unsigned int val;
 	int ret;
 
 	/* Enable pclk to access registers and clock the fifo ip */
@@ -60,11 +78,6 @@ static int axg_frddr_dai_startup(struct snd_pcm_substream *substream,
 
 	/* Apply single buffer mode to the interface */
 	regmap_update_bits(fifo->map, FIFO_CTRL0, CTRL0_FRDDR_PP_MODE, 0);
-
-	/* Use all fifo depth */
-	val = (fifo->depth / AXG_FIFO_BURST) - 1;
-	regmap_update_bits(fifo->map, FIFO_CTRL1, CTRL1_FRDDR_DEPTH_MASK,
-			   CTRL1_FRDDR_DEPTH(val));
 
 	return 0;
 }
@@ -84,6 +97,7 @@ static int axg_frddr_pcm_new(struct snd_soc_pcm_runtime *rtd,
 }
 
 static const struct snd_soc_dai_ops axg_frddr_ops = {
+	.hw_params	= axg_frddr_dai_hw_params,
 	.startup	= axg_frddr_dai_startup,
 	.shutdown	= axg_frddr_dai_shutdown,
 };
@@ -157,6 +171,7 @@ static const struct axg_fifo_match_data axg_frddr_match_data = {
 
 static const struct snd_soc_dai_ops g12a_frddr_ops = {
 	.prepare	= g12a_frddr_dai_prepare,
+	.hw_params	= axg_frddr_dai_hw_params,
 	.startup	= axg_frddr_dai_startup,
 	.shutdown	= axg_frddr_dai_shutdown,
 };

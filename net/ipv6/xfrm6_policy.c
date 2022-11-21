@@ -33,8 +33,7 @@ static struct dst_entry *xfrm6_dst_lookup(struct net *net, int tos, int oif,
 	int err;
 
 	memset(&fl6, 0, sizeof(fl6));
-	fl6.flowi6_oif = l3mdev_master_ifindex_by_index(net, oif);
-	fl6.flowi6_flags = FLOWI_FLAG_SKIP_NH_OIF;
+	fl6.flowi6_l3mdev = l3mdev_master_ifindex_by_index(net, oif);
 	fl6.flowi6_mark = mark;
 	memcpy(&fl6.daddr, daddr, sizeof(fl6.daddr));
 	if (saddr)
@@ -74,11 +73,11 @@ static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	struct rt6_info *rt = (struct rt6_info *)xdst->route;
 
 	xdst->u.dst.dev = dev;
-	dev_hold(dev);
+	dev_hold_track(dev, &xdst->u.dst.dev_tracker, GFP_ATOMIC);
 
 	xdst->u.rt6.rt6i_idev = in6_dev_get(dev);
 	if (!xdst->u.rt6.rt6i_idev) {
-		dev_put(dev);
+		dev_put_track(dev, &xdst->u.dst.dev_tracker);
 		return -ENODEV;
 	}
 
@@ -92,7 +91,6 @@ static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.rt6.rt6i_src = rt->rt6i_src;
 	INIT_LIST_HEAD(&xdst->u.rt6.rt6i_uncached);
 	rt6_uncached_list_add(&xdst->u.rt6);
-	atomic_inc(&dev_net(dev)->ipv6.rt6_stats->fib_rt_uncache);
 
 	return 0;
 }

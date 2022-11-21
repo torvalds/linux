@@ -204,6 +204,7 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 {
 	int i, retval;
 	int checksum = 0;
+	u8 macaddr[ETH_ALEN];
 	const char *model_name;
 	unsigned char eeprom_irq = 0;
 	static unsigned version_printed;
@@ -239,7 +240,8 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 	model_name = (idreg & 0xF0) == 0x20 ? "SMC Ultra" : "SMC EtherEZ";
 
 	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = inb(ioaddr + 8 + i);
+		macaddr[i] = inb(ioaddr + 8 + i);
+	eth_hw_addr_set(dev, macaddr);
 
 	netdev_info(dev, "%s at %#3x, %pM", model_name,
 		    ioaddr, dev->dev_addr);
@@ -347,11 +349,11 @@ static int __init ultra_probe_isapnp(struct net_device *dev)
                                             idev))) {
                         /* Avoid already found cards from previous calls */
                         if (pnp_device_attach(idev) < 0)
-                        	continue;
+				continue;
                         if (pnp_activate_dev(idev) < 0) {
                               __again:
-                        	pnp_device_detach(idev);
-                        	continue;
+				pnp_device_detach(idev);
+				continue;
                         }
 			/* if no io and irq, search for next */
 			if (!pnp_port_valid(idev, 0) || !pnp_irq_valid(idev, 0))
@@ -522,7 +524,6 @@ static void ultra_pio_input(struct net_device *dev, int count,
 	/* We know skbuffs are padded to at least word alignment. */
 	insw(ioaddr + IOPD, buf, (count+1)>>1);
 }
-
 static void ultra_pio_output(struct net_device *dev, int count,
 							const unsigned char *buf, const int start_page)
 {
@@ -572,8 +573,7 @@ MODULE_LICENSE("GPL");
 
 /* This is set up so that only a single autoprobe takes place per call.
 ISA device autoprobes on a running machine are not recommended. */
-int __init
-init_module(void)
+static int __init ultra_init_module(void)
 {
 	struct net_device *dev;
 	int this_dev, found = 0;
@@ -600,6 +600,7 @@ init_module(void)
 		return 0;
 	return -ENXIO;
 }
+module_init(ultra_init_module);
 
 static void cleanup_card(struct net_device *dev)
 {
@@ -613,8 +614,7 @@ static void cleanup_card(struct net_device *dev)
 	iounmap(ei_status.mem);
 }
 
-void __exit
-cleanup_module(void)
+static void __exit ultra_cleanup_module(void)
 {
 	int this_dev;
 
@@ -627,4 +627,5 @@ cleanup_module(void)
 		}
 	}
 }
+module_exit(ultra_cleanup_module);
 #endif /* MODULE */

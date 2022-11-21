@@ -230,5 +230,3 @@ typedef struct {
 #define WROUTDOOR(rdev, value)	writel(value, (rdev)->baseaddr + 0x2C)
 
 #endif // _MEGARAID_H_
-
-// vim: set ts=8 sw=8 tw=78:

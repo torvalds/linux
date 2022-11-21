@@ -4,11 +4,12 @@
 
 #ifdef CONFIG_PPC_WATCHDOG
 extern void arch_touch_nmi_watchdog(void);
+long soft_nmi_interrupt(struct pt_regs *regs);
 #else
 static inline void arch_touch_nmi_watchdog(void) {}
 #endif
 
-#if defined(CONFIG_NMI_IPI) && defined(CONFIG_STACKTRACE)
+#ifdef CONFIG_NMI_IPI
 extern void arch_trigger_cpumask_backtrace(const cpumask_t *mask,
 					   bool exclude_self);
 #define arch_trigger_cpumask_backtrace arch_trigger_cpumask_backtrace

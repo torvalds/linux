@@ -101,6 +101,7 @@ static void __init mv78xx0_pcie_preinit(void)
 static int __init mv78xx0_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct pcie_port *pp;
+	struct resource realio;
 
 	if (nr >= num_pcie_ports)
 		return 0;
@@ -115,7 +116,9 @@ static int __init mv78xx0_pcie_setup(int nr, struct pci_sys_data *sys)
 	orion_pcie_set_local_bus_nr(pp->base, sys->busnr);
 	orion_pcie_setup(pp->base);
 
-	pci_ioremap_io(nr * SZ_64K, MV78XX0_PCIE_IO_PHYS_BASE(nr));
+	realio.start = nr * SZ_64K;
+	realio.end = realio.start + SZ_64K - 1;
+	pci_remap_iospace(&realio, MV78XX0_PCIE_IO_PHYS_BASE(nr));
 
 	pci_add_resource_offset(&sys->resources, &pp->res, sys->mem_offset);
 

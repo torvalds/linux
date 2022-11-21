@@ -21,11 +21,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "display/intel_dp.h"
-
+#include "intel_ddi.h"
+#include "intel_ddi_buf_trans.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_dp.h"
 #include "intel_dpio_phy.h"
-#include "intel_sideband.h"
+#include "vlv_sideband.h"
 
 /**
  * DOC: DPIO
@@ -265,15 +267,22 @@ void bxt_port_to_phy_channel(struct drm_i915_private *dev_priv, enum port port,
 	*ch = DPIO_CH0;
 }
 
-void bxt_ddi_phy_set_signal_level(struct drm_i915_private *dev_priv,
-				  enum port port, u32 margin, u32 scale,
-				  u32 enable, u32 deemphasis)
+void bxt_ddi_phy_set_signal_levels(struct intel_encoder *encoder,
+				   const struct intel_crtc_state *crtc_state)
 {
-	u32 val;
-	enum dpio_phy phy;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	int level = intel_ddi_level(encoder, crtc_state, 0);
+	const struct intel_ddi_buf_trans *trans;
 	enum dpio_channel ch;
+	enum dpio_phy phy;
+	int n_entries;
+	u32 val;
 
-	bxt_port_to_phy_channel(dev_priv, port, &phy, &ch);
+	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !trans))
+		return;
+
+	bxt_port_to_phy_channel(dev_priv, encoder->port, &phy, &ch);
 
 	/*
 	 * While we write to the group register to program all lanes at once we
@@ -285,12 +294,13 @@ void bxt_ddi_phy_set_signal_level(struct drm_i915_private *dev_priv,
 
 	val = intel_de_read(dev_priv, BXT_PORT_TX_DW2_LN0(phy, ch));
 	val &= ~(MARGIN_000 | UNIQ_TRANS_SCALE);
-	val |= margin << MARGIN_000_SHIFT | scale << UNIQ_TRANS_SCALE_SHIFT;
+	val |= trans->entries[level].bxt.margin << MARGIN_000_SHIFT |
+		trans->entries[level].bxt.scale << UNIQ_TRANS_SCALE_SHIFT;
 	intel_de_write(dev_priv, BXT_PORT_TX_DW2_GRP(phy, ch), val);
 
 	val = intel_de_read(dev_priv, BXT_PORT_TX_DW3_LN0(phy, ch));
 	val &= ~SCALE_DCOMP_METHOD;
-	if (enable)
+	if (trans->entries[level].bxt.enable)
 		val |= SCALE_DCOMP_METHOD;
 
 	if ((val & UNIQUE_TRANGE_EN_METHOD) && !(val & SCALE_DCOMP_METHOD))
@@ -301,7 +311,7 @@ void bxt_ddi_phy_set_signal_level(struct drm_i915_private *dev_priv,
 
 	val = intel_de_read(dev_priv, BXT_PORT_TX_DW4_LN0(phy, ch));
 	val &= ~DE_EMPHASIS;
-	val |= deemphasis << DEEMPH_SHIFT;
+	val |= trans->entries[level].bxt.deemphasis << DEEMPH_SHIFT;
 	intel_de_write(dev_priv, BXT_PORT_TX_DW4_GRP(phy, ch), val);
 
 	val = intel_de_read(dev_priv, BXT_PORT_PCS_DW10_LN01(phy, ch));
@@ -644,16 +654,16 @@ bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder)
 	return mask;
 }
 
-
 void chv_set_phy_signal_level(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state,
 			      u32 deemph_reg_value, u32 margin_reg_value,
 			      bool uniq_trans_scale)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
-	enum pipe pipe = intel_crtc->pipe;
+	enum pipe pipe = crtc->pipe;
 	u32 val;
 	int i;
 
@@ -666,7 +676,7 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 	val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
 
-	if (intel_crtc->config->lane_count > 2) {
+	if (crtc_state->lane_count > 2) {
 		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
 		val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
 		val &= ~(DPIO_PCS_TX1DEEMP_MASK | DPIO_PCS_TX2DEEMP_MASK);
@@ -679,7 +689,7 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 	val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW9(ch), val);
 
-	if (intel_crtc->config->lane_count > 2) {
+	if (crtc_state->lane_count > 2) {
 		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW9(ch));
 		val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
 		val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
@@ -687,7 +697,7 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 	}
 
 	/* Program swing deemph */
-	for (i = 0; i < intel_crtc->config->lane_count; i++) {
+	for (i = 0; i < crtc_state->lane_count; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW4(ch, i));
 		val &= ~DPIO_SWING_DEEMPH9P5_MASK;
 		val |= deemph_reg_value << DPIO_SWING_DEEMPH9P5_SHIFT;
@@ -695,7 +705,7 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 	}
 
 	/* Program swing margin */
-	for (i = 0; i < intel_crtc->config->lane_count; i++) {
+	for (i = 0; i < crtc_state->lane_count; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
 
 		val &= ~DPIO_SWING_MARGIN000_MASK;
@@ -718,7 +728,7 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 	 * For now, for this unique transition scale selection, set bit
 	 * 27 for ch0 and ch1.
 	 */
-	for (i = 0; i < intel_crtc->config->lane_count; i++) {
+	for (i = 0; i < crtc_state->lane_count; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW3(ch, i));
 		if (uniq_trans_scale)
 			val |= DPIO_TX_UNIQ_TRANS_SCALE_EN;
@@ -732,7 +742,7 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 	val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
 
-	if (intel_crtc->config->lane_count > 2) {
+	if (crtc_state->lane_count > 2) {
 		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
 		val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
 		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
@@ -992,14 +1002,15 @@ void chv_phy_post_pll_disable(struct intel_encoder *encoder,
 }
 
 void vlv_set_phy_signal_level(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state,
 			      u32 demph_reg_value, u32 preemph_reg_value,
 			      u32 uniqtranscale_reg_value, u32 tx3_demph)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum dpio_channel port = vlv_dig_port_to_channel(dig_port);
-	enum pipe pipe = intel_crtc->pipe;
+	enum pipe pipe = crtc->pipe;
 
 	vlv_dpio_get(dev_priv);
 

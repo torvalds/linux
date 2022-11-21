@@ -68,9 +68,7 @@ static void register_attributes(void *event_data, void *data)
 {
 	user_attr.name			= "user";
 	user_attr.handler		= handle_user_attribute;
-#if BUILDING_GCC_VERSION >= 4007
 	user_attr.affects_type_identity	= true;
-#endif
 
 	register_attribute(&user_attr);
 }
@@ -105,10 +103,8 @@ static void finish_type(void *event_data, void *data)
 	if (type == NULL_TREE || type == error_mark_node)
 		return;
 
-#if BUILDING_GCC_VERSION >= 5000
 	if (TREE_CODE(type) == ENUMERAL_TYPE)
 		return;
-#endif
 
 	if (TYPE_USERSPACE(type))
 		return;
@@ -137,11 +133,9 @@ static void initialize(tree var)
 		if (!gimple_assign_single_p(stmt))
 			continue;
 		rhs1 = gimple_assign_rhs1(stmt);
-#if BUILDING_GCC_VERSION >= 4007
 		/* ... of a non-clobbering expression... */
 		if (TREE_CLOBBER_P(rhs1))
 			continue;
-#endif
 		/* ... to our variable... */
 		if (gimple_get_lhs(stmt) != var)
 			continue;
@@ -174,7 +168,6 @@ static void initialize(tree var)
 static unsigned int structleak_execute(void)
 {
 	basic_block bb;
-	unsigned int ret = 0;
 	tree var;
 	unsigned int i;
 
@@ -204,7 +197,7 @@ static unsigned int structleak_execute(void)
 			initialize(var);
 	}
 
-	return ret;
+	return 0;
 }
 
 #define PASS_NAME structleak

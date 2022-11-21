@@ -57,7 +57,7 @@
 #include <linux/dma-mapping.h>
 #include <media/tveeprom.h>
 #include <media/i2c/saa7115.h>
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include <uapi/linux/sched/types.h>
 
 /* If you have already X v4l cards, then set this to X. This way
@@ -275,9 +275,6 @@ MODULE_PARM_DESC(ivtv_first_minor, "Set device node number assigned to first car
 
 MODULE_AUTHOR("Kevin Thayer, Chris Kennedy, Hans Verkuil");
 MODULE_DESCRIPTION("CX23415/CX23416 driver");
-MODULE_SUPPORTED_DEVICE
-    ("CX23415/CX23416 MPEG2 encoder (WinTV PVR-150/250/350/500,\n"
-		"\t\t\tYuan MPG series and similar)");
 MODULE_LICENSE("GPL");
 
 MODULE_VERSION(IVTV_VERSION);
@@ -840,7 +837,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 		IVTV_ERR("Can't enable device!\n");
 		return -EIO;
 	}
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		IVTV_ERR("No suitable DMA available.\n");
 		return -EIO;
 	}
@@ -873,6 +870,11 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 		pci_read_config_word(pdev, PCI_COMMAND, &cmd);
 		if (!(cmd & PCI_COMMAND_MASTER)) {
 			IVTV_ERR("Bus Mastering is not enabled\n");
+			if (itv->has_cx23415)
+				release_mem_region(itv->base_addr + IVTV_DECODER_OFFSET,
+						   IVTV_DECODER_SIZE);
+			release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
+			release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 			return -ENXIO;
 		}
 	}
@@ -1388,7 +1390,7 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 
 static void ivtv_remove(struct pci_dev *pdev)
 {
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
+	struct v4l2_device *v4l2_dev = pci_get_drvdata(pdev);
 	struct ivtv *itv = to_ivtv(v4l2_dev);
 	int i;
 

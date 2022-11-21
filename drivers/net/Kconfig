@@ -42,6 +42,7 @@ config BONDING
 	tristate "Bonding driver support"
 	depends on INET
 	depends on IPV6 || IPV6=n
+	depends on TLS || TLS_DEVICE=n
 	help
 	  Say 'Y' or 'M' if you wish to be able to 'bond' multiple Ethernet
 	  Channels together. This is called 'Etherchannel' by Cisco,
@@ -80,19 +81,19 @@ config WIREGUARD
 	select CRYPTO
 	select CRYPTO_LIB_CURVE25519
 	select CRYPTO_LIB_CHACHA20POLY1305
-	select CRYPTO_LIB_BLAKE2S
 	select CRYPTO_CHACHA20_X86_64 if X86 && 64BIT
 	select CRYPTO_POLY1305_X86_64 if X86 && 64BIT
 	select CRYPTO_BLAKE2S_X86 if X86 && 64BIT
 	select CRYPTO_CURVE25519_X86 if X86 && 64BIT
 	select ARM_CRYPTO if ARM
 	select ARM64_CRYPTO if ARM64
-	select CRYPTO_CHACHA20_NEON if (ARM || ARM64) && KERNEL_MODE_NEON
+	select CRYPTO_CHACHA20_NEON if ARM || (ARM64 && KERNEL_MODE_NEON)
 	select CRYPTO_POLY1305_NEON if ARM64 && KERNEL_MODE_NEON
 	select CRYPTO_POLY1305_ARM if ARM
+	select CRYPTO_BLAKE2S_ARM if ARM
 	select CRYPTO_CURVE25519_NEON if ARM && KERNEL_MODE_NEON
 	select CRYPTO_CHACHA_MIPS if CPU_MIPS32_R2
-	select CRYPTO_POLY1305_MIPS if CPU_MIPS32 || (CPU_MIPS64 && 64BIT)
+	select CRYPTO_POLY1305_MIPS if MIPS
 	help
 	  WireGuard is a secure, fast, and easy to use replacement for IPSec
 	  that uses modern cryptography and clever networking tricks. It's
@@ -148,7 +149,7 @@ config NET_FC
 
 config IFB
 	tristate "Intermediate Functional Block support"
-	depends on NET_CLS_ACT
+	depends on NET_ACT_MIRRED || NFT_FWD_NETDEV
 	select NET_REDIRECT
 	help
 	  This is an intermediate driver that allows sharing of
@@ -260,17 +261,17 @@ config GENEVE
 	  will be called geneve.
 
 config BAREUDP
-       tristate "Bare UDP Encapsulation"
-       depends on INET
-       depends on IPV6 || !IPV6
-       select NET_UDP_TUNNEL
-       select GRO_CELLS
-       help
-          This adds a bare UDP tunnel module for tunnelling different
-          kinds of traffic like MPLS, IP, etc. inside a UDP tunnel.
+	tristate "Bare UDP Encapsulation"
+	depends on INET
+	depends on IPV6 || !IPV6
+	select NET_UDP_TUNNEL
+	select GRO_CELLS
+	help
+	  This adds a bare UDP tunnel module for tunnelling different
+	  kinds of traffic like MPLS, IP, etc. inside a UDP tunnel.
 
-          To compile this driver as a module, choose M here: the module
-          will be called bareudp.
+	  To compile this driver as a module, choose M here: the module
+	  will be called bareudp.
 
 config GTP
 	tristate "GPRS Tunneling Protocol datapath (GTP-U)"
@@ -287,7 +288,24 @@ config GTP
 	  3GPP TS 29.060 standards.
 
 	  To compile this drivers as a module, choose M here: the module
-	  wil be called gtp.
+	  will be called gtp.
+
+config AMT
+	tristate "Automatic Multicast Tunneling (AMT)"
+	depends on INET && IP_MULTICAST
+	depends on IPV6 || !IPV6
+	select NET_UDP_TUNNEL
+	help
+	  This allows one to create AMT(Automatic Multicast Tunneling)
+	  virtual interfaces that provide multicast tunneling.
+	  There are two roles, Gateway, and Relay.
+	  Gateway Encapsulates IGMP/MLD traffic from listeners to the Relay.
+	  Gateway Decapsulates multicast traffic from the Relay to Listeners.
+	  Relay Encapsulates multicast traffic from Sources to Gateway.
+	  Relay Decapsulates IGMP/MLD traffic from Gateway.
+
+	  To compile this drivers as a module, choose M here: the module
+	  will be called amt.
 
 config MACSEC
 	tristate "IEEE 802.1AE MAC-level encryption (MACsec)"
@@ -426,6 +444,14 @@ config VSOCKMON
 	  mostly intended for developers or support to debug vsock issues. If
 	  unsure, say N.
 
+config MHI_NET
+	tristate "MHI network driver"
+	depends on MHI_BUS
+	help
+	  This is the network driver for MHI bus.  It can be used with
+	  QCOM based WWAN modems for IP or QMAP/rmnet protocol (like SDX55).
+	  Say Y or M.
+
 endif # NET_CORE
 
 config SUNGEM_PHY
@@ -473,6 +499,8 @@ config NET_SB1000
 
 source "drivers/net/phy/Kconfig"
 
+source "drivers/net/mctp/Kconfig"
+
 source "drivers/net/mdio/Kconfig"
 
 source "drivers/net/pcs/Kconfig"
@@ -489,11 +517,11 @@ source "drivers/net/usb/Kconfig"
 
 source "drivers/net/wireless/Kconfig"
 
-source "drivers/net/wimax/Kconfig"
-
 source "drivers/net/wan/Kconfig"
 
 source "drivers/net/ieee802154/Kconfig"
+
+source "drivers/net/wwan/Kconfig"
 
 config XEN_NETDEV_FRONTEND
 	tristate "Xen network device frontend driver"
@@ -538,9 +566,7 @@ config XEN_NETDEV_BACKEND
 config VMXNET3
 	tristate "VMware VMXNET3 ethernet driver"
 	depends on PCI && INET
-	depends on !(PAGE_SIZE_64KB || ARM64_64K_PAGES || \
-		     IA64_PAGE_SIZE_64KB || MICROBLAZE_64K_PAGES || \
-		     PARISC_PAGE_SIZE_64KB || PPC_64K_PAGES)
+	depends on PAGE_SIZE_LESS_THAN_64KB
 	help
 	  This driver supports VMware's vmxnet3 virtual ethernet NIC.
 	  To compile this driver as a module, choose M here: the
@@ -572,6 +598,7 @@ config NETDEVSIM
 	depends on DEBUG_FS
 	depends on INET
 	depends on IPV6 || IPV6=n
+	depends on PSAMPLE || PSAMPLE=n
 	select NET_DEVLINK
 	help
 	  This driver is a developer testing tool and software model that can
@@ -592,5 +619,12 @@ config NET_FAILOVER
 	  an alternate low latency datapath. It also enables live migration of
 	  a VM with direct attached VF by failing over to the paravirtual
 	  datapath when the VF is unplugged.
+
+config NETDEV_LEGACY_INIT
+	bool
+	depends on ISA
+	help
+	  Drivers that call netdev_boot_setup_check() should select this
+	  symbol, everything else no longer needs it.
 
 endif # NETDEVICES

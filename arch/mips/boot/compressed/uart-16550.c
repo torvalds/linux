@@ -19,20 +19,8 @@
 #endif
 
 #ifdef CONFIG_MACH_INGENIC
-#define INGENIC_UART0_BASE_ADDR	0x10030000
-#define PORT(offset) (CKSEG1ADDR(INGENIC_UART0_BASE_ADDR) + (4 * offset))
-#endif
-
-#ifdef CONFIG_CPU_XLR
-#define UART0_BASE  0x1EF14000
-#define PORT(offset) (CKSEG1ADDR(UART0_BASE) + (4 * offset))
-#define IOTYPE unsigned int
-#endif
-
-#ifdef CONFIG_CPU_XLP
-#define UART0_BASE  0x18030100
-#define PORT(offset) (CKSEG1ADDR(UART0_BASE) + (4 * offset))
-#define IOTYPE unsigned int
+#define INGENIC_UART_BASE_ADDR	(0x10030000 + 0x1000 * CONFIG_ZBOOT_INGENIC_UART)
+#define PORT(offset) (CKSEG1ADDR(INGENIC_UART_BASE_ADDR) + (4 * offset))
 #endif
 
 #ifndef IOTYPE

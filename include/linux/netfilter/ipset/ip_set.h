@@ -124,8 +124,6 @@ struct ip_set_ext {
 	bool target;
 };
 
-struct ip_set;
-
 #define ext_timeout(e, s)	\
 ((unsigned long *)(((void *)(e)) + (s)->offset[IPSET_EXT_ID_TIMEOUT]))
 #define ext_counter(e, s)	\
@@ -198,6 +196,12 @@ struct ip_set_region {
 	u32 elements;		/* Number of elements vs timeout */
 };
 
+/* Max range where every element is added/deleted in one step */
+#define IPSET_MAX_RANGE		(1<<20)
+
+/* The max revision number supported by any set type + 1 */
+#define IPSET_REVISION_MAX	9
+
 /* The core set type structure */
 struct ip_set_type {
 	struct list_head list;
@@ -215,6 +219,8 @@ struct ip_set_type {
 	u8 family;
 	/* Type revisions */
 	u8 revision_min, revision_max;
+	/* Revision-specific supported (create) flags */
+	u8 create_flags[IPSET_REVISION_MAX+1];
 	/* Set features to control swapping */
 	u16 features;
 

@@ -21,6 +21,17 @@ endmenu
 
 menu "Proximity and distance sensors"
 
+config CROS_EC_MKBP_PROXIMITY
+	tristate "ChromeOS EC MKBP Proximity sensor"
+	depends on CROS_EC
+	help
+	  Say Y here to enable the proximity sensor implemented via the ChromeOS EC MKBP
+	  switches protocol. You must enable one bus option (CROS_EC_I2C or CROS_EC_SPI)
+	  to use this.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_mkbp_proximity.
+
 config ISL29501
 	tristate "Intersil ISL29501 Time Of Flight sensor"
 	depends on I2C
@@ -101,11 +112,17 @@ config SRF04
 	  To compile this driver as a module, choose M here: the
 	  module will be called srf04.
 
+config SX_COMMON
+	tristate
+	help
+	  Common Semtech proximity sensor code.
+
 config SX9310
 	tristate "SX9310/SX9311 Semtech proximity sensor"
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	select REGMAP_I2C
+	select SX_COMMON
 	depends on I2C
 	help
 	  Say Y here to build a driver for Semtech's SX9310/SX9311 capacitive
@@ -113,6 +130,34 @@ config SX9310
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sx9310.
+
+config SX9324
+	tristate "SX9324 Semtech proximity sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP_I2C
+	select SX_COMMON
+	depends on I2C
+	help
+	  Say Y here to build a driver for Semtech's SX9324
+	  proximity/button sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sx9324.
+
+config SX9360
+	tristate "SX9360 Semtech proximity sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP_I2C
+	select SX_COMMON
+	depends on I2C
+	help
+	  Say Y here to build a driver for Semtech's SX9360
+	  proximity/button sensor, a simplified SX9324.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sx9360.
 
 config SX9500
 	tristate "SX9500 Semtech proximity sensor"

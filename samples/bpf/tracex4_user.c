@@ -32,7 +32,7 @@ static void print_old_objects(int fd)
 	__u64 key, next_key;
 	struct pair v;
 
-	key = write(1, "\e[1;1H\e[2J", 12); /* clear screen */
+	key = write(1, "\e[1;1H\e[2J", 11); /* clear screen */
 
 	key = -1;
 	while (bpf_map_get_next_key(fd, &key, &next_key) == 0) {
@@ -48,17 +48,11 @@ static void print_old_objects(int fd)
 
 int main(int ac, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct bpf_link *links[2];
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	char filename[256];
 	int map_fd, i, j = 0;
-
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK, RLIM_INFINITY)");
-		return 1;
-	}
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 	obj = bpf_object__open_file(filename, NULL);

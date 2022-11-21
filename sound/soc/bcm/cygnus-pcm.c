@@ -636,36 +636,6 @@ static int cygnus_pcm_close(struct snd_soc_component *component,
 	return 0;
 }
 
-static int cygnus_pcm_hw_params(struct snd_soc_component *component,
-				struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct cygnus_aio_port *aio;
-
-	aio = cygnus_dai_get_dma_data(substream);
-	dev_dbg(asoc_rtd_to_cpu(rtd, 0)->dev, "%s  port %d\n", __func__, aio->portnum);
-
-	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
-	runtime->dma_bytes = params_buffer_bytes(params);
-
-	return 0;
-}
-
-static int cygnus_pcm_hw_free(struct snd_soc_component *component,
-			      struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct cygnus_aio_port *aio;
-
-	aio = cygnus_dai_get_dma_data(substream);
-	dev_dbg(asoc_rtd_to_cpu(rtd, 0)->dev, "%s  port %d\n", __func__, aio->portnum);
-
-	snd_pcm_set_runtime_buffer(substream, NULL);
-	return 0;
-}
-
 static int cygnus_pcm_prepare(struct snd_soc_component *component,
 			      struct snd_pcm_substream *substream)
 {
@@ -730,87 +700,19 @@ static snd_pcm_uframes_t cygnus_pcm_pointer(struct snd_soc_component *component,
 	return bytes_to_frames(substream->runtime, res);
 }
 
-static int cygnus_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
-{
-	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_dma_buffer *buf = &substream->dma_buffer;
-	size_t size;
-
-	size = cygnus_pcm_hw.buffer_bytes_max;
-
-	buf->dev.type = SNDRV_DMA_TYPE_DEV;
-	buf->dev.dev = pcm->card->dev;
-	buf->private_data = NULL;
-	buf->area = dma_alloc_coherent(pcm->card->dev, size,
-			&buf->addr, GFP_KERNEL);
-
-	dev_dbg(asoc_rtd_to_cpu(rtd, 0)->dev, "%s: size 0x%zx @ %pK\n",
-				__func__, size, buf->area);
-
-	if (!buf->area) {
-		dev_err(asoc_rtd_to_cpu(rtd, 0)->dev, "%s: dma_alloc failed\n", __func__);
-		return -ENOMEM;
-	}
-	buf->bytes = size;
-
-	return 0;
-}
-
-static void cygnus_dma_free_dma_buffers(struct snd_soc_component *component,
-					struct snd_pcm *pcm)
-{
-	struct snd_pcm_substream *substream;
-	struct snd_dma_buffer *buf;
-
-	substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
-	if (substream) {
-		buf = &substream->dma_buffer;
-		if (buf->area) {
-			dma_free_coherent(pcm->card->dev, buf->bytes,
-				buf->area, buf->addr);
-			buf->area = NULL;
-		}
-	}
-
-	substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
-	if (substream) {
-		buf = &substream->dma_buffer;
-		if (buf->area) {
-			dma_free_coherent(pcm->card->dev, buf->bytes,
-				buf->area, buf->addr);
-			buf->area = NULL;
-		}
-	}
-}
-
 static int cygnus_dma_new(struct snd_soc_component *component,
 			  struct snd_soc_pcm_runtime *rtd)
 {
+	size_t size = cygnus_pcm_hw.buffer_bytes_max;
 	struct snd_card *card = rtd->card->snd_card;
-	struct snd_pcm *pcm = rtd->pcm;
-	int ret;
 
 	if (!card->dev->dma_mask)
 		card->dev->dma_mask = &cygnus_dma_dmamask;
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
-	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
-		ret = cygnus_pcm_preallocate_dma_buffer(pcm,
-				SNDRV_PCM_STREAM_PLAYBACK);
-		if (ret)
-			return ret;
-	}
-
-	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
-		ret = cygnus_pcm_preallocate_dma_buffer(pcm,
-				SNDRV_PCM_STREAM_CAPTURE);
-		if (ret) {
-			cygnus_dma_free_dma_buffers(component, pcm);
-			return ret;
-		}
-	}
+	snd_pcm_set_managed_buffer_all(rtd->pcm, SNDRV_DMA_TYPE_DEV,
+				       card->dev, size, size);
 
 	return 0;
 }
@@ -818,19 +720,16 @@ static int cygnus_dma_new(struct snd_soc_component *component,
 static struct snd_soc_component_driver cygnus_soc_platform = {
 	.open		= cygnus_pcm_open,
 	.close		= cygnus_pcm_close,
-	.hw_params	= cygnus_pcm_hw_params,
-	.hw_free	= cygnus_pcm_hw_free,
 	.prepare	= cygnus_pcm_prepare,
 	.trigger	= cygnus_pcm_trigger,
 	.pointer	= cygnus_pcm_pointer,
 	.pcm_construct	= cygnus_dma_new,
-	.pcm_destruct	= cygnus_dma_free_dma_buffers,
 };
 
 int cygnus_soc_platform_register(struct device *dev,
 				 struct cygnus_audio *cygaud)
 {
-	int rc = 0;
+	int rc;
 
 	dev_dbg(dev, "%s Enter\n", __func__);
 

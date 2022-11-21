@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
 ================
 bpftool-prog
 ================
@@ -7,16 +9,20 @@ tool for inspection and simple manipulation of eBPF progs
 
 :Manual section: 8
 
+.. include:: substitutions.rst
+
 SYNOPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **prog** *COMMAND*
 
-	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-f** | **--bpffs** } }
+	*OPTIONS* := { |COMMON_OPTIONS| |
+	{ **-f** | **--bpffs** } | { **-m** | **--mapcompat** } | { **-n** | **--nomount** } |
+	{ **-L** | **--use-loader** } }
 
 	*COMMANDS* :=
-	{ **show** | **list** | **dump xlated** | **dump jited** | **pin** | **load**
-	| **loadall** | **help** }
+	{ **show** | **list** | **dump xlated** | **dump jited** | **pin** | **load** |
+	**loadall** | **help** }
 
 PROG COMMANDS
 =============
@@ -44,14 +50,15 @@ PROG COMMANDS
 |		**cgroup/connect4** | **cgroup/connect6** | **cgroup/getpeername4** | **cgroup/getpeername6** |
 |               **cgroup/getsockname4** | **cgroup/getsockname6** | **cgroup/sendmsg4** | **cgroup/sendmsg6** |
 |		**cgroup/recvmsg4** | **cgroup/recvmsg6** | **cgroup/sysctl** |
-|		**cgroup/getsockopt** | **cgroup/setsockopt** |
+|		**cgroup/getsockopt** | **cgroup/setsockopt** | **cgroup/sock_release** |
 |		**struct_ops** | **fentry** | **fexit** | **freplace** | **sk_lookup**
 |	}
 |       *ATTACH_TYPE* := {
-|		**msg_verdict** | **stream_verdict** | **stream_parser** | **flow_dissector**
+|		**msg_verdict** | **skb_verdict** | **stream_verdict** | **stream_parser** | **flow_dissector**
 |	}
 |	*METRICs* := {
-|		**cycles** | **instructions** | **l1d_loads** | **llc_misses**
+|		**cycles** | **instructions** | **l1d_loads** | **llc_misses** |
+|		**itlb_misses** | **dtlb_misses**
 |	}
 
 
@@ -223,6 +230,20 @@ OPTIONS
 		  Do not automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.
 
+	-L, --use-loader
+		  Load program as a "loader" program. This is useful to debug
+		  the generation of such programs. When this option is in
+		  use, bpftool attempts to load the programs from the object
+		  file into the kernel, but does not pin them (therefore, the
+		  *PATH* must not be provided).
+
+		  When combined with the **-d**\ \|\ **--debug** option,
+		  additional debug messages are generated, and the execution
+		  of the loader program will use the **bpf_trace_printk**\ ()
+		  helper to log each step of loading BTF, creating the maps,
+		  and loading the programs (see **bpftool prog tracelog** as
+		  a way to dump those messages).
+
 EXAMPLES
 ========
 **# bpftool prog show**
@@ -326,3 +347,16 @@ EXAMPLES
       40176203 cycles                                                 (83.05%)
       42518139 instructions    #   1.06 insns per cycle               (83.39%)
            123 llc_misses      #   2.89 LLC misses per million insns  (83.15%)
+
+|
+| Output below is for the trace logs.
+| Run in separate terminals:
+| **# bpftool prog tracelog**
+| **# bpftool prog load -L -d file.o**
+
+::
+
+    bpftool-620059  [004] d... 2634685.517903: bpf_trace_printk: btf_load size 665 r=5
+    bpftool-620059  [004] d... 2634685.517912: bpf_trace_printk: map_create sample_map idx 0 type 2 value_size 4 value_btf_id 0 r=6
+    bpftool-620059  [004] d... 2634685.517997: bpf_trace_printk: prog_load sample insn_cnt 13 r=7
+    bpftool-620059  [004] d... 2634685.517999: bpf_trace_printk: close(5) = 0

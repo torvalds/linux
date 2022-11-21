@@ -244,17 +244,14 @@ static int idma_mmap(struct snd_soc_component *component,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned long size, offset;
-	int ret;
 
 	/* From snd_pcm_lib_mmap_iomem */
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	size = vma->vm_end - vma->vm_start;
 	offset = vma->vm_pgoff << PAGE_SHIFT;
-	ret = io_remap_pfn_range(vma, vma->vm_start,
+	return io_remap_pfn_range(vma, vma->vm_start,
 			(runtime->dma_addr + offset) >> PAGE_SHIFT,
 			size, vma->vm_page_prot);
-
-	return ret;
 }
 
 static irqreturn_t iis_irq(int irqno, void *dev_id)
@@ -360,6 +357,8 @@ static int preallocate_idma_buffer(struct snd_pcm *pcm, int stream)
 	buf->addr = idma.lp_tx_addr;
 	buf->bytes = idma_hardware.buffer_bytes_max;
 	buf->area = (unsigned char * __force)ioremap(buf->addr, buf->bytes);
+	if (!buf->area)
+		return -ENOMEM;
 
 	return 0;
 }

@@ -48,8 +48,8 @@
 
 /* Define auxiliary asm macros.
  *
- * 1) umul_ppmm(high_prod, low_prod, multipler, multiplicand) multiplies two
- * UWtype integers MULTIPLER and MULTIPLICAND, and generates a two UWtype
+ * 1) umul_ppmm(high_prod, low_prod, multiplier, multiplicand) multiplies two
+ * UWtype integers MULTIPLIER and MULTIPLICAND, and generates a two UWtype
  * word product in HIGH_PROD and LOW_PROD.
  *
  * 2) __umulsidi3(a,b) multiplies two UWtype integers A and B, and returns a

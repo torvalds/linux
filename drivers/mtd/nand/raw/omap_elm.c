@@ -96,6 +96,9 @@ static u32 elm_read_reg(struct elm_info *info, int offset)
  * elm_config - Configure ELM module
  * @dev:	ELM device
  * @bch_type:	Type of BCH ecc
+ * @ecc_steps:	ECC steps to assign to config
+ * @ecc_step_size:	ECC step size to assign to config
+ * @ecc_syndrome_size:	ECC syndrome size to assign to config
  */
 int elm_config(struct device *dev, enum bch_ecc bch_type,
 	int ecc_steps, int ecc_step_size, int ecc_syndrome_size)
@@ -113,7 +116,7 @@ int elm_config(struct device *dev, enum bch_ecc bch_type,
 		return -EINVAL;
 	}
 	/* ELM support 8 error syndrome process */
-	if (ecc_steps > ERROR_VECTOR_MAX) {
+	if (ecc_steps > ERROR_VECTOR_MAX && ecc_steps % ERROR_VECTOR_MAX) {
 		dev_err(dev, "unsupported config ecc-step=%d\n", ecc_steps);
 		return -EINVAL;
 	}
@@ -279,7 +282,7 @@ static void elm_start_processing(struct elm_info *info,
 static void elm_error_correction(struct elm_info *info,
 		struct elm_errorvec *err_vec)
 {
-	int i, j, errors = 0;
+	int i, j;
 	int offset;
 	u32 reg_val;
 
@@ -309,8 +312,6 @@ static void elm_error_correction(struct elm_info *info,
 					/* Update error location register */
 					offset += 4;
 				}
-
-				errors += err_vec[i].error_count;
 			} else {
 				err_vec[i].error_uncorrectable = true;
 			}
@@ -381,8 +382,8 @@ static irqreturn_t elm_isr(int this_irq, void *dev_id)
 static int elm_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	struct resource *res, *irq;
 	struct elm_info *info;
+	int irq;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -390,21 +391,18 @@ static int elm_probe(struct platform_device *pdev)
 
 	info->dev = &pdev->dev;
 
-	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!irq) {
-		dev_err(&pdev->dev, "no irq resource defined\n");
-		return -ENODEV;
-	}
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->elm_base = devm_ioremap_resource(&pdev->dev, res);
+	info->elm_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(info->elm_base))
 		return PTR_ERR(info->elm_base);
 
-	ret = devm_request_irq(&pdev->dev, irq->start, elm_isr, 0,
-			pdev->name, info);
+	ret = devm_request_irq(&pdev->dev, irq, elm_isr, 0,
+			       pdev->name, info);
 	if (ret) {
-		dev_err(&pdev->dev, "failure requesting %pr\n", irq);
+		dev_err(&pdev->dev, "failure requesting %d\n", irq);
 		return ret;
 	}
 
@@ -432,7 +430,7 @@ static int elm_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-/**
+/*
  * elm_context_save
  * saves ELM configurations to preserve them across Hardware powered-down
  */
@@ -480,7 +478,7 @@ static int elm_context_save(struct elm_info *info)
 	return 0;
 }
 
-/**
+/*
  * elm_context_restore
  * writes configurations saved duing power-down back into ELM registers
  */

@@ -90,61 +90,61 @@
 	pinctrl-0 = <&keypad_rows &keypad_cols>;
 	status = "okay";
 
-	key_1 {
+	key-1 {
 		keypad,row = <0>;
 		keypad,column = <3>;
 		linux,code = <2>;
 	};
 
-	key_2 {
+	key-2 {
 		keypad,row = <0>;
 		keypad,column = <4>;
 		linux,code = <3>;
 	};
 
-	key_3 {
+	key-3 {
 		keypad,row = <0>;
 		keypad,column = <5>;
 		linux,code = <4>;
 	};
 
-	key_4 {
+	key-4 {
 		keypad,row = <0>;
 		keypad,column = <6>;
 		linux,code = <5>;
 	};
 
-	key_5 {
+	key-5 {
 		keypad,row = <0>;
 		keypad,column = <7>;
 		linux,code = <6>;
 	};
 
-	key_a {
+	key-a {
 		keypad,row = <1>;
 		keypad,column = <3>;
 		linux,code = <30>;
 	};
 
-	key_b {
+	key-b {
 		keypad,row = <1>;
 		keypad,column = <4>;
 		linux,code = <48>;
 	};
 
-	key_c {
+	key-c {
 		keypad,row = <1>;
 		keypad,column = <5>;
 		linux,code = <46>;
 	};
 
-	key_d {
+	key-d {
 		keypad,row = <1>;
 		keypad,column = <6>;
 		linux,code = <32>;
 	};
 
-	key_e {
+	key-e {
 		keypad,row = <1>;
 		keypad,column = <7>;
 		linux,code = <18>;
@@ -152,14 +152,14 @@
 };
 
 &pinctrl_1 {
-	keypad_rows: keypad-rows {
+	keypad_rows: keypad-rows-pins {
 		samsung,pins = "gpx2-0", "gpx2-1";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	keypad_cols: keypad-cols {
+	keypad_cols: keypad-cols-pins {
 		samsung,pins = "gpx1-0", "gpx1-1", "gpx1-2", "gpx1-3",
 			       "gpx1-4", "gpx1-5", "gpx1-6", "gpx1-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
@@ -200,7 +200,7 @@
 	cs-gpios = <&gpc1 2 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	w25x80@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "w25x80";

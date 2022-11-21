@@ -11,6 +11,8 @@ MIPS-specific Documentation
    booting
    ingenic-tcu
 
+   features
+
 .. only::  subproject and html
 
    Indices

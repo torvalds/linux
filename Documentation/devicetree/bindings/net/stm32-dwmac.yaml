@@ -8,8 +8,8 @@ $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 title: STMicroelectronics STM32 / MCU DWMAC glue layer controller
 
 maintainers:
-  - Alexandre Torgue <alexandre.torgue@st.com>
-  - Christophe Roullier <christophe.roullier@st.com>
+  - Alexandre Torgue <alexandre.torgue@foss.st.com>
+  - Christophe Roullier <christophe.roullier@foss.st.com>
 
 description:
   This file documents platform glue layer for stmmac.
@@ -44,19 +44,25 @@ properties:
               - st,stm32-dwmac
           - const: snps,dwmac-3.50a
 
+  reg: true
+
+  reg-names:
+    items:
+      - const: stmmaceth
+
   clocks:
     minItems: 3
-    maxItems: 5
     items:
       - description: GMAC main clock
       - description: MAC TX clock
       - description: MAC RX clock
       - description: For MPU family, used for power mode
       - description: For MPU family, used for PHY without quartz
+      - description: PTP clock
 
   clock-names:
     minItems: 3
-    maxItems: 5
+    maxItems: 6
     contains:
       enum:
         - stmmaceth
@@ -64,9 +70,14 @@ properties:
         - mac-clk-rx
         - ethstp
         - eth-ck
+        - ptp_ref
 
   st,syscon:
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    items:
+      - items:
+          - description: phandle to the syscon node which encompases the glue register
+          - description: offset of the control register
     description:
       Should be phandle/offset pair. The phandle to the syscon node which
       encompases the glue register, and the offset of the control register
@@ -101,7 +112,7 @@ examples:
            compatible = "st,stm32mp1-dwmac", "snps,dwmac-4.20a";
            reg = <0x5800a000 0x2000>;
            reg-names = "stmmaceth";
-           interrupts = <&intc GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+           interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
            interrupt-names = "macirq";
            clock-names = "stmmaceth",
                      "mac-clk-tx",
@@ -120,6 +131,7 @@ examples:
            phy-mode = "rgmii";
        };
 
+  - |
     //Example 2 (MCU example)
      ethernet1: ethernet@40028000 {
            compatible = "st,stm32-dwmac", "snps,dwmac-3.50a";
@@ -135,6 +147,7 @@ examples:
            phy-mode = "mii";
        };
 
+  - |
     //Example 3
      ethernet2: ethernet@40027000 {
            compatible = "st,stm32-dwmac", "snps,dwmac-4.10a";

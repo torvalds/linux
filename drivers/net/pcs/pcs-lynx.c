@@ -11,6 +11,7 @@
 #define LINK_TIMER_VAL(ns)		((u32)((ns) / SGMII_CLOCK_PERIOD_NS))
 
 #define SGMII_AN_LINK_TIMER_NS		1600000 /* defined by SGMII spec */
+#define IEEE8023_LINK_TIMER_NS		10000000
 
 #define LINK_TIMER_LO			0x12
 #define LINK_TIMER_HI			0x13
@@ -21,6 +22,11 @@
 #define IF_MODE_SPEED_MSK		GENMASK(3, 2)
 #define IF_MODE_HALF_DUPLEX		BIT(4)
 
+struct lynx_pcs {
+	struct phylink_pcs pcs;
+	struct mdio_device *mdio;
+};
+
 enum sgmii_speed {
 	SGMII_SPEED_10		= 0,
 	SGMII_SPEED_100		= 1,
@@ -29,6 +35,15 @@ enum sgmii_speed {
 };
 
 #define phylink_pcs_to_lynx(pl_pcs) container_of((pl_pcs), struct lynx_pcs, pcs)
+#define lynx_to_phylink_pcs(lynx) (&(lynx)->pcs)
+
+struct mdio_device *lynx_get_mdio_device(struct phylink_pcs *pcs)
+{
+	struct lynx_pcs *lynx = phylink_pcs_to_lynx(pcs);
+
+	return lynx->mdio;
+}
+EXPORT_SYMBOL(lynx_get_mdio_device);
 
 static void lynx_pcs_get_state_usxgmii(struct mdio_device *pcs,
 				       struct phylink_link_state *state)
@@ -83,6 +98,7 @@ static void lynx_pcs_get_state(struct phylink_pcs *pcs,
 	struct lynx_pcs *lynx = phylink_pcs_to_lynx(pcs);
 
 	switch (state->interface) {
+	case PHY_INTERFACE_MODE_1000BASEX:
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
 		phylink_mii_c22_pcs_get_state(lynx->mdio, state);
@@ -106,6 +122,30 @@ static void lynx_pcs_get_state(struct phylink_pcs *pcs,
 		phy_speed_to_str(state->speed),
 		phy_duplex_to_str(state->duplex),
 		state->link, state->an_enabled, state->an_complete);
+}
+
+static int lynx_pcs_config_1000basex(struct mdio_device *pcs,
+				     unsigned int mode,
+				     const unsigned long *advertising)
+{
+	struct mii_bus *bus = pcs->bus;
+	int addr = pcs->addr;
+	u32 link_timer;
+	int err;
+
+	link_timer = LINK_TIMER_VAL(IEEE8023_LINK_TIMER_NS);
+	mdiobus_write(bus, addr, LINK_TIMER_LO, link_timer & 0xffff);
+	mdiobus_write(bus, addr, LINK_TIMER_HI, link_timer >> 16);
+
+	err = mdiobus_modify(bus, addr, IF_MODE,
+			     IF_MODE_SGMII_EN | IF_MODE_USE_SGMII_AN,
+			     0);
+	if (err)
+		return err;
+
+	return phylink_mii_c22_pcs_config(pcs, mode,
+					  PHY_INTERFACE_MODE_1000BASEX,
+					  advertising);
 }
 
 static int lynx_pcs_config_sgmii(struct mdio_device *pcs, unsigned int mode,
@@ -163,6 +203,8 @@ static int lynx_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	struct lynx_pcs *lynx = phylink_pcs_to_lynx(pcs);
 
 	switch (ifmode) {
+	case PHY_INTERFACE_MODE_1000BASEX:
+		return lynx_pcs_config_1000basex(lynx->mdio, mode, advertising);
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
 		return lynx_pcs_config_sgmii(lynx->mdio, mode, advertising);
@@ -183,6 +225,13 @@ static int lynx_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	}
 
 	return 0;
+}
+
+static void lynx_pcs_an_restart(struct phylink_pcs *pcs)
+{
+	struct lynx_pcs *lynx = phylink_pcs_to_lynx(pcs);
+
+	phylink_mii_c22_pcs_an_restart(lynx->mdio);
 }
 
 static void lynx_pcs_link_up_sgmii(struct mdio_device *pcs, unsigned int mode,
@@ -290,28 +339,31 @@ static void lynx_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 static const struct phylink_pcs_ops lynx_pcs_phylink_ops = {
 	.pcs_get_state = lynx_pcs_get_state,
 	.pcs_config = lynx_pcs_config,
+	.pcs_an_restart = lynx_pcs_an_restart,
 	.pcs_link_up = lynx_pcs_link_up,
 };
 
-struct lynx_pcs *lynx_pcs_create(struct mdio_device *mdio)
+struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 {
-	struct lynx_pcs *lynx_pcs;
+	struct lynx_pcs *lynx;
 
-	lynx_pcs = kzalloc(sizeof(*lynx_pcs), GFP_KERNEL);
-	if (!lynx_pcs)
+	lynx = kzalloc(sizeof(*lynx), GFP_KERNEL);
+	if (!lynx)
 		return NULL;
 
-	lynx_pcs->mdio = mdio;
-	lynx_pcs->pcs.ops = &lynx_pcs_phylink_ops;
-	lynx_pcs->pcs.poll = true;
+	lynx->mdio = mdio;
+	lynx->pcs.ops = &lynx_pcs_phylink_ops;
+	lynx->pcs.poll = true;
 
-	return lynx_pcs;
+	return lynx_to_phylink_pcs(lynx);
 }
 EXPORT_SYMBOL(lynx_pcs_create);
 
-void lynx_pcs_destroy(struct lynx_pcs *pcs)
+void lynx_pcs_destroy(struct phylink_pcs *pcs)
 {
-	kfree(pcs);
+	struct lynx_pcs *lynx = phylink_pcs_to_lynx(pcs);
+
+	kfree(lynx);
 }
 EXPORT_SYMBOL(lynx_pcs_destroy);
 

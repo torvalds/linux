@@ -57,6 +57,12 @@
 		ethernet1 = &sdiowifi;
 	};
 
+	cec-gpio {
+		compatible = "cec-gpio";
+		cec-gpios = <&pio 0 14 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>; /* PA14 */
+		hdmi-phandle = <&hdmi>;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
@@ -75,23 +81,27 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led-0 {
 			label = "beelink-x2:blue:pwr";
 			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>; /* PL10 */
 			default-state = "on";
 		};
 
-		red {
+		led-1 {
 			label = "beelink-x2:red:standby";
 			gpios = <&pio 0 15 GPIO_ACTIVE_HIGH>; /* PA15 */
 		};
 	};
 
-	wifi_pwrseq: wifi_pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
-		clocks = <&rtc 1>;
-		clock-names = "ext_clock";
+	r-gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "power";
+			linux,code = <KEY_POWER>;
+			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
 	};
 
 	sound_spdif {
@@ -110,6 +120,13 @@
 	spdif_out: spdif-out {
 		#sound-dai-cells = <0>;
 		compatible = "linux,spdif-dit";
+	};
+
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
+		clocks = <&rtc 1>;
+		clock-names = "ext_clock";
 	};
 };
 

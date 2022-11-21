@@ -30,7 +30,7 @@ extern long srm_printk(const char *, ...)
      __attribute__ ((format (printf, 1, 2)));
 
 /*
- * gzip delarations
+ * gzip declarations
  */
 #define OF(args)  args
 #define STATIC static

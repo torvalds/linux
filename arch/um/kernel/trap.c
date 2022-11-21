@@ -87,12 +87,10 @@ good_area:
 			}
 			BUG();
 		}
-		if (flags & FAULT_FLAG_ALLOW_RETRY) {
-			if (fault & VM_FAULT_RETRY) {
-				flags |= FAULT_FLAG_TRIED;
+		if (fault & VM_FAULT_RETRY) {
+			flags |= FAULT_FLAG_TRIED;
 
-				goto retry;
-			}
+			goto retry;
 		}
 
 		pmd = pmd_off(mm, address);
@@ -127,7 +125,6 @@ out_of_memory:
 	pagefault_out_of_memory();
 	return 0;
 }
-EXPORT_SYMBOL(handle_page_fault);
 
 static void show_segv_info(struct uml_pt_regs *regs)
 {
@@ -158,7 +155,7 @@ static void bad_segv(struct faultinfo fi, unsigned long ip)
 
 void fatal_sigsegv(void)
 {
-	force_sigsegv(SIGSEGV);
+	force_fatal_sig(SIGSEGV);
 	do_signal(&current->thread.regs);
 	/*
 	 * This is to tell gcc that we're not returning - do_signal
@@ -310,8 +307,4 @@ void bus_handler(int sig, struct siginfo *si, struct uml_pt_regs *regs)
 void winch(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 {
 	do_IRQ(WINCH_IRQ, regs);
-}
-
-void trap_init(void)
-{
 }

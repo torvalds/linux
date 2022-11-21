@@ -71,7 +71,7 @@ static LIST_HEAD(opalcore_list);
 static struct opalcore_config *oc_conf;
 static const struct opal_mpipl_fadump *opalc_metadata;
 static const struct opal_mpipl_fadump *opalc_cpu_metadata;
-struct kobject *mpipl_kobj;
+static struct kobject *mpipl_kobj;
 
 /*
  * Set crashing CPU's signal to SIGUSR1. if the kernel is triggered
@@ -89,7 +89,7 @@ static inline int is_opalcore_usable(void)
 	return (oc_conf && oc_conf->opalcorebuf != NULL) ? 1 : 0;
 }
 
-static Elf64_Word *append_elf64_note(Elf64_Word *buf, char *name,
+static Elf64_Word *__init append_elf64_note(Elf64_Word *buf, char *name,
 				     u32 type, void *data,
 				     size_t data_len)
 {
@@ -108,7 +108,7 @@ static Elf64_Word *append_elf64_note(Elf64_Word *buf, char *name,
 	return buf;
 }
 
-static void fill_prstatus(struct elf_prstatus *prstatus, int pir,
+static void __init fill_prstatus(struct elf_prstatus *prstatus, int pir,
 			  struct pt_regs *regs)
 {
 	memset(prstatus, 0, sizeof(struct elf_prstatus));
@@ -119,8 +119,8 @@ static void fill_prstatus(struct elf_prstatus *prstatus, int pir,
 	 * As a PIR value could also be '0', add an offset of '100'
 	 * to every PIR to avoid misinterpretations in GDB.
 	 */
-	prstatus->pr_pid  = cpu_to_be32(100 + pir);
-	prstatus->pr_ppid = cpu_to_be32(1);
+	prstatus->common.pr_pid  = cpu_to_be32(100 + pir);
+	prstatus->common.pr_ppid = cpu_to_be32(1);
 
 	/*
 	 * Indicate SIGUSR1 for crash initiated from kernel.
@@ -130,11 +130,11 @@ static void fill_prstatus(struct elf_prstatus *prstatus, int pir,
 		short sig;
 
 		sig = kernel_initiated ? SIGUSR1 : SIGTERM;
-		prstatus->pr_cursig = cpu_to_be16(sig);
+		prstatus->common.pr_cursig = cpu_to_be16(sig);
 	}
 }
 
-static Elf64_Word *auxv_to_elf64_notes(Elf64_Word *buf,
+static Elf64_Word *__init auxv_to_elf64_notes(Elf64_Word *buf,
 				       u64 opal_boot_entry)
 {
 	Elf64_Off *bufp = (Elf64_Off *)oc_conf->auxv_buf;
@@ -603,7 +603,7 @@ static struct bin_attribute *mpipl_bin_attr[] = {
 
 };
 
-static struct attribute_group mpipl_group = {
+static const struct attribute_group mpipl_group = {
 	.attrs = mpipl_attr,
 	.bin_attrs =  mpipl_bin_attr,
 };

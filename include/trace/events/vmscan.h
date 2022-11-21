@@ -27,6 +27,20 @@
 		{RECLAIM_WB_ASYNC,	"RECLAIM_WB_ASYNC"}	\
 		) : "RECLAIM_WB_NONE"
 
+#define _VMSCAN_THROTTLE_WRITEBACK	(1 << VMSCAN_THROTTLE_WRITEBACK)
+#define _VMSCAN_THROTTLE_ISOLATED	(1 << VMSCAN_THROTTLE_ISOLATED)
+#define _VMSCAN_THROTTLE_NOPROGRESS	(1 << VMSCAN_THROTTLE_NOPROGRESS)
+#define _VMSCAN_THROTTLE_CONGESTED	(1 << VMSCAN_THROTTLE_CONGESTED)
+
+#define show_throttle_flags(flags)						\
+	(flags) ? __print_flags(flags, "|",					\
+		{_VMSCAN_THROTTLE_WRITEBACK,	"VMSCAN_THROTTLE_WRITEBACK"},	\
+		{_VMSCAN_THROTTLE_ISOLATED,	"VMSCAN_THROTTLE_ISOLATED"},	\
+		{_VMSCAN_THROTTLE_NOPROGRESS,	"VMSCAN_THROTTLE_NOPROGRESS"},	\
+		{_VMSCAN_THROTTLE_CONGESTED,	"VMSCAN_THROTTLE_CONGESTED"}	\
+		) : "VMSCAN_THROTTLE_NONE"
+
+
 #define trace_reclaim_flags(file) ( \
 	(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
 	(RECLAIM_WB_ASYNC) \
@@ -313,11 +327,11 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
 		__print_symbolic(__entry->lru, LRU_NAMES))
 );
 
-TRACE_EVENT(mm_vmscan_writepage,
+TRACE_EVENT(mm_vmscan_write_folio,
 
-	TP_PROTO(struct page *page),
+	TP_PROTO(struct folio *folio),
 
-	TP_ARGS(page),
+	TP_ARGS(folio),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, pfn)
@@ -325,12 +339,12 @@ TRACE_EVENT(mm_vmscan_writepage,
 	),
 
 	TP_fast_assign(
-		__entry->pfn = page_to_pfn(page);
+		__entry->pfn = folio_pfn(folio);
 		__entry->reclaim_flags = trace_reclaim_flags(
-						page_is_file_lru(page));
+						folio_is_file_lru(folio));
 	),
 
-	TP_printk("page=%p pfn=%lu flags=%s",
+	TP_printk("page=%p pfn=0x%lx flags=%s",
 		pfn_to_page(__entry->pfn),
 		__entry->pfn,
 		show_reclaim_flags(__entry->reclaim_flags))
@@ -423,47 +437,6 @@ TRACE_EVENT(mm_vmscan_lru_shrink_active,
 		show_reclaim_flags(__entry->reclaim_flags))
 );
 
-TRACE_EVENT(mm_vmscan_inactive_list_is_low,
-
-	TP_PROTO(int nid, int reclaim_idx,
-		unsigned long total_inactive, unsigned long inactive,
-		unsigned long total_active, unsigned long active,
-		unsigned long ratio, int file),
-
-	TP_ARGS(nid, reclaim_idx, total_inactive, inactive, total_active, active, ratio, file),
-
-	TP_STRUCT__entry(
-		__field(int, nid)
-		__field(int, reclaim_idx)
-		__field(unsigned long, total_inactive)
-		__field(unsigned long, inactive)
-		__field(unsigned long, total_active)
-		__field(unsigned long, active)
-		__field(unsigned long, ratio)
-		__field(int, reclaim_flags)
-	),
-
-	TP_fast_assign(
-		__entry->nid = nid;
-		__entry->reclaim_idx = reclaim_idx;
-		__entry->total_inactive = total_inactive;
-		__entry->inactive = inactive;
-		__entry->total_active = total_active;
-		__entry->active = active;
-		__entry->ratio = ratio;
-		__entry->reclaim_flags = trace_reclaim_flags(file) &
-					 RECLAIM_WB_LRU;
-	),
-
-	TP_printk("nid=%d reclaim_idx=%d total_inactive=%ld inactive=%ld total_active=%ld active=%ld ratio=%ld flags=%s",
-		__entry->nid,
-		__entry->reclaim_idx,
-		__entry->total_inactive, __entry->inactive,
-		__entry->total_active, __entry->active,
-		__entry->ratio,
-		show_reclaim_flags(__entry->reclaim_flags))
-);
-
 TRACE_EVENT(mm_vmscan_node_reclaim_begin,
 
 	TP_PROTO(int nid, int order, gfp_t gfp_flags),
@@ -495,6 +468,32 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_node_reclaim_end,
 	TP_ARGS(nr_reclaimed)
 );
 
+TRACE_EVENT(mm_vmscan_throttled,
+
+	TP_PROTO(int nid, int usec_timeout, int usec_delayed, int reason),
+
+	TP_ARGS(nid, usec_timeout, usec_delayed, reason),
+
+	TP_STRUCT__entry(
+		__field(int, nid)
+		__field(int, usec_timeout)
+		__field(int, usec_delayed)
+		__field(int, reason)
+	),
+
+	TP_fast_assign(
+		__entry->nid = nid;
+		__entry->usec_timeout = usec_timeout;
+		__entry->usec_delayed = usec_delayed;
+		__entry->reason = 1U << reason;
+	),
+
+	TP_printk("nid=%d usec_timeout=%d usect_delayed=%d reason=%s",
+		__entry->nid,
+		__entry->usec_timeout,
+		__entry->usec_delayed,
+		show_throttle_flags(__entry->reason))
+);
 #endif /* _TRACE_VMSCAN_H */
 
 /* This part must be outside protection */

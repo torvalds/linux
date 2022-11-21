@@ -19,6 +19,7 @@ properties:
           - ingenic,jz4740-mmc
           - ingenic,jz4725b-mmc
           - ingenic,jz4760-mmc
+          - ingenic,jz4775-mmc
           - ingenic,jz4780-mmc
           - ingenic,x1000-mmc
       - items:
@@ -38,14 +39,15 @@ properties:
     const: mmc
 
   dmas:
-    items:
-      - description: DMA controller phandle and request line for RX
-      - description: DMA controller phandle and request line for TX
+    minItems: 1
+    maxItems: 2
 
   dma-names:
-    items:
-      - const: rx
-      - const: tx
+    oneOf:
+      - items:
+          - const: rx
+          - const: tx
+      - const: tx-rx
 
 required:
   - compatible
@@ -60,7 +62,7 @@ unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4780-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4780-cgu.h>
     #include <dt-bindings/dma/jz4780-dma.h>
     mmc0: mmc@13450000 {
       compatible = "ingenic,jz4780-mmc";
@@ -78,4 +80,28 @@ examples:
       dmas = <&dma JZ4780_DMA_MSC0_RX 0xffffffff>,
              <&dma JZ4780_DMA_MSC0_TX 0xffffffff>;
       dma-names = "rx", "tx";
+    };
+  - |
+    #include <dt-bindings/clock/ingenic,jz4780-cgu.h>
+    #include <dt-bindings/dma/jz4780-dma.h>
+    /*
+     * Alternative version of the example above,
+     * but using one single DMA channel for both
+     * TX and RX.
+     */
+    mmc1: mmc@13460000 {
+      compatible = "ingenic,jz4780-mmc";
+      reg = <0x13460000 0x1000>;
+
+      interrupt-parent = <&intc>;
+      interrupts = <36>;
+
+      clocks = <&cgu JZ4780_CLK_MSC1>;
+      clock-names = "mmc";
+
+      cap-sd-highspeed;
+      cap-mmc-highspeed;
+      cap-sdio-irq;
+      dmas = <&dma JZ4780_DMA_MSC1_TX JZ4780_DMA_MSC1_RX 0xffffffff>;
+      dma-names = "tx-rx";
     };

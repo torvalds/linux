@@ -38,7 +38,7 @@
 struct mlx5_flow_cmds {
 	int (*create_flow_table)(struct mlx5_flow_root_namespace *ns,
 				 struct mlx5_flow_table *ft,
-				 unsigned int log_size,
+				 unsigned int size,
 				 struct mlx5_flow_table *next_ft);
 	int (*destroy_flow_table)(struct mlx5_flow_root_namespace *ns,
 				  struct mlx5_flow_table *ft);
@@ -77,9 +77,7 @@ struct mlx5_flow_cmds {
 			      bool disconnect);
 
 	int (*packet_reformat_alloc)(struct mlx5_flow_root_namespace *ns,
-				     int reformat_type,
-				     size_t size,
-				     void *reformat_data,
+				     struct mlx5_pkt_reformat_params *params,
 				     enum mlx5_flow_namespace_type namespace,
 				     struct mlx5_pkt_reformat *pkt_reformat);
 
@@ -99,6 +97,13 @@ struct mlx5_flow_cmds {
 
 	int (*create_ns)(struct mlx5_flow_root_namespace *ns);
 	int (*destroy_ns)(struct mlx5_flow_root_namespace *ns);
+	int (*create_match_definer)(struct mlx5_flow_root_namespace *ns,
+				    u16 format_id, u32 *match_mask);
+	int (*destroy_match_definer)(struct mlx5_flow_root_namespace *ns,
+				     int definer_id);
+
+	u32 (*get_capabilities)(struct mlx5_flow_root_namespace *ns,
+				enum fs_flow_table_type ft_type);
 };
 
 int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u32 *id);

@@ -85,7 +85,8 @@ static void sxgbe_core_pmt(void __iomem *ioaddr, unsigned long mode)
 }
 
 /* Set/Get Unicast MAC addresses */
-static void sxgbe_core_set_umac_addr(void __iomem *ioaddr, unsigned char *addr,
+static void sxgbe_core_set_umac_addr(void __iomem *ioaddr,
+				     const unsigned char *addr,
 				     unsigned int reg_n)
 {
 	u32 high_word, low_word;

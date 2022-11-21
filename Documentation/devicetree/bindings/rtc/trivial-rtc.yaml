@@ -32,6 +32,9 @@ properties:
       - dallas,ds3232
       # I2C-BUS INTERFACE REAL TIME CLOCK MODULE
       - epson,rx8010
+      # I2C-BUS INTERFACE REAL TIME CLOCK MODULE
+      - epson,rx8025
+      - epson,rx8035
       # I2C-BUS INTERFACE REAL TIME CLOCK MODULE with Battery Backed RAM
       - epson,rx8571
       # I2C-BUS INTERFACE REAL TIME CLOCK MODULE
@@ -48,12 +51,8 @@ properties:
       - microcrystal,rv3029
       # Real Time Clock
       - microcrystal,rv8523
-      # Real-time clock
-      - nxp,pcf2127
-      # Real-time clock
-      - nxp,pcf2129
-      # Real-time clock
       - nxp,pca2129
+      - nxp,pcf2129
       # Real-time Clock Module
       - pericom,pt7c4338
       # I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC

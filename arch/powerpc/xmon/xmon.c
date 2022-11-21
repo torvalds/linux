@@ -26,8 +26,8 @@
 #include <linux/ctype.h>
 #include <linux/highmem.h>
 #include <linux/security.h>
+#include <linux/debugfs.h>
 
-#include <asm/debugfs.h>
 #include <asm/ptrace.h>
 #include <asm/smp.h>
 #include <asm/string.h>
@@ -54,6 +54,7 @@
 #include <asm/code-patching.h>
 #include <asm/sections.h>
 #include <asm/inst.h>
+#include <asm/interrupt.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
@@ -69,6 +70,9 @@ static cpumask_t cpus_in_xmon = CPU_MASK_NONE;
 static unsigned long xmon_taken = 1;
 static int xmon_owner;
 static int xmon_gate;
+static int xmon_batch;
+static unsigned long xmon_batch_start_cpu;
+static cpumask_t xmon_batch_cpus = CPU_MASK_NONE;
 #else
 #define xmon_owner 0
 #endif /* CONFIG_SMP */
@@ -99,7 +103,7 @@ static long *xmon_fault_jmp[NR_CPUS];
 /* Breakpoint stuff */
 struct bpt {
 	unsigned long	address;
-	struct ppc_inst	*instr;
+	u32		*instr;
 	atomic_t	ref_count;
 	int		enabled;
 	unsigned long	pad;
@@ -121,7 +125,7 @@ static unsigned bpinstr = 0x7fe00008;	/* trap */
 static int cmds(struct pt_regs *);
 static int mread(unsigned long, void *, int);
 static int mwrite(unsigned long, void *, int);
-static int mread_instr(unsigned long, struct ppc_inst *);
+static int mread_instr(unsigned long, ppc_inst_t *);
 static int handle_fault(struct pt_regs *);
 static void byterev(unsigned char *, int);
 static void memex(void);
@@ -131,6 +135,12 @@ static void show_pte(unsigned long);
 static void prdump(unsigned long, long);
 static int ppc_inst_dump(unsigned long, long, int);
 static void dump_log_buf(void);
+
+#ifdef CONFIG_SMP
+static int xmon_switch_cpu(unsigned long);
+static int xmon_batch_next_cpu(void);
+static int batch_cmds(struct pt_regs *);
+#endif
 
 #ifdef CONFIG_PPC_POWERNV
 static void dump_opal_msglog(void);
@@ -215,7 +225,8 @@ Commands:\n\
 #ifdef CONFIG_SMP
   "\
   c	print cpus stopped in xmon\n\
-  c#	try to switch to cpu number h (in hex)\n"
+  c#	try to switch to cpu number h (in hex)\n\
+  c# $	run command '$' (one of 'r','S' or 't') on all cpus in xmon\n"
 #endif
   "\
   C	checksum\n\
@@ -471,16 +482,6 @@ static inline void get_output_lock(void) {}
 static inline void release_output_lock(void) {}
 #endif
 
-static inline int unrecoverable_excp(struct pt_regs *regs)
-{
-#if defined(CONFIG_4xx) || defined(CONFIG_PPC_BOOK3E)
-	/* We have no MSR_RI bit on 4xx or Book3e, so we simply return false */
-	return 0;
-#else
-	return ((regs->msr & MSR_RI) == 0);
-#endif
-}
-
 static void xmon_touch_watchdogs(void)
 {
 	touch_softlockup_watchdog_sync();
@@ -488,10 +489,10 @@ static void xmon_touch_watchdogs(void)
 	touch_nmi_watchdog();
 }
 
-static int xmon_core(struct pt_regs *regs, int fromipi)
+static int xmon_core(struct pt_regs *regs, volatile int fromipi)
 {
-	int cmd = 0;
-	struct bpt *bp;
+	volatile int cmd = 0;
+	struct bpt *volatile bp;
 	long recurse_jmp[JMP_BUF_LEN];
 	bool locked_down;
 	unsigned long offset;
@@ -513,7 +514,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 
 	bp = in_breakpoint_table(regs->nip, &offset);
 	if (bp != NULL) {
-		regs->nip = bp->address + offset;
+		regs_set_return_ip(regs, bp->address + offset);
 		atomic_dec(&bp->ref_count);
 	}
 
@@ -554,7 +555,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 	bp = NULL;
 	if ((regs->msr & (MSR_IR|MSR_PR|MSR_64BIT)) == (MSR_IR|MSR_64BIT))
 		bp = at_breakpoint(regs->nip);
-	if (bp || unrecoverable_excp(regs))
+	if (bp || regs_is_unrecoverable(regs))
 		fromipi = 0;
 
 	if (!fromipi) {
@@ -566,7 +567,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			       cpu, BP_NUM(bp));
 			xmon_print_symbol(regs->nip, " ", ")\n");
 		}
-		if (unrecoverable_excp(regs))
+		if (regs_is_unrecoverable(regs))
 			printf("WARNING: exception is not recoverable, "
 			       "can't continue\n");
 		release_output_lock();
@@ -605,7 +606,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			 * debugger break (IPI). This is similar to
 			 * crash_kexec_secondary().
 			 */
-			if (TRAP(regs) != 0x100 || !wait_for_other_cpus(ncpus))
+			if (TRAP(regs) !=  INTERRUPT_SYSTEM_RESET || !wait_for_other_cpus(ncpus))
 				smp_send_debugger_break();
 
 			wait_for_other_cpus(ncpus);
@@ -615,7 +616,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 
 		if (!locked_down) {
 			/* for breakpoint or single step, print curr insn */
-			if (bp || TRAP(regs) == 0xd00)
+			if (bp || TRAP(regs) == INTERRUPT_TRACE)
 				ppc_inst_dump(regs->nip, 1, 0);
 			printf("enter ? for help\n");
 		}
@@ -643,7 +644,12 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			spin_cpu_relax();
 			touch_nmi_watchdog();
 		} else {
-			if (!locked_down)
+			cmd = 1;
+#ifdef CONFIG_SMP
+			if (xmon_batch)
+				cmd = batch_cmds(regs);
+#endif
+			if (!locked_down && cmd)
 				cmd = cmds(regs);
 			if (locked_down || cmd != 0) {
 				/* exiting xmon */
@@ -677,14 +683,14 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			printf("Stopped at breakpoint %tx (", BP_NUM(bp));
 			xmon_print_symbol(regs->nip, " ", ")\n");
 		}
-		if (unrecoverable_excp(regs))
+		if (regs_is_unrecoverable(regs))
 			printf("WARNING: exception is not recoverable, "
 			       "can't continue\n");
 		remove_bpts();
 		disable_surveillance();
 		if (!locked_down) {
 			/* for breakpoint or single step, print current insn */
-			if (bp || TRAP(regs) == 0xd00)
+			if (bp || TRAP(regs) == INTERRUPT_TRACE)
 				ppc_inst_dump(regs->nip, 1, 0);
 			printf("enter ? for help\n");
 		}
@@ -701,7 +707,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 	if (regs->msr & MSR_DE) {
 		bp = at_breakpoint(regs->nip);
 		if (bp != NULL) {
-			regs->nip = (unsigned long) &bp->instr[0];
+			regs_set_return_ip(regs, (unsigned long) &bp->instr[0]);
 			atomic_inc(&bp->ref_count);
 		}
 	}
@@ -711,7 +717,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 		if (bp != NULL) {
 			int stepped = emulate_step(regs, ppc_inst_read(bp->instr));
 			if (stepped == 0) {
-				regs->nip = (unsigned long) &bp->instr[0];
+				regs_set_return_ip(regs, (unsigned long) &bp->instr[0]);
 				atomic_inc(&bp->ref_count);
 			} else if (stepped < 0) {
 				printf("Couldn't single-step %s instruction\n",
@@ -765,7 +771,7 @@ static int xmon_bpt(struct pt_regs *regs)
 	/* Are we at the trap at bp->instr[1] for some bp? */
 	bp = in_breakpoint_table(regs->nip, &offset);
 	if (bp != NULL && (offset == 4 || offset == 8)) {
-		regs->nip = bp->address + offset;
+		regs_set_return_ip(regs, bp->address + offset);
 		atomic_dec(&bp->ref_count);
 		return 1;
 	}
@@ -835,7 +841,7 @@ static int xmon_fault_handler(struct pt_regs *regs)
 	if ((regs->msr & (MSR_IR|MSR_PR|MSR_64BIT)) == (MSR_IR|MSR_64BIT)) {
 		bp = in_breakpoint_table(regs->nip, &offset);
 		if (bp != NULL) {
-			regs->nip = bp->address + offset;
+			regs_set_return_ip(regs, bp->address + offset);
 			atomic_dec(&bp->ref_count);
 		}
 	}
@@ -856,7 +862,7 @@ static inline void force_enable_xmon(void)
 static struct bpt *at_breakpoint(unsigned long pc)
 {
 	int i;
-	struct bpt *bp;
+	struct bpt *volatile bp;
 
 	bp = bpts;
 	for (i = 0; i < NBPTS; ++i, ++bp)
@@ -902,7 +908,7 @@ static struct bpt *new_breakpoint(unsigned long a)
 static void insert_bpts(void)
 {
 	int i;
-	struct ppc_inst instr, instr2;
+	ppc_inst_t instr, instr2;
 	struct bpt *bp, *bp2;
 
 	bp = bpts;
@@ -945,11 +951,11 @@ static void insert_bpts(void)
 		}
 
 		patch_instruction(bp->instr, instr);
-		patch_instruction(ppc_inst_next(bp->instr, &instr),
+		patch_instruction(ppc_inst_next(bp->instr, bp->instr),
 				  ppc_inst(bpinstr));
 		if (bp->enabled & BP_CIABR)
 			continue;
-		if (patch_instruction((struct ppc_inst *)bp->address,
+		if (patch_instruction((u32 *)bp->address,
 				      ppc_inst(bpinstr)) != 0) {
 			printf("Couldn't write instruction at %lx, "
 			       "disabling breakpoint there\n", bp->address);
@@ -982,7 +988,7 @@ static void remove_bpts(void)
 {
 	int i;
 	struct bpt *bp;
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 
 	bp = bpts;
 	for (i = 0; i < NBPTS; ++i, ++bp) {
@@ -991,7 +997,7 @@ static void remove_bpts(void)
 		if (mread_instr(bp->address, &instr)
 		    && ppc_inst_equal(instr, ppc_inst(bpinstr))
 		    && patch_instruction(
-			(struct ppc_inst *)bp->address, ppc_inst_read(bp->instr)) != 0)
+			(u32 *)bp->address, ppc_inst_read(bp->instr)) != 0)
 			printf("Couldn't remove breakpoint at %lx\n",
 			       bp->address);
 	}
@@ -1153,7 +1159,7 @@ cmds(struct pt_regs *excp)
 		case 'P':
 			show_tasks();
 			break;
-#ifdef CONFIG_PPC_BOOK3S
+#if defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_PPC_64S_HASH_MMU)
 		case 'u':
 			dump_segments();
 			break;
@@ -1187,7 +1193,7 @@ cmds(struct pt_regs *excp)
 #ifdef CONFIG_BOOKE
 static int do_step(struct pt_regs *regs)
 {
-	regs->msr |= MSR_DE;
+	regs_set_return_msr(regs, regs->msr | MSR_DE);
 	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
 	return 1;
 }
@@ -1198,7 +1204,7 @@ static int do_step(struct pt_regs *regs)
  */
 static int do_step(struct pt_regs *regs)
 {
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 	int stepped;
 
 	force_enable_xmon();
@@ -1220,7 +1226,7 @@ static int do_step(struct pt_regs *regs)
 			}
 		}
 	}
-	regs->msr |= MSR_SE;
+	regs_set_return_msr(regs, regs->msr | MSR_SE);
 	return 1;
 }
 #endif
@@ -1242,11 +1248,112 @@ static void bootcmds(void)
 	}
 }
 
+#ifdef CONFIG_SMP
+static int xmon_switch_cpu(unsigned long cpu)
+{
+	int timeout;
+
+	xmon_taken = 0;
+	mb();
+	xmon_owner = cpu;
+	timeout = 10000000;
+	while (!xmon_taken) {
+		if (--timeout == 0) {
+			if (test_and_set_bit(0, &xmon_taken))
+				break;
+			/* take control back */
+			mb();
+			xmon_owner = smp_processor_id();
+			printf("cpu 0x%lx didn't take control\n", cpu);
+			return 0;
+		}
+		barrier();
+	}
+	return 1;
+}
+
+static int xmon_batch_next_cpu(void)
+{
+	unsigned long cpu;
+
+	while (!cpumask_empty(&xmon_batch_cpus)) {
+		cpu = cpumask_next_wrap(smp_processor_id(), &xmon_batch_cpus,
+					xmon_batch_start_cpu, true);
+		if (cpu == nr_cpumask_bits)
+			break;
+		if (xmon_batch_start_cpu == -1)
+			xmon_batch_start_cpu = cpu;
+		if (xmon_switch_cpu(cpu))
+			return 0;
+		cpumask_clear_cpu(cpu, &xmon_batch_cpus);
+	}
+
+	xmon_batch = 0;
+	printf("%x:mon> \n", smp_processor_id());
+	return 1;
+}
+
+static int batch_cmds(struct pt_regs *excp)
+{
+	int cmd;
+
+	/* simulate command entry */
+	cmd = xmon_batch;
+	termch = '\n';
+
+	last_cmd = NULL;
+	xmon_regs = excp;
+
+	printf("%x:", smp_processor_id());
+	printf("mon> ");
+	printf("%c\n", (char)cmd);
+
+	switch (cmd) {
+	case 'r':
+		prregs(excp);	/* print regs */
+		break;
+	case 'S':
+		super_regs();
+		break;
+	case 't':
+		backtrace(excp);
+		break;
+	}
+
+	cpumask_clear_cpu(smp_processor_id(), &xmon_batch_cpus);
+
+	return xmon_batch_next_cpu();
+}
+
 static int cpu_cmd(void)
 {
-#ifdef CONFIG_SMP
 	unsigned long cpu, first_cpu, last_cpu;
-	int timeout;
+
+	cpu = skipbl();
+	if (cpu == '#') {
+		xmon_batch = skipbl();
+		if (xmon_batch) {
+			switch (xmon_batch) {
+			case 'r':
+			case 'S':
+			case 't':
+				cpumask_copy(&xmon_batch_cpus, &cpus_in_xmon);
+				if (cpumask_weight(&xmon_batch_cpus) <= 1) {
+					printf("There are no other cpus in xmon\n");
+					break;
+				}
+				xmon_batch_start_cpu = -1;
+				if (!xmon_batch_next_cpu())
+					return 1;
+				break;
+			default:
+				printf("c# only supports 'r', 'S' and 't' commands\n");
+			}
+			xmon_batch = 0;
+			return 0;
+		}
+	}
+	termch = cpu;
 
 	if (!scanhex(&cpu)) {
 		/* print cpus waiting or in xmon */
@@ -1278,27 +1385,15 @@ static int cpu_cmd(void)
 #endif
 		return 0;
 	}
-	xmon_taken = 0;
-	mb();
-	xmon_owner = cpu;
-	timeout = 10000000;
-	while (!xmon_taken) {
-		if (--timeout == 0) {
-			if (test_and_set_bit(0, &xmon_taken))
-				break;
-			/* take control back */
-			mb();
-			xmon_owner = smp_processor_id();
-			printf("cpu 0x%lx didn't take control\n", cpu);
-			return 0;
-		}
-		barrier();
-	}
-	return 1;
-#else
-	return 0;
-#endif /* CONFIG_SMP */
+
+	return xmon_switch_cpu(cpu);
 }
+#else
+static int cpu_cmd(void)
+{
+	return 0;
+}
+#endif /* CONFIG_SMP */
 
 static unsigned short fcstab[256] = {
 	0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
@@ -1364,7 +1459,7 @@ csum(void)
  */
 static long check_bp_loc(unsigned long addr)
 {
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 
 	addr &= ~3;
 	if (!is_kernel_addr(addr)) {
@@ -1433,7 +1528,6 @@ bpt_cmds(void)
 	cmd = inchar();
 
 	switch (cmd) {
-#ifndef CONFIG_PPC_8xx
 	static const char badaddr[] = "Only kernel addresses are permitted for breakpoints\n";
 	int mode;
 	case 'd':	/* bd - hardware data breakpoint */
@@ -1495,7 +1589,6 @@ bpt_cmds(void)
 			force_enable_xmon();
 		}
 		break;
-#endif
 
 	case 'c':
 		if (!scanhex(&a)) {
@@ -1745,9 +1838,9 @@ static void print_bug_trap(struct pt_regs *regs)
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 	printf("kernel BUG at %s:%u!\n",
-	       bug->file, bug->line);
+	       (char *)bug + bug->file_disp, bug->line);
 #else
-	printf("kernel BUG at %px!\n", (void *)bug->bug_addr);
+	printf("kernel BUG at %px!\n", (void *)bug + bug->bug_addr_disp);
 #endif
 #endif /* CONFIG_BUG */
 }
@@ -1771,9 +1864,12 @@ static void excprint(struct pt_regs *fp)
 	printf("    sp: %lx\n", fp->gpr[1]);
 	printf("   msr: %lx\n", fp->msr);
 
-	if (trap == 0x300 || trap == 0x380 || trap == 0x600 || trap == 0x200) {
+	if (trap == INTERRUPT_DATA_STORAGE ||
+	    trap == INTERRUPT_DATA_SEGMENT ||
+	    trap == INTERRUPT_ALIGNMENT ||
+	    trap == INTERRUPT_MACHINE_CHECK) {
 		printf("   dar: %lx\n", fp->dar);
-		if (trap != 0x380)
+		if (trap != INTERRUPT_DATA_SEGMENT)
 			printf(" dsisr: %lx\n", fp->dsisr);
 	}
 
@@ -1787,7 +1883,7 @@ static void excprint(struct pt_regs *fp)
 		       current->pid, current->comm);
 	}
 
-	if (trap == 0x700)
+	if (trap == INTERRUPT_PROGRAM)
 		print_bug_trap(fp);
 
 	printf(linux_banner);
@@ -1817,25 +1913,16 @@ static void prregs(struct pt_regs *fp)
 	}
 
 #ifdef CONFIG_PPC64
-	if (FULL_REGS(fp)) {
-		for (n = 0; n < 16; ++n)
-			printf("R%.2d = "REG"   R%.2d = "REG"\n",
-			       n, fp->gpr[n], n+16, fp->gpr[n+16]);
-	} else {
-		for (n = 0; n < 7; ++n)
-			printf("R%.2d = "REG"   R%.2d = "REG"\n",
-			       n, fp->gpr[n], n+7, fp->gpr[n+7]);
-	}
+#define R_PER_LINE 2
 #else
-	for (n = 0; n < 32; ++n) {
-		printf("R%.2d = %.8lx%s", n, fp->gpr[n],
-		       (n & 3) == 3? "\n": "   ");
-		if (n == 12 && !FULL_REGS(fp)) {
-			printf("\n");
-			break;
-		}
-	}
+#define R_PER_LINE 4
 #endif
+
+	for (n = 0; n < 32; ++n) {
+		printf("R%.2d = "REG"%s", n, fp->gpr[n],
+			(n % R_PER_LINE) == R_PER_LINE - 1 ? "\n" : "   ");
+	}
+
 	printf("pc  = ");
 	xmon_print_symbol(fp->nip, " ", "\n");
 	if (!trap_is_syscall(fp) && cpu_has_feature(CPU_FTR_CFAR)) {
@@ -1848,7 +1935,9 @@ static void prregs(struct pt_regs *fp)
 	printf("ctr = "REG"   xer = "REG"   trap = %4lx\n",
 	       fp->ctr, fp->xer, fp->trap);
 	trap = TRAP(fp);
-	if (trap == 0x300 || trap == 0x380 || trap == 0x600)
+	if (trap == INTERRUPT_DATA_STORAGE ||
+	    trap == INTERRUPT_DATA_SEGMENT ||
+	    trap == INTERRUPT_ALIGNMENT)
 		printf("dar = "REG"   dsisr = %.8lx\n", fp->dar, fp->dsisr);
 }
 
@@ -2018,8 +2107,14 @@ static void dump_300_sprs(void)
 	if (!cpu_has_feature(CPU_FTR_ARCH_300))
 		return;
 
-	printf("pidr   = %.16lx  tidr  = %.16lx\n",
-		mfspr(SPRN_PID), mfspr(SPRN_TIDR));
+	if (cpu_has_feature(CPU_FTR_P9_TIDR)) {
+		printf("pidr   = %.16lx  tidr  = %.16lx\n",
+			mfspr(SPRN_PID), mfspr(SPRN_TIDR));
+	} else {
+		printf("pidr   = %.16lx\n",
+			mfspr(SPRN_PID));
+	}
+
 	printf("psscr  = %.16lx\n",
 		hv ? mfspr(SPRN_PSSCR) : mfspr(SPRN_PSSCR_PR));
 
@@ -2211,7 +2306,7 @@ mwrite(unsigned long adrs, void *buf, int size)
 }
 
 static int
-mread_instr(unsigned long adrs, struct ppc_inst *instr)
+mread_instr(unsigned long adrs, ppc_inst_t *instr)
 {
 	volatile int n;
 
@@ -2219,7 +2314,7 @@ mread_instr(unsigned long adrs, struct ppc_inst *instr)
 	if (setjmp(bus_error_jmp) == 0) {
 		catch_memory_errors = 1;
 		sync();
-		*instr = ppc_inst_read((struct ppc_inst *)adrs);
+		*instr = ppc_inst_read((u32 *)adrs);
 		sync();
 		/* wait a little while to see if we get a machine check */
 		__delay(200);
@@ -2519,7 +2614,7 @@ static void dump_tracing(void)
 static void dump_one_paca(int cpu)
 {
 	struct paca_struct *p;
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	int i = 0;
 #endif
 
@@ -2561,6 +2656,7 @@ static void dump_one_paca(int cpu)
 	DUMP(p, cpu_start, "%#-*x");
 	DUMP(p, kexec_state, "%#-*x");
 #ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	if (!early_radix_enabled()) {
 		for (i = 0; i < SLB_NUM_BOLTED; i++) {
 			u64 esid, vsid;
@@ -2588,6 +2684,7 @@ static void dump_one_paca(int cpu)
 				       22, "slb_cache", i, p->slb_cache[i]);
 		}
 	}
+#endif
 
 	DUMP(p, rfi_flush_fallback_area, "%-*px");
 #endif
@@ -2720,37 +2817,13 @@ static void dump_all_xives(void)
 {
 	int cpu;
 
-	if (num_possible_cpus() == 0) {
+	if (num_online_cpus() == 0) {
 		printf("No possible cpus, use 'dx #' to dump individual cpus\n");
 		return;
 	}
 
-	for_each_possible_cpu(cpu)
+	for_each_online_cpu(cpu)
 		dump_one_xive(cpu);
-}
-
-static void dump_one_xive_irq(u32 num, struct irq_data *d)
-{
-	xmon_xive_get_irq_config(num, d);
-}
-
-static void dump_all_xive_irq(void)
-{
-	unsigned int i;
-	struct irq_desc *desc;
-
-	for_each_irq_desc(i, desc) {
-		struct irq_data *d = irq_desc_get_irq_data(desc);
-		unsigned int hwirq;
-
-		if (!d)
-			continue;
-
-		hwirq = (unsigned int)irqd_to_hwirq(d);
-		/* IPIs are special (HW number 0) */
-		if (hwirq)
-			dump_one_xive_irq(hwirq, d);
-	}
 }
 
 static void dump_xives(void)
@@ -2769,9 +2842,9 @@ static void dump_xives(void)
 		return;
 	} else if (c == 'i') {
 		if (scanhex(&num))
-			dump_one_xive_irq(num, NULL);
+			xmon_xive_get_irq_config(num, NULL);
 		else
-			dump_all_xive_irq();
+			xmon_xive_get_irq_all();
 		return;
 	}
 
@@ -2955,7 +3028,7 @@ generic_inst_dump(unsigned long adr, long count, int praddr,
 {
 	int nr, dotted;
 	unsigned long first_adr;
-	struct ppc_inst inst, last_inst = ppc_inst(0);
+	ppc_inst_t inst, last_inst = ppc_inst(0);
 
 	dotted = 0;
 	for (first_adr = adr; count > 0; --count, adr += ppc_inst_len(inst)) {
@@ -2982,7 +3055,7 @@ generic_inst_dump(unsigned long adr, long count, int praddr,
 		if (!ppc_inst_prefixed(inst))
 			dump_func(ppc_inst_val(inst), adr);
 		else
-			dump_func(ppc_inst_as_u64(inst), adr);
+			dump_func(ppc_inst_as_ulong(inst), adr);
 		printf("\n");
 	}
 	return adr - first_adr;
@@ -3003,8 +3076,8 @@ print_address(unsigned long addr)
 static void
 dump_log_buf(void)
 {
-	struct kmsg_dumper dumper = { .active = 1 };
-	unsigned char buf[128];
+	struct kmsg_dump_iter iter;
+	static unsigned char buf[1024];
 	size_t len;
 
 	if (setjmp(bus_error_jmp) != 0) {
@@ -3015,9 +3088,9 @@ dump_log_buf(void)
 	catch_memory_errors = 1;
 	sync();
 
-	kmsg_dump_rewind_nolock(&dumper);
+	kmsg_dump_rewind(&iter);
 	xmon_start_pagination();
-	while (kmsg_dump_get_line_nolock(&dumper, false, buf, sizeof(buf), &len)) {
+	while (kmsg_dump_get_line(&iter, false, buf, sizeof(buf), &len)) {
 		buf[len] = '\0';
 		printf("%s", buf);
 	}
@@ -3034,7 +3107,7 @@ static void dump_opal_msglog(void)
 {
 	unsigned char buf[128];
 	ssize_t res;
-	loff_t pos = 0;
+	volatile loff_t pos = 0;
 
 	if (!firmware_has_feature(FW_FEATURE_OPAL)) {
 		printf("Machine is not running OPAL firmware.\n");
@@ -3189,8 +3262,9 @@ memzcan(void)
 		printf("%.8lx\n", a - mskip);
 }
 
-static void show_task(struct task_struct *tsk)
+static void show_task(struct task_struct *volatile tsk)
 {
+	unsigned int p_state = READ_ONCE(tsk->__state);
 	char state;
 
 	/*
@@ -3198,14 +3272,13 @@ static void show_task(struct task_struct *tsk)
 	 * appropriate for calling from xmon. This could be moved
 	 * to a common, generic, routine used by both.
 	 */
-	state = (tsk->state == 0) ? 'R' :
-		(tsk->state < 0) ? 'U' :
-		(tsk->state & TASK_UNINTERRUPTIBLE) ? 'D' :
-		(tsk->state & TASK_STOPPED) ? 'T' :
-		(tsk->state & TASK_TRACED) ? 'C' :
+	state = (p_state == TASK_RUNNING) ? 'R' :
+		(p_state & TASK_UNINTERRUPTIBLE) ? 'D' :
+		(p_state & TASK_STOPPED) ? 'T' :
+		(p_state & TASK_TRACED) ? 'C' :
 		(tsk->exit_state & EXIT_ZOMBIE) ? 'Z' :
 		(tsk->exit_state & EXIT_DEAD) ? 'E' :
-		(tsk->state & TASK_INTERRUPTIBLE) ? 'S' : '?';
+		(p_state & TASK_INTERRUPTIBLE) ? 'S' : '?';
 
 	printf("%16px %16lx %16px %6d %6d %c %2d %s\n", tsk,
 		tsk->thread.ksp, tsk->thread.regs,
@@ -3233,7 +3306,7 @@ static void format_pte(void *ptep, unsigned long pte)
 static void show_pte(unsigned long addr)
 {
 	unsigned long tskv = 0;
-	struct task_struct *tsk = NULL;
+	struct task_struct *volatile tsk = NULL;
 	struct mm_struct *mm;
 	pgd_t *pgdp;
 	p4d_t *p4dp;
@@ -3328,7 +3401,7 @@ static void show_pte(unsigned long addr)
 static void show_tasks(void)
 {
 	unsigned long tskv;
-	struct task_struct *tsk = NULL;
+	struct task_struct *volatile tsk = NULL;
 
 	printf("     task_struct     ->thread.ksp    ->thread.regs    PID   PPID S  P CMD\n");
 
@@ -3651,7 +3724,7 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 			      const char *after)
 {
 	char *modname;
-	const char *name = NULL;
+	const char *volatile name = NULL;
 	unsigned long offset, size;
 
 	printf(REG, address);
@@ -3675,7 +3748,7 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 	printf("%s", after);
 }
 
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 void dump_segments(void)
 {
 	int i;
@@ -3721,7 +3794,7 @@ void dump_segments(void)
 
 	printf("sr0-15 =");
 	for (i = 0; i < 16; ++i)
-		printf(" %x", mfsrin(i << 28));
+		printf(" %x", mfsr(i << 28));
 	printf("\n");
 }
 #endif
@@ -4001,8 +4074,8 @@ DEFINE_SIMPLE_ATTRIBUTE(xmon_dbgfs_ops, xmon_dbgfs_get,
 
 static int __init setup_xmon_dbgfs(void)
 {
-	debugfs_create_file("xmon", 0600, powerpc_debugfs_root, NULL,
-				&xmon_dbgfs_ops);
+	debugfs_create_file("xmon", 0600, arch_debugfs_dir, NULL,
+			    &xmon_dbgfs_ops);
 	return 0;
 }
 device_initcall(setup_xmon_dbgfs);
@@ -4063,7 +4136,7 @@ struct spu_info {
 
 static struct spu_info spu_info[XMON_NUM_SPUS];
 
-void xmon_register_spus(struct list_head *list)
+void __init xmon_register_spus(struct list_head *list)
 {
 	struct spu *spu;
 
@@ -4083,7 +4156,7 @@ void xmon_register_spus(struct list_head *list)
 static void stop_spus(void)
 {
 	struct spu *spu;
-	int i;
+	volatile int i;
 	u64 tmp;
 
 	for (i = 0; i < XMON_NUM_SPUS; i++) {
@@ -4124,7 +4197,7 @@ static void stop_spus(void)
 static void restart_spus(void)
 {
 	struct spu *spu;
-	int i;
+	volatile int i;
 
 	for (i = 0; i < XMON_NUM_SPUS; i++) {
 		if (!spu_info[i].spu)
@@ -4214,8 +4287,7 @@ static void dump_spu_fields(struct spu *spu)
 	DUMP_FIELD(spu, "0x%p", pdata);
 }
 
-int
-spu_inst_dump(unsigned long adr, long count, int praddr)
+static int spu_inst_dump(unsigned long adr, long count, int praddr)
 {
 	return generic_inst_dump(adr, count, praddr, print_insn_spu);
 }

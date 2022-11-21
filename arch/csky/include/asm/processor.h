@@ -1,11 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
 #ifndef __ASM_CSKY_PROCESSOR_H
 #define __ASM_CSKY_PROCESSOR_H
 
 #include <linux/bitops.h>
-#include <asm/segment.h>
 #include <asm/ptrace.h>
 #include <asm/current.h>
 #include <asm/cache.h>
@@ -28,7 +26,7 @@ extern struct cpuinfo_csky cpu_data[];
  * for a 64 bit kernel expandable to 8192EB, of which the current CSKY
  * implementations will "only" be able to use 1TB ...
  */
-#define TASK_SIZE       0x7fff8000UL
+#define TASK_SIZE	(PAGE_OFFSET - (PAGE_SIZE * 8))
 
 #ifdef __KERNEL__
 #define STACK_TOP       TASK_SIZE
@@ -60,7 +58,6 @@ struct thread_struct {
  */
 #define start_thread(_regs, _pc, _usp)					\
 do {									\
-	set_fs(USER_DS); /* reads from user space */			\
 	(_regs)->pc = (_pc);						\
 	(_regs)->regs[1] = 0; /* ABIV1 is R7, uClibc_main rtdl arg */	\
 	(_regs)->regs[2] = 0;						\
@@ -82,7 +79,7 @@ static inline void release_thread(struct task_struct *dead_task)
 
 extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
-unsigned long get_wchan(struct task_struct *p);
+unsigned long __get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)		(task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)		(task_pt_regs(tsk)->usp)

@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: device.h
- *
  * Purpose: MAC Data structure
  *
  * Author: Tevin Chen
@@ -126,11 +124,9 @@ struct vnt_private {
 	unsigned char *tx1_bufs;
 	unsigned char *tx_beacon_bufs;
 
-	void __iomem                *PortOffset;
+	void __iomem                *port_offset;
 	u32                         memaddr;
 	u32                         ioaddr;
-
-	unsigned char byRxMode;
 
 	spinlock_t                  lock;
 
@@ -156,10 +152,10 @@ struct vnt_private {
 	u32                         rx_bytes;
 
 	/* Version control */
-	unsigned char byLocalID;
+	unsigned char local_id;
 	unsigned char byRFType;
 
-	unsigned char byMaxPwrLevel;
+	unsigned char max_pwr_level;
 	unsigned char byZoneType;
 	bool bZoneRegExist;
 	unsigned char byOriginalZonetype;
@@ -167,7 +163,7 @@ struct vnt_private {
 	unsigned char abyCurrentNetAddr[ETH_ALEN]; __aligned(2)
 	bool bLinkPass;          /* link status: OK or fail */
 
-	unsigned int	uCurrRSSI;
+	unsigned int current_rssi;
 	unsigned char byCurrSQ;
 
 	unsigned long dwTxAntennaSel;
@@ -205,7 +201,7 @@ struct vnt_private {
 	unsigned char byMinChannel;
 	unsigned char byMaxChannel;
 
-	unsigned char byPreambleType;
+	unsigned char preamble_type;
 	unsigned char byShortPreamble;
 
 	unsigned short wCurrentRate;
@@ -217,13 +213,13 @@ struct vnt_private {
 
 	bool bEncryptionEnable;
 	bool bLongHeader;
-	bool bShortSlotTime;
+	bool short_slot_time;
 	bool bProtectMode;
 	bool bNonERPPresent;
 	bool bBarkerPreambleMd;
 
 	bool bRadioControlOff;
-	bool bRadioOff;
+	bool radio_off;
 	bool bEnablePSMode;
 	unsigned short wListenInterval;
 	bool bPWBitOn;
@@ -231,7 +227,7 @@ struct vnt_private {
 	/* GPIO Radio Control */
 	unsigned char byRadioCtl;
 	unsigned char byGPIO;
-	bool bHWRadioOff;
+	bool hw_radio_off;
 	bool bPrvActive4RadioOFF;
 	bool bGPIOBlockRead;
 
@@ -255,7 +251,7 @@ struct vnt_private {
 	unsigned char byBBVGANew;
 	unsigned char byBBVGACurrent;
 	unsigned char abyBBVGA[BB_VGA_LEVEL];
-	long                    ldBmThreshold[BB_VGA_LEVEL];
+	long                    dbm_threshold[BB_VGA_LEVEL];
 
 	unsigned char byBBPreEDRSSI;
 	unsigned char byBBPreEDIndex;

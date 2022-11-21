@@ -155,8 +155,7 @@ static irqreturn_t nsp_gpio_irq_handler(int irq, void *data)
 		int_bits = level | event;
 
 		for_each_set_bit(bit, &int_bits, gc->ngpio)
-			generic_handle_irq(
-				irq_linear_revmap(gc->irq.domain, bit));
+			generic_handle_domain_irq(gc->irq.domain, bit);
 	}
 
 	return  int_bits ? IRQ_HANDLED : IRQ_NONE;
@@ -649,7 +648,6 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 	gc->ngpio = val;
 	gc->label = dev_name(dev);
 	gc->parent = dev;
-	gc->of_node = dev->of_node;
 	gc->request = gpiochip_generic_request;
 	gc->free = gpiochip_generic_free;
 	gc->direction_input = nsp_gpio_direction_input;

@@ -44,6 +44,17 @@ static void sfp_quirk_2500basex(const struct sfp_eeprom_id *id,
 	phylink_set(modes, 2500baseX_Full);
 }
 
+static void sfp_quirk_ubnt_uf_instant(const struct sfp_eeprom_id *id,
+				      unsigned long *modes)
+{
+	/* Ubiquiti U-Fiber Instant module claims that support all transceiver
+	 * types including 10G Ethernet which is not truth. So clear all claimed
+	 * modes and set only one mode which module supports: 1000baseX_Full.
+	 */
+	phylink_zero(modes);
+	phylink_set(modes, 1000baseX_Full);
+}
+
 static const struct sfp_quirk sfp_quirks[] = {
 	{
 		// Alcatel Lucent G-010S-P can operate at 2500base-X, but
@@ -63,6 +74,16 @@ static const struct sfp_quirk sfp_quirks[] = {
 		.vendor = "HUAWEI",
 		.part = "MA5671A",
 		.modes = sfp_quirk_2500basex,
+	}, {
+		// Lantech 8330-262D-E can operate at 2500base-X, but
+		// incorrectly report 2500MBd NRZ in their EEPROM
+		.vendor = "Lantech",
+		.part = "8330-262D-E",
+		.modes = sfp_quirk_2500basex,
+	}, {
+		.vendor = "UBNT",
+		.part = "UF-INSTANT",
+		.modes = sfp_quirk_ubnt_uf_instant,
 	},
 };
 
@@ -265,6 +286,12 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	    br_min <= 1300 && br_max >= 1200)
 		phylink_set(modes, 1000baseX_Full);
 
+	/* 100Base-FX, 100Base-LX, 100Base-PX, 100Base-BX10 */
+	if (id->base.e100_base_fx || id->base.e100_base_lx)
+		phylink_set(modes, 100baseFX_Full);
+	if ((id->base.e_base_px || id->base.e_base_bx10) && br_nom == 100)
+		phylink_set(modes, 100baseFX_Full);
+
 	/* For active or passive cables, select the link modes
 	 * based on the bit rates and the cable compliance bytes.
 	 */
@@ -334,21 +361,25 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	}
 
 	/* If we haven't discovered any modes that this module supports, try
-	 * the encoding and bitrate to determine supported modes. Some BiDi
-	 * modules (eg, 1310nm/1550nm) are not 1000BASE-BX compliant due to
-	 * the differing wavelengths, so do not set any transceiver bits.
+	 * the bitrate to determine supported modes. Some BiDi modules (eg,
+	 * 1310nm/1550nm) are not 1000BASE-BX compliant due to the differing
+	 * wavelengths, so do not set any transceiver bits.
+	 *
+	 * Do the same for modules supporting 2500BASE-X. Note that some
+	 * modules use 2500Mbaud rather than 3100 or 3200Mbaud for
+	 * 2500BASE-X, so we allow some slack here.
 	 */
-	if (bitmap_empty(modes, __ETHTOOL_LINK_MODE_MASK_NBITS)) {
-		/* If the encoding and bit rate allows 1000baseX */
-		if (id->base.encoding == SFF8024_ENCODING_8B10B && br_nom &&
-		    br_min <= 1300 && br_max >= 1200)
+	if (bitmap_empty(modes, __ETHTOOL_LINK_MODE_MASK_NBITS) && br_nom) {
+		if (br_min <= 1300 && br_max >= 1200)
 			phylink_set(modes, 1000baseX_Full);
+		if (br_min <= 3200 && br_max >= 2500)
+			phylink_set(modes, 2500baseX_Full);
 	}
 
 	if (bus->sfp_quirk)
 		bus->sfp_quirk->modes(id, modes);
 
-	bitmap_or(support, support, modes, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_or(support, support, modes);
 
 	phylink_set(support, Autoneg);
 	phylink_set(support, Pause);
@@ -367,6 +398,11 @@ EXPORT_SYMBOL_GPL(sfp_parse_support);
 phy_interface_t sfp_select_interface(struct sfp_bus *bus,
 				     unsigned long *link_modes)
 {
+	if (phylink_test(link_modes, 25000baseCR_Full) ||
+	    phylink_test(link_modes, 25000baseKR_Full) ||
+	    phylink_test(link_modes, 25000baseSR_Full))
+		return PHY_INTERFACE_MODE_25GBASER;
+
 	if (phylink_test(link_modes, 10000baseCR_Full) ||
 	    phylink_test(link_modes, 10000baseSR_Full) ||
 	    phylink_test(link_modes, 10000baseLR_Full) ||
@@ -374,6 +410,9 @@ phy_interface_t sfp_select_interface(struct sfp_bus *bus,
 	    phylink_test(link_modes, 10000baseER_Full) ||
 	    phylink_test(link_modes, 10000baseT_Full))
 		return PHY_INTERFACE_MODE_10GBASER;
+
+	if (phylink_test(link_modes, 5000baseT_Full))
+		return PHY_INTERFACE_MODE_5GBASER;
 
 	if (phylink_test(link_modes, 2500baseX_Full))
 		return PHY_INTERFACE_MODE_2500BASEX;
@@ -384,6 +423,9 @@ phy_interface_t sfp_select_interface(struct sfp_bus *bus,
 
 	if (phylink_test(link_modes, 1000baseX_Full))
 		return PHY_INTERFACE_MODE_1000BASEX;
+
+	if (phylink_test(link_modes, 100baseFX_Full))
+		return PHY_INTERFACE_MODE_100BASEX;
 
 	dev_warn(bus->sfp_dev, "Unable to ascertain link mode\n");
 
@@ -525,6 +567,26 @@ int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
 EXPORT_SYMBOL_GPL(sfp_get_module_eeprom);
 
 /**
+ * sfp_get_module_eeprom_by_page() - Read a page from the SFP module EEPROM
+ * @bus: a pointer to the &struct sfp_bus structure for the sfp module
+ * @page: a &struct ethtool_module_eeprom
+ * @extack: extack for reporting problems
+ *
+ * Read an EEPROM page as specified by the supplied @page. See the
+ * documentation for &struct ethtool_module_eeprom for the page to be read.
+ *
+ * Returns 0 on success or a negative errno number. More error
+ * information might be provided via extack
+ */
+int sfp_get_module_eeprom_by_page(struct sfp_bus *bus,
+				  const struct ethtool_module_eeprom *page,
+				  struct netlink_ext_ack *extack)
+{
+	return bus->socket_ops->module_eeprom_by_page(bus->sfp, page, extack);
+}
+EXPORT_SYMBOL_GPL(sfp_get_module_eeprom_by_page);
+
+/**
  * sfp_upstream_start() - Inform the SFP that the network device is up
  * @bus: a pointer to the &struct sfp_bus structure for the sfp module
  *
@@ -573,14 +635,14 @@ static void sfp_upstream_clear(struct sfp_bus *bus)
  * be put via sfp_bus_put() when done.
  *
  * Returns:
- * 	    - on success, a pointer to the sfp_bus structure,
- *	    - %NULL if no SFP is specified,
- * 	    - on failure, an error pointer value:
+ *	- on success, a pointer to the sfp_bus structure,
+ *	- %NULL if no SFP is specified,
+ *	- on failure, an error pointer value:
  *
- * 	      - corresponding to the errors detailed for
- * 	        fwnode_property_get_reference_args().
- * 	      - %-ENOMEM if we failed to allocate the bus.
- *	      - an error from the upstream's connect_phy() method.
+ *	- corresponding to the errors detailed for
+ *	  fwnode_property_get_reference_args().
+ *	- %-ENOMEM if we failed to allocate the bus.
+ *	- an error from the upstream's connect_phy() method.
  */
 struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode)
 {
@@ -594,6 +656,11 @@ struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode)
 		return NULL;
 	else if (ret < 0)
 		return ERR_PTR(ret);
+
+	if (!fwnode_device_is_available(ref.fwnode)) {
+		fwnode_handle_put(ref.fwnode);
+		return NULL;
+	}
 
 	bus = sfp_bus_get(ref.fwnode);
 	fwnode_handle_put(ref.fwnode);
@@ -615,14 +682,14 @@ EXPORT_SYMBOL_GPL(sfp_bus_find_fwnode);
  * bus, so it is safe to put the bus after this call.
  *
  * Returns:
- * 	    - on success, a pointer to the sfp_bus structure,
- *	    - %NULL if no SFP is specified,
- * 	    - on failure, an error pointer value:
+ *	- on success, a pointer to the sfp_bus structure,
+ *	- %NULL if no SFP is specified,
+ *	- on failure, an error pointer value:
  *
- * 	      - corresponding to the errors detailed for
- * 	        fwnode_property_get_reference_args().
- * 	      - %-ENOMEM if we failed to allocate the bus.
- *	      - an error from the upstream's connect_phy() method.
+ *	- corresponding to the errors detailed for
+ *	  fwnode_property_get_reference_args().
+ *	- %-ENOMEM if we failed to allocate the bus.
+ *	- an error from the upstream's connect_phy() method.
  */
 int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
 			 const struct sfp_upstream_ops *ops)

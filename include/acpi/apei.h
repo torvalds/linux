@@ -27,18 +27,17 @@ extern int hest_disable;
 extern int erst_disable;
 #ifdef CONFIG_ACPI_APEI_GHES
 extern bool ghes_disable;
+void __init acpi_ghes_init(void);
 #else
 #define ghes_disable 1
+static inline void acpi_ghes_init(void) { }
 #endif
 
 #ifdef CONFIG_ACPI_APEI
 void __init acpi_hest_init(void);
 #else
-static inline void acpi_hest_init(void) { return; }
+static inline void acpi_hest_init(void) { }
 #endif
-
-typedef int (*apei_hest_func_t)(struct acpi_hest_header *hest_hdr, void *data);
-int apei_hest_parse(apei_hest_func_t func, void *data);
 
 int erst_write(const struct cper_record_header *record);
 ssize_t erst_get_record_count(void);

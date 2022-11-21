@@ -36,7 +36,7 @@ struct qed_sb_sp_info {
 	struct qed_sb_info sb_info;
 
 	/* per protocol index data */
-	struct qed_pi_info pi_info_arr[PIS_PER_SB_E4];
+	struct qed_pi_info pi_info_arr[PIS_PER_SB];
 };
 
 enum qed_attention_type {
@@ -351,6 +351,9 @@ static int qed_fw_assertion(struct qed_hwfn *p_hwfn)
 	qed_hw_err_notify(p_hwfn, p_hwfn->p_dpc_ptt, QED_HW_ERR_FW_ASSERT,
 			  "FW assertion!\n");
 
+	/* Clear assert indications */
+	qed_wr(p_hwfn, p_hwfn->p_dpc_ptt, MISC_REG_AEU_GENERAL_ATTN_32, 0);
+
 	return -EINVAL;
 }
 
@@ -464,12 +467,19 @@ static int qed_dorq_attn_int_sts(struct qed_hwfn *p_hwfn)
 	u32 int_sts, first_drop_reason, details, address, all_drops_reason;
 	struct qed_ptt *p_ptt = p_hwfn->p_dpc_ptt;
 
+	int_sts = qed_rd(p_hwfn, p_ptt, DORQ_REG_INT_STS);
+	if (int_sts == 0xdeadbeaf) {
+		DP_NOTICE(p_hwfn->cdev,
+			  "DORQ is being reset, skipping int_sts handler\n");
+
+		return 0;
+	}
+
 	/* int_sts may be zero since all PFs were interrupted for doorbell
 	 * overflow but another one already handled it. Can abort here. If
 	 * This PF also requires overflow recovery we will be interrupted again.
 	 * The masked almost full indication may also be set. Ignoring.
 	 */
-	int_sts = qed_rd(p_hwfn, p_ptt, DORQ_REG_INT_STS);
 	if (!(int_sts & ~DORQ_REG_INT_STS_DORQ_FIFO_AFULL))
 		return 0;
 
@@ -528,6 +538,9 @@ static int qed_dorq_attn_int_sts(struct qed_hwfn *p_hwfn)
 
 static int qed_dorq_attn_cb(struct qed_hwfn *p_hwfn)
 {
+	if (p_hwfn->cdev->recov_in_prog)
+		return 0;
+
 	p_hwfn->db_recovery_info.dorq_attn = true;
 	qed_dorq_attn_overflow(p_hwfn);
 
@@ -943,6 +956,13 @@ qed_int_deassertion_aeu_bit(struct qed_hwfn *p_hwfn,
 	DP_INFO(p_hwfn, "`%s' - Disabled future attentions\n",
 		p_bit_name);
 
+	/* Re-enable FW aassertion (Gen 32) interrupts */
+	val = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+		     MISC_REG_AEU_ENABLE4_IGU_OUT_0);
+	val |= MISC_REG_AEU_ENABLE4_IGU_OUT_0_GENERAL_ATTN32;
+	qed_wr(p_hwfn, p_hwfn->p_dpc_ptt,
+	       MISC_REG_AEU_ENABLE4_IGU_OUT_0, val);
+
 out:
 	return rc;
 }
@@ -1025,7 +1045,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 		if (!parities)
 			continue;
 
-		for (j = 0, bit_idx = 0; bit_idx < 32; j++) {
+		for (j = 0, bit_idx = 0; bit_idx < 32 && j < 32; j++) {
 			struct aeu_invert_reg_bit *p_bit = &p_aeu->bits[j];
 
 			if (qed_int_is_parity_flag(p_hwfn, p_bit) &&
@@ -1063,7 +1083,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 			 * to current group, making them responsible for the
 			 * previous assertion.
 			 */
-			for (j = 0, bit_idx = 0; bit_idx < 32; j++) {
+			for (j = 0, bit_idx = 0; bit_idx < 32 && j < 32; j++) {
 				long unsigned int bitmask;
 				u8 bit, bit_len;
 
@@ -1362,7 +1382,7 @@ static void qed_int_sb_attn_init(struct qed_hwfn *p_hwfn,
 	memset(sb_info->parity_mask, 0, sizeof(u32) * NUM_ATTN_REGS);
 	for (i = 0; i < NUM_ATTN_REGS; i++) {
 		/* j is array index, k is bit index */
-		for (j = 0, k = 0; k < 32; j++) {
+		for (j = 0, k = 0; k < 32 && j < 32; j++) {
 			struct aeu_invert_reg_bit *p_aeu;
 
 			p_aeu = &aeu_descs[i].bits[j];
@@ -1487,7 +1507,7 @@ static void qed_int_cau_conf_pi(struct qed_hwfn *p_hwfn,
 	else
 		SET_FIELD(prod, CAU_PI_ENTRY_FSM_SEL, 1);
 
-	sb_offset = igu_sb_id * PIS_PER_SB_E4;
+	sb_offset = igu_sb_id * PIS_PER_SB;
 	pi_offset = sb_offset + pi_index;
 
 	if (p_hwfn->hw_init_done)
@@ -2378,4 +2398,26 @@ int qed_int_set_timer_res(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	}
 
 	return rc;
+}
+
+int qed_int_get_sb_dbg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		       struct qed_sb_info *p_sb, struct qed_sb_info_dbg *p_info)
+{
+	u16 sbid = p_sb->igu_sb_id;
+	u32 i;
+
+	if (IS_VF(p_hwfn->cdev))
+		return -EINVAL;
+
+	if (sbid >= NUM_OF_SBS(p_hwfn->cdev))
+		return -EINVAL;
+
+	p_info->igu_prod = qed_rd(p_hwfn, p_ptt, IGU_REG_PRODUCER_MEMORY + sbid * 4);
+	p_info->igu_cons = qed_rd(p_hwfn, p_ptt, IGU_REG_CONSUMER_MEM + sbid * 4);
+
+	for (i = 0; i < PIS_PER_SB; i++)
+		p_info->pi[i] = (u16)qed_rd(p_hwfn, p_ptt,
+					    CAU_REG_PI_MEMORY + sbid * 4 * PIS_PER_SB + i * 4);
+
+	return 0;
 }

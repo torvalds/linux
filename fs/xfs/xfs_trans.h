@@ -8,6 +8,7 @@
 
 /* kernel only transaction subsystem defines */
 
+struct xlog;
 struct xfs_buf;
 struct xfs_buftarg;
 struct xfs_efd_log_item;
@@ -31,7 +32,7 @@ struct xfs_log_item {
 	struct list_head		li_ail;		/* AIL pointers */
 	struct list_head		li_trans;	/* transaction list */
 	xfs_lsn_t			li_lsn;		/* last on-disk lsn */
-	struct xfs_mount		*li_mountp;	/* ptr to fs mount */
+	struct xlog			*li_log;
 	struct xfs_ail			*li_ailp;	/* ptr to AIL */
 	uint				li_type;	/* item type */
 	unsigned long			li_flags;	/* misc flags */
@@ -43,7 +44,7 @@ struct xfs_log_item {
 	struct list_head		li_cil;		/* CIL pointers */
 	struct xfs_log_vec		*li_lv;		/* active log vector */
 	struct xfs_log_vec		*li_lv_shadow;	/* standby vector */
-	xfs_lsn_t			li_seq;		/* CIL commit seq */
+	xfs_csn_t			li_seq;		/* CIL commit seq */
 };
 
 /*
@@ -69,7 +70,7 @@ struct xfs_item_ops {
 	void (*iop_pin)(struct xfs_log_item *);
 	void (*iop_unpin)(struct xfs_log_item *, int remove);
 	uint (*iop_push)(struct xfs_log_item *, struct list_head *);
-	void (*iop_committing)(struct xfs_log_item *, xfs_lsn_t commit_lsn);
+	void (*iop_committing)(struct xfs_log_item *lip, xfs_csn_t seq);
 	void (*iop_release)(struct xfs_log_item *);
 	xfs_lsn_t (*iop_committed)(struct xfs_log_item *, xfs_lsn_t);
 	int (*iop_recover)(struct xfs_log_item *lip,
@@ -113,12 +114,6 @@ void	xfs_log_item_init(struct xfs_mount *mp, struct xfs_log_item *item,
 #define XFS_ITEM_FLUSHING	3
 
 /*
- * Deferred operation item relogging limits.
- */
-#define XFS_DEFER_OPS_NR_INODES	2	/* join up to two inodes */
-#define XFS_DEFER_OPS_NR_BUFS	2	/* join up to two buffers */
-
-/*
  * This is the structure maintained for every active transaction.
  */
 typedef struct xfs_trans {
@@ -140,11 +135,6 @@ typedef struct xfs_trans {
 	int64_t			t_res_fdblocks_delta; /* on-disk only chg */
 	int64_t			t_frextents_delta;/* superblock freextents chg*/
 	int64_t			t_res_frextents_delta; /* on-disk only chg */
-#if defined(DEBUG) || defined(XFS_WARN)
-	int64_t			t_ag_freeblks_delta; /* debugging counter */
-	int64_t			t_ag_flist_delta; /* debugging counter */
-	int64_t			t_ag_btree_delta; /* debugging counter */
-#endif
 	int64_t			t_dblocks_delta;/* superblock dblocks change */
 	int64_t			t_agcount_delta;/* superblock agcount change */
 	int64_t			t_imaxpct_delta;/* superblock imaxpct change */
@@ -164,16 +154,6 @@ typedef struct xfs_trans {
  * actually macros.
  */
 #define	xfs_trans_set_sync(tp)		((tp)->t_flags |= XFS_TRANS_SYNC)
-
-#if defined(DEBUG) || defined(XFS_WARN)
-#define	xfs_trans_agblocks_delta(tp, d)	((tp)->t_ag_freeblks_delta += (int64_t)d)
-#define	xfs_trans_agflist_delta(tp, d)	((tp)->t_ag_flist_delta += (int64_t)d)
-#define	xfs_trans_agbtree_delta(tp, d)	((tp)->t_ag_btree_delta += (int64_t)d)
-#else
-#define	xfs_trans_agblocks_delta(tp, d)
-#define	xfs_trans_agflist_delta(tp, d)
-#define	xfs_trans_agbtree_delta(tp, d)
-#endif
 
 /*
  * XFS transaction mechanism exported interfaces.
@@ -195,7 +175,7 @@ xfs_trans_get_buf(
 	struct xfs_buftarg	*target,
 	xfs_daddr_t		blkno,
 	int			numblks,
-	uint			flags,
+	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp)
 {
 	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
@@ -258,7 +238,7 @@ void		xfs_trans_buf_set_type(struct xfs_trans *, struct xfs_buf *,
 void		xfs_trans_buf_copy_type(struct xfs_buf *dst_bp,
 					struct xfs_buf *src_bp);
 
-extern kmem_zone_t	*xfs_trans_zone;
+extern struct kmem_cache	*xfs_trans_cache;
 
 static inline struct xfs_log_item *
 xfs_trans_item_relog(
@@ -266,6 +246,52 @@ xfs_trans_item_relog(
 	struct xfs_trans	*tp)
 {
 	return lip->li_ops->iop_relog(lip, tp);
+}
+
+struct xfs_dquot;
+
+int xfs_trans_alloc_inode(struct xfs_inode *ip, struct xfs_trans_res *resv,
+		unsigned int dblocks, unsigned int rblocks, bool force,
+		struct xfs_trans **tpp);
+int xfs_trans_alloc_icreate(struct xfs_mount *mp, struct xfs_trans_res *resv,
+		struct xfs_dquot *udqp, struct xfs_dquot *gdqp,
+		struct xfs_dquot *pdqp, unsigned int dblocks,
+		struct xfs_trans **tpp);
+int xfs_trans_alloc_ichange(struct xfs_inode *ip, struct xfs_dquot *udqp,
+		struct xfs_dquot *gdqp, struct xfs_dquot *pdqp, bool force,
+		struct xfs_trans **tpp);
+int xfs_trans_alloc_dir(struct xfs_inode *dp, struct xfs_trans_res *resv,
+		struct xfs_inode *ip, unsigned int *dblocks,
+		struct xfs_trans **tpp, int *nospace_error);
+
+static inline void
+xfs_trans_set_context(
+	struct xfs_trans	*tp)
+{
+	ASSERT(current->journal_info == NULL);
+	tp->t_pflags = memalloc_nofs_save();
+	current->journal_info = tp;
+}
+
+static inline void
+xfs_trans_clear_context(
+	struct xfs_trans	*tp)
+{
+	if (current->journal_info == tp) {
+		memalloc_nofs_restore(tp->t_pflags);
+		current->journal_info = NULL;
+	}
+}
+
+static inline void
+xfs_trans_switch_context(
+	struct xfs_trans	*old_tp,
+	struct xfs_trans	*new_tp)
+{
+	ASSERT(current->journal_info == old_tp);
+	new_tp->t_pflags = old_tp->t_pflags;
+	old_tp->t_pflags = 0;
+	current->journal_info = new_tp;
 }
 
 #endif	/* __XFS_TRANS_H__ */

@@ -1,6 +1,5 @@
+/* SPDX-License-Identifier: MIT */
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2014-2018 Intel Corporation
  */
 
@@ -9,13 +8,14 @@
 
 #include <linux/types.h>
 
-#include "i915_reg.h"
+#include "i915_reg_defs.h"
 
 struct i915_wa {
 	i915_reg_t	reg;
 	u32		clr;
 	u32		set;
 	u32		read;
+	bool		masked_reg;
 };
 
 struct i915_wa_list {

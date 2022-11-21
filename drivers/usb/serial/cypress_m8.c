@@ -115,21 +115,21 @@ struct cypress_private {
 static int  cypress_earthmate_port_probe(struct usb_serial_port *port);
 static int  cypress_hidcom_port_probe(struct usb_serial_port *port);
 static int  cypress_ca42v2_port_probe(struct usb_serial_port *port);
-static int  cypress_port_remove(struct usb_serial_port *port);
+static void cypress_port_remove(struct usb_serial_port *port);
 static int  cypress_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void cypress_close(struct usb_serial_port *port);
 static void cypress_dtr_rts(struct usb_serial_port *port, int on);
 static int  cypress_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
 static void cypress_send(struct usb_serial_port *port);
-static int  cypress_write_room(struct tty_struct *tty);
+static unsigned int cypress_write_room(struct tty_struct *tty);
 static void cypress_earthmate_init_termios(struct tty_struct *tty);
 static void cypress_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static int  cypress_tiocmget(struct tty_struct *tty);
 static int  cypress_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
-static int  cypress_chars_in_buffer(struct tty_struct *tty);
+static unsigned int cypress_chars_in_buffer(struct tty_struct *tty);
 static void cypress_throttle(struct tty_struct *tty);
 static void cypress_unthrottle(struct tty_struct *tty);
 static void cypress_set_dead(struct usb_serial_port *port);
@@ -326,7 +326,7 @@ static int cypress_serial_control(struct tty_struct *tty,
 
 		/* fill the feature_buffer with new configuration */
 		put_unaligned_le32(new_baudrate, feature_buffer);
-		feature_buffer[4] |= data_bits;   /* assign data bits in 2 bit space ( max 3 ) */
+		feature_buffer[4] |= data_bits - 5;   /* assign data bits in 2 bit space ( max 3 ) */
 		/* 1 bit gap */
 		feature_buffer[4] |= (stop_bits << 3);   /* assign stop bits in 1 bit space */
 		feature_buffer[4] |= (parity_enable << 4);   /* assign parity flag in 1 bit space */
@@ -564,7 +564,7 @@ static int cypress_ca42v2_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int cypress_port_remove(struct usb_serial_port *port)
+static void cypress_port_remove(struct usb_serial_port *port)
 {
 	struct cypress_private *priv;
 
@@ -572,8 +572,6 @@ static int cypress_port_remove(struct usb_serial_port *port)
 
 	kfifo_free(&priv->write_fifo);
 	kfree(priv);
-
-	return 0;
 }
 
 static int cypress_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -791,18 +789,18 @@ send:
 
 
 /* returns how much space is available in the soft buffer */
-static int cypress_write_room(struct tty_struct *tty)
+static unsigned int cypress_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
-	int room = 0;
+	unsigned int room;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	room = kfifo_avail(&priv->write_fifo);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	dev_dbg(&port->dev, "%s - returns %d\n", __func__, room);
+	dev_dbg(&port->dev, "%s - returns %u\n", __func__, room);
 	return room;
 }
 
@@ -889,23 +887,8 @@ static void cypress_set_termios(struct tty_struct *tty,
 	} else
 		parity_enable = parity_type = 0;
 
-	switch (cflag & CSIZE) {
-	case CS5:
-		data_bits = 0;
-		break;
-	case CS6:
-		data_bits = 1;
-		break;
-	case CS7:
-		data_bits = 2;
-		break;
-	case CS8:
-		data_bits = 3;
-		break;
-	default:
-		dev_err(dev, "%s - CSIZE was set, but not CS5-CS8\n", __func__);
-		data_bits = 3;
-	}
+	data_bits = tty_get_char_size(cflag);
+
 	spin_lock_irqsave(&priv->lock, flags);
 	oldlines = priv->line_control;
 	if ((cflag & CBAUD) == B0) {
@@ -972,18 +955,18 @@ static void cypress_set_termios(struct tty_struct *tty,
 
 
 /* returns amount of data still left in soft buffer */
-static int cypress_chars_in_buffer(struct tty_struct *tty)
+static unsigned int cypress_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
-	int chars = 0;
+	unsigned int chars;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	chars = kfifo_len(&priv->write_fifo);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	dev_dbg(&port->dev, "%s - returns %d\n", __func__, chars);
+	dev_dbg(&port->dev, "%s - returns %u\n", __func__, chars);
 	return chars;
 }
 
@@ -1216,9 +1199,9 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-module_param(stats, bool, S_IRUGO | S_IWUSR);
+module_param(stats, bool, 0644);
 MODULE_PARM_DESC(stats, "Enable statistics or not");
-module_param(interval, int, S_IRUGO | S_IWUSR);
+module_param(interval, int, 0644);
 MODULE_PARM_DESC(interval, "Overrides interrupt interval");
-module_param(unstable_bauds, bool, S_IRUGO | S_IWUSR);
+module_param(unstable_bauds, bool, 0644);
 MODULE_PARM_DESC(unstable_bauds, "Allow unstable baud rates");

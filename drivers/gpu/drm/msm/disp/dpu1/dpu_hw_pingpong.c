@@ -23,6 +23,7 @@
 #define PP_WR_PTR_IRQ                   0x024
 #define PP_OUT_LINE_COUNT               0x028
 #define PP_LINE_COUNT                   0x02C
+#define PP_AUTOREFRESH_CONFIG           0x030
 
 #define PP_FBC_MODE                     0x034
 #define PP_FBC_BUDGET_CTL               0x038
@@ -118,6 +119,29 @@ static int dpu_hw_pp_setup_te_config(struct dpu_hw_pingpong *pp,
 			(te->start_pos + te->sync_threshold_start + 1));
 
 	return 0;
+}
+
+static void dpu_hw_pp_setup_autorefresh_config(struct dpu_hw_pingpong *pp,
+					       u32 frame_count, bool enable)
+{
+	DPU_REG_WRITE(&pp->hw, PP_AUTOREFRESH_CONFIG,
+		      enable ? (BIT(31) | frame_count) : 0);
+}
+
+/*
+ * dpu_hw_pp_get_autorefresh_config - Get autorefresh config from HW
+ * @pp:          DPU pingpong structure
+ * @frame_count: Used to return the current frame count from hw
+ *
+ * Returns: True if autorefresh enabled, false if disabled.
+ */
+static bool dpu_hw_pp_get_autorefresh_config(struct dpu_hw_pingpong *pp,
+					     u32 *frame_count)
+{
+	u32 val = DPU_REG_READ(&pp->hw, PP_AUTOREFRESH_CONFIG);
+	if (frame_count != NULL)
+		*frame_count = val & 0xffff;
+	return !!((val & BIT(31)) >> 31);
 }
 
 static int dpu_hw_pp_poll_timeout_wr_ptr(struct dpu_hw_pingpong *pp,
@@ -228,14 +252,14 @@ static void _setup_pingpong_ops(struct dpu_hw_pingpong *c,
 	c->ops.enable_tearcheck = dpu_hw_pp_enable_te;
 	c->ops.connect_external_te = dpu_hw_pp_connect_external_te;
 	c->ops.get_vsync_info = dpu_hw_pp_get_vsync_info;
+	c->ops.setup_autorefresh = dpu_hw_pp_setup_autorefresh_config;
+	c->ops.get_autorefresh = dpu_hw_pp_get_autorefresh_config;
 	c->ops.poll_timeout_wr_ptr = dpu_hw_pp_poll_timeout_wr_ptr;
 	c->ops.get_line_count = dpu_hw_pp_get_line_count;
 
 	if (test_bit(DPU_PINGPONG_DITHER, &features))
 		c->ops.setup_dither = dpu_hw_pp_setup_dither;
 };
-
-static struct dpu_hw_blk_ops dpu_hw_ops;
 
 struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 		void __iomem *addr,
@@ -258,14 +282,10 @@ struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 	c->caps = cfg;
 	_setup_pingpong_ops(c, c->caps->features);
 
-	dpu_hw_blk_init(&c->base, DPU_HW_BLK_PINGPONG, idx, &dpu_hw_ops);
-
 	return c;
 }
 
 void dpu_hw_pingpong_destroy(struct dpu_hw_pingpong *pp)
 {
-	if (pp)
-		dpu_hw_blk_destroy(&pp->base);
 	kfree(pp);
 }

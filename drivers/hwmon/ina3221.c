@@ -139,7 +139,7 @@ static inline bool ina3221_is_enabled(struct ina3221_data *ina, int channel)
 	       (ina->reg_config & INA3221_CONFIG_CHx_EN(channel));
 }
 
-/**
+/*
  * Helper function to return the resistor value for current summation.
  *
  * There is a condition to calculate current summation -- all the shunt
@@ -196,13 +196,11 @@ static inline u32 ina3221_reg_to_interval_us(u16 config)
 	u32 channels = hweight16(config & INA3221_CONFIG_CHs_EN_MASK);
 	u32 vbus_ct_idx = INA3221_CONFIG_VBUS_CT(config);
 	u32 vsh_ct_idx = INA3221_CONFIG_VSH_CT(config);
-	u32 samples_idx = INA3221_CONFIG_AVG(config);
-	u32 samples = ina3221_avg_samples[samples_idx];
 	u32 vbus_ct = ina3221_conv_time[vbus_ct_idx];
 	u32 vsh_ct = ina3221_conv_time[vsh_ct_idx];
 
 	/* Calculate total conversion time */
-	return channels * (vbus_ct + vsh_ct) * samples;
+	return channels * (vbus_ct + vsh_ct);
 }
 
 static inline int ina3221_wait_for_data(struct ina3221_data *ina)
@@ -288,13 +286,14 @@ static int ina3221_read_in(struct device *dev, u32 attr, int channel, long *val)
 			return -ENODATA;
 
 		/* Write CONFIG register to trigger a single-shot measurement */
-		if (ina->single_shot)
+		if (ina->single_shot) {
 			regmap_write(ina->regmap, INA3221_CONFIG,
 				     ina->reg_config);
 
-		ret = ina3221_wait_for_data(ina);
-		if (ret)
-			return ret;
+			ret = ina3221_wait_for_data(ina);
+			if (ret)
+				return ret;
+		}
 
 		ret = ina3221_read_value(ina, reg, &regval);
 		if (ret)
@@ -344,13 +343,14 @@ static int ina3221_read_curr(struct device *dev, u32 attr,
 			return -ENODATA;
 
 		/* Write CONFIG register to trigger a single-shot measurement */
-		if (ina->single_shot)
+		if (ina->single_shot) {
 			regmap_write(ina->regmap, INA3221_CONFIG,
 				     ina->reg_config);
 
-		ret = ina3221_wait_for_data(ina);
-		if (ret)
-			return ret;
+			ret = ina3221_wait_for_data(ina);
+			if (ret)
+				return ret;
+		}
 
 		fallthrough;
 	case hwmon_curr_crit:
@@ -489,7 +489,7 @@ static int ina3221_write_enable(struct device *dev, int channel, bool enable)
 
 	/* For enabling routine, increase refcount and resume() at first */
 	if (enable) {
-		ret = pm_runtime_get_sync(ina->pm_dev);
+		ret = pm_runtime_resume_and_get(ina->pm_dev);
 		if (ret < 0) {
 			dev_err(dev, "Failed to get PM runtime\n");
 			return ret;
@@ -698,7 +698,7 @@ static ssize_t ina3221_shunt_show(struct device *dev,
 	unsigned int channel = sd_attr->index;
 	struct ina3221_input *input = &ina->inputs[channel];
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", input->shunt_resistor);
+	return sysfs_emit(buf, "%d\n", input->shunt_resistor);
 }
 
 static ssize_t ina3221_shunt_store(struct device *dev,

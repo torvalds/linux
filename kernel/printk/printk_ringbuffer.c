@@ -474,8 +474,10 @@ static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 	 * state has been re-checked. A memcpy() for all of @desc
 	 * cannot be used because of the atomic_t @state_var field.
 	 */
-	memcpy(&desc_out->text_blk_lpos, &desc->text_blk_lpos,
-	       sizeof(desc_out->text_blk_lpos)); /* LMM(desc_read:C) */
+	if (desc_out) {
+		memcpy(&desc_out->text_blk_lpos, &desc->text_blk_lpos,
+		       sizeof(desc_out->text_blk_lpos)); /* LMM(desc_read:C) */
+	}
 	if (seq_out)
 		*seq_out = info->seq; /* also part of desc_read:C */
 	if (caller_id_out)
@@ -528,7 +530,8 @@ static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 	state_val = atomic_long_read(state_var); /* LMM(desc_read:E) */
 	d_state = get_desc_state(id, state_val);
 out:
-	atomic_long_set(&desc_out->state_var, state_val);
+	if (desc_out)
+		atomic_long_set(&desc_out->state_var, state_val);
 	return d_state;
 }
 
@@ -559,11 +562,12 @@ static void desc_make_reusable(struct prb_desc_ring *desc_ring,
  * on error the caller can re-load the tail lpos to determine the situation.
  */
 static bool data_make_reusable(struct printk_ringbuffer *rb,
-			       struct prb_data_ring *data_ring,
 			       unsigned long lpos_begin,
 			       unsigned long lpos_end,
 			       unsigned long *lpos_out)
 {
+
+	struct prb_data_ring *data_ring = &rb->text_data_ring;
 	struct prb_desc_ring *desc_ring = &rb->desc_ring;
 	struct prb_data_block *blk;
 	enum desc_state d_state;
@@ -625,10 +629,9 @@ static bool data_make_reusable(struct printk_ringbuffer *rb,
  * descriptors into the reusable state if the tail is pushed beyond
  * their associated data block.
  */
-static bool data_push_tail(struct printk_ringbuffer *rb,
-			   struct prb_data_ring *data_ring,
-			   unsigned long lpos)
+static bool data_push_tail(struct printk_ringbuffer *rb, unsigned long lpos)
 {
+	struct prb_data_ring *data_ring = &rb->text_data_ring;
 	unsigned long tail_lpos_new;
 	unsigned long tail_lpos;
 	unsigned long next_lpos;
@@ -669,8 +672,7 @@ static bool data_push_tail(struct printk_ringbuffer *rb,
 		 * Make all descriptors reusable that are associated with
 		 * data blocks before @lpos.
 		 */
-		if (!data_make_reusable(rb, data_ring, tail_lpos, lpos,
-					&next_lpos)) {
+		if (!data_make_reusable(rb, tail_lpos, lpos, &next_lpos)) {
 			/*
 			 * 1. Guarantee the block ID loaded in
 			 *    data_make_reusable() is performed before
@@ -807,7 +809,7 @@ static bool desc_push_tail(struct printk_ringbuffer *rb,
 	 * data blocks once their associated descriptor is gone.
 	 */
 
-	if (!data_push_tail(rb, &rb->text_data_ring, desc.text_blk_lpos.next))
+	if (!data_push_tail(rb, desc.text_blk_lpos.next))
 		return false;
 
 	/*
@@ -1019,10 +1021,10 @@ static unsigned long get_next_lpos(struct prb_data_ring *data_ring,
  * if necessary. This function also associates the data block with
  * a specified descriptor.
  */
-static char *data_alloc(struct printk_ringbuffer *rb,
-			struct prb_data_ring *data_ring, unsigned int size,
+static char *data_alloc(struct printk_ringbuffer *rb, unsigned int size,
 			struct prb_data_blk_lpos *blk_lpos, unsigned long id)
 {
+	struct prb_data_ring *data_ring = &rb->text_data_ring;
 	struct prb_data_block *blk;
 	unsigned long begin_lpos;
 	unsigned long next_lpos;
@@ -1041,7 +1043,7 @@ static char *data_alloc(struct printk_ringbuffer *rb,
 	do {
 		next_lpos = get_next_lpos(data_ring, begin_lpos, size);
 
-		if (!data_push_tail(rb, data_ring, next_lpos - DATA_SIZE(data_ring))) {
+		if (!data_push_tail(rb, next_lpos - DATA_SIZE(data_ring))) {
 			/* Failed to allocate, specify a data-less block. */
 			blk_lpos->begin = FAILED_LPOS;
 			blk_lpos->next = FAILED_LPOS;
@@ -1100,10 +1102,10 @@ static char *data_alloc(struct printk_ringbuffer *rb,
  * Return a pointer to the beginning of the entire data buffer or NULL on
  * failure.
  */
-static char *data_realloc(struct printk_ringbuffer *rb,
-			  struct prb_data_ring *data_ring, unsigned int size,
+static char *data_realloc(struct printk_ringbuffer *rb, unsigned int size,
 			  struct prb_data_blk_lpos *blk_lpos, unsigned long id)
 {
+	struct prb_data_ring *data_ring = &rb->text_data_ring;
 	struct prb_data_block *blk;
 	unsigned long head_lpos;
 	unsigned long next_lpos;
@@ -1130,7 +1132,7 @@ static char *data_realloc(struct printk_ringbuffer *rb,
 		return &blk->data[0];
 	}
 
-	if (!data_push_tail(rb, data_ring, next_lpos - DATA_SIZE(data_ring)))
+	if (!data_push_tail(rb, next_lpos - DATA_SIZE(data_ring)))
 		return NULL;
 
 	/* The memory barrier involvement is the same as data_alloc:A. */
@@ -1395,7 +1397,7 @@ bool prb_reserve_in_last(struct prb_reserved_entry *e, struct printk_ringbuffer 
 		if (r->text_buf_size > max_size)
 			goto fail;
 
-		r->text_buf = data_alloc(rb, &rb->text_data_ring, r->text_buf_size,
+		r->text_buf = data_alloc(rb, r->text_buf_size,
 					 &d->text_blk_lpos, id);
 	} else {
 		if (!get_data(&rb->text_data_ring, &d->text_blk_lpos, &data_size))
@@ -1419,7 +1421,7 @@ bool prb_reserve_in_last(struct prb_reserved_entry *e, struct printk_ringbuffer 
 		if (r->text_buf_size > max_size)
 			goto fail;
 
-		r->text_buf = data_realloc(rb, &rb->text_data_ring, r->text_buf_size,
+		r->text_buf = data_realloc(rb, r->text_buf_size,
 					   &d->text_blk_lpos, id);
 	}
 	if (r->text_buf_size && !r->text_buf)
@@ -1450,6 +1452,9 @@ static void desc_make_final(struct prb_desc_ring *desc_ring, unsigned long id)
 
 	atomic_long_cmpxchg_relaxed(&d->state_var, prev_state_val,
 			DESC_SV(id, desc_finalized)); /* LMM(desc_make_final:A) */
+
+	/* Best effort to remember the last finalized @id. */
+	atomic_long_set(&desc_ring->last_finalized_id, id);
 }
 
 /**
@@ -1547,8 +1552,7 @@ bool prb_reserve(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
 	if (info->seq > 0)
 		desc_make_final(desc_ring, DESC_ID(id - 1));
 
-	r->text_buf = data_alloc(rb, &rb->text_data_ring, r->text_buf_size,
-				 &d->text_blk_lpos, id);
+	r->text_buf = data_alloc(rb, r->text_buf_size, &d->text_blk_lpos, id);
 	/* If text data allocation fails, a data-less record is committed. */
 	if (r->text_buf_size && !r->text_buf) {
 		prb_commit(e);
@@ -1659,7 +1663,12 @@ void prb_commit(struct prb_reserved_entry *e)
  */
 void prb_final_commit(struct prb_reserved_entry *e)
 {
+	struct prb_desc_ring *desc_ring = &e->rb->desc_ring;
+
 	_prb_commit(e, desc_finalized);
+
+	/* Best effort to remember the last finalized @id. */
+	atomic_long_set(&desc_ring->last_finalized_id, e->id);
 }
 
 /*
@@ -1720,7 +1729,7 @@ static bool copy_data(struct prb_data_ring *data_ring,
 
 	/* Caller interested in the line count? */
 	if (line_count)
-		*line_count = count_lines(data, data_size);
+		*line_count = count_lines(data, len);
 
 	/* Caller interested in the data content? */
 	if (!buf || !buf_size)
@@ -2007,9 +2016,39 @@ u64 prb_first_valid_seq(struct printk_ringbuffer *rb)
  */
 u64 prb_next_seq(struct printk_ringbuffer *rb)
 {
-	u64 seq = 0;
+	struct prb_desc_ring *desc_ring = &rb->desc_ring;
+	enum desc_state d_state;
+	unsigned long id;
+	u64 seq;
 
-	/* Search forward from the oldest descriptor. */
+	/* Check if the cached @id still points to a valid @seq. */
+	id = atomic_long_read(&desc_ring->last_finalized_id);
+	d_state = desc_read(desc_ring, id, NULL, &seq, NULL);
+
+	if (d_state == desc_finalized || d_state == desc_reusable) {
+		/*
+		 * Begin searching after the last finalized record.
+		 *
+		 * On 0, the search must begin at 0 because of hack#2
+		 * of the bootstrapping phase it is not known if a
+		 * record at index 0 exists.
+		 */
+		if (seq != 0)
+			seq++;
+	} else {
+		/*
+		 * The information about the last finalized sequence number
+		 * has gone. It should happen only when there is a flood of
+		 * new messages and the ringbuffer is rapidly recycled.
+		 * Give up and start from the beginning.
+		 */
+		seq = 0;
+	}
+
+	/*
+	 * The information about the last finalized @seq might be inaccurate.
+	 * Search forward to find the current one.
+	 */
 	while (_prb_read_valid(rb, &seq, NULL, NULL))
 		seq++;
 
@@ -2046,6 +2085,7 @@ void prb_init(struct printk_ringbuffer *rb,
 	rb->desc_ring.infos = infos;
 	atomic_long_set(&rb->desc_ring.head_id, DESC0_ID(descbits));
 	atomic_long_set(&rb->desc_ring.tail_id, DESC0_ID(descbits));
+	atomic_long_set(&rb->desc_ring.last_finalized_id, DESC0_ID(descbits));
 
 	rb->text_data_ring.size_bits = textbits;
 	rb->text_data_ring.data = text_buf;

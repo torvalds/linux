@@ -46,6 +46,9 @@ struct dpio_rsp_get_attr {
 	__le64 qbman_portal_ci_addr;
 	/* cmd word 3 */
 	__le32 qbman_version;
+	__le32 pad1;
+	/* cmd word 4 */
+	__le32 clk;
 };
 
 struct dpio_stashing_dest {

@@ -144,8 +144,6 @@ static void __init pas_setup_arch(void)
 	/* Setup SMP callback */
 	smp_ops = &pas_smp_ops;
 #endif
-	/* Lookup PCI hosts */
-	pas_pci_init();
 
 	/* Remap SDC register for doing reset */
 	/* XXXOJN This should maybe come out of the device tree */
@@ -214,7 +212,7 @@ static void sb600_8259_cascade(struct irq_desc *desc)
 	chip->irq_eoi(&desc->irq_data);
 }
 
-static void nemo_init_IRQ(struct mpic *mpic)
+static void __init nemo_init_IRQ(struct mpic *mpic)
 {
 	struct device_node *np;
 	int gpio_virq;
@@ -446,6 +444,7 @@ define_machine(pasemi) {
 	.name			= "PA Semi PWRficient",
 	.probe			= pas_probe,
 	.setup_arch		= pas_setup_arch,
+	.discover_phbs		= pas_pci_init,
 	.init_IRQ		= pas_init_IRQ,
 	.get_irq		= mpic_get_irq,
 	.restart		= pas_restart,

@@ -44,7 +44,7 @@ END_BTB_FLUSH_SECTION
 #endif
 
 
-#define NORMAL_EXCEPTION_PROLOG(intno)						     \
+#define NORMAL_EXCEPTION_PROLOG(trapno, intno)						     \
 	mtspr	SPRN_SPRG_WSCRATCH0, r10;	/* save one register */	     \
 	mfspr	r10, SPRN_SPRG_THREAD;					     \
 	stw	r11, THREAD_NORMSAVE(0)(r10);				     \
@@ -53,6 +53,8 @@ END_BTB_FLUSH_SECTION
 	mfspr	r11, SPRN_SRR1;		                                     \
 	DO_KVM	BOOKE_INTERRUPT_##intno SPRN_SRR1;			     \
 	andi.	r11, r11, MSR_PR;	/* check whether user or kernel    */\
+	LOAD_REG_IMMEDIATE(r11, MSR_KERNEL);				\
+	mtmsr	r11;							\
 	mr	r11, r1;						     \
 	beq	1f;							     \
 	BOOKE_CLEAR_BTB(r11)						\
@@ -76,12 +78,38 @@ END_BTB_FLUSH_SECTION
 	stw	r1, 0(r11);						     \
 	mr	r1, r11;						     \
 	rlwinm	r9,r9,0,14,12;		/* clear MSR_WE (necessary?)	   */\
-	stw	r0,GPR0(r11);						     \
-	lis	r10, STACK_FRAME_REGS_MARKER@ha;/* exception frame marker */ \
-	addi	r10, r10, STACK_FRAME_REGS_MARKER@l;			     \
-	stw	r10, 8(r11);						     \
-	SAVE_4GPRS(3, r11);						     \
-	SAVE_2GPRS(7, r11)
+	COMMON_EXCEPTION_PROLOG_END trapno
+
+.macro COMMON_EXCEPTION_PROLOG_END trapno
+	stw	r0,GPR0(r1)
+	lis	r10, STACK_FRAME_REGS_MARKER@ha	/* exception frame marker */
+	addi	r10, r10, STACK_FRAME_REGS_MARKER@l
+	stw	r10, 8(r1)
+	li	r10, \trapno
+	stw	r10,_TRAP(r1)
+	SAVE_GPRS(3, 8, r1)
+	SAVE_NVGPRS(r1)
+	stw	r2,GPR2(r1)
+	stw	r12,_NIP(r1)
+	stw	r9,_MSR(r1)
+	mfctr	r10
+	mfspr	r2,SPRN_SPRG_THREAD
+	stw	r10,_CTR(r1)
+	tovirt(r2, r2)
+	mfspr	r10,SPRN_XER
+	addi	r2, r2, -THREAD
+	stw	r10,_XER(r1)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+.endm
+
+.macro prepare_transfer_to_handler
+#ifdef CONFIG_E500
+	andi.	r12,r9,MSR_PR
+	bne	777f
+	bl	prepare_transfer_to_handler
+777:
+#endif
+.endm
 
 .macro SYSCALL_ENTRY trapno intno srr1
 	mfspr	r10, SPRN_SPRG_THREAD
@@ -99,85 +127,21 @@ BEGIN_FTR_SECTION
 	mr	r12, r13
 	lwz	r13, THREAD_NORMSAVE(2)(r10)
 FTR_SECTION_ELSE
-#endif
 	mfcr	r12
-#ifdef CONFIG_KVM_BOOKE_HV
 ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
+#else
+	mfcr	r12
 #endif
 	mfspr	r9, SPRN_SRR1
 	BOOKE_CLEAR_BTB(r11)
-	andi.	r11, r9, MSR_PR
-	lwz	r11, TASK_STACK - THREAD(r10)
+	mr	r11, r1
+	lwz	r1, TASK_STACK - THREAD(r10)
 	rlwinm	r12,r12,0,4,2	/* Clear SO bit in CR */
-	beq-	99f
-	ALLOC_STACK_FRAME(r11, THREAD_SIZE - INT_FRAME_SIZE)
-	stw	r12, _CCR(r11)		/* save various registers */
-	mflr	r12
-	stw	r12,_LINK(r11)
+	ALLOC_STACK_FRAME(r1, THREAD_SIZE - INT_FRAME_SIZE)
+	stw	r12, _CCR(r1)
 	mfspr	r12,SPRN_SRR0
-	stw	r1, GPR1(r11)
-	stw	r1, 0(r11)
-	mr	r1, r11
-	stw	r12,_NIP(r11)
-	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?)	   */
-	lis	r12, STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
-	stw	r2,GPR2(r11)
-	addi	r12, r12, STACK_FRAME_REGS_MARKER@l
-	stw	r9,_MSR(r11)
-	li	r2, \trapno + 1
-	stw	r12, 8(r11)
-	stw	r2,_TRAP(r11)
-	SAVE_GPR(0, r11)
-	SAVE_4GPRS(3, r11)
-	SAVE_2GPRS(7, r11)
-
-	addi	r11,r1,STACK_FRAME_OVERHEAD
-	addi	r2,r10,-THREAD
-	stw	r11,PT_REGS(r10)
-	/* Check to see if the dbcr0 register is set up to debug.  Use the
-	   internal debug mode bit to do this. */
-	lwz	r12,THREAD_DBCR0(r10)
-	andis.	r12,r12,DBCR0_IDM@h
-	ACCOUNT_CPU_USER_ENTRY(r2, r11, r12)
-	beq+	3f
-	/* From user and task is ptraced - load up global dbcr0 */
-	li	r12,-1			/* clear all pending debug events */
-	mtspr	SPRN_DBSR,r12
-	lis	r11,global_dbcr0@ha
-	tophys(r11,r11)
-	addi	r11,r11,global_dbcr0@l
-#ifdef CONFIG_SMP
-	lwz	r10, TASK_CPU(r2)
-	slwi	r10, r10, 3
-	add	r11, r11, r10
-#endif
-	lwz	r12,0(r11)
-	mtspr	SPRN_DBCR0,r12
-	lwz	r12,4(r11)
-	addi	r12,r12,-1
-	stw	r12,4(r11)
-
-3:
-	tovirt(r2, r2)			/* set r2 to current */
-	lis	r11, transfer_to_syscall@h
-	ori	r11, r11, transfer_to_syscall@l
-#ifdef CONFIG_TRACE_IRQFLAGS
-	/*
-	 * If MSR is changing we need to keep interrupts disabled at this point
-	 * otherwise we might risk taking an interrupt before we tell lockdep
-	 * they are enabled.
-	 */
-	lis	r10, MSR_KERNEL@h
-	ori	r10, r10, MSR_KERNEL@l
-	rlwimi	r10, r9, 0, MSR_EE
-#else
-	lis	r10, (MSR_KERNEL | MSR_EE)@h
-	ori	r10, r10, (MSR_KERNEL | MSR_EE)@l
-#endif
-	mtspr	SPRN_SRR1,r10
-	mtspr	SPRN_SRR0,r11
-	RFI				/* jump to handler, enable MMU */
-99:	b	ret_from_kernel_syscall
+	stw	r12,_NIP(r1)
+	b	transfer_to_syscall	/* jump to handler */
 .endm
 
 /* To handle the additional exception priority levels on 40x and Book-E
@@ -185,7 +149,6 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
  *
  * On 40x critical is the only additional level
  * On 44x/e500 we have critical and machine check
- * On e200 we have critical and debug (machine check occurs via critical)
  *
  * Additionally we reserve a SPRG for each priority level so we can free up a
  * GPR to use as the base for indirect access to the exception stacks.  This
@@ -201,10 +164,8 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 #define MC_STACK_BASE		mcheckirq_ctx
 #define CRIT_STACK_BASE		critirq_ctx
 
-/* only on e500mc/e200 */
+/* only on e500mc */
 #define DBG_STACK_BASE		dbgirq_ctx
-
-#define EXC_LVL_FRAME_OVERHEAD	(THREAD_SIZE - INT_FRAME_SIZE - EXC_LVL_SIZE)
 
 #ifdef CONFIG_SMP
 #define BOOKE_LOAD_EXC_LEVEL_STACK(level)		\
@@ -212,12 +173,12 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	slwi	r8,r8,2;				\
 	addis	r8,r8,level##_STACK_BASE@ha;		\
 	lwz	r8,level##_STACK_BASE@l(r8);		\
-	addi	r8,r8,EXC_LVL_FRAME_OVERHEAD;
+	addi	r8,r8,THREAD_SIZE - INT_FRAME_SIZE;
 #else
 #define BOOKE_LOAD_EXC_LEVEL_STACK(level)		\
 	lis	r8,level##_STACK_BASE@ha;		\
 	lwz	r8,level##_STACK_BASE@l(r8);		\
-	addi	r8,r8,EXC_LVL_FRAME_OVERHEAD;
+	addi	r8,r8,THREAD_SIZE - INT_FRAME_SIZE;
 #endif
 
 /*
@@ -228,7 +189,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
  * registers as the normal prolog above. Instead we use a portion of the
  * critical/machine check exception stack at low physical addresses.
  */
-#define EXC_LEVEL_EXCEPTION_PROLOG(exc_level, intno, exc_level_srr0, exc_level_srr1) \
+#define EXC_LEVEL_EXCEPTION_PROLOG(exc_level, trapno, intno, exc_level_srr0, exc_level_srr1) \
 	mtspr	SPRN_SPRG_WSCRATCH_##exc_level,r8;			     \
 	BOOKE_LOAD_EXC_LEVEL_STACK(exc_level);/* r8 points to the exc_level stack*/ \
 	stw	r9,GPR9(r8);		/* save various registers	   */\
@@ -240,9 +201,11 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	DO_KVM	BOOKE_INTERRUPT_##intno exc_level_srr1;		             \
 	BOOKE_CLEAR_BTB(r10)						\
 	andi.	r11,r11,MSR_PR;						     \
+	LOAD_REG_IMMEDIATE(r11, MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE));	\
+	mtmsr	r11;							\
 	mfspr	r11,SPRN_SPRG_THREAD;	/* if from user, start at top of   */\
 	lwz	r11, TASK_STACK - THREAD(r11); /* this thread's kernel stack */\
-	addi	r11,r11,EXC_LVL_FRAME_OVERHEAD;	/* allocate stack frame    */\
+	addi	r11,r11,THREAD_SIZE - INT_FRAME_SIZE;	/* allocate stack frame    */\
 	beq	1f;							     \
 	/* COMING FROM USER MODE */					     \
 	stw	r9,_CCR(r11);		/* save CR			   */\
@@ -269,16 +232,44 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	stw	r1,0(r11);						     \
 	mr	r1,r11;							     \
 	rlwinm	r9,r9,0,14,12;		/* clear MSR_WE (necessary?)	   */\
-	stw	r0,GPR0(r11);						     \
-	SAVE_4GPRS(3, r11);						     \
-	SAVE_2GPRS(7, r11)
+	COMMON_EXCEPTION_PROLOG_END trapno
 
-#define CRITICAL_EXCEPTION_PROLOG(intno) \
-		EXC_LEVEL_EXCEPTION_PROLOG(CRIT, intno, SPRN_CSRR0, SPRN_CSRR1)
-#define DEBUG_EXCEPTION_PROLOG \
-		EXC_LEVEL_EXCEPTION_PROLOG(DBG, DEBUG, SPRN_DSRR0, SPRN_DSRR1)
-#define MCHECK_EXCEPTION_PROLOG \
-		EXC_LEVEL_EXCEPTION_PROLOG(MC, MACHINE_CHECK, \
+#define SAVE_xSRR(xSRR)			\
+	mfspr	r0,SPRN_##xSRR##0;	\
+	stw	r0,_##xSRR##0(r1);	\
+	mfspr	r0,SPRN_##xSRR##1;	\
+	stw	r0,_##xSRR##1(r1)
+
+
+.macro SAVE_MMU_REGS
+#ifdef CONFIG_PPC_BOOK3E_MMU
+	mfspr	r0,SPRN_MAS0
+	stw	r0,MAS0(r1)
+	mfspr	r0,SPRN_MAS1
+	stw	r0,MAS1(r1)
+	mfspr	r0,SPRN_MAS2
+	stw	r0,MAS2(r1)
+	mfspr	r0,SPRN_MAS3
+	stw	r0,MAS3(r1)
+	mfspr	r0,SPRN_MAS6
+	stw	r0,MAS6(r1)
+#ifdef CONFIG_PHYS_64BIT
+	mfspr	r0,SPRN_MAS7
+	stw	r0,MAS7(r1)
+#endif /* CONFIG_PHYS_64BIT */
+#endif /* CONFIG_PPC_BOOK3E_MMU */
+#ifdef CONFIG_44x
+	mfspr	r0,SPRN_MMUCR
+	stw	r0,MMUCR(r1)
+#endif
+.endm
+
+#define CRITICAL_EXCEPTION_PROLOG(trapno, intno) \
+		EXC_LEVEL_EXCEPTION_PROLOG(CRIT, trapno+2, intno, SPRN_CSRR0, SPRN_CSRR1)
+#define DEBUG_EXCEPTION_PROLOG(trapno) \
+		EXC_LEVEL_EXCEPTION_PROLOG(DBG, trapno+8, DEBUG, SPRN_DSRR0, SPRN_DSRR1)
+#define MCHECK_EXCEPTION_PROLOG(trapno) \
+		EXC_LEVEL_EXCEPTION_PROLOG(MC, trapno+4, MACHINE_CHECK, \
 			SPRN_MCSRR0, SPRN_MCSRR1)
 
 /*
@@ -305,44 +296,34 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
         .align 5;              						     \
 label:
 
-#define EXCEPTION(n, intno, label, hdlr, xfer)			\
+#define EXCEPTION(n, intno, label, hdlr)			\
 	START_EXCEPTION(label);					\
-	NORMAL_EXCEPTION_PROLOG(intno);				\
-	addi	r3,r1,STACK_FRAME_OVERHEAD;			\
-	xfer(n, hdlr)
+	NORMAL_EXCEPTION_PROLOG(n, intno);			\
+	prepare_transfer_to_handler;				\
+	bl	hdlr;						\
+	b	interrupt_return
 
 #define CRITICAL_EXCEPTION(n, intno, label, hdlr)			\
 	START_EXCEPTION(label);						\
-	CRITICAL_EXCEPTION_PROLOG(intno);				\
-	addi	r3,r1,STACK_FRAME_OVERHEAD;				\
-	EXC_XFER_TEMPLATE(hdlr, n+2, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), \
-			  crit_transfer_to_handler, ret_from_crit_exc)
+	CRITICAL_EXCEPTION_PROLOG(n, intno);				\
+	SAVE_MMU_REGS;							\
+	SAVE_xSRR(SRR);							\
+	prepare_transfer_to_handler;					\
+	bl	hdlr;							\
+	b	ret_from_crit_exc
 
 #define MCHECK_EXCEPTION(n, label, hdlr)			\
 	START_EXCEPTION(label);					\
-	MCHECK_EXCEPTION_PROLOG;				\
+	MCHECK_EXCEPTION_PROLOG(n);				\
 	mfspr	r5,SPRN_ESR;					\
 	stw	r5,_ESR(r11);					\
-	addi	r3,r1,STACK_FRAME_OVERHEAD;			\
-	EXC_XFER_TEMPLATE(hdlr, n+4, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), \
-			  mcheck_transfer_to_handler, ret_from_mcheck_exc)
-
-#define EXC_XFER_TEMPLATE(hdlr, trap, msr, tfer, ret)	\
-	li	r10,trap;					\
-	stw	r10,_TRAP(r11);					\
-	lis	r10,msr@h;					\
-	ori	r10,r10,msr@l;					\
-	bl	tfer;		 				\
-	.long	hdlr;						\
-	.long	ret
-
-#define EXC_XFER_STD(n, hdlr)		\
-	EXC_XFER_TEMPLATE(hdlr, n, MSR_KERNEL, transfer_to_handler_full, \
-			  ret_from_except_full)
-
-#define EXC_XFER_LITE(n, hdlr)		\
-	EXC_XFER_TEMPLATE(hdlr, n+1, MSR_KERNEL, transfer_to_handler, \
-			  ret_from_except)
+	SAVE_xSRR(DSRR);					\
+	SAVE_xSRR(CSRR);					\
+	SAVE_MMU_REGS;						\
+	SAVE_xSRR(SRR);						\
+	prepare_transfer_to_handler;				\
+	bl	hdlr;						\
+	b	ret_from_mcheck_exc
 
 /* Check for a single step debug exception while in an exception
  * handler before state has been saved.  This is to catch the case
@@ -359,7 +340,7 @@ label:
  */
 #define DEBUG_DEBUG_EXCEPTION						      \
 	START_EXCEPTION(DebugDebug);					      \
-	DEBUG_EXCEPTION_PROLOG;						      \
+	DEBUG_EXCEPTION_PROLOG(2000);						      \
 									      \
 	/*								      \
 	 * If there is a single step or branch-taken exception in an	      \
@@ -407,12 +388,17 @@ label:
 									      \
 	/* continue normal handling for a debug exception... */		      \
 2:	mfspr	r4,SPRN_DBSR;						      \
-	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
-	EXC_XFER_TEMPLATE(DebugException, 0x2008, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), debug_transfer_to_handler, ret_from_debug_exc)
+	stw	r4,_ESR(r11);		/* DebugException takes DBSR in _ESR */\
+	SAVE_xSRR(CSRR);						      \
+	SAVE_MMU_REGS;							      \
+	SAVE_xSRR(SRR);							      \
+	prepare_transfer_to_handler;				      \
+	bl	DebugException;						      \
+	b	ret_from_debug_exc
 
 #define DEBUG_CRIT_EXCEPTION						      \
 	START_EXCEPTION(DebugCrit);					      \
-	CRITICAL_EXCEPTION_PROLOG(DEBUG);				      \
+	CRITICAL_EXCEPTION_PROLOG(2000,DEBUG);				      \
 									      \
 	/*								      \
 	 * If there is a single step or branch-taken exception in an	      \
@@ -460,80 +446,81 @@ label:
 									      \
 	/* continue normal handling for a critical exception... */	      \
 2:	mfspr	r4,SPRN_DBSR;						      \
-	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
-	EXC_XFER_TEMPLATE(DebugException, 0x2002, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), crit_transfer_to_handler, ret_from_crit_exc)
+	stw	r4,_ESR(r11);		/* DebugException takes DBSR in _ESR */\
+	SAVE_MMU_REGS;							      \
+	SAVE_xSRR(SRR);							      \
+	prepare_transfer_to_handler;					      \
+	bl	DebugException;						      \
+	b	ret_from_crit_exc
 
 #define DATA_STORAGE_EXCEPTION						      \
 	START_EXCEPTION(DataStorage)					      \
-	NORMAL_EXCEPTION_PROLOG(DATA_STORAGE);		      \
+	NORMAL_EXCEPTION_PROLOG(0x300, DATA_STORAGE);		      \
 	mfspr	r5,SPRN_ESR;		/* Grab the ESR and save it */	      \
 	stw	r5,_ESR(r11);						      \
 	mfspr	r4,SPRN_DEAR;		/* Grab the DEAR */		      \
 	stw	r4, _DEAR(r11);						      \
-	EXC_XFER_LITE(0x0300, handle_page_fault)
+	prepare_transfer_to_handler;					      \
+	bl	do_page_fault;						      \
+	b	interrupt_return
 
+/*
+ * Instruction TLB Error interrupt handlers may call InstructionStorage
+ * directly without clearing ESR, so the ESR at this point may be left over
+ * from a prior interrupt.
+ *
+ * In any case, do_page_fault for BOOK3E does not use ESR and always expects
+ * dsisr to be 0. ESR_DST from a prior store in particular would confuse fault
+ * handling.
+ */
 #define INSTRUCTION_STORAGE_EXCEPTION					      \
 	START_EXCEPTION(InstructionStorage)				      \
-	NORMAL_EXCEPTION_PROLOG(INST_STORAGE);		      \
-	mfspr	r5,SPRN_ESR;		/* Grab the ESR and save it */	      \
+	NORMAL_EXCEPTION_PROLOG(0x400, INST_STORAGE);			      \
+	li	r5,0;			/* Store 0 in regs->esr (dsisr) */    \
 	stw	r5,_ESR(r11);						      \
-	mr      r4,r12;                 /* Pass SRR0 as arg2 */		      \
-	stw	r4, _DEAR(r11);						      \
-	li      r5,0;                   /* Pass zero as arg3 */		      \
-	EXC_XFER_LITE(0x0400, handle_page_fault)
+	stw	r12, _DEAR(r11);	/* Set regs->dear (dar) to SRR0 */    \
+	prepare_transfer_to_handler;					      \
+	bl	do_page_fault;						      \
+	b	interrupt_return
 
 #define ALIGNMENT_EXCEPTION						      \
 	START_EXCEPTION(Alignment)					      \
-	NORMAL_EXCEPTION_PROLOG(ALIGNMENT);		      \
+	NORMAL_EXCEPTION_PROLOG(0x600, ALIGNMENT);		      \
 	mfspr   r4,SPRN_DEAR;           /* Grab the DEAR and save it */	      \
 	stw     r4,_DEAR(r11);						      \
-	addi    r3,r1,STACK_FRAME_OVERHEAD;				      \
-	EXC_XFER_STD(0x0600, alignment_exception)
+	prepare_transfer_to_handler;					      \
+	bl	alignment_exception;					      \
+	REST_NVGPRS(r1);						      \
+	b	interrupt_return
 
 #define PROGRAM_EXCEPTION						      \
 	START_EXCEPTION(Program)					      \
-	NORMAL_EXCEPTION_PROLOG(PROGRAM);		      \
+	NORMAL_EXCEPTION_PROLOG(0x700, PROGRAM);		      \
 	mfspr	r4,SPRN_ESR;		/* Grab the ESR and save it */	      \
 	stw	r4,_ESR(r11);						      \
-	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
-	EXC_XFER_STD(0x0700, program_check_exception)
+	prepare_transfer_to_handler;					      \
+	bl	program_check_exception;				      \
+	REST_NVGPRS(r1);						      \
+	b	interrupt_return
 
 #define DECREMENTER_EXCEPTION						      \
 	START_EXCEPTION(Decrementer)					      \
-	NORMAL_EXCEPTION_PROLOG(DECREMENTER);		      \
+	NORMAL_EXCEPTION_PROLOG(0x900, DECREMENTER);		      \
 	lis     r0,TSR_DIS@h;           /* Setup the DEC interrupt mask */    \
 	mtspr   SPRN_TSR,r0;		/* Clear the DEC interrupt */	      \
-	addi    r3,r1,STACK_FRAME_OVERHEAD;				      \
-	EXC_XFER_LITE(0x0900, timer_interrupt)
+	prepare_transfer_to_handler;					      \
+	bl	timer_interrupt;					      \
+	b	interrupt_return
 
 #define FP_UNAVAILABLE_EXCEPTION					      \
 	START_EXCEPTION(FloatingPointUnavailable)			      \
-	NORMAL_EXCEPTION_PROLOG(FP_UNAVAIL);		      \
+	NORMAL_EXCEPTION_PROLOG(0x800, FP_UNAVAIL);		      \
 	beq	1f;							      \
 	bl	load_up_fpu;		/* if from user, just load it up */   \
 	b	fast_exception_return;					      \
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
-	EXC_XFER_STD(0x800, kernel_fp_unavailable_exception)
-
-#else /* __ASSEMBLY__ */
-struct exception_regs {
-	unsigned long mas0;
-	unsigned long mas1;
-	unsigned long mas2;
-	unsigned long mas3;
-	unsigned long mas6;
-	unsigned long mas7;
-	unsigned long srr0;
-	unsigned long srr1;
-	unsigned long csrr0;
-	unsigned long csrr1;
-	unsigned long dsrr0;
-	unsigned long dsrr1;
-	unsigned long saved_ksp_limit;
-};
-
-/* ensure this structure is always sized to a multiple of the stack alignment */
-#define STACK_EXC_LVL_FRAME_SIZE	ALIGN(sizeof (struct exception_regs), 16)
+1:	prepare_transfer_to_handler;					      \
+	bl	kernel_fp_unavailable_exception;			      \
+	b	interrupt_return
 
 #endif /* __ASSEMBLY__ */
 #endif /* __HEAD_BOOKE_H__ */

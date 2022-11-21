@@ -59,8 +59,10 @@ struct ad7923_state {
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
+	 * Ensure rx_buf can be directly used in iio_push_to_buffers_with_timetamp
+	 * Length = 8 channels + 4 extra for 8 byte timestamp
 	 */
-	__be16				rx_buf[4] ____cacheline_aligned;
+	__be16				rx_buf[12] ____cacheline_aligned;
 	__be16				tx_buf[4];
 };
 
@@ -192,12 +194,6 @@ static int ad7923_update_scan_mode(struct iio_dev *indio_dev,
 	return 0;
 }
 
-/*
- * ad7923_trigger_handler() bh of trigger launched polling to ring buffer
- *
- * Currently there is no option in this driver to disable the saving of
- * timestamps within the ring.
- */
 static irqreturn_t ad7923_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -293,6 +289,13 @@ static const struct iio_info ad7923_info = {
 	.update_scan_mode = ad7923_update_scan_mode,
 };
 
+static void ad7923_regulator_disable(void *data)
+{
+	struct ad7923_state *st = data;
+
+	regulator_disable(st->reg);
+}
+
 static int ad7923_probe(struct spi_device *spi)
 {
 	struct ad7923_state *st;
@@ -305,8 +308,6 @@ static int ad7923_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-
-	spi_set_drvdata(spi, indio_dev);
 
 	st->spi = spi;
 	st->settings = AD7923_CODING | AD7923_RANGE |
@@ -340,35 +341,16 @@ static int ad7923_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-					 &ad7923_trigger_handler, NULL);
+	ret = devm_add_action_or_reset(&spi->dev, ad7923_regulator_disable, st);
 	if (ret)
-		goto error_disable_reg;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev, NULL,
+					      &ad7923_trigger_handler, NULL);
 	if (ret)
-		goto error_cleanup_ring;
+		return ret;
 
-	return 0;
-
-error_cleanup_ring:
-	iio_triggered_buffer_cleanup(indio_dev);
-error_disable_reg:
-	regulator_disable(st->reg);
-
-	return ret;
-}
-
-static int ad7923_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ad7923_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-	regulator_disable(st->reg);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad7923_id[] = {
@@ -401,7 +383,6 @@ static struct spi_driver ad7923_driver = {
 		.of_match_table = ad7923_of_match,
 	},
 	.probe		= ad7923_probe,
-	.remove		= ad7923_remove,
 	.id_table	= ad7923_id,
 };
 module_spi_driver(ad7923_driver);

@@ -30,7 +30,7 @@ do
 			resdir=`echo $i | sed -e 's,/$,,' -e 's,/[^/]*$,,'`
 			head -1 $resdir/log
 		fi
-		TORTURE_SUITE="`cat $i/../TORTURE_SUITE`"
+		TORTURE_SUITE="`cat $i/../torture_suite`"
 		configfile=`echo $i | sed -e 's,^.*/,,'`
 		rm -f $i/console.log.*.diags
 		kvm-recheck-${TORTURE_SUITE}.sh $i
@@ -74,7 +74,10 @@ do
 	done
 	if test -f "$rd/kcsan.sum"
 	then
-		if grep -q CONFIG_KCSAN=y $T
+		if ! test -f $T
+		then
+			:
+		elif grep -q CONFIG_KCSAN=y $T
 		then
 			echo "Compiler or architecture does not support KCSAN!"
 			echo Did you forget to switch your compiler with '--kmake-arg CC=<cc-that-supports-kcsan>'?
@@ -87,15 +90,16 @@ do
 	fi
 done
 EDITOR=echo kvm-find-errors.sh "${@: -1}" > $T 2>&1
-ret=$?
 builderrors="`tr ' ' '\012' < $T | grep -c '/Make.out.diags'`"
 if test "$builderrors" -gt 0
 then
 	echo $builderrors runs with build errors.
+	ret=1
 fi
 runerrors="`tr ' ' '\012' < $T | grep -c '/console.log.diags'`"
 if test "$runerrors" -gt 0
 then
 	echo $runerrors runs with runtime errors.
+	ret=2
 fi
 exit $ret

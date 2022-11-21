@@ -171,7 +171,7 @@ struct dcn_optc_registers {
 	uint32_t OPTC_DATA_FORMAT_CONTROL;
 	uint32_t OPTC_BYTES_PER_PIXEL;
 	uint32_t OPTC_WIDTH_CONTROL;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	uint32_t OTG_DRR_CONTROL;
 	uint32_t OTG_BLANK_DATA_COLOR;
 	uint32_t OTG_BLANK_DATA_COLOR_EXT;
 	uint32_t OTG_DRR_TRIGGER_WINDOW;
@@ -179,7 +179,6 @@ struct dcn_optc_registers {
 	uint32_t OTG_M_CONST_DTO1;
 	uint32_t OTG_DRR_V_TOTAL_CHANGE;
 	uint32_t OTG_GLOBAL_CONTROL4;
-#endif
 };
 
 #define TG_COMMON_MASK_SH_LIST_DCN(mask_sh)\
@@ -196,6 +195,9 @@ struct dcn_optc_registers {
 	SF(OTG0_OTG_DOUBLE_BUFFER_CONTROL, OTG_UPDATE_PENDING, mask_sh),\
 	SF(OTG0_OTG_DOUBLE_BUFFER_CONTROL, OTG_BLANK_DATA_DOUBLE_BUFFER_EN, mask_sh),\
 	SF(OTG0_OTG_DOUBLE_BUFFER_CONTROL, OTG_RANGE_TIMING_DBUF_UPDATE_MODE, mask_sh),\
+	SF(OTG0_OTG_VUPDATE_KEEPOUT, OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN, mask_sh), \
+	SF(OTG0_OTG_VUPDATE_KEEPOUT, MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_START_OFFSET, mask_sh), \
+	SF(OTG0_OTG_VUPDATE_KEEPOUT, MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_END_OFFSET, mask_sh), \
 	SF(OTG0_OTG_H_TOTAL, OTG_H_TOTAL, mask_sh),\
 	SF(OTG0_OTG_H_BLANK_START_END, OTG_H_BLANK_START, mask_sh),\
 	SF(OTG0_OTG_H_BLANK_START_END, OTG_H_BLANK_END, mask_sh),\
@@ -214,6 +216,7 @@ struct dcn_optc_registers {
 	SF(OTG0_OTG_CONTROL, OTG_START_POINT_CNTL, mask_sh),\
 	SF(OTG0_OTG_CONTROL, OTG_DISABLE_POINT_CNTL, mask_sh),\
 	SF(OTG0_OTG_CONTROL, OTG_FIELD_NUMBER_CNTL, mask_sh),\
+	SF(OTG0_OTG_CONTROL, OTG_CURRENT_MASTER_EN_STATE, mask_sh),\
 	SF(OTG0_OTG_STEREO_CONTROL, OTG_STEREO_EN, mask_sh),\
 	SF(OTG0_OTG_STEREO_CONTROL, OTG_STEREO_SYNC_OUTPUT_LINE_NUM, mask_sh),\
 	SF(OTG0_OTG_STEREO_CONTROL, OTG_STEREO_SYNC_OUTPUT_POLARITY, mask_sh),\
@@ -354,6 +357,7 @@ struct dcn_optc_registers {
 	type OTG_START_POINT_CNTL;\
 	type OTG_DISABLE_POINT_CNTL;\
 	type OTG_FIELD_NUMBER_CNTL;\
+	type OTG_CURRENT_MASTER_EN_STATE;\
 	type OTG_STEREO_EN;\
 	type OTG_STEREO_SYNC_OUTPUT_LINE_NUM;\
 	type OTG_STEREO_SYNC_OUTPUT_POLARITY;\
@@ -474,8 +478,6 @@ struct dcn_optc_registers {
 	type MANUAL_FLOW_CONTROL;\
 	type MANUAL_FLOW_CONTROL_SEL;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-
 #define TG_REG_FIELD_LIST(type) \
 	TG_REG_FIELD_LIST_DCN1_0(type)\
 	type OTG_V_SYNC_MODE;\
@@ -516,34 +518,8 @@ struct dcn_optc_registers {
 	type OTG_CRC_DSC_MODE;\
 	type OTG_CRC_DATA_STREAM_COMBINE_MODE;\
 	type OTG_CRC_DATA_STREAM_SPLIT_MODE;\
-	type OTG_CRC_DATA_FORMAT;
-#else
-
-#define TG_REG_FIELD_LIST(type) \
-	TG_REG_FIELD_LIST_DCN1_0(type)\
-	type MASTER_UPDATE_LOCK_DB_X;\
-	type MASTER_UPDATE_LOCK_DB_Y;\
-	type MASTER_UPDATE_LOCK_DB_EN;\
-	type GLOBAL_UPDATE_LOCK_EN;\
-	type DIG_UPDATE_LOCATION;\
-	type OTG_DSC_START_POSITION_X;\
-	type OTG_DSC_START_POSITION_LINE_NUM;\
-	type OPTC_NUM_OF_INPUT_SEGMENT;\
-	type OPTC_SEG0_SRC_SEL;\
-	type OPTC_SEG1_SRC_SEL;\
-	type OPTC_MEM_SEL;\
-	type OPTC_DATA_FORMAT;\
-	type OPTC_DSC_MODE;\
-	type OPTC_DSC_BYTES_PER_PIXEL;\
-	type OPTC_DSC_SLICE_WIDTH;\
-	type OPTC_SEGMENT_WIDTH;\
-	type OPTC_DWB0_SOURCE_SELECT;\
-	type OPTC_DWB1_SOURCE_SELECT;\
-	type OTG_CRC_DSC_MODE;\
-	type OTG_CRC_DATA_STREAM_COMBINE_MODE;\
-	type OTG_CRC_DATA_STREAM_SPLIT_MODE;\
-	type OTG_CRC_DATA_FORMAT;
-#endif
+	type OTG_CRC_DATA_FORMAT;\
+	type OTG_V_TOTAL_LAST_USED_BY_DRR;
 
 
 struct dcn_optc_shift {
@@ -602,6 +578,8 @@ struct dcn_otg_state {
 	uint32_t underflow_occurred_status;
 	uint32_t otg_enabled;
 	uint32_t blank_enabled;
+	uint32_t vertical_interrupt2_en;
+	uint32_t vertical_interrupt2_line;
 };
 
 void optc1_read_otg_state(struct optc *optc1,
@@ -669,6 +647,7 @@ void optc1_set_blank(struct timing_generator *optc,
 		bool enable_blanking);
 
 bool optc1_is_blanked(struct timing_generator *optc);
+bool optc1_is_locked(struct timing_generator *optc);
 
 void optc1_program_blank_color(
 		struct timing_generator *optc,
@@ -690,6 +669,8 @@ void optc1_enable_optc_clock(struct timing_generator *optc, bool enable);
 void optc1_set_drr(
 	struct timing_generator *optc,
 	const struct drr_params *params);
+
+void optc1_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, int vtotal_max);
 
 void optc1_set_static_screen_control(
 	struct timing_generator *optc,
@@ -731,6 +712,6 @@ bool optc1_get_crc(struct timing_generator *optc,
 bool optc1_is_two_pixels_per_containter(const struct dc_crtc_timing *timing);
 
 void optc1_set_vtg_params(struct timing_generator *optc,
-		const struct dc_crtc_timing *dc_crtc_timing);
+		const struct dc_crtc_timing *dc_crtc_timing, bool program_fp2);
 
 #endif /* __DC_TIMING_GENERATOR_DCN10_H__ */

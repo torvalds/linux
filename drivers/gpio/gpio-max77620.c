@@ -325,7 +325,7 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 	girq->parents = NULL;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_edge_irq;
-	girq->init_hw = max77620_gpio_irq_init_hw,
+	girq->init_hw = max77620_gpio_irq_init_hw;
 	girq->threaded = true;
 
 	platform_set_drvdata(pdev, mgpio);
@@ -365,5 +365,4 @@ module_platform_driver(max77620_gpio_driver);
 MODULE_DESCRIPTION("GPIO interface for MAX77620 and MAX20024 PMIC");
 MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
 MODULE_AUTHOR("Chaitanya Bandi <bandik@nvidia.com>");
-MODULE_ALIAS("platform:max77620-gpio");
 MODULE_LICENSE("GPL v2");

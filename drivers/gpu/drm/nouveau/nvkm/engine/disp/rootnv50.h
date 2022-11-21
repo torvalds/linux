@@ -41,4 +41,5 @@ extern const struct nvkm_disp_oclass gp100_disp_root_oclass;
 extern const struct nvkm_disp_oclass gp102_disp_root_oclass;
 extern const struct nvkm_disp_oclass gv100_disp_root_oclass;
 extern const struct nvkm_disp_oclass tu102_disp_root_oclass;
+extern const struct nvkm_disp_oclass ga102_disp_root_oclass;
 #endif

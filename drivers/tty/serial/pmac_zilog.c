@@ -47,7 +47,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <asm/sections.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 
 #ifdef CONFIG_PPC_PMAC
@@ -1693,6 +1693,11 @@ static int __init pmz_probe(void)
 
 #else
 
+/* On PCI PowerMacs, pmz_probe() does an explicit search of the OpenFirmware
+ * tree to obtain the device_nodes needed to start the console before the
+ * macio driver. On Macs without OpenFirmware, global platform_devices take
+ * the place of those device_nodes.
+ */
 extern struct platform_device scc_a_pdev, scc_b_pdev;
 
 static int __init pmz_init_port(struct uart_pmac_port *uap)
@@ -1701,9 +1706,12 @@ static int __init pmz_init_port(struct uart_pmac_port *uap)
 	int irq;
 
 	r_ports = platform_get_resource(uap->pdev, IORESOURCE_MEM, 0);
-	irq = platform_get_irq(uap->pdev, 0);
-	if (!r_ports || irq <= 0)
+	if (!r_ports)
 		return -ENODEV;
+
+	irq = platform_get_irq(uap->pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	uap->port.mapbase  = r_ports->start;
 	uap->port.membase  = (unsigned char __iomem *) r_ports->start;
@@ -1936,7 +1944,7 @@ static void __exit exit_pmz(void)
 
 #ifdef CONFIG_SERIAL_PMACZILOG_CONSOLE
 
-static void pmz_console_putchar(struct uart_port *port, int ch)
+static void pmz_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct uart_pmac_port *uap =
 		container_of(port, struct uart_pmac_port, port);

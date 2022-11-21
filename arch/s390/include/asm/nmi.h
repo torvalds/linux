@@ -6,7 +6,6 @@
  *    Author(s): Ingo Adlung <adlung@de.ibm.com>,
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Cornelia Huck <cornelia.huck@de.ibm.com>,
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
  */
 
 #ifndef _ASM_S390_NMI_H
@@ -23,12 +22,16 @@
 #define MCCK_CODE_SYSTEM_DAMAGE		BIT(63)
 #define MCCK_CODE_EXT_DAMAGE		BIT(63 - 5)
 #define MCCK_CODE_CP			BIT(63 - 9)
-#define MCCK_CODE_CPU_TIMER_VALID	BIT(63 - 46)
+#define MCCK_CODE_STG_ERROR		BIT(63 - 16)
+#define MCCK_CODE_STG_KEY_ERROR		BIT(63 - 18)
+#define MCCK_CODE_STG_DEGRAD		BIT(63 - 19)
 #define MCCK_CODE_PSW_MWP_VALID		BIT(63 - 20)
 #define MCCK_CODE_PSW_IA_VALID		BIT(63 - 23)
+#define MCCK_CODE_STG_FAIL_ADDR		BIT(63 - 24)
 #define MCCK_CODE_CR_VALID		BIT(63 - 29)
 #define MCCK_CODE_GS_VALID		BIT(63 - 36)
 #define MCCK_CODE_FC_VALID		BIT(63 - 43)
+#define MCCK_CODE_CPU_TIMER_VALID	BIT(63 - 46)
 
 #ifndef __ASSEMBLY__
 
@@ -94,11 +97,12 @@ struct mcesa {
 
 struct pt_regs;
 
-void nmi_alloc_boot_cpu(struct lowcore *lc);
-int nmi_alloc_per_cpu(struct lowcore *lc);
-void nmi_free_per_cpu(struct lowcore *lc);
+void nmi_alloc_mcesa_early(u64 *mcesad);
+int nmi_alloc_mcesa(u64 *mcesad);
+void nmi_free_mcesa(u64 *mcesad);
 
 void s390_handle_mcck(void);
+void __s390_handle_mcck(void);
 int s390_do_machine_check(struct pt_regs *regs);
 
 #endif /* __ASSEMBLY__ */

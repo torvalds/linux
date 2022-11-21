@@ -41,9 +41,14 @@
 #include <linux/mempool.h>
 
 /*
- * These are the default flags for swap requests
+ * These are the default for number of transports to different server IPs
  */
-#define NFS_RPC_SWAPFLAGS		(RPC_TASK_SWAPPER|RPC_TASK_ROOTCREDS)
+#define NFS_MAX_TRANSPORTS 16
+
+/*
+ * Size of the NFS directory verifier
+ */
+#define NFS_DIR_VERIFIER_SIZE		2
 
 /*
  * NFSv3/v4 Access mode cache entry
@@ -51,7 +56,9 @@
 struct nfs_access_entry {
 	struct rb_node		rb_node;
 	struct list_head	lru;
-	const struct cred *	cred;
+	kuid_t			fsuid;
+	kgid_t			fsgid;
+	struct group_info	*group_info;
 	__u32			mask;
 	struct rcu_head		rcu_head;
 };
@@ -71,7 +78,7 @@ struct nfs_open_context {
 	fl_owner_t flock_owner;
 	struct dentry *dentry;
 	const struct cred *cred;
-	struct rpc_cred *ll_cred;	/* low-level cred - use to check for expiry */
+	struct rpc_cred __rcu *ll_cred;	/* low-level cred - use to check for expiry */
 	struct nfs4_state *state;
 	fmode_t mode;
 
@@ -79,6 +86,7 @@ struct nfs_open_context {
 #define NFS_CONTEXT_RESEND_WRITES	(1)
 #define NFS_CONTEXT_BAD			(2)
 #define NFS_CONTEXT_UNLOCK	(3)
+#define NFS_CONTEXT_FILE_OPEN		(4)
 	int error;
 
 	struct list_head list;
@@ -88,11 +96,17 @@ struct nfs_open_context {
 
 struct nfs_open_dir_context {
 	struct list_head list;
-	const struct cred *cred;
+	atomic_t cache_hits;
+	atomic_t cache_misses;
 	unsigned long attr_gencount;
+	__be32	verf[NFS_DIR_VERIFIER_SIZE];
 	__u64 dir_cookie;
-	__u64 dup_cookie;
-	signed char duped;
+	__u64 last_cookie;
+	pgoff_t page_index;
+	unsigned int dtsize;
+	bool force_clear;
+	bool eof;
+	struct rcu_head rcu_head;
 };
 
 /*
@@ -143,35 +157,38 @@ struct nfs_inode {
 	unsigned long		attrtimeo_timestamp;
 
 	unsigned long		attr_gencount;
-	/* "Generation counter" for the attribute cache. This is
-	 * bumped whenever we update the metadata on the
-	 * server.
-	 */
-	unsigned long		cache_change_attribute;
 
 	struct rb_root		access_cache;
 	struct list_head	access_cache_entry_lru;
 	struct list_head	access_cache_inode_lru;
 
-	/*
-	 * This is the cookie verifier used for NFSv3 readdir
-	 * operations
-	 */
-	__be32			cookieverf[2];
-
-	atomic_long_t		nrequests;
-	struct nfs_mds_commit_info commit_info;
+	union {
+		/* Directory */
+		struct {
+			/* "Generation counter" for the attribute cache.
+			 * This is bumped whenever we update the metadata
+			 * on the server.
+			 */
+			unsigned long	cache_change_attribute;
+			/*
+			 * This is the cookie verifier used for NFSv3 readdir
+			 * operations
+			 */
+			__be32		cookieverf[NFS_DIR_VERIFIER_SIZE];
+			/* Readers: in-flight sillydelete RPC calls */
+			/* Writers: rmdir */
+			struct rw_semaphore	rmdir_sem;
+		};
+		/* Regular file */
+		struct {
+			atomic_long_t	nrequests;
+			struct nfs_mds_commit_info commit_info;
+			struct mutex	commit_mutex;
+		};
+	};
 
 	/* Open contexts for shared mmap writes */
 	struct list_head	open_files;
-
-	/* Readers: in-flight sillydelete RPC calls */
-	/* Writers: rmdir */
-	struct rw_semaphore	rmdir_sem;
-	struct mutex		commit_mutex;
-
-	/* track last access to cached pages */
-	unsigned long		page_index;
 
 #if IS_ENABLED(CONFIG_NFS_V4)
 	struct nfs4_cached_acl	*nfs4_acl;
@@ -229,7 +246,6 @@ struct nfs4_copy_state {
 #define NFS_INO_INVALID_ATIME	BIT(2)		/* cached atime is invalid */
 #define NFS_INO_INVALID_ACCESS	BIT(3)		/* cached access cred invalid */
 #define NFS_INO_INVALID_ACL	BIT(4)		/* cached acls are invalid */
-#define NFS_INO_REVAL_PAGECACHE	BIT(5)		/* must revalidate pagecache */
 #define NFS_INO_REVAL_FORCED	BIT(6)		/* force revalidation ignoring a delegation */
 #define NFS_INO_INVALID_LABEL	BIT(7)		/* cached label is invalid */
 #define NFS_INO_INVALID_CHANGE	BIT(8)		/* cached change is invalid */
@@ -241,22 +257,25 @@ struct nfs4_copy_state {
 				BIT(13)		/* Deferred cache invalidation */
 #define NFS_INO_INVALID_BLOCKS	BIT(14)         /* cached blocks are invalid */
 #define NFS_INO_INVALID_XATTR	BIT(15)		/* xattrs are invalid */
+#define NFS_INO_INVALID_NLINK	BIT(16)		/* cached nlinks is invalid */
+#define NFS_INO_INVALID_MODE	BIT(17)		/* cached mode is invalid */
 
 #define NFS_INO_INVALID_ATTR	(NFS_INO_INVALID_CHANGE \
 		| NFS_INO_INVALID_CTIME \
 		| NFS_INO_INVALID_MTIME \
 		| NFS_INO_INVALID_SIZE \
+		| NFS_INO_INVALID_NLINK \
+		| NFS_INO_INVALID_MODE \
 		| NFS_INO_INVALID_OTHER)	/* inode metadata is invalid */
 
 /*
  * Bit offsets in flags field
  */
-#define NFS_INO_ADVISE_RDPLUS	(0)		/* advise readdirplus */
 #define NFS_INO_STALE		(1)		/* possible stale inode */
 #define NFS_INO_ACL_LRU_SET	(2)		/* Inode is on the LRU list */
 #define NFS_INO_INVALIDATING	(3)		/* inode is being invalidated */
+#define NFS_INO_PRESERVE_UNLINKED (4)		/* preserve file if removed while open */
 #define NFS_INO_FSCACHE		(5)		/* inode can be cached by FS-Cache */
-#define NFS_INO_FSCACHE_LOCK	(6)		/* FS-Cache cookie management lock */
 #define NFS_INO_LAYOUTCOMMIT	(9)		/* layoutcommit required */
 #define NFS_INO_LAYOUTCOMMITTING (10)		/* layoutcommit inflight */
 #define NFS_INO_LAYOUTSTATS	(11)		/* layoutstats inflight */
@@ -333,17 +352,15 @@ static inline void nfs_mark_for_revalidate(struct inode *inode)
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	spin_lock(&inode->i_lock);
-	nfsi->cache_validity |= NFS_INO_REVAL_PAGECACHE
-		| NFS_INO_INVALID_ACCESS
-		| NFS_INO_INVALID_ACL
-		| NFS_INO_INVALID_CHANGE
-		| NFS_INO_INVALID_CTIME;
+	nfsi->cache_validity |= NFS_INO_INVALID_ACCESS | NFS_INO_INVALID_ACL |
+				NFS_INO_INVALID_CHANGE | NFS_INO_INVALID_CTIME |
+				NFS_INO_INVALID_SIZE;
 	if (S_ISDIR(inode->i_mode))
 		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
 	spin_unlock(&inode->i_lock);
 }
 
-static inline int nfs_server_capable(struct inode *inode, int cap)
+static inline int nfs_server_capable(const struct inode *inode, int cap)
 {
 	return NFS_SERVER(inode)->caps & cap;
 }
@@ -368,27 +385,28 @@ extern void nfs_zap_caches(struct inode *);
 extern void nfs_set_inode_stale(struct inode *inode);
 extern void nfs_invalidate_atime(struct inode *);
 extern struct inode *nfs_fhget(struct super_block *, struct nfs_fh *,
-				struct nfs_fattr *, struct nfs4_label *);
+				struct nfs_fattr *);
 struct inode *nfs_ilookup(struct super_block *sb, struct nfs_fattr *, struct nfs_fh *);
 extern int nfs_refresh_inode(struct inode *, struct nfs_fattr *);
 extern int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_post_op_update_inode_force_wcc_locked(struct inode *inode, struct nfs_fattr *fattr);
-extern int nfs_getattr(const struct path *, struct kstat *, u32, unsigned int);
-extern void nfs_access_add_cache(struct inode *, struct nfs_access_entry *);
+extern int nfs_getattr(struct user_namespace *, const struct path *,
+		       struct kstat *, u32, unsigned int);
+extern void nfs_access_add_cache(struct inode *, struct nfs_access_entry *, const struct cred *);
 extern void nfs_access_set_mask(struct nfs_access_entry *, u32);
-extern int nfs_permission(struct inode *, int);
+extern int nfs_permission(struct user_namespace *, struct inode *, int);
 extern int nfs_open(struct inode *, struct file *);
 extern int nfs_attribute_cache_expired(struct inode *inode);
-extern int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode);
+extern int nfs_revalidate_inode(struct inode *inode, unsigned long flags);
 extern int __nfs_revalidate_inode(struct nfs_server *, struct inode *);
+extern int nfs_clear_invalid_mapping(struct address_space *mapping);
 extern bool nfs_mapping_need_revalidate_inode(struct inode *inode);
 extern int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping);
 extern int nfs_revalidate_mapping_rcu(struct inode *inode);
-extern int nfs_setattr(struct dentry *, struct iattr *);
+extern int nfs_setattr(struct user_namespace *, struct dentry *, struct iattr *);
 extern void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr, struct nfs_fattr *);
-extern void nfs_setsecurity(struct inode *inode, struct nfs_fattr *fattr,
-				struct nfs4_label *label);
+extern void nfs_setsecurity(struct inode *inode, struct nfs_fattr *fattr);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);
 extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, const struct cred *cred, fmode_t mode);
@@ -404,9 +422,22 @@ extern void nfs_fattr_set_barrier(struct nfs_fattr *fattr);
 extern unsigned long nfs_inc_attr_generation_counter(void);
 
 extern struct nfs_fattr *nfs_alloc_fattr(void);
+extern struct nfs_fattr *nfs_alloc_fattr_with_label(struct nfs_server *server);
+
+static inline void nfs4_label_free(struct nfs4_label *label)
+{
+#ifdef CONFIG_NFS_V4_SECURITY_LABEL
+	if (label) {
+		kfree(label->label);
+		kfree(label);
+	}
+#endif
+}
 
 static inline void nfs_free_fattr(const struct nfs_fattr *fattr)
 {
+	if (fattr)
+		nfs4_label_free(fattr->label);
 	kfree(fattr);
 }
 
@@ -477,10 +508,10 @@ static inline const struct cred *nfs_file_cred(struct file *file)
  * linux/fs/nfs/direct.c
  */
 extern ssize_t nfs_direct_IO(struct kiocb *, struct iov_iter *);
-extern ssize_t nfs_file_direct_read(struct kiocb *iocb,
-			struct iov_iter *iter);
-extern ssize_t nfs_file_direct_write(struct kiocb *iocb,
-			struct iov_iter *iter);
+ssize_t nfs_file_direct_read(struct kiocb *iocb,
+			     struct iov_iter *iter, bool swap);
+ssize_t nfs_file_direct_write(struct kiocb *iocb,
+			      struct iov_iter *iter, bool swap);
 
 /*
  * linux/fs/nfs/dir.c
@@ -494,14 +525,13 @@ extern void nfs_set_verifier(struct dentry * dentry, unsigned long verf);
 extern void nfs_clear_verifier_delegated(struct inode *inode);
 #endif /* IS_ENABLED(CONFIG_NFS_V4) */
 extern struct dentry *nfs_add_or_obtain(struct dentry *dentry,
-			struct nfs_fh *fh, struct nfs_fattr *fattr,
-			struct nfs4_label *label);
+			struct nfs_fh *fh, struct nfs_fattr *fattr);
 extern int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fh,
-			struct nfs_fattr *fattr, struct nfs4_label *label);
+			struct nfs_fattr *fattr);
 extern int nfs_may_open(struct inode *inode, const struct cred *cred, int openflags);
 extern void nfs_access_zap_cache(struct inode *inode);
-extern int nfs_access_get_cached(struct inode *inode, const struct cred *cred, struct nfs_access_entry *res,
-				 bool may_block);
+extern int nfs_access_get_cached(struct inode *inode, const struct cred *cred,
+				 u32 *mask, bool may_block);
 
 /*
  * linux/fs/nfs/symlink.c
@@ -548,25 +578,24 @@ extern int  nfs_updatepage(struct file *, struct page *, unsigned int, unsigned 
 extern int nfs_sync_inode(struct inode *inode);
 extern int nfs_wb_all(struct inode *inode);
 extern int nfs_wb_page(struct inode *inode, struct page *page);
-extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
+int nfs_wb_folio_cancel(struct inode *inode, struct folio *folio);
 extern int  nfs_commit_inode(struct inode *, int);
-extern struct nfs_commit_data *nfs_commitdata_alloc(bool never_fail);
+extern struct nfs_commit_data *nfs_commitdata_alloc(void);
 extern void nfs_commit_free(struct nfs_commit_data *data);
+bool nfs_commit_end(struct nfs_mds_commit_info *cinfo);
 
-static inline int
-nfs_have_writebacks(struct inode *inode)
+static inline bool nfs_have_writebacks(const struct inode *inode)
 {
-	return atomic_long_read(&NFS_I(inode)->nrequests) != 0;
+	if (S_ISREG(inode->i_mode))
+		return atomic_long_read(&NFS_I(inode)->nrequests) != 0;
+	return false;
 }
 
 /*
  * linux/fs/nfs/read.c
  */
 extern int  nfs_readpage(struct file *, struct page *);
-extern int  nfs_readpages(struct file *, struct address_space *,
-		struct list_head *, unsigned);
-extern int  nfs_readpage_async(struct nfs_open_context *, struct inode *,
-			       struct page *);
+void nfs_readahead(struct readahead_control *);
 
 /*
  * inline functions

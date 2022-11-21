@@ -212,12 +212,8 @@
 /* global definition */
 #define RT5670_L_MUTE				(0x1 << 15)
 #define RT5670_L_MUTE_SFT			15
-#define RT5670_VOL_L_MUTE			(0x1 << 14)
-#define RT5670_VOL_L_SFT			14
 #define RT5670_R_MUTE				(0x1 << 7)
 #define RT5670_R_MUTE_SFT			7
-#define RT5670_VOL_R_MUTE			(0x1 << 6)
-#define RT5670_VOL_R_SFT			6
 #define RT5670_L_VOL_MASK			(0x3f << 8)
 #define RT5670_L_VOL_SFT			8
 #define RT5670_R_VOL_MASK			(0x3f)
@@ -2017,10 +2013,17 @@ struct rt5670_priv {
 	int dsp_rate;
 	int jack_type;
 	int jack_type_saved;
+
+	bool dac1_mixl_dac1_switch;
+	bool dac1_mixr_dac1_switch;
+	bool dac1_playback_switch_l;
+	bool dac1_playback_switch_r;
 };
 
 void rt5670_jack_suspend(struct snd_soc_component *component);
 void rt5670_jack_resume(struct snd_soc_component *component);
 int rt5670_set_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack);
+const char *rt5670_components(void);
+
 #endif /* __RT5670_H__ */

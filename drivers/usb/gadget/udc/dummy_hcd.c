@@ -553,6 +553,7 @@ static int dummy_enable(struct usb_ep *_ep,
 				/* we'll fake any legal size */
 				break;
 			/* save a return statement */
+			fallthrough;
 		default:
 			goto done;
 		}
@@ -595,6 +596,7 @@ static int dummy_enable(struct usb_ep *_ep,
 			if (max <= 1023)
 				break;
 			/* save a return statement */
+			fallthrough;
 		default:
 			goto done;
 		}
@@ -749,7 +751,7 @@ static int dummy_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	struct dummy		*dum;
 	int			retval = -EINVAL;
 	unsigned long		flags;
-	struct dummy_request	*req = NULL;
+	struct dummy_request	*req = NULL, *iter;
 
 	if (!_ep || !_req)
 		return retval;
@@ -761,13 +763,14 @@ static int dummy_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 	local_irq_save(flags);
 	spin_lock(&dum->lock);
-	list_for_each_entry(req, &ep->queue, queue) {
-		if (&req->req == _req) {
-			list_del_init(&req->queue);
-			_req->status = -ECONNRESET;
-			retval = 0;
-			break;
-		}
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		list_del_init(&iter->queue);
+		_req->status = -ECONNRESET;
+		req = iter;
+		retval = 0;
+		break;
 	}
 	spin_unlock(&dum->lock);
 
@@ -901,6 +904,21 @@ static int dummy_pullup(struct usb_gadget *_gadget, int value)
 	spin_lock_irqsave(&dum->lock, flags);
 	dum->pullup = (value != 0);
 	set_link_state(dum_hcd);
+	if (value == 0) {
+		/*
+		 * Emulate synchronize_irq(): wait for callbacks to finish.
+		 * This seems to be the best place to emulate the call to
+		 * synchronize_irq() that's in usb_gadget_remove_driver().
+		 * Doing it in dummy_udc_stop() would be too late since it
+		 * is called after the unbind callback and unbind shouldn't
+		 * be invoked until all the other callbacks are finished.
+		 */
+		while (dum->callback_usage > 0) {
+			spin_unlock_irqrestore(&dum->lock, flags);
+			usleep_range(1000, 2000);
+			spin_lock_irqsave(&dum->lock, flags);
+		}
+	}
 	spin_unlock_irqrestore(&dum->lock, flags);
 
 	usb_hcd_poll_rh_status(dummy_hcd_to_hcd(dum_hcd));
@@ -917,6 +935,15 @@ static void dummy_udc_set_speed(struct usb_gadget *_gadget,
 	dummy_udc_update_ep0(dum);
 }
 
+static void dummy_udc_async_callbacks(struct usb_gadget *_gadget, bool enable)
+{
+	struct dummy	*dum = gadget_dev_to_dummy(&_gadget->dev);
+
+	spin_lock_irq(&dum->lock);
+	dum->ints_enabled = enable;
+	spin_unlock_irq(&dum->lock);
+}
+
 static int dummy_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
 static int dummy_udc_stop(struct usb_gadget *g);
@@ -929,6 +956,7 @@ static const struct usb_gadget_ops dummy_ops = {
 	.udc_start	= dummy_udc_start,
 	.udc_stop	= dummy_udc_stop,
 	.udc_set_speed	= dummy_udc_set_speed,
+	.udc_async_callbacks = dummy_udc_async_callbacks,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -988,7 +1016,6 @@ static int dummy_udc_start(struct usb_gadget *g,
 	spin_lock_irq(&dum->lock);
 	dum->devstatus = 0;
 	dum->driver = driver;
-	dum->ints_enabled = 1;
 	spin_unlock_irq(&dum->lock);
 
 	return 0;
@@ -1002,14 +1029,6 @@ static int dummy_udc_stop(struct usb_gadget *g)
 	spin_lock_irq(&dum->lock);
 	dum->ints_enabled = 0;
 	stop_activity(dum);
-
-	/* emulate synchronize_irq(): wait for callbacks to finish */
-	while (dum->callback_usage > 0) {
-		spin_unlock_irq(&dum->lock);
-		usleep_range(1000, 2000);
-		spin_lock_irq(&dum->lock);
-	}
-
 	dum->driver = NULL;
 	spin_unlock_irq(&dum->lock);
 
@@ -1754,8 +1773,10 @@ static int handle_control_request(struct dummy_hcd *dum_hcd, struct urb *urb,
 	return ret_val;
 }
 
-/* drive both sides of the transfers; looks like irq handlers to
- * both drivers except the callbacks aren't in_irq().
+/*
+ * Drive both sides of the transfers; looks like irq handlers to both
+ * drivers except that the callbacks are invoked from soft interrupt
+ * context.
  */
 static void dummy_timer(struct timer_list *t)
 {
@@ -1862,7 +1883,7 @@ restart:
 		/* handle control requests */
 		if (ep == &dum->ep[0] && ep->setup_stage) {
 			struct usb_ctrlrequest		setup;
-			int				value = 1;
+			int				value;
 
 			setup = *(struct usb_ctrlrequest *) urb->setup_packet;
 			/* paranoia, in case of stale queued data */
@@ -2114,9 +2135,21 @@ static int dummy_hub_control(
 				dum_hcd->port_status &= ~USB_PORT_STAT_POWER;
 			set_link_state(dum_hcd);
 			break;
-		default:
+		case USB_PORT_FEAT_ENABLE:
+		case USB_PORT_FEAT_C_ENABLE:
+		case USB_PORT_FEAT_C_SUSPEND:
+			/* Not allowed for USB-3 */
+			if (hcd->speed == HCD_USB3)
+				goto error;
+			fallthrough;
+		case USB_PORT_FEAT_C_CONNECTION:
+		case USB_PORT_FEAT_C_RESET:
 			dum_hcd->port_status &= ~(1 << wValue);
 			set_link_state(dum_hcd);
+			break;
+		default:
+		/* Disallow INDICATOR and C_OVER_CURRENT */
+			goto error;
 		}
 		break;
 	case GetHubDescriptor:
@@ -2254,17 +2287,20 @@ static int dummy_hub_control(
 			}
 			fallthrough;
 		case USB_PORT_FEAT_RESET:
+			if (!(dum_hcd->port_status & USB_PORT_STAT_CONNECTION))
+				break;
 			/* if it's already enabled, disable */
 			if (hcd->speed == HCD_USB3) {
-				dum_hcd->port_status = 0;
 				dum_hcd->port_status =
 					(USB_SS_PORT_STAT_POWER |
 					 USB_PORT_STAT_CONNECTION |
 					 USB_PORT_STAT_RESET);
-			} else
+			} else {
 				dum_hcd->port_status &= ~(USB_PORT_STAT_ENABLE
 					| USB_PORT_STAT_LOW_SPEED
 					| USB_PORT_STAT_HIGH_SPEED);
+				dum_hcd->port_status |= USB_PORT_STAT_RESET;
+			}
 			/*
 			 * We want to reset device status. All but the
 			 * Self powered feature
@@ -2276,19 +2312,19 @@ static int dummy_hub_control(
 			 * interval? Is it still 50msec as for HS?
 			 */
 			dum_hcd->re_timeout = jiffies + msecs_to_jiffies(50);
-			fallthrough;
-		default:
-			if (hcd->speed == HCD_USB3) {
-				if ((dum_hcd->port_status &
-				     USB_SS_PORT_STAT_POWER) != 0) {
-					dum_hcd->port_status |= (1 << wValue);
-				}
-			} else
-				if ((dum_hcd->port_status &
-				     USB_PORT_STAT_POWER) != 0) {
-					dum_hcd->port_status |= (1 << wValue);
-				}
 			set_link_state(dum_hcd);
+			break;
+		case USB_PORT_FEAT_C_CONNECTION:
+		case USB_PORT_FEAT_C_RESET:
+		case USB_PORT_FEAT_C_ENABLE:
+		case USB_PORT_FEAT_C_SUSPEND:
+			/* Not allowed for USB-3, and ignored for USB-2 */
+			if (hcd->speed == HCD_USB3)
+				goto error;
+			break;
+		default:
+		/* Disallow TEST, INDICATOR, and C_OVER_CURRENT */
+			goto error;
 		}
 		break;
 	case GetPortErrorCount:
@@ -2730,11 +2766,11 @@ static struct platform_driver dummy_hcd_driver = {
 static struct platform_device *the_udc_pdev[MAX_NUM_UDC];
 static struct platform_device *the_hcd_pdev[MAX_NUM_UDC];
 
-static int __init init(void)
+static int __init dummy_hcd_init(void)
 {
 	int	retval = -ENOMEM;
 	int	i;
-	struct	dummy *dum[MAX_NUM_UDC];
+	struct	dummy *dum[MAX_NUM_UDC] = {};
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -2852,9 +2888,9 @@ err_alloc_udc:
 		platform_device_put(the_hcd_pdev[i]);
 	return retval;
 }
-module_init(init);
+module_init(dummy_hcd_init);
 
-static void __exit cleanup(void)
+static void __exit dummy_hcd_cleanup(void)
 {
 	int i;
 
@@ -2870,4 +2906,4 @@ static void __exit cleanup(void)
 	platform_driver_unregister(&dummy_udc_driver);
 	platform_driver_unregister(&dummy_hcd_driver);
 }
-module_exit(cleanup);
+module_exit(dummy_hcd_cleanup);

@@ -72,8 +72,6 @@ struct mtd_oob_ops {
 	uint8_t		*oobbuf;
 };
 
-#define MTD_MAX_OOBFREE_ENTRIES_LARGE	32
-#define MTD_MAX_ECCPOS_ENTRIES_LARGE	640
 /**
  * struct mtd_oob_region - oob region definition
  * @offset: region offset
@@ -190,9 +188,6 @@ struct module;	/* only needed for owner field in mtd_info */
  */
 struct mtd_debug_info {
 	struct dentry *dfs_dir;
-
-	const char *partname;
-	const char *partid;
 };
 
 /**
@@ -229,6 +224,7 @@ struct mtd_part {
  */
 struct mtd_master {
 	struct mutex partitions_lock;
+	struct mutex chrdev_lock;
 	unsigned int suspended : 1;
 };
 
@@ -333,9 +329,12 @@ struct mtd_info {
 	int (*_read_user_prot_reg) (struct mtd_info *mtd, loff_t from,
 				    size_t len, size_t *retlen, u_char *buf);
 	int (*_write_user_prot_reg) (struct mtd_info *mtd, loff_t to,
-				     size_t len, size_t *retlen, u_char *buf);
+				     size_t len, size_t *retlen,
+				     const u_char *buf);
 	int (*_lock_user_prot_reg) (struct mtd_info *mtd, loff_t from,
 				    size_t len);
+	int (*_erase_user_prot_reg) (struct mtd_info *mtd, loff_t from,
+				     size_t len);
 	int (*_writev) (struct mtd_info *mtd, const struct kvec *vecs,
 			unsigned long count, loff_t to, size_t *retlen);
 	void (*_sync) (struct mtd_info *mtd);
@@ -376,6 +375,8 @@ struct mtd_info {
 	int usecount;
 	struct mtd_debug_info dbg;
 	struct nvmem_device *nvmem;
+	struct nvmem_device *otp_user_nvmem;
+	struct nvmem_device *otp_factory_nvmem;
 
 	/*
 	 * Parent device from the MTD partition point of view.
@@ -388,10 +389,8 @@ struct mtd_info {
 	/* List of partitions attached to this MTD device */
 	struct list_head partitions;
 
-	union {
-		struct mtd_part part;
-		struct mtd_master master;
-	};
+	struct mtd_part part;
+	struct mtd_master master;
 };
 
 static inline struct mtd_info *mtd_get_master(struct mtd_info *mtd)
@@ -515,8 +514,9 @@ int mtd_get_user_prot_info(struct mtd_info *mtd, size_t len, size_t *retlen,
 int mtd_read_user_prot_reg(struct mtd_info *mtd, loff_t from, size_t len,
 			   size_t *retlen, u_char *buf);
 int mtd_write_user_prot_reg(struct mtd_info *mtd, loff_t to, size_t len,
-			    size_t *retlen, u_char *buf);
+			    size_t *retlen, const u_char *buf);
 int mtd_lock_user_prot_reg(struct mtd_info *mtd, loff_t from, size_t len);
+int mtd_erase_user_prot_reg(struct mtd_info *mtd, loff_t from, size_t len);
 
 int mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	       unsigned long count, loff_t to, size_t *retlen);
@@ -705,5 +705,12 @@ static inline int mtd_is_bitflip_or_eccerr(int err) {
 }
 
 unsigned mtd_mmap_capabilities(struct mtd_info *mtd);
+
+#ifdef CONFIG_DEBUG_FS
+bool mtd_check_expert_analysis_mode(void);
+#else
+static inline bool mtd_check_expert_analysis_mode(void) { return false; }
+#endif
+
 
 #endif /* __MTD_MTD_H__ */

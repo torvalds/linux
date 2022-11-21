@@ -424,7 +424,7 @@ int wil_vif_add(struct wil6210_priv *wil, struct wil6210_vif *vif)
 		if (rc)
 			return rc;
 	}
-	rc = register_netdevice(ndev);
+	rc = cfg80211_register_netdevice(ndev);
 	if (rc < 0) {
 		dev_err(&ndev->dev, "Failed to register netdev: %d\n", rc);
 		if (any_active && vif->mid != 0)
@@ -473,7 +473,9 @@ int wil_if_add(struct wil6210_priv *wil)
 	wil_update_net_queues_bh(wil, vif, NULL, true);
 
 	rtnl_lock();
+	wiphy_lock(wiphy);
 	rc = wil_vif_add(wil, vif);
+	wiphy_unlock(wiphy);
 	rtnl_unlock();
 	if (rc < 0)
 		goto out_wiphy;
@@ -511,7 +513,7 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 	/* during unregister_netdevice cfg80211_leave may perform operations
 	 * such as stop AP, disconnect, so we only clear the VIF afterwards
 	 */
-	unregister_netdevice(ndev);
+	cfg80211_unregister_netdevice(ndev);
 
 	if (any_active && vif->mid != 0)
 		wmi_port_delete(wil, vif->mid);
@@ -543,15 +545,18 @@ void wil_if_remove(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil->main_ndev;
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
 
 	wil_dbg_misc(wil, "if_remove\n");
 
 	rtnl_lock();
+	wiphy_lock(wiphy);
 	wil_vif_remove(wil, 0);
+	wiphy_unlock(wiphy);
 	rtnl_unlock();
 
 	netif_napi_del(&wil->napi_tx);
 	netif_napi_del(&wil->napi_rx);
 
-	wiphy_unregister(wdev->wiphy);
+	wiphy_unregister(wiphy);
 }

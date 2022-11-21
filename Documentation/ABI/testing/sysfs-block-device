@@ -55,6 +55,43 @@ Date:		Oct, 2016
 KernelVersion:	v4.10
 Contact:	linux-ide@vger.kernel.org
 Description:
-		(RW) Write to the file to turn on or off the SATA ncq (native
-		command queueing) support. By default this feature is turned
-		off.
+		(RW) Write to the file to turn on or off the SATA NCQ (native
+		command queueing) priority support. By default this feature is
+		turned off. If the device does not support the SATA NCQ
+		priority feature, writing "1" to this file results in an error
+		(see ncq_prio_supported).
+
+
+What:		/sys/block/*/device/sas_ncq_prio_enable
+Date:		Oct, 2016
+KernelVersion:	v4.10
+Contact:	linux-ide@vger.kernel.org
+Description:
+		(RW) This is the equivalent of the ncq_prio_enable attribute
+		file for SATA devices connected to a SAS host-bus-adapter
+		(HBA) implementing support for the SATA NCQ priority feature.
+		This file does not exist if the HBA driver does not implement
+		support for the SATA NCQ priority feature, regardless of the
+		device support for this feature (see sas_ncq_prio_supported).
+
+
+What:		/sys/block/*/device/ncq_prio_supported
+Date:		Aug, 2021
+KernelVersion:	v5.15
+Contact:	linux-ide@vger.kernel.org
+Description:
+		(RO) Indicates if the device supports the SATA NCQ (native
+		command queueing) priority feature.
+
+
+What:		/sys/block/*/device/sas_ncq_prio_supported
+Date:		Aug, 2021
+KernelVersion:	v5.15
+Contact:	linux-ide@vger.kernel.org
+Description:
+		(RO) This is the equivalent of the ncq_prio_supported attribute
+		file for SATA devices connected to a SAS host-bus-adapter
+		(HBA) implementing support for the SATA NCQ priority feature.
+		This file does not exist if the HBA driver does not implement
+		support for the SATA NCQ priority feature, regardless of the
+		device support for this feature.

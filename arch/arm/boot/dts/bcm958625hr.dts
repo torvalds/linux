@@ -37,7 +37,7 @@
 
 / {
 	model = "NorthStar Plus SVK (BCM958625HR)";
-	compatible = "brcm,bcm58625", "brcm,nsp";
+	compatible = "brcm,bcm958625hr", "brcm,bcm58625", "brcm,nsp";
 
 	chosen {
 		stdout-path = "serial0:115200n8";
@@ -89,8 +89,8 @@
 	status = "okay";
 };
 
-&nand {
-	nandcs@0 {
+&nand_controller {
+	nand@0 {
 		compatible = "brcm,nandcs";
 		reg = <0>;
 		nand-on-flash-bbt;
@@ -149,6 +149,7 @@
 };
 
 &qspi {
+	status = "okay";
 	bspi-sel = <0>;
 	flash: m25p80@0 {
 		#address-cells = <1>;
@@ -195,9 +196,6 @@
 	status = "okay";
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@0 {
 			label = "port0";
 			reg = <0>;

@@ -13,6 +13,7 @@
 /* Struct to hold housekeeping info needed by devlink interface */
 struct bnxt_dl {
 	struct bnxt *bp;	/* back ptr to the controlling dev */
+	bool remote_reset;
 };
 
 static inline struct bnxt *bnxt_get_bp_from_dl(struct devlink *dl)
@@ -20,17 +21,21 @@ static inline struct bnxt *bnxt_get_bp_from_dl(struct devlink *dl)
 	return ((struct bnxt_dl *)devlink_priv(dl))->bp;
 }
 
-/* To clear devlink pointer from bp, pass NULL dl */
-static inline void bnxt_link_bp_to_dl(struct bnxt *bp, struct devlink *dl)
+static inline void bnxt_dl_remote_reload(struct bnxt *bp)
 {
-	bp->dl = dl;
+	devlink_remote_reload_actions_performed(bp->dl, 0,
+						BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT) |
+						BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE));
+}
 
-	/* add a back pointer in dl to bp */
-	if (dl) {
-		struct bnxt_dl *bp_dl = devlink_priv(dl);
+static inline bool bnxt_dl_get_remote_reset(struct devlink *dl)
+{
+	return ((struct bnxt_dl *)devlink_priv(dl))->remote_reset;
+}
 
-		bp_dl->bp = bp;
-	}
+static inline void bnxt_dl_set_remote_reset(struct devlink *dl, bool value)
+{
+	((struct bnxt_dl *)devlink_priv(dl))->remote_reset = value;
 }
 
 #define NVM_OFF_MSIX_VEC_PER_PF_MAX	108
@@ -40,8 +45,8 @@ static inline void bnxt_link_bp_to_dl(struct bnxt *bp, struct devlink *dl)
 #define NVM_OFF_ENABLE_SRIOV		401
 #define NVM_OFF_NVM_CFG_VER		602
 
-#define BNXT_NVM_CFG_VER_BITS		24
-#define BNXT_NVM_CFG_VER_BYTES		4
+#define BNXT_NVM_CFG_VER_BITS		8
+#define BNXT_NVM_CFG_VER_BYTES		1
 
 #define BNXT_MSIX_VEC_MAX	512
 #define BNXT_MSIX_VEC_MIN_MAX	128
@@ -66,11 +71,11 @@ enum bnxt_dl_version_type {
 	BNXT_VERSION_STORED,
 };
 
-void bnxt_devlink_health_report(struct bnxt *bp, unsigned long event);
-void bnxt_dl_health_status_update(struct bnxt *bp, bool healthy);
-void bnxt_dl_health_recovery_done(struct bnxt *bp);
+void bnxt_devlink_health_fw_report(struct bnxt *bp);
+void bnxt_dl_health_fw_status_update(struct bnxt *bp, bool healthy);
+void bnxt_dl_health_fw_recovery_done(struct bnxt *bp);
 void bnxt_dl_fw_reporters_create(struct bnxt *bp);
-void bnxt_dl_fw_reporters_destroy(struct bnxt *bp, bool all);
+void bnxt_dl_fw_reporters_destroy(struct bnxt *bp);
 int bnxt_dl_register(struct bnxt *bp);
 void bnxt_dl_unregister(struct bnxt *bp);
 

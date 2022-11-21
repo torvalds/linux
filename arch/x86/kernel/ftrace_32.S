@@ -19,7 +19,7 @@
 #endif
 
 SYM_FUNC_START(__fentry__)
-	ret
+	RET
 SYM_FUNC_END(__fentry__)
 EXPORT_SYMBOL(__fentry__)
 
@@ -84,7 +84,7 @@ ftrace_graph_call:
 
 /* This is weak to keep gas from relaxing the jumps */
 SYM_INNER_LABEL_ALIGN(ftrace_stub, SYM_L_WEAK)
-	ret
+	RET
 SYM_CODE_END(ftrace_caller)
 
 SYM_CODE_START(ftrace_regs_caller)
@@ -177,7 +177,7 @@ SYM_CODE_START(ftrace_graph_caller)
 	popl	%edx
 	popl	%ecx
 	popl	%eax
-	ret
+	RET
 SYM_CODE_END(ftrace_graph_caller)
 
 .globl return_to_handler

@@ -31,6 +31,7 @@
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/dma-direct.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
@@ -336,14 +337,12 @@ static void ar2315_pci_irq_handler(struct irq_desc *desc)
 	struct ar2315_pci_ctrl *apc = irq_desc_get_handler_data(desc);
 	u32 pending = ar2315_pci_reg_read(apc, AR2315_PCI_ISR) &
 		      ar2315_pci_reg_read(apc, AR2315_PCI_IMR);
-	unsigned pci_irq = 0;
+	int ret = 0;
 
 	if (pending)
-		pci_irq = irq_find_mapping(apc->domain, __ffs(pending));
+		ret = generic_handle_domain_irq(apc->domain, __ffs(pending));
 
-	if (pci_irq)
-		generic_handle_irq(pci_irq);
-	else
+	if (!pending || ret)
 		spurious_interrupt();
 }
 
@@ -385,7 +384,7 @@ static int ar2315_pci_irq_map(struct irq_domain *d, unsigned irq,
 	return 0;
 }
 
-static struct irq_domain_ops ar2315_pci_irq_domain_ops = {
+static const struct irq_domain_ops ar2315_pci_irq_domain_ops = {
 	.map = ar2315_pci_irq_map,
 };
 
@@ -483,11 +482,11 @@ static int ar2315_pci_probe(struct platform_device *pdev)
 	apc->io_res.name = "AR2315 IO space";
 	apc->io_res.start = 0;
 	apc->io_res.end = 0;
-	apc->io_res.flags = IORESOURCE_IO,
+	apc->io_res.flags = IORESOURCE_IO;
 
 	apc->pci_ctrl.pci_ops = &ar2315_pci_ops;
-	apc->pci_ctrl.mem_resource = &apc->mem_res,
-	apc->pci_ctrl.io_resource = &apc->io_res,
+	apc->pci_ctrl.mem_resource = &apc->mem_res;
+	apc->pci_ctrl.io_resource = &apc->io_res;
 
 	register_pci_controller(&apc->pci_ctrl);
 

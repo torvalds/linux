@@ -3,7 +3,7 @@
  *
  * Module Name: evrgnini- ACPI address_space (op_region) init
  *
- * Copyright (C) 2000 - 2020, Intel Corp.
+ * Copyright (C) 2000 - 2021, Intel Corp.
  *
  *****************************************************************************/
 
@@ -403,6 +403,58 @@ acpi_ev_cmos_region_setup(acpi_handle handle,
 {
 	ACPI_FUNCTION_TRACE(ev_cmos_region_setup);
 
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ev_data_table_region_setup
+ *
+ * PARAMETERS:  handle              - Region we are interested in
+ *              function            - Start or stop
+ *              handler_context     - Address space handler context
+ *              region_context      - Region specific context
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Setup a data_table_region
+ *
+ * MUTEX:       Assumes namespace is not locked
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ev_data_table_region_setup(acpi_handle handle,
+				u32 function,
+				void *handler_context, void **region_context)
+{
+	union acpi_operand_object *region_desc =
+	    (union acpi_operand_object *)handle;
+	struct acpi_data_table_space_context *local_region_context;
+
+	ACPI_FUNCTION_TRACE(ev_data_table_region_setup);
+
+	if (function == ACPI_REGION_DEACTIVATE) {
+		if (*region_context) {
+			ACPI_FREE(*region_context);
+			*region_context = NULL;
+		}
+		return_ACPI_STATUS(AE_OK);
+	}
+
+	/* Create a new context */
+
+	local_region_context =
+	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_data_table_space_context));
+	if (!(local_region_context)) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
+	/* Save the data table pointer for use in the handler */
+
+	local_region_context->pointer = region_desc->region.pointer;
+
+	*region_context = local_region_context;
 	return_ACPI_STATUS(AE_OK);
 }
 

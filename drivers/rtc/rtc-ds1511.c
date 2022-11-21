@@ -104,12 +104,6 @@ rtc_write(uint8_t val, uint32_t reg)
 	writeb(val, ds1511_base + (reg * reg_spacing));
 }
 
-static inline void
-rtc_write_alarm(uint8_t val, enum ds1511reg reg)
-{
-	rtc_write((val | 0x80), reg);
-}
-
 static noinline uint8_t
 rtc_read(enum ds1511reg reg)
 {
@@ -466,13 +460,11 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 
 	pdata->rtc->ops = &ds1511_rtc_ops;
 
-	pdata->rtc->nvram_old_abi = true;
-
-	ret = rtc_register_device(pdata->rtc);
+	ret = devm_rtc_register_device(pdata->rtc);
 	if (ret)
 		return ret;
 
-	rtc_nvmem_register(pdata->rtc, &ds1511_nvmem_cfg);
+	devm_rtc_nvmem_register(pdata->rtc, &ds1511_nvmem_cfg);
 
 	/*
 	 * if the platform has an interrupt in mind for this device,

@@ -115,17 +115,18 @@ static bool pde_subdir_insert(struct proc_dir_entry *dir,
 	return true;
 }
 
-static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
+static int proc_notify_change(struct user_namespace *mnt_userns,
+			      struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct proc_dir_entry *de = PDE(inode);
 	int error;
 
-	error = setattr_prepare(dentry, iattr);
+	error = setattr_prepare(&init_user_ns, dentry, iattr);
 	if (error)
 		return error;
 
-	setattr_copy(inode, iattr);
+	setattr_copy(&init_user_ns, inode, iattr);
 	mark_inode_dirty(inode);
 
 	proc_set_user(de, inode->i_uid, inode->i_gid);
@@ -133,7 +134,8 @@ static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 	return 0;
 }
 
-static int proc_getattr(const struct path *path, struct kstat *stat,
+static int proc_getattr(struct user_namespace *mnt_userns,
+			const struct path *path, struct kstat *stat,
 			u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -145,7 +147,7 @@ static int proc_getattr(const struct path *path, struct kstat *stat,
 		}
 	}
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(&init_user_ns, inode, stat);
 	return 0;
 }
 
@@ -164,15 +166,8 @@ static int __xlate_proc_name(const char *name, struct proc_dir_entry **ret,
 	const char     		*cp = name, *next;
 	struct proc_dir_entry	*de;
 
-	de = *ret;
-	if (!de)
-		de = &proc_root;
-
-	while (1) {
-		next = strchr(cp, '/');
-		if (!next)
-			break;
-
+	de = *ret ?: &proc_root;
+	while ((next = strchr(cp, '/')) != NULL) {
 		de = pde_subdir_find(de, cp, next - cp);
 		if (!de) {
 			WARN(1, "name '%s'\n", name);
@@ -349,6 +344,16 @@ static const struct file_operations proc_dir_operations = {
 	.iterate_shared		= proc_readdir,
 };
 
+static int proc_net_d_revalidate(struct dentry *dentry, unsigned int flags)
+{
+	return 0;
+}
+
+const struct dentry_operations proc_net_dentry_ops = {
+	.d_revalidate	= proc_net_d_revalidate,
+	.d_delete	= always_delete_dentry,
+};
+
 /*
  * proc directories can do almost nothing..
  */
@@ -471,8 +476,8 @@ struct proc_dir_entry *proc_symlink(const char *name,
 }
 EXPORT_SYMBOL(proc_symlink);
 
-struct proc_dir_entry *proc_mkdir_data(const char *name, umode_t mode,
-		struct proc_dir_entry *parent, void *data)
+struct proc_dir_entry *_proc_mkdir(const char *name, umode_t mode,
+		struct proc_dir_entry *parent, void *data, bool force_lookup)
 {
 	struct proc_dir_entry *ent;
 
@@ -484,9 +489,19 @@ struct proc_dir_entry *proc_mkdir_data(const char *name, umode_t mode,
 		ent->data = data;
 		ent->proc_dir_ops = &proc_dir_operations;
 		ent->proc_iops = &proc_dir_inode_operations;
+		if (force_lookup) {
+			pde_force_lookup(ent);
+		}
 		ent = proc_register(parent, ent);
 	}
 	return ent;
+}
+EXPORT_SYMBOL_GPL(_proc_mkdir);
+
+struct proc_dir_entry *proc_mkdir_data(const char *name, umode_t mode,
+		struct proc_dir_entry *parent, void *data)
+{
+	return _proc_mkdir(name, mode, parent, data, false);
 }
 EXPORT_SYMBOL_GPL(proc_mkdir_data);
 
@@ -734,7 +749,7 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 	while (1) {
 		next = pde_subdir_first(de);
 		if (next) {
-			if (unlikely(pde_is_permanent(root))) {
+			if (unlikely(pde_is_permanent(next))) {
 				write_unlock(&proc_subdir_lock);
 				WARN(1, "removing permanent /proc entry '%s/%s'",
 					next->parent->name, next->name);
@@ -775,12 +790,6 @@ void proc_remove(struct proc_dir_entry *de)
 		remove_proc_subtree(de->name, de->parent);
 }
 EXPORT_SYMBOL(proc_remove);
-
-void *PDE_DATA(const struct inode *inode)
-{
-	return __PDE_DATA(inode);
-}
-EXPORT_SYMBOL(PDE_DATA);
 
 /*
  * Pull a user buffer into memory and pass it to the file's write handler if

@@ -116,8 +116,11 @@ struct drm_simple_display_pipe_funcs {
 	 * the documentation for the &drm_plane_helper_funcs.prepare_fb hook for
 	 * more details.
 	 *
-	 * Drivers which always have their buffers pinned should use
-	 * drm_gem_fb_simple_display_pipe_prepare_fb() for this hook.
+	 * For GEM drivers who neither have a @prepare_fb nor @cleanup_fb hook
+	 * set drm_gem_simple_display_pipe_prepare_fb() is called automatically
+	 * to implement this. Other drivers which need additional plane
+	 * processing can call drm_gem_simple_display_pipe_prepare_fb() from
+	 * their @prepare_fb hook.
 	 */
 	int (*prepare_fb)(struct drm_simple_display_pipe *pipe,
 			  struct drm_plane_state *plane_state);
@@ -149,6 +152,60 @@ struct drm_simple_display_pipe_funcs {
 	 * more details.
 	 */
 	void (*disable_vblank)(struct drm_simple_display_pipe *pipe);
+
+	/**
+	 * @reset_crtc:
+	 *
+	 * Optional, called by &drm_crtc_funcs.reset. Please read the
+	 * documentation for the &drm_crtc_funcs.reset hook for more details.
+	 */
+	void (*reset_crtc)(struct drm_simple_display_pipe *pipe);
+
+	/**
+	 * @duplicate_crtc_state:
+	 *
+	 * Optional, called by &drm_crtc_funcs.atomic_duplicate_state. Please
+	 * read the documentation for the &drm_crtc_funcs.atomic_duplicate_state
+	 * hook for more details.
+	 */
+	struct drm_crtc_state * (*duplicate_crtc_state)(struct drm_simple_display_pipe *pipe);
+
+	/**
+	 * @destroy_crtc_state:
+	 *
+	 * Optional, called by &drm_crtc_funcs.atomic_destroy_state. Please
+	 * read the documentation for the &drm_crtc_funcs.atomic_destroy_state
+	 * hook for more details.
+	 */
+	void (*destroy_crtc_state)(struct drm_simple_display_pipe *pipe,
+				   struct drm_crtc_state *crtc_state);
+
+	/**
+	 * @reset_plane:
+	 *
+	 * Optional, called by &drm_plane_funcs.reset. Please read the
+	 * documentation for the &drm_plane_funcs.reset hook for more details.
+	 */
+	void (*reset_plane)(struct drm_simple_display_pipe *pipe);
+
+	/**
+	 * @duplicate_plane_state:
+	 *
+	 * Optional, called by &drm_plane_funcs.atomic_duplicate_state.  Please
+	 * read the documentation for the &drm_plane_funcs.atomic_duplicate_state
+	 * hook for more details.
+	 */
+	struct drm_plane_state * (*duplicate_plane_state)(struct drm_simple_display_pipe *pipe);
+
+	/**
+	 * @destroy_plane_state:
+	 *
+	 * Optional, called by &drm_plane_funcs.atomic_destroy_state.  Please
+	 * read the documentation for the &drm_plane_funcs.atomic_destroy_state
+	 * hook for more details.
+	 */
+	void (*destroy_plane_state)(struct drm_simple_display_pipe *pipe,
+				    struct drm_plane_state *plane_state);
 };
 
 /**
@@ -184,5 +241,29 @@ int drm_simple_display_pipe_init(struct drm_device *dev,
 int drm_simple_encoder_init(struct drm_device *dev,
 			    struct drm_encoder *encoder,
 			    int encoder_type);
+
+void *__drmm_simple_encoder_alloc(struct drm_device *dev, size_t size,
+				  size_t offset, int encoder_type);
+
+/**
+ * drmm_simple_encoder_alloc - Allocate and initialize an encoder with basic
+ *                             functionality.
+ * @dev: drm device
+ * @type: the type of the struct which contains struct &drm_encoder
+ * @member: the name of the &drm_encoder within @type.
+ * @encoder_type: user visible type of the encoder
+ *
+ * Allocates and initializes an encoder that has no further functionality.
+ * Settings for possible CRTC and clones are left to their initial values.
+ * Cleanup is automatically handled through registering drm_encoder_cleanup()
+ * with drmm_add_action().
+ *
+ * Returns:
+ * Pointer to new encoder, or ERR_PTR on failure.
+ */
+#define drmm_simple_encoder_alloc(dev, type, member, encoder_type) \
+	((type *)__drmm_simple_encoder_alloc(dev, sizeof(type), \
+					     offsetof(type, member), \
+					     encoder_type))
 
 #endif /* __LINUX_DRM_SIMPLE_KMS_HELPER_H */

@@ -19,11 +19,6 @@
 .Lbswap128_mask:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 
-.section	.rodata.cst16.xts_gf128mul_and_shl1_mask, "aM", @progbits, 16
-.align 16
-.Lxts_gf128mul_and_shl1_mask:
-	.byte 0x87, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
-
 .text
 
 /* structure of crypto context */
@@ -272,7 +267,7 @@ SYM_FUNC_START_LOCAL(__twofish_enc_blk8)
 	outunpack_blocks(RC1, RD1, RA1, RB1, RK1, RX0, RY0, RK2);
 	outunpack_blocks(RC2, RD2, RA2, RB2, RK1, RX0, RY0, RK2);
 
-	ret;
+	RET;
 SYM_FUNC_END(__twofish_enc_blk8)
 
 .align 8
@@ -312,7 +307,7 @@ SYM_FUNC_START_LOCAL(__twofish_dec_blk8)
 	outunpack_blocks(RA1, RB1, RC1, RD1, RK1, RX0, RY0, RK2);
 	outunpack_blocks(RA2, RB2, RC2, RD2, RK1, RX0, RY0, RK2);
 
-	ret;
+	RET;
 SYM_FUNC_END(__twofish_dec_blk8)
 
 SYM_FUNC_START(twofish_ecb_enc_8way)
@@ -332,7 +327,7 @@ SYM_FUNC_START(twofish_ecb_enc_8way)
 	store_8way(%r11, RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2);
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(twofish_ecb_enc_8way)
 
 SYM_FUNC_START(twofish_ecb_dec_8way)
@@ -352,7 +347,7 @@ SYM_FUNC_START(twofish_ecb_dec_8way)
 	store_8way(%r11, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(twofish_ecb_dec_8way)
 
 SYM_FUNC_START(twofish_cbc_dec_8way)
@@ -377,80 +372,5 @@ SYM_FUNC_START(twofish_cbc_dec_8way)
 	popq %r12;
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(twofish_cbc_dec_8way)
-
-SYM_FUNC_START(twofish_ctr_8way)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
-	 *	%rcx: iv (little endian, 128bit)
-	 */
-	FRAME_BEGIN
-
-	pushq %r12;
-
-	movq %rsi, %r11;
-	movq %rdx, %r12;
-
-	load_ctr_8way(%rcx, .Lbswap128_mask, RA1, RB1, RC1, RD1, RA2, RB2, RC2,
-		      RD2, RX0, RX1, RY0);
-
-	call __twofish_enc_blk8;
-
-	store_ctr_8way(%r12, %r11, RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2);
-
-	popq %r12;
-
-	FRAME_END
-	ret;
-SYM_FUNC_END(twofish_ctr_8way)
-
-SYM_FUNC_START(twofish_xts_enc_8way)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
-	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
-	 */
-	FRAME_BEGIN
-
-	movq %rsi, %r11;
-
-	/* regs <= src, dst <= IVs, regs <= regs xor IVs */
-	load_xts_8way(%rcx, %rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2,
-		      RX0, RX1, RY0, .Lxts_gf128mul_and_shl1_mask);
-
-	call __twofish_enc_blk8;
-
-	/* dst <= regs xor IVs(in dst) */
-	store_xts_8way(%r11, RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2);
-
-	FRAME_END
-	ret;
-SYM_FUNC_END(twofish_xts_enc_8way)
-
-SYM_FUNC_START(twofish_xts_dec_8way)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
-	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
-	 */
-	FRAME_BEGIN
-
-	movq %rsi, %r11;
-
-	/* regs <= src, dst <= IVs, regs <= regs xor IVs */
-	load_xts_8way(%rcx, %rdx, %rsi, RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2,
-		      RX0, RX1, RY0, .Lxts_gf128mul_and_shl1_mask);
-
-	call __twofish_dec_blk8;
-
-	/* dst <= regs xor IVs(in dst) */
-	store_xts_8way(%r11, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
-
-	FRAME_END
-	ret;
-SYM_FUNC_END(twofish_xts_dec_8way)

@@ -48,6 +48,7 @@ int arch_update_cpu_topology(void);
 /* Conform to ACPI 2.0 SLIT distance definitions */
 #define LOCAL_DISTANCE		10
 #define REMOTE_DISTANCE		20
+#define DISTANCE_BITS           8
 #ifndef node_distance
 #define node_distance(from,to)	((from) == (to) ? LOCAL_DISTANCE : REMOTE_DISTANCE)
 #endif
@@ -179,14 +180,39 @@ static inline int cpu_to_mem(int cpu)
 
 #endif	/* [!]CONFIG_HAVE_MEMORYLESS_NODES */
 
+#if defined(topology_die_id) && defined(topology_die_cpumask)
+#define TOPOLOGY_DIE_SYSFS
+#endif
+#if defined(topology_cluster_id) && defined(topology_cluster_cpumask)
+#define TOPOLOGY_CLUSTER_SYSFS
+#endif
+#if defined(topology_book_id) && defined(topology_book_cpumask)
+#define TOPOLOGY_BOOK_SYSFS
+#endif
+#if defined(topology_drawer_id) && defined(topology_drawer_cpumask)
+#define TOPOLOGY_DRAWER_SYSFS
+#endif
+
 #ifndef topology_physical_package_id
 #define topology_physical_package_id(cpu)	((void)(cpu), -1)
 #endif
 #ifndef topology_die_id
 #define topology_die_id(cpu)			((void)(cpu), -1)
 #endif
+#ifndef topology_cluster_id
+#define topology_cluster_id(cpu)		((void)(cpu), -1)
+#endif
 #ifndef topology_core_id
 #define topology_core_id(cpu)			((void)(cpu), 0)
+#endif
+#ifndef topology_book_id
+#define topology_book_id(cpu)			((void)(cpu), -1)
+#endif
+#ifndef topology_drawer_id
+#define topology_drawer_id(cpu)			((void)(cpu), -1)
+#endif
+#ifndef topology_ppin
+#define topology_ppin(cpu)			((void)(cpu), 0ull)
 #endif
 #ifndef topology_sibling_cpumask
 #define topology_sibling_cpumask(cpu)		cpumask_of(cpu)
@@ -194,14 +220,30 @@ static inline int cpu_to_mem(int cpu)
 #ifndef topology_core_cpumask
 #define topology_core_cpumask(cpu)		cpumask_of(cpu)
 #endif
+#ifndef topology_cluster_cpumask
+#define topology_cluster_cpumask(cpu)		cpumask_of(cpu)
+#endif
 #ifndef topology_die_cpumask
 #define topology_die_cpumask(cpu)		cpumask_of(cpu)
+#endif
+#ifndef topology_book_cpumask
+#define topology_book_cpumask(cpu)		cpumask_of(cpu)
+#endif
+#ifndef topology_drawer_cpumask
+#define topology_drawer_cpumask(cpu)		cpumask_of(cpu)
 #endif
 
 #if defined(CONFIG_SCHED_SMT) && !defined(cpu_smt_mask)
 static inline const struct cpumask *cpu_smt_mask(int cpu)
 {
 	return topology_sibling_cpumask(cpu);
+}
+#endif
+
+#if defined(CONFIG_SCHED_CLUSTER) && !defined(cpu_cluster_mask)
+static inline const struct cpumask *cpu_cluster_mask(int cpu)
+{
+	return topology_cluster_cpumask(cpu);
 }
 #endif
 

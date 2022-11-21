@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
  *
  * @File	ctsrc.c
@@ -590,16 +590,15 @@ int src_mgr_destroy(struct src_mgr *src_mgr)
 
 /* SRCIMP resource manager operations */
 
-static int srcimp_master(struct rsc *rsc)
+static void srcimp_master(struct rsc *rsc)
 {
 	rsc->conj = 0;
-	return rsc->idx = container_of(rsc, struct srcimp, rsc)->idx[0];
+	rsc->idx = container_of(rsc, struct srcimp, rsc)->idx[0];
 }
 
-static int srcimp_next_conj(struct rsc *rsc)
+static void srcimp_next_conj(struct rsc *rsc)
 {
 	rsc->conj++;
-	return container_of(rsc, struct srcimp, rsc)->idx[rsc->conj];
 }
 
 static int srcimp_index(const struct rsc *rsc)

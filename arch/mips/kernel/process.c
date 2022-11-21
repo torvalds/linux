@@ -9,50 +9,35 @@
  * Copyright (C) 2004 Thiemo Seufer
  * Copyright (C) 2013  Imagination Technologies Ltd.
  */
+#include <linux/cpu.h>
 #include <linux/errno.h>
+#include <linux/init.h>
+#include <linux/kallsyms.h>
+#include <linux/kernel.h>
+#include <linux/nmi.h>
+#include <linux/personality.h>
+#include <linux/prctl.h>
+#include <linux/random.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
-#include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
-#include <linux/tick.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/stddef.h>
-#include <linux/unistd.h>
-#include <linux/export.h>
-#include <linux/ptrace.h>
-#include <linux/mman.h>
-#include <linux/personality.h>
-#include <linux/sys.h>
-#include <linux/init.h>
-#include <linux/completion.h>
-#include <linux/kallsyms.h>
-#include <linux/random.h>
-#include <linux/prctl.h>
-#include <linux/nmi.h>
-#include <linux/cpu.h>
 
 #include <asm/abi.h>
 #include <asm/asm.h>
-#include <asm/bootinfo.h>
-#include <asm/cpu.h>
 #include <asm/dsemul.h>
 #include <asm/dsp.h>
+#include <asm/exec.h>
 #include <asm/fpu.h>
+#include <asm/inst.h>
 #include <asm/irq.h>
-#include <asm/mips-cps.h>
+#include <asm/irq_regs.h>
+#include <asm/isadep.h>
 #include <asm/msa.h>
+#include <asm/mips-cps.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
 #include <asm/reg.h>
-#include <linux/uaccess.h>
-#include <asm/io.h>
-#include <asm/elf.h>
-#include <asm/isadep.h>
-#include <asm/inst.h>
 #include <asm/stacktrace.h>
-#include <asm/irq_regs.h>
-#include <asm/exec.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 void arch_cpu_idle_dead(void)
@@ -135,16 +120,15 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	/*  Put the stack after the struct pt_regs.  */
 	childksp = (unsigned long) childregs;
 	p->thread.cp0_status = (read_c0_status() & ~(ST0_CU2|ST0_CU1)) | ST0_KERNEL_CUMASK;
-	if (unlikely(p->flags & PF_KTHREAD)) {
+	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
 		/* kernel thread */
 		unsigned long status = p->thread.cp0_status;
 		memset(childregs, 0, sizeof(struct pt_regs));
-		ti->addr_limit = KERNEL_DS;
 		p->thread.reg16 = usp; /* fn */
 		p->thread.reg17 = kthread_arg;
 		p->thread.reg29 = childksp;
 		p->thread.reg31 = (unsigned long) ret_from_kernel_thread;
-#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+#if defined(CONFIG_CPU_R3000)
 		status = (status & ~(ST0_KUP | ST0_IEP | ST0_IEC)) |
 			 ((status & (ST0_KUC | ST0_IEC)) << 2);
 #else
@@ -160,7 +144,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	childregs->regs[2] = 0; /* Child gets zero as return value */
 	if (usp)
 		childregs->regs[29] = usp;
-	ti->addr_limit = USER_DS;
 
 	p->thread.reg29 = (unsigned long) childregs;
 	p->thread.reg31 = (unsigned long) ret_from_fork;
@@ -204,6 +187,36 @@ struct mips_frame_info {
 
 #define J_TARGET(pc,target)	\
 		(((unsigned long)(pc) & 0xf0000000) | ((target) << 2))
+
+static inline int is_jr_ra_ins(union mips_instruction *ip)
+{
+#ifdef CONFIG_CPU_MICROMIPS
+	/*
+	 * jr16 ra
+	 * jr ra
+	 */
+	if (mm_insn_16bit(ip->word >> 16)) {
+		if (ip->mm16_r5_format.opcode == mm_pool16c_op &&
+		    ip->mm16_r5_format.rt == mm_jr16_op &&
+		    ip->mm16_r5_format.imm == 31)
+			return 1;
+		return 0;
+	}
+
+	if (ip->r_format.opcode == mm_pool32a_op &&
+	    ip->r_format.func == mm_pool32axf_op &&
+	    ((ip->u_format.uimmediate >> 6) & GENMASK(9, 0)) == mm_jalr_op &&
+	    ip->r_format.rt == 31)
+		return 1;
+	return 0;
+#else
+	if (ip->r_format.opcode == spec_op &&
+	    ip->r_format.func == jr_op &&
+	    ip->r_format.rs == 31)
+		return 1;
+	return 0;
+#endif
+}
 
 static inline int is_ra_save_ins(union mips_instruction *ip, int *poff)
 {
@@ -390,10 +403,8 @@ static inline int is_sp_move_ins(union mips_instruction *ip, int *frame_size)
 static int get_frame_info(struct mips_frame_info *info)
 {
 	bool is_mmips = IS_ENABLED(CONFIG_CPU_MICROMIPS);
-	union mips_instruction insn, *ip;
-	const unsigned int max_insns = 128;
+	union mips_instruction insn, *ip, *ip_end;
 	unsigned int last_insn_size = 0;
-	unsigned int i;
 	bool saw_jump = false;
 
 	info->pc_offset = -1;
@@ -403,7 +414,9 @@ static int get_frame_info(struct mips_frame_info *info)
 	if (!ip)
 		goto err;
 
-	for (i = 0; i < max_insns; i++) {
+	ip_end = (void *)ip + (info->func_size ? info->func_size : 512);
+
+	while (ip < ip_end) {
 		ip = (void *)ip + last_insn_size;
 
 		if (is_mmips && mm_insn_16bit(ip->halfword[0])) {
@@ -417,7 +430,9 @@ static int get_frame_info(struct mips_frame_info *info)
 			last_insn_size = 4;
 		}
 
-		if (!info->frame_size) {
+		if (is_jr_ra_ins(ip)) {
+			break;
+		} else if (!info->frame_size) {
 			is_sp_move_ins(&insn, &info->frame_size);
 			continue;
 		} else if (!saw_jump && is_jump_ins(ip)) {
@@ -496,7 +511,7 @@ static int __init frame_info_init(void)
 
 	/*
 	 * Without schedule() frame info, result given by
-	 * thread_saved_pc() and get_wchan() are not reliable.
+	 * thread_saved_pc() and __get_wchan() are not reliable.
 	 */
 	if (schedule_mfi.pc_offset < 0)
 		printk("Can't analyze schedule() prologue at %p\n", schedule);
@@ -637,9 +652,9 @@ unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
 #endif
 
 /*
- * get_wchan - a maintenance nightmare^W^Wpain in the ass ...
+ * __get_wchan - a maintenance nightmare^W^Wpain in the ass ...
  */
-unsigned long get_wchan(struct task_struct *task)
+unsigned long __get_wchan(struct task_struct *task)
 {
 	unsigned long pc = 0;
 #ifdef CONFIG_KALLSYMS
@@ -647,8 +662,6 @@ unsigned long get_wchan(struct task_struct *task)
 	unsigned long ra = 0;
 #endif
 
-	if (!task || task == current || task->state == TASK_RUNNING)
-		goto out;
 	if (!task_stack_page(task))
 		goto out;
 
@@ -702,7 +715,6 @@ unsigned long arch_align_stack(unsigned long sp)
 	return sp & ALMASK;
 }
 
-static DEFINE_PER_CPU(call_single_data_t, backtrace_csd);
 static struct cpumask backtrace_csd_busy;
 
 static void handle_backtrace(void *info)
@@ -710,6 +722,9 @@ static void handle_backtrace(void *info)
 	nmi_cpu_backtrace(get_irq_regs());
 	cpumask_clear_cpu(smp_processor_id(), &backtrace_csd_busy);
 }
+
+static DEFINE_PER_CPU(call_single_data_t, backtrace_csd) =
+	CSD_INIT(handle_backtrace, NULL);
 
 static void raise_backtrace(cpumask_t *mask)
 {
@@ -730,7 +745,6 @@ static void raise_backtrace(cpumask_t *mask)
 		}
 
 		csd = &per_cpu(backtrace_csd, cpu);
-		csd->func = handle_backtrace;
 		smp_call_function_single_async(cpu, csd);
 	}
 }
@@ -843,10 +857,10 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 	 * scheduled in then it will already have picked up the new FP mode
 	 * whilst doing so.
 	 */
-	get_online_cpus();
+	cpus_read_lock();
 	for_each_cpu_and(cpu, &process_cpus, cpu_online_mask)
 		work_on_cpu(cpu, prepare_for_fp_mode_switch, NULL);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return 0;
 }

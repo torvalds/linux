@@ -500,8 +500,9 @@ endif
 # or video class gadget drivers), or specific hardware, here.
 config USB_G_WEBCAM
 	tristate "USB Webcam Gadget"
-	depends on VIDEO_V4L2
+	depends on VIDEO_DEV
 	select USB_LIBCOMPOSITE
+	select VIDEOBUF2_DMA_SG
 	select VIDEOBUF2_VMALLOC
 	select USB_F_UVC
 	help
@@ -515,10 +516,15 @@ config USB_G_WEBCAM
 config USB_RAW_GADGET
 	tristate "USB Raw Gadget"
 	help
-	  USB Raw Gadget is a kernel module that provides a userspace interface
-	  for the USB Gadget subsystem. Essentially it allows to emulate USB
-	  devices from userspace. See Documentation/usb/raw-gadget.rst for
-	  details.
+	  USB Raw Gadget is a gadget driver that gives userspace low-level
+	  control over the gadget's communication process.
+
+	  Like any other gadget driver, Raw Gadget implements USB devices via
+	  the USB gadget API. Unlike most gadget drivers, Raw Gadget does not
+	  implement any concrete USB functions itself but requires userspace
+	  to do that.
+
+	  See Documentation/usb/raw-gadget.rst for details.
 
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "raw_gadget".

@@ -182,7 +182,7 @@ static int dp83867_set_wol(struct phy_device *phydev,
 {
 	struct net_device *ndev = phydev->attached_dev;
 	u16 val_rxcfg, val_micr;
-	u8 *mac;
+	const u8 *mac;
 
 	val_rxcfg = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_RXFCFG);
 	val_micr = phy_read(phydev, MII_DP83867_MICR);
@@ -193,7 +193,7 @@ static int dp83867_set_wol(struct phy_device *phydev,
 		val_micr |= MII_DP83867_MICR_WOL_INT_EN;
 
 		if (wol->wolopts & WAKE_MAGIC) {
-			mac = (u8 *)ndev->dev_addr;
+			mac = (const u8 *)ndev->dev_addr;
 
 			if (!is_valid_ether_addr(mac))
 				return -EINVAL;
@@ -288,9 +288,13 @@ static void dp83867_get_wol(struct phy_device *phydev,
 
 static int dp83867_config_intr(struct phy_device *phydev)
 {
-	int micr_status;
+	int micr_status, err;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = dp83867_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		micr_status = phy_read(phydev, MII_DP83867_MICR);
 		if (micr_status < 0)
 			return micr_status;
@@ -303,11 +307,41 @@ static int dp83867_config_intr(struct phy_device *phydev)
 			MII_DP83867_MICR_DUP_MODE_CHNG_INT_EN |
 			MII_DP83867_MICR_SLEEP_MODE_CHNG_INT_EN);
 
-		return phy_write(phydev, MII_DP83867_MICR, micr_status);
+		err = phy_write(phydev, MII_DP83867_MICR, micr_status);
+	} else {
+		micr_status = 0x0;
+		err = phy_write(phydev, MII_DP83867_MICR, micr_status);
+		if (err)
+			return err;
+
+		err = dp83867_ack_interrupt(phydev);
 	}
 
-	micr_status = 0x0;
-	return phy_write(phydev, MII_DP83867_MICR, micr_status);
+	return err;
+}
+
+static irqreturn_t dp83867_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status, irq_enabled;
+
+	irq_status = phy_read(phydev, MII_DP83867_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	irq_enabled = phy_read(phydev, MII_DP83867_MICR);
+	if (irq_enabled < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & irq_enabled))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int dp83867_read_status(struct phy_device *phydev)
@@ -585,6 +619,25 @@ static int dp83867_of_init(struct phy_device *phydev)
 #else
 static int dp83867_of_init(struct phy_device *phydev)
 {
+	struct dp83867_private *dp83867 = phydev->priv;
+	u16 delay;
+
+	/* For non-OF device, the RX and TX ID values are either strapped
+	 * or take from default value. So, we init RX & TX ID values here
+	 * so that the RGMIIDCTL is configured correctly later in
+	 * dp83867_config_init();
+	 */
+	delay = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_RGMIIDCTL);
+	dp83867->rx_id_delay = delay & DP83867_RGMII_RX_CLK_DELAY_MAX;
+	dp83867->tx_id_delay = (delay >> DP83867_RGMII_TX_CLK_DELAY_SHIFT) &
+			       DP83867_RGMII_TX_CLK_DELAY_MAX;
+
+	/* Per datasheet, IO impedance is default to 50-ohm, so we set the
+	 * same here or else the default '0' means highest IO impedance
+	 * which is wrong.
+	 */
+	dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MIN / 2;
+
 	return 0;
 }
 #endif /* CONFIG_OF_MDIO */
@@ -792,16 +845,12 @@ static int dp83867_phy_reset(struct phy_device *phydev)
 {
 	int err;
 
-	err = phy_write(phydev, DP83867_CTRL, DP83867_SW_RESET);
+	err = phy_write(phydev, DP83867_CTRL, DP83867_SW_RESTART);
 	if (err < 0)
 		return err;
 
 	usleep_range(10, 20);
 
-	/* After reset FORCE_LINK_GOOD bit is set. Although the
-	 * default value should be unset. Disable FORCE_LINK_GOOD
-	 * for the phy to work properly.
-	 */
 	return phy_modify(phydev, MII_DP83867_PHYCTRL,
 			 DP83867_PHYCR_FORCE_LINK_GOOD, 0);
 }
@@ -825,8 +874,8 @@ static struct phy_driver dp83867_driver[] = {
 		.set_wol	= dp83867_set_wol,
 
 		/* IRQ related */
-		.ack_interrupt	= dp83867_ack_interrupt,
 		.config_intr	= dp83867_config_intr,
+		.handle_interrupt = dp83867_handle_interrupt,
 
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,

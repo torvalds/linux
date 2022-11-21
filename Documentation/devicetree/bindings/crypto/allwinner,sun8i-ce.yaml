@@ -30,7 +30,6 @@ properties:
       - description: Module clock
       - description: MBus clock
     minItems: 2
-    maxItems: 3
 
   clock-names:
     items:
@@ -38,7 +37,6 @@ properties:
       - const: mod
       - const: ram
     minItems: 2
-    maxItems: 3
 
   resets:
     maxItems: 1
@@ -46,8 +44,7 @@ properties:
 if:
   properties:
     compatible:
-      items:
-        const: allwinner,sun50i-h6-crypto
+      const: allwinner,sun50i-h6-crypto
 then:
   properties:
     clocks:

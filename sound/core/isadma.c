@@ -97,3 +97,41 @@ unsigned int snd_dma_pointer(unsigned long dma, unsigned int size)
 		return size - result;
 }
 EXPORT_SYMBOL(snd_dma_pointer);
+
+struct snd_dma_data {
+	int dma;
+};
+
+static void __snd_release_dma(struct device *dev, void *data)
+{
+	struct snd_dma_data *p = data;
+
+	snd_dma_disable(p->dma);
+	free_dma(p->dma);
+}
+
+/**
+ * snd_devm_request_dma - the managed version of request_dma()
+ * @dev: the device pointer
+ * @dma: the dma number
+ * @name: the name string of the requester
+ *
+ * Returns zero on success, or a negative error code.
+ * The requested DMA will be automatically released at unbinding via devres.
+ */
+int snd_devm_request_dma(struct device *dev, int dma, const char *name)
+{
+	struct snd_dma_data *p;
+
+	if (request_dma(dma, name))
+		return -EBUSY;
+	p = devres_alloc(__snd_release_dma, sizeof(*p), GFP_KERNEL);
+	if (!p) {
+		free_dma(dma);
+		return -ENOMEM;
+	}
+	p->dma = dma;
+	devres_add(dev, p);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_devm_request_dma);

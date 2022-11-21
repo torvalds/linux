@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2020 Texas Instruments Incorporated
+# Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/sound/ti,j721e-cpb-ivi-audio.yaml#
@@ -7,7 +9,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Texas Instruments J721e Common Processor Board Audio Support
 
 maintainers:
-  - Peter Ujfalusi <peter.ujfalusi@ti.com>
+  - Peter Ujfalusi <peter.ujfalusi@gmail.com>
 
 description: |
   The Infotainment board plugs into the Common Processor Board, the support of the
@@ -116,8 +118,6 @@ examples:
     sound {
         compatible = "ti,j721e-cpb-ivi-audio";
         model = "j721e-cpb-ivi";
-
-        status = "okay";
 
         ti,cpb-mcasp = <&mcasp10>;
         ti,cpb-codec = <&pcm3168a_1>;

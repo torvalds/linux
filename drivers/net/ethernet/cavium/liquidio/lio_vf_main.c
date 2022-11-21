@@ -526,7 +526,7 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 			oct->irq_name_storage = NULL;
 		}
 		/* Soft reset the octeon device before exiting */
-		if (oct->pci_dev->reset_fn)
+		if (!pcie_reset_flr(oct->pci_dev, PCI_RESET_PROBE))
 			octeon_pci_flr(oct);
 		else
 			cn23xx_vf_ask_pf_to_do_flr(oct);
@@ -595,7 +595,7 @@ static void octeon_destroy_resources(struct octeon_device *oct)
  * @lio: per-network private data
  * @start_stop: whether to start or stop
  */
-static void send_rx_ctrl_cmd(struct lio *lio, int start_stop)
+static int send_rx_ctrl_cmd(struct lio *lio, int start_stop)
 {
 	struct octeon_device *oct = (struct octeon_device *)lio->oct_dev;
 	struct octeon_soft_command *sc;
@@ -603,11 +603,16 @@ static void send_rx_ctrl_cmd(struct lio *lio, int start_stop)
 	int retval;
 
 	if (oct->props[lio->ifidx].rx_on == start_stop)
-		return;
+		return 0;
 
 	sc = (struct octeon_soft_command *)
 		octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE,
 					  16, 0);
+	if (!sc) {
+		netif_info(lio, rx_err, lio->netdev,
+			   "Failed to allocate octeon_soft_command struct\n");
+		return -ENOMEM;
+	}
 
 	ncmd = (union octnet_cmd *)sc->virtdptr;
 
@@ -635,11 +640,13 @@ static void send_rx_ctrl_cmd(struct lio *lio, int start_stop)
 		 */
 		retval = wait_for_sc_completion_timeout(oct, sc, 0);
 		if (retval)
-			return;
+			return retval;
 
 		oct->props[lio->ifidx].rx_on = start_stop;
 		WRITE_ONCE(sc->caller_is_done, true);
 	}
+
+	return retval;
 }
 
 /**
@@ -836,7 +843,7 @@ static void free_netsgbuf(void *buf)
 	while (frags--) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
 
-		pci_unmap_page((lio->oct_dev)->pci_dev,
+		dma_unmap_page(&lio->oct_dev->pci_dev->dev,
 			       g->sg[(i >> 2)].ptr[(i & 3)],
 			       skb_frag_size(frag), DMA_TO_DEVICE);
 		i++;
@@ -880,7 +887,7 @@ static void free_netsgbuf_with_resp(void *buf)
 	while (frags--) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
 
-		pci_unmap_page((lio->oct_dev)->pci_dev,
+		dma_unmap_page(&lio->oct_dev->pci_dev->dev,
 			       g->sg[(i >> 2)].ptr[(i & 3)],
 			       skb_frag_size(frag), DMA_TO_DEVICE);
 		i++;
@@ -906,6 +913,7 @@ static int liquidio_open(struct net_device *netdev)
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)oct->priv;
 	struct napi_struct *napi, *n;
+	int ret = 0;
 
 	if (!oct->props[lio->ifidx].napi_enabled) {
 		tasklet_disable(&oct_priv->droq_tasklet);
@@ -932,11 +940,13 @@ static int liquidio_open(struct net_device *netdev)
 					(LIQUIDIO_NDEV_STATS_POLL_TIME_MS));
 
 	/* tell Octeon to start forwarding packets to host */
-	send_rx_ctrl_cmd(lio, 1);
+	ret = send_rx_ctrl_cmd(lio, 1);
+	if (ret)
+		return ret;
 
 	dev_info(&oct->pci_dev->dev, "%s interface is opened\n", netdev->name);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -950,9 +960,12 @@ static int liquidio_stop(struct net_device *netdev)
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)oct->priv;
 	struct napi_struct *napi, *n;
+	int ret = 0;
 
 	/* tell Octeon to stop forwarding packets to host */
-	send_rx_ctrl_cmd(lio, 0);
+	ret = send_rx_ctrl_cmd(lio, 0);
+	if (ret)
+		return ret;
 
 	netif_info(lio, ifdown, lio->netdev, "Stopping interface!\n");
 	/* Inform that netif carrier is down */
@@ -986,7 +999,7 @@ static int liquidio_stop(struct net_device *netdev)
 
 	dev_info(&oct->pci_dev->dev, "%s interface is stopped\n", netdev->name);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -1155,7 +1168,7 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 		return -EPERM;
 	}
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	ether_addr_copy(((u8 *)&lio->linfo.hw_addr) + 2, addr->sa_data);
 
 	return 0;
@@ -1240,9 +1253,6 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr)
 
 	if (copy_from_user(&conf, ifr->ifr_data, sizeof(conf)))
 		return -EFAULT;
-
-	if (conf.flags)
-		return -EINVAL;
 
 	switch (conf.tx_type) {
 	case HWTSTAMP_TX_ON:
@@ -1876,11 +1886,9 @@ static const struct net_device_ops lionetdevops = {
 	.ndo_vlan_rx_add_vid    = liquidio_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid   = liquidio_vlan_rx_kill_vid,
 	.ndo_change_mtu		= liquidio_change_mtu,
-	.ndo_do_ioctl		= liquidio_ioctl,
+	.ndo_eth_ioctl		= liquidio_ioctl,
 	.ndo_fix_features	= liquidio_fix_features,
 	.ndo_set_features	= liquidio_set_features,
-	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
-	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 };
 
 static int lio_nic_info(struct octeon_recv_info *recv_info, void *buf)
@@ -2137,7 +2145,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 			mac[j] = *((u8 *)(((u8 *)&lio->linfo.hw_addr) + 2 + j));
 
 		/* Copy MAC Address to OS network device structure */
-		ether_addr_copy(netdev->dev_addr, mac);
+		eth_hw_addr_set(netdev, mac);
 
 		if (liquidio_setup_io_queues(octeon_dev, i,
 					     lio->linfo.num_txpciq,

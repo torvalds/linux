@@ -39,6 +39,7 @@ struct l2tp_stats {
 	atomic_long_t		rx_oos_packets;
 	atomic_long_t		rx_errors;
 	atomic_long_t		rx_cookie_discards;
+	atomic_long_t		rx_invalid;
 };
 
 struct l2tp_tunnel;
@@ -159,7 +160,7 @@ struct l2tp_tunnel {
 	unsigned long		dead;
 
 	struct rcu_head rcu;
-	rwlock_t		hlist_lock;	/* protect session_hlist */
+	spinlock_t		hlist_lock;	/* write-protection for session_hlist */
 	bool			acpt_newsess;	/* indicates whether this tunnel accepts
 						 * new sessions. Protected by hlist_lock.
 						 */

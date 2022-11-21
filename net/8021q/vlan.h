@@ -57,6 +57,10 @@ static inline struct net_device *__vlan_group_get_device(struct vlan_group *vg,
 
 	array = vg->vlan_devices_arrays[pidx]
 				       [vlan_id / VLAN_GROUP_ARRAY_PART_LEN];
+
+	/* paired with smp_wmb() in vlan_group_prealloc_vid() */
+	smp_rmb();
+
 	return array ? array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN] : NULL;
 }
 
@@ -104,7 +108,8 @@ static inline netdev_features_t vlan_tnl_features(struct net_device *real_dev)
 	netdev_features_t ret;
 
 	ret = real_dev->hw_enc_features &
-	      (NETIF_F_CSUM_MASK | NETIF_F_ALL_TSO | NETIF_F_GSO_ENCAP_ALL);
+	      (NETIF_F_CSUM_MASK | NETIF_F_GSO_SOFTWARE |
+	       NETIF_F_GSO_ENCAP_ALL);
 
 	if ((ret & NETIF_F_GSO_ENCAP_ALL) && (ret & NETIF_F_CSUM_MASK))
 		return (ret & ~NETIF_F_CSUM_MASK) | NETIF_F_HW_CSUM;
@@ -124,8 +129,10 @@ void vlan_dev_set_ingress_priority(const struct net_device *dev,
 				   u32 skb_prio, u16 vlan_prio);
 int vlan_dev_set_egress_priority(const struct net_device *dev,
 				 u32 skb_prio, u16 vlan_prio);
+void vlan_dev_free_egress_priority(const struct net_device *dev);
 int vlan_dev_change_flags(const struct net_device *dev, u32 flag, u32 mask);
-void vlan_dev_get_realdev_name(const struct net_device *dev, char *result);
+void vlan_dev_get_realdev_name(const struct net_device *dev, char *result,
+			       size_t size);
 
 int vlan_check_real_dev(struct net_device *real_dev,
 			__be16 protocol, u16 vlan_id,
@@ -133,7 +140,6 @@ int vlan_check_real_dev(struct net_device *real_dev,
 void vlan_setup(struct net_device *dev);
 int register_vlan_dev(struct net_device *dev, struct netlink_ext_ack *extack);
 void unregister_vlan_dev(struct net_device *dev, struct list_head *head);
-void vlan_dev_uninit(struct net_device *dev);
 bool vlan_dev_inherit_address(struct net_device *dev,
 			      struct net_device *real_dev);
 

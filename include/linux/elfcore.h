@@ -29,7 +29,7 @@ struct elf_siginfo
  * the SVR4 structure, but more Linuxy, with things that Linux does
  * not support and which gdb doesn't really use excluded.
  */
-struct elf_prstatus
+struct elf_prstatus_common
 {
 	struct elf_siginfo pr_info;	/* Info associated with signal */
 	short	pr_cursig;		/* Current signal */
@@ -43,6 +43,11 @@ struct elf_prstatus
 	struct __kernel_old_timeval pr_stime;	/* System time */
 	struct __kernel_old_timeval pr_cutime;	/* Cumulative user time */
 	struct __kernel_old_timeval pr_cstime;	/* Cumulative system time */
+};
+
+struct elf_prstatus
+{
+	struct elf_prstatus_common common;
 	elf_gregset_t pr_reg;	/* GP registers */
 	int pr_fpvalid;		/* True if math co-processor being used.  */
 };
@@ -60,6 +65,11 @@ struct elf_prpsinfo
 	__kernel_gid_t	pr_gid;
 	pid_t	pr_pid, pr_ppid, pr_pgrp, pr_sid;
 	/* Lots missing */
+	/*
+	 * The hard-coded 16 is derived from TASK_COMM_LEN, but it can't be
+	 * changed as it is exposed to userspace. We'd better make it hard-coded
+	 * here.
+	 */
 	char	pr_fname[16];	/* filename of executable */
 	char	pr_psargs[ELF_PRARGSZ];	/* initial part of arg list */
 };
@@ -104,7 +114,7 @@ static inline int elf_core_copy_task_fpregs(struct task_struct *t, struct pt_reg
 #endif
 }
 
-#if defined(CONFIG_UM) || defined(CONFIG_IA64)
+#ifdef CONFIG_ARCH_BINFMT_ELF_EXTRA_PHDRS
 /*
  * These functions parameterize elf_core_dump in fs/binfmt_elf.c to write out
  * extra segments containing the gate DSO contents.  Dumping its
@@ -139,6 +149,6 @@ static inline size_t elf_core_extra_data_size(void)
 {
 	return 0;
 }
-#endif
+#endif /* CONFIG_ARCH_BINFMT_ELF_EXTRA_PHDRS */
 
 #endif /* _LINUX_ELFCORE_H */

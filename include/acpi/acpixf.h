@@ -3,7 +3,7 @@
  *
  * Name: acpixf.h - External interfaces to the ACPI subsystem
  *
- * Copyright (C) 2000 - 2020, Intel Corp.
+ * Copyright (C) 2000 - 2021, Intel Corp.
  *
  *****************************************************************************/
 
@@ -12,7 +12,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20200925
+#define ACPI_CA_VERSION                 0x20211217
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -454,9 +454,11 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
  * ACPI table load/unload interfaces
  */
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status ACPI_INIT_FUNCTION
-			    acpi_install_table(acpi_physical_address address,
-					       u8 physical))
+			    acpi_install_table(struct acpi_table_header *table))
 
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status ACPI_INIT_FUNCTION
+			    acpi_install_physical_table(acpi_physical_address
+							address))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			    acpi_load_table(struct acpi_table_header *table,
 					    u32 *table_idx))

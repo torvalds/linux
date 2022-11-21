@@ -44,7 +44,7 @@ MODULE_DESCRIPTION("Cryptographic Coprocessor (message type 6), " \
 		   "Copyright IBM Corp. 2001, 2012");
 MODULE_LICENSE("GPL");
 
-/**
+/*
  * CPRB
  *	  Note that all shorts, ints and longs are little-endian.
  *	  All pointer fields are 32-bits long, and mean nothing
@@ -107,7 +107,7 @@ struct function_and_rules_block {
 	unsigned char only_rule[8];
 } __packed;
 
-/**
+/*
  * The following is used to initialize the CPRBX passed to the CEXxC/CEXxP
  * card in a type6 message. The 3 fields that must be filled in at execution
  * time are  req_parml, rpl_parml and usage_domain.
@@ -236,7 +236,7 @@ int speed_idx_ep11(int req_type)
 }
 
 
-/**
+/*
  * Convert a ICAMEX message to a type6 MEX message.
  *
  * @zq: crypto device pointer
@@ -305,7 +305,7 @@ static int ICAMEX_msg_to_type6MEX_msgX(struct zcrypt_queue *zq,
 	return 0;
 }
 
-/**
+/*
  * Convert a ICACRT message to a type6 CRT message.
  *
  * @zq: crypto device pointer
@@ -374,7 +374,7 @@ static int ICACRT_msg_to_type6CRT_msgX(struct zcrypt_queue *zq,
 	return 0;
 }
 
-/**
+/*
  * Convert a XCRB message to a type6 CPRB message.
  *
  * @zq: crypto device pointer
@@ -403,7 +403,7 @@ static int XCRB_msg_to_type6CPRB_msgX(bool userspace, struct ap_message *ap_msg,
 	} __packed * msg = ap_msg->msg;
 
 	int rcblen = CEIL4(xcRB->request_control_blk_length);
-	int replylen, req_sumlen, resp_sumlen;
+	int req_sumlen, resp_sumlen;
 	char *req_data = ap_msg->msg + sizeof(struct type6_hdr) + rcblen;
 	char *function_code;
 
@@ -415,7 +415,7 @@ static int XCRB_msg_to_type6CPRB_msgX(bool userspace, struct ap_message *ap_msg,
 	ap_msg->len = sizeof(struct type6_hdr) +
 		CEIL4(xcRB->request_control_blk_length) +
 		xcRB->request_data_length;
-	if (ap_msg->len > MSGTYPE06_MAX_MSG_SIZE)
+	if (ap_msg->len > ap_msg->bufsize)
 		return -EINVAL;
 
 	/*
@@ -434,12 +434,6 @@ static int XCRB_msg_to_type6CPRB_msgX(bool userspace, struct ap_message *ap_msg,
 	if (CEIL4(xcRB->reply_control_blk_length) <
 			xcRB->reply_control_blk_length)
 		return -EINVAL; /* overflow after alignment*/
-
-	replylen = sizeof(struct type86_fmt2_msg) +
-		CEIL4(xcRB->reply_control_blk_length) +
-		xcRB->reply_data_length;
-	if (replylen > MSGTYPE06_MAX_MSG_SIZE)
-		return -EINVAL;
 
 	/*
 	 * Overflow check
@@ -478,6 +472,7 @@ static int XCRB_msg_to_type6CPRB_msgX(bool userspace, struct ap_message *ap_msg,
 	*fcode = (msg->hdr.function_code[0] << 8) | msg->hdr.function_code[1];
 	*dom = (unsigned short *)&msg->cprbx.domain;
 
+	/* check subfunction, US and AU need special flag with NQAP */
 	if (memcmp(function_code, "US", 2) == 0
 	    || memcmp(function_code, "AU", 2) == 0)
 		ap_msg->flags |= AP_MSG_FLAG_SPECIAL;
@@ -486,6 +481,23 @@ static int XCRB_msg_to_type6CPRB_msgX(bool userspace, struct ap_message *ap_msg,
 	if (ap_msg->fi.flags & AP_FI_FLAG_TOGGLE_SPECIAL)
 		ap_msg->flags ^= AP_MSG_FLAG_SPECIAL;
 #endif
+
+	/* check CPRB minor version, set info bits in ap_message flag field */
+	switch (*(unsigned short *)(&msg->cprbx.func_id[0])) {
+	case 0x5432: /* "T2" */
+		ap_msg->flags |= AP_MSG_FLAG_USAGE;
+		break;
+	case 0x5433: /* "T3" */
+	case 0x5435: /* "T5" */
+	case 0x5436: /* "T6" */
+	case 0x5437: /* "T7" */
+		ap_msg->flags |= AP_MSG_FLAG_ADMIN;
+		break;
+	default:
+		ZCRYPT_DBF_DBG("%s unknown CPRB minor version '%c%c'\n",
+			       __func__, msg->cprbx.func_id[0],
+			       msg->cprbx.func_id[1]);
+	}
 
 	/* copy data block */
 	if (xcRB->request_data_length &&
@@ -498,7 +510,8 @@ static int XCRB_msg_to_type6CPRB_msgX(bool userspace, struct ap_message *ap_msg,
 
 static int xcrb_msg_to_type6_ep11cprb_msgx(bool userspace, struct ap_message *ap_msg,
 					   struct ep11_urb *xcRB,
-					   unsigned int *fcode)
+					   unsigned int *fcode,
+					   unsigned int *domain)
 {
 	unsigned int lfmt;
 	static struct type6_hdr static_type6_ep11_hdr = {
@@ -530,17 +543,12 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(bool userspace, struct ap_message *ap
 		return -EINVAL; /* overflow after alignment*/
 
 	/* length checks */
-	ap_msg->len = sizeof(struct type6_hdr) + xcRB->req_len;
-	if (CEIL4(xcRB->req_len) > MSGTYPE06_MAX_MSG_SIZE -
-				   (sizeof(struct type6_hdr)))
+	ap_msg->len = sizeof(struct type6_hdr) + CEIL4(xcRB->req_len);
+	if (ap_msg->len > ap_msg->bufsize)
 		return -EINVAL;
 
 	if (CEIL4(xcRB->resp_len) < xcRB->resp_len)
 		return -EINVAL; /* overflow after alignment*/
-
-	if (CEIL4(xcRB->resp_len) > MSGTYPE06_MAX_MSG_SIZE -
-				    (sizeof(struct type86_fmt2_msg)))
-		return -EINVAL;
 
 	/* prepare type6 header */
 	msg->hdr = static_type6_ep11_hdr;
@@ -579,10 +587,18 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(bool userspace, struct ap_message *ap
 		ap_msg->flags ^= AP_MSG_FLAG_SPECIAL;
 #endif
 
+	/* set info bits in ap_message flag field */
+	if (msg->cprbx.flags & 0x80)
+		ap_msg->flags |= AP_MSG_FLAG_ADMIN;
+	else
+		ap_msg->flags |= AP_MSG_FLAG_USAGE;
+
+	*domain = msg->cprbx.target_id;
+
 	return 0;
 }
 
-/**
+/*
  * Copy results from a type 86 ICA reply message back to user space.
  *
  * @zq: crypto device pointer
@@ -660,8 +676,8 @@ static int convert_type86_ica(struct zcrypt_queue *zq,
 		    (service_rc == 8 && service_rs == 72) ||
 		    (service_rc == 8 && service_rs == 770) ||
 		    (service_rc == 12 && service_rs == 769)) {
-			ZCRYPT_DBF_WARN("dev=%02x.%04x rc/rs=%d/%d => rc=EINVAL\n",
-					AP_QID_CARD(zq->queue->qid),
+			ZCRYPT_DBF_WARN("%s dev=%02x.%04x rc/rs=%d/%d => rc=EINVAL\n",
+					__func__, AP_QID_CARD(zq->queue->qid),
 					AP_QID_QUEUE(zq->queue->qid),
 					(int) service_rc, (int) service_rs);
 			return -EINVAL;
@@ -671,10 +687,11 @@ static int convert_type86_ica(struct zcrypt_queue *zq,
 		       AP_QID_CARD(zq->queue->qid),
 		       AP_QID_QUEUE(zq->queue->qid),
 		       (int) service_rc, (int) service_rs);
-		ZCRYPT_DBF_ERR("dev=%02x.%04x rc/rs=%d/%d => online=0 rc=EAGAIN\n",
-			       AP_QID_CARD(zq->queue->qid),
+		ZCRYPT_DBF_ERR("%s dev=%02x.%04x rc/rs=%d/%d => online=0 rc=EAGAIN\n",
+			       __func__, AP_QID_CARD(zq->queue->qid),
 			       AP_QID_QUEUE(zq->queue->qid),
 			       (int) service_rc, (int) service_rs);
+		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
 	data = msg->text;
@@ -707,7 +724,7 @@ static int convert_type86_ica(struct zcrypt_queue *zq,
 	return 0;
 }
 
-/**
+/*
  * Copy results from a type 86 XCRB reply message back to user space.
  *
  * @zq: crypto device pointer
@@ -724,21 +741,35 @@ static int convert_type86_xcrb(bool userspace, struct zcrypt_queue *zq,
 	char *data = reply->msg;
 
 	/* Copy CPRB to user */
+	if (xcRB->reply_control_blk_length < msg->fmt2.count1) {
+		ZCRYPT_DBF_DBG("%s reply_control_blk_length %u < required %u => EMSGSIZE\n",
+			       __func__, xcRB->reply_control_blk_length,
+			       msg->fmt2.count1);
+		return -EMSGSIZE;
+	}
 	if (z_copy_to_user(userspace, xcRB->reply_control_blk_addr,
 			   data + msg->fmt2.offset1, msg->fmt2.count1))
 		return -EFAULT;
 	xcRB->reply_control_blk_length = msg->fmt2.count1;
 
 	/* Copy data buffer to user */
-	if (msg->fmt2.count2)
+	if (msg->fmt2.count2) {
+		if (xcRB->reply_data_length < msg->fmt2.count2) {
+			ZCRYPT_DBF_DBG("%s reply_data_length %u < required %u => EMSGSIZE\n",
+				       __func__, xcRB->reply_data_length,
+				       msg->fmt2.count2);
+			return -EMSGSIZE;
+		}
 		if (z_copy_to_user(userspace, xcRB->reply_data_addr,
 				   data + msg->fmt2.offset2, msg->fmt2.count2))
 			return -EFAULT;
+	}
 	xcRB->reply_data_length = msg->fmt2.count2;
+
 	return 0;
 }
 
-/**
+/*
  * Copy results from a type 86 EP11 XCRB reply message back to user space.
  *
  * @zq: crypto device pointer
@@ -754,8 +785,12 @@ static int convert_type86_ep11_xcrb(bool userspace, struct zcrypt_queue *zq,
 	struct type86_fmt2_msg *msg = reply->msg;
 	char *data = reply->msg;
 
-	if (xcRB->resp_len < msg->fmt2.count1)
-		return -EINVAL;
+	if (xcRB->resp_len < msg->fmt2.count1) {
+		ZCRYPT_DBF_DBG("%s resp_len %u < required %u => EMSGSIZE\n",
+			       __func__, (unsigned int)xcRB->resp_len,
+			       msg->fmt2.count1);
+		return -EMSGSIZE;
+	}
 
 	/* Copy response CPRB to user */
 	if (z_copy_to_user(userspace, (char __force __user *)xcRB->resp,
@@ -816,10 +851,11 @@ static int convert_response_ica(struct zcrypt_queue *zq,
 		       AP_QID_CARD(zq->queue->qid),
 		       AP_QID_QUEUE(zq->queue->qid),
 		       (int) msg->hdr.type);
-		ZCRYPT_DBF_ERR("dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
-			       AP_QID_CARD(zq->queue->qid),
-			       AP_QID_QUEUE(zq->queue->qid),
-			       (int) msg->hdr.type);
+		ZCRYPT_DBF_ERR(
+			"%s dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			__func__, AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid), (int) msg->hdr.type);
+		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
 }
@@ -850,10 +886,11 @@ static int convert_response_xcrb(bool userspace, struct zcrypt_queue *zq,
 		       AP_QID_CARD(zq->queue->qid),
 		       AP_QID_QUEUE(zq->queue->qid),
 		       (int) msg->hdr.type);
-		ZCRYPT_DBF_ERR("dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
-			       AP_QID_CARD(zq->queue->qid),
-			       AP_QID_QUEUE(zq->queue->qid),
-			       (int) msg->hdr.type);
+		ZCRYPT_DBF_ERR(
+			"%s dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			__func__, AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid), (int) msg->hdr.type);
+		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
 }
@@ -879,10 +916,11 @@ static int convert_response_ep11_xcrb(bool userspace, struct zcrypt_queue *zq,
 		       AP_QID_CARD(zq->queue->qid),
 		       AP_QID_QUEUE(zq->queue->qid),
 		       (int) msg->hdr.type);
-		ZCRYPT_DBF_ERR("dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
-			       AP_QID_CARD(zq->queue->qid),
-			       AP_QID_QUEUE(zq->queue->qid),
-			       (int) msg->hdr.type);
+		ZCRYPT_DBF_ERR(
+			"%s dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			__func__, AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid), (int) msg->hdr.type);
+		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
 }
@@ -909,15 +947,16 @@ static int convert_response_rng(struct zcrypt_queue *zq,
 		       AP_QID_CARD(zq->queue->qid),
 		       AP_QID_QUEUE(zq->queue->qid),
 		       (int) msg->hdr.type);
-		ZCRYPT_DBF_ERR("dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
-			       AP_QID_CARD(zq->queue->qid),
-			       AP_QID_QUEUE(zq->queue->qid),
-			       (int) msg->hdr.type);
+		ZCRYPT_DBF_ERR(
+			"%s dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			__func__, AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid), (int) msg->hdr.type);
+		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
 		return -EAGAIN;
 	}
 }
 
-/**
+/*
  * This function is called from the AP bus code after a crypto request
  * "msg" has finished with the reply message "reply".
  * It is called from tasklet context.
@@ -947,13 +986,21 @@ static void zcrypt_msgtype6_receive(struct ap_queue *aq,
 		switch (resp_type->type) {
 		case CEXXC_RESPONSE_TYPE_ICA:
 			len = sizeof(struct type86x_reply) + t86r->length - 2;
-			len = min_t(int, CEXXC_MAX_ICA_RESPONSE_SIZE, len);
-			memcpy(msg->msg, reply->msg, len);
+			if (len > reply->bufsize || len > msg->bufsize) {
+				msg->rc = -EMSGSIZE;
+			} else {
+				memcpy(msg->msg, reply->msg, len);
+				msg->len = len;
+			}
 			break;
 		case CEXXC_RESPONSE_TYPE_XCRB:
 			len = t86r->fmt2.offset2 + t86r->fmt2.count2;
-			len = min_t(int, MSGTYPE06_MAX_MSG_SIZE, len);
-			memcpy(msg->msg, reply->msg, len);
+			if (len > reply->bufsize || len > msg->bufsize) {
+				msg->rc = -EMSGSIZE;
+			} else {
+				memcpy(msg->msg, reply->msg, len);
+				msg->len = len;
+			}
 			break;
 		default:
 			memcpy(msg->msg, &error_reply, sizeof(error_reply));
@@ -964,7 +1011,7 @@ out:
 	complete(&(resp_type->work));
 }
 
-/**
+/*
  * This function is called from the AP bus code after a crypto request
  * "msg" has finished with the reply message "reply".
  * It is called from tasklet context.
@@ -994,8 +1041,12 @@ static void zcrypt_msgtype6_receive_ep11(struct ap_queue *aq,
 		switch (resp_type->type) {
 		case CEXXC_RESPONSE_TYPE_EP11:
 			len = t86r->fmt2.offset1 + t86r->fmt2.count1;
-			len = min_t(int, MSGTYPE06_MAX_MSG_SIZE, len);
-			memcpy(msg->msg, reply->msg, len);
+			if (len > reply->bufsize || len > msg->bufsize) {
+				msg->rc = -EMSGSIZE;
+			} else {
+				memcpy(msg->msg, reply->msg, len);
+				msg->len = len;
+			}
 			break;
 		default:
 			memcpy(msg->msg, &error_reply, sizeof(error_reply));
@@ -1009,7 +1060,7 @@ out:
 
 static atomic_t zcrypt_step = ATOMIC_INIT(0);
 
-/**
+/*
  * The request distributor calls this function if it picked the CEXxC
  * device to handle a modexpo request.
  * @zq: pointer to zcrypt_queue structure that identifies the
@@ -1028,6 +1079,7 @@ static long zcrypt_msgtype6_modexpo(struct zcrypt_queue *zq,
 	ap_msg->msg = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg->msg)
 		return -ENOMEM;
+	ap_msg->bufsize = PAGE_SIZE;
 	ap_msg->receive = zcrypt_msgtype6_receive;
 	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
 		atomic_inc_return(&zcrypt_step);
@@ -1056,7 +1108,7 @@ out_free:
 	return rc;
 }
 
-/**
+/*
  * The request distributor calls this function if it picked the CEXxC
  * device to handle a modexpo_crt request.
  * @zq: pointer to zcrypt_queue structure that identifies the
@@ -1075,6 +1127,7 @@ static long zcrypt_msgtype6_modexpo_crt(struct zcrypt_queue *zq,
 	ap_msg->msg = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg->msg)
 		return -ENOMEM;
+	ap_msg->bufsize = PAGE_SIZE;
 	ap_msg->receive = zcrypt_msgtype6_receive;
 	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
 		atomic_inc_return(&zcrypt_step);
@@ -1104,22 +1157,25 @@ out_free:
 	return rc;
 }
 
-/**
- * Fetch function code from cprb.
- * Extracting the fc requires to copy the cprb from userspace.
- * So this function allocates memory and needs an ap_msg prepared
+/*
+ * Prepare a CCA AP msg request.
+ * Prepare a CCA AP msg: fetch the required data from userspace,
+ * prepare the AP msg, fill some info into the ap_message struct,
+ * extract some data from the CPRB and give back to the caller.
+ * This function allocates memory and needs an ap_msg prepared
  * by the caller with ap_init_message(). Also the caller has to
  * make sure ap_release_message() is always called even on failure.
  */
-unsigned int get_cprb_fc(bool userspace, struct ica_xcRB *xcRB,
-			 struct ap_message *ap_msg,
-			 unsigned int *func_code, unsigned short **dom)
+int prep_cca_ap_msg(bool userspace, struct ica_xcRB *xcRB,
+		    struct ap_message *ap_msg,
+		    unsigned int *func_code, unsigned short **dom)
 {
 	struct response_type resp_type = {
 		.type = CEXXC_RESPONSE_TYPE_XCRB,
 	};
 
-	ap_msg->msg = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
+	ap_msg->bufsize = atomic_read(&ap_max_msg_size);
+	ap_msg->msg = kmalloc(ap_msg->bufsize, GFP_KERNEL);
 	if (!ap_msg->msg)
 		return -ENOMEM;
 	ap_msg->receive = zcrypt_msgtype6_receive;
@@ -1131,7 +1187,7 @@ unsigned int get_cprb_fc(bool userspace, struct ica_xcRB *xcRB,
 	return XCRB_msg_to_type6CPRB_msgX(userspace, ap_msg, xcRB, func_code, dom);
 }
 
-/**
+/*
  * The request distributor calls this function if it picked the CEXxC
  * device to handle a send_cprb request.
  * @zq: pointer to zcrypt_queue structure that identifies the
@@ -1144,6 +1200,21 @@ static long zcrypt_msgtype6_send_cprb(bool userspace, struct zcrypt_queue *zq,
 {
 	int rc;
 	struct response_type *rtype = (struct response_type *)(ap_msg->private);
+	struct {
+		struct type6_hdr hdr;
+		struct CPRBX cprbx;
+		/* ... more data blocks ... */
+	} __packed * msg = ap_msg->msg;
+
+	/*
+	 * Set the queue's reply buffer length minus 128 byte padding
+	 * as reply limit for the card firmware.
+	 */
+	msg->hdr.FromCardLen1 = min_t(unsigned int, msg->hdr.FromCardLen1,
+				      zq->reply.bufsize - 128);
+	if (msg->hdr.FromCardLen2)
+		msg->hdr.FromCardLen2 =
+			zq->reply.bufsize - msg->hdr.FromCardLen1 - 128;
 
 	init_completion(&rtype->work);
 	rc = ap_queue_message(zq->queue, ap_msg);
@@ -1158,25 +1229,32 @@ static long zcrypt_msgtype6_send_cprb(bool userspace, struct zcrypt_queue *zq,
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, ap_msg);
 out:
+	if (rc)
+		ZCRYPT_DBF_DBG("%s send cprb at dev=%02x.%04x rc=%d\n",
+			       __func__, AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid), rc);
 	return rc;
 }
 
-/**
- * Fetch function code from ep11 cprb.
- * Extracting the fc requires to copy the ep11 cprb from userspace.
- * So this function allocates memory and needs an ap_msg prepared
+/*
+ * Prepare an EP11 AP msg request.
+ * Prepare an EP11 AP msg: fetch the required data from userspace,
+ * prepare the AP msg, fill some info into the ap_message struct,
+ * extract some data from the CPRB and give back to the caller.
+ * This function allocates memory and needs an ap_msg prepared
  * by the caller with ap_init_message(). Also the caller has to
  * make sure ap_release_message() is always called even on failure.
  */
-unsigned int get_ep11cprb_fc(bool userspace, struct ep11_urb *xcrb,
-			     struct ap_message *ap_msg,
-			     unsigned int *func_code)
+int prep_ep11_ap_msg(bool userspace, struct ep11_urb *xcrb,
+		     struct ap_message *ap_msg,
+		     unsigned int *func_code, unsigned int *domain)
 {
 	struct response_type resp_type = {
 		.type = CEXXC_RESPONSE_TYPE_EP11,
 	};
 
-	ap_msg->msg = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
+	ap_msg->bufsize = atomic_read(&ap_max_msg_size);
+	ap_msg->msg = kmalloc(ap_msg->bufsize, GFP_KERNEL);
 	if (!ap_msg->msg)
 		return -ENOMEM;
 	ap_msg->receive = zcrypt_msgtype6_receive_ep11;
@@ -1185,10 +1263,11 @@ unsigned int get_ep11cprb_fc(bool userspace, struct ep11_urb *xcrb,
 	ap_msg->private = kmemdup(&resp_type, sizeof(resp_type), GFP_KERNEL);
 	if (!ap_msg->private)
 		return -ENOMEM;
-	return xcrb_msg_to_type6_ep11cprb_msgx(userspace, ap_msg, xcrb, func_code);
+	return xcrb_msg_to_type6_ep11cprb_msgx(userspace, ap_msg, xcrb,
+					       func_code, domain);
 }
 
-/**
+/*
  * The request distributor calls this function if it picked the CEX4P
  * device to handle a send_ep11_cprb request.
  * @zq: pointer to zcrypt_queue structure that identifies the
@@ -1217,8 +1296,7 @@ static long zcrypt_msgtype6_send_ep11_cprb(bool userspace, struct zcrypt_queue *
 		unsigned int	dom_val;	/* domain id	   */
 	} __packed * payload_hdr = NULL;
 
-
-	/**
+	/*
 	 * The target domain field within the cprb body/payload block will be
 	 * replaced by the usage domain for non-management commands only.
 	 * Therefore we check the first bit of the 'flags' parameter for
@@ -1249,6 +1327,13 @@ static long zcrypt_msgtype6_send_ep11_cprb(bool userspace, struct zcrypt_queue *
 					AP_QID_QUEUE(zq->queue->qid);
 	}
 
+	/*
+	 * Set the queue's reply buffer length minus the two prepend headers
+	 * as reply limit for the card firmware.
+	 */
+	msg->hdr.FromCardLen1 = zq->reply.bufsize -
+		sizeof(struct type86_hdr) - sizeof(struct type86_fmt2_ext);
+
 	init_completion(&rtype->work);
 	rc = ap_queue_message(zq->queue, ap_msg);
 	if (rc)
@@ -1262,17 +1347,22 @@ static long zcrypt_msgtype6_send_ep11_cprb(bool userspace, struct zcrypt_queue *
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, ap_msg);
 out:
+	if (rc)
+		ZCRYPT_DBF_DBG("%s send cprb at dev=%02x.%04x rc=%d\n",
+			       __func__, AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid), rc);
 	return rc;
 }
 
-unsigned int get_rng_fc(struct ap_message *ap_msg, int *func_code,
-						   unsigned int *domain)
+int prep_rng_ap_msg(struct ap_message *ap_msg, int *func_code,
+		    unsigned int *domain)
 {
 	struct response_type resp_type = {
 		.type = CEXXC_RESPONSE_TYPE_XCRB,
 	};
 
-	ap_msg->msg = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
+	ap_msg->bufsize = AP_DEFAULT_MAX_MSG_SIZE;
+	ap_msg->msg = kmalloc(ap_msg->bufsize, GFP_KERNEL);
 	if (!ap_msg->msg)
 		return -ENOMEM;
 	ap_msg->receive = zcrypt_msgtype6_receive;
@@ -1288,7 +1378,7 @@ unsigned int get_rng_fc(struct ap_message *ap_msg, int *func_code,
 	return 0;
 }
 
-/**
+/*
  * The request distributor calls this function if it picked the CEXxC
  * device to generate random data.
  * @zq: pointer to zcrypt_queue structure that identifies the
@@ -1328,7 +1418,7 @@ out:
 	return rc;
 }
 
-/**
+/*
  * The crypto operations for a CEXxC card.
  */
 static struct zcrypt_ops zcrypt_msgtype6_norng_ops = {

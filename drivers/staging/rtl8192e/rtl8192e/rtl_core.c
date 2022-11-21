@@ -23,7 +23,6 @@
 #include "rtl_pm.h"
 
 int hwwep = 1;
-static int channels = 0x3fff;
 static char *ifname = "wlan%d";
 
 
@@ -375,9 +374,8 @@ static void _rtl92e_update_beacon(void *data)
 
 	if (ieee->pHTInfo->bCurrentHTSupport)
 		HT_update_self_and_peer_setting(ieee, net);
-	ieee->pHTInfo->bCurrentRT2RTLongSlotTime =
-		 net->bssht.bdRT2RTLongSlotTime;
-	ieee->pHTInfo->RT2RT_HT_Mode = net->bssht.RT2RT_HT_Mode;
+	ieee->pHTInfo->bCurrentRT2RTLongSlotTime = net->bssht.bd_rt2rt_long_slot_time;
+	ieee->pHTInfo->RT2RT_HT_Mode = net->bssht.rt2rt_ht_mode;
 	_rtl92e_update_cap(dev, net->capability);
 }
 
@@ -1389,7 +1387,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 
 	rtl92e_dm_watchdog(dev);
 
-	if (rtllib_act_scanning(priv->rtllib, false) == false) {
+	if (!rtllib_act_scanning(priv->rtllib, false)) {
 		if ((ieee->iw_mode == IW_MODE_INFRA) && (ieee->state ==
 		     RTLLIB_NOLINK) &&
 		     (ieee->eRFPowerState == eRfOn) && !ieee->is_set_key &&
@@ -2237,7 +2235,7 @@ static int _rtl92e_set_mac_adr(struct net_device *dev, void *mac)
 
 	mutex_lock(&priv->wx_mutex);
 
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	schedule_work(&priv->reset_wq);
 	mutex_unlock(&priv->wx_mutex);
@@ -2471,7 +2469,7 @@ static int _rtl92e_pci_probe(struct pci_dev *pdev,
 
 	priv->ops = ops;
 
-	if (rtl92e_check_adapter(pdev, dev) == false)
+	if (!rtl92e_check_adapter(pdev, dev))
 		goto err_unmap;
 
 	dev->irq = pdev->irq;
@@ -2551,15 +2549,14 @@ static void _rtl92e_pci_disconnect(struct pci_dev *pdev)
 			free_irq(dev->irq, dev);
 			priv->irq = 0;
 		}
-		free_rtllib(dev);
 
 		if (dev->mem_start != 0) {
 			iounmap((void __iomem *)dev->mem_start);
 			release_mem_region(pci_resource_start(pdev, 1),
 					pci_resource_len(pdev, 1));
 		}
-	} else {
-		priv = rtllib_priv(dev);
+
+		free_rtllib(dev);
 	}
 
 	pci_disable_device(pdev);
@@ -2643,8 +2640,6 @@ MODULE_FIRMWARE(RTL8192E_DATA_IMG_FW);
 
 module_param(ifname, charp, 0644);
 module_param(hwwep, int, 0644);
-module_param(channels, int, 0644);
 
 MODULE_PARM_DESC(ifname, " Net interface name, wlan%d=default");
 MODULE_PARM_DESC(hwwep, " Try to use hardware WEP support(default use hw. set 0 to use software security)");
-MODULE_PARM_DESC(channels, " Channel bitmask for specific locales. NYI");

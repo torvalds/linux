@@ -44,7 +44,7 @@
 /* umc ce count initial value */
 #define UMC_V8_7_CE_CNT_INIT	(UMC_V8_7_CE_CNT_MAX - UMC_V8_7_CE_INT_THRESHOLD)
 
-extern const struct amdgpu_umc_funcs umc_v8_7_funcs;
+extern struct amdgpu_umc_ras umc_v8_7_ras;
 extern const uint32_t
 	umc_v8_7_channel_idx_tbl[UMC_V8_7_UMC_INSTANCE_NUM][UMC_V8_7_CHANNEL_INSTANCE_NUM];
 

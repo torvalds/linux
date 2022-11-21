@@ -165,7 +165,6 @@ MODULE_AUTHOR
 );
 MODULE_DESCRIPTION("RME HDSPM");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 
 /* --- Write registers. ---
   These are defined as byte-offsets from the iobase value.  */
@@ -2286,7 +2285,6 @@ static int hdspm_get_wc_sample_rate(struct hdspm *hdspm)
 	case AIO:
 		status = hdspm_read(hdspm, HDSPM_RD_STATUS_1);
 		return (status >> 16) & 0xF;
-		break;
 	case AES32:
 		status = hdspm_read(hdspm, HDSPM_statusRegister);
 		return (status >> HDSPM_AES32_wcFreq_bit) & 0xF;
@@ -2312,7 +2310,6 @@ static int hdspm_get_tco_sample_rate(struct hdspm *hdspm)
 		case AIO:
 			status = hdspm_read(hdspm, HDSPM_RD_STATUS_1);
 			return (status >> 20) & 0xF;
-			break;
 		case AES32:
 			status = hdspm_read(hdspm, HDSPM_statusRegister);
 			return (status >> 1) & 0xF;
@@ -2338,7 +2335,6 @@ static int hdspm_get_sync_in_sample_rate(struct hdspm *hdspm)
 		case AIO:
 			status = hdspm_read(hdspm, HDSPM_RD_STATUS_2);
 			return (status >> 12) & 0xF;
-			break;
 		default:
 			break;
 		}
@@ -2358,7 +2354,6 @@ static int hdspm_get_aes_sample_rate(struct hdspm *hdspm, int index)
 	case AES32:
 		timecode = hdspm_read(hdspm, HDSPM_timecodeRegister);
 		return (timecode >> (4*index)) & 0xF;
-		break;
 	default:
 		break;
 	}
@@ -3845,7 +3840,6 @@ static int hdspm_wc_sync_check(struct hdspm *hdspm)
 				return 1;
 		}
 		return 0;
-		break;
 
 	case MADI:
 		status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
@@ -3856,7 +3850,6 @@ static int hdspm_wc_sync_check(struct hdspm *hdspm)
 				return 1;
 		}
 		return 0;
-		break;
 
 	case RayDAT:
 	case AIO:
@@ -3867,8 +3860,6 @@ static int hdspm_wc_sync_check(struct hdspm *hdspm)
 		else if (status & 0x1000000)
 			return 1;
 		return 0;
-
-		break;
 
 	case MADIface:
 		break;
@@ -6321,6 +6312,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 				(statusregister & HDSPM_RX_64ch) ? 1 : 0;
 			/* TODO: Mac driver sets it when f_s>48kHz */
 			status.card_specific.madi.frame_format = 0;
+			break;
 
 		default:
 			break;
@@ -6336,7 +6328,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 		memset(&hdspm_version, 0, sizeof(hdspm_version));
 
 		hdspm_version.card_type = hdspm->io_type;
-		strlcpy(hdspm_version.cardname, hdspm->card_name,
+		strscpy(hdspm_version.cardname, hdspm->card_name,
 				sizeof(hdspm_version.cardname));
 		hdspm_version.serial = hdspm->serial;
 		hdspm_version.firmware_rev = hdspm->firmware_rev;
@@ -6583,34 +6575,25 @@ static int snd_hdspm_create(struct snd_card *card,
 		}
 	}
 
-	err = pci_enable_device(pci);
+	err = pcim_enable_device(pci);
 	if (err < 0)
 		return err;
 
 	pci_set_master(hdspm->pci);
 
-	err = pci_request_regions(pci, "hdspm");
+	err = pcim_iomap_regions(pci, 1 << 0, "hdspm");
 	if (err < 0)
 		return err;
 
 	hdspm->port = pci_resource_start(pci, 0);
 	io_extent = pci_resource_len(pci, 0);
-
-	dev_dbg(card->dev, "grabbed memory region 0x%lx-0x%lx\n",
-			hdspm->port, hdspm->port + io_extent - 1);
-
-	hdspm->iobase = ioremap(hdspm->port, io_extent);
-	if (!hdspm->iobase) {
-		dev_err(card->dev, "unable to remap region 0x%lx-0x%lx\n",
-				hdspm->port, hdspm->port + io_extent - 1);
-		return -EBUSY;
-	}
+	hdspm->iobase = pcim_iomap_table(pci)[0];
 	dev_dbg(card->dev, "remapped region (0x%lx) 0x%lx-0x%lx\n",
 			(unsigned long)hdspm->iobase, hdspm->port,
 			hdspm->port + io_extent - 1);
 
-	if (request_irq(pci->irq, snd_hdspm_interrupt,
-			IRQF_SHARED, KBUILD_MODNAME, hdspm)) {
+	if (devm_request_irq(&pci->dev, pci->irq, snd_hdspm_interrupt,
+			     IRQF_SHARED, KBUILD_MODNAME, hdspm)) {
 		dev_err(card->dev, "unable to use IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
@@ -6622,7 +6605,7 @@ static int snd_hdspm_create(struct snd_card *card,
 
 	dev_dbg(card->dev, "kmalloc Mixer memory of %zd Bytes\n",
 		sizeof(*hdspm->mixer));
-	hdspm->mixer = kzalloc(sizeof(*hdspm->mixer), GFP_KERNEL);
+	hdspm->mixer = devm_kzalloc(&pci->dev, sizeof(*hdspm->mixer), GFP_KERNEL);
 	if (!hdspm->mixer)
 		return -ENOMEM;
 
@@ -6867,8 +6850,9 @@ static int snd_hdspm_create(struct snd_card *card,
 }
 
 
-static int snd_hdspm_free(struct hdspm * hdspm)
+static void snd_hdspm_card_free(struct snd_card *card)
 {
+	struct hdspm *hdspm = card->private_data;
 
 	if (hdspm->port) {
 		cancel_work_sync(&hdspm->midi_work);
@@ -6881,27 +6865,6 @@ static int snd_hdspm_free(struct hdspm * hdspm)
 		hdspm_write(hdspm, HDSPM_controlRegister,
 			    hdspm->control_register);
 	}
-
-	if (hdspm->irq >= 0)
-		free_irq(hdspm->irq, (void *) hdspm);
-
-	kfree(hdspm->mixer);
-	iounmap(hdspm->iobase);
-
-	if (hdspm->port)
-		pci_release_regions(hdspm->pci);
-
-	pci_disable_device(hdspm->pci);
-	return 0;
-}
-
-
-static void snd_hdspm_card_free(struct snd_card *card)
-{
-	struct hdspm *hdspm = card->private_data;
-
-	if (hdspm)
-		snd_hdspm_free(hdspm);
 }
 
 
@@ -6920,8 +6883,8 @@ static int snd_hdspm_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_new(&pci->dev, index[dev], id[dev],
-			   THIS_MODULE, sizeof(*hdspm), &card);
+	err = snd_devm_card_new(&pci->dev, index[dev], id[dev],
+				THIS_MODULE, sizeof(*hdspm), &card);
 	if (err < 0)
 		return err;
 
@@ -6932,7 +6895,7 @@ static int snd_hdspm_probe(struct pci_dev *pci,
 
 	err = snd_hdspm_create(card, hdspm);
 	if (err < 0)
-		goto free_card;
+		goto error;
 
 	if (hdspm->io_type != MADIface) {
 		snprintf(card->shortname, sizeof(card->shortname), "%s_%x",
@@ -6951,28 +6914,22 @@ static int snd_hdspm_probe(struct pci_dev *pci,
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto free_card;
+		goto error;
 
 	pci_set_drvdata(pci, card);
 
 	dev++;
 	return 0;
 
-free_card:
+ error:
 	snd_card_free(card);
 	return err;
-}
-
-static void snd_hdspm_remove(struct pci_dev *pci)
-{
-	snd_card_free(pci_get_drvdata(pci));
 }
 
 static struct pci_driver hdspm_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_hdspm_ids,
 	.probe = snd_hdspm_probe,
-	.remove = snd_hdspm_remove,
 };
 
 module_pci_driver(hdspm_driver);

@@ -99,6 +99,8 @@ void dcn21_dchvm_init(struct hubbub *hubbub)
 
 		//Poll until HOSTVM_PREFETCH_DONE = 1
 		REG_WAIT(DCHVM_RIOMMU_STAT0, HOSTVM_PREFETCH_DONE, 1, 5, 100);
+
+		hubbub->riommu_active = true;
 	}
 }
 
@@ -678,7 +680,7 @@ void hubbub21_wm_read_state(struct hubbub *hubbub,
 			DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D, &s->dram_clk_chanage);
 }
 
-void hubbub21_apply_DEDCN21_147_wa(struct hubbub *hubbub)
+static void hubbub21_apply_DEDCN21_147_wa(struct hubbub *hubbub)
 {
 	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
 	uint32_t prog_wm_value;
@@ -699,6 +701,7 @@ static const struct hubbub_funcs hubbub21_funcs = {
 	.program_watermarks = hubbub21_program_watermarks,
 	.allow_self_refresh_control = hubbub1_allow_self_refresh_control,
 	.apply_DEDCN21_147_wa = hubbub21_apply_DEDCN21_147_wa,
+	.hubbub_read_state = hubbub2_read_state,
 };
 
 void hubbub21_construct(struct dcn20_hubbub *hubbub,

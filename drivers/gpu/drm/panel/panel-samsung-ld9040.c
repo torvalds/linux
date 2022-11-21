@@ -358,14 +358,12 @@ static int ld9040_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ld9040_remove(struct spi_device *spi)
+static void ld9040_remove(struct spi_device *spi)
 {
 	struct ld9040 *ctx = spi_get_drvdata(spi);
 
 	ld9040_power_off(ctx);
 	drm_panel_remove(&ctx->panel);
-
-	return 0;
 }
 
 static const struct of_device_id ld9040_of_match[] = {
@@ -383,6 +381,7 @@ MODULE_DEVICE_TABLE(spi, ld9040_ids);
 static struct spi_driver ld9040_driver = {
 	.probe = ld9040_probe,
 	.remove = ld9040_remove,
+	.id_table = ld9040_ids,
 	.driver = {
 		.name = "panel-samsung-ld9040",
 		.of_match_table = ld9040_of_match,

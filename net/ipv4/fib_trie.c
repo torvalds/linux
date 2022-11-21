@@ -61,6 +61,7 @@
 #include <linux/vmalloc.h>
 #include <linux/notifier.h>
 #include <net/net_namespace.h>
+#include <net/inet_dscp.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/route.h>
@@ -81,7 +82,7 @@ static int call_fib_entry_notifier(struct notifier_block *nb,
 		.dst = dst,
 		.dst_len = dst_len,
 		.fi = fa->fa_info,
-		.tos = fa->fa_tos,
+		.tos = inet_dscp_to_dsfield(fa->fa_dscp),
 		.type = fa->fa_type,
 		.tb_id = fa->tb_id,
 	};
@@ -98,7 +99,7 @@ static int call_fib_entry_notifiers(struct net *net,
 		.dst = dst,
 		.dst_len = dst_len,
 		.fi = fa->fa_info,
-		.tos = fa->fa_tos,
+		.tos = inet_dscp_to_dsfield(fa->fa_dscp),
 		.type = fa->fa_type,
 		.tb_id = fa->tb_id,
 	};
@@ -973,13 +974,13 @@ static struct key_vector *fib_find_node(struct trie *t,
 	return n;
 }
 
-/* Return the first fib alias matching TOS with
+/* Return the first fib alias matching DSCP with
  * priority less than or equal to PRIO.
  * If 'find_first' is set, return the first matching
- * fib alias, regardless of TOS and priority.
+ * fib alias, regardless of DSCP and priority.
  */
 static struct fib_alias *fib_find_alias(struct hlist_head *fah, u8 slen,
-					u8 tos, u32 prio, u32 tb_id,
+					dscp_t dscp, u32 prio, u32 tb_id,
 					bool find_first)
 {
 	struct fib_alias *fa;
@@ -988,6 +989,10 @@ static struct fib_alias *fib_find_alias(struct hlist_head *fah, u8 slen,
 		return NULL;
 
 	hlist_for_each_entry(fa, fah, fa_list) {
+		/* Avoid Sparse warning when using dscp_t in inequalities */
+		u8 __fa_dscp = inet_dscp_to_dsfield(fa->fa_dscp);
+		u8 __dscp = inet_dscp_to_dsfield(dscp);
+
 		if (fa->fa_slen < slen)
 			continue;
 		if (fa->fa_slen != slen)
@@ -998,9 +1003,9 @@ static struct fib_alias *fib_find_alias(struct hlist_head *fah, u8 slen,
 			break;
 		if (find_first)
 			return fa;
-		if (fa->fa_tos > tos)
+		if (__fa_dscp > __dscp)
 			continue;
-		if (fa->fa_info->fib_priority >= prio || fa->fa_tos < tos)
+		if (fa->fa_info->fib_priority >= prio || __fa_dscp < __dscp)
 			return fa;
 	}
 
@@ -1027,8 +1032,8 @@ fib_find_matching_alias(struct net *net, const struct fib_rt_info *fri)
 
 	hlist_for_each_entry_rcu(fa, &l->leaf, fa_list) {
 		if (fa->fa_slen == slen && fa->tb_id == fri->tb_id &&
-		    fa->fa_tos == fri->tos && fa->fa_info == fri->fi &&
-		    fa->fa_type == fri->type)
+		    fa->fa_dscp == inet_dsfield_to_dscp(fri->tos) &&
+		    fa->fa_info == fri->fi && fa->fa_type == fri->type)
 			return fa;
 	}
 
@@ -1038,6 +1043,8 @@ fib_find_matching_alias(struct net *net, const struct fib_rt_info *fri)
 void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri)
 {
 	struct fib_alias *fa_match;
+	struct sk_buff *skb;
+	int err;
 
 	rcu_read_lock();
 
@@ -1045,9 +1052,46 @@ void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri)
 	if (!fa_match)
 		goto out;
 
-	fa_match->offload = fri->offload;
-	fa_match->trap = fri->trap;
+	/* These are paired with the WRITE_ONCE() happening in this function.
+	 * The reason is that we are only protected by RCU at this point.
+	 */
+	if (READ_ONCE(fa_match->offload) == fri->offload &&
+	    READ_ONCE(fa_match->trap) == fri->trap &&
+	    READ_ONCE(fa_match->offload_failed) == fri->offload_failed)
+		goto out;
 
+	WRITE_ONCE(fa_match->offload, fri->offload);
+	WRITE_ONCE(fa_match->trap, fri->trap);
+
+	/* 2 means send notifications only if offload_failed was changed. */
+	if (net->ipv4.sysctl_fib_notify_on_flag_change == 2 &&
+	    READ_ONCE(fa_match->offload_failed) == fri->offload_failed)
+		goto out;
+
+	WRITE_ONCE(fa_match->offload_failed, fri->offload_failed);
+
+	if (!net->ipv4.sysctl_fib_notify_on_flag_change)
+		goto out;
+
+	skb = nlmsg_new(fib_nlmsg_size(fa_match->fa_info), GFP_ATOMIC);
+	if (!skb) {
+		err = -ENOBUFS;
+		goto errout;
+	}
+
+	err = fib_dump_info(skb, 0, 0, RTM_NEWROUTE, fri, 0);
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in fib_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
+
+	rtnl_notify(skb, net, 0, RTNLGRP_IPV4_ROUTE, NULL, GFP_ATOMIC);
+	goto out;
+
+errout:
+	rtnl_set_sk_err(net, RTNLGRP_IPV4_ROUTE, err);
 out:
 	rcu_read_unlock();
 }
@@ -1175,7 +1219,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	struct fib_info *fi;
 	u8 plen = cfg->fc_dst_len;
 	u8 slen = KEYLENGTH - plen;
-	u8 tos = cfg->fc_tos;
+	dscp_t dscp;
 	u32 key;
 	int err;
 
@@ -1192,12 +1236,13 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 		goto err;
 	}
 
+	dscp = cfg->fc_dscp;
 	l = fib_find_node(t, &tp, key);
-	fa = l ? fib_find_alias(&l->leaf, slen, tos, fi->fib_priority,
+	fa = l ? fib_find_alias(&l->leaf, slen, dscp, fi->fib_priority,
 				tb->tb_id, false) : NULL;
 
 	/* Now fa, if non-NULL, points to the first fib alias
-	 * with the same keys [prefix,tos,priority], if such key already
+	 * with the same keys [prefix,dscp,priority], if such key already
 	 * exists or to the node before which we will insert new one.
 	 *
 	 * If fa is NULL, we will need to allocate a new one and
@@ -1205,7 +1250,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	 * of the new alias.
 	 */
 
-	if (fa && fa->fa_tos == tos &&
+	if (fa && fa->fa_dscp == dscp &&
 	    fa->fa_info->fib_priority == fi->fib_priority) {
 		struct fib_alias *fa_first, *fa_match;
 
@@ -1225,7 +1270,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 		hlist_for_each_entry_from(fa, fa_list) {
 			if ((fa->fa_slen != slen) ||
 			    (fa->tb_id != tb->tb_id) ||
-			    (fa->fa_tos != tos))
+			    (fa->fa_dscp != dscp))
 				break;
 			if (fa->fa_info->fib_priority != fi->fib_priority)
 				break;
@@ -1253,7 +1298,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 				goto out;
 
 			fi_drop = fa->fa_info;
-			new_fa->fa_tos = fa->fa_tos;
+			new_fa->fa_dscp = fa->fa_dscp;
 			new_fa->fa_info = fi;
 			new_fa->fa_type = cfg->fc_type;
 			state = fa->fa_state;
@@ -1263,6 +1308,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			new_fa->fa_default = -1;
 			new_fa->offload = 0;
 			new_fa->trap = 0;
+			new_fa->offload_failed = 0;
 
 			hlist_replace_rcu(&fa->fa_list, &new_fa->fa_list);
 
@@ -1315,7 +1361,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 		goto out;
 
 	new_fa->fa_info = fi;
-	new_fa->fa_tos = tos;
+	new_fa->fa_dscp = dscp;
 	new_fa->fa_type = cfg->fc_type;
 	new_fa->fa_state = 0;
 	new_fa->fa_slen = slen;
@@ -1323,6 +1369,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	new_fa->fa_default = -1;
 	new_fa->offload = 0;
 	new_fa->trap = 0;
+	new_fa->offload_failed = 0;
 
 	/* Insert new entry to the list. */
 	err = fib_insert_alias(t, tp, l, new_fa, fa, key);
@@ -1382,11 +1429,8 @@ bool fib_lookup_good_nhc(const struct fib_nh_common *nhc, int fib_flags,
 	    !(fib_flags & FIB_LOOKUP_IGNORE_LINKSTATE))
 		return false;
 
-	if (!(flp->flowi4_flags & FLOWI_FLAG_SKIP_NH_OIF)) {
-		if (flp->flowi4_oif &&
-		    flp->flowi4_oif != nhc->nhc_oif)
-			return false;
-	}
+	if (flp->flowi4_oif && flp->flowi4_oif != nhc->nhc_oif)
+		return false;
 
 	return true;
 }
@@ -1530,7 +1574,8 @@ found:
 			if (index >= (1ul << fa->fa_slen))
 				continue;
 		}
-		if (fa->fa_tos && fa->fa_tos != flp->flowi4_tos)
+		if (fa->fa_dscp &&
+		    inet_dscp_to_dsfield(fa->fa_dscp) != flp->flowi4_tos)
 			continue;
 		if (fi->fib_dead)
 			continue;
@@ -1666,7 +1711,7 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 	struct key_vector *l, *tp;
 	u8 plen = cfg->fc_dst_len;
 	u8 slen = KEYLENGTH - plen;
-	u8 tos = cfg->fc_tos;
+	dscp_t dscp;
 	u32 key;
 
 	key = ntohl(cfg->fc_dst);
@@ -1678,11 +1723,13 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 	if (!l)
 		return -ESRCH;
 
-	fa = fib_find_alias(&l->leaf, slen, tos, 0, tb->tb_id, false);
+	dscp = cfg->fc_dscp;
+	fa = fib_find_alias(&l->leaf, slen, dscp, 0, tb->tb_id, false);
 	if (!fa)
 		return -ESRCH;
 
-	pr_debug("Deleting %08x/%d tos=%d t=%p\n", key, plen, tos, t);
+	pr_debug("Deleting %08x/%d dsfield=0x%02x t=%p\n", key, plen,
+		 inet_dscp_to_dsfield(dscp), t);
 
 	fa_to_delete = NULL;
 	hlist_for_each_entry_from(fa, fa_list) {
@@ -1690,7 +1737,7 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 
 		if ((fa->fa_slen != slen) ||
 		    (fa->tb_id != tb->tb_id) ||
-		    (fa->fa_tos != tos))
+		    (fa->fa_dscp != dscp))
 			break;
 
 		if ((!cfg->fc_type || fa->fa_type == cfg->fc_type) &&
@@ -2100,15 +2147,6 @@ static void __fib_info_notify_update(struct net *net, struct fib_table *tb,
 			rtmsg_fib(RTM_NEWROUTE, htonl(n->key), fa,
 				  KEYLENGTH - fa->fa_slen, tb->tb_id,
 				  info, NLM_F_REPLACE);
-
-			/* call_fib_entry_notifiers will be removed when
-			 * in-kernel notifier is implemented and supported
-			 * for nexthop objects
-			 */
-			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_REPLACE,
-						 n->key,
-						 KEYLENGTH - fa->fa_slen, fa,
-						 NULL);
 		}
 	}
 }
@@ -2267,10 +2305,11 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 				fri.tb_id = tb->tb_id;
 				fri.dst = xkey;
 				fri.dst_len = KEYLENGTH - fa->fa_slen;
-				fri.tos = fa->fa_tos;
+				fri.tos = inet_dscp_to_dsfield(fa->fa_dscp);
 				fri.type = fa->fa_type;
-				fri.offload = fa->offload;
-				fri.trap = fa->trap;
+				fri.offload = READ_ONCE(fa->offload);
+				fri.trap = READ_ONCE(fa->trap);
+				fri.offload_failed = READ_ONCE(fa->offload_failed);
 				err = fib_dump_info(skb,
 						    NETLINK_CB(cb->skb).portid,
 						    cb->nlh->nlmsg_seq,
@@ -2351,11 +2390,11 @@ void __init fib_trie_init(void)
 {
 	fn_alias_kmem = kmem_cache_create("ip_fib_alias",
 					  sizeof(struct fib_alias),
-					  0, SLAB_PANIC, NULL);
+					  0, SLAB_PANIC | SLAB_ACCOUNT, NULL);
 
 	trie_leaf_kmem = kmem_cache_create("ip_fib_trie",
 					   LEAF_SIZE,
-					   0, SLAB_PANIC, NULL);
+					   0, SLAB_PANIC | SLAB_ACCOUNT, NULL);
 }
 
 struct fib_table *fib_trie_table(u32 id, struct fib_table *alias)
@@ -2778,8 +2817,9 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 					     fa->fa_info->fib_scope),
 				   rtn_type(buf2, sizeof(buf2),
 					    fa->fa_type));
-			if (fa->fa_tos)
-				seq_printf(seq, " tos=%d", fa->fa_tos);
+			if (fa->fa_dscp)
+				seq_printf(seq, " tos=%d",
+					   inet_dscp_to_dsfield(fa->fa_dscp));
 			seq_putc(seq, '\n');
 		}
 	}

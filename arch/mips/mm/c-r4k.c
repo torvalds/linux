@@ -19,6 +19,7 @@
 #include <linux/mm.h>
 #include <linux/export.h>
 #include <linux/bitops.h>
+#include <linux/dma-map-ops.h> /* for dma_default_coherent */
 
 #include <asm/bcache.h>
 #include <asm/bootinfo.h>
@@ -32,10 +33,8 @@
 #include <asm/r4kcache.h>
 #include <asm/sections.h>
 #include <asm/mmu_context.h>
-#include <asm/war.h>
 #include <asm/cacheflush.h> /* for run_uncached() */
 #include <asm/traps.h>
-#include <asm/dma-coherence.h>
 #include <asm/mips-cps.h>
 
 /*
@@ -1164,6 +1163,7 @@ static void probe_pcache(void)
 	case CPU_R4400PC:
 	case CPU_R4400SC:
 	case CPU_R4400MC:
+	case CPU_R4300:
 		icache_size = 1 << (12 + ((config & CONF_IC) >> 9));
 		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
 		c->icache.ways = 1;
@@ -1409,7 +1409,6 @@ static void probe_pcache(void)
 	case CPU_I6500:
 	case CPU_SB1:
 	case CPU_SB1A:
-	case CPU_XLR:
 		c->dcache.flags |= MIPS_CACHE_PINDEX;
 		break;
 
@@ -1593,7 +1592,7 @@ static int probe_scache(void)
 	return 1;
 }
 
-static void __init loongson2_sc_init(void)
+static void loongson2_sc_init(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 
@@ -1609,7 +1608,7 @@ static void __init loongson2_sc_init(void)
 	c->options |= MIPS_CPU_INCLUSIVE_CACHES;
 }
 
-static void __init loongson3_sc_init(void)
+static void loongson3_sc_init(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int config2, lsize;
@@ -1623,15 +1622,13 @@ static void __init loongson3_sc_init(void)
 	c->scache.sets = 64 << ((config2 >> 8) & 15);
 	c->scache.ways = 1 + (config2 & 15);
 
-	scache_size = c->scache.sets *
-				  c->scache.ways *
-				  c->scache.linesz;
-
 	/* Loongson-3 has 4-Scache banks, while Loongson-2K have only 2 banks */
 	if ((c->processor_id & PRID_IMP_MASK) == PRID_IMP_LOONGSON_64R)
-		scache_size *= 2;
+		c->scache.sets *= 2;
 	else
-		scache_size *= 4;
+		c->scache.sets *= 4;
+
+	scache_size = c->scache.sets * c->scache.ways * c->scache.linesz;
 
 	c->scache.waybit = 0;
 	c->scache.waysize = scache_size / c->scache.ways;
@@ -1700,7 +1697,6 @@ static void setup_scache(void)
 		return;
 
 	case CPU_CAVIUM_OCTEON3:
-	case CPU_XLP:
 		/* don't need to worry about L2, fully coherent */
 		return;
 
@@ -1915,15 +1911,11 @@ void r4k_cache_init(void)
 	__local_flush_icache_user_range	= local_r4k_flush_icache_user_range;
 
 #ifdef CONFIG_DMA_NONCOHERENT
-#ifdef CONFIG_DMA_MAYBE_COHERENT
-	if (coherentio == IO_COHERENCE_ENABLED ||
-	    (coherentio == IO_COHERENCE_DEFAULT && hw_coherentio)) {
+	if (dma_default_coherent) {
 		_dma_cache_wback_inv	= (void *)cache_noop;
 		_dma_cache_wback	= (void *)cache_noop;
 		_dma_cache_inv		= (void *)cache_noop;
-	} else
-#endif /* CONFIG_DMA_MAYBE_COHERENT */
-	{
+	} else {
 		_dma_cache_wback_inv	= r4k_dma_cache_wback_inv;
 		_dma_cache_wback	= r4k_dma_cache_wback_inv;
 		_dma_cache_inv		= r4k_dma_cache_inv;

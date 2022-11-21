@@ -59,6 +59,8 @@ struct flow_dissector_key_vlan {
 		__be16	vlan_tci;
 	};
 	__be16	vlan_tpid;
+	__be16	vlan_eth_type;
+	u16	padding;
 };
 
 struct flow_dissector_mpls_lse {
@@ -287,6 +289,7 @@ enum flow_dissector_key_id {
 #define FLOW_DISSECTOR_F_PARSE_1ST_FRAG		BIT(0)
 #define FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL	BIT(1)
 #define FLOW_DISSECTOR_F_STOP_AT_ENCAP		BIT(2)
+#define FLOW_DISSECTOR_F_STOP_BEFORE_ENCAP	BIT(3)
 
 struct flow_dissector_key {
 	enum flow_dissector_key_id key_id;
@@ -350,7 +353,7 @@ static inline bool flow_keys_have_l4(const struct flow_keys *keys)
 u32 flow_hash_from_keys(struct flow_keys *keys);
 void skb_flow_get_icmp_tci(const struct sk_buff *skb,
 			   struct flow_dissector_key_icmp *key_icmp,
-			   void *data, int thoff, int hlen);
+			   const void *data, int thoff, int hlen);
 
 static inline bool dissector_uses_key(const struct flow_dissector *flow_dissector,
 				      enum flow_dissector_key_id key_id)
@@ -368,8 +371,8 @@ static inline void *skb_flow_dissector_target(struct flow_dissector *flow_dissec
 struct bpf_flow_dissector {
 	struct bpf_flow_keys	*flow_keys;
 	const struct sk_buff	*skb;
-	void			*data;
-	void			*data_end;
+	const void		*data;
+	const void		*data_end;
 };
 
 static inline void

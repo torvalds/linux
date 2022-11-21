@@ -48,12 +48,12 @@
 
 /* Function prototypes */
 static int kobil_port_probe(struct usb_serial_port *probe);
-static int kobil_port_remove(struct usb_serial_port *probe);
+static void kobil_port_remove(struct usb_serial_port *probe);
 static int  kobil_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void kobil_close(struct usb_serial_port *port);
 static int  kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 			 const unsigned char *buf, int count);
-static int  kobil_write_room(struct tty_struct *tty);
+static unsigned int kobil_write_room(struct tty_struct *tty);
 static int  kobil_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg);
 static int  kobil_tiocmget(struct tty_struct *tty);
@@ -143,14 +143,12 @@ static int kobil_port_probe(struct usb_serial_port *port)
 }
 
 
-static int kobil_port_remove(struct usb_serial_port *port)
+static void kobil_port_remove(struct usb_serial_port *port)
 {
 	struct kobil_private *priv;
 
 	priv = usb_get_serial_port_data(port);
 	kfree(priv);
-
-	return 0;
 }
 
 static void kobil_init_termios(struct tty_struct *tty)
@@ -360,7 +358,7 @@ static int kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 }
 
 
-static int kobil_write_room(struct tty_struct *tty)
+static unsigned int kobil_write_room(struct tty_struct *tty)
 {
 	/* FIXME */
 	return 8;

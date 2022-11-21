@@ -8,6 +8,7 @@ menu "PTP clock support"
 config PTP_1588_CLOCK
 	tristate "PTP clock support"
 	depends on NET && POSIX_TIMERS
+	default ETHERNET
 	select PPS
 	select NET_PTP_CLASSIFY
 	help
@@ -25,6 +26,18 @@ config PTP_1588_CLOCK
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp.
+
+config PTP_1588_CLOCK_OPTIONAL
+	tristate
+	default y if PTP_1588_CLOCK=n
+	default PTP_1588_CLOCK
+	help
+	  Drivers that can optionally use the PTP_1588_CLOCK framework
+	  should depend on this symbol to prevent them from being built
+	  into vmlinux while the PTP support itself is in a loadable
+	  module.
+	  If PTP support is disabled, this dependency will still be
+	  met, and drivers refer to dummy helpers.
 
 config PTP_1588_CLOCK_DTE
 	tristate "Broadcom DTE as PTP clock"
@@ -64,6 +77,7 @@ config DP83640_PHY
 	depends on NETWORK_PHY_TIMESTAMPING
 	depends on PHYLIB
 	depends on PTP_1588_CLOCK
+	select CRC32
 	help
 	  Supports the DP83640 PHYTER with IEEE 1588 features.
 
@@ -78,6 +92,7 @@ config DP83640_PHY
 config PTP_1588_CLOCK_INES
 	tristate "ZHAW InES PTP time stamping IP core"
 	depends on NETWORK_PHY_TIMESTAMPING
+	depends on HAS_IOMEM
 	depends on PHYLIB
 	depends on PTP_1588_CLOCK
 	help
@@ -88,8 +103,9 @@ config PTP_1588_CLOCK_INES
 config PTP_1588_CLOCK_PCH
 	tristate "Intel PCH EG20T as PTP clock"
 	depends on X86_32 || COMPILE_TEST
-	depends on HAS_IOMEM && NET
-	imply PTP_1588_CLOCK
+	depends on HAS_IOMEM && PCI
+	depends on NET
+	depends on PTP_1588_CLOCK
 	help
 	  This driver adds support for using the PCH EG20T as a PTP
 	  clock. The hardware supports time stamping of PTP packets
@@ -106,7 +122,7 @@ config PTP_1588_CLOCK_PCH
 config PTP_1588_CLOCK_KVM
 	tristate "KVM virtual PTP clock"
 	depends on PTP_1588_CLOCK
-	depends on KVM_GUEST && X86
+	depends on (KVM_GUEST && X86) || (HAVE_ARM_SMCCC_DISCOVERY && ARM_ARCH_TIMER)
 	default y
 	help
 	  This driver adds support for using kvm infrastructure as a PTP
@@ -150,5 +166,23 @@ config PTP_1588_CLOCK_VMW
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp_vmw.
+
+config PTP_1588_CLOCK_OCP
+	tristate "OpenCompute TimeCard as PTP clock"
+	depends on PTP_1588_CLOCK
+	depends on HAS_IOMEM && PCI
+	depends on I2C && MTD
+	depends on SERIAL_8250
+	depends on !S390
+	depends on COMMON_CLK
+	select NET_DEVLINK
+	help
+	  This driver adds support for an OpenCompute time card.
+
+	  The OpenCompute time card is an atomic clock along with
+	  a GPS receiver that provides a Grandmaster clock source
+	  for a PTP enabled network.
+
+	  More information is available at http://www.timingcard.com/
 
 endmenu

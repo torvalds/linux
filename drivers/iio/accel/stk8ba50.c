@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Sensortek STK8BA50 3-Axis Accelerometer
  *
  * Copyright (c) 2015, Intel Corporation.
@@ -91,12 +91,11 @@ struct stk8ba50_data {
 	u8 sample_rate_idx;
 	struct iio_trigger *dready_trig;
 	bool dready_trigger_on;
-	/*
-	 * 3 x 16-bit channels (10-bit data, 6-bit padding) +
-	 * 1 x 16 padding +
-	 * 4 x 16 64-bit timestamp
-	 */
-	s16 buffer[8];
+	/* Ensure timestamp is naturally aligned */
+	struct {
+		s16 chans[3];
+		s64 timetamp __aligned(8);
+	} scan;
 };
 
 #define STK8BA50_ACCEL_CHANNEL(index, reg, axis) {			\
@@ -228,7 +227,8 @@ static int stk8ba50_read_raw(struct iio_dev *indio_dev,
 			mutex_unlock(&data->lock);
 			return -EINVAL;
 		}
-		*val = sign_extend32(ret >> STK8BA50_DATA_SHIFT, 9);
+		*val = sign_extend32(ret >> chan->scan_type.shift,
+				     chan->scan_type.realbits - 1);
 		stk8ba50_set_power(data, STK8BA50_MODE_SUSPEND);
 		mutex_unlock(&data->lock);
 		return IIO_VAL_INT;
@@ -324,7 +324,7 @@ static irqreturn_t stk8ba50_trigger_handler(int irq, void *p)
 		ret = i2c_smbus_read_i2c_block_data(data->client,
 						    STK8BA50_REG_XOUT,
 						    STK8BA50_ALL_CHANNEL_SIZE,
-						    (u8 *)data->buffer);
+						    (u8 *)data->scan.chans);
 		if (ret < STK8BA50_ALL_CHANNEL_SIZE) {
 			dev_err(&data->client->dev, "register read failed\n");
 			goto err;
@@ -337,10 +337,10 @@ static irqreturn_t stk8ba50_trigger_handler(int irq, void *p)
 			if (ret < 0)
 				goto err;
 
-			data->buffer[i++] = ret;
+			data->scan.chans[i++] = ret;
 		}
 	}
-	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 					   pf->timestamp);
 err:
 	mutex_unlock(&data->lock);
@@ -448,13 +448,12 @@ static int stk8ba50_probe(struct i2c_client *client,
 		data->dready_trig = devm_iio_trigger_alloc(&client->dev,
 							   "%s-dev%d",
 							   indio_dev->name,
-							   indio_dev->id);
+							   iio_device_id(indio_dev));
 		if (!data->dready_trig) {
 			ret = -ENOMEM;
 			goto err_power_off;
 		}
 
-		data->dready_trig->dev.parent = &client->dev;
 		data->dready_trig->ops = &stk8ba50_trigger_ops;
 		iio_trigger_set_drvdata(data->dready_trig, indio_dev);
 		ret = iio_trigger_register(data->dready_trig);
@@ -505,7 +504,6 @@ static int stk8ba50_remove(struct i2c_client *client)
 	return stk8ba50_set_power(data, STK8BA50_MODE_SUSPEND);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int stk8ba50_suspend(struct device *dev)
 {
 	struct stk8ba50_data *data;
@@ -524,12 +522,8 @@ static int stk8ba50_resume(struct device *dev)
 	return stk8ba50_set_power(data, STK8BA50_MODE_NORMAL);
 }
 
-static SIMPLE_DEV_PM_OPS(stk8ba50_pm_ops, stk8ba50_suspend, stk8ba50_resume);
-
-#define STK8BA50_PM_OPS (&stk8ba50_pm_ops)
-#else
-#define STK8BA50_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(stk8ba50_pm_ops, stk8ba50_suspend,
+				stk8ba50_resume);
 
 static const struct i2c_device_id stk8ba50_i2c_id[] = {
 	{"stk8ba50", 0},
@@ -547,7 +541,7 @@ MODULE_DEVICE_TABLE(acpi, stk8ba50_acpi_id);
 static struct i2c_driver stk8ba50_driver = {
 	.driver = {
 		.name = "stk8ba50",
-		.pm = STK8BA50_PM_OPS,
+		.pm = pm_sleep_ptr(&stk8ba50_pm_ops),
 		.acpi_match_table = ACPI_PTR(stk8ba50_acpi_id),
 	},
 	.probe =            stk8ba50_probe,

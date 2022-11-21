@@ -1302,7 +1302,7 @@ drop:
 }
 
 /**
- * fcoe_ctlr_recv_els() - Handle an incoming link reset frame
+ * fcoe_ctlr_recv_clr_vlink() - Handle an incoming link reset frame
  * @fip: The FCoE controller that received the frame
  * @skb: The received FIP packet
  *
@@ -2952,7 +2952,7 @@ static void fcoe_ctlr_vlan_send(struct fcoe_ctlr *fip,
 }
 
 /**
- * fcoe_ctlr_vlan_disk_reply() - send FIP VLAN Discovery Notification.
+ * fcoe_ctlr_vlan_disc_reply() - send FIP VLAN Discovery Notification.
  * @fip: The FCoE controller
  * @frport: The newly-parsed FCoE rport from the Discovery Request
  *

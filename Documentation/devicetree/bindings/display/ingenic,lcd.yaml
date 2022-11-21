@@ -39,18 +39,18 @@ properties:
     minItems: 1
 
   port:
-    description: OF graph bindings (specified in bindings/graph.txt).
+    $ref: /schemas/graph.yaml#/properties/port
 
   ports:
-    description: OF graph bindings (specified in bindings/graph.txt).
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: DPI output, to interface with TFT panels.
 
       port@8:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Link to the Image Processing Unit (IPU).
           (See ingenic,ipu.yaml).
 
@@ -88,7 +88,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4740-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4740-cgu.h>
     lcd-controller@13050000 {
       compatible = "ingenic,jz4740-lcd";
       reg = <0x13050000 0x1000>;
@@ -107,7 +107,7 @@ examples:
     };
 
   - |
-    #include <dt-bindings/clock/jz4725b-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4725b-cgu.h>
     lcd-controller@13050000 {
       compatible = "ingenic,jz4725b-lcd";
       reg = <0x13050000 0x1000>;

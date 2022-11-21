@@ -13,13 +13,28 @@
 	memory@80000000 {
 		reg = <0x80000000 0x20000000>;
 	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		video_engine_memory: jpegbuffer {
+			size = <0x02000000>;	/* 32M */
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+	};
+
+
 	aliases {
 		serial0 = &uart1;
 		serial4 = &uart5;
 	};
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "console=ttyS4,115200 earlyprintk";
+		bootargs = "console=ttyS4,115200 earlycon";
 	};
 	leds {
 		compatible = "gpio-leds";
@@ -82,6 +97,50 @@
 		     &pinctrl_adc4_default>;
 };
 
+&gpio {
+	status = "okay";
+	gpio-line-names =
+	/*A0-A7*/	"","","FAULT_LED","CHASSIS_ID_LED","","","","",
+	/*B0-B7*/	"","","","","","","","",
+	/*C0-C7*/	"CHASSIS_ID_BTN","INTRUDER","AC_LOSS","","","","","",
+	/*D0-D7*/	"HDT_DBREQ","LOCAL_SPI_ROM_SEL","FPGA_SPI_ROM_SEL","JTAG_MUX_S",
+			"JTAG_MUX_OE","HDT_SEL","ASERT_WARM_RST_BTN","FPGA_RSVD",
+	/*E0-E7*/	"","","MON_P0_PWR_BTN","MON_P0_RST_BTN","MON_P0_NMI_BTN",
+			"MON_P0_PWR_GOOD","MON_PWROK","MON_RESET",
+	/*F0-F7*/	"MON_P0_PROCHOT","MON_P1_PROCHOT","MON_P0_THERMTRIP",
+			"MON_P1_THERMTRIP","P0_PRESENT","P1_PRESENT","MON_ATX_PWR_OK","",
+	/*G0-G7*/	"BRD_REV_ID_3","BRD_REV_ID_2","BRD_REV_ID_1","BRD_REV_ID_0",
+			"P0_APML_ALERT","P1_APML_ALERT","FPGA ALERT","",
+	/*H0-H7*/	"BRD_ID_0","BRD_ID_1","BRD_ID_2","BRD_ID_3",
+			"PCIE_DISCONNECTED","USB_DISCONNECTED","SPARE_0","SPARE_1",
+	/*I0-I7*/	"","","","","","","","",
+	/*J0-J7*/	"","","","","","","","",
+	/*K0-K7*/	"","","","","","","","",
+	/*L0-L7*/	"","","","","","","","",
+	/*M0-M7*/	"ASSERT_PWR_BTN","ASSERT_RST_BTN","ASSERT_NMI_BTN",
+			"ASSERT_LOCAL_LOCK","ASSERT_P0_PROCHOT","ASSERT_P1_PROCHOT",
+			"ASSERT_CLR_CMOS","ASSERT_BMC_READY",
+	/*N0-N7*/	"","","","","","","","",
+	/*O0-O7*/	"","","","","","","","",
+	/*P0-P7*/	"P0_VDD_CORE_RUN_VRHOT","P0_VDD_SOC_RUN_VRHOT",
+			"P0_VDD_MEM_ABCD_SUS_VRHOT","P0_VDD_MEM_EFGH_SUS_VRHOT",
+			"P1_VDD_CORE_RUN_VRHOT","P1_VDD_SOC_RUN_VRHOT",
+			"P1_VDD_MEM_ABCD_SUS_VRHOT","P1_VDD_MEM_EFGH_SUS_VRHOT",
+	/*Q0-Q7*/	"","","","","","","","",
+	/*R0-R7*/	"","","","","","","","",
+	/*S0-S7*/	"","","","","","","","",
+	/*T0-T7*/	"","","","","","","","",
+	/*U0-U7*/	"","","","","","","","",
+	/*V0-V7*/	"","","","","","","","",
+	/*W0-W7*/	"","","","","","","","",
+	/*X0-X7*/	"","","","","","","","",
+	/*Y0-Y7*/	"","","","","","","","",
+	/*Z0-Z7*/	"","","","","","","","",
+	/*AA0-AA7*/	"","SENSOR THERM","","","","","","",
+	/*AB0-AB7*/	"","","","","","","","",
+	/*AC0-AC7*/	"","","","","","","","";
+};
+
 //APML for P0
 &i2c0 {
 	status = "okay";
@@ -89,6 +148,36 @@
 
 //APML for P1
 &i2c1 {
+	status = "okay";
+};
+
+//FPGA
+&i2c2 {
+	status = "okay";
+};
+
+//24LC128 EEPROM
+&i2c3 {
+	status = "okay";
+	eeprom@50 {
+		compatible = "atmel,24c256";
+		reg = <0x50>;
+		pagesize = <64>;
+	};
+};
+
+//P0 Power regulators
+&i2c4 {
+	status = "okay";
+};
+
+//P1 Power regulators
+&i2c5 {
+	status = "okay";
+};
+
+//P0/P1 Thermal diode
+&i2c6 {
 	status = "okay";
 };
 
@@ -137,24 +226,34 @@
 	};
 };
 
+//BMC I2C
+&i2c8 {
+	status = "okay";
+};
+
 &kcs1 {
 	status = "okay";
-	kcs_addr = <0x60>;
+	aspeed,lpc-io-reg = <0x60>;
 };
 
 &kcs2 {
 	status = "okay";
-	kcs_addr = <0x62>;
+	aspeed,lpc-io-reg = <0x62>;
+};
+
+&kcs3 {
+	status = "okay";
+	aspeed,lpc-io-reg = <0xCA2>;
 };
 
 &kcs4 {
 	status = "okay";
-	kcs_addr = <0x97DE>;
+	aspeed,lpc-io-reg = <0x97DE>;
 };
 
 &lpc_snoop {
 	status = "okay";
-	snoop-ports = <0x80>;
+	snoop-ports = <0x80>, <0x81>;
 };
 
 &lpc_ctrl {
@@ -215,5 +314,12 @@
 	};
 };
 
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
 
+&vhub {
+	status = "okay";
+};
 

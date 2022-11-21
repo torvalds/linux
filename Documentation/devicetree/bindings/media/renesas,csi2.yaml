@@ -25,10 +25,12 @@ properties:
           - renesas,r8a774e1-csi2 # RZ/G2H
           - renesas,r8a7795-csi2  # R-Car H3
           - renesas,r8a7796-csi2  # R-Car M3-W
+          - renesas,r8a77961-csi2 # R-Car M3-W+
           - renesas,r8a77965-csi2 # R-Car M3-N
           - renesas,r8a77970-csi2 # R-Car V3M
           - renesas,r8a77980-csi2 # R-Car V3H
           - renesas,r8a77990-csi2 # R-Car E3
+          - renesas,r8a779a0-csi2 # R-Car V3U
 
   reg:
     maxItems: 1
@@ -46,76 +48,43 @@ properties:
     maxItems: 1
 
   ports:
-    type: object
-    description:
-      A node containing input and output port nodes with endpoint definitions
-      as documented in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
         description:
           Input port node, single endpoint describing the CSI-2 transmitter.
 
         properties:
-          reg:
-            const: 0
-
           endpoint:
-            type: object
+            $ref: video-interfaces.yaml#
+            unevaluatedProperties: false
 
             properties:
               clock-lanes:
                 maxItems: 1
 
               data-lanes:
-                maxItems: 1
-
-              remote-endpoint: true
+                minItems: 1
+                maxItems: 4
+                items:
+                  maximum: 4
 
             required:
               - clock-lanes
               - data-lanes
-              - remote-endpoint
-
-            additionalProperties: false
-
-        additionalProperties: false
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description:
           Output port node, multiple endpoints describing all the R-Car VIN
           modules connected the CSI-2 receiver.
 
-        properties:
-          '#address-cells':
-            const: 1
-
-          '#size-cells':
-            const: 0
-
-          reg:
-            const: 1
-
-        patternProperties:
-          "^endpoint@[0-9a-f]$":
-            type: object
-
-            properties:
-              reg:
-                maxItems: 1
-
-              remote-endpoint: true
-
-            required:
-              - reg
-              - remote-endpoint
-
-            additionalProperties: false
-
-        additionalProperties: false
+    required:
+      - port@0
+      - port@1
 
 required:
   - compatible

@@ -263,15 +263,9 @@ static int cdns_salvo_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct device *dev = &pdev->dev;
 	struct cdns_salvo_phy *salvo_phy;
-	struct resource *res;
-	const struct of_device_id *match;
 	struct cdns_salvo_data *data;
 
-	match = of_match_device(cdns_salvo_phy_of_match, dev);
-	if (!match)
-		return -EINVAL;
-
-	data = (struct cdns_salvo_data *)match->data;
+	data = (struct cdns_salvo_data *)of_device_get_match_data(dev);
 	salvo_phy = devm_kzalloc(dev, sizeof(*salvo_phy), GFP_KERNEL);
 	if (!salvo_phy)
 		return -ENOMEM;
@@ -281,8 +275,7 @@ static int cdns_salvo_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(salvo_phy->clk))
 		return PTR_ERR(salvo_phy->clk);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	salvo_phy->base = devm_ioremap_resource(dev, res);
+	salvo_phy->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(salvo_phy->base))
 		return PTR_ERR(salvo_phy->base);
 

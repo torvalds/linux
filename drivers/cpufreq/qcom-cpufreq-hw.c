@@ -7,12 +7,14 @@
 #include <linux/cpufreq.h>
 #include <linux/init.h>
 #include <linux/interconnect.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 
 #define LUT_MAX_ENTRIES			40U
 #define LUT_SRC				GENMASK(31, 30)
@@ -22,17 +24,39 @@
 #define CLK_HW_DIV			2
 #define LUT_TURBO_IND			1
 
+#define GT_IRQ_STATUS			BIT(2)
+
+#define HZ_PER_KHZ			1000
+
 struct qcom_cpufreq_soc_data {
 	u32 reg_enable;
+	u32 reg_domain_state;
+	u32 reg_dcvs_ctrl;
 	u32 reg_freq_lut;
 	u32 reg_volt_lut;
+	u32 reg_intr_clr;
+	u32 reg_current_vote;
 	u32 reg_perf_state;
 	u8 lut_row_size;
 };
 
 struct qcom_cpufreq_data {
 	void __iomem *base;
+	struct resource *res;
 	const struct qcom_cpufreq_soc_data *soc_data;
+
+	/*
+	 * Mutex to synchronize between de-init sequence and re-starting LMh
+	 * polling/interrupts
+	 */
+	struct mutex throttle_lock;
+	int throttle_irq;
+	char irq_name[15];
+	bool cancel_throttle;
+	struct delayed_work throttle_work;
+	struct cpufreq_policy *policy;
+
+	bool per_core_dcvs;
 };
 
 static unsigned long cpu_hw_rate, xo_rate;
@@ -54,7 +78,7 @@ static int qcom_cpufreq_set_bw(struct cpufreq_policy *policy,
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 
-	ret = dev_pm_opp_set_bw(dev, opp);
+	ret = dev_pm_opp_set_opp(dev, opp);
 	dev_pm_opp_put(opp);
 	return ret;
 }
@@ -85,8 +109,13 @@ static int qcom_cpufreq_hw_target_index(struct cpufreq_policy *policy,
 	struct qcom_cpufreq_data *data = policy->driver_data;
 	const struct qcom_cpufreq_soc_data *soc_data = data->soc_data;
 	unsigned long freq = policy->freq_table[index].frequency;
+	unsigned int i;
 
 	writel_relaxed(index, data->base + soc_data->reg_perf_state);
+
+	if (data->per_core_dcvs)
+		for (i = 1; i < cpumask_weight(policy->related_cpus); i++)
+			writel_relaxed(index, data->base + soc_data->reg_perf_state + i * 4);
 
 	if (icc_scaling_enabled)
 		qcom_cpufreq_set_bw(policy, freq);
@@ -120,9 +149,14 @@ static unsigned int qcom_cpufreq_hw_fast_switch(struct cpufreq_policy *policy,
 	struct qcom_cpufreq_data *data = policy->driver_data;
 	const struct qcom_cpufreq_soc_data *soc_data = data->soc_data;
 	unsigned int index;
+	unsigned int i;
 
 	index = policy->cached_resolved_idx;
 	writel_relaxed(index, data->base + soc_data->reg_perf_state);
+
+	if (data->per_core_dcvs)
+		for (i = 1; i < cpumask_weight(policy->related_cpus); i++)
+			writel_relaxed(index, data->base + soc_data->reg_perf_state + i * 4);
 
 	return policy->freq_table[index].frequency;
 }
@@ -250,18 +284,109 @@ static void qcom_get_related_cpus(int index, struct cpumask *m)
 	}
 }
 
+static unsigned long qcom_lmh_get_throttle_freq(struct qcom_cpufreq_data *data)
+{
+	unsigned int lval;
+
+	if (data->soc_data->reg_current_vote)
+		lval = readl_relaxed(data->base + data->soc_data->reg_current_vote) & 0x3ff;
+	else
+		lval = readl_relaxed(data->base + data->soc_data->reg_domain_state) & 0xff;
+
+	return lval * xo_rate;
+}
+
+static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
+{
+	struct cpufreq_policy *policy = data->policy;
+	int cpu = cpumask_first(policy->related_cpus);
+	struct device *dev = get_cpu_device(cpu);
+	unsigned long freq_hz, throttled_freq;
+	struct dev_pm_opp *opp;
+
+	/*
+	 * Get the h/w throttled frequency, normalize it using the
+	 * registered opp table and use it to calculate thermal pressure.
+	 */
+	freq_hz = qcom_lmh_get_throttle_freq(data);
+
+	opp = dev_pm_opp_find_freq_floor(dev, &freq_hz);
+	if (IS_ERR(opp) && PTR_ERR(opp) == -ERANGE)
+		opp = dev_pm_opp_find_freq_ceil(dev, &freq_hz);
+
+	if (IS_ERR(opp)) {
+		dev_warn(dev, "Can't find the OPP for throttling: %pe!\n", opp);
+	} else {
+		throttled_freq = freq_hz / HZ_PER_KHZ;
+
+		/* Update thermal pressure (the boost frequencies are accepted) */
+		arch_update_thermal_pressure(policy->related_cpus, throttled_freq);
+
+		dev_pm_opp_put(opp);
+	}
+
+	/*
+	 * In the unlikely case policy is unregistered do not enable
+	 * polling or h/w interrupt
+	 */
+	mutex_lock(&data->throttle_lock);
+	if (data->cancel_throttle)
+		goto out;
+
+	/*
+	 * If h/w throttled frequency is higher than what cpufreq has requested
+	 * for, then stop polling and switch back to interrupt mechanism.
+	 */
+	if (throttled_freq >= qcom_cpufreq_hw_get(cpu))
+		enable_irq(data->throttle_irq);
+	else
+		mod_delayed_work(system_highpri_wq, &data->throttle_work,
+				 msecs_to_jiffies(10));
+
+out:
+	mutex_unlock(&data->throttle_lock);
+}
+
+static void qcom_lmh_dcvs_poll(struct work_struct *work)
+{
+	struct qcom_cpufreq_data *data;
+
+	data = container_of(work, struct qcom_cpufreq_data, throttle_work.work);
+	qcom_lmh_dcvs_notify(data);
+}
+
+static irqreturn_t qcom_lmh_dcvs_handle_irq(int irq, void *data)
+{
+	struct qcom_cpufreq_data *c_data = data;
+
+	/* Disable interrupt and enable polling */
+	disable_irq_nosync(c_data->throttle_irq);
+	schedule_delayed_work(&c_data->throttle_work, 0);
+
+	if (c_data->soc_data->reg_intr_clr)
+		writel_relaxed(GT_IRQ_STATUS,
+			       c_data->base + c_data->soc_data->reg_intr_clr);
+
+	return IRQ_HANDLED;
+}
+
 static const struct qcom_cpufreq_soc_data qcom_soc_data = {
 	.reg_enable = 0x0,
+	.reg_dcvs_ctrl = 0xbc,
 	.reg_freq_lut = 0x110,
 	.reg_volt_lut = 0x114,
+	.reg_current_vote = 0x704,
 	.reg_perf_state = 0x920,
 	.lut_row_size = 32,
 };
 
 static const struct qcom_cpufreq_soc_data epss_soc_data = {
 	.reg_enable = 0x0,
+	.reg_domain_state = 0x20,
+	.reg_dcvs_ctrl = 0xb0,
 	.reg_freq_lut = 0x100,
 	.reg_volt_lut = 0x200,
+	.reg_intr_clr = 0x308,
 	.reg_perf_state = 0x320,
 	.lut_row_size = 4,
 };
@@ -273,6 +398,80 @@ static const struct of_device_id qcom_cpufreq_hw_match[] = {
 };
 MODULE_DEVICE_TABLE(of, qcom_cpufreq_hw_match);
 
+static int qcom_cpufreq_hw_lmh_init(struct cpufreq_policy *policy, int index)
+{
+	struct qcom_cpufreq_data *data = policy->driver_data;
+	struct platform_device *pdev = cpufreq_get_driver_data();
+	int ret;
+
+	/*
+	 * Look for LMh interrupt. If no interrupt line is specified /
+	 * if there is an error, allow cpufreq to be enabled as usual.
+	 */
+	data->throttle_irq = platform_get_irq_optional(pdev, index);
+	if (data->throttle_irq == -ENXIO)
+		return 0;
+	if (data->throttle_irq < 0)
+		return data->throttle_irq;
+
+	data->cancel_throttle = false;
+	data->policy = policy;
+
+	mutex_init(&data->throttle_lock);
+	INIT_DEFERRABLE_WORK(&data->throttle_work, qcom_lmh_dcvs_poll);
+
+	snprintf(data->irq_name, sizeof(data->irq_name), "dcvsh-irq-%u", policy->cpu);
+	ret = request_threaded_irq(data->throttle_irq, NULL, qcom_lmh_dcvs_handle_irq,
+				   IRQF_ONESHOT | IRQF_NO_AUTOEN, data->irq_name, data);
+	if (ret) {
+		dev_err(&pdev->dev, "Error registering %s: %d\n", data->irq_name, ret);
+		return 0;
+	}
+
+	ret = irq_set_affinity_hint(data->throttle_irq, policy->cpus);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to set CPU affinity of %s[%d]\n",
+			data->irq_name, data->throttle_irq);
+
+	return 0;
+}
+
+static int qcom_cpufreq_hw_cpu_online(struct cpufreq_policy *policy)
+{
+	struct qcom_cpufreq_data *data = policy->driver_data;
+	struct platform_device *pdev = cpufreq_get_driver_data();
+	int ret;
+
+	ret = irq_set_affinity_hint(data->throttle_irq, policy->cpus);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to set CPU affinity of %s[%d]\n",
+			data->irq_name, data->throttle_irq);
+
+	return ret;
+}
+
+static int qcom_cpufreq_hw_cpu_offline(struct cpufreq_policy *policy)
+{
+	struct qcom_cpufreq_data *data = policy->driver_data;
+
+	if (data->throttle_irq <= 0)
+		return 0;
+
+	mutex_lock(&data->throttle_lock);
+	data->cancel_throttle = true;
+	mutex_unlock(&data->throttle_lock);
+
+	cancel_delayed_work_sync(&data->throttle_work);
+	irq_set_affinity_hint(data->throttle_irq, NULL);
+
+	return 0;
+}
+
+static void qcom_cpufreq_hw_lmh_exit(struct qcom_cpufreq_data *data)
+{
+	free_irq(data->throttle_irq, data);
+}
+
 static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 {
 	struct platform_device *pdev = cpufreq_get_driver_data();
@@ -280,6 +479,7 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 	struct of_phandle_args args;
 	struct device_node *cpu_np;
 	struct device *cpu_dev;
+	struct resource *res;
 	void __iomem *base;
 	struct qcom_cpufreq_data *data;
 	int ret, index;
@@ -303,18 +503,33 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 
 	index = args.args[0];
 
-	base = devm_platform_ioremap_resource(pdev, index);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, index);
+	if (!res) {
+		dev_err(dev, "failed to get mem resource %d\n", index);
+		return -ENODEV;
+	}
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!request_mem_region(res->start, resource_size(res), res->name)) {
+		dev_err(dev, "failed to request resource %pR\n", res);
+		return -EBUSY;
+	}
+
+	base = ioremap(res->start, resource_size(res));
+	if (!base) {
+		dev_err(dev, "failed to map resource %pR\n", res);
+		ret = -ENOMEM;
+		goto release_region;
+	}
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
-		goto error;
+		goto unmap_base;
 	}
 
 	data->soc_data = of_device_get_match_data(&pdev->dev);
 	data->base = base;
+	data->res = res;
 
 	/* HW should be in enabled state to proceed */
 	if (!(readl_relaxed(base + data->soc_data->reg_enable) & 0x1)) {
@@ -323,14 +538,18 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 		goto error;
 	}
 
+	if (readl_relaxed(base + data->soc_data->reg_dcvs_ctrl) & 0x1)
+		data->per_core_dcvs = true;
+
 	qcom_get_related_cpus(index, policy->cpus);
-	if (!cpumask_weight(policy->cpus)) {
+	if (cpumask_empty(policy->cpus)) {
 		dev_err(dev, "Domain-%d failed to get related CPUs\n", index);
 		ret = -ENOENT;
 		goto error;
 	}
 
 	policy->driver_data = data;
+	policy->dvfs_possible_from_any_cpu = true;
 
 	ret = qcom_cpufreq_hw_read_lut(cpu_dev, policy);
 	if (ret) {
@@ -345,11 +564,23 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 		goto error;
 	}
 
-	dev_pm_opp_of_register_em(cpu_dev, policy->cpus);
+	if (policy_has_boost_freq(policy)) {
+		ret = cpufreq_enable_boost_support();
+		if (ret)
+			dev_warn(cpu_dev, "failed to enable boost: %d\n", ret);
+	}
+
+	ret = qcom_cpufreq_hw_lmh_init(policy, index);
+	if (ret)
+		goto error;
 
 	return 0;
 error:
-	devm_iounmap(dev, base);
+	kfree(data);
+unmap_base:
+	iounmap(base);
+release_region:
+	release_mem_region(res->start, resource_size(res));
 	return ret;
 }
 
@@ -357,14 +588,26 @@ static int qcom_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 {
 	struct device *cpu_dev = get_cpu_device(policy->cpu);
 	struct qcom_cpufreq_data *data = policy->driver_data;
-	struct platform_device *pdev = cpufreq_get_driver_data();
+	struct resource *res = data->res;
+	void __iomem *base = data->base;
 
 	dev_pm_opp_remove_all_dynamic(cpu_dev);
 	dev_pm_opp_of_cpumask_remove_table(policy->related_cpus);
+	qcom_cpufreq_hw_lmh_exit(data);
 	kfree(policy->freq_table);
-	devm_iounmap(&pdev->dev, data->base);
+	kfree(data);
+	iounmap(base);
+	release_mem_region(res->start, resource_size(res));
 
 	return 0;
+}
+
+static void qcom_cpufreq_ready(struct cpufreq_policy *policy)
+{
+	struct qcom_cpufreq_data *data = policy->driver_data;
+
+	if (data->throttle_irq >= 0)
+		enable_irq(data->throttle_irq);
 }
 
 static struct freq_attr *qcom_cpufreq_hw_attr[] = {
@@ -374,7 +617,7 @@ static struct freq_attr *qcom_cpufreq_hw_attr[] = {
 };
 
 static struct cpufreq_driver cpufreq_qcom_hw_driver = {
-	.flags		= CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK |
+	.flags		= CPUFREQ_NEED_INITIAL_FREQ_CHECK |
 			  CPUFREQ_HAVE_GOVERNOR_PER_POLICY |
 			  CPUFREQ_IS_COOLING_DEV,
 	.verify		= cpufreq_generic_frequency_table_verify,
@@ -382,9 +625,13 @@ static struct cpufreq_driver cpufreq_qcom_hw_driver = {
 	.get		= qcom_cpufreq_hw_get,
 	.init		= qcom_cpufreq_hw_cpu_init,
 	.exit		= qcom_cpufreq_hw_cpu_exit,
+	.online		= qcom_cpufreq_hw_cpu_online,
+	.offline	= qcom_cpufreq_hw_cpu_offline,
+	.register_em	= cpufreq_register_em_with_opp,
 	.fast_switch    = qcom_cpufreq_hw_fast_switch,
 	.name		= "qcom-cpufreq-hw",
 	.attr		= qcom_cpufreq_hw_attr,
+	.ready		= qcom_cpufreq_ready,
 };
 
 static int qcom_cpufreq_hw_driver_probe(struct platform_device *pdev)

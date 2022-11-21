@@ -151,6 +151,9 @@
 #define PCI_PMCS		0x84
 #define PCI_PMCS_PS_MASK	0x3
 
+/* Intel quirks */
+#define SOF_INTEL_PROCEN_FMT_QUIRK BIT(0)
+
 /* DSP hardware descriptor */
 struct sof_intel_dsp_desc {
 	int cores_num;
@@ -164,20 +167,25 @@ struct sof_intel_dsp_desc {
 	int rom_init_timeout;
 	int ssp_count;			/* ssp count of the platform */
 	int ssp_base_offset;		/* base address of the SSPs */
+	u32 sdw_shim_base;
+	u32 sdw_alh_base;
+	u32 quirks;
+	bool (*check_sdw_irq)(struct snd_sof_dev *sdev);
 };
 
 extern const struct snd_sof_dsp_ops sof_tng_ops;
-extern const struct snd_sof_dsp_ops sof_byt_ops;
-extern const struct snd_sof_dsp_ops sof_cht_ops;
-extern const struct snd_sof_dsp_ops sof_bdw_ops;
 
-extern const struct sof_intel_dsp_desc byt_chip_info;
-extern const struct sof_intel_dsp_desc cht_chip_info;
-extern const struct sof_intel_dsp_desc bdw_chip_info;
 extern const struct sof_intel_dsp_desc tng_chip_info;
 
 struct sof_intel_stream {
 	size_t posn_offset;
 };
+
+static inline const struct sof_intel_dsp_desc *get_chip_info(struct snd_sof_pdata *pdata)
+{
+	const struct sof_dev_desc *desc = pdata->desc;
+
+	return desc->chip_info;
+}
 
 #endif

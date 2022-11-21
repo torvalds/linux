@@ -82,7 +82,7 @@ static const struct soc_device_attribute rcar_quirks_match[]  = {
 		.soc_id = "r8a7795", .revision = "ES1.*",
 		.data = (void *)RCAR_XHCI_FIRMWARE_V2,
 	},
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 
 static void xhci_rcar_start_gen2(struct usb_hcd *hcd)
@@ -133,6 +133,13 @@ static int xhci_rcar_download_firmware(struct usb_hcd *hcd)
 	u32 quirks = 0;
 	const struct soc_device_attribute *attr;
 	const char *firmware_name;
+
+	/*
+	 * According to the datasheet, "Upon the completion of FW Download,
+	 * there is no need to write or reload FW".
+	 */
+	if (readl(regs + RCAR_USB3_DL_CTRL) & RCAR_USB3_DL_CTRL_FW_SUCCESS)
+		return 0;
 
 	attr = soc_device_match(rcar_quirks_match);
 	if (attr)

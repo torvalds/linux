@@ -82,8 +82,8 @@ to do actions that can be done only once when a new variable is allocated.
       - call destructor function if defined
       - free shadow variable
 
-* klp_shadow_free_all() - detach and free all <*, id> shadow variables
-  - find and remove any <*, id> references from global hashtable
+* klp_shadow_free_all() - detach and free all <_, id> shadow variables
+  - find and remove any <_, id> references from global hashtable
 
     - if found
 
@@ -165,8 +165,8 @@ In-flight parent objects
 
 Sometimes it may not be convenient or possible to allocate shadow
 variables alongside their parent objects.  Or a livepatch fix may
-require shadow varibles to only a subset of parent object instances.  In
-these cases, the klp_shadow_get_or_alloc() call can be used to attach
+require shadow variables for only a subset of parent object instances.
+In these cases, the klp_shadow_get_or_alloc() call can be used to attach
 shadow variables to parents already in-flight.
 
 For commit 1d147bfa6429, a good spot to allocate a shadow spinlock is

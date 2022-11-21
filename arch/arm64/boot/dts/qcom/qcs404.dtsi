@@ -110,7 +110,7 @@
 		};
 	};
 
-	cpu_opp_table: cpu-opp-table {
+	cpu_opp_table: opp-table-cpu {
 		compatible = "operating-points-v2-kryo-cpu";
 		opp-shared;
 
@@ -128,7 +128,7 @@
 		};
 	};
 
-	cpr_opp_table: cpr-opp-table {
+	cpr_opp_table: opp-table-cpr {
 		compatible = "operating-points-v2-qcom-level";
 
 		cpr_opp1: opp1 {
@@ -318,7 +318,7 @@
 			status = "disabled";
 		};
 
-		rpm_msg_ram: memory@60000 {
+		rpm_msg_ram: sram@60000 {
 			compatible = "qcom,rpm-msg-ram";
 			reg = <0x00060000 0x6000>;
 		};
@@ -719,6 +719,11 @@
 			reg = <0x01937000 0x25000>;
 		};
 
+		sram@290000 {
+			compatible = "qcom,rpm-stats";
+			reg = <0x00290000 0x10000>;
+		};
+
 		spmi_bus: spmi@200f000 {
 			compatible = "qcom,spmi-pmic-arb";
 			reg = <0x0200f000 0x001000>,
@@ -801,7 +806,7 @@
 			status = "disabled";
 		};
 
-		blsp1_dma: dma@7884000 {
+		blsp1_dma: dma-controller@7884000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07884000 0x25000>;
 			interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
@@ -1045,7 +1050,7 @@
 			status = "disabled";
 		};
 
-		blsp2_dma: dma@7ac4000 {
+		blsp2_dma: dma-controller@7ac4000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07ac4000 0x17000>;
 			interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;

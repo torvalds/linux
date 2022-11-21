@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Leadtek LTK050H3146W 5.0in 720x1280 DSI panel
 
 maintainers:
-  - Heiko Stuebner <heiko.stuebner@theobroma-systems.com>
+  - Quentin Schulz <quentin.schulz@theobroma-systems.com>
 
 allOf:
   - $ref: panel-common.yaml#

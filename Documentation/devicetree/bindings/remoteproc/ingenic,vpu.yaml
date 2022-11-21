@@ -44,7 +44,7 @@ properties:
       - const: vpu
 
   interrupts:
-    description: VPU hardware interrupt
+    maxItems: 1
 
 required:
   - compatible
@@ -58,7 +58,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4770-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4770-cgu.h>
 
     vpu: video-decoder@132a0000 {
       compatible = "ingenic,jz4770-vpu-rproc";

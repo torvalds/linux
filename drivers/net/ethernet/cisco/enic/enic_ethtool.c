@@ -139,7 +139,7 @@ static void enic_get_drvinfo(struct net_device *netdev,
 	int err;
 
 	err = enic_dev_fw_info(enic, &fw_info);
-	/* return only when pci_zalloc_consistent fails in vnic_dev_fw_info
+	/* return only when dma_alloc_coherent fails in vnic_dev_fw_info
 	 * For other failures, like devcmd failure, we return previously
 	 * recorded info.
 	 */
@@ -177,7 +177,9 @@ static void enic_get_strings(struct net_device *netdev, u32 stringset,
 }
 
 static void enic_get_ringparam(struct net_device *netdev,
-			       struct ethtool_ringparam *ring)
+			       struct ethtool_ringparam *ring,
+			       struct kernel_ethtool_ringparam *kernel_ring,
+			       struct netlink_ext_ack *extack)
 {
 	struct enic *enic = netdev_priv(netdev);
 	struct vnic_enet_config *c = &enic->config;
@@ -189,7 +191,9 @@ static void enic_get_ringparam(struct net_device *netdev,
 }
 
 static int enic_set_ringparam(struct net_device *netdev,
-			      struct ethtool_ringparam *ring)
+			      struct ethtool_ringparam *ring,
+			      struct kernel_ethtool_ringparam *kernel_ring,
+			      struct netlink_ext_ack *extack)
 {
 	struct enic *enic = netdev_priv(netdev);
 	struct vnic_enet_config *c = &enic->config;
@@ -270,7 +274,7 @@ static void enic_get_ethtool_stats(struct net_device *netdev,
 	int err;
 
 	err = enic_dev_stats_dump(enic, &vstats);
-	/* return only when pci_zalloc_consistent fails in vnic_dev_stats_dump
+	/* return only when dma_alloc_coherent fails in vnic_dev_stats_dump
 	 * For other failures, like devcmd failure, we return previously
 	 * recorded stats.
 	 */
@@ -298,7 +302,9 @@ static void enic_set_msglevel(struct net_device *netdev, u32 value)
 }
 
 static int enic_get_coalesce(struct net_device *netdev,
-	struct ethtool_coalesce *ecmd)
+			     struct ethtool_coalesce *ecmd,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct enic *enic = netdev_priv(netdev);
 	struct enic_rx_coal *rxcoal = &enic->rx_coalesce_setting;
@@ -343,7 +349,9 @@ static int enic_coalesce_valid(struct enic *enic,
 }
 
 static int enic_set_coalesce(struct net_device *netdev,
-	struct ethtool_coalesce *ecmd)
+			     struct ethtool_coalesce *ecmd,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct enic *enic = netdev_priv(netdev);
 	u32 tx_coalesce_usecs;

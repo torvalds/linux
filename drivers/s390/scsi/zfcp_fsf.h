@@ -134,6 +134,7 @@
 #define FSF_STATUS_READ_LINK_UP          	0x00000006
 #define FSF_STATUS_READ_NOTIFICATION_LOST	0x00000009
 #define FSF_STATUS_READ_FEATURE_UPDATE_ALERT	0x0000000C
+#define FSF_STATUS_READ_VERSION_CHANGE		0x0000000D
 
 /* status subtypes for link down */
 #define FSF_STATUS_READ_SUB_NO_PHYSICAL_LINK	0x00000000
@@ -142,6 +143,10 @@
 
 /* status subtypes for unsolicited status notification lost */
 #define FSF_STATUS_READ_SUB_INCOMING_ELS	0x00000001
+#define FSF_STATUS_READ_SUB_VERSION_CHANGE	0x00000100
+
+/* status subtypes for version change */
+#define FSF_STATUS_READ_SUB_LIC_CHANGE		0x00000001
 
 /* topologie that is detected by the adapter */
 #define FSF_TOPO_P2P				0x00000001
@@ -226,6 +231,11 @@ struct fsf_link_down_info {
 	u8 vendor_specific_code;
 } __attribute__ ((packed));
 
+struct fsf_version_change {
+	u32 current_version;
+	u32 previous_version;
+} __packed;
+
 struct fsf_status_read_buffer {
 	u32 status_type;
 	u32 status_subtype;
@@ -242,6 +252,7 @@ struct fsf_status_read_buffer {
 		u32 word[FSF_STATUS_READ_PAYLOAD_SIZE/sizeof(u32)];
 		struct fsf_link_down_info link_down_info;
 		struct fsf_bit_error_payload bit_error;
+		struct fsf_version_change version_change;
 	} payload;
 } __attribute__ ((packed));
 

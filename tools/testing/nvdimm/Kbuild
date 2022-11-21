@@ -27,7 +27,6 @@ ccflags-y += -I$(srctree)/drivers/acpi/nfit/
 obj-$(CONFIG_LIBNVDIMM) += libnvdimm.o
 obj-$(CONFIG_BLK_DEV_PMEM) += nd_pmem.o
 obj-$(CONFIG_ND_BTT) += nd_btt.o
-obj-$(CONFIG_ND_BLK) += nd_blk.o
 obj-$(CONFIG_X86_PMEM_LEGACY) += nd_e820.o
 obj-$(CONFIG_ACPI_NFIT) += nfit.o
 ifeq ($(CONFIG_DAX),m)
@@ -35,8 +34,6 @@ obj-$(CONFIG_DAX) += dax.o
 endif
 obj-$(CONFIG_DEV_DAX) += device_dax.o
 obj-$(CONFIG_DEV_DAX_PMEM) += dax_pmem.o
-obj-$(CONFIG_DEV_DAX_PMEM) += dax_pmem_core.o
-obj-$(CONFIG_DEV_DAX_PMEM_COMPAT) += dax_pmem_compat.o
 
 nfit-y := $(ACPI_SRC)/core.o
 nfit-y += $(ACPI_SRC)/intel.o
@@ -52,9 +49,6 @@ nd_pmem-y += config_check.o
 nd_btt-y := $(NVDIMM_SRC)/btt.o
 nd_btt-y += config_check.o
 
-nd_blk-y := $(NVDIMM_SRC)/blk.o
-nd_blk-y += config_check.o
-
 nd_e820-y := $(NVDIMM_SRC)/e820.o
 nd_e820-y += config_check.o
 
@@ -67,12 +61,8 @@ device_dax-y += dax-dev.o
 device_dax-y += device_dax_test.o
 device_dax-y += config_check.o
 
-dax_pmem-y := $(DAX_SRC)/pmem/pmem.o
+dax_pmem-y := $(DAX_SRC)/pmem.o
 dax_pmem-y += dax_pmem_test.o
-dax_pmem_core-y := $(DAX_SRC)/pmem/core.o
-dax_pmem_core-y += dax_pmem_core_test.o
-dax_pmem_compat-y := $(DAX_SRC)/pmem/compat.o
-dax_pmem_compat-y += dax_pmem_compat_test.o
 dax_pmem-y += config_check.o
 
 libnvdimm-y := $(NVDIMM_SRC)/core.o

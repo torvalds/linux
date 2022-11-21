@@ -13,7 +13,7 @@
 
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "console=ttyS4,115200n8";
+		bootargs = "console=ttyS4,115200n8 earlycon";
 	};
 
 	memory@80000000 {
@@ -26,9 +26,18 @@
 		#size-cells = <1>;
 		ranges;
 
-		flash_memory: region@ba000000 {
+		flash_memory: region@b8000000 {
 			no-map;
 			reg = <0xb8000000 0x4000000>; /* 64M */
+		};
+
+		ramoops@bc000000 {
+			compatible = "ramoops";
+			reg = <0xbc000000 0x180000>; /* 16 * (3 * 0x8000) */
+			record-size = <0x8000>;
+			console-size = <0x8000>;
+			pmsg-size = <0x8000>;
+			max-reason = <3>; /* KMSG_DUMP_EMERG */
 		};
 
 		vga_memory: region@bf000000 {
@@ -117,7 +126,7 @@
 	/*M0-M7*/	"","","","","","","","",
 	/*N0-N7*/	"","","","","","","","",
 	/*O0-O7*/	"led-rear-power","led-rear-id","","usb-power","","","","",
-	/*P0-P7*/	"","","","","","","","",
+	/*P0-P7*/	"","","","","","bmc-tpm-reset","","",
 	/*Q0-Q7*/	"cfam-reset","","","","","","","fsi-routing",
 	/*R0-R7*/	"","","","","","","","",
 	/*S0-S7*/	"","","","","","","","",
@@ -127,10 +136,7 @@
 	/*W0-W7*/	"","","","","","","","",
 	/*X0-X7*/	"","","","","","","","",
 	/*Y0-Y7*/	"","","","","","","","",
-	/*Z0-Z7*/	"","","","","","","","",
-	/*AA0-AA7*/	"","","","","","","","",
-	/*AB0-AB7*/	"","","","","","","","",
-	/*AC0-AC7*/	"","","","","","","","";
+	/*Z0-Z7*/	"","","","","","","","";
 };
 
 &fmc {
@@ -180,6 +186,7 @@
 
 &emmc {
 	status = "okay";
+	clk-phase-mmc-hs200 = <36>, <270>;
 };
 
 &fsim0 {
@@ -190,7 +197,6 @@
 
 	fsi-routing-gpios = <&gpio0 ASPEED_GPIO(Q, 7) GPIO_ACTIVE_HIGH>;
 	fsi-mux-gpios = <&gpio0 ASPEED_GPIO(B, 0) GPIO_ACTIVE_HIGH>;
-	cfam-reset-gpios = <&gpio0 ASPEED_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
 
 	cfam@0,0 {
 		reg = <0 0>;
@@ -869,4 +875,15 @@
 &xdma {
 	status = "okay";
 	memory-region = <&vga_memory>;
+};
+
+&kcs2 {
+	status = "okay";
+	aspeed,lpc-io-reg = <0xca8 0xcac>;
+};
+
+&kcs3 {
+	status = "okay";
+	aspeed,lpc-io-reg = <0xca2>;
+	aspeed,lpc-interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 };

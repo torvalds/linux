@@ -18,9 +18,13 @@
 #define ADF_RING_DC_TX "RingTx"
 #define ADF_RING_DC_RX "RingRx"
 #define ADF_ETRMGR_BANK "Bank"
-#define ADF_RING_BANK_NUM "BankNumber"
+#define ADF_RING_SYM_BANK_NUM "BankSymNumber"
+#define ADF_RING_ASYM_BANK_NUM "BankAsymNumber"
 #define ADF_CY "Cy"
 #define ADF_DC "Dc"
+#define ADF_CFG_DC "dc"
+#define ADF_CFG_CY "sym;asym"
+#define ADF_SERVICES_ENABLED "ServicesEnabled"
 #define ADF_ETRMGR_COALESCING_ENABLED "InterruptCoalescingEnabled"
 #define ADF_ETRMGR_COALESCING_ENABLED_FORMAT \
 	ADF_ETRMGR_BANK "%d" ADF_ETRMGR_COALESCING_ENABLED

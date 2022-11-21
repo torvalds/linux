@@ -65,8 +65,14 @@
 #define PHYCTRL_OTAPDLYENA		0x1
 #define PHYCTRL_OTAPDLYENA_MASK		0x1
 #define PHYCTRL_OTAPDLYENA_SHIFT	0xb
+#define PHYCTRL_OTAPDLYSEL_DEFAULT	0x4
+#define PHYCTRL_OTAPDLYSEL_MAXVALUE	0xf
 #define PHYCTRL_OTAPDLYSEL_MASK		0xf
 #define PHYCTRL_OTAPDLYSEL_SHIFT	0x7
+#define PHYCTRL_REN_STRB_DISABLE	0x0
+#define PHYCTRL_REN_STRB_ENABLE		0x1
+#define PHYCTRL_REN_STRB_MASK		0x1
+#define PHYCTRL_REN_STRB_SHIFT		0x9
 
 #define PHYCTRL_IS_CALDONE(x) \
 	((((x) >> PHYCTRL_CALDONE_SHIFT) & \
@@ -80,6 +86,8 @@ struct rockchip_emmc_phy {
 	struct regmap	*reg_base;
 	struct clk	*emmcclk;
 	unsigned int drive_impedance;
+	unsigned int enable_strobe_pulldown;
+	unsigned int output_tapdelay_select;
 };
 
 static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
@@ -240,15 +248,17 @@ static int rockchip_emmc_phy_init(struct phy *phy)
 	 * - SDHCI driver to get the PHY
 	 * - SDHCI driver to init the PHY
 	 *
-	 * The clock is optional, so upon any error we just set to NULL.
+	 * The clock is optional, using clk_get_optional() to get the clock
+	 * and do error processing if the return value != NULL
 	 *
 	 * NOTE: we don't do anything special for EPROBE_DEFER here.  Given the
 	 * above expected use case, EPROBE_DEFER isn't sensible to expect, so
 	 * it's just like any other error.
 	 */
-	rk_phy->emmcclk = clk_get(&phy->dev, "emmcclk");
+	rk_phy->emmcclk = clk_get_optional(&phy->dev, "emmcclk");
 	if (IS_ERR(rk_phy->emmcclk)) {
-		dev_dbg(&phy->dev, "Error getting emmcclk: %d\n", ret);
+		ret = PTR_ERR(rk_phy->emmcclk);
+		dev_err(&phy->dev, "Error getting emmcclk: %d\n", ret);
 		rk_phy->emmcclk = NULL;
 	}
 
@@ -291,9 +301,16 @@ static int rockchip_emmc_phy_power_on(struct phy *phy)
 	/* Output tap delay */
 	regmap_write(rk_phy->reg_base,
 		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
-		     HIWORD_UPDATE(4,
+		     HIWORD_UPDATE(rk_phy->output_tapdelay_select,
 				   PHYCTRL_OTAPDLYSEL_MASK,
 				   PHYCTRL_OTAPDLYSEL_SHIFT));
+
+	/* Internal pull-down for strobe line */
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON2,
+		     HIWORD_UPDATE(rk_phy->enable_strobe_pulldown,
+				   PHYCTRL_REN_STRB_MASK,
+				   PHYCTRL_REN_STRB_SHIFT));
 
 	/* Power up emmc phy analog blocks */
 	return rockchip_emmc_phy_power(phy, PHYCTRL_PDB_PWR_ON);
@@ -359,9 +376,21 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 	rk_phy->reg_offset = reg_offset;
 	rk_phy->reg_base = grf;
 	rk_phy->drive_impedance = PHYCTRL_DR_50OHM;
+	rk_phy->enable_strobe_pulldown = PHYCTRL_REN_STRB_DISABLE;
+	rk_phy->output_tapdelay_select = PHYCTRL_OTAPDLYSEL_DEFAULT;
 
 	if (!of_property_read_u32(dev->of_node, "drive-impedance-ohm", &val))
 		rk_phy->drive_impedance = convert_drive_impedance_ohm(pdev, val);
+
+	if (of_property_read_bool(dev->of_node, "rockchip,enable-strobe-pulldown"))
+		rk_phy->enable_strobe_pulldown = PHYCTRL_REN_STRB_ENABLE;
+
+	if (!of_property_read_u32(dev->of_node, "rockchip,output-tapdelay-select", &val)) {
+		if (val <= PHYCTRL_OTAPDLYSEL_MAXVALUE)
+			rk_phy->output_tapdelay_select = val;
+		else
+			dev_err(dev, "output-tapdelay-select exceeds limit, apply default\n");
+	}
 
 	generic_phy = devm_phy_create(dev, dev->of_node, &ops);
 	if (IS_ERR(generic_phy)) {

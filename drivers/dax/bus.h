@@ -16,30 +16,21 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 		struct range *range, int target_node, unsigned int align,
 		unsigned long flags);
 
-enum dev_dax_subsys {
-	DEV_DAX_BUS = 0, /* zeroed dev_dax_data picks this by default */
-	DEV_DAX_CLASS,
-};
-
 struct dev_dax_data {
 	struct dax_region *dax_region;
 	struct dev_pagemap *pgmap;
-	enum dev_dax_subsys subsys;
 	resource_size_t size;
 	int id;
 };
 
 struct dev_dax *devm_create_dev_dax(struct dev_dax_data *data);
 
-/* to be deleted when DEV_DAX_CLASS is removed */
-struct dev_dax *__dax_pmem_probe(struct device *dev, enum dev_dax_subsys subsys);
-
 struct dax_device_driver {
 	struct device_driver drv;
 	struct list_head ids;
 	int match_always;
 	int (*probe)(struct dev_dax *dev);
-	int (*remove)(struct dev_dax *dev);
+	void (*remove)(struct dev_dax *dev);
 };
 
 int __dax_driver_register(struct dax_device_driver *dax_drv,
@@ -48,10 +39,7 @@ int __dax_driver_register(struct dax_device_driver *dax_drv,
 	__dax_driver_register(driver, THIS_MODULE, KBUILD_MODNAME)
 void dax_driver_unregister(struct dax_device_driver *dax_drv);
 void kill_dev_dax(struct dev_dax *dev_dax);
-
-#if IS_ENABLED(CONFIG_DEV_DAX_PMEM_COMPAT)
-int dev_dax_probe(struct dev_dax *dev_dax);
-#endif
+bool static_dev_dax(struct dev_dax *dev_dax);
 
 /*
  * While run_dax() is potentially a generic operation that could be

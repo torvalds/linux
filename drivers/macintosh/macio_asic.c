@@ -88,7 +88,7 @@ static int macio_device_probe(struct device *dev)
 	return error;
 }
 
-static int macio_device_remove(struct device *dev)
+static void macio_device_remove(struct device *dev)
 {
 	struct macio_dev * macio_dev = to_macio_device(dev);
 	struct macio_driver * drv = to_macio_driver(dev->driver);
@@ -96,8 +96,6 @@ static int macio_device_remove(struct device *dev)
 	if (dev->driver && drv->remove)
 		drv->remove(macio_dev);
 	macio_dev_put(macio_dev);
-
-	return 0;
 }
 
 static void macio_device_shutdown(struct device *dev)
@@ -758,7 +756,7 @@ MODULE_DEVICE_TABLE (pci, pci_ids);
 
 /* pci driver glue; this is a "new style" PCI driver module */
 static struct pci_driver macio_pci_driver = {
-	.name		= (char *) "macio",
+	.name		= "macio",
 	.id_table	= pci_ids,
 
 	.probe		= macio_pci_probe,

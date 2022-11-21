@@ -14,6 +14,7 @@ properties:
     enum:
       - ti,j721e-sa2ul
       - ti,am654-sa2ul
+      - ti,am64-sa2ul
 
   reg:
     maxItems: 1
@@ -45,6 +46,18 @@ properties:
     description:
       Address translation for the possible RNG child node for SA2UL
 
+  clocks:
+    items:
+      - description: Clock used by PKA
+      - description: Main Input Clock
+      - description: Clock used by rng
+
+  clock-names:
+    items:
+      - const: pka_in_clk
+      - const: x1_clk
+      - const: x2_clk
+
 patternProperties:
   "^rng@[a-f0-9]+$":
     type: object
@@ -57,7 +70,16 @@ required:
   - power-domains
   - dmas
   - dma-names
-  - dma-coherent
+
+if:
+  properties:
+    compatible:
+      enum:
+        - ti,j721e-sa2ul
+        - ti,am654-sa2ul
+then:
+  required:
+    - dma-coherent
 
 additionalProperties: false
 
@@ -66,7 +88,7 @@ examples:
     #include <dt-bindings/soc/ti,sci_pm_domain.h>
 
     main_crypto: crypto@4e00000 {
-        compatible = "ti,j721-sa2ul";
+        compatible = "ti,j721e-sa2ul";
         reg = <0x4e00000 0x1200>;
         power-domains = <&k3_pds 264 TI_SCI_PD_EXCLUSIVE>;
         dmas = <&main_udmap 0xc000>, <&main_udmap 0x4000>,

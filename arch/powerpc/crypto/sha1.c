@@ -17,21 +17,11 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/types.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha1_base.h>
 #include <asm/byteorder.h>
 
 void powerpc_sha_transform(u32 *state, const u8 *src);
-
-static int powerpc_sha1_init(struct shash_desc *desc)
-{
-	struct sha1_state *sctx = shash_desc_ctx(desc);
-
-	*sctx = (struct sha1_state){
-		.state = { SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4 },
-	};
-
-	return 0;
-}
 
 static int powerpc_sha1_update(struct shash_desc *desc, const u8 *data,
 			       unsigned int len)
@@ -114,7 +104,7 @@ static int powerpc_sha1_import(struct shash_desc *desc, const void *in)
 
 static struct shash_alg alg = {
 	.digestsize	=	SHA1_DIGEST_SIZE,
-	.init		=	powerpc_sha1_init,
+	.init		=	sha1_base_init,
 	.update		=	powerpc_sha1_update,
 	.final		=	powerpc_sha1_final,
 	.export		=	powerpc_sha1_export,

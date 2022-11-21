@@ -141,11 +141,9 @@ static int ftrtc010_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res)
-		return -ENODEV;
-
-	rtc->rtc_irq = res->start;
+	rtc->rtc_irq = platform_get_irq(pdev, 0);
+	if (rtc->rtc_irq < 0)
+		return rtc->rtc_irq;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -176,7 +174,7 @@ static int ftrtc010_rtc_probe(struct platform_device *pdev)
 	if (unlikely(ret))
 		return ret;
 
-	return rtc_register_device(rtc->rtc_dev);
+	return devm_rtc_register_device(rtc->rtc_dev);
 }
 
 static int ftrtc010_rtc_remove(struct platform_device *pdev)

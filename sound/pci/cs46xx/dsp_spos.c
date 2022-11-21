@@ -617,7 +617,8 @@ static void cs46xx_dsp_proc_parameter_dump_read (struct snd_info_entry *entry,
 			col = 0;
 		}
 
-		if ( (symbol = cs46xx_dsp_lookup_symbol_addr (chip,i / sizeof(u32), SYMBOL_PARAMETER)) != NULL) {
+		symbol = cs46xx_dsp_lookup_symbol_addr(chip, i / sizeof(u32), SYMBOL_PARAMETER);
+		if (symbol) {
 			col = 0;
 			snd_iprintf (buffer,"\n%s:\n",symbol->symbol_name);
 		}

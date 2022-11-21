@@ -298,7 +298,7 @@ int btrfs_qgroup_trace_extent_nolock(
  * using current root, then we can move all expensive backref walk out of
  * transaction committing, but not now as qgroup accounting will be wrong again.
  */
-int btrfs_qgroup_trace_extent_post(struct btrfs_fs_info *fs_info,
+int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
 				   struct btrfs_qgroup_extent_record *qrecord);
 
 /*
@@ -361,6 +361,8 @@ int btrfs_qgroup_release_data(struct btrfs_inode *inode, u64 start, u64 len);
 int btrfs_qgroup_free_data(struct btrfs_inode *inode,
 			   struct extent_changeset *reserved, u64 start,
 			   u64 len);
+int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
+			      enum btrfs_qgroup_rsv_type type, bool enforce);
 int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 				enum btrfs_qgroup_rsv_type type, bool enforce);
 /* Reserve metadata space for pertrans and prealloc type */

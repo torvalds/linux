@@ -9,14 +9,9 @@
 #ifndef LINUX_HMM_H
 #define LINUX_HMM_H
 
-#include <linux/kconfig.h>
-#include <linux/pgtable.h>
+#include <linux/mm.h>
 
-#include <linux/device.h>
-#include <linux/migrate.h>
-#include <linux/memremap.h>
-#include <linux/completion.h>
-#include <linux/mmu_notifier.h>
+struct mmu_interval_notifier;
 
 /*
  * On output:
@@ -113,7 +108,7 @@ int hmm_range_fault(struct hmm_range *range);
  * HMM_RANGE_DEFAULT_TIMEOUT - default timeout (ms) when waiting for a range
  *
  * When waiting for mmu notifiers we need some kind of time out otherwise we
- * could potentialy wait for ever, 1000ms ie 1s sounds like a long time to
+ * could potentially wait for ever, 1000ms ie 1s sounds like a long time to
  * wait already.
  */
 #define HMM_RANGE_DEFAULT_TIMEOUT 1000

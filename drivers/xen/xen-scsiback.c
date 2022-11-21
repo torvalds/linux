@@ -33,8 +33,6 @@
 
 #define pr_fmt(fmt) "xen-pvscsi: " fmt
 
-#include <stdarg.h>
-
 #include <linux/module.h>
 #include <linux/utsname.h>
 #include <linux/interrupt.h>
@@ -222,10 +220,10 @@ static void scsiback_print_status(char *sense_buffer, int errors,
 {
 	struct scsiback_tpg *tpg = pending_req->v2p->tpg;
 
-	pr_err("[%s:%d] cmnd[0]=%02x -> st=%02x msg=%02x host=%02x drv=%02x\n",
+	pr_err("[%s:%d] cmnd[0]=%02x -> st=%02x msg=%02x host=%02x\n",
 	       tpg->tport->tport_name, pending_req->v2p->lun,
-	       pending_req->cmnd[0], status_byte(errors), msg_byte(errors),
-	       host_byte(errors), driver_byte(errors));
+	       pending_req->cmnd[0], errors & 0xff, COMMAND_COMPLETE,
+	       host_byte(errors));
 }
 
 static void scsiback_fast_flush_area(struct vscsibk_pend *req)
@@ -360,21 +358,18 @@ static void scsiback_cmd_exec(struct vscsibk_pend *pending_req)
 {
 	struct se_cmd *se_cmd = &pending_req->se_cmd;
 	struct se_session *sess = pending_req->v2p->tpg->tpg_nexus->tvn_se_sess;
-	int rc;
 
 	scsiback_get(pending_req->info);
 	se_cmd->tag = pending_req->rqid;
-	rc = target_submit_cmd_map_sgls(se_cmd, sess, pending_req->cmnd,
-			pending_req->sense_buffer, pending_req->v2p->lun,
-			pending_req->data_len, 0,
-			pending_req->sc_data_direction, TARGET_SCF_ACK_KREF,
-			pending_req->sgl, pending_req->n_sg,
-			NULL, 0, NULL, 0);
-	if (rc < 0) {
-		transport_send_check_condition_and_sense(se_cmd,
-				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
-		transport_generic_free_cmd(se_cmd, 0);
-	}
+	target_init_cmd(se_cmd, sess, pending_req->sense_buffer,
+			pending_req->v2p->lun, pending_req->data_len, 0,
+			pending_req->sc_data_direction, TARGET_SCF_ACK_KREF);
+
+	if (target_submit_prep(se_cmd, pending_req->cmnd, pending_req->sgl,
+			       pending_req->n_sg, NULL, 0, NULL, 0, GFP_KERNEL))
+		return;
+
+	target_submit(se_cmd);
 }
 
 static int scsiback_gnttab_data_map_batch(struct gnttab_map_grant_ref *map,
@@ -386,12 +381,12 @@ static int scsiback_gnttab_data_map_batch(struct gnttab_map_grant_ref *map,
 		return 0;
 
 	err = gnttab_map_refs(map, NULL, pg, cnt);
-	BUG_ON(err);
 	for (i = 0; i < cnt; i++) {
 		if (unlikely(map[i].status != GNTST_okay)) {
 			pr_err("invalid buffer -- could not remap it\n");
 			map[i].handle = SCSIBACK_INVALID_HANDLE;
-			err = -ENOMEM;
+			if (!err)
+				err = -ENOMEM;
 		} else {
 			get_page(pg[i]);
 		}
@@ -722,10 +717,10 @@ static int scsiback_do_cmd_fn(struct vscsibk_info *info,
 				result = DID_NO_CONNECT;
 				break;
 			default:
-				result = DRIVER_ERROR;
+				result = DID_ERROR;
 				break;
 			}
-			scsiback_send_response(info, NULL, result << 24, 0,
+			scsiback_send_response(info, NULL, result << 16, 0,
 					       ring_req.rqid);
 			return 1;
 		}
@@ -735,7 +730,7 @@ static int scsiback_do_cmd_fn(struct vscsibk_info *info,
 			if (scsiback_gnttab_data_map(&ring_req, pending_req)) {
 				scsiback_fast_flush_area(pending_req);
 				scsiback_do_resp_with_sense(NULL,
-						DRIVER_ERROR << 24, 0, pending_req);
+						DID_ERROR << 16, 0, pending_req);
 				transport_generic_free_cmd(&pending_req->se_cmd, 0);
 			} else {
 				scsiback_cmd_exec(pending_req);
@@ -750,7 +745,7 @@ static int scsiback_do_cmd_fn(struct vscsibk_info *info,
 			break;
 		default:
 			pr_err_ratelimited("invalid request\n");
-			scsiback_do_resp_with_sense(NULL, DRIVER_ERROR << 24, 0,
+			scsiback_do_resp_with_sense(NULL, DID_ERROR << 16, 0,
 						    pending_req);
 			transport_generic_free_cmd(&pending_req->se_cmd, 0);
 			break;
@@ -799,7 +794,7 @@ static int scsiback_init_sring(struct vscsibk_info *info, grant_ref_t ring_ref,
 	sring = (struct vscsiif_sring *)area;
 	BACK_RING_INIT(&info->ring, sring, PAGE_SIZE);
 
-	err = bind_interdomain_evtchn_to_irq_lateeoi(info->domid, evtchn);
+	err = bind_interdomain_evtchn_to_irq_lateeoi(info->dev, evtchn);
 	if (err < 0)
 		goto unmap_page;
 
@@ -1404,8 +1399,7 @@ static int scsiback_queue_status(struct se_cmd *se_cmd)
 	if (se_cmd->sense_buffer &&
 	    ((se_cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE) ||
 	     (se_cmd->se_cmd_flags & SCF_EMULATED_TASK_SENSE)))
-		pending_req->result = (DRIVER_SENSE << 24) |
-				      SAM_STAT_CHECK_CONDITION;
+		pending_req->result = SAM_STAT_CHECK_CONDITION;
 	else
 		pending_req->result = se_cmd->scsi_status;
 

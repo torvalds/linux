@@ -135,7 +135,7 @@ bool i915_memcpy_from_wc(void *dst, const void *src, unsigned long len)
  * accepts that its arguments may not be aligned, but are valid for the
  * potential 16-byte read past the end.
  */
-void i915_unaligned_memcpy_from_wc(void *dst, void *src, unsigned long len)
+void i915_unaligned_memcpy_from_wc(void *dst, const void *src, unsigned long len)
 {
 	unsigned long addr;
 

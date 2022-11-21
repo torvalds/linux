@@ -66,12 +66,13 @@ config USB_DWC3_OMAP
 	  Say 'Y' or 'M' here if you have one such device
 
 config USB_DWC3_EXYNOS
-	tristate "Samsung Exynos Platform"
+	tristate "Samsung Exynos SoC Platform"
 	depends on (ARCH_EXYNOS || COMPILE_TEST) && OF
 	default USB_DWC3
 	help
-	  Recent Exynos5 SoCs ship with one DesignWare Core USB3 IP inside,
-	  say 'Y' or 'M' if you have one such device.
+	  Recent Samsung Exynos SoCs (Exynos5250, Exynos5410, Exynos542x,
+	  Exynos5800, Exynos5433, Exynos7) ship with one DesignWare Core USB3
+	  IP inside, say 'Y' or 'M' if you have one such device.
 
 config USB_DWC3_PCI
 	tristate "PCIe-based Platforms"
@@ -137,6 +138,25 @@ config USB_DWC3_QCOM
 	  functionality.
 	  This driver also handles Qscratch wrapper which is needed
 	  for peripheral mode support.
+	  Say 'Y' or 'M' if you have one such device.
+
+config USB_DWC3_IMX8MP
+	tristate "NXP iMX8MP Platform"
+	depends on OF && COMMON_CLK
+	depends on (ARCH_MXC && ARM64) || COMPILE_TEST
+	default USB_DWC3
+	help
+	  NXP iMX8M Plus SoC use DesignWare Core IP for USB2/3
+	  functionality.
+	  Say 'Y' or 'M' if you have one such device.
+
+config USB_DWC3_XILINX
+	tristate "Xilinx Platforms"
+	depends on (ARCH_ZYNQMP || ARCH_VERSAL) && OF
+	default USB_DWC3
+	help
+	  Support Xilinx SoCs with DesignWare Core USB3 IP.
+	  This driver handles both ZynqMP and Versal SoC operations.
 	  Say 'Y' or 'M' if you have one such device.
 
 endif

@@ -36,6 +36,7 @@
 #define CR_FTIE			BIT(18)
 #define CR_SMIE			BIT(19)
 #define CR_TOIE			BIT(20)
+#define CR_APMS			BIT(22)
 #define CR_PRESC_MASK		GENMASK(31, 24)
 
 #define QSPI_DCR		0x04
@@ -53,6 +54,7 @@
 #define QSPI_FCR		0x0c
 #define FCR_CTEF		BIT(0)
 #define FCR_CTCF		BIT(1)
+#define FCR_CSMF		BIT(3)
 
 #define QSPI_DLR		0x10
 
@@ -91,7 +93,6 @@
 #define STM32_AUTOSUSPEND_DELAY -1
 
 struct stm32_qspi_flash {
-	struct stm32_qspi *qspi;
 	u32 cs;
 	u32 presc;
 };
@@ -107,6 +108,7 @@ struct stm32_qspi {
 	u32 clk_rate;
 	struct stm32_qspi_flash flash[STM32_QSPI_MAX_NORCHIP];
 	struct completion data_completion;
+	struct completion match_completion;
 	u32 fmode;
 
 	struct dma_chan *dma_chtx;
@@ -115,6 +117,7 @@ struct stm32_qspi {
 
 	u32 cr_reg;
 	u32 dcr_reg;
+	unsigned long status_timeout;
 
 	/*
 	 * to protect device configuration, could be different between
@@ -128,11 +131,20 @@ static irqreturn_t stm32_qspi_irq(int irq, void *dev_id)
 	struct stm32_qspi *qspi = (struct stm32_qspi *)dev_id;
 	u32 cr, sr;
 
+	cr = readl_relaxed(qspi->io_base + QSPI_CR);
 	sr = readl_relaxed(qspi->io_base + QSPI_SR);
+
+	if (cr & CR_SMIE && sr & SR_SMF) {
+		/* disable irq */
+		cr &= ~CR_SMIE;
+		writel_relaxed(cr, qspi->io_base + QSPI_CR);
+		complete(&qspi->match_completion);
+
+		return IRQ_HANDLED;
+	}
 
 	if (sr & (SR_TEF | SR_TCF)) {
 		/* disable irq */
-		cr = readl_relaxed(qspi->io_base + QSPI_CR);
 		cr &= ~CR_TCIE & ~CR_TEIE;
 		writel_relaxed(cr, qspi->io_base + QSPI_CR);
 		complete(&qspi->data_completion);
@@ -269,8 +281,9 @@ static int stm32_qspi_tx(struct stm32_qspi *qspi, const struct spi_mem_op *op)
 
 	if (qspi->fmode == CCR_FMODE_MM)
 		return stm32_qspi_tx_mm(qspi, op);
-	else if ((op->data.dir == SPI_MEM_DATA_IN && qspi->dma_chrx) ||
-		 (op->data.dir == SPI_MEM_DATA_OUT && qspi->dma_chtx))
+	else if (((op->data.dir == SPI_MEM_DATA_IN && qspi->dma_chrx) ||
+		 (op->data.dir == SPI_MEM_DATA_OUT && qspi->dma_chtx)) &&
+		  op->data.nbytes > 4)
 		if (!stm32_qspi_tx_dma(qspi, op))
 			return 0;
 
@@ -293,7 +306,7 @@ static int stm32_qspi_wait_cmd(struct stm32_qspi *qspi,
 	int err = 0;
 
 	if (!op->data.nbytes)
-		return stm32_qspi_wait_nobusy(qspi);
+		goto wait_nobusy;
 
 	if (readl_relaxed(qspi->io_base + QSPI_SR) & SR_TCF)
 		goto out;
@@ -314,8 +327,29 @@ static int stm32_qspi_wait_cmd(struct stm32_qspi *qspi,
 out:
 	/* clear flags */
 	writel_relaxed(FCR_CTCF | FCR_CTEF, qspi->io_base + QSPI_FCR);
+wait_nobusy:
+	if (!err)
+		err = stm32_qspi_wait_nobusy(qspi);
 
 	return err;
+}
+
+static int stm32_qspi_wait_poll_status(struct stm32_qspi *qspi,
+				       const struct spi_mem_op *op)
+{
+	u32 cr;
+
+	reinit_completion(&qspi->match_completion);
+	cr = readl_relaxed(qspi->io_base + QSPI_CR);
+	writel_relaxed(cr | CR_SMIE, qspi->io_base + QSPI_CR);
+
+	if (!wait_for_completion_timeout(&qspi->match_completion,
+				msecs_to_jiffies(qspi->status_timeout)))
+		return -ETIMEDOUT;
+
+	writel_relaxed(FCR_CSMF, qspi->io_base + QSPI_FCR);
+
+	return 0;
 }
 
 static int stm32_qspi_get_mode(struct stm32_qspi *qspi, u8 buswidth)
@@ -330,8 +364,8 @@ static int stm32_qspi_send(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct stm32_qspi *qspi = spi_controller_get_devdata(mem->spi->master);
 	struct stm32_qspi_flash *flash = &qspi->flash[mem->spi->chip_select];
-	u32 ccr, cr, addr_max;
-	int timeout, err = 0;
+	u32 ccr, cr;
+	int timeout, err = 0, err_poll_status = 0;
 
 	dev_dbg(qspi->dev, "cmd:%#x mode:%d.%d.%d.%d addr:%#llx len:%#x\n",
 		op->cmd.opcode, op->cmd.buswidth, op->addr.buswidth,
@@ -342,18 +376,6 @@ static int stm32_qspi_send(struct spi_mem *mem, const struct spi_mem_op *op)
 	if (err)
 		goto abort;
 
-	addr_max = op->addr.val + op->data.nbytes + 1;
-
-	if (op->data.dir == SPI_MEM_DATA_IN) {
-		if (addr_max < qspi->mm_size &&
-		    op->addr.buswidth)
-			qspi->fmode = CCR_FMODE_MM;
-		else
-			qspi->fmode = CCR_FMODE_INDR;
-	} else {
-		qspi->fmode = CCR_FMODE_INDW;
-	}
-
 	cr = readl_relaxed(qspi->io_base + QSPI_CR);
 	cr &= ~CR_PRESC_MASK & ~CR_FSEL;
 	cr |= FIELD_PREP(CR_PRESC_MASK, flash->presc);
@@ -363,8 +385,6 @@ static int stm32_qspi_send(struct spi_mem *mem, const struct spi_mem_op *op)
 	if (op->data.nbytes)
 		writel_relaxed(op->data.nbytes - 1,
 			       qspi->io_base + QSPI_DLR);
-	else
-		qspi->fmode = CCR_FMODE_INDW;
 
 	ccr = qspi->fmode;
 	ccr |= FIELD_PREP(CCR_INST_MASK, op->cmd.opcode);
@@ -377,7 +397,7 @@ static int stm32_qspi_send(struct spi_mem *mem, const struct spi_mem_op *op)
 		ccr |= FIELD_PREP(CCR_ADSIZE_MASK, op->addr.nbytes - 1);
 	}
 
-	if (op->dummy.buswidth && op->dummy.nbytes)
+	if (op->dummy.nbytes)
 		ccr |= FIELD_PREP(CCR_DCYC_MASK,
 				  op->dummy.nbytes * 8 / op->dummy.buswidth);
 
@@ -391,6 +411,9 @@ static int stm32_qspi_send(struct spi_mem *mem, const struct spi_mem_op *op)
 	if (op->addr.nbytes && qspi->fmode != CCR_FMODE_MM)
 		writel_relaxed(op->addr.val, qspi->io_base + QSPI_AR);
 
+	if (qspi->fmode == CCR_FMODE_APM)
+		err_poll_status = stm32_qspi_wait_poll_status(qspi, op);
+
 	err = stm32_qspi_tx(qspi, op);
 
 	/*
@@ -400,7 +423,7 @@ static int stm32_qspi_send(struct spi_mem *mem, const struct spi_mem_op *op)
 	 *  byte of device (device size - fifo size). like device size is not
 	 *  knows, the prefetching is always stop.
 	 */
-	if (err || qspi->fmode == CCR_FMODE_MM)
+	if (err || err_poll_status || qspi->fmode == CCR_FMODE_MM)
 		goto abort;
 
 	/* wait end of tx in indirect mode */
@@ -419,13 +442,47 @@ abort:
 						    cr, !(cr & CR_ABORT), 1,
 						    STM32_ABT_TIMEOUT_US);
 
-	writel_relaxed(FCR_CTCF, qspi->io_base + QSPI_FCR);
+	writel_relaxed(FCR_CTCF | FCR_CSMF, qspi->io_base + QSPI_FCR);
 
-	if (err || timeout)
-		dev_err(qspi->dev, "%s err:%d abort timeout:%d\n",
-			__func__, err, timeout);
+	if (err || err_poll_status || timeout)
+		dev_err(qspi->dev, "%s err:%d err_poll_status:%d abort timeout:%d\n",
+			__func__, err, err_poll_status, timeout);
 
 	return err;
+}
+
+static int stm32_qspi_poll_status(struct spi_mem *mem, const struct spi_mem_op *op,
+				  u16 mask, u16 match,
+				  unsigned long initial_delay_us,
+				  unsigned long polling_rate_us,
+				  unsigned long timeout_ms)
+{
+	struct stm32_qspi *qspi = spi_controller_get_devdata(mem->spi->master);
+	int ret;
+
+	if (!spi_mem_supports_op(mem, op))
+		return -EOPNOTSUPP;
+
+	ret = pm_runtime_get_sync(qspi->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(qspi->dev);
+		return ret;
+	}
+
+	mutex_lock(&qspi->lock);
+
+	writel_relaxed(mask, qspi->io_base + QSPI_PSMKR);
+	writel_relaxed(match, qspi->io_base + QSPI_PSMAR);
+	qspi->fmode = CCR_FMODE_APM;
+	qspi->status_timeout = timeout_ms;
+
+	ret = stm32_qspi_send(mem, op);
+	mutex_unlock(&qspi->lock);
+
+	pm_runtime_mark_last_busy(qspi->dev);
+	pm_runtime_put_autosuspend(qspi->dev);
+
+	return ret;
 }
 
 static int stm32_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
@@ -434,10 +491,17 @@ static int stm32_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	int ret;
 
 	ret = pm_runtime_get_sync(qspi->dev);
-	if (ret < 0)
+	if (ret < 0) {
+		pm_runtime_put_noidle(qspi->dev);
 		return ret;
+	}
 
 	mutex_lock(&qspi->lock);
+	if (op->data.dir == SPI_MEM_DATA_IN && op->data.nbytes)
+		qspi->fmode = CCR_FMODE_INDR;
+	else
+		qspi->fmode = CCR_FMODE_INDW;
+
 	ret = stm32_qspi_send(mem, op);
 	mutex_unlock(&qspi->lock);
 
@@ -445,6 +509,64 @@ static int stm32_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	pm_runtime_put_autosuspend(qspi->dev);
 
 	return ret;
+}
+
+static int stm32_qspi_dirmap_create(struct spi_mem_dirmap_desc *desc)
+{
+	struct stm32_qspi *qspi = spi_controller_get_devdata(desc->mem->spi->master);
+
+	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT)
+		return -EOPNOTSUPP;
+
+	/* should never happen, as mm_base == null is an error probe exit condition */
+	if (!qspi->mm_base && desc->info.op_tmpl.data.dir == SPI_MEM_DATA_IN)
+		return -EOPNOTSUPP;
+
+	if (!qspi->mm_size)
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+static ssize_t stm32_qspi_dirmap_read(struct spi_mem_dirmap_desc *desc,
+				      u64 offs, size_t len, void *buf)
+{
+	struct stm32_qspi *qspi = spi_controller_get_devdata(desc->mem->spi->master);
+	struct spi_mem_op op;
+	u32 addr_max;
+	int ret;
+
+	ret = pm_runtime_get_sync(qspi->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(qspi->dev);
+		return ret;
+	}
+
+	mutex_lock(&qspi->lock);
+	/* make a local copy of desc op_tmpl and complete dirmap rdesc
+	 * spi_mem_op template with offs, len and *buf in  order to get
+	 * all needed transfer information into struct spi_mem_op
+	 */
+	memcpy(&op, &desc->info.op_tmpl, sizeof(struct spi_mem_op));
+	dev_dbg(qspi->dev, "%s len = 0x%zx offs = 0x%llx buf = 0x%p\n", __func__, len, offs, buf);
+
+	op.data.nbytes = len;
+	op.addr.val = desc->info.offset + offs;
+	op.data.buf.in = buf;
+
+	addr_max = op.addr.val + op.data.nbytes + 1;
+	if (addr_max < qspi->mm_size && op.addr.buswidth)
+		qspi->fmode = CCR_FMODE_MM;
+	else
+		qspi->fmode = CCR_FMODE_INDR;
+
+	ret = stm32_qspi_send(desc->mem, &op);
+	mutex_unlock(&qspi->lock);
+
+	pm_runtime_mark_last_busy(qspi->dev);
+	pm_runtime_put_autosuspend(qspi->dev);
+
+	return ret ?: len;
 }
 
 static int stm32_qspi_setup(struct spi_device *spi)
@@ -462,18 +584,19 @@ static int stm32_qspi_setup(struct spi_device *spi)
 		return -EINVAL;
 
 	ret = pm_runtime_get_sync(qspi->dev);
-	if (ret < 0)
+	if (ret < 0) {
+		pm_runtime_put_noidle(qspi->dev);
 		return ret;
+	}
 
 	presc = DIV_ROUND_UP(qspi->clk_rate, spi->max_speed_hz) - 1;
 
 	flash = &qspi->flash[spi->chip_select];
-	flash->qspi = qspi;
 	flash->cs = spi->chip_select;
 	flash->presc = presc;
 
 	mutex_lock(&qspi->lock);
-	qspi->cr_reg = 3 << CR_FTHRES_SHIFT | CR_SSHIFT | CR_EN;
+	qspi->cr_reg = CR_APMS | 3 << CR_FTHRES_SHIFT | CR_SSHIFT | CR_EN;
 	writel_relaxed(qspi->cr_reg, qspi->io_base + QSPI_CR);
 
 	/* set dcr fsize to max address */
@@ -550,7 +673,10 @@ static void stm32_qspi_dma_free(struct stm32_qspi *qspi)
  * to check supported mode.
  */
 static const struct spi_controller_mem_ops stm32_qspi_mem_ops = {
-	.exec_op = stm32_qspi_exec_op,
+	.exec_op	= stm32_qspi_exec_op,
+	.dirmap_create	= stm32_qspi_dirmap_create,
+	.dirmap_read	= stm32_qspi_dirmap_read,
+	.poll_status	= stm32_qspi_poll_status,
 };
 
 static int stm32_qspi_probe(struct platform_device *pdev)
@@ -562,7 +688,7 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq;
 
-	ctrl = spi_alloc_master(dev, sizeof(*qspi));
+	ctrl = devm_spi_alloc_master(dev, sizeof(*qspi));
 	if (!ctrl)
 		return -ENOMEM;
 
@@ -571,57 +697,46 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qspi");
 	qspi->io_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(qspi->io_base)) {
-		ret = PTR_ERR(qspi->io_base);
-		goto err_master_put;
-	}
+	if (IS_ERR(qspi->io_base))
+		return PTR_ERR(qspi->io_base);
 
 	qspi->phys_base = res->start;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qspi_mm");
 	qspi->mm_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(qspi->mm_base)) {
-		ret = PTR_ERR(qspi->mm_base);
-		goto err_master_put;
-	}
+	if (IS_ERR(qspi->mm_base))
+		return PTR_ERR(qspi->mm_base);
 
 	qspi->mm_size = resource_size(res);
-	if (qspi->mm_size > STM32_QSPI_MAX_MMAP_SZ) {
-		ret = -EINVAL;
-		goto err_master_put;
-	}
+	if (qspi->mm_size > STM32_QSPI_MAX_MMAP_SZ)
+		return -EINVAL;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = irq;
-		goto err_master_put;
-	}
+	if (irq < 0)
+		return irq;
 
 	ret = devm_request_irq(dev, irq, stm32_qspi_irq, 0,
 			       dev_name(dev), qspi);
 	if (ret) {
 		dev_err(dev, "failed to request irq\n");
-		goto err_master_put;
+		return ret;
 	}
 
 	init_completion(&qspi->data_completion);
+	init_completion(&qspi->match_completion);
 
 	qspi->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(qspi->clk)) {
-		ret = PTR_ERR(qspi->clk);
-		goto err_master_put;
-	}
+	if (IS_ERR(qspi->clk))
+		return PTR_ERR(qspi->clk);
 
 	qspi->clk_rate = clk_get_rate(qspi->clk);
-	if (!qspi->clk_rate) {
-		ret = -EINVAL;
-		goto err_master_put;
-	}
+	if (!qspi->clk_rate)
+		return -EINVAL;
 
 	ret = clk_prepare_enable(qspi->clk);
 	if (ret) {
 		dev_err(dev, "can not enable the clock\n");
-		goto err_master_put;
+		return ret;
 	}
 
 	rstc = devm_reset_control_get_exclusive(dev, NULL);
@@ -657,7 +772,7 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_noresume(dev);
 
-	ret = devm_spi_register_master(dev, ctrl);
+	ret = spi_register_master(ctrl);
 	if (ret)
 		goto err_pm_runtime_free;
 
@@ -679,8 +794,6 @@ err_dma_free:
 	stm32_qspi_dma_free(qspi);
 err_clk_disable:
 	clk_disable_unprepare(qspi->clk);
-err_master_put:
-	spi_master_put(qspi->ctrl);
 
 	return ret;
 }
@@ -690,6 +803,7 @@ static int stm32_qspi_remove(struct platform_device *pdev)
 	struct stm32_qspi *qspi = platform_get_drvdata(pdev);
 
 	pm_runtime_get_sync(qspi->dev);
+	spi_unregister_master(qspi->ctrl);
 	/* disable qspi */
 	writel_relaxed(0, qspi->io_base + QSPI_CR);
 	stm32_qspi_dma_free(qspi);
@@ -723,21 +837,31 @@ static int __maybe_unused stm32_qspi_suspend(struct device *dev)
 {
 	pinctrl_pm_select_sleep_state(dev);
 
-	return 0;
+	return pm_runtime_force_suspend(dev);
 }
 
 static int __maybe_unused stm32_qspi_resume(struct device *dev)
 {
 	struct stm32_qspi *qspi = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret < 0)
+		return ret;
 
 	pinctrl_pm_select_default_state(dev);
-	clk_prepare_enable(qspi->clk);
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
+		return ret;
+	}
 
 	writel_relaxed(qspi->cr_reg, qspi->io_base + QSPI_CR);
 	writel_relaxed(qspi->dcr_reg, qspi->io_base + QSPI_DCR);
 
-	pm_runtime_mark_last_busy(qspi->dev);
-	pm_runtime_put_autosuspend(qspi->dev);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 }

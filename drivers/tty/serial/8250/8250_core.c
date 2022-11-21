@@ -172,7 +172,6 @@ static void serial_do_unlink(struct irq_info *i, struct uart_8250_port *up)
 static int serial_link_irq_chain(struct uart_8250_port *up)
 {
 	struct hlist_head *h;
-	struct hlist_node *n;
 	struct irq_info *i;
 	int ret;
 
@@ -180,13 +179,11 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 
 	h = &irq_lists[up->port.irq % NR_IRQ_HASH];
 
-	hlist_for_each(n, h) {
-		i = hlist_entry(n, struct irq_info, node);
+	hlist_for_each_entry(i, h, node)
 		if (i->irq == up->port.irq)
 			break;
-	}
 
-	if (n == NULL) {
+	if (i == NULL) {
 		i = kzalloc(sizeof(struct irq_info), GFP_KERNEL);
 		if (i == NULL) {
 			mutex_unlock(&hash_mutex);
@@ -220,25 +217,18 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 
 static void serial_unlink_irq_chain(struct uart_8250_port *up)
 {
-	/*
-	 * yes, some broken gcc emit "warning: 'i' may be used uninitialized"
-	 * but no, we are not going to take a patch that assigns NULL below.
-	 */
 	struct irq_info *i;
-	struct hlist_node *n;
 	struct hlist_head *h;
 
 	mutex_lock(&hash_mutex);
 
 	h = &irq_lists[up->port.irq % NR_IRQ_HASH];
 
-	hlist_for_each(n, h) {
-		i = hlist_entry(n, struct irq_info, node);
+	hlist_for_each_entry(i, h, node)
 		if (i->irq == up->port.irq)
 			break;
-	}
 
-	BUG_ON(n == NULL);
+	BUG_ON(i == NULL);
 	BUG_ON(i->head == NULL);
 
 	if (list_empty(i->head))
@@ -331,9 +321,9 @@ static int univ8250_setup_irq(struct uart_8250_port *up)
 	 * hardware interrupt, we use a timer-based system.  The original
 	 * driver used to do this with IRQ0.
 	 */
-	if (!port->irq) {
+	if (!port->irq)
 		mod_timer(&up->timer, jiffies + uart_poll_timeout(port));
-	} else
+	else
 		retval = serial_link_irq_chain(up);
 
 	return retval;
@@ -519,11 +509,10 @@ static void __init serial8250_isa_init_ports(void)
 
 		up->ops = &univ8250_driver_ops;
 
-		/*
-		 * ALPHA_KLUDGE_MCR needs to be killed.
-		 */
-		up->mcr_mask = ~ALPHA_KLUDGE_MCR;
-		up->mcr_force = ALPHA_KLUDGE_MCR;
+		if (IS_ENABLED(CONFIG_ALPHA_JENSEN) ||
+		    (IS_ENABLED(CONFIG_ALPHA_GENERIC) && alpha_jensen()))
+			port->set_mctrl = alpha_jensen_set_mctrl;
+
 		serial8250_set_defaults(up);
 	}
 
@@ -762,6 +751,7 @@ void serial8250_suspend_port(int line)
 	if (!console_suspend_enabled && uart_console(port) &&
 	    port->type != PORT_8250) {
 		unsigned char canary = 0xa5;
+
 		serial_out(up, UART_SCR, canary);
 		if (serial_in(up, UART_SCR) == canary)
 			up->canary = canary;
@@ -915,7 +905,7 @@ static struct platform_device *serial8250_isa_devs;
  */
 static DEFINE_MUTEX(serial_mutex);
 
-static struct uart_8250_port *serial8250_find_match_or_unused(struct uart_port *port)
+static struct uart_8250_port *serial8250_find_match_or_unused(const struct uart_port *port)
 {
 	int i;
 
@@ -980,7 +970,7 @@ static void serial_8250_overrun_backoff_work(struct work_struct *work)
  *
  *	On success the port is ready to use and the line number is returned.
  */
-int serial8250_register_8250_port(struct uart_8250_port *up)
+int serial8250_register_8250_port(const struct uart_8250_port *up)
 {
 	struct uart_8250_port *uart;
 	int ret = -ENOSPC;

@@ -9,7 +9,7 @@
 #include "odm_precomp.h"
 
 static bool CheckPositive(
-	PDM_ODM_T pDM_Odm, const u32 Condition1, const u32 Condition2
+	struct dm_odm_t *pDM_Odm, const u32 Condition1, const u32 Condition2
 )
 {
 	u8 _BoardType =
@@ -32,48 +32,6 @@ static bool CheckPositive(
 		pDM_Odm->TypeGPA  <<  8 |
 		pDM_Odm->TypeALNA << 16 |
 		pDM_Odm->TypeAPA  << 24;
-
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_TRACE,
-		(
-			"===> [8812A] CheckPositive (cond1, cond2) = (0x%X 0x%X)\n",
-			cond1,
-			cond2
-		)
-	);
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_TRACE,
-		(
-			"===> [8812A] CheckPositive (driver1, driver2) = (0x%X 0x%X)\n",
-			driver1,
-			driver2
-		)
-	);
-
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_TRACE,
-		(
-			"	(Platform, Interface) = (0x%X, 0x%X)\n",
-			pDM_Odm->SupportPlatform,
-			pDM_Odm->SupportInterface
-		)
-	);
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_TRACE,
-		(
-			"	(Board, Package) = (0x%X, 0x%X)\n",
-			pDM_Odm->BoardType,
-			pDM_Odm->PackageType
-		)
-	);
 
 
 	/*  Value Defined Check =============== */
@@ -111,7 +69,7 @@ static bool CheckPositive(
 }
 
 static bool CheckNegative(
-	PDM_ODM_T pDM_Odm, const u32 Condition1, const u32 Condition2
+	struct dm_odm_t *pDM_Odm, const u32 Condition1, const u32 Condition2
 )
 {
 	return true;
@@ -228,18 +186,11 @@ static u32 Array_MP_8723B_MAC_REG[] = {
 
 };
 
-void ODM_ReadAndConfig_MP_8723B_MAC_REG(PDM_ODM_T pDM_Odm)
+void ODM_ReadAndConfig_MP_8723B_MAC_REG(struct dm_odm_t *pDM_Odm)
 {
 	u32 i = 0;
 	u32 ArrayLen = ARRAY_SIZE(Array_MP_8723B_MAC_REG);
 	u32 *Array = Array_MP_8723B_MAC_REG;
-
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_LOUD,
-		("===> ODM_ReadAndConfig_MP_8723B_MAC_REG\n")
-	);
 
 	for (i = 0; i < ArrayLen; i += 2) {
 		u32 v1 = Array[i];

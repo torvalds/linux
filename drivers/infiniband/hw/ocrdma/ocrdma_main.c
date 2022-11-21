@@ -62,27 +62,13 @@ MODULE_DESCRIPTION(OCRDMA_ROCE_DRV_DESC " " OCRDMA_ROCE_DRV_VERSION);
 MODULE_AUTHOR("Emulex Corporation");
 MODULE_LICENSE("Dual BSD/GPL");
 
-void ocrdma_get_guid(struct ocrdma_dev *dev, u8 *guid)
-{
-	u8 mac_addr[6];
-
-	memcpy(&mac_addr[0], &dev->nic_info.mac_addr[0], ETH_ALEN);
-	guid[0] = mac_addr[0] ^ 2;
-	guid[1] = mac_addr[1];
-	guid[2] = mac_addr[2];
-	guid[3] = 0xff;
-	guid[4] = 0xfe;
-	guid[5] = mac_addr[3];
-	guid[6] = mac_addr[4];
-	guid[7] = mac_addr[5];
-}
 static enum rdma_link_layer ocrdma_link_layer(struct ib_device *device,
-					      u8 port_num)
+					      u32 port_num)
 {
 	return IB_LINK_LAYER_ETHERNET;
 }
 
-static int ocrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
+static int ocrdma_port_immutable(struct ib_device *ibdev, u32 port_num,
 			         struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;
@@ -119,7 +105,7 @@ static ssize_t hw_rev_show(struct device *device,
 	struct ocrdma_dev *dev =
 		rdma_device_to_drv_device(device, struct ocrdma_dev, ibdev);
 
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->nic_info.pdev->vendor);
+	return sysfs_emit(buf, "0x%x\n", dev->nic_info.pdev->vendor);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
@@ -129,7 +115,7 @@ static ssize_t hca_type_show(struct device *device,
 	struct ocrdma_dev *dev =
 		rdma_device_to_drv_device(device, struct ocrdma_dev, ibdev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", &dev->model_number[0]);
+	return sysfs_emit(buf, "%s\n", &dev->model_number[0]);
 }
 static DEVICE_ATTR_RO(hca_type);
 
@@ -154,12 +140,14 @@ static const struct ib_device_ops ocrdma_dev_ops = {
 	.create_ah = ocrdma_create_ah,
 	.create_cq = ocrdma_create_cq,
 	.create_qp = ocrdma_create_qp,
+	.create_user_ah = ocrdma_create_ah,
 	.dealloc_pd = ocrdma_dealloc_pd,
 	.dealloc_ucontext = ocrdma_dealloc_ucontext,
 	.dereg_mr = ocrdma_dereg_mr,
 	.destroy_ah = ocrdma_destroy_ah,
 	.destroy_cq = ocrdma_destroy_cq,
 	.destroy_qp = ocrdma_destroy_qp,
+	.device_group = &ocrdma_attr_group,
 	.get_dev_fw_str = get_dev_fw_str,
 	.get_dma_mr = ocrdma_get_dma_mr,
 	.get_link_layer = ocrdma_link_layer,
@@ -183,6 +171,7 @@ static const struct ib_device_ops ocrdma_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ah, ocrdma_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, ocrdma_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, ocrdma_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_qp, ocrdma_qp, ibqp),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, ocrdma_ucontext, ibucontext),
 };
 
@@ -200,36 +189,11 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 {
 	int ret;
 
-	ocrdma_get_guid(dev, (u8 *)&dev->ibdev.node_guid);
+	addrconf_addr_eui48((u8 *)&dev->ibdev.node_guid,
+			    dev->nic_info.mac_addr);
 	BUILD_BUG_ON(sizeof(OCRDMA_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
 	memcpy(dev->ibdev.node_desc, OCRDMA_NODE_DESC,
 	       sizeof(OCRDMA_NODE_DESC));
-	dev->ibdev.uverbs_cmd_mask =
-	    OCRDMA_UVERBS(GET_CONTEXT) |
-	    OCRDMA_UVERBS(QUERY_DEVICE) |
-	    OCRDMA_UVERBS(QUERY_PORT) |
-	    OCRDMA_UVERBS(ALLOC_PD) |
-	    OCRDMA_UVERBS(DEALLOC_PD) |
-	    OCRDMA_UVERBS(REG_MR) |
-	    OCRDMA_UVERBS(DEREG_MR) |
-	    OCRDMA_UVERBS(CREATE_COMP_CHANNEL) |
-	    OCRDMA_UVERBS(CREATE_CQ) |
-	    OCRDMA_UVERBS(RESIZE_CQ) |
-	    OCRDMA_UVERBS(DESTROY_CQ) |
-	    OCRDMA_UVERBS(REQ_NOTIFY_CQ) |
-	    OCRDMA_UVERBS(CREATE_QP) |
-	    OCRDMA_UVERBS(MODIFY_QP) |
-	    OCRDMA_UVERBS(QUERY_QP) |
-	    OCRDMA_UVERBS(DESTROY_QP) |
-	    OCRDMA_UVERBS(POLL_CQ) |
-	    OCRDMA_UVERBS(POST_SEND) |
-	    OCRDMA_UVERBS(POST_RECV);
-
-	dev->ibdev.uverbs_cmd_mask |=
-	    OCRDMA_UVERBS(CREATE_AH) |
-	     OCRDMA_UVERBS(MODIFY_AH) |
-	     OCRDMA_UVERBS(QUERY_AH) |
-	     OCRDMA_UVERBS(DESTROY_AH);
 
 	dev->ibdev.node_type = RDMA_NODE_IB_CA;
 	dev->ibdev.phys_port_cnt = 1;
@@ -240,17 +204,9 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 
 	ib_set_device_ops(&dev->ibdev, &ocrdma_dev_ops);
 
-	if (ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R) {
-		dev->ibdev.uverbs_cmd_mask |=
-		     OCRDMA_UVERBS(CREATE_SRQ) |
-		     OCRDMA_UVERBS(MODIFY_SRQ) |
-		     OCRDMA_UVERBS(QUERY_SRQ) |
-		     OCRDMA_UVERBS(DESTROY_SRQ) |
-		     OCRDMA_UVERBS(POST_SRQ_RECV);
-
+	if (ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R)
 		ib_set_device_ops(&dev->ibdev, &ocrdma_dev_srq_ops);
-	}
-	rdma_set_device_sysfs_group(&dev->ibdev, &ocrdma_attr_group);
+
 	ret = ib_device_set_netdev(&dev->ibdev, dev->nic_info.netdev, 1);
 	if (ret)
 		return ret;

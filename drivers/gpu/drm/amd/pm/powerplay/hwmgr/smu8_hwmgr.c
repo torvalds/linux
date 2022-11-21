@@ -276,7 +276,7 @@ static int smu8_init_dynamic_state_adjustment_rule_settings(
 {
 	struct phm_clock_voltage_dependency_table *table_clk_vlt;
 
-	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, 7),
+	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, 8),
 				GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
@@ -1547,7 +1547,8 @@ static int smu8_print_clock_levels(struct pp_hwmgr *hwmgr,
 	struct smu8_hwmgr *data = hwmgr->backend;
 	struct phm_clock_voltage_dependency_table *sclk_table =
 			hwmgr->dyn_state.vddc_dependency_on_sclk;
-	int i, now, size = 0;
+	uint32_t i, now;
+	int size = 0;
 
 	switch (type) {
 	case PP_SCLK:
@@ -1788,11 +1789,10 @@ static int smu8_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		result = smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_GetAverageGraphicsActivity,
 				&activity_percent);
-		if (0 == result) {
+		if (0 == result)
 			activity_percent = activity_percent > 100 ? 100 : activity_percent;
-		} else {
-			activity_percent = 50;
-		}
+		else
+			return -EIO;
 		*((uint32_t *)value) = activity_percent;
 		return 0;
 	case AMDGPU_PP_SENSOR_UVD_POWER:
@@ -1805,7 +1805,7 @@ static int smu8_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*((uint32_t *)value) = smu8_thermal_get_temperature(hwmgr);
 		return 0;
 	default:
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 }
 
@@ -1950,9 +1950,12 @@ static void smu8_dpm_powergate_acp(struct pp_hwmgr *hwmgr, bool bgate)
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerON, NULL);
 }
 
+#define WIDTH_4K		3840
+
 static void smu8_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct smu8_hwmgr *data = hwmgr->backend;
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	data->uvd_power_gated = bgate;
 
@@ -1976,6 +1979,12 @@ static void smu8_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 		smu8_dpm_update_uvd_dpm(hwmgr, false);
 	}
 
+	/* enable/disable Low Memory PState for UVD (4k videos) */
+	if (adev->asic_type == CHIP_STONEY &&
+	    adev->uvd.decode_image_width >= WIDTH_4K)
+		smu8_nbdpm_pstate_enable_disable(hwmgr,
+						 bgate,
+						 true);
 }
 
 static void smu8_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
@@ -2037,7 +2046,6 @@ static const struct pp_hwmgr_func smu8_hwmgr_funcs = {
 	.power_state_set = smu8_set_power_state_tasks,
 	.dynamic_state_management_disable = smu8_disable_dpm_tasks,
 	.notify_cac_buffer_info = smu8_notify_cac_buffer_info,
-	.update_nbdpm_pstate = smu8_nbdpm_pstate_enable_disable,
 	.get_thermal_temperature_range = smu8_get_thermal_temperature_range,
 };
 

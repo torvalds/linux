@@ -58,6 +58,8 @@
 	/delete-property/st,hw-flow-ctrl;
 	cts-gpios = <&gpioa 15 GPIO_ACTIVE_LOW>;
 	rts-gpios = <&gpiob 0 GPIO_ACTIVE_LOW>;
+	/delete-property/dmas;
+	/delete-property/dma-names;
 	status = "okay";
 
 	bluetooth {

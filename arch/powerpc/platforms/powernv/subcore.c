@@ -169,6 +169,16 @@ static void update_hid_in_slw(u64 hid0)
 	}
 }
 
+static inline void update_power8_hid0(unsigned long hid0)
+{
+	/*
+	 *  The HID0 update on Power8 should at the very least be
+	 *  preceded by a SYNC instruction followed by an ISYNC
+	 *  instruction
+	 */
+	asm volatile("sync; mtspr %0,%1; isync":: "i"(SPRN_HID0), "r"(hid0));
+}
+
 static void unsplit_core(void)
 {
 	u64 hid0, mask;

@@ -123,9 +123,9 @@ SYM_CODE_START(startup_32)
 	 */
 	btl	$TH_FLAGS_SME_ACTIVE_BIT, pa_tr_flags
 	jnc	.Ldone
-	movl	$MSR_K8_SYSCFG, %ecx
+	movl	$MSR_AMD64_SYSCFG, %ecx
 	rdmsr
-	bts	$MSR_K8_SYSCFG_MEM_ENCRYPT_BIT, %eax
+	bts	$MSR_AMD64_SYSCFG_MEM_ENCRYPT_BIT, %eax
 	jc	.Ldone
 
 	/*

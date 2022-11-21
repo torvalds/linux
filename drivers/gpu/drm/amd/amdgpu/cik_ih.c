@@ -177,6 +177,7 @@ static void cik_ih_irq_disable(struct amdgpu_device *adev)
  * cik_ih_get_wptr - get the IH ring buffer wptr
  *
  * @adev: amdgpu_device pointer
+ * @ih: IH ring buffer to fetch wptr
  *
  * Get the IH ring buffer wptr from either the register
  * or the writeback memory buffer (CIK).  Also check for
@@ -266,6 +267,7 @@ static void cik_ih_decode_iv(struct amdgpu_device *adev,
  * cik_ih_set_rptr - set the IH ring buffer rptr
  *
  * @adev: amdgpu_device pointer
+ * @ih: IH ring buffer to set wptr
  *
  * Set the IH ring buffer rptr.
  */
@@ -307,8 +309,7 @@ static int cik_ih_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_irq_fini(adev);
-	amdgpu_ih_ring_fini(adev, &adev->irq.ih);
+	amdgpu_irq_fini_sw(adev);
 	amdgpu_irq_remove_domain(adev);
 
 	return 0;

@@ -24,7 +24,7 @@ my $help = 0;
 my $fix = 0;
 my $warn = 0;
 
-if (! -d ".git") {
+if (! -e ".git") {
 	printf "Warning: can't check if file exists, as this is not a git tree\n";
 	exit 0;
 }
@@ -94,6 +94,9 @@ while (<IN>) {
 	# Makefiles and scripts contain nasty expressions to parse docs
 	next if ($f =~ m/Makefile/ || $f =~ m/\.sh$/);
 
+	# It doesn't make sense to parse hidden files
+	next if ($f =~ m#/\.#);
+
 	# Skip this script
 	next if ($f eq $scriptname);
 
@@ -144,6 +147,7 @@ while (<IN>) {
 		if ($f =~ m/tools/) {
 			my $path = $f;
 			$path =~ s,(.*)/.*,$1,;
+			$path =~ s,testing/selftests/bpf,bpf/bpftool,;
 			next if (grep -e, glob("$path/$ref $path/../$ref $path/$fulref"));
 		}
 

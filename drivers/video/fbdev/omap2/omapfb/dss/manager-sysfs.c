@@ -22,14 +22,14 @@
 
 static ssize_t manager_name_show(struct omap_overlay_manager *mgr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", mgr->name);
+	return sysfs_emit(buf, "%s\n", mgr->name);
 }
 
 static ssize_t manager_display_show(struct omap_overlay_manager *mgr, char *buf)
 {
 	struct omap_dss_device *dssdev = mgr->get_device(mgr);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", dssdev ?
+	return sysfs_emit(buf, "%s\n", dssdev ?
 			dssdev->name : "<none>");
 }
 
@@ -120,7 +120,7 @@ static ssize_t manager_default_color_show(struct omap_overlay_manager *mgr,
 
 	mgr->get_manager_info(mgr, &info);
 
-	return snprintf(buf, PAGE_SIZE, "%#x\n", info.default_color);
+	return sysfs_emit(buf, "%#x\n", info.default_color);
 }
 
 static ssize_t manager_default_color_store(struct omap_overlay_manager *mgr,
@@ -165,7 +165,7 @@ static ssize_t manager_trans_key_type_show(struct omap_overlay_manager *mgr,
 	key_type = info.trans_key_type;
 	BUG_ON(key_type >= ARRAY_SIZE(trans_key_type_str));
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", trans_key_type_str[key_type]);
+	return sysfs_emit(buf, "%s\n", trans_key_type_str[key_type]);
 }
 
 static ssize_t manager_trans_key_type_store(struct omap_overlay_manager *mgr,
@@ -200,7 +200,7 @@ static ssize_t manager_trans_key_value_show(struct omap_overlay_manager *mgr,
 
 	mgr->get_manager_info(mgr, &info);
 
-	return snprintf(buf, PAGE_SIZE, "%#x\n", info.trans_key);
+	return sysfs_emit(buf, "%#x\n", info.trans_key);
 }
 
 static ssize_t manager_trans_key_value_store(struct omap_overlay_manager *mgr,
@@ -236,7 +236,7 @@ static ssize_t manager_trans_key_enabled_show(struct omap_overlay_manager *mgr,
 
 	mgr->get_manager_info(mgr, &info);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", info.trans_enabled);
+	return sysfs_emit(buf, "%d\n", info.trans_enabled);
 }
 
 static ssize_t manager_trans_key_enabled_store(struct omap_overlay_manager *mgr,
@@ -275,7 +275,7 @@ static ssize_t manager_alpha_blending_enabled_show(
 
 	mgr->get_manager_info(mgr, &info);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 		info.partial_alpha_enabled);
 }
 
@@ -316,7 +316,7 @@ static ssize_t manager_cpr_enable_show(struct omap_overlay_manager *mgr,
 
 	mgr->get_manager_info(mgr, &info);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", info.cpr_enable);
+	return sysfs_emit(buf, "%d\n", info.cpr_enable);
 }
 
 static ssize_t manager_cpr_enable_store(struct omap_overlay_manager *mgr,
@@ -358,7 +358,7 @@ static ssize_t manager_cpr_coef_show(struct omap_overlay_manager *mgr,
 
 	mgr->get_manager_info(mgr, &info);
 
-	return snprintf(buf, PAGE_SIZE,
+	return sysfs_emit(buf,
 			"%d %d %d %d %d %d %d %d %d\n",
 			info.cpr_coefs.rr,
 			info.cpr_coefs.rg,
@@ -457,6 +457,7 @@ static struct attribute *manager_sysfs_attrs[] = {
 	&manager_attr_cpr_coef.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(manager_sysfs);
 
 static ssize_t manager_attr_show(struct kobject *kobj, struct attribute *attr,
 		char *buf)
@@ -495,7 +496,7 @@ static const struct sysfs_ops manager_sysfs_ops = {
 
 static struct kobj_type manager_ktype = {
 	.sysfs_ops = &manager_sysfs_ops,
-	.default_attrs = manager_sysfs_attrs,
+	.default_groups = manager_sysfs_groups,
 };
 
 int dss_manager_kobj_init(struct omap_overlay_manager *mgr,

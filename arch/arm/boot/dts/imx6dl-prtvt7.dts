@@ -6,6 +6,7 @@
 /dts-v1/;
 #include "imx6dl.dtsi"
 #include "imx6qdl-prti6q.dtsi"
+#include <dt-bindings/display/sdtv-standards.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/sound/fsl-imx-audmux.h>
@@ -21,14 +22,40 @@
 
 	backlight_lcd: backlight-lcd {
 		compatible = "pwm-backlight";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_backlight>;
-		pwms = <&pwm1 0 500000>;
+		pwms = <&pwm1 0 500000 0>;
 		brightness-levels = <0 20 81 248 1000>;
 		default-brightness-level = <20>;
 		num-interpolated-steps = <21>;
 		power-supply = <&reg_bl_12v0>;
-		enable-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
+	};
+
+	display {
+		compatible = "fsl,imx-parallel-display";
+		pinctrl-0 = <&pinctrl_ipu1_disp>;
+		pinctrl-names = "default";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			display_in: endpoint {
+				remote-endpoint = <&ipu1_di0_disp0>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			display_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
+	};
+
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&vdiv_vaccu>;
 	};
 
 	keys {
@@ -138,6 +165,30 @@
 		};
 	};
 
+	panel {
+		compatible = "innolux,g070y2-t02";
+		backlight = <&backlight_lcd>;
+		power-supply = <&reg_3v3>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&display_out>;
+			};
+		};
+	};
+
+	connector {
+		compatible = "composite-video-connector";
+		label = "Composite0";
+		sdtv-standards = <SDTV_STD_PAL_B>;
+
+		port {
+			comp0_out: endpoint {
+				remote-endpoint = <&tvp5150_comp0_in>;
+			};
+		};
+	};
+
 	reg_bl_12v0: regulator-bl-12v0 {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
@@ -147,6 +198,13 @@
 		regulator-max-microvolt = <12000000>;
 		gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+	};
+
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	reg_1v8: regulator-1v8 {
@@ -181,6 +239,64 @@
 			bitclock-master;
 			frame-master;
 		};
+	};
+
+	thermal-zones {
+		chassis-thermal {
+			polling-delay = <20000>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&tsens0>;
+		};
+
+		touch-thermal0 {
+			polling-delay = <20000>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&touch_temp0>;
+		};
+
+		touch-thermal1 {
+			polling-delay = <20000>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&touch_temp1>;
+		};
+	};
+
+	touchscreen {
+		compatible = "resistive-adc-touch";
+		io-channels = <&adc_ts 1>, <&adc_ts 3>, <&adc_ts 4>,
+                              <&adc_ts 5>;
+		io-channel-names = "y", "z1", "z2", "x";
+		touchscreen-min-pressure = <64687>;
+		touchscreen-inverted-x;
+		touchscreen-inverted-y;
+		touchscreen-x-plate-ohms = <300>;
+		touchscreen-y-plate-ohms = <800>;
+	};
+
+	touch_temp0: touch-temperature-sensor0 {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&adc_ts 0>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <    (-40000) 736
+						85000 474>;
+	};
+
+	touch_temp1: touch-temperature-sensor1 {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&adc_ts 7>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <    (-40000) 826
+						85000 609>;
+	};
+
+	vdiv_vaccu: voltage-divider-vaccu {
+		compatible = "voltage-divider";
+		io-channels = <&adc_ts 2>;
+		output-ohms = <2500>;
+		full-ohms = <64000>;
+		#io-channel-cells = <0>;
 	};
 };
 
@@ -223,6 +339,43 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	status = "okay";
+
+	adc_ts: adc@0 {
+		compatible = "ti,tsc2046e-adc";
+		reg = <0>;
+		pinctrl-0 = <&pinctrl_tsc>;
+		pinctrl-names ="default";
+		spi-max-frequency = <1000000>;
+		interrupts-extended = <&gpio3 20 IRQ_TYPE_LEVEL_LOW>;
+		#io-channel-cells = <1>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		channel@1 {
+			reg = <1>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@3 {
+			reg = <3>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@4 {
+			reg = <4>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@5 {
+			reg = <5>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+	};
 };
 
 &i2c1 {
@@ -237,12 +390,43 @@
 		VDDIO-supply = <&reg_3v3>;
 		VDDD-supply = <&reg_1v8>;
 	};
+
+	video@5c {
+		compatible = "ti,tvp5150";
+		reg = <0x5c>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			tvp5150_comp0_in: endpoint {
+				remote-endpoint = <&comp0_out>;
+			};
+		};
+
+		/* Output port 2 is video output pad */
+		port@2 {
+			reg = <2>;
+
+			tvp5151_to_ipu1_csi0_mux: endpoint {
+				remote-endpoint = <&ipu1_csi0_mux_from_parallel_sensor>;
+			};
+		};
+	};
 };
 
 &i2c3 {
 	rtc@51 {
 		compatible = "nxp,pcf8563";
 		reg = <0x51>;
+	};
+
+	tsens0: temperature-sensor@70 {
+		compatible = "ti,tmp103";
+		reg = <0x70>;
+		#thermal-sensor-cells = <0>;
 	};
 
 	gpio_pca: gpio@74 {
@@ -260,8 +444,15 @@
 	status = "okay";
 };
 
+&ipu1_di0_disp0 {
+	remote-endpoint = <&display_in>;
+};
+
+&ipu1_csi0_mux_from_parallel_sensor {
+	remote-endpoint = <&tvp5151_to_ipu1_csi0_mux>;
+};
+
 &pwm1 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
@@ -276,16 +467,10 @@
 };
 
 &ssi1 {
-	#sound-dai-cells = <0>;
-	fsl,mode = "ac97-slave";
 	status = "okay";
 };
 
 &usbh1 {
-	status = "disabled";
-};
-
-&vpu {
 	status = "disabled";
 };
 
@@ -297,12 +482,6 @@
 			MX6QDL_PAD_CSI0_DAT4__AUD3_TXC		0x130b0
 			MX6QDL_PAD_CSI0_DAT5__AUD3_TXD		0x110b0
 			MX6QDL_PAD_CSI0_DAT6__AUD3_TXFS		0x130b0
-		>;
-	};
-
-	pinctrl_backlight: backlightgrp {
-		fsl,pins = <
-			MX6QDL_PAD_DISP0_DAT7__GPIO4_IO28	0x1b0b0
 		>;
 	};
 

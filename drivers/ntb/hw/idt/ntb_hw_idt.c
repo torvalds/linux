@@ -2511,7 +2511,7 @@ static int idt_init_dbgfs(struct idt_ntb_dev *ndev)
 	/* If the top directory is not created then do nothing */
 	if (IS_ERR_OR_NULL(dbgfs_topdir)) {
 		dev_info(&ndev->ntb.pdev->dev, "Top DebugFS directory absent");
-		return PTR_ERR(dbgfs_topdir);
+		return PTR_ERR_OR_ZERO(dbgfs_topdir);
 	}
 
 	/* Create the info file node */
@@ -2640,25 +2640,14 @@ static int idt_init_pci(struct idt_ntb_dev *ndev)
 	int ret;
 
 	/* Initialize the bit mask of PCI/NTB DMA */
-	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret != 0) {
-		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret != 0) {
 			dev_err(&pdev->dev, "Failed to set DMA bit mask\n");
 			return ret;
 		}
 		dev_warn(&pdev->dev, "Cannot set DMA highmem bit mask\n");
-	}
-	ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (ret != 0) {
-		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (ret != 0) {
-			dev_err(&pdev->dev,
-				"Failed to set consistent DMA bit mask\n");
-			return ret;
-		}
-		dev_warn(&pdev->dev,
-			"Cannot set consistent DMA highmem bit mask\n");
 	}
 
 	/*
@@ -2756,7 +2745,7 @@ static int idt_pci_probe(struct pci_dev *pdev,
 
 	/* Allocate the memory for IDT NTB device data */
 	ndev = idt_create_dev(pdev, id);
-	if (IS_ERR_OR_NULL(ndev))
+	if (IS_ERR(ndev))
 		return PTR_ERR(ndev);
 
 	/* Initialize the basic PCI subsystem of the device */

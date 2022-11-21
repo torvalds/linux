@@ -15,7 +15,7 @@
  *      = specifics of data structs where trace is saved(CONFIG_STACKTRACE etc)
  *
  *  vineetg: March 2009
- *  -Implemented correct versions of thread_saved_pc() and get_wchan()
+ *  -Implemented correct versions of thread_saved_pc() and __get_wchan()
  *
  *  rajeshwarr: 2008
  *  -Initial implementation
@@ -83,7 +83,7 @@ seed_unwind_frame_info(struct task_struct *tsk, struct pt_regs *regs,
 		 *    is safe-kept and BLINK at a well known location in there
 		 */
 
-		if (tsk->state == TASK_RUNNING)
+		if (task_is_running(tsk))
 			return -1;
 
 		frame_info->task = tsk;
@@ -149,7 +149,7 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 #else
 	/* On ARC, only Dward based unwinder works. fp based backtracing is
 	 * not possible (-fno-omit-frame-pointer) because of the way function
-	 * prelogue is setup (callee regs saved and then fp set and not other
+	 * prologue is setup (callee regs saved and then fp set and not other
 	 * way around
 	 */
 	pr_warn_once("CONFIG_ARC_DW2_UNWIND needs to be enabled\n");
@@ -248,7 +248,7 @@ void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
  * Of course just returning schedule( ) would be pointless so unwind until
  * the function is not in schedular code
  */
-unsigned int get_wchan(struct task_struct *tsk)
+unsigned int __get_wchan(struct task_struct *tsk)
 {
 	return arc_unwind_core(tsk, NULL, __get_first_nonsched, NULL);
 }

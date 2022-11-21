@@ -137,6 +137,7 @@ static void yurex_interrupt(struct urb *urb)
 		dev_err(&dev->interface->dev,
 			"%s - overflow with length %d, actual length is %d\n",
 			__func__, YUREX_BUF_SIZE, dev->urb->actual_length);
+		return;
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
@@ -494,6 +495,9 @@ static ssize_t yurex_write(struct file *file, const char __user *user_buffer,
 	if (retval >= 0)
 		timeout = schedule_timeout(YUREX_WRITE_TIMEOUT);
 	finish_wait(&dev->waitq, &wait);
+
+	/* make sure URB is idle after timeout or (spurious) CMD_ACK */
+	usb_kill_urb(dev->cntl_urb);
 
 	mutex_unlock(&dev->io_mutex);
 

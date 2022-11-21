@@ -8,6 +8,10 @@
 #include "rk3399-opp.dtsi"
 
 / {
+	aliases {
+		mmc0 = &sdhci;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -21,55 +25,11 @@
 		};
 	};
 
-	/*
-	 * Overwrite the opp-table for CPUB as this board uses a different
-	 * regulator (FAN53555) that only allows 10mV steps and therefore
-	 * can't reach the operation point target voltages from rk3399-opp.dtsi
-	 */
-	/delete-node/ opp-table1;
-	cluster1_opp: opp-table1 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <408000000>;
-			opp-microvolt = <800000>;
-			clock-latency-ns = <40000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <800000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <830000>;
-			opp-suspend;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <880000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <950000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1416000000>;
-			opp-microvolt = <1030000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <1100000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <1200000>;
-		};
-		opp08 {
-			opp-hz = /bits/ 64 <1992000000>;
-			opp-microvolt = <1230000>;
-			turbo-mode;
-		};
+	extcon_usb3: extcon-usb3 {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&gpio1 RK_PC2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb3_id>;
 	};
 
 	clkin_gmac: external-gmac-clock {
@@ -117,6 +77,17 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
+	};
+
+	vdd_log: vdd-log {
+		compatible = "pwm-regulator";
+		pwms = <&pwm2 0 25000 1>;
+		pwm-supply = <&vcc5v0_sys>;
+		regulator-name = "vdd_log";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <1400000>;
+		regulator-always-on;
+		regulator-boot-on;
 	};
 };
 
@@ -469,9 +440,22 @@
 			  <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	usb3 {
+		usb3_id: usb3-id {
+			rockchip,pins =
+			  <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &sdhci {
+	/*
+	 * Signal integrity isn't great at 200MHz but 100MHz has proven stable
+	 * enough.
+	 */
+	max-frequency = <100000000>;
+
 	bus-width = <8>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;

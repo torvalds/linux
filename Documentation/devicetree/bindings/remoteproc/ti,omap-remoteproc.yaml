@@ -65,15 +65,18 @@ properties:
       OMAP Mailbox specifier denoting the sub-mailbox, to be used for
       communication with the remote processor. The specifier format is
       as per the bindings,
-      Documentation/devicetree/bindings/mailbox/omap-mailbox.txt
+      Documentation/devicetree/bindings/mailbox/ti,omap-mailbox.yaml
       This property should match with the sub-mailbox node used in
       the firmware image.
 
   clocks:
+    maxItems: 1
     description: |
       Main functional clock for the remote processor
 
   resets:
+    minItems: 1
+    maxItems: 2
     description: |
       Reset handles for the remote processor
 
@@ -90,7 +93,7 @@ properties:
 # The following are the optional properties:
 
   memory-region:
-    $ref: /schemas/types.yaml#/definitions/phandle
+    maxItems: 1
     description: |
       phandle to the reserved memory node to be associated
       with the remoteproc device. The reserved memory node
@@ -113,7 +116,6 @@ properties:
       list, in the specified order, each representing the corresponding
       internal RAM memory region.
     minItems: 1
-    maxItems: 3
     items:
       - const: l2ram
       - const: l1pram
@@ -121,13 +123,14 @@ properties:
 
   ti,bootreg:
     $ref: /schemas/types.yaml#/definitions/phandle-array
-    description: |
-      Should be a triple of the phandle to the System Control
-      Configuration region that contains the boot address
-      register, the register offset of the boot address
-      register within the System Control module, and the bit
-      shift within the register. This property is required for
-      all the DSP instances on OMAP4, OMAP5 and DRA7xx SoCs.
+    items:
+      - items:
+          - description: phandle to the System Control Configuration region
+          - description: register offset of the boot address register
+          - description: the bit shift within the register
+    description:
+      This property is required for all the DSP instances on OMAP4, OMAP5
+      and DRA7xx SoCs.
 
   ti,autosuspend-delay-ms:
     description: |
@@ -138,6 +141,8 @@ properties:
 
   ti,timers:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description: |
       One or more phandles to OMAP DMTimer nodes, that serve
       as System/Tick timers for the OS running on the remote
@@ -154,6 +159,8 @@ properties:
 
   ti,watchdog-timers:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description: |
       One or more phandles to OMAP DMTimer nodes, used to
       serve as Watchdog timers for the processor cores. This

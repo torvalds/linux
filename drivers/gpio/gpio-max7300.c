@@ -50,7 +50,9 @@ static int max7300_probe(struct i2c_client *client,
 
 static int max7300_remove(struct i2c_client *client)
 {
-	return __max730x_remove(&client->dev);
+	__max730x_remove(&client->dev);
+
+	return 0;
 }
 
 static const struct i2c_device_id max7300_id[] = {

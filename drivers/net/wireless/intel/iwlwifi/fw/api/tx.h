@@ -1,62 +1,8 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fw_api_tx_h__
 #define __iwl_fw_api_tx_h__
 #include <linux/ieee80211.h>
@@ -74,6 +20,7 @@
  * @TX_CMD_FLG_VHT_NDPA: mark frame is NDPA for VHT beamformer sequence
  * @TX_CMD_FLG_HT_NDPA: mark frame is NDPA for HT beamformer sequence
  * @TX_CMD_FLG_CSI_FDBK2HOST: mark to send feedback to host (only if good CRC)
+ * @TX_CMD_FLG_BT_PRIO_MASK: BT priority value
  * @TX_CMD_FLG_BT_PRIO_POS: the position of the BT priority (bit 11 is ignored
  *	on old firmwares).
  * @TX_CMD_FLG_BT_DIS: disable BT priority for this frame
@@ -105,6 +52,7 @@ enum iwl_tx_flags {
 	TX_CMD_FLG_HT_NDPA		= BIT(9),
 	TX_CMD_FLG_CSI_FDBK2HOST	= BIT(10),
 	TX_CMD_FLG_BT_PRIO_POS		= 11,
+	TX_CMD_FLG_BT_PRIO_MASK		= BIT(11) | BIT(12),
 	TX_CMD_FLG_BT_DIS		= BIT(12),
 	TX_CMD_FLG_SEQ_CTL		= BIT(13),
 	TX_CMD_FLG_MORE_FRAG		= BIT(14),
@@ -133,6 +81,10 @@ enum iwl_tx_cmd_flags {
 	IWL_TX_FLAGS_CMD_RATE		= BIT(0),
 	IWL_TX_FLAGS_ENCRYPT_DIS	= BIT(1),
 	IWL_TX_FLAGS_HIGH_PRI		= BIT(2),
+	/* Use these flags only from
+	 * TX_FLAGS_BITS_API_S_VER_4 and above */
+	IWL_TX_FLAGS_RTS		= BIT(3),
+	IWL_TX_FLAGS_CTS		= BIT(4),
 }; /* TX_FLAGS_BITS_API_S_VER_3 */
 
 /**
@@ -225,13 +177,24 @@ enum iwl_tx_offload_assist_flags_pos {
 #define IWL_TX_CMD_OFFLD_MH_MASK	0x1f
 #define IWL_TX_CMD_OFFLD_IP_HDR_MASK	0x3f
 
+enum iwl_tx_offload_assist_bz {
+	IWL_TX_CMD_OFFLD_BZ_RESULT_OFFS		= 0x000003ff,
+	IWL_TX_CMD_OFFLD_BZ_START_OFFS		= 0x001ff800,
+	IWL_TX_CMD_OFFLD_BZ_MH_LEN		= 0x07c00000,
+	IWL_TX_CMD_OFFLD_BZ_MH_PAD		= 0x08000000,
+	IWL_TX_CMD_OFFLD_BZ_AMSDU		= 0x10000000,
+	IWL_TX_CMD_OFFLD_BZ_ZERO2ONES		= 0x20000000,
+	IWL_TX_CMD_OFFLD_BZ_ENABLE_CSUM		= 0x40000000,
+	IWL_TX_CMD_OFFLD_BZ_PARTIAL_CSUM	= 0x80000000,
+};
+
 /* TODO: complete documentation for try_cnt and btkill_cnt */
 /**
  * struct iwl_tx_cmd - TX command struct to FW
  * ( TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
  * @offload_assist: TX offload configuration
- * @tx_flags: combination of TX_CMD_FLG_*
+ * @tx_flags: combination of TX_CMD_FLG_*, see &enum iwl_tx_flags
  * @scratch: scratch buffer used by the device
  * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
  *	cleared. Combination of RATE_MCS_*
@@ -291,8 +254,10 @@ struct iwl_tx_cmd {
 	u8 tid_tspec;
 	__le16 pm_frame_timeout;
 	__le16 reserved4;
-	u8 payload[0];
-	struct ieee80211_hdr hdr[];
+	union {
+		DECLARE_FLEX_ARRAY(u8, payload);
+		DECLARE_FLEX_ARRAY(struct ieee80211_hdr, hdr);
+	};
 } __packed; /* TX_CMD_API_S_VER_6 */
 
 struct iwl_dram_sec_info {
@@ -319,7 +284,8 @@ struct iwl_tx_cmd_gen2 {
 	struct iwl_dram_sec_info dram_info;
 	__le32 rate_n_flags;
 	struct ieee80211_hdr hdr[];
-} __packed; /* TX_CMD_API_S_VER_7 */
+} __packed; /* TX_CMD_API_S_VER_7,
+	       TX_CMD_API_S_VER_9 */
 
 /**
  * struct iwl_tx_cmd_gen3 - TX command struct to FW for AX210+ devices
@@ -330,8 +296,7 @@ struct iwl_tx_cmd_gen2 {
  * @dram_info: FW internal DRAM storage
  * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
  *	cleared. Combination of RATE_MCS_*
- * @ttl: time to live - packet lifetime limit. The FW should drop if
- *	passed.
+ * @reserved: reserved
  * @hdr: 802.11 header
  */
 struct iwl_tx_cmd_gen3 {
@@ -340,9 +305,10 @@ struct iwl_tx_cmd_gen3 {
 	__le32 offload_assist;
 	struct iwl_dram_sec_info dram_info;
 	__le32 rate_n_flags;
-	__le64 ttl;
+	u8 reserved[8];
 	struct ieee80211_hdr hdr[];
-} __packed; /* TX_CMD_API_S_VER_8 */
+} __packed; /* TX_CMD_API_S_VER_8,
+	       TX_CMD_API_S_VER_10 */
 
 /*
  * TX response related data
@@ -643,7 +609,8 @@ struct iwl_mvm_tx_resp {
 	__le16 tx_queue;
 	__le16 reserved2;
 	struct agg_tx_status status;
-} __packed; /* TX_RSP_API_S_VER_6 */
+} __packed; /* TX_RSP_API_S_VER_6,
+	       TX_RSP_API_S_VER_7 */
 
 /**
  * struct iwl_mvm_ba_notif - notifies about reception of BA
@@ -765,9 +732,12 @@ struct iwl_mvm_compressed_ba_notif {
 	__le32 tx_rate;
 	__le16 tfd_cnt;
 	__le16 ra_tid_cnt;
-	struct iwl_mvm_compressed_ba_ratid ra_tid[0];
-	struct iwl_mvm_compressed_ba_tfd tfd[];
-} __packed; /* COMPRESSED_BA_RES_API_S_VER_4 */
+	union {
+		DECLARE_FLEX_ARRAY(struct iwl_mvm_compressed_ba_ratid, ra_tid);
+		DECLARE_FLEX_ARRAY(struct iwl_mvm_compressed_ba_tfd, tfd);
+	};
+} __packed; /* COMPRESSED_BA_RES_API_S_VER_4,
+	       COMPRESSED_BA_RES_API_S_VER_5 */
 
 /**
  * struct iwl_mac_beacon_cmd_v6 - beacon template command
@@ -807,12 +777,20 @@ struct iwl_mac_beacon_cmd_v7 {
 	struct ieee80211_hdr frame[];
 } __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_7 */
 
+/* Bit flags for BEACON_TEMPLATE_CMD_API until version 10 */
+enum iwl_mac_beacon_flags_v1 {
+	IWL_MAC_BEACON_CCK_V1	= BIT(8),
+	IWL_MAC_BEACON_ANT_A_V1 = BIT(9),
+	IWL_MAC_BEACON_ANT_B_V1 = BIT(10),
+	IWL_MAC_BEACON_FILS_V1	= BIT(12),
+};
+
+/* Bit flags for BEACON_TEMPLATE_CMD_API version 11 and above */
 enum iwl_mac_beacon_flags {
-	IWL_MAC_BEACON_CCK	= BIT(8),
-	IWL_MAC_BEACON_ANT_A	= BIT(9),
-	IWL_MAC_BEACON_ANT_B	= BIT(10),
-	IWL_MAC_BEACON_ANT_C	= BIT(11),
-	IWL_MAC_BEACON_FILS	= BIT(12),
+	IWL_MAC_BEACON_CCK	= BIT(5),
+	IWL_MAC_BEACON_ANT_A	= BIT(6),
+	IWL_MAC_BEACON_ANT_B	= BIT(7),
+	IWL_MAC_BEACON_FILS	= BIT(8),
 };
 
 /**
@@ -840,7 +818,9 @@ struct iwl_mac_beacon_cmd {
 	__le32 ecsa_offset;
 	__le32 csa_offset;
 	struct ieee80211_hdr frame[];
-} __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_10 */
+} __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_10,
+	       BEACON_TEMPLATE_CMD_API_S_VER_11,
+	       BEACON_TEMPLATE_CMD_API_S_VER_12 */
 
 struct iwl_beacon_notif {
 	struct iwl_mvm_tx_resp beacon_notify_hdr;
@@ -908,6 +888,32 @@ struct iwl_tx_path_flush_cmd {
 	__le16 tid_mask;
 	__le16 reserved;
 } __packed; /* TX_PATH_FLUSH_CMD_API_S_VER_2 */
+
+#define IWL_TX_FLUSH_QUEUE_RSP 16
+
+/**
+ * struct iwl_flush_queue_info - virtual flush queue info
+ * @queue_num: virtual queue id
+ * @read_before_flush: read pointer before flush
+ * @read_after_flush: read pointer after flush
+ */
+struct iwl_flush_queue_info {
+	__le16 tid;
+	__le16 queue_num;
+	__le16 read_before_flush;
+	__le16 read_after_flush;
+} __packed; /* TFDQ_FLUSH_INFO_API_S_VER_1 */
+
+/**
+ * struct iwl_tx_path_flush_cmd_rsp -- queue/FIFO flush command response
+ * @num_flushed_queues: number of queues in queues array
+ * @queues: all flushed queues
+ */
+struct iwl_tx_path_flush_cmd_rsp {
+	__le16 sta_id;
+	__le16 num_flushed_queues;
+	struct iwl_flush_queue_info queues[IWL_TX_FLUSH_QUEUE_RSP];
+} __packed; /* TX_PATH_FLUSH_CMD_RSP_API_S_VER_1 */
 
 /* Available options for the SCD_QUEUE_CFG HCMD */
 enum iwl_scd_cfg_actions {

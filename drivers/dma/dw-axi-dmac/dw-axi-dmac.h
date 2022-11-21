@@ -1,4 +1,4 @@
-// SPDX-License-Identifier:  GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // (C) 2017-2018 Synopsys, Inc. (www.synopsys.com)
 
 /*
@@ -18,7 +18,7 @@
 
 #include "../virt-dma.h"
 
-#define DMAC_MAX_CHANNELS	8
+#define DMAC_MAX_CHANNELS	16
 #define DMAC_MAX_MASTERS	2
 #define DMAC_MAX_BLK_SIZE	0x200000
 
@@ -30,6 +30,8 @@ struct dw_axi_dma_hcfg {
 	u32	priority[DMAC_MAX_CHANNELS];
 	/* maximum supported axi burst length */
 	u32	axi_rw_burst_len;
+	/* Register map for DMAX_NUM_CHANNELS <= 8 */
+	bool	reg_map_8_channels;
 	bool	restrict_axi_burst_len;
 };
 
@@ -37,10 +39,16 @@ struct axi_dma_chan {
 	struct axi_dma_chip		*chip;
 	void __iomem			*chan_regs;
 	u8				id;
+	u8				hw_handshake_num;
 	atomic_t			descs_allocated;
 
+	struct dma_pool			*desc_pool;
 	struct virt_dma_chan		vc;
 
+	struct axi_dma_desc		*desc;
+	struct dma_slave_config		config;
+	enum dma_transfer_direction	direction;
+	bool				cyclic;
 	/* these other elements are all protected by vc.lock */
 	bool				is_paused;
 };
@@ -48,7 +56,7 @@ struct axi_dma_chan {
 struct dw_axi_dma {
 	struct dma_device	dma;
 	struct dw_axi_dma_hcfg	*hdata;
-	struct dma_pool		*desc_pool;
+	struct device_dma_parameters	dma_parms;
 
 	/* channels */
 	struct axi_dma_chan	*chan;
@@ -58,6 +66,7 @@ struct axi_dma_chip {
 	struct device		*dev;
 	int			irq;
 	void __iomem		*regs;
+	void __iomem		*apb_regs;
 	struct clk		*core_clk;
 	struct clk		*cfgr_clk;
 	struct dw_axi_dma	*dw;
@@ -80,12 +89,31 @@ struct __packed axi_dma_lli {
 	__le32		reserved_hi;
 };
 
+struct axi_dma_hw_desc {
+	struct axi_dma_lli	*lli;
+	dma_addr_t		llp;
+	u32			len;
+};
+
 struct axi_dma_desc {
-	struct axi_dma_lli		lli;
+	struct axi_dma_hw_desc	*hw_desc;
 
 	struct virt_dma_desc		vd;
 	struct axi_dma_chan		*chan;
-	struct list_head		xfer_list;
+	u32				completed_blocks;
+	u32				length;
+	u32				period_len;
+};
+
+struct axi_dma_chan_config {
+	u8 dst_multblk_type;
+	u8 src_multblk_type;
+	u8 dst_per;
+	u8 src_per;
+	u8 tt_fc;
+	u8 prior;
+	u8 hs_sel_dst;
+	u8 hs_sel_src;
 };
 
 static inline struct device *dchan2dev(struct dma_chan *dchan)
@@ -124,6 +152,8 @@ static inline struct axi_dma_chan *dchan_to_axi_dma_chan(struct dma_chan *dchan)
 #define DMAC_CHEN		0x018 /* R/W DMAC Channel Enable */
 #define DMAC_CHEN_L		0x018 /* R/W DMAC Channel Enable 00-31 */
 #define DMAC_CHEN_H		0x01C /* R/W DMAC Channel Enable 32-63 */
+#define DMAC_CHSUSPREG		0x020 /* R/W DMAC Channel Suspend */
+#define DMAC_CHABORTREG		0x028 /* R/W DMAC Channel Abort */
 #define DMAC_INTSTATUS		0x030 /* R DMAC Interrupt Status */
 #define DMAC_COMMON_INTCLEAR	0x038 /* W DMAC Interrupt Clear */
 #define DMAC_COMMON_INTSTATUS_ENA 0x040 /* R DMAC Interrupt Status Enable */
@@ -157,6 +187,22 @@ static inline struct axi_dma_chan *dchan_to_axi_dma_chan(struct dma_chan *dchan)
 #define CH_INTSIGNAL_ENA	0x090 /* R/W Chan Interrupt Signal Enable */
 #define CH_INTCLEAR		0x098 /* W Chan Interrupt Clear */
 
+/* These Apb registers are used by Intel KeemBay SoC */
+#define DMAC_APB_CFG		0x000 /* DMAC Apb Configuration Register */
+#define DMAC_APB_STAT		0x004 /* DMAC Apb Status Register */
+#define DMAC_APB_DEBUG_STAT_0	0x008 /* DMAC Apb Debug Status Register 0 */
+#define DMAC_APB_DEBUG_STAT_1	0x00C /* DMAC Apb Debug Status Register 1 */
+#define DMAC_APB_HW_HS_SEL_0	0x010 /* DMAC Apb HW HS register 0 */
+#define DMAC_APB_HW_HS_SEL_1	0x014 /* DMAC Apb HW HS register 1 */
+#define DMAC_APB_LPI		0x018 /* DMAC Apb Low Power Interface Reg */
+#define DMAC_APB_BYTE_WR_CH_EN	0x01C /* DMAC Apb Byte Write Enable */
+#define DMAC_APB_HALFWORD_WR_CH_EN	0x020 /* DMAC Halfword write enables */
+
+#define UNUSED_CHANNEL		0x3F /* Set unused DMA channel to 0x3F */
+#define DMA_APB_HS_SEL_BIT_SIZE	0x08 /* HW handshake bits per channel */
+#define DMA_APB_HS_SEL_MASK	0xFF /* HW handshake select masks */
+#define MAX_BLOCK_SIZE		0x1000 /* 1024 blocks * 4 bytes data width */
+#define DMA_REG_MAP_CH_REF	0x08 /* Channel count to choose register map */
 
 /* DMAC_CFG */
 #define DMAC_EN_POS			0
@@ -165,11 +211,19 @@ static inline struct axi_dma_chan *dchan_to_axi_dma_chan(struct dma_chan *dchan)
 #define INT_EN_POS			1
 #define INT_EN_MASK			BIT(INT_EN_POS)
 
+/* DMAC_CHEN */
 #define DMAC_CHAN_EN_SHIFT		0
 #define DMAC_CHAN_EN_WE_SHIFT		8
 
 #define DMAC_CHAN_SUSP_SHIFT		16
 #define DMAC_CHAN_SUSP_WE_SHIFT		24
+
+/* DMAC_CHEN2 */
+#define DMAC_CHAN_EN2_WE_SHIFT		16
+
+/* DMAC_CHSUSP */
+#define DMAC_CHAN_SUSP2_SHIFT		0
+#define DMAC_CHAN_SUSP2_WE_SHIFT	16
 
 /* CH_CTL_H */
 #define CH_CTL_H_ARLEN_EN		BIT(6)
@@ -228,6 +282,8 @@ enum {
 
 /* CH_CFG_H */
 #define CH_CFG_H_PRIORITY_POS		17
+#define CH_CFG_H_DST_PER_POS		12
+#define CH_CFG_H_SRC_PER_POS		7
 #define CH_CFG_H_HS_SEL_DST_POS		4
 #define CH_CFG_H_HS_SEL_SRC_POS		3
 enum {
@@ -256,6 +312,15 @@ enum {
 	DWAXIDMAC_MBLK_TYPE_SHADOW_REG,
 	DWAXIDMAC_MBLK_TYPE_LL
 };
+
+/* CH_CFG2 */
+#define CH_CFG2_L_SRC_PER_POS		4
+#define CH_CFG2_L_DST_PER_POS		11
+
+#define CH_CFG2_H_TT_FC_POS		0
+#define CH_CFG2_H_HS_SEL_SRC_POS	3
+#define CH_CFG2_H_HS_SEL_DST_POS	4
+#define CH_CFG2_H_PRIORITY_POS		20
 
 /**
  * DW AXI DMA channel interrupts

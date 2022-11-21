@@ -15,7 +15,7 @@
 #include <linux/kobject.h>
 #include <linux/uaccess.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -61,6 +61,71 @@ static ssize_t id_show(struct gfs2_sbd *sdp, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%u:%u\n",
 			MAJOR(sdp->sd_vfs->s_dev), MINOR(sdp->sd_vfs->s_dev));
+}
+
+static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
+{
+	unsigned long f = sdp->sd_flags;
+	ssize_t s;
+
+	s = snprintf(buf, PAGE_SIZE,
+		     "Journal Checked:          %d\n"
+		     "Journal Live:             %d\n"
+		     "Journal ID:               %d\n"
+		     "Spectator:                %d\n"
+		     "Withdrawn:                %d\n"
+		     "No barriers:              %d\n"
+		     "No recovery:              %d\n"
+		     "Demote:                   %d\n"
+		     "No Journal ID:            %d\n"
+		     "Mounted RO:               %d\n"
+		     "RO Recovery:              %d\n"
+		     "Skip DLM Unlock:          %d\n"
+		     "Force AIL Flush:          %d\n"
+		     "FS Frozen:                %d\n"
+		     "Withdrawing:              %d\n"
+		     "Withdraw In Prog:         %d\n"
+		     "Remote Withdraw:          %d\n"
+		     "Withdraw Recovery:        %d\n"
+		     "sd_log_error:             %d\n"
+		     "sd_log_flush_lock:        %d\n"
+		     "sd_log_num_revoke:        %u\n"
+		     "sd_log_in_flight:         %d\n"
+		     "sd_log_blks_needed:       %d\n"
+		     "sd_log_blks_free:         %d\n"
+		     "sd_log_flush_head:        %d\n"
+		     "sd_log_flush_tail:        %d\n"
+		     "sd_log_blks_reserved:     %d\n"
+		     "sd_log_revokes_available: %d\n",
+		     test_bit(SDF_JOURNAL_CHECKED, &f),
+		     test_bit(SDF_JOURNAL_LIVE, &f),
+		     (sdp->sd_jdesc ? sdp->sd_jdesc->jd_jid : 0),
+		     (sdp->sd_args.ar_spectator ? 1 : 0),
+		     test_bit(SDF_WITHDRAWN, &f),
+		     test_bit(SDF_NOBARRIERS, &f),
+		     test_bit(SDF_NORECOVERY, &f),
+		     test_bit(SDF_DEMOTE, &f),
+		     test_bit(SDF_NOJOURNALID, &f),
+		     (sb_rdonly(sdp->sd_vfs) ? 1 : 0),
+		     test_bit(SDF_RORECOVERY, &f),
+		     test_bit(SDF_SKIP_DLM_UNLOCK, &f),
+		     test_bit(SDF_FORCE_AIL_FLUSH, &f),
+		     test_bit(SDF_FS_FROZEN, &f),
+		     test_bit(SDF_WITHDRAWING, &f),
+		     test_bit(SDF_WITHDRAW_IN_PROG, &f),
+		     test_bit(SDF_REMOTE_WITHDRAW, &f),
+		     test_bit(SDF_WITHDRAW_RECOVERY, &f),
+		     sdp->sd_log_error,
+		     rwsem_is_locked(&sdp->sd_log_flush_lock),
+		     sdp->sd_log_num_revoke,
+		     atomic_read(&sdp->sd_log_in_flight),
+		     atomic_read(&sdp->sd_log_blks_needed),
+		     atomic_read(&sdp->sd_log_blks_free),
+		     sdp->sd_log_flush_head,
+		     sdp->sd_log_flush_tail,
+		     sdp->sd_log_blks_reserved,
+		     atomic_read(&sdp->sd_log_revokes_available));
+	return s;
 }
 
 static ssize_t fsname_show(struct gfs2_sbd *sdp, char *buf)
@@ -283,6 +348,7 @@ GFS2_ATTR(quota_sync,          0200, NULL,          quota_sync_store);
 GFS2_ATTR(quota_refresh_user,  0200, NULL,          quota_refresh_user_store);
 GFS2_ATTR(quota_refresh_group, 0200, NULL,          quota_refresh_group_store);
 GFS2_ATTR(demote_rq,           0200, NULL,	    demote_rq_store);
+GFS2_ATTR(status,              0400, status_show,   NULL);
 
 static struct attribute *gfs2_attrs[] = {
 	&gfs2_attr_id.attr,
@@ -295,6 +361,7 @@ static struct attribute *gfs2_attrs[] = {
 	&gfs2_attr_quota_refresh_user.attr,
 	&gfs2_attr_quota_refresh_group.attr,
 	&gfs2_attr_demote_rq.attr,
+	&gfs2_attr_status.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(gfs2);
@@ -700,8 +767,7 @@ void gfs2_sys_fs_del(struct gfs2_sbd *sdp)
 	wait_for_completion(&sdp->sd_kobj_unregister);
 }
 
-static int gfs2_uevent(struct kset *kset, struct kobject *kobj,
-		       struct kobj_uevent_env *env)
+static int gfs2_uevent(struct kobject *kobj, struct kobj_uevent_env *env)
 {
 	struct gfs2_sbd *sdp = container_of(kobj, struct gfs2_sbd, sd_kobj);
 	struct super_block *s = sdp->sd_vfs;

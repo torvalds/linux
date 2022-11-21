@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: ISC
+/* Copyright (C) 2020 MediaTek Inc. */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -98,10 +101,11 @@ static irqreturn_t mt7615_irq_handler(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
-static void mt7615_irq_tasklet(unsigned long data)
+static void mt7615_irq_tasklet(struct tasklet_struct *t)
 {
-	struct mt7615_dev *dev = (struct mt7615_dev *)data;
+	struct mt7615_dev *dev = from_tasklet(dev, t, irq_tasklet);
 	u32 intr, mask = 0, tx_mcu_mask = mt7615_tx_mcu_int_mask(dev);
+	u32 mcu_int;
 
 	mt76_wr(dev, MT_INT_MASK_CSR, 0);
 
@@ -125,15 +129,24 @@ static void mt7615_irq_tasklet(unsigned long data)
 	if (intr & MT_INT_RX_DONE(1))
 		napi_schedule(&dev->mt76.napi[1]);
 
-	if (intr & MT_INT_MCU_CMD) {
-		u32 val = mt76_rr(dev, MT_MCU_CMD);
+	if (!(intr & (MT_INT_MCU_CMD | MT7663_INT_MCU_CMD)))
+		return;
 
-		if (val & MT_MCU_CMD_ERROR_MASK) {
-			dev->reset_state = val;
-			ieee80211_queue_work(mt76_hw(dev), &dev->reset_work);
-			wake_up(&dev->reset_wait);
-		}
+	if (is_mt7663(&dev->mt76)) {
+		mcu_int = mt76_rr(dev, MT_MCU2HOST_INT_STATUS);
+		mcu_int &= MT7663_MCU_CMD_ERROR_MASK;
+		mt76_wr(dev, MT_MCU2HOST_INT_STATUS, mcu_int);
+	} else {
+		mcu_int = mt76_rr(dev, MT_MCU_CMD);
+		mcu_int &= MT_MCU_CMD_ERROR_MASK;
 	}
+
+	if (!mcu_int)
+		return;
+
+	dev->reset_state = mcu_int;
+	ieee80211_queue_work(mt76_hw(dev), &dev->reset_work);
+	wake_up(&dev->reset_wait);
 }
 
 static u32 __mt7615_reg_addr(struct mt7615_dev *dev, u32 addr)
@@ -178,8 +191,10 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 		.survey_flags = SURVEY_INFO_TIME_TX |
 				SURVEY_INFO_TIME_RX |
 				SURVEY_INFO_TIME_BSS_RX,
+		.token_size = MT7615_TOKEN_SIZE,
 		.tx_prepare_skb = mt7615_tx_prepare_skb,
 		.tx_complete_skb = mt7615_tx_complete_skb,
+		.rx_check = mt7615_rx_check,
 		.rx_skb = mt7615_queue_rx_skb,
 		.rx_poll_complete = mt7615_rx_poll_complete,
 		.sta_ps = mt7615_sta_ps,
@@ -203,7 +218,7 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 
 	dev = container_of(mdev, struct mt7615_dev, mt76);
 	mt76_mmio_init(&dev->mt76, mem_base);
-	tasklet_init(&dev->irq_tasklet, mt7615_irq_tasklet, (unsigned long)dev);
+	tasklet_setup(&dev->irq_tasklet, mt7615_irq_tasklet);
 
 	dev->reg_map = map;
 	dev->ops = ops;
@@ -216,7 +231,7 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 			       GFP_KERNEL);
 	if (!bus_ops) {
 		ret = -ENOMEM;
-		goto error;
+		goto err_free_dev;
 	}
 
 	bus_ops->rr = mt7615_rr;
@@ -229,18 +244,22 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 	ret = devm_request_irq(mdev->dev, irq, mt7615_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret)
-		goto error;
+		goto err_free_dev;
 
 	if (is_mt7663(mdev))
 		mt76_wr(dev, MT_PCIE_IRQ_ENABLE, 1);
 
 	ret = mt7615_register_device(dev);
 	if (ret)
-		goto error;
+		goto err_free_irq;
 
 	return 0;
-error:
-	ieee80211_free_hw(mt76_hw(dev));
+
+err_free_irq:
+	devm_free_irq(pdev, irq, dev);
+err_free_dev:
+	mt76_free_device(&dev->mt76);
+
 	return ret;
 }
 

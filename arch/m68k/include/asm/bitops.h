@@ -440,8 +440,6 @@ static inline unsigned long ffz(unsigned long word)
 
 #endif
 
-#include <asm-generic/bitops/find.h>
-
 #ifdef __KERNEL__
 
 #if defined(CONFIG_CPU_HAS_NO_BITFIELDS)
@@ -453,7 +451,7 @@ static inline unsigned long ffz(unsigned long word)
  *	generic functions for those.
  */
 #if (defined(__mcfisaaplus__) || defined(__mcfisac__)) && \
-	!defined(CONFIG_M68000) && !defined(CONFIG_MCPU32)
+	!defined(CONFIG_M68000)
 static inline unsigned long __ffs(unsigned long x)
 {
 	__asm__ __volatile__ ("bitrev %0; ff1 %0"
@@ -525,10 +523,10 @@ static inline int __fls(int x)
 #define __clear_bit_unlock	clear_bit_unlock
 
 #include <asm-generic/bitops/ext2-atomic.h>
-#include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/fls64.h>
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/hweight.h>
+#include <asm-generic/bitops/le.h>
 #endif /* __KERNEL__ */
 
 #endif /* _M68K_BITOPS_H */

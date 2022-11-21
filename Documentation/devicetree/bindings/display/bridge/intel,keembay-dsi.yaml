@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/intel,keembay-dsi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Devicetree bindings for Intel Keem Bay mipi dsi controller
+
+maintainers:
+  - Anitha Chrisanthus <anitha.chrisanthus@intel.com>
+  - Edmond J Dea <edmund.j.dea@intel.com>
+
+properties:
+  compatible:
+    const: intel,keembay-dsi
+
+  reg:
+    items:
+      - description: MIPI registers range
+
+  reg-names:
+    items:
+      - const: mipi
+
+  clocks:
+    items:
+      - description: MIPI DSI clock
+      - description: MIPI DSI econfig clock
+      - description: MIPI DSI config clock
+
+  clock-names:
+    items:
+      - const: clk_mipi
+      - const: clk_mipi_ecfg
+      - const: clk_mipi_cfg
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: MIPI DSI input port.
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: DSI output port.
+
+    required:
+      - port@0
+      - port@1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    mipi-dsi@20900000 {
+        compatible = "intel,keembay-dsi";
+        reg = <0x20900000 0x4000>;
+        reg-names = "mipi";
+        clocks = <&scmi_clk 0x86>,
+                 <&scmi_clk 0x88>,
+                 <&scmi_clk 0x89>;
+        clock-names = "clk_mipi", "clk_mipi_ecfg",
+                      "clk_mipi_cfg";
+
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@0 {
+                reg = <0>;
+                dsi_in: endpoint {
+                    remote-endpoint = <&disp_out>;
+                };
+            };
+
+            port@1 {
+                reg = <1>;
+                dsi_out: endpoint {
+                    remote-endpoint = <&adv7535_input>;
+                };
+            };
+        };
+    };

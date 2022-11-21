@@ -75,7 +75,12 @@ struct sja1105_ptp_cmd {
 
 struct sja1105_ptp_data {
 	struct timer_list extts_timer;
+	/* Used only on SJA1105 to reconstruct partial timestamps */
 	struct sk_buff_head skb_rxtstamp_queue;
+	/* Used on SJA1110 where meta frames are generated only for
+	 * 2-step TX timestamps
+	 */
+	struct sk_buff_head skb_txtstamp_queue;
 	struct ptp_clock_info caps;
 	struct ptp_clock *clock;
 	struct sja1105_ptp_cmd cmd;
@@ -104,8 +109,8 @@ void sja1105_ptp_txtstamp_skb(struct dsa_switch *ds, int slot,
 bool sja1105_port_rxtstamp(struct dsa_switch *ds, int port,
 			   struct sk_buff *skb, unsigned int type);
 
-bool sja1105_port_txtstamp(struct dsa_switch *ds, int port,
-			   struct sk_buff *skb, unsigned int type);
+void sja1105_port_txtstamp(struct dsa_switch *ds, int port,
+			   struct sk_buff *skb);
 
 int sja1105_hwtstamp_get(struct dsa_switch *ds, int port, struct ifreq *ifr);
 
@@ -121,6 +126,13 @@ int __sja1105_ptp_adjtime(struct dsa_switch *ds, s64 delta);
 
 int sja1105_ptp_commit(struct dsa_switch *ds, struct sja1105_ptp_cmd *cmd,
 		       sja1105_spi_rw_mode_t rw);
+
+bool sja1105_rxtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb);
+bool sja1110_rxtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb);
+void sja1110_txtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb);
+
+void sja1110_process_meta_tstamp(struct dsa_switch *ds, int port, u8 ts_id,
+				 enum sja1110_meta_tstamp dir, u64 tstamp);
 
 #else
 
@@ -183,6 +195,12 @@ static inline int sja1105_ptp_commit(struct dsa_switch *ds,
 #define sja1105_hwtstamp_get NULL
 
 #define sja1105_hwtstamp_set NULL
+
+#define sja1105_rxtstamp NULL
+#define sja1110_rxtstamp NULL
+#define sja1110_txtstamp NULL
+
+#define sja1110_process_meta_tstamp NULL
 
 #endif /* IS_ENABLED(CONFIG_NET_DSA_SJA1105_PTP) */
 

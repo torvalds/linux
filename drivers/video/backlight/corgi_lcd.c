@@ -542,7 +542,7 @@ static int corgi_lcd_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int corgi_lcd_remove(struct spi_device *spi)
+static void corgi_lcd_remove(struct spi_device *spi)
 {
 	struct corgi_lcd *lcd = spi_get_drvdata(spi);
 
@@ -550,7 +550,6 @@ static int corgi_lcd_remove(struct spi_device *spi)
 	lcd->bl_dev->props.brightness = 0;
 	backlight_update_status(lcd->bl_dev);
 	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_POWERDOWN);
-	return 0;
 }
 
 static struct spi_driver corgi_lcd_driver = {

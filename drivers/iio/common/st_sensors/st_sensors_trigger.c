@@ -8,8 +8,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
 #include <linux/interrupt.h>
@@ -23,35 +21,32 @@
  * @sdata: Sensor data.
  *
  * returns:
- * 0 - no new samples available
- * 1 - new samples available
- * negative - error or unknown
+ * false - no new samples available or read error
+ * true - new samples available
  */
-static int st_sensors_new_samples_available(struct iio_dev *indio_dev,
-					    struct st_sensor_data *sdata)
+static bool st_sensors_new_samples_available(struct iio_dev *indio_dev,
+					     struct st_sensor_data *sdata)
 {
 	int ret, status;
 
 	/* How would I know if I can't check it? */
 	if (!sdata->sensor_settings->drdy_irq.stat_drdy.addr)
-		return -EINVAL;
+		return true;
 
 	/* No scan mask, no interrupt */
 	if (!indio_dev->active_scan_mask)
-		return 0;
+		return false;
 
 	ret = regmap_read(sdata->regmap,
 			  sdata->sensor_settings->drdy_irq.stat_drdy.addr,
 			  &status);
 	if (ret < 0) {
-		dev_err(sdata->dev, "error checking samples available\n");
-		return ret;
+		dev_err(indio_dev->dev.parent,
+			"error checking samples available\n");
+		return false;
 	}
 
-	if (status & sdata->sensor_settings->drdy_irq.stat_drdy.mask)
-		return 1;
-
-	return 0;
+	return !!(status & sdata->sensor_settings->drdy_irq.stat_drdy.mask);
 }
 
 /**
@@ -92,7 +87,7 @@ static irqreturn_t st_sensors_irq_thread(int irq, void *p)
 	    st_sensors_new_samples_available(indio_dev, sdata)) {
 		iio_trigger_poll_chained(p);
 	} else {
-		dev_dbg(sdata->dev, "spurious IRQ\n");
+		dev_dbg(indio_dev->dev.parent, "spurious IRQ\n");
 		return IRQ_NONE;
 	}
 
@@ -112,7 +107,8 @@ static irqreturn_t st_sensors_irq_thread(int irq, void *p)
 	 */
 	while (sdata->hw_irq_trigger &&
 	       st_sensors_new_samples_available(indio_dev, sdata)) {
-		dev_dbg(sdata->dev, "more samples came in during polling\n");
+		dev_dbg(indio_dev->dev.parent,
+			"more samples came in during polling\n");
 		sdata->hw_timestamp = iio_get_time_ns(indio_dev);
 		iio_trigger_poll_chained(p);
 	}
@@ -124,10 +120,12 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 				const struct iio_trigger_ops *trigger_ops)
 {
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	struct device *parent = indio_dev->dev.parent;
 	unsigned long irq_trig;
 	int err;
 
-	sdata->trig = iio_trigger_alloc("%s-trigger", indio_dev->name);
+	sdata->trig = devm_iio_trigger_alloc(parent, "%s-trigger",
+					     indio_dev->name);
 	if (sdata->trig == NULL) {
 		dev_err(&indio_dev->dev, "failed to allocate iio trigger.\n");
 		return -ENOMEM;
@@ -135,7 +133,6 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 
 	iio_trigger_set_drvdata(sdata->trig, indio_dev);
 	sdata->trig->ops = trigger_ops;
-	sdata->trig->dev.parent = sdata->dev;
 
 	irq_trig = irqd_get_trigger_type(irq_get_irq_data(sdata->irq));
 	/*
@@ -158,7 +155,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 				sdata->sensor_settings->drdy_irq.addr_ihl,
 				sdata->sensor_settings->drdy_irq.mask_ihl, 1);
 			if (err < 0)
-				goto iio_trigger_free;
+				return err;
 			dev_info(&indio_dev->dev,
 				 "interrupts on the falling edge or active low level\n");
 		}
@@ -180,9 +177,14 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 
 	/* Tell the interrupt handler that we're dealing with edges */
 	if (irq_trig == IRQF_TRIGGER_FALLING ||
-	    irq_trig == IRQF_TRIGGER_RISING)
+	    irq_trig == IRQF_TRIGGER_RISING) {
+		if (!sdata->sensor_settings->drdy_irq.stat_drdy.addr) {
+			dev_err(&indio_dev->dev,
+				"edge IRQ not supported w/o stat register.\n");
+			return -EOPNOTSUPP;
+		}
 		sdata->edge_irq = true;
-	else
+	} else {
 		/*
 		 * If we're not using edges (i.e. level interrupts) we
 		 * just mask off the IRQ, handle one interrupt, then
@@ -190,6 +192,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 		 * interrupt handler top half again and start over.
 		 */
 		irq_trig |= IRQF_ONESHOT;
+	}
 
 	/*
 	 * If the interrupt pin is Open Drain, by definition this
@@ -203,43 +206,28 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 	    sdata->sensor_settings->drdy_irq.stat_drdy.addr)
 		irq_trig |= IRQF_SHARED;
 
-	err = request_threaded_irq(sdata->irq,
-				   st_sensors_irq_handler,
-				   st_sensors_irq_thread,
-				   irq_trig,
-				   sdata->trig->name,
-				   sdata->trig);
+	err = devm_request_threaded_irq(parent,
+					sdata->irq,
+					st_sensors_irq_handler,
+					st_sensors_irq_thread,
+					irq_trig,
+					sdata->trig->name,
+					sdata->trig);
 	if (err) {
 		dev_err(&indio_dev->dev, "failed to request trigger IRQ.\n");
-		goto iio_trigger_free;
+		return err;
 	}
 
-	err = iio_trigger_register(sdata->trig);
+	err = devm_iio_trigger_register(parent, sdata->trig);
 	if (err < 0) {
 		dev_err(&indio_dev->dev, "failed to register iio trigger.\n");
-		goto iio_trigger_register_error;
+		return err;
 	}
 	indio_dev->trig = iio_trigger_get(sdata->trig);
 
 	return 0;
-
-iio_trigger_register_error:
-	free_irq(sdata->irq, sdata->trig);
-iio_trigger_free:
-	iio_trigger_free(sdata->trig);
-	return err;
 }
-EXPORT_SYMBOL(st_sensors_allocate_trigger);
-
-void st_sensors_deallocate_trigger(struct iio_dev *indio_dev)
-{
-	struct st_sensor_data *sdata = iio_priv(indio_dev);
-
-	iio_trigger_unregister(sdata->trig);
-	free_irq(sdata->irq, sdata->trig);
-	iio_trigger_free(sdata->trig);
-}
-EXPORT_SYMBOL(st_sensors_deallocate_trigger);
+EXPORT_SYMBOL_NS(st_sensors_allocate_trigger, IIO_ST_SENSORS);
 
 int st_sensors_validate_device(struct iio_trigger *trig,
 			       struct iio_dev *indio_dev)
@@ -251,8 +239,4 @@ int st_sensors_validate_device(struct iio_trigger *trig,
 
 	return 0;
 }
-EXPORT_SYMBOL(st_sensors_validate_device);
-
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics ST-sensors trigger");
-MODULE_LICENSE("GPL v2");
+EXPORT_SYMBOL_NS(st_sensors_validate_device, IIO_ST_SENSORS);

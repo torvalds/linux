@@ -877,7 +877,7 @@ static int s3c_hsudc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct s3c_hsudc_ep *hsep = our_ep(_ep);
 	struct s3c_hsudc *hsudc = hsep->dev;
-	struct s3c_hsudc_req *hsreq;
+	struct s3c_hsudc_req *hsreq = NULL, *iter;
 	unsigned long flags;
 
 	hsep = our_ep(_ep);
@@ -886,11 +886,13 @@ static int s3c_hsudc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 	spin_lock_irqsave(&hsudc->lock, flags);
 
-	list_for_each_entry(hsreq, &hsep->queue, queue) {
-		if (&hsreq->req == _req)
-			break;
+	list_for_each_entry(iter, &hsep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		hsreq = iter;
+		break;
 	}
-	if (&hsreq->req != _req) {
+	if (!hsreq) {
 		spin_unlock_irqrestore(&hsudc->lock, flags);
 		return -EINVAL;
 	}
@@ -1220,9 +1222,8 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	struct s3c24xx_hsudc_platdata *pd = dev_get_platdata(&pdev->dev);
 	int ret, i;
 
-	hsudc = devm_kzalloc(&pdev->dev, sizeof(struct s3c_hsudc) +
-			sizeof(struct s3c_hsudc_ep) * pd->epnum,
-			GFP_KERNEL);
+	hsudc = devm_kzalloc(&pdev->dev, struct_size(hsudc, ep, pd->epnum),
+			     GFP_KERNEL);
 	if (!hsudc)
 		return -ENOMEM;
 

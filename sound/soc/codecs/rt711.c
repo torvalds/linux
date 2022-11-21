@@ -245,6 +245,13 @@ static void rt711_jack_detect_handler(struct work_struct *work)
 	if (!rt711->component->card->instantiated)
 		return;
 
+	if (pm_runtime_status_suspended(rt711->slave->dev.parent)) {
+		dev_dbg(&rt711->slave->dev,
+			"%s: parent device is pm_runtime_status_suspended, skipping jack detection\n",
+			__func__);
+		return;
+	}
+
 	reg = RT711_VERB_GET_PIN_SENSE | RT711_HP_OUT;
 	ret = regmap_read(rt711->regmap, reg, &jack_status);
 	if (ret < 0)
@@ -389,6 +396,36 @@ static void rt711_jack_init(struct rt711_priv *rt711)
 				RT711_HP_JD_FINAL_RESULT_CTL_JD12,
 				RT711_HP_JD_FINAL_RESULT_CTL_JD12);
 			break;
+		case RT711_JD2_100K:
+			rt711_index_update_bits(rt711->regmap, RT711_VENDOR_REG,
+				RT711_JD_CTL2, RT711_JD2_2PORT_100K_DECODE | RT711_JD2_1PORT_TYPE_DECODE |
+				RT711_HP_JD_SEL_JD2 | RT711_JD1_2PORT_TYPE_100K_DECODE,
+				RT711_JD2_2PORT_100K_DECODE_HP | RT711_JD2_1PORT_JD_HP |
+				RT711_HP_JD_SEL_JD2 | RT711_JD1_2PORT_JD_RESERVED);
+			rt711_index_update_bits(rt711->regmap, RT711_VENDOR_REG,
+				RT711_CC_DET1,
+				RT711_HP_JD_FINAL_RESULT_CTL_JD12,
+				RT711_HP_JD_FINAL_RESULT_CTL_JD12);
+			break;
+		case RT711_JD2_1P8V_1PORT:
+			rt711_index_update_bits(rt711->regmap, RT711_VENDOR_REG,
+				RT711_JD_CTL1, RT711_JD2_DIGITAL_JD_MODE_SEL,
+				RT711_JD2_1_JD_MODE);
+			rt711_index_update_bits(rt711->regmap, RT711_VENDOR_REG,
+				RT711_JD_CTL2, RT711_JD2_1PORT_TYPE_DECODE |
+				RT711_HP_JD_SEL_JD2,
+				RT711_JD2_1PORT_JD_HP |
+				RT711_HP_JD_SEL_JD2);
+			rt711_index_update_bits(rt711->regmap, RT711_VENDOR_REG,
+				RT711_JD_CTL4, RT711_JD2_PAD_PULL_UP_MASK |
+				RT711_JD2_MODE_SEL_MASK,
+				RT711_JD2_PAD_PULL_UP |
+				RT711_JD2_MODE2_1P8V_1PORT);
+			rt711_index_update_bits(rt711->regmap, RT711_VENDOR_REG,
+				RT711_CC_DET1,
+				RT711_HP_JD_FINAL_RESULT_CTL_JD12,
+				RT711_HP_JD_FINAL_RESULT_CTL_JD12);
+			break;
 		default:
 			dev_warn(rt711->component->dev, "Wrong JD source\n");
 			break;
@@ -461,6 +498,8 @@ static int rt711_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 	unsigned int addr_h, addr_l, val_h, val_ll, val_lr;
 	unsigned int read_ll, read_rl;
 	int i;
+
+	mutex_lock(&rt711->calibrate_mutex);
 
 	/* Can't use update bit function, so read the original value first */
 	addr_h = mc->reg;
@@ -547,6 +586,8 @@ static int rt711_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 	if (dapm->bias_level <= SND_SOC_BIAS_STANDBY)
 		regmap_write(rt711->regmap,
 				RT711_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
+
+	mutex_unlock(&rt711->calibrate_mutex);
 	return 0;
 }
 
@@ -859,9 +900,11 @@ static int rt711_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
+		mutex_lock(&rt711->calibrate_mutex);
 		regmap_write(rt711->regmap,
 			RT711_SET_AUDIO_POWER_STATE,
 			AC_PWRST_D3);
+		mutex_unlock(&rt711->calibrate_mutex);
 		break;
 
 	default:
@@ -889,6 +932,13 @@ static int rt711_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+static void rt711_remove(struct snd_soc_component *component)
+{
+	struct rt711_priv *rt711 = snd_soc_component_get_drvdata(component);
+
+	regcache_cache_only(rt711->regmap, true);
+}
+
 static const struct snd_soc_component_driver soc_codec_dev_rt711 = {
 	.probe = rt711_probe,
 	.set_bias_level = rt711_set_bias_level,
@@ -899,6 +949,7 @@ static const struct snd_soc_component_driver soc_codec_dev_rt711 = {
 	.dapm_routes = rt711_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(rt711_audio_map),
 	.set_jack = rt711_set_jack_detect,
+	.remove = rt711_remove,
 };
 
 static int rt711_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
@@ -913,7 +964,7 @@ static int rt711_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
 	if (!stream)
 		return -ENOMEM;
 
-	stream->sdw_stream = (struct sdw_stream_runtime *)sdw_stream;
+	stream->sdw_stream = sdw_stream;
 
 	/* Use tx_mask or rx_mask to configure stream tag and set dma_data */
 	if (direction == SNDRV_PCM_STREAM_PLAYBACK)
@@ -1042,10 +1093,10 @@ static int rt711_pcm_hw_free(struct snd_pcm_substream *substream,
 #define RT711_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
-static struct snd_soc_dai_ops rt711_ops = {
+static const struct snd_soc_dai_ops rt711_ops = {
 	.hw_params	= rt711_pcm_hw_params,
 	.hw_free	= rt711_pcm_hw_free,
-	.set_sdw_stream	= rt711_set_sdw_stream,
+	.set_stream	= rt711_set_sdw_stream,
 	.shutdown	= rt711_shutdown,
 };
 
@@ -1152,6 +1203,8 @@ int rt711_init(struct device *dev, struct regmap *sdw_regmap,
 	rt711->sdw_regmap = sdw_regmap;
 	rt711->regmap = regmap;
 
+	mutex_init(&rt711->disable_irq_lock);
+
 	/*
 	 * Mark hw_init to false
 	 * HW init will be performed when device reports present
@@ -1175,6 +1228,8 @@ int rt711_init(struct device *dev, struct regmap *sdw_regmap,
 int rt711_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt711_priv *rt711 = dev_get_drvdata(dev);
+
+	rt711->disable_irq = false;
 
 	if (rt711->hw_init)
 		return 0;

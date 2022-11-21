@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "Core Netfilter Configuration"
-	depends on NET && INET && NETFILTER
+	depends on INET && NETFILTER
 
 config NETFILTER_INGRESS
 	bool "Netfilter ingress support"
@@ -10,6 +10,17 @@ config NETFILTER_INGRESS
 	  This allows you to classify packets from ingress using the Netfilter
 	  infrastructure.
 
+config NETFILTER_EGRESS
+	bool "Netfilter egress support"
+	default y
+	select NET_EGRESS
+	help
+	  This allows you to classify packets before transmission using the
+	  Netfilter infrastructure.
+
+config NETFILTER_SKIP_EGRESS
+	def_bool NETFILTER_EGRESS && (NET_CLS_ACT || IFB)
+
 config NETFILTER_NETLINK
 	tristate
 
@@ -18,6 +29,16 @@ config NETFILTER_FAMILY_BRIDGE
 
 config NETFILTER_FAMILY_ARP
 	bool
+
+config NETFILTER_NETLINK_HOOK
+	tristate "Netfilter base hook dump support"
+	depends on NETFILTER_ADVANCED
+	depends on NF_TABLES
+	select NETFILTER_NETLINK
+	help
+	  If this option is enabled, the kernel will include support
+	  to list the base netfilter hooks via NFNETLINK.
+	  This is helpful for debugging.
 
 config NETFILTER_NETLINK_ACCT
 	tristate "Netfilter NFACCT over NFNETLINK interface"
@@ -71,12 +92,17 @@ config NF_CONNTRACK
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config NF_LOG_COMMON
-	tristate
-
-config NF_LOG_NETDEV
-	tristate "Netdev packet logging"
-	select NF_LOG_COMMON
+config NF_LOG_SYSLOG
+	tristate "Syslog packet logging"
+	default m if NETFILTER_ADVANCED=n
+	help
+	  This option enable support for packet logging via syslog.
+	  It supports IPv4, IPV6, ARP and common transport protocols such
+	  as TCP and UDP.
+	  This is a simpler but less flexible logging method compared to
+	  CONFIG_NETFILTER_NETLINK_LOG.
+	  If both are enabled the backend to use can be configured at run-time
+	  by means of per-address-family sysctl tunables.
 
 if NF_CONNTRACK
 config NETFILTER_CONNCOUNT
@@ -94,7 +120,7 @@ config NF_CONNTRACK_MARK
 config NF_CONNTRACK_SECMARK
 	bool  'Connection tracking security mark support'
 	depends on NETWORK_SECMARK
-	default m if NETFILTER_ADVANCED=n
+	default y if NETFILTER_ADVANCED=n
 	help
 	  This option enables security markings to be applied to
 	  connections.  Typically they are copied to connections from
@@ -489,12 +515,6 @@ config NFT_FLOW_OFFLOAD
 	  This option adds the "flow_offload" expression that you can use to
 	  choose what flows are placed into the hardware.
 
-config NFT_COUNTER
-	tristate "Netfilter nf_tables counter module"
-	help
-	  This option adds the "counter" expression that you can use to
-	  include packet and byte counters in a rule.
-
 config NFT_CONNLIMIT
 	tristate "Netfilter nf_tables connlimit module"
 	depends on NF_CONNTRACK
@@ -682,6 +702,16 @@ config NFT_FIB_NETDEV
 	  The lookup will be delegated to the IPv4 or IPv6 FIB depending
 	  on the protocol of the packet.
 
+config NFT_REJECT_NETDEV
+	depends on NFT_REJECT_IPV4
+	depends on NFT_REJECT_IPV6
+	tristate "Netfilter nf_tables netdev REJECT support"
+	help
+	  This option enables the REJECT support from the netdev table.
+	  The return packet generation will be delegated to the IPv4
+	  or IPv6 ICMP or TCP RST implementation depending on the
+	  protocol of the packet.
+
 endif # NF_TABLES_NETDEV
 
 endif # NF_TABLES
@@ -712,6 +742,16 @@ config NETFILTER_XTABLES
 	  ip6_tables or arp_tables.
 
 if NETFILTER_XTABLES
+
+config NETFILTER_XTABLES_COMPAT
+	bool "Netfilter Xtables 32bit support"
+	depends on COMPAT
+	default y
+	help
+	   This option provides a translation layer to run 32bit arp,ip(6),ebtables
+	   binaries on 64bit kernels.
+
+	   If unsure, say N.
 
 comment "Xtables combined modules"
 
@@ -791,7 +831,7 @@ config NETFILTER_XT_TARGET_CLASSIFY
 	  the priority of a packet. Some qdiscs can use this value for
 	  classification, among these are:
 
-  	  atm, cbq, dsmark, pfifo_fast, htb, prio
+	  atm, cbq, dsmark, pfifo_fast, htb, prio
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -912,8 +952,7 @@ config NETFILTER_XT_TARGET_LED
 
 config NETFILTER_XT_TARGET_LOG
 	tristate "LOG target support"
-	select NF_LOG_COMMON
-	select NF_LOG_IPV4
+	select NF_LOG_SYSLOG
 	select NF_LOG_IPV6 if IP6_NF_IPTABLES
 	default m if NETFILTER_ADVANCED=n
 	help

@@ -5,12 +5,18 @@
 # create a compressed vmlinux image from the original vmlinux
 #
 
-targets		:= vmlinux vmlinux.bin vmlinux.bin.gz \
-		   vmlinux.bin.bz2 vmlinux.bin.lzma \
-		   vmlinux.bin.xz vmlinux.bin.lzo \
-		   head_32.o misc.o piggy.o
+OBJECTS := head_32.o misc.o cache.o piggy.o \
+           ashiftrt.o ashldi3.o ashrsi3.o ashlsi3.o lshrsi3.o
 
-OBJECTS = $(obj)/head_32.o $(obj)/misc.o $(obj)/cache.o
+# These were previously generated files. When you are building the kernel
+# with O=, make sure to remove the stale files in the output tree. Otherwise,
+# the build system wrongly compiles the stale ones.
+ifdef building_out_of_srctree
+$(shell rm -f $(addprefix $(obj)/, ashiftrt.S ashldi3.c ashrsi3.S ashlsi3.S lshrsi3.S))
+endif
+
+targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 \
+           vmlinux.bin.lzma vmlinux.bin.xz vmlinux.bin.lzo $(OBJECTS)
 
 GCOV_PROFILE := n
 
@@ -33,42 +39,28 @@ ccflags-remove-$(CONFIG_MCOUNT) += -pg
 LDFLAGS_vmlinux := --oformat $(ld-bfd) -Ttext $(IMAGE_OFFSET) -e startup \
 		   -T $(obj)/../../kernel/vmlinux.lds
 
-#
-# Pull in the necessary libgcc bits from the in-kernel implementation.
-#
-lib1funcs-y	:= ashiftrt.S ashldi3.c ashrsi3.S ashlsi3.S lshrsi3.S
-lib1funcs-obj   := \
-	$(addsuffix .o, $(basename $(addprefix $(obj)/, $(lib1funcs-y))))
+KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
 
-lib1funcs-dir		:= $(srctree)/arch/$(SRCARCH)/lib
-
-KBUILD_CFLAGS += -I$(lib1funcs-dir) -DDISABLE_BRANCH_PROFILING
-
-$(addprefix $(obj)/,$(lib1funcs-y)): $(obj)/%: $(lib1funcs-dir)/% FORCE
-	$(call cmd,shipped)
-
-$(obj)/vmlinux: $(OBJECTS) $(obj)/piggy.o $(lib1funcs-obj) FORCE
+$(obj)/vmlinux: $(addprefix $(obj)/, $(OBJECTS)) FORCE
 	$(call if_changed,ld)
 
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
-vmlinux.bin.all-y := $(obj)/vmlinux.bin
-
-$(obj)/vmlinux.bin.gz: $(vmlinux.bin.all-y) FORCE
+$(obj)/vmlinux.bin.gz: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,gzip)
-$(obj)/vmlinux.bin.bz2: $(vmlinux.bin.all-y) FORCE
-	$(call if_changed,bzip2)
-$(obj)/vmlinux.bin.lzma: $(vmlinux.bin.all-y) FORCE
-	$(call if_changed,lzma)
-$(obj)/vmlinux.bin.xz: $(vmlinux.bin.all-y) FORCE
-	$(call if_changed,xzkern)
-$(obj)/vmlinux.bin.lzo: $(vmlinux.bin.all-y) FORCE
-	$(call if_changed,lzo)
+$(obj)/vmlinux.bin.bz2: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,bzip2_with_size)
+$(obj)/vmlinux.bin.lzma: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,lzma_with_size)
+$(obj)/vmlinux.bin.xz: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,xzkern_with_size)
+$(obj)/vmlinux.bin.lzo: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,lzo_with_size)
 
 OBJCOPYFLAGS += -R .empty_zero_page
 
 LDFLAGS_piggy.o := -r --format binary --oformat $(ld-bfd) -T
 
-$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix-y) FORCE
+$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix_y) FORCE
 	$(call if_changed,ld)

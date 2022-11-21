@@ -720,7 +720,7 @@ static u32 cake_hash(struct cake_tin_data *q, const struct sk_buff *skb,
 skip_hash:
 	if (flow_override)
 		flow_hash = flow_override - 1;
-	else if (use_skbhash)
+	else if (use_skbhash && (flow_mode & CAKE_FLOW_FLOWS))
 		flow_hash = skb->hash;
 	if (host_override) {
 		dsthost_hash = host_override - 1;
@@ -943,7 +943,7 @@ static struct tcphdr *cake_get_tcphdr(const struct sk_buff *skb,
 	}
 
 	tcph = skb_header_pointer(skb, offset, sizeof(_tcph), &_tcph);
-	if (!tcph)
+	if (!tcph || tcph->doff < 5)
 		return NULL;
 
 	return skb_header_pointer(skb, offset,
@@ -967,6 +967,8 @@ static const void *cake_get_tcpopt(const struct tcphdr *tcph,
 			length--;
 			continue;
 		}
+		if (length < 2)
+			break;
 		opsize = *ptr++;
 		if (opsize < 2 || opsize > length)
 			break;
@@ -1104,6 +1106,8 @@ static bool cake_tcph_may_drop(const struct tcphdr *tcph,
 			length--;
 			continue;
 		}
+		if (length < 2)
+			break;
 		opsize = *ptr++;
 		if (opsize < 2 || opsize > length)
 			break;
@@ -1661,7 +1665,7 @@ static u32 cake_classify(struct Qdisc *sch, struct cake_tin_data **t,
 		goto hash;
 
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
-	result = tcf_classify(skb, filter, &res, false);
+	result = tcf_classify(skb, NULL, filter, &res, false);
 
 	if (result >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
@@ -2338,9 +2342,7 @@ static int cake_config_precedence(struct Qdisc *sch)
 
 /*	List of known Diffserv codepoints:
  *
- *	Least Effort (CS1)
- *	Best Effort (CS0)
- *	Max Reliability & LLT "Lo" (TOS1)
+ *	Default Forwarding (DF/CS0) - Best Effort
  *	Max Throughput (TOS2)
  *	Min Delay (TOS4)
  *	LLT "La" (TOS5)
@@ -2348,6 +2350,7 @@ static int cake_config_precedence(struct Qdisc *sch)
  *	Assured Forwarding 2 (AF2x) - x3
  *	Assured Forwarding 3 (AF3x) - x3
  *	Assured Forwarding 4 (AF4x) - x3
+ *	Precedence Class 1 (CS1)
  *	Precedence Class 2 (CS2)
  *	Precedence Class 3 (CS3)
  *	Precedence Class 4 (CS4)
@@ -2356,11 +2359,12 @@ static int cake_config_precedence(struct Qdisc *sch)
  *	Precedence Class 7 (CS7)
  *	Voice Admit (VA)
  *	Expedited Forwarding (EF)
-
- *	Total 25 codepoints.
+ *	Lower Effort (LE)
+ *
+ *	Total 26 codepoints.
  */
 
-/*	List of traffic classes in RFC 4594:
+/*	List of traffic classes in RFC 4594, updated by RFC 8622:
  *		(roughly descending order of contended priority)
  *		(roughly ascending order of uncontended throughput)
  *
@@ -2371,12 +2375,12 @@ static int cake_config_precedence(struct Qdisc *sch)
  *	Realtime Interactive (CS4)     - eg. games
  *	Multimedia Streaming (AF3x)    - eg. YouTube, NetFlix, Twitch
  *	Broadcast Video (CS3)
- *	Low Latency Data (AF2x,TOS4)      - eg. database
- *	Ops, Admin, Management (CS2,TOS1) - eg. ssh
- *	Standard Service (CS0 & unrecognised codepoints)
- *	High Throughput Data (AF1x,TOS2)  - eg. web traffic
- *	Low Priority Data (CS1)           - eg. BitTorrent
-
+ *	Low-Latency Data (AF2x,TOS4)      - eg. database
+ *	Ops, Admin, Management (CS2)      - eg. ssh
+ *	Standard Service (DF & unrecognised codepoints)
+ *	High-Throughput Data (AF1x,TOS2)  - eg. web traffic
+ *	Low-Priority Data (LE,CS1)        - eg. BitTorrent
+ *
  *	Total 12 traffic classes.
  */
 
@@ -2386,12 +2390,12 @@ static int cake_config_diffserv8(struct Qdisc *sch)
  *
  *		Network Control          (CS6, CS7)
  *		Minimum Latency          (EF, VA, CS5, CS4)
- *		Interactive Shell        (CS2, TOS1)
+ *		Interactive Shell        (CS2)
  *		Low Latency Transactions (AF2x, TOS4)
  *		Video Streaming          (AF4x, AF3x, CS3)
- *		Bog Standard             (CS0 etc.)
- *		High Throughput          (AF1x, TOS2)
- *		Background Traffic       (CS1)
+ *		Bog Standard             (DF etc.)
+ *		High Throughput          (AF1x, TOS2, CS1)
+ *		Background Traffic       (LE)
  *
  *		Total 8 traffic classes.
  */
@@ -2433,9 +2437,9 @@ static int cake_config_diffserv4(struct Qdisc *sch)
 /*  Further pruned list of traffic classes for four-class system:
  *
  *	    Latency Sensitive  (CS7, CS6, EF, VA, CS5, CS4)
- *	    Streaming Media    (AF4x, AF3x, CS3, AF2x, TOS4, CS2, TOS1)
- *	    Best Effort        (CS0, AF1x, TOS2, and those not specified)
- *	    Background Traffic (CS1)
+ *	    Streaming Media    (AF4x, AF3x, CS3, AF2x, TOS4, CS2)
+ *	    Best Effort        (DF, AF1x, TOS2, and those not specified)
+ *	    Background Traffic (LE, CS1)
  *
  *		Total 4 traffic classes.
  */
@@ -2473,9 +2477,9 @@ static int cake_config_diffserv4(struct Qdisc *sch)
 static int cake_config_diffserv3(struct Qdisc *sch)
 {
 /*  Simplified Diffserv structure with 3 tins.
- *		Low Priority		(CS1)
+ *		Latency Sensitive	(CS7, CS6, EF, VA, TOS4)
  *		Best Effort
- *		Latency Sensitive	(TOS4, VA, EF, CS6, CS7)
+ *		Low Priority		(LE, CS1)
  */
 	struct cake_sched_data *q = qdisc_priv(sch);
 	u32 mtu = psched_mtu(qdisc_dev(sch));
@@ -2732,7 +2736,7 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 	q->tins = kvcalloc(CAKE_MAX_TINS, sizeof(struct cake_tin_data),
 			   GFP_KERNEL);
 	if (!q->tins)
-		goto nomem;
+		return -ENOMEM;
 
 	for (i = 0; i < CAKE_MAX_TINS; i++) {
 		struct cake_tin_data *b = q->tins + i;
@@ -2762,10 +2766,6 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 	q->min_netlen = ~0;
 	q->min_adjlen = ~0;
 	return 0;
-
-nomem:
-	cake_destroy(sch);
-	return -ENOMEM;
 }
 
 static int cake_dump(struct Qdisc *sch, struct sk_buff *skb)

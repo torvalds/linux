@@ -18,6 +18,7 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/math64.h>
+#include <linux/property.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/tps65910.h>
@@ -361,13 +362,6 @@ static const struct rtc_class_ops tps65910_rtc_ops = {
 	.set_offset	= tps65910_set_offset,
 };
 
-static const struct rtc_class_ops tps65910_rtc_ops_noirq = {
-	.read_time	= tps65910_rtc_read_time,
-	.set_time	= tps65910_rtc_set_time,
-	.read_offset	= tps65910_read_offset,
-	.set_offset	= tps65910_set_offset,
-};
-
 static int tps65910_rtc_probe(struct platform_device *pdev)
 {
 	struct tps65910 *tps65910 = NULL;
@@ -426,15 +420,19 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 
 	tps_rtc->irq = irq;
 	if (irq != -1) {
-		device_set_wakeup_capable(&pdev->dev, 1);
-		tps_rtc->rtc->ops = &tps65910_rtc_ops;
-	} else
-		tps_rtc->rtc->ops = &tps65910_rtc_ops_noirq;
+		if (device_property_present(tps65910->dev, "wakeup-source"))
+			device_init_wakeup(&pdev->dev, 1);
+		else
+			device_set_wakeup_capable(&pdev->dev, 1);
+	} else {
+		clear_bit(RTC_FEATURE_ALARM, tps_rtc->rtc->features);
+	}
 
+	tps_rtc->rtc->ops = &tps65910_rtc_ops;
 	tps_rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	tps_rtc->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
-	return rtc_register_device(tps_rtc->rtc);
+	return devm_rtc_register_device(tps_rtc->rtc);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -469,6 +467,6 @@ static struct platform_driver tps65910_rtc_driver = {
 };
 
 module_platform_driver(tps65910_rtc_driver);
-MODULE_ALIAS("platform:rtc-tps65910");
+MODULE_ALIAS("platform:tps65910-rtc");
 MODULE_AUTHOR("Venu Byravarasu <vbyravarasu@nvidia.com>");
 MODULE_LICENSE("GPL");

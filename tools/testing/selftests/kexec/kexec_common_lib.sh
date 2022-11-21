@@ -91,6 +91,27 @@ get_efi_var_secureboot_mode()
 	return 0;
 }
 
+# On powerpc platform, check device-tree property
+# /proc/device-tree/ibm,secureboot/os-secureboot-enforcing
+# to detect secureboot state.
+get_ppc64_secureboot_mode()
+{
+	local secure_boot_file="/proc/device-tree/ibm,secureboot/os-secureboot-enforcing"
+	# Check for secure boot file existence
+	if [ -f $secure_boot_file ]; then
+		log_info "Secureboot is enabled (Device tree)"
+		return 1;
+	fi
+	log_info "Secureboot is not enabled (Device tree)"
+	return 0;
+}
+
+# Return the architecture of the system
+get_arch()
+{
+	echo $(arch)
+}
+
 # Check efivar SecureBoot-$(the UUID) and SetupMode-$(the UUID).
 # The secure boot mode can be accessed either as the last integer
 # of "od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-*" or from
@@ -100,14 +121,19 @@ get_efi_var_secureboot_mode()
 get_secureboot_mode()
 {
 	local secureboot_mode=0
+	local system_arch=$(get_arch)
 
-	get_efivarfs_secureboot_mode
-	secureboot_mode=$?
-
-	# fallback to using the efi_var files
-	if [ $secureboot_mode -eq 0 ]; then
-		get_efi_var_secureboot_mode
+	if [ "$system_arch" == "ppc64le" ]; then
+		get_ppc64_secureboot_mode
 		secureboot_mode=$?
+	else
+		get_efivarfs_secureboot_mode
+		secureboot_mode=$?
+		# fallback to using the efi_var files
+		if [ $secureboot_mode -eq 0 ]; then
+			get_efi_var_secureboot_mode
+			secureboot_mode=$?
+		fi
 	fi
 
 	if [ $secureboot_mode -eq 0 ]; then
@@ -138,15 +164,20 @@ kconfig_enabled()
 	return 0
 }
 
-# Attempt to get the kernel config first via proc, and then by
-# extracting it from the kernel image or the configs.ko using
-# scripts/extract-ikconfig.
+# Attempt to get the kernel config first by checking the modules directory
+# then via proc, and finally by extracting it from the kernel image or the
+# configs.ko using scripts/extract-ikconfig.
 # Return 1 for found.
 get_kconfig()
 {
 	local proc_config="/proc/config.gz"
 	local module_dir="/lib/modules/`uname -r`"
-	local configs_module="$module_dir/kernel/kernel/configs.ko"
+	local configs_module="$module_dir/kernel/kernel/configs.ko*"
+
+	if [ -f $module_dir/config ]; then
+		IKCONFIG=$module_dir/config
+		return 1
+	fi
 
 	if [ ! -f $proc_config ]; then
 		modprobe configs > /dev/null 2>&1

@@ -213,7 +213,6 @@ mlxsw_sp1_kvdl_part_init(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp1_kvdl_part *part;
 	bool need_update = true;
 	unsigned int nr_entries;
-	size_t usage_size;
 	u64 resource_size;
 	int err;
 
@@ -225,8 +224,8 @@ mlxsw_sp1_kvdl_part_init(struct mlxsw_sp *mlxsw_sp,
 	}
 
 	nr_entries = div_u64(resource_size, info->alloc_size);
-	usage_size = BITS_TO_LONGS(nr_entries) * sizeof(unsigned long);
-	part = kzalloc(sizeof(*part) + usage_size, GFP_KERNEL);
+	part = kzalloc(struct_size(part, usage, BITS_TO_LONGS(nr_entries)),
+		       GFP_KERNEL);
 	if (!part)
 		return ERR_PTR(-ENOMEM);
 

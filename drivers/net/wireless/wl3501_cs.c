@@ -134,7 +134,7 @@ static const struct {
 
 /**
  * iw_valid_channel - validate channel in regulatory domain
- * @reg_comain: regulatory domain
+ * @reg_domain: regulatory domain
  * @channel: channel to validate
  *
  * Returns 0 if invalid in the specified regulatory domain, non-zero if valid.
@@ -458,11 +458,9 @@ out:
 /**
  * wl3501_send_pkt - Send a packet.
  * @this: Card
- *
- * Send a packet.
- *
- * data = Ethernet raw frame.  (e.g. data[0] - data[5] is Dest MAC Addr,
+ * @data: Ethernet raw frame.  (e.g. data[0] - data[5] is Dest MAC Addr,
  *                                   data[6] - data[11] is Src MAC Addr)
+ * @len: Packet length
  * Ref: IEEE 802.11
  */
 static int wl3501_send_pkt(struct wl3501_card *this, u8 *data, u16 len)
@@ -471,6 +469,7 @@ static int wl3501_send_pkt(struct wl3501_card *this, u8 *data, u16 len)
 	struct wl3501_md_req sig = {
 		.sig_id = WL3501_SIG_MD_REQ,
 	};
+	size_t sig_addr_len = sizeof(sig.addr);
 	u8 *pdata = (char *)data;
 	int rc = -EIO;
 
@@ -486,9 +485,9 @@ static int wl3501_send_pkt(struct wl3501_card *this, u8 *data, u16 len)
 			goto out;
 		}
 		rc = 0;
-		memcpy(&sig.daddr[0], pdata, 12);
-		pktlen = len - 12;
-		pdata += 12;
+		memcpy(&sig.addr, pdata, sig_addr_len);
+		pktlen = len - sig_addr_len;
+		pdata += sig_addr_len;
 		sig.data = bf;
 		if (((*pdata) * 256 + (*(pdata + 1))) > 1500) {
 			u8 addr4[ETH_ALEN] = {
@@ -591,7 +590,7 @@ static int wl3501_mgmt_join(struct wl3501_card *this, u16 stas)
 	struct wl3501_join_req sig = {
 		.sig_id		  = WL3501_SIG_JOIN_REQ,
 		.timeout	  = 10,
-		.ds_pset = {
+		.req.ds_pset = {
 			.el = {
 				.id  = IW_MGMT_INFO_ELEMENT_DS_PARAMETER_SET,
 				.len = 1,
@@ -600,7 +599,7 @@ static int wl3501_mgmt_join(struct wl3501_card *this, u16 stas)
 		},
 	};
 
-	memcpy(&sig.beacon_period, &this->bss_set[stas].beacon_period, 72);
+	memcpy(&sig.req, &this->bss_set[stas].req, sizeof(sig.req));
 	return wl3501_esbq_exec(this, &sig, sizeof(sig));
 }
 
@@ -668,35 +667,37 @@ static void wl3501_mgmt_scan_confirm(struct wl3501_card *this, u16 addr)
 	if (sig.status == WL3501_STATUS_SUCCESS) {
 		pr_debug("success");
 		if ((this->net_type == IW_MODE_INFRA &&
-		     (sig.cap_info & WL3501_MGMT_CAPABILITY_ESS)) ||
+		     (sig.req.cap_info & WL3501_MGMT_CAPABILITY_ESS)) ||
 		    (this->net_type == IW_MODE_ADHOC &&
-		     (sig.cap_info & WL3501_MGMT_CAPABILITY_IBSS)) ||
+		     (sig.req.cap_info & WL3501_MGMT_CAPABILITY_IBSS)) ||
 		    this->net_type == IW_MODE_AUTO) {
 			if (!this->essid.el.len)
 				matchflag = 1;
 			else if (this->essid.el.len == 3 &&
 				 !memcmp(this->essid.essid, "ANY", 3))
 				matchflag = 1;
-			else if (this->essid.el.len != sig.ssid.el.len)
+			else if (this->essid.el.len != sig.req.ssid.el.len)
 				matchflag = 0;
-			else if (memcmp(this->essid.essid, sig.ssid.essid,
+			else if (memcmp(this->essid.essid, sig.req.ssid.essid,
 					this->essid.el.len))
 				matchflag = 0;
 			else
 				matchflag = 1;
 			if (matchflag) {
 				for (i = 0; i < this->bss_cnt; i++) {
-					if (ether_addr_equal_unaligned(this->bss_set[i].bssid, sig.bssid)) {
+					if (ether_addr_equal_unaligned(this->bss_set[i].req.bssid,
+								       sig.req.bssid)) {
 						matchflag = 0;
 						break;
 					}
 				}
 			}
 			if (matchflag && (i < 20)) {
-				memcpy(&this->bss_set[i].beacon_period,
-				       &sig.beacon_period, 73);
+				memcpy(&this->bss_set[i].req,
+				       &sig.req, sizeof(sig.req));
 				this->bss_cnt++;
 				this->rssi = sig.rssi;
+				this->bss_set[i].rssi = sig.rssi;
 			}
 		}
 	} else if (sig.status == WL3501_STATUS_TIMEOUT) {
@@ -888,19 +889,19 @@ static void wl3501_mgmt_join_confirm(struct net_device *dev, u16 addr)
 			if (this->join_sta_bss < this->bss_cnt) {
 				const int i = this->join_sta_bss;
 				memcpy(this->bssid,
-				       this->bss_set[i].bssid, ETH_ALEN);
-				this->chan = this->bss_set[i].ds_pset.chan;
+				       this->bss_set[i].req.bssid, ETH_ALEN);
+				this->chan = this->bss_set[i].req.ds_pset.chan;
 				iw_copy_mgmt_info_element(&this->keep_essid.el,
-						     &this->bss_set[i].ssid.el);
+						     &this->bss_set[i].req.ssid.el);
 				wl3501_mgmt_auth(this);
 			}
 		} else {
 			const int i = this->join_sta_bss;
 
-			memcpy(&this->bssid, &this->bss_set[i].bssid, ETH_ALEN);
-			this->chan = this->bss_set[i].ds_pset.chan;
+			memcpy(&this->bssid, &this->bss_set[i].req.bssid, ETH_ALEN);
+			this->chan = this->bss_set[i].req.ds_pset.chan;
 			iw_copy_mgmt_info_element(&this->keep_essid.el,
-						  &this->bss_set[i].ssid.el);
+						  &this->bss_set[i].req.ssid.el);
 			wl3501_online(dev);
 		}
 	} else {
@@ -982,7 +983,8 @@ static inline void wl3501_md_ind_interrupt(struct net_device *dev,
 	} else {
 		skb->dev = dev;
 		skb_reserve(skb, 2); /* IP headers on 16 bytes boundaries */
-		skb_copy_to_linear_data(skb, (unsigned char *)&sig.daddr, 12);
+		skb_copy_to_linear_data(skb, (unsigned char *)&sig.addr,
+					sizeof(sig.addr));
 		wl3501_receive(this, skb->data, pkt_len);
 		skb_put(skb, pkt_len);
 		skb->protocol	= eth_type_trans(skb, dev);
@@ -1573,30 +1575,30 @@ static int wl3501_get_scan(struct net_device *dev, struct iw_request_info *info,
 	for (i = 0; i < this->bss_cnt; ++i) {
 		iwe.cmd			= SIOCGIWAP;
 		iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
-		memcpy(iwe.u.ap_addr.sa_data, this->bss_set[i].bssid, ETH_ALEN);
+		memcpy(iwe.u.ap_addr.sa_data, this->bss_set[i].req.bssid, ETH_ALEN);
 		current_ev = iwe_stream_add_event(info, current_ev,
 						  extra + IW_SCAN_MAX_DATA,
 						  &iwe, IW_EV_ADDR_LEN);
 		iwe.cmd		  = SIOCGIWESSID;
 		iwe.u.data.flags  = 1;
-		iwe.u.data.length = this->bss_set[i].ssid.el.len;
+		iwe.u.data.length = this->bss_set[i].req.ssid.el.len;
 		current_ev = iwe_stream_add_point(info, current_ev,
 						  extra + IW_SCAN_MAX_DATA,
 						  &iwe,
-						  this->bss_set[i].ssid.essid);
+						  this->bss_set[i].req.ssid.essid);
 		iwe.cmd	   = SIOCGIWMODE;
-		iwe.u.mode = this->bss_set[i].bss_type;
+		iwe.u.mode = this->bss_set[i].req.bss_type;
 		current_ev = iwe_stream_add_event(info, current_ev,
 						  extra + IW_SCAN_MAX_DATA,
 						  &iwe, IW_EV_UINT_LEN);
 		iwe.cmd = SIOCGIWFREQ;
-		iwe.u.freq.m = this->bss_set[i].ds_pset.chan;
+		iwe.u.freq.m = this->bss_set[i].req.ds_pset.chan;
 		iwe.u.freq.e = 0;
 		current_ev = iwe_stream_add_event(info, current_ev,
 						  extra + IW_SCAN_MAX_DATA,
 						  &iwe, IW_EV_FREQ_LEN);
 		iwe.cmd = SIOCGIWENCODE;
-		if (this->bss_set[i].cap_info & WL3501_MGMT_CAPABILITY_PRIVACY)
+		if (this->bss_set[i].req.cap_info & WL3501_MGMT_CAPABILITY_PRIVACY)
 			iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
 		else
 			iwe.u.data.flags = IW_ENCODE_DISABLED;
@@ -1943,8 +1945,7 @@ static int wl3501_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = ((char *)&this->mac_addr)[i];
+	eth_hw_addr_set(dev, this->mac_addr);
 
 	/* print probe information */
 	printk(KERN_INFO "%s: wl3501 @ 0x%3.3x, IRQ %d, "

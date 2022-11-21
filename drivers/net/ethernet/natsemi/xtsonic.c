@@ -120,13 +120,14 @@ static const struct net_device_ops xtsonic_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 
-static int __init sonic_probe1(struct net_device *dev)
+static int sonic_probe1(struct net_device *dev)
 {
 	unsigned int silicon_revision;
 	struct sonic_local *lp = netdev_priv(dev);
 	unsigned int base_addr = dev->base_addr;
 	int i;
 	int err = 0;
+	unsigned char addr[ETH_ALEN];
 
 	if (!request_mem_region(base_addr, 0x100, xtsonic_string))
 		return -EBUSY;
@@ -163,9 +164,10 @@ static int __init sonic_probe1(struct net_device *dev)
 
 	for (i=0; i<3; i++) {
 		unsigned int val = SONIC_READ(SONIC_CAP0-i);
-		dev->dev_addr[i*2] = val;
-		dev->dev_addr[i*2+1] = val >> 8;
+		addr[i*2] = val;
+		addr[i*2+1] = val >> 8;
 	}
+	eth_hw_addr_set(dev, addr);
 
 	lp->dma_bitmode = SONIC_BITMODE32;
 
@@ -215,7 +217,6 @@ int xtsonic_probe(struct platform_device *pdev)
 	lp->device = &pdev->dev;
 	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
-	netdev_boot_setup_check(dev);
 
 	dev->base_addr = resmem->start;
 	dev->irq = resirq->start;
@@ -229,11 +230,14 @@ int xtsonic_probe(struct platform_device *pdev)
 	sonic_msg_init(dev);
 
 	if ((err = register_netdev(dev)))
-		goto out1;
+		goto undo_probe1;
 
 	return 0;
 
-out1:
+undo_probe1:
+	dma_free_coherent(lp->device,
+			  SIZEOF_SONIC_DESC * SONIC_BUS_SCALE(lp->dma_bitmode),
+			  lp->descriptors, lp->descriptors_laddr);
 	release_region(dev->base_addr, SONIC_MEM_SIZE);
 out:
 	free_netdev(dev);

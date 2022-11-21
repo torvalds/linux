@@ -286,7 +286,7 @@ static int hga_card_detect(void)
 
 	hga_vram = ioremap(0xb0000, hga_vram_len);
 	if (!hga_vram)
-		goto error;
+		return -ENOMEM;
 
 	if (request_region(0x3b0, 12, "hgafb"))
 		release_io_ports = 1;
@@ -346,19 +346,24 @@ static int hga_card_detect(void)
 			hga_type_name = "Hercules";
 			break;
 	}
-	return 1;
+	return 0;
 error:
 	if (release_io_ports)
 		release_region(0x3b0, 12);
 	if (release_io_port)
 		release_region(0x3bf, 1);
-	return 0;
+
+	iounmap(hga_vram);
+
+	pr_err("hgafb: HGA card not detected.\n");
+
+	return -EINVAL;
 }
 
 /**
  *	hgafb_open - open the framebuffer device
- *	@info:pointer to fb_info object containing info for current hga board
- *	@int:open by console system or userland.
+ *	@info: pointer to fb_info object containing info for current hga board
+ *	@init: open by console system or userland.
  */
 
 static int hgafb_open(struct fb_info *info, int init)
@@ -370,9 +375,9 @@ static int hgafb_open(struct fb_info *info, int init)
 }
 
 /**
- *	hgafb_open - open the framebuffer device
- *	@info:pointer to fb_info object containing info for current hga board
- *	@int:open by console system or userland.
+ *	hgafb_release - open the framebuffer device
+ *	@info: pointer to fb_info object containing info for current hga board
+ *	@init: open by console system or userland.
  */
 
 static int hgafb_release(struct fb_info *info, int init)
@@ -550,13 +555,11 @@ static const struct fb_ops hgafb_ops = {
 static int hgafb_probe(struct platform_device *pdev)
 {
 	struct fb_info *info;
+	int ret;
 
-	if (! hga_card_detect()) {
-		printk(KERN_INFO "hgafb: HGA card not detected.\n");
-		if (hga_vram)
-			iounmap(hga_vram);
-		return -EINVAL;
-	}
+	ret = hga_card_detect();
+	if (ret)
+		return ret;
 
 	printk(KERN_INFO "hgafb: %s with %ldK of memory detected.\n",
 		hga_type_name, hga_vram_len/1024);

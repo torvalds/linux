@@ -459,15 +459,13 @@ reg_disable:
 	return ret;
 }
 
-static int mcp320x_remove(struct spi_device *spi)
+static void mcp320x_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct mcp320x *adc = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	regulator_disable(adc->reg);
-
-	return 0;
 }
 
 static const struct of_device_id mcp320x_dt_ids[] = {

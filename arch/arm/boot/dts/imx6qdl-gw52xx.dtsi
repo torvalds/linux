@@ -32,8 +32,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		user-pb {
 			label = "user_pb";
@@ -418,7 +416,7 @@
 
 			/* VDD_AUD_1P8: Audio codec */
 			reg_aud_1p8v: ldo3 {
-				regulator-name = "vdd1p8";
+				regulator-name = "vdd1p8a";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-boot-on;
@@ -730,6 +728,7 @@
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_1__USB_OTG_ID		0x17059
 			MX6QDL_PAD_EIM_D22__GPIO3_IO22	0x1b0b0 /* OTG_PWR_EN */
+			MX6QDL_PAD_KEY_COL4__USB_OTG_OC		0x17059
 		>;
 	};
 

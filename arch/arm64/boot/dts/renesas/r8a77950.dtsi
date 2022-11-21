@@ -7,6 +7,8 @@
 
 #include "r8a77951.dtsi"
 
+#undef SOC_HAS_USB2_CH3
+
 &audma0 {
 	iommus = <&ipmmu_mp1 0>, <&ipmmu_mp1 1>,
 	       <&ipmmu_mp1 2>, <&ipmmu_mp1 3>,
@@ -27,6 +29,11 @@
 	       <&ipmmu_mp1 26>, <&ipmmu_mp1 27>,
 	       <&ipmmu_mp1 28>, <&ipmmu_mp1 29>,
 	       <&ipmmu_mp1 30>, <&ipmmu_mp1 31>;
+};
+
+&cluster0_opp {
+	/delete-node/ opp-1600000000;
+	/delete-node/ opp-1700000000;
 };
 
 &du {
@@ -186,6 +193,10 @@
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+			};
 
 			port@1 {
 				#address-cells = <1>;

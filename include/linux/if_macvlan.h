@@ -21,6 +21,7 @@ struct macvlan_dev {
 	struct hlist_node	hlist;
 	struct macvlan_port	*port;
 	struct net_device	*lowerdev;
+	netdevice_tracker	dev_tracker;
 	void			*accel_priv;
 	struct vlan_pcpu_stats __percpu *pcpu_stats;
 
@@ -30,6 +31,7 @@ struct macvlan_dev {
 	enum macvlan_mode	mode;
 	u16			flags;
 	unsigned int		macaddr_count;
+	u32			bc_queue_len_req;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll		*netpoll;
 #endif
@@ -42,13 +44,14 @@ static inline void macvlan_count_rx(const struct macvlan_dev *vlan,
 	if (likely(success)) {
 		struct vlan_pcpu_stats *pcpu_stats;
 
-		pcpu_stats = this_cpu_ptr(vlan->pcpu_stats);
+		pcpu_stats = get_cpu_ptr(vlan->pcpu_stats);
 		u64_stats_update_begin(&pcpu_stats->syncp);
 		pcpu_stats->rx_packets++;
 		pcpu_stats->rx_bytes += len;
 		if (multicast)
 			pcpu_stats->rx_multicast++;
 		u64_stats_update_end(&pcpu_stats->syncp);
+		put_cpu_ptr(vlan->pcpu_stats);
 	} else {
 		this_cpu_inc(vlan->pcpu_stats->rx_errors);
 	}

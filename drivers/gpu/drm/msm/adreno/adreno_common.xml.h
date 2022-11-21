@@ -8,21 +8,21 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/envytools/rnndb/adreno.xml                     (    594 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml        (   1572 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml                (  90159 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml       (  14386 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml          (  65048 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml                (  84226 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml                ( 112556 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml                ( 149461 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml                ( 184695 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml            (  11218 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml               (   1773 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_control_regs.xml (   4559 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pipe_regs.xml    (   2872 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno.xml                     (    594 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/freedreno_copyright.xml        (   1572 bytes, from 2020-12-31 19:26:32)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a2xx.xml                (  90810 bytes, from 2021-06-21 15:24:24)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_common.xml       (  14609 bytes, from 2021-11-24 23:05:10)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pm4.xml          (  69086 bytes, from 2022-03-03 16:41:33)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a3xx.xml                (  84231 bytes, from 2021-11-24 23:05:10)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a4xx.xml                ( 113358 bytes, from 2022-01-31 23:06:21)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a5xx.xml                ( 149512 bytes, from 2022-01-31 23:06:21)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx.xml                ( 184954 bytes, from 2022-03-03 16:41:33)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx_gmu.xml            (  11331 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/ocmem.xml               (   1773 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_control_regs.xml (   6038 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pipe_regs.xml    (   2924 bytes, from 2021-07-22 15:21:56)
 
-Copyright (C) 2013-2020 by the following authors:
+Copyright (C) 2013-2021 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -203,6 +203,11 @@ enum a4xx_tess_spacing {
 enum a5xx_address_mode {
 	ADDR_32B = 0,
 	ADDR_64B = 1,
+};
+
+enum a5xx_line_mode {
+	BRESENHAM = 0,
+	RECTANGULAR = 1,
 };
 
 #define REG_AXXX_CP_RB_BASE					0x000001c0

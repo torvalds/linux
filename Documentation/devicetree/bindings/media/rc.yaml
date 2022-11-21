@@ -45,6 +45,7 @@ properties:
       - rc-cec
       - rc-cinergy
       - rc-cinergy-1400
+      - rc-ct-90405
       - rc-d680-dmb
       - rc-delock-61959
       - rc-dib0700-nec
@@ -83,15 +84,19 @@ properties:
       - rc-it913x-v2
       - rc-kaiomy
       - rc-khadas
+      - rc-khamsin
       - rc-kworld-315u
       - rc-kworld-pc150u
       - rc-kworld-plus-tv-analog
       - rc-leadtek-y04g0051
       - rc-lme2510
       - rc-manli
+      - rc-mecool-kii-pro
+      - rc-mecool-kiii-pro
       - rc-medion-x10
       - rc-medion-x10-digitainer
       - rc-medion-x10-or2x
+      - rc-minix-neo
       - rc-msi-digivox-ii
       - rc-msi-digivox-iii
       - rc-msi-tvanywhere
@@ -102,6 +107,7 @@ properties:
       - rc-npgtech
       - rc-odroid
       - rc-pctv-sedna
+      - rc-pine64
       - rc-pinnacle-color
       - rc-pinnacle-grey
       - rc-pinnacle-pctv-hd
@@ -120,7 +126,6 @@ properties:
       - rc-snapstream-firefly
       - rc-streamzap
       - rc-su3000
-      - rc-tango
       - rc-tanix-tx3mini
       - rc-tanix-tx5max
       - rc-tbs-nec
@@ -143,11 +148,13 @@ properties:
       - rc-videomate-s350
       - rc-videomate-tv-pvr
       - rc-videostrong-kii-pro
+      - rc-vega-s9x
       - rc-wetek-hub
       - rc-wetek-play2
       - rc-winfast
       - rc-winfast-usbii-deluxe
       - rc-x96max
+      - rc-xbox-360
       - rc-xbox-dvd
       - rc-zx-irdec
 

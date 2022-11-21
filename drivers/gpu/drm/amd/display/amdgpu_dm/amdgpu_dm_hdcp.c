@@ -79,12 +79,12 @@ static uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint
 
 	struct ta_hdcp_shared_memory *hdcp_cmd;
 
-	if (!psp->hdcp_context.hdcp_initialized) {
+	if (!psp->hdcp_context.context.initialized) {
 		DRM_WARN("Failed to get hdcp srm. HDCP TA is not initialized.");
 		return NULL;
 	}
 
-	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.context.mem_context.shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
 
 	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP_GET_SRM;
@@ -105,12 +105,12 @@ static int psp_set_srm(struct psp_context *psp, uint8_t *srm, uint32_t srm_size,
 
 	struct ta_hdcp_shared_memory *hdcp_cmd;
 
-	if (!psp->hdcp_context.hdcp_initialized) {
+	if (!psp->hdcp_context.context.initialized) {
 		DRM_WARN("Failed to get hdcp srm. HDCP TA is not initialized.");
 		return -EINVAL;
 	}
 
-	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.context.mem_context.shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
 
 	memcpy(hdcp_cmd->in_msg.hdcp_set_srm.srm_buf, srm, srm_size);
@@ -191,7 +191,7 @@ void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 				psp_set_srm(hdcp_work->hdcp.config.psp.handle, hdcp_work->srm, hdcp_work->srm_size,
 					    &hdcp_work->srm_version);
 
-			display->adjust.disable = 0;
+			display->adjust.disable = MOD_HDCP_DISPLAY_NOT_DISABLE;
 			if (content_type == DRM_MODE_HDCP_CONTENT_TYPE0) {
 				hdcp_w->link.adjust.hdcp1.disable = 0;
 				hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
@@ -203,7 +203,7 @@ void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 			schedule_delayed_work(&hdcp_w->property_validate_dwork,
 					      msecs_to_jiffies(DRM_HDCP_CHECK_PERIOD_MS));
 		} else {
-			display->adjust.disable = 1;
+			display->adjust.disable = MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION;
 			hdcp_w->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
 			cancel_delayed_work(&hdcp_w->property_validate_dwork);
 		}
@@ -222,9 +222,22 @@ static void hdcp_remove_display(struct hdcp_workqueue *hdcp_work,
 			 struct amdgpu_dm_connector *aconnector)
 {
 	struct hdcp_workqueue *hdcp_w = &hdcp_work[link_index];
+	struct drm_connector_state *conn_state = aconnector->base.state;
 
 	mutex_lock(&hdcp_w->mutex);
 	hdcp_w->aconnector = aconnector;
+
+	/* the removal of display will invoke auth reset -> hdcp destroy and
+	 * we'd expect the Content Protection (CP) property changed back to
+	 * DESIRED if at the time ENABLED. CP property change should occur
+	 * before the element removed from linked list.
+	 */
+	if (conn_state && conn_state->content_protection == DRM_MODE_CONTENT_PROTECTION_ENABLED) {
+		conn_state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+
+		DRM_DEBUG_DRIVER("[HDCP_DM] display %d, CP 2 -> 1, type %u, DPMS %u\n",
+			 aconnector->base.index, conn_state->hdcp_content_type, aconnector->base.dpms);
+	}
 
 	mod_hdcp_remove_display(&hdcp_w->hdcp, aconnector->base.index, &hdcp_w->output);
 
@@ -376,7 +389,7 @@ static void event_cpirq(struct work_struct *work)
 }
 
 
-void hdcp_destroy(struct hdcp_workqueue *hdcp_work)
+void hdcp_destroy(struct kobject *kobj, struct hdcp_workqueue *hdcp_work)
 {
 	int i = 0;
 
@@ -385,6 +398,7 @@ void hdcp_destroy(struct hdcp_workqueue *hdcp_work)
 		cancel_delayed_work_sync(&hdcp_work[i].watchdog_timer_dwork);
 	}
 
+	sysfs_remove_bin_file(kobj, &hdcp_work[0].attr);
 	kfree(hdcp_work->srm);
 	kfree(hdcp_work->srm_temp);
 	kfree(hdcp_work);
@@ -400,12 +414,12 @@ static bool enable_assr(void *handle, struct dc_link *link)
 	struct ta_dtm_shared_memory *dtm_cmd;
 	bool res = true;
 
-	if (!psp->dtm_context.dtm_initialized) {
+	if (!psp->dtm_context.context.initialized) {
 		DRM_INFO("Failed to enable ASSR, DTM TA is not initialized.");
 		return false;
 	}
 
-	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.dtm_shared_buf;
+	dtm_cmd = (struct ta_dtm_shared_memory *)psp->dtm_context.context.mem_context.shared_buf;
 
 	mutex_lock(&psp->dtm_context.mutex);
 	memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
@@ -433,6 +447,9 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	int link_index = aconnector->dc_link->link_index;
 	struct mod_hdcp_display *display = &hdcp_work[link_index].display;
 	struct mod_hdcp_link *link = &hdcp_work[link_index].link;
+	struct drm_connector_state *conn_state;
+	struct dc_sink *sink = NULL;
+	bool link_is_hdcp14 = false;
 
 	if (config->dpms_off) {
 		hdcp_remove_display(hdcp_work, link_index, aconnector);
@@ -445,20 +462,37 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	display->index = aconnector->base.index;
 	display->state = MOD_HDCP_DISPLAY_ACTIVE;
 
-	if (aconnector->dc_sink != NULL)
-		link->mode = mod_hdcp_signal_type_to_operation_mode(aconnector->dc_sink->sink_signal);
+	if (aconnector->dc_sink)
+		sink = aconnector->dc_sink;
+	else if (aconnector->dc_em_sink)
+		sink = aconnector->dc_em_sink;
+
+	if (sink != NULL)
+		link->mode = mod_hdcp_signal_type_to_operation_mode(sink->sink_signal);
 
 	display->controller = CONTROLLER_ID_D0 + config->otg_inst;
-	display->dig_fe = config->stream_enc_inst;
-	link->dig_be = config->link_enc_inst;
+	display->dig_fe = config->dig_fe;
+	link->dig_be = config->dig_be;
 	link->ddc_line = aconnector->dc_link->ddc_hw_inst + 1;
+	display->stream_enc_idx = config->stream_enc_idx;
+	link->link_enc_idx = config->link_enc_idx;
+	link->phy_idx = config->phy_idx;
+	if (sink)
+		link_is_hdcp14 = dc_link_is_hdcp14(aconnector->dc_link, sink->sink_signal);
+	link->hdcp_supported_informational = link_is_hdcp14;
 	link->dp.rev = aconnector->dc_link->dpcd_caps.dpcd_rev.raw;
-	link->dp.mst_supported = config->mst_supported;
-	display->adjust.disable = 1;
+	link->dp.assr_enabled = config->assr_enabled;
+	link->dp.mst_enabled = config->mst_enabled;
+	display->adjust.disable = MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION;
 	link->adjust.auth_delay = 3;
 	link->adjust.hdcp1.disable = 0;
+	conn_state = aconnector->base.state;
 
-	hdcp_update_display(hdcp_work, link_index, aconnector, DRM_MODE_HDCP_CONTENT_TYPE0, false);
+	DRM_DEBUG_DRIVER("[HDCP_DM] display %d, CP %d, type %d\n", aconnector->base.index,
+			(!!aconnector->base.state) ? aconnector->base.state->content_protection : -1,
+			(!!aconnector->base.state) ? aconnector->base.state->hdcp_content_type : -1);
+
+	hdcp_update_display(hdcp_work, link_index, aconnector, conn_state->hdcp_content_type, false);
 }
 
 
@@ -629,6 +663,10 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct 
 		INIT_DELAYED_WORK(&hdcp_work[i].property_validate_dwork, event_property_validate);
 
 		hdcp_work[i].hdcp.config.psp.handle = &adev->psp;
+		if (dc->ctx->dce_version == DCN_VERSION_3_1 ||
+		    dc->ctx->dce_version == DCN_VERSION_3_15 ||
+		    dc->ctx->dce_version == DCN_VERSION_3_16)
+			hdcp_work[i].hdcp.config.psp.caps.dtm_v3_supported = 1;
 		hdcp_work[i].hdcp.config.ddc.handle = dc_get_link_at_index(dc, i);
 		hdcp_work[i].hdcp.config.ddc.funcs.write_i2c = lp_write_i2c;
 		hdcp_work[i].hdcp.config.ddc.funcs.read_i2c = lp_read_i2c;
@@ -642,6 +680,7 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct 
 
 	/* File created at /sys/class/drm/card0/device/hdcp_srm*/
 	hdcp_work[0].attr = data_attr;
+	sysfs_bin_attr_init(&hdcp_work[0].attr);
 
 	if (sysfs_create_bin_file(&adev->dev->kobj, &hdcp_work[0].attr))
 		DRM_WARN("Failed to create device file hdcp_srm");

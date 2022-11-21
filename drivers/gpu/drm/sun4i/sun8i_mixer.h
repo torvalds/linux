@@ -50,10 +50,8 @@
 #define SUN8I_MIXER_BLEND_CK_MIN(base, x)	((base) + 0xe0 + 0x04 * (x))
 #define SUN8I_MIXER_BLEND_OUTCTL(base)		((base) + 0xfc)
 #define SUN50I_MIXER_BLEND_CSC_CTL(base)	((base) + 0x100)
-#define SUN50I_MIXER_BLEND_CSC_COEFF(base, layer, x, y) \
-	((base) + 0x110 + (layer) * 0x30 +  (x) * 0x10 + 4 * (y))
-#define SUN50I_MIXER_BLEND_CSC_CONST(base, layer, i) \
-	((base) + 0x110 + (layer) * 0x30 +  (i) * 0x10 + 0x0c)
+#define SUN50I_MIXER_BLEND_CSC_COEFF(base, layer, x) \
+	((base) + 0x110 + (layer) * 0x30 +  (x) * 4)
 
 #define SUN8I_MIXER_BLEND_PIPE_CTL_EN_MSK	GENMASK(12, 8)
 #define SUN8I_MIXER_BLEND_PIPE_CTL_EN(pipe)	BIT(8 + pipe)
@@ -113,10 +111,10 @@
 /* format 13 is semi-planar YUV411 VUVU */
 #define SUN8I_MIXER_FBFMT_YUV411	14
 /* format 15 doesn't exist */
-/* format 16 is P010 YVU */
-#define SUN8I_MIXER_FBFMT_P010_YUV	17
-/* format 18 is P210 YVU */
-#define SUN8I_MIXER_FBFMT_P210_YUV	19
+#define SUN8I_MIXER_FBFMT_P010_YUV	16
+/* format 17 is P010 YVU */
+#define SUN8I_MIXER_FBFMT_P210_YUV	18
+/* format 19 is P210 YVU */
 /* format 20 is packed YVU444 10-bit */
 /* format 21 is packed YUV444 10-bit */
 

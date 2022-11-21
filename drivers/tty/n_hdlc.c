@@ -100,6 +100,7 @@
 
 #include <asm/termios.h>
 #include <linux/uaccess.h>
+#include "tty.h"
 
 /*
  * Buffers for individual HDLC frames
@@ -139,6 +140,8 @@ struct n_hdlc {
 	struct n_hdlc_buf_list	rx_buf_list;
 	struct n_hdlc_buf_list	tx_free_buf_list;
 	struct n_hdlc_buf_list	rx_free_buf_list;
+	struct work_struct	write_work;
+	struct tty_struct	*tty_for_write_work;
 };
 
 /*
@@ -153,6 +156,7 @@ static struct n_hdlc_buf *n_hdlc_buf_get(struct n_hdlc_buf_list *list);
 /* Local functions */
 
 static struct n_hdlc *n_hdlc_alloc(void);
+static void n_hdlc_tty_write_work(struct work_struct *work);
 
 /* max frame size for memory allocations */
 static int maxframe = 4096;
@@ -209,6 +213,8 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 	wake_up_interruptible(&tty->read_wait);
 	wake_up_interruptible(&tty->write_wait);
 
+	cancel_work_sync(&n_hdlc->write_work);
+
 	n_hdlc_free_buf_list(&n_hdlc->rx_free_buf_list);
 	n_hdlc_free_buf_list(&n_hdlc->tx_free_buf_list);
 	n_hdlc_free_buf_list(&n_hdlc->rx_buf_list);
@@ -240,6 +246,8 @@ static int n_hdlc_tty_open(struct tty_struct *tty)
 		return -ENFILE;
 	}
 
+	INIT_WORK(&n_hdlc->write_work, n_hdlc_tty_write_work);
+	n_hdlc->tty_for_write_work = tty;
 	tty->disc_data = n_hdlc;
 	tty->receive_room = 65536;
 
@@ -334,6 +342,20 @@ check_again:
 }	/* end of n_hdlc_send_frames() */
 
 /**
+ * n_hdlc_tty_write_work - Asynchronous callback for transmit wakeup
+ * @work: pointer to work_struct
+ *
+ * Called when low level device driver can accept more send data.
+ */
+static void n_hdlc_tty_write_work(struct work_struct *work)
+{
+	struct n_hdlc *n_hdlc = container_of(work, struct n_hdlc, write_work);
+	struct tty_struct *tty = n_hdlc->tty_for_write_work;
+
+	n_hdlc_send_frames(n_hdlc, tty);
+}	/* end of n_hdlc_tty_write_work() */
+
+/**
  * n_hdlc_tty_wakeup - Callback for transmit wakeup
  * @tty: pointer to associated tty instance data
  *
@@ -343,7 +365,7 @@ static void n_hdlc_tty_wakeup(struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
 
-	n_hdlc_send_frames(n_hdlc, tty);
+	schedule_work(&n_hdlc->write_work);
 }	/* end of n_hdlc_tty_wakeup() */
 
 /**
@@ -357,7 +379,7 @@ static void n_hdlc_tty_wakeup(struct tty_struct *tty)
  * interpreted as one HDLC frame.
  */
 static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
-			       char *flags, int count)
+			       const char *flags, int count)
 {
 	register struct n_hdlc *n_hdlc = tty->disc_data;
 	register struct n_hdlc_buf *buf;
@@ -410,18 +432,26 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
  * n_hdlc_tty_read - Called to retrieve one frame of data (if available)
  * @tty: pointer to tty instance data
  * @file: pointer to open file object
- * @buf: pointer to returned data buffer
+ * @kbuf: pointer to returned data buffer
  * @nr: size of returned data buffer
+ * @cookie: stored rbuf from previous run
+ * @offset: offset into the data buffer
  *
  * Returns the number of bytes returned or error code.
  */
 static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
-			   __u8 __user *buf, size_t nr)
+			   __u8 *kbuf, size_t nr,
+			   void **cookie, unsigned long offset)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
 	int ret = 0;
 	struct n_hdlc_buf *rbuf;
 	DECLARE_WAITQUEUE(wait, current);
+
+	/* Is this a repeated call for an rbuf we already found earlier? */
+	rbuf = *cookie;
+	if (rbuf)
+		goto have_rbuf;
 
 	add_wait_queue(&tty->read_wait, &wait);
 
@@ -436,25 +466,8 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		rbuf = n_hdlc_buf_get(&n_hdlc->rx_buf_list);
-		if (rbuf) {
-			if (rbuf->count > nr) {
-				/* too large for caller's buffer */
-				ret = -EOVERFLOW;
-			} else {
-				__set_current_state(TASK_RUNNING);
-				if (copy_to_user(buf, rbuf->buf, rbuf->count))
-					ret = -EFAULT;
-				else
-					ret = rbuf->count;
-			}
-
-			if (n_hdlc->rx_free_buf_list.count >
-			    DEFAULT_RX_BUF_COUNT)
-				kfree(rbuf);
-			else
-				n_hdlc_buf_put(&n_hdlc->rx_free_buf_list, rbuf);
+		if (rbuf)
 			break;
-		}
 
 		/* no data */
 		if (tty_io_nonblock(tty, file)) {
@@ -472,6 +485,39 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 
 	remove_wait_queue(&tty->read_wait, &wait);
 	__set_current_state(TASK_RUNNING);
+
+	if (!rbuf)
+		return ret;
+	*cookie = rbuf;
+
+have_rbuf:
+	/* Have we used it up entirely? */
+	if (offset >= rbuf->count)
+		goto done_with_rbuf;
+
+	/* More data to go, but can't copy any more? EOVERFLOW */
+	ret = -EOVERFLOW;
+	if (!nr)
+		goto done_with_rbuf;
+
+	/* Copy as much data as possible */
+	ret = rbuf->count - offset;
+	if (ret > nr)
+		ret = nr;
+	memcpy(kbuf, rbuf->buf+offset, ret);
+	offset += ret;
+
+	/* If we still have data left, we leave the rbuf in the cookie */
+	if (offset < rbuf->count)
+		return ret;
+
+done_with_rbuf:
+	*cookie = NULL;
+
+	if (n_hdlc->rx_free_buf_list.count > DEFAULT_RX_BUF_COUNT)
+		kfree(rbuf);
+	else
+		n_hdlc_buf_put(&n_hdlc->rx_free_buf_list, rbuf);
 
 	return ret;
 
@@ -547,14 +593,13 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 /**
  * n_hdlc_tty_ioctl - process IOCTL system call for the tty device.
  * @tty: pointer to tty instance data
- * @file: pointer to open file object for device
  * @cmd: IOCTL command code
  * @arg: argument for IOCTL call (cmd dependent)
  *
  * Returns command dependent result.
  */
-static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
-			    unsigned int cmd, unsigned long arg)
+static int n_hdlc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+			    unsigned long arg)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
 	int error = 0;
@@ -605,7 +650,7 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
 		fallthrough;	/* to default */
 
 	default:
-		error = n_tty_ioctl_helper(tty, file, cmd, arg);
+		error = n_tty_ioctl_helper(tty, cmd, arg);
 		break;
 	}
 	return error;
@@ -765,7 +810,7 @@ static struct n_hdlc_buf *n_hdlc_buf_get(struct n_hdlc_buf_list *buf_list)
 
 static struct tty_ldisc_ops n_hdlc_ldisc = {
 	.owner		= THIS_MODULE,
-	.magic		= TTY_LDISC_MAGIC,
+	.num		= N_HDLC,
 	.name		= "hdlc",
 	.open		= n_hdlc_tty_open,
 	.close		= n_hdlc_tty_close,
@@ -785,7 +830,7 @@ static int __init n_hdlc_init(void)
 	/* range check maxframe arg */
 	maxframe = clamp(maxframe, 4096, MAX_HDLC_FRAME_SIZE);
 
-	status = tty_register_ldisc(N_HDLC, &n_hdlc_ldisc);
+	status = tty_register_ldisc(&n_hdlc_ldisc);
 	if (!status)
 		pr_info("N_HDLC line discipline registered with maxframe=%d\n",
 				maxframe);
@@ -799,14 +844,7 @@ static int __init n_hdlc_init(void)
 
 static void __exit n_hdlc_exit(void)
 {
-	/* Release tty registration of line discipline */
-	int status = tty_unregister_ldisc(N_HDLC);
-
-	if (status)
-		pr_err("N_HDLC: can't unregister line discipline (err = %d)\n",
-				status);
-	else
-		pr_info("N_HDLC: line discipline unregistered\n");
+	tty_unregister_ldisc(&n_hdlc_ldisc);
 }
 
 module_init(n_hdlc_init);

@@ -270,20 +270,44 @@ static void __maybe_unused pcs_writel(unsigned val, void __iomem *reg)
 	writel(val, reg);
 }
 
+static unsigned int pcs_pin_reg_offset_get(struct pcs_device *pcs,
+					   unsigned int pin)
+{
+	unsigned int mux_bytes = pcs->width / BITS_PER_BYTE;
+
+	if (pcs->bits_per_mux) {
+		unsigned int pin_offset_bytes;
+
+		pin_offset_bytes = (pcs->bits_per_pin * pin) / BITS_PER_BYTE;
+		return (pin_offset_bytes / mux_bytes) * mux_bytes;
+	}
+
+	return pin * mux_bytes;
+}
+
+static unsigned int pcs_pin_shift_reg_get(struct pcs_device *pcs,
+					  unsigned int pin)
+{
+	return (pin % (pcs->width / pcs->bits_per_pin)) * pcs->bits_per_pin;
+}
+
 static void pcs_pin_dbg_show(struct pinctrl_dev *pctldev,
 					struct seq_file *s,
 					unsigned pin)
 {
 	struct pcs_device *pcs;
-	unsigned val, mux_bytes;
+	unsigned int val;
 	unsigned long offset;
 	size_t pa;
 
 	pcs = pinctrl_dev_get_drvdata(pctldev);
 
-	mux_bytes = pcs->width / BITS_PER_BYTE;
-	offset = pin * mux_bytes;
+	offset = pcs_pin_reg_offset_get(pcs, pin);
 	val = pcs->read(pcs->base + offset);
+
+	if (pcs->bits_per_mux)
+		val &= pcs->fmask << pcs_pin_shift_reg_get(pcs, pin);
+
 	pa = pcs->res->start + offset;
 
 	seq_printf(s, "%zx %08x %s ", pa, val, DRIVER_NAME);
@@ -384,7 +408,6 @@ static int pcs_request_gpio(struct pinctrl_dev *pctldev,
 	struct pcs_device *pcs = pinctrl_dev_get_drvdata(pctldev);
 	struct pcs_gpiofunc_range *frange = NULL;
 	struct list_head *pos, *tmp;
-	int mux_bytes = 0;
 	unsigned data;
 
 	/* If function mask is null, return directly. */
@@ -392,29 +415,27 @@ static int pcs_request_gpio(struct pinctrl_dev *pctldev,
 		return -ENOTSUPP;
 
 	list_for_each_safe(pos, tmp, &pcs->gpiofuncs) {
+		u32 offset;
+
 		frange = list_entry(pos, struct pcs_gpiofunc_range, node);
 		if (pin >= frange->offset + frange->npins
 			|| pin < frange->offset)
 			continue;
-		mux_bytes = pcs->width / BITS_PER_BYTE;
+
+		offset = pcs_pin_reg_offset_get(pcs, pin);
 
 		if (pcs->bits_per_mux) {
-			int byte_num, offset, pin_shift;
-
-			byte_num = (pcs->bits_per_pin * pin) / BITS_PER_BYTE;
-			offset = (byte_num / mux_bytes) * mux_bytes;
-			pin_shift = pin % (pcs->width / pcs->bits_per_pin) *
-				    pcs->bits_per_pin;
+			int pin_shift = pcs_pin_shift_reg_get(pcs, pin);
 
 			data = pcs->read(pcs->base + offset);
 			data &= ~(pcs->fmask << pin_shift);
 			data |= frange->gpiofunc << pin_shift;
 			pcs->write(data, pcs->base + offset);
 		} else {
-			data = pcs->read(pcs->base + pin * mux_bytes);
+			data = pcs->read(pcs->base + offset);
 			data &= ~pcs->fmask;
 			data |= frange->gpiofunc;
-			pcs->write(data, pcs->base + pin * mux_bytes);
+			pcs->write(data, pcs->base + offset);
 		}
 		break;
 	}
@@ -512,7 +533,8 @@ static int pcs_pinconf_get(struct pinctrl_dev *pctldev,
 			break;
 		case PIN_CONFIG_DRIVE_STRENGTH:
 		case PIN_CONFIG_SLEW_RATE:
-		case PIN_CONFIG_LOW_POWER_MODE:
+		case PIN_CONFIG_MODE_LOW_POWER:
+		case PIN_CONFIG_INPUT_ENABLE:
 		default:
 			*config = data;
 			break;
@@ -550,7 +572,8 @@ static int pcs_pinconf_set(struct pinctrl_dev *pctldev,
 			case PIN_CONFIG_INPUT_SCHMITT:
 			case PIN_CONFIG_DRIVE_STRENGTH:
 			case PIN_CONFIG_SLEW_RATE:
-			case PIN_CONFIG_LOW_POWER_MODE:
+			case PIN_CONFIG_MODE_LOW_POWER:
+			case PIN_CONFIG_INPUT_ENABLE:
 				shift = ffs(func->conf[i].mask) - 1;
 				data &= ~func->conf[i].mask;
 				data |= (arg << shift) & func->conf[i].mask;
@@ -656,10 +679,8 @@ static const struct pinconf_ops pcs_pinconf_ops = {
  * pcs_add_pin() - add a pin to the static per controller pin array
  * @pcs: pcs driver instance
  * @offset: register offset from base
- * @pin_pos: unused
  */
-static int pcs_add_pin(struct pcs_device *pcs, unsigned offset,
-		unsigned pin_pos)
+static int pcs_add_pin(struct pcs_device *pcs, unsigned int offset)
 {
 	struct pcs_soc_data *pcs_soc = &pcs->socdata;
 	struct pinctrl_pin_desc *pin;
@@ -703,14 +724,12 @@ static int pcs_add_pin(struct pcs_device *pcs, unsigned offset,
 static int pcs_allocate_pin_table(struct pcs_device *pcs)
 {
 	int mux_bytes, nr_pins, i;
-	int num_pins_in_register = 0;
 
 	mux_bytes = pcs->width / BITS_PER_BYTE;
 
 	if (pcs->bits_per_mux) {
 		pcs->bits_per_pin = fls(pcs->fmask);
 		nr_pins = (pcs->size * BITS_PER_BYTE) / pcs->bits_per_pin;
-		num_pins_in_register = pcs->width / pcs->bits_per_pin;
 	} else {
 		nr_pins = pcs->size / mux_bytes;
 	}
@@ -728,17 +747,9 @@ static int pcs_allocate_pin_table(struct pcs_device *pcs)
 	for (i = 0; i < pcs->desc.npins; i++) {
 		unsigned offset;
 		int res;
-		int byte_num;
-		int pin_pos = 0;
 
-		if (pcs->bits_per_mux) {
-			byte_num = (pcs->bits_per_pin * i) / BITS_PER_BYTE;
-			offset = (byte_num / mux_bytes) * mux_bytes;
-			pin_pos = i % num_pins_in_register;
-		} else {
-			offset = i * mux_bytes;
-		}
-		res = pcs_add_pin(pcs, offset, pin_pos);
+		offset = pcs_pin_reg_offset_get(pcs, i);
+		res = pcs_add_pin(pcs, offset);
 		if (res < 0) {
 			dev_err(pcs->dev, "error adding pins: %i\n", res);
 			return res;
@@ -777,6 +788,7 @@ static int pcs_add_function(struct pcs_device *pcs,
 
 	function->vals = vals;
 	function->nvals = nvals;
+	function->name = name;
 
 	selector = pinmux_generic_add_function(pcs->pctl, name,
 					       pgnames, npgnames,
@@ -908,8 +920,9 @@ static int pcs_parse_pinconf(struct pcs_device *pcs, struct device_node *np,
 	static const struct pcs_conf_type prop2[] = {
 		{ "pinctrl-single,drive-strength", PIN_CONFIG_DRIVE_STRENGTH, },
 		{ "pinctrl-single,slew-rate", PIN_CONFIG_SLEW_RATE, },
+		{ "pinctrl-single,input-enable", PIN_CONFIG_INPUT_ENABLE, },
 		{ "pinctrl-single,input-schmitt", PIN_CONFIG_INPUT_SCHMITT, },
-		{ "pinctrl-single,low-power-mode", PIN_CONFIG_LOW_POWER_MODE, },
+		{ "pinctrl-single,low-power-mode", PIN_CONFIG_MODE_LOW_POWER, },
 	};
 	static const struct pcs_conf_type prop4[] = {
 		{ "pinctrl-single,bias-pullup", PIN_CONFIG_BIAS_PULL_UP, },
@@ -1102,7 +1115,7 @@ static int pcs_parse_bits_in_pinctrl_entry(struct pcs_device *pcs,
 {
 	const char *name = "pinctrl-single,bits";
 	struct pcs_func_vals *vals;
-	int rows, *pins, found = 0, res = -ENOMEM, i, fsel, gsel;
+	int rows, *pins, found = 0, res = -ENOMEM, i, fsel;
 	int npins_in_row;
 	struct pcs_function *function = NULL;
 
@@ -1110,6 +1123,11 @@ static int pcs_parse_bits_in_pinctrl_entry(struct pcs_device *pcs,
 	if (rows <= 0) {
 		dev_err(pcs->dev, "Invalid number of rows: %d\n", rows);
 		return -EINVAL;
+	}
+
+	if (PCS_HAS_PINCONF) {
+		dev_err(pcs->dev, "pinconf not supported\n");
+		return -ENOTSUPP;
 	}
 
 	npins_in_row = pcs->width / pcs->bits_per_pin;
@@ -1199,29 +1217,19 @@ static int pcs_parse_bits_in_pinctrl_entry(struct pcs_device *pcs,
 		goto free_pins;
 	}
 
-	gsel = pinctrl_generic_add_group(pcs->pctl, np->name, pins, found, pcs);
-	if (gsel < 0) {
-		res = gsel;
+	res = pinctrl_generic_add_group(pcs->pctl, np->name, pins, found, pcs);
+	if (res < 0)
 		goto free_function;
-	}
 
 	(*map)->type = PIN_MAP_TYPE_MUX_GROUP;
 	(*map)->data.mux.group = np->name;
 	(*map)->data.mux.function = np->name;
-
-	if (PCS_HAS_PINCONF) {
-		dev_err(pcs->dev, "pinconf not supported\n");
-		goto free_pingroups;
-	}
 
 	*num_maps = 1;
 	mutex_unlock(&pcs->mutex);
 
 	return 0;
 
-free_pingroups:
-	pinctrl_generic_remove_group(pcs->pctl, gsel);
-	*num_maps = 1;
 free_function:
 	pinmux_generic_remove_function(pcs->pctl, fsel);
 free_pins:
@@ -1478,8 +1486,8 @@ static int pcs_irq_handle(struct pcs_soc_data *pcs_soc)
 		mask = pcs->read(pcswi->reg);
 		raw_spin_unlock(&pcs->lock);
 		if (mask & pcs_soc->irq_status_mask) {
-			generic_handle_irq(irq_find_mapping(pcs->domain,
-							    pcswi->hwirq));
+			generic_handle_domain_irq(pcs->domain,
+						  pcswi->hwirq);
 			count++;
 		}
 	}
@@ -1503,7 +1511,7 @@ static irqreturn_t pcs_irq_handler(int irq, void *d)
 }
 
 /**
- * pcs_irq_handle() - handler for the dedicated chained interrupt case
+ * pcs_irq_chain_handler() - handler for the dedicated chained interrupt case
  * @desc: interrupt descriptor
  *
  * Use this if you have a separate interrupt for each

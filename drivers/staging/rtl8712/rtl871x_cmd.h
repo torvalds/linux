@@ -333,6 +333,7 @@ struct getdatarate_parm {
 	u32 rsvd;
 
 };
+
 struct getdatarate_rsp {
 	u8 datarates[NumRates];
 };
@@ -377,6 +378,7 @@ struct	getphy_rsp {
 struct readBB_parm {
 	u8	offset;
 };
+
 struct readBB_rsp {
 	u8	value;
 };
@@ -384,6 +386,7 @@ struct readBB_rsp {
 struct readTSSI_parm {
 	u8	offset;
 };
+
 struct readTSSI_rsp {
 	u8	value;
 };
@@ -400,6 +403,7 @@ struct writePTM_parm {
 struct readRF_parm {
 	u8	offset;
 };
+
 struct readRF_rsp {
 	u32	value;
 };
@@ -498,6 +502,7 @@ struct settxagctbl_parm {
 struct gettxagctbl_parm {
 	u32 rsvd;
 };
+
 struct gettxagctbl_rsp {
 	u32	txagc[MAX_RATES_LENGTH];
 };
@@ -513,6 +518,7 @@ struct setssup_parm	{
 struct getssup_parm	{
 	u32 rsvd;
 };
+
 struct getssup_rsp	{
 	u8	ss_ForceUp[MAX_RATES_LENGTH];
 };
@@ -524,6 +530,7 @@ struct setssdlevel_parm	{
 struct getssdlevel_parm	{
 	u32 rsvd;
 };
+
 struct getssdlevel_rsp	{
 	u8	ss_DLevel[MAX_RATES_LENGTH];
 };
@@ -535,6 +542,7 @@ struct setssulevel_parm	{
 struct getssulevel_parm	{
 	u32 rsvd;
 };
+
 struct getssulevel_rsp	{
 	u8	ss_ULevel[MAX_RATES_LENGTH];
 };
@@ -585,6 +593,7 @@ struct setratable_parm {
 struct getratable_parm {
 	uint rsvd;
 };
+
 struct getratable_rsp {
 	u8 ss_ForceUp[NumRates];
 	u8 ss_ULevel[NumRates];
@@ -621,6 +630,7 @@ struct getbcnokcnt_rsp {
 struct getbcnerrcnt_parm {
 	unsigned int rsvd;
 };
+
 struct getbcnerrcnt_rsp {
 	unsigned long bcnerrcnt;
 };
@@ -647,25 +657,25 @@ struct setra_parm {
 struct setprobereqextraie_parm {
 	unsigned char e_id;
 	unsigned char ie_len;
-	unsigned char ie[0];
+	unsigned char ie[];
 };
 
 struct setassocreqextraie_parm {
 	unsigned char e_id;
 	unsigned char ie_len;
-	unsigned char ie[0];
+	unsigned char ie[];
 };
 
 struct setproberspextraie_parm {
 	unsigned char e_id;
 	unsigned char ie_len;
-	unsigned char ie[0];
+	unsigned char ie[];
 };
 
 struct setassocrspextraie_parm {
 	unsigned char e_id;
 	unsigned char ie_len;
-	unsigned char ie[0];
+	unsigned char ie[];
 };
 
 struct addBaReq_parm {
@@ -708,7 +718,7 @@ struct DisconnectCtrlEx_param {
 #define H2C_CMD_OVERFLOW		0x06
 #define H2C_RESERVED			0x07
 
-void r8712_setMacAddr_cmd(struct _adapter *padapter, u8 *mac_addr);
+void r8712_setMacAddr_cmd(struct _adapter *padapter, const u8 *mac_addr);
 u8 r8712_sitesurvey_cmd(struct _adapter *padapter,
 			struct ndis_802_11_ssid *pssid);
 int r8712_createbss_cmd(struct _adapter *padapter);

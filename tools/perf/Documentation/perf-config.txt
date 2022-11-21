@@ -123,6 +123,7 @@ Given a $HOME/.perfconfig like this:
 		queue-size = 0
 		children = true
 		group = true
+		skip-empty = true
 
 	[llvm]
 		dump-obj = true
@@ -138,7 +139,7 @@ If you want to add or modify several config items, you can do like
 
 To modify the sort order of report functionality in user config file(i.e. `~/.perfconfig`), do
 
-	% perf config --user report sort-order=srcline
+	% perf config --user report.sort-order=srcline
 
 To change colors of selected line to other foreground and background colors
 in system config file (i.e. `$(sysconf)/perfconfig`), do
@@ -237,6 +238,13 @@ buildid.*::
 		The buildid.dir variable can be used to either change this directory
 		cache location, or to disable it altogether. If you want to disable it,
 		set buildid.dir to /dev/null. The default is $HOME/.debug
+
+buildid-cache.*::
+	buildid-cache.debuginfod=URLs
+		Specify debuginfod URLs to be used when retrieving perf.data binaries,
+		it follows the same syntax as the DEBUGINFOD_URLS variable, like:
+
+		  buildid-cache.debuginfod=http://192.168.122.174:8002
 
 annotate.*::
 	These are in control of addresses, jump function, source code
@@ -386,6 +394,12 @@ annotate.*::
 
 		This option works with tui, stdio2 browsers.
 
+	annotate.demangle::
+		Demangle symbol names to human readable form. Default is 'true'.
+
+	annotate.demangle_kernel::
+		Demangle kernel symbol names to human readable form. Default is 'true'.
+
 hist.*::
 	hist.percentage::
 		This option control the way to calculate overhead of filtered entries -
@@ -518,6 +532,10 @@ report.*::
 		     0.07%   0.00%  noploop  ld-2.15.so         [.] strcmp
 		     0.03%   0.00%  noploop  [kernel.kallsyms]  [k] timerqueue_del
 
+	report.skip-empty::
+		This option can change default stat behavior with empty results.
+		If it's set true, 'perf report --stat' will not show 0 stats.
+
 top.*::
 	top.children::
 		Same as 'report.children'. So if it is enabled, the output of 'top'
@@ -552,11 +570,12 @@ kmem.*::
 
 record.*::
 	record.build-id::
-		This option can be 'cache', 'no-cache' or 'skip'.
+		This option can be 'cache', 'no-cache', 'skip' or 'mmap'.
 		'cache' is to post-process data and save/update the binaries into
 		the build-id cache (in ~/.debug). This is the default.
 		But if this option is 'no-cache', it will not update the build-id cache.
 		'skip' skips post-processing and does not update the cache.
+		'mmap' skips post-processing and reads build-ids from MMAP events.
 
 	record.call-graph::
 		This is identical to 'call-graph.record-mode', except it is
@@ -567,6 +586,15 @@ record.*::
 	record.aio::
 		Use 'n' control blocks in asynchronous (Posix AIO) trace writing
 		mode ('n' default: 1, max: 4).
+
+	record.debuginfod::
+		Specify debuginfod URL to be used when cacheing perf.data binaries,
+		it follows the same syntax as the DEBUGINFOD_URLS variable, like:
+
+		  http://192.168.122.174:8002
+
+		If the URLs is 'system', the value of DEBUGINFOD_URLS system environment
+		variable is used.
 
 diff.*::
 	diff.order::
@@ -687,6 +715,12 @@ intel-pt.*::
 		If set, Intel PT decoder will set the mispred flag on all
 		branches.
 
+	intel-pt.max-loops::
+		If set and non-zero, the maximum number of unconditional
+		branches decoded without consuming any trace packets. If
+		the maximum is exceeded there will be a "Never-ending loop"
+		error. The default is 100000.
+
 auxtrace.*::
 
 	auxtrace.dumpdir::
@@ -694,6 +728,20 @@ auxtrace.*::
 		can be changed using this option. Ex, auxtrace.dumpdir=/tmp.
 		If the directory does not exist or has the wrong file type,
 		the current directory is used.
+
+daemon.*::
+
+	daemon.base::
+		Base path for daemon data. All sessions data are stored under
+		this path.
+
+session-<NAME>.*::
+
+	session-<NAME>.run::
+
+		Defines new record session for daemon. The value is record's
+		command line without the 'record' keyword.
+
 
 SEE ALSO
 --------

@@ -30,6 +30,7 @@
 #include <linux/sched.h>
 #include <linux/crc-itu-t.h>
 #include <linux/exportfs.h>
+#include <linux/iversion.h>
 
 static inline int udf_match(int len1, const unsigned char *name1, int len2,
 			    const unsigned char *name2)
@@ -74,12 +75,11 @@ int udf_write_fi(struct inode *inode, struct fileIdentDesc *cfi,
 
 	if (fileident) {
 		if (adinicb || (offset + lfi < 0)) {
-			memcpy((uint8_t *)sfi->fileIdent + liu, fileident, lfi);
+			memcpy(sfi->impUse + liu, fileident, lfi);
 		} else if (offset >= 0) {
 			memcpy(fibh->ebh->b_data + offset, fileident, lfi);
 		} else {
-			memcpy((uint8_t *)sfi->fileIdent + liu, fileident,
-				-offset);
+			memcpy(sfi->impUse + liu, fileident, -offset);
 			memcpy(fibh->ebh->b_data, fileident - offset,
 				lfi + offset);
 		}
@@ -88,11 +88,11 @@ int udf_write_fi(struct inode *inode, struct fileIdentDesc *cfi,
 	offset += lfi;
 
 	if (adinicb || (offset + padlen < 0)) {
-		memset((uint8_t *)sfi->padding + liu + lfi, 0x00, padlen);
+		memset(sfi->impUse + liu + lfi, 0x00, padlen);
 	} else if (offset >= 0) {
 		memset(fibh->ebh->b_data + offset, 0x00, padlen);
 	} else {
-		memset((uint8_t *)sfi->padding + liu + lfi, 0x00, -offset);
+		memset(sfi->impUse + liu + lfi, 0x00, -offset);
 		memset(fibh->ebh->b_data, 0x00, padlen + offset);
 	}
 
@@ -135,6 +135,8 @@ int udf_write_fi(struct inode *inode, struct fileIdentDesc *cfi,
 			mark_buffer_dirty_inode(fibh->ebh, inode);
 		mark_buffer_dirty_inode(fibh->sbh, inode);
 	}
+	inode_inc_iversion(inode);
+
 	return 0;
 }
 
@@ -226,7 +228,7 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 		lfi = cfi->lengthFileIdent;
 
 		if (fibh->sbh == fibh->ebh) {
-			nameptr = fi->fileIdent + liu;
+			nameptr = udf_get_fi_ident(fi);
 		} else {
 			int poffset;	/* Unpaded ending offset */
 
@@ -246,7 +248,7 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 					}
 				}
 				nameptr = copy_name;
-				memcpy(nameptr, fi->fileIdent + liu,
+				memcpy(nameptr, udf_get_fi_ident(fi),
 					lfi - poffset);
 				memcpy(nameptr + lfi - poffset,
 					fibh->ebh->b_data, poffset);
@@ -604,8 +606,8 @@ static int udf_add_nondir(struct dentry *dentry, struct inode *inode)
 	return 0;
 }
 
-static int udf_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		      bool excl)
+static int udf_create(struct user_namespace *mnt_userns, struct inode *dir,
+		      struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct inode *inode = udf_new_inode(dir, mode);
 
@@ -623,7 +625,8 @@ static int udf_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	return udf_add_nondir(dentry, inode);
 }
 
-static int udf_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int udf_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
+		       struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode = udf_new_inode(dir, mode);
 
@@ -642,8 +645,8 @@ static int udf_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
 	return 0;
 }
 
-static int udf_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
-		     dev_t rdev)
+static int udf_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+		     struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct inode *inode;
 
@@ -658,7 +661,8 @@ static int udf_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 	return udf_add_nondir(dentry, inode);
 }
 
-static int udf_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int udf_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+		     struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 	struct udf_fileident_bh fibh;
@@ -877,8 +881,8 @@ out:
 	return retval;
 }
 
-static int udf_symlink(struct inode *dir, struct dentry *dentry,
-		       const char *symname)
+static int udf_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+		       struct dentry *dentry, const char *symname)
 {
 	struct inode *inode = udf_new_inode(dir, S_IFLNK | 0777);
 	struct pathComponent *pc;
@@ -932,6 +936,10 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 				iinfo->i_location.partitionReferenceNum,
 				0);
 		epos.bh = udf_tgetblk(sb, block);
+		if (unlikely(!epos.bh)) {
+			err = -ENOMEM;
+			goto out_no_entry;
+		}
 		lock_buffer(epos.bh);
 		memset(epos.bh->b_data, 0x00, bsize);
 		set_buffer_uptodate(epos.bh);
@@ -1065,9 +1073,9 @@ static int udf_link(struct dentry *old_dentry, struct inode *dir,
 /* Anybody can rename anything with this: the permission checks are left to the
  * higher-level routines.
  */
-static int udf_rename(struct inode *old_dir, struct dentry *old_dentry,
-		      struct inode *new_dir, struct dentry *new_dentry,
-		      unsigned int flags)
+static int udf_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
+		      struct dentry *old_dentry, struct inode *new_dir,
+		      struct dentry *new_dentry, unsigned int flags)
 {
 	struct inode *old_inode = d_inode(old_dentry);
 	struct inode *new_inode = d_inode(new_dentry);
@@ -1213,11 +1221,10 @@ static struct dentry *udf_get_parent(struct dentry *child)
 {
 	struct kernel_lb_addr tloc;
 	struct inode *inode = NULL;
-	struct qstr dotdot = QSTR_INIT("..", 2);
 	struct fileIdentDesc cfi;
 	struct udf_fileident_bh fibh;
 
-	if (!udf_find_entry(d_inode(child), &dotdot, &fibh, &cfi))
+	if (!udf_find_entry(d_inode(child), &dotdot_name, &fibh, &cfi))
 		return ERR_PTR(-EACCES);
 
 	if (fibh.sbh != fibh.ebh)

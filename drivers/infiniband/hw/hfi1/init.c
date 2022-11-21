@@ -1,48 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
 /*
  * Copyright(c) 2015 - 2020 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * Copyright(c) 2021 Cornelis Networks.
  */
 
 #include <linux/pci.h>
@@ -154,7 +113,6 @@ static int hfi1_create_kctxt(struct hfi1_devdata *dd,
 	rcd->fast_handler = get_dma_rtail_setting(rcd) ?
 				handle_receive_interrupt_dma_rtail :
 				handle_receive_interrupt_nodma_rtail;
-	rcd->slow_handler = handle_receive_interrupt;
 
 	hfi1_set_seq_cnt(rcd, 1);
 
@@ -312,7 +270,7 @@ struct hfi1_ctxtdata *hfi1_rcd_get_by_index_safe(struct hfi1_devdata *dd,
 }
 
 /**
- * hfi1_rcd_get_by_index
+ * hfi1_rcd_get_by_index - get by index
  * @dd: pointer to a valid devdata structure
  * @ctxt: the index of an possilbe rcd
  *
@@ -375,6 +333,8 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 		rcd->numa_id = numa;
 		rcd->rcv_array_groups = dd->rcv_entries.ngroups;
 		rcd->rhf_rcv_function_map = normal_rhf_rcv_functions;
+		rcd->slow_handler = handle_receive_interrupt;
+		rcd->do_interrupt = rcd->slow_handler;
 		rcd->msix_intr = CCE_NUM_MSIX_VECTORS;
 
 		mutex_init(&rcd->exp_mutex);
@@ -499,7 +459,7 @@ bail:
 }
 
 /**
- * hfi1_free_ctxt
+ * hfi1_free_ctxt - free context
  * @rcd: pointer to an initialized rcd data structure
  *
  * This wrapper is the free function that matches hfi1_create_ctxtdata().
@@ -627,7 +587,7 @@ static enum hrtimer_restart cca_timer_fn(struct hrtimer *t)
  * Common code for initializing the physical port structure.
  */
 void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
-			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port)
+			 struct hfi1_devdata *dd, u8 hw_pidx, u32 port)
 {
 	int i;
 	uint default_pkey_idx;
@@ -650,12 +610,7 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 
 	ppd->pkeys[default_pkey_idx] = DEFAULT_P_KEY;
 	ppd->part_enforce |= HFI1_PART_ENFORCE_IN;
-
-	if (loopback) {
-		dd_dev_err(dd, "Faking data partition 0x8001 in idx %u\n",
-			   !default_pkey_idx);
-		ppd->pkeys[!default_pkey_idx] = 0x8001;
-	}
+	ppd->pkeys[0] = 0x8001;
 
 	INIT_WORK(&ppd->link_vc_work, handle_verify_cap);
 	INIT_WORK(&ppd->link_up_work, handle_link_up);
@@ -920,18 +875,6 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 	if (ret)
 		goto done;
 
-	/* allocate dummy tail memory for all receive contexts */
-	dd->rcvhdrtail_dummy_kvaddr = dma_alloc_coherent(&dd->pcidev->dev,
-							 sizeof(u64),
-							 &dd->rcvhdrtail_dummy_dma,
-							 GFP_KERNEL);
-
-	if (!dd->rcvhdrtail_dummy_kvaddr) {
-		dd_dev_err(dd, "cannot allocate dummy tail memory\n");
-		ret = -ENOMEM;
-		goto done;
-	}
-
 	/* dd->rcd can be NULL if early initialization failed */
 	for (i = 0; dd->rcd && i < dd->first_dyn_alloc_ctxt; ++i) {
 		/*
@@ -943,8 +886,6 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 		rcd = hfi1_rcd_get_by_index(dd, i);
 		if (!rcd)
 			continue;
-
-		rcd->do_interrupt = &handle_receive_interrupt;
 
 		lastfail = hfi1_create_rcvhdrq(dd, rcd);
 		if (!lastfail)
@@ -1166,7 +1107,7 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 	rcd->egrbufs.rcvtids = NULL;
 
 	for (e = 0; e < rcd->egrbufs.alloced; e++) {
-		if (rcd->egrbufs.buffers[e].dma)
+		if (rcd->egrbufs.buffers[e].addr)
 			dma_free_coherent(&dd->pcidev->dev,
 					  rcd->egrbufs.buffers[e].len,
 					  rcd->egrbufs.buffers[e].addr,
@@ -1247,6 +1188,11 @@ void hfi1_free_devdata(struct hfi1_devdata *dd)
 	dd->tx_opstats    = NULL;
 	kfree(dd->comp_vect);
 	dd->comp_vect = NULL;
+	if (dd->rcvhdrtail_dummy_kvaddr)
+		dma_free_coherent(&dd->pcidev->dev, sizeof(u64),
+				  (void *)dd->rcvhdrtail_dummy_kvaddr,
+				  dd->rcvhdrtail_dummy_dma);
+	dd->rcvhdrtail_dummy_kvaddr = NULL;
 	sdma_clean(dd, dd->num_sdma);
 	rvt_dealloc_device(&dd->verbs_dev.rdi);
 }
@@ -1277,7 +1223,6 @@ static struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev,
 	dd->pport = (struct hfi1_pportdata *)(dd + 1);
 	dd->pcidev = pdev;
 	pci_set_drvdata(pdev, dd);
-	dd->node = NUMA_NO_NODE;
 
 	ret = xa_alloc_irq(&hfi1_dev_table, &dd->unit, dd, xa_limit_32b,
 			GFP_KERNEL);
@@ -1287,6 +1232,15 @@ static struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev,
 		goto bail;
 	}
 	rvt_set_ibdev_name(&dd->verbs_dev.rdi, "%s_%d", class_name(), dd->unit);
+	/*
+	 * If the BIOS does not have the NUMA node information set, select
+	 * NUMA 0 so we get consistent performance.
+	 */
+	dd->node = pcibus_to_node(pdev->bus);
+	if (dd->node == NUMA_NO_NODE) {
+		dd_dev_err(dd, "Invalid PCI NUMA node. Performance may be affected\n");
+		dd->node = 0;
+	}
 
 	/*
 	 * Initialize all locks for the device. This needs to be as early as
@@ -1336,6 +1290,15 @@ static struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev,
 		goto bail;
 	}
 
+	/* allocate dummy tail memory for all receive contexts */
+	dd->rcvhdrtail_dummy_kvaddr =
+		dma_alloc_coherent(&dd->pcidev->dev, sizeof(u64),
+				   &dd->rcvhdrtail_dummy_dma, GFP_KERNEL);
+	if (!dd->rcvhdrtail_dummy_kvaddr) {
+		ret = -ENOMEM;
+		goto bail;
+	}
+
 	atomic_set(&dd->ipoib_rsm_usr_num, 0);
 	return dd;
 
@@ -1381,7 +1344,7 @@ static void remove_one(struct pci_dev *);
 static int init_one(struct pci_dev *, const struct pci_device_id *);
 static void shutdown_one(struct pci_dev *);
 
-#define DRIVER_LOAD_MSG "Intel " DRIVER_NAME " loaded: "
+#define DRIVER_LOAD_MSG "Cornelis " DRIVER_NAME " loaded: "
 #define PFX DRIVER_NAME ": "
 
 const struct pci_device_id hfi1_pci_tbl[] = {
@@ -1542,13 +1505,6 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 	}
 
 	free_credit_return(dd);
-
-	if (dd->rcvhdrtail_dummy_kvaddr) {
-		dma_free_coherent(&dd->pcidev->dev, sizeof(u64),
-				  (void *)dd->rcvhdrtail_dummy_kvaddr,
-				  dd->rcvhdrtail_dummy_dma);
-		dd->rcvhdrtail_dummy_kvaddr = NULL;
-	}
 
 	/*
 	 * Free any resources still in use (usually just kernel contexts)
@@ -1744,7 +1700,7 @@ static void wait_for_clients(struct hfi1_devdata *dd)
 	 * Remove the device init value and complete the device if there is
 	 * no clients or wait for active clients to finish.
 	 */
-	if (atomic_dec_and_test(&dd->user_refcount))
+	if (refcount_dec_and_test(&dd->user_refcount))
 		complete(&dd->user_comp);
 
 	wait_for_completion(&dd->user_comp);
@@ -1767,7 +1723,7 @@ static void remove_one(struct pci_dev *pdev)
 	hfi1_unregister_ib_device(dd);
 
 	/* free netdev data */
-	hfi1_netdev_free(dd);
+	hfi1_free_rx(dd);
 
 	/*
 	 * Disable the IB link, disable interrupts on the device,
@@ -1852,7 +1808,8 @@ bail:
 }
 
 /**
- * allocate eager buffers, both kernel and user contexts.
+ * hfi1_setup_eagerbufs - llocate eager buffers, both kernel and user
+ * contexts.
  * @rcd: the context we are setting up.
  *
  * Allocate the eager TID buffers and program them into hip.

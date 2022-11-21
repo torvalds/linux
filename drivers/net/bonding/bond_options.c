@@ -34,6 +34,10 @@ static int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target);
 static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target);
 static int bond_option_arp_ip_targets_set(struct bonding *bond,
 					  const struct bond_opt_value *newval);
+#if IS_ENABLED(CONFIG_IPV6)
+static int bond_option_ns_ip6_targets_set(struct bonding *bond,
+					  const struct bond_opt_value *newval);
+#endif
 static int bond_option_arp_validate_set(struct bonding *bond,
 					const struct bond_opt_value *newval);
 static int bond_option_arp_all_targets_set(struct bonding *bond,
@@ -58,6 +62,8 @@ static int bond_option_lp_interval_set(struct bonding *bond,
 				       const struct bond_opt_value *newval);
 static int bond_option_pps_set(struct bonding *bond,
 			       const struct bond_opt_value *newval);
+static int bond_option_lacp_active_set(struct bonding *bond,
+				       const struct bond_opt_value *newval);
 static int bond_option_lacp_rate_set(struct bonding *bond,
 				     const struct bond_opt_value *newval);
 static int bond_option_ad_select_set(struct bonding *bond,
@@ -76,6 +82,8 @@ static int bond_option_ad_actor_system_set(struct bonding *bond,
 					   const struct bond_opt_value *newval);
 static int bond_option_ad_user_port_key_set(struct bonding *bond,
 					    const struct bond_opt_value *newval);
+static int bond_option_missed_max_set(struct bonding *bond,
+				      const struct bond_opt_value *newval);
 
 
 static const struct bond_opt_value bond_mode_tbl[] = {
@@ -96,12 +104,13 @@ static const struct bond_opt_value bond_pps_tbl[] = {
 };
 
 static const struct bond_opt_value bond_xmit_hashtype_tbl[] = {
-	{ "layer2",   BOND_XMIT_POLICY_LAYER2, BOND_VALFLAG_DEFAULT},
-	{ "layer3+4", BOND_XMIT_POLICY_LAYER34, 0},
-	{ "layer2+3", BOND_XMIT_POLICY_LAYER23, 0},
-	{ "encap2+3", BOND_XMIT_POLICY_ENCAP23, 0},
-	{ "encap3+4", BOND_XMIT_POLICY_ENCAP34, 0},
-	{ NULL,       -1,                       0},
+	{ "layer2",      BOND_XMIT_POLICY_LAYER2,      BOND_VALFLAG_DEFAULT},
+	{ "layer3+4",    BOND_XMIT_POLICY_LAYER34,     0},
+	{ "layer2+3",    BOND_XMIT_POLICY_LAYER23,     0},
+	{ "encap2+3",    BOND_XMIT_POLICY_ENCAP23,     0},
+	{ "encap3+4",    BOND_XMIT_POLICY_ENCAP34,     0},
+	{ "vlan+srcmac", BOND_XMIT_POLICY_VLAN_SRCMAC, 0},
+	{ NULL,          -1,                           0},
 };
 
 static const struct bond_opt_value bond_arp_validate_tbl[] = {
@@ -132,6 +141,12 @@ static const struct bond_opt_value bond_intmax_tbl[] = {
 	{ "off",     0,       BOND_VALFLAG_DEFAULT},
 	{ "maxval",  INT_MAX, BOND_VALFLAG_MAX},
 	{ NULL,      -1,      0}
+};
+
+static const struct bond_opt_value bond_lacp_active[] = {
+	{ "off", 0,  0},
+	{ "on",  1,  BOND_VALFLAG_DEFAULT},
+	{ NULL,  -1, 0}
 };
 
 static const struct bond_opt_value bond_lacp_rate_tbl[] = {
@@ -204,6 +219,13 @@ static const struct bond_opt_value bond_ad_user_port_key_tbl[] = {
 	{ NULL,      -1,    0},
 };
 
+static const struct bond_opt_value bond_missed_max_tbl[] = {
+	{ "minval",	1,	BOND_VALFLAG_MIN},
+	{ "maxval",	255,	BOND_VALFLAG_MAX},
+	{ "default",	2,	BOND_VALFLAG_DEFAULT},
+	{ NULL,		-1,	0},
+};
+
 static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -261,6 +283,15 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.values = bond_intmax_tbl,
 		.set = bond_option_arp_interval_set
 	},
+	[BOND_OPT_MISSED_MAX] = {
+		.id = BOND_OPT_MISSED_MAX,
+		.name = "arp_missed_max",
+		.desc = "Maximum number of missed ARP interval",
+		.unsuppmodes = BIT(BOND_MODE_8023AD) | BIT(BOND_MODE_TLB) |
+			       BIT(BOND_MODE_ALB),
+		.values = bond_missed_max_tbl,
+		.set = bond_option_missed_max_set
+	},
 	[BOND_OPT_ARP_TARGETS] = {
 		.id = BOND_OPT_ARP_TARGETS,
 		.name = "arp_ip_target",
@@ -268,6 +299,15 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.flags = BOND_OPTFLAG_RAWVAL,
 		.set = bond_option_arp_ip_targets_set
 	},
+#if IS_ENABLED(CONFIG_IPV6)
+	[BOND_OPT_NS_TARGETS] = {
+		.id = BOND_OPT_NS_TARGETS,
+		.name = "ns_ip6_target",
+		.desc = "NS targets in ffff:ffff::ffff:ffff form",
+		.flags = BOND_OPTFLAG_RAWVAL,
+		.set = bond_option_ns_ip6_targets_set
+	},
+#endif
 	[BOND_OPT_DOWNDELAY] = {
 		.id = BOND_OPT_DOWNDELAY,
 		.name = "downdelay",
@@ -281,6 +321,15 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.desc = "Delay before considering link up, in milliseconds",
 		.values = bond_intmax_tbl,
 		.set = bond_option_updelay_set
+	},
+	[BOND_OPT_LACP_ACTIVE] = {
+		.id = BOND_OPT_LACP_ACTIVE,
+		.name = "lacp_active",
+		.desc = "Send LACPDU frames with configured lacp rate or acts as speak when spoken to",
+		.flags = BOND_OPTFLAG_IFDOWN,
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_8023AD)),
+		.values = bond_lacp_active,
+		.set = bond_option_lacp_active_set
 	},
 	[BOND_OPT_LACP_RATE] = {
 		.id = BOND_OPT_LACP_RATE,
@@ -639,6 +688,15 @@ static void bond_opt_error_interpret(struct bonding *bond,
 		netdev_err(bond->dev, "option %s: unable to set because the bond device is up\n",
 			   opt->name);
 		break;
+	case -ENODEV:
+		if (val && val->string) {
+			p = strchr(val->string, '\n');
+			if (p)
+				*p = '\0';
+			netdev_err(bond->dev, "option %s: interface %s does not exist!\n",
+				   opt->name, val->string);
+		}
+		break;
 	default:
 		break;
 	}
@@ -695,7 +753,7 @@ out:
 int __bond_opt_set_notify(struct bonding *bond,
 			  unsigned int option, struct bond_opt_value *val)
 {
-	int ret = -ENOENT;
+	int ret;
 
 	ASSERT_RTNL();
 
@@ -745,17 +803,30 @@ const struct bond_option *bond_opt_get(unsigned int option)
 	return &bond_opts[option];
 }
 
-static void bond_set_xfrm_features(struct net_device *bond_dev, u64 mode)
+static bool bond_set_xfrm_features(struct bonding *bond)
 {
 	if (!IS_ENABLED(CONFIG_XFRM_OFFLOAD))
-		return;
+		return false;
 
-	if (mode == BOND_MODE_ACTIVEBACKUP)
-		bond_dev->wanted_features |= BOND_XFRM_FEATURES;
+	if (BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP)
+		bond->dev->wanted_features |= BOND_XFRM_FEATURES;
 	else
-		bond_dev->wanted_features &= ~BOND_XFRM_FEATURES;
+		bond->dev->wanted_features &= ~BOND_XFRM_FEATURES;
 
-	netdev_update_features(bond_dev);
+	return true;
+}
+
+static bool bond_set_tls_features(struct bonding *bond)
+{
+	if (!IS_ENABLED(CONFIG_TLS_DEVICE))
+		return false;
+
+	if (bond_sk_check(bond))
+		bond->dev->wanted_features |= BOND_TLS_FEATURES;
+	else
+		bond->dev->wanted_features &= ~BOND_TLS_FEATURES;
+
+	return true;
 }
 
 static int bond_option_mode_set(struct bonding *bond,
@@ -780,12 +851,19 @@ static int bond_option_mode_set(struct bonding *bond,
 	if (newval->value == BOND_MODE_ALB)
 		bond->params.tlb_dynamic_lb = 1;
 
-	if (bond->dev->reg_state == NETREG_REGISTERED)
-		bond_set_xfrm_features(bond->dev, newval->value);
-
 	/* don't cache arp_validate between modes */
 	bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
 	bond->params.mode = newval->value;
+
+	if (bond->dev->reg_state == NETREG_REGISTERED) {
+		bool update = false;
+
+		update |= bond_set_xfrm_features(bond);
+		update |= bond_set_tls_features(bond);
+
+		if (update)
+			netdev_update_features(bond->dev);
+	}
 
 	return 0;
 }
@@ -987,7 +1065,7 @@ static int bond_option_arp_interval_set(struct bonding *bond,
 			cancel_delayed_work_sync(&bond->arp_work);
 		} else {
 			/* arp_validate can be set only in active-backup mode */
-			bond->recv_probe = bond_arp_rcv;
+			bond->recv_probe = bond_rcv_validate;
 			cancel_delayed_work_sync(&bond->mii_work);
 			queue_delayed_work(bond->wq, &bond->arp_work, 0);
 		}
@@ -1119,6 +1197,65 @@ static int bond_option_arp_ip_targets_set(struct bonding *bond,
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+static void _bond_options_ns_ip6_target_set(struct bonding *bond, int slot,
+					    struct in6_addr *target,
+					    unsigned long last_rx)
+{
+	struct in6_addr *targets = bond->params.ns_targets;
+	struct list_head *iter;
+	struct slave *slave;
+
+	if (slot >= 0 && slot < BOND_MAX_NS_TARGETS) {
+		bond_for_each_slave(bond, slave, iter)
+			slave->target_last_arp_rx[slot] = last_rx;
+		targets[slot] = *target;
+	}
+}
+
+void bond_option_ns_ip6_targets_clear(struct bonding *bond)
+{
+	struct in6_addr addr_any = in6addr_any;
+	int i;
+
+	for (i = 0; i < BOND_MAX_NS_TARGETS; i++)
+		_bond_options_ns_ip6_target_set(bond, i, &addr_any, 0);
+}
+
+static int bond_option_ns_ip6_targets_set(struct bonding *bond,
+					  const struct bond_opt_value *newval)
+{
+	struct in6_addr *target = (struct in6_addr *)newval->extra;
+	struct in6_addr *targets = bond->params.ns_targets;
+	struct in6_addr addr_any = in6addr_any;
+	int index;
+
+	if (!bond_is_ip6_target_ok(target)) {
+		netdev_err(bond->dev, "invalid NS target %pI6c specified for addition\n",
+			   target);
+		return -EINVAL;
+	}
+
+	if (bond_get_targets_ip6(targets, target) != -1) { /* dup */
+		netdev_err(bond->dev, "NS target %pI6c is already present\n",
+			   target);
+		return -EINVAL;
+	}
+
+	index = bond_get_targets_ip6(targets, &addr_any); /* first free slot */
+	if (index == -1) {
+		netdev_err(bond->dev, "NS target table is full!\n");
+		return -EINVAL;
+	}
+
+	netdev_dbg(bond->dev, "Adding NS target %pI6c\n", target);
+
+	_bond_options_ns_ip6_target_set(bond, index, target, jiffies);
+
+	return 0;
+}
+#endif
+
 static int bond_option_arp_validate_set(struct bonding *bond,
 					const struct bond_opt_value *newval)
 {
@@ -1135,6 +1272,16 @@ static int bond_option_arp_all_targets_set(struct bonding *bond,
 	netdev_dbg(bond->dev, "Setting arp_all_targets to %s (%llu)\n",
 		   newval->string, newval->value);
 	bond->params.arp_all_targets = newval->value;
+
+	return 0;
+}
+
+static int bond_option_missed_max_set(struct bonding *bond,
+				      const struct bond_opt_value *newval)
+{
+	netdev_dbg(bond->dev, "Setting missed max to %s (%llu)\n",
+		   newval->string, newval->value);
+	bond->params.missed_max = newval->value;
 
 	return 0;
 }
@@ -1176,8 +1323,7 @@ static int bond_option_primary_set(struct bonding *bond,
 		RCU_INIT_POINTER(bond->primary_slave, NULL);
 		bond_select_active_slave(bond);
 	}
-	strncpy(bond->params.primary, primary, IFNAMSIZ);
-	bond->params.primary[IFNAMSIZ - 1] = 0;
+	strscpy_pad(bond->params.primary, primary, IFNAMSIZ);
 
 	netdev_dbg(bond->dev, "Recording %s as primary, but it has not been enslaved yet\n",
 		   primary);
@@ -1218,6 +1364,10 @@ static int bond_option_xmit_hash_policy_set(struct bonding *bond,
 	netdev_dbg(bond->dev, "Setting xmit hash policy to %s (%llu)\n",
 		   newval->string, newval->value);
 	bond->params.xmit_policy = newval->value;
+
+	if (bond->dev->reg_state == NETREG_REGISTERED)
+		if (bond_set_tls_features(bond))
+			netdev_update_features(bond->dev);
 
 	return 0;
 }
@@ -1296,6 +1446,16 @@ static int bond_option_pps_set(struct bonding *bond,
 		bond->params.reciprocal_packets_per_slave =
 			(struct reciprocal_value) { 0 };
 	}
+
+	return 0;
+}
+
+static int bond_option_lacp_active_set(struct bonding *bond,
+				       const struct bond_opt_value *newval)
+{
+	netdev_dbg(bond->dev, "Setting LACP active to %s (%llu)\n",
+		   newval->string, newval->value);
+	bond->params.lacp_active = newval->value;
 
 	return 0;
 }
@@ -1466,7 +1626,7 @@ static int bond_option_ad_actor_system_set(struct bonding *bond,
 		mac = (u8 *)&newval->value;
 	}
 
-	if (!is_valid_ether_addr(mac))
+	if (is_multicast_ether_addr(mac))
 		goto err;
 
 	netdev_dbg(bond->dev, "Setting ad_actor_system to %pM\n", mac);

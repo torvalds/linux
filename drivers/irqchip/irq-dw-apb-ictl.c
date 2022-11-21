@@ -42,7 +42,7 @@ static void __irq_entry dw_apb_ictl_handle_irq(struct pt_regs *regs)
 		while (stat) {
 			u32 hwirq = ffs(stat) - 1;
 
-			handle_domain_irq(d, hwirq, regs);
+			generic_handle_domain_irq(d, hwirq);
 			stat &= ~BIT(hwirq);
 		}
 	}
@@ -62,9 +62,8 @@ static void dw_apb_ictl_handle_irq_cascaded(struct irq_desc *desc)
 
 		while (stat) {
 			u32 hwirq = ffs(stat) - 1;
-			u32 virq = irq_find_mapping(d, gc->irq_base + hwirq);
+			generic_handle_domain_irq(d, gc->irq_base + hwirq);
 
-			generic_handle_irq(virq);
 			stat &= ~BIT(hwirq);
 		}
 	}

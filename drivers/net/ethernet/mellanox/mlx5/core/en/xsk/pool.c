@@ -11,13 +11,13 @@ static int mlx5e_xsk_map_pool(struct mlx5e_priv *priv,
 {
 	struct device *dev = mlx5_core_dma_dev(priv->mdev);
 
-	return xsk_pool_dma_map(pool, dev, 0);
+	return xsk_pool_dma_map(pool, dev, DMA_ATTR_SKIP_CPU_SYNC);
 }
 
 static void mlx5e_xsk_unmap_pool(struct mlx5e_priv *priv,
 				 struct xsk_buff_pool *pool)
 {
-	return xsk_pool_dma_unmap(pool, 0);
+	return xsk_pool_dma_unmap(pool, DMA_ATTR_SKIP_CPU_SYNC);
 }
 
 static int mlx5e_xsk_get_pools(struct mlx5e_xsk *xsk)
@@ -122,7 +122,7 @@ static int mlx5e_xsk_enable_locked(struct mlx5e_priv *priv,
 	 * any Fill Ring entries at the setup stage.
 	 */
 
-	err = mlx5e_xsk_redirect_rqt_to_channel(priv, priv->channels.c[ix]);
+	err = mlx5e_rx_res_xsk_activate(priv->rx_res, &priv->channels, ix);
 	if (unlikely(err))
 		goto err_deactivate;
 
@@ -169,7 +169,7 @@ static int mlx5e_xsk_disable_locked(struct mlx5e_priv *priv, u16 ix)
 		goto remove_pool;
 
 	c = priv->channels.c[ix];
-	mlx5e_xsk_redirect_rqt_to_drop(priv, ix);
+	mlx5e_rx_res_xsk_deactivate(priv->rx_res, ix);
 	mlx5e_deactivate_xsk(c);
 	mlx5e_close_xsk(c);
 

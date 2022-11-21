@@ -22,7 +22,8 @@ static DEFINE_MUTEX(sched_register_mutex);
 
 static void
 probe_sched_switch(void *ignore, bool preempt,
-		   struct task_struct *prev, struct task_struct *next)
+		   struct task_struct *prev, struct task_struct *next,
+		   unsigned int prev_state)
 {
 	int flags;
 
@@ -44,7 +45,7 @@ probe_sched_wakeup(void *ignore, struct task_struct *wakee)
 
 	if (!flags)
 		return;
-	tracing_record_taskinfo(current, flags);
+	tracing_record_taskinfo_sched_switch(current, wakee, flags);
 }
 
 static int tracing_sched_register(void)

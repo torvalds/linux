@@ -23,10 +23,10 @@
  *
  *        28        24        20        16        12         8         4         0
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
- *   [   ] [  sample ]   [ ] [ ]   [ pmc ]   [unit ]   [ ]   m   [    pmcxsel    ]
- *     |        |        |    |                        |     |
- *     |        |        |    |                        |     *- mark
- *     |        |        |    *- L1/L2/L3 cache_sel    |
+ *   [   ] [  sample ]   [ ] [ ]   [ pmc ]   [unit ]   [ ] |  m   [    pmcxsel    ]
+ *     |        |        |    |                        |   |  |
+ *     |        |        |    |                        |   |  *- mark
+ *     |        |        |    *- L1/L2/L3 cache_sel    |   |*-radix_scope_qual
  *     |        |        sdar_mode                     |
  *     |        *- sampling mode for marked events     *- combine
  *     |
@@ -59,6 +59,7 @@
  *
  * MMCR1[16] = cache_sel[0]
  * MMCR1[17] = cache_sel[1]
+ * MMCR1[18] = radix_scope_qual
  *
  * if mark:
  *	MMCRA[63]    = 1		(SAMPLE_ENABLE)
@@ -90,8 +91,8 @@ extern u64 PERF_REG_EXTENDED_MASK;
 
 /* Table of alternatives, sorted by column 0 */
 static const unsigned int power10_event_alternatives[][MAX_ALT] = {
-	{ PM_RUN_CYC_ALT,		PM_RUN_CYC },
-	{ PM_RUN_INST_CMPL_ALT,		PM_RUN_INST_CMPL },
+	{ PM_INST_CMPL_ALT,		PM_INST_CMPL },
+	{ PM_CYC_ALT,			PM_CYC },
 };
 
 static int power10_get_alternatives(u64 event, unsigned int flags, u64 alt[])
@@ -105,14 +106,29 @@ static int power10_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 	return num_alt;
 }
 
-GENERIC_EVENT_ATTR(cpu-cycles,			PM_RUN_CYC);
-GENERIC_EVENT_ATTR(instructions,		PM_RUN_INST_CMPL);
+static int power10_check_attr_config(struct perf_event *ev)
+{
+	u64 val;
+	u64 event = ev->attr.config;
+
+	val = (event >> EVENT_SAMPLE_SHIFT) & EVENT_SAMPLE_MASK;
+	if (val == 0x10 || isa3XX_check_attr_config(ev))
+		return -EINVAL;
+
+	return 0;
+}
+
+GENERIC_EVENT_ATTR(cpu-cycles,			PM_CYC);
+GENERIC_EVENT_ATTR(instructions,		PM_INST_CMPL);
 GENERIC_EVENT_ATTR(branch-instructions,		PM_BR_CMPL);
 GENERIC_EVENT_ATTR(branch-misses,		PM_BR_MPRED_CMPL);
 GENERIC_EVENT_ATTR(cache-references,		PM_LD_REF_L1);
 GENERIC_EVENT_ATTR(cache-misses,		PM_LD_MISS_L1);
 GENERIC_EVENT_ATTR(mem-loads,			MEM_LOADS);
 GENERIC_EVENT_ATTR(mem-stores,			MEM_STORES);
+GENERIC_EVENT_ATTR(branch-instructions,		PM_BR_FIN);
+GENERIC_EVENT_ATTR(branch-misses,		PM_MPRED_BR_FIN);
+GENERIC_EVENT_ATTR(cache-misses,		PM_LD_DEMAND_MISS_L1_FIN);
 
 CACHE_EVENT_ATTR(L1-dcache-load-misses,		PM_LD_MISS_L1);
 CACHE_EVENT_ATTR(L1-dcache-loads,		PM_LD_REF_L1);
@@ -123,14 +139,17 @@ CACHE_EVENT_ATTR(L1-icache-loads,		PM_INST_FROM_L1);
 CACHE_EVENT_ATTR(L1-icache-prefetches,		PM_IC_PREF_REQ);
 CACHE_EVENT_ATTR(LLC-load-misses,		PM_DATA_FROM_L3MISS);
 CACHE_EVENT_ATTR(LLC-loads,			PM_DATA_FROM_L3);
+CACHE_EVENT_ATTR(LLC-prefetches,		PM_L3_PF_MISS_L3);
+CACHE_EVENT_ATTR(LLC-store-misses,		PM_L2_ST_MISS);
+CACHE_EVENT_ATTR(LLC-stores,			PM_L2_ST);
 CACHE_EVENT_ATTR(branch-load-misses,		PM_BR_MPRED_CMPL);
 CACHE_EVENT_ATTR(branch-loads,			PM_BR_CMPL);
 CACHE_EVENT_ATTR(dTLB-load-misses,		PM_DTLB_MISS);
 CACHE_EVENT_ATTR(iTLB-load-misses,		PM_ITLB_MISS);
 
-static struct attribute *power10_events_attr[] = {
-	GENERIC_EVENT_PTR(PM_RUN_CYC),
-	GENERIC_EVENT_PTR(PM_RUN_INST_CMPL),
+static struct attribute *power10_events_attr_dd1[] = {
+	GENERIC_EVENT_PTR(PM_CYC),
+	GENERIC_EVENT_PTR(PM_INST_CMPL),
 	GENERIC_EVENT_PTR(PM_BR_CMPL),
 	GENERIC_EVENT_PTR(PM_BR_MPRED_CMPL),
 	GENERIC_EVENT_PTR(PM_LD_REF_L1),
@@ -153,7 +172,40 @@ static struct attribute *power10_events_attr[] = {
 	NULL
 };
 
-static struct attribute_group power10_pmu_events_group = {
+static struct attribute *power10_events_attr[] = {
+	GENERIC_EVENT_PTR(PM_CYC),
+	GENERIC_EVENT_PTR(PM_INST_CMPL),
+	GENERIC_EVENT_PTR(PM_BR_FIN),
+	GENERIC_EVENT_PTR(PM_MPRED_BR_FIN),
+	GENERIC_EVENT_PTR(PM_LD_REF_L1),
+	GENERIC_EVENT_PTR(PM_LD_DEMAND_MISS_L1_FIN),
+	GENERIC_EVENT_PTR(MEM_LOADS),
+	GENERIC_EVENT_PTR(MEM_STORES),
+	CACHE_EVENT_PTR(PM_LD_MISS_L1),
+	CACHE_EVENT_PTR(PM_LD_REF_L1),
+	CACHE_EVENT_PTR(PM_LD_PREFETCH_CACHE_LINE_MISS),
+	CACHE_EVENT_PTR(PM_ST_MISS_L1),
+	CACHE_EVENT_PTR(PM_L1_ICACHE_MISS),
+	CACHE_EVENT_PTR(PM_INST_FROM_L1),
+	CACHE_EVENT_PTR(PM_IC_PREF_REQ),
+	CACHE_EVENT_PTR(PM_DATA_FROM_L3MISS),
+	CACHE_EVENT_PTR(PM_DATA_FROM_L3),
+	CACHE_EVENT_PTR(PM_L3_PF_MISS_L3),
+	CACHE_EVENT_PTR(PM_L2_ST_MISS),
+	CACHE_EVENT_PTR(PM_L2_ST),
+	CACHE_EVENT_PTR(PM_BR_MPRED_CMPL),
+	CACHE_EVENT_PTR(PM_BR_CMPL),
+	CACHE_EVENT_PTR(PM_DTLB_MISS),
+	CACHE_EVENT_PTR(PM_ITLB_MISS),
+	NULL
+};
+
+static const struct attribute_group power10_pmu_events_group_dd1 = {
+	.name = "events",
+	.attrs = power10_events_attr_dd1,
+};
+
+static const struct attribute_group power10_pmu_events_group = {
 	.name = "events",
 	.attrs = power10_events_attr,
 };
@@ -175,6 +227,8 @@ PMU_FORMAT_ATTR(src_sel,        "config:45-46");
 PMU_FORMAT_ATTR(invert_bit,     "config:47");
 PMU_FORMAT_ATTR(src_mask,       "config:48-53");
 PMU_FORMAT_ATTR(src_match,      "config:54-59");
+PMU_FORMAT_ATTR(radix_scope,	"config:9");
+PMU_FORMAT_ATTR(thresh_cmp,     "config1:0-17");
 
 static struct attribute *power10_pmu_format_attr[] = {
 	&format_attr_event.attr,
@@ -194,12 +248,20 @@ static struct attribute *power10_pmu_format_attr[] = {
 	&format_attr_invert_bit.attr,
 	&format_attr_src_mask.attr,
 	&format_attr_src_match.attr,
+	&format_attr_radix_scope.attr,
+	&format_attr_thresh_cmp.attr,
 	NULL,
 };
 
-static struct attribute_group power10_pmu_format_group = {
+static const struct attribute_group power10_pmu_format_group = {
 	.name = "format",
 	.attrs = power10_pmu_format_attr,
+};
+
+static const struct attribute_group *power10_pmu_attr_groups_dd1[] = {
+	&power10_pmu_format_group,
+	&power10_pmu_events_group_dd1,
+	NULL,
 };
 
 static const struct attribute_group *power10_pmu_attr_groups[] = {
@@ -208,13 +270,22 @@ static const struct attribute_group *power10_pmu_attr_groups[] = {
 	NULL,
 };
 
-static int power10_generic_events[] = {
-	[PERF_COUNT_HW_CPU_CYCLES] =			PM_RUN_CYC,
-	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_RUN_INST_CMPL,
+static int power10_generic_events_dd1[] = {
+	[PERF_COUNT_HW_CPU_CYCLES] =			PM_CYC,
+	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_INST_CMPL,
 	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PM_BR_CMPL,
 	[PERF_COUNT_HW_BRANCH_MISSES] =			PM_BR_MPRED_CMPL,
 	[PERF_COUNT_HW_CACHE_REFERENCES] =		PM_LD_REF_L1,
 	[PERF_COUNT_HW_CACHE_MISSES] =			PM_LD_MISS_L1,
+};
+
+static int power10_generic_events[] = {
+	[PERF_COUNT_HW_CPU_CYCLES] =			PM_CYC,
+	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_INST_CMPL,
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PM_BR_FIN,
+	[PERF_COUNT_HW_BRANCH_MISSES] =			PM_MPRED_BR_FIN,
+	[PERF_COUNT_HW_CACHE_REFERENCES] =		PM_LD_REF_L1,
+	[PERF_COUNT_HW_CACHE_MISSES] =			PM_LD_DEMAND_MISS_L1_FIN,
 };
 
 static u64 power10_bhrb_filter_map(u64 branch_sample_type)
@@ -273,7 +344,7 @@ static void power10_config_bhrb(u64 pmu_bhrb_filter)
  * 0 means not supported, -1 means nonsensical, other values
  * are event codes.
  */
-static u64 power10_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+static u64 power10_cache_events_dd1[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[C(L1D)] = {
 		[C(OP_READ)] = {
 			[C(RESULT_ACCESS)] = PM_LD_REF_L1,
@@ -374,7 +445,126 @@ static u64 power10_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 };
 
+static u64 power10_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+	[C(L1D)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)] = PM_LD_REF_L1,
+			[C(RESULT_MISS)] = PM_LD_MISS_L1,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)] = 0,
+			[C(RESULT_MISS)] = PM_ST_MISS_L1,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)] = PM_LD_PREFETCH_CACHE_LINE_MISS,
+			[C(RESULT_MISS)] = 0,
+		},
+	},
+	[C(L1I)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)] = PM_INST_FROM_L1,
+			[C(RESULT_MISS)] = PM_L1_ICACHE_MISS,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)] = PM_INST_FROM_L1MISS,
+			[C(RESULT_MISS)] = -1,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)] = PM_IC_PREF_REQ,
+			[C(RESULT_MISS)] = 0,
+		},
+	},
+	[C(LL)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)] = PM_DATA_FROM_L3,
+			[C(RESULT_MISS)] = PM_DATA_FROM_L3MISS,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)] = PM_L2_ST,
+			[C(RESULT_MISS)] = PM_L2_ST_MISS,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)] = PM_L3_PF_MISS_L3,
+			[C(RESULT_MISS)] = 0,
+		},
+	},
+	 [C(DTLB)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)] = 0,
+			[C(RESULT_MISS)] = PM_DTLB_MISS,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)] = -1,
+			[C(RESULT_MISS)] = -1,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)] = -1,
+			[C(RESULT_MISS)] = -1,
+		},
+	},
+	[C(ITLB)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)] = 0,
+			[C(RESULT_MISS)] = PM_ITLB_MISS,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)] = -1,
+			[C(RESULT_MISS)] = -1,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)] = -1,
+			[C(RESULT_MISS)] = -1,
+		},
+	},
+	[C(BPU)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)] = PM_BR_CMPL,
+			[C(RESULT_MISS)] = PM_BR_MPRED_CMPL,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)] = -1,
+			[C(RESULT_MISS)] = -1,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)] = -1,
+			[C(RESULT_MISS)] = -1,
+		},
+	},
+	[C(NODE)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)] = -1,
+			[C(RESULT_MISS)] = -1,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)] = -1,
+			[C(RESULT_MISS)] = -1,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)] = -1,
+			[C(RESULT_MISS)] = -1,
+		},
+	},
+};
+
 #undef C
+
+/*
+ * Set the MMCR0[CC56RUN] bit to enable counting for
+ * PMC5 and PMC6 regardless of the state of CTRL[RUN],
+ * so that we can use counters 5 and 6 as PM_INST_CMPL and
+ * PM_CYC.
+ */
+static int power10_compute_mmcr(u64 event[], int n_ev,
+				unsigned int hwc[], struct mmcr_regs *mmcr,
+				struct perf_event *pevents[], u32 flags)
+{
+	int ret;
+
+	ret = isa207_compute_mmcr(event, n_ev, hwc, mmcr, pevents, flags);
+	if (!ret)
+		mmcr->mmcr0 |= MMCR0_C56RUN;
+	return ret;
+}
 
 static struct power_pmu power10_pmu = {
 	.name			= "POWER10",
@@ -383,7 +573,7 @@ static struct power_pmu power10_pmu = {
 	.test_adder		= ISA207_TEST_ADDER,
 	.group_constraint_mask	= CNST_CACHE_PMC4_MASK,
 	.group_constraint_val	= CNST_CACHE_PMC4_VAL,
-	.compute_mmcr		= isa207_compute_mmcr,
+	.compute_mmcr		= power10_compute_mmcr,
 	.config_bhrb		= power10_config_bhrb,
 	.bhrb_filter_map	= power10_bhrb_filter_map,
 	.get_constraint		= isa207_get_constraint,
@@ -392,17 +582,19 @@ static struct power_pmu power10_pmu = {
 	.get_mem_weight		= isa207_get_mem_weight,
 	.disable_pmc		= isa207_disable_pmc,
 	.flags			= PPMU_HAS_SIER | PPMU_ARCH_207S |
-				  PPMU_ARCH_31,
+				  PPMU_ARCH_31 | PPMU_HAS_ATTR_CONFIG1,
 	.n_generic		= ARRAY_SIZE(power10_generic_events),
 	.generic_events		= power10_generic_events,
 	.cache_events		= &power10_cache_events,
 	.attr_groups		= power10_pmu_attr_groups,
 	.bhrb_nr		= 32,
 	.capabilities           = PERF_PMU_CAP_EXTENDED_REGS,
+	.check_attr_config	= power10_check_attr_config,
 };
 
-int init_power10_pmu(void)
+int __init init_power10_pmu(void)
 {
+	unsigned int pvr;
 	int rc;
 
 	/* Comes from cpu_specs[] */
@@ -410,8 +602,19 @@ int init_power10_pmu(void)
 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power10"))
 		return -ENODEV;
 
+	pvr = mfspr(SPRN_PVR);
+	/* Add the ppmu flag for power10 DD1 */
+	if ((PVR_CFG(pvr) == 1))
+		power10_pmu.flags |= PPMU_P10_DD1;
+
 	/* Set the PERF_REG_EXTENDED_MASK here */
 	PERF_REG_EXTENDED_MASK = PERF_REG_PMU_MASK_31;
+
+	if ((PVR_CFG(pvr) == 1)) {
+		power10_pmu.generic_events = power10_generic_events_dd1;
+		power10_pmu.attr_groups = power10_pmu_attr_groups_dd1;
+		power10_pmu.cache_events = &power10_cache_events_dd1;
+	}
 
 	rc = register_power_pmu(&power10_pmu);
 	if (rc)

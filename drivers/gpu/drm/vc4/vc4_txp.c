@@ -13,6 +13,7 @@
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -272,8 +273,10 @@ static int vc4_txp_connector_atomic_check(struct drm_connector *conn,
 }
 
 static void vc4_txp_connector_atomic_commit(struct drm_connector *conn,
-					struct drm_connector_state *conn_state)
+					struct drm_atomic_state *state)
 {
+	struct drm_connector_state *conn_state = drm_atomic_get_new_connector_state(state,
+										    conn);
 	struct vc4_txp *txp = connector_to_vc4_txp(conn);
 	struct drm_gem_cma_object *gem;
 	struct drm_display_mode *mode;
@@ -379,43 +382,42 @@ static const struct drm_crtc_funcs vc4_txp_crtc_funcs = {
 	.reset			= vc4_crtc_reset,
 	.atomic_duplicate_state	= vc4_crtc_duplicate_state,
 	.atomic_destroy_state	= vc4_crtc_destroy_state,
-	.gamma_set		= drm_atomic_helper_legacy_gamma_set,
 	.enable_vblank		= vc4_txp_enable_vblank,
 	.disable_vblank		= vc4_txp_disable_vblank,
 };
 
 static int vc4_txp_atomic_check(struct drm_crtc *crtc,
-				struct drm_crtc_state *state)
+				struct drm_atomic_state *state)
 {
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	int ret;
 
 	ret = vc4_hvs_atomic_check(crtc, state);
 	if (ret)
 		return ret;
 
-	state->no_vblank = true;
-	vc4_state->feed_txp = true;
+	crtc_state->no_vblank = true;
 
 	return 0;
 }
 
 static void vc4_txp_atomic_enable(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_state)
+				  struct drm_atomic_state *state)
 {
 	drm_crtc_vblank_on(crtc);
-	vc4_hvs_atomic_enable(crtc, old_state);
+	vc4_hvs_atomic_enable(crtc, state);
 }
 
 static void vc4_txp_atomic_disable(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_state)
+				   struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
 
 	/* Disable vblank irq handling before crtc is disabled. */
 	drm_crtc_vblank_off(crtc);
 
-	vc4_hvs_atomic_disable(crtc, old_state);
+	vc4_hvs_atomic_disable(crtc, state);
 
 	/*
 	 * Make sure we issue a vblank event after disabling the CRTC if
@@ -433,6 +435,7 @@ static void vc4_txp_atomic_disable(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs vc4_txp_crtc_helper_funcs = {
 	.atomic_check	= vc4_txp_atomic_check,
+	.atomic_begin	= vc4_hvs_atomic_begin,
 	.atomic_flush	= vc4_hvs_atomic_flush,
 	.atomic_enable	= vc4_txp_atomic_enable,
 	.atomic_disable	= vc4_txp_atomic_disable,
@@ -478,6 +481,7 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 
 	vc4_crtc->pdev = pdev;
 	vc4_crtc->data = &vc4_txp_crtc_data;
+	vc4_crtc->feeds_txp = true;
 
 	txp->pdev = pdev;
 
@@ -503,7 +507,7 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	encoder = &txp->connector.encoder;
-	encoder->possible_crtcs |= drm_crtc_mask(crtc);
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
 	ret = devm_request_irq(dev, irq, vc4_txp_interrupt, 0,
 			       dev_name(dev), txp);

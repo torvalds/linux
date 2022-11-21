@@ -324,10 +324,10 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 	if (!b)
 		return -ENOMEM;
 
-	if ((result = mutex_lock_interruptible(&dec->usb_mutex))) {
-		kfree(b);
+	result = mutex_lock_interruptible(&dec->usb_mutex);
+	if (result) {
 		printk("%s: Failed to lock usb mutex.\n", __func__);
-		return result;
+		goto err_free;
 	}
 
 	b[0] = 0xaa;
@@ -349,9 +349,7 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 	if (result) {
 		printk("%s: command bulk message failed: error %d\n",
 		       __func__, result);
-		mutex_unlock(&dec->usb_mutex);
-		kfree(b);
-		return result;
+		goto err_mutex_unlock;
 	}
 
 	result = usb_bulk_msg(dec->udev, dec->result_pipe, b,
@@ -360,9 +358,7 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 	if (result) {
 		printk("%s: result bulk message failed: error %d\n",
 		       __func__, result);
-		mutex_unlock(&dec->usb_mutex);
-		kfree(b);
-		return result;
+		goto err_mutex_unlock;
 	} else {
 		if (debug) {
 			printk(KERN_DEBUG "%s: result: %*ph\n",
@@ -373,12 +369,13 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 			*result_length = b[3];
 		if (cmd_result && b[3] > 0)
 			memcpy(cmd_result, &b[4], b[3]);
-
-		mutex_unlock(&dec->usb_mutex);
-
-		kfree(b);
-		return 0;
 	}
+
+err_mutex_unlock:
+	mutex_unlock(&dec->usb_mutex);
+err_free:
+	kfree(b);
+	return result;
 }
 
 static int ttusb_dec_get_stb_state (struct ttusb_dec *dec, unsigned int *mode,
@@ -1102,11 +1099,9 @@ static int ttusb_dec_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	case DMX_TYPE_TS:
 		return ttusb_dec_start_ts_feed(dvbdmxfeed);
-		break;
 
 	case DMX_TYPE_SEC:
 		return ttusb_dec_start_sec_feed(dvbdmxfeed);
-		break;
 
 	default:
 		dprintk("  type: unknown (%d)\n", dvbdmxfeed->type);
@@ -1157,11 +1152,9 @@ static int ttusb_dec_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	switch (dvbdmxfeed->type) {
 	case DMX_TYPE_TS:
 		return ttusb_dec_stop_ts_feed(dvbdmxfeed);
-		break;
 
 	case DMX_TYPE_SEC:
 		return ttusb_dec_stop_sec_feed(dvbdmxfeed);
-		break;
 	}
 
 	return 0;

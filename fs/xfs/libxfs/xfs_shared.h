@@ -22,30 +22,26 @@ struct xfs_inode;
  * Buffer verifier operations are widely used, including userspace tools
  */
 extern const struct xfs_buf_ops xfs_agf_buf_ops;
-extern const struct xfs_buf_ops xfs_agi_buf_ops;
-extern const struct xfs_buf_ops xfs_agf_buf_ops;
 extern const struct xfs_buf_ops xfs_agfl_buf_ops;
-extern const struct xfs_buf_ops xfs_bnobt_buf_ops;
-extern const struct xfs_buf_ops xfs_cntbt_buf_ops;
-extern const struct xfs_buf_ops xfs_rmapbt_buf_ops;
-extern const struct xfs_buf_ops xfs_refcountbt_buf_ops;
+extern const struct xfs_buf_ops xfs_agi_buf_ops;
 extern const struct xfs_buf_ops xfs_attr3_leaf_buf_ops;
 extern const struct xfs_buf_ops xfs_attr3_rmt_buf_ops;
 extern const struct xfs_buf_ops xfs_bmbt_buf_ops;
+extern const struct xfs_buf_ops xfs_bnobt_buf_ops;
+extern const struct xfs_buf_ops xfs_cntbt_buf_ops;
 extern const struct xfs_buf_ops xfs_da3_node_buf_ops;
 extern const struct xfs_buf_ops xfs_dquot_buf_ops;
-extern const struct xfs_buf_ops xfs_symlink_buf_ops;
-extern const struct xfs_buf_ops xfs_agi_buf_ops;
-extern const struct xfs_buf_ops xfs_inobt_buf_ops;
+extern const struct xfs_buf_ops xfs_dquot_buf_ra_ops;
 extern const struct xfs_buf_ops xfs_finobt_buf_ops;
+extern const struct xfs_buf_ops xfs_inobt_buf_ops;
 extern const struct xfs_buf_ops xfs_inode_buf_ops;
 extern const struct xfs_buf_ops xfs_inode_buf_ra_ops;
-extern const struct xfs_buf_ops xfs_dquot_buf_ops;
-extern const struct xfs_buf_ops xfs_dquot_buf_ra_ops;
+extern const struct xfs_buf_ops xfs_refcountbt_buf_ops;
+extern const struct xfs_buf_ops xfs_rmapbt_buf_ops;
+extern const struct xfs_buf_ops xfs_rtbuf_ops;
 extern const struct xfs_buf_ops xfs_sb_buf_ops;
 extern const struct xfs_buf_ops xfs_sb_quiet_buf_ops;
 extern const struct xfs_buf_ops xfs_symlink_buf_ops;
-extern const struct xfs_buf_ops xfs_rtbuf_ops;
 
 /* log size calculation functions */
 int	xfs_log_calc_unit_res(struct xfs_mount *mp, int unit_bytes);
@@ -62,7 +58,6 @@ void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
 #define	XFS_TRANS_SB_DIRTY	0x02	/* superblock is modified */
 #define	XFS_TRANS_PERM_LOG_RES	0x04	/* xact took a permanent log res */
 #define	XFS_TRANS_SYNC		0x08	/* make commit synchronous */
-#define XFS_TRANS_DQ_DIRTY	0x10	/* at least one dquot in trx dirty */
 #define XFS_TRANS_RESERVE	0x20    /* OK to use reserved data blocks */
 #define XFS_TRANS_NO_WRITECOUNT 0x40	/* do not elevate SB writecount */
 #define XFS_TRANS_RES_FDBLKS	0x80	/* reserve newly freed blocks */
@@ -177,8 +172,12 @@ struct xfs_ino_geometry {
 
 	unsigned int	agino_log;	/* #bits for agino in inum */
 
+	/* precomputed default inode attribute fork offset */
+	unsigned int	attr_fork_offset;
+
 	/* precomputed value for di_flags2 */
 	uint64_t	new_diflags2;
+
 };
 
 #endif /* __XFS_SHARED_H__ */

@@ -35,7 +35,6 @@ MODULE_AUTHOR("Markus Bollinger <bollinger@digigram.com>, "
 	      "Marc Titinger <titinger@digigram.com>");
 MODULE_DESCRIPTION("Digigram " DRIVER_NAME " " PCXHR_DRIVER_VERSION_STRING);
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Digigram," DRIVER_NAME "}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -367,7 +366,7 @@ static int pcxhr_sub_set_clock(struct pcxhr_mgr *mgr,
 		mgr->codec_speed = speed;	/* save new codec speed */
 	}
 
-	dev_dbg(&mgr->pci->dev, "pcxhr_sub_set_clock to %dHz (realfreq=%d)\n",
+	dev_dbg(&mgr->pci->dev, "%s to %dHz (realfreq=%d)\n", __func__,
 		    rate, realfreq);
 	return 0;
 }
@@ -500,7 +499,7 @@ static int pcxhr_set_stream_state(struct snd_pcxhr *chip,
 	else {
 		if (stream->status != PCXHR_STREAM_STATUS_SCHEDULE_STOP) {
 			dev_err(chip->card->dev,
-				"pcxhr_set_stream_state CANNOT be stopped\n");
+				"%s CANNOT be stopped\n", __func__);
 			return -EINVAL;
 		}
 		start = 0;
@@ -525,7 +524,7 @@ static int pcxhr_set_stream_state(struct snd_pcxhr *chip,
 	err = pcxhr_send_msg(chip->mgr, &rmh);
 	if (err)
 		dev_err(chip->card->dev,
-			"ERROR pcxhr_set_stream_state err=%x;\n", err);
+			"ERROR %s err=%x;\n", __func__, err);
 	stream->status =
 	  start ? PCXHR_STREAM_STATUS_STARTED : PCXHR_STREAM_STATUS_STOPPED;
 	return err;
@@ -571,7 +570,7 @@ static int pcxhr_set_format(struct pcxhr_stream *stream)
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"error pcxhr_set_format() : unknown format\n");
+			"error %s() : unknown format\n", __func__);
 		return -EINVAL;
 	}
 
@@ -616,7 +615,7 @@ static int pcxhr_set_format(struct pcxhr_stream *stream)
 	err = pcxhr_send_msg(chip->mgr, &rmh);
 	if (err)
 		dev_err(chip->card->dev,
-			"ERROR pcxhr_set_format err=%x;\n", err);
+			"ERROR %s err=%x;\n", __func__, err);
 	return err;
 }
 
@@ -631,7 +630,7 @@ static int pcxhr_update_r_buffer(struct pcxhr_stream *stream)
 	stream_num = is_capture ? 0 : subs->number;
 
 	dev_dbg(chip->card->dev,
-		"pcxhr_update_r_buffer(pcm%c%d) : addr(%p) bytes(%zx) subs(%d)\n",
+		"%s(pcm%c%d) : addr(%p) bytes(%zx) subs(%d)\n", __func__,
 		is_capture ? 'c' : 'p',
 		chip->chip_idx, (void *)(long)subs->runtime->dma_addr,
 		subs->runtime->dma_bytes, subs->number);
@@ -722,21 +721,20 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 	}
 	if (capture_mask == 0 && playback_mask == 0) {
 		mutex_unlock(&mgr->setup_mutex);
-		dev_err(&mgr->pci->dev, "pcxhr_start_linked_stream : no pipes\n");
+		dev_err(&mgr->pci->dev, "%s : no pipes\n", __func__);
 		return;
 	}
 
-	dev_dbg(&mgr->pci->dev, "pcxhr_start_linked_stream : "
-		    "playback_mask=%x capture_mask=%x\n",
-		    playback_mask, capture_mask);
+	dev_dbg(&mgr->pci->dev, "%s : playback_mask=%x capture_mask=%x\n",
+		    __func__, playback_mask, capture_mask);
 
 	/* synchronous stop of all the pipes concerned */
 	err = pcxhr_set_pipe_state(mgr,  playback_mask, capture_mask, 0);
 	if (err) {
 		mutex_unlock(&mgr->setup_mutex);
-		dev_err(&mgr->pci->dev, "pcxhr_start_linked_stream : "
+		dev_err(&mgr->pci->dev, "%s : "
 			   "error stop pipes (P%x C%x)\n",
-			   playback_mask, capture_mask);
+			   __func__, playback_mask, capture_mask);
 		return;
 	}
 
@@ -779,9 +777,9 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 	err = pcxhr_set_pipe_state(mgr, playback_mask, capture_mask, 1);
 	if (err) {
 		mutex_unlock(&mgr->setup_mutex);
-		dev_err(&mgr->pci->dev, "pcxhr_start_linked_stream : "
+		dev_err(&mgr->pci->dev, "%s : "
 			   "error start pipes (P%x C%x)\n",
-			   playback_mask, capture_mask);
+			   __func__, playback_mask, capture_mask);
 		return;
 	}
 
@@ -890,7 +888,7 @@ static int pcxhr_hardware_timer(struct pcxhr_mgr *mgr, int start)
 	}
 	err = pcxhr_send_msg(mgr, &rmh);
 	if (err < 0)
-		dev_err(&mgr->pci->dev, "error pcxhr_hardware_timer err(%x)\n",
+		dev_err(&mgr->pci->dev, "error %s err(%x)\n", __func__,
 			   err);
 	return err;
 }
@@ -905,7 +903,7 @@ static int pcxhr_prepare(struct snd_pcm_substream *subs)
 	int err = 0;
 
 	dev_dbg(chip->card->dev,
-		"pcxhr_prepare : period_size(%lx) periods(%x) buffer_size(%lx)\n",
+		"%s : period_size(%lx) periods(%x) buffer_size(%lx)\n", __func__,
 		    subs->runtime->period_size, subs->runtime->periods,
 		    subs->runtime->buffer_size);
 
@@ -998,12 +996,12 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	runtime->hw = pcxhr_caps;
 
 	if( subs->stream == SNDRV_PCM_STREAM_PLAYBACK ) {
-		dev_dbg(chip->card->dev, "pcxhr_open playback chip%d subs%d\n",
-			    chip->chip_idx, subs->number);
+		dev_dbg(chip->card->dev, "%s playback chip%d subs%d\n",
+			    __func__, chip->chip_idx, subs->number);
 		stream = &chip->playback_stream[subs->number];
 	} else {
-		dev_dbg(chip->card->dev, "pcxhr_open capture chip%d subs%d\n",
-			    chip->chip_idx, subs->number);
+		dev_dbg(chip->card->dev, "%s capture chip%d subs%d\n",
+			    __func__, chip->chip_idx, subs->number);
 		if (mgr->mono_capture)
 			runtime->hw.channels_max = 1;
 		else
@@ -1012,8 +1010,8 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	}
 	if (stream->status != PCXHR_STREAM_STATUS_FREE){
 		/* streams in use */
-		dev_err(chip->card->dev, "pcxhr_open chip%d subs%d in use\n",
-			   chip->chip_idx, subs->number);
+		dev_err(chip->card->dev, "%s chip%d subs%d in use\n",
+			   __func__, chip->chip_idx, subs->number);
 		mutex_unlock(&mgr->setup_mutex);
 		return -EBUSY;
 	}
@@ -1078,7 +1076,7 @@ static int pcxhr_close(struct snd_pcm_substream *subs)
 
 	mutex_lock(&mgr->setup_mutex);
 
-	dev_dbg(chip->card->dev, "pcxhr_close chip%d subs%d\n",
+	dev_dbg(chip->card->dev, "%s chip%d subs%d\n", __func__,
 		    chip->chip_idx, subs->number);
 
 	/* sample rate released */
@@ -1135,9 +1133,10 @@ int pcxhr_create_pcm(struct snd_pcxhr *chip)
 	char name[32];
 
 	snprintf(name, sizeof(name), "pcxhr %d", chip->chip_idx);
-	if ((err = snd_pcm_new(chip->card, name, 0,
-			       chip->nb_streams_play,
-			       chip->nb_streams_capt, &pcm)) < 0) {
+	err = snd_pcm_new(chip->card, name, 0,
+			  chip->nb_streams_play,
+			  chip->nb_streams_capt, &pcm);
+	if (err < 0) {
 		dev_err(chip->card->dev, "cannot create pcm %s\n", name);
 		return err;
 	}
@@ -1203,7 +1202,8 @@ static int pcxhr_create(struct pcxhr_mgr *mgr,
 			chip->nb_streams_capt = 1;	/* or 1 stereo stream */
 	}
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0) {
 		pcxhr_chip_free(chip);
 		return err;
 	}
@@ -1493,7 +1493,8 @@ static int pcxhr_probe(struct pci_dev *pci,
 	}
 
 	/* enable PCI device */
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 	pci_set_master(pci);
 
@@ -1538,7 +1539,8 @@ static int pcxhr_probe(struct pci_dev *pci,
 		mgr->granularity = PCXHR_GRANULARITY;
 
 	/* resource assignment */
-	if ((err = pci_request_regions(pci, card_name)) < 0) {
+	err = pci_request_regions(pci, card_name);
+	if (err < 0) {
 		kfree(mgr);
 		pci_disable_device(pci);
 		return err;
@@ -1569,7 +1571,7 @@ static int pcxhr_probe(struct pci_dev *pci,
 	/* init setup mutex*/
 	mutex_init(&mgr->setup_mutex);
 
-	mgr->prmh = kmalloc(sizeof(*mgr->prmh) + 
+	mgr->prmh = kmalloc(sizeof(*mgr->prmh) +
 			    sizeof(u32) * (PCXHR_SIZE_MAX_LONG_STATUS -
 					   PCXHR_SIZE_MAX_STATUS),
 			    GFP_KERNEL);
@@ -1609,7 +1611,8 @@ static int pcxhr_probe(struct pci_dev *pci,
 		snprintf(card->longname, sizeof(card->longname),
 			 "%s [PCM #%d]", mgr->name, i);
 
-		if ((err = pcxhr_create(mgr, card, i)) < 0) {
+		err = pcxhr_create(mgr, card, i);
+		if (err < 0) {
 			snd_card_free(card);
 			pcxhr_free(mgr);
 			return err;
@@ -1619,7 +1622,8 @@ static int pcxhr_probe(struct pci_dev *pci,
 			/* init proc interface only for chip0 */
 			pcxhr_proc_init(mgr->chip[i]);
 
-		if ((err = snd_card_register(card)) < 0) {
+		err = snd_card_register(card);
+		if (err < 0) {
 			pcxhr_free(mgr);
 			return err;
 		}

@@ -4,14 +4,10 @@
  */
 #include <linux/exportfs.h>
 #include <linux/iomap.h>
-#include <linux/genhd.h>
 #include <linux/slab.h>
 #include <linux/pr.h>
 
 #include <linux/nfsd/debug.h>
-#include <scsi/scsi_proto.h>
-#include <scsi/scsi_common.h>
-#include <scsi/scsi_request.h>
 
 #include "blocklayoutxdr.h"
 #include "pnfs.h"
@@ -211,109 +207,6 @@ const struct nfsd4_layout_ops bl_layout_ops = {
 #endif /* CONFIG_NFSD_BLOCKLAYOUT */
 
 #ifdef CONFIG_NFSD_SCSILAYOUT
-static int nfsd4_scsi_identify_device(struct block_device *bdev,
-		struct pnfs_block_volume *b)
-{
-	struct request_queue *q = bdev->bd_disk->queue;
-	struct request *rq;
-	struct scsi_request *req;
-	/*
-	 * The allocation length (passed in bytes 3 and 4 of the INQUIRY
-	 * command descriptor block) specifies the number of bytes that have
-	 * been allocated for the data-in buffer.
-	 * 252 is the highest one-byte value that is a multiple of 4.
-	 * 65532 is the highest two-byte value that is a multiple of 4.
-	 */
-	size_t bufflen = 252, maxlen = 65532, len, id_len;
-	u8 *buf, *d, type, assoc;
-	int retries = 1, error;
-
-	if (WARN_ON_ONCE(!blk_queue_scsi_passthrough(q)))
-		return -EINVAL;
-
-again:
-	buf = kzalloc(bufflen, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	rq = blk_get_request(q, REQ_OP_SCSI_IN, 0);
-	if (IS_ERR(rq)) {
-		error = -ENOMEM;
-		goto out_free_buf;
-	}
-	req = scsi_req(rq);
-
-	error = blk_rq_map_kern(q, rq, buf, bufflen, GFP_KERNEL);
-	if (error)
-		goto out_put_request;
-
-	req->cmd[0] = INQUIRY;
-	req->cmd[1] = 1;
-	req->cmd[2] = 0x83;
-	req->cmd[3] = bufflen >> 8;
-	req->cmd[4] = bufflen & 0xff;
-	req->cmd_len = COMMAND_SIZE(INQUIRY);
-
-	blk_execute_rq(rq->q, NULL, rq, 1);
-	if (req->result) {
-		pr_err("pNFS: INQUIRY 0x83 failed with: %x\n",
-			req->result);
-		error = -EIO;
-		goto out_put_request;
-	}
-
-	len = (buf[2] << 8) + buf[3] + 4;
-	if (len > bufflen) {
-		if (len <= maxlen && retries--) {
-			blk_put_request(rq);
-			kfree(buf);
-			bufflen = len;
-			goto again;
-		}
-		pr_err("pNFS: INQUIRY 0x83 response invalid (len = %zd)\n",
-			len);
-		goto out_put_request;
-	}
-
-	d = buf + 4;
-	for (d = buf + 4; d < buf + len; d += id_len + 4) {
-		id_len = d[3];
-		type = d[1] & 0xf;
-		assoc = (d[1] >> 4) & 0x3;
-
-		/*
-		 * We only care about a EUI-64 and NAA designator types
-		 * with LU association.
-		 */
-		if (assoc != 0x00)
-			continue;
-		if (type != 0x02 && type != 0x03)
-			continue;
-		if (id_len != 8 && id_len != 12 && id_len != 16)
-			continue;
-
-		b->scsi.code_set = PS_CODE_SET_BINARY;
-		b->scsi.designator_type = type == 0x02 ?
-			PS_DESIGNATOR_EUI64 : PS_DESIGNATOR_NAA;
-		b->scsi.designator_len = id_len;
-		memcpy(b->scsi.designator, d + 4, id_len);
-
-		/*
-		 * If we found a 8 or 12 byte descriptor continue on to
-		 * see if a 16 byte one is available.  If we find a
-		 * 16 byte descriptor we're done.
-		 */
-		if (id_len == 16)
-			break;
-	}
-
-out_put_request:
-	blk_put_request(rq);
-out_free_buf:
-	kfree(buf);
-	return error;
-}
-
 #define NFSD_MDS_PR_KEY		0x0100000000000000ULL
 
 /*
@@ -325,6 +218,31 @@ static u64 nfsd4_scsi_pr_key(struct nfs4_client *clp)
 	return ((u64)clp->cl_clientid.cl_boot << 32) | clp->cl_clientid.cl_id;
 }
 
+static const u8 designator_types[] = {
+	PS_DESIGNATOR_EUI64,
+	PS_DESIGNATOR_NAA,
+};
+
+static int
+nfsd4_block_get_unique_id(struct gendisk *disk, struct pnfs_block_volume *b)
+{
+	int ret, i;
+
+	for (i = 0; i < ARRAY_SIZE(designator_types); i++) {
+		u8 type = designator_types[i];
+
+		ret = disk->fops->get_unique_id(disk, b->scsi.designator, type);
+		if (ret > 0) {
+			b->scsi.code_set = PS_CODE_SET_BINARY;
+			b->scsi.designator_type = type;
+			b->scsi.designator_len = ret;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static int
 nfsd4_block_get_device_info_scsi(struct super_block *sb,
 		struct nfs4_client *clp,
@@ -333,7 +251,7 @@ nfsd4_block_get_device_info_scsi(struct super_block *sb,
 	struct pnfs_block_deviceaddr *dev;
 	struct pnfs_block_volume *b;
 	const struct pr_ops *ops;
-	int error;
+	int ret;
 
 	dev = kzalloc(sizeof(struct pnfs_block_deviceaddr) +
 		      sizeof(struct pnfs_block_volume), GFP_KERNEL);
@@ -347,33 +265,38 @@ nfsd4_block_get_device_info_scsi(struct super_block *sb,
 	b->type = PNFS_BLOCK_VOLUME_SCSI;
 	b->scsi.pr_key = nfsd4_scsi_pr_key(clp);
 
-	error = nfsd4_scsi_identify_device(sb->s_bdev, b);
-	if (error)
-		return error;
+	ret = nfsd4_block_get_unique_id(sb->s_bdev->bd_disk, b);
+	if (ret < 0)
+		goto out_free_dev;
 
+	ret = -EINVAL;
 	ops = sb->s_bdev->bd_disk->fops->pr_ops;
 	if (!ops) {
 		pr_err("pNFS: device %s does not support PRs.\n",
 			sb->s_id);
-		return -EINVAL;
+		goto out_free_dev;
 	}
 
-	error = ops->pr_register(sb->s_bdev, 0, NFSD_MDS_PR_KEY, true);
-	if (error) {
+	ret = ops->pr_register(sb->s_bdev, 0, NFSD_MDS_PR_KEY, true);
+	if (ret) {
 		pr_err("pNFS: failed to register key for device %s.\n",
 			sb->s_id);
-		return -EINVAL;
+		goto out_free_dev;
 	}
 
-	error = ops->pr_reserve(sb->s_bdev, NFSD_MDS_PR_KEY,
+	ret = ops->pr_reserve(sb->s_bdev, NFSD_MDS_PR_KEY,
 			PR_EXCLUSIVE_ACCESS_REG_ONLY, 0);
-	if (error) {
+	if (ret) {
 		pr_err("pNFS: failed to reserve device %s.\n",
 			sb->s_id);
-		return -EINVAL;
+		goto out_free_dev;
 	}
 
 	return 0;
+
+out_free_dev:
+	kfree(dev);
+	return ret;
 }
 
 static __be32

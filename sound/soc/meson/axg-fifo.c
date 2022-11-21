@@ -27,8 +27,8 @@ static struct snd_pcm_hardware axg_fifo_hw = {
 		 SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-		 SNDRV_PCM_INFO_PAUSE),
-
+		 SNDRV_PCM_INFO_PAUSE |
+		 SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
 	.formats = AXG_FIFO_FORMATS,
 	.rate_min = 5512,
 	.rate_max = 192000,
@@ -113,7 +113,7 @@ int axg_fifo_pcm_hw_params(struct snd_soc_component *component,
 {
 	struct snd_pcm_runtime *runtime = ss->runtime;
 	struct axg_fifo *fifo = axg_fifo_data(ss);
-	unsigned int burst_num, period, threshold;
+	unsigned int burst_num, period, threshold, irq_en;
 	dma_addr_t end_ptr;
 
 	period = params_period_bytes(params);
@@ -142,10 +142,11 @@ int axg_fifo_pcm_hw_params(struct snd_soc_component *component,
 	regmap_field_write(fifo->field_threshold,
 			   threshold ? threshold - 1 : 0);
 
-	/* Enable block count irq */
+	/* Enable irq if necessary  */
+	irq_en = runtime->no_period_wakeup ? 0 : FIFO_INT_COUNT_REPEAT;
 	regmap_update_bits(fifo->map, FIFO_CTRL0,
 			   CTRL0_INT_EN(FIFO_INT_COUNT_REPEAT),
-			   CTRL0_INT_EN(FIFO_INT_COUNT_REPEAT));
+			   CTRL0_INT_EN(irq_en));
 
 	return 0;
 }
@@ -350,20 +351,12 @@ int axg_fifo_probe(struct platform_device *pdev)
 	}
 
 	fifo->pclk = devm_clk_get(dev, NULL);
-	if (IS_ERR(fifo->pclk)) {
-		if (PTR_ERR(fifo->pclk) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get pclk: %ld\n",
-				PTR_ERR(fifo->pclk));
-		return PTR_ERR(fifo->pclk);
-	}
+	if (IS_ERR(fifo->pclk))
+		return dev_err_probe(dev, PTR_ERR(fifo->pclk), "failed to get pclk\n");
 
 	fifo->arb = devm_reset_control_get_exclusive(dev, NULL);
-	if (IS_ERR(fifo->arb)) {
-		if (PTR_ERR(fifo->arb) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get arb reset: %ld\n",
-				PTR_ERR(fifo->arb));
-		return PTR_ERR(fifo->arb);
-	}
+	if (IS_ERR(fifo->arb))
+		return dev_err_probe(dev, PTR_ERR(fifo->arb), "failed to get arb reset\n");
 
 	fifo->irq = of_irq_get(dev->of_node, 0);
 	if (fifo->irq <= 0) {

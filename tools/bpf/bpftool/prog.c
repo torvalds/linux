@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <dirent.h>
 
 #include <linux/err.h>
 #include <linux/perf_event.h>
@@ -23,7 +24,10 @@
 
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
+#include <bpf/hashmap.h>
 #include <bpf/libbpf.h>
+#include <bpf/libbpf_internal.h>
+#include <bpf/skel_internal.h>
 
 #include "cfg.h"
 #include "main.h"
@@ -76,10 +80,13 @@ enum dump_mode {
 static const char * const attach_type_strings[] = {
 	[BPF_SK_SKB_STREAM_PARSER] = "stream_parser",
 	[BPF_SK_SKB_STREAM_VERDICT] = "stream_verdict",
+	[BPF_SK_SKB_VERDICT] = "skb_verdict",
 	[BPF_SK_MSG_VERDICT] = "msg_verdict",
 	[BPF_FLOW_DISSECTOR] = "flow_dissector",
 	[__MAX_BPF_ATTACH_TYPE] = NULL,
 };
+
+static struct hashmap *prog_table;
 
 static enum bpf_attach_type parse_attach_type(const char *str)
 {
@@ -92,6 +99,76 @@ static enum bpf_attach_type parse_attach_type(const char *str)
 	}
 
 	return __MAX_BPF_ATTACH_TYPE;
+}
+
+static int prep_prog_info(struct bpf_prog_info *const info, enum dump_mode mode,
+			  void **info_data, size_t *const info_data_sz)
+{
+	struct bpf_prog_info holder = {};
+	size_t needed = 0;
+	void *ptr;
+
+	if (mode == DUMP_JITED) {
+		holder.jited_prog_len = info->jited_prog_len;
+		needed += info->jited_prog_len;
+	} else {
+		holder.xlated_prog_len = info->xlated_prog_len;
+		needed += info->xlated_prog_len;
+	}
+
+	holder.nr_jited_ksyms = info->nr_jited_ksyms;
+	needed += info->nr_jited_ksyms * sizeof(__u64);
+
+	holder.nr_jited_func_lens = info->nr_jited_func_lens;
+	needed += info->nr_jited_func_lens * sizeof(__u32);
+
+	holder.nr_func_info = info->nr_func_info;
+	holder.func_info_rec_size = info->func_info_rec_size;
+	needed += info->nr_func_info * info->func_info_rec_size;
+
+	holder.nr_line_info = info->nr_line_info;
+	holder.line_info_rec_size = info->line_info_rec_size;
+	needed += info->nr_line_info * info->line_info_rec_size;
+
+	holder.nr_jited_line_info = info->nr_jited_line_info;
+	holder.jited_line_info_rec_size = info->jited_line_info_rec_size;
+	needed += info->nr_jited_line_info * info->jited_line_info_rec_size;
+
+	if (needed > *info_data_sz) {
+		ptr = realloc(*info_data, needed);
+		if (!ptr)
+			return -1;
+
+		*info_data = ptr;
+		*info_data_sz = needed;
+	}
+	ptr = *info_data;
+
+	if (mode == DUMP_JITED) {
+		holder.jited_prog_insns = ptr_to_u64(ptr);
+		ptr += holder.jited_prog_len;
+	} else {
+		holder.xlated_prog_insns = ptr_to_u64(ptr);
+		ptr += holder.xlated_prog_len;
+	}
+
+	holder.jited_ksyms = ptr_to_u64(ptr);
+	ptr += holder.nr_jited_ksyms * sizeof(__u64);
+
+	holder.jited_func_lens = ptr_to_u64(ptr);
+	ptr += holder.nr_jited_func_lens * sizeof(__u32);
+
+	holder.func_info = ptr_to_u64(ptr);
+	ptr += holder.nr_func_info * holder.func_info_rec_size;
+
+	holder.line_info = ptr_to_u64(ptr);
+	ptr += holder.nr_line_info * holder.line_info_rec_size;
+
+	holder.jited_line_info = ptr_to_u64(ptr);
+	ptr += holder.nr_jited_line_info * holder.jited_line_info_rec_size;
+
+	*info = holder;
+	return 0;
 }
 
 static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
@@ -245,10 +322,10 @@ static void show_prog_metadata(int fd, __u32 num_maps)
 	struct bpf_map_info map_info;
 	struct btf_var_secinfo *vsi;
 	bool printed_header = false;
-	struct btf *btf = NULL;
 	unsigned int i, vlen;
 	void *value = NULL;
 	const char *name;
+	struct btf *btf;
 	int err;
 
 	if (!num_maps)
@@ -259,8 +336,8 @@ static void show_prog_metadata(int fd, __u32 num_maps)
 	if (!value)
 		return;
 
-	err = btf__get_from_id(map_info.btf_id, &btf);
-	if (err || !btf)
+	btf = btf__load_from_kernel_by_id(map_info.btf_id);
+	if (libbpf_get_error(btf))
 		goto out_free;
 
 	t_datasec = btf__type_by_id(btf, map_info.btf_value_type_id);
@@ -304,17 +381,11 @@ static void show_prog_metadata(int fd, __u32 num_maps)
 		if (printed_header)
 			jsonw_end_object(json_wtr);
 	} else {
-		json_writer_t *btf_wtr = jsonw_new(stdout);
+		json_writer_t *btf_wtr;
 		struct btf_dumper d = {
 			.btf = btf,
-			.jw = btf_wtr,
 			.is_plain_text = true,
 		};
-
-		if (!btf_wtr) {
-			p_err("jsonw alloc failed");
-			goto out_free;
-		}
 
 		for (i = 0; i < vlen; i++, vsi++) {
 			t_var = btf__type_by_id(btf, vsi->type);
@@ -325,6 +396,14 @@ static void show_prog_metadata(int fd, __u32 num_maps)
 
 			if (!printed_header) {
 				printf("\tmetadata:");
+
+				btf_wtr = jsonw_new(stdout);
+				if (!btf_wtr) {
+					p_err("jsonw alloc failed");
+					goto out_free;
+				}
+				d.jw = btf_wtr,
+
 				printed_header = true;
 			}
 
@@ -346,8 +425,10 @@ out_free:
 	free(value);
 }
 
-static void print_prog_header_json(struct bpf_prog_info *info)
+static void print_prog_header_json(struct bpf_prog_info *info, int fd)
 {
+	char prog_name[MAX_PROG_FULL_NAME];
+
 	jsonw_uint_field(json_wtr, "id", info->id);
 	if (info->type < ARRAY_SIZE(prog_type_name))
 		jsonw_string_field(json_wtr, "type",
@@ -355,8 +436,10 @@ static void print_prog_header_json(struct bpf_prog_info *info)
 	else
 		jsonw_uint_field(json_wtr, "type", info->type);
 
-	if (*info->name)
-		jsonw_string_field(json_wtr, "name", info->name);
+	if (*info->name) {
+		get_prog_full_name(info, fd, prog_name, sizeof(prog_name));
+		jsonw_string_field(json_wtr, "name", prog_name);
+	}
 
 	jsonw_name(json_wtr, "tag");
 	jsonw_printf(json_wtr, "\"" BPF_TAG_FMT "\"",
@@ -368,6 +451,8 @@ static void print_prog_header_json(struct bpf_prog_info *info)
 		jsonw_uint_field(json_wtr, "run_time_ns", info->run_time_ns);
 		jsonw_uint_field(json_wtr, "run_cnt", info->run_cnt);
 	}
+	if (info->recursion_misses)
+		jsonw_uint_field(json_wtr, "recursion_misses", info->recursion_misses);
 }
 
 static void print_prog_json(struct bpf_prog_info *info, int fd)
@@ -375,7 +460,7 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 	char *memlock;
 
 	jsonw_start_object(json_wtr);
-	print_prog_header_json(info);
+	print_prog_header_json(info, fd);
 	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
 
 	if (info->load_time) {
@@ -400,7 +485,7 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 
 	memlock = get_fdinfo(fd, "memlock");
 	if (memlock)
-		jsonw_int_field(json_wtr, "bytes_memlock", atoi(memlock));
+		jsonw_int_field(json_wtr, "bytes_memlock", atoll(memlock));
 	free(memlock);
 
 	if (info->nr_map_ids)
@@ -409,35 +494,38 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 	if (info->btf_id)
 		jsonw_int_field(json_wtr, "btf_id", info->btf_id);
 
-	if (!hash_empty(prog_table.table)) {
-		struct pinned_obj *obj;
+	if (!hashmap__empty(prog_table)) {
+		struct hashmap_entry *entry;
 
 		jsonw_name(json_wtr, "pinned");
 		jsonw_start_array(json_wtr);
-		hash_for_each_possible(prog_table.table, obj, hash, info->id) {
-			if (obj->id == info->id)
-				jsonw_string(json_wtr, obj->path);
-		}
+		hashmap__for_each_key_entry(prog_table, entry,
+					    u32_as_hash_field(info->id))
+			jsonw_string(json_wtr, entry->value);
 		jsonw_end_array(json_wtr);
 	}
 
-	emit_obj_refs_json(&refs_table, info->id, json_wtr);
+	emit_obj_refs_json(refs_table, info->id, json_wtr);
 
 	show_prog_metadata(fd, info->nr_map_ids);
 
 	jsonw_end_object(json_wtr);
 }
 
-static void print_prog_header_plain(struct bpf_prog_info *info)
+static void print_prog_header_plain(struct bpf_prog_info *info, int fd)
 {
+	char prog_name[MAX_PROG_FULL_NAME];
+
 	printf("%u: ", info->id);
 	if (info->type < ARRAY_SIZE(prog_type_name))
 		printf("%s  ", prog_type_name[info->type]);
 	else
 		printf("type %u  ", info->type);
 
-	if (*info->name)
-		printf("name %s  ", info->name);
+	if (*info->name) {
+		get_prog_full_name(info, fd, prog_name, sizeof(prog_name));
+		printf("name %s  ", prog_name);
+	}
 
 	printf("tag ");
 	fprint_hex(stdout, info->tag, BPF_TAG_SIZE, "");
@@ -446,6 +534,8 @@ static void print_prog_header_plain(struct bpf_prog_info *info)
 	if (info->run_time_ns)
 		printf(" run_time_ns %lld run_cnt %lld",
 		       info->run_time_ns, info->run_cnt);
+	if (info->recursion_misses)
+		printf(" recursion_misses %lld", info->recursion_misses);
 	printf("\n");
 }
 
@@ -453,7 +543,7 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 {
 	char *memlock;
 
-	print_prog_header_plain(info);
+	print_prog_header_plain(info, fd);
 
 	if (info->load_time) {
 		char buf[32];
@@ -479,19 +569,18 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	if (info->nr_map_ids)
 		show_prog_maps(fd, info->nr_map_ids);
 
-	if (!hash_empty(prog_table.table)) {
-		struct pinned_obj *obj;
+	if (!hashmap__empty(prog_table)) {
+		struct hashmap_entry *entry;
 
-		hash_for_each_possible(prog_table.table, obj, hash, info->id) {
-			if (obj->id == info->id)
-				printf("\n\tpinned %s", obj->path);
-		}
+		hashmap__for_each_key_entry(prog_table, entry,
+					    u32_as_hash_field(info->id))
+			printf("\n\tpinned %s", (char *)entry->value);
 	}
 
 	if (info->btf_id)
 		printf("\n\tbtf_id %d", info->btf_id);
 
-	emit_obj_refs_plain(&refs_table, info->id, "\n\tpids ");
+	emit_obj_refs_plain(refs_table, info->id, "\n\tpids ");
 
 	printf("\n");
 
@@ -558,8 +647,15 @@ static int do_show(int argc, char **argv)
 	int err;
 	int fd;
 
-	if (show_pinned)
-		build_pinned_obj_table(&prog_table, BPF_OBJ_PROG);
+	if (show_pinned) {
+		prog_table = hashmap__new(hash_fn_for_key_as_id,
+					  equal_fn_for_key_as_id, NULL);
+		if (IS_ERR(prog_table)) {
+			p_err("failed to create hashmap for pinned paths");
+			return -1;
+		}
+		build_pinned_obj_table(prog_table, BPF_OBJ_PROG);
+	}
 	build_obj_refs_table(&refs_table, BPF_OBJ_PROG);
 
 	if (argc == 2)
@@ -602,7 +698,10 @@ static int do_show(int argc, char **argv)
 	if (json_output)
 		jsonw_end_array(json_wtr);
 
-	delete_obj_refs_table(&refs_table);
+	delete_obj_refs_table(refs_table);
+
+	if (show_pinned)
+		delete_pinned_obj_table(prog_table);
 
 	return err;
 }
@@ -619,8 +718,8 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 	char func_sig[1024];
 	unsigned char *buf;
 	__u32 member_len;
+	int fd, err = -1;
 	ssize_t n;
-	int fd;
 
 	if (mode == DUMP_JITED) {
 		if (info->jited_prog_len == 0 || !info->jited_prog_insns) {
@@ -638,9 +737,12 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		member_len = info->xlated_prog_len;
 	}
 
-	if (info->btf_id && btf__get_from_id(info->btf_id, &btf)) {
-		p_err("failed to get btf");
-		return -1;
+	if (info->btf_id) {
+		btf = btf__load_from_kernel_by_id(info->btf_id);
+		if (libbpf_get_error(btf)) {
+			p_err("failed to get btf");
+			return -1;
+		}
 	}
 
 	func_info = u64_to_ptr(info->func_info);
@@ -656,7 +758,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		if (fd < 0) {
 			p_err("can't open file %s: %s", filepath,
 			      strerror(errno));
-			return -1;
+			goto exit_free;
 		}
 
 		n = write(fd, buf, member_len);
@@ -664,7 +766,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		if (n != (ssize_t)member_len) {
 			p_err("error writing output file: %s",
 			      n < 0 ? strerror(errno) : "short write");
-			return -1;
+			goto exit_free;
 		}
 
 		if (json_output)
@@ -678,7 +780,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 						     info->netns_ino,
 						     &disasm_opt);
 			if (!name)
-				return -1;
+				goto exit_free;
 		}
 
 		if (info->nr_jited_func_lens && info->jited_func_lens) {
@@ -773,21 +875,28 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		kernel_syms_destroy(&dd);
 	}
 
-	return 0;
+	err = 0;
+
+exit_free:
+	btf__free(btf);
+	bpf_prog_linfo__free(prog_linfo);
+	return err;
 }
 
 static int do_dump(int argc, char **argv)
 {
-	struct bpf_prog_info_linear *info_linear;
+	struct bpf_prog_info info;
+	__u32 info_len = sizeof(info);
+	size_t info_data_sz = 0;
+	void *info_data = NULL;
 	char *filepath = NULL;
 	bool opcodes = false;
 	bool visual = false;
 	enum dump_mode mode;
 	bool linum = false;
-	int *fds = NULL;
 	int nb_fds, i = 0;
+	int *fds = NULL;
 	int err = -1;
-	__u64 arrays;
 
 	if (is_prefix(*argv, "jited")) {
 		if (disasm_init())
@@ -847,43 +956,44 @@ static int do_dump(int argc, char **argv)
 		goto exit_close;
 	}
 
-	if (mode == DUMP_JITED)
-		arrays = 1UL << BPF_PROG_INFO_JITED_INSNS;
-	else
-		arrays = 1UL << BPF_PROG_INFO_XLATED_INSNS;
-
-	arrays |= 1UL << BPF_PROG_INFO_JITED_KSYMS;
-	arrays |= 1UL << BPF_PROG_INFO_JITED_FUNC_LENS;
-	arrays |= 1UL << BPF_PROG_INFO_FUNC_INFO;
-	arrays |= 1UL << BPF_PROG_INFO_LINE_INFO;
-	arrays |= 1UL << BPF_PROG_INFO_JITED_LINE_INFO;
-
 	if (json_output && nb_fds > 1)
 		jsonw_start_array(json_wtr);	/* root array */
 	for (i = 0; i < nb_fds; i++) {
-		info_linear = bpf_program__get_prog_info_linear(fds[i], arrays);
-		if (IS_ERR_OR_NULL(info_linear)) {
+		memset(&info, 0, sizeof(info));
+
+		err = bpf_obj_get_info_by_fd(fds[i], &info, &info_len);
+		if (err) {
+			p_err("can't get prog info: %s", strerror(errno));
+			break;
+		}
+
+		err = prep_prog_info(&info, mode, &info_data, &info_data_sz);
+		if (err) {
+			p_err("can't grow prog info_data");
+			break;
+		}
+
+		err = bpf_obj_get_info_by_fd(fds[i], &info, &info_len);
+		if (err) {
 			p_err("can't get prog info: %s", strerror(errno));
 			break;
 		}
 
 		if (json_output && nb_fds > 1) {
 			jsonw_start_object(json_wtr);	/* prog object */
-			print_prog_header_json(&info_linear->info);
+			print_prog_header_json(&info, fds[i]);
 			jsonw_name(json_wtr, "insns");
 		} else if (nb_fds > 1) {
-			print_prog_header_plain(&info_linear->info);
+			print_prog_header_plain(&info, fds[i]);
 		}
 
-		err = prog_dump(&info_linear->info, mode, filepath, opcodes,
-				visual, linum);
+		err = prog_dump(&info, mode, filepath, opcodes, visual, linum);
 
 		if (json_output && nb_fds > 1)
 			jsonw_end_object(json_wtr);	/* prog object */
 		else if (i != nb_fds - 1 && nb_fds > 1)
 			printf("\n");
 
-		free(info_linear);
 		if (err)
 			break;
 		close(fds[i]);
@@ -895,6 +1005,7 @@ exit_close:
 	for (; i < nb_fds; i++)
 		close(fds[i]);
 exit_free:
+	free(info_data);
 	free(fds);
 	return err;
 }
@@ -1162,12 +1273,12 @@ static int do_run(int argc, char **argv)
 {
 	char *data_fname_in = NULL, *data_fname_out = NULL;
 	char *ctx_fname_in = NULL, *ctx_fname_out = NULL;
-	struct bpf_prog_test_run_attr test_attr = {0};
 	const unsigned int default_size = SZ_32K;
 	void *data_in = NULL, *data_out = NULL;
 	void *ctx_in = NULL, *ctx_out = NULL;
 	unsigned int repeat = 1;
 	int fd, err;
+	LIBBPF_OPTS(bpf_test_run_opts, test_attr);
 
 	if (!REQ_ARGS(4))
 		return -1;
@@ -1285,14 +1396,13 @@ static int do_run(int argc, char **argv)
 			goto free_ctx_in;
 	}
 
-	test_attr.prog_fd	= fd;
 	test_attr.repeat	= repeat;
 	test_attr.data_in	= data_in;
 	test_attr.data_out	= data_out;
 	test_attr.ctx_in	= ctx_in;
 	test_attr.ctx_out	= ctx_out;
 
-	err = bpf_prog_test_run_xattr(&test_attr);
+	err = bpf_prog_test_run_opts(fd, &test_attr);
 	if (err) {
 		p_err("failed to run program: %s", strerror(errno));
 		goto free_ctx_out;
@@ -1362,7 +1472,6 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, open_opts,
 		.relaxed_maps = relaxed_maps,
 	);
-	struct bpf_object_load_attr load_attr = { 0 };
 	enum bpf_attach_type expected_attach_type;
 	struct map_replace *map_replace = NULL;
 	struct bpf_program *prog = NULL, *pos;
@@ -1384,8 +1493,6 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 
 	while (argc) {
 		if (is_prefix(*argv, "type")) {
-			char *type;
-
 			NEXT_ARG();
 
 			if (common_prog_type != BPF_PROG_TYPE_UNSPEC) {
@@ -1395,21 +1502,26 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			if (!REQ_ARGS(1))
 				goto err_free_reuse_maps;
 
-			/* Put a '/' at the end of type to appease libbpf */
-			type = malloc(strlen(*argv) + 2);
-			if (!type) {
-				p_err("mem alloc failed");
-				goto err_free_reuse_maps;
-			}
-			*type = 0;
-			strcat(type, *argv);
-			strcat(type, "/");
+			err = libbpf_prog_type_by_name(*argv, &common_prog_type,
+						       &expected_attach_type);
+			if (err < 0) {
+				/* Put a '/' at the end of type to appease libbpf */
+				char *type = malloc(strlen(*argv) + 2);
 
-			err = get_prog_type_by_name(type, &common_prog_type,
-						    &expected_attach_type);
-			free(type);
-			if (err < 0)
-				goto err_free_reuse_maps;
+				if (!type) {
+					p_err("mem alloc failed");
+					goto err_free_reuse_maps;
+				}
+				*type = 0;
+				strcat(type, *argv);
+				strcat(type, "/");
+
+				err = get_prog_type_by_name(type, &common_prog_type,
+							    &expected_attach_type);
+				free(type);
+				if (err < 0)
+					goto err_free_reuse_maps;
+			}
 
 			NEXT_ARG();
 		} else if (is_prefix(*argv, "map")) {
@@ -1447,9 +1559,9 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			if (fd < 0)
 				goto err_free_reuse_maps;
 
-			new_map_replace = reallocarray(map_replace,
-						       old_map_fds + 1,
-						       sizeof(*map_replace));
+			new_map_replace = libbpf_reallocarray(map_replace,
+							      old_map_fds + 1,
+							      sizeof(*map_replace));
 			if (!new_map_replace) {
 				p_err("mem alloc failed");
 				goto err_free_reuse_maps;
@@ -1493,8 +1605,12 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 
 	set_max_rlimit();
 
+	if (verifier_logs)
+		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		open_opts.kernel_log_level = 1 + 2 + 4;
+
 	obj = bpf_object__open_file(file, &open_opts);
-	if (IS_ERR_OR_NULL(obj)) {
+	if (libbpf_get_error(obj)) {
 		p_err("failed to open object file");
 		goto err_free_reuse_maps;
 	}
@@ -1547,7 +1663,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 	j = 0;
 	idx = 0;
 	bpf_object__for_each_map(map, obj) {
-		if (!bpf_map__is_offload_neutral(map))
+		if (bpf_map__type(map) != BPF_MAP_TYPE_PERF_EVENT_ARRAY)
 			bpf_map__set_ifindex(map, ifindex);
 
 		if (j < old_map_fds && idx == map_replace[j].idx) {
@@ -1572,12 +1688,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		goto err_close_obj;
 	}
 
-	load_attr.obj = obj;
-	if (verifier_logs)
-		/* log_level1 + log_level2 + stats, but not stable UAPI */
-		load_attr.log_level = 1 + 2 + 4;
-
-	err = bpf_object__load_xattr(&load_attr);
+	err = bpf_object__load(obj);
 	if (err) {
 		p_err("failed to load object file");
 		goto err_close_obj;
@@ -1588,7 +1699,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		goto err_close_obj;
 
 	if (first_prog_only) {
-		prog = bpf_program__next(NULL, obj);
+		prog = bpf_object__next_program(obj, NULL);
 		if (!prog) {
 			p_err("object file doesn't contain any bpf program");
 			goto err_close_obj;
@@ -1632,6 +1743,11 @@ err_unpin:
 	else
 		bpf_object__unpin_programs(obj, pinfile);
 err_close_obj:
+	if (!legacy_libbpf) {
+		p_info("Warning: bpftool is now running in libbpf strict mode and has more stringent requirements about BPF programs.\n"
+		       "If it used to work for this object file but now doesn't, see --legacy option for more details.\n");
+	}
+
 	bpf_object__close(obj);
 err_free_reuse_maps:
 	for (i = 0; i < old_map_fds; i++)
@@ -1640,8 +1756,110 @@ err_free_reuse_maps:
 	return -1;
 }
 
+static int count_open_fds(void)
+{
+	DIR *dp = opendir("/proc/self/fd");
+	struct dirent *de;
+	int cnt = -3;
+
+	if (!dp)
+		return -1;
+
+	while ((de = readdir(dp)))
+		cnt++;
+
+	closedir(dp);
+	return cnt;
+}
+
+static int try_loader(struct gen_loader_opts *gen)
+{
+	struct bpf_load_and_run_opts opts = {};
+	struct bpf_loader_ctx *ctx;
+	int ctx_sz = sizeof(*ctx) + 64 * max(sizeof(struct bpf_map_desc),
+					     sizeof(struct bpf_prog_desc));
+	int log_buf_sz = (1u << 24) - 1;
+	int err, fds_before, fd_delta;
+	char *log_buf = NULL;
+
+	ctx = alloca(ctx_sz);
+	memset(ctx, 0, ctx_sz);
+	ctx->sz = ctx_sz;
+	if (verifier_logs) {
+		ctx->log_level = 1 + 2 + 4;
+		ctx->log_size = log_buf_sz;
+		log_buf = malloc(log_buf_sz);
+		if (!log_buf)
+			return -ENOMEM;
+		ctx->log_buf = (long) log_buf;
+	}
+	opts.ctx = ctx;
+	opts.data = gen->data;
+	opts.data_sz = gen->data_sz;
+	opts.insns = gen->insns;
+	opts.insns_sz = gen->insns_sz;
+	fds_before = count_open_fds();
+	err = bpf_load_and_run(&opts);
+	fd_delta = count_open_fds() - fds_before;
+	if (err < 0 || verifier_logs) {
+		fprintf(stderr, "err %d\n%s\n%s", err, opts.errstr, log_buf);
+		if (fd_delta && err < 0)
+			fprintf(stderr, "loader prog leaked %d FDs\n",
+				fd_delta);
+	}
+	free(log_buf);
+	return err;
+}
+
+static int do_loader(int argc, char **argv)
+{
+	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, open_opts);
+	DECLARE_LIBBPF_OPTS(gen_loader_opts, gen);
+	struct bpf_object *obj;
+	const char *file;
+	int err = 0;
+
+	if (!REQ_ARGS(1))
+		return -1;
+	file = GET_ARG();
+
+	if (verifier_logs)
+		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		open_opts.kernel_log_level = 1 + 2 + 4;
+
+	obj = bpf_object__open_file(file, &open_opts);
+	if (libbpf_get_error(obj)) {
+		p_err("failed to open object file");
+		goto err_close_obj;
+	}
+
+	err = bpf_object__gen_loader(obj, &gen);
+	if (err)
+		goto err_close_obj;
+
+	err = bpf_object__load(obj);
+	if (err) {
+		p_err("failed to load object file");
+		goto err_close_obj;
+	}
+
+	if (verifier_logs) {
+		struct dump_data dd = {};
+
+		kernel_syms_load(&dd);
+		dump_xlated_plain(&dd, (void *)gen.insns, gen.insns_sz, false, false);
+		kernel_syms_destroy(&dd);
+	}
+	err = try_loader(&gen);
+err_close_obj:
+	bpf_object__close(obj);
+	return err;
+}
+
 static int do_load(int argc, char **argv)
 {
+	if (use_loader)
+		return do_loader(argc, argv);
 	return load_with_options(argc, argv, true);
 }
 
@@ -1715,6 +1933,34 @@ struct profile_metric {
 		},
 		.ratio_metric = 2,
 		.ratio_desc = "LLC misses per million insns",
+		.ratio_mul = 1e6,
+	},
+	{
+		.name = "itlb_misses",
+		.attr = {
+			.type = PERF_TYPE_HW_CACHE,
+			.config =
+				PERF_COUNT_HW_CACHE_ITLB |
+				(PERF_COUNT_HW_CACHE_OP_READ << 8) |
+				(PERF_COUNT_HW_CACHE_RESULT_MISS << 16),
+			.exclude_user = 1
+		},
+		.ratio_metric = 2,
+		.ratio_desc = "itlb misses per million insns",
+		.ratio_mul = 1e6,
+	},
+	{
+		.name = "dtlb_misses",
+		.attr = {
+			.type = PERF_TYPE_HW_CACHE,
+			.config =
+				PERF_COUNT_HW_CACHE_DTLB |
+				(PERF_COUNT_HW_CACHE_OP_READ << 8) |
+				(PERF_COUNT_HW_CACHE_RESULT_MISS << 16),
+			.exclude_user = 1
+		},
+		.ratio_metric = 2,
+		.ratio_desc = "dtlb misses per million insns",
 		.ratio_mul = 1e6,
 	},
 };
@@ -1861,35 +2107,58 @@ static void profile_print_readings(void)
 
 static char *profile_target_name(int tgt_fd)
 {
-	struct bpf_prog_info_linear *info_linear;
-	struct bpf_func_info *func_info;
+	struct bpf_func_info func_info;
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
 	const struct btf_type *t;
+	__u32 func_info_rec_size;
+	struct btf *btf = NULL;
 	char *name = NULL;
-	struct btf *btf;
+	int err;
 
-	info_linear = bpf_program__get_prog_info_linear(
-		tgt_fd, 1UL << BPF_PROG_INFO_FUNC_INFO);
-	if (IS_ERR_OR_NULL(info_linear)) {
-		p_err("failed to get info_linear for prog FD %d", tgt_fd);
-		return NULL;
+	err = bpf_obj_get_info_by_fd(tgt_fd, &info, &info_len);
+	if (err) {
+		p_err("failed to bpf_obj_get_info_by_fd for prog FD %d", tgt_fd);
+		goto out;
 	}
 
-	if (info_linear->info.btf_id == 0 ||
-	    btf__get_from_id(info_linear->info.btf_id, &btf)) {
+	if (info.btf_id == 0) {
 		p_err("prog FD %d doesn't have valid btf", tgt_fd);
 		goto out;
 	}
 
-	func_info = u64_to_ptr(info_linear->info.func_info);
-	t = btf__type_by_id(btf, func_info[0].type_id);
+	func_info_rec_size = info.func_info_rec_size;
+	if (info.nr_func_info == 0) {
+		p_err("bpf_obj_get_info_by_fd for prog FD %d found 0 func_info", tgt_fd);
+		goto out;
+	}
+
+	memset(&info, 0, sizeof(info));
+	info.nr_func_info = 1;
+	info.func_info_rec_size = func_info_rec_size;
+	info.func_info = ptr_to_u64(&func_info);
+
+	err = bpf_obj_get_info_by_fd(tgt_fd, &info, &info_len);
+	if (err) {
+		p_err("failed to get func_info for prog FD %d", tgt_fd);
+		goto out;
+	}
+
+	btf = btf__load_from_kernel_by_id(info.btf_id);
+	if (libbpf_get_error(btf)) {
+		p_err("failed to load btf for prog FD %d", tgt_fd);
+		goto out;
+	}
+
+	t = btf__type_by_id(btf, func_info.type_id);
 	if (!t) {
 		p_err("btf %d doesn't have type %d",
-		      info_linear->info.btf_id, func_info[0].type_id);
+		      info.btf_id, func_info.type_id);
 		goto out;
 	}
 	name = strdup(btf__name_by_offset(btf, t->name_off));
 out:
-	free(info_linear);
+	btf__free(btf);
 	return name;
 }
 
@@ -2014,10 +2283,10 @@ static int do_profile(int argc, char **argv)
 	profile_obj->rodata->num_metric = num_metric;
 
 	/* adjust map sizes */
-	bpf_map__resize(profile_obj->maps.events, num_metric * num_cpu);
-	bpf_map__resize(profile_obj->maps.fentry_readings, num_metric);
-	bpf_map__resize(profile_obj->maps.accum_readings, num_metric);
-	bpf_map__resize(profile_obj->maps.counts, 1);
+	bpf_map__set_max_entries(profile_obj->maps.events, num_metric * num_cpu);
+	bpf_map__set_max_entries(profile_obj->maps.fentry_readings, num_metric);
+	bpf_map__set_max_entries(profile_obj->maps.accum_readings, num_metric);
+	bpf_map__set_max_entries(profile_obj->maps.counts, 1);
 
 	/* change target name */
 	profile_tgt_name = profile_target_name(profile_tgt_fd);
@@ -2105,12 +2374,14 @@ static int do_help(int argc, char **argv)
 		"                 cgroup/getpeername4 | cgroup/getpeername6 |\n"
 		"                 cgroup/getsockname4 | cgroup/getsockname6 | cgroup/sendmsg4 |\n"
 		"                 cgroup/sendmsg6 | cgroup/recvmsg4 | cgroup/recvmsg6 |\n"
-		"                 cgroup/getsockopt | cgroup/setsockopt |\n"
+		"                 cgroup/getsockopt | cgroup/setsockopt | cgroup/sock_release |\n"
 		"                 struct_ops | fentry | fexit | freplace | sk_lookup }\n"
-		"       ATTACH_TYPE := { msg_verdict | stream_verdict | stream_parser |\n"
-		"                        flow_dissector }\n"
-		"       METRIC := { cycles | instructions | l1d_loads | llc_misses }\n"
-		"       " HELP_SPEC_OPTIONS "\n"
+		"       ATTACH_TYPE := { msg_verdict | skb_verdict | stream_verdict |\n"
+		"                        stream_parser | flow_dissector }\n"
+		"       METRIC := { cycles | instructions | l1d_loads | llc_misses | itlb_misses | dtlb_misses }\n"
+		"       " HELP_SPEC_OPTIONS " |\n"
+		"                    {-f|--bpffs} | {-m|--mapcompat} | {-n|--nomount} |\n"
+		"                    {-L|--use-loader} }\n"
 		"",
 		bin_name, argv[-2]);
 

@@ -416,6 +416,6 @@ void gm20b_gr_acr_bld_patch(struct nvkm_acr *, u32, s64);
 extern const struct nvkm_acr_lsf_func gp108_gr_gpccs_acr;
 extern const struct nvkm_acr_lsf_func gp108_gr_fecs_acr;
 
-int gf100_gr_new_(const struct gf100_gr_fwif *, struct nvkm_device *, int,
+int gf100_gr_new_(const struct gf100_gr_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		  struct nvkm_gr **);
 #endif

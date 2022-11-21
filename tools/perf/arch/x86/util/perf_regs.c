@@ -9,6 +9,8 @@
 #include "../../../util/perf_regs.h"
 #include "../../../util/debug.h"
 #include "../../../util/event.h"
+#include "../../../util/pmu.h"
+#include "../../../util/pmu-hybrid.h"
 
 const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(AX, PERF_REG_X86_AX),
@@ -165,7 +167,7 @@ static int sdt_init_op_regex(void)
 /*
  * Max x86 register name length is 5(ex: %r15d). So, 6th char
  * should always contain NULL. This helps to find register name
- * length using strlen, insted of maintaing one more variable.
+ * length using strlen, instead of maintaining one more variable.
  */
 #define SDT_REG_NAME_SIZE  6
 
@@ -207,7 +209,7 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 	 * and displacement 0 (Both sign and displacement 0 are
 	 * optional so it may be empty). Use one more character
 	 * to hold last NULL so that strlen can be used to find
-	 * prefix length, instead of maintaing one more variable.
+	 * prefix length, instead of maintaining one more variable.
 	 */
 	char prefix[3] = {0};
 
@@ -284,11 +286,21 @@ uint64_t arch__intr_reg_mask(void)
 		.disabled 		= 1,
 		.exclude_kernel		= 1,
 	};
+	struct perf_pmu *pmu;
 	int fd;
 	/*
 	 * In an unnamed union, init it here to build on older gcc versions
 	 */
 	attr.sample_period = 1;
+
+	if (perf_pmu__has_hybrid()) {
+		/*
+		 * The same register set is supported among different hybrid PMUs.
+		 * Only check the first available one.
+		 */
+		pmu = list_first_entry(&perf_pmu__hybrid_pmus, typeof(*pmu), hybrid_list);
+		attr.config |= (__u64)pmu->type << PERF_PMU_TYPE_SHIFT;
+	}
 
 	event_attr_init(&attr);
 

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   fs/cifs/netmisc.c
  *
  *   Copyright (c) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
@@ -897,10 +896,7 @@ map_and_check_smb_error(struct mid_q_entry *mid, bool logErr)
 		if (class == ERRSRV && code == ERRbaduid) {
 			cifs_dbg(FYI, "Server returned 0x%x, reconnecting session...\n",
 				code);
-			spin_lock(&GlobalMid_Lock);
-			if (mid->server->tcpStatus != CifsExiting)
-				mid->server->tcpStatus = CifsNeedReconnect;
-			spin_unlock(&GlobalMid_Lock);
+			cifs_signal_cifsd_for_reconnect(mid->server, false);
 		}
 	}
 

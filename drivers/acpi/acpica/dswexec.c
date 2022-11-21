@@ -4,7 +4,7 @@
  * Module Name: dswexec - Dispatcher method execution callbacks;
  *                        dispatch to interpreter.
  *
- * Copyright (C) 2000 - 2020, Intel Corp.
+ * Copyright (C) 2000 - 2021, Intel Corp.
  *
  *****************************************************************************/
 
@@ -561,11 +561,10 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 								op->common.
 								node->object,
 								NULL);
-				if ACPI_FAILURE
-					(status) {
+				if (ACPI_FAILURE(status)) {
 					ACPI_EXCEPTION((AE_INFO, status,
 							"While writing to buffer field"));
-					}
+				}
 			}
 			ACPI_FREE(namepath);
 			status = AE_OK;
@@ -598,8 +597,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 					break;
 				}
 
-				/* Fall through */
-				/*lint -fallthrough */
+				ACPI_FALLTHROUGH;
 
 			case AML_INT_EVAL_SUBTREE_OP:
 

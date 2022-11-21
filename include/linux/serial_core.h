@@ -171,7 +171,7 @@ struct uart_port {
 	 * assigned from the serial_struct flags in uart_set_info()
 	 * [for bit definitions in the UPF_CHANGE_MASK]
 	 *
-	 * Bits [0..UPF_LAST_USER] are userspace defined/visible/changeable
+	 * Bits [0..ASYNCB_LAST_USER] are userspace defined/visible/changeable
 	 * The remaining bits are serial-core specific and not modifiable by
 	 * userspace.
 	 */
@@ -357,8 +357,8 @@ struct earlycon_id {
 	int	(*setup)(struct earlycon_device *, const char *options);
 };
 
-extern const struct earlycon_id *__earlycon_table[];
-extern const struct earlycon_id *__earlycon_table_end[];
+extern const struct earlycon_id __earlycon_table[];
+extern const struct earlycon_id __earlycon_table_end[];
 
 #if defined(CONFIG_SERIAL_EARLYCON) && !defined(MODULE)
 #define EARLYCON_USED_OR_UNUSED	__used
@@ -366,19 +366,13 @@ extern const struct earlycon_id *__earlycon_table_end[];
 #define EARLYCON_USED_OR_UNUSED	__maybe_unused
 #endif
 
-#define _OF_EARLYCON_DECLARE(_name, compat, fn, unique_id)		\
-	static const struct earlycon_id unique_id			\
-	     EARLYCON_USED_OR_UNUSED __initconst			\
+#define OF_EARLYCON_DECLARE(_name, compat, fn)				\
+	static const struct earlycon_id __UNIQUE_ID(__earlycon_##_name) \
+		EARLYCON_USED_OR_UNUSED  __section("__earlycon_table")  \
+		__aligned(__alignof__(struct earlycon_id))		\
 		= { .name = __stringify(_name),				\
 		    .compatible = compat,				\
-		    .setup = fn  };					\
-	static const struct earlycon_id EARLYCON_USED_OR_UNUSED		\
-		__section("__earlycon_table")				\
-		* const __PASTE(__p, unique_id) = &unique_id
-
-#define OF_EARLYCON_DECLARE(_name, compat, fn)				\
-	_OF_EARLYCON_DECLARE(_name, compat, fn,				\
-			     __UNIQUE_ID(__earlycon_##_name))
+		    .setup = fn }
 
 #define EARLYCON_DECLARE(_name, fn)	OF_EARLYCON_DECLARE(_name, "", fn)
 
@@ -405,7 +399,7 @@ int uart_set_options(struct uart_port *port, struct console *co, int baud,
 struct tty_driver *uart_console_device(struct console *co, int *index);
 void uart_console_write(struct uart_port *port, const char *s,
 			unsigned int count,
-			void (*putchar)(struct uart_port *, int));
+			void (*putchar)(struct uart_port *, unsigned char));
 
 /*
  * Port/driver registration/removal
@@ -414,7 +408,8 @@ int uart_register_driver(struct uart_driver *uart);
 void uart_unregister_driver(struct uart_driver *uart);
 int uart_add_one_port(struct uart_driver *reg, struct uart_port *port);
 int uart_remove_one_port(struct uart_driver *reg, struct uart_port *port);
-int uart_match_port(struct uart_port *port1, struct uart_port *port2);
+bool uart_match_port(const struct uart_port *port1,
+		const struct uart_port *port2);
 
 /*
  * Power Management
@@ -434,7 +429,7 @@ int uart_resume_port(struct uart_driver *reg, struct uart_port *port);
 static inline int uart_tx_stopped(struct uart_port *port)
 {
 	struct tty_struct *tty = port->state->port.tty;
-	if ((tty && tty->stopped) || port->hw_stopped)
+	if ((tty && tty->flow.stopped) || port->hw_stopped)
 		return 1;
 	return 0;
 }
@@ -462,6 +457,8 @@ extern void uart_handle_cts_change(struct uart_port *uport,
 
 extern void uart_insert_char(struct uart_port *port, unsigned int status,
 		 unsigned int overrun, unsigned int ch, unsigned int flag);
+
+void uart_xchar_out(struct uart_port *uport, int offset);
 
 #ifdef CONFIG_MAGIC_SYSRQ_SERIAL
 #define SYSRQ_TIMEOUT	(HZ * 5)
@@ -506,19 +503,38 @@ static inline int uart_prepare_sysrq_char(struct uart_port *port, unsigned int c
 	return 0;
 }
 
-static inline void uart_unlock_and_check_sysrq(struct uart_port *port, unsigned long irqflags)
+static inline void uart_unlock_and_check_sysrq(struct uart_port *port)
 {
 	int sysrq_ch;
 
 	if (!port->has_sysrq) {
-		spin_unlock_irqrestore(&port->lock, irqflags);
+		spin_unlock(&port->lock);
 		return;
 	}
 
 	sysrq_ch = port->sysrq_ch;
 	port->sysrq_ch = 0;
 
-	spin_unlock_irqrestore(&port->lock, irqflags);
+	spin_unlock(&port->lock);
+
+	if (sysrq_ch)
+		handle_sysrq(sysrq_ch);
+}
+
+static inline void uart_unlock_and_check_sysrq_irqrestore(struct uart_port *port,
+		unsigned long flags)
+{
+	int sysrq_ch;
+
+	if (!port->has_sysrq) {
+		spin_unlock_irqrestore(&port->lock, flags);
+		return;
+	}
+
+	sysrq_ch = port->sysrq_ch;
+	port->sysrq_ch = 0;
+
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	if (sysrq_ch)
 		handle_sysrq(sysrq_ch);
@@ -532,9 +548,14 @@ static inline int uart_prepare_sysrq_char(struct uart_port *port, unsigned int c
 {
 	return 0;
 }
-static inline void uart_unlock_and_check_sysrq(struct uart_port *port, unsigned long irqflags)
+static inline void uart_unlock_and_check_sysrq(struct uart_port *port)
 {
-	spin_unlock_irqrestore(&port->lock, irqflags);
+	spin_unlock(&port->lock);
+}
+static inline void uart_unlock_and_check_sysrq_irqrestore(struct uart_port *port,
+		unsigned long flags)
+{
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 #endif	/* CONFIG_MAGIC_SYSRQ_SERIAL */
 

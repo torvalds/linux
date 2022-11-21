@@ -119,6 +119,8 @@ struct cpuinfo_x86 {
 	int			x86_cache_mbm_width_offset;
 	int			x86_power;
 	unsigned long		loops_per_jiffy;
+	/* protected processor identification number */
+	u64			ppin;
 	/* cpuid returned max cores value: */
 	u16			x86_max_cores;
 	u16			apicid;
@@ -136,6 +138,8 @@ struct cpuinfo_x86 {
 	u16			logical_die_id;
 	/* Index into per_cpu list: */
 	u16			cpu_index;
+	/*  Is SMT active on this core? */
+	bool			smt_active;
 	u32			microcode;
 	/* Address space bits used by the cache internally */
 	u8			x86_cache_bits;
@@ -162,7 +166,8 @@ enum cpuid_regs_idx {
 #define X86_VENDOR_NSC		8
 #define X86_VENDOR_HYGON	9
 #define X86_VENDOR_ZHAOXIN	10
-#define X86_VENDOR_NUM		11
+#define X86_VENDOR_VORTEX	11
+#define X86_VENDOR_NUM		12
 
 #define X86_VENDOR_UNKNOWN	0xff
 
@@ -314,11 +319,6 @@ struct x86_hw_tss {
 struct x86_hw_tss {
 	u32			reserved1;
 	u64			sp0;
-
-	/*
-	 * We store cpu_current_top_of_stack in sp1 so it's always accessible.
-	 * Linux does not use ring 1, so sp1 is not otherwise needed.
-	 */
 	u64			sp1;
 
 	/*
@@ -426,14 +426,7 @@ struct irq_stack {
 	char		stack[IRQ_STACK_SIZE];
 } __aligned(IRQ_STACK_SIZE);
 
-DECLARE_PER_CPU(struct irq_stack *, hardirq_stack_ptr);
-
-#ifdef CONFIG_X86_32
 DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
-#else
-/* The RO copy can't be accessed with this_cpu_xyz(), so use the RW copy. */
-#define cpu_current_top_of_stack cpu_tss_rw.x86_tss.sp1
-#endif
 
 #ifdef CONFIG_X86_64
 struct fixed_percpu_data {
@@ -441,6 +434,9 @@ struct fixed_percpu_data {
 	 * GCC hardcodes the stack canary as %gs:40.  Since the
 	 * irq_stack is the object at %gs:0, we reserve the bottom
 	 * 48 bytes of the irq stack for the canary.
+	 *
+	 * Once we are willing to require -mstack-protector-guard-symbol=
+	 * support for x86_64 stackprotector, we can get rid of this.
 	 */
 	char		gs_base[40];
 	unsigned long	stack_canary;
@@ -454,31 +450,19 @@ static inline unsigned long cpu_kernelmode_gs_base(int cpu)
 	return (unsigned long)per_cpu(fixed_percpu_data.gs_base, cpu);
 }
 
-DECLARE_PER_CPU(unsigned int, irq_count);
+DECLARE_PER_CPU(void *, hardirq_stack_ptr);
+DECLARE_PER_CPU(bool, hardirq_stack_inuse);
 extern asmlinkage void ignore_sysret(void);
 
 /* Save actual FS/GS selectors and bases to current->thread */
 void current_save_fsgs(void);
 #else	/* X86_64 */
 #ifdef CONFIG_STACKPROTECTOR
-/*
- * Make sure stack canary segment base is cached-aligned:
- *   "For Intel Atom processors, avoid non zero segment base address
- *    that is not aligned to cache line boundary at all cost."
- * (Optim Ref Manual Assembly/Compiler Coding Rule 15.)
- */
-struct stack_canary {
-	char __pad[20];		/* canary at %gs:20 */
-	unsigned long canary;
-};
-DECLARE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
+DECLARE_PER_CPU(unsigned long, __stack_chk_guard);
 #endif
-/* Per CPU softirq stack pointer */
+DECLARE_PER_CPU(struct irq_stack *, hardirq_stack_ptr);
 DECLARE_PER_CPU(struct irq_stack *, softirq_stack_ptr);
-#endif	/* X86_64 */
-
-extern unsigned int fpu_kernel_xstate_size;
-extern unsigned int fpu_user_xstate_size;
+#endif	/* !X86_64 */
 
 struct perf_event;
 
@@ -528,13 +512,23 @@ struct thread_struct {
 	struct io_bitmap	*io_bitmap;
 
 	/*
-	 * IOPL. Priviledge level dependent I/O permission which is
+	 * IOPL. Privilege level dependent I/O permission which is
 	 * emulated via the I/O bitmap to prevent user space from disabling
 	 * interrupts.
 	 */
 	unsigned long		iopl_emul;
 
+	unsigned int		iopl_warn:1;
 	unsigned int		sig_on_uaccess_err:1;
+
+	/*
+	 * Protection Keys Register for Userspace.  Loaded immediately on
+	 * context switch. Store it in thread_struct to avoid a lookup in
+	 * the tasks's FPU xstate buffer. This value is only valid when a
+	 * task is scheduled out. For 'current' the authoritative source of
+	 * PKRU is the hardware itself.
+	 */
+	u32			pkru;
 
 	/* Floating point and extended processor state */
 	struct fpu		fpu;
@@ -544,22 +538,13 @@ struct thread_struct {
 	 */
 };
 
-/* Whitelist the FPU state from the task_struct for hardened usercopy. */
+extern void fpu_thread_struct_whitelist(unsigned long *offset, unsigned long *size);
+
 static inline void arch_thread_struct_whitelist(unsigned long *offset,
 						unsigned long *size)
 {
-	*offset = offsetof(struct thread_struct, fpu.state);
-	*size = fpu_kernel_xstate_size;
+	fpu_thread_struct_whitelist(offset, size);
 }
-
-/*
- * Thread-synchronous status.
- *
- * This is different from the flags in that nobody else
- * ever touches our thread-synchronous status, so we don't
- * have to worry about atomic accesses.
- */
-#define TS_COMPAT		0x0002	/* 32bit syscall active (64BIT)*/
 
 static inline void
 native_load_sp0(unsigned long sp0)
@@ -605,7 +590,7 @@ static inline void load_sp0(unsigned long sp0)
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
 
-unsigned long get_wchan(struct task_struct *p);
+unsigned long __get_wchan(struct task_struct *p);
 
 /*
  * Generic CPUID function
@@ -690,6 +675,7 @@ extern void load_direct_gdt(int);
 extern void load_fixmap_gdt(int);
 extern void load_percpu_segment(int);
 extern void cpu_init(void);
+extern void cpu_init_secondary(void);
 extern void cpu_init_exception_handling(void);
 extern void cr4_init(void);
 
@@ -812,19 +798,24 @@ extern int set_tsc_mode(unsigned int val);
 
 DECLARE_PER_CPU(u64, msr_misc_features_shadow);
 
+extern u16 get_llc_id(unsigned int cpu);
+
 #ifdef CONFIG_CPU_SUP_AMD
-extern u16 amd_get_nb_id(int cpu);
 extern u32 amd_get_nodes_per_socket(void);
+extern u32 amd_get_highest_perf(void);
 #else
-static inline u16 amd_get_nb_id(int cpu)		{ return 0; }
 static inline u32 amd_get_nodes_per_socket(void)	{ return 0; }
+static inline u32 amd_get_highest_perf(void)		{ return 0; }
 #endif
+
+#define for_each_possible_hypervisor_cpuid_base(function) \
+	for (function = 0x40000000; function < 0x40010000; function += 0x100)
 
 static inline uint32_t hypervisor_cpuid_base(const char *sig, uint32_t leaves)
 {
 	uint32_t base, eax, signature[3];
 
-	for (base = 0x40000000; base < 0x40010000; base += 0x100) {
+	for_each_possible_hypervisor_cpuid_base(base) {
 		cpuid(base, &eax, &signature[0], &signature[1], &signature[2]);
 
 		if (!memcmp(sig, signature, 12) &&
@@ -846,7 +837,7 @@ bool xen_set_default_idle(void);
 #define xen_set_default_idle 0
 #endif
 
-void stop_this_cpu(void *dummy);
+void __noreturn stop_this_cpu(void *dummy);
 void microcode_check(void);
 
 enum l1tf_mitigations {
@@ -865,5 +856,13 @@ enum mds_mitigations {
 	MDS_MITIGATION_FULL,
 	MDS_MITIGATION_VMWERV,
 };
+
+#ifdef CONFIG_X86_SGX
+int arch_memory_failure(unsigned long pfn, int flags);
+#define arch_memory_failure arch_memory_failure
+
+bool arch_is_platform_page(u64 paddr);
+#define arch_is_platform_page arch_is_platform_page
+#endif
 
 #endif /* _ASM_X86_PROCESSOR_H */

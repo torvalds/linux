@@ -61,7 +61,6 @@
 #define CHAN_MAX_NUM		0x8
 
 struct intmux_irqchip_data {
-	struct irq_chip		chip;
 	u32			saved_reg;
 	int			chanidx;
 	int			irq;
@@ -114,7 +113,7 @@ static void imx_intmux_irq_unmask(struct irq_data *d)
 	raw_spin_unlock_irqrestore(&data->lock, flags);
 }
 
-static struct irq_chip imx_intmux_irq_chip = {
+static struct irq_chip imx_intmux_irq_chip __ro_after_init = {
 	.name		= "intmux",
 	.irq_mask	= imx_intmux_irq_mask,
 	.irq_unmask	= imx_intmux_irq_unmask,
@@ -126,7 +125,7 @@ static int imx_intmux_irq_map(struct irq_domain *h, unsigned int irq,
 	struct intmux_irqchip_data *data = h->host_data;
 
 	irq_set_chip_data(irq, data);
-	irq_set_chip_and_handler(irq, &data->chip, handle_level_irq);
+	irq_set_chip_and_handler(irq, &imx_intmux_irq_chip, handle_level_irq);
 
 	return 0;
 }
@@ -182,18 +181,15 @@ static void imx_intmux_irq_handler(struct irq_desc *desc)
 	struct intmux_data *data = container_of(irqchip_data, struct intmux_data,
 						irqchip_data[idx]);
 	unsigned long irqstat;
-	int pos, virq;
+	int pos;
 
 	chained_irq_enter(irq_desc_get_chip(desc), desc);
 
 	/* read the interrupt source pending status of this channel */
 	irqstat = readl_relaxed(data->regs + CHANIPR(idx));
 
-	for_each_set_bit(pos, &irqstat, 32) {
-		virq = irq_find_mapping(irqchip_data->domain, pos);
-		if (virq)
-			generic_handle_irq(virq);
-	}
+	for_each_set_bit(pos, &irqstat, 32)
+		generic_handle_domain_irq(irqchip_data->domain, pos);
 
 	chained_irq_exit(irq_desc_get_chip(desc), desc);
 }
@@ -244,8 +240,6 @@ static int imx_intmux_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < channum; i++) {
-		data->irqchip_data[i].chip = imx_intmux_irq_chip;
-		data->irqchip_data[i].chip.parent_device = &pdev->dev;
 		data->irqchip_data[i].chanidx = i;
 
 		data->irqchip_data[i].irq = irq_of_parse_and_map(np, i);
@@ -263,6 +257,7 @@ static int imx_intmux_probe(struct platform_device *pdev)
 			goto out;
 		}
 		data->irqchip_data[i].domain = domain;
+		irq_domain_set_pm_device(domain, &pdev->dev);
 
 		/* disable all interrupt sources of this channel firstly */
 		writel_relaxed(0, data->regs + CHANIER(i));

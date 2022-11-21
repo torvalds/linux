@@ -50,6 +50,9 @@ static int qcom_mhi_qrtr_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 	struct qrtr_mhi_dev *qdev = container_of(ep, struct qrtr_mhi_dev, ep);
 	int rc;
 
+	if (skb->sk)
+		sock_hold(skb->sk);
+
 	rc = skb_linearize(skb);
 	if (rc)
 		goto free_skb;
@@ -59,12 +62,11 @@ static int qcom_mhi_qrtr_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 	if (rc)
 		goto free_skb;
 
-	if (skb->sk)
-		sock_hold(skb->sk);
-
 	return rc;
 
 free_skb:
+	if (skb->sk)
+		sock_put(skb->sk);
 	kfree_skb(skb);
 
 	return rc;
@@ -75,6 +77,11 @@ static int qcom_mhi_qrtr_probe(struct mhi_device *mhi_dev,
 {
 	struct qrtr_mhi_dev *qdev;
 	int rc;
+
+	/* start channels */
+	rc = mhi_prepare_for_transfer_autoqueue(mhi_dev);
+	if (rc)
+		return rc;
 
 	qdev = devm_kzalloc(&mhi_dev->dev, sizeof(*qdev), GFP_KERNEL);
 	if (!qdev)
@@ -99,6 +106,7 @@ static void qcom_mhi_qrtr_remove(struct mhi_device *mhi_dev)
 	struct qrtr_mhi_dev *qdev = dev_get_drvdata(&mhi_dev->dev);
 
 	qrtr_endpoint_unregister(&qdev->ep);
+	mhi_unprepare_from_transfer(mhi_dev);
 	dev_set_drvdata(&mhi_dev->dev, NULL);
 }
 

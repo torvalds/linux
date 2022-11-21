@@ -24,11 +24,11 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/dma/xilinx_dpdma.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_dma.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
@@ -92,7 +92,7 @@ struct zynqmp_disp_format {
 };
 
 /**
- * enum zynqmp_disp_id - Layer identifier
+ * enum zynqmp_disp_layer_id - Layer identifier
  * @ZYNQMP_DISP_LAYER_VID: Video layer
  * @ZYNQMP_DISP_LAYER_GFX: Graphics layer
  */
@@ -160,42 +160,16 @@ struct zynqmp_disp_layer {
 };
 
 /**
- * struct zynqmp_disp_blend - Blender
- * @base: Registers I/O base address
- */
-struct zynqmp_disp_blend {
-	void __iomem *base;
-};
-
-/**
- * struct zynqmp_disp_avbuf - Audio/video buffer manager
- * @base: Registers I/O base address
- */
-struct zynqmp_disp_avbuf {
-	void __iomem *base;
-};
-
-/**
- * struct zynqmp_disp_audio - Audio mixer
- * @base: Registers I/O base address
- * @clk: Audio clock
- * @clk_from_ps: True of the audio clock comes from PS, false from PL
- */
-struct zynqmp_disp_audio {
-	void __iomem *base;
-	struct clk *clk;
-	bool clk_from_ps;
-};
-
-/**
  * struct zynqmp_disp - Display controller
  * @dev: Device structure
  * @drm: DRM core
  * @dpsub: Display subsystem
  * @crtc: DRM CRTC
- * @blend: Blender (video rendering pipeline)
- * @avbuf: Audio/video buffer manager
- * @audio: Audio mixer
+ * @blend.base: Register I/O base address for the blender
+ * @avbuf.base: Register I/O base address for the audio/video buffer manager
+ * @audio.base: Registers I/O base address for the audio mixer
+ * @audio.clk: Audio clock
+ * @audio.clk_from_ps: True of the audio clock comes from PS, false from PL
  * @layers: Layers (planes)
  * @event: Pending vblank event request
  * @pclk: Pixel clock
@@ -208,9 +182,17 @@ struct zynqmp_disp {
 
 	struct drm_crtc crtc;
 
-	struct zynqmp_disp_blend blend;
-	struct zynqmp_disp_avbuf avbuf;
-	struct zynqmp_disp_audio audio;
+	struct {
+		void __iomem *base;
+	} blend;
+	struct {
+		void __iomem *base;
+	} avbuf;
+	struct {
+		void __iomem *base;
+		struct clk *clk;
+		bool clk_from_ps;
+	} audio;
 
 	struct zynqmp_disp_layer layers[ZYNQMP_DISP_NUM_LAYERS];
 
@@ -424,51 +406,60 @@ static const struct zynqmp_disp_format avbuf_gfx_fmts[] = {
 	},
 };
 
-static u32 zynqmp_disp_avbuf_read(struct zynqmp_disp_avbuf *avbuf, int reg)
+static u32 zynqmp_disp_avbuf_read(struct zynqmp_disp *disp, int reg)
 {
-	return readl(avbuf->base + reg);
+	return readl(disp->avbuf.base + reg);
 }
 
-static void zynqmp_disp_avbuf_write(struct zynqmp_disp_avbuf *avbuf,
-				    int reg, u32 val)
+static void zynqmp_disp_avbuf_write(struct zynqmp_disp *disp, int reg, u32 val)
 {
-	writel(val, avbuf->base + reg);
+	writel(val, disp->avbuf.base + reg);
+}
+
+static bool zynqmp_disp_layer_is_gfx(const struct zynqmp_disp_layer *layer)
+{
+	return layer->id == ZYNQMP_DISP_LAYER_GFX;
+}
+
+static bool zynqmp_disp_layer_is_video(const struct zynqmp_disp_layer *layer)
+{
+	return layer->id == ZYNQMP_DISP_LAYER_VID;
 }
 
 /**
  * zynqmp_disp_avbuf_set_format - Set the input format for a layer
- * @avbuf: Audio/video buffer manager
- * @layer: The layer ID
+ * @disp: Display controller
+ * @layer: The layer
  * @fmt: The format information
  *
  * Set the video buffer manager format for @layer to @fmt.
  */
-static void zynqmp_disp_avbuf_set_format(struct zynqmp_disp_avbuf *avbuf,
-					 enum zynqmp_disp_layer_id layer,
+static void zynqmp_disp_avbuf_set_format(struct zynqmp_disp *disp,
+					 struct zynqmp_disp_layer *layer,
 					 const struct zynqmp_disp_format *fmt)
 {
 	unsigned int i;
 	u32 val;
 
-	val = zynqmp_disp_avbuf_read(avbuf, ZYNQMP_DISP_AV_BUF_FMT);
-	val &= layer == ZYNQMP_DISP_LAYER_VID
+	val = zynqmp_disp_avbuf_read(disp, ZYNQMP_DISP_AV_BUF_FMT);
+	val &= zynqmp_disp_layer_is_video(layer)
 	    ? ~ZYNQMP_DISP_AV_BUF_FMT_NL_VID_MASK
 	    : ~ZYNQMP_DISP_AV_BUF_FMT_NL_GFX_MASK;
 	val |= fmt->buf_fmt;
-	zynqmp_disp_avbuf_write(avbuf, ZYNQMP_DISP_AV_BUF_FMT, val);
+	zynqmp_disp_avbuf_write(disp, ZYNQMP_DISP_AV_BUF_FMT, val);
 
 	for (i = 0; i < ZYNQMP_DISP_AV_BUF_NUM_SF; i++) {
-		unsigned int reg = layer == ZYNQMP_DISP_LAYER_VID
+		unsigned int reg = zynqmp_disp_layer_is_video(layer)
 				 ? ZYNQMP_DISP_AV_BUF_VID_COMP_SF(i)
 				 : ZYNQMP_DISP_AV_BUF_GFX_COMP_SF(i);
 
-		zynqmp_disp_avbuf_write(avbuf, reg, fmt->sf[i]);
+		zynqmp_disp_avbuf_write(disp, reg, fmt->sf[i]);
 	}
 }
 
 /**
  * zynqmp_disp_avbuf_set_clocks_sources - Set the clocks sources
- * @avbuf: Audio/video buffer manager
+ * @disp: Display controller
  * @video_from_ps: True if the video clock originates from the PS
  * @audio_from_ps: True if the audio clock originates from the PS
  * @timings_internal: True if video timings are generated internally
@@ -478,7 +469,7 @@ static void zynqmp_disp_avbuf_set_format(struct zynqmp_disp_avbuf *avbuf,
  * generated internally or externally.
  */
 static void
-zynqmp_disp_avbuf_set_clocks_sources(struct zynqmp_disp_avbuf *avbuf,
+zynqmp_disp_avbuf_set_clocks_sources(struct zynqmp_disp *disp,
 				     bool video_from_ps, bool audio_from_ps,
 				     bool timings_internal)
 {
@@ -491,16 +482,16 @@ zynqmp_disp_avbuf_set_clocks_sources(struct zynqmp_disp_avbuf *avbuf,
 	if (timings_internal)
 		val |= ZYNQMP_DISP_AV_BUF_CLK_SRC_VID_INTERNAL_TIMING;
 
-	zynqmp_disp_avbuf_write(avbuf, ZYNQMP_DISP_AV_BUF_CLK_SRC, val);
+	zynqmp_disp_avbuf_write(disp, ZYNQMP_DISP_AV_BUF_CLK_SRC, val);
 }
 
 /**
  * zynqmp_disp_avbuf_enable_channels - Enable buffer channels
- * @avbuf: Audio/video buffer manager
+ * @disp: Display controller
  *
  * Enable all (video and audio) buffer channels.
  */
-static void zynqmp_disp_avbuf_enable_channels(struct zynqmp_disp_avbuf *avbuf)
+static void zynqmp_disp_avbuf_enable_channels(struct zynqmp_disp *disp)
 {
 	unsigned int i;
 	u32 val;
@@ -510,7 +501,7 @@ static void zynqmp_disp_avbuf_enable_channels(struct zynqmp_disp_avbuf *avbuf)
 	       ZYNQMP_DISP_AV_BUF_CHBUF_BURST_LEN_SHIFT);
 
 	for (i = 0; i < ZYNQMP_DISP_AV_BUF_NUM_VID_GFX_BUFFERS; i++)
-		zynqmp_disp_avbuf_write(avbuf, ZYNQMP_DISP_AV_BUF_CHBUF(i),
+		zynqmp_disp_avbuf_write(disp, ZYNQMP_DISP_AV_BUF_CHBUF(i),
 					val);
 
 	val = ZYNQMP_DISP_AV_BUF_CHBUF_EN |
@@ -518,75 +509,75 @@ static void zynqmp_disp_avbuf_enable_channels(struct zynqmp_disp_avbuf *avbuf)
 	       ZYNQMP_DISP_AV_BUF_CHBUF_BURST_LEN_SHIFT);
 
 	for (; i < ZYNQMP_DISP_AV_BUF_NUM_BUFFERS; i++)
-		zynqmp_disp_avbuf_write(avbuf, ZYNQMP_DISP_AV_BUF_CHBUF(i),
+		zynqmp_disp_avbuf_write(disp, ZYNQMP_DISP_AV_BUF_CHBUF(i),
 					val);
 }
 
 /**
  * zynqmp_disp_avbuf_disable_channels - Disable buffer channels
- * @avbuf: Audio/video buffer manager
+ * @disp: Display controller
  *
  * Disable all (video and audio) buffer channels.
  */
-static void zynqmp_disp_avbuf_disable_channels(struct zynqmp_disp_avbuf *avbuf)
+static void zynqmp_disp_avbuf_disable_channels(struct zynqmp_disp *disp)
 {
 	unsigned int i;
 
 	for (i = 0; i < ZYNQMP_DISP_AV_BUF_NUM_BUFFERS; i++)
-		zynqmp_disp_avbuf_write(avbuf, ZYNQMP_DISP_AV_BUF_CHBUF(i),
+		zynqmp_disp_avbuf_write(disp, ZYNQMP_DISP_AV_BUF_CHBUF(i),
 					ZYNQMP_DISP_AV_BUF_CHBUF_FLUSH);
 }
 
 /**
  * zynqmp_disp_avbuf_enable_audio - Enable audio
- * @avbuf: Audio/video buffer manager
+ * @disp: Display controller
  *
  * Enable all audio buffers with a non-live (memory) source.
  */
-static void zynqmp_disp_avbuf_enable_audio(struct zynqmp_disp_avbuf *avbuf)
+static void zynqmp_disp_avbuf_enable_audio(struct zynqmp_disp *disp)
 {
 	u32 val;
 
-	val = zynqmp_disp_avbuf_read(avbuf, ZYNQMP_DISP_AV_BUF_OUTPUT);
+	val = zynqmp_disp_avbuf_read(disp, ZYNQMP_DISP_AV_BUF_OUTPUT);
 	val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_AUD1_MASK;
 	val |= ZYNQMP_DISP_AV_BUF_OUTPUT_AUD1_MEM;
 	val |= ZYNQMP_DISP_AV_BUF_OUTPUT_AUD2_EN;
-	zynqmp_disp_avbuf_write(avbuf, ZYNQMP_DISP_AV_BUF_OUTPUT, val);
+	zynqmp_disp_avbuf_write(disp, ZYNQMP_DISP_AV_BUF_OUTPUT, val);
 }
 
 /**
  * zynqmp_disp_avbuf_disable_audio - Disable audio
- * @avbuf: Audio/video buffer manager
+ * @disp: Display controller
  *
  * Disable all audio buffers.
  */
-static void zynqmp_disp_avbuf_disable_audio(struct zynqmp_disp_avbuf *avbuf)
+static void zynqmp_disp_avbuf_disable_audio(struct zynqmp_disp *disp)
 {
 	u32 val;
 
-	val = zynqmp_disp_avbuf_read(avbuf, ZYNQMP_DISP_AV_BUF_OUTPUT);
+	val = zynqmp_disp_avbuf_read(disp, ZYNQMP_DISP_AV_BUF_OUTPUT);
 	val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_AUD1_MASK;
 	val |= ZYNQMP_DISP_AV_BUF_OUTPUT_AUD1_DISABLE;
 	val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_AUD2_EN;
-	zynqmp_disp_avbuf_write(avbuf, ZYNQMP_DISP_AV_BUF_OUTPUT, val);
+	zynqmp_disp_avbuf_write(disp, ZYNQMP_DISP_AV_BUF_OUTPUT, val);
 }
 
 /**
  * zynqmp_disp_avbuf_enable_video - Enable a video layer
- * @avbuf: Audio/video buffer manager
- * @layer: The layer ID
+ * @disp: Display controller
+ * @layer: The layer
  * @mode: Operating mode of layer
  *
  * Enable the video/graphics buffer for @layer.
  */
-static void zynqmp_disp_avbuf_enable_video(struct zynqmp_disp_avbuf *avbuf,
-					   enum zynqmp_disp_layer_id layer,
+static void zynqmp_disp_avbuf_enable_video(struct zynqmp_disp *disp,
+					   struct zynqmp_disp_layer *layer,
 					   enum zynqmp_disp_layer_mode mode)
 {
 	u32 val;
 
-	val = zynqmp_disp_avbuf_read(avbuf, ZYNQMP_DISP_AV_BUF_OUTPUT);
-	if (layer == ZYNQMP_DISP_LAYER_VID) {
+	val = zynqmp_disp_avbuf_read(disp, ZYNQMP_DISP_AV_BUF_OUTPUT);
+	if (zynqmp_disp_layer_is_video(layer)) {
 		val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_MASK;
 		if (mode == ZYNQMP_DISP_LAYER_NONLIVE)
 			val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_MEM;
@@ -600,52 +591,52 @@ static void zynqmp_disp_avbuf_enable_video(struct zynqmp_disp_avbuf *avbuf,
 		else
 			val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID2_LIVE;
 	}
-	zynqmp_disp_avbuf_write(avbuf, ZYNQMP_DISP_AV_BUF_OUTPUT, val);
+	zynqmp_disp_avbuf_write(disp, ZYNQMP_DISP_AV_BUF_OUTPUT, val);
 }
 
 /**
  * zynqmp_disp_avbuf_disable_video - Disable a video layer
- * @avbuf: Audio/video buffer manager
- * @layer: The layer ID
+ * @disp: Display controller
+ * @layer: The layer
  *
  * Disable the video/graphics buffer for @layer.
  */
-static void zynqmp_disp_avbuf_disable_video(struct zynqmp_disp_avbuf *avbuf,
-					    enum zynqmp_disp_layer_id layer)
+static void zynqmp_disp_avbuf_disable_video(struct zynqmp_disp *disp,
+					    struct zynqmp_disp_layer *layer)
 {
 	u32 val;
 
-	val = zynqmp_disp_avbuf_read(avbuf, ZYNQMP_DISP_AV_BUF_OUTPUT);
-	if (layer == ZYNQMP_DISP_LAYER_VID) {
+	val = zynqmp_disp_avbuf_read(disp, ZYNQMP_DISP_AV_BUF_OUTPUT);
+	if (zynqmp_disp_layer_is_video(layer)) {
 		val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_MASK;
 		val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_NONE;
 	} else {
 		val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_VID2_MASK;
 		val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID2_DISABLE;
 	}
-	zynqmp_disp_avbuf_write(avbuf, ZYNQMP_DISP_AV_BUF_OUTPUT, val);
+	zynqmp_disp_avbuf_write(disp, ZYNQMP_DISP_AV_BUF_OUTPUT, val);
 }
 
 /**
  * zynqmp_disp_avbuf_enable - Enable the video pipe
- * @avbuf: Audio/video buffer manager
+ * @disp: Display controller
  *
  * De-assert the video pipe reset.
  */
-static void zynqmp_disp_avbuf_enable(struct zynqmp_disp_avbuf *avbuf)
+static void zynqmp_disp_avbuf_enable(struct zynqmp_disp *disp)
 {
-	zynqmp_disp_avbuf_write(avbuf, ZYNQMP_DISP_AV_BUF_SRST_REG, 0);
+	zynqmp_disp_avbuf_write(disp, ZYNQMP_DISP_AV_BUF_SRST_REG, 0);
 }
 
 /**
  * zynqmp_disp_avbuf_disable - Disable the video pipe
- * @avbuf: Audio/video buffer manager
+ * @disp: Display controller
  *
  * Assert the video pipe reset.
  */
-static void zynqmp_disp_avbuf_disable(struct zynqmp_disp_avbuf *avbuf)
+static void zynqmp_disp_avbuf_disable(struct zynqmp_disp *disp)
 {
-	zynqmp_disp_avbuf_write(avbuf, ZYNQMP_DISP_AV_BUF_SRST_REG,
+	zynqmp_disp_avbuf_write(disp, ZYNQMP_DISP_AV_BUF_SRST_REG,
 				ZYNQMP_DISP_AV_BUF_SRST_REG_VID_RST);
 }
 
@@ -653,10 +644,9 @@ static void zynqmp_disp_avbuf_disable(struct zynqmp_disp_avbuf *avbuf)
  * Blender (Video Pipeline)
  */
 
-static void zynqmp_disp_blend_write(struct zynqmp_disp_blend *blend,
-				    int reg, u32 val)
+static void zynqmp_disp_blend_write(struct zynqmp_disp *disp, int reg, u32 val)
 {
-	writel(val, blend->base + reg);
+	writel(val, disp->blend.base + reg);
 }
 
 /*
@@ -702,12 +692,12 @@ static const u32 csc_sdtv_to_rgb_offsets[] = {
 
 /**
  * zynqmp_disp_blend_set_output_format - Set the output format of the blender
- * @blend: Blender object
+ * @disp: Display controller
  * @format: Output format
  *
  * Set the output format of the blender to @format.
  */
-static void zynqmp_disp_blend_set_output_format(struct zynqmp_disp_blend *blend,
+static void zynqmp_disp_blend_set_output_format(struct zynqmp_disp *disp,
 						enum zynqmp_dpsub_format format)
 {
 	static const unsigned int blend_output_fmts[] = {
@@ -723,7 +713,7 @@ static void zynqmp_disp_blend_set_output_format(struct zynqmp_disp_blend *blend,
 	const u32 *offsets;
 	unsigned int i;
 
-	zynqmp_disp_blend_write(blend, ZYNQMP_DISP_V_BLEND_OUTPUT_VID_FMT, fmt);
+	zynqmp_disp_blend_write(disp, ZYNQMP_DISP_V_BLEND_OUTPUT_VID_FMT, fmt);
 	if (fmt == ZYNQMP_DISP_V_BLEND_OUTPUT_VID_FMT_RGB) {
 		coeffs = csc_identity_matrix;
 		offsets = csc_zero_offsets;
@@ -733,19 +723,19 @@ static void zynqmp_disp_blend_set_output_format(struct zynqmp_disp_blend *blend,
 	}
 
 	for (i = 0; i < ZYNQMP_DISP_V_BLEND_NUM_COEFF; i++)
-		zynqmp_disp_blend_write(blend,
+		zynqmp_disp_blend_write(disp,
 					ZYNQMP_DISP_V_BLEND_RGB2YCBCR_COEFF(i),
 					coeffs[i]);
 
 	for (i = 0; i < ZYNQMP_DISP_V_BLEND_NUM_OFFSET; i++)
-		zynqmp_disp_blend_write(blend,
+		zynqmp_disp_blend_write(disp,
 					ZYNQMP_DISP_V_BLEND_OUTCSC_OFFSET(i),
 					offsets[i]);
 }
 
 /**
  * zynqmp_disp_blend_set_bg_color - Set the background color
- * @blend: Blender object
+ * @disp: Display controller
  * @rcr: Red/Cr color component
  * @gy: Green/Y color component
  * @bcb: Blue/Cb color component
@@ -754,31 +744,31 @@ static void zynqmp_disp_blend_set_output_format(struct zynqmp_disp_blend *blend,
  * B or Cr, Y and Cb components respectively depending on the selected output
  * format.
  */
-static void zynqmp_disp_blend_set_bg_color(struct zynqmp_disp_blend *blend,
+static void zynqmp_disp_blend_set_bg_color(struct zynqmp_disp *disp,
 					   u32 rcr, u32 gy, u32 bcb)
 {
-	zynqmp_disp_blend_write(blend, ZYNQMP_DISP_V_BLEND_BG_CLR_0, rcr);
-	zynqmp_disp_blend_write(blend, ZYNQMP_DISP_V_BLEND_BG_CLR_1, gy);
-	zynqmp_disp_blend_write(blend, ZYNQMP_DISP_V_BLEND_BG_CLR_2, bcb);
+	zynqmp_disp_blend_write(disp, ZYNQMP_DISP_V_BLEND_BG_CLR_0, rcr);
+	zynqmp_disp_blend_write(disp, ZYNQMP_DISP_V_BLEND_BG_CLR_1, gy);
+	zynqmp_disp_blend_write(disp, ZYNQMP_DISP_V_BLEND_BG_CLR_2, bcb);
 }
 
 /**
  * zynqmp_disp_blend_set_global_alpha - Configure global alpha blending
- * @blend: Blender object
+ * @disp: Display controller
  * @enable: True to enable global alpha blending
  * @alpha: Global alpha value (ignored if @enabled is false)
  */
-static void zynqmp_disp_blend_set_global_alpha(struct zynqmp_disp_blend *blend,
+static void zynqmp_disp_blend_set_global_alpha(struct zynqmp_disp *disp,
 					       bool enable, u32 alpha)
 {
-	zynqmp_disp_blend_write(blend, ZYNQMP_DISP_V_BLEND_SET_GLOBAL_ALPHA,
+	zynqmp_disp_blend_write(disp, ZYNQMP_DISP_V_BLEND_SET_GLOBAL_ALPHA,
 				ZYNQMP_DISP_V_BLEND_SET_GLOBAL_ALPHA_VALUE(alpha) |
 				(enable ? ZYNQMP_DISP_V_BLEND_SET_GLOBAL_ALPHA_EN : 0));
 }
 
 /**
  * zynqmp_disp_blend_layer_set_csc - Configure colorspace conversion for layer
- * @blend: Blender object
+ * @disp: Display controller
  * @layer: The layer
  * @coeffs: Colorspace conversion matrix
  * @offsets: Colorspace conversion offsets
@@ -787,7 +777,7 @@ static void zynqmp_disp_blend_set_global_alpha(struct zynqmp_disp_blend *blend,
  * Columns of the matrix are automatically swapped based on the input format to
  * handle RGB and YCrCb components permutations.
  */
-static void zynqmp_disp_blend_layer_set_csc(struct zynqmp_disp_blend *blend,
+static void zynqmp_disp_blend_layer_set_csc(struct zynqmp_disp *disp,
 					    struct zynqmp_disp_layer *layer,
 					    const u16 *coeffs,
 					    const u32 *offsets)
@@ -808,32 +798,32 @@ static void zynqmp_disp_blend_layer_set_csc(struct zynqmp_disp_blend *blend,
 		}
 	}
 
-	if (layer->id == ZYNQMP_DISP_LAYER_VID)
+	if (zynqmp_disp_layer_is_video(layer))
 		reg = ZYNQMP_DISP_V_BLEND_IN1CSC_COEFF(0);
 	else
 		reg = ZYNQMP_DISP_V_BLEND_IN2CSC_COEFF(0);
 
 	for (i = 0; i < ZYNQMP_DISP_V_BLEND_NUM_COEFF; i += 3, reg += 12) {
-		zynqmp_disp_blend_write(blend, reg + 0, coeffs[i + swap[0]]);
-		zynqmp_disp_blend_write(blend, reg + 4, coeffs[i + swap[1]]);
-		zynqmp_disp_blend_write(blend, reg + 8, coeffs[i + swap[2]]);
+		zynqmp_disp_blend_write(disp, reg + 0, coeffs[i + swap[0]]);
+		zynqmp_disp_blend_write(disp, reg + 4, coeffs[i + swap[1]]);
+		zynqmp_disp_blend_write(disp, reg + 8, coeffs[i + swap[2]]);
 	}
 
-	if (layer->id == ZYNQMP_DISP_LAYER_VID)
+	if (zynqmp_disp_layer_is_video(layer))
 		reg = ZYNQMP_DISP_V_BLEND_IN1CSC_OFFSET(0);
 	else
 		reg = ZYNQMP_DISP_V_BLEND_IN2CSC_OFFSET(0);
 
 	for (i = 0; i < ZYNQMP_DISP_V_BLEND_NUM_OFFSET; i++)
-		zynqmp_disp_blend_write(blend, reg + i * 4, offsets[i]);
+		zynqmp_disp_blend_write(disp, reg + i * 4, offsets[i]);
 }
 
 /**
  * zynqmp_disp_blend_layer_enable - Enable a layer
- * @blend: Blender object
+ * @disp: Display controller
  * @layer: The layer
  */
-static void zynqmp_disp_blend_layer_enable(struct zynqmp_disp_blend *blend,
+static void zynqmp_disp_blend_layer_enable(struct zynqmp_disp *disp,
 					   struct zynqmp_disp_layer *layer)
 {
 	const u16 *coeffs;
@@ -845,7 +835,7 @@ static void zynqmp_disp_blend_layer_enable(struct zynqmp_disp_blend *blend,
 	      (layer->drm_fmt->hsub > 1 ?
 	       ZYNQMP_DISP_V_BLEND_LAYER_CONTROL_EN_US : 0);
 
-	zynqmp_disp_blend_write(blend,
+	zynqmp_disp_blend_write(disp,
 				ZYNQMP_DISP_V_BLEND_LAYER_CONTROL(layer->id),
 				val);
 
@@ -857,22 +847,22 @@ static void zynqmp_disp_blend_layer_enable(struct zynqmp_disp_blend *blend,
 		offsets = csc_zero_offsets;
 	}
 
-	zynqmp_disp_blend_layer_set_csc(blend, layer, coeffs, offsets);
+	zynqmp_disp_blend_layer_set_csc(disp, layer, coeffs, offsets);
 }
 
 /**
  * zynqmp_disp_blend_layer_disable - Disable a layer
- * @blend: Blender object
+ * @disp: Display controller
  * @layer: The layer
  */
-static void zynqmp_disp_blend_layer_disable(struct zynqmp_disp_blend *blend,
+static void zynqmp_disp_blend_layer_disable(struct zynqmp_disp *disp,
 					    struct zynqmp_disp_layer *layer)
 {
-	zynqmp_disp_blend_write(blend,
+	zynqmp_disp_blend_write(disp,
 				ZYNQMP_DISP_V_BLEND_LAYER_CONTROL(layer->id),
 				0);
 
-	zynqmp_disp_blend_layer_set_csc(blend, layer, csc_zero_matrix,
+	zynqmp_disp_blend_layer_set_csc(disp, layer, csc_zero_matrix,
 					csc_zero_offsets);
 }
 
@@ -880,57 +870,55 @@ static void zynqmp_disp_blend_layer_disable(struct zynqmp_disp_blend *blend,
  * Audio Mixer
  */
 
-static void zynqmp_disp_audio_write(struct zynqmp_disp_audio *audio,
-				  int reg, u32 val)
+static void zynqmp_disp_audio_write(struct zynqmp_disp *disp, int reg, u32 val)
 {
-	writel(val, audio->base + reg);
+	writel(val, disp->audio.base + reg);
 }
 
 /**
  * zynqmp_disp_audio_enable - Enable the audio mixer
- * @audio: Audio mixer
+ * @disp: Display controller
  *
  * Enable the audio mixer by de-asserting the soft reset. The audio state is set to
  * default values by the reset, set the default mixer volume explicitly.
  */
-static void zynqmp_disp_audio_enable(struct zynqmp_disp_audio *audio)
+static void zynqmp_disp_audio_enable(struct zynqmp_disp *disp)
 {
 	/* Clear the audio soft reset register as it's an non-reset flop. */
-	zynqmp_disp_audio_write(audio, ZYNQMP_DISP_AUD_SOFT_RESET, 0);
-	zynqmp_disp_audio_write(audio, ZYNQMP_DISP_AUD_MIXER_VOLUME,
+	zynqmp_disp_audio_write(disp, ZYNQMP_DISP_AUD_SOFT_RESET, 0);
+	zynqmp_disp_audio_write(disp, ZYNQMP_DISP_AUD_MIXER_VOLUME,
 				ZYNQMP_DISP_AUD_MIXER_VOLUME_NO_SCALE);
 }
 
 /**
  * zynqmp_disp_audio_disable - Disable the audio mixer
- * @audio: Audio mixer
+ * @disp: Display controller
  *
  * Disable the audio mixer by asserting its soft reset.
  */
-static void zynqmp_disp_audio_disable(struct zynqmp_disp_audio *audio)
+static void zynqmp_disp_audio_disable(struct zynqmp_disp *disp)
 {
-	zynqmp_disp_audio_write(audio, ZYNQMP_DISP_AUD_SOFT_RESET,
+	zynqmp_disp_audio_write(disp, ZYNQMP_DISP_AUD_SOFT_RESET,
 				ZYNQMP_DISP_AUD_SOFT_RESET_AUD_SRST);
 }
 
-static void zynqmp_disp_audio_init(struct device *dev,
-				   struct zynqmp_disp_audio *audio)
+static void zynqmp_disp_audio_init(struct zynqmp_disp *disp)
 {
 	/* Try the live PL audio clock. */
-	audio->clk = devm_clk_get(dev, "dp_live_audio_aclk");
-	if (!IS_ERR(audio->clk)) {
-		audio->clk_from_ps = false;
+	disp->audio.clk = devm_clk_get(disp->dev, "dp_live_audio_aclk");
+	if (!IS_ERR(disp->audio.clk)) {
+		disp->audio.clk_from_ps = false;
 		return;
 	}
 
 	/* If the live PL audio clock is not valid, fall back to PS clock. */
-	audio->clk = devm_clk_get(dev, "dp_aud_clk");
-	if (!IS_ERR(audio->clk)) {
-		audio->clk_from_ps = true;
+	disp->audio.clk = devm_clk_get(disp->dev, "dp_aud_clk");
+	if (!IS_ERR(disp->audio.clk)) {
+		disp->audio.clk_from_ps = true;
 		return;
 	}
 
-	dev_err(dev, "audio disabled due to missing clock\n");
+	dev_err(disp->dev, "audio disabled due to missing clock\n");
 }
 
 /* -----------------------------------------------------------------------------
@@ -1026,9 +1014,9 @@ zynqmp_disp_layer_find_format(struct zynqmp_disp_layer *layer,
  */
 static void zynqmp_disp_layer_enable(struct zynqmp_disp_layer *layer)
 {
-	zynqmp_disp_avbuf_enable_video(&layer->disp->avbuf, layer->id,
+	zynqmp_disp_avbuf_enable_video(layer->disp, layer,
 				       ZYNQMP_DISP_LAYER_NONLIVE);
-	zynqmp_disp_blend_layer_enable(&layer->disp->blend, layer);
+	zynqmp_disp_blend_layer_enable(layer->disp, layer);
 
 	layer->mode = ZYNQMP_DISP_LAYER_NONLIVE;
 }
@@ -1047,8 +1035,8 @@ static void zynqmp_disp_layer_disable(struct zynqmp_disp_layer *layer)
 	for (i = 0; i < layer->drm_fmt->num_planes; i++)
 		dmaengine_terminate_sync(layer->dmas[i].chan);
 
-	zynqmp_disp_avbuf_disable_video(&layer->disp->avbuf, layer->id);
-	zynqmp_disp_blend_layer_disable(&layer->disp->blend, layer);
+	zynqmp_disp_avbuf_disable_video(layer->disp, layer);
+	zynqmp_disp_blend_layer_disable(layer->disp, layer);
 }
 
 /**
@@ -1068,18 +1056,21 @@ static void zynqmp_disp_layer_set_format(struct zynqmp_disp_layer *layer,
 	layer->disp_fmt = zynqmp_disp_layer_find_format(layer, info->format);
 	layer->drm_fmt = info;
 
-	zynqmp_disp_avbuf_set_format(&layer->disp->avbuf, layer->id,
-				     layer->disp_fmt);
+	zynqmp_disp_avbuf_set_format(layer->disp, layer, layer->disp_fmt);
 
 	/*
-	 * Set slave_id for each DMA channel to indicate they're part of a
+	 * Set pconfig for each DMA channel to indicate they're part of a
 	 * video group.
 	 */
 	for (i = 0; i < info->num_planes; i++) {
 		struct zynqmp_disp_layer_dma *dma = &layer->dmas[i];
+		struct xilinx_dpdma_peripheral_config pconfig = {
+			.video_group = true,
+		};
 		struct dma_slave_config config = {
 			.direction = DMA_MEM_TO_DEV,
-			.slave_id = 1,
+			.peripheral_config = &pconfig,
+			.peripheral_size = sizeof(pconfig),
 		};
 
 		dmaengine_slave_config(dma->chan, &config);
@@ -1144,18 +1135,21 @@ static inline struct zynqmp_disp_layer *plane_to_layer(struct drm_plane *plane)
 
 static int
 zynqmp_disp_plane_atomic_check(struct drm_plane *plane,
-			       struct drm_plane_state *state)
+			       struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct drm_crtc_state *crtc_state;
 
-	if (!state->crtc)
+	if (!new_plane_state->crtc)
 		return 0;
 
-	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
+	crtc_state = drm_atomic_get_crtc_state(state, new_plane_state->crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
-	return drm_atomic_helper_check_plane_state(state, crtc_state,
+	return drm_atomic_helper_check_plane_state(new_plane_state,
+						   crtc_state,
 						   DRM_PLANE_HELPER_NO_SCALING,
 						   DRM_PLANE_HELPER_NO_SCALING,
 						   false, false);
@@ -1163,25 +1157,33 @@ zynqmp_disp_plane_atomic_check(struct drm_plane *plane,
 
 static void
 zynqmp_disp_plane_atomic_disable(struct drm_plane *plane,
-				 struct drm_plane_state *old_state)
+				 struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct zynqmp_disp_layer *layer = plane_to_layer(plane);
 
 	if (!old_state->fb)
 		return;
 
 	zynqmp_disp_layer_disable(layer);
+
+	if (zynqmp_disp_layer_is_gfx(layer))
+		zynqmp_disp_blend_set_global_alpha(layer->disp, false,
+						   plane->state->alpha >> 8);
 }
 
 static void
 zynqmp_disp_plane_atomic_update(struct drm_plane *plane,
-				struct drm_plane_state *old_state)
+				struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
 	struct zynqmp_disp_layer *layer = plane_to_layer(plane);
 	bool format_changed = false;
 
 	if (!old_state->fb ||
-	    old_state->fb->format->format != plane->state->fb->format->format)
+	    old_state->fb->format->format != new_state->fb->format->format)
 		format_changed = true;
 
 	/*
@@ -1193,10 +1195,14 @@ zynqmp_disp_plane_atomic_update(struct drm_plane *plane,
 		if (old_state->fb)
 			zynqmp_disp_layer_disable(layer);
 
-		zynqmp_disp_layer_set_format(layer, plane->state);
+		zynqmp_disp_layer_set_format(layer, new_state);
 	}
 
-	zynqmp_disp_layer_update(layer, plane->state);
+	zynqmp_disp_layer_update(layer, new_state);
+
+	if (zynqmp_disp_layer_is_gfx(layer))
+		zynqmp_disp_blend_set_global_alpha(layer->disp, true,
+						   plane->state->alpha >> 8);
 
 	/* Enable or re-enable the plane is the format has changed. */
 	if (format_changed)
@@ -1238,8 +1244,8 @@ static int zynqmp_disp_create_planes(struct zynqmp_disp *disp)
 			drm_formats[j] = layer->info->formats[j].drm_fmt;
 
 		/* Graphics layer is primary, and video layer is overlay. */
-		type = i == ZYNQMP_DISP_LAYER_GFX
-		     ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
+		type = zynqmp_disp_layer_is_video(layer)
+		     ? DRM_PLANE_TYPE_OVERLAY : DRM_PLANE_TYPE_PRIMARY;
 		ret = drm_universal_plane_init(disp->drm, &layer->plane, 0,
 					       &zynqmp_disp_plane_funcs,
 					       drm_formats,
@@ -1250,6 +1256,10 @@ static int zynqmp_disp_create_planes(struct zynqmp_disp *disp)
 
 		drm_plane_helper_add(&layer->plane,
 				     &zynqmp_disp_plane_helper_funcs);
+
+		drm_plane_create_zpos_immutable_property(&layer->plane, i);
+		if (zynqmp_disp_layer_is_gfx(layer))
+			drm_plane_create_alpha_property(&layer->plane);
 	}
 
 	return 0;
@@ -1316,8 +1326,7 @@ static int zynqmp_disp_layer_request_dma(struct zynqmp_disp *disp,
 
 		snprintf(dma_channel_name, sizeof(dma_channel_name),
 			 "%s%u", dma_names[layer->id], i);
-		dma->chan = of_dma_request_slave_channel(disp->dev->of_node,
-							 dma_channel_name);
+		dma->chan = dma_request_chan(disp->dev, dma_channel_name);
 		if (IS_ERR(dma->chan)) {
 			dev_err(disp->dev, "failed to request dma channel\n");
 			ret = PTR_ERR(dma->chan);
@@ -1382,14 +1391,14 @@ err:
  */
 static void zynqmp_disp_enable(struct zynqmp_disp *disp)
 {
-	zynqmp_disp_avbuf_enable(&disp->avbuf);
+	zynqmp_disp_avbuf_enable(disp);
 	/* Choose clock source based on the DT clock handle. */
-	zynqmp_disp_avbuf_set_clocks_sources(&disp->avbuf, disp->pclk_from_ps,
+	zynqmp_disp_avbuf_set_clocks_sources(disp, disp->pclk_from_ps,
 					     disp->audio.clk_from_ps, true);
-	zynqmp_disp_avbuf_enable_channels(&disp->avbuf);
-	zynqmp_disp_avbuf_enable_audio(&disp->avbuf);
+	zynqmp_disp_avbuf_enable_channels(disp);
+	zynqmp_disp_avbuf_enable_audio(disp);
 
-	zynqmp_disp_audio_enable(&disp->audio);
+	zynqmp_disp_audio_enable(disp);
 }
 
 /**
@@ -1398,19 +1407,11 @@ static void zynqmp_disp_enable(struct zynqmp_disp *disp)
  */
 static void zynqmp_disp_disable(struct zynqmp_disp *disp)
 {
-	struct drm_crtc *crtc = &disp->crtc;
+	zynqmp_disp_audio_disable(disp);
 
-	zynqmp_disp_audio_disable(&disp->audio);
-
-	zynqmp_disp_avbuf_disable_audio(&disp->avbuf);
-	zynqmp_disp_avbuf_disable_channels(&disp->avbuf);
-	zynqmp_disp_avbuf_disable(&disp->avbuf);
-
-	/* Mark the flip is done as crtc is disabled anyway */
-	if (crtc->state->event) {
-		complete_all(crtc->state->event->base.completion);
-		crtc->state->event = NULL;
-	}
+	zynqmp_disp_avbuf_disable_audio(disp);
+	zynqmp_disp_avbuf_disable_channels(disp);
+	zynqmp_disp_avbuf_disable(disp);
 }
 
 static inline struct zynqmp_disp *crtc_to_disp(struct drm_crtc *crtc)
@@ -1449,15 +1450,16 @@ static int zynqmp_disp_crtc_setup_clock(struct drm_crtc *crtc,
 
 static void
 zynqmp_disp_crtc_atomic_enable(struct drm_crtc *crtc,
-			       struct drm_crtc_state *old_crtc_state)
+			       struct drm_atomic_state *state)
 {
 	struct zynqmp_disp *disp = crtc_to_disp(crtc);
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	int ret, vrefresh;
 
+	pm_runtime_get_sync(disp->dev);
+
 	zynqmp_disp_crtc_setup_clock(crtc, adjusted_mode);
 
-	pm_runtime_get_sync(disp->dev);
 	ret = clk_prepare_enable(disp->pclk);
 	if (ret) {
 		dev_err(disp->dev, "failed to enable a pixel clock\n");
@@ -1465,10 +1467,8 @@ zynqmp_disp_crtc_atomic_enable(struct drm_crtc *crtc,
 		return;
 	}
 
-	zynqmp_disp_blend_set_output_format(&disp->blend,
-					    ZYNQMP_DPSUB_FORMAT_RGB);
-	zynqmp_disp_blend_set_bg_color(&disp->blend, 0, 0, 0);
-	zynqmp_disp_blend_set_global_alpha(&disp->blend, false, 0);
+	zynqmp_disp_blend_set_output_format(disp, ZYNQMP_DPSUB_FORMAT_RGB);
+	zynqmp_disp_blend_set_bg_color(disp, 0, 0, 0);
 
 	zynqmp_disp_enable(disp);
 
@@ -1480,7 +1480,7 @@ zynqmp_disp_crtc_atomic_enable(struct drm_crtc *crtc,
 
 static void
 zynqmp_disp_crtc_atomic_disable(struct drm_crtc *crtc,
-				struct drm_crtc_state *old_crtc_state)
+				struct drm_atomic_state *state)
 {
 	struct zynqmp_disp *disp = crtc_to_disp(crtc);
 	struct drm_plane_state *old_plane_state;
@@ -1490,35 +1490,41 @@ zynqmp_disp_crtc_atomic_disable(struct drm_crtc *crtc,
 	 * .shutdown() path if the plane is already disabled, skip
 	 * zynqmp_disp_plane_atomic_disable() in that case.
 	 */
-	old_plane_state = drm_atomic_get_old_plane_state(old_crtc_state->state,
-							 crtc->primary);
+	old_plane_state = drm_atomic_get_old_plane_state(state, crtc->primary);
 	if (old_plane_state)
-		zynqmp_disp_plane_atomic_disable(crtc->primary, old_plane_state);
+		zynqmp_disp_plane_atomic_disable(crtc->primary, state);
 
 	zynqmp_disp_disable(disp);
 
 	drm_crtc_vblank_off(&disp->crtc);
+
+	spin_lock_irq(&crtc->dev->event_lock);
+	if (crtc->state->event) {
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		crtc->state->event = NULL;
+	}
+	spin_unlock_irq(&crtc->dev->event_lock);
 
 	clk_disable_unprepare(disp->pclk);
 	pm_runtime_put_sync(disp->dev);
 }
 
 static int zynqmp_disp_crtc_atomic_check(struct drm_crtc *crtc,
-					 struct drm_crtc_state *state)
+					 struct drm_atomic_state *state)
 {
-	return drm_atomic_add_affected_planes(state->state, crtc);
+	return drm_atomic_add_affected_planes(state, crtc);
 }
 
 static void
 zynqmp_disp_crtc_atomic_begin(struct drm_crtc *crtc,
-			      struct drm_crtc_state *old_crtc_state)
+			      struct drm_atomic_state *state)
 {
 	drm_crtc_vblank_on(crtc);
 }
 
 static void
 zynqmp_disp_crtc_atomic_flush(struct drm_crtc *crtc,
-			      struct drm_crtc_state *old_crtc_state)
+			      struct drm_atomic_state *state)
 {
 	if (crtc->state->event) {
 		struct drm_pending_vblank_event *event;
@@ -1671,7 +1677,7 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 		disp->pclk_from_ps = true;
 	}
 
-	zynqmp_disp_audio_init(disp->dev, &disp->audio);
+	zynqmp_disp_audio_init(disp);
 
 	ret = zynqmp_disp_create_layers(disp);
 	if (ret)

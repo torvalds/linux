@@ -52,7 +52,7 @@
 		nvidia,audio-codec = <&wm8903>;
 
 		nvidia,spkr-en-gpios = <&wm8903 2 GPIO_ACTIVE_HIGH>;
-		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_HIGH>;
+		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_LOW>;
 
 		clocks = <&tegra_car TEGRA20_CLK_PLL_A>,
 			 <&tegra_car TEGRA20_CLK_PLL_A_OUT0>,
@@ -60,7 +60,7 @@
 		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 
-	vcc_24v_reg: regulator@100 {
+	vcc_24v_reg: regulator-24v0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_24v";
 		regulator-min-microvolt = <24000000>;
@@ -68,7 +68,7 @@
 		regulator-always-on;
 	};
 
-	vdd_5v0_reg: regulator@101 {
+	vdd_5v0_reg: regulator-5v0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_5v0";
 		vin-supply = <&vcc_24v_reg>;
@@ -77,7 +77,7 @@
 		regulator-always-on;
 	};
 
-	vdd_3v3_reg: regulator@102 {
+	vdd_3v3_reg: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_3v3";
 		vin-supply = <&vcc_24v_reg>;
@@ -86,7 +86,7 @@
 		regulator-always-on;
 	};
 
-	vdd_1v8_reg: regulator@103 {
+	vdd_1v8_reg: regulator-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_1v8";
 		vin-supply = <&vdd_3v3_reg>;

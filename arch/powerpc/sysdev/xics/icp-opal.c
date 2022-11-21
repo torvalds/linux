@@ -7,6 +7,7 @@
 #include <linux/irq.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/cpu.h>
 #include <linux/of.h>
 
@@ -183,7 +184,7 @@ static const struct icp_ops icp_opal_ops = {
 #endif
 };
 
-int icp_opal_init(void)
+int __init icp_opal_init(void)
 {
 	struct device_node *np;
 

@@ -1448,17 +1448,15 @@ static void btc8821a2ant_init_coex_dm(struct btc_coexist *btcoexist)
 static void btc8821a2ant_action_bt_inquiry(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
-	u8 wifi_rssi_state, wifi_rssi_state1, bt_rssi_state;
 	bool wifi_connected = false;
 	bool low_pwr_disable = true;
 	bool scan = false, link = false, roam = false;
 
-	wifi_rssi_state =
-		btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2, 15, 0);
-	wifi_rssi_state1 = btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
+	btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2, 15, 0);
+	btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
 				BT_8821A_2ANT_WIFI_RSSI_COEXSWITCH_THRES, 0);
-	bt_rssi_state = btc8821a2ant_bt_rssi_state(btcoexist,
-		2, BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES, 0);
+	btc8821a2ant_bt_rssi_state(btcoexist,
+				2, BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES, 0);
 
 	btcoexist->btc_set(btcoexist, BTC_SET_ACT_DISABLE_LOW_POWER,
 			   &low_pwr_disable);
@@ -1516,15 +1514,14 @@ static void btc8821a2ant_action_wifi_link_process(struct btc_coexist *btcoexist)
 static bool btc8821a2ant_action_wifi_idle_process(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
-	u8 wifi_rssi_state, wifi_rssi_state1, bt_rssi_state;
+	u8 wifi_rssi_state1;
 	u8 ap_num = 0;
 
-	wifi_rssi_state =
-		btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2, 15, 0);
+	btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2, 15, 0);
 	wifi_rssi_state1 = btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
 			BT_8821A_2ANT_WIFI_RSSI_COEXSWITCH_THRES - 20, 0);
-	bt_rssi_state = btc8821a2ant_bt_rssi_state(btcoexist,
-			2, BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES, 0);
+	btc8821a2ant_bt_rssi_state(btcoexist,
+				2, BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES, 0);
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U1_AP_NUM, &ap_num);
 
@@ -1724,10 +1721,6 @@ static void btc8821a2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 					btc8821a2ant_ps_tdma(btcoexist,
 							NORMAL_EXEC, true, 14);
 					coex_dm->ps_tdma_du_adj_type = 14;
-				} else if (max_interval == 3) {
-					btc8821a2ant_ps_tdma(btcoexist,
-							NORMAL_EXEC, true, 15);
-					coex_dm->ps_tdma_du_adj_type = 15;
 				} else {
 					btc8821a2ant_ps_tdma(btcoexist,
 							NORMAL_EXEC, true, 15);
@@ -1742,10 +1735,6 @@ static void btc8821a2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 					btc8821a2ant_ps_tdma(btcoexist,
 							NORMAL_EXEC, true, 10);
 					coex_dm->ps_tdma_du_adj_type = 10;
-				} else if (max_interval == 3) {
-					btc8821a2ant_ps_tdma(btcoexist,
-							NORMAL_EXEC, true, 11);
-					coex_dm->ps_tdma_du_adj_type = 11;
 				} else {
 					btc8821a2ant_ps_tdma(btcoexist,
 							NORMAL_EXEC, true, 11);
@@ -1762,10 +1751,6 @@ static void btc8821a2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 					btc8821a2ant_ps_tdma(btcoexist,
 							NORMAL_EXEC, true, 6);
 					coex_dm->ps_tdma_du_adj_type = 6;
-				} else if (max_interval == 3) {
-					btc8821a2ant_ps_tdma(btcoexist,
-							NORMAL_EXEC, true, 7);
-					coex_dm->ps_tdma_du_adj_type = 7;
 				} else {
 					btc8821a2ant_ps_tdma(btcoexist,
 							NORMAL_EXEC, true, 7);
@@ -1780,10 +1765,6 @@ static void btc8821a2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 					btc8821a2ant_ps_tdma(btcoexist,
 							NORMAL_EXEC, true, 2);
 					coex_dm->ps_tdma_du_adj_type = 2;
-				} else if (max_interval == 3) {
-					btc8821a2ant_ps_tdma(btcoexist,
-							NORMAL_EXEC, true, 3);
-					coex_dm->ps_tdma_du_adj_type = 3;
 				} else {
 					btc8821a2ant_ps_tdma(btcoexist,
 							NORMAL_EXEC, true, 3);
@@ -2813,6 +2794,7 @@ static void btc8821a2ant_action_a2dp(struct btc_coexist *btcoexist)
 					      0x4);
 	}
 
+	/* preserve identical branches for further fine-tuning */
 	if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
 	    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
 		btc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 23);
@@ -2947,6 +2929,7 @@ static void btc8821a2ant_action_pan_edr(struct btc_coexist *btcoexist)
 					      0x4);
 	}
 
+	/* preserve identical branches for further fine-tuning */
 	if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
 	    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH))
 		btc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 26);
@@ -2987,11 +2970,11 @@ static void btc8821a2ant_action_pan_edr(struct btc_coexist *btcoexist)
 /* PAN(HS) only */
 static void btc8821a2ant_action_pan_hs(struct btc_coexist *btcoexist)
 {
-	u8 wifi_rssi_state, wifi_rssi_state1, bt_rssi_state;
+	u8 wifi_rssi_state, bt_rssi_state;
 	u32 wifi_bw;
 
 	wifi_rssi_state = btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2, 15, 0);
-	wifi_rssi_state1 = btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
+	btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
 				BT_8821A_2ANT_WIFI_RSSI_COEXSWITCH_THRES, 0);
 	bt_rssi_state = btc8821a2ant_bt_rssi_state(btcoexist,
 				2, BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES, 0);
@@ -3135,6 +3118,7 @@ static void btc8821a2ant_action_pan_edr_hid(struct btc_coexist *btcoexist)
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_BW, &wifi_bw);
 
+	/* preserve identical branches for further fine-tuning */
 	if (wifi_bw == BTC_WIFI_BW_LEGACY) {
 		/* for HID at 11b/g mode */
 		btc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
@@ -3274,11 +3258,11 @@ static void btc8821a2ant_act_hid_a2dp_pan_edr(struct btc_coexist *btcoexist)
 static void btc8821a2ant_action_hid_a2dp(struct btc_coexist *btcoexist)
 {
 	u32 wifi_bw;
-	u8 wifi_rssi_state, wifi_rssi_state1, bt_rssi_state;
+	u8 wifi_rssi_state, bt_rssi_state;
 	u8 ap_num = 0;
 
 	wifi_rssi_state = btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2, 15, 0);
-	wifi_rssi_state1 = btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
+	btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
 				BT_8821A_2ANT_WIFI_RSSI_COEXSWITCH_THRES, 0);
 	bt_rssi_state = btc8821a2ant_bt_rssi_state(btcoexist,
 				3, BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES, 37);
@@ -3324,6 +3308,7 @@ static void btc8821a2ant_action_hid_a2dp(struct btc_coexist *btcoexist)
 					      0x4);
 	}
 
+	/* preserve identical branches for further fine-tuning */
 	if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
 	    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
 		btc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 23);

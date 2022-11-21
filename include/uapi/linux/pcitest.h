@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-/**
+/*
  * pcitest.h - PCI test uapi defines
  *
  * Copyright (C) 2017 Texas Instruments

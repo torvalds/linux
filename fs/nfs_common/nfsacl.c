@@ -136,6 +136,77 @@ int nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
 }
 EXPORT_SYMBOL_GPL(nfsacl_encode);
 
+/**
+ * nfs_stream_encode_acl - Encode an NFSv3 ACL
+ *
+ * @xdr: an xdr_stream positioned to receive an encoded ACL
+ * @inode: inode of file whose ACL this is
+ * @acl: posix_acl to encode
+ * @encode_entries: whether to encode ACEs as well
+ * @typeflag: ACL type: NFS_ACL_DEFAULT or zero
+ *
+ * Return values:
+ *   %false: The ACL could not be encoded
+ *   %true: @xdr is advanced to the next available position
+ */
+bool nfs_stream_encode_acl(struct xdr_stream *xdr, struct inode *inode,
+			   struct posix_acl *acl, int encode_entries,
+			   int typeflag)
+{
+	const size_t elem_size = XDR_UNIT * 3;
+	u32 entries = (acl && acl->a_count) ? max_t(int, acl->a_count, 4) : 0;
+	struct nfsacl_encode_desc nfsacl_desc = {
+		.desc = {
+			.elem_size = elem_size,
+			.array_len = encode_entries ? entries : 0,
+			.xcode = xdr_nfsace_encode,
+		},
+		.acl = acl,
+		.typeflag = typeflag,
+		.uid = inode->i_uid,
+		.gid = inode->i_gid,
+	};
+	struct nfsacl_simple_acl aclbuf;
+	unsigned int base;
+	int err;
+
+	if (entries > NFS_ACL_MAX_ENTRIES)
+		return false;
+	if (xdr_stream_encode_u32(xdr, entries) < 0)
+		return false;
+
+	if (encode_entries && acl && acl->a_count == 3) {
+		struct posix_acl *acl2 = &aclbuf.acl;
+
+		/* Avoid the use of posix_acl_alloc().  nfsacl_encode() is
+		 * invoked in contexts where a memory allocation failure is
+		 * fatal.  Fortunately this fake ACL is small enough to
+		 * construct on the stack. */
+		posix_acl_init(acl2, 4);
+
+		/* Insert entries in canonical order: other orders seem
+		 to confuse Solaris VxFS. */
+		acl2->a_entries[0] = acl->a_entries[0];  /* ACL_USER_OBJ */
+		acl2->a_entries[1] = acl->a_entries[1];  /* ACL_GROUP_OBJ */
+		acl2->a_entries[2] = acl->a_entries[1];  /* ACL_MASK */
+		acl2->a_entries[2].e_tag = ACL_MASK;
+		acl2->a_entries[3] = acl->a_entries[2];  /* ACL_OTHER */
+		nfsacl_desc.acl = acl2;
+	}
+
+	base = xdr_stream_pos(xdr);
+	if (!xdr_reserve_space(xdr, XDR_UNIT +
+			       elem_size * nfsacl_desc.desc.array_len))
+		return false;
+	err = xdr_encode_array2(xdr->buf, base, &nfsacl_desc.desc);
+	if (err)
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(nfs_stream_encode_acl);
+
+
 struct nfsacl_decode_desc {
 	struct xdr_array2_desc desc;
 	unsigned int count;
@@ -295,3 +366,55 @@ int nfsacl_decode(struct xdr_buf *buf, unsigned int base, unsigned int *aclcnt,
 		   nfsacl_desc.desc.array_len;
 }
 EXPORT_SYMBOL_GPL(nfsacl_decode);
+
+/**
+ * nfs_stream_decode_acl - Decode an NFSv3 ACL
+ *
+ * @xdr: an xdr_stream positioned at an encoded ACL
+ * @aclcnt: OUT: count of ACEs in decoded posix_acl
+ * @pacl: OUT: a dynamically-allocated buffer containing the decoded posix_acl
+ *
+ * Return values:
+ *   %false: The encoded ACL is not valid
+ *   %true: @pacl contains a decoded ACL, and @xdr is advanced
+ *
+ * On a successful return, caller must release *pacl using posix_acl_release().
+ */
+bool nfs_stream_decode_acl(struct xdr_stream *xdr, unsigned int *aclcnt,
+			   struct posix_acl **pacl)
+{
+	const size_t elem_size = XDR_UNIT * 3;
+	struct nfsacl_decode_desc nfsacl_desc = {
+		.desc = {
+			.elem_size = elem_size,
+			.xcode = pacl ? xdr_nfsace_decode : NULL,
+		},
+	};
+	unsigned int base;
+	u32 entries;
+
+	if (xdr_stream_decode_u32(xdr, &entries) < 0)
+		return false;
+	if (entries > NFS_ACL_MAX_ENTRIES)
+		return false;
+
+	base = xdr_stream_pos(xdr);
+	if (!xdr_inline_decode(xdr, XDR_UNIT + elem_size * entries))
+		return false;
+	nfsacl_desc.desc.array_maxlen = entries;
+	if (xdr_decode_array2(xdr->buf, base, &nfsacl_desc.desc))
+		return false;
+
+	if (pacl) {
+		if (entries != nfsacl_desc.desc.array_len ||
+		    posix_acl_from_nfsacl(nfsacl_desc.acl) != 0) {
+			posix_acl_release(nfsacl_desc.acl);
+			return false;
+		}
+		*pacl = nfsacl_desc.acl;
+	}
+	if (aclcnt)
+		*aclcnt = entries;
+	return true;
+}
+EXPORT_SYMBOL_GPL(nfs_stream_decode_acl);

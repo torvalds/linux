@@ -31,6 +31,7 @@
 
 struct pagevec;
 struct afs_call;
+struct afs_vnode;
 
 /*
  * Partial file-locking emulation mode.  (The problem being that AFS3 only
@@ -104,7 +105,9 @@ struct afs_call {
 	struct afs_server	*server;	/* The fileserver record if fs op (pins ref) */
 	struct afs_vlserver	*vlserver;	/* The vlserver record if vl op */
 	void			*request;	/* request data (first part) */
+	size_t			iov_len;	/* Size of *iter to be used */
 	struct iov_iter		def_iter;	/* Default buffer/data iterator */
+	struct iov_iter		*write_iter;	/* Iterator defining write to be made */
 	struct iov_iter		*iter;		/* Iterator currently in use */
 	union {	/* Convenience for ->def_iter */
 		struct kvec	kvec[1];
@@ -131,7 +134,6 @@ struct afs_call {
 	unsigned char		unmarshall;	/* unmarshalling phase */
 	unsigned char		addr_ix;	/* Address in ->alist */
 	bool			drop_ref;	/* T if need to drop ref for incoming call */
-	bool			send_pages;	/* T if data from mapping should be sent */
 	bool			need_attention;	/* T if RxRPC poked us */
 	bool			async;		/* T if asynchronous */
 	bool			upgrade;	/* T to request service upgrade */
@@ -202,17 +204,19 @@ struct afs_read {
 	loff_t			pos;		/* Where to start reading */
 	loff_t			len;		/* How much we're asking for */
 	loff_t			actual_len;	/* How much we're actually getting */
-	loff_t			remain;		/* Amount remaining */
 	loff_t			file_size;	/* File size returned by server */
+	struct key		*key;		/* The key to use to reissue the read */
+	struct afs_vnode	*vnode;		/* The file being read into. */
+	struct netfs_io_subrequest *subreq;	/* Fscache helper read request this belongs to */
 	afs_dataversion_t	data_version;	/* Version number returned by server */
 	refcount_t		usage;
-	unsigned int		index;		/* Which page we're reading into */
+	unsigned int		call_debug_id;
 	unsigned int		nr_pages;
-	unsigned int		offset;		/* offset into current page */
-	struct afs_vnode	*vnode;
-	void (*page_done)(struct afs_read *);
-	struct page		**pages;
-	struct page		*array[];
+	int			error;
+	void (*done)(struct afs_read *);
+	void (*cleanup)(struct afs_read *);
+	struct iov_iter		*iter;		/* Iterator representing the buffer */
+	struct iov_iter		def_iter;	/* Default iterator */
 };
 
 /*
@@ -359,9 +363,6 @@ struct afs_cell {
 	struct key		*anonymous_key;	/* anonymous user key for this cell */
 	struct work_struct	manager;	/* Manager for init/deinit/dns */
 	struct hlist_node	proc_link;	/* /proc cell list link */
-#ifdef CONFIG_AFS_FSCACHE
-	struct fscache_cookie	*cache;		/* caching cookie */
-#endif
 	time64_t		dns_expiry;	/* Time AFSDB/SRV record expires */
 	time64_t		last_inactive;	/* Time of last drop of usage count */
 	atomic_t		ref;		/* Struct refcount */
@@ -385,6 +386,9 @@ struct afs_cell {
 	/* Active fileserver interaction state. */
 	struct rb_root		fs_servers;	/* afs_server (by server UUID) */
 	seqlock_t		fs_lock;	/* For fs_servers  */
+	struct rw_semaphore	fs_open_mmaps_lock;
+	struct list_head	fs_open_mmaps;	/* List of vnodes that are mmapped */
+	atomic_t		fs_s_break;	/* Counter of CB.InitCallBackState messages */
 
 	/* VL server list. */
 	rwlock_t		vl_servers_lock; /* Lock on vl_servers */
@@ -498,6 +502,7 @@ struct afs_server {
 	struct hlist_node	addr4_link;	/* Link in net->fs_addresses4 */
 	struct hlist_node	addr6_link;	/* Link in net->fs_addresses6 */
 	struct hlist_node	proc_link;	/* Link in net->fs_proc */
+	struct work_struct	initcb_work;	/* Work for CB.InitCallBackState* */
 	struct afs_server	*gc_next;	/* Next server in manager's list */
 	time64_t		unuse_time;	/* Time at which last unused */
 	unsigned long		flags;
@@ -511,6 +516,7 @@ struct afs_server {
 #define AFS_SERVER_FL_IS_YFS	16		/* Server is YFS not AFS */
 #define AFS_SERVER_FL_NO_IBULK	17		/* Fileserver doesn't support FS.InlineBulkStatus */
 #define AFS_SERVER_FL_NO_RM2	18		/* Fileserver doesn't support YFS.RemoveFile2 */
+#define AFS_SERVER_FL_HAS_FS64	19		/* Fileserver supports FS.{Fetch,Store}Data64 */
 	atomic_t		ref;		/* Object refcount */
 	atomic_t		active;		/* Active user count */
 	u32			addr_version;	/* Address list version */
@@ -580,7 +586,7 @@ struct afs_volume {
 #define AFS_VOLUME_BUSY		5	/* - T if volume busy notice given */
 #define AFS_VOLUME_MAYBE_NO_IBULK 6	/* - T if some servers don't have InlineBulkStatus */
 #ifdef CONFIG_AFS_FSCACHE
-	struct fscache_cookie	*cache;		/* caching cookie */
+	struct fscache_volume	*cache;		/* Caching cookie */
 #endif
 	struct afs_server_list __rcu *servers;	/* List of servers on which volume resides */
 	rwlock_t		servers_lock;	/* Lock for ->servers */
@@ -613,15 +619,16 @@ enum afs_lock_state {
  * leak from one inode to another.
  */
 struct afs_vnode {
-	struct inode		vfs_inode;	/* the VFS's inode record */
+	struct {
+		/* These must be contiguous */
+		struct inode	vfs_inode;	/* the VFS's inode record */
+		struct netfs_i_context netfs_ctx; /* Netfslib context */
+	};
 
 	struct afs_volume	*volume;	/* volume on which vnode resides */
 	struct afs_fid		fid;		/* the file identifier for this inode */
 	struct afs_file_status	status;		/* AFS status info for this file */
 	afs_dataversion_t	invalid_before;	/* Child dentries are invalid before this */
-#ifdef CONFIG_AFS_FSCACHE
-	struct fscache_cookie	*cache;		/* caching cookie */
-#endif
 	struct afs_permits __rcu *permit_cache;	/* cache of permits so far obtained */
 	struct mutex		io_lock;	/* Lock for serialising I/O on this mutex */
 	struct rw_semaphore	validate_lock;	/* lock for validating this vnode */
@@ -640,6 +647,7 @@ struct afs_vnode {
 #define AFS_VNODE_PSEUDODIR	7 		/* set if Vnode is a pseudo directory */
 #define AFS_VNODE_NEW_CONTENT	8		/* Set if file has new content (create/trunc-0) */
 #define AFS_VNODE_SILLY_DELETED	9		/* Set if file has been silly-deleted */
+#define AFS_VNODE_MODIFYING	10		/* Set if we're performing a modification op */
 
 	struct list_head	wb_keys;	/* List of keys available for writeback */
 	struct list_head	pending_locks;	/* locks waiting to be granted */
@@ -651,7 +659,11 @@ struct afs_vnode {
 	afs_lock_type_t		lock_type : 8;
 
 	/* outstanding callback notification on this file */
+	struct work_struct	cb_work;	/* Work for mmap'd files */
+	struct list_head	cb_mmap_link;	/* Link in cell->fs_open_mmaps */
 	void			*cb_server;	/* Server with callback/filelock */
+	atomic_t		cb_nr_mmap;	/* Number of mmaps */
+	unsigned int		cb_fs_s_break;	/* Mass server break counter (cell->fs_s_break) */
 	unsigned int		cb_s_break;	/* Mass break counter on ->server */
 	unsigned int		cb_v_break;	/* Mass break counter on ->volume */
 	unsigned int		cb_break;	/* Break counter on vnode */
@@ -663,9 +675,17 @@ struct afs_vnode {
 static inline struct fscache_cookie *afs_vnode_cache(struct afs_vnode *vnode)
 {
 #ifdef CONFIG_AFS_FSCACHE
-	return vnode->cache;
+	return netfs_i_cookie(&vnode->vfs_inode);
 #else
 	return NULL;
+#endif
+}
+
+static inline void afs_vnode_set_cache(struct afs_vnode *vnode,
+				       struct fscache_cookie *cookie)
+{
+#ifdef CONFIG_AFS_FSCACHE
+	vnode->netfs_ctx.cache = cookie;
 #endif
 }
 
@@ -739,6 +759,7 @@ struct afs_operation_ops {
 	void (*issue_yfs_rpc)(struct afs_operation *op);
 	void (*success)(struct afs_operation *op);
 	void (*aborted)(struct afs_operation *op);
+	void (*failed)(struct afs_operation *op);
 	void (*edit_dir)(struct afs_operation *op);
 	void (*put)(struct afs_operation *op);
 };
@@ -756,6 +777,7 @@ struct afs_vnode_param {
 	bool			set_size:1;	/* Must update i_size */
 	bool			op_unlinked:1;	/* True if file was unlinked by op */
 	bool			speculative:1;	/* T if speculative status fetch (no vnode lock) */
+	bool			modification:1;	/* Set if the content gets modified */
 };
 
 /*
@@ -808,12 +830,11 @@ struct afs_operation {
 			afs_lock_type_t type;
 		} lock;
 		struct {
-			struct address_space *mapping;	/* Pages being written from */
-			pgoff_t		first;		/* first page in mapping to deal with */
-			pgoff_t		last;		/* last page in mapping to deal with */
-			unsigned	first_offset;	/* offset into mapping[first] */
-			unsigned	last_to;	/* amount of mapping[last] */
-			bool		laundering;	/* Laundering page, PG_writeback not set */
+			struct iov_iter	*write_iter;
+			loff_t	pos;
+			loff_t	size;
+			loff_t	i_size;
+			bool	laundering;	/* Laundering page, PG_writeback not set */
 		} store;
 		struct {
 			struct iattr	*attr;
@@ -856,63 +877,78 @@ struct afs_operation {
  * Cache auxiliary data.
  */
 struct afs_vnode_cache_aux {
-	u64			data_version;
+	__be64			data_version;
 } __packed;
 
+static inline void afs_set_cache_aux(struct afs_vnode *vnode,
+				     struct afs_vnode_cache_aux *aux)
+{
+	aux->data_version = cpu_to_be64(vnode->status.data_version);
+}
+
+static inline void afs_invalidate_cache(struct afs_vnode *vnode, unsigned int flags)
+{
+	struct afs_vnode_cache_aux aux;
+
+	afs_set_cache_aux(vnode, &aux);
+	fscache_invalidate(afs_vnode_cache(vnode), &aux,
+			   i_size_read(&vnode->vfs_inode), flags);
+}
+
 /*
- * We use page->private to hold the amount of the page that we've written to,
+ * We use folio->private to hold the amount of the folio that we've written to,
  * splitting the field into two parts.  However, we need to represent a range
- * 0...PAGE_SIZE, so we reduce the resolution if the size of the page
+ * 0...FOLIO_SIZE, so we reduce the resolution if the size of the folio
  * exceeds what we can encode.
  */
 #ifdef CONFIG_64BIT
-#define __AFS_PAGE_PRIV_MASK	0x7fffffffUL
-#define __AFS_PAGE_PRIV_SHIFT	32
-#define __AFS_PAGE_PRIV_MMAPPED	0x80000000UL
+#define __AFS_FOLIO_PRIV_MASK		0x7fffffffUL
+#define __AFS_FOLIO_PRIV_SHIFT		32
+#define __AFS_FOLIO_PRIV_MMAPPED	0x80000000UL
 #else
-#define __AFS_PAGE_PRIV_MASK	0x7fffUL
-#define __AFS_PAGE_PRIV_SHIFT	16
-#define __AFS_PAGE_PRIV_MMAPPED	0x8000UL
+#define __AFS_FOLIO_PRIV_MASK		0x7fffUL
+#define __AFS_FOLIO_PRIV_SHIFT		16
+#define __AFS_FOLIO_PRIV_MMAPPED	0x8000UL
 #endif
 
-static inline unsigned int afs_page_dirty_resolution(void)
+static inline unsigned int afs_folio_dirty_resolution(struct folio *folio)
 {
-	int shift = PAGE_SHIFT - (__AFS_PAGE_PRIV_SHIFT - 1);
+	int shift = folio_shift(folio) - (__AFS_FOLIO_PRIV_SHIFT - 1);
 	return (shift > 0) ? shift : 0;
 }
 
-static inline size_t afs_page_dirty_from(unsigned long priv)
+static inline size_t afs_folio_dirty_from(struct folio *folio, unsigned long priv)
 {
-	unsigned long x = priv & __AFS_PAGE_PRIV_MASK;
+	unsigned long x = priv & __AFS_FOLIO_PRIV_MASK;
 
 	/* The lower bound is inclusive */
-	return x << afs_page_dirty_resolution();
+	return x << afs_folio_dirty_resolution(folio);
 }
 
-static inline size_t afs_page_dirty_to(unsigned long priv)
+static inline size_t afs_folio_dirty_to(struct folio *folio, unsigned long priv)
 {
-	unsigned long x = (priv >> __AFS_PAGE_PRIV_SHIFT) & __AFS_PAGE_PRIV_MASK;
+	unsigned long x = (priv >> __AFS_FOLIO_PRIV_SHIFT) & __AFS_FOLIO_PRIV_MASK;
 
 	/* The upper bound is immediately beyond the region */
-	return (x + 1) << afs_page_dirty_resolution();
+	return (x + 1) << afs_folio_dirty_resolution(folio);
 }
 
-static inline unsigned long afs_page_dirty(size_t from, size_t to)
+static inline unsigned long afs_folio_dirty(struct folio *folio, size_t from, size_t to)
 {
-	unsigned int res = afs_page_dirty_resolution();
+	unsigned int res = afs_folio_dirty_resolution(folio);
 	from >>= res;
 	to = (to - 1) >> res;
-	return (to << __AFS_PAGE_PRIV_SHIFT) | from;
+	return (to << __AFS_FOLIO_PRIV_SHIFT) | from;
 }
 
-static inline unsigned long afs_page_dirty_mmapped(unsigned long priv)
+static inline unsigned long afs_folio_dirty_mmapped(unsigned long priv)
 {
-	return priv | __AFS_PAGE_PRIV_MMAPPED;
+	return priv | __AFS_FOLIO_PRIV_MMAPPED;
 }
 
-static inline bool afs_is_page_dirty_mmapped(unsigned long priv)
+static inline bool afs_is_folio_dirty_mmapped(unsigned long priv)
 {
-	return priv & __AFS_PAGE_PRIV_MMAPPED;
+	return priv & __AFS_FOLIO_PRIV_MMAPPED;
 }
 
 #include <trace/events/afs.h>
@@ -946,18 +982,13 @@ extern void afs_merge_fs_addr6(struct afs_addr_list *, __be32 *, u16);
  */
 #ifdef CONFIG_AFS_FSCACHE
 extern struct fscache_netfs afs_cache_netfs;
-extern struct fscache_cookie_def afs_cell_cache_index_def;
-extern struct fscache_cookie_def afs_volume_cache_index_def;
-extern struct fscache_cookie_def afs_vnode_cache_index_def;
-#else
-#define afs_cell_cache_index_def	(*(struct fscache_cookie_def *) NULL)
-#define afs_volume_cache_index_def	(*(struct fscache_cookie_def *) NULL)
-#define afs_vnode_cache_index_def	(*(struct fscache_cookie_def *) NULL)
 #endif
 
 /*
  * callback.c
  */
+extern void afs_invalidate_mmap_work(struct work_struct *);
+extern void afs_server_init_callback_work(struct work_struct *work);
 extern void afs_init_callback_state(struct afs_server *);
 extern void __afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
 extern void afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
@@ -1037,17 +1068,20 @@ extern void afs_dynroot_depopulate(struct super_block *);
 /*
  * file.c
  */
-extern const struct address_space_operations afs_fs_aops;
+extern const struct address_space_operations afs_file_aops;
+extern const struct address_space_operations afs_symlink_aops;
 extern const struct inode_operations afs_file_inode_operations;
 extern const struct file_operations afs_file_operations;
+extern const struct netfs_request_ops afs_req_ops;
 
 extern int afs_cache_wb_key(struct afs_vnode *, struct afs_file *);
 extern void afs_put_wb_key(struct afs_wb_key *);
 extern int afs_open(struct inode *, struct file *);
 extern int afs_release(struct inode *, struct file *);
-extern int afs_fetch_data(struct afs_vnode *, struct key *, struct afs_read *);
-extern int afs_page_filler(void *, struct page *);
+extern int afs_fetch_data(struct afs_vnode *, struct afs_read *);
+extern struct afs_read *afs_alloc_read(gfp_t);
 extern void afs_put_read(struct afs_read *);
+extern int afs_write_inode(struct inode *, struct writeback_control *);
 
 static inline struct afs_read *afs_get_read(struct afs_read *req)
 {
@@ -1149,8 +1183,9 @@ extern struct inode *afs_iget(struct afs_operation *, struct afs_vnode_param *);
 extern struct inode *afs_root_iget(struct super_block *, struct key *);
 extern bool afs_check_validity(struct afs_vnode *);
 extern int afs_validate(struct afs_vnode *, struct key *);
-extern int afs_getattr(const struct path *, struct kstat *, u32, unsigned int);
-extern int afs_setattr(struct dentry *, struct iattr *);
+extern int afs_getattr(struct user_namespace *mnt_userns, const struct path *,
+		       struct kstat *, u32, unsigned int);
+extern int afs_setattr(struct user_namespace *mnt_userns, struct dentry *, struct iattr *);
 extern void afs_evict_inode(struct inode *);
 extern int afs_drop_inode(struct inode *);
 
@@ -1269,6 +1304,7 @@ static inline void afs_make_op_call(struct afs_operation *op, struct afs_call *c
 
 static inline void afs_extract_begin(struct afs_call *call, void *buf, size_t size)
 {
+	call->iov_len = size;
 	call->kvec[0].iov_base = buf;
 	call->kvec[0].iov_len = size;
 	iov_iter_kvec(&call->def_iter, READ, call->kvec, 1, size);
@@ -1276,21 +1312,25 @@ static inline void afs_extract_begin(struct afs_call *call, void *buf, size_t si
 
 static inline void afs_extract_to_tmp(struct afs_call *call)
 {
+	call->iov_len = sizeof(call->tmp);
 	afs_extract_begin(call, &call->tmp, sizeof(call->tmp));
 }
 
 static inline void afs_extract_to_tmp64(struct afs_call *call)
 {
+	call->iov_len = sizeof(call->tmp64);
 	afs_extract_begin(call, &call->tmp64, sizeof(call->tmp64));
 }
 
 static inline void afs_extract_discard(struct afs_call *call, size_t size)
 {
+	call->iov_len = size;
 	iov_iter_discard(&call->def_iter, READ, size);
 }
 
 static inline void afs_extract_to_buf(struct afs_call *call, size_t size)
 {
+	call->iov_len = size;
 	afs_extract_begin(call, call->buffer, size);
 }
 
@@ -1361,7 +1401,7 @@ extern void afs_zap_permits(struct rcu_head *);
 extern struct key *afs_request_key(struct afs_cell *);
 extern struct key *afs_request_key_rcu(struct afs_cell *);
 extern int afs_check_permit(struct afs_vnode *, struct key *, afs_access_t *);
-extern int afs_permission(struct inode *, int);
+extern int afs_permission(struct user_namespace *, struct inode *, int);
 extern void __exit afs_clean_up_permit_cache(void);
 
 /*
@@ -1480,7 +1520,7 @@ extern struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *,
  * volume.c
  */
 extern struct afs_volume *afs_create_volume(struct afs_fs_context *);
-extern void afs_activate_volume(struct afs_volume *);
+extern int afs_activate_volume(struct afs_volume *);
 extern void afs_deactivate_volume(struct afs_volume *);
 extern struct afs_volume *afs_get_volume(struct afs_volume *, enum afs_volume_trace);
 extern void afs_put_volume(struct afs_net *, struct afs_volume *, enum afs_volume_trace);
@@ -1489,7 +1529,11 @@ extern int afs_check_volume_status(struct afs_volume *, struct afs_operation *);
 /*
  * write.c
  */
-extern int afs_set_page_dirty(struct page *);
+#ifdef CONFIG_AFS_FSCACHE
+bool afs_dirty_folio(struct address_space *, struct folio *);
+#else
+#define afs_dirty_folio filemap_dirty_folio
+#endif
 extern int afs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata);
@@ -1502,13 +1546,12 @@ extern ssize_t afs_file_write(struct kiocb *, struct iov_iter *);
 extern int afs_fsync(struct file *, loff_t, loff_t, int);
 extern vm_fault_t afs_page_mkwrite(struct vm_fault *vmf);
 extern void afs_prune_wb_keys(struct afs_vnode *);
-extern int afs_launder_page(struct page *);
+int afs_launder_folio(struct folio *);
 
 /*
  * xattr.c
  */
 extern const struct xattr_handler *afs_xattr_handlers[];
-extern ssize_t afs_listxattr(struct dentry *, char *, size_t);
 
 /*
  * yfsclient.c
@@ -1570,6 +1613,16 @@ static inline void afs_update_dentry_version(struct afs_operation *op,
 	if (!op->error)
 		dentry->d_fsdata =
 			(void *)(unsigned long)dir_vp->scb.status.data_version;
+}
+
+/*
+ * Set the file size and block count.  Estimate the number of 512 bytes blocks
+ * used, rounded up to nearest 1K for consistency with other AFS clients.
+ */
+static inline void afs_set_i_size(struct afs_vnode *vnode, u64 size)
+{
+	i_size_write(&vnode->vfs_inode, size);
+	vnode->vfs_inode.i_blocks = ((size + 1023) >> 10) << 1;
 }
 
 /*

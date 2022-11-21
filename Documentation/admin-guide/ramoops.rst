@@ -3,7 +3,7 @@ Ramoops oops/panic logger
 
 Sergiu Iordache <sergiu@chromium.org>
 
-Updated: 17 November 2011
+Updated: 10 Feb 2021
 
 Introduction
 ------------
@@ -22,7 +22,7 @@ and type of the memory area are set using three variables:
   * ``mem_address`` for the start
   * ``mem_size`` for the size. The memory size will be rounded down to a
     power of two.
-  * ``mem_type`` to specifiy if the memory type (default is pgprot_writecombine).
+  * ``mem_type`` to specify if the memory type (default is pgprot_writecombine).
 
 Typically the default value of ``mem_type=0`` should be used as that sets the pstore
 mapping to pgprot_writecombine. Setting ``mem_type=1`` attempts to use
@@ -30,6 +30,8 @@ mapping to pgprot_writecombine. Setting ``mem_type=1`` attempts to use
 depends on atomic operations. At least on ARM, pgprot_noncached causes the
 memory to be mapped strongly ordered, and atomic operations on strongly ordered
 memory are implementation defined, and won't work on many ARMs such as omaps.
+Setting ``mem_type=2`` attempts to treat the memory region as normal memory,
+which enables full cache on it. This can improve the performance.
 
 The memory area is divided into ``record_size`` chunks (also rounded down to
 power of two) and each kmesg dump writes a ``record_size`` chunk of
@@ -67,7 +69,7 @@ Setting the ramoops parameters can be done in several different manners:
 	mem=128M ramoops.mem_address=0x8000000 ramoops.ecc=1
 
  B. Use Device Tree bindings, as described in
- ``Documentation/devicetree/bindings/reserved-memory/ramoops.txt``.
+ ``Documentation/devicetree/bindings/reserved-memory/ramoops.yaml``.
  For example::
 
 	reserved-memory {

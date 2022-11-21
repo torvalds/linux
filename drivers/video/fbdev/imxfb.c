@@ -657,7 +657,7 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 static int imxfb_init_fbinfo(struct platform_device *pdev)
 {
 	struct imx_fb_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct fb_info *info = dev_get_drvdata(&pdev->dev);
+	struct fb_info *info = platform_get_drvdata(pdev);
 	struct imxfb_info *fbi = info->par;
 	struct device_node *np;
 
@@ -925,10 +925,12 @@ static int imxfb_probe(struct platform_device *pdev)
 				sizeof(struct imx_fb_videomode), GFP_KERNEL);
 		if (!fbi->mode) {
 			ret = -ENOMEM;
+			of_node_put(display_np);
 			goto failed_of_parse;
 		}
 
 		ret = imxfb_of_read_mode(&pdev->dev, display_np, fbi->mode);
+		of_node_put(display_np);
 		if (ret)
 			goto failed_of_parse;
 	}
@@ -992,7 +994,7 @@ static int imxfb_probe(struct platform_device *pdev)
 	info->screen_buffer = dma_alloc_wc(&pdev->dev, fbi->map_size,
 					   &fbi->map_dma, GFP_KERNEL);
 	if (!info->screen_buffer) {
-		dev_err(&pdev->dev, "Failed to allocate video RAM: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to allocate video RAM\n");
 		ret = -ENOMEM;
 		goto failed_map;
 	}
@@ -1083,6 +1085,8 @@ static int imxfb_remove(struct platform_device *pdev)
 	struct resource *res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
 
 	imxfb_disable_controller(fbi);
 

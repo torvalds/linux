@@ -68,7 +68,7 @@ static int run_dir(const char *d)
 	return TEST_OK;
 }
 
-int test__pe_file_parsing(struct test *test __maybe_unused,
+static int test__pe_file_parsing(struct test_suite *test __maybe_unused,
 			  int subtest __maybe_unused)
 {
 	struct stat st;
@@ -89,10 +89,12 @@ int test__pe_file_parsing(struct test *test __maybe_unused,
 
 #else
 
-int test__pe_file_parsing(struct test *test __maybe_unused,
+static int test__pe_file_parsing(struct test_suite *test __maybe_unused,
 			  int subtest __maybe_unused)
 {
 	return TEST_SKIP;
 }
 
 #endif
+
+DEFINE_SUITE("PE file support", pe_file_parsing);

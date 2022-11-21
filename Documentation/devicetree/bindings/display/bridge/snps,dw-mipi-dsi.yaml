@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Synopsys DesignWare MIPI DSI host controller
 
 maintainers:
-  - Philippe CORNU <philippe.cornu@st.com>
+  - Philippe CORNU <philippe.cornu@foss.st.com>
 
 description: |
   This document defines device tree properties for the Synopsys DesignWare MIPI
@@ -47,14 +47,15 @@ properties:
     const: apb
 
   ports:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Input node to receive pixel data.
+
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: DSI output node to panel.
 
     required:

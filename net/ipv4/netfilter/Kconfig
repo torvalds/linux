@@ -58,14 +58,6 @@ config NF_TABLES_ARP
 
 endif # NF_TABLES
 
-config NF_FLOW_TABLE_IPV4
-	tristate "Netfilter flow table IPv4 module"
-	depends on NF_FLOW_TABLE
-	help
-	  This option adds the flow table IPv4 support.
-
-	  To compile it as a module, choose M here.
-
 config NF_DUP_IPV4
 	tristate "Netfilter IPv4 packet duplication to alternate destination"
 	depends on !NF_CONNTRACK || NF_CONNTRACK
@@ -76,12 +68,18 @@ config NF_DUP_IPV4
 config NF_LOG_ARP
 	tristate "ARP packet logging"
 	default m if NETFILTER_ADVANCED=n
-	select NF_LOG_COMMON
+	select NF_LOG_SYSLOG
+	help
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects CONFIG_NF_LOG_SYSLOG.
 
 config NF_LOG_IPV4
 	tristate "IPv4 packet logging"
 	default m if NETFILTER_ADVANCED=n
-	select NF_LOG_COMMON
+	select NF_LOG_SYSLOG
+	help
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects CONFIG_NF_LOG_SYSLOG.
 
 config NF_REJECT_IPV4
 	tristate "IPv4 packet rejection"

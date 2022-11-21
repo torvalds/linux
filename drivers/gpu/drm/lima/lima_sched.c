@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /* Copyright 2017-2019 Qiang Yu <yuq825@gmail.com> */
 
+#include <linux/iosys-map.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -128,26 +129,19 @@ int lima_sched_task_init(struct lima_sched_task *task,
 		return err;
 	}
 
+	drm_sched_job_arm(&task->base);
+
 	task->num_bos = num_bos;
 	task->vm = lima_vm_get(vm);
-
-	xa_init_flags(&task->deps, XA_FLAGS_ALLOC);
 
 	return 0;
 }
 
 void lima_sched_task_fini(struct lima_sched_task *task)
 {
-	struct dma_fence *fence;
-	unsigned long index;
 	int i;
 
 	drm_sched_job_cleanup(&task->base);
-
-	xa_for_each(&task->deps, index, fence) {
-		dma_fence_put(fence);
-	}
-	xa_destroy(&task->deps);
 
 	if (task->bos) {
 		for (i = 0; i < task->num_bos; i++)
@@ -174,25 +168,13 @@ void lima_sched_context_fini(struct lima_sched_pipe *pipe,
 	drm_sched_entity_fini(&context->base);
 }
 
-struct dma_fence *lima_sched_context_queue_task(struct lima_sched_context *context,
-						struct lima_sched_task *task)
+struct dma_fence *lima_sched_context_queue_task(struct lima_sched_task *task)
 {
 	struct dma_fence *fence = dma_fence_get(&task->base.s_fence->finished);
 
 	trace_lima_task_submit(task);
-	drm_sched_entity_push_job(&task->base, &context->base);
+	drm_sched_entity_push_job(&task->base);
 	return fence;
-}
-
-static struct dma_fence *lima_sched_dependency(struct drm_sched_job *job,
-					       struct drm_sched_entity *entity)
-{
-	struct lima_sched_task *task = to_lima_task(job);
-
-	if (!xa_empty(&task->deps))
-		return xa_erase(&task->deps, task->last_dep++);
-
-	return NULL;
 }
 
 static int lima_pm_busy(struct lima_device *ldev)
@@ -200,7 +182,7 @@ static int lima_pm_busy(struct lima_device *ldev)
 	int ret;
 
 	/* resume GPU if it has been suspended by runtime PM */
-	ret = pm_runtime_get_sync(ldev->dev);
+	ret = pm_runtime_resume_and_get(ldev->dev);
 	if (ret < 0)
 		return ret;
 
@@ -223,7 +205,6 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
 	struct lima_device *ldev = pipe->ldev;
 	struct lima_fence *fence;
-	struct dma_fence *ret;
 	int i, err;
 
 	/* after GPU reset */
@@ -245,7 +226,7 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	/* for caller usage of the fence, otherwise irq handler
 	 * may consume the fence before caller use it
 	 */
-	ret = dma_fence_get(task->fence);
+	dma_fence_get(task->fence);
 
 	pipe->current_task = task;
 
@@ -303,6 +284,8 @@ static void lima_sched_build_error_task_list(struct lima_sched_task *task)
 	struct lima_dump_chunk_buffer *buffer_chunk;
 	u32 size, task_size, mem_size;
 	int i;
+	struct iosys_map map;
+	int ret;
 
 	mutex_lock(&dev->error_task_list_lock);
 
@@ -388,15 +371,15 @@ static void lima_sched_build_error_task_list(struct lima_sched_task *task)
 		} else {
 			buffer_chunk->size = lima_bo_size(bo);
 
-			data = drm_gem_shmem_vmap(&bo->base.base);
-			if (IS_ERR_OR_NULL(data)) {
+			ret = drm_gem_shmem_vmap(&bo->base, &map);
+			if (ret) {
 				kvfree(et);
 				goto out;
 			}
 
-			memcpy(buffer_chunk + 1, data, buffer_chunk->size);
+			memcpy(buffer_chunk + 1, map.vaddr, buffer_chunk->size);
 
-			drm_gem_shmem_vunmap(&bo->base.base, data);
+			drm_gem_shmem_vunmap(&bo->base, &map);
 		}
 
 		buffer_chunk = (void *)(buffer_chunk + 1) + buffer_chunk->size;
@@ -413,7 +396,7 @@ out:
 	mutex_unlock(&dev->error_task_list_lock);
 }
 
-static void lima_sched_timedout_job(struct drm_sched_job *job)
+static enum drm_gpu_sched_stat lima_sched_timedout_job(struct drm_sched_job *job)
 {
 	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
 	struct lima_sched_task *task = to_lima_task(job);
@@ -426,7 +409,8 @@ static void lima_sched_timedout_job(struct drm_sched_job *job)
 
 	drm_sched_increase_karma(&task->base);
 
-	lima_sched_build_error_task_list(task);
+	if (lima_max_error_tasks)
+		lima_sched_build_error_task_list(task);
 
 	pipe->task_error(pipe);
 
@@ -447,6 +431,8 @@ static void lima_sched_timedout_job(struct drm_sched_job *job)
 
 	drm_sched_resubmit_jobs(&pipe->base);
 	drm_sched_start(&pipe->base, true);
+
+	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
 static void lima_sched_free_job(struct drm_sched_job *job)
@@ -467,7 +453,6 @@ static void lima_sched_free_job(struct drm_sched_job *job)
 }
 
 static const struct drm_sched_backend_ops lima_sched_ops = {
-	.dependency = lima_sched_dependency,
 	.run_job = lima_sched_run_job,
 	.timedout_job = lima_sched_timedout_job,
 	.free_job = lima_sched_free_job,
@@ -504,8 +489,9 @@ int lima_sched_pipe_init(struct lima_sched_pipe *pipe, const char *name)
 	INIT_WORK(&pipe->recover_work, lima_sched_recover_work);
 
 	return drm_sched_init(&pipe->base, &lima_sched_ops, 1,
-			      lima_job_hang_limit, msecs_to_jiffies(timeout),
-			      name);
+			      lima_job_hang_limit,
+			      msecs_to_jiffies(timeout), NULL,
+			      NULL, name, pipe->ldev->dev);
 }
 
 void lima_sched_pipe_fini(struct lima_sched_pipe *pipe)

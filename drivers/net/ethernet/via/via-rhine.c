@@ -884,7 +884,7 @@ static const struct net_device_ops rhine_netdev_ops = {
 	.ndo_set_rx_mode	 = rhine_set_rx_mode,
 	.ndo_validate_addr	 = eth_validate_addr,
 	.ndo_set_mac_address 	 = eth_mac_addr,
-	.ndo_do_ioctl		 = netdev_ioctl,
+	.ndo_eth_ioctl		 = netdev_ioctl,
 	.ndo_tx_timeout 	 = rhine_tx_timeout,
 	.ndo_vlan_rx_add_vid	 = rhine_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	 = rhine_vlan_rx_kill_vid,
@@ -899,6 +899,7 @@ static int rhine_init_one_common(struct device *hwdev, u32 quirks,
 	struct net_device *dev;
 	struct rhine_private *rp;
 	int i, rc, phy_id;
+	u8 addr[ETH_ALEN];
 	const char *name;
 
 	/* this should always be supported */
@@ -933,7 +934,8 @@ static int rhine_init_one_common(struct device *hwdev, u32 quirks,
 	rhine_hw_init(dev, pioaddr);
 
 	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = ioread8(ioaddr + StationAddr + i);
+		addr[i] = ioread8(ioaddr + StationAddr + i);
+	eth_hw_addr_set(dev, addr);
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		/* Report it and use a random ethernet address instead */
@@ -1113,13 +1115,12 @@ err_out:
 
 static int rhine_init_one_platform(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	const u32 *quirks;
 	int irq;
 	void __iomem *ioaddr;
 
-	match = of_match_device(rhine_of_tbl, &pdev->dev);
-	if (!match)
+	quirks = of_device_get_match_data(&pdev->dev);
+	if (!quirks)
 		return -EINVAL;
 
 	ioaddr = devm_platform_ioremap_resource(pdev, 0);
@@ -1128,10 +1129,6 @@ static int rhine_init_one_platform(struct platform_device *pdev)
 
 	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (!irq)
-		return -EINVAL;
-
-	quirks = match->data;
-	if (!quirks)
 		return -EINVAL;
 
 	return rhine_init_one_common(&pdev->dev, *quirks,

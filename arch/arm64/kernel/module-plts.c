@@ -131,7 +131,7 @@ u64 module_emit_veneer_for_adrp(struct module *mod, Elf64_Shdr *sechdrs,
 }
 #endif
 
-#define cmp_3way(a,b)	((a) < (b) ? -1 : (a) > (b))
+#define cmp_3way(a, b)	((a) < (b) ? -1 : (a) > (b))
 
 static int cmp_rela(const void *a, const void *b)
 {
@@ -220,7 +220,7 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 			 * increasing the section's alignment so that the
 			 * resulting address of this instruction is guaranteed
 			 * to equal the offset in that particular bit (as well
-			 * as all less signficant bits). This ensures that the
+			 * as all less significant bits). This ensures that the
 			 * address modulo 4 KB != 0xfff8 or 0xfffc (which would
 			 * have all ones in bits [11:3])
 			 */

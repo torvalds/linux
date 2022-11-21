@@ -15,15 +15,13 @@
 
 static int
 mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
-			 int cmd, bool wait_resp)
+			 int cmd, int *seq)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	int ret, seq, ep, len, pad;
+	int ret, ep, len, pad;
 
-	mutex_lock(&mdev->mcu.mutex);
-
-	mt7615_mcu_fill_msg(dev, skb, cmd, &seq);
-	if (cmd != MCU_CMD_FW_SCATTER)
+	mt7615_mcu_fill_msg(dev, skb, cmd, seq);
+	if (cmd != MCU_CMD(FW_SCATTER))
 		ep = MT_EP_OUT_INBAND_CMD;
 	else
 		ep = MT_EP_OUT_AC_BE;
@@ -37,17 +35,31 @@ mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 
 	ret = mt76u_bulk_msg(&dev->mt76, skb->data, skb->len, NULL,
 			     1000, ep);
-	if (ret < 0)
-		goto out;
-
-	if (wait_resp)
-		ret = mt7615_mcu_wait_response(dev, cmd, seq);
 
 out:
-	mutex_unlock(&mdev->mcu.mutex);
 	dev_kfree_skb(skb);
 
 	return ret;
+}
+
+int mt7663u_mcu_power_on(struct mt7615_dev *dev)
+{
+	int ret;
+
+	ret = mt76u_vendor_request(&dev->mt76, MT_VEND_POWER_ON,
+				   USB_DIR_OUT | USB_TYPE_VENDOR,
+				   0x0, 0x1, NULL, 0);
+	if (ret)
+		return ret;
+
+	if (!mt76_poll_msec(dev, MT_CONN_ON_MISC,
+			    MT_TOP_MISC2_FW_PWR_ON,
+			    FW_STATE_PWR_ON << 1, 500)) {
+		dev_err(dev->mt76.dev, "Timeout for power on\n");
+		ret = -EIO;
+	}
+
+	return 0;
 }
 
 int mt7663u_mcu_init(struct mt7615_dev *dev)
@@ -56,35 +68,26 @@ int mt7663u_mcu_init(struct mt7615_dev *dev)
 		.headroom = MT_USB_HDR_SIZE + sizeof(struct mt7615_mcu_txd),
 		.tailroom = MT_USB_TAIL_SIZE,
 		.mcu_skb_send_msg = mt7663u_mcu_send_message,
-		.mcu_send_msg = mt7615_mcu_msg_send,
+		.mcu_parse_response = mt7615_mcu_parse_response,
 		.mcu_restart = mt7615_mcu_restart,
 	};
 	int ret;
 
 	dev->mt76.mcu_ops = &mt7663u_mcu_ops,
 
-	/* usb does not support runtime-pm */
-	clear_bit(MT76_STATE_PM, &dev->mphy.state);
 	mt76_set(dev, MT_UDMA_TX_QSEL, MT_FW_DL_EN);
-
 	if (test_and_clear_bit(MT76_STATE_POWER_OFF, &dev->mphy.state)) {
-		mt7615_mcu_restart(&dev->mt76);
-		if (!mt76_poll_msec(dev, MT_CONN_ON_MISC,
-				    MT_TOP_MISC2_FW_PWR_ON, 0, 500))
-			return -EIO;
-
-		ret = mt76u_vendor_request(&dev->mt76, MT_VEND_POWER_ON,
-					   USB_DIR_OUT | USB_TYPE_VENDOR,
-					   0x0, 0x1, NULL, 0);
+		ret = mt7615_mcu_restart(&dev->mt76);
 		if (ret)
 			return ret;
 
 		if (!mt76_poll_msec(dev, MT_CONN_ON_MISC,
-				    MT_TOP_MISC2_FW_PWR_ON,
-				    FW_STATE_PWR_ON << 1, 500)) {
-			dev_err(dev->mt76.dev, "Timeout for power on\n");
+				    MT_TOP_MISC2_FW_PWR_ON, 0, 500))
 			return -EIO;
-		}
+
+		ret = mt7663u_mcu_power_on(dev);
+		if (ret)
+			return ret;
 	}
 
 	ret = __mt7663_load_firmware(dev);

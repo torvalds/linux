@@ -335,20 +335,20 @@ static unsigned qla82xx_crb_hub_agt[64] = {
 };
 
 /* Device states */
-static char *q_dev_state[] = {
-	 "Unknown",
-	"Cold",
-	"Initializing",
-	"Ready",
-	"Need Reset",
-	"Need Quiescent",
-	"Failed",
-	"Quiescent",
+static const char *const q_dev_state[] = {
+	[QLA8XXX_DEV_UNKNOWN]		= "Unknown",
+	[QLA8XXX_DEV_COLD]		= "Cold/Re-init",
+	[QLA8XXX_DEV_INITIALIZING]	= "Initializing",
+	[QLA8XXX_DEV_READY]		= "Ready",
+	[QLA8XXX_DEV_NEED_RESET]	= "Need Reset",
+	[QLA8XXX_DEV_NEED_QUIESCENT]	= "Need Quiescent",
+	[QLA8XXX_DEV_FAILED]		= "Failed",
+	[QLA8XXX_DEV_QUIESCENT]		= "Quiescent",
 };
 
-char *qdev_state(uint32_t dev_state)
+const char *qdev_state(uint32_t dev_state)
 {
-	return q_dev_state[dev_state];
+	return (dev_state < MAX_STATES) ? q_dev_state[dev_state] : "Unknown";
 }
 
 /*
@@ -489,29 +489,26 @@ qla82xx_rd_32(struct qla_hw_data *ha, ulong off_in)
 	return data;
 }
 
-#define IDC_LOCK_TIMEOUT 100000000
+/*
+ * Context: task, might sleep
+ */
 int qla82xx_idc_lock(struct qla_hw_data *ha)
 {
-	int i;
-	int done = 0, timeout = 0;
+	const int delay_ms = 100, timeout_ms = 2000;
+	int done, total = 0;
 
-	while (!done) {
+	might_sleep();
+
+	while (true) {
 		/* acquire semaphore5 from PCI HW block */
 		done = qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM5_LOCK));
 		if (done == 1)
 			break;
-		if (timeout >= IDC_LOCK_TIMEOUT)
+		if (WARN_ON_ONCE(total >= timeout_ms))
 			return -1;
 
-		timeout++;
-
-		/* Yield CPU */
-		if (!in_interrupt())
-			schedule();
-		else {
-			for (i = 0; i < 20; i++)
-				cpu_relax();
-		}
+		total += delay_ms;
+		msleep(delay_ms);
 	}
 
 	return 0;
@@ -965,7 +962,7 @@ qla82xx_read_status_reg(struct qla_hw_data *ha, uint32_t *val)
 static int
 qla82xx_flash_wait_write_finish(struct qla_hw_data *ha)
 {
-	uint32_t val;
+	uint32_t val = 0;
 	int i, ret;
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
@@ -1066,7 +1063,8 @@ qla82xx_write_flash_dword(struct qla_hw_data *ha, uint32_t flashaddr,
 		return ret;
 	}
 
-	if (qla82xx_flash_set_write_enable(ha))
+	ret = qla82xx_flash_set_write_enable(ha);
+	if (ret < 0)
 		goto done_write;
 
 	qla82xx_wr_32(ha, QLA82XX_ROMUSB_ROM_WDATA, data);
@@ -2168,7 +2166,6 @@ qla82xx_poll(int irq, void *dev_id)
 	struct qla_hw_data *ha;
 	struct rsp_que *rsp;
 	struct device_reg_82xx __iomem *reg;
-	int status = 0;
 	uint32_t stat;
 	uint32_t host_int = 0;
 	uint16_t mb[8];
@@ -2197,7 +2194,6 @@ qla82xx_poll(int irq, void *dev_id)
 		case 0x10:
 		case 0x11:
 			qla82xx_mbx_completion(vha, MSW(stat));
-			status |= MBX_INTERRUPT;
 			break;
 		case 0x12:
 			mb[0] = MSW(stat);
@@ -3065,8 +3061,7 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 
 	ql_log(ql_log_info, vha, 0x00b6,
 	    "Device state is 0x%x = %s.\n",
-	    dev_state,
-	    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unknown");
+	    dev_state, qdev_state(dev_state));
 
 	/* Force to DEV_COLD unless someone else is starting a reset */
 	if (dev_state != QLA8XXX_DEV_INITIALIZING &&
@@ -3189,8 +3184,7 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 	old_dev_state = dev_state;
 	ql_log(ql_log_info, vha, 0x009b,
 	    "Device state is 0x%x = %s.\n",
-	    dev_state,
-	    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unknown");
+	    dev_state, qdev_state(dev_state));
 
 	/* wait for 30 seconds for device to go ready */
 	dev_init_timeout = jiffies + (ha->fcoe_dev_init_timeout * HZ);
@@ -3211,9 +3205,7 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 		if (loopcount < 5) {
 			ql_log(ql_log_info, vha, 0x009d,
 			    "Device state is 0x%x = %s.\n",
-			    dev_state,
-			    dev_state < MAX_STATES ? qdev_state(dev_state) :
-			    "Unknown");
+			    dev_state, qdev_state(dev_state));
 		}
 
 		switch (dev_state) {
@@ -3443,8 +3435,7 @@ qla82xx_set_reset_owner(scsi_qla_host_t *vha)
 	} else
 		ql_log(ql_log_info, vha, 0xb031,
 		    "Device state is 0x%x = %s.\n",
-		    dev_state,
-		    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unknown");
+		    dev_state, qdev_state(dev_state));
 }
 
 /*

@@ -9,19 +9,19 @@
 #include <linux/bitfield.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
-#include <linux/delay.h>
-#include <linux/mutex.h>
+#include <linux/math.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
-#include <linux/slab.h>
-#include <linux/sysfs.h>
 #include <linux/module.h>
+#include <linux/lcm.h>
+#include <linux/swab.h>
+#include <linux/crc32.h>
 
 #include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/imu/adis.h>
+#include <linux/iio/trigger_consumer.h>
 
 #include <linux/debugfs.h>
 
@@ -101,6 +101,12 @@
  * Available only for ADIS1649x devices
  */
 #define ADIS16495_REG_SYNC_SCALE		ADIS16480_REG(0x03, 0x10)
+#define ADIS16495_REG_BURST_CMD			ADIS16480_REG(0x00, 0x7C)
+#define ADIS16495_BURST_ID			0xA5A5
+/* total number of segments in burst */
+#define ADIS16495_BURST_MAX_DATA		20
+/* spi max speed in burst mode */
+#define ADIS16495_BURST_MAX_SPEED              6000000
 
 #define ADIS16480_REG_SERIAL_NUM		ADIS16480_REG(0x04, 0x20)
 
@@ -138,6 +144,7 @@ struct adis16480_chip_info {
 	unsigned int max_dec_rate;
 	const unsigned int *filter_freqs;
 	bool has_pps_clk_mode;
+	bool has_sleep_cnt;
 	const struct adis_data adis_data;
 };
 
@@ -161,6 +168,8 @@ struct adis16480 {
 	struct clk *ext_clk;
 	enum adis16480_clock_mode clk_mode;
 	unsigned int clk_freq;
+	/* Alignment needed for the timestamp */
+	__be16 data[ADIS16495_BURST_MAX_DATA] __aligned(8);
 };
 
 static const char * const adis16480_int_pin_names[4] = {
@@ -169,6 +178,11 @@ static const char * const adis16480_int_pin_names[4] = {
 	[ADIS16480_PIN_DIO3] = "DIO3",
 	[ADIS16480_PIN_DIO4] = "DIO4",
 };
+
+static bool low_rate_allow;
+module_param(low_rate_allow, bool, 0444);
+MODULE_PARM_DESC(low_rate_allow,
+		 "Allow IMU rates below the minimum advisable when external clk is used in PPS mode (default: N)");
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -312,7 +326,8 @@ static int adis16480_debugfs_init(struct iio_dev *indio_dev)
 static int adis16480_set_freq(struct iio_dev *indio_dev, int val, int val2)
 {
 	struct adis16480 *st = iio_priv(indio_dev);
-	unsigned int t, reg;
+	unsigned int t, sample_rate = st->clk_freq;
+	int ret;
 
 	if (val < 0 || val2 < 0)
 		return -EINVAL;
@@ -321,28 +336,65 @@ static int adis16480_set_freq(struct iio_dev *indio_dev, int val, int val2)
 	if (t == 0)
 		return -EINVAL;
 
+	adis_dev_lock(&st->adis);
 	/*
-	 * When using PPS mode, the rate of data collection is equal to the
-	 * product of the external clock frequency and the scale factor in the
-	 * SYNC_SCALE register.
-	 * When using sync mode, or internal clock, the output data rate is
-	 * equal with  the clock frequency divided by DEC_RATE + 1.
+	 * When using PPS mode, the input clock needs to be scaled so that we have an IMU
+	 * sample rate between (optimally) 4000 and 4250. After this, we can use the
+	 * decimation filter to lower the sampling rate in order to get what the user wants.
+	 * Optimally, the user sample rate is a multiple of both the IMU sample rate and
+	 * the input clock. Hence, calculating the sync_scale dynamically gives us better
+	 * chances of achieving a perfect/integer value for DEC_RATE. The math here is:
+	 *	1. lcm of the input clock and the desired output rate.
+	 *	2. get the highest multiple of the previous result lower than the adis max rate.
+	 *	3. The last result becomes the IMU sample rate. Use that to calculate SYNC_SCALE
+	 *	   and DEC_RATE (to get the user output rate)
 	 */
 	if (st->clk_mode == ADIS16480_CLK_PPS) {
-		t = t / st->clk_freq;
-		reg = ADIS16495_REG_SYNC_SCALE;
-	} else {
-		t = st->clk_freq / t;
-		reg = ADIS16480_REG_DEC_RATE;
+		unsigned long scaled_rate = lcm(st->clk_freq, t);
+		int sync_scale;
+
+		/*
+		 * If lcm is bigger than the IMU maximum sampling rate there's no perfect
+		 * solution. In this case, we get the highest multiple of the input clock
+		 * lower than the IMU max sample rate.
+		 */
+		if (scaled_rate > st->chip_info->int_clk)
+			scaled_rate = st->chip_info->int_clk / st->clk_freq * st->clk_freq;
+		else
+			scaled_rate = st->chip_info->int_clk / scaled_rate * scaled_rate;
+
+		/*
+		 * This is not an hard requirement but it's not advised to run the IMU
+		 * with a sample rate lower than 4000Hz due to possible undersampling
+		 * issues. However, there are users that might really want to take the risk.
+		 * Hence, we provide a module parameter for them. If set, we allow sample
+		 * rates lower than 4KHz. By default, we won't allow this and we just roundup
+		 * the rate to the next multiple of the input clock bigger than 4KHz. This
+		 * is done like this as in some cases (when DEC_RATE is 0) might give
+		 * us the closest value to the one desired by the user...
+		 */
+		if (scaled_rate < 4000000 && !low_rate_allow)
+			scaled_rate = roundup(4000000, st->clk_freq);
+
+		sync_scale = scaled_rate / st->clk_freq;
+		ret = __adis_write_reg_16(&st->adis, ADIS16495_REG_SYNC_SCALE, sync_scale);
+		if (ret)
+			goto error;
+
+		sample_rate = scaled_rate;
 	}
+
+	t = DIV_ROUND_CLOSEST(sample_rate, t);
+	if (t)
+		t--;
 
 	if (t > st->chip_info->max_dec_rate)
 		t = st->chip_info->max_dec_rate;
 
-	if ((t != 0) && (st->clk_mode != ADIS16480_CLK_PPS))
-		t--;
-
-	return adis_write_reg_16(&st->adis, reg, t);
+	ret = __adis_write_reg_16(&st->adis, ADIS16480_REG_DEC_RATE, t);
+error:
+	adis_dev_unlock(&st->adis);
+	return ret;
 }
 
 static int adis16480_get_freq(struct iio_dev *indio_dev, int *val, int *val2)
@@ -350,34 +402,35 @@ static int adis16480_get_freq(struct iio_dev *indio_dev, int *val, int *val2)
 	struct adis16480 *st = iio_priv(indio_dev);
 	uint16_t t;
 	int ret;
-	unsigned int freq;
-	unsigned int reg;
+	unsigned int freq, sample_rate = st->clk_freq;
 
-	if (st->clk_mode == ADIS16480_CLK_PPS)
-		reg = ADIS16495_REG_SYNC_SCALE;
-	else
-		reg = ADIS16480_REG_DEC_RATE;
+	adis_dev_lock(&st->adis);
 
-	ret = adis_read_reg_16(&st->adis, reg, &t);
+	if (st->clk_mode == ADIS16480_CLK_PPS) {
+		u16 sync_scale;
+
+		ret = __adis_read_reg_16(&st->adis, ADIS16495_REG_SYNC_SCALE, &sync_scale);
+		if (ret)
+			goto error;
+
+		sample_rate = st->clk_freq * sync_scale;
+	}
+
+	ret = __adis_read_reg_16(&st->adis, ADIS16480_REG_DEC_RATE, &t);
 	if (ret)
-		return ret;
+		goto error;
 
-	/*
-	 * When using PPS mode, the rate of data collection is equal to the
-	 * product of the external clock frequency and the scale factor in the
-	 * SYNC_SCALE register.
-	 * When using sync mode, or internal clock, the output data rate is
-	 * equal with  the clock frequency divided by DEC_RATE + 1.
-	 */
-	if (st->clk_mode == ADIS16480_CLK_PPS)
-		freq = st->clk_freq * t;
-	else
-		freq = st->clk_freq / (t + 1);
+	adis_dev_unlock(&st->adis);
+
+	freq = DIV_ROUND_CLOSEST(sample_rate, (t + 1));
 
 	*val = freq / 1000;
 	*val2 = (freq % 1000) * 1000;
 
 	return IIO_VAL_INT_PLUS_MICRO;
+error:
+	adis_dev_unlock(&st->adis);
+	return ret;
 }
 
 enum {
@@ -552,7 +605,6 @@ static int adis16480_set_filter_freq(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, unsigned int freq)
 {
 	struct adis16480 *st = iio_priv(indio_dev);
-	struct mutex *slock = &st->adis.state_lock;
 	unsigned int enable_mask, offset, reg;
 	unsigned int diff, best_diff;
 	unsigned int i, best_freq;
@@ -563,7 +615,7 @@ static int adis16480_set_filter_freq(struct iio_dev *indio_dev,
 	offset = ad16480_filter_data[chan->scan_index][1];
 	enable_mask = BIT(offset + 2);
 
-	mutex_lock(slock);
+	adis_dev_lock(&st->adis);
 
 	ret = __adis_read_reg_16(&st->adis, reg, &val);
 	if (ret)
@@ -591,7 +643,7 @@ static int adis16480_set_filter_freq(struct iio_dev *indio_dev,
 
 	ret = __adis_write_reg_16(&st->adis, reg, val);
 out_unlock:
-	mutex_unlock(slock);
+	adis_dev_unlock(&st->adis);
 
 	return ret;
 }
@@ -818,7 +870,7 @@ static const char * const adis16480_status_error_msgs[] = {
 
 static int adis16480_enable_irq(struct adis *adis, bool enable);
 
-#define ADIS16480_DATA(_prod_id, _timeouts)				\
+#define ADIS16480_DATA(_prod_id, _timeouts, _burst_len)			\
 {									\
 	.diag_stat_reg = ADIS16480_REG_DIAG_STS,			\
 	.glob_cmd_reg = ADIS16480_REG_GLOB_CMD,				\
@@ -842,6 +894,9 @@ static int adis16480_enable_irq(struct adis *adis, bool enable);
 		BIT(ADIS16480_DIAG_STAT_BARO_FAIL),			\
 	.enable_irq = adis16480_enable_irq,				\
 	.timeouts = (_timeouts),					\
+	.burst_reg_cmd = ADIS16495_REG_BURST_CMD,			\
+	.burst_len = (_burst_len),					\
+	.burst_max_speed_hz = ADIS16495_BURST_MAX_SPEED			\
 }
 
 static const struct adis_timeout adis16485_timeouts = {
@@ -885,8 +940,9 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.temp_scale = 5650, /* 5.65 milli degree Celsius */
 		.int_clk = 2460000,
 		.max_dec_rate = 2048,
+		.has_sleep_cnt = true,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.adis_data = ADIS16480_DATA(16375, &adis16485_timeouts),
+		.adis_data = ADIS16480_DATA(16375, &adis16485_timeouts, 0),
 	},
 	[ADIS16480] = {
 		.channels = adis16480_channels,
@@ -898,8 +954,9 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.temp_scale = 5650, /* 5.65 milli degree Celsius */
 		.int_clk = 2460000,
 		.max_dec_rate = 2048,
+		.has_sleep_cnt = true,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.adis_data = ADIS16480_DATA(16480, &adis16480_timeouts),
+		.adis_data = ADIS16480_DATA(16480, &adis16480_timeouts, 0),
 	},
 	[ADIS16485] = {
 		.channels = adis16485_channels,
@@ -911,8 +968,9 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.temp_scale = 5650, /* 5.65 milli degree Celsius */
 		.int_clk = 2460000,
 		.max_dec_rate = 2048,
+		.has_sleep_cnt = true,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.adis_data = ADIS16480_DATA(16485, &adis16485_timeouts),
+		.adis_data = ADIS16480_DATA(16485, &adis16485_timeouts, 0),
 	},
 	[ADIS16488] = {
 		.channels = adis16480_channels,
@@ -924,8 +982,9 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.temp_scale = 5650, /* 5.65 milli degree Celsius */
 		.int_clk = 2460000,
 		.max_dec_rate = 2048,
+		.has_sleep_cnt = true,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.adis_data = ADIS16480_DATA(16488, &adis16485_timeouts),
+		.adis_data = ADIS16480_DATA(16488, &adis16485_timeouts, 0),
 	},
 	[ADIS16490] = {
 		.channels = adis16485_channels,
@@ -939,7 +998,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(16490, &adis16495_timeouts),
+		.adis_data = ADIS16480_DATA(16490, &adis16495_timeouts, 0),
 	},
 	[ADIS16495_1] = {
 		.channels = adis16485_channels,
@@ -953,7 +1012,9 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(16495, &adis16495_1_timeouts),
+		/* 20 elements of 16bits */
+		.adis_data = ADIS16480_DATA(16495, &adis16495_1_timeouts,
+					    ADIS16495_BURST_MAX_DATA * 2),
 	},
 	[ADIS16495_2] = {
 		.channels = adis16485_channels,
@@ -967,7 +1028,9 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(16495, &adis16495_1_timeouts),
+		/* 20 elements of 16bits */
+		.adis_data = ADIS16480_DATA(16495, &adis16495_1_timeouts,
+					    ADIS16495_BURST_MAX_DATA * 2),
 	},
 	[ADIS16495_3] = {
 		.channels = adis16485_channels,
@@ -981,7 +1044,9 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(16495, &adis16495_1_timeouts),
+		/* 20 elements of 16bits */
+		.adis_data = ADIS16480_DATA(16495, &adis16495_1_timeouts,
+					    ADIS16495_BURST_MAX_DATA * 2),
 	},
 	[ADIS16497_1] = {
 		.channels = adis16485_channels,
@@ -995,7 +1060,9 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(16497, &adis16495_1_timeouts),
+		/* 20 elements of 16bits */
+		.adis_data = ADIS16480_DATA(16497, &adis16495_1_timeouts,
+					    ADIS16495_BURST_MAX_DATA * 2),
 	},
 	[ADIS16497_2] = {
 		.channels = adis16485_channels,
@@ -1009,7 +1076,9 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(16497, &adis16495_1_timeouts),
+		/* 20 elements of 16bits */
+		.adis_data = ADIS16480_DATA(16497, &adis16495_1_timeouts,
+					    ADIS16495_BURST_MAX_DATA * 2),
 	},
 	[ADIS16497_3] = {
 		.channels = adis16485_channels,
@@ -1023,9 +1092,117 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(16497, &adis16495_1_timeouts),
+		/* 20 elements of 16bits */
+		.adis_data = ADIS16480_DATA(16497, &adis16495_1_timeouts,
+					    ADIS16495_BURST_MAX_DATA * 2),
 	},
 };
+
+static bool adis16480_validate_crc(const u16 *buf, const u8 n_elem, const u32 crc)
+{
+	u32 crc_calc;
+	u16 crc_buf[15];
+	int j;
+
+	for (j = 0; j < n_elem; j++)
+		crc_buf[j] = swab16(buf[j]);
+
+	crc_calc = crc32(~0, crc_buf, n_elem * 2);
+	crc_calc ^= ~0;
+
+	return (crc == crc_calc);
+}
+
+static irqreturn_t adis16480_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct adis16480 *st = iio_priv(indio_dev);
+	struct adis *adis = &st->adis;
+	int ret, bit, offset, i = 0;
+	__be16 *buffer;
+	u32 crc;
+	bool valid;
+
+	adis_dev_lock(adis);
+	if (adis->current_page != 0) {
+		adis->tx[0] = ADIS_WRITE_REG(ADIS_REG_PAGE_ID);
+		adis->tx[1] = 0;
+		ret = spi_write(adis->spi, adis->tx, 2);
+		if (ret) {
+			dev_err(&adis->spi->dev, "Failed to change device page: %d\n", ret);
+			adis_dev_unlock(adis);
+			goto irq_done;
+		}
+
+		adis->current_page = 0;
+	}
+
+	ret = spi_sync(adis->spi, &adis->msg);
+	if (ret) {
+		dev_err(&adis->spi->dev, "Failed to read data: %d\n", ret);
+		adis_dev_unlock(adis);
+		goto irq_done;
+	}
+
+	adis_dev_unlock(adis);
+
+	/*
+	 * After making the burst request, the response can have one or two
+	 * 16-bit responses containing the BURST_ID depending on the sclk. If
+	 * clk > 3.6MHz, then we will have two BURST_ID in a row. If clk < 3MHZ,
+	 * we have only one. To manage that variation, we use the transition from the
+	 * BURST_ID to the SYS_E_FLAG register, which will not be equal to 0xA5A5. If
+	 * we not find this variation in the first 4 segments, then the data should
+	 * not be valid.
+	 */
+	buffer = adis->buffer;
+	for (offset = 0; offset < 4; offset++) {
+		u16 curr = be16_to_cpu(buffer[offset]);
+		u16 next = be16_to_cpu(buffer[offset + 1]);
+
+		if (curr == ADIS16495_BURST_ID && next != ADIS16495_BURST_ID) {
+			offset++;
+			break;
+		}
+	}
+
+	if (offset == 4) {
+		dev_err(&adis->spi->dev, "Invalid burst data\n");
+		goto irq_done;
+	}
+
+	crc = be16_to_cpu(buffer[offset + 16]) << 16 | be16_to_cpu(buffer[offset + 15]);
+	valid = adis16480_validate_crc((u16 *)&buffer[offset], 15, crc);
+	if (!valid) {
+		dev_err(&adis->spi->dev, "Invalid crc\n");
+		goto irq_done;
+	}
+
+	for_each_set_bit(bit, indio_dev->active_scan_mask, indio_dev->masklength) {
+		/*
+		 * When burst mode is used, temperature is the first data
+		 * channel in the sequence, but the temperature scan index
+		 * is 10.
+		 */
+		switch (bit) {
+		case ADIS16480_SCAN_TEMP:
+			st->data[i++] = buffer[offset + 1];
+			break;
+		case ADIS16480_SCAN_GYRO_X ... ADIS16480_SCAN_ACCEL_Z:
+			/* The lower register data is sequenced first */
+			st->data[i++] = buffer[2 * bit + offset + 3];
+			st->data[i++] = buffer[2 * bit + offset + 2];
+			break;
+		}
+	}
+
+	iio_push_to_buffers_with_timestamp(indio_dev, st->data, pf->timestamp);
+irq_done:
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
 
 static const struct iio_info adis16480_info = {
 	.read_raw = &adis16480_read_raw,
@@ -1226,6 +1403,7 @@ static int adis16480_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	const struct adis_data *adis16480_data;
+	irq_handler_t trigger_handler = NULL;
 	struct iio_dev *indio_dev;
 	struct adis16480 *st;
 	int ret;
@@ -1233,8 +1411,6 @@ static int adis16480_probe(struct spi_device *spi)
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
-
-	spi_set_drvdata(spi, indio_dev);
 
 	st = iio_priv(indio_dev);
 
@@ -1255,9 +1431,12 @@ static int adis16480_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = devm_add_action_or_reset(&spi->dev, adis16480_stop, indio_dev);
-	if (ret)
-		return ret;
+	if (st->chip_info->has_sleep_cnt) {
+		ret = devm_add_action_or_reset(&spi->dev, adis16480_stop,
+					       indio_dev);
+		if (ret)
+			return ret;
+	}
 
 	ret = adis16480_config_irq_pin(spi->dev.of_node, st);
 	if (ret)
@@ -1278,11 +1457,30 @@ static int adis16480_probe(struct spi_device *spi)
 
 		st->clk_freq = clk_get_rate(st->ext_clk);
 		st->clk_freq *= 1000; /* micro */
+		if (st->clk_mode == ADIS16480_CLK_PPS) {
+			u16 sync_scale;
+
+			/*
+			 * In PPS mode, the IMU sample rate is the clk_freq * sync_scale. Hence,
+			 * default the IMU sample rate to the highest multiple of the input clock
+			 * lower than the IMU max sample rate. The internal sample rate is the
+			 * max...
+			 */
+			sync_scale = st->chip_info->int_clk / st->clk_freq;
+			ret = __adis_write_reg_16(&st->adis, ADIS16495_REG_SYNC_SCALE, sync_scale);
+			if (ret)
+				return ret;
+		}
 	} else {
 		st->clk_freq = st->chip_info->int_clk;
 	}
 
-	ret = devm_adis_setup_buffer_and_trigger(&st->adis, indio_dev, NULL);
+	/* Only use our trigger handler if burst mode is supported */
+	if (adis16480_data->burst_len)
+		trigger_handler = adis16480_trigger_handler;
+
+	ret = devm_adis_setup_buffer_and_trigger(&st->adis, indio_dev,
+						 trigger_handler);
 	if (ret)
 		return ret;
 
@@ -1340,3 +1538,4 @@ module_spi_driver(adis16480_driver);
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("Analog Devices ADIS16480 IMU driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_ADISLIB);

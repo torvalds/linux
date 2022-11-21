@@ -91,18 +91,21 @@ struct cap11xx_hw_model {
 	u8 product_id;
 	unsigned int num_channels;
 	unsigned int num_leds;
+	bool no_gain;
 };
 
 enum {
 	CAP1106,
 	CAP1126,
 	CAP1188,
+	CAP1206,
 };
 
 static const struct cap11xx_hw_model cap11xx_devices[] = {
-	[CAP1106] = { .product_id = 0x55, .num_channels = 6, .num_leds = 0 },
-	[CAP1126] = { .product_id = 0x53, .num_channels = 6, .num_leds = 2 },
-	[CAP1188] = { .product_id = 0x50, .num_channels = 8, .num_leds = 8 },
+	[CAP1106] = { .product_id = 0x55, .num_channels = 6, .num_leds = 0, .no_gain = false },
+	[CAP1126] = { .product_id = 0x53, .num_channels = 6, .num_leds = 2, .no_gain = false },
+	[CAP1188] = { .product_id = 0x50, .num_channels = 8, .num_leds = 8, .no_gain = false },
+	[CAP1206] = { .product_id = 0x67, .num_channels = 6, .num_leds = 0, .no_gain = true },
 };
 
 static const struct reg_default cap11xx_reg_defaults[] = {
@@ -378,17 +381,24 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client,
 	node = dev->of_node;
 
 	if (!of_property_read_u32(node, "microchip,sensor-gain", &gain32)) {
-		if (is_power_of_2(gain32) && gain32 <= 8)
+		if (cap->no_gain)
+			dev_warn(dev,
+				 "This version doesn't support sensor gain\n");
+		else if (is_power_of_2(gain32) && gain32 <= 8)
 			gain = ilog2(gain32);
 		else
 			dev_err(dev, "Invalid sensor-gain value %d\n", gain32);
 	}
 
-	if (of_property_read_bool(node, "microchip,irq-active-high")) {
-		error = regmap_update_bits(priv->regmap, CAP11XX_REG_CONFIG2,
-					   CAP11XX_REG_CONFIG2_ALT_POL, 0);
-		if (error)
-			return error;
+	if (id->driver_data != CAP1206) {
+		if (of_property_read_bool(node, "microchip,irq-active-high")) {
+			error = regmap_update_bits(priv->regmap,
+						   CAP11XX_REG_CONFIG2,
+						   CAP11XX_REG_CONFIG2_ALT_POL,
+						   0);
+			if (error)
+				return error;
+		}
 	}
 
 	/* Provide some useful defaults */
@@ -398,11 +408,14 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client,
 	of_property_read_u32_array(node, "linux,keycodes",
 				   priv->keycodes, cap->num_channels);
 
-	error = regmap_update_bits(priv->regmap, CAP11XX_REG_MAIN_CONTROL,
-				   CAP11XX_REG_MAIN_CONTROL_GAIN_MASK,
-				   gain << CAP11XX_REG_MAIN_CONTROL_GAIN_SHIFT);
-	if (error)
-		return error;
+	if (!cap->no_gain) {
+		error = regmap_update_bits(priv->regmap,
+				CAP11XX_REG_MAIN_CONTROL,
+				CAP11XX_REG_MAIN_CONTROL_GAIN_MASK,
+				gain << CAP11XX_REG_MAIN_CONTROL_GAIN_SHIFT);
+		if (error)
+			return error;
+	}
 
 	/* Disable autorepeat. The Linux input system has its own handling. */
 	error = regmap_write(priv->regmap, CAP11XX_REG_REPEAT_RATE, 0);
@@ -470,6 +483,7 @@ static const struct of_device_id cap11xx_dt_ids[] = {
 	{ .compatible = "microchip,cap1106", },
 	{ .compatible = "microchip,cap1126", },
 	{ .compatible = "microchip,cap1188", },
+	{ .compatible = "microchip,cap1206", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, cap11xx_dt_ids);
@@ -478,6 +492,7 @@ static const struct i2c_device_id cap11xx_i2c_ids[] = {
 	{ "cap1106", CAP1106 },
 	{ "cap1126", CAP1126 },
 	{ "cap1188", CAP1188 },
+	{ "cap1206", CAP1206 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, cap11xx_i2c_ids);

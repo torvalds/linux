@@ -227,7 +227,7 @@ static int prism2_download_aux_dump_proc_open(struct inode *inode, struct file *
 				   sizeof(struct prism2_download_aux_dump));
 	if (ret == 0) {
 		struct seq_file *m = file->private_data;
-		m->private = PDE_DATA(inode);
+		m->private = pde_data(inode);
 	}
 	return ret;
 }

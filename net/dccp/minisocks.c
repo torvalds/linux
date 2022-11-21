@@ -22,6 +22,7 @@
 #include "feat.h"
 
 struct inet_timewait_death_row dccp_death_row = {
+	.tw_refcount = REFCOUNT_INIT(1),
 	.sysctl_max_tw_buckets = NR_FILE * 2,
 	.hashinfo	= &dccp_hashinfo,
 };
@@ -94,6 +95,8 @@ struct sock *dccp_create_openreq_child(const struct sock *sk,
 		newdp->dccps_role	    = DCCP_ROLE_SERVER;
 		newdp->dccps_hc_rx_ackvec   = NULL;
 		newdp->dccps_service_list   = NULL;
+		newdp->dccps_hc_rx_ccid     = NULL;
+		newdp->dccps_hc_tx_ccid     = NULL;
 		newdp->dccps_service	    = dreq->dreq_service;
 		newdp->dccps_timestamp_echo = dreq->dreq_timestamp_echo;
 		newdp->dccps_timestamp_time = dreq->dreq_timestamp_time;

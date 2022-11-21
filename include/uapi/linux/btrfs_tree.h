@@ -53,13 +53,16 @@
 /* tracks free space in block groups. */
 #define BTRFS_FREE_SPACE_TREE_OBJECTID 10ULL
 
+/* Holds the block group items for extent tree v2. */
+#define BTRFS_BLOCK_GROUP_TREE_OBJECTID 11ULL
+
 /* device stats in the device tree */
 #define BTRFS_DEV_STATS_OBJECTID 0ULL
 
 /* for storing balance parameters in the root tree */
 #define BTRFS_BALANCE_OBJECTID -4ULL
 
-/* orhpan objectid for tracking unlinked/truncated files */
+/* orphan objectid for tracking unlinked/truncated files */
 #define BTRFS_ORPHAN_OBJECTID -5ULL
 
 /* does write ahead logging to speed up fsyncs */
@@ -118,12 +121,37 @@
 #define BTRFS_INODE_REF_KEY		12
 #define BTRFS_INODE_EXTREF_KEY		13
 #define BTRFS_XATTR_ITEM_KEY		24
+
+/*
+ * fs verity items are stored under two different key types on disk.
+ * The descriptor items:
+ * [ inode objectid, BTRFS_VERITY_DESC_ITEM_KEY, offset ]
+ *
+ * At offset 0, we store a btrfs_verity_descriptor_item which tracks the size
+ * of the descriptor item and some extra data for encryption.
+ * Starting at offset 1, these hold the generic fs verity descriptor.  The
+ * latter are opaque to btrfs, we just read and write them as a blob for the
+ * higher level verity code.  The most common descriptor size is 256 bytes.
+ *
+ * The merkle tree items:
+ * [ inode objectid, BTRFS_VERITY_MERKLE_ITEM_KEY, offset ]
+ *
+ * These also start at offset 0, and correspond to the merkle tree bytes.  When
+ * fsverity asks for page 0 of the merkle tree, we pull up one page starting at
+ * offset 0 for this key type.  These are also opaque to btrfs, we're blindly
+ * storing whatever fsverity sends down.
+ */
+#define BTRFS_VERITY_DESC_ITEM_KEY	36
+#define BTRFS_VERITY_MERKLE_ITEM_KEY	37
+
 #define BTRFS_ORPHAN_ITEM_KEY		48
 /* reserve 2-15 close to the inode for later flexibility */
 
 /*
  * dir items are the name -> inode pointers in a directory.  There is one
- * for every name in a directory.
+ * for every name in a directory.  BTRFS_DIR_LOG_ITEM_KEY is no longer used
+ * but it's still defined here for documentation purposes and to help avoid
+ * having its numerical value reused in the future.
  */
 #define BTRFS_DIR_LOG_ITEM_KEY  60
 #define BTRFS_DIR_LOG_INDEX_KEY 72
@@ -275,7 +303,7 @@
 #define BTRFS_PERSISTENT_ITEM_KEY	249
 
 /*
- * Persistantly stores the device replace state in the device tree.
+ * Persistently stores the device replace state in the device tree.
  * The key is built like this: (0, BTRFS_DEV_REPLACE_KEY, 0).
  */
 #define BTRFS_DEV_REPLACE_KEY	250
@@ -299,7 +327,8 @@
  */
 #define BTRFS_STRING_ITEM_KEY	253
 
-
+/* Maximum metadata block size (nodesize) */
+#define BTRFS_MAX_METADATA_BLOCKSIZE			65536
 
 /* 32 bytes in various csum fields */
 #define BTRFS_CSUM_SIZE 32
@@ -988,6 +1017,18 @@ struct btrfs_qgroup_limit_item {
 	__le64 max_excl;
 	__le64 rsv_rfer;
 	__le64 rsv_excl;
+} __attribute__ ((__packed__));
+
+struct btrfs_verity_descriptor_item {
+	/* Size of the verity descriptor in bytes */
+	__le64 size;
+	/*
+	 * When we implement support for fscrypt, we will need to encrypt the
+	 * Merkle tree for encrypted verity files. These 128 bits are for the
+	 * eventual storage of an fscrypt initialization vector.
+	 */
+	__le64 reserved[2];
+	__u8 encryption;
 } __attribute__ ((__packed__));
 
 #endif /* _BTRFS_CTREE_H_ */

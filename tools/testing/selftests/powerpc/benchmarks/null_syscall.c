@@ -14,6 +14,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/syscall.h>
 #include <signal.h>
 
 static volatile int soak_done;
@@ -121,7 +122,7 @@ static void do_null_syscall(unsigned long nr)
 	unsigned long i;
 
 	for (i = 0; i < nr; i++)
-		getppid();
+		syscall(__NR_gettid);
 }
 
 #define TIME(A, STR) \

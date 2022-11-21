@@ -21,7 +21,6 @@
  */
 #include "priv.h"
 
-#include "priv.h"
 #include <core/firmware.h>
 
 static void *
@@ -39,7 +38,7 @@ nvkm_nvenc = {
 
 int
 nvkm_nvenc_new_(const struct nvkm_nvenc_fwif *fwif, struct nvkm_device *device,
-		int index, struct nvkm_nvenc **pnvenc)
+		enum nvkm_subdev_type type, int inst, struct nvkm_nvenc **pnvenc)
 {
 	struct nvkm_nvenc *nvenc;
 	int ret;
@@ -47,7 +46,7 @@ nvkm_nvenc_new_(const struct nvkm_nvenc_fwif *fwif, struct nvkm_device *device,
 	if (!(nvenc = *pnvenc = kzalloc(sizeof(*nvenc), GFP_KERNEL)))
 		return -ENOMEM;
 
-	ret = nvkm_engine_ctor(&nvkm_nvenc, device, index, true,
+	ret = nvkm_engine_ctor(&nvkm_nvenc, device, type, inst, true,
 			       &nvenc->engine);
 	if (ret)
 		return ret;
@@ -59,5 +58,5 @@ nvkm_nvenc_new_(const struct nvkm_nvenc_fwif *fwif, struct nvkm_device *device,
 	nvenc->func = fwif->func;
 
 	return nvkm_falcon_ctor(nvenc->func->flcn, &nvenc->engine.subdev,
-				nvkm_subdev_name[index], 0, &nvenc->falcon);
+				nvenc->engine.subdev.name, 0, &nvenc->falcon);
 };

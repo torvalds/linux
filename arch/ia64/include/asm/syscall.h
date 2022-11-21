@@ -32,7 +32,7 @@ static inline void syscall_rollback(struct task_struct *task,
 static inline long syscall_get_error(struct task_struct *task,
 				     struct pt_regs *regs)
 {
-	return regs->r10 == -1 ? regs->r8:0;
+	return regs->r10 == -1 ? -regs->r8:0;
 }
 
 static inline long syscall_get_return_value(struct task_struct *task,
@@ -55,21 +55,8 @@ static inline void syscall_set_return_value(struct task_struct *task,
 	}
 }
 
-extern void ia64_syscall_get_set_arguments(struct task_struct *task,
-	struct pt_regs *regs, unsigned long *args, int rw);
-static inline void syscall_get_arguments(struct task_struct *task,
-					 struct pt_regs *regs,
-					 unsigned long *args)
-{
-	ia64_syscall_get_set_arguments(task, regs, args, 0);
-}
-
-static inline void syscall_set_arguments(struct task_struct *task,
-					 struct pt_regs *regs,
-					 unsigned long *args)
-{
-	ia64_syscall_get_set_arguments(task, regs, args, 1);
-}
+extern void syscall_get_arguments(struct task_struct *task,
+	struct pt_regs *regs, unsigned long *args);
 
 static inline int syscall_get_arch(struct task_struct *task)
 {

@@ -12,7 +12,7 @@
 
 static struct skl_machine_pdata skl_dmic_data;
 
-static struct snd_soc_acpi_codecs skl_codecs = {
+static const struct snd_soc_acpi_codecs skl_codecs = {
 	.num_codecs = 1,
 	.codecs = {"10508825"}
 };
@@ -42,6 +42,3 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_skl_machines[] = {
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_skl_machines);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Intel Common ACPI Match module");

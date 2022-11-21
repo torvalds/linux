@@ -399,7 +399,6 @@ static int ds1343_probe(struct spi_device *spi)
 	if (IS_ERR(priv->rtc))
 		return PTR_ERR(priv->rtc);
 
-	priv->rtc->nvram_old_abi = true;
 	priv->rtc->ops = &ds1343_rtc_ops;
 	priv->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	priv->rtc->range_max = RTC_TIMESTAMP_END_2099;
@@ -409,12 +408,12 @@ static int ds1343_probe(struct spi_device *spi)
 		dev_err(&spi->dev,
 			"unable to create sysfs entries for rtc ds1343\n");
 
-	res = rtc_register_device(priv->rtc);
+	res = devm_rtc_register_device(priv->rtc);
 	if (res)
 		return res;
 
 	nvmem_cfg.priv = priv;
-	rtc_nvmem_register(priv->rtc, &nvmem_cfg);
+	devm_rtc_nvmem_register(priv->rtc, &nvmem_cfg);
 
 	priv->irq = spi->irq;
 
@@ -435,11 +434,9 @@ static int ds1343_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ds1343_remove(struct spi_device *spi)
+static void ds1343_remove(struct spi_device *spi)
 {
 	dev_pm_clear_wake_irq(&spi->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

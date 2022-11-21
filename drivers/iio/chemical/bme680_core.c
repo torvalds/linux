@@ -81,7 +81,7 @@ const struct regmap_config bme680_regmap_config = {
 	.volatile_table = &bme680_volatile_table,
 	.cache_type = REGCACHE_RBTREE,
 };
-EXPORT_SYMBOL(bme680_regmap_config);
+EXPORT_SYMBOL_NS(bme680_regmap_config, IIO_BME680);
 
 static const struct iio_chan_spec bme680_channels[] = {
 	{
@@ -479,7 +479,7 @@ static u8 bme680_calc_heater_res(struct bme680_data *data, u16 temp)
 	var4 = (var3 / (calib->res_heat_range + 4));
 	var5 = 131 * calib->res_heat_val + 65536;
 	heatr_res_x100 = ((var4 / var5) - 250) * 34;
-	heatr_res = (heatr_res_x100 + 50) / 100;
+	heatr_res = DIV_ROUND_CLOSEST(heatr_res_x100, 100);
 
 	return heatr_res;
 }
@@ -957,7 +957,7 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_GPL(bme680_core_probe);
+EXPORT_SYMBOL_NS_GPL(bme680_core_probe, IIO_BME680);
 
 MODULE_AUTHOR("Himanshu Jha <himanshujha199640@gmail.com>");
 MODULE_DESCRIPTION("Bosch BME680 Driver");

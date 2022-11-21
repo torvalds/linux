@@ -27,7 +27,7 @@
 
 #define CRC_INIT		0xFFFF
 
-static int __nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb,
+static int __nci_spi_send(struct nci_spi *nspi, const struct sk_buff *skb,
 			  int cs_change)
 {
 	struct spi_message m;

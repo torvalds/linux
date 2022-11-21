@@ -137,7 +137,7 @@ u64 ps3_get_spe_id(void *arg)
 }
 EXPORT_SYMBOL_GPL(ps3_get_spe_id);
 
-static unsigned long get_vas_id(void)
+static unsigned long __init get_vas_id(void)
 {
 	u64 id;
 

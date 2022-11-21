@@ -169,11 +169,11 @@ static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 /* EMAC mac_status register */
 #define EMAC_MACSTATUS_TXERRCODE_MASK	(0xF00000)
 #define EMAC_MACSTATUS_TXERRCODE_SHIFT	(20)
-#define EMAC_MACSTATUS_TXERRCH_MASK	(0x7)
+#define EMAC_MACSTATUS_TXERRCH_MASK	(0x70000)
 #define EMAC_MACSTATUS_TXERRCH_SHIFT	(16)
 #define EMAC_MACSTATUS_RXERRCODE_MASK	(0xF000)
 #define EMAC_MACSTATUS_RXERRCODE_SHIFT	(12)
-#define EMAC_MACSTATUS_RXERRCH_MASK	(0x7)
+#define EMAC_MACSTATUS_RXERRCH_MASK	(0x700)
 #define EMAC_MACSTATUS_RXERRCH_SHIFT	(8)
 
 /* EMAC RX register masks */
@@ -383,12 +383,16 @@ static void emac_get_drvinfo(struct net_device *ndev,
  * emac_get_coalesce - Get interrupt coalesce settings for this device
  * @ndev : The DaVinci EMAC network adapter
  * @coal : ethtool coalesce settings structure
+ * @kernel_coal: ethtool CQE mode setting structure
+ * @extack: extack for reporting error messages
  *
  * Fetch the current interrupt coalesce settings
  *
  */
 static int emac_get_coalesce(struct net_device *ndev,
-				struct ethtool_coalesce *coal)
+			     struct ethtool_coalesce *coal,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct emac_priv *priv = netdev_priv(ndev);
 
@@ -401,19 +405,35 @@ static int emac_get_coalesce(struct net_device *ndev,
  * emac_set_coalesce - Set interrupt coalesce settings for this device
  * @ndev : The DaVinci EMAC network adapter
  * @coal : ethtool coalesce settings structure
+ * @kernel_coal: ethtool CQE mode setting structure
+ * @extack: extack for reporting error messages
  *
  * Set interrupt coalesce parameters
  *
  */
 static int emac_set_coalesce(struct net_device *ndev,
-				struct ethtool_coalesce *coal)
+			     struct ethtool_coalesce *coal,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct emac_priv *priv = netdev_priv(ndev);
 	u32 int_ctrl, num_interrupts = 0;
 	u32 prescale = 0, addnl_dvdr = 1, coal_intvl = 0;
 
-	if (!coal->rx_coalesce_usecs)
-		return -EINVAL;
+	if (!coal->rx_coalesce_usecs) {
+		priv->coal_intvl = 0;
+
+		switch (priv->version) {
+		case EMAC_VERSION_2:
+			emac_ctrl_write(EMAC_DM646X_CMINTCTRL, 0);
+			break;
+		default:
+			emac_ctrl_write(EMAC_CTRL_EWINTTCNT, 0);
+			break;
+		}
+
+		return 0;
+	}
 
 	coal_intvl = coal->rx_coalesce_usecs;
 
@@ -943,7 +963,7 @@ static int emac_dev_xmit(struct sk_buff *skb, struct net_device *ndev)
 		goto fail_tx;
 	}
 
-	ret_code = skb_padto(skb, EMAC_DEF_MIN_ETHPKTSIZE);
+	ret_code = skb_put_padto(skb, EMAC_DEF_MIN_ETHPKTSIZE);
 	if (unlikely(ret_code < 0)) {
 		if (netif_msg_tx_err(priv) && net_ratelimit())
 			dev_err(emac_dev, "DaVinci EMAC: packet pad failed");
@@ -1124,7 +1144,7 @@ static int emac_dev_setmac_addr(struct net_device *ndev, void *addr)
 
 	/* Store mac addr in priv and rx channel and set it in EMAC hw */
 	memcpy(priv->mac_addr, sa->sa_data, ndev->addr_len);
-	memcpy(ndev->dev_addr, sa->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, sa->sa_data);
 
 	/* MAC address is configured only after the interface is enabled. */
 	if (netif_running(ndev)) {
@@ -1394,7 +1414,6 @@ static int match_first_device(struct device *dev, const void *data)
 static int emac_dev_open(struct net_device *ndev)
 {
 	struct device *emac_dev = &ndev->dev;
-	u32 cnt;
 	struct resource *res;
 	int q, m, ret;
 	int res_num = 0, irq_num = 0;
@@ -1412,8 +1431,7 @@ static int emac_dev_open(struct net_device *ndev)
 	}
 
 	netif_carrier_off(ndev);
-	for (cnt = 0; cnt < ETH_ALEN; cnt++)
-		ndev->dev_addr[cnt] = priv->mac_addr[cnt];
+	eth_hw_addr_set(ndev, priv->mac_addr);
 
 	/* Configuration items */
 	priv->rx_buf_size = EMAC_DEF_MAX_FRAME_SIZE + NET_IP_ALIGN;
@@ -1436,23 +1454,33 @@ static int emac_dev_open(struct net_device *ndev)
 	}
 
 	/* Request IRQ */
-	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ,
-					    res_num))) {
-		for (irq_num = res->start; irq_num <= res->end; irq_num++) {
-			if (request_irq(irq_num, emac_irq, 0, ndev->name,
-					ndev)) {
-				dev_err(emac_dev,
-					"DaVinci EMAC: request_irq() failed\n");
-				ret = -EBUSY;
+	if (dev_of_node(&priv->pdev->dev)) {
+		while ((ret = platform_get_irq_optional(priv->pdev, res_num)) != -ENXIO) {
+			if (ret < 0)
+				goto rollback;
 
+			ret = request_irq(ret, emac_irq, 0, ndev->name, ndev);
+			if (ret) {
+				dev_err(emac_dev, "DaVinci EMAC: request_irq() failed\n");
 				goto rollback;
 			}
+			res_num++;
 		}
-		res_num++;
+	} else {
+		while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, res_num))) {
+			for (irq_num = res->start; irq_num <= res->end; irq_num++) {
+				ret = request_irq(irq_num, emac_irq, 0, ndev->name, ndev);
+				if (ret) {
+					dev_err(emac_dev, "DaVinci EMAC: request_irq() failed\n");
+					goto rollback;
+				}
+			}
+			res_num++;
+		}
+		/* prepare counters for rollback in case of an error */
+		res_num--;
+		irq_num--;
 	}
-	/* prepare counters for rollback in case of an error */
-	res_num--;
-	irq_num--;
 
 	/* Start/Enable EMAC hardware */
 	emac_hw_enable(priv);
@@ -1462,7 +1490,7 @@ static int emac_dev_open(struct net_device *ndev)
 		struct ethtool_coalesce coal;
 
 		coal.rx_coalesce_usecs = (priv->coal_intvl << 4);
-		emac_set_coalesce(ndev, &coal);
+		emac_set_coalesce(ndev, &coal, NULL, NULL);
 	}
 
 	cpdma_ctlr_start(priv->dma);
@@ -1536,16 +1564,24 @@ err:
 	napi_disable(&priv->napi);
 
 rollback:
-	for (q = res_num; q >= 0; q--) {
-		res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, q);
-		/* at the first iteration, irq_num is already set to the
-		 * right value
-		 */
-		if (q != res_num)
-			irq_num = res->end;
+	if (dev_of_node(&priv->pdev->dev)) {
+		for (q = res_num - 1; q >= 0; q--) {
+			irq_num = platform_get_irq(priv->pdev, q);
+			if (irq_num > 0)
+				free_irq(irq_num, ndev);
+		}
+	} else {
+		for (q = res_num; q >= 0; q--) {
+			res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, q);
+			/* at the first iteration, irq_num is already set to the
+			 * right value
+			 */
+			if (q != res_num)
+				irq_num = res->end;
 
-		for (m = irq_num; m >= res->start; m--)
-			free_irq(m, ndev);
+			for (m = irq_num; m >= res->start; m--)
+				free_irq(m, ndev);
+		}
 	}
 	cpdma_ctlr_stop(priv->dma);
 	pm_runtime_put(&priv->pdev->dev);
@@ -1568,6 +1604,7 @@ static int emac_dev_stop(struct net_device *ndev)
 	int irq_num;
 	struct emac_priv *priv = netdev_priv(ndev);
 	struct device *emac_dev = &ndev->dev;
+	int ret = 0;
 
 	/* inform the upper layers. */
 	netif_stop_queue(ndev);
@@ -1582,17 +1619,31 @@ static int emac_dev_stop(struct net_device *ndev)
 		phy_disconnect(ndev->phydev);
 
 	/* Free IRQ */
-	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, i))) {
-		for (irq_num = res->start; irq_num <= res->end; irq_num++)
-			free_irq(irq_num, priv->ndev);
-		i++;
+	if (dev_of_node(&priv->pdev->dev)) {
+		do {
+			ret = platform_get_irq_optional(priv->pdev, i);
+			if (ret < 0 && ret != -ENXIO)
+				break;
+			if (ret > 0) {
+				free_irq(ret, priv->ndev);
+			} else {
+				ret = 0;
+				break;
+			}
+		} while (++i);
+	} else {
+		while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, i))) {
+			for (irq_num = res->start; irq_num <= res->end; irq_num++)
+				free_irq(irq_num, priv->ndev);
+			i++;
+		}
 	}
 
 	if (netif_msg_drv(priv))
 		dev_notice(emac_dev, "DaVinci EMAC: %s stopped\n", ndev->name);
 
 	pm_runtime_put(&priv->pdev->dev);
-	return 0;
+	return ret;
 }
 
 /**
@@ -1670,7 +1721,7 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_start_xmit		= emac_dev_xmit,
 	.ndo_set_rx_mode	= emac_dev_mcast_set,
 	.ndo_set_mac_address	= emac_dev_setmac_addr,
-	.ndo_do_ioctl		= emac_devioctl,
+	.ndo_eth_ioctl		= emac_devioctl,
 	.ndo_tx_timeout		= emac_dev_tx_timeout,
 	.ndo_get_stats		= emac_dev_getnetstats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1687,7 +1738,6 @@ davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 	const struct of_device_id *match;
 	const struct emac_platform_data *auxdata;
 	struct emac_platform_data *pdata = NULL;
-	const u8 *mac_addr;
 
 	if (!IS_ENABLED(CONFIG_OF) || !pdev->dev.of_node)
 		return dev_get_platdata(&pdev->dev);
@@ -1699,11 +1749,8 @@ davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 	np = pdev->dev.of_node;
 	pdata->version = EMAC_VERSION_2;
 
-	if (!is_valid_ether_addr(pdata->mac_addr)) {
-		mac_addr = of_get_mac_address(np);
-		if (!IS_ERR(mac_addr))
-			ether_addr_copy(pdata->mac_addr, mac_addr);
-	}
+	if (!is_valid_ether_addr(pdata->mac_addr))
+		of_get_mac_address(np, pdata->mac_addr);
 
 	of_property_read_u32(np, "ti,davinci-ctrl-reg-offset",
 			     &pdata->ctrl_reg_offset);
@@ -1818,13 +1865,12 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	priv->bus_freq_mhz = (u32)(emac_bus_frequency / 1000000);
 
 	/* Get EMAC platform data */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->emac_base_phys = res->start + pdata->ctrl_reg_offset;
-	priv->remap_addr = devm_ioremap_resource(&pdev->dev, res);
+	priv->remap_addr = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->remap_addr)) {
 		rc = PTR_ERR(priv->remap_addr);
 		goto no_pdata;
 	}
+	priv->emac_base_phys = res->start + pdata->ctrl_reg_offset;
 
 	res_ctrl = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res_ctrl) {
@@ -1886,17 +1932,14 @@ static int davinci_emac_probe(struct platform_device *pdev)
 		goto err_free_txchan;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "error getting irq res\n");
-		rc = -ENOENT;
+	rc = platform_get_irq(pdev, 0);
+	if (rc < 0)
 		goto err_free_rxchan;
-	}
-	ndev->irq = res->start;
+	ndev->irq = rc;
 
 	rc = davinci_emac_try_get_mac(pdev, res_ctrl ? 0 : 1, priv->mac_addr);
 	if (!rc)
-		ether_addr_copy(ndev->dev_addr, priv->mac_addr);
+		eth_hw_addr_set(ndev, priv->mac_addr);
 
 	if (!is_valid_ether_addr(priv->mac_addr)) {
 		/* Use random MAC if still none obtained. */

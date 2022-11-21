@@ -8,6 +8,7 @@
 #include "ste-ab8505.dtsi"
 #include "ste-dbx5x0-pinctrl.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
@@ -17,6 +18,28 @@
 
 	chosen {
 		stdout-path = &serial2;
+	};
+
+	battery: battery {
+		compatible = "samsung,eb485159lu";
+	};
+
+	thermal-zones {
+		battery-thermal {
+			/* This zone will be polled by the battery temperature code */
+			polling-delay = <0>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&bat_therm>;
+		};
+	};
+
+	bat_therm: thermistor {
+		compatible = "samsung,1404-001221";
+		io-channels = <&gpadc 0x02>; /* BatTemp */
+		pullup-uv = <1800000>;
+		pullup-ohm = <230000>;
+		pulldown-ohm = <0>;
+		#thermal-sensor-cells = <0>;
 	};
 
 	/* TI TXS0206 level translator for 2.9 V */
@@ -118,6 +141,32 @@
 		pinctrl-0 = <&gpio_backlight_default_mode>;
 	};
 
+	/* Richtek RT8515GQW Flash LED Driver IC */
+	flash {
+		compatible = "richtek,rt8515";
+		/* GPIO 140 */
+		enf-gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+		/* GPIO 141 */
+		ent-gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
+		/*
+		 * RFS is 16 kOhm and RTS is 100 kOhm giving
+		 * the flash max current 343mA and torch max
+		 * current 55 mA.
+		 */
+		richtek,rfs-ohms = <16000>;
+		richtek,rts-ohms = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_flash_default_mode>;
+
+		led {
+			function = LED_FUNCTION_FLASH;
+			color = <LED_COLOR_ID_WHITE>;
+			flash-max-timeout-us = <250000>;
+			flash-max-microamp = <343750>;
+			led-max-microamp = <55000>;
+		};
+	};
+
 	i2c-gpio-0 {
 		compatible = "i2c-gpio";
 		sda-gpios = <&gpio4 16 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
@@ -147,17 +196,13 @@
 
 	soc {
 		// External Micro SD slot
-		sdi0_per1@80126000 {
+		mmc@80126000 {
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <100000000>;
 			bus-width = <4>;
 			cap-sd-highspeed;
 			cap-mmc-highspeed;
 			/* All direction control is used */
-			st,sig-dir-cmd;
-			st,sig-dir-dat0;
-			st,sig-dir-dat2;
-			st,sig-dir-dat31;
 			st,sig-pin-fbclk;
 			full-pwr-cycle;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
@@ -169,7 +214,7 @@
 		};
 
 		// WLAN SDIO channel
-		sdi1_per2@80118000 {
+		mmc@80118000 {
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <50000000>;
 			bus-width = <4>;
@@ -184,7 +229,7 @@
 			#size-cells = <0>;
 
 			wifi@1 {
-				compatible = "brcm,bcm4329-fmac";
+				compatible = "brcm,bcm4334-fmac", "brcm,bcm4329-fmac";
 				reg = <1>;
 				/* GPIO216 WL_HOST_WAKE */
 				interrupt-parent = <&gpio6>;
@@ -195,14 +240,20 @@
 			};
 		};
 
-		// eMMC
-		sdi2_per3@80005000 {
+		/*
+		 * eMMC seems to be mostly Samsung KLM4G1YE4C "4YMD1R"
+		 */
+		mmc@80005000 {
 			arm,primecell-periphid = <0x10480180>;
 		        max-frequency = <100000000>;
 			bus-width = <8>;
 			non-removable;
 			cap-mmc-highspeed;
 			mmc-ddr-1_8v;
+			no-sdio;
+			no-sd;
+			/* From datasheet page 26 figure 9: 300 ms set-up time for 4GB */
+			post-power-on-delay-ms = <300>;
 			vmmc-supply = <&ldo_3v3_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc2_a_1_default>;
@@ -220,6 +271,7 @@
 
 			/* FIXME: not quite working yet, probably needs regulators */
 			bluetooth {
+				/* BCM4334B0 actually */
 				compatible = "brcm,bcm4330-bt";
 				shutdown-gpios = <&gpio6 30 GPIO_ACTIVE_HIGH>;
 				device-wakeup-gpios = <&gpio6 7 GPIO_ACTIVE_HIGH>;
@@ -247,13 +299,13 @@
 
 		prcmu@80157000 {
 			ab8505 {
-				ab8500_usb {
+				phy {
 					pinctrl-names = "default", "sleep";
 					pinctrl-0 = <&usb_a_1_default>;
 					pinctrl-1 = <&usb_a_1_sleep>;
 				};
 
-				ab8505-regulators {
+				regulator {
 					ab8500_ldo_aux1 {
 						/* Used for VDD for sensors */
 						regulator-name = "AUX1";
@@ -262,10 +314,10 @@
 					};
 
 					ab8500_ldo_aux2 {
-						/* Supplies the Cypress TMA140 touchscreen only with 3.3V */
+						/* Supplies the Cypress TMA140 touchscreen only with 3.0V */
 						regulator-name = "AUX2";
-						regulator-min-microvolt = <3300000>;
-						regulator-max-microvolt = <3300000>;
+						regulator-min-microvolt = <3000000>;
+						regulator-max-microvolt = <3000000>;
 					};
 
 					ab8500_ldo_aux3 {
@@ -284,9 +336,9 @@
 
 					ab8500_ldo_aux5 {
 						regulator-name = "AUX5";
+						/* Intended for 1V8 for touchscreen but actually left unused */
 						regulator-min-microvolt = <1050000>;
 						regulator-max-microvolt = <2790000>;
-						regulator-always-on;
 					};
 
 					ab8500_ldo_aux6 {
@@ -393,7 +445,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&dsi_default_mode>;
 
-			dsi-controller@a0351000 {
+			dsi@a0351000 {
 				panel {
 					/* NT35510-based Hydis HVA40WV1 */
 					compatible = "hydis,hva40wv1", "novatek,nt35510";
@@ -414,21 +466,21 @@
 };
 
 &pinctrl {
-	/*
-	 * This extends the MC0 default config to include DAT32DIR
-	 * which is used by this machine. If we don't do this the
-	 * SD card does not work.
-	 */
 	sdi0 {
 		mc0_a_1_default {
-			default_mux {
-				function = "mc0";
-				/* This machine uses the DAT31 pin */
-				groups = "mc0_a_1", "mc0dat31dir_a_1";
+			default_cfg1 {
+				/* GPIO18, 19 & 20 unused so pull down */
+				ste,config = <&gpio_in_pd>;
 			};
-			default_cfg5 {
-				pins = "GPIO21_AB3"; /* DAT31DIR */
-				ste,config = <&out_hi>;
+		};
+	};
+
+	/* This is a reset line for the eMMC */
+	sdi2 {
+		mc2_a_1_default {
+			default_cfg2 {
+				pins = "GPIO130_C8"; /* FBCLK */
+				ste,config = <&gpio_in_pd>;
 			};
 		};
 	};
@@ -473,6 +525,14 @@
 		gpio_backlight_default_mode: backlight_default {
 			skomer_cfg1 {
 				pins = "GPIO69_E2"; /* LCD_BL_CTRL */
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	flash {
+		gpio_flash_default_mode: flash_default {
+			skomer_cfg1 {
+				pins = "GPIO140_B11", "GPIO141_C12";
 				ste,config = <&gpio_out_lo>;
 			};
 		};

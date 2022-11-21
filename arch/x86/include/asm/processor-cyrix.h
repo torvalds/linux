@@ -5,14 +5,14 @@
  * Access order is always 0x22 (=offset), 0x23 (=value)
  */
 
+#include <asm/pc-conf-reg.h>
+
 static inline u8 getCx86(u8 reg)
 {
-	outb(reg, 0x22);
-	return inb(0x23);
+	return pc_conf_get(reg);
 }
 
 static inline void setCx86(u8 reg, u8 data)
 {
-	outb(reg, 0x22);
-	outb(data, 0x23);
+	pc_conf_set(reg, data);
 }

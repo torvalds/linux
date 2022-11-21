@@ -152,7 +152,7 @@ The disclosing party should provide a list of contacts for all other
 entities who have already been, or should be, informed about the issue.
 This serves several purposes:
 
- - The list of disclosed entities allows communication accross the
+ - The list of disclosed entities allows communication across the
    industry, e.g. other OS vendors, HW vendors, etc.
 
  - The disclosed entities can be contacted to name experts who should
@@ -244,10 +244,11 @@ disclosure of a particular issue, unless requested by a response team or by
 an involved disclosed party. The current ambassadors list:
 
   ============= ========================================================
-  ARM           Grant Likely <grant.likely@arm.com>
   AMD		Tom Lendacky <tom.lendacky@amd.com>
-  IBM Z         Christian Borntraeger <borntraeger@de.ibm.com>
-  IBM Power     Anton Blanchard <anton@linux.ibm.com>
+  Ampere	Darren Hart <darren@os.amperecomputing.com>
+  ARM		Catalin Marinas <catalin.marinas@arm.com>
+  IBM Power	Anton Blanchard <anton@linux.ibm.com>
+  IBM Z		Christian Borntraeger <borntraeger@de.ibm.com>
   Intel		Tony Luck <tony.luck@intel.com>
   Qualcomm	Trilok Soni <tsoni@codeaurora.org>
 

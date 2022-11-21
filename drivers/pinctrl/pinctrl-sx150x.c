@@ -443,7 +443,6 @@ static void sx150x_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		sx150x_gpio_oscio_set(pctl, value);
 	else
 		__sx150x_gpio_set(pctl, offset, value);
-
 }
 
 static void sx150x_gpio_set_multiple(struct gpio_chip *chip,
@@ -1164,9 +1163,6 @@ static int sx150x_probe(struct i2c_client *client,
 	pctl->gpio.set = sx150x_gpio_set;
 	pctl->gpio.set_config = gpiochip_generic_config;
 	pctl->gpio.parent = dev;
-#ifdef CONFIG_OF_GPIO
-	pctl->gpio.of_node = dev->of_node;
-#endif
 	pctl->gpio.can_sleep = true;
 	pctl->gpio.label = devm_kstrdup(dev, client->name, GFP_KERNEL);
 	if (!pctl->gpio.label)

@@ -84,6 +84,14 @@ extern struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 void acpi_pci_add_bus(struct pci_bus *bus);
 void acpi_pci_remove_bus(struct pci_bus *bus);
 
+#ifdef CONFIG_PCI
+void pci_acpi_setup(struct device *dev, struct acpi_device *adev);
+void pci_acpi_cleanup(struct device *dev, struct acpi_device *adev);
+#else
+static inline void pci_acpi_setup(struct device *dev, struct acpi_device *adev) {}
+static inline void pci_acpi_cleanup(struct device *dev, struct acpi_device *adev) {}
+#endif
+
 #ifdef	CONFIG_ACPI_PCI_SLOT
 void acpi_pci_slot_init(void);
 void acpi_pci_slot_enumerate(struct pci_bus *bus);
@@ -121,6 +129,9 @@ void pci_acpi_remove_edr_notifier(struct pci_dev *pdev);
 static inline void pci_acpi_add_edr_notifier(struct pci_dev *pdev) { }
 static inline void pci_acpi_remove_edr_notifier(struct pci_dev *pdev) { }
 #endif /* CONFIG_PCIE_EDR */
+
+int pci_acpi_set_companion_lookup_hook(struct acpi_device *(*func)(struct pci_dev *));
+void pci_acpi_clear_companion_lookup_hook(void);
 
 #else	/* CONFIG_ACPI */
 static inline void acpi_pci_add_bus(struct pci_bus *bus) { }

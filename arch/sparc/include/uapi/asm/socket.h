@@ -117,6 +117,18 @@
 
 #define SO_DETACH_REUSEPORT_BPF  0x0047
 
+#define SO_PREFER_BUSY_POLL	 0x0048
+#define SO_BUSY_POLL_BUDGET	 0x0049
+
+#define SO_NETNS_COOKIE          0x0050
+
+#define SO_BUF_LOCK              0x0051
+
+#define SO_RESERVE_MEM           0x0052
+
+#define SO_TXREHASH              0x0053
+
+
 #if !defined(__KERNEL__)
 
 

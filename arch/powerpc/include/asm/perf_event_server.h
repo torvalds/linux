@@ -36,14 +36,14 @@ struct power_pmu {
 	unsigned long	test_adder;
 	int		(*compute_mmcr)(u64 events[], int n_ev,
 				unsigned int hwc[], struct mmcr_regs *mmcr,
-				struct perf_event *pevents[]);
+				struct perf_event *pevents[], u32 flags);
 	int		(*get_constraint)(u64 event_id, unsigned long *mskp,
-				unsigned long *valp);
+				unsigned long *valp, u64 event_config1);
 	int		(*get_alternatives)(u64 event_id, unsigned int flags,
 				u64 alt[]);
 	void		(*get_mem_data_src)(union perf_mem_data_src *dsrc,
 				u32 flags, struct pt_regs *regs);
-	void		(*get_mem_weight)(u64 *weight);
+	void		(*get_mem_weight)(u64 *weight, u64 type);
 	unsigned long	group_constraint_mask;
 	unsigned long	group_constraint_val;
 	u64             (*bhrb_filter_map)(u64 branch_sample_type);
@@ -67,6 +67,12 @@ struct power_pmu {
 	 * the pmu supports extended perf regs capability
 	 */
 	int		capabilities;
+	/*
+	 * Function to check event code for values which are
+	 * reserved. Function takes struct perf_event as input,
+	 * since event code could be spread in attr.config*
+	 */
+	int		(*check_attr_config)(struct perf_event *ev);
 };
 
 /*
@@ -82,6 +88,8 @@ struct power_pmu {
 #define PPMU_ARCH_207S		0x00000080 /* PMC is architecture v2.07S */
 #define PPMU_NO_SIAR		0x00000100 /* Do not use SIAR */
 #define PPMU_ARCH_31		0x00000200 /* Has MMCR3, SIER2 and SIER3 */
+#define PPMU_P10_DD1		0x00000400 /* Is power10 DD1 processor version */
+#define PPMU_HAS_ATTR_CONFIG1	0x00000800 /* Using config1 attribute */
 
 /*
  * Values for flags to get_alternatives()
@@ -90,7 +98,7 @@ struct power_pmu {
 #define PPMU_LIMITED_PMC_REQD	2	/* have to put this on a limited PMC */
 #define PPMU_ONLY_COUNT_RUN	4	/* only counting in run state */
 
-extern int register_power_pmu(struct power_pmu *);
+int __init register_power_pmu(struct power_pmu *pmu);
 
 struct pt_regs;
 extern unsigned long perf_misc_flags(struct pt_regs *regs);

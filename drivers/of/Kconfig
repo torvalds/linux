@@ -70,14 +70,8 @@ config OF_IRQ
 	def_bool y
 	depends on !SPARC && IRQ_DOMAIN
 
-config OF_NET
-	depends on NETDEVICES
-	def_bool y
-
 config OF_RESERVED_MEM
-	bool
-	depends on OF_EARLY_FLATTREE
-	default y if DMA_DECLARE_COHERENT || DMA_CMA
+	def_bool OF_EARLY_FLATTREE
 
 config OF_RESOLVE
 	bool

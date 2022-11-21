@@ -105,7 +105,6 @@ enum {
 	MTHCA_OPCODE_ATOMIC_CS      = 0x11,
 	MTHCA_OPCODE_ATOMIC_FA      = 0x12,
 	MTHCA_OPCODE_BIND_MW        = 0x18,
-	MTHCA_OPCODE_INVALID        = 0xff
 };
 
 enum {
@@ -547,7 +546,7 @@ int mthca_alloc_sqp(struct mthca_dev *dev,
 		    enum ib_sig_type send_policy,
 		    struct ib_qp_cap *cap,
 		    int qpn,
-		    int port,
+		    u32 port,
 		    struct mthca_qp *qp,
 		    struct ib_udata *udata);
 void mthca_free_qp(struct mthca_dev *dev, struct mthca_qp *qp);
@@ -560,13 +559,13 @@ int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 		  struct ib_ud_header *header);
 int mthca_ah_query(struct ib_ah *ibah, struct rdma_ah_attr *attr);
 int mthca_ah_grh_present(struct mthca_ah *ah);
-u8 mthca_get_rate(struct mthca_dev *dev, int static_rate, u8 port);
-enum ib_rate mthca_rate_to_ib(struct mthca_dev *dev, u8 mthca_rate, u8 port);
+u8 mthca_get_rate(struct mthca_dev *dev, int static_rate, u32 port);
+enum ib_rate mthca_rate_to_ib(struct mthca_dev *dev, u8 mthca_rate, u32 port);
 
 int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);
 int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);
 
-int mthca_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
+int mthca_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 		      const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		      const struct ib_mad *in, struct ib_mad *out,
 		      size_t *out_mad_size, u16 *out_mad_pkey_index);

@@ -7,8 +7,8 @@ config CSKY
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_USE_BUILTIN_BSWAP
-	select ARCH_USE_QUEUED_RWLOCKS if NR_CPUS>2
-	select ARCH_WANT_FRAME_POINTERS if !CPU_CK610
+	select ARCH_USE_QUEUED_RWLOCKS
+	select ARCH_WANT_FRAME_POINTERS if !CPU_CK610 && $(cc-option,-mbacktrace)
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	select COMMON_CLK
 	select CLKSRC_MMIO
@@ -17,7 +17,6 @@ config CSKY
 	select CSKY_APB_INTC
 	select DMA_DIRECT_REMAP
 	select IRQ_DOMAIN
-	select HANDLE_DOMAIN_IRQ
 	select DW_APB_TIMER_OF
 	select GENERIC_IOREMAP
 	select GENERIC_LIB_ASHLDI3
@@ -28,7 +27,6 @@ config CSKY
 	select GENERIC_LIB_UCMPDI2
 	select GENERIC_ALLOCATOR
 	select GENERIC_ATOMIC64
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_DEVICES
 	select GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_PROBE
@@ -36,6 +34,9 @@ config CSKY
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_TIME_VSYSCALL
+	select GENERIC_VDSO_32
+	select GENERIC_GETTIMEOFDAY
 	select GX6605S_TIMER if CPU_CK610
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_AUDITSYSCALL
@@ -44,8 +45,10 @@ config CSKY
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN
 	select HAVE_DEBUG_BUGVERBOSE
+	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select HAVE_GENERIC_VDSO
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_ERROR_INJECTION
@@ -71,14 +74,12 @@ config CSKY
 	select PERF_USE_VMALLOC if CPU_CK610
 	select RTC_LIB
 	select TIMER_OF
-	select USB_ARCH_HAS_EHCI
-	select USB_ARCH_HAS_OHCI
 	select GENERIC_PCI_IOMAP
 	select HAVE_PCI
 	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_SYSCALL if PCI
 	select PCI_MSI if PCI
-	select SET_FS
+	select TRACE_IRQFLAGS_SUPPORT
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -136,9 +137,6 @@ config STACKTRACE_SUPPORT
 config TIME_LOW_RES
 	def_bool y
 
-config TRACE_IRQFLAGS_SUPPORT
-	def_bool y
-
 config CPU_TLB_SIZE
 	int
 	default "128"	if (CPU_CK610 || CPU_CK807 || CPU_CK810)
@@ -193,6 +191,22 @@ config CPU_CK860
 endchoice
 
 choice
+	prompt "PAGE OFFSET"
+	default PAGE_OFFSET_80000000
+
+config PAGE_OFFSET_80000000
+	bool "PAGE OFFSET 2G (user:kernel = 2:2)"
+
+config PAGE_OFFSET_A0000000
+	bool "PAGE OFFSET 2.5G (user:kernel = 2.5:1.5)"
+endchoice
+
+config PAGE_OFFSET
+	hex
+	default 0x80000000 if PAGE_OFFSET_80000000
+	default 0xa0000000 if PAGE_OFFSET_A0000000
+choice
+
 	prompt "C-SKY PMU type"
 	depends on PERF_EVENTS
 	depends on CPU_CK807 || CPU_CK810 || CPU_CK860
@@ -224,7 +238,7 @@ endchoice
 
 menuconfig HAVE_TCM
 	bool "Tightly-Coupled/Sram Memory"
-	select GENERIC_ALLOCATOR
+	depends on !COMPILE_TEST
 	help
 	  The implementation are not only used by TCM (Tightly-Coupled Meory)
 	  but also used by sram on SOC bus. It follow existed linux tcm
@@ -286,13 +300,14 @@ config NR_CPUS
 config HIGHMEM
 	bool "High Memory Support"
 	depends on !CPU_CK610
+	select KMAP_LOCAL
 	default y
 
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
 	default "11"
 
-config RAM_BASE
+config DRAM_BASE
 	hex "DRAM start addr (the same with memory-section in dts)"
 	default 0x0
 

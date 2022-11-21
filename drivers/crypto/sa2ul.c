@@ -8,9 +8,12 @@
  *		Vitaly Andrianov
  *		Tero Kristo
  */
+#include <linux/bitfield.h>
 #include <linux/clk.h>
+#include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/dmapool.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -23,7 +26,8 @@
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 
 #include "sa2ul.h"
 
@@ -66,8 +70,24 @@
 /* Max Authentication tag size */
 #define SA_MAX_AUTH_TAG_SZ 64
 
-#define PRIV_ID	0x1
-#define PRIV	0x1
+enum sa_algo_id {
+	SA_ALG_CBC_AES = 0,
+	SA_ALG_EBC_AES,
+	SA_ALG_CBC_DES3,
+	SA_ALG_ECB_DES3,
+	SA_ALG_SHA1,
+	SA_ALG_SHA256,
+	SA_ALG_SHA512,
+	SA_ALG_AUTHENC_SHA1_AES,
+	SA_ALG_AUTHENC_SHA256_AES,
+};
+
+struct sa_match_data {
+	u8 priv;
+	u8 priv_id;
+	u32 supported_algos;
+	bool skip_engine_control;
+};
 
 static struct device *sa_k3_dev;
 
@@ -361,42 +381,45 @@ static void sa_swiz_128(u8 *in, u16 len)
 }
 
 /* Prepare the ipad and opad from key as per SHA algorithm step 1*/
-static void prepare_kiopad(u8 *k_ipad, u8 *k_opad, const u8 *key, u16 key_sz)
+static void prepare_kipad(u8 *k_ipad, const u8 *key, u16 key_sz)
 {
 	int i;
 
-	for (i = 0; i < key_sz; i++) {
+	for (i = 0; i < key_sz; i++)
 		k_ipad[i] = key[i] ^ 0x36;
-		k_opad[i] = key[i] ^ 0x5c;
-	}
 
 	/* Instead of XOR with 0 */
-	for (; i < SHA1_BLOCK_SIZE; i++) {
+	for (; i < SHA1_BLOCK_SIZE; i++)
 		k_ipad[i] = 0x36;
-		k_opad[i] = 0x5c;
-	}
 }
 
-static void sa_export_shash(struct shash_desc *hash, int block_size,
+static void prepare_kopad(u8 *k_opad, const u8 *key, u16 key_sz)
+{
+	int i;
+
+	for (i = 0; i < key_sz; i++)
+		k_opad[i] = key[i] ^ 0x5c;
+
+	/* Instead of XOR with 0 */
+	for (; i < SHA1_BLOCK_SIZE; i++)
+		k_opad[i] = 0x5c;
+}
+
+static void sa_export_shash(void *state, struct shash_desc *hash,
 			    int digest_size, __be32 *out)
 {
-	union {
-		struct sha1_state sha1;
-		struct sha256_state sha256;
-		struct sha512_state sha512;
-	} sha;
-	void *state;
+	struct sha1_state *sha1;
+	struct sha256_state *sha256;
 	u32 *result;
-	int i;
 
 	switch (digest_size) {
 	case SHA1_DIGEST_SIZE:
-		state = &sha.sha1;
-		result = sha.sha1.state;
+		sha1 = state;
+		result = sha1->state;
 		break;
 	case SHA256_DIGEST_SIZE:
-		state = &sha.sha256;
-		result = sha.sha256.state;
+		sha256 = state;
+		result = sha256->state;
 		break;
 	default:
 		dev_err(sa_k3_dev, "%s: bad digest_size=%d\n", __func__,
@@ -406,8 +429,7 @@ static void sa_export_shash(struct shash_desc *hash, int block_size,
 
 	crypto_shash_export(hash, state);
 
-	for (i = 0; i < digest_size >> 2; i++)
-		out[i] = cpu_to_be32(result[i]);
+	cpu_to_be32_array(out, result, digest_size / 4);
 }
 
 static void sa_prepare_iopads(struct algo_data *data, const u8 *key,
@@ -416,24 +438,28 @@ static void sa_prepare_iopads(struct algo_data *data, const u8 *key,
 	SHASH_DESC_ON_STACK(shash, data->ctx->shash);
 	int block_size = crypto_shash_blocksize(data->ctx->shash);
 	int digest_size = crypto_shash_digestsize(data->ctx->shash);
-	u8 k_ipad[SHA1_BLOCK_SIZE];
-	u8 k_opad[SHA1_BLOCK_SIZE];
+	union {
+		struct sha1_state sha1;
+		struct sha256_state sha256;
+		u8 k_pad[SHA1_BLOCK_SIZE];
+	} sha;
 
 	shash->tfm = data->ctx->shash;
 
-	prepare_kiopad(k_ipad, k_opad, key, key_sz);
-
-	memzero_explicit(ipad, block_size);
-	memzero_explicit(opad, block_size);
+	prepare_kipad(sha.k_pad, key, key_sz);
 
 	crypto_shash_init(shash);
-	crypto_shash_update(shash, k_ipad, block_size);
-	sa_export_shash(shash, block_size, digest_size, ipad);
+	crypto_shash_update(shash, sha.k_pad, block_size);
+	sa_export_shash(&sha, shash, digest_size, ipad);
+
+	prepare_kopad(sha.k_pad, key, key_sz);
 
 	crypto_shash_init(shash);
-	crypto_shash_update(shash, k_opad, block_size);
+	crypto_shash_update(shash, sha.k_pad, block_size);
 
-	sa_export_shash(shash, block_size, digest_size, opad);
+	sa_export_shash(&sha, shash, digest_size, opad);
+
+	memzero_explicit(&sha, sizeof(sha));
 }
 
 /* Derive the inverse key used in AES-CBC decryption operation */
@@ -506,7 +532,8 @@ static int sa_set_sc_enc(struct algo_data *ad, const u8 *key, u16 key_sz,
 static void sa_set_sc_auth(struct algo_data *ad, const u8 *key, u16 key_sz,
 			   u8 *sc_buf)
 {
-	__be32 ipad[64], opad[64];
+	__be32 *ipad = (void *)(sc_buf + 32);
+	__be32 *opad = (void *)(sc_buf + 64);
 
 	/* Set Authentication mode selector to hash processing */
 	sc_buf[0] = SA_HASH_PROCESSING;
@@ -515,14 +542,9 @@ static void sa_set_sc_auth(struct algo_data *ad, const u8 *key, u16 key_sz,
 	sc_buf[1] |= ad->auth_ctrl;
 
 	/* Copy the keys or ipad/opad */
-	if (ad->keyed_mac) {
+	if (ad->keyed_mac)
 		ad->prep_iopad(ad, key, key_sz, ipad, opad);
-
-		/* Copy ipad to AuthKey */
-		memcpy(&sc_buf[32], ipad, ad->hash_size);
-		/* Copy opad to Aux-1 */
-		memcpy(&sc_buf[64], opad, ad->hash_size);
-	} else {
+	else {
 		/* basic hash */
 		sc_buf[1] |= SA_BASIC_HASH;
 	}
@@ -625,8 +647,8 @@ static inline void sa_update_cmdl(struct sa_req *req, u32 *cmdl,
 		cmdl[upd_info->enc_offset.index] &=
 						~SA_CMDL_SOP_BYPASS_LEN_MASK;
 		cmdl[upd_info->enc_offset.index] |=
-			((u32)req->enc_offset <<
-			 __ffs(SA_CMDL_SOP_BYPASS_LEN_MASK));
+			FIELD_PREP(SA_CMDL_SOP_BYPASS_LEN_MASK,
+				   req->enc_offset);
 
 		if (likely(upd_info->flags & SA_CMDL_UPD_ENC_IV)) {
 			__be32 *data = (__be32 *)&cmdl[upd_info->enc_iv.index];
@@ -645,8 +667,8 @@ static inline void sa_update_cmdl(struct sa_req *req, u32 *cmdl,
 		cmdl[upd_info->auth_offset.index] &=
 			~SA_CMDL_SOP_BYPASS_LEN_MASK;
 		cmdl[upd_info->auth_offset.index] |=
-			((u32)req->auth_offset <<
-			 __ffs(SA_CMDL_SOP_BYPASS_LEN_MASK));
+			FIELD_PREP(SA_CMDL_SOP_BYPASS_LEN_MASK,
+				   req->auth_offset);
 		if (upd_info->flags & SA_CMDL_UPD_AUTH_IV) {
 			sa_copy_iv((void *)&cmdl[upd_info->auth_iv.index],
 				   req->auth_iv,
@@ -668,16 +690,16 @@ void sa_set_swinfo(u8 eng_id, u16 sc_id, dma_addr_t sc_phys,
 		   u8 hash_size, u32 *swinfo)
 {
 	swinfo[0] = sc_id;
-	swinfo[0] |= (flags << __ffs(SA_SW0_FLAGS_MASK));
+	swinfo[0] |= FIELD_PREP(SA_SW0_FLAGS_MASK, flags);
 	if (likely(cmdl_present))
-		swinfo[0] |= ((cmdl_offset | SA_SW0_CMDL_PRESENT) <<
-						__ffs(SA_SW0_CMDL_INFO_MASK));
-	swinfo[0] |= (eng_id << __ffs(SA_SW0_ENG_ID_MASK));
+		swinfo[0] |= FIELD_PREP(SA_SW0_CMDL_INFO_MASK,
+					cmdl_offset | SA_SW0_CMDL_PRESENT);
+	swinfo[0] |= FIELD_PREP(SA_SW0_ENG_ID_MASK, eng_id);
 
 	swinfo[0] |= SA_SW0_DEST_INFO_PRESENT;
 	swinfo[1] = (u32)(sc_phys & 0xFFFFFFFFULL);
 	swinfo[2] = (u32)((sc_phys & 0xFFFFFFFF00000000ULL) >> 32);
-	swinfo[2] |= (hash_size << __ffs(SA_SW2_EGRESS_LENGTH));
+	swinfo[2] |= FIELD_PREP(SA_SW2_EGRESS_LENGTH, hash_size);
 }
 
 /* Dump the security context */
@@ -691,8 +713,9 @@ static void sa_dump_sc(u8 *buf, dma_addr_t dma_addr)
 }
 
 static
-int sa_init_sc(struct sa_ctx_info *ctx, const u8 *enc_key,
-	       u16 enc_key_sz, const u8 *auth_key, u16 auth_key_sz,
+int sa_init_sc(struct sa_ctx_info *ctx, const struct sa_match_data *match_data,
+	       const u8 *enc_key, u16 enc_key_sz,
+	       const u8 *auth_key, u16 auth_key_sz,
 	       struct algo_data *ad, u8 enc, u32 *swinfo)
 {
 	int enc_sc_offset = 0;
@@ -727,8 +750,8 @@ int sa_init_sc(struct sa_ctx_info *ctx, const u8 *enc_key,
 	sc_buf[SA_CTX_SCCTL_OWNER_OFFSET] = 0;
 	memcpy(&sc_buf[2], &sc_id, 2);
 	sc_buf[4] = 0x0;
-	sc_buf[5] = PRIV_ID;
-	sc_buf[6] = PRIV;
+	sc_buf[5] = match_data->priv_id;
+	sc_buf[6] = match_data->priv;
 	sc_buf[7] = 0x0;
 
 	/* Prepare context for encryption engine */
@@ -819,7 +842,7 @@ static void sa_cipher_cra_exit(struct crypto_skcipher *tfm)
 	sa_free_ctx_info(&ctx->enc, data);
 	sa_free_ctx_info(&ctx->dec, data);
 
-	crypto_free_sync_skcipher(ctx->fallback.skcipher);
+	crypto_free_skcipher(ctx->fallback.skcipher);
 }
 
 static int sa_cipher_cra_init(struct crypto_skcipher *tfm)
@@ -827,6 +850,7 @@ static int sa_cipher_cra_init(struct crypto_skcipher *tfm)
 	struct sa_tfm_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct sa_crypto_data *data = dev_get_drvdata(sa_k3_dev);
 	const char *name = crypto_tfm_alg_name(&tfm->base);
+	struct crypto_skcipher *child;
 	int ret;
 
 	memzero_explicit(ctx, sizeof(*ctx));
@@ -841,13 +865,16 @@ static int sa_cipher_cra_init(struct crypto_skcipher *tfm)
 		return ret;
 	}
 
-	ctx->fallback.skcipher =
-		crypto_alloc_sync_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
+	child = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
 
-	if (IS_ERR(ctx->fallback.skcipher)) {
+	if (IS_ERR(child)) {
 		dev_err(sa_k3_dev, "Error allocating fallback algo %s\n", name);
-		return PTR_ERR(ctx->fallback.skcipher);
+		return PTR_ERR(child);
 	}
+
+	ctx->fallback.skcipher = child;
+	crypto_skcipher_set_reqsize(tfm, crypto_skcipher_reqsize(child) +
+					 sizeof(struct skcipher_request));
 
 	dev_dbg(sa_k3_dev, "%s(0x%p) sc-ids(0x%x(0x%pad), 0x%x(0x%pad))\n",
 		__func__, tfm, ctx->enc.sc_id, &ctx->enc.sc_phys,
@@ -859,6 +886,7 @@ static int sa_cipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			    unsigned int keylen, struct algo_data *ad)
 {
 	struct sa_tfm_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct crypto_skcipher *child = ctx->fallback.skcipher;
 	int cmdl_len;
 	struct sa_cmdl_cfg cfg;
 	int ret;
@@ -874,18 +902,16 @@ static int sa_cipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	cfg.enc_eng_id = ad->enc_eng.eng_id;
 	cfg.iv_size = crypto_skcipher_ivsize(tfm);
 
-	crypto_sync_skcipher_clear_flags(ctx->fallback.skcipher,
+	crypto_skcipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
+	crypto_skcipher_set_flags(child, tfm->base.crt_flags &
 					 CRYPTO_TFM_REQ_MASK);
-	crypto_sync_skcipher_set_flags(ctx->fallback.skcipher,
-				       tfm->base.crt_flags &
-				       CRYPTO_TFM_REQ_MASK);
-	ret = crypto_sync_skcipher_setkey(ctx->fallback.skcipher, key, keylen);
+	ret = crypto_skcipher_setkey(child, key, keylen);
 	if (ret)
 		return ret;
 
 	/* Setup Encryption Security Context & Command label template */
-	if (sa_init_sc(&ctx->enc, key, keylen, NULL, 0, ad, 1,
-		       &ctx->enc.epib[1]))
+	if (sa_init_sc(&ctx->enc, ctx->dev_data->match_data, key, keylen, NULL, 0,
+		       ad, 1, &ctx->enc.epib[1]))
 		goto badkey;
 
 	cmdl_len = sa_format_cmdl_gen(&cfg,
@@ -897,8 +923,8 @@ static int sa_cipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	ctx->enc.cmdl_size = cmdl_len;
 
 	/* Setup Decryption Security Context & Command label template */
-	if (sa_init_sc(&ctx->dec, key, keylen, NULL, 0, ad, 0,
-		       &ctx->dec.epib[1]))
+	if (sa_init_sc(&ctx->dec, ctx->dev_data->match_data, key, keylen, NULL, 0,
+		       ad, 0, &ctx->dec.epib[1]))
 		goto badkey;
 
 	cfg.enc_eng_id = ad->enc_eng.eng_id;
@@ -1098,7 +1124,7 @@ static int sa_run(struct sa_req *req)
 	else
 		dma_rx = pdata->dma_rx1;
 
-	ddev = dma_rx->device->dev;
+	ddev = dmaengine_get_dma_device(pdata->dma_tx);
 	rxd->ddev = ddev;
 
 	memcpy(cmdl, sa_ctx->cmdl, sa_ctx->cmdl_size);
@@ -1138,8 +1164,10 @@ static int sa_run(struct sa_req *req)
 		mapped_sg->sgt.sgl = src;
 		mapped_sg->sgt.orig_nents = src_nents;
 		ret = dma_map_sgtable(ddev, &mapped_sg->sgt, dir_src, 0);
-		if (ret)
+		if (ret) {
+			kfree(rxd);
 			return ret;
+		}
 
 		mapped_sg->dir = dir_src;
 		mapped_sg->mapped = true;
@@ -1147,8 +1175,10 @@ static int sa_run(struct sa_req *req)
 		mapped_sg->sgt.sgl = req->src;
 		mapped_sg->sgt.orig_nents = sg_nents;
 		ret = dma_map_sgtable(ddev, &mapped_sg->sgt, dir_src, 0);
-		if (ret)
+		if (ret) {
+			kfree(rxd);
 			return ret;
+		}
 
 		mapped_sg->dir = dir_src;
 		mapped_sg->mapped = true;
@@ -1270,7 +1300,6 @@ static int sa_cipher_run(struct skcipher_request *req, u8 *iv, int enc)
 	    crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
 	struct crypto_alg *alg = req->base.tfm->__crt_alg;
 	struct sa_req sa_req = { 0 };
-	int ret;
 
 	if (!req->cryptlen)
 		return 0;
@@ -1282,20 +1311,18 @@ static int sa_cipher_run(struct skcipher_request *req, u8 *iv, int enc)
 	if (req->cryptlen > SA_MAX_DATA_SZ ||
 	    (req->cryptlen >= SA_UNSAFE_DATA_SZ_MIN &&
 	     req->cryptlen <= SA_UNSAFE_DATA_SZ_MAX)) {
-		SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, ctx->fallback.skcipher);
+		struct skcipher_request *subreq = skcipher_request_ctx(req);
 
-		skcipher_request_set_sync_tfm(subreq, ctx->fallback.skcipher);
+		skcipher_request_set_tfm(subreq, ctx->fallback.skcipher);
 		skcipher_request_set_callback(subreq, req->base.flags,
-					      NULL, NULL);
+					      req->base.complete,
+					      req->base.data);
 		skcipher_request_set_crypt(subreq, req->src, req->dst,
 					   req->cryptlen, req->iv);
 		if (enc)
-			ret = crypto_skcipher_encrypt(subreq);
+			return crypto_skcipher_encrypt(subreq);
 		else
-			ret = crypto_skcipher_decrypt(subreq);
-
-		skcipher_request_zero(subreq);
-		return ret;
+			return crypto_skcipher_decrypt(subreq);
 	}
 
 	sa_req.size = req->cryptlen;
@@ -1441,9 +1468,10 @@ static int sa_sha_setup(struct sa_tfm_ctx *ctx, struct  algo_data *ad)
 	cfg.akey = NULL;
 	cfg.akey_len = 0;
 
+	ctx->dev_data = dev_get_drvdata(sa_k3_dev);
 	/* Setup Encryption Security Context & Command label template */
-	if (sa_init_sc(&ctx->enc, NULL, 0, NULL, 0, ad, 0,
-		       &ctx->enc.epib[1]))
+	if (sa_init_sc(&ctx->enc, ctx->dev_data->match_data, NULL, 0, NULL, 0,
+		       ad, 0, &ctx->enc.epib[1]))
 		goto badkey;
 
 	cmdl_len = sa_format_cmdl_gen(&cfg,
@@ -1671,7 +1699,6 @@ static void sa_aead_dma_in_callback(void *data)
 	size_t pl, ml;
 	int i;
 	int err = 0;
-	u16 auth_len;
 	u32 *mdptr;
 
 	sa_sync_from_device(rxd);
@@ -1684,13 +1711,10 @@ static void sa_aead_dma_in_callback(void *data)
 	for (i = 0; i < (authsize / 4); i++)
 		mdptr[i + 4] = swab32(mdptr[i + 4]);
 
-	auth_len = req->assoclen + req->cryptlen;
-
 	if (rxd->enc) {
 		scatterwalk_map_and_copy(&mdptr[4], req->dst, start, authsize,
 					 1);
 	} else {
-		auth_len -= authsize;
 		start -= authsize;
 		scatterwalk_map_and_copy(auth_tag, req->src, start, authsize,
 					 0);
@@ -1711,6 +1735,7 @@ static int sa_cra_init_aead(struct crypto_aead *tfm, const char *hash,
 	int ret;
 
 	memzero_explicit(ctx, sizeof(*ctx));
+	ctx->dev_data = data;
 
 	ctx->shash = crypto_alloc_shash(hash, 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ctx->shash)) {
@@ -1812,8 +1837,8 @@ static int sa_aead_setkey(struct crypto_aead *authenc,
 	cfg.akey_len = keys.authkeylen;
 
 	/* Setup Encryption Security Context & Command label template */
-	if (sa_init_sc(&ctx->enc, keys.enckey, keys.enckeylen,
-		       keys.authkey, keys.authkeylen,
+	if (sa_init_sc(&ctx->enc, ctx->dev_data->match_data, keys.enckey,
+		       keys.enckeylen, keys.authkey, keys.authkeylen,
 		       ad, 1, &ctx->enc.epib[1]))
 		return -EINVAL;
 
@@ -1826,8 +1851,8 @@ static int sa_aead_setkey(struct crypto_aead *authenc,
 	ctx->enc.cmdl_size = cmdl_len;
 
 	/* Setup Decryption Security Context & Command label template */
-	if (sa_init_sc(&ctx->dec, keys.enckey, keys.enckeylen,
-		       keys.authkey, keys.authkeylen,
+	if (sa_init_sc(&ctx->dec, ctx->dev_data->match_data, keys.enckey,
+		       keys.enckeylen, keys.authkey, keys.authkeylen,
 		       ad, 0, &ctx->dec.epib[1]))
 		return -EINVAL;
 
@@ -1945,7 +1970,7 @@ static int sa_aead_decrypt(struct aead_request *req)
 }
 
 static struct sa_alg_tmpl sa_algs[] = {
-	{
+	[SA_ALG_CBC_AES] = {
 		.type = CRYPTO_ALG_TYPE_SKCIPHER,
 		.alg.skcipher = {
 			.base.cra_name		= "cbc(aes)",
@@ -1968,7 +1993,7 @@ static struct sa_alg_tmpl sa_algs[] = {
 			.decrypt		= sa_decrypt,
 		}
 	},
-	{
+	[SA_ALG_EBC_AES] = {
 		.type = CRYPTO_ALG_TYPE_SKCIPHER,
 		.alg.skcipher = {
 			.base.cra_name		= "ecb(aes)",
@@ -1990,7 +2015,7 @@ static struct sa_alg_tmpl sa_algs[] = {
 			.decrypt		= sa_decrypt,
 		}
 	},
-	{
+	[SA_ALG_CBC_DES3] = {
 		.type = CRYPTO_ALG_TYPE_SKCIPHER,
 		.alg.skcipher = {
 			.base.cra_name		= "cbc(des3_ede)",
@@ -2013,7 +2038,7 @@ static struct sa_alg_tmpl sa_algs[] = {
 			.decrypt		= sa_decrypt,
 		}
 	},
-	{
+	[SA_ALG_ECB_DES3] = {
 		.type = CRYPTO_ALG_TYPE_SKCIPHER,
 		.alg.skcipher = {
 			.base.cra_name		= "ecb(des3_ede)",
@@ -2035,7 +2060,7 @@ static struct sa_alg_tmpl sa_algs[] = {
 			.decrypt		= sa_decrypt,
 		}
 	},
-	{
+	[SA_ALG_SHA1] = {
 		.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.ahash = {
 			.halg.base = {
@@ -2064,7 +2089,7 @@ static struct sa_alg_tmpl sa_algs[] = {
 			.import			= sa_sha_import,
 		},
 	},
-	{
+	[SA_ALG_SHA256] = {
 		.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.ahash = {
 			.halg.base = {
@@ -2093,7 +2118,7 @@ static struct sa_alg_tmpl sa_algs[] = {
 			.import			= sa_sha_import,
 		},
 	},
-	{
+	[SA_ALG_SHA512] = {
 		.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.ahash = {
 			.halg.base = {
@@ -2122,7 +2147,7 @@ static struct sa_alg_tmpl sa_algs[] = {
 			.import			= sa_sha_import,
 		},
 	},
-	{
+	[SA_ALG_AUTHENC_SHA1_AES] = {
 		.type	= CRYPTO_ALG_TYPE_AEAD,
 		.alg.aead = {
 			.base = {
@@ -2149,7 +2174,7 @@ static struct sa_alg_tmpl sa_algs[] = {
 			.decrypt = sa_aead_decrypt,
 		},
 	},
-	{
+	[SA_ALG_AUTHENC_SHA256_AES] = {
 		.type	= CRYPTO_ALG_TYPE_AEAD,
 		.alg.aead = {
 			.base = {
@@ -2180,13 +2205,19 @@ static struct sa_alg_tmpl sa_algs[] = {
 };
 
 /* Register the algorithms in crypto framework */
-static void sa_register_algos(const struct device *dev)
+static void sa_register_algos(struct sa_crypto_data *dev_data)
 {
+	const struct sa_match_data *match_data = dev_data->match_data;
+	struct device *dev = dev_data->dev;
 	char *alg_name;
 	u32 type;
 	int i, err;
 
 	for (i = 0; i < ARRAY_SIZE(sa_algs); i++) {
+		/* Skip unsupported algos */
+		if (!(match_data->supported_algos & BIT(i)))
+			continue;
+
 		type = sa_algs[i].type;
 		if (type == CRYPTO_ALG_TYPE_SKCIPHER) {
 			alg_name = sa_algs[i].alg.skcipher.base.cra_name;
@@ -2266,9 +2297,9 @@ static int sa_dma_init(struct sa_crypto_data *dd)
 
 	dd->dma_rx2 = dma_request_chan(dd->dev, "rx2");
 	if (IS_ERR(dd->dma_rx2)) {
-		dma_release_channel(dd->dma_rx1);
-		return dev_err_probe(dd->dev, PTR_ERR(dd->dma_rx2),
-				     "Unable to request rx2 DMA channel\n");
+		ret = dev_err_probe(dd->dev, PTR_ERR(dd->dma_rx2),
+				    "Unable to request rx2 DMA channel\n");
+		goto err_dma_rx2;
 	}
 
 	dd->dma_tx = dma_request_chan(dd->dev, "tx");
@@ -2289,28 +2320,31 @@ static int sa_dma_init(struct sa_crypto_data *dd)
 	if (ret) {
 		dev_err(dd->dev, "can't configure IN dmaengine slave: %d\n",
 			ret);
-		return ret;
+		goto err_dma_config;
 	}
 
 	ret = dmaengine_slave_config(dd->dma_rx2, &cfg);
 	if (ret) {
 		dev_err(dd->dev, "can't configure IN dmaengine slave: %d\n",
 			ret);
-		return ret;
+		goto err_dma_config;
 	}
 
 	ret = dmaengine_slave_config(dd->dma_tx, &cfg);
 	if (ret) {
 		dev_err(dd->dev, "can't configure OUT dmaengine slave: %d\n",
 			ret);
-		return ret;
+		goto err_dma_config;
 	}
 
 	return 0;
 
+err_dma_config:
+	dma_release_channel(dd->dma_tx);
 err_dma_tx:
-	dma_release_channel(dd->dma_rx1);
 	dma_release_channel(dd->dma_rx2);
+err_dma_rx2:
+	dma_release_channel(dd->dma_rx1);
 
 	return ret;
 }
@@ -2324,72 +2358,103 @@ static int sa_link_child(struct device *dev, void *data)
 	return 0;
 }
 
+static struct sa_match_data am654_match_data = {
+	.priv = 1,
+	.priv_id = 1,
+	.supported_algos = GENMASK(SA_ALG_AUTHENC_SHA256_AES, 0),
+};
+
+static struct sa_match_data am64_match_data = {
+	.priv = 0,
+	.priv_id = 0,
+	.supported_algos = BIT(SA_ALG_CBC_AES) |
+			   BIT(SA_ALG_EBC_AES) |
+			   BIT(SA_ALG_SHA256) |
+			   BIT(SA_ALG_SHA512) |
+			   BIT(SA_ALG_AUTHENC_SHA256_AES),
+	.skip_engine_control = true,
+};
+
+static const struct of_device_id of_match[] = {
+	{ .compatible = "ti,j721e-sa2ul", .data = &am654_match_data, },
+	{ .compatible = "ti,am654-sa2ul", .data = &am654_match_data, },
+	{ .compatible = "ti,am64-sa2ul", .data = &am64_match_data, },
+	{},
+};
+MODULE_DEVICE_TABLE(of, of_match);
+
 static int sa_ul_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	struct resource *res;
 	static void __iomem *saul_base;
 	struct sa_crypto_data *dev_data;
-	u32 val;
 	int ret;
 
 	dev_data = devm_kzalloc(dev, sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data)
 		return -ENOMEM;
 
+	dev_data->match_data = of_device_get_match_data(dev);
+	if (!dev_data->match_data)
+		return -ENODEV;
+
+	saul_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(saul_base))
+		return PTR_ERR(saul_base);
+
 	sa_k3_dev = dev;
 	dev_data->dev = dev;
 	dev_data->pdev = pdev;
+	dev_data->base = saul_base;
 	platform_set_drvdata(pdev, dev_data);
 	dev_set_drvdata(sa_k3_dev, dev_data);
 
 	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "%s: failed to get sync: %d\n", __func__,
-			ret);
+		dev_err(dev, "%s: failed to get sync: %d\n", __func__, ret);
+		pm_runtime_disable(dev);
 		return ret;
 	}
 
 	sa_init_mem(dev_data);
 	ret = sa_dma_init(dev_data);
 	if (ret)
-		goto disable_pm_runtime;
+		goto destroy_dma_pool;
 
 	spin_lock_init(&dev_data->scid_lock);
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	saul_base = devm_ioremap_resource(dev, res);
 
-	dev_data->base = saul_base;
-	val = SA_EEC_ENCSS_EN | SA_EEC_AUTHSS_EN | SA_EEC_CTXCACH_EN |
-	    SA_EEC_CPPI_PORT_IN_EN | SA_EEC_CPPI_PORT_OUT_EN |
-	    SA_EEC_TRNG_EN;
+	if (!dev_data->match_data->skip_engine_control) {
+		u32 val = SA_EEC_ENCSS_EN | SA_EEC_AUTHSS_EN | SA_EEC_CTXCACH_EN |
+			  SA_EEC_CPPI_PORT_IN_EN | SA_EEC_CPPI_PORT_OUT_EN |
+			  SA_EEC_TRNG_EN;
 
-	writel_relaxed(val, saul_base + SA_ENGINE_ENABLE_CONTROL);
+		writel_relaxed(val, saul_base + SA_ENGINE_ENABLE_CONTROL);
+	}
 
-	sa_register_algos(dev);
+	sa_register_algos(dev_data);
 
-	ret = of_platform_populate(node, NULL, NULL, &pdev->dev);
+	ret = of_platform_populate(node, NULL, NULL, dev);
 	if (ret)
 		goto release_dma;
 
-	device_for_each_child(&pdev->dev, &pdev->dev, sa_link_child);
+	device_for_each_child(dev, dev, sa_link_child);
 
 	return 0;
 
 release_dma:
-	sa_unregister_algos(&pdev->dev);
+	sa_unregister_algos(dev);
 
 	dma_release_channel(dev_data->dma_rx2);
 	dma_release_channel(dev_data->dma_rx1);
 	dma_release_channel(dev_data->dma_tx);
 
+destroy_dma_pool:
 	dma_pool_destroy(dev_data->sc_pool);
 
-disable_pm_runtime:
-	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
 
 	return ret;
 }
@@ -2397,6 +2462,8 @@ disable_pm_runtime:
 static int sa_ul_remove(struct platform_device *pdev)
 {
 	struct sa_crypto_data *dev_data = platform_get_drvdata(pdev);
+
+	of_platform_depopulate(&pdev->dev);
 
 	sa_unregister_algos(&pdev->dev);
 
@@ -2413,13 +2480,6 @@ static int sa_ul_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id of_match[] = {
-	{.compatible = "ti,j721e-sa2ul",},
-	{.compatible = "ti,am654-sa2ul",},
-	{},
-};
-MODULE_DEVICE_TABLE(of, of_match);
 
 static struct platform_driver sa_ul_driver = {
 	.probe = sa_ul_probe,

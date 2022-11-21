@@ -22,7 +22,7 @@ enum {
 /* macros for alsa2chip and chip2alsa, instead of functions */
 
 // convert alsa to chip volume (defined as macro rather than function call)
-#define alsa2chip(vol) (uint)(-(((vol) << 8) / 100))
+#define alsa2chip(vol) ((uint)(-(((vol) << 8) / 100)))
 
 // convert chip to alsa volume
 #define chip2alsa(vol) -(((vol) * 100) >> 8)

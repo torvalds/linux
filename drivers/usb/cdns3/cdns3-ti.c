@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * cdns3-ti.c - TI specific Glue layer for Cadence USB Controller
  *
  * Copyright (C) 2019 Texas Instruments Incorporated - https://www.ti.com
@@ -214,6 +214,7 @@ static int cdns_ti_remove(struct platform_device *pdev)
 
 static const struct of_device_id cdns_ti_of_match[] = {
 	{ .compatible = "ti,j721e-usb", },
+	{ .compatible = "ti,am64-usb", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, cdns_ti_of_match);

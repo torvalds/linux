@@ -3,6 +3,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
 #include <net/if.h>
@@ -44,6 +45,11 @@ static bool run_as_unprivileged;
 #endif
 
 /* Miscellaneous utility functions */
+
+static bool grep(const char *buffer, const char *pattern)
+{
+	return !!strstr(buffer, pattern);
+}
 
 static bool check_procfs(void)
 {
@@ -135,6 +141,32 @@ static void print_end_section(void)
 
 /* Probing functions */
 
+static int get_vendor_id(int ifindex)
+{
+	char ifname[IF_NAMESIZE], path[64], buf[8];
+	ssize_t len;
+	int fd;
+
+	if (!if_indextoname(ifindex, ifname))
+		return -1;
+
+	snprintf(path, sizeof(path), "/sys/class/net/%s/device/vendor", ifname);
+
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return -1;
+
+	len = read(fd, buf, sizeof(buf));
+	close(fd);
+	if (len < 0)
+		return -1;
+	if (len >= (ssize_t)sizeof(buf))
+		return -1;
+	buf[len] = '\0';
+
+	return strtol(buf, NULL, 0);
+}
+
 static int read_procfs(const char *path)
 {
 	char *endptr, *line = NULL;
@@ -175,7 +207,10 @@ static void probe_unprivileged_disabled(void)
 			printf("bpf() syscall for unprivileged users is enabled\n");
 			break;
 		case 1:
-			printf("bpf() syscall restricted to privileged users\n");
+			printf("bpf() syscall restricted to privileged users (without recovery)\n");
+			break;
+		case 2:
+			printf("bpf() syscall restricted to privileged users (admin can change)\n");
 			break;
 		case -1:
 			printf("Unable to retrieve required privileges for bpf() syscall\n");
@@ -336,6 +371,10 @@ static void probe_kernel_image_config(const char *define_prefix)
 		{ "CONFIG_BPF_JIT", },
 		/* Avoid compiling eBPF interpreter (use JIT only) */
 		{ "CONFIG_BPF_JIT_ALWAYS_ON", },
+		/* Kernel BTF debug information available */
+		{ "CONFIG_DEBUG_INFO_BTF", },
+		/* Kernel module BTF debug information available */
+		{ "CONFIG_DEBUG_INFO_BTF_MODULES", },
 
 		/* cgroups */
 		{ "CONFIG_CGROUPS", },
@@ -463,7 +502,7 @@ static bool probe_bpf_syscall(const char *define_prefix)
 {
 	bool res;
 
-	bpf_load_program(BPF_PROG_TYPE_UNSPEC, NULL, 0, NULL, 0, NULL, 0);
+	bpf_prog_load(BPF_PROG_TYPE_UNSPEC, NULL, NULL, NULL, 0, NULL);
 	res = (errno != ENOSYS);
 
 	print_bool_feature("have_bpf_syscall",
@@ -472,6 +511,40 @@ static bool probe_bpf_syscall(const char *define_prefix)
 			   res, define_prefix);
 
 	return res;
+}
+
+static bool
+probe_prog_load_ifindex(enum bpf_prog_type prog_type,
+			const struct bpf_insn *insns, size_t insns_cnt,
+			char *log_buf, size_t log_buf_sz,
+			__u32 ifindex)
+{
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		    .log_buf = log_buf,
+		    .log_size = log_buf_sz,
+		    .log_level = log_buf ? 1 : 0,
+		    .prog_ifindex = ifindex,
+		   );
+	int fd;
+
+	errno = 0;
+	fd = bpf_prog_load(prog_type, NULL, "GPL", insns, insns_cnt, &opts);
+	if (fd >= 0)
+		close(fd);
+
+	return fd >= 0 && errno != EINVAL && errno != EOPNOTSUPP;
+}
+
+static bool probe_prog_type_ifindex(enum bpf_prog_type prog_type, __u32 ifindex)
+{
+	/* nfp returns -EINVAL on exit(0) with TC offload */
+	struct bpf_insn insns[2] = {
+		BPF_MOV64_IMM(BPF_REG_0, 2),
+		BPF_EXIT_INSN()
+	};
+
+	return probe_prog_load_ifindex(prog_type, insns, ARRAY_SIZE(insns),
+				       NULL, 0, ifindex);
 }
 
 static void
@@ -483,8 +556,7 @@ probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
 	size_t maxlen;
 	bool res;
 
-	if (ifindex)
-		/* Only test offload-able program types */
+	if (ifindex) {
 		switch (prog_type) {
 		case BPF_PROG_TYPE_SCHED_CLS:
 		case BPF_PROG_TYPE_XDP:
@@ -493,7 +565,11 @@ probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
 			return;
 		}
 
-	res = bpf_probe_prog_type(prog_type, ifindex);
+		res = probe_prog_type_ifindex(prog_type, ifindex);
+	} else {
+		res = libbpf_probe_bpf_prog_type(prog_type, NULL);
+	}
+
 #ifdef USE_LIBCAP
 	/* Probe may succeed even if program load fails, for unprivileged users
 	 * check that we did not fail because of insufficient permissions
@@ -522,6 +598,26 @@ probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
 			   define_prefix);
 }
 
+static bool probe_map_type_ifindex(enum bpf_map_type map_type, __u32 ifindex)
+{
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
+	int key_size, value_size, max_entries;
+	int fd;
+
+	opts.map_ifindex = ifindex;
+
+	key_size = sizeof(__u32);
+	value_size = sizeof(__u32);
+	max_entries = 1;
+
+	fd = bpf_map_create(map_type, NULL, key_size, value_size, max_entries,
+			    &opts);
+	if (fd >= 0)
+		close(fd);
+
+	return fd >= 0;
+}
+
 static void
 probe_map_type(enum bpf_map_type map_type, const char *define_prefix,
 	       __u32 ifindex)
@@ -531,7 +627,19 @@ probe_map_type(enum bpf_map_type map_type, const char *define_prefix,
 	size_t maxlen;
 	bool res;
 
-	res = bpf_probe_map_type(map_type, ifindex);
+	if (ifindex) {
+		switch (map_type) {
+		case BPF_MAP_TYPE_HASH:
+		case BPF_MAP_TYPE_ARRAY:
+			break;
+		default:
+			return;
+		}
+
+		res = probe_map_type_ifindex(map_type, ifindex);
+	} else {
+		res = libbpf_probe_bpf_map_type(map_type, NULL);
+	}
 
 	/* Probe result depends on the success of map creation, no additional
 	 * check required for unprivileged users
@@ -555,6 +663,33 @@ probe_map_type(enum bpf_map_type map_type, const char *define_prefix,
 			   define_prefix);
 }
 
+static bool
+probe_helper_ifindex(enum bpf_func_id id, enum bpf_prog_type prog_type,
+		     __u32 ifindex)
+{
+	struct bpf_insn insns[2] = {
+		BPF_EMIT_CALL(id),
+		BPF_EXIT_INSN()
+	};
+	char buf[4096] = {};
+	bool res;
+
+	probe_prog_load_ifindex(prog_type, insns, ARRAY_SIZE(insns), buf,
+				sizeof(buf), ifindex);
+	res = !grep(buf, "invalid func ") && !grep(buf, "unknown func ");
+
+	switch (get_vendor_id(ifindex)) {
+	case 0x19ee: /* Netronome specific */
+		res = res && !grep(buf, "not supported by FW") &&
+			!grep(buf, "unsupported function id");
+		break;
+	default:
+		break;
+	}
+
+	return res;
+}
+
 static void
 probe_helper_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 			  const char *define_prefix, unsigned int id,
@@ -563,7 +698,10 @@ probe_helper_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 	bool res = false;
 
 	if (supported_type) {
-		res = bpf_probe_helper(id, prog_type, ifindex);
+		if (ifindex)
+			res = probe_helper_ifindex(id, prog_type, ifindex);
+		else
+			res = libbpf_probe_bpf_helper(prog_type, id, NULL);
 #ifdef USE_LIBCAP
 		/* Probe may succeed even if program load fails, for
 		 * unprivileged users check that we did not fail because of
@@ -620,6 +758,7 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 		 */
 		switch (id) {
 		case BPF_FUNC_trace_printk:
+		case BPF_FUNC_trace_vprintk:
 		case BPF_FUNC_probe_write_user:
 			if (!full_mode)
 				continue;
@@ -638,15 +777,111 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 }
 
 static void
-probe_large_insn_limit(const char *define_prefix, __u32 ifindex)
+probe_misc_feature(struct bpf_insn *insns, size_t len,
+		   const char *define_prefix, __u32 ifindex,
+		   const char *feat_name, const char *plain_name,
+		   const char *define_name)
 {
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		.prog_ifindex = ifindex,
+	);
 	bool res;
+	int fd;
 
-	res = bpf_probe_large_insn_limit(ifindex);
-	print_bool_feature("have_large_insn_limit",
+	errno = 0;
+	fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL",
+			   insns, len, &opts);
+	res = fd >= 0 || !errno;
+
+	if (fd >= 0)
+		close(fd);
+
+	print_bool_feature(feat_name, plain_name, define_name, res,
+			   define_prefix);
+}
+
+/*
+ * Probe for availability of kernel commit (5.3):
+ *
+ * c04c0d2b968a ("bpf: increase complexity limit and maximum program size")
+ */
+static void probe_large_insn_limit(const char *define_prefix, __u32 ifindex)
+{
+	struct bpf_insn insns[BPF_MAXINSNS + 1];
+	int i;
+
+	for (i = 0; i < BPF_MAXINSNS; i++)
+		insns[i] = BPF_MOV64_IMM(BPF_REG_0, 1);
+	insns[BPF_MAXINSNS] = BPF_EXIT_INSN();
+
+	probe_misc_feature(insns, ARRAY_SIZE(insns),
+			   define_prefix, ifindex,
+			   "have_large_insn_limit",
 			   "Large program size limit",
-			   "LARGE_INSN_LIMIT",
-			   res, define_prefix);
+			   "LARGE_INSN_LIMIT");
+}
+
+/*
+ * Probe for bounded loop support introduced in commit 2589726d12a1
+ * ("bpf: introduce bounded loops").
+ */
+static void
+probe_bounded_loops(const char *define_prefix, __u32 ifindex)
+{
+	struct bpf_insn insns[4] = {
+		BPF_MOV64_IMM(BPF_REG_0, 10),
+		BPF_ALU64_IMM(BPF_SUB, BPF_REG_0, 1),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, -2),
+		BPF_EXIT_INSN()
+	};
+
+	probe_misc_feature(insns, ARRAY_SIZE(insns),
+			   define_prefix, ifindex,
+			   "have_bounded_loops",
+			   "Bounded loop support",
+			   "BOUNDED_LOOPS");
+}
+
+/*
+ * Probe for the v2 instruction set extension introduced in commit 92b31a9af73b
+ * ("bpf: add BPF_J{LT,LE,SLT,SLE} instructions").
+ */
+static void
+probe_v2_isa_extension(const char *define_prefix, __u32 ifindex)
+{
+	struct bpf_insn insns[4] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_JMP_IMM(BPF_JLT, BPF_REG_0, 0, 1),
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_EXIT_INSN()
+	};
+
+	probe_misc_feature(insns, ARRAY_SIZE(insns),
+			   define_prefix, ifindex,
+			   "have_v2_isa_extension",
+			   "ISA extension v2",
+			   "V2_ISA_EXTENSION");
+}
+
+/*
+ * Probe for the v3 instruction set extension introduced in commit 092ed0968bb6
+ * ("bpf: verifier support JMP32").
+ */
+static void
+probe_v3_isa_extension(const char *define_prefix, __u32 ifindex)
+{
+	struct bpf_insn insns[4] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_JMP32_IMM(BPF_JLT, BPF_REG_0, 0, 1),
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_EXIT_INSN()
+	};
+
+	probe_misc_feature(insns, ARRAY_SIZE(insns),
+			   define_prefix, ifindex,
+			   "have_v3_isa_extension",
+			   "ISA extension v3",
+			   "V3_ISA_EXTENSION");
 }
 
 static void
@@ -763,6 +998,9 @@ static void section_misc(const char *define_prefix, __u32 ifindex)
 			    "/*** eBPF misc features ***/",
 			    define_prefix);
 	probe_large_insn_limit(define_prefix, ifindex);
+	probe_bounded_loops(define_prefix, ifindex);
+	probe_v2_isa_extension(define_prefix, ifindex);
+	probe_v3_isa_extension(define_prefix, ifindex);
 	print_end_section();
 }
 
@@ -1001,6 +1239,7 @@ static int do_help(int argc, char **argv)
 		"       %1$s %2$s help\n"
 		"\n"
 		"       COMPONENT := { kernel | dev NAME }\n"
+		"       " HELP_SPEC_OPTIONS " }\n"
 		"",
 		bin_name, argv[-2]);
 

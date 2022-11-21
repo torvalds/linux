@@ -154,112 +154,112 @@
 		regulators {
 			bcore1 {
 				regulator-name = "bcore1";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			bcore2 {
 				regulator-name = "bcore2";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			bpro {
 				regulator-name = "bpro";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			bperi {
 				regulator-name = "bperi";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			bmem {
 				regulator-name = "bmem";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			ldo2 {
 				regulator-name = "ldo2";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1800000>;
 			};
 
 			ldo3 {
 				regulator-name = "ldo3";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			ldo4 {
 				regulator-name = "ldo4";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			ldo5 {
 				regulator-name = "ldo5";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			ldo6 {
 				regulator-name = "ldo6";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			ldo7 {
 				regulator-name = "ldo7";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			ldo8 {
 				regulator-name = "ldo8";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			ldo9 {
 				regulator-name = "ldo9";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			ldo10 {
 				regulator-name = "ldo10";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			ldo11 {
 				regulator-name = "ldo11";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			bio {
 				regulator-name = "bio";
-				regulator-always-on = <1>;
+				regulator-always-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 			};
@@ -316,12 +316,22 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rgmii";
+	phy-handle = <&ethphy>;
 	phy-reset-gpios = <&gpio7 18 GPIO_ACTIVE_LOW>;
-	txd0-skew-ps = <0>;
-	txd1-skew-ps = <0>;
-	txd2-skew-ps = <0>;
-	txd3-skew-ps = <0>;
 	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy: ethernet-phy {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			txd0-skew-ps = <0>;
+			txd1-skew-ps = <0>;
+			txd2-skew-ps = <0>;
+			txd3-skew-ps = <0>;
+		};
+	};
 };
 
 &gpmi {

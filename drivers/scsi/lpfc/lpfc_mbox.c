@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -429,7 +429,7 @@ lpfc_config_msi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
 
 	/*
-	 * SLI-3, Message Signaled Interrupt Fearure.
+	 * SLI-3, Message Signaled Interrupt Feature.
 	 */
 
 	/* Multi-message attention configuration */
@@ -513,8 +513,9 @@ lpfc_init_link(struct lpfc_hba * phba,
 		break;
 	}
 
-	if ((phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC ||
-	     phba->pcidev->device == PCI_DEVICE_ID_LANCER_G7_FC) &&
+	/* Topology handling for ASIC_GEN_NUM 0xC and later */
+	if ((phba->sli4_hba.pc_sli4_params.sli_family == LPFC_SLI_INTF_FAMILY_G6 ||
+	     phba->sli4_hba.pc_sli4_params.if_type == LPFC_SLI_INTF_IF_TYPE_6) &&
 	    !(phba->sli4_hba.pc_sli4_params.pls) &&
 	    mb->un.varInitLnk.link_flags & FLAGS_TOPOLOGY_MODE_LOOP) {
 		mb->un.varInitLnk.link_flags = FLAGS_TOPOLOGY_MODE_PT_PT;
@@ -522,7 +523,8 @@ lpfc_init_link(struct lpfc_hba * phba,
 	}
 
 	/* Enable asynchronous ABTS responses from firmware */
-	mb->un.varInitLnk.link_flags |= FLAGS_IMED_ABORT;
+	if (phba->sli_rev == LPFC_SLI_REV3 && !phba->cfg_fcp_wait_abts_rsp)
+		mb->un.varInitLnk.link_flags |= FLAGS_IMED_ABORT;
 
 	/* NEW_FEATURE
 	 * Setting up the link speed
@@ -2100,6 +2102,12 @@ lpfc_request_features(struct lpfc_hba *phba, struct lpfcMboxq *mboxq)
 		bf_set(lpfc_mbx_rq_ftr_rq_iaab, &mboxq->u.mqe.un.req_ftrs, 0);
 		bf_set(lpfc_mbx_rq_ftr_rq_iaar, &mboxq->u.mqe.un.req_ftrs, 0);
 	}
+
+	/* Enable Application Services Header for appheader VMID */
+	if (phba->cfg_vmid_app_header) {
+		bf_set(lpfc_mbx_rq_ftr_rq_ashdr, &mboxq->u.mqe.un.req_ftrs, 1);
+		bf_set(lpfc_ftr_ashdr, &phba->sli4_hba.sli4_flags, 1);
+	}
 	return;
 }
 
@@ -2409,7 +2417,7 @@ error:
 
 
 /*
- * lpfc_sli4_dump_sfp_pagea0 - Dump sli4 read SFP Diagnostic.
+ * lpfc_sli4_dump_page_a0 - Dump sli4 read SFP Diagnostic.
  * @phba: pointer to the hba structure containing.
  * @mbox: pointer to lpfc mbox command to initialize.
  *
@@ -2624,39 +2632,3 @@ lpfc_resume_rpi(struct lpfcMboxq *mbox, struct lpfc_nodelist *ndlp)
 	resume_rpi->event_tag = ndlp->phba->fc_eventTag;
 }
 
-/**
- * lpfc_supported_pages - Initialize the PORT_CAPABILITIES supported pages
- *                        mailbox command.
- * @mbox: pointer to lpfc mbox command to initialize.
- *
- * The PORT_CAPABILITIES supported pages mailbox command is issued to
- * retrieve the particular feature pages supported by the port.
- **/
-void
-lpfc_supported_pages(struct lpfcMboxq *mbox)
-{
-	struct lpfc_mbx_supp_pages *supp_pages;
-
-	memset(mbox, 0, sizeof(*mbox));
-	supp_pages = &mbox->u.mqe.un.supp_pages;
-	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_PORT_CAPABILITIES);
-	bf_set(cpn, supp_pages, LPFC_SUPP_PAGES);
-}
-
-/**
- * lpfc_pc_sli4_params - Initialize the PORT_CAPABILITIES SLI4 Params mbox cmd.
- * @mbox: pointer to lpfc mbox command to initialize.
- *
- * The PORT_CAPABILITIES SLI4 parameters mailbox command is issued to
- * retrieve the particular SLI4 features supported by the port.
- **/
-void
-lpfc_pc_sli4_params(struct lpfcMboxq *mbox)
-{
-	struct lpfc_mbx_pc_sli4_params *sli4_params;
-
-	memset(mbox, 0, sizeof(*mbox));
-	sli4_params = &mbox->u.mqe.un.sli4_params;
-	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_PORT_CAPABILITIES);
-	bf_set(cpn, sli4_params, LPFC_SLI4_PARAMETERS);
-}

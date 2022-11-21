@@ -14,7 +14,6 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
-#include <linux/genhd.h>
 #include <linux/fs.h>
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
@@ -83,9 +82,6 @@ struct parsed_partitions;
 
 #define TOC_BITMAP1		"config"	/* Names of the two defined */
 #define TOC_BITMAP2		"log"		/* bitmaps in the TOCBLOCK. */
-
-/* Borrowed from msdos.c */
-#define SYS_IND(p)		(get_unaligned(&(p)->sys_ind))
 
 struct frag {				/* VBLK Fragment handling */
 	struct list_head list;

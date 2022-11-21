@@ -1,9 +1,12 @@
 menuconfig ARCH_MSTARV7
 	bool "MStar/Sigmastar Armv7 SoC Support"
 	depends on ARCH_MULTI_V7
+	select ARM_ERRATA_814220
 	select ARM_GIC
 	select ARM_HEAVY_MB
+	select HAVE_ARM_ARCH_TIMER
 	select MST_IRQ
+	select MSTAR_MSC313_MPLL
 	help
 	  Support for newer MStar/Sigmastar SoC families that are
 	  based on Armv7 cores like the Cortex A7 and share the same

@@ -350,12 +350,16 @@ EXPORT_SYMBOL(drm_syncobj_replace_fence);
  *
  * Assign a already signaled stub fence to the sync object.
  */
-static void drm_syncobj_assign_null_handle(struct drm_syncobj *syncobj)
+static int drm_syncobj_assign_null_handle(struct drm_syncobj *syncobj)
 {
-	struct dma_fence *fence = dma_fence_get_stub();
+	struct dma_fence *fence = dma_fence_allocate_private_stub();
+
+	if (IS_ERR(fence))
+		return PTR_ERR(fence);
 
 	drm_syncobj_replace_fence(syncobj, fence);
 	dma_fence_put(fence);
+	return 0;
 }
 
 /* 5s default for wait submission */
@@ -387,20 +391,37 @@ int drm_syncobj_find_fence(struct drm_file *file_private,
 	if (!syncobj)
 		return -ENOENT;
 
+	/* Waiting for userspace with locks help is illegal cause that can
+	 * trivial deadlock with page faults for example. Make lockdep complain
+	 * about it early on.
+	 */
+	if (flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT) {
+		might_sleep();
+		lockdep_assert_none_held_once();
+	}
+
 	*fence = drm_syncobj_fence_get(syncobj);
-	drm_syncobj_put(syncobj);
 
 	if (*fence) {
 		ret = dma_fence_chain_find_seqno(fence, point);
-		if (!ret)
-			return 0;
+		if (!ret) {
+			/* If the requested seqno is already signaled
+			 * drm_syncobj_find_fence may return a NULL
+			 * fence. To make sure the recipient gets
+			 * signalled, use a new fence instead.
+			 */
+			if (!*fence)
+				*fence = dma_fence_get_stub();
+
+			goto out;
+		}
 		dma_fence_put(*fence);
 	} else {
 		ret = -EINVAL;
 	}
 
 	if (!(flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT))
-		return ret;
+		goto out;
 
 	memset(&wait, 0, sizeof(wait));
 	wait.task = current;
@@ -431,6 +452,9 @@ int drm_syncobj_find_fence(struct drm_file *file_private,
 
 	if (wait.node.next)
 		drm_syncobj_remove_wait(syncobj, &wait);
+
+out:
+	drm_syncobj_put(syncobj);
 
 	return ret;
 }
@@ -467,6 +491,7 @@ EXPORT_SYMBOL(drm_syncobj_free);
 int drm_syncobj_create(struct drm_syncobj **out_syncobj, uint32_t flags,
 		       struct dma_fence *fence)
 {
+	int ret;
 	struct drm_syncobj *syncobj;
 
 	syncobj = kzalloc(sizeof(struct drm_syncobj), GFP_KERNEL);
@@ -477,8 +502,13 @@ int drm_syncobj_create(struct drm_syncobj **out_syncobj, uint32_t flags,
 	INIT_LIST_HEAD(&syncobj->cb_list);
 	spin_lock_init(&syncobj->lock);
 
-	if (flags & DRM_SYNCOBJ_CREATE_SIGNALED)
-		drm_syncobj_assign_null_handle(syncobj);
+	if (flags & DRM_SYNCOBJ_CREATE_SIGNALED) {
+		ret = drm_syncobj_assign_null_handle(syncobj);
+		if (ret < 0) {
+			drm_syncobj_put(syncobj);
+			return ret;
+		}
+	}
 
 	if (fence)
 		drm_syncobj_replace_fence(syncobj, fence);
@@ -704,7 +734,7 @@ err_put_fd:
 	return ret;
 }
 /**
- * drm_syncobj_open - initalizes syncobj file-private structures at devnode open time
+ * drm_syncobj_open - initializes syncobj file-private structures at devnode open time
  * @file_private: drm file-private structure to set up
  *
  * Called at device open time, sets up the structure for handling refcounting
@@ -823,12 +853,57 @@ drm_syncobj_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 					&args->handle);
 }
 
+
+/*
+ * Try to flatten a dma_fence_chain into a dma_fence_array so that it can be
+ * added as timeline fence to a chain again.
+ */
+static int drm_syncobj_flatten_chain(struct dma_fence **f)
+{
+	struct dma_fence_chain *chain = to_dma_fence_chain(*f);
+	struct dma_fence *tmp, **fences;
+	struct dma_fence_array *array;
+	unsigned int count;
+
+	if (!chain)
+		return 0;
+
+	count = 0;
+	dma_fence_chain_for_each(tmp, &chain->base)
+		++count;
+
+	fences = kmalloc_array(count, sizeof(*fences), GFP_KERNEL);
+	if (!fences)
+		return -ENOMEM;
+
+	count = 0;
+	dma_fence_chain_for_each(tmp, &chain->base)
+		fences[count++] = dma_fence_get(tmp);
+
+	array = dma_fence_array_create(count, fences,
+				       dma_fence_context_alloc(1),
+				       1, false);
+	if (!array)
+		goto free_fences;
+
+	dma_fence_put(*f);
+	*f = &array->base;
+	return 0;
+
+free_fences:
+	while (count--)
+		dma_fence_put(fences[count]);
+
+	kfree(fences);
+	return -ENOMEM;
+}
+
 static int drm_syncobj_transfer_to_timeline(struct drm_file *file_private,
 					    struct drm_syncobj_transfer *args)
 {
 	struct drm_syncobj *timeline_syncobj = NULL;
-	struct dma_fence *fence;
 	struct dma_fence_chain *chain;
+	struct dma_fence *fence;
 	int ret;
 
 	timeline_syncobj = drm_syncobj_find(file_private, args->dst_handle);
@@ -839,16 +914,22 @@ static int drm_syncobj_transfer_to_timeline(struct drm_file *file_private,
 				     args->src_point, args->flags,
 				     &fence);
 	if (ret)
-		goto err;
-	chain = kzalloc(sizeof(struct dma_fence_chain), GFP_KERNEL);
+		goto err_put_timeline;
+
+	ret = drm_syncobj_flatten_chain(&fence);
+	if (ret)
+		goto err_free_fence;
+
+	chain = dma_fence_chain_alloc();
 	if (!chain) {
 		ret = -ENOMEM;
-		goto err1;
+		goto err_free_fence;
 	}
+
 	drm_syncobj_add_point(timeline_syncobj, chain, fence, args->dst_point);
-err1:
+err_free_fence:
 	dma_fence_put(fence);
-err:
+err_put_timeline:
 	drm_syncobj_put(timeline_syncobj);
 
 	return ret;
@@ -939,6 +1020,9 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 	struct dma_fence *fence;
 	uint64_t *points;
 	uint32_t signaled_count, i;
+
+	if (flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT)
+		lockdep_assert_none_held_once();
 
 	points = kmalloc_array(count, sizeof(*points), GFP_KERNEL);
 	if (points == NULL)
@@ -1320,8 +1404,11 @@ drm_syncobj_signal_ioctl(struct drm_device *dev, void *data,
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < args->count_handles; i++)
-		drm_syncobj_assign_null_handle(syncobjs[i]);
+	for (i = 0; i < args->count_handles; i++) {
+		ret = drm_syncobj_assign_null_handle(syncobjs[i]);
+		if (ret < 0)
+			break;
+	}
 
 	drm_syncobj_array_free(syncobjs, args->count_handles);
 
@@ -1375,10 +1462,10 @@ drm_syncobj_timeline_signal_ioctl(struct drm_device *dev, void *data,
 		goto err_points;
 	}
 	for (i = 0; i < args->count_handles; i++) {
-		chains[i] = kzalloc(sizeof(struct dma_fence_chain), GFP_KERNEL);
+		chains[i] = dma_fence_chain_alloc();
 		if (!chains[i]) {
 			for (j = 0; j < i; j++)
-				kfree(chains[j]);
+				dma_fence_chain_free(chains[j]);
 			ret = -ENOMEM;
 			goto err_chains;
 		}

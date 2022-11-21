@@ -48,8 +48,6 @@ properties:
     description:
       End of conversion interrupt.
 
-  io-channel-ranges: true
-
 required:
   - compatible
   - reg
@@ -70,6 +68,7 @@ patternProperties:
 
     properties:
       reg:
+        maxItems: 1
         description: |
           ADC channel number.
           See include/dt-bindings/iio/qcom,spmi-vadc.h
@@ -249,7 +248,6 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
         #io-channel-cells = <1>;
-        io-channel-ranges;
 
         /* Channel node */
         adc-chan@39 {

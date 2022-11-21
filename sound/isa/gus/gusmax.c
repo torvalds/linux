@@ -21,7 +21,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Gravis UltraSound MAX");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Gravis,UltraSound MAX}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -72,14 +71,16 @@ static int snd_gusmax_detect(struct snd_gus_card *gus)
 	unsigned char d;
 
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 0);	/* reset GF1 */
-	if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 0) {
+	d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET);
+	if ((d & 0x07) != 0) {
 		snd_printdd("[0x%lx] check 1 failed - 0x%x\n", gus->gf1.port, d);
 		return -ENODEV;
 	}
 	udelay(160);
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 1);	/* release reset */
 	udelay(160);
-	if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 1) {
+	d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET);
+	if ((d & 0x07) != 1) {
 		snd_printdd("[0x%lx] check 2 failed - 0x%x\n", gus->gf1.port, d);
 		return -ENODEV;
 	}
@@ -137,20 +138,24 @@ static int snd_gusmax_mixer(struct snd_wss *chip)
 	/* reassign AUXA to SYNTHESIZER */
 	strcpy(id1.name, "Aux Playback Switch");
 	strcpy(id2.name, "Synth Playback Switch");
-	if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+	err = snd_ctl_rename_id(card, &id1, &id2);
+	if (err < 0)
 		return err;
 	strcpy(id1.name, "Aux Playback Volume");
 	strcpy(id2.name, "Synth Playback Volume");
-	if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+	err = snd_ctl_rename_id(card, &id1, &id2);
+	if (err < 0)
 		return err;
 	/* reassign AUXB to CD */
 	strcpy(id1.name, "Aux Playback Switch"); id1.index = 1;
 	strcpy(id2.name, "CD Playback Switch");
-	if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+	err = snd_ctl_rename_id(card, &id1, &id2);
+	if (err < 0)
 		return err;
 	strcpy(id1.name, "Aux Playback Volume");
 	strcpy(id2.name, "CD Playback Volume");
-	if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+	err = snd_ctl_rename_id(card, &id1, &id2);
+	if (err < 0)
 		return err;
 #if 0
 	/* reassign Mono Input to MIC */
@@ -174,16 +179,6 @@ static int snd_gusmax_mixer(struct snd_wss *chip)
 	return 0;
 }
 
-static void snd_gusmax_free(struct snd_card *card)
-{
-	struct snd_gusmax *maxcard = card->private_data;
-	
-	if (maxcard == NULL)
-		return;
-	if (maxcard->irq >= 0)
-		free_irq(maxcard->irq, (void *)maxcard);
-}
-
 static int snd_gusmax_match(struct device *pdev, unsigned int dev)
 {
 	return enable[dev];
@@ -199,37 +194,36 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	struct snd_wss *wss;
 	struct snd_gusmax *maxcard;
 
-	err = snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
-			   sizeof(struct snd_gusmax), &card);
+	err = snd_devm_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+				sizeof(struct snd_gusmax), &card);
 	if (err < 0)
 		return err;
-	card->private_free = snd_gusmax_free;
 	maxcard = card->private_data;
 	maxcard->card = card;
 	maxcard->irq = -1;
 	
 	xirq = irq[dev];
 	if (xirq == SNDRV_AUTO_IRQ) {
-		if ((xirq = snd_legacy_find_free_irq(possible_irqs)) < 0) {
+		xirq = snd_legacy_find_free_irq(possible_irqs);
+		if (xirq < 0) {
 			snd_printk(KERN_ERR PFX "unable to find a free IRQ\n");
-			err = -EBUSY;
-			goto _err;
+			return -EBUSY;
 		}
 	}
 	xdma1 = dma1[dev];
 	if (xdma1 == SNDRV_AUTO_DMA) {
-		if ((xdma1 = snd_legacy_find_free_dma(possible_dmas)) < 0) {
+		xdma1 = snd_legacy_find_free_dma(possible_dmas);
+		if (xdma1 < 0) {
 			snd_printk(KERN_ERR PFX "unable to find a free DMA1\n");
-			err = -EBUSY;
-			goto _err;
+			return -EBUSY;
 		}
 	}
 	xdma2 = dma2[dev];
 	if (xdma2 == SNDRV_AUTO_DMA) {
-		if ((xdma2 = snd_legacy_find_free_dma(possible_dmas)) < 0) {
+		xdma2 = snd_legacy_find_free_dma(possible_dmas);
+		if (xdma2 < 0) {
 			snd_printk(KERN_ERR PFX "unable to find a free DMA2\n");
-			err = -EBUSY;
-			goto _err;
+			return -EBUSY;
 		}
 	}
 
@@ -259,27 +253,28 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 		}
 	}
 	if (err < 0)
-		goto _err;
+		return err;
 
-	if ((err = snd_gusmax_detect(gus)) < 0)
-		goto _err;
+	err = snd_gusmax_detect(gus);
+	if (err < 0)
+		return err;
 
 	maxcard->gus_status_reg = gus->gf1.reg_irqstat;
 	maxcard->pcm_status_reg = gus->gf1.port + 0x10c + 2;
 	snd_gusmax_init(dev, card, gus);
-	if ((err = snd_gus_initialize(gus)) < 0)
-		goto _err;
+	err = snd_gus_initialize(gus);
+	if (err < 0)
+		return err;
 
 	if (!gus->max_flag) {
 		snd_printk(KERN_ERR PFX "GUS MAX soundcard was not detected at 0x%lx\n", gus->gf1.port);
-		err = -ENODEV;
-		goto _err;
+		return -ENODEV;
 	}
 
-	if (request_irq(xirq, snd_gusmax_interrupt, 0, "GUS MAX", (void *)maxcard)) {
+	if (devm_request_irq(card->dev, xirq, snd_gusmax_interrupt, 0,
+			     "GUS MAX", (void *)maxcard)) {
 		snd_printk(KERN_ERR PFX "unable to grab IRQ %d\n", xirq);
-		err = -EBUSY;
-		goto _err;
+		return -EBUSY;
 	}
 	maxcard->irq = xirq;
 	card->sync_irq = maxcard->irq;
@@ -293,31 +288,32 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 			     WSS_HWSHARE_DMA2,
 			     &wss);
 	if (err < 0)
-		goto _err;
+		return err;
 
 	err = snd_wss_pcm(wss, 0);
 	if (err < 0)
-		goto _err;
+		return err;
 
 	err = snd_wss_mixer(wss);
 	if (err < 0)
-		goto _err;
+		return err;
 
 	err = snd_wss_timer(wss, 2);
 	if (err < 0)
-		goto _err;
+		return err;
 
 	if (pcm_channels[dev] > 0) {
-		if ((err = snd_gf1_pcm_new(gus, 1, 1)) < 0)
-			goto _err;
+		err = snd_gf1_pcm_new(gus, 1, 1);
+		if (err < 0)
+			return err;
 	}
 	err = snd_gusmax_mixer(wss);
 	if (err < 0)
-		goto _err;
+		return err;
 
 	err = snd_gf1_rawmidi_new(gus, 0);
 	if (err < 0)
-		goto _err;
+		return err;
 
 	sprintf(card->longname + strlen(card->longname), " at 0x%lx, irq %i, dma %i", gus->gf1.port, xirq, xdma1);
 	if (xdma2 >= 0)
@@ -325,22 +321,12 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto _err;
+		return err;
 		
 	maxcard->gus = gus;
 	maxcard->wss = wss;
 
 	dev_set_drvdata(pdev, card);
-	return 0;
-
- _err:
-	snd_card_free(card);
-	return err;
-}
-
-static int snd_gusmax_remove(struct device *devptr, unsigned int dev)
-{
-	snd_card_free(dev_get_drvdata(devptr));
 	return 0;
 }
 
@@ -349,7 +335,6 @@ static int snd_gusmax_remove(struct device *devptr, unsigned int dev)
 static struct isa_driver snd_gusmax_driver = {
 	.match		= snd_gusmax_match,
 	.probe		= snd_gusmax_probe,
-	.remove		= snd_gusmax_remove,
 	/* FIXME: suspend/resume */
 	.driver		= {
 		.name	= DEV_NAME

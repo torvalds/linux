@@ -20,8 +20,6 @@ extern int post_office_wait(struct zoran *zr);
 extern int post_office_write(struct zoran *zr, unsigned int guest, unsigned int reg, unsigned int value);
 extern int post_office_read(struct zoran *zr, unsigned int guest, unsigned int reg);
 
-extern void detect_guest_activity(struct zoran *zr);
-
 extern void jpeg_codec_sleep(struct zoran *zr, int sleep);
 extern int jpeg_codec_reset(struct zoran *zr);
 
@@ -49,9 +47,7 @@ extern void zr36057_restart(struct zoran *zr);
 
 extern const struct zoran_format zoran_formats[];
 
-extern int v4l_nbufs;
 extern int v4l_bufsize;
-extern int jpg_nbufs;
 extern int jpg_bufsize;
 extern int pass_through;
 

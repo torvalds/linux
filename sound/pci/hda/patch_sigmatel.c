@@ -4277,6 +4277,9 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 
 	spec->gen.automute_hook = stac_update_outputs;
 
+	if (spec->gpio_led)
+		snd_hda_gen_add_mute_led_cdev(codec, stac_vmaster_hook);
+
 	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
 	if (err < 0)
 		return err;
@@ -4317,9 +4320,6 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 		}
 	}
 #endif
-
-	if (spec->gpio_led)
-		snd_hda_gen_add_mute_led_cdev(codec, stac_vmaster_hook);
 
 	if (spec->aloopback_ctl &&
 	    snd_hda_get_bool_hint(codec, "loopback") == 1) {
@@ -4380,18 +4380,6 @@ static int stac_init(struct hda_codec *codec)
 	return 0;
 }
 
-static void stac_shutup(struct hda_codec *codec)
-{
-	struct sigmatel_spec *spec = codec->spec;
-
-	snd_hda_shutup_pins(codec);
-
-	if (spec->eapd_mask)
-		stac_gpio_set(codec, spec->gpio_mask,
-				spec->gpio_dir, spec->gpio_data &
-				~spec->eapd_mask);
-}
-
 #define stac_free	snd_hda_gen_free
 
 #ifdef CONFIG_SND_PROC_FS
@@ -4444,7 +4432,15 @@ static void stac927x_proc_hook(struct snd_info_buffer *buffer,
 #ifdef CONFIG_PM
 static int stac_suspend(struct hda_codec *codec)
 {
-	stac_shutup(codec);
+	struct sigmatel_spec *spec = codec->spec;
+
+	snd_hda_shutup_pins(codec);
+
+	if (spec->eapd_mask)
+		stac_gpio_set(codec, spec->gpio_mask,
+				spec->gpio_dir, spec->gpio_data &
+				~spec->eapd_mask);
+
 	return 0;
 }
 #else
@@ -4460,7 +4456,6 @@ static const struct hda_codec_ops stac_patch_ops = {
 #ifdef CONFIG_PM
 	.suspend = stac_suspend,
 #endif
-	.reboot_notify = stac_shutup,
 };
 
 static int alloc_stac_spec(struct hda_codec *codec)

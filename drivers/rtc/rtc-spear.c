@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/rtc/rtc-spear.c
  *
  * Copyright (C) 2010 ST Microelectronics
  * Rajeev Kumar<rajeev-dlh.kumar@st.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/bcd.h>
@@ -153,12 +150,12 @@ static void rtc_wait_not_busy(struct spear_rtc_config *config)
 static irqreturn_t spear_rtc_irq(int irq, void *dev_id)
 {
 	struct spear_rtc_config *config = dev_id;
-	unsigned long flags, events = 0;
+	unsigned long events = 0;
 	unsigned int irq_data;
 
-	spin_lock_irqsave(&config->lock, flags);
+	spin_lock(&config->lock);
 	irq_data = readl(config->ioaddr + STATUS_REG);
-	spin_unlock_irqrestore(&config->lock, flags);
+	spin_unlock(&config->lock);
 
 	if ((irq_data & RTC_INT_MASK)) {
 		spear_rtc_clear_interrupt(config);
@@ -207,8 +204,10 @@ static int spear_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	/* we don't report wday/yday/isdst ... */
 	rtc_wait_not_busy(config);
 
-	time = readl(config->ioaddr + TIME_REG);
-	date = readl(config->ioaddr + DATE_REG);
+	do {
+		time = readl(config->ioaddr + TIME_REG);
+		date = readl(config->ioaddr + DATE_REG);
+	} while (time == readl(config->ioaddr + TIME_REG));
 	tm->tm_sec = (time >> SECOND_SHIFT) & SECOND_MASK;
 	tm->tm_min = (time >> MINUTE_SHIFT) & MIN_MASK;
 	tm->tm_hour = (time >> HOUR_SHIFT) & HOUR_MASK;
@@ -355,6 +354,10 @@ static int spear_rtc_probe(struct platform_device *pdev)
 	if (!config)
 		return -ENOMEM;
 
+	config->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(config->rtc))
+		return PTR_ERR(config->rtc);
+
 	/* alarm irqs */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -383,16 +386,13 @@ static int spear_rtc_probe(struct platform_device *pdev)
 	spin_lock_init(&config->lock);
 	platform_set_drvdata(pdev, config);
 
-	config->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-					&spear_rtc_ops, THIS_MODULE);
-	if (IS_ERR(config->rtc)) {
-		dev_err(&pdev->dev, "can't register RTC device, err %ld\n",
-				PTR_ERR(config->rtc));
-		status = PTR_ERR(config->rtc);
-		goto err_disable_clock;
-	}
+	config->rtc->ops = &spear_rtc_ops;
+	config->rtc->range_min = RTC_TIMESTAMP_BEGIN_0000;
+	config->rtc->range_min = RTC_TIMESTAMP_END_9999;
 
-	config->rtc->uie_unsupported = 1;
+	status = devm_rtc_register_device(config->rtc);
+	if (status)
+		goto err_disable_clock;
 
 	if (!device_can_wakeup(&pdev->dev))
 		device_init_wakeup(&pdev->dev, 1);

@@ -33,6 +33,7 @@
 #include <drm/radeon_drm.h>
 
 #include "atom.h"
+#include "radeon_atombios.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
@@ -197,7 +198,8 @@ void radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
 	 * so don't register a backlight device
 	 */
 	if ((rdev->pdev->subsystem_vendor == PCI_VENDOR_ID_APPLE) &&
-	    (rdev->pdev->device == 0x6741))
+	    (rdev->pdev->device == 0x6741) &&
+	    !dmi_match(DMI_PRODUCT_NAME, "iMac12,1"))
 		return;
 
 	if (!radeon_encoder->enc_priv)
@@ -295,10 +297,6 @@ static void radeon_atom_backlight_exit(struct radeon_encoder *encoder)
 }
 
 #endif
-
-/* evil but including atombios.h is much worse */
-bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
-				struct drm_display_mode *mode);
 
 static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 				   const struct drm_display_mode *mode,
@@ -2065,9 +2063,9 @@ atombios_apply_encoder_quirks(struct drm_encoder *encoder,
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
 
 	/* Funky macbooks */
-	if ((dev->pdev->device == 0x71C5) &&
-	    (dev->pdev->subsystem_vendor == 0x106b) &&
-	    (dev->pdev->subsystem_device == 0x0080)) {
+	if ((rdev->pdev->device == 0x71C5) &&
+	    (rdev->pdev->subsystem_vendor == 0x106b) &&
+	    (rdev->pdev->subsystem_device == 0x0080)) {
 		if (radeon_encoder->devices & ATOM_DEVICE_LCD1_SUPPORT) {
 			uint32_t lvtma_bit_depth_control = RREG32(AVIVO_LVTMA_BIT_DEPTH_CONTROL);
 

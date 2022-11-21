@@ -18,12 +18,10 @@ static void ice_dcbnl_devreset(struct net_device *netdev)
 	while (ice_is_reset_in_progress(pf->state))
 		usleep_range(1000, 2000);
 
-	set_bit(__ICE_DCBNL_DEVRESET, pf->state);
 	dev_close(netdev);
 	netdev_state_change(netdev);
 	dev_open(netdev, NULL);
 	netdev_state_change(netdev);
-	clear_bit(__ICE_DCBNL_DEVRESET, pf->state);
 }
 
 /**
@@ -34,12 +32,10 @@ static void ice_dcbnl_devreset(struct net_device *netdev)
 static int ice_dcbnl_getets(struct net_device *netdev, struct ieee_ets *ets)
 {
 	struct ice_dcbx_cfg *dcbxcfg;
-	struct ice_port_info *pi;
 	struct ice_pf *pf;
 
 	pf = ice_netdev_to_pf(netdev);
-	pi = pf->hw.port_info;
-	dcbxcfg = &pi->local_dcbx_cfg;
+	dcbxcfg = &pf->hw.port_info->qos_cfg.local_dcbx_cfg;
 
 	ets->willing = dcbxcfg->etscfg.willing;
 	ets->ets_cap = dcbxcfg->etscfg.maxtcs;
@@ -68,13 +64,13 @@ static int ice_dcbnl_setets(struct net_device *netdev, struct ieee_ets *ets)
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
 	struct ice_dcbx_cfg *new_cfg;
 	int bwcfg = 0, bwrec = 0;
-	int err, i, max_tc = 0;
+	int err, i;
 
 	if ((pf->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED) ||
 	    !(pf->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
 		return -EINVAL;
 
-	new_cfg = &pf->hw.port_info->desired_dcbx_cfg;
+	new_cfg = &pf->hw.port_info->qos_cfg.desired_dcbx_cfg;
 
 	mutex_lock(&pf->tc_mutex);
 
@@ -84,13 +80,14 @@ static int ice_dcbnl_setets(struct net_device *netdev, struct ieee_ets *ets)
 		new_cfg->etscfg.tcbwtable[i] = ets->tc_tx_bw[i];
 		bwcfg += ets->tc_tx_bw[i];
 		new_cfg->etscfg.tsatable[i] = ets->tc_tsa[i];
-		new_cfg->etscfg.prio_table[i] = ets->prio_tc[i];
-		if (ets->prio_tc[i] > max_tc)
-			max_tc = ets->prio_tc[i];
+		if (new_cfg->pfc_mode == ICE_QOS_MODE_VLAN) {
+			/* in DSCP mode up->tc mapping cannot change */
+			new_cfg->etscfg.prio_table[i] = ets->prio_tc[i];
+			new_cfg->etsrec.prio_table[i] = ets->reco_prio_tc[i];
+		}
 		new_cfg->etsrec.tcbwtable[i] = ets->tc_reco_bw[i];
 		bwrec += ets->tc_reco_bw[i];
 		new_cfg->etsrec.tsatable[i] = ets->tc_reco_tsa[i];
-		new_cfg->etsrec.prio_table[i] = ets->reco_prio_tc[i];
 	}
 
 	if (ice_dcb_bwchk(pf, new_cfg)) {
@@ -98,9 +95,7 @@ static int ice_dcbnl_setets(struct net_device *netdev, struct ieee_ets *ets)
 		goto ets_out;
 	}
 
-	max_tc = pf->hw.func_caps.common_cap.maxtc;
-
-	new_cfg->etscfg.maxtcs = max_tc;
+	new_cfg->etscfg.maxtcs = pf->hw.func_caps.common_cap.maxtc;
 
 	if (!bwcfg)
 		new_cfg->etscfg.tcbwtable[0] = 100;
@@ -136,7 +131,7 @@ ice_dcbnl_getnumtcs(struct net_device *dev, int __always_unused tcid, u8 *num)
 	if (!test_bit(ICE_FLAG_DCB_CAPABLE, pf->flags))
 		return -EINVAL;
 
-	*num = IEEE_8021QAZ_MAX_TCS;
+	*num = pf->hw.func_caps.common_cap.maxtc;
 	return 0;
 }
 
@@ -159,6 +154,11 @@ static u8 ice_dcbnl_getdcbx(struct net_device *netdev)
 static u8 ice_dcbnl_setdcbx(struct net_device *netdev, u8 mode)
 {
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
+	struct ice_qos_cfg *qos_cfg;
+
+	/* if FW LLDP agent is running, DCBNL not allowed to change mode */
+	if (test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags))
+		return ICE_DCB_NO_HW_CHG;
 
 	/* No support for LLD_MANAGED modes or CEE+IEEE */
 	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||
@@ -170,11 +170,18 @@ static u8 ice_dcbnl_setdcbx(struct net_device *netdev, u8 mode)
 	if (mode == pf->dcbx_cap)
 		return ICE_DCB_NO_HW_CHG;
 
+	qos_cfg = &pf->hw.port_info->qos_cfg;
+
+	/* DSCP configuration is not DCBx negotiated */
+	if (qos_cfg->local_dcbx_cfg.pfc_mode == ICE_QOS_MODE_DSCP)
+		return ICE_DCB_NO_HW_CHG;
+
 	pf->dcbx_cap = mode;
+
 	if (mode & DCB_CAP_DCBX_VER_CEE)
-		pf->hw.port_info->local_dcbx_cfg.dcbx_mode = ICE_DCBX_MODE_CEE;
+		qos_cfg->local_dcbx_cfg.dcbx_mode = ICE_DCBX_MODE_CEE;
 	else
-		pf->hw.port_info->local_dcbx_cfg.dcbx_mode = ICE_DCBX_MODE_IEEE;
+		qos_cfg->local_dcbx_cfg.dcbx_mode = ICE_DCBX_MODE_IEEE;
 
 	dev_info(ice_pf_to_dev(pf), "DCBx mode = 0x%x\n", mode);
 	return ICE_DCB_HW_CHG_RST;
@@ -225,7 +232,7 @@ static int ice_dcbnl_getpfc(struct net_device *netdev, struct ieee_pfc *pfc)
 	struct ice_dcbx_cfg *dcbxcfg;
 	int i;
 
-	dcbxcfg = &pi->local_dcbx_cfg;
+	dcbxcfg = &pi->qos_cfg.local_dcbx_cfg;
 	pfc->pfc_cap = dcbxcfg->pfc.pfccap;
 	pfc->pfc_en = dcbxcfg->pfc.pfcena;
 	pfc->mbc = dcbxcfg->pfc.mbc;
@@ -256,7 +263,7 @@ static int ice_dcbnl_setpfc(struct net_device *netdev, struct ieee_pfc *pfc)
 
 	mutex_lock(&pf->tc_mutex);
 
-	new_cfg = &pf->hw.port_info->desired_dcbx_cfg;
+	new_cfg = &pf->hw.port_info->qos_cfg.desired_dcbx_cfg;
 
 	if (pfc->pfc_cap)
 		new_cfg->pfc.pfccap = pfc->pfc_cap;
@@ -293,9 +300,9 @@ ice_dcbnl_get_pfc_cfg(struct net_device *netdev, int prio, u8 *setting)
 	if (prio >= ICE_MAX_USER_PRIORITY)
 		return;
 
-	*setting = (pi->local_dcbx_cfg.pfc.pfcena >> prio) & 0x1;
+	*setting = (pi->qos_cfg.local_dcbx_cfg.pfc.pfcena >> prio) & 0x1;
 	dev_dbg(ice_pf_to_dev(pf), "Get PFC Config up=%d, setting=%d, pfcenable=0x%x\n",
-		prio, *setting, pi->local_dcbx_cfg.pfc.pfcena);
+		prio, *setting, pi->qos_cfg.local_dcbx_cfg.pfc.pfcena);
 }
 
 /**
@@ -316,7 +323,7 @@ static void ice_dcbnl_set_pfc_cfg(struct net_device *netdev, int prio, u8 set)
 	if (prio >= ICE_MAX_USER_PRIORITY)
 		return;
 
-	new_cfg = &pf->hw.port_info->desired_dcbx_cfg;
+	new_cfg = &pf->hw.port_info->qos_cfg.desired_dcbx_cfg;
 
 	new_cfg->pfc.pfccap = pf->hw.func_caps.common_cap.maxtc;
 	if (set)
@@ -338,7 +345,7 @@ static u8 ice_dcbnl_getpfcstate(struct net_device *netdev)
 	struct ice_port_info *pi = pf->hw.port_info;
 
 	/* Return enabled if any UP enabled for PFC */
-	if (pi->local_dcbx_cfg.pfc.pfcena)
+	if (pi->qos_cfg.local_dcbx_cfg.pfc.pfcena)
 		return 1;
 
 	return 0;
@@ -378,8 +385,8 @@ static u8 ice_dcbnl_setstate(struct net_device *netdev, u8 state)
 
 	if (state) {
 		set_bit(ICE_FLAG_DCB_ENA, pf->flags);
-		memcpy(&pf->hw.port_info->desired_dcbx_cfg,
-		       &pf->hw.port_info->local_dcbx_cfg,
+		memcpy(&pf->hw.port_info->qos_cfg.desired_dcbx_cfg,
+		       &pf->hw.port_info->qos_cfg.local_dcbx_cfg,
 		       sizeof(struct ice_dcbx_cfg));
 	} else {
 		clear_bit(ICE_FLAG_DCB_ENA, pf->flags);
@@ -413,7 +420,7 @@ ice_dcbnl_get_pg_tc_cfg_tx(struct net_device *netdev, int prio,
 	if (prio >= ICE_MAX_USER_PRIORITY)
 		return;
 
-	*pgid = pi->local_dcbx_cfg.etscfg.prio_table[prio];
+	*pgid = pi->qos_cfg.local_dcbx_cfg.etscfg.prio_table[prio];
 	dev_dbg(ice_pf_to_dev(pf), "Get PG config prio=%d tc=%d\n", prio,
 		*pgid);
 }
@@ -444,7 +451,7 @@ ice_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 	if (tc >= ICE_MAX_TRAFFIC_CLASS)
 		return;
 
-	new_cfg = &pf->hw.port_info->desired_dcbx_cfg;
+	new_cfg = &pf->hw.port_info->qos_cfg.desired_dcbx_cfg;
 
 	/* prio_type, bwg_id and bw_pct per UP are not supported */
 
@@ -474,7 +481,7 @@ ice_dcbnl_get_pg_bwg_cfg_tx(struct net_device *netdev, int pgid, u8 *bw_pct)
 	if (pgid >= ICE_MAX_TRAFFIC_CLASS)
 		return;
 
-	*bw_pct = pi->local_dcbx_cfg.etscfg.tcbwtable[pgid];
+	*bw_pct = pi->qos_cfg.local_dcbx_cfg.etscfg.tcbwtable[pgid];
 	dev_dbg(ice_pf_to_dev(pf), "Get PG BW config tc=%d bw_pct=%d\n",
 		pgid, *bw_pct);
 }
@@ -498,7 +505,7 @@ ice_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int pgid, u8 bw_pct)
 	if (pgid >= ICE_MAX_TRAFFIC_CLASS)
 		return;
 
-	new_cfg = &pf->hw.port_info->desired_dcbx_cfg;
+	new_cfg = &pf->hw.port_info->qos_cfg.desired_dcbx_cfg;
 
 	new_cfg->etscfg.tcbwtable[pgid] = bw_pct;
 }
@@ -528,7 +535,7 @@ ice_dcbnl_get_pg_tc_cfg_rx(struct net_device *netdev, int prio,
 	if (prio >= ICE_MAX_USER_PRIORITY)
 		return;
 
-	*pgid = pi->local_dcbx_cfg.etscfg.prio_table[prio];
+	*pgid = pi->qos_cfg.local_dcbx_cfg.etscfg.prio_table[prio];
 }
 
 /**
@@ -681,6 +688,8 @@ ice_dcbnl_find_app(struct ice_dcbx_cfg *cfg,
 	return false;
 }
 
+#define ICE_BYTES_PER_DSCP_VAL		8
+
 /**
  * ice_dcbnl_setapp - set local IEEE App config
  * @netdev: relevant netdev struct
@@ -691,42 +700,117 @@ static int ice_dcbnl_setapp(struct net_device *netdev, struct dcb_app *app)
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
 	struct ice_dcb_app_priority_table new_app;
 	struct ice_dcbx_cfg *old_cfg, *new_cfg;
+	u8 max_tc;
 	int ret;
 
-	if ((pf->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED) ||
-	    !(pf->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
+	/* ONLY DSCP APP TLVs have operational significance */
+	if (app->selector != IEEE_8021QAZ_APP_SEL_DSCP)
 		return -EINVAL;
 
+	/* only allow APP TLVs in SW Mode */
+	if (pf->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED) {
+		netdev_err(netdev, "can't do DSCP QoS when FW DCB agent active\n");
+		return -EINVAL;
+	}
+
+	if (!(pf->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
+		return -EINVAL;
+
+	if (!ice_is_feature_supported(pf, ICE_F_DSCP))
+		return -EOPNOTSUPP;
+
+	if (app->protocol >= ICE_DSCP_NUM_VAL) {
+		netdev_err(netdev, "DSCP value 0x%04X out of range\n",
+			   app->protocol);
+		return -EINVAL;
+	}
+
+	max_tc = pf->hw.func_caps.common_cap.maxtc;
+	if (app->priority >= max_tc) {
+		netdev_err(netdev, "TC %d out of range, max TC %d\n",
+			   app->priority, max_tc);
+		return -EINVAL;
+	}
+
+	/* grab TC mutex */
 	mutex_lock(&pf->tc_mutex);
 
-	new_cfg = &pf->hw.port_info->desired_dcbx_cfg;
-
-	old_cfg = &pf->hw.port_info->local_dcbx_cfg;
-
-	if (old_cfg->numapps == ICE_DCBX_MAX_APPS) {
-		ret = -EINVAL;
-		goto setapp_out;
-	}
+	new_cfg = &pf->hw.port_info->qos_cfg.desired_dcbx_cfg;
+	old_cfg = &pf->hw.port_info->qos_cfg.local_dcbx_cfg;
 
 	ret = dcb_ieee_setapp(netdev, app);
 	if (ret)
 		goto setapp_out;
 
-	new_app.selector = app->selector;
-	new_app.prot_id = app->protocol;
-	new_app.priority = app->priority;
-	if (ice_dcbnl_find_app(old_cfg, &new_app)) {
-		ret = 0;
+	if (test_and_set_bit(app->protocol, new_cfg->dscp_mapped)) {
+		netdev_err(netdev, "DSCP value 0x%04X already user mapped\n",
+			   app->protocol);
+		ret = dcb_ieee_delapp(netdev, app);
+		if (ret)
+			netdev_err(netdev, "Failed to delete re-mapping TLV\n");
+		ret = -EINVAL;
 		goto setapp_out;
 	}
 
+	new_app.selector = app->selector;
+	new_app.prot_id = app->protocol;
+	new_app.priority = app->priority;
+
+	/* If port is not in DSCP mode, need to set */
+	if (old_cfg->pfc_mode == ICE_QOS_MODE_VLAN) {
+		int i, j;
+
+		/* set DSCP mode */
+		ret = ice_aq_set_pfc_mode(&pf->hw, ICE_AQC_PFC_DSCP_BASED_PFC,
+					  NULL);
+		if (ret) {
+			netdev_err(netdev, "Failed to set DSCP PFC mode %d\n",
+				   ret);
+			goto setapp_out;
+		}
+		netdev_info(netdev, "Switched QoS to L3 DSCP mode\n");
+
+		new_cfg->pfc_mode = ICE_QOS_MODE_DSCP;
+
+		/* set default DSCP QoS values */
+		new_cfg->etscfg.willing = 0;
+		new_cfg->pfc.pfccap = max_tc;
+		new_cfg->pfc.willing = 0;
+
+		for (i = 0; i < max_tc; i++)
+			for (j = 0; j < ICE_BYTES_PER_DSCP_VAL; j++) {
+				int dscp, offset;
+
+				dscp = (i * max_tc) + j;
+				offset = max_tc * ICE_BYTES_PER_DSCP_VAL;
+
+				new_cfg->dscp_map[dscp] = i;
+				/* if less that 8 TCs supported */
+				if (max_tc < ICE_MAX_TRAFFIC_CLASS)
+					new_cfg->dscp_map[dscp + offset] = i;
+			}
+
+		new_cfg->etscfg.tcbwtable[0] = 100;
+		new_cfg->etscfg.tsatable[0] = ICE_IEEE_TSA_ETS;
+		new_cfg->etscfg.prio_table[0] = 0;
+
+		for (i = 1; i < max_tc; i++) {
+			new_cfg->etscfg.tcbwtable[i] = 0;
+			new_cfg->etscfg.tsatable[i] = ICE_IEEE_TSA_ETS;
+			new_cfg->etscfg.prio_table[i] = i;
+		}
+	} /* end of switching to DSCP mode */
+
+	/* apply new mapping for this DSCP value */
+	new_cfg->dscp_map[app->protocol] = app->priority;
 	new_cfg->app[new_cfg->numapps++] = new_app;
+
 	ret = ice_pf_dcb_cfg(pf, new_cfg, true);
 	/* return of zero indicates new cfg applied */
 	if (ret == ICE_DCB_HW_CHG_RST)
 		ice_dcbnl_devreset(netdev);
-	if (ret == ICE_DCB_NO_HW_CHG)
-		ret = ICE_DCB_HW_CHG_RST;
+	else
+		ret = ICE_DCB_NO_HW_CHG;
 
 setapp_out:
 	mutex_unlock(&pf->tc_mutex);
@@ -747,22 +831,21 @@ static int ice_dcbnl_delapp(struct net_device *netdev, struct dcb_app *app)
 	unsigned int i, j;
 	int ret = 0;
 
-	if (pf->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED)
+	if (pf->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED) {
+		netdev_err(netdev, "can't delete DSCP netlink app when FW DCB agent is active\n");
 		return -EINVAL;
+	}
 
 	mutex_lock(&pf->tc_mutex);
-	old_cfg = &pf->hw.port_info->local_dcbx_cfg;
-
-	if (old_cfg->numapps <= 1)
-		goto delapp_out;
+	old_cfg = &pf->hw.port_info->qos_cfg.local_dcbx_cfg;
 
 	ret = dcb_ieee_delapp(netdev, app);
 	if (ret)
 		goto delapp_out;
 
-	new_cfg = &pf->hw.port_info->desired_dcbx_cfg;
+	new_cfg = &pf->hw.port_info->qos_cfg.desired_dcbx_cfg;
 
-	for (i = 1; i < new_cfg->numapps; i++) {
+	for (i = 0; i < new_cfg->numapps; i++) {
 		if (app->selector == new_cfg->app[i].selector &&
 		    app->protocol == new_cfg->app[i].prot_id &&
 		    app->priority == new_cfg->app[i].priority) {
@@ -782,17 +865,58 @@ static int ice_dcbnl_delapp(struct net_device *netdev, struct dcb_app *app)
 	new_cfg->numapps--;
 
 	for (j = i; j < new_cfg->numapps; j++) {
-		new_cfg->app[i].selector = old_cfg->app[j + 1].selector;
-		new_cfg->app[i].prot_id = old_cfg->app[j + 1].prot_id;
-		new_cfg->app[i].priority = old_cfg->app[j + 1].priority;
+		new_cfg->app[j].selector = old_cfg->app[j + 1].selector;
+		new_cfg->app[j].prot_id = old_cfg->app[j + 1].prot_id;
+		new_cfg->app[j].priority = old_cfg->app[j + 1].priority;
 	}
 
-	ret = ice_pf_dcb_cfg(pf, new_cfg, true);
-	/* return of zero indicates new cfg applied */
+	/* if not a DSCP APP TLV or DSCP is not supported, we are done */
+	if (app->selector != IEEE_8021QAZ_APP_SEL_DSCP ||
+	    !ice_is_feature_supported(pf, ICE_F_DSCP)) {
+		ret = ICE_DCB_HW_CHG;
+		goto delapp_out;
+	}
+
+	/* if DSCP TLV, then need to address change in mapping */
+	clear_bit(app->protocol, new_cfg->dscp_mapped);
+	/* remap this DSCP value to default value */
+	new_cfg->dscp_map[app->protocol] = app->protocol %
+					   ICE_BYTES_PER_DSCP_VAL;
+
+	/* if the last DSCP mapping just got deleted, need to switch
+	 * to L2 VLAN QoS mode
+	 */
+	if (bitmap_empty(new_cfg->dscp_mapped, ICE_DSCP_NUM_VAL) &&
+	    new_cfg->pfc_mode == ICE_QOS_MODE_DSCP) {
+		ret = ice_aq_set_pfc_mode(&pf->hw,
+					  ICE_AQC_PFC_VLAN_BASED_PFC,
+					  NULL);
+		if (ret) {
+			netdev_info(netdev, "Failed to set VLAN PFC mode %d\n",
+				    ret);
+			goto delapp_out;
+		}
+		netdev_info(netdev, "Switched QoS to L2 VLAN mode\n");
+
+		new_cfg->pfc_mode = ICE_QOS_MODE_VLAN;
+
+		ret = ice_dcb_sw_dflt_cfg(pf, true, true);
+	} else {
+		ret = ice_pf_dcb_cfg(pf, new_cfg, true);
+	}
+
+	/* return of ICE_DCB_HW_CHG_RST indicates new cfg applied
+	 * and reset needs to be performed
+	 */
 	if (ret == ICE_DCB_HW_CHG_RST)
 		ice_dcbnl_devreset(netdev);
+
+	/* if the change was not siginificant enough to actually call
+	 * the reconfiguration flow, we still need to tell caller that
+	 * their request was successfully handled
+	 */
 	if (ret == ICE_DCB_NO_HW_CHG)
-		ret = ICE_DCB_HW_CHG_RST;
+		ret = ICE_DCB_HW_CHG;
 
 delapp_out:
 	mutex_unlock(&pf->tc_mutex);
@@ -813,7 +937,7 @@ static u8 ice_dcbnl_cee_set_all(struct net_device *netdev)
 	    !(pf->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
 		return ICE_DCB_NO_HW_CHG;
 
-	new_cfg = &pf->hw.port_info->desired_dcbx_cfg;
+	new_cfg = &pf->hw.port_info->qos_cfg.desired_dcbx_cfg;
 
 	mutex_lock(&pf->tc_mutex);
 
@@ -884,7 +1008,7 @@ void ice_dcbnl_set_all(struct ice_vsi *vsi)
 	if (!test_bit(ICE_FLAG_DCB_ENA, pf->flags))
 		return;
 
-	dcbxcfg = &pi->local_dcbx_cfg;
+	dcbxcfg = &pi->qos_cfg.local_dcbx_cfg;
 
 	for (i = 0; i < dcbxcfg->numapps; i++) {
 		u8 prio, tc_map;

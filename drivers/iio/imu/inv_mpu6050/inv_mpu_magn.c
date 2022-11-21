@@ -261,6 +261,7 @@ int inv_mpu_magn_set_rate(const struct inv_mpu6050_state *st, int fifo_rate)
  */
 int inv_mpu_magn_set_orient(struct inv_mpu6050_state *st)
 {
+	struct device *dev = regmap_get_device(st->map);
 	const char *orient;
 	char *str;
 	int i;
@@ -279,22 +280,27 @@ int inv_mpu_magn_set_orient(struct inv_mpu6050_state *st)
 		st->magn_orient.rotation[4] = st->orientation.rotation[1];
 		st->magn_orient.rotation[5] = st->orientation.rotation[2];
 		/* z <- -z */
-		for (i = 0; i < 3; ++i) {
-			orient = st->orientation.rotation[6 + i];
-			/* use length + 2 for adding minus sign if needed */
-			str = devm_kzalloc(regmap_get_device(st->map),
-					   strlen(orient) + 2, GFP_KERNEL);
-			if (str == NULL)
+		for (i = 6; i < 9; ++i) {
+			orient = st->orientation.rotation[i];
+
+			/*
+			 * The value is negated according to one of the following
+			 * rules:
+			 *
+			 * 1) Drop leading minus.
+			 * 2) Leave 0 as is.
+			 * 3) Add leading minus.
+			 */
+			if (orient[0] == '-')
+				str = devm_kstrdup(dev, orient + 1, GFP_KERNEL);
+			else if (!strcmp(orient, "0"))
+				str = devm_kstrdup(dev, orient, GFP_KERNEL);
+			else
+				str = devm_kasprintf(dev, GFP_KERNEL, "-%s", orient);
+			if (!str)
 				return -ENOMEM;
-			if (strcmp(orient, "0") == 0) {
-				strcpy(str, orient);
-			} else if (orient[0] == '-') {
-				strcpy(str, &orient[1]);
-			} else {
-				str[0] = '-';
-				strcpy(&str[1], orient);
-			}
-			st->magn_orient.rotation[6 + i] = str;
+
+			st->magn_orient.rotation[i] = str;
 		}
 		break;
 	default:

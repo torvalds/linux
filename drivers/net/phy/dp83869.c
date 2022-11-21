@@ -16,6 +16,7 @@
 #include <dt-bindings/net/ti-dp83869.h>
 
 #define DP83869_PHY_ID		0x2000a0f1
+#define DP83561_PHY_ID		0x2000a1a4
 #define DP83869_DEVADDR		0x1f
 
 #define MII_DP83869_PHYCTRL	0x10
@@ -186,9 +187,13 @@ static int dp83869_ack_interrupt(struct phy_device *phydev)
 
 static int dp83869_config_intr(struct phy_device *phydev)
 {
-	int micr_status = 0;
+	int micr_status = 0, err;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = dp83869_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		micr_status = phy_read(phydev, MII_DP83869_MICR);
 		if (micr_status < 0)
 			return micr_status;
@@ -201,10 +206,40 @@ static int dp83869_config_intr(struct phy_device *phydev)
 			MII_DP83869_MICR_DUP_MODE_CHNG_INT_EN |
 			MII_DP83869_MICR_SLEEP_MODE_CHNG_INT_EN);
 
-		return phy_write(phydev, MII_DP83869_MICR, micr_status);
+		err = phy_write(phydev, MII_DP83869_MICR, micr_status);
+	} else {
+		err = phy_write(phydev, MII_DP83869_MICR, micr_status);
+		if (err)
+			return err;
+
+		err = dp83869_ack_interrupt(phydev);
 	}
 
-	return phy_write(phydev, MII_DP83869_MICR, micr_status);
+	return err;
+}
+
+static irqreturn_t dp83869_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status, irq_enabled;
+
+	irq_status = phy_read(phydev, MII_DP83869_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	irq_enabled = phy_read(phydev, MII_DP83869_MICR);
+	if (irq_enabled < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & irq_enabled))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int dp83869_set_wol(struct phy_device *phydev,
@@ -212,7 +247,7 @@ static int dp83869_set_wol(struct phy_device *phydev,
 {
 	struct net_device *ndev = phydev->attached_dev;
 	int val_rxcfg, val_micr;
-	u8 *mac;
+	const u8 *mac;
 	int ret;
 
 	val_rxcfg = phy_read_mmd(phydev, DP83869_DEVADDR, DP83869_RXFCFG);
@@ -230,7 +265,7 @@ static int dp83869_set_wol(struct phy_device *phydev,
 
 		if (wol->wolopts & WAKE_MAGIC ||
 		    wol->wolopts & WAKE_MAGICSECURE) {
-			mac = (u8 *)ndev->dev_addr;
+			mac = (const u8 *)ndev->dev_addr;
 
 			if (!is_valid_ether_addr(mac))
 				return -EINVAL;
@@ -821,6 +856,10 @@ static int dp83869_probe(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
+	if (dp83869->mode == DP83869_RGMII_100_BASE ||
+	    dp83869->mode == DP83869_RGMII_1000_BASE)
+		phydev->port = PORT_FIBRE;
+
 	return dp83869_config_init(phydev);
 }
 
@@ -840,34 +879,35 @@ static int dp83869_phy_reset(struct phy_device *phydev)
 	return dp83869_config_init(phydev);
 }
 
+
+#define DP83869_PHY_DRIVER(_id, _name)				\
+{								\
+	PHY_ID_MATCH_MODEL(_id),				\
+	.name		= (_name),				\
+	.probe          = dp83869_probe,			\
+	.config_init	= dp83869_config_init,			\
+	.soft_reset	= dp83869_phy_reset,			\
+	.config_intr	= dp83869_config_intr,			\
+	.handle_interrupt = dp83869_handle_interrupt,		\
+	.read_status	= dp83869_read_status,			\
+	.get_tunable	= dp83869_get_tunable,			\
+	.set_tunable	= dp83869_set_tunable,			\
+	.get_wol	= dp83869_get_wol,			\
+	.set_wol	= dp83869_set_wol,			\
+	.suspend	= genphy_suspend,			\
+	.resume		= genphy_resume,			\
+}
+
 static struct phy_driver dp83869_driver[] = {
-	{
-		PHY_ID_MATCH_MODEL(DP83869_PHY_ID),
-		.name		= "TI DP83869",
+	DP83869_PHY_DRIVER(DP83869_PHY_ID, "TI DP83869"),
+	DP83869_PHY_DRIVER(DP83561_PHY_ID, "TI DP83561-SP"),
 
-		.probe          = dp83869_probe,
-		.config_init	= dp83869_config_init,
-		.soft_reset	= dp83869_phy_reset,
-
-		/* IRQ related */
-		.ack_interrupt	= dp83869_ack_interrupt,
-		.config_intr	= dp83869_config_intr,
-		.read_status	= dp83869_read_status,
-
-		.get_tunable	= dp83869_get_tunable,
-		.set_tunable	= dp83869_set_tunable,
-
-		.get_wol	= dp83869_get_wol,
-		.set_wol	= dp83869_set_wol,
-
-		.suspend	= genphy_suspend,
-		.resume		= genphy_resume,
-	},
 };
 module_phy_driver(dp83869_driver);
 
 static struct mdio_device_id __maybe_unused dp83869_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(DP83869_PHY_ID) },
+	{ PHY_ID_MATCH_MODEL(DP83561_PHY_ID) },
 	{ }
 };
 MODULE_DEVICE_TABLE(mdio, dp83869_tbl);

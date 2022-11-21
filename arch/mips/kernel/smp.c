@@ -59,7 +59,7 @@ static DECLARE_COMPLETION(cpu_starting);
 static DECLARE_COMPLETION(cpu_running);
 
 /*
- * A logcal cpu mask containing only one VPE per core to
+ * A logical cpu mask containing only one VPE per core to
  * reduce the number of IPIs on large MT systems.
  */
 cpumask_t cpu_foreign_map[NR_CPUS] __read_mostly;
@@ -348,9 +348,11 @@ asmlinkage void start_secondary(void)
 	 */
 
 	calibrate_delay();
-	preempt_disable();
 	cpu = smp_processor_id();
 	cpu_data[cpu].udelay_val = loops_per_jiffy;
+
+	set_cpu_sibling_map(cpu);
+	set_cpu_core_map(cpu);
 
 	cpumask_set_cpu(cpu, &cpu_coherent_mask);
 	notify_cpu_starting(cpu);
@@ -362,9 +364,6 @@ asmlinkage void start_secondary(void)
 
 	/* The CPU is running and counters synchronised, now mark it online */
 	set_cpu_online(cpu, true);
-
-	set_cpu_sibling_map(cpu);
-	set_cpu_core_map(cpu);
 
 	calculate_cpu_foreign_map();
 
@@ -510,8 +509,8 @@ static inline void smp_on_each_tlb(void (*func) (void *info), void *info)
  * address spaces, a new context is obtained on the current cpu, and tlb
  * context on other cpus are invalidated to force a new context allocation
  * at switch_mm time, should the mm ever be used on other cpus. For
- * multithreaded address spaces, intercpu interrupts have to be sent.
- * Another case where intercpu interrupts are required is when the target
+ * multithreaded address spaces, inter-CPU interrupts have to be sent.
+ * Another case where inter-CPU interrupts are required is when the target
  * mm might be active on another cpu (eg debuggers doing the flushes on
  * behalf of debugees, kswapd stealing pages from another process etc).
  * Kanoj 07/00.
@@ -687,7 +686,13 @@ EXPORT_SYMBOL(flush_tlb_one);
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 
-static DEFINE_PER_CPU(call_single_data_t, tick_broadcast_csd);
+static void tick_broadcast_callee(void *info)
+{
+	tick_receive_broadcast();
+}
+
+static DEFINE_PER_CPU(call_single_data_t, tick_broadcast_csd) =
+	CSD_INIT(tick_broadcast_callee, NULL);
 
 void tick_broadcast(const struct cpumask *mask)
 {
@@ -699,24 +704,5 @@ void tick_broadcast(const struct cpumask *mask)
 		smp_call_function_single_async(cpu, csd);
 	}
 }
-
-static void tick_broadcast_callee(void *info)
-{
-	tick_receive_broadcast();
-}
-
-static int __init tick_broadcast_init(void)
-{
-	call_single_data_t *csd;
-	int cpu;
-
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-		csd = &per_cpu(tick_broadcast_csd, cpu);
-		csd->func = tick_broadcast_callee;
-	}
-
-	return 0;
-}
-early_initcall(tick_broadcast_init);
 
 #endif /* CONFIG_GENERIC_CLOCKEVENTS_BROADCAST */

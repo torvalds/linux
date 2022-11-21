@@ -18,9 +18,9 @@
 #include <asm/feature-fixups.h>
 
 /* Pickup Book E specific registers. */
-#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+#ifdef CONFIG_BOOKE_OR_40x
 #include <asm/reg_booke.h>
-#endif /* CONFIG_BOOKE || CONFIG_40x */
+#endif
 
 #ifdef CONFIG_FSL_EMB_PERFMON
 #include <asm/reg_fsl_emb.h>
@@ -29,7 +29,6 @@
 #include <asm/reg_8xx.h>
 
 #define MSR_SF_LG	63              /* Enable 64 bit mode */
-#define MSR_ISF_LG	61              /* Interrupt 64b mode valid on 630 */
 #define MSR_HV_LG 	60              /* Hypervisor state */
 #define MSR_TS_T_LG	34		/* Trans Mem state: Transactional */
 #define MSR_TS_S_LG	33		/* Trans Mem state: Suspended */
@@ -69,13 +68,11 @@
 
 #ifdef CONFIG_PPC64
 #define MSR_SF		__MASK(MSR_SF_LG)	/* Enable 64 bit mode */
-#define MSR_ISF		__MASK(MSR_ISF_LG)	/* Interrupt 64b mode valid on 630 */
 #define MSR_HV 		__MASK(MSR_HV_LG)	/* Hypervisor state */
 #define MSR_S		__MASK(MSR_S_LG)	/* Secure state */
 #else
 /* so tests for these bits fail on 32-bit */
 #define MSR_SF		0
-#define MSR_ISF		0
 #define MSR_HV		0
 #define MSR_S		0
 #endif
@@ -127,14 +124,14 @@
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 #define MSR_TM_ACTIVE(x) (((x) & MSR_TS_MASK) != 0) /* Transaction active? */
 #else
-#define MSR_TM_ACTIVE(x) 0
+#define MSR_TM_ACTIVE(x) ((void)(x), 0)
 #endif
 
 #if defined(CONFIG_PPC_BOOK3S_64)
 #define MSR_64BIT	MSR_SF
 
 /* Server variant */
-#define __MSR		(MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_ISF |MSR_HV)
+#define __MSR		(MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_HV)
 #ifdef __BIG_ENDIAN__
 #define MSR_		__MSR
 #define MSR_IDLE	(MSR_ME | MSR_SF | MSR_HV)
@@ -396,6 +393,7 @@
 #define SPRN_PMMAR	0x356	/* Power Management Memory Activity Register */
 #define SPRN_PSSCR	0x357	/* Processor Stop Status and Control Register (ISA 3.0) */
 #define SPRN_PSSCR_PR	0x337	/* PSSCR ISA 3.0, privileged mode access */
+#define SPRN_TRIG2	0x372
 #define SPRN_PMCR	0x374	/* Power Management Control Register */
 #define SPRN_RWMR	0x375	/* Region-Weighting Mode Register */
 
@@ -417,6 +415,7 @@
 #define   FSCR_TAR	__MASK(FSCR_TAR_LG)
 #define   FSCR_EBB	__MASK(FSCR_EBB_LG)
 #define   FSCR_DSCR	__MASK(FSCR_DSCR_LG)
+#define   FSCR_INTR_CAUSE (ASM_CONST(0xFF) << 56)	/* interrupt cause */
 #define SPRN_HFSCR	0xbe	/* HV=1 Facility Status & Control Register */
 #define   HFSCR_PREFIX	__MASK(FSCR_PREFIX_LG)
 #define   HFSCR_MSGP	__MASK(FSCR_MSGP_LG)
@@ -428,7 +427,7 @@
 #define   HFSCR_DSCR	__MASK(FSCR_DSCR_LG)
 #define   HFSCR_VECVSX	__MASK(FSCR_VECVSX_LG)
 #define   HFSCR_FP	__MASK(FSCR_FP_LG)
-#define   HFSCR_INTR_CAUSE (ASM_CONST(0xFF) << 56)	/* interrupt cause */
+#define   HFSCR_INTR_CAUSE FSCR_INTR_CAUSE
 #define SPRN_TAR	0x32f	/* Target Address Register */
 #define SPRN_LPCR	0x13E	/* LPAR Control Register */
 #define   LPCR_VPM0		ASM_CONST(0x8000000000000000)
@@ -444,6 +443,7 @@
 #define   LPCR_VRMA_LP1		ASM_CONST(0x0000800000000000)
 #define   LPCR_RMLS		0x1C000000	/* Implementation dependent RMO limit sel */
 #define   LPCR_RMLS_SH		26
+#define   LPCR_HAIL		ASM_CONST(0x0000000004000000)   /* HV AIL (ISAv3.1) */
 #define   LPCR_ILE		ASM_CONST(0x0000000002000000)   /* !HV irqs set MSR:LE */
 #define   LPCR_AIL		ASM_CONST(0x0000000001800000)	/* Alternate interrupt location */
 #define   LPCR_AIL_0		ASM_CONST(0x0000000000000000)	/* MMU off exception offset 0x0 */
@@ -864,6 +864,7 @@
 #define   MMCR0_BHRBA	0x00200000UL /* BHRB Access allowed in userspace */
 #define   MMCR0_EBE	0x00100000UL /* Event based branch enable */
 #define   MMCR0_PMCC	0x000c0000UL /* PMC control */
+#define   MMCR0_PMCCEXT	ASM_CONST(0x00000200) /* PMCCEXT control */
 #define   MMCR0_PMCC_U6	0x00080000UL /* PMC1-6 are R/W by user (PR) */
 #define   MMCR0_PMC1CE	0x00008000UL /* PMC1 count enable*/
 #define   MMCR0_PMCjCE	ASM_CONST(0x00004000) /* PMCj count enable*/
@@ -1203,7 +1204,7 @@
 #ifdef CONFIG_PPC_BOOK3S_32
 #define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
 #define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
-#define SPRN_SPRG_PGDIR		SPRN_SPRG2
+#define SPRN_SPRG_SCRATCH2	SPRN_SPRG2
 #define SPRN_SPRG_603_LRU	SPRN_SPRG4
 #endif
 
@@ -1232,13 +1233,8 @@
 #define SPRN_SPRG_WSCRATCH_MC	SPRN_SPRG1
 #define SPRN_SPRG_RSCRATCH4	SPRN_SPRG7R
 #define SPRN_SPRG_WSCRATCH4	SPRN_SPRG7W
-#ifdef CONFIG_E200
-#define SPRN_SPRG_RSCRATCH_DBG	SPRN_SPRG6R
-#define SPRN_SPRG_WSCRATCH_DBG	SPRN_SPRG6W
-#else
 #define SPRN_SPRG_RSCRATCH_DBG	SPRN_SPRG9
 #define SPRN_SPRG_WSCRATCH_DBG	SPRN_SPRG9
-#endif
 #endif
 
 #ifdef CONFIG_PPC_8xx
@@ -1370,6 +1366,18 @@
 
 /* Macros for setting and retrieving special purpose registers */
 #ifndef __ASSEMBLY__
+
+#if defined(CONFIG_PPC64) || defined(__CHECKER__)
+typedef struct {
+	u32 val;
+#ifdef CONFIG_PPC64
+	u32 suffix;
+#endif
+} __packed ppc_inst_t;
+#else
+typedef u32 ppc_inst_t;
+#endif
+
 #define mfmsr()		({unsigned long rval; \
 			asm volatile("mfmsr %0" : "=r" (rval) : \
 						: "memory"); rval;})
@@ -1382,6 +1390,7 @@
 #define mtmsr(v)	asm volatile("mtmsr %0" : \
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
+#define __mtmsrd(v, l)	BUILD_BUG()
 #define __MTMSR		"mtmsr"
 #endif
 
@@ -1399,8 +1408,7 @@ static inline void mtmsr_isync(unsigned long val)
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
 #endif
-#define wrtspr(rn)	asm volatile("mtspr " __stringify(rn) ",0" : \
-				     : : "memory")
+#define wrtspr(rn)	asm volatile("mtspr " __stringify(rn) ",2" : : : "memory")
 
 static inline void wrtee(unsigned long val)
 {
@@ -1419,49 +1427,27 @@ static inline void msr_check_and_clear(unsigned long bits)
 		__msr_check_and_clear(bits);
 }
 
-#if defined(CONFIG_PPC_CELL) || defined(CONFIG_E500)
-#define mftb()		({unsigned long rval;				\
-			asm volatile(					\
-				"90:	mfspr %0, %2;\n"		\
-				ASM_FTR_IFSET(				\
-					"97:	cmpwi %0,0;\n"		\
-					"	beq- 90b;\n", "", %1)	\
-			: "=r" (rval) \
-			: "i" (CPU_FTR_CELL_TB_BUG), "i" (SPRN_TBRL) : "cr0"); \
-			rval;})
-#elif defined(CONFIG_PPC_8xx)
-#define mftb()		({unsigned long rval;	\
-			asm volatile("mftbl %0" : "=r" (rval)); rval;})
-#else
-#define mftb()		({unsigned long rval;	\
-			asm volatile("mfspr %0, %1" : \
-				     "=r" (rval) : "i" (SPRN_TBRL)); rval;})
-#endif /* !CONFIG_PPC_CELL */
-
-#if defined(CONFIG_PPC_8xx)
-#define mftbu()		({unsigned long rval;	\
-			asm volatile("mftbu %0" : "=r" (rval)); rval;})
-#else
-#define mftbu()		({unsigned long rval;	\
-			asm volatile("mfspr %0, %1" : "=r" (rval) : \
-				"i" (SPRN_TBRU)); rval;})
-#endif
-
-#define mttbl(v)	asm volatile("mttbl %0":: "r"(v))
-#define mttbu(v)	asm volatile("mttbu %0":: "r"(v))
-
 #ifdef CONFIG_PPC32
-#define mfsrin(v)	({unsigned int rval; \
-			asm volatile("mfsrin %0,%1" : "=r" (rval) : "r" (v)); \
-					rval;})
-
-static inline void mtsrin(u32 val, u32 idx)
+static inline u32 mfsr(u32 idx)
 {
-	asm volatile("mtsrin %0, %1" : : "r" (val), "r" (idx));
+	u32 val;
+
+	if (__builtin_constant_p(idx))
+		asm volatile("mfsr %0, %1" : "=r" (val): "i" (idx >> 28));
+	else
+		asm volatile("mfsrin %0, %1" : "=r" (val): "r" (idx));
+
+	return val;
+}
+
+static inline void mtsr(u32 val, u32 idx)
+{
+	if (__builtin_constant_p(idx))
+		asm volatile("mtsr %1, %0" : : "r" (val), "i" (idx >> 28));
+	else
+		asm volatile("mtsrin %0, %1" : : "r" (val), "r" (idx));
 }
 #endif
-
-#define proc_trap()	asm volatile("trap")
 
 extern unsigned long current_stack_frame(void);
 
@@ -1473,16 +1459,6 @@ extern void scom970_write(unsigned int address, unsigned long value);
 struct pt_regs;
 
 extern void ppc_save_regs(struct pt_regs *regs);
-
-static inline void update_power8_hid0(unsigned long hid0)
-{
-	/*
-	 *  The HID0 update on Power8 should at the very least be
-	 *  preceded by a SYNC instruction followed by an ISYNC
-	 *  instruction
-	 */
-	asm volatile("sync; mtspr %0,%1; isync":: "i"(SPRN_HID0), "r"(hid0));
-}
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_REG_H */

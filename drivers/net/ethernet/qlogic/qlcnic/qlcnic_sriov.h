@@ -188,7 +188,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *, int);
 void qlcnic_sriov_cleanup(struct qlcnic_adapter *);
 void __qlcnic_sriov_cleanup(struct qlcnic_adapter *);
 void qlcnic_sriov_vf_register_map(struct qlcnic_hardware_context *);
-int qlcnic_sriov_vf_init(struct qlcnic_adapter *, int);
+int qlcnic_sriov_vf_init(struct qlcnic_adapter *);
 void qlcnic_sriov_vf_set_ops(struct qlcnic_adapter *);
 int qlcnic_sriov_func_to_index(struct qlcnic_adapter *, u8);
 void qlcnic_sriov_handle_bc_event(struct qlcnic_adapter *, u32);
@@ -201,7 +201,7 @@ int qlcnic_sriov_get_vf_vport_info(struct qlcnic_adapter *,
 				   struct qlcnic_info *, u16);
 int qlcnic_sriov_cfg_vf_guest_vlan(struct qlcnic_adapter *, u16, u8);
 void qlcnic_sriov_free_vlans(struct qlcnic_adapter *);
-void qlcnic_sriov_alloc_vlans(struct qlcnic_adapter *);
+int qlcnic_sriov_alloc_vlans(struct qlcnic_adapter *);
 bool qlcnic_sriov_check_any_vlan(struct qlcnic_vf_info *);
 void qlcnic_sriov_del_vlan_id(struct qlcnic_sriov *,
 			      struct qlcnic_vf_info *, u16);

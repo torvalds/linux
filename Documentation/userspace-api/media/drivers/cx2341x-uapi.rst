@@ -7,9 +7,7 @@ Non-compressed file format
 --------------------------
 
 The cx23416 can produce (and the cx23415 can also read) raw YUV output. The
-format of a YUV frame is specific to this chip and is called HM12. 'HM' stands
-for 'Hauppauge Macroblock', which is a misnomer as 'Conexant Macroblock' would
-be more accurate.
+format of a YUV frame is 16x16 linear tiled NV12 (V4L2_PIX_FMT_NV12_16L16).
 
 The format is YUV 4:2:0 which uses 1 Y byte per pixel and 1 U and V byte per
 four pixels.
@@ -34,8 +32,8 @@ second line of 8 UV pairs of the top-left block, etc. After transmitting
 this block the first line of the block on the right to the first block is
 transmitted, etc.
 
-The code below is given as an example on how to convert HM12 to separate
-Y, U and V planes. This code assumes frames of 720x576 (PAL) pixels.
+The code below is given as an example on how to convert V4L2_PIX_FMT_NV12_16L16
+to separate Y, U and V planes. This code assumes frames of 720x576 (PAL) pixels.
 
 The width of a frame is always 720 pixels, regardless of the actual specified
 width.

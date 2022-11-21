@@ -88,8 +88,7 @@ static void i2c_amd_cmd_completion(struct amd_i2c_common *i2c_common)
 	union i2c_event *event = &i2c_common->eventval;
 
 	if (event->r.status == i2c_readcomplete_event)
-		dev_dbg(&i2c_dev->pdev->dev, "%s readdata:%*ph\n",
-			__func__, event->r.length,
+		dev_dbg(&i2c_dev->pdev->dev, "readdata:%*ph\n", event->r.length,
 			i2c_common->msg->buf);
 
 	complete(&i2c_dev->cmd_complete);
@@ -247,12 +246,11 @@ static int i2c_amd_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct amd_i2c_dev *i2c_dev;
-	acpi_handle handle = ACPI_HANDLE(&pdev->dev);
-	struct acpi_device *adev;
+	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
 	struct amd_mp2_dev *mp2_dev;
 	const char *uid;
 
-	if (acpi_bus_get_device(handle, &adev))
+	if (!adev)
 		return -ENODEV;
 
 	/* The ACPI namespace doesn't contain information about which MP2 PCI

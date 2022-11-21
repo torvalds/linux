@@ -586,6 +586,9 @@ static void mt7601u_rxdc_cal(struct mt7601u_dev *dev)
 
 void mt7601u_phy_recalibrate_after_assoc(struct mt7601u_dev *dev)
 {
+	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+		return;
+
 	mt7601u_mcu_calibrate(dev, MCU_CAL_DPD, dev->curr_temp);
 
 	mt7601u_rxdc_cal(dev);

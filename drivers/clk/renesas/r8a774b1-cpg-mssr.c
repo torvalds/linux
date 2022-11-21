@@ -40,6 +40,7 @@ enum clk_ids {
 	CLK_S2,
 	CLK_S3,
 	CLK_SDSRC,
+	CLK_RPCSRC,
 	CLK_RINT,
 
 	/* Module Clocks */
@@ -65,6 +66,12 @@ static const struct cpg_core_clk r8a774b1_core_clks[] __initconst = {
 	DEF_FIXED(".s2",        CLK_S2,            CLK_PLL1_DIV2,  4, 1),
 	DEF_FIXED(".s3",        CLK_S3,            CLK_PLL1_DIV2,  6, 1),
 	DEF_FIXED(".sdsrc",     CLK_SDSRC,         CLK_PLL1_DIV2,  2, 1),
+	DEF_BASE(".rpcsrc",     CLK_RPCSRC, CLK_TYPE_GEN3_RPCSRC, CLK_PLL1),
+
+	DEF_BASE("rpc",         R8A774B1_CLK_RPC, CLK_TYPE_GEN3_RPC,
+		 CLK_RPCSRC),
+	DEF_BASE("rpcd2",       R8A774B1_CLK_RPCD2, CLK_TYPE_GEN3_RPCD2,
+		 R8A774B1_CLK_RPC),
 
 	DEF_GEN3_OSC(".r",      CLK_RINT,          CLK_EXTAL,      32),
 
@@ -90,10 +97,14 @@ static const struct cpg_core_clk r8a774b1_core_clks[] __initconst = {
 	DEF_FIXED("s3d2",       R8A774B1_CLK_S3D2,  CLK_S3,         2, 1),
 	DEF_FIXED("s3d4",       R8A774B1_CLK_S3D4,  CLK_S3,         4, 1),
 
-	DEF_GEN3_SD("sd0",      R8A774B1_CLK_SD0,   CLK_SDSRC,     0x074),
-	DEF_GEN3_SD("sd1",      R8A774B1_CLK_SD1,   CLK_SDSRC,     0x078),
-	DEF_GEN3_SD("sd2",      R8A774B1_CLK_SD2,   CLK_SDSRC,     0x268),
-	DEF_GEN3_SD("sd3",      R8A774B1_CLK_SD3,   CLK_SDSRC,     0x26c),
+	DEF_GEN3_SDH("sd0h",    R8A774B1_CLK_SD0H,  CLK_SDSRC,         0x074),
+	DEF_GEN3_SDH("sd1h",    R8A774B1_CLK_SD1H,  CLK_SDSRC,         0x078),
+	DEF_GEN3_SDH("sd2h",    R8A774B1_CLK_SD2H,  CLK_SDSRC,         0x268),
+	DEF_GEN3_SDH("sd3h",    R8A774B1_CLK_SD3H,  CLK_SDSRC,         0x26c),
+	DEF_GEN3_SD("sd0",      R8A774B1_CLK_SD0,   R8A774B1_CLK_SD0H, 0x074),
+	DEF_GEN3_SD("sd1",      R8A774B1_CLK_SD1,   R8A774B1_CLK_SD1H, 0x078),
+	DEF_GEN3_SD("sd2",      R8A774B1_CLK_SD2,   R8A774B1_CLK_SD2H, 0x268),
+	DEF_GEN3_SD("sd3",      R8A774B1_CLK_SD3,   R8A774B1_CLK_SD3H, 0x26c),
 
 	DEF_FIXED("cl",         R8A774B1_CLK_CL,    CLK_PLL1_DIV2, 48, 1),
 	DEF_FIXED("cp",         R8A774B1_CLK_CP,    CLK_EXTAL,      2, 1),
@@ -196,9 +207,10 @@ static const struct mssr_mod_clk r8a774b1_mod_clks[] __initconst = {
 	DEF_MOD("can-fd",		 914,	R8A774B1_CLK_S3D2),
 	DEF_MOD("can-if1",		 915,	R8A774B1_CLK_S3D4),
 	DEF_MOD("can-if0",		 916,	R8A774B1_CLK_S3D4),
+	DEF_MOD("rpc-if",		 917,	R8A774B1_CLK_RPCD2),
 	DEF_MOD("i2c6",			 918,	R8A774B1_CLK_S0D6),
 	DEF_MOD("i2c5",			 919,	R8A774B1_CLK_S0D6),
-	DEF_MOD("i2c-dvfs",		 926,	R8A774B1_CLK_CP),
+	DEF_MOD("iic-pmic",		 926,	R8A774B1_CLK_CP),
 	DEF_MOD("i2c4",			 927,	R8A774B1_CLK_S0D6),
 	DEF_MOD("i2c3",			 928,	R8A774B1_CLK_S0D6),
 	DEF_MOD("i2c2",			 929,	R8A774B1_CLK_S3D2),

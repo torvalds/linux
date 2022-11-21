@@ -68,7 +68,7 @@ dpaa2_eth_dl_trap_item_lookup(struct dpaa2_eth_priv *priv, u16 trap_id)
 struct dpaa2_eth_trap_item *dpaa2_eth_dl_get_trap(struct dpaa2_eth_priv *priv,
 						  struct dpaa2_fapr *fapr)
 {
-	struct dpaa2_faf_error_bit {
+	static const struct dpaa2_faf_error_bit {
 		int position;
 		enum devlink_trap_generic_id trap_id;
 	} faf_bits[] = {
@@ -189,39 +189,37 @@ static const struct devlink_ops dpaa2_eth_devlink_ops = {
 	.trap_group_action_set = dpaa2_eth_dl_trap_group_action_set,
 };
 
-int dpaa2_eth_dl_register(struct dpaa2_eth_priv *priv)
+int dpaa2_eth_dl_alloc(struct dpaa2_eth_priv *priv)
 {
 	struct net_device *net_dev = priv->net_dev;
 	struct device *dev = net_dev->dev.parent;
 	struct dpaa2_eth_devlink_priv *dl_priv;
-	int err;
 
-	priv->devlink = devlink_alloc(&dpaa2_eth_devlink_ops, sizeof(*dl_priv));
+	priv->devlink =
+		devlink_alloc(&dpaa2_eth_devlink_ops, sizeof(*dl_priv), dev);
 	if (!priv->devlink) {
 		dev_err(dev, "devlink_alloc failed\n");
 		return -ENOMEM;
 	}
 	dl_priv = devlink_priv(priv->devlink);
 	dl_priv->dpaa2_priv = priv;
-
-	err = devlink_register(priv->devlink, dev);
-	if (err) {
-		dev_err(dev, "devlink_register() = %d\n", err);
-		goto devlink_free;
-	}
-
 	return 0;
+}
 
-devlink_free:
+void dpaa2_eth_dl_free(struct dpaa2_eth_priv *priv)
+{
 	devlink_free(priv->devlink);
+}
 
-	return err;
+
+void dpaa2_eth_dl_register(struct dpaa2_eth_priv *priv)
+{
+	devlink_register(priv->devlink);
 }
 
 void dpaa2_eth_dl_unregister(struct dpaa2_eth_priv *priv)
 {
 	devlink_unregister(priv->devlink);
-	devlink_free(priv->devlink);
 }
 
 int dpaa2_eth_dl_port_add(struct dpaa2_eth_priv *priv)

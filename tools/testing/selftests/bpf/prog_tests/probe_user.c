@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 
-void test_probe_user(void)
+/* TODO: corrupts other tests uses connect() */
+void serial_test_probe_user(void)
 {
-	const char *prog_name = "kprobe/__sys_connect";
+	const char *prog_name = "handle_sys_connect";
 	const char *obj_file = "./test_probe_user.o";
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts, );
 	int err, results_map_fd, sock_fd, duration = 0;
@@ -15,10 +16,10 @@ void test_probe_user(void)
 	static const int zero = 0;
 
 	obj = bpf_object__open_file(obj_file, &opts);
-	if (CHECK(IS_ERR(obj), "obj_open_file", "err %ld\n", PTR_ERR(obj)))
+	if (!ASSERT_OK_PTR(obj, "obj_open_file"))
 		return;
 
-	kprobe_prog = bpf_object__find_program_by_title(obj, prog_name);
+	kprobe_prog = bpf_object__find_program_by_name(obj, prog_name);
 	if (CHECK(!kprobe_prog, "find_probe",
 		  "prog '%s' not found\n", prog_name))
 		goto cleanup;
@@ -33,11 +34,8 @@ void test_probe_user(void)
 		goto cleanup;
 
 	kprobe_link = bpf_program__attach(kprobe_prog);
-	if (CHECK(IS_ERR(kprobe_link), "attach_kprobe",
-		  "err %ld\n", PTR_ERR(kprobe_link))) {
-		kprobe_link = NULL;
+	if (!ASSERT_OK_PTR(kprobe_link, "attach_kprobe"))
 		goto cleanup;
-	}
 
 	memset(&curr, 0, sizeof(curr));
 	in->sin_family = AF_INET;

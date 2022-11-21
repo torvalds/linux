@@ -31,6 +31,7 @@
 #include <drm/drm_ioctl.h>
 
 #include "i915_drv.h"
+#include "i915_getparam.h"
 #include "i915_ioc32.h"
 
 struct drm_i915_getparam32 {

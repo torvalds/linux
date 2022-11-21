@@ -27,6 +27,7 @@ struct prestera_dsa {
 	struct prestera_dsa_vlan vlan;
 	u32 hw_dev_num;
 	u32 port_num;
+	u8 cpu_code;
 };
 
 int prestera_dsa_parse(struct prestera_dsa *dsa, const u8 *dsa_buf);

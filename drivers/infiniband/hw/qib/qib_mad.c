@@ -203,7 +203,7 @@ static void qib_bad_mkey(struct qib_ibport *ibp, struct ib_smp *smp)
 /*
  * Send a Port Capability Mask Changed trap (ch. 14.3.11).
  */
-void qib_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num)
+void qib_cap_mask_chg(struct rvt_dev_info *rdi, u32 port_num)
 {
 	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
 	struct qib_devdata *dd = dd_from_dev(ibdev);
@@ -886,7 +886,7 @@ done:
 
 /**
  * rm_pkey - decrecment the reference count for the given PKEY
- * @dd: the qlogic_ib device
+ * @ppd: the qlogic_ib device
  * @key: the PKEY index
  *
  * Return true if this was the last reference and the hardware table entry
@@ -916,7 +916,7 @@ bail:
 
 /**
  * add_pkey - add the given PKEY to the hardware table
- * @dd: the qlogic_ib device
+ * @ppd: the qlogic_ib device
  * @key: the PKEY
  *
  * Return an error code if unable to add the entry, zero if no change,
@@ -2346,8 +2346,10 @@ static int process_cc(struct ib_device *ibdev, int mad_flags,
  * @port: the port number this packet came in on
  * @in_wc: the work completion entry for this packet
  * @in_grh: the global route header for this packet
- * @in_mad: the incoming MAD
- * @out_mad: any outgoing MAD reply
+ * @in: the incoming MAD
+ * @out: any outgoing MAD reply
+ * @out_mad_size: size of the outgoing MAD reply
+ * @out_mad_pkey_index: unused
  *
  * Returns IB_MAD_RESULT_SUCCESS if this is a MAD that we are not
  * interested in processing.
@@ -2358,7 +2360,7 @@ static int process_cc(struct ib_device *ibdev, int mad_flags,
  *
  * This is called by the ib_mad module.
  */
-int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
+int qib_process_mad(struct ib_device *ibdev, int mad_flags, u32 port,
 		    const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		    const struct ib_mad *in, struct ib_mad *out,
 		    size_t *out_mad_size, u16 *out_mad_pkey_index)

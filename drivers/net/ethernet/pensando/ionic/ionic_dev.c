@@ -14,18 +14,55 @@
 static void ionic_watchdog_cb(struct timer_list *t)
 {
 	struct ionic *ionic = from_timer(ionic, t, watchdog_timer);
+	struct ionic_lif *lif = ionic->lif;
+	struct ionic_deferred_work *work;
 	int hb;
 
 	mod_timer(&ionic->watchdog_timer,
 		  round_jiffies(jiffies + ionic->watchdog_period));
 
-	if (!ionic->lif)
+	if (!lif)
 		return;
 
 	hb = ionic_heartbeat_check(ionic);
+	dev_dbg(ionic->dev, "%s: hb %d running %d UP %d\n",
+		__func__, hb, netif_running(lif->netdev),
+		test_bit(IONIC_LIF_F_UP, lif->state));
 
-	if (hb >= 0)
-		ionic_link_status_check_request(ionic->lif, false);
+	if (hb >= 0 &&
+	    !test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		ionic_link_status_check_request(lif, CAN_NOT_SLEEP);
+
+	if (test_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state) &&
+	    !test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
+		work = kzalloc(sizeof(*work), GFP_ATOMIC);
+		if (!work) {
+			netdev_err(lif->netdev, "rxmode change dropped\n");
+			return;
+		}
+
+		work->type = IONIC_DW_TYPE_RX_MODE;
+		netdev_dbg(lif->netdev, "deferred: rx_mode\n");
+		ionic_lif_deferred_enqueue(&lif->deferred, work);
+	}
+}
+
+static void ionic_watchdog_init(struct ionic *ionic)
+{
+	struct ionic_dev *idev = &ionic->idev;
+
+	timer_setup(&ionic->watchdog_timer, ionic_watchdog_cb, 0);
+	ionic->watchdog_period = IONIC_WATCHDOG_SECS * HZ;
+
+	/* set times to ensure the first check will proceed */
+	atomic_long_set(&idev->last_check_time, jiffies - 2 * HZ);
+	idev->last_hb_time = jiffies - 2 * ionic->watchdog_period;
+	/* init as ready, so no transition if the first check succeeds */
+	idev->last_fw_hb = 0;
+	idev->fw_hb_ready = true;
+	idev->fw_status_ready = true;
+	idev->fw_generation = IONIC_FW_STS_F_GENERATION &
+			      ioread8(&idev->dev_info_regs->fw_status);
 }
 
 void ionic_init_devinfo(struct ionic *ionic)
@@ -74,6 +111,8 @@ int ionic_dev_setup(struct ionic *ionic)
 	idev->intr_status = bar->vaddr + IONIC_BAR0_INTR_STATUS_OFFSET;
 	idev->intr_ctrl = bar->vaddr + IONIC_BAR0_INTR_CTRL_OFFSET;
 
+	idev->hwstamp_regs = &idev->dev_info_regs->hwstamp;
+
 	sig = ioread32(&idev->dev_info_regs->signature);
 	if (sig != IONIC_DEV_INFO_SIGNATURE) {
 		dev_err(dev, "Incompatible firmware signature %x", sig);
@@ -89,11 +128,7 @@ int ionic_dev_setup(struct ionic *ionic)
 		return -EFAULT;
 	}
 
-	idev->last_fw_status = 0xff;
-	timer_setup(&ionic->watchdog_timer, ionic_watchdog_cb, 0);
-	ionic->watchdog_period = IONIC_WATCHDOG_SECS * HZ;
-	mod_timer(&ionic->watchdog_timer,
-		  round_jiffies(jiffies + ionic->watchdog_period));
+	ionic_watchdog_init(ionic);
 
 	idev->db_pages = bar->vaddr;
 	idev->phy_db_pages = bar->bus_addr;
@@ -102,83 +137,141 @@ int ionic_dev_setup(struct ionic *ionic)
 }
 
 /* Devcmd Interface */
-int ionic_heartbeat_check(struct ionic *ionic)
+bool ionic_is_fw_running(struct ionic_dev *idev)
 {
-	struct ionic_dev *idev = &ionic->idev;
-	unsigned long hb_time;
-	u8 fw_status;
-	u32 hb;
-
-	/* wait a little more than one second before testing again */
-	hb_time = jiffies;
-	if (time_before(hb_time, (idev->last_hb_time + ionic->watchdog_period)))
-		return 0;
+	u8 fw_status = ioread8(&idev->dev_info_regs->fw_status);
 
 	/* firmware is useful only if the running bit is set and
 	 * fw_status != 0xff (bad PCI read)
 	 */
+	return (fw_status != 0xff) && (fw_status & IONIC_FW_STS_F_RUNNING);
+}
+
+int ionic_heartbeat_check(struct ionic *ionic)
+{
+	unsigned long check_time, last_check_time;
+	struct ionic_dev *idev = &ionic->idev;
+	struct ionic_lif *lif = ionic->lif;
+	bool fw_status_ready = true;
+	bool fw_hb_ready;
+	u8 fw_generation;
+	u8 fw_status;
+	u32 fw_hb;
+
+	/* wait a least one second before testing again */
+	check_time = jiffies;
+	last_check_time = atomic_long_read(&idev->last_check_time);
+do_check_time:
+	if (time_before(check_time, last_check_time + HZ))
+		return 0;
+	if (!atomic_long_try_cmpxchg_relaxed(&idev->last_check_time,
+					     &last_check_time, check_time)) {
+		/* if called concurrently, only the first should proceed. */
+		dev_dbg(ionic->dev, "%s: do_check_time again\n", __func__);
+		goto do_check_time;
+	}
+
 	fw_status = ioread8(&idev->dev_info_regs->fw_status);
-	if (fw_status != 0xff)
-		fw_status &= IONIC_FW_STS_F_RUNNING;  /* use only the run bit */
+
+	/* If fw_status is not ready don't bother with the generation */
+	if (!ionic_is_fw_running(idev)) {
+		fw_status_ready = false;
+	} else {
+		fw_generation = fw_status & IONIC_FW_STS_F_GENERATION;
+		if (idev->fw_generation != fw_generation) {
+			dev_info(ionic->dev, "FW generation 0x%02x -> 0x%02x\n",
+				 idev->fw_generation, fw_generation);
+
+			idev->fw_generation = fw_generation;
+
+			/* If the generation changed, the fw status is not
+			 * ready so we need to trigger a fw-down cycle.  After
+			 * the down, the next watchdog will see the fw is up
+			 * and the generation value stable, so will trigger
+			 * the fw-up activity.
+			 *
+			 * If we had already moved to FW_RESET from a RESET event,
+			 * it is possible that we never saw the fw_status go to 0,
+			 * so we fake the current idev->fw_status_ready here to
+			 * force the transition and get FW up again.
+			 */
+			if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+				idev->fw_status_ready = false;	/* go to running */
+			else
+				fw_status_ready = false;	/* go to down */
+		}
+	}
+
+	dev_dbg(ionic->dev, "fw_status 0x%02x ready %d idev->ready %d last_hb 0x%x state 0x%02lx\n",
+		fw_status, fw_status_ready, idev->fw_status_ready,
+		idev->last_fw_hb, lif->state[0]);
 
 	/* is this a transition? */
-	if (fw_status != idev->last_fw_status &&
-	    idev->last_fw_status != 0xff) {
-		struct ionic_lif *lif = ionic->lif;
+	if (fw_status_ready != idev->fw_status_ready &&
+	    !test_bit(IONIC_LIF_F_FW_STOPPING, lif->state)) {
 		bool trigger = false;
 
-		if (!fw_status || fw_status == 0xff) {
-			dev_info(ionic->dev, "FW stopped %u\n", fw_status);
-			if (lif && !test_bit(IONIC_LIF_F_FW_RESET, lif->state))
-				trigger = true;
-		} else {
-			dev_info(ionic->dev, "FW running %u\n", fw_status);
-			if (lif && test_bit(IONIC_LIF_F_FW_RESET, lif->state))
-				trigger = true;
+		idev->fw_status_ready = fw_status_ready;
+
+		if (!fw_status_ready &&
+		    !test_bit(IONIC_LIF_F_FW_RESET, lif->state) &&
+		    !test_and_set_bit(IONIC_LIF_F_FW_STOPPING, lif->state)) {
+			dev_info(ionic->dev, "FW stopped 0x%02x\n", fw_status);
+			trigger = true;
+
+		} else if (fw_status_ready &&
+			   test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
+			dev_info(ionic->dev, "FW running 0x%02x\n", fw_status);
+			trigger = true;
 		}
 
 		if (trigger) {
 			struct ionic_deferred_work *work;
 
 			work = kzalloc(sizeof(*work), GFP_ATOMIC);
-			if (!work) {
-				dev_err(ionic->dev, "%s OOM\n", __func__);
-			} else {
+			if (work) {
 				work->type = IONIC_DW_TYPE_LIF_RESET;
-				if (fw_status & IONIC_FW_STS_F_RUNNING &&
-				    fw_status != 0xff)
-					work->fw_status = 1;
+				work->fw_status = fw_status_ready;
 				ionic_lif_deferred_enqueue(&lif->deferred, work);
 			}
 		}
 	}
-	idev->last_fw_status = fw_status;
 
-	if (!fw_status || fw_status == 0xff)
+	if (!idev->fw_status_ready)
 		return -ENXIO;
 
-	/* early FW has no heartbeat, else FW will return non-zero */
-	hb = ioread32(&idev->dev_info_regs->fw_heartbeat);
-	if (!hb)
+	/* Because of some variability in the actual FW heartbeat, we
+	 * wait longer than the DEVCMD_TIMEOUT before checking again.
+	 */
+	last_check_time = idev->last_hb_time;
+	if (time_before(check_time, last_check_time + DEVCMD_TIMEOUT * 2 * HZ))
 		return 0;
 
-	/* are we stalled? */
-	if (hb == idev->last_hb) {
-		/* only complain once for each stall seen */
-		if (idev->last_hb_time != 1) {
-			dev_info(ionic->dev, "FW heartbeat stalled at %d\n",
-				 idev->last_hb);
-			idev->last_hb_time = 1;
-		}
+	fw_hb = ioread32(&idev->dev_info_regs->fw_heartbeat);
+	fw_hb_ready = fw_hb != idev->last_fw_hb;
 
-		return -ENXIO;
+	/* early FW version had no heartbeat, so fake it */
+	if (!fw_hb_ready && !fw_hb)
+		fw_hb_ready = true;
+
+	dev_dbg(ionic->dev, "%s: fw_hb %u last_fw_hb %u ready %u\n",
+		__func__, fw_hb, idev->last_fw_hb, fw_hb_ready);
+
+	idev->last_fw_hb = fw_hb;
+
+	/* log a transition */
+	if (fw_hb_ready != idev->fw_hb_ready) {
+		idev->fw_hb_ready = fw_hb_ready;
+		if (!fw_hb_ready)
+			dev_info(ionic->dev, "FW heartbeat stalled at %d\n", fw_hb);
+		else
+			dev_info(ionic->dev, "FW heartbeat restored at %d\n", fw_hb);
 	}
 
-	if (idev->last_hb_time == 1)
-		dev_info(ionic->dev, "FW heartbeat restored at %d\n", hb);
+	if (!fw_hb_ready)
+		return -ENXIO;
 
-	idev->last_hb = hb;
-	idev->last_hb_time = hb_time;
+	idev->last_hb_time = check_time;
 
 	return 0;
 }
@@ -328,59 +421,62 @@ void ionic_dev_cmd_port_pause(struct ionic_dev *idev, u8 pause_type)
 }
 
 /* VF commands */
-int ionic_set_vf_config(struct ionic *ionic, int vf, u8 attr, u8 *data)
+int ionic_set_vf_config(struct ionic *ionic, int vf,
+			struct ionic_vf_setattr_cmd *vfc)
 {
 	union ionic_dev_cmd cmd = {
 		.vf_setattr.opcode = IONIC_CMD_VF_SETATTR,
-		.vf_setattr.attr = attr,
+		.vf_setattr.attr = vfc->attr,
 		.vf_setattr.vf_index = cpu_to_le16(vf),
 	};
 	int err;
 
+	memcpy(cmd.vf_setattr.pad, vfc->pad, sizeof(vfc->pad));
+
+	mutex_lock(&ionic->dev_cmd_lock);
+	ionic_dev_cmd_go(&ionic->idev, &cmd);
+	err = ionic_dev_cmd_wait(ionic, DEVCMD_TIMEOUT);
+	mutex_unlock(&ionic->dev_cmd_lock);
+
+	return err;
+}
+
+int ionic_dev_cmd_vf_getattr(struct ionic *ionic, int vf, u8 attr,
+			     struct ionic_vf_getattr_comp *comp)
+{
+	union ionic_dev_cmd cmd = {
+		.vf_getattr.opcode = IONIC_CMD_VF_GETATTR,
+		.vf_getattr.attr = attr,
+		.vf_getattr.vf_index = cpu_to_le16(vf),
+	};
+	int err;
+
+	if (vf >= ionic->num_vfs)
+		return -EINVAL;
+
 	switch (attr) {
 	case IONIC_VF_ATTR_SPOOFCHK:
-		cmd.vf_setattr.spoofchk = *data;
-		dev_dbg(ionic->dev, "%s: vf %d spoof %d\n",
-			__func__, vf, *data);
-		break;
 	case IONIC_VF_ATTR_TRUST:
-		cmd.vf_setattr.trust = *data;
-		dev_dbg(ionic->dev, "%s: vf %d trust %d\n",
-			__func__, vf, *data);
-		break;
 	case IONIC_VF_ATTR_LINKSTATE:
-		cmd.vf_setattr.linkstate = *data;
-		dev_dbg(ionic->dev, "%s: vf %d linkstate %d\n",
-			__func__, vf, *data);
-		break;
 	case IONIC_VF_ATTR_MAC:
-		ether_addr_copy(cmd.vf_setattr.macaddr, data);
-		dev_dbg(ionic->dev, "%s: vf %d macaddr %pM\n",
-			__func__, vf, data);
-		break;
 	case IONIC_VF_ATTR_VLAN:
-		cmd.vf_setattr.vlanid = cpu_to_le16(*(u16 *)data);
-		dev_dbg(ionic->dev, "%s: vf %d vlan %d\n",
-			__func__, vf, *(u16 *)data);
-		break;
 	case IONIC_VF_ATTR_RATE:
-		cmd.vf_setattr.maxrate = cpu_to_le32(*(u32 *)data);
-		dev_dbg(ionic->dev, "%s: vf %d maxrate %d\n",
-			__func__, vf, *(u32 *)data);
 		break;
 	case IONIC_VF_ATTR_STATSADDR:
-		cmd.vf_setattr.stats_pa = cpu_to_le64(*(u64 *)data);
-		dev_dbg(ionic->dev, "%s: vf %d stats_pa 0x%08llx\n",
-			__func__, vf, *(u64 *)data);
-		break;
 	default:
 		return -EINVAL;
 	}
 
 	mutex_lock(&ionic->dev_cmd_lock);
 	ionic_dev_cmd_go(&ionic->idev, &cmd);
-	err = ionic_dev_cmd_wait(ionic, DEVCMD_TIMEOUT);
+	err = ionic_dev_cmd_wait_nomsg(ionic, DEVCMD_TIMEOUT);
+	memcpy_fromio(comp, &ionic->idev.dev_cmd_regs->comp.vf_getattr,
+		      sizeof(*comp));
 	mutex_unlock(&ionic->dev_cmd_lock);
+
+	if (err && comp->status != IONIC_RC_ENOSUPP)
+		ionic_dev_cmd_dev_err_print(ionic, cmd.vf_getattr.opcode,
+					    comp->status, err);
 
 	return err;
 }
@@ -517,7 +613,6 @@ unsigned int ionic_cq_service(struct ionic_cq *cq, unsigned int work_to_do,
 			cq->done_color = !cq->done_color;
 		cq->tail_idx = (cq->tail_idx + 1) & (cq->num_descs - 1);
 		cq_info = &cq->info[cq->tail_idx];
-		DEBUG_STATS_CQE_CNT(cq);
 
 		if (++work_done >= work_to_do)
 			break;
@@ -585,9 +680,9 @@ void ionic_q_sg_map(struct ionic_queue *q, void *base, dma_addr_t base_pa)
 void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, ionic_desc_cb cb,
 		  void *cb_arg)
 {
-	struct device *dev = q->lif->ionic->dev;
 	struct ionic_desc_info *desc_info;
 	struct ionic_lif *lif = q->lif;
+	struct device *dev = q->dev;
 
 	desc_info = &q->info[q->head_idx];
 	desc_info->cb = cb;
@@ -629,7 +724,7 @@ void ionic_q_service(struct ionic_queue *q, struct ionic_cq_info *cq_info,
 
 	/* stop index must be for a descriptor that is not yet completed */
 	if (unlikely(!ionic_q_is_posted(q, stop_index)))
-		dev_err(q->lif->ionic->dev,
+		dev_err(q->dev,
 			"ionic stop is not posted %s stop %u tail %u head %u\n",
 			q->name, stop_index, q->tail_idx, q->head_idx);
 

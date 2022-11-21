@@ -473,12 +473,6 @@ struct usb_dev_state;
 
 struct usb_tt;
 
-enum usb_device_removable {
-	USB_DEVICE_REMOVABLE_UNKNOWN = 0,
-	USB_DEVICE_REMOVABLE,
-	USB_DEVICE_FIXED,
-};
-
 enum usb_port_connect_type {
 	USB_PORT_CONNECT_TYPE_UNKNOWN = 0,
 	USB_PORT_CONNECT_TYPE_HOT_PLUG,
@@ -560,6 +554,7 @@ struct usb3_lpm_parameters {
  * @speed: device speed: high/full/low (or error)
  * @rx_lanes: number of rx lanes in use, USB 3.2 adds dual-lane support
  * @tx_lanes: number of tx lanes in use, USB 3.2 adds dual-lane support
+ * @ssp_rate: SuperSpeed Plus phy signaling rate and lane count
  * @tt: Transaction Translator info; used with low/full speed dev, highspeed hub
  * @ttport: device port on that tt hub
  * @toggle: one bit for each endpoint, with ([0] = IN, [1] = OUT) endpoints
@@ -636,6 +631,7 @@ struct usb_device {
 	enum usb_device_speed	speed;
 	unsigned int		rx_lanes;
 	unsigned int		tx_lanes;
+	enum usb_ssp_rate	ssp_rate;
 
 	struct usb_tt	*tt;
 	int		ttport;
@@ -701,7 +697,6 @@ struct usb_device {
 #endif
 	struct wusb_dev *wusb_dev;
 	int slot_id;
-	enum usb_device_removable removable;
 	struct usb2_lpm_parameters l1_params;
 	struct usb3_lpm_parameters u1_params;
 	struct usb3_lpm_parameters u2_params;
@@ -745,6 +740,8 @@ extern int usb_lock_device_for_reset(struct usb_device *udev,
 /* USB port reset for device reinitialization */
 extern int usb_reset_device(struct usb_device *dev);
 extern void usb_queue_reset_device(struct usb_interface *dev);
+
+extern struct device *usb_intf_get_dma_device(struct usb_interface *intf);
 
 #ifdef CONFIG_ACPI
 extern int usb_acpi_set_power_state(struct usb_device *hdev, int index,
@@ -839,7 +836,7 @@ extern int usb_free_streams(struct usb_interface *interface,
 
 /* used these for multi-interface device registration */
 extern int usb_driver_claim_interface(struct usb_driver *driver,
-			struct usb_interface *iface, void *priv);
+			struct usb_interface *iface, void *data);
 
 /**
  * usb_interface_claimed - returns true iff an interface is claimed
@@ -1257,8 +1254,6 @@ struct usb_device_driver {
 #define	to_usb_device_driver(d) container_of(d, struct usb_device_driver, \
 		drvwrap.driver)
 
-extern struct bus_type usb_bus_type;
-
 /**
  * struct usb_class_driver - identifies a USB driver that wants to use the USB major number
  * @name: the usb class device name for this driver.  Will show up in sysfs.
@@ -1474,7 +1469,7 @@ typedef void (*usb_complete_t)(struct urb *);
  *
  * Note that transfer_buffer must still be set if the controller
  * does not support DMA (as indicated by hcd_uses_dma()) and when talking
- * to root hub. If you have to trasfer between highmem zone and the device
+ * to root hub. If you have to transfer between highmem zone and the device
  * on such controller, create a bounce buffer or bail out with an error.
  * If transfer_buffer cannot be set (is in highmem) and the controller is DMA
  * capable, assign NULL to it, so that usbmon knows not to use the value.

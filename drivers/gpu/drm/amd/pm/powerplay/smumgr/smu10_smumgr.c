@@ -87,7 +87,7 @@ static int smu10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 	smu10_send_msg_to_smc_without_waiting(hwmgr, msg);
 
 	if (smu10_wait_for_response(hwmgr) == 0)
-		printk("Failed to send Message %x.\n", msg);
+		dev_err(adev->dev, "Failed to send Message %x.\n", msg);
 
 	return 0;
 }
@@ -108,7 +108,7 @@ static int smu10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 
 
 	if (smu10_wait_for_response(hwmgr) == 0)
-		printk("Failed to send Message %x.\n", msg);
+		dev_err(adev->dev, "Failed to send Message %x.\n", msg);
 
 	return 0;
 }
@@ -139,8 +139,7 @@ static int smu10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			priv->smu_tables.entry[table_id].table_id,
 			NULL);
 
-	/* flush hdp cache */
-	amdgpu_asic_flush_hdp(adev, NULL);
+	amdgpu_asic_invalidate_hdp(adev, NULL);
 
 	memcpy(table, (uint8_t *)priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);

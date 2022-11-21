@@ -75,14 +75,18 @@ extern void xfs_qm_exit(void);
 				XFS_ASSERT_FATAL_STRING \
 				XFS_DBG_STRING /* DBG must be last */
 
+#ifdef DEBUG
+# define XFS_WQFLAGS(wqflags)	(WQ_SYSFS | (wqflags))
+#else
+# define XFS_WQFLAGS(wqflags)	(wqflags)
+#endif
+
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_buftarg;
 struct block_device;
 
-extern void xfs_quiesce_attr(struct xfs_mount *mp);
 extern void xfs_flush_inodes(struct xfs_mount *mp);
-extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 extern xfs_agnumber_t xfs_set_inode_alloc(struct xfs_mount *,
 					   xfs_agnumber_t agcount);
 

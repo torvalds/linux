@@ -964,7 +964,7 @@ int FPU_store_bcd(FPU_REG *st0_ptr, u_char st0_tag, u_char __user *d)
 /* The return value (in eax) is zero if the result is exact,
    if bits are changed due to rounding, truncation, etc, then
    a non-zero value is returned */
-/* Overflow is signalled by a non-zero return value (in eax).
+/* Overflow is signaled by a non-zero return value (in eax).
    In the case of overflow, the returned significand always has the
    largest possible value */
 int FPU_round_to_int(FPU_REG *r, u_char tag)
@@ -1117,7 +1117,7 @@ u_char __user *fldenv(fpu_addr_modes addr_modes, u_char __user *s)
 	return s;
 }
 
-void frstor(fpu_addr_modes addr_modes, u_char __user *data_address)
+void FPU_frstor(fpu_addr_modes addr_modes, u_char __user *data_address)
 {
 	int i, regnr;
 	u_char __user *s = fldenv(addr_modes, data_address);

@@ -19,6 +19,7 @@
 #include <bpf/libbpf.h>
 
 #include "cgroup_helpers.h"
+#include "testing_helpers.h"
 #include "bpf_rlimit.h"
 
 #define CHECK(condition, tag, format...) ({		\
@@ -57,13 +58,17 @@ int main(int argc, char **argv)
 	__u32 key = 0, pid;
 	int exit_code = 1;
 	char buf[256];
+	const struct timespec req = {
+		.tv_sec = 1,
+		.tv_nsec = 0,
+	};
 
 	cgroup_fd = cgroup_setup_and_join(TEST_CGROUP);
 	if (CHECK(cgroup_fd < 0, "cgroup_setup_and_join", "err %d errno %d\n", cgroup_fd, errno))
 		return 1;
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
-	if (CHECK(err, "bpf_prog_load", "err %d errno %d\n", err, errno))
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
+	if (CHECK(err, "bpf_prog_test_load", "err %d errno %d\n", err, errno))
 		goto cleanup_cgroup_env;
 
 	cgidmap_fd = bpf_find_map(__func__, obj, "cg_ids");
@@ -115,7 +120,7 @@ int main(int argc, char **argv)
 		goto close_pmu;
 
 	/* trigger some syscalls */
-	sleep(1);
+	syscall(__NR_nanosleep, &req, NULL);
 
 	err = bpf_map_lookup_elem(cgidmap_fd, &key, &kcgid);
 	if (CHECK(err, "bpf_map_lookup_elem", "err %d errno %d\n", err, errno))

@@ -62,7 +62,6 @@ struct consw {
 	int	(*con_font_get)(struct vc_data *vc, struct console_font *font);
 	int	(*con_font_default)(struct vc_data *vc,
 			struct console_font *font, char *name);
-	int	(*con_font_copy)(struct vc_data *vc, int con);
 	int     (*con_resize)(struct vc_data *vc, unsigned int width,
 			unsigned int height, unsigned int user);
 	void	(*con_set_palette)(struct vc_data *vc,
@@ -150,6 +149,8 @@ struct console {
 	short	flags;
 	short	index;
 	int	cflag;
+	uint	ispeed;
+	uint	ospeed;
 	void	*data;
 	struct	 console *next;
 };
@@ -217,12 +218,6 @@ extern atomic_t ignore_console_lock_warning;
 #define VESA_VSYNC_SUSPEND      1
 #define VESA_HSYNC_SUSPEND      2
 #define VESA_POWERDOWN          3
-
-#ifdef CONFIG_VGA_CONSOLE
-extern bool vgacon_text_force(void);
-#else
-static inline bool vgacon_text_force(void) { return false; }
-#endif
 
 extern void console_init(void);
 

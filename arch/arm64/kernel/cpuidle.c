@@ -29,7 +29,7 @@ int arm_cpuidle_init(unsigned int cpu)
 
 /**
  * arm_cpuidle_suspend() - function to enter a low-power idle state
- * @arg: argument to pass to CPU suspend operations
+ * @index: argument to pass to CPU suspend operations
  *
  * Return: 0 on success, -EOPNOTSUPP if CPU suspend hook not initialized, CPU
  * operations back-end error code otherwise.
@@ -54,15 +54,15 @@ static int psci_acpi_cpu_init_idle(unsigned int cpu)
 	struct acpi_lpi_state *lpi;
 	struct acpi_processor *pr = per_cpu(processors, cpu);
 
+	if (unlikely(!pr || !pr->flags.has_lpi))
+		return -EINVAL;
+
 	/*
 	 * If the PSCI cpu_suspend function hook has not been initialized
 	 * idle states must not be enabled, so bail out
 	 */
 	if (!psci_ops.cpu_suspend)
 		return -EOPNOTSUPP;
-
-	if (unlikely(!pr || !pr->flags.has_lpi))
-		return -EINVAL;
 
 	count = pr->power.count - 1;
 	if (count <= 0)

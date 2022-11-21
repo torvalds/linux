@@ -33,7 +33,7 @@
  * SOFTWARE.
  */
 
-#include <linux/module.h>
+#include <linux/if_vlan.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -121,7 +121,7 @@ struct ib_gid_table {
 	u32				default_gid_indices;
 };
 
-static void dispatch_gid_change_event(struct ib_device *ib_dev, u8 port)
+static void dispatch_gid_change_event(struct ib_device *ib_dev, u32 port)
 {
 	struct ib_event event;
 
@@ -197,7 +197,7 @@ int ib_cache_gid_parse_type_str(const char *buf)
 }
 EXPORT_SYMBOL(ib_cache_gid_parse_type_str);
 
-static struct ib_gid_table *rdma_gid_table(struct ib_device *device, u8 port)
+static struct ib_gid_table *rdma_gid_table(struct ib_device *device, u32 port)
 {
 	return device->port_data[port].cache.gid;
 }
@@ -237,10 +237,10 @@ static void put_gid_ndev(struct rcu_head *head)
 static void free_gid_entry_locked(struct ib_gid_table_entry *entry)
 {
 	struct ib_device *device = entry->attr.device;
-	u8 port_num = entry->attr.port_num;
+	u32 port_num = entry->attr.port_num;
 	struct ib_gid_table *table = rdma_gid_table(device, port_num);
 
-	dev_dbg(&device->dev, "%s port=%d index=%d gid %pI6\n", __func__,
+	dev_dbg(&device->dev, "%s port=%u index=%u gid %pI6\n", __func__,
 		port_num, entry->attr.index, entry->attr.gid.raw);
 
 	write_lock_irq(&table->rwlock);
@@ -282,7 +282,7 @@ static void free_gid_work(struct work_struct *work)
 	struct ib_gid_table_entry *entry =
 		container_of(work, struct ib_gid_table_entry, del_work);
 	struct ib_device *device = entry->attr.device;
-	u8 port_num = entry->attr.port_num;
+	u32 port_num = entry->attr.port_num;
 	struct ib_gid_table *table = rdma_gid_table(device, port_num);
 
 	mutex_lock(&table->lock);
@@ -323,7 +323,7 @@ static void store_gid_entry(struct ib_gid_table *table,
 {
 	entry->state = GID_TABLE_ENTRY_VALID;
 
-	dev_dbg(&entry->attr.device->dev, "%s port=%d index=%d gid %pI6\n",
+	dev_dbg(&entry->attr.device->dev, "%s port=%u index=%u gid %pI6\n",
 		__func__, entry->attr.port_num, entry->attr.index,
 		entry->attr.gid.raw);
 
@@ -354,7 +354,7 @@ static int add_roce_gid(struct ib_gid_table_entry *entry)
 	int ret;
 
 	if (!attr->ndev) {
-		dev_err(&attr->device->dev, "%s NULL netdev port=%d index=%d\n",
+		dev_err(&attr->device->dev, "%s NULL netdev port=%u index=%u\n",
 			__func__, attr->port_num, attr->index);
 		return -EINVAL;
 	}
@@ -362,7 +362,7 @@ static int add_roce_gid(struct ib_gid_table_entry *entry)
 		ret = attr->device->ops.add_gid(attr, &entry->context);
 		if (ret) {
 			dev_err(&attr->device->dev,
-				"%s GID add failed port=%d index=%d\n",
+				"%s GID add failed port=%u index=%u\n",
 				__func__, attr->port_num, attr->index);
 			return ret;
 		}
@@ -379,7 +379,7 @@ static int add_roce_gid(struct ib_gid_table_entry *entry)
  * @ix:		GID entry index to delete
  *
  */
-static void del_gid(struct ib_device *ib_dev, u8 port,
+static void del_gid(struct ib_device *ib_dev, u32 port,
 		    struct ib_gid_table *table, int ix)
 {
 	struct roce_gid_ndev_storage *ndev_storage;
@@ -387,7 +387,7 @@ static void del_gid(struct ib_device *ib_dev, u8 port,
 
 	lockdep_assert_held(&table->lock);
 
-	dev_dbg(&ib_dev->dev, "%s port=%d index=%d gid %pI6\n", __func__, port,
+	dev_dbg(&ib_dev->dev, "%s port=%u index=%d gid %pI6\n", __func__, port,
 		ix, table->data_vec[ix]->attr.gid.raw);
 
 	write_lock_irq(&table->rwlock);
@@ -543,7 +543,7 @@ static void make_default_gid(struct  net_device *dev, union ib_gid *gid)
 	addrconf_ifid_eui48(&gid->raw[8], dev);
 }
 
-static int __ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
+static int __ib_cache_gid_add(struct ib_device *ib_dev, u32 port,
 			      union ib_gid *gid, struct ib_gid_attr *attr,
 			      unsigned long mask, bool default_gid)
 {
@@ -587,7 +587,7 @@ out_unlock:
 	return ret;
 }
 
-int ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
+int ib_cache_gid_add(struct ib_device *ib_dev, u32 port,
 		     union ib_gid *gid, struct ib_gid_attr *attr)
 {
 	unsigned long mask = GID_ATTR_FIND_MASK_GID |
@@ -598,7 +598,7 @@ int ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
 }
 
 static int
-_ib_cache_gid_del(struct ib_device *ib_dev, u8 port,
+_ib_cache_gid_del(struct ib_device *ib_dev, u32 port,
 		  union ib_gid *gid, struct ib_gid_attr *attr,
 		  unsigned long mask, bool default_gid)
 {
@@ -627,7 +627,7 @@ out_unlock:
 	return ret;
 }
 
-int ib_cache_gid_del(struct ib_device *ib_dev, u8 port,
+int ib_cache_gid_del(struct ib_device *ib_dev, u32 port,
 		     union ib_gid *gid, struct ib_gid_attr *attr)
 {
 	unsigned long mask = GID_ATTR_FIND_MASK_GID	  |
@@ -638,7 +638,7 @@ int ib_cache_gid_del(struct ib_device *ib_dev, u8 port,
 	return _ib_cache_gid_del(ib_dev, port, gid, attr, mask, false);
 }
 
-int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u8 port,
+int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u32 port,
 				     struct net_device *ndev)
 {
 	struct ib_gid_table *table;
@@ -669,11 +669,10 @@ int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u8 port,
  * rdma_find_gid_by_port - Returns the GID entry attributes when it finds
  * a valid GID entry for given search parameters. It searches for the specified
  * GID value in the local software cache.
- * @device: The device to query.
+ * @ib_dev: The device to query.
  * @gid: The GID value to search for.
  * @gid_type: The GID type to search for.
- * @port_num: The port number of the device where the GID value should be
- *   searched.
+ * @port: The port number of the device where the GID value should be searched.
  * @ndev: In RoCE, the net device of the device. NULL means ignore.
  *
  * Returns sgid attributes if the GID is found with valid reference or
@@ -684,7 +683,7 @@ const struct ib_gid_attr *
 rdma_find_gid_by_port(struct ib_device *ib_dev,
 		      const union ib_gid *gid,
 		      enum ib_gid_type gid_type,
-		      u8 port, struct net_device *ndev)
+		      u32 port, struct net_device *ndev)
 {
 	int local_index;
 	struct ib_gid_table *table;
@@ -719,7 +718,7 @@ EXPORT_SYMBOL(rdma_find_gid_by_port);
 /**
  * rdma_find_gid_by_filter - Returns the GID table attribute where a
  * specified GID value occurs
- * @device: The device to query.
+ * @ib_dev: The device to query.
  * @gid: The GID value to search for.
  * @port: The port number of the device where the GID value could be
  *   searched.
@@ -728,13 +727,14 @@ EXPORT_SYMBOL(rdma_find_gid_by_port);
  *   otherwise, we continue searching the GID table. It's guaranteed that
  *   while filter is executed, ndev field is valid and the structure won't
  *   change. filter is executed in an atomic context. filter must not be NULL.
+ * @context: Private data to pass into the call-back.
  *
  * rdma_find_gid_by_filter() searches for the specified GID value
  * of which the filter function returns true in the port's GID table.
  *
  */
 const struct ib_gid_attr *rdma_find_gid_by_filter(
-	struct ib_device *ib_dev, const union ib_gid *gid, u8 port,
+	struct ib_device *ib_dev, const union ib_gid *gid, u32 port,
 	bool (*filter)(const union ib_gid *gid, const struct ib_gid_attr *,
 		       void *),
 	void *context)
@@ -805,7 +805,7 @@ static void release_gid_table(struct ib_device *device,
 			continue;
 		if (kref_read(&table->data_vec[i]->kref) > 1) {
 			dev_err(&device->dev,
-				"GID entry ref leak for index %d ref=%d\n", i,
+				"GID entry ref leak for index %d ref=%u\n", i,
 				kref_read(&table->data_vec[i]->kref));
 			leak = true;
 		}
@@ -818,7 +818,7 @@ static void release_gid_table(struct ib_device *device,
 	kfree(table);
 }
 
-static void cleanup_gid_table_port(struct ib_device *ib_dev, u8 port,
+static void cleanup_gid_table_port(struct ib_device *ib_dev, u32 port,
 				   struct ib_gid_table *table)
 {
 	int i;
@@ -834,7 +834,7 @@ static void cleanup_gid_table_port(struct ib_device *ib_dev, u8 port,
 	mutex_unlock(&table->lock);
 }
 
-void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
+void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u32 port,
 				  struct net_device *ndev,
 				  unsigned long gid_type_mask,
 				  enum ib_cache_gid_default_mode mode)
@@ -867,7 +867,7 @@ void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 	}
 }
 
-static void gid_table_reserve_default(struct ib_device *ib_dev, u8 port,
+static void gid_table_reserve_default(struct ib_device *ib_dev, u32 port,
 				      struct ib_gid_table *table)
 {
 	unsigned int i;
@@ -884,7 +884,7 @@ static void gid_table_reserve_default(struct ib_device *ib_dev, u8 port,
 
 static void gid_table_release_one(struct ib_device *ib_dev)
 {
-	unsigned int p;
+	u32 p;
 
 	rdma_for_each_port (ib_dev, p) {
 		release_gid_table(ib_dev, ib_dev->port_data[p].cache.gid);
@@ -895,7 +895,7 @@ static void gid_table_release_one(struct ib_device *ib_dev)
 static int _gid_table_setup_one(struct ib_device *ib_dev)
 {
 	struct ib_gid_table *table;
-	unsigned int rdma_port;
+	u32 rdma_port;
 
 	rdma_for_each_port (ib_dev, rdma_port) {
 		table = alloc_gid_table(
@@ -915,7 +915,7 @@ rollback_table_setup:
 
 static void gid_table_cleanup_one(struct ib_device *ib_dev)
 {
-	unsigned int p;
+	u32 p;
 
 	rdma_for_each_port (ib_dev, p)
 		cleanup_gid_table_port(ib_dev, p,
@@ -950,12 +950,12 @@ static int gid_table_setup_one(struct ib_device *ib_dev)
  * Returns 0 on success or appropriate error code.
  *
  */
-int rdma_query_gid(struct ib_device *device, u8 port_num,
+int rdma_query_gid(struct ib_device *device, u32 port_num,
 		   int index, union ib_gid *gid)
 {
 	struct ib_gid_table *table;
 	unsigned long flags;
-	int res = -EINVAL;
+	int res;
 
 	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
@@ -963,9 +963,15 @@ int rdma_query_gid(struct ib_device *device, u8 port_num,
 	table = rdma_gid_table(device, port_num);
 	read_lock_irqsave(&table->rwlock, flags);
 
-	if (index < 0 || index >= table->sz ||
-	    !is_gid_entry_valid(table->data_vec[index]))
+	if (index < 0 || index >= table->sz) {
+		res = -EINVAL;
 		goto done;
+	}
+
+	if (!is_gid_entry_valid(table->data_vec[index])) {
+		res = -ENOENT;
+		goto done;
+	}
 
 	memcpy(gid, &table->data_vec[index]->attr.gid, sizeof(*gid));
 	res = 0;
@@ -1014,7 +1020,7 @@ const struct ib_gid_attr *rdma_find_gid(struct ib_device *device,
 	unsigned long mask = GID_ATTR_FIND_MASK_GID |
 			     GID_ATTR_FIND_MASK_GID_TYPE;
 	struct ib_gid_attr gid_attr_val = {.ndev = ndev, .gid_type = gid_type};
-	unsigned int p;
+	u32 p;
 
 	if (ndev)
 		mask |= GID_ATTR_FIND_MASK_NETDEV;
@@ -1043,7 +1049,7 @@ const struct ib_gid_attr *rdma_find_gid(struct ib_device *device,
 EXPORT_SYMBOL(rdma_find_gid);
 
 int ib_get_cached_pkey(struct ib_device *device,
-		       u8                port_num,
+		       u32               port_num,
 		       int               index,
 		       u16              *pkey)
 {
@@ -1069,27 +1075,19 @@ int ib_get_cached_pkey(struct ib_device *device,
 }
 EXPORT_SYMBOL(ib_get_cached_pkey);
 
-int ib_get_cached_subnet_prefix(struct ib_device *device,
-				u8                port_num,
-				u64              *sn_pfx)
+void ib_get_cached_subnet_prefix(struct ib_device *device, u32 port_num,
+				u64 *sn_pfx)
 {
 	unsigned long flags;
-
-	if (!rdma_is_port_valid(device, port_num))
-		return -EINVAL;
 
 	read_lock_irqsave(&device->cache_lock, flags);
 	*sn_pfx = device->port_data[port_num].cache.subnet_prefix;
 	read_unlock_irqrestore(&device->cache_lock, flags);
-
-	return 0;
 }
 EXPORT_SYMBOL(ib_get_cached_subnet_prefix);
 
-int ib_find_cached_pkey(struct ib_device *device,
-			u8                port_num,
-			u16               pkey,
-			u16              *index)
+int ib_find_cached_pkey(struct ib_device *device, u32 port_num,
+			u16 pkey, u16 *index)
 {
 	struct ib_pkey_cache *cache;
 	unsigned long flags;
@@ -1116,8 +1114,9 @@ int ib_find_cached_pkey(struct ib_device *device,
 				*index = i;
 				ret = 0;
 				break;
-			} else
+			} else {
 				partial_ix = i;
+			}
 		}
 
 	if (ret && partial_ix >= 0) {
@@ -1132,10 +1131,8 @@ err:
 }
 EXPORT_SYMBOL(ib_find_cached_pkey);
 
-int ib_find_exact_cached_pkey(struct ib_device *device,
-			      u8                port_num,
-			      u16               pkey,
-			      u16              *index)
+int ib_find_exact_cached_pkey(struct ib_device *device, u32 port_num,
+			      u16 pkey, u16 *index)
 {
 	struct ib_pkey_cache *cache;
 	unsigned long flags;
@@ -1169,9 +1166,7 @@ err:
 }
 EXPORT_SYMBOL(ib_find_exact_cached_pkey);
 
-int ib_get_cached_lmc(struct ib_device *device,
-		      u8                port_num,
-		      u8                *lmc)
+int ib_get_cached_lmc(struct ib_device *device, u32 port_num, u8 *lmc)
 {
 	unsigned long flags;
 	int ret = 0;
@@ -1187,8 +1182,7 @@ int ib_get_cached_lmc(struct ib_device *device,
 }
 EXPORT_SYMBOL(ib_get_cached_lmc);
 
-int ib_get_cached_port_state(struct ib_device   *device,
-			     u8                  port_num,
+int ib_get_cached_port_state(struct ib_device *device, u32 port_num,
 			     enum ib_port_state *port_state)
 {
 	unsigned long flags;
@@ -1222,7 +1216,7 @@ EXPORT_SYMBOL(ib_get_cached_port_state);
  * code.
  */
 const struct ib_gid_attr *
-rdma_get_gid_attr(struct ib_device *device, u8 port_num, int index)
+rdma_get_gid_attr(struct ib_device *device, u32 port_num, int index)
 {
 	const struct ib_gid_attr *attr = ERR_PTR(-ENODATA);
 	struct ib_gid_table *table;
@@ -1253,7 +1247,6 @@ EXPORT_SYMBOL(rdma_get_gid_attr);
  * @entries: Entries where GID entries are returned.
  * @max_entries: Maximum number of entries that can be returned.
  * Entries array must be allocated to hold max_entries number of entries.
- * @num_entries: Updated to the number of entries that were successfully read.
  *
  * Returns number of entries on success or appropriate error code.
  */
@@ -1264,7 +1257,7 @@ ssize_t rdma_query_gid_table(struct ib_device *device,
 	const struct ib_gid_attr *gid_attr;
 	ssize_t num_entries = 0, ret;
 	struct ib_gid_table *table;
-	unsigned int port_num, i;
+	u32 port_num, i;
 	struct net_device *ndev;
 	unsigned long flags;
 
@@ -1362,7 +1355,7 @@ struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr)
 			container_of(attr, struct ib_gid_table_entry, attr);
 	struct ib_device *device = entry->attr.device;
 	struct net_device *ndev = ERR_PTR(-EINVAL);
-	u8 port_num = entry->attr.port_num;
+	u32 port_num = entry->attr.port_num;
 	struct ib_gid_table *table;
 	unsigned long flags;
 	bool valid;
@@ -1442,7 +1435,7 @@ int rdma_read_gid_l2_fields(const struct ib_gid_attr *attr,
 EXPORT_SYMBOL(rdma_read_gid_l2_fields);
 
 static int config_non_roce_gid_cache(struct ib_device *device,
-				     u8 port, int gid_tbl_len)
+				     u32 port, struct ib_port_attr *tprops)
 {
 	struct ib_gid_attr gid_attr = {};
 	struct ib_gid_table *table;
@@ -1454,7 +1447,7 @@ static int config_non_roce_gid_cache(struct ib_device *device,
 	table = rdma_gid_table(device, port);
 
 	mutex_lock(&table->lock);
-	for (i = 0; i < gid_tbl_len; ++i) {
+	for (i = 0; i < tprops->gid_tbl_len; ++i) {
 		if (!device->ops.query_gid)
 			continue;
 		ret = device->ops.query_gid(device, port, i, &gid_attr.gid);
@@ -1465,6 +1458,8 @@ static int config_non_roce_gid_cache(struct ib_device *device,
 			goto err;
 		}
 		gid_attr.index = i;
+		tprops->subnet_prefix =
+			be64_to_cpu(gid_attr.gid.global.subnet_prefix);
 		add_modify_gid(table, &gid_attr);
 	}
 err:
@@ -1473,10 +1468,12 @@ err:
 }
 
 static int
-ib_cache_update(struct ib_device *device, u8 port, bool enforce_security)
+ib_cache_update(struct ib_device *device, u32 port, bool update_gids,
+		bool update_pkeys, bool enforce_security)
 {
 	struct ib_port_attr       *tprops = NULL;
-	struct ib_pkey_cache      *pkey_cache = NULL, *old_pkey_cache;
+	struct ib_pkey_cache      *pkey_cache = NULL;
+	struct ib_pkey_cache      *old_pkey_cache = NULL;
 	int                        i;
 	int                        ret;
 
@@ -1493,14 +1490,16 @@ ib_cache_update(struct ib_device *device, u8 port, bool enforce_security)
 		goto err;
 	}
 
-	if (!rdma_protocol_roce(device, port)) {
+	if (!rdma_protocol_roce(device, port) && update_gids) {
 		ret = config_non_roce_gid_cache(device, port,
-						tprops->gid_tbl_len);
+						tprops);
 		if (ret)
 			goto err;
 	}
 
-	if (tprops->pkey_tbl_len) {
+	update_pkeys &= !!tprops->pkey_tbl_len;
+
+	if (update_pkeys) {
 		pkey_cache = kmalloc(struct_size(pkey_cache, table,
 						 tprops->pkey_tbl_len),
 				     GFP_KERNEL);
@@ -1525,9 +1524,10 @@ ib_cache_update(struct ib_device *device, u8 port, bool enforce_security)
 
 	write_lock_irq(&device->cache_lock);
 
-	old_pkey_cache = device->port_data[port].cache.pkey;
-
-	device->port_data[port].cache.pkey = pkey_cache;
+	if (update_pkeys) {
+		old_pkey_cache = device->port_data[port].cache.pkey;
+		device->port_data[port].cache.pkey = pkey_cache;
+	}
 	device->port_data[port].cache.lmc = tprops->lmc;
 	device->port_data[port].cache.port_state = tprops->state;
 
@@ -1559,6 +1559,8 @@ static void ib_cache_event_task(struct work_struct *_work)
 	 * the cache.
 	 */
 	ret = ib_cache_update(work->event.device, work->event.element.port_num,
+			      work->event.event == IB_EVENT_GID_CHANGE,
+			      work->event.event == IB_EVENT_PKEY_CHANGE,
 			      work->enforce_security);
 
 	/* GID event is notified already for individual GID entries by
@@ -1622,17 +1624,15 @@ EXPORT_SYMBOL(ib_dispatch_event);
 
 int ib_cache_setup_one(struct ib_device *device)
 {
-	unsigned int p;
+	u32 p;
 	int err;
-
-	rwlock_init(&device->cache_lock);
 
 	err = gid_table_setup_one(device);
 	if (err)
 		return err;
 
 	rdma_for_each_port (device, p) {
-		err = ib_cache_update(device, p, true);
+		err = ib_cache_update(device, p, true, true, true);
 		if (err)
 			return err;
 	}
@@ -1642,7 +1642,7 @@ int ib_cache_setup_one(struct ib_device *device)
 
 void ib_cache_release_one(struct ib_device *device)
 {
-	unsigned int p;
+	u32 p;
 
 	/*
 	 * The release function frees all the cache elements.

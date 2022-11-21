@@ -12,9 +12,6 @@
 
 DEFINE_STATIC_KEY_FALSE(enable_evmcs);
 
-#if IS_ENABLED(CONFIG_HYPERV)
-
-#define ROL16(val, n) ((u16)(((u16)(val) << (n)) | ((u16)(val) >> (16 - (n)))))
 #define EVMCS1_OFFSET(x) offsetof(struct hv_enlightened_vmcs, x)
 #define EVMCS1_FIELD(number, name, clean_field)[ROL16(number, 6)] = \
 		{EVMCS1_OFFSET(name), clean_field}
@@ -297,6 +294,7 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 };
 const unsigned int nr_evmcs_1_fields = ARRAY_SIZE(vmcs_field_to_evmcs_1);
 
+#if IS_ENABLED(CONFIG_HYPERV)
 __init void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf)
 {
 	vmcs_conf->pin_based_exec_ctrl &= ~EVMCS1_UNSUPPORTED_PINCTRL;
@@ -319,6 +317,9 @@ bool nested_enlightened_vmentry(struct kvm_vcpu *vcpu, u64 *evmcs_gpa)
 	if (unlikely(!assist_page.enlighten_vmentry))
 		return false;
 
+	if (unlikely(!evmptr_is_valid(assist_page.current_nested_vmcs)))
+		return false;
+
 	*evmcs_gpa = assist_page.current_nested_vmcs;
 
 	return true;
@@ -326,7 +327,6 @@ bool nested_enlightened_vmentry(struct kvm_vcpu *vcpu, u64 *evmcs_gpa)
 
 uint16_t nested_get_evmcs_version(struct kvm_vcpu *vcpu)
 {
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	/*
 	 * vmcs_version represents the range of supported Enlightened VMCS
 	 * versions: lower 8 bits is the minimal version, higher 8 bits is the
@@ -334,7 +334,7 @@ uint16_t nested_get_evmcs_version(struct kvm_vcpu *vcpu)
 	 * KVM_EVMCS_VERSION.
 	 */
 	if (kvm_cpu_cap_get(X86_FEATURE_VMX) &&
-	    vmx->nested.enlightened_vmcs_enabled)
+	    (!vcpu || to_vmx(vcpu)->nested.enlightened_vmcs_enabled))
 		return (KVM_EVMCS_VERSION << 8) | 1;
 
 	return 0;
@@ -352,14 +352,21 @@ void nested_evmcs_filter_control_msr(u32 msr_index, u64 *pdata)
 	switch (msr_index) {
 	case MSR_IA32_VMX_EXIT_CTLS:
 	case MSR_IA32_VMX_TRUE_EXIT_CTLS:
-		ctl_high &= ~VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL;
+		ctl_high &= ~EVMCS1_UNSUPPORTED_VMEXIT_CTRL;
 		break;
 	case MSR_IA32_VMX_ENTRY_CTLS:
 	case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
-		ctl_high &= ~VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
+		ctl_high &= ~EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
 		break;
 	case MSR_IA32_VMX_PROCBASED_CTLS2:
-		ctl_high &= ~SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
+		ctl_high &= ~EVMCS1_UNSUPPORTED_2NDEXEC;
+		break;
+	case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
+	case MSR_IA32_VMX_PINBASED_CTLS:
+		ctl_high &= ~EVMCS1_UNSUPPORTED_PINCTRL;
+		break;
+	case MSR_IA32_VMX_VMFUNC:
+		ctl_low &= ~EVMCS1_UNSUPPORTED_VMFUNC;
 		break;
 	}
 

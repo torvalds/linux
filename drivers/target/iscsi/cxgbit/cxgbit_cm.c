@@ -836,11 +836,13 @@ static void cxgbit_set_tcp_window(struct cxgbit_sock *csk, struct port_info *pi)
 	csk->rcv_win = CXGBIT_10G_RCV_WIN;
 	if (scale)
 		csk->rcv_win *= scale;
+	csk->rcv_win = min(csk->rcv_win, RCV_BUFSIZ_M << 10);
 
 #define CXGBIT_10G_SND_WIN (256 * 1024)
 	csk->snd_win = CXGBIT_10G_SND_WIN;
 	if (scale)
 		csk->snd_win *= scale;
+	csk->snd_win = min(csk->snd_win, 512U * 1024);
 
 	pr_debug("%s snd_win %d rcv_win %d\n",
 		 __func__, csk->snd_win, csk->rcv_win);
@@ -1065,7 +1067,7 @@ int cxgbit_rx_data_ack(struct cxgbit_sock *csk)
 	if (!skb)
 		return -1;
 
-	credit_dack = RX_DACK_CHANGE_F | RX_DACK_MODE_V(1) |
+	credit_dack = RX_DACK_CHANGE_F | RX_DACK_MODE_V(3) |
 		      RX_CREDITS_V(csk->rx_credits);
 
 	cxgb_mk_rx_data_ack(skb, len, csk->tid, csk->ctrlq_idx,
@@ -1197,7 +1199,6 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	if (tcph->ece && tcph->cwr)
 		opt2 |= CCTRL_ECN_V(1);
 
-	opt2 |= RX_COALESCE_V(3);
 	opt2 |= CONG_CNTRL_V(CONG_ALG_NEWRENO);
 
 	opt2 |= T5_ISS_F;
@@ -1645,9 +1646,6 @@ cxgbit_pass_establish(struct cxgbit_device *cdev, struct sk_buff *skb)
 	csk->snd_nxt = snd_isn;
 
 	csk->rcv_nxt = rcv_isn;
-
-	if (csk->rcv_win > (RCV_BUFSIZ_M << 10))
-		csk->rx_credits = (csk->rcv_win - (RCV_BUFSIZ_M << 10));
 
 	csk->snd_wscale = TCPOPT_SND_WSCALE_G(tcp_opt);
 	cxgbit_set_emss(csk, tcp_opt);

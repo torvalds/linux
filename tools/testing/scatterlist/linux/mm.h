@@ -74,7 +74,7 @@ static inline unsigned long page_to_phys(struct page *page)
 	      __UNIQUE_ID(min1_), __UNIQUE_ID(min2_),   \
 	      x, y)
 
-#define preemptible() (1)
+#define pagefault_disabled() (0)
 
 static inline void *kmap(struct page *page)
 {
@@ -127,7 +127,7 @@ kmalloc_array(unsigned int n, unsigned int size, unsigned int flags)
 #define kmemleak_free(a)
 
 #define PageSlab(p) (0)
-#define flush_kernel_dcache_page(p)
+#define flush_dcache_page(p)
 
 #define MAX_ERRNO	4095
 

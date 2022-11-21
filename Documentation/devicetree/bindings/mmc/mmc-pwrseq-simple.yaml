@@ -41,13 +41,11 @@ properties:
     description:
       Delay in ms after powering the card and de-asserting the
       reset-gpios (if any).
-    $ref: /schemas/types.yaml#/definitions/uint32
 
   power-off-delay-us:
     description:
       Delay in us after asserting the reset-gpios (if any)
       during power off of the card.
-    $ref: /schemas/types.yaml#/definitions/uint32
 
 required:
   - compatible

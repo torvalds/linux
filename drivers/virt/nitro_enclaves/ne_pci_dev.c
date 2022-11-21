@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2020-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  */
 
 /**
@@ -376,7 +376,6 @@ static void ne_teardown_msix(struct pci_dev *pdev)
 	free_irq(pci_irq_vector(pdev, NE_VEC_EVENT), ne_pci_dev);
 
 	flush_work(&ne_pci_dev->notify_work);
-	flush_workqueue(ne_pci_dev->event_wq);
 	destroy_workqueue(ne_pci_dev->event_wq);
 
 	free_irq(pci_irq_vector(pdev, NE_VEC_REPLY), ne_pci_dev);
@@ -479,6 +478,8 @@ static int ne_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		goto free_ne_pci_dev;
 	}
+
+	pci_set_master(pdev);
 
 	rc = pci_request_regions_exclusive(pdev, "nitro_enclaves");
 	if (rc < 0) {

@@ -40,21 +40,8 @@ struct nf_conn_tstamp *nf_ct_tstamp_ext_add(struct nf_conn *ct, gfp_t gfp)
 
 #ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
 void nf_conntrack_tstamp_pernet_init(struct net *net);
-
-int nf_conntrack_tstamp_init(void);
-void nf_conntrack_tstamp_fini(void);
 #else
 static inline void nf_conntrack_tstamp_pernet_init(struct net *net) {}
-
-static inline int nf_conntrack_tstamp_init(void)
-{
-	return 0;
-}
-
-static inline void nf_conntrack_tstamp_fini(void)
-{
-	return;
-}
 #endif /* CONFIG_NF_CONNTRACK_TIMESTAMP */
 
 #endif /* _NF_CONNTRACK_TSTAMP_H */

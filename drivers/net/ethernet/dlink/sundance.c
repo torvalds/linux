@@ -340,7 +340,7 @@ enum wake_event_bits {
 struct netdev_desc {
 	__le32 next_desc;
 	__le32 status;
-	struct desc_frag { __le32 addr, length; } frag[1];
+	struct desc_frag { __le32 addr, length; } frag;
 };
 
 /* Bits in netdev_desc.status */
@@ -479,7 +479,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_start_xmit		= start_tx,
 	.ndo_get_stats 		= get_stats,
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_do_ioctl 		= netdev_ioctl,
+	.ndo_eth_ioctl		= netdev_ioctl,
 	.ndo_tx_timeout		= tx_timeout,
 	.ndo_change_mtu		= change_mtu,
 	.ndo_set_mac_address 	= sundance_set_mac_addr,
@@ -508,6 +508,7 @@ static int sundance_probe1(struct pci_dev *pdev,
 	int bar = 1;
 #endif
 	int phy, phy_end, phy_idx = 0;
+	__le16 addr[ETH_ALEN / 2];
 
 	if (pci_enable_device(pdev))
 		return -EIO;
@@ -528,8 +529,9 @@ static int sundance_probe1(struct pci_dev *pdev,
 		goto err_out_res;
 
 	for (i = 0; i < 3; i++)
-		((__le16 *)dev->dev_addr)[i] =
+		addr[i] =
 			cpu_to_le16(eeprom_read(ioaddr, i + EEPROM_SA_OFFSET));
+	eth_hw_addr_set(dev, (u8 *)addr);
 
 	np = netdev_priv(dev);
 	np->ndev = dev;
@@ -963,7 +965,7 @@ static void tx_timeout(struct net_device *dev, unsigned int txqueue)
 	unsigned long flag;
 
 	netif_stop_queue(dev);
-	tasklet_disable(&np->tx_tasklet);
+	tasklet_disable_in_atomic(&np->tx_tasklet);
 	iowrite16(0, ioaddr + IntrEnable);
 	printk(KERN_WARNING "%s: Transmit timed out, TxStatus %2.2x "
 		   "TxFrameId %2.2x,"
@@ -978,8 +980,8 @@ static void tx_timeout(struct net_device *dev, unsigned int txqueue)
 				le32_to_cpu(np->tx_ring[i].next_desc),
 				le32_to_cpu(np->tx_ring[i].status),
 				(le32_to_cpu(np->tx_ring[i].status) >> 2) & 0xff,
-				le32_to_cpu(np->tx_ring[i].frag[0].addr),
-				le32_to_cpu(np->tx_ring[i].frag[0].length));
+				le32_to_cpu(np->tx_ring[i].frag.addr),
+				le32_to_cpu(np->tx_ring[i].frag.length));
 		}
 		printk(KERN_DEBUG "TxListPtr=%08x netif_queue_stopped=%d\n",
 			ioread32(np->base + TxListPtr),
@@ -1025,7 +1027,7 @@ static void init_ring(struct net_device *dev)
 		np->rx_ring[i].next_desc = cpu_to_le32(np->rx_ring_dma +
 			((i+1)%RX_RING_SIZE)*sizeof(*np->rx_ring));
 		np->rx_ring[i].status = 0;
-		np->rx_ring[i].frag[0].length = 0;
+		np->rx_ring[i].frag.length = 0;
 		np->rx_skbuff[i] = NULL;
 	}
 
@@ -1037,16 +1039,16 @@ static void init_ring(struct net_device *dev)
 		if (skb == NULL)
 			break;
 		skb_reserve(skb, 2);	/* 16 byte align the IP header. */
-		np->rx_ring[i].frag[0].addr = cpu_to_le32(
+		np->rx_ring[i].frag.addr = cpu_to_le32(
 			dma_map_single(&np->pci_dev->dev, skb->data,
 				np->rx_buf_sz, DMA_FROM_DEVICE));
 		if (dma_mapping_error(&np->pci_dev->dev,
-					np->rx_ring[i].frag[0].addr)) {
+					np->rx_ring[i].frag.addr)) {
 			dev_kfree_skb(skb);
 			np->rx_skbuff[i] = NULL;
 			break;
 		}
-		np->rx_ring[i].frag[0].length = cpu_to_le32(np->rx_buf_sz | LastFrag);
+		np->rx_ring[i].frag.length = cpu_to_le32(np->rx_buf_sz | LastFrag);
 	}
 	np->dirty_rx = (unsigned int)(i - RX_RING_SIZE);
 
@@ -1095,12 +1097,12 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 
 	txdesc->next_desc = 0;
 	txdesc->status = cpu_to_le32 ((entry << 2) | DisableAlign);
-	txdesc->frag[0].addr = cpu_to_le32(dma_map_single(&np->pci_dev->dev,
+	txdesc->frag.addr = cpu_to_le32(dma_map_single(&np->pci_dev->dev,
 				skb->data, skb->len, DMA_TO_DEVICE));
 	if (dma_mapping_error(&np->pci_dev->dev,
-				txdesc->frag[0].addr))
+				txdesc->frag.addr))
 			goto drop_frame;
-	txdesc->frag[0].length = cpu_to_le32 (skb->len | LastFrag);
+	txdesc->frag.length = cpu_to_le32 (skb->len | LastFrag);
 
 	/* Increment cur_tx before tasklet_schedule() */
 	np->cur_tx++;
@@ -1149,7 +1151,7 @@ reset_tx (struct net_device *dev)
 		skb = np->tx_skbuff[i];
 		if (skb) {
 			dma_unmap_single(&np->pci_dev->dev,
-				le32_to_cpu(np->tx_ring[i].frag[0].addr),
+				le32_to_cpu(np->tx_ring[i].frag.addr),
 				skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb_any(skb);
 			np->tx_skbuff[i] = NULL;
@@ -1269,12 +1271,12 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 				skb = np->tx_skbuff[entry];
 				/* Free the original skb. */
 				dma_unmap_single(&np->pci_dev->dev,
-					le32_to_cpu(np->tx_ring[entry].frag[0].addr),
+					le32_to_cpu(np->tx_ring[entry].frag.addr),
 					skb->len, DMA_TO_DEVICE);
 				dev_consume_skb_irq(np->tx_skbuff[entry]);
 				np->tx_skbuff[entry] = NULL;
-				np->tx_ring[entry].frag[0].addr = 0;
-				np->tx_ring[entry].frag[0].length = 0;
+				np->tx_ring[entry].frag.addr = 0;
+				np->tx_ring[entry].frag.length = 0;
 			}
 			spin_unlock(&np->lock);
 		} else {
@@ -1288,12 +1290,12 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 				skb = np->tx_skbuff[entry];
 				/* Free the original skb. */
 				dma_unmap_single(&np->pci_dev->dev,
-					le32_to_cpu(np->tx_ring[entry].frag[0].addr),
+					le32_to_cpu(np->tx_ring[entry].frag.addr),
 					skb->len, DMA_TO_DEVICE);
 				dev_consume_skb_irq(np->tx_skbuff[entry]);
 				np->tx_skbuff[entry] = NULL;
-				np->tx_ring[entry].frag[0].addr = 0;
-				np->tx_ring[entry].frag[0].length = 0;
+				np->tx_ring[entry].frag.addr = 0;
+				np->tx_ring[entry].frag.length = 0;
 			}
 			spin_unlock(&np->lock);
 		}
@@ -1370,16 +1372,16 @@ static void rx_poll(struct tasklet_struct *t)
 			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				dma_sync_single_for_cpu(&np->pci_dev->dev,
-						le32_to_cpu(desc->frag[0].addr),
+						le32_to_cpu(desc->frag.addr),
 						np->rx_buf_sz, DMA_FROM_DEVICE);
 				skb_copy_to_linear_data(skb, np->rx_skbuff[entry]->data, pkt_len);
 				dma_sync_single_for_device(&np->pci_dev->dev,
-						le32_to_cpu(desc->frag[0].addr),
+						le32_to_cpu(desc->frag.addr),
 						np->rx_buf_sz, DMA_FROM_DEVICE);
 				skb_put(skb, pkt_len);
 			} else {
 				dma_unmap_single(&np->pci_dev->dev,
-					le32_to_cpu(desc->frag[0].addr),
+					le32_to_cpu(desc->frag.addr),
 					np->rx_buf_sz, DMA_FROM_DEVICE);
 				skb_put(skb = np->rx_skbuff[entry], pkt_len);
 				np->rx_skbuff[entry] = NULL;
@@ -1425,18 +1427,18 @@ static void refill_rx (struct net_device *dev)
 			if (skb == NULL)
 				break;		/* Better luck next round. */
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
-			np->rx_ring[entry].frag[0].addr = cpu_to_le32(
+			np->rx_ring[entry].frag.addr = cpu_to_le32(
 				dma_map_single(&np->pci_dev->dev, skb->data,
 					np->rx_buf_sz, DMA_FROM_DEVICE));
 			if (dma_mapping_error(&np->pci_dev->dev,
-				    np->rx_ring[entry].frag[0].addr)) {
+				    np->rx_ring[entry].frag.addr)) {
 			    dev_kfree_skb_irq(skb);
 			    np->rx_skbuff[entry] = NULL;
 			    break;
 			}
 		}
 		/* Perhaps we need not reset this field. */
-		np->rx_ring[entry].frag[0].length =
+		np->rx_ring[entry].frag.length =
 			cpu_to_le32(np->rx_buf_sz | LastFrag);
 		np->rx_ring[entry].status = 0;
 		cnt++;
@@ -1611,7 +1613,7 @@ static int sundance_set_mac_addr(struct net_device *dev, void *data)
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 	__set_mac_addr(dev);
 
 	return 0;
@@ -1847,20 +1849,20 @@ static int netdev_close(struct net_device *dev)
 	/* Stop the chip's Tx and Rx processes. */
 	iowrite16(TxDisable | RxDisable | StatsDisable, ioaddr + MACCtrl1);
 
-    	for (i = 2000; i > 0; i--) {
- 		if ((ioread32(ioaddr + DMACtrl) & 0xc000) == 0)
+	for (i = 2000; i > 0; i--) {
+		if ((ioread32(ioaddr + DMACtrl) & 0xc000) == 0)
 			break;
 		mdelay(1);
-    	}
+	}
 
-    	iowrite16(GlobalReset | DMAReset | FIFOReset | NetworkReset,
+	iowrite16(GlobalReset | DMAReset | FIFOReset | NetworkReset,
 			ioaddr + ASIC_HI_WORD(ASICCtrl));
 
-    	for (i = 2000; i > 0; i--) {
+	for (i = 2000; i > 0; i--) {
 		if ((ioread16(ioaddr + ASIC_HI_WORD(ASICCtrl)) & ResetBusy) == 0)
 			break;
 		mdelay(1);
-    	}
+	}
 
 #ifdef __i386__
 	if (netif_msg_hw(np)) {
@@ -1868,14 +1870,14 @@ static int netdev_close(struct net_device *dev)
 			   (int)(np->tx_ring_dma));
 		for (i = 0; i < TX_RING_SIZE; i++)
 			printk(KERN_DEBUG " #%d desc. %4.4x %8.8x %8.8x.\n",
-				   i, np->tx_ring[i].status, np->tx_ring[i].frag[0].addr,
-				   np->tx_ring[i].frag[0].length);
+				   i, np->tx_ring[i].status, np->tx_ring[i].frag.addr,
+				   np->tx_ring[i].frag.length);
 		printk(KERN_DEBUG "  Rx ring %8.8x:\n",
 			   (int)(np->rx_ring_dma));
 		for (i = 0; i < /*RX_RING_SIZE*/4 ; i++) {
 			printk(KERN_DEBUG " #%d desc. %4.4x %4.4x %8.8x\n",
-				   i, np->rx_ring[i].status, np->rx_ring[i].frag[0].addr,
-				   np->rx_ring[i].frag[0].length);
+				   i, np->rx_ring[i].status, np->rx_ring[i].frag.addr,
+				   np->rx_ring[i].frag.length);
 		}
 	}
 #endif /* __i386__ debugging only */
@@ -1890,19 +1892,19 @@ static int netdev_close(struct net_device *dev)
 		skb = np->rx_skbuff[i];
 		if (skb) {
 			dma_unmap_single(&np->pci_dev->dev,
-				le32_to_cpu(np->rx_ring[i].frag[0].addr),
+				le32_to_cpu(np->rx_ring[i].frag.addr),
 				np->rx_buf_sz, DMA_FROM_DEVICE);
 			dev_kfree_skb(skb);
 			np->rx_skbuff[i] = NULL;
 		}
-		np->rx_ring[i].frag[0].addr = cpu_to_le32(0xBADF00D0); /* poison */
+		np->rx_ring[i].frag.addr = cpu_to_le32(0xBADF00D0); /* poison */
 	}
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		np->tx_ring[i].next_desc = 0;
 		skb = np->tx_skbuff[i];
 		if (skb) {
 			dma_unmap_single(&np->pci_dev->dev,
-				le32_to_cpu(np->tx_ring[i].frag[0].addr),
+				le32_to_cpu(np->tx_ring[i].frag.addr),
 				skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb(skb);
 			np->tx_skbuff[i] = NULL;
@@ -1982,17 +1984,4 @@ static struct pci_driver sundance_driver = {
 	.driver.pm	= &sundance_pm_ops,
 };
 
-static int __init sundance_init(void)
-{
-	return pci_register_driver(&sundance_driver);
-}
-
-static void __exit sundance_exit(void)
-{
-	pci_unregister_driver(&sundance_driver);
-}
-
-module_init(sundance_init);
-module_exit(sundance_exit);
-
-
+module_pci_driver(sundance_driver);

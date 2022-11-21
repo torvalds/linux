@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/thermal/thermal.h>
 #include "tegra124.dtsi"
 
 / {
@@ -61,7 +62,7 @@
 		};
 	};
 
-	gpu@0,57000000 {
+	gpu@57000000 {
 		status = "okay";
 
 		vdd-supply = <&vdd_gpu>;
@@ -87,11 +88,11 @@
 			interrupts = <TEGRA_GPIO(H, 4) IRQ_TYPE_EDGE_FALLING>;
 		};
 
-		temperature-sensor@4c {
+		tmp451: temperature-sensor@4c {
 			compatible = "ti,tmp451";
 			reg = <0x4c>;
 			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(I, 6) IRQ_TYPE_LEVEL_LOW>;
+			interrupts = <TEGRA_GPIO(I, 6) IRQ_TYPE_EDGE_FALLING>;
 
 			#thermal-sensor-cells = <1>;
 		};
@@ -390,6 +391,10 @@
 		nvidia,sys-clock-req-active-high;
 	};
 
+	cec@70015000 {
+		status = "okay";
+	};
+
 	hda@70030000 {
 		status = "okay";
 	};
@@ -466,6 +471,7 @@
 				vbus-supply = <&vdd_usb1_vbus>;
 				status = "okay";
 				mode = "otg";
+				usb-role-switch;
 			};
 
 			usb2-1 {
@@ -527,7 +533,7 @@
 
 	/* CPU DFLL clock */
 	clock@70110000 {
-		status = "disabled";
+		status = "okay";
 		vdd-cpu-supply = <&vdd_cpu>;
 		nvidia,i2c-fs-rate = <400000>;
 	};
@@ -582,7 +588,7 @@
 			 256>;
 	};
 
-	clk32k_in: clock@0 {
+	clk32k_in: clock-32k {
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 		#clock-cells = <0>;
@@ -615,7 +621,7 @@
 		};
 	};
 
-	vdd_mux: regulator@0 {
+	vdd_mux: regulator-mux {
 		compatible = "regulator-fixed";
 		regulator-name = "+VDD_MUX";
 		regulator-min-microvolt = <12000000>;
@@ -624,7 +630,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_5v0_sys: regulator@1 {
+	vdd_5v0_sys: regulator-5v0sys {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_SYS";
 		regulator-min-microvolt = <5000000>;
@@ -634,7 +640,7 @@
 		vin-supply = <&vdd_mux>;
 	};
 
-	vdd_3v3_sys: regulator@2 {
+	vdd_3v3_sys: regulator-3v3sys {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_SYS";
 		regulator-min-microvolt = <3300000>;
@@ -644,7 +650,7 @@
 		vin-supply = <&vdd_mux>;
 	};
 
-	vdd_3v3_run: regulator@3 {
+	vdd_3v3_run: regulator-3v3run {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_RUN";
 		regulator-min-microvolt = <3300000>;
@@ -656,7 +662,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_3v3_hdmi: regulator@4 {
+	vdd_3v3_hdmi: regulator-3v3hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_AVDD_HDMI_AP_GATED";
 		regulator-min-microvolt = <3300000>;
@@ -664,7 +670,7 @@
 		vin-supply = <&vdd_3v3_run>;
 	};
 
-	vdd_led: regulator@5 {
+	vdd_led: regulator-led {
 		compatible = "regulator-fixed";
 		regulator-name = "+VDD_LED";
 		gpio = <&gpio TEGRA_GPIO(P, 2) GPIO_ACTIVE_HIGH>;
@@ -672,7 +678,7 @@
 		vin-supply = <&vdd_mux>;
 	};
 
-	vdd_5v0_ts: regulator@6 {
+	vdd_5v0_ts: regulator-ts {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_VDD_TS_SW";
 		regulator-min-microvolt = <5000000>;
@@ -683,7 +689,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_usb1_vbus: regulator@7 {
+	vdd_usb1_vbus: regulator-usb1 {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_USB_HS";
 		regulator-min-microvolt = <5000000>;
@@ -694,7 +700,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_usb3_vbus: regulator@8 {
+	vdd_usb3_vbus: regulator-usb3 {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_USB_SS";
 		regulator-min-microvolt = <5000000>;
@@ -705,7 +711,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_3v3_panel: regulator@9 {
+	vdd_3v3_panel: regulator-panel {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_PANEL";
 		regulator-min-microvolt = <3300000>;
@@ -715,7 +721,7 @@
 		vin-supply = <&vdd_3v3_run>;
 	};
 
-	vdd_3v3_lp0: regulator@10 {
+	vdd_3v3_lp0: regulator-lp0 {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_LP0";
 		regulator-min-microvolt = <3300000>;
@@ -730,7 +736,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_hdmi_pll: regulator@11 {
+	vdd_hdmi_pll: regulator-hdmipll {
 		compatible = "regulator-fixed";
 		regulator-name = "+1.05V_RUN_AVDD_HDMI_PLL";
 		regulator-min-microvolt = <1050000>;
@@ -739,7 +745,7 @@
 		vin-supply = <&vdd_1v05_run>;
 	};
 
-	vdd_5v0_hdmi: regulator@12 {
+	vdd_5v0_hdmi: regulator-hdmicon {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_HDMI_CON";
 		regulator-min-microvolt = <5000000>;
@@ -783,6 +789,52 @@
 		compatible = "gpio-restart";
 		gpios = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
 		priority = <200>;
+	};
+
+	cpus {
+		cpu0: cpu@0 {
+			#cooling-cells = <2>;
+		};
+
+		cpu1: cpu@1 {
+			#cooling-cells = <2>;
+		};
+
+		cpu2: cpu@2 {
+			#cooling-cells = <2>;
+		};
+
+		cpu3: cpu@3 {
+			#cooling-cells = <2>;
+		};
+	};
+
+	thermal-zones {
+		cpu-skin-thermal {
+			polling-delay-passive = <1000>; /* milliseconds */
+			polling-delay = <5000>; /* milliseconds */
+
+			thermal-sensors = <&tmp451 0>;
+
+			trips {
+				cpu_passive_trip: cpu-alert0 {
+					/* throttle at 70C until temperature drops to 69.8C */
+					temperature = <70000>;
+					hysteresis = <200>;
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_passive_trip>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
 	};
 };
 

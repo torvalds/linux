@@ -1,60 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-only
 
-NSIM_ID=$((RANDOM % 1024))
-NSIM_DEV_SYS=/sys/bus/netdevsim/devices/netdevsim$NSIM_ID
-NSIM_DEV_DFS=/sys/kernel/debug/netdevsim/netdevsim$NSIM_ID/ports/0
-NSIM_NETDEV=
-num_passes=0
-num_errors=0
-
-function cleanup_nsim {
-    if [ -e $NSIM_DEV_SYS ]; then
-	echo $NSIM_ID > /sys/bus/netdevsim/del_device
-    fi
-}
-
-function cleanup {
-    cleanup_nsim
-}
-
-trap cleanup EXIT
-
-function get_netdev_name {
-    local -n old=$1
-
-    new=$(ls /sys/class/net)
-
-    for netdev in $new; do
-	for check in $old; do
-            [ $netdev == $check ] && break
-	done
-
-	if [ $netdev != $check ]; then
-	    echo $netdev
-	    break
-	fi
-    done
-}
-
-function check {
-    local code=$1
-    local str=$2
-    local exp_str=$3
-
-    if [ $code -ne 0 ]; then
-	((num_errors++))
-	return
-    fi
-
-    if [ "$str" != "$exp_str"  ]; then
-	echo -e "Expected: '$exp_str', got '$str'"
-	((num_errors++))
-	return
-    fi
-
-    ((num_passes++))
-}
+source ethtool-common.sh
 
 # Bail if ethtool is too old
 if ! ethtool -h | grep include-stat 2>&1 >/dev/null; then
@@ -62,13 +9,7 @@ if ! ethtool -h | grep include-stat 2>&1 >/dev/null; then
     exit 4
 fi
 
-# Make a netdevsim
-old_netdevs=$(ls /sys/class/net)
-
-modprobe netdevsim
-echo $NSIM_ID > /sys/bus/netdevsim/new_device
-
-NSIM_NETDEV=`get_netdev_name old_netdevs`
+NSIM_NETDEV=$(make_netdev)
 
 set -o pipefail
 

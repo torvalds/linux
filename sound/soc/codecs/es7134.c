@@ -94,7 +94,7 @@ static int es7134_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		SND_SOC_DAIFMT_MASTER_MASK);
 
 	if (fmt != (SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-		    SND_SOC_DAIFMT_CBS_CFS)) {
+		    SND_SOC_DAIFMT_CBC_CFC)) {
 		dev_err(codec_dai->dev, "Invalid DAI format\n");
 		return -EINVAL;
 	}
@@ -183,7 +183,7 @@ static const struct snd_soc_dapm_route es7134_extra_routes[] = {
 	{ "Playback", NULL, "VDD", }
 };
 
-static const struct es7134_chip es7134_chip = {
+static const struct es7134_chip es7134_chip __maybe_unused = {
 	.dai_drv = &es7134_dai,
 	.modes = es7134_modes,
 	.mode_num = ARRAY_SIZE(es7134_modes),
@@ -261,7 +261,7 @@ static const struct snd_soc_dapm_route es7154_extra_routes[] = {
 	{ "Playback", NULL, "PVDD", }
 };
 
-static const struct es7134_chip es7154_chip = {
+static const struct es7134_chip es7154_chip __maybe_unused = {
 	.dai_drv = &es7154_dai,
 	.modes = es7154_modes,
 	.mode_num = ARRAY_SIZE(es7154_modes),

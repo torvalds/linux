@@ -14,6 +14,9 @@
 
 #define ETH_P_SJA1105				ETH_P_DSA_8021Q
 #define ETH_P_SJA1105_META			0x0008
+#define ETH_P_SJA1110				0xdadc
+
+#define SJA1105_DEFAULT_VLAN			(VLAN_N_VID - 1)
 
 /* IEEE 802.3 Annex 57A: Slow Protocols PDUs (01:80:C2:xx:xx:xx) */
 #define SJA1105_LINKLOCAL_FILTER_A		0x0180C2000000ull
@@ -32,36 +35,45 @@
 #define SJA1105_META_SMAC			0x222222222222ull
 #define SJA1105_META_DMAC			0x0180C200000Eull
 
-#define SJA1105_HWTS_RX_EN			0
+enum sja1110_meta_tstamp {
+	SJA1110_META_TSTAMP_TX = 0,
+	SJA1110_META_TSTAMP_RX = 1,
+};
 
-/* Global tagger data: each struct sja1105_port has a reference to
- * the structure defined in struct sja1105_private.
- */
+struct sja1105_deferred_xmit_work {
+	struct dsa_port *dp;
+	struct sk_buff *skb;
+	struct kthread_work work;
+};
+
+/* Global tagger data */
 struct sja1105_tagger_data {
-	struct sk_buff *stampable_skb;
-	/* Protects concurrent access to the meta state machine
-	 * from taggers running on multiple ports on SMP systems
-	 */
-	spinlock_t meta_lock;
-	unsigned long state;
+	/* Tagger to switch */
+	void (*xmit_work_fn)(struct kthread_work *work);
+	void (*meta_tstamp_handler)(struct dsa_switch *ds, int port, u8 ts_id,
+				    enum sja1110_meta_tstamp dir, u64 tstamp);
+	/* Switch to tagger */
+	bool (*rxtstamp_get_state)(struct dsa_switch *ds);
+	void (*rxtstamp_set_state)(struct dsa_switch *ds, bool on);
 };
 
 struct sja1105_skb_cb {
-	u32 meta_tstamp;
+	struct sk_buff *clone;
+	u64 tstamp;
+	/* Only valid for packets cloned for 2-step TX timestamping */
+	u8 ts_id;
 };
 
 #define SJA1105_SKB_CB(skb) \
-	((struct sja1105_skb_cb *)DSA_SKB_CB_PRIV(skb))
+	((struct sja1105_skb_cb *)((skb)->cb))
 
-struct sja1105_port {
-	u16 subvlan_map[DSA_8021Q_N_SUBVLAN];
-	struct kthread_worker *xmit_worker;
-	struct kthread_work xmit_work;
-	struct sk_buff_head xmit_queue;
-	struct sja1105_tagger_data *data;
-	struct dsa_port *dp;
-	bool hwts_tx_en;
-	u16 xmit_tpid;
-};
+static inline struct sja1105_tagger_data *
+sja1105_tagger_data(struct dsa_switch *ds)
+{
+	BUG_ON(ds->dst->tag_ops->proto != DSA_TAG_PROTO_SJA1105 &&
+	       ds->dst->tag_ops->proto != DSA_TAG_PROTO_SJA1110);
+
+	return ds->tagger_data;
+}
 
 #endif /* _NET_DSA_SJA1105_H */

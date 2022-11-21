@@ -5,16 +5,19 @@
 #include "gem/i915_gem_mman.h"
 #include "gt/intel_engine_user.h"
 
+#include "i915_cmd_parser.h"
 #include "i915_drv.h"
+#include "i915_getparam.h"
 #include "i915_perf.h"
 
 int i915_getparam_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
 	struct drm_i915_private *i915 = to_i915(dev);
-	const struct sseu_dev_info *sseu = &i915->gt.info.sseu;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	const struct sseu_dev_info *sseu = &to_gt(i915)->info.sseu;
 	drm_i915_getparam_t *param = data;
-	int value;
+	int value = 0;
 
 	switch (param->param) {
 	case I915_PARAM_IRQ_ACTIVE:
@@ -24,13 +27,13 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		/* Reject all old ums/dri params. */
 		return -ENODEV;
 	case I915_PARAM_CHIPSET_ID:
-		value = i915->drm.pdev->device;
+		value = pdev->device;
 		break;
 	case I915_PARAM_REVISION:
-		value = i915->drm.pdev->revision;
+		value = pdev->revision;
 		break;
 	case I915_PARAM_NUM_FENCES_AVAIL:
-		value = i915->ggtt.num_fences;
+		value = to_gt(i915)->ggtt->num_fences;
 		break;
 	case I915_PARAM_HAS_OVERLAY:
 		value = !!i915->overlay;
@@ -81,8 +84,8 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_GPU_RESET:
 		value = i915->params.enable_hangcheck &&
-			intel_has_gpu_reset(&i915->gt);
-		if (value && intel_has_reset_engine(&i915->gt))
+			intel_has_gpu_reset(to_gt(i915));
+		if (value && intel_has_reset_engine(to_gt(i915)))
 			value = 2;
 		break;
 	case I915_PARAM_HAS_RESOURCE_STREAMER:
@@ -95,7 +98,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = sseu->min_eu_in_pool;
 		break;
 	case I915_PARAM_HUC_STATUS:
-		value = intel_huc_check_status(&i915->gt.uc.huc);
+		value = intel_huc_check_status(&to_gt(i915)->uc.huc);
 		if (value < 0)
 			return value;
 		break;
@@ -133,6 +136,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_EXEC_FENCE_ARRAY:
 	case I915_PARAM_HAS_EXEC_SUBMIT_FENCE:
 	case I915_PARAM_HAS_EXEC_TIMELINE_FENCES:
+	case I915_PARAM_HAS_USERPTR_PROBE:
 		/* For the time being all of these are always true;
 		 * if some supported hardware does not have one of these
 		 * features this value needs to be provided from
@@ -149,12 +153,14 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 			return -ENODEV;
 		break;
 	case I915_PARAM_SUBSLICE_MASK:
-		value = sseu->subslice_mask[0];
+		/* Only copy bits from the first slice */
+		memcpy(&value, sseu->subslice_mask,
+		       min(sseu->ss_stride, (u8)sizeof(value)));
 		if (!value)
 			return -ENODEV;
 		break;
 	case I915_PARAM_CS_TIMESTAMP_FREQUENCY:
-		value = RUNTIME_INFO(i915)->cs_timestamp_frequency_hz;
+		value = to_gt(i915)->clock_frequency;
 		break;
 	case I915_PARAM_MMAP_GTT_COHERENT:
 		value = INTEL_INFO(i915)->has_coherent_ggtt;

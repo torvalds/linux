@@ -1,18 +1,24 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    Copyright IBM Corp. 2007
- *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #ifndef _ASM_S390_SCLP_H
 #define _ASM_S390_SCLP_H
 
 #include <linux/types.h>
-#include <asm/chpid.h>
-#include <asm/cpu.h>
 
 #define SCLP_CHP_INFO_MASK_SIZE		32
-#define SCLP_MAX_CORES			256
+#define EARLY_SCCB_SIZE		PAGE_SIZE
+#define SCLP_MAX_CORES		512
+/* 144 + 16 * SCLP_MAX_CORES + 2 * (SCLP_MAX_CORES - 1) */
+#define EXT_SCCB_READ_SCP	(3 * PAGE_SIZE)
+/* 24 + 16 * SCLP_MAX_CORES */
+#define EXT_SCCB_READ_CPU	(3 * PAGE_SIZE)
+
+#ifndef __ASSEMBLY__
+#include <asm/chpid.h>
+#include <asm/cpu.h>
 
 struct sclp_chp_info {
 	u8 recognized[SCLP_CHP_INFO_MASK_SIZE];
@@ -105,9 +111,13 @@ struct zpci_report_error_header {
 			 *	(OpenCrypto Successful Diagnostics Execution)
 			 */
 	u16 length;	/* Length of Subsequent Data (up to 4K – SCLP header */
-	u8 data[0];	/* Subsequent Data passed verbatim to SCLP ET 24 */
+	u8 data[];	/* Subsequent Data passed verbatim to SCLP ET 24 */
 } __packed;
 
+extern char *sclp_early_sccb;
+
+void sclp_early_adjust_va(void);
+void sclp_early_set_buffer(void *sccb);
 int sclp_early_read_info(void);
 int sclp_early_read_storage_info(void);
 int sclp_early_get_core_info(struct sclp_core_info *info);
@@ -142,4 +152,5 @@ static inline int sclp_get_core_info(struct sclp_core_info *info, int early)
 	return _sclp_get_core_info(info);
 }
 
+#endif /* __ASSEMBLY__ */
 #endif /* _ASM_S390_SCLP_H */

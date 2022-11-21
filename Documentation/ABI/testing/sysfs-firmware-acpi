@@ -1,3 +1,46 @@
+What:		/sys/firmware/acpi/fpdt/
+Date:		Jan 2021
+Contact:	Zhang Rui <rui.zhang@intel.com>
+Description:
+		ACPI Firmware Performance Data Table (FPDT) provides
+		information for firmware performance data for system boot,
+		S3 suspend and S3 resume. This sysfs entry contains the
+		performance data retrieved from the FPDT.
+
+		boot:
+			firmware_start_ns: Timer value logged at the beginning
+				of firmware image execution. In nanoseconds.
+			bootloader_load_ns: Timer value logged just prior to
+				loading the OS boot loader into memory.
+				In nanoseconds.
+			bootloader_launch_ns: Timer value logged just prior to
+				launching the currently loaded OS boot loader
+				image. In nanoseconds.
+			exitbootservice_start_ns: Timer value logged at the
+				point when the OS loader calls the
+				ExitBootServices function for UEFI compatible
+				firmware. In nanoseconds.
+			exitbootservice_end_ns: Timer value logged at the point
+				just prior to the OS loader gaining control
+				back from the ExitBootServices function for
+				UEFI compatible firmware. In nanoseconds.
+		suspend:
+			suspend_start_ns: Timer value recorded at the previous
+				OS write to SLP_TYP upon entry to S3. In
+				nanoseconds.
+			suspend_end_ns: Timer value recorded at the previous
+				firmware write to SLP_TYP used to trigger
+				hardware entry to S3. In nanoseconds.
+		resume:
+			resume_count: A count of the number of S3 resume cycles
+				since the last full boot sequence.
+			resume_avg_ns: Average timer value of all resume cycles
+				logged since the last full boot sequence,
+				including the most recent resume. In nanoseconds.
+			resume_prev_ns: Timer recorded at the end of the previous
+				platform runtime firmware S3 resume, just prior to
+				handoff to the OS waking vector. In nanoseconds.
+
 What:		/sys/firmware/acpi/bgrt/
 Date:		January 2012
 Contact:	Matthew Garrett <mjg@redhat.com>

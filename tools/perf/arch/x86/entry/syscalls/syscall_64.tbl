@@ -362,6 +362,16 @@
 438	common	pidfd_getfd		sys_pidfd_getfd
 439	common	faccessat2		sys_faccessat2
 440	common	process_madvise		sys_process_madvise
+441	common	epoll_pwait2		sys_epoll_pwait2
+442	common	mount_setattr		sys_mount_setattr
+443	common	quotactl_fd		sys_quotactl_fd
+444	common	landlock_create_ruleset	sys_landlock_create_ruleset
+445	common	landlock_add_rule	sys_landlock_add_rule
+446	common	landlock_restrict_self	sys_landlock_restrict_self
+447	common	memfd_secret		sys_memfd_secret
+448	common	process_mrelease	sys_process_mrelease
+449	common	futex_waitv		sys_futex_waitv
+450	common	set_mempolicy_home_node	sys_set_mempolicy_home_node
 
 #
 # Due to a historical design error, certain syscalls are numbered differently
@@ -390,7 +400,7 @@
 530	x32	set_robust_list		compat_sys_set_robust_list
 531	x32	get_robust_list		compat_sys_get_robust_list
 532	x32	vmsplice		sys_vmsplice
-533	x32	move_pages		compat_sys_move_pages
+533	x32	move_pages		sys_move_pages
 534	x32	preadv			compat_sys_preadv64
 535	x32	pwritev			compat_sys_pwritev64
 536	x32	rt_tgsigqueueinfo	compat_sys_rt_tgsigqueueinfo

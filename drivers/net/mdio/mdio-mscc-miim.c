@@ -6,14 +6,17 @@
  * Copyright (c) 2017 Microsemi Corporation
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/phy.h>
-#include <linux/platform_device.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/kernel.h>
+#include <linux/mdio/mdio-mscc-miim.h>
+#include <linux/module.h>
 #include <linux/of_mdio.h>
+#include <linux/phy.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
+#include <linux/regmap.h>
 
 #define MSCC_MIIM_REG_STATUS		0x0
 #define		MSCC_MIIM_STATUS_STAT_PENDING	BIT(2)
@@ -34,38 +37,61 @@
 #define		PHY_CFG_PHY_RESET	(BIT(5) | BIT(6) | BIT(7) | BIT(8))
 #define MSCC_PHY_REG_PHY_STATUS	0x4
 
+#define LAN966X_CUPHY_COMMON_CFG	0x0
+#define		CUPHY_COMMON_CFG_RESET_N	BIT(0)
+
+struct mscc_miim_info {
+	unsigned int phy_reset_offset;
+	unsigned int phy_reset_bits;
+};
+
 struct mscc_miim_dev {
-	void __iomem *regs;
-	void __iomem *phy_regs;
+	struct regmap *regs;
+	int mii_status_offset;
+	struct regmap *phy_regs;
+	const struct mscc_miim_info *info;
 };
 
 /* When high resolution timers aren't built-in: we can't use usleep_range() as
  * we would sleep way too long. Use udelay() instead.
  */
-#define mscc_readl_poll_timeout(addr, val, cond, delay_us, timeout_us)	\
-({									\
-	if (!IS_ENABLED(CONFIG_HIGH_RES_TIMERS))			\
-		readl_poll_timeout_atomic(addr, val, cond, delay_us,	\
-					  timeout_us);			\
-	readl_poll_timeout(addr, val, cond, delay_us, timeout_us);	\
+#define mscc_readx_poll_timeout(op, addr, val, cond, delay_us, timeout_us)\
+({									  \
+	if (!IS_ENABLED(CONFIG_HIGH_RES_TIMERS))			  \
+		readx_poll_timeout_atomic(op, addr, val, cond, delay_us,  \
+					  timeout_us);			  \
+	readx_poll_timeout(op, addr, val, cond, delay_us, timeout_us);	  \
 })
+
+static int mscc_miim_status(struct mii_bus *bus)
+{
+	struct mscc_miim_dev *miim = bus->priv;
+	int val, ret;
+
+	ret = regmap_read(miim->regs,
+			  MSCC_MIIM_REG_STATUS + miim->mii_status_offset, &val);
+	if (ret < 0) {
+		WARN_ONCE(1, "mscc miim status read error %d\n", ret);
+		return ret;
+	}
+
+	return val;
+}
 
 static int mscc_miim_wait_ready(struct mii_bus *bus)
 {
-	struct mscc_miim_dev *miim = bus->priv;
 	u32 val;
 
-	return mscc_readl_poll_timeout(miim->regs + MSCC_MIIM_REG_STATUS, val,
+	return mscc_readx_poll_timeout(mscc_miim_status, bus, val,
 				       !(val & MSCC_MIIM_STATUS_STAT_BUSY), 50,
 				       10000);
 }
 
 static int mscc_miim_wait_pending(struct mii_bus *bus)
 {
-	struct mscc_miim_dev *miim = bus->priv;
 	u32 val;
 
-	return mscc_readl_poll_timeout(miim->regs + MSCC_MIIM_REG_STATUS, val,
+	return mscc_readx_poll_timeout(mscc_miim_status, bus, val,
 				       !(val & MSCC_MIIM_STATUS_STAT_PENDING),
 				       50, 10000);
 }
@@ -76,19 +102,36 @@ static int mscc_miim_read(struct mii_bus *bus, int mii_id, int regnum)
 	u32 val;
 	int ret;
 
+	if (regnum & MII_ADDR_C45)
+		return -EOPNOTSUPP;
+
 	ret = mscc_miim_wait_pending(bus);
 	if (ret)
 		goto out;
 
-	writel(MSCC_MIIM_CMD_VLD | (mii_id << MSCC_MIIM_CMD_PHYAD_SHIFT) |
-	       (regnum << MSCC_MIIM_CMD_REGAD_SHIFT) | MSCC_MIIM_CMD_OPR_READ,
-	       miim->regs + MSCC_MIIM_REG_CMD);
+	ret = regmap_write(miim->regs,
+			   MSCC_MIIM_REG_CMD + miim->mii_status_offset,
+			   MSCC_MIIM_CMD_VLD |
+			   (mii_id << MSCC_MIIM_CMD_PHYAD_SHIFT) |
+			   (regnum << MSCC_MIIM_CMD_REGAD_SHIFT) |
+			   MSCC_MIIM_CMD_OPR_READ);
+
+	if (ret < 0) {
+		WARN_ONCE(1, "mscc miim write cmd reg error %d\n", ret);
+		goto out;
+	}
 
 	ret = mscc_miim_wait_ready(bus);
 	if (ret)
 		goto out;
 
-	val = readl(miim->regs + MSCC_MIIM_REG_DATA);
+	ret = regmap_read(miim->regs,
+			  MSCC_MIIM_REG_DATA + miim->mii_status_offset, &val);
+	if (ret < 0) {
+		WARN_ONCE(1, "mscc miim read data reg error %d\n", ret);
+		goto out;
+	}
+
 	if (val & MSCC_MIIM_DATA_ERROR) {
 		ret = -EIO;
 		goto out;
@@ -105,16 +148,23 @@ static int mscc_miim_write(struct mii_bus *bus, int mii_id,
 	struct mscc_miim_dev *miim = bus->priv;
 	int ret;
 
+	if (regnum & MII_ADDR_C45)
+		return -EOPNOTSUPP;
+
 	ret = mscc_miim_wait_pending(bus);
 	if (ret < 0)
 		goto out;
 
-	writel(MSCC_MIIM_CMD_VLD | (mii_id << MSCC_MIIM_CMD_PHYAD_SHIFT) |
-	       (regnum << MSCC_MIIM_CMD_REGAD_SHIFT) |
-	       (value << MSCC_MIIM_CMD_WRDATA_SHIFT) |
-	       MSCC_MIIM_CMD_OPR_WRITE,
-	       miim->regs + MSCC_MIIM_REG_CMD);
+	ret = regmap_write(miim->regs,
+			   MSCC_MIIM_REG_CMD + miim->mii_status_offset,
+			   MSCC_MIIM_CMD_VLD |
+			   (mii_id << MSCC_MIIM_CMD_PHYAD_SHIFT) |
+			   (regnum << MSCC_MIIM_CMD_REGAD_SHIFT) |
+			   (value << MSCC_MIIM_CMD_WRDATA_SHIFT) |
+			   MSCC_MIIM_CMD_OPR_WRITE);
 
+	if (ret < 0)
+		WARN_ONCE(1, "mscc miim write error %d\n", ret);
 out:
 	return ret;
 }
@@ -122,53 +172,127 @@ out:
 static int mscc_miim_reset(struct mii_bus *bus)
 {
 	struct mscc_miim_dev *miim = bus->priv;
+	unsigned int offset, bits;
+	int ret;
 
-	if (miim->phy_regs) {
-		writel(0, miim->phy_regs + MSCC_PHY_REG_PHY_CFG);
-		writel(0x1ff, miim->phy_regs + MSCC_PHY_REG_PHY_CFG);
-		mdelay(500);
+	if (!miim->phy_regs)
+		return 0;
+
+	offset = miim->info->phy_reset_offset;
+	bits = miim->info->phy_reset_bits;
+
+	ret = regmap_update_bits(miim->phy_regs, offset, bits, 0);
+	if (ret < 0) {
+		WARN_ONCE(1, "mscc reset set error %d\n", ret);
+		return ret;
 	}
+
+	ret = regmap_update_bits(miim->phy_regs, offset, bits, bits);
+	if (ret < 0) {
+		WARN_ONCE(1, "mscc reset clear error %d\n", ret);
+		return ret;
+	}
+
+	mdelay(500);
 
 	return 0;
 }
 
-static int mscc_miim_probe(struct platform_device *pdev)
+static const struct regmap_config mscc_miim_regmap_config = {
+	.reg_bits	= 32,
+	.val_bits	= 32,
+	.reg_stride	= 4,
+};
+
+static const struct regmap_config mscc_miim_phy_regmap_config = {
+	.reg_bits	= 32,
+	.val_bits	= 32,
+	.reg_stride	= 4,
+	.name		= "phy",
+};
+
+int mscc_miim_setup(struct device *dev, struct mii_bus **pbus, const char *name,
+		    struct regmap *mii_regmap, int status_offset)
 {
-	struct resource *res;
+	struct mscc_miim_dev *miim;
 	struct mii_bus *bus;
-	struct mscc_miim_dev *dev;
-	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
-	bus = devm_mdiobus_alloc_size(&pdev->dev, sizeof(*dev));
+	bus = devm_mdiobus_alloc_size(dev, sizeof(*miim));
 	if (!bus)
 		return -ENOMEM;
 
-	bus->name = "mscc_miim";
+	bus->name = name;
 	bus->read = mscc_miim_read;
 	bus->write = mscc_miim_write;
 	bus->reset = mscc_miim_reset;
-	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-mii", dev_name(&pdev->dev));
-	bus->parent = &pdev->dev;
+	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-mii", dev_name(dev));
+	bus->parent = dev;
 
-	dev = bus->priv;
-	dev->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(dev->regs)) {
+	miim = bus->priv;
+
+	*pbus = bus;
+
+	miim->regs = mii_regmap;
+	miim->mii_status_offset = status_offset;
+
+	*pbus = bus;
+
+	return 0;
+}
+EXPORT_SYMBOL(mscc_miim_setup);
+
+static int mscc_miim_probe(struct platform_device *pdev)
+{
+	struct regmap *mii_regmap, *phy_regmap = NULL;
+	void __iomem *regs, *phy_regs;
+	struct mscc_miim_dev *miim;
+	struct resource *res;
+	struct mii_bus *bus;
+	int ret;
+
+	regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
+	if (IS_ERR(regs)) {
 		dev_err(&pdev->dev, "Unable to map MIIM registers\n");
-		return PTR_ERR(dev->regs);
+		return PTR_ERR(regs);
 	}
 
+	mii_regmap = devm_regmap_init_mmio(&pdev->dev, regs,
+					   &mscc_miim_regmap_config);
+
+	if (IS_ERR(mii_regmap)) {
+		dev_err(&pdev->dev, "Unable to create MIIM regmap\n");
+		return PTR_ERR(mii_regmap);
+	}
+
+	/* This resource is optional */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res) {
-		dev->phy_regs = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(dev->phy_regs)) {
+		phy_regs = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(phy_regs)) {
 			dev_err(&pdev->dev, "Unable to map internal phy registers\n");
-			return PTR_ERR(dev->phy_regs);
+			return PTR_ERR(phy_regs);
+		}
+
+		phy_regmap = devm_regmap_init_mmio(&pdev->dev, phy_regs,
+						   &mscc_miim_phy_regmap_config);
+		if (IS_ERR(phy_regmap)) {
+			dev_err(&pdev->dev, "Unable to create phy register regmap\n");
+			return PTR_ERR(phy_regmap);
 		}
 	}
+
+	ret = mscc_miim_setup(&pdev->dev, &bus, "mscc_miim", mii_regmap, 0);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Unable to setup the MDIO bus\n");
+		return ret;
+	}
+
+	miim = bus->priv;
+	miim->phy_regs = phy_regmap;
+
+	miim->info = device_get_match_data(&pdev->dev);
+	if (!miim->info)
+		return -EINVAL;
 
 	ret = of_mdiobus_register(bus, pdev->dev.of_node);
 	if (ret < 0) {
@@ -190,8 +314,25 @@ static int mscc_miim_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct mscc_miim_info mscc_ocelot_miim_info = {
+	.phy_reset_offset = MSCC_PHY_REG_PHY_CFG,
+	.phy_reset_bits = PHY_CFG_PHY_ENA | PHY_CFG_PHY_COMMON_RESET |
+			  PHY_CFG_PHY_RESET,
+};
+
+static const struct mscc_miim_info microchip_lan966x_miim_info = {
+	.phy_reset_offset = LAN966X_CUPHY_COMMON_CFG,
+	.phy_reset_bits = CUPHY_COMMON_CFG_RESET_N,
+};
+
 static const struct of_device_id mscc_miim_match[] = {
-	{ .compatible = "mscc,ocelot-miim" },
+	{
+		.compatible = "mscc,ocelot-miim",
+		.data = &mscc_ocelot_miim_info
+	}, {
+		.compatible = "microchip,lan966x-miim",
+		.data = &microchip_lan966x_miim_info
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mscc_miim_match);

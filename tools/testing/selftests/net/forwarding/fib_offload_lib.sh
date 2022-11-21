@@ -99,15 +99,15 @@ fib_ipv4_tos_test()
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 0 metric 1024" false
 	check_err $? "Route not in hardware when should"
 
-	ip -n $ns route add 192.0.2.0/24 dev dummy1 tos 2 metric 1024
-	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 2 metric 1024" false
+	ip -n $ns route add 192.0.2.0/24 dev dummy1 tos 8 metric 1024
+	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 8 metric 1024" false
 	check_err $? "Highest TOS route not in hardware when should"
 
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 0 metric 1024" true
 	check_err $? "Lowest TOS route still in hardware when should not"
 
-	ip -n $ns route add 192.0.2.0/24 dev dummy1 tos 1 metric 1024
-	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 1 metric 1024" true
+	ip -n $ns route add 192.0.2.0/24 dev dummy1 tos 4 metric 1024
+	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 4 metric 1024" true
 	check_err $? "Middle TOS route in hardware when should not"
 
 	log_test "IPv4 routes with TOS"
@@ -224,7 +224,7 @@ fib_ipv4_plen_test()
 	ip -n $ns link set dev dummy1 up
 
 	# Add two routes with the same key and different prefix length and
-	# make sure both are in hardware. It can be verfied that both are
+	# make sure both are in hardware. It can be verified that both are
 	# sharing the same leaf by checking the /proc/net/fib_trie
 	ip -n $ns route add 192.0.2.0/24 dev dummy1
 	ip -n $ns route add 192.0.2.0/25 dev dummy1
@@ -277,11 +277,11 @@ fib_ipv4_replay_tos_test()
 	ip -n $ns link set dev dummy1 up
 
 	ip -n $ns route add 192.0.2.0/24 dev dummy1 tos 0
-	ip -n $ns route add 192.0.2.0/24 dev dummy1 tos 1
+	ip -n $ns route add 192.0.2.0/24 dev dummy1 tos 4
 
 	devlink -N $ns dev reload $devlink_dev
 
-	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 1" false
+	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 4" false
 	check_err $? "Highest TOS route not in hardware when should"
 
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 0" true

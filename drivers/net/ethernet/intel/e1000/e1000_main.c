@@ -832,7 +832,7 @@ static const struct net_device_ops e1000_netdev_ops = {
 	.ndo_set_mac_address	= e1000_set_mac,
 	.ndo_tx_timeout		= e1000_tx_timeout,
 	.ndo_change_mtu		= e1000_change_mtu,
-	.ndo_do_ioctl		= e1000_ioctl,
+	.ndo_eth_ioctl		= e1000_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_vlan_rx_add_vid	= e1000_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= e1000_vlan_rx_kill_vid,
@@ -1103,7 +1103,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			e_err(probe, "EEPROM Read Error\n");
 	}
 	/* don't block initialization here due to bad MAC address */
-	memcpy(netdev->dev_addr, hw->mac_addr, netdev->addr_len);
+	eth_hw_addr_set(netdev, hw->mac_addr);
 
 	if (!is_valid_ether_addr(netdev->dev_addr))
 		e_err(probe, "Invalid MAC Address\n");
@@ -1953,7 +1953,8 @@ void e1000_free_all_tx_resources(struct e1000_adapter *adapter)
 
 static void
 e1000_unmap_and_free_tx_resource(struct e1000_adapter *adapter,
-				 struct e1000_tx_buffer *buffer_info)
+				 struct e1000_tx_buffer *buffer_info,
+				 int budget)
 {
 	if (buffer_info->dma) {
 		if (buffer_info->mapped_as_page)
@@ -1966,7 +1967,7 @@ e1000_unmap_and_free_tx_resource(struct e1000_adapter *adapter,
 		buffer_info->dma = 0;
 	}
 	if (buffer_info->skb) {
-		dev_kfree_skb_any(buffer_info->skb);
+		napi_consume_skb(buffer_info->skb, budget);
 		buffer_info->skb = NULL;
 	}
 	buffer_info->time_stamp = 0;
@@ -1990,7 +1991,7 @@ static void e1000_clean_tx_ring(struct e1000_adapter *adapter,
 
 	for (i = 0; i < tx_ring->count; i++) {
 		buffer_info = &tx_ring->buffer_info[i];
-		e1000_unmap_and_free_tx_resource(adapter, buffer_info);
+		e1000_unmap_and_free_tx_resource(adapter, buffer_info, 0);
 	}
 
 	netdev_reset_queue(adapter->netdev);
@@ -2209,7 +2210,7 @@ static int e1000_set_mac(struct net_device *netdev, void *p)
 	if (hw->mac_type == e1000_82542_rev2_0)
 		e1000_enter_82542_rst(adapter);
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	memcpy(hw->mac_addr, addr->sa_data, netdev->addr_len);
 
 	e1000_rar_set(hw, hw->mac_addr, 0);
@@ -2632,7 +2633,6 @@ static void e1000_set_itr(struct e1000_adapter *adapter)
 
 	/* for non-gigabit speeds, just fix the interrupt rate at 4000 */
 	if (unlikely(adapter->link_speed != SPEED_1000)) {
-		current_itr = 0;
 		new_itr = 4000;
 		goto set_itr_now;
 	}
@@ -2959,7 +2959,7 @@ dma_error:
 			i += tx_ring->count;
 		i--;
 		buffer_info = &tx_ring->buffer_info[i];
-		e1000_unmap_and_free_tx_resource(adapter, buffer_info);
+		e1000_unmap_and_free_tx_resource(adapter, buffer_info, 0);
 	}
 
 	return 0;
@@ -3857,7 +3857,8 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 				}
 
 			}
-			e1000_unmap_and_free_tx_resource(adapter, buffer_info);
+			e1000_unmap_and_free_tx_resource(adapter, buffer_info,
+							 64);
 			tx_desc->upper.data = 0;
 
 			if (unlikely(++i == tx_ring->count))
@@ -4383,7 +4384,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		if (!skb) {
 			unsigned int frag_len = e1000_frag_len(adapter);
 
-			skb = build_skb(data - E1000_HEADROOM, frag_len);
+			skb = napi_build_skb(data - E1000_HEADROOM, frag_len);
 			if (!skb) {
 				adapter->alloc_rx_buff_failed++;
 				break;
@@ -5246,7 +5247,7 @@ static pci_ers_result_t e1000_io_error_detected(struct pci_dev *pdev,
 	if (!test_and_set_bit(__E1000_DISABLED, &adapter->flags))
 		pci_disable_device(pdev);
 
-	/* Request a slot slot reset. */
+	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 

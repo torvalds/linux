@@ -121,6 +121,19 @@
 			resets = <&ccu RST_BUS_CE>;
 		};
 
+		deinterlace: deinterlace@1e00000 {
+			compatible = "allwinner,sun8i-h3-deinterlace";
+			reg = <0x01e00000 0x20000>;
+			clocks = <&ccu CLK_BUS_DEINTERLACE>,
+				 <&ccu CLK_DEINTERLACE>,
+				 <&ccu CLK_DRAM_DEINTERLACE>;
+			clock-names = "bus", "mod", "ram";
+			resets = <&ccu RST_BUS_DEINTERLACE>;
+			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+			interconnects = <&mbus 9>;
+			interconnect-names = "dma-mem";
+		};
+
 		mali: gpu@1e80000 {
 			compatible = "allwinner,sun50i-h5-mali", "arm,mali-450";
 			reg = <0x01e80000 0x30000>;
@@ -204,7 +217,7 @@
 			};
 		};
 
-		gpu_thermal {
+		gpu-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&ths 1>;
@@ -218,6 +231,10 @@
 
 &display_clocks {
 	compatible = "allwinner,sun50i-h5-de2-clk";
+};
+
+&mbus {
+	compatible = "allwinner,sun50i-h5-mbus";
 };
 
 &mmc0 {

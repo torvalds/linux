@@ -67,7 +67,7 @@ static int iio_dmaengine_buffer_submit_block(struct iio_dma_buffer_queue *queue,
 	dma_cookie_t cookie;
 
 	block->bytes_used = min(block->size, dmaengine_buffer->max_size);
-	block->bytes_used = rounddown(block->bytes_used,
+	block->bytes_used = round_down(block->bytes_used,
 			dmaengine_buffer->align);
 
 	desc = dmaengine_prep_slave_single(dmaengine_buffer->chan,
@@ -132,11 +132,11 @@ static const struct iio_dma_buffer_ops iio_dmaengine_default_ops = {
 static ssize_t iio_dmaengine_buffer_get_length_align(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 	struct dmaengine_buffer *dmaengine_buffer =
-		iio_buffer_to_dmaengine_buffer(indio_dev->buffer);
+		iio_buffer_to_dmaengine_buffer(buffer);
 
-	return sprintf(buf, "%zu\n", dmaengine_buffer->align);
+	return sysfs_emit(buf, "%zu\n", dmaengine_buffer->align);
 }
 
 static IIO_DEVICE_ATTR(length_align_bytes, 0444,
@@ -200,9 +200,8 @@ static struct iio_buffer *iio_dmaengine_buffer_alloc(struct device *dev,
 
 	iio_dma_buffer_init(&dmaengine_buffer->queue, chan->device->dev,
 		&iio_dmaengine_default_ops);
-	iio_buffer_set_attrs(&dmaengine_buffer->queue.buffer,
-		iio_dmaengine_buffer_attrs);
 
+	dmaengine_buffer->queue.buffer.attrs = iio_dmaengine_buffer_attrs;
 	dmaengine_buffer->queue.buffer.access = &iio_dmaengine_buffer_ops;
 
 	return &dmaengine_buffer->queue.buffer;
@@ -229,9 +228,9 @@ static void iio_dmaengine_buffer_free(struct iio_buffer *buffer)
 	iio_buffer_put(buffer);
 }
 
-static void __devm_iio_dmaengine_buffer_free(struct device *dev, void *res)
+static void __devm_iio_dmaengine_buffer_free(void *buffer)
 {
-	iio_dmaengine_buffer_free(*(struct iio_buffer **)res);
+	iio_dmaengine_buffer_free(buffer);
 }
 
 /**
@@ -245,28 +244,51 @@ static void __devm_iio_dmaengine_buffer_free(struct device *dev, void *res)
  *
  * The buffer will be automatically de-allocated once the device gets destroyed.
  */
-struct iio_buffer *devm_iio_dmaengine_buffer_alloc(struct device *dev,
+static struct iio_buffer *devm_iio_dmaengine_buffer_alloc(struct device *dev,
 	const char *channel)
 {
-	struct iio_buffer **bufferp, *buffer;
-
-	bufferp = devres_alloc(__devm_iio_dmaengine_buffer_free,
-			       sizeof(*bufferp), GFP_KERNEL);
-	if (!bufferp)
-		return ERR_PTR(-ENOMEM);
+	struct iio_buffer *buffer;
+	int ret;
 
 	buffer = iio_dmaengine_buffer_alloc(dev, channel);
-	if (IS_ERR(buffer)) {
-		devres_free(bufferp);
+	if (IS_ERR(buffer))
 		return buffer;
-	}
 
-	*bufferp = buffer;
-	devres_add(dev, bufferp);
+	ret = devm_add_action_or_reset(dev, __devm_iio_dmaengine_buffer_free,
+				       buffer);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return buffer;
 }
-EXPORT_SYMBOL_GPL(devm_iio_dmaengine_buffer_alloc);
+
+/**
+ * devm_iio_dmaengine_buffer_setup() - Setup a DMA buffer for an IIO device
+ * @dev: Parent device for the buffer
+ * @indio_dev: IIO device to which to attach this buffer.
+ * @channel: DMA channel name, typically "rx".
+ *
+ * This allocates a new IIO buffer with devm_iio_dmaengine_buffer_alloc()
+ * and attaches it to an IIO device with iio_device_attach_buffer().
+ * It also appends the INDIO_BUFFER_HARDWARE mode to the supported modes of the
+ * IIO device.
+ */
+int devm_iio_dmaengine_buffer_setup(struct device *dev,
+				    struct iio_dev *indio_dev,
+				    const char *channel)
+{
+	struct iio_buffer *buffer;
+
+	buffer = devm_iio_dmaengine_buffer_alloc(indio_dev->dev.parent,
+						 channel);
+	if (IS_ERR(buffer))
+		return PTR_ERR(buffer);
+
+	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
+
+	return iio_device_attach_buffer(indio_dev, buffer);
+}
+EXPORT_SYMBOL_GPL(devm_iio_dmaengine_buffer_setup);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("DMA buffer for the IIO framework");

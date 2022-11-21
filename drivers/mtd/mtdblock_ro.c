@@ -46,6 +46,10 @@ static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	dev->tr = tr;
 	dev->readonly = 1;
 
+	if (mtd_type_is_nand(mtd))
+		pr_warn("%s: MTD device '%s' is NAND, please consider using UBI block devices instead.\n",
+			tr->name, mtd->name);
+
 	if (add_mtd_blktrans_dev(dev))
 		kfree(dev);
 }
@@ -67,18 +71,7 @@ static struct mtd_blktrans_ops mtdblock_tr = {
 	.owner		= THIS_MODULE,
 };
 
-static int __init mtdblock_init(void)
-{
-	return register_mtd_blktrans(&mtdblock_tr);
-}
-
-static void __exit mtdblock_exit(void)
-{
-	deregister_mtd_blktrans(&mtdblock_tr);
-}
-
-module_init(mtdblock_init);
-module_exit(mtdblock_exit);
+module_mtd_blktrans(mtdblock_tr);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");

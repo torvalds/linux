@@ -42,29 +42,29 @@ struct rdma_rw_ctx {
 	};
 };
 
-int rdma_rw_ctx_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u8 port_num,
+int rdma_rw_ctx_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u32 port_num,
 		struct scatterlist *sg, u32 sg_cnt, u32 sg_offset,
 		u64 remote_addr, u32 rkey, enum dma_data_direction dir);
-void rdma_rw_ctx_destroy(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u8 port_num,
-		struct scatterlist *sg, u32 sg_cnt,
-		enum dma_data_direction dir);
+void rdma_rw_ctx_destroy(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
+			 u32 port_num, struct scatterlist *sg, u32 sg_cnt,
+			 enum dma_data_direction dir);
 
 int rdma_rw_ctx_signature_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
-		u8 port_num, struct scatterlist *sg, u32 sg_cnt,
+		u32 port_num, struct scatterlist *sg, u32 sg_cnt,
 		struct scatterlist *prot_sg, u32 prot_sg_cnt,
 		struct ib_sig_attrs *sig_attrs, u64 remote_addr, u32 rkey,
 		enum dma_data_direction dir);
 void rdma_rw_ctx_destroy_signature(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
-		u8 port_num, struct scatterlist *sg, u32 sg_cnt,
+		u32 port_num, struct scatterlist *sg, u32 sg_cnt,
 		struct scatterlist *prot_sg, u32 prot_sg_cnt,
 		enum dma_data_direction dir);
 
 struct ib_send_wr *rdma_rw_ctx_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
-		u8 port_num, struct ib_cqe *cqe, struct ib_send_wr *chain_wr);
-int rdma_rw_ctx_post(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u8 port_num,
+		u32 port_num, struct ib_cqe *cqe, struct ib_send_wr *chain_wr);
+int rdma_rw_ctx_post(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u32 port_num,
 		struct ib_cqe *cqe, struct ib_send_wr *chain_wr);
 
-unsigned int rdma_rw_mr_factor(struct ib_device *device, u8 port_num,
+unsigned int rdma_rw_mr_factor(struct ib_device *device, u32 port_num,
 		unsigned int maxpages);
 void rdma_rw_init_qp(struct ib_device *dev, struct ib_qp_init_attr *attr);
 int rdma_rw_init_mrs(struct ib_qp *qp, struct ib_qp_init_attr *attr);

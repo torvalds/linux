@@ -13,6 +13,8 @@ struct snd_usb_midi_endpoint_info {
 	uint8_t  in_interval;
 	uint16_t out_cables;	/* bitmask */
 	uint16_t in_cables;	/* bitmask */
+	int16_t  assoc_in_jacks[16];
+	int16_t  assoc_out_jacks[16];
 };
 
 /* for QUIRK_MIDI_YAMAHA, data is NULL */

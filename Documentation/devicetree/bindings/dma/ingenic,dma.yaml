@@ -14,13 +14,23 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - ingenic,jz4740-dma
-      - ingenic,jz4725b-dma
-      - ingenic,jz4770-dma
-      - ingenic,jz4780-dma
-      - ingenic,x1000-dma
-      - ingenic,x1830-dma
+    oneOf:
+      - enum:
+          - ingenic,jz4740-dma
+          - ingenic,jz4725b-dma
+          - ingenic,jz4760-dma
+          - ingenic,jz4760-bdma
+          - ingenic,jz4760-mdma
+          - ingenic,jz4760b-dma
+          - ingenic,jz4760b-bdma
+          - ingenic,jz4760b-mdma
+          - ingenic,jz4770-dma
+          - ingenic,jz4780-dma
+          - ingenic,x1000-dma
+          - ingenic,x1830-dma
+      - items:
+          - const: ingenic,jz4770-bdma
+          - const: ingenic,jz4760b-bdma
 
   reg:
     items:
@@ -34,13 +44,19 @@ properties:
     maxItems: 1
 
   "#dma-cells":
-    const: 2
+    enum: [2, 3]
     description: >
       DMA clients must use the format described in dma.txt, giving a phandle
-      to the DMA controller plus the following 2 integer cells:
+      to the DMA controller plus the following integer cells:
 
-      - Request type: The DMA request type for transfers to/from the
-        device on the allocated channel, as defined in the SoC documentation.
+      - Request type: The DMA request type specifies the device endpoint that
+        will be the source or destination of the DMA transfer.
+        If "#dma-cells" is 2, the request type is a single cell, and the
+        direction will be unidirectional (either RX or TX but not both).
+        If "#dma-cells" is 3, the request type has two cells; the first
+        one corresponds to the host to device direction (TX), the second one
+        corresponds to the device to host direction (RX). The DMA channel is
+        then bidirectional.
 
       - Channel: If set to 0xffffffff, any available channel will be allocated
         for the client. Otherwise, the exact channel specified will be used.
@@ -48,7 +64,7 @@ properties:
         ingenic,reserved-channels property.
 
   ingenic,reserved-channels:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: >
       Bitmask of channels to reserve for devices that need a specific
       channel. These channels will only be assigned when explicitely
@@ -66,7 +82,7 @@ unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4780-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4780-cgu.h>
     dma: dma-controller@13420000 {
       compatible = "ingenic,jz4780-dma";
       reg = <0x13420000 0x400>, <0x13421000 0x40>;

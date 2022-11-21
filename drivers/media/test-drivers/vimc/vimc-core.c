@@ -5,6 +5,7 @@
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/font.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -14,6 +15,12 @@
 #include <media/v4l2-device.h>
 
 #include "vimc-common.h"
+
+unsigned int vimc_allocator;
+module_param_named(allocator, vimc_allocator, uint, 0444);
+MODULE_PARM_DESC(allocator, " memory allocator selection, default is 0.\n"
+			     "\t\t    0 == vmalloc\n"
+			     "\t\t    1 == dma-contig");
 
 #define VIMC_MDEV_MODEL_NAME "VIMC MDEV"
 
@@ -277,6 +284,9 @@ static int vimc_probe(struct platform_device *pdev)
 	}
 
 	tpg_set_font(font->data);
+
+	if (vimc_allocator == VIMC_ALLOCATOR_DMA_CONTIG)
+		dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 
 	vimc = kzalloc(sizeof(*vimc), GFP_KERNEL);
 	if (!vimc)

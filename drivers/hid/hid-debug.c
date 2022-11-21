@@ -122,6 +122,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
   {  9, 0, "Button" },
   { 10, 0, "Ordinal" },
   { 12, 0, "Consumer" },
+      {0, 0x003, "ProgrammableButtons"},
       {0, 0x238, "HorizontalWheel"},
   { 13, 0, "Digitizers" },
     {0, 0x01, "Digitizer"},
@@ -140,8 +141,10 @@ static const struct hid_usage_entry hid_usage_table[] = {
     {0, 0x33, "Touch"},
     {0, 0x34, "UnTouch"},
     {0, 0x35, "Tap"},
+    {0, 0x38, "Transducer Index"},
     {0, 0x39, "TabletFunctionKey"},
     {0, 0x3a, "ProgramChangeKey"},
+    {0, 0x3B, "Battery Strength"},
     {0, 0x3c, "Invert"},
     {0, 0x42, "TipSwitch"},
     {0, 0x43, "SecondaryTipSwitch"},
@@ -159,6 +162,40 @@ static const struct hid_usage_entry hid_usage_table[] = {
     {0, 0x59, "ButtonType"},
     {0, 0x5A, "SecondaryBarrelSwitch"},
     {0, 0x5B, "TransducerSerialNumber"},
+    {0, 0x5C, "Preferred Color"},
+    {0, 0x5D, "Preferred Color is Locked"},
+    {0, 0x5E, "Preferred Line Width"},
+    {0, 0x5F, "Preferred Line Width is Locked"},
+    {0, 0x6e, "TransducerSerialNumber2"},
+    {0, 0x70, "Preferred Line Style"},
+      {0, 0x71, "Preferred Line Style is Locked"},
+      {0, 0x72, "Ink"},
+      {0, 0x73, "Pencil"},
+      {0, 0x74, "Highlighter"},
+      {0, 0x75, "Chisel Marker"},
+      {0, 0x76, "Brush"},
+      {0, 0x77, "No Preference"},
+    {0, 0x80, "Digitizer Diagnostic"},
+    {0, 0x81, "Digitizer Error"},
+      {0, 0x82, "Err Normal Status"},
+      {0, 0x83, "Err Transducers Exceeded"},
+      {0, 0x84, "Err Full Trans Features Unavailable"},
+      {0, 0x85, "Err Charge Low"},
+    {0, 0x90, "Transducer Software Info"},
+      {0, 0x91, "Transducer Vendor Id"},
+      {0, 0x92, "Transducer Product Id"},
+    {0, 0x93, "Device Supported Protocols"},
+    {0, 0x94, "Transducer Supported Protocols"},
+      {0, 0x95, "No Protocol"},
+      {0, 0x96, "Wacom AES Protocol"},
+      {0, 0x97, "USI Protocol"},
+      {0, 0x98, "Microsoft Pen Protocol"},
+    {0, 0xA0, "Supported Report Rates"},
+      {0, 0xA1, "Report Rate"},
+      {0, 0xA2, "Transducer Connected"},
+      {0, 0xA3, "Switch Disabled"},
+      {0, 0xA4, "Switch Unimplemented"},
+      {0, 0xA5, "Transducer Switches"},
   { 15, 0, "PhysicalInterfaceDevice" },
     {0, 0x00, "Undefined"},
     {0, 0x01, "Physical_Interface_Device"},
@@ -417,6 +454,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
     { 0x85, 0x44, "Charging" },
     { 0x85, 0x45, "Discharging" },
     { 0x85, 0x4b, "NeedReplacement" },
+    { 0x85, 0x65, "AbsoluteStateOfCharge" },
     { 0x85, 0x66, "RemainingCapacity" },
     { 0x85, 0x68, "RunTimeToEmpty" },
     { 0x85, 0x6a, "AverageTimeToFull" },
@@ -484,8 +522,7 @@ char *hid_resolv_usage(unsigned usage, struct seq_file *f) {
 
 	if (!f) {
 		len = strlen(buf);
-		snprintf(buf+len, max(0, HID_DEBUG_BUFSIZE - len), ".");
-		len++;
+		len += scnprintf(buf + len, HID_DEBUG_BUFSIZE - len, ".");
 	}
 	else {
 		seq_printf(f, ".");
@@ -496,7 +533,7 @@ char *hid_resolv_usage(unsigned usage, struct seq_file *f) {
 				if (p->usage == (usage & 0xffff)) {
 					if (!f)
 						snprintf(buf + len,
-							max(0,HID_DEBUG_BUFSIZE - len - 1),
+							HID_DEBUG_BUFSIZE - len,
 							"%s", p->description);
 					else
 						seq_printf(f,
@@ -507,8 +544,8 @@ char *hid_resolv_usage(unsigned usage, struct seq_file *f) {
 			break;
 		}
 	if (!f)
-		snprintf(buf + len, max(0, HID_DEBUG_BUFSIZE - len - 1),
-				"%04x", usage & 0xffff);
+		snprintf(buf + len, HID_DEBUG_BUFSIZE - len, "%04x",
+			 usage & 0xffff);
 	else
 		seq_printf(f, "%04x", usage & 0xffff);
 	return buf;
@@ -823,7 +860,9 @@ static const char *keys[KEY_MAX + 1] = {
 	[KEY_F22] = "F22",			[KEY_F23] = "F23",
 	[KEY_F24] = "F24",			[KEY_PLAYCD] = "PlayCD",
 	[KEY_PAUSECD] = "PauseCD",		[KEY_PROG3] = "Prog3",
-	[KEY_PROG4] = "Prog4",			[KEY_SUSPEND] = "Suspend",
+	[KEY_PROG4] = "Prog4",
+	[KEY_ALL_APPLICATIONS] = "AllApplications",
+	[KEY_SUSPEND] = "Suspend",
 	[KEY_CLOSE] = "Close",			[KEY_PLAY] = "Play",
 	[KEY_FASTFORWARD] = "FastForward",	[KEY_BASSBOOST] = "BassBoost",
 	[KEY_PRINT] = "Print",			[KEY_HP] = "HP",
@@ -929,6 +968,10 @@ static const char *keys[KEY_MAX + 1] = {
 	[KEY_APPSELECT] = "AppSelect",
 	[KEY_SCREENSAVER] = "ScreenSaver",
 	[KEY_VOICECOMMAND] = "VoiceCommand",
+	[KEY_ASSISTANT] = "Assistant",
+	[KEY_KBD_LAYOUT_NEXT] = "KbdLayoutNext",
+	[KEY_EMOJI_PICKER] = "EmojiPicker",
+	[KEY_DICTATE] = "Dictate",
 	[KEY_BRIGHTNESS_MIN] = "BrightnessMin",
 	[KEY_BRIGHTNESS_MAX] = "BrightnessMax",
 	[KEY_BRIGHTNESS_AUTO] = "BrightnessAuto",
@@ -938,6 +981,16 @@ static const char *keys[KEY_MAX + 1] = {
 	[KEY_KBDINPUTASSIST_NEXTGROUP] = "KbdInputAssistNextGroup",
 	[KEY_KBDINPUTASSIST_ACCEPT] = "KbdInputAssistAccept",
 	[KEY_KBDINPUTASSIST_CANCEL] = "KbdInputAssistCancel",
+	[KEY_MACRO1] = "Macro1", [KEY_MACRO2] = "Macro2", [KEY_MACRO3] = "Macro3",
+	[KEY_MACRO4] = "Macro4", [KEY_MACRO5] = "Macro5", [KEY_MACRO6] = "Macro6",
+	[KEY_MACRO7] = "Macro7", [KEY_MACRO8] = "Macro8", [KEY_MACRO9] = "Macro9",
+	[KEY_MACRO10] = "Macro10", [KEY_MACRO11] = "Macro11", [KEY_MACRO12] = "Macro12",
+	[KEY_MACRO13] = "Macro13", [KEY_MACRO14] = "Macro14", [KEY_MACRO15] = "Macro15",
+	[KEY_MACRO16] = "Macro16", [KEY_MACRO17] = "Macro17", [KEY_MACRO18] = "Macro18",
+	[KEY_MACRO19] = "Macro19", [KEY_MACRO20] = "Macro20", [KEY_MACRO21] = "Macro21",
+	[KEY_MACRO22] = "Macro22", [KEY_MACRO23] = "Macro23", [KEY_MACRO24] = "Macro24",
+	[KEY_MACRO25] = "Macro25", [KEY_MACRO26] = "Macro26", [KEY_MACRO27] = "Macro27",
+	[KEY_MACRO28] = "Macro28", [KEY_MACRO29] = "Macro29", [KEY_MACRO30] = "Macro30",
 };
 
 static const char *relatives[REL_MAX + 1] = {

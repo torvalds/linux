@@ -20,21 +20,43 @@
 #include <xen/interface/xen-mca.h>
 #include <asm/xen/interface.h>
 
+.pushsection .noinstr.text, "ax"
+	.balign PAGE_SIZE
+SYM_CODE_START(hypercall_page)
+	.rept (PAGE_SIZE / 32)
+		UNWIND_HINT_FUNC
+		ANNOTATE_NOENDBR
+		ret
+		/*
+		 * Xen will write the hypercall page, and sort out ENDBR.
+		 */
+		.skip 31, 0xcc
+	.endr
+
+#define HYPERCALL(n) \
+	.equ xen_hypercall_##n, hypercall_page + __HYPERVISOR_##n * 32; \
+	.type xen_hypercall_##n, @function; .size xen_hypercall_##n, 32
+#include <asm/xen-hypercalls.h>
+#undef HYPERCALL
+SYM_CODE_END(hypercall_page)
+.popsection
+
 #ifdef CONFIG_XEN_PV
 	__INIT
 SYM_CODE_START(startup_xen)
 	UNWIND_HINT_EMPTY
+	ANNOTATE_NOENDBR
 	cld
 
 	/* Clear .bss */
 	xor %eax,%eax
-	mov $__bss_start, %_ASM_DI
-	mov $__bss_stop, %_ASM_CX
-	sub %_ASM_DI, %_ASM_CX
-	shr $__ASM_SEL(2, 3), %_ASM_CX
-	rep __ASM_SIZE(stos)
+	mov $__bss_start, %rdi
+	mov $__bss_stop, %rcx
+	sub %rdi, %rcx
+	shr $3, %rcx
+	rep stosq
 
-	mov %_ASM_SI, xen_start_info
+	mov %rsi, xen_start_info
 	mov initial_stack(%rip), %rsp
 
 	/* Set up %gs.
@@ -57,28 +79,13 @@ SYM_CODE_END(startup_xen)
 .pushsection .text
 SYM_CODE_START(asm_cpu_bringup_and_idle)
 	UNWIND_HINT_EMPTY
+	ENDBR
 
 	call cpu_bringup_and_idle
 SYM_CODE_END(asm_cpu_bringup_and_idle)
 .popsection
 #endif
 #endif
-
-.pushsection .text
-	.balign PAGE_SIZE
-SYM_CODE_START(hypercall_page)
-	.rept (PAGE_SIZE / 32)
-		UNWIND_HINT_EMPTY
-		.skip 32
-	.endr
-
-#define HYPERCALL(n) \
-	.equ xen_hypercall_##n, hypercall_page + __HYPERVISOR_##n * 32; \
-	.type xen_hypercall_##n, @function; .size xen_hypercall_##n, 32
-#include <asm/xen-hypercalls.h>
-#undef HYPERCALL
-SYM_CODE_END(hypercall_page)
-.popsection
 
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_VERSION,  .asciz "2.6")

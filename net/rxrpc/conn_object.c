@@ -49,7 +49,6 @@ struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 		conn->security = &rxrpc_no_security;
 		spin_lock_init(&conn->state_lock);
 		conn->debug_id = atomic_inc_return(&rxrpc_debug_id);
-		conn->size_align = 4;
 		conn->idle_timestamp = jiffies;
 	}
 
@@ -363,7 +362,6 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 
 	conn->security->clear(conn);
 	key_put(conn->params.key);
-	key_put(conn->server_key);
 	rxrpc_put_bundle(conn->bundle);
 	rxrpc_put_peer(conn->params.peer);
 

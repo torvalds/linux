@@ -29,7 +29,7 @@ list:
 This may also include issues related to XDP, BPF tracing, etc.
 
 Given netdev has a high volume of traffic, please also add the BPF
-maintainers to Cc (from kernel MAINTAINERS_ file):
+maintainers to Cc (from kernel ``MAINTAINERS`` file):
 
 * Alexei Starovoitov <ast@kernel.org>
 * Daniel Borkmann <daniel@iogearbox.net>
@@ -234,11 +234,11 @@ be subject to change.
 
 Q: samples/bpf preference vs selftests?
 ---------------------------------------
-Q: When should I add code to `samples/bpf/`_ and when to BPF kernel
-selftests_ ?
+Q: When should I add code to ``samples/bpf/`` and when to BPF kernel
+selftests_?
 
 A: In general, we prefer additions to BPF kernel selftests_ rather than
-`samples/bpf/`_. The rationale is very simple: kernel selftests are
+``samples/bpf/``. The rationale is very simple: kernel selftests are
 regularly run by various bots to test for kernel regressions.
 
 The more test cases we add to BPF selftests, the better the coverage
@@ -246,9 +246,9 @@ and the less likely it is that those could accidentally break. It is
 not that BPF kernel selftests cannot demo how a specific feature can
 be used.
 
-That said, `samples/bpf/`_ may be a good place for people to get started,
+That said, ``samples/bpf/`` may be a good place for people to get started,
 so it might be advisable that simple demos of features could go into
-`samples/bpf/`_, but advanced functional and corner-case testing rather
+``samples/bpf/``, but advanced functional and corner-case testing rather
 into kernel selftests.
 
 If your sample looks like a test case, then go for BPF kernel selftests
@@ -449,6 +449,19 @@ from source at
 
 https://github.com/acmel/dwarves
 
+pahole starts to use libbpf definitions and APIs since v1.13 after the
+commit 21507cd3e97b ("pahole: add libbpf as submodule under lib/bpf").
+It works well with the git repository because the libbpf submodule will
+use "git submodule update --init --recursive" to update.
+
+Unfortunately, the default github release source code does not contain
+libbpf submodule source code and this will cause build issues, the tarball
+from https://git.kernel.org/pub/scm/devel/pahole/pahole.git/ is same with
+github, you can get the source tarball with corresponding libbpf submodule
+codes from
+
+https://fedorapeople.org/~acme/dwarves
+
 Some distros have pahole version 1.16 packaged already, e.g.
 Fedora, Gentoo.
 
@@ -501,16 +514,19 @@ All LLVM releases can be found at: http://releases.llvm.org/
 
 Q: Got it, so how do I build LLVM manually anyway?
 --------------------------------------------------
-A: You need cmake and gcc-c++ as build requisites for LLVM. Once you have
-that set up, proceed with building the latest LLVM and clang version
+A: We recommend that developers who want the fastest incremental builds
+use the Ninja build system, you can find it in your system's package
+manager, usually the package is ninja or ninja-build.
+
+You need ninja, cmake and gcc-c++ as build requisites for LLVM. Once you
+have that set up, proceed with building the latest LLVM and clang version
 from the git repositories::
 
      $ git clone https://github.com/llvm/llvm-project.git
-     $ mkdir -p llvm-project/llvm/build/install
+     $ mkdir -p llvm-project/llvm/build
      $ cd llvm-project/llvm/build
      $ cmake .. -G "Ninja" -DLLVM_TARGETS_TO_BUILD="BPF;X86" \
                 -DLLVM_ENABLE_PROJECTS="clang"    \
-                -DBUILD_SHARED_LIBS=OFF           \
                 -DCMAKE_BUILD_TYPE=Release        \
                 -DLLVM_BUILD_RUNTIME=OFF
      $ ninja
@@ -642,10 +658,9 @@ when:
 
 .. Links
 .. _Documentation/process/: https://www.kernel.org/doc/html/latest/process/
-.. _MAINTAINERS: ../../MAINTAINERS
-.. _netdev-FAQ: ../networking/netdev-FAQ.rst
-.. _samples/bpf/: ../../samples/bpf/
-.. _selftests: ../../tools/testing/selftests/bpf/
+.. _netdev-FAQ: Documentation/process/maintainer-netdev.rst
+.. _selftests:
+   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/tools/testing/selftests/bpf/
 .. _Documentation/dev-tools/kselftest.rst:
    https://www.kernel.org/doc/html/latest/dev-tools/kselftest.html
 .. _Documentation/bpf/btf.rst: btf.rst

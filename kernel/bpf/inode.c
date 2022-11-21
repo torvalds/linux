@@ -122,7 +122,7 @@ static struct inode *bpf_get_inode(struct super_block *sb,
 	inode->i_mtime = inode->i_atime;
 	inode->i_ctime = inode->i_atime;
 
-	inode_init_owner(inode, dir, mode);
+	inode_init_owner(&init_user_ns, inode, dir, mode);
 
 	return inode;
 }
@@ -152,7 +152,8 @@ static void bpf_dentry_finalize(struct dentry *dentry, struct inode *inode,
 	dir->i_ctime = dir->i_mtime;
 }
 
-static int bpf_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int bpf_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+		     struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 
@@ -381,8 +382,8 @@ bpf_lookup(struct inode *dir, struct dentry *dentry, unsigned flags)
 	return simple_lookup(dir, dentry, flags);
 }
 
-static int bpf_symlink(struct inode *dir, struct dentry *dentry,
-		       const char *target)
+static int bpf_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+		       struct dentry *dentry, const char *target)
 {
 	char *link = kstrdup(target, GFP_USER | __GFP_NOWARN);
 	struct inode *inode;
@@ -507,7 +508,7 @@ static void *bpf_obj_do_get(const char __user *pathname,
 		return ERR_PTR(ret);
 
 	inode = d_backing_inode(path.dentry);
-	ret = inode_permission(inode, ACC_MODE(flags));
+	ret = path_permission(&path, ACC_MODE(flags));
 	if (ret)
 		goto out;
 
@@ -546,7 +547,7 @@ int bpf_obj_get_user(const char __user *pathname, int flags)
 	else if (type == BPF_TYPE_MAP)
 		ret = bpf_map_new_fd(raw, f_flags);
 	else if (type == BPF_TYPE_LINK)
-		ret = bpf_link_new_fd(raw);
+		ret = (f_flags != O_RDWR) ? -EINVAL : bpf_link_new_fd(raw);
 	else
 		return -ENOENT;
 
@@ -558,7 +559,7 @@ int bpf_obj_get_user(const char __user *pathname, int flags)
 static struct bpf_prog *__get_prog_inode(struct inode *inode, enum bpf_prog_type type)
 {
 	struct bpf_prog *prog;
-	int ret = inode_permission(inode, MAY_READ);
+	int ret = inode_permission(&init_user_ns, inode, MAY_READ);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -647,12 +648,22 @@ static int bpf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	int opt;
 
 	opt = fs_parse(fc, bpf_fs_parameters, param, &result);
-	if (opt < 0)
+	if (opt < 0) {
 		/* We might like to report bad mount options here, but
 		 * traditionally we've ignored all mount options, so we'd
 		 * better continue to ignore non-existing options for bpf.
 		 */
-		return opt == -ENOPARAM ? 0 : opt;
+		if (opt == -ENOPARAM) {
+			opt = vfs_parse_fs_param_source(fc, param);
+			if (opt != -ENOPARAM)
+				return opt;
+
+			return 0;
+		}
+
+		if (opt < 0)
+			return opt;
+	}
 
 	switch (opt) {
 	case OPT_MODE:
@@ -699,11 +710,10 @@ static DEFINE_MUTEX(bpf_preload_lock);
 static int populate_bpffs(struct dentry *parent)
 {
 	struct bpf_preload_info objs[BPF_PRELOAD_LINKS] = {};
-	struct bpf_link *links[BPF_PRELOAD_LINKS] = {};
 	int err = 0, i;
 
 	/* grab the mutex to make sure the kernel interactions with bpf_preload
-	 * UMD are serialized
+	 * are serialized
 	 */
 	mutex_lock(&bpf_preload_lock);
 
@@ -711,40 +721,22 @@ static int populate_bpffs(struct dentry *parent)
 	if (!bpf_preload_mod_get())
 		goto out;
 
-	if (!bpf_preload_ops->info.tgid) {
-		/* preload() will start UMD that will load BPF iterator programs */
-		err = bpf_preload_ops->preload(objs);
-		if (err)
+	err = bpf_preload_ops->preload(objs);
+	if (err)
+		goto out_put;
+	for (i = 0; i < BPF_PRELOAD_LINKS; i++) {
+		bpf_link_inc(objs[i].link);
+		err = bpf_iter_link_pin_kernel(parent,
+					       objs[i].link_name, objs[i].link);
+		if (err) {
+			bpf_link_put(objs[i].link);
 			goto out_put;
-		for (i = 0; i < BPF_PRELOAD_LINKS; i++) {
-			links[i] = bpf_link_by_id(objs[i].link_id);
-			if (IS_ERR(links[i])) {
-				err = PTR_ERR(links[i]);
-				goto out_put;
-			}
 		}
-		for (i = 0; i < BPF_PRELOAD_LINKS; i++) {
-			err = bpf_iter_link_pin_kernel(parent,
-						       objs[i].link_name, links[i]);
-			if (err)
-				goto out_put;
-			/* do not unlink successfully pinned links even
-			 * if later link fails to pin
-			 */
-			links[i] = NULL;
-		}
-		/* finish() will tell UMD process to exit */
-		err = bpf_preload_ops->finish();
-		if (err)
-			goto out_put;
 	}
 out_put:
 	bpf_preload_mod_put();
 out:
 	mutex_unlock(&bpf_preload_lock);
-	for (i = 0; i < BPF_PRELOAD_LINKS && err; i++)
-		if (!IS_ERR_OR_NULL(links[i]))
-			bpf_link_put(links[i]);
 	return err;
 }
 
@@ -814,8 +806,6 @@ static struct file_system_type bpf_fs_type = {
 static int __init bpf_init(void)
 {
 	int ret;
-
-	mutex_init(&bpf_preload_lock);
 
 	ret = sysfs_create_mount_point(fs_kobj, "bpf");
 	if (ret)

@@ -50,13 +50,20 @@
 #define	OV5675_ANAL_GAIN_STEP		1
 
 /* Digital gain controls from sensor */
+#define OV5675_REG_DIGITAL_GAIN		0x350a
 #define OV5675_REG_MWB_R_GAIN		0x5019
 #define OV5675_REG_MWB_G_GAIN		0x501b
 #define OV5675_REG_MWB_B_GAIN		0x501d
-#define OV5675_DGTL_GAIN_MIN		0
+#define OV5675_DGTL_GAIN_MIN		1024
 #define OV5675_DGTL_GAIN_MAX		4095
 #define OV5675_DGTL_GAIN_STEP		1
 #define OV5675_DGTL_GAIN_DEFAULT	1024
+
+/* Group Access */
+#define OV5675_REG_GROUP_ACCESS		0x3208
+#define OV5675_GROUP_HOLD_START		0x0
+#define OV5675_GROUP_HOLD_END		0x10
+#define OV5675_GROUP_HOLD_LAUNCH	0xa0
 
 /* Test Pattern Control */
 #define OV5675_REG_TEST_PATTERN		0x4503
@@ -493,6 +500,9 @@ struct ov5675 {
 
 	/* Streaming on/off */
 	bool streaming;
+
+	/* True if the device has been identified */
+	bool identified;
 };
 
 static u64 to_pixel_rate(u32 f_index)
@@ -584,6 +594,12 @@ static int ov5675_update_digital_gain(struct ov5675 *ov5675, u32 d_gain)
 {
 	int ret;
 
+	ret = ov5675_write_reg(ov5675, OV5675_REG_GROUP_ACCESS,
+			       OV5675_REG_VALUE_08BIT,
+			       OV5675_GROUP_HOLD_START);
+	if (ret)
+		return ret;
+
 	ret = ov5675_write_reg(ov5675, OV5675_REG_MWB_R_GAIN,
 			       OV5675_REG_VALUE_16BIT, d_gain);
 	if (ret)
@@ -594,8 +610,21 @@ static int ov5675_update_digital_gain(struct ov5675 *ov5675, u32 d_gain)
 	if (ret)
 		return ret;
 
-	return ov5675_write_reg(ov5675, OV5675_REG_MWB_B_GAIN,
-				OV5675_REG_VALUE_16BIT, d_gain);
+	ret = ov5675_write_reg(ov5675, OV5675_REG_MWB_B_GAIN,
+			       OV5675_REG_VALUE_16BIT, d_gain);
+	if (ret)
+		return ret;
+
+	ret = ov5675_write_reg(ov5675, OV5675_REG_GROUP_ACCESS,
+			       OV5675_REG_VALUE_08BIT,
+			       OV5675_GROUP_HOLD_END);
+	if (ret)
+		return ret;
+
+	ret = ov5675_write_reg(ov5675, OV5675_REG_GROUP_ACCESS,
+			       OV5675_REG_VALUE_08BIT,
+			       OV5675_GROUP_HOLD_LAUNCH);
+	return ret;
 }
 
 static int ov5675_test_pattern(struct ov5675 *ov5675, u32 pattern)
@@ -624,7 +653,7 @@ static int ov5675_set_ctrl_hflip(struct ov5675 *ov5675, u32 ctrl_val)
 
 	return ov5675_write_reg(ov5675, OV5675_REG_FORMAT1,
 				OV5675_REG_VALUE_08BIT,
-				ctrl_val ? val & ~BIT(3) : val);
+				ctrl_val ? val & ~BIT(3) : val | BIT(3));
 }
 
 static int ov5675_set_ctrl_vflip(struct ov5675 *ov5675, u8 ctrl_val)
@@ -639,7 +668,7 @@ static int ov5675_set_ctrl_vflip(struct ov5675 *ov5675, u8 ctrl_val)
 
 	ret = ov5675_write_reg(ov5675, OV5675_REG_FORMAT1,
 			       OV5675_REG_VALUE_08BIT,
-			       ctrl_val ? val | BIT(4) | BIT(5)  : val);
+			       ctrl_val ? val | BIT(4) | BIT(5)  : val & ~BIT(4) & ~BIT(5));
 
 	if (ret)
 		return ret;
@@ -652,7 +681,7 @@ static int ov5675_set_ctrl_vflip(struct ov5675 *ov5675, u8 ctrl_val)
 
 	return ov5675_write_reg(ov5675, OV5675_REG_FORMAT2,
 				OV5675_REG_VALUE_08BIT,
-				ctrl_val ? val | BIT(1) : val);
+				ctrl_val ? val | BIT(1) : val & ~BIT(1));
 }
 
 static int ov5675_set_ctrl(struct v4l2_ctrl *ctrl)
@@ -808,11 +837,40 @@ static void ov5675_update_pad_format(const struct ov5675_mode *mode,
 	fmt->field = V4L2_FIELD_NONE;
 }
 
+static int ov5675_identify_module(struct ov5675 *ov5675)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&ov5675->sd);
+	int ret;
+	u32 val;
+
+	if (ov5675->identified)
+		return 0;
+
+	ret = ov5675_read_reg(ov5675, OV5675_REG_CHIP_ID,
+			      OV5675_REG_VALUE_24BIT, &val);
+	if (ret)
+		return ret;
+
+	if (val != OV5675_CHIP_ID) {
+		dev_err(&client->dev, "chip id mismatch: %x!=%x",
+			OV5675_CHIP_ID, val);
+		return -ENXIO;
+	}
+
+	ov5675->identified = true;
+
+	return 0;
+}
+
 static int ov5675_start_streaming(struct ov5675 *ov5675)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov5675->sd);
 	const struct ov5675_reg_list *reg_list;
 	int link_freq_index, ret;
+
+	ret = ov5675_identify_module(ov5675);
+	if (ret)
+		return ret;
 
 	link_freq_index = ov5675->cur_mode->link_freq_index;
 	reg_list = &link_freq_configs[link_freq_index].reg_list;
@@ -863,9 +921,8 @@ static int ov5675_set_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_lock(&ov5675->mutex);
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
 			mutex_unlock(&ov5675->mutex);
 			return ret;
 		}
@@ -889,8 +946,7 @@ static int ov5675_set_stream(struct v4l2_subdev *sd, int enable)
 
 static int __maybe_unused ov5675_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov5675 *ov5675 = to_ov5675(sd);
 
 	mutex_lock(&ov5675->mutex);
@@ -904,8 +960,7 @@ static int __maybe_unused ov5675_suspend(struct device *dev)
 
 static int __maybe_unused ov5675_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov5675 *ov5675 = to_ov5675(sd);
 	int ret;
 
@@ -926,7 +981,7 @@ static int __maybe_unused ov5675_resume(struct device *dev)
 }
 
 static int ov5675_set_format(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct ov5675 *ov5675 = to_ov5675(sd);
@@ -941,7 +996,7 @@ static int ov5675_set_format(struct v4l2_subdev *sd,
 	mutex_lock(&ov5675->mutex);
 	ov5675_update_pad_format(mode, &fmt->format);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
 	} else {
 		ov5675->cur_mode = mode;
 		__v4l2_ctrl_s_ctrl(ov5675->link_freq, mode->link_freq_index);
@@ -967,14 +1022,15 @@ static int ov5675_set_format(struct v4l2_subdev *sd,
 }
 
 static int ov5675_get_format(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct ov5675 *ov5675 = to_ov5675(sd);
 
 	mutex_lock(&ov5675->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&ov5675->sd, cfg,
+		fmt->format = *v4l2_subdev_get_try_format(&ov5675->sd,
+							  sd_state,
 							  fmt->pad);
 	else
 		ov5675_update_pad_format(ov5675->cur_mode, &fmt->format);
@@ -985,7 +1041,7 @@ static int ov5675_get_format(struct v4l2_subdev *sd,
 }
 
 static int ov5675_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index > 0)
@@ -997,7 +1053,7 @@ static int ov5675_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov5675_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index >= ARRAY_SIZE(supported_modes))
@@ -1020,7 +1076,7 @@ static int ov5675_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&ov5675->mutex);
 	ov5675_update_pad_format(&supported_modes[0],
-				 v4l2_subdev_get_try_format(sd, fh->pad, 0));
+				 v4l2_subdev_get_try_format(sd, fh->state, 0));
 	mutex_unlock(&ov5675->mutex);
 
 	return 0;
@@ -1049,26 +1105,6 @@ static const struct media_entity_operations ov5675_subdev_entity_ops = {
 static const struct v4l2_subdev_internal_ops ov5675_internal_ops = {
 	.open = ov5675_open,
 };
-
-static int ov5675_identify_module(struct ov5675 *ov5675)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&ov5675->sd);
-	int ret;
-	u32 val;
-
-	ret = ov5675_read_reg(ov5675, OV5675_REG_CHIP_ID,
-			      OV5675_REG_VALUE_24BIT, &val);
-	if (ret)
-		return ret;
-
-	if (val != OV5675_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x",
-			OV5675_CHIP_ID, val);
-		return -ENXIO;
-	}
-
-	return 0;
-}
 
 static int ov5675_check_hwcfg(struct device *dev)
 {
@@ -1156,6 +1192,7 @@ static int ov5675_remove(struct i2c_client *client)
 static int ov5675_probe(struct i2c_client *client)
 {
 	struct ov5675 *ov5675;
+	bool full_power;
 	int ret;
 
 	ret = ov5675_check_hwcfg(&client->dev);
@@ -1170,10 +1207,14 @@ static int ov5675_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	v4l2_i2c_subdev_init(&ov5675->sd, client, &ov5675_subdev_ops);
-	ret = ov5675_identify_module(ov5675);
-	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d", ret);
-		return ret;
+
+	full_power = acpi_dev_state_d0(&client->dev);
+	if (full_power) {
+		ret = ov5675_identify_module(ov5675);
+		if (ret) {
+			dev_err(&client->dev, "failed to find sensor: %d", ret);
+			return ret;
+		}
 	}
 
 	mutex_init(&ov5675->mutex);
@@ -1195,7 +1236,7 @@ static int ov5675_probe(struct i2c_client *client)
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
-	ret = v4l2_async_register_subdev_sensor_common(&ov5675->sd);
+	ret = v4l2_async_register_subdev_sensor(&ov5675->sd);
 	if (ret < 0) {
 		dev_err(&client->dev, "failed to register V4L2 subdev: %d",
 			ret);
@@ -1206,7 +1247,10 @@ static int ov5675_probe(struct i2c_client *client)
 	 * Device is already turned on by i2c-core with ACPI domain PM.
 	 * Enable runtime PM and turn off the device.
 	 */
-	pm_runtime_set_active(&client->dev);
+
+	/* Set the device's state to active if it's in D0 state. */
+	if (full_power)
+		pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
@@ -1243,6 +1287,7 @@ static struct i2c_driver ov5675_i2c_driver = {
 	},
 	.probe_new = ov5675_probe,
 	.remove = ov5675_remove,
+	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };
 
 module_i2c_driver(ov5675_i2c_driver);

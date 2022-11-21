@@ -20,11 +20,16 @@ struct igt_spinner {
 	struct intel_gt *gt;
 	struct drm_i915_gem_object *hws;
 	struct drm_i915_gem_object *obj;
+	struct intel_context *ce;
+	struct i915_vma *hws_vma, *batch_vma;
 	u32 *batch;
 	void *seqno;
 };
 
 int igt_spinner_init(struct igt_spinner *spin, struct intel_gt *gt);
+int igt_spinner_pin(struct igt_spinner *spin,
+		    struct intel_context *ce,
+		    struct i915_gem_ww_ctx *ww);
 void igt_spinner_fini(struct igt_spinner *spin);
 
 struct i915_request *

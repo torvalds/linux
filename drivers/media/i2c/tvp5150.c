@@ -964,7 +964,7 @@ static int tvp5150_enable(struct v4l2_subdev *sd)
 
 	/*
 	 * Enable the YCbCr and clock outputs. In discrete sync mode
-	 * (non-BT.656) additionally enable the the sync outputs.
+	 * (non-BT.656) additionally enable the sync outputs.
 	 */
 	switch (decoder->mbus_type) {
 	case V4L2_MBUS_PARALLEL:
@@ -1027,7 +1027,7 @@ static void tvp5150_set_default(v4l2_std_id std, struct v4l2_rect *crop)
 
 static struct v4l2_rect *
 tvp5150_get_pad_crop(struct tvp5150 *decoder,
-		     struct v4l2_subdev_pad_config *cfg, unsigned int pad,
+		     struct v4l2_subdev_state *sd_state, unsigned int pad,
 		     enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
@@ -1035,7 +1035,7 @@ tvp5150_get_pad_crop(struct tvp5150 *decoder,
 		return &decoder->rect;
 	case V4L2_SUBDEV_FORMAT_TRY:
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-		return v4l2_subdev_get_try_crop(&decoder->sd, cfg, pad);
+		return v4l2_subdev_get_try_crop(&decoder->sd, sd_state, pad);
 #else
 		return ERR_PTR(-EINVAL);
 #endif
@@ -1045,7 +1045,7 @@ tvp5150_get_pad_crop(struct tvp5150 *decoder,
 }
 
 static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *f;
@@ -1104,7 +1104,7 @@ static void tvp5150_set_hw_selection(struct v4l2_subdev *sd,
 }
 
 static int tvp5150_set_selection(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
@@ -1138,7 +1138,7 @@ static int tvp5150_set_selection(struct v4l2_subdev *sd,
 	    sel->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
 
-	crop = tvp5150_get_pad_crop(decoder, cfg, sel->pad, sel->which);
+	crop = tvp5150_get_pad_crop(decoder, sd_state, sel->pad, sel->which);
 	if (IS_ERR(crop))
 		return PTR_ERR(crop);
 
@@ -1156,7 +1156,7 @@ static int tvp5150_set_selection(struct v4l2_subdev *sd,
 }
 
 static int tvp5150_get_selection(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct tvp5150 *decoder = container_of(sd, struct tvp5150, sd);
@@ -1180,7 +1180,7 @@ static int tvp5150_get_selection(struct v4l2_subdev *sd,
 			sel->r.height = TVP5150_V_MAX_OTHERS;
 		return 0;
 	case V4L2_SEL_TGT_CROP:
-		crop = tvp5150_get_pad_crop(decoder, cfg, sel->pad,
+		crop = tvp5150_get_pad_crop(decoder, sd_state, sel->pad,
 					    sel->which);
 		if (IS_ERR(crop))
 			return PTR_ERR(crop);
@@ -1198,8 +1198,10 @@ static int tvp5150_get_mbus_config(struct v4l2_subdev *sd,
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
 	cfg->type = decoder->mbus_type;
-	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_PCLK_SAMPLE_RISING
-		   | V4L2_MBUS_FIELD_EVEN_LOW | V4L2_MBUS_DATA_ACTIVE_HIGH;
+	cfg->bus.parallel.flags = V4L2_MBUS_MASTER
+				| V4L2_MBUS_PCLK_SAMPLE_RISING
+				| V4L2_MBUS_FIELD_EVEN_LOW
+				| V4L2_MBUS_DATA_ACTIVE_HIGH;
 
 	return 0;
 }
@@ -1208,7 +1210,7 @@ static int tvp5150_get_mbus_config(struct v4l2_subdev *sd,
 			V4L2 subdev pad ops
  ****************************************************************************/
 static int tvp5150_init_cfg(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg)
+			    struct v4l2_subdev_state *sd_state)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	v4l2_std_id std;
@@ -1229,7 +1231,7 @@ static int tvp5150_init_cfg(struct v4l2_subdev *sd,
 }
 
 static int tvp5150_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index)
@@ -1240,7 +1242,7 @@ static int tvp5150_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int tvp5150_enum_frame_size(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
@@ -1413,8 +1415,7 @@ static const struct media_entity_operations tvp5150_sd_media_ops = {
  ****************************************************************************/
 static int __maybe_unused tvp5150_runtime_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
 	if (decoder->irq)
@@ -1427,8 +1428,7 @@ static int __maybe_unused tvp5150_runtime_suspend(struct device *dev)
 
 static int __maybe_unused tvp5150_runtime_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
 	if (decoder->irq)
@@ -1450,11 +1450,9 @@ static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 	       TVP5150_MISC_CTL_CLOCK_OE;
 
 	if (enable) {
-		ret = pm_runtime_get_sync(sd->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(sd->dev);
+		ret = pm_runtime_resume_and_get(sd->dev);
+		if (ret < 0)
 			return ret;
-		}
 
 		tvp5150_enable(sd);
 
@@ -1677,15 +1675,7 @@ err:
 
 static int tvp5150_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	int ret;
-
-	ret = pm_runtime_get_sync(sd->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(sd->dev);
-		return ret;
-	}
-
-	return 0;
+	return pm_runtime_resume_and_get(sd->dev);
 }
 
 static int tvp5150_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
@@ -2082,6 +2072,7 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 
 	ep_np = of_graph_get_endpoint_by_regs(np, TVP5150_PAD_VID_OUT, 0);
 	if (!ep_np) {
+		ret = -EINVAL;
 		dev_err(dev, "Error no output endpoint available\n");
 		goto err_free;
 	}

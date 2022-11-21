@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the M3ULCB (R-Car Starter Kit Pro) board with R-Car
- * M3-W+
+ * Device Tree Source for the M3ULCB (R-Car Starter Kit Pro) board with R-Car M3-W+
  *
  * Copyright (C) 2020 Renesas Electronics Corp.
  */
@@ -29,4 +28,15 @@
 		device_type = "memory";
 		reg = <0x6 0x00000000 0x1 0x00000000>;
 	};
+};
+
+&du {
+	clocks = <&cpg CPG_MOD 724>,
+		 <&cpg CPG_MOD 723>,
+		 <&cpg CPG_MOD 722>,
+		 <&versaclock5 1>,
+		 <&versaclock5 3>,
+		 <&versaclock5 2>;
+	clock-names = "du.0", "du.1", "du.2",
+		      "dclkin.0", "dclkin.1", "dclkin.2";
 };

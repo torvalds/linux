@@ -5,13 +5,65 @@
  * Written by Martin Mares <mj@atrey.karlin.mff.cuni.cz>
  */
 
-#define RO_EXCEPTION_TABLE_ALIGN	8
+#include <asm/hyp_image.h>
+#ifdef CONFIG_KVM
+#define HYPERVISOR_EXTABLE					\
+	. = ALIGN(SZ_8);					\
+	__start___kvm_ex_table = .;				\
+	*(__kvm_ex_table)					\
+	__stop___kvm_ex_table = .;
+
+#define HYPERVISOR_DATA_SECTIONS				\
+	HYP_SECTION_NAME(.rodata) : {				\
+		. = ALIGN(PAGE_SIZE);				\
+		__hyp_rodata_start = .;				\
+		*(HYP_SECTION_NAME(.data..ro_after_init))	\
+		*(HYP_SECTION_NAME(.rodata))			\
+		. = ALIGN(PAGE_SIZE);				\
+		__hyp_rodata_end = .;				\
+	}
+
+#define HYPERVISOR_PERCPU_SECTION				\
+	. = ALIGN(PAGE_SIZE);					\
+	HYP_SECTION_NAME(.data..percpu) : {			\
+		*(HYP_SECTION_NAME(.data..percpu))		\
+	}
+
+#define HYPERVISOR_RELOC_SECTION				\
+	.hyp.reloc : ALIGN(4) {					\
+		__hyp_reloc_begin = .;				\
+		*(.hyp.reloc)					\
+		__hyp_reloc_end = .;				\
+	}
+
+#define BSS_FIRST_SECTIONS					\
+	__hyp_bss_start = .;					\
+	*(HYP_SECTION_NAME(.bss))				\
+	. = ALIGN(PAGE_SIZE);					\
+	__hyp_bss_end = .;
+
+/*
+ * We require that __hyp_bss_start and __bss_start are aligned, and enforce it
+ * with an assertion. But the BSS_SECTION macro places an empty .sbss section
+ * between them, which can in some cases cause the linker to misalign them. To
+ * work around the issue, force a page alignment for __bss_start.
+ */
+#define SBSS_ALIGN			PAGE_SIZE
+#else /* CONFIG_KVM */
+#define HYPERVISOR_EXTABLE
+#define HYPERVISOR_DATA_SECTIONS
+#define HYPERVISOR_PERCPU_SECTION
+#define HYPERVISOR_RELOC_SECTION
+#define SBSS_ALIGN			0
+#endif
+
+#define RO_EXCEPTION_TABLE_ALIGN	4
 #define RUNTIME_DISCARD_EXIT
 
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/cache.h>
-#include <asm/hyp_image.h>
 #include <asm/kernel-pgtable.h>
+#include <asm/kexec.h>
 #include <asm/memory.h>
 #include <asm/page.h>
 
@@ -22,40 +74,15 @@ ENTRY(_text)
 
 jiffies = jiffies_64;
 
-
-#ifdef CONFIG_KVM
-#define HYPERVISOR_EXTABLE					\
-	. = ALIGN(SZ_8);					\
-	__start___kvm_ex_table = .;				\
-	*(__kvm_ex_table)					\
-	__stop___kvm_ex_table = .;
-
-#define HYPERVISOR_PERCPU_SECTION				\
-	. = ALIGN(PAGE_SIZE);					\
-	HYP_SECTION_NAME(.data..percpu) : {			\
-		*(HYP_SECTION_NAME(.data..percpu))		\
-	}
-#else /* CONFIG_KVM */
-#define HYPERVISOR_EXTABLE
-#define HYPERVISOR_PERCPU_SECTION
-#endif
-
 #define HYPERVISOR_TEXT					\
-	/*						\
-	 * Align to 4 KB so that			\
-	 * a) the HYP vector table is at its minimum	\
-	 *    alignment of 2048 bytes			\
-	 * b) the HYP init code will not cross a page	\
-	 *    boundary if its size does not exceed	\
-	 *    4 KB (see related ASSERT() below)		\
-	 */						\
-	. = ALIGN(SZ_4K);				\
+	. = ALIGN(PAGE_SIZE);				\
 	__hyp_idmap_text_start = .;			\
 	*(.hyp.idmap.text)				\
 	__hyp_idmap_text_end = .;			\
 	__hyp_text_start = .;				\
 	*(.hyp.text)					\
 	HYPERVISOR_EXTABLE				\
+	. = ALIGN(PAGE_SIZE);				\
 	__hyp_text_end = .;
 
 #define IDMAP_TEXT					\
@@ -72,6 +99,16 @@ jiffies = jiffies_64;
 	__hibernate_exit_text_end = .;
 #else
 #define HIBERNATE_TEXT
+#endif
+
+#ifdef CONFIG_KEXEC_CORE
+#define KEXEC_TEXT					\
+	. = ALIGN(SZ_4K);				\
+	__relocate_new_kernel_start = .;		\
+	*(.kexec_relocate.text)				\
+	__relocate_new_kernel_end = .;
+#else
+#define KEXEC_TEXT
 #endif
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
@@ -121,7 +158,7 @@ SECTIONS
 		_text = .;
 		HEAD_TEXT
 	}
-	.text : {			/* Real text segment		*/
+	.text : ALIGN(SEGMENT_ALIGN) {	/* Real text segment		*/
 		_stext = .;		/* Text and read-only data	*/
 			IRQENTRY_TEXT
 			SOFTIRQENTRY_TEXT
@@ -134,8 +171,8 @@ SECTIONS
 			HYPERVISOR_TEXT
 			IDMAP_TEXT
 			HIBERNATE_TEXT
+			KEXEC_TEXT
 			TRAMP_TEXT
-			*(.fixup)
 			*(.gnu.warning)
 		. = ALIGN(16);
 		*(.got)			/* Global offset table		*/
@@ -155,6 +192,8 @@ SECTIONS
 	/* everything from this point to __init_begin will be marked RO NX */
 	RO_DATA(PAGE_SIZE)
 
+	HYPERVISOR_DATA_SECTIONS
+
 	idmap_pg_dir = .;
 	. += IDMAP_DIR_SIZE;
 	idmap_pg_end = .;
@@ -164,13 +203,11 @@ SECTIONS
 	. += PAGE_SIZE;
 #endif
 
-#ifdef CONFIG_ARM64_SW_TTBR0_PAN
-	reserved_ttbr0 = .;
-	. += RESERVED_TTBR0_SIZE;
-#endif
+	reserved_pg_dir = .;
+	. += PAGE_SIZE;
+
 	swapper_pg_dir = .;
 	. += PAGE_SIZE;
-	swapper_pg_end = .;
 
 	. = ALIGN(SEGMENT_ALIGN);
 	__init_begin = .;
@@ -201,7 +238,7 @@ SECTIONS
 		INIT_CALLS
 		CON_INITCALL
 		INIT_RAM_FS
-		*(.init.rodata.* .init.bss)	/* from the EFI stub */
+		*(.init.altinstructions .init.bss)	/* from the EFI stub */
 	}
 	.exit.data : {
 		EXIT_DATA
@@ -209,6 +246,8 @@ SECTIONS
 
 	PERCPU_SECTION(L1_CACHE_BYTES)
 	HYPERVISOR_PERCPU_SECTION
+
+	HYPERVISOR_RELOC_SECTION
 
 	.rela.dyn : ALIGN(8) {
 		*(.rela .rela*)
@@ -256,7 +295,7 @@ SECTIONS
 	__pecoff_data_rawsize = ABSOLUTE(. - __initdata_begin);
 	_edata = .;
 
-	BSS_SECTION(0, 0, 0)
+	BSS_SECTION(SBSS_ALIGN, 0, 0)
 
 	. = ALIGN(PAGE_SIZE);
 	init_pg_dir = .;
@@ -289,11 +328,12 @@ SECTIONS
 #include "image-vars.h"
 
 /*
- * The HYP init code and ID map text can't be longer than a page each,
- * and should not cross a page boundary.
+ * The HYP init code and ID map text can't be longer than a page each. The
+ * former is page-aligned, but the latter may not be with 16K or 64K pages, so
+ * it should also not cross a page boundary.
  */
-ASSERT(__hyp_idmap_text_end - (__hyp_idmap_text_start & ~(SZ_4K - 1)) <= SZ_4K,
-	"HYP init code too big or misaligned")
+ASSERT(__hyp_idmap_text_end - __hyp_idmap_text_start <= PAGE_SIZE,
+	"HYP init code too big")
 ASSERT(__idmap_text_end - (__idmap_text_start & ~(SZ_4K - 1)) <= SZ_4K,
 	"ID map text too big or misaligned")
 #ifdef CONFIG_HIBERNATION
@@ -301,10 +341,28 @@ ASSERT(__hibernate_exit_text_end - (__hibernate_exit_text_start & ~(SZ_4K - 1))
 	<= SZ_4K, "Hibernate exit text too big or misaligned")
 #endif
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-ASSERT((__entry_tramp_text_end - __entry_tramp_text_start) == PAGE_SIZE,
+ASSERT((__entry_tramp_text_end - __entry_tramp_text_start) <= 3*PAGE_SIZE,
 	"Entry trampoline text too big")
+#endif
+#ifdef CONFIG_KVM
+ASSERT(__hyp_bss_start == __bss_start, "HYP and Host BSS are misaligned")
 #endif
 /*
  * If padding is applied before .head.text, virt<->phys conversions will fail.
  */
 ASSERT(_text == KIMAGE_VADDR, "HEAD is misaligned")
+
+ASSERT(swapper_pg_dir - reserved_pg_dir == RESERVED_SWAPPER_OFFSET,
+       "RESERVED_SWAPPER_OFFSET is wrong!")
+
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+ASSERT(swapper_pg_dir - tramp_pg_dir == TRAMP_SWAPPER_OFFSET,
+       "TRAMP_SWAPPER_OFFSET is wrong!")
+#endif
+
+#ifdef CONFIG_KEXEC_CORE
+/* kexec relocation code should fit into one KEXEC_CONTROL_PAGE_SIZE */
+ASSERT(__relocate_new_kernel_end - (__relocate_new_kernel_start & ~(SZ_4K - 1))
+	<= SZ_4K, "kexec relocation code is too big or misaligned")
+ASSERT(KEXEC_CONTROL_PAGE_SIZE >= SZ_4K, "KEXEC_CONTROL_PAGE_SIZE is broken")
+#endif

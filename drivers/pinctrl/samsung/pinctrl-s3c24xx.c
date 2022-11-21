@@ -108,19 +108,14 @@ static int s3c24xx_eint_get_trigger(unsigned int type)
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
 		return EINT_EDGE_RISING;
-		break;
 	case IRQ_TYPE_EDGE_FALLING:
 		return EINT_EDGE_FALLING;
-		break;
 	case IRQ_TYPE_EDGE_BOTH:
 		return EINT_EDGE_BOTH;
-		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 		return EINT_LEVEL_HIGH;
-		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		return EINT_LEVEL_LOW;
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -150,14 +145,14 @@ static void s3c24xx_eint_set_function(struct samsung_pinctrl_drv_data *d,
 	shift = pin * bank_type->fld_width[PINCFG_TYPE_FUNC];
 	mask = (1 << bank_type->fld_width[PINCFG_TYPE_FUNC]) - 1;
 
-	spin_lock_irqsave(&bank->slock, flags);
+	raw_spin_lock_irqsave(&bank->slock, flags);
 
 	val = readl(reg);
 	val &= ~(mask << shift);
 	val |= bank->eint_func << shift;
 	writel(val, reg);
 
-	spin_unlock_irqrestore(&bank->slock, flags);
+	raw_spin_unlock_irqrestore(&bank->slock, flags);
 }
 
 static int s3c24xx_eint_type(struct irq_data *data, unsigned int type)
@@ -239,14 +234,12 @@ static void s3c2410_demux_eint0_3(struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct s3c24xx_eint_data *eint_data = irq_desc_get_handler_data(desc);
-	unsigned int virq;
+	int ret;
 
 	/* the first 4 eints have a simple 1 to 1 mapping */
-	virq = irq_linear_revmap(eint_data->domains[data->hwirq], data->hwirq);
+	ret = generic_handle_domain_irq(eint_data->domains[data->hwirq], data->hwirq);
 	/* Something must be really wrong if an unmapped EINT is unmasked */
-	BUG_ON(!virq);
-
-	generic_handle_irq(virq);
+	BUG_ON(ret);
 }
 
 /* Handling of EINTs 0-3 on S3C2412 and S3C2413 */
@@ -295,16 +288,14 @@ static void s3c2412_demux_eint0_3(struct irq_desc *desc)
 	struct s3c24xx_eint_data *eint_data = irq_desc_get_handler_data(desc);
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
-	unsigned int virq;
+	int ret;
 
 	chained_irq_enter(chip, desc);
 
 	/* the first 4 eints have a simple 1 to 1 mapping */
-	virq = irq_linear_revmap(eint_data->domains[data->hwirq], data->hwirq);
+	ret = generic_handle_domain_irq(eint_data->domains[data->hwirq], data->hwirq);
 	/* Something must be really wrong if an unmapped EINT is unmasked */
-	BUG_ON(!virq);
-
-	generic_handle_irq(virq);
+	BUG_ON(ret);
 
 	chained_irq_exit(chip, desc);
 }
@@ -369,15 +360,14 @@ static inline void s3c24xx_demux_eint(struct irq_desc *desc,
 	pend &= range;
 
 	while (pend) {
-		unsigned int virq, irq;
+		unsigned int irq;
+		int ret;
 
 		irq = __ffs(pend);
 		pend &= ~(1 << irq);
-		virq = irq_linear_revmap(data->domains[irq], irq - offset);
+		ret = generic_handle_domain_irq(data->domains[irq], irq - offset);
 		/* Something is really wrong if an unmapped EINT is unmasked */
-		BUG_ON(!virq);
-
-		generic_handle_irq(virq);
+		BUG_ON(ret);
 	}
 
 	chained_irq_exit(chip, desc);

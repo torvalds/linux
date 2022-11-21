@@ -85,7 +85,6 @@ properties:
   wlf,micd-timeout-ms:
     description:
       Timeout for microphone detection, specified in milliseconds.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
 
   wlf,micd-force-micbias:
     description:

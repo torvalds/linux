@@ -3,7 +3,7 @@
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ8064/AP-148";
-	compatible = "qcom,ipq8064-ap148";
+	compatible = "qcom,ipq8064-ap148", "qcom,ipq8064";
 
 	soc {
 		pinmux@800000 {
@@ -24,7 +24,7 @@
 
 		gsbi@16300000 {
 			i2c@16380000 {
-				status = "ok";
+				status = "okay";
 				clock-frequency = <200000>;
 				pinctrl-0 = <&i2c4_pins>;
 				pinctrl-names = "default";

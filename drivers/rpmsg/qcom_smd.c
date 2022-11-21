@@ -974,6 +974,20 @@ static int qcom_smd_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 	return __qcom_smd_send(qsept->qsch, data, len, false);
 }
 
+static int qcom_smd_sendto(struct rpmsg_endpoint *ept, void *data, int len, u32 dst)
+{
+	struct qcom_smd_endpoint *qsept = to_smd_endpoint(ept);
+
+	return __qcom_smd_send(qsept->qsch, data, len, true);
+}
+
+static int qcom_smd_trysendto(struct rpmsg_endpoint *ept, void *data, int len, u32 dst)
+{
+	struct qcom_smd_endpoint *qsept = to_smd_endpoint(ept);
+
+	return __qcom_smd_send(qsept->qsch, data, len, false);
+}
+
 static __poll_t qcom_smd_poll(struct rpmsg_endpoint *ept,
 				  struct file *filp, poll_table *wait)
 {
@@ -1038,7 +1052,9 @@ static const struct rpmsg_device_ops qcom_smd_device_ops = {
 static const struct rpmsg_endpoint_ops qcom_smd_endpoint_ops = {
 	.destroy_ept = qcom_smd_destroy_ept,
 	.send = qcom_smd_send,
+	.sendto = qcom_smd_sendto,
 	.trysend = qcom_smd_trysend,
+	.trysendto = qcom_smd_trysendto,
 	.poll = qcom_smd_poll,
 };
 
@@ -1097,7 +1113,7 @@ static int qcom_smd_create_chrdev(struct qcom_smd_edge *edge)
 	qsdev->rpdev.dev.parent = &edge->dev;
 	qsdev->rpdev.dev.release = qcom_smd_release_device;
 
-	return rpmsg_chrdev_register_device(&qsdev->rpdev);
+	return rpmsg_ctrldev_register_device(&qsdev->rpdev);
 }
 
 /*
@@ -1272,9 +1288,14 @@ static void qcom_channel_state_worker(struct work_struct *work)
 		if (channel->state != SMD_CHANNEL_CLOSED)
 			continue;
 
+		/*
+		 * Always open rpm_requests, even when already opened which is
+		 * required on some SoCs like msm8953.
+		 */
 		remote_state = GET_RX_CHANNEL_INFO(channel, state);
 		if (remote_state != SMD_CHANNEL_OPENING &&
-		    remote_state != SMD_CHANNEL_OPENED)
+		    remote_state != SMD_CHANNEL_OPENED &&
+		    strcmp(channel->name, "rpm_requests"))
 			continue;
 
 		if (channel->registered)
@@ -1282,9 +1303,7 @@ static void qcom_channel_state_worker(struct work_struct *work)
 
 		spin_unlock_irqrestore(&edge->channels_lock, flags);
 		qcom_smd_create_device(channel);
-		channel->registered = true;
 		spin_lock_irqsave(&edge->channels_lock, flags);
-
 		channel->registered = true;
 	}
 
@@ -1451,7 +1470,7 @@ ATTRIBUTE_GROUPS(qcom_smd_edge);
  * @parent:    parent device for the edge
  * @node:      device_node describing the edge
  *
- * Returns an edge reference, or negative ERR_PTR() on failure.
+ * Return: an edge reference, or negative ERR_PTR() on failure.
  */
 struct qcom_smd_edge *qcom_smd_register_edge(struct device *parent,
 					     struct device_node *node)
@@ -1589,7 +1608,7 @@ static int __init qcom_smd_init(void)
 {
 	return platform_driver_register(&qcom_smd_driver);
 }
-subsys_initcall(qcom_smd_init);
+arch_initcall(qcom_smd_init);
 
 static void __exit qcom_smd_exit(void)
 {

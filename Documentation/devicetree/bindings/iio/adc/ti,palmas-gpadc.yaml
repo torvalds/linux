@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/ti,palmas-gpadc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Palmas general purpose ADC IP block devicetree bindings
+
+maintainers:
+  - Tony Lindgren <tony@atomide.com>
+
+description: |
+  This ADC is often used to provide channels via the io-channels
+  consumer framework.
+  Channels list:
+    0 battery type
+    1 battery temp NTC (optional current source)
+    2 GP
+    3 temp (with ext. diode, optional current source)
+    4 GP
+    5 GP
+    6 VBAT_SENSE
+    7 VCC_SENSE
+    8 Backup Battery voltage
+    9 external charger (VCHG)
+    10 VBUS
+    11 DC-DC current probe (how does this work?)
+    12 internal die temp
+    13 internal die temp
+    14 USB ID pin voltage
+    15 test network
+
+properties:
+  compatible:
+    const: ti,palmas-gpadc
+
+  interrupts:
+    minItems: 1
+    maxItems: 3
+
+  "#io-channel-cells":
+    const: 1
+
+  ti,channel0-current-microamp:
+    description: Channel 0 current in uA.
+    enum:
+      - 0
+      - 5
+      - 15
+      - 20
+
+  ti,channel3-current-microamp:
+    description: Channel 3 current in uA.
+    enum:
+      - 0
+      - 10
+      - 400
+      - 800
+
+  ti,enable-extended-delay:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Enable extended delay.
+
+additionalProperties: false
+
+required:
+  - compatible
+  - "#io-channel-cells"
+
+examples:
+  - |
+    #include <dt-bindings/clock/mt8183-clk.h>
+    pmic {
+        compatible = "ti,twl6035-pmic", "ti,palmas-pmic";
+        adc {
+            compatible = "ti,palmas-gpadc";
+            interrupts = <18 0>,
+                         <16 0>,
+                         <17 0>;
+            #io-channel-cells = <1>;
+            ti,channel0-current-microamp = <5>;
+            ti,channel3-current-microamp = <10>;
+        };
+    };
+...

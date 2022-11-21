@@ -29,7 +29,7 @@ menuconfig NET_DSA_MICROCHIP_KSZ8795
 	depends on NET_DSA
 	select NET_DSA_MICROCHIP_KSZ_COMMON
 	help
-	  This driver adds support for Microchip KSZ8795 switch chips.
+	  This driver adds support for Microchip KSZ8795/KSZ88X3 switch chips.
 
 config NET_DSA_MICROCHIP_KSZ8795_SPI
 	tristate "KSZ8795 series SPI connected switch driver"
@@ -40,3 +40,11 @@ config NET_DSA_MICROCHIP_KSZ8795_SPI
 
 	  It is required to use the KSZ8795 switch driver as the only access
 	  is through SPI.
+
+config NET_DSA_MICROCHIP_KSZ8863_SMI
+	tristate "KSZ series SMI connected switch driver"
+	depends on NET_DSA_MICROCHIP_KSZ8795
+	select MDIO_BITBANG
+	help
+	  Select to enable support for registering switches configured through
+	  Microchip SMI. It supports the KSZ8863 and KSZ8873 switch.

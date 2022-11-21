@@ -102,16 +102,19 @@ enum dentist_divider_range {
 	.MP1_SMN_C2PMSG_83 = mmMP1_SMN_C2PMSG_83, \
 	.MP1_SMN_C2PMSG_67 = mmMP1_SMN_C2PMSG_67
 
+#define CLK_COMMON_REG_LIST_DCN_201() \
+	SR(DENTIST_DISPCLK_CNTL), \
+	CLK_SRI(CLK4_CLK_PLL_REQ, CLK4, 0), \
+	CLK_SRI(CLK4_CLK2_CURRENT_CNT, CLK4, 0)
+
 #define CLK_REG_LIST_NV10() \
 	SR(DENTIST_DISPCLK_CNTL), \
 	CLK_SRI(CLK3_CLK_PLL_REQ, CLK3, 0), \
 	CLK_SRI(CLK3_CLK2_DFS_CNTL, CLK3, 0)
 
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 // TODO:
 #define CLK_REG_LIST_DCN3()	  \
 	SR(DENTIST_DISPCLK_CNTL)
-#endif
 
 #define CLK_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
@@ -145,6 +148,12 @@ enum dentist_divider_range {
 	CLK_COMMON_MASK_SH_LIST_DCN20_BASE(mask_sh),\
 	CLK_SF(CLK3_0_CLK3_CLK_PLL_REQ, FbMult_int, mask_sh),\
 	CLK_SF(CLK3_0_CLK3_CLK_PLL_REQ, FbMult_frac, mask_sh)
+
+#define CLK_COMMON_MASK_SH_LIST_DCN201_BASE(mask_sh) \
+	CLK_COMMON_MASK_SH_LIST_DCN_COMMON_BASE(mask_sh),\
+	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, mask_sh),\
+	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_CHG_DONE, mask_sh),\
+	CLK_SF(CLK4_0_CLK4_CLK_PLL_REQ, FbMult_int, mask_sh)
 
 #define CLK_REG_FIELD_LIST(type) \
 	type DPREFCLK_SRC_SEL; \
@@ -181,14 +190,15 @@ struct clk_mgr_mask {
 struct clk_mgr_registers {
 	uint32_t DPREFCLK_CNTL;
 	uint32_t DENTIST_DISPCLK_CNTL;
+	uint32_t CLK4_CLK2_CURRENT_CNT;
+	uint32_t CLK4_CLK_PLL_REQ;
 
 	uint32_t CLK3_CLK2_DFS_CNTL;
 	uint32_t CLK3_CLK_PLL_REQ;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	uint32_t CLK0_CLK2_DFS_CNTL;
 	uint32_t CLK0_CLK_PLL_REQ;
-#endif
+
 	uint32_t MP1_SMN_C2PMSG_67;
 	uint32_t MP1_SMN_C2PMSG_83;
 	uint32_t MP1_SMN_C2PMSG_91;
@@ -285,12 +295,10 @@ struct clk_mgr_internal {
 	bool periodic_retraining_disabled;
 
 	unsigned int cur_phyclk_req_table[MAX_PIPES * 2];
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 
 	bool smu_present;
 	void *wm_range_table;
 	long long wm_range_table_addr;
-#endif
 };
 
 struct clk_mgr_internal_funcs {
@@ -314,13 +322,18 @@ static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_cl
 static inline bool should_update_pstate_support(bool safe_to_lower, bool calc_support, bool cur_support)
 {
 	if (cur_support != calc_support) {
-		if (calc_support == true && safe_to_lower)
+		if (calc_support && safe_to_lower)
 			return true;
-		else if (calc_support == false && !safe_to_lower)
+		else if (!calc_support && !safe_to_lower)
 			return true;
 	}
 
 	return false;
+}
+
+static inline int khz_to_mhz_ceil(int khz)
+{
+	return (khz + 999) / 1000;
 }
 
 int clk_mgr_helper_get_active_display_cnt(

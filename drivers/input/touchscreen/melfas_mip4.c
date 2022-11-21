@@ -465,13 +465,13 @@ static void mip4_report_keys(struct mip4_ts *ts, u8 *packet)
 static void mip4_report_touch(struct mip4_ts *ts, u8 *packet)
 {
 	int id;
-	bool hover;
-	bool palm;
+	bool __always_unused hover;
+	bool __always_unused palm;
 	bool state;
 	u16 x, y;
-	u8 pressure_stage = 0;
+	u8 __always_unused pressure_stage = 0;
 	u8 pressure;
-	u8 size;
+	u8 __always_unused size;
 	u8 touch_major;
 	u8 touch_minor;
 
@@ -1256,7 +1256,7 @@ static int mip4_execute_fw_update(struct mip4_ts *ts, const struct firmware *fw)
 	if (error)
 		return error;
 
-	if (ts->input->users) {
+	if (input_device_enabled(ts->input)) {
 		disable_irq(ts->client->irq);
 	} else {
 		error = mip4_power_on(ts);
@@ -1276,7 +1276,7 @@ static int mip4_execute_fw_update(struct mip4_ts *ts, const struct firmware *fw)
 			"Failed to flash firmware: %d\n", error);
 
 	/* Enable IRQ */
-	if (ts->input->users)
+	if (input_device_enabled(ts->input))
 		enable_irq(ts->client->irq);
 	else
 		mip4_power_off(ts);
@@ -1502,15 +1502,14 @@ static int mip4_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, mip4_interrupt,
-					  IRQF_ONESHOT, MIP4_DEVICE_NAME, ts);
+					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
+					  MIP4_DEVICE_NAME, ts);
 	if (error) {
 		dev_err(&client->dev,
 			"Failed to request interrupt %d: %d\n",
 			client->irq, error);
 		return error;
 	}
-
-	disable_irq(client->irq);
 
 	error = input_register_device(input);
 	if (error) {
@@ -1539,7 +1538,7 @@ static int __maybe_unused mip4_suspend(struct device *dev)
 
 	if (device_may_wakeup(dev))
 		ts->wake_irq_enabled = enable_irq_wake(client->irq) == 0;
-	else if (input->users)
+	else if (input_device_enabled(input))
 		mip4_disable(ts);
 
 	mutex_unlock(&input->mutex);
@@ -1557,7 +1556,7 @@ static int __maybe_unused mip4_resume(struct device *dev)
 
 	if (ts->wake_irq_enabled)
 		disable_irq_wake(client->irq);
-	else if (input->users)
+	else if (input_device_enabled(input))
 		mip4_enable(ts);
 
 	mutex_unlock(&input->mutex);

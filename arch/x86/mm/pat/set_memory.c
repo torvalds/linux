@@ -16,6 +16,9 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/libnvdimm.h>
+#include <linux/vmstat.h>
+#include <linux/kernel.h>
+#include <linux/cc_platform.h>
 
 #include <asm/e820/api.h>
 #include <asm/processor.h>
@@ -27,6 +30,8 @@
 #include <asm/proto.h>
 #include <asm/memtype.h>
 #include <asm/set_memory.h>
+#include <asm/hyperv-tlfs.h>
+#include <asm/mshyperv.h>
 
 #include "../mm_internal.h"
 
@@ -91,6 +96,12 @@ static void split_page_count(int level)
 		return;
 
 	direct_pages_count[level]--;
+	if (system_state == SYSTEM_RUNNING) {
+		if (level == PG_LEVEL_2M)
+			count_vm_event(DIRECT_MAP_LEVEL2_SPLIT);
+		else if (level == PG_LEVEL_1G)
+			count_vm_event(DIRECT_MAP_LEVEL3_SPLIT);
+	}
 	direct_pages_count[level - 1] += PTRS_PER_PTE;
 }
 
@@ -627,17 +638,6 @@ pte_t *lookup_address(unsigned long address, unsigned int *level)
 }
 EXPORT_SYMBOL_GPL(lookup_address);
 
-/*
- * Lookup the page table entry for a virtual address in a given mm. Return a
- * pointer to the entry and the level of the mapping.
- */
-pte_t *lookup_address_in_mm(struct mm_struct *mm, unsigned long address,
-			    unsigned int *level)
-{
-	return lookup_address_in_pgd(pgd_offset(mm, address), address, level);
-}
-EXPORT_SYMBOL_GPL(lookup_address_in_mm);
-
 static pte_t *_lookup_address_cpa(struct cpa_data *cpa, unsigned long address,
 				  unsigned int *level)
 {
@@ -680,7 +680,7 @@ pmd_t *lookup_pmd_address(unsigned long address)
  * end up in this kind of memory, for instance.
  *
  * This could be optimized, but it is only intended to be
- * used at inititalization time, and keeping it
+ * used at initialization time, and keeping it
  * unoptimized should increase the testing coverage for
  * the more obscure platforms.
  */
@@ -1126,7 +1126,7 @@ static void __unmap_pmd_range(pud_t *pud, pmd_t *pmd,
 			      unsigned long start, unsigned long end)
 {
 	if (unmap_pte_range(pmd, start, end))
-		if (try_to_free_pmd_page((pmd_t *)pud_page_vaddr(*pud)))
+		if (try_to_free_pmd_page(pud_pgtable(*pud)))
 			pud_clear(pud);
 }
 
@@ -1170,7 +1170,7 @@ static void unmap_pmd_range(pud_t *pud, unsigned long start, unsigned long end)
 	 * Try again to free the PMD page if haven't succeeded above.
 	 */
 	if (!pud_none(*pud))
-		if (try_to_free_pmd_page((pmd_t *)pud_page_vaddr(*pud)))
+		if (try_to_free_pmd_page(pud_pgtable(*pud)))
 			pud_clear(pud);
 }
 
@@ -1972,14 +1972,15 @@ int set_memory_global(unsigned long addr, int numpages)
 				    __pgprot(_PAGE_GLOBAL), 0);
 }
 
-static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
+/*
+ * __set_memory_enc_pgtable() is used for the hypervisors that get
+ * informed about "encryption" status via page tables.
+ */
+static int __set_memory_enc_pgtable(unsigned long addr, int numpages, bool enc)
 {
+	pgprot_t empty = __pgprot(0);
 	struct cpa_data cpa;
 	int ret;
-
-	/* Nothing to do if memory encryption is not active */
-	if (!mem_encrypt_active())
-		return 0;
 
 	/* Should not be working on unaligned addresses */
 	if (WARN_ONCE(addr & ~PAGE_MASK, "misaligned address: %#lx\n", addr))
@@ -1988,18 +1989,20 @@ static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
 	memset(&cpa, 0, sizeof(cpa));
 	cpa.vaddr = &addr;
 	cpa.numpages = numpages;
-	cpa.mask_set = enc ? __pgprot(_PAGE_ENC) : __pgprot(0);
-	cpa.mask_clr = enc ? __pgprot(0) : __pgprot(_PAGE_ENC);
+	cpa.mask_set = enc ? pgprot_encrypted(empty) : pgprot_decrypted(empty);
+	cpa.mask_clr = enc ? pgprot_decrypted(empty) : pgprot_encrypted(empty);
 	cpa.pgd = init_mm.pgd;
 
 	/* Must avoid aliasing mappings in the highmem code */
 	kmap_flush_unused();
 	vm_unmap_aliases();
 
-	/*
-	 * Before changing the encryption attribute, we need to flush caches.
-	 */
-	cpa_flush(&cpa, !this_cpu_has(X86_FEATURE_SME_COHERENT));
+	/* Flush the caches as needed before changing the encryption attribute. */
+	if (x86_platform.guest.enc_tlb_flush_required(enc))
+		cpa_flush(&cpa, x86_platform.guest.enc_cache_flush_required());
+
+	/* Notify hypervisor that we are about to set/clr encryption attribute. */
+	x86_platform.guest.enc_status_change_prepare(addr, numpages, enc);
 
 	ret = __change_page_attr_set_clr(&cpa, 1);
 
@@ -2012,7 +2015,24 @@ static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
 	 */
 	cpa_flush(&cpa, 0);
 
+	/* Notify hypervisor that we have successfully set/clr encryption attribute. */
+	if (!ret) {
+		if (!x86_platform.guest.enc_status_change_finish(addr, numpages, enc))
+			ret = -EIO;
+	}
+
 	return ret;
+}
+
+static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
+{
+	if (hv_is_isolation_supported())
+		return hv_set_mem_host_visibility(addr, numpages, !enc);
+
+	if (cc_platform_has(CC_ATTR_MEM_ENCRYPT))
+		return __set_memory_enc_pgtable(addr, numpages, enc);
+
+	return 0;
 }
 
 int set_memory_encrypted(unsigned long addr, int numpages)
@@ -2092,12 +2112,6 @@ int set_pages_array_wc(struct page **pages, int numpages)
 	return _set_pages_array(pages, numpages, _PAGE_CACHE_MODE_WC);
 }
 EXPORT_SYMBOL(set_pages_array_wc);
-
-int set_pages_array_wt(struct page **pages, int numpages)
-{
-	return _set_pages_array(pages, numpages, _PAGE_CACHE_MODE_WT);
-}
-EXPORT_SYMBOL_GPL(set_pages_array_wt);
 
 int set_pages_wb(struct page *page, int numpages)
 {
@@ -2194,6 +2208,7 @@ int set_direct_map_default_noflush(struct page *page)
 	return __set_pages_p(page, 1);
 }
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
 void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	if (PageHighMem(page))
@@ -2225,8 +2240,8 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 
 	arch_flush_lazy_mmu_mode();
 }
+#endif /* CONFIG_DEBUG_PAGEALLOC */
 
-#ifdef CONFIG_HIBERNATION
 bool kernel_page_present(struct page *page)
 {
 	unsigned int level;
@@ -2238,7 +2253,6 @@ bool kernel_page_present(struct page *page)
 	pte = lookup_address((unsigned long)page_address(page), &level);
 	return (pte_val(*pte) & _PAGE_PRESENT);
 }
-#endif /* CONFIG_HIBERNATION */
 
 int __init kernel_map_pages_in_pgd(pgd_t *pgd, u64 pfn, unsigned long address,
 				   unsigned numpages, unsigned long page_flags)

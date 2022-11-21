@@ -330,15 +330,14 @@ static void cx81801_close(struct tty_struct *tty)
 }
 
 /* Line discipline .hangup() */
-static int cx81801_hangup(struct tty_struct *tty)
+static void cx81801_hangup(struct tty_struct *tty)
 {
 	cx81801_close(tty);
-	return 0;
 }
 
 /* Line discipline .receive_buf() */
-static void cx81801_receive(struct tty_struct *tty,
-				const unsigned char *cp, char *fp, int count)
+static void cx81801_receive(struct tty_struct *tty, const unsigned char *cp,
+		const char *fp, int count)
 {
 	struct snd_soc_component *component = tty->disc_data;
 	const unsigned char *c;
@@ -395,8 +394,8 @@ static void cx81801_wakeup(struct tty_struct *tty)
 }
 
 static struct tty_ldisc_ops cx81801_ops = {
-	.magic = TTY_LDISC_MAGIC,
 	.name = "cx81801",
+	.num = N_V253,
 	.owner = THIS_MODULE,
 	.open = cx81801_open,
 	.close = cx81801_close,
@@ -408,7 +407,7 @@ static struct tty_ldisc_ops cx81801_ops = {
 
 /*
  * Even if not very useful, the sound card can still work without any of the
- * above functonality activated.  You can still control its audio input/output
+ * above functionality activated.  You can still control its audio input/output
  * constellation and speakerphone gain from userspace by issuing AT commands
  * over the modem port.
  */
@@ -504,7 +503,7 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* Register optional line discipline for over the modem control */
-	ret = tty_register_ldisc(N_V253, &cx81801_ops);
+	ret = tty_register_ldisc(&cx81801_ops);
 	if (ret) {
 		dev_warn(card->dev,
 				"Failed to register line discipline, "
@@ -583,9 +582,7 @@ static int ams_delta_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	if (tty_unregister_ldisc(N_V253) != 0)
-		dev_warn(&pdev->dev,
-			"failed to unregister V253 line discipline\n");
+	tty_unregister_ldisc(&cx81801_ops);
 
 	snd_soc_unregister_card(card);
 	card->dev = NULL;

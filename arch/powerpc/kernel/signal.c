@@ -9,7 +9,7 @@
  * this archive for more details.
  */
 
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/signal.h>
 #include <linux/uprobes.h>
 #include <linux/key.h>
@@ -133,36 +133,6 @@ unsigned long copy_ckvsx_from_user(struct task_struct *task,
 	return 0;
 }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
-#else
-inline unsigned long copy_fpr_to_user(void __user *to,
-				      struct task_struct *task)
-{
-	return __copy_to_user(to, task->thread.fp_state.fpr,
-			      ELF_NFPREG * sizeof(double));
-}
-
-inline unsigned long copy_fpr_from_user(struct task_struct *task,
-					void __user *from)
-{
-	return __copy_from_user(task->thread.fp_state.fpr, from,
-			      ELF_NFPREG * sizeof(double));
-}
-
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-inline unsigned long copy_ckfpr_to_user(void __user *to,
-					 struct task_struct *task)
-{
-	return __copy_to_user(to, task->thread.ckfp_state.fpr,
-			      ELF_NFPREG * sizeof(double));
-}
-
-inline unsigned long copy_ckfpr_from_user(struct task_struct *task,
-						 void __user *from)
-{
-	return __copy_from_user(task->thread.ckfp_state.fpr, from,
-				ELF_NFPREG * sizeof(double));
-}
-#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 #endif
 
 /* Log an error when sending an unhandled signal to a process. Controlled
@@ -174,19 +144,21 @@ int show_unhandled_signals = 1;
 /*
  * Allocate space for the signal frame
  */
-void __user *get_sigframe(struct ksignal *ksig, unsigned long sp,
-			   size_t frame_size, int is_32)
+static unsigned long get_tm_stackpointer(struct task_struct *tsk);
+
+void __user *get_sigframe(struct ksignal *ksig, struct task_struct *tsk,
+			  size_t frame_size, int is_32)
 {
         unsigned long oldsp, newsp;
+	unsigned long sp = get_tm_stackpointer(tsk);
 
         /* Default to using normal stack */
-        oldsp = get_clean_sp(sp, is_32);
+	if (is_32)
+		oldsp = sp & 0x0ffffffffUL;
+	else
+		oldsp = sp;
 	oldsp = sigsp(oldsp, ksig);
 	newsp = (oldsp - frame_size) & ~0xFUL;
-
-	/* Check access */
-	if (!access_ok((void __user *)newsp, oldsp - newsp))
-		return NULL;
 
         return (void __user *)newsp;
 }
@@ -242,7 +214,7 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 			regs->gpr[0] = __NR_restart_syscall;
 		else
 			regs->gpr[3] = regs->orig_gpr3;
-		regs->nip -= 4;
+		regs_add_return_ip(regs, -4);
 		regs->result = 0;
 	} else {
 		if (trap_is_scv(regs)) {
@@ -310,28 +282,22 @@ static void do_signal(struct task_struct *tsk)
 
 void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 {
-	user_exit();
-
 	if (thread_info_flags & _TIF_UPROBE)
 		uprobe_notify_resume(regs);
 
 	if (thread_info_flags & _TIF_PATCH_PENDING)
 		klp_update_patch_state(current);
 
-	if (thread_info_flags & _TIF_SIGPENDING) {
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL)) {
 		BUG_ON(regs != current->thread.regs);
 		do_signal(current);
 	}
 
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		tracehook_notify_resume(regs);
-		rseq_handle_notify_resume(NULL, regs);
-	}
-
-	user_enter();
+	if (thread_info_flags & _TIF_NOTIFY_RESUME)
+		resume_user_mode_work(regs);
 }
 
-unsigned long get_tm_stackpointer(struct task_struct *tsk)
+static unsigned long get_tm_stackpointer(struct task_struct *tsk)
 {
 	/* When in an active transaction that takes a signal, we need to be
 	 * careful with the stack.  It's possible that the stack has moved back
@@ -354,16 +320,16 @@ unsigned long get_tm_stackpointer(struct task_struct *tsk)
 	 * For signals taken in non-TM or suspended mode, we use the
 	 * normal/non-checkpointed stack pointer.
 	 */
-
-	unsigned long ret = tsk->thread.regs->gpr[1];
+	struct pt_regs *regs = tsk->thread.regs;
+	unsigned long ret = regs->gpr[1];
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	BUG_ON(tsk != current);
 
-	if (MSR_TM_ACTIVE(tsk->thread.regs->msr)) {
+	if (MSR_TM_ACTIVE(regs->msr)) {
 		preempt_disable();
 		tm_reclaim_current(TM_CAUSE_SIGNAL);
-		if (MSR_TM_TRANSACTIONAL(tsk->thread.regs->msr))
+		if (MSR_TM_TRANSACTIONAL(regs->msr))
 			ret = tsk->thread.ckpt_regs.gpr[1];
 
 		/*
@@ -373,9 +339,20 @@ unsigned long get_tm_stackpointer(struct task_struct *tsk)
 		 * (tm_recheckpoint_new_task() would recheckpoint). Besides, we
 		 * enter the signal handler in non-transactional state.
 		 */
-		tsk->thread.regs->msr &= ~MSR_TS_MASK;
+		regs_set_return_msr(regs, regs->msr & ~MSR_TS_MASK);
 		preempt_enable();
 	}
 #endif
 	return ret;
+}
+
+static const char fm32[] = KERN_INFO "%s[%d]: bad frame in %s: %p nip %08lx lr %08lx\n";
+static const char fm64[] = KERN_INFO "%s[%d]: bad frame in %s: %p nip %016lx lr %016lx\n";
+
+void signal_fault(struct task_struct *tsk, struct pt_regs *regs,
+		  const char *where, void __user *ptr)
+{
+	if (show_unhandled_signals)
+		printk_ratelimited(regs->msr & MSR_64BIT ? fm64 : fm32, tsk->comm,
+				   task_pid_nr(tsk), where, ptr, regs->nip, regs->link);
 }

@@ -10,6 +10,7 @@
 
 #include <crypto/algapi.h>
 #include <linux/completion.h>
+#include <linux/jump_label.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
@@ -27,11 +28,26 @@ struct crypto_larval {
 	struct crypto_alg *adult;
 	struct completion completion;
 	u32 mask;
+	bool test_started;
 };
+
+enum {
+	CRYPTOA_UNSPEC,
+	CRYPTOA_ALG,
+	CRYPTOA_TYPE,
+	__CRYPTOA_MAX,
+};
+
+#define CRYPTOA_MAX (__CRYPTOA_MAX - 1)
+
+/* Maximum number of (rtattr) parameters for each template. */
+#define CRYPTO_MAX_ATTRS 32
 
 extern struct list_head crypto_alg_list;
 extern struct rw_semaphore crypto_alg_sem;
 extern struct blocking_notifier_head crypto_chain;
+
+DECLARE_STATIC_KEY_FALSE(crypto_boot_test_finished);
 
 #ifdef CONFIG_PROC_FS
 void __init crypto_init_proc(void);
@@ -58,6 +74,7 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask);
 
 struct crypto_larval *crypto_larval_alloc(const char *name, u32 type, u32 mask);
 void crypto_larval_kill(struct crypto_alg *alg);
+void crypto_wait_for_test(struct crypto_larval *larval);
 void crypto_alg_tested(const char *name, int err);
 
 void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
@@ -142,6 +159,11 @@ static inline void crypto_yield(u32 flags)
 {
 	if (flags & CRYPTO_TFM_REQ_MAY_SLEEP)
 		cond_resched();
+}
+
+static inline int crypto_is_test_larval(struct crypto_larval *larval)
+{
+	return larval->alg.cra_driver_name[0];
 }
 
 #endif	/* _CRYPTO_INTERNAL_H */

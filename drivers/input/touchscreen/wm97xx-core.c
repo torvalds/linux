@@ -194,7 +194,7 @@ EXPORT_SYMBOL_GPL(wm97xx_get_gpio);
  * wm97xx_set_gpio - Set the status of a codec GPIO.
  * @wm: wm97xx device.
  * @gpio: gpio
- *
+ * @status: status
  *
  * Set the status of a codec GPIO pin
  */
@@ -615,10 +615,9 @@ static int wm97xx_register_touch(struct wm97xx *wm)
 	 * extensions)
 	 */
 	wm->touch_dev = platform_device_alloc("wm97xx-touch", -1);
-	if (!wm->touch_dev) {
-		ret = -ENOMEM;
-		goto touch_err;
-	}
+	if (!wm->touch_dev)
+		return -ENOMEM;
+
 	platform_set_drvdata(wm->touch_dev, wm);
 	wm->touch_dev->dev.parent = wm->dev;
 	wm->touch_dev->dev.platform_data = pdata;
@@ -629,9 +628,6 @@ static int wm97xx_register_touch(struct wm97xx *wm)
 	return 0;
 touch_reg_err:
 	platform_device_put(wm->touch_dev);
-touch_err:
-	input_unregister_device(wm->input_dev);
-	wm->input_dev = NULL;
 
 	return ret;
 }
@@ -639,8 +635,6 @@ touch_err:
 static void wm97xx_unregister_touch(struct wm97xx *wm)
 {
 	platform_device_unregister(wm->touch_dev);
-	input_unregister_device(wm->input_dev);
-	wm->input_dev = NULL;
 }
 
 static int _wm97xx_probe(struct wm97xx *wm)
@@ -806,23 +800,25 @@ static int __maybe_unused wm97xx_suspend(struct device *dev)
 	else
 		suspend_mode = 0;
 
-	if (wm->input_dev->users)
+	mutex_lock(&wm->input_dev->mutex);
+	if (input_device_enabled(wm->input_dev))
 		cancel_delayed_work_sync(&wm->ts_reader);
 
 	/* Power down the digitiser (bypassing the cache for resume) */
 	reg = wm97xx_reg_read(wm, AC97_WM97XX_DIGITISER2);
 	reg &= ~WM97XX_PRP_DET_DIG;
-	if (wm->input_dev->users)
+	if (input_device_enabled(wm->input_dev))
 		reg |= suspend_mode;
 	wm->ac97->bus->ops->write(wm->ac97, AC97_WM97XX_DIGITISER2, reg);
 
 	/* WM9713 has an additional power bit - turn it off if there
 	 * are no users or if suspend mode is zero. */
 	if (wm->id == WM9713_ID2 &&
-	    (!wm->input_dev->users || !suspend_mode)) {
+	    (!input_device_enabled(wm->input_dev) || !suspend_mode)) {
 		reg = wm97xx_reg_read(wm, AC97_EXTENDED_MID) | 0x8000;
 		wm97xx_reg_write(wm, AC97_EXTENDED_MID, reg);
 	}
+	mutex_unlock(&wm->input_dev->mutex);
 
 	return 0;
 }
@@ -831,11 +827,12 @@ static int __maybe_unused wm97xx_resume(struct device *dev)
 {
 	struct wm97xx *wm = dev_get_drvdata(dev);
 
+	mutex_lock(&wm->input_dev->mutex);
 	/* restore digitiser and gpios */
 	if (wm->id == WM9713_ID2) {
 		wm97xx_reg_write(wm, AC97_WM9713_DIG1, wm->dig[0]);
 		wm97xx_reg_write(wm, 0x5a, wm->misc);
-		if (wm->input_dev->users) {
+		if (input_device_enabled(wm->input_dev)) {
 			u16 reg;
 			reg = wm97xx_reg_read(wm, AC97_EXTENDED_MID) & 0x7fff;
 			wm97xx_reg_write(wm, AC97_EXTENDED_MID, reg);
@@ -852,11 +849,12 @@ static int __maybe_unused wm97xx_resume(struct device *dev)
 	wm97xx_reg_write(wm, AC97_GPIO_STATUS, wm->gpio[4]);
 	wm97xx_reg_write(wm, AC97_MISC_AFE, wm->gpio[5]);
 
-	if (wm->input_dev->users && !wm->pen_irq) {
+	if (input_device_enabled(wm->input_dev) && !wm->pen_irq) {
 		wm->ts_reader_interval = wm->ts_reader_min_interval;
 		queue_delayed_work(wm->ts_workq, &wm->ts_reader,
 				   wm->ts_reader_interval);
 	}
+	mutex_unlock(&wm->input_dev->mutex);
 
 	return 0;
 }

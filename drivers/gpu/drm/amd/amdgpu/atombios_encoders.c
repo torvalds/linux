@@ -171,7 +171,6 @@ void amdgpu_atombios_encoder_init_backlight(struct amdgpu_encoder *amdgpu_encode
 	struct backlight_properties props;
 	struct amdgpu_backlight_privdata *pdata;
 	struct amdgpu_encoder_atom_dig *dig;
-	u8 backlight_level;
 	char bl_name[16];
 
 	/* Mac laptops with multiple GPUs use the gmux driver for backlight
@@ -206,8 +205,6 @@ void amdgpu_atombios_encoder_init_backlight(struct amdgpu_encoder *amdgpu_encode
 	}
 
 	pdata->encoder = amdgpu_encoder;
-
-	backlight_level = amdgpu_atombios_encoder_get_backlight_level_from_reg(adev);
 
 	dig = amdgpu_encoder->enc_priv;
 	dig->bl_dev = bd;
@@ -472,7 +469,7 @@ int amdgpu_atombios_encoder_get_encoder_mode(struct drm_encoder *encoder)
 			if (amdgpu_connector->use_digital &&
 			    (amdgpu_connector->audio == AMDGPU_AUDIO_ENABLE))
 				return ATOM_ENCODER_MODE_HDMI;
-			else if (drm_detect_hdmi_monitor(amdgpu_connector_edid(connector)) &&
+			else if (connector->display_info.is_hdmi &&
 				 (amdgpu_connector->audio == AMDGPU_AUDIO_AUTO))
 				return ATOM_ENCODER_MODE_HDMI;
 			else if (amdgpu_connector->use_digital)
@@ -491,7 +488,7 @@ int amdgpu_atombios_encoder_get_encoder_mode(struct drm_encoder *encoder)
 		if (amdgpu_audio != 0) {
 			if (amdgpu_connector->audio == AMDGPU_AUDIO_ENABLE)
 				return ATOM_ENCODER_MODE_HDMI;
-			else if (drm_detect_hdmi_monitor(amdgpu_connector_edid(connector)) &&
+			else if (connector->display_info.is_hdmi &&
 				 (amdgpu_connector->audio == AMDGPU_AUDIO_AUTO))
 				return ATOM_ENCODER_MODE_HDMI;
 			else
@@ -499,10 +496,8 @@ int amdgpu_atombios_encoder_get_encoder_mode(struct drm_encoder *encoder)
 		} else {
 			return ATOM_ENCODER_MODE_DVI;
 		}
-		break;
 	case DRM_MODE_CONNECTOR_LVDS:
 		return ATOM_ENCODER_MODE_LVDS;
-		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		dig_connector = amdgpu_connector->con_priv;
 		if ((dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
@@ -511,7 +506,7 @@ int amdgpu_atombios_encoder_get_encoder_mode(struct drm_encoder *encoder)
 		} else if (amdgpu_audio != 0) {
 			if (amdgpu_connector->audio == AMDGPU_AUDIO_ENABLE)
 				return ATOM_ENCODER_MODE_HDMI;
-			else if (drm_detect_hdmi_monitor(amdgpu_connector_edid(connector)) &&
+			else if (connector->display_info.is_hdmi &&
 				 (amdgpu_connector->audio == AMDGPU_AUDIO_AUTO))
 				return ATOM_ENCODER_MODE_HDMI;
 			else
@@ -519,20 +514,16 @@ int amdgpu_atombios_encoder_get_encoder_mode(struct drm_encoder *encoder)
 		} else {
 			return ATOM_ENCODER_MODE_DVI;
 		}
-		break;
 	case DRM_MODE_CONNECTOR_eDP:
 		return ATOM_ENCODER_MODE_DP;
 	case DRM_MODE_CONNECTOR_DVIA:
 	case DRM_MODE_CONNECTOR_VGA:
 		return ATOM_ENCODER_MODE_CRT;
-		break;
 	case DRM_MODE_CONNECTOR_Composite:
 	case DRM_MODE_CONNECTOR_SVIDEO:
 	case DRM_MODE_CONNECTOR_9PinDIN:
 		/* fix me */
 		return ATOM_ENCODER_MODE_TV;
-		/*return ATOM_ENCODER_MODE_CV;*/
-		break;
 	}
 }
 

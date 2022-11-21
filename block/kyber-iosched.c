@@ -9,10 +9,12 @@
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
-#include <linux/elevator.h>
 #include <linux/module.h>
 #include <linux/sbitmap.h>
 
+#include <trace/events/block.h>
+
+#include "elevator.h"
 #include "blk.h"
 #include "blk-mq.h"
 #include "blk-mq-debugfs.h"
@@ -149,6 +151,7 @@ struct kyber_ctx_queue {
 
 struct kyber_queue_data {
 	struct request_queue *q;
+	dev_t dev;
 
 	/*
 	 * Each scheduling domain has a limited number of in-flight requests
@@ -255,7 +258,7 @@ static int calculate_percentile(struct kyber_queue_data *kqd,
 	}
 	memset(buckets, 0, sizeof(kqd->latency_buckets[sched_domain][type]));
 
-	trace_kyber_latency(kqd->q, kyber_domain_names[sched_domain],
+	trace_kyber_latency(kqd->dev, kyber_domain_names[sched_domain],
 			    kyber_latency_type_names[type], percentile,
 			    bucket + 1, 1 << KYBER_LATENCY_SHIFT, samples);
 
@@ -268,7 +271,7 @@ static void kyber_resize_domain(struct kyber_queue_data *kqd,
 	depth = clamp(depth, 1U, kyber_depth[sched_domain]);
 	if (depth != kqd->domain_tokens[sched_domain].sb.depth) {
 		sbitmap_queue_resize(&kqd->domain_tokens[sched_domain], depth);
-		trace_kyber_adjust(kqd->q, kyber_domain_names[sched_domain],
+		trace_kyber_adjust(kqd->dev, kyber_domain_names[sched_domain],
 				   depth);
 	}
 }
@@ -353,19 +356,9 @@ static void kyber_timer_fn(struct timer_list *t)
 	}
 }
 
-static unsigned int kyber_sched_tags_shift(struct request_queue *q)
-{
-	/*
-	 * All of the hardware queues have the same depth, so we can just grab
-	 * the shift of the first one.
-	 */
-	return q->queue_hw_ctx[0]->sched_tags->bitmap_tags->sb.shift;
-}
-
 static struct kyber_queue_data *kyber_queue_data_alloc(struct request_queue *q)
 {
 	struct kyber_queue_data *kqd;
-	unsigned int shift;
 	int ret = -ENOMEM;
 	int i;
 
@@ -374,6 +367,7 @@ static struct kyber_queue_data *kyber_queue_data_alloc(struct request_queue *q)
 		goto err;
 
 	kqd->q = q;
+	kqd->dev = disk_devt(q->disk);
 
 	kqd->cpu_latency = alloc_percpu_gfp(struct kyber_cpu_latency,
 					    GFP_KERNEL | __GFP_ZERO);
@@ -399,9 +393,6 @@ static struct kyber_queue_data *kyber_queue_data_alloc(struct request_queue *q)
 		kqd->domain_p99[i] = -1;
 		kqd->latency_targets[i] = kyber_latency_targets[i];
 	}
-
-	shift = kyber_sched_tags_shift(q);
-	kqd->async_depth = (1U << shift) * KYBER_ASYNC_PERCENT / 100U;
 
 	return kqd;
 
@@ -442,6 +433,7 @@ static void kyber_exit_sched(struct elevator_queue *e)
 	int i;
 
 	del_timer_sync(&kqd->timer);
+	blk_stat_disable_accounting(kqd->q);
 
 	for (i = 0; i < KYBER_NUM_DOMAINS; i++)
 		sbitmap_queue_free(&kqd->domain_tokens[i]);
@@ -458,9 +450,19 @@ static void kyber_ctx_queue_init(struct kyber_ctx_queue *kcq)
 		INIT_LIST_HEAD(&kcq->rq_list[i]);
 }
 
-static int kyber_init_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
+static void kyber_depth_updated(struct blk_mq_hw_ctx *hctx)
 {
 	struct kyber_queue_data *kqd = hctx->queue->elevator->elevator_data;
+	struct blk_mq_tags *tags = hctx->sched_tags;
+	unsigned int shift = tags->bitmap_tags.sb.shift;
+
+	kqd->async_depth = (1U << shift) * KYBER_ASYNC_PERCENT / 100U;
+
+	sbitmap_queue_min_shallow_depth(&tags->bitmap_tags, kqd->async_depth);
+}
+
+static int kyber_init_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
+{
 	struct kyber_hctx_data *khd;
 	int i;
 
@@ -479,7 +481,8 @@ static int kyber_init_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
 
 	for (i = 0; i < KYBER_NUM_DOMAINS; i++) {
 		if (sbitmap_init_node(&khd->kcq_map[i], hctx->nr_ctx,
-				      ilog2(8), GFP_KERNEL, hctx->numa_node)) {
+				      ilog2(8), GFP_KERNEL, hctx->numa_node,
+				      false, false)) {
 			while (--i >= 0)
 				sbitmap_free(&khd->kcq_map[i]);
 			goto err_kcqs;
@@ -502,8 +505,7 @@ static int kyber_init_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
 	khd->batching = 0;
 
 	hctx->sched_data = khd;
-	sbitmap_queue_min_shallow_depth(hctx->sched_tags->bitmap_tags,
-					kqd->async_depth);
+	kyber_depth_updated(hctx);
 
 	return 0;
 
@@ -562,11 +564,12 @@ static void kyber_limit_depth(unsigned int op, struct blk_mq_alloc_data *data)
 	}
 }
 
-static bool kyber_bio_merge(struct blk_mq_hw_ctx *hctx, struct bio *bio,
+static bool kyber_bio_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs)
 {
+	struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, bio->bi_opf, ctx);
 	struct kyber_hctx_data *khd = hctx->sched_data;
-	struct blk_mq_ctx *ctx = blk_mq_get_ctx(hctx->queue);
 	struct kyber_ctx_queue *kcq = &khd->kcqs[ctx->index_hw[hctx->type]];
 	unsigned int sched_domain = kyber_sched_domain(bio->bi_opf);
 	struct list_head *rq_list = &kcq->rq_list[sched_domain];
@@ -596,13 +599,13 @@ static void kyber_insert_requests(struct blk_mq_hw_ctx *hctx,
 		struct list_head *head = &kcq->rq_list[sched_domain];
 
 		spin_lock(&kcq->lock);
+		trace_block_rq_insert(rq);
 		if (at_head)
 			list_move(&rq->queuelist, head);
 		else
 			list_move_tail(&rq->queuelist, head);
 		sbitmap_set_bit(&khd->kcq_map[sched_domain],
 				rq->mq_ctx->index_hw[hctx->type]);
-		blk_mq_sched_request_inserted(rq);
 		spin_unlock(&kcq->lock);
 	}
 }
@@ -774,7 +777,7 @@ kyber_dispatch_cur_domain(struct kyber_queue_data *kqd,
 			list_del_init(&rq->queuelist);
 			return rq;
 		} else {
-			trace_kyber_throttled(kqd->q,
+			trace_kyber_throttled(kqd->dev,
 					      kyber_domain_names[khd->cur_domain]);
 		}
 	} else if (sbitmap_any_bit_set(&khd->kcq_map[khd->cur_domain])) {
@@ -787,7 +790,7 @@ kyber_dispatch_cur_domain(struct kyber_queue_data *kqd,
 			list_del_init(&rq->queuelist);
 			return rq;
 		} else {
-			trace_kyber_throttled(kqd->q,
+			trace_kyber_throttled(kqd->dev,
 					      kyber_domain_names[khd->cur_domain]);
 		}
 	}
@@ -1022,6 +1025,7 @@ static struct elevator_type kyber_sched = {
 		.completed_request = kyber_completed_request,
 		.dispatch_request = kyber_dispatch_request,
 		.has_work = kyber_has_work,
+		.depth_updated = kyber_depth_updated,
 	},
 #ifdef CONFIG_BLK_DEBUG_FS
 	.queue_debugfs_attrs = kyber_queue_debugfs_attrs,
@@ -1029,6 +1033,7 @@ static struct elevator_type kyber_sched = {
 #endif
 	.elevator_attrs = kyber_sched_attrs,
 	.elevator_name = "kyber",
+	.elevator_features = ELEVATOR_F_MQ_AWARE,
 	.elevator_owner = THIS_MODULE,
 };
 

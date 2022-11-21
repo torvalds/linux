@@ -400,7 +400,7 @@ static const struct uart_ops mlb_usio_ops = {
 
 #ifdef CONFIG_SERIAL_MILBEAUT_USIO_CONSOLE
 
-static void mlb_usio_console_putchar(struct uart_port *port, int c)
+static void mlb_usio_console_putchar(struct uart_port *port, unsigned char c)
 {
 	while (!(readb(port->membase + MLB_USIO_REG_SSR) & MLB_USIO_SSR_TDRE))
 		cpu_relax();

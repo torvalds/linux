@@ -12,6 +12,7 @@
 #ifndef __ASSEMBLY__
 #include <linux/threads.h>
 
+#include <asm/assembly.h>
 #include <asm/prefetch.h>
 #include <asm/hardware.h>
 #include <asm/pdc.h>
@@ -37,22 +38,15 @@
 #define DEFAULT_MAP_BASE	DEFAULT_MAP_BASE32
 #endif
 
-#ifdef __KERNEL__
-
 /* XXX: STACK_TOP actually should be STACK_BOTTOM for parisc.
  * prumpf */
 
 #define STACK_TOP	TASK_SIZE
 #define STACK_TOP_MAX	DEFAULT_TASK_SIZE
 
-/* Allow bigger stacks for 64-bit processes */
-#define STACK_SIZE_MAX	(USER_WIDE_MODE					\
-			 ? (1 << 30)	/* 1 GB */			\
-			 : (CONFIG_MAX_STACK_SIZE_MB*1024*1024))
-
-#endif
-
 #ifndef __ASSEMBLY__
+
+unsigned long calc_max_stack_size(unsigned long stack_max);
 
 /*
  * Data detected about CPUs at boot time which is the same for all CPU's.
@@ -97,19 +91,13 @@ struct cpuinfo_parisc {
 	unsigned long cpu_loc;      /* CPU location from PAT firmware */
 	unsigned int state;
 	struct parisc_device *dev;
-	unsigned long loops_per_jiffy;
 };
 
 extern struct system_cpuinfo_parisc boot_cpu_data;
 DECLARE_PER_CPU(struct cpuinfo_parisc, cpu_data);
+extern int time_keeper_id;		/* CPU used for timekeeping */
 
 #define CPU_HVERSION ((boot_cpu_data.hversion >> 4) & 0x0FFF)
-
-typedef struct {
-	int seg;  
-} mm_segment_t;
-
-#define ARCH_MIN_TASKALIGN	8
 
 struct thread_struct {
 	struct pt_regs regs;
@@ -249,7 +237,7 @@ on downward growing arches, it looks like this:
 
 #define start_thread(regs, new_pc, new_sp) do {		\
 	elf_addr_t *sp = (elf_addr_t *)new_sp;		\
-	__u32 spaceid = (__u32)current->mm->context;	\
+	__u32 spaceid = (__u32)current->mm->context.space_id;	\
 	elf_addr_t pc = (elf_addr_t)new_pc | 3;		\
 	elf_caddr_t *argv = (elf_caddr_t *)bprm->exec + 1;	\
 							\
@@ -276,13 +264,12 @@ on downward growing arches, it looks like this:
 	regs->gr[23] = 0;				\
 } while(0)
 
-struct task_struct;
 struct mm_struct;
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
 
-extern unsigned long get_wchan(struct task_struct *p);
+extern unsigned long __get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)	((tsk)->thread.regs.iaoq[0])
 #define KSTK_ESP(tsk)	((tsk)->thread.regs.gr[30])
@@ -302,6 +289,11 @@ extern int _parisc_requires_coherency;
 #endif
 
 extern int running_on_qemu;
+
+extern void __noreturn toc_intr(struct pt_regs *regs);
+extern void toc_handler(void);
+extern unsigned int toc_handler_size;
+extern unsigned int toc_handler_csum;
 
 #endif /* __ASSEMBLY__ */
 

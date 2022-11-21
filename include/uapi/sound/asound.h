@@ -56,8 +56,10 @@
  *                                                                          *
  ****************************************************************************/
 
+#define AES_IEC958_STATUS_SIZE		24
+
 struct snd_aes_iec958 {
-	unsigned char status[24];	/* AES/IEC958 channel status bits */
+	unsigned char status[AES_IEC958_STATUS_SIZE]; /* AES/IEC958 channel status bits */
 	unsigned char subcode[147];	/* AES/IEC958 subcode bits */
 	unsigned char pad;		/* nothing */
 	unsigned char dig_subframe[4];	/* AES/IEC958 subframe bits */
@@ -202,6 +204,11 @@ typedef int __bitwise snd_pcm_format_t;
 #define	SNDRV_PCM_FORMAT_S24_BE	((__force snd_pcm_format_t) 7) /* low three bytes */
 #define	SNDRV_PCM_FORMAT_U24_LE	((__force snd_pcm_format_t) 8) /* low three bytes */
 #define	SNDRV_PCM_FORMAT_U24_BE	((__force snd_pcm_format_t) 9) /* low three bytes */
+/*
+ * For S32/U32 formats, 'msbits' hardware parameter is often used to deliver information about the
+ * available bit count in most significant bit. It's for the case of so-called 'left-justified' or
+ * `right-padding` sample which has less width than 32 bit.
+ */
 #define	SNDRV_PCM_FORMAT_S32_LE	((__force snd_pcm_format_t) 10)
 #define	SNDRV_PCM_FORMAT_S32_BE	((__force snd_pcm_format_t) 11)
 #define	SNDRV_PCM_FORMAT_U32_LE	((__force snd_pcm_format_t) 12)
@@ -299,7 +306,8 @@ typedef int __bitwise snd_pcm_subformat_t;
 #define SNDRV_PCM_INFO_HAS_LINK_ABSOLUTE_ATIME     0x02000000  /* report absolute hardware link audio time, not reset on startup */
 #define SNDRV_PCM_INFO_HAS_LINK_ESTIMATED_ATIME    0x04000000  /* report estimated link audio time */
 #define SNDRV_PCM_INFO_HAS_LINK_SYNCHRONIZED_ATIME 0x08000000  /* report synchronized audio/system time */
-
+#define SNDRV_PCM_INFO_EXPLICIT_SYNC	0x10000000	/* needs explicit sync of pointers and data */
+#define SNDRV_PCM_INFO_NO_REWINDS	0x20000000	/* hardware can only support monotonic changes of appl_ptr */
 #define SNDRV_PCM_INFO_DRAIN_TRIGGER	0x40000000		/* internal kernel flag - trigger in drain */
 #define SNDRV_PCM_INFO_FIFO_IN_FRAMES	0x80000000	/* internal kernel flag - FIFO size is in frames */
 
@@ -710,7 +718,7 @@ enum {
  *  Raw MIDI section - /dev/snd/midi??
  */
 
-#define SNDRV_RAWMIDI_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 1)
+#define SNDRV_RAWMIDI_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 2)
 
 enum {
 	SNDRV_RAWMIDI_STREAM_OUTPUT = 0,
@@ -736,12 +744,38 @@ struct snd_rawmidi_info {
 	unsigned char reserved[64];	/* reserved for future use */
 };
 
+#define SNDRV_RAWMIDI_MODE_FRAMING_MASK		(7<<0)
+#define SNDRV_RAWMIDI_MODE_FRAMING_SHIFT	0
+#define SNDRV_RAWMIDI_MODE_FRAMING_NONE		(0<<0)
+#define SNDRV_RAWMIDI_MODE_FRAMING_TSTAMP	(1<<0)
+#define SNDRV_RAWMIDI_MODE_CLOCK_MASK		(7<<3)
+#define SNDRV_RAWMIDI_MODE_CLOCK_SHIFT		3
+#define SNDRV_RAWMIDI_MODE_CLOCK_NONE		(0<<3)
+#define SNDRV_RAWMIDI_MODE_CLOCK_REALTIME	(1<<3)
+#define SNDRV_RAWMIDI_MODE_CLOCK_MONOTONIC	(2<<3)
+#define SNDRV_RAWMIDI_MODE_CLOCK_MONOTONIC_RAW	(3<<3)
+
+#define SNDRV_RAWMIDI_FRAMING_DATA_LENGTH 16
+
+struct snd_rawmidi_framing_tstamp {
+	/* For now, frame_type is always 0. Midi 2.0 is expected to add new
+	 * types here. Applications are expected to skip unknown frame types.
+	 */
+	__u8 frame_type;
+	__u8 length; /* number of valid bytes in data field */
+	__u8 reserved[2];
+	__u32 tv_nsec;		/* nanoseconds */
+	__u64 tv_sec;		/* seconds */
+	__u8 data[SNDRV_RAWMIDI_FRAMING_DATA_LENGTH];
+} __packed;
+
 struct snd_rawmidi_params {
 	int stream;
 	size_t buffer_size;		/* queue size in bytes */
 	size_t avail_min;		/* minimum avail bytes for wakeup */
 	unsigned int no_active_sensing: 1; /* do not send active sensing byte in close() */
-	unsigned char reserved[16];	/* reserved for future use */
+	unsigned int mode;		/* For input data only, frame incoming data */
+	unsigned char reserved[12];	/* reserved for future use */
 };
 
 #ifndef __KERNEL__
@@ -757,6 +791,7 @@ struct snd_rawmidi_status {
 
 #define SNDRV_RAWMIDI_IOCTL_PVERSION	_IOR('W', 0x00, int)
 #define SNDRV_RAWMIDI_IOCTL_INFO	_IOR('W', 0x01, struct snd_rawmidi_info)
+#define SNDRV_RAWMIDI_IOCTL_USER_PVERSION _IOW('W', 0x02, int)
 #define SNDRV_RAWMIDI_IOCTL_PARAMS	_IOWR('W', 0x10, struct snd_rawmidi_params)
 #define SNDRV_RAWMIDI_IOCTL_STATUS	_IOWR('W', 0x20, struct snd_rawmidi_status)
 #define SNDRV_RAWMIDI_IOCTL_DROP	_IOW('W', 0x30, int)
@@ -974,7 +1009,7 @@ typedef int __bitwise snd_ctl_elem_iface_t;
 #define SNDRV_CTL_ELEM_ACCESS_WRITE		(1<<1)
 #define SNDRV_CTL_ELEM_ACCESS_READWRITE		(SNDRV_CTL_ELEM_ACCESS_READ|SNDRV_CTL_ELEM_ACCESS_WRITE)
 #define SNDRV_CTL_ELEM_ACCESS_VOLATILE		(1<<2)	/* control value may be changed without a notification */
-// (1 << 3) is unused.
+/* (1 << 3) is unused. */
 #define SNDRV_CTL_ELEM_ACCESS_TLV_READ		(1<<4)	/* TLV read is possible */
 #define SNDRV_CTL_ELEM_ACCESS_TLV_WRITE		(1<<5)	/* TLV write is possible */
 #define SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE	(SNDRV_CTL_ELEM_ACCESS_TLV_READ|SNDRV_CTL_ELEM_ACCESS_TLV_WRITE)

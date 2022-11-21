@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * AES routines supporting VMX instructions on the Power 8
  *
  * Copyright (C) 2015 International Business Machines Inc.
@@ -14,6 +14,7 @@
 #include <asm/simd.h>
 #include <asm/switch_to.h>
 #include <crypto/aes.h>
+#include <crypto/internal/cipher.h>
 #include <crypto/internal/simd.h>
 
 #include "aesp8-ppc.h"

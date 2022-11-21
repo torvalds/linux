@@ -254,8 +254,8 @@ static void aeq_irq_handler(struct hinic_eq *eq)
 					    HINIC_EQE_ENABLED,
 					    HINIC_EQE_ENABLED |
 					    HINIC_EQE_RUNNING);
-			if ((eqe_state == HINIC_EQE_ENABLED) &&
-			    (hwe_cb->hwe_handler))
+			if (eqe_state == HINIC_EQE_ENABLED &&
+			    hwe_cb->hwe_handler)
 				hwe_cb->hwe_handler(hwe_cb->handle,
 						    aeqe_curr->data, size);
 			else
@@ -299,7 +299,7 @@ static void ceq_event_handler(struct hinic_ceqs *ceqs, u32 ceqe)
 			    HINIC_EQE_ENABLED,
 			    HINIC_EQE_ENABLED | HINIC_EQE_RUNNING);
 
-	if ((eqe_state == HINIC_EQE_ENABLED) && (ceq_cb->handler))
+	if (eqe_state == HINIC_EQE_ENABLED && ceq_cb->handler)
 		ceq_cb->handler(ceq_cb->handle, CEQE_DATA(ceqe));
 	else
 		dev_err(&pdev->dev, "Unhandled CEQ Event %d\n", event);
@@ -631,16 +631,15 @@ static int alloc_eq_pages(struct hinic_eq *eq)
 	struct hinic_hwif *hwif = eq->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 	u32 init_val, addr, val;
-	size_t addr_size;
 	int err, pg;
 
-	addr_size = eq->num_pages * sizeof(*eq->dma_addr);
-	eq->dma_addr = devm_kzalloc(&pdev->dev, addr_size, GFP_KERNEL);
+	eq->dma_addr = devm_kcalloc(&pdev->dev, eq->num_pages,
+				    sizeof(*eq->dma_addr), GFP_KERNEL);
 	if (!eq->dma_addr)
 		return -ENOMEM;
 
-	addr_size = eq->num_pages * sizeof(*eq->virt_addr);
-	eq->virt_addr = devm_kzalloc(&pdev->dev, addr_size, GFP_KERNEL);
+	eq->virt_addr = devm_kcalloc(&pdev->dev, eq->num_pages,
+				     sizeof(*eq->virt_addr), GFP_KERNEL);
 	if (!eq->virt_addr) {
 		err = -ENOMEM;
 		goto err_virt_addr_alloc;

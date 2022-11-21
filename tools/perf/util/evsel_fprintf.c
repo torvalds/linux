@@ -11,6 +11,7 @@
 #include "strlist.h"
 #include "symbol.h"
 #include "srcline.h"
+#include "dso.h"
 
 static int comma_fprintf(FILE *fp, bool *first, const char *fmt, ...)
 {
@@ -100,6 +101,7 @@ out:
 	return ++printed;
 }
 
+#ifndef PYTHON_PERF
 int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 			      unsigned int print_opts, struct callchain_cursor *cursor,
 			      struct strlist *bt_stop_list, FILE *fp)
@@ -143,11 +145,16 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 			if (print_arrow && !first)
 				printed += fprintf(fp, " <-");
 
-			if (print_ip)
-				printed += fprintf(fp, "%c%16" PRIx64, s, node->ip);
-
 			if (map)
 				addr = map->map_ip(map, node->ip);
+
+			if (print_ip) {
+				/* Show binary offset for userspace addr */
+				if (map && !map->dso->kernel)
+					printed += fprintf(fp, "%c%16" PRIx64, s, addr);
+				else
+					printed += fprintf(fp, "%c%16" PRIx64, s, node->ip);
+			}
 
 			if (print_sym) {
 				printed += fprintf(fp, " ");
@@ -239,3 +246,4 @@ int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
 
 	return printed;
 }
+#endif /* PYTHON_PERF */

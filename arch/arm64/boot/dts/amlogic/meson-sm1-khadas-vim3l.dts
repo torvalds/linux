@@ -24,13 +24,26 @@
 		regulator-min-microvolt = <690000>;
 		regulator-max-microvolt = <1050000>;
 
-		vin-supply = <&vsys_3v3>;
+		pwm-supply = <&vsys_3v3>;
 
 		pwms = <&pwm_AO_cd 1 1250 0>;
 		pwm-dutycycle-range = <100 0>;
 
 		regulator-boot-on;
 		regulator-always-on;
+	};
+
+	sound {
+		model = "G12B-KHADAS-VIM3L";
+		audio-routing = "TDMOUT_A IN 0", "FRDDR_A OUT 0",
+				"TDMOUT_A IN 1", "FRDDR_B OUT 0",
+				"TDMOUT_A IN 2", "FRDDR_C OUT 0",
+				"TDM_A Playback", "TDMOUT_A OUT",
+				"TDMIN_A IN 0", "TDM_A Capture",
+				"TDMIN_A IN 13", "TDM_A Loopback",
+				"TODDR_A IN 0", "TDMIN_A OUT",
+				"TODDR_B IN 0", "TDMIN_A OUT",
+				"TODDR_C IN 0", "TDMIN_A OUT";
 	};
 };
 
@@ -89,13 +102,12 @@
 	status = "okay";
 };
 
-&sd_emmc_a {
-	sd-uhs-sdr50;
-};
-
 &usb {
 	phys = <&usb2_phy0>, <&usb2_phy1>;
 	phy-names = "usb2-phy0", "usb2-phy1";
 };
  */
 
+&sd_emmc_a {
+	sd-uhs-sdr50;
+};

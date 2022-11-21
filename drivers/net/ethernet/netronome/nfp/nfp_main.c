@@ -19,6 +19,7 @@
 
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_cpp.h"
+#include "nfpcore/nfp_dev.h"
 #include "nfpcore/nfp_nffw.h"
 #include "nfpcore/nfp_nsp.h"
 
@@ -32,17 +33,21 @@
 static const char nfp_driver_name[] = "nfp";
 
 static const struct pci_device_id nfp_pci_device_ids[] = {
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP6000,
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP3800,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
-	  PCI_ANY_ID, 0,
-	},
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP5000,
-	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
-	  PCI_ANY_ID, 0,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP3800,
 	},
 	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP4000,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
-	  PCI_ANY_ID, 0,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
+	},
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP5000,
+	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
+	},
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP6000,
+	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
 	},
 	{ 0, } /* Required last entry. */
 };
@@ -222,6 +227,7 @@ static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
 {
 #ifdef CONFIG_PCI_IOV
 	struct nfp_pf *pf = pci_get_drvdata(pdev);
+	struct devlink *devlink;
 	int err;
 
 	if (num_vfs > pf->limit_vfs) {
@@ -236,7 +242,8 @@ static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
 		return err;
 	}
 
-	mutex_lock(&pf->lock);
+	devlink = priv_to_devlink(pf);
+	devl_lock(devlink);
 
 	err = nfp_app_sriov_enable(pf->app, num_vfs);
 	if (err) {
@@ -250,11 +257,11 @@ static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
 
 	dev_dbg(&pdev->dev, "Created %d VFs.\n", pf->num_vfs);
 
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 	return num_vfs;
 
 err_sriov_disable:
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 	pci_disable_sriov(pdev);
 	return err;
 #endif
@@ -265,8 +272,10 @@ static int nfp_pcie_sriov_disable(struct pci_dev *pdev)
 {
 #ifdef CONFIG_PCI_IOV
 	struct nfp_pf *pf = pci_get_drvdata(pdev);
+	struct devlink *devlink;
 
-	mutex_lock(&pf->lock);
+	devlink = priv_to_devlink(pf);
+	devl_lock(devlink);
 
 	/* If the VFs are assigned we cannot shut down SR-IOV without
 	 * causing issues, so just leave the hardware available but
@@ -274,7 +283,7 @@ static int nfp_pcie_sriov_disable(struct pci_dev *pdev)
 	 */
 	if (pci_vfs_assigned(pdev)) {
 		dev_warn(&pdev->dev, "Disabling while VFs assigned - VFs will not be deallocated\n");
-		mutex_unlock(&pf->lock);
+		devl_unlock(devlink);
 		return -EPERM;
 	}
 
@@ -282,7 +291,7 @@ static int nfp_pcie_sriov_disable(struct pci_dev *pdev)
 
 	pf->num_vfs = 0;
 
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 
 	pci_disable_sriov(pdev);
 	dev_dbg(&pdev->dev, "Removed VFs.\n");
@@ -301,11 +310,10 @@ static int nfp_pcie_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		return nfp_pcie_sriov_enable(pdev, num_vfs);
 }
 
-int nfp_flash_update_common(struct nfp_pf *pf, const char *path,
+int nfp_flash_update_common(struct nfp_pf *pf, const struct firmware *fw,
 			    struct netlink_ext_ack *extack)
 {
 	struct device *dev = &pf->pdev->dev;
-	const struct firmware *fw;
 	struct nfp_nsp *nsp;
 	int err;
 
@@ -319,24 +327,12 @@ int nfp_flash_update_common(struct nfp_pf *pf, const char *path,
 		return err;
 	}
 
-	err = request_firmware_direct(&fw, path, dev);
-	if (err) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "unable to read flash file from disk");
-		goto exit_close_nsp;
-	}
-
-	dev_info(dev, "Please be patient while writing flash image: %s\n",
-		 path);
-
 	err = nfp_nsp_write_flash(nsp, fw);
 	if (err < 0)
-		goto exit_release_fw;
+		goto exit_close_nsp;
 	dev_info(dev, "Finished writing flash image\n");
 	err = 0;
 
-exit_release_fw:
-	release_firmware(fw);
 exit_close_nsp:
 	nfp_nsp_close(nsp);
 	return err;
@@ -680,6 +676,7 @@ static int nfp_pf_find_rtsyms(struct nfp_pf *pf)
 static int nfp_pci_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *pci_id)
 {
+	const struct nfp_dev_info *dev_info;
 	struct devlink *devlink;
 	struct nfp_pf *pf;
 	int err;
@@ -688,14 +685,15 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	    pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000_VF)
 		dev_warn(&pdev->dev, "Binding NFP VF device to the NFP PF driver, the VF driver is called 'nfp_netvf'\n");
 
+	dev_info = &nfp_dev_info[pci_id->driver_data];
+
 	err = pci_enable_device(pdev);
 	if (err < 0)
 		return err;
 
 	pci_set_master(pdev);
 
-	err = dma_set_mask_and_coherent(&pdev->dev,
-					DMA_BIT_MASK(NFP_NET_MAX_DMA_BITS));
+	err = dma_set_mask_and_coherent(&pdev->dev, dev_info->dma_mask);
 	if (err)
 		goto err_pci_disable;
 
@@ -705,7 +703,7 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		goto err_pci_disable;
 	}
 
-	devlink = devlink_alloc(&nfp_devlink_ops, sizeof(*pf));
+	devlink = devlink_alloc(&nfp_devlink_ops, sizeof(*pf), &pdev->dev);
 	if (!devlink) {
 		err = -ENOMEM;
 		goto err_rel_regions;
@@ -713,9 +711,9 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	pf = devlink_priv(devlink);
 	INIT_LIST_HEAD(&pf->vnics);
 	INIT_LIST_HEAD(&pf->ports);
-	mutex_init(&pf->lock);
 	pci_set_drvdata(pdev, pf);
 	pf->pdev = pdev;
+	pf->dev_info = dev_info;
 
 	pf->wq = alloc_workqueue("nfp-%s", 0, 2, pci_name(pdev));
 	if (!pf->wq) {
@@ -723,11 +721,9 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		goto err_pci_priv_unset;
 	}
 
-	pf->cpp = nfp_cpp_from_nfp6000_pcie(pdev);
-	if (IS_ERR_OR_NULL(pf->cpp)) {
+	pf->cpp = nfp_cpp_from_nfp6000_pcie(pdev, dev_info);
+	if (IS_ERR(pf->cpp)) {
 		err = PTR_ERR(pf->cpp);
-		if (err >= 0)
-			err = -ENOMEM;
 		goto err_disable_msix;
 	}
 
@@ -805,7 +801,6 @@ err_disable_msix:
 	destroy_workqueue(pf->wq);
 err_pci_priv_unset:
 	pci_set_drvdata(pdev, NULL);
-	mutex_destroy(&pf->lock);
 	devlink_free(devlink);
 err_rel_regions:
 	pci_release_regions(pdev);
@@ -842,7 +837,6 @@ static void __nfp_pci_shutdown(struct pci_dev *pdev, bool unload_fw)
 
 	kfree(pf->eth_tbl);
 	kfree(pf->nspi);
-	mutex_destroy(&pf->lock);
 	devlink_free(priv_to_devlink(pf));
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

@@ -44,7 +44,7 @@ int register_adapter_interrupt(struct airq_struct *airq)
 	if (!airq->handler || airq->isc > MAX_ISC)
 		return -EINVAL;
 	if (!airq->lsi_ptr) {
-		airq->lsi_ptr = kzalloc(1, GFP_KERNEL);
+		airq->lsi_ptr = cio_dma_zalloc(1);
 		if (!airq->lsi_ptr)
 			return -ENOMEM;
 		airq->flags |= AIRQ_PTR_ALLOCATED;
@@ -79,7 +79,7 @@ void unregister_adapter_interrupt(struct airq_struct *airq)
 	synchronize_rcu();
 	isc_unregister(airq->isc);
 	if (airq->flags & AIRQ_PTR_ALLOCATED) {
-		kfree(airq->lsi_ptr);
+		cio_dma_free(airq->lsi_ptr, 1);
 		airq->lsi_ptr = NULL;
 		airq->flags &= ~AIRQ_PTR_ALLOCATED;
 	}
@@ -93,7 +93,7 @@ static irqreturn_t do_airq_interrupt(int irq, void *dummy)
 	struct hlist_head *head;
 
 	set_cpu_flag(CIF_NOHZ_DELAY);
-	tpi_info = (struct tpi_info *) &get_irq_regs()->int_code;
+	tpi_info = &get_irq_regs()->tpi_info;
 	trace_s390_cio_adapter_int(tpi_info);
 	head = &airq_lists[tpi_info->isc];
 	rcu_read_lock();

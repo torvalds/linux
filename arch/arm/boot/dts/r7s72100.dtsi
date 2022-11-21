@@ -608,6 +608,8 @@
 				     <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tei", "ri", "ti", "spi", "sti",
+					  "naki", "ali", "tmoi";
 			clocks = <&mstp9_clks R7S72100_CLK_I2C0>;
 			clock-frequency = <100000>;
 			power-domains = <&cpg_clocks>;
@@ -627,6 +629,8 @@
 				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tei", "ri", "ti", "spi", "sti",
+					  "naki", "ali", "tmoi";
 			clocks = <&mstp9_clks R7S72100_CLK_I2C1>;
 			clock-frequency = <100000>;
 			power-domains = <&cpg_clocks>;
@@ -646,6 +650,8 @@
 				     <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tei", "ri", "ti", "spi", "sti",
+					  "naki", "ali", "tmoi";
 			clocks = <&mstp9_clks R7S72100_CLK_I2C2>;
 			clock-frequency = <100000>;
 			power-domains = <&cpg_clocks>;
@@ -665,6 +671,8 @@
 				     <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tei", "ri", "ti", "spi", "sti",
+					  "naki", "ali", "tmoi";
 			clocks = <&mstp9_clks R7S72100_CLK_I2C3>;
 			clock-frequency = <100000>;
 			power-domains = <&cpg_clocks>;

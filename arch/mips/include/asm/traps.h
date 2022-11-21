@@ -15,7 +15,7 @@
 #define MIPS_BE_FATAL	2		/* treat as an unrecoverable error */
 
 extern void (*board_be_init)(void);
-extern int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
+void mips_set_be_handler(int (*handler)(struct pt_regs *reg, int is_fixup));
 
 extern void (*board_nmi_handler_setup)(void);
 extern void (*board_ejtag_handler_setup)(void);
@@ -24,6 +24,10 @@ extern void (*board_ebase_setup)(void);
 extern void (*board_cache_error_setup)(void);
 
 extern int register_nmi_notifier(struct notifier_block *nb);
+extern void reserve_exception_space(phys_addr_t addr, unsigned long size);
+extern char except_vec_nmi[];
+
+#define VECTORSPACING 0x100	/* for EI/VI mode */
 
 #define nmi_notifier(fn, pri)						\
 ({									\

@@ -24,7 +24,7 @@ struct xchk_xattr_buf {
 	 * space bitmap follows immediately after; and we have a third buffer
 	 * for storing intermediate bitmap results.
 	 */
-	uint8_t			buf[0];
+	uint8_t			buf[];
 };
 
 /* A place to store attribute values. */
@@ -64,8 +64,5 @@ xchk_xattr_dstmap(
 	return xchk_xattr_freemap(sc) +
 			BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
 }
-
-int xchk_setup_xattr_buf(struct xfs_scrub *sc, size_t value_size,
-		xfs_km_flags_t flags);
 
 #endif	/* __XFS_SCRUB_ATTR_H__ */

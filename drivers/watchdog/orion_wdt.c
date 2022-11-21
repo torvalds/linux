@@ -174,7 +174,7 @@ static int armadaxp_wdt_clock_init(struct platform_device *pdev,
 		return ret;
 	}
 
-	/* Fix the wdt and timer1 clock freqency to 25MHz */
+	/* Fix the wdt and timer1 clock frequency to 25MHz */
 	val = WDT_AXP_FIXED_ENABLE_BIT | TIMER1_FIXED_ENABLE_BIT;
 	atomic_io_modify(dev->reg + TIMER_CTRL, val, val);
 
@@ -238,8 +238,10 @@ static int armada370_start(struct watchdog_device *wdt_dev)
 	atomic_io_modify(dev->reg + TIMER_A370_STATUS, WDT_A370_EXPIRED, 0);
 
 	/* Enable watchdog timer */
-	atomic_io_modify(dev->reg + TIMER_CTRL, dev->data->wdt_enable_bit,
-						dev->data->wdt_enable_bit);
+	reg = dev->data->wdt_enable_bit;
+	if (dev->wdt.info->options & WDIOF_PRETIMEOUT)
+		reg |= TIMER1_ENABLE_BIT;
+	atomic_io_modify(dev->reg + TIMER_CTRL, reg, reg);
 
 	/* Enable reset on watchdog */
 	reg = readl(dev->rstout);
@@ -312,7 +314,7 @@ static int armada375_stop(struct watchdog_device *wdt_dev)
 static int armada370_stop(struct watchdog_device *wdt_dev)
 {
 	struct orion_watchdog *dev = watchdog_get_drvdata(wdt_dev);
-	u32 reg;
+	u32 reg, mask;
 
 	/* Disable reset on watchdog */
 	reg = readl(dev->rstout);
@@ -320,7 +322,10 @@ static int armada370_stop(struct watchdog_device *wdt_dev)
 	writel(reg, dev->rstout);
 
 	/* Disable watchdog timer */
-	atomic_io_modify(dev->reg + TIMER_CTRL, dev->data->wdt_enable_bit, 0);
+	mask = dev->data->wdt_enable_bit;
+	if (wdt_dev->info->options & WDIOF_PRETIMEOUT)
+		mask |= TIMER1_ENABLE_BIT;
+	atomic_io_modify(dev->reg + TIMER_CTRL, mask, 0);
 
 	return 0;
 }

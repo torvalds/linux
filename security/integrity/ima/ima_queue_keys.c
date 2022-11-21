@@ -8,6 +8,7 @@
  *       Enables deferred processing of keys
  */
 
+#include <linux/user_namespace.h>
 #include <linux/workqueue.h>
 #include <keys/asymmetric-type.h>
 #include "ima.h"
@@ -158,11 +159,13 @@ void ima_process_queued_keys(void)
 
 	list_for_each_entry_safe(entry, tmp, &ima_keys, list) {
 		if (!timer_expired)
-			process_buffer_measurement(NULL, entry->payload,
+			process_buffer_measurement(&init_user_ns, NULL,
+						   entry->payload,
 						   entry->payload_len,
 						   entry->keyring_name,
 						   KEY_CHECK, 0,
-						   entry->keyring_name);
+						   entry->keyring_name,
+						   false, NULL, 0);
 		list_del(&entry->list);
 		ima_free_key_entry(entry);
 	}

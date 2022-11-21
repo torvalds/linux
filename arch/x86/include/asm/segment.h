@@ -4,6 +4,7 @@
 
 #include <linux/const.h>
 #include <asm/alternative.h>
+#include <asm/ibt.h>
 
 /*
  * Constructor for a conventional segment GDT (or LDT) entry.
@@ -95,7 +96,7 @@
  *
  *  26 - ESPFIX small SS
  *  27 - per-cpu			[ offset to per-cpu data area ]
- *  28 - stack_canary-20		[ for stack protector ]		<=== cacheline #8
+ *  28 - unused
  *  29 - unused
  *  30 - unused
  *  31 - TSS for double fault handler
@@ -118,7 +119,6 @@
 
 #define GDT_ENTRY_ESPFIX_SS		26
 #define GDT_ENTRY_PERCPU		27
-#define GDT_ENTRY_STACK_CANARY		28
 
 #define GDT_ENTRY_DOUBLEFAULT_TSS	31
 
@@ -156,12 +156,6 @@
 # define __KERNEL_PERCPU		(GDT_ENTRY_PERCPU*8)
 #else
 # define __KERNEL_PERCPU		0
-#endif
-
-#ifdef CONFIG_STACKPROTECTOR
-# define __KERNEL_STACK_CANARY		(GDT_ENTRY_STACK_CANARY*8)
-#else
-# define __KERNEL_STACK_CANARY		0
 #endif
 
 #else /* 64-bit: */
@@ -282,7 +276,7 @@ static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
  * vector has no error code (two bytes), a 'push $vector_number' (two
  * bytes), and a jump to the common entry code (up to five bytes).
  */
-#define EARLY_IDT_HANDLER_SIZE 9
+#define EARLY_IDT_HANDLER_SIZE (9 + ENDBR_INSN_SIZE)
 
 /*
  * xen_early_idt_handler_array is for Xen pv guests: for each entry in
@@ -290,7 +284,7 @@ static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
  * pop %rcx; pop %r11; jmp early_idt_handler_array[i]; summing up to
  * max 8 bytes.
  */
-#define XEN_EARLY_IDT_HANDLER_SIZE 8
+#define XEN_EARLY_IDT_HANDLER_SIZE (8 + ENDBR_INSN_SIZE)
 
 #ifndef __ASSEMBLY__
 
@@ -314,14 +308,7 @@ do {									\
 									\
 	asm volatile("						\n"	\
 		     "1:	movl %k0,%%" #seg "		\n"	\
-									\
-		     ".section .fixup,\"ax\"			\n"	\
-		     "2:	xorl %k0,%k0			\n"	\
-		     "		jmp 1b				\n"	\
-		     ".previous					\n"	\
-									\
-		     _ASM_EXTABLE(1b, 2b)				\
-									\
+		     _ASM_EXTABLE_TYPE_REG(1b, 1b, EX_TYPE_ZERO_REG, %k0)\
 		     : "+r" (__val) : : "memory");			\
 } while (0)
 
@@ -346,7 +333,7 @@ static inline void __loadsegment_fs(unsigned short value)
 		     "1:	movw %0, %%fs			\n"
 		     "2:					\n"
 
-		     _ASM_EXTABLE_HANDLE(1b, 2b, ex_handler_clear_fs)
+		     _ASM_EXTABLE_TYPE(1b, 2b, EX_TYPE_CLEAR_FS)
 
 		     : : "rm" (value) : "memory");
 }
@@ -364,22 +351,15 @@ static inline void __loadsegment_fs(unsigned short value)
 	asm("mov %%" #seg ",%0":"=r" (value) : : "memory")
 
 /*
- * x86-32 user GS accessors:
+ * x86-32 user GS accessors.  This is ugly and could do with some cleaning up.
  */
 #ifdef CONFIG_X86_32
-# ifdef CONFIG_X86_32_LAZY_GS
-#  define get_user_gs(regs)		(u16)({ unsigned long v; savesegment(gs, v); v; })
-#  define set_user_gs(regs, v)		loadsegment(gs, (unsigned long)(v))
-#  define task_user_gs(tsk)		((tsk)->thread.gs)
-#  define lazy_save_gs(v)		savesegment(gs, (v))
-#  define lazy_load_gs(v)		loadsegment(gs, (v))
-# else	/* X86_32_LAZY_GS */
-#  define get_user_gs(regs)		(u16)((regs)->gs)
-#  define set_user_gs(regs, v)		do { (regs)->gs = (v); } while (0)
-#  define task_user_gs(tsk)		(task_pt_regs(tsk)->gs)
-#  define lazy_save_gs(v)		do { } while (0)
-#  define lazy_load_gs(v)		do { } while (0)
-# endif	/* X86_32_LAZY_GS */
+# define get_user_gs(regs)		(u16)({ unsigned long v; savesegment(gs, v); v; })
+# define set_user_gs(regs, v)		loadsegment(gs, (unsigned long)(v))
+# define task_user_gs(tsk)		((tsk)->thread.gs)
+# define lazy_save_gs(v)		savesegment(gs, (v))
+# define lazy_load_gs(v)		loadsegment(gs, (v))
+# define load_gs_index(v)		loadsegment(gs, (v))
 #endif	/* X86_32 */
 
 #endif /* !__ASSEMBLY__ */

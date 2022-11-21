@@ -18,7 +18,7 @@
 #include "pmbus.h"
 
 enum chips { zl2004, zl2005, zl2006, zl2008, zl2105, zl2106, zl6100, zl6105,
-	     zl9101, zl9117 };
+	     zl8802, zl9101, zl9117, zls1003, zls4009 };
 
 struct zl6100_data {
 	int id;
@@ -33,6 +33,13 @@ struct zl6100_data {
 #define ZL6100_DEVICE_ID		0xe4
 
 #define ZL6100_MFR_XTEMP_ENABLE		BIT(7)
+
+#define ZL8802_MFR_USER_GLOBAL_CONFIG	0xe9
+#define ZL8802_MFR_TMON_ENABLE		BIT(12)
+#define ZL8802_MFR_USER_CONFIG		0xd1
+#define ZL8802_MFR_XTEMP_ENABLE_2	BIT(1)
+#define ZL8802_MFR_DDC_CONFIG		0xd3
+#define ZL8802_MFR_PHASES_MASK		0x0007
 
 #define MFR_VMON_OV_FAULT_LIMIT		0xf5
 #define MFR_VMON_UV_FAULT_LIMIT		0xf6
@@ -132,7 +139,7 @@ static int zl6100_read_word_data(struct i2c_client *client, int page,
 	struct zl6100_data *data = to_zl6100_data(info);
 	int ret, vreg;
 
-	if (page > 0)
+	if (page >= info->pages)
 		return -ENXIO;
 
 	if (data->id == zl2005) {
@@ -191,7 +198,7 @@ static int zl6100_read_byte_data(struct i2c_client *client, int page, int reg)
 	struct zl6100_data *data = to_zl6100_data(info);
 	int ret, status;
 
-	if (page > 0)
+	if (page >= info->pages)
 		return -ENXIO;
 
 	zl6100_wait(data);
@@ -230,7 +237,7 @@ static int zl6100_write_word_data(struct i2c_client *client, int page, int reg,
 	struct zl6100_data *data = to_zl6100_data(info);
 	int ret, vreg;
 
-	if (page > 0)
+	if (page >= info->pages)
 		return -ENXIO;
 
 	switch (reg) {
@@ -271,7 +278,7 @@ static int zl6100_write_byte(struct i2c_client *client, int page, u8 value)
 	struct zl6100_data *data = to_zl6100_data(info);
 	int ret;
 
-	if (page > 0)
+	if (page >= info->pages)
 		return -ENXIO;
 
 	zl6100_wait(data);
@@ -287,6 +294,10 @@ static const struct i2c_device_id zl6100_id[] = {
 	{"bmr462", zl2008},
 	{"bmr463", zl2008},
 	{"bmr464", zl2008},
+	{"bmr465", zls4009},
+	{"bmr466", zls1003},
+	{"bmr467", zls4009},
+	{"bmr469", zl8802},
 	{"zl2004", zl2004},
 	{"zl2005", zl2005},
 	{"zl2006", zl2006},
@@ -295,15 +306,18 @@ static const struct i2c_device_id zl6100_id[] = {
 	{"zl2106", zl2106},
 	{"zl6100", zl6100},
 	{"zl6105", zl6105},
+	{"zl8802", zl8802},
 	{"zl9101", zl9101},
 	{"zl9117", zl9117},
+	{"zls1003", zls1003},
+	{"zls4009", zls4009},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, zl6100_id);
 
 static int zl6100_probe(struct i2c_client *client)
 {
-	int ret;
+	int ret, i;
 	struct zl6100_data *data;
 	struct pmbus_driver_info *info;
 	u8 device_id[I2C_SMBUS_BLOCK_MAX + 1];
@@ -367,18 +381,70 @@ static int zl6100_probe(struct i2c_client *client)
 	  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
 
 	/*
-	 * ZL2004, ZL9101M, and ZL9117M support monitoring an extra voltage
-	 * (VMON for ZL2004, VDRV for ZL9101M and ZL9117M). Report it as vmon.
+	 * ZL2004, ZL8802, ZL9101M, ZL9117M and ZLS4009 support monitoring
+	 * an extra voltage (VMON for ZL2004, ZL8802 and ZLS4009,
+	 * VDRV for ZL9101M and ZL9117M). Report it as vmon.
 	 */
-	if (data->id == zl2004 || data->id == zl9101 || data->id == zl9117)
+	if (data->id == zl2004 || data->id == zl8802 || data->id == zl9101 ||
+	    data->id == zl9117 || data->id == zls4009)
 		info->func[0] |= PMBUS_HAVE_VMON | PMBUS_HAVE_STATUS_VMON;
 
-	ret = i2c_smbus_read_word_data(client, ZL6100_MFR_CONFIG);
-	if (ret < 0)
-		return ret;
+	/*
+	 * ZL8802 has two outputs that can be used either independently or in
+	 * a current sharing configuration. The driver uses the DDC_CONFIG
+	 * register to check if the module is running with independent or
+	 * shared outputs. If the module is in shared output mode, only one
+	 * output voltage will be reported.
+	 */
+	if (data->id == zl8802) {
+		info->pages = 2;
+		info->func[0] |= PMBUS_HAVE_IIN;
 
-	if (ret & ZL6100_MFR_XTEMP_ENABLE)
-		info->func[0] |= PMBUS_HAVE_TEMP2;
+		ret = i2c_smbus_read_word_data(client, ZL8802_MFR_DDC_CONFIG);
+		if (ret < 0)
+			return ret;
+
+		data->access = ktime_get();
+		zl6100_wait(data);
+
+		if (ret & ZL8802_MFR_PHASES_MASK)
+			info->func[1] |= PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT;
+		else
+			info->func[1] = PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
+				| PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT;
+
+		for (i = 0; i < 2; i++) {
+			ret = i2c_smbus_write_byte_data(client, PMBUS_PAGE, i);
+			if (ret < 0)
+				return ret;
+
+			data->access = ktime_get();
+			zl6100_wait(data);
+
+			ret = i2c_smbus_read_word_data(client, ZL8802_MFR_USER_CONFIG);
+			if (ret < 0)
+				return ret;
+
+			if (ret & ZL8802_MFR_XTEMP_ENABLE_2)
+				info->func[i] |= PMBUS_HAVE_TEMP2;
+
+			data->access = ktime_get();
+			zl6100_wait(data);
+		}
+		ret = i2c_smbus_read_word_data(client, ZL8802_MFR_USER_GLOBAL_CONFIG);
+		if (ret < 0)
+			return ret;
+
+		if (ret & ZL8802_MFR_TMON_ENABLE)
+			info->func[0] |= PMBUS_HAVE_TEMP3;
+	} else {
+		ret = i2c_smbus_read_word_data(client, ZL6100_MFR_CONFIG);
+		if (ret < 0)
+			return ret;
+
+		if (ret & ZL6100_MFR_XTEMP_ENABLE)
+			info->func[0] |= PMBUS_HAVE_TEMP2;
+	}
 
 	data->access = ktime_get();
 	zl6100_wait(data);
@@ -396,7 +462,6 @@ static struct i2c_driver zl6100_driver = {
 		   .name = "zl6100",
 		   },
 	.probe_new = zl6100_probe,
-	.remove = pmbus_do_remove,
 	.id_table = zl6100_id,
 };
 
@@ -405,3 +470,4 @@ module_i2c_driver(zl6100_driver);
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for ZL6100 and compatibles");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

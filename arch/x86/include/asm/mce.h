@@ -177,7 +177,8 @@ enum mce_notifier_prios {
 	MCE_PRIO_EXTLOG,
 	MCE_PRIO_UC,
 	MCE_PRIO_EARLY,
-	MCE_PRIO_CEC
+	MCE_PRIO_CEC,
+	MCE_PRIO_HIGHEST = MCE_PRIO_CEC
 };
 
 struct notifier_block;
@@ -198,26 +199,20 @@ static inline void enable_copy_mc_fragile(void)
 }
 #endif
 
+struct cper_ia_proc_ctx;
+
 #ifdef CONFIG_X86_MCE
 int mcheck_init(void);
 void mcheck_cpu_init(struct cpuinfo_x86 *c);
 void mcheck_cpu_clear(struct cpuinfo_x86 *c);
-void mcheck_vendor_init_severity(void);
+int apei_smca_report_x86_error(struct cper_ia_proc_ctx *ctx_info,
+			       u64 lapic_id);
 #else
 static inline int mcheck_init(void) { return 0; }
 static inline void mcheck_cpu_init(struct cpuinfo_x86 *c) {}
 static inline void mcheck_cpu_clear(struct cpuinfo_x86 *c) {}
-static inline void mcheck_vendor_init_severity(void) {}
-#endif
-
-#ifdef CONFIG_X86_ANCIENT_MCE
-void intel_p5_mcheck_init(struct cpuinfo_x86 *c);
-void winchip_mcheck_init(struct cpuinfo_x86 *c);
-static inline void enable_p5_mce(void) { mce_p5_enabled = 1; }
-#else
-static inline void intel_p5_mcheck_init(struct cpuinfo_x86 *c) {}
-static inline void winchip_mcheck_init(struct cpuinfo_x86 *c) {}
-static inline void enable_p5_mce(void) {}
+static inline int apei_smca_report_x86_error(struct cper_ia_proc_ctx *ctx_info,
+					     u64 lapic_id) { return -EINVAL; }
 #endif
 
 void mce_setup(struct mce *m);
@@ -258,6 +253,7 @@ enum mcp_flags {
 	MCP_TIMESTAMP	= BIT(0),	/* log time stamp */
 	MCP_UC		= BIT(1),	/* log uncorrected errors */
 	MCP_DONTLOG	= BIT(2),	/* only clear, don't log */
+	MCP_QUEUE_LOG	= BIT(3),	/* only queue to genpool */
 };
 bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
 
@@ -282,28 +278,6 @@ extern void (*mce_threshold_vector)(void);
 extern void (*deferred_error_int_vector)(void);
 
 /*
- * Thermal handler
- */
-
-void intel_init_thermal(struct cpuinfo_x86 *c);
-
-/* Interrupt Handler for core thermal thresholds */
-extern int (*platform_thermal_notify)(__u64 msr_val);
-
-/* Interrupt Handler for package thermal thresholds */
-extern int (*platform_thermal_package_notify)(__u64 msr_val);
-
-/* Callback support of rate control, return true, if
- * callback has rate control */
-extern bool (*platform_thermal_package_rate_control)(void);
-
-#ifdef CONFIG_X86_THERMAL_VECTOR
-extern void mcheck_intel_therm_init(void);
-#else
-static inline void mcheck_intel_therm_init(void) { }
-#endif
-
-/*
  * Used by APEI to report memory error via /dev/mcelog
  */
 
@@ -320,7 +294,7 @@ extern void apei_mce_report_mem_error(int corrected,
 /* These may be used by multiple smca_hwid_mcatypes */
 enum smca_bank_types {
 	SMCA_LS = 0,	/* Load Store */
-	SMCA_LS_V2,	/* Load Store */
+	SMCA_LS_V2,
 	SMCA_IF,	/* Instruction Fetch */
 	SMCA_L2_CACHE,	/* L2 Cache */
 	SMCA_DE,	/* Decoder Unit */
@@ -329,35 +303,31 @@ enum smca_bank_types {
 	SMCA_FP,	/* Floating Point */
 	SMCA_L3_CACHE,	/* L3 Cache */
 	SMCA_CS,	/* Coherent Slave */
-	SMCA_CS_V2,	/* Coherent Slave */
+	SMCA_CS_V2,
 	SMCA_PIE,	/* Power, Interrupts, etc. */
 	SMCA_UMC,	/* Unified Memory Controller */
+	SMCA_UMC_V2,
 	SMCA_PB,	/* Parameter Block */
 	SMCA_PSP,	/* Platform Security Processor */
-	SMCA_PSP_V2,	/* Platform Security Processor */
+	SMCA_PSP_V2,
 	SMCA_SMU,	/* System Management Unit */
-	SMCA_SMU_V2,	/* System Management Unit */
+	SMCA_SMU_V2,
 	SMCA_MP5,	/* Microprocessor 5 Unit */
+	SMCA_MPDMA,	/* MPDMA Unit */
 	SMCA_NBIO,	/* Northbridge IO Unit */
 	SMCA_PCIE,	/* PCI Express Unit */
+	SMCA_PCIE_V2,
+	SMCA_XGMI_PCS,	/* xGMI PCS Unit */
+	SMCA_NBIF,	/* NBIF Unit */
+	SMCA_SHUB,	/* System HUB Unit */
+	SMCA_SATA,	/* SATA Unit */
+	SMCA_USB,	/* USB Unit */
+	SMCA_GMI_PCS,	/* GMI PCS Unit */
+	SMCA_XGMI_PHY,	/* xGMI PHY Unit */
+	SMCA_WAFL_PHY,	/* WAFL PHY Unit */
+	SMCA_GMI_PHY,	/* GMI PHY Unit */
 	N_SMCA_BANK_TYPES
 };
-
-#define HWID_MCATYPE(hwid, mcatype) (((hwid) << 16) | (mcatype))
-
-struct smca_hwid {
-	unsigned int bank_type;	/* Use with smca_bank_types for easy indexing. */
-	u32 hwid_mcatype;	/* (hwid,mcatype) tuple */
-	u8 count;		/* Number of instances. */
-};
-
-struct smca_bank {
-	struct smca_hwid *hwid;
-	u32 id;			/* Value of MCA_IPID[InstanceId]. */
-	u8 sysfs_id;		/* Value used for sysfs name. */
-};
-
-extern struct smca_bank smca_banks[MAX_NR_BANKS];
 
 extern const char *smca_get_long_name(enum smca_bank_types t);
 extern bool amd_mce_is_memory_error(struct mce *m);
@@ -366,16 +336,13 @@ extern int mce_threshold_create_device(unsigned int cpu);
 extern int mce_threshold_remove_device(unsigned int cpu);
 
 void mce_amd_feature_init(struct cpuinfo_x86 *c);
-int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr);
-
+enum smca_bank_types smca_get_bank_type(unsigned int cpu, unsigned int bank);
 #else
 
 static inline int mce_threshold_create_device(unsigned int cpu)		{ return 0; };
 static inline int mce_threshold_remove_device(unsigned int cpu)		{ return 0; };
 static inline bool amd_mce_is_memory_error(struct mce *m)		{ return false; };
 static inline void mce_amd_feature_init(struct cpuinfo_x86 *c)		{ }
-static inline int
-umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)	{ return -EINVAL; };
 #endif
 
 static inline void mce_hygon_feature_init(struct cpuinfo_x86 *c)	{ return mce_amd_feature_init(c); }

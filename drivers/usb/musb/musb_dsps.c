@@ -15,6 +15,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/irq.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -739,12 +740,14 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	}
 	resources[0] = *res;
 
-	res = platform_get_resource_byname(parent, IORESOURCE_IRQ, "mc");
-	if (!res) {
-		dev_err(dev, "failed to get irq.\n");
-		return -EINVAL;
-	}
-	resources[1] = *res;
+	ret = platform_get_irq_byname(parent, "mc");
+	if (ret < 0)
+		return ret;
+
+	resources[1].start = ret;
+	resources[1].end = ret;
+	resources[1].flags = IORESOURCE_IRQ | irq_get_trigger_type(ret);
+	resources[1].name = "mc";
 
 	/* allocate the child platform device */
 	musb = platform_device_alloc("musb-hdrc",
@@ -890,23 +893,24 @@ static int dsps_probe(struct platform_device *pdev)
 	if (!glue->usbss_base)
 		return -ENXIO;
 
-	if (usb_get_dr_mode(&pdev->dev) == USB_DR_MODE_PERIPHERAL) {
-		ret = dsps_setup_optional_vbus_irq(pdev, glue);
-		if (ret)
-			goto err_iounmap;
-	}
-
 	platform_set_drvdata(pdev, glue);
 	pm_runtime_enable(&pdev->dev);
 	ret = dsps_create_musb_pdev(glue, pdev);
 	if (ret)
 		goto err;
 
+	if (usb_get_dr_mode(&pdev->dev) == USB_DR_MODE_PERIPHERAL) {
+		ret = dsps_setup_optional_vbus_irq(pdev, glue);
+		if (ret)
+			goto unregister_pdev;
+	}
+
 	return 0;
 
+unregister_pdev:
+	platform_device_unregister(glue->musb);
 err:
 	pm_runtime_disable(&pdev->dev);
-err_iounmap:
 	iounmap(glue->usbss_base);
 	return ret;
 }

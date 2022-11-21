@@ -26,6 +26,8 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
+#include <drm/amdgpu_drm.h>
+
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
@@ -42,7 +44,7 @@
 #include "dce_v6_0.h"
 #include "si.h"
 #include "uvd_v3_1.h"
-#include "dce_virtual.h"
+#include "amdgpu_vkms.h"
 #include "gca/gfx_6_0_d.h"
 #include "oss/oss_1_0_d.h"
 #include "oss/oss_1_0_sh_mask.h"
@@ -905,6 +907,114 @@ static const u32 hainan_mgcg_cgcg_init[] =
 	0x3630, 0xfffffff0, 0x00000100,
 };
 
+/* XXX: update when we support VCE */
+#if 0
+/* tahiti, pitcarin, verde */
+static const struct amdgpu_video_codec_info tahiti_video_codecs_encode_array[] =
+{
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC,
+		.max_width = 2048,
+		.max_height = 1152,
+		.max_pixels_per_frame = 2048 * 1152,
+		.max_level = 0,
+	},
+};
+
+static const struct amdgpu_video_codecs tahiti_video_codecs_encode =
+{
+	.codec_count = ARRAY_SIZE(tahiti_video_codecs_encode_array),
+	.codec_array = tahiti_video_codecs_encode_array,
+};
+#else
+static const struct amdgpu_video_codecs tahiti_video_codecs_encode =
+{
+	.codec_count = 0,
+	.codec_array = NULL,
+};
+#endif
+/* oland and hainan don't support encode */
+static const struct amdgpu_video_codecs hainan_video_codecs_encode =
+{
+	.codec_count = 0,
+	.codec_array = NULL,
+};
+
+/* tahiti, pitcarin, verde, oland */
+static const struct amdgpu_video_codec_info tahiti_video_codecs_decode_array[] =
+{
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2,
+		.max_width = 2048,
+		.max_height = 1152,
+		.max_pixels_per_frame = 2048 * 1152,
+		.max_level = 3,
+	},
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4,
+		.max_width = 2048,
+		.max_height = 1152,
+		.max_pixels_per_frame = 2048 * 1152,
+		.max_level = 5,
+	},
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC,
+		.max_width = 2048,
+		.max_height = 1152,
+		.max_pixels_per_frame = 2048 * 1152,
+		.max_level = 41,
+	},
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VC1,
+		.max_width = 2048,
+		.max_height = 1152,
+		.max_pixels_per_frame = 2048 * 1152,
+		.max_level = 4,
+	},
+};
+
+static const struct amdgpu_video_codecs tahiti_video_codecs_decode =
+{
+	.codec_count = ARRAY_SIZE(tahiti_video_codecs_decode_array),
+	.codec_array = tahiti_video_codecs_decode_array,
+};
+
+/* hainan doesn't support decode */
+static const struct amdgpu_video_codecs hainan_video_codecs_decode =
+{
+	.codec_count = 0,
+	.codec_array = NULL,
+};
+
+static int si_query_video_codecs(struct amdgpu_device *adev, bool encode,
+				 const struct amdgpu_video_codecs **codecs)
+{
+	switch (adev->asic_type) {
+	case CHIP_VERDE:
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+		if (encode)
+			*codecs = &tahiti_video_codecs_encode;
+		else
+			*codecs = &tahiti_video_codecs_decode;
+		return 0;
+	case CHIP_OLAND:
+		if (encode)
+			*codecs = &hainan_video_codecs_encode;
+		else
+			*codecs = &tahiti_video_codecs_decode;
+		return 0;
+	case CHIP_HAINAN:
+		if (encode)
+			*codecs = &hainan_video_codecs_encode;
+		else
+			*codecs = &hainan_video_codecs_decode;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static u32 si_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 {
 	unsigned long flags;
@@ -1270,7 +1380,7 @@ static int si_gpu_pci_config_reset(struct amdgpu_device *adev)
 	u32 i;
 	int r = -EINVAL;
 
-	dev_info(adev->dev, "GPU pci config reset\n");
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
 
 	/* set mclk/sclk to bypass */
 	si_set_clk_bypass_mode(adev);
@@ -1294,20 +1404,6 @@ static int si_gpu_pci_config_reset(struct amdgpu_device *adev)
 		}
 		udelay(1);
 	}
-
-	return r;
-}
-
-static int si_asic_reset(struct amdgpu_device *adev)
-{
-	int r;
-
-	dev_info(adev->dev, "PCI CONFIG reset\n");
-
-	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
-
-	r = si_gpu_pci_config_reset(adev);
-
 	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 
 	return r;
@@ -1321,12 +1417,32 @@ static bool si_asic_supports_baco(struct amdgpu_device *adev)
 static enum amd_reset_method
 si_asic_reset_method(struct amdgpu_device *adev)
 {
-	if (amdgpu_reset_method != AMD_RESET_METHOD_LEGACY &&
-	    amdgpu_reset_method != -1)
+	if (amdgpu_reset_method == AMD_RESET_METHOD_PCI)
+		return amdgpu_reset_method;
+	else if (amdgpu_reset_method != AMD_RESET_METHOD_LEGACY &&
+		 amdgpu_reset_method != -1)
 		dev_warn(adev->dev, "Specified reset method:%d isn't supported, using AUTO instead.\n",
-				  amdgpu_reset_method);
+			 amdgpu_reset_method);
 
 	return AMD_RESET_METHOD_LEGACY;
+}
+
+static int si_asic_reset(struct amdgpu_device *adev)
+{
+	int r;
+
+	switch (si_asic_reset_method(adev)) {
+	case AMD_RESET_METHOD_PCI:
+		dev_info(adev->dev, "PCI reset\n");
+		r = amdgpu_device_pci_reset(adev);
+		break;
+	default:
+		dev_info(adev->dev, "PCI CONFIG reset\n");
+		r = si_gpu_pci_config_reset(adev);
+		break;
+	}
+
+	return r;
 }
 
 static u32 si_get_config_memsize(struct amdgpu_device *adev)
@@ -1350,7 +1466,7 @@ static void si_vga_set_state(struct amdgpu_device *adev, bool state)
 
 static u32 si_get_xclk(struct amdgpu_device *adev)
 {
-        u32 reference_clock = adev->clock.spll.reference_freq;
+	u32 reference_clock = adev->clock.spll.reference_freq;
 	u32 tmp;
 
 	tmp = RREG32(CG_CLKPIN_CNTL_2);
@@ -1897,6 +2013,7 @@ static const struct amdgpu_asic_funcs si_asic_funcs =
 	.get_pcie_replay_count = &si_get_pcie_replay_count,
 	.supports_baco = &si_asic_supports_baco,
 	.pre_asic_init = &si_pre_asic_init,
+	.query_video_codecs = &si_query_video_codecs,
 };
 
 static uint32_t si_get_rev_id(struct amdgpu_device *adev)
@@ -2336,7 +2453,7 @@ static void si_program_aspm(struct amdgpu_device *adev)
 	bool disable_l0s = false, disable_l1 = false, disable_plloff_in_l1 = false;
 	bool disable_clkreq = false;
 
-	if (amdgpu_aspm == 0)
+	if (!amdgpu_device_should_use_aspm(adev))
 		return;
 
 	if (adev->flags & AMD_IS_APU)
@@ -2642,7 +2759,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_dma_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
-			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
+			amdgpu_device_ip_block_add(adev, &amdgpu_vkms_ip_block);
 #if defined(CONFIG_DRM_AMD_DC) && defined(CONFIG_DRM_AMD_DC_SI)
 		else if (amdgpu_device_has_dc_support(adev))
 			amdgpu_device_ip_block_add(adev, &dm_ip_block);
@@ -2660,7 +2777,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_dma_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
-			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
+			amdgpu_device_ip_block_add(adev, &amdgpu_vkms_ip_block);
 #if defined(CONFIG_DRM_AMD_DC) && defined(CONFIG_DRM_AMD_DC_SI)
 		else if (amdgpu_device_has_dc_support(adev))
 			amdgpu_device_ip_block_add(adev, &dm_ip_block);
@@ -2678,7 +2795,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_dma_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
-			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
+			amdgpu_device_ip_block_add(adev, &amdgpu_vkms_ip_block);
 		break;
 	default:
 		BUG();

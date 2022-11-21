@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2013-2020  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Antonio Quartulli
  */
@@ -9,15 +9,16 @@
 
 #include <linux/atomic.h>
 #include <linux/byteorder/generic.h>
+#include <linux/container_of.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/gfp.h>
 #include <linux/if_ether.h>
 #include <linux/jiffies.h>
-#include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
+#include <linux/minmax.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/prandom.h>
@@ -583,12 +584,9 @@ static void batadv_v_ogm_forward(struct batadv_priv *bat_priv,
 	batadv_v_ogm_queue_on_if(skb, if_outgoing);
 
 out:
-	if (orig_ifinfo)
-		batadv_orig_ifinfo_put(orig_ifinfo);
-	if (router)
-		batadv_neigh_node_put(router);
-	if (neigh_ifinfo)
-		batadv_neigh_ifinfo_put(neigh_ifinfo);
+	batadv_orig_ifinfo_put(orig_ifinfo);
+	batadv_neigh_node_put(router);
+	batadv_neigh_ifinfo_put(neigh_ifinfo);
 }
 
 /**
@@ -668,10 +666,8 @@ static int batadv_v_ogm_metric_update(struct batadv_priv *bat_priv,
 	else
 		ret = 0;
 out:
-	if (orig_ifinfo)
-		batadv_orig_ifinfo_put(orig_ifinfo);
-	if (neigh_ifinfo)
-		batadv_neigh_ifinfo_put(neigh_ifinfo);
+	batadv_orig_ifinfo_put(orig_ifinfo);
+	batadv_neigh_ifinfo_put(neigh_ifinfo);
 
 	return ret;
 }
@@ -762,16 +758,11 @@ static bool batadv_v_ogm_route_update(struct batadv_priv *bat_priv,
 
 	batadv_update_route(bat_priv, orig_node, if_outgoing, neigh_node);
 out:
-	if (router)
-		batadv_neigh_node_put(router);
-	if (orig_neigh_router)
-		batadv_neigh_node_put(orig_neigh_router);
-	if (orig_neigh_node)
-		batadv_orig_node_put(orig_neigh_node);
-	if (router_ifinfo)
-		batadv_neigh_ifinfo_put(router_ifinfo);
-	if (neigh_ifinfo)
-		batadv_neigh_ifinfo_put(neigh_ifinfo);
+	batadv_neigh_node_put(router);
+	batadv_neigh_node_put(orig_neigh_router);
+	batadv_orig_node_put(orig_neigh_node);
+	batadv_neigh_ifinfo_put(router_ifinfo);
+	batadv_neigh_ifinfo_put(neigh_ifinfo);
 
 	return forward;
 }
@@ -977,12 +968,9 @@ static void batadv_v_ogm_process(const struct sk_buff *skb, int ogm_offset,
 	}
 	rcu_read_unlock();
 out:
-	if (orig_node)
-		batadv_orig_node_put(orig_node);
-	if (neigh_node)
-		batadv_neigh_node_put(neigh_node);
-	if (hardif_neigh)
-		batadv_hardif_neigh_put(hardif_neigh);
+	batadv_orig_node_put(orig_node);
+	batadv_neigh_node_put(neigh_node);
+	batadv_hardif_neigh_put(hardif_neigh);
 }
 
 /**

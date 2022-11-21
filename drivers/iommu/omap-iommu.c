@@ -22,7 +22,6 @@
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
-#include <linux/of_iommu.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
@@ -1086,7 +1085,7 @@ static __maybe_unused int omap_iommu_runtime_resume(struct device *dev)
 }
 
 /**
- * omap_iommu_suspend_prepare - prepare() dev_pm_ops implementation
+ * omap_iommu_prepare - prepare() dev_pm_ops implementation
  * @dev:	iommu device
  *
  * This function performs the necessary checks to determine if the IOMMU
@@ -1235,10 +1234,7 @@ static int omap_iommu_probe(struct platform_device *pdev)
 		if (err)
 			goto out_group;
 
-		iommu_device_set_ops(&obj->iommu, &omap_iommu_ops);
-		iommu_device_set_fwnode(&obj->iommu, &of->fwnode);
-
-		err = iommu_device_register(&obj->iommu);
+		err = iommu_device_register(&obj->iommu, &omap_iommu_ops, &pdev->dev);
 		if (err)
 			goto out_sysfs;
 	}
@@ -1665,7 +1661,7 @@ static struct iommu_device *omap_iommu_probe_device(struct device *dev)
 	num_iommus = of_property_count_elems_of_size(dev->of_node, "iommus",
 						     sizeof(phandle));
 	if (num_iommus < 0)
-		return 0;
+		return ERR_PTR(-ENODEV);
 
 	arch_data = kcalloc(num_iommus + 1, sizeof(*arch_data), GFP_KERNEL);
 	if (!arch_data)
@@ -1738,16 +1734,18 @@ static struct iommu_group *omap_iommu_device_group(struct device *dev)
 
 static const struct iommu_ops omap_iommu_ops = {
 	.domain_alloc	= omap_iommu_domain_alloc,
-	.domain_free	= omap_iommu_domain_free,
-	.attach_dev	= omap_iommu_attach_dev,
-	.detach_dev	= omap_iommu_detach_dev,
-	.map		= omap_iommu_map,
-	.unmap		= omap_iommu_unmap,
-	.iova_to_phys	= omap_iommu_iova_to_phys,
 	.probe_device	= omap_iommu_probe_device,
 	.release_device	= omap_iommu_release_device,
 	.device_group	= omap_iommu_device_group,
 	.pgsize_bitmap	= OMAP_IOMMU_PGSIZES,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= omap_iommu_attach_dev,
+		.detach_dev	= omap_iommu_detach_dev,
+		.map		= omap_iommu_map,
+		.unmap		= omap_iommu_unmap,
+		.iova_to_phys	= omap_iommu_iova_to_phys,
+		.free		= omap_iommu_domain_free,
+	}
 };
 
 static int __init omap_iommu_init(void)

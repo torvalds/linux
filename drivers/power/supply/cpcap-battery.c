@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2017 Tony Lindgren <tony@atomide.com>
  *
- * Some parts of the code based on earlie Motorola mapphone Linux kernel
+ * Some parts of the code based on earlier Motorola mapphone Linux kernel
  * drivers:
  *
  * Copyright (C) 2009-2010 Motorola, Inc.
@@ -28,6 +28,8 @@
 #include <linux/power_supply.h>
 #include <linux/reboot.h>
 #include <linux/regmap.h>
+#include <linux/nvmem-consumer.h>
+#include <linux/moduleparam.h>
 
 #include <linux/iio/consumer.h>
 #include <linux/iio/types.h>
@@ -72,6 +74,9 @@
 
 #define CPCAP_BATTERY_CC_SAMPLE_PERIOD_MS	250
 
+#define CPCAP_BATTERY_EB41_HW4X_ID 0x9E
+#define CPCAP_BATTERY_BW8X_ID 0x98
+
 enum {
 	CPCAP_BATTERY_IIO_BATTDET,
 	CPCAP_BATTERY_IIO_VOLTAGE,
@@ -110,6 +115,8 @@ struct cpcap_coulomb_counter_data {
 enum cpcap_battery_state {
 	CPCAP_BATTERY_STATE_PREVIOUS,
 	CPCAP_BATTERY_STATE_LATEST,
+	CPCAP_BATTERY_STATE_EMPTY,
+	CPCAP_BATTERY_STATE_FULL,
 	CPCAP_BATTERY_STATE_NR,
 };
 
@@ -132,11 +139,17 @@ struct cpcap_battery_ddata {
 	struct cpcap_battery_state_data state[CPCAP_BATTERY_STATE_NR];
 	u32 cc_lsb;		/* μAms per LSB */
 	atomic_t active;
+	int charge_full;
 	int status;
 	u16 vendor;
+	bool check_nvmem;
+	unsigned int is_full:1;
 };
 
 #define CPCAP_NO_BATTERY	-400
+
+static bool ignore_temperature_probe;
+module_param(ignore_temperature_probe, bool, 0660);
 
 static struct cpcap_battery_state_data *
 cpcap_battery_get_state(struct cpcap_battery_ddata *ddata,
@@ -160,6 +173,18 @@ cpcap_battery_previous(struct cpcap_battery_ddata *ddata)
 	return cpcap_battery_get_state(ddata, CPCAP_BATTERY_STATE_PREVIOUS);
 }
 
+static struct cpcap_battery_state_data *
+cpcap_battery_get_empty(struct cpcap_battery_ddata *ddata)
+{
+	return cpcap_battery_get_state(ddata, CPCAP_BATTERY_STATE_EMPTY);
+}
+
+static struct cpcap_battery_state_data *
+cpcap_battery_get_full(struct cpcap_battery_ddata *ddata)
+{
+	return cpcap_battery_get_state(ddata, CPCAP_BATTERY_STATE_FULL);
+}
+
 static int cpcap_charger_battery_temperature(struct cpcap_battery_ddata *ddata,
 					     int *value)
 {
@@ -169,7 +194,8 @@ static int cpcap_charger_battery_temperature(struct cpcap_battery_ddata *ddata,
 	channel = ddata->channels[CPCAP_BATTERY_IIO_BATTDET];
 	error = iio_read_channel_processed(channel, value);
 	if (error < 0) {
-		dev_warn(ddata->dev, "%s failed: %i\n", __func__, error);
+		if (!ignore_temperature_probe)
+			dev_warn(ddata->dev, "%s failed: %i\n", __func__, error);
 		*value = CPCAP_NO_BATTERY;
 
 		return error;
@@ -333,6 +359,88 @@ cpcap_battery_read_accumulated(struct cpcap_battery_ddata *ddata,
 				       ccd->offset);
 }
 
+
+/*
+ * Based on the values from Motorola mapphone Linux kernel for the
+ * stock Droid 4 battery eb41. In the Motorola mapphone Linux
+ * kernel tree the value for pm_cd_factor is passed to the kernel
+ * via device tree. If it turns out to be something device specific
+ * we can consider that too later. These values are also fine for
+ * Bionic's hw4x.
+ *
+ * And looking at the battery full and shutdown values for the stock
+ * kernel on droid 4, full is 4351000 and software initiates shutdown
+ * at 3078000. The device will die around 2743000.
+ */
+static const struct cpcap_battery_config cpcap_battery_eb41_data = {
+	.cd_factor = 0x3cc,
+	.info.technology = POWER_SUPPLY_TECHNOLOGY_LION,
+	.info.voltage_max_design = 4351000,
+	.info.voltage_min_design = 3100000,
+	.info.charge_full_design = 1740000,
+	.bat.constant_charge_voltage_max_uv = 4200000,
+};
+
+/* Values for the extended Droid Bionic battery bw8x. */
+static const struct cpcap_battery_config cpcap_battery_bw8x_data = {
+	.cd_factor = 0x3cc,
+	.info.technology = POWER_SUPPLY_TECHNOLOGY_LION,
+	.info.voltage_max_design = 4200000,
+	.info.voltage_min_design = 3200000,
+	.info.charge_full_design = 2760000,
+	.bat.constant_charge_voltage_max_uv = 4200000,
+};
+
+/*
+ * Safe values for any lipo battery likely to fit into a mapphone
+ * battery bay.
+ */
+static const struct cpcap_battery_config cpcap_battery_unkown_data = {
+	.cd_factor = 0x3cc,
+	.info.technology = POWER_SUPPLY_TECHNOLOGY_LION,
+	.info.voltage_max_design = 4200000,
+	.info.voltage_min_design = 3200000,
+	.info.charge_full_design = 3000000,
+	.bat.constant_charge_voltage_max_uv = 4200000,
+};
+
+static int cpcap_battery_match_nvmem(struct device *dev, const void *data)
+{
+	if (strcmp(dev_name(dev), "89-500029ba0f73") == 0)
+		return 1;
+	else
+		return 0;
+}
+
+static void cpcap_battery_detect_battery_type(struct cpcap_battery_ddata *ddata)
+{
+	struct nvmem_device *nvmem;
+	u8 battery_id = 0;
+
+	ddata->check_nvmem = false;
+
+	nvmem = nvmem_device_find(NULL, &cpcap_battery_match_nvmem);
+	if (IS_ERR_OR_NULL(nvmem)) {
+		ddata->check_nvmem = true;
+		dev_info_once(ddata->dev, "Can not find battery nvmem device. Assuming generic lipo battery\n");
+	} else if (nvmem_device_read(nvmem, 2, 1, &battery_id) < 0) {
+		battery_id = 0;
+		ddata->check_nvmem = true;
+		dev_warn(ddata->dev, "Can not read battery nvmem device. Assuming generic lipo battery\n");
+	}
+
+	switch (battery_id) {
+	case CPCAP_BATTERY_EB41_HW4X_ID:
+		ddata->config = cpcap_battery_eb41_data;
+		break;
+	case CPCAP_BATTERY_BW8X_ID:
+		ddata->config = cpcap_battery_bw8x_data;
+		break;
+	default:
+		ddata->config = cpcap_battery_unkown_data;
+	}
+}
+
 /**
  * cpcap_battery_cc_get_avg_current - read cpcap coulumb counter
  * @ddata: cpcap battery driver device data
@@ -366,20 +474,81 @@ static int cpcap_battery_cc_get_avg_current(struct cpcap_battery_ddata *ddata)
 	return cpcap_battery_cc_to_ua(ddata, sample, acc, offset);
 }
 
+static int cpcap_battery_get_charger_status(struct cpcap_battery_ddata *ddata,
+					    int *val)
+{
+	union power_supply_propval prop;
+	struct power_supply *charger;
+	int error;
+
+	charger = power_supply_get_by_name("usb");
+	if (!charger)
+		return -ENODEV;
+
+	error = power_supply_get_property(charger, POWER_SUPPLY_PROP_STATUS,
+					  &prop);
+	if (error)
+		*val = POWER_SUPPLY_STATUS_UNKNOWN;
+	else
+		*val = prop.intval;
+
+	power_supply_put(charger);
+
+	return error;
+}
+
 static bool cpcap_battery_full(struct cpcap_battery_ddata *ddata)
 {
 	struct cpcap_battery_state_data *state = cpcap_battery_latest(ddata);
+	unsigned int vfull;
+	int error, val;
 
-	if (state->voltage >=
-	    (ddata->config.bat.constant_charge_voltage_max_uv - 18000))
-		return true;
+	error = cpcap_battery_get_charger_status(ddata, &val);
+	if (!error) {
+		switch (val) {
+		case POWER_SUPPLY_STATUS_DISCHARGING:
+			dev_dbg(ddata->dev, "charger disconnected\n");
+			ddata->is_full = 0;
+			break;
+		case POWER_SUPPLY_STATUS_FULL:
+			dev_dbg(ddata->dev, "charger full status\n");
+			ddata->is_full = 1;
+			break;
+		default:
+			break;
+		}
+	}
 
-	return false;
+	/*
+	 * The full battery voltage here can be inaccurate, it's used just to
+	 * filter out any trickle charging events. We clear the is_full status
+	 * on charger disconnect above anyways.
+	 */
+	vfull = ddata->config.bat.constant_charge_voltage_max_uv - 120000;
+
+	if (ddata->is_full && state->voltage < vfull)
+		ddata->is_full = 0;
+
+	return ddata->is_full;
+}
+
+static bool cpcap_battery_low(struct cpcap_battery_ddata *ddata)
+{
+	struct cpcap_battery_state_data *state = cpcap_battery_latest(ddata);
+	static bool is_low;
+
+	if (state->current_ua > 0 && (state->voltage <= 3350000 || is_low))
+		is_low = true;
+	else
+		is_low = false;
+
+	return is_low;
 }
 
 static int cpcap_battery_update_status(struct cpcap_battery_ddata *ddata)
 {
-	struct cpcap_battery_state_data state, *latest, *previous;
+	struct cpcap_battery_state_data state, *latest, *previous,
+					*empty, *full;
 	ktime_t now;
 	int error;
 
@@ -408,7 +577,45 @@ static int cpcap_battery_update_status(struct cpcap_battery_ddata *ddata)
 	memcpy(previous, latest, sizeof(*previous));
 	memcpy(latest, &state, sizeof(*latest));
 
+	if (cpcap_battery_full(ddata)) {
+		full = cpcap_battery_get_full(ddata);
+		memcpy(full, latest, sizeof(*full));
+
+		empty = cpcap_battery_get_empty(ddata);
+		if (empty->voltage && empty->voltage != -1) {
+			empty->voltage = -1;
+			ddata->charge_full =
+				empty->counter_uah - full->counter_uah;
+		} else if (ddata->charge_full) {
+			empty->voltage = -1;
+			empty->counter_uah =
+				full->counter_uah + ddata->charge_full;
+		}
+	} else if (cpcap_battery_low(ddata)) {
+		empty = cpcap_battery_get_empty(ddata);
+		memcpy(empty, latest, sizeof(*empty));
+
+		full = cpcap_battery_get_full(ddata);
+		if (full->voltage) {
+			full->voltage = 0;
+			ddata->charge_full =
+				empty->counter_uah - full->counter_uah;
+		}
+	}
+
 	return 0;
+}
+
+/*
+ * Update battery status when cpcap-charger calls power_supply_changed().
+ * This allows us to detect battery full condition before the charger
+ * disconnects.
+ */
+static void cpcap_battery_external_power_changed(struct power_supply *psy)
+{
+	union power_supply_propval prop;
+
+	power_supply_get_property(psy, POWER_SUPPLY_PROP_STATUS, &prop);
 }
 
 static enum power_supply_property cpcap_battery_props[] = {
@@ -421,10 +628,13 @@ static enum power_supply_property cpcap_battery_props[] = {
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_POWER_NOW,
 	POWER_SUPPLY_PROP_POWER_AVG,
+	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_SCOPE,
 	POWER_SUPPLY_PROP_TEMP,
@@ -435,7 +645,7 @@ static int cpcap_battery_get_property(struct power_supply *psy,
 				      union power_supply_propval *val)
 {
 	struct cpcap_battery_ddata *ddata = power_supply_get_drvdata(psy);
-	struct cpcap_battery_state_data *latest, *previous;
+	struct cpcap_battery_state_data *latest, *previous, *empty;
 	u32 sample;
 	s32 accumulator;
 	int cached;
@@ -448,9 +658,12 @@ static int cpcap_battery_get_property(struct power_supply *psy,
 	latest = cpcap_battery_latest(ddata);
 	previous = cpcap_battery_previous(ddata);
 
+	if (ddata->check_nvmem)
+		cpcap_battery_detect_battery_type(ddata);
+
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
-		if (latest->temperature > CPCAP_NO_BATTERY)
+		if (latest->temperature > CPCAP_NO_BATTERY || ignore_temperature_probe)
 			val->intval = 1;
 		else
 			val->intval = 0;
@@ -515,6 +728,16 @@ static int cpcap_battery_get_property(struct power_supply *psy,
 		tmp *= ((latest->voltage + previous->voltage) / 20000);
 		val->intval = div64_s64(tmp, 100);
 		break;
+	case POWER_SUPPLY_PROP_CAPACITY:
+		empty = cpcap_battery_get_empty(ddata);
+		if (!empty->voltage || !ddata->charge_full)
+			return -ENODATA;
+		/* (ddata->charge_full / 200) is needed for rounding */
+		val->intval = empty->counter_uah - latest->counter_uah +
+			ddata->charge_full / 200;
+		val->intval = clamp(val->intval, 0, ddata->charge_full);
+		val->intval = val->intval * 100 / ddata->charge_full;
+		break;
 	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
 		if (cpcap_battery_full(ddata))
 			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
@@ -529,6 +752,34 @@ static int cpcap_battery_get_property(struct power_supply *psy,
 		else
 			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_NOW:
+		empty = cpcap_battery_get_empty(ddata);
+		if (!empty->voltage)
+			return -ENODATA;
+		val->intval = empty->counter_uah - latest->counter_uah;
+		if (val->intval < 0) {
+			/* Assume invalid config if CHARGE_NOW is -20% */
+			if (ddata->charge_full && abs(val->intval) > ddata->charge_full/5) {
+				empty->voltage = 0;
+				ddata->charge_full = 0;
+				return -ENODATA;
+			}
+			val->intval = 0;
+		} else if (ddata->charge_full && ddata->charge_full < val->intval) {
+			/* Assume invalid config if CHARGE_NOW exceeds CHARGE_FULL by 20% */
+			if (val->intval > (6*ddata->charge_full)/5) {
+				empty->voltage = 0;
+				ddata->charge_full = 0;
+				return -ENODATA;
+			}
+			val->intval = ddata->charge_full;
+		}
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		if (!ddata->charge_full)
+			return -ENODATA;
+		val->intval = ddata->charge_full;
+		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		val->intval = ddata->config.info.charge_full_design;
 		break;
@@ -536,6 +787,8 @@ static int cpcap_battery_get_property(struct power_supply *psy,
 		val->intval = POWER_SUPPLY_SCOPE_SYSTEM;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
+		if (ignore_temperature_probe)
+			return -ENODATA;
 		val->intval = latest->temperature;
 		break;
 	default:
@@ -561,17 +814,21 @@ static int cpcap_battery_update_charger(struct cpcap_battery_ddata *ddata,
 				POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 				&prop);
 	if (error)
-		return error;
+		goto out_put;
 
 	/* Allow charger const voltage lower than battery const voltage */
 	if (const_charge_voltage > prop.intval)
-		return 0;
+		goto out_put;
 
 	val.intval = const_charge_voltage;
 
-	return power_supply_set_property(charger,
+	error = power_supply_set_property(charger,
 			POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 			&val);
+out_put:
+	power_supply_put(charger);
+
+	return error;
 }
 
 static int cpcap_battery_set_property(struct power_supply *psy,
@@ -590,6 +847,15 @@ static int cpcap_battery_set_property(struct power_supply *psy,
 		ddata->config.bat.constant_charge_voltage_max_uv = val->intval;
 
 		return cpcap_battery_update_charger(ddata, val->intval);
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		if (val->intval < 0)
+			return -EINVAL;
+		if (val->intval > (6*ddata->config.info.charge_full_design)/5)
+			return -EINVAL;
+
+		ddata->charge_full = val->intval;
+
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -602,6 +868,7 @@ static int cpcap_battery_property_is_writeable(struct power_supply *psy,
 {
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		return 1;
 	default:
 		return 0;
@@ -622,7 +889,7 @@ static irqreturn_t cpcap_battery_irq_thread(int irq, void *data)
 			break;
 	}
 
-	if (!d)
+	if (list_entry_is_head(d, &ddata->irq_list, node))
 		return IRQ_NONE;
 
 	latest = cpcap_battery_latest(ddata);
@@ -666,7 +933,7 @@ static int cpcap_battery_init_irq(struct platform_device *pdev,
 
 	error = devm_request_threaded_irq(ddata->dev, irq, NULL,
 					  cpcap_battery_irq_thread,
-					  IRQF_SHARED,
+					  IRQF_SHARED | IRQF_ONESHOT,
 					  name, ddata);
 	if (error) {
 		dev_err(ddata->dev, "could not get irq %s: %i\n",
@@ -805,62 +1072,41 @@ restore:
 	return error;
 }
 
-/*
- * Based on the values from Motorola mapphone Linux kernel. In the
- * the Motorola mapphone Linux kernel tree the value for pm_cd_factor
- * is passed to the kernel via device tree. If it turns out to be
- * something device specific we can consider that too later.
- *
- * And looking at the battery full and shutdown values for the stock
- * kernel on droid 4, full is 4351000 and software initiates shutdown
- * at 3078000. The device will die around 2743000.
- */
-static const struct cpcap_battery_config cpcap_battery_default_data = {
-	.cd_factor = 0x3cc,
-	.info.technology = POWER_SUPPLY_TECHNOLOGY_LION,
-	.info.voltage_max_design = 4351000,
-	.info.voltage_min_design = 3100000,
-	.info.charge_full_design = 1740000,
-	.bat.constant_charge_voltage_max_uv = 4200000,
-};
-
 #ifdef CONFIG_OF
 static const struct of_device_id cpcap_battery_id_table[] = {
 	{
 		.compatible = "motorola,cpcap-battery",
-		.data = &cpcap_battery_default_data,
 	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, cpcap_battery_id_table);
 #endif
 
+static const struct power_supply_desc cpcap_charger_battery_desc = {
+	.name		= "battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.properties	= cpcap_battery_props,
+	.num_properties	= ARRAY_SIZE(cpcap_battery_props),
+	.get_property	= cpcap_battery_get_property,
+	.set_property	= cpcap_battery_set_property,
+	.property_is_writeable = cpcap_battery_property_is_writeable,
+	.external_power_changed = cpcap_battery_external_power_changed,
+};
+
 static int cpcap_battery_probe(struct platform_device *pdev)
 {
-	struct power_supply_desc *psy_desc;
 	struct cpcap_battery_ddata *ddata;
-	const struct of_device_id *match;
 	struct power_supply_config psy_cfg = {};
 	int error;
-
-	match = of_match_device(of_match_ptr(cpcap_battery_id_table),
-				&pdev->dev);
-	if (!match)
-		return -EINVAL;
-
-	if (!match->data) {
-		dev_err(&pdev->dev, "no configuration data found\n");
-
-		return -ENODEV;
-	}
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
 		return -ENOMEM;
 
+	cpcap_battery_detect_battery_type(ddata);
+
 	INIT_LIST_HEAD(&ddata->irq_list);
 	ddata->dev = &pdev->dev;
-	memcpy(&ddata->config, match->data, sizeof(ddata->config));
 
 	ddata->reg = dev_get_regmap(ddata->dev->parent, NULL);
 	if (!ddata->reg)
@@ -892,22 +1138,11 @@ static int cpcap_battery_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	psy_desc = devm_kzalloc(ddata->dev, sizeof(*psy_desc), GFP_KERNEL);
-	if (!psy_desc)
-		return -ENOMEM;
-
-	psy_desc->name = "battery";
-	psy_desc->type = POWER_SUPPLY_TYPE_BATTERY;
-	psy_desc->properties = cpcap_battery_props;
-	psy_desc->num_properties = ARRAY_SIZE(cpcap_battery_props);
-	psy_desc->get_property = cpcap_battery_get_property;
-	psy_desc->set_property = cpcap_battery_set_property;
-	psy_desc->property_is_writeable = cpcap_battery_property_is_writeable;
-
 	psy_cfg.of_node = pdev->dev.of_node;
 	psy_cfg.drv_data = ddata;
 
-	ddata->psy = devm_power_supply_register(ddata->dev, psy_desc,
+	ddata->psy = devm_power_supply_register(ddata->dev,
+						&cpcap_charger_battery_desc,
 						&psy_cfg);
 	error = PTR_ERR_OR_ZERO(ddata->psy);
 	if (error) {

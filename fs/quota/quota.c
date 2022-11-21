@@ -10,6 +10,7 @@
 #include <linux/namei.h>
 #include <linux/slab.h>
 #include <asm/current.h>
+#include <linux/blkdev.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/security.h>
@@ -17,9 +18,11 @@
 #include <linux/capability.h>
 #include <linux/quotaops.h>
 #include <linux/types.h>
+#include <linux/mount.h>
 #include <linux/writeback.h>
 #include <linux/nospec.h>
 #include "compat.h"
+#include "../internal.h"
 
 static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 				     qid_t id)
@@ -470,6 +473,7 @@ static int quota_getstatev(struct super_block *sb, int type,
 	fqs->qs_rtbtimelimit = state.s_state[type].rt_spc_timelimit;
 	fqs->qs_bwarnlimit = state.s_state[type].spc_warnlimit;
 	fqs->qs_iwarnlimit = state.s_state[type].ino_warnlimit;
+	fqs->qs_rtbwarnlimit = state.s_state[type].rt_spc_warnlimit;
 
 	/* Inodes may be allocated even if inactive; copy out if present */
 	if (state.s_state[USRQUOTA].ino) {
@@ -826,8 +830,6 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	}
 }
 
-#ifdef CONFIG_BLOCK
-
 /* Return 1 if 'cmd' will block on frozen filesystem */
 static int quotactl_cmd_write(int cmd)
 {
@@ -849,7 +851,6 @@ static int quotactl_cmd_write(int cmd)
 	}
 	return 1;
 }
-#endif /* CONFIG_BLOCK */
 
 /* Return true if quotactl command is manipulating quota on/off state */
 static bool quotactl_cmd_onoff(int cmd)
@@ -865,27 +866,42 @@ static bool quotactl_cmd_onoff(int cmd)
 static struct super_block *quotactl_block(const char __user *special, int cmd)
 {
 #ifdef CONFIG_BLOCK
-	struct block_device *bdev;
 	struct super_block *sb;
 	struct filename *tmp = getname(special);
+	bool excl = false, thawed = false;
+	int error;
+	dev_t dev;
 
 	if (IS_ERR(tmp))
 		return ERR_CAST(tmp);
-	bdev = lookup_bdev(tmp->name);
+	error = lookup_bdev(tmp->name, &dev);
 	putname(tmp);
-	if (IS_ERR(bdev))
-		return ERR_CAST(bdev);
-	if (quotactl_cmd_onoff(cmd))
-		sb = get_super_exclusive_thawed(bdev);
-	else if (quotactl_cmd_write(cmd))
-		sb = get_super_thawed(bdev);
-	else
-		sb = get_super(bdev);
-	bdput(bdev);
+	if (error)
+		return ERR_PTR(error);
+
+	if (quotactl_cmd_onoff(cmd)) {
+		excl = true;
+		thawed = true;
+	} else if (quotactl_cmd_write(cmd)) {
+		thawed = true;
+	}
+
+retry:
+	sb = user_get_super(dev, excl);
 	if (!sb)
 		return ERR_PTR(-ENODEV);
-
+	if (thawed && sb->s_writers.frozen != SB_UNFROZEN) {
+		if (excl)
+			up_write(&sb->s_umount);
+		else
+			up_read(&sb->s_umount);
+		wait_event(sb->s_writers.wait_unfrozen,
+			   sb->s_writers.frozen == SB_UNFROZEN);
+		put_super(sb);
+		goto retry;
+	}
 	return sb;
+
 #else
 	return ERR_PTR(-ENODEV);
 #endif
@@ -950,5 +966,48 @@ SYSCALL_DEFINE4(quotactl, unsigned int, cmd, const char __user *, special,
 out:
 	if (pathp && !IS_ERR(pathp))
 		path_put(pathp);
+	return ret;
+}
+
+SYSCALL_DEFINE4(quotactl_fd, unsigned int, fd, unsigned int, cmd,
+		qid_t, id, void __user *, addr)
+{
+	struct super_block *sb;
+	unsigned int cmds = cmd >> SUBCMDSHIFT;
+	unsigned int type = cmd & SUBCMDMASK;
+	struct fd f;
+	int ret;
+
+	f = fdget_raw(fd);
+	if (!f.file)
+		return -EBADF;
+
+	ret = -EINVAL;
+	if (type >= MAXQUOTAS)
+		goto out;
+
+	if (quotactl_cmd_write(cmds)) {
+		ret = mnt_want_write(f.file->f_path.mnt);
+		if (ret)
+			goto out;
+	}
+
+	sb = f.file->f_path.mnt->mnt_sb;
+	if (quotactl_cmd_onoff(cmds))
+		down_write(&sb->s_umount);
+	else
+		down_read(&sb->s_umount);
+
+	ret = do_quotactl(sb, type, cmds, id, addr, ERR_PTR(-EINVAL));
+
+	if (quotactl_cmd_onoff(cmds))
+		up_write(&sb->s_umount);
+	else
+		up_read(&sb->s_umount);
+
+	if (quotactl_cmd_write(cmds))
+		mnt_drop_write(f.file->f_path.mnt);
+out:
+	fdput(f);
 	return ret;
 }

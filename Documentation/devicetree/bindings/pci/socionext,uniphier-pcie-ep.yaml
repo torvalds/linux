@@ -10,17 +10,19 @@ description: |
   UniPhier PCIe endpoint controller is based on the Synopsys DesignWare
   PCI core. It shares common features with the PCIe DesignWare core and
   inherits common properties defined in
-  Documentation/devicetree/bindings/pci/designware-pcie.txt.
+  Documentation/devicetree/bindings/pci/snps,dw-pcie-ep.yaml.
 
 maintainers:
   - Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
 
 allOf:
-  - $ref: "pci-ep.yaml#"
+  - $ref: /schemas/pci/snps,dw-pcie-ep.yaml#
 
 properties:
   compatible:
-    const: socionext,uniphier-pro5-pcie-ep
+    enum:
+      - socionext,uniphier-pro5-pcie-ep
+      - socionext,uniphier-nx1-pcie-ep
 
   reg:
     minItems: 4
@@ -41,20 +43,26 @@ properties:
           - const: atu
 
   clocks:
+    minItems: 1
     maxItems: 2
 
   clock-names:
-    items:
-      - const: gio
-      - const: link
+    oneOf:
+      - items:              # for Pro5
+          - const: gio
+          - const: link
+      - const: link         # for NX1
 
   resets:
+    minItems: 1
     maxItems: 2
 
   reset-names:
-    items:
-      - const: gio
-      - const: link
+    oneOf:
+      - items:              # for Pro5
+          - const: gio
+          - const: link
+      - const: link         # for NX1
 
   num-ib-windows:
     const: 16
@@ -79,7 +87,7 @@ required:
   - resets
   - reset-names
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

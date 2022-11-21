@@ -489,11 +489,15 @@ static int dpaa_get_ts_info(struct net_device *net_dev,
 	info->phc_index = -1;
 
 	fman_node = of_get_parent(mac_node);
-	if (fman_node)
+	if (fman_node) {
 		ptp_node = of_parse_phandle(fman_node, "ptimer-handle", 0);
+		of_node_put(fman_node);
+	}
 
-	if (ptp_node)
+	if (ptp_node) {
 		ptp_dev = of_find_device_by_node(ptp_node);
+		of_node_put(ptp_node);
+	}
 
 	if (ptp_dev)
 		ptp = platform_get_drvdata(ptp_dev);
@@ -513,7 +517,9 @@ static int dpaa_get_ts_info(struct net_device *net_dev,
 }
 
 static int dpaa_get_coalesce(struct net_device *dev,
-			     struct ethtool_coalesce *c)
+			     struct ethtool_coalesce *c,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct qman_portal *portal;
 	u32 period;
@@ -530,7 +536,9 @@ static int dpaa_get_coalesce(struct net_device *dev,
 }
 
 static int dpaa_set_coalesce(struct net_device *dev,
-			     struct ethtool_coalesce *c)
+			     struct ethtool_coalesce *c,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	const cpumask_t *cpus = qman_affine_cpus();
 	bool needs_revert[NR_CPUS] = {false};

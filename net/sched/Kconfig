@@ -281,7 +281,7 @@ config NET_SCH_CHOKE
 	help
 	  Say Y here if you want to use the CHOKe packet scheduler (CHOose
 	  and Keep for responsive flows, CHOose and Kill for unresponsive
-	  flows). This is a variation of RED which trys to penalize flows
+	  flows). This is a variation of RED which tries to penalize flows
 	  that monopolize the queue.
 
 	  To compile this code as a module, choose M here: the
@@ -813,7 +813,7 @@ config NET_ACT_SAMPLE
 
 config NET_ACT_IPT
 	tristate "IPtables targets"
-	depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
+	depends on NET_CLS_ACT && NETFILTER && NETFILTER_XTABLES
 	help
 	  Say Y here to be able to invoke iptables targets after successful
 	  classification.
@@ -912,7 +912,7 @@ config NET_ACT_BPF
 
 config NET_ACT_CONNMARK
 	tristate "Netfilter Connection Mark Retriever"
-	depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
+	depends on NET_CLS_ACT && NETFILTER
 	depends on NF_CONNTRACK && NF_CONNTRACK_MARK
 	help
 	  Say Y here to allow retrieving of conn mark
@@ -924,7 +924,7 @@ config NET_ACT_CONNMARK
 
 config NET_ACT_CTINFO
 	tristate "Netfilter Connection Mark Actions"
-	depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
+	depends on NET_CLS_ACT && NETFILTER
 	depends on NF_CONNTRACK && NF_CONNTRACK_MARK
 	help
 	  Say Y here to allow transfer of a connmark stored information.

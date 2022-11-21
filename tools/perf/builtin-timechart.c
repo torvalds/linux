@@ -35,6 +35,7 @@
 #include "util/tool.h"
 #include "util/data.h"
 #include "util/debug.h"
+#include "util/string2.h"
 #include <linux/err.h>
 
 #ifdef LACKS_OPEN_MEMSTREAM_PROTOTYPE
@@ -1598,8 +1599,7 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 		.force = tchart->force,
 	};
 
-	struct perf_session *session = perf_session__new(&data, false,
-							 &tchart->tool);
+	struct perf_session *session = perf_session__new(&data, &tchart->tool);
 	int ret = -EINVAL;
 
 	if (IS_ERR(session))
@@ -1984,7 +1984,7 @@ int cmd_timechart(int argc, const char **argv)
 		return -1;
 	}
 
-	if (argc && !strncmp(argv[0], "rec", 3)) {
+	if (argc && strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
 		argc = parse_options(argc, argv, timechart_record_options,
 				     timechart_record_usage,
 				     PARSE_OPT_STOP_AT_NON_OPTION);

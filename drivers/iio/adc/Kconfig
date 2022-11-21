@@ -64,6 +64,17 @@ config AD7266
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad7266.
 
+config AD7280
+	tristate "Analog Devices AD7280A Lithium Ion Battery Monitoring System"
+	depends on SPI
+	select CRC8
+	help
+	  Say yes here to build support for Analog Devices AD7280A
+	  Lithium Ion Battery Monitoring System.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7280a
+
 config AD7291
 	tristate "Analog Devices AD7291 ADC driver"
 	depends on I2C
@@ -97,7 +108,7 @@ config AD7298
 	  module will be called ad7298.
 
 config AD7476
-	tristate "Analog Devices AD7476 1-channel ADCs driver and other similar devices from AD an TI"
+	tristate "Analog Devices AD7476 1-channel ADCs driver and other similar devices from AD and TI"
 	depends on SPI
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
@@ -249,7 +260,7 @@ config AD799X
 config AD9467
 	tristate "Analog Devices AD9467 High Speed ADC driver"
 	depends on SPI
-	select ADI_AXI_ADC
+	depends on ADI_AXI_ADC
 	help
 	  Say yes here to build support for Analog Devices:
 	  * AD9467 16-Bit, 200 MSPS/250 MSPS Analog-to-Digital Converter
@@ -266,6 +277,8 @@ config ADI_AXI_ADC
 	select IIO_BUFFER
 	select IIO_BUFFER_HW_CONSUMER
 	select IIO_BUFFER_DMAENGINE
+	depends on HAS_IOMEM
+	depends on OF
 	help
 	  Say yes here to build support for Analog Devices Generic
 	  AXI ADC IP core. The IP core is used for interfacing with
@@ -295,7 +308,7 @@ config ASPEED_ADC
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
 	depends on ARCH_AT91 || COMPILE_TEST
-	depends on INPUT && SYSFS
+	depends on INPUT && SYSFS && OF
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
@@ -352,7 +365,7 @@ config BCM_IPROC_ADC
 
 config BERLIN2_ADC
 	tristate "Marvell Berlin2 ADC driver"
-	depends on ARCH_BERLIN
+	depends on ARCH_BERLIN || COMPILE_TEST
 	help
 	  Marvell Berlin2 ADC driver. This ADC has 8 channels, with one used for
 	  temperature measurement.
@@ -428,9 +441,9 @@ config EXYNOS_ADC
 	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || ARCH_S5PV210 || (OF && COMPILE_TEST)
 	depends on HAS_IOMEM
 	help
-	  Core support for the ADC block found in the Samsung EXYNOS series
-	  of SoCs for drivers such as the touchscreen and hwmon to use to share
-	  this resource.
+	  Driver for the ADC block found in the Samsung S3C (S3C2410, S3C2416,
+	  S3C2440, S3C2443, S3C6410), S5Pv210 and Exynos SoCs.
+	  Choose Y here only if you build for such Samsung SoC.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called exynos_adc.
@@ -527,6 +540,16 @@ config IMX7D_ADC
 
 	  This driver can also be built as a module. If so, the module will be
 	  called imx7d_adc.
+
+config IMX8QXP_ADC
+	tristate "NXP IMX8QXP ADC driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say yes here to build support for IMX8QXP ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called imx8qxp-adc.
 
 config LP8788_ADC
 	tristate "LP8788 ADC driver"
@@ -703,6 +726,17 @@ config MCP3911
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp3911.
 
+config MEDIATEK_MT6360_ADC
+	tristate "Mediatek MT6360 ADC driver"
+	depends on MFD_MT6360
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here to enable MT6360 ADC support.
+	  Integrated for System Monitoring includes
+	  is used in smartphones and tablets and supports a 11 channel
+	  general purpose ADC.
+
 config MEDIATEK_MT6577_AUXADC
 	tristate "MediaTek AUXADC driver"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
@@ -874,6 +908,16 @@ config ROCKCHIP_SARADC
 	  To compile this driver as a module, choose M here: the
 	  module will be called rockchip_saradc.
 
+config RZG2L_ADC
+	tristate "Renesas RZ/G2L ADC driver"
+	depends on ARCH_R9A07G044 || COMPILE_TEST
+	help
+	  Say yes here to build support for the ADC found in Renesas
+	  RZ/G2L family.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rzg2l_adc.
+
 config SC27XX_ADC
 	tristate "Spreadtrum SC27xx series PMICs ADC"
 	depends on MFD_SC27XX_PMIC || COMPILE_TEST
@@ -912,6 +956,7 @@ config STM32_ADC_CORE
 	depends on ARCH_STM32 || COMPILE_TEST
 	depends on OF
 	depends on REGULATOR
+	depends on HAS_IOMEM
 	select IIO_BUFFER
 	select MFD_STM32_TIMERS
 	select IIO_STM32_TIMER_TRIGGER
@@ -1112,7 +1157,7 @@ config TI_ADS7950
 
 config TI_ADS8344
 	tristate "Texas Instruments ADS8344"
-	depends on SPI && OF
+	depends on SPI
 	help
 	  If you say yes here you get support for Texas Instruments ADS8344
 	  ADC chips
@@ -1122,7 +1167,7 @@ config TI_ADS8344
 
 config TI_ADS8688
 	tristate "Texas Instruments ADS8688"
-	depends on SPI && OF
+	depends on SPI
 	help
 	  If you say yes here you get support for Texas Instruments ADS8684 and
 	  and ADS8688 ADC chips
@@ -1132,13 +1177,25 @@ config TI_ADS8688
 
 config TI_ADS124S08
 	tristate "Texas Instruments ADS124S08"
-	depends on SPI && OF
+	depends on SPI
 	help
 	  If you say yes here you get support for Texas Instruments ADS124S08
 	  and ADS124S06 ADC chips
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-ads124s08.
+
+config TI_ADS131E08
+	tristate "Texas Instruments ADS131E08"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to get support for Texas Instruments ADS131E04, ADS131E06
+	  and ADS131E08 chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-ads131e08.
 
 config TI_AM335X_ADC
 	tristate "TI's AM335X ADC driver"
@@ -1163,6 +1220,18 @@ config TI_TLC4541
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-tlc4541.
+
+config TI_TSC2046
+	tristate "Texas Instruments TSC2046 ADC driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for ADC functionality of Texas
+	  Instruments TSC2046 touch screen controller.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-tsc2046.
 
 config TWL4030_MADC
 	tristate "TWL4030 MADC (Monitoring A/D Converter)"
@@ -1217,10 +1286,32 @@ config XILINX_XADC
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to have support for the Xilinx XADC. The driver does support
-	  both the ZYNQ interface to the XADC as well as the AXI-XADC interface.
+	  Say yes here to have support for the Xilinx 7 Series XADC or
+	  UltraScale/UltraScale+ System Management Wizard.
+
+	  For the 7 Series the driver does support both the ZYNQ interface
+	  to the XADC as well as the AXI-XADC interface.
+
+	  The driver also support the Xilinx System Management Wizard IP core
+	  that can be used to access the System Monitor ADC on the Xilinx
+	  UltraScale and UltraScale+ FPGAs.
 
 	  The driver can also be build as a module. If so, the module will be called
 	  xilinx-xadc.
+
+config XILINX_AMS
+	tristate "Xilinx AMS driver"
+	depends on ARCH_ZYNQMP || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say yes here to have support for the Xilinx AMS for Ultrascale/Ultrascale+
+	  System Monitor. With this you can measure and monitor the Voltages and
+	  Temperature values on the SOC.
+
+	  The driver supports Voltage and Temperature monitoring on Xilinx Ultrascale
+	  devices.
+
+	  The driver can also be built as a module. If so, the module will be called
+	  xilinx-ams.
 
 endmenu

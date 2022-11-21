@@ -28,3 +28,5 @@ obj-$(CONFIG_SENSORS_HMC5843_SPI)	+= hmc5843_spi.o
 obj-$(CONFIG_SENSORS_RM3100)		+= rm3100-core.o
 obj-$(CONFIG_SENSORS_RM3100_I2C)	+= rm3100-i2c.o
 obj-$(CONFIG_SENSORS_RM3100_SPI)	+= rm3100-spi.o
+
+obj-$(CONFIG_YAMAHA_YAS530)		+= yamaha-yas530.o

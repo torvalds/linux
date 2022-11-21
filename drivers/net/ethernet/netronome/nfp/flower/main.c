@@ -266,7 +266,7 @@ nfp_flower_reprs_reify(struct nfp_app *app, enum nfp_repr_type type,
 	int i, err, count = 0;
 
 	reprs = rcu_dereference_protected(app->reprs[type],
-					  lockdep_is_held(&app->pf->lock));
+					  nfp_app_is_locked(app));
 	if (!reprs)
 		return 0;
 
@@ -295,7 +295,7 @@ nfp_flower_wait_repr_reify(struct nfp_app *app, atomic_t *replies, int tot_repl)
 	if (!tot_repl)
 		return 0;
 
-	lockdep_assert_held(&app->pf->lock);
+	assert_nfp_app_locked(app);
 	if (!wait_event_timeout(priv->reify_wait_queue,
 				atomic_read(replies) >= tot_repl,
 				NFP_FL_REPLY_TIMEOUT)) {
@@ -830,10 +830,6 @@ static int nfp_flower_init(struct nfp_app *app)
 	if (err)
 		goto err_cleanup;
 
-	err = flow_indr_dev_register(nfp_flower_indr_setup_tc_cb, app);
-	if (err)
-		goto err_cleanup;
-
 	if (app_priv->flower_ext_feats & NFP_FL_FEATS_VF_RLIM)
 		nfp_flower_qos_init(app);
 
@@ -859,9 +855,6 @@ static void nfp_flower_clean(struct nfp_app *app)
 	skb_queue_purge(&app_priv->cmsg_skbs_high);
 	skb_queue_purge(&app_priv->cmsg_skbs_low);
 	flush_work(&app_priv->cmsg_work);
-
-	flow_indr_dev_unregister(nfp_flower_indr_setup_tc_cb, app,
-				 nfp_flower_setup_indr_tc_release);
 
 	if (app_priv->flower_ext_feats & NFP_FL_FEATS_VF_RLIM)
 		nfp_flower_qos_cleanup(app);
@@ -945,12 +938,28 @@ static int nfp_flower_start(struct nfp_app *app)
 			return err;
 	}
 
-	return nfp_tunnel_config_start(app);
+	err = flow_indr_dev_register(nfp_flower_indr_setup_tc_cb, app);
+	if (err)
+		return err;
+
+	err = nfp_tunnel_config_start(app);
+	if (err)
+		goto err_tunnel_config;
+
+	return 0;
+
+err_tunnel_config:
+	flow_indr_dev_unregister(nfp_flower_indr_setup_tc_cb, app,
+				 nfp_flower_setup_indr_tc_release);
+	return err;
 }
 
 static void nfp_flower_stop(struct nfp_app *app)
 {
 	nfp_tunnel_config_stop(app);
+
+	flow_indr_dev_unregister(nfp_flower_indr_setup_tc_cb, app,
+				 nfp_flower_setup_indr_tc_release);
 }
 
 static int

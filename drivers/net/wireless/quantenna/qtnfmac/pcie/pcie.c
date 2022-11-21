@@ -299,19 +299,19 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sysctl_bar = qtnf_map_bar(pdev, QTN_SYSCTL_BAR);
 	if (IS_ERR(sysctl_bar)) {
 		pr_err("failed to map BAR%u\n", QTN_SYSCTL_BAR);
-		return ret;
+		return PTR_ERR(sysctl_bar);
 	}
 
 	dmareg_bar = qtnf_map_bar(pdev, QTN_DMA_BAR);
 	if (IS_ERR(dmareg_bar)) {
 		pr_err("failed to map BAR%u\n", QTN_DMA_BAR);
-		return ret;
+		return PTR_ERR(dmareg_bar);
 	}
 
 	epmem_bar = qtnf_map_bar(pdev, QTN_SHMEM_BAR);
 	if (IS_ERR(epmem_bar)) {
 		pr_err("failed to map BAR%u\n", QTN_SHMEM_BAR);
-		return ret;
+		return PTR_ERR(epmem_bar);
 	}
 
 	chipid = qtnf_chip_id_get(sysctl_bar);
@@ -387,7 +387,6 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 error:
-	flush_workqueue(pcie_priv->workqueue);
 	destroy_workqueue(pcie_priv->workqueue);
 	pci_set_drvdata(pdev, NULL);
 	return ret;
@@ -416,7 +415,6 @@ static void qtnf_pcie_remove(struct pci_dev *dev)
 		qtnf_core_detach(bus);
 
 	netif_napi_del(&bus->mux_napi);
-	flush_workqueue(priv->workqueue);
 	destroy_workqueue(priv->workqueue);
 	tasklet_kill(&priv->reclaim_tq);
 
@@ -480,18 +478,7 @@ static struct pci_driver qtnf_pcie_drv_data = {
 #endif
 };
 
-static int __init qtnf_pcie_register(void)
-{
-	return pci_register_driver(&qtnf_pcie_drv_data);
-}
-
-static void __exit qtnf_pcie_exit(void)
-{
-	pci_unregister_driver(&qtnf_pcie_drv_data);
-}
-
-module_init(qtnf_pcie_register);
-module_exit(qtnf_pcie_exit);
+module_pci_driver(qtnf_pcie_drv_data)
 
 MODULE_AUTHOR("Quantenna Communications");
 MODULE_DESCRIPTION("Quantenna PCIe bus driver for 802.11 wireless LAN.");

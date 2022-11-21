@@ -29,7 +29,7 @@
 	.if XTENSA_HAVE_COPROCESSOR(x);					\
 		.align 4;						\
 	.Lsave_cp_regs_cp##x:						\
-		xchal_cp##x##_store a2 a4 a5 a6 a7;			\
+		xchal_cp##x##_store a2 a3 a4 a5 a6;			\
 		jx	a0;						\
 	.endif
 
@@ -46,7 +46,7 @@
 	.if XTENSA_HAVE_COPROCESSOR(x);					\
 		.align 4;						\
 	.Lload_cp_regs_cp##x:						\
-		xchal_cp##x##_load a2 a4 a5 a6 a7;			\
+		xchal_cp##x##_load a2 a3 a4 a5 a6;			\
 		jx	a0;						\
 	.endif
 
@@ -98,37 +98,6 @@
 	LOAD_CP_REGS_TAB(5)
 	LOAD_CP_REGS_TAB(6)
 	LOAD_CP_REGS_TAB(7)
-
-/*
- * coprocessor_flush(struct thread_info*, index)
- *                             a2        a3
- *
- * Save coprocessor registers for coprocessor 'index'.
- * The register values are saved to or loaded from the coprocessor area 
- * inside the task_info structure.
- *
- * Note that this function doesn't update the coprocessor_owner information!
- *
- */
-
-ENTRY(coprocessor_flush)
-
-	/* reserve 4 bytes on stack to save a0 */
-	abi_entry(4)
-
-	s32i	a0, a1, 0
-	movi	a0, .Lsave_cp_regs_jump_table
-	addx8	a3, a3, a0
-	l32i	a4, a3, 4
-	l32i	a3, a3, 0
-	add	a2, a2, a4
-	beqz	a3, 1f
-	callx0	a3
-1:	l32i	a0, a1, 0
-
-	abi_ret(4)
-
-ENDPROC(coprocessor_flush)
 
 /*
  * Entry condition:
@@ -244,6 +213,39 @@ ENTRY(fast_coprocessor)
 	rfe
 
 ENDPROC(fast_coprocessor)
+
+	.text
+
+/*
+ * coprocessor_flush(struct thread_info*, index)
+ *                             a2        a3
+ *
+ * Save coprocessor registers for coprocessor 'index'.
+ * The register values are saved to or loaded from the coprocessor area
+ * inside the task_info structure.
+ *
+ * Note that this function doesn't update the coprocessor_owner information!
+ *
+ */
+
+ENTRY(coprocessor_flush)
+
+	/* reserve 4 bytes on stack to save a0 */
+	abi_entry(4)
+
+	s32i	a0, a1, 0
+	movi	a0, .Lsave_cp_regs_jump_table
+	addx8	a3, a3, a0
+	l32i	a4, a3, 4
+	l32i	a3, a3, 0
+	add	a2, a2, a4
+	beqz	a3, 1f
+	callx0	a3
+1:	l32i	a0, a1, 0
+
+	abi_ret(4)
+
+ENDPROC(coprocessor_flush)
 
 	.data
 

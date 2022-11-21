@@ -31,11 +31,11 @@
 #define CEPH_OPT_FSID             (1<<0)
 #define CEPH_OPT_NOSHARE          (1<<1) /* don't share client with other sbs */
 #define CEPH_OPT_MYIP             (1<<2) /* specified my ip */
-#define CEPH_OPT_NOCRC            (1<<3) /* no data crc on writes */
-#define CEPH_OPT_NOMSGAUTH	  (1<<4) /* don't require msg signing feat */
-#define CEPH_OPT_TCP_NODELAY	  (1<<5) /* TCP_NODELAY on TCP sockets */
-#define CEPH_OPT_NOMSGSIGN	  (1<<6) /* don't sign msgs */
-#define CEPH_OPT_ABORT_ON_FULL	  (1<<7) /* abort w/ ENOSPC when full */
+#define CEPH_OPT_NOCRC            (1<<3) /* no data crc on writes (msgr1) */
+#define CEPH_OPT_TCP_NODELAY      (1<<4) /* TCP_NODELAY on TCP sockets */
+#define CEPH_OPT_NOMSGSIGN        (1<<5) /* don't sign msgs (msgr1) */
+#define CEPH_OPT_ABORT_ON_FULL    (1<<6) /* abort w/ ENOSPC when full */
+#define CEPH_OPT_RXBOUNCE         (1<<7) /* double-buffer read data */
 
 #define CEPH_OPT_DEFAULT   (CEPH_OPT_TCP_NODELAY)
 
@@ -53,6 +53,7 @@ struct ceph_options {
 	unsigned long osd_keepalive_timeout;	/* jiffies */
 	unsigned long osd_request_timeout;	/* jiffies */
 	u32 read_from_replica;  /* CEPH_OSD_FLAG_BALANCE/LOCALIZE_READS */
+	int con_modes[2];  /* CEPH_CON_MODE_* */
 
 	/*
 	 * any type that can't be simply compared or doesn't need
@@ -83,6 +84,7 @@ struct ceph_options {
 #define CEPH_MONC_HUNT_BACKOFF		2
 #define CEPH_MONC_HUNT_MAX_MULT		10
 
+#define CEPH_MSG_MAX_CONTROL_LEN (16*1024*1024)
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_MIDDLE_LEN	(16*1024*1024)
 
@@ -104,6 +106,7 @@ enum {
 	CEPH_MOUNT_UNMOUNTING,
 	CEPH_MOUNT_UNMOUNTED,
 	CEPH_MOUNT_SHUTDOWN,
+	CEPH_MOUNT_RECOVER,
 };
 
 static inline unsigned long ceph_timeout_jiffies(unsigned long timeout)
@@ -150,6 +153,10 @@ struct ceph_client {
 
 #define from_msgr(ms)	container_of(ms, struct ceph_client, msgr)
 
+static inline bool ceph_msgr2(struct ceph_client *client)
+{
+	return client->options->con_modes[0] != CEPH_CON_MODE_UNKNOWN;
+}
 
 /*
  * snapshots
@@ -277,6 +284,7 @@ DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)
 
 extern struct kmem_cache *ceph_inode_cachep;
 extern struct kmem_cache *ceph_cap_cachep;
+extern struct kmem_cache *ceph_cap_snap_cachep;
 extern struct kmem_cache *ceph_cap_flush_cachep;
 extern struct kmem_cache *ceph_dentry_cachep;
 extern struct kmem_cache *ceph_file_cachep;
@@ -289,13 +297,13 @@ extern bool libceph_compatible(void *data);
 
 extern const char *ceph_msg_type_name(int type);
 extern int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid);
-extern void *ceph_kvmalloc(size_t size, gfp_t flags);
+extern int ceph_parse_fsid(const char *str, struct ceph_fsid *fsid);
 
 struct fs_parameter;
 struct fc_log;
 struct ceph_options *ceph_alloc_options(void);
 int ceph_parse_mon_ips(const char *buf, size_t len, struct ceph_options *opt,
-		       struct fc_log *l);
+		       struct fc_log *l, char delim);
 int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 		     struct fc_log *l);
 int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,

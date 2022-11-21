@@ -87,6 +87,7 @@ enum cs_mode {
  * struct cs_buffer - keep track of a recording session' specifics
  * @cur:	index of the current buffer
  * @nr_pages:	max number of pages granted to us
+ * @pid:	PID this cs_buffer belongs to
  * @offset:	offset within the current buffer
  * @data_size:	how much we collected in this run
  * @snapshot:	is this run in snapshot mode
@@ -95,6 +96,7 @@ enum cs_mode {
 struct cs_buffers {
 	unsigned int		cur;
 	unsigned int		nr_pages;
+	pid_t			pid;
 	unsigned long		offset;
 	local_t			data_size;
 	bool			snapshot;
@@ -229,5 +231,8 @@ struct coresight_device *
 coresight_find_csdev_by_fwnode(struct fwnode_handle *r_fwnode);
 void coresight_set_assoc_ectdev_mutex(struct coresight_device *csdev,
 				      struct coresight_device *ect_csdev);
+
+void coresight_set_percpu_sink(int cpu, struct coresight_device *csdev);
+struct coresight_device *coresight_get_percpu_sink(int cpu);
 
 #endif

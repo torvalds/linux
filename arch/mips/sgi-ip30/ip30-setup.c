@@ -69,10 +69,10 @@ static void __init ip30_mem_init(void)
 		total_mem += size;
 
 		if (addr >= IP30_REAL_MEMORY_START)
-			memblock_free(addr, size);
+			memblock_phys_free(addr, size);
 		else if ((addr + size) > IP30_REAL_MEMORY_START)
-			memblock_free(IP30_REAL_MEMORY_START,
-				     size - IP30_MAX_PROM_MEMORY);
+			memblock_phys_free(IP30_REAL_MEMORY_START,
+					   size - IP30_MAX_PROM_MEMORY);
 	}
 	pr_info("Detected %luMB of physical memory.\n", MEM_SHIFT(total_mem));
 }

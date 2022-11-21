@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * eCryptfs: Linux filesystem encryption layer
  *
  * Copyright (C) 1997-2004 Erez Zadok
@@ -296,10 +296,6 @@ static int crypt_scatterlist(struct ecryptfs_crypt_stat *crypt_stat,
 	struct extent_crypt_result ecr;
 	int rc = 0;
 
-	if (!crypt_stat || !crypt_stat->tfm
-	       || !(crypt_stat->flags & ECRYPTFS_STRUCT_INITIALIZED))
-		return -EINVAL;
-
 	if (unlikely(ecryptfs_verbosity > 0)) {
 		ecryptfs_printk(KERN_DEBUG, "Key size [%zd]; key:\n",
 				crypt_stat->key_size);
@@ -350,7 +346,7 @@ out:
 	return rc;
 }
 
-/**
+/*
  * lower_offset_for_page
  *
  * Convert an eCryptfs page index into a lower byte offset
@@ -535,7 +531,7 @@ int ecryptfs_decrypt_page(struct page *page)
 		rc = crypt_extent(crypt_stat, page, page,
 				  extent_offset, DECRYPT);
 		if (rc) {
-			printk(KERN_ERR "%s: Error encrypting extent; "
+			printk(KERN_ERR "%s: Error decrypting extent; "
 			       "rc = [%d]\n", __func__, rc);
 			goto out;
 		}
@@ -627,9 +623,8 @@ void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat)
 	}
 }
 
-/**
+/*
  * ecryptfs_compute_root_iv
- * @crypt_stats
  *
  * On error, sets the root IV to all 0's.
  */
@@ -1110,8 +1105,8 @@ ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
 	}
 
 	inode_lock(lower_inode);
-	rc = __vfs_setxattr(lower_dentry, lower_inode, ECRYPTFS_XATTR_NAME,
-			    page_virt, size, 0);
+	rc = __vfs_setxattr(&init_user_ns, lower_dentry, lower_inode,
+			    ECRYPTFS_XATTR_NAME, page_virt, size, 0);
 	if (!rc && ecryptfs_inode)
 		fsstack_copy_attr_all(ecryptfs_inode, lower_inode);
 	inode_unlock(lower_inode);
@@ -1370,7 +1365,7 @@ int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
 	return rc;
 }
 
-/**
+/*
  * ecryptfs_read_metadata
  *
  * Common entry point for reading file metadata. From here, we could
@@ -1448,7 +1443,7 @@ out:
 	return rc;
 }
 
-/**
+/*
  * ecryptfs_encrypt_filename - encrypt filename
  *
  * CBC-encrypts the filename. We do not want to encrypt the same
@@ -1590,11 +1585,10 @@ out:
 
 struct kmem_cache *ecryptfs_key_tfm_cache;
 static struct list_head key_tfm_list;
-struct mutex key_tfm_list_mutex;
+DEFINE_MUTEX(key_tfm_list_mutex);
 
 int __init ecryptfs_init_crypto(void)
 {
-	mutex_init(&key_tfm_list_mutex);
 	INIT_LIST_HEAD(&key_tfm_list);
 	return 0;
 }
@@ -1877,10 +1871,11 @@ out:
 
 /**
  * ecryptfs_encrypt_and_encode_filename - converts a plaintext file name to cipher text
- * @crypt_stat: The crypt_stat struct associated with the file anem to encode
+ * @encoded_name: The encrypted name
+ * @encoded_name_size: Length of the encrypted name
+ * @mount_crypt_stat: The crypt_stat struct associated with the file name to encode
  * @name: The plaintext name
- * @length: The length of the plaintext
- * @encoded_name: The encypted name
+ * @name_size: The length of the plaintext name
  *
  * Encrypts and encodes a filename into something that constitutes a
  * valid filename for a filesystem, with printable characters.
@@ -1992,7 +1987,7 @@ static bool is_dot_dotdot(const char *name, size_t name_size)
  * ecryptfs_decode_and_decrypt_filename - converts the encoded cipher text name to decoded plaintext
  * @plaintext_name: The plaintext name
  * @plaintext_name_size: The plaintext name size
- * @ecryptfs_dir_dentry: eCryptfs directory dentry
+ * @sb: Ecryptfs's super_block
  * @name: The filename in cipher text
  * @name_size: The cipher text name size
  *

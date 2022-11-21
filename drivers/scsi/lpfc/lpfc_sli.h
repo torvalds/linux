@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -35,6 +35,12 @@ typedef enum _lpfc_ctx_cmd {
 	LPFC_CTX_HOST
 } lpfc_ctx_cmd;
 
+union lpfc_vmid_tag {
+	uint32_t app_id;
+	uint8_t cs_ctl_vmid;
+	struct lpfc_vmid_context *vmid_context;	/* UVEM context information */
+};
+
 struct lpfc_cq_event {
 	struct list_head list;
 	uint16_t hdwq;
@@ -63,16 +69,21 @@ struct lpfc_iocbq {
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
 	uint16_t hba_wqidx;     /* index to HBA work queue */
 	struct lpfc_cq_event cq_event;
-	struct lpfc_wcqe_complete wcqe_cmpl;	/* WQE cmpl */
 	uint64_t isr_timestamp;
 
 	union lpfc_wqe128 wqe;	/* SLI-4 */
 	IOCB_t iocb;		/* SLI-3 */
+	struct lpfc_wcqe_complete wcqe_cmpl;	/* WQE cmpl */
 
-	uint8_t rsvd2;
+	u32 unsol_rcv_len;	/* Receive len in usol path */
+
+	uint8_t num_bdes;
+	uint8_t abort_bls;	/* ABTS by initiator or responder */
+	u8 abort_rctl;		/* ACC or RJT flag */
 	uint8_t priority;	/* OAS priority */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
-	uint32_t iocb_flag;
+
+	u32 cmd_flag;
 #define LPFC_IO_LIBDFC		1	/* libdfc iocb */
 #define LPFC_IO_WAKE		2	/* Synchronous I/O completed */
 #define LPFC_IO_WAKE_TMO	LPFC_IO_WAKE /* Synchronous I/O timed out */
@@ -100,12 +111,15 @@ struct lpfc_iocbq {
 #define LPFC_IO_NVME	        0x200000 /* NVME FCP command */
 #define LPFC_IO_NVME_LS		0x400000 /* NVME LS command */
 #define LPFC_IO_NVMET		0x800000 /* NVMET command */
+#define LPFC_IO_VMID            0x1000000 /* VMID tagged IO */
+#define LPFC_IO_CMF		0x4000000 /* CMF command */
 
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
 	struct lpfc_vport *vport;/* virtual port pointer */
 	void *context1;		/* caller context information */
 	void *context2;		/* caller context information */
 	void *context3;		/* caller context information */
+	uint32_t event_tag;	/* LA Event tag */
 	union {
 		wait_queue_head_t    *wait_queue;
 		struct lpfc_iocbq    *rsp_iocb;
@@ -114,14 +128,13 @@ struct lpfc_iocbq {
 		struct lpfc_node_rrq *rrq;
 	} context_un;
 
-	void (*fabric_iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
-			   struct lpfc_iocbq *);
-	void (*wait_iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
-			   struct lpfc_iocbq *);
-	void (*iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
-			   struct lpfc_iocbq *);
-	void (*wqe_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
-			  struct lpfc_wcqe_complete *);
+	union lpfc_vmid_tag vmid_tag;
+	void (*fabric_cmd_cmpl)(struct lpfc_hba *phba, struct lpfc_iocbq *cmd,
+				struct lpfc_iocbq *rsp);
+	void (*wait_cmd_cmpl)(struct lpfc_hba *phba, struct lpfc_iocbq *cmd,
+			      struct lpfc_iocbq *rsp);
+	void (*cmd_cmpl)(struct lpfc_hba *phba, struct lpfc_iocbq *cmd,
+			 struct lpfc_iocbq *rsp);
 };
 
 #define SLI_IOCB_RET_IOCB      1	/* Return IOCB if cmd ring full */
@@ -130,6 +143,9 @@ struct lpfc_iocbq {
 #define IOCB_BUSY           1
 #define IOCB_ERROR          2
 #define IOCB_TIMEDOUT       3
+#define IOCB_ABORTED        4
+#define IOCB_ABORTING	    5
+#define IOCB_NORESOURCE	    6
 
 #define SLI_WQE_RET_WQE    1    /* Return WQE if cmd ring full */
 
@@ -138,6 +154,8 @@ struct lpfc_iocbq {
 #define WQE_ERROR          2
 #define WQE_TIMEDOUT       3
 #define WQE_ABORTED        4
+#define WQE_ABORTING	   5
+#define WQE_NORESOURCE	   6
 
 #define LPFC_MBX_WAKE		1
 #define LPFC_MBX_IMED_UNREG	2
@@ -448,4 +466,5 @@ struct lpfc_io_buf {
 	uint64_t ts_isr_cmpl;
 	uint64_t ts_data_io;
 #endif
+	uint64_t rx_cmd_start;
 };

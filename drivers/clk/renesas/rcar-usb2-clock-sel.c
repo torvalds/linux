@@ -128,10 +128,8 @@ static int rcar_usb2_clock_sel_resume(struct device *dev)
 static int rcar_usb2_clock_sel_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct usb2_clock_sel_priv *priv = platform_get_drvdata(pdev);
 
 	of_clk_del_provider(dev->of_node);
-	clk_hw_unregister(&priv->hw);
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 
@@ -144,7 +142,7 @@ static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct usb2_clock_sel_priv *priv;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -160,12 +158,9 @@ static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	priv->rsts = devm_reset_control_array_get(dev, true, false);
+	priv->rsts = devm_reset_control_array_get_shared(dev);
 	if (IS_ERR(priv->rsts))
 		return PTR_ERR(priv->rsts);
-
-	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
 
 	clk = devm_clk_get(dev, "usb_extal");
 	if (!IS_ERR(clk) && !clk_prepare_enable(clk)) {
@@ -183,21 +178,29 @@ static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
 	platform_set_drvdata(pdev, priv);
 	dev_set_drvdata(dev, priv);
 
 	init.name = "rcar_usb2_clock_sel";
 	init.ops = &usb2_clock_sel_clock_ops;
-	init.flags = 0;
-	init.parent_names = NULL;
-	init.num_parents = 0;
 	priv->hw.init = &init;
 
-	clk = clk_register(NULL, &priv->hw);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = devm_clk_hw_register(dev, &priv->hw);
+	if (ret)
+		goto pm_put;
 
-	return of_clk_add_hw_provider(np, of_clk_hw_simple_get, &priv->hw);
+	ret = of_clk_add_hw_provider(np, of_clk_hw_simple_get, &priv->hw);
+	if (ret)
+		goto pm_put;
+
+	return 0;
+
+pm_put:
+	pm_runtime_put(dev);
+	pm_runtime_disable(dev);
+	return ret;
 }
 
 static const struct dev_pm_ops rcar_usb2_clock_sel_pm_ops = {

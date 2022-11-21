@@ -284,6 +284,16 @@ struct ext_hdmi_settings {
 	struct i2c_reg_info      reg_settings_6g[3];
 };
 
+struct edp_info {
+	uint16_t edp_backlight_pwm_hz;
+	uint16_t edp_ss_percentage;
+	uint16_t edp_ss_rate_10hz;
+	uint8_t  edp_pwr_on_off_delay;
+	uint8_t  edp_pwr_on_vary_bl_to_blon;
+	uint8_t  edp_pwr_down_bloff_to_vary_bloff;
+	uint8_t  edp_panel_bpc;
+	uint8_t  edp_bootup_bl_level;
+};
 
 /* V6 */
 struct integrated_info {
@@ -318,6 +328,7 @@ struct integrated_info {
 
 		uint8_t gu_id[NUMBER_OF_UCHAR_FOR_GUID];
 		uint8_t checksum;
+		uint8_t fixdpvoltageswing;
 	} ext_disp_conn_info; /* exiting long long time */
 
 	struct available_s_clk_list {
@@ -403,28 +414,9 @@ struct integrated_info {
 	struct i2c_reg_info dp3_ext_hdmi_6g_reg_settings[3];
 	/* V11 */
 	uint32_t dp_ss_control;
-};
-
-/**
-* Power source ids.
-*/
-enum power_source {
-	POWER_SOURCE_AC = 0,
-	POWER_SOURCE_DC,
-	POWER_SOURCE_LIMITED_POWER,
-	POWER_SOURCE_LIMITED_POWER_2,
-	POWER_SOURCE_MAX
-};
-
-struct bios_event_info {
-	uint32_t thermal_state;
-	uint32_t backlight_level;
-	enum power_source powerSource;
-	bool has_thermal_state_changed;
-	bool has_power_source_changed;
-	bool has_forced_mode_changed;
-	bool forced_mode;
-	bool backlight_changed;
+	/* V2.1 */
+	struct edp_info edp1_info;
+	struct edp_info edp2_info;
 };
 
 /*

@@ -60,6 +60,7 @@ static int tb10x_irq_set_type(struct irq_data *data, unsigned int flow_type)
 		break;
 	case IRQ_TYPE_NONE:
 		flow_type = IRQ_TYPE_LEVEL_LOW;
+		fallthrough;
 	case IRQ_TYPE_LEVEL_LOW:
 		mod ^= im;
 		pol ^= im;
@@ -90,7 +91,7 @@ static void tb10x_irq_cascade(struct irq_desc *desc)
 	struct irq_domain *domain = irq_desc_get_handler_data(desc);
 	unsigned int irq = irq_desc_get_irq(desc);
 
-	generic_handle_irq(irq_find_mapping(domain, irq));
+	generic_handle_domain_irq(domain, irq);
 }
 
 static int __init of_tb10x_init_irq(struct device_node *ictl,

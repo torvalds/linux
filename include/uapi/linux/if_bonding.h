@@ -94,6 +94,7 @@
 #define BOND_XMIT_POLICY_LAYER23	2 /* layer 2+3 (IP ^ MAC) */
 #define BOND_XMIT_POLICY_ENCAP23	3 /* encapsulated layer 2+3 */
 #define BOND_XMIT_POLICY_ENCAP34	4 /* encapsulated layer 3+4 */
+#define BOND_XMIT_POLICY_VLAN_SRCMAC	5 /* vlan + source MAC */
 
 /* 802.3ad port state definitions (43.4.2.2 in the 802.3ad standard) */
 #define LACP_STATE_LACP_ACTIVITY   0x1
@@ -152,14 +153,3 @@ enum {
 #define BOND_3AD_STAT_MAX (__BOND_3AD_STAT_MAX - 1)
 
 #endif /* _LINUX_IF_BONDING_H */
-
-/*
- * Local variables:
- *  version-control: t
- *  kept-new-versions: 5
- *  c-indent-level: 8
- *  c-basic-offset: 8
- *  tab-width: 8
- * End:
- */
-

@@ -485,6 +485,57 @@ have R ->po X.  It wouldn't make sense for a computation to depend
 somehow on a value that doesn't get loaded from shared memory until
 later in the code!
 
+Here's a trick question: When is a dependency not a dependency?  Answer:
+When it is purely syntactic rather than semantic.  We say a dependency
+between two accesses is purely syntactic if the second access doesn't
+actually depend on the result of the first.  Here is a trivial example:
+
+	r1 = READ_ONCE(x);
+	WRITE_ONCE(y, r1 * 0);
+
+There appears to be a data dependency from the load of x to the store
+of y, since the value to be stored is computed from the value that was
+loaded.  But in fact, the value stored does not really depend on
+anything since it will always be 0.  Thus the data dependency is only
+syntactic (it appears to exist in the code) but not semantic (the
+second access will always be the same, regardless of the value of the
+first access).  Given code like this, a compiler could simply discard
+the value returned by the load from x, which would certainly destroy
+any dependency.  (The compiler is not permitted to eliminate entirely
+the load generated for a READ_ONCE() -- that's one of the nice
+properties of READ_ONCE() -- but it is allowed to ignore the load's
+value.)
+
+It's natural to object that no one in their right mind would write
+code like the above.  However, macro expansions can easily give rise
+to this sort of thing, in ways that often are not apparent to the
+programmer.
+
+Another mechanism that can lead to purely syntactic dependencies is
+related to the notion of "undefined behavior".  Certain program
+behaviors are called "undefined" in the C language specification,
+which means that when they occur there are no guarantees at all about
+the outcome.  Consider the following example:
+
+	int a[1];
+	int i;
+
+	r1 = READ_ONCE(i);
+	r2 = READ_ONCE(a[r1]);
+
+Access beyond the end or before the beginning of an array is one kind
+of undefined behavior.  Therefore the compiler doesn't have to worry
+about what will happen if r1 is nonzero, and it can assume that r1
+will always be zero regardless of the value actually loaded from i.
+(If the assumption turns out to be wrong the resulting behavior will
+be undefined anyway, so the compiler doesn't care!)  Thus the value
+from the load can be discarded, breaking the address dependency.
+
+The LKMM is unaware that purely syntactic dependencies are different
+from semantic dependencies and therefore mistakenly predicts that the
+accesses in the two examples above will be ordered.  This is another
+example of how the compiler can undermine the memory model.  Be warned.
+
 
 THE READS-FROM RELATION: rf, rfi, and rfe
 -----------------------------------------
@@ -1813,15 +1864,16 @@ spin_trylock() -- we can call these things lock-releases and
 lock-acquires -- have two properties beyond those of ordinary releases
 and acquires.
 
-First, when a lock-acquire reads from a lock-release, the LKMM
-requires that every instruction po-before the lock-release must
-execute before any instruction po-after the lock-acquire.  This would
-naturally hold if the release and acquire operations were on different
-CPUs, but the LKMM says it holds even when they are on the same CPU.
-For example:
+First, when a lock-acquire reads from or is po-after a lock-release,
+the LKMM requires that every instruction po-before the lock-release
+must execute before any instruction po-after the lock-acquire.  This
+would naturally hold if the release and acquire operations were on
+different CPUs and accessed the same lock variable, but the LKMM says
+it also holds when they are on the same CPU, even if they access
+different lock variables.  For example:
 
 	int x, y;
-	spinlock_t s;
+	spinlock_t s, t;
 
 	P0()
 	{
@@ -1830,9 +1882,9 @@ For example:
 		spin_lock(&s);
 		r1 = READ_ONCE(x);
 		spin_unlock(&s);
-		spin_lock(&s);
+		spin_lock(&t);
 		r2 = READ_ONCE(y);
-		spin_unlock(&s);
+		spin_unlock(&t);
 	}
 
 	P1()
@@ -1842,10 +1894,10 @@ For example:
 		WRITE_ONCE(x, 1);
 	}
 
-Here the second spin_lock() reads from the first spin_unlock(), and
-therefore the load of x must execute before the load of y.  Thus we
-cannot have r1 = 1 and r2 = 0 at the end (this is an instance of the
-MP pattern).
+Here the second spin_lock() is po-after the first spin_unlock(), and
+therefore the load of x must execute before the load of y, even though
+the two locking operations use different locks.  Thus we cannot have
+r1 = 1 and r2 = 0 at the end (this is an instance of the MP pattern).
 
 This requirement does not apply to ordinary release and acquire
 fences, only to lock-related operations.  For instance, suppose P0()
@@ -1872,13 +1924,13 @@ instructions in the following order:
 
 and thus it could load y before x, obtaining r2 = 0 and r1 = 1.
 
-Second, when a lock-acquire reads from a lock-release, and some other
-stores W and W' occur po-before the lock-release and po-after the
-lock-acquire respectively, the LKMM requires that W must propagate to
-each CPU before W' does.  For example, consider:
+Second, when a lock-acquire reads from or is po-after a lock-release,
+and some other stores W and W' occur po-before the lock-release and
+po-after the lock-acquire respectively, the LKMM requires that W must
+propagate to each CPU before W' does.  For example, consider:
 
 	int x, y;
-	spinlock_t x;
+	spinlock_t s;
 
 	P0()
 	{
@@ -1908,7 +1960,12 @@ each CPU before W' does.  For example, consider:
 
 If r1 = 1 at the end then the spin_lock() in P1 must have read from
 the spin_unlock() in P0.  Hence the store to x must propagate to P2
-before the store to y does, so we cannot have r2 = 1 and r3 = 0.
+before the store to y does, so we cannot have r2 = 1 and r3 = 0.  But
+if P1 had used a lock variable different from s, the writes could have
+propagated in either order.  (On the other hand, if the code in P0 and
+P1 had all executed on a single CPU, as in the example before this
+one, then the writes would have propagated in order even if the two
+critical sections used different lock variables.)
 
 These two special requirements for lock-release and lock-acquire do
 not arise from the operational model.  Nevertheless, kernel developers
@@ -2510,7 +2567,7 @@ they behave as follows:
 	smp_mb__after_atomic() orders po-earlier atomic updates and
 	the events preceding them against all po-later events;
 
-	smp_mb_after_spinlock() orders po-earlier lock acquisition
+	smp_mb__after_spinlock() orders po-earlier lock acquisition
 	events and the events preceding them against all po-later
 	events.
 

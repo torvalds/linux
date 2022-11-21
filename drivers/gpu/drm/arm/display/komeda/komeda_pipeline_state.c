@@ -704,10 +704,10 @@ komeda_compiz_set_input(struct komeda_compiz *compiz,
 	cin->layer_alpha = dflow->layer_alpha;
 
 	old_st = komeda_component_get_old_state(&compiz->base, drm_st);
-	WARN_ON(!old_st);
 
 	/* compare with old to check if this input has been changed */
-	if (memcmp(&(to_compiz_st(old_st)->cins[idx]), cin, sizeof(*cin)))
+	if (WARN_ON(!old_st) ||
+	    memcmp(&(to_compiz_st(old_st)->cins[idx]), cin, sizeof(*cin)))
 		c_st->changed_active_inputs |= BIT(idx);
 
 	komeda_component_add_input(c_st, &dflow->input, idx);
@@ -1231,14 +1231,15 @@ komeda_pipeline_unbound_components(struct komeda_pipeline *pipe,
 	struct komeda_pipeline_state *old = priv_to_pipe_st(pipe->obj.state);
 	struct komeda_component_state *c_st;
 	struct komeda_component *c;
-	u32 disabling_comps, id;
+	u32 id;
+	unsigned long disabling_comps;
 
 	WARN_ON(!old);
 
 	disabling_comps = (~new->active_comps) & old->active_comps;
 
 	/* unbound all disabling component */
-	dp_for_each_set_bit(id, disabling_comps) {
+	for_each_set_bit(id, &disabling_comps, 32) {
 		c = komeda_pipeline_get_component(pipe, id);
 		c_st = komeda_component_get_state_and_set_user(c,
 				drm_st, NULL, new->crtc);
@@ -1286,7 +1287,8 @@ bool komeda_pipeline_disable(struct komeda_pipeline *pipe,
 	struct komeda_pipeline_state *old;
 	struct komeda_component *c;
 	struct komeda_component_state *c_st;
-	u32 id, disabling_comps = 0;
+	u32 id;
+	unsigned long disabling_comps;
 
 	old = komeda_pipeline_get_old_state(pipe, old_state);
 
@@ -1296,10 +1298,10 @@ bool komeda_pipeline_disable(struct komeda_pipeline *pipe,
 		disabling_comps = old->active_comps &
 				  pipe->standalone_disabled_comps;
 
-	DRM_DEBUG_ATOMIC("PIPE%d: active_comps: 0x%x, disabling_comps: 0x%x.\n",
+	DRM_DEBUG_ATOMIC("PIPE%d: active_comps: 0x%x, disabling_comps: 0x%lx.\n",
 			 pipe->id, old->active_comps, disabling_comps);
 
-	dp_for_each_set_bit(id, disabling_comps) {
+	for_each_set_bit(id, &disabling_comps, 32) {
 		c = komeda_pipeline_get_component(pipe, id);
 		c_st = priv_to_comp_st(c->obj.state);
 
@@ -1330,16 +1332,17 @@ void komeda_pipeline_update(struct komeda_pipeline *pipe,
 	struct komeda_pipeline_state *new = priv_to_pipe_st(pipe->obj.state);
 	struct komeda_pipeline_state *old;
 	struct komeda_component *c;
-	u32 id, changed_comps = 0;
+	u32 id;
+	unsigned long changed_comps;
 
 	old = komeda_pipeline_get_old_state(pipe, old_state);
 
 	changed_comps = new->active_comps | old->active_comps;
 
-	DRM_DEBUG_ATOMIC("PIPE%d: active_comps: 0x%x, changed: 0x%x.\n",
+	DRM_DEBUG_ATOMIC("PIPE%d: active_comps: 0x%x, changed: 0x%lx.\n",
 			 pipe->id, new->active_comps, changed_comps);
 
-	dp_for_each_set_bit(id, changed_comps) {
+	for_each_set_bit(id, &changed_comps, 32) {
 		c = komeda_pipeline_get_component(pipe, id);
 
 		if (new->active_comps & BIT(c->id))

@@ -155,7 +155,7 @@ static const struct pinctrl_pin_desc imx8dxl_pinctrl_pads[] = {
 };
 
 
-static struct imx_pinctrl_soc_info imx8dxl_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx8dxl_pinctrl_info = {
 	.pins = imx8dxl_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx8dxl_pinctrl_pads),
 	.flags = IMX_USE_SCU,
@@ -184,7 +184,7 @@ static int imx8dxl_pinctrl_probe(struct platform_device *pdev)
 static struct platform_driver imx8dxl_pinctrl_driver = {
 	.driver = {
 		.name = "fsl,imx8dxl-iomuxc",
-		.of_match_table = of_match_ptr(imx8dxl_pinctrl_of_match),
+		.of_match_table = imx8dxl_pinctrl_of_match,
 		.suppress_bind_attrs = true,
 	},
 	.probe = imx8dxl_pinctrl_probe,

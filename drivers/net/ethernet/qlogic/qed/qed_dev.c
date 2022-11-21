@@ -25,6 +25,7 @@
 #include "qed_dev_api.h"
 #include "qed_fcoe.h"
 #include "qed_hsi.h"
+#include "qed_iro_hsi.h"
 #include "qed_hw.h"
 #include "qed_init_ops.h"
 #include "qed_int.h"
@@ -37,6 +38,7 @@
 #include "qed_sriov.h"
 #include "qed_vf.h"
 #include "qed_rdma.h"
+#include "qed_nvmetcp.h"
 
 static DEFINE_SPINLOCK(qm_lock);
 
@@ -667,7 +669,8 @@ qed_llh_set_engine_affin(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	}
 
 	/* Storage PF is bound to a single engine while L2 PF uses both */
-	if (QED_IS_FCOE_PERSONALITY(p_hwfn) || QED_IS_ISCSI_PERSONALITY(p_hwfn))
+	if (QED_IS_FCOE_PERSONALITY(p_hwfn) || QED_IS_ISCSI_PERSONALITY(p_hwfn) ||
+	    QED_IS_NVMETCP_PERSONALITY(p_hwfn))
 		eng = cdev->fir_affin ? QED_ENG1 : QED_ENG0;
 	else			/* L2_PERSONALITY */
 		eng = QED_BOTH_ENG;
@@ -949,7 +952,7 @@ qed_llh_remove_filter(struct qed_hwfn *p_hwfn,
 }
 
 int qed_llh_add_mac_filter(struct qed_dev *cdev,
-			   u8 ppfid, u8 mac_addr[ETH_ALEN])
+			   u8 ppfid, const u8 mac_addr[ETH_ALEN])
 {
 	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_ptt *p_ptt = qed_ptt_acquire(p_hwfn);
@@ -1163,6 +1166,9 @@ void qed_llh_remove_mac_filter(struct qed_dev *cdev,
 
 	if (!test_bit(QED_MF_LLH_MAC_CLSS, &cdev->mf_bits))
 		goto out;
+
+	if (QED_IS_NVMETCP_PERSONALITY(p_hwfn))
+		return;
 
 	ether_addr_copy(filter.mac.addr, mac_addr);
 	rc = qed_llh_shadow_remove_filter(cdev, ppfid, &filter, &filter_idx,
@@ -1381,17 +1387,23 @@ void qed_resc_free(struct qed_dev *cdev)
 			qed_ooo_free(p_hwfn);
 		}
 
+		if (p_hwfn->hw_info.personality == QED_PCI_NVMETCP) {
+			qed_nvmetcp_free(p_hwfn);
+			qed_ooo_free(p_hwfn);
+		}
+
 		if (QED_IS_RDMA_PERSONALITY(p_hwfn) && rdma_info) {
 			qed_spq_unregister_async_cb(p_hwfn, rdma_info->proto);
 			qed_rdma_info_free(p_hwfn);
 		}
 
+		qed_spq_unregister_async_cb(p_hwfn, PROTOCOLID_COMMON);
 		qed_iov_free(p_hwfn);
 		qed_l2_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
 		qed_dcbx_info_free(p_hwfn);
 		qed_dbg_user_data_free(p_hwfn);
-		qed_fw_overlay_mem_free(p_hwfn, p_hwfn->fw_overlay_mem);
+		qed_fw_overlay_mem_free(p_hwfn, &p_hwfn->fw_overlay_mem);
 
 		/* Destroy doorbell recovery mechanism */
 		qed_db_recovery_teardown(p_hwfn);
@@ -1423,6 +1435,7 @@ static u32 qed_get_pq_flags(struct qed_hwfn *p_hwfn)
 		flags |= PQ_FLAGS_OFLD;
 		break;
 	case QED_PCI_ISCSI:
+	case QED_PCI_NVMETCP:
 		flags |= PQ_FLAGS_ACK | PQ_FLAGS_OOO | PQ_FLAGS_OFLD;
 		break;
 	case QED_PCI_ETH_ROCE:
@@ -1472,8 +1485,8 @@ static u16 qed_init_qm_get_num_pf_rls(struct qed_hwfn *p_hwfn)
 	u16 num_pf_rls, num_vfs = qed_init_qm_get_num_vfs(p_hwfn);
 
 	/* num RLs can't exceed resource amount of rls or vports */
-	num_pf_rls = (u16) min_t(u32, RESC_NUM(p_hwfn, QED_RL),
-				 RESC_NUM(p_hwfn, QED_VPORT));
+	num_pf_rls = (u16)min_t(u32, RESC_NUM(p_hwfn, QED_RL),
+				RESC_NUM(p_hwfn, QED_VPORT));
 
 	/* Make sure after we reserve there's something left */
 	if (num_pf_rls < num_vfs + NUM_DEFAULT_RLS)
@@ -1521,8 +1534,8 @@ static void qed_init_qm_params(struct qed_hwfn *p_hwfn)
 	bool four_port;
 
 	/* pq and vport bases for this PF */
-	qm_info->start_pq = (u16) RESC_START(p_hwfn, QED_PQ);
-	qm_info->start_vport = (u8) RESC_START(p_hwfn, QED_VPORT);
+	qm_info->start_pq = (u16)RESC_START(p_hwfn, QED_PQ);
+	qm_info->start_vport = (u8)RESC_START(p_hwfn, QED_VPORT);
 
 	/* rate limiting and weighted fair queueing are always enabled */
 	qm_info->vport_rl_en = true;
@@ -1617,9 +1630,9 @@ static void qed_init_qm_advance_vport(struct qed_hwfn *p_hwfn)
  */
 
 /* flags for pq init */
-#define PQ_INIT_SHARE_VPORT     (1 << 0)
-#define PQ_INIT_PF_RL           (1 << 1)
-#define PQ_INIT_VF_RL           (1 << 2)
+#define PQ_INIT_SHARE_VPORT     BIT(0)
+#define PQ_INIT_PF_RL           BIT(1)
+#define PQ_INIT_VF_RL           BIT(2)
 
 /* defines for pq init */
 #define PQ_INIT_DEFAULT_WRR_GROUP       1
@@ -2263,10 +2276,11 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			 * at the same time
 			 */
 			n_eqes += num_cons + 2 * MAX_NUM_VFS_BB + n_srq;
-		} else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
+		} else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI ||
+			   p_hwfn->hw_info.personality == QED_PCI_NVMETCP) {
 			num_cons =
 			    qed_cxt_get_proto_cid_count(p_hwfn,
-							PROTOCOLID_ISCSI,
+							PROTOCOLID_TCP_ULP,
 							NULL);
 			n_eqes += 2 * num_cons;
 		}
@@ -2278,7 +2292,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			goto alloc_no_mem;
 		}
 
-		rc = qed_eq_alloc(p_hwfn, (u16) n_eqes);
+		rc = qed_eq_alloc(p_hwfn, (u16)n_eqes);
 		if (rc)
 			goto alloc_err;
 
@@ -2306,6 +2320,15 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
 			rc = qed_iscsi_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
+			rc = qed_ooo_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
+		}
+
+		if (p_hwfn->hw_info.personality == QED_PCI_NVMETCP) {
+			rc = qed_nvmetcp_alloc(p_hwfn);
 			if (rc)
 				goto alloc_err;
 			rc = qed_ooo_alloc(p_hwfn);
@@ -2354,6 +2377,49 @@ alloc_err:
 	return rc;
 }
 
+static int qed_fw_err_handler(struct qed_hwfn *p_hwfn,
+			      u8 opcode,
+			      u16 echo,
+			      union event_ring_data *data, u8 fw_return_code)
+{
+	if (fw_return_code != COMMON_ERR_CODE_ERROR)
+		goto eqe_unexpected;
+
+	if (data->err_data.recovery_scope == ERR_SCOPE_FUNC &&
+	    le16_to_cpu(data->err_data.entity_id) >= MAX_NUM_PFS) {
+		qed_sriov_vfpf_malicious(p_hwfn, &data->err_data);
+		return 0;
+	}
+
+eqe_unexpected:
+	DP_ERR(p_hwfn,
+	       "Skipping unexpected eqe 0x%02x, FW return code 0x%x, echo 0x%x\n",
+	       opcode, fw_return_code, echo);
+	return -EINVAL;
+}
+
+static int qed_common_eqe_event(struct qed_hwfn *p_hwfn,
+				u8 opcode,
+				__le16 echo,
+				union event_ring_data *data,
+				u8 fw_return_code)
+{
+	switch (opcode) {
+	case COMMON_EVENT_VF_PF_CHANNEL:
+	case COMMON_EVENT_VF_FLR:
+		return qed_sriov_eqe_event(p_hwfn, opcode, echo, data,
+					   fw_return_code);
+	case COMMON_EVENT_FW_ERROR:
+		return qed_fw_err_handler(p_hwfn, opcode,
+					  le16_to_cpu(echo), data,
+					  fw_return_code);
+	default:
+		DP_INFO(p_hwfn->cdev, "Unknown eqe event 0x%02x, echo 0x%x\n",
+			opcode, echo);
+		return -EINVAL;
+	}
+}
+
 void qed_resc_setup(struct qed_dev *cdev)
 {
 	int i;
@@ -2382,6 +2448,8 @@ void qed_resc_setup(struct qed_dev *cdev)
 
 		qed_l2_setup(p_hwfn);
 		qed_iov_setup(p_hwfn);
+		qed_spq_register_async_cb(p_hwfn, PROTOCOLID_COMMON,
+					  qed_common_eqe_event);
 #ifdef CONFIG_QED_LL2
 		if (p_hwfn->using_ll2)
 			qed_ll2_setup(p_hwfn);
@@ -2391,6 +2459,11 @@ void qed_resc_setup(struct qed_dev *cdev)
 
 		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
 			qed_iscsi_setup(p_hwfn);
+			qed_ooo_setup(p_hwfn);
+		}
+
+		if (p_hwfn->hw_info.personality == QED_PCI_NVMETCP) {
+			qed_nvmetcp_setup(p_hwfn);
 			qed_ooo_setup(p_hwfn);
 		}
 	}
@@ -2404,9 +2477,8 @@ int qed_final_cleanup(struct qed_hwfn *p_hwfn,
 	u32 command = 0, addr, count = FINAL_CLEANUP_POLL_CNT;
 	int rc = -EBUSY;
 
-	addr = GTT_BAR0_MAP_REG_USDM_RAM +
-		USTORM_FLR_FINAL_ACK_OFFSET(p_hwfn->rel_pf_id);
-
+	addr = GET_GTT_REG_ADDR(GTT_BAR0_MAP_REG_USDM_RAM,
+				USTORM_FLR_FINAL_ACK, p_hwfn->rel_pf_id);
 	if (is_vf)
 		id += 0x10;
 
@@ -2566,7 +2638,7 @@ static void qed_init_cache_line_size(struct qed_hwfn *p_hwfn,
 			cache_line_size);
 	}
 
-	if (L1_CACHE_BYTES > wr_mbs)
+	if (wr_mbs < L1_CACHE_BYTES)
 		DP_INFO(p_hwfn,
 			"The cache line size for padding is suboptimal for performance [OS cache line size 0x%x, wr mbs 0x%x]\n",
 			L1_CACHE_BYTES, wr_mbs);
@@ -2582,12 +2654,20 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 			      struct qed_ptt *p_ptt, int hw_mode)
 {
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
-	struct qed_qm_common_rt_init_params params;
+	struct qed_qm_common_rt_init_params *params;
 	struct qed_dev *cdev = p_hwfn->cdev;
 	u8 vf_id, max_num_vfs;
 	u16 num_pfs, pf_id;
 	u32 concrete_fid;
 	int rc = 0;
+
+	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	if (!params) {
+		DP_NOTICE(p_hwfn->cdev,
+			  "Failed to allocate common init params\n");
+
+		return -ENOMEM;
+	}
 
 	qed_init_cau_rt_data(cdev);
 
@@ -2601,16 +2681,15 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 			qm_info->pf_wfq_en = true;
 	}
 
-	memset(&params, 0, sizeof(params));
-	params.max_ports_per_engine = p_hwfn->cdev->num_ports_in_engine;
-	params.max_phys_tcs_per_port = qm_info->max_phys_tcs_per_port;
-	params.pf_rl_en = qm_info->pf_rl_en;
-	params.pf_wfq_en = qm_info->pf_wfq_en;
-	params.global_rl_en = qm_info->vport_rl_en;
-	params.vport_wfq_en = qm_info->vport_wfq_en;
-	params.port_params = qm_info->qm_port_params;
+	params->max_ports_per_engine = p_hwfn->cdev->num_ports_in_engine;
+	params->max_phys_tcs_per_port = qm_info->max_phys_tcs_per_port;
+	params->pf_rl_en = qm_info->pf_rl_en;
+	params->pf_wfq_en = qm_info->pf_wfq_en;
+	params->global_rl_en = qm_info->vport_rl_en;
+	params->vport_wfq_en = qm_info->vport_wfq_en;
+	params->port_params = qm_info->qm_port_params;
 
-	qed_qm_common_rt_init(p_hwfn, &params);
+	qed_qm_common_rt_init(p_hwfn, params);
 
 	qed_cxt_hw_init_common(p_hwfn);
 
@@ -2618,7 +2697,7 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 
 	rc = qed_init_run(p_hwfn, p_ptt, PHASE_ENGINE, ANY_PHASE_ID, hw_mode);
 	if (rc)
-		return rc;
+		goto out;
 
 	qed_wr(p_hwfn, p_ptt, PSWRQ2_REG_L2P_VALIDATE_VFID, 0);
 	qed_wr(p_hwfn, p_ptt, PGLUE_B_REG_USE_CLIENTID_IN_TAG, 1);
@@ -2637,7 +2716,7 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	max_num_vfs = QED_IS_AH(cdev) ? MAX_NUM_VFS_K2 : MAX_NUM_VFS_BB;
 	for (vf_id = 0; vf_id < max_num_vfs; vf_id++) {
 		concrete_fid = qed_vfid_to_concrete(p_hwfn, vf_id);
-		qed_fid_pretend(p_hwfn, p_ptt, (u16) concrete_fid);
+		qed_fid_pretend(p_hwfn, p_ptt, (u16)concrete_fid);
 		qed_wr(p_hwfn, p_ptt, CCFC_REG_STRONG_ENABLE_VF, 0x1);
 		qed_wr(p_hwfn, p_ptt, CCFC_REG_WEAK_ENABLE_VF, 0x0);
 		qed_wr(p_hwfn, p_ptt, TCFC_REG_STRONG_ENABLE_VF, 0x1);
@@ -2645,6 +2724,9 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	}
 	/* pretend to original PF */
 	qed_fid_pretend(p_hwfn, p_ptt, p_hwfn->rel_pf_id);
+
+out:
+	kfree(params);
 
 	return rc;
 }
@@ -2758,7 +2840,7 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 			qed_rdma_dpm_bar(p_hwfn, p_ptt);
 	}
 
-	p_hwfn->wid_count = (u16) n_cpus;
+	p_hwfn->wid_count = (u16)n_cpus;
 
 	DP_INFO(p_hwfn,
 		"doorbell bar: normal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s, page_size=%lu\n",
@@ -2854,7 +2936,8 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 
 	/* Protocol Configuration */
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_TCP_RT_OFFSET,
-		     (p_hwfn->hw_info.personality == QED_PCI_ISCSI) ? 1 : 0);
+		     ((p_hwfn->hw_info.personality == QED_PCI_ISCSI) ||
+			 (p_hwfn->hw_info.personality == QED_PCI_NVMETCP)) ? 1 : 0);
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_FCOE_RT_OFFSET,
 		     (p_hwfn->hw_info.personality == QED_PCI_FCOE) ? 1 : 0);
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_ROCE_RT_OFFSET, 0);
@@ -3014,6 +3097,9 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			qed_vf_start(p_hwfn, p_params);
 			continue;
 		}
+
+		/* Some flows may keep variable set */
+		p_hwfn->mcp_info->mcp_handling_status = 0;
 
 		rc = qed_calc_hw_mode(p_hwfn);
 		if (rc)
@@ -3476,8 +3562,8 @@ static void qed_hw_hwfn_prepare(struct qed_hwfn *p_hwfn)
 static void get_function_id(struct qed_hwfn *p_hwfn)
 {
 	/* ME Register */
-	p_hwfn->hw_info.opaque_fid = (u16) REG_RD(p_hwfn,
-						  PXP_PF_ME_OPAQUE_ADDR);
+	p_hwfn->hw_info.opaque_fid = (u16)REG_RD(p_hwfn,
+						 PXP_PF_ME_OPAQUE_ADDR);
 
 	p_hwfn->hw_info.concrete_fid = REG_RD(p_hwfn, PXP_PF_ME_CONCRETE_ADDR);
 
@@ -3535,14 +3621,21 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 		feat_num[QED_ISCSI_CQ] = min_t(u32, sb_cnt.cnt,
 					       RESC_NUM(p_hwfn,
 							QED_CMDQS_CQS));
+
+	if (QED_IS_NVMETCP_PERSONALITY(p_hwfn))
+		feat_num[QED_NVMETCP_CQ] = min_t(u32, sb_cnt.cnt,
+						 RESC_NUM(p_hwfn,
+							  QED_CMDQS_CQS));
+
 	DP_VERBOSE(p_hwfn,
 		   NETIF_MSG_PROBE,
-		   "#PF_L2_QUEUES=%d VF_L2_QUEUES=%d #ROCE_CNQ=%d FCOE_CQ=%d ISCSI_CQ=%d #SBS=%d\n",
+		   "#PF_L2_QUEUES=%d VF_L2_QUEUES=%d #ROCE_CNQ=%d FCOE_CQ=%d ISCSI_CQ=%d NVMETCP_CQ=%d #SBS=%d\n",
 		   (int)FEAT_NUM(p_hwfn, QED_PF_L2_QUE),
 		   (int)FEAT_NUM(p_hwfn, QED_VF_L2_QUE),
 		   (int)FEAT_NUM(p_hwfn, QED_RDMA_CNQ),
 		   (int)FEAT_NUM(p_hwfn, QED_FCOE_CQ),
 		   (int)FEAT_NUM(p_hwfn, QED_ISCSI_CQ),
+		   (int)FEAT_NUM(p_hwfn, QED_NVMETCP_CQ),
 		   (int)sb_cnt.cnt);
 }
 
@@ -3636,12 +3729,14 @@ u32 qed_get_hsi_def_val(struct qed_dev *cdev, enum qed_hsi_def_type type)
 
 	return qed_hsi_def_val[type][chip_id];
 }
+
 static int
 qed_hw_set_soft_resc_size(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 resc_max_val, mcp_resp;
 	u8 res_id;
 	int rc;
+
 	for (res_id = 0; res_id < QED_MAX_RESC; res_id++) {
 		switch (res_id) {
 		case QED_LL2_RAM_QUEUE:
@@ -3734,7 +3829,8 @@ int qed_hw_get_dflt_resc(struct qed_hwfn *p_hwfn,
 		break;
 	case QED_BDQ:
 		if (p_hwfn->hw_info.personality != QED_PCI_ISCSI &&
-		    p_hwfn->hw_info.personality != QED_PCI_FCOE)
+		    p_hwfn->hw_info.personality != QED_PCI_FCOE &&
+			p_hwfn->hw_info.personality != QED_PCI_NVMETCP)
 			*p_resc_num = 0;
 		else
 			*p_resc_num = 1;
@@ -3755,7 +3851,8 @@ int qed_hw_get_dflt_resc(struct qed_hwfn *p_hwfn,
 			*p_resc_start = 0;
 		else if (p_hwfn->cdev->num_ports_in_engine == 4)
 			*p_resc_start = p_hwfn->port_id;
-		else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI)
+		else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI ||
+			 p_hwfn->hw_info.personality == QED_PCI_NVMETCP)
 			*p_resc_start = p_hwfn->port_id;
 		else if (p_hwfn->hw_info.personality == QED_PCI_FCOE)
 			*p_resc_start = p_hwfn->port_id + 2;
@@ -3885,7 +3982,7 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	 * resources allocation queries should be atomic. Since several PFs can
 	 * run in parallel - a resource lock is needed.
 	 * If either the resource lock or resource set value commands are not
-	 * supported - skip the the max values setting, release the lock if
+	 * supported - skip the max values setting, release the lock if
 	 * needed, and proceed to the queries. Other failures, including a
 	 * failure to acquire the lock, will cause this function to fail.
 	 */
@@ -3898,7 +3995,7 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	} else if (rc == -EINVAL) {
 		DP_INFO(p_hwfn,
 			"Skip the max values setting of the soft resources since the resource lock is not supported by the MFW\n");
-	} else if (!rc && !resc_lock_params.b_granted) {
+	} else if (!resc_lock_params.b_granted) {
 		DP_NOTICE(p_hwfn,
 			  "Failed to acquire the resource lock for the resource allocation commands\n");
 		return -EBUSY;
@@ -4739,7 +4836,7 @@ int qed_fw_l2_queue(struct qed_hwfn *p_hwfn, u16 src_id, u16 *dst_id)
 	if (src_id >= RESC_NUM(p_hwfn, QED_L2_QUEUE)) {
 		u16 min, max;
 
-		min = (u16) RESC_START(p_hwfn, QED_L2_QUEUE);
+		min = (u16)RESC_START(p_hwfn, QED_L2_QUEUE);
 		max = min + RESC_NUM(p_hwfn, QED_L2_QUEUE);
 		DP_NOTICE(p_hwfn,
 			  "l2_queue id [%d] is not valid, available indices [%d - %d]\n",
@@ -4873,7 +4970,7 @@ int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn,
 		goto out;
 
 	address = BAR0_MAP_REG_USDM_RAM +
-		  USTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);
+		  USTORM_ETH_QUEUE_ZONE_GTT_OFFSET(p_cid->abs.queue_id);
 
 	rc = qed_set_coalesce(p_hwfn, p_ptt, address, &eth_qzone,
 			      sizeof(struct ustorm_eth_queue_zone), timeset);
@@ -4912,7 +5009,7 @@ int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn,
 		goto out;
 
 	address = BAR0_MAP_REG_XSDM_RAM +
-		  XSTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);
+		  XSTORM_ETH_QUEUE_ZONE_GTT_OFFSET(p_cid->abs.queue_id);
 
 	rc = qed_set_coalesce(p_hwfn, p_ptt, address, &eth_qzone,
 			      sizeof(struct xstorm_eth_queue_zone), timeset);
@@ -5325,4 +5422,94 @@ void qed_set_fw_mac_addr(__le16 *fw_msb,
 	((u8 *)fw_mid)[1] = mac[2];
 	((u8 *)fw_lsb)[0] = mac[5];
 	((u8 *)fw_lsb)[1] = mac[4];
+}
+
+static int qed_llh_shadow_remove_all_filters(struct qed_dev *cdev, u8 ppfid)
+{
+	struct qed_llh_info *p_llh_info = cdev->p_llh_info;
+	struct qed_llh_filter_info *p_filters;
+	int rc;
+
+	rc = qed_llh_shadow_sanity(cdev, ppfid, 0, "remove_all");
+	if (rc)
+		return rc;
+
+	p_filters = p_llh_info->pp_filters[ppfid];
+	memset(p_filters, 0, NIG_REG_LLH_FUNC_FILTER_EN_SIZE *
+	       sizeof(*p_filters));
+
+	return 0;
+}
+
+static void qed_llh_clear_ppfid_filters(struct qed_dev *cdev, u8 ppfid)
+{
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *p_ptt = qed_ptt_acquire(p_hwfn);
+	u8 filter_idx, abs_ppfid;
+	int rc = 0;
+
+	if (!p_ptt)
+		return;
+
+	if (!test_bit(QED_MF_LLH_PROTO_CLSS, &cdev->mf_bits) &&
+	    !test_bit(QED_MF_LLH_MAC_CLSS, &cdev->mf_bits))
+		goto out;
+
+	rc = qed_llh_abs_ppfid(cdev, ppfid, &abs_ppfid);
+	if (rc)
+		goto out;
+
+	rc = qed_llh_shadow_remove_all_filters(cdev, ppfid);
+	if (rc)
+		goto out;
+
+	for (filter_idx = 0; filter_idx < NIG_REG_LLH_FUNC_FILTER_EN_SIZE;
+	     filter_idx++) {
+		rc = qed_llh_remove_filter(p_hwfn, p_ptt,
+					   abs_ppfid, filter_idx);
+		if (rc)
+			goto out;
+	}
+out:
+	qed_ptt_release(p_hwfn, p_ptt);
+}
+
+int qed_llh_add_src_tcp_port_filter(struct qed_dev *cdev, u16 src_port)
+{
+	return qed_llh_add_protocol_filter(cdev, 0,
+					   QED_LLH_FILTER_TCP_SRC_PORT,
+					   src_port, QED_LLH_DONT_CARE);
+}
+
+void qed_llh_remove_src_tcp_port_filter(struct qed_dev *cdev, u16 src_port)
+{
+	qed_llh_remove_protocol_filter(cdev, 0,
+				       QED_LLH_FILTER_TCP_SRC_PORT,
+				       src_port, QED_LLH_DONT_CARE);
+}
+
+int qed_llh_add_dst_tcp_port_filter(struct qed_dev *cdev, u16 dest_port)
+{
+	return qed_llh_add_protocol_filter(cdev, 0,
+					   QED_LLH_FILTER_TCP_DEST_PORT,
+					   QED_LLH_DONT_CARE, dest_port);
+}
+
+void qed_llh_remove_dst_tcp_port_filter(struct qed_dev *cdev, u16 dest_port)
+{
+	qed_llh_remove_protocol_filter(cdev, 0,
+				       QED_LLH_FILTER_TCP_DEST_PORT,
+				       QED_LLH_DONT_CARE, dest_port);
+}
+
+void qed_llh_clear_all_filters(struct qed_dev *cdev)
+{
+	u8 ppfid;
+
+	if (!test_bit(QED_MF_LLH_PROTO_CLSS, &cdev->mf_bits) &&
+	    !test_bit(QED_MF_LLH_MAC_CLSS, &cdev->mf_bits))
+		return;
+
+	for (ppfid = 0; ppfid < cdev->p_llh_info->num_ppfid; ppfid++)
+		qed_llh_clear_ppfid_filters(cdev, ppfid);
 }

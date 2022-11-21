@@ -8,10 +8,12 @@
 #include <crypto/aes.h>
 #include <crypto/hmac.h>
 #include <crypto/md5.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/sha3.h>
 #include <crypto/skcipher.h>
 #include <crypto/sm3.h>
+#include <crypto/internal/cipher.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>

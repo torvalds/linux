@@ -53,13 +53,7 @@ static inline void __ipv4_confirm_neigh(struct net_device *dev, u32 key)
 
 	rcu_read_lock_bh();
 	n = __ipv4_neigh_lookup_noref(dev, key);
-	if (n) {
-		unsigned long now = jiffies;
-
-		/* avoid dirtying neighbour */
-		if (READ_ONCE(n->confirmed) != now)
-			WRITE_ONCE(n->confirmed, now);
-	}
+	neigh_confirm(n);
 	rcu_read_unlock_bh();
 }
 
@@ -71,6 +65,7 @@ void arp_send(int type, int ptype, __be32 dest_ip,
 	      const unsigned char *src_hw, const unsigned char *th);
 int arp_mc_map(__be32 addr, u8 *haddr, struct net_device *dev, int dir);
 void arp_ifdown(struct net_device *dev);
+int arp_invalidate(struct net_device *dev, __be32 ip, bool force);
 
 struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 			   struct net_device *dev, __be32 src_ip,

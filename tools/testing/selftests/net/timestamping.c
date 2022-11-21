@@ -47,7 +47,7 @@ static void usage(const char *error)
 {
 	if (error)
 		printf("invalid option: %s\n", error);
-	printf("timestamping interface option*\n\n"
+	printf("timestamping <interface> [bind_phc_index] [option]*\n\n"
 	       "Options:\n"
 	       "  IP_MULTICAST_LOOP - looping outgoing multicasts\n"
 	       "  SO_TIMESTAMP - normal software time stamping, ms resolution\n"
@@ -58,8 +58,10 @@ static void usage(const char *error)
 	       "  SOF_TIMESTAMPING_RX_SOFTWARE - software fallback for incoming packets\n"
 	       "  SOF_TIMESTAMPING_SOFTWARE - request reporting of software time stamps\n"
 	       "  SOF_TIMESTAMPING_RAW_HARDWARE - request reporting of raw HW time stamps\n"
+	       "  SOF_TIMESTAMPING_BIND_PHC - request to bind a PHC of PTP vclock\n"
 	       "  SIOCGSTAMP - check last socket time stamp\n"
-	       "  SIOCGSTAMPNS - more accurate socket time stamp\n");
+	       "  SIOCGSTAMPNS - more accurate socket time stamp\n"
+	       "  PTPV2 - use PTPv2 messages\n");
 	exit(1);
 }
 
@@ -115,13 +117,28 @@ static const unsigned char sync[] = {
 	0x00, 0x00, 0x00, 0x00
 };
 
-static void sendpacket(int sock, struct sockaddr *addr, socklen_t addr_len)
+static const unsigned char sync_v2[] = {
+	0x00, 0x02, 0x00, 0x2C,
+	0x00, 0x00, 0x02, 0x00,
+	0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0xFF,
+	0xFE, 0x00, 0x00, 0x00,
+	0x00, 0x01, 0x00, 0x01,
+	0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00,
+};
+
+static void sendpacket(int sock, struct sockaddr *addr, socklen_t addr_len, int ptpv2)
 {
+	size_t sync_len = ptpv2 ? sizeof(sync_v2) : sizeof(sync);
+	const void *sync_p = ptpv2 ? sync_v2 : sync;
 	struct timeval now;
 	int res;
 
-	res = sendto(sock, sync, sizeof(sync), 0,
-		addr, addr_len);
+	res = sendto(sock, sync_p, sync_len, 0, addr, addr_len);
 	gettimeofday(&now, 0);
 	if (res < 0)
 		printf("%s: %s\n", "send", strerror(errno));
@@ -134,9 +151,11 @@ static void sendpacket(int sock, struct sockaddr *addr, socklen_t addr_len)
 static void printpacket(struct msghdr *msg, int res,
 			char *data,
 			int sock, int recvmsg_flags,
-			int siocgstamp, int siocgstampns)
+			int siocgstamp, int siocgstampns, int ptpv2)
 {
 	struct sockaddr_in *from_addr = (struct sockaddr_in *)msg->msg_name;
+	size_t sync_len = ptpv2 ? sizeof(sync_v2) : sizeof(sync);
+	const void *sync_p = ptpv2 ? sync_v2 : sync;
 	struct cmsghdr *cmsg;
 	struct timeval tv;
 	struct timespec ts;
@@ -210,10 +229,9 @@ static void printpacket(struct msghdr *msg, int res,
 					"probably SO_EE_ORIGIN_TIMESTAMPING"
 #endif
 					);
-				if (res < sizeof(sync))
+				if (res < sync_len)
 					printf(" => truncated data?!");
-				else if (!memcmp(sync, data + res - sizeof(sync),
-							sizeof(sync)))
+				else if (!memcmp(sync_p, data + res - sync_len, sync_len))
 					printf(" => GOT OUR DATA BACK (HURRAY!)");
 				break;
 			}
@@ -257,7 +275,7 @@ static void printpacket(struct msghdr *msg, int res,
 }
 
 static void recvpacket(int sock, int recvmsg_flags,
-		       int siocgstamp, int siocgstampns)
+		       int siocgstamp, int siocgstampns, int ptpv2)
 {
 	char data[256];
 	struct msghdr msg;
@@ -288,18 +306,18 @@ static void recvpacket(int sock, int recvmsg_flags,
 	} else {
 		printpacket(&msg, res, data,
 			    sock, recvmsg_flags,
-			    siocgstamp, siocgstampns);
+			    siocgstamp, siocgstampns, ptpv2);
 	}
 }
 
 int main(int argc, char **argv)
 {
-	int so_timestamping_flags = 0;
 	int so_timestamp = 0;
 	int so_timestampns = 0;
 	int siocgstamp = 0;
 	int siocgstampns = 0;
 	int ip_multicast_loop = 0;
+	int ptpv2 = 0;
 	char *interface;
 	int i;
 	int enabled = 1;
@@ -307,6 +325,8 @@ int main(int argc, char **argv)
 	struct ifreq device;
 	struct ifreq hwtstamp;
 	struct hwtstamp_config hwconfig, hwconfig_requested;
+	struct so_timestamping so_timestamping_get = { 0, 0 };
+	struct so_timestamping so_timestamping = { 0, 0 };
 	struct sockaddr_in addr;
 	struct ip_mreq imr;
 	struct in_addr iaddr;
@@ -324,7 +344,12 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	for (i = 2; i < argc; i++) {
+	if (argc >= 3 && sscanf(argv[2], "%d", &so_timestamping.bind_phc) == 1)
+		val = 3;
+	else
+		val = 2;
+
+	for (i = val; i < argc; i++) {
 		if (!strcasecmp(argv[i], "SO_TIMESTAMP"))
 			so_timestamp = 1;
 		else if (!strcasecmp(argv[i], "SO_TIMESTAMPNS"))
@@ -335,18 +360,22 @@ int main(int argc, char **argv)
 			siocgstampns = 1;
 		else if (!strcasecmp(argv[i], "IP_MULTICAST_LOOP"))
 			ip_multicast_loop = 1;
+		else if (!strcasecmp(argv[i], "PTPV2"))
+			ptpv2 = 1;
 		else if (!strcasecmp(argv[i], "SOF_TIMESTAMPING_TX_HARDWARE"))
-			so_timestamping_flags |= SOF_TIMESTAMPING_TX_HARDWARE;
+			so_timestamping.flags |= SOF_TIMESTAMPING_TX_HARDWARE;
 		else if (!strcasecmp(argv[i], "SOF_TIMESTAMPING_TX_SOFTWARE"))
-			so_timestamping_flags |= SOF_TIMESTAMPING_TX_SOFTWARE;
+			so_timestamping.flags |= SOF_TIMESTAMPING_TX_SOFTWARE;
 		else if (!strcasecmp(argv[i], "SOF_TIMESTAMPING_RX_HARDWARE"))
-			so_timestamping_flags |= SOF_TIMESTAMPING_RX_HARDWARE;
+			so_timestamping.flags |= SOF_TIMESTAMPING_RX_HARDWARE;
 		else if (!strcasecmp(argv[i], "SOF_TIMESTAMPING_RX_SOFTWARE"))
-			so_timestamping_flags |= SOF_TIMESTAMPING_RX_SOFTWARE;
+			so_timestamping.flags |= SOF_TIMESTAMPING_RX_SOFTWARE;
 		else if (!strcasecmp(argv[i], "SOF_TIMESTAMPING_SOFTWARE"))
-			so_timestamping_flags |= SOF_TIMESTAMPING_SOFTWARE;
+			so_timestamping.flags |= SOF_TIMESTAMPING_SOFTWARE;
 		else if (!strcasecmp(argv[i], "SOF_TIMESTAMPING_RAW_HARDWARE"))
-			so_timestamping_flags |= SOF_TIMESTAMPING_RAW_HARDWARE;
+			so_timestamping.flags |= SOF_TIMESTAMPING_RAW_HARDWARE;
+		else if (!strcasecmp(argv[i], "SOF_TIMESTAMPING_BIND_PHC"))
+			so_timestamping.flags |= SOF_TIMESTAMPING_BIND_PHC;
 		else
 			usage(argv[i]);
 	}
@@ -365,10 +394,11 @@ int main(int argc, char **argv)
 	hwtstamp.ifr_data = (void *)&hwconfig;
 	memset(&hwconfig, 0, sizeof(hwconfig));
 	hwconfig.tx_type =
-		(so_timestamping_flags & SOF_TIMESTAMPING_TX_HARDWARE) ?
+		(so_timestamping.flags & SOF_TIMESTAMPING_TX_HARDWARE) ?
 		HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
 	hwconfig.rx_filter =
-		(so_timestamping_flags & SOF_TIMESTAMPING_RX_HARDWARE) ?
+		(so_timestamping.flags & SOF_TIMESTAMPING_RX_HARDWARE) ?
+		ptpv2 ? HWTSTAMP_FILTER_PTP_V2_L4_SYNC :
 		HWTSTAMP_FILTER_PTP_V1_L4_SYNC : HWTSTAMP_FILTER_NONE;
 	hwconfig_requested = hwconfig;
 	if (ioctl(sock, SIOCSHWTSTAMP, &hwtstamp) < 0) {
@@ -391,6 +421,9 @@ int main(int argc, char **argv)
 		 (struct sockaddr *)&addr,
 		 sizeof(struct sockaddr_in)) < 0)
 		bail("bind");
+
+	if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, interface, if_len))
+		bail("bind device");
 
 	/* set multicast group for outgoing packets */
 	inet_aton("224.0.1.130", &iaddr); /* alternate PTP domain 1 */
@@ -423,10 +456,9 @@ int main(int argc, char **argv)
 			   &enabled, sizeof(enabled)) < 0)
 		bail("setsockopt SO_TIMESTAMPNS");
 
-	if (so_timestamping_flags &&
-		setsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING,
-			   &so_timestamping_flags,
-			   sizeof(so_timestamping_flags)) < 0)
+	if (so_timestamping.flags &&
+	    setsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING, &so_timestamping,
+		       sizeof(so_timestamping)) < 0)
 		bail("setsockopt SO_TIMESTAMPING");
 
 	/* request IP_PKTINFO for debugging purposes */
@@ -447,14 +479,18 @@ int main(int argc, char **argv)
 	else
 		printf("SO_TIMESTAMPNS %d\n", val);
 
-	if (getsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING, &val, &len) < 0) {
+	len = sizeof(so_timestamping_get);
+	if (getsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING, &so_timestamping_get,
+		       &len) < 0) {
 		printf("%s: %s\n", "getsockopt SO_TIMESTAMPING",
 		       strerror(errno));
 	} else {
-		printf("SO_TIMESTAMPING %d\n", val);
-		if (val != so_timestamping_flags)
-			printf("   not the expected value %d\n",
-			       so_timestamping_flags);
+		printf("SO_TIMESTAMPING flags %d, bind phc %d\n",
+		       so_timestamping_get.flags, so_timestamping_get.bind_phc);
+		if (so_timestamping_get.flags != so_timestamping.flags ||
+		    so_timestamping_get.bind_phc != so_timestamping.bind_phc)
+			printf("   not expected, flags %d, bind phc %d\n",
+			       so_timestamping.flags, so_timestamping.bind_phc);
 	}
 
 	/* send packets forever every five seconds */
@@ -496,16 +532,16 @@ int main(int argc, char **argv)
 					printf("has error\n");
 				recvpacket(sock, 0,
 					   siocgstamp,
-					   siocgstampns);
+					   siocgstampns, ptpv2);
 				recvpacket(sock, MSG_ERRQUEUE,
 					   siocgstamp,
-					   siocgstampns);
+					   siocgstampns, ptpv2);
 			}
 		} else {
 			/* write one packet */
 			sendpacket(sock,
 				   (struct sockaddr *)&addr,
-				   sizeof(addr));
+				   sizeof(addr), ptpv2);
 			next.tv_sec += 5;
 			continue;
 		}

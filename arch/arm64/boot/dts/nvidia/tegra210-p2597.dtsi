@@ -1345,7 +1345,7 @@
 	};
 
 	hda@70030000 {
-		nvidia,model = "jetson-tx1-hda";
+		nvidia,model = "NVIDIA Jetson TX1 HDA";
 		status = "okay";
 	};
 
@@ -1361,11 +1361,6 @@
 		dvddio-pex-supply = <&vdd_pex_1v05>;
 		hvddio-pex-supply = <&vdd_1v8>;
 		avdd-usb-supply = <&vdd_3v3_sys>;
-		/* XXX what are these? */
-		avdd-pll-utmip-supply = <&vdd_1v8>;
-		avdd-pll-uerefe-supply = <&vdd_pex_1v05>;
-		dvdd-usb-ss-pll-supply = <&vdd_pex_1v05>;
-		hvdd-usb-ss-pll-e-supply = <&vdd_1v8>;
 
 		status = "okay";
 
@@ -1555,7 +1550,7 @@
 		};
 	};
 
-	vdd_sys_mux: regulator@0 {
+	vdd_sys_mux: regulator-vdd-sys-mux {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_SYS_MUX";
 		regulator-min-microvolt = <5000000>;
@@ -1564,7 +1559,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_5v0_sys: regulator@1 {
+	vdd_5v0_sys: regulator-vdd-5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_5V0_SYS";
 		regulator-min-microvolt = <5000000>;
@@ -1576,7 +1571,7 @@
 		vin-supply = <&vdd_sys_mux>;
 	};
 
-	vdd_3v3_sys: regulator@2 {
+	vdd_3v3_sys: regulator-vdd-3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_3V3_SYS";
 		regulator-min-microvolt = <3300000>;
@@ -1588,10 +1583,9 @@
 		vin-supply = <&vdd_sys_mux>;
 
 		regulator-enable-ramp-delay = <160>;
-		regulator-disable-ramp-delay = <10000>;
 	};
 
-	vdd_5v0_io: regulator@3 {
+	vdd_5v0_io: regulator-vdd-5v0-io {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_5V0_IO_SYS";
 		regulator-min-microvolt = <5000000>;
@@ -1600,7 +1594,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_3v3_sd: regulator@4 {
+	vdd_3v3_sd: regulator-vdd-3v3-sd {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_3V3_SD";
 		regulator-min-microvolt = <3300000>;
@@ -1610,10 +1604,9 @@
 		vin-supply = <&vdd_3v3_sys>;
 
 		regulator-enable-ramp-delay = <472>;
-		regulator-disable-ramp-delay = <4880>;
 	};
 
-	vdd_dsi_csi: regulator@5 {
+	vdd_dsi_csi: regulator-vdd-dsi-csi {
 		compatible = "regulator-fixed";
 		regulator-name = "AVDD_DSI_CSI_1V2";
 		regulator-min-microvolt = <1200000>;
@@ -1621,7 +1614,7 @@
 		vin-supply = <&vdd_sys_1v2>;
 	};
 
-	vdd_3v3_dis: regulator@6 {
+	vdd_3v3_dis: regulator-vdd-3v3-dis {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_DIS_3V3_LCD";
 		regulator-min-microvolt = <3300000>;
@@ -1632,7 +1625,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_1v8_dis: regulator@7 {
+	vdd_1v8_dis: regulator-vdd-1v8-dis {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_LCD_1V8_DIS";
 		regulator-min-microvolt = <1800000>;
@@ -1643,7 +1636,7 @@
 		vin-supply = <&vdd_1v8>;
 	};
 
-	vdd_5v0_rtl: regulator@8 {
+	vdd_5v0_rtl: regulator-vdd-5v0-rtl {
 		compatible = "regulator-fixed";
 		regulator-name = "RTL_5V";
 		regulator-min-microvolt = <5000000>;
@@ -1653,7 +1646,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_usb_vbus: regulator@9 {
+	vdd_usb_vbus: regulator-vdd-usb-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "USB_VBUS_EN1";
 		regulator-min-microvolt = <5000000>;
@@ -1663,7 +1656,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_hdmi: regulator@10 {
+	vdd_hdmi: regulator-vdd-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_HDMI_5V0";
 		regulator-min-microvolt = <5000000>;
@@ -1673,7 +1666,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_cam_1v2: regulator@11 {
+	vdd_cam_1v2: regulator-vdd-cam-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-cam-1v2";
 		regulator-min-microvolt = <1200000>;
@@ -1683,7 +1676,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_cam_2v8: regulator@12 {
+	vdd_cam_2v8: regulator-vdd-cam-2v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-cam-2v8";
 		regulator-min-microvolt = <2800000>;
@@ -1693,7 +1686,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_cam_1v8: regulator@13 {
+	vdd_cam_1v8: regulator-vdd-cam-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-cam-1v8";
 		regulator-min-microvolt = <1800000>;
@@ -1703,7 +1696,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_usb_vbus_otg: regulator@14 {
+	vdd_usb_vbus_otg: regulator-vdd-usb-vbus-otg {
 		compatible = "regulator-fixed";
 		regulator-name = "USB_VBUS_EN0";
 		regulator-min-microvolt = <5000000>;

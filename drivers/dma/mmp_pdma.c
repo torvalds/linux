@@ -18,7 +18,6 @@
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/of.h>
-#include <linux/dma/mmp-pdma.h>
 
 #include "dmaengine.h"
 
@@ -728,12 +727,6 @@ static int mmp_pdma_config_write(struct dma_chan *dchan,
 
 	chan->dir = direction;
 	chan->dev_addr = addr;
-	/* FIXME: drivers should be ported over to use the filter
-	 * function. Once that's done, the following two lines can
-	 * be removed.
-	 */
-	if (cfg->slave_id)
-		chan->drcmr = cfg->slave_id;
 
 	return 0;
 }
@@ -1124,6 +1117,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 						 mmp_pdma_dma_xlate, pdev);
 		if (ret < 0) {
 			dev_err(&op->dev, "of_dma_controller_register failed\n");
+			dma_async_device_unregister(&pdev->device);
 			return ret;
 		}
 	}
@@ -1147,19 +1141,6 @@ static struct platform_driver mmp_pdma_driver = {
 	.probe		= mmp_pdma_probe,
 	.remove		= mmp_pdma_remove,
 };
-
-bool mmp_pdma_filter_fn(struct dma_chan *chan, void *param)
-{
-	struct mmp_pdma_chan *c = to_mmp_pdma_chan(chan);
-
-	if (chan->device->dev->driver != &mmp_pdma_driver.driver)
-		return false;
-
-	c->drcmr = *(unsigned int *)param;
-
-	return true;
-}
-EXPORT_SYMBOL_GPL(mmp_pdma_filter_fn);
 
 module_platform_driver(mmp_pdma_driver);
 

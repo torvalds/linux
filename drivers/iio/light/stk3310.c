@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Sensortek STK3310/STK3311 Ambient Light and Proximity Sensor
  *
  * Copyright (c) 2015, Intel Corporation.
@@ -546,9 +546,8 @@ static irqreturn_t stk3310_irq_event_handler(int irq, void *private)
 	mutex_lock(&data->lock);
 	ret = regmap_field_read(data->reg_flag_nf, &dir);
 	if (ret < 0) {
-		dev_err(&data->client->dev, "register read failed\n");
-		mutex_unlock(&data->lock);
-		return ret;
+		dev_err(&data->client->dev, "register read failed: %d\n", ret);
+		goto out;
 	}
 	event = IIO_UNMOD_EVENT_CODE(IIO_PROXIMITY, 1,
 				     IIO_EV_TYPE_THRESH,
@@ -560,6 +559,7 @@ static irqreturn_t stk3310_irq_event_handler(int irq, void *private)
 	ret = regmap_field_write(data->reg_flag_psint, 0);
 	if (ret < 0)
 		dev_err(&data->client->dev, "failed to reset interrupts\n");
+out:
 	mutex_unlock(&data->lock);
 
 	return IRQ_HANDLED;
@@ -632,7 +632,6 @@ static int stk3310_remove(struct i2c_client *client)
 	return stk3310_set_state(iio_priv(indio_dev), STK3310_STATE_STANDBY);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int stk3310_suspend(struct device *dev)
 {
 	struct stk3310_data *data;
@@ -656,12 +655,8 @@ static int stk3310_resume(struct device *dev)
 	return stk3310_set_state(data, state);
 }
 
-static SIMPLE_DEV_PM_OPS(stk3310_pm_ops, stk3310_suspend, stk3310_resume);
-
-#define STK3310_PM_OPS (&stk3310_pm_ops)
-#else
-#define STK3310_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(stk3310_pm_ops, stk3310_suspend,
+				stk3310_resume);
 
 static const struct i2c_device_id stk3310_i2c_id[] = {
 	{"STK3310", 0},
@@ -692,7 +687,7 @@ static struct i2c_driver stk3310_driver = {
 	.driver = {
 		.name = "stk3310",
 		.of_match_table = stk3310_of_match,
-		.pm = STK3310_PM_OPS,
+		.pm = pm_sleep_ptr(&stk3310_pm_ops),
 		.acpi_match_table = ACPI_PTR(stk3310_acpi_id),
 	},
 	.probe =            stk3310_probe,

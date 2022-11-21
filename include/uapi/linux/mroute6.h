@@ -2,7 +2,7 @@
 #ifndef _UAPI__LINUX_MROUTE6_H
 #define _UAPI__LINUX_MROUTE6_H
 
-#include <linux/kernel.h>
+#include <linux/const.h>
 #include <linux/types.h>
 #include <linux/sockios.h>
 #include <linux/in6.h>		/* For struct sockaddr_in6. */
@@ -134,6 +134,7 @@ struct mrt6msg {
 #define MRT6MSG_NOCACHE		1
 #define MRT6MSG_WRONGMIF	2
 #define MRT6MSG_WHOLEPKT	3		/* used for use level encap */
+#define MRT6MSG_WRMIFWHOLE	4		/* For PIM Register and assert processing */
 	__u8		im6_mbz;		/* must be zero		   */
 	__u8		im6_msgtype;		/* what type of message    */
 	__u16		im6_mif;		/* mif rec'd on		   */

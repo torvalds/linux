@@ -29,6 +29,8 @@ properties:
 
   domain-idle-states:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description: |
       Phandles of idle states that defines the available states for the
       power-domain provider. The idle state definitions are compatible with the
@@ -42,11 +44,13 @@ properties:
 
   operating-points-v2:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description:
       Phandles to the OPP tables of power domains provided by a power domain
       provider. If the provider provides a single power domain only or all
       the power domains provided by the provider have identical OPP tables,
-      then this shall contain a single phandle. Refer to ../opp/opp.txt
+      then this shall contain a single phandle. Refer to ../opp/opp-v2-base.yaml
       for more information.
 
   "#power-domain-cells":

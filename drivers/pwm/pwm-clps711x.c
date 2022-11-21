@@ -113,14 +113,12 @@ static struct pwm_device *clps711x_pwm_xlate(struct pwm_chip *chip,
 static int clps711x_pwm_probe(struct platform_device *pdev)
 {
 	struct clps711x_chip *priv;
-	struct resource *res;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->pmpcon = devm_ioremap_resource(&pdev->dev, res);
+	priv->pmpcon = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->pmpcon))
 		return PTR_ERR(priv->pmpcon);
 
@@ -130,23 +128,13 @@ static int clps711x_pwm_probe(struct platform_device *pdev)
 
 	priv->chip.ops = &clps711x_pwm_ops;
 	priv->chip.dev = &pdev->dev;
-	priv->chip.base = -1;
 	priv->chip.npwm = 2;
 	priv->chip.of_xlate = clps711x_pwm_xlate;
 	priv->chip.of_pwm_n_cells = 1;
 
 	spin_lock_init(&priv->lock);
 
-	platform_set_drvdata(pdev, priv);
-
-	return pwmchip_add(&priv->chip);
-}
-
-static int clps711x_pwm_remove(struct platform_device *pdev)
-{
-	struct clps711x_chip *priv = platform_get_drvdata(pdev);
-
-	return pwmchip_remove(&priv->chip);
+	return devm_pwmchip_add(&pdev->dev, &priv->chip);
 }
 
 static const struct of_device_id __maybe_unused clps711x_pwm_dt_ids[] = {
@@ -161,7 +149,6 @@ static struct platform_driver clps711x_pwm_driver = {
 		.of_match_table = of_match_ptr(clps711x_pwm_dt_ids),
 	},
 	.probe = clps711x_pwm_probe,
-	.remove = clps711x_pwm_remove,
 };
 module_platform_driver(clps711x_pwm_driver);
 

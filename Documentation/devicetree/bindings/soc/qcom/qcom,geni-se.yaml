@@ -51,6 +51,9 @@ properties:
   interconnect-names:
     const: qup-core
 
+  iommus:
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -100,7 +103,7 @@ patternProperties:
                  supports up to 50MHz, up to four chip selects, programmable
                  data path from 4 bits to 32 bits and numerous protocol
                  variants.
-    $ref: /spi/spi-controller.yaml#
+    $ref: /schemas/spi/spi-controller.yaml#
 
     properties:
       compatible:
@@ -164,7 +167,6 @@ patternProperties:
 
       interrupts:
         minItems: 1
-        maxItems: 2
         items:
           - description: UART core irq
           - description: Wakeup irq (RX GPIO)

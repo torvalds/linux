@@ -25,12 +25,20 @@ static void fill_function_pointers(void)
 	if (!vdso)
 		vdso = dlopen("linux-gate.so.1",
 			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+	if (!vdso)
+		vdso = dlopen("linux-vdso32.so.1",
+			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+	if (!vdso)
+		vdso = dlopen("linux-vdso64.so.1",
+			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
 	if (!vdso) {
 		pr_err("[WARN]\tfailed to find vDSO\n");
 		return;
 	}
 
 	vdso_clock_gettime = (vgettime_t)dlsym(vdso, "__vdso_clock_gettime");
+	if (!vdso_clock_gettime)
+		vdso_clock_gettime = (vgettime_t)dlsym(vdso, "__kernel_clock_gettime");
 	if (!vdso_clock_gettime)
 		pr_err("Warning: failed to find clock_gettime in vDSO\n");
 

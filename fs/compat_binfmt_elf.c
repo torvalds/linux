@@ -50,6 +50,7 @@
  * which requires asm/elf.h to define compat_elf_gregset_t et al.
  */
 #define elf_prstatus	compat_elf_prstatus
+#define elf_prstatus_common	compat_elf_prstatus_common
 #define elf_prpsinfo	compat_elf_prpsinfo
 
 #undef ns_to_kernel_old_timeval
@@ -61,7 +62,6 @@
  * differ from the native ones, or omitted when they match.
  */
 
-#undef	ELF_ARCH
 #undef	elf_check_arch
 #define	elf_check_arch	compat_elf_check_arch
 
@@ -90,11 +90,6 @@
 #define	ELF_ET_DYN_BASE		COMPAT_ELF_ET_DYN_BASE
 #endif
 
-#ifdef COMPAT_ELF_EXEC_PAGESIZE
-#undef	ELF_EXEC_PAGESIZE
-#define	ELF_EXEC_PAGESIZE	COMPAT_ELF_EXEC_PAGESIZE
-#endif
-
 #ifdef	COMPAT_ELF_PLAT_INIT
 #undef	ELF_PLAT_INIT
 #define	ELF_PLAT_INIT		COMPAT_ELF_PLAT_INIT
@@ -106,15 +101,25 @@
 #endif
 
 #ifdef	compat_start_thread
-#undef	start_thread
-#define	start_thread		compat_start_thread
+#define COMPAT_START_THREAD(ex, regs, new_ip, new_sp)	\
+	compat_start_thread(regs, new_ip, new_sp)
 #endif
 
-#ifdef	compat_arch_setup_additional_pages
+#ifdef	COMPAT_START_THREAD
+#undef	START_THREAD
+#define START_THREAD		COMPAT_START_THREAD
+#endif
+
+#ifdef compat_arch_setup_additional_pages
+#define COMPAT_ARCH_SETUP_ADDITIONAL_PAGES(bprm, ex, interpreter) \
+	compat_arch_setup_additional_pages(bprm, interpreter)
+#endif
+
+#ifdef	COMPAT_ARCH_SETUP_ADDITIONAL_PAGES
 #undef	ARCH_HAS_SETUP_ADDITIONAL_PAGES
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
-#undef	arch_setup_additional_pages
-#define	arch_setup_additional_pages compat_arch_setup_additional_pages
+#undef	ARCH_SETUP_ADDITIONAL_PAGES
+#define	ARCH_SETUP_ADDITIONAL_PAGES COMPAT_ARCH_SETUP_ADDITIONAL_PAGES
 #endif
 
 #ifdef	compat_elf_read_implies_exec
@@ -130,6 +135,8 @@
 #define elf_format		compat_elf_format
 #define init_elf_binfmt		init_compat_elf_binfmt
 #define exit_elf_binfmt		exit_compat_elf_binfmt
+#define binfmt_elf_test_cases	compat_binfmt_elf_test_cases
+#define binfmt_elf_test_suite	compat_binfmt_elf_test_suite
 
 /*
  * We share all the actual code with the native (64-bit) version.

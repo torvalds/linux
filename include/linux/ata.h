@@ -13,7 +13,7 @@
 #ifndef __LINUX_ATA_H__
 #define __LINUX_ATA_H__
 
-#include <linux/kernel.h>
+#include <linux/bits.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <asm/byteorder.h>
@@ -324,6 +324,7 @@ enum {
 	ATA_LOG_NCQ_NON_DATA	= 0x12,
 	ATA_LOG_NCQ_SEND_RECV	= 0x13,
 	ATA_LOG_IDENTIFY_DEVICE	= 0x30,
+	ATA_LOG_CONCURRENT_POSITIONING_RANGES = 0x47,
 
 	/* Identify device log pages: */
 	ATA_LOG_SECURITY	  = 0x06,

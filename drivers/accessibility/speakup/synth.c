@@ -137,14 +137,14 @@ EXPORT_SYMBOL_GPL(spk_do_catch_up_unicode);
 
 void spk_synth_flush(struct spk_synth *synth)
 {
-	synth->io_ops->flush_buffer();
+	synth->io_ops->flush_buffer(synth);
 	synth->io_ops->synth_out(synth, synth->clear);
 }
 EXPORT_SYMBOL_GPL(spk_synth_flush);
 
 unsigned char spk_synth_get_index(struct spk_synth *synth)
 {
-	return synth->io_ops->synth_in_nowait();
+	return synth->io_ops->synth_in_nowait(synth);
 }
 EXPORT_SYMBOL_GPL(spk_synth_get_index);
 
@@ -348,6 +348,7 @@ struct var_t synth_time_vars[] = {
 	{ TRIGGER, .u.n = {NULL, 20, 10, 2000, 0, 0, NULL } },
 	{ JIFFY, .u.n = {NULL, 50, 20, 200, 0, 0, NULL } },
 	{ FULL, .u.n = {NULL, 400, 200, 60000, 0, 0, NULL } },
+	{ FLUSH, .u.n = {NULL, 4000, 10, 4000, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -408,6 +409,8 @@ static int do_synth_init(struct spk_synth *in_synth)
 		synth_time_vars[2].u.n.default_val = synth->jiffies;
 	synth_time_vars[3].u.n.value =
 		synth_time_vars[3].u.n.default_val = synth->full;
+	synth_time_vars[4].u.n.value =
+		synth_time_vars[4].u.n.default_val = synth->flush_time;
 	synth_printf("%s", synth->init);
 	for (var = synth->vars;
 		(var->var_id >= 0) && (var->var_id < MAXVARS); var++)
@@ -440,7 +443,7 @@ void synth_release(void)
 		sysfs_remove_group(speakup_kobj, &synth->attributes);
 	for (var = synth->vars; var->var_id != MAXVARS; var++)
 		speakup_unregister_var(var->var_id);
-	synth->release();
+	synth->release(synth);
 	synth = NULL;
 }
 

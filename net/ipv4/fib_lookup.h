@@ -4,27 +4,28 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
+#include <net/inet_dscp.h>
 #include <net/ip_fib.h>
 #include <net/nexthop.h>
 
 struct fib_alias {
 	struct hlist_node	fa_list;
 	struct fib_info		*fa_info;
-	u8			fa_tos;
+	dscp_t			fa_dscp;
 	u8			fa_type;
 	u8			fa_state;
 	u8			fa_slen;
 	u32			tb_id;
 	s16			fa_default;
-	u8			offload:1,
-				trap:1,
-				unused:6;
+	u8			offload;
+	u8			trap;
+	u8			offload_failed;
 	struct rcu_head		rcu;
 };
 
 #define FA_S_ACCESSED	0x01
 
-/* Dont write on fa_state unless needed, to keep it shared on all cpus */
+/* Don't write on fa_state unless needed, to keep it shared on all cpus */
 static inline void fib_alias_accessed(struct fib_alias *fa)
 {
 	if (!(fa->fa_state & FA_S_ACCESSED))
@@ -39,9 +40,10 @@ int fib_nh_match(struct net *net, struct fib_config *cfg, struct fib_info *fi,
 		 struct netlink_ext_ack *extack);
 bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi);
 int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
-		  struct fib_rt_info *fri, unsigned int flags);
+		  const struct fib_rt_info *fri, unsigned int flags);
 void rtmsg_fib(int event, __be32 key, struct fib_alias *fa, int dst_len,
 	       u32 tb_id, const struct nl_info *info, unsigned int nlm_flags);
+size_t fib_nlmsg_size(struct fib_info *fi);
 
 static inline void fib_result_assign(struct fib_result *res,
 				     struct fib_info *fi)

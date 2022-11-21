@@ -19,12 +19,6 @@ struct scatterlist {
 };
 
 /*
- * Since the above length field is an unsigned int, below we define the maximum
- * length in bytes that can be stored in one scatterlist entry.
- */
-#define SCATTERLIST_MAX_SEGMENT (UINT_MAX & PAGE_MASK)
-
-/*
  * These macros should be used after a dma_map_sg call has been done
  * to get bus addresses of each of the SG entries and their lengths.
  * You should only work with the number of sg entries dma_map_sg
@@ -43,6 +37,12 @@ struct sg_table {
 	struct scatterlist *sgl;	/* the list */
 	unsigned int nents;		/* number of mapped entries */
 	unsigned int orig_nents;	/* original size of list */
+};
+
+struct sg_append_table {
+	struct sg_table sgt;		/* The scatter list table */
+	struct scatterlist *prv;	/* last populated sge in the table */
+	unsigned int total_nents;	/* Total entries in the table */
 };
 
 /*
@@ -69,10 +69,27 @@ struct sg_table {
  * a valid sg entry, or whether it points to the start of a new scatterlist.
  * Those low bits are there for everyone! (thanks mason :-)
  */
-#define sg_is_chain(sg)		((sg)->page_link & SG_CHAIN)
-#define sg_is_last(sg)		((sg)->page_link & SG_END)
-#define sg_chain_ptr(sg)	\
-	((struct scatterlist *) ((sg)->page_link & ~(SG_CHAIN | SG_END)))
+#define SG_PAGE_LINK_MASK (SG_CHAIN | SG_END)
+
+static inline unsigned int __sg_flags(struct scatterlist *sg)
+{
+	return sg->page_link & SG_PAGE_LINK_MASK;
+}
+
+static inline struct scatterlist *sg_chain_ptr(struct scatterlist *sg)
+{
+	return (struct scatterlist *)(sg->page_link & ~SG_PAGE_LINK_MASK);
+}
+
+static inline bool sg_is_chain(struct scatterlist *sg)
+{
+	return __sg_flags(sg) & SG_CHAIN;
+}
+
+static inline bool sg_is_last(struct scatterlist *sg)
+{
+	return __sg_flags(sg) & SG_END;
+}
 
 /**
  * sg_assign_page - Assign a given page to an SG entry
@@ -92,7 +109,7 @@ static inline void sg_assign_page(struct scatterlist *sg, struct page *page)
 	 * In order for the low bit stealing approach to work, pages
 	 * must be aligned at a 32-bit boundary as a minimum.
 	 */
-	BUG_ON((unsigned long) page & (SG_CHAIN | SG_END));
+	BUG_ON((unsigned long)page & SG_PAGE_LINK_MASK);
 #ifdef CONFIG_DEBUG_SG
 	BUG_ON(sg_is_chain(sg));
 #endif
@@ -126,7 +143,7 @@ static inline struct page *sg_page(struct scatterlist *sg)
 #ifdef CONFIG_DEBUG_SG
 	BUG_ON(sg_is_chain(sg));
 #endif
-	return (struct page *)((sg)->page_link & ~(SG_CHAIN | SG_END));
+	return (struct page *)((sg)->page_link & ~SG_PAGE_LINK_MASK);
 }
 
 /**
@@ -286,19 +303,51 @@ typedef struct scatterlist *(sg_alloc_fn)(unsigned int, gfp_t);
 typedef void (sg_free_fn)(struct scatterlist *, unsigned int);
 
 void __sg_free_table(struct sg_table *, unsigned int, unsigned int,
-		     sg_free_fn *);
+		     sg_free_fn *, unsigned int);
 void sg_free_table(struct sg_table *);
+void sg_free_append_table(struct sg_append_table *sgt);
 int __sg_alloc_table(struct sg_table *, unsigned int, unsigned int,
 		     struct scatterlist *, unsigned int, gfp_t, sg_alloc_fn *);
 int sg_alloc_table(struct sg_table *, unsigned int, gfp_t);
-struct scatterlist *__sg_alloc_table_from_pages(struct sg_table *sgt,
-		struct page **pages, unsigned int n_pages, unsigned int offset,
-		unsigned long size, unsigned int max_segment,
-		struct scatterlist *prv, unsigned int left_pages,
-		gfp_t gfp_mask);
-int sg_alloc_table_from_pages(struct sg_table *sgt, struct page **pages,
-			      unsigned int n_pages, unsigned int offset,
-			      unsigned long size, gfp_t gfp_mask);
+int sg_alloc_append_table_from_pages(struct sg_append_table *sgt,
+				     struct page **pages, unsigned int n_pages,
+				     unsigned int offset, unsigned long size,
+				     unsigned int max_segment,
+				     unsigned int left_pages, gfp_t gfp_mask);
+int sg_alloc_table_from_pages_segment(struct sg_table *sgt, struct page **pages,
+				      unsigned int n_pages, unsigned int offset,
+				      unsigned long size,
+				      unsigned int max_segment, gfp_t gfp_mask);
+
+/**
+ * sg_alloc_table_from_pages - Allocate and initialize an sg table from
+ *			       an array of pages
+ * @sgt:	 The sg table header to use
+ * @pages:	 Pointer to an array of page pointers
+ * @n_pages:	 Number of pages in the pages array
+ * @offset:      Offset from start of the first page to the start of a buffer
+ * @size:        Number of valid bytes in the buffer (after offset)
+ * @gfp_mask:	 GFP allocation mask
+ *
+ *  Description:
+ *    Allocate and initialize an sg table from a list of pages. Contiguous
+ *    ranges of the pages are squashed into a single scatterlist node. A user
+ *    may provide an offset at a start and a size of valid data in a buffer
+ *    specified by the page array. The returned sg table is released by
+ *    sg_free_table.
+ *
+ * Returns:
+ *   0 on success, negative error on failure
+ */
+static inline int sg_alloc_table_from_pages(struct sg_table *sgt,
+					    struct page **pages,
+					    unsigned int n_pages,
+					    unsigned int offset,
+					    unsigned long size, gfp_t gfp_mask)
+{
+	return sg_alloc_table_from_pages_segment(sgt, pages, n_pages, offset,
+						 size, UINT_MAX, gfp_mask);
+}
 
 #ifdef CONFIG_SGL_ALLOC
 struct scatterlist *sgl_alloc_order(unsigned long long length,
@@ -480,7 +529,7 @@ sg_page_iter_dma_address(struct sg_dma_page_iter *dma_iter)
  * Iterates over sg entries mapping page-by-page.  On each successful
  * iteration, @miter->page points to the mapped page and
  * @miter->length bytes of data can be accessed at @miter->addr.  As
- * long as an interation is enclosed between start and stop, the user
+ * long as an iteration is enclosed between start and stop, the user
  * is free to choose control structure and when to stop.
  *
  * @miter->consumed is set to @miter->length on each iteration.  It

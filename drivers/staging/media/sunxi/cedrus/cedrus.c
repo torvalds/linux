@@ -28,101 +28,164 @@
 #include "cedrus_dec.h"
 #include "cedrus_hw.h"
 
+static int cedrus_try_ctrl(struct v4l2_ctrl *ctrl)
+{
+	if (ctrl->id == V4L2_CID_STATELESS_H264_SPS) {
+		const struct v4l2_ctrl_h264_sps *sps = ctrl->p_new.p_h264_sps;
+
+		if (sps->chroma_format_idc != 1)
+			/* Only 4:2:0 is supported */
+			return -EINVAL;
+		if (sps->bit_depth_luma_minus8 != sps->bit_depth_chroma_minus8)
+			/* Luma and chroma bit depth mismatch */
+			return -EINVAL;
+		if (sps->bit_depth_luma_minus8 != 0)
+			/* Only 8-bit is supported */
+			return -EINVAL;
+	} else if (ctrl->id == V4L2_CID_MPEG_VIDEO_HEVC_SPS) {
+		const struct v4l2_ctrl_hevc_sps *sps = ctrl->p_new.p_hevc_sps;
+		struct cedrus_ctx *ctx = container_of(ctrl->handler, struct cedrus_ctx, hdl);
+
+		if (sps->chroma_format_idc != 1)
+			/* Only 4:2:0 is supported */
+			return -EINVAL;
+
+		if (sps->bit_depth_luma_minus8 != sps->bit_depth_chroma_minus8)
+			/* Luma and chroma bit depth mismatch */
+			return -EINVAL;
+
+		if (ctx->dev->capabilities & CEDRUS_CAPABILITY_H265_10_DEC) {
+			if (sps->bit_depth_luma_minus8 != 0 && sps->bit_depth_luma_minus8 != 2)
+				/* Only 8-bit and 10-bit are supported */
+				return -EINVAL;
+		} else {
+			if (sps->bit_depth_luma_minus8 != 0)
+				/* Only 8-bit is supported */
+				return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops cedrus_ctrl_ops = {
+	.try_ctrl = cedrus_try_ctrl,
+};
+
 static const struct cedrus_control cedrus_controls[] = {
 	{
 		.cfg = {
-			.id	= V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS,
+			.id	= V4L2_CID_STATELESS_MPEG2_SEQUENCE,
 		},
 		.codec		= CEDRUS_CODEC_MPEG2,
-		.required	= true,
 	},
 	{
 		.cfg = {
-			.id	= V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION,
+			.id	= V4L2_CID_STATELESS_MPEG2_PICTURE,
 		},
 		.codec		= CEDRUS_CODEC_MPEG2,
-		.required	= false,
 	},
 	{
 		.cfg = {
-			.id	= V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAMS,
+			.id	= V4L2_CID_STATELESS_MPEG2_QUANTISATION,
 		},
-		.codec		= CEDRUS_CODEC_H264,
-		.required	= true,
+		.codec		= CEDRUS_CODEC_MPEG2,
 	},
 	{
 		.cfg = {
-			.id	= V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAMS,
+			.id	= V4L2_CID_STATELESS_H264_DECODE_PARAMS,
 		},
 		.codec		= CEDRUS_CODEC_H264,
-		.required	= true,
 	},
 	{
 		.cfg = {
-			.id	= V4L2_CID_MPEG_VIDEO_H264_SPS,
+			.id	= V4L2_CID_STATELESS_H264_SLICE_PARAMS,
 		},
 		.codec		= CEDRUS_CODEC_H264,
-		.required	= true,
 	},
 	{
 		.cfg = {
-			.id	= V4L2_CID_MPEG_VIDEO_H264_PPS,
+			.id	= V4L2_CID_STATELESS_H264_SPS,
+			.ops	= &cedrus_ctrl_ops,
 		},
 		.codec		= CEDRUS_CODEC_H264,
-		.required	= true,
 	},
 	{
 		.cfg = {
-			.id	= V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX,
+			.id	= V4L2_CID_STATELESS_H264_PPS,
 		},
 		.codec		= CEDRUS_CODEC_H264,
-		.required	= false,
 	},
 	{
 		.cfg = {
-			.id	= V4L2_CID_MPEG_VIDEO_H264_PRED_WEIGHTS,
+			.id	= V4L2_CID_STATELESS_H264_SCALING_MATRIX,
 		},
 		.codec		= CEDRUS_CODEC_H264,
-		.required	= false,
 	},
 	{
 		.cfg = {
-			.id	= V4L2_CID_MPEG_VIDEO_H264_DECODE_MODE,
-			.max	= V4L2_MPEG_VIDEO_H264_DECODE_MODE_SLICE_BASED,
-			.def	= V4L2_MPEG_VIDEO_H264_DECODE_MODE_SLICE_BASED,
+			.id	= V4L2_CID_STATELESS_H264_PRED_WEIGHTS,
 		},
 		.codec		= CEDRUS_CODEC_H264,
-		.required	= false,
 	},
 	{
 		.cfg = {
-			.id	= V4L2_CID_MPEG_VIDEO_H264_START_CODE,
-			.max	= V4L2_MPEG_VIDEO_H264_START_CODE_NONE,
-			.def	= V4L2_MPEG_VIDEO_H264_START_CODE_NONE,
+			.id	= V4L2_CID_STATELESS_H264_DECODE_MODE,
+			.max	= V4L2_STATELESS_H264_DECODE_MODE_SLICE_BASED,
+			.def	= V4L2_STATELESS_H264_DECODE_MODE_SLICE_BASED,
 		},
 		.codec		= CEDRUS_CODEC_H264,
-		.required	= false,
+	},
+	{
+		.cfg = {
+			.id	= V4L2_CID_STATELESS_H264_START_CODE,
+			.max	= V4L2_STATELESS_H264_START_CODE_NONE,
+			.def	= V4L2_STATELESS_H264_START_CODE_NONE,
+		},
+		.codec		= CEDRUS_CODEC_H264,
+	},
+	/*
+	 * We only expose supported profiles information,
+	 * and not levels as it's not clear what is supported
+	 * for each hardware/core version.
+	 * In any case, TRY/S_FMT will clamp the format resolution
+	 * to the maximum supported.
+	 */
+	{
+		.cfg = {
+			.id	= V4L2_CID_MPEG_VIDEO_H264_PROFILE,
+			.min	= V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE,
+			.def	= V4L2_MPEG_VIDEO_H264_PROFILE_MAIN,
+			.max	= V4L2_MPEG_VIDEO_H264_PROFILE_HIGH,
+			.menu_skip_mask =
+				BIT(V4L2_MPEG_VIDEO_H264_PROFILE_EXTENDED),
+		},
+		.codec		= CEDRUS_CODEC_H264,
 	},
 	{
 		.cfg = {
 			.id	= V4L2_CID_MPEG_VIDEO_HEVC_SPS,
+			.ops	= &cedrus_ctrl_ops,
 		},
 		.codec		= CEDRUS_CODEC_H265,
-		.required	= true,
 	},
 	{
 		.cfg = {
 			.id	= V4L2_CID_MPEG_VIDEO_HEVC_PPS,
 		},
 		.codec		= CEDRUS_CODEC_H265,
-		.required	= true,
 	},
 	{
 		.cfg = {
 			.id	= V4L2_CID_MPEG_VIDEO_HEVC_SLICE_PARAMS,
 		},
 		.codec		= CEDRUS_CODEC_H265,
-		.required	= true,
+	},
+	{
+		.cfg = {
+			.id	= V4L2_CID_MPEG_VIDEO_HEVC_SCALING_MATRIX,
+		},
+		.codec		= CEDRUS_CODEC_H265,
 	},
 	{
 		.cfg = {
@@ -131,7 +194,6 @@ static const struct cedrus_control cedrus_controls[] = {
 			.def	= V4L2_MPEG_VIDEO_HEVC_DECODE_MODE_SLICE_BASED,
 		},
 		.codec		= CEDRUS_CODEC_H265,
-		.required	= false,
 	},
 	{
 		.cfg = {
@@ -140,7 +202,18 @@ static const struct cedrus_control cedrus_controls[] = {
 			.def	= V4L2_MPEG_VIDEO_HEVC_START_CODE_NONE,
 		},
 		.codec		= CEDRUS_CODEC_H265,
-		.required	= false,
+	},
+	{
+		.cfg = {
+			.id	= V4L2_CID_STATELESS_VP8_FRAME,
+		},
+		.codec		= CEDRUS_CODEC_VP8,
+	},
+	{
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_HEVC_DECODE_PARAMS,
+		},
+		.codec		= CEDRUS_CODEC_H265,
 	},
 };
 
@@ -186,6 +259,7 @@ static int cedrus_init_ctrls(struct cedrus_dev *dev, struct cedrus_ctx *ctx)
 
 			v4l2_ctrl_handler_free(hdl);
 			kfree(ctx->ctrls);
+			ctx->ctrls = NULL;
 			return hdl->error;
 		}
 
@@ -201,12 +275,8 @@ static int cedrus_init_ctrls(struct cedrus_dev *dev, struct cedrus_ctx *ctx)
 static int cedrus_request_validate(struct media_request *req)
 {
 	struct media_request_object *obj;
-	struct v4l2_ctrl_handler *parent_hdl, *hdl;
 	struct cedrus_ctx *ctx = NULL;
-	struct v4l2_ctrl *ctrl_test;
 	unsigned int count;
-	unsigned int i;
-	int ret = 0;
 
 	list_for_each_entry(obj, &req->objects, list) {
 		struct vb2_buffer *vb;
@@ -232,34 +302,6 @@ static int cedrus_request_validate(struct media_request *req)
 			  "More than one buffer was provided with the request\n");
 		return -EINVAL;
 	}
-
-	parent_hdl = &ctx->hdl;
-
-	hdl = v4l2_ctrl_request_hdl_find(req, parent_hdl);
-	if (!hdl) {
-		v4l2_info(&ctx->dev->v4l2_dev, "Missing codec control(s)\n");
-		return -ENOENT;
-	}
-
-	for (i = 0; i < CEDRUS_CONTROLS_COUNT; i++) {
-		if (cedrus_controls[i].codec != ctx->current_codec ||
-		    !cedrus_controls[i].required)
-			continue;
-
-		ctrl_test = v4l2_ctrl_request_hdl_ctrl_find(hdl,
-							    cedrus_controls[i].cfg.id);
-		if (!ctrl_test) {
-			v4l2_info(&ctx->dev->v4l2_dev,
-				  "Missing required codec control\n");
-			ret = -ENOENT;
-			break;
-		}
-	}
-
-	v4l2_ctrl_request_hdl_put(hdl);
-
-	if (ret)
-		return ret;
 
 	return vb2_request_validate(req);
 }
@@ -293,7 +335,7 @@ static int cedrus_open(struct file *file)
 		ret = PTR_ERR(ctx->fh.m2m_ctx);
 		goto err_ctrls;
 	}
-	ctx->dst_fmt.pixelformat = V4L2_PIX_FMT_SUNXI_TILED_NV12;
+	ctx->dst_fmt.pixelformat = V4L2_PIX_FMT_NV12_32L32;
 	cedrus_prepare_format(&ctx->dst_fmt);
 	ctx->src_fmt.pixelformat = V4L2_PIX_FMT_MPEG2_SLICE;
 	/*
@@ -393,8 +435,11 @@ static int cedrus_probe(struct platform_device *pdev)
 	dev->dec_ops[CEDRUS_CODEC_MPEG2] = &cedrus_dec_ops_mpeg2;
 	dev->dec_ops[CEDRUS_CODEC_H264] = &cedrus_dec_ops_h264;
 	dev->dec_ops[CEDRUS_CODEC_H265] = &cedrus_dec_ops_h265;
+	dev->dec_ops[CEDRUS_CODEC_VP8] = &cedrus_dec_ops_vp8;
 
 	mutex_init(&dev->dev_mutex);
+
+	INIT_DELAYED_WORK(&dev->watchdog_work, cedrus_watchdog);
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret) {
@@ -486,44 +531,90 @@ static int cedrus_remove(struct platform_device *pdev)
 }
 
 static const struct cedrus_variant sun4i_a10_cedrus_variant = {
+	.capabilities	= CEDRUS_CAPABILITY_MPEG2_DEC |
+			  CEDRUS_CAPABILITY_H264_DEC |
+			  CEDRUS_CAPABILITY_VP8_DEC,
 	.mod_rate	= 320000000,
 };
 
 static const struct cedrus_variant sun5i_a13_cedrus_variant = {
+	.capabilities	= CEDRUS_CAPABILITY_MPEG2_DEC |
+			  CEDRUS_CAPABILITY_H264_DEC |
+			  CEDRUS_CAPABILITY_VP8_DEC,
 	.mod_rate	= 320000000,
 };
 
 static const struct cedrus_variant sun7i_a20_cedrus_variant = {
+	.capabilities	= CEDRUS_CAPABILITY_MPEG2_DEC |
+			  CEDRUS_CAPABILITY_H264_DEC |
+			  CEDRUS_CAPABILITY_VP8_DEC,
 	.mod_rate	= 320000000,
 };
 
 static const struct cedrus_variant sun8i_a33_cedrus_variant = {
-	.capabilities	= CEDRUS_CAPABILITY_UNTILED,
+	.capabilities	= CEDRUS_CAPABILITY_UNTILED |
+			  CEDRUS_CAPABILITY_MPEG2_DEC |
+			  CEDRUS_CAPABILITY_H264_DEC |
+			  CEDRUS_CAPABILITY_VP8_DEC,
 	.mod_rate	= 320000000,
 };
 
 static const struct cedrus_variant sun8i_h3_cedrus_variant = {
 	.capabilities	= CEDRUS_CAPABILITY_UNTILED |
-			  CEDRUS_CAPABILITY_H265_DEC,
+			  CEDRUS_CAPABILITY_MPEG2_DEC |
+			  CEDRUS_CAPABILITY_H264_DEC |
+			  CEDRUS_CAPABILITY_H265_DEC |
+			  CEDRUS_CAPABILITY_VP8_DEC,
 	.mod_rate	= 402000000,
+};
+
+static const struct cedrus_variant sun8i_v3s_cedrus_variant = {
+	.capabilities	= CEDRUS_CAPABILITY_UNTILED |
+			  CEDRUS_CAPABILITY_H264_DEC,
+	.mod_rate	= 297000000,
+};
+
+static const struct cedrus_variant sun8i_r40_cedrus_variant = {
+	.capabilities	= CEDRUS_CAPABILITY_UNTILED |
+			  CEDRUS_CAPABILITY_MPEG2_DEC |
+			  CEDRUS_CAPABILITY_H264_DEC |
+			  CEDRUS_CAPABILITY_VP8_DEC,
+	.mod_rate	= 297000000,
+};
+
+static const struct cedrus_variant sun20i_d1_cedrus_variant = {
+	.capabilities	= CEDRUS_CAPABILITY_UNTILED |
+			  CEDRUS_CAPABILITY_MPEG2_DEC |
+			  CEDRUS_CAPABILITY_H264_DEC |
+			  CEDRUS_CAPABILITY_H265_DEC,
+	.mod_rate	= 432000000,
 };
 
 static const struct cedrus_variant sun50i_a64_cedrus_variant = {
 	.capabilities	= CEDRUS_CAPABILITY_UNTILED |
-			  CEDRUS_CAPABILITY_H265_DEC,
+			  CEDRUS_CAPABILITY_MPEG2_DEC |
+			  CEDRUS_CAPABILITY_H264_DEC |
+			  CEDRUS_CAPABILITY_H265_DEC |
+			  CEDRUS_CAPABILITY_VP8_DEC,
 	.mod_rate	= 402000000,
 };
 
 static const struct cedrus_variant sun50i_h5_cedrus_variant = {
 	.capabilities	= CEDRUS_CAPABILITY_UNTILED |
-			  CEDRUS_CAPABILITY_H265_DEC,
+			  CEDRUS_CAPABILITY_MPEG2_DEC |
+			  CEDRUS_CAPABILITY_H264_DEC |
+			  CEDRUS_CAPABILITY_H265_DEC |
+			  CEDRUS_CAPABILITY_VP8_DEC,
 	.mod_rate	= 402000000,
 };
 
 static const struct cedrus_variant sun50i_h6_cedrus_variant = {
 	.capabilities	= CEDRUS_CAPABILITY_UNTILED |
-			  CEDRUS_CAPABILITY_H265_DEC,
-	.quirks		= CEDRUS_QUIRK_NO_DMA_OFFSET,
+			  CEDRUS_CAPABILITY_MPEG2_DEC |
+			  CEDRUS_CAPABILITY_H264_DEC |
+			  CEDRUS_CAPABILITY_H265_DEC |
+			  CEDRUS_CAPABILITY_H265_10_DEC |
+			  CEDRUS_CAPABILITY_VP8_DEC,
 	.mod_rate	= 600000000,
 };
 
@@ -547,6 +638,18 @@ static const struct of_device_id cedrus_dt_match[] = {
 	{
 		.compatible = "allwinner,sun8i-h3-video-engine",
 		.data = &sun8i_h3_cedrus_variant,
+	},
+	{
+		.compatible = "allwinner,sun8i-v3s-video-engine",
+		.data = &sun8i_v3s_cedrus_variant,
+	},
+	{
+		.compatible = "allwinner,sun8i-r40-video-engine",
+		.data = &sun8i_r40_cedrus_variant,
+	},
+	{
+		.compatible = "allwinner,sun20i-d1-video-engine",
+		.data = &sun20i_d1_cedrus_variant,
 	},
 	{
 		.compatible = "allwinner,sun50i-a64-video-engine",

@@ -139,11 +139,23 @@ struct dc_vbios_funcs {
 
 	enum bp_result (*enable_lvtma_control)(
 		struct dc_bios *bios,
-		uint8_t uc_pwr_on);
+		uint8_t uc_pwr_on,
+		uint8_t panel_instance);
 
 	enum bp_result (*get_soc_bb_info)(
 		struct dc_bios *dcb,
 		struct bp_soc_bb_info *soc_bb_info);
+
+	enum bp_result (*get_disp_connector_caps_info)(
+			struct dc_bios *dcb,
+			struct graphics_object_id object_id,
+			struct bp_disp_connector_caps_info *info);
+	enum bp_result (*get_lttpr_caps)(
+			struct dc_bios *dcb,
+			uint8_t *dce_caps);
+	enum bp_result (*get_lttpr_interop)(
+			struct dc_bios *dcb,
+			uint8_t *dce_caps);
 };
 
 struct bios_registers {

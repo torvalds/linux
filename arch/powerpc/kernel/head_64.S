@@ -41,6 +41,11 @@
 #include <asm/ppc-opcode.h>
 #include <asm/export.h>
 #include <asm/feature-fixups.h>
+#ifdef CONFIG_PPC_BOOK3S
+#include <asm/exception-64s.h>
+#else
+#include <asm/exception-64e.h>
+#endif
 
 /* The physical memory is laid out such that the secondary processor
  * spin code sits at 0x0000...0x00ff. On server, the vectors follow
@@ -121,7 +126,7 @@ __secondary_hold_acknowledge:
 	. = 0x5c
 	.globl	__run_at_load
 __run_at_load:
-DEFINE_FIXED_SYMBOL(__run_at_load)
+DEFINE_FIXED_SYMBOL(__run_at_load, first_256B)
 	.long	RUN_AT_LOAD_DEFAULT
 #endif
 
@@ -151,7 +156,7 @@ __secondary_hold:
 	/* Tell the master cpu we're here */
 	/* Relocation is off & we are located at an address less */
 	/* than 0x100, so only need to grab low order offset.    */
-	std	r24,(ABS_ADDR(__secondary_hold_acknowledge))(0)
+	std	r24,(ABS_ADDR(__secondary_hold_acknowledge, first_256B))(0)
 	sync
 
 	li	r26,0
@@ -159,7 +164,7 @@ __secondary_hold:
 	tovirt(r26,r26)
 #endif
 	/* All secondary cpus wait here until told to start. */
-100:	ld	r12,(ABS_ADDR(__secondary_hold_spinloop))(r26)
+100:	ld	r12,(ABS_ADDR(__secondary_hold_spinloop, first_256B))(r26)
 	cmpdi	0,r12,0
 	beq	100b
 
@@ -189,8 +194,9 @@ CLOSE_FIXED_SECTION(first_256B)
 
 /* This value is used to mark exception frames on the stack. */
 	.section ".toc","aw"
+/* This value is used to mark exception frames on the stack. */
 exception_marker:
-	.tc	ID_72656773_68657265[TC],0x7265677368657265
+	.tc	ID_EXC_MARKER[TC],STACK_FRAME_REGS_MARKER
 	.previous
 
 /*
@@ -205,6 +211,8 @@ OPEN_TEXT_SECTION(0x100)
 #endif
 
 USE_TEXT_SECTION()
+
+#include "interrupt_64.S"
 
 #ifdef CONFIG_PPC_BOOK3E
 /*
@@ -417,6 +425,10 @@ generic_secondary_common_init:
 	/* From now on, r24 is expected to be logical cpuid */
 	mr	r24,r5
 
+	/* Create a temp kernel stack for use before relocation is on.	*/
+	ld	r1,PACAEMERGSP(r13)
+	subi	r1,r1,STACK_FRAME_OVERHEAD
+
 	/* See if we need to call a cpu state restore handler */
 	LOAD_REG_ADDR(r23, cur_cpu_spec)
 	ld	r23,0(r23)
@@ -444,10 +456,6 @@ generic_secondary_common_init:
 
 	sync				/* order paca.run and cur_cpu_spec */
 	isync				/* In case code patching happened */
-
-	/* Create a temp kernel stack for use before relocation is on.	*/
-	ld	r1,PACAEMERGSP(r13)
-	subi	r1,r1,STACK_FRAME_OVERHEAD
 
 	b	__secondary_start
 #endif /* SMP */
@@ -641,15 +649,15 @@ __after_prom_start:
 3:
 #endif
 	/* # bytes of memory to copy */
-	lis	r5,(ABS_ADDR(copy_to_here))@ha
-	addi	r5,r5,(ABS_ADDR(copy_to_here))@l
+	lis	r5,(ABS_ADDR(copy_to_here, text))@ha
+	addi	r5,r5,(ABS_ADDR(copy_to_here, text))@l
 
 	bl	copy_and_flush		/* copy the first n bytes	 */
 					/* this includes the code being	 */
 					/* executed here.		 */
 	/* Jump to the copy of this code that we just made */
-	addis	r8,r3,(ABS_ADDR(4f))@ha
-	addi	r12,r8,(ABS_ADDR(4f))@l
+	addis	r8,r3,(ABS_ADDR(4f, text))@ha
+	addi	r12,r8,(ABS_ADDR(4f, text))@l
 	mtctr	r12
 	bctr
 
@@ -661,8 +669,8 @@ p_end: .8byte _end - copy_to_here
 	 * Now copy the rest of the kernel up to _end, add
 	 * _end - copy_to_here to the copy limit and run again.
 	 */
-	addis   r8,r26,(ABS_ADDR(p_end))@ha
-	ld      r8,(ABS_ADDR(p_end))@l(r8)
+	addis   r8,r26,(ABS_ADDR(p_end, text))@ha
+	ld      r8,(ABS_ADDR(p_end, text))@l(r8)
 	add	r5,r5,r8
 5:	bl	copy_and_flush		/* copy the rest */
 
@@ -703,6 +711,8 @@ _GLOBAL(copy_and_flush)
 	addi	r6,r6,8
 	isync
 	blr
+
+_ASM_NOKPROBE_SYMBOL(copy_and_flush); /* Called in real mode */
 
 .align 8
 copy_to_here:
@@ -829,7 +839,7 @@ __secondary_start:
 
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
-	RFI
+	RFI_TO_KERNEL
 	b	.	/* prevent speculative execution */
 
 /* 
@@ -865,8 +875,7 @@ enable_64b_mode:
 	oris	r11,r11,0x8000		/* CM bit set, we'll set ICM later */
 	mtmsr	r11
 #else /* CONFIG_PPC_BOOK3E */
-	li	r12,(MSR_64BIT | MSR_ISF)@highest
-	sldi	r12,r12,48
+	LOAD_REG_IMMEDIATE(r12, MSR_64BIT)
 	or	r11,r11,r12
 	mtmsrd	r11
 	isync
@@ -895,7 +904,7 @@ _GLOBAL(relative_toc)
 	blr
 
 .balign 8
-p_toc:	.8byte	__toc_start + 0x8000 - 0b
+p_toc:	.8byte	.TOC. - 0b
 
 /*
  * This is where the main kernel code starts.
@@ -966,7 +975,7 @@ start_here_multiplatform:
 	ld	r4,PACAKMSR(r13)
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
-	RFI
+	RFI_TO_KERNEL
 	b	.	/* prevent speculative execution */
 
 	/* This is where all platforms converge execution */
@@ -990,26 +999,6 @@ start_here_common:
 	bl	start_kernel
 
 	/* Not reached */
-	trap
+0:	trap
 	EMIT_BUG_ENTRY 0b, __FILE__, __LINE__, 0
 	.previous
-
-/*
- * We put a few things here that have to be page-aligned.
- * This stuff goes at the beginning of the bss, which is page-aligned.
- */
-	.section ".bss"
-/*
- * pgd dir should be aligned to PGD_TABLE_SIZE which is 64K.
- * We will need to find a better way to fix this
- */
-	.align	16
-
-	.globl	swapper_pg_dir
-swapper_pg_dir:
-	.space	PGD_TABLE_SIZE
-
-	.globl	empty_zero_page
-empty_zero_page:
-	.space	PAGE_SIZE
-EXPORT_SYMBOL(empty_zero_page)

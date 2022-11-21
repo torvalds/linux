@@ -202,18 +202,24 @@ static inline unsigned long ___pa(unsigned long x)
 /*
  * RELOC_HIDE was originally added by 6007b903dfe5f1d13e0c711ac2894bdd4a61b1ad
  * (lmo) rsp. 8431fd094d625b94d364fe393076ccef88e6ce18 (kernel.org).  The
- * discussion can be found in lkml posting
- * <a2ebde260608230500o3407b108hc03debb9da6e62c@mail.gmail.com> which is
- * archived at http://lists.linuxcoding.com/kernel/2006-q3/msg17360.html
+ * discussion can be found in
+ * https://lore.kernel.org/lkml/a2ebde260608230500o3407b108hc03debb9da6e62c@mail.gmail.com
  *
  * It is unclear if the misscompilations mentioned in
- * http://lkml.org/lkml/2010/8/8/138 also affect MIPS so we keep this one
- * until GCC 3.x has been retired before we can apply
- * https://patchwork.linux-mips.org/patch/1541/
+ * https://lore.kernel.org/lkml/1281303490-390-1-git-send-email-namhyung@gmail.com
+ * also affect MIPS so we keep this one until GCC 3.x has been retired
+ * before we can apply https://patchwork.linux-mips.org/patch/1541/
  */
+#define __pa_symbol_nodebug(x)	__pa(RELOC_HIDE((unsigned long)(x), 0))
+
+#ifdef CONFIG_DEBUG_VIRTUAL
+extern phys_addr_t __phys_addr_symbol(unsigned long x);
+#else
+#define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
+#endif
 
 #ifndef __pa_symbol
-#define __pa_symbol(x)	__pa(RELOC_HIDE((unsigned long)(x), 0))
+#define __pa_symbol(x)		__phys_addr_symbol((unsigned long)(x))
 #endif
 
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
@@ -233,7 +239,7 @@ static inline int pfn_valid(unsigned long pfn)
 
 /* pfn_valid is defined in linux/mmzone.h */
 
-#elif defined(CONFIG_NEED_MULTIPLE_NODES)
+#elif defined(CONFIG_NUMA)
 
 #define pfn_valid(pfn)							\
 ({									\
@@ -254,6 +260,12 @@ extern bool __virt_addr_valid(const volatile void *kaddr);
 	__virt_addr_valid((const volatile void *) (kaddr))
 
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_TSK_EXEC
+
+extern unsigned long __kaslr_offset;
+static inline unsigned long kaslr_offset(void)
+{
+	return __kaslr_offset;
+}
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>

@@ -14,8 +14,8 @@
 #include <linux/tracepoint.h>
 
 TRACE_EVENT(amdtp_packet,
-	TP_PROTO(const struct amdtp_stream *s, u32 cycles, const __be32 *cip_header, unsigned int payload_length, unsigned int data_blocks, unsigned int data_block_counter, unsigned int index),
-	TP_ARGS(s, cycles, cip_header, payload_length, data_blocks, data_block_counter, index),
+	TP_PROTO(const struct amdtp_stream *s, u32 cycles, const __be32 *cip_header, unsigned int payload_length, unsigned int data_blocks, unsigned int data_block_counter, unsigned int packet_index, unsigned int index),
+	TP_ARGS(s, cycles, cip_header, payload_length, data_blocks, data_block_counter, packet_index, index),
 	TP_STRUCT__entry(
 		__field(unsigned int, second)
 		__field(unsigned int, cycle)
@@ -48,8 +48,8 @@ TRACE_EVENT(amdtp_packet,
 		__entry->payload_quadlets = payload_length / sizeof(__be32);
 		__entry->data_blocks = data_blocks;
 		__entry->data_block_counter = data_block_counter,
-		__entry->packet_index = s->packet_index;
-		__entry->irq = !!in_interrupt();
+		__entry->packet_index = packet_index;
+		__entry->irq = !!in_softirq();
 		__entry->index = index;
 	),
 	TP_printk(

@@ -57,7 +57,7 @@ These ioctls work only with user controls. For other control classes the
 
 .. c:type:: v4l2_control
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: struct v4l2_control
     :header-rows:  0
@@ -95,3 +95,6 @@ EBUSY
 
 EACCES
     Attempt to set a read-only control or to get a write-only control.
+
+    Or if there is an attempt to set an inactive control and the driver is
+    not capable of caching the new value until the control is active again.

@@ -323,11 +323,17 @@ static void dwxgmac2_dma_stop_rx(void __iomem *ioaddr, u32 chan)
 }
 
 static int dwxgmac2_dma_interrupt(void __iomem *ioaddr,
-				  struct stmmac_extra_stats *x, u32 chan)
+				  struct stmmac_extra_stats *x, u32 chan,
+				  u32 dir)
 {
 	u32 intr_status = readl(ioaddr + XGMAC_DMA_CH_STATUS(chan));
 	u32 intr_en = readl(ioaddr + XGMAC_DMA_CH_INT_EN(chan));
 	int ret = 0;
+
+	if (dir == DMA_DIR_RX)
+		intr_status &= XGMAC_DMA_STATUS_MSK_RX;
+	else if (dir == DMA_DIR_TX)
+		intr_status &= XGMAC_DMA_STATUS_MSK_TX;
 
 	/* ABNORMAL interrupts */
 	if (unlikely(intr_status & XGMAC_AIS)) {
@@ -365,8 +371,8 @@ static int dwxgmac2_dma_interrupt(void __iomem *ioaddr,
 	return ret;
 }
 
-static void dwxgmac2_get_hw_feature(void __iomem *ioaddr,
-				    struct dma_features *dma_cap)
+static int dwxgmac2_get_hw_feature(void __iomem *ioaddr,
+				   struct dma_features *dma_cap)
 {
 	u32 hw_cap;
 
@@ -439,14 +445,13 @@ static void dwxgmac2_get_hw_feature(void __iomem *ioaddr,
 	dma_cap->frpes = (hw_cap & XGMAC_HWFEAT_FRPES) >> 11;
 	dma_cap->frpbs = (hw_cap & XGMAC_HWFEAT_FRPPB) >> 9;
 	dma_cap->frpsel = (hw_cap & XGMAC_HWFEAT_FRPSEL) >> 3;
+
+	return 0;
 }
 
-static void dwxgmac2_rx_watchdog(void __iomem *ioaddr, u32 riwt, u32 nchan)
+static void dwxgmac2_rx_watchdog(void __iomem *ioaddr, u32 riwt, u32 queue)
 {
-	u32 i;
-
-	for (i = 0; i < nchan; i++)
-		writel(riwt & XGMAC_RWT, ioaddr + XGMAC_DMA_CH_Rx_WATCHDOG(i));
+	writel(riwt & XGMAC_RWT, ioaddr + XGMAC_DMA_CH_Rx_WATCHDOG(queue));
 }
 
 static void dwxgmac2_set_rx_ring_len(void __iomem *ioaddr, u32 len, u32 chan)

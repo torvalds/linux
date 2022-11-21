@@ -125,6 +125,12 @@ enum sdw_dpn_grouping {
 	SDW_BLK_GRP_CNT_4 = 3,
 };
 
+/* block packing mode enum */
+enum sdw_dpn_pkg_mode {
+	SDW_BLK_PKG_PER_PORT = 0,
+	SDW_BLK_PKG_PER_CHANNEL = 1
+};
+
 /**
  * enum sdw_stream_type: data stream type
  *
@@ -359,6 +365,7 @@ struct sdw_dpn_prop {
  * @sink_dpn_prop: Sink Data Port N properties
  * @scp_int1_mask: SCP_INT1_MASK desired settings
  * @quirks: bitmask identifying deltas from the MIPI specification
+ * @is_sdca: the Slave supports the SDCA specification
  */
 struct sdw_slave_prop {
 	u32 mipi_revision;
@@ -382,6 +389,7 @@ struct sdw_slave_prop {
 	struct sdw_dpn_prop *sink_dpn_prop;
 	u8 scp_int1_mask;
 	u32 quirks;
+	bool is_sdca;
 };
 
 #define SDW_SLAVE_QUIRKS_INVALID_INITIAL_PARITY	BIT(0)
@@ -403,6 +411,7 @@ struct sdw_slave_prop {
  * command
  * @mclk_freq: clock reference passed to SoundWire Master, in Hz.
  * @hw_disabled: if true, the Master is not functional, typically due to pin-mux
+ * @quirks: bitmask identifying optional behavior beyond the scope of the MIPI specification
  */
 struct sdw_master_prop {
 	u32 revision;
@@ -419,7 +428,28 @@ struct sdw_master_prop {
 	u32 err_threshold;
 	u32 mclk_freq;
 	bool hw_disabled;
+	u64 quirks;
 };
+
+/* Definitions for Master quirks */
+
+/*
+ * In a number of platforms bus clashes are reported after a hardware
+ * reset but without any explanations or evidence of a real problem.
+ * The following quirk will discard all initial bus clash interrupts
+ * but will leave the detection on should real bus clashes happen
+ */
+#define SDW_MASTER_QUIRKS_CLEAR_INITIAL_CLASH	BIT(0)
+
+/*
+ * Some Slave devices have known issues with incorrect parity errors
+ * reported after a hardware reset. However during integration unexplained
+ * parity errors can be reported by Slave devices, possibly due to electrical
+ * issues at the Master level.
+ * The following quirk will discard all initial parity errors but will leave
+ * the detection on should real parity errors happen.
+ */
+#define SDW_MASTER_QUIRKS_CLEAR_INITIAL_PARITY	BIT(1)
 
 int sdw_master_read_prop(struct sdw_bus *bus);
 int sdw_slave_read_prop(struct sdw_slave *slave);
@@ -479,10 +509,12 @@ struct sdw_slave_id {
 
 /**
  * struct sdw_slave_intr_status - Slave interrupt status
+ * @sdca_cascade: set if the Slave device reports an SDCA interrupt
  * @control_port: control port status
  * @port: data port status
  */
 struct sdw_slave_intr_status {
+	bool sdca_cascade;
 	u8 control_port;
 	u8 port[15];
 };
@@ -580,6 +612,7 @@ struct sdw_bus_params {
  * @update_status: Update Slave status
  * @bus_config: Update the bus config for Slave
  * @port_prep: Prepare the port with parameters
+ * @clk_stop: handle imp-def sequences before and after prepare and de-prepare
  */
 struct sdw_slave_ops {
 	int (*read_prop)(struct sdw_slave *sdw);
@@ -592,7 +625,6 @@ struct sdw_slave_ops {
 	int (*port_prep)(struct sdw_slave *slave,
 			 struct sdw_prepare_ch *prepare_ch,
 			 enum sdw_port_prep_ops pre_ops);
-	int (*get_clk_stop_mode)(struct sdw_slave *slave);
 	int (*clk_stop)(struct sdw_slave *slave,
 			enum sdw_clk_stop_mode mode,
 			enum sdw_clk_stop_type type);
@@ -610,6 +642,7 @@ struct sdw_slave_ops {
  * @debugfs: Slave debugfs
  * @node: node for bus list
  * @port_ready: Port ready completion flag for each Slave port
+ * @m_port_map: static Master port map for each Slave port
  * @dev_num: Current Device Number, values can be 0 or dev_num_sticky
  * @dev_num_sticky: one-time static Device Number assigned by Bus
  * @probed: boolean tracking driver state
@@ -628,6 +661,8 @@ struct sdw_slave_ops {
  * initialized
  * @first_interrupt_done: status flag tracking if the interrupt handling
  * for a Slave happens for the first time after enumeration
+ * @is_mockup_device: status flag used to squelch errors in the command/control
+ * protocol for SoundWire mockup devices
  */
 struct sdw_slave {
 	struct sdw_slave_id id;
@@ -641,7 +676,7 @@ struct sdw_slave {
 #endif
 	struct list_head node;
 	struct completion port_ready[SDW_MAX_PORTS];
-	enum sdw_clk_stop_mode curr_clk_stop_mode;
+	unsigned int m_port_map[SDW_MAX_PORTS];
 	u16 dev_num;
 	u16 dev_num_sticky;
 	bool probed;
@@ -650,6 +685,7 @@ struct sdw_slave {
 	struct completion initialization_complete;
 	u32 unattach_request;
 	bool first_interrupt_done;
+	bool is_mockup_device;
 };
 
 #define dev_to_sdw_dev(_dev) container_of(_dev, struct sdw_slave, dev)
@@ -800,6 +836,7 @@ struct sdw_defer {
 /**
  * struct sdw_master_ops - Master driver ops
  * @read_prop: Read Master properties
+ * @override_adr: Override value read from firmware (quirk for buggy firmware)
  * @xfer_msg: Transfer message callback
  * @xfer_msg_defer: Defer version of transfer message callback
  * @reset_page_addr: Reset the SCP page address registers
@@ -809,7 +846,8 @@ struct sdw_defer {
  */
 struct sdw_master_ops {
 	int (*read_prop)(struct sdw_bus *bus);
-
+	u64 (*override_adr)
+			(struct sdw_bus *bus, u64 addr);
 	enum sdw_command_response (*xfer_msg)
 			(struct sdw_bus *bus, struct sdw_msg *msg);
 	enum sdw_command_response (*xfer_msg_defer)
@@ -1001,7 +1039,14 @@ int sdw_bus_exit_clk_stop(struct sdw_bus *bus);
 
 int sdw_read(struct sdw_slave *slave, u32 addr);
 int sdw_write(struct sdw_slave *slave, u32 addr, u8 value);
+int sdw_write_no_pm(struct sdw_slave *slave, u32 addr, u8 value);
+int sdw_read_no_pm(struct sdw_slave *slave, u32 addr);
 int sdw_nread(struct sdw_slave *slave, u32 addr, size_t count, u8 *val);
-int sdw_nwrite(struct sdw_slave *slave, u32 addr, size_t count, u8 *val);
+int sdw_nwrite(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val);
+int sdw_update(struct sdw_slave *slave, u32 addr, u8 mask, u8 val);
+int sdw_update_no_pm(struct sdw_slave *slave, u32 addr, u8 mask, u8 val);
+
+int sdw_compare_devid(struct sdw_slave *slave, struct sdw_slave_id id);
+void sdw_extract_slave_id(struct sdw_bus *bus, u64 addr, struct sdw_slave_id *id);
 
 #endif /* __SOUNDWIRE_H */

@@ -124,9 +124,10 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	dlm_recover_waiters_pre(ls);
 
-	error = dlm_recovery_stopped(ls);
-	if (error)
+	if (dlm_recovery_stopped(ls)) {
+		error = -EINTR;
 		goto fail;
+	}
 
 	if (neg || dlm_no_directory(ls)) {
 		/*

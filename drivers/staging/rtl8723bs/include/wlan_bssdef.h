@@ -20,11 +20,11 @@ typedef unsigned char   NDIS_802_11_RATES[NDIS_802_11_LENGTH_RATES];        /*  
 typedef unsigned char   NDIS_802_11_RATES_EX[NDIS_802_11_LENGTH_RATES_EX];  /*  Set of 16 data rates */
 
 struct ndis_802_11_ssid {
-	u32  SsidLength;
-	u8  Ssid[32];
+	u32  ssid_length;
+	u8  ssid[32];
 };
 
-enum NDIS_802_11_NETWORK_TYPE {
+enum ndis_802_11_network_type {
 	Ndis802_11FH,
 	Ndis802_11DS,
 	Ndis802_11OFDM5,
@@ -32,26 +32,18 @@ enum NDIS_802_11_NETWORK_TYPE {
 	Ndis802_11NetworkTypeMax    /*  not a real type, defined as an upper bound */
 };
 
-struct ndis_802_11_conf_fh {
-	u32 Length;             /*  Length of structure */
-	u32 HopPattern;         /*  As defined by 802.11, MSB set */
-	u32 HopSet;             /*  to one if non-802.11 */
-	u32 DwellTime;          /*  units are Kusec */
-};
-
 /*
 	FW will only save the channel number in DSConfig.
 	ODI Handler will convert the channel number to freq. number.
 */
 struct ndis_802_11_conf {
-	u32 Length;             /*  Length of structure */
-	u32 BeaconPeriod;       /*  units are Kusec */
-	u32 ATIMWindow;         /*  units are Kusec */
-	u32 DSConfig;           /*  Frequency, units are kHz */
-	struct ndis_802_11_conf_fh    FHConfig;
+	u32 length;             /*  Length of structure */
+	u32 beacon_period;       /*  units are Kusec */
+	u32 atim_window;         /*  units are Kusec */
+	u32 ds_config;           /*  Frequency, units are kHz */
 };
 
-enum NDIS_802_11_NETWORK_INFRASTRUCTURE {
+enum ndis_802_11_network_infrastructure {
 	Ndis802_11IBSS,
 	Ndis802_11Infrastructure,
 	Ndis802_11AutoUnknown,
@@ -60,27 +52,27 @@ enum NDIS_802_11_NETWORK_INFRASTRUCTURE {
 };
 
 struct ndis_802_11_fix_ie {
-	u8  Timestamp[8];
-	u16  BeaconInterval;
-	u16  Capabilities;
+	u8  time_stamp[8];
+	u16  beacon_interval;
+	u16  capabilities;
 };
 
 struct ndis_80211_var_ie {
-	u8  ElementID;
-	u8  Length;
-	u8  data[1];
+	u8  element_id;
+	u8  length;
+	u8  data[];
 };
 
 /* Length is the 4 bytes multiples of the sum of
  * sizeof (NDIS_802_11_MAC_ADDRESS) + 2 +
  * sizeof (struct ndis_802_11_ssid) + sizeof (u32) +
- * sizeof (long) + sizeof (enum NDIS_802_11_NETWORK_TYPE) +
- * sizeof (struct ndis_802_11_conf) + sizeof (NDIS_802_11_RATES_EX) + IELength
+ * sizeof (long) + sizeof (enum ndis_802_11_network_type) +
+ * sizeof (struct ndis_802_11_conf) + sizeof (NDIS_802_11_RATES_EX) + ie_length
  *
- * Except for IELength, all other fields are fixed length. Therefore, we can
+ * Except for ie_length, all other fields are fixed length. Therefore, we can
  * define a macro to present the partial sum.
  */
-enum NDIS_802_11_AUTHENTICATION_MODE {
+enum ndis_802_11_authentication_mode {
 	Ndis802_11AuthModeOpen,
 	Ndis802_11AuthModeShared,
 	Ndis802_11AuthModeAutoSwitch,
@@ -91,7 +83,7 @@ enum NDIS_802_11_AUTHENTICATION_MODE {
 	Ndis802_11AuthModeMax   /*  Not a real mode, defined as upper bound */
 };
 
-enum NDIS_802_11_WEP_STATUS {
+enum {
 	Ndis802_11WEPEnabled,
 	Ndis802_11Encryption1Enabled = Ndis802_11WEPEnabled,
 	Ndis802_11WEPDisabled,
@@ -115,56 +107,13 @@ enum NDIS_802_11_WEP_STATUS {
 #define NDIS_802_11_AI_RESFI_STATUSCODE        2
 #define NDIS_802_11_AI_RESFI_ASSOCIATIONID     4
 
-struct ndis_802_11_ai_reqfi {
-	u16 Capabilities;
-	u16 ListenInterval;
-	NDIS_802_11_MAC_ADDRESS  CurrentAPAddress;
-};
-
-struct ndis_801_11_ai_resfi {
-	u16 Capabilities;
-	u16 StatusCode;
-	u16 AssociationId;
-};
-
-typedef struct _NDIS_802_11_ASSOCIATION_INFORMATION {
-	u32                   Length;
-	u16                  AvailableRequestFixedIEs;
-	struct ndis_802_11_ai_reqfi    RequestFixedIEs;
-	u32                   RequestIELength;
-	u32                   OffsetRequestIEs;
-	u16                  AvailableResponseFixedIEs;
-	struct ndis_801_11_ai_resfi    ResponseFixedIEs;
-	u32                   ResponseIELength;
-	u32                   OffsetResponseIEs;
-} NDIS_802_11_ASSOCIATION_INFORMATION, *PNDIS_802_11_ASSOCIATION_INFORMATION;
-
-enum NDIS_802_11_RELOAD_DEFAULTS {
-	Ndis802_11ReloadWEPKeys
-};
-
-
 /*  Key mapping keys require a BSSID */
-typedef struct _NDIS_802_11_KEY {
-	u32           Length;             /*  Length of this structure */
-	u32           KeyIndex;
-	u32           KeyLength;          /*  length of key in bytes */
-	NDIS_802_11_MAC_ADDRESS BSSID;
-	unsigned long long KeyRSC;
-	u8           KeyMaterial[32];     /*  variable length depending on above field */
-} NDIS_802_11_KEY, *PNDIS_802_11_KEY;
-
-typedef struct _NDIS_802_11_REMOVE_KEY {
-	u32                   Length;        /*  Length of this structure */
-	u32                   KeyIndex;
-	NDIS_802_11_MAC_ADDRESS BSSID;
-} NDIS_802_11_REMOVE_KEY, *PNDIS_802_11_REMOVE_KEY;
 
 struct ndis_802_11_wep {
-	u32 Length;        /*  Length of this structure */
-	u32 KeyIndex;      /*  0 is the per-client key, 1-N are the global keys */
-	u32 KeyLength;     /*  length of key in bytes */
-	u8 KeyMaterial[16];/*  variable length depending on above field */
+	u32 length;        /*  Length of this structure */
+	u32 key_index;      /*  0 is the per-client key, 1-N are the global keys */
+	u32 key_length;     /*  length of key in bytes */
+	u8 key_material[16];/*  variable length depending on above field */
 };
 
 /*  mask for authentication/integrity fields */
@@ -182,10 +131,10 @@ struct ndis_802_11_wep {
 #endif
 
 struct wlan_phy_info {
-	u8 SignalStrength;/* in percentage) */
-	u8 SignalQuality;/* in percentage) */
-	u8 Optimum_antenna;  /* for Antenna diversity */
-	u8 Reserved_0;
+	u8 signal_strength;/* in percentage) */
+	u8 signal_quality;/* in percentage) */
+	u8 optimum_antenna;  /* for Antenna diversity */
+	u8 reserved_0;
 };
 
 struct wlan_bcn_info {
@@ -205,24 +154,24 @@ struct wlan_bcn_info {
 *   struct wlan_bssid_ex and get_wlan_bssid_ex_sz()
 */
 struct wlan_bssid_ex {
-	u32  Length;
-	NDIS_802_11_MAC_ADDRESS  MacAddress;
-	u8  Reserved[2];/* 0]: IS beacon frame */
-	struct ndis_802_11_ssid  Ssid;
-	u32  Privacy;
-	long  Rssi;/* in dBM, raw data , get from PHY) */
-	enum NDIS_802_11_NETWORK_TYPE  NetworkTypeInUse;
-	struct ndis_802_11_conf  Configuration;
-	enum NDIS_802_11_NETWORK_INFRASTRUCTURE  InfrastructureMode;
-	NDIS_802_11_RATES_EX  SupportedRates;
-	struct wlan_phy_info PhyInfo;
-	u32  IELength;
-	u8  IEs[MAX_IE_SZ];	/* timestamp, beacon interval, and capability information) */
+	u32  length;
+	NDIS_802_11_MAC_ADDRESS  mac_address;
+	u8  reserved[2];/* 0]: IS beacon frame */
+	struct ndis_802_11_ssid  ssid;
+	u32  privacy;
+	long  rssi;/* in dBM, raw data , get from PHY) */
+	enum ndis_802_11_network_type  network_type_in_use;
+	struct ndis_802_11_conf  configuration;
+	enum ndis_802_11_network_infrastructure  infrastructure_mode;
+	NDIS_802_11_RATES_EX  supported_rates;
+	struct wlan_phy_info phy_info;
+	u32  ie_length;
+	u8  ies[MAX_IE_SZ];	/* timestamp, beacon interval, and capability information) */
 } __packed;
 
 static inline uint get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
 {
-	return (sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + bss->IELength);
+	return (sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + bss->ie_length);
 }
 
 struct	wlan_network {
@@ -233,16 +182,16 @@ struct	wlan_network {
 	int	aid;			/* will only be valid when a BSS is joinned. */
 	int	join_res;
 	struct wlan_bssid_ex	network; /* must be the last item */
-	struct wlan_bcn_info	BcnInfo;
+	struct wlan_bcn_info	bcn_info;
 };
 
-enum VRTL_CARRIER_SENSE {
+enum {
 	DISABLE_VCS,
 	ENABLE_VCS,
 	AUTO_VCS
 };
 
-enum VCS_TYPE {
+enum {
 	NONE_VCS,
 	RTS_CTS,
 	CTS_TO_SELF
@@ -254,7 +203,7 @@ enum VCS_TYPE {
 #define PWR_UAPSD 3
 #define PWR_VOIP 4
 
-enum UAPSD_MAX_SP {
+enum {
 	NO_LIMIT,
 	TWO_MSDU,
 	FOUR_MSDU,

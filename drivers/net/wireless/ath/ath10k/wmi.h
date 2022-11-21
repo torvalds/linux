@@ -2066,7 +2066,9 @@ struct wmi_channel {
 	union {
 		__le32 reginfo1;
 		struct {
+			/* note: power unit is 1 dBm */
 			u8 antenna_max;
+			/* note: power unit is 0.5 dBm */
 			u8 max_tx_power;
 		} __packed;
 	} __packed;
@@ -2086,6 +2088,7 @@ struct wmi_channel_arg {
 	u32 min_power;
 	u32 max_power;
 	u32 max_reg_power;
+	/* note: power unit is 1 dBm */
 	u32 max_antenna_gain;
 	u32 reg_class_id;
 	enum wmi_phy_mode mode;
@@ -3060,6 +3063,8 @@ struct host_memory_chunk {
 	__le32 size;
 } __packed;
 
+#define WMI_IRAM_RECOVERY_HOST_MEM_REQ_ID 8
+
 struct wmi_host_mem_chunks {
 	__le32 count;
 	/* some fw revisions require at least 1 chunk regardless of count */
@@ -3473,7 +3478,9 @@ struct wmi_phyerr_event {
 	__le32 num_phyerrs;
 	__le32 tsf_l32;
 	__le32 tsf_u32;
-	struct wmi_phyerr phyerrs[];
+
+	/* array of struct wmi_phyerr */
+	u8 phyerrs[];
 } __packed;
 
 struct wmi_10_4_phyerr_event {
@@ -3832,7 +3839,7 @@ enum wmi_pdev_param {
 	WMI_PDEV_PARAM_BEACON_TX_MODE,
 	/*
 	 * Resource manager off chan mode .
-	 * 0: turn off off chan mode. 1: turn on offchan mode
+	 * 0: turn off offchan mode. 1: turn on offchan mode
 	 */
 	WMI_PDEV_PARAM_RESMGR_OFFCHAN_MODE,
 	/*
@@ -3936,7 +3943,7 @@ enum wmi_10x_pdev_param {
 	WMI_10X_PDEV_PARAM_BEACON_TX_MODE,
 	/*
 	 * Resource manager off chan mode .
-	 * 0: turn off off chan mode. 1: turn on offchan mode
+	 * 0: turn off offchan mode. 1: turn on offchan mode
 	 */
 	WMI_10X_PDEV_PARAM_RESMGR_OFFCHAN_MODE,
 	/*
@@ -4369,8 +4376,8 @@ struct wmi_pdev_stats_tx {
 	/* Num PPDUs cleaned up in TX abort */
 	__le32 tx_abort;
 
-	/* Num MPDUs requed by SW */
-	__le32 mpdus_requed;
+	/* Num MPDUs requeued by SW */
+	__le32 mpdus_requeued;
 
 	/* excessive retries */
 	__le32 tx_ko;
@@ -4442,8 +4449,8 @@ struct wmi_10_4_pdev_stats_tx {
 	/* Num PPDUs cleaned up in TX abort */
 	__le32 tx_abort;
 
-	/* Num MPDUs requed by SW */
-	__le32 mpdus_requed;
+	/* Num MPDUs requeued by SW */
+	__le32 mpdus_requeued;
 
 	/* excessive retries */
 	__le32 tx_ko;
@@ -6917,6 +6924,7 @@ struct wmi_svc_rdy_ev_arg {
 };
 
 struct wmi_svc_avail_ev_arg {
+	bool service_map_ext_valid;
 	__le32 service_map_ext_len;
 	const __le32 *service_map_ext;
 };
@@ -7415,7 +7423,6 @@ int ath10k_wmi_wait_for_unified_ready(struct ath10k *ar);
 struct sk_buff *ath10k_wmi_alloc_skb(struct ath10k *ar, u32 len);
 int ath10k_wmi_connect(struct ath10k *ar);
 
-struct sk_buff *ath10k_wmi_alloc_skb(struct ath10k *ar, u32 len);
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
 int ath10k_wmi_cmd_send_nowait(struct ath10k *ar, struct sk_buff *skb,
 			       u32 cmd_id);

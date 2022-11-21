@@ -17,7 +17,7 @@ config QCOM_AOSS_QMP
 	  Subsystem (AOSS) using Qualcomm Messaging Protocol (QMP).
 
 config QCOM_COMMAND_DB
-	bool "Qualcomm Command DB"
+	tristate "Qualcomm Command DB"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on OF_RESERVED_MEM
 	help
@@ -108,8 +108,9 @@ config QCOM_RMTFS_MEM
 	  Say y here if you intend to boot the modem remoteproc.
 
 config QCOM_RPMH
-	bool "Qualcomm RPM-Hardened (RPMH) Communication"
+	tristate "Qualcomm RPM-Hardened (RPMH) Communication"
 	depends on ARCH_QCOM || COMPILE_TEST
+	depends on (QCOM_COMMAND_DB || !QCOM_COMMAND_DB)
 	help
 	  Support for communication with the hardened-RPM blocks in
 	  Qualcomm Technologies Inc (QTI) SoCs. RPMH communication uses an
@@ -189,6 +190,25 @@ config QCOM_SOCINFO
 	 Say yes here to support the Qualcomm socinfo driver, providing
 	 information about the SoC to user space.
 
+config QCOM_SPM
+	tristate "Qualcomm Subsystem Power Manager (SPM)"
+	depends on ARCH_QCOM || COMPILE_TEST
+	select QCOM_SCM
+	help
+	  Enable the support for the Qualcomm Subsystem Power Manager, used
+	  to manage cores, L2 low power modes and to configure the internal
+	  Adaptive Voltage Scaler parameters, where supported.
+
+config QCOM_STATS
+	tristate "Qualcomm Technologies, Inc. (QTI) Sleep stats driver"
+	depends on (ARCH_QCOM && DEBUG_FS) || COMPILE_TEST
+	depends on QCOM_SMEM
+	help
+	  Qualcomm Technologies, Inc. (QTI) Sleep stats driver to read
+	  the shared memory exported by the remote processor related to
+	  various SoC level low power modes statistics and export to debugfs
+	  interface.
+
 config QCOM_WCNSS_CTRL
 	tristate "Qualcomm WCNSS control driver"
 	depends on ARCH_QCOM || COMPILE_TEST
@@ -198,7 +218,7 @@ config QCOM_WCNSS_CTRL
 	  firmware to a newly booted WCNSS chip.
 
 config QCOM_APR
-	tristate "Qualcomm APR Bus (Asynchronous Packet Router)"
+	tristate "Qualcomm APR/GPR Bus (Asynchronous/Generic Packet Router)"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on RPMSG
 	depends on NET

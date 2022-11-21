@@ -116,6 +116,7 @@ struct x86_init_pci {
  * @init_platform:		platform setup
  * @guest_late_init:		guest late init
  * @x2apic_available:		X2APIC detection
+ * @msi_ext_dest_id:		MSI supports 15-bit APIC IDs
  * @init_mem_mapping:		setup early mappings during init_mem_mapping()
  * @init_after_bootmem:		guest init after boot allocator is finished
  */
@@ -123,6 +124,7 @@ struct x86_hyper_init {
 	void (*init_platform)(void);
 	void (*guest_late_init)(void);
 	bool (*x2apic_available)(void);
+	bool (*msi_ext_dest_id)(void);
 	void (*init_mem_mapping)(void);
 	void (*init_after_bootmem)(void);
 };
@@ -137,6 +139,21 @@ struct x86_init_acpi {
 	void (*set_root_pointer)(u64 addr);
 	u64 (*get_root_pointer)(void);
 	void (*reduced_hw_early_init)(void);
+};
+
+/**
+ * struct x86_guest - Functions used by misc guest incarnations like SEV, TDX, etc.
+ *
+ * @enc_status_change_prepare	Notify HV before the encryption status of a range is changed
+ * @enc_status_change_finish	Notify HV after the encryption status of a range is changed
+ * @enc_tlb_flush_required	Returns true if a TLB flush is needed before changing page encryption status
+ * @enc_cache_flush_required	Returns true if a cache flush is needed before changing page encryption status
+ */
+struct x86_guest {
+	void (*enc_status_change_prepare)(unsigned long vaddr, int npages, bool enc);
+	bool (*enc_status_change_finish)(unsigned long vaddr, int npages, bool enc);
+	bool (*enc_tlb_flush_required)(bool enc);
+	bool (*enc_cache_flush_required)(void);
 };
 
 /**
@@ -285,12 +302,7 @@ struct x86_platform_ops {
 	struct x86_legacy_features legacy;
 	void (*set_legacy_features)(void);
 	struct x86_hyper_runtime hyper;
-};
-
-struct pci_dev;
-
-struct x86_msi_ops {
-	void (*restore_msi_irqs)(struct pci_dev *dev);
+	struct x86_guest guest;
 };
 
 struct x86_apic_ops {

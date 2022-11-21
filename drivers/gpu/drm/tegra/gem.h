@@ -21,9 +21,15 @@ enum tegra_bo_tiling_mode {
 	TEGRA_BO_TILING_MODE_BLOCK,
 };
 
+enum tegra_bo_sector_layout {
+	TEGRA_BO_SECTOR_LAYOUT_TEGRA,
+	TEGRA_BO_SECTOR_LAYOUT_GPU,
+};
+
 struct tegra_bo_tiling {
 	enum tegra_bo_tiling_mode mode;
 	unsigned long value;
+	enum tegra_bo_sector_layout sector_layout;
 };
 
 struct tegra_bo {
@@ -73,5 +79,7 @@ struct dma_buf *tegra_gem_prime_export(struct drm_gem_object *gem,
 				       int flags);
 struct drm_gem_object *tegra_gem_prime_import(struct drm_device *drm,
 					      struct dma_buf *buf);
+
+struct host1x_bo *tegra_gem_lookup(struct drm_file *file, u32 handle);
 
 #endif

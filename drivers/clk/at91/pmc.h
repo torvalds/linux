@@ -13,6 +13,8 @@
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 
+#include <dt-bindings/clock/at91.h>
+
 extern spinlock_t pmc_pcr_lock;
 
 struct pmc_data {
@@ -48,7 +50,7 @@ extern const struct clk_master_layout at91sam9x5_master_layout;
 
 struct clk_master_characteristics {
 	struct clk_range output;
-	u32 divisors[4];
+	u32 divisors[5];
 	u8 have_div3_pres;
 };
 
@@ -96,6 +98,20 @@ struct clk_pcr_layout {
 	u32 div_mask;
 	u32 gckcss_mask;
 	u32 pid_mask;
+};
+
+/**
+ * struct at91_clk_pms - Power management state for AT91 clock
+ * @rate: clock rate
+ * @parent_rate: clock parent rate
+ * @status: clock status (enabled or disabled)
+ * @parent: clock parent index
+ */
+struct at91_clk_pms {
+	unsigned long rate;
+	unsigned long parent_rate;
+	unsigned int status;
+	unsigned int parent;
 };
 
 #define field_get(_mask, _reg) (((_reg) & (_mask)) >> (ffs(_mask) - 1))
@@ -155,10 +171,18 @@ at91_clk_register_sam9x5_main(struct regmap *regmap, const char *name,
 			      const char **parent_names, int num_parents);
 
 struct clk_hw * __init
-at91_clk_register_master(struct regmap *regmap, const char *name,
-			 int num_parents, const char **parent_names,
-			 const struct clk_master_layout *layout,
-			 const struct clk_master_characteristics *characteristics);
+at91_clk_register_master_pres(struct regmap *regmap, const char *name,
+			      int num_parents, const char **parent_names,
+			      const struct clk_master_layout *layout,
+			      const struct clk_master_characteristics *characteristics,
+			      spinlock_t *lock);
+
+struct clk_hw * __init
+at91_clk_register_master_div(struct regmap *regmap, const char *name,
+			     const char *parent_names,
+			     const struct clk_master_layout *layout,
+			     const struct clk_master_characteristics *characteristics,
+			     spinlock_t *lock, u32 flags, u32 safe_div);
 
 struct clk_hw * __init
 at91_clk_sama7g5_register_master(struct regmap *regmap,
@@ -190,14 +214,15 @@ struct clk_hw * __init
 sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 			     const char *name, const char *parent_name, u8 id,
 			     const struct clk_pll_characteristics *characteristics,
-			     const struct clk_pll_layout *layout, bool critical);
+			     const struct clk_pll_layout *layout, u32 flags,
+			     u32 safe_div);
 
 struct clk_hw * __init
 sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
 			      const char *name, const char *parent_name,
 			      struct clk_hw *parent_hw, u8 id,
 			      const struct clk_pll_characteristics *characteristics,
-			      const struct clk_pll_layout *layout, bool critical);
+			      const struct clk_pll_layout *layout, u32 flags);
 
 struct clk_hw * __init
 at91_clk_register_programmable(struct regmap *regmap, const char *name,
@@ -239,13 +264,5 @@ at91_clk_register_utmi(struct regmap *regmap_pmc, struct regmap *regmap_sfr,
 struct clk_hw * __init
 at91_clk_sama7g5_register_utmi(struct regmap *regmap, const char *name,
 			       const char *parent_name);
-
-#ifdef CONFIG_PM
-void pmc_register_id(u8 id);
-void pmc_register_pck(u8 pck);
-#else
-static inline void pmc_register_id(u8 id) {}
-static inline void pmc_register_pck(u8 pck) {}
-#endif
 
 #endif /* __PMC_H_ */

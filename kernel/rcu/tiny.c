@@ -32,12 +32,14 @@ struct rcu_ctrlblk {
 	struct rcu_head *rcucblist;	/* List of pending callbacks (CBs). */
 	struct rcu_head **donetail;	/* ->next pointer of last "done" CB. */
 	struct rcu_head **curtail;	/* ->next pointer of last CB. */
+	unsigned long gp_seq;		/* Grace-period counter. */
 };
 
 /* Definition for rcupdate control block. */
 static struct rcu_ctrlblk rcu_ctrlblk = {
 	.donetail	= &rcu_ctrlblk.rcucblist,
 	.curtail	= &rcu_ctrlblk.rcucblist,
+	.gp_seq		= 0 - 300UL,
 };
 
 void rcu_barrier(void)
@@ -56,6 +58,7 @@ void rcu_qs(void)
 		rcu_ctrlblk.donetail = rcu_ctrlblk.curtail;
 		raise_softirq_irqoff(RCU_SOFTIRQ);
 	}
+	WRITE_ONCE(rcu_ctrlblk.gp_seq, rcu_ctrlblk.gp_seq + 1);
 	local_irq_restore(flags);
 }
 
@@ -177,9 +180,45 @@ void call_rcu(struct rcu_head *head, rcu_callback_t func)
 }
 EXPORT_SYMBOL_GPL(call_rcu);
 
+/*
+ * Return a grace-period-counter "cookie".  For more information,
+ * see the Tree RCU header comment.
+ */
+unsigned long get_state_synchronize_rcu(void)
+{
+	return READ_ONCE(rcu_ctrlblk.gp_seq);
+}
+EXPORT_SYMBOL_GPL(get_state_synchronize_rcu);
+
+/*
+ * Return a grace-period-counter "cookie" and ensure that a future grace
+ * period completes.  For more information, see the Tree RCU header comment.
+ */
+unsigned long start_poll_synchronize_rcu(void)
+{
+	unsigned long gp_seq = get_state_synchronize_rcu();
+
+	if (unlikely(is_idle_task(current))) {
+		/* force scheduling for rcu_qs() */
+		resched_cpu(0);
+	}
+	return gp_seq;
+}
+EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu);
+
+/*
+ * Return true if the grace period corresponding to oldstate has completed
+ * and false otherwise.  For more information, see the Tree RCU header
+ * comment.
+ */
+bool poll_state_synchronize_rcu(unsigned long oldstate)
+{
+	return READ_ONCE(rcu_ctrlblk.gp_seq) != oldstate;
+}
+EXPORT_SYMBOL_GPL(poll_state_synchronize_rcu);
+
 void __init rcu_init(void)
 {
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 	rcu_early_boot_tests();
-	srcu_init();
 }

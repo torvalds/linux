@@ -64,14 +64,14 @@ struct cn_dev {
  * @callback:	connector's callback.
  * 		parameters are %cn_msg and the sender's credentials
  */
-int cn_add_callback(struct cb_id *id, const char *name,
+int cn_add_callback(const struct cb_id *id, const char *name,
 		    void (*callback)(struct cn_msg *, struct netlink_skb_parms *));
 /**
  * cn_del_callback() - Unregisters new callback with connector core.
  *
  * @id:		unique connector's user identifier.
  */
-void cn_del_callback(struct cb_id *id);
+void cn_del_callback(const struct cb_id *id);
 
 
 /**
@@ -99,7 +99,7 @@ void cn_del_callback(struct cb_id *id);
 int cn_netlink_send_mult(struct cn_msg *msg, u16 len, u32 portid, u32 group, gfp_t gfp_mask);
 
 /**
- * cn_netlink_send_mult - Sends message to the specified groups.
+ * cn_netlink_send - Sends message to the specified groups.
  *
  * @msg:	message header(with attached data).
  * @portid:	destination port.
@@ -122,14 +122,14 @@ int cn_netlink_send_mult(struct cn_msg *msg, u16 len, u32 portid, u32 group, gfp
 int cn_netlink_send(struct cn_msg *msg, u32 portid, u32 group, gfp_t gfp_mask);
 
 int cn_queue_add_callback(struct cn_queue_dev *dev, const char *name,
-			  struct cb_id *id,
+			  const struct cb_id *id,
 			  void (*callback)(struct cn_msg *, struct netlink_skb_parms *));
-void cn_queue_del_callback(struct cn_queue_dev *dev, struct cb_id *id);
+void cn_queue_del_callback(struct cn_queue_dev *dev, const struct cb_id *id);
 void cn_queue_release_callback(struct cn_callback_entry *);
 
 struct cn_queue_dev *cn_queue_alloc_dev(const char *name, struct sock *);
 void cn_queue_free_dev(struct cn_queue_dev *dev);
 
-int cn_cb_equal(struct cb_id *, struct cb_id *);
+int cn_cb_equal(const struct cb_id *, const struct cb_id *);
 
 #endif				/* __CONNECTOR_H */

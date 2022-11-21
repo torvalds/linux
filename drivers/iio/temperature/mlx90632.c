@@ -13,9 +13,9 @@
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/limits.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/math64.h>
-#include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
@@ -247,6 +247,12 @@ static int mlx90632_set_meas_type(struct regmap *regmap, u8 type)
 	ret = regmap_write(regmap, MLX90632_REG_I2C_CMD, MLX90632_RESET_CMD);
 	if (ret < 0)
 		return ret;
+
+	/*
+	 * Give the mlx90632 some time to reset properly before sending a new I2C command
+	 * if this is not done, the following I2C command(s) will not be accepted.
+	 */
+	usleep_range(150, 200);
 
 	ret = regmap_write_bits(regmap, MLX90632_REG_CONTROL,
 				 (MLX90632_CFG_MTYP_MASK | MLX90632_CFG_PWR_MASK),

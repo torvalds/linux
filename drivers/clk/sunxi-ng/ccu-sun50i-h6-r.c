@@ -4,7 +4,8 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/of_address.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #include "ccu_common.h"
@@ -91,6 +92,8 @@ static SUNXI_CCU_GATE(r_apb2_uart_clk,	"r-apb2-uart",	"r-apb2",
 		      0x18c, BIT(0), 0);
 static SUNXI_CCU_GATE(r_apb2_i2c_clk,	"r-apb2-i2c",	"r-apb2",
 		      0x19c, BIT(0), 0);
+static SUNXI_CCU_GATE(r_apb2_rsb_clk,	"r-apb2-rsb",	"r-apb2",
+		      0x1bc, BIT(0), 0);
 static SUNXI_CCU_GATE(r_apb1_ir_clk,	"r-apb1-ir",	"r-apb1",
 		      0x1cc, BIT(0), 0);
 static SUNXI_CCU_GATE(r_apb1_w1_clk,	"r-apb1-w1",	"r-apb1",
@@ -130,10 +133,21 @@ static struct ccu_common *sun50i_h6_r_ccu_clks[] = {
 	&r_apb1_pwm_clk.common,
 	&r_apb2_uart_clk.common,
 	&r_apb2_i2c_clk.common,
+	&r_apb2_rsb_clk.common,
 	&r_apb1_ir_clk.common,
 	&r_apb1_w1_clk.common,
 	&ir_clk.common,
 	&w1_clk.common,
+};
+
+static struct ccu_common *sun50i_h616_r_ccu_clks[] = {
+	&r_apb1_clk.common,
+	&r_apb2_clk.common,
+	&r_apb1_twd_clk.common,
+	&r_apb2_i2c_clk.common,
+	&r_apb2_rsb_clk.common,
+	&r_apb1_ir_clk.common,
+	&ir_clk.common,
 };
 
 static struct clk_hw_onecell_data sun50i_h6_r_hw_clks = {
@@ -147,10 +161,25 @@ static struct clk_hw_onecell_data sun50i_h6_r_hw_clks = {
 		[CLK_R_APB1_PWM]	= &r_apb1_pwm_clk.common.hw,
 		[CLK_R_APB2_UART]	= &r_apb2_uart_clk.common.hw,
 		[CLK_R_APB2_I2C]	= &r_apb2_i2c_clk.common.hw,
+		[CLK_R_APB2_RSB]	= &r_apb2_rsb_clk.common.hw,
 		[CLK_R_APB1_IR]		= &r_apb1_ir_clk.common.hw,
 		[CLK_R_APB1_W1]		= &r_apb1_w1_clk.common.hw,
 		[CLK_IR]		= &ir_clk.common.hw,
 		[CLK_W1]		= &w1_clk.common.hw,
+	},
+	.num	= CLK_NUMBER,
+};
+
+static struct clk_hw_onecell_data sun50i_h616_r_hw_clks = {
+	.hws	= {
+		[CLK_R_AHB]		= &r_ahb_clk.hw,
+		[CLK_R_APB1]		= &r_apb1_clk.common.hw,
+		[CLK_R_APB2]		= &r_apb2_clk.common.hw,
+		[CLK_R_APB1_TWD]	= &r_apb1_twd_clk.common.hw,
+		[CLK_R_APB2_I2C]	= &r_apb2_i2c_clk.common.hw,
+		[CLK_R_APB2_RSB]	= &r_apb2_rsb_clk.common.hw,
+		[CLK_R_APB1_IR]		= &r_apb1_ir_clk.common.hw,
+		[CLK_IR]		= &ir_clk.common.hw,
 	},
 	.num	= CLK_NUMBER,
 };
@@ -161,8 +190,16 @@ static struct ccu_reset_map sun50i_h6_r_ccu_resets[] = {
 	[RST_R_APB1_PWM]	=  { 0x13c, BIT(16) },
 	[RST_R_APB2_UART]	=  { 0x18c, BIT(16) },
 	[RST_R_APB2_I2C]	=  { 0x19c, BIT(16) },
+	[RST_R_APB2_RSB]	=  { 0x1bc, BIT(16) },
 	[RST_R_APB1_IR]		=  { 0x1cc, BIT(16) },
 	[RST_R_APB1_W1]		=  { 0x1ec, BIT(16) },
+};
+
+static struct ccu_reset_map sun50i_h616_r_ccu_resets[] = {
+	[RST_R_APB1_TWD]	=  { 0x12c, BIT(16) },
+	[RST_R_APB2_I2C]	=  { 0x19c, BIT(16) },
+	[RST_R_APB2_RSB]	=  { 0x1bc, BIT(16) },
+	[RST_R_APB1_IR]		=  { 0x1cc, BIT(16) },
 };
 
 static const struct sunxi_ccu_desc sun50i_h6_r_ccu_desc = {
@@ -175,23 +212,53 @@ static const struct sunxi_ccu_desc sun50i_h6_r_ccu_desc = {
 	.num_resets	= ARRAY_SIZE(sun50i_h6_r_ccu_resets),
 };
 
-static void __init sunxi_r_ccu_init(struct device_node *node,
-				    const struct sunxi_ccu_desc *desc)
+static const struct sunxi_ccu_desc sun50i_h616_r_ccu_desc = {
+	.ccu_clks	= sun50i_h616_r_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun50i_h616_r_ccu_clks),
+
+	.hw_clks	= &sun50i_h616_r_hw_clks,
+
+	.resets		= sun50i_h616_r_ccu_resets,
+	.num_resets	= ARRAY_SIZE(sun50i_h616_r_ccu_resets),
+};
+
+static int sun50i_h6_r_ccu_probe(struct platform_device *pdev)
 {
+	const struct sunxi_ccu_desc *desc;
 	void __iomem *reg;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
-	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
-		return;
-	}
+	desc = of_device_get_match_data(&pdev->dev);
+	if (!desc)
+		return -EINVAL;
 
-	sunxi_ccu_probe(node, reg, desc);
+	reg = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
+
+	return devm_sunxi_ccu_probe(&pdev->dev, reg, desc);
 }
 
-static void __init sun50i_h6_r_ccu_setup(struct device_node *node)
-{
-	sunxi_r_ccu_init(node, &sun50i_h6_r_ccu_desc);
-}
-CLK_OF_DECLARE(sun50i_h6_r_ccu, "allwinner,sun50i-h6-r-ccu",
-	       sun50i_h6_r_ccu_setup);
+static const struct of_device_id sun50i_h6_r_ccu_ids[] = {
+	{
+		.compatible = "allwinner,sun50i-h6-r-ccu",
+		.data = &sun50i_h6_r_ccu_desc,
+	},
+	{
+		.compatible = "allwinner,sun50i-h616-r-ccu",
+		.data = &sun50i_h616_r_ccu_desc,
+	},
+	{ }
+};
+
+static struct platform_driver sun50i_h6_r_ccu_driver = {
+	.probe	= sun50i_h6_r_ccu_probe,
+	.driver	= {
+		.name			= "sun50i-h6-r-ccu",
+		.suppress_bind_attrs	= true,
+		.of_match_table		= sun50i_h6_r_ccu_ids,
+	},
+};
+module_platform_driver(sun50i_h6_r_ccu_driver);
+
+MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_LICENSE("GPL");

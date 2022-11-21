@@ -24,7 +24,8 @@ If your board has digital TV, you'll also need::
 
     ./scripts/config -m DVB_BT8XX
 
-In this case, please see :doc:`bt8xx` for additional notes.
+In this case, please see Documentation/admin-guide/media/bt8xx.rst
+for additional notes.
 
 Make bttv work with your card
 -----------------------------
@@ -39,7 +40,7 @@ If it doesn't bttv likely could not autodetect your card and needs some
 insmod options.  The most important insmod option for bttv is "card=n"
 to select the correct card type.  If you get video but no sound you've
 very likely specified the wrong (or no) card type.  A list of supported
-cards is in :doc:`bttv-cardlist`.
+cards is in Documentation/admin-guide/media/bttv-cardlist.rst.
 
 If bttv takes very long to load (happens sometimes with the cheap
 cards which have no tuner), try adding this to your modules configuration
@@ -57,8 +58,8 @@ directory should be enough for it to be autoload during the driver's
 probing mode (e. g. when the Kernel boots or when the driver is
 manually loaded via ``modprobe`` command).
 
-If your card isn't listed in :doc:`bttv-cardlist` or if you have
-trouble making audio work, please read :ref:`still_doesnt_work`.
+If your card isn't listed in Documentation/admin-guide/media/bttv-cardlist.rst
+or if you have trouble making audio work, please read :ref:`still_doesnt_work`.
 
 
 Autodetecting cards
@@ -77,8 +78,8 @@ the Subsystem ID in the second line, looks like this:
 only bt878-based cards can have a subsystem ID (which does not mean
 that every card really has one).  bt848 cards can't have a Subsystem
 ID and therefore can't be autodetected.  There is a list with the ID's
-at :doc:`bttv-cardlist` (in case you are intrested or want to mail
-patches with updates).
+at Documentation/admin-guide/media/bttv-cardlist.rst
+(in case you are interested or want to mail patches with updates).
 
 
 .. _still_doesnt_work:
@@ -259,15 +260,15 @@ bug.  It is very helpful if you can tell where exactly it broke
 With a hard freeze you probably doesn't find anything in the logfiles.
 The only way to capture any kernel messages is to hook up a serial
 console and let some terminal application log the messages.  /me uses
-screen.  See :doc:`/admin-guide/serial-console` for details on setting
-up a serial console.
+screen.  See Documentation/admin-guide/serial-console.rst for details on
+setting up a serial console.
 
-Read :doc:`/admin-guide/bug-hunting` to learn how to get any useful
+Read Documentation/admin-guide/bug-hunting.rst to learn how to get any useful
 information out of a register+stack dump printed by the kernel on
 protection faults (so-called "kernel oops").
 
 If you run into some kind of deadlock, you can try to dump a call trace
-for each process using sysrq-t (see :doc:`/admin-guide/sysrq`).
+for each process using sysrq-t (see Documentation/admin-guide/sysrq.rst).
 This way it is possible to figure where *exactly* some process in "D"
 state is stuck.
 

@@ -473,7 +473,7 @@ char *acpi_db_get_next_token(char *string,
 
 	/* Remove any spaces at the beginning, ignore blank lines */
 
-	while (*string && isspace(*string)) {
+	while (*string && isspace((int)*string)) {
 		string++;
 	}
 
@@ -571,7 +571,7 @@ char *acpi_db_get_next_token(char *string,
 
 		/* Find end of token */
 
-		while (*string && !isspace(*string)) {
+		while (*string && !isspace((int)*string)) {
 			string++;
 		}
 		break;

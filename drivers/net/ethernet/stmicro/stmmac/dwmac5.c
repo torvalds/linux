@@ -183,7 +183,8 @@ static void dwmac5_handle_dma_err(struct net_device *ndev,
 			STAT_OFF(dma_errors), stats);
 }
 
-int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp)
+int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp,
+			      struct stmmac_safety_feature_cfg *safety_feat_cfg)
 {
 	u32 value;
 
@@ -192,11 +193,17 @@ int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp)
 
 	/* 1. Enable Safety Features */
 	value = readl(ioaddr + MTL_ECC_CONTROL);
-	value |= TSOEE; /* TSO ECC */
-	value |= MRXPEE; /* MTL RX Parser ECC */
-	value |= MESTEE; /* MTL EST ECC */
-	value |= MRXEE; /* MTL RX FIFO ECC */
-	value |= MTXEE; /* MTL TX FIFO ECC */
+	value |= MEEAO; /* MTL ECC Error Addr Status Override */
+	if (safety_feat_cfg->tsoee)
+		value |= TSOEE; /* TSO ECC */
+	if (safety_feat_cfg->mrxpee)
+		value |= MRXPEE; /* MTL RX Parser ECC */
+	if (safety_feat_cfg->mestee)
+		value |= MESTEE; /* MTL EST ECC */
+	if (safety_feat_cfg->mrxee)
+		value |= MRXEE; /* MTL RX FIFO ECC */
+	if (safety_feat_cfg->mtxee)
+		value |= MTXEE; /* MTL TX FIFO ECC */
 	writel(value, ioaddr + MTL_ECC_CONTROL);
 
 	/* 2. Enable MTL Safety Interrupts */
@@ -218,13 +225,16 @@ int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp)
 
 	/* 5. Enable Parity and Timeout for FSM */
 	value = readl(ioaddr + MAC_FSM_CONTROL);
-	value |= PRTYEN; /* FSM Parity Feature */
-	value |= TMOUTEN; /* FSM Timeout Feature */
+	if (safety_feat_cfg->prtyen)
+		value |= PRTYEN; /* FSM Parity Feature */
+	if (safety_feat_cfg->tmouten)
+		value |= TMOUTEN; /* FSM Timeout Feature */
 	writel(value, ioaddr + MAC_FSM_CONTROL);
 
 	/* 4. Enable Data Parity Protection */
 	value = readl(ioaddr + MTL_DPP_CONTROL);
-	value |= EDPP;
+	if (safety_feat_cfg->edpp)
+		value |= EDPP;
 	writel(value, ioaddr + MTL_DPP_CONTROL);
 
 	/*
@@ -234,7 +244,8 @@ int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp)
 	if (asp <= 0x2)
 		return 0;
 
-	value |= EPSI;
+	if (safety_feat_cfg->epsi)
+		value |= EPSI;
 	writel(value, ioaddr + MTL_DPP_CONTROL);
 	return 0;
 }
@@ -305,17 +316,13 @@ int dwmac5_safety_feat_dump(struct stmmac_safety_stats *stats,
 static int dwmac5_rxp_disable(void __iomem *ioaddr)
 {
 	u32 val;
-	int ret;
 
 	val = readl(ioaddr + MTL_OPERATION_MODE);
 	val &= ~MTL_FRPE;
 	writel(val, ioaddr + MTL_OPERATION_MODE);
 
-	ret = readl_poll_timeout(ioaddr + MTL_RXP_CONTROL_STATUS, val,
+	return readl_poll_timeout(ioaddr + MTL_RXP_CONTROL_STATUS, val,
 			val & RXPI, 1, 10000);
-	if (ret)
-		return ret;
-	return 0;
 }
 
 static void dwmac5_rxp_enable(void __iomem *ioaddr)
@@ -572,67 +579,23 @@ static int dwmac5_est_write(void __iomem *ioaddr, u32 reg, u32 val, bool gcl)
 int dwmac5_est_configure(void __iomem *ioaddr, struct stmmac_est *cfg,
 			 unsigned int ptp_rate)
 {
-	u32 speed, total_offset, offset, ctrl, ctr_low;
-	u32 extcfg = readl(ioaddr + GMAC_EXT_CONFIG);
-	u32 mac_cfg = readl(ioaddr + GMAC_CONFIG);
 	int i, ret = 0x0;
-	u64 total_ctr;
-
-	if (extcfg & GMAC_CONFIG_EIPG_EN) {
-		offset = (extcfg & GMAC_CONFIG_EIPG) >> GMAC_CONFIG_EIPG_SHIFT;
-		offset = 104 + (offset * 8);
-	} else {
-		offset = (mac_cfg & GMAC_CONFIG_IPG) >> GMAC_CONFIG_IPG_SHIFT;
-		offset = 96 - (offset * 8);
-	}
-
-	speed = mac_cfg & (GMAC_CONFIG_PS | GMAC_CONFIG_FES);
-	speed = speed >> GMAC_CONFIG_FES_SHIFT;
-
-	switch (speed) {
-	case 0x0:
-		offset = offset * 1000; /* 1G */
-		break;
-	case 0x1:
-		offset = offset * 400; /* 2.5G */
-		break;
-	case 0x2:
-		offset = offset * 100000; /* 10M */
-		break;
-	case 0x3:
-		offset = offset * 10000; /* 100M */
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	offset = offset / 1000;
+	u32 ctrl;
 
 	ret |= dwmac5_est_write(ioaddr, BTR_LOW, cfg->btr[0], false);
 	ret |= dwmac5_est_write(ioaddr, BTR_HIGH, cfg->btr[1], false);
 	ret |= dwmac5_est_write(ioaddr, TER, cfg->ter, false);
 	ret |= dwmac5_est_write(ioaddr, LLR, cfg->gcl_size, false);
+	ret |= dwmac5_est_write(ioaddr, CTR_LOW, cfg->ctr[0], false);
+	ret |= dwmac5_est_write(ioaddr, CTR_HIGH, cfg->ctr[1], false);
 	if (ret)
 		return ret;
 
-	total_offset = 0;
 	for (i = 0; i < cfg->gcl_size; i++) {
-		ret = dwmac5_est_write(ioaddr, i, cfg->gcl[i] + offset, true);
+		ret = dwmac5_est_write(ioaddr, i, cfg->gcl[i], true);
 		if (ret)
 			return ret;
-
-		total_offset += offset;
 	}
-
-	total_ctr = cfg->ctr[0] + cfg->ctr[1] * 1000000000ULL;
-	total_ctr += total_offset;
-
-	ctr_low = do_div(total_ctr, 1000000000);
-
-	ret |= dwmac5_est_write(ioaddr, CTR_LOW, ctr_low, false);
-	ret |= dwmac5_est_write(ioaddr, CTR_HIGH, total_ctr, false);
-	if (ret)
-		return ret;
 
 	ctrl = readl(ioaddr + MTL_EST_CONTROL);
 	ctrl &= ~PTOV;
@@ -643,7 +606,93 @@ int dwmac5_est_configure(void __iomem *ioaddr, struct stmmac_est *cfg,
 		ctrl &= ~EEST;
 
 	writel(ctrl, ioaddr + MTL_EST_CONTROL);
+
+	/* Configure EST interrupt */
+	if (cfg->enable)
+		ctrl = (IECGCE | IEHS | IEHF | IEBE | IECC);
+	else
+		ctrl = 0;
+
+	writel(ctrl, ioaddr + MTL_EST_INT_EN);
+
 	return 0;
+}
+
+void dwmac5_est_irq_status(void __iomem *ioaddr, struct net_device *dev,
+			  struct stmmac_extra_stats *x, u32 txqcnt)
+{
+	u32 status, value, feqn, hbfq, hbfs, btrl;
+	u32 txqcnt_mask = (1 << txqcnt) - 1;
+
+	status = readl(ioaddr + MTL_EST_STATUS);
+
+	value = (CGCE | HLBS | HLBF | BTRE | SWLC);
+
+	/* Return if there is no error */
+	if (!(status & value))
+		return;
+
+	if (status & CGCE) {
+		/* Clear Interrupt */
+		writel(CGCE, ioaddr + MTL_EST_STATUS);
+
+		x->mtl_est_cgce++;
+	}
+
+	if (status & HLBS) {
+		value = readl(ioaddr + MTL_EST_SCH_ERR);
+		value &= txqcnt_mask;
+
+		x->mtl_est_hlbs++;
+
+		/* Clear Interrupt */
+		writel(value, ioaddr + MTL_EST_SCH_ERR);
+
+		/* Collecting info to shows all the queues that has HLBS
+		 * issue. The only way to clear this is to clear the
+		 * statistic
+		 */
+		if (net_ratelimit())
+			netdev_err(dev, "EST: HLB(sched) Queue 0x%x\n", value);
+	}
+
+	if (status & HLBF) {
+		value = readl(ioaddr + MTL_EST_FRM_SZ_ERR);
+		feqn = value & txqcnt_mask;
+
+		value = readl(ioaddr + MTL_EST_FRM_SZ_CAP);
+		hbfq = (value & SZ_CAP_HBFQ_MASK(txqcnt)) >> SZ_CAP_HBFQ_SHIFT;
+		hbfs = value & SZ_CAP_HBFS_MASK;
+
+		x->mtl_est_hlbf++;
+
+		/* Clear Interrupt */
+		writel(feqn, ioaddr + MTL_EST_FRM_SZ_ERR);
+
+		if (net_ratelimit())
+			netdev_err(dev, "EST: HLB(size) Queue %u Size %u\n",
+				   hbfq, hbfs);
+	}
+
+	if (status & BTRE) {
+		if ((status & BTRL) == BTRL_MAX)
+			x->mtl_est_btrlm++;
+		else
+			x->mtl_est_btre++;
+
+		btrl = (status & BTRL) >> BTRL_SHIFT;
+
+		if (net_ratelimit())
+			netdev_info(dev, "EST: BTR Error Loop Count %u\n",
+				    btrl);
+
+		writel(BTRE, ioaddr + MTL_EST_STATUS);
+	}
+
+	if (status & SWLC) {
+		writel(SWLC, ioaddr + MTL_EST_STATUS);
+		netdev_info(dev, "EST: SWOL has been switched\n");
+	}
 }
 
 void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
@@ -667,5 +716,54 @@ void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
 
 	value = readl(ioaddr + MAC_FPE_CTRL_STS);
 	value |= EFPE;
+	writel(value, ioaddr + MAC_FPE_CTRL_STS);
+}
+
+int dwmac5_fpe_irq_status(void __iomem *ioaddr, struct net_device *dev)
+{
+	u32 value;
+	int status;
+
+	status = FPE_EVENT_UNKNOWN;
+
+	value = readl(ioaddr + MAC_FPE_CTRL_STS);
+
+	if (value & TRSP) {
+		status |= FPE_EVENT_TRSP;
+		netdev_info(dev, "FPE: Respond mPacket is transmitted\n");
+	}
+
+	if (value & TVER) {
+		status |= FPE_EVENT_TVER;
+		netdev_info(dev, "FPE: Verify mPacket is transmitted\n");
+	}
+
+	if (value & RRSP) {
+		status |= FPE_EVENT_RRSP;
+		netdev_info(dev, "FPE: Respond mPacket is received\n");
+	}
+
+	if (value & RVER) {
+		status |= FPE_EVENT_RVER;
+		netdev_info(dev, "FPE: Verify mPacket is received\n");
+	}
+
+	return status;
+}
+
+void dwmac5_fpe_send_mpacket(void __iomem *ioaddr, enum stmmac_mpacket_type type)
+{
+	u32 value;
+
+	value = readl(ioaddr + MAC_FPE_CTRL_STS);
+
+	if (type == MPACKET_VERIFY) {
+		value &= ~SRSP;
+		value |= SVER;
+	} else {
+		value &= ~SVER;
+		value |= SRSP;
+	}
+
 	writel(value, ioaddr + MAC_FPE_CTRL_STS);
 }

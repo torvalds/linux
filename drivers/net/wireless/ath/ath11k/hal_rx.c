@@ -29,8 +29,7 @@ static int ath11k_hal_reo_cmd_queue_stats(struct hal_tlv_hdr *tlv,
 		  FIELD_PREP(HAL_TLV_HDR_LEN, sizeof(*desc));
 
 	desc = (struct hal_reo_get_queue_stats *)tlv->value;
-	memset(&desc->queue_addr_lo, 0,
-	       (sizeof(*desc) - sizeof(struct hal_reo_cmd_hdr)));
+	memset_startat(desc, 0, queue_addr_lo);
 
 	desc->cmd.info0 &= ~HAL_REO_CMD_HDR_INFO0_STATUS_REQUIRED;
 	if (cmd->flag & HAL_REO_CMD_FLG_NEED_STATUS)
@@ -62,8 +61,7 @@ static int ath11k_hal_reo_cmd_flush_cache(struct ath11k_hal *hal, struct hal_tlv
 		  FIELD_PREP(HAL_TLV_HDR_LEN, sizeof(*desc));
 
 	desc = (struct hal_reo_flush_cache *)tlv->value;
-	memset(&desc->cache_addr_lo, 0,
-	       (sizeof(*desc) - sizeof(struct hal_reo_cmd_hdr)));
+	memset_startat(desc, 0, cache_addr_lo);
 
 	desc->cmd.info0 &= ~HAL_REO_CMD_HDR_INFO0_STATUS_REQUIRED;
 	if (cmd->flag & HAL_REO_CMD_FLG_NEED_STATUS)
@@ -101,8 +99,7 @@ static int ath11k_hal_reo_cmd_update_rx_queue(struct hal_tlv_hdr *tlv,
 		  FIELD_PREP(HAL_TLV_HDR_LEN, sizeof(*desc));
 
 	desc = (struct hal_reo_update_rx_queue *)tlv->value;
-	memset(&desc->queue_addr_lo, 0,
-	       (sizeof(*desc) - sizeof(struct hal_reo_cmd_hdr)));
+	memset_startat(desc, 0, queue_addr_lo);
 
 	desc->cmd.info0 &= ~HAL_REO_CMD_HDR_INFO0_STATUS_REQUIRED;
 	if (cmd->flag & HAL_REO_CMD_FLG_NEED_STATUS)
@@ -356,6 +353,7 @@ int ath11k_hal_wbm_desc_parse_err(struct ath11k_base *ab, void *desc,
 	struct hal_wbm_release_ring *wbm_desc = desc;
 	enum hal_wbm_rel_desc_type type;
 	enum hal_wbm_rel_src_module rel_src;
+	enum hal_rx_buf_return_buf_manager ret_buf_mgr;
 
 	type = FIELD_GET(HAL_WBM_RELEASE_INFO0_DESC_TYPE,
 			 wbm_desc->info0);
@@ -371,8 +369,9 @@ int ath11k_hal_wbm_desc_parse_err(struct ath11k_base *ab, void *desc,
 	    rel_src != HAL_WBM_REL_SRC_MODULE_REO)
 		return -EINVAL;
 
-	if (FIELD_GET(BUFFER_ADDR_INFO1_RET_BUF_MGR,
-		      wbm_desc->buf_addr_info.info1) != HAL_RX_BUF_RBM_SW3_BM) {
+	ret_buf_mgr = FIELD_GET(BUFFER_ADDR_INFO1_RET_BUF_MGR,
+				wbm_desc->buf_addr_info.info1);
+	if (ret_buf_mgr != HAL_RX_BUF_RBM_SW3_BM) {
 		ab->soc_stats.invalid_rbm++;
 		return -EINVAL;
 	}
@@ -454,10 +453,12 @@ void ath11k_hal_reo_status_queue_stats(struct ath11k_base *ab, u32 *reo_desc,
 			     desc->info0));
 	ath11k_dbg(ab, ATH11k_DBG_HAL, "pn = [%08x, %08x, %08x, %08x]\n",
 		   desc->pn[0], desc->pn[1], desc->pn[2], desc->pn[3]);
-	ath11k_dbg(ab, ATH11k_DBG_HAL, "last_rx: enqueue_tstamp %08x dequeue_tstamp %08x\n",
+	ath11k_dbg(ab, ATH11k_DBG_HAL,
+		   "last_rx: enqueue_tstamp %08x dequeue_tstamp %08x\n",
 		   desc->last_rx_enqueue_timestamp,
 		   desc->last_rx_dequeue_timestamp);
-	ath11k_dbg(ab, ATH11k_DBG_HAL, "rx_bitmap [%08x %08x %08x %08x %08x %08x %08x %08x]\n",
+	ath11k_dbg(ab, ATH11k_DBG_HAL,
+		   "rx_bitmap [%08x %08x %08x %08x %08x %08x %08x %08x]\n",
 		   desc->rx_bitmap[0], desc->rx_bitmap[1], desc->rx_bitmap[2],
 		   desc->rx_bitmap[3], desc->rx_bitmap[4], desc->rx_bitmap[5],
 		   desc->rx_bitmap[6], desc->rx_bitmap[7]);
@@ -762,15 +763,17 @@ void ath11k_hal_reo_qdesc_setup(void *vaddr, int tid, u32 ba_window_size,
 	 * size changes and also send WMI message to FW to change the REO
 	 * queue descriptor in Rx peer entry as part of dp_rx_tid_update.
 	 */
-	memset(ext_desc, 0, 3 * sizeof(*ext_desc));
+	memset(ext_desc, 0, sizeof(*ext_desc));
 	ath11k_hal_reo_set_desc_hdr(&ext_desc->desc_hdr, HAL_DESC_REO_OWNED,
 				    HAL_DESC_REO_QUEUE_EXT_DESC,
 				    REO_QUEUE_DESC_MAGIC_DEBUG_PATTERN_1);
 	ext_desc++;
+	memset(ext_desc, 0, sizeof(*ext_desc));
 	ath11k_hal_reo_set_desc_hdr(&ext_desc->desc_hdr, HAL_DESC_REO_OWNED,
 				    HAL_DESC_REO_QUEUE_EXT_DESC,
 				    REO_QUEUE_DESC_MAGIC_DEBUG_PATTERN_2);
 	ext_desc++;
+	memset(ext_desc, 0, sizeof(*ext_desc));
 	ath11k_hal_reo_set_desc_hdr(&ext_desc->desc_hdr, HAL_DESC_REO_OWNED,
 				    HAL_DESC_REO_QUEUE_EXT_DESC,
 				    REO_QUEUE_DESC_MAGIC_DEBUG_PATTERN_3);
@@ -801,49 +804,75 @@ void ath11k_hal_reo_init_cmd_ring(struct ath11k_base *ab,
 	}
 }
 
-void ath11k_hal_reo_hw_setup(struct ath11k_base *ab, u32 ring_hash_map)
+#define HAL_MAX_UL_MU_USERS	37
+static inline void
+ath11k_hal_rx_handle_ofdma_info(void *rx_tlv,
+				struct hal_rx_user_status *rx_user_status)
 {
-	u32 reo_base = HAL_SEQ_WCSS_UMAC_REO_REG;
-	u32 val;
+	struct hal_rx_ppdu_end_user_stats *ppdu_end_user =
+		(struct hal_rx_ppdu_end_user_stats *)rx_tlv;
 
-	val = ath11k_hif_read32(ab, reo_base + HAL_REO1_GEN_ENABLE);
+	rx_user_status->ul_ofdma_user_v0_word0 = __le32_to_cpu(ppdu_end_user->info6);
 
-	val &= ~HAL_REO1_GEN_ENABLE_FRAG_DST_RING;
-	val |= FIELD_PREP(HAL_REO1_GEN_ENABLE_FRAG_DST_RING,
-			  HAL_SRNG_RING_ID_REO2SW1) |
-	       FIELD_PREP(HAL_REO1_GEN_ENABLE_AGING_LIST_ENABLE, 1) |
-	       FIELD_PREP(HAL_REO1_GEN_ENABLE_AGING_FLUSH_ENABLE, 1);
-	ath11k_hif_write32(ab, reo_base + HAL_REO1_GEN_ENABLE, val);
+	rx_user_status->ul_ofdma_user_v0_word1 = __le32_to_cpu(ppdu_end_user->rsvd2[10]);
+}
 
-	ath11k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_0(ab),
-			   HAL_DEFAULT_REO_TIMEOUT_USEC);
-	ath11k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_1(ab),
-			   HAL_DEFAULT_REO_TIMEOUT_USEC);
-	ath11k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_2(ab),
-			   HAL_DEFAULT_REO_TIMEOUT_USEC);
-	ath11k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_3(ab),
-			   HAL_DEFAULT_REO_TIMEOUT_USEC);
+static inline void
+ath11k_hal_rx_populate_byte_count(void *rx_tlv, void *ppduinfo,
+				  struct hal_rx_user_status *rx_user_status)
+{
+	struct hal_rx_ppdu_end_user_stats *ppdu_end_user =
+		(struct hal_rx_ppdu_end_user_stats *)rx_tlv;
 
-	ath11k_hif_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_0,
-			   FIELD_PREP(HAL_REO_DEST_RING_CTRL_HASH_RING_MAP,
-				      ring_hash_map));
-	ath11k_hif_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_1,
-			   FIELD_PREP(HAL_REO_DEST_RING_CTRL_HASH_RING_MAP,
-				      ring_hash_map));
-	ath11k_hif_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_2,
-			   FIELD_PREP(HAL_REO_DEST_RING_CTRL_HASH_RING_MAP,
-				      ring_hash_map));
-	ath11k_hif_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_3,
-			   FIELD_PREP(HAL_REO_DEST_RING_CTRL_HASH_RING_MAP,
-				      ring_hash_map));
+	rx_user_status->mpdu_ok_byte_count =
+		FIELD_GET(HAL_RX_PPDU_END_USER_STATS_RSVD2_6_MPDU_OK_BYTE_COUNT,
+			  __le32_to_cpu(ppdu_end_user->rsvd2[6]));
+	rx_user_status->mpdu_err_byte_count =
+		FIELD_GET(HAL_RX_PPDU_END_USER_STATS_RSVD2_8_MPDU_ERR_BYTE_COUNT,
+			  __le32_to_cpu(ppdu_end_user->rsvd2[8]));
+}
+
+static inline void
+ath11k_hal_rx_populate_mu_user_info(void *rx_tlv, struct hal_rx_mon_ppdu_info *ppdu_info,
+				    struct hal_rx_user_status *rx_user_status)
+{
+	rx_user_status->ast_index = ppdu_info->ast_index;
+	rx_user_status->tid = ppdu_info->tid;
+	rx_user_status->tcp_msdu_count =
+		ppdu_info->tcp_msdu_count;
+	rx_user_status->udp_msdu_count =
+		ppdu_info->udp_msdu_count;
+	rx_user_status->other_msdu_count =
+		ppdu_info->other_msdu_count;
+	rx_user_status->frame_control = ppdu_info->frame_control;
+	rx_user_status->frame_control_info_valid =
+		ppdu_info->frame_control_info_valid;
+	rx_user_status->data_sequence_control_info_valid =
+		ppdu_info->data_sequence_control_info_valid;
+	rx_user_status->first_data_seq_ctrl =
+		ppdu_info->first_data_seq_ctrl;
+	rx_user_status->preamble_type = ppdu_info->preamble_type;
+	rx_user_status->ht_flags = ppdu_info->ht_flags;
+	rx_user_status->vht_flags = ppdu_info->vht_flags;
+	rx_user_status->he_flags = ppdu_info->he_flags;
+	rx_user_status->rs_flags = ppdu_info->rs_flags;
+
+	rx_user_status->mpdu_cnt_fcs_ok =
+		ppdu_info->num_mpdu_fcs_ok;
+	rx_user_status->mpdu_cnt_fcs_err =
+		ppdu_info->num_mpdu_fcs_err;
+
+	ath11k_hal_rx_populate_byte_count(rx_tlv, ppdu_info, rx_user_status);
 }
 
 static enum hal_rx_mon_status
 ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 				   struct hal_rx_mon_ppdu_info *ppdu_info,
-				   u32 tlv_tag, u8 *tlv_data)
+				   u32 tlv_tag, u8 *tlv_data, u32 userid)
 {
-	u32 info0, info1;
+	u32 info0, info1, value;
+	u8 he_dcm = 0, he_stbc = 0;
+	u16 he_gi = 0, he_ltf = 0;
 
 	switch (tlv_tag) {
 	case HAL_RX_PPDU_START: {
@@ -864,6 +893,9 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		info0 = __le32_to_cpu(eu_stats->info0);
 		info1 = __le32_to_cpu(eu_stats->info1);
 
+		ppdu_info->ast_index =
+			FIELD_GET(HAL_RX_PPDU_END_USER_STATS_INFO2_AST_INDEX,
+				  __le32_to_cpu(eu_stats->info2));
 		ppdu_info->tid =
 			ffs(FIELD_GET(HAL_RX_PPDU_END_USER_STATS_INFO6_TID_BITMAP,
 				      __le32_to_cpu(eu_stats->info6))) - 1;
@@ -887,6 +919,44 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		ppdu_info->num_mpdu_fcs_err =
 			FIELD_GET(HAL_RX_PPDU_END_USER_STATS_INFO0_MPDU_CNT_FCS_ERR,
 				  info0);
+		switch (ppdu_info->preamble_type) {
+		case HAL_RX_PREAMBLE_11N:
+			ppdu_info->ht_flags = 1;
+			break;
+		case HAL_RX_PREAMBLE_11AC:
+			ppdu_info->vht_flags = 1;
+			break;
+		case HAL_RX_PREAMBLE_11AX:
+			ppdu_info->he_flags = 1;
+			break;
+		default:
+			break;
+		}
+
+		if (userid < HAL_MAX_UL_MU_USERS) {
+			struct hal_rx_user_status *rxuser_stats =
+				&ppdu_info->userstats;
+
+			ath11k_hal_rx_handle_ofdma_info(tlv_data, rxuser_stats);
+			ath11k_hal_rx_populate_mu_user_info(tlv_data, ppdu_info,
+							    rxuser_stats);
+		}
+		ppdu_info->userstats.mpdu_fcs_ok_bitmap[0] =
+					__le32_to_cpu(eu_stats->rsvd1[0]);
+		ppdu_info->userstats.mpdu_fcs_ok_bitmap[1] =
+					__le32_to_cpu(eu_stats->rsvd1[1]);
+
+		break;
+	}
+	case HAL_RX_PPDU_END_USER_STATS_EXT: {
+		struct hal_rx_ppdu_end_user_stats_ext *eu_stats =
+			(struct hal_rx_ppdu_end_user_stats_ext *)tlv_data;
+		ppdu_info->userstats.mpdu_fcs_ok_bitmap[2] = eu_stats->info1;
+		ppdu_info->userstats.mpdu_fcs_ok_bitmap[3] = eu_stats->info2;
+		ppdu_info->userstats.mpdu_fcs_ok_bitmap[4] = eu_stats->info3;
+		ppdu_info->userstats.mpdu_fcs_ok_bitmap[5] = eu_stats->info4;
+		ppdu_info->userstats.mpdu_fcs_ok_bitmap[6] = eu_stats->info5;
+		ppdu_info->userstats.mpdu_fcs_ok_bitmap[7] = eu_stats->info6;
 		break;
 	}
 	case HAL_PHYRX_HT_SIG: {
@@ -985,50 +1055,151 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		else
 			ppdu_info->reception_type =
 				HAL_RX_RECEPTION_TYPE_MU_MIMO;
+		ppdu_info->vht_flag_values5 = group_id;
+		ppdu_info->vht_flag_values3[0] = (((ppdu_info->mcs) << 4) |
+						   ppdu_info->nss);
+		ppdu_info->vht_flag_values2 = ppdu_info->bw;
+		ppdu_info->vht_flag_values4 =
+			FIELD_GET(HAL_RX_VHT_SIG_A_INFO_INFO1_SU_MU_CODING, info1);
 		break;
 	}
 	case HAL_PHYRX_HE_SIG_A_SU: {
 		struct hal_rx_he_sig_a_su_info *he_sig_a =
 			(struct hal_rx_he_sig_a_su_info *)tlv_data;
-		u32 nsts, cp_ltf, dcm;
 
+		ppdu_info->he_flags = 1;
 		info0 = __le32_to_cpu(he_sig_a->info0);
 		info1 = __le32_to_cpu(he_sig_a->info1);
 
-		ppdu_info->mcs =
-			FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_TRANSMIT_MCS,
-				  info0);
-		ppdu_info->bw =
-			FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_TRANSMIT_BW,
-				  info0);
-		ppdu_info->ldpc = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO1_CODING, info0);
-		ppdu_info->is_stbc = info1 &
-				     HAL_RX_HE_SIG_A_SU_INFO_INFO1_STBC;
-		ppdu_info->beamformed = info1 &
-					HAL_RX_HE_SIG_A_SU_INFO_INFO1_TXBF;
-		dcm = info0 & HAL_RX_HE_SIG_A_SU_INFO_INFO0_DCM;
-		cp_ltf = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_CP_LTF_SIZE,
-				   info0);
-		nsts = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_NSTS, info0);
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_FORMAT_IND, info0);
 
-		switch (cp_ltf) {
+		if (value == 0)
+			ppdu_info->he_data1 = IEEE80211_RADIOTAP_HE_DATA1_FORMAT_TRIG;
+		else
+			ppdu_info->he_data1 = IEEE80211_RADIOTAP_HE_DATA1_FORMAT_SU;
+
+		ppdu_info->he_data1 |=
+			IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_BEAM_CHANGE_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_DATA_DCM_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_CODING_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_LDPC_XSYMSEG_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_STBC_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_DOPPLER_KNOWN;
+
+		ppdu_info->he_data2 |=
+			IEEE80211_RADIOTAP_HE_DATA2_GI_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA2_TXBF_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA2_PE_DISAMBIG_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA2_TXOP_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA2_NUM_LTF_SYMS_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA2_PRE_FEC_PAD_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA2_MIDAMBLE_KNOWN;
+
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_BSS_COLOR, info0);
+		ppdu_info->he_data3 =
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_BSS_COLOR, value);
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_BEAM_CHANGE, info0);
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_BEAM_CHANGE, value);
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_DL_UL_FLAG, info0);
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_UL_DL, value);
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_TRANSMIT_MCS, info0);
+		ppdu_info->mcs = value;
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_DATA_MCS, value);
+
+		he_dcm = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_DCM, info0);
+		ppdu_info->dcm = he_dcm;
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_DATA_DCM, he_dcm);
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO1_CODING, info1);
+		ppdu_info->ldpc = (value == HAL_RX_SU_MU_CODING_LDPC) ? 1 : 0;
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_CODING, value);
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO1_LDPC_EXTRA, info1);
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_LDPC_XSYMSEG, value);
+		he_stbc = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO1_STBC, info1);
+		ppdu_info->is_stbc = he_stbc;
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_STBC, he_stbc);
+
+		/* data4 */
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_SPATIAL_REUSE, info0);
+		ppdu_info->he_data4 =
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA4_SU_MU_SPTL_REUSE, value);
+
+		/* data5 */
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_TRANSMIT_BW, info0);
+		ppdu_info->bw = value;
+		ppdu_info->he_data5 =
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA5_DATA_BW_RU_ALLOC, value);
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_CP_LTF_SIZE, info0);
+		switch (value) {
 		case 0:
+				he_gi = HE_GI_0_8;
+				he_ltf = HE_LTF_1_X;
+				break;
 		case 1:
-			ppdu_info->gi = HAL_RX_GI_0_8_US;
-			break;
+				he_gi = HE_GI_0_8;
+				he_ltf = HE_LTF_2_X;
+				break;
 		case 2:
-			ppdu_info->gi = HAL_RX_GI_1_6_US;
-			break;
+				he_gi = HE_GI_1_6;
+				he_ltf = HE_LTF_2_X;
+				break;
 		case 3:
-			if (dcm && ppdu_info->is_stbc)
-				ppdu_info->gi = HAL_RX_GI_0_8_US;
-			else
-				ppdu_info->gi = HAL_RX_GI_3_2_US;
-			break;
+				if (he_dcm && he_stbc) {
+					he_gi = HE_GI_0_8;
+					he_ltf = HE_LTF_4_X;
+				} else {
+					he_gi = HE_GI_3_2;
+					he_ltf = HE_LTF_4_X;
+				}
+				break;
 		}
+		ppdu_info->gi = he_gi;
+		he_gi = (he_gi != 0) ? he_gi - 1 : 0;
+		ppdu_info->he_data5 |= FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA5_GI, he_gi);
+		ppdu_info->ltf_size = he_ltf;
+		ppdu_info->he_data5 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE,
+				   (he_ltf == HE_LTF_4_X) ? he_ltf - 1 : he_ltf);
 
-		ppdu_info->nss = nsts + 1;
-		ppdu_info->dcm = dcm;
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_NSTS, info0);
+		ppdu_info->he_data5 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA5_NUM_LTF_SYMS, value);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO1_PKT_EXT_FACTOR, info1);
+		ppdu_info->he_data5 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA5_PRE_FEC_PAD, value);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO1_TXBF, info1);
+		ppdu_info->beamformed = value;
+		ppdu_info->he_data5 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA5_TXBF, value);
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO1_PKT_EXT_PE_DISAM, info1);
+		ppdu_info->he_data5 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA5_PE_DISAMBIG, value);
+
+		/* data6 */
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_NSTS, info0);
+		value++;
+		ppdu_info->nss = value;
+		ppdu_info->he_data6 =
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA6_NSTS, value);
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO1_DOPPLER_IND, info1);
+		ppdu_info->he_data6 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA6_DOPPLER, value);
+		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO1_TXOP_DURATION, info1);
+		ppdu_info->he_data6 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA6_TXOP, value);
+
 		ppdu_info->reception_type = HAL_RX_RECEPTION_TYPE_SU;
 		break;
 	}
@@ -1036,29 +1207,142 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		struct hal_rx_he_sig_a_mu_dl_info *he_sig_a_mu_dl =
 			(struct hal_rx_he_sig_a_mu_dl_info *)tlv_data;
 
-		u32 cp_ltf;
-
 		info0 = __le32_to_cpu(he_sig_a_mu_dl->info0);
 		info1 = __le32_to_cpu(he_sig_a_mu_dl->info1);
 
-		ppdu_info->bw =
-			FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_TRANSMIT_BW,
-				  info0);
-		cp_ltf = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_CP_LTF_SIZE,
-				   info0);
+		ppdu_info->he_mu_flags = 1;
 
-		switch (cp_ltf) {
+		ppdu_info->he_data1 = IEEE80211_RADIOTAP_HE_DATA1_FORMAT_MU;
+		ppdu_info->he_data1 |=
+			IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_LDPC_XSYMSEG_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_STBC_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_DOPPLER_KNOWN;
+
+		ppdu_info->he_data2 =
+			IEEE80211_RADIOTAP_HE_DATA2_GI_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA2_NUM_LTF_SYMS_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA2_PRE_FEC_PAD_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA2_PE_DISAMBIG_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA2_TXOP_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA2_MIDAMBLE_KNOWN;
+
+		/*data3*/
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_BSS_COLOR, info0);
+		ppdu_info->he_data3 =
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_BSS_COLOR, value);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_UL_FLAG, info0);
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_UL_DL, value);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_LDPC_EXTRA, info1);
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_LDPC_XSYMSEG, value);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_STBC, info1);
+		he_stbc = value;
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_STBC, value);
+
+		/*data4*/
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_SPATIAL_REUSE, info0);
+		ppdu_info->he_data4 =
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA4_SU_MU_SPTL_REUSE, value);
+
+		/*data5*/
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_TRANSMIT_BW, info0);
+		ppdu_info->bw = value;
+		ppdu_info->he_data5 =
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA5_DATA_BW_RU_ALLOC, value);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_CP_LTF_SIZE, info0);
+		switch (value) {
 		case 0:
+			he_gi = HE_GI_0_8;
+			he_ltf = HE_LTF_4_X;
+			break;
 		case 1:
-			ppdu_info->gi = HAL_RX_GI_0_8_US;
+			he_gi = HE_GI_0_8;
+			he_ltf = HE_LTF_2_X;
 			break;
 		case 2:
-			ppdu_info->gi = HAL_RX_GI_1_6_US;
+			he_gi = HE_GI_1_6;
+			he_ltf = HE_LTF_2_X;
 			break;
 		case 3:
-			ppdu_info->gi = HAL_RX_GI_3_2_US;
+			he_gi = HE_GI_3_2;
+			he_ltf = HE_LTF_4_X;
 			break;
 		}
+		ppdu_info->gi = he_gi;
+		he_gi = (he_gi != 0) ? he_gi - 1 : 0;
+		ppdu_info->he_data5 |= FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA5_GI, he_gi);
+		ppdu_info->ltf_size = he_ltf;
+		ppdu_info->he_data5 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE,
+				   (he_ltf == HE_LTF_4_X) ? he_ltf - 1 : he_ltf);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_NUM_LTF_SYMB, info1);
+		ppdu_info->he_data5 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA5_NUM_LTF_SYMS, value);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_PKT_EXT_FACTOR,
+				  info1);
+		ppdu_info->he_data5 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA5_PRE_FEC_PAD, value);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_PKT_EXT_PE_DISAM,
+				  info1);
+		ppdu_info->he_data5 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA5_PE_DISAMBIG, value);
+
+		/*data6*/
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_DOPPLER_INDICATION,
+				  info0);
+		ppdu_info->he_data6 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA6_DOPPLER, value);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_TXOP_DURATION, info1);
+		ppdu_info->he_data6 |=
+				FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA6_TXOP, value);
+
+		/* HE-MU Flags */
+		/* HE-MU-flags1 */
+		ppdu_info->he_flags1 =
+			IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_MCS_KNOWN |
+			IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_DCM_KNOWN |
+			IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_COMP_KNOWN |
+			IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_SYMS_USERS_KNOWN |
+			IEEE80211_RADIOTAP_HE_MU_FLAGS1_CH1_RU_KNOWN;
+
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_MCS_OF_SIGB, info0);
+		ppdu_info->he_flags1 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_MCS_KNOWN,
+				   value);
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_DCM_OF_SIGB, info0);
+		ppdu_info->he_flags1 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_DCM_KNOWN,
+				   value);
+
+		/* HE-MU-flags2 */
+		ppdu_info->he_flags2 =
+			IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW_KNOWN;
+
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_TRANSMIT_BW, info0);
+		ppdu_info->he_flags2 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW,
+				   value);
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_COMP_MODE_SIGB, info0);
+		ppdu_info->he_flags2 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_MU_FLAGS2_SIG_B_COMP, value);
+		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_NUM_SIGB_SYMB, info0);
+		value = value - 1;
+		ppdu_info->he_flags2 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_MU_FLAGS2_SIG_B_SYMS_USERS,
+				   value);
 
 		ppdu_info->is_stbc = info1 &
 				     HAL_RX_HE_SIG_A_MU_DL_INFO_INFO1_STBC;
@@ -1074,7 +1358,9 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 
 		ru_tones = FIELD_GET(HAL_RX_HE_SIG_B1_MU_INFO_INFO0_RU_ALLOCATION,
 				     info0);
-		ppdu_info->ru_alloc = ath11k_he_ru_tones_to_nl80211_he_ru_alloc(ru_tones);
+		ppdu_info->ru_alloc =
+			ath11k_mac_phy_he_ru_to_nl80211_he_ru_alloc(ru_tones);
+		ppdu_info->he_RU[0] = ru_tones;
 		ppdu_info->reception_type = HAL_RX_RECEPTION_TYPE_MU_MIMO;
 		break;
 	}
@@ -1084,14 +1370,25 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 
 		info0 = __le32_to_cpu(he_sig_b2_mu->info0);
 
+		ppdu_info->he_data1 |= IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
+				       IEEE80211_RADIOTAP_HE_DATA1_CODING_KNOWN;
+
 		ppdu_info->mcs =
-			FIELD_GET(HAL_RX_HE_SIG_B2_MU_INFO_INFO0_STA_MCS,
-				  info0);
+			FIELD_GET(HAL_RX_HE_SIG_B2_MU_INFO_INFO0_STA_MCS, info0);
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_DATA_MCS, ppdu_info->mcs);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_B2_MU_INFO_INFO0_STA_CODING, info0);
+		ppdu_info->ldpc = value;
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_CODING, value);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_B2_MU_INFO_INFO0_STA_ID, info0);
+		ppdu_info->he_data4 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA4_MU_STA_ID, value);
+
 		ppdu_info->nss =
-			FIELD_GET(HAL_RX_HE_SIG_B2_MU_INFO_INFO0_STA_NSTS,
-				  info0) + 1;
-		ppdu_info->ldpc = FIELD_GET(HAL_RX_HE_SIG_B2_MU_INFO_INFO0_STA_CODING,
-					    info0);
+			FIELD_GET(HAL_RX_HE_SIG_B2_MU_INFO_INFO0_STA_NSTS, info0) + 1;
 		break;
 	}
 	case HAL_PHYRX_HE_SIG_B2_OFDMA: {
@@ -1100,21 +1397,47 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 
 		info0 = __le32_to_cpu(he_sig_b2_ofdma->info0);
 
+		ppdu_info->he_data1 |=
+			IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_DATA_DCM_KNOWN |
+			IEEE80211_RADIOTAP_HE_DATA1_CODING_KNOWN;
+
+		/* HE-data2 */
+		ppdu_info->he_data2 |= IEEE80211_RADIOTAP_HE_DATA2_TXBF_KNOWN;
+
 		ppdu_info->mcs =
 			FIELD_GET(HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_MCS,
 				  info0);
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_DATA_MCS, ppdu_info->mcs);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_DCM, info0);
+		he_dcm = value;
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_DATA_DCM, value);
+
+		value = FIELD_GET(HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_CODING, info0);
+		ppdu_info->ldpc = value;
+		ppdu_info->he_data3 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA3_CODING, value);
+
+		/* HE-data4 */
+		value = FIELD_GET(HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_ID, info0);
+		ppdu_info->he_data4 |=
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_DATA4_MU_STA_ID, value);
+
 		ppdu_info->nss =
 			FIELD_GET(HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_NSTS,
 				  info0) + 1;
 		ppdu_info->beamformed =
-			info0 &
-			HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_TXBF;
-		ppdu_info->ldpc = FIELD_GET(HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_CODING,
-					    info0);
+			info0 & HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_TXBF;
 		ppdu_info->reception_type = HAL_RX_RECEPTION_TYPE_MU_OFDMA;
 		break;
 	}
 	case HAL_PHYRX_RSSI_LEGACY: {
+		int i;
+		bool db2dbm = test_bit(WMI_TLV_SERVICE_HW_DB2DBM_CONVERSION_SUPPORT,
+				       ab->wmi_ab.svc_map);
 		struct hal_rx_phyrx_rssi_legacy_info *rssi =
 			(struct hal_rx_phyrx_rssi_legacy_info *)tlv_data;
 
@@ -1125,15 +1448,20 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		ppdu_info->rssi_comb =
 			FIELD_GET(HAL_RX_PHYRX_RSSI_LEGACY_INFO_INFO1_RSSI_COMB,
 				  __le32_to_cpu(rssi->info0));
+
+		if (db2dbm) {
+			for (i = 0; i < ARRAY_SIZE(rssi->preamble); i++) {
+				ppdu_info->rssi_chain_pri20[i] =
+					le32_get_bits(rssi->preamble[i].rssi_2040,
+						      HAL_RX_PHYRX_RSSI_PREAMBLE_PRI20);
+			}
+		}
 		break;
 	}
 	case HAL_RX_MPDU_START: {
-		struct hal_rx_mpdu_info *mpdu_info =
-			(struct hal_rx_mpdu_info *)tlv_data;
 		u16 peer_id;
 
-		peer_id = FIELD_GET(HAL_RX_MPDU_INFO_INFO0_PEERID,
-				    __le32_to_cpu(mpdu_info->info0));
+		peer_id = ab->hw_params.hw_ops->mpdu_info_get_peerid(tlv_data);
 		if (peer_id)
 			ppdu_info->peer_id = peer_id;
 		break;
@@ -1144,6 +1472,9 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		ppdu_info->rx_duration =
 			FIELD_GET(HAL_RX_PPDU_END_DURATION,
 				  __le32_to_cpu(ppdu_rx_duration->info0));
+		ppdu_info->tsft = __le32_to_cpu(ppdu_rx_duration->rsvd0[1]);
+		ppdu_info->tsft = (ppdu_info->tsft << 32) |
+					__le32_to_cpu(ppdu_rx_duration->rsvd0[0]);
 		break;
 	}
 	case HAL_DUMMY:
@@ -1167,12 +1498,14 @@ ath11k_hal_rx_parse_mon_status(struct ath11k_base *ab,
 	enum hal_rx_mon_status hal_status = HAL_RX_MON_STATUS_BUF_DONE;
 	u16 tlv_tag;
 	u16 tlv_len;
+	u32 tlv_userid = 0;
 	u8 *ptr = skb->data;
 
 	do {
 		tlv = (struct hal_tlv_hdr *)ptr;
 		tlv_tag = FIELD_GET(HAL_TLV_HDR_TAG, tlv->tl);
 		tlv_len = FIELD_GET(HAL_TLV_HDR_LEN, tlv->tl);
+		tlv_userid = FIELD_GET(HAL_TLV_USR_ID, tlv->tl);
 		ptr += sizeof(*tlv);
 
 		/* The actual length of PPDU_END is the combined length of many PHY
@@ -1184,7 +1517,7 @@ ath11k_hal_rx_parse_mon_status(struct ath11k_base *ab,
 			tlv_len = sizeof(struct hal_rx_rxpcu_classification_overview);
 
 		hal_status = ath11k_hal_rx_parse_mon_status_tlv(ab, ppdu_info,
-								tlv_tag, ptr);
+								tlv_tag, ptr, tlv_userid);
 		ptr += tlv_len;
 		ptr = PTR_ALIGN(ptr, HAL_TLV_ALIGN);
 
@@ -1223,4 +1556,48 @@ void ath11k_hal_rx_reo_ent_buf_paddr_get(void *rx_desc, dma_addr_t *paddr,
 			 buf_addr_info->info1);
 
 	*pp_buf_addr = (void *)buf_addr_info;
+}
+
+void
+ath11k_hal_rx_sw_mon_ring_buf_paddr_get(void *rx_desc,
+					struct hal_sw_mon_ring_entries *sw_mon_entries)
+{
+	struct hal_sw_monitor_ring *sw_mon_ring = rx_desc;
+	struct ath11k_buffer_addr *buf_addr_info;
+	struct ath11k_buffer_addr *status_buf_addr_info;
+	struct rx_mpdu_desc *rx_mpdu_desc_info_details;
+
+	rx_mpdu_desc_info_details = &sw_mon_ring->rx_mpdu_info;
+
+	sw_mon_entries->msdu_cnt = FIELD_GET(RX_MPDU_DESC_INFO0_MSDU_COUNT,
+					     rx_mpdu_desc_info_details->info0);
+
+	buf_addr_info = &sw_mon_ring->buf_addr_info;
+	status_buf_addr_info = &sw_mon_ring->status_buf_addr_info;
+
+	sw_mon_entries->mon_dst_paddr = (((u64)FIELD_GET(BUFFER_ADDR_INFO1_ADDR,
+					buf_addr_info->info1)) << 32) |
+					FIELD_GET(BUFFER_ADDR_INFO0_ADDR,
+						  buf_addr_info->info0);
+
+	sw_mon_entries->mon_status_paddr =
+			(((u64)FIELD_GET(BUFFER_ADDR_INFO1_ADDR,
+					 status_buf_addr_info->info1)) << 32) |
+				FIELD_GET(BUFFER_ADDR_INFO0_ADDR,
+					  status_buf_addr_info->info0);
+
+	sw_mon_entries->mon_dst_sw_cookie = FIELD_GET(BUFFER_ADDR_INFO1_SW_COOKIE,
+						      buf_addr_info->info1);
+
+	sw_mon_entries->mon_status_sw_cookie = FIELD_GET(BUFFER_ADDR_INFO1_SW_COOKIE,
+							 status_buf_addr_info->info1);
+
+	sw_mon_entries->status_buf_count = FIELD_GET(HAL_SW_MON_RING_INFO0_STATUS_BUF_CNT,
+						     sw_mon_ring->info0);
+
+	sw_mon_entries->dst_buf_addr_info = buf_addr_info;
+	sw_mon_entries->status_buf_addr_info = status_buf_addr_info;
+
+	sw_mon_entries->ppdu_id =
+		FIELD_GET(HAL_SW_MON_RING_INFO1_PHY_PPDU_ID, sw_mon_ring->info1);
 }

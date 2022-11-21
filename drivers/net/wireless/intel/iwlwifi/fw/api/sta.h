@@ -1,64 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2012-2014, 2018 - 2020 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2012-2014, 2018 - 2020 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fw_api_sta_h__
 #define __iwl_fw_api_sta_h__
 
@@ -83,6 +28,8 @@
  * @STA_FLG_MAX_AGG_SIZE_256K: maximal size for A-MPDU (256k supported)
  * @STA_FLG_MAX_AGG_SIZE_512K: maximal size for A-MPDU (512k supported)
  * @STA_FLG_MAX_AGG_SIZE_1024K: maximal size for A-MPDU (1024k supported)
+ * @STA_FLG_MAX_AGG_SIZE_2M: maximal size for A-MPDU (2M supported)
+ * @STA_FLG_MAX_AGG_SIZE_4M: maximal size for A-MPDU (4M supported)
  * @STA_FLG_AGG_MPDU_DENS_MSK: maximal MPDU density for Tx aggregation
  * @STA_FLG_FAT_EN_MSK: support for channel width (for Tx). This flag is
  *	initialised by driver and can be updated by fw upon reception of
@@ -439,13 +386,17 @@ struct iwl_mvm_add_sta_key_cmd_v1 {
  * @rx_mic_key: TKIP RX unicast or multicast key
  * @tx_mic_key: TKIP TX key
  * @transmit_seq_cnt: TSC, transmit packet number
+ *
+ * Note: This is used for both v2 and v3, the difference being
+ * in the way the common.rx_secur_seq_cnt is used, in v2 that's
+ * the strange hole format, in v3 it's just a u64.
  */
 struct iwl_mvm_add_sta_key_cmd {
 	struct iwl_mvm_add_sta_key_common common;
 	__le64 rx_mic_key;
 	__le64 tx_mic_key;
 	__le64 transmit_seq_cnt;
-} __packed; /* ADD_MODIFY_STA_KEY_API_S_VER_2 */
+} __packed; /* ADD_MODIFY_STA_KEY_API_S_VER_2, ADD_MODIFY_STA_KEY_API_S_VER_3 */
 
 /**
  * enum iwl_mvm_add_sta_rsp_status - status in the response to ADD_STA command

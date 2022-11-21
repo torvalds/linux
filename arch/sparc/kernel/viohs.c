@@ -428,7 +428,7 @@ static int process_dreg_info(struct vio_driver_state *vio,
 			     struct vio_dring_register *pkt)
 {
 	struct vio_dring_state *dr;
-	int i, len;
+	int i;
 
 	viodbg(HS, "GOT DRING_REG INFO ident[%llx] "
 	       "ndesc[%u] dsz[%u] opt[0x%x] ncookies[%u]\n",
@@ -482,9 +482,7 @@ static int process_dreg_info(struct vio_driver_state *vio,
 	       pkt->num_descr, pkt->descr_size, pkt->options,
 	       pkt->num_cookies);
 
-	len = (sizeof(*pkt) +
-	       (dr->ncookies * sizeof(struct ldc_trans_cookie)));
-	if (send_ctrl(vio, &pkt->tag, len) < 0)
+	if (send_ctrl(vio, &pkt->tag, struct_size(pkt, cookies, dr->ncookies)) < 0)
 		goto send_nack;
 
 	vio->dr_state |= VIO_DR_STATE_RXREG;

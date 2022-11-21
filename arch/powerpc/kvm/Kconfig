@@ -26,6 +26,7 @@ config KVM
 	select KVM_VFIO
 	select IRQ_BYPASS_MANAGER
 	select HAVE_KVM_IRQ_BYPASS
+	select INTERVAL_TREE
 
 config KVM_BOOK3S_HANDLER
 	bool
@@ -38,7 +39,6 @@ config KVM_BOOK3S_32_HANDLER
 config KVM_BOOK3S_64_HANDLER
 	bool
 	select KVM_BOOK3S_HANDLER
-	select PPC_DAWR_FORCE_ENABLE
 
 config KVM_BOOK3S_PR_POSSIBLE
 	bool
@@ -54,6 +54,7 @@ config KVM_BOOK3S_32
 	select KVM
 	select KVM_BOOK3S_32_HANDLER
 	select KVM_BOOK3S_PR_POSSIBLE
+	select PPC_FPU
 	help
 	  Support running unmodified book3s_32 guest kernels
 	  in virtual machines on book3s_32 host processors.
@@ -69,6 +70,7 @@ config KVM_BOOK3S_64
 	select KVM_BOOK3S_64_HANDLER
 	select KVM
 	select KVM_BOOK3S_PR_POSSIBLE if !KVM_BOOK3S_HV_POSSIBLE
+	select PPC_64S_HASH_MMU
 	select SPAPR_TCE_IOMMU if IOMMU_SUPPORT && (PPC_PSERIES || PPC_POWERNV)
 	help
 	  Support running unmodified book3s_64 and book3s_32 guest kernels
@@ -110,11 +112,20 @@ config KVM_BOOK3S_64_PR
 	  guest in user mode (problem state) and emulating all
 	  privileged instructions and registers.
 
+	  This is only available for hash MMU mode and only supports
+	  guests that use hash MMU mode.
+
 	  This is not as fast as using hypervisor mode, but works on
 	  machines where hypervisor mode is not available or not usable,
 	  and can emulate processors that are different from the host
 	  processor, including emulating 32-bit processors on a 64-bit
 	  host.
+
+	  Selecting this option will cause the SCV facility to be
+	  disabled when the kernel is booted on the pseries platform in
+	  hash MMU mode (regardless of PR VMs running). When any PR VMs
+	  are running, "AIL" mode is disabled which may slow interrupts
+	  and system calls on the host.
 
 config KVM_BOOK3S_HV_EXIT_TIMING
 	bool "Detailed timing for hypervisor real-mode code"
@@ -129,6 +140,21 @@ config KVM_BOOK3S_HV_EXIT_TIMING
 	  ns per exit on POWER8.
 
 	  If unsure, say N.
+
+config KVM_BOOK3S_HV_NESTED_PMU_WORKAROUND
+	bool "Nested L0 host workaround for L1 KVM host PMU handling bug" if EXPERT
+	depends on KVM_BOOK3S_HV_POSSIBLE
+	default !EXPERT
+	help
+	  Old nested HV capable Linux guests have a bug where they don't
+	  reflect the PMU in-use status of their L2 guest to the L0 host
+	  while the L2 PMU registers are live. This can result in loss
+          of L2 PMU register state, causing perf to not work correctly in
+	  L2 guests.
+
+	  Selecting this option for the L0 host implements a workaround for
+	  those buggy L1s which saves the L2 state, at the cost of performance
+	  in all nested-capable guest entry/exit.
 
 config KVM_BOOKE_HV
 	bool

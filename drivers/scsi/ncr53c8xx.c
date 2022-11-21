@@ -148,6 +148,11 @@ static int ncr_debug = SCSI_NCR_DEBUG_FLAGS;
 	#define DEBUG_FLAGS	SCSI_NCR_DEBUG_FLAGS
 #endif
 
+/*
+ * Locally used status flag
+ */
+#define SAM_STAT_ILLEGAL	0xff
+
 static inline struct list_head *ncr_list_pop(struct list_head *head)
 {
 	if (!list_empty(head)) {
@@ -509,30 +514,29 @@ static m_addr_t __vtobus(m_bush_t bush, void *m)
  *  Deal with DMA mapping/unmapping.
  */
 
-/* To keep track of the dma mapping (sg/single) that has been set */
-#define __data_mapped	SCp.phase
-#define __data_mapping	SCp.have_data_in
-
 static void __unmap_scsi_data(struct device *dev, struct scsi_cmnd *cmd)
 {
-	switch(cmd->__data_mapped) {
+	struct ncr_cmd_priv *cmd_priv = scsi_cmd_priv(cmd);
+
+	switch(cmd_priv->data_mapped) {
 	case 2:
 		scsi_dma_unmap(cmd);
 		break;
 	}
-	cmd->__data_mapped = 0;
+	cmd_priv->data_mapped = 0;
 }
 
 static int __map_scsi_sg_data(struct device *dev, struct scsi_cmnd *cmd)
 {
+	struct ncr_cmd_priv *cmd_priv = scsi_cmd_priv(cmd);
 	int use_sg;
 
 	use_sg = scsi_dma_map(cmd);
 	if (!use_sg)
 		return 0;
 
-	cmd->__data_mapped = 2;
-	cmd->__data_mapping = use_sg;
+	cmd_priv->data_mapped = 2;
+	cmd_priv->data_mapping = use_sg;
 
 	return use_sg;
 }
@@ -998,8 +1002,6 @@ typedef u32 tagmap_t;
 **	Other definitions
 */
 
-#define ScsiResult(host_code, scsi_code) (((host_code) << 16) + ((scsi_code) & 0x7f))
-
 #define initverbose (driver_setup.verbose)
 #define bootverbose (np->verbose)
 
@@ -1449,11 +1451,6 @@ struct head {
 */
 #define  xerr_status   phys.xerr_st
 #define  nego_status   phys.nego_st
-
-#if 0
-#define  sync_status   phys.sync_st
-#define  wide_status   phys.wide_st
-#endif
 
 /*==========================================================
 **
@@ -1941,11 +1938,8 @@ static	void	ncr_start_next_ccb (struct ncb *np, struct lcb * lp, int maxn);
 static	void	ncr_put_start_queue(struct ncb *np, struct ccb *cp);
 
 static void insert_into_waiting_list(struct ncb *np, struct scsi_cmnd *cmd);
-static struct scsi_cmnd *retrieve_from_waiting_list(int to_remove, struct ncb *np, struct scsi_cmnd *cmd);
 static void process_waiting_list(struct ncb *np, int sts);
 
-#define remove_from_waiting_list(np, cmd) \
-		retrieve_from_waiting_list(1, (np), (cmd))
 #define requeue_waiting_list(np) process_waiting_list((np), DID_OK)
 #define reset_waiting_list(np) process_waiting_list((np), DID_RESET)
 
@@ -1977,9 +1971,6 @@ static inline char *ncr_name (struct ncb *np)
 #define	RELOC_SOFTC	0x40000000
 #define	RELOC_LABEL	0x50000000
 #define	RELOC_REGISTER	0x60000000
-#if 0
-#define	RELOC_KVAR	0x70000000
-#endif
 #define	RELOC_LABELH	0x80000000
 #define	RELOC_MASK	0xf0000000
 
@@ -1988,21 +1979,7 @@ static inline char *ncr_name (struct ncb *np)
 #define PADDRH(label)   (RELOC_LABELH | offsetof(struct scripth, label))
 #define	RADDR(label)	(RELOC_REGISTER | REG(label))
 #define	FADDR(label,ofs)(RELOC_REGISTER | ((REG(label))+(ofs)))
-#if 0
-#define	KVAR(which)	(RELOC_KVAR | (which))
-#endif
 
-#if 0
-#define	SCRIPT_KVAR_JIFFIES	(0)
-#define	SCRIPT_KVAR_FIRST		SCRIPT_KVAR_JIFFIES
-#define	SCRIPT_KVAR_LAST		SCRIPT_KVAR_JIFFIES
-/*
- * Kernel variables referenced in the scripts.
- * THESE MUST ALL BE ALIGNED TO A 4-BYTE BOUNDARY.
- */
-static void *script_kvars[] __initdata =
-	{ (void *)&jiffies };
-#endif
 
 static	struct script script0 __initdata = {
 /*--------------------------< START >-----------------------*/ {
@@ -2159,11 +2136,6 @@ static	struct script script0 __initdata = {
 	SCR_COPY (1),
 		RADDR (scratcha),
 		NADDR (msgout),
-#if 0
-	SCR_COPY (1),
-		RADDR (scratcha),
-		NADDR (msgin),
-#endif
 	/*
 	**	Anticipate the COMMAND phase.
 	**	This is the normal case for initial selection.
@@ -2430,7 +2402,7 @@ static	struct script script0 __initdata = {
 	*/
 	SCR_FROM_REG (SS_REG),
 		0,
-	SCR_CALL ^ IFFALSE (DATA (S_GOOD)),
+	SCR_CALL ^ IFFALSE (DATA (SAM_STAT_GOOD)),
 		PADDRH (bad_status),
 
 #ifndef	SCSI_NCR_CCB_DONE_SUPPORT
@@ -2879,7 +2851,7 @@ static	struct scripth scripth0 __initdata = {
 		8,
 	SCR_TO_REG (HS_REG),
 		0,
-	SCR_LOAD_REG (SS_REG, S_GOOD),
+	SCR_LOAD_REG (SS_REG, SAM_STAT_GOOD),
 		0,
 	SCR_JUMP,
 		PADDR (cleanup_ok),
@@ -3341,15 +3313,15 @@ static	struct scripth scripth0 __initdata = {
 		PADDRH (reset),
 }/*-------------------------< BAD_STATUS >-----------------*/,{
 	/*
-	**	If command resulted in either QUEUE FULL,
+	**	If command resulted in either TASK_SET FULL,
 	**	CHECK CONDITION or COMMAND TERMINATED,
 	**	call the C code.
 	*/
-	SCR_INT ^ IFTRUE (DATA (S_QUEUE_FULL)),
+	SCR_INT ^ IFTRUE (DATA (SAM_STAT_TASK_SET_FULL)),
 		SIR_BAD_STATUS,
-	SCR_INT ^ IFTRUE (DATA (S_CHECK_COND)),
+	SCR_INT ^ IFTRUE (DATA (SAM_STAT_CHECK_CONDITION)),
 		SIR_BAD_STATUS,
-	SCR_INT ^ IFTRUE (DATA (S_TERMINATED)),
+	SCR_INT ^ IFTRUE (DATA (SAM_STAT_COMMAND_TERMINATED)),
 		SIR_BAD_STATUS,
 	SCR_RETURN,
 		0,
@@ -4030,7 +4002,7 @@ static inline void ncr_flush_done_cmds(struct scsi_cmnd *lcmd)
 	while (lcmd) {
 		cmd = lcmd;
 		lcmd = (struct scsi_cmnd *) cmd->host_scribble;
-		cmd->scsi_done(cmd);
+		scsi_done(cmd);
 	}
 }
 
@@ -4161,8 +4133,8 @@ static int ncr_queue_command (struct ncb *np, struct scsi_cmnd *cmd)
 	**
 	**----------------------------------------------------
 	*/
-	if (np->settle_time && cmd->request->timeout >= HZ) {
-		u_long tlimit = jiffies + cmd->request->timeout - HZ;
+	if (np->settle_time && scsi_cmd_to_rq(cmd)->timeout >= HZ) {
+		u_long tlimit = jiffies + scsi_cmd_to_rq(cmd)->timeout - HZ;
 		if (time_after(np->settle_time, tlimit))
 			np->settle_time = tlimit;
 	}
@@ -4371,14 +4343,10 @@ static int ncr_queue_command (struct ncb *np, struct scsi_cmnd *cmd)
 	*/
 	cp->actualquirks		= 0;
 	cp->host_status			= cp->nego_status ? HS_NEGOTIATE : HS_BUSY;
-	cp->scsi_status			= S_ILLEGAL;
+	cp->scsi_status			= SAM_STAT_ILLEGAL;
 	cp->parity_status		= 0;
 
 	cp->xerr_status			= XE_OK;
-#if 0
-	cp->sync_status			= tp->sval;
-	cp->wide_status			= tp->wval;
-#endif
 
 	/*----------------------------------------------------
 	**
@@ -4550,12 +4518,8 @@ static void ncr_start_reset(struct ncb *np)
 **
 **==========================================================
 */
-static int ncr_reset_bus (struct ncb *np, struct scsi_cmnd *cmd, int sync_reset)
+static int ncr_reset_bus (struct ncb *np)
 {
-/*	struct scsi_device        *device    = cmd->device; */
-	struct ccb *cp;
-	int found;
-
 /*
  * Return immediately if reset is in progress.
  */
@@ -4570,24 +4534,6 @@ static int ncr_reset_bus (struct ncb *np, struct scsi_cmnd *cmd, int sync_reset)
  */
 	ncr_start_reset(np);
 /*
- * First, look in the wakeup list
- */
-	for (found=0, cp=np->ccb; cp; cp=cp->link_ccb) {
-		/*
-		**	look for the ccb of this command.
-		*/
-		if (cp->host_status == HS_IDLE) continue;
-		if (cp->cmd == cmd) {
-			found = 1;
-			break;
-		}
-	}
-/*
- * Then, look in the waiting list
- */
-	if (!found && retrieve_from_waiting_list(0, np, cmd))
-		found = 1;
-/*
  * Wake-up all awaiting commands with DID_RESET.
  */
 	reset_waiting_list(np);
@@ -4595,102 +4541,9 @@ static int ncr_reset_bus (struct ncb *np, struct scsi_cmnd *cmd, int sync_reset)
  * Wake-up all pending commands with HS_RESET -> DID_RESET.
  */
 	ncr_wakeup(np, HS_RESET);
-/*
- * If the involved command was not in a driver queue, and the 
- * scsi driver told us reset is synchronous, and the command is not 
- * currently in the waiting list, complete it with DID_RESET status,
- * in order to keep it alive.
- */
-	if (!found && sync_reset && !retrieve_from_waiting_list(0, np, cmd)) {
-		cmd->result = DID_RESET << 16;
-		ncr_queue_done_cmd(np, cmd);
-	}
 
 	return SUCCESS;
 }
-
-#if 0 /* unused and broken.. */
-/*==========================================================
-**
-**
-**	Abort an SCSI command.
-**	This is called from the generic SCSI driver.
-**
-**
-**==========================================================
-*/
-static int ncr_abort_command (struct ncb *np, struct scsi_cmnd *cmd)
-{
-/*	struct scsi_device        *device    = cmd->device; */
-	struct ccb *cp;
-	int found;
-	int retv;
-
-/*
- * First, look for the scsi command in the waiting list
- */
-	if (remove_from_waiting_list(np, cmd)) {
-		cmd->result = ScsiResult(DID_ABORT, 0);
-		ncr_queue_done_cmd(np, cmd);
-		return SCSI_ABORT_SUCCESS;
-	}
-
-/*
- * Then, look in the wakeup list
- */
-	for (found=0, cp=np->ccb; cp; cp=cp->link_ccb) {
-		/*
-		**	look for the ccb of this command.
-		*/
-		if (cp->host_status == HS_IDLE) continue;
-		if (cp->cmd == cmd) {
-			found = 1;
-			break;
-		}
-	}
-
-	if (!found) {
-		return SCSI_ABORT_NOT_RUNNING;
-	}
-
-	if (np->settle_time) {
-		return SCSI_ABORT_SNOOZE;
-	}
-
-	/*
-	**	If the CCB is active, patch schedule jumps for the 
-	**	script to abort the command.
-	*/
-
-	switch(cp->host_status) {
-	case HS_BUSY:
-	case HS_NEGOTIATE:
-		printk ("%s: abort ccb=%p (cancel)\n", ncr_name (np), cp);
-			cp->start.schedule.l_paddr =
-				cpu_to_scr(NCB_SCRIPTH_PHYS (np, cancel));
-		retv = SCSI_ABORT_PENDING;
-		break;
-	case HS_DISCONNECT:
-		cp->restart.schedule.l_paddr =
-				cpu_to_scr(NCB_SCRIPTH_PHYS (np, abort));
-		retv = SCSI_ABORT_PENDING;
-		break;
-	default:
-		retv = SCSI_ABORT_NOT_RUNNING;
-		break;
-
-	}
-
-	/*
-	**      If there are no requests, the script
-	**      processor will sleep on SEL_WAIT_RESEL.
-	**      Let's wake it up, since it may have to work.
-	*/
-	OUTB (nc_istat, SIGP);
-
-	return retv;
-}
-#endif
 
 static void ncr_detach(struct ncb *np)
 {
@@ -4895,7 +4748,8 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 	**	Print out any error for debugging purpose.
 	*/
 	if (DEBUG_FLAGS & (DEBUG_RESULT|DEBUG_TINY)) {
-		if (cp->host_status!=HS_COMPLETE || cp->scsi_status!=S_GOOD) {
+		if (cp->host_status != HS_COMPLETE ||
+		    cp->scsi_status != SAM_STAT_GOOD) {
 			PRINT_ADDR(cmd, "ERROR: cmd=%x host_status=%x "
 					"scsi_status=%x\n", cmd->cmnd[0],
 					cp->host_status, cp->scsi_status);
@@ -4905,15 +4759,16 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 	/*
 	**	Check the status.
 	*/
+	cmd->result = 0;
 	if (   (cp->host_status == HS_COMPLETE)
-		&& (cp->scsi_status == S_GOOD ||
-		    cp->scsi_status == S_COND_MET)) {
+		&& (cp->scsi_status == SAM_STAT_GOOD ||
+		    cp->scsi_status == SAM_STAT_CONDITION_MET)) {
 		/*
 		 *	All went well (GOOD status).
-		 *	CONDITION MET status is returned on 
+		 *	CONDITION MET status is returned on
 		 *	`Pre-Fetch' or `Search data' success.
 		 */
-		cmd->result = ScsiResult(DID_OK, cp->scsi_status);
+		set_status_byte(cmd, cp->scsi_status);
 
 		/*
 		**	@RESID@
@@ -4944,11 +4799,11 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 			}
 		}
 	} else if ((cp->host_status == HS_COMPLETE)
-		&& (cp->scsi_status == S_CHECK_COND)) {
+		&& (cp->scsi_status == SAM_STAT_CHECK_CONDITION)) {
 		/*
 		**   Check condition code
 		*/
-		cmd->result = DID_OK << 16 | S_CHECK_COND;
+		set_status_byte(cmd, SAM_STAT_CHECK_CONDITION);
 
 		/*
 		**	Copy back sense data to caller's buffer.
@@ -4965,20 +4820,20 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 			printk (".\n");
 		}
 	} else if ((cp->host_status == HS_COMPLETE)
-		&& (cp->scsi_status == S_CONFLICT)) {
+		&& (cp->scsi_status == SAM_STAT_RESERVATION_CONFLICT)) {
 		/*
 		**   Reservation Conflict condition code
 		*/
-		cmd->result = DID_OK << 16 | S_CONFLICT;
-	
+		set_status_byte(cmd, SAM_STAT_RESERVATION_CONFLICT);
+
 	} else if ((cp->host_status == HS_COMPLETE)
-		&& (cp->scsi_status == S_BUSY ||
-		    cp->scsi_status == S_QUEUE_FULL)) {
+		&& (cp->scsi_status == SAM_STAT_BUSY ||
+		    cp->scsi_status == SAM_STAT_TASK_SET_FULL)) {
 
 		/*
 		**   Target is busy.
 		*/
-		cmd->result = ScsiResult(DID_OK, cp->scsi_status);
+		set_status_byte(cmd, cp->scsi_status);
 
 	} else if ((cp->host_status == HS_SEL_TIMEOUT)
 		|| (cp->host_status == HS_TIMEOUT)) {
@@ -4986,21 +4841,24 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 		/*
 		**   No response
 		*/
-		cmd->result = ScsiResult(DID_TIME_OUT, cp->scsi_status);
+		set_status_byte(cmd, cp->scsi_status);
+		set_host_byte(cmd, DID_TIME_OUT);
 
 	} else if (cp->host_status == HS_RESET) {
 
 		/*
 		**   SCSI bus reset
 		*/
-		cmd->result = ScsiResult(DID_RESET, cp->scsi_status);
+		set_status_byte(cmd, cp->scsi_status);
+		set_host_byte(cmd, DID_RESET);
 
 	} else if (cp->host_status == HS_ABORTED) {
 
 		/*
 		**   Transfer aborted
 		*/
-		cmd->result = ScsiResult(DID_ABORT, cp->scsi_status);
+		set_status_byte(cmd, cp->scsi_status);
+		set_host_byte(cmd, DID_ABORT);
 
 	} else {
 
@@ -5010,7 +4868,8 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 		PRINT_ADDR(cmd, "COMMAND FAILED (%x %x) @%p.\n",
 			cp->host_status, cp->scsi_status, cp);
 
-		cmd->result = ScsiResult(DID_ERROR, cp->scsi_status);
+		set_status_byte(cmd, cp->scsi_status);
+		set_host_byte(cmd, DID_ERROR);
 	}
 
 	/*
@@ -5026,10 +4885,10 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 
 		if (cp->host_status==HS_COMPLETE) {
 			switch (cp->scsi_status) {
-			case S_GOOD:
+			case SAM_STAT_GOOD:
 				printk ("  GOOD");
 				break;
-			case S_CHECK_COND:
+			case SAM_STAT_CHECK_CONDITION:
 				printk ("  SENSE:");
 				p = (u_char*) &cmd->sense_buffer;
 				for (i=0; i<14; i++)
@@ -5444,27 +5303,6 @@ static void ncr_getsync(struct ncb *np, u_char sfac, u_char *fakp, u_char *scntl
 	*/
 	fak = (kpc - 1) / div_10M[div] + 1;
 
-#if 0	/* This optimization does not seem very useful */
-
-	per = (fak * div_10M[div]) / clk;
-
-	/*
-	**	Why not to try the immediate lower divisor and to choose 
-	**	the one that allows the fastest output speed ?
-	**	We don't want input speed too much greater than output speed.
-	*/
-	if (div >= 1 && fak < 8) {
-		u_long fak2, per2;
-		fak2 = (kpc - 1) / div_10M[div-1] + 1;
-		per2 = (fak2 * div_10M[div-1]) / clk;
-		if (per2 < per && fak2 <= 8) {
-			fak = fak2;
-			per = per2;
-			--div;
-		}
-	}
-#endif
-
 	if (fak < 4) fak = 4;	/* Should never happen, too bad ... */
 
 	/*
@@ -5502,10 +5340,6 @@ static void ncr_set_sync_wide_status (struct ncb *np, u_char target)
 	for (cp = np->ccb; cp; cp = cp->link_ccb) {
 		if (!cp->cmd) continue;
 		if (scmd_id(cp->cmd) != target) continue;
-#if 0
-		cp->sync_status = tp->sval;
-		cp->wide_status = tp->wval;
-#endif
 		cp->phys.select.sel_scntl3 = tp->wval;
 		cp->phys.select.sel_sxfer  = tp->sval;
 	}
@@ -6564,7 +6398,7 @@ static void ncr_sir_to_redo(struct ncb *np, int num, struct ccb *cp)
 
 	switch(s_status) {
 	default:	/* Just for safety, should never happen */
-	case S_QUEUE_FULL:
+	case SAM_STAT_TASK_SET_FULL:
 		/*
 		**	Decrease number of tags to the number of 
 		**	disconnected commands.
@@ -6588,15 +6422,15 @@ static void ncr_sir_to_redo(struct ncb *np, int num, struct ccb *cp)
 		*/
 		cp->phys.header.savep = cp->startp;
 		cp->host_status = HS_BUSY;
-		cp->scsi_status = S_ILLEGAL;
+		cp->scsi_status = SAM_STAT_ILLEGAL;
 
 		ncr_put_start_queue(np, cp);
 		if (disc_cnt)
 			INB (nc_ctest2);		/* Clear SIGP */
 		OUTL_DSP (NCB_SCRIPT_PHYS (np, reselect));
 		return;
-	case S_TERMINATED:
-	case S_CHECK_COND:
+	case SAM_STAT_COMMAND_TERMINATED:
+	case SAM_STAT_CHECK_CONDITION:
 		/*
 		**	If we were requesting sense, give up.
 		*/
@@ -6646,7 +6480,7 @@ static void ncr_sir_to_redo(struct ncb *np, int num, struct ccb *cp)
 		cp->phys.header.wlastp	= startp;
 
 		cp->host_status = HS_BUSY;
-		cp->scsi_status = S_ILLEGAL;
+		cp->scsi_status = SAM_STAT_ILLEGAL;
 		cp->auto_sense	= s_status;
 
 		cp->start.schedule.l_paddr =
@@ -8017,8 +7851,10 @@ static int ncr53c8xx_slave_configure(struct scsi_device *device)
 	return 0;
 }
 
-static int ncr53c8xx_queue_command_lck (struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+static int ncr53c8xx_queue_command_lck(struct scsi_cmnd *cmd)
 {
+     struct ncr_cmd_priv *cmd_priv = scsi_cmd_priv(cmd);
+     void (*done)(struct scsi_cmnd *) = scsi_done;
      struct ncb *np = ((struct host_data *) cmd->device->host->hostdata)->ncb;
      unsigned long flags;
      int sts;
@@ -8027,15 +7863,14 @@ static int ncr53c8xx_queue_command_lck (struct scsi_cmnd *cmd, void (*done)(stru
 printk("ncr53c8xx_queue_command\n");
 #endif
 
-     cmd->scsi_done     = done;
      cmd->host_scribble = NULL;
-     cmd->__data_mapped = 0;
-     cmd->__data_mapping = 0;
+     cmd_priv->data_mapped = 0;
+     cmd_priv->data_mapping = 0;
 
      spin_lock_irqsave(&np->smp_lock, flags);
 
      if ((sts = ncr_queue_command(np, cmd)) != DID_OK) {
-	  cmd->result = sts << 16;
+	     set_host_byte(cmd, sts);
 #ifdef DEBUG_NCR53C8XX
 printk("ncr53c8xx : command not queued - result=%d\n", sts);
 #endif
@@ -8116,7 +7951,7 @@ static int ncr53c8xx_bus_reset(struct scsi_cmnd *cmd)
 	 */
 
 	spin_lock_irqsave(&np->smp_lock, flags);
-	sts = ncr_reset_bus(np, cmd, 1);
+	sts = ncr_reset_bus(np);
 
 	done_list     = np->done_list;
 	np->done_list = NULL;
@@ -8126,30 +7961,6 @@ static int ncr53c8xx_bus_reset(struct scsi_cmnd *cmd)
 
 	return sts;
 }
-
-#if 0 /* unused and broken */
-static int ncr53c8xx_abort(struct scsi_cmnd *cmd)
-{
-	struct ncb *np = ((struct host_data *) cmd->device->host->hostdata)->ncb;
-	int sts;
-	unsigned long flags;
-	struct scsi_cmnd *done_list;
-
-	printk("ncr53c8xx_abort\n");
-
-	NCR_LOCK_NCB(np, flags);
-
-	sts = ncr_abort_command(np, cmd);
-out:
-	done_list     = np->done_list;
-	np->done_list = NULL;
-	NCR_UNLOCK_NCB(np, flags);
-
-	ncr_flush_done_cmds(done_list);
-
-	return sts;
-}
-#endif
 
 
 /*
@@ -8183,26 +7994,6 @@ static void insert_into_waiting_list(struct ncb *np, struct scsi_cmnd *cmd)
 	}
 }
 
-static struct scsi_cmnd *retrieve_from_waiting_list(int to_remove, struct ncb *np, struct scsi_cmnd *cmd)
-{
-	struct scsi_cmnd **pcmd = &np->waiting_list;
-
-	while (*pcmd) {
-		if (cmd == *pcmd) {
-			if (to_remove) {
-				*pcmd = (struct scsi_cmnd *) cmd->next_wcmd;
-				cmd->next_wcmd = NULL;
-			}
-#ifdef DEBUG_WAITING_LIST
-	printk("%s: cmd %lx retrieved from waiting list\n", ncr_name(np), (u_long) cmd);
-#endif
-			return cmd;
-		}
-		pcmd = (struct scsi_cmnd **) &(*pcmd)->next_wcmd;
-	}
-	return NULL;
-}
-
 static void process_waiting_list(struct ncb *np, int sts)
 {
 	struct scsi_cmnd *waiting_list, *wcmd;
@@ -8226,7 +8017,7 @@ static void process_waiting_list(struct ncb *np, int sts)
 #ifdef DEBUG_WAITING_LIST
 	printk("%s: cmd %lx done forced sts=%d\n", ncr_name(np), (u_long) wcmd, sts);
 #endif
-			wcmd->result = sts << 16;
+			set_host_byte(wcmd, sts);
 			ncr_queue_done_cmd(np, wcmd);
 		}
 	}
@@ -8248,10 +8039,12 @@ static struct device_attribute ncr53c8xx_revision_attr = {
 	.show	= show_ncr53c8xx_revision,
 };
   
-static struct device_attribute *ncr53c8xx_host_attrs[] = {
-	&ncr53c8xx_revision_attr,
+static struct attribute *ncr53c8xx_host_attrs[] = {
+	&ncr53c8xx_revision_attr.attr,
 	NULL
 };
+
+ATTRIBUTE_GROUPS(ncr53c8xx_host);
 
 /*==========================================================
 **
@@ -8292,10 +8085,12 @@ struct Scsi_Host * __init ncr_attach(struct scsi_host_template *tpnt,
 	u_long flags = 0;
 	int i;
 
+	WARN_ON_ONCE(tpnt->cmd_size < sizeof(struct ncr_cmd_priv));
+
 	if (!tpnt->name)
 		tpnt->name	= SCSI_NCR_DRIVER_NAME;
-	if (!tpnt->shost_attrs)
-		tpnt->shost_attrs = ncr53c8xx_host_attrs;
+	if (!tpnt->shost_groups)
+		tpnt->shost_groups = ncr53c8xx_host_groups;
 
 	tpnt->queuecommand	= ncr53c8xx_queue_command;
 	tpnt->slave_configure	= ncr53c8xx_slave_configure;

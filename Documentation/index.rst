@@ -137,6 +137,8 @@ needed).
    misc-devices/index
    scheduler/index
    mhi/index
+   tty/index
+   peci/index
 
 Architecture-agnostic documentation
 -----------------------------------
@@ -149,38 +151,11 @@ Architecture-agnostic documentation
 Architecture-specific documentation
 -----------------------------------
 
-These books provide programming details about architecture-specific
-implementation.
-
 .. toctree::
    :maxdepth: 2
 
-   arm/index
-   arm64/index
-   ia64/index
-   m68k/index
-   mips/index
-   nios2/nios2
-   openrisc/index
-   parisc/index
-   powerpc/index
-   riscv/index
-   s390/index
-   sh/index
-   sparc/index
-   x86/index
-   xtensa/index
+   arch
 
-Filesystem Documentation
-------------------------
-
-The documentation in this section are provided by specific filesystem
-subprojects.
-
-.. toctree::
-   :maxdepth: 2
-
-   filesystems/ext4/index
 
 Other documentation
 -------------------
@@ -192,6 +167,7 @@ to ReStructured Text format, or are simply too old.
 .. toctree::
    :maxdepth: 2
 
+   tools/index
    staging/index
    watch_queue
 

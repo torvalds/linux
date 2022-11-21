@@ -27,6 +27,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
 #include "aptina-pll.h"
@@ -75,38 +76,38 @@
 #define	MT9P031_PLL_CONFIG_1				0x11
 #define	MT9P031_PLL_CONFIG_2				0x12
 #define MT9P031_PIXEL_CLOCK_CONTROL			0x0a
-#define		MT9P031_PIXEL_CLOCK_INVERT		(1 << 15)
+#define		MT9P031_PIXEL_CLOCK_INVERT		BIT(15)
 #define		MT9P031_PIXEL_CLOCK_SHIFT(n)		((n) << 8)
 #define		MT9P031_PIXEL_CLOCK_DIVIDE(n)		((n) << 0)
-#define MT9P031_FRAME_RESTART				0x0b
+#define MT9P031_RESTART					0x0b
+#define		MT9P031_FRAME_PAUSE_RESTART		BIT(1)
+#define		MT9P031_FRAME_RESTART			BIT(0)
 #define MT9P031_SHUTTER_DELAY				0x0c
 #define MT9P031_RST					0x0d
-#define		MT9P031_RST_ENABLE			1
-#define		MT9P031_RST_DISABLE			0
+#define		MT9P031_RST_ENABLE			BIT(0)
 #define MT9P031_READ_MODE_1				0x1e
 #define MT9P031_READ_MODE_2				0x20
-#define		MT9P031_READ_MODE_2_ROW_MIR		(1 << 15)
-#define		MT9P031_READ_MODE_2_COL_MIR		(1 << 14)
-#define		MT9P031_READ_MODE_2_ROW_BLC		(1 << 6)
+#define		MT9P031_READ_MODE_2_ROW_MIR		BIT(15)
+#define		MT9P031_READ_MODE_2_COL_MIR		BIT(14)
+#define		MT9P031_READ_MODE_2_ROW_BLC		BIT(6)
 #define MT9P031_ROW_ADDRESS_MODE			0x22
 #define MT9P031_COLUMN_ADDRESS_MODE			0x23
 #define MT9P031_GLOBAL_GAIN				0x35
 #define		MT9P031_GLOBAL_GAIN_MIN			8
 #define		MT9P031_GLOBAL_GAIN_MAX			1024
 #define		MT9P031_GLOBAL_GAIN_DEF			8
-#define		MT9P031_GLOBAL_GAIN_MULT		(1 << 6)
+#define		MT9P031_GLOBAL_GAIN_MULT		BIT(6)
 #define MT9P031_ROW_BLACK_TARGET			0x49
 #define MT9P031_ROW_BLACK_DEF_OFFSET			0x4b
 #define MT9P031_GREEN1_OFFSET				0x60
 #define MT9P031_GREEN2_OFFSET				0x61
 #define MT9P031_BLACK_LEVEL_CALIBRATION			0x62
-#define		MT9P031_BLC_MANUAL_BLC			(1 << 0)
+#define		MT9P031_BLC_MANUAL_BLC			BIT(0)
 #define MT9P031_RED_OFFSET				0x63
 #define MT9P031_BLUE_OFFSET				0x64
 #define MT9P031_TEST_PATTERN				0xa0
 #define		MT9P031_TEST_PATTERN_SHIFT		3
-#define		MT9P031_TEST_PATTERN_ENABLE		(1 << 0)
-#define		MT9P031_TEST_PATTERN_DISABLE		(0 << 0)
+#define		MT9P031_TEST_PATTERN_ENABLE		BIT(0)
 #define MT9P031_TEST_PATTERN_GREEN			0xa1
 #define MT9P031_TEST_PATTERN_RED			0xa2
 #define MT9P031_TEST_PATTERN_BLUE			0xa3
@@ -196,7 +197,7 @@ static int mt9p031_reset(struct mt9p031 *mt9p031)
 	ret = mt9p031_write(client, MT9P031_RST, MT9P031_RST_ENABLE);
 	if (ret < 0)
 		return ret;
-	ret = mt9p031_write(client, MT9P031_RST, MT9P031_RST_DISABLE);
+	ret = mt9p031_write(client, MT9P031_RST, 0);
 	if (ret < 0)
 		return ret;
 
@@ -229,6 +230,7 @@ static int mt9p031_clk_setup(struct mt9p031 *mt9p031)
 
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
 	struct mt9p031_platform_data *pdata = mt9p031->pdata;
+	unsigned long ext_freq;
 	int ret;
 
 	mt9p031->clk = devm_clk_get(&client->dev, NULL);
@@ -239,13 +241,15 @@ static int mt9p031_clk_setup(struct mt9p031 *mt9p031)
 	if (ret < 0)
 		return ret;
 
+	ext_freq = clk_get_rate(mt9p031->clk);
+
 	/* If the external clock frequency is out of bounds for the PLL use the
 	 * pixel clock divider only and disable the PLL.
 	 */
-	if (pdata->ext_freq > limits.ext_clock_max) {
+	if (ext_freq > limits.ext_clock_max) {
 		unsigned int div;
 
-		div = DIV_ROUND_UP(pdata->ext_freq, pdata->target_freq);
+		div = DIV_ROUND_UP(ext_freq, pdata->target_freq);
 		div = roundup_pow_of_two(div) / 2;
 
 		mt9p031->clk_div = min_t(unsigned int, div, 64);
@@ -254,7 +258,7 @@ static int mt9p031_clk_setup(struct mt9p031 *mt9p031)
 		return 0;
 	}
 
-	mt9p031->pll.ext_clock = pdata->ext_freq;
+	mt9p031->pll.ext_clock = ext_freq;
 	mt9p031->pll.pix_clock = pdata->target_freq;
 	mt9p031->use_pll = true;
 
@@ -346,8 +350,7 @@ static void mt9p031_power_off(struct mt9p031 *mt9p031)
 	regulator_bulk_disable(ARRAY_SIZE(mt9p031->regulators),
 			       mt9p031->regulators);
 
-	if (mt9p031->clk)
-		clk_disable_unprepare(mt9p031->clk);
+	clk_disable_unprepare(mt9p031->clk);
 }
 
 static int __mt9p031_set_power(struct mt9p031 *mt9p031, bool on)
@@ -368,6 +371,14 @@ static int __mt9p031_set_power(struct mt9p031 *mt9p031, bool on)
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to reset the camera\n");
 		return ret;
+	}
+
+	/* Configure the pixel clock polarity */
+	if (mt9p031->pdata && mt9p031->pdata->pixclk_pol) {
+		ret = mt9p031_write(client, MT9P031_PIXEL_CLOCK_CONTROL,
+				MT9P031_PIXEL_CLOCK_INVERT);
+		if (ret < 0)
+			return ret;
 	}
 
 	return v4l2_ctrl_handler_setup(&mt9p031->ctrls);
@@ -445,9 +456,23 @@ static int mt9p031_set_params(struct mt9p031 *mt9p031)
 static int mt9p031_s_stream(struct v4l2_subdev *subdev, int enable)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
+	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	int val;
 	int ret;
 
 	if (!enable) {
+		/* enable pause restart */
+		val = MT9P031_FRAME_PAUSE_RESTART;
+		ret = mt9p031_write(client, MT9P031_RESTART, val);
+		if (ret < 0)
+			return ret;
+
+		/* enable restart + keep pause restart set */
+		val |= MT9P031_FRAME_RESTART;
+		ret = mt9p031_write(client, MT9P031_RESTART, val);
+		if (ret < 0)
+			return ret;
+
 		/* Stop sensor readout */
 		ret = mt9p031_set_output_control(mt9p031,
 						 MT9P031_OUTPUT_CONTROL_CEN, 0);
@@ -467,11 +492,21 @@ static int mt9p031_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (ret < 0)
 		return ret;
 
+	/*
+	 * - clear pause restart
+	 * - don't clear restart as clearing restart manually can cause
+	 *   undefined behavior
+	 */
+	val = MT9P031_FRAME_RESTART;
+	ret = mt9p031_write(client, MT9P031_RESTART, val);
+	if (ret < 0)
+		return ret;
+
 	return mt9p031_pll_enable(mt9p031);
 }
 
 static int mt9p031_enum_mbus_code(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -484,7 +519,7 @@ static int mt9p031_enum_mbus_code(struct v4l2_subdev *subdev,
 }
 
 static int mt9p031_enum_frame_size(struct v4l2_subdev *subdev,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -502,12 +537,14 @@ static int mt9p031_enum_frame_size(struct v4l2_subdev *subdev,
 }
 
 static struct v4l2_mbus_framefmt *
-__mt9p031_get_pad_format(struct mt9p031 *mt9p031, struct v4l2_subdev_pad_config *cfg,
+__mt9p031_get_pad_format(struct mt9p031 *mt9p031,
+			 struct v4l2_subdev_state *sd_state,
 			 unsigned int pad, u32 which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&mt9p031->subdev, cfg, pad);
+		return v4l2_subdev_get_try_format(&mt9p031->subdev, sd_state,
+						  pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9p031->format;
 	default:
@@ -516,12 +553,14 @@ __mt9p031_get_pad_format(struct mt9p031 *mt9p031, struct v4l2_subdev_pad_config 
 }
 
 static struct v4l2_rect *
-__mt9p031_get_pad_crop(struct mt9p031 *mt9p031, struct v4l2_subdev_pad_config *cfg,
-		     unsigned int pad, u32 which)
+__mt9p031_get_pad_crop(struct mt9p031 *mt9p031,
+		       struct v4l2_subdev_state *sd_state,
+		       unsigned int pad, u32 which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&mt9p031->subdev, cfg, pad);
+		return v4l2_subdev_get_try_crop(&mt9p031->subdev, sd_state,
+						pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9p031->crop;
 	default:
@@ -530,18 +569,18 @@ __mt9p031_get_pad_crop(struct mt9p031 *mt9p031, struct v4l2_subdev_pad_config *c
 }
 
 static int mt9p031_get_format(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *fmt)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
 
-	fmt->format = *__mt9p031_get_pad_format(mt9p031, cfg, fmt->pad,
+	fmt->format = *__mt9p031_get_pad_format(mt9p031, sd_state, fmt->pad,
 						fmt->which);
 	return 0;
 }
 
 static int mt9p031_set_format(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *format)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -552,7 +591,7 @@ static int mt9p031_set_format(struct v4l2_subdev *subdev,
 	unsigned int hratio;
 	unsigned int vratio;
 
-	__crop = __mt9p031_get_pad_crop(mt9p031, cfg, format->pad,
+	__crop = __mt9p031_get_pad_crop(mt9p031, sd_state, format->pad,
 					format->which);
 
 	/* Clamp the width and height to avoid dividing by zero. */
@@ -568,7 +607,7 @@ static int mt9p031_set_format(struct v4l2_subdev *subdev,
 	hratio = DIV_ROUND_CLOSEST(__crop->width, width);
 	vratio = DIV_ROUND_CLOSEST(__crop->height, height);
 
-	__format = __mt9p031_get_pad_format(mt9p031, cfg, format->pad,
+	__format = __mt9p031_get_pad_format(mt9p031, sd_state, format->pad,
 					    format->which);
 	__format->width = __crop->width / hratio;
 	__format->height = __crop->height / vratio;
@@ -579,7 +618,7 @@ static int mt9p031_set_format(struct v4l2_subdev *subdev,
 }
 
 static int mt9p031_get_selection(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -587,12 +626,13 @@ static int mt9p031_get_selection(struct v4l2_subdev *subdev,
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	sel->r = *__mt9p031_get_pad_crop(mt9p031, cfg, sel->pad, sel->which);
+	sel->r = *__mt9p031_get_pad_crop(mt9p031, sd_state, sel->pad,
+					 sel->which);
 	return 0;
 }
 
 static int mt9p031_set_selection(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -622,13 +662,15 @@ static int mt9p031_set_selection(struct v4l2_subdev *subdev,
 	rect.height = min_t(unsigned int, rect.height,
 			    MT9P031_PIXEL_ARRAY_HEIGHT - rect.top);
 
-	__crop = __mt9p031_get_pad_crop(mt9p031, cfg, sel->pad, sel->which);
+	__crop = __mt9p031_get_pad_crop(mt9p031, sd_state, sel->pad,
+					sel->which);
 
 	if (rect.width != __crop->width || rect.height != __crop->height) {
 		/* Reset the output image size if the crop rectangle size has
 		 * been modified.
 		 */
-		__format = __mt9p031_get_pad_format(mt9p031, cfg, sel->pad,
+		__format = __mt9p031_get_pad_format(mt9p031, sd_state,
+						    sel->pad,
 						    sel->which);
 		__format->width = rect.width;
 		__format->height = rect.height;
@@ -750,8 +792,7 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 			if (ret < 0)
 				return ret;
 
-			return mt9p031_write(client, MT9P031_TEST_PATTERN,
-					     MT9P031_TEST_PATTERN_DISABLE);
+			return mt9p031_write(client, MT9P031_TEST_PATTERN, 0);
 		}
 
 		ret = mt9p031_write(client, MT9P031_TEST_PATTERN_GREEN, 0x05a0);
@@ -943,13 +984,13 @@ static int mt9p031_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 
-	crop = v4l2_subdev_get_try_crop(subdev, fh->pad, 0);
+	crop = v4l2_subdev_get_try_crop(subdev, fh->state, 0);
 	crop->left = MT9P031_COLUMN_START_DEF;
 	crop->top = MT9P031_ROW_START_DEF;
 	crop->width = MT9P031_WINDOW_WIDTH_DEF;
 	crop->height = MT9P031_WINDOW_HEIGHT_DEF;
 
-	format = v4l2_subdev_get_try_format(subdev, fh->pad, 0);
+	format = v4l2_subdev_get_try_format(subdev, fh->state, 0);
 
 	if (mt9p031->model == MT9P031_MODEL_MONOCHROME)
 		format->code = MEDIA_BUS_FMT_Y12_1X12;
@@ -1005,8 +1046,11 @@ static const struct v4l2_subdev_internal_ops mt9p031_subdev_internal_ops = {
 static struct mt9p031_platform_data *
 mt9p031_get_pdata(struct i2c_client *client)
 {
-	struct mt9p031_platform_data *pdata;
+	struct mt9p031_platform_data *pdata = NULL;
 	struct device_node *np;
+	struct v4l2_fwnode_endpoint endpoint = {
+		.bus_type = V4L2_MBUS_PARALLEL
+	};
 
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
 		return client->dev.platform_data;
@@ -1015,12 +1059,18 @@ mt9p031_get_pdata(struct i2c_client *client)
 	if (!np)
 		return NULL;
 
+	if (v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &endpoint) < 0)
+		goto done;
+
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		goto done;
 
 	of_property_read_u32(np, "input-clock-frequency", &pdata->ext_freq);
 	of_property_read_u32(np, "pixel-clock-frequency", &pdata->target_freq);
+
+	pdata->pixclk_pol = !!(endpoint.bus.parallel.flags &
+			       V4L2_MBUS_PCLK_SAMPLE_RISING);
 
 done:
 	of_node_put(np);

@@ -6,7 +6,7 @@
 #include "igc_hw.h"
 
 /**
- * igc_get_hw_semaphore_i225 - Acquire hardware semaphore
+ * igc_acquire_nvm_i225 - Acquire exclusive access to EEPROM
  * @hw: pointer to the HW structure
  *
  * Acquire the necessary semaphores for exclusive access to the EEPROM.
@@ -156,8 +156,15 @@ void igc_release_swfw_sync_i225(struct igc_hw *hw, u16 mask)
 {
 	u32 swfw_sync;
 
-	while (igc_get_hw_semaphore_i225(hw))
-		; /* Empty */
+	/* Releasing the resource requires first getting the HW semaphore.
+	 * If we fail to get the semaphore, there is nothing we can do,
+	 * except log an error and quit. We are not allowed to hang here
+	 * indefinitely, as it may cause denial of service or system crash.
+	 */
+	if (igc_get_hw_semaphore_i225(hw)) {
+		hw_dbg("Failed to release SW_FW_SYNC.\n");
+		return;
+	}
 
 	swfw_sync = rd32(IGC_SW_FW_SYNC);
 	swfw_sync &= ~mask;
@@ -219,9 +226,9 @@ static s32 igc_write_nvm_srwr(struct igc_hw *hw, u16 offset, u16 words,
 			      u16 *data)
 {
 	struct igc_nvm_info *nvm = &hw->nvm;
+	s32 ret_val = -IGC_ERR_NVM;
 	u32 attempts = 100000;
 	u32 i, k, eewr = 0;
-	s32 ret_val = 0;
 
 	/* A check for invalid values:  offset too large, too many words,
 	 * too many words for the offset, and not enough words.
@@ -229,11 +236,11 @@ static s32 igc_write_nvm_srwr(struct igc_hw *hw, u16 offset, u16 words,
 	if (offset >= nvm->word_size || (words > (nvm->word_size - offset)) ||
 	    words == 0) {
 		hw_dbg("nvm parameter(s) out of bounds\n");
-		ret_val = -IGC_ERR_NVM;
-		goto out;
+		return ret_val;
 	}
 
 	for (i = 0; i < words; i++) {
+		ret_val = -IGC_ERR_NVM;
 		eewr = ((offset + i) << IGC_NVM_RW_ADDR_SHIFT) |
 			(data[i] << IGC_NVM_RW_REG_DATA) |
 			IGC_NVM_RW_REG_START;
@@ -255,7 +262,6 @@ static s32 igc_write_nvm_srwr(struct igc_hw *hw, u16 offset, u16 words,
 		}
 	}
 
-out:
 	return ret_val;
 }
 
@@ -474,13 +480,11 @@ s32 igc_init_nvm_params_i225(struct igc_hw *hw)
 
 	/* NVM Function Pointers */
 	if (igc_get_flash_presence_i225(hw)) {
-		hw->nvm.type = igc_nvm_flash_hw;
 		nvm->ops.read = igc_read_nvm_srrd_i225;
 		nvm->ops.write = igc_write_nvm_srwr_i225;
 		nvm->ops.validate = igc_validate_nvm_checksum_i225;
 		nvm->ops.update = igc_update_nvm_checksum_i225;
 	} else {
-		hw->nvm.type = igc_nvm_invm;
 		nvm->ops.read = igc_read_nvm_eerd;
 		nvm->ops.write = NULL;
 		nvm->ops.validate = NULL;
@@ -637,7 +641,7 @@ s32 igc_set_ltr_i225(struct igc_hw *hw, bool link)
 		ltrv = rd32(IGC_LTRMAXV);
 		if (ltr_max != (ltrv & IGC_LTRMAXV_LTRV_MASK)) {
 			ltrv = IGC_LTRMAXV_LSNP_REQ | ltr_max |
-			       (scale_min << IGC_LTRMAXV_SCALE_SHIFT);
+			       (scale_max << IGC_LTRMAXV_SCALE_SHIFT);
 			wr32(IGC_LTRMAXV, ltrv);
 		}
 	}

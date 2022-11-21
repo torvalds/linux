@@ -76,7 +76,7 @@ struct amba_device {
 struct amba_driver {
 	struct device_driver	drv;
 	int			(*probe)(struct amba_device *, const struct amba_id *);
-	int			(*remove)(struct amba_device *);
+	void			(*remove)(struct amba_device *);
 	void			(*shutdown)(struct amba_device *);
 	const struct amba_id	*id_table;
 };
@@ -90,13 +90,7 @@ enum amba_vendor {
 	AMBA_VENDOR_ST = 0x80,
 	AMBA_VENDOR_QCOM = 0x51,
 	AMBA_VENDOR_LSI = 0xb6,
-	AMBA_VENDOR_LINUX = 0xfe,	/* This value is not official */
 };
-
-/* This is used to generate pseudo-ID for AMBA device */
-#define AMBA_LINUX_ID(conf, rev, part) \
-	(((conf) & 0xff) << 24 | ((rev) & 0xf) << 20 | \
-	AMBA_VENDOR_LINUX << 12 | ((part) & 0xfff))
 
 extern struct bus_type amba_bustype;
 
@@ -105,54 +99,26 @@ extern struct bus_type amba_bustype;
 #define amba_get_drvdata(d)	dev_get_drvdata(&d->dev)
 #define amba_set_drvdata(d,p)	dev_set_drvdata(&d->dev, p)
 
+#ifdef CONFIG_ARM_AMBA
 int amba_driver_register(struct amba_driver *);
 void amba_driver_unregister(struct amba_driver *);
+#else
+static inline int amba_driver_register(struct amba_driver *drv)
+{
+	return -EINVAL;
+}
+static inline void amba_driver_unregister(struct amba_driver *drv)
+{
+}
+#endif
+
 struct amba_device *amba_device_alloc(const char *, resource_size_t, size_t);
 void amba_device_put(struct amba_device *);
 int amba_device_add(struct amba_device *, struct resource *);
 int amba_device_register(struct amba_device *, struct resource *);
-struct amba_device *amba_apb_device_add(struct device *parent, const char *name,
-					resource_size_t base, size_t size,
-					int irq1, int irq2, void *pdata,
-					unsigned int periphid);
-struct amba_device *amba_ahb_device_add(struct device *parent, const char *name,
-					resource_size_t base, size_t size,
-					int irq1, int irq2, void *pdata,
-					unsigned int periphid);
-struct amba_device *
-amba_apb_device_add_res(struct device *parent, const char *name,
-			resource_size_t base, size_t size, int irq1,
-			int irq2, void *pdata, unsigned int periphid,
-			struct resource *resbase);
-struct amba_device *
-amba_ahb_device_add_res(struct device *parent, const char *name,
-			resource_size_t base, size_t size, int irq1,
-			int irq2, void *pdata, unsigned int periphid,
-			struct resource *resbase);
 void amba_device_unregister(struct amba_device *);
-struct amba_device *amba_find_device(const char *, struct device *, unsigned int, unsigned int);
 int amba_request_regions(struct amba_device *, const char *);
 void amba_release_regions(struct amba_device *);
-
-static inline int amba_pclk_enable(struct amba_device *dev)
-{
-	return clk_enable(dev->pclk);
-}
-
-static inline void amba_pclk_disable(struct amba_device *dev)
-{
-	clk_disable(dev->pclk);
-}
-
-static inline int amba_pclk_prepare(struct amba_device *dev)
-{
-	return clk_prepare(dev->pclk);
-}
-
-static inline void amba_pclk_unprepare(struct amba_device *dev)
-{
-	clk_unprepare(dev->pclk);
-}
 
 /* Some drivers don't use the struct amba_device */
 #define AMBA_CONFIG_BITS(a) (((a) >> 24) & 0xff)

@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/atomic.h>
+#include <linux/dma/qcom_adm.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/module.h>
@@ -290,6 +291,7 @@ static void msm_request_tx_dma(struct msm_port *msm_port, resource_size_t base)
 {
 	struct device *dev = msm_port->uart.dev;
 	struct dma_slave_config conf;
+	struct qcom_adm_peripheral_config periph_conf = {};
 	struct msm_dma *dma;
 	u32 crci = 0;
 	int ret;
@@ -308,7 +310,11 @@ static void msm_request_tx_dma(struct msm_port *msm_port, resource_size_t base)
 	conf.device_fc = true;
 	conf.dst_addr = base + UARTDM_TF;
 	conf.dst_maxburst = UARTDM_BURST_SIZE;
-	conf.slave_id = crci;
+	if (crci) {
+		conf.peripheral_config = &periph_conf;
+		conf.peripheral_size = sizeof(periph_conf);
+		periph_conf.crci = crci;
+	}
 
 	ret = dmaengine_slave_config(dma->chan, &conf);
 	if (ret)
@@ -333,6 +339,7 @@ static void msm_request_rx_dma(struct msm_port *msm_port, resource_size_t base)
 {
 	struct device *dev = msm_port->uart.dev;
 	struct dma_slave_config conf;
+	struct qcom_adm_peripheral_config periph_conf = {};
 	struct msm_dma *dma;
 	u32 crci = 0;
 	int ret;
@@ -355,7 +362,11 @@ static void msm_request_rx_dma(struct msm_port *msm_port, resource_size_t base)
 	conf.device_fc = true;
 	conf.src_addr = base + UARTDM_RF;
 	conf.src_maxburst = UARTDM_BURST_SIZE;
-	conf.slave_id = crci;
+	if (crci) {
+		conf.peripheral_config = &periph_conf;
+		conf.peripheral_size = sizeof(periph_conf);
+		periph_conf.crci = crci;
+	}
 
 	ret = dmaengine_slave_config(dma->chan, &conf);
 	if (ret)
@@ -426,7 +437,6 @@ static void msm_complete_tx_dma(void *args)
 	struct circ_buf *xmit = &port->state->xmit;
 	struct msm_dma *dma = &msm_port->tx_dma;
 	struct dma_tx_state state;
-	enum dma_status status;
 	unsigned long flags;
 	unsigned int count;
 	u32 val;
@@ -437,7 +447,7 @@ static void msm_complete_tx_dma(void *args)
 	if (!dma->count)
 		goto done;
 
-	status = dmaengine_tx_status(dma->chan, dma->cookie, &state);
+	dmaengine_tx_status(dma->chan, dma->cookie, &state);
 
 	dma_unmap_single(port->dev, dma->phys, dma->count, dma->dir);
 
@@ -599,6 +609,9 @@ static void msm_start_rx_dma(struct msm_port *msm_port)
 	u32 val;
 	int ret;
 
+	if (IS_ENABLED(CONFIG_CONSOLE_POLL))
+		return;
+
 	if (!dma->chan)
 		return;
 
@@ -758,9 +771,7 @@ static void msm_handle_rx_dm(struct uart_port *port, unsigned int misr)
 		count -= r_count;
 	}
 
-	spin_unlock(&port->lock);
 	tty_flip_buffer_push(tport);
-	spin_lock(&port->lock);
 
 	if (misr & (UART_IMR_RXSTALE))
 		msm_write(port, UART_CR_CMD_RESET_STALE_INT, UART_CR);
@@ -820,9 +831,7 @@ static void msm_handle_rx(struct uart_port *port)
 			tty_insert_flip_char(tport, c, flag);
 	}
 
-	spin_unlock(&port->lock);
 	tty_flip_buffer_push(tport);
-	spin_lock(&port->lock);
 }
 
 static void msm_handle_tx_pio(struct uart_port *port, unsigned int tx_count)
@@ -1525,7 +1534,7 @@ static void msm_poll_put_char(struct uart_port *port, unsigned char c)
 }
 #endif
 
-static struct uart_ops msm_uart_pops = {
+static const struct uart_ops msm_uart_pops = {
 	.tx_empty = msm_tx_empty,
 	.set_mctrl = msm_set_mctrl,
 	.get_mctrl = msm_get_mctrl,

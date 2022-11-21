@@ -124,6 +124,9 @@ static int cros_ec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (state->period != EC_PWM_MAX_DUTY)
 		return -EINVAL;
 
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
 	/*
 	 * EC doesn't separate the concept of duty cycle and enabled, but
 	 * kernel does. Translate.
@@ -253,7 +256,6 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 	chip->ops = &cros_ec_pwm_ops;
 	chip->of_xlate = cros_ec_pwm_xlate;
 	chip->of_pwm_n_cells = 1;
-	chip->base = -1;
 	ret = cros_ec_num_pwms(ec);
 	if (ret < 0) {
 		dev_err(dev, "Couldn't find PWMs: %d\n", ret);
@@ -278,7 +280,9 @@ static int cros_ec_pwm_remove(struct platform_device *dev)
 	struct cros_ec_pwm_device *ec_pwm = platform_get_drvdata(dev);
 	struct pwm_chip *chip = &ec_pwm->chip;
 
-	return pwmchip_remove(chip);
+	pwmchip_remove(chip);
+
+	return 0;
 }
 
 #ifdef CONFIG_OF

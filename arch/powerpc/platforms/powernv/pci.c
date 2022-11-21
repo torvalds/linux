@@ -160,73 +160,6 @@ exit:
 }
 EXPORT_SYMBOL_GPL(pnv_pci_set_power_state);
 
-int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
-{
-	struct pnv_phb *phb = pci_bus_to_pnvhb(pdev->bus);
-	struct msi_desc *entry;
-	struct msi_msg msg;
-	int hwirq;
-	unsigned int virq;
-	int rc;
-
-	if (WARN_ON(!phb) || !phb->msi_bmp.bitmap)
-		return -ENODEV;
-
-	if (pdev->no_64bit_msi && !phb->msi32_support)
-		return -ENODEV;
-
-	for_each_pci_msi_entry(entry, pdev) {
-		if (!entry->msi_attrib.is_64 && !phb->msi32_support) {
-			pr_warn("%s: Supports only 64-bit MSIs\n",
-				pci_name(pdev));
-			return -ENXIO;
-		}
-		hwirq = msi_bitmap_alloc_hwirqs(&phb->msi_bmp, 1);
-		if (hwirq < 0) {
-			pr_warn("%s: Failed to find a free MSI\n",
-				pci_name(pdev));
-			return -ENOSPC;
-		}
-		virq = irq_create_mapping(NULL, phb->msi_base + hwirq);
-		if (!virq) {
-			pr_warn("%s: Failed to map MSI to linux irq\n",
-				pci_name(pdev));
-			msi_bitmap_free_hwirqs(&phb->msi_bmp, hwirq, 1);
-			return -ENOMEM;
-		}
-		rc = phb->msi_setup(phb, pdev, phb->msi_base + hwirq,
-				    virq, entry->msi_attrib.is_64, &msg);
-		if (rc) {
-			pr_warn("%s: Failed to setup MSI\n", pci_name(pdev));
-			irq_dispose_mapping(virq);
-			msi_bitmap_free_hwirqs(&phb->msi_bmp, hwirq, 1);
-			return rc;
-		}
-		irq_set_msi_desc(virq, entry);
-		pci_write_msi_msg(virq, &msg);
-	}
-	return 0;
-}
-
-void pnv_teardown_msi_irqs(struct pci_dev *pdev)
-{
-	struct pnv_phb *phb = pci_bus_to_pnvhb(pdev->bus);
-	struct msi_desc *entry;
-	irq_hw_number_t hwirq;
-
-	if (WARN_ON(!phb))
-		return;
-
-	for_each_pci_msi_entry(entry, pdev) {
-		if (!entry->irq)
-			continue;
-		hwirq = virq_to_hw(entry->irq);
-		irq_set_msi_desc(entry->irq, NULL);
-		irq_dispose_mapping(entry->irq);
-		msi_bitmap_free_hwirqs(&phb->msi_bmp, hwirq - phb->msi_base, 1);
-	}
-}
-
 /* Nicely print the contents of the PE State Tables (PEST). */
 static void pnv_pci_dump_pest(__be64 pestA[], __be64 pestB[], int pest_size)
 {
@@ -711,7 +644,7 @@ int pnv_pci_cfg_write(struct pci_dn *pdn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-#if CONFIG_EEH
+#ifdef CONFIG_EEH
 static bool pnv_pci_cfg_check(struct pci_dn *pdn)
 {
 	struct eeh_dev *edev = NULL;
@@ -882,7 +815,7 @@ void pnv_pci_shutdown(void)
 /* Fixup wrong class code in p7ioc and p8 root complex */
 static void pnv_p7ioc_rc_quirk(struct pci_dev *dev)
 {
-	dev->class = PCI_CLASS_BRIDGE_PCI << 8;
+	dev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_IBM, 0x3b9, pnv_p7ioc_rc_quirk);
 
@@ -925,17 +858,6 @@ void __init pnv_pci_init(void)
 	/* Look for ioda3 built-in PHB4's, we treat them as IODA2 */
 	for_each_compatible_node(np, NULL, "ibm,ioda3-phb")
 		pnv_pci_init_ioda2_phb(np);
-
-	/* Look for NPU PHBs */
-	for_each_compatible_node(np, NULL, "ibm,ioda2-npu-phb")
-		pnv_pci_init_npu_phb(np);
-
-	/*
-	 * Look for NPU2 PHBs which we treat mostly as NPU PHBs with
-	 * the exception of TCE kill which requires an OPAL call.
-	 */
-	for_each_compatible_node(np, NULL, "ibm,ioda2-npu2-phb")
-		pnv_pci_init_npu_phb(np);
 
 	/* Look for NPU2 OpenCAPI PHBs */
 	for_each_compatible_node(np, NULL, "ibm,ioda2-npu2-opencapi-phb")

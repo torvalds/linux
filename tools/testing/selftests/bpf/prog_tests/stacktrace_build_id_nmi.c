@@ -42,7 +42,7 @@ retry:
 		return;
 
 	/* override program type */
-	bpf_program__set_perf_event(skel->progs.oncpu);
+	bpf_program__set_type(skel->progs.oncpu, BPF_PROG_TYPE_PERF_EVENT);
 
 	err = test_stacktrace_build_id__load(skel);
 	if (CHECK(err, "skel_load", "skeleton load failed: %d\n", err))
@@ -62,8 +62,7 @@ retry:
 
 	skel->links.oncpu = bpf_program__attach_perf_event(skel->progs.oncpu,
 							   pmu_fd);
-	if (CHECK(IS_ERR(skel->links.oncpu), "attach_perf_event",
-		  "err %ld\n", PTR_ERR(skel->links.oncpu))) {
+	if (!ASSERT_OK_PTR(skel->links.oncpu, "attach_perf_event")) {
 		close(pmu_fd);
 		goto cleanup;
 	}

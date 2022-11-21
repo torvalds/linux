@@ -215,21 +215,21 @@
 		};
 
 		gsbi@16500000 {
-			status = "ok";
+			status = "okay";
 			qcom,mode = <GSBI_PROT_UART_W_FC>;
 
 			serial@16540000 {
-				status = "ok";
+				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&gsbi6_uart_4pins>;
 			};
 		};
 
 		gsbi@16600000 {
-			status = "ok";
+			status = "okay";
 			qcom,mode = <GSBI_PROT_I2C_UART>;
 			serial@16640000 {
-				status = "ok";
+				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&gsbi7_uart_2pins>;
 			};
@@ -279,7 +279,7 @@
 		};
 
 		pci@1b500000 {
-			status = "ok";
+			status = "okay";
 			vdda-supply = <&pm8921_s3>;
 			vdda_phy-supply = <&pm8921_lvs6>;
 			vdda_refclk-supply = <&ext_3p3v>;
@@ -314,14 +314,14 @@
 
 		amba {
 			/* eMMC */
-			sdcc1: sdcc@12400000 {
+			sdcc1: mmc@12400000 {
 				status = "okay";
 				vmmc-supply = <&pm8921_l5>;
 				vqmmc-supply = <&pm8921_s4>;
 			};
 
 			/* External micro SD card */
-			sdcc3: sdcc@12180000 {
+			sdcc3: mmc@12180000 {
 				status = "okay";
 				vmmc-supply = <&pm8921_l6>;
 				pinctrl-names	= "default";
@@ -329,7 +329,7 @@
 				cd-gpios	= <&tlmm_pinmux 26 GPIO_ACTIVE_LOW>;
 			};
 			/* WLAN */
-			sdcc4: sdcc@121c0000 {
+			sdcc4: mmc@121c0000 {
 				status = "okay";
 				vmmc-supply = <&ext_3p3v>;
 				vqmmc-supply = <&pm8921_lvs1>;

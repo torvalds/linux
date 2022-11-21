@@ -114,7 +114,6 @@ static inline struct scatterlist *esp_req_sg(struct crypto_aead *aead,
 
 static void esp_ssg_unref(struct xfrm_state *x, void *tmp)
 {
-	struct esp_output_extra *extra = esp_tmp_extra(tmp);
 	struct crypto_aead *aead = x->data;
 	int extralen = 0;
 	u8 *iv;
@@ -122,7 +121,7 @@ static void esp_ssg_unref(struct xfrm_state *x, void *tmp)
 	struct scatterlist *sg;
 
 	if (x->props.flags & XFRM_STATE_ESN)
-		extralen += sizeof(*extra);
+		extralen += sizeof(struct esp_output_extra);
 
 	iv = esp_tmp_iv(aead, tmp, extralen);
 	req = esp_tmp_req(aead, iv);
@@ -314,7 +313,7 @@ static void esp_output_done(struct crypto_async_request *base, int err)
 		    x->encap && x->encap->encap_type == TCP_ENCAP_ESPINTCP)
 			esp_output_tail_tcp(x, skb);
 		else
-			xfrm_output_resume(skb, err);
+			xfrm_output_resume(skb->sk, skb, err);
 	}
 }
 
@@ -478,7 +477,6 @@ static int esp6_output_encap(struct xfrm_state *x, struct sk_buff *skb,
 int esp6_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *esp)
 {
 	u8 *tail;
-	u8 *vaddr;
 	int nfrags;
 	int esph_offset;
 	struct page *page;
@@ -491,6 +489,10 @@ int esp6_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info 
 		if (err < 0)
 			return err;
 	}
+
+	if (ALIGN(tailen, L1_CACHE_BYTES) > PAGE_SIZE ||
+	    ALIGN(skb->data_len, L1_CACHE_BYTES) > PAGE_SIZE)
+		goto cow;
 
 	if (!skb_cloned(skb)) {
 		if (tailen <= skb_tailroom(skb)) {
@@ -519,13 +521,9 @@ int esp6_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info 
 			page = pfrag->page;
 			get_page(page);
 
-			vaddr = kmap_atomic(page);
-
-			tail = vaddr + pfrag->offset;
+			tail = page_address(page) + pfrag->offset;
 
 			esp_output_fill_trailer(tail, esp->tfclen, esp->plen, esp->proto);
-
-			kunmap_atomic(vaddr);
 
 			nfrags = skb_shinfo(skb)->nr_frags;
 
@@ -793,7 +791,7 @@ int esp6_input_done2(struct sk_buff *skb, int err)
 	int hlen = sizeof(struct ip_esp_hdr) + crypto_aead_ivsize(aead);
 	int hdr_len = skb_network_header_len(skb);
 
-	if (!xo || (xo && !(xo->flags & CRYPTO_DONE)))
+	if (!xo || !(xo->flags & CRYPTO_DONE))
 		kfree(ESP_SKB_CB(skb)->tmp);
 
 	if (unlikely(err))
@@ -813,6 +811,11 @@ int esp6_input_done2(struct sk_buff *skb, int err)
 		struct tcphdr *th;
 
 		offset = ipv6_skip_exthdr(skb, offset, &nexthdr, &frag_off);
+		if (offset == -1) {
+			err = -EINVAL;
+			goto out;
+		}
+
 		uh = (void *)(skb->data + offset);
 		th = (void *)(skb->data + offset);
 		hdr_len += offset;
@@ -1152,7 +1155,7 @@ static int esp_init_authenc(struct xfrm_state *x)
 		err = -EINVAL;
 		if (aalg_desc->uinfo.auth.icv_fullbits / 8 !=
 		    crypto_aead_authsize(aead)) {
-			pr_info("ESP: %s digestsize %u != %hu\n",
+			pr_info("ESP: %s digestsize %u != %u\n",
 				x->aalg->alg_name,
 				crypto_aead_authsize(aead),
 				aalg_desc->uinfo.auth.icv_fullbits / 8);
@@ -1248,7 +1251,6 @@ static int esp6_rcv_cb(struct sk_buff *skb, int err)
 }
 
 static const struct xfrm_type esp6_type = {
-	.description	= "ESP6",
 	.owner		= THIS_MODULE,
 	.proto		= IPPROTO_ESP,
 	.flags		= XFRM_TYPE_REPLAY_PROT,
@@ -1256,7 +1258,6 @@ static const struct xfrm_type esp6_type = {
 	.destructor	= esp6_destroy,
 	.input		= esp6_input,
 	.output		= esp6_output,
-	.hdr_offset	= xfrm6_find_1stfragopt,
 };
 
 static struct xfrm6_protocol esp6_protocol = {

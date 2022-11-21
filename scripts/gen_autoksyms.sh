@@ -16,13 +16,15 @@ case "$KBUILD_VERBOSE" in
 	;;
 esac
 
-# We need access to CONFIG_ symbols
-. include/config/auto.conf
+needed_symbols=
 
-ksym_wl=/dev/null
-if [ -n "$CONFIG_UNUSED_KSYMS_WHITELIST" ]; then
-	# Use 'eval' to expand the whitelist path and check if it is relative
-	eval ksym_wl="$CONFIG_UNUSED_KSYMS_WHITELIST"
+# Special case for modversions (see modpost.c)
+if grep -q "^CONFIG_MODVERSIONS=y$" include/config/auto.conf; then
+	needed_symbols="$needed_symbols module_layout"
+fi
+
+ksym_wl=$(sed -n 's/^CONFIG_UNUSED_KSYMS_WHITELIST=\(.*\)$/\1/p' include/config/auto.conf)
+if [ -n "$ksym_wl" ]; then
 	[ "${ksym_wl}" != "${ksym_wl#/}" ] || ksym_wl="$abs_srctree/$ksym_wl"
 	if [ ! -f "$ksym_wl" ] || [ ! -r "$ksym_wl" ]; then
 		echo "ERROR: '$ksym_wl' whitelist file not found" >&2
@@ -40,13 +42,14 @@ cat > "$output_file" << EOT
 EOT
 
 [ -f modules.order ] && modlist=modules.order || modlist=/dev/null
-sed 's/ko$/mod/' $modlist |
-xargs -n1 sed -n -e '2{s/ /\n/g;/^$/!p;}' -- |
-cat - "$ksym_wl" |
+
+{
+	sed 's/ko$/mod/' $modlist | xargs -n1 sed -n -e '2p'
+	echo "$needed_symbols"
+	[ -n "$ksym_wl" ] && cat "$ksym_wl"
+} | sed -e 's/ /\n/g' | sed -n -e '/^$/!p' |
+# Remove the dot prefix for ppc64; symbol names with a dot (.) hold entry
+# point addresses.
+sed -e 's/^\.//' |
 sort -u |
 sed -e 's/\(.*\)/#define __KSYM_\1 1/' >> "$output_file"
-
-# Special case for modversions (see modpost.c)
-if [ -n "$CONFIG_MODVERSIONS" ]; then
-	echo "#define __KSYM_module_layout 1" >> "$output_file"
-fi

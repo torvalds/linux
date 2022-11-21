@@ -1104,7 +1104,6 @@ static int sun6i_dsi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const char *bus_clk_name = NULL;
 	struct sun6i_dsi *dsi;
-	struct resource *res;
 	void __iomem *base;
 	int ret;
 
@@ -1120,18 +1119,16 @@ static int sun6i_dsi_probe(struct platform_device *pdev)
 				    "allwinner,sun6i-a31-mipi-dsi"))
 		bus_clk_name = "bus";
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base)) {
 		dev_err(dev, "Couldn't map the DSI encoder registers\n");
 		return PTR_ERR(base);
 	}
 
 	dsi->regulator = devm_regulator_get(dev, "vcc-dsi");
-	if (IS_ERR(dsi->regulator)) {
-		dev_err(dev, "Couldn't get VCC-DSI supply\n");
-		return PTR_ERR(dsi->regulator);
-	}
+	if (IS_ERR(dsi->regulator))
+		return dev_err_probe(dev, PTR_ERR(dsi->regulator),
+				     "Couldn't get VCC-DSI supply\n");
 
 	dsi->reset = devm_reset_control_get_shared(dev, NULL);
 	if (IS_ERR(dsi->reset)) {
@@ -1146,10 +1143,9 @@ static int sun6i_dsi_probe(struct platform_device *pdev)
 	}
 
 	dsi->bus_clk = devm_clk_get(dev, bus_clk_name);
-	if (IS_ERR(dsi->bus_clk)) {
-		dev_err(dev, "Couldn't get the DSI bus clock\n");
-		return PTR_ERR(dsi->bus_clk);
-	}
+	if (IS_ERR(dsi->bus_clk))
+		return dev_err_probe(dev, PTR_ERR(dsi->bus_clk),
+				     "Couldn't get the DSI bus clock\n");
 
 	ret = regmap_mmio_attach_clk(dsi->regs, dsi->bus_clk);
 	if (ret)

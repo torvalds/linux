@@ -852,7 +852,7 @@ static struct caam_drv_ctx *get_drv_ctx(struct caam_ctx *ctx,
 
 			cpu = smp_processor_id();
 			drv_ctx = caam_drv_ctx_init(ctx->qidev, &cpu, desc);
-			if (!IS_ERR_OR_NULL(drv_ctx))
+			if (!IS_ERR(drv_ctx))
 				drv_ctx->op_type = type;
 
 			ctx->drv_ctx[type] = drv_ctx;
@@ -955,7 +955,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	struct caam_drv_ctx *drv_ctx;
 
 	drv_ctx = get_drv_ctx(ctx, encrypt ? ENCRYPT : DECRYPT);
-	if (IS_ERR_OR_NULL(drv_ctx))
+	if (IS_ERR(drv_ctx))
 		return (struct aead_edesc *)drv_ctx;
 
 	/* allocate space for base edesc and hw desc commands, link tables */
@@ -1165,7 +1165,7 @@ static inline int aead_crypt(struct aead_request *req, bool encrypt)
 
 	/* allocate extended descriptor */
 	edesc = aead_edesc_alloc(req, encrypt);
-	if (IS_ERR_OR_NULL(edesc))
+	if (IS_ERR(edesc))
 		return PTR_ERR(edesc);
 
 	/* Create and submit job descriptor */
@@ -1259,7 +1259,7 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 	struct caam_drv_ctx *drv_ctx;
 
 	drv_ctx = get_drv_ctx(ctx, encrypt ? ENCRYPT : DECRYPT);
-	if (IS_ERR_OR_NULL(drv_ctx))
+	if (IS_ERR(drv_ctx))
 		return (struct skcipher_edesc *)drv_ctx;
 
 	src_nents = sg_nents_for_len(req->src, req->cryptlen);
@@ -2502,8 +2502,8 @@ static int caam_cra_init(struct crypto_skcipher *tfm)
 		fallback = crypto_alloc_skcipher(tfm_name, 0,
 						 CRYPTO_ALG_NEED_FALLBACK);
 		if (IS_ERR(fallback)) {
-			dev_err(ctx->jrdev, "Failed to allocate %s fallback: %ld\n",
-				tfm_name, PTR_ERR(fallback));
+			pr_err("Failed to allocate %s fallback: %ld\n",
+			       tfm_name, PTR_ERR(fallback));
 			return PTR_ERR(fallback);
 		}
 

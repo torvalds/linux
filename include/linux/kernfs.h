@@ -6,7 +6,6 @@
 #ifndef __LINUX_KERNFS_H
 #define __LINUX_KERNFS_H
 
-#include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -14,14 +13,18 @@
 #include <linux/lockdep.h>
 #include <linux/rbtree.h>
 #include <linux/atomic.h>
+#include <linux/bug.h>
+#include <linux/types.h>
 #include <linux/uidgid.h>
 #include <linux/wait.h>
+#include <linux/rwsem.h>
 
 struct file;
 struct dentry;
 struct iattr;
 struct seq_file;
 struct vm_area_struct;
+struct vm_operations_struct;
 struct super_block;
 struct file_system_type;
 struct poll_table_struct;
@@ -98,6 +101,11 @@ struct kernfs_elem_dir {
 	 * better directly in kernfs_node but is here to save space.
 	 */
 	struct kernfs_root	*root;
+	/*
+	 * Monotonic revision counter, used to identify if a directory
+	 * node has changed during negative dentry revalidation.
+	 */
+	unsigned long		rev;
 };
 
 struct kernfs_elem_symlink {
@@ -116,7 +124,7 @@ struct kernfs_elem_attr {
  * kernfs node is represented by single kernfs_node.  Most fields are
  * private to kernfs and shouldn't be accessed directly by kernfs users.
  *
- * As long as s_count reference is held, the kernfs_node itself is
+ * As long as count reference is held, the kernfs_node itself is
  * accessible.  Dereferencing elem or any other outer entity requires
  * active reference.
  */
@@ -177,22 +185,7 @@ struct kernfs_syscall_ops {
 			 struct kernfs_root *root);
 };
 
-struct kernfs_root {
-	/* published fields */
-	struct kernfs_node	*kn;
-	unsigned int		flags;	/* KERNFS_ROOT_* flags */
-
-	/* private fields, do not use outside kernfs proper */
-	struct idr		ino_idr;
-	u32			last_id_lowbits;
-	u32			id_highbits;
-	struct kernfs_syscall_ops *syscall_ops;
-
-	/* list of kernfs_super_info of this root, protected by kernfs_mutex */
-	struct list_head	supers;
-
-	wait_queue_head_t	deactivate_waitq;
-};
+struct kernfs_node *kernfs_root_to_node(struct kernfs_root *root);
 
 struct kernfs_open_file {
 	/* published fields */
@@ -264,10 +257,6 @@ struct kernfs_ops {
 			 struct poll_table_struct *pt);
 
 	int (*mmap)(struct kernfs_open_file *of, struct vm_area_struct *vma);
-
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	struct lock_class_key	lockdep_key;
-#endif
 };
 
 /*
@@ -561,30 +550,6 @@ kernfs_create_dir(struct kernfs_node *parent, const char *name, umode_t mode,
 	return kernfs_create_dir_ns(parent, name, mode,
 				    GLOBAL_ROOT_UID, GLOBAL_ROOT_GID,
 				    priv, NULL);
-}
-
-static inline struct kernfs_node *
-kernfs_create_file_ns(struct kernfs_node *parent, const char *name,
-		      umode_t mode, kuid_t uid, kgid_t gid,
-		      loff_t size, const struct kernfs_ops *ops,
-		      void *priv, const void *ns)
-{
-	struct lock_class_key *key = NULL;
-
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	key = (struct lock_class_key *)&ops->lockdep_key;
-#endif
-	return __kernfs_create_file(parent, name, mode, uid, gid,
-				    size, ops, priv, ns, key);
-}
-
-static inline struct kernfs_node *
-kernfs_create_file(struct kernfs_node *parent, const char *name, umode_t mode,
-		   loff_t size, const struct kernfs_ops *ops, void *priv)
-{
-	return kernfs_create_file_ns(parent, name, mode,
-				     GLOBAL_ROOT_UID, GLOBAL_ROOT_GID,
-				     size, ops, priv, NULL);
 }
 
 static inline int kernfs_remove_by_name(struct kernfs_node *parent,

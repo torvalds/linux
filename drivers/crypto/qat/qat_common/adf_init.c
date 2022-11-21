@@ -61,6 +61,7 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 	struct service_hndl *service;
 	struct list_head *list_itr;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	int ret;
 
 	if (!hw_data) {
 		dev_err(&GET_DEV(accel_dev),
@@ -68,13 +69,19 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 	}
 
-	if (!test_bit(ADF_STATUS_CONFIGURED, &accel_dev->status)) {
+	if (!test_bit(ADF_STATUS_CONFIGURED, &accel_dev->status) &&
+	    !accel_dev->is_vf) {
 		dev_err(&GET_DEV(accel_dev), "Device not configured\n");
 		return -EFAULT;
 	}
 
 	if (adf_init_etr_data(accel_dev)) {
 		dev_err(&GET_DEV(accel_dev), "Failed initialize etr\n");
+		return -EFAULT;
+	}
+
+	if (hw_data->init_device && hw_data->init_device(accel_dev)) {
+		dev_err(&GET_DEV(accel_dev), "Failed to initialize device\n");
 		return -EFAULT;
 	}
 
@@ -87,8 +94,6 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 		dev_err(&GET_DEV(accel_dev), "Failed initialize hw arbiter\n");
 		return -EFAULT;
 	}
-
-	hw_data->enable_ints(accel_dev);
 
 	if (adf_ae_init(accel_dev)) {
 		dev_err(&GET_DEV(accel_dev),
@@ -110,6 +115,19 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 	}
 	set_bit(ADF_STATUS_IRQ_ALLOCATED, &accel_dev->status);
 
+	hw_data->enable_ints(accel_dev);
+	hw_data->enable_error_correction(accel_dev);
+
+	ret = hw_data->pfvf_ops.enable_comms(accel_dev);
+	if (ret)
+		return ret;
+
+	if (!test_bit(ADF_STATUS_CONFIGURED, &accel_dev->status) &&
+	    accel_dev->is_vf) {
+		if (qat_crypto_vf_dev_config(accel_dev))
+			return -EFAULT;
+	}
+
 	/*
 	 * Subservice initialisation is divided into two stages: init and start.
 	 * This is to facilitate any ordering dependencies between services
@@ -125,9 +143,6 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 		}
 		set_bit(accel_dev->accel_id, service->init_status);
 	}
-
-	hw_data->enable_error_correction(accel_dev);
-	hw_data->enable_vf2pf_comms(accel_dev);
 
 	return 0;
 }
@@ -159,6 +174,16 @@ int adf_dev_start(struct adf_accel_dev *accel_dev)
 
 	if (hw_data->send_admin_init(accel_dev)) {
 		dev_err(&GET_DEV(accel_dev), "Failed to send init message\n");
+		return -EFAULT;
+	}
+
+	/* Set ssm watch dog timer */
+	if (hw_data->set_ssm_wdtimer)
+		hw_data->set_ssm_wdtimer(accel_dev);
+
+	/* Enable Power Management */
+	if (hw_data->enable_pm && hw_data->enable_pm(accel_dev)) {
+		dev_err(&GET_DEV(accel_dev), "Failed to configure Power Management\n");
 		return -EFAULT;
 	}
 

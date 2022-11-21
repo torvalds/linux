@@ -29,11 +29,6 @@
 /* Use for MMU and noMMU because of PCI generic code */
 int mem_init_done;
 
-#ifndef CONFIG_MMU
-unsigned int __page_offset;
-EXPORT_SYMBOL(__page_offset);
-#endif /* CONFIG_MMU */
-
 char *klimit = _end;
 
 /*
@@ -50,19 +45,14 @@ EXPORT_SYMBOL(min_low_pfn);
 EXPORT_SYMBOL(max_low_pfn);
 
 #ifdef CONFIG_HIGHMEM
-pte_t *kmap_pte;
-EXPORT_SYMBOL(kmap_pte);
-
 static void __init highmem_init(void)
 {
 	pr_debug("%x\n", (u32)PKMAP_BASE);
 	map_page(PKMAP_BASE, 0, 0);	/* XXX gross */
 	pkmap_page_table = virt_to_kpte(PKMAP_BASE);
-
-	kmap_pte = virt_to_kpte(__fix_to_virt(FIX_KMAP_BEGIN));
 }
 
-static void highmem_setup(void)
+static void __meminit highmem_setup(void)
 {
 	unsigned long pfn;
 
@@ -82,13 +72,11 @@ static void highmem_setup(void)
 static void __init paging_init(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES];
-#ifdef CONFIG_MMU
 	int idx;
 
 	/* Setup fixmaps */
 	for (idx = 0; idx < __end_of_fixed_addresses; idx++)
 		clear_fixmap(idx);
-#endif
 
 	/* Clean every zones */
 	memset(zones_size, 0, sizeof(zones_size));
@@ -108,40 +96,6 @@ static void __init paging_init(void)
 
 void __init setup_memory(void)
 {
-#ifndef CONFIG_MMU
-	u32 kernel_align_start, kernel_align_size;
-	phys_addr_t start, end;
-	u64 i;
-
-	/* Find main memory where is the kernel */
-	for_each_mem_range(i, &start, &end) {
-		memory_start = start;
-		lowmem_size = end - start;
-		if ((memory_start <= (u32)_text) &&
-			((u32)_text <= (memory_start + lowmem_size - 1))) {
-			memory_size = lowmem_size;
-			PAGE_OFFSET = memory_start;
-			pr_info("%s: Main mem: 0x%x, size 0x%08x\n",
-				__func__, (u32) memory_start,
-					(u32) memory_size);
-			break;
-		}
-	}
-
-	if (!memory_start || !memory_size) {
-		panic("%s: Missing memory setting 0x%08x, size=0x%08x\n",
-			__func__, (u32) memory_start, (u32) memory_size);
-	}
-
-	/* reservation of region where is the kernel */
-	kernel_align_start = PAGE_DOWN((u32)_text);
-	/* ALIGN can be remove because _end in vmlinux.lds.S is align */
-	kernel_align_size = PAGE_UP((u32)klimit) - kernel_align_start;
-	pr_info("%s: kernel addr:0x%08x-0x%08x size=0x%08x\n",
-		__func__, kernel_align_start, kernel_align_start
-			+ kernel_align_size, kernel_align_size);
-	memblock_reserve(kernel_align_start, kernel_align_size);
-#endif
 	/*
 	 * Kernel:
 	 * start: base phys address of kernel - page align
@@ -177,16 +131,9 @@ void __init mem_init(void)
 	highmem_setup();
 #endif
 
-	mem_init_print_info(NULL);
 	mem_init_done = 1;
 }
 
-#ifndef CONFIG_MMU
-int page_is_ram(unsigned long pfn)
-{
-	return __range_ok(pfn, 0);
-}
-#else
 int page_is_ram(unsigned long pfn)
 {
 	return pfn < max_low_pfn;
@@ -317,20 +264,6 @@ asmlinkage void __init mmu_init(void)
 	/* CMA initialization */
 	dma_contiguous_reserve(memory_start + lowmem_size - 1);
 }
-
-/* This is only called until mem_init is done. */
-void __init *early_get_page(void)
-{
-	/*
-	 * Mem start + kernel_tlb -> here is limit
-	 * because of mem mapping from head.S
-	 */
-	return memblock_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
-				MEMBLOCK_LOW_LIMIT, memory_start + kernel_tlb,
-				NUMA_NO_NODE);
-}
-
-#endif /* CONFIG_MMU */
 
 void * __ref zalloc_maybe_bootmem(size_t size, gfp_t mask)
 {

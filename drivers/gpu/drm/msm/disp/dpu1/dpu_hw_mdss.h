@@ -96,6 +96,7 @@ enum dpu_hw_blk_type {
 	DPU_HW_BLK_INTF,
 	DPU_HW_BLK_WB,
 	DPU_HW_BLK_DSPP,
+	DPU_HW_BLK_MERGE_3D,
 	DPU_HW_BLK_MAX,
 };
 
@@ -184,6 +185,13 @@ enum dpu_pingpong {
 	PINGPONG_5,
 	PINGPONG_S0,
 	PINGPONG_MAX
+};
+
+enum dpu_merge_3d {
+	MERGE_3D_0 = 1,
+	MERGE_3D_1,
+	MERGE_3D_2,
+	MERGE_3D_MAX
 };
 
 enum dpu_intf {
@@ -335,7 +343,7 @@ enum dpu_3d_blend_mode {
 
 /** struct dpu_format - defines the format configuration which
  * allows DPU HW to correctly fetch and decode the format
- * @base: base msm_format struture containing fourcc code
+ * @base: base msm_format structure containing fourcc code
  * @fetch_planes: how the color components are packed in pixel format
  * @element: element color ordering
  * @bits: element bit widths

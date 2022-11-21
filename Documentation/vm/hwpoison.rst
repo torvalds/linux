@@ -60,8 +60,6 @@ There are two (actually three) modes memory failure recovery can be in:
 
 vm.memory_failure_recovery sysctl set to zero:
 	All memory failures cause a panic. Do not attempt recovery.
-	(on x86 this can be also affected by the tolerant level of the
-	MCE subsystem)
 
 early kill
 	(can be controlled globally and per process)
@@ -180,7 +178,6 @@ Limitations
 ===========
 - Not all page types are supported and never will. Most kernel internal
   objects cannot be recovered, only LRU pages for now.
-- Right now hugepage support is missing.
 
 ---
 Andi Kleen, Oct 2009

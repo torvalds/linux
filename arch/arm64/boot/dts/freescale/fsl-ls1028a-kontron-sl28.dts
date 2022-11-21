@@ -2,7 +2,7 @@
 /*
  * Device Tree file for the Kontron SMARC-sAL28 board.
  *
- * Copyright (C) 2019 Michael Walle <michael@walle.cc>
+ * Copyright (C) 2021 Michael Walle <michael@walle.cc>
  *
  */
 
@@ -23,6 +23,10 @@
 		serial2 = &lpuart1;
 		spi0 = &fspi;
 		spi1 = &dspi2;
+		mmc0 = &esdhc1;
+		mmc1 = &esdhc;
+		rtc0 = &rtc;
+		rtc1 = &ftm_alarm0;
 	};
 
 	buttons0 {
@@ -60,6 +64,10 @@
 	};
 };
 
+&can0 {
+	status = "okay";
+};
+
 &dspi2 {
 	status = "okay";
 };
@@ -72,22 +80,19 @@
 	status = "okay";
 };
 
+&enetc_mdio_pf3 {
+	phy0: ethernet-phy@5 {
+		reg = <0x5>;
+		eee-broken-1000t;
+		eee-broken-100tx;
+	};
+};
+
 &enetc_port0 {
 	phy-handle = <&phy0>;
-	phy-connection-type = "sgmii";
+	phy-mode = "sgmii";
 	managed = "in-band-status";
 	status = "okay";
-
-	mdio {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		phy0: ethernet-phy@5 {
-			reg = <0x5>;
-			eee-broken-1000t;
-			eee-broken-100tx;
-		};
-	};
 };
 
 &esdhc {
@@ -109,8 +114,6 @@
 	status = "okay";
 
 	flash@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
 		compatible = "jedec,spi-nor";
 		m25p,fast-read;
 		spi-max-frequency = <133000000>;
@@ -119,61 +122,43 @@
 		spi-rx-bus-width = <2>; /* 2 SPI Rx lines */
 		spi-tx-bus-width = <1>; /* 1 SPI Tx line */
 
-		partition@0 {
-			reg = <0x000000 0x010000>;
-			label = "rcw";
-			read-only;
-		};
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
 
-		partition@10000 {
-			reg = <0x010000 0x0f0000>;
-			label = "failsafe bootloader";
-			read-only;
-		};
+			partition@0 {
+				reg = <0x000000 0x010000>;
+				label = "rcw";
+				read-only;
+			};
 
-		partition@100000 {
-			reg = <0x100000 0x040000>;
-			label = "failsafe DP firmware";
-			read-only;
-		};
+			partition@10000 {
+				reg = <0x010000 0x1d0000>;
+				label = "failsafe bootloader";
+				read-only;
+			};
 
-		partition@140000 {
-			reg = <0x140000 0x0a0000>;
-			label = "failsafe trusted firmware";
-			read-only;
-		};
+			partition@200000 {
+				reg = <0x200000 0x010000>;
+				label = "configuration store";
+			};
 
-		partition@1e0000 {
-			reg = <0x1e0000 0x020000>;
-			label = "reserved";
-			read-only;
-		};
+			partition@210000 {
+				reg = <0x210000 0x1d0000>;
+				label = "bootloader";
+			};
 
-		partition@200000 {
-			reg = <0x200000 0x010000>;
-			label = "configuration store";
-		};
-
-		partition@210000 {
-			reg = <0x210000 0x0f0000>;
-			label = "bootloader";
-		};
-
-		partition@300000 {
-			reg = <0x300000 0x040000>;
-			label = "DP firmware";
-		};
-
-		partition@340000 {
-			reg = <0x340000 0x0a0000>;
-			label = "trusted firmware";
-		};
-
-		partition@3e0000 {
-			reg = <0x3e0000 0x020000>;
-			label = "bootloader environment";
+			partition@3e0000 {
+				reg = <0x3e0000 0x020000>;
+				label = "bootloader environment";
+			};
 		};
 	};
+};
+
+&ftm_alarm0 {
+	status = "okay";
 };
 
 &gpio1 {
@@ -195,7 +180,7 @@
 &i2c0 {
 	status = "okay";
 
-	rtc@32 {
+	rtc: rtc@32 {
 		compatible = "microcrystal,rv8803";
 		reg = <0x32>;
 	};
@@ -323,5 +308,13 @@
 };
 
 &lpuart1 {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&usb1 {
 	status = "okay";
 };

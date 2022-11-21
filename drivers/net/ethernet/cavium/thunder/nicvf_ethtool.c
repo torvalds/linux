@@ -5,6 +5,7 @@
 
 /* ETHTOOL Support for VNIC_VF Device*/
 
+#include <linux/ethtool.h>
 #include <linux/pci.h>
 #include <linux/net_tstamp.h>
 
@@ -455,7 +456,9 @@ static void nicvf_get_regs(struct net_device *dev,
 }
 
 static int nicvf_get_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *cmd)
+			      struct ethtool_coalesce *cmd,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct nicvf *nic = netdev_priv(netdev);
 
@@ -464,7 +467,9 @@ static int nicvf_get_coalesce(struct net_device *netdev,
 }
 
 static void nicvf_get_ringparam(struct net_device *netdev,
-				struct ethtool_ringparam *ring)
+				struct ethtool_ringparam *ring,
+				struct kernel_ethtool_ringparam *kernel_ring,
+				struct netlink_ext_ack *extack)
 {
 	struct nicvf *nic = netdev_priv(netdev);
 	struct queue_set *qs = nic->qs;
@@ -476,7 +481,9 @@ static void nicvf_get_ringparam(struct net_device *netdev,
 }
 
 static int nicvf_set_ringparam(struct net_device *netdev,
-			       struct ethtool_ringparam *ring)
+			       struct ethtool_ringparam *ring,
+			       struct kernel_ethtool_ringparam *kernel_ring,
+			       struct netlink_ext_ack *extack)
 {
 	struct nicvf *nic = netdev_priv(netdev);
 	struct queue_set *qs = nic->qs;

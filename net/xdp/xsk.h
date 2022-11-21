@@ -31,7 +31,7 @@ struct xdp_mmap_offsets_v1 {
 struct xsk_map_node {
 	struct list_head node;
 	struct xsk_map *map;
-	struct xdp_sock **map_entry;
+	struct xdp_sock __rcu **map_entry;
 };
 
 static inline struct xdp_sock *xdp_sk(struct sock *sk)
@@ -40,9 +40,7 @@ static inline struct xdp_sock *xdp_sk(struct sock *sk)
 }
 
 void xsk_map_try_sock_delete(struct xsk_map *map, struct xdp_sock *xs,
-			     struct xdp_sock **map_entry);
-int xsk_map_inc(struct xsk_map *map);
-void xsk_map_put(struct xsk_map *map);
+			     struct xdp_sock __rcu **map_entry);
 void xsk_clear_pool_at_qid(struct net_device *dev, u16 queue_id);
 int xsk_reg_pool_at_qid(struct net_device *dev, struct xsk_buff_pool *pool,
 			u16 queue_id);

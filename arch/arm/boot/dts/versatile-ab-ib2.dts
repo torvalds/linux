@@ -13,9 +13,13 @@
 	syscon@27000000 {
 		compatible = "arm,versatile-ib2-syscon", "syscon", "simple-mfd";
 		reg = <0x27000000 0x4>;
+		ranges = <0x0 0x27000000 0x4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 
-		led@00.4 {
+		led@0,4 {
 			compatible = "register-bit-led";
+			reg = <0x00 0x04>;
 			offset = <0x00>;
 			mask = <0x10>;
 			label = "versatile-ib2:0";

@@ -69,7 +69,7 @@ nfs4_ff_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 	INIT_LIST_HEAD(&dsaddrs);
 
 	xdr_init_decode_pages(&stream, &buf, pdev->pages, pdev->pglen);
-	xdr_set_scratch_buffer(&stream, page_address(scratch), PAGE_SIZE);
+	xdr_set_scratch_page(&stream, scratch);
 
 	/* multipath count */
 	p = xdr_inline_decode(&stream, 4);
@@ -378,10 +378,10 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg,
 		goto noconnect;
 
 	ds = mirror->mirror_ds->ds;
+	if (READ_ONCE(ds->ds_clp))
+		goto out;
 	/* matching smp_wmb() in _nfs4_pnfs_v3/4_ds_connect */
 	smp_rmb();
-	if (ds->ds_clp)
-		goto out;
 
 	/* FIXME: For now we assume the server sent only one version of NFS
 	 * to use for the DS.

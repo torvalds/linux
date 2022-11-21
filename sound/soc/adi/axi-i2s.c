@@ -156,7 +156,7 @@ static const struct snd_soc_dai_ops axi_i2s_dai_ops = {
 static struct snd_soc_dai_driver axi_i2s_dai = {
 	.probe = axi_i2s_dai_probe,
 	.ops = &axi_i2s_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static const struct snd_soc_component_driver axi_i2s_component = {
@@ -198,8 +198,7 @@ static int axi_i2s_probe(struct platform_device *pdev)
 
 	axi_i2s_parse_of(i2s, pdev->dev.of_node);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

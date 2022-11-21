@@ -29,13 +29,16 @@ static inline void ceph_set_cached_acl(struct inode *inode,
 	spin_unlock(&ci->i_ceph_lock);
 }
 
-struct posix_acl *ceph_get_acl(struct inode *inode, int type)
+struct posix_acl *ceph_get_acl(struct inode *inode, int type, bool rcu)
 {
 	int size;
 	unsigned int retry_cnt = 0;
 	const char *name;
 	char *value = NULL;
 	struct posix_acl *acl;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
@@ -82,7 +85,8 @@ retry:
 	return acl;
 }
 
-int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int ceph_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		 struct posix_acl *acl, int type)
 {
 	int ret = 0, size = 0;
 	const char *name = NULL;
@@ -100,7 +104,8 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	case ACL_TYPE_ACCESS:
 		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		if (acl) {
-			ret = posix_acl_update_mode(inode, &new_mode, &acl);
+			ret = posix_acl_update_mode(&init_user_ns, inode,
+						    &new_mode, &acl);
 			if (ret)
 				goto out;
 		}

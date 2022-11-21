@@ -31,21 +31,23 @@
  * When not using MMU this corresponds to the first free page in
  * physical memory (aligned on a page boundary).
  */
+#ifdef CONFIG_64BIT
+#ifdef CONFIG_MMU
+#define PAGE_OFFSET		kernel_map.page_offset
+#else
 #define PAGE_OFFSET		_AC(CONFIG_PAGE_OFFSET, UL)
-
-#define KERN_VIRT_SIZE (-PAGE_OFFSET)
+#endif
+/*
+ * By default, CONFIG_PAGE_OFFSET value corresponds to SV48 address space so
+ * define the PAGE_OFFSET value for SV39.
+ */
+#define PAGE_OFFSET_L4		_AC(0xffffaf8000000000, UL)
+#define PAGE_OFFSET_L3		_AC(0xffffffd800000000, UL)
+#else
+#define PAGE_OFFSET		_AC(CONFIG_PAGE_OFFSET, UL)
+#endif /* CONFIG_64BIT */
 
 #ifndef __ASSEMBLY__
-
-#define PAGE_UP(addr)	(((addr)+((PAGE_SIZE)-1))&(~((PAGE_SIZE)-1)))
-#define PAGE_DOWN(addr)	((addr)&(~((PAGE_SIZE)-1)))
-
-/* align addr on a size boundary - adjust address up/down if needed */
-#define _ALIGN_UP(addr, size)	(((addr)+((size)-1))&(~((size)-1)))
-#define _ALIGN_DOWN(addr, size)	((addr)&(~((size)-1)))
-
-/* align addr on a size boundary - adjust address up if needed */
-#define _ALIGN(addr, size)	_ALIGN_UP(addr, size)
 
 #define clear_page(pgaddr)			memset((pgaddr), 0, PAGE_SIZE)
 #define copy_page(to, from)			memcpy((to), (from), PAGE_SIZE)
@@ -89,19 +91,59 @@ typedef struct page *pgtable_t;
 #endif
 
 #ifdef CONFIG_MMU
-extern unsigned long va_pa_offset;
-extern unsigned long pfn_base;
-#define ARCH_PFN_OFFSET		(pfn_base)
+extern unsigned long riscv_pfn_base;
+#define ARCH_PFN_OFFSET		(riscv_pfn_base)
 #else
-#define va_pa_offset		0
 #define ARCH_PFN_OFFSET		(PAGE_OFFSET >> PAGE_SHIFT)
 #endif /* CONFIG_MMU */
 
-extern unsigned long max_low_pfn;
-extern unsigned long min_low_pfn;
+struct kernel_mapping {
+	unsigned long page_offset;
+	unsigned long virt_addr;
+	uintptr_t phys_addr;
+	uintptr_t size;
+	/* Offset between linear mapping virtual address and kernel load address */
+	unsigned long va_pa_offset;
+	/* Offset between kernel mapping virtual address and kernel load address */
+	unsigned long va_kernel_pa_offset;
+	unsigned long va_kernel_xip_pa_offset;
+#ifdef CONFIG_XIP_KERNEL
+	uintptr_t xiprom;
+	uintptr_t xiprom_sz;
+#endif
+};
 
-#define __pa_to_va_nodebug(x)	((void *)((unsigned long) (x) + va_pa_offset))
-#define __va_to_pa_nodebug(x)	((unsigned long)(x) - va_pa_offset)
+extern struct kernel_mapping kernel_map;
+extern phys_addr_t phys_ram_base;
+
+#define is_kernel_mapping(x)	\
+	((x) >= kernel_map.virt_addr && (x) < (kernel_map.virt_addr + kernel_map.size))
+
+#define is_linear_mapping(x)	\
+	((x) >= PAGE_OFFSET && (!IS_ENABLED(CONFIG_64BIT) || (x) < PAGE_OFFSET + KERN_VIRT_SIZE))
+
+#define linear_mapping_pa_to_va(x)	((void *)((unsigned long)(x) + kernel_map.va_pa_offset))
+#define kernel_mapping_pa_to_va(y)	({						\
+	unsigned long _y = y;								\
+	(IS_ENABLED(CONFIG_XIP_KERNEL) && _y < phys_ram_base) ?					\
+		(void *)((unsigned long)(_y) + kernel_map.va_kernel_xip_pa_offset) :		\
+		(void *)((unsigned long)(_y) + kernel_map.va_kernel_pa_offset + XIP_OFFSET);	\
+	})
+#define __pa_to_va_nodebug(x)		linear_mapping_pa_to_va(x)
+
+#define linear_mapping_va_to_pa(x)	((unsigned long)(x) - kernel_map.va_pa_offset)
+#define kernel_mapping_va_to_pa(y) ({						\
+	unsigned long _y = y;							\
+	(IS_ENABLED(CONFIG_XIP_KERNEL) && _y < kernel_map.virt_addr + XIP_OFFSET) ?	\
+		((unsigned long)(_y) - kernel_map.va_kernel_xip_pa_offset) :		\
+		((unsigned long)(_y) - kernel_map.va_kernel_pa_offset - XIP_OFFSET);	\
+	})
+
+#define __va_to_pa_nodebug(x)	({						\
+	unsigned long _x = x;							\
+	is_linear_mapping(_x) ?							\
+		linear_mapping_va_to_pa(_x) : kernel_mapping_va_to_pa(_x);	\
+	})
 
 #ifdef CONFIG_DEBUG_VIRTUAL
 extern phys_addr_t __virt_to_phys(unsigned long x);
@@ -128,6 +170,8 @@ extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #define page_to_bus(page)	(page_to_phys(page))
 #define phys_to_page(paddr)	(pfn_to_page(phys_to_pfn(paddr)))
 
+#define sym_to_pfn(x)           __phys_to_pfn(__pa_symbol(x))
+
 #ifdef CONFIG_FLATMEM
 #define pfn_valid(pfn) \
 	(((pfn) >= ARCH_PFN_OFFSET) && (((pfn) - ARCH_PFN_OFFSET) < max_mapnr))
@@ -135,7 +179,10 @@ extern phys_addr_t __phys_addr_symbol(unsigned long x);
 
 #endif /* __ASSEMBLY__ */
 
-#define virt_addr_valid(vaddr)	(pfn_valid(virt_to_pfn(vaddr)))
+#define virt_addr_valid(vaddr)	({						\
+	unsigned long _addr = (unsigned long)vaddr;				\
+	(unsigned long)(_addr) >= PAGE_OFFSET && pfn_valid(virt_to_pfn(_addr));	\
+})
 
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
 

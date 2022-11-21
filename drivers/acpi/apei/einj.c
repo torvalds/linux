@@ -28,9 +28,10 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "EINJ: " fmt
 
-#define SPIN_UNIT		100			/* 100ns */
-/* Firmware should respond within 1 milliseconds */
-#define FIRMWARE_TIMEOUT	(1 * NSEC_PER_MSEC)
+#define SLEEP_UNIT_MIN		1000			/* 1ms */
+#define SLEEP_UNIT_MAX		5000			/* 5ms */
+/* Firmware should respond within 1 seconds */
+#define FIRMWARE_TIMEOUT	(1 * USEC_PER_SEC)
 #define ACPI5_VENDOR_BIT	BIT(31)
 #define MEM_ERROR_MASK		(ACPI_EINJ_MEMORY_CORRECTABLE | \
 				ACPI_EINJ_MEMORY_UNCORRECTABLE | \
@@ -171,13 +172,13 @@ static int einj_get_available_error_type(u32 *type)
 
 static int einj_timedout(u64 *t)
 {
-	if ((s64)*t < SPIN_UNIT) {
+	if ((s64)*t < SLEEP_UNIT_MIN) {
 		pr_warn(FW_WARN "Firmware does not respond in time\n");
 		return 1;
 	}
-	*t -= SPIN_UNIT;
-	ndelay(SPIN_UNIT);
-	touch_nmi_watchdog();
+	*t -= SLEEP_UNIT_MIN;
+	usleep_range(SLEEP_UNIT_MIN, SLEEP_UNIT_MAX);
+
 	return 0;
 }
 
@@ -544,7 +545,8 @@ static int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 	    ((region_intersects(base_addr, size, IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE)
 				!= REGION_INTERSECTS) &&
 	     (region_intersects(base_addr, size, IORESOURCE_MEM, IORES_DESC_PERSISTENT_MEMORY)
-				!= REGION_INTERSECTS)))
+				!= REGION_INTERSECTS) &&
+	     !arch_is_platform_page(base_addr)))
 		return -EINVAL;
 
 inject:
@@ -673,7 +675,7 @@ static int __init einj_init(void)
 	struct apei_exec_context ctx;
 
 	if (acpi_disabled) {
-		pr_warn("ACPI disabled.\n");
+		pr_info("ACPI disabled.\n");
 		return -ENODEV;
 	}
 
@@ -725,7 +727,6 @@ static int __init einj_init(void)
 		goto err_release;
 	}
 
-	rc = -ENOMEM;
 	einj_param = einj_get_parameter_address();
 	if ((param_extension || acpi5) && einj_param) {
 		debugfs_create_x32("flags", S_IRUSR | S_IWUSR, einj_debug_dir,

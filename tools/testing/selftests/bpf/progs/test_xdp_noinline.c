@@ -797,7 +797,7 @@ out:
 	return XDP_DROP;
 }
 
-SEC("xdp-test-v4")
+SEC("xdp")
 int balancer_ingress_v4(struct xdp_md *ctx)
 {
 	void *data = (void *)(long)ctx->data;
@@ -816,7 +816,7 @@ int balancer_ingress_v4(struct xdp_md *ctx)
 		return XDP_DROP;
 }
 
-SEC("xdp-test-v6")
+SEC("xdp")
 int balancer_ingress_v6(struct xdp_md *ctx)
 {
 	void *data = (void *)(long)ctx->data;

@@ -44,6 +44,7 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
+#include <net/sch_generic.h>
 #include <net/sock.h>
 #include <net/checksum.h>
 #include <linux/if_ether.h>	/* For the statistics structure. */
@@ -73,11 +74,11 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 	skb_tx_timestamp(skb);
 
 	/* do not fool net_timestamp_check() with various clock bases */
-	skb->tstamp = 0;
+	skb_clear_tstamp(skb);
 
 	skb_orphan(skb);
 
-	/* Before queueing this packet to netif_rx(),
+	/* Before queueing this packet to __netif_rx(),
 	 * make sure dst is refcounted.
 	 */
 	skb_dst_force(skb);
@@ -85,7 +86,7 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 	skb->protocol = eth_type_trans(skb, dev);
 
 	len = skb->len;
-	if (likely(netif_rx(skb) == NET_RX_SUCCESS))
+	if (likely(__netif_rx(skb) == NET_RX_SUCCESS))
 		dev_lstats_add(dev, len);
 
 	return NETDEV_TX_OK;

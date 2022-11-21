@@ -44,7 +44,6 @@ config H8300_H8MAX
 	bool "H8MAX"
 	select H83069
 	select RAMKERNEL
-	select HAVE_IDE
 	help
 	  H8MAX Evaluation Board Support
 	  More Information. (Japanese Only)

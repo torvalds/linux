@@ -3,6 +3,7 @@
 #include "aspeed-g5.dtsi"
 #include <dt-bindings/gpio/aspeed-gpio.h>
 #include <dt-bindings/leds/leds-pca955x.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "FP5280G2 BMC";
@@ -10,7 +11,7 @@
 
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "console=ttyS4,115200 earlyprintk";
+		bootargs = "console=ttyS4,115200 earlycon";
 	};
 
 	memory@80000000 {
@@ -204,6 +205,39 @@
 
 };
 
+&gpio {
+	gpio-line-names =
+	/*A0-A7*/	"","","","","","","","",
+	/*B0-B7*/	"","","front-psu","checkstop","cfam-reset","","","init-ok",
+	/*C0-C7*/	"","","","","","","","",
+	/*D0-D7*/	"","","","","","","","",
+	/*E0-E7*/	"","","","","","","","",
+	/*F0-F7*/	"ps0-presence","ps1-presence","","","front-memory","","","",
+	/*G0-G7*/	"","","","","","","","",
+	/*H0-H7*/	"","","","","front-fan","","","",
+	/*I0-I7*/	"front-syshealth","front-syshot","mux-gpios","enable-gpios","","","","",
+	/*J0-J7*/	"","","","","","","","",
+	/*K0-K7*/	"","","","","","","","",
+	/*L0-L7*/	"","","","","","","","",
+	/*M0-M7*/	"","","","","","","","",
+	/*N0-N7*/	"","","","","","","","",
+	/*O0-O7*/	"","","","","","","","",
+	/*P0-P7*/	"","","","","","","","",
+	/*Q0-Q7*/	"","","","","","","","",
+	/*R0-R7*/	"","power","trans-gpios","","","","","",
+	/*S0-S7*/	"","","","","","","","",
+	/*T0-T7*/	"","","","","","","","",
+	/*U0-U7*/	"","","","","","","","",
+	/*V0-V7*/	"","","","","","","","",
+	/*W0-W7*/	"","","","","","","","",
+	/*X0-X7*/	"","","","","","","","",
+	/*Y0-Y7*/	"","","","","","","","",
+	/*Z0-Z7*/	"","","","","","","","identify",
+	/*AA0-AA7*/	"clock-gpios","","data-gpios","","","","","",
+	/*AB0-AB7*/	"","","","","","","","",
+	/*AC0-AC7*/	"","","","","","","","";
+};
+
 &fmc {
 	status = "okay";
 
@@ -212,7 +246,7 @@
 		label = "bmc";
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
-#include "openbmc-flash-layout.dtsi"
+#include "openbmc-flash-layout-64.dtsi"
 	};
 };
 
@@ -756,12 +790,12 @@
 	status = "okay";
 
 	power-supply@58 {
-		compatible = "pmbus";
+		compatible = "inspur,ipsps1";
 		reg = <0x58>;
 	};
 
 	power-supply@59 {
-		compatible = "pmbus";
+		compatible = "inspur,ipsps1";
 		reg = <0x59>;
 	};
 };
@@ -867,6 +901,12 @@
 		aspeed,fan-tach-ch = /bits/ 8 <0x0e 0x0f>;
 	};
 
+};
+
+&kcs3 {
+	status = "okay";
+	aspeed,lpc-io-reg = <0xca2>;
+	aspeed,lpc-interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 };
 
 #include "ibm-power9-dual.dtsi"

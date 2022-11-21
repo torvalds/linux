@@ -3,7 +3,7 @@
  *
  * Module Name: nspredef - Validation of ACPI predefined methods and objects
  *
- * Copyright (C) 2000 - 2020, Intel Corp.
+ * Copyright (C) 2000 - 2021, Intel Corp.
  *
  *****************************************************************************/
 
@@ -71,11 +71,13 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 	acpi_status status;
 	const union acpi_predefined_info *predefined;
 
+	ACPI_FUNCTION_TRACE(ns_check_return_value);
+
 	/* If not a predefined name, we cannot validate the return object */
 
 	predefined = info->predefined;
 	if (!predefined) {
-		return (AE_OK);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/*
@@ -83,7 +85,7 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 	 * validate the return object
 	 */
 	if ((return_status != AE_OK) && (return_status != AE_CTRL_RETURN_VALUE)) {
-		return (AE_OK);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/*
@@ -102,7 +104,7 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 	if (acpi_gbl_disable_auto_repair ||
 	    (!predefined->info.expected_btypes) ||
 	    (predefined->info.expected_btypes == ACPI_RTYPE_ALL)) {
-		return (AE_OK);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/*
@@ -163,7 +165,7 @@ exit:
 		node->flags |= ANOBJ_EVALUATED;
 	}
 
-	return (status);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************

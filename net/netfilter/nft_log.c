@@ -128,6 +128,20 @@ static const struct nla_policy nft_log_policy[NFTA_LOG_MAX + 1] = {
 	[NFTA_LOG_FLAGS]	= { .type = NLA_U32 },
 };
 
+static int nft_log_modprobe(struct net *net, enum nf_log_type t)
+{
+	switch (t) {
+	case NF_LOG_TYPE_LOG:
+		return nft_request_module(net, "%s", "nf_log_syslog");
+	case NF_LOG_TYPE_ULOG:
+		return nft_request_module(net, "%s", "nfnetlink_log");
+	case NF_LOG_TYPE_MAX:
+		break;
+	}
+
+	return -ENOENT;
+}
+
 static int nft_log_init(const struct nft_ctx *ctx,
 			const struct nft_expr *expr,
 			const struct nlattr * const tb[])
@@ -152,7 +166,7 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		priv->prefix = kmalloc(nla_len(nla) + 1, GFP_KERNEL);
 		if (priv->prefix == NULL)
 			return -ENOMEM;
-		nla_strlcpy(priv->prefix, nla, nla_len(nla) + 1);
+		nla_strscpy(priv->prefix, nla, nla_len(nla) + 1);
 	} else {
 		priv->prefix = (char *)nft_log_null_prefix;
 	}
@@ -197,8 +211,12 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		return 0;
 
 	err = nf_logger_find_get(ctx->family, li->type);
-	if (err < 0)
+	if (err < 0) {
+		if (nft_log_modprobe(ctx->net, li->type) == -EAGAIN)
+			err = -EAGAIN;
+
 		goto err1;
+	}
 
 	return 0;
 
@@ -272,6 +290,7 @@ static const struct nft_expr_ops nft_log_ops = {
 	.init		= nft_log_init,
 	.destroy	= nft_log_destroy,
 	.dump		= nft_log_dump,
+	.reduce		= NFT_REDUCE_READONLY,
 };
 
 static struct nft_expr_type nft_log_type __read_mostly = {

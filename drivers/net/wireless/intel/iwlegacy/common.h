@@ -2937,7 +2937,7 @@ do {									\
 } while (0)
 
 #else
-#define IL_DBG(level, fmt, args...)
+#define IL_DBG(level, fmt, args...) no_printk(fmt, ##args)
 static inline void
 il_print_hex_dump(struct il_priv *il, int level, const void *p, u32 len)
 {

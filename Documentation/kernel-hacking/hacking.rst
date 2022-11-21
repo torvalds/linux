@@ -76,8 +76,8 @@ handler is never re-entered: if the same interrupt arrives, it is queued
 fast: frequently it simply acknowledges the interrupt, marks a 'software
 interrupt' for execution and exits.
 
-You can tell you are in a hardware interrupt, because
-:c:func:`in_irq()` returns true.
+You can tell you are in a hardware interrupt, because in_hardirq() returns
+true.
 
 .. warning::
 
@@ -346,8 +346,8 @@ routine.
 Before inventing your own cache of often-used objects consider using a
 slab cache in ``include/linux/slab.h``
 
-:c:func:`current()`
--------------------
+:c:macro:`current`
+------------------
 
 Defined in ``include/asm/current.h``
 
@@ -601,7 +601,7 @@ Defined in ``include/linux/export.h``
 
 This is the variant of `EXPORT_SYMBOL()` that allows specifying a symbol
 namespace. Symbol Namespaces are documented in
-:doc:`../core-api/symbol-namespaces`
+Documentation/core-api/symbol-namespaces.rst
 
 :c:func:`EXPORT_SYMBOL_NS_GPL()`
 --------------------------------
@@ -610,7 +610,7 @@ Defined in ``include/linux/export.h``
 
 This is the variant of `EXPORT_SYMBOL_GPL()` that allows specifying a symbol
 namespace. Symbol Namespaces are documented in
-:doc:`../core-api/symbol-namespaces`
+Documentation/core-api/symbol-namespaces.rst
 
 Routines and Conventions
 ========================

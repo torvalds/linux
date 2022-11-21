@@ -9,24 +9,21 @@
 
 #define MLX5E_TX_WQE_EMPTY_DS_COUNT (sizeof(struct mlx5e_tx_wqe) / MLX5_SEND_WQE_DS)
 
-/* The mult of MLX5_SEND_WQE_MAX_WQEBBS * MLX5_SEND_WQEBB_NUM_DS
- * (16 * 4 == 64) does not fit in the 6-bit DS field of Ctrl Segment.
- * We use a bound lower that MLX5_SEND_WQE_MAX_WQEBBS to let a
- * full-session WQE be cache-aligned.
- */
-#if L1_CACHE_BYTES < 128
-#define MLX5E_TX_MPW_MAX_WQEBBS (MLX5_SEND_WQE_MAX_WQEBBS - 1)
-#else
-#define MLX5E_TX_MPW_MAX_WQEBBS (MLX5_SEND_WQE_MAX_WQEBBS - 2)
-#endif
-
-#define MLX5E_TX_MPW_MAX_NUM_DS (MLX5E_TX_MPW_MAX_WQEBBS * MLX5_SEND_WQEBB_NUM_DS)
-
 #define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
+
+#define MLX5E_RX_ERR_CQE(cqe) (get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)
+
+static inline
+ktime_t mlx5e_cqe_ts_to_ns(cqe_ts_to_ns func, struct mlx5_clock *clock, u64 cqe_ts)
+{
+	return INDIRECT_CALL_2(func, mlx5_real_time_cyc2time, mlx5_timecounter_cyc2time,
+			       clock, cqe_ts);
+}
 
 enum mlx5e_icosq_wqe_type {
 	MLX5E_ICOSQ_WQE_NOP,
 	MLX5E_ICOSQ_WQE_UMR_RX,
+	MLX5E_ICOSQ_WQE_SHAMPO_HD_UMR,
 #ifdef CONFIG_MLX5_EN_TLS
 	MLX5E_ICOSQ_WQE_UMR_TLS,
 	MLX5E_ICOSQ_WQE_SET_PSV_TLS,
@@ -47,10 +44,8 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget);
 int mlx5e_poll_ico_cq(struct mlx5e_cq *cq);
 
 /* RX */
-void mlx5e_page_dma_unmap(struct mlx5e_rq *rq, struct mlx5e_dma_info *dma_info);
-void mlx5e_page_release_dynamic(struct mlx5e_rq *rq,
-				struct mlx5e_dma_info *dma_info,
-				bool recycle);
+void mlx5e_page_dma_unmap(struct mlx5e_rq *rq, struct page *page);
+void mlx5e_page_release_dynamic(struct mlx5e_rq *rq, struct page *page, bool recycle);
 INDIRECT_CALLABLE_DECLARE(bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq));
 INDIRECT_CALLABLE_DECLARE(bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq));
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget);
@@ -58,8 +53,6 @@ void mlx5e_free_rx_descs(struct mlx5e_rq *rq);
 void mlx5e_free_rx_in_progress_descs(struct mlx5e_rq *rq);
 
 /* TX */
-u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
-		       struct net_device *sb_dev);
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget);
 void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq);
@@ -157,6 +150,15 @@ static inline u16 mlx5e_txqsq_get_next_pi(struct mlx5e_txqsq *sq, u16 size)
 	return pi;
 }
 
+static inline u16 mlx5e_shampo_get_cqe_header_index(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
+{
+	return be16_to_cpu(cqe->shampo.header_entry_index) & (rq->mpwqe.shampo->hd_per_wq - 1);
+}
+
+struct mlx5e_shampo_umr {
+	u16 len;
+};
+
 struct mlx5e_icosq_wqe_info {
 	u8 wqe_type;
 	u8 num_wqebbs;
@@ -166,6 +168,7 @@ struct mlx5e_icosq_wqe_info {
 		struct {
 			struct mlx5e_rq *rq;
 		} umr;
+		struct mlx5e_shampo_umr shampo;
 #ifdef CONFIG_MLX5_EN_TLS
 		struct {
 			struct mlx5e_ktls_offload_context_rx *priv_rx;
@@ -250,21 +253,24 @@ mlx5e_dma_push(struct mlx5e_txqsq *sq, dma_addr_t addr, u32 size,
 	dma->type = map_type;
 }
 
-static inline struct sk_buff **mlx5e_skb_fifo_get(struct mlx5e_txqsq *sq, u16 i)
+static inline
+struct sk_buff **mlx5e_skb_fifo_get(struct mlx5e_skb_fifo *fifo, u16 i)
 {
-	return &sq->db.skb_fifo[i & sq->skb_fifo_mask];
+	return &fifo->fifo[i & fifo->mask];
 }
 
-static inline void mlx5e_skb_fifo_push(struct mlx5e_txqsq *sq, struct sk_buff *skb)
+static inline
+void mlx5e_skb_fifo_push(struct mlx5e_skb_fifo *fifo, struct sk_buff *skb)
 {
-	struct sk_buff **skb_item = mlx5e_skb_fifo_get(sq, sq->skb_fifo_pc++);
+	struct sk_buff **skb_item = mlx5e_skb_fifo_get(fifo, (*fifo->pc)++);
 
 	*skb_item = skb;
 }
 
-static inline struct sk_buff *mlx5e_skb_fifo_pop(struct mlx5e_txqsq *sq)
+static inline
+struct sk_buff *mlx5e_skb_fifo_pop(struct mlx5e_skb_fifo *fifo)
 {
-	return *mlx5e_skb_fifo_get(sq, sq->skb_fifo_cc++);
+	return *mlx5e_skb_fifo_get(fifo, (*fifo->cc)++);
 }
 
 static inline void
@@ -285,9 +291,9 @@ mlx5e_tx_dma_unmap(struct device *pdev, struct mlx5e_sq_dma *dma)
 void mlx5e_sq_xmit_simple(struct mlx5e_txqsq *sq, struct sk_buff *skb, bool xmit_more);
 void mlx5e_tx_mpwqe_ensure_complete(struct mlx5e_txqsq *sq);
 
-static inline bool mlx5e_tx_mpwqe_is_full(struct mlx5e_tx_mpwqe *session)
+static inline bool mlx5e_tx_mpwqe_is_full(struct mlx5e_tx_mpwqe *session, u8 max_sq_mpw_wqebbs)
 {
-	return session->ds_count == MLX5E_TX_MPW_MAX_NUM_DS;
+	return session->ds_count == max_sq_mpw_wqebbs * MLX5_SEND_WQEBB_NUM_DS;
 }
 
 static inline void mlx5e_rqwq_reset(struct mlx5e_rq *rq)
@@ -308,7 +314,7 @@ static inline void mlx5e_dump_error_cqe(struct mlx5e_cq *cq, u32 qn,
 
 	ci = mlx5_cqwq_ctr2ix(wq, wq->cc - 1);
 
-	netdev_err(cq->channel->netdev,
+	netdev_err(cq->netdev,
 		   "Error cqe on cqn 0x%x, ci 0x%x, qn 0x%x, opcode 0x%x, syndrome 0x%x, vendor syndrome 0x%x\n",
 		   cq->mcq.cqn, ci, qn,
 		   get_cqe_opcode((struct mlx5_cqe64 *)err_cqe),
@@ -366,6 +372,15 @@ struct mlx5e_swp_spec {
 	u8 tun_l4_proto;
 };
 
+static inline void mlx5e_eseg_swp_offsets_add_vlan(struct mlx5_wqe_eth_seg *eseg)
+{
+	/* SWP offsets are in 2-bytes words */
+	eseg->swp_outer_l3_offset += VLAN_HLEN / 2;
+	eseg->swp_outer_l4_offset += VLAN_HLEN / 2;
+	eseg->swp_inner_l3_offset += VLAN_HLEN / 2;
+	eseg->swp_inner_l4_offset += VLAN_HLEN / 2;
+}
+
 static inline void
 mlx5e_set_eseg_swp(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg,
 		   struct mlx5e_swp_spec *swp_spec)
@@ -399,10 +414,10 @@ mlx5e_set_eseg_swp(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg,
 	}
 }
 
-static inline u16 mlx5e_stop_room_for_wqe(u16 wqe_size)
-{
-	BUILD_BUG_ON(PAGE_SIZE / MLX5_SEND_WQE_BB < MLX5_SEND_WQE_MAX_WQEBBS);
+#define MLX5E_STOP_ROOM(wqebbs) ((wqebbs) * 2 - 1)
 
+static inline u16 mlx5e_stop_room_for_wqe(struct mlx5_core_dev *mdev, u16 wqe_size)
+{
 	/* A WQE must not cross the page boundary, hence two conditions:
 	 * 1. Its size must not exceed the page size.
 	 * 2. If the WQE size is X, and the space remaining in a page is less
@@ -411,13 +426,29 @@ static inline u16 mlx5e_stop_room_for_wqe(u16 wqe_size)
 	 *    stop room of X-1 + X.
 	 * WQE size is also limited by the hardware limit.
 	 */
+	WARN_ONCE(wqe_size > mlx5e_get_max_sq_wqebbs(mdev),
+		  "wqe_size %u is greater than max SQ WQEBBs %u",
+		  wqe_size, mlx5e_get_max_sq_wqebbs(mdev));
 
-	if (__builtin_constant_p(wqe_size))
-		BUILD_BUG_ON(wqe_size > MLX5_SEND_WQE_MAX_WQEBBS);
-	else
-		WARN_ON_ONCE(wqe_size > MLX5_SEND_WQE_MAX_WQEBBS);
 
-	return wqe_size * 2 - 1;
+	return MLX5E_STOP_ROOM(wqe_size);
 }
 
+static inline u16 mlx5e_stop_room_for_max_wqe(struct mlx5_core_dev *mdev)
+{
+	return MLX5E_STOP_ROOM(mlx5e_get_max_sq_wqebbs(mdev));
+}
+
+static inline bool mlx5e_icosq_can_post_wqe(struct mlx5e_icosq *sq, u16 wqe_size)
+{
+	u16 room = sq->reserved_room;
+
+	WARN_ONCE(wqe_size > sq->max_sq_wqebbs,
+		  "wqe_size %u is greater than max SQ WQEBBs %u",
+		  wqe_size, sq->max_sq_wqebbs);
+
+	room += MLX5E_STOP_ROOM(wqe_size);
+
+	return mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, room);
+}
 #endif

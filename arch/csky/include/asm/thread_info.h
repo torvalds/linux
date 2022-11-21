@@ -1,12 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
 #ifndef _ASM_CSKY_THREAD_INFO_H
 #define _ASM_CSKY_THREAD_INFO_H
 
 #ifndef __ASSEMBLY__
 
-#include <linux/version.h>
 #include <asm/types.h>
 #include <asm/page.h>
 #include <asm/processor.h>
@@ -18,7 +16,6 @@ struct thread_info {
 	unsigned long		flags;
 	int			preempt_count;
 	unsigned long		tp_value;
-	mm_segment_t		addr_limit;
 	struct restart_block	restart_block;
 	struct pt_regs		*regs;
 	unsigned int		cpu;
@@ -28,7 +25,6 @@ struct thread_info {
 {						\
 	.task		= &tsk,			\
 	.preempt_count  = INIT_PREEMPT_COUNT,	\
-	.addr_limit     = KERNEL_DS,		\
 	.cpu		= 0,			\
 	.restart_block = {			\
 		.fn = do_no_restart_syscall,	\
@@ -64,6 +60,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_SYSCALL_TRACE	4	/* syscall trace active */
 #define TIF_SYSCALL_TRACEPOINT	5       /* syscall tracepoint instrumentation */
 #define TIF_SYSCALL_AUDIT	6	/* syscall auditing */
+#define TIF_NOTIFY_SIGNAL	7	/* signal notifications exist */
 #define TIF_POLLING_NRFLAG	16	/* poll_idle() is TIF_NEED_RESCHED */
 #define TIF_MEMDIE		18      /* is terminating due to OOM killer */
 #define TIF_RESTORE_SIGMASK	20	/* restore signal mask in do_signal() */
@@ -75,6 +72,7 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_SYSCALL_TRACEPOINT	(1 << TIF_SYSCALL_TRACEPOINT)
 #define _TIF_SYSCALL_AUDIT	(1 << TIF_SYSCALL_AUDIT)
+#define _TIF_NOTIFY_SIGNAL	(1 << TIF_NOTIFY_SIGNAL)
 #define _TIF_UPROBE		(1 << TIF_UPROBE)
 #define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
 #define _TIF_MEMDIE		(1 << TIF_MEMDIE)
@@ -82,7 +80,8 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
 
 #define _TIF_WORK_MASK		(_TIF_NEED_RESCHED | _TIF_SIGPENDING | \
-				 _TIF_NOTIFY_RESUME | _TIF_UPROBE)
+				 _TIF_NOTIFY_RESUME | _TIF_UPROBE | \
+				 _TIF_NOTIFY_SIGNAL)
 
 #define _TIF_SYSCALL_WORK	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | \
 				 _TIF_SYSCALL_TRACEPOINT | _TIF_SECCOMP)

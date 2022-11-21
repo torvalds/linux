@@ -45,7 +45,7 @@ static uint64_t __calc_target_rate(struct cached_dev *dc)
 	 * backing volume uses about 2% of the cache for dirty data.
 	 */
 	uint32_t bdev_share =
-		div64_u64(bdev_sectors(dc->bdev) << WRITEBACK_SHARE_SHIFT,
+		div64_u64(bdev_nr_sectors(dc->bdev) << WRITEBACK_SHARE_SHIFT,
 				c->cached_dev_sectors);
 
 	uint64_t cache_dirty_target =
@@ -87,6 +87,44 @@ static void __update_writeback_rate(struct cached_dev *dc)
 		div_s64(error, dc->writeback_rate_p_term_inverse);
 	int64_t integral_scaled;
 	uint32_t new_rate;
+
+	/*
+	 * We need to consider the number of dirty buckets as well
+	 * when calculating the proportional_scaled, Otherwise we might
+	 * have an unreasonable small writeback rate at a highly fragmented situation
+	 * when very few dirty sectors consumed a lot dirty buckets, the
+	 * worst case is when dirty buckets reached cutoff_writeback_sync and
+	 * dirty data is still not even reached to writeback percent, so the rate
+	 * still will be at the minimum value, which will cause the write
+	 * stuck at a non-writeback mode.
+	 */
+	struct cache_set *c = dc->disk.c;
+
+	int64_t dirty_buckets = c->nbuckets - c->avail_nbuckets;
+
+	if (dc->writeback_consider_fragment &&
+		c->gc_stats.in_use > BCH_WRITEBACK_FRAGMENT_THRESHOLD_LOW && dirty > 0) {
+		int64_t fragment =
+			div_s64((dirty_buckets *  c->cache->sb.bucket_size), dirty);
+		int64_t fp_term;
+		int64_t fps;
+
+		if (c->gc_stats.in_use <= BCH_WRITEBACK_FRAGMENT_THRESHOLD_MID) {
+			fp_term = (int64_t)dc->writeback_rate_fp_term_low *
+			(c->gc_stats.in_use - BCH_WRITEBACK_FRAGMENT_THRESHOLD_LOW);
+		} else if (c->gc_stats.in_use <= BCH_WRITEBACK_FRAGMENT_THRESHOLD_HIGH) {
+			fp_term = (int64_t)dc->writeback_rate_fp_term_mid *
+			(c->gc_stats.in_use - BCH_WRITEBACK_FRAGMENT_THRESHOLD_MID);
+		} else {
+			fp_term = (int64_t)dc->writeback_rate_fp_term_high *
+			(c->gc_stats.in_use - BCH_WRITEBACK_FRAGMENT_THRESHOLD_HIGH);
+		}
+		fps = div_s64(dirty, dirty_buckets) * fp_term;
+		if (fragment > 3 && fps > proportional_scaled) {
+			/* Only overrite the p when fragment > 3 */
+			proportional_scaled = fps;
+		}
+	}
 
 	if ((error < 0 && dc->writeback_rate_integral > 0) ||
 	    (error > 0 && time_before64(local_clock(),
@@ -254,8 +292,8 @@ static void dirty_init(struct keybuf_key *w)
 	struct dirty_io *io = w->private;
 	struct bio *bio = &io->bio;
 
-	bio_init(bio, bio->bi_inline_vecs,
-		 DIV_ROUND_UP(KEY_SIZE(&w->key), PAGE_SECTORS));
+	bio_init(bio, NULL, bio->bi_inline_vecs,
+		 DIV_ROUND_UP(KEY_SIZE(&w->key), PAGE_SECTORS), 0);
 	if (!io->dc->writeback_percent)
 		bio_set_prio(bio, IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0));
 
@@ -378,7 +416,7 @@ static void read_dirty_endio(struct bio *bio)
 	struct dirty_io *io = w->private;
 
 	/* is_read = 1 */
-	bch_count_io_errors(PTR_CACHE(io->dc->disk.c, &w->key, 0),
+	bch_count_io_errors(io->dc->disk.c->cache,
 			    bio->bi_status, 1,
 			    "reading dirty data from cache");
 
@@ -472,8 +510,7 @@ static void read_dirty(struct cached_dev *dc)
 			dirty_init(w);
 			bio_set_op_attrs(&io->bio, REQ_OP_READ, 0);
 			io->bio.bi_iter.bi_sector = PTR_OFFSET(&w->key, 0);
-			bio_set_dev(&io->bio,
-				    PTR_CACHE(dc->disk.c, &w->key, 0)->bdev);
+			bio_set_dev(&io->bio, dc->disk.c->cache->bdev);
 			io->bio.bi_end_io	= read_dirty_endio;
 
 			if (bch_bio_alloc_pages(&io->bio, GFP_KERNEL))
@@ -548,10 +585,13 @@ void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned int inode,
 
 		sectors_dirty = atomic_add_return(s,
 					d->stripe_sectors_dirty + stripe);
-		if (sectors_dirty == d->stripe_size)
-			set_bit(stripe, d->full_dirty_stripes);
-		else
-			clear_bit(stripe, d->full_dirty_stripes);
+		if (sectors_dirty == d->stripe_size) {
+			if (!test_bit(stripe, d->full_dirty_stripes))
+				set_bit(stripe, d->full_dirty_stripes);
+		} else {
+			if (test_bit(stripe, d->full_dirty_stripes))
+				clear_bit(stripe, d->full_dirty_stripes);
+		}
 
 		nr_sectors -= s;
 		stripe_offset = 0;
@@ -705,6 +745,15 @@ static int bch_writeback_thread(void *arg)
 			 * bch_cached_dev_detach().
 			 */
 			if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags)) {
+				struct closure cl;
+
+				closure_init_stack(&cl);
+				memset(&dc->sb.set_uuid, 0, 16);
+				SET_BDEV_STATE(&dc->sb, BDEV_STATE_NONE);
+
+				bch_write_bdev_super(dc, &cl);
+				closure_sync(&cl);
+
 				up_write(&dc->writeback_lock);
 				break;
 			}
@@ -952,9 +1001,11 @@ void bch_sectors_dirty_init(struct bcache_device *d)
 		}
 	}
 
+	/*
+	 * Must wait for all threads to stop.
+	 */
 	wait_event_interruptible(state->wait,
-		 atomic_read(&state->started) == 0 ||
-		 test_bit(CACHE_SET_IO_DISABLE, &c->flags));
+		 atomic_read(&state->started) == 0);
 
 out:
 	kfree(state);
@@ -968,6 +1019,7 @@ void bch_cached_dev_writeback_init(struct cached_dev *dc)
 
 	dc->writeback_metadata		= true;
 	dc->writeback_running		= false;
+	dc->writeback_consider_fragment = true;
 	dc->writeback_percent		= 10;
 	dc->writeback_delay		= 30;
 	atomic_long_set(&dc->writeback_rate.rate, 1024);
@@ -975,6 +1027,9 @@ void bch_cached_dev_writeback_init(struct cached_dev *dc)
 
 	dc->writeback_rate_update_seconds = WRITEBACK_RATE_UPDATE_SECS_DEFAULT;
 	dc->writeback_rate_p_term_inverse = 40;
+	dc->writeback_rate_fp_term_low = 1;
+	dc->writeback_rate_fp_term_mid = 10;
+	dc->writeback_rate_fp_term_high = 1000;
 	dc->writeback_rate_i_term_inverse = 10000;
 
 	WARN_ON(test_and_clear_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags));

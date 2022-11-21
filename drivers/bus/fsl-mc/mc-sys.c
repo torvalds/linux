@@ -16,7 +16,7 @@
 
 #include "fsl-mc-private.h"
 
-/**
+/*
  * Timeout in milliseconds to wait for the completion of an MC command
  */
 #define MC_CMD_COMPLETION_TIMEOUT_MS	500
@@ -35,7 +35,7 @@ static enum mc_cmd_status mc_cmd_hdr_read_status(struct fsl_mc_command *cmd)
 	return (enum mc_cmd_status)hdr->status;
 }
 
-static u16 mc_cmd_hdr_read_cmdid(struct fsl_mc_command *cmd)
+u16 mc_cmd_hdr_read_cmdid(struct fsl_mc_command *cmd)
 {
 	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&cmd->header;
 	u16 cmd_id = le16_to_cpu(hdr->cmd_id);
@@ -148,9 +148,10 @@ static inline enum mc_cmd_status mc_read_response(struct fsl_mc_command __iomem
 }
 
 /**
- * Waits for the completion of an MC command doing preemptible polling.
- * uslepp_range() is called between polling iterations.
- *
+ * mc_polling_wait_preemptible() - Waits for the completion of an MC
+ *                                 command doing preemptible polling.
+ *                                 uslepp_range() is called between
+ *                                 polling iterations.
  * @mc_io: MC I/O object to be used
  * @cmd: command buffer to receive MC response
  * @mc_status: MC command completion status
@@ -194,9 +195,9 @@ static int mc_polling_wait_preemptible(struct fsl_mc_io *mc_io,
 }
 
 /**
- * Waits for the completion of an MC command doing atomic polling.
- * udelay() is called between polling iterations.
- *
+ * mc_polling_wait_atomic() - Waits for the completion of an MC command
+ *                            doing atomic polling. udelay() is called
+ *                            between polling iterations.
  * @mc_io: MC I/O object to be used
  * @cmd: command buffer to receive MC response
  * @mc_status: MC command completion status
@@ -234,8 +235,8 @@ static int mc_polling_wait_atomic(struct fsl_mc_io *mc_io,
 }
 
 /**
- * Sends a command to the MC device using the given MC I/O object
- *
+ * mc_send_command() - Sends a command to the MC device using the given
+ *                     MC I/O object
  * @mc_io: MC I/O object to be used
  * @cmd: command to be sent
  *

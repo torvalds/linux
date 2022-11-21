@@ -17,6 +17,14 @@
 #include "util/data.h"
 #include "util/debug.h"
 #include <linux/err.h>
+#include "util/tool.h"
+
+static int process_header_feature(struct perf_session *session __maybe_unused,
+				  union perf_event *event __maybe_unused)
+{
+	session_done = 1;
+	return 0;
+}
 
 static int __cmd_evlist(const char *file_name, struct perf_attr_details *details)
 {
@@ -27,11 +35,19 @@ static int __cmd_evlist(const char *file_name, struct perf_attr_details *details
 		.mode      = PERF_DATA_MODE_READ,
 		.force     = details->force,
 	};
+	struct perf_tool tool = {
+		/* only needed for pipe mode */
+		.attr = perf_event__process_attr,
+		.feature = process_header_feature,
+	};
 	bool has_tracepoint = false;
 
-	session = perf_session__new(&data, 0, NULL);
+	session = perf_session__new(&data, &tool);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
+
+	if (data.is_pipe)
+		perf_session__process_events(session);
 
 	evlist__for_each_entry(session->evlist, pos) {
 		evsel__fprintf(pos, details, stdout);

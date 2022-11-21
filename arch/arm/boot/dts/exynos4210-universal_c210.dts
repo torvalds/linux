@@ -16,6 +16,7 @@
 / {
 	model = "Samsung Universal C210 based on Exynos4210 rev0";
 	compatible = "samsung,universal_c210", "samsung,exynos4210", "samsung,exynos4";
+	chassis-type = "handset";
 
 	memory@40000000 {
 		device_type = "memory";
@@ -532,19 +533,37 @@
 };
 
 &pinctrl_1 {
-	lp3974_irq: lp3974-irq {
+	bt_shutdown: bt-shutdown-pins {
+		samsung,pins = "gpe1-4";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	bt_host_wakeup: bt-host-wakeup-pins {
+		samsung,pins = "gpx2-6";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	bt_device_wakeup: bt-device-wakeup-pins {
+		samsung,pins = "gpx3-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	lp3974_irq: lp3974-irq-pins {
 		samsung,pins = "gpx0-7", "gpx2-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	hdmi_hpd: hdmi-hpd {
+	hdmi_hpd: hdmi-hpd-pins {
 		samsung,pins = "gpx3-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 };
 
 &pinctrl_0 {
-	i2c_ddc_bus: i2c-ddc-bus {
+	i2c_ddc_bus: i2c-ddc-bus-pins {
 		samsung,pins = "gpe4-2", "gpe4-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
@@ -596,7 +615,7 @@
 	pinctrl-0 = <&sd3_clk>, <&sd3_cmd>, <&sd3_bus4>;
 
 	brcmf: wifi@1 {
-		compatible = "brcm,bcm4330-fmac";
+		compatible = "brcm,bcm4330-fmac", "brcm,bcm4329-fmac";
 		reg = <1>;
 		interrupt-parent = <&gpx2>;
 		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
@@ -608,6 +627,17 @@
 	status = "okay";
 	/delete-property/dmas;
 	/delete-property/dma-names;
+	pinctrl-0 = <&uart0_data &uart0_fctl>;
+	pinctrl-names = "default";
+
+	bluetooth {
+		compatible = "brcm,bcm4330-bt";
+		pinctrl-0 = <&bt_shutdown &bt_device_wakeup &bt_host_wakeup>;
+		pinctrl-names = "default";
+		shutdown-gpios = <&gpe1 4 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&gpx3 1 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpx2 6 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &serial_1 {
@@ -629,7 +659,7 @@
 };
 
 &soc {
-	mdma0: mdma@12840000 {
+	mdma0: dma-controller@12840000 {
 		compatible = "arm,pl330", "arm,primecell";
 		reg = <0x12840000 0x1000>;
 		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;

@@ -77,7 +77,7 @@ static struct ltc4151_data *ltc4151_update_device(struct device *dev)
 			data->regs[i] = val;
 		}
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 abort:
 	mutex_unlock(&data->update_lock);
@@ -128,7 +128,7 @@ static ssize_t ltc4151_value_show(struct device *dev,
 		return PTR_ERR(data);
 
 	value = ltc4151_get_value(data, attr->index);
-	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 /*

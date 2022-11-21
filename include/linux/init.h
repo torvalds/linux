@@ -47,7 +47,7 @@
 
 /* These are for everybody (although not all archs will actually
    discard it in modules) */
-#define __init		__section(".init.text") __cold  __latent_entropy __noinitretpoline
+#define __init		__section(".init.text") __cold  __latent_entropy __noinitretpoline __nocfi
 #define __initdata	__section(".init.data")
 #define __initconst	__section(".init.rodata")
 #define __exitdata	__section(".exit.data")
@@ -184,18 +184,80 @@ extern bool initcall_debug;
  * as KEEP() in the linker script.
  */
 
-#ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
-#define ___define_initcall(fn, id, __sec)			\
-	__ADDRESSABLE(fn)					\
-	asm(".section	\"" #__sec ".init\", \"a\"	\n"	\
-	"__initcall_" #fn #id ":			\n"	\
-	    ".long	" #fn " - .			\n"	\
-	    ".previous					\n");
+/* Format: <modname>__<counter>_<line>_<fn> */
+#define __initcall_id(fn)					\
+	__PASTE(__KBUILD_MODNAME,				\
+	__PASTE(__,						\
+	__PASTE(__COUNTER__,					\
+	__PASTE(_,						\
+	__PASTE(__LINE__,					\
+	__PASTE(_, fn))))))
+
+/* Format: __<prefix>__<iid><id> */
+#define __initcall_name(prefix, __iid, id)			\
+	__PASTE(__,						\
+	__PASTE(prefix,						\
+	__PASTE(__,						\
+	__PASTE(__iid, id))))
+
+#ifdef CONFIG_LTO_CLANG
+/*
+ * With LTO, the compiler doesn't necessarily obey link order for
+ * initcalls. In order to preserve the correct order, we add each
+ * variable into its own section and generate a linker script (in
+ * scripts/link-vmlinux.sh) to specify the order of the sections.
+ */
+#define __initcall_section(__sec, __iid)			\
+	#__sec ".init.." #__iid
+
+/*
+ * With LTO, the compiler can rename static functions to avoid
+ * global naming collisions. We use a global stub function for
+ * initcalls to create a stable symbol name whose address can be
+ * taken in inline assembly when PREL32 relocations are used.
+ */
+#define __initcall_stub(fn, __iid, id)				\
+	__initcall_name(initstub, __iid, id)
+
+#define __define_initcall_stub(__stub, fn)			\
+	int __init __cficanonical __stub(void);			\
+	int __init __cficanonical __stub(void)			\
+	{ 							\
+		return fn();					\
+	}							\
+	__ADDRESSABLE(__stub)
 #else
-#define ___define_initcall(fn, id, __sec) \
-	static initcall_t __initcall_##fn##id __used \
-		__attribute__((__section__(#__sec ".init"))) = fn;
+#define __initcall_section(__sec, __iid)			\
+	#__sec ".init"
+
+#define __initcall_stub(fn, __iid, id)	fn
+
+#define __define_initcall_stub(__stub, fn)			\
+	__ADDRESSABLE(fn)
 #endif
+
+#ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
+#define ____define_initcall(fn, __stub, __name, __sec)		\
+	__define_initcall_stub(__stub, fn)			\
+	asm(".section	\"" __sec "\", \"a\"		\n"	\
+	    __stringify(__name) ":			\n"	\
+	    ".long	" __stringify(__stub) " - .	\n"	\
+	    ".previous					\n");	\
+	static_assert(__same_type(initcall_t, &fn));
+#else
+#define ____define_initcall(fn, __unused, __name, __sec)	\
+	static initcall_t __name __used 			\
+		__attribute__((__section__(__sec))) = fn;
+#endif
+
+#define __unique_initcall(fn, id, __sec, __iid)			\
+	____define_initcall(fn,					\
+		__initcall_stub(fn, __iid, id),			\
+		__initcall_name(initcall, __iid, id),		\
+		__initcall_section(__sec, __iid))
+
+#define ___define_initcall(fn, id, __sec)			\
+	__unique_initcall(fn, id, __sec, __initcall_id(fn))
 
 #define __define_initcall(fn, id) ___define_initcall(fn, id, .initcall##id)
 
@@ -236,7 +298,7 @@ extern bool initcall_debug;
 #define __exitcall(fn)						\
 	static exitcall_t __exitcall_##fn __exit_call = fn
 
-#define console_initcall(fn)	___define_initcall(fn,, .con_initcall)
+#define console_initcall(fn)	___define_initcall(fn, con, .con_initcall)
 
 struct obs_kernel_param {
 	const char *str;
@@ -255,15 +317,22 @@ struct obs_kernel_param {
 		__aligned(1) = str; 					\
 	static struct obs_kernel_param __setup_##unique_id		\
 		__used __section(".init.setup")				\
-		__attribute__((aligned((sizeof(long)))))		\
+		__aligned(__alignof__(struct obs_kernel_param))		\
 		= { __setup_str_##unique_id, fn, early }
 
+/*
+ * NOTE: __setup functions return values:
+ * @fn returns 1 (or non-zero) if the option argument is "handled"
+ * and returns 0 if the option argument is "not handled".
+ */
 #define __setup(str, fn)						\
 	__setup_param(str, fn, fn, 0)
 
 /*
- * NOTE: fn is as per module_param, not __setup!
- * Emits warning if fn returns non-zero.
+ * NOTE: @fn is as per module_param, not __setup!
+ * I.e., @fn returns 0 for no error or non-zero for error
+ * (possibly @fn returns a -errno value, but it does not matter).
+ * Emits warning if @fn returns non-zero.
  */
 #define early_param(str, fn)						\
 	__setup_param(str, fn, fn, 1)
@@ -277,14 +346,14 @@ struct obs_kernel_param {
 		var = 1;						\
 		return 0;						\
 	}								\
-	__setup_param(str_on, parse_##var##_on, parse_##var##_on, 1);	\
+	early_param(str_on, parse_##var##_on);				\
 									\
 	static int __init parse_##var##_off(char *arg)			\
 	{								\
 		var = 0;						\
 		return 0;						\
 	}								\
-	__setup_param(str_off, parse_##var##_off, parse_##var##_off, 1)
+	early_param(str_off, parse_##var##_off)
 
 /* Relies on boot_command_line being set */
 void __init parse_early_param(void);

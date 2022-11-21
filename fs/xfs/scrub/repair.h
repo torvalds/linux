@@ -17,7 +17,7 @@ static inline int xrep_notsupported(struct xfs_scrub *sc)
 
 /* Repair helpers */
 
-int xrep_attempt(struct xfs_inode *ip, struct xfs_scrub *sc);
+int xrep_attempt(struct xfs_scrub *sc);
 void xrep_failure(struct xfs_mount *mp);
 int xrep_roll_ag_trans(struct xfs_scrub *sc);
 bool xrep_ag_has_space(struct xfs_perag *pag, xfs_extlen_t nr_blocks,
@@ -44,6 +44,9 @@ struct xrep_find_ag_btree {
 	/* in: buffer ops */
 	const struct xfs_buf_ops	*buf_ops;
 
+	/* in: maximum btree height */
+	unsigned int			maxlevels;
+
 	/* out: the highest btree block found and the tree height */
 	xfs_agblock_t			root;
 	unsigned int			height;
@@ -64,8 +67,8 @@ int xrep_agi(struct xfs_scrub *sc);
 
 #else
 
-static inline int xrep_attempt(
-	struct xfs_inode	*ip,
+static inline int
+xrep_attempt(
 	struct xfs_scrub	*sc)
 {
 	return -EOPNOTSUPP;

@@ -12,8 +12,6 @@
 #define ADF_DH895XCCIOV_TX_RINGS_MASK 0xFF
 #define ADF_DH895XCCIOV_ETR_BAR 0
 #define ADF_DH895XCCIOV_ETR_MAX_BANKS 1
-#define ADF_DH895XCCIOV_PF2VF_OFFSET	0x200
-#define ADF_DH895XCCIOV_VINTMSK_OFFSET	0x208
 
 void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data);
 void adf_clean_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data);

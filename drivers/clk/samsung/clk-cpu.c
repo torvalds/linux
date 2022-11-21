@@ -400,7 +400,7 @@ static int exynos5433_cpuclk_notifier_cb(struct notifier_block *nb,
 }
 
 /* helper function to register a CPU clock */
-int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
+static int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 		unsigned int lookup_id, const char *name,
 		const struct clk_hw *parent, const struct clk_hw *alt_parent,
 		unsigned long offset, const struct exynos_cpuclk_cfg_data *cfg,
@@ -468,4 +468,22 @@ unregister_clk_nb:
 free_cpuclk:
 	kfree(cpuclk);
 	return ret;
+}
+
+void __init samsung_clk_register_cpu(struct samsung_clk_provider *ctx,
+		const struct samsung_cpu_clock *list, unsigned int nr_clk)
+{
+	unsigned int idx;
+	unsigned int num_cfgs;
+	struct clk_hw **hws = ctx->clk_data.hws;
+
+	for (idx = 0; idx < nr_clk; idx++, list++) {
+		/* find count of configuration rates in cfg */
+		for (num_cfgs = 0; list->cfg[num_cfgs].prate != 0; )
+			num_cfgs++;
+
+		exynos_register_cpu_clock(ctx, list->id, list->name, hws[list->parent_id],
+				hws[list->alt_parent_id], list->offset, list->cfg, num_cfgs,
+				list->flags);
+	}
 }

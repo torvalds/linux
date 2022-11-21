@@ -19,31 +19,7 @@
 #include <linux/prefetch.h>
 #include <asm/types.h>
 #include <asm/extable.h>
-
-/*
- * The fs value determines whether argument validity checking should
- * be performed or not.  If get_fs() == USER_DS, checking is
- * performed, with get_fs() == KERNEL_DS, checking is bypassed.
- *
- * For historical reasons (Data Segment Register?), these macros are
- * grossly misnamed.
- */
-
-#define KERNEL_DS	((mm_segment_t) { 0 })
-#define USER_DS		((mm_segment_t) { 1 })
-
-#define get_fs()	(current->thread.current_ds)
-#define set_fs(val)	(current->thread.current_ds = (val))
-
-#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
-
-#define __kernel_ok (uaccess_kernel())
-#define __user_ok(addr, size) \
-		(((size) <= TASK_SIZE)&&((addr) <= TASK_SIZE-(size)))
-#define __access_ok(addr, size) (__kernel_ok || __user_ok((addr), (size)))
-#define access_ok(addr, size) __access_ok((unsigned long)(addr), (size))
-
-#define user_addr_max() (uaccess_kernel() ? ~0UL : TASK_SIZE)
+#include <asm-generic/access_ok.h>
 
 /*
  * These are the main single-value transfer routines.  They
@@ -290,8 +266,7 @@ clear_user(void __user *addr, unsigned long size)
 #define __clear_user  __xtensa_clear_user
 
 
-#ifndef CONFIG_GENERIC_STRNCPY_FROM_USER
-
+#ifdef CONFIG_ARCH_HAS_STRNCPY_FROM_USER
 extern long __strncpy_user(char *dst, const char __user *src, long count);
 
 static inline long

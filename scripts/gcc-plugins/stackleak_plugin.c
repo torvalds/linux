@@ -80,10 +80,8 @@ static bool is_alloca(gimple stmt)
 	if (gimple_call_builtin_p(stmt, BUILT_IN_ALLOCA))
 		return true;
 
-#if BUILDING_GCC_VERSION >= 4007
 	if (gimple_call_builtin_p(stmt, BUILT_IN_ALLOCA_WITH_ALIGN))
 		return true;
-#endif
 
 	return false;
 }
@@ -322,7 +320,7 @@ static void remove_stack_tracking_gcall(void)
 
 		/* Delete the stackleak_track_stack() call */
 		delete_insn_and_edges(insn);
-#if BUILDING_GCC_VERSION >= 4007 && BUILDING_GCC_VERSION < 8000
+#if BUILDING_GCC_VERSION < 8000
 		if (GET_CODE(next) == NOTE &&
 		    NOTE_KIND(next) == NOTE_INSN_CALL_ARG_LOCATION) {
 			insn = next;
@@ -431,6 +429,23 @@ static unsigned int stackleak_cleanup_execute(void)
 	return 0;
 }
 
+/*
+ * STRING_CST may or may not be NUL terminated:
+ * https://gcc.gnu.org/onlinedocs/gccint/Constant-expressions.html
+ */
+static inline bool string_equal(tree node, const char *string, int length)
+{
+	if (TREE_STRING_LENGTH(node) < length)
+		return false;
+	if (TREE_STRING_LENGTH(node) > length + 1)
+		return false;
+	if (TREE_STRING_LENGTH(node) == length + 1 &&
+	    TREE_STRING_POINTER(node)[length] != '\0')
+		return false;
+	return !memcmp(TREE_STRING_POINTER(node), string, length);
+}
+#define STRING_EQUAL(node, str)	string_equal(node, str, strlen(str))
+
 static bool stackleak_gate(void)
 {
 	tree section;
@@ -440,13 +455,17 @@ static bool stackleak_gate(void)
 	if (section && TREE_VALUE(section)) {
 		section = TREE_VALUE(TREE_VALUE(section));
 
-		if (!strncmp(TREE_STRING_POINTER(section), ".init.text", 10))
+		if (STRING_EQUAL(section, ".init.text"))
 			return false;
-		if (!strncmp(TREE_STRING_POINTER(section), ".devinit.text", 13))
+		if (STRING_EQUAL(section, ".devinit.text"))
 			return false;
-		if (!strncmp(TREE_STRING_POINTER(section), ".cpuinit.text", 13))
+		if (STRING_EQUAL(section, ".cpuinit.text"))
 			return false;
-		if (!strncmp(TREE_STRING_POINTER(section), ".meminit.text", 13))
+		if (STRING_EQUAL(section, ".meminit.text"))
+			return false;
+		if (STRING_EQUAL(section, ".noinstr.text"))
+			return false;
+		if (STRING_EQUAL(section, ".entry.text"))
 			return false;
 	}
 

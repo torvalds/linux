@@ -20,7 +20,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory@00000000 {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
@@ -29,6 +29,16 @@
 		ethernet0 = &cp1_eth1;
 		ethernet1 = &cp0_eth0;
 		ethernet2 = &cp1_eth2;
+	};
+
+	fan: pwm {
+		compatible = "pwm-fan";
+		/* 20% steps */
+		cooling-levels = <0 51 102 153 204 255>;
+		#cooling-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp0_fan_pwm_pins>;
+		pwms = <&cp0_gpio2 16 40000>;
 	};
 
 	v_3_3: regulator-3-3v {
@@ -98,6 +108,123 @@
 			gpios = <&cp1_gpio1 30 GPIO_ACTIVE_LOW>;
 			linux,can-disable;
 			linux,code = <KEY_WPS_BUTTON>;
+		};
+	};
+};
+
+&ap_thermal_ic {
+	polling-delay = <1000>; /* milliseconds */
+	trips {
+		ap_active: trip-active {
+			temperature = <40000>; /* millicelsius */
+			hysteresis = <4000>; /* millicelsius */
+			type = "active";
+		};
+	};
+	cooling-maps {
+		map0 {
+			trip = <&ap_active>;
+			cooling-device = <&fan THERMAL_NO_LIMIT 4>;
+		};
+		map1 {
+			trip = <&ap_crit>;
+			cooling-device = <&fan 4 5>;
+		};
+	};
+};
+
+&cp0_thermal_ic {
+	polling-delay = <1000>; /* milliseconds */
+	trips {
+		cp0_active0: trip-active0 {
+			temperature = <40000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+		cp0_active1: trip-active1 {
+			temperature = <45000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+		cp0_active2: trip-active2 {
+			temperature = <50000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+		cp0_active3: trip-active3 {
+			temperature = <60000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+	};
+	cooling-maps {
+		map0 {
+			trip = <&cp0_active0>;
+			cooling-device = <&fan 0 1>;
+		};
+		map1 {
+			trip = <&cp0_active1>;
+			cooling-device = <&fan 1 2>;
+		};
+		map2 {
+			trip = <&cp0_active2>;
+			cooling-device = <&fan 2 3>;
+		};
+		map3 {
+			trip = <&cp0_active3>;
+			cooling-device = <&fan 3 4>;
+		};
+		map4 {
+			trip = <&cp0_crit>;
+			cooling-device = <&fan 4 5>;
+		};
+	};
+};
+
+&cp1_thermal_ic {
+	polling-delay = <1000>; /* milliseconds */
+	trips {
+		cp1_active0: trip-active0 {
+			temperature = <40000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+		cp1_active1: trip-active1 {
+			temperature = <45000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+		cp1_active2: trip-active2 {
+			temperature = <50000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+		cp1_active3: trip-active3 {
+			temperature = <60000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+	};
+	cooling-maps {
+		map0 {
+			trip = <&cp1_active0>;
+			cooling-device = <&fan 0 1>;
+		};
+		map1 {
+			trip = <&cp1_active1>;
+			cooling-device = <&fan 1 2>;
+		};
+		map2 {
+			trip = <&cp1_active2>;
+			cooling-device = <&fan 2 3>;
+		};
+		map3 {
+			trip = <&cp1_active3>;
+			cooling-device = <&fan 3 4>;
+		};
+		map4 {
+			trip = <&cp1_crit>;
+			cooling-device = <&fan 4 5>;
 		};
 	};
 };

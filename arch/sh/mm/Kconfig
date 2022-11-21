@@ -105,7 +105,7 @@ config VSYSCALL
 	  (the default value) say Y.
 
 config NUMA
-	bool "Non Uniform Memory Access (NUMA) Support"
+	bool "Non-Uniform Memory Access (NUMA) Support"
 	depends on MMU && SYS_SUPPORTS_NUMA
 	select ARCH_WANT_NUMA_VARIABLE_LOCALITY
 	default n
@@ -120,7 +120,7 @@ config NODES_SHIFT
 	int
 	default "3" if CPU_SUBTYPE_SHX3
 	default "1"
-	depends on NEED_MULTIPLE_NODES
+	depends on NUMA
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
@@ -135,14 +135,6 @@ config ARCH_SPARSEMEM_DEFAULT
 
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
-
-config ARCH_ENABLE_MEMORY_HOTPLUG
-	def_bool y
-	depends on SPARSEMEM && MMU
-
-config ARCH_ENABLE_MEMORY_HOTREMOVE
-	def_bool y
-	depends on SPARSEMEM && MMU
 
 config ARCH_MEMORY_PROBE
 	def_bool y

@@ -363,7 +363,7 @@ static inline struct imx290 *to_imx290(struct v4l2_subdev *_sd)
 	return container_of(_sd, struct imx290, sd);
 }
 
-static inline int imx290_read_reg(struct imx290 *imx290, u16 addr, u8 *value)
+static inline int __always_unused imx290_read_reg(struct imx290 *imx290, u16 addr, u8 *value)
 {
 	unsigned int regval;
 	int ret;
@@ -516,7 +516,7 @@ static const struct v4l2_ctrl_ops imx290_ctrl_ops = {
 };
 
 static int imx290_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(imx290_formats))
@@ -528,7 +528,7 @@ static int imx290_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int imx290_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	const struct imx290 *imx290 = to_imx290(sd);
@@ -550,7 +550,7 @@ static int imx290_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int imx290_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct imx290 *imx290 = to_imx290(sd);
@@ -559,7 +559,7 @@ static int imx290_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&imx290->lock);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		framefmt = v4l2_subdev_get_try_format(&imx290->sd, cfg,
+		framefmt = v4l2_subdev_get_try_format(&imx290->sd, sd_state,
 						      fmt->pad);
 	else
 		framefmt = &imx290->current_format;
@@ -596,8 +596,8 @@ static u64 imx290_calc_pixel_rate(struct imx290 *imx290)
 }
 
 static int imx290_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
-		      struct v4l2_subdev_format *fmt)
+			  struct v4l2_subdev_state *sd_state,
+			  struct v4l2_subdev_format *fmt)
 {
 	struct imx290 *imx290 = to_imx290(sd);
 	const struct imx290_mode *mode;
@@ -624,7 +624,7 @@ static int imx290_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		format = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		format = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 	} else {
 		format = &imx290->current_format;
 		imx290->current_mode = mode;
@@ -646,15 +646,15 @@ static int imx290_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int imx290_entity_init_cfg(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_pad_config *cfg)
+				  struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_subdev_format fmt = { 0 };
 
-	fmt.which = cfg ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
+	fmt.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
 	fmt.format.width = 1920;
 	fmt.format.height = 1080;
 
-	imx290_set_fmt(subdev, cfg, &fmt);
+	imx290_set_fmt(subdev, sd_state, &fmt);
 
 	return 0;
 }
@@ -764,11 +764,9 @@ static int imx290_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	if (enable) {
-		ret = pm_runtime_get_sync(imx290->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(imx290->dev);
+		ret = pm_runtime_resume_and_get(imx290->dev);
+		if (ret < 0)
 			goto unlock_and_return;
-		}
 
 		ret = imx290_start_streaming(imx290);
 		if (ret) {
@@ -842,20 +840,19 @@ exit:
 
 static int imx290_power_on(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx290 *imx290 = to_imx290(sd);
 	int ret;
 
 	ret = clk_prepare_enable(imx290->xclk);
 	if (ret) {
-		dev_err(imx290->dev, "Failed to enable clock\n");
+		dev_err(dev, "Failed to enable clock\n");
 		return ret;
 	}
 
 	ret = regulator_bulk_enable(IMX290_NUM_SUPPLIES, imx290->supplies);
 	if (ret) {
-		dev_err(imx290->dev, "Failed to enable regulators\n");
+		dev_err(dev, "Failed to enable regulators\n");
 		clk_disable_unprepare(imx290->xclk);
 		return ret;
 	}
@@ -872,8 +869,7 @@ static int imx290_power_on(struct device *dev)
 
 static int imx290_power_off(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx290 *imx290 = to_imx290(sd);
 
 	clk_disable_unprepare(imx290->xclk);

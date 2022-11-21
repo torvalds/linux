@@ -27,6 +27,7 @@
 #include <linux/pci.h>
 #include <linux/i2c.h>
 #include "amdgpu.h"
+#include "amdgpu_dpm.h"
 #include "amdgpu_smu.h"
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
@@ -57,8 +58,6 @@
 #undef pr_info
 #undef pr_debug
 
-#define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
-
 #define FEATURE_MASK(feature) (1ULL << feature)
 #define SMC_DPM_FEATURE ( \
 	FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT) | \
@@ -70,6 +69,8 @@
 	FEATURE_MASK(FEATURE_DPM_LINK_BIT)	 | \
 	FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT))
 
+#define SMU_11_0_GFX_BUSY_THRESHOLD 15
+
 static struct cmn2asic_msg_mapping navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			PPSMC_MSG_TestMessage,			1),
 	MSG_MAP(GetSmuVersion,			PPSMC_MSG_GetSmuVersion,		1),
@@ -78,27 +79,27 @@ static struct cmn2asic_msg_mapping navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(SetAllowedFeaturesMaskHigh,	PPSMC_MSG_SetAllowedFeaturesMaskHigh,	0),
 	MSG_MAP(EnableAllSmuFeatures,		PPSMC_MSG_EnableAllSmuFeatures,		0),
 	MSG_MAP(DisableAllSmuFeatures,		PPSMC_MSG_DisableAllSmuFeatures,	0),
-	MSG_MAP(EnableSmuFeaturesLow,		PPSMC_MSG_EnableSmuFeaturesLow,		1),
-	MSG_MAP(EnableSmuFeaturesHigh,		PPSMC_MSG_EnableSmuFeaturesHigh,	1),
-	MSG_MAP(DisableSmuFeaturesLow,		PPSMC_MSG_DisableSmuFeaturesLow,	1),
-	MSG_MAP(DisableSmuFeaturesHigh,		PPSMC_MSG_DisableSmuFeaturesHigh,	1),
+	MSG_MAP(EnableSmuFeaturesLow,		PPSMC_MSG_EnableSmuFeaturesLow,		0),
+	MSG_MAP(EnableSmuFeaturesHigh,		PPSMC_MSG_EnableSmuFeaturesHigh,	0),
+	MSG_MAP(DisableSmuFeaturesLow,		PPSMC_MSG_DisableSmuFeaturesLow,	0),
+	MSG_MAP(DisableSmuFeaturesHigh,		PPSMC_MSG_DisableSmuFeaturesHigh,	0),
 	MSG_MAP(GetEnabledSmuFeaturesLow,	PPSMC_MSG_GetEnabledSmuFeaturesLow,	1),
 	MSG_MAP(GetEnabledSmuFeaturesHigh,	PPSMC_MSG_GetEnabledSmuFeaturesHigh,	1),
-	MSG_MAP(SetWorkloadMask,		PPSMC_MSG_SetWorkloadMask,		1),
+	MSG_MAP(SetWorkloadMask,		PPSMC_MSG_SetWorkloadMask,		0),
 	MSG_MAP(SetPptLimit,			PPSMC_MSG_SetPptLimit,			0),
-	MSG_MAP(SetDriverDramAddrHigh,		PPSMC_MSG_SetDriverDramAddrHigh,	0),
-	MSG_MAP(SetDriverDramAddrLow,		PPSMC_MSG_SetDriverDramAddrLow,		0),
+	MSG_MAP(SetDriverDramAddrHigh,		PPSMC_MSG_SetDriverDramAddrHigh,	1),
+	MSG_MAP(SetDriverDramAddrLow,		PPSMC_MSG_SetDriverDramAddrLow,		1),
 	MSG_MAP(SetToolsDramAddrHigh,		PPSMC_MSG_SetToolsDramAddrHigh,		0),
 	MSG_MAP(SetToolsDramAddrLow,		PPSMC_MSG_SetToolsDramAddrLow,		0),
-	MSG_MAP(TransferTableSmu2Dram,		PPSMC_MSG_TransferTableSmu2Dram,	0),
+	MSG_MAP(TransferTableSmu2Dram,		PPSMC_MSG_TransferTableSmu2Dram,	1),
 	MSG_MAP(TransferTableDram2Smu,		PPSMC_MSG_TransferTableDram2Smu,	0),
 	MSG_MAP(UseDefaultPPTable,		PPSMC_MSG_UseDefaultPPTable,		0),
 	MSG_MAP(UseBackupPPTable,		PPSMC_MSG_UseBackupPPTable,		0),
 	MSG_MAP(RunBtc,				PPSMC_MSG_RunBtc,			0),
 	MSG_MAP(EnterBaco,			PPSMC_MSG_EnterBaco,			0),
-	MSG_MAP(SetSoftMinByFreq,		PPSMC_MSG_SetSoftMinByFreq,		0),
-	MSG_MAP(SetSoftMaxByFreq,		PPSMC_MSG_SetSoftMaxByFreq,		0),
-	MSG_MAP(SetHardMinByFreq,		PPSMC_MSG_SetHardMinByFreq,		1),
+	MSG_MAP(SetSoftMinByFreq,		PPSMC_MSG_SetSoftMinByFreq,		1),
+	MSG_MAP(SetSoftMaxByFreq,		PPSMC_MSG_SetSoftMaxByFreq,		1),
+	MSG_MAP(SetHardMinByFreq,		PPSMC_MSG_SetHardMinByFreq,		0),
 	MSG_MAP(SetHardMaxByFreq,		PPSMC_MSG_SetHardMaxByFreq,		0),
 	MSG_MAP(GetMinDpmFreq,			PPSMC_MSG_GetMinDpmFreq,		1),
 	MSG_MAP(GetMaxDpmFreq,			PPSMC_MSG_GetMaxDpmFreq,		1),
@@ -236,6 +237,28 @@ static struct cmn2asic_mapping navi10_workload_map[PP_SMC_POWER_PROFILE_COUNT] =
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
 };
 
+static const uint8_t navi1x_throttler_map[] = {
+	[THROTTLER_TEMP_EDGE_BIT]	= (SMU_THROTTLER_TEMP_EDGE_BIT),
+	[THROTTLER_TEMP_HOTSPOT_BIT]	= (SMU_THROTTLER_TEMP_HOTSPOT_BIT),
+	[THROTTLER_TEMP_MEM_BIT]	= (SMU_THROTTLER_TEMP_MEM_BIT),
+	[THROTTLER_TEMP_VR_GFX_BIT]	= (SMU_THROTTLER_TEMP_VR_GFX_BIT),
+	[THROTTLER_TEMP_VR_MEM0_BIT]	= (SMU_THROTTLER_TEMP_VR_MEM0_BIT),
+	[THROTTLER_TEMP_VR_MEM1_BIT]	= (SMU_THROTTLER_TEMP_VR_MEM1_BIT),
+	[THROTTLER_TEMP_VR_SOC_BIT]	= (SMU_THROTTLER_TEMP_VR_SOC_BIT),
+	[THROTTLER_TEMP_LIQUID0_BIT]	= (SMU_THROTTLER_TEMP_LIQUID0_BIT),
+	[THROTTLER_TEMP_LIQUID1_BIT]	= (SMU_THROTTLER_TEMP_LIQUID1_BIT),
+	[THROTTLER_TDC_GFX_BIT]		= (SMU_THROTTLER_TDC_GFX_BIT),
+	[THROTTLER_TDC_SOC_BIT]		= (SMU_THROTTLER_TDC_SOC_BIT),
+	[THROTTLER_PPT0_BIT]		= (SMU_THROTTLER_PPT0_BIT),
+	[THROTTLER_PPT1_BIT]		= (SMU_THROTTLER_PPT1_BIT),
+	[THROTTLER_PPT2_BIT]		= (SMU_THROTTLER_PPT2_BIT),
+	[THROTTLER_PPT3_BIT]		= (SMU_THROTTLER_PPT3_BIT),
+	[THROTTLER_FIT_BIT]		= (SMU_THROTTLER_FIT_BIT),
+	[THROTTLER_PPM_BIT]		= (SMU_THROTTLER_PPM_BIT),
+	[THROTTLER_APCC_BIT]		= (SMU_THROTTLER_APCC_BIT),
+};
+
+
 static bool is_asic_secure(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -321,7 +344,7 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 
 	/* DPM UCLK enablement should be skipped for navi10 A0 secure board */
 	if (!(is_asic_secure(smu) &&
-	     (adev->asic_type == CHIP_NAVI10) &&
+	     (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 0)) &&
 	     (adev->rev_id == 0)) &&
 	    (adev->pm.pp_feature & PP_MCLK_DPM_MASK))
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
@@ -330,7 +353,7 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 
 	/* DS SOCCLK enablement should be skipped for navi10 A0 secure board */
 	if (is_asic_secure(smu) &&
-	    (adev->asic_type == CHIP_NAVI10) &&
+	    (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 0)) &&
 	    (adev->rev_id == 0))
 		*(uint64_t *)feature_mask &=
 				~FEATURE_MASK(FEATURE_DS_SOCCLK_BIT);
@@ -338,19 +361,34 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 	return 0;
 }
 
-static int navi10_check_powerplay_table(struct smu_context *smu)
+static void navi10_check_bxco_support(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
 	struct smu_11_0_powerplay_table *powerplay_table =
 		table_context->power_play_table;
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t val;
+
+	if (powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_BACO ||
+	    powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_MACO) {
+		val = RREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP0);
+		smu_baco->platform_support =
+			(val & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK) ? true :
+									false;
+	}
+}
+
+static int navi10_check_powerplay_table(struct smu_context *smu)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_11_0_powerplay_table *powerplay_table =
+		table_context->power_play_table;
 
 	if (powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_HARDWAREDC)
 		smu->dc_controlled_by_gpio = true;
 
-	if (powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_BACO ||
-	    powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_MACO)
-		smu_baco->platform_support = true;
+	navi10_check_bxco_support(smu);
 
 	table_context->thermal_controller_type =
 		powerplay_table->thermal_controller_type;
@@ -392,16 +430,16 @@ static int navi10_append_powerplay_table(struct smu_context *smu)
 
 	switch (smc_dpm_table->table_header.content_revision) {
 	case 5: /* nv10 and nv14 */
-		memcpy(smc_pptable->I2cControllers, smc_dpm_table->I2cControllers,
-			sizeof(*smc_dpm_table) - sizeof(smc_dpm_table->table_header));
+		smu_memcpy_trailing(smc_pptable, I2cControllers, BoardReserved,
+				    smc_dpm_table, I2cControllers);
 		break;
 	case 7: /* nv12 */
 		ret = amdgpu_atombios_get_data_table(adev, index, NULL, NULL, NULL,
 					      (uint8_t **)&smc_dpm_table_v4_7);
 		if (ret)
 			return ret;
-		memcpy(smc_pptable->I2cControllers, smc_dpm_table_v4_7->I2cControllers,
-			sizeof(*smc_dpm_table_v4_7) - sizeof(smc_dpm_table_v4_7->table_header));
+		smu_memcpy_trailing(smc_pptable, I2cControllers, BoardReserved,
+				    smc_dpm_table_v4_7, I2cControllers);
 		break;
 	default:
 		dev_err(smu->adev->dev, "smc_dpm_info with unsupported content revision %d!\n",
@@ -456,18 +494,13 @@ static int navi10_tables_init(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
-	struct amdgpu_device *adev = smu->adev;
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_PPTABLE, sizeof(PPTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-	if (adev->asic_type == CHIP_NAVI12)
-		SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_NV12_t),
-			       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-	else
-		SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
-			       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_NV1X_t),
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_I2C_COMMANDS, sizeof(SwI2cRequest_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_OVERDRIVE, sizeof(OverDriveTable_t),
@@ -477,15 +510,16 @@ static int navi10_tables_init(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_ACTIVITY_MONITOR_COEFF,
 		       sizeof(DpmActivityMonitorCoeffInt_t), PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, SMU_TABLE_DRIVER_SMU_CONFIG, sizeof(DriverSmuConfig_t),
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->metrics_table = kzalloc(adev->asic_type == CHIP_NAVI12 ?
-					   sizeof(SmuMetrics_NV12_t) :
-					   sizeof(SmuMetrics_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_NV1X_t),
+					   GFP_KERNEL);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 	smu_table->metrics_time = 0;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_0);
+	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_3);
 	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
 	if (!smu_table->gpu_metrics_table)
 		goto err1_out;
@@ -494,8 +528,15 @@ static int navi10_tables_init(struct smu_context *smu)
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
+	smu_table->driver_smu_config_table =
+		kzalloc(tables[SMU_TABLE_DRIVER_SMU_CONFIG].size, GFP_KERNEL);
+	if (!smu_table->driver_smu_config_table)
+		goto err3_out;
+
 	return 0;
 
+err3_out:
+	kfree(smu_table->watermarks_table);
 err2_out:
 	kfree(smu_table->gpu_metrics_table);
 err1_out:
@@ -504,28 +545,20 @@ err0_out:
 	return -ENOMEM;
 }
 
-static int navi10_get_smu_metrics_data(struct smu_context *smu,
-				       MetricsMember_t member,
-				       uint32_t *value)
+static int navi10_get_legacy_smu_metrics_data(struct smu_context *smu,
+					      MetricsMember_t member,
+					      uint32_t *value)
 {
 	struct smu_table_context *smu_table= &smu->smu_table;
-	/*
-	 * This works for NV12 also. As although NV12 uses a different
-	 * SmuMetrics structure from other NV1X ASICs, they share the
-	 * same offsets for the heading parts(those members used here).
-	 */
-	SmuMetrics_t *metrics = (SmuMetrics_t *)smu_table->metrics_table;
+	SmuMetrics_legacy_t *metrics =
+		(SmuMetrics_legacy_t *)smu_table->metrics_table;
 	int ret = 0;
 
-	mutex_lock(&smu->metrics_lock);
-
-	ret = smu_cmn_get_metrics_table_locked(smu,
-					       NULL,
-					       false);
-	if (ret) {
-		mutex_unlock(&smu->metrics_lock);
+	ret = smu_cmn_get_metrics_table(smu,
+					NULL,
+					false);
+	if (ret)
 		return ret;
-	}
 
 	switch (member) {
 	case METRICS_CURR_GFXCLK:
@@ -595,7 +628,304 @@ static int navi10_get_smu_metrics_data(struct smu_context *smu,
 		break;
 	}
 
-	mutex_unlock(&smu->metrics_lock);
+	return ret;
+}
+
+static int navi10_get_smu_metrics_data(struct smu_context *smu,
+				       MetricsMember_t member,
+				       uint32_t *value)
+{
+	struct smu_table_context *smu_table= &smu->smu_table;
+	SmuMetrics_t *metrics =
+		(SmuMetrics_t *)smu_table->metrics_table;
+	int ret = 0;
+
+	ret = smu_cmn_get_metrics_table(smu,
+					NULL,
+					false);
+	if (ret)
+		return ret;
+
+	switch (member) {
+	case METRICS_CURR_GFXCLK:
+		*value = metrics->CurrClock[PPCLK_GFXCLK];
+		break;
+	case METRICS_CURR_SOCCLK:
+		*value = metrics->CurrClock[PPCLK_SOCCLK];
+		break;
+	case METRICS_CURR_UCLK:
+		*value = metrics->CurrClock[PPCLK_UCLK];
+		break;
+	case METRICS_CURR_VCLK:
+		*value = metrics->CurrClock[PPCLK_VCLK];
+		break;
+	case METRICS_CURR_DCLK:
+		*value = metrics->CurrClock[PPCLK_DCLK];
+		break;
+	case METRICS_CURR_DCEFCLK:
+		*value = metrics->CurrClock[PPCLK_DCEFCLK];
+		break;
+	case METRICS_AVERAGE_GFXCLK:
+		if (metrics->AverageGfxActivity > SMU_11_0_GFX_BUSY_THRESHOLD)
+			*value = metrics->AverageGfxclkFrequencyPreDs;
+		else
+			*value = metrics->AverageGfxclkFrequencyPostDs;
+		break;
+	case METRICS_AVERAGE_SOCCLK:
+		*value = metrics->AverageSocclkFrequency;
+		break;
+	case METRICS_AVERAGE_UCLK:
+		*value = metrics->AverageUclkFrequencyPostDs;
+		break;
+	case METRICS_AVERAGE_GFXACTIVITY:
+		*value = metrics->AverageGfxActivity;
+		break;
+	case METRICS_AVERAGE_MEMACTIVITY:
+		*value = metrics->AverageUclkActivity;
+		break;
+	case METRICS_AVERAGE_SOCKETPOWER:
+		*value = metrics->AverageSocketPower << 8;
+		break;
+	case METRICS_TEMPERATURE_EDGE:
+		*value = metrics->TemperatureEdge *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_HOTSPOT:
+		*value = metrics->TemperatureHotspot *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_MEM:
+		*value = metrics->TemperatureMem *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRGFX:
+		*value = metrics->TemperatureVrGfx *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRSOC:
+		*value = metrics->TemperatureVrSoc *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_THROTTLER_STATUS:
+		*value = metrics->ThrottlerStatus;
+		break;
+	case METRICS_CURR_FANSPEED:
+		*value = metrics->CurrFanSpeed;
+		break;
+	default:
+		*value = UINT_MAX;
+		break;
+	}
+
+	return ret;
+}
+
+static int navi12_get_legacy_smu_metrics_data(struct smu_context *smu,
+					      MetricsMember_t member,
+					      uint32_t *value)
+{
+	struct smu_table_context *smu_table= &smu->smu_table;
+	SmuMetrics_NV12_legacy_t *metrics =
+		(SmuMetrics_NV12_legacy_t *)smu_table->metrics_table;
+	int ret = 0;
+
+	ret = smu_cmn_get_metrics_table(smu,
+					NULL,
+					false);
+	if (ret)
+		return ret;
+
+	switch (member) {
+	case METRICS_CURR_GFXCLK:
+		*value = metrics->CurrClock[PPCLK_GFXCLK];
+		break;
+	case METRICS_CURR_SOCCLK:
+		*value = metrics->CurrClock[PPCLK_SOCCLK];
+		break;
+	case METRICS_CURR_UCLK:
+		*value = metrics->CurrClock[PPCLK_UCLK];
+		break;
+	case METRICS_CURR_VCLK:
+		*value = metrics->CurrClock[PPCLK_VCLK];
+		break;
+	case METRICS_CURR_DCLK:
+		*value = metrics->CurrClock[PPCLK_DCLK];
+		break;
+	case METRICS_CURR_DCEFCLK:
+		*value = metrics->CurrClock[PPCLK_DCEFCLK];
+		break;
+	case METRICS_AVERAGE_GFXCLK:
+		*value = metrics->AverageGfxclkFrequency;
+		break;
+	case METRICS_AVERAGE_SOCCLK:
+		*value = metrics->AverageSocclkFrequency;
+		break;
+	case METRICS_AVERAGE_UCLK:
+		*value = metrics->AverageUclkFrequency;
+		break;
+	case METRICS_AVERAGE_GFXACTIVITY:
+		*value = metrics->AverageGfxActivity;
+		break;
+	case METRICS_AVERAGE_MEMACTIVITY:
+		*value = metrics->AverageUclkActivity;
+		break;
+	case METRICS_AVERAGE_SOCKETPOWER:
+		*value = metrics->AverageSocketPower << 8;
+		break;
+	case METRICS_TEMPERATURE_EDGE:
+		*value = metrics->TemperatureEdge *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_HOTSPOT:
+		*value = metrics->TemperatureHotspot *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_MEM:
+		*value = metrics->TemperatureMem *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRGFX:
+		*value = metrics->TemperatureVrGfx *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRSOC:
+		*value = metrics->TemperatureVrSoc *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_THROTTLER_STATUS:
+		*value = metrics->ThrottlerStatus;
+		break;
+	case METRICS_CURR_FANSPEED:
+		*value = metrics->CurrFanSpeed;
+		break;
+	default:
+		*value = UINT_MAX;
+		break;
+	}
+
+	return ret;
+}
+
+static int navi12_get_smu_metrics_data(struct smu_context *smu,
+				       MetricsMember_t member,
+				       uint32_t *value)
+{
+	struct smu_table_context *smu_table= &smu->smu_table;
+	SmuMetrics_NV12_t *metrics =
+		(SmuMetrics_NV12_t *)smu_table->metrics_table;
+	int ret = 0;
+
+	ret = smu_cmn_get_metrics_table(smu,
+					NULL,
+					false);
+	if (ret)
+		return ret;
+
+	switch (member) {
+	case METRICS_CURR_GFXCLK:
+		*value = metrics->CurrClock[PPCLK_GFXCLK];
+		break;
+	case METRICS_CURR_SOCCLK:
+		*value = metrics->CurrClock[PPCLK_SOCCLK];
+		break;
+	case METRICS_CURR_UCLK:
+		*value = metrics->CurrClock[PPCLK_UCLK];
+		break;
+	case METRICS_CURR_VCLK:
+		*value = metrics->CurrClock[PPCLK_VCLK];
+		break;
+	case METRICS_CURR_DCLK:
+		*value = metrics->CurrClock[PPCLK_DCLK];
+		break;
+	case METRICS_CURR_DCEFCLK:
+		*value = metrics->CurrClock[PPCLK_DCEFCLK];
+		break;
+	case METRICS_AVERAGE_GFXCLK:
+		if (metrics->AverageGfxActivity > SMU_11_0_GFX_BUSY_THRESHOLD)
+			*value = metrics->AverageGfxclkFrequencyPreDs;
+		else
+			*value = metrics->AverageGfxclkFrequencyPostDs;
+		break;
+	case METRICS_AVERAGE_SOCCLK:
+		*value = metrics->AverageSocclkFrequency;
+		break;
+	case METRICS_AVERAGE_UCLK:
+		*value = metrics->AverageUclkFrequencyPostDs;
+		break;
+	case METRICS_AVERAGE_GFXACTIVITY:
+		*value = metrics->AverageGfxActivity;
+		break;
+	case METRICS_AVERAGE_MEMACTIVITY:
+		*value = metrics->AverageUclkActivity;
+		break;
+	case METRICS_AVERAGE_SOCKETPOWER:
+		*value = metrics->AverageSocketPower << 8;
+		break;
+	case METRICS_TEMPERATURE_EDGE:
+		*value = metrics->TemperatureEdge *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_HOTSPOT:
+		*value = metrics->TemperatureHotspot *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_MEM:
+		*value = metrics->TemperatureMem *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRGFX:
+		*value = metrics->TemperatureVrGfx *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRSOC:
+		*value = metrics->TemperatureVrSoc *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_THROTTLER_STATUS:
+		*value = metrics->ThrottlerStatus;
+		break;
+	case METRICS_CURR_FANSPEED:
+		*value = metrics->CurrFanSpeed;
+		break;
+	default:
+		*value = UINT_MAX;
+		break;
+	}
+
+	return ret;
+}
+
+static int navi1x_get_smu_metrics_data(struct smu_context *smu,
+				       MetricsMember_t member,
+				       uint32_t *value)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t smu_version;
+	int ret = 0;
+
+	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (ret) {
+		dev_err(adev->dev, "Failed to get smu version!\n");
+		return ret;
+	}
+
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(11, 0, 9):
+		if (smu_version > 0x00341C00)
+			ret = navi12_get_smu_metrics_data(smu, member, value);
+		else
+			ret = navi12_get_legacy_smu_metrics_data(smu, member, value);
+		break;
+	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 5):
+	default:
+		if (((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 5)) && smu_version > 0x00351F00) ||
+		      ((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 0)) && smu_version > 0x002A3B00))
+			ret = navi10_get_smu_metrics_data(smu, member, value);
+		else
+			ret = navi10_get_legacy_smu_metrics_data(smu, member, value);
+		break;
+	}
 
 	return ret;
 }
@@ -880,7 +1210,7 @@ static int navi10_get_current_clk_freq_by_table(struct smu_context *smu,
 		return -EINVAL;
 	}
 
-	return navi10_get_smu_metrics_data(smu,
+	return navi1x_get_smu_metrics_data(smu,
 					   member_type,
 					   value);
 }
@@ -897,7 +1227,7 @@ static bool navi10_is_support_fine_grained_dpm(struct smu_context *smu, enum smu
 	dpm_desc = &pptable->DpmDescriptor[clk_index];
 
 	/* 0 - Fine grained DPM, 1 - Discrete DPM */
-	return dpm_desc->SnapToDiscrete == 0 ? true : false;
+	return dpm_desc->SnapToDiscrete == 0;
 }
 
 static inline bool navi10_od_feature_is_supported(struct smu_11_0_overdrive_table *od_table, enum SMU_11_0_ODFEATURE_CAP cap)
@@ -915,14 +1245,16 @@ static void navi10_od_setting_get_range(struct smu_11_0_overdrive_table *od_tabl
 		*max = od_table->max[setting];
 }
 
-static int navi10_print_clk_levels(struct smu_context *smu,
-			enum smu_clk_type clk_type, char *buf)
+static int navi10_emit_clk_levels(struct smu_context *smu,
+				  enum smu_clk_type clk_type,
+				  char *buf,
+				  int *offset)
 {
 	uint16_t *curve_settings;
-	int i, size = 0, ret = 0;
-	uint32_t cur_value = 0, value = 0, count = 0;
+	int ret = 0;
+	uint32_t cur_value = 0, value = 0;
 	uint32_t freq_values[3] = {0};
-	uint32_t mark_index = 0;
+	uint32_t i, levels, mark_index = 0, count = 0;
 	struct smu_table_context *table_context = &smu->smu_table;
 	uint32_t gen_speed, lane_width;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
@@ -940,6 +1272,217 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 	case SMU_MCLK:
 	case SMU_UCLK:
 	case SMU_FCLK:
+	case SMU_VCLK:
+	case SMU_DCLK:
+	case SMU_DCEFCLK:
+		ret = navi10_get_current_clk_freq_by_table(smu, clk_type, &cur_value);
+		if (ret)
+			return ret;
+
+		ret = smu_v11_0_get_dpm_level_count(smu, clk_type, &count);
+		if (ret)
+			return ret;
+
+		if (!navi10_is_support_fine_grained_dpm(smu, clk_type)) {
+			for (i = 0; i < count; i++) {
+				ret = smu_v11_0_get_dpm_freq_by_index(smu,
+								      clk_type, i, &value);
+				if (ret)
+					return ret;
+
+				*offset += sysfs_emit_at(buf, *offset,
+						"%d: %uMhz %s\n",
+						i, value,
+						cur_value == value ? "*" : "");
+			}
+		} else {
+			ret = smu_v11_0_get_dpm_freq_by_index(smu,
+							      clk_type, 0, &freq_values[0]);
+			if (ret)
+				return ret;
+			ret = smu_v11_0_get_dpm_freq_by_index(smu,
+							      clk_type,
+							      count - 1,
+							      &freq_values[2]);
+			if (ret)
+				return ret;
+
+			freq_values[1] = cur_value;
+			mark_index = cur_value == freq_values[0] ? 0 :
+				     cur_value == freq_values[2] ? 2 : 1;
+
+			levels = 3;
+			if (mark_index != 1) {
+				levels = 2;
+				freq_values[1] = freq_values[2];
+			}
+
+			for (i = 0; i < levels; i++) {
+				*offset += sysfs_emit_at(buf, *offset,
+						"%d: %uMhz %s\n",
+						i, freq_values[i],
+						i == mark_index ? "*" : "");
+			}
+		}
+		break;
+	case SMU_PCIE:
+		gen_speed = smu_v11_0_get_current_pcie_link_speed_level(smu);
+		lane_width = smu_v11_0_get_current_pcie_link_width_level(smu);
+		for (i = 0; i < NUM_LINK_LEVELS; i++) {
+			*offset += sysfs_emit_at(buf, *offset, "%d: %s %s %dMhz %s\n", i,
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 0) ? "2.5GT/s," :
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 1) ? "5.0GT/s," :
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 2) ? "8.0GT/s," :
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 3) ? "16.0GT/s," : "",
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 1) ? "x1" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 2) ? "x2" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 3) ? "x4" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 4) ? "x8" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 5) ? "x12" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 6) ? "x16" : "",
+					pptable->LclkFreq[i],
+					(gen_speed == dpm_context->dpm_tables.pcie_table.pcie_gen[i]) &&
+					(lane_width == dpm_context->dpm_tables.pcie_table.pcie_lane[i]) ?
+					"*" : "");
+		}
+		break;
+	case SMU_OD_SCLK:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			return -EOPNOTSUPP;
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_LIMITS))
+			break;
+		*offset += sysfs_emit_at(buf, *offset, "OD_SCLK:\n0: %uMhz\n1: %uMhz\n",
+					  od_table->GfxclkFmin, od_table->GfxclkFmax);
+		break;
+	case SMU_OD_MCLK:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			return -EOPNOTSUPP;
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_UCLK_MAX))
+			break;
+		*offset += sysfs_emit_at(buf, *offset, "OD_MCLK:\n1: %uMHz\n", od_table->UclkFmax);
+		break;
+	case SMU_OD_VDDC_CURVE:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			return -EOPNOTSUPP;
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_CURVE))
+			break;
+		*offset += sysfs_emit_at(buf, *offset, "OD_VDDC_CURVE:\n");
+		for (i = 0; i < 3; i++) {
+			switch (i) {
+			case 0:
+				curve_settings = &od_table->GfxclkFreq1;
+				break;
+			case 1:
+				curve_settings = &od_table->GfxclkFreq2;
+				break;
+			case 2:
+				curve_settings = &od_table->GfxclkFreq3;
+				break;
+			default:
+				break;
+			}
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMHz %umV\n",
+						  i, curve_settings[0],
+					curve_settings[1] / NAVI10_VOLTAGE_SCALE);
+		}
+		break;
+	case SMU_OD_RANGE:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			return -EOPNOTSUPP;
+		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "OD_RANGE");
+
+		if (navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_LIMITS)) {
+			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_GFXCLKFMIN,
+						    &min_value, NULL);
+			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_GFXCLKFMAX,
+						    NULL, &max_value);
+			*offset += sysfs_emit_at(buf, *offset, "SCLK: %7uMhz %10uMhz\n",
+					min_value, max_value);
+		}
+
+		if (navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_UCLK_MAX)) {
+			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_UCLKFMAX,
+						    &min_value, &max_value);
+			*offset += sysfs_emit_at(buf, *offset, "MCLK: %7uMhz %10uMhz\n",
+					min_value, max_value);
+		}
+
+		if (navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_CURVE)) {
+			navi10_od_setting_get_range(od_settings,
+						    SMU_11_0_ODSETTING_VDDGFXCURVEFREQ_P1,
+						    &min_value, &max_value);
+			*offset += sysfs_emit_at(buf, *offset,
+						 "VDDC_CURVE_SCLK[0]: %7uMhz %10uMhz\n",
+						 min_value, max_value);
+			navi10_od_setting_get_range(od_settings,
+						    SMU_11_0_ODSETTING_VDDGFXCURVEVOLTAGE_P1,
+						    &min_value, &max_value);
+			*offset += sysfs_emit_at(buf, *offset,
+						 "VDDC_CURVE_VOLT[0]: %7dmV %11dmV\n",
+						 min_value, max_value);
+			navi10_od_setting_get_range(od_settings,
+						    SMU_11_0_ODSETTING_VDDGFXCURVEFREQ_P2,
+						    &min_value, &max_value);
+			*offset += sysfs_emit_at(buf, *offset,
+						 "VDDC_CURVE_SCLK[1]: %7uMhz %10uMhz\n",
+						 min_value, max_value);
+			navi10_od_setting_get_range(od_settings,
+						    SMU_11_0_ODSETTING_VDDGFXCURVEVOLTAGE_P2,
+						    &min_value, &max_value);
+			*offset += sysfs_emit_at(buf, *offset,
+						 "VDDC_CURVE_VOLT[1]: %7dmV %11dmV\n",
+						 min_value, max_value);
+			navi10_od_setting_get_range(od_settings,
+						    SMU_11_0_ODSETTING_VDDGFXCURVEFREQ_P3,
+						    &min_value, &max_value);
+			*offset += sysfs_emit_at(buf, *offset,
+						 "VDDC_CURVE_SCLK[2]: %7uMhz %10uMhz\n",
+						 min_value, max_value);
+			navi10_od_setting_get_range(od_settings,
+						    SMU_11_0_ODSETTING_VDDGFXCURVEVOLTAGE_P3,
+						    &min_value, &max_value);
+			*offset += sysfs_emit_at(buf, *offset,
+						 "VDDC_CURVE_VOLT[2]: %7dmV %11dmV\n",
+						 min_value, max_value);
+		}
+
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int navi10_print_clk_levels(struct smu_context *smu,
+			enum smu_clk_type clk_type, char *buf)
+{
+	uint16_t *curve_settings;
+	int i, levels, size = 0, ret = 0;
+	uint32_t cur_value = 0, value = 0, count = 0;
+	uint32_t freq_values[3] = {0};
+	uint32_t mark_index = 0;
+	struct smu_table_context *table_context = &smu->smu_table;
+	uint32_t gen_speed, lane_width;
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	PPTable_t *pptable = (PPTable_t *)table_context->driver_pptable;
+	OverDriveTable_t *od_table =
+		(OverDriveTable_t *)table_context->overdrive_table;
+	struct smu_11_0_overdrive_table *od_settings = smu->od_settings;
+	uint32_t min_value, max_value;
+
+	smu_cmn_get_sysfs_buf(&buf, &size);
+
+	switch (clk_type) {
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+	case SMU_SOCCLK:
+	case SMU_MCLK:
+	case SMU_UCLK:
+	case SMU_FCLK:
+	case SMU_VCLK:
+	case SMU_DCLK:
 	case SMU_DCEFCLK:
 		ret = navi10_get_current_clk_freq_by_table(smu, clk_type, &cur_value);
 		if (ret)
@@ -955,7 +1498,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 				if (ret)
 					return size;
 
-				size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
+				size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
 						cur_value == value ? "*" : "");
 			}
 		} else {
@@ -969,21 +1512,24 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 			freq_values[1] = cur_value;
 			mark_index = cur_value == freq_values[0] ? 0 :
 				     cur_value == freq_values[2] ? 2 : 1;
-			if (mark_index != 1)
-				freq_values[1] = (freq_values[0] + freq_values[2]) / 2;
 
-			for (i = 0; i < 3; i++) {
-				size += sprintf(buf + size, "%d: %uMhz %s\n", i, freq_values[i],
-						i == mark_index ? "*" : "");
+			levels = 3;
+			if (mark_index != 1) {
+				levels = 2;
+				freq_values[1] = freq_values[2];
 			}
 
+			for (i = 0; i < levels; i++) {
+				size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, freq_values[i],
+						i == mark_index ? "*" : "");
+			}
 		}
 		break;
 	case SMU_PCIE:
 		gen_speed = smu_v11_0_get_current_pcie_link_speed_level(smu);
 		lane_width = smu_v11_0_get_current_pcie_link_width_level(smu);
 		for (i = 0; i < NUM_LINK_LEVELS; i++)
-			size += sprintf(buf + size, "%d: %s %s %dMhz %s\n", i,
+			size += sysfs_emit_at(buf, size, "%d: %s %s %dMhz %s\n", i,
 					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 0) ? "2.5GT/s," :
 					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 1) ? "5.0GT/s," :
 					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 2) ? "8.0GT/s," :
@@ -1004,23 +1550,24 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 			break;
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_LIMITS))
 			break;
-		size += sprintf(buf + size, "OD_SCLK:\n");
-		size += sprintf(buf + size, "0: %uMhz\n1: %uMhz\n", od_table->GfxclkFmin, od_table->GfxclkFmax);
+		size += sysfs_emit_at(buf, size, "OD_SCLK:\n");
+		size += sysfs_emit_at(buf, size, "0: %uMhz\n1: %uMhz\n",
+				      od_table->GfxclkFmin, od_table->GfxclkFmax);
 		break;
 	case SMU_OD_MCLK:
 		if (!smu->od_enabled || !od_table || !od_settings)
 			break;
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_UCLK_MAX))
 			break;
-		size += sprintf(buf + size, "OD_MCLK:\n");
-		size += sprintf(buf + size, "1: %uMHz\n", od_table->UclkFmax);
+		size += sysfs_emit_at(buf, size, "OD_MCLK:\n");
+		size += sysfs_emit_at(buf, size, "1: %uMHz\n", od_table->UclkFmax);
 		break;
 	case SMU_OD_VDDC_CURVE:
 		if (!smu->od_enabled || !od_table || !od_settings)
 			break;
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_CURVE))
 			break;
-		size += sprintf(buf + size, "OD_VDDC_CURVE:\n");
+		size += sysfs_emit_at(buf, size, "OD_VDDC_CURVE:\n");
 		for (i = 0; i < 3; i++) {
 			switch (i) {
 			case 0:
@@ -1035,55 +1582,57 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 			default:
 				break;
 			}
-			size += sprintf(buf + size, "%d: %uMHz %umV\n", i, curve_settings[0], curve_settings[1] / NAVI10_VOLTAGE_SCALE);
+			size += sysfs_emit_at(buf, size, "%d: %uMHz %umV\n",
+					      i, curve_settings[0],
+					curve_settings[1] / NAVI10_VOLTAGE_SCALE);
 		}
 		break;
 	case SMU_OD_RANGE:
 		if (!smu->od_enabled || !od_table || !od_settings)
 			break;
-		size = sprintf(buf, "%s:\n", "OD_RANGE");
+		size += sysfs_emit_at(buf, size, "%s:\n", "OD_RANGE");
 
 		if (navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_LIMITS)) {
 			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_GFXCLKFMIN,
 						    &min_value, NULL);
 			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_GFXCLKFMAX,
 						    NULL, &max_value);
-			size += sprintf(buf + size, "SCLK: %7uMhz %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "SCLK: %7uMhz %10uMhz\n",
 					min_value, max_value);
 		}
 
 		if (navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_UCLK_MAX)) {
 			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_UCLKFMAX,
 						    &min_value, &max_value);
-			size += sprintf(buf + size, "MCLK: %7uMhz %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "MCLK: %7uMhz %10uMhz\n",
 					min_value, max_value);
 		}
 
 		if (navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_CURVE)) {
 			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_VDDGFXCURVEFREQ_P1,
 						    &min_value, &max_value);
-			size += sprintf(buf + size, "VDDC_CURVE_SCLK[0]: %7uMhz %10uMhz\n",
-					min_value, max_value);
+			size += sysfs_emit_at(buf, size, "VDDC_CURVE_SCLK[0]: %7uMhz %10uMhz\n",
+					      min_value, max_value);
 			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_VDDGFXCURVEVOLTAGE_P1,
 						    &min_value, &max_value);
-			size += sprintf(buf + size, "VDDC_CURVE_VOLT[0]: %7dmV %11dmV\n",
-					min_value, max_value);
+			size += sysfs_emit_at(buf, size, "VDDC_CURVE_VOLT[0]: %7dmV %11dmV\n",
+					      min_value, max_value);
 			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_VDDGFXCURVEFREQ_P2,
 						    &min_value, &max_value);
-			size += sprintf(buf + size, "VDDC_CURVE_SCLK[1]: %7uMhz %10uMhz\n",
-					min_value, max_value);
+			size += sysfs_emit_at(buf, size, "VDDC_CURVE_SCLK[1]: %7uMhz %10uMhz\n",
+					      min_value, max_value);
 			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_VDDGFXCURVEVOLTAGE_P2,
 						    &min_value, &max_value);
-			size += sprintf(buf + size, "VDDC_CURVE_VOLT[1]: %7dmV %11dmV\n",
-					min_value, max_value);
+			size += sysfs_emit_at(buf, size, "VDDC_CURVE_VOLT[1]: %7dmV %11dmV\n",
+					      min_value, max_value);
 			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_VDDGFXCURVEFREQ_P3,
 						    &min_value, &max_value);
-			size += sprintf(buf + size, "VDDC_CURVE_SCLK[2]: %7uMhz %10uMhz\n",
-					min_value, max_value);
+			size += sysfs_emit_at(buf, size, "VDDC_CURVE_SCLK[2]: %7uMhz %10uMhz\n",
+					      min_value, max_value);
 			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_VDDGFXCURVEVOLTAGE_P3,
 						    &min_value, &max_value);
-			size += sprintf(buf + size, "VDDC_CURVE_VOLT[2]: %7dmV %11dmV\n",
-					min_value, max_value);
+			size += sysfs_emit_at(buf, size, "VDDC_CURVE_VOLT[2]: %7dmV %11dmV\n",
+					      min_value, max_value);
 		}
 
 		break;
@@ -1110,7 +1659,6 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 	case SMU_SOCCLK:
 	case SMU_MCLK:
 	case SMU_UCLK:
-	case SMU_DCEFCLK:
 	case SMU_FCLK:
 		/* There is only 2 levels for fine grained DPM */
 		if (navi10_is_support_fine_grained_dpm(smu, clk_type)) {
@@ -1130,6 +1678,10 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 		if (ret)
 			return size;
 		break;
+	case SMU_DCEFCLK:
+		dev_info(smu->adev->dev,"Setting DCEFCLK min/max dpm level is not supported!\n");
+		break;
+
 	default:
 		break;
 	}
@@ -1153,8 +1705,8 @@ static int navi10_populate_umd_state_clk(struct smu_context *smu)
 	uint32_t sclk_freq;
 
 	pstate_table->gfxclk_pstate.min = gfx_table->min;
-	switch (adev->asic_type) {
-	case CHIP_NAVI10:
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(11, 0, 0):
 		switch (adev->pdev->revision) {
 		case 0xf0: /* XTX */
 		case 0xc0:
@@ -1169,7 +1721,7 @@ static int navi10_populate_umd_state_clk(struct smu_context *smu)
 			break;
 		}
 		break;
-	case CHIP_NAVI14:
+	case IP_VERSION(11, 0, 5):
 		switch (adev->pdev->revision) {
 		case 0xc7: /* XT */
 		case 0xf4:
@@ -1192,7 +1744,7 @@ static int navi10_populate_umd_state_clk(struct smu_context *smu)
 			break;
 		}
 		break;
-	case CHIP_NAVI12:
+	case IP_VERSION(11, 0, 9):
 		sclk_freq = NAVI12_UMD_PSTATE_PEAK_GFXCLK;
 		break;
 	default:
@@ -1290,8 +1842,8 @@ static int navi10_display_config_changed(struct smu_context *smu)
 	int ret = 0;
 
 	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
-	    smu_cmn_feature_is_supported(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
-	    smu_cmn_feature_is_supported(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
+	    smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
+	    smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays,
 						  smu->display_config->num_display,
 						  NULL);
@@ -1302,55 +1854,14 @@ static int navi10_display_config_changed(struct smu_context *smu)
 	return ret;
 }
 
-static int navi10_get_gpu_power(struct smu_context *smu, uint32_t *value)
-{
-	if (!value)
-		return -EINVAL;
-
-	return navi10_get_smu_metrics_data(smu,
-					   METRICS_AVERAGE_SOCKETPOWER,
-					   value);
-}
-
-static int navi10_get_current_activity_percent(struct smu_context *smu,
-					       enum amd_pp_sensors sensor,
-					       uint32_t *value)
-{
-	int ret = 0;
-
-	if (!value)
-		return -EINVAL;
-
-	switch (sensor) {
-	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = navi10_get_smu_metrics_data(smu,
-						  METRICS_AVERAGE_GFXACTIVITY,
-						  value);
-		break;
-	case AMDGPU_PP_SENSOR_MEM_LOAD:
-		ret = navi10_get_smu_metrics_data(smu,
-						  METRICS_AVERAGE_MEMACTIVITY,
-						  value);
-		break;
-	default:
-		dev_err(smu->adev->dev, "Invalid sensor for retrieving clock activity\n");
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
 static bool navi10_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
-	uint32_t feature_mask[2];
 	uint64_t feature_enabled;
 
-	ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
+	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 	if (ret)
 		return false;
-
-	feature_enabled = (uint64_t)feature_mask[1] << 32 | feature_mask[0];
 
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
@@ -1358,12 +1869,24 @@ static bool navi10_is_dpm_running(struct smu_context *smu)
 static int navi10_get_fan_speed_rpm(struct smu_context *smu,
 				    uint32_t *speed)
 {
+	int ret = 0;
+
 	if (!speed)
 		return -EINVAL;
 
-	return navi10_get_smu_metrics_data(smu,
-					   METRICS_CURR_FANSPEED,
-					   speed);
+	switch (smu_v11_0_get_fan_control_mode(smu)) {
+	case AMD_FAN_CTRL_AUTO:
+		ret = navi10_get_smu_metrics_data(smu,
+						  METRICS_CURR_FANSPEED,
+						  speed);
+		break;
+	default:
+		ret = smu_v11_0_get_fan_speed_rpm(smu,
+						  speed);
+		break;
+	}
+
+	return ret;
 }
 
 static int navi10_get_fan_parameters(struct smu_context *smu)
@@ -1380,14 +1903,6 @@ static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
 	DpmActivityMonitorCoeffInt_t activity_monitor;
 	uint32_t i, size = 0;
 	int16_t workload_type = 0;
-	static const char *profile_name[] = {
-					"BOOTUP_DEFAULT",
-					"3D_FULL_SCREEN",
-					"POWER_SAVING",
-					"VIDEO",
-					"VR",
-					"COMPUTE",
-					"CUSTOM"};
 	static const char *title[] = {
 			"PROFILE_INDEX(NAME)",
 			"CLOCK_TYPE(NAME)",
@@ -1405,7 +1920,7 @@ static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
 	if (!buf)
 		return -EINVAL;
 
-	size += sprintf(buf + size, "%16s %s %s %s %s %s %s %s %s %s %s\n",
+	size += sysfs_emit_at(buf, size, "%16s %s %s %s %s %s %s %s %s %s %s\n",
 			title[0], title[1], title[2], title[3], title[4], title[5],
 			title[6], title[7], title[8], title[9], title[10]);
 
@@ -1425,10 +1940,10 @@ static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
 			return result;
 		}
 
-		size += sprintf(buf + size, "%2d %14s%s:\n",
-			i, profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
+		size += sysfs_emit_at(buf, size, "%2d %14s%s:\n",
+			i, amdgpu_pp_profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
 
-		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+		size += sysfs_emit_at(buf, size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
 			" ",
 			0,
 			"GFXCLK",
@@ -1442,7 +1957,7 @@ static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
 			activity_monitor.Gfx_PD_Data_error_coeff,
 			activity_monitor.Gfx_PD_Data_error_rate_coeff);
 
-		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+		size += sysfs_emit_at(buf, size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
 			" ",
 			1,
 			"SOCCLK",
@@ -1456,7 +1971,7 @@ static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
 			activity_monitor.Soc_PD_Data_error_coeff,
 			activity_monitor.Soc_PD_Data_error_rate_coeff);
 
-		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+		size += sysfs_emit_at(buf, size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
 			" ",
 			2,
 			"MEMLK",
@@ -1563,13 +2078,13 @@ static int navi10_notify_smc_display_config(struct smu_context *smu)
 	min_clocks.dcef_clock_in_sr = smu->display_config->min_dcef_deep_sleep_set_clk;
 	min_clocks.memory_clock = smu->display_config->min_mem_set_clock;
 
-	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		clock_req.clock_type = amd_pp_dcef_clock;
 		clock_req.clock_freq_in_khz = min_clocks.dcef_clock * 10;
 
 		ret = smu_v11_0_display_clock_voltage_request(smu, &clock_req);
 		if (!ret) {
-			if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_DS_DCEFCLK_BIT)) {
+			if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DS_DCEFCLK_BIT)) {
 				ret = smu_cmn_send_smc_msg_with_param(smu,
 								  SMU_MSG_SetMinDeepSleepDcefclk,
 								  min_clocks.dcef_clock_in_sr/100,
@@ -1652,39 +2167,6 @@ static int navi10_set_watermarks_table(struct smu_context *smu,
 	return 0;
 }
 
-static int navi10_thermal_get_temperature(struct smu_context *smu,
-					     enum amd_pp_sensors sensor,
-					     uint32_t *value)
-{
-	int ret = 0;
-
-	if (!value)
-		return -EINVAL;
-
-	switch (sensor) {
-	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
-		ret = navi10_get_smu_metrics_data(smu,
-						  METRICS_TEMPERATURE_HOTSPOT,
-						  value);
-		break;
-	case AMDGPU_PP_SENSOR_EDGE_TEMP:
-		ret = navi10_get_smu_metrics_data(smu,
-						  METRICS_TEMPERATURE_EDGE,
-						  value);
-		break;
-	case AMDGPU_PP_SENSOR_MEM_TEMP:
-		ret = navi10_get_smu_metrics_data(smu,
-						  METRICS_TEMPERATURE_MEM,
-						  value);
-		break;
-	default:
-		dev_err(smu->adev->dev, "Invalid sensor for retrieving temp\n");
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
 static int navi10_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,
 				 void *data, uint32_t *size)
@@ -1696,25 +2178,45 @@ static int navi10_read_sensor(struct smu_context *smu,
 	if(!data || !size)
 		return -EINVAL;
 
-	mutex_lock(&smu->sensor_lock);
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_MAX_FAN_RPM:
 		*(uint32_t *)data = pptable->FanMaximumRpm;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_MEM_LOAD:
+		ret = navi1x_get_smu_metrics_data(smu,
+						  METRICS_AVERAGE_MEMACTIVITY,
+						  (uint32_t *)data);
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = navi10_get_current_activity_percent(smu, sensor, (uint32_t *)data);
+		ret = navi1x_get_smu_metrics_data(smu,
+						  METRICS_AVERAGE_GFXACTIVITY,
+						  (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
-		ret = navi10_get_gpu_power(smu, (uint32_t *)data);
+		ret = navi1x_get_smu_metrics_data(smu,
+						  METRICS_AVERAGE_SOCKETPOWER,
+						  (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+		ret = navi1x_get_smu_metrics_data(smu,
+						  METRICS_TEMPERATURE_HOTSPOT,
+						  (uint32_t *)data);
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+		ret = navi1x_get_smu_metrics_data(smu,
+						  METRICS_TEMPERATURE_EDGE,
+						  (uint32_t *)data);
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_MEM_TEMP:
-		ret = navi10_thermal_get_temperature(smu, sensor, (uint32_t *)data);
+		ret = navi1x_get_smu_metrics_data(smu,
+						  METRICS_TEMPERATURE_MEM,
+						  (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
@@ -1723,7 +2225,7 @@ static int navi10_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
-		ret = navi10_get_current_clk_freq_by_table(smu, SMU_GFXCLK, (uint32_t *)data);
+		ret = navi1x_get_smu_metrics_data(smu, METRICS_AVERAGE_GFXCLK, (uint32_t *)data);
 		*(uint32_t *)data *= 100;
 		*size = 4;
 		break;
@@ -1735,7 +2237,6 @@ static int navi10_read_sensor(struct smu_context *smu,
 		ret = -EOPNOTSUPP;
 		break;
 	}
-	mutex_unlock(&smu->sensor_lock);
 
 	return ret;
 }
@@ -1823,7 +2324,10 @@ static int navi10_display_disable_memory_clock_switch(struct smu_context *smu,
 	return ret;
 }
 
-static int navi10_get_power_limit(struct smu_context *smu)
+static int navi10_get_power_limit(struct smu_context *smu,
+				  uint32_t *current_power_limit,
+				  uint32_t *default_power_limit,
+				  uint32_t *max_power_limit)
 {
 	struct smu_11_0_powerplay_table *powerplay_table =
 		(struct smu_11_0_powerplay_table *)smu->smu_table.power_play_table;
@@ -1840,18 +2344,25 @@ static int navi10_get_power_limit(struct smu_context *smu)
 		power_limit =
 			pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
 	}
-	smu->current_power_limit = power_limit;
 
-	if (smu->od_enabled &&
-	    navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_POWER_LIMIT)) {
-		od_percent = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_11_0_ODSETTING_POWERPERCENTAGE]);
+	if (current_power_limit)
+		*current_power_limit = power_limit;
+	if (default_power_limit)
+		*default_power_limit = power_limit;
 
-		dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_percent, power_limit);
+	if (max_power_limit) {
+		if (smu->od_enabled &&
+		    navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_POWER_LIMIT)) {
+			od_percent = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_11_0_ODSETTING_POWERPERCENTAGE]);
 
-		power_limit *= (100 + od_percent);
-		power_limit /= 100;
+			dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_percent, power_limit);
+
+			power_limit *= (100 + od_percent);
+			power_limit /= 100;
+		}
+
+		*max_power_limit = power_limit;
 	}
-	smu->max_power_limit = power_limit;
 
 	return 0;
 }
@@ -1942,16 +2453,47 @@ static int navi10_overdrive_get_gfx_clk_base_voltage(struct smu_context *smu,
 	return 0;
 }
 
-static bool navi10_is_baco_supported(struct smu_context *smu)
+static int navi10_baco_enter(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t val;
 
-	if (amdgpu_sriov_vf(adev) || (!smu_v11_0_baco_is_support(smu)))
-		return false;
+	/*
+	 * This aims the case below:
+	 *   amdgpu driver loaded -> runpm suspend kicked -> sound driver loaded
+	 *
+	 * For NAVI10 and later ASICs, we rely on PMFW to handle the runpm. To
+	 * make that possible, PMFW needs to acknowledge the dstate transition
+	 * process for both gfx(function 0) and audio(function 1) function of
+	 * the ASIC.
+	 *
+	 * The PCI device's initial runpm status is RUNPM_SUSPENDED. So as the
+	 * device representing the audio function of the ASIC. And that means
+	 * even if the sound driver(snd_hda_intel) was not loaded yet, it's still
+	 * possible runpm suspend kicked on the ASIC. However without the dstate
+	 * transition notification from audio function, pmfw cannot handle the
+	 * BACO in/exit correctly. And that will cause driver hang on runpm
+	 * resuming.
+	 *
+	 * To address this, we revert to legacy message way(driver masters the
+	 * timing for BACO in/exit) on sound driver missing.
+	 */
+	if (adev->in_runpm && smu_cmn_is_audio_func_enabled(adev))
+		return smu_v11_0_baco_set_armd3_sequence(smu, BACO_SEQ_BACO);
+	else
+		return smu_v11_0_baco_enter(smu);
+}
 
-	val = RREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP0);
-	return (val & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK) ? true : false;
+static int navi10_baco_exit(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	if (adev->in_runpm && smu_cmn_is_audio_func_enabled(adev)) {
+		/* Wait for PMFW handling for the Dstate change */
+		msleep(10);
+		return smu_v11_0_baco_set_armd3_sequence(smu, BACO_SEQ_ULPS);
+	} else {
+		return smu_v11_0_baco_exit(smu);
+	}
 }
 
 static int navi10_set_default_od_settings(struct smu_context *smu)
@@ -1960,41 +2502,52 @@ static int navi10_set_default_od_settings(struct smu_context *smu)
 		(OverDriveTable_t *)smu->smu_table.overdrive_table;
 	OverDriveTable_t *boot_od_table =
 		(OverDriveTable_t *)smu->smu_table.boot_overdrive_table;
+	OverDriveTable_t *user_od_table =
+		(OverDriveTable_t *)smu->smu_table.user_overdrive_table;
 	int ret = 0;
 
-	ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, false);
+	/*
+	 * For S3/S4/Runpm resume, no need to setup those overdrive tables again as
+	 *   - either they already have the default OD settings got during cold bootup
+	 *   - or they have some user customized OD settings which cannot be overwritten
+	 */
+	if (smu->adev->in_suspend)
+		return 0;
+
+	ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)boot_od_table, false);
 	if (ret) {
 		dev_err(smu->adev->dev, "Failed to get overdrive table!\n");
 		return ret;
 	}
 
-	if (!od_table->GfxclkVolt1) {
+	if (!boot_od_table->GfxclkVolt1) {
 		ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
-								&od_table->GfxclkVolt1,
-								od_table->GfxclkFreq1);
+								&boot_od_table->GfxclkVolt1,
+								boot_od_table->GfxclkFreq1);
 		if (ret)
 			return ret;
 	}
 
-	if (!od_table->GfxclkVolt2) {
+	if (!boot_od_table->GfxclkVolt2) {
 		ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
-								&od_table->GfxclkVolt2,
-								od_table->GfxclkFreq2);
+								&boot_od_table->GfxclkVolt2,
+								boot_od_table->GfxclkFreq2);
 		if (ret)
 			return ret;
 	}
 
-	if (!od_table->GfxclkVolt3) {
+	if (!boot_od_table->GfxclkVolt3) {
 		ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
-								&od_table->GfxclkVolt3,
-								od_table->GfxclkFreq3);
+								&boot_od_table->GfxclkVolt3,
+								boot_od_table->GfxclkFreq3);
 		if (ret)
 			return ret;
 	}
 
-	memcpy(boot_od_table, od_table, sizeof(OverDriveTable_t));
+	navi10_dump_od_table(smu, boot_od_table);
 
-	navi10_dump_od_table(smu, od_table);
+	memcpy(od_table, boot_od_table, sizeof(OverDriveTable_t));
+	memcpy(user_od_table, boot_od_table, sizeof(OverDriveTable_t));
 
 	return 0;
 }
@@ -2095,11 +2648,20 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		memcpy(table_context->overdrive_table, table_context->boot_overdrive_table, sizeof(OverDriveTable_t));
 		break;
 	case PP_OD_COMMIT_DPM_TABLE:
-		navi10_dump_od_table(smu, od_table);
-		ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, true);
-		if (ret) {
-			dev_err(smu->adev->dev, "Failed to import overdrive table!\n");
-			return ret;
+		if (memcmp(od_table, table_context->user_overdrive_table, sizeof(OverDriveTable_t))) {
+			navi10_dump_od_table(smu, od_table);
+			ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, true);
+			if (ret) {
+				dev_err(smu->adev->dev, "Failed to import overdrive table!\n");
+				return ret;
+			}
+			memcpy(table_context->user_overdrive_table, od_table, sizeof(OverDriveTable_t));
+			smu->user_dpm_profile.user_od = true;
+
+			if (!memcmp(table_context->user_overdrive_table,
+				    table_context->boot_overdrive_table,
+				    sizeof(OverDriveTable_t)))
+				smu->user_dpm_profile.user_od = false;
 		}
 		break;
 	case PP_OD_EDIT_VDDC_CURVE:
@@ -2183,8 +2745,8 @@ static bool navi10_need_umc_cdr_workaround(struct smu_context *smu)
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT))
 		return false;
 
-	if (adev->asic_type == CHIP_NAVI10 ||
-	    adev->asic_type == CHIP_NAVI14)
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 0) ||
+	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 5))
 		return true;
 
 	return false;
@@ -2292,8 +2854,8 @@ static int navi10_run_umc_cdr_workaround(struct smu_context *smu)
 	 * - PPSMC_MSG_SetDriverDummyTableDramAddrLow
 	 * - PPSMC_MSG_GetUMCFWWA
 	 */
-	if (((adev->asic_type == CHIP_NAVI10) && (pmfw_version >= 0x2a3500)) ||
-	    ((adev->asic_type == CHIP_NAVI14) && (pmfw_version >= 0x351D00))) {
+	if (((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 0)) && (pmfw_version >= 0x2a3500)) ||
+	    ((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 5)) && (pmfw_version >= 0x351D00))) {
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 						      SMU_MSG_GET_UMC_FW_WA,
 						      0,
@@ -2312,251 +2874,37 @@ static int navi10_run_umc_cdr_workaround(struct smu_context *smu)
 			return 0;
 
 		if (umc_fw_disable_cdr) {
-			if (adev->asic_type == CHIP_NAVI10)
+			if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 0))
 				return navi10_umc_hybrid_cdr_workaround(smu);
 		} else {
 			return navi10_set_dummy_pstates_table_location(smu);
 		}
 	} else {
-		if (adev->asic_type == CHIP_NAVI10)
+		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 0))
 			return navi10_umc_hybrid_cdr_workaround(smu);
 	}
 
 	return 0;
 }
 
-static void navi10_fill_i2c_req(SwI2cRequest_t  *req, bool write,
-				  uint8_t address, uint32_t numbytes,
-				  uint8_t *data)
-{
-	int i;
-
-	req->I2CcontrollerPort = 0;
-	req->I2CSpeed = 2;
-	req->SlaveAddress = address;
-	req->NumCmds = numbytes;
-
-	for (i = 0; i < numbytes; i++) {
-		SwI2cCmd_t *cmd =  &req->SwI2cCmds[i];
-
-		/* First 2 bytes are always write for lower 2b EEPROM address */
-		if (i < 2)
-			cmd->Cmd = 1;
-		else
-			cmd->Cmd = write;
-
-
-		/* Add RESTART for read  after address filled */
-		cmd->CmdConfig |= (i == 2 && !write) ? CMDCONFIG_RESTART_MASK : 0;
-
-		/* Add STOP in the end */
-		cmd->CmdConfig |= (i == (numbytes - 1)) ? CMDCONFIG_STOP_MASK : 0;
-
-		/* Fill with data regardless if read or write to simplify code */
-		cmd->RegisterAddr = data[i];
-	}
-}
-
-static int navi10_i2c_read_data(struct i2c_adapter *control,
-					       uint8_t address,
-					       uint8_t *data,
-					       uint32_t numbytes)
-{
-	uint32_t  i, ret = 0;
-	SwI2cRequest_t req;
-	struct amdgpu_device *adev = to_amdgpu_device(control);
-	struct smu_table_context *smu_table = &adev->smu.smu_table;
-	struct smu_table *table = &smu_table->driver_table;
-
-	if (numbytes > MAX_SW_I2C_COMMANDS) {
-		dev_err(adev->dev, "numbytes requested %d is over max allowed %d\n",
-			numbytes, MAX_SW_I2C_COMMANDS);
-		return -EINVAL;
-	}
-
-	memset(&req, 0, sizeof(req));
-	navi10_fill_i2c_req(&req, false, address, numbytes, data);
-
-	mutex_lock(&adev->smu.mutex);
-	/* Now read data starting with that address */
-	ret = smu_cmn_update_table(&adev->smu, SMU_TABLE_I2C_COMMANDS, 0, &req,
-				   true);
-	mutex_unlock(&adev->smu.mutex);
-
-	if (!ret) {
-		SwI2cRequest_t *res = (SwI2cRequest_t *)table->cpu_addr;
-
-		/* Assume SMU  fills res.SwI2cCmds[i].Data with read bytes */
-		for (i = 0; i < numbytes; i++)
-			data[i] = res->SwI2cCmds[i].Data;
-
-		dev_dbg(adev->dev, "navi10_i2c_read_data, address = %x, bytes = %d, data :",
-				  (uint16_t)address, numbytes);
-
-		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE,
-			       8, 1, data, numbytes, false);
-	} else
-		dev_err(adev->dev, "navi10_i2c_read_data - error occurred :%x", ret);
-
-	return ret;
-}
-
-static int navi10_i2c_write_data(struct i2c_adapter *control,
-						uint8_t address,
-						uint8_t *data,
-						uint32_t numbytes)
-{
-	uint32_t ret;
-	SwI2cRequest_t req;
-	struct amdgpu_device *adev = to_amdgpu_device(control);
-
-	if (numbytes > MAX_SW_I2C_COMMANDS) {
-		dev_err(adev->dev, "numbytes requested %d is over max allowed %d\n",
-			numbytes, MAX_SW_I2C_COMMANDS);
-		return -EINVAL;
-	}
-
-	memset(&req, 0, sizeof(req));
-	navi10_fill_i2c_req(&req, true, address, numbytes, data);
-
-	mutex_lock(&adev->smu.mutex);
-	ret = smu_cmn_update_table(&adev->smu, SMU_TABLE_I2C_COMMANDS, 0, &req, true);
-	mutex_unlock(&adev->smu.mutex);
-
-	if (!ret) {
-		dev_dbg(adev->dev, "navi10_i2c_write(), address = %x, bytes = %d , data: ",
-					 (uint16_t)address, numbytes);
-
-		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE,
-			       8, 1, data, numbytes, false);
-		/*
-		 * According to EEPROM spec there is a MAX of 10 ms required for
-		 * EEPROM to flush internal RX buffer after STOP was issued at the
-		 * end of write transaction. During this time the EEPROM will not be
-		 * responsive to any more commands - so wait a bit more.
-		 */
-		msleep(10);
-
-	} else
-		dev_err(adev->dev, "navi10_i2c_write- error occurred :%x", ret);
-
-	return ret;
-}
-
-static int navi10_i2c_xfer(struct i2c_adapter *i2c_adap,
-			      struct i2c_msg *msgs, int num)
-{
-	uint32_t  i, j, ret, data_size, data_chunk_size, next_eeprom_addr = 0;
-	uint8_t *data_ptr, data_chunk[MAX_SW_I2C_COMMANDS] = { 0 };
-
-	for (i = 0; i < num; i++) {
-		/*
-		 * SMU interface allows at most MAX_SW_I2C_COMMANDS bytes of data at
-		 * once and hence the data needs to be spliced into chunks and sent each
-		 * chunk separately
-		 */
-		data_size = msgs[i].len - 2;
-		data_chunk_size = MAX_SW_I2C_COMMANDS - 2;
-		next_eeprom_addr = (msgs[i].buf[0] << 8 & 0xff00) | (msgs[i].buf[1] & 0xff);
-		data_ptr = msgs[i].buf + 2;
-
-		for (j = 0; j < data_size / data_chunk_size; j++) {
-			/* Insert the EEPROM dest addess, bits 0-15 */
-			data_chunk[0] = ((next_eeprom_addr >> 8) & 0xff);
-			data_chunk[1] = (next_eeprom_addr & 0xff);
-
-			if (msgs[i].flags & I2C_M_RD) {
-				ret = navi10_i2c_read_data(i2c_adap,
-							     (uint8_t)msgs[i].addr,
-							     data_chunk, MAX_SW_I2C_COMMANDS);
-
-				memcpy(data_ptr, data_chunk + 2, data_chunk_size);
-			} else {
-
-				memcpy(data_chunk + 2, data_ptr, data_chunk_size);
-
-				ret = navi10_i2c_write_data(i2c_adap,
-							      (uint8_t)msgs[i].addr,
-							      data_chunk, MAX_SW_I2C_COMMANDS);
-			}
-
-			if (ret) {
-				num = -EIO;
-				goto fail;
-			}
-
-			next_eeprom_addr += data_chunk_size;
-			data_ptr += data_chunk_size;
-		}
-
-		if (data_size % data_chunk_size) {
-			data_chunk[0] = ((next_eeprom_addr >> 8) & 0xff);
-			data_chunk[1] = (next_eeprom_addr & 0xff);
-
-			if (msgs[i].flags & I2C_M_RD) {
-				ret = navi10_i2c_read_data(i2c_adap,
-							     (uint8_t)msgs[i].addr,
-							     data_chunk, (data_size % data_chunk_size) + 2);
-
-				memcpy(data_ptr, data_chunk + 2, data_size % data_chunk_size);
-			} else {
-				memcpy(data_chunk + 2, data_ptr, data_size % data_chunk_size);
-
-				ret = navi10_i2c_write_data(i2c_adap,
-							      (uint8_t)msgs[i].addr,
-							      data_chunk, (data_size % data_chunk_size) + 2);
-			}
-
-			if (ret) {
-				num = -EIO;
-				goto fail;
-			}
-		}
-	}
-
-fail:
-	return num;
-}
-
-static u32 navi10_i2c_func(struct i2c_adapter *adap)
-{
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
-}
-
-
-static const struct i2c_algorithm navi10_i2c_algo = {
-	.master_xfer = navi10_i2c_xfer,
-	.functionality = navi10_i2c_func,
-};
-
-static ssize_t navi10_get_gpu_metrics(struct smu_context *smu,
-				      void **table)
+static ssize_t navi10_get_legacy_gpu_metrics(struct smu_context *smu,
+					     void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct gpu_metrics_v1_0 *gpu_metrics =
-		(struct gpu_metrics_v1_0 *)smu_table->gpu_metrics_table;
-	struct amdgpu_device *adev = smu->adev;
-	SmuMetrics_NV12_t nv12_metrics = { 0 };
-	SmuMetrics_t metrics;
+	struct gpu_metrics_v1_3 *gpu_metrics =
+		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+	SmuMetrics_legacy_t metrics;
 	int ret = 0;
 
-	mutex_lock(&smu->metrics_lock);
-
-	ret = smu_cmn_get_metrics_table_locked(smu,
-					       NULL,
-					       true);
-	if (ret) {
-		mutex_unlock(&smu->metrics_lock);
+	ret = smu_cmn_get_metrics_table(smu,
+					NULL,
+					true);
+	if (ret)
 		return ret;
-	}
 
-	memcpy(&metrics, smu_table->metrics_table, sizeof(SmuMetrics_t));
-	if (adev->asic_type == CHIP_NAVI12)
-		memcpy(&nv12_metrics, smu_table->metrics_table, sizeof(SmuMetrics_NV12_t));
+	memcpy(&metrics, smu_table->metrics_table, sizeof(SmuMetrics_legacy_t));
 
-	mutex_unlock(&smu->metrics_lock);
-
-	smu_v11_0_init_gpu_metrics_v1_0(gpu_metrics);
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 3);
 
 	gpu_metrics->temperature_edge = metrics.TemperatureEdge;
 	gpu_metrics->temperature_hotspot = metrics.TemperatureHotspot;
@@ -2574,13 +2922,6 @@ static ssize_t navi10_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->average_socclk_frequency = metrics.AverageSocclkFrequency;
 	gpu_metrics->average_uclk_frequency = metrics.AverageUclkFrequency;
 
-	if (adev->asic_type == CHIP_NAVI12) {
-		gpu_metrics->energy_accumulator = nv12_metrics.EnergyAccumulator;
-		gpu_metrics->average_vclk0_frequency = nv12_metrics.AverageVclkFrequency;
-		gpu_metrics->average_dclk0_frequency = nv12_metrics.AverageDclkFrequency;
-		gpu_metrics->average_mm_activity = nv12_metrics.VcnActivityPercentage;
-	}
-
 	gpu_metrics->current_gfxclk = metrics.CurrClock[PPCLK_GFXCLK];
 	gpu_metrics->current_socclk = metrics.CurrClock[PPCLK_SOCCLK];
 	gpu_metrics->current_uclk = metrics.CurrClock[PPCLK_UCLK];
@@ -2588,6 +2929,9 @@ static ssize_t navi10_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->current_dclk0 = metrics.CurrClock[PPCLK_DCLK];
 
 	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
+	gpu_metrics->indep_throttle_status =
+			smu_cmn_get_indep_throttler_status(metrics.ThrottlerStatus,
+							   navi1x_throttler_map);
 
 	gpu_metrics->current_fan_speed = metrics.CurrFanSpeed;
 
@@ -2596,18 +2940,450 @@ static ssize_t navi10_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->pcie_link_speed =
 			smu_v11_0_get_current_pcie_link_speed(smu);
 
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+
+	if (metrics.CurrGfxVoltageOffset)
+		gpu_metrics->voltage_gfx =
+			(155000 - 625 * metrics.CurrGfxVoltageOffset) / 100;
+	if (metrics.CurrMemVidOffset)
+		gpu_metrics->voltage_mem =
+			(155000 - 625 * metrics.CurrMemVidOffset) / 100;
+	if (metrics.CurrSocVoltageOffset)
+		gpu_metrics->voltage_soc =
+			(155000 - 625 * metrics.CurrSocVoltageOffset) / 100;
+
 	*table = (void *)gpu_metrics;
 
-	return sizeof(struct gpu_metrics_v1_0);
+	return sizeof(struct gpu_metrics_v1_3);
+}
+
+static int navi10_i2c_xfer(struct i2c_adapter *i2c_adap,
+			   struct i2c_msg *msg, int num_msgs)
+{
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(i2c_adap);
+	struct amdgpu_device *adev = smu_i2c->adev;
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *table = &smu_table->driver_table;
+	SwI2cRequest_t *req, *res = (SwI2cRequest_t *)table->cpu_addr;
+	int i, j, r, c;
+	u16 dir;
+
+	if (!adev->pm.dpm_enabled)
+		return -EBUSY;
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	req->I2CcontrollerPort = smu_i2c->port;
+	req->I2CSpeed = I2C_SPEED_FAST_400K;
+	req->SlaveAddress = msg[0].addr << 1; /* wants an 8-bit address */
+	dir = msg[0].flags & I2C_M_RD;
+
+	for (c = i = 0; i < num_msgs; i++) {
+		for (j = 0; j < msg[i].len; j++, c++) {
+			SwI2cCmd_t *cmd = &req->SwI2cCmds[c];
+
+			if (!(msg[i].flags & I2C_M_RD)) {
+				/* write */
+				cmd->Cmd = I2C_CMD_WRITE;
+				cmd->RegisterAddr = msg[i].buf[j];
+			}
+
+			if ((dir ^ msg[i].flags) & I2C_M_RD) {
+				/* The direction changes.
+				 */
+				dir = msg[i].flags & I2C_M_RD;
+				cmd->CmdConfig |= CMDCONFIG_RESTART_MASK;
+			}
+
+			req->NumCmds++;
+
+			/*
+			 * Insert STOP if we are at the last byte of either last
+			 * message for the transaction or the client explicitly
+			 * requires a STOP at this particular message.
+			 */
+			if ((j == msg[i].len - 1) &&
+			    ((i == num_msgs - 1) || (msg[i].flags & I2C_M_STOP))) {
+				cmd->CmdConfig &= ~CMDCONFIG_RESTART_MASK;
+				cmd->CmdConfig |= CMDCONFIG_STOP_MASK;
+			}
+		}
+	}
+	mutex_lock(&adev->pm.mutex);
+	r = smu_cmn_update_table(smu, SMU_TABLE_I2C_COMMANDS, 0, req, true);
+	mutex_unlock(&adev->pm.mutex);
+	if (r)
+		goto fail;
+
+	for (c = i = 0; i < num_msgs; i++) {
+		if (!(msg[i].flags & I2C_M_RD)) {
+			c += msg[i].len;
+			continue;
+		}
+		for (j = 0; j < msg[i].len; j++, c++) {
+			SwI2cCmd_t *cmd = &res->SwI2cCmds[c];
+
+			msg[i].buf[j] = cmd->Data;
+		}
+	}
+	r = num_msgs;
+fail:
+	kfree(req);
+	return r;
+}
+
+static u32 navi10_i2c_func(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+}
+
+
+static const struct i2c_algorithm navi10_i2c_algo = {
+	.master_xfer = navi10_i2c_xfer,
+	.functionality = navi10_i2c_func,
+};
+
+static const struct i2c_adapter_quirks navi10_i2c_control_quirks = {
+	.flags = I2C_AQ_COMB | I2C_AQ_COMB_SAME_ADDR | I2C_AQ_NO_ZERO_LEN,
+	.max_read_len  = MAX_SW_I2C_COMMANDS,
+	.max_write_len = MAX_SW_I2C_COMMANDS,
+	.max_comb_1st_msg_len = 2,
+	.max_comb_2nd_msg_len = MAX_SW_I2C_COMMANDS - 2,
+};
+
+static int navi10_i2c_control_init(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int res, i;
+
+	for (i = 0; i < MAX_SMU_I2C_BUSES; i++) {
+		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
+		struct i2c_adapter *control = &smu_i2c->adapter;
+
+		smu_i2c->adev = adev;
+		smu_i2c->port = i;
+		mutex_init(&smu_i2c->mutex);
+		control->owner = THIS_MODULE;
+		control->class = I2C_CLASS_HWMON;
+		control->dev.parent = &adev->pdev->dev;
+		control->algo = &navi10_i2c_algo;
+		snprintf(control->name, sizeof(control->name), "AMDGPU SMU %d", i);
+		control->quirks = &navi10_i2c_control_quirks;
+		i2c_set_adapdata(control, smu_i2c);
+
+		res = i2c_add_adapter(control);
+		if (res) {
+			DRM_ERROR("Failed to register hw i2c, err: %d\n", res);
+			goto Out_err;
+		}
+	}
+
+	adev->pm.ras_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
+	adev->pm.fru_eeprom_i2c_bus = &adev->pm.smu_i2c[1].adapter;
+
+	return 0;
+Out_err:
+	for ( ; i >= 0; i--) {
+		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
+		struct i2c_adapter *control = &smu_i2c->adapter;
+
+		i2c_del_adapter(control);
+	}
+	return res;
+}
+
+static void navi10_i2c_control_fini(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int i;
+
+	for (i = 0; i < MAX_SMU_I2C_BUSES; i++) {
+		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
+		struct i2c_adapter *control = &smu_i2c->adapter;
+
+		i2c_del_adapter(control);
+	}
+	adev->pm.ras_eeprom_i2c_bus = NULL;
+	adev->pm.fru_eeprom_i2c_bus = NULL;
+}
+
+static ssize_t navi10_get_gpu_metrics(struct smu_context *smu,
+				      void **table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct gpu_metrics_v1_3 *gpu_metrics =
+		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+	SmuMetrics_t metrics;
+	int ret = 0;
+
+	ret = smu_cmn_get_metrics_table(smu,
+					NULL,
+					true);
+	if (ret)
+		return ret;
+
+	memcpy(&metrics, smu_table->metrics_table, sizeof(SmuMetrics_t));
+
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 3);
+
+	gpu_metrics->temperature_edge = metrics.TemperatureEdge;
+	gpu_metrics->temperature_hotspot = metrics.TemperatureHotspot;
+	gpu_metrics->temperature_mem = metrics.TemperatureMem;
+	gpu_metrics->temperature_vrgfx = metrics.TemperatureVrGfx;
+	gpu_metrics->temperature_vrsoc = metrics.TemperatureVrSoc;
+	gpu_metrics->temperature_vrmem = metrics.TemperatureVrMem0;
+
+	gpu_metrics->average_gfx_activity = metrics.AverageGfxActivity;
+	gpu_metrics->average_umc_activity = metrics.AverageUclkActivity;
+
+	gpu_metrics->average_socket_power = metrics.AverageSocketPower;
+
+	if (metrics.AverageGfxActivity > SMU_11_0_GFX_BUSY_THRESHOLD)
+		gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequencyPreDs;
+	else
+		gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequencyPostDs;
+
+	gpu_metrics->average_socclk_frequency = metrics.AverageSocclkFrequency;
+	gpu_metrics->average_uclk_frequency = metrics.AverageUclkFrequencyPostDs;
+
+	gpu_metrics->current_gfxclk = metrics.CurrClock[PPCLK_GFXCLK];
+	gpu_metrics->current_socclk = metrics.CurrClock[PPCLK_SOCCLK];
+	gpu_metrics->current_uclk = metrics.CurrClock[PPCLK_UCLK];
+	gpu_metrics->current_vclk0 = metrics.CurrClock[PPCLK_VCLK];
+	gpu_metrics->current_dclk0 = metrics.CurrClock[PPCLK_DCLK];
+
+	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
+	gpu_metrics->indep_throttle_status =
+			smu_cmn_get_indep_throttler_status(metrics.ThrottlerStatus,
+							   navi1x_throttler_map);
+
+	gpu_metrics->current_fan_speed = metrics.CurrFanSpeed;
+
+	gpu_metrics->pcie_link_width = metrics.PcieWidth;
+	gpu_metrics->pcie_link_speed = link_speed[metrics.PcieRate];
+
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+
+	if (metrics.CurrGfxVoltageOffset)
+		gpu_metrics->voltage_gfx =
+			(155000 - 625 * metrics.CurrGfxVoltageOffset) / 100;
+	if (metrics.CurrMemVidOffset)
+		gpu_metrics->voltage_mem =
+			(155000 - 625 * metrics.CurrMemVidOffset) / 100;
+	if (metrics.CurrSocVoltageOffset)
+		gpu_metrics->voltage_soc =
+			(155000 - 625 * metrics.CurrSocVoltageOffset) / 100;
+
+	*table = (void *)gpu_metrics;
+
+	return sizeof(struct gpu_metrics_v1_3);
+}
+
+static ssize_t navi12_get_legacy_gpu_metrics(struct smu_context *smu,
+					     void **table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct gpu_metrics_v1_3 *gpu_metrics =
+		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+	SmuMetrics_NV12_legacy_t metrics;
+	int ret = 0;
+
+	ret = smu_cmn_get_metrics_table(smu,
+					NULL,
+					true);
+	if (ret)
+		return ret;
+
+	memcpy(&metrics, smu_table->metrics_table, sizeof(SmuMetrics_NV12_legacy_t));
+
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 3);
+
+	gpu_metrics->temperature_edge = metrics.TemperatureEdge;
+	gpu_metrics->temperature_hotspot = metrics.TemperatureHotspot;
+	gpu_metrics->temperature_mem = metrics.TemperatureMem;
+	gpu_metrics->temperature_vrgfx = metrics.TemperatureVrGfx;
+	gpu_metrics->temperature_vrsoc = metrics.TemperatureVrSoc;
+	gpu_metrics->temperature_vrmem = metrics.TemperatureVrMem0;
+
+	gpu_metrics->average_gfx_activity = metrics.AverageGfxActivity;
+	gpu_metrics->average_umc_activity = metrics.AverageUclkActivity;
+
+	gpu_metrics->average_socket_power = metrics.AverageSocketPower;
+
+	gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequency;
+	gpu_metrics->average_socclk_frequency = metrics.AverageSocclkFrequency;
+	gpu_metrics->average_uclk_frequency = metrics.AverageUclkFrequency;
+
+	gpu_metrics->energy_accumulator = metrics.EnergyAccumulator;
+	gpu_metrics->average_vclk0_frequency = metrics.AverageVclkFrequency;
+	gpu_metrics->average_dclk0_frequency = metrics.AverageDclkFrequency;
+	gpu_metrics->average_mm_activity = metrics.VcnActivityPercentage;
+
+	gpu_metrics->current_gfxclk = metrics.CurrClock[PPCLK_GFXCLK];
+	gpu_metrics->current_socclk = metrics.CurrClock[PPCLK_SOCCLK];
+	gpu_metrics->current_uclk = metrics.CurrClock[PPCLK_UCLK];
+	gpu_metrics->current_vclk0 = metrics.CurrClock[PPCLK_VCLK];
+	gpu_metrics->current_dclk0 = metrics.CurrClock[PPCLK_DCLK];
+
+	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
+	gpu_metrics->indep_throttle_status =
+			smu_cmn_get_indep_throttler_status(metrics.ThrottlerStatus,
+							   navi1x_throttler_map);
+
+	gpu_metrics->current_fan_speed = metrics.CurrFanSpeed;
+
+	gpu_metrics->pcie_link_width =
+			smu_v11_0_get_current_pcie_link_width(smu);
+	gpu_metrics->pcie_link_speed =
+			smu_v11_0_get_current_pcie_link_speed(smu);
+
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+
+	if (metrics.CurrGfxVoltageOffset)
+		gpu_metrics->voltage_gfx =
+			(155000 - 625 * metrics.CurrGfxVoltageOffset) / 100;
+	if (metrics.CurrMemVidOffset)
+		gpu_metrics->voltage_mem =
+			(155000 - 625 * metrics.CurrMemVidOffset) / 100;
+	if (metrics.CurrSocVoltageOffset)
+		gpu_metrics->voltage_soc =
+			(155000 - 625 * metrics.CurrSocVoltageOffset) / 100;
+
+	*table = (void *)gpu_metrics;
+
+	return sizeof(struct gpu_metrics_v1_3);
+}
+
+static ssize_t navi12_get_gpu_metrics(struct smu_context *smu,
+				      void **table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct gpu_metrics_v1_3 *gpu_metrics =
+		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+	SmuMetrics_NV12_t metrics;
+	int ret = 0;
+
+	ret = smu_cmn_get_metrics_table(smu,
+					NULL,
+					true);
+	if (ret)
+		return ret;
+
+	memcpy(&metrics, smu_table->metrics_table, sizeof(SmuMetrics_NV12_t));
+
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 3);
+
+	gpu_metrics->temperature_edge = metrics.TemperatureEdge;
+	gpu_metrics->temperature_hotspot = metrics.TemperatureHotspot;
+	gpu_metrics->temperature_mem = metrics.TemperatureMem;
+	gpu_metrics->temperature_vrgfx = metrics.TemperatureVrGfx;
+	gpu_metrics->temperature_vrsoc = metrics.TemperatureVrSoc;
+	gpu_metrics->temperature_vrmem = metrics.TemperatureVrMem0;
+
+	gpu_metrics->average_gfx_activity = metrics.AverageGfxActivity;
+	gpu_metrics->average_umc_activity = metrics.AverageUclkActivity;
+
+	gpu_metrics->average_socket_power = metrics.AverageSocketPower;
+
+	if (metrics.AverageGfxActivity > SMU_11_0_GFX_BUSY_THRESHOLD)
+		gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequencyPreDs;
+	else
+		gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequencyPostDs;
+
+	gpu_metrics->average_socclk_frequency = metrics.AverageSocclkFrequency;
+	gpu_metrics->average_uclk_frequency = metrics.AverageUclkFrequencyPostDs;
+
+	gpu_metrics->energy_accumulator = metrics.EnergyAccumulator;
+	gpu_metrics->average_vclk0_frequency = metrics.AverageVclkFrequency;
+	gpu_metrics->average_dclk0_frequency = metrics.AverageDclkFrequency;
+	gpu_metrics->average_mm_activity = metrics.VcnActivityPercentage;
+
+	gpu_metrics->current_gfxclk = metrics.CurrClock[PPCLK_GFXCLK];
+	gpu_metrics->current_socclk = metrics.CurrClock[PPCLK_SOCCLK];
+	gpu_metrics->current_uclk = metrics.CurrClock[PPCLK_UCLK];
+	gpu_metrics->current_vclk0 = metrics.CurrClock[PPCLK_VCLK];
+	gpu_metrics->current_dclk0 = metrics.CurrClock[PPCLK_DCLK];
+
+	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
+	gpu_metrics->indep_throttle_status =
+			smu_cmn_get_indep_throttler_status(metrics.ThrottlerStatus,
+							   navi1x_throttler_map);
+
+	gpu_metrics->current_fan_speed = metrics.CurrFanSpeed;
+
+	gpu_metrics->pcie_link_width = metrics.PcieWidth;
+	gpu_metrics->pcie_link_speed = link_speed[metrics.PcieRate];
+
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+
+	if (metrics.CurrGfxVoltageOffset)
+		gpu_metrics->voltage_gfx =
+			(155000 - 625 * metrics.CurrGfxVoltageOffset) / 100;
+	if (metrics.CurrMemVidOffset)
+		gpu_metrics->voltage_mem =
+			(155000 - 625 * metrics.CurrMemVidOffset) / 100;
+	if (metrics.CurrSocVoltageOffset)
+		gpu_metrics->voltage_soc =
+			(155000 - 625 * metrics.CurrSocVoltageOffset) / 100;
+
+	*table = (void *)gpu_metrics;
+
+	return sizeof(struct gpu_metrics_v1_3);
+}
+
+static ssize_t navi1x_get_gpu_metrics(struct smu_context *smu,
+				      void **table)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t smu_version;
+	int ret = 0;
+
+	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (ret) {
+		dev_err(adev->dev, "Failed to get smu version!\n");
+		return ret;
+	}
+
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(11, 0, 9):
+		if (smu_version > 0x00341C00)
+			ret = navi12_get_gpu_metrics(smu, table);
+		else
+			ret = navi12_get_legacy_gpu_metrics(smu, table);
+		break;
+	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 5):
+	default:
+		if (((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 5)) && smu_version > 0x00351F00) ||
+		      ((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 0)) && smu_version > 0x002A3B00))
+			ret = navi10_get_gpu_metrics(smu, table);
+		else
+			ret =navi10_get_legacy_gpu_metrics(smu, table);
+		break;
+	}
+
+	return ret;
 }
 
 static int navi10_enable_mgpu_fan_boost(struct smu_context *smu)
 {
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *smc_pptable = table_context->driver_pptable;
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t param = 0;
 
 	/* Navi12 does not support this */
-	if (adev->asic_type == CHIP_NAVI12)
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 9))
+		return 0;
+
+	/*
+	 * Skip the MGpuFanBoost setting for those ASICs
+	 * which do not support it
+	 */
+	if (!smc_pptable->MGpuFanBoostLimitRpm)
 		return 0;
 
 	/* Workaround for WS SKU */
@@ -2654,12 +3430,63 @@ static int navi10_post_smu_init(struct smu_context *smu)
 	return ret;
 }
 
+static int navi10_get_default_config_table_settings(struct smu_context *smu,
+						    struct config_table_setting *table)
+{
+	if (!table)
+		return -EINVAL;
+
+	table->gfxclk_average_tau = 10;
+	table->socclk_average_tau = 10;
+	table->uclk_average_tau = 10;
+	table->gfx_activity_average_tau = 10;
+	table->mem_activity_average_tau = 10;
+	table->socket_power_average_tau = 10;
+
+	return 0;
+}
+
+static int navi10_set_config_table(struct smu_context *smu,
+				   struct config_table_setting *table)
+{
+	DriverSmuConfig_t driver_smu_config_table;
+
+	if (!table)
+		return -EINVAL;
+
+	memset(&driver_smu_config_table,
+	       0,
+	       sizeof(driver_smu_config_table));
+
+	driver_smu_config_table.GfxclkAverageLpfTau =
+				table->gfxclk_average_tau;
+	driver_smu_config_table.SocclkAverageLpfTau =
+				table->socclk_average_tau;
+	driver_smu_config_table.UclkAverageLpfTau =
+				table->uclk_average_tau;
+	driver_smu_config_table.GfxActivityLpfTau =
+				table->gfx_activity_average_tau;
+	driver_smu_config_table.UclkActivityLpfTau =
+				table->mem_activity_average_tau;
+	driver_smu_config_table.SocketPowerLpfTau =
+				table->socket_power_average_tau;
+
+	return smu_cmn_update_table(smu,
+				    SMU_TABLE_DRIVER_SMU_CONFIG,
+				    0,
+				    (void *)&driver_smu_config_table,
+				    true);
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
 	.dpm_set_vcn_enable = navi10_dpm_set_vcn_enable,
 	.dpm_set_jpeg_enable = navi10_dpm_set_jpeg_enable,
+	.i2c_init = navi10_i2c_control_init,
+	.i2c_fini = navi10_i2c_control_fini,
 	.print_clk_levels = navi10_print_clk_levels,
+	.emit_clk_levels = navi10_emit_clk_levels,
 	.force_clk_levels = navi10_force_clk_levels,
 	.populate_umd_state_clk = navi10_populate_umd_state_clk,
 	.get_clock_by_type_with_latency = navi10_get_clock_by_type_with_latency,
@@ -2667,6 +3494,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.display_config_changed = navi10_display_config_changed,
 	.notify_smc_display_config = navi10_notify_smc_display_config,
 	.is_dpm_running = navi10_is_dpm_running,
+	.get_fan_speed_pwm = smu_v11_0_get_fan_speed_pwm,
 	.get_fan_speed_rpm = navi10_get_fan_speed_rpm,
 	.get_power_profile_mode = navi10_get_power_profile_mode,
 	.set_power_profile_mode = navi10_set_power_profile_mode,
@@ -2710,32 +3538,37 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.display_clock_voltage_request = smu_v11_0_display_clock_voltage_request,
 	.get_fan_control_mode = smu_v11_0_get_fan_control_mode,
 	.set_fan_control_mode = smu_v11_0_set_fan_control_mode,
+	.set_fan_speed_pwm = smu_v11_0_set_fan_speed_pwm,
 	.set_fan_speed_rpm = smu_v11_0_set_fan_speed_rpm,
 	.set_xgmi_pstate = smu_v11_0_set_xgmi_pstate,
 	.gfx_off_control = smu_v11_0_gfx_off_control,
 	.register_irq_handler = smu_v11_0_register_irq_handler,
 	.set_azalia_d3_pme = smu_v11_0_set_azalia_d3_pme,
 	.get_max_sustainable_clocks_by_dc = smu_v11_0_get_max_sustainable_clocks_by_dc,
-	.baco_is_support= navi10_is_baco_supported,
+	.baco_is_support = smu_v11_0_baco_is_support,
 	.baco_get_state = smu_v11_0_baco_get_state,
 	.baco_set_state = smu_v11_0_baco_set_state,
-	.baco_enter = smu_v11_0_baco_enter,
-	.baco_exit = smu_v11_0_baco_exit,
+	.baco_enter = navi10_baco_enter,
+	.baco_exit = navi10_baco_exit,
 	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
 	.set_default_od_settings = navi10_set_default_od_settings,
 	.od_edit_dpm_table = navi10_od_edit_dpm_table,
+	.restore_user_od_settings = smu_v11_0_restore_user_od_settings,
 	.run_btc = navi10_run_btc,
 	.set_power_source = smu_v11_0_set_power_source,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
-	.get_gpu_metrics = navi10_get_gpu_metrics,
+	.get_gpu_metrics = navi1x_get_gpu_metrics,
 	.enable_mgpu_fan_boost = navi10_enable_mgpu_fan_boost,
 	.gfx_ulv_control = smu_v11_0_gfx_ulv_control,
 	.deep_sleep_control = smu_v11_0_deep_sleep_control,
 	.get_fan_parameters = navi10_get_fan_parameters,
 	.post_init = navi10_post_smu_init,
 	.interrupt_work = smu_v11_0_interrupt_work,
+	.set_mp1_state = smu_cmn_set_mp1_state,
+	.get_default_config_table_settings = navi10_get_default_config_table_settings,
+	.set_config_table = navi10_set_config_table,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

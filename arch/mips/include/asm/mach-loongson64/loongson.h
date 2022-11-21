@@ -12,6 +12,30 @@
 #include <linux/irq.h>
 #include <boot_param.h>
 
+enum loongson_fw_interface {
+	LOONGSON_LEFI,
+	LOONGSON_DTB,
+};
+
+/* machine-specific boot configuration */
+struct loongson_system_configuration {
+	enum loongson_fw_interface fw_interface;
+	u32 nr_cpus;
+	u32 nr_nodes;
+	int cores_per_node;
+	int cores_per_package;
+	u16 boot_cpu_id;
+	u16 reserved_cpus_mask;
+	enum loongson_cpu_type cputype;
+	enum loongson_bridge_type bridgetype;
+	u64 restart_addr;
+	u64 poweroff_addr;
+	u64 suspend_addr;
+	u64 vgabios_addr;
+	u32 dma_mask_bits;
+	u64 workarounds;
+	void (*early_config)(void);
+};
 
 /* machine-specific reboot/halt operation */
 extern void mach_prepare_reboot(void);
@@ -23,8 +47,9 @@ extern u32 memsize, highmemsize;
 extern const struct plat_smp_ops loongson3_smp_ops;
 
 /* loongson-specific command line, env and memory initialization */
-extern void __init prom_init_memory(void);
-extern void __init prom_init_env(void);
+extern void __init prom_dtb_init_env(void);
+extern void __init prom_lefi_init_env(void);
+extern void __init szmem(unsigned int node);
 extern void *loongson_fdt_blob;
 
 /* irq operation functions */

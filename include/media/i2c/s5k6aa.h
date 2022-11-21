@@ -28,6 +28,7 @@ struct s5k6aa_gpio {
  * @mclk_frequency: sensor's master clock frequency in Hz
  * @gpio_reset:  GPIO driving RESET pin
  * @gpio_stby:   GPIO driving STBY pin
+ * @bus_type:    bus type
  * @nlanes:      maximum number of MIPI-CSI lanes used
  * @horiz_flip:  default horizontal image flip value, non zero to enable
  * @vert_flip:   default vertical image flip value, non zero to enable

@@ -154,10 +154,13 @@ Control IDs
 ``V4L2_CID_POWER_LINE_FREQUENCY`` ``(enum)``
     Enables a power line frequency filter to avoid flicker. Possible
     values for ``enum v4l2_power_line_frequency`` are:
-    ``V4L2_CID_POWER_LINE_FREQUENCY_DISABLED`` (0),
-    ``V4L2_CID_POWER_LINE_FREQUENCY_50HZ`` (1),
-    ``V4L2_CID_POWER_LINE_FREQUENCY_60HZ`` (2) and
-    ``V4L2_CID_POWER_LINE_FREQUENCY_AUTO`` (3).
+
+    ==========================================  ==
+    ``V4L2_CID_POWER_LINE_FREQUENCY_DISABLED``	 0
+    ``V4L2_CID_POWER_LINE_FREQUENCY_50HZ``	 1
+    ``V4L2_CID_POWER_LINE_FREQUENCY_60HZ``	 2
+    ``V4L2_CID_POWER_LINE_FREQUENCY_AUTO``	 3
+    ==========================================  ==
 
 ``V4L2_CID_HUE_AUTO`` ``(boolean)``
     Enables automatic hue control by the device. The effect of setting
@@ -197,7 +200,7 @@ Control IDs
 
 
 
-.. tabularcolumns:: |p{5.5cm}|p{12cm}|
+.. tabularcolumns:: |p{5.7cm}|p{11.8cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -239,8 +242,17 @@ Control IDs
     * - ``V4L2_COLORFX_SET_CBCR``
       - The Cb and Cr chroma components are replaced by fixed coefficients
 	determined by ``V4L2_CID_COLORFX_CBCR`` control.
+    * - ``V4L2_COLORFX_SET_RGB``
+      - The RGB components are replaced by the fixed RGB components determined
+        by ``V4L2_CID_COLORFX_RGB`` control.
 
 
+``V4L2_CID_COLORFX_RGB`` ``(integer)``
+    Determines the Red, Green, and Blue coefficients for
+    ``V4L2_COLORFX_SET_RGB`` color effect.
+    Bits [7:0] of the supplied 32 bit value are interpreted as Blue component,
+    bits [15:8] as Green component, bits [23:16] as Red component, and
+    bits [31:24] must be zero.
 
 ``V4L2_CID_COLORFX_CBCR`` ``(integer)``
     Determines the Cb and Cr coefficients for ``V4L2_COLORFX_SET_CBCR``

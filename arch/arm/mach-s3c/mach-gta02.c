@@ -37,7 +37,7 @@
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
-#include <linux/mtd/nand_ecc.h>
+#include <linux/mtd/nand-ecc-sw-hamming.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 
@@ -79,13 +79,12 @@ static struct pcf50633 *gta02_pcf;
 
 static long gta02_panic_blink(int state)
 {
-	long delay = 0;
 	char led;
 
 	led = (state) ? 1 : 0;
 	gpio_direction_output(GTA02_GPIO_AUX_LED, led);
 
-	return delay;
+	return 0;
 }
 
 

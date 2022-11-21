@@ -119,6 +119,8 @@
 #define PHY_ST		0x8A	/* PHY status register */
 #define MAC_SM		0xAC	/* MAC status machine */
 #define  MAC_SM_RST	0x0002	/* MAC status machine reset */
+#define MD_CSC		0xb6	/* MDC speed control register */
+#define  MD_CSC_DEFAULT	0x0030
 #define MAC_ID		0xBE	/* Identifier register */
 
 #define TX_DCNT		0x80	/* TX descriptor count */
@@ -200,7 +202,7 @@ static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
 	int limit = MAC_DEF_TIMEOUT;
 	u16 cmd;
 
-	iowrite16(MDIO_READ + reg + (phy_addr << 8), ioaddr + MMDIO);
+	iowrite16(MDIO_READ | reg | (phy_addr << 8), ioaddr + MMDIO);
 	/* Wait for the read bit to be cleared */
 	while (limit--) {
 		cmd = ioread16(ioaddr + MMDIO);
@@ -224,7 +226,7 @@ static int r6040_phy_write(void __iomem *ioaddr,
 
 	iowrite16(val, ioaddr + MMWD);
 	/* Write the command to the MDIO bus */
-	iowrite16(MDIO_WRITE + reg + (phy_addr << 8), ioaddr + MMDIO);
+	iowrite16(MDIO_WRITE | reg | (phy_addr << 8), ioaddr + MMDIO);
 	/* Wait for the write bit to be cleared */
 	while (limit--) {
 		cmd = ioread16(ioaddr + MMDIO);
@@ -355,8 +357,9 @@ static void r6040_reset_mac(struct r6040_private *lp)
 {
 	void __iomem *ioaddr = lp->base;
 	int limit = MAC_DEF_TIMEOUT;
-	u16 cmd;
+	u16 cmd, md_csc;
 
+	md_csc = ioread16(ioaddr + MD_CSC);
 	iowrite16(MAC_RST, ioaddr + MCR1);
 	while (limit--) {
 		cmd = ioread16(ioaddr + MCR1);
@@ -368,6 +371,10 @@ static void r6040_reset_mac(struct r6040_private *lp)
 	iowrite16(MAC_SM_RST, ioaddr + MAC_SM);
 	iowrite16(0, ioaddr + MAC_SM);
 	mdelay(5);
+
+	/* Restore MDIO clock frequency */
+	if (md_csc != MD_CSC_DEFAULT)
+		iowrite16(md_csc, ioaddr + MD_CSC);
 }
 
 static void r6040_init_mac_regs(struct net_device *dev)
@@ -446,7 +453,7 @@ static void r6040_down(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
-	u16 *adrp;
+	const u16 *adrp;
 
 	/* Stop MAC */
 	iowrite16(MSK_INT, ioaddr + MIER);	/* Mask Off Interrupt */
@@ -455,7 +462,7 @@ static void r6040_down(struct net_device *dev)
 	r6040_reset_mac(lp);
 
 	/* Restore MAC Address to MIDx */
-	adrp = (u16 *) dev->dev_addr;
+	adrp = (const u16 *) dev->dev_addr;
 	iowrite16(adrp[0], ioaddr + MID_0L);
 	iowrite16(adrp[1], ioaddr + MID_0M);
 	iowrite16(adrp[2], ioaddr + MID_0H);
@@ -544,7 +551,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 		skb_ptr->dev = priv->dev;
 
 		/* Do not count the CRC */
-		skb_put(skb_ptr, descptr->len - 4);
+		skb_put(skb_ptr, descptr->len - ETH_FCS_LEN);
 		dma_unmap_single(&priv->pdev->dev, le32_to_cpu(descptr->buf),
 				 MAX_BUF_SIZE, DMA_FROM_DEVICE);
 		skb_ptr->protocol = eth_type_trans(skb_ptr, priv->dev);
@@ -552,7 +559,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 		/* Send to upper layer */
 		netif_receive_skb(skb_ptr);
 		dev->stats.rx_packets++;
-		dev->stats.rx_bytes += descptr->len - 4;
+		dev->stats.rx_bytes += descptr->len - ETH_FCS_LEN;
 
 		/* put new skb into descriptor */
 		descptr->skb_ptr = new_skb;
@@ -724,13 +731,13 @@ static void r6040_mac_address(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
-	u16 *adrp;
+	const u16 *adrp;
 
 	/* Reset MAC */
 	r6040_reset_mac(lp);
 
 	/* Restore MAC Address */
-	adrp = (u16 *) dev->dev_addr;
+	adrp = (const u16 *) dev->dev_addr;
 	iowrite16(adrp[0], ioaddr + MID_0L);
 	iowrite16(adrp[1], ioaddr + MID_0M);
 	iowrite16(adrp[2], ioaddr + MID_0H);
@@ -842,13 +849,13 @@ static void r6040_multicast_list(struct net_device *dev)
 	unsigned long flags;
 	struct netdev_hw_addr *ha;
 	int i;
-	u16 *adrp;
+	const u16 *adrp;
 	u16 hash_table[4] = { 0 };
 
 	spin_lock_irqsave(&lp->lock, flags);
 
 	/* Keep our MAC Address */
-	adrp = (u16 *)dev->dev_addr;
+	adrp = (const u16 *)dev->dev_addr;
 	iowrite16(adrp[0], ioaddr + MID_0L);
 	iowrite16(adrp[1], ioaddr + MID_0M);
 	iowrite16(adrp[2], ioaddr + MID_0H);
@@ -943,6 +950,7 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.get_link_ksettings     = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings     = phy_ethtool_set_link_ksettings,
+	.nway_reset		= phy_ethtool_nway_reset,
 };
 
 static const struct net_device_ops r6040_netdev_ops = {
@@ -953,7 +961,7 @@ static const struct net_device_ops r6040_netdev_ops = {
 	.ndo_set_rx_mode	= r6040_multicast_list,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_do_ioctl		= phy_do_ioctl,
+	.ndo_eth_ioctl		= phy_do_ioctl,
 	.ndo_tx_timeout		= r6040_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= r6040_poll_controller,
@@ -1023,8 +1031,8 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *ioaddr;
 	int err, io_size = R6040_IO_SIZE;
 	static int card_idx = -1;
+	u16 addr[ETH_ALEN / 2];
 	int bar = 0;
-	u16 *adrp;
 
 	pr_info("%s\n", version);
 
@@ -1094,14 +1102,14 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Set MAC address */
 	card_idx++;
 
-	adrp = (u16 *)dev->dev_addr;
-	adrp[0] = ioread16(ioaddr + MID_0L);
-	adrp[1] = ioread16(ioaddr + MID_0M);
-	adrp[2] = ioread16(ioaddr + MID_0H);
+	addr[0] = ioread16(ioaddr + MID_0L);
+	addr[1] = ioread16(ioaddr + MID_0M);
+	addr[2] = ioread16(ioaddr + MID_0H);
+	eth_hw_addr_set(dev, (u8 *)addr);
 
 	/* Some bootloader/BIOSes do not initialize
 	 * MAC address, warn about that */
-	if (!(adrp[0] || adrp[1] || adrp[2])) {
+	if (!(addr[0] || addr[1] || addr[2])) {
 		netdev_warn(dev, "MAC address not initialized, "
 					"generating random\n");
 		eth_hw_addr_random(dev);

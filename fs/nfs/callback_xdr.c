@@ -63,14 +63,13 @@ static __be32 nfs4_callback_null(struct svc_rqst *rqstp)
 	return htonl(NFS4_OK);
 }
 
-static int nfs4_decode_void(struct svc_rqst *rqstp, __be32 *p)
+/*
+ * svc_process_common() looks for an XDR encoder to know when
+ * not to drop a Reply.
+ */
+static bool nfs4_encode_void(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	return xdr_argsize_check(rqstp, p);
-}
-
-static int nfs4_encode_void(struct svc_rqst *rqstp, __be32 *p)
-{
-	return xdr_ressize_check(rqstp, p);
+	return true;
 }
 
 static __be32 decode_string(struct xdr_stream *xdr, unsigned int *len,
@@ -259,11 +258,9 @@ __be32 decode_devicenotify_args(struct svc_rqst *rqstp,
 				void *argp)
 {
 	struct cb_devicenotifyargs *args = argp;
+	uint32_t tmp, n, i;
 	__be32 *p;
 	__be32 status = 0;
-	u32 tmp;
-	int n, i;
-	args->ndevs = 0;
 
 	/* Num of device notifications */
 	p = xdr_inline_decode(xdr, sizeof(uint32_t));
@@ -272,12 +269,8 @@ __be32 decode_devicenotify_args(struct svc_rqst *rqstp,
 		goto out;
 	}
 	n = ntohl(*p++);
-	if (n <= 0)
+	if (n == 0)
 		goto out;
-	if (n > ULONG_MAX / sizeof(*args->devs)) {
-		status = htonl(NFS4ERR_BADXDR);
-		goto out;
-	}
 
 	args->devs = kmalloc_array(n, sizeof(*args->devs), GFP_KERNEL);
 	if (!args->devs) {
@@ -331,19 +324,21 @@ __be32 decode_devicenotify_args(struct svc_rqst *rqstp,
 			dev->cbd_immediate = 0;
 		}
 
-		args->ndevs++;
-
 		dprintk("%s: type %d layout 0x%x immediate %d\n",
 			__func__, dev->cbd_notify_type, dev->cbd_layout_type,
 			dev->cbd_immediate);
 	}
+	args->ndevs = n;
+	dprintk("%s: ndevs %d\n", __func__, args->ndevs);
+	return 0;
+err:
+	kfree(args->devs);
 out:
+	args->devs = NULL;
+	args->ndevs = 0;
 	dprintk("%s: status %d ndevs %d\n",
 		__func__, ntohl(status), args->ndevs);
 	return status;
-err:
-	kfree(args->devs);
-	goto out;
 }
 
 static __be32 decode_sessionid(struct xdr_stream *xdr,
@@ -864,17 +859,16 @@ preprocess_nfs4_op(unsigned int op_nr, struct callback_op **op)
 }
 
 static __be32 process_op(int nop, struct svc_rqst *rqstp,
-		struct xdr_stream *xdr_in, void *argp,
-		struct xdr_stream *xdr_out, void *resp,
-		struct cb_process_state *cps)
+			 struct cb_process_state *cps)
 {
+	struct xdr_stream *xdr_out = &rqstp->rq_res_stream;
 	struct callback_op *op = &callback_ops[0];
 	unsigned int op_nr;
 	__be32 status;
 	long maxlen;
 	__be32 res;
 
-	status = decode_op_hdr(xdr_in, &op_nr);
+	status = decode_op_hdr(&rqstp->rq_arg_stream, &op_nr);
 	if (unlikely(status))
 		return status;
 
@@ -904,9 +898,11 @@ static __be32 process_op(int nop, struct svc_rqst *rqstp,
 
 	maxlen = xdr_out->end - xdr_out->p;
 	if (maxlen > 0 && maxlen < PAGE_SIZE) {
-		status = op->decode_args(rqstp, xdr_in, argp);
+		status = op->decode_args(rqstp, &rqstp->rq_arg_stream,
+					 rqstp->rq_argp);
 		if (likely(status == 0))
-			status = op->process_op(argp, resp, cps);
+			status = op->process_op(rqstp->rq_argp, rqstp->rq_resp,
+						cps);
 	} else
 		status = htonl(NFS4ERR_RESOURCE);
 
@@ -915,7 +911,7 @@ encode_hdr:
 	if (unlikely(res))
 		return res;
 	if (op->encode_res != NULL && status == 0)
-		status = op->encode_res(rqstp, xdr_out, resp);
+		status = op->encode_res(rqstp, xdr_out, rqstp->rq_resp);
 	return status;
 }
 
@@ -926,22 +922,15 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp)
 {
 	struct cb_compound_hdr_arg hdr_arg = { 0 };
 	struct cb_compound_hdr_res hdr_res = { NULL };
-	struct xdr_stream xdr_in, xdr_out;
-	__be32 *p, status;
 	struct cb_process_state cps = {
 		.drc_status = 0,
 		.clp = NULL,
 		.net = SVC_NET(rqstp),
 	};
 	unsigned int nops = 0;
+	__be32 status;
 
-	xdr_init_decode(&xdr_in, &rqstp->rq_arg,
-			rqstp->rq_arg.head[0].iov_base, NULL);
-
-	p = (__be32*)((char *)rqstp->rq_res.head[0].iov_base + rqstp->rq_res.head[0].iov_len);
-	xdr_init_encode(&xdr_out, &rqstp->rq_res, p, NULL);
-
-	status = decode_compound_hdr_arg(&xdr_in, &hdr_arg);
+	status = decode_compound_hdr_arg(&rqstp->rq_arg_stream, &hdr_arg);
 	if (status == htonl(NFS4ERR_RESOURCE))
 		return rpc_garbage_args;
 
@@ -961,15 +950,13 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp)
 	cps.minorversion = hdr_arg.minorversion;
 	hdr_res.taglen = hdr_arg.taglen;
 	hdr_res.tag = hdr_arg.tag;
-	if (encode_compound_hdr_res(&xdr_out, &hdr_res) != 0) {
+	if (encode_compound_hdr_res(&rqstp->rq_res_stream, &hdr_res) != 0) {
 		if (cps.clp)
 			nfs_put_client(cps.clp);
 		return rpc_system_err;
 	}
 	while (status == 0 && nops != hdr_arg.nops) {
-		status = process_op(nops, rqstp, &xdr_in,
-				    rqstp->rq_argp, &xdr_out, rqstp->rq_resp,
-				    &cps);
+		status = process_op(nops, rqstp, &cps);
 		nops++;
 	}
 
@@ -988,7 +975,20 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp)
 
 out_invalidcred:
 	pr_warn_ratelimited("NFS: NFSv4 callback contains invalid cred\n");
-	return svc_return_autherr(rqstp, rpc_autherr_badcred);
+	rqstp->rq_auth_stat = rpc_autherr_badcred;
+	return rpc_success;
+}
+
+static int
+nfs_callback_dispatch(struct svc_rqst *rqstp, __be32 *statp)
+{
+	const struct svc_procedure *procp = rqstp->rq_procinfo;
+
+	svcxdr_init_decode(rqstp);
+	svcxdr_init_encode(rqstp);
+
+	*statp = procp->pc_func(rqstp);
+	return 1;
 }
 
 /*
@@ -1057,9 +1057,9 @@ static struct callback_op callback_ops[] = {
 static const struct svc_procedure nfs4_callback_procedures1[] = {
 	[CB_NULL] = {
 		.pc_func = nfs4_callback_null,
-		.pc_decode = nfs4_decode_void,
 		.pc_encode = nfs4_encode_void,
 		.pc_xdrressize = 1,
+		.pc_name = "NULL",
 	},
 	[CB_COMPOUND] = {
 		.pc_func = nfs4_callback_compound,
@@ -1067,6 +1067,7 @@ static const struct svc_procedure nfs4_callback_procedures1[] = {
 		.pc_argsize = 256,
 		.pc_ressize = 256,
 		.pc_xdrressize = NFS4_CALLBACK_BUFSIZE,
+		.pc_name = "COMPOUND",
 	}
 };
 
@@ -1077,7 +1078,7 @@ const struct svc_version nfs4_callback_version1 = {
 	.vs_proc = nfs4_callback_procedures1,
 	.vs_count = nfs4_callback_count1,
 	.vs_xdrsize = NFS4_CALLBACK_XDRSIZE,
-	.vs_dispatch = NULL,
+	.vs_dispatch = nfs_callback_dispatch,
 	.vs_hidden = true,
 	.vs_need_cong_ctrl = true,
 };
@@ -1089,7 +1090,7 @@ const struct svc_version nfs4_callback_version4 = {
 	.vs_proc = nfs4_callback_procedures1,
 	.vs_count = nfs4_callback_count4,
 	.vs_xdrsize = NFS4_CALLBACK_XDRSIZE,
-	.vs_dispatch = NULL,
+	.vs_dispatch = nfs_callback_dispatch,
 	.vs_hidden = true,
 	.vs_need_cong_ctrl = true,
 };

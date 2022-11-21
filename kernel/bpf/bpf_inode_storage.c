@@ -17,6 +17,7 @@
 #include <linux/bpf_lsm.h>
 #include <linux/btf_ids.h>
 #include <linux/fdtable.h>
+#include <linux/rcupdate_trace.h>
 
 DEFINE_BPF_STORAGE_CACHE(inode_cache);
 
@@ -44,7 +45,8 @@ static struct bpf_local_storage_data *inode_storage_lookup(struct inode *inode,
 	if (!bsb)
 		return NULL;
 
-	inode_storage = rcu_dereference(bsb->storage);
+	inode_storage =
+		rcu_dereference_check(bsb->storage, bpf_rcu_lock_held());
 	if (!inode_storage)
 		return NULL;
 
@@ -72,7 +74,7 @@ void bpf_inode_storage_free(struct inode *inode)
 		return;
 	}
 
-	/* Netiher the bpf_prog nor the bpf-map's syscall
+	/* Neither the bpf_prog nor the bpf-map's syscall
 	 * could be modifying the local_storage->list now.
 	 * Thus, no elem can be added-to or deleted-from the
 	 * local_storage->list by the bpf_prog or by the bpf-map's syscall.
@@ -109,7 +111,7 @@ static void *bpf_fd_inode_storage_lookup_elem(struct bpf_map *map, void *key)
 	fd = *(int *)key;
 	f = fget_raw(fd);
 	if (!f)
-		return NULL;
+		return ERR_PTR(-EBADF);
 
 	sdata = inode_storage_lookup(f->f_inode, map, true);
 	fput(f);
@@ -125,12 +127,16 @@ static int bpf_fd_inode_storage_update_elem(struct bpf_map *map, void *key,
 
 	fd = *(int *)key;
 	f = fget_raw(fd);
-	if (!f || !inode_storage_ptr(f->f_inode))
+	if (!f)
 		return -EBADF;
+	if (!inode_storage_ptr(f->f_inode)) {
+		fput(f);
+		return -EBADF;
+	}
 
 	sdata = bpf_local_storage_update(f->f_inode,
 					 (struct bpf_local_storage_map *)map,
-					 value, map_flags);
+					 value, map_flags, GFP_ATOMIC);
 	fput(f);
 	return PTR_ERR_OR_ZERO(sdata);
 }
@@ -163,11 +169,13 @@ static int bpf_fd_inode_storage_delete_elem(struct bpf_map *map, void *key)
 	return err;
 }
 
-BPF_CALL_4(bpf_inode_storage_get, struct bpf_map *, map, struct inode *, inode,
-	   void *, value, u64, flags)
+/* *gfp_flags* is a hidden argument provided by the verifier */
+BPF_CALL_5(bpf_inode_storage_get, struct bpf_map *, map, struct inode *, inode,
+	   void *, value, u64, flags, gfp_t, gfp_flags)
 {
 	struct bpf_local_storage_data *sdata;
 
+	WARN_ON_ONCE(!bpf_rcu_lock_held());
 	if (flags & ~(BPF_LOCAL_STORAGE_GET_F_CREATE))
 		return (unsigned long)NULL;
 
@@ -176,20 +184,20 @@ BPF_CALL_4(bpf_inode_storage_get, struct bpf_map *, map, struct inode *, inode,
 	 * bpf_local_storage_update expects the owner to have a
 	 * valid storage pointer.
 	 */
-	if (!inode_storage_ptr(inode))
+	if (!inode || !inode_storage_ptr(inode))
 		return (unsigned long)NULL;
 
 	sdata = inode_storage_lookup(inode, map, true);
 	if (sdata)
 		return (unsigned long)sdata->data;
 
-	/* This helper must only called from where the inode is gurranteed
+	/* This helper must only called from where the inode is guaranteed
 	 * to have a refcount and cannot be freed.
 	 */
 	if (flags & BPF_LOCAL_STORAGE_GET_F_CREATE) {
 		sdata = bpf_local_storage_update(
 			inode, (struct bpf_local_storage_map *)map, value,
-			BPF_NOEXIST);
+			BPF_NOEXIST, gfp_flags);
 		return IS_ERR(sdata) ? (unsigned long)NULL :
 					     (unsigned long)sdata->data;
 	}
@@ -200,7 +208,11 @@ BPF_CALL_4(bpf_inode_storage_get, struct bpf_map *, map, struct inode *, inode,
 BPF_CALL_2(bpf_inode_storage_delete,
 	   struct bpf_map *, map, struct inode *, inode)
 {
-	/* This helper must only called from where the inode is gurranteed
+	WARN_ON_ONCE(!bpf_rcu_lock_held());
+	if (!inode)
+		return -EINVAL;
+
+	/* This helper must only called from where the inode is guaranteed
 	 * to have a refcount and cannot be freed.
 	 */
 	return inode_storage_delete(inode, map);
@@ -230,7 +242,7 @@ static void inode_storage_map_free(struct bpf_map *map)
 
 	smap = (struct bpf_local_storage_map *)map;
 	bpf_local_storage_cache_idx_free(&inode_cache, smap->cache_idx);
-	bpf_local_storage_map_free(smap);
+	bpf_local_storage_map_free(smap, NULL);
 }
 
 static int inode_storage_map_btf_id;

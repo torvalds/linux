@@ -8,8 +8,6 @@
 
 #include <linux/types.h>
 
-#include "display/intel_display.h"
-
 #include "intel_wakeref.h"
 
 #include "i915_utils.h"
@@ -49,10 +47,11 @@ enum i915_drm_suspend_mode {
  */
 struct intel_runtime_pm {
 	atomic_t wakeref_count;
-	struct device *kdev; /* points to i915->drm.pdev->dev */
+	struct device *kdev; /* points to i915->drm.dev */
 	bool available;
 	bool suspended;
 	bool irqs_enabled;
+	bool no_wakeref_tracking;
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 	/*
@@ -177,6 +176,7 @@ void intel_runtime_pm_driver_release(struct intel_runtime_pm *rpm);
 
 intel_wakeref_t intel_runtime_pm_get(struct intel_runtime_pm *rpm);
 intel_wakeref_t intel_runtime_pm_get_if_in_use(struct intel_runtime_pm *rpm);
+intel_wakeref_t intel_runtime_pm_get_if_active(struct intel_runtime_pm *rpm);
 intel_wakeref_t intel_runtime_pm_get_noresume(struct intel_runtime_pm *rpm);
 intel_wakeref_t intel_runtime_pm_get_raw(struct intel_runtime_pm *rpm);
 
@@ -186,6 +186,10 @@ intel_wakeref_t intel_runtime_pm_get_raw(struct intel_runtime_pm *rpm);
 
 #define with_intel_runtime_pm_if_in_use(rpm, wf) \
 	for ((wf) = intel_runtime_pm_get_if_in_use(rpm); (wf); \
+	     intel_runtime_pm_put((rpm), (wf)), (wf) = 0)
+
+#define with_intel_runtime_pm_if_active(rpm, wf) \
+	for ((wf) = intel_runtime_pm_get_if_active(rpm); (wf); \
 	     intel_runtime_pm_put((rpm), (wf)), (wf) = 0)
 
 void intel_runtime_pm_put_unchecked(struct intel_runtime_pm *rpm);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright 2020, NXP Semiconductors
+/* Copyright 2020 NXP
  */
 #include "sja1105.h"
 #include "sja1105_vl.h"
@@ -35,6 +35,7 @@ static int sja1105_setup_bcast_policer(struct sja1105_private *priv,
 {
 	struct sja1105_rule *rule = sja1105_rule_find(priv, cookie);
 	struct sja1105_l2_policing_entry *policing;
+	struct dsa_switch *ds = priv->ds;
 	bool new_rule = false;
 	unsigned long p;
 	int rc;
@@ -59,7 +60,7 @@ static int sja1105_setup_bcast_policer(struct sja1105_private *priv,
 
 	policing = priv->static_config.tables[BLK_IDX_L2_POLICING].entries;
 
-	if (policing[(SJA1105_NUM_PORTS * SJA1105_NUM_TC) + port].sharindx != port) {
+	if (policing[(ds->num_ports * SJA1105_NUM_TC) + port].sharindx != port) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Port already has a broadcast policer");
 		rc = -EEXIST;
@@ -71,8 +72,8 @@ static int sja1105_setup_bcast_policer(struct sja1105_private *priv,
 	/* Make the broadcast policers of all ports attached to this block
 	 * point to the newly allocated policer
 	 */
-	for_each_set_bit(p, &rule->port_mask, SJA1105_NUM_PORTS) {
-		int bcast = (SJA1105_NUM_PORTS * SJA1105_NUM_TC) + p;
+	for_each_set_bit(p, &rule->port_mask, SJA1105_MAX_NUM_PORTS) {
+		int bcast = (ds->num_ports * SJA1105_NUM_TC) + p;
 
 		policing[bcast].sharindx = rule->bcast_pol.sharindx;
 	}
@@ -143,7 +144,7 @@ static int sja1105_setup_tc_policer(struct sja1105_private *priv,
 	/* Make the policers for traffic class @tc of all ports attached to
 	 * this block point to the newly allocated policer
 	 */
-	for_each_set_bit(p, &rule->port_mask, SJA1105_NUM_PORTS) {
+	for_each_set_bit(p, &rule->port_mask, SJA1105_MAX_NUM_PORTS) {
 		int index = (p * SJA1105_NUM_TC) + tc;
 
 		policing[index].sharindx = rule->tc_pol.sharindx;
@@ -299,6 +300,46 @@ static int sja1105_flower_parse_key(struct sja1105_private *priv,
 	return -EOPNOTSUPP;
 }
 
+static int sja1105_policer_validate(const struct flow_action *action,
+				    const struct flow_action_entry *act,
+				    struct netlink_ext_ack *extack)
+{
+	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when exceed action is not drop");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is not pipe or ok");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	    !flow_action_is_last_entry(action, act)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is ok, but action is not last");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.peakrate_bytes_ps ||
+	    act->police.avrate || act->police.overhead) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when peakrate/avrate/overhead is configured");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "QoS offload not support packets per second");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 			   struct flow_cls_offload *cls, bool ingress)
 {
@@ -317,11 +358,13 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 	if (rc)
 		return rc;
 
-	rc = -EOPNOTSUPP;
-
 	flow_action_for_each(i, act, &rule->action) {
 		switch (act->id) {
 		case FLOW_ACTION_POLICE:
+			rc = sja1105_policer_validate(&rule->action, act, extack);
+			if (rc)
+				goto out;
+
 			rc = sja1105_flower_policer(priv, port, extack, cookie,
 						    &key,
 						    act->police.rate_bytes_ps,
@@ -373,7 +416,7 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 			vl_rule = true;
 
 			rc = sja1105_vl_gate(priv, port, extack, cookie,
-					     &key, act->gate.index,
+					     &key, act->hw_index,
 					     act->gate.prio,
 					     act->gate.basetime,
 					     act->gate.cycletime,
@@ -430,7 +473,7 @@ int sja1105_cls_flower_del(struct dsa_switch *ds, int port,
 	policing = priv->static_config.tables[BLK_IDX_L2_POLICING].entries;
 
 	if (rule->type == SJA1105_RULE_BCAST_POLICER) {
-		int bcast = (SJA1105_NUM_PORTS * SJA1105_NUM_TC) + port;
+		int bcast = (ds->num_ports * SJA1105_NUM_TC) + port;
 
 		old_sharindx = policing[bcast].sharindx;
 		policing[bcast].sharindx = port;
@@ -481,7 +524,7 @@ void sja1105_flower_setup(struct dsa_switch *ds)
 
 	INIT_LIST_HEAD(&priv->flow_block.rules);
 
-	for (port = 0; port < SJA1105_NUM_PORTS; port++)
+	for (port = 0; port < ds->num_ports; port++)
 		priv->flow_block.l2_policer_used[port] = true;
 }
 

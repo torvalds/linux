@@ -99,8 +99,9 @@ struct plist;
 #define MAX_H_SIZE                60	/* Largest possible TIPC header size */
 
 #define MAX_MSG_SIZE (MAX_H_SIZE + TIPC_MAX_USER_MSG_SIZE)
-#define FB_MTU                  3744
 #define TIPC_MEDIA_INFO_OFFSET	5
+
+extern const int one_page_mtu;
 
 struct tipc_skb_cb {
 	union {
@@ -223,14 +224,6 @@ static inline void msg_set_bits(struct tipc_msg *m, u32 w,
 	mask = mask << pos;
 	m->hdr[w] &= ~htonl(mask);
 	m->hdr[w] |= htonl(val);
-}
-
-static inline void msg_swap_words(struct tipc_msg *msg, u32 a, u32 b)
-{
-	u32 temp = msg->hdr[a];
-
-	msg->hdr[a] = msg->hdr[b];
-	msg->hdr[b] = temp;
 }
 
 /*
@@ -477,11 +470,6 @@ static inline u32 msg_reroute_cnt(struct tipc_msg *m)
 static inline void msg_incr_reroute_cnt(struct tipc_msg *m)
 {
 	msg_set_bits(m, 1, 21, 0xf, msg_reroute_cnt(m) + 1);
-}
-
-static inline void msg_reset_reroute_cnt(struct tipc_msg *m)
-{
-	msg_set_bits(m, 1, 21, 0xf, 0);
 }
 
 static inline u32 msg_lookup_scope(struct tipc_msg *m)
@@ -799,11 +787,6 @@ static inline void msg_set_dest_domain(struct tipc_msg *m, u32 n)
 	msg_set_word(m, 2, n);
 }
 
-static inline u32 msg_bcgap_after(struct tipc_msg *m)
-{
-	return msg_bits(m, 2, 16, 0xffff);
-}
-
 static inline void msg_set_bcgap_after(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 2, 16, 0xffff, n);
@@ -863,11 +846,6 @@ static inline u16 msg_next_sent(struct tipc_msg *m)
 }
 
 static inline void msg_set_next_sent(struct tipc_msg *m, u16 n)
-{
-	msg_set_bits(m, 4, 0, 0xffff, n);
-}
-
-static inline void msg_set_long_msgno(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 4, 0, 0xffff, n);
 }

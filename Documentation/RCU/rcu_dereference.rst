@@ -28,6 +28,12 @@ Follow these rules to keep your RCU code working properly:
 	for an example where the compiler can in fact deduce the exact
 	value of the pointer, and thus cause misordering.
 
+-	In the special case where data is added but is never removed
+	while readers are accessing the structure, READ_ONCE() may be used
+	instead of rcu_dereference().  In this case, use of READ_ONCE()
+	takes on the role of the lockless_dereference() primitive that
+	was removed in v4.15.
+
 -	You are only permitted to use rcu_dereference on pointer values.
 	The compiler simply knows too much about integral values to
 	trust it to carry dependencies through integer operations.
@@ -37,7 +43,7 @@ Follow these rules to keep your RCU code working properly:
 	-	Set bits and clear bits down in the must-be-zero low-order
 		bits of that pointer.  This clearly means that the pointer
 		must have alignment constraints, for example, this does
-		-not- work in general for char* pointers.
+		*not* work in general for char* pointers.
 
 	-	XOR bits to translate pointers, as is done in some
 		classic buddy-allocator algorithms.
@@ -168,7 +174,7 @@ Follow these rules to keep your RCU code working properly:
 		Please see the "CONTROL DEPENDENCIES" section of
 		Documentation/memory-barriers.txt for more details.
 
-	-	The pointers are not equal -and- the compiler does
+	-	The pointers are not equal *and* the compiler does
 		not have enough information to deduce the value of the
 		pointer.  Note that the volatile cast in rcu_dereference()
 		will normally prevent the compiler from knowing too much.
@@ -354,7 +360,7 @@ in turn destroying the ordering between this load and the loads of the
 return values.  This can result in "p->b" returning pre-initialization
 garbage values.
 
-In short, rcu_dereference() is -not- optional when you are going to
+In short, rcu_dereference() is *not* optional when you are going to
 dereference the resulting pointer.
 
 

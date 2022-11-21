@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0
 # MIPS headers
-generated-y += syscall_table_32_o32.h
-generated-y += syscall_table_64_n32.h
-generated-y += syscall_table_64_n64.h
-generated-y += syscall_table_64_o32.h
+generated-y += syscall_table_n32.h
+generated-y += syscall_table_n64.h
+generated-y += syscall_table_o32.h
+generated-y += unistd_nr_n32.h
+generated-y += unistd_nr_n64.h
+generated-y += unistd_nr_o32.h
+
 generic-y += export.h
 generic-y += kvm_para.h
-generic-y += local64.h
 generic-y += mcs_spinlock.h
 generic-y += parport.h
 generic-y += qrwlock.h

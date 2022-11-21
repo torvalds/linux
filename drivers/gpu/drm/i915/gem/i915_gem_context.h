@@ -108,9 +108,14 @@ i915_gem_context_clear_user_engines(struct i915_gem_context *ctx)
 	clear_bit(CONTEXT_USER_ENGINES, &ctx->flags);
 }
 
+static inline bool
+i915_gem_context_uses_protected_content(const struct i915_gem_context *ctx)
+{
+	return ctx->uses_protected_content;
+}
+
 /* i915_gem_context.c */
 void i915_gem_init__contexts(struct drm_i915_private *i915);
-void i915_gem_driver_release__contexts(struct drm_i915_private *i915);
 
 int i915_gem_context_open(struct drm_i915_private *i915,
 			  struct drm_file *file);
@@ -134,6 +139,9 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 int i915_gem_context_reset_stats_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *file);
 
+struct i915_gem_context *
+i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id);
+
 static inline struct i915_gem_context *
 i915_gem_context_get(struct i915_gem_context *ctx)
 {
@@ -152,17 +160,22 @@ i915_gem_context_vm(struct i915_gem_context *ctx)
 	return rcu_dereference_protected(ctx->vm, lockdep_is_held(&ctx->mutex));
 }
 
+static inline bool i915_gem_context_has_full_ppgtt(struct i915_gem_context *ctx)
+{
+	GEM_BUG_ON(!!ctx->vm != HAS_FULL_PPGTT(ctx->i915));
+
+	return !!ctx->vm;
+}
+
 static inline struct i915_address_space *
-i915_gem_context_get_vm_rcu(struct i915_gem_context *ctx)
+i915_gem_context_get_eb_vm(struct i915_gem_context *ctx)
 {
 	struct i915_address_space *vm;
 
-	rcu_read_lock();
-	vm = rcu_dereference(ctx->vm);
+	vm = ctx->vm;
 	if (!vm)
-		vm = &ctx->i915->ggtt.vm;
+		vm = &to_gt(ctx->i915)->ggtt->vm;
 	vm = i915_vm_get(vm);
-	rcu_read_unlock();
 
 	return vm;
 }
@@ -221,6 +234,9 @@ i915_gem_engines_iter_next(struct i915_gem_engines_iter *it);
 #define for_each_gem_engine(ce, engines, it) \
 	for (i915_gem_engines_iter_init(&(it), (engines)); \
 	     ((ce) = i915_gem_engines_iter_next(&(it)));)
+
+void i915_gem_context_module_exit(void);
+int i915_gem_context_module_init(void);
 
 struct i915_lut_handle *i915_lut_handle_alloc(void);
 void i915_lut_handle_free(struct i915_lut_handle *lut);

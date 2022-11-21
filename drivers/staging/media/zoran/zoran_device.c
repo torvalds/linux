@@ -148,71 +148,6 @@ int post_office_read(struct zoran *zr, unsigned int guest, unsigned int reg)
 }
 
 /*
- * detect guests
- */
-
-static void dump_guests(struct zoran *zr)
-{
-	if (zr36067_debug > 2) {
-		int i, guest[8];
-
-		/* do not print random data */
-		guest[0] = 0;
-
-		for (i = 1; i < 8; i++) /* Don't read jpeg codec here */
-			guest[i] = post_office_read(zr, i, 0);
-
-		pci_info(zr->pci_dev, "Guests: %*ph\n", 8, guest);
-	}
-}
-
-void detect_guest_activity(struct zoran *zr)
-{
-	int timeout, i, j, res, guest[8], guest0[8], change[8][3];
-	ktime_t t0, t1;
-
-	/* do not print random data */
-	guest[0] = 0;
-	guest0[0] = 0;
-
-	dump_guests(zr);
-	pci_info(zr->pci_dev, "Detecting guests activity, please wait...\n");
-	for (i = 1; i < 8; i++) /* Don't read jpeg codec here */
-		guest0[i] = guest[i] = post_office_read(zr, i, 0);
-
-	timeout = 0;
-	j = 0;
-	t0 = ktime_get();
-	while (timeout < 10000) {
-		udelay(10);
-		timeout++;
-		for (i = 1; (i < 8) && (j < 8); i++) {
-			res = post_office_read(zr, i, 0);
-			if (res != guest[i]) {
-				t1 = ktime_get();
-				change[j][0] = ktime_to_us(ktime_sub(t1, t0));
-				t0 = t1;
-				change[j][1] = i;
-				change[j][2] = res;
-				j++;
-				guest[i] = res;
-			}
-		}
-		if (j >= 8)
-			break;
-	}
-
-	pci_info(zr->pci_dev, "Guests: %*ph\n", 8, guest0);
-
-	if (j == 0) {
-		pci_info(zr->pci_dev, "No activity detected.\n");
-		return;
-	}
-	for (i = 0; i < j; i++)
-		pci_info(zr->pci_dev, "%6d: %d => 0x%02x\n", change[i][0], change[i][1], change[i][2]);
-}
-
-/*
  * JPEG Codec access
  */
 
@@ -291,11 +226,11 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 			    const struct zoran_format *format)
 {
 	const struct tvnorm *tvn;
-	unsigned int h_start, HEnd, v_start, VEnd;
-	unsigned int DispMode;
-	unsigned int VidWinWid, VidWinHt;
+	unsigned int h_start, h_end, v_start, v_end;
+	unsigned int disp_mode;
+	unsigned int vid_win_wid, vid_win_ht;
 	unsigned int hcrop1, hcrop2, vcrop1, vcrop2;
-	unsigned int wa, We, ha, He;
+	unsigned int wa, we, ha, he;
 	unsigned int X, Y, hor_dcm, ver_dcm;
 	u32 reg;
 
@@ -304,7 +239,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	wa = tvn->wa;
 	ha = tvn->ha;
 
-	pci_info(zr->pci_dev, "set_vfe() - width = %d, height = %d\n", video_width, video_height);
+	pci_dbg(zr->pci_dev, "set_vfe() - width = %d, height = %d\n", video_width, video_height);
 
 	if (video_width < BUZ_MIN_WIDTH ||
 	    video_height < BUZ_MIN_HEIGHT ||
@@ -316,12 +251,12 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	/**** zr36057 ****/
 
 	/* horizontal */
-	VidWinWid = video_width;
-	X = DIV_ROUND_UP(VidWinWid * 64, tvn->wa);
-	We = (VidWinWid * 64) / X;
+	vid_win_wid = video_width;
+	X = DIV_ROUND_UP(vid_win_wid * 64, tvn->wa);
+	we = (vid_win_wid * 64) / X;
 	hor_dcm = 64 - X;
-	hcrop1 = 2 * ((tvn->wa - We) / 4);
-	hcrop2 = tvn->wa - We - hcrop1;
+	hcrop1 = 2 * ((tvn->wa - we) / 4);
+	hcrop2 = tvn->wa - we - hcrop1;
 	h_start = tvn->h_start ? tvn->h_start : 1;
 	/* (Ronald) Original comment:
 	 * "| 1 Doesn't have any effect, tested on both a DC10 and a DC10+"
@@ -331,29 +266,29 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	 * However, the DC10 has '0' as h_start, but does need |1, so we
 	 * use a dirty check...
 	 */
-	HEnd = h_start + tvn->wa - 1;
+	h_end = h_start + tvn->wa - 1;
 	h_start += hcrop1;
-	HEnd -= hcrop2;
+	h_end -= hcrop2;
 	reg = ((h_start & ZR36057_VFEHCR_HMASK) << ZR36057_VFEHCR_H_START)
-	    | ((HEnd & ZR36057_VFEHCR_HMASK) << ZR36057_VFEHCR_H_END);
+	    | ((h_end & ZR36057_VFEHCR_HMASK) << ZR36057_VFEHCR_H_END);
 	if (zr->card.vfe_pol.hsync_pol)
 		reg |= ZR36057_VFEHCR_HS_POL;
 	btwrite(reg, ZR36057_VFEHCR);
 
 	/* Vertical */
-	DispMode = !(video_height > BUZ_MAX_HEIGHT / 2);
-	VidWinHt = DispMode ? video_height : video_height / 2;
-	Y = DIV_ROUND_UP(VidWinHt * 64 * 2, tvn->ha);
-	He = (VidWinHt * 64) / Y;
+	disp_mode = !(video_height > BUZ_MAX_HEIGHT / 2);
+	vid_win_ht = disp_mode ? video_height : video_height / 2;
+	Y = DIV_ROUND_UP(vid_win_ht * 64 * 2, tvn->ha);
+	he = (vid_win_ht * 64) / Y;
 	ver_dcm = 64 - Y;
-	vcrop1 = (tvn->ha / 2 - He) / 2;
-	vcrop2 = tvn->ha / 2 - He - vcrop1;
+	vcrop1 = (tvn->ha / 2 - he) / 2;
+	vcrop2 = tvn->ha / 2 - he - vcrop1;
 	v_start = tvn->v_start;
-	VEnd = v_start + tvn->ha / 2;	// - 1; FIXME SnapShot times out with -1 in 768*576 on the DC10 - LP
+	v_end = v_start + tvn->ha / 2;	// - 1; FIXME SnapShot times out with -1 in 768*576 on the DC10 - LP
 	v_start += vcrop1;
-	VEnd -= vcrop2;
+	v_end -= vcrop2;
 	reg = ((v_start & ZR36057_VFEVCR_VMASK) << ZR36057_VFEVCR_V_START)
-	    | ((VEnd & ZR36057_VFEVCR_VMASK) << ZR36057_VFEVCR_V_END);
+	    | ((v_end & ZR36057_VFEVCR_VMASK) << ZR36057_VFEVCR_V_END);
 	if (zr->card.vfe_pol.vsync_pol)
 		reg |= ZR36057_VFEVCR_VS_POL;
 	btwrite(reg, ZR36057_VFEVCR);
@@ -362,7 +297,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	reg = 0;
 	reg |= (hor_dcm << ZR36057_VFESPFR_HOR_DCM);
 	reg |= (ver_dcm << ZR36057_VFESPFR_VER_DCM);
-	reg |= (DispMode << ZR36057_VFESPFR_DISP_MODE);
+	reg |= (disp_mode << ZR36057_VFESPFR_DISP_MODE);
 	/* RJ: I don't know, why the following has to be the opposite
 	 * of the corresponding ZR36060 setting, but only this way
 	 * we get the correct colors when uncompressing to the screen  */
@@ -383,8 +318,8 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 
 	/* display configuration */
 	reg = (16 << ZR36057_VDCR_MIN_PIX)
-	    | (VidWinHt << ZR36057_VDCR_VID_WIN_HT)
-	    | (VidWinWid << ZR36057_VDCR_VID_WIN_WID);
+	    | (vid_win_ht << ZR36057_VDCR_VID_WIN_HT)
+	    | (vid_win_wid << ZR36057_VDCR_VID_WIN_WID);
 	if (pci_pci_problems & PCIPCI_TRITON)
 		// || zr->revision < 1) // Revision 1 has also Triton support
 		reg &= ~ZR36057_VDCR_TRITON;
@@ -729,7 +664,7 @@ void zr36057_enable_jpg(struct zoran *zr, enum zoran_codec_mode mode)
 		zr36057_set_jpg(zr, mode);	// \P_Reset, ... Video param, FIFO
 
 		clear_interrupt_counters(zr);
-		pci_info(zr->pci_dev, "enable_jpg(MOTION_COMPRESS)\n");
+		pci_dbg(zr->pci_dev, "enable_jpg(MOTION_COMPRESS)\n");
 		break;
 	}
 
@@ -758,7 +693,7 @@ void zr36057_enable_jpg(struct zoran *zr, enum zoran_codec_mode mode)
 		zr36057_set_jpg(zr, mode);	// \P_Reset, ... Video param, FIFO
 
 		clear_interrupt_counters(zr);
-		pci_info(zr->pci_dev, "enable_jpg(MOTION_DECOMPRESS)\n");
+		pci_dbg(zr->pci_dev, "enable_jpg(MOTION_DECOMPRESS)\n");
 		break;
 
 	case BUZ_MODE_IDLE:
@@ -785,7 +720,7 @@ void zr36057_enable_jpg(struct zoran *zr, enum zoran_codec_mode mode)
 		decoder_call(zr, video, s_stream, 1);
 		encoder_call(zr, video, s_routing, 0, 0, 0);
 
-		pci_info(zr->pci_dev, "enable_jpg(IDLE)\n");
+		pci_dbg(zr->pci_dev, "enable_jpg(IDLE)\n");
 		break;
 	}
 }
@@ -879,7 +814,7 @@ static void zoran_reap_stat_com(struct zoran *zr)
 		if (zr->jpg_settings.tmp_dcm == 1)
 			i = (zr->jpg_dma_tail - zr->jpg_err_shift) & BUZ_MASK_STAT_COM;
 		else
-			i = ((zr->jpg_dma_tail - zr->jpg_err_shift) & 1) * 2 + 1;
+			i = ((zr->jpg_dma_tail - zr->jpg_err_shift) & 1) * 2;
 
 		stat_com = le32_to_cpu(zr->stat_com[i]);
 		if ((stat_com & 1) == 0) {
@@ -891,6 +826,11 @@ static void zoran_reap_stat_com(struct zoran *zr)
 		size = (stat_com & GENMASK(22, 1)) >> 1;
 
 		buf = zr->inuse[i];
+		if (!buf) {
+			spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
+			pci_err(zr->pci_dev, "No buffer at slot %d\n", i);
+			return;
+		}
 		buf->vbuf.vb2_buf.timestamp = ktime_get_ns();
 
 		if (zr->codec_mode == BUZ_MODE_MOTION_COMPRESS) {

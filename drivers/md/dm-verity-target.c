@@ -18,6 +18,7 @@
 #include "dm-verity-verify-sig.h"
 #include <linux/module.h>
 #include <linux/reboot.h>
+#include <linux/scatterlist.h>
 
 #define DM_MSG_PREFIX			"verity"
 
@@ -34,7 +35,7 @@
 #define DM_VERITY_OPT_IGN_ZEROES	"ignore_zero_blocks"
 #define DM_VERITY_OPT_AT_MOST_ONCE	"check_at_most_once"
 
-#define DM_VERITY_OPTS_MAX		(2 + DM_VERITY_OPTS_FEC + \
+#define DM_VERITY_OPTS_MAX		(3 + DM_VERITY_OPTS_FEC + \
 					 DM_VERITY_ROOT_HASH_VERIFICATION_OPTS)
 
 static unsigned dm_verity_prefetch_cluster = DM_VERITY_DEFAULT_PREFETCH_SIZE;
@@ -427,14 +428,14 @@ int verity_for_bv_block(struct dm_verity *v, struct dm_verity_io *io,
 		unsigned len;
 		struct bio_vec bv = bio_iter_iovec(bio, *iter);
 
-		page = kmap_atomic(bv.bv_page);
+		page = bvec_kmap_local(&bv);
 		len = bv.bv_len;
 
 		if (likely(len >= todo))
 			len = todo;
 
-		r = process(v, io, page + bv.bv_offset, len);
-		kunmap_atomic(page);
+		r = process(v, io, page, len);
+		kunmap_local(page);
 
 		if (r < 0)
 			return r;
@@ -475,6 +476,7 @@ static int verity_verify_io(struct dm_verity_io *io)
 	struct bvec_iter start;
 	unsigned b;
 	struct crypto_wait wait;
+	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 
 	for (b = 0; b < io->n_blocks; b++) {
 		int r;
@@ -529,12 +531,29 @@ static int verity_verify_io(struct dm_verity_io *io)
 		else if (verity_fec_decode(v, io, DM_VERITY_BLOCK_TYPE_DATA,
 					   cur_block, NULL, &start) == 0)
 			continue;
-		else if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA,
-					   cur_block))
-			return -EIO;
+		else {
+			if (bio->bi_status) {
+				/*
+				 * Error correction failed; Just return error
+				 */
+				return -EIO;
+			}
+			if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA,
+					      cur_block))
+				return -EIO;
+		}
 	}
 
 	return 0;
+}
+
+/*
+ * Skip verity work in response to I/O error when system is shutting down.
+ */
+static inline bool verity_is_system_shutting_down(void)
+{
+	return system_state == SYSTEM_HALT || system_state == SYSTEM_POWER_OFF
+		|| system_state == SYSTEM_RESTART;
 }
 
 /*
@@ -564,7 +583,8 @@ static void verity_end_io(struct bio *bio)
 {
 	struct dm_verity_io *io = bio->bi_private;
 
-	if (bio->bi_status && !verity_fec_is_enabled(io->v)) {
+	if (bio->bi_status &&
+	    (!verity_fec_is_enabled(io->v) || verity_is_system_shutting_down())) {
 		verity_finish_io(io, bio->bi_status);
 		return;
 	}
@@ -762,6 +782,49 @@ static void verity_status(struct dm_target *ti, status_type_t type,
 			DMEMIT(" " DM_VERITY_ROOT_HASH_VERIFICATION_OPT_SIG_KEY
 				" %s", v->signature_key_desc);
 		break;
+
+	case STATUSTYPE_IMA:
+		DMEMIT_TARGET_NAME_VERSION(ti->type);
+		DMEMIT(",hash_failed=%c", v->hash_failed ? 'C' : 'V');
+		DMEMIT(",verity_version=%u", v->version);
+		DMEMIT(",data_device_name=%s", v->data_dev->name);
+		DMEMIT(",hash_device_name=%s", v->hash_dev->name);
+		DMEMIT(",verity_algorithm=%s", v->alg_name);
+
+		DMEMIT(",root_digest=");
+		for (x = 0; x < v->digest_size; x++)
+			DMEMIT("%02x", v->root_digest[x]);
+
+		DMEMIT(",salt=");
+		if (!v->salt_size)
+			DMEMIT("-");
+		else
+			for (x = 0; x < v->salt_size; x++)
+				DMEMIT("%02x", v->salt[x]);
+
+		DMEMIT(",ignore_zero_blocks=%c", v->zero_digest ? 'y' : 'n');
+		DMEMIT(",check_at_most_once=%c", v->validated_blocks ? 'y' : 'n');
+		if (v->signature_key_desc)
+			DMEMIT(",root_hash_sig_key_desc=%s", v->signature_key_desc);
+
+		if (v->mode != DM_VERITY_MODE_EIO) {
+			DMEMIT(",verity_mode=");
+			switch (v->mode) {
+			case DM_VERITY_MODE_LOGGING:
+				DMEMIT(DM_VERITY_OPT_LOGGING);
+				break;
+			case DM_VERITY_MODE_RESTART:
+				DMEMIT(DM_VERITY_OPT_RESTART);
+				break;
+			case DM_VERITY_MODE_PANIC:
+				DMEMIT(DM_VERITY_OPT_PANIC);
+				break;
+			default:
+				DMEMIT("invalid");
+			}
+		}
+		DMEMIT(";");
+		break;
 	}
 }
 
@@ -771,8 +834,7 @@ static int verity_prepare_ioctl(struct dm_target *ti, struct block_device **bdev
 
 	*bdev = v->data_dev->bdev;
 
-	if (v->data_start ||
-	    ti->len != i_size_read(v->data_dev->bdev->bd_inode) >> SECTOR_SHIFT)
+	if (v->data_start || ti->len != bdev_nr_sectors(v->data_dev->bdev))
 		return 1;
 	return 0;
 }
@@ -883,6 +945,28 @@ out:
 	return r;
 }
 
+static inline bool verity_is_verity_mode(const char *arg_name)
+{
+	return (!strcasecmp(arg_name, DM_VERITY_OPT_LOGGING) ||
+		!strcasecmp(arg_name, DM_VERITY_OPT_RESTART) ||
+		!strcasecmp(arg_name, DM_VERITY_OPT_PANIC));
+}
+
+static int verity_parse_verity_mode(struct dm_verity *v, const char *arg_name)
+{
+	if (v->mode)
+		return -EINVAL;
+
+	if (!strcasecmp(arg_name, DM_VERITY_OPT_LOGGING))
+		v->mode = DM_VERITY_MODE_LOGGING;
+	else if (!strcasecmp(arg_name, DM_VERITY_OPT_RESTART))
+		v->mode = DM_VERITY_MODE_RESTART;
+	else if (!strcasecmp(arg_name, DM_VERITY_OPT_PANIC))
+		v->mode = DM_VERITY_MODE_PANIC;
+
+	return 0;
+}
+
 static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 				 struct dm_verity_sig_opts *verify_args)
 {
@@ -906,16 +990,12 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 		arg_name = dm_shift_arg(as);
 		argc--;
 
-		if (!strcasecmp(arg_name, DM_VERITY_OPT_LOGGING)) {
-			v->mode = DM_VERITY_MODE_LOGGING;
-			continue;
-
-		} else if (!strcasecmp(arg_name, DM_VERITY_OPT_RESTART)) {
-			v->mode = DM_VERITY_MODE_RESTART;
-			continue;
-
-		} else if (!strcasecmp(arg_name, DM_VERITY_OPT_PANIC)) {
-			v->mode = DM_VERITY_MODE_PANIC;
+		if (verity_is_verity_mode(arg_name)) {
+			r = verity_parse_verity_mode(v, arg_name);
+			if (r) {
+				ti->error = "Conflicting error handling parameters";
+				return r;
+			}
 			continue;
 
 		} else if (!strcasecmp(arg_name, DM_VERITY_OPT_IGN_ZEROES)) {
@@ -1232,7 +1312,7 @@ bad:
 
 static struct target_type verity_target = {
 	.name		= "verity",
-	.version	= {1, 7, 0},
+	.version	= {1, 8, 0},
 	.module		= THIS_MODULE,
 	.ctr		= verity_ctr,
 	.dtr		= verity_dtr,

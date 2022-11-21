@@ -149,7 +149,7 @@ static struct net_device *ieee802154_nl_get_dev(struct genl_info *info)
 	if (info->attrs[IEEE802154_ATTR_DEV_NAME]) {
 		char name[IFNAMSIZ + 1];
 
-		nla_strlcpy(name, info->attrs[IEEE802154_ATTR_DEV_NAME],
+		nla_strscpy(name, info->attrs[IEEE802154_ATTR_DEV_NAME],
 			    sizeof(name));
 		dev = dev_get_by_name(&init_net, name);
 	} else if (info->attrs[IEEE802154_ATTR_DEV_INDEX]) {
@@ -551,9 +551,7 @@ ieee802154_llsec_parse_key_id(struct genl_info *info,
 	desc->mode = nla_get_u8(info->attrs[IEEE802154_ATTR_LLSEC_KEY_MODE]);
 
 	if (desc->mode == IEEE802154_SCF_KEY_IMPLICIT) {
-		if (!info->attrs[IEEE802154_ATTR_PAN_ID] &&
-		    !(info->attrs[IEEE802154_ATTR_SHORT_ADDR] ||
-		      info->attrs[IEEE802154_ATTR_HW_ADDR]))
+		if (!info->attrs[IEEE802154_ATTR_PAN_ID])
 			return -EINVAL;
 
 		desc->device_addr.pan_id = nla_get_shortaddr(info->attrs[IEEE802154_ATTR_PAN_ID]);
@@ -562,6 +560,9 @@ ieee802154_llsec_parse_key_id(struct genl_info *info,
 			desc->device_addr.mode = IEEE802154_ADDR_SHORT;
 			desc->device_addr.short_addr = nla_get_shortaddr(info->attrs[IEEE802154_ATTR_SHORT_ADDR]);
 		} else {
+			if (!info->attrs[IEEE802154_ATTR_HW_ADDR])
+				return -EINVAL;
+
 			desc->device_addr.mode = IEEE802154_ADDR_LONG;
 			desc->device_addr.extended_addr = nla_get_hwaddr(info->attrs[IEEE802154_ATTR_HW_ADDR]);
 		}
@@ -679,8 +680,10 @@ int ieee802154_llsec_getparams(struct sk_buff *skb, struct genl_info *info)
 	    nla_put_u8(msg, IEEE802154_ATTR_LLSEC_SECLEVEL, params.out_level) ||
 	    nla_put_u32(msg, IEEE802154_ATTR_LLSEC_FRAME_COUNTER,
 			be32_to_cpu(params.frame_counter)) ||
-	    ieee802154_llsec_fill_key_id(msg, &params.out_key))
+	    ieee802154_llsec_fill_key_id(msg, &params.out_key)) {
+		rc = -ENOBUFS;
 		goto out_free;
+	}
 
 	dev_put(dev);
 
@@ -1183,7 +1186,7 @@ static int llsec_iter_devkeys(struct llsec_dump_data *data)
 {
 	struct ieee802154_llsec_device *dpos;
 	struct ieee802154_llsec_device_key *kpos;
-	int rc = 0, idx = 0, idx2;
+	int idx = 0, idx2;
 
 	list_for_each_entry(dpos, &data->table->devices, list) {
 		if (idx++ < data->s_idx)
@@ -1199,7 +1202,7 @@ static int llsec_iter_devkeys(struct llsec_dump_data *data)
 						      data->nlmsg_seq,
 						      dpos->hwaddr, kpos,
 						      data->dev)) {
-				return rc = -EMSGSIZE;
+				return -EMSGSIZE;
 			}
 
 			data->s_idx2++;
@@ -1208,7 +1211,7 @@ static int llsec_iter_devkeys(struct llsec_dump_data *data)
 		data->s_idx++;
 	}
 
-	return rc;
+	return 0;
 }
 
 int ieee802154_llsec_dump_devkeys(struct sk_buff *skb,

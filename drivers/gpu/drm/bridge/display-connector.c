@@ -11,7 +11,9 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
 
@@ -20,6 +22,8 @@ struct display_connector {
 
 	struct gpio_desc	*hpd_gpio;
 	int			hpd_irq;
+
+	struct regulator	*dp_pwr;
 };
 
 static inline struct display_connector *
@@ -84,10 +88,95 @@ static struct edid *display_connector_get_edid(struct drm_bridge *bridge,
 	return drm_get_edid(connector, conn->bridge.ddc);
 }
 
+/*
+ * Since this bridge is tied to the connector, it acts like a passthrough,
+ * so concerning the output bus formats, either pass the bus formats from the
+ * previous bridge or return fallback data like done in the bridge function:
+ * drm_atomic_bridge_chain_select_bus_fmts().
+ * This supports negotiation if the bridge chain has all bits in place.
+ */
+static u32 *display_connector_get_output_bus_fmts(struct drm_bridge *bridge,
+					struct drm_bridge_state *bridge_state,
+					struct drm_crtc_state *crtc_state,
+					struct drm_connector_state *conn_state,
+					unsigned int *num_output_fmts)
+{
+	struct drm_bridge *prev_bridge = drm_bridge_get_prev_bridge(bridge);
+	struct drm_bridge_state *prev_bridge_state;
+
+	if (!prev_bridge || !prev_bridge->funcs->atomic_get_output_bus_fmts) {
+		struct drm_connector *conn = conn_state->connector;
+		u32 *out_bus_fmts;
+
+		*num_output_fmts = 1;
+		out_bus_fmts = kmalloc(sizeof(*out_bus_fmts), GFP_KERNEL);
+		if (!out_bus_fmts)
+			return NULL;
+
+		if (conn->display_info.num_bus_formats &&
+		    conn->display_info.bus_formats)
+			out_bus_fmts[0] = conn->display_info.bus_formats[0];
+		else
+			out_bus_fmts[0] = MEDIA_BUS_FMT_FIXED;
+
+		return out_bus_fmts;
+	}
+
+	prev_bridge_state = drm_atomic_get_new_bridge_state(crtc_state->state,
+							    prev_bridge);
+
+	return prev_bridge->funcs->atomic_get_output_bus_fmts(prev_bridge, prev_bridge_state,
+							      crtc_state, conn_state,
+							      num_output_fmts);
+}
+
+/*
+ * Since this bridge is tied to the connector, it acts like a passthrough,
+ * so concerning the input bus formats, either pass the bus formats from the
+ * previous bridge or MEDIA_BUS_FMT_FIXED (like select_bus_fmt_recursive())
+ * when atomic_get_input_bus_fmts is not supported.
+ * This supports negotiation if the bridge chain has all bits in place.
+ */
+static u32 *display_connector_get_input_bus_fmts(struct drm_bridge *bridge,
+					struct drm_bridge_state *bridge_state,
+					struct drm_crtc_state *crtc_state,
+					struct drm_connector_state *conn_state,
+					u32 output_fmt,
+					unsigned int *num_input_fmts)
+{
+	struct drm_bridge *prev_bridge = drm_bridge_get_prev_bridge(bridge);
+	struct drm_bridge_state *prev_bridge_state;
+
+	if (!prev_bridge || !prev_bridge->funcs->atomic_get_input_bus_fmts) {
+		u32 *in_bus_fmts;
+
+		*num_input_fmts = 1;
+		in_bus_fmts = kmalloc(sizeof(*in_bus_fmts), GFP_KERNEL);
+		if (!in_bus_fmts)
+			return NULL;
+
+		in_bus_fmts[0] = MEDIA_BUS_FMT_FIXED;
+
+		return in_bus_fmts;
+	}
+
+	prev_bridge_state = drm_atomic_get_new_bridge_state(crtc_state->state,
+							    prev_bridge);
+
+	return prev_bridge->funcs->atomic_get_input_bus_fmts(prev_bridge, prev_bridge_state,
+							     crtc_state, conn_state, output_fmt,
+							     num_input_fmts);
+}
+
 static const struct drm_bridge_funcs display_connector_bridge_funcs = {
 	.attach = display_connector_attach,
 	.detect = display_connector_detect,
 	.get_edid = display_connector_get_edid,
+	.atomic_get_output_bus_fmts = display_connector_get_output_bus_fmts,
+	.atomic_get_input_bus_fmts = display_connector_get_input_bus_fmts,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
 };
 
 static irqreturn_t display_connector_hpd_irq(int irq, void *arg)
@@ -104,7 +193,7 @@ static int display_connector_probe(struct platform_device *pdev)
 {
 	struct display_connector *conn;
 	unsigned int type;
-	const char *label;
+	const char *label = NULL;
 	int ret;
 
 	conn = devm_kzalloc(&pdev->dev, sizeof(*conn), GFP_KERNEL);
@@ -172,11 +261,12 @@ static int display_connector_probe(struct platform_device *pdev)
 	of_property_read_string(pdev->dev.of_node, "label", &label);
 
 	/*
-	 * Get the HPD GPIO for DVI and HDMI connectors. If the GPIO can provide
+	 * Get the HPD GPIO for DVI, HDMI and DP connectors. If the GPIO can provide
 	 * edge interrupts, register an interrupt handler.
 	 */
 	if (type == DRM_MODE_CONNECTOR_DVII ||
-	    type == DRM_MODE_CONNECTOR_HDMIA) {
+	    type == DRM_MODE_CONNECTOR_HDMIA ||
+	    type == DRM_MODE_CONNECTOR_DisplayPort) {
 		conn->hpd_gpio = devm_gpiod_get_optional(&pdev->dev, "hpd",
 							 GPIOD_IN);
 		if (IS_ERR(conn->hpd_gpio)) {
@@ -223,6 +313,38 @@ static int display_connector_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* Get the DP PWR for DP connector. */
+	if (type == DRM_MODE_CONNECTOR_DisplayPort) {
+		int ret;
+
+		conn->dp_pwr = devm_regulator_get_optional(&pdev->dev, "dp-pwr");
+
+		if (IS_ERR(conn->dp_pwr)) {
+			ret = PTR_ERR(conn->dp_pwr);
+
+			switch (ret) {
+			case -ENODEV:
+				conn->dp_pwr = NULL;
+				break;
+
+			case -EPROBE_DEFER:
+				return -EPROBE_DEFER;
+
+			default:
+				dev_err(&pdev->dev, "failed to get DP PWR regulator: %d\n", ret);
+				return ret;
+			}
+		}
+
+		if (conn->dp_pwr) {
+			ret = regulator_enable(conn->dp_pwr);
+			if (ret) {
+				dev_err(&pdev->dev, "failed to enable DP PWR regulator: %d\n", ret);
+				return ret;
+			}
+		}
+	}
+
 	conn->bridge.funcs = &display_connector_bridge_funcs;
 	conn->bridge.of_node = pdev->dev.of_node;
 
@@ -251,6 +373,9 @@ static int display_connector_remove(struct platform_device *pdev)
 {
 	struct display_connector *conn = platform_get_drvdata(pdev);
 
+	if (conn->dp_pwr)
+		regulator_disable(conn->dp_pwr);
+
 	drm_bridge_remove(&conn->bridge);
 
 	if (!IS_ERR(conn->bridge.ddc))
@@ -275,6 +400,9 @@ static const struct of_device_id display_connector_match[] = {
 	}, {
 		.compatible = "vga-connector",
 		.data = (void *)DRM_MODE_CONNECTOR_VGA,
+	}, {
+		.compatible = "dp-connector",
+		.data = (void *)DRM_MODE_CONNECTOR_DisplayPort,
 	},
 	{},
 };

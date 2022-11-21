@@ -81,7 +81,12 @@ EXPORT_SYMBOL(store_fp_state)
  */
 _GLOBAL(load_up_fpu)
 	mfmsr	r5
+#ifdef CONFIG_PPC_BOOK3S_64
+	/* interrupt doesn't set MSR[RI] and HPT can fault on current access */
+	ori	r5,r5,MSR_FP|MSR_RI
+#else
 	ori	r5,r5,MSR_FP
+#endif
 #ifdef CONFIG_VSX
 BEGIN_FTR_SECTION
 	oris	r5,r5,MSR_VSX@h
@@ -91,10 +96,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	isync
 	/* enable use of FP after return */
 #ifdef CONFIG_PPC32
-	mfspr	r5,SPRN_SPRG_THREAD	/* current task's THREAD (phys) */
-#ifdef CONFIG_VMAP_STACK
-	tovirt(r5, r5)
-#endif
+	addi	r5,r2,THREAD
 	lwz	r4,THREAD_FPEXC_MODE(r5)
 	ori	r9,r9,MSR_FP		/* enable FP for current */
 	or	r9,r9,r4
@@ -105,6 +107,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	ori	r12,r12,MSR_FP
 	or	r12,r12,r4
 	std	r12,_MSR(r1)
+#ifdef CONFIG_PPC_BOOK3S_64
+	li	r4,0
+	stb	r4,PACASRR_VALID(r13)
+#endif
 #endif
 	li	r4,1
 	stb	r4,THREAD_LOAD_FP(r5)

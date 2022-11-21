@@ -28,7 +28,7 @@ p_etext:	.8byte	_etext
 p_bss_start:	.8byte	__bss_start
 p_end:		.8byte	_end
 
-p_toc:		.8byte	__toc_start + 0x8000 - p_base
+p_toc:		.8byte	.TOC. - p_base
 p_dyn:		.8byte	__dynamic_start - p_base
 p_rela:		.8byte	__rela_dyn_start - p_base
 p_prom:		.8byte	0
@@ -226,16 +226,19 @@ p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
 #ifdef __powerpc64__
 
 #define PROM_FRAME_SIZE 512
-#define SAVE_GPR(n, base)       std     n,8*(n)(base)
-#define REST_GPR(n, base)       ld      n,8*(n)(base)
-#define SAVE_2GPRS(n, base)     SAVE_GPR(n, base); SAVE_GPR(n+1, base)
-#define SAVE_4GPRS(n, base)     SAVE_2GPRS(n, base); SAVE_2GPRS(n+2, base)
-#define SAVE_8GPRS(n, base)     SAVE_4GPRS(n, base); SAVE_4GPRS(n+4, base)
-#define SAVE_10GPRS(n, base)    SAVE_8GPRS(n, base); SAVE_2GPRS(n+8, base)
-#define REST_2GPRS(n, base)     REST_GPR(n, base); REST_GPR(n+1, base)
-#define REST_4GPRS(n, base)     REST_2GPRS(n, base); REST_2GPRS(n+2, base)
-#define REST_8GPRS(n, base)     REST_4GPRS(n, base); REST_4GPRS(n+4, base)
-#define REST_10GPRS(n, base)    REST_8GPRS(n, base); REST_2GPRS(n+8, base)
+
+.macro OP_REGS op, width, start, end, base, offset
+	.Lreg=\start
+	.rept (\end - \start + 1)
+	\op	.Lreg,\offset+\width*.Lreg(\base)
+	.Lreg=.Lreg+1
+	.endr
+.endm
+
+#define SAVE_GPRS(start, end, base)	OP_REGS std, 8, start, end, base, 0
+#define REST_GPRS(start, end, base)	OP_REGS ld, 8, start, end, base, 0
+#define SAVE_GPR(n, base)		SAVE_GPRS(n, n, base)
+#define REST_GPR(n, base)		REST_GPRS(n, n, base)
 
 /* prom handles the jump into and return from firmware.  The prom args pointer
    is loaded in r3. */
@@ -246,9 +249,7 @@ prom:
 	stdu	r1,-PROM_FRAME_SIZE(r1) /* Save SP and create stack space */
 
 	SAVE_GPR(2, r1)
-	SAVE_GPR(13, r1)
-	SAVE_8GPRS(14, r1)
-	SAVE_10GPRS(22, r1)
+	SAVE_GPRS(13, 31, r1)
 	mfcr    r10
 	std     r10,8*32(r1)
 	mfmsr   r10
@@ -283,9 +284,7 @@ prom:
 
 	/* Restore other registers */
 	REST_GPR(2, r1)
-	REST_GPR(13, r1)
-	REST_8GPRS(14, r1)
-	REST_10GPRS(22, r1)
+	REST_GPRS(13, 31, r1)
 	ld      r10,8*32(r1)
 	mtcr	r10
 

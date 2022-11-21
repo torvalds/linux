@@ -50,6 +50,14 @@
 #define MII_DP83640_MISR_LINK_INT_EN 0x20
 #define MII_DP83640_MISR_ED_INT_EN 0x40
 #define MII_DP83640_MISR_LQ_INT_EN 0x80
+#define MII_DP83640_MISR_ANC_INT 0x400
+#define MII_DP83640_MISR_DUP_INT 0x800
+#define MII_DP83640_MISR_SPD_INT 0x1000
+#define MII_DP83640_MISR_LINK_INT 0x2000
+#define MII_DP83640_MISR_INT_MASK (MII_DP83640_MISR_ANC_INT |\
+				   MII_DP83640_MISR_DUP_INT |\
+				   MII_DP83640_MISR_SPD_INT |\
+				   MII_DP83640_MISR_LINK_INT)
 
 /* phyter seems to miss the mark by 16 ns */
 #define ADJTIME_FIX	16
@@ -162,9 +170,9 @@ static ushort gpio_tab[GPIO_TABLE_SIZE] = {
 module_param(chosen_phy, int, 0444);
 module_param_array(gpio_tab, ushort, NULL, 0444);
 
-MODULE_PARM_DESC(chosen_phy, \
+MODULE_PARM_DESC(chosen_phy,
 	"The address of the PHY to use for the ancillary clock features");
-MODULE_PARM_DESC(gpio_tab, \
+MODULE_PARM_DESC(gpio_tab,
 	"Which GPIO line to use for which purpose: cal,perout,extts1,...,extts6");
 
 static void dp83640_gpio_defaults(struct ptp_pin_desc *pd)
@@ -607,6 +615,7 @@ static void prune_rx_ts(struct dp83640_private *dp83640)
 static void enable_broadcast(struct phy_device *phydev, int init_page, int on)
 {
 	int val;
+
 	phy_write(phydev, PAGESEL, 0);
 	val = phy_read(phydev, PHYCR2);
 	if (on)
@@ -877,7 +886,7 @@ out:
 	spin_unlock_irqrestore(&dp83640->rx_lock, flags);
 
 	if (shhwtstamps)
-		netif_rx_ni(skb);
+		netif_rx(skb);
 }
 
 static void decode_txts(struct dp83640_private *dp83640,
@@ -959,20 +968,6 @@ static void decode_status_frame(struct dp83640_private *dp83640,
 		}
 		ptr += size;
 	}
-}
-
-static int is_sync(struct sk_buff *skb, int type)
-{
-	struct ptp_header *hdr;
-	u8 msgtype;
-
-	hdr = ptp_parse_header(skb, type);
-	if (!hdr)
-		return 0;
-
-	msgtype = ptp_get_msgtype(hdr, type);
-
-	return (msgtype & 0xf) == 0;
 }
 
 static void dp83640_free_clocks(void)
@@ -1151,6 +1146,10 @@ static int dp83640_config_intr(struct phy_device *phydev)
 	int err;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = dp83640_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		misr = phy_read(phydev, MII_DP83640_MISR);
 		if (misr < 0)
 			return misr;
@@ -1189,8 +1188,30 @@ static int dp83640_config_intr(struct phy_device *phydev)
 			MII_DP83640_MISR_DUP_INT_EN |
 			MII_DP83640_MISR_SPD_INT_EN |
 			MII_DP83640_MISR_LINK_INT_EN);
-		return phy_write(phydev, MII_DP83640_MISR, misr);
+		err = phy_write(phydev, MII_DP83640_MISR, misr);
+		if (err)
+			return err;
+
+		return dp83640_ack_interrupt(phydev);
 	}
+}
+
+static irqreturn_t dp83640_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, MII_DP83640_MISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_DP83640_MISR_INT_MASK))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int dp83640_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
@@ -1202,9 +1223,6 @@ static int dp83640_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
-
-	if (cfg.flags) /* reserved for future extensions */
-		return -EINVAL;
 
 	if (cfg.tx_type < 0 || cfg.tx_type > HWTSTAMP_TX_ONESTEP_SYNC)
 		return -ERANGE;
@@ -1300,7 +1318,7 @@ static void rx_timestamp_work(struct work_struct *work)
 			break;
 		}
 
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	}
 
 	if (!skb_queue_empty(&dp83640->rx_queue))
@@ -1351,7 +1369,7 @@ static bool dp83640_rxtstamp(struct mii_timestamper *mii_ts,
 		skb_queue_tail(&dp83640->rx_queue, skb);
 		schedule_delayed_work(&dp83640->ts_work, SKB_TIMESTAMP_TIMEOUT);
 	} else {
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	}
 
 	return true;
@@ -1367,7 +1385,7 @@ static void dp83640_txtstamp(struct mii_timestamper *mii_ts,
 	switch (dp83640->hwts_tx_en) {
 
 	case HWTSTAMP_TX_ONESTEP_SYNC:
-		if (is_sync(skb, type)) {
+		if (ptp_msg_is_sync(skb, type)) {
 			kfree_skb(skb);
 			return;
 		}
@@ -1515,8 +1533,8 @@ static struct phy_driver dp83640_driver = {
 	.remove		= dp83640_remove,
 	.soft_reset	= dp83640_soft_reset,
 	.config_init	= dp83640_config_init,
-	.ack_interrupt  = dp83640_ack_interrupt,
 	.config_intr    = dp83640_config_intr,
+	.handle_interrupt = dp83640_handle_interrupt,
 };
 
 static int __init dp83640_init(void)

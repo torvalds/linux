@@ -8,6 +8,7 @@
 
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/sizes.h>
 #include <linux/of_fdt.h>
@@ -25,6 +26,7 @@
 
 __iomem void *rt_sysc_membase;
 __iomem void *rt_memc_membase;
+EXPORT_SYMBOL_GPL(rt_sysc_membase);
 
 __iomem void *plat_of_remap_node(const char *node)
 {
@@ -46,43 +48,24 @@ __iomem void *plat_of_remap_node(const char *node)
 	return ioremap(res.start, resource_size(&res));
 }
 
-void __init device_tree_init(void)
-{
-	unflatten_and_copy_device_tree();
-}
-
-static int memory_dtb;
-
-static int __init early_init_dt_find_memory(unsigned long node,
-				const char *uname, int depth, void *data)
-{
-	if (depth == 1 && !strcmp(uname, "memory@0"))
-		memory_dtb = 1;
-
-	return 0;
-}
-
 void __init plat_mem_setup(void)
 {
-	void *dtb = NULL;
+	void *dtb;
 
 	set_io_port_base(KSEG1);
 
 	/*
 	 * Load the builtin devicetree. This causes the chosen node to be
-	 * parsed resulting in our memory appearing. fw_passed_dtb is used
-	 * by CONFIG_MIPS_APPENDED_RAW_DTB as well.
+	 * parsed resulting in our memory appearing.
 	 */
-	if (fw_passed_dtb)
-		dtb = (void *)fw_passed_dtb;
-	else if (__dtb_start != __dtb_end)
-		dtb = (void *)__dtb_start;
-
+	dtb = get_fdt();
 	__dt_setup_arch(dtb);
 
-	of_scan_flat_dt(early_init_dt_find_memory, NULL);
-	if (memory_dtb)
-		of_scan_flat_dt(early_init_dt_scan_memory, NULL);
+	if (!early_init_dt_scan_memory())
+		return;
+
+	if (soc_info.mem_detect)
+		soc_info.mem_detect();
 	else if (soc_info.mem_size)
 		memblock_add(soc_info.mem_base, soc_info.mem_size * SZ_1M);
 	else

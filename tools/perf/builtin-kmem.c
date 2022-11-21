@@ -192,7 +192,7 @@ static int evsel__process_alloc_node_event(struct evsel *evsel, struct perf_samp
 	int ret = evsel__process_alloc_event(evsel, sample);
 
 	if (!ret) {
-		int node1 = cpu__get_node(sample->cpu),
+		int node1 = cpu__get_node((struct perf_cpu){.cpu = sample->cpu}),
 		    node2 = evsel__intval(evsel, sample, "node");
 
 		if (node1 != node2)
@@ -1946,32 +1946,29 @@ int cmd_kmem(int argc, const char **argv)
 			kmem_page = 1;
 	}
 
-	if (!strncmp(argv[0], "rec", 3)) {
+	if (strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
 		symbol__init(NULL);
 		return __cmd_record(argc, argv);
 	}
 
 	data.path = input_name;
 
-	kmem_session = session = perf_session__new(&data, false, &perf_kmem);
+	kmem_session = session = perf_session__new(&data, &perf_kmem);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
 	ret = -1;
 
 	if (kmem_slab) {
-		if (!perf_evlist__find_tracepoint_by_name(session->evlist,
-							  "kmem:kmalloc")) {
+		if (!evlist__find_tracepoint_by_name(session->evlist, "kmem:kmalloc")) {
 			pr_err(errmsg, "slab", "slab");
 			goto out_delete;
 		}
 	}
 
 	if (kmem_page) {
-		struct evsel *evsel;
+		struct evsel *evsel = evlist__find_tracepoint_by_name(session->evlist, "kmem:mm_page_alloc");
 
-		evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
-							     "kmem:mm_page_alloc");
 		if (evsel == NULL) {
 			pr_err(errmsg, "page", "page");
 			goto out_delete;

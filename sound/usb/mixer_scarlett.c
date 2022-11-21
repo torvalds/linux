@@ -21,7 +21,7 @@
  * Auto-detection via UAC2 is not feasible to properly discover the vast
  * majority of features. It's related to both Linux/ALSA's UAC2 as well as
  * Focusrite's implementation of it. Eventually quirks may be sufficient but
- * right now it's a major headache to work arount these things.
+ * right now it's a major headache to work around these things.
  *
  * NB. Neither the OSX nor the win driver provided by Focusrite performs
  * discovery, they seem to operate the same as this driver.
@@ -569,7 +569,7 @@ static int add_new_ctl(struct usb_mixer_interface *mixer,
 	}
 	kctl->private_free = snd_usb_mixer_elem_free;
 
-	strlcpy(kctl->id.name, name, sizeof(kctl->id.name));
+	strscpy(kctl->id.name, name, sizeof(kctl->id.name));
 
 	err = snd_usb_mixer_add_control(&elem->head, kctl);
 	if (err < 0)

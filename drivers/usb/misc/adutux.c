@@ -183,10 +183,10 @@ static void adu_interrupt_in_callback(struct urb *urb)
 				dev->interrupt_in_buffer, urb->actual_length);
 
 			dev->read_buffer_length += urb->actual_length;
-			dev_dbg(&dev->udev->dev,"%s reading  %d\n", __func__,
+			dev_dbg(&dev->udev->dev, "%s reading  %d\n", __func__,
 				urb->actual_length);
 		} else {
-			dev_dbg(&dev->udev->dev,"%s : read_buffer overflow\n",
+			dev_dbg(&dev->udev->dev, "%s : read_buffer overflow\n",
 				__func__);
 		}
 	}
@@ -394,13 +394,10 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 			spin_lock_irqsave (&dev->buflock, flags);
 			if (dev->read_buffer_length) {
 				/* we secure access to the primary */
-				char *tmp;
 				dev_dbg(&dev->udev->dev,
 					"%s : swap, read_buffer_length = %d\n",
 					__func__, dev->read_buffer_length);
-				tmp = dev->read_buffer_secondary;
-				dev->read_buffer_secondary = dev->read_buffer_primary;
-				dev->read_buffer_primary = tmp;
+				swap(dev->read_buffer_primary, dev->read_buffer_secondary);
 				dev->secondary_head = 0;
 				dev->secondary_tail = dev->read_buffer_length;
 				dev->read_buffer_length = 0;
@@ -726,7 +723,7 @@ static int adu_probe(struct usb_interface *interface,
 		retval = -EIO;
 		goto error;
 	}
-	dev_dbg(&interface->dev,"serial_number=%s", dev->serial_number);
+	dev_dbg(&interface->dev, "serial_number=%s", dev->serial_number);
 
 	/* we can register the device now, as it is ready */
 	usb_set_intfdata(interface, dev);

@@ -10,7 +10,7 @@
 #include <asm/simd.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/simd.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <crypto/sha256_base.h>
 #include <linux/types.h>
 #include <linux/string.h>

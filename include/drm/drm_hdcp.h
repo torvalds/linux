@@ -101,11 +101,11 @@
 
 /* Following Macros take a byte at a time for bit(s) masking */
 /*
- * TODO: This has to be changed for DP MST, as multiple stream on
- * same port is possible.
- * For HDCP2.2 on HDMI and DP SST this value is always 1.
+ * TODO: HDCP_2_2_MAX_CONTENT_STREAMS_CNT is based upon actual
+ * H/W MST streams capacity.
+ * This required to be moved out to platform specific header.
  */
-#define HDCP_2_2_MAX_CONTENT_STREAMS_CNT	1
+#define HDCP_2_2_MAX_CONTENT_STREAMS_CNT	4
 #define HDCP_2_2_TXCAP_MASK_LEN			2
 #define HDCP_2_2_RXCAPS_LEN			3
 #define HDCP_2_2_RX_REPEATER(x)			((x) & BIT(0))
@@ -224,11 +224,14 @@ struct hdcp2_rep_stream_ready {
 
 /* HDCP2.2 TIMEOUTs in mSec */
 #define HDCP_2_2_CERT_TIMEOUT_MS		100
+#define HDCP_2_2_DP_CERT_READ_TIMEOUT_MS	110
 #define HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS	1000
 #define HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS	200
+#define HDCP_2_2_DP_HPRIME_READ_TIMEOUT_MS	7
 #define HDCP_2_2_PAIRING_TIMEOUT_MS		200
+#define HDCP_2_2_DP_PAIRING_READ_TIMEOUT_MS	5
 #define	HDCP_2_2_HDMI_LPRIME_TIMEOUT_MS		20
-#define HDCP_2_2_DP_LPRIME_TIMEOUT_MS		7
+#define HDCP_2_2_DP_LPRIME_TIMEOUT_MS		16
 #define HDCP_2_2_RECVID_LIST_TIMEOUT_MS		3000
 #define HDCP_2_2_STREAM_READY_TIMEOUT_MS	100
 

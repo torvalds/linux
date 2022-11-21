@@ -25,7 +25,8 @@
 #include <crypto/hash.h>
 #include <crypto/md5.h>
 #include <crypto/scatterwalk.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/internal/hash.h>
 
 #define HASH_CR				0x00
@@ -1565,7 +1566,7 @@ static int stm32_hash_remove(struct platform_device *pdev)
 	if (!hdev)
 		return -ENODEV;
 
-	ret = pm_runtime_get_sync(hdev->dev);
+	ret = pm_runtime_resume_and_get(hdev->dev);
 	if (ret < 0)
 		return ret;
 

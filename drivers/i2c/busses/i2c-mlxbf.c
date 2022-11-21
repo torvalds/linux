@@ -172,12 +172,6 @@
 #define MLXBF_I2C_SMBUS_THIGH_MAX_TBUF            0x14
 #define MLXBF_I2C_SMBUS_SCL_LOW_TIMEOUT           0x18
 
-enum {
-	MLXBF_I2C_TIMING_100KHZ = 100000,
-	MLXBF_I2C_TIMING_400KHZ = 400000,
-	MLXBF_I2C_TIMING_1000KHZ = 1000000,
-};
-
 /*
  * Defines SMBus operating frequency and core clock frequency.
  * According to ADB files, default values are compliant to 100KHz SMBus
@@ -1202,7 +1196,7 @@ static int mlxbf_i2c_init_timings(struct platform_device *pdev,
 
 	ret = device_property_read_u32(dev, "clock-frequency", &config_khz);
 	if (ret < 0)
-		config_khz = MLXBF_I2C_TIMING_100KHZ;
+		config_khz = I2C_MAX_STANDARD_MODE_FREQ;
 
 	switch (config_khz) {
 	default:
@@ -1210,15 +1204,15 @@ static int mlxbf_i2c_init_timings(struct platform_device *pdev,
 		pr_warn("Illegal value %d: defaulting to 100 KHz\n",
 			config_khz);
 		fallthrough;
-	case MLXBF_I2C_TIMING_100KHZ:
+	case I2C_MAX_STANDARD_MODE_FREQ:
 		config_idx = MLXBF_I2C_TIMING_CONFIG_100KHZ;
 		break;
 
-	case MLXBF_I2C_TIMING_400KHZ:
+	case I2C_MAX_FAST_MODE_FREQ:
 		config_idx = MLXBF_I2C_TIMING_CONFIG_400KHZ;
 		break;
 
-	case MLXBF_I2C_TIMING_1000KHZ:
+	case I2C_MAX_FAST_MODE_PLUS_FREQ:
 		config_idx = MLXBF_I2C_TIMING_CONFIG_1000KHZ;
 		break;
 	}
@@ -2376,6 +2370,8 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 	mlxbf_i2c_init_slave(pdev, priv);
 
 	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 	ret = devm_request_irq(dev, irq, mlxbf_smbus_irq,
 			       IRQF_ONESHOT | IRQF_SHARED | IRQF_PROBE_SHARED,
 			       dev_name(dev), priv);

@@ -29,8 +29,7 @@ static int st_lsm6dsx_spi_probe(struct spi_device *spi)
 
 	regmap = devm_regmap_init_spi(spi, &st_lsm6dsx_spi_regmap_config);
 	if (IS_ERR(regmap)) {
-		dev_err(&spi->dev, "Failed to register spi regmap %d\n",
-			(int)PTR_ERR(regmap));
+		dev_err(&spi->dev, "Failed to register spi regmap %ld\n", PTR_ERR(regmap));
 		return PTR_ERR(regmap);
 	}
 
@@ -94,6 +93,14 @@ static const struct of_device_id st_lsm6dsx_spi_of_match[] = {
 		.compatible = "st,lsm6dsrx",
 		.data = (void *)ST_LSM6DSRX_ID,
 	},
+	{
+		.compatible = "st,lsm6dst",
+		.data = (void *)ST_LSM6DST_ID,
+	},
+	{
+		.compatible = "st,lsm6dsop",
+		.data = (void *)ST_LSM6DSOP_ID,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_lsm6dsx_spi_of_match);
@@ -113,6 +120,8 @@ static const struct spi_device_id st_lsm6dsx_spi_id_table[] = {
 	{ ST_LSM9DS1_DEV_NAME, ST_LSM9DS1_ID },
 	{ ST_LSM6DS0_DEV_NAME, ST_LSM6DS0_ID },
 	{ ST_LSM6DSRX_DEV_NAME, ST_LSM6DSRX_ID },
+	{ ST_LSM6DST_DEV_NAME, ST_LSM6DST_ID },
+	{ ST_LSM6DSOP_DEV_NAME, ST_LSM6DSOP_ID },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_lsm6dsx_spi_id_table);

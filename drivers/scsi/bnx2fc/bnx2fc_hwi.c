@@ -770,7 +770,6 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 			} else
 				printk(KERN_ERR PFX "SRR in progress\n");
 			goto ret_err_rqe;
-			break;
 		default:
 			break;
 		}
@@ -1170,7 +1169,7 @@ static void bnx2fc_process_ofld_cmpl(struct bnx2fc_hba *hba,
 		ofld_kcqe->fcoe_conn_context_id);
 	interface = tgt->port->priv;
 	if (hba != interface->hba) {
-		printk(KERN_ERR PFX "ERROR:ofld_cmpl: HBA mis-match\n");
+		printk(KERN_ERR PFX "ERROR:ofld_cmpl: HBA mismatch\n");
 		goto ofld_cmpl_err;
 	}
 	/*
@@ -1227,12 +1226,12 @@ static void bnx2fc_process_enable_conn_cmpl(struct bnx2fc_hba *hba,
 	 * and enable
 	 */
 	if (tgt->context_id != context_id) {
-		printk(KERN_ERR PFX "context id mis-match\n");
+		printk(KERN_ERR PFX "context id mismatch\n");
 		return;
 	}
 	interface = tgt->port->priv;
 	if (hba != interface->hba) {
-		printk(KERN_ERR PFX "bnx2fc-enbl_cmpl: HBA mis-match\n");
+		printk(KERN_ERR PFX "bnx2fc-enbl_cmpl: HBA mismatch\n");
 		goto enbl_cmpl_err;
 	}
 	if (!ofld_kcqe->completion_status)
@@ -1332,7 +1331,7 @@ static void bnx2fc_init_failure(struct bnx2fc_hba *hba, u32 err_code)
 }
 
 /**
- * bnx2fc_indicae_kcqe - process KCQE
+ * bnx2fc_indicate_kcqe() - process KCQE
  *
  * @context:	adapter structure pointer
  * @kcq:	kcqe pointer

@@ -214,7 +214,7 @@ static ssize_t __used store_dscr_default(struct device *dev,
 static DEVICE_ATTR(dscr_default, 0600,
 		show_dscr_default, store_dscr_default);
 
-static void sysfs_create_dscr_default(void)
+static void __init sysfs_create_dscr_default(void)
 {
 	if (cpu_has_feature(CPU_FTR_DSCR)) {
 		int cpu;
@@ -744,12 +744,12 @@ static ssize_t show_svm(struct device *dev, struct device_attribute *attr, char 
 }
 static DEVICE_ATTR(svm, 0444, show_svm, NULL);
 
-static void create_svm_file(void)
+static void __init create_svm_file(void)
 {
 	device_create_file(cpu_subsys.dev_root, &dev_attr_svm);
 }
 #else
-static void create_svm_file(void)
+static void __init create_svm_file(void)
 {
 }
 #endif /* CONFIG_PPC_SVM */
@@ -843,14 +843,14 @@ static int register_cpu_online(unsigned int cpu)
 #ifdef HAS_PPC_PMC_IBM
 	case PPC_PMC_IBM:
 		attrs = ibm_common_attrs;
-		nattrs = sizeof(ibm_common_attrs) / sizeof(struct device_attribute);
+		nattrs = ARRAY_SIZE(ibm_common_attrs);
 		pmc_attrs = classic_pmc_attrs;
 		break;
 #endif /* HAS_PPC_PMC_IBM */
 #ifdef HAS_PPC_PMC_G4
 	case PPC_PMC_G4:
 		attrs = g4_common_attrs;
-		nattrs = sizeof(g4_common_attrs) / sizeof(struct device_attribute);
+		nattrs = ARRAY_SIZE(g4_common_attrs);
 		pmc_attrs = classic_pmc_attrs;
 		break;
 #endif /* HAS_PPC_PMC_G4 */
@@ -858,7 +858,7 @@ static int register_cpu_online(unsigned int cpu)
 	case PPC_PMC_PA6T:
 		/* PA Semi starts counting at PMC0 */
 		attrs = pa6t_attrs;
-		nattrs = sizeof(pa6t_attrs) / sizeof(struct device_attribute);
+		nattrs = ARRAY_SIZE(pa6t_attrs);
 		pmc_attrs = NULL;
 		break;
 #endif
@@ -928,7 +928,8 @@ static int unregister_cpu_online(unsigned int cpu)
 	struct device_attribute *attrs, *pmc_attrs;
 	int i, nattrs;
 
-	BUG_ON(!c->hotpluggable);
+	if (WARN_RATELIMIT(!c->hotpluggable, "cpu %d can't be offlined\n", cpu))
+		return -EBUSY;
 
 #ifdef CONFIG_PPC64
 	if (cpu_has_feature(CPU_FTR_SMT))
@@ -940,14 +941,14 @@ static int unregister_cpu_online(unsigned int cpu)
 #ifdef HAS_PPC_PMC_IBM
 	case PPC_PMC_IBM:
 		attrs = ibm_common_attrs;
-		nattrs = sizeof(ibm_common_attrs) / sizeof(struct device_attribute);
+		nattrs = ARRAY_SIZE(ibm_common_attrs);
 		pmc_attrs = classic_pmc_attrs;
 		break;
 #endif /* HAS_PPC_PMC_IBM */
 #ifdef HAS_PPC_PMC_G4
 	case PPC_PMC_G4:
 		attrs = g4_common_attrs;
-		nattrs = sizeof(g4_common_attrs) / sizeof(struct device_attribute);
+		nattrs = ARRAY_SIZE(g4_common_attrs);
 		pmc_attrs = classic_pmc_attrs;
 		break;
 #endif /* HAS_PPC_PMC_G4 */
@@ -955,7 +956,7 @@ static int unregister_cpu_online(unsigned int cpu)
 	case PPC_PMC_PA6T:
 		/* PA Semi starts counting at PMC0 */
 		attrs = pa6t_attrs;
-		nattrs = sizeof(pa6t_attrs) / sizeof(struct device_attribute);
+		nattrs = ARRAY_SIZE(pa6t_attrs);
 		pmc_attrs = NULL;
 		break;
 #endif
@@ -1109,14 +1110,6 @@ EXPORT_SYMBOL_GPL(cpu_remove_dev_attr_group);
 /* NUMA stuff */
 
 #ifdef CONFIG_NUMA
-static void register_nodes(void)
-{
-	int i;
-
-	for (i = 0; i < MAX_NUMNODES; i++)
-		register_one_node(i);
-}
-
 int sysfs_add_device_to_node(struct device *dev, int nid)
 {
 	struct node *node = node_devices[nid];
@@ -1131,13 +1124,6 @@ void sysfs_remove_device_from_node(struct device *dev, int nid)
 	sysfs_remove_link(&node->dev.kobj, kobject_name(&dev->kobj));
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_device_from_node);
-
-#else
-static void register_nodes(void)
-{
-	return;
-}
-
 #endif
 
 /* Only valid if CPU is present. */
@@ -1154,8 +1140,6 @@ static int __init topology_init(void)
 {
 	int cpu, r;
 
-	register_nodes();
-
 	for_each_possible_cpu(cpu) {
 		struct cpu *c = &per_cpu(cpu_devices, cpu);
 
@@ -1167,7 +1151,7 @@ static int __init topology_init(void)
 		 * CPU.  For instance, the boot cpu might never be valid
 		 * for hotplugging.
 		 */
-		if (smp_ops->cpu_offline_self)
+		if (smp_ops && smp_ops->cpu_offline_self)
 			c->hotpluggable = 1;
 #endif
 

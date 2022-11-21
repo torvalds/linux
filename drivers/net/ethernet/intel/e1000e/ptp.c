@@ -142,7 +142,7 @@ static int e1000e_phc_get_syncdevicetime(ktime_t *device,
 }
 
 /**
- * e1000e_phc_getsynctime - Reads the current system/device cross timestamp
+ * e1000e_phc_getcrosststamp - Reads the current system/device cross timestamp
  * @ptp: ptp clock structure
  * @xtstamp: structure containing timestamp
  *
@@ -298,6 +298,7 @@ void e1000e_ptp_init(struct e1000_adapter *adapter)
 	case e1000_pch_tgp:
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
+	case e1000_pch_lnp:
 		if ((hw->mac.type < e1000_pch_lpt) ||
 		    (er32(TSYNCRXCTL) & E1000_TSYNCRXCTL_SYSCFI)) {
 			adapter->ptp_clock_info.max_adj = 24000000 - 1;

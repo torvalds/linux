@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  * Copyright IBM Corporation, 2010
  * Author Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2.1 of the GNU Lesser General Public License
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
  */
 
 #include <linux/module.h>
@@ -71,14 +63,17 @@ ssize_t v9fs_xattr_get(struct dentry *dentry, const char *name,
 		       void *buffer, size_t buffer_size)
 {
 	struct p9_fid *fid;
+	int ret;
 
 	p9_debug(P9_DEBUG_VFS, "name = %s value_len = %zu\n",
 		 name, buffer_size);
 	fid = v9fs_fid_lookup(dentry);
 	if (IS_ERR(fid))
 		return PTR_ERR(fid);
+	ret = v9fs_fid_xattr_get(fid, name, buffer, buffer_size);
+	p9_client_clunk(fid);
 
-	return v9fs_fid_xattr_get(fid, name, buffer, buffer_size);
+	return ret;
 }
 
 /*
@@ -96,8 +91,15 @@ ssize_t v9fs_xattr_get(struct dentry *dentry, const char *name,
 int v9fs_xattr_set(struct dentry *dentry, const char *name,
 		   const void *value, size_t value_len, int flags)
 {
-	struct p9_fid *fid = v9fs_fid_lookup(dentry);
-	return v9fs_fid_xattr_set(fid, name, value, value_len, flags);
+	int ret;
+	struct p9_fid *fid;
+
+	fid  = v9fs_fid_lookup(dentry);
+	if (IS_ERR(fid))
+		return PTR_ERR(fid);
+	ret = v9fs_fid_xattr_set(fid, name, value, value_len, flags);
+	p9_client_clunk(fid);
+	return ret;
 }
 
 int v9fs_fid_xattr_set(struct p9_fid *fid, const char *name,
@@ -147,6 +149,7 @@ static int v9fs_xattr_handler_get(const struct xattr_handler *handler,
 }
 
 static int v9fs_xattr_handler_set(const struct xattr_handler *handler,
+				  struct user_namespace *mnt_userns,
 				  struct dentry *dentry, struct inode *inode,
 				  const char *name, const void *value,
 				  size_t size, int flags)

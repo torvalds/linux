@@ -160,7 +160,7 @@ int mei_cl_vt_support_check(const struct mei_cl *cl);
  *
  * Return: true if the host client is connected
  */
-static inline bool mei_cl_is_connected(struct mei_cl *cl)
+static inline bool mei_cl_is_connected(const struct mei_cl *cl)
 {
 	return  cl->state == MEI_FILE_CONNECTED;
 }
@@ -264,6 +264,14 @@ int mei_cl_notify_get(struct mei_cl *cl, bool block, bool *notify_ev);
 void mei_cl_notify(struct mei_cl *cl);
 
 void mei_cl_all_disconnect(struct mei_device *dev);
+
+int mei_cl_irq_dma_map(struct mei_cl *cl, struct mei_cl_cb *cb,
+		       struct list_head *cmpl_list);
+int mei_cl_irq_dma_unmap(struct mei_cl *cl, struct mei_cl_cb *cb,
+			 struct list_head *cmpl_list);
+int mei_cl_dma_alloc_and_map(struct mei_cl *cl, const struct file *fp,
+			     u8 buffer_id, size_t size);
+int mei_cl_dma_unmap(struct mei_cl *cl, const struct file *fp);
 
 #define MEI_CL_FMT "cl:host=%02d me=%02d "
 #define MEI_CL_PRM(cl) (cl)->host_client_id, mei_cl_me_id(cl)

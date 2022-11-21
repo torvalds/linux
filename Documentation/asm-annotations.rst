@@ -64,7 +64,7 @@ macros, it was decided that brand new macros should be introduced instead::
     of importing all the crappy, historic, essentially randomly chosen
     debug symbol macro names from the binutils and older kernels?
 
-.. _discussion: https://lkml.kernel.org/r/20170217104757.28588-1-jslaby@suse.cz
+.. _discussion: https://lore.kernel.org/r/20170217104757.28588-1-jslaby@suse.cz
 
 Macros Description
 ------------------
@@ -100,6 +100,11 @@ Instruction Macros
 ~~~~~~~~~~~~~~~~~~
 This section covers ``SYM_FUNC_*`` and ``SYM_CODE_*`` enumerated above.
 
+``objtool`` requires that all code must be contained in an ELF symbol. Symbol
+names that have a ``.L`` prefix do not emit symbol table entries. ``.L``
+prefixed symbols can be used within a code region, but should be avoided for
+denoting a range of code via ``SYM_*_START/END`` annotations.
+
 * ``SYM_FUNC_START`` and ``SYM_FUNC_START_LOCAL`` are supposed to be **the
   most frequent markings**. They are used for functions with standard calling
   conventions -- global and local. Like in C, they both align the functions to
@@ -125,14 +130,13 @@ This section covers ``SYM_FUNC_*`` and ``SYM_CODE_*`` enumerated above.
   In fact, this kind of annotation corresponds to the now deprecated ``ENTRY``
   and ``ENDPROC`` macros.
 
-* ``SYM_FUNC_START_ALIAS`` and ``SYM_FUNC_START_LOCAL_ALIAS`` serve for those
-  who decided to have two or more names for one function. The typical use is::
+* ``SYM_FUNC_ALIAS``, ``SYM_FUNC_ALIAS_LOCAL``, and ``SYM_FUNC_ALIAS_WEAK`` can
+  be used to define multiple names for a function. The typical use is::
 
-    SYM_FUNC_START_ALIAS(__memset)
-    SYM_FUNC_START(memset)
+    SYM_FUNC_START(__memset)
         ... asm insns ...
-    SYM_FUNC_END(memset)
-    SYM_FUNC_END_ALIAS(__memset)
+    SYN_FUNC_END(__memset)
+    SYM_FUNC_ALIAS(memset, __memset)
 
   In this example, one can call ``__memset`` or ``memset`` with the same
   result, except the debug information for the instructions is generated to

@@ -48,25 +48,25 @@
 
 	clocks {
 		ckil {
-			compatible = "fsl,imx-ckil", "fixed-clock";
+			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
 		};
 
 		ckih1 {
-			compatible = "fsl,imx-ckih1", "fixed-clock";
+			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <0>;
 		};
 
 		ckih2 {
-			compatible = "fsl,imx-ckih2", "fixed-clock";
+			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <0>;
 		};
 
 		osc {
-			compatible = "fsl,imx-osc", "fixed-clock";
+			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 		};
@@ -178,7 +178,7 @@
 			reg = <0x70000000 0x10000000>;
 			ranges;
 
-			spba@70000000 {
+			spba-bus@70000000 {
 				compatible = "fsl,spba-bus", "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
@@ -370,14 +370,14 @@
 				status = "disabled";
 			};
 
-			wdog1: wdog@73f98000 {
+			wdog1: watchdog@73f98000 {
 				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
 				reg = <0x73f98000 0x4000>;
 				interrupts = <58>;
 				clocks = <&clks IMX5_CLK_DUMMY>;
 			};
 
-			wdog2: wdog@73f9c000 {
+			wdog2: watchdog@73f9c000 {
 				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
 				reg = <0x73f9c000 0x4000>;
 				interrupts = <59>;
@@ -467,7 +467,7 @@
 			};
 
 			iim: efuse@83f98000 {
-				compatible = "fsl,imx51-iim", "fsl,imx27-iim";
+				compatible = "fsl,imx51-iim", "fsl,imx27-iim", "syscon";
 				reg = <0x83f98000 0x4000>;
 				interrupts = <69>;
 				clocks = <&clks IMX5_CLK_IIM_GATE>;

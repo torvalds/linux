@@ -51,6 +51,80 @@ void mod_hdcp_dump_binary_message(uint8_t *msg, uint32_t msg_size,
 	}
 }
 
+void mod_hdcp_log_ddc_trace(struct mod_hdcp *hdcp)
+{
+	if (is_hdcp1(hdcp)) {
+		HDCP_DDC_READ_TRACE(hdcp, "BKSV", hdcp->auth.msg.hdcp1.bksv,
+				sizeof(hdcp->auth.msg.hdcp1.bksv));
+		HDCP_DDC_READ_TRACE(hdcp, "BCAPS", &hdcp->auth.msg.hdcp1.bcaps,
+				sizeof(hdcp->auth.msg.hdcp1.bcaps));
+		HDCP_DDC_READ_TRACE(hdcp, "BSTATUS",
+				(uint8_t *)&hdcp->auth.msg.hdcp1.bstatus,
+				sizeof(hdcp->auth.msg.hdcp1.bstatus));
+		HDCP_DDC_WRITE_TRACE(hdcp, "AN", hdcp->auth.msg.hdcp1.an,
+				sizeof(hdcp->auth.msg.hdcp1.an));
+		HDCP_DDC_WRITE_TRACE(hdcp, "AKSV", hdcp->auth.msg.hdcp1.aksv,
+				sizeof(hdcp->auth.msg.hdcp1.aksv));
+		HDCP_DDC_WRITE_TRACE(hdcp, "AINFO", &hdcp->auth.msg.hdcp1.ainfo,
+				sizeof(hdcp->auth.msg.hdcp1.ainfo));
+		HDCP_DDC_READ_TRACE(hdcp, "RI' / R0'",
+				(uint8_t *)&hdcp->auth.msg.hdcp1.r0p,
+				sizeof(hdcp->auth.msg.hdcp1.r0p));
+		HDCP_DDC_READ_TRACE(hdcp, "BINFO",
+				(uint8_t *)&hdcp->auth.msg.hdcp1.binfo_dp,
+				sizeof(hdcp->auth.msg.hdcp1.binfo_dp));
+		HDCP_DDC_READ_TRACE(hdcp, "KSVLIST", hdcp->auth.msg.hdcp1.ksvlist,
+				hdcp->auth.msg.hdcp1.ksvlist_size);
+		HDCP_DDC_READ_TRACE(hdcp, "V'", hdcp->auth.msg.hdcp1.vp,
+				sizeof(hdcp->auth.msg.hdcp1.vp));
+	} else if (is_hdcp2(hdcp)) {
+		HDCP_DDC_READ_TRACE(hdcp, "HDCP2Version",
+				&hdcp->auth.msg.hdcp2.hdcp2version_hdmi,
+				sizeof(hdcp->auth.msg.hdcp2.hdcp2version_hdmi));
+		HDCP_DDC_READ_TRACE(hdcp, "Rx Caps", hdcp->auth.msg.hdcp2.rxcaps_dp,
+				sizeof(hdcp->auth.msg.hdcp2.rxcaps_dp));
+		HDCP_DDC_WRITE_TRACE(hdcp, "AKE Init", hdcp->auth.msg.hdcp2.ake_init,
+				sizeof(hdcp->auth.msg.hdcp2.ake_init));
+		HDCP_DDC_READ_TRACE(hdcp, "AKE Cert", hdcp->auth.msg.hdcp2.ake_cert,
+				sizeof(hdcp->auth.msg.hdcp2.ake_cert));
+		HDCP_DDC_WRITE_TRACE(hdcp, "Stored KM",
+				hdcp->auth.msg.hdcp2.ake_stored_km,
+				sizeof(hdcp->auth.msg.hdcp2.ake_stored_km));
+		HDCP_DDC_WRITE_TRACE(hdcp, "No Stored KM",
+				hdcp->auth.msg.hdcp2.ake_no_stored_km,
+				sizeof(hdcp->auth.msg.hdcp2.ake_no_stored_km));
+		HDCP_DDC_READ_TRACE(hdcp, "H'", hdcp->auth.msg.hdcp2.ake_h_prime,
+				sizeof(hdcp->auth.msg.hdcp2.ake_h_prime));
+		HDCP_DDC_READ_TRACE(hdcp, "Pairing Info",
+				hdcp->auth.msg.hdcp2.ake_pairing_info,
+				sizeof(hdcp->auth.msg.hdcp2.ake_pairing_info));
+		HDCP_DDC_WRITE_TRACE(hdcp, "LC Init", hdcp->auth.msg.hdcp2.lc_init,
+				sizeof(hdcp->auth.msg.hdcp2.lc_init));
+		HDCP_DDC_READ_TRACE(hdcp, "L'", hdcp->auth.msg.hdcp2.lc_l_prime,
+				sizeof(hdcp->auth.msg.hdcp2.lc_l_prime));
+		HDCP_DDC_WRITE_TRACE(hdcp, "Exchange KS", hdcp->auth.msg.hdcp2.ske_eks,
+				sizeof(hdcp->auth.msg.hdcp2.ske_eks));
+		HDCP_DDC_READ_TRACE(hdcp, "Rx Status",
+				(uint8_t *)&hdcp->auth.msg.hdcp2.rxstatus,
+				sizeof(hdcp->auth.msg.hdcp2.rxstatus));
+		HDCP_DDC_READ_TRACE(hdcp, "Rx Id List",
+				hdcp->auth.msg.hdcp2.rx_id_list,
+				hdcp->auth.msg.hdcp2.rx_id_list_size);
+		HDCP_DDC_WRITE_TRACE(hdcp, "Rx Id List Ack",
+				hdcp->auth.msg.hdcp2.repeater_auth_ack,
+				sizeof(hdcp->auth.msg.hdcp2.repeater_auth_ack));
+		HDCP_DDC_WRITE_TRACE(hdcp, "Content Stream Management",
+				hdcp->auth.msg.hdcp2.repeater_auth_stream_manage,
+				hdcp->auth.msg.hdcp2.stream_manage_size);
+		HDCP_DDC_READ_TRACE(hdcp, "Stream Ready",
+				hdcp->auth.msg.hdcp2.repeater_auth_stream_ready,
+				sizeof(hdcp->auth.msg.hdcp2.repeater_auth_stream_ready));
+		HDCP_DDC_WRITE_TRACE(hdcp, "Content Stream Type",
+				hdcp->auth.msg.hdcp2.content_stream_type_dp,
+				sizeof(hdcp->auth.msg.hdcp2.content_stream_type_dp));
+	}
+}
+
 char *mod_hdcp_status_to_str(int32_t status)
 {
 	switch (status) {
@@ -172,6 +246,8 @@ char *mod_hdcp_status_to_str(int32_t status)
 		return "MOD_HDCP_STATUS_HDCP2_REAUTH_LINK_INTEGRITY_FAILURE";
 	case MOD_HDCP_STATUS_HDCP2_DEVICE_COUNT_MISMATCH_FAILURE:
 		return "MOD_HDCP_STATUS_HDCP2_DEVICE_COUNT_MISMATCH_FAILURE";
+	case MOD_HDCP_STATUS_UNSUPPORTED_PSP_VER_FAILURE:
+		return "MOD_HDCP_STATUS_UNSUPPORTED_PSP_VER_FAILURE";
 	default:
 		return "MOD_HDCP_STATUS_UNKNOWN";
 	}
@@ -280,6 +356,6 @@ char *mod_hdcp_state_id_to_str(int32_t id)
 		return "D2_A9_VALIDATE_STREAM_READY";
 	default:
 		return "UNKNOWN_STATE_ID";
-	};
+	}
 }
 

@@ -47,8 +47,8 @@
 #include <linux/tty_flip.h>
 
 #include <linux/atomic.h>
+#include <linux/io.h>
 #include <asm/bootinfo.h>
-#include <asm/io.h>
 
 #include <asm/dec/interrupts.h>
 #include <asm/dec/kn01.h>
@@ -115,7 +115,7 @@ static void dz_out(struct dz_port *dport, unsigned offset, u16 value)
  * rs_stop () and rs_start ()
  *
  * These routines are called before setting or resetting
- * tty->stopped. They enable or disable transmitter interrupts,
+ * tty->flow.stopped. They enable or disable transmitter interrupts,
  * as necessary.
  * ------------------------------------------------------------
  */
@@ -802,7 +802,7 @@ static void __init dz_init_ports(void)
  * restored.  Welcome to the world of PDP-11!
  * -------------------------------------------------------------------
  */
-static void dz_console_putchar(struct uart_port *uport, int ch)
+static void dz_console_putchar(struct uart_port *uport, unsigned char ch)
 {
 	struct dz_port *dport = to_dport(uport);
 	unsigned long flags;

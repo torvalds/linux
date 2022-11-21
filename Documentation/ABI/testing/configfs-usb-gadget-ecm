@@ -7,7 +7,7 @@ Description:
 		ifname
 			      - network device interface name associated with
 				this function instance
-		qmult	
+		qmult
 			      - queue length multiplier for high and
 				super speed
 		host_addr

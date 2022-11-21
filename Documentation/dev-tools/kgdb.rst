@@ -63,10 +63,9 @@ will want to turn on ``CONFIG_DEBUG_INFO`` which is called
 It is advised, but not required, that you turn on the
 ``CONFIG_FRAME_POINTER`` kernel option which is called :menuselection:`Compile
 the kernel with frame pointers` in the config menu. This option inserts code
-to into the compiled executable which saves the frame information in
-registers or on the stack at different points which allows a debugger
-such as gdb to more accurately construct stack back traces while
-debugging the kernel.
+into the compiled executable which saves the frame information in registers
+or on the stack at different points which allows a debugger such as gdb to
+more accurately construct stack back traces while debugging the kernel.
 
 If the architecture that you are using supports the kernel option
 ``CONFIG_STRICT_KERNEL_RWX``, you should consider turning it off. This
@@ -403,7 +402,7 @@ This is a quick example of how to use kdb.
 2. Enter the kernel debugger manually or by waiting for an oops or
    fault. There are several ways you can enter the kernel debugger
    manually; all involve using the :kbd:`SysRq-G`, which means you must have
-   enabled ``CONFIG_MAGIC_SysRq=y`` in your kernel config.
+   enabled ``CONFIG_MAGIC_SYSRQ=y`` in your kernel config.
 
    -  When logged in as root or with a super user session you can run::
 
@@ -462,7 +461,7 @@ This is a quick example of how to use kdb with a keyboard.
 2. Enter the kernel debugger manually or by waiting for an oops or
    fault. There are several ways you can enter the kernel debugger
    manually; all involve using the :kbd:`SysRq-G`, which means you must have
-   enabled ``CONFIG_MAGIC_SysRq=y`` in your kernel config.
+   enabled ``CONFIG_MAGIC_SYSRQ=y`` in your kernel config.
 
    -  When logged in as root or with a super user session you can run::
 
@@ -558,7 +557,7 @@ Connecting with gdb to a serial port
    Example (using a directly connected port)::
 
            % gdb ./vmlinux
-           (gdb) set remotebaud 115200
+           (gdb) set serial baud 115200
            (gdb) target remote /dev/ttyS0
 
 

@@ -22,17 +22,6 @@ void catpt_sram_free(struct resource *sram);
 struct resource *
 catpt_request_region(struct resource *root, resource_size_t size);
 
-static inline bool catpt_resource_overlapping(struct resource *r1,
-					      struct resource *r2,
-					      struct resource *ret)
-{
-	if (!resource_overlaps(r1, r2))
-		return false;
-	ret->start = max(r1->start, r2->start);
-	ret->end = min(r1->end, r2->end);
-	return true;
-}
-
 struct catpt_ipc_msg {
 	union {
 		u32 header;
@@ -80,9 +69,9 @@ struct catpt_spec {
 	u32 host_ssp_offset[CATPT_SSP_COUNT];
 	u32 dram_mask;
 	u32 iram_mask;
+	u32 d3srampgd_bit;
+	u32 d3pgd_bit;
 	void (*pll_shutdown)(struct catpt_dev *cdev, bool enable);
-	int (*power_up)(struct catpt_dev *cdev);
-	int (*power_down)(struct catpt_dev *cdev);
 };
 
 struct catpt_dev {
@@ -126,10 +115,8 @@ int catpt_dma_memcpy_fromdsp(struct catpt_dev *cdev, struct dma_chan *chan,
 
 void lpt_dsp_pll_shutdown(struct catpt_dev *cdev, bool enable);
 void wpt_dsp_pll_shutdown(struct catpt_dev *cdev, bool enable);
-int lpt_dsp_power_up(struct catpt_dev *cdev);
-int lpt_dsp_power_down(struct catpt_dev *cdev);
-int wpt_dsp_power_up(struct catpt_dev *cdev);
-int wpt_dsp_power_down(struct catpt_dev *cdev);
+int catpt_dsp_power_up(struct catpt_dev *cdev);
+int catpt_dsp_power_down(struct catpt_dev *cdev);
 int catpt_dsp_stall(struct catpt_dev *cdev, bool stall);
 void catpt_dsp_update_srampge(struct catpt_dev *cdev, struct resource *sram,
 			      unsigned long mask);

@@ -24,9 +24,10 @@ static const struct nla_policy nft_xfrm_policy[NFTA_XFRM_MAX + 1] = {
 
 struct nft_xfrm {
 	enum nft_xfrm_keys	key:8;
-	enum nft_registers	dreg:8;
+	u8			dreg;
 	u8			dir;
 	u8			spnum;
+	u8			len;
 };
 
 static int nft_xfrm_get_init(const struct nft_ctx *ctx,
@@ -86,9 +87,9 @@ static int nft_xfrm_get_init(const struct nft_ctx *ctx,
 
 	priv->spnum = spnum;
 
-	priv->dreg = nft_parse_register(tb[NFTA_XFRM_DREG]);
-	return nft_validate_register_store(ctx, priv->dreg, NULL,
-					   NFT_DATA_VALUE, len);
+	priv->len = len;
+	return nft_parse_register_store(ctx, tb[NFTA_XFRM_DREG], &priv->dreg,
+					NULL, NFT_DATA_VALUE, len);
 }
 
 /* Return true if key asks for daddr/saddr and current
@@ -253,6 +254,31 @@ static int nft_xfrm_validate(const struct nft_ctx *ctx, const struct nft_expr *e
 	return nft_chain_validate_hooks(ctx->chain, hooks);
 }
 
+static bool nft_xfrm_reduce(struct nft_regs_track *track,
+			    const struct nft_expr *expr)
+{
+	const struct nft_xfrm *priv = nft_expr_priv(expr);
+	const struct nft_xfrm *xfrm;
+
+	if (!nft_reg_track_cmp(track, expr, priv->dreg)) {
+		nft_reg_track_update(track, expr, priv->dreg, priv->len);
+		return false;
+	}
+
+	xfrm = nft_expr_priv(track->regs[priv->dreg].selector);
+	if (priv->key != xfrm->key ||
+	    priv->dreg != xfrm->dreg ||
+	    priv->dir != xfrm->dir ||
+	    priv->spnum != xfrm->spnum) {
+		nft_reg_track_update(track, expr, priv->dreg, priv->len);
+		return false;
+	}
+
+	if (!track->regs[priv->dreg].bitwise)
+		return true;
+
+	return nft_expr_reduce_bitwise(track, expr);
+}
 
 static struct nft_expr_type nft_xfrm_type;
 static const struct nft_expr_ops nft_xfrm_get_ops = {
@@ -262,6 +288,7 @@ static const struct nft_expr_ops nft_xfrm_get_ops = {
 	.init		= nft_xfrm_get_init,
 	.dump		= nft_xfrm_get_dump,
 	.validate	= nft_xfrm_validate,
+	.reduce		= nft_xfrm_reduce,
 };
 
 static struct nft_expr_type nft_xfrm_type __read_mostly = {

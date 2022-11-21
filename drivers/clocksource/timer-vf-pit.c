@@ -136,7 +136,7 @@ static int __init pit_clockevent_init(unsigned long rate, int irq)
 	/*
 	 * The value for the LDVAL register trigger is calculated as:
 	 * LDVAL trigger = (period / clock period) - 1
-	 * The pit is a 32-bit down count timer, when the conter value
+	 * The pit is a 32-bit down count timer, when the counter value
 	 * reaches 0, it will generate an interrupt, thus the minimal
 	 * LDVAL trigger value is 1. And then the min_delta is
 	 * minimal LDVAL trigger value + 1, and the max_delta is full 32-bit.

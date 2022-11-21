@@ -12,8 +12,7 @@
  * ----------------------------------------------------------------------
  * | Module Init and Probe        |       0x0199       |                |
  * | Mailbox commands             |       0x1206       | 0x11a5-0x11ff	|
- * | Device Discovery             |       0x2134       | 0x210e-0x2116  |
- * |				  | 		       | 0x211a         |
+ * | Device Discovery             |       0x2134       | 0x210e-0x2115  |
  * |                              |                    | 0x211c-0x2128  |
  * |                              |                    | 0x212c-0x2134  |
  * | Queue Command and IO tracing |       0x3074       | 0x300b         |
@@ -113,8 +112,13 @@ qla27xx_dump_mpi_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 	uint32_t stat;
 	ulong i, j, timer = 6000000;
 	int rval = QLA_FUNCTION_FAILED;
+	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
+
+	if (qla_pci_disconnected(vha, reg))
+		return rval;
+
 	for (i = 0; i < ram_dwords; i += dwords, addr += dwords) {
 		if (i + dwords > ram_dwords)
 			dwords = ram_dwords - i;
@@ -137,6 +141,9 @@ qla27xx_dump_mpi_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 		ha->flags.mbox_int = 0;
 		while (timer--) {
 			udelay(5);
+
+			if (qla_pci_disconnected(vha, reg))
+				return rval;
 
 			stat = rd_reg_dword(&reg->host_status);
 			/* Check for pending interrupts. */
@@ -192,8 +199,12 @@ qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, __be32 *ram,
 	uint32_t dwords = qla2x00_gid_list_size(ha) / 4;
 	uint32_t stat;
 	ulong i, j, timer = 6000000;
+	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
+
+	if (qla_pci_disconnected(vha, reg))
+		return rval;
 
 	for (i = 0; i < ram_dwords; i += dwords, addr += dwords) {
 		if (i + dwords > ram_dwords)
@@ -202,6 +213,7 @@ qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, __be32 *ram,
 		wrt_reg_word(&reg->mailbox0, MBC_DUMP_RISC_RAM_EXTENDED);
 		wrt_reg_word(&reg->mailbox1, LSW(addr));
 		wrt_reg_word(&reg->mailbox8, MSW(addr));
+		wrt_reg_word(&reg->mailbox10, 0);
 
 		wrt_reg_word(&reg->mailbox2, MSW(LSD(dump_dma)));
 		wrt_reg_word(&reg->mailbox3, LSW(LSD(dump_dma)));
@@ -215,8 +227,10 @@ qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, __be32 *ram,
 		ha->flags.mbox_int = 0;
 		while (timer--) {
 			udelay(5);
-			stat = rd_reg_dword(&reg->host_status);
+			if (qla_pci_disconnected(vha, reg))
+				return rval;
 
+			stat = rd_reg_dword(&reg->host_status);
 			/* Check for pending interrupts. */
 			if (!(stat & HSRX_RISC_INT))
 				continue;
@@ -2476,6 +2490,9 @@ ql_dbg(uint level, scsi_qla_host_t *vha, uint id, const char *fmt, ...)
 	va_list va;
 	struct va_format vaf;
 	char pbuf[64];
+
+	if (!ql_mask_match(level) && !trace_ql_dbg_log_enabled())
+		return;
 
 	va_start(va, fmt);
 

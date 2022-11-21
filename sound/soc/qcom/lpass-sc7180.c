@@ -20,7 +20,7 @@
 #include "lpass.h"
 
 static struct snd_soc_dai_driver sc7180_lpass_cpu_dai_driver[] = {
-	[MI2S_PRIMARY] = {
+	{
 		.id = MI2S_PRIMARY,
 		.name = "Primary MI2S",
 		.playback = {
@@ -34,7 +34,8 @@ static struct snd_soc_dai_driver sc7180_lpass_cpu_dai_driver[] = {
 		},
 		.capture = {
 			.stream_name = "Primary Capture",
-			.formats = SNDRV_PCM_FMTBIT_S16,
+			.formats = SNDRV_PCM_FMTBIT_S16 |
+				SNDRV_PCM_FMTBIT_S32,
 			.rates = SNDRV_PCM_RATE_48000,
 			.rate_min	= 48000,
 			.rate_max	= 48000,
@@ -43,9 +44,7 @@ static struct snd_soc_dai_driver sc7180_lpass_cpu_dai_driver[] = {
 		},
 		.probe	= &asoc_qcom_lpass_cpu_dai_probe,
 		.ops    = &asoc_qcom_lpass_cpu_dai_ops,
-	},
-
-	[MI2S_SECONDARY] = {
+	}, {
 		.id = MI2S_SECONDARY,
 		.name = "Secondary MI2S",
 		.playback = {
@@ -59,8 +58,8 @@ static struct snd_soc_dai_driver sc7180_lpass_cpu_dai_driver[] = {
 		},
 		.probe	= &asoc_qcom_lpass_cpu_dai_probe,
 		.ops    = &asoc_qcom_lpass_cpu_dai_ops,
-	},
-	[LPASS_DP_RX] = {
+		.pcm_new = lpass_cpu_pcm_new,
+	}, {
 		.id = LPASS_DP_RX,
 		.name = "Hdmi",
 		.playback = {
@@ -96,8 +95,8 @@ static int sc7180_lpass_alloc_dma_channel(struct lpass_data *drvdata,
 			chan = find_first_zero_bit(&drvdata->dma_ch_bit_map,
 						v->rdma_channels);
 
-		if (chan >= v->rdma_channels)
-			return -EBUSY;
+			if (chan >= v->rdma_channels)
+				return -EBUSY;
 		} else {
 			chan = find_next_zero_bit(&drvdata->dma_ch_bit_map,
 					v->wrdma_channel_start +
@@ -284,7 +283,7 @@ static struct lpass_variant sc7180_data = {
 	.free_dma_channel	= sc7180_lpass_free_dma_channel,
 };
 
-static const struct of_device_id sc7180_lpass_cpu_device_id[] = {
+static const struct of_device_id sc7180_lpass_cpu_device_id[] __maybe_unused = {
 	{.compatible = "qcom,sc7180-lpass-cpu", .data = &sc7180_data},
 	{}
 };
@@ -297,6 +296,7 @@ static struct platform_driver sc7180_lpass_cpu_platform_driver = {
 	},
 	.probe = asoc_qcom_lpass_cpu_platform_probe,
 	.remove = asoc_qcom_lpass_cpu_platform_remove,
+	.shutdown = asoc_qcom_lpass_cpu_platform_shutdown,
 };
 
 module_platform_driver(sc7180_lpass_cpu_platform_driver);

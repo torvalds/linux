@@ -8,9 +8,10 @@
 #ifndef SELFTEST_KVM_UTIL_INTERNAL_H
 #define SELFTEST_KVM_UTIL_INTERNAL_H
 
-#include "sparsebit.h"
+#include "linux/hashtable.h"
+#include "linux/rbtree.h"
 
-#define KVM_DEV_PATH		"/dev/kvm"
+#include "sparsebit.h"
 
 struct userspace_mem_region {
 	struct kvm_userspace_memory_region region;
@@ -18,9 +19,13 @@ struct userspace_mem_region {
 	int fd;
 	off_t offset;
 	void *host_mem;
+	void *host_alias;
 	void *mmap_start;
+	void *mmap_alias;
 	size_t mmap_size;
-	struct list_head list;
+	struct rb_node gpa_node;
+	struct rb_node hva_node;
+	struct hlist_node slot_node;
 };
 
 struct vcpu {
@@ -28,6 +33,15 @@ struct vcpu {
 	uint32_t id;
 	int fd;
 	struct kvm_run *state;
+	struct kvm_dirty_gfn *dirty_gfns;
+	uint32_t fetch_index;
+	uint32_t dirty_gfns_count;
+};
+
+struct userspace_mem_regions {
+	struct rb_root gpa_tree;
+	struct rb_root hva_tree;
+	DECLARE_HASHTABLE(slot_hash, 9);
 };
 
 struct kvm_vm {
@@ -42,7 +56,7 @@ struct kvm_vm {
 	unsigned int va_bits;
 	uint64_t max_gfn;
 	struct list_head vcpus;
-	struct list_head userspace_mem_regions;
+	struct userspace_mem_regions regions;
 	struct sparsebit *vpages_valid;
 	struct sparsebit *vpages_mapped;
 	bool has_irqchip;
@@ -52,6 +66,7 @@ struct kvm_vm {
 	vm_vaddr_t tss;
 	vm_vaddr_t idt;
 	vm_vaddr_t handlers;
+	uint32_t dirty_ring_size;
 };
 
 struct vcpu *vcpu_find(struct kvm_vm *vm, uint32_t vcpuid);

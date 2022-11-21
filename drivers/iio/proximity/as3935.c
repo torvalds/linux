@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
+#include <linux/devm-helpers.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
 #include <linux/irq.h>
@@ -59,7 +60,11 @@ struct as3935_state {
 	unsigned long noise_tripped;
 	u32 tune_cap;
 	u32 nflwdth_reg;
-	u8 buffer[16]; /* 8-bit data + 56-bit padding + 64-bit timestamp */
+	/* Ensure timestamp is naturally aligned */
+	struct {
+		u8 chan;
+		s64 timestamp __aligned(8);
+	} scan;
 	u8 buf[2] ____cacheline_aligned;
 };
 
@@ -118,7 +123,7 @@ static ssize_t as3935_sensor_sensitivity_show(struct device *dev,
 		return ret;
 	val = (val & AS3935_AFE_MASK) >> 1;
 
-	return sprintf(buf, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t as3935_sensor_sensitivity_store(struct device *dev,
@@ -129,7 +134,7 @@ static ssize_t as3935_sensor_sensitivity_store(struct device *dev,
 	unsigned long val;
 	int ret;
 
-	ret = kstrtoul((const char *) buf, 10, &val);
+	ret = kstrtoul(buf, 10, &val);
 	if (ret)
 		return -EINVAL;
 
@@ -149,7 +154,7 @@ static ssize_t as3935_noise_level_tripped_show(struct device *dev,
 	int ret;
 
 	mutex_lock(&st->lock);
-	ret = sprintf(buf, "%d\n", !time_after(jiffies, st->noise_tripped + HZ));
+	ret = sysfs_emit(buf, "%d\n", !time_after(jiffies, st->noise_tripped + HZ));
 	mutex_unlock(&st->lock);
 
 	return ret;
@@ -225,17 +230,14 @@ static irqreturn_t as3935_trigger_handler(int irq, void *private)
 	if (ret)
 		goto err_read;
 
-	st->buffer[0] = val & AS3935_DATA_MASK;
-	iio_push_to_buffers_with_timestamp(indio_dev, &st->buffer,
+	st->scan.chan = val & AS3935_DATA_MASK;
+	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan,
 					   iio_get_time_ns(indio_dev));
 err_read:
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
-
-static const struct iio_trigger_ops iio_interrupt_trigger_ops = {
-};
 
 static void as3935_event_work(struct work_struct *work)
 {
@@ -294,7 +296,6 @@ static void calibrate_as3935(struct as3935_state *st)
 	as3935_write(st, AS3935_NFLWDTH, st->nflwdth_reg);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int as3935_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -336,20 +337,7 @@ err_resume:
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(as3935_pm_ops, as3935_suspend, as3935_resume);
-#define AS3935_PM_OPS (&as3935_pm_ops)
-
-#else
-#define AS3935_PM_OPS NULL
-#endif
-
-static void as3935_stop_work(void *data)
-{
-	struct iio_dev *indio_dev = data;
-	struct as3935_state *st = iio_priv(indio_dev);
-
-	cancel_delayed_work_sync(&st->work);
-}
+static DEFINE_SIMPLE_DEV_PM_OPS(as3935_pm_ops, as3935_suspend, as3935_resume);
 
 static int as3935_probe(struct spi_device *spi)
 {
@@ -404,16 +392,15 @@ static int as3935_probe(struct spi_device *spi)
 	indio_dev->info = &as3935_info;
 
 	trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
-				      indio_dev->name, indio_dev->id);
+				      indio_dev->name,
+				      iio_device_id(indio_dev));
 
 	if (!trig)
 		return -ENOMEM;
 
 	st->trig = trig;
 	st->noise_tripped = jiffies - HZ;
-	trig->dev.parent = indio_dev->dev.parent;
 	iio_trigger_set_drvdata(trig, indio_dev);
-	trig->ops = &iio_interrupt_trigger_ops;
 
 	ret = devm_iio_trigger_register(dev, trig);
 	if (ret) {
@@ -432,8 +419,7 @@ static int as3935_probe(struct spi_device *spi)
 
 	calibrate_as3935(st);
 
-	INIT_DELAYED_WORK(&st->work, as3935_event_work);
-	ret = devm_add_action(dev, as3935_stop_work, indio_dev);
+	ret = devm_delayed_work_autocancel(dev, &st->work, as3935_event_work);
 	if (ret)
 		return ret;
 
@@ -472,7 +458,7 @@ static struct spi_driver as3935_driver = {
 	.driver = {
 		.name	= "as3935",
 		.of_match_table = as3935_of_match,
-		.pm	= AS3935_PM_OPS,
+		.pm	= pm_sleep_ptr(&as3935_pm_ops),
 	},
 	.probe		= as3935_probe,
 	.id_table	= as3935_id,

@@ -65,9 +65,12 @@ struct aha1542_hostdata {
 	dma_addr_t ccb_handle;
 };
 
+#define AHA1542_MAX_SECTORS       16
+
 struct aha1542_cmd {
-	struct chain *chain;
-	dma_addr_t chain_handle;
+	/* bounce buffer */
+	void *data_buffer;
+	dma_addr_t data_buffer_handle;
 };
 
 static inline void aha1542_intr_reset(u16 base)
@@ -119,8 +122,10 @@ static int aha1542_out(unsigned int base, u8 *buf, int len)
 	return 0;
 }
 
-/* Only used at boot time, so we do not need to worry about latency as much
-   here */
+/*
+ * Only used at boot time, so we do not need to worry about latency as much
+ * here
+ */
 
 static int aha1542_in(unsigned int base, u8 *buf, int len, int timeout)
 {
@@ -142,35 +147,43 @@ static int makecode(unsigned hosterr, unsigned scsierr)
 		break;
 
 	case 0x11:		/* Selection time out-The initiator selection or target
-				   reselection was not complete within the SCSI Time out period */
+				 * reselection was not complete within the SCSI Time out period
+				 */
 		hosterr = DID_TIME_OUT;
 		break;
 
 	case 0x12:		/* Data overrun/underrun-The target attempted to transfer more data
-				   than was allocated by the Data Length field or the sum of the
-				   Scatter / Gather Data Length fields. */
+				 * than was allocated by the Data Length field or the sum of the
+				 * Scatter / Gather Data Length fields.
+				 */
 
 	case 0x13:		/* Unexpected bus free-The target dropped the SCSI BSY at an unexpected time. */
 
 	case 0x15:		/* MBO command was not 00, 01 or 02-The first byte of the CB was
-				   invalid. This usually indicates a software failure. */
+				 * invalid. This usually indicates a software failure.
+				 */
 
 	case 0x16:		/* Invalid CCB Operation Code-The first byte of the CCB was invalid.
-				   This usually indicates a software failure. */
+				 * This usually indicates a software failure.
+				 */
 
 	case 0x17:		/* Linked CCB does not have the same LUN-A subsequent CCB of a set
-				   of linked CCB's does not specify the same logical unit number as
-				   the first. */
+				 * of linked CCB's does not specify the same logical unit number as
+				 * the first.
+				 */
 	case 0x18:		/* Invalid Target Direction received from Host-The direction of a
-				   Target Mode CCB was invalid. */
+				 * Target Mode CCB was invalid.
+				 */
 
 	case 0x19:		/* Duplicate CCB Received in Target Mode-More than once CCB was
-				   received to service data transfer between the same target LUN
-				   and initiator SCSI ID in the same direction. */
+				 * received to service data transfer between the same target LUN
+				 * and initiator SCSI ID in the same direction.
+				 */
 
 	case 0x1a:		/* Invalid CCB or Segment List Parameter-A segment list with a zero
-				   length segment or invalid segment list boundaries was received.
-				   A CCB parameter was invalid. */
+				 * length segment or invalid segment list boundaries was received.
+				 * A CCB parameter was invalid.
+				 */
 #ifdef DEBUG
 		printk("Aha1542: %x %x\n", hosterr, scsierr);
 #endif
@@ -178,9 +191,10 @@ static int makecode(unsigned hosterr, unsigned scsierr)
 		break;
 
 	case 0x14:		/* Target bus phase sequence failure-An invalid bus phase or bus
-				   phase sequence was requested by the target. The host adapter
-				   will generate a SCSI Reset Condition, notifying the host with
-				   a SCRD interrupt */
+				 * phase sequence was requested by the target. The host adapter
+				 * will generate a SCSI Reset Condition, notifying the host with
+				 * a SCRD interrupt
+				 */
 		hosterr = DID_RESET;
 		break;
 	default:
@@ -192,7 +206,6 @@ static int makecode(unsigned hosterr, unsigned scsierr)
 
 static int aha1542_test_port(struct Scsi_Host *sh)
 {
-	u8 inquiry_result[4];
 	int i;
 
 	/* Quick and dirty test for presence of the card. */
@@ -216,15 +229,17 @@ static int aha1542_test_port(struct Scsi_Host *sh)
 	if (inb(INTRFLAGS(sh->io_port)) & INTRMASK)
 		return 0;
 
-	/* Perform a host adapter inquiry instead so we do not need to set
-	   up the mailboxes ahead of time */
+	/*
+	 * Perform a host adapter inquiry instead so we do not need to set
+	 * up the mailboxes ahead of time
+	 */
 
 	aha1542_outb(sh->io_port, CMD_INQUIRY);
 
 	for (i = 0; i < 4; i++) {
 		if (!wait_mask(STATUS(sh->io_port), DF, DF, 0, 0))
 			return 0;
-		inquiry_result[i] = inb(DATA(sh->io_port));
+		(void)inb(DATA(sh->io_port));
 	}
 
 	/* Reading port should reset DF */
@@ -244,15 +259,19 @@ static int aha1542_test_port(struct Scsi_Host *sh)
 static void aha1542_free_cmd(struct scsi_cmnd *cmd)
 {
 	struct aha1542_cmd *acmd = scsi_cmd_priv(cmd);
-	struct device *dev = cmd->device->host->dma_dev;
-	size_t len = scsi_sg_count(cmd) * sizeof(struct chain);
 
-	if (acmd->chain) {
-		dma_unmap_single(dev, acmd->chain_handle, len, DMA_TO_DEVICE);
-		kfree(acmd->chain);
+	if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
+		struct request *rq = scsi_cmd_to_rq(cmd);
+		void *buf = acmd->data_buffer;
+		struct req_iterator iter;
+		struct bio_vec bv;
+
+		rq_for_each_segment(bv, rq, iter) {
+			memcpy_to_bvec(&bv, buf);
+			buf += bv.bv_len;
+		}
 	}
 
-	acmd->chain = NULL;
 	scsi_dma_unmap(cmd);
 }
 
@@ -260,7 +279,6 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 {
 	struct Scsi_Host *sh = dev_id;
 	struct aha1542_hostdata *aha1542 = shost_priv(sh);
-	void (*my_done)(struct scsi_cmnd *) = NULL;
 	int errstatus, mbi, mbo, mbistatus;
 	int number_serviced;
 	unsigned long flags;
@@ -292,10 +310,12 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 	while (1) {
 		flag = inb(INTRFLAGS(sh->io_port));
 
-		/* Check for unusual interrupts.  If any of these happen, we should
-		   probably do something special, but for now just printing a message
-		   is sufficient.  A SCSI reset detected is something that we really
-		   need to deal with in some way. */
+		/*
+		 * Check for unusual interrupts.  If any of these happen, we should
+		 * probably do something special, but for now just printing a message
+		 * is sufficient.  A SCSI reset detected is something that we really
+		 * need to deal with in some way.
+		 */
 		if (flag & ~MBIF) {
 			if (flag & MBOA)
 				printk("MBOF ");
@@ -346,18 +366,19 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 
 		tmp_cmd = aha1542->int_cmds[mbo];
 
-		if (!tmp_cmd || !tmp_cmd->scsi_done) {
+		if (!tmp_cmd) {
 			spin_unlock_irqrestore(sh->host_lock, flags);
 			shost_printk(KERN_WARNING, sh, "Unexpected interrupt\n");
 			shost_printk(KERN_WARNING, sh, "tarstat=%x, hastat=%x idlun=%x ccb#=%d\n", ccb[mbo].tarstat,
 			       ccb[mbo].hastat, ccb[mbo].idlun, mbo);
 			return IRQ_HANDLED;
 		}
-		my_done = tmp_cmd->scsi_done;
 		aha1542_free_cmd(tmp_cmd);
-		/* Fetch the sense data, and tuck it away, in the required slot.  The
-		   Adaptec automatically fetches it, and there is no guarantee that
-		   we will still have it in the cdb when we come back */
+		/*
+		 * Fetch the sense data, and tuck it away, in the required slot.  The
+		 * Adaptec automatically fetches it, and there is no guarantee that
+		 * we will still have it in the cdb when we come back
+		 */
 		if (ccb[mbo].tarstat == 2)
 			memcpy(tmp_cmd->sense_buffer, &ccb[mbo].cdb[ccb[mbo].cdblen],
 			       SCSI_SENSE_BUFFERSIZE);
@@ -383,8 +404,9 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 #endif
 		tmp_cmd->result = errstatus;
 		aha1542->int_cmds[mbo] = NULL;	/* This effectively frees up the mailbox slot, as
-						   far as queuecommand is concerned */
-		my_done(tmp_cmd);
+						 * far as queuecommand is concerned
+						 */
+		scsi_done(tmp_cmd);
 		number_serviced++;
 	};
 }
@@ -398,14 +420,14 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	u8 lun = cmd->device->lun;
 	unsigned long flags;
 	int bufflen = scsi_bufflen(cmd);
-	int mbo, sg_count;
+	int mbo;
 	struct mailbox *mb = aha1542->mb;
 	struct ccb *ccb = aha1542->ccb;
 
 	if (*cmd->cmnd == REQUEST_SENSE) {
 		/* Don't do the command - we have the sense data already */
 		cmd->result = 0;
-		cmd->scsi_done(cmd);
+		scsi_done(cmd);
 		return 0;
 	}
 #ifdef DEBUG
@@ -420,21 +442,23 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		print_hex_dump_bytes("command: ", DUMP_PREFIX_NONE, cmd->cmnd, cmd->cmd_len);
 	}
 #endif
-	sg_count = scsi_dma_map(cmd);
-	if (sg_count) {
-		size_t len = sg_count * sizeof(struct chain);
 
-		acmd->chain = kmalloc(len, GFP_DMA);
-		if (!acmd->chain)
-			goto out_unmap;
-		acmd->chain_handle = dma_map_single(sh->dma_dev, acmd->chain,
-				len, DMA_TO_DEVICE);
-		if (dma_mapping_error(sh->dma_dev, acmd->chain_handle))
-			goto out_free_chain;
+	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
+		struct request *rq = scsi_cmd_to_rq(cmd);
+		void *buf = acmd->data_buffer;
+		struct req_iterator iter;
+		struct bio_vec bv;
+
+		rq_for_each_segment(bv, rq, iter) {
+			memcpy_from_bvec(buf, &bv);
+			buf += bv.bv_len;
+		}
 	}
 
-	/* Use the outgoing mailboxes in a round-robin fashion, because this
-	   is how the host adapter will scan for them */
+	/*
+	 * Use the outgoing mailboxes in a round-robin fashion, because this
+	 * is how the host adapter will scan for them
+	 */
 
 	spin_lock_irqsave(sh->host_lock, flags);
 	mbo = aha1542->aha1542_last_mbo_used + 1;
@@ -453,12 +477,13 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		panic("Unable to find empty mailbox for aha1542.\n");
 
 	aha1542->int_cmds[mbo] = cmd;	/* This will effectively prevent someone else from
-					   screwing with this cdb. */
+					 * screwing with this cdb.
+					 */
 
 	aha1542->aha1542_last_mbo_used = mbo;
 
 #ifdef DEBUG
-	shost_printk(KERN_DEBUG, sh, "Sending command (%d %p)...", mbo, cmd->scsi_done);
+	shost_printk(KERN_DEBUG, sh, "Sending command (%d)...", mbo);
 #endif
 
 	/* This gets trashed for some reason */
@@ -475,27 +500,12 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		direction = 16;
 
 	memcpy(ccb[mbo].cdb, cmd->cmnd, ccb[mbo].cdblen);
-
-	if (bufflen) {
-		struct scatterlist *sg;
-		int i;
-
-		ccb[mbo].op = 2;	/* SCSI Initiator Command  w/scatter-gather */
-		scsi_for_each_sg(cmd, sg, sg_count, i) {
-			any2scsi(acmd->chain[i].dataptr, sg_dma_address(sg));
-			any2scsi(acmd->chain[i].datalen, sg_dma_len(sg));
-		};
-		any2scsi(ccb[mbo].datalen, sg_count * sizeof(struct chain));
-		any2scsi(ccb[mbo].dataptr, acmd->chain_handle);
-#ifdef DEBUG
-		shost_printk(KERN_DEBUG, sh, "cptr %p: ", acmd->chain);
-		print_hex_dump_bytes("cptr: ", DUMP_PREFIX_NONE, acmd->chain, 18);
-#endif
-	} else {
-		ccb[mbo].op = 0;	/* SCSI Initiator Command */
-		any2scsi(ccb[mbo].datalen, 0);
+	ccb[mbo].op = 0;	/* SCSI Initiator Command */
+	any2scsi(ccb[mbo].datalen, bufflen);
+	if (bufflen)
+		any2scsi(ccb[mbo].dataptr, acmd->data_buffer_handle);
+	else
 		any2scsi(ccb[mbo].dataptr, 0);
-	};
 	ccb[mbo].idlun = (target & 7) << 5 | direction | (lun & 7);	/*SCSI Target Id */
 	ccb[mbo].rsalen = 16;
 	ccb[mbo].linkptr[0] = ccb[mbo].linkptr[1] = ccb[mbo].linkptr[2] = 0;
@@ -510,12 +520,6 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	spin_unlock_irqrestore(sh->host_lock, flags);
 
 	return 0;
-out_free_chain:
-	kfree(acmd->chain);
-	acmd->chain = NULL;
-out_unmap:
-	scsi_dma_unmap(cmd);
-	return SCSI_MLQUEUE_HOST_BUSY;
 }
 
 /* Initialize mailboxes */
@@ -565,8 +569,10 @@ static int aha1542_getconfig(struct Scsi_Host *sh)
 		sh->dma_channel = 0;
 		break;
 	case 0:
-		/* This means that the adapter, although Adaptec 1542 compatible, doesn't use a DMA channel.
-		   Currently only aware of the BusLogic BT-445S VL-Bus adapter which needs this. */
+		/*
+		 * This means that the adapter, although Adaptec 1542 compatible, doesn't use a DMA channel.
+		 * Currently only aware of the BusLogic BT-445S VL-Bus adapter which needs this.
+		 */
 		sh->dma_channel = 0xFF;
 		break;
 	default:
@@ -600,8 +606,10 @@ static int aha1542_getconfig(struct Scsi_Host *sh)
 	return 0;
 }
 
-/* This function should only be called for 1542C boards - we can detect
-   the special firmware settings and unlock the board */
+/*
+ * This function should only be called for 1542C boards - we can detect
+ * the special firmware settings and unlock the board
+ */
 
 static int aha1542_mbenable(struct Scsi_Host *sh)
 {
@@ -655,10 +663,11 @@ static int aha1542_query(struct Scsi_Host *sh)
 
 	aha1542->bios_translation = BIOS_TRANSLATION_6432;	/* Default case */
 
-	/* For an AHA1740 series board, we ignore the board since there is a
-	   hardware bug which can lead to wrong blocks being returned if the board
-	   is operating in the 1542 emulation mode.  Since there is an extended mode
-	   driver, we simply ignore the board and let the 1740 driver pick it up.
+	/*
+	 * For an AHA1740 series board, we ignore the board since there is a
+	 * hardware bug which can lead to wrong blocks being returned if the board
+	 * is operating in the 1542 emulation mode.  Since there is an extended mode
+	 * driver, we simply ignore the board and let the 1740 driver pick it up.
 	 */
 
 	if (inquiry_result[0] == 0x43) {
@@ -666,8 +675,10 @@ static int aha1542_query(struct Scsi_Host *sh)
 		return 1;
 	};
 
-	/* Always call this - boards that do not support extended bios translation
-	   will ignore the command, and we will set the proper default */
+	/*
+	 * Always call this - boards that do not support extended bios translation
+	 * will ignore the command, and we will set the proper default
+	 */
 
 	aha1542->bios_translation = aha1542_mbenable(sh);
 
@@ -877,8 +888,9 @@ static int aha1542_dev_reset(struct scsi_cmnd *cmd)
 		panic("Unable to find empty mailbox for aha1542.\n");
 
 	aha1542->int_cmds[mbo] = cmd;	/* This will effectively
-					   prevent someone else from
-					   screwing with this cdb. */
+					 * prevent someone else from
+					 * screwing with this cdb.
+					 */
 
 	aha1542->aha1542_last_mbo_used = mbo;
 
@@ -894,9 +906,9 @@ static int aha1542_dev_reset(struct scsi_cmnd *cmd)
 	ccb[mbo].linkptr[0] = ccb[mbo].linkptr[1] = ccb[mbo].linkptr[2] = 0;
 	ccb[mbo].commlinkid = 0;
 
-	/* 
-	 * Now tell the 1542 to flush all pending commands for this 
-	 * target 
+	/*
+	 * Now tell the 1542 to flush all pending commands for this
+	 * target
 	 */
 	aha1542_outb(sh->io_port, CMD_START_SCSI);
 	spin_unlock_irqrestore(sh->host_lock, flags);
@@ -915,7 +927,7 @@ static int aha1542_reset(struct scsi_cmnd *cmd, u8 reset_cmd)
 	int i;
 
 	spin_lock_irqsave(sh->host_lock, flags);
-	/* 
+	/*
 	 * This does a scsi reset for all devices on the bus.
 	 * In principle, we could also reset the 1542 - should
 	 * we do this?  Try this first, and we can add that later
@@ -939,7 +951,7 @@ static int aha1542_reset(struct scsi_cmnd *cmd, u8 reset_cmd)
 	/*
 	 * Now try to pick up the pieces.  For all pending commands,
 	 * free any internal data structures, and basically clear things
-	 * out.  We do not try and restart any commands or anything - 
+	 * out.  We do not try and restart any commands or anything -
 	 * the strategy handler takes care of that crap.
 	 */
 	shost_printk(KERN_WARNING, cmd->device->host, "Sent BUS RESET to scsi host %d\n", cmd->device->host->host_no);
@@ -998,6 +1010,27 @@ static int aha1542_biosparam(struct scsi_device *sdev,
 }
 MODULE_LICENSE("GPL");
 
+static int aha1542_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
+{
+	struct aha1542_cmd *acmd = scsi_cmd_priv(cmd);
+
+	acmd->data_buffer = dma_alloc_coherent(shost->dma_dev,
+			SECTOR_SIZE * AHA1542_MAX_SECTORS,
+			&acmd->data_buffer_handle, GFP_KERNEL);
+	if (!acmd->data_buffer)
+		return -ENOMEM;
+	return 0;
+}
+
+static int aha1542_exit_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
+{
+	struct aha1542_cmd *acmd = scsi_cmd_priv(cmd);
+
+	dma_free_coherent(shost->dma_dev, SECTOR_SIZE * AHA1542_MAX_SECTORS,
+			acmd->data_buffer, acmd->data_buffer_handle);
+	return 0;
+}
+
 static struct scsi_host_template driver_template = {
 	.module			= THIS_MODULE,
 	.proc_name		= "aha1542",
@@ -1008,10 +1041,12 @@ static struct scsi_host_template driver_template = {
 	.eh_bus_reset_handler	= aha1542_bus_reset,
 	.eh_host_reset_handler	= aha1542_host_reset,
 	.bios_param		= aha1542_biosparam,
-	.can_queue		= AHA1542_MAILBOXES, 
+	.init_cmd_priv		= aha1542_init_cmd_priv,
+	.exit_cmd_priv		= aha1542_exit_cmd_priv,
+	.can_queue		= AHA1542_MAILBOXES,
 	.this_id		= 7,
-	.sg_tablesize		= 16,
-	.unchecked_isa_dma	= 1, 
+	.max_sectors		= AHA1542_MAX_SECTORS,
+	.sg_tablesize		= SG_ALL,
 };
 
 static int aha1542_isa_match(struct device *pdev, unsigned int ndev)
@@ -1025,12 +1060,11 @@ static int aha1542_isa_match(struct device *pdev, unsigned int ndev)
 	return 1;
 }
 
-static int aha1542_isa_remove(struct device *pdev,
+static void aha1542_isa_remove(struct device *pdev,
 				    unsigned int ndev)
 {
 	aha1542_release(dev_get_drvdata(pdev));
 	dev_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static struct isa_driver aha1542_isa_driver = {
@@ -1063,8 +1097,10 @@ static int aha1542_pnp_probe(struct pnp_dev *pdev, const struct pnp_device_id *i
 
 		io[indx] = pnp_port_start(pdev, 0);
 
-		/* The card can be queried for its DMA, we have
-		   the DMA set up that is enough */
+		/*
+		 * The card can be queried for its DMA, we have
+		 * the DMA set up that is enough
+		 */
 
 		dev_info(&pdev->dev, "ISAPnP found an AHA1535 at I/O 0x%03X", io[indx]);
 	}

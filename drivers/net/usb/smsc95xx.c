@@ -20,6 +20,8 @@
 #include <linux/of_net.h>
 #include <linux/mdio.h>
 #include <linux/phy.h>
+#include <net/selftests.h>
+
 #include "smsc95xx.h"
 
 #define SMSC_CHIPNAME			"smsc95xx"
@@ -84,9 +86,10 @@ static int __must_check __smsc95xx_read_reg(struct usbnet *dev, u32 index,
 	ret = fn(dev, USB_VENDOR_REQUEST_READ_REGISTER, USB_DIR_IN
 		 | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 0, index, &buf, 4);
-	if (unlikely(ret < 0)) {
-		netdev_warn(dev->net, "Failed to read reg index 0x%08x: %d\n",
-			    index, ret);
+	if (ret < 0) {
+		if (ret != -ENODEV)
+			netdev_warn(dev->net, "Failed to read reg index 0x%08x: %d\n",
+				    index, ret);
 		return ret;
 	}
 
@@ -116,7 +119,7 @@ static int __must_check __smsc95xx_write_reg(struct usbnet *dev, u32 index,
 	ret = fn(dev, USB_VENDOR_REQUEST_WRITE_REGISTER, USB_DIR_OUT
 		 | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 0, index, &buf, 4);
-	if (unlikely(ret < 0))
+	if (ret < 0 && ret != -ENODEV)
 		netdev_warn(dev->net, "Failed to write reg index 0x%08x: %d\n",
 			    index, ret);
 
@@ -159,6 +162,9 @@ static int __must_check __smsc95xx_phy_wait_not_busy(struct usbnet *dev,
 	do {
 		ret = __smsc95xx_read_reg(dev, MII_ADDR, &val, in_pm);
 		if (ret < 0) {
+			/* Ignore -ENODEV error during disconnect() */
+			if (ret == -ENODEV)
+				return 0;
 			netdev_warn(dev->net, "Error reading MII_ACCESS\n");
 			return ret;
 		}
@@ -194,7 +200,8 @@ static int __smsc95xx_mdio_read(struct usbnet *dev, int phy_id, int idx,
 	addr = mii_address_cmd(phy_id, idx, MII_READ_ | MII_BUSY_);
 	ret = __smsc95xx_write_reg(dev, MII_ADDR, addr, in_pm);
 	if (ret < 0) {
-		netdev_warn(dev->net, "Error writing MII_ADDR\n");
+		if (ret != -ENODEV)
+			netdev_warn(dev->net, "Error writing MII_ADDR\n");
 		goto done;
 	}
 
@@ -206,7 +213,8 @@ static int __smsc95xx_mdio_read(struct usbnet *dev, int phy_id, int idx,
 
 	ret = __smsc95xx_read_reg(dev, MII_DATA, &val, in_pm);
 	if (ret < 0) {
-		netdev_warn(dev->net, "Error reading MII_DATA\n");
+		if (ret != -ENODEV)
+			netdev_warn(dev->net, "Error reading MII_DATA\n");
 		goto done;
 	}
 
@@ -214,6 +222,10 @@ static int __smsc95xx_mdio_read(struct usbnet *dev, int phy_id, int idx,
 
 done:
 	mutex_unlock(&dev->phy_mutex);
+
+	/* Ignore -ENODEV error during disconnect() */
+	if (ret == -ENODEV)
+		return 0;
 	return ret;
 }
 
@@ -235,7 +247,8 @@ static void __smsc95xx_mdio_write(struct usbnet *dev, int phy_id,
 	val = regval;
 	ret = __smsc95xx_write_reg(dev, MII_DATA, val, in_pm);
 	if (ret < 0) {
-		netdev_warn(dev->net, "Error writing MII_DATA\n");
+		if (ret != -ENODEV)
+			netdev_warn(dev->net, "Error writing MII_DATA\n");
 		goto done;
 	}
 
@@ -243,7 +256,8 @@ static void __smsc95xx_mdio_write(struct usbnet *dev, int phy_id,
 	addr = mii_address_cmd(phy_id, idx, MII_WRITE_ | MII_BUSY_);
 	ret = __smsc95xx_write_reg(dev, MII_ADDR, addr, in_pm);
 	if (ret < 0) {
-		netdev_warn(dev->net, "Error writing MII_ADDR\n");
+		if (ret != -ENODEV)
+			netdev_warn(dev->net, "Error writing MII_ADDR\n");
 		goto done;
 	}
 
@@ -727,6 +741,26 @@ static u32 smsc95xx_get_link(struct net_device *net)
 	return net->phydev->link;
 }
 
+static void smsc95xx_ethtool_get_strings(struct net_device *netdev, u32 sset,
+					u8 *data)
+{
+	switch (sset) {
+	case ETH_SS_TEST:
+		net_selftest_get_strings(data);
+		break;
+	}
+}
+
+static int smsc95xx_ethtool_get_sset_count(struct net_device *ndev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_TEST:
+		return net_selftest_get_count();
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct ethtool_ops smsc95xx_ethtool_ops = {
 	.get_link	= smsc95xx_get_link,
 	.nway_reset	= phy_ethtool_nway_reset,
@@ -743,6 +777,9 @@ static const struct ethtool_ops smsc95xx_ethtool_ops = {
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 	.get_ts_info	= ethtool_op_get_ts_info,
+	.self_test	= net_selftest,
+	.get_strings	= smsc95xx_ethtool_get_strings,
+	.get_sset_count	= smsc95xx_ethtool_get_sset_count,
 };
 
 static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
@@ -755,9 +792,10 @@ static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 
 static void smsc95xx_init_mac_address(struct usbnet *dev)
 {
+	u8 addr[ETH_ALEN];
+
 	/* maybe the boot loader passed the MAC address in devicetree */
-	if (!eth_platform_get_mac_address(&dev->udev->dev,
-			dev->net->dev_addr)) {
+	if (!platform_get_ethdev_address(&dev->udev->dev, dev->net)) {
 		if (is_valid_ether_addr(dev->net->dev_addr)) {
 			/* device tree values are valid so use them */
 			netif_dbg(dev, ifup, dev->net, "MAC address read from the device tree\n");
@@ -766,8 +804,8 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 	}
 
 	/* try reading mac address from EEPROM */
-	if (smsc95xx_read_eeprom(dev, EEPROM_MAC_OFFSET, ETH_ALEN,
-			dev->net->dev_addr) == 0) {
+	if (smsc95xx_read_eeprom(dev, EEPROM_MAC_OFFSET, ETH_ALEN, addr) == 0) {
+		eth_hw_addr_set(dev->net, addr);
 		if (is_valid_ether_addr(dev->net->dev_addr)) {
 			/* eeprom values are valid so use them */
 			netif_dbg(dev, ifup, dev->net, "MAC address read from EEPROM\n");
@@ -1041,13 +1079,21 @@ static const struct net_device_ops smsc95xx_netdev_ops = {
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_change_mtu		= usbnet_change_mtu,
-	.ndo_get_stats64	= usbnet_get_stats64,
+	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl 		= smsc95xx_ioctl,
+	.ndo_eth_ioctl		= smsc95xx_ioctl,
 	.ndo_set_rx_mode	= smsc95xx_set_multicast,
 	.ndo_set_features	= smsc95xx_set_features,
 };
+
+static void smsc95xx_handle_link_change(struct net_device *net)
+{
+	struct usbnet *dev = netdev_priv(net);
+
+	phy_print_status(net->phydev);
+	usbnet_defer_kevent(dev, EVENT_LINK_CHANGE);
+}
 
 static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 {
@@ -1153,6 +1199,17 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->min_mtu = ETH_MIN_MTU;
 	dev->net->max_mtu = ETH_DATA_LEN;
 	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
+
+	ret = phy_connect_direct(dev->net, pdata->phydev,
+				 &smsc95xx_handle_link_change,
+				 PHY_INTERFACE_MODE_MII);
+	if (ret) {
+		netdev_err(dev->net, "can't attach PHY to %s\n", pdata->mdiobus->id);
+		goto unregister_mdio;
+	}
+
+	phy_attached_info(dev->net->phydev);
+
 	return 0;
 
 unregister_mdio:
@@ -1170,44 +1227,25 @@ static void smsc95xx_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct smsc95xx_priv *pdata = dev->driver_priv;
 
+	phy_disconnect(dev->net->phydev);
 	mdiobus_unregister(pdata->mdiobus);
 	mdiobus_free(pdata->mdiobus);
 	netif_dbg(dev, ifdown, dev->net, "free pdata\n");
 	kfree(pdata);
 }
 
-static void smsc95xx_handle_link_change(struct net_device *net)
-{
-	phy_print_status(net->phydev);
-}
-
 static int smsc95xx_start_phy(struct usbnet *dev)
 {
-	struct smsc95xx_priv *pdata = dev->driver_priv;
-	struct net_device *net = dev->net;
-	int ret;
+	phy_start(dev->net->phydev);
 
-	ret = smsc95xx_reset(dev);
-	if (ret < 0)
-		return ret;
-
-	ret = phy_connect_direct(net, pdata->phydev,
-				 &smsc95xx_handle_link_change,
-				 PHY_INTERFACE_MODE_MII);
-	if (ret) {
-		netdev_err(net, "can't attach PHY to %s\n", pdata->mdiobus->id);
-		return ret;
-	}
-
-	phy_attached_info(net->phydev);
-	phy_start(net->phydev);
 	return 0;
 }
 
-static int smsc95xx_disconnect_phy(struct usbnet *dev)
+static int smsc95xx_stop(struct usbnet *dev)
 {
-	phy_stop(dev->net->phydev);
-	phy_disconnect(dev->net->phydev);
+	if (dev->net->phydev)
+		phy_stop(dev->net->phydev);
+
 	return 0;
 }
 
@@ -1961,8 +1999,9 @@ static const struct driver_info smsc95xx_info = {
 	.bind		= smsc95xx_bind,
 	.unbind		= smsc95xx_unbind,
 	.link_reset	= smsc95xx_link_reset,
-	.reset		= smsc95xx_start_phy,
-	.stop		= smsc95xx_disconnect_phy,
+	.reset		= smsc95xx_reset,
+	.check_connect	= smsc95xx_start_phy,
+	.stop		= smsc95xx_stop,
 	.rx_fixup	= smsc95xx_rx_fixup,
 	.tx_fixup	= smsc95xx_tx_fixup,
 	.status		= smsc95xx_status,

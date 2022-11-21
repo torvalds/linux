@@ -28,7 +28,6 @@
 #define KVM_S390_BSCA_CPU_SLOTS 64
 #define KVM_S390_ESCA_CPU_SLOTS 248
 #define KVM_MAX_VCPUS 255
-#define KVM_USER_MEM_SLOTS 32
 
 /*
  * These seem to be used for allocating ->chip in the routing table, which we
@@ -46,6 +45,8 @@
 #define KVM_REQ_START_MIGRATION KVM_ARCH_REQ(3)
 #define KVM_REQ_STOP_MIGRATION  KVM_ARCH_REQ(4)
 #define KVM_REQ_VSIE_RESTART	KVM_ARCH_REQ(5)
+#define KVM_REQ_REFRESH_GUEST_PREFIX	\
+	KVM_ARCH_REQ_FLAGS(6, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 
 #define SIGP_CTRL_C		0x80
 #define SIGP_CTRL_SCN_MASK	0x3f
@@ -245,6 +246,7 @@ struct kvm_s390_sie_block {
 	__u8	fpf;			/* 0x0060 */
 #define ECB_GS		0x40
 #define ECB_TE		0x10
+#define ECB_SPECI	0x08
 #define ECB_SRSI	0x04
 #define ECB_HOSTPROTINT	0x02
 	__u8	ecb;			/* 0x0061 */
@@ -362,6 +364,7 @@ struct sie_page {
 };
 
 struct kvm_vcpu_stat {
+	struct kvm_vcpu_stat_generic generic;
 	u64 exit_userspace;
 	u64 exit_null;
 	u64 exit_external_request;
@@ -371,13 +374,7 @@ struct kvm_vcpu_stat {
 	u64 exit_validity;
 	u64 exit_instruction;
 	u64 exit_pei;
-	u64 halt_successful_poll;
-	u64 halt_attempted_poll;
-	u64 halt_poll_invalid;
 	u64 halt_no_poll_steal;
-	u64 halt_wakeup;
-	u64 halt_poll_success_ns;
-	u64 halt_poll_fail_ns;
 	u64 instruction_lctl;
 	u64 instruction_lctlg;
 	u64 instruction_stctl;
@@ -451,14 +448,16 @@ struct kvm_vcpu_stat {
 	u64 instruction_sigp_init_cpu_reset;
 	u64 instruction_sigp_cpu_reset;
 	u64 instruction_sigp_unknown;
-	u64 diagnose_10;
-	u64 diagnose_44;
-	u64 diagnose_9c;
-	u64 diagnose_9c_ignored;
-	u64 diagnose_258;
-	u64 diagnose_308;
-	u64 diagnose_500;
-	u64 diagnose_other;
+	u64 instruction_diagnose_10;
+	u64 instruction_diagnose_44;
+	u64 instruction_diagnose_9c;
+	u64 diag_9c_ignored;
+	u64 diag_9c_forward;
+	u64 instruction_diagnose_258;
+	u64 instruction_diagnose_308;
+	u64 instruction_diagnose_500;
+	u64 instruction_diagnose_other;
+	u64 pfault_sync;
 };
 
 #define PGM_OPERATION			0x01
@@ -700,6 +699,10 @@ struct kvm_hw_bp_info_arch {
 #define guestdbg_exit_pending(vcpu) (guestdbg_enabled(vcpu) && \
 		(vcpu->guest_debug & KVM_GUESTDBG_EXIT_PENDING))
 
+#define KVM_GUESTDBG_VALID_MASK \
+		(KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP |\
+		KVM_GUESTDBG_USE_HW_BP | KVM_GUESTDBG_EXIT_PENDING)
+
 struct kvm_guestdbg_info_arch {
 	unsigned long cr0;
 	unsigned long cr9;
@@ -750,12 +753,12 @@ struct kvm_vcpu_arch {
 };
 
 struct kvm_vm_stat {
+	struct kvm_vm_stat_generic generic;
 	u64 inject_io;
 	u64 inject_float_mchk;
 	u64 inject_pfault_done;
 	u64 inject_service_signal;
 	u64 inject_virtio;
-	u64 remote_tlb_flush;
 };
 
 struct kvm_arch_memory_slot {
@@ -798,14 +801,12 @@ struct kvm_s390_cpu_model {
 	unsigned short ibc;
 };
 
-struct kvm_s390_module_hook {
-	int (*hook)(struct kvm_vcpu *vcpu);
-	struct module *owner;
-};
+typedef int (*crypto_hook)(struct kvm_vcpu *vcpu);
 
 struct kvm_s390_crypto {
 	struct kvm_s390_crypto_cb *crycb;
-	struct kvm_s390_module_hook *pqap_hook;
+	struct rw_semaphore pqap_hook_rwsem;
+	crypto_hook *pqap_hook;
 	__u32 crycbd;
 	__u8 aes_kw;
 	__u8 dea_kw;
@@ -957,6 +958,7 @@ struct kvm_arch{
 	atomic64_t cmma_dirty_pages;
 	/* subset of available cpu features enabled by user space */
 	DECLARE_BITMAP(cpu_feat, KVM_S390_VM_CPU_FEAT_NR_BITS);
+	/* indexed by vcpu_idx */
 	DECLARE_BITMAP(idle_mask, KVM_MAX_VCPUS);
 	struct kvm_s390_gisa_interrupt gisa_int;
 	struct kvm_s390_pv pv;
@@ -1009,7 +1011,5 @@ static inline void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 		struct kvm_memory_slot *slot) {}
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
-
-void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu);
 
 #endif

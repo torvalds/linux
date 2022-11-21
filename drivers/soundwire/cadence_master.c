@@ -188,7 +188,7 @@ MODULE_PARM_DESC(cdns_mcp_int_mask, "Cadence MCP IntMask");
 #define CDNS_PDI_CONFIG_PORT			GENMASK(4, 0)
 
 /* Driver defaults */
-#define CDNS_TX_TIMEOUT				2000
+#define CDNS_TX_TIMEOUT				500
 
 #define CDNS_SCP_RX_FIFOLEVEL			0x2
 
@@ -450,6 +450,40 @@ static int cdns_parity_error_injection(void *data, u64 value)
 DEFINE_DEBUGFS_ATTRIBUTE(cdns_parity_error_fops, NULL,
 			 cdns_parity_error_injection, "%llu\n");
 
+static int cdns_set_pdi_loopback_source(void *data, u64 value)
+{
+	struct sdw_cdns *cdns = data;
+	unsigned int pdi_out_num = cdns->pcm.num_bd + cdns->pcm.num_out;
+
+	if (value > pdi_out_num)
+		return -EINVAL;
+
+	/* Userspace changed the hardware state behind the kernel's back */
+	add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+
+	cdns->pdi_loopback_source = value;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(cdns_pdi_loopback_source_fops, NULL, cdns_set_pdi_loopback_source, "%llu\n");
+
+static int cdns_set_pdi_loopback_target(void *data, u64 value)
+{
+	struct sdw_cdns *cdns = data;
+	unsigned int pdi_in_num = cdns->pcm.num_bd + cdns->pcm.num_in;
+
+	if (value > pdi_in_num)
+		return -EINVAL;
+
+	/* Userspace changed the hardware state behind the kernel's back */
+	add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+
+	cdns->pdi_loopback_target = value;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(cdns_pdi_loopback_target_fops, NULL, cdns_set_pdi_loopback_target, "%llu\n");
+
 /**
  * sdw_cdns_debugfs_init() - Cadence debugfs init
  * @cdns: Cadence instance
@@ -464,6 +498,16 @@ void sdw_cdns_debugfs_init(struct sdw_cdns *cdns, struct dentry *root)
 
 	debugfs_create_file("cdns-parity-error-injection", 0200, root, cdns,
 			    &cdns_parity_error_fops);
+
+	cdns->pdi_loopback_source = -1;
+	cdns->pdi_loopback_target = -1;
+
+	debugfs_create_file("cdns-pdi-loopback-source", 0200, root, cdns,
+			    &cdns_pdi_loopback_source_fops);
+
+	debugfs_create_file("cdns-pdi-loopback-target", 0200, root, cdns,
+			    &cdns_pdi_loopback_target_fops);
+
 }
 EXPORT_SYMBOL_GPL(sdw_cdns_debugfs_init);
 
@@ -483,11 +527,11 @@ cdns_fill_msg_resp(struct sdw_cdns *cdns,
 	for (i = 0; i < count; i++) {
 		if (!(cdns->response_buf[i] & CDNS_MCP_RESP_ACK)) {
 			no_ack = 1;
-			dev_dbg_ratelimited(cdns->dev, "Msg Ack not received\n");
-			if (cdns->response_buf[i] & CDNS_MCP_RESP_NACK) {
-				nack = 1;
-				dev_err_ratelimited(cdns->dev, "Msg NACK received\n");
-			}
+			dev_vdbg(cdns->dev, "Msg Ack not received, cmd %d\n", i);
+		}
+		if (cdns->response_buf[i] & CDNS_MCP_RESP_NACK) {
+			nack = 1;
+			dev_err_ratelimited(cdns->dev, "Msg NACK received, cmd %d\n", i);
 		}
 	}
 
@@ -734,21 +778,18 @@ static void cdns_read_response(struct sdw_cdns *cdns)
 }
 
 static int cdns_update_slave_status(struct sdw_cdns *cdns,
-				    u32 slave0, u32 slave1)
+				    u64 slave_intstat)
 {
 	enum sdw_slave_status status[SDW_MAX_DEVICES + 1];
 	bool is_slave = false;
-	u64 slave;
 	u32 mask;
 	int i, set_status;
 
-	/* combine the two status */
-	slave = ((u64)slave1 << 32) | slave0;
 	memset(status, 0, sizeof(status));
 
 	for (i = 0; i <= SDW_MAX_DEVICES; i++) {
-		mask = (slave >> (i * CDNS_MCP_SLAVE_STATUS_NUM)) &
-				CDNS_MCP_SLAVE_STATUS_BITS;
+		mask = (slave_intstat >> (i * CDNS_MCP_SLAVE_STATUS_NUM)) &
+			CDNS_MCP_SLAVE_STATUS_BITS;
 		if (!mask)
 			continue;
 
@@ -825,7 +866,6 @@ irqreturn_t sdw_cdns_irq(int irq, void *dev_id)
 {
 	struct sdw_cdns *cdns = dev_id;
 	u32 int_status;
-	int ret = IRQ_HANDLED;
 
 	/* Check if the link is up */
 	if (!cdns->link_up)
@@ -903,12 +943,12 @@ irqreturn_t sdw_cdns_irq(int irq, void *dev_id)
 	}
 
 	cdns_writel(cdns, CDNS_MCP_INTSTAT, int_status);
-	return ret;
+	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL(sdw_cdns_irq);
 
 /**
- * To update slave status in a work since we will need to handle
+ * cdns_update_slave_status_work - update slave status in a work since we will need to handle
  * other interrupts eg. CDNS_MCP_INT_RX_WL during the update slave
  * process.
  * @work: cdns worker thread
@@ -918,13 +958,17 @@ static void cdns_update_slave_status_work(struct work_struct *work)
 	struct sdw_cdns *cdns =
 		container_of(work, struct sdw_cdns, work);
 	u32 slave0, slave1;
-
-	dev_dbg_ratelimited(cdns->dev, "Slave status change\n");
+	u64 slave_intstat;
 
 	slave0 = cdns_readl(cdns, CDNS_MCP_SLAVE_INTSTAT0);
 	slave1 = cdns_readl(cdns, CDNS_MCP_SLAVE_INTSTAT1);
 
-	cdns_update_slave_status(cdns, slave0, slave1);
+	/* combine the two status */
+	slave_intstat = ((u64)slave1 << 32) | slave0;
+
+	dev_dbg_ratelimited(cdns->dev, "Slave status change: 0x%llx\n", slave_intstat);
+
+	cdns_update_slave_status(cdns, slave_intstat);
 	cdns_writel(cdns, CDNS_MCP_SLAVE_INTSTAT0, slave0);
 	cdns_writel(cdns, CDNS_MCP_SLAVE_INTSTAT1, slave1);
 
@@ -934,6 +978,49 @@ static void cdns_update_slave_status_work(struct work_struct *work)
 		     CDNS_MCP_INT_SLAVE_MASK, CDNS_MCP_INT_SLAVE_MASK);
 
 }
+
+/* paranoia check to make sure self-cleared bits are indeed cleared */
+void sdw_cdns_check_self_clearing_bits(struct sdw_cdns *cdns, const char *string,
+				       bool initial_delay, int reset_iterations)
+{
+	u32 mcp_control;
+	u32 mcp_config_update;
+	int i;
+
+	if (initial_delay)
+		usleep_range(1000, 1500);
+
+	mcp_control = cdns_readl(cdns, CDNS_MCP_CONTROL);
+
+	/* the following bits should be cleared immediately */
+	if (mcp_control & CDNS_MCP_CONTROL_CMD_RST)
+		dev_err(cdns->dev, "%s failed: MCP_CONTROL_CMD_RST is not cleared\n", string);
+	if (mcp_control & CDNS_MCP_CONTROL_SOFT_RST)
+		dev_err(cdns->dev, "%s failed: MCP_CONTROL_SOFT_RST is not cleared\n", string);
+	if (mcp_control & CDNS_MCP_CONTROL_SW_RST)
+		dev_err(cdns->dev, "%s failed: MCP_CONTROL_SW_RST is not cleared\n", string);
+	if (mcp_control & CDNS_MCP_CONTROL_CLK_STOP_CLR)
+		dev_err(cdns->dev, "%s failed: MCP_CONTROL_CLK_STOP_CLR is not cleared\n", string);
+	mcp_config_update = cdns_readl(cdns, CDNS_MCP_CONFIG_UPDATE);
+	if (mcp_config_update & CDNS_MCP_CONFIG_UPDATE_BIT)
+		dev_err(cdns->dev, "%s failed: MCP_CONFIG_UPDATE_BIT is not cleared\n", string);
+
+	i = 0;
+	while (mcp_control & CDNS_MCP_CONTROL_HW_RST) {
+		if (i == reset_iterations) {
+			dev_err(cdns->dev, "%s failed: MCP_CONTROL_HW_RST is not cleared\n", string);
+			break;
+		}
+
+		dev_dbg(cdns->dev, "%s: MCP_CONTROL_HW_RST is not cleared at iteration %d\n", string, i);
+		i++;
+
+		usleep_range(1000, 1500);
+		mcp_control = cdns_readl(cdns, CDNS_MCP_CONTROL);
+	}
+
+}
+EXPORT_SYMBOL(sdw_cdns_check_self_clearing_bits);
 
 /*
  * init routines
@@ -945,10 +1032,7 @@ static void cdns_update_slave_status_work(struct work_struct *work)
  */
 int sdw_cdns_exit_reset(struct sdw_cdns *cdns)
 {
-	/* program maximum length reset to be safe */
-	cdns_updatel(cdns, CDNS_MCP_CONTROL,
-		     CDNS_MCP_CONTROL_RST_DELAY,
-		     CDNS_MCP_CONTROL_RST_DELAY);
+	/* keep reset delay unchanged to 4096 cycles */
 
 	/* use hardware generated reset */
 	cdns_updatel(cdns, CDNS_MCP_CONTROL,
@@ -967,7 +1051,7 @@ int sdw_cdns_exit_reset(struct sdw_cdns *cdns)
 EXPORT_SYMBOL(sdw_cdns_exit_reset);
 
 /**
- * sdw_cdns_enable_slave_interrupt() - Enable SDW slave interrupts
+ * cdns_enable_slave_interrupts() - Enable SDW slave interrupts
  * @cdns: Cadence instance
  * @state: boolean for true/false
  */
@@ -1094,9 +1178,6 @@ int sdw_cdns_pdi_init(struct sdw_cdns *cdns,
 	cdns->pcm.num_bd = config.pcm_bd;
 	cdns->pcm.num_in = config.pcm_in;
 	cdns->pcm.num_out = config.pcm_out;
-	cdns->pdm.num_bd = config.pdm_bd;
-	cdns->pdm.num_in = config.pdm_in;
-	cdns->pdm.num_out = config.pdm_out;
 
 	/* Allocate PDIs for PCMs */
 	stream = &cdns->pcm;
@@ -1126,32 +1207,6 @@ int sdw_cdns_pdi_init(struct sdw_cdns *cdns,
 	/* Update total number of PCM PDIs */
 	stream->num_pdi = stream->num_bd + stream->num_in + stream->num_out;
 	cdns->num_ports = stream->num_pdi;
-
-	/* Allocate PDIs for PDMs */
-	stream = &cdns->pdm;
-	ret = cdns_allocate_pdi(cdns, &stream->bd,
-				stream->num_bd, offset);
-	if (ret)
-		return ret;
-
-	offset += stream->num_bd;
-
-	ret = cdns_allocate_pdi(cdns, &stream->in,
-				stream->num_in, offset);
-	if (ret)
-		return ret;
-
-	offset += stream->num_in;
-
-	ret = cdns_allocate_pdi(cdns, &stream->out,
-				stream->num_out, offset);
-
-	if (ret)
-		return ret;
-
-	/* Update total number of PDM PDIs */
-	stream->num_pdi = stream->num_bd + stream->num_in + stream->num_out;
-	cdns->num_ports += stream->num_pdi;
 
 	return 0;
 }
@@ -1211,6 +1266,8 @@ int sdw_cdns_init(struct sdw_cdns *cdns)
 	u32 val;
 
 	cdns_init_clock_ctrl(cdns);
+
+	sdw_cdns_check_self_clearing_bits(cdns, __func__, false, 0);
 
 	/* reset msg_count to default value of FIFOLEVEL */
 	cdns->msg_count = cdns_readl(cdns, CDNS_MCP_FIFOLEVEL);
@@ -1285,20 +1342,37 @@ static int cdns_port_params(struct sdw_bus *bus,
 			    struct sdw_port_params *p_params, unsigned int bank)
 {
 	struct sdw_cdns *cdns = bus_to_cdns(bus);
-	int dpn_config = 0, dpn_config_off;
+	int dpn_config_off_source;
+	int dpn_config_off_target;
+	int target_num = p_params->num;
+	int source_num = p_params->num;
+	bool override = false;
+	int dpn_config;
 
-	if (bank)
-		dpn_config_off = CDNS_DPN_B1_CONFIG(p_params->num);
-	else
-		dpn_config_off = CDNS_DPN_B0_CONFIG(p_params->num);
+	if (target_num == cdns->pdi_loopback_target &&
+	    cdns->pdi_loopback_source != -1) {
+		source_num = cdns->pdi_loopback_source;
+		override = true;
+	}
 
-	dpn_config = cdns_readl(cdns, dpn_config_off);
+	if (bank) {
+		dpn_config_off_source = CDNS_DPN_B1_CONFIG(source_num);
+		dpn_config_off_target = CDNS_DPN_B1_CONFIG(target_num);
+	} else {
+		dpn_config_off_source = CDNS_DPN_B0_CONFIG(source_num);
+		dpn_config_off_target = CDNS_DPN_B0_CONFIG(target_num);
+	}
 
-	u32p_replace_bits(&dpn_config, (p_params->bps - 1), CDNS_DPN_CONFIG_WL);
-	u32p_replace_bits(&dpn_config, p_params->flow_mode, CDNS_DPN_CONFIG_PORT_FLOW);
-	u32p_replace_bits(&dpn_config, p_params->data_mode, CDNS_DPN_CONFIG_PORT_DAT);
+	dpn_config = cdns_readl(cdns, dpn_config_off_source);
 
-	cdns_writel(cdns, dpn_config_off, dpn_config);
+	/* use port params if there is no loopback, otherwise use source as is */
+	if (!override) {
+		u32p_replace_bits(&dpn_config, p_params->bps - 1, CDNS_DPN_CONFIG_WL);
+		u32p_replace_bits(&dpn_config, p_params->flow_mode, CDNS_DPN_CONFIG_PORT_FLOW);
+		u32p_replace_bits(&dpn_config, p_params->data_mode, CDNS_DPN_CONFIG_PORT_DAT);
+	}
+
+	cdns_writel(cdns, dpn_config_off_target, dpn_config);
 
 	return 0;
 }
@@ -1308,11 +1382,27 @@ static int cdns_transport_params(struct sdw_bus *bus,
 				 enum sdw_reg_bank bank)
 {
 	struct sdw_cdns *cdns = bus_to_cdns(bus);
-	int dpn_offsetctrl = 0, dpn_offsetctrl_off;
-	int dpn_config = 0, dpn_config_off;
-	int dpn_hctrl = 0, dpn_hctrl_off;
-	int num = t_params->port_num;
-	int dpn_samplectrl_off;
+	int dpn_config;
+	int dpn_config_off_source;
+	int dpn_config_off_target;
+	int dpn_hctrl;
+	int dpn_hctrl_off_source;
+	int dpn_hctrl_off_target;
+	int dpn_offsetctrl;
+	int dpn_offsetctrl_off_source;
+	int dpn_offsetctrl_off_target;
+	int dpn_samplectrl;
+	int dpn_samplectrl_off_source;
+	int dpn_samplectrl_off_target;
+	int source_num = t_params->port_num;
+	int target_num = t_params->port_num;
+	bool override = false;
+
+	if (target_num == cdns->pdi_loopback_target &&
+	    cdns->pdi_loopback_source != -1) {
+		source_num = cdns->pdi_loopback_source;
+		override = true;
+	}
 
 	/*
 	 * Note: Only full data port is supported on the Master side for
@@ -1320,32 +1410,59 @@ static int cdns_transport_params(struct sdw_bus *bus,
 	 */
 
 	if (bank) {
-		dpn_config_off = CDNS_DPN_B1_CONFIG(num);
-		dpn_samplectrl_off = CDNS_DPN_B1_SAMPLE_CTRL(num);
-		dpn_hctrl_off = CDNS_DPN_B1_HCTRL(num);
-		dpn_offsetctrl_off = CDNS_DPN_B1_OFFSET_CTRL(num);
+		dpn_config_off_source = CDNS_DPN_B1_CONFIG(source_num);
+		dpn_hctrl_off_source = CDNS_DPN_B1_HCTRL(source_num);
+		dpn_offsetctrl_off_source = CDNS_DPN_B1_OFFSET_CTRL(source_num);
+		dpn_samplectrl_off_source = CDNS_DPN_B1_SAMPLE_CTRL(source_num);
+
+		dpn_config_off_target = CDNS_DPN_B1_CONFIG(target_num);
+		dpn_hctrl_off_target = CDNS_DPN_B1_HCTRL(target_num);
+		dpn_offsetctrl_off_target = CDNS_DPN_B1_OFFSET_CTRL(target_num);
+		dpn_samplectrl_off_target = CDNS_DPN_B1_SAMPLE_CTRL(target_num);
+
 	} else {
-		dpn_config_off = CDNS_DPN_B0_CONFIG(num);
-		dpn_samplectrl_off = CDNS_DPN_B0_SAMPLE_CTRL(num);
-		dpn_hctrl_off = CDNS_DPN_B0_HCTRL(num);
-		dpn_offsetctrl_off = CDNS_DPN_B0_OFFSET_CTRL(num);
+		dpn_config_off_source = CDNS_DPN_B0_CONFIG(source_num);
+		dpn_hctrl_off_source = CDNS_DPN_B0_HCTRL(source_num);
+		dpn_offsetctrl_off_source = CDNS_DPN_B0_OFFSET_CTRL(source_num);
+		dpn_samplectrl_off_source = CDNS_DPN_B0_SAMPLE_CTRL(source_num);
+
+		dpn_config_off_target = CDNS_DPN_B0_CONFIG(target_num);
+		dpn_hctrl_off_target = CDNS_DPN_B0_HCTRL(target_num);
+		dpn_offsetctrl_off_target = CDNS_DPN_B0_OFFSET_CTRL(target_num);
+		dpn_samplectrl_off_target = CDNS_DPN_B0_SAMPLE_CTRL(target_num);
 	}
 
-	dpn_config = cdns_readl(cdns, dpn_config_off);
-	u32p_replace_bits(&dpn_config, t_params->blk_grp_ctrl, CDNS_DPN_CONFIG_BGC);
-	u32p_replace_bits(&dpn_config, t_params->blk_pkg_mode, CDNS_DPN_CONFIG_BPM);
-	cdns_writel(cdns, dpn_config_off, dpn_config);
+	dpn_config = cdns_readl(cdns, dpn_config_off_source);
+	if (!override) {
+		u32p_replace_bits(&dpn_config, t_params->blk_grp_ctrl, CDNS_DPN_CONFIG_BGC);
+		u32p_replace_bits(&dpn_config, t_params->blk_pkg_mode, CDNS_DPN_CONFIG_BPM);
+	}
+	cdns_writel(cdns, dpn_config_off_target, dpn_config);
 
-	u32p_replace_bits(&dpn_offsetctrl, t_params->offset1, CDNS_DPN_OFFSET_CTRL_1);
-	u32p_replace_bits(&dpn_offsetctrl, t_params->offset2, CDNS_DPN_OFFSET_CTRL_2);
-	cdns_writel(cdns, dpn_offsetctrl_off,  dpn_offsetctrl);
+	if (!override) {
+		dpn_offsetctrl = 0;
+		u32p_replace_bits(&dpn_offsetctrl, t_params->offset1, CDNS_DPN_OFFSET_CTRL_1);
+		u32p_replace_bits(&dpn_offsetctrl, t_params->offset2, CDNS_DPN_OFFSET_CTRL_2);
+	} else {
+		dpn_offsetctrl = cdns_readl(cdns, dpn_offsetctrl_off_source);
+	}
+	cdns_writel(cdns, dpn_offsetctrl_off_target,  dpn_offsetctrl);
 
-	u32p_replace_bits(&dpn_hctrl, t_params->hstart, CDNS_DPN_HCTRL_HSTART);
-	u32p_replace_bits(&dpn_hctrl, t_params->hstop, CDNS_DPN_HCTRL_HSTOP);
-	u32p_replace_bits(&dpn_hctrl, t_params->lane_ctrl, CDNS_DPN_HCTRL_LCTRL);
+	if (!override) {
+		dpn_hctrl = 0;
+		u32p_replace_bits(&dpn_hctrl, t_params->hstart, CDNS_DPN_HCTRL_HSTART);
+		u32p_replace_bits(&dpn_hctrl, t_params->hstop, CDNS_DPN_HCTRL_HSTOP);
+		u32p_replace_bits(&dpn_hctrl, t_params->lane_ctrl, CDNS_DPN_HCTRL_LCTRL);
+	} else {
+		dpn_hctrl = cdns_readl(cdns, dpn_hctrl_off_source);
+	}
+	cdns_writel(cdns, dpn_hctrl_off_target, dpn_hctrl);
 
-	cdns_writel(cdns, dpn_hctrl_off, dpn_hctrl);
-	cdns_writel(cdns, dpn_samplectrl_off, (t_params->sample_interval - 1));
+	if (!override)
+		dpn_samplectrl = t_params->sample_interval - 1;
+	else
+		dpn_samplectrl = cdns_readl(cdns, dpn_samplectrl_off_source);
+	cdns_writel(cdns, dpn_samplectrl_off_target, dpn_samplectrl);
 
 	return 0;
 }
@@ -1396,6 +1513,8 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	struct sdw_slave *slave;
 	int ret;
 
+	sdw_cdns_check_self_clearing_bits(cdns, __func__, false, 0);
+
 	/* Check suspend status */
 	if (sdw_cdns_is_clock_stop(cdns)) {
 		dev_dbg(cdns->dev, "Clock is already stopped\n");
@@ -1427,20 +1546,6 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 		}
 	}
 
-	/*
-	 * This CMD_ACCEPT should be used when there are no devices
-	 * attached on the link when entering clock stop mode. If this is
-	 * not set and there is a broadcast write then the command ignored
-	 * will be treated as a failure
-	 */
-	if (!slave_present)
-		cdns_updatel(cdns, CDNS_MCP_CONTROL,
-			     CDNS_MCP_CONTROL_CMD_ACCEPT,
-			     CDNS_MCP_CONTROL_CMD_ACCEPT);
-	else
-		cdns_updatel(cdns, CDNS_MCP_CONTROL,
-			     CDNS_MCP_CONTROL_CMD_ACCEPT, 0);
-
 	/* commit changes */
 	ret = cdns_config_update(cdns);
 	if (ret < 0) {
@@ -1449,10 +1554,12 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	}
 
 	/* Prepare slaves for clock stop */
-	ret = sdw_bus_prep_clk_stop(&cdns->bus);
-	if (ret < 0) {
-		dev_err(cdns->dev, "prepare clock stop failed %d", ret);
-		return ret;
+	if (slave_present) {
+		ret = sdw_bus_prep_clk_stop(&cdns->bus);
+		if (ret < 0 && ret != -ENODATA) {
+			dev_err(cdns->dev, "prepare clock stop failed %d\n", ret);
+			return ret;
+		}
 	}
 
 	/*
@@ -1461,7 +1568,7 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	 */
 	ret = sdw_bus_clk_stop(&cdns->bus);
 	if (ret < 0 && slave_present && ret != -ENODATA) {
-		dev_err(cdns->dev, "bus clock stop failed %d", ret);
+		dev_err(cdns->dev, "bus clock stop failed %d\n", ret);
 		return ret;
 	}
 
@@ -1505,11 +1612,8 @@ int sdw_cdns_clock_restart(struct sdw_cdns *cdns, bool bus_reset)
 	cdns_updatel(cdns, CDNS_MCP_CONTROL,
 		     CDNS_MCP_CONTROL_BLOCK_WAKEUP, 0);
 
-	/*
-	 * clear CMD_ACCEPT so that the command ignored
-	 * will be treated as a failure during a broadcast write
-	 */
-	cdns_updatel(cdns, CDNS_MCP_CONTROL, CDNS_MCP_CONTROL_CMD_ACCEPT, 0);
+	cdns_updatel(cdns, CDNS_MCP_CONTROL, CDNS_MCP_CONTROL_CMD_ACCEPT,
+		     CDNS_MCP_CONTROL_CMD_ACCEPT);
 
 	if (!bus_reset) {
 
@@ -1548,7 +1652,7 @@ int sdw_cdns_probe(struct sdw_cdns *cdns)
 EXPORT_SYMBOL(sdw_cdns_probe);
 
 int cdns_set_sdw_stream(struct snd_soc_dai *dai,
-			void *stream, bool pcm, int direction)
+			void *stream, int direction)
 {
 	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
 	struct sdw_cdns_dma_data *dma;
@@ -1572,10 +1676,7 @@ int cdns_set_sdw_stream(struct snd_soc_dai *dai,
 		if (!dma)
 			return -ENOMEM;
 
-		if (pcm)
-			dma->stream_type = SDW_STREAM_PCM;
-		else
-			dma->stream_type = SDW_STREAM_PDM;
+		dma->stream_type = SDW_STREAM_PCM;
 
 		dma->bus = &cdns->bus;
 		dma->link_id = cdns->instance;

@@ -143,8 +143,7 @@ void xen_front_pgdir_shbuf_free(struct xen_front_pgdir_shbuf *buf)
 
 		for (i = 0; i < buf->num_grefs; i++)
 			if (buf->grefs[i] != GRANT_INVALID_REF)
-				gnttab_end_foreign_access(buf->grefs[i],
-							  0, 0UL);
+				gnttab_end_foreign_access(buf->grefs[i], 0UL);
 	}
 	kfree(buf->grefs);
 	kfree(buf->directory);
@@ -305,11 +304,18 @@ static int backend_map(struct xen_front_pgdir_shbuf *buf)
 
 	/* Save handles even if error, so we can unmap. */
 	for (cur_page = 0; cur_page < buf->num_pages; cur_page++) {
-		buf->backend_map_handles[cur_page] = map_ops[cur_page].handle;
-		if (unlikely(map_ops[cur_page].status != GNTST_okay))
+		if (likely(map_ops[cur_page].status == GNTST_okay)) {
+			buf->backend_map_handles[cur_page] =
+				map_ops[cur_page].handle;
+		} else {
+			buf->backend_map_handles[cur_page] =
+				INVALID_GRANT_HANDLE;
+			if (!ret)
+				ret = -ENXIO;
 			dev_err(&buf->xb_dev->dev,
 				"Failed to map page %d: %d\n",
 				cur_page, map_ops[cur_page].status);
+		}
 	}
 
 	if (ret) {

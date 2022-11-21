@@ -64,7 +64,7 @@ static struct ltc4215_data *ltc4215_update_device(struct device *dev)
 		}
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -139,7 +139,7 @@ static ssize_t ltc4215_voltage_show(struct device *dev,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	const int voltage = ltc4215_get_voltage(dev, attr->index);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", voltage);
+	return sysfs_emit(buf, "%d\n", voltage);
 }
 
 static ssize_t ltc4215_current_show(struct device *dev,
@@ -147,7 +147,7 @@ static ssize_t ltc4215_current_show(struct device *dev,
 {
 	const unsigned int curr = ltc4215_get_current(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", curr);
+	return sysfs_emit(buf, "%u\n", curr);
 }
 
 static ssize_t ltc4215_power_show(struct device *dev,
@@ -159,7 +159,7 @@ static ssize_t ltc4215_power_show(struct device *dev,
 	/* current in mA * voltage in mV == power in uW */
 	const unsigned int power = abs(output_voltage * curr);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", power);
+	return sysfs_emit(buf, "%u\n", power);
 }
 
 static ssize_t ltc4215_alarm_show(struct device *dev,
@@ -170,7 +170,7 @@ static ssize_t ltc4215_alarm_show(struct device *dev,
 	const u8 reg = data->regs[LTC4215_STATUS];
 	const u32 mask = attr->index;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", !!(reg & mask));
+	return sysfs_emit(buf, "%u\n", !!(reg & mask));
 }
 
 /*

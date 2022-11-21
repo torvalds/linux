@@ -28,12 +28,13 @@
  */
 
 #include <linux/delay.h>
+#include <linux/stdarg.h>
 
 #include "dm_services.h"
-#include <stdarg.h>
 
 #include "dc.h"
 #include "dc_dmub_srv.h"
+#include "reg_helper.h"
 
 static inline void submit_dmub_read_modify_write(
 	struct dc_reg_helper_state *offload,
@@ -294,32 +295,6 @@ uint32_t generic_reg_set_ex(const struct dc_context *ctx,
 
 	dm_write_reg(ctx, addr, reg_val);
 	return reg_val;
-}
-
-uint32_t dm_read_reg_func(
-	const struct dc_context *ctx,
-	uint32_t address,
-	const char *func_name)
-{
-	uint32_t value;
-#ifdef DM_CHECK_ADDR_0
-	if (address == 0) {
-		DC_ERR("invalid register read; address = 0\n");
-		return 0;
-	}
-#endif
-
-	if (ctx->dmub_srv &&
-	    ctx->dmub_srv->reg_helper_offload.gather_in_progress &&
-	    !ctx->dmub_srv->reg_helper_offload.should_burst_write) {
-		ASSERT(false);
-		return 0;
-	}
-
-	value = cgs_read_register(ctx->cgs_device, address);
-	trace_amdgpu_dc_rreg(&ctx->perf_trace->read_count, address, value);
-
-	return value;
 }
 
 uint32_t generic_reg_get(const struct dc_context *ctx, uint32_t addr,
@@ -611,6 +586,66 @@ uint32_t generic_indirect_reg_update_ex(const struct dc_context *ctx,
 	va_end(ap);
 
 	return reg_val;
+}
+
+
+uint32_t generic_indirect_reg_update_ex_sync(const struct dc_context *ctx,
+		uint32_t index, uint32_t reg_val, int n,
+		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
+		...)
+{
+	uint32_t shift, mask, field_value;
+	int i = 1;
+
+	va_list ap;
+
+	va_start(ap, field_value1);
+
+	reg_val = set_reg_field_value_ex(reg_val, field_value1, mask1, shift1);
+
+	while (i < n) {
+		shift = va_arg(ap, uint32_t);
+		mask = va_arg(ap, uint32_t);
+		field_value = va_arg(ap, uint32_t);
+
+		reg_val = set_reg_field_value_ex(reg_val, field_value, mask, shift);
+		i++;
+	}
+
+	dm_write_index_reg(ctx, CGS_IND_REG__PCIE, index, reg_val);
+	va_end(ap);
+
+	return reg_val;
+}
+
+uint32_t generic_indirect_reg_get_sync(const struct dc_context *ctx,
+		uint32_t index, int n,
+		uint8_t shift1, uint32_t mask1, uint32_t *field_value1,
+		...)
+{
+	uint32_t shift, mask, *field_value;
+	uint32_t value = 0;
+	int i = 1;
+
+	va_list ap;
+
+	va_start(ap, field_value1);
+
+	value = dm_read_index_reg(ctx, CGS_IND_REG__PCIE, index);
+	*field_value1 = get_reg_field_value_ex(value, mask1, shift1);
+
+	while (i < n) {
+		shift = va_arg(ap, uint32_t);
+		mask = va_arg(ap, uint32_t);
+		field_value = va_arg(ap, uint32_t *);
+
+		*field_value = get_reg_field_value_ex(value, mask, shift);
+		i++;
+	}
+
+	va_end(ap);
+
+	return value;
 }
 
 void reg_sequence_start_gather(const struct dc_context *ctx)

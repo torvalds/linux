@@ -291,20 +291,7 @@ static struct w1_family w1_family_0d = {
 	.fops = &w1_f0d_fops,
 };
 
-static int __init w1_f0d_init(void)
-{
-	pr_info("%s()\n", __func__);
-	return w1_register_family(&w1_family_0d);
-}
-
-static void __exit w1_f0d_fini(void)
-{
-	pr_info("%s()\n", __func__);
-	w1_unregister_family(&w1_family_0d);
-}
-
-module_init(w1_f0d_init);
-module_exit(w1_f0d_fini);
+module_w1_family(w1_family_0d);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrew Worsley amworsley@gmail.com");

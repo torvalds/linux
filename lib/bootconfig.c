@@ -4,16 +4,24 @@
  * Masami Hiramatsu <mhiramat@kernel.org>
  */
 
-#define pr_fmt(fmt)    "bootconfig: " fmt
-
+#ifdef __KERNEL__
 #include <linux/bootconfig.h>
 #include <linux/bug.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>
-#include <linux/printk.h>
 #include <linux/string.h>
+#else /* !__KERNEL__ */
+/*
+ * NOTE: This is only for tools/bootconfig, because tools/bootconfig will
+ * run the parser sanity test.
+ * This does NOT mean lib/bootconfig.c is available in the user space.
+ * However, if you change this file, please make sure the tools/bootconfig
+ * has no issue on building and running.
+ */
+#include <linux/bootconfig.h>
+#endif
 
 /*
  * Extra Boot Config (XBC) is given as tree-structured ascii text of
@@ -33,6 +41,50 @@ static const char *xbc_err_msg __initdata;
 static int xbc_err_pos __initdata;
 static int open_brace[XBC_DEPTH_MAX] __initdata;
 static int brace_index __initdata;
+
+#ifdef __KERNEL__
+static inline void * __init xbc_alloc_mem(size_t size)
+{
+	return memblock_alloc(size, SMP_CACHE_BYTES);
+}
+
+static inline void __init xbc_free_mem(void *addr, size_t size)
+{
+	memblock_free(addr, size);
+}
+
+#else /* !__KERNEL__ */
+
+static inline void *xbc_alloc_mem(size_t size)
+{
+	return malloc(size);
+}
+
+static inline void xbc_free_mem(void *addr, size_t size)
+{
+	free(addr);
+}
+#endif
+/**
+ * xbc_get_info() - Get the information of loaded boot config
+ * @node_size: A pointer to store the number of nodes.
+ * @data_size: A pointer to store the size of bootconfig data.
+ *
+ * Get the number of used nodes in @node_size if it is not NULL,
+ * and the size of bootconfig data in @data_size if it is not NULL.
+ * Return 0 if the boot config is initialized, or return -ENODEV.
+ */
+int __init xbc_get_info(int *node_size, size_t *data_size)
+{
+	if (!xbc_data)
+		return -ENODEV;
+
+	if (node_size)
+		*node_size = xbc_node_num;
+	if (data_size)
+		*data_size = xbc_data_size;
+	return 0;
+}
 
 static int __init xbc_parse_error(const char *msg, const char *p)
 {
@@ -142,21 +194,21 @@ xbc_node_match_prefix(struct xbc_node *node, const char **prefix)
 }
 
 /**
- * xbc_node_find_child() - Find a child node which matches given key
+ * xbc_node_find_subkey() - Find a subkey node which matches given key
  * @parent: An XBC node.
  * @key: A key string.
  *
- * Search a node under @parent which matches @key. The @key can contain
+ * Search a key node under @parent which matches @key. The @key can contain
  * several words jointed with '.'. If @parent is NULL, this searches the
  * node from whole tree. Return NULL if no node is matched.
  */
 struct xbc_node * __init
-xbc_node_find_child(struct xbc_node *parent, const char *key)
+xbc_node_find_subkey(struct xbc_node *parent, const char *key)
 {
 	struct xbc_node *node;
 
 	if (parent)
-		node = xbc_node_get_child(parent);
+		node = xbc_node_get_subkey(parent);
 	else
 		node = xbc_root_node();
 
@@ -164,7 +216,7 @@ xbc_node_find_child(struct xbc_node *parent, const char *key)
 		if (!xbc_node_match_prefix(node, &key))
 			node = xbc_node_get_next(node);
 		else if (*key != '\0')
-			node = xbc_node_get_child(node);
+			node = xbc_node_get_subkey(node);
 		else
 			break;
 	}
@@ -191,7 +243,7 @@ const char * __init
 xbc_node_find_value(struct xbc_node *parent, const char *key,
 		    struct xbc_node **vnode)
 {
-	struct xbc_node *node = xbc_node_find_child(parent, key);
+	struct xbc_node *node = xbc_node_find_subkey(parent, key);
 
 	if (!node || !xbc_node_is_key(node))
 		return NULL;
@@ -226,7 +278,7 @@ int __init xbc_node_compose_key_after(struct xbc_node *root,
 				      struct xbc_node *node,
 				      char *buf, size_t size)
 {
-	u16 keys[XBC_DEPTH_MAX];
+	uint16_t keys[XBC_DEPTH_MAX];
 	int depth = 0, ret = 0, total = 0;
 
 	if (!node || node == root)
@@ -274,6 +326,8 @@ int __init xbc_node_compose_key_after(struct xbc_node *root,
 struct xbc_node * __init xbc_node_find_next_leaf(struct xbc_node *root,
 						 struct xbc_node *node)
 {
+	struct xbc_node *next;
+
 	if (unlikely(!xbc_data))
 		return NULL;
 
@@ -282,6 +336,13 @@ struct xbc_node * __init xbc_node_find_next_leaf(struct xbc_node *root,
 		if (!node)
 			node = xbc_nodes;
 	} else {
+		/* Leaf node may have a subkey */
+		next = xbc_node_get_subkey(node);
+		if (next) {
+			node = next;
+			goto found;
+		}
+
 		if (node == root)	/* @root was a leaf, no child node. */
 			return NULL;
 
@@ -296,6 +357,7 @@ struct xbc_node * __init xbc_node_find_next_leaf(struct xbc_node *root,
 		node = xbc_node_get_next(node);
 	}
 
+found:
 	while (node && !xbc_node_is_leaf(node))
 		node = xbc_node_get_child(node);
 
@@ -331,21 +393,21 @@ const char * __init xbc_node_find_next_key_value(struct xbc_node *root,
 
 /* XBC parse and tree build */
 
-static int __init xbc_init_node(struct xbc_node *node, char *data, u32 flag)
+static int __init xbc_init_node(struct xbc_node *node, char *data, uint32_t flag)
 {
 	unsigned long offset = data - xbc_data;
 
 	if (WARN_ON(offset >= XBC_DATA_MAX))
 		return -EINVAL;
 
-	node->data = (u16)offset | flag;
+	node->data = (uint16_t)offset | flag;
 	node->child = 0;
 	node->next = 0;
 
 	return 0;
 }
 
-static struct xbc_node * __init xbc_add_node(char *data, u32 flag)
+static struct xbc_node * __init xbc_add_node(char *data, uint32_t flag)
 {
 	struct xbc_node *node;
 
@@ -367,18 +429,28 @@ static inline __init struct xbc_node *xbc_last_sibling(struct xbc_node *node)
 	return node;
 }
 
-static struct xbc_node * __init xbc_add_sibling(char *data, u32 flag)
+static inline __init struct xbc_node *xbc_last_child(struct xbc_node *node)
+{
+	while (node->child)
+		node = xbc_node_get_child(node);
+
+	return node;
+}
+
+static struct xbc_node * __init __xbc_add_sibling(char *data, uint32_t flag, bool head)
 {
 	struct xbc_node *sib, *node = xbc_add_node(data, flag);
 
 	if (node) {
 		if (!last_parent) {
+			/* Ignore @head in this case */
 			node->parent = XBC_NODE_MAX;
 			sib = xbc_last_sibling(xbc_nodes);
 			sib->next = xbc_node_index(node);
 		} else {
 			node->parent = xbc_node_index(last_parent);
-			if (!last_parent->child) {
+			if (!last_parent->child || head) {
+				node->next = last_parent->child;
 				last_parent->child = xbc_node_index(node);
 			} else {
 				sib = xbc_node_get_child(last_parent);
@@ -392,7 +464,17 @@ static struct xbc_node * __init xbc_add_sibling(char *data, u32 flag)
 	return node;
 }
 
-static inline __init struct xbc_node *xbc_add_child(char *data, u32 flag)
+static inline struct xbc_node * __init xbc_add_sibling(char *data, uint32_t flag)
+{
+	return __xbc_add_sibling(data, flag, false);
+}
+
+static inline struct xbc_node * __init xbc_add_head_sibling(char *data, uint32_t flag)
+{
+	return __xbc_add_sibling(data, flag, true);
+}
+
+static inline __init struct xbc_node *xbc_add_child(char *data, uint32_t flag)
 {
 	struct xbc_node *node = xbc_add_sibling(data, flag);
 
@@ -517,17 +599,20 @@ static int __init xbc_parse_array(char **__v)
 	char *next;
 	int c = 0;
 
+	if (last_parent->child)
+		last_parent = xbc_node_get_child(last_parent);
+
 	do {
 		c = __xbc_parse_value(__v, &next);
 		if (c < 0)
 			return c;
 
-		node = xbc_add_sibling(*__v, XBC_VALUE);
+		node = xbc_add_child(*__v, XBC_VALUE);
 		if (!node)
 			return -ENOMEM;
 		*__v = next;
 	} while (c == ',');
-	node->next = 0;
+	node->child = 0;
 
 	return c;
 }
@@ -557,8 +642,9 @@ static int __init __xbc_add_key(char *k)
 		node = find_match_node(xbc_nodes, k);
 	else {
 		child = xbc_node_get_child(last_parent);
+		/* Since the value node is the first child, skip it. */
 		if (child && xbc_node_is_value(child))
-			return xbc_parse_error("Subkey is mixed with value", k);
+			child = xbc_node_get_next(child);
 		node = find_match_node(child, k);
 	}
 
@@ -601,23 +687,29 @@ static int __init xbc_parse_kv(char **k, char *v, int op)
 	if (ret)
 		return ret;
 
-	child = xbc_node_get_child(last_parent);
-	if (child) {
-		if (xbc_node_is_key(child))
-			return xbc_parse_error("Value is mixed with subkey", v);
-		else if (op == '=')
-			return xbc_parse_error("Value is redefined", v);
-	}
-
 	c = __xbc_parse_value(&v, &next);
 	if (c < 0)
 		return c;
 
-	if (op == ':' && child) {
-		xbc_init_node(child, v, XBC_VALUE);
-	} else if (!xbc_add_sibling(v, XBC_VALUE))
+	child = xbc_node_get_child(last_parent);
+	if (child && xbc_node_is_value(child)) {
+		if (op == '=')
+			return xbc_parse_error("Value is redefined", v);
+		if (op == ':') {
+			unsigned short nidx = child->next;
+
+			xbc_init_node(child, v, XBC_VALUE);
+			child->next = nidx;	/* keep subkeys */
+			goto array;
+		}
+		/* op must be '+' */
+		last_parent = xbc_last_child(child);
+	}
+	/* The value node should always be the first child */
+	if (!xbc_add_head_sibling(v, XBC_VALUE))
 		return -ENOMEM;
 
+array:
 	if (c == ',') {	/* Array */
 		c = xbc_parse_array(&next);
 		if (c < 0)
@@ -740,72 +832,14 @@ static int __init xbc_verify_tree(void)
 	return 0;
 }
 
-/**
- * xbc_destroy_all() - Clean up all parsed bootconfig
- *
- * This clears all data structures of parsed bootconfig on memory.
- * If you need to reuse xbc_init() with new boot config, you can
- * use this.
- */
-void __init xbc_destroy_all(void)
-{
-	xbc_data = NULL;
-	xbc_data_size = 0;
-	xbc_node_num = 0;
-	memblock_free(__pa(xbc_nodes), sizeof(struct xbc_node) * XBC_NODE_MAX);
-	xbc_nodes = NULL;
-	brace_index = 0;
-}
-
-/**
- * xbc_init() - Parse given XBC file and build XBC internal tree
- * @buf: boot config text
- * @emsg: A pointer of const char * to store the error message
- * @epos: A pointer of int to store the error position
- *
- * This parses the boot config text in @buf. @buf must be a
- * null terminated string and smaller than XBC_DATA_MAX.
- * Return the number of stored nodes (>0) if succeeded, or -errno
- * if there is any error.
- * In error cases, @emsg will be updated with an error message and
- * @epos will be updated with the error position which is the byte offset
- * of @buf. If the error is not a parser error, @epos will be -1.
- */
-int __init xbc_init(char *buf, const char **emsg, int *epos)
+/* Need to setup xbc_data and xbc_nodes before call this. */
+static int __init xbc_parse_tree(void)
 {
 	char *p, *q;
-	int ret, c;
+	int ret = 0, c;
 
-	if (epos)
-		*epos = -1;
-
-	if (xbc_data) {
-		if (emsg)
-			*emsg = "Bootconfig is already initialized";
-		return -EBUSY;
-	}
-
-	ret = strlen(buf);
-	if (ret > XBC_DATA_MAX - 1 || ret == 0) {
-		if (emsg)
-			*emsg = ret ? "Config data is too big" :
-				"Config data is empty";
-		return -ERANGE;
-	}
-
-	xbc_nodes = memblock_alloc(sizeof(struct xbc_node) * XBC_NODE_MAX,
-				   SMP_CACHE_BYTES);
-	if (!xbc_nodes) {
-		if (emsg)
-			*emsg = "Failed to allocate bootconfig nodes";
-		return -ENOMEM;
-	}
-	memset(xbc_nodes, 0, sizeof(struct xbc_node) * XBC_NODE_MAX);
-	xbc_data = buf;
-	xbc_data_size = ret + 1;
 	last_parent = NULL;
-
-	p = buf;
+	p = xbc_data;
 	do {
 		q = strpbrk(p, "{}=+;:\n#");
 		if (!q) {
@@ -827,7 +861,7 @@ int __init xbc_init(char *buf, const char **emsg, int *epos)
 							q - 2);
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		case '=':
 			ret = xbc_parse_kv(&p, q, c);
 			break;
@@ -836,7 +870,7 @@ int __init xbc_init(char *buf, const char **emsg, int *epos)
 			break;
 		case '#':
 			q = skip_comment(q);
-			/* fall through */
+			fallthrough;
 		case ';':
 		case '\n':
 			ret = xbc_parse_key(&p, q);
@@ -847,6 +881,81 @@ int __init xbc_init(char *buf, const char **emsg, int *epos)
 		}
 	} while (!ret);
 
+	return ret;
+}
+
+/**
+ * xbc_exit() - Clean up all parsed bootconfig
+ *
+ * This clears all data structures of parsed bootconfig on memory.
+ * If you need to reuse xbc_init() with new boot config, you can
+ * use this.
+ */
+void __init xbc_exit(void)
+{
+	xbc_free_mem(xbc_data, xbc_data_size);
+	xbc_data = NULL;
+	xbc_data_size = 0;
+	xbc_node_num = 0;
+	xbc_free_mem(xbc_nodes, sizeof(struct xbc_node) * XBC_NODE_MAX);
+	xbc_nodes = NULL;
+	brace_index = 0;
+}
+
+/**
+ * xbc_init() - Parse given XBC file and build XBC internal tree
+ * @data: The boot config text original data
+ * @size: The size of @data
+ * @emsg: A pointer of const char * to store the error message
+ * @epos: A pointer of int to store the error position
+ *
+ * This parses the boot config text in @data. @size must be smaller
+ * than XBC_DATA_MAX.
+ * Return the number of stored nodes (>0) if succeeded, or -errno
+ * if there is any error.
+ * In error cases, @emsg will be updated with an error message and
+ * @epos will be updated with the error position which is the byte offset
+ * of @buf. If the error is not a parser error, @epos will be -1.
+ */
+int __init xbc_init(const char *data, size_t size, const char **emsg, int *epos)
+{
+	int ret;
+
+	if (epos)
+		*epos = -1;
+
+	if (xbc_data) {
+		if (emsg)
+			*emsg = "Bootconfig is already initialized";
+		return -EBUSY;
+	}
+	if (size > XBC_DATA_MAX || size == 0) {
+		if (emsg)
+			*emsg = size ? "Config data is too big" :
+				"Config data is empty";
+		return -ERANGE;
+	}
+
+	xbc_data = xbc_alloc_mem(size + 1);
+	if (!xbc_data) {
+		if (emsg)
+			*emsg = "Failed to allocate bootconfig data";
+		return -ENOMEM;
+	}
+	memcpy(xbc_data, data, size);
+	xbc_data[size] = '\0';
+	xbc_data_size = size + 1;
+
+	xbc_nodes = xbc_alloc_mem(sizeof(struct xbc_node) * XBC_NODE_MAX);
+	if (!xbc_nodes) {
+		if (emsg)
+			*emsg = "Failed to allocate bootconfig nodes";
+		xbc_exit();
+		return -ENOMEM;
+	}
+	memset(xbc_nodes, 0, sizeof(struct xbc_node) * XBC_NODE_MAX);
+
+	ret = xbc_parse_tree();
 	if (!ret)
 		ret = xbc_verify_tree();
 
@@ -855,27 +964,9 @@ int __init xbc_init(char *buf, const char **emsg, int *epos)
 			*epos = xbc_err_pos;
 		if (emsg)
 			*emsg = xbc_err_msg;
-		xbc_destroy_all();
+		xbc_exit();
 	} else
 		ret = xbc_node_num;
 
 	return ret;
-}
-
-/**
- * xbc_debug_dump() - Dump current XBC node list
- *
- * Dump the current XBC node list on printk buffer for debug.
- */
-void __init xbc_debug_dump(void)
-{
-	int i;
-
-	for (i = 0; i < xbc_node_num; i++) {
-		pr_debug("[%d] %s (%s) .next=%d, .child=%d .parent=%d\n", i,
-			xbc_node_get_data(xbc_nodes + i),
-			xbc_node_is_value(xbc_nodes + i) ? "value" : "key",
-			xbc_nodes[i].next, xbc_nodes[i].child,
-			xbc_nodes[i].parent);
-	}
 }

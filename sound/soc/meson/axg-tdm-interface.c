@@ -467,8 +467,20 @@ static int axg_tdm_iface_set_bias_level(struct snd_soc_component *component,
 	return ret;
 }
 
+static const struct snd_soc_dapm_widget axg_tdm_iface_dapm_widgets[] = {
+	SND_SOC_DAPM_SIGGEN("Playback Signal"),
+};
+
+static const struct snd_soc_dapm_route axg_tdm_iface_dapm_routes[] = {
+	{ "Loopback", NULL, "Playback Signal" },
+};
+
 static const struct snd_soc_component_driver axg_tdm_iface_component_drv = {
-	.set_bias_level	= axg_tdm_iface_set_bias_level,
+	.dapm_widgets		= axg_tdm_iface_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(axg_tdm_iface_dapm_widgets),
+	.dapm_routes		= axg_tdm_iface_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(axg_tdm_iface_dapm_routes),
+	.set_bias_level		= axg_tdm_iface_set_bias_level,
 };
 
 static const struct of_device_id axg_tdm_iface_of_match[] = {
@@ -505,21 +517,13 @@ static int axg_tdm_iface_probe(struct platform_device *pdev)
 
 	/* Bit clock provided on the pad */
 	iface->sclk = devm_clk_get(dev, "sclk");
-	if (IS_ERR(iface->sclk)) {
-		ret = PTR_ERR(iface->sclk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get sclk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(iface->sclk))
+		return dev_err_probe(dev, PTR_ERR(iface->sclk), "failed to get sclk\n");
 
 	/* Sample clock provided on the pad */
 	iface->lrclk = devm_clk_get(dev, "lrclk");
-	if (IS_ERR(iface->lrclk)) {
-		ret = PTR_ERR(iface->lrclk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get lrclk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(iface->lrclk))
+		return dev_err_probe(dev, PTR_ERR(iface->lrclk), "failed to get lrclk\n");
 
 	/*
 	 * mclk maybe be missing when the cpu dai is in slave mode and
@@ -530,13 +534,10 @@ static int axg_tdm_iface_probe(struct platform_device *pdev)
 	iface->mclk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(iface->mclk)) {
 		ret = PTR_ERR(iface->mclk);
-		if (ret == -ENOENT) {
+		if (ret == -ENOENT)
 			iface->mclk = NULL;
-		} else {
-			if (ret != -EPROBE_DEFER)
-				dev_err(dev, "failed to get mclk: %d\n", ret);
-			return ret;
-		}
+		else
+			return dev_err_probe(dev, ret, "failed to get mclk\n");
 	}
 
 	return devm_snd_soc_register_component(dev,

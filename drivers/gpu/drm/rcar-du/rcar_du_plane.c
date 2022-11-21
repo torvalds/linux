@@ -128,7 +128,7 @@ static int rcar_du_plane_hwalloc(struct rcar_du_plane *plane,
 int rcar_du_atomic_check_planes(struct drm_device *dev,
 				struct drm_atomic_state *state)
 {
-	struct rcar_du_device *rcdu = dev->dev_private;
+	struct rcar_du_device *rcdu = to_rcar_du_device(dev);
 	unsigned int group_freed_planes[RCAR_DU_MAX_GROUPS] = { 0, };
 	unsigned int group_free_planes[RCAR_DU_MAX_GROUPS] = { 0, };
 	bool needs_realloc = false;
@@ -549,8 +549,10 @@ void __rcar_du_plane_setup(struct rcar_du_group *rgrp,
 		rcar_du_plane_setup_format(rgrp, (state->hwindex + 1) % 8,
 					   state);
 
-	if (rcdu->info->gen < 3)
-		rcar_du_plane_setup_scanout(rgrp, state);
+	if (rcdu->info->gen >= 3)
+		return;
+
+	rcar_du_plane_setup_scanout(rgrp, state);
 
 	if (state->source == RCAR_DU_PLANE_VSPD1) {
 		unsigned int vspd1_sink = rgrp->index ? 2 : 0;
@@ -558,6 +560,12 @@ void __rcar_du_plane_setup(struct rcar_du_group *rgrp,
 		if (rcdu->vspd1_sink != vspd1_sink) {
 			rcdu->vspd1_sink = vspd1_sink;
 			rcar_du_set_dpad0_vsp1_routing(rcdu);
+
+			/*
+			 * Changes to the VSP1 sink take effect on DRES and thus
+			 * need a restart of the group.
+			 */
+			rgrp->need_restart = true;
 		}
 	}
 }
@@ -607,21 +615,26 @@ int __rcar_du_plane_atomic_check(struct drm_plane *plane,
 }
 
 static int rcar_du_plane_atomic_check(struct drm_plane *plane,
-				      struct drm_plane_state *state)
+				      struct drm_atomic_state *state)
 {
-	struct rcar_du_plane_state *rstate = to_rcar_plane_state(state);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
+	struct rcar_du_plane_state *rstate = to_rcar_plane_state(new_plane_state);
 
-	return __rcar_du_plane_atomic_check(plane, state, &rstate->format);
+	return __rcar_du_plane_atomic_check(plane, new_plane_state,
+					    &rstate->format);
 }
 
 static void rcar_du_plane_atomic_update(struct drm_plane *plane,
-					struct drm_plane_state *old_state)
+					struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
 	struct rcar_du_plane_state *old_rstate;
 	struct rcar_du_plane_state *new_rstate;
 
-	if (!plane->state->visible)
+	if (!new_state->visible)
 		return;
 
 	rcar_du_plane_setup(rplane);
@@ -635,7 +648,7 @@ static void rcar_du_plane_atomic_update(struct drm_plane *plane,
 	 * bit. We thus need to restart the group if the source changes.
 	 */
 	old_rstate = to_rcar_plane_state(old_state);
-	new_rstate = to_rcar_plane_state(plane->state);
+	new_rstate = to_rcar_plane_state(new_state);
 
 	if ((old_rstate->source == RCAR_DU_PLANE_MEMORY) !=
 	    (new_rstate->source == RCAR_DU_PLANE_MEMORY))
@@ -691,7 +704,6 @@ static void rcar_du_plane_reset(struct drm_plane *plane)
 	state->hwindex = -1;
 	state->source = RCAR_DU_PLANE_MEMORY;
 	state->colorkey = RCAR_DU_COLORKEY_NONE;
-	state->state.zpos = plane->type == DRM_PLANE_TYPE_PRIMARY ? 0 : 1;
 }
 
 static int rcar_du_plane_atomic_set_property(struct drm_plane *plane,
@@ -773,9 +785,9 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 
 		plane->group = rgrp;
 
-		ret = drm_universal_plane_init(rcdu->ddev, &plane->plane, crtcs,
-					       &rcar_du_plane_funcs, formats,
-					       ARRAY_SIZE(formats),
+		ret = drm_universal_plane_init(&rcdu->ddev, &plane->plane,
+					       crtcs, &rcar_du_plane_funcs,
+					       formats, ARRAY_SIZE(formats),
 					       NULL, type, NULL);
 		if (ret < 0)
 			return ret;

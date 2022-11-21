@@ -19,11 +19,7 @@
 #include "h/fddi.h"
 #include "h/smc.h"
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)smtinit.c	1.15 97/05/06 (C) SK " ;
-#endif
-
-void init_fddi_driver(struct s_smc *smc, u_char *mac_addr);
+void init_fddi_driver(struct s_smc *smc, const u_char *mac_addr);
 
 /* define global debug variable */
 #if defined(DEBUG) && !defined(DEBUG_BRD)
@@ -61,7 +57,7 @@ static void set_oem_spec_val(struct s_smc *smc)
 /*
  * Init SMT
  */
-int init_smt(struct s_smc *smc, u_char *mac_addr)
+int init_smt(struct s_smc *smc, const u_char *mac_addr)
 /* u_char *mac_addr;	canonical address or NULL */
 {
 	int	p ;

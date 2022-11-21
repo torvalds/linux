@@ -14,7 +14,7 @@ if COUNTER
 
 config 104_QUAD_8
 	tristate "ACCES 104-QUAD-8 driver"
-	depends on PC104 && X86 && IIO
+	depends on (PC104 && X86) || COMPILE_TEST
 	select ISA_BUS_API
 	help
 	  Say yes here to build support for the ACCES 104-QUAD-8 quadrature
@@ -23,11 +23,21 @@ config 104_QUAD_8
 	  A counter's respective error flag may be cleared by performing a write
 	  operation on the respective count value attribute. Although the
 	  104-QUAD-8 counters have a 25-bit range, only the lower 24 bits may be
-	  set, either directly or via the counter's preset attribute. Interrupts
-	  are not supported by this driver.
+	  set, either directly or via the counter's preset attribute.
 
 	  The base port addresses for the devices may be configured via the base
-	  array module parameter.
+	  array module parameter. The interrupt line numbers for the devices may
+	  be configured via the irq array module parameter.
+
+config INTERRUPT_CNT
+	tristate "Interrupt counter driver"
+	depends on GPIOLIB
+	help
+	  Select this option to enable interrupt counter driver. Any interrupt
+	  source can be used by this driver as the event source.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called interrupt-cnt.
 
 config STM32_TIMER_CNT
 	tristate "STM32 Timer encoder counter driver"
@@ -41,7 +51,7 @@ config STM32_TIMER_CNT
 
 config STM32_LPTIMER_CNT
 	tristate "STM32 LP Timer encoder counter driver"
-	depends on (MFD_STM32_LPTIMER || COMPILE_TEST) && IIO
+	depends on MFD_STM32_LPTIMER || COMPILE_TEST
 	help
 	  Select this option to enable STM32 Low-Power Timer quadrature encoder
 	  and counter driver.
@@ -80,5 +90,15 @@ config MICROCHIP_TCB_CAPTURE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called microchip-tcb-capture.
+
+config INTEL_QEP
+	tristate "Intel Quadrature Encoder Peripheral driver"
+	depends on PCI
+	help
+	  Select this option to enable the Intel Quadrature Encoder Peripheral
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel-qep.
 
 endif # COUNTER

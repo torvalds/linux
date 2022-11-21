@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/clock/renesas,rcar-usb2-clock-sel.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Renesas R-Car USB 2.0 clock selector
+
+maintainers:
+  - Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
+
+description: |
+  If you connect an external clock to the USB_EXTAL pin only, you should set
+  the clock rate to "usb_extal" node only.
+  If you connect an oscillator to both the USB_XTAL and USB_EXTAL, this module
+  is not needed because this is default setting. (Of course, you can set the
+  clock rates to both "usb_extal" and "usb_xtal" nodes.
+
+  Case 1: An external clock connects to R-Car SoC
+    +----------+   +--- R-Car ---------------------+
+    |External  |---|USB_EXTAL ---> all usb channels|
+    |clock     |   |USB_XTAL                       |
+    +----------+   +-------------------------------+
+
+  In this case, we need this driver with "usb_extal" clock.
+
+  Case 2: An oscillator connects to R-Car SoC
+    +----------+   +--- R-Car ---------------------+
+    |Oscillator|---|USB_EXTAL -+-> all usb channels|
+    |          |---|USB_XTAL --+                   |
+    +----------+   +-------------------------------+
+  In this case, we don't need this selector.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - renesas,r8a774a1-rcar-usb2-clock-sel # RZ/G2M
+          - renesas,r8a774b1-rcar-usb2-clock-sel # RZ/G2N
+          - renesas,r8a774e1-rcar-usb2-clock-sel # RZ/G2H
+          - renesas,r8a7795-rcar-usb2-clock-sel  # R-Car H3
+          - renesas,r8a7796-rcar-usb2-clock-sel  # R-Car M3-W
+          - renesas,r8a77961-rcar-usb2-clock-sel # R-Car M3-W+
+      - const: renesas,rcar-gen3-usb2-clock-sel
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 4
+    maxItems: 4
+
+  clock-names:
+    items:
+      - const: ehci_ohci
+      - const: hs-usb-if
+      - const: usb_extal
+      - const: usb_xtal
+
+  '#clock-cells':
+    const: 0
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    minItems: 2
+    maxItems: 2
+
+  reset-names:
+    items:
+      - const: ehci_ohci
+      - const: hs-usb-if
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - '#clock-cells'
+  - power-domains
+  - resets
+  - reset-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7795-cpg-mssr.h>
+    #include <dt-bindings/power/r8a7795-sysc.h>
+
+    usb2_clksel: clock-controller@e6590630 {
+        compatible = "renesas,r8a7795-rcar-usb2-clock-sel",
+                     "renesas,rcar-gen3-usb2-clock-sel";
+        reg = <0xe6590630 0x02>;
+        clocks = <&cpg CPG_MOD 703>, <&cpg CPG_MOD 704>,
+                 <&usb_extal>, <&usb_xtal>;
+        clock-names = "ehci_ohci", "hs-usb-if", "usb_extal", "usb_xtal";
+        #clock-cells = <0>;
+        power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+        resets = <&cpg 703>, <&cpg 704>;
+        reset-names = "ehci_ohci", "hs-usb-if";
+    };

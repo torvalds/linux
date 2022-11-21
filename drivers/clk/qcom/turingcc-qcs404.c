@@ -4,6 +4,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
@@ -110,36 +111,23 @@ static int turingcc_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	pm_runtime_enable(&pdev->dev);
-	ret = pm_clk_create(&pdev->dev);
+	ret = devm_pm_runtime_enable(&pdev->dev);
 	if (ret)
-		goto disable_pm_runtime;
+		return ret;
+
+	ret = devm_pm_clk_create(&pdev->dev);
+	if (ret)
+		return ret;
 
 	ret = pm_clk_add(&pdev->dev, NULL);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to acquire iface clock\n");
-		goto destroy_pm_clk;
+		return ret;
 	}
 
 	ret = qcom_cc_probe(pdev, &turingcc_desc);
 	if (ret < 0)
-		goto destroy_pm_clk;
-
-	return 0;
-
-destroy_pm_clk:
-	pm_clk_destroy(&pdev->dev);
-
-disable_pm_runtime:
-	pm_runtime_disable(&pdev->dev);
-
-	return ret;
-}
-
-static int turingcc_remove(struct platform_device *pdev)
-{
-	pm_clk_destroy(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
+		return ret;
 
 	return 0;
 }
@@ -156,7 +144,6 @@ MODULE_DEVICE_TABLE(of, turingcc_match_table);
 
 static struct platform_driver turingcc_driver = {
 	.probe		= turingcc_probe,
-	.remove		= turingcc_remove,
 	.driver		= {
 		.name	= "qcs404-turingcc",
 		.of_match_table = turingcc_match_table,

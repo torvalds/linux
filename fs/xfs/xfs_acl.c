@@ -16,6 +16,7 @@
 #include "xfs_acl.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
+#include "xfs_trans.h"
 
 #include <linux/posix_acl_xattr.h>
 
@@ -124,7 +125,7 @@ xfs_acl_to_disk(struct xfs_acl *aclp, const struct posix_acl *acl)
 }
 
 struct posix_acl *
-xfs_get_acl(struct inode *inode, int type)
+xfs_get_acl(struct inode *inode, int type, bool rcu)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
@@ -135,6 +136,9 @@ xfs_get_acl(struct inode *inode, int type)
 		.valuelen	= XFS_ACL_MAX_SIZE(mp),
 	};
 	int			error;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	trace_xfs_get_acl(ip);
 
@@ -212,25 +216,33 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 }
 
 static int
-xfs_set_mode(struct inode *inode, umode_t mode)
+xfs_acl_set_mode(
+	struct inode		*inode,
+	umode_t			mode)
 {
-	int error = 0;
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	int			error;
 
-	if (mode != inode->i_mode) {
-		struct iattr iattr;
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_ichange, 0, 0, 0, &tp);
+	if (error)
+		return error;
 
-		iattr.ia_valid = ATTR_MODE | ATTR_CTIME;
-		iattr.ia_mode = mode;
-		iattr.ia_ctime = current_time(inode);
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+	inode->i_mode = mode;
+	inode->i_ctime = current_time(inode);
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
-		error = xfs_setattr_nonsize(XFS_I(inode), &iattr, XFS_ATTR_NOACL);
-	}
-
-	return error;
+	if (xfs_has_wsync(mp))
+		xfs_trans_set_sync(tp);
+	return xfs_trans_commit(tp);
 }
 
 int
-xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+xfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+	    struct posix_acl *acl, int type)
 {
 	umode_t mode;
 	bool set_mode = false;
@@ -244,25 +256,21 @@ xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		return error;
 
 	if (type == ACL_TYPE_ACCESS) {
-		error = posix_acl_update_mode(inode, &mode, &acl);
+		error = posix_acl_update_mode(mnt_userns, inode, &mode, &acl);
 		if (error)
 			return error;
 		set_mode = true;
 	}
 
  set_acl:
-	error =  __xfs_set_acl(inode, acl, type);
-	if (error)
-		return error;
-
 	/*
 	 * We set the mode after successfully updating the ACL xattr because the
 	 * xattr update can fail at ENOSPC and we don't want to change the mode
 	 * if the ACL update hasn't been applied.
 	 */
-	if (set_mode)
-		error = xfs_set_mode(inode, mode);
-
+	error =  __xfs_set_acl(inode, acl, type);
+	if (!error && set_mode && mode != inode->i_mode)
+		error = xfs_acl_set_mode(inode, mode);
 	return error;
 }
 

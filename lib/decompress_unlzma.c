@@ -391,7 +391,7 @@ static inline int INIT process_bit0(struct writer *wr, struct rc *rc,
 static inline int INIT process_bit1(struct writer *wr, struct rc *rc,
 					    struct cstate *cst, uint16_t *p,
 					    int pos_state, uint16_t *prob) {
-  int offset;
+	int offset;
 	uint16_t *prob_len;
 	int num_bits;
 	int len;

@@ -70,7 +70,7 @@ static int tcf_vlan_act(struct sk_buff *skb, const struct tc_action *a,
 		/* replace the vid */
 		tci = (tci & ~VLAN_VID_MASK) | p->tcfv_push_vid;
 		/* replace prio bits, if tcfv_push_prio specified */
-		if (p->tcfv_push_prio) {
+		if (p->tcfv_push_prio_exists) {
 			tci &= ~VLAN_PRIO_MASK;
 			tci |= p->tcfv_push_prio << VLAN_PRIO_SHIFT;
 		}
@@ -114,13 +114,14 @@ static const struct nla_policy vlan_policy[TCA_VLAN_MAX + 1] = {
 
 static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
-			 int ovr, int bind, bool rtnl_held,
 			 struct tcf_proto *tp, u32 flags,
 			 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_VLAN_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
+	bool push_prio_exists = false;
 	struct tcf_vlan_params *p;
 	struct tc_vlan *parm;
 	struct tcf_vlan *v;
@@ -189,7 +190,8 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 			push_proto = htons(ETH_P_8021Q);
 		}
 
-		if (tb[TCA_VLAN_PUSH_VLAN_PRIORITY])
+		push_prio_exists = !!tb[TCA_VLAN_PUSH_VLAN_PRIORITY];
+		if (push_prio_exists)
 			push_prio = nla_get_u8(tb[TCA_VLAN_PUSH_VLAN_PRIORITY]);
 		break;
 	case TCA_VLAN_ACT_POP_ETH:
@@ -221,7 +223,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 		}
 
 		ret = ACT_P_CREATED;
-	} else if (!ovr) {
+	} else if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
@@ -241,6 +243,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	p->tcfv_action = action;
 	p->tcfv_push_vid = push_vid;
 	p->tcfv_push_prio = push_prio;
+	p->tcfv_push_prio_exists = push_prio_exists || action == TCA_VLAN_ACT_PUSH;
 	p->tcfv_push_proto = push_proto;
 
 	if (action == TCA_VLAN_ACT_PUSH_ETH) {
@@ -304,8 +307,8 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 	    (nla_put_u16(skb, TCA_VLAN_PUSH_VLAN_ID, p->tcfv_push_vid) ||
 	     nla_put_be16(skb, TCA_VLAN_PUSH_VLAN_PROTOCOL,
 			  p->tcfv_push_proto) ||
-	     (nla_put_u8(skb, TCA_VLAN_PUSH_VLAN_PRIORITY,
-					      p->tcfv_push_prio))))
+	     (p->tcfv_push_prio_exists &&
+	      nla_put_u8(skb, TCA_VLAN_PUSH_VLAN_PRIORITY, p->tcfv_push_prio))))
 		goto nla_put_failure;
 
 	if (p->tcfv_action == TCA_VLAN_ACT_PUSH_ETH) {
@@ -365,6 +368,66 @@ static size_t tcf_vlan_get_fill_size(const struct tc_action *act)
 		+ nla_total_size(sizeof(u8)); /* TCA_VLAN_PUSH_VLAN_PRIORITY */
 }
 
+static int tcf_vlan_offload_act_setup(struct tc_action *act, void *entry_data,
+				      u32 *index_inc, bool bind)
+{
+	if (bind) {
+		struct flow_action_entry *entry = entry_data;
+
+		switch (tcf_vlan_action(act)) {
+		case TCA_VLAN_ACT_PUSH:
+			entry->id = FLOW_ACTION_VLAN_PUSH;
+			entry->vlan.vid = tcf_vlan_push_vid(act);
+			entry->vlan.proto = tcf_vlan_push_proto(act);
+			entry->vlan.prio = tcf_vlan_push_prio(act);
+			break;
+		case TCA_VLAN_ACT_POP:
+			entry->id = FLOW_ACTION_VLAN_POP;
+			break;
+		case TCA_VLAN_ACT_MODIFY:
+			entry->id = FLOW_ACTION_VLAN_MANGLE;
+			entry->vlan.vid = tcf_vlan_push_vid(act);
+			entry->vlan.proto = tcf_vlan_push_proto(act);
+			entry->vlan.prio = tcf_vlan_push_prio(act);
+			break;
+		case TCA_VLAN_ACT_POP_ETH:
+			entry->id = FLOW_ACTION_VLAN_POP_ETH;
+			break;
+		case TCA_VLAN_ACT_PUSH_ETH:
+			entry->id = FLOW_ACTION_VLAN_PUSH_ETH;
+			tcf_vlan_push_eth(entry->vlan_push_eth.src, entry->vlan_push_eth.dst, act);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+		*index_inc = 1;
+	} else {
+		struct flow_offload_action *fl_action = entry_data;
+
+		switch (tcf_vlan_action(act)) {
+		case TCA_VLAN_ACT_PUSH:
+			fl_action->id = FLOW_ACTION_VLAN_PUSH;
+			break;
+		case TCA_VLAN_ACT_POP:
+			fl_action->id = FLOW_ACTION_VLAN_POP;
+			break;
+		case TCA_VLAN_ACT_MODIFY:
+			fl_action->id = FLOW_ACTION_VLAN_MANGLE;
+			break;
+		case TCA_VLAN_ACT_POP_ETH:
+			fl_action->id = FLOW_ACTION_VLAN_POP_ETH;
+			break;
+		case TCA_VLAN_ACT_PUSH_ETH:
+			fl_action->id = FLOW_ACTION_VLAN_PUSH_ETH;
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+	}
+
+	return 0;
+}
+
 static struct tc_action_ops act_vlan_ops = {
 	.kind		=	"vlan",
 	.id		=	TCA_ID_VLAN,
@@ -377,6 +440,7 @@ static struct tc_action_ops act_vlan_ops = {
 	.stats_update	=	tcf_vlan_stats_update,
 	.get_fill_size	=	tcf_vlan_get_fill_size,
 	.lookup		=	tcf_vlan_search,
+	.offload_act_setup =	tcf_vlan_offload_act_setup,
 	.size		=	sizeof(struct tcf_vlan),
 };
 

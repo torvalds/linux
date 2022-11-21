@@ -10,6 +10,7 @@
 #include "sama5d2-pinfunc.h"
 #include <dt-bindings/mfd/atmel-flexcom.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/regulator/active-semi,8945a-regulator.h>
 
 / {
@@ -65,7 +66,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_sdmmc0_default>;
 			non-removable;
-			mmc-ddr-1_8v;
+			mmc-ddr-3_3v;
 			status = "okay";
 		};
 
@@ -94,37 +95,37 @@
 					spi-rx-bus-width = <4>;
 					m25p,fast-read;
 
-					at91bootstrap@00000000 {
+					at91bootstrap@0 {
 						label = "at91bootstrap";
 						reg = <0x00000000 0x00040000>;
 					};
 
-					bootloader@00040000 {
+					bootloader@40000 {
 						label = "bootloader";
 						reg = <0x00040000 0x000c0000>;
 					};
 
-					bootloaderenvred@00100000 {
+					bootloaderenvred@100000 {
 						label = "bootloader env redundant";
 						reg = <0x00100000 0x00040000>;
 					};
 
-					bootloaderenv@00140000 {
+					bootloaderenv@140000 {
 						label = "bootloader env";
 						reg = <0x00140000 0x00040000>;
 					};
 
-					dtb@00180000 {
+					dtb@180000 {
 						label = "device tree";
 						reg = <0x00180000 0x00080000>;
 					};
 
-					kernel@00200000 {
+					kernel@200000 {
 						label = "kernel";
 						reg = <0x00200000 0x00600000>;
 					};
 
-					misc@00800000 {
+					misc@800000 {
 						label = "misc";
 						reg = <0x00800000 0x00000000>;
 					};
@@ -136,7 +137,7 @@
 				pinctrl-0 = <&pinctrl_spi0_default>;
 				status = "okay";
 
-				m25p80@0 {
+				flash@0 {
 					compatible = "atmel,at25df321a";
 					reg = <0>;
 					spi-max-frequency = <50000000>;
@@ -346,12 +347,11 @@
 			};
 
 			shdwc@f8048010 {
-				atmel,shdwc-debouncer = <976>;
+				debounce-delay-us = <976>;
 				atmel,wakeup-rtc-timer;
 
 				input@0 {
 					reg = <0>;
-					atmel,wakeup-type = "low";
 				};
 			};
 
@@ -619,10 +619,9 @@
 						bias-disable;
 					};
 
-					ck_cd_rstn_vddsel {
+					ck_cd_rstn {
 						pinmux = <PIN_PA0__SDMMC0_CK>,
 							 <PIN_PA10__SDMMC0_RSTN>,
-							 <PIN_PA11__SDMMC0_VDDSEL>,
 							 <PIN_PA13__SDMMC0_CD>;
 						bias-disable;
 					};
@@ -713,7 +712,7 @@
 		bp1 {
 			label = "PB_USER";
 			gpios = <&pioA PIN_PB9 GPIO_ACTIVE_LOW>;
-			linux,code = <0x104>;
+			linux,code = <KEY_PROG1>;
 			wakeup-source;
 		};
 	};

@@ -968,9 +968,22 @@ struct usb_ssp_cap_descriptor {
 	__le32 bmSublinkSpeedAttr[1]; /* list of sublink speed attrib entries */
 #define USB_SSP_SUBLINK_SPEED_SSID	(0xf)		/* sublink speed ID */
 #define USB_SSP_SUBLINK_SPEED_LSE	(0x3 << 4)	/* Lanespeed exponent */
+#define USB_SSP_SUBLINK_SPEED_LSE_BPS		0
+#define USB_SSP_SUBLINK_SPEED_LSE_KBPS		1
+#define USB_SSP_SUBLINK_SPEED_LSE_MBPS		2
+#define USB_SSP_SUBLINK_SPEED_LSE_GBPS		3
+
 #define USB_SSP_SUBLINK_SPEED_ST	(0x3 << 6)	/* Sublink type */
+#define USB_SSP_SUBLINK_SPEED_ST_SYM_RX		0
+#define USB_SSP_SUBLINK_SPEED_ST_ASYM_RX	1
+#define USB_SSP_SUBLINK_SPEED_ST_SYM_TX		2
+#define USB_SSP_SUBLINK_SPEED_ST_ASYM_TX	3
+
 #define USB_SSP_SUBLINK_SPEED_RSVD	(0x3f << 8)	/* Reserved */
 #define USB_SSP_SUBLINK_SPEED_LP	(0x3 << 14)	/* Link protocol */
+#define USB_SSP_SUBLINK_SPEED_LP_SS		0
+#define USB_SSP_SUBLINK_SPEED_LP_SSP		1
+
 #define USB_SSP_SUBLINK_SPEED_LSM	(0xff << 16)	/* Lanespeed mantissa */
 } __attribute__((packed));
 

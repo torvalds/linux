@@ -112,8 +112,8 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 }
 
 /**
- * writeLLT - LLT table write access
- * @io: io callback
+ * rtl92c_llt_write - LLT table write access
+ * @hw: Pointer to the ieee80211_hw structure.
  * @address: LLT logical address.
  * @data: LLT data content
  *
@@ -144,12 +144,11 @@ bool rtl92c_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 }
 
 /**
- * rtl92c_init_LLT_table - Init LLT table
- * @io: io callback
- * @boundary:
+ * rtl92c_init_llt_table - Init LLT table
+ * @hw: Pointer to the ieee80211_hw structure.
+ * @boundary: Page boundary.
  *
  * Realtek hardware access function.
- *
  */
 bool rtl92c_init_llt_table(struct ieee80211_hw *hw, u32 boundary)
 {

@@ -627,6 +627,9 @@ static struct clockdomain *_get_clkdm(struct omap_hwmod *oh)
 {
 	struct clk_hw_omap *clk;
 
+	if (!oh)
+		return NULL;
+
 	if (oh->clkdm) {
 		return oh->clkdm;
 	} else if (oh->_clk) {
@@ -749,8 +752,10 @@ static int __init _init_clkctrl_providers(void)
 
 	for_each_matching_node(np, ti_clkctrl_match_table) {
 		ret = _setup_clkctrl_provider(np);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			break;
+		}
 	}
 
 	return ret;
@@ -809,7 +814,7 @@ static struct clk *_lookup_clkctrl_clk(struct omap_hwmod *oh)
 }
 
 /**
- * _init_main_clk - get a struct clk * for the the hwmod's main functional clk
+ * _init_main_clk - get a struct clk * for the hwmod's main functional clk
  * @oh: struct omap_hwmod *
  *
  * Called from _init_clocks().  Populates the @oh _clk (main
@@ -859,7 +864,7 @@ static int _init_main_clk(struct omap_hwmod *oh)
 }
 
 /**
- * _init_interface_clks - get a struct clk * for the the hwmod's interface clks
+ * _init_interface_clks - get a struct clk * for the hwmod's interface clks
  * @oh: struct omap_hwmod *
  *
  * Called from _init_clocks().  Populates the @oh OCP slave interface
@@ -898,7 +903,7 @@ static int _init_interface_clks(struct omap_hwmod *oh)
 }
 
 /**
- * _init_opt_clk - get a struct clk * for the the hwmod's optional clocks
+ * _init_opt_clk - get a struct clk * for the hwmod's optional clocks
  * @oh: struct omap_hwmod *
  *
  * Called from _init_clocks().  Populates the @oh omap_hwmod_opt_clk
@@ -2134,6 +2139,7 @@ static int of_dev_hwmod_lookup(struct device_node *np,
 		if (res == 0) {
 			*found = fc;
 			*index = i;
+			of_node_put(np0);
 			return 0;
 		}
 	}
@@ -3492,10 +3498,6 @@ static const struct omap_hwmod_reset omap24xx_reset_quirks[] = {
 	{ .match = "msdi", .len = 4, .reset = omap_msdi_reset, },
 };
 
-static const struct omap_hwmod_reset dra7_reset_quirks[] = {
-	{ .match = "pcie", .len = 4, .reset = dra7xx_pciess_reset, },
-};
-
 static const struct omap_hwmod_reset omap_reset_quirks[] = {
 	{ .match = "dss_core", .len = 8, .reset = omap_dss_reset, },
 	{ .match = "hdq1w", .len = 5, .reset = omap_hdq1w_reset, },
@@ -3530,10 +3532,6 @@ omap_hwmod_init_reset_quirks(struct device *dev, struct omap_hwmod *oh,
 		omap_hwmod_init_reset_quirk(dev, oh, data,
 					    omap24xx_reset_quirks,
 					    ARRAY_SIZE(omap24xx_reset_quirks));
-
-	if (soc_is_dra7xx())
-		omap_hwmod_init_reset_quirk(dev, oh, data, dra7_reset_quirks,
-					    ARRAY_SIZE(dra7_reset_quirks));
 
 	omap_hwmod_init_reset_quirk(dev, oh, data, omap_reset_quirks,
 				    ARRAY_SIZE(omap_reset_quirks));
@@ -3618,6 +3616,8 @@ int omap_hwmod_init_module(struct device *dev,
 		oh->flags |= HWMOD_SWSUP_SIDLE_ACT;
 	if (data->cfg->quirks & SYSC_QUIRK_SWSUP_MSTANDBY)
 		oh->flags |= HWMOD_SWSUP_MSTANDBY;
+	if (data->cfg->quirks & SYSC_QUIRK_CLKDM_NOAUTO)
+		oh->flags |= HWMOD_CLKDM_NOAUTO;
 
 	error = omap_hwmod_check_module(dev, oh, data, sysc_fields,
 					rev_offs, sysc_offs, syss_offs,
@@ -3677,6 +3677,9 @@ static void __init omap_hwmod_setup_earlycon_flags(void)
  */
 static int __init omap_hwmod_setup_all(void)
 {
+	if (!inited)
+		return 0;
+
 	_ensure_mpu_hwmod_is_setup(NULL);
 
 	omap_hwmod_for_each(_init, NULL);
@@ -3777,6 +3780,7 @@ struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh)
 	struct omap_hwmod_ocp_if *oi;
 	struct clockdomain *clkdm;
 	struct clk_hw_omap *clk;
+	struct clk_hw *hw;
 
 	if (!oh)
 		return NULL;
@@ -3793,7 +3797,14 @@ struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh)
 		c = oi->_clk;
 	}
 
-	clk = to_clk_hw_omap(__clk_get_hw(c));
+	hw = __clk_get_hw(c);
+	if (!hw)
+		return NULL;
+
+	clk = to_clk_hw_omap(hw);
+	if (!clk)
+		return NULL;
+
 	clkdm = clk->clkdm;
 	if (!clkdm)
 		return NULL;

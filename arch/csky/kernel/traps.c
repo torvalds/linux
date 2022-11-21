@@ -39,9 +39,7 @@ asmlinkage void csky_cmpxchg(void);
 asmlinkage void csky_get_tls(void);
 asmlinkage void csky_irq(void);
 
-asmlinkage void csky_tlbinvalidl(void);
-asmlinkage void csky_tlbinvalids(void);
-asmlinkage void csky_tlbmodified(void);
+asmlinkage void csky_pagefault(void);
 
 /* Defined in head.S */
 asmlinkage void _start_smp_secondary(void);
@@ -66,9 +64,9 @@ void __init trap_init(void)
 	VEC_INIT(VEC_TRAP3, csky_get_tls);
 
 	/* setup MMU TLB exception */
-	VEC_INIT(VEC_TLBINVALIDL, csky_tlbinvalidl);
-	VEC_INIT(VEC_TLBINVALIDS, csky_tlbinvalids);
-	VEC_INIT(VEC_TLBMODIFIED, csky_tlbmodified);
+	VEC_INIT(VEC_TLBINVALIDL, csky_pagefault);
+	VEC_INIT(VEC_TLBINVALIDS, csky_pagefault);
+	VEC_INIT(VEC_TLBMODIFIED, csky_pagefault);
 
 #ifdef CONFIG_CPU_HAS_FPU
 	init_fpu();
@@ -111,7 +109,7 @@ void die(struct pt_regs *regs, const char *str)
 	if (panic_on_oops)
 		panic("Fatal exception");
 	if (ret != NOTIFY_STOP)
-		do_exit(SIGSEGV);
+		make_task_dead(SIGSEGV);
 }
 
 void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
@@ -211,7 +209,7 @@ asmlinkage void do_trap_illinsn(struct pt_regs *regs)
 
 asmlinkage void do_trap_fpe(struct pt_regs *regs)
 {
-#ifdef CONFIG_CPU_HAS_FP
+#ifdef CONFIG_CPU_HAS_FPU
 	return fpu_fpe(regs);
 #else
 	do_trap_error(regs, SIGILL, ILL_ILLOPC, regs->pc,
@@ -221,7 +219,7 @@ asmlinkage void do_trap_fpe(struct pt_regs *regs)
 
 asmlinkage void do_trap_priv(struct pt_regs *regs)
 {
-#ifdef CONFIG_CPU_HAS_FP
+#ifdef CONFIG_CPU_HAS_FPU
 	if (user_mode(regs) && fpu_libc_helper(regs))
 		return;
 #endif

@@ -180,7 +180,7 @@ static void mhu_db_shutdown(struct mbox_chan *chan)
 
 	/* Reset channel */
 	mhu_db_mbox_clear_irq(chan);
-	kfree(chan->con_priv);
+	devm_kfree(mbox->dev, chan->con_priv);
 	chan->con_priv = NULL;
 }
 
@@ -278,10 +278,8 @@ static int mhu_db_probe(struct amba_device *adev, const struct amba_id *id)
 		return -ENOMEM;
 
 	mhu->base = devm_ioremap_resource(dev, &adev->res);
-	if (IS_ERR(mhu->base)) {
-		dev_err(dev, "ioremap failed\n");
+	if (IS_ERR(mhu->base))
 		return PTR_ERR(mhu->base);
-	}
 
 	chans = devm_kcalloc(dev, max_chans, sizeof(*chans), GFP_KERNEL);
 	if (!chans)

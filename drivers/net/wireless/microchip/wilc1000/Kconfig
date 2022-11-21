@@ -27,6 +27,7 @@ config WILC1000_SPI
 	depends on CFG80211 && INET && SPI
 	select WILC1000
 	select CRC7
+	select CRC_ITU_T
 	help
 	  This module adds support for the SPI interface of adapters using
 	  WILC1000 chipset. The Atmel WILC1000 has a Serial Peripheral
@@ -44,4 +45,4 @@ config WILC1000_HW_OOB_INTR
 	  chipset. This OOB interrupt is intended to provide a faster interrupt
 	  mechanism for SDIO host controllers that don't support SDIO interrupt.
 	  Select this option If the SDIO host controller in your platform
-	  doesn't support SDIO time devision interrupt.
+	  doesn't support SDIO time division interrupt.

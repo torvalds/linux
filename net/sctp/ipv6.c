@@ -55,6 +55,7 @@
 #include <net/inet_common.h>
 #include <net/inet_ecn.h>
 #include <net/sctp/sctp.h>
+#include <net/udp_tunnel.h>
 
 #include <linux/uaccess.h>
 
@@ -99,8 +100,9 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 		list_for_each_entry_safe(addr, temp,
 					&net->sctp.local_addr_list, list) {
 			if (addr->a.sa.sa_family == AF_INET6 &&
-					ipv6_addr_equal(&addr->a.v6.sin6_addr,
-						&ifa->addr)) {
+			    ipv6_addr_equal(&addr->a.v6.sin6_addr,
+					    &ifa->addr) &&
+			    addr->a.v6.sin6_scope_id == ifa->idev->dev->ifindex) {
 				sctp_addr_wq_mgmt(net, addr, SCTP_ADDR_DEL);
 				found = 1;
 				addr->valid = 0;
@@ -121,20 +123,51 @@ static struct notifier_block sctp_inet6addr_notifier = {
 	.notifier_call = sctp_inet6addr_event,
 };
 
+static void sctp_v6_err_handle(struct sctp_transport *t, struct sk_buff *skb,
+			       __u8 type, __u8 code, __u32 info)
+{
+	struct sctp_association *asoc = t->asoc;
+	struct sock *sk = asoc->base.sk;
+	struct ipv6_pinfo *np;
+	int err = 0;
+
+	switch (type) {
+	case ICMPV6_PKT_TOOBIG:
+		if (ip6_sk_accept_pmtu(sk))
+			sctp_icmp_frag_needed(sk, asoc, t, info);
+		return;
+	case ICMPV6_PARAMPROB:
+		if (ICMPV6_UNK_NEXTHDR == code) {
+			sctp_icmp_proto_unreachable(sk, asoc, t);
+			return;
+		}
+		break;
+	case NDISC_REDIRECT:
+		sctp_icmp_redirect(sk, t, skb);
+		return;
+	default:
+		break;
+	}
+
+	np = inet6_sk(sk);
+	icmpv6_err_convert(type, code, &err);
+	if (!sock_owned_by_user(sk) && np->recverr) {
+		sk->sk_err = err;
+		sk_error_report(sk);
+	} else {
+		sk->sk_err_soft = err;
+	}
+}
+
 /* ICMP error handler. */
 static int sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			u8 type, u8 code, int offset, __be32 info)
+		       u8 type, u8 code, int offset, __be32 info)
 {
-	struct inet6_dev *idev;
-	struct sock *sk;
-	struct sctp_association *asoc;
-	struct sctp_transport *transport;
-	struct ipv6_pinfo *np;
-	__u16 saveip, savesctp;
-	int err, ret = 0;
 	struct net *net = dev_net(skb->dev);
-
-	idev = in6_dev_get(skb->dev);
+	struct sctp_transport *transport;
+	struct sctp_association *asoc;
+	__u16 saveip, savesctp;
+	struct sock *sk;
 
 	/* Fix up skb to look at the embedded net header. */
 	saveip	 = skb->network_header;
@@ -146,78 +179,93 @@ static int sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	skb->network_header   = saveip;
 	skb->transport_header = savesctp;
 	if (!sk) {
-		__ICMP6_INC_STATS(net, idev, ICMP6_MIB_INERRORS);
-		ret = -ENOENT;
-		goto out;
+		__ICMP6_INC_STATS(net, __in6_dev_get(skb->dev), ICMP6_MIB_INERRORS);
+		return -ENOENT;
 	}
 
-	/* Warning:  The sock lock is held.  Remember to call
-	 * sctp_err_finish!
-	 */
-
-	switch (type) {
-	case ICMPV6_PKT_TOOBIG:
-		if (ip6_sk_accept_pmtu(sk))
-			sctp_icmp_frag_needed(sk, asoc, transport, ntohl(info));
-		goto out_unlock;
-	case ICMPV6_PARAMPROB:
-		if (ICMPV6_UNK_NEXTHDR == code) {
-			sctp_icmp_proto_unreachable(sk, asoc, transport);
-			goto out_unlock;
-		}
-		break;
-	case NDISC_REDIRECT:
-		sctp_icmp_redirect(sk, transport, skb);
-		goto out_unlock;
-	default:
-		break;
-	}
-
-	np = inet6_sk(sk);
-	icmpv6_err_convert(type, code, &err);
-	if (!sock_owned_by_user(sk) && np->recverr) {
-		sk->sk_err = err;
-		sk->sk_error_report(sk);
-	} else {  /* Only an error on timeout */
-		sk->sk_err_soft = err;
-	}
-
-out_unlock:
+	sctp_v6_err_handle(transport, skb, type, code, ntohl(info));
 	sctp_err_finish(sk, transport);
-out:
-	if (likely(idev != NULL))
-		in6_dev_put(idev);
 
-	return ret;
+	return 0;
 }
 
-static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
+int sctp_udp_v6_err(struct sock *sk, struct sk_buff *skb)
 {
+	struct net *net = dev_net(skb->dev);
+	struct sctp_association *asoc;
+	struct sctp_transport *t;
+	struct icmp6hdr *hdr;
+	__u32 info = 0;
+
+	skb->transport_header += sizeof(struct udphdr);
+	sk = sctp_err_lookup(net, AF_INET6, skb, sctp_hdr(skb), &asoc, &t);
+	if (!sk) {
+		__ICMP6_INC_STATS(net, __in6_dev_get(skb->dev), ICMP6_MIB_INERRORS);
+		return -ENOENT;
+	}
+
+	skb->transport_header -= sizeof(struct udphdr);
+	hdr = (struct icmp6hdr *)(skb_network_header(skb) - sizeof(struct icmp6hdr));
+	if (hdr->icmp6_type == NDISC_REDIRECT) {
+		/* can't be handled without outer ip6hdr known, leave it to udpv6_err */
+		sctp_err_finish(sk, t);
+		return 0;
+	}
+	if (hdr->icmp6_type == ICMPV6_PKT_TOOBIG)
+		info = ntohl(hdr->icmp6_mtu);
+	sctp_v6_err_handle(t, skb, hdr->icmp6_type, hdr->icmp6_code, info);
+
+	sctp_err_finish(sk, t);
+	return 1;
+}
+
+static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *t)
+{
+	struct dst_entry *dst = dst_clone(t->dst);
+	struct flowi6 *fl6 = &t->fl.u.ip6;
 	struct sock *sk = skb->sk;
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct flowi6 *fl6 = &transport->fl.u.ip6;
 	__u8 tclass = np->tclass;
-	int res;
+	__be32 label;
 
 	pr_debug("%s: skb:%p, len:%d, src:%pI6 dst:%pI6\n", __func__, skb,
 		 skb->len, &fl6->saddr, &fl6->daddr);
 
-	if (transport->dscp & SCTP_DSCP_SET_MASK)
-		tclass = transport->dscp & SCTP_DSCP_VAL_MASK;
+	if (t->dscp & SCTP_DSCP_SET_MASK)
+		tclass = t->dscp & SCTP_DSCP_VAL_MASK;
 
 	if (INET_ECN_is_capable(tclass))
 		IP6_ECN_flow_xmit(sk, fl6->flowlabel);
 
-	if (!(transport->param_flags & SPP_PMTUD_ENABLE))
+	if (!(t->param_flags & SPP_PMTUD_ENABLE))
 		skb->ignore_df = 1;
 
 	SCTP_INC_STATS(sock_net(sk), SCTP_MIB_OUTSCTPPACKS);
 
-	rcu_read_lock();
-	res = ip6_xmit(sk, skb, fl6, sk->sk_mark, rcu_dereference(np->opt),
-		       tclass, sk->sk_priority);
-	rcu_read_unlock();
-	return res;
+	if (!t->encap_port || !sctp_sk(sk)->udp_port) {
+		int res;
+
+		skb_dst_set(skb, dst);
+		rcu_read_lock();
+		res = ip6_xmit(sk, skb, fl6, sk->sk_mark,
+			       rcu_dereference(np->opt),
+			       tclass, sk->sk_priority);
+		rcu_read_unlock();
+		return res;
+	}
+
+	if (skb_is_gso(skb))
+		skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL_CSUM;
+
+	skb->encapsulation = 1;
+	skb_reset_inner_mac_header(skb);
+	skb_reset_inner_transport_header(skb);
+	skb_set_inner_ipproto(skb, IPPROTO_SCTP);
+	label = ip6_make_flowlabel(sock_net(sk), skb, fl6->flowlabel, true, fl6);
+
+	return udp_tunnel6_xmit_skb(dst, sk, skb, NULL, &fl6->saddr,
+				    &fl6->daddr, tclass, ip6_dst_hoplimit(dst),
+				    label, sctp_sk(sk)->udp_port, t->encap_port, false);
 }
 
 /* Returns the dst cache entry for the given source and destination ip
@@ -530,15 +578,20 @@ static void sctp_v6_to_sk_daddr(union sctp_addr *addr, struct sock *sk)
 }
 
 /* Initialize a sctp_addr from an address parameter. */
-static void sctp_v6_from_addr_param(union sctp_addr *addr,
+static bool sctp_v6_from_addr_param(union sctp_addr *addr,
 				    union sctp_addr_param *param,
 				    __be16 port, int iif)
 {
+	if (ntohs(param->v6.param_hdr.length) < sizeof(struct sctp_ipv6addr_param))
+		return false;
+
 	addr->v6.sin6_family = AF_INET6;
 	addr->v6.sin6_port = port;
 	addr->v6.sin6_flowinfo = 0; /* BUG */
 	addr->v6.sin6_addr = param->v6.addr;
 	addr->v6.sin6_scope_id = iif;
+
+	return true;
 }
 
 /* Initialize an address parameter from a sctp_addr and return the length
@@ -643,8 +696,8 @@ static int sctp_v6_available(union sctp_addr *addr, struct sctp_sock *sp)
 	if (!(type & IPV6_ADDR_UNICAST))
 		return 0;
 
-	return sp->inet.freebind || net->ipv6.sysctl.ip_nonlocal_bind ||
-		ipv6_chk_addr(net, in6, NULL, 0);
+	return ipv6_can_nonlocal_bind(net, &sp->inet) ||
+	       ipv6_chk_addr(net, in6, NULL, 0);
 }
 
 /* This function checks if the address is a valid address to be used for
@@ -933,8 +986,7 @@ static int sctp_inet6_bind_verify(struct sctp_sock *opt, union sctp_addr *addr)
 			net = sock_net(&opt->inet.sk);
 			rcu_read_lock();
 			dev = dev_get_by_index_rcu(net, addr->v6.sin6_scope_id);
-			if (!dev || !(opt->inet.freebind ||
-				      net->ipv6.sysctl.ip_nonlocal_bind ||
+			if (!dev || !(ipv6_can_nonlocal_bind(net, &opt->inet) ||
 				      ipv6_chk_addr(net, &addr->v6.sin6_addr,
 						    dev, 0))) {
 				rcu_read_unlock();
@@ -1053,6 +1105,7 @@ static struct inet_protosw sctpv6_stream_protosw = {
 
 static int sctp6_rcv(struct sk_buff *skb)
 {
+	SCTP_INPUT_CB(skb)->encap_port = 0;
 	return sctp_rcv(skb) ? -1 : 0;
 }
 

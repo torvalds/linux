@@ -240,27 +240,33 @@ static int tpm_tis_spi_driver_probe(struct spi_device *spi)
 	tpm_tis_spi_probe_func probe_func;
 
 	probe_func = of_device_get_match_data(&spi->dev);
-	if (!probe_func && spi_dev_id)
-		probe_func = (tpm_tis_spi_probe_func)spi_dev_id->driver_data;
-	if (!probe_func)
-		return -ENODEV;
+	if (!probe_func) {
+		if (spi_dev_id) {
+			probe_func = (tpm_tis_spi_probe_func)spi_dev_id->driver_data;
+			if (!probe_func)
+				return -ENODEV;
+		} else
+			probe_func = tpm_tis_spi_probe;
+	}
 
 	return probe_func(spi);
 }
 
 static SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_spi_resume);
 
-static int tpm_tis_spi_remove(struct spi_device *dev)
+static void tpm_tis_spi_remove(struct spi_device *dev)
 {
 	struct tpm_chip *chip = spi_get_drvdata(dev);
 
 	tpm_chip_unregister(chip);
 	tpm_tis_remove(chip);
-	return 0;
 }
 
 static const struct spi_device_id tpm_tis_spi_id[] = {
+	{ "st33htpm-spi", (unsigned long)tpm_tis_spi_probe },
+	{ "slb9670", (unsigned long)tpm_tis_spi_probe },
 	{ "tpm_tis_spi", (unsigned long)tpm_tis_spi_probe },
+	{ "tpm_tis-spi", (unsigned long)tpm_tis_spi_probe },
 	{ "cr50", (unsigned long)cr50_spi_probe },
 	{}
 };

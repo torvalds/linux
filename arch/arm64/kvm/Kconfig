@@ -4,6 +4,7 @@
 #
 
 source "virt/lib/Kconfig"
+source "virt/kvm/Kconfig"
 
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
@@ -19,15 +20,14 @@ if VIRTUALIZATION
 
 menuconfig KVM
 	bool "Kernel-based Virtual Machine (KVM) support"
-	depends on OF
-	# for TASKSTATS/TASK_DELAY_ACCT:
-	depends on NET && MULTIUSER
+	depends on HAVE_KVM
 	select MMU_NOTIFIER
 	select PREEMPT_NOTIFIERS
 	select HAVE_KVM_CPU_RELAX_INTERCEPT
 	select HAVE_KVM_ARCH_TLB_FLUSH_ALL
 	select KVM_MMIO
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
+	select KVM_XFER_TO_GUEST_WORK
 	select SRCU
 	select KVM_VFIO
 	select HAVE_KVM_EVENTFD
@@ -38,25 +38,22 @@ menuconfig KVM
 	select IRQ_BYPASS_MANAGER
 	select HAVE_KVM_IRQ_BYPASS
 	select HAVE_KVM_VCPU_RUN_PID_CHANGE
-	select TASKSTATS
-	select TASK_DELAY_ACCT
+	select SCHED_INFO
+	select GUEST_PERF_EVENTS if PERF_EVENTS
+	select INTERVAL_TREE
 	help
 	  Support hosting virtualized guest machines.
 
 	  If unsure, say N.
 
-if KVM
-
-source "virt/kvm/Kconfig"
-
-config KVM_ARM_PMU
-	bool "Virtual Performance Monitoring Unit (PMU) support"
-	depends on HW_PERF_EVENTS
-	default y
+config NVHE_EL2_DEBUG
+	bool "Debug mode for non-VHE EL2 object"
+	depends on KVM
 	help
-	  Adds support for a virtual Performance Monitoring Unit (PMU) in
-	  virtual machines.
+	  Say Y here to enable the debug mode for the non-VHE KVM EL2 object.
+	  Failure reports will BUG() in the hypervisor. This is intended for
+	  local EL2 hypervisor development.
 
-endif # KVM
+	  If unsure, say N.
 
 endif # VIRTUALIZATION

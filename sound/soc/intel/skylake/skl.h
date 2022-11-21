@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  skl.h - HD Audio skylake defintions.
+ *  skl.h - HD Audio skylake definitions.
  *
  *  Copyright (C) 2015 Intel Corp
  *  Author: Jeeja KP <jeeja.kp@intel.com>
@@ -164,10 +164,6 @@ struct skl_dsp_ops {
 
 int skl_platform_unregister(struct device *dev);
 int skl_platform_register(struct device *dev);
-
-struct nhlt_specific_cfg *skl_get_ep_blob(struct skl_dev *skl, u32 instance,
-					u8 link_type, u8 s_fmt, u8 num_ch,
-					u32 s_rate, u8 dirn, u8 dev_type);
 
 int skl_nhlt_update_topology_bin(struct skl_dev *skl);
 int skl_init_dsp(struct skl_dev *skl);

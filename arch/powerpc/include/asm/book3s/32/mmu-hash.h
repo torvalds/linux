@@ -64,7 +64,92 @@ struct ppc_bat {
 #define SR_KP	0x20000000	/* User key */
 #define SR_KS	0x40000000	/* Supervisor key */
 
-#ifndef __ASSEMBLY__
+#ifdef __ASSEMBLY__
+
+#include <asm/asm-offsets.h>
+
+.macro uus_addi sr reg1 reg2 imm
+	.if NUM_USER_SEGMENTS > \sr
+	addi	\reg1,\reg2,\imm
+	.endif
+.endm
+
+.macro uus_mtsr sr reg1
+	.if NUM_USER_SEGMENTS > \sr
+	mtsr	\sr, \reg1
+	.endif
+.endm
+
+/*
+ * This isync() shouldn't be necessary as the kernel is not excepted to run
+ * any instruction in userspace soon after the update of segments and 'rfi'
+ * instruction is used to return to userspace, but hash based cores
+ * (at least G3) seem to exhibit a random behaviour when the 'isync' is not
+ * there. 603 cores don't have this behaviour so don't do the 'isync' as it
+ * saves several CPU cycles.
+ */
+.macro uus_isync
+#ifdef CONFIG_PPC_BOOK3S_604
+BEGIN_MMU_FTR_SECTION
+	isync
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
+#endif
+.endm
+
+.macro update_user_segments_by_4 tmp1 tmp2 tmp3 tmp4
+	uus_addi	1, \tmp2, \tmp1, 0x111
+	uus_addi	2, \tmp3, \tmp1, 0x222
+	uus_addi	3, \tmp4, \tmp1, 0x333
+
+	uus_mtsr	0, \tmp1
+	uus_mtsr	1, \tmp2
+	uus_mtsr	2, \tmp3
+	uus_mtsr	3, \tmp4
+
+	uus_addi	4, \tmp1, \tmp1, 0x444
+	uus_addi	5, \tmp2, \tmp2, 0x444
+	uus_addi	6, \tmp3, \tmp3, 0x444
+	uus_addi	7, \tmp4, \tmp4, 0x444
+
+	uus_mtsr	4, \tmp1
+	uus_mtsr	5, \tmp2
+	uus_mtsr	6, \tmp3
+	uus_mtsr	7, \tmp4
+
+	uus_addi	8, \tmp1, \tmp1, 0x444
+	uus_addi	9, \tmp2, \tmp2, 0x444
+	uus_addi	10, \tmp3, \tmp3, 0x444
+	uus_addi	11, \tmp4, \tmp4, 0x444
+
+	uus_mtsr	8, \tmp1
+	uus_mtsr	9, \tmp2
+	uus_mtsr	10, \tmp3
+	uus_mtsr	11, \tmp4
+
+	uus_addi	12, \tmp1, \tmp1, 0x444
+	uus_addi	13, \tmp2, \tmp2, 0x444
+	uus_addi	14, \tmp3, \tmp3, 0x444
+	uus_addi	15, \tmp4, \tmp4, 0x444
+
+	uus_mtsr	12, \tmp1
+	uus_mtsr	13, \tmp2
+	uus_mtsr	14, \tmp3
+	uus_mtsr	15, \tmp4
+
+	uus_isync
+.endm
+
+#else
+
+/*
+ * This macro defines the mapping from contexts to VSIDs (virtual
+ * segment IDs).  We use a skew on both the context and the high 4 bits
+ * of the 32-bit virtual address (the "effective segment ID") in order
+ * to spread out the entries in the MMU hash table.  Note, if this
+ * function is changed then hash functions will have to be
+ * changed to correspond.
+ */
+#define CTX_TO_VSID(c, id)	((((c) * (897 * 16)) + (id * 0x111)) & 0xffffff)
 
 /*
  * Hardware Page Table Entry
@@ -90,10 +175,16 @@ struct hash_pte {
 
 typedef struct {
 	unsigned long id;
-	unsigned long vdso_base;
+	unsigned long sr0;
+	void __user *vdso;
 } mm_context_t;
 
+#ifdef CONFIG_PPC_KUEP
+#define INIT_MM_CONTEXT(mm) .context.sr0 = SR_NX
+#endif
+
 void update_bats(void);
+static inline void cleanup_cpu_mmu_context(void) { }
 
 /* patch sites */
 extern s32 patch__hash_page_A0, patch__hash_page_A1, patch__hash_page_A2;
@@ -101,6 +192,39 @@ extern s32 patch__hash_page_B, patch__hash_page_C;
 extern s32 patch__flush_hash_A0, patch__flush_hash_A1, patch__flush_hash_A2;
 extern s32 patch__flush_hash_B;
 
+#include <asm/reg.h>
+#include <asm/task_size_32.h>
+
+static __always_inline void update_user_segment(u32 n, u32 val)
+{
+	if (n << 28 < TASK_SIZE)
+		mtsr(val + n * 0x111, n << 28);
+}
+
+static __always_inline void update_user_segments(u32 val)
+{
+	val &= 0xf0ffffff;
+
+	update_user_segment(0, val);
+	update_user_segment(1, val);
+	update_user_segment(2, val);
+	update_user_segment(3, val);
+	update_user_segment(4, val);
+	update_user_segment(5, val);
+	update_user_segment(6, val);
+	update_user_segment(7, val);
+	update_user_segment(8, val);
+	update_user_segment(9, val);
+	update_user_segment(10, val);
+	update_user_segment(11, val);
+	update_user_segment(12, val);
+	update_user_segment(13, val);
+	update_user_segment(14, val);
+	update_user_segment(15, val);
+}
+
+int __init find_free_bat(void);
+unsigned int bat_block_size(unsigned long base, unsigned long top);
 #endif /* !__ASSEMBLY__ */
 
 /* We happily ignore the smaller BATs on 601, we don't actually use

@@ -21,18 +21,18 @@ index, like the ASL example below shows::
       Name (_CRS, ResourceTemplate ()
       {
           GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionOutputOnly,
-                  "\\_SB.GPO0", 0, ResourceConsumer) {15}
+                  "\\_SB.GPO0", 0, ResourceConsumer) { 15 }
           GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionOutputOnly,
-                  "\\_SB.GPO0", 0, ResourceConsumer) {27, 31}
+                  "\\_SB.GPO0", 0, ResourceConsumer) { 27, 31 }
       })
 
       Name (_DSD, Package ()
       {
           ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
           Package ()
-	  {
-              Package () {"reset-gpios", Package() {^BTH, 1, 1, 0 }},
-              Package () {"shutdown-gpios", Package() {^BTH, 0, 0, 0 }},
+          {
+              Package () { "reset-gpios", Package () { ^BTH, 1, 1, 0 } },
+              Package () { "shutdown-gpios", Package () { ^BTH, 0, 0, 0 } },
           }
       })
   }
@@ -99,6 +99,12 @@ native::
       }
   }
 
+Note, that historically ACPI has no means of the GPIO polarity and thus
+the SPISerialBus() resource defines it on the per-chip basis. In order
+to avoid a chain of negations, the GPIO polarity is considered being
+Active High. Even for the cases when _DSD() is involved (see the example
+above) the GPIO CS polarity must be defined Active High to avoid ambiguity.
+
 Other supported properties
 ==========================
 
@@ -117,23 +123,78 @@ Example::
       // _DSD Hierarchical Properties Extension UUID
       ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
       Package () {
-          Package () {"hog-gpio8", "G8PU"}
+          Package () { "hog-gpio8", "G8PU" }
       }
   })
 
   Name (G8PU, Package () {
       ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
       Package () {
-          Package () {"gpio-hog", 1},
-          Package () {"gpios", Package () {8, 0}},
-          Package () {"output-high", 1},
-          Package () {"line-name", "gpio8-pullup"},
+          Package () { "gpio-hog", 1 },
+          Package () { "gpios", Package () { 8, 0 } },
+          Package () { "output-high", 1 },
+          Package () { "line-name", "gpio8-pullup" },
       }
   })
 
 - gpio-line-names
 
-Example::
+The ``gpio-line-names`` declaration is a list of strings ("names"), which
+describes each line/pin of a GPIO controller/expander. This list, contained in
+a package, must be inserted inside the GPIO controller declaration of an ACPI
+table (typically inside the DSDT). The ``gpio-line-names`` list must respect the
+following rules (see also the examples):
+
+  - the first name in the list corresponds with the first line/pin of the GPIO
+    controller/expander
+  - the names inside the list must be consecutive (no "holes" are permitted)
+  - the list can be incomplete and can end before the last GPIO line: in
+    other words, it is not mandatory to fill all the GPIO lines
+  - empty names are allowed (two quotation marks ``""`` correspond to an empty
+    name)
+  - names inside one GPIO controller/expander must be unique
+
+Example of a GPIO controller of 16 lines, with an incomplete list with two
+empty names::
+
+  Package () {
+      "gpio-line-names",
+      Package () {
+          "pin_0",
+          "pin_1",
+          "",
+          "",
+          "pin_3",
+          "pin_4_push_button",
+      }
+  }
+
+At runtime, the above declaration produces the following result (using the
+"libgpiod" tools)::
+
+  root@debian:~# gpioinfo gpiochip4
+  gpiochip4 - 16 lines:
+          line   0:      "pin_0"       unused   input  active-high
+          line   1:      "pin_1"       unused   input  active-high
+          line   2:      unnamed       unused   input  active-high
+          line   3:      unnamed       unused   input  active-high
+          line   4:      "pin_3"       unused   input  active-high
+          line   5: "pin_4_push_button" unused input active-high
+          line   6:      unnamed       unused   input  active-high
+          line   7       unnamed       unused   input  active-high
+          line   8:      unnamed       unused   input  active-high
+          line   9:      unnamed       unused   input  active-high
+          line  10:      unnamed       unused   input  active-high
+          line  11:      unnamed       unused   input  active-high
+          line  12:      unnamed       unused   input  active-high
+          line  13:      unnamed       unused   input  active-high
+          line  14:      unnamed       unused   input  active-high
+          line  15:      unnamed       unused   input  active-high
+  root@debian:~# gpiofind pin_4_push_button
+  gpiochip4 5
+  root@debian:~#
+
+Another example::
 
   Package () {
       "gpio-line-names",
@@ -205,15 +266,17 @@ have a device like below::
 
       Name (_CRS, ResourceTemplate () {
           GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionNone,
-                  "\\_SB.GPO0", 0, ResourceConsumer) {15}
+                  "\\_SB.GPO0", 0, ResourceConsumer) { 15 }
           GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionNone,
-                  "\\_SB.GPO0", 0, ResourceConsumer) {27}
+                  "\\_SB.GPO0", 0, ResourceConsumer) { 27 }
       })
   }
 
 The driver might expect to get the right GPIO when it does::
 
   desc = gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+  if (IS_ERR(desc))
+	...error handling...
 
 but since there is no way to know the mapping between "reset" and
 the GpioIo() in _CRS desc will hold ERR_PTR(-ENOENT).

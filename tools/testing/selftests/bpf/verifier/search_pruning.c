@@ -104,7 +104,7 @@
 		BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
-	.errstr = "R6 invalid mem access 'inv'",
+	.errstr = "R6 invalid mem access 'scalar'",
 	.result = REJECT,
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
@@ -130,6 +130,77 @@
 	.fixup_map_hash_8b = { 3 },
 	.errstr = "invalid read from stack off -16+0 size 8",
 	.result = REJECT,
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+},
+{
+	"precision tracking for u32 spill/fill",
+	.insns = {
+		BPF_MOV64_REG(BPF_REG_7, BPF_REG_1),
+		BPF_EMIT_CALL(BPF_FUNC_get_prandom_u32),
+		BPF_MOV32_IMM(BPF_REG_6, 32),
+		BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
+		BPF_MOV32_IMM(BPF_REG_6, 4),
+		/* Additional insns to introduce a pruning point. */
+		BPF_EMIT_CALL(BPF_FUNC_get_prandom_u32),
+		BPF_MOV64_IMM(BPF_REG_3, 0),
+		BPF_MOV64_IMM(BPF_REG_3, 0),
+		BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
+		BPF_MOV64_IMM(BPF_REG_3, 0),
+		/* u32 spill/fill */
+		BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_6, -8),
+		BPF_LDX_MEM(BPF_W, BPF_REG_8, BPF_REG_10, -8),
+		/* out-of-bound map value access for r6=32 */
+		BPF_ST_MEM(BPF_DW, BPF_REG_10, -16, 0),
+		BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -16),
+		BPF_LD_MAP_FD(BPF_REG_1, 0),
+		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
+		BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
+		BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_8),
+		BPF_LDX_MEM(BPF_W, BPF_REG_1, BPF_REG_0, 0),
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	},
+	.fixup_map_hash_8b = { 15 },
+	.result = REJECT,
+	.errstr = "R0 min value is outside of the allowed memory range",
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+},
+{
+	"precision tracking for u32 spills, u64 fill",
+	.insns = {
+		BPF_EMIT_CALL(BPF_FUNC_get_prandom_u32),
+		BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
+		BPF_MOV32_IMM(BPF_REG_7, 0xffffffff),
+		/* Additional insns to introduce a pruning point. */
+		BPF_MOV64_IMM(BPF_REG_3, 1),
+		BPF_MOV64_IMM(BPF_REG_3, 1),
+		BPF_MOV64_IMM(BPF_REG_3, 1),
+		BPF_MOV64_IMM(BPF_REG_3, 1),
+		BPF_EMIT_CALL(BPF_FUNC_get_prandom_u32),
+		BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
+		BPF_MOV64_IMM(BPF_REG_3, 1),
+		BPF_ALU32_IMM(BPF_DIV, BPF_REG_3, 0),
+		/* u32 spills, u64 fill */
+		BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_6, -4),
+		BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_7, -8),
+		BPF_LDX_MEM(BPF_DW, BPF_REG_8, BPF_REG_10, -8),
+		/* if r8 != X goto pc+1  r8 known in fallthrough branch */
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_8, 0xffffffff, 1),
+		BPF_MOV64_IMM(BPF_REG_3, 1),
+		/* if r8 == X goto pc+1  condition always true on first
+		 * traversal, so starts backtracking to mark r8 as requiring
+		 * precision. r7 marked as needing precision. r6 not marked
+		 * since it's not tracked.
+		 */
+		BPF_JMP_IMM(BPF_JEQ, BPF_REG_8, 0xffffffff, 1),
+		/* fails if r8 correctly marked unknown after fill. */
+		BPF_ALU32_IMM(BPF_DIV, BPF_REG_3, 0),
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	},
+	.result = REJECT,
+	.errstr = "div by zero",
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
 {

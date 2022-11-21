@@ -63,10 +63,7 @@ do {								\
 } while (0)
 
 /* Rotate right one 64 bit number as a 56 bit number */
-#define ror56_64(k, n)						\
-do {								\
-	k = (k >> n) | ((k & ((1 << n) - 1)) << (56 - n));	\
-} while (0)
+#define ror56_64(k, n) (k = (k >> n) | ((k & ((1 << n) - 1)) << (56 - n)))
 
 /*
  * Sboxes for Feistel network derived from
@@ -396,7 +393,6 @@ static struct crypto_alg fcrypt_alg = {
 	.cra_blocksize		=	8,
 	.cra_ctxsize		=	sizeof(struct fcrypt_ctx),
 	.cra_module		=	THIS_MODULE,
-	.cra_alignmask		=	3,
 	.cra_u			=	{ .cipher = {
 	.cia_min_keysize	=	8,
 	.cia_max_keysize	=	8,

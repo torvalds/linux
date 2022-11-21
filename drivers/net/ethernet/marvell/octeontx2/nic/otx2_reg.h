@@ -1,11 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Marvell OcteonTx2 RVU Ethernet driver
+/* Marvell RVU Ethernet driver
  *
- * Copyright (C) 2020 Marvell International Ltd.
+ * Copyright (C) 2020 Marvell.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef OTX2_REG_H
@@ -44,6 +41,8 @@
 #define RVU_PF_MSIX_VECX_ADDR(a)            (0x000 | (a) << 4)
 #define RVU_PF_MSIX_VECX_CTL(a)             (0x008 | (a) << 4)
 #define RVU_PF_MSIX_PBAX(a)                 (0xF0000 | (a) << 3)
+#define RVU_PF_VF_MBOX_ADDR                 (0xC40)
+#define RVU_PF_LMTLINE_ADDR                 (0xC48)
 
 /* RVU VF registers */
 #define	RVU_VF_VFPF_MBOX0		    (0x00000)
@@ -57,6 +56,7 @@
 #define	RVU_VF_MSIX_VECX_ADDR(a)	    (0x000 | (a) << 4)
 #define	RVU_VF_MSIX_VECX_CTL(a)		    (0x008 | (a) << 4)
 #define	RVU_VF_MSIX_PBAX(a)		    (0xF0000 | (a) << 3)
+#define RVU_VF_MBOX_REGION                  (0xC0000)
 
 #define RVU_FUNC_BLKADDR_SHIFT		20
 #define RVU_FUNC_BLKADDR_MASK		0x1FULL
@@ -91,6 +91,7 @@
 #define NPA_LF_QINTX_INT_W1S(a)         (NPA_LFBASE | 0x318 | (a) << 12)
 #define NPA_LF_QINTX_ENA_W1S(a)         (NPA_LFBASE | 0x320 | (a) << 12)
 #define NPA_LF_QINTX_ENA_W1C(a)         (NPA_LFBASE | 0x330 | (a) << 12)
+#define NPA_LF_AURA_BATCH_FREE0         (NPA_LFBASE | 0x400)
 
 /* NIX LF registers */
 #define	NIX_LFBASE			(BLKTYPE_NIX << RVU_FUNC_BLKADDR_SHIFT)
@@ -148,6 +149,7 @@
 #define NIX_AF_TL3X_SCHEDULE(a)		(0x1000 | (a) << 16)
 #define NIX_AF_TL4X_PARENT(a)		(0x1288 | (a) << 16)
 #define NIX_AF_TL4X_SCHEDULE(a)		(0x1200 | (a) << 16)
+#define NIX_AF_TL4X_PIR(a)		(0x1230 | (a) << 16)
 #define NIX_AF_MDQX_SCHEDULE(a)		(0x1400 | (a) << 16)
 #define NIX_AF_MDQX_PARENT(a)		(0x1480 | (a) << 16)
 #define NIX_AF_TL3_TL2X_LINKX_CFG(a, b)	(0x1700 | (a) << 16 | (b) << 3)

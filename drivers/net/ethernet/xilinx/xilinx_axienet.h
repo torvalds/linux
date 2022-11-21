@@ -119,11 +119,11 @@
 #define XAXIDMA_IRQ_ERROR_MASK		0x00004000 /* Error interrupt */
 #define XAXIDMA_IRQ_ALL_MASK		0x00007000 /* All interrupts */
 
-/* Default TX/RX Threshold and waitbound values for SGDMA mode */
+/* Default TX/RX Threshold and delay timer values for SGDMA mode */
 #define XAXIDMA_DFT_TX_THRESHOLD	24
-#define XAXIDMA_DFT_TX_WAITBOUND	254
-#define XAXIDMA_DFT_RX_THRESHOLD	24
-#define XAXIDMA_DFT_RX_WAITBOUND	254
+#define XAXIDMA_DFT_TX_USEC		50
+#define XAXIDMA_DFT_RX_THRESHOLD	1
+#define XAXIDMA_DFT_RX_USEC		50
 
 #define XAXIDMA_BD_CTRL_TXSOF_MASK	0x08000000 /* First tx packet */
 #define XAXIDMA_BD_CTRL_TXEOF_MASK	0x04000000 /* Last tx packet */
@@ -339,6 +339,10 @@
 
 #define DELAY_OF_ONE_MILLISEC		1000
 
+/* Xilinx PCS/PMA PHY register for switching 1000BaseX or SGMII */
+#define XLNX_MII_STD_SELECT_REG		0x11
+#define XLNX_MII_STD_SELECT_SGMII	BIT(0)
+
 /**
  * struct axidma_bd - Axi Dma buffer descriptor layout
  * @next:         MM2S/S2MM Next Descriptor Pointer
@@ -372,26 +376,40 @@ struct axidma_bd {
 	struct sk_buff *skb;
 } __aligned(XAXIDMA_BD_MINIMUM_ALIGNMENT);
 
+#define XAE_NUM_MISC_CLOCKS 3
+
 /**
  * struct axienet_local - axienet private per device data
  * @ndev:	Pointer for net_device to which it will be attached.
  * @dev:	Pointer to device structure
  * @phy_node:	Pointer to device node structure
+ * @phylink:	Pointer to phylink instance
+ * @phylink_config: phylink configuration settings
+ * @napi:	NAPI control structure
+ * @pcs_phy:	Reference to PCS/PMA PHY if used
+ * @pcs:	phylink pcs structure for PCS PHY
+ * @switch_x_sgmii: Whether switchable 1000BaseX/SGMII mode is enabled in the core
+ * @axi_clk:	AXI4-Lite bus clock
+ * @misc_clks:	Misc ethernet clocks (AXI4-Stream, Ref, MGT clocks)
  * @mii_bus:	Pointer to MII bus structure
+ * @mii_clk_div: MII bus clock divider value
  * @regs_start: Resource start for axienet device addresses
  * @regs:	Base address for the axienet_local device address space
  * @dma_regs:	Base address for the axidma device address space
- * @dma_err_tasklet: Tasklet structure to process Axi DMA errors
+ * @rx_dma_cr:  Nominal content of RX DMA control register
+ * @dma_err_task: Work structure to process Axi DMA errors
  * @tx_irq:	Axidma TX IRQ number
  * @rx_irq:	Axidma RX IRQ number
+ * @eth_irq:	Ethernet core IRQ number
  * @phy_mode:	Phy type to identify between MII/GMII/RGMII/SGMII/1000 Base-X
  * @options:	AxiEthernet option word
- * @last_link:	Phy link state in which the PHY was negotiated earlier
  * @features:	Stores the extended features supported by the axienet hw
  * @tx_bd_v:	Virtual address of the TX buffer descriptor ring
  * @tx_bd_p:	Physical address(start address) of the TX buffer descr. ring
+ * @tx_bd_num:	Size of TX buffer descriptor ring
  * @rx_bd_v:	Virtual address of the RX buffer descriptor ring
  * @rx_bd_p:	Physical address(start address) of the RX buffer descr. ring
+ * @rx_bd_num:	Size of RX buffer descriptor ring
  * @tx_bd_ci:	Stores the index of the Tx buffer descriptor in the ring being
  *		accessed currently. Used while alloc. BDs before a TX starts
  * @tx_bd_tail:	Stores the index of the Tx buffer descriptor in the ring being
@@ -407,28 +425,35 @@ struct axidma_bd {
  * @csum_offload_on_tx_path:	Stores the checksum selection on TX side.
  * @csum_offload_on_rx_path:	Stores the checksum selection on RX side.
  * @coalesce_count_rx:	Store the irq coalesce on RX side.
+ * @coalesce_usec_rx:	IRQ coalesce delay for RX
  * @coalesce_count_tx:	Store the irq coalesce on TX side.
+ * @coalesce_usec_tx:	IRQ coalesce delay for TX
  */
 struct axienet_local {
 	struct net_device *ndev;
 	struct device *dev;
 
-	/* Connection to PHY device */
-	struct device_node *phy_node;
-
 	struct phylink *phylink;
 	struct phylink_config phylink_config;
 
-	/* Clock for AXI bus */
-	struct clk *clk;
+	struct napi_struct napi;
 
-	/* MDIO bus data */
-	struct mii_bus *mii_bus;	/* MII bus reference */
+	struct mdio_device *pcs_phy;
+	struct phylink_pcs pcs;
 
-	/* IO registers, dma functions and IRQs */
+	bool switch_x_sgmii;
+
+	struct clk *axi_clk;
+	struct clk_bulk_data misc_clks[XAE_NUM_MISC_CLOCKS];
+
+	struct mii_bus *mii_bus;
+	u8 mii_clk_div;
+
 	resource_size_t regs_start;
 	void __iomem *regs;
 	void __iomem *dma_regs;
+
+	u32 rx_dma_cr;
 
 	struct work_struct dma_err_task;
 
@@ -437,10 +462,9 @@ struct axienet_local {
 	int eth_irq;
 	phy_interface_t phy_mode;
 
-	u32 options;			/* Current options word */
+	u32 options;
 	u32 features;
 
-	/* Buffer descriptors */
 	struct axidma_bd *tx_bd_v;
 	dma_addr_t tx_bd_p;
 	u32 tx_bd_num;
@@ -458,7 +482,9 @@ struct axienet_local {
 	int csum_offload_on_rx_path;
 
 	u32 coalesce_count_rx;
+	u32 coalesce_usec_rx;
 	u32 coalesce_count_tx;
+	u32 coalesce_usec_tx;
 };
 
 /**
@@ -490,6 +516,18 @@ static inline u32 axienet_ior(struct axienet_local *lp, off_t offset)
 static inline u32 axinet_ior_read_mcr(struct axienet_local *lp)
 {
 	return axienet_ior(lp, XAE_MDIO_MCR_OFFSET);
+}
+
+static inline void axienet_lock_mii(struct axienet_local *lp)
+{
+	if (lp->mii_bus)
+		mutex_lock(&lp->mii_bus->mdio_lock);
+}
+
+static inline void axienet_unlock_mii(struct axienet_local *lp)
+{
+	if (lp->mii_bus)
+		mutex_unlock(&lp->mii_bus->mdio_lock);
 }
 
 /**

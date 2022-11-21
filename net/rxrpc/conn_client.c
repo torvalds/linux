@@ -135,16 +135,20 @@ struct rxrpc_bundle *rxrpc_get_bundle(struct rxrpc_bundle *bundle)
 	return bundle;
 }
 
+static void rxrpc_free_bundle(struct rxrpc_bundle *bundle)
+{
+	rxrpc_put_peer(bundle->params.peer);
+	kfree(bundle);
+}
+
 void rxrpc_put_bundle(struct rxrpc_bundle *bundle)
 {
 	unsigned int d = bundle->debug_id;
 	unsigned int u = atomic_dec_return(&bundle->usage);
 
 	_debug("PUT B=%x %u", d, u);
-	if (u == 0) {
-		rxrpc_put_peer(bundle->params.peer);
-		kfree(bundle);
-	}
+	if (u == 0)
+		rxrpc_free_bundle(bundle);
 }
 
 /*
@@ -180,10 +184,6 @@ rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle, gfp_t gfp)
 	if (ret < 0)
 		goto error_1;
 
-	ret = conn->security->prime_packet_security(conn);
-	if (ret < 0)
-		goto error_2;
-
 	atomic_inc(&rxnet->nr_conns);
 	write_lock(&rxnet->conn_lock);
 	list_add_tail(&conn->proc_link, &rxnet->conn_proc_list);
@@ -203,8 +203,6 @@ rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle, gfp_t gfp)
 	_leave(" = %p", conn);
 	return conn;
 
-error_2:
-	conn->security->clear(conn);
 error_1:
 	rxrpc_put_client_connection_id(conn);
 error_0:
@@ -334,7 +332,7 @@ static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_conn_parameters *c
 	return candidate;
 
 found_bundle_free:
-	kfree(candidate);
+	rxrpc_free_bundle(candidate);
 found_bundle:
 	rxrpc_get_bundle(bundle);
 	spin_unlock(&local->client_bundles_lock);

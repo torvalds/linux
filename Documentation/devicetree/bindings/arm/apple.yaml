@@ -1,0 +1,87 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/apple.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Apple ARM Machine Device Tree Bindings
+
+maintainers:
+  - Hector Martin <marcan@marcan.st>
+
+description: |
+  ARM platforms using SoCs designed by Apple Inc., branded "Apple Silicon".
+
+  This currently includes devices based on the "M1" SoC:
+
+  - Mac mini (M1, 2020)
+  - MacBook Pro (13-inch, M1, 2020)
+  - MacBook Air (M1, 2020)
+  - iMac (24-inch, M1, 2021)
+
+  And devices based on the "M1 Pro" and "M1 Max" SoCs:
+
+  - MacBook Pro (14-inch, M1 Pro, 2021)
+  - MacBook Pro (14-inch, M1 Max, 2021)
+  - MacBook Pro (16-inch, M1 Pro, 2021)
+  - MacBook Pro (16-inch, M1 Max, 2021)
+
+  The compatible property should follow this format:
+
+  compatible = "apple,<targettype>", "apple,<socid>", "apple,arm-platform";
+
+  <targettype> represents the board/device and comes from the `target-type`
+  property of the root node of the Apple Device Tree, lowercased. It can be
+  queried on macOS using the following command:
+
+  $ ioreg -d2 -l | grep target-type
+
+  <socid> is the lowercased SoC ID. Apple uses at least *five* different
+  names for their SoCs:
+
+  - Marketing name ("M1")
+  - Internal name ("H13G")
+  - Codename ("Tonga")
+  - SoC ID ("T8103")
+  - Package/IC part number ("APL1102")
+
+  Devicetrees should use the lowercased SoC ID, to avoid confusion if
+  multiple SoCs share the same marketing name. This can be obtained from
+  the `compatible` property of the arm-io node of the Apple Device Tree,
+  which can be queried as follows on macOS:
+
+  $ ioreg -n arm-io | grep compatible
+
+properties:
+  $nodename:
+    const: "/"
+  compatible:
+    oneOf:
+      - description: Apple M1 SoC based platforms
+        items:
+          - enum:
+              - apple,j274 # Mac mini (M1, 2020)
+              - apple,j293 # MacBook Pro (13-inch, M1, 2020)
+              - apple,j313 # MacBook Air (M1, 2020)
+              - apple,j456 # iMac (24-inch, 4x USB-C, M1, 2021)
+              - apple,j457 # iMac (24-inch, 2x USB-C, M1, 2021)
+          - const: apple,t8103
+          - const: apple,arm-platform
+      - description: Apple M1 Pro SoC based platforms
+        items:
+          - enum:
+              - apple,j314s # MacBook Pro (14-inch, M1 Pro, 2021)
+              - apple,j316s # MacBook Pro (16-inch, M1 Pro, 2021)
+          - const: apple,t6000
+          - const: apple,arm-platform
+      - description: Apple M1 Max SoC based platforms
+        items:
+          - enum:
+              - apple,j314c # MacBook Pro (14-inch, M1 Max, 2021)
+              - apple,j316c # MacBook Pro (16-inch, M1 Max, 2021)
+          - const: apple,t6001
+          - const: apple,arm-platform
+
+additionalProperties: true
+
+...

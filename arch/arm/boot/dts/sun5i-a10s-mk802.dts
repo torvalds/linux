@@ -60,7 +60,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		red {
+		led {
 			label = "mk802:red:usr";
 			gpios = <&pio 1 2 GPIO_ACTIVE_HIGH>; /* PB2 */
 		};

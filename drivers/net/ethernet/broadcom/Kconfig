@@ -51,6 +51,14 @@ config B44_PCI
 	depends on B44_PCI_AUTOSELECT && B44_PCICORE_AUTOSELECT
 	default y
 
+config BCM4908_ENET
+	tristate "Broadcom BCM4908 internal mac support"
+	depends on ARCH_BCM4908 || COMPILE_TEST
+	default y if ARCH_BCM4908
+	help
+	  This driver supports Ethernet controller integrated into Broadcom
+	  BCM4908 family SoCs.
+
 config BCM63XX_ENET
 	tristate "Broadcom 63xx internal mac support"
 	depends on BCM63XX
@@ -114,8 +122,8 @@ config SB1250_MAC
 config TIGON3
 	tristate "Broadcom Tigon3 support"
 	depends on PCI
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select PHYLIB
-	imply PTP_1588_CLOCK
 	help
 	  This driver supports Broadcom Tigon3 based gigabit Ethernet cards.
 
@@ -132,7 +140,7 @@ config TIGON3_HWMON
 config BNX2X
 	tristate "Broadcom NetXtremeII 10Gb support"
 	depends on PCI
-	imply PTP_1588_CLOCK
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select FW_LOADER
 	select ZLIB_INFLATE
 	select LIBCRC32C
@@ -174,7 +182,6 @@ config BGMAC_BCMA
 config BGMAC_PLATFORM
 	tristate "Broadcom iProc GBit platform support"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
-	depends on OF
 	select BGMAC
 	select PHYLIB
 	select FIXED_PHY
@@ -199,6 +206,7 @@ config SYSTEMPORT
 config BNXT
 	tristate "Broadcom NetXtreme-C/E support"
 	depends on PCI
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select FW_LOADER
 	select LIBCRC32C
 	select NET_DEVLINK

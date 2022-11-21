@@ -25,7 +25,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Dummy soundcard (/dev/null)");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{ALSA,Dummy soundcard}}");
 
 #define MAX_PCM_DEVICES		4
 #define MAX_PCM_SUBSTREAMS	128
@@ -236,7 +235,7 @@ struct dummy_systimer_pcm {
 static void dummy_systimer_rearm(struct dummy_systimer_pcm *dpcm)
 {
 	mod_timer(&dpcm->timer, jiffies +
-		(dpcm->frac_period_rest + dpcm->rate - 1) / dpcm->rate);
+		DIV_ROUND_UP(dpcm->frac_period_rest, dpcm->rate));
 }
 
 static void dummy_systimer_update(struct dummy_systimer_pcm *dpcm)
@@ -1026,8 +1025,8 @@ static int snd_dummy_probe(struct platform_device *devptr)
 	int idx, err;
 	int dev = devptr->id;
 
-	err = snd_card_new(&devptr->dev, index[dev], id[dev], THIS_MODULE,
-			   sizeof(struct snd_dummy), &card);
+	err = snd_devm_card_new(&devptr->dev, index[dev], id[dev], THIS_MODULE,
+				sizeof(struct snd_dummy), &card);
 	if (err < 0)
 		return err;
 	dummy = card->private_data;
@@ -1048,7 +1047,7 @@ static int snd_dummy_probe(struct platform_device *devptr)
 			pcm_substreams[dev] = MAX_PCM_SUBSTREAMS;
 		err = snd_card_dummy_pcm(dummy, idx, pcm_substreams[dev]);
 		if (err < 0)
-			goto __nodev;
+			return err;
 	}
 
 	dummy->pcm_hw = dummy_pcm_hardware;
@@ -1079,7 +1078,7 @@ static int snd_dummy_probe(struct platform_device *devptr)
 
 	err = snd_card_dummy_new_mixer(dummy);
 	if (err < 0)
-		goto __nodev;
+		return err;
 	strcpy(card->driver, "Dummy");
 	strcpy(card->shortname, "Dummy");
 	sprintf(card->longname, "Dummy %i", dev + 1);
@@ -1087,18 +1086,9 @@ static int snd_dummy_probe(struct platform_device *devptr)
 	dummy_proc_init(dummy);
 
 	err = snd_card_register(card);
-	if (err == 0) {
-		platform_set_drvdata(devptr, card);
-		return 0;
-	}
-      __nodev:
-	snd_card_free(card);
-	return err;
-}
-
-static int snd_dummy_remove(struct platform_device *devptr)
-{
-	snd_card_free(platform_get_drvdata(devptr));
+	if (err < 0)
+		return err;
+	platform_set_drvdata(devptr, card);
 	return 0;
 }
 
@@ -1129,7 +1119,6 @@ static SIMPLE_DEV_PM_OPS(snd_dummy_pm, snd_dummy_suspend, snd_dummy_resume);
 
 static struct platform_driver snd_dummy_driver = {
 	.probe		= snd_dummy_probe,
-	.remove		= snd_dummy_remove,
 	.driver		= {
 		.name	= SND_DUMMY_DRIVER,
 		.pm	= SND_DUMMY_PM_OPS,

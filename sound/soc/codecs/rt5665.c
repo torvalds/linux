@@ -4374,7 +4374,7 @@ static int rt5665_set_component_pll(struct snd_soc_component *component, int pll
 
 	ret = rl6231_pll_calc(freq_in, freq_out, &pll_code);
 	if (ret < 0) {
-		dev_err(component->dev, "Unsupport input clock %d\n", freq_in);
+		dev_err(component->dev, "Unsupported input clock %d\n", freq_in);
 		return ret;
 	}
 
@@ -4385,8 +4385,8 @@ static int rt5665_set_component_pll(struct snd_soc_component *component, int pll
 	snd_soc_component_write(component, RT5665_PLL_CTRL_1,
 		pll_code.n_code << RT5665_PLL_N_SFT | pll_code.k_code);
 	snd_soc_component_write(component, RT5665_PLL_CTRL_2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5665_PLL_M_SFT |
-		pll_code.m_bp << RT5665_PLL_M_BP_SFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5665_PLL_M_SFT) |
+		(pll_code.m_bp << RT5665_PLL_M_BP_SFT));
 
 	rt5665->pll_in = freq_in;
 	rt5665->pll_out = freq_out;

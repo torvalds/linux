@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/*
  * dlmfs.c
  *
  * Code which implements the kernel side of a minimal userspace
@@ -190,17 +188,18 @@ static int dlmfs_file_release(struct inode *inode,
  * We do ->setattr() just to override size changes.  Our size is the size
  * of the LVB and nothing else.
  */
-static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
+static int dlmfs_file_setattr(struct user_namespace *mnt_userns,
+			      struct dentry *dentry, struct iattr *attr)
 {
 	int error;
 	struct inode *inode = d_inode(dentry);
 
 	attr->ia_valid &= ~ATTR_SIZE;
-	error = setattr_prepare(dentry, attr);
+	error = setattr_prepare(&init_user_ns, dentry, attr);
 	if (error)
 		return error;
 
-	setattr_copy(inode, attr);
+	setattr_copy(&init_user_ns, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }
@@ -281,7 +280,7 @@ static struct inode *dlmfs_alloc_inode(struct super_block *sb)
 {
 	struct dlmfs_inode_private *ip;
 
-	ip = kmem_cache_alloc(dlmfs_inode_cache, GFP_NOFS);
+	ip = alloc_inode_sb(sb, dlmfs_inode_cache, GFP_NOFS);
 	if (!ip)
 		return NULL;
 
@@ -329,7 +328,7 @@ static struct inode *dlmfs_get_root_inode(struct super_block *sb)
 
 	if (inode) {
 		inode->i_ino = get_next_ino();
-		inode_init_owner(inode, NULL, mode);
+		inode_init_owner(&init_user_ns, inode, NULL, mode);
 		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 		inc_nlink(inode);
 
@@ -352,7 +351,7 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
 		return NULL;
 
 	inode->i_ino = get_next_ino();
-	inode_init_owner(inode, parent, mode);
+	inode_init_owner(&init_user_ns, inode, parent, mode);
 	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 
 	ip = DLMFS_I(inode);
@@ -395,7 +394,8 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
  * File creation. Allocate an inode, and we're done..
  */
 /* SMP-safe */
-static int dlmfs_mkdir(struct inode * dir,
+static int dlmfs_mkdir(struct user_namespace * mnt_userns,
+		       struct inode * dir,
 		       struct dentry * dentry,
 		       umode_t mode)
 {
@@ -443,7 +443,8 @@ bail:
 	return status;
 }
 
-static int dlmfs_create(struct inode *dir,
+static int dlmfs_create(struct user_namespace *mnt_userns,
+			struct inode *dir,
 			struct dentry *dentry,
 			umode_t mode,
 			bool excl)

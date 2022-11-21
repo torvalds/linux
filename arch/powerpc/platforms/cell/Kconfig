@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 config PPC_CELL
+	select PPC_64S_HASH_MMU if PPC64
 	bool
 
 config PPC_CELL_COMMON
@@ -8,7 +9,7 @@ config PPC_CELL_COMMON
 	select PPC_DCR_MMIO
 	select PPC_INDIRECT_PIO
 	select PPC_INDIRECT_MMIO
-	select PPC_NATIVE
+	select PPC_HASH_MMU_NATIVE
 	select PPC_RTAS
 	select IRQ_EDGE_EOI_HANDLER
 
@@ -35,6 +36,7 @@ config PPC_IBM_CELL_BLADE
 config AXON_MSI
 	bool
 	depends on PPC_IBM_CELL_BLADE && PCI_MSI
+	select IRQ_DOMAIN_NOMAP
 	default y
 
 menu "Cell Broadband Engine options"
@@ -100,8 +102,3 @@ config CBE_CPUFREQ_SPU_GOVERNOR
 	  the minimal possible frequency.
 
 endmenu
-
-config OPROFILE_CELL
-	def_bool y
-	depends on PPC_CELL_NATIVE && (OPROFILE = m || OPROFILE = y) && SPU_BASE
-

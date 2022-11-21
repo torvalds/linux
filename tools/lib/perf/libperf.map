@@ -2,6 +2,7 @@ LIBPERF_0.0.1 {
 	global:
 		libperf_init;
 		perf_cpu_map__dummy_new;
+		perf_cpu_map__default_new;
 		perf_cpu_map__get;
 		perf_cpu_map__put;
 		perf_cpu_map__new;
@@ -10,6 +11,8 @@ LIBPERF_0.0.1 {
 		perf_cpu_map__cpu;
 		perf_cpu_map__empty;
 		perf_cpu_map__max;
+		perf_cpu_map__has;
+		perf_thread_map__new_array;
 		perf_thread_map__new_dummy;
 		perf_thread_map__set_pid;
 		perf_thread_map__comm;
@@ -23,6 +26,9 @@ LIBPERF_0.0.1 {
 		perf_evsel__disable;
 		perf_evsel__open;
 		perf_evsel__close;
+		perf_evsel__mmap;
+		perf_evsel__munmap;
+		perf_evsel__mmap_base;
 		perf_evsel__read;
 		perf_evsel__cpus;
 		perf_evsel__threads;
@@ -42,10 +48,12 @@ LIBPERF_0.0.1 {
 		perf_evlist__munmap;
 		perf_evlist__filter_pollfd;
 		perf_evlist__next_mmap;
+		perf_evlist__set_leader;
 		perf_mmap__consume;
 		perf_mmap__read_init;
 		perf_mmap__read_done;
 		perf_mmap__read_event;
+		perf_counts_values__scale;
 	local:
 		*;
 };

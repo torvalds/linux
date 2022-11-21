@@ -118,8 +118,6 @@ static noinline void save_stack(struct drm_mm_node *node)
 static void show_leaks(struct drm_mm *mm)
 {
 	struct drm_mm_node *node;
-	unsigned long *entries;
-	unsigned int nr_entries;
 	char *buf;
 
 	buf = kmalloc(BUFSZ, GFP_KERNEL);
@@ -133,8 +131,7 @@ static void show_leaks(struct drm_mm *mm)
 			continue;
 		}
 
-		nr_entries = stack_depot_fetch(node->stack, &entries);
-		stack_trace_snprint(buf, BUFSZ, entries, nr_entries, 0);
+		stack_depot_snprint(node->stack, buf, BUFSZ, 0);
 		DRM_ERROR("node [%08llx + %08llx]: inserted at\n%s",
 			  node->start, node->size, buf);
 	}
@@ -700,7 +697,7 @@ EXPORT_SYMBOL(drm_mm_replace_node);
  * interfaces. First a scan operation needs to be initialized with
  * drm_mm_scan_init() or drm_mm_scan_init_with_range(). The driver adds
  * objects to the roster, probably by walking an LRU list, but this can be
- * freely implemented. Eviction candiates are added using
+ * freely implemented. Eviction candidates are added using
  * drm_mm_scan_add_block() until a suitable hole is found or there are no
  * further evictable objects. Eviction roster metadata is tracked in &struct
  * drm_mm_scan.
@@ -983,6 +980,10 @@ void drm_mm_init(struct drm_mm *mm, u64 start, u64 size)
 	add_hole(&mm->head_node);
 
 	mm->scan_active = 0;
+
+#ifdef CONFIG_DRM_DEBUG_MM
+	stack_depot_init();
+#endif
 }
 EXPORT_SYMBOL(drm_mm_init);
 

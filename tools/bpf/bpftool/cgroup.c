@@ -28,7 +28,8 @@
 	"                        connect6 | getpeername4 | getpeername6 |\n"   \
 	"                        getsockname4 | getsockname6 | sendmsg4 |\n"   \
 	"                        sendmsg6 | recvmsg4 | recvmsg6 |\n"           \
-	"                        sysctl | getsockopt | setsockopt }"
+	"                        sysctl | getsockopt | setsockopt |\n"	       \
+	"                        sock_release }"
 
 static unsigned int query_flags;
 
@@ -49,6 +50,7 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 			 const char *attach_flags_str,
 			 int level)
 {
+	char prog_name[MAX_PROG_FULL_NAME];
 	struct bpf_prog_info info = {};
 	__u32 info_len = sizeof(info);
 	int prog_fd;
@@ -62,6 +64,7 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 		return -1;
 	}
 
+	get_prog_full_name(&info, prog_fd, prog_name, sizeof(prog_name));
 	if (json_output) {
 		jsonw_start_object(json_wtr);
 		jsonw_uint_field(json_wtr, "id", info.id);
@@ -72,7 +75,7 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 			jsonw_uint_field(json_wtr, "attach_type", attach_type);
 		jsonw_string_field(json_wtr, "attach_flags",
 				   attach_flags_str);
-		jsonw_string_field(json_wtr, "name", info.name);
+		jsonw_string_field(json_wtr, "name", prog_name);
 		jsonw_end_object(json_wtr);
 	} else {
 		printf("%s%-8u ", level ? "    " : "", info.id);
@@ -80,7 +83,7 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 			printf("%-15s", attach_type_name[attach_type]);
 		else
 			printf("type %-10u", attach_type);
-		printf(" %-15s %-15s\n", attach_flags_str, info.name);
+		printf(" %-15s %-15s\n", attach_flags_str, prog_name);
 	}
 
 	close(prog_fd);
@@ -500,7 +503,8 @@ static int do_help(int argc, char **argv)
 		HELP_SPEC_ATTACH_TYPES "\n"
 		"       " HELP_SPEC_ATTACH_FLAGS "\n"
 		"       " HELP_SPEC_PROGRAM "\n"
-		"       " HELP_SPEC_OPTIONS "\n"
+		"       " HELP_SPEC_OPTIONS " |\n"
+		"                    {-f|--bpffs} }\n"
 		"",
 		bin_name, argv[-2]);
 

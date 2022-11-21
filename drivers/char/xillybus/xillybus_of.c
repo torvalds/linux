@@ -17,7 +17,6 @@
 
 MODULE_DESCRIPTION("Xillybus driver for Open Firmware");
 MODULE_AUTHOR("Eli Billauer, Xillybus Ltd.");
-MODULE_VERSION("1.06");
 MODULE_ALIAS("xillybus_of");
 MODULE_LICENSE("GPL v2");
 
@@ -32,101 +31,21 @@ static const struct of_device_id xillybus_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, xillybus_of_match);
 
-static void xilly_dma_sync_single_for_cpu_of(struct xilly_endpoint *ep,
-					     dma_addr_t dma_handle,
-					     size_t size,
-					     int direction)
-{
-	dma_sync_single_for_cpu(ep->dev, dma_handle, size, direction);
-}
-
-static void xilly_dma_sync_single_for_device_of(struct xilly_endpoint *ep,
-						dma_addr_t dma_handle,
-						size_t size,
-						int direction)
-{
-	dma_sync_single_for_device(ep->dev, dma_handle, size, direction);
-}
-
-static void xilly_dma_sync_single_nop(struct xilly_endpoint *ep,
-				      dma_addr_t dma_handle,
-				      size_t size,
-				      int direction)
-{
-}
-
-static void xilly_of_unmap(void *ptr)
-{
-	struct xilly_mapping *data = ptr;
-
-	dma_unmap_single(data->device, data->dma_addr,
-			 data->size, data->direction);
-
-	kfree(ptr);
-}
-
-static int xilly_map_single_of(struct xilly_endpoint *ep,
-			       void *ptr,
-			       size_t size,
-			       int direction,
-			       dma_addr_t *ret_dma_handle
-	)
-{
-	dma_addr_t addr;
-	struct xilly_mapping *this;
-
-	this = kzalloc(sizeof(*this), GFP_KERNEL);
-	if (!this)
-		return -ENOMEM;
-
-	addr = dma_map_single(ep->dev, ptr, size, direction);
-
-	if (dma_mapping_error(ep->dev, addr)) {
-		kfree(this);
-		return -ENODEV;
-	}
-
-	this->device = ep->dev;
-	this->dma_addr = addr;
-	this->size = size;
-	this->direction = direction;
-
-	*ret_dma_handle = addr;
-
-	return devm_add_action_or_reset(ep->dev, xilly_of_unmap, this);
-}
-
-static struct xilly_endpoint_hardware of_hw = {
-	.owner = THIS_MODULE,
-	.hw_sync_sgl_for_cpu = xilly_dma_sync_single_for_cpu_of,
-	.hw_sync_sgl_for_device = xilly_dma_sync_single_for_device_of,
-	.map_single = xilly_map_single_of,
-};
-
-static struct xilly_endpoint_hardware of_hw_coherent = {
-	.owner = THIS_MODULE,
-	.hw_sync_sgl_for_cpu = xilly_dma_sync_single_nop,
-	.hw_sync_sgl_for_device = xilly_dma_sync_single_nop,
-	.map_single = xilly_map_single_of,
-};
-
 static int xilly_drv_probe(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct xilly_endpoint *endpoint;
 	int rc;
 	int irq;
-	struct xilly_endpoint_hardware *ephw = &of_hw;
 
-	if (of_property_read_bool(dev->of_node, "dma-coherent"))
-		ephw = &of_hw_coherent;
-
-	endpoint = xillybus_init_endpoint(NULL, dev, ephw);
+	endpoint = xillybus_init_endpoint(dev);
 
 	if (!endpoint)
 		return -ENOMEM;
 
 	dev_set_drvdata(dev, endpoint);
+
+	endpoint->owner = THIS_MODULE;
 
 	endpoint->registers = devm_platform_ioremap_resource(op, 0);
 	if (IS_ERR(endpoint->registers))

@@ -12,7 +12,11 @@
 #include <asm/amigaints.h>
 #include <asm/amigahw.h>
 
-#include "scsi.h"
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_eh.h>
+#include <scsi/scsi_tcq.h>
 #include "wd33c93.h"
 #include "gvp11.h"
 
@@ -49,18 +53,19 @@ void gvp11_setup(char *str, int *ints)
 
 static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 {
+	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(cmd);
 	struct Scsi_Host *instance = cmd->device->host;
 	struct gvp11_hostdata *hdata = shost_priv(instance);
 	struct WD33C93_hostdata *wh = &hdata->wh;
 	struct gvp11_scsiregs *regs = hdata->regs;
 	unsigned short cntr = GVP11_DMAC_INT_ENABLE;
-	unsigned long addr = virt_to_bus(cmd->SCp.ptr);
+	unsigned long addr = virt_to_bus(scsi_pointer->ptr);
 	int bank_mask;
 	static int scsi_alloc_out_of_range = 0;
 
 	/* use bounce buffer if the physical address is bad */
 	if (addr & wh->dma_xfer_mask) {
-		wh->dma_bounce_len = (cmd->SCp.this_residual + 511) & ~0x1ff;
+		wh->dma_bounce_len = (scsi_pointer->this_residual + 511) & ~0x1ff;
 
 		if (!scsi_alloc_out_of_range) {
 			wh->dma_bounce_buffer =
@@ -109,8 +114,8 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 
 		if (!dir_in) {
 			/* copy to bounce buffer for a write */
-			memcpy(wh->dma_bounce_buffer, cmd->SCp.ptr,
-			       cmd->SCp.this_residual);
+			memcpy(wh->dma_bounce_buffer, scsi_pointer->ptr,
+			       scsi_pointer->this_residual);
 		}
 	}
 
@@ -126,10 +131,10 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 
 	if (dir_in) {
 		/* invalidate any cache */
-		cache_clear(addr, cmd->SCp.this_residual);
+		cache_clear(addr, scsi_pointer->this_residual);
 	} else {
 		/* push any dirty cache */
-		cache_push(addr, cmd->SCp.this_residual);
+		cache_push(addr, scsi_pointer->this_residual);
 	}
 
 	bank_mask = (~wh->dma_xfer_mask >> 18) & 0x01c0;
@@ -146,6 +151,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 		     int status)
 {
+	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(SCpnt);
 	struct gvp11_hostdata *hdata = shost_priv(instance);
 	struct WD33C93_hostdata *wh = &hdata->wh;
 	struct gvp11_scsiregs *regs = hdata->regs;
@@ -158,8 +164,8 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 	/* copy from a bounce buffer, if necessary */
 	if (status && wh->dma_bounce_buffer) {
 		if (wh->dma_dir && SCpnt)
-			memcpy(SCpnt->SCp.ptr, wh->dma_bounce_buffer,
-			       SCpnt->SCp.this_residual);
+			memcpy(scsi_pointer->ptr, wh->dma_bounce_buffer,
+			       scsi_pointer->this_residual);
 
 		if (wh->dma_buffer_pool == BUF_SCSI_ALLOCED)
 			kfree(wh->dma_bounce_buffer);
@@ -185,6 +191,7 @@ static struct scsi_host_template gvp11_scsi_template = {
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= CMD_PER_LUN,
 	.dma_boundary		= PAGE_SIZE - 1,
+	.cmd_size		= sizeof(struct scsi_pointer),
 };
 
 static int check_wd33c93(struct gvp11_scsiregs *regs)

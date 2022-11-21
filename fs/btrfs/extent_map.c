@@ -261,6 +261,7 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 			em->mod_len = (em->mod_len + em->mod_start) - merge->mod_start;
 			em->mod_start = merge->mod_start;
 			em->generation = max(em->generation, merge->generation);
+			set_bit(EXTENT_FLAG_MERGED, &em->flags);
 
 			rb_erase_cached(&merge->rb_node, &tree->map);
 			RB_CLEAR_NODE(&merge->rb_node);
@@ -278,6 +279,7 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 		RB_CLEAR_NODE(&merge->rb_node);
 		em->mod_len = (merge->mod_start + merge->mod_len) - em->mod_start;
 		em->generation = max(em->generation, merge->generation);
+		set_bit(EXTENT_FLAG_MERGED, &em->flags);
 		free_extent_map(merge);
 	}
 }
@@ -360,7 +362,7 @@ static void extent_map_device_set_bits(struct extent_map *em, unsigned bits)
 	int i;
 
 	for (i = 0; i < map->num_stripes; i++) {
-		struct btrfs_bio_stripe *stripe = &map->stripes[i];
+		struct btrfs_io_stripe *stripe = &map->stripes[i];
 		struct btrfs_device *device = stripe->dev;
 
 		set_extent_bits_nowait(&device->alloc_state, stripe->physical,
@@ -375,7 +377,7 @@ static void extent_map_device_clear_bits(struct extent_map *em, unsigned bits)
 	int i;
 
 	for (i = 0; i < map->num_stripes; i++) {
-		struct btrfs_bio_stripe *stripe = &map->stripes[i];
+		struct btrfs_io_stripe *stripe = &map->stripes[i];
 		struct btrfs_device *device = stripe->dev;
 
 		__clear_extent_bit(&device->alloc_state, stripe->physical,
@@ -385,9 +387,12 @@ static void extent_map_device_clear_bits(struct extent_map *em, unsigned bits)
 }
 
 /**
- * add_extent_mapping - add new extent map to the extent tree
+ * Add new extent map to the extent tree
+ *
  * @tree:	tree to insert new map in
  * @em:		map to insert
+ * @modified:	indicate whether the given @em should be added to the
+ *	        modified list, which indicates the extent needs to be logged
  *
  * Insert @em into @tree or perform a simple forward/backward merge with
  * existing mappings.  The extent_map struct passed in will be inserted
@@ -487,6 +492,8 @@ struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
  */
 void remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 {
+	lockdep_assert_held_write(&tree->lock);
+
 	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &em->flags));
 	rb_erase_cached(&em->rb_node, &tree->map);
 	if (!test_bit(EXTENT_FLAG_LOGGING, &em->flags))
@@ -501,6 +508,8 @@ void replace_extent_mapping(struct extent_map_tree *tree,
 			    struct extent_map *new,
 			    int modified)
 {
+	lockdep_assert_held_write(&tree->lock);
+
 	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &cur->flags));
 	ASSERT(extent_map_in_tree(cur));
 	if (!test_bit(EXTENT_FLAG_LOGGING, &cur->flags))
@@ -574,12 +583,13 @@ static noinline int merge_extent_mapping(struct extent_map_tree *em_tree,
 }
 
 /**
- * btrfs_add_extent_mapping - add extent mapping into em_tree
- * @fs_info - used for tracepoint
- * @em_tree - the extent tree into which we want to insert the extent mapping
- * @em_in   - extent we are inserting
- * @start   - start of the logical range btrfs_get_extent() is requesting
- * @len     - length of the logical range btrfs_get_extent() is requesting
+ * Add extent mapping into em_tree
+ *
+ * @fs_info:  the filesystem
+ * @em_tree:  extent tree into which we want to insert the extent mapping
+ * @em_in:    extent we are inserting
+ * @start:    start of the logical range btrfs_get_extent() is requesting
+ * @len:      length of the logical range btrfs_get_extent() is requesting
  *
  * Note that @em_in's range may be different from [start, start+len),
  * but they must be overlapped.

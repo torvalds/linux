@@ -26,7 +26,6 @@
 #include <linux/of_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/dma-atmel.h>
 #include <linux/pm_runtime.h>
 
 #include "i2c-at91.h"
@@ -139,9 +138,9 @@ static void at91_twi_dma_cleanup(struct at91_twi_dev *dev)
 
 	if (dma->xfer_in_progress) {
 		if (dma->direction == DMA_FROM_DEVICE)
-			dmaengine_terminate_all(dma->chan_rx);
+			dmaengine_terminate_sync(dma->chan_rx);
 		else
-			dmaengine_terminate_all(dma->chan_tx);
+			dmaengine_terminate_sync(dma->chan_tx);
 		dma->xfer_in_progress = false;
 	}
 	if (dma->buf_mapped) {

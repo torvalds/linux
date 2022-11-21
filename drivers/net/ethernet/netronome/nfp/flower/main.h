@@ -12,7 +12,9 @@
 #include <linux/rhashtable.h>
 #include <linux/time64.h>
 #include <linux/types.h>
+#include <net/flow_offload.h>
 #include <net/pkt_cls.h>
+#include <net/pkt_sched.h>
 #include <net/tcp.h>
 #include <linux/workqueue.h>
 #include <linux/idr.h>
@@ -47,6 +49,8 @@ struct nfp_app;
 #define NFP_FL_FEATS_PRE_TUN_RULES	BIT(6)
 #define NFP_FL_FEATS_IPV6_TUN		BIT(7)
 #define NFP_FL_FEATS_VLAN_QINQ		BIT(8)
+#define NFP_FL_FEATS_QOS_PPS		BIT(9)
+#define NFP_FL_FEATS_QOS_METER		BIT(10)
 #define NFP_FL_FEATS_HOST_ACK		BIT(31)
 
 #define NFP_FL_ENABLE_FLOW_MERGE	BIT(0)
@@ -61,7 +65,9 @@ struct nfp_app;
 	NFP_FL_FEATS_FLOW_MOD | \
 	NFP_FL_FEATS_PRE_TUN_RULES | \
 	NFP_FL_FEATS_IPV6_TUN | \
-	NFP_FL_FEATS_VLAN_QINQ)
+	NFP_FL_FEATS_VLAN_QINQ | \
+	NFP_FL_FEATS_QOS_PPS | \
+	NFP_FL_FEATS_QOS_METER)
 
 struct nfp_fl_mask_id {
 	struct circ_buf mask_id_free_list;
@@ -189,7 +195,13 @@ struct nfp_fl_internal_ports {
  * @qos_stats_work:	Workqueue for qos stats processing
  * @qos_rate_limiters:	Current active qos rate limiters
  * @qos_stats_lock:	Lock on qos stats updates
+ * @meter_stats_lock:   Lock on meter stats updates
+ * @meter_table:	Hash table used to store the meter table
  * @pre_tun_rule_cnt:	Number of pre-tunnel rules offloaded
+ * @merge_table:	Hash table to store merged flows
+ * @ct_zone_table:	Hash table used to store the different zones
+ * @ct_zone_wc:		Special zone entry for wildcarded zone matches
+ * @ct_map_table:	Hash table used to referennce ct flows
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -222,7 +234,13 @@ struct nfp_flower_priv {
 	struct delayed_work qos_stats_work;
 	unsigned int qos_rate_limiters;
 	spinlock_t qos_stats_lock; /* Protect the qos stats */
+	struct mutex meter_stats_lock; /* Protect the meter stats */
+	struct rhashtable meter_table;
 	int pre_tun_rule_cnt;
+	struct rhashtable merge_table;
+	struct rhashtable ct_zone_table;
+	struct nfp_fl_ct_zone_entry *ct_zone_wc;
+	struct rhashtable ct_map_table;
 };
 
 /**
@@ -350,12 +368,43 @@ struct nfp_fl_payload_link {
 };
 
 extern const struct rhashtable_params nfp_flower_table_params;
+extern const struct rhashtable_params merge_table_params;
+
+struct nfp_merge_info {
+	u64 parent_ctx;
+	struct rhash_head ht_node;
+};
 
 struct nfp_fl_stats_frame {
 	__be32 stats_con_id;
 	__be32 pkt_count;
 	__be64 byte_count;
 	__be64 stats_cookie;
+};
+
+struct nfp_meter_stats_entry {
+	u64 pkts;
+	u64 bytes;
+	u64 drops;
+};
+
+struct nfp_meter_entry {
+	struct rhash_head ht_node;
+	u32 meter_id;
+	bool bps;
+	u32 rate;
+	u32 burst;
+	u64 used;
+	struct nfp_meter_stats {
+		u64 update;
+		struct nfp_meter_stats_entry curr;
+		struct nfp_meter_stats_entry prev;
+	} stats;
+};
+
+enum nfp_meter_op {
+	NFP_METER_ADD,
+	NFP_METER_DEL,
 };
 
 static inline bool
@@ -397,20 +446,73 @@ int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 				     struct nfp_fl_payload *sub_flow1,
 				     struct nfp_fl_payload *sub_flow2);
+void
+nfp_flower_compile_meta(struct nfp_flower_meta_tci *ext,
+			struct nfp_flower_meta_tci *msk, u8 key_type);
+void
+nfp_flower_compile_tci(struct nfp_flower_meta_tci *ext,
+		       struct nfp_flower_meta_tci *msk,
+		       struct flow_rule *rule);
+void
+nfp_flower_compile_ext_meta(struct nfp_flower_ext_meta *frame, u32 key_ext);
+int
+nfp_flower_compile_port(struct nfp_flower_in_port *frame, u32 cmsg_port,
+			bool mask_version, enum nfp_flower_tun_type tun_type,
+			struct netlink_ext_ack *extack);
+void
+nfp_flower_compile_mac(struct nfp_flower_mac_mpls *ext,
+		       struct nfp_flower_mac_mpls *msk,
+		       struct flow_rule *rule);
+int
+nfp_flower_compile_mpls(struct nfp_flower_mac_mpls *ext,
+			struct nfp_flower_mac_mpls *msk,
+			struct flow_rule *rule,
+			struct netlink_ext_ack *extack);
+void
+nfp_flower_compile_tport(struct nfp_flower_tp_ports *ext,
+			 struct nfp_flower_tp_ports *msk,
+			 struct flow_rule *rule);
+void
+nfp_flower_compile_vlan(struct nfp_flower_vlan *ext,
+			struct nfp_flower_vlan *msk,
+			struct flow_rule *rule);
+void
+nfp_flower_compile_ipv4(struct nfp_flower_ipv4 *ext,
+			struct nfp_flower_ipv4 *msk, struct flow_rule *rule);
+void
+nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *ext,
+			struct nfp_flower_ipv6 *msk, struct flow_rule *rule);
+void
+nfp_flower_compile_geneve_opt(u8 *ext, u8 *msk, struct flow_rule *rule);
+void
+nfp_flower_compile_ipv4_gre_tun(struct nfp_flower_ipv4_gre_tun *ext,
+				struct nfp_flower_ipv4_gre_tun *msk,
+				struct flow_rule *rule);
+void
+nfp_flower_compile_ipv4_udp_tun(struct nfp_flower_ipv4_udp_tun *ext,
+				struct nfp_flower_ipv4_udp_tun *msk,
+				struct flow_rule *rule);
+void
+nfp_flower_compile_ipv6_udp_tun(struct nfp_flower_ipv6_udp_tun *ext,
+				struct nfp_flower_ipv6_udp_tun *msk,
+				struct flow_rule *rule);
+void
+nfp_flower_compile_ipv6_gre_tun(struct nfp_flower_ipv6_gre_tun *ext,
+				struct nfp_flower_ipv6_gre_tun *msk,
+				struct flow_rule *rule);
 int nfp_flower_compile_flow_match(struct nfp_app *app,
-				  struct flow_cls_offload *flow,
+				  struct flow_rule *rule,
 				  struct nfp_fl_key_ls *key_ls,
 				  struct net_device *netdev,
 				  struct nfp_fl_payload *nfp_flow,
 				  enum nfp_flower_tun_type tun_type,
 				  struct netlink_ext_ack *extack);
 int nfp_flower_compile_action(struct nfp_app *app,
-			      struct flow_cls_offload *flow,
+			      struct flow_rule *rule,
 			      struct net_device *netdev,
 			      struct nfp_fl_payload *nfp_flow,
 			      struct netlink_ext_ack *extack);
-int nfp_compile_flow_metadata(struct nfp_app *app,
-			      struct flow_cls_offload *flow,
+int nfp_compile_flow_metadata(struct nfp_app *app, u32 cookie,
 			      struct nfp_fl_payload *nfp_flow,
 			      struct net_device *netdev,
 			      struct netlink_ext_ack *extack);
@@ -482,4 +584,36 @@ int nfp_flower_xmit_pre_tun_flow(struct nfp_app *app,
 				 struct nfp_fl_payload *flow);
 int nfp_flower_xmit_pre_tun_del_flow(struct nfp_app *app,
 				     struct nfp_fl_payload *flow);
+
+struct nfp_fl_payload *
+nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer);
+int nfp_flower_calculate_key_layers(struct nfp_app *app,
+				    struct net_device *netdev,
+				    struct nfp_fl_key_ls *ret_key_ls,
+				    struct flow_rule *flow,
+				    enum nfp_flower_tun_type *tun_type,
+				    struct netlink_ext_ack *extack);
+void
+nfp_flower_del_linked_merge_flows(struct nfp_app *app,
+				  struct nfp_fl_payload *sub_flow);
+int
+nfp_flower_xmit_flow(struct nfp_app *app, struct nfp_fl_payload *nfp_flow,
+		     u8 mtype);
+void
+nfp_flower_update_merge_stats(struct nfp_app *app,
+			      struct nfp_fl_payload *sub_flow);
+
+int nfp_setup_tc_act_offload(struct nfp_app *app,
+			     struct flow_offload_action *fl_act);
+int nfp_init_meter_table(struct nfp_app *app);
+void nfp_flower_stats_meter_request_all(struct nfp_flower_priv *fl_priv);
+void nfp_act_stats_reply(struct nfp_app *app, void *pmsg);
+int nfp_flower_offload_one_police(struct nfp_app *app, bool ingress,
+				  bool pps, u32 id, u32 rate, u32 burst);
+int nfp_flower_setup_meter_entry(struct nfp_app *app,
+				 const struct flow_action_entry *action,
+				 enum nfp_meter_op op,
+				 u32 meter_id);
+struct nfp_meter_entry *
+nfp_flower_search_meter_entry(struct nfp_app *app, u32 meter_id);
 #endif

@@ -36,8 +36,9 @@
 /**
  * struct clk_icst - ICST VCO clock wrapper
  * @hw: corresponding clock hardware entry
- * @vcoreg: VCO register address
- * @lockreg: VCO lock register address
+ * @map: register map
+ * @vcoreg_off: VCO register address
+ * @lockreg_off: VCO lock register address
  * @params: parameters for this ICST instance
  * @rate: current rate
  * @ctype: the type of control register for the ICST
@@ -428,7 +429,7 @@ static const struct icst_params icst307_params = {
 	.idx2s		= icst307_idx2s,
 };
 
-/**
+/*
  * The core modules on the Integrator/AP and Integrator/CP have
  * especially crippled ICST525 control.
  */
@@ -483,7 +484,7 @@ static void __init of_syscon_icst_setup(struct device_node *np)
 	struct device_node *parent;
 	struct regmap *map;
 	struct clk_icst_desc icst_desc;
-	const char *name = np->name;
+	const char *name;
 	const char *parent_name;
 	struct clk *regclk;
 	enum icst_control_type ctype;
@@ -500,7 +501,8 @@ static void __init of_syscon_icst_setup(struct device_node *np)
 		return;
 	}
 
-	if (of_property_read_u32(np, "vco-offset", &icst_desc.vco_offset)) {
+	if (of_property_read_u32(np, "reg", &icst_desc.vco_offset) &&
+	    of_property_read_u32(np, "vco-offset", &icst_desc.vco_offset)) {
 		pr_err("no VCO register offset for ICST clock\n");
 		return;
 	}
@@ -531,16 +533,18 @@ static void __init of_syscon_icst_setup(struct device_node *np)
 		icst_desc.params = &icst525_apcp_cm_params;
 		ctype = ICST_INTEGRATOR_CP_CM_MEM;
 	} else {
-		pr_err("unknown ICST clock %s\n", name);
+		pr_err("unknown ICST clock %pOF\n", np);
 		return;
 	}
 
 	/* Parent clock name is not the same as node parent */
 	parent_name = of_clk_get_parent_name(np, 0);
+	name = kasprintf(GFP_KERNEL, "%pOFP", np);
 
 	regclk = icst_clk_setup(NULL, &icst_desc, name, parent_name, map, ctype);
 	if (IS_ERR(regclk)) {
 		pr_err("error setting up syscon ICST clock %s\n", name);
+		kfree(name);
 		return;
 	}
 	of_clk_add_provider(np, of_clk_src_simple_get, regclk);

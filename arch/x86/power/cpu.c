@@ -20,11 +20,12 @@
 #include <asm/page.h>
 #include <asm/mce.h>
 #include <asm/suspend.h>
-#include <asm/fpu/internal.h>
+#include <asm/fpu/api.h>
 #include <asm/debugreg.h>
 #include <asm/cpu.h>
 #include <asm/mmu_context.h>
 #include <asm/cpu_device_id.h>
+#include <asm/microcode.h>
 
 #ifdef CONFIG_X86_32
 __visible unsigned long saved_context_ebx;
@@ -40,7 +41,8 @@ static void msr_save_context(struct saved_context *ctxt)
 	struct saved_msr *end = msr + ctxt->saved_msrs.num;
 
 	while (msr < end) {
-		msr->valid = !rdmsrl_safe(msr->info.msr_no, &msr->info.reg.q);
+		if (msr->valid)
+			rdmsrl(msr->info.msr_no, msr->info.reg.q);
 		msr++;
 	}
 }
@@ -58,19 +60,20 @@ static void msr_restore_context(struct saved_context *ctxt)
 }
 
 /**
- *	__save_processor_state - save CPU registers before creating a
- *		hibernation image and before restoring the memory state from it
- *	@ctxt - structure to store the registers contents in
+ * __save_processor_state() - Save CPU registers before creating a
+ *                             hibernation image and before restoring
+ *                             the memory state from it
+ * @ctxt: Structure to store the registers contents in.
  *
- *	NOTE: If there is a CPU register the modification of which by the
- *	boot kernel (ie. the kernel used for loading the hibernation image)
- *	might affect the operations of the restored target kernel (ie. the one
- *	saved in the hibernation image), then its contents must be saved by this
- *	function.  In other words, if kernel A is hibernated and different
- *	kernel B is used for loading the hibernation image into memory, the
- *	kernel A's __save_processor_state() function must save all registers
- *	needed by kernel A, so that it can operate correctly after the resume
- *	regardless of what kernel B does in the meantime.
+ * NOTE: If there is a CPU register the modification of which by the
+ * boot kernel (ie. the kernel used for loading the hibernation image)
+ * might affect the operations of the restored target kernel (ie. the one
+ * saved in the hibernation image), then its contents must be saved by this
+ * function.  In other words, if kernel A is hibernated and different
+ * kernel B is used for loading the hibernation image into memory, the
+ * kernel A's __save_processor_state() function must save all registers
+ * needed by kernel A, so that it can operate correctly after the resume
+ * regardless of what kernel B does in the meantime.
  */
 static void __save_processor_state(struct saved_context *ctxt)
 {
@@ -99,11 +102,8 @@ static void __save_processor_state(struct saved_context *ctxt)
 	/*
 	 * segment registers
 	 */
-#ifdef CONFIG_X86_32_LAZY_GS
 	savesegment(gs, ctxt->gs);
-#endif
 #ifdef CONFIG_X86_64
-	savesegment(gs, ctxt->gs);
 	savesegment(fs, ctxt->fs);
 	savesegment(ds, ctxt->ds);
 	savesegment(es, ctxt->es);
@@ -184,9 +184,9 @@ static void fix_processor_context(void)
 }
 
 /**
- * __restore_processor_state - restore the contents of CPU registers saved
- *                             by __save_processor_state()
- * @ctxt - structure to load the registers contents from
+ * __restore_processor_state() - Restore the contents of CPU registers saved
+ *                               by __save_processor_state()
+ * @ctxt: Structure to load the registers contents from.
  *
  * The asm code that gets us here will have restored a usable GDT, although
  * it will be pointing to the wrong alias.
@@ -232,7 +232,6 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	wrmsrl(MSR_GS_BASE, ctxt->kernelmode_gs_base);
 #else
 	loadsegment(fs, __KERNEL_PERCPU);
-	loadsegment(gs, __KERNEL_STACK_CANARY);
 #endif
 
 	/* Restore the TSS, RO GDT, LDT, and usermode-relevant MSRs. */
@@ -255,7 +254,7 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	 */
 	wrmsrl(MSR_FS_BASE, ctxt->fs_base);
 	wrmsrl(MSR_KERNEL_GS_BASE, ctxt->usermode_gs_base);
-#elif defined(CONFIG_X86_32_LAZY_GS)
+#else
 	loadsegment(gs, ctxt->gs);
 #endif
 
@@ -264,11 +263,18 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	x86_platform.restore_sched_clock_state();
 	mtrr_bp_restore();
 	perf_restore_debug_store();
-	msr_restore_context(ctxt);
 
 	c = &cpu_data(smp_processor_id());
 	if (cpu_has(c, X86_FEATURE_MSR_IA32_FEAT_CTL))
 		init_ia32_feat_ctl(c);
+
+	microcode_bsp_resume();
+
+	/*
+	 * This needs to happen after the microcode has been updated upon resume
+	 * because some of the MSRs are "emulated" in microcode.
+	 */
+	msr_restore_context(ctxt);
 }
 
 /* Needed by apm.c */
@@ -321,7 +327,7 @@ int hibernate_resume_nonboot_cpu_disable(void)
 
 /*
  * When bsp_check() is called in hibernate and suspend, cpu hotplug
- * is disabled already. So it's unnessary to handle race condition between
+ * is disabled already. So it's unnecessary to handle race condition between
  * cpumask query and cpu hotplug.
  */
 static int bsp_check(void)
@@ -427,8 +433,10 @@ static int msr_build_context(const u32 *msr_id, const int num)
 	}
 
 	for (i = saved_msrs->num, j = 0; i < total_num; i++, j++) {
+		u64 dummy;
+
 		msr_array[i].info.msr_no	= msr_id[j];
-		msr_array[i].valid		= false;
+		msr_array[i].valid		= !rdmsrl_safe(msr_id[j], &dummy);
 		msr_array[i].info.reg.q		= 0;
 	}
 	saved_msrs->num   = total_num;
@@ -503,10 +511,24 @@ static int pm_cpu_check(const struct x86_cpu_id *c)
 	return ret;
 }
 
+static void pm_save_spec_msr(void)
+{
+	u32 spec_msr_id[] = {
+		MSR_IA32_SPEC_CTRL,
+		MSR_IA32_TSX_CTRL,
+		MSR_TSX_FORCE_ABORT,
+		MSR_IA32_MCU_OPT_CTRL,
+		MSR_AMD64_LS_CFG,
+	};
+
+	msr_build_context(spec_msr_id, ARRAY_SIZE(spec_msr_id));
+}
+
 static int pm_check_save_msr(void)
 {
 	dmi_check_system(msr_save_dmi_table);
 	pm_cpu_check(msr_save_cpu_table);
+	pm_save_spec_msr();
 
 	return 0;
 }

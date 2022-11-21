@@ -40,6 +40,7 @@ struct hda_jack_tbl {
 	unsigned int block_report:1;    /* in a transitional state - do not report to userspace */
 	hda_nid_t gating_jack;		/* valid when gating jack plugged */
 	hda_nid_t gated_jack;		/* gated is dependent on this jack */
+	hda_nid_t key_report_jack;	/* key reports to this jack */
 	int type;
 	int button_state;
 	struct snd_jack *jack;
@@ -68,6 +69,7 @@ struct hda_jack_tbl *
 snd_hda_jack_tbl_get_from_tag(struct hda_codec *codec,
 			      unsigned char tag, int dev_id);
 
+void snd_hda_jack_tbl_disconnect(struct hda_codec *codec);
 void snd_hda_jack_tbl_clear(struct hda_codec *codec);
 
 void snd_hda_jack_set_dirty_all(struct hda_codec *codec);
@@ -98,6 +100,13 @@ snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
 
 int snd_hda_jack_set_gating_jack(struct hda_codec *codec, hda_nid_t gated_nid,
 				 hda_nid_t gating_nid);
+
+int snd_hda_jack_bind_keymap(struct hda_codec *codec, hda_nid_t key_nid,
+			     const struct hda_jack_keymap *keymap,
+			     hda_nid_t jack_nid);
+
+void snd_hda_jack_set_button_state(struct hda_codec *codec, hda_nid_t jack_nid,
+				   int button_state);
 
 u32 snd_hda_jack_pin_sense(struct hda_codec *codec, hda_nid_t nid, int dev_id);
 

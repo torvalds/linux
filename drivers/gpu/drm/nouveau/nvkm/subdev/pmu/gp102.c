@@ -23,7 +23,7 @@
  */
 #include "priv.h"
 
-static void
+void
 gp102_pmu_reset(struct nvkm_pmu *pmu)
 {
 	struct nvkm_device *device = pmu->subdev.device;
@@ -39,7 +39,7 @@ gp102_pmu_enabled(struct nvkm_pmu *pmu)
 
 static const struct nvkm_pmu_func
 gp102_pmu = {
-	.flcn = &gt215_pmu_flcn,
+	.flcn = &gm200_pmu_flcn,
 	.enabled = gp102_pmu_enabled,
 	.reset = gp102_pmu_reset,
 };
@@ -51,7 +51,8 @@ gp102_pmu_fwif[] = {
 };
 
 int
-gp102_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+gp102_pmu_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(gp102_pmu_fwif, device, index, ppmu);
+	return nvkm_pmu_new_(gp102_pmu_fwif, device, type, inst, ppmu);
 }

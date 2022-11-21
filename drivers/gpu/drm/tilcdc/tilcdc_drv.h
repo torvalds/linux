@@ -28,8 +28,10 @@ struct drm_plane;
 
 /* Defaulting to pixel clock defined on AM335x */
 #define TILCDC_DEFAULT_MAX_PIXELCLOCK  126000
-/* Defaulting to max width as defined on AM335x */
-#define TILCDC_DEFAULT_MAX_WIDTH  2048
+/* Maximum display width for LCDC V1 */
+#define TILCDC_DEFAULT_MAX_WIDTH_V1  1024
+/* ... and for LCDC V2 found on AM335x: */
+#define TILCDC_DEFAULT_MAX_WIDTH_V2  2048
 /*
  * This may need some tweaking, but want to allow at least 1280x1024@60
  * with optimized DDR & EMIF settings tweaked 1920x1080@24 appears to
@@ -43,6 +45,8 @@ struct tilcdc_drm_private {
 
 	struct clk *clk;         /* functional clock */
 	int rev;                 /* IP revision */
+
+	unsigned int irq;
 
 	/* don't attempt resolutions w/ higher W * H * Hz: */
 	uint32_t max_bandwidth;
@@ -80,6 +84,7 @@ struct tilcdc_drm_private {
 
 	bool is_registered;
 	bool is_componentized;
+	bool irq_enabled;
 };
 
 /* Sub-module for display.  Since we don't know at compile time what panels
@@ -158,7 +163,6 @@ void tilcdc_crtc_set_panel_info(struct drm_crtc *crtc,
 		const struct tilcdc_panel_info *info);
 void tilcdc_crtc_set_simulate_vesa_sync(struct drm_crtc *crtc,
 					bool simulate_vesa_sync);
-int tilcdc_crtc_max_width(struct drm_crtc *crtc);
 void tilcdc_crtc_shutdown(struct drm_crtc *crtc);
 int tilcdc_crtc_update_fb(struct drm_crtc *crtc,
 		struct drm_framebuffer *fb,

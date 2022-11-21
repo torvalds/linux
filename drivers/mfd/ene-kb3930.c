@@ -33,7 +33,7 @@ struct kb3930 {
 	struct gpio_descs *off_gpios;
 };
 
-struct kb3930 *kb3930_power_off;
+static struct kb3930 *kb3930_power_off;
 
 #define EC_GPIO_WAVE		0
 #define EC_GPIO_OFF_MODE	1
@@ -202,7 +202,7 @@ static struct i2c_driver kb3930_driver = {
 	.remove = kb3930_remove,
 	.driver = {
 		.name = "ene-kb3930",
-		.of_match_table = of_match_ptr(kb3930_dt_ids),
+		.of_match_table = kb3930_dt_ids,
 	},
 };
 module_i2c_driver(kb3930_driver);

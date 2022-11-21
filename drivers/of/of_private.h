@@ -8,6 +8,8 @@
  * Copyright (C) 1996-2005 Paul Mackerras.
  */
 
+#define FDT_ALIGN_SIZE 8
+
 /**
  * struct alias_prop - Alias property in 'aliases' node
  * @link:	List node to link the structure in aliases_lookup list
@@ -58,7 +60,7 @@ static inline int of_property_notify(int action, struct device_node *np,
 #endif /* CONFIG_OF_DYNAMIC */
 
 #if defined(CONFIG_OF_KOBJ)
-int of_node_is_attached(struct device_node *node);
+int of_node_is_attached(const struct device_node *node);
 int __of_add_property_sysfs(struct device_node *np, struct property *pp);
 void __of_remove_property_sysfs(struct device_node *np, struct property *prop);
 void __of_update_property_sysfs(struct device_node *np, struct property *newprop,
@@ -125,19 +127,11 @@ struct device_node *__of_find_node_by_full_path(struct device_node *node,
 extern const void *__of_get_property(const struct device_node *np,
 				     const char *name, int *lenp);
 extern int __of_add_property(struct device_node *np, struct property *prop);
-extern int __of_add_property_sysfs(struct device_node *np,
-		struct property *prop);
 extern int __of_remove_property(struct device_node *np, struct property *prop);
-extern void __of_remove_property_sysfs(struct device_node *np,
-		struct property *prop);
 extern int __of_update_property(struct device_node *np,
 		struct property *newprop, struct property **oldprop);
-extern void __of_update_property_sysfs(struct device_node *np,
-		struct property *newprop, struct property *oldprop);
 
-extern int __of_attach_node_sysfs(struct device_node *np);
 extern void __of_detach_node(struct device_node *np);
-extern void __of_detach_node_sysfs(struct device_node *np);
 
 extern void __of_sysfs_remove_bin_file(struct device_node *np,
 				       struct property *prop);
@@ -168,5 +162,9 @@ static inline int of_dma_get_range(struct device_node *np,
 	return -ENODEV;
 }
 #endif
+
+void fdt_init_reserved_mem(void);
+void fdt_reserved_mem_save_node(unsigned long node, const char *uname,
+			       phys_addr_t base, phys_addr_t size);
 
 #endif /* _LINUX_OF_PRIVATE_H */

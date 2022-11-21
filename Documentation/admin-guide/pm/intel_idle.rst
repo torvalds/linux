@@ -20,8 +20,8 @@ Nehalem and later generations of Intel processors, but the level of support for
 a particular processor model in it depends on whether or not it recognizes that
 processor model and may also depend on information coming from the platform
 firmware.  [To understand ``intel_idle`` it is necessary to know how ``CPUIdle``
-works in general, so this is the time to get familiar with :doc:`cpuidle` if you
-have not done that yet.]
+works in general, so this is the time to get familiar with
+Documentation/admin-guide/pm/cpuidle.rst if you have not done that yet.]
 
 ``intel_idle`` uses the ``MWAIT`` instruction to inform the processor that the
 logical CPU executing it is idle and so it may be possible to put some of the
@@ -53,7 +53,8 @@ processor) corresponding to them depends on the processor model and it may also
 depend on the configuration of the platform.
 
 In order to create a list of available idle states required by the ``CPUIdle``
-subsystem (see :ref:`idle-states-representation` in :doc:`cpuidle`),
+subsystem (see :ref:`idle-states-representation` in
+Documentation/admin-guide/pm/cpuidle.rst),
 ``intel_idle`` can use two sources of information: static tables of idle states
 for different processor models included in the driver itself and the ACPI tables
 of the system.  The former are always used if the processor model at hand is
@@ -98,7 +99,8 @@ states may not be enabled by default if there are no matching entries in the
 preliminary list of idle states coming from the ACPI tables.  In that case user
 space still can enable them later (on a per-CPU basis) with the help of
 the ``disable`` idle state attribute in ``sysfs`` (see
-:ref:`idle-states-representation` in :doc:`cpuidle`).  This basically means that
+:ref:`idle-states-representation` in
+Documentation/admin-guide/pm/cpuidle.rst).  This basically means that
 the idle states "known" to the driver may not be enabled by default if they have
 not been exposed by the platform firmware (through the ACPI tables).
 
@@ -186,7 +188,8 @@ be desirable.  In practice, it is only really necessary to do that if the idle
 states in question cannot be enabled during system startup, because in the
 working state of the system the CPU power management quality of service (PM
 QoS) feature can be used to prevent ``CPUIdle`` from touching those idle states
-even if they have been enumerated (see :ref:`cpu-pm-qos` in :doc:`cpuidle`).
+even if they have been enumerated (see :ref:`cpu-pm-qos` in
+Documentation/admin-guide/pm/cpuidle.rst).
 Setting ``max_cstate`` to 0 causes the ``intel_idle`` initialization to fail.
 
 The ``no_acpi`` and ``use_acpi`` module parameters (recognized by ``intel_idle``
@@ -202,7 +205,8 @@ Namely, the positions of the bits that are set in the ``states_off`` value are
 the indices of idle states to be disabled by default (as reflected by the names
 of the corresponding idle state directories in ``sysfs``, :file:`state0`,
 :file:`state1` ... :file:`state<i>` ..., where ``<i>`` is the index of the given
-idle state; see :ref:`idle-states-representation` in :doc:`cpuidle`).
+idle state; see :ref:`idle-states-representation` in
+Documentation/admin-guide/pm/cpuidle.rst).
 
 For example, if ``states_off`` is equal to 3, the driver will disable idle
 states 0 and 1 by default, and if it is equal to 8, idle state 3 will be

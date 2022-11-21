@@ -161,11 +161,13 @@ int
 gp102_acr_wpr_parse(struct nvkm_acr *acr)
 {
 	const struct wpr_header_v1 *hdr = (void *)acr->wpr_fw->data;
+	struct nvkm_acr_lsfw *lsfw;
 
 	while (hdr->falcon_id != WPR_HEADER_V1_FALCON_ID_INVALID) {
 		wpr_header_v1_dump(&acr->subdev, hdr);
-		if (!nvkm_acr_lsfw_add(NULL, acr, NULL, (hdr++)->falcon_id))
-			return -ENOMEM;
+		lsfw = nvkm_acr_lsfw_add(NULL, acr, NULL, (hdr++)->falcon_id);
+		if (IS_ERR(lsfw))
+			return PTR_ERR(lsfw);
 	}
 
 	return 0;
@@ -276,7 +278,8 @@ gp102_acr_fwif[] = {
 };
 
 int
-gp102_acr_new(struct nvkm_device *device, int index, struct nvkm_acr **pacr)
+gp102_acr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_acr **pacr)
 {
-	return nvkm_acr_new_(gp102_acr_fwif, device, index, pacr);
+	return nvkm_acr_new_(gp102_acr_fwif, device, type, inst, pacr);
 }

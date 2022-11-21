@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/cifsfs.h
  *
  *   Copyright (c) International Business Machines  Corp., 2002, 2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #ifndef _CIFSFS_H
@@ -62,19 +49,22 @@ extern void cifs_sb_deactive(struct super_block *sb);
 /* Functions related to inodes */
 extern const struct inode_operations cifs_dir_inode_ops;
 extern struct inode *cifs_root_iget(struct super_block *);
-extern int cifs_create(struct inode *, struct dentry *, umode_t,
-		       bool excl);
+extern int cifs_create(struct user_namespace *, struct inode *,
+		       struct dentry *, umode_t, bool excl);
 extern int cifs_atomic_open(struct inode *, struct dentry *,
 			    struct file *, unsigned, umode_t);
 extern struct dentry *cifs_lookup(struct inode *, struct dentry *,
 				  unsigned int);
 extern int cifs_unlink(struct inode *dir, struct dentry *dentry);
 extern int cifs_hardlink(struct dentry *, struct inode *, struct dentry *);
-extern int cifs_mknod(struct inode *, struct dentry *, umode_t, dev_t);
-extern int cifs_mkdir(struct inode *, struct dentry *, umode_t);
+extern int cifs_mknod(struct user_namespace *, struct inode *, struct dentry *,
+		      umode_t, dev_t);
+extern int cifs_mkdir(struct user_namespace *, struct inode *, struct dentry *,
+		      umode_t);
 extern int cifs_rmdir(struct inode *, struct dentry *);
-extern int cifs_rename2(struct inode *, struct dentry *, struct inode *,
-			struct dentry *, unsigned int);
+extern int cifs_rename2(struct user_namespace *, struct inode *,
+			struct dentry *, struct inode *, struct dentry *,
+			unsigned int);
 extern int cifs_revalidate_file_attr(struct file *filp);
 extern int cifs_revalidate_dentry_attr(struct dentry *);
 extern int cifs_revalidate_file(struct file *filp);
@@ -82,8 +72,10 @@ extern int cifs_revalidate_dentry(struct dentry *);
 extern int cifs_invalidate_mapping(struct inode *inode);
 extern int cifs_revalidate_mapping(struct inode *inode);
 extern int cifs_zap_mapping(struct inode *inode);
-extern int cifs_getattr(const struct path *, struct kstat *, u32, unsigned int);
-extern int cifs_setattr(struct dentry *, struct iattr *);
+extern int cifs_getattr(struct user_namespace *, const struct path *,
+			struct kstat *, u32, unsigned int);
+extern int cifs_setattr(struct user_namespace *, struct dentry *,
+			struct iattr *);
 extern int cifs_fiemap(struct inode *, struct fiemap_extent_info *, u64 start,
 		       u64 len);
 
@@ -132,8 +124,8 @@ extern struct vfsmount *cifs_dfs_d_automount(struct path *path);
 /* Functions related to symlinks */
 extern const char *cifs_get_link(struct dentry *, struct inode *,
 			struct delayed_call *);
-extern int cifs_symlink(struct inode *inode, struct dentry *direntry,
-			const char *symname);
+extern int cifs_symlink(struct user_namespace *mnt_userns, struct inode *inode,
+			struct dentry *direntry, const char *symname);
 
 #ifdef CONFIG_CIFS_XATTR
 extern const struct xattr_handler *cifs_xattr_handlers[];
@@ -152,9 +144,14 @@ extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 extern void cifs_setsize(struct inode *inode, loff_t offset);
 extern int cifs_truncate_page(struct address_space *mapping, loff_t from);
 
+struct smb3_fs_context;
+extern struct dentry *cifs_smb3_do_mount(struct file_system_type *fs_type,
+					 int flags, struct smb3_fs_context *ctx);
+
 #ifdef CONFIG_CIFS_NFSD_EXPORT
 extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
-#define CIFS_VERSION   "2.29"
+#define SMB3_PRODUCT_BUILD 35
+#define CIFS_VERSION   "2.36"
 #endif				/* _CIFSFS_H */

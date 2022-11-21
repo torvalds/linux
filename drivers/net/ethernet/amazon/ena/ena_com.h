@@ -124,7 +124,7 @@ struct ena_com_io_cq {
 
 	/* holds the number of cdesc of the current packet */
 	u16 cur_rx_pkt_cdesc_count;
-	/* save the firt cdesc idx of the current packet */
+	/* save the first cdesc idx of the current packet */
 	u16 cur_rx_pkt_cdesc_start_idx;
 
 	u16 q_depth;
@@ -303,6 +303,7 @@ struct ena_com_dev {
 	u8 __iomem *reg_bar;
 	void __iomem *mem_bar;
 	void *dmadev;
+	struct net_device *net_device;
 
 	enum ena_admin_placement_policy_type tx_mem_queue_type;
 	u32 tx_max_header_size;
@@ -313,6 +314,7 @@ struct ena_com_dev {
 
 	struct ena_rss rss;
 	u32 supported_features;
+	u32 capabilities;
 	u32 dma_addr_bits;
 
 	struct ena_host_attribute host_attr;
@@ -604,7 +606,7 @@ int ena_com_get_eni_stats(struct ena_com_dev *ena_dev,
  *
  * @return: 0 on Success and negative value otherwise.
  */
-int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu);
+int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, u32 mtu);
 
 /* ena_com_get_offload_settings - Retrieve the device offloads capabilities
  * @ena_dev: ENA communication layer struct
@@ -931,6 +933,26 @@ int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 			    struct ena_admin_feature_llq_desc *llq_features,
 			    struct ena_llq_configurations *llq_default_config);
 
+/* ena_com_io_sq_to_ena_dev - Extract ena_com_dev using contained field io_sq.
+ * @io_sq: IO submit queue struct
+ *
+ * @return - ena_com_dev struct extracted from io_sq
+ */
+static inline struct ena_com_dev *ena_com_io_sq_to_ena_dev(struct ena_com_io_sq *io_sq)
+{
+	return container_of(io_sq, struct ena_com_dev, io_sq_queues[io_sq->qid]);
+}
+
+/* ena_com_io_cq_to_ena_dev - Extract ena_com_dev using contained field io_cq.
+ * @io_sq: IO submit queue struct
+ *
+ * @return - ena_com_dev struct extracted from io_sq
+ */
+static inline struct ena_com_dev *ena_com_io_cq_to_ena_dev(struct ena_com_io_cq *io_cq)
+{
+	return container_of(io_cq, struct ena_com_dev, io_cq_queues[io_cq->qid]);
+}
+
 static inline bool ena_com_get_adaptive_moderation_enabled(struct ena_com_dev *ena_dev)
 {
 	return ena_dev->adaptive_coalescing;
@@ -944,6 +966,18 @@ static inline void ena_com_enable_adaptive_moderation(struct ena_com_dev *ena_de
 static inline void ena_com_disable_adaptive_moderation(struct ena_com_dev *ena_dev)
 {
 	ena_dev->adaptive_coalescing = false;
+}
+
+/* ena_com_get_cap - query whether device supports a capability.
+ * @ena_dev: ENA communication layer struct
+ * @cap_id: enum value representing the capability
+ *
+ * @return - true if capability is supported or false otherwise
+ */
+static inline bool ena_com_get_cap(struct ena_com_dev *ena_dev,
+				   enum ena_admin_aq_caps_id cap_id)
+{
+	return !!(ena_dev->capabilities & BIT(cap_id));
 }
 
 /* ena_com_update_intr_reg - Prepare interrupt register

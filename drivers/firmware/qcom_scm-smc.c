@@ -77,8 +77,10 @@ static void __scm_smc_do(const struct arm_smccc_args *smc,
 	}  while (res->a0 == QCOM_SCM_V2_EBUSY);
 }
 
-int scm_smc_call(struct device *dev, const struct qcom_scm_desc *desc,
-		 struct qcom_scm_res *res, bool atomic)
+
+int __scm_smc_call(struct device *dev, const struct qcom_scm_desc *desc,
+		   enum qcom_scm_convention qcom_convention,
+		   struct qcom_scm_res *res, bool atomic)
 {
 	int arglen = desc->arginfo & 0xf;
 	int i;
@@ -87,9 +89,8 @@ int scm_smc_call(struct device *dev, const struct qcom_scm_desc *desc,
 	size_t alloc_len;
 	gfp_t flag = atomic ? GFP_ATOMIC : GFP_KERNEL;
 	u32 smccc_call_type = atomic ? ARM_SMCCC_FAST_CALL : ARM_SMCCC_STD_CALL;
-	u32 qcom_smccc_convention =
-			(qcom_scm_convention == SMC_CONVENTION_ARM_32) ?
-			ARM_SMCCC_SMC_32 : ARM_SMCCC_SMC_64;
+	u32 qcom_smccc_convention = (qcom_convention == SMC_CONVENTION_ARM_32) ?
+				    ARM_SMCCC_SMC_32 : ARM_SMCCC_SMC_64;
 	struct arm_smccc_res smc_res;
 	struct arm_smccc_args smc = {0};
 
@@ -148,4 +149,5 @@ int scm_smc_call(struct device *dev, const struct qcom_scm_desc *desc,
 	}
 
 	return (long)smc_res.a0 ? qcom_scm_remap_error(smc_res.a0) : 0;
+
 }

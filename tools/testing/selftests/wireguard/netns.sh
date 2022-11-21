@@ -22,10 +22,12 @@
 # interfaces in $ns1 and $ns2. See https://www.wireguard.com/netns/ for further
 # details on how this is accomplished.
 set -e
+shopt -s extglob
 
 exec 3>&1
 export LANG=C
 export WG_HIDE_KEYS=never
+NPROC=( /sys/devices/system/cpu/cpu+([0-9]) ); NPROC=${#NPROC[@]}
 netns0="wg-test-$$-0"
 netns1="wg-test-$$-1"
 netns2="wg-test-$$-2"
@@ -39,7 +41,7 @@ ip0() { pretty 0 "ip $*"; ip -n $netns0 "$@"; }
 ip1() { pretty 1 "ip $*"; ip -n $netns1 "$@"; }
 ip2() { pretty 2 "ip $*"; ip -n $netns2 "$@"; }
 sleep() { read -t "$1" -N 1 || true; }
-waitiperf() { pretty "${1//*-}" "wait for iperf:5201 pid $2"; while [[ $(ss -N "$1" -tlpH 'sport = 5201') != *\"iperf3\",pid=$2,fd=* ]]; do sleep 0.1; done; }
+waitiperf() { pretty "${1//*-}" "wait for iperf:${3:-5201} pid $2"; while [[ $(ss -N "$1" -tlpH "sport = ${3:-5201}") != *\"iperf3\",pid=$2,fd=* ]]; do sleep 0.1; done; }
 waitncatudp() { pretty "${1//*-}" "wait for udp:1111 pid $2"; while [[ $(ss -N "$1" -ulpH 'sport = 1111') != *\"ncat\",pid=$2,fd=* ]]; do sleep 0.1; done; }
 waitiface() { pretty "${1//*-}" "wait for $2 to come up"; ip netns exec "$1" bash -c "while [[ \$(< \"/sys/class/net/$2/operstate\") != up ]]; do read -t .1 -N 0 || true; done;"; }
 
@@ -141,6 +143,17 @@ tests() {
 	n2 iperf3 -s -1 -B fd00::2 &
 	waitiperf $netns2 $!
 	n1 iperf3 -Z -t 3 -b 0 -u -c fd00::2
+
+	# TCP over IPv4, in parallel
+	local pids=( ) i
+	for ((i=0; i < NPROC; ++i)) do
+		n2 iperf3 -p $(( 5200 + i )) -s -1 -B 192.168.241.2 &
+		pids+=( $! ); waitiperf $netns2 $! $(( 5200 + i ))
+	done
+	for ((i=0; i < NPROC; ++i)) do
+		n1 iperf3 -Z -t 3 -p $(( 5200 + i )) -c 192.168.241.2 &
+	done
+	wait "${pids[@]}"
 }
 
 [[ $(ip1 link show dev wg0) =~ mtu\ ([0-9]+) ]] && orig_mtu="${BASH_REMATCH[1]}"
@@ -263,7 +276,23 @@ n0 ping -W 1 -c 1 192.168.241.2
 n1 wg set wg0 peer "$pub2" endpoint 192.168.241.2:7
 ip2 link del wg0
 ip2 link del wg1
-! n0 ping -W 1 -c 10 -f 192.168.241.2 || false # Should not crash kernel
+read _ _ tx_bytes_before < <(n0 wg show wg1 transfer)
+! n0 ping -W 1 -c 10 -f 192.168.241.2 || false
+sleep 1
+read _ _ tx_bytes_after < <(n0 wg show wg1 transfer)
+if ! (( tx_bytes_after - tx_bytes_before < 70000 )); then
+	errstart=$'\x1b[37m\x1b[41m\x1b[1m'
+	errend=$'\x1b[0m'
+	echo "${errstart}                                                ${errend}"
+	echo "${errstart}                   E  R  R  O  R                ${errend}"
+	echo "${errstart}                                                ${errend}"
+	echo "${errstart} This architecture does not do the right thing  ${errend}"
+	echo "${errstart} with cross-namespace routing loops. This test  ${errend}"
+	echo "${errstart} has thus technically failed but, as this issue ${errend}"
+	echo "${errstart} is as yet unsolved, these tests will continue  ${errend}"
+	echo "${errstart} onward. :(                                     ${errend}"
+	echo "${errstart}                                                ${errend}"
+fi
 
 ip0 link del wg1
 ip1 link del wg0
@@ -350,6 +379,7 @@ ip1 -6 rule add table main suppress_prefixlength 0
 ip1 -4 route add default dev wg0 table 51820
 ip1 -4 rule add not fwmark 51820 table 51820
 ip1 -4 rule add table main suppress_prefixlength 0
+n1 bash -c 'printf 0 > /proc/sys/net/ipv4/conf/vethc/rp_filter'
 # Flood the pings instead of sending just one, to trigger routing table reference counting bugs.
 n1 ping -W 1 -c 100 -f 192.168.99.7
 n1 ping -W 1 -c 100 -f abab::1111
@@ -595,6 +625,28 @@ ip0 link set wg0 up
 kill $ncat_pid
 ip0 link del wg0
 
+# Ensure that dst_cache references don't outlive netns lifetime
+ip1 link add dev wg0 type wireguard
+ip2 link add dev wg0 type wireguard
+configure_peers
+ip1 link add veth1 type veth peer name veth2
+ip1 link set veth2 netns $netns2
+ip1 addr add fd00:aa::1/64 dev veth1
+ip2 addr add fd00:aa::2/64 dev veth2
+ip1 link set veth1 up
+ip2 link set veth2 up
+waitiface $netns1 veth1
+waitiface $netns2 veth2
+ip1 -6 route add default dev veth1 via fd00:aa::2
+ip2 -6 route add default dev veth2 via fd00:aa::1
+n1 wg set wg0 peer "$pub2" endpoint [fd00:aa::2]:2
+n2 wg set wg0 peer "$pub1" endpoint [fd00:aa::1]:1
+n1 ping6 -c 1 fd00::2
+pp ip netns delete $netns1
+pp ip netns delete $netns2
+pp ip netns add $netns1
+pp ip netns add $netns2
+
 # Ensure there aren't circular reference loops
 ip1 link add wg1 type wireguard
 ip2 link add wg2 type wireguard
@@ -613,7 +665,7 @@ while read -t 0.1 -r line 2>/dev/null || [[ $? -ne 142 ]]; do
 done < /dev/kmsg
 alldeleted=1
 for object in "${!objects[@]}"; do
-	if [[ ${objects["$object"]} != *createddestroyed ]]; then
+	if [[ ${objects["$object"]} != *createddestroyed && ${objects["$object"]} != *createdcreateddestroyeddestroyed ]]; then
 		echo "Error: $object: merely ${objects["$object"]}" >&3
 		alldeleted=0
 	fi

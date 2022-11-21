@@ -206,6 +206,15 @@ static const struct s3c_adc_bat_thresh bat_lut_acin[] = {
 	{ .volt = 3820, .cur = 0, .level = 0},
 };
 
+static struct gpiod_lookup_table rx1950_bat_gpio_table = {
+	.dev_id = "s3c-adc-battery",
+	.table = {
+		/* Charge status S3C2410_GPF(3) */
+		GPIO_LOOKUP("GPIOF", 3, "charge-status", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static int rx1950_bat_init(void)
 {
 	int ret;
@@ -262,7 +271,6 @@ static int rx1950_led_blink_set(struct gpio_desc *desc, int state,
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	if (delay_on && delay_off && !*delay_on && !*delay_off)
@@ -331,7 +339,6 @@ static struct s3c_adc_bat_pdata rx1950_bat_cfg = {
 	.exit = rx1950_bat_exit,
 	.enable_charger = rx1950_enable_charger,
 	.disable_charger = rx1950_disable_charger,
-	.gpio_charge_finished = S3C2410_GPF(3),
 	.lut_noac = bat_lut_noac,
 	.lut_noac_cnt = ARRAY_SIZE(bat_lut_noac),
 	.lut_acin = bat_lut_acin,
@@ -375,6 +382,8 @@ static struct s3c2410fb_mach_info rx1950_lcd_cfg = {
 
 static struct pwm_lookup rx1950_pwm_lookup[] = {
 	PWM_LOOKUP("samsung-pwm", 0, "pwm-backlight.0", NULL, 48000,
+		   PWM_POLARITY_NORMAL),
+	PWM_LOOKUP("samsung-pwm", 1, "pwm-backlight.0", "RX1950 LCD", LCD_PWM_PERIOD,
 		   PWM_POLARITY_NORMAL),
 };
 
@@ -490,19 +499,18 @@ static void rx1950_bl_power(int enable)
 static int rx1950_backlight_init(struct device *dev)
 {
 	WARN_ON(gpio_request(S3C2410_GPB(0), "Backlight"));
-	lcd_pwm = pwm_request(1, "RX1950 LCD");
+	lcd_pwm = pwm_get(dev, "RX1950 LCD");
 	if (IS_ERR(lcd_pwm)) {
 		dev_err(dev, "Unable to request PWM for LCD power!\n");
 		return PTR_ERR(lcd_pwm);
 	}
 
 	/*
-	 * This is only required to initialize .polarity; all other values are
-	 * fixed in this driver.
+	 * Call pwm_init_state to initialize .polarity and .period. The other
+	 * values are fixed in this driver.
 	 */
 	pwm_init_state(lcd_pwm, &lcd_pwm_state);
 
-	lcd_pwm_state.period = LCD_PWM_PERIOD;
 	lcd_pwm_state.duty_cycle = LCD_PWM_DUTY;
 
 	rx1950_lcd_power(1);
@@ -516,7 +524,7 @@ static void rx1950_backlight_exit(struct device *dev)
 	rx1950_bl_power(0);
 	rx1950_lcd_power(0);
 
-	pwm_free(lcd_pwm);
+	pwm_put(lcd_pwm);
 	gpio_free(S3C2410_GPB(0));
 }
 
@@ -840,6 +848,7 @@ static void __init rx1950_init_machine(void)
 
 	pwm_add_table(rx1950_pwm_lookup, ARRAY_SIZE(rx1950_pwm_lookup));
 	gpiod_add_lookup_table(&rx1950_audio_gpio_table);
+	gpiod_add_lookup_table(&rx1950_bat_gpio_table);
 	/* Configure the I2S pins (GPE0...GPE4) in correct mode */
 	s3c_gpio_cfgall_range(S3C2410_GPE(0), 5, S3C_GPIO_SFN(2),
 			      S3C_GPIO_PULL_NONE);

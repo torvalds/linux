@@ -1195,7 +1195,7 @@ out:
 	return err;
 }
 
-static int libertas_spi_remove(struct spi_device *spi)
+static void libertas_spi_remove(struct spi_device *spi)
 {
 	struct if_spi_card *card = spi_get_drvdata(spi);
 	struct lbs_private *priv = card->priv;
@@ -1212,8 +1212,6 @@ static int libertas_spi_remove(struct spi_device *spi)
 	if (card->pdata->teardown)
 		card->pdata->teardown(spi);
 	free_if_spi_card(card);
-
-	return 0;
 }
 
 static int if_spi_suspend(struct device *dev)

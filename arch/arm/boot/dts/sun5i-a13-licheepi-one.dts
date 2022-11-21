@@ -66,18 +66,18 @@
 	leds {
 		compatible = "gpio-leds";
 
-		red {
+		led-0 {
 			label ="licheepi:red:usr";
 			gpios = <&pio 2 5 GPIO_ACTIVE_LOW>;
 		};
 
-		green {
+		led-1 {
 			label ="licheepi:green:usr";
 			gpios = <&pio 2 19 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
-		blue {
+		led-2 {
 			label ="licheepi:blue:usr";
 			gpios = <&pio 2 4 GPIO_ACTIVE_LOW>;
 		};

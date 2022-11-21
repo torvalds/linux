@@ -30,16 +30,15 @@ static int generate_ip_tun_hdr(char buf[],
 			       struct mlx5e_encap_entry *r)
 {
 	const struct ip_tunnel_key *tun_key = &r->tun_info->key;
+	const struct mlx5e_mpls_info *mpls_info = &r->mpls_info;
 	struct udphdr *udp = (struct udphdr *)(buf);
 	struct mpls_shim_hdr *mpls;
-	u32 tun_id;
 
-	tun_id = be32_to_cpu(tunnel_id_to_key32(tun_key->tun_id));
 	mpls = (struct mpls_shim_hdr *)(udp + 1);
 	*ip_proto = IPPROTO_UDP;
 
 	udp->dest = tun_key->tp_dst;
-	*mpls = mpls_entry_encode(tun_id, tun_key->ttl, tun_key->tos, true);
+	*mpls = mpls_entry_encode(mpls_info->label, mpls_info->ttl, mpls_info->tc, mpls_info->bos);
 
 	return 0;
 }
@@ -60,36 +59,30 @@ static int parse_tunnel(struct mlx5e_priv *priv,
 			void *headers_v)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
-	struct flow_match_enc_keyid enc_keyid;
 	struct flow_match_mpls match;
 	void *misc2_c;
 	void *misc2_v;
 
-	misc2_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
-			       misc_parameters_2);
-	misc2_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
-			       misc_parameters_2);
+	if (!MLX5_CAP_ETH(priv->mdev, tunnel_stateless_mpls_over_udp) &&
+	    !(MLX5_CAP_GEN(priv->mdev, flex_parser_protocols) & MLX5_FLEX_PROTO_CW_MPLS_UDP))
+		return -EOPNOTSUPP;
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID))
+		return -EOPNOTSUPP;
 
 	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_MPLS))
 		return 0;
-
-	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID))
-		return 0;
-
-	flow_rule_match_enc_keyid(rule, &enc_keyid);
-
-	if (!enc_keyid.mask->keyid)
-		return 0;
-
-	if (!(MLX5_CAP_GEN(priv->mdev, flex_parser_protocols) &
-	      MLX5_FLEX_PROTO_CW_MPLS_UDP))
-		return -EOPNOTSUPP;
 
 	flow_rule_match_mpls(rule, &match);
 
 	/* Only support matching the first LSE */
 	if (match.mask->used_lses != 1)
 		return -EOPNOTSUPP;
+
+	misc2_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+			       misc_parameters_2);
+	misc2_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+			       misc_parameters_2);
 
 	MLX5_SET(fte_match_set_misc2, misc2_c,
 		 outer_first_mpls_over_udp.mpls_label,
@@ -131,4 +124,5 @@ struct mlx5e_tc_tunnel mplsoudp_tunnel = {
 	.generate_ip_tun_hdr  = generate_ip_tun_hdr,
 	.parse_udp_ports      = parse_udp_ports,
 	.parse_tunnel         = parse_tunnel,
+	.encap_info_equal     = mlx5e_tc_tun_encap_info_equal_generic,
 };

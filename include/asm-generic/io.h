@@ -942,7 +942,9 @@ static inline void *phys_to_virt(unsigned long address)
  *
  * ioremap_wc() and ioremap_wt() can provide more relaxed caching attributes
  * for specific drivers if the architecture choses to implement them.  If they
- * are not implemented we fall back to plain ioremap.
+ * are not implemented we fall back to plain ioremap. Conversely, ioremap_np()
+ * can provide stricter non-posted write semantics if the architecture
+ * implements them.
  */
 #ifndef CONFIG_MMU
 #ifndef ioremap
@@ -955,7 +957,7 @@ static inline void __iomem *ioremap(phys_addr_t offset, size_t size)
 
 #ifndef iounmap
 #define iounmap iounmap
-static inline void iounmap(void __iomem *addr)
+static inline void iounmap(volatile void __iomem *addr)
 {
 }
 #endif
@@ -995,6 +997,23 @@ static inline void __iomem *ioremap_uc(phys_addr_t offset, size_t size)
 }
 #endif
 
+/*
+ * ioremap_np needs an explicit architecture implementation, as it
+ * requests stronger semantics than regular ioremap(). Portable drivers
+ * should instead use one of the higher-level abstractions, like
+ * devm_ioremap_resource(), to choose the correct variant for any given
+ * device and bus. Portable drivers with a good reason to want non-posted
+ * write semantics should always provide an ioremap() fallback in case
+ * ioremap_np() is not available.
+ */
+#ifndef ioremap_np
+#define ioremap_np ioremap_np
+static inline void __iomem *ioremap_np(phys_addr_t offset, size_t size)
+{
+	return NULL;
+}
+#endif
+
 #ifdef CONFIG_HAS_IOPORT_MAP
 #ifndef CONFIG_GENERIC_IOMAP
 #ifndef ioport_map
@@ -1004,16 +1023,7 @@ static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
 	port &= IO_SPACE_LIMIT;
 	return (port > MMIO_UPPER_LIMIT) ? NULL : PCI_IOBASE + port;
 }
-#define __pci_ioport_unmap __pci_ioport_unmap
-static inline void __pci_ioport_unmap(void __iomem *p)
-{
-	uintptr_t start = (uintptr_t) PCI_IOBASE;
-	uintptr_t addr = (uintptr_t) p;
-
-	if (addr >= start && addr < start + IO_SPACE_LIMIT)
-		return;
-	iounmap(p);
-}
+#define ARCH_HAS_GENERIC_IOPORT_MAP
 #endif
 
 #ifndef ioport_unmap
@@ -1029,31 +1039,9 @@ extern void ioport_unmap(void __iomem *p);
 #endif /* CONFIG_HAS_IOPORT_MAP */
 
 #ifndef CONFIG_GENERIC_IOMAP
-struct pci_dev;
-extern void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max);
-
-#ifndef __pci_ioport_unmap
-static inline void __pci_ioport_unmap(void __iomem *p) {}
-#endif
-
 #ifndef pci_iounmap
-#define pci_iounmap pci_iounmap
-static inline void pci_iounmap(struct pci_dev *dev, void __iomem *p)
-{
-	__pci_ioport_unmap(p);
-}
+#define ARCH_WANTS_GENERIC_PCI_IOUNMAP
 #endif
-#endif /* CONFIG_GENERIC_IOMAP */
-
-/*
- * Convert a virtual cached pointer to an uncached pointer
- */
-#ifndef xlate_dev_kmem_ptr
-#define xlate_dev_kmem_ptr xlate_dev_kmem_ptr
-static inline void *xlate_dev_kmem_ptr(void *addr)
-{
-	return addr;
-}
 #endif
 
 #ifndef xlate_dev_mem_ptr
@@ -1135,6 +1123,10 @@ static inline void memcpy_toio(volatile void __iomem *addr, const void *buffer,
 {
 	memcpy(__io_virt(addr), buffer, size);
 }
+#endif
+
+#ifndef CONFIG_GENERIC_DEVMEM_IS_ALLOWED
+extern int devmem_is_allowed(unsigned long pfn);
 #endif
 
 #endif /* __KERNEL__ */

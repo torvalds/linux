@@ -41,6 +41,76 @@ static int example_test_init(struct kunit *test)
 }
 
 /*
+ * This test should always be skipped.
+ */
+static void example_skip_test(struct kunit *test)
+{
+	/* This line should run */
+	kunit_info(test, "You should not see a line below.");
+
+	/* Skip (and abort) the test */
+	kunit_skip(test, "this test should be skipped");
+
+	/* This line should not execute */
+	KUNIT_FAIL(test, "You should not see this line.");
+}
+
+/*
+ * This test should always be marked skipped.
+ */
+static void example_mark_skipped_test(struct kunit *test)
+{
+	/* This line should run */
+	kunit_info(test, "You should see a line below.");
+
+	/* Skip (but do not abort) the test */
+	kunit_mark_skipped(test, "this test should be skipped");
+
+	/* This line should run */
+	kunit_info(test, "You should see this line.");
+}
+
+/*
+ * This test shows off all the types of KUNIT_EXPECT macros.
+ */
+static void example_all_expect_macros_test(struct kunit *test)
+{
+	/* Boolean assertions */
+	KUNIT_EXPECT_TRUE(test, true);
+	KUNIT_EXPECT_FALSE(test, false);
+
+	/* Integer assertions */
+	KUNIT_EXPECT_EQ(test, 1, 1); /* check == */
+	KUNIT_EXPECT_GE(test, 1, 1); /* check >= */
+	KUNIT_EXPECT_LE(test, 1, 1); /* check <= */
+	KUNIT_EXPECT_NE(test, 1, 0); /* check != */
+	KUNIT_EXPECT_GT(test, 1, 0); /* check >  */
+	KUNIT_EXPECT_LT(test, 0, 1); /* check <  */
+
+	/* Pointer assertions */
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, test);
+	KUNIT_EXPECT_PTR_EQ(test, NULL, NULL);
+	KUNIT_EXPECT_PTR_NE(test, test, NULL);
+
+	/* String assertions */
+	KUNIT_EXPECT_STREQ(test, "hi", "hi");
+	KUNIT_EXPECT_STRNEQ(test, "hi", "bye");
+
+	/*
+	 * There are also ASSERT variants of all of the above that abort test
+	 * execution if they fail. Useful for memory allocations, etc.
+	 */
+	KUNIT_ASSERT_GT(test, sizeof(char), 0);
+
+	/*
+	 * There are also _MSG variants of all of the above that let you include
+	 * additional text on failure.
+	 */
+	KUNIT_EXPECT_GT_MSG(test, sizeof(int), 0, "Your ints are 0-bit?!");
+	KUNIT_ASSERT_GT_MSG(test, sizeof(int), 0, "Your ints are 0-bit?!");
+}
+
+/*
  * Here we make a list of all the test cases we want to add to the test suite
  * below.
  */
@@ -52,6 +122,9 @@ static struct kunit_case example_test_cases[] = {
 	 * test suite.
 	 */
 	KUNIT_CASE(example_simple_test),
+	KUNIT_CASE(example_skip_test),
+	KUNIT_CASE(example_mark_skipped_test),
+	KUNIT_CASE(example_all_expect_macros_test),
 	{}
 };
 

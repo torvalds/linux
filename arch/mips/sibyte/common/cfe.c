@@ -7,7 +7,6 @@
 #include <linux/kernel.h>
 #include <linux/linkage.h>
 #include <linux/mm.h>
-#include <linux/blkdev.h>
 #include <linux/memblock.h>
 #include <linux/pm.h>
 #include <linux/smp.h>
@@ -314,11 +313,6 @@ void __init prom_init(void)
 #if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
 	register_smp_ops(&bcm1480_smp_ops);
 #endif
-}
-
-void __init prom_free_prom_memory(void)
-{
-	/* Not sure what I'm supposed to do here.  Nothing, I think */
 }
 
 void prom_putchar(char c)

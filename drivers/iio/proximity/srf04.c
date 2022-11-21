@@ -100,9 +100,11 @@ static int srf04_read(struct srf04_data *data)
 	u64 dt_ns;
 	u32 time_ns, distance_mm;
 
-	if (data->gpiod_power)
-		pm_runtime_get_sync(data->dev);
-
+	if (data->gpiod_power) {
+		ret = pm_runtime_resume_and_get(data->dev);
+		if (ret < 0)
+			return ret;
+	}
 	/*
 	 * just one read-echo-cycle can take place at a time
 	 * ==> lock against concurrent reading calls
@@ -233,12 +235,12 @@ static const struct iio_chan_spec srf04_chan_spec[] = {
 };
 
 static const struct of_device_id of_srf04_match[] = {
-	{ .compatible = "devantech,srf04", .data = &srf04_cfg},
-	{ .compatible = "maxbotix,mb1000", .data = &mb_lv_cfg},
-	{ .compatible = "maxbotix,mb1010", .data = &mb_lv_cfg},
-	{ .compatible = "maxbotix,mb1020", .data = &mb_lv_cfg},
-	{ .compatible = "maxbotix,mb1030", .data = &mb_lv_cfg},
-	{ .compatible = "maxbotix,mb1040", .data = &mb_lv_cfg},
+	{ .compatible = "devantech,srf04", .data = &srf04_cfg },
+	{ .compatible = "maxbotix,mb1000", .data = &mb_lv_cfg },
+	{ .compatible = "maxbotix,mb1010", .data = &mb_lv_cfg },
+	{ .compatible = "maxbotix,mb1020", .data = &mb_lv_cfg },
+	{ .compatible = "maxbotix,mb1030", .data = &mb_lv_cfg },
+	{ .compatible = "maxbotix,mb1040", .data = &mb_lv_cfg },
 	{},
 };
 

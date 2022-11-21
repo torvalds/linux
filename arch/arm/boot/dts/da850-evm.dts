@@ -278,7 +278,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1_pins &spi1_cs0_pin>;
-	flash: m25p80@0 {
+	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";

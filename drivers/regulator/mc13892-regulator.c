@@ -582,8 +582,8 @@ static int mc13892_regulator_probe(struct platform_device *pdev)
 	/* update mc13892_vcam ops */
 	memcpy(&mc13892_vcam_ops, mc13892_regulators[MC13892_VCAM].desc.ops,
 						sizeof(struct regulator_ops));
-	mc13892_vcam_ops.set_mode = mc13892_vcam_set_mode,
-	mc13892_vcam_ops.get_mode = mc13892_vcam_get_mode,
+	mc13892_vcam_ops.set_mode = mc13892_vcam_set_mode;
+	mc13892_vcam_ops.get_mode = mc13892_vcam_get_mode;
 	mc13892_regulators[MC13892_VCAM].desc.ops = &mc13892_vcam_ops;
 
 	mc13xxx_data = mc13xxx_parse_regulators_dt(pdev, mc13892_regulators,

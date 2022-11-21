@@ -17,6 +17,7 @@ static void snd_hdac_bus_process_unsol_events(struct work_struct *work);
 static const struct hdac_bus_ops default_ops = {
 	.command = snd_hdac_bus_send_cmd,
 	.get_response = snd_hdac_bus_get_response,
+	.link_power = snd_hdac_bus_link_power,
 };
 
 /**
@@ -264,3 +265,25 @@ void snd_hdac_aligned_write(unsigned int val, void __iomem *addr,
 }
 EXPORT_SYMBOL_GPL(snd_hdac_aligned_write);
 #endif /* CONFIG_SND_HDA_ALIGNED_MMIO */
+
+void snd_hdac_codec_link_up(struct hdac_device *codec)
+{
+	struct hdac_bus *bus = codec->bus;
+
+	if (bus->ops->link_power)
+		bus->ops->link_power(codec, true);
+	else
+		snd_hdac_bus_link_power(codec, true);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_codec_link_up);
+
+void snd_hdac_codec_link_down(struct hdac_device *codec)
+{
+	struct hdac_bus *bus = codec->bus;
+
+	if (bus->ops->link_power)
+		bus->ops->link_power(codec, false);
+	else
+		snd_hdac_bus_link_power(codec, false);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_codec_link_down);

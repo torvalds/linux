@@ -14,7 +14,7 @@ mt76x2_start(struct ieee80211_hw *hw)
 	mt76x02_mac_start(dev);
 	mt76x2_phy_start(dev);
 
-	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mphy.mac_work,
 				     MT_MAC_WORK_INTERVAL);
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->wdt_work,
 				     MT_WATCHDOG_TIME);
@@ -78,8 +78,12 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		dev->txpower_conf = hw->conf.power_level * 2;
+		struct mt76_phy *mphy = &dev->mphy;
 
+		dev->txpower_conf = hw->conf.power_level * 2;
+		dev->txpower_conf = mt76_get_sar_power(mphy,
+						       mphy->chandef.chan,
+						       dev->txpower_conf);
 		/* convert to per-chain power for 2x2 devices */
 		dev->txpower_conf -= 6;
 
@@ -116,7 +120,7 @@ static int mt76x2_set_antenna(struct ieee80211_hw *hw, u32 tx_ant,
 
 	mutex_lock(&dev->mt76.mutex);
 
-	dev->chainmask = (tx_ant == 3) ? 0x202 : 0x101;
+	dev->mphy.chainmask = (tx_ant == 3) ? 0x202 : 0x101;
 	dev->mphy.antenna_mask = tx_ant;
 
 	mt76_set_stream_caps(&dev->mphy, true);
@@ -155,5 +159,6 @@ const struct ieee80211_ops mt76x2_ops = {
 	.get_antenna = mt76_get_antenna,
 	.set_rts_threshold = mt76x02_set_rts_threshold,
 	.reconfig_complete = mt76x02_reconfig_complete,
+	.set_sar_specs = mt76x2_set_sar_specs,
 };
 

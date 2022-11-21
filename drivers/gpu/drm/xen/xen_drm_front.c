@@ -381,6 +381,23 @@ void xen_drm_front_on_frame_done(struct xen_drm_front_info *front_info,
 					fb_cookie);
 }
 
+void xen_drm_front_gem_object_free(struct drm_gem_object *obj)
+{
+	struct xen_drm_front_drm_info *drm_info = obj->dev->dev_private;
+	int idx;
+
+	if (drm_dev_enter(obj->dev, &idx)) {
+		xen_drm_front_dbuf_destroy(drm_info->front_info,
+					   xen_drm_front_dbuf_to_cookie(obj));
+		drm_dev_exit(idx);
+	} else {
+		dbuf_free(&drm_info->front_info->dbuf_list,
+			  xen_drm_front_dbuf_to_cookie(obj));
+	}
+
+	xen_drm_front_gem_free_object_unlocked(obj);
+}
+
 static int xen_drm_drv_dumb_create(struct drm_file *filp,
 				   struct drm_device *dev,
 				   struct drm_mode_create_dumb *args)
@@ -435,23 +452,6 @@ fail:
 	return ret;
 }
 
-static void xen_drm_drv_free_object_unlocked(struct drm_gem_object *obj)
-{
-	struct xen_drm_front_drm_info *drm_info = obj->dev->dev_private;
-	int idx;
-
-	if (drm_dev_enter(obj->dev, &idx)) {
-		xen_drm_front_dbuf_destroy(drm_info->front_info,
-					   xen_drm_front_dbuf_to_cookie(obj));
-		drm_dev_exit(idx);
-	} else {
-		dbuf_free(&drm_info->front_info->dbuf_list,
-			  xen_drm_front_dbuf_to_cookie(obj));
-	}
-
-	xen_drm_front_gem_free_object_unlocked(obj);
-}
-
 static void xen_drm_drv_release(struct drm_device *dev)
 {
 	struct xen_drm_front_drm_info *drm_info = dev->dev_private;
@@ -469,37 +469,15 @@ static void xen_drm_drv_release(struct drm_device *dev)
 	kfree(drm_info);
 }
 
-static const struct file_operations xen_drm_dev_fops = {
-	.owner          = THIS_MODULE,
-	.open           = drm_open,
-	.release        = drm_release,
-	.unlocked_ioctl = drm_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl   = drm_compat_ioctl,
-#endif
-	.poll           = drm_poll,
-	.read           = drm_read,
-	.llseek         = no_llseek,
-	.mmap           = xen_drm_front_gem_mmap,
-};
+DEFINE_DRM_GEM_FOPS(xen_drm_dev_fops);
 
-static const struct vm_operations_struct xen_drm_drv_vm_ops = {
-	.open           = drm_gem_vm_open,
-	.close          = drm_gem_vm_close,
-};
-
-static struct drm_driver xen_drm_driver = {
+static const struct drm_driver xen_drm_driver = {
 	.driver_features           = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.release                   = xen_drm_drv_release,
-	.gem_vm_ops                = &xen_drm_drv_vm_ops,
-	.gem_free_object_unlocked  = xen_drm_drv_free_object_unlocked,
 	.prime_handle_to_fd        = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle        = drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = xen_drm_front_gem_import_sg_table,
-	.gem_prime_get_sg_table    = xen_drm_front_gem_get_sg_table,
-	.gem_prime_vmap            = xen_drm_front_gem_prime_vmap,
-	.gem_prime_vunmap          = xen_drm_front_gem_prime_vunmap,
-	.gem_prime_mmap            = xen_drm_front_gem_prime_mmap,
+	.gem_prime_mmap            = drm_gem_prime_mmap,
 	.dumb_create               = xen_drm_drv_dumb_create,
 	.fops                      = &xen_drm_dev_fops,
 	.name                      = "xendrm-du",
@@ -517,6 +495,9 @@ static int xen_drm_drv_init(struct xen_drm_front_info *front_info)
 	struct drm_device *drm_dev;
 	int ret;
 
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	DRM_INFO("Creating %s\n", xen_drm_driver.desc);
 
 	drm_info = kzalloc(sizeof(*drm_info), GFP_KERNEL);
@@ -531,7 +512,7 @@ static int xen_drm_drv_init(struct xen_drm_front_info *front_info)
 	drm_dev = drm_dev_alloc(&xen_drm_driver, dev);
 	if (IS_ERR(drm_dev)) {
 		ret = PTR_ERR(drm_dev);
-		goto fail;
+		goto fail_dev;
 	}
 
 	drm_info->drm_dev = drm_dev;
@@ -561,8 +542,10 @@ fail_modeset:
 	drm_kms_helper_poll_fini(drm_dev);
 	drm_mode_config_cleanup(drm_dev);
 	drm_dev_put(drm_dev);
-fail:
+fail_dev:
 	kfree(drm_info);
+	front_info->drm_info = NULL;
+fail:
 	return ret;
 }
 
@@ -781,6 +764,7 @@ static struct xenbus_driver xen_driver = {
 	.probe = xen_drv_probe,
 	.remove = xen_drv_remove,
 	.otherend_changed = displback_changed,
+	.not_essential = true,
 };
 
 static int __init xen_drv_init(void)

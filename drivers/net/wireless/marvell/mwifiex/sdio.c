@@ -2639,7 +2639,7 @@ static void mwifiex_sdio_card_reset_work(struct mwifiex_adapter *adapter)
 
 	/* Run a HW reset of the SDIO interface. */
 	sdio_claim_host(func);
-	ret = mmc_hw_reset(func->card->host);
+	ret = mmc_hw_reset(func->card);
 	sdio_release_host(func);
 
 	switch (ret) {

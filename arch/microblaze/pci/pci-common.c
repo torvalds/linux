@@ -165,55 +165,6 @@ int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma)
 	return 0;
 }
 
-/*
- * This one is used by /dev/mem and fbdev who have no clue about the
- * PCI device, it tries to find the PCI device first and calls the
- * above routine
- */
-pgprot_t pci_phys_mem_access_prot(struct file *file,
-				  unsigned long pfn,
-				  unsigned long size,
-				  pgprot_t prot)
-{
-	struct pci_dev *pdev = NULL;
-	struct resource *found = NULL;
-	resource_size_t offset = ((resource_size_t)pfn) << PAGE_SHIFT;
-	int i;
-
-	if (page_is_ram(pfn))
-		return prot;
-
-	prot = pgprot_noncached(prot);
-	for_each_pci_dev(pdev) {
-		for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
-			struct resource *rp = &pdev->resource[i];
-			int flags = rp->flags;
-
-			/* Active and same type? */
-			if ((flags & IORESOURCE_MEM) == 0)
-				continue;
-			/* In the range of this resource? */
-			if (offset < (rp->start & PAGE_MASK) ||
-			    offset > rp->end)
-				continue;
-			found = rp;
-			break;
-		}
-		if (found)
-			break;
-	}
-	if (found) {
-		if (found->flags & IORESOURCE_PREFETCH)
-			prot = pgprot_noncached_wc(prot);
-		pci_dev_put(pdev);
-	}
-
-	pr_debug("PCI: Non-PCI map for %llx, prot: %lx\n",
-		 (unsigned long long)offset, pgprot_val(prot));
-
-	return prot;
-}
-
 /* This provides legacy IO read access on a bus */
 int pci_legacy_read(struct pci_bus *bus, loff_t port, u32 *val, size_t size)
 {
@@ -325,12 +276,10 @@ int pci_mmap_legacy_page_range(struct pci_bus *bus,
 		 * memory, effectively behaving just like /dev/zero
 		 */
 		if ((offset + size) > hose->isa_mem_size) {
-#ifdef CONFIG_MMU
 			pr_debug("Process %s (pid:%d) mapped non-existing PCI",
 				current->comm, current->pid);
 			pr_debug("legacy memory for 0%04x:%02x\n",
 				pci_domain_nr(bus), bus->number);
-#endif
 			if (vma->vm_flags & VM_SHARED)
 				return shmem_zero_setup(vma);
 			return 0;
@@ -589,13 +538,12 @@ static void pcibios_fixup_resources(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pcibios_fixup_resources);
 
-int pcibios_add_device(struct pci_dev *dev)
+int pcibios_device_add(struct pci_dev *dev)
 {
 	dev->irq = of_irq_parse_and_map_pci(dev, 0, 0);
 
 	return 0;
 }
-EXPORT_SYMBOL(pcibios_add_device);
 
 /*
  * Reparent resource children of pr that conflict with res

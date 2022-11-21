@@ -157,7 +157,7 @@ of appropriately sized buffers for each use case).
 struct v4l2_buffer
 ==================
 
-.. tabularcolumns:: |p{2.8cm}|p{2.5cm}|p{1.6cm}|p{10.2cm}|
+.. tabularcolumns:: |p{2.9cm}|p{2.4cm}|p{12.0cm}|
 
 .. cssclass:: longtable
 
@@ -314,7 +314,7 @@ struct v4l2_buffer
 struct v4l2_plane
 =================
 
-.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{10.3cm}|
 
 .. cssclass:: longtable
 
@@ -389,7 +389,7 @@ enum v4l2_buf_type
 
 .. cssclass:: longtable
 
-.. tabularcolumns:: |p{7.8cm}|p{0.6cm}|p{9.1cm}|
+.. tabularcolumns:: |p{7.8cm}|p{0.6cm}|p{8.9cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -452,16 +452,16 @@ Buffer Flags
 
 .. raw:: latex
 
-    \small
+    \footnotesize
 
-.. tabularcolumns:: |p{7.0cm}|p{2.1cm}|p{8.4cm}|
+.. tabularcolumns:: |p{6.5cm}|p{1.8cm}|p{9.0cm}|
 
 .. cssclass:: longtable
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       3 1 4
+    :widths:       65 18 70
 
     * .. _`V4L2-BUF-FLAG-MAPPED`:
 
@@ -585,7 +585,7 @@ Buffer Flags
 
       - ``V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF``
       - 0x00000200
-      - Only valid if ``V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF`` is
+      - Only valid if struct :c:type:`v4l2_requestbuffers` flag ``V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF`` is
 	set. It is typically used with stateless decoders where multiple
 	output buffers each decode to a slice of the decoded frame.
 	Applications can set this flag when queueing the output buffer
@@ -604,7 +604,7 @@ Buffer Flags
 	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl is called. Due to
 	hardware limitations, the last buffer may be empty. In this case
 	the driver will set the ``bytesused`` field to 0, regardless of
-	the format. Any Any subsequent call to the
+	the format. Any subsequent call to the
 	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
 	but return an ``EPIPE`` error code.
     * .. _`V4L2-BUF-FLAG-REQUEST-FD`:
@@ -676,12 +676,10 @@ Buffer Flags
 
     \normalsize
 
-.. _memory-flags:
-
 enum v4l2_memory
 ================
 
-.. tabularcolumns:: |p{5.0cm}|p{0.8cm}|p{11.7cm}|
+.. tabularcolumns:: |p{5.0cm}|p{0.8cm}|p{11.5cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -701,6 +699,44 @@ enum v4l2_memory
       - 4
       - The buffer is used for :ref:`DMA shared buffer <dmabuf>` I/O.
 
+.. _memory-flags:
+
+Memory Consistency Flags
+------------------------
+
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{7.0cm}|p{2.1cm}|p{8.4cm}|
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       3 1 4
+
+    * .. _`V4L2-MEMORY-FLAG-NON-COHERENT`:
+
+      - ``V4L2_MEMORY_FLAG_NON_COHERENT``
+      - 0x00000001
+      - A buffer is allocated either in coherent (it will be automatically
+	coherent between the CPU and the bus) or non-coherent memory. The
+	latter can provide performance gains, for instance the CPU cache
+	sync/flush operations can be avoided if the buffer is accessed by the
+	corresponding device only and the CPU does not read/write to/from that
+	buffer. However, this requires extra care from the driver -- it must
+	guarantee memory consistency by issuing a cache flush/sync when
+	consistency is needed. If this flag is set V4L2 will attempt to
+	allocate the buffer in non-coherent memory. The flag takes effect
+	only if the buffer is used for :ref:`memory mapping <mmap>` I/O and the
+	queue reports the :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
+	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
+
+.. raw:: latex
+
+    \normalsize
 
 Timecodes
 =========
@@ -715,7 +751,7 @@ The :c:type:`v4l2_buffer_timecode` structure is designed to hold a
 struct v4l2_timecode
 --------------------
 
-.. tabularcolumns:: |p{1.4cm}|p{2.8cm}|p{12.3cm}|
+.. tabularcolumns:: |p{1.4cm}|p{2.8cm}|p{13.1cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -751,8 +787,6 @@ struct v4l2_timecode
 Timecode Types
 --------------
 
-.. tabularcolumns:: |p{5.6cm}|p{0.8cm}|p{11.1cm}|
-
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
@@ -780,7 +814,7 @@ Timecode Types
 Timecode Flags
 --------------
 
-.. tabularcolumns:: |p{6.6cm}|p{1.4cm}|p{9.5cm}|
+.. tabularcolumns:: |p{6.6cm}|p{1.4cm}|p{9.3cm}|
 
 .. flat-table::
     :header-rows:  0

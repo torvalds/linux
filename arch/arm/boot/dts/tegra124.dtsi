@@ -8,6 +8,8 @@
 #include <dt-bindings/thermal/tegra124-soctherm.h>
 #include <dt-bindings/soc/tegra-pmc.h>
 
+#include "tegra124-peripherals-opp.dtsi"
+
 / {
 	compatible = "nvidia,tegra124";
 	interrupt-parent = <&lic>;
@@ -92,8 +94,8 @@
 		interrupt-names = "syncpt", "host1x";
 		clocks = <&tegra_car TEGRA124_CLK_HOST1X>;
 		clock-names = "host1x";
-		resets = <&tegra_car 28>;
-		reset-names = "host1x";
+		resets = <&tegra_car 28>, <&mc TEGRA124_MC_RESET_HC>;
+		reset-names = "host1x", "mc";
 		iommus = <&mc TEGRA_SWGROUP_HC>;
 
 		#address-cells = <2>;
@@ -113,6 +115,19 @@
 			iommus = <&mc TEGRA_SWGROUP_DC>;
 
 			nvidia,head = <0>;
+
+			interconnects = <&mc TEGRA124_MC_DISPLAY0A &emc>,
+					<&mc TEGRA124_MC_DISPLAY0B &emc>,
+					<&mc TEGRA124_MC_DISPLAY0C &emc>,
+					<&mc TEGRA124_MC_DISPLAYHC &emc>,
+					<&mc TEGRA124_MC_DISPLAYD &emc>,
+					<&mc TEGRA124_MC_DISPLAYT &emc>;
+			interconnect-names = "wina",
+					     "winb",
+					     "winc",
+					     "cursor",
+					     "wind",
+					     "wint";
 		};
 
 		dc@54240000 {
@@ -127,6 +142,15 @@
 			iommus = <&mc TEGRA_SWGROUP_DCB>;
 
 			nvidia,head = <1>;
+
+			interconnects = <&mc TEGRA124_MC_DISPLAY0AB &emc>,
+					<&mc TEGRA124_MC_DISPLAY0BB &emc>,
+					<&mc TEGRA124_MC_DISPLAY0CB &emc>,
+					<&mc TEGRA124_MC_DISPLAYHCB &emc>;
+			interconnect-names = "wina",
+					     "winb",
+					     "winc",
+					     "cursor";
 		};
 
 		hdmi: hdmi@54280000 {
@@ -199,12 +223,7 @@
 		interrupt-parent = <&gic>;
 	};
 
-	/*
-	 * Please keep the following 0, notation in place as a former mainline
-	 * U-Boot version was looking for that particular notation in order to
-	 * perform required fix-ups on that GPU node.
-	 */
-	gpu@0,57000000 {
+	gpu@57000000 {
 		compatible = "nvidia,gk20a";
 		reg = <0x0 0x57000000 0x0 0x01000000>,
 		      <0x0 0x58000000 0x0 0x01000000>;
@@ -235,7 +254,7 @@
 	};
 
 	timer@60005000 {
-		compatible = "nvidia,tegra124-timer", "nvidia,tegra30-timer", "nvidia,tegra20-timer";
+		compatible = "nvidia,tegra124-timer", "nvidia,tegra30-timer";
 		reg = <0x0 0x60005000 0x0 0x400>;
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
@@ -259,7 +278,7 @@
 		reg = <0x0 0x60007000 0x0 0x1000>;
 	};
 
-	actmon@6000c800 {
+	actmon: actmon@6000c800 {
 		compatible = "nvidia,tegra124-actmon";
 		reg = <0x0 0x6000c800 0x0 0x400>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
@@ -268,6 +287,10 @@
 		clock-names = "actmon", "emc";
 		resets = <&tegra_car 119>;
 		reset-names = "actmon";
+		operating-points-v2 = <&emc_bw_dfs_opp_table>;
+		interconnects = <&mc TEGRA124_MC_MPCORER &emc>;
+		interconnect-names = "cpu-read";
+		#cooling-cells = <2>;
 	};
 
 	gpio: gpio@6000d000 {
@@ -285,9 +308,7 @@
 		gpio-controller;
 		#interrupt-cells = <2>;
 		interrupt-controller;
-		/*
 		gpio-ranges = <&pinmux 0 0 251>;
-		*/
 	};
 
 	apbdma: dma@60020000 {
@@ -415,7 +436,7 @@
 	};
 
 	i2c@7000c000 {
-		compatible = "nvidia,tegra124-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra124-i2c";
 		reg = <0x0 0x7000c000 0x0 0x100>;
 		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -430,7 +451,7 @@
 	};
 
 	i2c@7000c400 {
-		compatible = "nvidia,tegra124-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra124-i2c";
 		reg = <0x0 0x7000c400 0x0 0x100>;
 		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -445,7 +466,7 @@
 	};
 
 	i2c@7000c500 {
-		compatible = "nvidia,tegra124-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra124-i2c";
 		reg = <0x0 0x7000c500 0x0 0x100>;
 		interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -460,7 +481,7 @@
 	};
 
 	i2c@7000c700 {
-		compatible = "nvidia,tegra124-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra124-i2c";
 		reg = <0x0 0x7000c700 0x0 0x100>;
 		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -475,7 +496,7 @@
 	};
 
 	i2c@7000d000 {
-		compatible = "nvidia,tegra124-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra124-i2c";
 		reg = <0x0 0x7000d000 0x0 0x100>;
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -490,7 +511,7 @@
 	};
 
 	i2c@7000d100 {
-		compatible = "nvidia,tegra124-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra124-i2c";
 		reg = <0x0 0x7000d100 0x0 0x100>;
 		interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -628,6 +649,7 @@
 
 		#iommu-cells = <1>;
 		#reset-cells = <1>;
+		#interconnect-cells = <1>;
 	};
 
 	emc: external-memory-controller@7001b000 {
@@ -637,6 +659,9 @@
 		clock-names = "emc";
 
 		nvidia,memory-controller = <&mc>;
+		operating-points-v2 = <&emc_icc_dvfs_opp_table>;
+
+		#interconnect-cells = <0>;
 	};
 
 	sata@70020000 {
@@ -645,14 +670,12 @@
 		      <0x0 0x70020000 0x0 0x7000>; /* SATA */
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA124_CLK_SATA>,
-			 <&tegra_car TEGRA124_CLK_SATA_OOB>,
-			 <&tegra_car TEGRA124_CLK_CML1>,
-			 <&tegra_car TEGRA124_CLK_PLL_E>;
-		clock-names = "sata", "sata-oob", "cml1", "pll_e";
+			 <&tegra_car TEGRA124_CLK_SATA_OOB>;
+		clock-names = "sata", "sata-oob";
 		resets = <&tegra_car 124>,
-			 <&tegra_car 123>,
-			 <&tegra_car 129>;
-		reset-names = "sata", "sata-oob", "sata-cold";
+			 <&tegra_car 129>,
+			 <&tegra_car 123>;
+		reset-names = "sata", "sata-cold", "sata-oob";
 		status = "disabled";
 	};
 
@@ -685,8 +708,8 @@
 			 <&tegra_car TEGRA124_CLK_XUSB_HOST_SRC>,
 			 <&tegra_car TEGRA124_CLK_XUSB_FALCON_SRC>,
 			 <&tegra_car TEGRA124_CLK_XUSB_SS>,
-			 <&tegra_car TEGRA124_CLK_XUSB_SS_SRC>,
 			 <&tegra_car TEGRA124_CLK_XUSB_SS_DIV2>,
+			 <&tegra_car TEGRA124_CLK_XUSB_SS_SRC>,
 			 <&tegra_car TEGRA124_CLK_XUSB_HS_SRC>,
 			 <&tegra_car TEGRA124_CLK_XUSB_FS_SRC>,
 			 <&tegra_car TEGRA124_CLK_PLL_U_480M>,
@@ -694,7 +717,7 @@
 			 <&tegra_car TEGRA124_CLK_PLL_E>;
 		clock-names = "xusb_host", "xusb_host_src",
 			      "xusb_falcon_src", "xusb_ss",
-			      "xusb_ss_src", "xusb_ss_div2",
+			      "xusb_ss_div2", "xusb_ss_src",
 			      "xusb_hs_src", "xusb_fs_src",
 			      "pll_u_480m", "clk_m", "pll_e";
 		resets = <&tegra_car 89>, <&tegra_car 156>,
@@ -898,9 +921,11 @@
 		reg = <0x0 0x700e2000 0x0 0x600>, /* SOC_THERM reg_base */
 		      <0x0 0x60006000 0x0 0x400>; /* CAR reg_base */
 		reg-names = "soctherm-reg", "car-reg";
-		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "thermal", "edp";
 		clocks = <&tegra_car TEGRA124_CLK_TSENSOR>,
-			<&tegra_car TEGRA124_CLK_SOC_THERM>;
+			 <&tegra_car TEGRA124_CLK_SOC_THERM>;
 		clock-names = "tsensor", "soctherm";
 		resets = <&tegra_car 78>;
 		reset-names = "soctherm";
@@ -910,6 +935,7 @@
 			throttle_heavy: heavy {
 				nvidia,priority = <100>;
 				nvidia,cpu-throt-percent = <85>;
+				nvidia,gpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_HIGH>;
 
 				#cooling-cells = <2>;
 			};
@@ -1044,7 +1070,7 @@
 	};
 
 	usb@7d000000 {
-		compatible = "nvidia,tegra124-ehci", "nvidia,tegra30-ehci", "usb-ehci";
+		compatible = "nvidia,tegra124-ehci", "nvidia,tegra30-ehci";
 		reg = <0x0 0x7d000000 0x0 0x4000>;
 		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		phy_type = "utmi";
@@ -1059,6 +1085,7 @@
 		compatible = "nvidia,tegra124-usb-phy", "nvidia,tegra30-usb-phy";
 		reg = <0x0 0x7d000000 0x0 0x4000>,
 		      <0x0 0x7d000000 0x0 0x4000>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		phy_type = "utmi";
 		clocks = <&tegra_car TEGRA124_CLK_USBD>,
 			 <&tegra_car TEGRA124_CLK_PLL_U>,
@@ -1078,11 +1105,12 @@
 		nvidia,hsdiscon-level = <5>;
 		nvidia,xcvr-hsslew = <12>;
 		nvidia,has-utmi-pad-registers;
+		nvidia,pmc = <&tegra_pmc 0>;
 		status = "disabled";
 	};
 
 	usb@7d004000 {
-		compatible = "nvidia,tegra124-ehci", "nvidia,tegra30-ehci", "usb-ehci";
+		compatible = "nvidia,tegra124-ehci", "nvidia,tegra30-ehci";
 		reg = <0x0 0x7d004000 0x0 0x4000>;
 		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 		phy_type = "utmi";
@@ -1097,6 +1125,7 @@
 		compatible = "nvidia,tegra124-usb-phy", "nvidia,tegra30-usb-phy";
 		reg = <0x0 0x7d004000 0x0 0x4000>,
 		      <0x0 0x7d000000 0x0 0x4000>;
+		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 		phy_type = "utmi";
 		clocks = <&tegra_car TEGRA124_CLK_USB2>,
 			 <&tegra_car TEGRA124_CLK_PLL_U>,
@@ -1115,11 +1144,12 @@
 		nvidia,hssquelch-level = <2>;
 		nvidia,hsdiscon-level = <5>;
 		nvidia,xcvr-hsslew = <12>;
+		nvidia,pmc = <&tegra_pmc 1>;
 		status = "disabled";
 	};
 
 	usb@7d008000 {
-		compatible = "nvidia,tegra124-ehci", "nvidia,tegra30-ehci", "usb-ehci";
+		compatible = "nvidia,tegra124-ehci", "nvidia,tegra30-ehci";
 		reg = <0x0 0x7d008000 0x0 0x4000>;
 		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 		phy_type = "utmi";
@@ -1134,6 +1164,7 @@
 		compatible = "nvidia,tegra124-usb-phy", "nvidia,tegra30-usb-phy";
 		reg = <0x0 0x7d008000 0x0 0x4000>,
 		      <0x0 0x7d000000 0x0 0x4000>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 		phy_type = "utmi";
 		clocks = <&tegra_car TEGRA124_CLK_USB3>,
 			 <&tegra_car TEGRA124_CLK_PLL_U>,
@@ -1152,6 +1183,7 @@
 		nvidia,hssquelch-level = <2>;
 		nvidia,hsdiscon-level = <5>;
 		nvidia,xcvr-hsslew = <12>;
+		nvidia,pmc = <&tegra_pmc 2>;
 		status = "disabled";
 	};
 
@@ -1206,7 +1238,7 @@
 	};
 
 	thermal-zones {
-		cpu {
+		cpu-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
@@ -1234,7 +1266,7 @@
 			};
 		};
 
-		mem {
+		mem-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
@@ -1247,6 +1279,11 @@
 					hysteresis = <0>;
 					type = "critical";
 				};
+				mem-throttle-trip {
+					temperature = <99000>;
+					hysteresis = <1000>;
+					type = "hot";
+				};
 			};
 
 			cooling-maps {
@@ -1257,7 +1294,7 @@
 			};
 		};
 
-		gpu {
+		gpu-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
@@ -1285,7 +1322,7 @@
 			};
 		};
 
-		pllx {
+		pllx-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
@@ -1297,6 +1334,11 @@
 					temperature = <103000>;
 					hysteresis = <0>;
 					type = "critical";
+				};
+				pllx-throttle-trip {
+					temperature = <99000>;
+					hysteresis = <1000>;
+					type = "hot";
 				};
 			};
 

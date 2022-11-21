@@ -16,6 +16,13 @@
 		stdout-path = &uart1;
 	};
 
+	aliases {
+		mmc0 = &usdhc2;
+		mmc1 = &usdhc3;
+		mmc2 = &usdhc4;
+		/delete-property/ mmc3;
+	};
+
 	memory@10000000 {
 		device_type = "memory";
 		reg = <0x10000000 0x80000000>;
@@ -152,7 +159,7 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
-	rtc: ds1307@68 {
+	rtc: rtc@68 {
 		compatible = "dallas,ds1307";
 		reg = <0x68>;
 	};

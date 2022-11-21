@@ -44,10 +44,9 @@ static void netdev_port_receive(struct sk_buff *skb)
 	if (unlikely(!skb))
 		return;
 
-	if (skb->dev->type == ARPHRD_ETHER) {
-		skb_push(skb, ETH_HLEN);
-		skb_postpush_rcsum(skb, skb->data, ETH_HLEN);
-	}
+	if (skb->dev->type == ARPHRD_ETHER)
+		skb_push_rcsum(skb, ETH_HLEN);
+
 	ovs_vport_receive(vport, skb, skb_tunnel_info(skb));
 	return;
 error:
@@ -83,7 +82,7 @@ struct vport *ovs_netdev_link(struct vport *vport, const char *name)
 		err = -ENODEV;
 		goto error_free_vport;
 	}
-
+	netdev_tracker_alloc(vport->dev, &vport->dev_tracker, GFP_KERNEL);
 	if (vport->dev->flags & IFF_LOOPBACK ||
 	    (vport->dev->type != ARPHRD_ETHER &&
 	     vport->dev->type != ARPHRD_NONE) ||
@@ -116,7 +115,7 @@ error_master_upper_dev_unlink:
 error_unlock:
 	rtnl_unlock();
 error_put:
-	dev_put(vport->dev);
+	dev_put_track(vport->dev, &vport->dev_tracker);
 error_free_vport:
 	ovs_vport_free(vport);
 	return ERR_PTR(err);
@@ -138,8 +137,7 @@ static void vport_netdev_free(struct rcu_head *rcu)
 {
 	struct vport *vport = container_of(rcu, struct vport, rcu);
 
-	if (vport->dev)
-		dev_put(vport->dev);
+	dev_put_track(vport->dev, &vport->dev_tracker);
 	ovs_vport_free(vport);
 }
 
@@ -175,7 +173,7 @@ void ovs_netdev_tunnel_destroy(struct vport *vport)
 	 */
 	if (vport->dev->reg_state == NETREG_REGISTERED)
 		rtnl_delete_link(vport->dev);
-	dev_put(vport->dev);
+	dev_put_track(vport->dev, &vport->dev_tracker);
 	vport->dev = NULL;
 	rtnl_unlock();
 

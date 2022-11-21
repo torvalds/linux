@@ -96,8 +96,7 @@ print_graph_duration(struct trace_array *tr, unsigned long long duration,
 
 int __trace_graph_entry(struct trace_array *tr,
 				struct ftrace_graph_ent *trace,
-				unsigned long flags,
-				int pc)
+				unsigned int trace_ctx)
 {
 	struct trace_event_call *call = &event_funcgraph_entry;
 	struct ring_buffer_event *event;
@@ -105,7 +104,7 @@ int __trace_graph_entry(struct trace_array *tr,
 	struct ftrace_graph_ent_entry *entry;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_GRAPH_ENT,
-					  sizeof(*entry), flags, pc);
+					  sizeof(*entry), trace_ctx);
 	if (!event)
 		return 0;
 	entry	= ring_buffer_event_data(event);
@@ -121,7 +120,7 @@ static inline int ftrace_graph_ignore_irqs(void)
 	if (!ftrace_graph_skip_irqs || trace_recursion_test(TRACE_IRQ_BIT))
 		return 0;
 
-	return in_irq();
+	return in_hardirq();
 }
 
 int trace_graph_entry(struct ftrace_graph_ent *trace)
@@ -129,10 +128,10 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	struct trace_array *tr = graph_array;
 	struct trace_array_cpu *data;
 	unsigned long flags;
+	unsigned int trace_ctx;
 	long disabled;
 	int ret;
 	int cpu;
-	int pc;
 
 	if (trace_recursion_test(TRACE_GRAPH_NOTRACE_BIT))
 		return 0;
@@ -174,8 +173,8 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	data = per_cpu_ptr(tr->array_buffer.data, cpu);
 	disabled = atomic_inc_return(&data->disabled);
 	if (likely(disabled == 1)) {
-		pc = preempt_count();
-		ret = __trace_graph_entry(tr, trace, flags, pc);
+		trace_ctx = tracing_gen_ctx_flags(flags);
+		ret = __trace_graph_entry(tr, trace, trace_ctx);
 	} else {
 		ret = 0;
 	}
@@ -188,7 +187,7 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 
 static void
 __trace_graph_function(struct trace_array *tr,
-		unsigned long ip, unsigned long flags, int pc)
+		unsigned long ip, unsigned int trace_ctx)
 {
 	u64 time = trace_clock_local();
 	struct ftrace_graph_ent ent = {
@@ -202,22 +201,21 @@ __trace_graph_function(struct trace_array *tr,
 		.rettime  = time,
 	};
 
-	__trace_graph_entry(tr, &ent, flags, pc);
-	__trace_graph_return(tr, &ret, flags, pc);
+	__trace_graph_entry(tr, &ent, trace_ctx);
+	__trace_graph_return(tr, &ret, trace_ctx);
 }
 
 void
 trace_graph_function(struct trace_array *tr,
 		unsigned long ip, unsigned long parent_ip,
-		unsigned long flags, int pc)
+		unsigned int trace_ctx)
 {
-	__trace_graph_function(tr, ip, flags, pc);
+	__trace_graph_function(tr, ip, trace_ctx);
 }
 
 void __trace_graph_return(struct trace_array *tr,
 				struct ftrace_graph_ret *trace,
-				unsigned long flags,
-				int pc)
+				unsigned int trace_ctx)
 {
 	struct trace_event_call *call = &event_funcgraph_exit;
 	struct ring_buffer_event *event;
@@ -225,7 +223,7 @@ void __trace_graph_return(struct trace_array *tr,
 	struct ftrace_graph_ret_entry *entry;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_GRAPH_RET,
-					  sizeof(*entry), flags, pc);
+					  sizeof(*entry), trace_ctx);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
@@ -239,9 +237,9 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 	struct trace_array *tr = graph_array;
 	struct trace_array_cpu *data;
 	unsigned long flags;
+	unsigned int trace_ctx;
 	long disabled;
 	int cpu;
-	int pc;
 
 	ftrace_graph_addr_finish(trace);
 
@@ -255,8 +253,8 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 	data = per_cpu_ptr(tr->array_buffer.data, cpu);
 	disabled = atomic_inc_return(&data->disabled);
 	if (likely(disabled == 1)) {
-		pc = preempt_count();
-		__trace_graph_return(tr, trace, flags, pc);
+		trace_ctx = tracing_gen_ctx_flags(flags);
+		__trace_graph_return(tr, trace, trace_ctx);
 	}
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
@@ -766,7 +764,7 @@ print_graph_prologue(struct trace_iterator *iter, struct trace_seq *s,
  *  - we are inside irq code
  *  - we just entered irq code
  *
- * retunns 0 if
+ * returns 0 if
  *  - funcgraph-interrupts option is set
  *  - we are not inside irq code
  */
@@ -957,7 +955,7 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 
 	/* Overrun */
 	if (flags & TRACE_GRAPH_PRINT_OVERRUN)
-		trace_seq_printf(s, " (Overruns: %lu)\n",
+		trace_seq_printf(s, " (Overruns: %u)\n",
 				 trace->overrun);
 
 	print_graph_irq(iter, trace->func, TRACE_GRAPH_RET,
@@ -1342,7 +1340,7 @@ static __init int init_graph_tracefs(void)
 	if (ret)
 		return 0;
 
-	trace_create_file("max_graph_depth", 0644, NULL,
+	trace_create_file("max_graph_depth", TRACE_MODE_WRITE, NULL,
 			  NULL, &graph_depth_fops);
 
 	return 0;

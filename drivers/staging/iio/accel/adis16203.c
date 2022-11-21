@@ -5,20 +5,14 @@
  * Copyright 2010 Analog Devices Inc.
  */
 
-#include <linux/delay.h>
 #include <linux/device.h>
 
-#include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/imu/adis.h>
-#include <linux/iio/sysfs.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/sysfs.h>
 
 #define ADIS16203_STARTUP_DELAY 220 /* ms */
 
@@ -318,3 +312,4 @@ MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16203 Programmable 360 Degrees Inclinometer");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("spi:adis16203");
+MODULE_IMPORT_NS(IIO_ADISLIB);

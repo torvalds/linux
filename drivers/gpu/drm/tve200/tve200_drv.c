@@ -35,7 +35,6 @@
 #include <linux/platform_device.h>
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
@@ -44,6 +43,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_module.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
@@ -137,7 +137,7 @@ finish:
 
 DEFINE_DRM_GEM_CMA_FOPS(drm_fops);
 
-static struct drm_driver tve200_drm_driver = {
+static const struct drm_driver tve200_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.ioctls = NULL,
 	.fops = &drm_fops,
@@ -200,8 +200,8 @@ static int tve200_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq) {
-		ret = -EINVAL;
+	if (irq < 0) {
+		ret = irq;
 		goto clk_disable;
 	}
 
@@ -267,7 +267,7 @@ static struct platform_driver tve200_driver = {
 	.probe = tve200_probe,
 	.remove = tve200_remove,
 };
-module_platform_driver(tve200_driver);
+drm_module_platform_driver(tve200_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");

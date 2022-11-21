@@ -7,8 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics STM32 DFSDM ADC device driver
 
 maintainers:
-  - Fabrice Gasnier <fabrice.gasnier@st.com>
-  - Olivier Moysan <olivier.moysan@st.com>
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
+  - Olivier Moysan <olivier.moysan@foss.st.com>
 
 description: |
   STM32 DFSDM ADC is a sigma delta analog-to-digital converter dedicated to
@@ -38,14 +38,12 @@ properties:
           dfsdm clock can also feed CLKOUT, when CLKOUT is used.
       - description: audio clock can be used as an alternate to feed CLKOUT.
     minItems: 1
-    maxItems: 2
 
   clock-names:
     items:
       - const: dfsdm
       - const: audio
     minItems: 1
-    maxItems: 2
 
   "#address-cells":
     const: 1
@@ -102,7 +100,6 @@ patternProperties:
 
       st,adc-channel-names:
         description: List of single-ended channel names.
-        $ref: /schemas/types.yaml#/definitions/string-array
 
       st,filter-order:
         description: |
@@ -111,9 +108,7 @@ patternProperties:
           - [1-5]: order 1 to 5.
           For audio purpose it is recommended to use order 3 to 5.
         $ref: /schemas/types.yaml#/definitions/uint32
-        items:
-          minimum: 0
-          maximum: 5
+        maximum: 5
 
       "#io-channel-cells":
         const: 1
@@ -177,7 +172,7 @@ patternProperties:
               contains:
                 const: st,stm32-dfsdm-adc
 
-      - then:
+        then:
           properties:
             st,adc-channels:
               minItems: 1
@@ -199,8 +194,6 @@ patternProperties:
               description:
                 From common IIO binding. Used to pipe external sigma delta
                 modulator or internal ADC output to DFSDM channel.
-                This is not required for "st,stm32-dfsdm-pdm" compatibility as
-                PDM microphone is binded in Audio DT node.
 
           required:
             - io-channels
@@ -211,7 +204,7 @@ patternProperties:
               contains:
                 const: st,stm32-dfsdm-dmic
 
-      - then:
+        then:
           properties:
             st,adc-channels:
               maxItems: 1
@@ -235,6 +228,10 @@ patternProperties:
               description: child node
 
               properties:
+                compatible:
+                  enum:
+                    - st,stm32h7-dfsdm-dai
+
                 "#sound-dai-cells":
                   const: 0
 
@@ -244,6 +241,7 @@ patternProperties:
                     modulator or internal ADC output to DFSDM channel.
 
               required:
+                - compatible
                 - "#sound-dai-cells"
                 - io-channels
 
@@ -254,7 +252,7 @@ allOf:
           contains:
             const: st,stm32h7-dfsdm
 
-  - then:
+    then:
       patternProperties:
         "^filter@[0-9]+$":
           properties:
@@ -269,7 +267,7 @@ allOf:
           contains:
             const: st,stm32mp1-dfsdm
 
-  - then:
+    then:
       patternProperties:
         "^filter@[0-9]+$":
           properties:

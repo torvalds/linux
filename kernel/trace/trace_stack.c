@@ -290,7 +290,7 @@ static void check_stack(unsigned long ip, unsigned long *stack)
 
 static void
 stack_trace_call(unsigned long ip, unsigned long parent_ip,
-		 struct ftrace_ops *op, struct pt_regs *pt_regs)
+		 struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
 	unsigned long stack;
 
@@ -318,7 +318,6 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 static struct ftrace_ops trace_ops __read_mostly =
 {
 	.func = stack_trace_call,
-	.flags = FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static ssize_t
@@ -560,14 +559,14 @@ static __init int stack_trace_init(void)
 	if (ret)
 		return 0;
 
-	trace_create_file("stack_max_size", 0644, NULL,
+	trace_create_file("stack_max_size", TRACE_MODE_WRITE, NULL,
 			&stack_trace_max_size, &stack_max_size_fops);
 
-	trace_create_file("stack_trace", 0444, NULL,
+	trace_create_file("stack_trace", TRACE_MODE_READ, NULL,
 			NULL, &stack_trace_fops);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-	trace_create_file("stack_trace_filter", 0644, NULL,
+	trace_create_file("stack_trace_filter", TRACE_MODE_WRITE, NULL,
 			  &trace_ops, &stack_trace_filter_fops);
 #endif
 

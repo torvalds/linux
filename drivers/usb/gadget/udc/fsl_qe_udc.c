@@ -541,6 +541,7 @@ static int qe_ep_init(struct qe_udc *udc,
 			case USB_SPEED_HIGH:
 			if ((max == 128) || (max == 256) || (max == 512))
 				break;
+			fallthrough;
 			default:
 				switch (max) {
 				case 4:
@@ -562,9 +563,11 @@ static int qe_ep_init(struct qe_udc *udc,
 			case USB_SPEED_HIGH:
 				if (max <= 1024)
 					break;
+				fallthrough;
 			case USB_SPEED_FULL:
 				if (max <= 64)
 					break;
+				fallthrough;
 			default:
 				if (max <= 8)
 					break;
@@ -579,9 +582,11 @@ static int qe_ep_init(struct qe_udc *udc,
 			case USB_SPEED_HIGH:
 				if (max <= 1024)
 					break;
+				fallthrough;
 			case USB_SPEED_FULL:
 				if (max <= 1023)
 					break;
+				fallthrough;
 			default:
 				goto en_done;
 			}
@@ -605,6 +610,7 @@ static int qe_ep_init(struct qe_udc *udc,
 				default:
 					goto en_done;
 				}
+				fallthrough;
 			case USB_SPEED_LOW:
 				switch (max) {
 				case 1:
@@ -1770,7 +1776,8 @@ static int qe_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 static int qe_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct qe_ep *ep = container_of(_ep, struct qe_ep, ep);
-	struct qe_req *req;
+	struct qe_req *req = NULL;
+	struct qe_req *iter;
 	unsigned long flags;
 
 	if (!_ep || !_req)
@@ -1779,12 +1786,14 @@ static int qe_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	spin_lock_irqsave(&ep->udc->lock, flags);
 
 	/* make sure it's actually queued on this endpoint */
-	list_for_each_entry(req, &ep->queue, queue) {
-		if (&req->req == _req)
-			break;
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		req = iter;
+		break;
 	}
 
-	if (&req->req != _req) {
+	if (!req) {
 		spin_unlock_irqrestore(&ep->udc->lock, flags);
 		return -EINVAL;
 	}

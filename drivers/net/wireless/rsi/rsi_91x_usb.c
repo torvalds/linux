@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2014 Redpine Signals Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -25,10 +25,7 @@
 /* Default operating mode is wlan STA + BT */
 static u16 dev_oper_mode = DEV_OPMODE_STA_BT_DUAL;
 module_param(dev_oper_mode, ushort, 0444);
-MODULE_PARM_DESC(dev_oper_mode,
-		 "1[Wi-Fi], 4[BT], 8[BT LE], 5[Wi-Fi STA + BT classic]\n"
-		 "9[Wi-Fi STA + BT LE], 13[Wi-Fi STA + BT classic + BT LE]\n"
-		 "6[AP + BT classic], 14[AP + BT classic + BT LE]");
+MODULE_PARM_DESC(dev_oper_mode, DEV_OPMODE_PARAM_DESC);
 
 static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num, gfp_t flags);
 
@@ -61,7 +58,7 @@ static int rsi_usb_card_write(struct rsi_hw *adapter,
 			      (void *)seg,
 			      (int)len,
 			      &transfer,
-			      HZ * 5);
+			      USB_CTRL_SET_TIMEOUT);
 
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE,
@@ -75,7 +72,7 @@ static int rsi_usb_card_write(struct rsi_hw *adapter,
  * rsi_write_multiple() - This function writes multiple bytes of information
  *			  to the USB card.
  * @adapter: Pointer to the adapter structure.
- * @addr: Address of the register.
+ * @endpoint: Type of endpoint.
  * @data: Pointer to the data that has to be written.
  * @count: Number of multiple bytes to be written.
  *
@@ -272,8 +269,12 @@ static void rsi_rx_done_handler(struct urb *urb)
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)rx_cb->data;
 	int status = -EINVAL;
 
+	if (!rx_cb->rx_skb)
+		return;
+
 	if (urb->status) {
 		dev_kfree_skb(rx_cb->rx_skb);
+		rx_cb->rx_skb = NULL;
 		return;
 	}
 
@@ -297,8 +298,10 @@ out:
 	if (rsi_rx_urb_submit(dev->priv, rx_cb->ep_num, GFP_ATOMIC))
 		rsi_dbg(ERR_ZONE, "%s: Failed in urb submission", __func__);
 
-	if (status)
+	if (status) {
 		dev_kfree_skb(rx_cb->rx_skb);
+		rx_cb->rx_skb = NULL;
+	}
 }
 
 static void rsi_rx_urb_kill(struct rsi_hw *adapter, u8 ep_num)
@@ -313,6 +316,8 @@ static void rsi_rx_urb_kill(struct rsi_hw *adapter, u8 ep_num)
 /**
  * rsi_rx_urb_submit() - This function submits the given URB to the USB stack.
  * @adapter: Pointer to the adapter structure.
+ * @ep_num: Endpoint number.
+ * @mem_flags: The type of memory to allocate.
  *
  * Return: 0 on success, a negative error code on failure.
  */
@@ -325,7 +330,6 @@ static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num, gfp_t mem_flags)
 	struct sk_buff *skb;
 	u8 dword_align_bytes = 0;
 
-#define RSI_MAX_RX_USB_PKT_SIZE	3000
 	skb = dev_alloc_skb(RSI_MAX_RX_USB_PKT_SIZE);
 	if (!skb)
 		return -ENOMEM;
@@ -741,24 +745,24 @@ static int rsi_reset_card(struct rsi_hw *adapter)
 		if (ret < 0)
 			goto fail;
 	} else {
-		if ((rsi_usb_master_reg_write(adapter,
-					      NWP_WWD_INTERRUPT_TIMER,
-					      NWP_WWD_INT_TIMER_CLKS,
-					      RSI_9116_REG_SIZE)) < 0) {
+		ret = rsi_usb_master_reg_write(adapter,
+					       NWP_WWD_INTERRUPT_TIMER,
+					       NWP_WWD_INT_TIMER_CLKS,
+					       RSI_9116_REG_SIZE);
+		if (ret < 0)
 			goto fail;
-		}
-		if ((rsi_usb_master_reg_write(adapter,
-					      NWP_WWD_SYSTEM_RESET_TIMER,
-					      NWP_WWD_SYS_RESET_TIMER_CLKS,
-					      RSI_9116_REG_SIZE)) < 0) {
+		ret = rsi_usb_master_reg_write(adapter,
+					       NWP_WWD_SYSTEM_RESET_TIMER,
+					       NWP_WWD_SYS_RESET_TIMER_CLKS,
+					       RSI_9116_REG_SIZE);
+		if (ret < 0)
 			goto fail;
-		}
-		if ((rsi_usb_master_reg_write(adapter,
-					      NWP_WWD_MODE_AND_RSTART,
-					      NWP_WWD_TIMER_DISABLE,
-					      RSI_9116_REG_SIZE)) < 0) {
+		ret = rsi_usb_master_reg_write(adapter,
+					       NWP_WWD_MODE_AND_RSTART,
+					       NWP_WWD_TIMER_DISABLE,
+					       RSI_9116_REG_SIZE);
+		if (ret < 0)
 			goto fail;
-		}
 	}
 
 	rsi_dbg(INFO_ZONE, "Reset card done\n");
@@ -814,6 +818,7 @@ static int rsi_probe(struct usb_interface *pfunction,
 	} else {
 		rsi_dbg(ERR_ZONE, "%s: Unsupported RSI device id 0x%x\n",
 			__func__, id->idProduct);
+		status = -ENODEV;
 		goto err1;
 	}
 
@@ -926,7 +931,6 @@ module_usb_driver(rsi_driver);
 
 MODULE_AUTHOR("Redpine Signals Inc");
 MODULE_DESCRIPTION("Common USB layer for RSI drivers");
-MODULE_SUPPORTED_DEVICE("RSI-91x");
 MODULE_DEVICE_TABLE(usb, rsi_dev_table);
 MODULE_FIRMWARE(FIRMWARE_RSI9113);
 MODULE_VERSION("0.1");

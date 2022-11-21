@@ -51,7 +51,8 @@
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/authenc.h>
 #include <crypto/internal/aead.h>
 #include <crypto/null.h>
@@ -91,9 +92,6 @@ static const struct xfrmdev_ops ch_ipsec_xfrmdev_ops = {
 
 static struct cxgb4_uld_info ch_ipsec_uld_info = {
 	.name = CHIPSEC_DRV_MODULE_NAME,
-	.nrxq = MAX_ULD_QSETS,
-	/* Max ntxq will be derived from fw config file*/
-	.rxq_size = 1024,
 	.add = ch_ipsec_uld_add,
 	.state_change = ch_ipsec_uld_state_change,
 	.tx_handler = ch_ipsec_xmit,

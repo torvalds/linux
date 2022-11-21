@@ -1,66 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2003 - 2015 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2003 - 2015 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2003-2015, 2018-2022 Intel Corporation
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_trans_int_pcie_h__
 #define __iwl_trans_int_pcie_h__
 
@@ -99,6 +42,7 @@ struct iwl_host_cmd;
  * struct iwl_rx_mem_buffer
  * @page_dma: bus address of rxb page
  * @page: driver's pointer to the rxb page
+ * @list: list entry for the membuffer
  * @invalid: rxb is in driver ownership - not owned by HW
  * @vid: index of this rxb in the global table
  * @offset: indicates which offset of the page (in bytes)
@@ -107,10 +51,10 @@ struct iwl_host_cmd;
 struct iwl_rx_mem_buffer {
 	dma_addr_t page_dma;
 	struct page *page;
-	u16 vid;
-	bool invalid;
 	struct list_head list;
 	u32 offset;
+	u16 vid;
+	bool invalid;
 };
 
 /**
@@ -160,18 +104,26 @@ struct iwl_rx_completion_desc {
 } __packed;
 
 /**
+ * struct iwl_rx_completion_desc_bz - Bz completion descriptor
+ * @rbid: unique tag of the received buffer
+ * @flags: flags (0: fragmented, all others: reserved)
+ * @reserved: reserved
+ */
+struct iwl_rx_completion_desc_bz {
+	__le16 rbid;
+	u8 flags;
+	u8 reserved[1];
+} __packed;
+
+/**
  * struct iwl_rxq - Rx queue
  * @id: queue index
  * @bd: driver's pointer to buffer of receive buffer descriptors (rbd).
  *	Address size is 32 bit in pre-9000 devices and 64 bit in 9000 devices.
  *	In AX210 devices it is a pointer to a list of iwl_rx_transfer_desc's
  * @bd_dma: bus address of buffer of receive buffer descriptors (rbd)
- * @ubd: driver's pointer to buffer of used receive buffer descriptors (rbd)
- * @ubd_dma: physical address of buffer of used receive buffer descriptors (rbd)
- * @tr_tail: driver's pointer to the transmission ring tail buffer
- * @tr_tail_dma: physical address of the buffer for the transmission ring tail
- * @cr_tail: driver's pointer to the completion ring tail buffer
- * @cr_tail_dma: physical address of the buffer for the completion ring tail
+ * @used_bd: driver's pointer to buffer of used receive buffer descriptors (rbd)
+ * @used_bd_dma: physical address of buffer of used receive buffer descriptors (rbd)
  * @read: Shared index to newest available Rx buffer
  * @write: Shared index to oldest written Rx packet
  * @free_count: Number of pre-allocated buffers in rx_free
@@ -193,16 +145,8 @@ struct iwl_rxq {
 	int id;
 	void *bd;
 	dma_addr_t bd_dma;
-	union {
-		void *used_bd;
-		__le32 *bd_32;
-		struct iwl_rx_completion_desc *cd;
-	};
+	void *used_bd;
 	dma_addr_t used_bd_dma;
-	__le16 *tr_tail;
-	dma_addr_t tr_tail_dma;
-	__le16 *cr_tail;
-	dma_addr_t cr_tail_dma;
 	u32 read;
 	u32 write;
 	u32 free_count;
@@ -318,6 +262,27 @@ struct cont_rec {
 };
 #endif
 
+enum iwl_pcie_fw_reset_state {
+	FW_RESET_IDLE,
+	FW_RESET_REQUESTED,
+	FW_RESET_OK,
+	FW_RESET_ERROR,
+};
+
+/**
+ * enum wl_pcie_imr_status - imr dma transfer state
+ * @IMR_D2S_IDLE: default value of the dma transfer
+ * @IMR_D2S_REQUESTED: dma transfer requested
+ * @IMR_D2S_COMPLETED: dma transfer completed
+ * @IMR_D2S_ERROR: dma transfer error
+ */
+enum iwl_pcie_imr_status {
+	IMR_D2S_IDLE,
+	IMR_D2S_REQUESTED,
+	IMR_D2S_COMPLETED,
+	IMR_D2S_ERROR,
+};
+
 /**
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
@@ -336,6 +301,8 @@ struct cont_rec {
  *	Context information addresses will be taken from here.
  *	This is driver's local copy for keeping track of size and
  *	count for allocating and freeing the memory.
+ * @iml: image loader image virtual address
+ * @iml_dma_addr: image loader image DMA address
  * @trans: pointer to the generic transport area
  * @scd_base_addr: scheduler sram base address in SRAM
  * @kw: keep warm address
@@ -348,8 +315,6 @@ struct cont_rec {
  * @def_rx_queue - default rx queue number
  * @rx_buf_size: Rx buffer size
  * @scd_set_active: should the transport configure the SCD for HCMD queue
- * @sw_csum_tx: if true, then the transport will compute the csum of the TXed
- *	frame.
  * @rx_page_order: page order for receive buffer size
  * @rx_buf_bytes: RX buffer (RB) size in bytes
  * @reg_lock: protect hw register access
@@ -376,6 +341,9 @@ struct cont_rec {
  * @alloc_page_lock: spinlock for the page allocator
  * @alloc_page: allocated page to still use parts of
  * @alloc_page_used: how much of the allocated page was already used (bytes)
+ * @imr_status: imr dma state machine
+ * @wait_queue_head_t: imr wait queue for dma completion
+ * @rf_name: name/version of the CRF, if any
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
@@ -388,6 +356,7 @@ struct iwl_trans_pcie {
 	};
 	struct iwl_prph_info *prph_info;
 	struct iwl_prph_scratch *prph_scratch;
+	void *iml;
 	dma_addr_t ctxt_info_dma_addr;
 	dma_addr_t prph_info_dma_addr;
 	dma_addr_t prph_scratch_dma_addr;
@@ -412,17 +381,17 @@ struct iwl_trans_pcie {
 	struct iwl_dma_ptr kw;
 
 	struct iwl_dram_data pnvm_dram;
+	struct iwl_dram_data reduce_power_dram;
 
 	struct iwl_txq *txq_memory;
 
 	/* PCI bus related data */
 	struct pci_dev *pci_dev;
-	void __iomem *hw_base;
+	u8 __iomem *hw_base;
 
 	bool ucode_write_complete;
 	bool sx_complete;
 	wait_queue_head_t ucode_write_waitq;
-	wait_queue_head_t wait_command_queue;
 	wait_queue_head_t sx_waitq;
 
 	u8 def_rx_queue;
@@ -432,7 +401,6 @@ struct iwl_trans_pcie {
 
 	enum iwl_amsdu_size rx_buf_size;
 	bool scd_set_active;
-	bool sw_csum_tx;
 	bool pcie_dbg_dumped_once;
 	u32 rx_page_order;
 	u32 rx_buf_bytes;
@@ -466,6 +434,13 @@ struct iwl_trans_pcie {
 
 	void *base_rb_stts;
 	dma_addr_t base_rb_stts_dma;
+
+	bool fw_reset_handshake;
+	enum iwl_pcie_fw_reset_state fw_reset_state;
+	wait_queue_head_t fw_reset_waitq;
+	enum iwl_pcie_imr_status imr_status;
+	wait_queue_head_t imr_waitq;
+	char rf_name[32];
 };
 
 static inline struct iwl_trans_pcie *
@@ -474,8 +449,7 @@ IWL_TRANS_GET_PCIE_TRANS(struct iwl_trans *trans)
 	return (void *)trans->trans_specific;
 }
 
-static inline void iwl_pcie_clear_irq(struct iwl_trans *trans,
-				      struct msix_entry *entry)
+static inline void iwl_pcie_clear_irq(struct iwl_trans *trans, int queue)
 {
 	/*
 	 * Before sending the interrupt the HW disables it to prevent
@@ -485,7 +459,7 @@ static inline void iwl_pcie_clear_irq(struct iwl_trans *trans,
 	 * write 1 clear (W1C) register, meaning that it's being clear
 	 * by writing 1 to the bit.
 	 */
-	iwl_write32(trans, CSR_MSIX_AUTOMASK_ST_AD, BIT(entry->entry));
+	iwl_write32(trans, CSR_MSIX_AUTOMASK_ST_AD, BIT(queue));
 }
 
 static inline struct iwl_trans *
@@ -505,6 +479,11 @@ struct iwl_trans
 		      const struct iwl_cfg_trans_params *cfg_trans);
 void iwl_trans_pcie_free(struct iwl_trans *trans);
 
+bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans);
+#define _iwl_trans_pcie_grab_nic_access(trans)			\
+	__cond_lock(nic_access_nobh,				\
+		    likely(__iwl_trans_pcie_grab_nic_access(trans)))
+
 /*****************************************************
 * RX
 ******************************************************/
@@ -518,7 +497,6 @@ int iwl_pcie_rx_stop(struct iwl_trans *trans);
 void iwl_pcie_rx_free(struct iwl_trans *trans);
 void iwl_pcie_free_rbs_pool(struct iwl_trans *trans);
 void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq);
-int iwl_pcie_dummy_napi_poll(struct napi_struct *napi, int budget);
 void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority,
 			    struct iwl_rxq *rxq);
 
@@ -551,9 +529,6 @@ void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans);
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 			    struct iwl_rx_cmd_buffer *rxb);
-void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
-			    struct sk_buff_head *skbs);
-void iwl_trans_pcie_set_q_ptrs(struct iwl_trans *trans, int txq_id, int ptr);
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
 
 /*****************************************************
@@ -586,9 +561,6 @@ static inline void _iwl_disable_interrupts(struct iwl_trans *trans)
 	}
 	IWL_DEBUG_ISR(trans, "Disabled interrupts\n");
 }
-
-#define IWL_NUM_OF_COMPLETION_RINGS	31
-#define IWL_NUM_OF_TRANSFER_RINGS	527
 
 static inline int iwl_pcie_get_num_sections(const struct fw_img *fw,
 					    int start)
@@ -628,9 +600,9 @@ static inline void iwl_disable_interrupts(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	spin_lock(&trans_pcie->irq_lock);
+	spin_lock_bh(&trans_pcie->irq_lock);
 	_iwl_disable_interrupts(trans);
-	spin_unlock(&trans_pcie->irq_lock);
+	spin_unlock_bh(&trans_pcie->irq_lock);
 }
 
 static inline void _iwl_enable_interrupts(struct iwl_trans *trans)
@@ -660,9 +632,9 @@ static inline void iwl_enable_interrupts(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	spin_lock(&trans_pcie->irq_lock);
+	spin_lock_bh(&trans_pcie->irq_lock);
 	_iwl_enable_interrupts(trans);
-	spin_unlock(&trans_pcie->irq_lock);
+	spin_unlock_bh(&trans_pcie->irq_lock);
 }
 static inline void iwl_enable_hw_int_msk_msix(struct iwl_trans *trans, u32 msk)
 {
@@ -731,19 +703,19 @@ static inline const char *queue_name(struct device *dev,
 			  IWL_SHARED_IRQ_FIRST_RSS ? 1 : 0;
 
 		if (i == 0)
-			return DRV_NAME ": shared IRQ";
+			return DRV_NAME ":shared_IRQ";
 
 		return devm_kasprintf(dev, GFP_KERNEL,
-				      DRV_NAME ": queue %d", i + vec);
+				      DRV_NAME ":queue_%d", i + vec);
 	}
 	if (i == 0)
-		return DRV_NAME ": default queue";
+		return DRV_NAME ":default_queue";
 
 	if (i == trans_p->alloc_vecs - 1)
-		return DRV_NAME ": exception";
+		return DRV_NAME ":exception";
 
 	return devm_kasprintf(dev, GFP_KERNEL,
-			      DRV_NAME  ": queue %d", i);
+			      DRV_NAME  ":queue_%d", i);
 }
 
 static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
@@ -821,7 +793,6 @@ static inline bool iwl_pcie_dbg_on(struct iwl_trans *trans)
 
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state);
 void iwl_trans_pcie_dump_regs(struct iwl_trans *trans);
-void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans);
@@ -839,7 +810,6 @@ void iwl_pcie_synchronize_irqs(struct iwl_trans *trans);
 bool iwl_pcie_check_hw_rf_kill(struct iwl_trans *trans);
 void iwl_trans_pcie_handle_stop_rfkill(struct iwl_trans *trans,
 				       bool was_in_rfkill);
-void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq);
 void iwl_pcie_apm_stop_master(struct iwl_trans *trans);
 void iwl_pcie_conf_msix_hw(struct iwl_trans_pcie *trans_pcie);
 int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
@@ -860,4 +830,13 @@ void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans);
 void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans);
 void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
 				  bool test, bool reset);
+int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
+			       struct iwl_host_cmd *cmd);
+int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
+			  struct iwl_host_cmd *cmd);
+void iwl_trans_pcie_copy_imr_fh(struct iwl_trans *trans,
+				u32 dst_addr, u64 src_addr, u32 byte_cnt);
+int iwl_trans_pcie_copy_imr(struct iwl_trans *trans,
+			    u32 dst_addr, u64 src_addr, u32 byte_cnt);
+
 #endif /* __iwl_trans_int_pcie_h__ */

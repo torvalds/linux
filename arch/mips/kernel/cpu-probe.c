@@ -26,6 +26,7 @@
 #include <asm/elf.h>
 #include <asm/pgtable-bits.h>
 #include <asm/spram.h>
+#include <asm/traps.h>
 #include <linux/uaccess.h>
 
 #include "fpu-probe.h"
@@ -1154,6 +1155,15 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			break;
 		}
 		break;
+	case PRID_IMP_R4300:
+		c->cputype = CPU_R4300;
+		__cpu_name[cpu] = "R4300";
+		set_isa(c, MIPS_CPU_ISA_III);
+		c->fpu_msk31 |= FPU_CSR_CONDX;
+		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
+			     MIPS_CPU_LLSC;
+		c->tlbsize = 32;
+		break;
 	case PRID_IMP_R4600:
 		c->cputype = CPU_R4600;
 		__cpu_name[cpu] = "R4600";
@@ -1179,29 +1189,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		c->tlbsize = 48;
 		break;
 	#endif
-	case PRID_IMP_TX39:
-		c->fpu_msk31 |= FPU_CSR_CONDX | FPU_CSR_FS;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_TX39_CACHE;
-
-		if ((c->processor_id & 0xf0) == (PRID_REV_TX3927 & 0xf0)) {
-			c->cputype = CPU_TX3927;
-			__cpu_name[cpu] = "TX3927";
-			c->tlbsize = 64;
-		} else {
-			switch (c->processor_id & PRID_REV_MASK) {
-			case PRID_REV_TX3912:
-				c->cputype = CPU_TX3912;
-				__cpu_name[cpu] = "TX3912";
-				c->tlbsize = 32;
-				break;
-			case PRID_REV_TX3922:
-				c->cputype = CPU_TX3922;
-				__cpu_name[cpu] = "TX3922";
-				c->tlbsize = 64;
-				break;
-			}
-		}
-		break;
 	case PRID_IMP_R4700:
 		c->cputype = CPU_R4700;
 		__cpu_name[cpu] = "R4700";
@@ -1619,6 +1606,7 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_BMIPS3300;
 		__cpu_name[cpu] = "Broadcom BMIPS3300";
 		set_elf_platform(cpu, "bmips3300");
+		reserve_exception_space(0x400, VECTORSPACING * 64);
 		break;
 	case PRID_IMP_BMIPS43XX: {
 		int rev = c->processor_id & PRID_REV_MASK;
@@ -1629,6 +1617,7 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 			__cpu_name[cpu] = "Broadcom BMIPS4380";
 			set_elf_platform(cpu, "bmips4380");
 			c->options |= MIPS_CPU_RIXI;
+			reserve_exception_space(0x400, VECTORSPACING * 64);
 		} else {
 			c->cputype = CPU_BMIPS4350;
 			__cpu_name[cpu] = "Broadcom BMIPS4350";
@@ -1645,6 +1634,7 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 			__cpu_name[cpu] = "Broadcom BMIPS5000";
 		set_elf_platform(cpu, "bmips5000");
 		c->options |= MIPS_CPU_ULRI | MIPS_CPU_RIXI;
+		reserve_exception_space(0x1000, VECTORSPACING * 64);
 		break;
 	}
 }
@@ -1721,8 +1711,6 @@ static inline void decode_cpucfg(struct cpuinfo_mips *c)
 
 static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 {
-	decode_configs(c);
-
 	/* All Loongson processors covered here define ExcCode 16 as GSExc. */
 	c->options |= MIPS_CPU_GSEXCEX;
 
@@ -1739,7 +1727,6 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 			set_isa(c, MIPS_CPU_ISA_M64R2);
 			break;
 		}
-		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 		c->ases |= (MIPS_ASE_LOONGSON_MMI | MIPS_ASE_LOONGSON_EXT |
 				MIPS_ASE_LOONGSON_EXT2);
 		break;
@@ -1769,7 +1756,6 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 		 * register, we correct it here.
 		 */
 		c->options |= MIPS_CPU_FTLB | MIPS_CPU_TLBINV | MIPS_CPU_LDPTE;
-		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 		c->ases |= (MIPS_ASE_LOONGSON_MMI | MIPS_ASE_LOONGSON_CAM |
 			MIPS_ASE_LOONGSON_EXT | MIPS_ASE_LOONGSON_EXT2);
 		c->ases &= ~MIPS_ASE_VZ; /* VZ of Loongson-3A2000/3000 is incomplete */
@@ -1780,12 +1766,13 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 		set_elf_platform(cpu, "loongson3a");
 		set_isa(c, MIPS_CPU_ISA_M64R2);
 		decode_cpucfg(c);
-		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 		break;
 	default:
 		panic("Unknown Loongson Processor ID!");
 		break;
 	}
+
+	decode_configs(c);
 }
 #else
 static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu) { }
@@ -1830,16 +1817,22 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 		 */
 		case PRID_COMP_INGENIC_D0:
 			c->isa_level &= ~MIPS_CPU_ISA_M32R2;
-			break;
+
+			/* FPU is not properly detected on JZ4760(B). */
+			if (c->processor_id == 0x2ed0024f)
+				c->options |= MIPS_CPU_FPU;
+
+			fallthrough;
 
 		/*
 		 * The config0 register in the XBurst CPUs with a processor ID of
-		 * PRID_COMP_INGENIC_D1 has an abandoned huge page tlb mode, this
-		 * mode is not compatible with the MIPS standard, it will cause
-		 * tlbmiss and into an infinite loop (line 21 in the tlb-funcs.S)
-		 * when starting the init process. After chip reset, the default
-		 * is HPTLB mode, Write 0xa9000000 to cp0 register 5 sel 4 to
-		 * switch back to VTLB mode to prevent getting stuck.
+		 * PRID_COMP_INGENIC_D0 or PRID_COMP_INGENIC_D1 has an abandoned
+		 * huge page tlb mode, this mode is not compatible with the MIPS
+		 * standard, it will cause tlbmiss and into an infinite loop
+		 * (line 21 in the tlb-funcs.S) when starting the init process.
+		 * After chip reset, the default is HPTLB mode, Write 0xa9000000
+		 * to cp0 register 5 sel 4 to switch back to VTLB mode to prevent
+		 * getting stuck.
 		 */
 		case PRID_COMP_INGENIC_D1:
 			write_c0_page_ctrl(XBURST_PAGECTRL_HPTLB_DIS);
@@ -1868,87 +1861,6 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 		panic("Unknown Ingenic Processor ID!");
 		break;
 	}
-}
-
-static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
-{
-	decode_configs(c);
-
-	if ((c->processor_id & PRID_IMP_MASK) == PRID_IMP_NETLOGIC_AU13XX) {
-		c->cputype = CPU_ALCHEMY;
-		__cpu_name[cpu] = "Au1300";
-		/* following stuff is not for Alchemy */
-		return;
-	}
-
-	c->options = (MIPS_CPU_TLB	 |
-			MIPS_CPU_4KEX	 |
-			MIPS_CPU_COUNTER |
-			MIPS_CPU_DIVEC	 |
-			MIPS_CPU_WATCH	 |
-			MIPS_CPU_EJTAG	 |
-			MIPS_CPU_LLSC);
-
-	switch (c->processor_id & PRID_IMP_MASK) {
-	case PRID_IMP_NETLOGIC_XLP2XX:
-	case PRID_IMP_NETLOGIC_XLP9XX:
-	case PRID_IMP_NETLOGIC_XLP5XX:
-		c->cputype = CPU_XLP;
-		__cpu_name[cpu] = "Broadcom XLPII";
-		break;
-
-	case PRID_IMP_NETLOGIC_XLP8XX:
-	case PRID_IMP_NETLOGIC_XLP3XX:
-		c->cputype = CPU_XLP;
-		__cpu_name[cpu] = "Netlogic XLP";
-		break;
-
-	case PRID_IMP_NETLOGIC_XLR732:
-	case PRID_IMP_NETLOGIC_XLR716:
-	case PRID_IMP_NETLOGIC_XLR532:
-	case PRID_IMP_NETLOGIC_XLR308:
-	case PRID_IMP_NETLOGIC_XLR532C:
-	case PRID_IMP_NETLOGIC_XLR516C:
-	case PRID_IMP_NETLOGIC_XLR508C:
-	case PRID_IMP_NETLOGIC_XLR308C:
-		c->cputype = CPU_XLR;
-		__cpu_name[cpu] = "Netlogic XLR";
-		break;
-
-	case PRID_IMP_NETLOGIC_XLS608:
-	case PRID_IMP_NETLOGIC_XLS408:
-	case PRID_IMP_NETLOGIC_XLS404:
-	case PRID_IMP_NETLOGIC_XLS208:
-	case PRID_IMP_NETLOGIC_XLS204:
-	case PRID_IMP_NETLOGIC_XLS108:
-	case PRID_IMP_NETLOGIC_XLS104:
-	case PRID_IMP_NETLOGIC_XLS616B:
-	case PRID_IMP_NETLOGIC_XLS608B:
-	case PRID_IMP_NETLOGIC_XLS416B:
-	case PRID_IMP_NETLOGIC_XLS412B:
-	case PRID_IMP_NETLOGIC_XLS408B:
-	case PRID_IMP_NETLOGIC_XLS404B:
-		c->cputype = CPU_XLR;
-		__cpu_name[cpu] = "Netlogic XLS";
-		break;
-
-	default:
-		pr_info("Unknown Netlogic chip id [%02x]!\n",
-		       c->processor_id);
-		c->cputype = CPU_XLR;
-		break;
-	}
-
-	if (c->cputype == CPU_XLP) {
-		set_isa(c, MIPS_CPU_ISA_M64R2);
-		c->options |= (MIPS_CPU_FPU | MIPS_CPU_ULRI | MIPS_CPU_MCHECK);
-		/* This will be updated again after all threads are woken up */
-		c->tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
-	} else {
-		set_isa(c, MIPS_CPU_ISA_M64R1);
-		c->tlbsize = ((read_c0_config1() >> 25) & 0x3f) + 1;
-	}
-	c->kscratch_mask = 0xf;
 }
 
 #ifdef CONFIG_64BIT
@@ -2014,9 +1926,6 @@ void cpu_probe(void)
 	case PRID_COMP_INGENIC_D1:
 	case PRID_COMP_INGENIC_E1:
 		cpu_probe_ingenic(c, cpu);
-		break;
-	case PRID_COMP_NETLOGIC:
-		cpu_probe_netlogic(c, cpu);
 		break;
 	}
 
@@ -2123,6 +2032,8 @@ void cpu_probe(void)
 	if (cpu == 0)
 		__ua_limit = ~((1ull << cpu_vmbits) - 1);
 #endif
+
+	reserve_exception_space(0, 0x1000);
 }
 
 void cpu_report(void)

@@ -34,6 +34,45 @@
  */
 #define PMBUS_WRITE_PROTECTED	BIT(1)
 
+/*
+ * PMBUS_NO_CAPABILITY
+ *
+ * Some PMBus chips don't respond with valid data when reading the CAPABILITY
+ * register. For such chips, this flag should be set so that the PMBus core
+ * driver doesn't use CAPABILITY to determine it's behavior.
+ */
+#define PMBUS_NO_CAPABILITY			BIT(2)
+
+/*
+ * PMBUS_READ_STATUS_AFTER_FAILED_CHECK
+ *
+ * Some PMBus chips end up in an undefined state when trying to read an
+ * unsupported register. For such chips, it is necessary to reset the
+ * chip pmbus controller to a known state after a failed register check.
+ * This can be done by reading a known register. By setting this flag the
+ * driver will try to read the STATUS register after each failed
+ * register check. This read may fail, but it will put the chip in a
+ * known state.
+ */
+#define PMBUS_READ_STATUS_AFTER_FAILED_CHECK	BIT(3)
+
+/*
+ * PMBUS_NO_WRITE_PROTECT
+ *
+ * Some PMBus chips respond with invalid data when reading the WRITE_PROTECT
+ * register. For such chips, this flag should be set so that the PMBus core
+ * driver doesn't use the WRITE_PROTECT command to determine its behavior.
+ */
+#define PMBUS_NO_WRITE_PROTECT			BIT(4)
+
+/*
+ * PMBUS_USE_COEFFICIENTS_CMD
+ *
+ * When this flag is set the PMBus core driver will use the COEFFICIENTS
+ * register to initialize the coefficients for the direct mode format.
+ */
+#define PMBUS_USE_COEFFICIENTS_CMD		BIT(5)
+
 struct pmbus_platform_data {
 	u32 flags;		/* Device specific flags */
 

@@ -97,7 +97,9 @@ static dispatch_init_table_t __initdata dispatch_init_table[] = {
 /* EXCCAUSE_INSTRUCTION_FETCH unhandled */
 /* EXCCAUSE_LOAD_STORE_ERROR unhandled*/
 { EXCCAUSE_LEVEL1_INTERRUPT,	0,	   do_interrupt },
+#ifdef SUPPORT_WINDOWED
 { EXCCAUSE_ALLOCA,		USER|KRNL, fast_alloca },
+#endif
 /* EXCCAUSE_INTEGER_DIVIDE_BY_ZERO unhandled */
 /* EXCCAUSE_PRIVILEGED unhandled */
 #if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
@@ -268,6 +270,7 @@ void do_interrupt(struct pt_regs *regs)
 		XCHAL_INTLEVEL7_MASK,
 	};
 	struct pt_regs *old_regs;
+	unsigned unhandled = ~0u;
 
 	trace_hardirqs_off();
 
@@ -283,6 +286,10 @@ void do_interrupt(struct pt_regs *regs)
 		for (level = LOCKLEVEL; level > 0; --level) {
 			if (int_at_level & int_level_mask[level]) {
 				int_at_level &= int_level_mask[level];
+				if (int_at_level & unhandled)
+					int_at_level &= unhandled;
+				else
+					unhandled |= int_level_mask[level];
 				break;
 			}
 		}
@@ -290,6 +297,8 @@ void do_interrupt(struct pt_regs *regs)
 		if (level == 0)
 			break;
 
+		/* clear lowest pending irq in the unhandled mask */
+		unhandled ^= (int_at_level & -int_at_level);
 		do_IRQ(__ffs(int_at_level), regs);
 	}
 
@@ -455,11 +464,9 @@ void secondary_trap_init(void)
 
 void show_regs(struct pt_regs * regs)
 {
-	int i, wmask;
+	int i;
 
 	show_regs_print_info(KERN_DEFAULT);
-
-	wmask = regs->wmask & ~1;
 
 	for (i = 0; i < 16; i++) {
 		if ((i % 8) == 0)
@@ -520,7 +527,7 @@ void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 
 DEFINE_SPINLOCK(die_lock);
 
-void die(const char * str, struct pt_regs * regs, long err)
+void __noreturn die(const char * str, struct pt_regs * regs, long err)
 {
 	static int die_counter;
 	const char *pr = "";
@@ -545,5 +552,5 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (panic_on_oops)
 		panic("Fatal exception");
 
-	do_exit(err);
+	make_task_dead(err);
 }

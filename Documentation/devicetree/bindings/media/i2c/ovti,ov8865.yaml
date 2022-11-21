@@ -1,0 +1,118 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/ovti,ov8865.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: OmniVision OV8865 Image Sensor Device Tree Bindings
+
+maintainers:
+  - Paul Kocialkowski <paul.kocialkowski@bootlin.com>
+
+properties:
+  compatible:
+    const: ovti,ov8865
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: EXTCLK Clock
+
+  assigned-clocks:
+    maxItems: 1
+
+  assigned-clock-rates:
+    maxItems: 1
+
+  dvdd-supply:
+    description: Digital Domain Power Supply
+
+  avdd-supply:
+    description: Analog Domain Power Supply
+
+  dovdd-supply:
+    description: I/O Domain Power Supply
+
+  powerdown-gpios:
+    maxItems: 1
+    description: Power Down Pin GPIO Control (active low)
+
+  reset-gpios:
+    maxItems: 1
+    description: Reset Pin GPIO Control (active low)
+
+  port:
+    description: MIPI CSI-2 transmitter port
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    additionalProperties: false
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          link-frequencies: true
+
+          data-lanes:
+            minItems: 1
+            maxItems: 4
+
+        required:
+          - data-lanes
+          - link-frequencies
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - assigned-clocks
+  - assigned-clock-rates
+  - dvdd-supply
+  - avdd-supply
+  - dovdd-supply
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/sun8i-a83t-ccu.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c2 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        ov8865: camera@36 {
+            compatible = "ovti,ov8865";
+            reg = <0x36>;
+
+            pinctrl-names = "default";
+            pinctrl-0 = <&csi_mclk_pin>;
+
+            clocks = <&ccu CLK_CSI_MCLK>;
+            assigned-clocks = <&ccu CLK_CSI_MCLK>;
+            assigned-clock-rates = <24000000>;
+
+            avdd-supply = <&reg_ov8865_avdd>;
+            dovdd-supply = <&reg_ov8865_dovdd>;
+            dvdd-supply = <&reg_ov8865_dvdd>;
+
+            powerdown-gpios = <&pio 4 17 GPIO_ACTIVE_LOW>; /* PE17 */
+            reset-gpios = <&pio 4 16 GPIO_ACTIVE_LOW>; /* PE16 */
+
+            port {
+                ov8865_out_mipi_csi2: endpoint {
+                    data-lanes = <1 2 3 4>;
+                    link-frequencies = /bits/ 64 <360000000>;
+
+                    remote-endpoint = <&mipi_csi2_in_ov8865>;
+                };
+            };
+        };
+    };
+
+...

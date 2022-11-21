@@ -234,7 +234,7 @@ static struct chg_map chg_times[] = {
 	{ 510, 15 << WM831X_CHG_TIME_SHIFT },
 };
 
-static void wm831x_battey_apply_config(struct wm831x *wm831x,
+static void wm831x_battery_apply_config(struct wm831x *wm831x,
 				       struct chg_map *map, int count, int val,
 				       int *reg, const char *name,
 				       const char *units)
@@ -281,24 +281,24 @@ static void wm831x_config_battery(struct wm831x *wm831x)
 	if (pdata->fast_enable)
 		reg1 |= WM831X_CHG_FAST;
 
-	wm831x_battey_apply_config(wm831x, trickle_ilims,
+	wm831x_battery_apply_config(wm831x, trickle_ilims,
 				   ARRAY_SIZE(trickle_ilims),
 				   pdata->trickle_ilim, &reg2,
 				   "trickle charge current limit", "mA");
 
-	wm831x_battey_apply_config(wm831x, vsels, ARRAY_SIZE(vsels),
+	wm831x_battery_apply_config(wm831x, vsels, ARRAY_SIZE(vsels),
 				   pdata->vsel, &reg2,
 				   "target voltage", "mV");
 
-	wm831x_battey_apply_config(wm831x, fast_ilims, ARRAY_SIZE(fast_ilims),
+	wm831x_battery_apply_config(wm831x, fast_ilims, ARRAY_SIZE(fast_ilims),
 				   pdata->fast_ilim, &reg2,
 				   "fast charge current limit", "mA");
 
-	wm831x_battey_apply_config(wm831x, eoc_iterms, ARRAY_SIZE(eoc_iterms),
+	wm831x_battery_apply_config(wm831x, eoc_iterms, ARRAY_SIZE(eoc_iterms),
 				   pdata->eoc_iterm, &reg1,
 				   "end of charge current threshold", "mA");
 
-	wm831x_battey_apply_config(wm831x, chg_times, ARRAY_SIZE(chg_times),
+	wm831x_battery_apply_config(wm831x, chg_times, ARRAY_SIZE(chg_times),
 				   pdata->timeout, &reg2,
 				   "charger timeout", "min");
 
@@ -668,7 +668,6 @@ static int wm831x_power_probe(struct platform_device *pdev)
 		fallthrough;
 	case -EPROBE_DEFER:
 		goto err_bat_irq;
-		break;
 	}
 
 	return ret;

@@ -34,9 +34,6 @@ pgprot_t pgprot_dmacoherent(pgprot_t prot)
 	return prot;
 }
 #else
-
-#include <asm/cacheflush.h>
-
 void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp_t gfp, unsigned long attrs)
 {

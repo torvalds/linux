@@ -141,7 +141,7 @@ gv100_gr_fwif[] = {
 };
 
 int
-gv100_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+gv100_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
-	return gf100_gr_new_(gv100_gr_fwif, device, index, pgr);
+	return gf100_gr_new_(gv100_gr_fwif, device, type, inst, pgr);
 }

@@ -442,10 +442,14 @@ static irqreturn_t sh_mobile_i2c_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void sh_mobile_i2c_dma_unmap(struct sh_mobile_i2c_data *pd)
+static void sh_mobile_i2c_cleanup_dma(struct sh_mobile_i2c_data *pd, bool terminate)
 {
 	struct dma_chan *chan = pd->dma_direction == DMA_FROM_DEVICE
 				? pd->dma_rx : pd->dma_tx;
+
+	/* only allowed from thread context! */
+	if (terminate)
+		dmaengine_terminate_sync(chan);
 
 	dma_unmap_single(chan->device->dev, sg_dma_address(&pd->sg),
 			 pd->msg->len, pd->dma_direction);
@@ -453,23 +457,11 @@ static void sh_mobile_i2c_dma_unmap(struct sh_mobile_i2c_data *pd)
 	pd->dma_direction = DMA_NONE;
 }
 
-static void sh_mobile_i2c_cleanup_dma(struct sh_mobile_i2c_data *pd)
-{
-	if (pd->dma_direction == DMA_NONE)
-		return;
-	else if (pd->dma_direction == DMA_FROM_DEVICE)
-		dmaengine_terminate_all(pd->dma_rx);
-	else if (pd->dma_direction == DMA_TO_DEVICE)
-		dmaengine_terminate_all(pd->dma_tx);
-
-	sh_mobile_i2c_dma_unmap(pd);
-}
-
 static void sh_mobile_i2c_dma_callback(void *data)
 {
 	struct sh_mobile_i2c_data *pd = data;
 
-	sh_mobile_i2c_dma_unmap(pd);
+	sh_mobile_i2c_cleanup_dma(pd, false);
 	pd->pos = pd->msg->len;
 	pd->stop_after_dma = true;
 
@@ -549,7 +541,7 @@ static void sh_mobile_i2c_xfer_dma(struct sh_mobile_i2c_data *pd)
 					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc) {
 		dev_dbg(pd->dev, "dma prep slave sg failed, using PIO\n");
-		sh_mobile_i2c_cleanup_dma(pd);
+		sh_mobile_i2c_cleanup_dma(pd, false);
 		return;
 	}
 
@@ -559,7 +551,7 @@ static void sh_mobile_i2c_xfer_dma(struct sh_mobile_i2c_data *pd)
 	cookie = dmaengine_submit(txdesc);
 	if (dma_submit_error(cookie)) {
 		dev_dbg(pd->dev, "submitting dma failed, using PIO\n");
-		sh_mobile_i2c_cleanup_dma(pd);
+		sh_mobile_i2c_cleanup_dma(pd, false);
 		return;
 	}
 
@@ -698,7 +690,7 @@ static int sh_mobile_xfer(struct sh_mobile_i2c_data *pd,
 		if (!time_left) {
 			dev_err(pd->dev, "Transfer request timed out\n");
 			if (pd->dma_direction != DMA_NONE)
-				sh_mobile_i2c_cleanup_dma(pd);
+				sh_mobile_i2c_cleanup_dma(pd, true);
 
 			err = -ETIMEDOUT;
 			break;
@@ -807,7 +799,7 @@ static const struct sh_mobile_dt_config r8a7740_dt_config = {
 static const struct of_device_id sh_mobile_i2c_dt_ids[] = {
 	{ .compatible = "renesas,iic-r8a73a4", .data = &fast_clock_dt_config },
 	{ .compatible = "renesas,iic-r8a7740", .data = &r8a7740_dt_config },
-	{ .compatible = "renesas,iic-r8a774c0", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a774c0", .data = &v2_freq_calc_dt_config },
 	{ .compatible = "renesas,iic-r8a7790", .data = &v2_freq_calc_dt_config },
 	{ .compatible = "renesas,iic-r8a7791", .data = &v2_freq_calc_dt_config },
 	{ .compatible = "renesas,iic-r8a7792", .data = &v2_freq_calc_dt_config },
@@ -838,20 +830,38 @@ static void sh_mobile_i2c_release_dma(struct sh_mobile_i2c_data *pd)
 
 static int sh_mobile_i2c_hook_irqs(struct platform_device *dev, struct sh_mobile_i2c_data *pd)
 {
-	struct resource *res;
-	resource_size_t n;
+	struct device_node *np = dev_of_node(&dev->dev);
 	int k = 0, ret;
 
-	while ((res = platform_get_resource(dev, IORESOURCE_IRQ, k))) {
-		for (n = res->start; n <= res->end; n++) {
-			ret = devm_request_irq(&dev->dev, n, sh_mobile_i2c_isr,
-					  0, dev_name(&dev->dev), pd);
+	if (np) {
+		int irq;
+
+		while ((irq = platform_get_irq_optional(dev, k)) != -ENXIO) {
+			if (irq < 0)
+				return irq;
+			ret = devm_request_irq(&dev->dev, irq, sh_mobile_i2c_isr,
+					       0, dev_name(&dev->dev), pd);
 			if (ret) {
-				dev_err(&dev->dev, "cannot request IRQ %pa\n", &n);
+				dev_err(&dev->dev, "cannot request IRQ %d\n", irq);
 				return ret;
 			}
+			k++;
 		}
-		k++;
+	} else {
+		struct resource *res;
+		resource_size_t n;
+
+		while ((res = platform_get_resource(dev, IORESOURCE_IRQ, k))) {
+			for (n = res->start; n <= res->end; n++) {
+				ret = devm_request_irq(&dev->dev, n, sh_mobile_i2c_isr,
+						       0, dev_name(&dev->dev), pd);
+				if (ret) {
+					dev_err(&dev->dev, "cannot request IRQ %pa\n", &n);
+					return ret;
+				}
+			}
+			k++;
+		}
 	}
 
 	return k > 0 ? 0 : -ENOENT;
@@ -956,10 +966,38 @@ static int sh_mobile_i2c_remove(struct platform_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int sh_mobile_i2c_suspend(struct device *dev)
+{
+	struct sh_mobile_i2c_data *pd = dev_get_drvdata(dev);
+
+	i2c_mark_adapter_suspended(&pd->adap);
+	return 0;
+}
+
+static int sh_mobile_i2c_resume(struct device *dev)
+{
+	struct sh_mobile_i2c_data *pd = dev_get_drvdata(dev);
+
+	i2c_mark_adapter_resumed(&pd->adap);
+	return 0;
+}
+
+static const struct dev_pm_ops sh_mobile_i2c_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sh_mobile_i2c_suspend,
+				      sh_mobile_i2c_resume)
+};
+
+#define DEV_PM_OPS (&sh_mobile_i2c_pm_ops)
+#else
+#define DEV_PM_OPS NULL
+#endif /* CONFIG_PM_SLEEP */
+
 static struct platform_driver sh_mobile_i2c_driver = {
 	.driver		= {
 		.name		= "i2c-sh_mobile",
 		.of_match_table = sh_mobile_i2c_dt_ids,
+		.pm	= DEV_PM_OPS,
 	},
 	.probe		= sh_mobile_i2c_probe,
 	.remove		= sh_mobile_i2c_remove,

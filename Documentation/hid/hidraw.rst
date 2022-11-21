@@ -21,7 +21,7 @@ Hidraw is the only alternative, short of writing a custom kernel driver, for
 these non-conformant devices.
 
 A benefit of hidraw is that its use by userspace applications is independent
-of the underlying hardware type.  Currently, Hidraw is implemented for USB
+of the underlying hardware type.  Currently, hidraw is implemented for USB
 and Bluetooth.  In the future, as new hardware bus types are developed which
 use the HID specification, hidraw will be expanded to add support for these
 new bus types.
@@ -31,9 +31,10 @@ create hidraw device nodes.  Udev will typically create the device nodes
 directly under /dev (eg: /dev/hidraw0).  As this location is distribution-
 and udev rule-dependent, applications should use libudev to locate hidraw
 devices attached to the system.  There is a tutorial on libudev with a
-working example at:
+working example at::
 
 	http://www.signal11.us/oss/udev/
+	https://web.archive.org/web/2019*/www.signal11.us
 
 The HIDRAW API
 ---------------
@@ -123,8 +124,49 @@ HIDIOCGFEATURE(len):
 This ioctl will request a feature report from the device using the control
 endpoint.  The first byte of the supplied buffer should be set to the report
 number of the requested report.  For devices which do not use numbered
-reports, set the first byte to 0.  The report will be returned starting at
-the first byte of the buffer (ie: the report number is not returned).
+reports, set the first byte to 0.  The returned report buffer will contain the
+report number in the first byte, followed by the report data read from the
+device.  For devices which do not use numbered reports, the report data will
+begin at the first byte of the returned buffer.
+
+HIDIOCSINPUT(len):
+	Send an Input Report
+
+This ioctl will send an input report to the device, using the control endpoint.
+In most cases, setting an input HID report on a device is meaningless and has
+no effect, but some devices may choose to use this to set or reset an initial
+state of a report.  The format of the buffer issued with this report is identical
+to that of HIDIOCSFEATURE.
+
+HIDIOCGINPUT(len):
+	Get an Input Report
+
+This ioctl will request an input report from the device using the control
+endpoint.  This is slower on most devices where a dedicated In endpoint exists
+for regular input reports, but allows the host to request the value of a
+specific report number.  Typically, this is used to request the initial states of
+an input report of a device, before an application listens for normal reports via
+the regular device read() interface.  The format of the buffer issued with this report
+is identical to that of HIDIOCGFEATURE.
+
+HIDIOCSOUTPUT(len):
+	Send an Output Report
+
+This ioctl will send an output report to the device, using the control endpoint.
+This is slower on most devices where a dedicated Out endpoint exists for regular
+output reports, but is added for completeness.  Typically, this is used to set
+the initial states of an output report of a device, before an application sends
+updates via the regular device write() interface. The format of the buffer issued
+with this report is identical to that of HIDIOCSFEATURE.
+
+HIDIOCGOUTPUT(len):
+	Get an Output Report
+
+This ioctl will request an output report from the device using the control
+endpoint.  Typically, this is used to retrive the initial state of
+an output report of a device, before an application updates it as necessary either
+via a HIDIOCSOUTPUT request, or the regular device write() interface.  The format
+of the buffer issued with this report is identical to that of HIDIOCGFEATURE.
 
 Example
 -------

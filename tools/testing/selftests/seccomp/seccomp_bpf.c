@@ -235,6 +235,10 @@ struct seccomp_notif_addfd {
 };
 #endif
 
+#ifndef SECCOMP_ADDFD_FLAG_SEND
+#define SECCOMP_ADDFD_FLAG_SEND	(1UL << 1) /* Addfd and return it, atomically */
+#endif
+
 struct seccomp_notif_addfd_small {
 	__u64 id;
 	char weird[4];
@@ -272,12 +276,12 @@ int seccomp(unsigned int op, unsigned int flags, void *args)
 }
 #endif
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define syscall_arg(_n) (offsetof(struct seccomp_data, args[_n]))
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define syscall_arg(_n) (offsetof(struct seccomp_data, args[_n]) + sizeof(__u32))
 #else
-#error "wut? Unknown __BYTE_ORDER?!"
+#error "wut? Unknown __BYTE_ORDER__?!"
 #endif
 
 #define SIBLING_EXIT_UNKILLED	0xbadbeef
@@ -315,7 +319,7 @@ TEST(kcmp)
 	ret = __filecmp(getpid(), getpid(), 1, 1);
 	EXPECT_EQ(ret, 0);
 	if (ret != 0 && errno == ENOSYS)
-		SKIP(return, "Kernel does not support kcmp() (missing CONFIG_CHECKPOINT_RESTORE?)");
+		SKIP(return, "Kernel does not support kcmp() (missing CONFIG_KCMP?)");
 }
 
 TEST(mode_strict_support)
@@ -951,7 +955,7 @@ TEST(ERRNO_valid)
 	ASSERT_EQ(0, ret);
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
-	EXPECT_EQ(-1, read(0, NULL, 0));
+	EXPECT_EQ(-1, read(-1, NULL, 0));
 	EXPECT_EQ(E2BIG, errno);
 }
 
@@ -970,7 +974,7 @@ TEST(ERRNO_zero)
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
 	/* "errno" of 0 is ok. */
-	EXPECT_EQ(0, read(0, NULL, 0));
+	EXPECT_EQ(0, read(-1, NULL, 0));
 }
 
 /*
@@ -991,7 +995,7 @@ TEST(ERRNO_capped)
 	ASSERT_EQ(0, ret);
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
-	EXPECT_EQ(-1, read(0, NULL, 0));
+	EXPECT_EQ(-1, read(-1, NULL, 0));
 	EXPECT_EQ(4095, errno);
 }
 
@@ -1022,7 +1026,7 @@ TEST(ERRNO_order)
 	ASSERT_EQ(0, ret);
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
-	EXPECT_EQ(-1, read(0, NULL, 0));
+	EXPECT_EQ(-1, read(-1, NULL, 0));
 	EXPECT_EQ(12, errno);
 }
 
@@ -1483,7 +1487,7 @@ TEST_F(precedence, log_is_fifth_in_any_order)
 #define PTRACE_EVENT_SECCOMP 7
 #endif
 
-#define IS_SECCOMP_EVENT(status) ((status >> 16) == PTRACE_EVENT_SECCOMP)
+#define PTRACE_EVENT_MASK(status) ((status) >> 16)
 bool tracer_running;
 void tracer_stop(int sig)
 {
@@ -1535,12 +1539,22 @@ void start_tracer(struct __test_metadata *_metadata, int fd, pid_t tracee,
 
 		if (wait(&status) != tracee)
 			continue;
-		if (WIFSIGNALED(status) || WIFEXITED(status))
-			/* Child is dead. Time to go. */
-			return;
 
-		/* Check if this is a seccomp event. */
-		ASSERT_EQ(!ptrace_syscall, IS_SECCOMP_EVENT(status));
+		if (WIFSIGNALED(status)) {
+			/* Child caught a fatal signal. */
+			return;
+		}
+		if (WIFEXITED(status)) {
+			/* Child exited with code. */
+			return;
+		}
+
+		/* Check if we got an expected event. */
+		ASSERT_EQ(WIFCONTINUED(status), false);
+		ASSERT_EQ(WIFSTOPPED(status), true);
+		ASSERT_EQ(WSTOPSIG(status) & SIGTRAP, SIGTRAP) {
+			TH_LOG("Unexpected WSTOPSIG: %d", WSTOPSIG(status));
+		}
 
 		tracer_func(_metadata, tracee, status, args);
 
@@ -1753,16 +1767,25 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 # define SYSCALL_RET_SET(_regs, _val)				\
 	do {							\
 		typeof(_val) _result = (_val);			\
-		/*						\
-		 * A syscall error is signaled by CR0 SO bit	\
-		 * and the code is stored as a positive value.	\
-		 */						\
-		if (_result < 0) {				\
-			SYSCALL_RET(_regs) = -_result;		\
-			(_regs).ccr |= 0x10000000;		\
-		} else {					\
+		if ((_regs.trap & 0xfff0) == 0x3000) {		\
+			/*					\
+			 * scv 0 system call uses -ve result	\
+			 * for error, so no need to adjust.	\
+			 */					\
 			SYSCALL_RET(_regs) = _result;		\
-			(_regs).ccr &= ~0x10000000;		\
+		} else {					\
+			/*					\
+			 * A syscall error is signaled by the	\
+			 * CR0 SO bit and the code is stored as	\
+			 * a positive value.			\
+			 */					\
+			if (_result < 0) {			\
+				SYSCALL_RET(_regs) = -_result;	\
+				(_regs).ccr |= 0x10000000;	\
+			} else {				\
+				SYSCALL_RET(_regs) = _result;	\
+				(_regs).ccr &= ~0x10000000;	\
+			}					\
 		}						\
 	} while (0)
 # define SYSCALL_RET_SET_ON_PTRACE_EXIT
@@ -1948,6 +1971,11 @@ void tracer_seccomp(struct __test_metadata *_metadata, pid_t tracee,
 	int ret;
 	unsigned long msg;
 
+	EXPECT_EQ(PTRACE_EVENT_MASK(status), PTRACE_EVENT_SECCOMP) {
+		TH_LOG("Unexpected ptrace event: %d", PTRACE_EVENT_MASK(status));
+		return;
+	}
+
 	/* Make sure we got the right message. */
 	ret = ptrace(PTRACE_GETEVENTMSG, tracee, NULL, &msg);
 	EXPECT_EQ(0, ret);
@@ -1997,6 +2025,11 @@ void tracer_ptrace(struct __test_metadata *_metadata, pid_t tracee,
 	long syscall_nr_val, syscall_ret_val;
 	long *syscall_nr = NULL, *syscall_ret = NULL;
 	FIXTURE_DATA(TRACE_syscall) *self = args;
+
+	EXPECT_EQ(WSTOPSIG(status) & 0x80, 0x80) {
+		TH_LOG("Unexpected WSTOPSIG: %d", WSTOPSIG(status));
+		return;
+	}
 
 	/*
 	 * The traditional way to tell PTRACE_SYSCALL entry/exit
@@ -2115,6 +2148,7 @@ FIXTURE_SETUP(TRACE_syscall)
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret);
 
+	/* Do not install seccomp rewrite filters, as we'll use ptrace instead. */
 	if (variant->use_ptrace)
 		return;
 
@@ -2171,6 +2205,29 @@ TEST_F(TRACE_syscall, syscall_faked)
 {
 	/* Tracer skips the gettid syscall and store altered return value. */
 	EXPECT_SYSCALL_RETURN(45000, syscall(__NR_gettid));
+}
+
+TEST_F_SIGNAL(TRACE_syscall, kill_immediate, SIGSYS)
+{
+	struct sock_filter filter[] = {
+		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
+			offsetof(struct seccomp_data, nr)),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_mknodat, 0, 1),
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL_THREAD),
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
+	};
+	struct sock_fprog prog = {
+		.len = (unsigned short)ARRAY_SIZE(filter),
+		.filter = filter,
+	};
+	long ret;
+
+	/* Install "kill on mknodat" filter. */
+	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog, 0, 0);
+	ASSERT_EQ(0, ret);
+
+	/* This should immediately die with SIGSYS, regardless of tracer. */
+	EXPECT_EQ(-1, syscall(__NR_mknodat, -1, NULL, 0, 0));
 }
 
 TEST_F(TRACE_syscall, skip_after)
@@ -2566,7 +2623,7 @@ void *tsync_sibling(void *data)
 	ret = prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0);
 	if (!ret)
 		return (void *)SIBLING_EXIT_NEWPRIVS;
-	read(0, NULL, 0);
+	read(-1, NULL, 0);
 	return (void *)SIBLING_EXIT_UNKILLED;
 }
 
@@ -3950,7 +4007,7 @@ TEST(user_notification_addfd)
 {
 	pid_t pid;
 	long ret;
-	int status, listener, memfd, fd;
+	int status, listener, memfd, fd, nextfd;
 	struct seccomp_notif_addfd addfd = {};
 	struct seccomp_notif_addfd_small small = {};
 	struct seccomp_notif_addfd_big big = {};
@@ -3959,25 +4016,34 @@ TEST(user_notification_addfd)
 	/* 100 ms */
 	struct timespec delay = { .tv_nsec = 100000000 };
 
+	/* There may be arbitrary already-open fds at test start. */
 	memfd = memfd_create("test", 0);
 	ASSERT_GE(memfd, 0);
+	nextfd = memfd + 1;
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
 	}
 
+	/* fd: 4 */
 	/* Check that the basic notification machinery works */
 	listener = user_notif_syscall(__NR_getppid,
 				      SECCOMP_FILTER_FLAG_NEW_LISTENER);
-	ASSERT_GE(listener, 0);
+	ASSERT_EQ(listener, nextfd++);
 
 	pid = fork();
 	ASSERT_GE(pid, 0);
 
 	if (pid == 0) {
+		/* fds will be added and this value is expected */
 		if (syscall(__NR_getppid) != USER_NOTIF_MAGIC)
 			exit(1);
+
+		/* Atomic addfd+send is received here. Check it is a valid fd */
+		if (fcntl(syscall(__NR_getppid), F_GETFD) == -1)
+			exit(1);
+
 		exit(syscall(__NR_getppid) != USER_NOTIF_MAGIC);
 	}
 
@@ -4019,18 +4085,14 @@ TEST(user_notification_addfd)
 
 	/* Verify we can set an arbitrary remote fd */
 	fd = ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd);
-	/*
-	 * The child has fds 0(stdin), 1(stdout), 2(stderr), 3(memfd),
-	 * 4(listener), so the newly allocated fd should be 5.
-	 */
-	EXPECT_EQ(fd, 5);
+	EXPECT_EQ(fd, nextfd++);
 	EXPECT_EQ(filecmp(getpid(), pid, memfd, fd), 0);
 
 	/* Verify we can set an arbitrary remote fd with large size */
 	memset(&big, 0x0, sizeof(big));
 	big.addfd = addfd;
 	fd = ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD_BIG, &big);
-	EXPECT_EQ(fd, 6);
+	EXPECT_EQ(fd, nextfd++);
 
 	/* Verify we can set a specific remote fd */
 	addfd.newfd = 42;
@@ -4044,6 +4106,32 @@ TEST(user_notification_addfd)
 	resp.error = 0;
 	resp.val = USER_NOTIF_MAGIC;
 	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), 0);
+
+	/*
+	 * This sets the ID of the ADD FD to the last request plus 1. The
+	 * notification ID increments 1 per notification.
+	 */
+	addfd.id = req.id + 1;
+
+	/* This spins until the underlying notification is generated */
+	while (ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd) != -1 &&
+	       errno != -EINPROGRESS)
+		nanosleep(&delay, NULL);
+
+	memset(&req, 0, sizeof(req));
+	ASSERT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
+	ASSERT_EQ(addfd.id, req.id);
+
+	/* Verify we can do an atomic addfd and send */
+	addfd.newfd = 0;
+	addfd.flags = SECCOMP_ADDFD_FLAG_SEND;
+	fd = ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd);
+	/*
+	 * Child has earlier "low" fds and now 42, so we expect the next
+	 * lowest available fd to be assigned here.
+	 */
+	EXPECT_EQ(fd, nextfd++);
+	ASSERT_EQ(filecmp(getpid(), pid, memfd, fd), 0);
 
 	/*
 	 * This sets the ID of the ADD FD to the last request plus 1. The
@@ -4117,6 +4205,10 @@ TEST(user_notification_addfd_rlimit)
 	addfd.flags = 0;
 
 	/* Should probably spot check /proc/sys/fs/file-nr */
+	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd), -1);
+	EXPECT_EQ(errno, EMFILE);
+
+	addfd.flags = SECCOMP_ADDFD_FLAG_SEND;
 	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd), -1);
 	EXPECT_EQ(errno, EMFILE);
 

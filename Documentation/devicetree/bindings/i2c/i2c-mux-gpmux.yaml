@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/i2c-mux-gpmux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: General Purpose I2C Bus Mux
+
+maintainers:
+  - Peter Rosin <peda@axentia.se>
+
+description: |+
+  This binding describes an I2C bus multiplexer that uses a mux controller
+  from the mux subsystem to route the I2C signals.
+
+                                    .-----.  .-----.
+                                    | dev |  | dev |
+      .------------.                '-----'  '-----'
+      | SoC        |                   |        |
+      |            |          .--------+--------'
+      |   .------. |  .------+    child bus A, on MUX value set to 0
+      |   | I2C  |-|--| Mux  |
+      |   '------' |  '--+---+    child bus B, on MUX value set to 1
+      |   .------. |     |    '----------+--------+--------.
+      |   | MUX- | |     |               |        |        |
+      |   | Ctrl |-|-----+            .-----.  .-----.  .-----.
+      |   '------' |                  | dev |  | dev |  | dev |
+      '------------'                  '-----'  '-----'  '-----'
+
+
+
+allOf:
+  - $ref: /schemas/i2c/i2c-mux.yaml#
+
+properties:
+  compatible:
+    const: i2c-mux
+
+  i2c-parent:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      The phandle of the I2C bus that this multiplexer's master-side port is
+      connected to.
+
+  mux-controls:
+    maxItems: 1
+    description:
+      The mux-controller states are the I2C sub-bus numbers.
+
+  mux-locked:
+    type: boolean
+    description: |
+      Explicitly allow unrelated I2C transactions on the parent I2C adapter at
+      these times:
+       - during setup of the multiplexer
+       - between setup of the multiplexer and the child bus I2C transaction
+       - between the child bus I2C transaction and releasing of the multiplexer
+       - during releasing of the multiplexer
+
+      However, I2C transactions to devices behind all I2C multiplexers connected
+      to the same parent adapter that this multiplexer is connected to are blocked
+      for the full duration of the complete multiplexed I2C transaction (i.e.
+      including the times covered by the above list).
+      If mux-locked is not present, the multiplexer is assumed to be parent-locked.
+      This means that no unrelated I2C transactions are allowed on the parent I2C
+      adapter for the complete multiplexed I2C transaction.
+      The properties of mux-locked and parent-locked multiplexers are discussed
+      in more detail in Documentation/i2c/i2c-topology.rst.
+
+required:
+  - compatible
+  - i2c-parent
+  - mux-controls
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    mux: mux-controller {
+        compatible = "gpio-mux";
+        #mux-control-cells = <0>;
+
+        mux-gpios = <&pioA 0 GPIO_ACTIVE_HIGH>,
+                    <&pioA 1 GPIO_ACTIVE_HIGH>;
+    };
+
+    i2c-mux {
+        compatible = "i2c-mux";
+        mux-locked;
+        i2c-parent = <&i2c1>;
+
+        mux-controls = <&mux>;
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        i2c@1 {
+            reg = <1>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            gpio@20 {
+                compatible = "nxp,pca9555";
+                gpio-controller;
+                #gpio-cells = <2>;
+                reg = <0x20>;
+            };
+        };
+
+        i2c@3 {
+            reg = <3>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            gpio@20 {
+                compatible = "nxp,pca9555";
+                gpio-controller;
+                #gpio-cells = <2>;
+                reg = <0x20>;
+            };
+        };
+    };
+...

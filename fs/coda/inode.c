@@ -43,7 +43,7 @@ static struct kmem_cache * coda_inode_cachep;
 static struct inode *coda_alloc_inode(struct super_block *sb)
 {
 	struct coda_inode_info *ei;
-	ei = kmem_cache_alloc(coda_inode_cachep, GFP_KERNEL);
+	ei = alloc_inode_sb(sb, coda_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	memset(&ei->c_fid, 0, sizeof(struct CodaFid));
@@ -251,16 +251,17 @@ static void coda_evict_inode(struct inode *inode)
 	coda_cache_clear_inode(inode);
 }
 
-int coda_getattr(const struct path *path, struct kstat *stat,
-		 u32 request_mask, unsigned int flags)
+int coda_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	int err = coda_revalidate_inode(d_inode(path->dentry));
 	if (!err)
-		generic_fillattr(d_inode(path->dentry), stat);
+		generic_fillattr(&init_user_ns, d_inode(path->dentry), stat);
 	return err;
 }
 
-int coda_setattr(struct dentry *de, struct iattr *iattr)
+int coda_setattr(struct user_namespace *mnt_userns, struct dentry *de,
+		 struct iattr *iattr)
 {
 	struct inode *inode = d_inode(de);
 	struct coda_vattr vattr;

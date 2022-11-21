@@ -36,6 +36,13 @@
 #include "../core.h"
 #include "pinctrl-sunxi.h"
 
+/*
+ * These lock classes tell lockdep that GPIO IRQs are in a different
+ * category than their parents, so it won't report false recursion.
+ */
+static struct lock_class_key sunxi_pinctrl_irq_lock_class;
+static struct lock_class_key sunxi_pinctrl_irq_request_class;
+
 static struct irq_chip sunxi_pinctrl_edge_irq_chip;
 static struct irq_chip sunxi_pinctrl_level_irq_chip;
 
@@ -777,11 +784,10 @@ static int sunxi_pmx_request(struct pinctrl_dev *pctldev, unsigned offset)
 
 	snprintf(supply, sizeof(supply), "vcc-p%c", 'a' + bank);
 	reg = regulator_get(pctl->dev, supply);
-	if (IS_ERR(reg)) {
-		dev_err(pctl->dev, "Couldn't get bank P%c regulator\n",
-			'A' + bank);
-		return PTR_ERR(reg);
-	}
+	if (IS_ERR(reg))
+		return dev_err_probe(pctl->dev, PTR_ERR(reg),
+				     "Couldn't get bank P%c regulator\n",
+				     'A' + bank);
 
 	ret = regulator_enable(reg);
 	if (ret) {
@@ -835,7 +841,10 @@ static const struct pinmux_ops sunxi_pmx_ops = {
 static int sunxi_pinctrl_gpio_direction_input(struct gpio_chip *chip,
 					unsigned offset)
 {
-	return pinctrl_gpio_direction_input(chip->base + offset);
+	struct sunxi_pinctrl *pctl = gpiochip_get_data(chip);
+
+	return sunxi_pmx_gpio_set_direction(pctl->pctl_dev, NULL,
+					    chip->base + offset, true);
 }
 
 static int sunxi_pinctrl_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -885,8 +894,11 @@ static void sunxi_pinctrl_gpio_set(struct gpio_chip *chip,
 static int sunxi_pinctrl_gpio_direction_output(struct gpio_chip *chip,
 					unsigned offset, int value)
 {
+	struct sunxi_pinctrl *pctl = gpiochip_get_data(chip);
+
 	sunxi_pinctrl_gpio_set(chip, offset, value);
-	return pinctrl_gpio_direction_output(chip->base + offset);
+	return sunxi_pmx_gpio_set_direction(pctl->pctl_dev, NULL,
+					    chip->base + offset, false);
 }
 
 static int sunxi_pinctrl_gpio_of_xlate(struct gpio_chip *gc,
@@ -1139,8 +1151,9 @@ static void sunxi_pinctrl_irq_handler(struct irq_desc *desc)
 		if (irq == pctl->irq[bank])
 			break;
 
-	if (bank == pctl->desc->irq_banks)
-		return;
+	WARN_ON(bank == pctl->desc->irq_banks);
+
+	chained_irq_enter(chip, desc);
 
 	reg = sunxi_irq_status_reg_from_bank(pctl->desc, bank);
 	val = readl(pctl->membase + reg);
@@ -1148,14 +1161,12 @@ static void sunxi_pinctrl_irq_handler(struct irq_desc *desc)
 	if (val) {
 		int irqoffset;
 
-		chained_irq_enter(chip, desc);
-		for_each_set_bit(irqoffset, &val, IRQ_PER_BANK) {
-			int pin_irq = irq_find_mapping(pctl->domain,
-						       bank * IRQ_PER_BANK + irqoffset);
-			generic_handle_irq(pin_irq);
-		}
-		chained_irq_exit(chip, desc);
+		for_each_set_bit(irqoffset, &val, IRQ_PER_BANK)
+			generic_handle_domain_irq(pctl->domain,
+						  bank * IRQ_PER_BANK + irqoffset);
 	}
+
+	chained_irq_exit(chip, desc);
 }
 
 static int sunxi_pinctrl_add_function(struct sunxi_pinctrl *pctl,
@@ -1218,10 +1229,12 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	}
 
 	/*
-	 * We suppose that we won't have any more functions than pins,
-	 * we'll reallocate that later anyway
+	 * Find an upper bound for the maximum number of functions: in
+	 * the worst case we have gpio_in, gpio_out, irq and up to four
+	 * special functions per pin, plus one entry for the sentinel.
+	 * We'll reallocate that later anyway.
 	 */
-	pctl->functions = kcalloc(pctl->ngroups,
+	pctl->functions = kcalloc(4 * pctl->ngroups + 4,
 				  sizeof(*pctl->functions),
 				  GFP_KERNEL);
 	if (!pctl->functions)
@@ -1550,6 +1563,8 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 	for (i = 0; i < (pctl->desc->irq_banks * IRQ_PER_BANK); i++) {
 		int irqno = irq_create_mapping(pctl->domain, i);
 
+		irq_set_lockdep_class(irqno, &sunxi_pinctrl_irq_lock_class,
+				      &sunxi_pinctrl_irq_request_class);
 		irq_set_chip_and_handler(irqno, &sunxi_pinctrl_edge_irq_chip,
 					 handle_edge_irq);
 		irq_set_chip_data(irqno, pctl);

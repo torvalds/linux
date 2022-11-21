@@ -25,7 +25,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-/**
+/*
  * \file mga_dma.c
  * DMA support for MGA G200 / G400.
  *
@@ -389,6 +389,7 @@ int mga_freelist_put(struct drm_device *dev, struct drm_buf *buf)
 
 int mga_driver_load(struct drm_device *dev, unsigned long flags)
 {
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	drm_mga_private_t *dev_priv;
 	int ret;
 
@@ -400,9 +401,9 @@ int mga_driver_load(struct drm_device *dev, unsigned long flags)
 	 * device is 0x0021 (HB6 Universal PCI-PCI bridge), we reject the
 	 * device.
 	 */
-	if ((dev->pdev->device == 0x0525) && dev->pdev->bus->self
-	    && (dev->pdev->bus->self->vendor == 0x3388)
-	    && (dev->pdev->bus->self->device == 0x0021)
+	if ((pdev->device == 0x0525) && pdev->bus->self
+	    && (pdev->bus->self->vendor == 0x3388)
+	    && (pdev->bus->self->device == 0x0021)
 	    && dev->agp) {
 		/* FIXME: This should be quirked in the pci core, but oh well
 		 * the hw probably stopped existing. */
@@ -419,10 +420,10 @@ int mga_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->usec_timeout = MGA_DEFAULT_USEC_TIMEOUT;
 	dev_priv->chipset = flags;
 
-	pci_set_master(dev->pdev);
+	pci_set_master(pdev);
 
-	dev_priv->mmio_base = pci_resource_start(dev->pdev, 1);
-	dev_priv->mmio_size = pci_resource_len(dev->pdev, 1);
+	dev_priv->mmio_base = pci_resource_start(pdev, 1);
+	dev_priv->mmio_size = pci_resource_len(pdev, 1);
 
 	ret = drm_vblank_init(dev, 1);
 
@@ -435,7 +436,7 @@ int mga_driver_load(struct drm_device *dev, unsigned long flags)
 }
 
 #if IS_ENABLED(CONFIG_AGP)
-/**
+/*
  * Bootstrap the driver for AGP DMA.
  *
  * \todo
@@ -468,20 +469,20 @@ static int mga_do_agp_dma_bootstrap(struct drm_device *dev,
 	struct drm_agp_binding bind_req;
 
 	/* Acquire AGP. */
-	err = drm_agp_acquire(dev);
+	err = drm_legacy_agp_acquire(dev);
 	if (err) {
 		DRM_ERROR("Unable to acquire AGP: %d\n", err);
 		return err;
 	}
 
-	err = drm_agp_info(dev, &info);
+	err = drm_legacy_agp_info(dev, &info);
 	if (err) {
 		DRM_ERROR("Unable to get AGP info: %d\n", err);
 		return err;
 	}
 
 	mode.mode = (info.mode & ~0x07) | dma_bs->agp_mode;
-	err = drm_agp_enable(dev, mode);
+	err = drm_legacy_agp_enable(dev, mode);
 	if (err) {
 		DRM_ERROR("Unable to enable AGP (mode = 0x%lx)\n", mode.mode);
 		return err;
@@ -501,7 +502,7 @@ static int mga_do_agp_dma_bootstrap(struct drm_device *dev,
 	/* Allocate and bind AGP memory. */
 	agp_req.size = agp_size;
 	agp_req.type = 0;
-	err = drm_agp_alloc(dev, &agp_req);
+	err = drm_legacy_agp_alloc(dev, &agp_req);
 	if (err) {
 		dev_priv->agp_size = 0;
 		DRM_ERROR("Unable to allocate %uMB AGP memory\n",
@@ -514,7 +515,7 @@ static int mga_do_agp_dma_bootstrap(struct drm_device *dev,
 
 	bind_req.handle = agp_req.handle;
 	bind_req.offset = 0;
-	err = drm_agp_bind(dev, &bind_req);
+	err = drm_legacy_agp_bind(dev, &bind_req);
 	if (err) {
 		DRM_ERROR("Unable to bind AGP memory: %d\n", err);
 		return err;
@@ -610,7 +611,7 @@ static int mga_do_agp_dma_bootstrap(struct drm_device *dev,
 }
 #endif
 
-/**
+/*
  * Bootstrap the driver for PCI DMA.
  *
  * \todo
@@ -948,7 +949,7 @@ static int mga_do_cleanup_dma(struct drm_device *dev, int full_cleanup)
 	 * is freed, it's too late.
 	 */
 	if (dev->irq_enabled)
-		drm_irq_uninstall(dev);
+		drm_legacy_irq_uninstall(dev);
 
 	if (dev->dev_private) {
 		drm_mga_private_t *dev_priv = dev->dev_private;
@@ -971,10 +972,10 @@ static int mga_do_cleanup_dma(struct drm_device *dev, int full_cleanup)
 				struct drm_agp_buffer free_req;
 
 				unbind_req.handle = dev_priv->agp_handle;
-				drm_agp_unbind(dev, &unbind_req);
+				drm_legacy_agp_unbind(dev, &unbind_req);
 
 				free_req.handle = dev_priv->agp_handle;
-				drm_agp_free(dev, &free_req);
+				drm_legacy_agp_free(dev, &free_req);
 
 				dev_priv->agp_textures = NULL;
 				dev_priv->agp_size = 0;
@@ -982,7 +983,7 @@ static int mga_do_cleanup_dma(struct drm_device *dev, int full_cleanup)
 			}
 
 			if ((dev->agp != NULL) && dev->agp->acquired)
-				err = drm_agp_release(dev);
+				err = drm_legacy_agp_release(dev);
 #endif
 		}
 
@@ -1143,7 +1144,7 @@ int mga_dma_buffers(struct drm_device *dev, void *data,
 	return ret;
 }
 
-/**
+/*
  * Called just before the module is unloaded.
  */
 void mga_driver_unload(struct drm_device *dev)
@@ -1152,7 +1153,7 @@ void mga_driver_unload(struct drm_device *dev)
 	dev->dev_private = NULL;
 }
 
-/**
+/*
  * Called when the last opener of the device is closed.
  */
 void mga_driver_lastclose(struct drm_device *dev)

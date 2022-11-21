@@ -53,7 +53,7 @@ static int ebt_mark_tg_check(const struct xt_tgchk_param *par)
 		return -EINVAL;
 	return 0;
 }
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 struct compat_ebt_mark_t_info {
 	compat_ulong_t mark;
 	compat_uint_t target;
@@ -87,7 +87,7 @@ static struct xt_target ebt_mark_tg_reg __read_mostly = {
 	.target		= ebt_mark_tg,
 	.checkentry	= ebt_mark_tg_check,
 	.targetsize	= sizeof(struct ebt_mark_t_info),
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 	.compatsize	= sizeof(struct compat_ebt_mark_t_info),
 	.compat_from_user = mark_tg_compat_from_user,
 	.compat_to_user	= mark_tg_compat_to_user,

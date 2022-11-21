@@ -96,6 +96,7 @@ int test_tmspr()
 	unsigned long	i;
 
 	SKIP_IF(!have_htm());
+	SKIP_IF(htm_is_synthetic());
 
 	/* To cause some context switching */
 	thread_num = 10 * sysconf(_SC_NPROCESSORS_ONLN);

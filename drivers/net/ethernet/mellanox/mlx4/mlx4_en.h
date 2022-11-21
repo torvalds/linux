@@ -36,6 +36,7 @@
 
 #include <linux/bitops.h>
 #include <linux/compiler.h>
+#include <linux/ethtool.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
@@ -46,6 +47,7 @@
 #endif
 #include <linux/cpu_rmap.h>
 #include <linux/ptp_clock_kernel.h>
+#include <linux/irq.h>
 #include <net/xdp.h>
 
 #include <linux/mlx4/device.h>
@@ -170,27 +172,6 @@
 #define MLX4_EN_LOOPBACK_RETRIES	5
 #define MLX4_EN_LOOPBACK_TIMEOUT	100
 
-#ifdef MLX4_EN_PERF_STAT
-/* Number of samples to 'average' */
-#define AVG_SIZE			128
-#define AVG_FACTOR			1024
-
-#define INC_PERF_COUNTER(cnt)		(++(cnt))
-#define ADD_PERF_COUNTER(cnt, add)	((cnt) += (add))
-#define AVG_PERF_COUNTER(cnt, sample) \
-	((cnt) = ((cnt) * (AVG_SIZE - 1) + (sample) * AVG_FACTOR) / AVG_SIZE)
-#define GET_PERF_COUNTER(cnt)		(cnt)
-#define GET_AVG_PERF_COUNTER(cnt)	((cnt) / AVG_FACTOR)
-
-#else
-
-#define INC_PERF_COUNTER(cnt)		do {} while (0)
-#define ADD_PERF_COUNTER(cnt, add)	do {} while (0)
-#define AVG_PERF_COUNTER(cnt, sample)	do {} while (0)
-#define GET_PERF_COUNTER(cnt)		(0)
-#define GET_AVG_PERF_COUNTER(cnt)	(0)
-#endif /* MLX4_EN_PERF_STAT */
-
 /* Constants for TX flow */
 enum {
 	MAX_INLINE = 104, /* 128 - 16 - 4 - 4 */
@@ -302,6 +283,7 @@ struct mlx4_en_tx_ring {
 	struct mlx4_bf		bf;
 
 	/* Following part should be mostly read */
+	void __iomem		*doorbell_address;
 	__be32			doorbell_qpn;
 	__be32			mr_key;
 	u32			size; /* number of TXBBs */
@@ -359,6 +341,8 @@ struct mlx4_en_rx_ring {
 	unsigned long csum_complete;
 	unsigned long rx_alloc_pages;
 	unsigned long xdp_drop;
+	unsigned long xdp_redirect;
+	unsigned long xdp_redirect_fail;
 	unsigned long xdp_tx;
 	unsigned long xdp_tx_full;
 	unsigned long dropped;
@@ -385,7 +369,7 @@ struct mlx4_en_cq {
 	struct mlx4_cqe *buf;
 #define MLX4_EN_OPCODE_ERROR	0x1e
 
-	struct irq_desc *irq_desc;
+	const struct cpumask *aff_mask;
 };
 
 struct mlx4_en_port_profile {
@@ -571,7 +555,6 @@ struct mlx4_en_priv {
 
 	struct mlx4_hwq_resources res;
 	int link_state;
-	int last_link_state;
 	bool port_up;
 	int port;
 	int registered;
@@ -608,7 +591,6 @@ struct mlx4_en_priv {
 	struct work_struct linkstate_task;
 	struct delayed_work stats_task;
 	struct delayed_work service_task;
-	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
 	struct mlx4_en_counter_stats pf_stats;
 	struct mlx4_en_flow_stats_rx rx_priority_flowstats[MLX4_NUM_PRIORITIES];
@@ -795,6 +777,7 @@ void mlx4_en_ptp_overflow_check(struct mlx4_en_dev *mdev);
 #define DEV_FEATURE_CHANGED(dev, new_features, feature) \
 	((dev->features & feature) ^ (new_features & feature))
 
+int mlx4_en_moderation_update(struct mlx4_en_priv *priv);
 int mlx4_en_reset_config(struct net_device *dev,
 			 struct hwtstamp_config ts_config,
 			 netdev_features_t new_features);

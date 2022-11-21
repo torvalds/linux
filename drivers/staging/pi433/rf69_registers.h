@@ -89,9 +89,11 @@
 #define  REG_AESKEY16			0x4D
 #define  REG_TEMP1			0x4E
 #define  REG_TEMP2			0x4F
+#define  REG_TESTLNA			0x58
 #define  REG_TESTPA1			0x5A /* only present on RFM69HW */
 #define  REG_TESTPA2			0x5C /* only present on RFM69HW */
 #define  REG_TESTDAGC			0x6F
+#define  REG_TESTAFC			0x71
 
 /******************************************************/
 /* RF69/SX1231 bit definition				*/

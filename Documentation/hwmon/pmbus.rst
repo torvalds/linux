@@ -3,15 +3,18 @@ Kernel driver pmbus
 
 Supported chips:
 
-  * Ericsson BMR453, BMR454
+  * Flex BMR310, BMR453, BMR454, BMR456, BMR457, BMR458, BMR480,
+    BMR490, BMR491, BMR492
 
-    Prefixes: 'bmr453', 'bmr454'
+    Prefixes: 'bmr310', 'bmr453', 'bmr454', 'bmr456', 'bmr457', 'bmr458', 'bmr480',
+    'bmr490', 'bmr491', 'bmr492'
 
     Addresses scanned: -
 
-    Datasheet:
+    Datasheets:
 
- http://archive.ericsson.net/service/internet/picov/get?DocNo=28701-EN/LZT146395
+	https://flexpowermodules.com/products
+
 
   * ON Semiconductor ADP4000, NCP4200, NCP4208
 
@@ -148,11 +151,6 @@ Emerson DS1200 power modules might look as follows::
 	return pmbus_do_probe(client, &ds1200_info);
   }
 
-  static int ds1200_remove(struct i2c_client *client)
-  {
-	return pmbus_do_remove(client);
-  }
-
   static const struct i2c_device_id ds1200_id[] = {
 	{"ds1200", 0},
 	{}
@@ -166,7 +164,6 @@ Emerson DS1200 power modules might look as follows::
 		   .name = "ds1200",
 		   },
 	.probe_new = ds1200_probe,
-	.remove = ds1200_remove,
 	.id_table = ds1200_id,
   };
 

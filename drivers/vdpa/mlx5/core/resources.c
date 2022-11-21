@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2020 Mellanox Technologies Ltd. */
 
+#include <linux/iova.h>
 #include <linux/mlx5/driver.h>
 #include "mlx5_vdpa.h"
 
@@ -54,6 +55,9 @@ static int create_uctx(struct mlx5_vdpa_dev *mvdev, u16 *uid)
 	void *in;
 	int err;
 
+	if (MLX5_CAP_GEN(mvdev->mdev, umem_uid_0))
+		return 0;
+
 	/* 0 means not supported */
 	if (!MLX5_CAP_GEN(mvdev->mdev, log_max_uctx))
 		return -EOPNOTSUPP;
@@ -78,6 +82,9 @@ static void destroy_uctx(struct mlx5_vdpa_dev *mvdev, u32 uid)
 {
 	u32 out[MLX5_ST_SZ_DW(destroy_uctx_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(destroy_uctx_in)] = {};
+
+	if (!uid)
+		return;
 
 	MLX5_SET(destroy_uctx_in, in, opcode, MLX5_CMD_OP_DESTROY_UCTX);
 	MLX5_SET(destroy_uctx_in, in, uid, uid);
@@ -120,6 +127,16 @@ int mlx5_vdpa_create_rqt(struct mlx5_vdpa_dev *mvdev, void *in, int inlen, u32 *
 		*rqtn = MLX5_GET(create_rqt_out, out, rqtn);
 
 	return err;
+}
+
+int mlx5_vdpa_modify_rqt(struct mlx5_vdpa_dev *mvdev, void *in, int inlen, u32 rqtn)
+{
+	u32 out[MLX5_ST_SZ_DW(create_rqt_out)] = {};
+
+	MLX5_SET(modify_rqt_in, in, uid, mvdev->res.uid);
+	MLX5_SET(modify_rqt_in, in, rqtn, rqtn);
+	MLX5_SET(modify_rqt_in, in, opcode, MLX5_CMD_OP_MODIFY_RQT);
+	return mlx5_cmd_exec(mvdev->mdev, in, inlen, out, sizeof(out));
 }
 
 void mlx5_vdpa_destroy_rqt(struct mlx5_vdpa_dev *mvdev, u32 rqtn)
@@ -181,12 +198,11 @@ void mlx5_vdpa_dealloc_transport_domain(struct mlx5_vdpa_dev *mvdev, u32 tdn)
 	mlx5_cmd_exec_in(mvdev->mdev, dealloc_transport_domain, in);
 }
 
-int mlx5_vdpa_create_mkey(struct mlx5_vdpa_dev *mvdev, struct mlx5_core_mkey *mkey, u32 *in,
+int mlx5_vdpa_create_mkey(struct mlx5_vdpa_dev *mvdev, u32 *mkey, u32 *in,
 			  int inlen)
 {
 	u32 lout[MLX5_ST_SZ_DW(create_mkey_out)] = {};
 	u32 mkey_index;
-	void *mkc;
 	int err;
 
 	MLX5_SET(create_mkey_in, in, opcode, MLX5_CMD_OP_CREATE_MKEY);
@@ -196,23 +212,35 @@ int mlx5_vdpa_create_mkey(struct mlx5_vdpa_dev *mvdev, struct mlx5_core_mkey *mk
 	if (err)
 		return err;
 
-	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
 	mkey_index = MLX5_GET(create_mkey_out, lout, mkey_index);
-	mkey->iova = MLX5_GET64(mkc, mkc, start_addr);
-	mkey->size = MLX5_GET64(mkc, mkc, len);
-	mkey->key |= mlx5_idx_to_mkey(mkey_index);
-	mkey->pd = MLX5_GET(mkc, mkc, pd);
+	*mkey |= mlx5_idx_to_mkey(mkey_index);
 	return 0;
 }
 
-int mlx5_vdpa_destroy_mkey(struct mlx5_vdpa_dev *mvdev, struct mlx5_core_mkey *mkey)
+int mlx5_vdpa_destroy_mkey(struct mlx5_vdpa_dev *mvdev, u32 mkey)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_mkey_in)] = {};
 
 	MLX5_SET(destroy_mkey_in, in, uid, mvdev->res.uid);
 	MLX5_SET(destroy_mkey_in, in, opcode, MLX5_CMD_OP_DESTROY_MKEY);
-	MLX5_SET(destroy_mkey_in, in, mkey_index, mlx5_mkey_to_idx(mkey->key));
+	MLX5_SET(destroy_mkey_in, in, mkey_index, mlx5_mkey_to_idx(mkey));
 	return mlx5_cmd_exec_in(mvdev->mdev, destroy_mkey, in);
+}
+
+static int init_ctrl_vq(struct mlx5_vdpa_dev *mvdev)
+{
+	mvdev->cvq.iotlb = vhost_iotlb_alloc(0, 0);
+	if (!mvdev->cvq.iotlb)
+		return -ENOMEM;
+
+	vringh_set_iotlb(&mvdev->cvq.vring, mvdev->cvq.iotlb, &mvdev->cvq.iommu_lock);
+
+	return 0;
+}
+
+static void cleanup_ctrl_vq(struct mlx5_vdpa_dev *mvdev)
+{
+	vhost_iotlb_free(mvdev->cvq.iotlb);
 }
 
 int mlx5_vdpa_alloc_resources(struct mlx5_vdpa_dev *mvdev)
@@ -246,16 +274,25 @@ int mlx5_vdpa_alloc_resources(struct mlx5_vdpa_dev *mvdev)
 	if (err)
 		goto err_key;
 
-	kick_addr = pci_resource_start(mdev->pdev, 0) + offset;
+	kick_addr = mdev->bar_addr + offset;
+	res->phys_kick_addr = kick_addr;
+
 	res->kick_addr = ioremap(kick_addr, PAGE_SIZE);
 	if (!res->kick_addr) {
 		err = -ENOMEM;
 		goto err_key;
 	}
+
+	err = init_ctrl_vq(mvdev);
+	if (err)
+		goto err_ctrl;
+
 	res->valid = true;
 
 	return 0;
 
+err_ctrl:
+	iounmap(res->kick_addr);
 err_key:
 	dealloc_pd(mvdev, res->pdn, res->uid);
 err_pd:
@@ -274,6 +311,7 @@ void mlx5_vdpa_free_resources(struct mlx5_vdpa_dev *mvdev)
 	if (!res->valid)
 		return;
 
+	cleanup_ctrl_vq(mvdev);
 	iounmap(res->kick_addr);
 	res->kick_addr = NULL;
 	dealloc_pd(mvdev, res->pdn, res->uid);

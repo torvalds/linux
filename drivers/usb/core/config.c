@@ -406,7 +406,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 	 * the USB-2 spec requires such endpoints to have wMaxPacketSize = 0
 	 * (see the end of section 5.6.3), so don't warn about them.
 	 */
-	maxp = usb_endpoint_maxp(&endpoint->desc);
+	maxp = le16_to_cpu(endpoint->desc.wMaxPacketSize);
 	if (maxp == 0 && !(usb_endpoint_xfer_isoc(d) && asnum == 0)) {
 		dev_warn(ddev, "config %d interface %d altsetting %d endpoint 0x%X has invalid wMaxPacketSize 0\n",
 		    cfgno, inum, asnum, d->bEndpointAddress);
@@ -422,9 +422,9 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 		maxpacket_maxes = full_speed_maxpacket_maxes;
 		break;
 	case USB_SPEED_HIGH:
-		/* Bits 12..11 are allowed only for HS periodic endpoints */
+		/* Multiple-transactions bits are allowed only for HS periodic endpoints */
 		if (usb_endpoint_xfer_int(d) || usb_endpoint_xfer_isoc(d)) {
-			i = maxp & (BIT(12) | BIT(11));
+			i = maxp & USB_EP_MAXP_MULT_MASK;
 			maxp &= ~i;
 		}
 		fallthrough;
@@ -986,7 +986,7 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 	__u8 cap_type;
 	int ret;
 
-	bos = kzalloc(sizeof(struct usb_bos_descriptor), GFP_KERNEL);
+	bos = kzalloc(sizeof(*bos), GFP_KERNEL);
 	if (!bos)
 		return -ENOMEM;
 
@@ -1007,7 +1007,7 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 	if (total_len < length)
 		return -EINVAL;
 
-	dev->bos = kzalloc(sizeof(struct usb_host_bos), GFP_KERNEL);
+	dev->bos = kzalloc(sizeof(*dev->bos), GFP_KERNEL);
 	if (!dev->bos)
 		return -ENOMEM;
 
@@ -1076,6 +1076,7 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 		case USB_PTM_CAP_TYPE:
 			dev->bos->ptm_cap =
 				(struct usb_ptm_cap_descriptor *)buffer;
+			break;
 		default:
 			break;
 		}

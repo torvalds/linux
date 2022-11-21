@@ -186,7 +186,7 @@ static ssize_t vmirror_show(struct device *dev, struct device_attribute *attr,
 {
 	struct td043mtea1_panel *lcd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", lcd->vmirror);
+	return sysfs_emit(buf, "%d\n", lcd->vmirror);
 }
 
 static ssize_t vmirror_store(struct device *dev, struct device_attribute *attr,
@@ -214,7 +214,7 @@ static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
 {
 	struct td043mtea1_panel *lcd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", lcd->mode);
+	return sysfs_emit(buf, "%d\n", lcd->mode);
 }
 
 static ssize_t mode_store(struct device *dev, struct device_attribute *attr,
@@ -431,16 +431,14 @@ static int td043mtea1_probe(struct spi_device *spi)
 	memcpy(lcd->gamma, td043mtea1_def_gamma, sizeof(lcd->gamma));
 
 	lcd->vcc_reg = devm_regulator_get(&spi->dev, "vcc");
-	if (IS_ERR(lcd->vcc_reg)) {
-		dev_err(&spi->dev, "failed to get VCC regulator\n");
-		return PTR_ERR(lcd->vcc_reg);
-	}
+	if (IS_ERR(lcd->vcc_reg))
+		return dev_err_probe(&spi->dev, PTR_ERR(lcd->vcc_reg),
+				     "failed to get VCC regulator\n");
 
 	lcd->reset_gpio = devm_gpiod_get(&spi->dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(lcd->reset_gpio)) {
-		dev_err(&spi->dev, "failed to get reset GPIO\n");
-		return PTR_ERR(lcd->reset_gpio);
-	}
+	if (IS_ERR(lcd->reset_gpio))
+		return dev_err_probe(&spi->dev, PTR_ERR(lcd->reset_gpio),
+				     "failed to get reset GPIO\n");
 
 	spi->bits_per_word = 16;
 	spi->mode = SPI_MODE_0;
@@ -465,7 +463,7 @@ static int td043mtea1_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int td043mtea1_remove(struct spi_device *spi)
+static void td043mtea1_remove(struct spi_device *spi)
 {
 	struct td043mtea1_panel *lcd = spi_get_drvdata(spi);
 
@@ -474,8 +472,6 @@ static int td043mtea1_remove(struct spi_device *spi)
 	drm_panel_unprepare(&lcd->panel);
 
 	sysfs_remove_group(&spi->dev.kobj, &td043mtea1_attr_group);
-
-	return 0;
 }
 
 static const struct of_device_id td043mtea1_of_match[] = {

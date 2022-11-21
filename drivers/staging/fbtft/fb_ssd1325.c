@@ -35,8 +35,6 @@ static int init_display(struct fbtft_par *par)
 {
 	par->fbtftops.reset(par);
 
-	gpiod_set_value(par->gpio.cs, 0);
-
 	write_reg(par, 0xb3);
 	write_reg(par, 0xf0);
 	write_reg(par, 0xae);

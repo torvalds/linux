@@ -332,7 +332,7 @@ according to the following rule:
 	      There are two notable exceptions to this rule: larger
 	      subsystems have their own directory under include/, such as
 	      include/scsi; and architecture specific headers are located
-	      under arch/$(ARCH)/include/.
+	      under arch/$(SRCARCH)/include/.
 
 4.1 Kernel Includes
 -------------------

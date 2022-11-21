@@ -230,10 +230,12 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 		break;
 	case BUS_NOTIFY_BIND_DRIVER:
 		od = to_omap_device(pdev);
-		if (od && (od->_state == OMAP_DEVICE_STATE_ENABLED) &&
-		    pm_runtime_status_suspended(dev)) {
+		if (od) {
 			od->_driver_status = BUS_NOTIFY_BIND_DRIVER;
-			pm_runtime_set_active(dev);
+			if (od->_state == OMAP_DEVICE_STATE_ENABLED &&
+			    pm_runtime_status_suspended(dev)) {
+				pm_runtime_set_active(dev);
+			}
 		}
 		break;
 	case BUS_NOTIFY_ADD_DEVICE:
@@ -334,10 +336,9 @@ struct omap_device *omap_device_alloc(struct platform_device *pdev,
 	struct omap_hwmod **hwmods;
 
 	od = kzalloc(sizeof(struct omap_device), GFP_KERNEL);
-	if (!od) {
-		ret = -ENOMEM;
+	if (!od)
 		goto oda_exit1;
-	}
+
 	od->hwmods_cnt = oh_cnt;
 
 	hwmods = kmemdup(ohs, sizeof(struct omap_hwmod *) * oh_cnt, GFP_KERNEL);

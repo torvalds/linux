@@ -59,7 +59,7 @@ static int tcf_mpls_act(struct sk_buff *skb, const struct tc_action *a,
 	int ret, mac_len;
 
 	tcf_lastuse_update(&m->tcf_tm);
-	bstats_cpu_update(this_cpu_ptr(m->common.cpu_bstats), skb);
+	bstats_update(this_cpu_ptr(m->common.cpu_bstats), skb);
 
 	/* Ensure 'data' points at mac_header prior calling mpls manipulating
 	 * functions.
@@ -152,11 +152,11 @@ static const struct nla_policy mpls_policy[TCA_MPLS_MAX + 1] = {
 
 static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
-			 int ovr, int bind, bool rtnl_held,
 			 struct tcf_proto *tp, u32 flags,
 			 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, mpls_net_id);
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_MPLS_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
 	struct tcf_mpls_params *p;
@@ -248,14 +248,14 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, index, est, a,
-				     &act_mpls_ops, bind, true, 0);
+				     &act_mpls_ops, bind, true, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 
 		ret = ACT_P_CREATED;
-	} else if (!ovr) {
+	} else if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
@@ -384,6 +384,57 @@ static int tcf_mpls_search(struct net *net, struct tc_action **a, u32 index)
 	return tcf_idr_search(tn, a, index);
 }
 
+static int tcf_mpls_offload_act_setup(struct tc_action *act, void *entry_data,
+				      u32 *index_inc, bool bind)
+{
+	if (bind) {
+		struct flow_action_entry *entry = entry_data;
+
+		switch (tcf_mpls_action(act)) {
+		case TCA_MPLS_ACT_PUSH:
+			entry->id = FLOW_ACTION_MPLS_PUSH;
+			entry->mpls_push.proto = tcf_mpls_proto(act);
+			entry->mpls_push.label = tcf_mpls_label(act);
+			entry->mpls_push.tc = tcf_mpls_tc(act);
+			entry->mpls_push.bos = tcf_mpls_bos(act);
+			entry->mpls_push.ttl = tcf_mpls_ttl(act);
+			break;
+		case TCA_MPLS_ACT_POP:
+			entry->id = FLOW_ACTION_MPLS_POP;
+			entry->mpls_pop.proto = tcf_mpls_proto(act);
+			break;
+		case TCA_MPLS_ACT_MODIFY:
+			entry->id = FLOW_ACTION_MPLS_MANGLE;
+			entry->mpls_mangle.label = tcf_mpls_label(act);
+			entry->mpls_mangle.tc = tcf_mpls_tc(act);
+			entry->mpls_mangle.bos = tcf_mpls_bos(act);
+			entry->mpls_mangle.ttl = tcf_mpls_ttl(act);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+		*index_inc = 1;
+	} else {
+		struct flow_offload_action *fl_action = entry_data;
+
+		switch (tcf_mpls_action(act)) {
+		case TCA_MPLS_ACT_PUSH:
+			fl_action->id = FLOW_ACTION_MPLS_PUSH;
+			break;
+		case TCA_MPLS_ACT_POP:
+			fl_action->id = FLOW_ACTION_MPLS_POP;
+			break;
+		case TCA_MPLS_ACT_MODIFY:
+			fl_action->id = FLOW_ACTION_MPLS_MANGLE;
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+	}
+
+	return 0;
+}
+
 static struct tc_action_ops act_mpls_ops = {
 	.kind		=	"mpls",
 	.id		=	TCA_ID_MPLS,
@@ -394,6 +445,7 @@ static struct tc_action_ops act_mpls_ops = {
 	.cleanup	=	tcf_mpls_cleanup,
 	.walk		=	tcf_mpls_walker,
 	.lookup		=	tcf_mpls_search,
+	.offload_act_setup =	tcf_mpls_offload_act_setup,
 	.size		=	sizeof(struct tcf_mpls),
 };
 

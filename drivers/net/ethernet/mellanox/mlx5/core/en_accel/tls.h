@@ -41,10 +41,14 @@
 #include "en.h"
 
 struct mlx5e_tls_sw_stats {
+	atomic64_t tx_tls_ctx;
+	atomic64_t tx_tls_del;
 	atomic64_t tx_tls_drop_metadata;
 	atomic64_t tx_tls_drop_resync_alloc;
 	atomic64_t tx_tls_drop_no_sync_data;
 	atomic64_t tx_tls_drop_bypass_required;
+	atomic64_t rx_tls_ctx;
+	atomic64_t rx_tls_del;
 	atomic64_t rx_tls_drop_resync_request;
 	atomic64_t rx_tls_resync_request;
 	atomic64_t rx_tls_resync_reply;
@@ -100,11 +104,18 @@ int mlx5e_tls_get_count(struct mlx5e_priv *priv);
 int mlx5e_tls_get_strings(struct mlx5e_priv *priv, uint8_t *data);
 int mlx5e_tls_get_stats(struct mlx5e_priv *priv, u64 *data);
 
+static inline bool mlx5e_accel_is_tls_device(struct mlx5_core_dev *mdev)
+{
+	return !is_kdump_kernel() &&
+		mlx5_accel_is_tls_device(mdev);
+}
+
 #else
 
 static inline void mlx5e_tls_build_netdev(struct mlx5e_priv *priv)
 {
-	if (mlx5_accel_is_ktls_device(priv->mdev))
+	if (!is_kdump_kernel() &&
+	    mlx5_accel_is_ktls_device(priv->mdev))
 		mlx5e_ktls_build_netdev(priv);
 }
 
@@ -114,6 +125,7 @@ static inline void mlx5e_tls_cleanup(struct mlx5e_priv *priv) { }
 static inline int mlx5e_tls_get_count(struct mlx5e_priv *priv) { return 0; }
 static inline int mlx5e_tls_get_strings(struct mlx5e_priv *priv, uint8_t *data) { return 0; }
 static inline int mlx5e_tls_get_stats(struct mlx5e_priv *priv, u64 *data) { return 0; }
+static inline bool mlx5e_accel_is_tls_device(struct mlx5_core_dev *mdev) { return false; }
 
 #endif
 

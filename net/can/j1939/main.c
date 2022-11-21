@@ -62,7 +62,7 @@ static void j1939_can_recv(struct sk_buff *iskb, void *data)
 	skb_pull(skb, J1939_CAN_HDR);
 
 	/* fix length, set to dlc, with 8 maximum */
-	skb_trim(skb, min_t(uint8_t, cf->can_dlc, 8));
+	skb_trim(skb, min_t(uint8_t, cf->len, 8));
 
 	/* set addr */
 	skcb = j1939_skb_to_cb(skb);
@@ -75,6 +75,13 @@ static void j1939_can_recv(struct sk_buff *iskb, void *data)
 	skcb->addr.pgn = (cf->can_id >> 8) & J1939_PGN_MAX;
 	/* set default message type */
 	skcb->addr.type = J1939_TP;
+
+	if (!j1939_address_is_valid(skcb->addr.sa)) {
+		netdev_err_once(priv->ndev, "%s: sa is broadcast address, ignoring!\n",
+				__func__);
+		goto done;
+	}
+
 	if (j1939_pgn_is_pdu1(skcb->addr.pgn)) {
 		/* Type 1: with destination address */
 		skcb->addr.da = skcb->addr.pgn;
@@ -140,9 +147,9 @@ static struct j1939_priv *j1939_priv_create(struct net_device *ndev)
 static inline void j1939_priv_set(struct net_device *ndev,
 				  struct j1939_priv *priv)
 {
-	struct can_ml_priv *can_ml_priv = ndev->ml_priv;
+	struct can_ml_priv *can_ml = can_get_ml_priv(ndev);
 
-	can_ml_priv->j1939_priv = priv;
+	can_ml->j1939_priv = priv;
 }
 
 static void __j1939_priv_release(struct kref *kref)
@@ -193,6 +200,10 @@ static void j1939_can_rx_unregister(struct j1939_priv *priv)
 	can_rx_unregister(dev_net(ndev), ndev, J1939_CAN_ID, J1939_CAN_MASK,
 			  j1939_can_recv, priv);
 
+	/* The last reference of priv is dropped by the RCU deferred
+	 * j1939_sk_sock_destruct() of the last socket, so we can
+	 * safely drop this reference here.
+	 */
 	j1939_priv_put(priv);
 }
 
@@ -211,12 +222,9 @@ static void __j1939_rx_release(struct kref *kref)
 /* get pointer to priv without increasing ref counter */
 static inline struct j1939_priv *j1939_ndev_to_priv(struct net_device *ndev)
 {
-	struct can_ml_priv *can_ml_priv = ndev->ml_priv;
+	struct can_ml_priv *can_ml = can_get_ml_priv(ndev);
 
-	if (!can_ml_priv)
-		return NULL;
-
-	return can_ml_priv->j1939_priv;
+	return can_ml->j1939_priv;
 }
 
 static struct j1939_priv *j1939_priv_get_by_ndev_locked(struct net_device *ndev)
@@ -224,9 +232,6 @@ static struct j1939_priv *j1939_priv_get_by_ndev_locked(struct net_device *ndev)
 	struct j1939_priv *priv;
 
 	lockdep_assert_held(&j1939_netdev_lock);
-
-	if (ndev->type != ARPHRD_CAN)
-		return NULL;
 
 	priv = j1939_ndev_to_priv(ndev);
 	if (priv)
@@ -251,11 +256,14 @@ struct j1939_priv *j1939_netdev_start(struct net_device *ndev)
 	struct j1939_priv *priv, *priv_new;
 	int ret;
 
-	priv = j1939_priv_get_by_ndev(ndev);
+	spin_lock(&j1939_netdev_lock);
+	priv = j1939_priv_get_by_ndev_locked(ndev);
 	if (priv) {
 		kref_get(&priv->rx_kref);
+		spin_unlock(&j1939_netdev_lock);
 		return priv;
 	}
+	spin_unlock(&j1939_netdev_lock);
 
 	priv = j1939_priv_create(ndev);
 	if (!priv)
@@ -271,10 +279,10 @@ struct j1939_priv *j1939_netdev_start(struct net_device *ndev)
 		/* Someone was faster than us, use their priv and roll
 		 * back our's.
 		 */
+		kref_get(&priv_new->rx_kref);
 		spin_unlock(&j1939_netdev_lock);
 		dev_put(ndev);
 		kfree(priv);
-		kref_get(&priv_new->rx_kref);
 		return priv_new;
 	}
 	j1939_priv_set(ndev, priv);
@@ -335,7 +343,7 @@ int j1939_send_one(struct j1939_priv *priv, struct sk_buff *skb)
 		canid |= skcb->addr.da << 8;
 
 	cf->can_id = canid;
-	cf->can_dlc = dlc;
+	cf->len = dlc;
 
 	return can_send(skb, 1);
 
@@ -348,14 +356,15 @@ static int j1939_netdev_notify(struct notifier_block *nb,
 			       unsigned long msg, void *data)
 {
 	struct net_device *ndev = netdev_notifier_info_to_dev(data);
+	struct can_ml_priv *can_ml = can_get_ml_priv(ndev);
 	struct j1939_priv *priv;
+
+	if (!can_ml)
+		goto notify_done;
 
 	priv = j1939_priv_get_by_ndev(ndev);
 	if (!priv)
 		goto notify_done;
-
-	if (ndev->type != ARPHRD_CAN)
-		goto notify_put;
 
 	switch (msg) {
 	case NETDEV_DOWN:
@@ -365,7 +374,6 @@ static int j1939_netdev_notify(struct notifier_block *nb,
 		break;
 	}
 
-notify_put:
 	j1939_priv_put(priv);
 
 notify_done:

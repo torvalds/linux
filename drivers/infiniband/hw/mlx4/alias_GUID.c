@@ -38,7 +38,6 @@
 #include <rdma/ib_sa.h>
 #include <rdma/ib_pack.h>
 #include <linux/mlx4/cmd.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <rdma/ib_user_verbs.h>
@@ -73,12 +72,12 @@ static int get_low_record_time_index(struct mlx4_ib_dev *dev, u8 port,
 				     int *resched_delay_sec);
 
 void mlx4_ib_update_cache_on_guid_change(struct mlx4_ib_dev *dev, int block_num,
-					 u8 port_num, u8 *p_data)
+					 u32 port_num, u8 *p_data)
 {
 	int i;
 	u64 guid_indexes;
 	int slave_id;
-	int port_index = port_num - 1;
+	u32 port_index = port_num - 1;
 
 	if (!mlx4_is_master(dev->dev))
 		return;
@@ -86,7 +85,7 @@ void mlx4_ib_update_cache_on_guid_change(struct mlx4_ib_dev *dev, int block_num,
 	guid_indexes = be64_to_cpu((__force __be64) dev->sriov.alias_guid.
 				   ports_guid[port_num - 1].
 				   all_rec_per_port[block_num].guid_indexes);
-	pr_debug("port: %d, guid_indexes: 0x%llx\n", port_num, guid_indexes);
+	pr_debug("port: %u, guid_indexes: 0x%llx\n", port_num, guid_indexes);
 
 	for (i = 0; i < NUM_ALIAS_GUID_IN_REC; i++) {
 		/* The location of the specific index starts from bit number 4
@@ -184,7 +183,7 @@ unlock:
  * port_number - 1 or 2
  */
 void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
-					  int block_num, u8 port_num,
+					  int block_num, u32 port_num,
 					  u8 *p_data)
 {
 	int i;
@@ -206,7 +205,7 @@ void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
 	guid_indexes = be64_to_cpu((__force __be64) dev->sriov.alias_guid.
 				   ports_guid[port_num - 1].
 				   all_rec_per_port[block_num].guid_indexes);
-	pr_debug("port: %d, guid_indexes: 0x%llx\n", port_num, guid_indexes);
+	pr_debug("port: %u, guid_indexes: 0x%llx\n", port_num, guid_indexes);
 
 	/*calculate the slaves and notify them*/
 	for (i = 0; i < NUM_ALIAS_GUID_IN_REC; i++) {
@@ -260,11 +259,11 @@ void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
 			new_state = set_and_calc_slave_port_state(dev->dev, slave_id, port_num,
 								  MLX4_PORT_STATE_IB_PORT_STATE_EVENT_GID_VALID,
 								  &gen_event);
-			pr_debug("slave: %d, port: %d prev_port_state: %d,"
+			pr_debug("slave: %d, port: %u prev_port_state: %d,"
 				 " new_port_state: %d, gen_event: %d\n",
 				 slave_id, port_num, prev_state, new_state, gen_event);
 			if (gen_event == SLAVE_PORT_GEN_EVENT_UP) {
-				pr_debug("sending PORT_UP event to slave: %d, port: %d\n",
+				pr_debug("sending PORT_UP event to slave: %d, port: %u\n",
 					 slave_id, port_num);
 				mlx4_gen_port_state_change_eqe(dev->dev, slave_id,
 							       port_num, MLX4_PORT_CHANGE_SUBTYPE_ACTIVE);
@@ -274,7 +273,7 @@ void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
 						      MLX4_PORT_STATE_IB_EVENT_GID_INVALID,
 						      &gen_event);
 			if (gen_event == SLAVE_PORT_GEN_EVENT_DOWN) {
-				pr_debug("sending PORT DOWN event to slave: %d, port: %d\n",
+				pr_debug("sending PORT DOWN event to slave: %d, port: %u\n",
 					 slave_id, port_num);
 				mlx4_gen_port_state_change_eqe(dev->dev,
 							       slave_id,
@@ -822,10 +821,8 @@ void mlx4_ib_destroy_alias_guid_service(struct mlx4_ib_dev *dev)
 		}
 		spin_unlock_irqrestore(&sriov->alias_guid.ag_work_lock, flags);
 	}
-	for (i = 0 ; i < dev->num_ports; i++) {
-		flush_workqueue(dev->sriov.alias_guid.ports_guid[i].wq);
+	for (i = 0 ; i < dev->num_ports; i++)
 		destroy_workqueue(dev->sriov.alias_guid.ports_guid[i].wq);
-	}
 	ib_sa_unregister_client(dev->sriov.alias_guid.sa_client);
 	kfree(dev->sriov.alias_guid.sa_client);
 }

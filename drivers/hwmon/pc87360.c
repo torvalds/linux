@@ -178,7 +178,7 @@ struct pc87360_data {
 	struct device *hwmon_dev;
 	struct mutex lock;
 	struct mutex update_lock;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
 	int address[3];
@@ -1673,7 +1673,7 @@ static struct pc87360_data *pc87360_update_device(struct device *dev)
 		}
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -1700,8 +1700,8 @@ static int __init pc87360_device_add(unsigned short address)
 			continue;
 		res[res_count].start = extra_isa[i];
 		res[res_count].end = extra_isa[i] + PC87360_EXTENT - 1;
-		res[res_count].name = "pc87360",
-		res[res_count].flags = IORESOURCE_IO,
+		res[res_count].name = "pc87360";
+		res[res_count].flags = IORESOURCE_IO;
 
 		err = acpi_check_resource_conflict(&res[res_count]);
 		if (err)

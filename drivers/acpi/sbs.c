@@ -7,6 +7,8 @@
  *  Copyright (c) 2005 Rich Townsend <rhdt@bartol.udel.edu>
  */
 
+#define pr_fmt(fmt) "ACPI: " fmt
+
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -22,8 +24,6 @@
 #include <acpi/battery.h>
 
 #include "sbshc.h"
-
-#define PREFIX "ACPI: "
 
 #define ACPI_SBS_CLASS			"sbs"
 #define ACPI_AC_CLASS			"ac_adapter"
@@ -544,7 +544,7 @@ static int acpi_battery_add(struct acpi_sbs *sbs, int id)
 		goto end;
 	battery->have_sysfs_alarm = 1;
       end:
-	printk(KERN_INFO PREFIX "%s [%s]: Battery Slot [%s] (battery %s)\n",
+	pr_info("%s [%s]: Battery Slot [%s] (battery %s)\n",
 	       ACPI_SBS_DEVICE_NAME, acpi_device_bid(sbs->device),
 	       battery->name, battery->present ? "present" : "absent");
 	return result;
@@ -577,10 +577,10 @@ static int acpi_charger_add(struct acpi_sbs *sbs)
 		result = PTR_ERR(sbs->charger);
 		sbs->charger = NULL;
 	}
-	printk(KERN_INFO PREFIX "%s [%s]: AC Adapter [%s] (%s)\n",
+	pr_info("%s [%s]: AC Adapter [%s] (%s)\n",
 	       ACPI_SBS_DEVICE_NAME, acpi_device_bid(sbs->device),
 	       ACPI_AC_DIR_NAME, sbs->charger_present ? "on-line" : "off-line");
-      end:
+end:
 	return result;
 }
 
@@ -658,7 +658,7 @@ static int acpi_sbs_add(struct acpi_device *device)
 		acpi_battery_add(sbs, 0);
 
 	acpi_smbus_register_callback(sbs->hc, acpi_sbs_callback, sbs);
-      end:
+end:
 	if (result)
 		acpi_sbs_remove(device);
 	return result;
@@ -711,26 +711,4 @@ static struct acpi_driver acpi_sbs_driver = {
 		},
 	.drv.pm = &acpi_sbs_pm,
 };
-
-static int __init acpi_sbs_init(void)
-{
-	int result = 0;
-
-	if (acpi_disabled)
-		return -ENODEV;
-
-	result = acpi_bus_register_driver(&acpi_sbs_driver);
-	if (result < 0)
-		return -ENODEV;
-
-	return 0;
-}
-
-static void __exit acpi_sbs_exit(void)
-{
-	acpi_bus_unregister_driver(&acpi_sbs_driver);
-	return;
-}
-
-module_init(acpi_sbs_init);
-module_exit(acpi_sbs_exit);
+module_acpi_driver(acpi_sbs_driver);

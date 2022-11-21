@@ -10,10 +10,7 @@
 
 #include <stdint.h>
 #include "processor.h"
-
-#define CPUID_VMX_BIT				5
-
-#define CPUID_VMX				(1 << 5)
+#include "apic.h"
 
 /*
  * Definitions of Primary Processor-Based VM-Execution Controls.
@@ -611,15 +608,13 @@ bool nested_vmx_supported(void);
 void nested_vmx_check_supported(void);
 
 void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
-		   uint64_t nested_paddr, uint64_t paddr, uint32_t eptp_memslot);
+		   uint64_t nested_paddr, uint64_t paddr);
 void nested_map(struct vmx_pages *vmx, struct kvm_vm *vm,
-		 uint64_t nested_paddr, uint64_t paddr, uint64_t size,
-		 uint32_t eptp_memslot);
+		 uint64_t nested_paddr, uint64_t paddr, uint64_t size);
 void nested_map_memslot(struct vmx_pages *vmx, struct kvm_vm *vm,
-			uint32_t memslot, uint32_t eptp_memslot);
+			uint32_t memslot);
 void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,
 		  uint32_t eptp_memslot);
-void prepare_virtualize_apic_accesses(struct vmx_pages *vmx, struct kvm_vm *vm,
-				      uint32_t eptp_memslot);
+void prepare_virtualize_apic_accesses(struct vmx_pages *vmx, struct kvm_vm *vm);
 
 #endif /* SELFTEST_KVM_VMX_H */

@@ -522,6 +522,15 @@ static const struct hdmiphy_config hdmiphy_5420_configs[] = {
 			0x54, 0x4B, 0x25, 0x03, 0x00, 0x80, 0x01, 0x80,
 		},
 	},
+	{
+		.pixel_clock = 154000000,
+		.conf = {
+			0x01, 0xD1, 0x20, 0x01, 0x40, 0x30, 0x08, 0xCC,
+			0x8C, 0xE8, 0xC1, 0xD8, 0x45, 0xA0, 0xAC, 0x80,
+			0x08, 0x80, 0x09, 0x84, 0x05, 0x02, 0x24, 0x86,
+			0x54, 0x3F, 0x25, 0x03, 0x00, 0x00, 0x01, 0x80,
+		},
+	},
 };
 
 static const struct hdmiphy_config hdmiphy_5433_configs[] = {
@@ -961,11 +970,8 @@ static int hdmi_create_connector(struct drm_encoder *encoder)
 	drm_connector_helper_add(connector, &hdmi_connector_helper_funcs);
 	drm_connector_attach_encoder(connector, encoder);
 
-	if (hdata->bridge) {
+	if (hdata->bridge)
 		ret = drm_bridge_attach(encoder, hdata->bridge, NULL, 0);
-		if (ret)
-			DRM_DEV_ERROR(hdata->dev, "Failed to attach bridge\n");
-	}
 
 	cec_fill_conn_info_from_drm(&conn_info, connector);
 
@@ -1474,10 +1480,16 @@ static void hdmi_set_refclk(struct hdmi_context *hdata, bool on)
 /* Should be called with hdata->mutex mutex held. */
 static void hdmiphy_enable(struct hdmi_context *hdata)
 {
+	int ret;
+
 	if (hdata->powered)
 		return;
 
-	pm_runtime_get_sync(hdata->dev);
+	ret = pm_runtime_resume_and_get(hdata->dev);
+	if (ret < 0) {
+		dev_err(hdata->dev, "failed to enable HDMIPHY device.\n");
+		return;
+	}
 
 	if (regulator_bulk_enable(ARRAY_SIZE(supply), hdata->regul_bulk))
 		DRM_DEV_DEBUG_KMS(hdata->dev,
@@ -1945,7 +1957,6 @@ static int hdmi_probe(struct platform_device *pdev)
 	struct hdmi_audio_infoframe *audio_infoframe;
 	struct device *dev = &pdev->dev;
 	struct hdmi_context *hdata;
-	struct resource *res;
 	int ret;
 
 	hdata = devm_kzalloc(dev, sizeof(struct hdmi_context), GFP_KERNEL);
@@ -1967,8 +1978,7 @@ static int hdmi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hdata->regs = devm_ioremap_resource(dev, res);
+	hdata->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hdata->regs)) {
 		ret = PTR_ERR(hdata->regs);
 		return ret;

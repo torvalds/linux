@@ -65,7 +65,7 @@ static struct uart_driver asc_uart_driver;
 /* ASC_RXBUF */
 #define ASC_RXBUF_PE			0x100
 #define ASC_RXBUF_FE			0x200
-/**
+/*
  * Some of status comes from higher bits of the character and some come from
  * the status register. Combining both of them in to single status using dummy
  * bits.
@@ -478,7 +478,7 @@ static void asc_pm(struct uart_port *port, unsigned int state,
 		unsigned int oldstate)
 {
 	struct asc_port *ascport = to_asc_port(port);
-	unsigned long flags = 0;
+	unsigned long flags;
 	u32 ctl;
 
 	switch (state) {
@@ -854,7 +854,7 @@ static int asc_serial_resume(struct device *dev)
 /*----------------------------------------------------------------------*/
 
 #ifdef CONFIG_SERIAL_ST_ASC_CONSOLE
-static void asc_console_putchar(struct uart_port *port, int ch)
+static void asc_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	unsigned int timeout = 1000000;
 

@@ -854,9 +854,9 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 		if (delta > 100 && pin->state != CEC_ST_IDLE) {
 			/* Keep track of timer overruns */
 			pin->timer_sum_overrun += delta;
-			pin->timer_100ms_overruns++;
+			pin->timer_100us_overruns++;
 			if (delta > 300)
-				pin->timer_300ms_overruns++;
+				pin->timer_300us_overruns++;
 			if (delta > pin->timer_max_overrun)
 				pin->timer_max_overrun = delta;
 		}
@@ -957,7 +957,7 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 			 * so we can kick off the pending transmit.
 			 */
 			delta = ktime_us_delta(ts, pin->ts);
-			if (delta / CEC_TIM_DATA_BIT_TOTAL >
+			if (delta / CEC_TIM_DATA_BIT_TOTAL >=
 			    pin->tx_signal_free_time) {
 				pin->tx_nacked = false;
 				if (tx_custom_start(pin))
@@ -968,7 +968,7 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 				cec_pin_low(pin);
 				break;
 			}
-			if (delta / CEC_TIM_DATA_BIT_TOTAL >
+			if (delta / CEC_TIM_DATA_BIT_TOTAL >=
 			    pin->tx_signal_free_time - 1)
 				pin->state = CEC_ST_TX_WAIT;
 			break;
@@ -1033,6 +1033,7 @@ static int cec_pin_thread_func(void *_adap)
 {
 	struct cec_adapter *adap = _adap;
 	struct cec_pin *pin = adap->pin;
+	bool irq_enabled = false;
 
 	for (;;) {
 		wait_event_interruptible(pin->kthread_waitq,
@@ -1060,6 +1061,7 @@ static int cec_pin_thread_func(void *_adap)
 				ns_to_ktime(pin->work_rx_msg.rx_ts));
 			msg->len = 0;
 		}
+
 		if (pin->work_tx_status) {
 			unsigned int tx_status = pin->work_tx_status;
 
@@ -1083,27 +1085,39 @@ static int cec_pin_thread_func(void *_adap)
 		switch (atomic_xchg(&pin->work_irq_change,
 				    CEC_PIN_IRQ_UNCHANGED)) {
 		case CEC_PIN_IRQ_DISABLE:
-			pin->ops->disable_irq(adap);
+			if (irq_enabled) {
+				pin->ops->disable_irq(adap);
+				irq_enabled = false;
+			}
 			cec_pin_high(pin);
 			cec_pin_to_idle(pin);
 			hrtimer_start(&pin->timer, ns_to_ktime(0),
 				      HRTIMER_MODE_REL);
 			break;
 		case CEC_PIN_IRQ_ENABLE:
+			if (irq_enabled)
+				break;
 			pin->enable_irq_failed = !pin->ops->enable_irq(adap);
 			if (pin->enable_irq_failed) {
 				cec_pin_to_idle(pin);
 				hrtimer_start(&pin->timer, ns_to_ktime(0),
 					      HRTIMER_MODE_REL);
+			} else {
+				irq_enabled = true;
 			}
 			break;
 		default:
 			break;
 		}
-
 		if (kthread_should_stop())
 			break;
 	}
+	if (pin->ops->disable_irq && irq_enabled)
+		pin->ops->disable_irq(adap);
+	hrtimer_cancel(&pin->timer);
+	cec_pin_read(pin);
+	cec_pin_to_idle(pin);
+	pin->state = CEC_ST_OFF;
 	return 0;
 }
 
@@ -1111,7 +1125,6 @@ static int cec_pin_adap_enable(struct cec_adapter *adap, bool enable)
 {
 	struct cec_pin *pin = adap->pin;
 
-	pin->enabled = enable;
 	if (enable) {
 		atomic_set(&pin->work_pin_num_events, 0);
 		pin->work_pin_events_rd = pin->work_pin_events_wr = 0;
@@ -1130,13 +1143,7 @@ static int cec_pin_adap_enable(struct cec_adapter *adap, bool enable)
 		hrtimer_start(&pin->timer, ns_to_ktime(0),
 			      HRTIMER_MODE_REL);
 	} else {
-		if (pin->ops->disable_irq)
-			pin->ops->disable_irq(adap);
-		hrtimer_cancel(&pin->timer);
 		kthread_stop(pin->kthread);
-		cec_pin_read(pin);
-		cec_pin_to_idle(pin);
-		pin->state = CEC_ST_OFF;
 	}
 	return 0;
 }
@@ -1157,11 +1164,8 @@ void cec_pin_start_timer(struct cec_pin *pin)
 	if (pin->state != CEC_ST_RX_IRQ)
 		return;
 
-	atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_UNCHANGED);
-	pin->ops->disable_irq(pin->adap);
-	cec_pin_high(pin);
-	cec_pin_to_idle(pin);
-	hrtimer_start(&pin->timer, ns_to_ktime(0), HRTIMER_MODE_REL);
+	atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_DISABLE);
+	wake_up_interruptible(&pin->kthread_waitq);
 }
 
 static int cec_pin_adap_transmit(struct cec_adapter *adap, u8 attempts,
@@ -1207,15 +1211,15 @@ static void cec_pin_adap_status(struct cec_adapter *adap,
 	seq_printf(file, "cec pin events dropped: %u\n",
 		   pin->work_pin_events_dropped_cnt);
 	seq_printf(file, "irq failed: %d\n", pin->enable_irq_failed);
-	if (pin->timer_100ms_overruns) {
-		seq_printf(file, "timer overruns > 100ms: %u of %u\n",
-			   pin->timer_100ms_overruns, pin->timer_cnt);
-		seq_printf(file, "timer overruns > 300ms: %u of %u\n",
-			   pin->timer_300ms_overruns, pin->timer_cnt);
+	if (pin->timer_100us_overruns) {
+		seq_printf(file, "timer overruns > 100us: %u of %u\n",
+			   pin->timer_100us_overruns, pin->timer_cnt);
+		seq_printf(file, "timer overruns > 300us: %u of %u\n",
+			   pin->timer_300us_overruns, pin->timer_cnt);
 		seq_printf(file, "max timer overrun: %u usecs\n",
 			   pin->timer_max_overrun);
 		seq_printf(file, "avg timer overrun: %u usecs\n",
-			   pin->timer_sum_overrun / pin->timer_100ms_overruns);
+			   pin->timer_sum_overrun / pin->timer_100us_overruns);
 	}
 	if (pin->rx_start_bit_low_too_short_cnt)
 		seq_printf(file,
@@ -1245,8 +1249,8 @@ static void cec_pin_adap_status(struct cec_adapter *adap,
 	seq_printf(file, "tx detected low drive: %u\n", pin->tx_low_drive_cnt);
 	pin->work_pin_events_dropped_cnt = 0;
 	pin->timer_cnt = 0;
-	pin->timer_100ms_overruns = 0;
-	pin->timer_300ms_overruns = 0;
+	pin->timer_100us_overruns = 0;
+	pin->timer_300us_overruns = 0;
 	pin->timer_max_overrun = 0;
 	pin->timer_sum_overrun = 0;
 	pin->rx_start_bit_low_too_short_cnt = 0;

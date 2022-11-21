@@ -40,6 +40,10 @@ cat << EOF
 #define __IGNORE_setrlimit	/* setrlimit */
 #endif
 
+#ifndef __ARCH_WANT_MEMFD_SECRET
+#define __IGNORE_memfd_secret
+#endif
+
 /* Missing flags argument */
 #define __IGNORE_renameat	/* renameat2 */
 
@@ -78,10 +82,8 @@ cat << EOF
 #define __IGNORE_truncate64
 #define __IGNORE_stat64
 #define __IGNORE_lstat64
-#define __IGNORE_fstat64
 #define __IGNORE_fcntl64
 #define __IGNORE_fadvise64_64
-#define __IGNORE_fstatat64
 #define __IGNORE_fstatfs64
 #define __IGNORE_statfs64
 #define __IGNORE_llseek
@@ -249,6 +251,10 @@ cat << EOF
 #define __IGNORE_getpmsg
 #define __IGNORE_putpmsg
 #define __IGNORE_vserver
+
+/* 64-bit ports never needed these, and new 32-bit ports can use statx */
+#define __IGNORE_fstat64
+#define __IGNORE_fstatat64
 EOF
 }
 
@@ -262,4 +268,4 @@ syscall_list() {
 }
 
 (ignore_list && syscall_list $(dirname $0)/../arch/x86/entry/syscalls/syscall_32.tbl) | \
-$* -E -x c - > /dev/null
+$* -Wno-error -E -x c - > /dev/null

@@ -39,8 +39,6 @@ MODULE_PARM_DESC(precise_ptr, "Enable precise pointer (doesn't work reliably).")
 MODULE_AUTHOR("Paul Davis <pbd@op.net>, Winfried Ritsch");
 MODULE_DESCRIPTION("RME Digi9652/Digi9636");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{RME,Hammerfall},"
-		"{RME,Hammerfall-Light}}");
 
 /* The Hammerfall has two sets of 24 ADAT + 2 S/PDIF channels, one for
    capture, one for playback. Both the ADAT and S/PDIF channels appear
@@ -210,6 +208,9 @@ struct snd_rme9652 {
 	unsigned char ds_channels;
 	unsigned char ss_channels;	/* different for hammerfall/hammerfall-light */
 
+	/* DMA buffers; those are copied instances from the original snd_dma_buf
+	 * objects (which are managed via devres) for the address alignments
+	 */
 	struct snd_dma_buffer playback_dma_buf;
 	struct snd_dma_buffer capture_dma_buf;
 
@@ -277,17 +278,11 @@ static const char channel_map_9636_ds[26] = {
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
-static int snd_hammerfall_get_buffer(struct pci_dev *pci, struct snd_dma_buffer *dmab, size_t size)
+static struct snd_dma_buffer *
+snd_hammerfall_get_buffer(struct pci_dev *pci, size_t size)
 {
-	return snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev, size, dmab);
+	return snd_devm_alloc_pages(&pci->dev, SNDRV_DMA_TYPE_DEV, size);
 }
-
-static void snd_hammerfall_free_buffer(struct snd_dma_buffer *dmab, struct pci_dev *pci)
-{
-	if (dmab->area)
-		snd_dma_free_pages(dmab);
-}
-
 
 static const struct pci_device_id snd_rme9652_ids[] = {
 	{
@@ -435,9 +430,9 @@ static int rme9652_set_interrupt_interval(struct snd_rme9652 *s,
 
 	spin_lock_irq(&s->lock);
 
-	if ((restart = s->running)) {
+	restart = s->running;
+	if (restart)
 		rme9652_stop(s);
-	}
 
 	frames >>= 7;
 	n = 0;
@@ -520,16 +515,15 @@ static int rme9652_set_rate(struct snd_rme9652 *rme9652, int rate)
 		return -EBUSY;
 	}
 
-	if ((restart = rme9652->running)) {
+	restart = rme9652->running;
+	if (restart)
 		rme9652_stop(rme9652);
-	}
 	rme9652->control_register &= ~(RME9652_freq | RME9652_DS);
 	rme9652->control_register |= rate;
 	rme9652_write(rme9652, RME9652_control_register, rme9652->control_register);
 
-	if (restart) {
+	if (restart)
 		rme9652_start(rme9652);
-	}
 
 	if (rate & RME9652_DS) {
 		if (rme9652->ss_channels == RME9652_NCHANNELS) {
@@ -732,34 +726,27 @@ static inline int rme9652_spdif_sample_rate(struct snd_rme9652 *s)
 	switch (rme9652_decode_spdif_rate(rate_bits)) {
 	case 0x7:
 		return 32000;
-		break;
 
 	case 0x6:
 		return 44100;
-		break;
 
 	case 0x5:
 		return 48000;
-		break;
 
 	case 0x4:
 		return 88200;
-		break;
 
 	case 0x3:
 		return 96000;
-		break;
 
 	case 0x0:
 		return 64000;
-		break;
 
 	default:
 		dev_err(s->card->dev,
 			"%s: unknown S/PDIF input rate (bits = 0x%x)\n",
 			   s->card_name, rate_bits);
 		return 0;
-		break;
 	}
 }
 
@@ -887,15 +874,14 @@ static int rme9652_set_adat1_input(struct snd_rme9652 *rme9652, int internal)
 
 	/* XXX do we actually need to stop the card when we do this ? */
 
-	if ((restart = rme9652->running)) {
+	restart = rme9652->running;
+	if (restart)
 		rme9652_stop(rme9652);
-	}
 
 	rme9652_write(rme9652, RME9652_control_register, rme9652->control_register);
 
-	if (restart) {
+	if (restart)
 		rme9652_start(rme9652);
-	}
 
 	return 0;
 }
@@ -952,15 +938,14 @@ static int rme9652_set_spdif_input(struct snd_rme9652 *rme9652, int in)
 	rme9652->control_register &= ~RME9652_inp;
 	rme9652->control_register |= rme9652_encode_spdif_in(in);
 
-	if ((restart = rme9652->running)) {
+	restart = rme9652->running;
+	if (restart)
 		rme9652_stop(rme9652);
-	}
 
 	rme9652_write(rme9652, RME9652_control_register, rme9652->control_register);
 
-	if (restart) {
+	if (restart)
 		rme9652_start(rme9652);
-	}
 
 	return 0;
 }
@@ -1019,15 +1004,14 @@ static int rme9652_set_spdif_output(struct snd_rme9652 *rme9652, int out)
 		rme9652->control_register &= ~RME9652_opt_out;
 	}
 
-	if ((restart = rme9652->running)) {
+	restart = rme9652->running;
+	if (restart)
 		rme9652_stop(rme9652);
-	}
 
 	rme9652_write(rme9652, RME9652_control_register, rme9652->control_register);
 
-	if (restart) {
+	if (restart)
 		rme9652_start(rme9652);
-	}
 
 	return 0;
 }
@@ -1095,15 +1079,14 @@ static int rme9652_set_sync_mode(struct snd_rme9652 *rme9652, int mode)
 		break;
 	}
 
-	if ((restart = rme9652->running)) {
+	restart = rme9652->running;
+	if (restart)
 		rme9652_stop(rme9652);
-	}
 
 	rme9652_write(rme9652, RME9652_control_register, rme9652->control_register);
 
-	if (restart) {
+	if (restart)
 		rme9652_start(rme9652);
-	}
 
 	return 0;
 }
@@ -1182,15 +1165,14 @@ static int rme9652_set_sync_pref(struct snd_rme9652 *rme9652, int pref)
 		break;
 	}
 
-	if ((restart = rme9652->running)) {
+	restart = rme9652->running;
+	if (restart)
 		rme9652_stop(rme9652);
-	}
 
 	rme9652_write(rme9652, RME9652_control_register, rme9652->control_register);
 
-	if (restart) {
+	if (restart)
 		rme9652_start(rme9652);
-	}
 
 	return 0;
 }
@@ -1522,19 +1504,27 @@ static int snd_rme9652_create_controls(struct snd_card *card, struct snd_rme9652
 	struct snd_kcontrol *kctl;
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_rme9652_controls); idx++) {
-		if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_rme9652_controls[idx], rme9652))) < 0)
+		kctl = snd_ctl_new1(&snd_rme9652_controls[idx], rme9652);
+		err = snd_ctl_add(card, kctl);
+		if (err < 0)
 			return err;
 		if (idx == 1)	/* IEC958 (S/PDIF) Stream */
 			rme9652->spdif_ctl = kctl;
 	}
 
-	if (rme9652->ss_channels == RME9652_NCHANNELS)
-		if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_rme9652_adat3_check, rme9652))) < 0)
+	if (rme9652->ss_channels == RME9652_NCHANNELS) {
+		kctl = snd_ctl_new1(&snd_rme9652_adat3_check, rme9652);
+		err = snd_ctl_add(card, kctl);
+		if (err < 0)
 			return err;
+	}
 
-	if (rme9652->hw_rev >= 15)
-		if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_rme9652_adat1_input, rme9652))) < 0)
+	if (rme9652->hw_rev >= 15) {
+		kctl = snd_ctl_new1(&snd_rme9652_adat1_input, rme9652);
+		err = snd_ctl_add(card, kctl);
+		if (err < 0)
 			return err;
+	}
 
 	return 0;
 }
@@ -1722,53 +1712,42 @@ static void snd_rme9652_proc_init(struct snd_rme9652 *rme9652)
 			     snd_rme9652_proc_read);
 }
 
-static void snd_rme9652_free_buffers(struct snd_rme9652 *rme9652)
+static void snd_rme9652_card_free(struct snd_card *card)
 {
-	snd_hammerfall_free_buffer(&rme9652->capture_dma_buf, rme9652->pci);
-	snd_hammerfall_free_buffer(&rme9652->playback_dma_buf, rme9652->pci);
-}
+	struct snd_rme9652 *rme9652 = (struct snd_rme9652 *) card->private_data;
 
-static int snd_rme9652_free(struct snd_rme9652 *rme9652)
-{
 	if (rme9652->irq >= 0)
 		rme9652_stop(rme9652);
-	snd_rme9652_free_buffers(rme9652);
-
-	if (rme9652->irq >= 0)
-		free_irq(rme9652->irq, (void *)rme9652);
-	iounmap(rme9652->iobase);
-	if (rme9652->port)
-		pci_release_regions(rme9652->pci);
-
-	pci_disable_device(rme9652->pci);
-	return 0;
 }
 
 static int snd_rme9652_initialize_memory(struct snd_rme9652 *rme9652)
 {
-	unsigned long pb_bus, cb_bus;
+	struct snd_dma_buffer *capture_dma, *playback_dma;
 
-	if (snd_hammerfall_get_buffer(rme9652->pci, &rme9652->capture_dma_buf, RME9652_DMA_AREA_BYTES) < 0 ||
-	    snd_hammerfall_get_buffer(rme9652->pci, &rme9652->playback_dma_buf, RME9652_DMA_AREA_BYTES) < 0) {
-		if (rme9652->capture_dma_buf.area)
-			snd_dma_free_pages(&rme9652->capture_dma_buf);
+	capture_dma = snd_hammerfall_get_buffer(rme9652->pci, RME9652_DMA_AREA_BYTES);
+	playback_dma = snd_hammerfall_get_buffer(rme9652->pci, RME9652_DMA_AREA_BYTES);
+	if (!capture_dma || !playback_dma) {
 		dev_err(rme9652->card->dev,
 			"%s: no buffers available\n", rme9652->card_name);
 		return -ENOMEM;
 	}
 
-	/* Align to bus-space 64K boundary */
+	/* copy to the own data for alignment */
+	rme9652->capture_dma_buf = *capture_dma;
+	rme9652->playback_dma_buf = *playback_dma;
 
-	cb_bus = ALIGN(rme9652->capture_dma_buf.addr, 0x10000ul);
-	pb_bus = ALIGN(rme9652->playback_dma_buf.addr, 0x10000ul);
+	/* Align to bus-space 64K boundary */
+	rme9652->capture_dma_buf.addr = ALIGN(capture_dma->addr, 0x10000ul);
+	rme9652->playback_dma_buf.addr = ALIGN(playback_dma->addr, 0x10000ul);
 
 	/* Tell the card where it is */
+	rme9652_write(rme9652, RME9652_rec_buffer, rme9652->capture_dma_buf.addr);
+	rme9652_write(rme9652, RME9652_play_buffer, rme9652->playback_dma_buf.addr);
 
-	rme9652_write(rme9652, RME9652_rec_buffer, cb_bus);
-	rme9652_write(rme9652, RME9652_play_buffer, pb_bus);
-
-	rme9652->capture_buffer = rme9652->capture_dma_buf.area + (cb_bus - rme9652->capture_dma_buf.addr);
-	rme9652->playback_buffer = rme9652->playback_dma_buf.area + (pb_bus - rme9652->playback_dma_buf.addr);
+	rme9652->capture_dma_buf.area += rme9652->capture_dma_buf.addr - capture_dma->addr;
+	rme9652->playback_dma_buf.area += rme9652->playback_dma_buf.addr - playback_dma->addr;
+	rme9652->capture_buffer = rme9652->capture_dma_buf.area;
+	rme9652->playback_buffer = rme9652->playback_dma_buf.area;
 
 	return 0;
 }
@@ -1850,9 +1829,9 @@ static char *rme9652_channel_buffer_location(struct snd_rme9652 *rme9652,
 	if (snd_BUG_ON(channel < 0 || channel >= RME9652_NCHANNELS))
 		return NULL;
         
-	if ((mapped_channel = rme9652->channel_map[channel]) < 0) {
+	mapped_channel = rme9652->channel_map[channel];
+	if (mapped_channel < 0)
 		return NULL;
-	}
 	
 	if (stream == SNDRV_PCM_STREAM_CAPTURE) {
 		return rme9652->capture_buffer +
@@ -2029,12 +2008,14 @@ static int snd_rme9652_hw_params(struct snd_pcm_substream *substream,
 	/* how to make sure that the rate matches an externally-set one ?
 	 */
 
-	if ((err = rme9652_set_rate(rme9652, params_rate(params))) < 0) {
+	err = rme9652_set_rate(rme9652, params_rate(params));
+	if (err < 0) {
 		_snd_pcm_hw_param_setempty(params, SNDRV_PCM_HW_PARAM_RATE);
 		return err;
 	}
 
-	if ((err = rme9652_set_interrupt_interval(rme9652, params_period_size(params))) < 0) {
+	err = rme9652_set_interrupt_interval(rme9652, params_period_size(params));
+	if (err < 0) {
 		_snd_pcm_hw_param_setempty(params, SNDRV_PCM_HW_PARAM_PERIOD_SIZE);
 		return err;
 	}
@@ -2283,8 +2264,7 @@ static int snd_rme9652_playback_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 
         runtime->hw = snd_rme9652_playback_subinfo;
-	runtime->dma_area = rme9652->playback_buffer;
-	runtime->dma_bytes = RME9652_DMA_AREA_BYTES;
+	snd_pcm_set_runtime_buffer(substream, &rme9652->playback_dma_buf);
 
 	if (rme9652->capture_substream == NULL) {
 		rme9652_stop(rme9652);
@@ -2343,8 +2323,7 @@ static int snd_rme9652_capture_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 
 	runtime->hw = snd_rme9652_capture_subinfo;
-	runtime->dma_area = rme9652->capture_buffer;
-	runtime->dma_bytes = RME9652_DMA_AREA_BYTES;
+	snd_pcm_set_runtime_buffer(substream, &rme9652->capture_dma_buf);
 
 	if (rme9652->playback_substream == NULL) {
 		rme9652_stop(rme9652);
@@ -2414,11 +2393,9 @@ static int snd_rme9652_create_pcm(struct snd_card *card,
 	struct snd_pcm *pcm;
 	int err;
 
-	if ((err = snd_pcm_new(card,
-			       rme9652->card_name,
-			       0, 1, 1, &pcm)) < 0) {
+	err = snd_pcm_new(card, rme9652->card_name, 0, 1, 1, &pcm);
+	if (err < 0)
 		return err;
-	}
 
 	rme9652->pcm = pcm;
 	pcm->private_data = rme9652;
@@ -2458,23 +2435,25 @@ static int snd_rme9652_create(struct snd_card *card,
 		return -ENODEV;
 	}
 
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pcim_enable_device(pci);
+	if (err < 0)
 		return err;
 
 	spin_lock_init(&rme9652->lock);
 
-	if ((err = pci_request_regions(pci, "rme9652")) < 0)
+	err = pci_request_regions(pci, "rme9652");
+	if (err < 0)
 		return err;
 	rme9652->port = pci_resource_start(pci, 0);
-	rme9652->iobase = ioremap(rme9652->port, RME9652_IO_EXTENT);
+	rme9652->iobase = devm_ioremap(&pci->dev, rme9652->port, RME9652_IO_EXTENT);
 	if (rme9652->iobase == NULL) {
 		dev_err(card->dev, "unable to remap region 0x%lx-0x%lx\n",
 			rme9652->port, rme9652->port + RME9652_IO_EXTENT - 1);
 		return -EBUSY;
 	}
 	
-	if (request_irq(pci->irq, snd_rme9652_interrupt, IRQF_SHARED,
-			KBUILD_MODNAME, rme9652)) {
+	if (devm_request_irq(&pci->dev, pci->irq, snd_rme9652_interrupt,
+			     IRQF_SHARED, KBUILD_MODNAME, rme9652)) {
 		dev_err(card->dev, "unable to request IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
@@ -2536,17 +2515,17 @@ static int snd_rme9652_create(struct snd_card *card,
 
 	pci_set_master(rme9652->pci);
 
-	if ((err = snd_rme9652_initialize_memory(rme9652)) < 0) {
+	err = snd_rme9652_initialize_memory(rme9652);
+	if (err < 0)
 		return err;
-	}
 
-	if ((err = snd_rme9652_create_pcm(card, rme9652)) < 0) {
+	err = snd_rme9652_create_pcm(card, rme9652);
+	if (err < 0)
 		return err;
-	}
 
-	if ((err = snd_rme9652_create_controls(card, rme9652)) < 0) {
+	err = snd_rme9652_create_controls(card, rme9652);
+	if (err < 0)
 		return err;
-	}
 
 	snd_rme9652_proc_init(rme9652);
 
@@ -2566,14 +2545,6 @@ static int snd_rme9652_create(struct snd_card *card,
 	return 0;
 }
 
-static void snd_rme9652_card_free(struct snd_card *card)
-{
-	struct snd_rme9652 *rme9652 = (struct snd_rme9652 *) card->private_data;
-
-	if (rme9652)
-		snd_rme9652_free(rme9652);
-}
-
 static int snd_rme9652_probe(struct pci_dev *pci,
 			     const struct pci_device_id *pci_id)
 {
@@ -2589,8 +2560,8 @@ static int snd_rme9652_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-			   sizeof(struct snd_rme9652), &card);
+	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+				sizeof(struct snd_rme9652), &card);
 
 	if (err < 0)
 		return err;
@@ -2601,33 +2572,28 @@ static int snd_rme9652_probe(struct pci_dev *pci,
 	rme9652->pci = pci;
 	err = snd_rme9652_create(card, rme9652, precise_ptr[dev]);
 	if (err)
-		goto free_card;
+		goto error;
 
 	strcpy(card->shortname, rme9652->card_name);
 
 	sprintf(card->longname, "%s at 0x%lx, irq %d",
 		card->shortname, rme9652->port, rme9652->irq);
 	err = snd_card_register(card);
-	if (err) {
-free_card:
-		snd_card_free(card);
-		return err;
-	}
+	if (err)
+		goto error;
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
-}
 
-static void snd_rme9652_remove(struct pci_dev *pci)
-{
-	snd_card_free(pci_get_drvdata(pci));
+ error:
+	snd_card_free(card);
+	return err;
 }
 
 static struct pci_driver rme9652_driver = {
 	.name	  = KBUILD_MODNAME,
 	.id_table = snd_rme9652_ids,
 	.probe	  = snd_rme9652_probe,
-	.remove	  = snd_rme9652_remove,
 };
 
 module_pci_driver(rme9652_driver);

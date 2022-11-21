@@ -15,14 +15,11 @@ struct wg_peer;
 struct allowedips_node {
 	struct wg_peer __rcu *peer;
 	struct allowedips_node __rcu *bit[2];
-	/* While it may seem scandalous that we waste space for v4,
-	 * we're alloc'ing to the nearest power of 2 anyway, so this
-	 * doesn't actually make a difference.
-	 */
-	u8 bits[16] __aligned(__alignof(u64));
 	u8 cidr, bit_at_a, bit_at_b, bitlen;
+	u8 bits[16] __aligned(__alignof(u64));
 
-	/* Keep rarely used list at bottom to be beyond cache line. */
+	/* Keep rarely used members at bottom to be beyond cache line. */
+	unsigned long parent_bit_packed;
 	union {
 		struct list_head peer_list;
 		struct rcu_head rcu;
@@ -33,7 +30,7 @@ struct allowedips {
 	struct allowedips_node __rcu *root4;
 	struct allowedips_node __rcu *root6;
 	u64 seq;
-};
+} __aligned(4); /* We pack the lower 2 bits of &root, but m68k only gives 16-bit alignment. */
 
 void wg_allowedips_init(struct allowedips *table);
 void wg_allowedips_free(struct allowedips *table, struct mutex *mutex);
@@ -55,5 +52,8 @@ struct wg_peer *wg_allowedips_lookup_src(struct allowedips *table,
 #ifdef DEBUG
 bool wg_allowedips_selftest(void);
 #endif
+
+int wg_allowedips_slab_init(void);
+void wg_allowedips_slab_uninit(void);
 
 #endif /* _WG_ALLOWEDIPS_H */

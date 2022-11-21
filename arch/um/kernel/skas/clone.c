@@ -24,29 +24,24 @@
 void __attribute__ ((__section__ (".__syscall_stub")))
 stub_clone_handler(void)
 {
-	struct stub_data *data = (struct stub_data *) STUB_DATA;
+	struct stub_data *data = get_stub_page();
 	long err;
 
 	err = stub_syscall2(__NR_clone, CLONE_PARENT | CLONE_FILES | SIGCHLD,
-			    STUB_DATA + UM_KERN_PAGE_SIZE / 2 - sizeof(void *));
-	if (err != 0)
-		goto out;
+			    (unsigned long)data + UM_KERN_PAGE_SIZE / 2);
+	if (err) {
+		data->parent_err = err;
+		goto done;
+	}
 
 	err = stub_syscall4(__NR_ptrace, PTRACE_TRACEME, 0, 0, 0);
-	if (err)
-		goto out;
+	if (err) {
+		data->child_err = err;
+		goto done;
+	}
 
-	remap_stack(data->fd, data->offset);
-	goto done;
+	remap_stack_and_trap();
 
- out:
-	/*
-	 * save current result.
-	 * Parent: pid;
-	 * child: retcode of mmap already saved and it jumps around this
-	 * assignment
-	 */
-	data->err = err;
  done:
 	trap_myself();
 }

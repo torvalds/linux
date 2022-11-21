@@ -28,14 +28,20 @@
 #include <linux/kernel.h>
 #include <linux/net_tstamp.h>
 #include <linux/of.h>
+#include <linux/of_mdio.h>
 #include <linux/phy.h>
-#include <linux/platform_data/eth_ixp4xx.h>
 #include <linux/platform_device.h>
 #include <linux/ptp_classify.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/soc/ixp4xx/npe.h>
 #include <linux/soc/ixp4xx/qmgr.h>
+#include <linux/soc/ixp4xx/cpu.h>
+#include <linux/types.h>
+
+#define IXP4XX_ETH_NPEA		0x00
+#define IXP4XX_ETH_NPEB		0x10
+#define IXP4XX_ETH_NPEC		0x20
 
 #include "ixp46x_ts.h"
 
@@ -145,6 +151,16 @@ typedef void buffer_t;
 #define free_buffer_irq kfree
 #endif
 
+/* Information about built-in Ethernet MAC interfaces */
+struct eth_plat_info {
+	u8 phy;		/* MII PHY ID, 0 - 31 */
+	u8 rxq;		/* configurable, currently 0 - 31 only */
+	u8 txreadyq;
+	u8 hwaddr[6];
+	u8 npe;		/* NPE instance used by this interface */
+	bool has_mdio;	/* If this instance has an MDIO bus */
+};
+
 struct eth_regs {
 	u32 tx_control[2], __res1[2];		/* 000 */
 	u32 rx_control[2], __res2[2];		/* 010 */
@@ -165,15 +181,16 @@ struct eth_regs {
 };
 
 struct port {
-	struct resource *mem_res;
 	struct eth_regs __iomem *regs;
+	struct ixp46x_ts_regs __iomem *timesync_regs;
+	int phc_index;
 	struct npe *npe;
 	struct net_device *netdev;
 	struct napi_struct napi;
 	struct eth_plat_info *plat;
 	buffer_t *rx_buff_tab[RX_DESCS], *tx_buff_tab[TX_DESCS];
 	struct desc *desc_tab;	/* coherent */
-	u32 desc_tab_phys;
+	dma_addr_t desc_tab_phys;
 	int id;			/* logical port ID */
 	int speed, duplex;
 	u8 firmware[4];
@@ -247,9 +264,10 @@ static inline void memcpy_swab32(u32 *dest, u32 *src, int cnt)
 }
 #endif
 
-static spinlock_t mdio_lock;
+static DEFINE_SPINLOCK(mdio_lock);
 static struct eth_regs __iomem *mdio_regs; /* mdio command and status only */
 static struct mii_bus *mdio_bus;
+static struct device_node *mdio_bus_np;
 static int ports_open;
 static struct port *npe_port_tab[MAX_NPES];
 static struct dma_pool *dma_pool;
@@ -292,7 +310,7 @@ static void ixp_rx_timestamp(struct port *port, struct sk_buff *skb)
 
 	ch = PORT2CHANNEL(port);
 
-	regs = (struct ixp46x_ts_regs __iomem *) IXP4XX_TIMESYNC_BASE_VIRT;
+	regs = port->timesync_regs;
 
 	val = __raw_readl(&regs->channel[ch].ch_event);
 
@@ -337,7 +355,7 @@ static void ixp_tx_timestamp(struct port *port, struct sk_buff *skb)
 
 	ch = PORT2CHANNEL(port);
 
-	regs = (struct ixp46x_ts_regs __iomem *) IXP4XX_TIMESYNC_BASE_VIRT;
+	regs = port->timesync_regs;
 
 	/*
 	 * This really stinks, but we have to poll for the Tx time stamp.
@@ -372,16 +390,18 @@ static int hwtstamp_set(struct net_device *netdev, struct ifreq *ifr)
 	struct hwtstamp_config cfg;
 	struct ixp46x_ts_regs *regs;
 	struct port *port = netdev_priv(netdev);
+	int ret;
 	int ch;
 
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
 
-	if (cfg.flags) /* reserved for future extensions */
-		return -EINVAL;
+	ret = ixp46x_ptp_find(&port->timesync_regs, &port->phc_index);
+	if (ret)
+		return ret;
 
 	ch = PORT2CHANNEL(port);
-	regs = (struct ixp46x_ts_regs __iomem *) IXP4XX_TIMESYNC_BASE_VIRT;
+	regs = port->timesync_regs;
 
 	if (cfg.tx_type != HWTSTAMP_TX_OFF && cfg.tx_type != HWTSTAMP_TX_ON)
 		return -ERANGE;
@@ -528,13 +548,13 @@ static int ixp4xx_mdio_register(struct eth_regs __iomem *regs)
 
 	mdio_regs = regs;
 	__raw_writel(DEFAULT_CORE_CNTRL, &mdio_regs->core_control);
-	spin_lock_init(&mdio_lock);
 	mdio_bus->name = "IXP4xx MII Bus";
 	mdio_bus->read = &ixp4xx_mdio_read;
 	mdio_bus->write = &ixp4xx_mdio_write;
 	snprintf(mdio_bus->id, MII_BUS_ID_SIZE, "ixp4xx-eth-0");
 
-	if ((err = mdiobus_register(mdio_bus)))
+	err = of_mdiobus_register(mdio_bus, mdio_bus_np);
+	if (err)
 		mdiobus_free(mdio_bus);
 	return err;
 }
@@ -847,14 +867,14 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	bytes = len;
 	mem = skb->data;
 #else
-	offset = (int)skb->data & 3; /* keep 32-bit alignment */
+	offset = (uintptr_t)skb->data & 3; /* keep 32-bit alignment */
 	bytes = ALIGN(offset + len, 4);
 	if (!(mem = kmalloc(bytes, GFP_ATOMIC))) {
 		dev_kfree_skb(skb);
 		dev->stats.tx_dropped++;
 		return NETDEV_TX_OK;
 	}
-	memcpy_swab32(mem, (u32 *)((int)skb->data & ~3), bytes / 4);
+	memcpy_swab32(mem, (u32 *)((uintptr_t)skb->data & ~3), bytes / 4);
 #endif
 
 	phys = dma_map_single(&dev->dev, mem, bytes, DMA_TO_DEVICE);
@@ -985,25 +1005,27 @@ static void ixp4xx_get_drvinfo(struct net_device *dev,
 	strlcpy(info->bus_info, "internal", sizeof(info->bus_info));
 }
 
-int ixp46x_phc_index = -1;
-EXPORT_SYMBOL_GPL(ixp46x_phc_index);
-
 static int ixp4xx_get_ts_info(struct net_device *dev,
 			      struct ethtool_ts_info *info)
 {
-	if (!cpu_is_ixp46x()) {
+	struct port *port = netdev_priv(dev);
+
+	if (port->phc_index < 0)
+		ixp46x_ptp_find(&port->timesync_regs, &port->phc_index);
+
+	info->phc_index = port->phc_index;
+
+	if (info->phc_index < 0) {
 		info->so_timestamping =
 			SOF_TIMESTAMPING_TX_SOFTWARE |
 			SOF_TIMESTAMPING_RX_SOFTWARE |
 			SOF_TIMESTAMPING_SOFTWARE;
-		info->phc_index = -1;
 		return 0;
 	}
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_HARDWARE |
 		SOF_TIMESTAMPING_RX_HARDWARE |
 		SOF_TIMESTAMPING_RAW_HARDWARE;
-	info->phc_index = ixp46x_phc_index;
 	info->tx_types =
 		(1 << HWTSTAMP_TX_OFF) |
 		(1 << HWTSTAMP_TX_ON);
@@ -1086,16 +1108,15 @@ static int init_queues(struct port *port)
 	int i;
 
 	if (!ports_open) {
-		dma_pool = dma_pool_create(DRV_NAME, port->netdev->dev.parent,
+		dma_pool = dma_pool_create(DRV_NAME, &port->netdev->dev,
 					   POOL_ALLOC_SIZE, 32, 0);
 		if (!dma_pool)
 			return -ENOMEM;
 	}
 
-	if (!(port->desc_tab = dma_pool_alloc(dma_pool, GFP_KERNEL,
-					      &port->desc_tab_phys)))
+	port->desc_tab = dma_pool_zalloc(dma_pool, GFP_KERNEL, &port->desc_tab_phys);
+	if (!port->desc_tab)
 		return -ENOMEM;
-	memset(port->desc_tab, 0, POOL_ALLOC_SIZE);
 	memset(port->rx_buff_tab, 0, sizeof(port->rx_buff_tab)); /* tables */
 	memset(port->tx_buff_tab, 0, sizeof(port->tx_buff_tab));
 
@@ -1354,24 +1375,75 @@ static const struct net_device_ops ixp4xx_netdev_ops = {
 	.ndo_stop = eth_close,
 	.ndo_start_xmit = eth_xmit,
 	.ndo_set_rx_mode = eth_set_mcast_list,
-	.ndo_do_ioctl = eth_ioctl,
+	.ndo_eth_ioctl = eth_ioctl,
 	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
 };
 
+static struct eth_plat_info *ixp4xx_of_get_platdata(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct of_phandle_args queue_spec;
+	struct of_phandle_args npe_spec;
+	struct device_node *mdio_np;
+	struct eth_plat_info *plat;
+	int ret;
+
+	plat = devm_kzalloc(dev, sizeof(*plat), GFP_KERNEL);
+	if (!plat)
+		return NULL;
+
+	ret = of_parse_phandle_with_fixed_args(np, "intel,npe-handle", 1, 0,
+					       &npe_spec);
+	if (ret) {
+		dev_err(dev, "no NPE engine specified\n");
+		return NULL;
+	}
+	/* NPE ID 0x00, 0x10, 0x20... */
+	plat->npe = (npe_spec.args[0] << 4);
+
+	/* Check if this device has an MDIO bus */
+	mdio_np = of_get_child_by_name(np, "mdio");
+	if (mdio_np) {
+		plat->has_mdio = true;
+		mdio_bus_np = mdio_np;
+		/* DO NOT put the mdio_np, it will be used */
+	}
+
+	/* Get the rx queue as a resource from queue manager */
+	ret = of_parse_phandle_with_fixed_args(np, "queue-rx", 1, 0,
+					       &queue_spec);
+	if (ret) {
+		dev_err(dev, "no rx queue phandle\n");
+		return NULL;
+	}
+	plat->rxq = queue_spec.args[0];
+
+	/* Get the txready queue as resource from queue manager */
+	ret = of_parse_phandle_with_fixed_args(np, "queue-txready", 1, 0,
+					       &queue_spec);
+	if (ret) {
+		dev_err(dev, "no txready queue phandle\n");
+		return NULL;
+	}
+	plat->txreadyq = queue_spec.args[0];
+
+	return plat;
+}
+
 static int ixp4xx_eth_probe(struct platform_device *pdev)
 {
-	char phy_id[MII_BUS_ID_SIZE + 3];
 	struct phy_device *phydev = NULL;
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct eth_plat_info *plat;
-	resource_size_t regs_phys;
 	struct net_device *ndev;
-	struct resource *res;
 	struct port *port;
 	int err;
 
-	plat = dev_get_platdata(dev);
+	plat = ixp4xx_of_get_platdata(dev);
+	if (!plat)
+		return -ENODEV;
 
 	if (!(ndev = devm_alloc_etherdev(dev, sizeof(struct port))))
 		return -ENOMEM;
@@ -1379,78 +1451,43 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(ndev, dev);
 	port = netdev_priv(ndev);
 	port->netdev = ndev;
-	port->id = pdev->id;
+	port->id = plat->npe;
+	port->phc_index = -1;
 
 	/* Get the port resource and remap */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-	regs_phys = res->start;
-	port->regs = devm_ioremap_resource(dev, res);
+	port->regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(port->regs))
 		return PTR_ERR(port->regs);
 
-	switch (port->id) {
-	case IXP4XX_ETH_NPEA:
-		/* If the MDIO bus is not up yet, defer probe */
-		if (!mdio_bus)
-			return -EPROBE_DEFER;
-		break;
-	case IXP4XX_ETH_NPEB:
-		/*
-		 * On all except IXP43x, NPE-B is used for the MDIO bus.
-		 * If there is no NPE-B in the feature set, bail out, else
-		 * register the MDIO bus.
-		 */
-		if (!cpu_is_ixp43x()) {
-			if (!(ixp4xx_read_feature_bits() &
-			      IXP4XX_FEATURE_NPEB_ETH0))
-				return -ENODEV;
-			/* Else register the MDIO bus on NPE-B */
-			if ((err = ixp4xx_mdio_register(port->regs)))
-				return err;
+	/* Register the MDIO bus if we have it */
+	if (plat->has_mdio) {
+		err = ixp4xx_mdio_register(port->regs);
+		if (err) {
+			dev_err(dev, "failed to register MDIO bus\n");
+			return err;
 		}
-		if (!mdio_bus)
-			return -EPROBE_DEFER;
-		break;
-	case IXP4XX_ETH_NPEC:
-		/*
-		 * IXP43x lacks NPE-B and uses NPE-C for the MDIO bus access,
-		 * of there is no NPE-C, no bus, nothing works, so bail out.
-		 */
-		if (cpu_is_ixp43x()) {
-			if (!(ixp4xx_read_feature_bits() &
-			      IXP4XX_FEATURE_NPEC_ETH))
-				return -ENODEV;
-			/* Else register the MDIO bus on NPE-C */
-			if ((err = ixp4xx_mdio_register(port->regs)))
-				return err;
-		}
-		if (!mdio_bus)
-			return -EPROBE_DEFER;
-		break;
-	default:
-		return -ENODEV;
 	}
+	/* If the instance with the MDIO bus has not yet appeared,
+	 * defer probing until it gets probed.
+	 */
+	if (!mdio_bus)
+		return -EPROBE_DEFER;
 
 	ndev->netdev_ops = &ixp4xx_netdev_ops;
 	ndev->ethtool_ops = &ixp4xx_ethtool_ops;
 	ndev->tx_queue_len = 100;
+	/* Inherit the DMA masks from the platform device */
+	ndev->dev.dma_mask = dev->dma_mask;
+	ndev->dev.coherent_dma_mask = dev->coherent_dma_mask;
 
 	netif_napi_add(ndev, &port->napi, eth_poll, NAPI_WEIGHT);
 
 	if (!(port->npe = npe_request(NPE_ID(port->id))))
 		return -EIO;
 
-	port->mem_res = request_mem_region(regs_phys, REGS_SIZE, ndev->name);
-	if (!port->mem_res) {
-		err = -EBUSY;
-		goto err_npe_rel;
-	}
-
 	port->plat = plat;
 	npe_port_tab[NPE_ID(port->id)] = port;
-	memcpy(ndev->dev_addr, plat->hwaddr, ETH_ALEN);
+	eth_hw_addr_set(ndev, plat->hwaddr);
 
 	platform_set_drvdata(pdev, ndev);
 
@@ -1460,12 +1497,10 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 	__raw_writel(DEFAULT_CORE_CNTRL, &port->regs->core_control);
 	udelay(50);
 
-	snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
-		mdio_bus->id, plat->phy);
-	phydev = phy_connect(ndev, phy_id, &ixp4xx_adjust_link,
-			     PHY_INTERFACE_MODE_MII);
-	if (IS_ERR(phydev)) {
-		err = PTR_ERR(phydev);
+	phydev = of_phy_get_and_connect(ndev, np, ixp4xx_adjust_link);
+	if (!phydev) {
+		err = -ENODEV;
+		dev_err(dev, "no phydev\n");
 		goto err_free_mem;
 	}
 
@@ -1483,8 +1518,6 @@ err_phy_dis:
 	phy_disconnect(phydev);
 err_free_mem:
 	npe_port_tab[NPE_ID(port->id)] = NULL;
-	release_resource(port->mem_res);
-err_npe_rel:
 	npe_release(port->npe);
 	return err;
 }
@@ -1500,12 +1533,21 @@ static int ixp4xx_eth_remove(struct platform_device *pdev)
 	ixp4xx_mdio_remove();
 	npe_port_tab[NPE_ID(port->id)] = NULL;
 	npe_release(port->npe);
-	release_resource(port->mem_res);
 	return 0;
 }
 
+static const struct of_device_id ixp4xx_eth_of_match[] = {
+	{
+		.compatible = "intel,ixp4xx-ethernet",
+	},
+	{ },
+};
+
 static struct platform_driver ixp4xx_eth_driver = {
-	.driver.name	= DRV_NAME,
+	.driver = {
+		.name = DRV_NAME,
+		.of_match_table = of_match_ptr(ixp4xx_eth_of_match),
+	},
 	.probe		= ixp4xx_eth_probe,
 	.remove		= ixp4xx_eth_remove,
 };

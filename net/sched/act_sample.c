@@ -34,11 +34,12 @@ static const struct nla_policy sample_policy[TCA_SAMPLE_MAX + 1] = {
 };
 
 static int tcf_sample_init(struct net *net, struct nlattr *nla,
-			   struct nlattr *est, struct tc_action **a, int ovr,
-			   int bind, bool rtnl_held, struct tcf_proto *tp,
+			   struct nlattr *est, struct tc_action **a,
+			   struct tcf_proto *tp,
 			   u32 flags, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, sample_net_id);
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_SAMPLE_MAX + 1];
 	struct psample_group *psample_group;
 	u32 psample_group_num, rate, index;
@@ -69,13 +70,13 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, index, est, a,
-				     &act_sample_ops, bind, true, 0);
+				     &act_sample_ops, bind, true, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 		ret = ACT_P_CREATED;
-	} else if (!ovr) {
+	} else if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
@@ -158,13 +159,11 @@ static int tcf_sample_act(struct sk_buff *skb, const struct tc_action *a,
 {
 	struct tcf_sample *s = to_sample(a);
 	struct psample_group *psample_group;
+	struct psample_metadata md = {};
 	int retval;
-	int size;
-	int iif;
-	int oif;
 
 	tcf_lastuse_update(&s->tcf_tm);
-	bstats_cpu_update(this_cpu_ptr(s->common.cpu_bstats), skb);
+	bstats_update(this_cpu_ptr(s->common.cpu_bstats), skb);
 	retval = READ_ONCE(s->tcf_action);
 
 	psample_group = rcu_dereference_bh(s->psample_group);
@@ -172,26 +171,34 @@ static int tcf_sample_act(struct sk_buff *skb, const struct tc_action *a,
 	/* randomly sample packets according to rate */
 	if (psample_group && (prandom_u32() % s->rate == 0)) {
 		if (!skb_at_tc_ingress(skb)) {
-			iif = skb->skb_iif;
-			oif = skb->dev->ifindex;
+			md.in_ifindex = skb->skb_iif;
+			md.out_ifindex = skb->dev->ifindex;
 		} else {
-			iif = skb->dev->ifindex;
-			oif = 0;
+			md.in_ifindex = skb->dev->ifindex;
 		}
 
 		/* on ingress, the mac header gets popped, so push it back */
 		if (skb_at_tc_ingress(skb) && tcf_sample_dev_ok_push(skb->dev))
 			skb_push(skb, skb->mac_len);
 
-		size = s->truncate ? s->trunc_size : skb->len;
-		psample_sample_packet(psample_group, skb, size, iif, oif,
-				      s->rate);
+		md.trunc_size = s->truncate ? s->trunc_size : skb->len;
+		psample_sample_packet(psample_group, skb, s->rate, &md);
 
 		if (skb_at_tc_ingress(skb) && tcf_sample_dev_ok_push(skb->dev))
 			skb_pull(skb, skb->mac_len);
 	}
 
 	return retval;
+}
+
+static void tcf_sample_stats_update(struct tc_action *a, u64 bytes, u64 packets,
+				    u64 drops, u64 lastuse, bool hw)
+{
+	struct tcf_sample *s = to_sample(a);
+	struct tcf_t *tm = &s->tcf_tm;
+
+	tcf_action_update_stats(a, bytes, packets, drops, hw);
+	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 
 static int tcf_sample_dump(struct sk_buff *skb, struct tc_action *a,
@@ -275,17 +282,48 @@ tcf_sample_get_group(const struct tc_action *a,
 	return group;
 }
 
+static void tcf_offload_sample_get_group(struct flow_action_entry *entry,
+					 const struct tc_action *act)
+{
+	entry->sample.psample_group =
+		act->ops->get_psample_group(act, &entry->destructor);
+	entry->destructor_priv = entry->sample.psample_group;
+}
+
+static int tcf_sample_offload_act_setup(struct tc_action *act, void *entry_data,
+					u32 *index_inc, bool bind)
+{
+	if (bind) {
+		struct flow_action_entry *entry = entry_data;
+
+		entry->id = FLOW_ACTION_SAMPLE;
+		entry->sample.trunc_size = tcf_sample_trunc_size(act);
+		entry->sample.truncate = tcf_sample_truncate(act);
+		entry->sample.rate = tcf_sample_rate(act);
+		tcf_offload_sample_get_group(entry, act);
+		*index_inc = 1;
+	} else {
+		struct flow_offload_action *fl_action = entry_data;
+
+		fl_action->id = FLOW_ACTION_SAMPLE;
+	}
+
+	return 0;
+}
+
 static struct tc_action_ops act_sample_ops = {
 	.kind	  = "sample",
 	.id	  = TCA_ID_SAMPLE,
 	.owner	  = THIS_MODULE,
 	.act	  = tcf_sample_act,
+	.stats_update = tcf_sample_stats_update,
 	.dump	  = tcf_sample_dump,
 	.init	  = tcf_sample_init,
 	.cleanup  = tcf_sample_cleanup,
 	.walk	  = tcf_sample_walker,
 	.lookup	  = tcf_sample_search,
 	.get_psample_group = tcf_sample_get_group,
+	.offload_act_setup    = tcf_sample_offload_act_setup,
 	.size	  = sizeof(struct tcf_sample),
 };
 

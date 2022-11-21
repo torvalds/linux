@@ -480,7 +480,7 @@ static struct platform_device mcf_i2c5 = {
 #endif /* MCFI2C_BASE5 */
 #endif /* IS_ENABLED(CONFIG_I2C_IMX) */
 
-#if IS_ENABLED(CONFIG_MCF_EDMA)
+#ifdef MCFEDMA_BASE
 
 static const struct dma_slave_map mcf_edma_map[] = {
 	{ "dreq0", "rx-tx", MCF_EDMA_FILTER_PARAM(0) },
@@ -552,7 +552,7 @@ static struct platform_device mcf_edma = {
 		.platform_data = &mcf_edma_data,
 	}
 };
-#endif /* IS_ENABLED(CONFIG_MCF_EDMA) */
+#endif /* MCFEDMA_BASE */
 
 #ifdef MCFSDHC_BASE
 static struct mcf_esdhc_platform_data mcf_esdhc_data = {
@@ -580,6 +580,47 @@ static struct platform_device mcf_esdhc = {
 	.dev.platform_data	= &mcf_esdhc_data,
 };
 #endif /* MCFSDHC_BASE */
+
+#if IS_ENABLED(CONFIG_CAN_FLEXCAN)
+
+#include <linux/can/platform/flexcan.h>
+
+static struct flexcan_platform_data mcf5441x_flexcan_info = {
+	.clk_src = 1,
+	.clock_frequency = 120000000,
+};
+
+static struct resource mcf5441x_flexcan0_resource[] = {
+	{
+		.start = MCFFLEXCAN_BASE0,
+		.end = MCFFLEXCAN_BASE0 + MCFFLEXCAN_SIZE,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = MCF_IRQ_IFL0,
+		.end = MCF_IRQ_IFL0,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = MCF_IRQ_BOFF0,
+		.end = MCF_IRQ_BOFF0,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = MCF_IRQ_ERR0,
+		.end = MCF_IRQ_ERR0,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_flexcan0 = {
+	.name = "flexcan-mcf5441x",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mcf5441x_flexcan0_resource),
+	.resource = mcf5441x_flexcan0_resource,
+	.dev.platform_data = &mcf5441x_flexcan_info,
+};
+#endif /* IS_ENABLED(CONFIG_CAN_FLEXCAN) */
 
 static struct platform_device *mcf_devices[] __initdata = {
 	&mcf_uart,
@@ -610,11 +651,14 @@ static struct platform_device *mcf_devices[] __initdata = {
 	&mcf_i2c5,
 #endif
 #endif
-#if IS_ENABLED(CONFIG_MCF_EDMA)
+#ifdef MCFEDMA_BASE
 	&mcf_edma,
 #endif
 #ifdef MCFSDHC_BASE
 	&mcf_esdhc,
+#endif
+#if IS_ENABLED(CONFIG_CAN_FLEXCAN)
+	&mcf_flexcan0,
 #endif
 };
 

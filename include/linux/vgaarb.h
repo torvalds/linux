@@ -33,6 +33,8 @@
 
 #include <video/vga.h>
 
+struct pci_dev;
+
 /* Legacy VGA regions */
 #define VGA_RSRC_NONE	       0x00
 #define VGA_RSRC_LEGACY_IO     0x01
@@ -42,42 +44,45 @@
 #define VGA_RSRC_NORMAL_IO     0x04
 #define VGA_RSRC_NORMAL_MEM    0x08
 
-/* Passing that instead of a pci_dev to use the system "default"
- * device, that is the one used by vgacon. Archs will probably
- * have to provide their own vga_default_device();
- */
-#define VGA_DEFAULT_DEVICE     (NULL)
-
-struct pci_dev;
-
-/* For use by clients */
-
-/**
- *     vga_set_legacy_decoding
- *
- *     @pdev: pci device of the VGA card
- *     @decodes: bit mask of what legacy regions the card decodes
- *
- *     Indicates to the arbiter if the card decodes legacy VGA IOs,
- *     legacy VGA Memory, both, or none. All cards default to both,
- *     the card driver (fbdev for example) should tell the arbiter
- *     if it has disabled legacy decoding, so the card can be left
- *     out of the arbitration process (and can be safe to take
- *     interrupts at any time.
- */
-#if defined(CONFIG_VGA_ARB)
-extern void vga_set_legacy_decoding(struct pci_dev *pdev,
-				    unsigned int decodes);
-#else
+#ifdef CONFIG_VGA_ARB
+void vga_set_legacy_decoding(struct pci_dev *pdev, unsigned int decodes);
+int vga_get(struct pci_dev *pdev, unsigned int rsrc, int interruptible);
+void vga_put(struct pci_dev *pdev, unsigned int rsrc);
+struct pci_dev *vga_default_device(void);
+void vga_set_default_device(struct pci_dev *pdev);
+int vga_remove_vgacon(struct pci_dev *pdev);
+int vga_client_register(struct pci_dev *pdev,
+		unsigned int (*set_decode)(struct pci_dev *pdev, bool state));
+#else /* CONFIG_VGA_ARB */
 static inline void vga_set_legacy_decoding(struct pci_dev *pdev,
-					   unsigned int decodes) { };
-#endif
-
-#if defined(CONFIG_VGA_ARB)
-extern int vga_get(struct pci_dev *pdev, unsigned int rsrc, int interruptible);
-#else
-static inline int vga_get(struct pci_dev *pdev, unsigned int rsrc, int interruptible) { return 0; }
-#endif
+		unsigned int decodes)
+{
+};
+static inline int vga_get(struct pci_dev *pdev, unsigned int rsrc,
+		int interruptible)
+{
+	return 0;
+}
+static inline void vga_put(struct pci_dev *pdev, unsigned int rsrc)
+{
+}
+static inline struct pci_dev *vga_default_device(void)
+{
+	return NULL;
+}
+static inline void vga_set_default_device(struct pci_dev *pdev)
+{
+}
+static inline int vga_remove_vgacon(struct pci_dev *pdev)
+{
+	return 0;
+}
+static inline int vga_client_register(struct pci_dev *pdev,
+		unsigned int (*set_decode)(struct pci_dev *pdev, bool state))
+{
+	return 0;
+}
+#endif /* CONFIG_VGA_ARB */
 
 /**
  * vga_get_interruptible
@@ -109,46 +114,9 @@ static inline int vga_get_uninterruptible(struct pci_dev *pdev,
        return vga_get(pdev, rsrc, 0);
 }
 
-#if defined(CONFIG_VGA_ARB)
-extern void vga_put(struct pci_dev *pdev, unsigned int rsrc);
-#else
-#define vga_put(pdev, rsrc)
-#endif
-
-
-#ifdef CONFIG_VGA_ARB
-extern struct pci_dev *vga_default_device(void);
-extern void vga_set_default_device(struct pci_dev *pdev);
-extern int vga_remove_vgacon(struct pci_dev *pdev);
-#else
-static inline struct pci_dev *vga_default_device(void) { return NULL; };
-static inline void vga_set_default_device(struct pci_dev *pdev) { };
-static inline int vga_remove_vgacon(struct pci_dev *pdev) { return 0; };
-#endif
-
-/*
- * Architectures should define this if they have several
- * independent PCI domains that can afford concurrent VGA
- * decoding
- */
-#ifndef __ARCH_HAS_VGA_CONFLICT
-static inline int vga_conflicts(struct pci_dev *p1, struct pci_dev *p2)
+static inline void vga_client_unregister(struct pci_dev *pdev)
 {
-       return 1;
+	vga_client_register(pdev, NULL);
 }
-#endif
-
-#if defined(CONFIG_VGA_ARB)
-int vga_client_register(struct pci_dev *pdev, void *cookie,
-			void (*irq_set_state)(void *cookie, bool state),
-			unsigned int (*set_vga_decode)(void *cookie, bool state));
-#else
-static inline int vga_client_register(struct pci_dev *pdev, void *cookie,
-				      void (*irq_set_state)(void *cookie, bool state),
-				      unsigned int (*set_vga_decode)(void *cookie, bool state))
-{
-	return 0;
-}
-#endif
 
 #endif /* LINUX_VGA_H */

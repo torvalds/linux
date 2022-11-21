@@ -9,6 +9,8 @@ PROPERTIES:
 		"qcom,msm8916-cci"
 		"qcom,msm8996-cci"
 		"qcom,sdm845-cci"
+		"qcom,sm8250-cci"
+		"qcom,sm8450-cci"
 
 - reg
 	Usage: required
@@ -41,8 +43,9 @@ PROPERTIES:
 
 SUBNODES:
 
-The CCI provides I2C masters for one (msm8916) or two i2c busses (msm8996 and
-sdm845), described as subdevices named "i2c-bus@0" and "i2c-bus@1".
+The CCI provides I2C masters for one (msm8916) or two i2c busses (msm8996,
+sdm845, sm8250 and sm8450), described as subdevices named "i2c-bus@0" and
+"i2c-bus@1".
 
 PROPERTIES:
 

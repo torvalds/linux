@@ -25,6 +25,7 @@
 
 
 #include "dc_bios_types.h"
+#include "hw_shared.h"
 #include "dcn30_afmt.h"
 #include "reg_helper.h"
 
@@ -43,10 +44,13 @@
 	afmt3->base.ctx
 
 
-static void afmt3_setup_hdmi_audio(
+void afmt3_setup_hdmi_audio(
 	struct afmt *afmt)
 {
 	struct dcn30_afmt *afmt3 = DCN30_AFMT_FROM_AFMT(afmt);
+
+	if (afmt->funcs->afmt_poweron)
+		afmt->funcs->afmt_poweron(afmt);
 
 	/* AFMT_AUDIO_PACKET_CONTROL */
 	REG_UPDATE(AFMT_AUDIO_PACKET_CONTROL, AFMT_60958_CS_UPDATE, 1);
@@ -112,7 +116,7 @@ static union audio_cea_channels speakers_to_channels(
 	return cea_channels;
 }
 
-static void afmt3_se_audio_setup(
+void afmt3_se_audio_setup(
 	struct afmt *afmt,
 	unsigned int az_inst,
 	struct audio_info *audio_info)
@@ -137,20 +141,24 @@ static void afmt3_se_audio_setup(
 	REG_UPDATE(AFMT_AUDIO_PACKET_CONTROL2, AFMT_AUDIO_CHANNEL_ENABLE, channels);
 
 	/* Disable forced mem power off */
-	REG_UPDATE(AFMT_MEM_PWR, AFMT_MEM_PWR_FORCE, 0);
+	if (afmt->funcs->afmt_poweron == NULL)
+		REG_UPDATE(AFMT_MEM_PWR, AFMT_MEM_PWR_FORCE, 0);
 }
 
-static void afmt3_audio_mute_control(
+void afmt3_audio_mute_control(
 	struct afmt *afmt,
 	bool mute)
 {
 	struct dcn30_afmt *afmt3 = DCN30_AFMT_FROM_AFMT(afmt);
-
+	if (mute && afmt->funcs->afmt_powerdown)
+		afmt->funcs->afmt_powerdown(afmt);
+	if (!mute && afmt->funcs->afmt_poweron)
+		afmt->funcs->afmt_poweron(afmt);
 	/* enable/disable transmission of audio packets */
 	REG_UPDATE(AFMT_AUDIO_PACKET_CONTROL, AFMT_AUDIO_SAMPLE_SEND, !mute);
 }
 
-static void afmt3_audio_info_immediate_update(
+void afmt3_audio_info_immediate_update(
 	struct afmt *afmt)
 {
 	struct dcn30_afmt *afmt3 = DCN30_AFMT_FROM_AFMT(afmt);
@@ -159,10 +167,13 @@ static void afmt3_audio_info_immediate_update(
 	REG_UPDATE(AFMT_INFOFRAME_CONTROL0, AFMT_AUDIO_INFO_UPDATE, 1);
 }
 
-static void afmt3_setup_dp_audio(
+void afmt3_setup_dp_audio(
 		struct afmt *afmt)
 {
 	struct dcn30_afmt *afmt3 = DCN30_AFMT_FROM_AFMT(afmt);
+
+	if (afmt->funcs->afmt_poweron)
+		afmt->funcs->afmt_poweron(afmt);
 
 	/* AFMT_AUDIO_PACKET_CONTROL */
 	REG_UPDATE(AFMT_AUDIO_PACKET_CONTROL, AFMT_60958_CS_UPDATE, 1);

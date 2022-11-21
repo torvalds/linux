@@ -30,7 +30,7 @@ proc_bus_zorro_lseek(struct file *file, loff_t off, int whence)
 static ssize_t
 proc_bus_zorro_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
-	struct zorro_dev *z = PDE_DATA(file_inode(file));
+	struct zorro_dev *z = pde_data(file_inode(file));
 	struct ConfigDev cd;
 	loff_t pos = *ppos;
 

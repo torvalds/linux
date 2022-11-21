@@ -11,6 +11,7 @@
 
 	aliases {
 		serial0 = &blsp1_uart2;
+		serial1 = &blsp2_uart7;
 	};
 
 	chosen {
@@ -19,7 +20,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		input-name = "gpio-keys";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_keys_pin_a>;
@@ -279,7 +279,7 @@
 
 &soc {
 	sdhci@f9824900 {
-		status = "ok";
+		status = "okay";
 
 		vmmc-supply = <&pm8941_l20>;
 		vqmmc-supply = <&pm8941_s3>;
@@ -292,7 +292,7 @@
 	};
 
 	sdhci@f9864900 {
-		status = "ok";
+		status = "okay";
 
 		max-frequency = <100000000>;
 		non-removable;
@@ -316,7 +316,7 @@
 	};
 
 	sdhci@f98a4900 {
-		status = "ok";
+		status = "okay";
 
 		bus-width = <4>;
 
@@ -330,14 +330,35 @@
 	};
 
 	serial@f991e000 {
-		status = "ok";
+		status = "okay";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&blsp1_uart2_pin_a>;
 	};
 
-	usb@f9a55000 {
+	serial@f995d000 {
 		status = "ok";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&blsp2_uart7_pin_a>;
+
+		bluetooth {
+			compatible = "brcm,bcm43438-bt";
+			max-speed = <3000000>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&bt_host_wake_pin>,
+				    <&bt_dev_wake_pin>,
+				    <&bt_reg_on_pin>;
+
+			host-wakeup-gpios = <&msmgpio 95 GPIO_ACTIVE_HIGH>;
+			device-wakeup-gpios = <&msmgpio 96 GPIO_ACTIVE_HIGH>;
+			shutdown-gpios = <&pm8941_gpios 16 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	usb@f9a55000 {
+		status = "okay";
 
 		phys = <&usb_hs1_phy>;
 		phy-select = <&tcsr 0xb000 0>;
@@ -350,7 +371,7 @@
 
 		ulpi {
 			phy@a {
-				status = "ok";
+				status = "okay";
 
 				v1p8-supply = <&pm8941_l6>;
 				v3p3-supply = <&pm8941_l24>;
@@ -376,6 +397,40 @@
 				function = "blsp_uart2";
 
 				drive-strength = <4>;
+				bias-disable;
+			};
+		};
+
+		blsp2_uart7_pin_a: blsp2-uart7-pin-active {
+			tx {
+				pins = "gpio41";
+				function = "blsp_uart7";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			rx {
+				pins = "gpio42";
+				function = "blsp_uart7";
+
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			cts {
+				pins = "gpio43";
+				function = "blsp_uart7";
+
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			rts {
+				pins = "gpio44";
+				function = "blsp_uart7";
+
+				drive-strength = <2>;
 				bias-disable;
 			};
 		};
@@ -479,10 +534,27 @@
 				input-enable;
 			};
 		};
+
+		bt_host_wake_pin: bt-host-wake {
+			pins = "gpio95";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+
+		bt_dev_wake_pin: bt-dev-wake {
+			pins = "gpio96";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-disable;
+		};
 	};
 
 	i2c@f9964000 {
-		status = "ok";
+		status = "okay";
 
 		clock-frequency = <355000>;
 		qcom,src-freq = <50000000>;
@@ -522,7 +594,7 @@
 	};
 
 	i2c@f9967000 {
-		status = "ok";
+		status = "okay";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c11_pins>;
 		clock-frequency = <355000>;
@@ -606,6 +678,14 @@
 				power-source = <PM8941_GPIO_S3>;
 			};
 
+			bt_reg_on_pin: bt-reg-on {
+				pins = "gpio16";
+				function = "normal";
+
+				output-low;
+				power-source = <PM8941_GPIO_S3>;
+			};
+
 			wlan_sleep_clk_pin: wl-sleep-clk {
 				pins = "gpio17";
 				function = "func2";
@@ -635,7 +715,7 @@
 		};
 
 		coincell@2800 {
-			status = "ok";
+			status = "okay";
 			qcom,rset-ohms = <2100>;
 			qcom,vset-millivolts = <3000>;
 		};

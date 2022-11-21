@@ -82,7 +82,7 @@ struct tipc_bclink_entry {
 /**
  * struct tipc_node - TIPC node structure
  * @addr: network address of node
- * @ref: reference counter to node object
+ * @kref: reference counter to node object
  * @lock: rwlock governing access to structure
  * @net: the applicable net namespace
  * @hash: links to adjacent nodes in unsorted hash chain
@@ -90,9 +90,11 @@ struct tipc_bclink_entry {
  * @namedq: pointer to name table input queue with name table messages
  * @active_links: bearer ids of active links, used as index into links[] array
  * @links: array containing references to all links to node
+ * @bc_entry: broadcast link entry
  * @action_flags: bit mask of different types of node actions
  * @state: connectivity state vs peer node
  * @preliminary: a preliminary node or not
+ * @failover_sent: failover sent or not
  * @sync_point: sequence number where synch/failover is finished
  * @list: links to adjacent nodes in sorted list of cluster's nodes
  * @working_links: number of working links to node (both active and standby)
@@ -100,9 +102,16 @@ struct tipc_bclink_entry {
  * @capabilities: bitmap, indicating peer node's functional capabilities
  * @signature: node instance identifier
  * @link_id: local and remote bearer ids of changing link, if any
+ * @peer_id: 128-bit ID of peer
+ * @peer_id_string: ID string of peer
  * @publ_list: list of publications
+ * @conn_sks: list of connections (FIXME)
+ * @timer: node's keepalive timer
+ * @keepalive_intv: keepalive interval in milliseconds
  * @rcu: rcu struct for tipc_node
  * @delete_at: indicates the time for deleting a down node
+ * @peer_net: peer's net namespace
+ * @peer_hash_mix: hash for this peer (FIXME)
  * @crypto_rx: RX crypto handler
  */
 struct tipc_node {
@@ -267,6 +276,7 @@ char *tipc_node_get_id_str(struct tipc_node *node)
 #ifdef CONFIG_TIPC_CRYPTO
 /**
  * tipc_node_crypto_rx - Retrieve crypto RX handle from node
+ * @__n: target tipc_node
  * Note: node ref counter must be held first!
  */
 struct tipc_crypto *tipc_node_crypto_rx(struct tipc_node *__n)
@@ -362,42 +372,50 @@ static struct tipc_node *tipc_node_find_by_id(struct net *net, u8 *id)
 }
 
 static void tipc_node_read_lock(struct tipc_node *n)
+	__acquires(n->lock)
 {
 	read_lock_bh(&n->lock);
 }
 
 static void tipc_node_read_unlock(struct tipc_node *n)
+	__releases(n->lock)
 {
 	read_unlock_bh(&n->lock);
 }
 
 static void tipc_node_write_lock(struct tipc_node *n)
+	__acquires(n->lock)
 {
 	write_lock_bh(&n->lock);
 }
 
 static void tipc_node_write_unlock_fast(struct tipc_node *n)
+	__releases(n->lock)
 {
 	write_unlock_bh(&n->lock);
 }
 
 static void tipc_node_write_unlock(struct tipc_node *n)
+	__releases(n->lock)
 {
+	struct tipc_socket_addr sk;
 	struct net *net = n->net;
-	u32 addr = 0;
 	u32 flags = n->action_flags;
-	u32 link_id = 0;
-	u32 bearer_id;
 	struct list_head *publ_list;
+	struct tipc_uaddr ua;
+	u32 bearer_id, node;
 
 	if (likely(!flags)) {
 		write_unlock_bh(&n->lock);
 		return;
 	}
 
-	addr = n->addr;
-	link_id = n->link_id;
-	bearer_id = link_id & 0xffff;
+	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE,
+		   TIPC_LINK_STATE, n->addr, n->addr);
+	sk.ref = n->link_id;
+	sk.node = tipc_own_addr(net);
+	node = n->addr;
+	bearer_id = n->link_id & 0xffff;
 	publ_list = &n->publ_list;
 
 	n->action_flags &= ~(TIPC_NOTIFY_NODE_DOWN | TIPC_NOTIFY_NODE_UP |
@@ -406,20 +424,18 @@ static void tipc_node_write_unlock(struct tipc_node *n)
 	write_unlock_bh(&n->lock);
 
 	if (flags & TIPC_NOTIFY_NODE_DOWN)
-		tipc_publ_notify(net, publ_list, addr, n->capabilities);
+		tipc_publ_notify(net, publ_list, node, n->capabilities);
 
 	if (flags & TIPC_NOTIFY_NODE_UP)
-		tipc_named_node_up(net, addr, n->capabilities);
+		tipc_named_node_up(net, node, n->capabilities);
 
 	if (flags & TIPC_NOTIFY_LINK_UP) {
-		tipc_mon_peer_up(net, addr, bearer_id);
-		tipc_nametbl_publish(net, TIPC_LINK_STATE, addr, addr,
-				     TIPC_NODE_SCOPE, link_id, link_id);
+		tipc_mon_peer_up(net, node, bearer_id);
+		tipc_nametbl_publish(net, &ua, &sk, sk.ref);
 	}
 	if (flags & TIPC_NOTIFY_LINK_DOWN) {
-		tipc_mon_peer_down(net, addr, bearer_id);
-		tipc_nametbl_withdraw(net, TIPC_LINK_STATE, addr,
-				      addr, link_id);
+		tipc_mon_peer_down(net, node, bearer_id);
+		tipc_nametbl_withdraw(net, &ua, &sk, sk.ref);
 	}
 }
 
@@ -814,6 +830,9 @@ static void tipc_node_timeout(struct timer_list *t)
 
 /**
  * __tipc_node_link_up - handle addition of link
+ * @n: target tipc_node
+ * @bearer_id: id of the bearer
+ * @xmitq: queue for messages to be xmited on
  * Node lock must be held by caller
  * Link becomes active (alone or shared) or standby, depending on its priority.
  */
@@ -880,6 +899,9 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 
 /**
  * tipc_node_link_up - handle addition of link
+ * @n: target tipc_node
+ * @bearer_id: id of the bearer
+ * @xmitq: queue for messages to be xmited on
  *
  * Link becomes active (alone or shared) or standby, depending on its priority.
  */
@@ -900,10 +922,11 @@ static void tipc_node_link_up(struct tipc_node *n, int bearer_id,
  *
  * This function is only called in a very special situation where link
  * failover can be already started on peer node but not on this node.
- * This can happen when e.g.
+ * This can happen when e.g.::
+ *
  *	1. Both links <1A-2A>, <1B-2B> down
  *	2. Link endpoint 2A up, but 1A still down (e.g. due to network
- *	   disturbance, wrong session, etc.)
+ *	disturbance, wrong session, etc.)
  *	3. Link <1B-2B> up
  *	4. Link endpoint 2A down (e.g. due to link tolerance timeout)
  *	5. Node 2 starts failover onto link <1B-2B>
@@ -940,6 +963,10 @@ static void tipc_node_link_failover(struct tipc_node *n, struct tipc_link *l,
 
 /**
  * __tipc_node_link_down - handle loss of link
+ * @n: target tipc_node
+ * @bearer_id: id of the bearer
+ * @xmitq: queue for messages to be xmited on
+ * @maddr: output media address of the bearer
  */
 static void __tipc_node_link_down(struct tipc_node *n, int *bearer_id,
 				  struct sk_buff_head *xmitq,
@@ -1188,7 +1215,7 @@ void tipc_node_check_dest(struct net *net, u32 addr,
 		/* Peer has changed i/f address without rebooting.
 		 * If so, the link will reset soon, and the next
 		 * discovery will be accepted. So we can ignore it.
-		 * It may also be an cloned or malicious peer having
+		 * It may also be a cloned or malicious peer having
 		 * chosen the same node address and signature as an
 		 * existing one.
 		 * Ignore requests until the link goes down, if ever.
@@ -1525,11 +1552,13 @@ static void node_lost_contact(struct tipc_node *n,
 /**
  * tipc_node_get_linkname - get the name of a link
  *
+ * @net: the applicable net namespace
  * @bearer_id: id of the bearer
  * @addr: peer node address
  * @linkname: link name output buffer
+ * @len: size of @linkname output buffer
  *
- * Returns 0 on success
+ * Return: 0 on success
  */
 int tipc_node_get_linkname(struct net *net, u32 bearer_id, u32 addr,
 			   char *linkname, size_t len)
@@ -1638,17 +1667,17 @@ static void tipc_lxc_xmit(struct net *peer_net, struct sk_buff_head *list)
 		return;
 	default:
 		return;
-	};
+	}
 }
 
 /**
- * tipc_node_xmit() is the general link level function for message sending
+ * tipc_node_xmit() - general link level function for message sending
  * @net: the applicable net namespace
  * @list: chain of buffers containing message
  * @dnode: address of destination node
  * @selector: a number used for deterministic link selection
  * Consumes the buffer chain.
- * Returns 0 if success, otherwise: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE,-ENOBUF
+ * Return: 0 if success, otherwise: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE,-ENOBUF
  */
 int tipc_node_xmit(struct net *net, struct sk_buff_head *list,
 		   u32 dnode, int selector)
@@ -1711,7 +1740,7 @@ int tipc_node_xmit(struct net *net, struct sk_buff_head *list,
 }
 
 /* tipc_node_xmit_skb(): send single buffer to destination
- * Buffers sent via this functon are generally TIPC_SYSTEM_IMPORTANCE
+ * Buffers sent via this function are generally TIPC_SYSTEM_IMPORTANCE
  * messages, which will not be rejected
  * The only exception is datagram messages rerouted after secondary
  * lookup, which are rare and safe to dispose of anyway.
@@ -1881,9 +1910,11 @@ static void tipc_node_bc_rcv(struct net *net, struct sk_buff *skb, int bearer_id
 
 /**
  * tipc_node_check_state - check and if necessary update node state
+ * @n: target tipc_node
  * @skb: TIPC packet
  * @bearer_id: identity of bearer delivering the packet
- * Returns true if state and msg are ok, otherwise false
+ * @xmitq: queue for messages to be xmited on
+ * Return: true if state and msg are ok, otherwise false
  */
 static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 				  int bearer_id, struct sk_buff_head *xmitq)
@@ -1984,7 +2015,7 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 		return true;
 	}
 
-	/* No synching needed if only one link */
+	/* No syncing needed if only one link */
 	if (!pl || !tipc_link_is_up(pl))
 		return true;
 
@@ -2199,6 +2230,9 @@ int tipc_nl_peer_rm(struct sk_buff *skb, struct genl_info *info)
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct nlattr *attrs[TIPC_NLA_NET_MAX + 1];
 	struct tipc_node *peer, *temp_node;
+	u8 node_id[NODE_ID_LEN];
+	u64 *w0 = (u64 *)&node_id[0];
+	u64 *w1 = (u64 *)&node_id[8];
 	u32 addr;
 	int err;
 
@@ -2212,10 +2246,22 @@ int tipc_nl_peer_rm(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
-	if (!attrs[TIPC_NLA_NET_ADDR])
-		return -EINVAL;
+	/* attrs[TIPC_NLA_NET_NODEID] and attrs[TIPC_NLA_NET_ADDR] are
+	 * mutually exclusive cases
+	 */
+	if (attrs[TIPC_NLA_NET_ADDR]) {
+		addr = nla_get_u32(attrs[TIPC_NLA_NET_ADDR]);
+		if (!addr)
+			return -EINVAL;
+	}
 
-	addr = nla_get_u32(attrs[TIPC_NLA_NET_ADDR]);
+	if (attrs[TIPC_NLA_NET_NODEID]) {
+		if (!attrs[TIPC_NLA_NET_NODEID_W1])
+			return -EINVAL;
+		*w0 = nla_get_u64(attrs[TIPC_NLA_NET_NODEID]);
+		*w1 = nla_get_u64(attrs[TIPC_NLA_NET_NODEID_W1]);
+		addr = hash128to32(node_id);
+	}
 
 	if (in_own_node(net, addr))
 		return -ENOTSUPP;
@@ -2855,17 +2901,22 @@ int tipc_nl_node_dump_monitor_peer(struct sk_buff *skb,
 
 #ifdef CONFIG_TIPC_CRYPTO
 static int tipc_nl_retrieve_key(struct nlattr **attrs,
-				struct tipc_aead_key **key)
+				struct tipc_aead_key **pkey)
 {
 	struct nlattr *attr = attrs[TIPC_NLA_NODE_KEY];
+	struct tipc_aead_key *key;
 
 	if (!attr)
 		return -ENODATA;
 
-	*key = (struct tipc_aead_key *)nla_data(attr);
-	if (nla_len(attr) < tipc_aead_key_size(*key))
+	if (nla_len(attr) < sizeof(*key))
+		return -EINVAL;
+	key = (struct tipc_aead_key *)nla_data(attr);
+	if (key->keylen > TIPC_AEAD_KEYLEN_MAX ||
+	    nla_len(attr) < tipc_aead_key_size(key))
 		return -EINVAL;
 
+	*pkey = key;
 	return 0;
 }
 

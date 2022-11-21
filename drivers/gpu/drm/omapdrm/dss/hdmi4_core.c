@@ -2,7 +2,7 @@
 /*
  * HDMI TI81xx, TI38xx, TI OMAP4 etc IP driver Library
  *
- * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2010-2011 Texas Instruments Incorporated - https://www.ti.com/
  * Authors: Yong Zhi
  *	Mythri pk <mythripk@ti.com>
  */
@@ -870,7 +870,6 @@ static const struct soc_device_attribute hdmi4_soc_devices[] = {
 int hdmi4_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 {
 	const struct hdmi4_features *features;
-	struct resource *res;
 	const struct soc_device_attribute *soc;
 
 	soc = soc_device_match(hdmi4_soc_devices);
@@ -881,8 +880,7 @@ int hdmi4_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 	core->cts_swmode = features->cts_swmode;
 	core->audio_use_mclk = features->audio_use_mclk;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
-	core->base = devm_ioremap_resource(&pdev->dev, res);
+	core->base = devm_platform_ioremap_resource_byname(pdev, "core");
 	if (IS_ERR(core->base))
 		return PTR_ERR(core->base);
 

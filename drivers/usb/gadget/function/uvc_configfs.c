@@ -231,7 +231,7 @@ static struct config_item *uvcg_control_header_make(struct config_group *group,
 	h->desc.bLength			= UVC_DT_HEADER_SIZE(1);
 	h->desc.bDescriptorType		= USB_DT_CS_INTERFACE;
 	h->desc.bDescriptorSubType	= UVC_VC_HEADER;
-	h->desc.bcdUVC			= cpu_to_le16(0x0100);
+	h->desc.bcdUVC			= cpu_to_le16(0x0110);
 	h->desc.dwClockFrequency	= cpu_to_le32(48000000);
 
 	config_item_init_type_name(&h->item, name, &uvcg_control_header_type);
@@ -914,8 +914,6 @@ static int uvcg_streaming_header_allow_link(struct config_item *src,
 
 	target_fmt = container_of(to_config_group(target), struct uvcg_format,
 				  group);
-	if (!target_fmt)
-		goto out;
 
 	uvcg_format_set_indices(to_config_group(target));
 
@@ -955,8 +953,6 @@ static void uvcg_streaming_header_drop_link(struct config_item *src,
 	mutex_lock(&opts->lock);
 	target_fmt = container_of(to_config_group(target), struct uvcg_format,
 				  group);
-	if (!target_fmt)
-		goto out;
 
 	list_for_each_entry_safe(format_ptr, tmp, &src_hdr->formats, entry)
 		if (format_ptr->fmt == target_fmt) {
@@ -968,7 +964,6 @@ static void uvcg_streaming_header_drop_link(struct config_item *src,
 
 	--target_fmt->linked;
 
-out:
 	mutex_unlock(&opts->lock);
 	mutex_unlock(su_mutex);
 }

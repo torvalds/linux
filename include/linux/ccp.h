@@ -15,7 +15,8 @@
 #include <linux/workqueue.h>
 #include <linux/list.h>
 #include <crypto/aes.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 
 struct ccp_device;
 struct ccp_cmd;

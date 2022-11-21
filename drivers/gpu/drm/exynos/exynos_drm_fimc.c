@@ -85,7 +85,6 @@ struct fimc_scaler {
 /*
  * A structure of fimc context.
  *
- * @regs_res: register resources.
  * @regs: memory mapped io registers.
  * @lock: locking of operations.
  * @clocks: fimc clocks.
@@ -103,7 +102,6 @@ struct fimc_context {
 	struct exynos_drm_ipp_formats	*formats;
 	unsigned int			num_formats;
 
-	struct resource	*regs_res;
 	void __iomem	*regs;
 	spinlock_t	lock;
 	struct clk	*clocks[FIMC_CLKS_MAX];
@@ -784,8 +782,8 @@ static int fimc_set_prescaler(struct fimc_context *ctx, struct fimc_scaler *sc,
 
 	sc->hratio = (src_w << 14) / (dst_w << hfactor);
 	sc->vratio = (src_h << 14) / (dst_h << vfactor);
-	sc->up_h = (dst_w >= src_w) ? true : false;
-	sc->up_v = (dst_h >= src_h) ? true : false;
+	sc->up_h = (dst_w >= src_w);
+	sc->up_v = (dst_h >= src_h);
 	DRM_DEV_DEBUG_KMS(ctx->dev, "hratio[%d]vratio[%d]up_h[%d]up_v[%d]\n",
 			  sc->hratio, sc->vratio, sc->up_h, sc->up_v);
 
@@ -1085,8 +1083,14 @@ static int fimc_commit(struct exynos_drm_ipp *ipp,
 {
 	struct fimc_context *ctx =
 			container_of(ipp, struct fimc_context, ipp);
+	int ret;
 
-	pm_runtime_get_sync(ctx->dev);
+	ret = pm_runtime_resume_and_get(ctx->dev);
+	if (ret < 0) {
+		dev_err(ctx->dev, "failed to enable FIMC device.\n");
+		return ret;
+	}
+
 	ctx->task = task;
 
 	fimc_src_set_fmt(ctx, task->src.buf.fourcc, task->src.buf.modifier);
@@ -1263,7 +1267,6 @@ static int fimc_probe(struct platform_device *pdev)
 	struct exynos_drm_ipp_formats *formats;
 	struct device *dev = &pdev->dev;
 	struct fimc_context *ctx;
-	struct resource *res;
 	int ret;
 	int i, j, num_limits, num_formats;
 
@@ -1321,20 +1324,17 @@ static int fimc_probe(struct platform_device *pdev)
 	ctx->num_formats = num_formats;
 
 	/* resource memory */
-	ctx->regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ctx->regs = devm_ioremap_resource(dev, ctx->regs_res);
+	ctx->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctx->regs))
 		return PTR_ERR(ctx->regs);
 
 	/* resource irq */
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(dev, "failed to request irq resource.\n");
-		return -ENOENT;
-	}
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
 
-	ret = devm_request_irq(dev, res->start, fimc_irq_handler,
-		0, dev_name(dev), ctx);
+	ret = devm_request_irq(dev, ret, fimc_irq_handler,
+			       0, dev_name(dev), ctx);
 	if (ret < 0) {
 		dev_err(dev, "failed to request irq.\n");
 		return ret;

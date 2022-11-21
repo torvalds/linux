@@ -2643,6 +2643,9 @@ static void detach_ulds(struct adapter *adap)
 {
 	unsigned int i;
 
+	if (!is_uld(adap))
+		return;
+
 	mutex_lock(&uld_mutex);
 	list_del(&adap->list_node);
 
@@ -2834,7 +2837,7 @@ static void cxgb_down(struct adapter *adapter)
 /*
  * net_device operations
  */
-int cxgb_open(struct net_device *dev)
+static int cxgb_open(struct net_device *dev)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
@@ -2882,7 +2885,7 @@ out_unlock:
 	return err;
 }
 
-int cxgb_close(struct net_device *dev)
+static int cxgb_close(struct net_device *dev)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
@@ -3201,8 +3204,6 @@ static void cxgb4_mgmt_fill_vf_station_mac_addr(struct adapter *adap)
 	int err;
 	u8 *na;
 
-	adap->params.pci.vpd_cap_addr = pci_find_capability(adap->pdev,
-							    PCI_CAP_ID_VPD);
 	err = t4_get_raw_vpd_params(adap, &adap->params.vpd);
 	if (err)
 		return;
@@ -3467,7 +3468,7 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 	if (ret < 0)
 		return ret;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 	return 0;
 }
 
@@ -3871,7 +3872,7 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 	.ndo_set_mac_address  = cxgb_set_mac_addr,
 	.ndo_set_features     = cxgb_set_features,
 	.ndo_validate_addr    = eth_validate_addr,
-	.ndo_do_ioctl         = cxgb_ioctl,
+	.ndo_eth_ioctl         = cxgb_ioctl,
 	.ndo_change_mtu       = cxgb_change_mtu,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller  = cxgb_netpoll,
@@ -3882,8 +3883,6 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 	.ndo_set_tx_maxrate   = cxgb_set_tx_maxrate,
 	.ndo_setup_tc         = cxgb_setup_tc,
-	.ndo_udp_tunnel_add   = udp_tunnel_nic_add_port,
-	.ndo_udp_tunnel_del   = udp_tunnel_nic_del_port,
 	.ndo_features_check   = cxgb_features_check,
 	.ndo_fix_features     = cxgb_fix_features,
 };
@@ -3898,7 +3897,6 @@ static const struct net_device_ops cxgb4_mgmt_netdev_ops = {
 	.ndo_set_vf_vlan        = cxgb4_mgmt_set_vf_vlan,
 	.ndo_set_vf_link_state	= cxgb4_mgmt_set_vf_link_state,
 };
-#endif
 
 static void cxgb4_mgmt_get_drvinfo(struct net_device *dev,
 				   struct ethtool_drvinfo *info)
@@ -3913,6 +3911,7 @@ static void cxgb4_mgmt_get_drvinfo(struct net_device *dev,
 static const struct ethtool_ops cxgb4_mgmt_ethtool_ops = {
 	.get_drvinfo       = cxgb4_mgmt_get_drvinfo,
 };
+#endif
 
 static void notify_fatal_err(struct work_struct *work)
 {
@@ -4009,7 +4008,7 @@ static void adap_free_hma_mem(struct adapter *adapter)
 
 	if (adapter->hma.flags & HMA_DMA_MAPPED_FLAG) {
 		dma_unmap_sg(adapter->pdev_dev, adapter->hma.sgt->sgl,
-			     adapter->hma.sgt->nents, PCI_DMA_BIDIRECTIONAL);
+			     adapter->hma.sgt->nents, DMA_BIDIRECTIONAL);
 		adapter->hma.flags &= ~HMA_DMA_MAPPED_FLAG;
 	}
 
@@ -4428,10 +4427,8 @@ static int adap_init0_phy(struct adapter *adap)
 
 	/* Load PHY Firmware onto adapter.
 	 */
-	spin_lock_bh(&adap->win0_lock);
 	ret = t4_load_phy_fw(adap, MEMWIN_NIC, phy_info->phy_fw_version,
 			     (u8 *)phyf->data, phyf->size);
-	spin_unlock_bh(&adap->win0_lock);
 	if (ret < 0)
 		dev_err(adap->pdev_dev, "PHY Firmware transfer error %d\n",
 			-ret);
@@ -5071,6 +5068,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 		ret = -ENOMEM;
 		goto bye;
 	}
+	bitmap_zero(adap->sge.blocked_fl, adap->sge.egr_sz);
 #endif
 
 	params[0] = FW_PARAM_PFVF(CLIP_START);
@@ -5139,7 +5137,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 
 	/* See if FW supports FW_FILTER2 work request */
 	if (is_t4(adap->params.chip)) {
-		adap->params.filter2_wr_support = 0;
+		adap->params.filter2_wr_support = false;
 	} else {
 		params[0] = FW_PARAM_DEV(FILTER2_WR);
 		ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
@@ -6165,8 +6163,7 @@ static void print_port_info(const struct net_device *dev)
 		--bufp;
 	sprintf(bufp, "BASE-%s", t4_get_port_type_description(pi->port_type));
 
-	netdev_info(dev, "%s: Chelsio %s (%s) %s\n",
-		    dev->name, adap->params.vpd.id, adap->name, buf);
+	netdev_info(dev, "Chelsio %s %s\n", adap->params.vpd.id, buf);
 }
 
 /*
@@ -6484,9 +6481,9 @@ static void cxgb4_ktls_dev_del(struct net_device *netdev,
 
 	adap->uld[CXGB4_ULD_KTLS].tlsdev_ops->tls_dev_del(netdev, tls_ctx,
 							  direction);
-	cxgb4_set_ktls_feature(adap, FW_PARAMS_PARAM_DEV_KTLS_HW_DISABLE);
 
 out_unlock:
+	cxgb4_set_ktls_feature(adap, FW_PARAMS_PARAM_DEV_KTLS_HW_DISABLE);
 	mutex_unlock(&uld_mutex);
 }
 
@@ -6611,7 +6608,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	static int adap_idx = 1;
 	int s_qpp, qpp, num_seg;
 	struct port_info *pi;
-	bool highdma = false;
 	enum chip_type chip;
 	void __iomem *regs;
 	int func, chip_ver;
@@ -6690,20 +6686,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return 0;
 	}
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		highdma = true;
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-		if (err) {
-			dev_err(&pdev->dev, "unable to obtain 64-bit DMA for "
-				"coherent allocations\n");
-			goto out_free_adapter;
-		}
-	} else {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev, "no usable DMA configuration\n");
-			goto out_free_adapter;
-		}
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		dev_err(&pdev->dev, "no usable DMA configuration\n");
+		goto out_free_adapter;
 	}
 
 	pci_enable_pcie_error_reporting(pdev);
@@ -6791,12 +6777,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	setup_memwin(adapter);
 	err = adap_init0(adapter, 0);
-#ifdef CONFIG_DEBUG_FS
-	bitmap_zero(adapter->sge.blocked_fl, adapter->sge.egr_sz);
-#endif
-	setup_memwin_rdma(adapter);
 	if (err)
 		goto out_unmap_bar;
+
+	setup_memwin_rdma(adapter);
 
 	/* configure SGE_STAT_CFG_A to read WC stats */
 	if (!is_t4(adapter->params.chip))
@@ -6834,7 +6818,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			NETIF_F_RXCSUM | NETIF_F_RXHASH | NETIF_F_GRO |
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
-			NETIF_F_HW_TC | NETIF_F_NTUPLE;
+			NETIF_F_HW_TC | NETIF_F_NTUPLE | NETIF_F_HIGHDMA;
 
 		if (chip_ver > CHELSIO_T5) {
 			netdev->hw_enc_features |= NETIF_F_IP_CSUM |
@@ -6852,8 +6836,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				netdev->udp_tunnel_nic_info = &cxgb_udp_tunnels;
 		}
 
-		if (highdma)
-			netdev->hw_features |= NETIF_F_HIGHDMA;
 		netdev->features |= netdev->hw_features;
 		netdev->vlan_features = netdev->features & VLAN_FEAT;
 #if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
@@ -7147,20 +7129,19 @@ static void remove_one(struct pci_dev *pdev)
 		 */
 		destroy_workqueue(adapter->workq);
 
-		if (is_uld(adapter)) {
-			detach_ulds(adapter);
-			t4_uld_clean_up(adapter);
-		}
+		detach_ulds(adapter);
+
+		for_each_port(adapter, i)
+			if (adapter->port[i]->reg_state == NETREG_REGISTERED)
+				unregister_netdev(adapter->port[i]);
+
+		t4_uld_clean_up(adapter);
 
 		adap_free_hma_mem(adapter);
 
 		disable_interrupts(adapter);
 
 		cxgb4_free_mps_ref_entries(adapter);
-
-		for_each_port(adapter, i)
-			if (adapter->port[i]->reg_state == NETREG_REGISTERED)
-				unregister_netdev(adapter->port[i]);
 
 		debugfs_remove_recursive(adapter->debugfs_root);
 

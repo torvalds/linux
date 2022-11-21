@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/proc_fs.h>
+#include <linux/ethtool.h>
 #include <linux/export.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
@@ -10,7 +11,7 @@
 static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(RCU)
 {
-	struct bonding *bond = PDE_DATA(file_inode(seq->file));
+	struct bonding *bond = pde_data(file_inode(seq->file));
 	struct list_head *iter;
 	struct slave *slave;
 	loff_t off = 0;
@@ -29,7 +30,7 @@ static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void *bond_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct bonding *bond = PDE_DATA(file_inode(seq->file));
+	struct bonding *bond = pde_data(file_inode(seq->file));
 	struct list_head *iter;
 	struct slave *slave;
 	bool found = false;
@@ -56,7 +57,7 @@ static void bond_info_seq_stop(struct seq_file *seq, void *v)
 
 static void bond_info_show_master(struct seq_file *seq)
 {
-	struct bonding *bond = PDE_DATA(file_inode(seq->file));
+	struct bonding *bond = pde_data(file_inode(seq->file));
 	const struct bond_opt_value *optval;
 	struct slave *curr, *primary;
 	int i;
@@ -111,8 +112,11 @@ static void bond_info_show_master(struct seq_file *seq)
 	/* ARP information */
 	if (bond->params.arp_interval > 0) {
 		int printed = 0;
+
 		seq_printf(seq, "ARP Polling Interval (ms): %d\n",
 				bond->params.arp_interval);
+		seq_printf(seq, "ARP Missed Max: %u\n",
+				bond->params.missed_max);
 
 		seq_printf(seq, "ARP IP target/s (n.n.n.n form):");
 
@@ -131,6 +135,8 @@ static void bond_info_show_master(struct seq_file *seq)
 		struct ad_info ad_info;
 
 		seq_puts(seq, "\n802.3ad info\n");
+		seq_printf(seq, "LACP active: %s\n",
+			   (bond->params.lacp_active) ? "on" : "off");
 		seq_printf(seq, "LACP rate: %s\n",
 			   (bond->params.lacp_fast) ? "fast" : "slow");
 		seq_printf(seq, "Min links: %d\n", bond->params.min_links);
@@ -169,7 +175,7 @@ static void bond_info_show_master(struct seq_file *seq)
 static void bond_info_show_slave(struct seq_file *seq,
 				 const struct slave *slave)
 {
-	struct bonding *bond = PDE_DATA(file_inode(seq->file));
+	struct bonding *bond = pde_data(file_inode(seq->file));
 
 	seq_printf(seq, "\nSlave Interface: %s\n", slave->dev->name);
 	seq_printf(seq, "MII Status: %s\n", bond_slave_link_status(slave->link));
@@ -301,7 +307,6 @@ void __net_init bond_create_proc_dir(struct bond_net *bn)
 }
 
 /* Destroy the bonding directory under /proc/net, if empty.
- * Caller must hold rtnl_lock.
  */
 void __net_exit bond_destroy_proc_dir(struct bond_net *bn)
 {

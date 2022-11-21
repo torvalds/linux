@@ -27,119 +27,157 @@ enum {
 	TEST_SKIP = -2,
 };
 
-struct test {
+struct test_suite;
+
+typedef int (*test_fnptr)(struct test_suite *, int);
+
+struct test_case {
+	const char *name;
 	const char *desc;
-	int (*func)(struct test *test, int subtest);
-	struct {
-		bool skip_if_fail;
-		int (*get_nr)(void);
-		const char *(*get_desc)(int subtest);
-		const char *(*skip_reason)(int subtest);
-	} subtest;
-	bool (*is_supported)(void);
+	const char *skip_reason;
+	test_fnptr run_case;
+};
+
+struct test_suite {
+	const char *desc;
+	struct test_case *test_cases;
 	void *priv;
 };
 
+#define DECLARE_SUITE(name) \
+	extern struct test_suite suite__##name;
+
+#define TEST_CASE(description, _name)			\
+	{						\
+		.name = #_name,				\
+		.desc = description,			\
+		.run_case = test__##_name,		\
+	}
+
+#define TEST_CASE_REASON(description, _name, _reason)	\
+	{						\
+		.name = #_name,				\
+		.desc = description,			\
+		.run_case = test__##_name,		\
+		.skip_reason = _reason,			\
+	}
+
+#define DEFINE_SUITE(description, _name)		\
+	struct test_case tests__##_name[] = {           \
+		TEST_CASE(description, _name),		\
+		{	.name = NULL, }			\
+	};						\
+	struct test_suite suite__##_name = {		\
+		.desc = description,			\
+		.test_cases = tests__##_name,		\
+	}
+
 /* Tests */
-int test__vmlinux_matches_kallsyms(struct test *test, int subtest);
-int test__openat_syscall_event(struct test *test, int subtest);
-int test__openat_syscall_event_on_all_cpus(struct test *test, int subtest);
-int test__basic_mmap(struct test *test, int subtest);
-int test__PERF_RECORD(struct test *test, int subtest);
-int test__perf_evsel__roundtrip_name_test(struct test *test, int subtest);
-int test__perf_evsel__tp_sched_test(struct test *test, int subtest);
-int test__syscall_openat_tp_fields(struct test *test, int subtest);
-int test__pmu(struct test *test, int subtest);
-int test__pmu_events(struct test *test, int subtest);
-const char *test__pmu_events_subtest_get_desc(int subtest);
-const char *test__pmu_events_subtest_skip_reason(int subtest);
-int test__pmu_events_subtest_get_nr(void);
-int test__attr(struct test *test, int subtest);
-int test__dso_data(struct test *test, int subtest);
-int test__dso_data_cache(struct test *test, int subtest);
-int test__dso_data_reopen(struct test *test, int subtest);
-int test__parse_events(struct test *test, int subtest);
-int test__hists_link(struct test *test, int subtest);
-int test__python_use(struct test *test, int subtest);
-int test__bp_signal(struct test *test, int subtest);
-int test__bp_signal_overflow(struct test *test, int subtest);
-int test__bp_accounting(struct test *test, int subtest);
-int test__wp(struct test *test, int subtest);
-const char *test__wp_subtest_get_desc(int subtest);
-int test__wp_subtest_get_nr(void);
-int test__task_exit(struct test *test, int subtest);
-int test__mem(struct test *test, int subtest);
-int test__sw_clock_freq(struct test *test, int subtest);
-int test__code_reading(struct test *test, int subtest);
-int test__sample_parsing(struct test *test, int subtest);
-int test__keep_tracking(struct test *test, int subtest);
-int test__parse_no_sample_id_all(struct test *test, int subtest);
-int test__dwarf_unwind(struct test *test, int subtest);
-int test__expr(struct test *test, int subtest);
-int test__hists_filter(struct test *test, int subtest);
-int test__mmap_thread_lookup(struct test *test, int subtest);
-int test__thread_maps_share(struct test *test, int subtest);
-int test__hists_output(struct test *test, int subtest);
-int test__hists_cumulate(struct test *test, int subtest);
-int test__switch_tracking(struct test *test, int subtest);
-int test__fdarray__filter(struct test *test, int subtest);
-int test__fdarray__add(struct test *test, int subtest);
-int test__kmod_path__parse(struct test *test, int subtest);
-int test__thread_map(struct test *test, int subtest);
-int test__llvm(struct test *test, int subtest);
-const char *test__llvm_subtest_get_desc(int subtest);
-int test__llvm_subtest_get_nr(void);
-int test__bpf(struct test *test, int subtest);
-const char *test__bpf_subtest_get_desc(int subtest);
-int test__bpf_subtest_get_nr(void);
-int test__session_topology(struct test *test, int subtest);
-int test__thread_map_synthesize(struct test *test, int subtest);
-int test__thread_map_remove(struct test *test, int subtest);
-int test__cpu_map_synthesize(struct test *test, int subtest);
-int test__synthesize_stat_config(struct test *test, int subtest);
-int test__synthesize_stat(struct test *test, int subtest);
-int test__synthesize_stat_round(struct test *test, int subtest);
-int test__event_update(struct test *test, int subtest);
-int test__event_times(struct test *test, int subtest);
-int test__backward_ring_buffer(struct test *test, int subtest);
-int test__cpu_map_print(struct test *test, int subtest);
-int test__cpu_map_merge(struct test *test, int subtest);
-int test__sdt_event(struct test *test, int subtest);
-int test__is_printable_array(struct test *test, int subtest);
-int test__bitmap_print(struct test *test, int subtest);
-int test__perf_hooks(struct test *test, int subtest);
-int test__clang(struct test *test, int subtest);
-const char *test__clang_subtest_get_desc(int subtest);
-int test__clang_subtest_get_nr(void);
-int test__unit_number__scnprint(struct test *test, int subtest);
-int test__mem2node(struct test *t, int subtest);
-int test__maps__merge_in(struct test *t, int subtest);
-int test__time_utils(struct test *t, int subtest);
-int test__jit_write_elf(struct test *test, int subtest);
-int test__api_io(struct test *test, int subtest);
-int test__demangle_java(struct test *test, int subtest);
-int test__pfm(struct test *test, int subtest);
-const char *test__pfm_subtest_get_desc(int subtest);
-int test__pfm_subtest_get_nr(void);
-int test__parse_metric(struct test *test, int subtest);
-int test__pe_file_parsing(struct test *test, int subtest);
-int test__expand_cgroup_events(struct test *test, int subtest);
+DECLARE_SUITE(vmlinux_matches_kallsyms);
+DECLARE_SUITE(openat_syscall_event);
+DECLARE_SUITE(openat_syscall_event_on_all_cpus);
+DECLARE_SUITE(basic_mmap);
+DECLARE_SUITE(PERF_RECORD);
+DECLARE_SUITE(perf_evsel__roundtrip_name_test);
+DECLARE_SUITE(perf_evsel__tp_sched_test);
+DECLARE_SUITE(syscall_openat_tp_fields);
+DECLARE_SUITE(pmu);
+DECLARE_SUITE(pmu_events);
+DECLARE_SUITE(attr);
+DECLARE_SUITE(dso_data);
+DECLARE_SUITE(dso_data_cache);
+DECLARE_SUITE(dso_data_reopen);
+DECLARE_SUITE(parse_events);
+DECLARE_SUITE(hists_link);
+DECLARE_SUITE(python_use);
+DECLARE_SUITE(bp_signal);
+DECLARE_SUITE(bp_signal_overflow);
+DECLARE_SUITE(bp_accounting);
+DECLARE_SUITE(wp);
+DECLARE_SUITE(task_exit);
+DECLARE_SUITE(mem);
+DECLARE_SUITE(sw_clock_freq);
+DECLARE_SUITE(code_reading);
+DECLARE_SUITE(sample_parsing);
+DECLARE_SUITE(keep_tracking);
+DECLARE_SUITE(parse_no_sample_id_all);
+DECLARE_SUITE(dwarf_unwind);
+DECLARE_SUITE(expr);
+DECLARE_SUITE(hists_filter);
+DECLARE_SUITE(mmap_thread_lookup);
+DECLARE_SUITE(thread_maps_share);
+DECLARE_SUITE(hists_output);
+DECLARE_SUITE(hists_cumulate);
+DECLARE_SUITE(switch_tracking);
+DECLARE_SUITE(fdarray__filter);
+DECLARE_SUITE(fdarray__add);
+DECLARE_SUITE(kmod_path__parse);
+DECLARE_SUITE(thread_map);
+DECLARE_SUITE(llvm);
+DECLARE_SUITE(bpf);
+DECLARE_SUITE(session_topology);
+DECLARE_SUITE(thread_map_synthesize);
+DECLARE_SUITE(thread_map_remove);
+DECLARE_SUITE(cpu_map_synthesize);
+DECLARE_SUITE(synthesize_stat_config);
+DECLARE_SUITE(synthesize_stat);
+DECLARE_SUITE(synthesize_stat_round);
+DECLARE_SUITE(event_update);
+DECLARE_SUITE(event_times);
+DECLARE_SUITE(backward_ring_buffer);
+DECLARE_SUITE(cpu_map_print);
+DECLARE_SUITE(cpu_map_merge);
+DECLARE_SUITE(sdt_event);
+DECLARE_SUITE(is_printable_array);
+DECLARE_SUITE(bitmap_print);
+DECLARE_SUITE(perf_hooks);
+DECLARE_SUITE(clang);
+DECLARE_SUITE(unit_number__scnprint);
+DECLARE_SUITE(mem2node);
+DECLARE_SUITE(maps__merge_in);
+DECLARE_SUITE(time_utils);
+DECLARE_SUITE(jit_write_elf);
+DECLARE_SUITE(api_io);
+DECLARE_SUITE(demangle_java);
+DECLARE_SUITE(demangle_ocaml);
+DECLARE_SUITE(pfm);
+DECLARE_SUITE(parse_metric);
+DECLARE_SUITE(pe_file_parsing);
+DECLARE_SUITE(expand_cgroup_events);
+DECLARE_SUITE(perf_time_to_tsc);
+DECLARE_SUITE(dlfilter);
+DECLARE_SUITE(sigtrap);
 
-bool test__bp_signal_is_supported(void);
-bool test__bp_account_is_supported(void);
-bool test__wp_is_supported(void);
+/*
+ * PowerPC and S390 do not support creation of instruction breakpoints using the
+ * perf_event interface.
+ *
+ * ARM requires explicit rounding down of the instruction pointer in Thumb mode,
+ * and then requires the single-step to be handled explicitly in the overflow
+ * handler to avoid stepping into the SIGIO handler and getting stuck on the
+ * breakpointed instruction.
+ *
+ * Since arm64 has the same issue with arm for the single-step handling, this
+ * case also gets stuck on the breakpointed instruction.
+ *
+ * Just disable the test for these architectures until these issues are
+ * resolved.
+ */
+#if defined(__powerpc__) || defined(__s390x__) || defined(__arm__) || defined(__aarch64__)
+#define BP_SIGNAL_IS_SUPPORTED 0
+#else
+#define BP_SIGNAL_IS_SUPPORTED 1
+#endif
 
-#if defined(__arm__) || defined(__aarch64__)
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
 struct thread;
 struct perf_sample;
 int test__arch_unwind_sample(struct perf_sample *sample,
 			     struct thread *thread);
 #endif
-#endif
 
 #if defined(__arm__)
-int test__vectors_page(struct test *test, int subtest);
+DECLARE_SUITE(vectors_page);
 #endif
 
 #endif /* TESTS_H */

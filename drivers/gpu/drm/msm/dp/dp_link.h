@@ -135,6 +135,7 @@ static inline u32 dp_link_bit_depth_to_bpc(u32 tbd)
 	}
 }
 
+void dp_link_reset_phy_params_vx_px(struct dp_link *dp_link);
 u32 dp_link_get_test_bits_depth(struct dp_link *dp_link, u32 bpp);
 int dp_link_process_request(struct dp_link *dp_link);
 int dp_link_get_colorimetry_config(struct dp_link *dp_link);

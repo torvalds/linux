@@ -16,10 +16,13 @@
 #include "pmbus.h"
 
 enum chips {
-	tps53647, tps53667, tps53679, tps53681, tps53688
+	tps53647, tps53667, tps53676, tps53679, tps53681, tps53688
 };
 
 #define TPS53647_PAGE_NUM		1
+
+#define TPS53676_USER_DATA_03		0xb3
+#define TPS53676_MAX_PHASES		7
 
 #define TPS53679_PROT_VR12_5MV		0x01 /* VR12.0 mode, 5-mV DAC */
 #define TPS53679_PROT_VR12_5_10MV	0x02 /* VR12.5 mode, 10-mV DAC */
@@ -143,6 +146,45 @@ static int tps53681_identify(struct i2c_client *client,
 					    TPS53681_DEVICE_ID);
 }
 
+static int tps53676_identify(struct i2c_client *client,
+			     struct pmbus_driver_info *info)
+{
+	u8 buf[I2C_SMBUS_BLOCK_MAX];
+	int phases_a = 0, phases_b = 0;
+	int i, ret;
+
+	ret = i2c_smbus_read_block_data(client, PMBUS_IC_DEVICE_ID, buf);
+	if (ret < 0)
+		return ret;
+	if (strncmp("TI\x53\x67\x60", buf, 5)) {
+		dev_err(&client->dev, "Unexpected device ID: %s\n", buf);
+		return -ENODEV;
+	}
+
+	ret = i2c_smbus_read_block_data(client, TPS53676_USER_DATA_03, buf);
+	if (ret < 0)
+		return ret;
+	if (ret != 24)
+		return -EIO;
+	for (i = 0; i < 2 * TPS53676_MAX_PHASES; i += 2) {
+		if (buf[i + 1] & 0x80) {
+			if (buf[i] & 0x08)
+				phases_b++;
+			else
+				phases_a++;
+		}
+	}
+
+	info->format[PSC_VOLTAGE_OUT] = linear;
+	info->pages = 1;
+	info->phases[0] = phases_a;
+	if (phases_b > 0) {
+		info->pages = 2;
+		info->phases[1] = phases_b;
+	}
+	return 0;
+}
+
 static int tps53681_read_word_data(struct i2c_client *client, int page,
 				   int phase, int reg)
 {
@@ -183,6 +225,7 @@ static struct pmbus_driver_info tps53679_info = {
 	.pfunc[3] = PMBUS_HAVE_IOUT,
 	.pfunc[4] = PMBUS_HAVE_IOUT,
 	.pfunc[5] = PMBUS_HAVE_IOUT,
+	.pfunc[6] = PMBUS_HAVE_IOUT,
 };
 
 static int tps53679_probe(struct i2c_client *client)
@@ -206,6 +249,9 @@ static int tps53679_probe(struct i2c_client *client)
 		info->pages = TPS53647_PAGE_NUM;
 		info->identify = tps53679_identify;
 		break;
+	case tps53676:
+		info->identify = tps53676_identify;
+		break;
 	case tps53679:
 	case tps53688:
 		info->pages = TPS53679_PAGE_NUM;
@@ -225,8 +271,10 @@ static int tps53679_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tps53679_id[] = {
+	{"bmr474", tps53676},
 	{"tps53647", tps53647},
 	{"tps53667", tps53667},
+	{"tps53676", tps53676},
 	{"tps53679", tps53679},
 	{"tps53681", tps53681},
 	{"tps53688", tps53688},
@@ -238,6 +286,7 @@ MODULE_DEVICE_TABLE(i2c, tps53679_id);
 static const struct of_device_id __maybe_unused tps53679_of_match[] = {
 	{.compatible = "ti,tps53647", .data = (void *)tps53647},
 	{.compatible = "ti,tps53667", .data = (void *)tps53667},
+	{.compatible = "ti,tps53676", .data = (void *)tps53676},
 	{.compatible = "ti,tps53679", .data = (void *)tps53679},
 	{.compatible = "ti,tps53681", .data = (void *)tps53681},
 	{.compatible = "ti,tps53688", .data = (void *)tps53688},
@@ -251,7 +300,6 @@ static struct i2c_driver tps53679_driver = {
 		.of_match_table = of_match_ptr(tps53679_of_match),
 	},
 	.probe_new = tps53679_probe,
-	.remove = pmbus_do_remove,
 	.id_table = tps53679_id,
 };
 
@@ -260,3 +308,4 @@ module_i2c_driver(tps53679_driver);
 MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
 MODULE_DESCRIPTION("PMBus driver for Texas Instruments TPS53679");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

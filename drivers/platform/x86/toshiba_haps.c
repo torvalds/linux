@@ -131,7 +131,7 @@ static const struct attribute_group haps_attr_group = {
  */
 static void toshiba_haps_notify(struct acpi_device *device, u32 event)
 {
-	pr_debug("Received event: 0x%x", event);
+	pr_debug("Received event: 0x%x\n", event);
 
 	acpi_bus_generate_netlink_event(device->pnp.device_class,
 					dev_name(&device->dev),

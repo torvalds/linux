@@ -37,7 +37,7 @@ struct mlxsw_sp_span {
 struct mlxsw_sp_span_analyzed_port {
 	struct list_head list; /* Member of analyzed_ports_list */
 	refcount_t ref_count;
-	u8 local_port;
+	u16 local_port;
 	bool ingress;
 };
 
@@ -46,7 +46,7 @@ struct mlxsw_sp_span_trigger_entry {
 	struct mlxsw_sp_span *span;
 	const struct mlxsw_sp_span_trigger_ops *ops;
 	refcount_t ref_count;
-	u8 local_port;
+	u16 local_port;
 	enum mlxsw_sp_span_trigger trigger;
 	struct mlxsw_sp_span_trigger_parms parms;
 };
@@ -157,6 +157,7 @@ mlxsw_sp1_span_entry_cpu_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 
 static const
 struct mlxsw_sp_span_entry_ops mlxsw_sp1_span_entry_ops_cpu = {
+	.is_static = true,
 	.can_handle = mlxsw_sp1_span_cpu_can_handle,
 	.parms_set = mlxsw_sp1_span_entry_cpu_parms,
 	.configure = mlxsw_sp1_span_entry_cpu_configure,
@@ -178,13 +179,14 @@ mlxsw_sp_span_entry_phys_configure(struct mlxsw_sp_span_entry *span_entry,
 {
 	struct mlxsw_sp_port *dest_port = sparms.dest_port;
 	struct mlxsw_sp *mlxsw_sp = dest_port->mlxsw_sp;
-	u8 local_port = dest_port->local_port;
+	u16 local_port = dest_port->local_port;
 	char mpat_pl[MLXSW_REG_MPAT_LEN];
 	int pa_id = span_entry->id;
 
 	/* Create a new port analayzer entry for local_port. */
 	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, true,
 			    MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH);
+	mlxsw_reg_mpat_session_id_set(mpat_pl, sparms.session_id);
 	mlxsw_reg_mpat_pide_set(mpat_pl, sparms.policer_enable);
 	mlxsw_reg_mpat_pid_set(mpat_pl, sparms.policer_id);
 
@@ -197,11 +199,12 @@ mlxsw_sp_span_entry_deconfigure_common(struct mlxsw_sp_span_entry *span_entry,
 {
 	struct mlxsw_sp_port *dest_port = span_entry->parms.dest_port;
 	struct mlxsw_sp *mlxsw_sp = dest_port->mlxsw_sp;
-	u8 local_port = dest_port->local_port;
+	u16 local_port = dest_port->local_port;
 	char mpat_pl[MLXSW_REG_MPAT_LEN];
 	int pa_id = span_entry->id;
 
 	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, false, span_type);
+	mlxsw_reg_mpat_session_id_set(mpat_pl, span_entry->parms.session_id);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
 }
 
@@ -214,6 +217,7 @@ mlxsw_sp_span_entry_phys_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 
 static const
 struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_phys = {
+	.is_static = true,
 	.can_handle = mlxsw_sp_port_dev_check,
 	.parms_set = mlxsw_sp_span_entry_phys_parms,
 	.configure = mlxsw_sp_span_entry_phys_configure,
@@ -265,8 +269,7 @@ mlxsw_sp_span_entry_bridge_8021q(const struct net_device *br_dev,
 
 	if (!vid && WARN_ON(br_vlan_get_pvid(br_dev, &vid)))
 		return NULL;
-	if (!vid ||
-	    br_vlan_get_info(br_dev, vid, &vinfo) ||
+	if (!vid || br_vlan_get_info(br_dev, vid, &vinfo) ||
 	    !(vinfo.flags & BRIDGE_VLAN_INFO_BRENTRY))
 		return NULL;
 
@@ -420,7 +423,7 @@ mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
 
 	parms = mlxsw_sp_ipip_netdev_parms4(to_dev);
 	ip_tunnel_init_flow(&fl4, parms.iph.protocol, *daddrp, *saddrp,
-			    0, 0, parms.link, tun->fwmark, 0);
+			    0, 0, dev_net(to_dev), parms.link, tun->fwmark, 0);
 
 	rt = ip_route_output_key(tun->net, &fl4);
 	if (IS_ERR(rt))
@@ -476,7 +479,7 @@ mlxsw_sp_span_entry_gretap4_configure(struct mlxsw_sp_span_entry *span_entry,
 {
 	struct mlxsw_sp_port *dest_port = sparms.dest_port;
 	struct mlxsw_sp *mlxsw_sp = dest_port->mlxsw_sp;
-	u8 local_port = dest_port->local_port;
+	u16 local_port = dest_port->local_port;
 	char mpat_pl[MLXSW_REG_MPAT_LEN];
 	int pa_id = span_entry->id;
 
@@ -580,7 +583,7 @@ mlxsw_sp_span_entry_gretap6_configure(struct mlxsw_sp_span_entry *span_entry,
 {
 	struct mlxsw_sp_port *dest_port = sparms.dest_port;
 	struct mlxsw_sp *mlxsw_sp = dest_port->mlxsw_sp;
-	u8 local_port = dest_port->local_port;
+	u16 local_port = dest_port->local_port;
 	char mpat_pl[MLXSW_REG_MPAT_LEN];
 	int pa_id = span_entry->id;
 
@@ -646,7 +649,7 @@ mlxsw_sp_span_entry_vlan_configure(struct mlxsw_sp_span_entry *span_entry,
 {
 	struct mlxsw_sp_port *dest_port = sparms.dest_port;
 	struct mlxsw_sp *mlxsw_sp = dest_port->mlxsw_sp;
-	u8 local_port = dest_port->local_port;
+	u16 local_port = dest_port->local_port;
 	char mpat_pl[MLXSW_REG_MPAT_LEN];
 	int pa_id = span_entry->id;
 
@@ -721,6 +724,7 @@ mlxsw_sp2_span_entry_cpu_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 
 static const
 struct mlxsw_sp_span_entry_ops mlxsw_sp2_span_entry_ops_cpu = {
+	.is_static = true,
 	.can_handle = mlxsw_sp2_span_cpu_can_handle,
 	.parms_set = mlxsw_sp2_span_entry_cpu_parms,
 	.configure = mlxsw_sp2_span_entry_cpu_configure,
@@ -935,7 +939,8 @@ mlxsw_sp_span_entry_find_by_parms(struct mlxsw_sp *mlxsw_sp,
 
 		if (refcount_read(&curr->ref_count) && curr->to_dev == to_dev &&
 		    curr->parms.policer_enable == sparms->policer_enable &&
-		    curr->parms.policer_id == sparms->policer_id)
+		    curr->parms.policer_id == sparms->policer_id &&
+		    curr->parms.session_id == sparms->session_id)
 			return curr;
 	}
 	return NULL;
@@ -991,7 +996,7 @@ static void mlxsw_sp_span_port_buffer_disable(struct mlxsw_sp_port *mlxsw_sp_por
 }
 
 static struct mlxsw_sp_span_analyzed_port *
-mlxsw_sp_span_analyzed_port_find(struct mlxsw_sp_span *span, u8 local_port,
+mlxsw_sp_span_analyzed_port_find(struct mlxsw_sp_span *span, u16 local_port,
 				 bool ingress)
 {
 	struct mlxsw_sp_span_analyzed_port *analyzed_port;
@@ -1034,6 +1039,9 @@ static void mlxsw_sp_span_respin_work(struct work_struct *work)
 		struct mlxsw_sp_span_parms sparms = {NULL};
 
 		if (!refcount_read(&curr->ref_count))
+			continue;
+
+		if (curr->ops->is_static)
 			continue;
 
 		err = curr->ops->parms_set(mlxsw_sp, curr->to_dev, &sparms);
@@ -1079,6 +1087,7 @@ int mlxsw_sp_span_agent_get(struct mlxsw_sp *mlxsw_sp, int *p_span_id,
 
 	sparms.policer_id = parms->policer_id;
 	sparms.policer_enable = parms->policer_enable;
+	sparms.session_id = parms->session_id;
 	span_entry = mlxsw_sp_span_entry_get(mlxsw_sp, to_dev, ops, sparms);
 	if (!span_entry)
 		return -ENOBUFS;
@@ -1155,7 +1164,7 @@ int mlxsw_sp_span_analyzed_port_get(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_span_analyzed_port *analyzed_port;
-	u8 local_port = mlxsw_sp_port->local_port;
+	u16 local_port = mlxsw_sp_port->local_port;
 	int err = 0;
 
 	mutex_lock(&mlxsw_sp->span->analyzed_ports_lock);
@@ -1183,7 +1192,7 @@ void mlxsw_sp_span_analyzed_port_put(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_span_analyzed_port *analyzed_port;
-	u8 local_port = mlxsw_sp_port->local_port;
+	u16 local_port = mlxsw_sp_port->local_port;
 
 	mutex_lock(&mlxsw_sp->span->analyzed_ports_lock);
 
@@ -1221,8 +1230,12 @@ __mlxsw_sp_span_trigger_port_bind(struct mlxsw_sp_span *span,
 		return -EINVAL;
 	}
 
+	if (trigger_entry->parms.probability_rate > MLXSW_REG_MPAR_RATE_MAX)
+		return -EINVAL;
+
 	mlxsw_reg_mpar_pack(mpar_pl, trigger_entry->local_port, i_e, enable,
-			    trigger_entry->parms.span_id);
+			    trigger_entry->parms.span_id,
+			    trigger_entry->parms.probability_rate);
 	return mlxsw_reg_write(span->mlxsw_sp->core, MLXSW_REG(mpar), mpar_pl);
 }
 
@@ -1356,8 +1369,11 @@ mlxsw_sp2_span_trigger_global_bind(struct mlxsw_sp_span_trigger_entry *
 		return -EINVAL;
 	}
 
+	if (trigger_entry->parms.probability_rate > MLXSW_REG_MPAGR_RATE_MAX)
+		return -EINVAL;
+
 	mlxsw_reg_mpagr_pack(mpagr_pl, trigger, trigger_entry->parms.span_id,
-			     1);
+			     trigger_entry->parms.probability_rate);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpagr), mpagr_pl);
 }
 
@@ -1555,7 +1571,9 @@ int mlxsw_sp_span_agent_bind(struct mlxsw_sp *mlxsw_sp,
 							 trigger,
 							 mlxsw_sp_port);
 	if (trigger_entry) {
-		if (trigger_entry->parms.span_id != parms->span_id)
+		if (trigger_entry->parms.span_id != parms->span_id ||
+		    trigger_entry->parms.probability_rate !=
+		    parms->probability_rate)
 			return -EINVAL;
 		refcount_inc(&trigger_entry->ref_count);
 		goto out;
@@ -1629,6 +1647,22 @@ void mlxsw_sp_span_trigger_disable(struct mlxsw_sp_port *mlxsw_sp_port,
 		return;
 
 	return trigger_entry->ops->disable(trigger_entry, mlxsw_sp_port, tc);
+}
+
+bool mlxsw_sp_span_trigger_is_ingress(enum mlxsw_sp_span_trigger trigger)
+{
+	switch (trigger) {
+	case MLXSW_SP_SPAN_TRIGGER_INGRESS:
+	case MLXSW_SP_SPAN_TRIGGER_EARLY_DROP:
+	case MLXSW_SP_SPAN_TRIGGER_TAIL_DROP:
+		return true;
+	case MLXSW_SP_SPAN_TRIGGER_EGRESS:
+	case MLXSW_SP_SPAN_TRIGGER_ECN:
+		return false;
+	}
+
+	WARN_ON_ONCE(1);
+	return false;
 }
 
 static int mlxsw_sp1_span_init(struct mlxsw_sp *mlxsw_sp)

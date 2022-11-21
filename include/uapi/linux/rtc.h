@@ -14,6 +14,7 @@
 
 #include <linux/const.h>
 #include <linux/ioctl.h>
+#include <linux/types.h>
 
 /*
  * The struct used to pass data via the following ioctl. Similar to the
@@ -66,6 +67,17 @@ struct rtc_pll_info {
 	long pll_clock;     /* base PLL frequency */
 };
 
+struct rtc_param {
+	__u64 param;
+	union {
+		__u64 uvalue;
+		__s64 svalue;
+		__u64 ptr;
+	};
+	__u32 index;
+	__u32 __pad;
+};
+
 /*
  * ioctl calls that are permitted to the /dev/rtc interface, if
  * any of the RTC drivers are enabled.
@@ -95,6 +107,9 @@ struct rtc_pll_info {
 #define RTC_PLL_GET	_IOR('p', 0x11, struct rtc_pll_info)  /* Get PLL correction */
 #define RTC_PLL_SET	_IOW('p', 0x12, struct rtc_pll_info)  /* Set PLL correction */
 
+#define RTC_PARAM_GET	_IOW('p', 0x13, struct rtc_param)  /* Get parameter */
+#define RTC_PARAM_SET	_IOW('p', 0x14, struct rtc_param)  /* Set parameter */
+
 #define RTC_VL_DATA_INVALID	_BITUL(0) /* Voltage too low, RTC data is invalid */
 #define RTC_VL_BACKUP_LOW	_BITUL(1) /* Backup voltage is low */
 #define RTC_VL_BACKUP_EMPTY	_BITUL(2) /* Backup empty or not present */
@@ -110,6 +125,26 @@ struct rtc_pll_info {
 #define RTC_AF 0x20	/* Alarm interrupt */
 #define RTC_UF 0x10	/* Update interrupt for 1Hz RTC */
 
+/* feature list */
+#define RTC_FEATURE_ALARM		0
+#define RTC_FEATURE_ALARM_RES_MINUTE	1
+#define RTC_FEATURE_NEED_WEEK_DAY	2
+#define RTC_FEATURE_ALARM_RES_2S	3
+#define RTC_FEATURE_UPDATE_INTERRUPT	4
+#define RTC_FEATURE_CORRECTION		5
+#define RTC_FEATURE_BACKUP_SWITCH_MODE	6
+#define RTC_FEATURE_ALARM_WAKEUP_ONLY	7
+#define RTC_FEATURE_CNT			8
+
+/* parameter list */
+#define RTC_PARAM_FEATURES		0
+#define RTC_PARAM_CORRECTION		1
+#define RTC_PARAM_BACKUP_SWITCH_MODE	2
+
+#define RTC_BSM_DISABLED	0
+#define RTC_BSM_DIRECT		1
+#define RTC_BSM_LEVEL		2
+#define RTC_BSM_STANDBY		3
 
 #define RTC_MAX_FREQ	8192
 

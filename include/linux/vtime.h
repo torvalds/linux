@@ -3,12 +3,46 @@
 #define _LINUX_KERNEL_VTIME_H
 
 #include <linux/context_tracking_state.h>
+#include <linux/sched.h>
+
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 #include <asm/vtime.h>
 #endif
 
+/*
+ * Common vtime APIs
+ */
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+extern void vtime_account_kernel(struct task_struct *tsk);
+extern void vtime_account_idle(struct task_struct *tsk);
+#endif /* !CONFIG_VIRT_CPU_ACCOUNTING */
 
-struct task_struct;
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
+extern void arch_vtime_task_switch(struct task_struct *tsk);
+extern void vtime_user_enter(struct task_struct *tsk);
+extern void vtime_user_exit(struct task_struct *tsk);
+extern void vtime_guest_enter(struct task_struct *tsk);
+extern void vtime_guest_exit(struct task_struct *tsk);
+extern void vtime_init_idle(struct task_struct *tsk, int cpu);
+#else /* !CONFIG_VIRT_CPU_ACCOUNTING_GEN  */
+static inline void vtime_user_enter(struct task_struct *tsk) { }
+static inline void vtime_user_exit(struct task_struct *tsk) { }
+static inline void vtime_guest_enter(struct task_struct *tsk) { }
+static inline void vtime_guest_exit(struct task_struct *tsk) { }
+static inline void vtime_init_idle(struct task_struct *tsk, int cpu) { }
+#endif
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+extern void vtime_account_irq(struct task_struct *tsk, unsigned int offset);
+extern void vtime_account_softirq(struct task_struct *tsk);
+extern void vtime_account_hardirq(struct task_struct *tsk);
+extern void vtime_flush(struct task_struct *tsk);
+#else /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
+static inline void vtime_account_irq(struct task_struct *tsk, unsigned int offset) { }
+static inline void vtime_account_softirq(struct task_struct *tsk) { }
+static inline void vtime_account_hardirq(struct task_struct *tsk) { }
+static inline void vtime_flush(struct task_struct *tsk) { }
+#endif
 
 /*
  * vtime_accounting_enabled_this_cpu() definitions/declarations
@@ -17,6 +51,18 @@ struct task_struct;
 
 static inline bool vtime_accounting_enabled_this_cpu(void) { return true; }
 extern void vtime_task_switch(struct task_struct *prev);
+
+static __always_inline void vtime_account_guest_enter(void)
+{
+	vtime_account_kernel(current);
+	current->flags |= PF_VCPU;
+}
+
+static __always_inline void vtime_account_guest_exit(void)
+{
+	vtime_account_kernel(current);
+	current->flags &= ~PF_VCPU;
+}
 
 #elif defined(CONFIG_VIRT_CPU_ACCOUNTING_GEN)
 
@@ -49,70 +95,68 @@ static inline void vtime_task_switch(struct task_struct *prev)
 		vtime_task_switch_generic(prev);
 }
 
+static __always_inline void vtime_account_guest_enter(void)
+{
+	if (vtime_accounting_enabled_this_cpu())
+		vtime_guest_enter(current);
+	else
+		current->flags |= PF_VCPU;
+}
+
+static __always_inline void vtime_account_guest_exit(void)
+{
+	if (vtime_accounting_enabled_this_cpu())
+		vtime_guest_exit(current);
+	else
+		current->flags &= ~PF_VCPU;
+}
+
 #else /* !CONFIG_VIRT_CPU_ACCOUNTING */
 
-static inline bool vtime_accounting_enabled_cpu(int cpu) {return false; }
 static inline bool vtime_accounting_enabled_this_cpu(void) { return false; }
 static inline void vtime_task_switch(struct task_struct *prev) { }
 
-#endif
-
-/*
- * Common vtime APIs
- */
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
-extern void vtime_account_kernel(struct task_struct *tsk);
-extern void vtime_account_idle(struct task_struct *tsk);
-#else /* !CONFIG_VIRT_CPU_ACCOUNTING */
-static inline void vtime_account_kernel(struct task_struct *tsk) { }
-#endif /* !CONFIG_VIRT_CPU_ACCOUNTING */
-
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
-extern void arch_vtime_task_switch(struct task_struct *tsk);
-extern void vtime_user_enter(struct task_struct *tsk);
-extern void vtime_user_exit(struct task_struct *tsk);
-extern void vtime_guest_enter(struct task_struct *tsk);
-extern void vtime_guest_exit(struct task_struct *tsk);
-extern void vtime_init_idle(struct task_struct *tsk, int cpu);
-#else /* !CONFIG_VIRT_CPU_ACCOUNTING_GEN  */
-static inline void vtime_user_enter(struct task_struct *tsk) { }
-static inline void vtime_user_exit(struct task_struct *tsk) { }
-static inline void vtime_guest_enter(struct task_struct *tsk) { }
-static inline void vtime_guest_exit(struct task_struct *tsk) { }
-static inline void vtime_init_idle(struct task_struct *tsk, int cpu) { }
-#endif
-
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-extern void vtime_account_irq_enter(struct task_struct *tsk);
-static inline void vtime_account_irq_exit(struct task_struct *tsk)
+static __always_inline void vtime_account_guest_enter(void)
 {
-	/* On hard|softirq exit we always account to hard|softirq cputime */
-	vtime_account_kernel(tsk);
+	current->flags |= PF_VCPU;
 }
-extern void vtime_flush(struct task_struct *tsk);
-#else /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
-static inline void vtime_account_irq_enter(struct task_struct *tsk) { }
-static inline void vtime_account_irq_exit(struct task_struct *tsk) { }
-static inline void vtime_flush(struct task_struct *tsk) { }
+
+static __always_inline void vtime_account_guest_exit(void)
+{
+	current->flags &= ~PF_VCPU;
+}
+
 #endif
 
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
-extern void irqtime_account_irq(struct task_struct *tsk);
+extern void irqtime_account_irq(struct task_struct *tsk, unsigned int offset);
 #else
-static inline void irqtime_account_irq(struct task_struct *tsk) { }
+static inline void irqtime_account_irq(struct task_struct *tsk, unsigned int offset) { }
 #endif
 
-static inline void account_irq_enter_time(struct task_struct *tsk)
+static inline void account_softirq_enter(struct task_struct *tsk)
 {
-	vtime_account_irq_enter(tsk);
-	irqtime_account_irq(tsk);
+	vtime_account_irq(tsk, SOFTIRQ_OFFSET);
+	irqtime_account_irq(tsk, SOFTIRQ_OFFSET);
 }
 
-static inline void account_irq_exit_time(struct task_struct *tsk)
+static inline void account_softirq_exit(struct task_struct *tsk)
 {
-	vtime_account_irq_exit(tsk);
-	irqtime_account_irq(tsk);
+	vtime_account_softirq(tsk);
+	irqtime_account_irq(tsk, 0);
+}
+
+static inline void account_hardirq_enter(struct task_struct *tsk)
+{
+	vtime_account_irq(tsk, HARDIRQ_OFFSET);
+	irqtime_account_irq(tsk, HARDIRQ_OFFSET);
+}
+
+static inline void account_hardirq_exit(struct task_struct *tsk)
+{
+	vtime_account_hardirq(tsk);
+	irqtime_account_irq(tsk, 0);
 }
 
 #endif /* _LINUX_KERNEL_VTIME_H */

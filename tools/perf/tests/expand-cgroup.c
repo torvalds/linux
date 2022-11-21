@@ -26,7 +26,7 @@ static int test_expand_events(struct evlist *evlist,
 	char **ev_name;
 	struct evsel *evsel;
 
-	TEST_ASSERT_VAL("evlist is empty", !perf_evlist__empty(evlist));
+	TEST_ASSERT_VAL("evlist is empty", !evlist__empty(evlist));
 
 	nr_events = evlist->core.nr_entries;
 	ev_name = calloc(nr_events, sizeof(*ev_name));
@@ -100,10 +100,9 @@ out:	for (i = 0; i < nr_events; i++)
 static int expand_default_events(void)
 {
 	int ret;
-	struct evlist *evlist;
 	struct rblist metric_events;
+	struct evlist *evlist = evlist__new_default();
 
-	evlist = perf_evlist__new_default();
 	TEST_ASSERT_VAL("failed to get evlist", evlist);
 
 	rblist__init(&metric_events);
@@ -125,17 +124,19 @@ static int expand_group_events(void)
 	evlist = evlist__new();
 	TEST_ASSERT_VAL("failed to get evlist", evlist);
 
+	parse_events_error__init(&err);
 	ret = parse_events(evlist, event_str, &err);
 	if (ret < 0) {
 		pr_debug("failed to parse event '%s', err %d, str '%s'\n",
 			 event_str, ret, err.str);
-		parse_events_print_error(&err, event_str);
+		parse_events_error__print(&err, event_str);
 		goto out;
 	}
 
 	rblist__init(&metric_events);
 	ret = test_expand_events(evlist, &metric_events);
 out:
+	parse_events_error__exit(&err);
 	evlist__delete(evlist);
 	return ret;
 }
@@ -145,7 +146,7 @@ static int expand_libpfm_events(void)
 	int ret;
 	struct evlist *evlist;
 	struct rblist metric_events;
-	const char event_str[] = "UNHALTED_CORE_CYCLES";
+	const char event_str[] = "CYCLES";
 	struct option opt = {
 		.value = &evlist,
 	};
@@ -161,7 +162,7 @@ static int expand_libpfm_events(void)
 			 event_str, ret);
 		goto out;
 	}
-	if (perf_evlist__empty(evlist)) {
+	if (evlist__empty(evlist)) {
 		pr_debug("libpfm was not enabled\n");
 		goto out;
 	}
@@ -194,7 +195,7 @@ static int expand_metric_events(void)
 			.metric_name	= NULL,
 		},
 	};
-	struct pmu_events_map ev_map = {
+	const struct pmu_events_map ev_map = {
 		.cpuid		= "test",
 		.version	= "1",
 		.type		= "core",
@@ -220,8 +221,8 @@ out:
 	return ret;
 }
 
-int test__expand_cgroup_events(struct test *test __maybe_unused,
-			       int subtest __maybe_unused)
+static int test__expand_cgroup_events(struct test_suite *test __maybe_unused,
+				      int subtest __maybe_unused)
 {
 	int ret;
 
@@ -239,3 +240,5 @@ int test__expand_cgroup_events(struct test *test __maybe_unused,
 
 	return ret;
 }
+
+DEFINE_SUITE("Event expansion for cgroups", expand_cgroup_events);

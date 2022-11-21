@@ -21,7 +21,7 @@ Any code that happens after the end of a given RCU grace period is guaranteed
 to see the effects of all accesses prior to the beginning of that grace
 period that are within RCU read-side critical sections.
 Similarly, any code that happens before the beginning of a given RCU grace
-period is guaranteed to see the effects of all accesses following the end
+period is guaranteed to not see the effects of all accesses following the end
 of that grace period that are within RCU read-side critical sections.
 
 Note well that RCU-sched read-side critical sections include any region
@@ -112,6 +112,35 @@ on PowerPC.
 The ``smp_mb__after_unlock_lock()`` invocations prevent this
 ``WARN_ON()`` from triggering.
 
++-----------------------------------------------------------------------+
+| **Quick Quiz**:                                                       |
++-----------------------------------------------------------------------+
+| But the chain of rcu_node-structure lock acquisitions guarantees      |
+| that new readers will see all of the updater's pre-grace-period       |
+| accesses and also guarantees that the updater's post-grace-period     |
+| accesses will see all of the old reader's accesses.  So why do we     |
+| need all of those calls to smp_mb__after_unlock_lock()?               |
++-----------------------------------------------------------------------+
+| **Answer**:                                                           |
++-----------------------------------------------------------------------+
+| Because we must provide ordering for RCU's polling grace-period       |
+| primitives, for example, get_state_synchronize_rcu() and              |
+| poll_state_synchronize_rcu().  Consider this code::                   |
+|                                                                       |
+|  CPU 0                                     CPU 1                      |
+|  ----                                      ----                       |
+|  WRITE_ONCE(X, 1)                          WRITE_ONCE(Y, 1)           |
+|  g = get_state_synchronize_rcu()           smp_mb()                   |
+|  while (!poll_state_synchronize_rcu(g))    r1 = READ_ONCE(X)          |
+|          continue;                                                    |
+|  r0 = READ_ONCE(Y)                                                    |
+|                                                                       |
+| RCU guarantees that the outcome r0 == 0 && r1 == 0 will not           |
+| happen, even if CPU 1 is in an RCU extended quiescent state           |
+| (idle or offline) and thus won't interact directly with the RCU       |
+| core processing at all.                                               |
++-----------------------------------------------------------------------+
+
 This approach must be extended to include idle CPUs, which need
 RCU's grace-period memory ordering guarantee to extend to any
 RCU read-side critical sections preceding and following the current
@@ -173,49 +202,44 @@ newly arrived RCU callbacks against future grace periods:
     1 static void rcu_prepare_for_idle(void)
     2 {
     3   bool needwake;
-    4   struct rcu_data *rdp;
-    5   struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
-    6   struct rcu_node *rnp;
-    7   struct rcu_state *rsp;
-    8   int tne;
-    9
-   10   if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_ALL) ||
-   11       rcu_is_nocb_cpu(smp_processor_id()))
-   12     return;
+    4   struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
+    5   struct rcu_node *rnp;
+    6   int tne;
+    7
+    8   lockdep_assert_irqs_disabled();
+    9   if (rcu_rdp_is_offloaded(rdp))
+   10     return;
+   11
+   12   /* Handle nohz enablement switches conservatively. */
    13   tne = READ_ONCE(tick_nohz_active);
-   14   if (tne != rdtp->tick_nohz_enabled_snap) {
-   15     if (rcu_cpu_has_callbacks(NULL))
-   16       invoke_rcu_core();
-   17     rdtp->tick_nohz_enabled_snap = tne;
+   14   if (tne != rdp->tick_nohz_enabled_snap) {
+   15     if (!rcu_segcblist_empty(&rdp->cblist))
+   16       invoke_rcu_core(); /* force nohz to see update. */
+   17     rdp->tick_nohz_enabled_snap = tne;
    18     return;
-   19   }
+   19	}
    20   if (!tne)
    21     return;
-   22   if (rdtp->all_lazy &&
-   23       rdtp->nonlazy_posted != rdtp->nonlazy_posted_snap) {
-   24     rdtp->all_lazy = false;
-   25     rdtp->nonlazy_posted_snap = rdtp->nonlazy_posted;
-   26     invoke_rcu_core();
-   27     return;
-   28   }
-   29   if (rdtp->last_accelerate == jiffies)
-   30     return;
-   31   rdtp->last_accelerate = jiffies;
-   32   for_each_rcu_flavor(rsp) {
-   33     rdp = this_cpu_ptr(rsp->rda);
-   34     if (rcu_segcblist_pend_cbs(&rdp->cblist))
-   35       continue;
-   36     rnp = rdp->mynode;
-   37     raw_spin_lock_rcu_node(rnp);
-   38     needwake = rcu_accelerate_cbs(rsp, rnp, rdp);
-   39     raw_spin_unlock_rcu_node(rnp);
-   40     if (needwake)
-   41       rcu_gp_kthread_wake(rsp);
-   42   }
-   43 }
+   22
+   23   /*
+   24    * If we have not yet accelerated this jiffy, accelerate all
+   25    * callbacks on this CPU.
+   26   */
+   27   if (rdp->last_accelerate == jiffies)
+   28     return;
+   29   rdp->last_accelerate = jiffies;
+   30   if (rcu_segcblist_pend_cbs(&rdp->cblist)) {
+   31     rnp = rdp->mynode;
+   32     raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
+   33     needwake = rcu_accelerate_cbs(rnp, rdp);
+   34     raw_spin_unlock_rcu_node(rnp); /* irqs remain disabled. */
+   35     if (needwake)
+   36       rcu_gp_kthread_wake();
+   37   }
+   38 }
 
 But the only part of ``rcu_prepare_for_idle()`` that really matters for
-this discussion are lines 37–39. We will therefore abbreviate this
+this discussion are lines 32–34. We will therefore abbreviate this
 function as follows:
 
 .. kernel-figure:: rcu_node-lock.svg
@@ -339,14 +363,14 @@ The diagram below shows the path of ordering if the leftmost
 leftmost ``rcu_node`` structure offlines its last CPU and if the next
 ``rcu_node`` structure has no online CPUs).
 
-.. kernel-figure:: TreeRCU-gp-init-1.svg
+.. kernel-figure:: TreeRCU-gp-init-2.svg
 
 The final ``rcu_gp_init()`` pass through the ``rcu_node`` tree traverses
 breadth-first, setting each ``rcu_node`` structure's ``->gp_seq`` field
 to the newly advanced value from the ``rcu_state`` structure, as shown
 in the following diagram.
 
-.. kernel-figure:: TreeRCU-gp-init-1.svg
+.. kernel-figure:: TreeRCU-gp-init-3.svg
 
 This change will also cause each CPU's next call to
 ``__note_gp_changes()`` to notice that a new grace period has started,
@@ -473,7 +497,7 @@ read-side critical sections that follow the idle period (the oval near
 the bottom of the diagram above).
 
 Plumbing this into the full grace-period execution is described
-`below <#Forcing%20Quiescent%20States>`__.
+`below <Forcing Quiescent States_>`__.
 
 CPU-Hotplug Interface
 ^^^^^^^^^^^^^^^^^^^^^
@@ -494,7 +518,7 @@ mask to detect CPUs having gone offline since the beginning of this
 grace period.
 
 Plumbing this into the full grace-period execution is described
-`below <#Forcing%20Quiescent%20States>`__.
+`below <Forcing Quiescent States_>`__.
 
 Forcing Quiescent States
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -532,7 +556,7 @@ from other CPUs.
 | RCU. But this diagram is complex enough as it is, so simplicity       |
 | overrode accuracy. You can think of it as poetic license, or you can  |
 | think of it as misdirection that is resolved in the                   |
-| `stitched-together diagram <#Putting%20It%20All%20Together>`__.       |
+| `stitched-together diagram <Putting It All Together_>`__.             |
 +-----------------------------------------------------------------------+
 
 Grace-Period Cleanup
@@ -596,7 +620,7 @@ maintain ordering. For example, if the callback function wakes up a task
 that runs on some other CPU, proper ordering must in place in both the
 callback function and the task being awakened. To see why this is
 important, consider the top half of the `grace-period
-cleanup <#Grace-Period%20Cleanup>`__ diagram. The callback might be
+cleanup`_ diagram. The callback might be
 running on a CPU corresponding to the leftmost leaf ``rcu_node``
 structure, and awaken a task that is to run on a CPU corresponding to
 the rightmost leaf ``rcu_node`` structure, and the grace-period kernel

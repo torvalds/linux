@@ -124,7 +124,8 @@ static void asm_emit_cell(void *e, cell_t val)
 {
 	FILE *f = e;
 
-	fprintf(f, "\t.byte 0x%02x; .byte 0x%02x; .byte 0x%02x; .byte 0x%02x\n",
+	fprintf(f, "\t.byte\t0x%02x\n" "\t.byte\t0x%02x\n"
+		"\t.byte\t0x%02x\n" "\t.byte\t0x%02x\n",
 		(val >> 24) & 0xff, (val >> 16) & 0xff,
 		(val >> 8) & 0xff, val & 0xff);
 }
@@ -134,9 +135,9 @@ static void asm_emit_string(void *e, const char *str, int len)
 	FILE *f = e;
 
 	if (len != 0)
-		fprintf(f, "\t.string\t\"%.*s\"\n", len, str);
+		fprintf(f, "\t.asciz\t\"%.*s\"\n", len, str);
 	else
-		fprintf(f, "\t.string\t\"%s\"\n", str);
+		fprintf(f, "\t.asciz\t\"%s\"\n", str);
 }
 
 static void asm_emit_align(void *e, int a)
@@ -149,7 +150,7 @@ static void asm_emit_align(void *e, int a)
 static void asm_emit_data(void *e, struct data d)
 {
 	FILE *f = e;
-	int off = 0;
+	unsigned int off = 0;
 	struct marker *m = d.markers;
 
 	for_each_marker_of_type(m, LABEL)
@@ -219,7 +220,7 @@ static struct emitter asm_emitter = {
 
 static int stringtable_insert(struct data *d, const char *str)
 {
-	int i;
+	unsigned int i;
 
 	/* FIXME: do this more efficiently? */
 
@@ -295,7 +296,7 @@ static struct data flatten_reserve_list(struct reserve_info *reservelist,
 {
 	struct reserve_info *re;
 	struct data d = empty_data;
-	int    j;
+	unsigned int j;
 
 	for (re = reservelist; re; re = re->next) {
 		d = data_append_re(d, re->address, re->size);
@@ -345,7 +346,7 @@ static void make_fdt_header(struct fdt_header *fdt,
 void dt_to_blob(FILE *f, struct dt_info *dti, int version)
 {
 	struct version_info *vi = NULL;
-	int i;
+	unsigned int i;
 	struct data blob       = empty_data;
 	struct data reservebuf = empty_data;
 	struct data dtbuf      = empty_data;
@@ -438,7 +439,7 @@ static void dump_stringtable_asm(FILE *f, struct data strbuf)
 
 	while (p < (strbuf.val + strbuf.len)) {
 		len = strlen(p);
-		fprintf(f, "\t.string \"%s\"\n", p);
+		fprintf(f, "\t.asciz \"%s\"\n", p);
 		p += len+1;
 	}
 }
@@ -446,7 +447,7 @@ static void dump_stringtable_asm(FILE *f, struct data strbuf)
 void dt_to_asm(FILE *f, struct dt_info *dti, int version)
 {
 	struct version_info *vi = NULL;
-	int i;
+	unsigned int i;
 	struct data strbuf = empty_data;
 	struct reserve_info *re;
 	const char *symprefix = "dt";

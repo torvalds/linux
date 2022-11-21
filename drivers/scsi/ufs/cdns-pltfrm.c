@@ -100,6 +100,7 @@ static void cdns_ufs_set_l4_attr(struct ufs_hba *hba)
 }
 
 /**
+ * cdns_ufs_set_hclkdiv()
  * Sets HCLKDIV register value based on the core_clk
  * @hba: host controller instance
  *
@@ -141,6 +142,7 @@ static int cdns_ufs_set_hclkdiv(struct ufs_hba *hba)
 }
 
 /**
+ * cdns_ufs_hce_enable_notify()
  * Called before and after HCE enable bit is set.
  * @hba: host controller instance
  * @status: notify stage (pre, post change)
@@ -157,6 +159,7 @@ static int cdns_ufs_hce_enable_notify(struct ufs_hba *hba,
 }
 
 /**
+ * cdns_ufs_hibern8_notify()
  * Called around hibern8 enter/exit.
  * @hba: host controller instance
  * @cmd: UIC Command
@@ -173,6 +176,7 @@ static void cdns_ufs_hibern8_notify(struct ufs_hba *hba, enum uic_cmd_dme cmd,
 }
 
 /**
+ * cdns_ufs_link_startup_notify()
  * Called before and after Link startup is carried out.
  * @hba: host controller instance
  * @status: notify stage (pre, post change)
@@ -221,8 +225,7 @@ static int cdns_ufs_init(struct ufs_hba *hba)
 		return -ENOMEM;
 	ufshcd_set_variant(hba, host);
 
-	if (hba->vops && hba->vops->phy_initialization)
-		status = hba->vops->phy_initialization(hba);
+	status = ufshcd_vops_phy_initialization(hba);
 
 	return status;
 }
@@ -315,11 +318,10 @@ static int cdns_ufs_pltfrm_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops cdns_ufs_dev_pm_ops = {
-	.suspend         = ufshcd_pltfrm_suspend,
-	.resume          = ufshcd_pltfrm_resume,
-	.runtime_suspend = ufshcd_pltfrm_runtime_suspend,
-	.runtime_resume  = ufshcd_pltfrm_runtime_resume,
-	.runtime_idle    = ufshcd_pltfrm_runtime_idle,
+	SET_SYSTEM_SLEEP_PM_OPS(ufshcd_system_suspend, ufshcd_system_resume)
+	SET_RUNTIME_PM_OPS(ufshcd_runtime_suspend, ufshcd_runtime_resume, NULL)
+	.prepare	 = ufshcd_suspend_prepare,
+	.complete	 = ufshcd_resume_complete,
 };
 
 static struct platform_driver cdns_ufs_pltfrm_driver = {

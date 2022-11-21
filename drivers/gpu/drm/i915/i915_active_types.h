@@ -15,19 +15,12 @@
 #include <linux/rcupdate.h>
 #include <linux/workqueue.h>
 
-#include "i915_utils.h"
-
 struct i915_active_fence {
 	struct dma_fence __rcu *fence;
 	struct dma_fence_cb cb;
 };
 
 struct active_node;
-
-#define I915_ACTIVE_MAY_SLEEP BIT(0)
-
-#define __i915_active_call __aligned(4)
-#define i915_active_may_sleep(fn) ptr_pack_bits(&(fn), I915_ACTIVE_MAY_SLEEP, 2)
 
 struct i915_active {
 	atomic_t count;

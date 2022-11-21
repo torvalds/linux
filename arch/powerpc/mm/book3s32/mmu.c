@@ -33,18 +33,22 @@
 
 u8 __initdata early_hash[SZ_256K] __aligned(SZ_256K) = {0};
 
-struct hash_pte *Hash;
-static unsigned long Hash_size, Hash_mask;
-unsigned long _SDR1;
-static unsigned int hash_mb, hash_mb2;
+static struct hash_pte __initdata *Hash = (struct hash_pte *)early_hash;
+static unsigned long __initdata Hash_size, Hash_mask;
+static unsigned int __initdata hash_mb, hash_mb2;
+unsigned long __initdata _SDR1;
 
 struct ppc_bat BATS[8][2];	/* 8 pairs of IBAT, DBAT */
 
-struct batrange {		/* stores address ranges mapped by BATs */
+static struct batrange {	/* stores address ranges mapped by BATs */
 	unsigned long start;
 	unsigned long limit;
 	phys_addr_t phys;
 } bat_addrs[8];
+
+#ifdef CONFIG_SMP
+unsigned long mmu_hash_lock;
+#endif
 
 /*
  * Return PA for this VA if it is mapped by a BAT, or 0
@@ -72,7 +76,7 @@ unsigned long p_block_mapped(phys_addr_t pa)
 	return 0;
 }
 
-static int find_free_bat(void)
+int __init find_free_bat(void)
 {
 	int b;
 	int n = mmu_has_feature(MMU_FTR_USE_HIGH_BATS) ? 8 : 4;
@@ -96,7 +100,7 @@ static int find_free_bat(void)
  * - block size has to be a power of two. This is calculated by finding the
  *   highest bit set to 1.
  */
-static unsigned int block_size(unsigned long base, unsigned long top)
+unsigned int bat_block_size(unsigned long base, unsigned long top)
 {
 	unsigned int max_size = SZ_256M;
 	unsigned int base_shift = (ffs(base) - 1) & 31;
@@ -141,7 +145,7 @@ static unsigned long __init __mmu_mapin_ram(unsigned long base, unsigned long to
 	int idx;
 
 	while ((idx = find_free_bat()) != -1 && base != top) {
-		unsigned int size = block_size(base, top);
+		unsigned int size = bat_block_size(base, top);
 
 		if (size < 128 << 10)
 			break;
@@ -157,11 +161,9 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 	unsigned long done;
 	unsigned long border = (unsigned long)__init_begin - PAGE_OFFSET;
 
-	if (__map_without_bats) {
-		pr_debug("RAM mapped without BATs\n");
-		return base;
-	}
-	if (debug_pagealloc_enabled()) {
+
+	if (debug_pagealloc_enabled_or_kfence() || __map_without_bats) {
+		pr_debug_once("Read-Write memory mapped without BATs\n");
 		if (base >= border)
 			return base;
 		if (top >= border)
@@ -182,17 +184,10 @@ static bool is_module_segment(unsigned long addr)
 {
 	if (!IS_ENABLED(CONFIG_MODULES))
 		return false;
-#ifdef MODULES_VADDR
 	if (addr < ALIGN_DOWN(MODULES_VADDR, SZ_256M))
 		return false;
 	if (addr > ALIGN(MODULES_END, SZ_256M) - 1)
 		return false;
-#else
-	if (addr < ALIGN_DOWN(VMALLOC_START, SZ_256M))
-		return false;
-	if (addr > ALIGN(VMALLOC_END, SZ_256M) - 1)
-		return false;
-#endif
 	return true;
 }
 
@@ -201,18 +196,17 @@ void mmu_mark_initmem_nx(void)
 	int nb = mmu_has_feature(MMU_FTR_USE_HIGH_BATS) ? 8 : 4;
 	int i;
 	unsigned long base = (unsigned long)_stext - PAGE_OFFSET;
-	unsigned long top = (unsigned long)_etext - PAGE_OFFSET;
+	unsigned long top = ALIGN((unsigned long)_etext - PAGE_OFFSET, SZ_128K);
 	unsigned long border = (unsigned long)__init_begin - PAGE_OFFSET;
 	unsigned long size;
 
-	for (i = 0; i < nb - 1 && base < top && top - base > (128 << 10);) {
-		size = block_size(base, top);
+	for (i = 0; i < nb - 1 && base < top;) {
+		size = bat_block_size(base, top);
 		setibat(i++, PAGE_OFFSET + base, base, size, PAGE_KERNEL_TEXT);
 		base += size;
 	}
 	if (base < top) {
-		size = block_size(base, top);
-		size = max(size, 128UL << 10);
+		size = bat_block_size(base, top);
 		if ((top - base) > size) {
 			size <<= 1;
 			if (strict_kernel_rwx_enabled() && base + size > border)
@@ -232,7 +226,7 @@ void mmu_mark_initmem_nx(void)
 		if (is_module_segment(i << 28))
 			continue;
 
-		mtsrin(mfsrin(i << 28) | 0x10000000, i << 28);
+		mtsr(mfsr(i << 28) | 0x10000000, i << 28);
 	}
 }
 
@@ -304,11 +298,11 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 /*
  * Preload a translation in the hash table
  */
-void hash_preload(struct mm_struct *mm, unsigned long ea)
+static void hash_preload(struct mm_struct *mm, unsigned long ea)
 {
 	pmd_t *pmd;
 
-	if (!Hash)
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
 		return;
 	pmd = pmd_off(mm, ea);
 	if (!pmd_none(*pmd))
@@ -450,22 +444,6 @@ void __init print_system_hash_info(void)
 		pr_info("Hash_mask         = 0x%lx\n", Hash_mask);
 }
 
-#ifdef CONFIG_PPC_KUEP
-void __init setup_kuep(bool disabled)
+void __init early_init_mmu(void)
 {
-	pr_info("Activating Kernel Userspace Execution Prevention\n");
-
-	if (disabled)
-		pr_warn("KUEP cannot be disabled yet on 6xx when compiled in\n");
 }
-#endif
-
-#ifdef CONFIG_PPC_KUAP
-void __init setup_kuap(bool disabled)
-{
-	pr_info("Activating Kernel Userspace Access Protection\n");
-
-	if (disabled)
-		pr_warn("KUAP cannot be disabled yet on 6xx when compiled in\n");
-}
-#endif

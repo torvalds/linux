@@ -15,6 +15,7 @@
 #include <linux/stat.h>
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
+#include <linux/sysfs.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -34,13 +35,13 @@ static ssize_t type_show(struct device *dev,
 
 	switch (card->type) {
 	case MMC_TYPE_MMC:
-		return sprintf(buf, "MMC\n");
+		return sysfs_emit(buf, "MMC\n");
 	case MMC_TYPE_SD:
-		return sprintf(buf, "SD\n");
+		return sysfs_emit(buf, "SD\n");
 	case MMC_TYPE_SDIO:
-		return sprintf(buf, "SDIO\n");
+		return sysfs_emit(buf, "SDIO\n");
 	case MMC_TYPE_SD_COMBO:
-		return sprintf(buf, "SDcombo\n");
+		return sysfs_emit(buf, "SDcombo\n");
 	default:
 		return -EFAULT;
 	}
@@ -52,16 +53,6 @@ static struct attribute *mmc_dev_attrs[] = {
 	NULL,
 };
 ATTRIBUTE_GROUPS(mmc_dev);
-
-/*
- * This currently matches any MMC driver to any MMC card - drivers
- * themselves make the decision whether to drive this card in their
- * probe method.
- */
-static int mmc_bus_match(struct device *dev, struct device_driver *drv)
-{
-	return 1;
-}
 
 static int
 mmc_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
@@ -140,14 +131,12 @@ static int mmc_bus_probe(struct device *dev)
 	return drv->probe(card);
 }
 
-static int mmc_bus_remove(struct device *dev)
+static void mmc_bus_remove(struct device *dev)
 {
 	struct mmc_driver *drv = to_mmc_driver(dev->driver);
 	struct mmc_card *card = mmc_dev_to_card(dev);
 
 	drv->remove(card);
-
-	return 0;
 }
 
 static void mmc_bus_shutdown(struct device *dev)
@@ -228,7 +217,6 @@ static const struct dev_pm_ops mmc_bus_pm_ops = {
 static struct bus_type mmc_bus_type = {
 	.name		= "mmc",
 	.dev_groups	= mmc_dev_groups,
-	.match		= mmc_bus_match,
 	.uevent		= mmc_bus_uevent,
 	.probe		= mmc_bus_probe,
 	.remove		= mmc_bus_remove,
@@ -399,11 +387,6 @@ void mmc_remove_card(struct mmc_card *card)
 	mmc_remove_card_debugfs(card);
 #endif
 
-	if (host->cqe_enabled) {
-		host->cqe_ops->cqe_disable(host);
-		host->cqe_enabled = false;
-	}
-
 	if (mmc_card_present(card)) {
 		if (mmc_host_is_spi(card->host)) {
 			pr_info("%s: SPI card removed\n",
@@ -416,6 +399,10 @@ void mmc_remove_card(struct mmc_card *card)
 		of_node_put(card->dev.of_node);
 	}
 
+	if (host->cqe_enabled) {
+		host->cqe_ops->cqe_disable(host);
+		host->cqe_enabled = false;
+	}
+
 	put_device(&card->dev);
 }
-

@@ -17,7 +17,11 @@ tools/lib/symbol/kallsyms.c
 tools/lib/symbol/kallsyms.h
 tools/lib/find_bit.c
 tools/lib/bitmap.c
+tools/lib/list_sort.c
 tools/lib/str_error_r.c
 tools/lib/vsprintf.c
 tools/lib/zalloc.c
-scripts/bpf_helpers_doc.py
+scripts/bpf_doc.py
+tools/bpf/bpftool
+kernel/bpf/disasm.c
+kernel/bpf/disasm.h

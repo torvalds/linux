@@ -6,16 +6,13 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/hid-sensor-hub.h>
+#include <linux/workqueue.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
-#include <linux/iio/buffer.h>
 #include <linux/iio/sysfs.h>
 #include "hid-sensor-trigger.h"
 
@@ -84,15 +81,6 @@ static const struct attribute *hid_sensor_fifo_attributes[] = {
 	NULL,
 };
 
-static void hid_sensor_setup_batch_mode(struct iio_dev *indio_dev,
-					struct hid_sensor_common *st)
-{
-	if (!hid_sensor_batch_mode_supported(st))
-		return;
-
-	iio_buffer_set_attrs(indio_dev->buffer, hid_sensor_fifo_attributes);
-}
-
 static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 {
 	int state_val;
@@ -159,7 +147,7 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 
 	return 0;
 }
-EXPORT_SYMBOL(hid_sensor_power_state);
+EXPORT_SYMBOL_NS(hid_sensor_power_state, IIO_HID);
 
 int hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 {
@@ -172,18 +160,15 @@ int hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 
 	if (state) {
 		atomic_inc(&st->user_requested_state);
-		ret = pm_runtime_get_sync(&st->pdev->dev);
+		ret = pm_runtime_resume_and_get(&st->pdev->dev);
 	} else {
 		atomic_dec(&st->user_requested_state);
 		pm_runtime_mark_last_busy(&st->pdev->dev);
 		pm_runtime_use_autosuspend(&st->pdev->dev);
 		ret = pm_runtime_put_autosuspend(&st->pdev->dev);
 	}
-	if (ret < 0) {
-		if (state)
-			pm_runtime_put_noidle(&st->pdev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	return 0;
 #else
@@ -231,14 +216,13 @@ void hid_sensor_remove_trigger(struct iio_dev *indio_dev,
 		pm_runtime_disable(&attrb->pdev->dev);
 
 	pm_runtime_set_suspended(&attrb->pdev->dev);
-	pm_runtime_put_noidle(&attrb->pdev->dev);
 
 	cancel_work_sync(&attrb->work);
 	iio_trigger_unregister(attrb->trigger);
 	iio_trigger_free(attrb->trigger);
 	iio_triggered_buffer_cleanup(indio_dev);
 }
-EXPORT_SYMBOL(hid_sensor_remove_trigger);
+EXPORT_SYMBOL_NS(hid_sensor_remove_trigger, IIO_HID);
 
 static const struct iio_trigger_ops hid_sensor_trigger_ops = {
 	.set_trigger_state = &hid_sensor_data_rdy_trigger_set_state,
@@ -247,24 +231,32 @@ static const struct iio_trigger_ops hid_sensor_trigger_ops = {
 int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 				struct hid_sensor_common *attrb)
 {
+	const struct attribute **fifo_attrs;
 	int ret;
 	struct iio_trigger *trig;
 
-	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
-					 NULL, NULL);
+	if (hid_sensor_batch_mode_supported(attrb))
+		fifo_attrs = hid_sensor_fifo_attributes;
+	else
+		fifo_attrs = NULL;
+
+	ret = iio_triggered_buffer_setup_ext(indio_dev,
+					     &iio_pollfunc_store_time, NULL,
+					     IIO_BUFFER_DIRECTION_IN,
+					     NULL, fifo_attrs);
 	if (ret) {
 		dev_err(&indio_dev->dev, "Triggered Buffer Setup Failed\n");
 		return ret;
 	}
 
-	trig = iio_trigger_alloc("%s-dev%d", name, indio_dev->id);
+	trig = iio_trigger_alloc(indio_dev->dev.parent,
+				 "%s-dev%d", name, iio_device_id(indio_dev));
 	if (trig == NULL) {
 		dev_err(&indio_dev->dev, "Trigger Allocate Failed\n");
 		ret = -ENOMEM;
 		goto error_triggered_buffer_cleanup;
 	}
 
-	trig->dev.parent = indio_dev->dev.parent;
 	iio_trigger_set_drvdata(trig, attrb);
 	trig->ops = &hid_sensor_trigger_ops;
 	ret = iio_trigger_register(trig);
@@ -275,8 +267,6 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 	}
 	attrb->trigger = trig;
 	indio_dev->trig = iio_trigger_get(trig);
-
-	hid_sensor_setup_batch_mode(indio_dev, attrb);
 
 	ret = pm_runtime_set_active(&indio_dev->dev);
 	if (ret)
@@ -299,7 +289,7 @@ error_triggered_buffer_cleanup:
 	iio_triggered_buffer_cleanup(indio_dev);
 	return ret;
 }
-EXPORT_SYMBOL(hid_sensor_setup_trigger);
+EXPORT_SYMBOL_NS(hid_sensor_setup_trigger, IIO_HID);
 
 static int __maybe_unused hid_sensor_suspend(struct device *dev)
 {
@@ -329,8 +319,9 @@ const struct dev_pm_ops hid_sensor_pm_ops = {
 	SET_RUNTIME_PM_OPS(hid_sensor_suspend,
 			   hid_sensor_runtime_resume, NULL)
 };
-EXPORT_SYMBOL(hid_sensor_pm_ops);
+EXPORT_SYMBOL_NS(hid_sensor_pm_ops, IIO_HID);
 
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@intel.com>");
 MODULE_DESCRIPTION("HID Sensor trigger processing");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_HID_ATTRIBUTES);

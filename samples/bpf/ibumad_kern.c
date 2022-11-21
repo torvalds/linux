@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 
-/**
+/*
  * ibumad BPF sample kernel side
  *
  * This program is free software; you can redistribute it and/or
@@ -16,19 +16,19 @@
 #include <bpf/bpf_helpers.h>
 
 
-struct bpf_map_def SEC("maps") read_count = {
-	.type        = BPF_MAP_TYPE_ARRAY,
-	.key_size    = sizeof(u32), /* class; u32 required */
-	.value_size  = sizeof(u64), /* count of mads read */
-	.max_entries = 256, /* Room for all Classes */
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, u32); /* class; u32 required */
+	__type(value, u64); /* count of mads read */
+	__uint(max_entries, 256); /* Room for all Classes */
+} read_count SEC(".maps");
 
-struct bpf_map_def SEC("maps") write_count = {
-	.type        = BPF_MAP_TYPE_ARRAY,
-	.key_size    = sizeof(u32), /* class; u32 required */
-	.value_size  = sizeof(u64), /* count of mads written */
-	.max_entries = 256, /* Room for all Classes */
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, u32); /* class; u32 required */
+	__type(value, u64); /* count of mads written */
+	__uint(max_entries, 256); /* Room for all Classes */
+} write_count SEC(".maps");
 
 #undef DEBUG
 #ifndef DEBUG

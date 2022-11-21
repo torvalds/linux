@@ -224,7 +224,7 @@ error_disable_reg:
 	return ret;
 }
 
-static int tlc4541_remove(struct spi_device *spi)
+static void tlc4541_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct tlc4541_state *st = iio_priv(indio_dev);
@@ -232,8 +232,6 @@ static int tlc4541_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	regulator_disable(st->reg);
-
-	return 0;
 }
 
 static const struct of_device_id tlc4541_dt_ids[] = {

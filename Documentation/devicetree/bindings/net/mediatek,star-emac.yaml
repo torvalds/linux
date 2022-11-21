@@ -42,15 +42,14 @@ properties:
       - const: trans
 
   mediatek,pericfg:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Phandle to the device containing the PERICFG register range. This is used
       to control the MII mode.
 
   mdio:
-    type: object
-    description:
-      Creates and registers an MDIO bus.
+    $ref: mdio.yaml#
+    unevaluatedProperties: false
 
 required:
   - compatible

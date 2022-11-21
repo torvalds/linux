@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
+#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 
@@ -40,6 +40,10 @@ static const struct of_device_id st_magn_of_match[] = {
 	{
 		.compatible = "st,lsm9ds1-magn",
 		.data = LSM9DS1_MAGN_DEV_NAME,
+	},
+	{
+		.compatible = "st,iis2mdc",
+		.data = IIS2MDC_MAGN_DEV_NAME,
 	},
 	{}
 };
@@ -72,19 +76,11 @@ static int st_magn_spi_probe(struct spi_device *spi)
 	if (err < 0)
 		return err;
 
-	err = st_magn_common_probe(indio_dev);
-	if (err < 0)
+	err = st_sensors_power_enable(indio_dev);
+	if (err)
 		return err;
 
-	return 0;
-}
-
-static int st_magn_spi_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	st_magn_common_remove(indio_dev);
-
-	return 0;
+	return st_magn_common_probe(indio_dev);
 }
 
 static const struct spi_device_id st_magn_id_table[] = {
@@ -92,6 +88,7 @@ static const struct spi_device_id st_magn_id_table[] = {
 	{ LSM303AGR_MAGN_DEV_NAME },
 	{ LIS2MDL_MAGN_DEV_NAME },
 	{ LSM9DS1_MAGN_DEV_NAME },
+	{ IIS2MDC_MAGN_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_magn_id_table);
@@ -102,7 +99,6 @@ static struct spi_driver st_magn_driver = {
 		.of_match_table = st_magn_of_match,
 	},
 	.probe = st_magn_spi_probe,
-	.remove = st_magn_spi_remove,
 	.id_table = st_magn_id_table,
 };
 module_spi_driver(st_magn_driver);
@@ -110,3 +106,4 @@ module_spi_driver(st_magn_driver);
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics magnetometers spi driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_ST_SENSORS);

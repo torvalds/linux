@@ -31,17 +31,22 @@ comment "MSCC Ocelot doesn't work with SEAD3 enabled"
 	depends on LEGACY_BOARD_SEAD3
 
 config LEGACY_BOARD_OCELOT
-	bool "Support MSCC Ocelot boards"
+	bool "Legacy support for Ocelot based boards"
 	depends on LEGACY_BOARD_SEAD3=n
 	select LEGACY_BOARDS
-	select MSCC_OCELOT
+	select SOC_VCOREIII
 	select SYS_HAS_EARLY_PRINTK
 	select USE_GENERIC_EARLY_PRINTK_8250
 
-config MSCC_OCELOT
+config SOC_VCOREIII
 	bool
 	select GPIOLIB
 	select MSCC_OCELOT_IRQ
+	select MSCC_OCELOT #will be removed when driver no more use it
+
+#Will be removed when the driver using it will be converted to SOC_VCOREIII
+config MSCC_OCELOT
+	bool
 
 comment "FIT/UHI Boards"
 
@@ -52,6 +57,12 @@ config FIT_IMAGE_FDT_BOSTON
 	  from Imagination Technologies in the FIT kernel image. You should
 	  enable this if you wish to boot on a MIPS Boston board, as it is
 	  expected by the bootloader.
+
+config FIT_IMAGE_FDT_MARDUK
+	bool "Include FDT for IMG Pistachio Marduk (CI40) boards"
+	help
+	  Enable this to include the FDT for the IMG Pistachio Marduk (CI40)
+	  from Imagination Technologies in the FIT kernel image.
 
 config FIT_IMAGE_FDT_NI169445
 	bool "Include FDT for NI 169445"
@@ -67,9 +78,33 @@ config FIT_IMAGE_FDT_XILFPGA
 
 config FIT_IMAGE_FDT_OCELOT
 	bool "Include FDT for Microsemi Ocelot development platforms"
-	select MSCC_OCELOT
+	select SOC_VCOREIII
 	help
 	  Enable this to include the FDT for the Ocelot development platforms
+	  from Microsemi in the FIT kernel image.
+	  This requires u-boot on the platform.
+
+config FIT_IMAGE_FDT_LUTON
+	bool "Include FDT for Microsemi Luton development platforms"
+	select SOC_VCOREIII
+	help
+	  Enable this to include the FDT for the Luton development platforms
+	  from Microsemi in the FIT kernel image.
+	  This requires u-boot on the platform.
+
+config FIT_IMAGE_FDT_JAGUAR2
+	bool "Include FDT for Microsemi Jaguar2 development platforms"
+	select SOC_VCOREIII
+	help
+	  Enable this to include the FDT for the Jaguar2 development platforms
+	  from Microsemi in the FIT kernel image.
+	  This requires u-boot on the platform.
+
+config FIT_IMAGE_FDT_SERVAL
+	bool "Include FDT for Microsemi Serval development platforms"
+	select SOC_VCOREIII
+	help
+	  Enable this to include the FDT for the Serval development platforms
 	  from Microsemi in the FIT kernel image.
 	  This requires u-boot on the platform.
 

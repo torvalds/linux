@@ -18,6 +18,7 @@
 #include <linux/freezer.h>
 #include <linux/random.h>
 #include <linux/v4l2-dv-timings.h>
+#include <linux/jiffies.h>
 #include <asm/div64.h>
 #include <media/videobuf2-vmalloc.h>
 #include <media/v4l2-dv-timings.h>
@@ -426,6 +427,7 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 		is_loop = true;
 
 	buf->vb.sequence = dev->vid_cap_seq_count;
+	v4l2_ctrl_s_ctrl(dev->ro_int32, buf->vb.sequence & 0xff);
 	if (dev->field_cap == V4L2_FIELD_ALTERNATE) {
 		/*
 		 * 60 Hz standards start with the bottom field, 50 Hz standards
@@ -515,10 +517,11 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 		mutex_unlock(dev->ctrl_hdl_user_aud.lock);
 		tpg_gen_text(tpg, basep, line++ * line_height, 16, str);
 		mutex_lock(dev->ctrl_hdl_user_gen.lock);
-		snprintf(str, sizeof(str), " int32 %d, int64 %lld, bitmask %08x ",
-			dev->int32->cur.val,
-			*dev->int64->p_cur.p_s64,
-			dev->bitmask->cur.val);
+		snprintf(str, sizeof(str), " int32 %d, ro_int32 %d, int64 %lld, bitmask %08x ",
+			 dev->int32->cur.val,
+			 dev->ro_int32->cur.val,
+			 *dev->int64->p_cur.p_s64,
+			 dev->bitmask->cur.val);
 		tpg_gen_text(tpg, basep, line++ * line_height, 16, str);
 		snprintf(str, sizeof(str), " boolean %d, menu %s, string \"%s\" ",
 			dev->boolean->cur.val,
@@ -717,8 +720,7 @@ static noinline_for_stack void vivid_thread_vid_cap_tick(struct vivid_dev *dev,
 	if (!vid_cap_buf && !vbi_cap_buf && !meta_cap_buf)
 		goto update_mv;
 
-	f_time = dev->cap_frame_period * dev->vid_cap_seq_count +
-		 dev->cap_stream_start + dev->time_wrap_offset;
+	f_time = ktime_get_ns() + dev->time_wrap_offset;
 
 	if (vid_cap_buf) {
 		v4l2_ctrl_request_setup(vid_cap_buf->vb.vb2_buf.req_obj.req,
@@ -750,7 +752,7 @@ static noinline_for_stack void vivid_thread_vid_cap_tick(struct vivid_dev *dev,
 
 		v4l2_ctrl_request_setup(vbi_cap_buf->vb.vb2_buf.req_obj.req,
 					&dev->ctrl_hdl_vbi_cap);
-		if (dev->stream_sliced_vbi_cap)
+		if (vbi_cap_buf->vb.vb2_buf.type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
 			vivid_sliced_vbi_cap_process(dev, vbi_cap_buf);
 		else
 			vivid_raw_vbi_cap_process(dev, vbi_cap_buf);
@@ -811,6 +813,10 @@ static int vivid_thread_vid_cap(void *data)
 	dev->cap_seq_resync = false;
 	dev->jiffies_vid_cap = jiffies;
 	dev->cap_stream_start = ktime_get_ns();
+	if (dev->time_wrap)
+		dev->time_wrap_offset = dev->time_wrap - dev->cap_stream_start;
+	else
+		dev->time_wrap_offset = 0;
 	vivid_cap_update_frame_period(dev);
 
 	for (;;) {
@@ -819,7 +825,7 @@ static int vivid_thread_vid_cap(void *data)
 			break;
 
 		if (!mutex_trylock(&dev->mutex)) {
-			schedule_timeout_uninterruptible(1);
+			schedule();
 			continue;
 		}
 
@@ -888,7 +894,9 @@ static int vivid_thread_vid_cap(void *data)
 			next_jiffies_since_start = jiffies_since_start;
 
 		wait_jiffies = next_jiffies_since_start - jiffies_since_start;
-		schedule_timeout_interruptible(wait_jiffies ? wait_jiffies : 1);
+		while (time_is_after_jiffies(cur_jiffies + wait_jiffies) &&
+		       !kthread_should_stop())
+			schedule();
 	}
 	dprintk(dev, 1, "Video Capture Thread End\n");
 	return 0;

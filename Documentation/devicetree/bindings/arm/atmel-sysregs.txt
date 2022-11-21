@@ -1,7 +1,7 @@
 Atmel system registers
 
 Chipid required properties:
-- compatible: Should be "atmel,sama5d2-chipid"
+- compatible: Should be "atmel,sama5d2-chipid" or "microchip,sama7g5-chipid"
 - reg : Should contain registers location and length
 
 PIT Timer required properties:
@@ -45,7 +45,8 @@ RAMC SDRAM/DDR Controller required properties:
 			"atmel,at91sam9260-sdramc",
 			"atmel,at91sam9g45-ddramc",
 			"atmel,sama5d3-ddramc",
-			"microchip,sam9x60-ddramc"
+			"microchip,sam9x60-ddramc",
+			"microchip,sama7g5-uddrc"
 - reg: Should contain registers location and length
 
 Examples:
@@ -54,6 +55,17 @@ Examples:
 		compatible = "atmel,at91sam9g45-ddramc";
 		reg = <0xffffe800 0x200>;
 	};
+
+RAMC PHY Controller required properties:
+- compatible: Should be "microchip,sama7g5-ddr3phy", "syscon"
+- reg: Should contain registers location and length
+
+Example:
+
+	ddr3phy: ddr3phy@e3804000 {
+		compatible = "microchip,sama7g5-ddr3phy", "syscon";
+		reg = <0xe3804000 0x1000>;
+};
 
 SHDWC Shutdown Controller
 
@@ -91,7 +103,8 @@ SHDWC SAMA5D2-Compatible Shutdown Controller
 1) shdwc node
 
 required properties:
-- compatible: should be "atmel,sama5d2-shdwc" or "microchip,sam9x60-shdwc".
+- compatible: should be "atmel,sama5d2-shdwc", "microchip,sam9x60-shdwc" or
+  "microchip,sama7g5-shdwc"
 - reg: should contain registers location and length
 - clocks: phandle to input clock.
 - #address-cells: should be one. The cell is the wake-up input index.
@@ -103,7 +116,7 @@ optional properties:
   microseconds. It's usually a board-related property.
 - atmel,wakeup-rtc-timer: boolean to enable Real-Time Clock wake-up.
 
-optional microchip,sam9x60-shdwc properties:
+optional microchip,sam9x60-shdwc or microchip,sama7g5-shdwc properties:
 - atmel,wakeup-rtt-timer: boolean to enable Real-time Timer Wake-up.
 
 The node contains child nodes for each wake-up input that the platform uses.

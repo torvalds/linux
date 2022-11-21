@@ -31,6 +31,9 @@ synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
 	int length = (th->doff * 4) - sizeof(*th);
 	u8 buf[40], *ptr;
 
+	if (unlikely(length < 0))
+		return false;
+
 	ptr = skb_header_pointer(skb, doff + sizeof(*th), length, buf);
 	if (ptr == NULL)
 		return false;
@@ -47,6 +50,8 @@ synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
 			length--;
 			continue;
 		default:
+			if (length < 2)
+				return true;
 			opsize = *ptr++;
 			if (opsize < 2)
 				return true;
@@ -231,12 +236,6 @@ synproxy_tstamp_adjust(struct sk_buff *skb, unsigned int protoff,
 	return 1;
 }
 
-static struct nf_ct_ext_type nf_ct_synproxy_extend __read_mostly = {
-	.len		= sizeof(struct nf_conn_synproxy),
-	.align		= __alignof__(struct nf_conn_synproxy),
-	.id		= NF_CT_EXT_SYNPROXY,
-};
-
 #ifdef CONFIG_PROC_FS
 static void *synproxy_cpu_seq_start(struct seq_file *seq, loff_t *pos)
 {
@@ -344,7 +343,6 @@ static int __net_init synproxy_net_init(struct net *net)
 		goto err2;
 
 	__set_bit(IPS_CONFIRMED_BIT, &ct->status);
-	nf_conntrack_get(&ct->ct_general);
 	snet->tmpl = ct;
 
 	snet->stats = alloc_percpu(struct synproxy_stats);
@@ -383,28 +381,12 @@ static struct pernet_operations synproxy_net_ops = {
 
 static int __init synproxy_core_init(void)
 {
-	int err;
-
-	err = nf_ct_extend_register(&nf_ct_synproxy_extend);
-	if (err < 0)
-		goto err1;
-
-	err = register_pernet_subsys(&synproxy_net_ops);
-	if (err < 0)
-		goto err2;
-
-	return 0;
-
-err2:
-	nf_ct_extend_unregister(&nf_ct_synproxy_extend);
-err1:
-	return err;
+	return register_pernet_subsys(&synproxy_net_ops);
 }
 
 static void __exit synproxy_core_exit(void)
 {
 	unregister_pernet_subsys(&synproxy_net_ops);
-	nf_ct_extend_unregister(&nf_ct_synproxy_extend);
 }
 
 module_init(synproxy_core_init);
@@ -849,7 +831,7 @@ synproxy_send_tcp_ipv6(struct net *net,
 	fl6.fl6_sport = nth->source;
 	fl6.fl6_dport = nth->dest;
 	security_skb_classify_flow((struct sk_buff *)skb,
-				   flowi6_to_flowi(&fl6));
+				   flowi6_to_flowi_common(&fl6));
 	err = nf_ip6_route(net, &dst, flowi6_to_flowi(&fl6), false);
 	if (err) {
 		goto free_nskb;

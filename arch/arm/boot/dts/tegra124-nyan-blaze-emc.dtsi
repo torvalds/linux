@@ -10,60 +10,362 @@
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-20400000 {
 				clock-frequency = <20400000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-40800000 {
 				clock-frequency = <40800000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-68000000 {
 				clock-frequency = <68000000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-102000000 {
 				clock-frequency = <102000000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-204000000 {
 				clock-frequency = <204000000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-300000000 {
 				clock-frequency = <300000000>;
 				nvidia,parent-clock-frequency = <600000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_C>;
 				clock-names = "emc-parent";
 			};
+
 			timing-396000000 {
 				clock-frequency = <396000000>;
 				nvidia,parent-clock-frequency = <792000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_M>;
 				clock-names = "emc-parent";
 			};
+
 			/* TODO: Add 528MHz frequency */
+
 			timing-600000000 {
 				clock-frequency = <600000000>;
 				nvidia,parent-clock-frequency = <600000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_C_UD>;
 				clock-names = "emc-parent";
 			};
+
 			timing-792000000 {
 				clock-frequency = <792000000>;
 				nvidia,parent-clock-frequency = <792000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_M_UD>;
 				clock-names = "emc-parent";
+			};
+		};
+	};
+
+	memory-controller@70019000 {
+		emc-timings-1 {
+			nvidia,ram-code = <1>;
+
+			timing-12750000 {
+				clock-frequency = <12750000>;
+
+				nvidia,emem-configuration = <
+					0x40040001
+					0x8000000a
+					0x00000001
+					0x00000001
+					0x00000002
+					0x00000000
+					0x00000002
+					0x00000001
+					0x00000002
+					0x00000008
+					0x00000003
+					0x00000002
+					0x00000003
+					0x00000006
+					0x06030203
+					0x000a0402
+					0x77e30303
+					0x70000f03
+					0x001f0000
+				>;
+			};
+
+			timing-20400000 {
+				clock-frequency = <20400000>;
+
+				nvidia,emem-configuration = <
+					0x40020001
+					0x80000012
+					0x00000001
+					0x00000001
+					0x00000002
+					0x00000000
+					0x00000002
+					0x00000001
+					0x00000002
+					0x00000008
+					0x00000003
+					0x00000002
+					0x00000003
+					0x00000006
+					0x06030203
+					0x000a0402
+					0x76230303
+					0x70000f03
+					0x001f0000
+				>;
+			};
+
+			timing-40800000 {
+				clock-frequency = <40800000>;
+
+				nvidia,emem-configuration = <
+					0xa0000001
+					0x80000017
+					0x00000001
+					0x00000001
+					0x00000002
+					0x00000000
+					0x00000002
+					0x00000001
+					0x00000002
+					0x00000008
+					0x00000003
+					0x00000002
+					0x00000003
+					0x00000006
+					0x06030203
+					0x000a0402
+					0x74a30303
+					0x70000f03
+					0x001f0000
+				>;
+			};
+
+			timing-68000000 {
+				clock-frequency = <68000000>;
+
+				nvidia,emem-configuration = <
+					0x00000001
+					0x8000001e
+					0x00000001
+					0x00000001
+					0x00000002
+					0x00000000
+					0x00000002
+					0x00000001
+					0x00000002
+					0x00000008
+					0x00000003
+					0x00000002
+					0x00000003
+					0x00000006
+					0x06030203
+					0x000a0402
+					0x74230403
+					0x70000f03
+					0x001f0000
+				>;
+			};
+
+			timing-102000000 {
+				clock-frequency = <102000000>;
+
+				nvidia,emem-configuration = <
+					0x08000001
+					0x80000026
+					0x00000001
+					0x00000001
+					0x00000003
+					0x00000000
+					0x00000002
+					0x00000001
+					0x00000002
+					0x00000008
+					0x00000003
+					0x00000002
+					0x00000003
+					0x00000006
+					0x06030203
+					0x000a0403
+					0x73c30504
+					0x70000f03
+					0x001f0000
+				>;
+			};
+
+			timing-204000000 {
+				clock-frequency = <204000000>;
+
+				nvidia,emem-configuration = <
+					0x01000003
+					0x80000040
+					0x00000001
+					0x00000001
+					0x00000005
+					0x00000002
+					0x00000004
+					0x00000001
+					0x00000002
+					0x00000008
+					0x00000003
+					0x00000002
+					0x00000004
+					0x00000006
+					0x06040203
+					0x000a0405
+					0x73840a06
+					0x70000f03
+					0x001f0000
+				>;
+			};
+
+			timing-300000000 {
+				clock-frequency = <300000000>;
+
+				nvidia,emem-configuration = <
+					0x08000004
+					0x80000040
+					0x00000001
+					0x00000002
+					0x00000007
+					0x00000004
+					0x00000005
+					0x00000001
+					0x00000002
+					0x00000007
+					0x00000002
+					0x00000002
+					0x00000004
+					0x00000006
+					0x06040202
+					0x000b0607
+					0x77450e08
+					0x70000f03
+					0x001f0000
+				>;
+			};
+
+			timing-396000000 {
+				clock-frequency = <396000000>;
+
+				nvidia,emem-configuration = <
+					0x0f000005
+					0x80000040
+					0x00000001
+					0x00000002
+					0x00000009
+					0x00000005
+					0x00000007
+					0x00000001
+					0x00000002
+					0x00000008
+					0x00000002
+					0x00000002
+					0x00000004
+					0x00000006
+					0x06040202
+					0x000d0709
+					0x7586120a
+					0x70000f03
+					0x001f0000
+				>;
+			};
+
+			timing-528000000 {
+				clock-frequency = <528000000>;
+
+				nvidia,emem-configuration = <
+					0x0f000007
+					0x80000040
+					0x00000002
+					0x00000003
+					0x0000000d
+					0x00000008
+					0x0000000a
+					0x00000001
+					0x00000002
+					0x00000009
+					0x00000002
+					0x00000002
+					0x00000005
+					0x00000006
+					0x06050202
+					0x0010090d
+					0x7428180e
+					0x70000f03
+					0x001f0000
+				>;
+			};
+
+			timing-600000000 {
+				clock-frequency = <600000000>;
+
+				nvidia,emem-configuration = <
+					0x00000009
+					0x80000040
+					0x00000003
+					0x00000004
+					0x0000000e
+					0x00000009
+					0x0000000b
+					0x00000001
+					0x00000003
+					0x0000000b
+					0x00000002
+					0x00000002
+					0x00000005
+					0x00000007
+					0x07050202
+					0x00130b0e
+					0x73a91b0f
+					0x70000f03
+					0x001f0000
+				>;
+			};
+
+			timing-792000000 {
+				clock-frequency = <792000000>;
+
+				nvidia,emem-configuration = <
+					0x0e00000b
+					0x80000040
+					0x00000004
+					0x00000005
+					0x00000013
+					0x0000000c
+					0x0000000f
+					0x00000002
+					0x00000003
+					0x0000000c
+					0x00000002
+					0x00000002
+					0x00000006
+					0x00000008
+					0x08060202
+					0x00160d13
+					0x734c2414
+					0x70000f02
+					0x001f0000
+				>;
 			};
 		};
 	};
@@ -1751,300 +2053,16 @@
 					0x0000000f
 				>;
 			};
-
 		};
 	};
+};
 
-	memory-controller@70019000 {
-		emc-timings-1 {
-			nvidia,ram-code = <1>;
+&emc_icc_dvfs_opp_table {
+	/delete-node/ opp-924000000-1100;
+	/delete-node/ opp-1200000000-1100;
+};
 
-
-			timing-12750000 {
-				clock-frequency = <12750000>;
-
-				nvidia,emem-configuration = <
-					0x40040001
-					0x8000000a
-					0x00000001
-					0x00000001
-					0x00000002
-					0x00000000
-					0x00000002
-					0x00000001
-					0x00000002
-					0x00000008
-					0x00000003
-					0x00000002
-					0x00000003
-					0x00000006
-					0x06030203
-					0x000a0402
-					0x77e30303
-					0x70000f03
-					0x001f0000
-				>;
-			};
-
-			timing-20400000 {
-				clock-frequency = <20400000>;
-
-				nvidia,emem-configuration = <
-					0x40020001
-					0x80000012
-					0x00000001
-					0x00000001
-					0x00000002
-					0x00000000
-					0x00000002
-					0x00000001
-					0x00000002
-					0x00000008
-					0x00000003
-					0x00000002
-					0x00000003
-					0x00000006
-					0x06030203
-					0x000a0402
-					0x76230303
-					0x70000f03
-					0x001f0000
-				>;
-			};
-
-			timing-40800000 {
-				clock-frequency = <40800000>;
-
-				nvidia,emem-configuration = <
-					0xa0000001
-					0x80000017
-					0x00000001
-					0x00000001
-					0x00000002
-					0x00000000
-					0x00000002
-					0x00000001
-					0x00000002
-					0x00000008
-					0x00000003
-					0x00000002
-					0x00000003
-					0x00000006
-					0x06030203
-					0x000a0402
-					0x74a30303
-					0x70000f03
-					0x001f0000
-				>;
-			};
-
-			timing-68000000 {
-				clock-frequency = <68000000>;
-
-				nvidia,emem-configuration = <
-					0x00000001
-					0x8000001e
-					0x00000001
-					0x00000001
-					0x00000002
-					0x00000000
-					0x00000002
-					0x00000001
-					0x00000002
-					0x00000008
-					0x00000003
-					0x00000002
-					0x00000003
-					0x00000006
-					0x06030203
-					0x000a0402
-					0x74230403
-					0x70000f03
-					0x001f0000
-				>;
-			};
-
-			timing-102000000 {
-				clock-frequency = <102000000>;
-
-				nvidia,emem-configuration = <
-					0x08000001
-					0x80000026
-					0x00000001
-					0x00000001
-					0x00000003
-					0x00000000
-					0x00000002
-					0x00000001
-					0x00000002
-					0x00000008
-					0x00000003
-					0x00000002
-					0x00000003
-					0x00000006
-					0x06030203
-					0x000a0403
-					0x73c30504
-					0x70000f03
-					0x001f0000
-				>;
-			};
-
-			timing-204000000 {
-				clock-frequency = <204000000>;
-
-				nvidia,emem-configuration = <
-					0x01000003
-					0x80000040
-					0x00000001
-					0x00000001
-					0x00000005
-					0x00000002
-					0x00000004
-					0x00000001
-					0x00000002
-					0x00000008
-					0x00000003
-					0x00000002
-					0x00000004
-					0x00000006
-					0x06040203
-					0x000a0405
-					0x73840a06
-					0x70000f03
-					0x001f0000
-				>;
-			};
-
-			timing-300000000 {
-				clock-frequency = <300000000>;
-
-				nvidia,emem-configuration = <
-					0x08000004
-					0x80000040
-					0x00000001
-					0x00000002
-					0x00000007
-					0x00000004
-					0x00000005
-					0x00000001
-					0x00000002
-					0x00000007
-					0x00000002
-					0x00000002
-					0x00000004
-					0x00000006
-					0x06040202
-					0x000b0607
-					0x77450e08
-					0x70000f03
-					0x001f0000
-				>;
-			};
-
-			timing-396000000 {
-				clock-frequency = <396000000>;
-
-				nvidia,emem-configuration = <
-					0x0f000005
-					0x80000040
-					0x00000001
-					0x00000002
-					0x00000009
-					0x00000005
-					0x00000007
-					0x00000001
-					0x00000002
-					0x00000008
-					0x00000002
-					0x00000002
-					0x00000004
-					0x00000006
-					0x06040202
-					0x000d0709
-					0x7586120a
-					0x70000f03
-					0x001f0000
-				>;
-			};
-
-			timing-528000000 {
-				clock-frequency = <528000000>;
-
-				nvidia,emem-configuration = <
-					0x0f000007
-					0x80000040
-					0x00000002
-					0x00000003
-					0x0000000d
-					0x00000008
-					0x0000000a
-					0x00000001
-					0x00000002
-					0x00000009
-					0x00000002
-					0x00000002
-					0x00000005
-					0x00000006
-					0x06050202
-					0x0010090d
-					0x7428180e
-					0x70000f03
-					0x001f0000
-				>;
-			};
-
-			timing-600000000 {
-				clock-frequency = <600000000>;
-
-				nvidia,emem-configuration = <
-					0x00000009
-					0x80000040
-					0x00000003
-					0x00000004
-					0x0000000e
-					0x00000009
-					0x0000000b
-					0x00000001
-					0x00000003
-					0x0000000b
-					0x00000002
-					0x00000002
-					0x00000005
-					0x00000007
-					0x07050202
-					0x00130b0e
-					0x73a91b0f
-					0x70000f03
-					0x001f0000
-				>;
-			};
-
-			timing-792000000 {
-				clock-frequency = <792000000>;
-
-				nvidia,emem-configuration = <
-					0x0e00000b
-					0x80000040
-					0x00000004
-					0x00000005
-					0x00000013
-					0x0000000c
-					0x0000000f
-					0x00000002
-					0x00000003
-					0x0000000c
-					0x00000002
-					0x00000002
-					0x00000006
-					0x00000008
-					0x08060202
-					0x00160d13
-					0x734c2414
-					0x70000f02
-					0x001f0000
-				>;
-			};
-		};
-	};
+&emc_bw_dfs_opp_table {
+	/delete-node/ opp-924000000;
+	/delete-node/ opp-1200000000;
 };

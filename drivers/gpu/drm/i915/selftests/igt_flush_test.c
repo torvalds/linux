@@ -14,12 +14,12 @@
 
 int igt_flush_test(struct drm_i915_private *i915)
 {
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 	int ret = intel_gt_is_wedged(gt) ? -EIO : 0;
 
 	cond_resched();
 
-	if (intel_gt_wait_for_idle(gt, HZ / 5) == -ETIME) {
+	if (intel_gt_wait_for_idle(gt, HZ * 3) == -ETIME) {
 		pr_err("%pS timed out, cancelling all further testing.\n",
 		       __builtin_return_address(0));
 

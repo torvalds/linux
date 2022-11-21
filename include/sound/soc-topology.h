@@ -31,9 +31,6 @@ struct snd_soc_dai_driver;
 struct snd_soc_dai;
 struct snd_soc_dapm_route;
 
-/* object scan be loaded and unloaded in groups with identfying indexes */
-#define SND_SOC_TPLG_INDEX_ALL	0	/* ID that matches all FW objects */
-
 /* dynamic object type */
 enum snd_soc_dobj_type {
 	SND_SOC_DOBJ_NONE		= 0,	/* object is not dynamic */
@@ -57,7 +54,7 @@ struct snd_soc_dobj_control {
 
 /* dynamic widget object */
 struct snd_soc_dobj_widget {
-	unsigned int kcontrol_type;	/* kcontrol type: mixer, enum, bytes */
+	unsigned int *kcontrol_type;	/* kcontrol type: mixer, enum, bytes */
 };
 
 /* generic dynamic object - all dynamic objects belong to this struct */
@@ -154,7 +151,7 @@ struct snd_soc_tplg_ops {
 		struct snd_soc_tplg_hdr *);
 
 	/* completion - called at completion of firmware loading */
-	void (*complete)(struct snd_soc_component *);
+	int (*complete)(struct snd_soc_component *comp);
 
 	/* manifest - optional to inform component of manifest */
 	int (*manifest)(struct snd_soc_component *, int index,
@@ -181,14 +178,8 @@ static inline const void *snd_soc_tplg_get_data(struct snd_soc_tplg_hdr *hdr)
 
 /* Dynamic Object loading and removal for component drivers */
 int snd_soc_tplg_component_load(struct snd_soc_component *comp,
-	struct snd_soc_tplg_ops *ops, const struct firmware *fw,
-	u32 index);
-int snd_soc_tplg_component_remove(struct snd_soc_component *comp, u32 index);
-
-/* Widget removal - widgets also removed wth component API */
-void snd_soc_tplg_widget_remove(struct snd_soc_dapm_widget *w);
-void snd_soc_tplg_widget_remove_all(struct snd_soc_dapm_context *dapm,
-	u32 index);
+	struct snd_soc_tplg_ops *ops, const struct firmware *fw);
+int snd_soc_tplg_component_remove(struct snd_soc_component *comp);
 
 /* Binds event handlers to dynamic widgets */
 int snd_soc_tplg_widget_bind_event(struct snd_soc_dapm_widget *w,
@@ -197,8 +188,7 @@ int snd_soc_tplg_widget_bind_event(struct snd_soc_dapm_widget *w,
 
 #else
 
-static inline int snd_soc_tplg_component_remove(struct snd_soc_component *comp,
-						u32 index)
+static inline int snd_soc_tplg_component_remove(struct snd_soc_component *comp)
 {
 	return 0;
 }

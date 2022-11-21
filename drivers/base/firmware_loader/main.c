@@ -15,6 +15,7 @@
 #include <linux/kernel_read_file.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/initrd.h>
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
@@ -92,65 +93,6 @@ DEFINE_MUTEX(fw_lock);
 
 static struct firmware_cache fw_cache;
 
-/* Builtin firmware support */
-
-#ifdef CONFIG_FW_LOADER
-
-extern struct builtin_fw __start_builtin_fw[];
-extern struct builtin_fw __end_builtin_fw[];
-
-static void fw_copy_to_prealloc_buf(struct firmware *fw,
-				    void *buf, size_t size)
-{
-	if (!buf || size < fw->size)
-		return;
-	memcpy(buf, fw->data, fw->size);
-}
-
-static bool fw_get_builtin_firmware(struct firmware *fw, const char *name,
-				    void *buf, size_t size)
-{
-	struct builtin_fw *b_fw;
-
-	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++) {
-		if (strcmp(name, b_fw->name) == 0) {
-			fw->size = b_fw->size;
-			fw->data = b_fw->data;
-			fw_copy_to_prealloc_buf(fw, buf, size);
-
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static bool fw_is_builtin_firmware(const struct firmware *fw)
-{
-	struct builtin_fw *b_fw;
-
-	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++)
-		if (fw->data == b_fw->data)
-			return true;
-
-	return false;
-}
-
-#else /* Module case - no builtin firmware support */
-
-static inline bool fw_get_builtin_firmware(struct firmware *fw,
-					   const char *name, void *buf,
-					   size_t size)
-{
-	return false;
-}
-
-static inline bool fw_is_builtin_firmware(const struct firmware *fw)
-{
-	return false;
-}
-#endif
-
 static void fw_state_init(struct fw_priv *fw_priv)
 {
 	struct fw_state *fw_st = &fw_priv->fw_st;
@@ -164,7 +106,7 @@ static inline int fw_state_wait(struct fw_priv *fw_priv)
 	return __fw_state_wait_common(fw_priv, MAX_SCHEDULE_TIMEOUT);
 }
 
-static int fw_cache_piggyback_on_request(const char *name);
+static void fw_cache_piggyback_on_request(struct fw_priv *fw_priv);
 
 static struct fw_priv *__allocate_fw_priv(const char *fw_name,
 					  struct firmware_cache *fwc,
@@ -504,6 +446,7 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv,
 	if (!path)
 		return -ENOMEM;
 
+	wait_for_initramfs();
 	for (i = 0; i < ARRAY_SIZE(fw_path); i++) {
 		size_t file_size = 0;
 		size_t *file_size_ptr = NULL;
@@ -705,10 +648,8 @@ int assign_fw(struct firmware *fw, struct device *device)
 	 * on request firmware.
 	 */
 	if (!(fw_priv->opt_flags & FW_OPT_NOCACHE) &&
-	    fw_priv->fwc->state == FW_LOADER_START_CACHE) {
-		if (fw_cache_piggyback_on_request(fw_priv->fw_name))
-			kref_get(&fw_priv->ref);
-	}
+	    fw_priv->fwc->state == FW_LOADER_START_CACHE)
+		fw_cache_piggyback_on_request(fw_priv);
 
 	/* pass the pages buffer to driver at the last minute */
 	fw_set_page_data(fw_priv, fw);
@@ -736,7 +677,7 @@ _request_firmware_prepare(struct firmware **firmware_p, const char *name,
 		return -ENOMEM;
 	}
 
-	if (fw_get_builtin_firmware(firmware, name, dbuf, size)) {
+	if (firmware_request_builtin_buf(firmware, name, dbuf, size)) {
 		dev_dbg(device, "using built-in %s\n", name);
 		return 0; /* assigned */
 	}
@@ -781,8 +722,10 @@ static void fw_abort_batch_reqs(struct firmware *fw)
 		return;
 
 	fw_priv = fw->priv;
+	mutex_lock(&fw_lock);
 	if (!fw_state_is_aborted(fw_priv))
 		fw_state_aborted(fw_priv);
+	mutex_unlock(&fw_lock);
 }
 
 /* called from request_firmware() and request_firmware_work_func() */
@@ -792,6 +735,8 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 		  size_t offset, u32 opt_flags)
 {
 	struct firmware *fw = NULL;
+	struct cred *kern_cred = NULL;
+	const struct cred *old_cred;
 	bool nondirect = false;
 	int ret;
 
@@ -807,6 +752,18 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 					offset, opt_flags);
 	if (ret <= 0) /* error or already assigned */
 		goto out;
+
+	/*
+	 * We are about to try to access the firmware file. Because we may have been
+	 * called by a driver when serving an unrelated request from userland, we use
+	 * the kernel credentials to read the file.
+	 */
+	kern_cred = prepare_kernel_cred(NULL);
+	if (!kern_cred) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	old_cred = override_creds(kern_cred);
 
 	ret = fw_get_filesystem_firmware(device, fw->priv, "", NULL);
 
@@ -832,6 +789,9 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 						      opt_flags, ret);
 	} else
 		ret = assign_fw(fw, device);
+
+	revert_creds(old_cred);
+	put_cred(kern_cred);
 
  out:
 	if (ret < 0) {
@@ -1049,7 +1009,7 @@ EXPORT_SYMBOL(request_partial_firmware_into_buf);
 void release_firmware(const struct firmware *fw)
 {
 	if (fw) {
-		if (!fw_is_builtin_firmware(fw))
+		if (!firmware_is_builtin(fw))
 			firmware_free_data(fw);
 		kfree(fw);
 	}
@@ -1213,7 +1173,7 @@ static int uncache_firmware(const char *fw_name)
 
 	pr_debug("%s: %s\n", __func__, fw_name);
 
-	if (fw_get_builtin_firmware(&fw, fw_name, NULL, 0))
+	if (firmware_request_builtin(&fw, fw_name))
 		return 0;
 
 	fw_priv = lookup_fw_priv(fw_name);
@@ -1255,11 +1215,11 @@ static int __fw_entry_found(const char *name)
 	return 0;
 }
 
-static int fw_cache_piggyback_on_request(const char *name)
+static void fw_cache_piggyback_on_request(struct fw_priv *fw_priv)
 {
-	struct firmware_cache *fwc = &fw_cache;
+	const char *name = fw_priv->fw_name;
+	struct firmware_cache *fwc = fw_priv->fwc;
 	struct fw_cache_entry *fce;
-	int ret = 0;
 
 	spin_lock(&fwc->name_lock);
 	if (__fw_entry_found(name))
@@ -1267,13 +1227,12 @@ static int fw_cache_piggyback_on_request(const char *name)
 
 	fce = alloc_fw_cache_entry(name);
 	if (fce) {
-		ret = 1;
 		list_add(&fce->list, &fwc->fw_names);
+		kref_get(&fw_priv->ref);
 		pr_debug("%s: fw: %s\n", __func__, name);
 	}
 found:
 	spin_unlock(&fwc->name_lock);
-	return ret;
 }
 
 static void free_fw_cache_entry(struct fw_cache_entry *fce)
@@ -1504,9 +1463,8 @@ static inline void unregister_fw_pm_ops(void)
 	unregister_pm_notifier(&fw_cache.pm_notify);
 }
 #else
-static int fw_cache_piggyback_on_request(const char *name)
+static void fw_cache_piggyback_on_request(struct fw_priv *fw_priv)
 {
-	return 0;
 }
 static inline int register_fw_pm_ops(void)
 {

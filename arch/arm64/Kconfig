@@ -10,10 +10,18 @@ config ARM64
 	select ACPI_SPCR_TABLE if ACPI
 	select ACPI_PPTT if ACPI
 	select ARCH_HAS_DEBUG_WX
+	select ARCH_BINFMT_ELF_EXTRA_PHDRS
 	select ARCH_BINFMT_ELF_STATE
+	select ARCH_CORRECT_STACKTRACE_ON_KRETPROBE
+	select ARCH_ENABLE_HUGEPAGE_MIGRATION if HUGETLB_PAGE && MIGRATION
+	select ARCH_ENABLE_MEMORY_HOTPLUG
+	select ARCH_ENABLE_MEMORY_HOTREMOVE
+	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
+	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
+	select ARCH_HAS_CACHE_LINE_SIZE
+	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL
 	select ARCH_HAS_DEBUG_VM_PGTABLE
-	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_ACPI_TABLE_UPGRADE if ACPI
 	select ARCH_HAS_FAST_MULTIPLIER
@@ -37,6 +45,7 @@ config ARM64
 	select ARCH_HAS_SYSCALL_WRAPPER
 	select ARCH_HAS_TEARDOWN_DMA_OPS if IOMMU_SUPPORT
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+	select ARCH_HAS_ZONE_DMA_SET if EXPERT
 	select ARCH_HAVE_ELF_PROT
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_INLINE_READ_LOCK if !PREEMPTION
@@ -68,13 +77,19 @@ config ARM64
 	select ARCH_KEEP_MEMBLOCK
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_USE_GNU_PROPERTY
+	select ARCH_USE_MEMTEST
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
 	select ARCH_USE_SYM_ANNOTATIONS
+	select ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	select ARCH_SUPPORTS_HUGETLBFS
 	select ARCH_SUPPORTS_MEMORY_FAILURE
 	select ARCH_SUPPORTS_SHADOW_CALL_STACK if CC_HAVE_SHADOW_CALL_STACK
+	select ARCH_SUPPORTS_LTO_CLANG if CPU_LITTLE_ENDIAN
+	select ARCH_SUPPORTS_LTO_CLANG_THIN
+	select ARCH_SUPPORTS_CFI_CLANG
 	select ARCH_SUPPORTS_ATOMIC_RMW
-	select ARCH_SUPPORTS_INT128 if CC_HAS_INT128 && (GCC_VERSION >= 50000 || CC_IS_CLANG)
+	select ARCH_SUPPORTS_INT128 if CC_HAS_INT128
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION if COMPAT
 	select ARCH_WANT_DEFAULT_BPF_JIT
@@ -82,6 +97,7 @@ config ARM64
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_HUGE_PMD_SHARE if ARM64_4K_PAGES || (ARM64_16K_PAGES && !ARM64_VA_BITS_36)
 	select ARCH_WANT_LD_ORPHAN_WARN
+	select ARCH_WANTS_NO_INSTR
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARM_AMBA
 	select ARM_ARCH_TIMER
@@ -102,29 +118,26 @@ config ARM64
 	select FRAME_POINTER
 	select GENERIC_ALLOCATOR
 	select GENERIC_ARCH_TOPOLOGY
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_CLOCKEVENTS_BROADCAST
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_IRQ_IPI
-	select GENERIC_IRQ_MULTI_HANDLER
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IRQ_SHOW_LEVEL
+	select GENERIC_LIB_DEVMEM_IS_ALLOWED
 	select GENERIC_PCI_IOMAP
 	select GENERIC_PTDUMP
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_STRNCPY_FROM_USER
-	select GENERIC_STRNLEN_USER
 	select GENERIC_TIME_VSYSCALL
 	select GENERIC_GETTIMEOFDAY
 	select GENERIC_VDSO_TIME_NS
-	select HANDLE_DOMAIN_IRQ
 	select HARDIRQS_SW_RESEND
 	select HAVE_MOVE_PMD
+	select HAVE_MOVE_PUD
 	select HAVE_PCI
 	select HAVE_ACPI_APEI if (ACPI && EFI)
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
@@ -135,11 +148,17 @@ config ARM64
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
 	select HAVE_ARCH_KASAN if !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
+	select HAVE_ARCH_KASAN_VMALLOC if HAVE_ARCH_KASAN
 	select HAVE_ARCH_KASAN_SW_TAGS if HAVE_ARCH_KASAN
+	select HAVE_ARCH_KASAN_HW_TAGS if (HAVE_ARCH_KASAN && ARM64_MTE)
+	# Some instrumentation may be unsound, hence EXPERT
+	select HAVE_ARCH_KCSAN if EXPERT
+	select HAVE_ARCH_KFENCE
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_MMAP_RND_BITS
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
 	select HAVE_ARCH_PREL32_RELOCATIONS
+	select HAVE_ARCH_RANDOMIZE_KSTACK_OFFSET
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_STACKLEAK
 	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
@@ -153,12 +172,11 @@ config ARM64
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_CONTEXT_TRACKING
-	select HAVE_DEBUG_BUGVERBOSE
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
-	select HAVE_DYNAMIC_FTRACE_WITH_REGS \
-		if $(cc-option,-fpatchable-function-entry=2)
+	select FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY \
+		if DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_FAST_GUP
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -168,14 +186,16 @@ config ARM64
 	select HAVE_GCC_PLUGINS
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
 	select HAVE_IRQ_TIME_ACCOUNTING
+	select HAVE_KVM
 	select HAVE_NMI
 	select HAVE_PATA_PLATFORM
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
+	select HAVE_PREEMPT_DYNAMIC_KEY
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_POSIX_CPU_TIMERS_TASK_WORK
 	select HAVE_FUNCTION_ARG_ACCESS_API
-	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select MMU_GATHER_RCU_TABLE_FREE
 	select HAVE_RSEQ
 	select HAVE_STACKPROTECTOR
@@ -186,6 +206,7 @@ config ARM64
 	select IOMMU_DMA if IOMMU_SUPPORT
 	select IRQ_DOMAIN
 	select IRQ_FORCED_THREADING
+	select KASAN_VMALLOC if KASAN
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
@@ -196,13 +217,25 @@ config ARM64
 	select PCI_SYSCALL if PCI
 	select POWER_RESET
 	select POWER_SUPPLY
-	select SET_FS
 	select SPARSE_IRQ
 	select SWIOTLB
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
+	select HAVE_ARCH_USERFAULTFD_MINOR if USERFAULTFD
+	select TRACE_IRQFLAGS_SUPPORT
 	help
 	  ARM 64-bit (AArch64) Linux support.
+
+config CLANG_SUPPORTS_DYNAMIC_FTRACE_WITH_REGS
+	def_bool CC_IS_CLANG
+	# https://github.com/ClangBuiltLinux/linux/issues/1507
+	depends on AS_IS_GNU || (AS_IS_LLVM && (LD_IS_LLD || LD_VERSION >= 23600))
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+
+config GCC_SUPPORTS_DYNAMIC_FTRACE_WITH_REGS
+	def_bool CC_IS_GCC
+	depends on $(cc-option,-fpatchable-function-entry=2)
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 
 config 64BIT
 	def_bool y
@@ -268,9 +301,6 @@ config ILLEGAL_POINTER_VALUE
 config LOCKDEP_SUPPORT
 	def_bool y
 
-config TRACE_IRQFLAGS_SUPPORT
-	def_bool y
-
 config GENERIC_BUG
 	def_bool y
 	depends on BUG
@@ -288,18 +318,7 @@ config GENERIC_CSUM
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
-config ZONE_DMA
-	bool "Support DMA zone" if EXPERT
-	default y
-
-config ZONE_DMA32
-	bool "Support DMA32 zone" if EXPERT
-	default y
-
-config ARCH_ENABLE_MEMORY_HOTPLUG
-	def_bool y
-
-config ARCH_ENABLE_MEMORY_HOTREMOVE
+config ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
 	def_bool y
 
 config SMP
@@ -331,17 +350,17 @@ config BROKEN_GAS_INST
 
 config KASAN_SHADOW_OFFSET
 	hex
-	depends on KASAN
-	default 0xdfffa00000000000 if (ARM64_VA_BITS_48 || ARM64_VA_BITS_52) && !KASAN_SW_TAGS
-	default 0xdfffd00000000000 if ARM64_VA_BITS_47 && !KASAN_SW_TAGS
-	default 0xdffffe8000000000 if ARM64_VA_BITS_42 && !KASAN_SW_TAGS
-	default 0xdfffffd000000000 if ARM64_VA_BITS_39 && !KASAN_SW_TAGS
-	default 0xdffffffa00000000 if ARM64_VA_BITS_36 && !KASAN_SW_TAGS
-	default 0xefff900000000000 if (ARM64_VA_BITS_48 || ARM64_VA_BITS_52) && KASAN_SW_TAGS
-	default 0xefffc80000000000 if ARM64_VA_BITS_47 && KASAN_SW_TAGS
-	default 0xeffffe4000000000 if ARM64_VA_BITS_42 && KASAN_SW_TAGS
-	default 0xefffffc800000000 if ARM64_VA_BITS_39 && KASAN_SW_TAGS
-	default 0xeffffff900000000 if ARM64_VA_BITS_36 && KASAN_SW_TAGS
+	depends on KASAN_GENERIC || KASAN_SW_TAGS
+	default 0xdfff800000000000 if (ARM64_VA_BITS_48 || ARM64_VA_BITS_52) && !KASAN_SW_TAGS
+	default 0xdfffc00000000000 if ARM64_VA_BITS_47 && !KASAN_SW_TAGS
+	default 0xdffffe0000000000 if ARM64_VA_BITS_42 && !KASAN_SW_TAGS
+	default 0xdfffffc000000000 if ARM64_VA_BITS_39 && !KASAN_SW_TAGS
+	default 0xdffffff800000000 if ARM64_VA_BITS_36 && !KASAN_SW_TAGS
+	default 0xefff800000000000 if (ARM64_VA_BITS_48 || ARM64_VA_BITS_52) && KASAN_SW_TAGS
+	default 0xefffc00000000000 if ARM64_VA_BITS_47 && KASAN_SW_TAGS
+	default 0xeffffe0000000000 if ARM64_VA_BITS_42 && KASAN_SW_TAGS
+	default 0xefffffc000000000 if ARM64_VA_BITS_39 && KASAN_SW_TAGS
+	default 0xeffffff800000000 if ARM64_VA_BITS_36 && KASAN_SW_TAGS
 	default 0xffffffffffffffff
 
 source "arch/arm64/Kconfig.platforms"
@@ -514,13 +533,16 @@ config ARM64_ERRATUM_843419
 
 	  If unsure, say Y.
 
+config ARM64_LD_HAS_FIX_ERRATUM_843419
+	def_bool $(ld-option,--fix-cortex-a53-843419)
+
 config ARM64_ERRATUM_1024718
 	bool "Cortex-A55: 1024718: Update of DBM/AP bits without break before make might result in incorrect update"
 	default y
 	help
 	  This option adds a workaround for ARM Cortex-A55 Erratum 1024718.
 
-	  Affected Cortex-A55 cores (r0p0, r0p1, r1p0) could cause incorrect
+	  Affected Cortex-A55 cores (all revisions) could cause incorrect
 	  update of the hardware dirty bit when the DBM/AP bits are updated
 	  without a break-before-make. The workaround is to disable the usage
 	  of hardware DBM locally on the affected cores. CPUs not affected by
@@ -657,6 +679,204 @@ config ARM64_ERRATUM_1508412
 
 	  If unsure, say Y.
 
+config ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE
+	bool
+
+config ARM64_ERRATUM_2051678
+	bool "Cortex-A510: 2051678: disable Hardware Update of the page table dirty bit"
+	default y
+	help
+	  This options adds the workaround for ARM Cortex-A510 erratum ARM64_ERRATUM_2051678.
+	  Affected Cortex-A510 might not respect the ordering rules for
+	  hardware update of the page table's dirty bit. The workaround
+	  is to not enable the feature on affected CPUs.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_2077057
+	bool "Cortex-A510: 2077057: workaround software-step corrupting SPSR_EL2"
+	default y
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 2077057.
+	  Affected Cortex-A510 may corrupt SPSR_EL2 when the a step exception is
+	  expected, but a Pointer Authentication trap is taken instead. The
+	  erratum causes SPSR_EL1 to be copied to SPSR_EL2, which could allow
+	  EL1 to cause a return to EL2 with a guest controlled ELR_EL2.
+
+	  This can only happen when EL2 is stepping EL1.
+
+	  When these conditions occur, the SPSR_EL2 value is unchanged from the
+	  previous guest entry, and can be restored from the in-memory copy.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_2119858
+	bool "Cortex-A710/X2: 2119858: workaround TRBE overwriting trace data in FILL mode"
+	default y
+	depends on CORESIGHT_TRBE
+	select ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE
+	help
+	  This option adds the workaround for ARM Cortex-A710/X2 erratum 2119858.
+
+	  Affected Cortex-A710/X2 cores could overwrite up to 3 cache lines of trace
+	  data at the base of the buffer (pointed to by TRBASER_EL1) in FILL mode in
+	  the event of a WRAP event.
+
+	  Work around the issue by always making sure we move the TRBPTR_EL1 by
+	  256 bytes before enabling the buffer and filling the first 256 bytes of
+	  the buffer with ETM ignore packets upon disabling.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_2139208
+	bool "Neoverse-N2: 2139208: workaround TRBE overwriting trace data in FILL mode"
+	default y
+	depends on CORESIGHT_TRBE
+	select ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE
+	help
+	  This option adds the workaround for ARM Neoverse-N2 erratum 2139208.
+
+	  Affected Neoverse-N2 cores could overwrite up to 3 cache lines of trace
+	  data at the base of the buffer (pointed to by TRBASER_EL1) in FILL mode in
+	  the event of a WRAP event.
+
+	  Work around the issue by always making sure we move the TRBPTR_EL1 by
+	  256 bytes before enabling the buffer and filling the first 256 bytes of
+	  the buffer with ETM ignore packets upon disabling.
+
+	  If unsure, say Y.
+
+config ARM64_WORKAROUND_TSB_FLUSH_FAILURE
+	bool
+
+config ARM64_ERRATUM_2054223
+	bool "Cortex-A710: 2054223: workaround TSB instruction failing to flush trace"
+	default y
+	select ARM64_WORKAROUND_TSB_FLUSH_FAILURE
+	help
+	  Enable workaround for ARM Cortex-A710 erratum 2054223
+
+	  Affected cores may fail to flush the trace data on a TSB instruction, when
+	  the PE is in trace prohibited state. This will cause losing a few bytes
+	  of the trace cached.
+
+	  Workaround is to issue two TSB consecutively on affected cores.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_2067961
+	bool "Neoverse-N2: 2067961: workaround TSB instruction failing to flush trace"
+	default y
+	select ARM64_WORKAROUND_TSB_FLUSH_FAILURE
+	help
+	  Enable workaround for ARM Neoverse-N2 erratum 2067961
+
+	  Affected cores may fail to flush the trace data on a TSB instruction, when
+	  the PE is in trace prohibited state. This will cause losing a few bytes
+	  of the trace cached.
+
+	  Workaround is to issue two TSB consecutively on affected cores.
+
+	  If unsure, say Y.
+
+config ARM64_WORKAROUND_TRBE_WRITE_OUT_OF_RANGE
+	bool
+
+config ARM64_ERRATUM_2253138
+	bool "Neoverse-N2: 2253138: workaround TRBE writing to address out-of-range"
+	depends on CORESIGHT_TRBE
+	default y
+	select ARM64_WORKAROUND_TRBE_WRITE_OUT_OF_RANGE
+	help
+	  This option adds the workaround for ARM Neoverse-N2 erratum 2253138.
+
+	  Affected Neoverse-N2 cores might write to an out-of-range address, not reserved
+	  for TRBE. Under some conditions, the TRBE might generate a write to the next
+	  virtually addressed page following the last page of the TRBE address space
+	  (i.e., the TRBLIMITR_EL1.LIMIT), instead of wrapping around to the base.
+
+	  Work around this in the driver by always making sure that there is a
+	  page beyond the TRBLIMITR_EL1.LIMIT, within the space allowed for the TRBE.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_2224489
+	bool "Cortex-A710/X2: 2224489: workaround TRBE writing to address out-of-range"
+	depends on CORESIGHT_TRBE
+	default y
+	select ARM64_WORKAROUND_TRBE_WRITE_OUT_OF_RANGE
+	help
+	  This option adds the workaround for ARM Cortex-A710/X2 erratum 2224489.
+
+	  Affected Cortex-A710/X2 cores might write to an out-of-range address, not reserved
+	  for TRBE. Under some conditions, the TRBE might generate a write to the next
+	  virtually addressed page following the last page of the TRBE address space
+	  (i.e., the TRBLIMITR_EL1.LIMIT), instead of wrapping around to the base.
+
+	  Work around this in the driver by always making sure that there is a
+	  page beyond the TRBLIMITR_EL1.LIMIT, within the space allowed for the TRBE.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_2064142
+	bool "Cortex-A510: 2064142: workaround TRBE register writes while disabled"
+	depends on CORESIGHT_TRBE
+	default y
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 2064142.
+
+	  Affected Cortex-A510 core might fail to write into system registers after the
+	  TRBE has been disabled. Under some conditions after the TRBE has been disabled
+	  writes into TRBE registers TRBLIMITR_EL1, TRBPTR_EL1, TRBBASER_EL1, TRBSR_EL1,
+	  and TRBTRG_EL1 will be ignored and will not be effected.
+
+	  Work around this in the driver by executing TSB CSYNC and DSB after collection
+	  is stopped and before performing a system register write to one of the affected
+	  registers.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_2038923
+	bool "Cortex-A510: 2038923: workaround TRBE corruption with enable"
+	depends on CORESIGHT_TRBE
+	default y
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 2038923.
+
+	  Affected Cortex-A510 core might cause an inconsistent view on whether trace is
+	  prohibited within the CPU. As a result, the trace buffer or trace buffer state
+	  might be corrupted. This happens after TRBE buffer has been enabled by setting
+	  TRBLIMITR_EL1.E, followed by just a single context synchronization event before
+	  execution changes from a context, in which trace is prohibited to one where it
+	  isn't, or vice versa. In these mentioned conditions, the view of whether trace
+	  is prohibited is inconsistent between parts of the CPU, and the trace buffer or
+	  the trace buffer state might be corrupted.
+
+	  Work around this in the driver by preventing an inconsistent view of whether the
+	  trace is prohibited or not based on TRBLIMITR_EL1.E by immediately following a
+	  change to TRBLIMITR_EL1.E with at least one ISB instruction before an ERET, or
+	  two ISB instructions if no ERET is to take place.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_1902691
+	bool "Cortex-A510: 1902691: workaround TRBE trace corruption"
+	depends on CORESIGHT_TRBE
+	default y
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 1902691.
+
+	  Affected Cortex-A510 core might cause trace data corruption, when being written
+	  into the memory. Effectively TRBE is broken and hence cannot be used to capture
+	  trace data.
+
+	  Work around this problem in the driver by just preventing TRBE initialization on
+	  affected cpus. The firmware must have disabled the access to TRBE for the kernel
+	  on such implementations. This will cover the kernel for any firmware that doesn't
+	  do this already.
+
+	  If unsure, say Y.
+
 config CAVIUM_ERRATUM_22375
 	bool "Cavium erratum 22375, 24313"
 	default y
@@ -684,12 +904,16 @@ config CAVIUM_ERRATUM_23144
 	  If unsure, say Y.
 
 config CAVIUM_ERRATUM_23154
-	bool "Cavium erratum 23154: Access to ICC_IAR1_EL1 is not sync'ed"
+	bool "Cavium errata 23154 and 38545: GICv3 lacks HW synchronisation"
 	default y
 	help
-	  The gicv3 of ThunderX requires a modified version for
+	  The ThunderX GICv3 implementation requires a modified version for
 	  reading the IAR status to ensure data synchronization
 	  (access to icc_iar1_el1 is not sync'ed before and after).
+
+	  It also suffers from erratum 38545 (also present on Marvell's
+	  OcteonTX and OcteonTX2), resulting in deactivated interrupts being
+	  spuriously presented to the CPU interface.
 
 	  If unsure, say Y.
 
@@ -800,6 +1024,16 @@ config QCOM_FALKOR_ERRATUM_E1041
 	  Falkor CPU may speculatively fetch instructions from an improper
 	  memory location when MMU translation is changed from SCTLR_ELn[M]=1
 	  to SCTLR_ELn[M]=0. Prefix an ISB instruction to fix the problem.
+
+	  If unsure, say Y.
+
+config NVIDIA_CARMEL_CNP_ERRATUM
+	bool "NVIDIA Carmel CNP: CNP on Carmel semantically different than ARM cores"
+	default y
+	help
+	  If CNP is enabled on Carmel cores, non-sharable TLBIs on a core will not
+	  invalidate shared TLB entries installed by a different core, as it would
+	  on standard ARM cores.
 
 	  If unsure, say Y.
 
@@ -950,8 +1184,9 @@ choice
 	  that is selected here.
 
 config CPU_BIG_ENDIAN
-       bool "Build big-endian kernel"
-       help
+	bool "Build big-endian kernel"
+	depends on !LD_IS_LLD || LLD_VERSION >= 130000
+	help
 	  Say Y if you plan on running a kernel with a big-endian userspace.
 
 config CPU_LITTLE_ENDIAN
@@ -968,6 +1203,15 @@ config SCHED_MC
 	  Multi-core scheduler support improves the CPU scheduler's decision
 	  making when dealing with multi-core CPU chips at a cost of slightly
 	  increased overhead in some places. If unsure say N here.
+
+config SCHED_CLUSTER
+	bool "Cluster scheduler support"
+	help
+	  Cluster scheduler support improves the CPU scheduler's decision
+	  making when dealing with machines that have clusters of CPUs.
+	  Cluster usually means a couple of CPUs which are placed closely
+	  by sharing mid-level caches, last-level cache tags or internal
+	  busses.
 
 config SCHED_SMT
 	bool "SMT scheduler support"
@@ -991,8 +1235,13 @@ config HOTPLUG_CPU
 # Common NUMA Features
 config NUMA
 	bool "NUMA Memory Allocation and Scheduler Support"
+	select GENERIC_ARCH_NUMA
 	select ACPI_NUMA if ACPI
 	select OF_NUMA
+	select HAVE_SETUP_PER_CPU_AREA
+	select NEED_PER_CPU_EMBED_FIRST_CHUNK
+	select NEED_PER_CPU_PAGE_FIRST_CHUNK
+	select USE_PERCPU_NUMA_NODE_ID
 	help
 	  Enable NUMA (Non-Uniform Memory Access) support.
 
@@ -1004,63 +1253,23 @@ config NODES_SHIFT
 	int "Maximum NUMA Nodes (as a power of 2)"
 	range 1 10
 	default "4"
-	depends on NEED_MULTIPLE_NODES
+	depends on NUMA
 	help
 	  Specify the maximum number of NUMA Nodes available on the target
 	  system.  Increases memory reserved to accommodate various tables.
 
-config USE_PERCPU_NUMA_NODE_ID
-	def_bool y
-	depends on NUMA
-
-config HAVE_SETUP_PER_CPU_AREA
-	def_bool y
-	depends on NUMA
-
-config NEED_PER_CPU_EMBED_FIRST_CHUNK
-	def_bool y
-	depends on NUMA
-
-config HOLES_IN_ZONE
-	def_bool y
-
 source "kernel/Kconfig.hz"
-
-config ARCH_SUPPORTS_DEBUG_PAGEALLOC
-	def_bool y
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
 	select SPARSEMEM_VMEMMAP_ENABLE
-
-config ARCH_SPARSEMEM_DEFAULT
-	def_bool ARCH_SPARSEMEM_ENABLE
-
-config ARCH_SELECT_MEMORY_MODEL
-	def_bool ARCH_SPARSEMEM_ENABLE
-
-config ARCH_FLATMEM_ENABLE
-	def_bool !NUMA
-
-config HAVE_ARCH_PFN_VALID
-	def_bool y
+	select SPARSEMEM_VMEMMAP
 
 config HW_PERF_EVENTS
 	def_bool y
 	depends on ARM_PMU
 
-config SYS_SUPPORTS_HUGETLBFS
-	def_bool y
-
-config ARCH_WANT_HUGE_PMD_SHARE
-
-config ARCH_HAS_CACHE_LINE_SIZE
-	def_bool y
-
-config ARCH_ENABLE_SPLIT_PMD_PTLOCK
-	def_bool y if PGTABLE_LEVELS > 2
-
-# Supported by clang >= 7.0
+# Supported by clang >= 7.0 or GCC >= 12.0.0
 config CC_HAVE_SHADOW_CALL_STACK
 	def_bool $(cc-option, -fsanitize=shadow-call-stack -ffixed-x18)
 
@@ -1095,6 +1304,7 @@ config KEXEC
 config KEXEC_FILE
 	bool "kexec file based system call"
 	select KEXEC_CORE
+	select HAVE_IMA_KEXEC if IMA
 	help
 	  This is new version of kexec system call. This system call is
 	  file based and takes file descriptors as system call argument
@@ -1136,6 +1346,10 @@ config CRASH_DUMP
 
 	  For more details see Documentation/admin-guide/kdump/kdump.rst
 
+config TRANS_TABLE
+	def_bool y
+	depends on HIBERNATION || KEXEC_CORE
+
 config XEN_DOM0
 	def_bool y
 	depends on XEN
@@ -1150,8 +1364,8 @@ config XEN
 
 config FORCE_MAX_ZONEORDER
 	int
-	default "14" if (ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
-	default "12" if (ARM64_16K_PAGES && TRANSPARENT_HUGEPAGE)
+	default "14" if ARM64_64K_PAGES
+	default "12" if ARM64_16K_PAGES
 	default "11"
 	help
 	  The kernel memory allocator divides physically contiguous memory
@@ -1182,6 +1396,15 @@ config UNMAP_KERNEL_AT_EL0
 	  via a trampoline page in the vector table.
 
 	  If unsure, say Y.
+
+config MITIGATE_SPECTRE_BRANCH_HISTORY
+	bool "Mitigate Spectre style attacks against branch history" if EXPERT
+	default y
+	help
+	  Speculation attacks against some high-performance processors can
+	  make use of branch history to influence future speculation.
+	  When taking an exception from user-space, a sequence of branches
+	  or a firmware call overwrites the branch history.
 
 config RODATA_FULL_DEFAULT_ENABLED
 	bool "Apply r/o permissions of VM areas also to their linear aliases"
@@ -1217,7 +1440,6 @@ config ARM64_TAGGED_ADDR_ABI
 menuconfig COMPAT
 	bool "Kernel support for 32-bit EL0"
 	depends on ARM64_4K_PAGES || EXPERT
-	select COMPAT_BINFMT_ELF if BINFMT_ELF
 	select HAVE_UID16
 	select OLD_SIGSUSPEND3
 	select COMPAT_OLD_SIGACTION
@@ -1264,7 +1486,8 @@ config KUSER_HELPERS
 
 config COMPAT_VDSO
 	bool "Enable vDSO for 32-bit applications"
-	depends on !CPU_BIG_ENDIAN && "$(CROSS_COMPILE_COMPAT)" != ""
+	depends on !CPU_BIG_ENDIAN
+	depends on (CC_IS_CLANG && LD_IS_LLD) || "$(CROSS_COMPILE_COMPAT)" != ""
 	select GENERIC_COMPAT_VDSO
 	default y
 	help
@@ -1389,10 +1612,16 @@ config ARM64_PAN
 	 The feature is detected at runtime, and will remain as a 'nop'
 	 instruction if the cpu does not implement the feature.
 
+config AS_HAS_LDAPR
+	def_bool $(as-instr,.arch_extension rcpc)
+
+config AS_HAS_LSE_ATOMICS
+	def_bool $(as-instr,.arch_extension lse)
+
 config ARM64_LSE_ATOMICS
 	bool
 	default ARM64_USE_LSE_ATOMICS
-	depends on $(as-instr,.arch_extension lse)
+	depends on AS_HAS_LSE_ATOMICS
 
 config ARM64_USE_LSE_ATOMICS
 	bool "Atomic instructions"
@@ -1409,43 +1638,15 @@ config ARM64_USE_LSE_ATOMICS
 	  built with binutils >= 2.25 in order for the new instructions
 	  to be used.
 
-config ARM64_VHE
-	bool "Enable support for Virtualization Host Extensions (VHE)"
-	default y
-	help
-	  Virtualization Host Extensions (VHE) allow the kernel to run
-	  directly at EL2 (instead of EL1) on processors that support
-	  it. This leads to better performance for KVM, as they reduce
-	  the cost of the world switch.
-
-	  Selecting this option allows the VHE feature to be detected
-	  at runtime, and does not affect processors that do not
-	  implement this feature.
-
 endmenu
 
 menu "ARMv8.2 architectural features"
 
-config ARM64_UAO
-	bool "Enable support for User Access Override (UAO)"
-	default y
-	help
-	  User Access Override (UAO; part of the ARMv8.2 Extensions)
-	  causes the 'unprivileged' variant of the load/store instructions to
-	  be overridden to be privileged.
+config AS_HAS_ARMV8_2
+       def_bool $(cc-option,-Wa$(comma)-march=armv8.2-a)
 
-	  This option changes get_user() and friends to use the 'unprivileged'
-	  variant of the load/store instructions. This ensures that user-space
-	  really did have access to the supplied memory. When addr_limit is
-	  set to kernel memory the UAO bit will be set, allowing privileged
-	  access to kernel memory.
-
-	  Choosing this option will cause copy_to_user() et al to use user-space
-	  memory permissions.
-
-	  The feature is detected at runtime, the kernel will use the
-	  regular load/store instructions if the cpu does not implement the
-	  feature.
+config AS_HAS_SHA3
+       def_bool $(as-instr,.arch armv8.2-a+sha3)
 
 config ARM64_PMEM
 	bool "Enable support for persistent memory"
@@ -1496,12 +1697,6 @@ menu "ARMv8.3 architectural features"
 config ARM64_PTR_AUTH
 	bool "Enable support for pointer authentication"
 	default y
-	depends on (CC_HAS_SIGN_RETURN_ADDRESS || CC_HAS_BRANCH_PROT_PAC_RET) && AS_HAS_PAC
-	# Modern compilers insert a .note.gnu.property section note for PAC
-	# which is only understood by binutils starting with version 2.33.1.
-	depends on LD_IS_LLD || LD_VERSION >= 233010000 || (CC_IS_GCC && GCC_VERSION < 90100)
-	depends on !CC_IS_CLANG || AS_HAS_CFI_NEGATE_RA_STATE
-	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_REGS)
 	help
 	  Pointer authentication (part of the ARMv8.3 Extensions) provides
 	  instructions for signing and authenticating pointers against secret
@@ -1513,13 +1708,6 @@ config ARM64_PTR_AUTH
 	  for each process at exec() time, with these keys being
 	  context-switched along with the process.
 
-	  If the compiler supports the -mbranch-protection or
-	  -msign-return-address flag (e.g. GCC 7 or later), then this option
-	  will also cause the kernel itself to be compiled with return address
-	  protection. In this case, and if the target hardware is known to
-	  support pointer authentication, then CONFIG_STACKPROTECTOR can be
-	  disabled with minimal loss of protection.
-
 	  The feature is detected at runtime. If the feature is not present in
 	  hardware it will not be advertised to userspace/KVM guest nor will it
 	  be enabled.
@@ -1529,6 +1717,24 @@ config ARM64_PTR_AUTH
 	  address auth and the late CPU has then the late CPU will still boot
 	  but with the feature disabled. On such a system, this option should
 	  not be selected.
+
+config ARM64_PTR_AUTH_KERNEL
+	bool "Use pointer authentication for kernel"
+	default y
+	depends on ARM64_PTR_AUTH
+	depends on (CC_HAS_SIGN_RETURN_ADDRESS || CC_HAS_BRANCH_PROT_PAC_RET) && AS_HAS_PAC
+	# Modern compilers insert a .note.gnu.property section note for PAC
+	# which is only understood by binutils starting with version 2.33.1.
+	depends on LD_IS_LLD || LD_VERSION >= 23301 || (CC_IS_GCC && GCC_VERSION < 90100)
+	depends on !CC_IS_CLANG || AS_HAS_CFI_NEGATE_RA_STATE
+	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_REGS)
+	help
+	  If the compiler supports the -mbranch-protection or
+	  -msign-return-address flag (e.g. GCC 7 or later), then this option
+	  will cause the kernel itself to be compiled with return address
+	  protection. In this case, and if the target hardware is known to
+	  support pointer authentication, then CONFIG_STACKPROTECTOR can be
+	  disabled with minimal loss of protection.
 
 	  This feature works with FUNCTION_GRAPH_TRACER option only if
 	  DYNAMIC_FTRACE_WITH_REGS is enabled.
@@ -1592,6 +1798,9 @@ endmenu
 
 menu "ARMv8.5 architectural features"
 
+config AS_HAS_ARMV8_5
+	def_bool $(cc-option,-Wa$(comma)-march=armv8.5-a)
+
 config ARM64_BTI
 	bool "Branch Target Identification support"
 	default y
@@ -1618,11 +1827,12 @@ config ARM64_BTI_KERNEL
 	bool "Use Branch Target Identification for kernel"
 	default y
 	depends on ARM64_BTI
-	depends on ARM64_PTR_AUTH
+	depends on ARM64_PTR_AUTH_KERNEL
 	depends on CC_HAS_BRANCH_PROT_PAC_RET_BTI
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=94697
 	depends on !CC_IS_GCC || GCC_VERSION >= 100100
-	depends on !(CC_IS_CLANG && GCOV_KERNEL)
+	# https://github.com/llvm/llvm-project/commit/a88c722e687e6780dcd6a58718350dc76fcc4cc9
+	depends on !CC_IS_CLANG || CLANG_VERSION >= 120000
 	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_REGS)
 	help
 	  Build the kernel with Branch Target Identification annotations
@@ -1666,6 +1876,10 @@ config ARM64_MTE
 	bool "Memory Tagging Extension support"
 	default y
 	depends on ARM64_AS_HAS_MTE && ARM64_TAGGED_ADDR_ABI
+	depends on AS_HAS_ARMV8_5
+	depends on AS_HAS_LSE_ATOMICS
+	# Required for tag checking in the uaccess routines
+	depends on ARM64_PAN
 	select ARCH_USES_HIGH_VMA_FLAGS
 	help
 	  Memory Tagging (part of the ARMv8.5 Extensions) provides
@@ -1689,10 +1903,23 @@ config ARM64_MTE
 
 endmenu
 
+menu "ARMv8.7 architectural features"
+
+config ARM64_EPAN
+	bool "Enable support for Enhanced Privileged Access Never (EPAN)"
+	default y
+	depends on ARM64_PAN
+	help
+	 Enhanced Privileged Access Never (EPAN) allows Privileged
+	 Access Never to be used with Execute-only mappings.
+
+	 The feature is detected at runtime, and will remain disabled
+	 if the cpu does not implement the feature.
+endmenu
+
 config ARM64_SVE
 	bool "ARM Scalable Vector Extension support"
 	default y
-	depends on !KVM || ARM64_VHE
 	help
 	  The Scalable Vector Extension (SVE) is an extension to the AArch64
 	  execution state which complements and extends the SIMD functionality
@@ -1720,12 +1947,6 @@ config ARM64_SVE
 	  fixed.  Otherwise, you may experience firmware panics or lockups when
 	  booting the kernel.  If unsure and you are not observing these
 	  symptoms, you should assume that it is safe to say Y.
-
-	  CPUs that support SVE are architecturally required to support the
-	  Virtualization Host Extensions (VHE), so the kernel makes no
-	  provision for supporting SVE alongside KVM without VHE enabled.
-	  Thus, you will need to enable CONFIG_ARM64_VHE if you want to support
-	  KVM in the same kernel image.
 
 config ARM64_MODULE_PLTS
 	bool "Use PLTs to allow module memory to spill over into vmalloc area"
@@ -1805,11 +2026,11 @@ config RANDOMIZE_BASE
 	  If unsure, say N.
 
 config RANDOMIZE_MODULE_REGION_FULL
-	bool "Randomize the module region over a 4 GB range"
+	bool "Randomize the module region over a 2 GB range"
 	depends on RANDOMIZE_BASE
 	default y
 	help
-	  Randomizes the location of the module region inside a 4 GB window
+	  Randomizes the location of the module region inside a 2 GB window
 	  covering the core kernel. This way, it is less likely for modules
 	  to leak information about the location of core kernel data structures
 	  but it does imply that function calls between modules and the core
@@ -1817,7 +2038,10 @@ config RANDOMIZE_MODULE_REGION_FULL
 
 	  When this option is not set, the module region will be randomized over
 	  a limited range that contains the [_stext, _etext] interval of the
-	  core kernel, so branch relocations are always in range.
+	  core kernel, so branch relocations are almost always in range unless
+	  ARM64_MODULE_PLTS is enabled and the region is exhausted. In this
+	  particular case of region exhaustion, modules might be able to fall
+	  back to a larger 2GB area.
 
 config CC_HAVE_STACKPROTECTOR_SYSREG
 	def_bool $(cc-option,-mstack-protector-guard=sysreg -mstack-protector-guard-reg=sp_el0 -mstack-protector-guard-offset=0)
@@ -1847,14 +2071,29 @@ config CMDLINE
 	  entering them here. As a minimum, you should specify the the
 	  root device (e.g. root=/dev/nfs).
 
+choice
+	prompt "Kernel command line type" if CMDLINE != ""
+	default CMDLINE_FROM_BOOTLOADER
+	help
+	  Choose how the kernel will handle the provided default kernel
+	  command line string.
+
+config CMDLINE_FROM_BOOTLOADER
+	bool "Use bootloader kernel arguments if available"
+	help
+	  Uses the command-line options passed by the boot loader. If
+	  the boot loader doesn't provide any, the default kernel command
+	  string provided in CMDLINE will be used.
+
 config CMDLINE_FORCE
 	bool "Always use the default kernel command string"
-	depends on CMDLINE != ""
 	help
 	  Always use the default kernel command string, even if the boot
 	  loader passes other arguments to the kernel.
 	  This is useful if you cannot or don't want to change the
 	  command-line options your boot loader passes to the kernel.
+
+endchoice
 
 config EFI_STUB
 	bool
@@ -1870,6 +2109,7 @@ config EFI
 	select EFI_RUNTIME_WRAPPERS
 	select EFI_STUB
 	select EFI_GENERIC_STUB
+	imply IMA_SECURE_AND_OR_TRUSTED_BOOT
 	default y
 	help
 	  This option provides support for runtime services provided
@@ -1895,14 +2135,6 @@ config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC
 
-config ARCH_ENABLE_HUGEPAGE_MIGRATION
-	def_bool y
-	depends on HUGETLB_PAGE && MIGRATION
-
-config ARCH_ENABLE_THP_MIGRATION
-	def_bool y
-	depends on TRANSPARENT_HUGEPAGE
-
 menu "Power management options"
 
 source "kernel/power/Kconfig"
@@ -1927,8 +2159,6 @@ source "drivers/cpuidle/Kconfig"
 source "drivers/cpufreq/Kconfig"
 
 endmenu
-
-source "drivers/firmware/Kconfig"
 
 source "drivers/acpi/Kconfig"
 

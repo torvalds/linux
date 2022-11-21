@@ -15,6 +15,8 @@ struct vdso_image {
 	unsigned long size;   /* Always a multiple of PAGE_SIZE */
 
 	unsigned long alt, alt_len;
+	unsigned long extable_base, extable_len;
+	const void *extable;
 
 	long sym_vvar_start;  /* Negative offset to the vvar area */
 
@@ -27,13 +29,15 @@ struct vdso_image {
 	long sym___kernel_rt_sigreturn;
 	long sym___kernel_vsyscall;
 	long sym_int80_landing_pad;
+	long sym_vdso32_sigreturn_landing_pad;
+	long sym_vdso32_rt_sigreturn_landing_pad;
 };
 
 #ifdef CONFIG_X86_64
 extern const struct vdso_image vdso_image_64;
 #endif
 
-#ifdef CONFIG_X86_X32
+#ifdef CONFIG_X86_X32_ABI
 extern const struct vdso_image vdso_image_x32;
 #endif
 
@@ -45,6 +49,9 @@ extern void __init init_vdso_image(const struct vdso_image *image);
 
 extern int map_vdso_once(const struct vdso_image *image, unsigned long addr);
 
+extern bool fixup_vdso_exception(struct pt_regs *regs, int trapnr,
+				 unsigned long error_code,
+				 unsigned long fault_addr);
 #endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_X86_VDSO_H */

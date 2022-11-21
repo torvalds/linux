@@ -62,7 +62,6 @@ static int ur_probe(struct ccw_device *cdev);
 static void ur_remove(struct ccw_device *cdev);
 static int ur_set_online(struct ccw_device *cdev);
 static int ur_set_offline(struct ccw_device *cdev);
-static int ur_pm_suspend(struct ccw_device *cdev);
 
 static struct ccw_driver ur_driver = {
 	.driver = {
@@ -74,7 +73,6 @@ static struct ccw_driver ur_driver = {
 	.remove		= ur_remove,
 	.set_online	= ur_set_online,
 	.set_offline	= ur_set_offline,
-	.freeze		= ur_pm_suspend,
 	.int_class	= IRQIO_VMR,
 };
 
@@ -162,28 +160,6 @@ static void urdev_put(struct urdev *urd)
 {
 	if (refcount_dec_and_test(&urd->ref_count))
 		urdev_free(urd);
-}
-
-/*
- * State and contents of ur devices can be changed by class D users issuing
- * CP commands such as PURGE or TRANSFER, while the Linux guest is suspended.
- * Also the Linux guest might be logged off, which causes all active spool
- * files to be closed.
- * So we cannot guarantee that spool files are still the same when the Linux
- * guest is resumed. In order to avoid unpredictable results at resume time
- * we simply refuse to suspend if a ur device node is open.
- */
-static int ur_pm_suspend(struct ccw_device *cdev)
-{
-	struct urdev *urd = dev_get_drvdata(&cdev->dev);
-
-	TRACE("ur_pm_suspend: cdev=%p\n", cdev);
-	if (urd->open_flag) {
-		pr_err("Unit record device %s is busy, %s refusing to "
-		       "suspend.\n", dev_name(&cdev->dev), ur_banner);
-		return -EBUSY;
-	}
-	return 0;
 }
 
 /*
@@ -705,7 +681,7 @@ static int ur_open(struct inode *inode, struct file *file)
 	 * We treat the minor number as the devno of the ur device
 	 * to find in the driver tree.
 	 */
-	devno = MINOR(file_inode(file)->i_rdev);
+	devno = iminor(file_inode(file));
 
 	urd = urdev_get_from_devno(devno);
 	if (!urd) {

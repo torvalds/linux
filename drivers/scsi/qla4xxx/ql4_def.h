@@ -216,11 +216,21 @@
 #define IDC_COMP_TOV			5
 #define LINK_UP_COMP_TOV		30
 
-#define CMD_SP(Cmnd)			((Cmnd)->SCp.ptr)
+/*
+ * Note: the data structure below does not have a struct iscsi_cmd member since
+ * the qla4xxx driver does not use libiscsi for SCSI I/O.
+ */
+struct qla4xxx_cmd_priv {
+	struct srb *srb;
+};
+
+static inline struct qla4xxx_cmd_priv *qla4xxx_cmd_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
 
 /*
- * SCSI Request Block structure	 (srb)	that is placed
- * on cmd->SCp location of every I/O	 [We have 22 bytes available]
+ * SCSI Request Block structure (srb) that is associated with each scsi_cmnd.
  */
 struct srb {
 	struct list_head list;	/* (8)	 */
@@ -366,13 +376,13 @@ struct qla4_work_evt {
 		struct {
 			enum iscsi_host_event_code code;
 			uint32_t data_size;
-			uint8_t data[0];
+			uint8_t data[];
 		} aen;
 		struct {
 			uint32_t status;
 			uint32_t pid;
 			uint32_t data_size;
-			uint8_t data[0];
+			uint8_t data[];
 		} ping;
 	} u;
 };
@@ -435,9 +445,9 @@ struct isp_operations {
 	void (*wr_reg_direct) (struct scsi_qla_host *, ulong, uint32_t);
 	int (*rd_reg_indirect) (struct scsi_qla_host *, uint32_t, uint32_t *);
 	int (*wr_reg_indirect) (struct scsi_qla_host *, uint32_t, uint32_t);
-	int (*idc_lock) (struct scsi_qla_host *);
+	int (*idc_lock) (struct scsi_qla_host *); /* Context: task, can sleep */
 	void (*idc_unlock) (struct scsi_qla_host *);
-	void (*rom_lock_recovery) (struct scsi_qla_host *);
+	void (*rom_lock_recovery) (struct scsi_qla_host *); /* Context: task, can sleep */
 	void (*queue_mailbox_command) (struct scsi_qla_host *, uint32_t *, int);
 	void (*process_mailbox_interrupt) (struct scsi_qla_host *, int);
 };

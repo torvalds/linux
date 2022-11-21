@@ -1,48 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
 /*
  * Copyright(c) 2015 - 2020 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 #include <rdma/ib_mad.h>
@@ -729,7 +687,7 @@ bail_txadd:
 
 /**
  * update_tx_opstats - record stats by opcode
- * @qp; the qp
+ * @qp: the qp
  * @ps: transmit packet state
  * @plen: the plen in dwords
  *
@@ -1145,7 +1103,7 @@ static inline int egress_pkey_matches_entry(u16 pkey, u16 ent)
  * egress_pkey_check - check P_KEY of a packet
  * @ppd:  Physical IB port data
  * @slid: SLID for packet
- * @bkey: PKEY for header
+ * @pkey: PKEY for header
  * @sc5:  SC for packet
  * @s_pkey_index: It will be used for look up optimization for kernel contexts
  * only. If it is negative value, then it means user contexts is calling this
@@ -1206,7 +1164,7 @@ bad:
 	return 1;
 }
 
-/**
+/*
  * get_send_routine - choose an egress routine
  *
  * Choose an egress routine based on QP type
@@ -1407,7 +1365,7 @@ static inline u16 opa_width_to_ib(u16 in)
 	}
 }
 
-static int query_port(struct rvt_dev_info *rdi, u8 port_num,
+static int query_port(struct rvt_dev_info *rdi, u32 port_num,
 		      struct ib_port_attr *props)
 {
 	struct hfi1_ibdev *verbs_dev = dev_from_rdi(rdi);
@@ -1439,8 +1397,7 @@ static int query_port(struct rvt_dev_info *rdi, u8 port_num,
 				      4096 : hfi1_max_mtu), IB_MTU_4096);
 	props->active_mtu = !valid_ib_mtu(ppd->ibmtu) ? props->max_mtu :
 		mtu_to_enum(ppd->ibmtu, IB_MTU_4096);
-	props->phys_mtu = HFI1_CAP_IS_KSET(AIP) ? hfi1_max_mtu :
-				ib_mtu_enum_to_int(props->max_mtu);
+	props->phys_mtu = hfi1_max_mtu;
 
 	return 0;
 }
@@ -1485,7 +1442,7 @@ bail:
 	return ret;
 }
 
-static int shut_down_port(struct rvt_dev_info *rdi, u8 port_num)
+static int shut_down_port(struct rvt_dev_info *rdi, u32 port_num)
 {
 	struct hfi1_ibdev *verbs_dev = dev_from_rdi(rdi);
 	struct hfi1_devdata *dd = dd_from_dev(verbs_dev);
@@ -1644,8 +1601,8 @@ static const char * const driver_cntr_names[] = {
 };
 
 static DEFINE_MUTEX(cntr_names_lock); /* protects the *_cntr_names bufers */
-static const char **dev_cntr_names;
-static const char **port_cntr_names;
+static struct rdma_stat_desc *dev_cntr_descs;
+static struct rdma_stat_desc *port_cntr_descs;
 int num_driver_cntrs = ARRAY_SIZE(driver_cntr_names);
 static int num_dev_cntrs;
 static int num_port_cntrs;
@@ -1656,13 +1613,12 @@ static int cntr_names_initialized;
  * strings. Optionally some entries can be reserved in the array to hold extra
  * external strings.
  */
-static int init_cntr_names(const char *names_in,
-			   const size_t names_len,
-			   int num_extra_names,
-			   int *num_cntrs,
-			   const char ***cntr_names)
+static int init_cntr_names(const char *names_in, const size_t names_len,
+			   int num_extra_names, int *num_cntrs,
+			   struct rdma_stat_desc **cntr_descs)
 {
-	char *names_out, *p, **q;
+	struct rdma_stat_desc *q;
+	char *names_out, *p;
 	int i, n;
 
 	n = 0;
@@ -1670,77 +1626,77 @@ static int init_cntr_names(const char *names_in,
 		if (names_in[i] == '\n')
 			n++;
 
-	names_out = kmalloc((n + num_extra_names) * sizeof(char *) + names_len,
-			    GFP_KERNEL);
+	names_out =
+		kzalloc((n + num_extra_names) * sizeof(*q) + names_len,
+			GFP_KERNEL);
 	if (!names_out) {
 		*num_cntrs = 0;
-		*cntr_names = NULL;
+		*cntr_descs = NULL;
 		return -ENOMEM;
 	}
 
-	p = names_out + (n + num_extra_names) * sizeof(char *);
+	p = names_out + (n + num_extra_names) * sizeof(*q);
 	memcpy(p, names_in, names_len);
 
-	q = (char **)names_out;
+	q = (struct rdma_stat_desc *)names_out;
 	for (i = 0; i < n; i++) {
-		q[i] = p;
+		q[i].name = p;
 		p = strchr(p, '\n');
 		*p++ = '\0';
 	}
 
 	*num_cntrs = n;
-	*cntr_names = (const char **)names_out;
+	*cntr_descs = (struct rdma_stat_desc *)names_out;
 	return 0;
 }
 
-static struct rdma_hw_stats *alloc_hw_stats(struct ib_device *ibdev,
-					    u8 port_num)
+static int init_counters(struct ib_device *ibdev)
 {
-	int i, err;
+	struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
+	int i, err = 0;
 
 	mutex_lock(&cntr_names_lock);
-	if (!cntr_names_initialized) {
-		struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
+	if (cntr_names_initialized)
+		goto out_unlock;
 
-		err = init_cntr_names(dd->cntrnames,
-				      dd->cntrnameslen,
-				      num_driver_cntrs,
-				      &num_dev_cntrs,
-				      &dev_cntr_names);
-		if (err) {
-			mutex_unlock(&cntr_names_lock);
-			return NULL;
-		}
+	err = init_cntr_names(dd->cntrnames, dd->cntrnameslen, num_driver_cntrs,
+			      &num_dev_cntrs, &dev_cntr_descs);
+	if (err)
+		goto out_unlock;
 
-		for (i = 0; i < num_driver_cntrs; i++)
-			dev_cntr_names[num_dev_cntrs + i] =
-				driver_cntr_names[i];
+	for (i = 0; i < num_driver_cntrs; i++)
+		dev_cntr_descs[num_dev_cntrs + i].name = driver_cntr_names[i];
 
-		err = init_cntr_names(dd->portcntrnames,
-				      dd->portcntrnameslen,
-				      0,
-				      &num_port_cntrs,
-				      &port_cntr_names);
-		if (err) {
-			kfree(dev_cntr_names);
-			dev_cntr_names = NULL;
-			mutex_unlock(&cntr_names_lock);
-			return NULL;
-		}
-		cntr_names_initialized = 1;
+	err = init_cntr_names(dd->portcntrnames, dd->portcntrnameslen, 0,
+			      &num_port_cntrs, &port_cntr_descs);
+	if (err) {
+		kfree(dev_cntr_descs);
+		dev_cntr_descs = NULL;
+		goto out_unlock;
 	}
-	mutex_unlock(&cntr_names_lock);
+	cntr_names_initialized = 1;
 
-	if (!port_num)
-		return rdma_alloc_hw_stats_struct(
-				dev_cntr_names,
-				num_dev_cntrs + num_driver_cntrs,
-				RDMA_HW_STATS_DEFAULT_LIFESPAN);
-	else
-		return rdma_alloc_hw_stats_struct(
-				port_cntr_names,
-				num_port_cntrs,
-				RDMA_HW_STATS_DEFAULT_LIFESPAN);
+out_unlock:
+	mutex_unlock(&cntr_names_lock);
+	return err;
+}
+
+static struct rdma_hw_stats *hfi1_alloc_hw_device_stats(struct ib_device *ibdev)
+{
+	if (init_counters(ibdev))
+		return NULL;
+	return rdma_alloc_hw_stats_struct(dev_cntr_descs,
+					  num_dev_cntrs + num_driver_cntrs,
+					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+}
+
+static struct rdma_hw_stats *hfi_alloc_hw_port_stats(struct ib_device *ibdev,
+						     u32 port_num)
+{
+	if (init_counters(ibdev))
+		return NULL;
+	return rdma_alloc_hw_stats_struct(port_cntr_descs, num_port_cntrs,
+					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }
 
 static u64 hfi1_sps_ints(void)
@@ -1758,7 +1714,7 @@ static u64 hfi1_sps_ints(void)
 }
 
 static int get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
-			u8 port, int index)
+			u32 port, int index)
 {
 	u64 *values;
 	int count;
@@ -1787,12 +1743,14 @@ static const struct ib_device_ops hfi1_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_HFI1,
 
-	.alloc_hw_stats = alloc_hw_stats,
+	.alloc_hw_device_stats = hfi1_alloc_hw_device_stats,
+	.alloc_hw_port_stats = hfi_alloc_hw_port_stats,
 	.alloc_rdma_netdev = hfi1_vnic_alloc_rn,
+	.device_group = &ib_hfi1_attr_group,
 	.get_dev_fw_str = hfi1_get_dev_fw_str,
 	.get_hw_stats = get_hw_stats,
-	.init_port = hfi1_create_port_files,
 	.modify_device = modify_device,
+	.port_groups = hfi1_attr_port_groups,
 	/* keep process mad in the driver */
 	.process_mad = hfi1_process_mad,
 	.rdma_netdev_get_params = hfi1_ipoib_rn_get_params,
@@ -1927,9 +1885,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 			      i,
 			      ppd->pkeys);
 
-	rdma_set_device_sysfs_group(&dd->verbs_dev.rdi.ibdev,
-				    &ib_hfi1_attr_group);
-
 	ret = rvt_register_device(&dd->verbs_dev.rdi);
 	if (ret)
 		goto err_verbs_txreq;
@@ -1965,10 +1920,10 @@ void hfi1_unregister_ib_device(struct hfi1_devdata *dd)
 	verbs_txreq_exit(dev);
 
 	mutex_lock(&cntr_names_lock);
-	kfree(dev_cntr_names);
-	kfree(port_cntr_names);
-	dev_cntr_names = NULL;
-	port_cntr_names = NULL;
+	kfree(dev_cntr_descs);
+	kfree(port_cntr_descs);
+	dev_cntr_descs = NULL;
+	port_cntr_descs = NULL;
 	cntr_names_initialized = 0;
 	mutex_unlock(&cntr_names_lock);
 }

@@ -529,7 +529,8 @@ static void mace_write(mace_private *lp, unsigned int ioaddr, int reg,
 mace_init
 	Resets the MACE chip.
 ---------------------------------------------------------------------------- */
-static int mace_init(mace_private *lp, unsigned int ioaddr, char *enet_addr)
+static int mace_init(mace_private *lp, unsigned int ioaddr,
+		     const char *enet_addr)
 {
   int i;
   int ct = 0;
@@ -541,7 +542,7 @@ static int mace_init(mace_private *lp, unsigned int ioaddr, char *enet_addr)
     if(++ct > 500)
     {
 	pr_err("reset failed, card removed?\n");
-    	return -1;
+	return -1;
     }
     udelay(1);
   }
@@ -585,11 +586,11 @@ static int mace_init(mace_private *lp, unsigned int ioaddr, char *enet_addr)
   ct = 0;
   while (mace_read(lp, ioaddr, MACE_IAC) & MACE_IAC_ADDRCHG)
   {
-  	if(++ ct > 500)
-  	{
+	if(++ ct > 500)
+	{
 		pr_err("ADDRCHG timeout, card removed?\n");
-  		return -1;
-  	}
+		return -1;
+	}
   }
   /* Set PADR register */
   for (i = 0; i < ETH_ALEN; i++)
@@ -635,7 +636,7 @@ static int nmclan_config(struct pcmcia_device *link)
 	  kfree(buf);
 	  goto failed;
   }
-  memcpy(dev->dev_addr, buf, ETH_ALEN);
+  eth_hw_addr_set(dev, buf);
   kfree(buf);
 
   /* Verify configuration by reading the MACE ID. */
@@ -655,7 +656,7 @@ static int nmclan_config(struct pcmcia_device *link)
   }
 
   if(mace_init(lp, ioaddr, dev->dev_addr) == -1)
-  	goto failed;
+	goto failed;
 
   /* The if_port symbol can be set when the module is loaded */
   if (if_port <= 2)

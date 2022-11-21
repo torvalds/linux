@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/types.h>
 
 /* 32-bit registers */
 #define QPOSCNT		0x0
@@ -73,17 +74,11 @@ enum {
 };
 
 /* Position Counter Input Modes */
-enum {
+enum ti_eqep_count_func {
 	TI_EQEP_COUNT_FUNC_QUAD_COUNT,
 	TI_EQEP_COUNT_FUNC_DIR_COUNT,
 	TI_EQEP_COUNT_FUNC_UP_COUNT,
 	TI_EQEP_COUNT_FUNC_DOWN_COUNT,
-};
-
-enum {
-	TI_EQEP_SYNAPSE_ACTION_BOTH_EDGES,
-	TI_EQEP_SYNAPSE_ACTION_RISING_EDGE,
-	TI_EQEP_SYNAPSE_ACTION_NONE,
 };
 
 struct ti_eqep_cnt {
@@ -92,10 +87,15 @@ struct ti_eqep_cnt {
 	struct regmap *regmap16;
 };
 
-static int ti_eqep_count_read(struct counter_device *counter,
-			      struct counter_count *count, unsigned long *val)
+static struct ti_eqep_cnt *ti_eqep_count_from_counter(struct counter_device *counter)
 {
-	struct ti_eqep_cnt *priv = counter->priv;
+	return counter_priv(counter);
+}
+
+static int ti_eqep_count_read(struct counter_device *counter,
+			      struct counter_count *count, u64 *val)
+{
+	struct ti_eqep_cnt *priv = ti_eqep_count_from_counter(counter);
 	u32 cnt;
 
 	regmap_read(priv->regmap32, QPOSCNT, &cnt);
@@ -105,9 +105,9 @@ static int ti_eqep_count_read(struct counter_device *counter,
 }
 
 static int ti_eqep_count_write(struct counter_device *counter,
-			       struct counter_count *count, unsigned long val)
+			       struct counter_count *count, u64 val)
 {
-	struct ti_eqep_cnt *priv = counter->priv;
+	struct ti_eqep_cnt *priv = ti_eqep_count_from_counter(counter);
 	u32 max;
 
 	regmap_read(priv->regmap32, QPOSMAX, &max);
@@ -117,62 +117,100 @@ static int ti_eqep_count_write(struct counter_device *counter,
 	return regmap_write(priv->regmap32, QPOSCNT, val);
 }
 
-static int ti_eqep_function_get(struct counter_device *counter,
-				struct counter_count *count, size_t *function)
+static int ti_eqep_function_read(struct counter_device *counter,
+				 struct counter_count *count,
+				 enum counter_function *function)
 {
-	struct ti_eqep_cnt *priv = counter->priv;
+	struct ti_eqep_cnt *priv = ti_eqep_count_from_counter(counter);
 	u32 qdecctl;
 
 	regmap_read(priv->regmap16, QDECCTL, &qdecctl);
-	*function = (qdecctl & QDECCTL_QSRC) >> QDECCTL_QSRC_SHIFT;
+
+	switch ((qdecctl & QDECCTL_QSRC) >> QDECCTL_QSRC_SHIFT) {
+	case TI_EQEP_COUNT_FUNC_QUAD_COUNT:
+		*function = COUNTER_FUNCTION_QUADRATURE_X4;
+		break;
+	case TI_EQEP_COUNT_FUNC_DIR_COUNT:
+		*function = COUNTER_FUNCTION_PULSE_DIRECTION;
+		break;
+	case TI_EQEP_COUNT_FUNC_UP_COUNT:
+		*function = COUNTER_FUNCTION_INCREASE;
+		break;
+	case TI_EQEP_COUNT_FUNC_DOWN_COUNT:
+		*function = COUNTER_FUNCTION_DECREASE;
+		break;
+	}
 
 	return 0;
 }
 
-static int ti_eqep_function_set(struct counter_device *counter,
-				struct counter_count *count, size_t function)
+static int ti_eqep_function_write(struct counter_device *counter,
+				  struct counter_count *count,
+				  enum counter_function function)
 {
-	struct ti_eqep_cnt *priv = counter->priv;
+	struct ti_eqep_cnt *priv = ti_eqep_count_from_counter(counter);
+	enum ti_eqep_count_func qsrc;
+
+	switch (function) {
+	case COUNTER_FUNCTION_QUADRATURE_X4:
+		qsrc = TI_EQEP_COUNT_FUNC_QUAD_COUNT;
+		break;
+	case COUNTER_FUNCTION_PULSE_DIRECTION:
+		qsrc = TI_EQEP_COUNT_FUNC_DIR_COUNT;
+		break;
+	case COUNTER_FUNCTION_INCREASE:
+		qsrc = TI_EQEP_COUNT_FUNC_UP_COUNT;
+		break;
+	case COUNTER_FUNCTION_DECREASE:
+		qsrc = TI_EQEP_COUNT_FUNC_DOWN_COUNT;
+		break;
+	default:
+		/* should never reach this path */
+		return -EINVAL;
+	}
 
 	return regmap_write_bits(priv->regmap16, QDECCTL, QDECCTL_QSRC,
-				 function << QDECCTL_QSRC_SHIFT);
+				 qsrc << QDECCTL_QSRC_SHIFT);
 }
 
-static int ti_eqep_action_get(struct counter_device *counter,
-			      struct counter_count *count,
-			      struct counter_synapse *synapse, size_t *action)
+static int ti_eqep_action_read(struct counter_device *counter,
+			       struct counter_count *count,
+			       struct counter_synapse *synapse,
+			       enum counter_synapse_action *action)
 {
-	struct ti_eqep_cnt *priv = counter->priv;
-	size_t function;
+	struct ti_eqep_cnt *priv = ti_eqep_count_from_counter(counter);
+	enum counter_function function;
 	u32 qdecctl;
 	int err;
 
-	err = ti_eqep_function_get(counter, count, &function);
+	err = ti_eqep_function_read(counter, count, &function);
 	if (err)
 		return err;
 
 	switch (function) {
-	case TI_EQEP_COUNT_FUNC_QUAD_COUNT:
+	case COUNTER_FUNCTION_QUADRATURE_X4:
 		/* In quadrature mode, the rising and falling edge of both
 		 * QEPA and QEPB trigger QCLK.
 		 */
-		*action = TI_EQEP_SYNAPSE_ACTION_BOTH_EDGES;
-		break;
-	case TI_EQEP_COUNT_FUNC_DIR_COUNT:
+		*action = COUNTER_SYNAPSE_ACTION_BOTH_EDGES;
+		return 0;
+	case COUNTER_FUNCTION_PULSE_DIRECTION:
 		/* In direction-count mode only rising edge of QEPA is counted
 		 * and QEPB gives direction.
 		 */
 		switch (synapse->signal->id) {
 		case TI_EQEP_SIGNAL_QEPA:
-			*action = TI_EQEP_SYNAPSE_ACTION_RISING_EDGE;
-			break;
+			*action = COUNTER_SYNAPSE_ACTION_RISING_EDGE;
+			return 0;
+		case TI_EQEP_SIGNAL_QEPB:
+			*action = COUNTER_SYNAPSE_ACTION_NONE;
+			return 0;
 		default:
-			*action = TI_EQEP_SYNAPSE_ACTION_NONE;
-			break;
+			/* should never reach this path */
+			return -EINVAL;
 		}
-		break;
-	case TI_EQEP_COUNT_FUNC_UP_COUNT:
-	case TI_EQEP_COUNT_FUNC_DOWN_COUNT:
+	case COUNTER_FUNCTION_INCREASE:
+	case COUNTER_FUNCTION_DECREASE:
 		/* In up/down-count modes only QEPA is counted and QEPB is not
 		 * used.
 		 */
@@ -183,134 +221,87 @@ static int ti_eqep_action_get(struct counter_device *counter,
 				return err;
 
 			if (qdecctl & QDECCTL_XCR)
-				*action = TI_EQEP_SYNAPSE_ACTION_BOTH_EDGES;
+				*action = COUNTER_SYNAPSE_ACTION_BOTH_EDGES;
 			else
-				*action = TI_EQEP_SYNAPSE_ACTION_RISING_EDGE;
-			break;
+				*action = COUNTER_SYNAPSE_ACTION_RISING_EDGE;
+			return 0;
+		case TI_EQEP_SIGNAL_QEPB:
+			*action = COUNTER_SYNAPSE_ACTION_NONE;
+			return 0;
 		default:
-			*action = TI_EQEP_SYNAPSE_ACTION_NONE;
-			break;
+			/* should never reach this path */
+			return -EINVAL;
 		}
-		break;
+	default:
+		/* should never reach this path */
+		return -EINVAL;
 	}
-
-	return 0;
 }
 
 static const struct counter_ops ti_eqep_counter_ops = {
 	.count_read	= ti_eqep_count_read,
 	.count_write	= ti_eqep_count_write,
-	.function_get	= ti_eqep_function_get,
-	.function_set	= ti_eqep_function_set,
-	.action_get	= ti_eqep_action_get,
+	.function_read	= ti_eqep_function_read,
+	.function_write	= ti_eqep_function_write,
+	.action_read	= ti_eqep_action_read,
 };
 
-static ssize_t ti_eqep_position_ceiling_read(struct counter_device *counter,
-					     struct counter_count *count,
-					     void *ext_priv, char *buf)
+static int ti_eqep_position_ceiling_read(struct counter_device *counter,
+					 struct counter_count *count,
+					 u64 *ceiling)
 {
-	struct ti_eqep_cnt *priv = counter->priv;
+	struct ti_eqep_cnt *priv = ti_eqep_count_from_counter(counter);
 	u32 qposmax;
 
 	regmap_read(priv->regmap32, QPOSMAX, &qposmax);
 
-	return sprintf(buf, "%u\n", qposmax);
+	*ceiling = qposmax;
+
+	return 0;
 }
 
-static ssize_t ti_eqep_position_ceiling_write(struct counter_device *counter,
-					      struct counter_count *count,
-					      void *ext_priv, const char *buf,
-					      size_t len)
+static int ti_eqep_position_ceiling_write(struct counter_device *counter,
+					  struct counter_count *count,
+					  u64 ceiling)
 {
-	struct ti_eqep_cnt *priv = counter->priv;
-	int err;
-	u32 res;
+	struct ti_eqep_cnt *priv = ti_eqep_count_from_counter(counter);
 
-	err = kstrtouint(buf, 0, &res);
-	if (err < 0)
-		return err;
+	if (ceiling != (u32)ceiling)
+		return -ERANGE;
 
-	regmap_write(priv->regmap32, QPOSMAX, res);
+	regmap_write(priv->regmap32, QPOSMAX, ceiling);
 
-	return len;
+	return 0;
 }
 
-static ssize_t ti_eqep_position_floor_read(struct counter_device *counter,
-					   struct counter_count *count,
-					   void *ext_priv, char *buf)
+static int ti_eqep_position_enable_read(struct counter_device *counter,
+					struct counter_count *count, u8 *enable)
 {
-	struct ti_eqep_cnt *priv = counter->priv;
-	u32 qposinit;
-
-	regmap_read(priv->regmap32, QPOSINIT, &qposinit);
-
-	return sprintf(buf, "%u\n", qposinit);
-}
-
-static ssize_t ti_eqep_position_floor_write(struct counter_device *counter,
-					    struct counter_count *count,
-					    void *ext_priv, const char *buf,
-					    size_t len)
-{
-	struct ti_eqep_cnt *priv = counter->priv;
-	int err;
-	u32 res;
-
-	err = kstrtouint(buf, 0, &res);
-	if (err < 0)
-		return err;
-
-	regmap_write(priv->regmap32, QPOSINIT, res);
-
-	return len;
-}
-
-static ssize_t ti_eqep_position_enable_read(struct counter_device *counter,
-					    struct counter_count *count,
-					    void *ext_priv, char *buf)
-{
-	struct ti_eqep_cnt *priv = counter->priv;
+	struct ti_eqep_cnt *priv = ti_eqep_count_from_counter(counter);
 	u32 qepctl;
 
 	regmap_read(priv->regmap16, QEPCTL, &qepctl);
 
-	return sprintf(buf, "%u\n", !!(qepctl & QEPCTL_PHEN));
+	*enable = !!(qepctl & QEPCTL_PHEN);
+
+	return 0;
 }
 
-static ssize_t ti_eqep_position_enable_write(struct counter_device *counter,
-					     struct counter_count *count,
-					     void *ext_priv, const char *buf,
-					     size_t len)
+static int ti_eqep_position_enable_write(struct counter_device *counter,
+					 struct counter_count *count, u8 enable)
 {
-	struct ti_eqep_cnt *priv = counter->priv;
-	int err;
-	bool res;
+	struct ti_eqep_cnt *priv = ti_eqep_count_from_counter(counter);
 
-	err = kstrtobool(buf, &res);
-	if (err < 0)
-		return err;
+	regmap_write_bits(priv->regmap16, QEPCTL, QEPCTL_PHEN, enable ? -1 : 0);
 
-	regmap_write_bits(priv->regmap16, QEPCTL, QEPCTL_PHEN, res ? -1 : 0);
-
-	return len;
+	return 0;
 }
 
-static struct counter_count_ext ti_eqep_position_ext[] = {
-	{
-		.name	= "ceiling",
-		.read	= ti_eqep_position_ceiling_read,
-		.write	= ti_eqep_position_ceiling_write,
-	},
-	{
-		.name	= "floor",
-		.read	= ti_eqep_position_floor_read,
-		.write	= ti_eqep_position_floor_write,
-	},
-	{
-		.name	= "enable",
-		.read	= ti_eqep_position_enable_read,
-		.write	= ti_eqep_position_enable_write,
-	},
+static struct counter_comp ti_eqep_position_ext[] = {
+	COUNTER_COMP_CEILING(ti_eqep_position_ceiling_read,
+			     ti_eqep_position_ceiling_write),
+	COUNTER_COMP_ENABLE(ti_eqep_position_enable_read,
+			    ti_eqep_position_enable_write),
 };
 
 static struct counter_signal ti_eqep_signals[] = {
@@ -324,17 +315,17 @@ static struct counter_signal ti_eqep_signals[] = {
 	},
 };
 
-static const enum counter_count_function ti_eqep_position_functions[] = {
-	[TI_EQEP_COUNT_FUNC_QUAD_COUNT]	= COUNTER_COUNT_FUNCTION_QUADRATURE_X4,
-	[TI_EQEP_COUNT_FUNC_DIR_COUNT]	= COUNTER_COUNT_FUNCTION_PULSE_DIRECTION,
-	[TI_EQEP_COUNT_FUNC_UP_COUNT]	= COUNTER_COUNT_FUNCTION_INCREASE,
-	[TI_EQEP_COUNT_FUNC_DOWN_COUNT]	= COUNTER_COUNT_FUNCTION_DECREASE,
+static const enum counter_function ti_eqep_position_functions[] = {
+	COUNTER_FUNCTION_QUADRATURE_X4,
+	COUNTER_FUNCTION_PULSE_DIRECTION,
+	COUNTER_FUNCTION_INCREASE,
+	COUNTER_FUNCTION_DECREASE,
 };
 
 static const enum counter_synapse_action ti_eqep_position_synapse_actions[] = {
-	[TI_EQEP_SYNAPSE_ACTION_BOTH_EDGES]	= COUNTER_SYNAPSE_ACTION_BOTH_EDGES,
-	[TI_EQEP_SYNAPSE_ACTION_RISING_EDGE]	= COUNTER_SYNAPSE_ACTION_RISING_EDGE,
-	[TI_EQEP_SYNAPSE_ACTION_NONE]		= COUNTER_SYNAPSE_ACTION_NONE,
+	COUNTER_SYNAPSE_ACTION_BOTH_EDGES,
+	COUNTER_SYNAPSE_ACTION_RISING_EDGE,
+	COUNTER_SYNAPSE_ACTION_NONE,
 };
 
 static struct counter_synapse ti_eqep_position_synapses[] = {
@@ -382,13 +373,15 @@ static const struct regmap_config ti_eqep_regmap16_config = {
 static int ti_eqep_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct counter_device *counter;
 	struct ti_eqep_cnt *priv;
 	void __iomem *base;
 	int err;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
+	counter = devm_counter_alloc(dev, sizeof(*priv));
+	if (!counter)
 		return -ENOMEM;
+	priv = counter_priv(counter);
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -404,16 +397,15 @@ static int ti_eqep_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->regmap16))
 		return PTR_ERR(priv->regmap16);
 
-	priv->counter.name = dev_name(dev);
-	priv->counter.parent = dev;
-	priv->counter.ops = &ti_eqep_counter_ops;
-	priv->counter.counts = ti_eqep_counts;
-	priv->counter.num_counts = ARRAY_SIZE(ti_eqep_counts);
-	priv->counter.signals = ti_eqep_signals;
-	priv->counter.num_signals = ARRAY_SIZE(ti_eqep_signals);
-	priv->counter.priv = priv;
+	counter->name = dev_name(dev);
+	counter->parent = dev;
+	counter->ops = &ti_eqep_counter_ops;
+	counter->counts = ti_eqep_counts;
+	counter->num_counts = ARRAY_SIZE(ti_eqep_counts);
+	counter->signals = ti_eqep_signals;
+	counter->num_signals = ARRAY_SIZE(ti_eqep_signals);
 
-	platform_set_drvdata(pdev, priv);
+	platform_set_drvdata(pdev, counter);
 
 	/*
 	 * Need to make sure power is turned on. On AM33xx, this comes from the
@@ -423,7 +415,7 @@ static int ti_eqep_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
-	err = counter_register(&priv->counter);
+	err = counter_add(counter);
 	if (err < 0) {
 		pm_runtime_put_sync(dev);
 		pm_runtime_disable(dev);
@@ -435,10 +427,10 @@ static int ti_eqep_probe(struct platform_device *pdev)
 
 static int ti_eqep_remove(struct platform_device *pdev)
 {
-	struct ti_eqep_cnt *priv = platform_get_drvdata(pdev);
+	struct counter_device *counter = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 
-	counter_unregister(&priv->counter);
+	counter_unregister(counter);
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 

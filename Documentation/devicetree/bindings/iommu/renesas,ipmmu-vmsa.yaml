@@ -43,13 +43,17 @@ properties:
               - renesas,ipmmu-r8a77980 # R-Car V3H
               - renesas,ipmmu-r8a77990 # R-Car E3
               - renesas,ipmmu-r8a77995 # R-Car D3
+              - renesas,ipmmu-r8a779a0 # R-Car V3U
+      - items:
+          - enum:
+              - renesas,ipmmu-r8a779f0 # R-Car S4-8
+          - const: renesas,rcar-gen4-ipmmu-vmsa  # R-Car Gen4
 
   reg:
     maxItems: 1
 
   interrupts:
     minItems: 1
-    maxItems: 2
     description:
       Specifiers for the MMU fault interrupts. Not required for cache IPMMUs.
     items:
@@ -66,6 +70,12 @@ properties:
 
   renesas,ipmmu-main:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to main IPMMU
+          - description: the interrupt bit number associated with the particular
+              cache IPMMU device. The interrupt bit number needs to match the main
+              IPMMU IMSSTR register. Only used by cache IPMMU instances.
     description:
       Reference to the main IPMMU phandle plus 1 cell. The cell is
       the interrupt bit number associated with the particular cache IPMMU
@@ -76,7 +86,6 @@ required:
   - compatible
   - reg
   - '#iommu-cells'
-  - power-domains
 
 oneOf:
   - required:
@@ -86,6 +95,17 @@ oneOf:
 
 additionalProperties: false
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: renesas,ipmmu-vmsa
+    then:
+      required:
+        - power-domains
+
 examples:
   - |
     #include <dt-bindings/clock/r8a7791-cpg-mssr.h>
@@ -93,7 +113,7 @@ examples:
     #include <dt-bindings/power/r8a7791-sysc.h>
 
     ipmmu_mx: iommu@fe951000 {
-        compatible = "renasas,ipmmu-r8a7791", "renasas,ipmmu-vmsa";
+        compatible = "renesas,ipmmu-r8a7791", "renesas,ipmmu-vmsa";
         reg = <0xfe951000 0x1000>;
         interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;

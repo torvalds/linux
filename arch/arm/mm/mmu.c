@@ -18,7 +18,6 @@
 #include <asm/cp15.h>
 #include <asm/cputype.h>
 #include <asm/cachetype.h>
-#include <asm/fixmap.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp_plat.h>
@@ -29,6 +28,7 @@
 #include <asm/procinfo.h>
 #include <asm/memory.h>
 #include <asm/pgalloc.h>
+#include <asm/kasan_def.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -38,6 +38,8 @@
 #include "fault.h"
 #include "mm.h"
 #include "tcm.h"
+
+extern unsigned long __atags_pointer;
 
 /*
  * empty_zero_page is a special page that is used for
@@ -210,12 +212,14 @@ early_param("ecc", early_ecc);
 static int __init early_cachepolicy(char *p)
 {
 	pr_warn("cachepolicy kernel parameter not supported without cp15\n");
+	return 0;
 }
 early_param("cachepolicy", early_cachepolicy);
 
 static int __init noalign_setup(char *__unused)
 {
 	pr_warn("noalign kernel parameter not supported without cp15\n");
+	return 1;
 }
 __setup("noalign", noalign_setup);
 
@@ -385,13 +389,12 @@ void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot)
 	pte_t *pte = pte_offset_fixmap(pmd_off_k(vaddr), vaddr);
 
 	/* Make sure fixmap region does not exceed available allocation. */
-	BUILD_BUG_ON(FIXADDR_START + (__end_of_fixed_addresses * PAGE_SIZE) >
-		     FIXADDR_END);
+	BUILD_BUG_ON(__fix_to_virt(__end_of_fixed_addresses) < FIXADDR_START);
 	BUG_ON(idx >= __end_of_fixed_addresses);
 
-	/* we only support device mappings until pgprot_kernel has been set */
+	/* We support only device mappings before pgprot_kernel is set. */
 	if (WARN_ON(pgprot_val(prot) != pgprot_val(FIXMAP_PAGE_IO) &&
-		    pgprot_val(pgprot_kernel) == 0))
+		    pgprot_val(prot) && pgprot_val(pgprot_kernel) == 0))
 		return;
 
 	if (pgprot_val(prot))
@@ -946,7 +949,7 @@ static void __init create_mapping(struct map_desc *md)
 		return;
 	}
 
-	if ((md->type == MT_DEVICE || md->type == MT_ROM) &&
+	if (md->type == MT_DEVICE &&
 	    md->virtual >= PAGE_OFFSET && md->virtual < FIXADDR_START &&
 	    (md->virtual < VMALLOC_START || md->virtual >= VMALLOC_END)) {
 		pr_warn("BUG: mapping for 0x%08llx at 0x%08lx out of vmalloc space\n",
@@ -1120,31 +1123,32 @@ void __init debug_ll_io_init(void)
 }
 #endif
 
-static void * __initdata vmalloc_min =
-	(void *)(VMALLOC_END - (240 << 20) - VMALLOC_OFFSET);
+static unsigned long __initdata vmalloc_size = 240 * SZ_1M;
 
 /*
  * vmalloc=size forces the vmalloc area to be exactly 'size'
  * bytes. This can be used to increase (or decrease) the vmalloc
- * area - the default is 240m.
+ * area - the default is 240MiB.
  */
 static int __init early_vmalloc(char *arg)
 {
 	unsigned long vmalloc_reserve = memparse(arg, NULL);
+	unsigned long vmalloc_max;
 
 	if (vmalloc_reserve < SZ_16M) {
 		vmalloc_reserve = SZ_16M;
-		pr_warn("vmalloc area too small, limiting to %luMB\n",
+		pr_warn("vmalloc area is too small, limiting to %luMiB\n",
 			vmalloc_reserve >> 20);
 	}
 
-	if (vmalloc_reserve > VMALLOC_END - (PAGE_OFFSET + SZ_32M)) {
-		vmalloc_reserve = VMALLOC_END - (PAGE_OFFSET + SZ_32M);
-		pr_warn("vmalloc area is too big, limiting to %luMB\n",
+	vmalloc_max = VMALLOC_END - (PAGE_OFFSET + SZ_32M + VMALLOC_OFFSET);
+	if (vmalloc_reserve > vmalloc_max) {
+		vmalloc_reserve = vmalloc_max;
+		pr_warn("vmalloc area is too big, limiting to %luMiB\n",
 			vmalloc_reserve >> 20);
 	}
 
-	vmalloc_min = (void *)(VMALLOC_END - vmalloc_reserve);
+	vmalloc_size = vmalloc_reserve;
 	return 0;
 }
 early_param("vmalloc", early_vmalloc);
@@ -1164,7 +1168,8 @@ void __init adjust_lowmem_bounds(void)
 	 * and may itself be outside the valid range for which phys_addr_t
 	 * and therefore __pa() is defined.
 	 */
-	vmalloc_limit = (u64)(uintptr_t)vmalloc_min - PAGE_OFFSET + PHYS_OFFSET;
+	vmalloc_limit = (u64)VMALLOC_END - vmalloc_size - VMALLOC_OFFSET -
+			PAGE_OFFSET + PHYS_OFFSET;
 
 	/*
 	 * The first usable region must be PMD aligned. Mark its start
@@ -1245,7 +1250,7 @@ void __init adjust_lowmem_bounds(void)
 	memblock_set_current_limit(memblock_limit);
 }
 
-static inline void prepare_page_table(void)
+static __init void prepare_page_table(void)
 {
 	unsigned long addr;
 	phys_addr_t end;
@@ -1253,8 +1258,25 @@ static inline void prepare_page_table(void)
 	/*
 	 * Clear out all the mappings below the kernel image.
 	 */
+#ifdef CONFIG_KASAN
+	/*
+	 * KASan's shadow memory inserts itself between the TASK_SIZE
+	 * and MODULES_VADDR. Do not clear the KASan shadow memory mappings.
+	 */
+	for (addr = 0; addr < KASAN_SHADOW_START; addr += PMD_SIZE)
+		pmd_clear(pmd_off_k(addr));
+	/*
+	 * Skip over the KASan shadow area. KASAN_SHADOW_END is sometimes
+	 * equal to MODULES_VADDR and then we exit the pmd clearing. If we
+	 * are using a thumb-compiled kernel, there there will be 8MB more
+	 * to clear as KASan always offset to 16 MB below MODULES_VADDR.
+	 */
+	for (addr = KASAN_SHADOW_END; addr < MODULES_VADDR; addr += PMD_SIZE)
+		pmd_clear(pmd_off_k(addr));
+#else
 	for (addr = 0; addr < MODULES_VADDR; addr += PMD_SIZE)
 		pmd_clear(pmd_off_k(addr));
+#endif
 
 #ifdef CONFIG_XIP_KERNEL
 	/* The XIP kernel is mapped in the module area -- skip over it */
@@ -1332,6 +1354,15 @@ static void __init devicemaps_init(const struct machine_desc *mdesc)
 	 */
 	for (addr = VMALLOC_START; addr < (FIXADDR_TOP & PMD_MASK); addr += PMD_SIZE)
 		pmd_clear(pmd_off_k(addr));
+
+	if (__atags_pointer) {
+		/* create a read-only mapping of the device tree */
+		map.pfn = __phys_to_pfn(__atags_pointer & SECTION_MASK);
+		map.virtual = FDT_FIXED_BASE;
+		map.length = FDT_FIXED_SIZE;
+		map.type = MT_ROM;
+		create_mapping(&map);
+	}
 
 	/*
 	 * Map the kernel if it is XIP.
@@ -1430,8 +1461,6 @@ static void __init kmap_init(void)
 
 static void __init map_lowmem(void)
 {
-	phys_addr_t kernel_x_start = round_down(__pa(KERNEL_START), SECTION_SIZE);
-	phys_addr_t kernel_x_end = round_up(__pa(__init_end), SECTION_SIZE);
 	phys_addr_t start, end;
 	u64 i;
 
@@ -1439,58 +1468,128 @@ static void __init map_lowmem(void)
 	for_each_mem_range(i, &start, &end) {
 		struct map_desc map;
 
+		pr_debug("map lowmem start: 0x%08llx, end: 0x%08llx\n",
+			 (long long)start, (long long)end);
 		if (end > arm_lowmem_limit)
 			end = arm_lowmem_limit;
 		if (start >= end)
 			break;
 
-		if (end < kernel_x_start) {
-			map.pfn = __phys_to_pfn(start);
-			map.virtual = __phys_to_virt(start);
-			map.length = end - start;
-			map.type = MT_MEMORY_RWX;
+		/*
+		 * If our kernel image is in the VMALLOC area we need to remove
+		 * the kernel physical memory from lowmem since the kernel will
+		 * be mapped separately.
+		 *
+		 * The kernel will typically be at the very start of lowmem,
+		 * but any placement relative to memory ranges is possible.
+		 *
+		 * If the memblock contains the kernel, we have to chisel out
+		 * the kernel memory from it and map each part separately. We
+		 * get 6 different theoretical cases:
+		 *
+		 *                            +--------+ +--------+
+		 *  +-- start --+  +--------+ | Kernel | | Kernel |
+		 *  |           |  | Kernel | | case 2 | | case 5 |
+		 *  |           |  | case 1 | +--------+ |        | +--------+
+		 *  |  Memory   |  +--------+            |        | | Kernel |
+		 *  |  range    |  +--------+            |        | | case 6 |
+		 *  |           |  | Kernel | +--------+ |        | +--------+
+		 *  |           |  | case 3 | | Kernel | |        |
+		 *  +-- end ----+  +--------+ | case 4 | |        |
+		 *                            +--------+ +--------+
+		 */
 
-			create_mapping(&map);
-		} else if (start >= kernel_x_end) {
-			map.pfn = __phys_to_pfn(start);
-			map.virtual = __phys_to_virt(start);
-			map.length = end - start;
-			map.type = MT_MEMORY_RW;
+		/* Case 5: kernel covers range, don't map anything, should be rare */
+		if ((start > kernel_sec_start) && (end < kernel_sec_end))
+			break;
 
-			create_mapping(&map);
-		} else {
-			/* This better cover the entire kernel */
-			if (start < kernel_x_start) {
+		/* Cases where the kernel is starting inside the range */
+		if ((kernel_sec_start >= start) && (kernel_sec_start <= end)) {
+			/* Case 6: kernel is embedded in the range, we need two mappings */
+			if ((start < kernel_sec_start) && (end > kernel_sec_end)) {
+				/* Map memory below the kernel */
 				map.pfn = __phys_to_pfn(start);
 				map.virtual = __phys_to_virt(start);
-				map.length = kernel_x_start - start;
+				map.length = kernel_sec_start - start;
 				map.type = MT_MEMORY_RW;
-
 				create_mapping(&map);
-			}
-
-			map.pfn = __phys_to_pfn(kernel_x_start);
-			map.virtual = __phys_to_virt(kernel_x_start);
-			map.length = kernel_x_end - kernel_x_start;
-			map.type = MT_MEMORY_RWX;
-
-			create_mapping(&map);
-
-			if (kernel_x_end < end) {
-				map.pfn = __phys_to_pfn(kernel_x_end);
-				map.virtual = __phys_to_virt(kernel_x_end);
-				map.length = end - kernel_x_end;
+				/* Map memory above the kernel */
+				map.pfn = __phys_to_pfn(kernel_sec_end);
+				map.virtual = __phys_to_virt(kernel_sec_end);
+				map.length = end - kernel_sec_end;
 				map.type = MT_MEMORY_RW;
-
 				create_mapping(&map);
+				break;
 			}
+			/* Case 1: kernel and range start at the same address, should be common */
+			if (kernel_sec_start == start)
+				start = kernel_sec_end;
+			/* Case 3: kernel and range end at the same address, should be rare */
+			if (kernel_sec_end == end)
+				end = kernel_sec_start;
+		} else if ((kernel_sec_start < start) && (kernel_sec_end > start) && (kernel_sec_end < end)) {
+			/* Case 2: kernel ends inside range, starts below it */
+			start = kernel_sec_end;
+		} else if ((kernel_sec_start > start) && (kernel_sec_start < end) && (kernel_sec_end > end)) {
+			/* Case 4: kernel starts inside range, ends above it */
+			end = kernel_sec_start;
 		}
+		map.pfn = __phys_to_pfn(start);
+		map.virtual = __phys_to_virt(start);
+		map.length = end - start;
+		map.type = MT_MEMORY_RW;
+		create_mapping(&map);
 	}
 }
 
+static void __init map_kernel(void)
+{
+	/*
+	 * We use the well known kernel section start and end and split the area in the
+	 * middle like this:
+	 *  .                .
+	 *  | RW memory      |
+	 *  +----------------+ kernel_x_start
+	 *  | Executable     |
+	 *  | kernel memory  |
+	 *  +----------------+ kernel_x_end / kernel_nx_start
+	 *  | Non-executable |
+	 *  | kernel memory  |
+	 *  +----------------+ kernel_nx_end
+	 *  | RW memory      |
+	 *  .                .
+	 *
+	 * Notice that we are dealing with section sized mappings here so all of this
+	 * will be bumped to the closest section boundary. This means that some of the
+	 * non-executable part of the kernel memory is actually mapped as executable.
+	 * This will only persist until we turn on proper memory management later on
+	 * and we remap the whole kernel with page granularity.
+	 */
+	phys_addr_t kernel_x_start = kernel_sec_start;
+	phys_addr_t kernel_x_end = round_up(__pa(__init_end), SECTION_SIZE);
+	phys_addr_t kernel_nx_start = kernel_x_end;
+	phys_addr_t kernel_nx_end = kernel_sec_end;
+	struct map_desc map;
+
+	map.pfn = __phys_to_pfn(kernel_x_start);
+	map.virtual = __phys_to_virt(kernel_x_start);
+	map.length = kernel_x_end - kernel_x_start;
+	map.type = MT_MEMORY_RWX;
+	create_mapping(&map);
+
+	/* If the nx part is small it may end up covered by the tail of the RWX section */
+	if (kernel_x_end == kernel_nx_end)
+		return;
+
+	map.pfn = __phys_to_pfn(kernel_nx_start);
+	map.virtual = __phys_to_virt(kernel_nx_start);
+	map.length = kernel_nx_end - kernel_nx_start;
+	map.type = MT_MEMORY_RW;
+	create_mapping(&map);
+}
+
 #ifdef CONFIG_ARM_PV_FIXUP
-extern unsigned long __atags_pointer;
-typedef void pgtables_remap(long long offset, unsigned long pgd, void *bdata);
+typedef void pgtables_remap(long long offset, unsigned long pgd);
 pgtables_remap lpae_pgtables_remap_asm;
 
 /*
@@ -1503,7 +1602,6 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 	unsigned long pa_pgd;
 	unsigned int cr, ttbcr;
 	long long offset;
-	void *boot_data;
 
 	if (!mdesc->pv_fixup)
 		return;
@@ -1513,6 +1611,13 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 		return;
 
 	/*
+	 * Offset the kernel section physical offsets so that the kernel
+	 * mapping will work out later on.
+	 */
+	kernel_sec_start += offset;
+	kernel_sec_end += offset;
+
+	/*
 	 * Get the address of the remap function in the 1:1 identity
 	 * mapping setup by the early page table assembly code.  We
 	 * must get this prior to the pv update.  The following barrier
@@ -1520,7 +1625,6 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 	 */
 	lpae_pgtables_remap = (pgtables_remap *)(unsigned long)__pa(lpae_pgtables_remap_asm);
 	pa_pgd = __pa(swapper_pg_dir);
-	boot_data = __va(__atags_pointer);
 	barrier();
 
 	pr_info("Switching physical address space to 0x%08llx\n",
@@ -1556,7 +1660,7 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 	 * needs to be assembly.  It's fairly simple, as we're using the
 	 * temporary tables setup by the initial assembly code.
 	 */
-	lpae_pgtables_remap(offset, pa_pgd, boot_data);
+	lpae_pgtables_remap(offset, pa_pgd);
 
 	/* Re-enable the caches and cacheable TLB walks */
 	asm volatile("mcr p15, 0, %0, c2, c0, 2" : : "r" (ttbcr));
@@ -1621,9 +1725,18 @@ void __init paging_init(const struct machine_desc *mdesc)
 {
 	void *zero_page;
 
+	pr_debug("physical kernel sections: 0x%08llx-0x%08llx\n",
+		 kernel_sec_start, kernel_sec_end);
+
 	prepare_page_table();
 	map_lowmem();
 	memblock_set_current_limit(arm_lowmem_limit);
+	pr_debug("lowmem limit is %08llx\n", (long long)arm_lowmem_limit);
+	/*
+	 * After this point early_alloc(), i.e. the memblock allocator, can
+	 * be used
+	 */
+	map_kernel();
 	dma_contiguous_remap();
 	early_fixmap_shutdown();
 	devicemaps_init(mdesc);

@@ -8,9 +8,10 @@
 #ifndef _CRYPTO_AEAD_H
 #define _CRYPTO_AEAD_H
 
+#include <linux/container_of.h>
 #include <linux/crypto.h>
-#include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/types.h>
 
 /**
  * DOC: Authenticated Encryption With Associated Data (AEAD) Cipher API
@@ -73,6 +74,7 @@
  */
 
 struct crypto_aead;
+struct scatterlist;
 
 /**
  *	struct aead_request - AEAD request
@@ -185,10 +187,17 @@ static inline struct crypto_tfm *crypto_aead_tfm(struct crypto_aead *tfm)
 /**
  * crypto_free_aead() - zeroize and free aead handle
  * @tfm: cipher handle to be freed
+ *
+ * If @tfm is a NULL or error pointer, this function does nothing.
  */
 static inline void crypto_free_aead(struct crypto_aead *tfm)
 {
 	crypto_destroy_tfm(tfm, crypto_aead_tfm(tfm));
+}
+
+static inline const char *crypto_aead_driver_name(struct crypto_aead *tfm)
+{
+	return crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
 }
 
 static inline struct aead_alg *crypto_aead_alg(struct crypto_aead *tfm)
@@ -483,7 +492,7 @@ static inline void aead_request_set_callback(struct aead_request *req,
  * The memory structure for cipher operation has the following structure:
  *
  * - AEAD encryption input:  assoc data || plaintext
- * - AEAD encryption output: assoc data || cipherntext || auth tag
+ * - AEAD encryption output: assoc data || ciphertext || auth tag
  * - AEAD decryption input:  assoc data || ciphertext || auth tag
  * - AEAD decryption output: assoc data || plaintext
  *

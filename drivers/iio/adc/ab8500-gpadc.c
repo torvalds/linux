@@ -918,7 +918,7 @@ static int ab8500_gpadc_read_raw(struct iio_dev *indio_dev,
 			return processed;
 
 		/* Return millivolt or milliamps or millicentigrades */
-		*val = processed * 1000;
+		*val = processed;
 		return IIO_VAL_INT;
 	}
 
@@ -942,7 +942,6 @@ static const struct iio_info ab8500_gpadc_info = {
 	.read_raw = ab8500_gpadc_read_raw,
 };
 
-#ifdef CONFIG_PM
 static int ab8500_gpadc_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -965,7 +964,6 @@ static int ab8500_gpadc_runtime_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
 /**
  * ab8500_gpadc_parse_channel() - process devicetree channel configuration
@@ -1103,15 +1101,17 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 		return ret;
 
 	gpadc->irq_sw = platform_get_irq_byname(pdev, "SW_CONV_END");
-	if (gpadc->irq_sw < 0) {
-		dev_err(dev, "failed to get platform sw_conv_end irq\n");
-		return gpadc->irq_sw;
-	}
+	if (gpadc->irq_sw < 0)
+		return dev_err_probe(dev, gpadc->irq_sw,
+				     "failed to get platform sw_conv_end irq\n");
 
-	gpadc->irq_hw = platform_get_irq_byname(pdev, "HW_CONV_END");
-	if (gpadc->irq_hw < 0) {
-		dev_err(dev, "failed to get platform hw_conv_end irq\n");
-		return gpadc->irq_hw;
+	if (is_ab8500(gpadc->ab8500)) {
+		gpadc->irq_hw = platform_get_irq_byname(pdev, "HW_CONV_END");
+		if (gpadc->irq_hw < 0)
+			return dev_err_probe(dev, gpadc->irq_hw,
+					     "failed to get platform hw_conv_end irq\n");
+	} else {
+		gpadc->irq_hw = 0;
 	}
 
 	/* Initialize completion used to notify completion of conversion */
@@ -1128,23 +1128,23 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_request_threaded_irq(dev, gpadc->irq_hw, NULL,
-		ab8500_bm_gpadcconvend_handler,	IRQF_NO_SUSPEND | IRQF_ONESHOT,
-		"ab8500-gpadc-hw", gpadc);
-	if (ret < 0) {
-		dev_err(dev,
-			"Failed to request hw conversion irq: %d\n",
-			gpadc->irq_hw);
-		return ret;
+	if (gpadc->irq_hw) {
+		ret = devm_request_threaded_irq(dev, gpadc->irq_hw, NULL,
+			ab8500_bm_gpadcconvend_handler,	IRQF_NO_SUSPEND | IRQF_ONESHOT,
+			"ab8500-gpadc-hw", gpadc);
+		if (ret < 0) {
+			dev_err(dev,
+				"Failed to request hw conversion irq: %d\n",
+				gpadc->irq_hw);
+			return ret;
+		}
 	}
 
 	/* The VTVout LDO used to power the AB8500 GPADC */
 	gpadc->vddadc = devm_regulator_get(dev, "vddadc");
-	if (IS_ERR(gpadc->vddadc)) {
-		ret = PTR_ERR(gpadc->vddadc);
-		dev_err(dev, "failed to get vddadc\n");
-		return ret;
-	}
+	if (IS_ERR(gpadc->vddadc))
+		return dev_err_probe(dev, PTR_ERR(gpadc->vddadc),
+				     "failed to get vddadc\n");
 
 	ret = regulator_enable(gpadc->vddadc);
 	if (ret) {
@@ -1197,20 +1197,16 @@ static int ab8500_gpadc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct dev_pm_ops ab8500_gpadc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(ab8500_gpadc_runtime_suspend,
-			   ab8500_gpadc_runtime_resume,
-			   NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(ab8500_gpadc_pm_ops,
+				 ab8500_gpadc_runtime_suspend,
+				 ab8500_gpadc_runtime_resume, NULL);
 
 static struct platform_driver ab8500_gpadc_driver = {
 	.probe = ab8500_gpadc_probe,
 	.remove = ab8500_gpadc_remove,
 	.driver = {
 		.name = "ab8500-gpadc",
-		.pm = &ab8500_gpadc_pm_ops,
+		.pm = pm_ptr(&ab8500_gpadc_pm_ops),
 	},
 };
 builtin_platform_driver(ab8500_gpadc_driver);

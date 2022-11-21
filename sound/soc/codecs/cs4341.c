@@ -189,7 +189,7 @@ static struct snd_soc_dai_driver cs4341_dai = {
 				  SNDRV_PCM_FMTBIT_S24_LE,
 	},
 	.ops			= &cs4341_dai_ops,
-	.symmetric_rates	= 1,
+	.symmetric_rate		= 1,
 };
 
 static const struct snd_soc_component_driver soc_component_cs4341 = {
@@ -305,12 +305,19 @@ static int cs4341_spi_probe(struct spi_device *spi)
 	return cs4341_probe(&spi->dev);
 }
 
+static const struct spi_device_id cs4341_spi_ids[] = {
+	{ "cs4341a" },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, cs4341_spi_ids);
+
 static struct spi_driver cs4341_spi_driver = {
 	.driver = {
 		.name = "cs4341-spi",
 		.of_match_table = of_match_ptr(cs4341_dt_ids),
 	},
 	.probe = cs4341_spi_probe,
+	.id_table = cs4341_spi_ids,
 };
 #endif
 

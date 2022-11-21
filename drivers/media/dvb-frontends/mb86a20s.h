@@ -26,7 +26,7 @@ struct mb86a20s_config {
 
 #if IS_REACHABLE(CONFIG_DVB_MB86A20S)
 /**
- * Attach a mb86a20s demod
+ * mb86a20s_attach - Attach a mb86a20s demod
  *
  * @config: pointer to &struct mb86a20s_config with demod configuration.
  * @i2c: i2c adapter to use.

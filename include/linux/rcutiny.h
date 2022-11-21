@@ -14,13 +14,9 @@
 
 #include <asm/param.h> /* for HZ */
 
-/* Never flag non-existent other CPUs! */
-static inline bool rcu_eqs_special_set(int cpu) { return false; }
-
-static inline unsigned long get_state_synchronize_rcu(void)
-{
-	return 0;
-}
+unsigned long get_state_synchronize_rcu(void);
+unsigned long start_poll_synchronize_rcu(void);
+bool poll_state_synchronize_rcu(unsigned long oldstate);
 
 static inline void cond_synchronize_rcu(unsigned long oldstate)
 {
@@ -68,9 +64,8 @@ static inline void rcu_softirq_qs(void)
 		rcu_tasks_qs(current, (preempt)); \
 	} while (0)
 
-static inline int rcu_needs_cpu(u64 basemono, u64 *nextevt)
+static inline int rcu_needs_cpu(void)
 {
-	*nextevt = KTIME_MAX;
 	return 0;
 }
 
@@ -87,8 +82,9 @@ static inline void rcu_irq_enter(void) { }
 static inline void rcu_irq_exit_irqson(void) { }
 static inline void rcu_irq_enter_irqson(void) { }
 static inline void rcu_irq_exit(void) { }
-static inline void rcu_irq_exit_preempt(void) { }
 static inline void rcu_irq_exit_check_preempt(void) { }
+#define rcu_is_idle_cpu(cpu) \
+	(is_idle_task(current) && !in_nmi() && !in_hardirq() && !in_serving_softirq())
 static inline void exit_rcu(void) { }
 static inline bool rcu_preempt_need_deferred_qs(struct task_struct *t)
 {

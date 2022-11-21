@@ -201,7 +201,7 @@ SYM_FUNC_START(csum_partial_copy_generic)
 	movq 3*8(%rsp), %r13
 	movq 4*8(%rsp), %r15
 	addq $5*8, %rsp
-	ret
+	RET
 .Lshort:
 	movl %ecx, %r10d
 	jmp  .L1

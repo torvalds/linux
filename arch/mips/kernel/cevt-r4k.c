@@ -195,10 +195,6 @@ int c0_compare_int_usable(void)
 	unsigned int delta;
 	unsigned int cnt;
 
-#ifdef CONFIG_KVM_GUEST
-    return 1;
-#endif
-
 	/*
 	 * IP7 already pending?	 Try to clear it by acking the timer.
 	 */

@@ -233,51 +233,33 @@ static int xilinx_spi_probe(struct spi_device *spi)
 
 	/* PROGRAM_B is active low */
 	conf->prog_b = devm_gpiod_get(&spi->dev, "prog_b", GPIOD_OUT_LOW);
-	if (IS_ERR(conf->prog_b)) {
-		dev_err(&spi->dev, "Failed to get PROGRAM_B gpio: %ld\n",
-			PTR_ERR(conf->prog_b));
-		return PTR_ERR(conf->prog_b);
-	}
+	if (IS_ERR(conf->prog_b))
+		return dev_err_probe(&spi->dev, PTR_ERR(conf->prog_b),
+				     "Failed to get PROGRAM_B gpio\n");
 
 	conf->init_b = devm_gpiod_get_optional(&spi->dev, "init-b", GPIOD_IN);
-	if (IS_ERR(conf->init_b)) {
-		dev_err(&spi->dev, "Failed to get INIT_B gpio: %ld\n",
-			PTR_ERR(conf->init_b));
-		return PTR_ERR(conf->init_b);
-	}
+	if (IS_ERR(conf->init_b))
+		return dev_err_probe(&spi->dev, PTR_ERR(conf->init_b),
+				     "Failed to get INIT_B gpio\n");
 
 	conf->done = devm_gpiod_get(&spi->dev, "done", GPIOD_IN);
-	if (IS_ERR(conf->done)) {
-		dev_err(&spi->dev, "Failed to get DONE gpio: %ld\n",
-			PTR_ERR(conf->done));
-		return PTR_ERR(conf->done);
-	}
+	if (IS_ERR(conf->done))
+		return dev_err_probe(&spi->dev, PTR_ERR(conf->done),
+				     "Failed to get DONE gpio\n");
 
-	mgr = devm_fpga_mgr_create(&spi->dev,
-				   "Xilinx Slave Serial FPGA Manager",
-				   &xilinx_spi_ops, conf);
-	if (!mgr)
-		return -ENOMEM;
-
-	spi_set_drvdata(spi, mgr);
-
-	return fpga_mgr_register(mgr);
+	mgr = devm_fpga_mgr_register(&spi->dev,
+				     "Xilinx Slave Serial FPGA Manager",
+				     &xilinx_spi_ops, conf);
+	return PTR_ERR_OR_ZERO(mgr);
 }
 
-static int xilinx_spi_remove(struct spi_device *spi)
-{
-	struct fpga_manager *mgr = spi_get_drvdata(spi);
-
-	fpga_mgr_unregister(mgr);
-
-	return 0;
-}
-
+#ifdef CONFIG_OF
 static const struct of_device_id xlnx_spi_of_match[] = {
 	{ .compatible = "xlnx,fpga-slave-serial", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, xlnx_spi_of_match);
+#endif
 
 static struct spi_driver xilinx_slave_spi_driver = {
 	.driver = {
@@ -285,7 +267,6 @@ static struct spi_driver xilinx_slave_spi_driver = {
 		.of_match_table = of_match_ptr(xlnx_spi_of_match),
 	},
 	.probe = xilinx_spi_probe,
-	.remove = xilinx_spi_remove,
 };
 
 module_spi_driver(xilinx_slave_spi_driver)

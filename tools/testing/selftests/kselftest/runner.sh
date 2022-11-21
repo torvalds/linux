@@ -18,6 +18,8 @@ if [ -z "$BASE_DIR" ]; then
 	exit 1
 fi
 
+TR_CMD=$(command -v tr)
+
 # If Perl is unavailable, we must fall back to line-at-a-time prefixing
 # with sed instead of unbuffered output.
 tap_prefix()
@@ -33,9 +35,9 @@ tap_timeout()
 {
 	# Make sure tests will time out if utility is available.
 	if [ -x /usr/bin/timeout ] ; then
-		/usr/bin/timeout --foreground "$kselftest_timeout" "$1"
+		/usr/bin/timeout --foreground "$kselftest_timeout" $1
 	else
-		"$1"
+		$1
 	fi
 }
 
@@ -49,6 +51,31 @@ run_one()
 
 	# Reset any "settings"-file variables.
 	export kselftest_timeout="$kselftest_default_timeout"
+
+	# Safe default if tr not available
+	kselftest_cmd_args_ref="KSELFTEST_ARGS"
+
+	# Optional arguments for this command, possibly defined as an
+	# environment variable built using the test executable in all
+	# uppercase and sanitized substituting non acceptable shell
+	# variable name characters with "_" as in:
+	#
+	# 	KSELFTEST_<UPPERCASE_SANITIZED_TESTNAME>_ARGS="<options>"
+	#
+	# e.g.
+	#
+	# 	rtctest --> KSELFTEST_RTCTEST_ARGS="/dev/rtc1"
+	#
+	# 	cpu-on-off-test.sh --> KSELFTEST_CPU_ON_OFF_TEST_SH_ARGS="-a -p 10"
+	#
+	if [ -n "$TR_CMD" ]; then
+		BASENAME_SANITIZED=$(echo "$BASENAME_TEST" | \
+					$TR_CMD -d "[:blank:][:cntrl:]" | \
+					$TR_CMD -c "[:alnum:]_" "_" | \
+					$TR_CMD [:lower:] [:upper:])
+		kselftest_cmd_args_ref="KSELFTEST_${BASENAME_SANITIZED}_ARGS"
+	fi
+
 	# Load per-test-directory kselftest "settings" file.
 	settings="$BASE_DIR/$DIR/settings"
 	if [ -r "$settings" ] ; then
@@ -65,17 +92,26 @@ run_one()
 
 	TEST_HDR_MSG="selftests: $DIR: $BASENAME_TEST"
 	echo "# $TEST_HDR_MSG"
-	if [ ! -x "$TEST" ]; then
-		echo -n "# Warning: file $TEST is "
-		if [ ! -e "$TEST" ]; then
-			echo "missing!"
-		else
-			echo "not executable, correct this."
-		fi
+	if [ ! -e "$TEST" ]; then
+		echo "# Warning: file $TEST is missing!"
 		echo "not ok $test_num $TEST_HDR_MSG"
 	else
+		eval kselftest_cmd_args="\$${kselftest_cmd_args_ref:-}"
+		cmd="./$BASENAME_TEST $kselftest_cmd_args"
+		if [ ! -x "$TEST" ]; then
+			echo "# Warning: file $TEST is not executable"
+
+			if [ $(head -n 1 "$TEST" | cut -c -2) = "#!" ]
+			then
+				interpreter=$(head -n 1 "$TEST" | cut -c 3-)
+				cmd="$interpreter ./$BASENAME_TEST"
+			else
+				echo "not ok $test_num $TEST_HDR_MSG"
+				return
+			fi
+		fi
 		cd `dirname $TEST` > /dev/null
-		((((( tap_timeout ./$BASENAME_TEST 2>&1; echo $? >&3) |
+		((((( tap_timeout "$cmd" 2>&1; echo $? >&3) |
 			tap_prefix >&4) 3>&1) |
 			(read xs; exit $xs)) 4>>"$logfile" &&
 		echo "ok $test_num $TEST_HDR_MSG") ||

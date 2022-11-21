@@ -40,7 +40,7 @@
 
 struct fman_mac *memac_config(struct fman_mac_params *params);
 int memac_set_promiscuous(struct fman_mac *memac, bool new_val);
-int memac_modify_mac_address(struct fman_mac *memac, enet_addr_t *enet_addr);
+int memac_modify_mac_address(struct fman_mac *memac, const enet_addr_t *enet_addr);
 int memac_adjust_link(struct fman_mac *memac, u16 speed);
 int memac_cfg_max_frame_len(struct fman_mac *memac, u16 new_val);
 int memac_cfg_reset_on_init(struct fman_mac *memac, bool enable);

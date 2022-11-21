@@ -44,22 +44,22 @@ properties:
        to a maximum value (70 ohms).
 
   tx-fifo-depth:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
        Transmitt FIFO depth see dt-bindings/net/ti-dp83869.h for values
 
   rx-fifo-depth:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
        Receive FIFO depth see dt-bindings/net/ti-dp83869.h for values
 
   ti,clk-output-sel:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
        Muxing option for CLK_OUT pin see dt-bindings/net/ti-dp83869.h for values.
 
   ti,op-mode:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
        Operational mode for the PHY.  If this is not set then the operational
        mode is set by the straps. see dt-bindings/net/ti-dp83869.h for values
@@ -92,7 +92,7 @@ examples:
         tx-fifo-depth = <DP83869_PHYCR_FIFO_DEPTH_4_B_NIB>;
         rx-fifo-depth = <DP83869_PHYCR_FIFO_DEPTH_4_B_NIB>;
         ti,op-mode = <DP83869_RGMII_COPPER_ETHERNET>;
-        ti,max-output-impedance = "true";
+        ti,max-output-impedance;
         ti,clk-output-sel = <DP83869_CLK_O_SEL_CHN_A_RCLK>;
         rx-internal-delay-ps = <2000>;
         tx-internal-delay-ps = <2000>;

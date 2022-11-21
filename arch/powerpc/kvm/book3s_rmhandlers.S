@@ -36,8 +36,8 @@
 
 #define FUNC(name)		name
 
-#define RFI_TO_KERNEL	RFI
-#define RFI_TO_GUEST	RFI
+#define RFI_TO_KERNEL	rfi
+#define RFI_TO_GUEST	rfi
 
 .macro INTERRUPT_TRAMPOLINE intno
 

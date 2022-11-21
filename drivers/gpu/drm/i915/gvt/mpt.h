@@ -33,6 +33,8 @@
 #ifndef _GVT_MPT_H_
 #define _GVT_MPT_H_
 
+#include "gvt.h"
+
 /**
  * DOC: Hypervisor Service APIs for GVT-g Core Logic
  *
@@ -61,13 +63,13 @@ static inline int intel_gvt_hypervisor_host_init(struct device *dev,
 /**
  * intel_gvt_hypervisor_host_exit - exit GVT-g host side
  */
-static inline void intel_gvt_hypervisor_host_exit(struct device *dev)
+static inline void intel_gvt_hypervisor_host_exit(struct device *dev, void *gvt)
 {
 	/* optional to provide */
 	if (!intel_gvt_host.mpt->host_exit)
 		return;
 
-	intel_gvt_host.mpt->host_exit(dev);
+	intel_gvt_host.mpt->host_exit(dev, gvt);
 }
 
 /**
@@ -392,7 +394,7 @@ static inline bool intel_gvt_hypervisor_is_valid_gfn(
 	return intel_gvt_host.mpt->is_valid_gfn(vgpu->handle, gfn);
 }
 
-int intel_gvt_register_hypervisor(struct intel_gvt_mpt *);
+int intel_gvt_register_hypervisor(const struct intel_gvt_mpt *);
 void intel_gvt_unregister_hypervisor(void);
 
 #endif /* _GVT_MPT_H_ */

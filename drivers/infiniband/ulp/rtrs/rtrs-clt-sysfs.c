@@ -16,21 +16,21 @@
 #define MIN_MAX_RECONN_ATT -1
 #define MAX_MAX_RECONN_ATT 9999
 
-static void rtrs_clt_sess_release(struct kobject *kobj)
+static void rtrs_clt_path_release(struct kobject *kobj)
 {
-	struct rtrs_clt_sess *sess;
+	struct rtrs_clt_path *clt_path;
 
-	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
+	clt_path = container_of(kobj, struct rtrs_clt_path, kobj);
 
-	free_sess(sess);
+	free_path(clt_path);
 }
 
 static struct kobj_type ktype_sess = {
 	.sysfs_ops = &kobj_sysfs_ops,
-	.release = rtrs_clt_sess_release
+	.release = rtrs_clt_path_release
 };
 
-static void rtrs_clt_sess_stats_release(struct kobject *kobj)
+static void rtrs_clt_path_stats_release(struct kobject *kobj)
 {
 	struct rtrs_clt_stats *stats;
 
@@ -43,16 +43,18 @@ static void rtrs_clt_sess_stats_release(struct kobject *kobj)
 
 static struct kobj_type ktype_stats = {
 	.sysfs_ops = &kobj_sysfs_ops,
-	.release = rtrs_clt_sess_stats_release,
+	.release = rtrs_clt_path_stats_release,
 };
 
 static ssize_t max_reconnect_attempts_show(struct device *dev,
 					   struct device_attribute *attr,
 					   char *page)
 {
-	struct rtrs_clt *clt = container_of(dev, struct rtrs_clt, dev);
+	struct rtrs_clt_sess *clt = container_of(dev, struct rtrs_clt_sess,
+						 dev);
 
-	return sprintf(page, "%d\n", rtrs_clt_get_max_reconnect_attempts(clt));
+	return sysfs_emit(page, "%d\n",
+			  rtrs_clt_get_max_reconnect_attempts(clt));
 }
 
 static ssize_t max_reconnect_attempts_store(struct device *dev,
@@ -62,7 +64,8 @@ static ssize_t max_reconnect_attempts_store(struct device *dev,
 {
 	int value;
 	int ret;
-	struct rtrs_clt *clt  = container_of(dev, struct rtrs_clt, dev);
+	struct rtrs_clt_sess *clt  = container_of(dev, struct rtrs_clt_sess,
+						  dev);
 
 	ret = kstrtoint(buf, 10, &value);
 	if (ret) {
@@ -89,17 +92,22 @@ static ssize_t mpath_policy_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *page)
 {
-	struct rtrs_clt *clt;
+	struct rtrs_clt_sess *clt;
 
-	clt = container_of(dev, struct rtrs_clt, dev);
+	clt = container_of(dev, struct rtrs_clt_sess, dev);
 
 	switch (clt->mp_policy) {
 	case MP_POLICY_RR:
-		return sprintf(page, "round-robin (RR: %d)\n", clt->mp_policy);
+		return sysfs_emit(page, "round-robin (RR: %d)\n",
+				  clt->mp_policy);
 	case MP_POLICY_MIN_INFLIGHT:
-		return sprintf(page, "min-inflight (MI: %d)\n", clt->mp_policy);
+		return sysfs_emit(page, "min-inflight (MI: %d)\n",
+				  clt->mp_policy);
+	case MP_POLICY_MIN_LATENCY:
+		return sysfs_emit(page, "min-latency (ML: %d)\n",
+				  clt->mp_policy);
 	default:
-		return sprintf(page, "Unknown (%d)\n", clt->mp_policy);
+		return sysfs_emit(page, "Unknown (%d)\n", clt->mp_policy);
 	}
 }
 
@@ -108,25 +116,35 @@ static ssize_t mpath_policy_store(struct device *dev,
 				  const char *buf,
 				  size_t count)
 {
-	struct rtrs_clt *clt;
+	struct rtrs_clt_sess *clt;
 	int value;
 	int ret;
+	size_t len = 0;
 
-	clt = container_of(dev, struct rtrs_clt, dev);
+	clt = container_of(dev, struct rtrs_clt_sess, dev);
 
 	ret = kstrtoint(buf, 10, &value);
 	if (!ret && (value == MP_POLICY_RR ||
-		     value == MP_POLICY_MIN_INFLIGHT)) {
+		     value == MP_POLICY_MIN_INFLIGHT ||
+		     value == MP_POLICY_MIN_LATENCY)) {
 		clt->mp_policy = value;
 		return count;
 	}
 
+	/* distinguish "mi" and "min-latency" with length */
+	len = strnlen(buf, NAME_MAX);
+	if (buf[len - 1] == '\n')
+		len--;
+
 	if (!strncasecmp(buf, "round-robin", 11) ||
-	    !strncasecmp(buf, "rr", 2))
+	    (len == 2 && !strncasecmp(buf, "rr", 2)))
 		clt->mp_policy = MP_POLICY_RR;
 	else if (!strncasecmp(buf, "min-inflight", 12) ||
-		 !strncasecmp(buf, "mi", 2))
+		 (len == 2 && !strncasecmp(buf, "mi", 2)))
 		clt->mp_policy = MP_POLICY_MIN_INFLIGHT;
+	else if (!strncasecmp(buf, "min-latency", 11) ||
+		 (len == 2 && !strncasecmp(buf, "ml", 2)))
+		clt->mp_policy = MP_POLICY_MIN_LATENCY;
 	else
 		return -EINVAL;
 
@@ -138,9 +156,9 @@ static DEVICE_ATTR_RW(mpath_policy);
 static ssize_t add_path_show(struct device *dev,
 			     struct device_attribute *attr, char *page)
 {
-	return scnprintf(page, PAGE_SIZE,
-			 "Usage: echo [<source addr>@]<destination addr> > %s\n\n*addr ::= [ ip:<ipv4|ipv6> | gid:<gid> ]\n",
-			 attr->attr.name);
+	return sysfs_emit(page,
+		"Usage: echo [<source addr>@]<destination addr> > %s\n\n*addr ::= [ ip:<ipv4|ipv6> | gid:<gid> ]\n",
+		attr->attr.name);
 }
 
 static ssize_t add_path_store(struct device *dev,
@@ -152,12 +170,12 @@ static ssize_t add_path_store(struct device *dev,
 		.src = &srcaddr,
 		.dst = &dstaddr
 	};
-	struct rtrs_clt *clt;
+	struct rtrs_clt_sess *clt;
 	const char *nl;
 	size_t len;
 	int err;
 
-	clt = container_of(dev, struct rtrs_clt, dev);
+	clt = container_of(dev, struct rtrs_clt_sess, dev);
 
 	nl = strchr(buf, '\n');
 	if (nl)
@@ -180,40 +198,38 @@ static DEVICE_ATTR_RW(add_path);
 static ssize_t rtrs_clt_state_show(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *page)
 {
-	struct rtrs_clt_sess *sess;
+	struct rtrs_clt_path *clt_path;
 
-	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
-	if (sess->state == RTRS_CLT_CONNECTED)
-		return sprintf(page, "connected\n");
+	clt_path = container_of(kobj, struct rtrs_clt_path, kobj);
+	if (clt_path->state == RTRS_CLT_CONNECTED)
+		return sysfs_emit(page, "connected\n");
 
-	return sprintf(page, "disconnected\n");
+	return sysfs_emit(page, "disconnected\n");
 }
 
 static struct kobj_attribute rtrs_clt_state_attr =
 	__ATTR(state, 0444, rtrs_clt_state_show, NULL);
 
 static ssize_t rtrs_clt_reconnect_show(struct kobject *kobj,
-					struct kobj_attribute *attr,
-					char *page)
+				       struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "Usage: echo 1 > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(buf, "Usage: echo 1 > %s\n", attr->attr.name);
 }
 
 static ssize_t rtrs_clt_reconnect_store(struct kobject *kobj,
 					 struct kobj_attribute *attr,
 					 const char *buf, size_t count)
 {
-	struct rtrs_clt_sess *sess;
+	struct rtrs_clt_path *clt_path;
 	int ret;
 
-	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
+	clt_path = container_of(kobj, struct rtrs_clt_path, kobj);
 	if (!sysfs_streq(buf, "1")) {
-		rtrs_err(sess->clt, "%s: unknown value: '%s'\n",
+		rtrs_err(clt_path->clt, "%s: unknown value: '%s'\n",
 			  attr->attr.name, buf);
 		return -EINVAL;
 	}
-	ret = rtrs_clt_reconnect_from_sysfs(sess);
+	ret = rtrs_clt_reconnect_from_sysfs(clt_path);
 	if (ret)
 		return ret;
 
@@ -225,29 +241,24 @@ static struct kobj_attribute rtrs_clt_reconnect_attr =
 	       rtrs_clt_reconnect_store);
 
 static ssize_t rtrs_clt_disconnect_show(struct kobject *kobj,
-					 struct kobj_attribute *attr,
-					 char *page)
+					struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "Usage: echo 1 > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(buf, "Usage: echo 1 > %s\n", attr->attr.name);
 }
 
 static ssize_t rtrs_clt_disconnect_store(struct kobject *kobj,
 					  struct kobj_attribute *attr,
 					  const char *buf, size_t count)
 {
-	struct rtrs_clt_sess *sess;
-	int ret;
+	struct rtrs_clt_path *clt_path;
 
-	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
+	clt_path = container_of(kobj, struct rtrs_clt_path, kobj);
 	if (!sysfs_streq(buf, "1")) {
-		rtrs_err(sess->clt, "%s: unknown value: '%s'\n",
+		rtrs_err(clt_path->clt, "%s: unknown value: '%s'\n",
 			  attr->attr.name, buf);
 		return -EINVAL;
 	}
-	ret = rtrs_clt_disconnect_from_sysfs(sess);
-	if (ret)
-		return ret;
+	rtrs_clt_close_conns(clt_path, true);
 
 	return count;
 }
@@ -257,27 +268,25 @@ static struct kobj_attribute rtrs_clt_disconnect_attr =
 	       rtrs_clt_disconnect_store);
 
 static ssize_t rtrs_clt_remove_path_show(struct kobject *kobj,
-					  struct kobj_attribute *attr,
-					  char *page)
+					 struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "Usage: echo 1 > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(buf, "Usage: echo 1 > %s\n", attr->attr.name);
 }
 
 static ssize_t rtrs_clt_remove_path_store(struct kobject *kobj,
 					   struct kobj_attribute *attr,
 					   const char *buf, size_t count)
 {
-	struct rtrs_clt_sess *sess;
+	struct rtrs_clt_path *clt_path;
 	int ret;
 
-	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
+	clt_path = container_of(kobj, struct rtrs_clt_path, kobj);
 	if (!sysfs_streq(buf, "1")) {
-		rtrs_err(sess->clt, "%s: unknown value: '%s'\n",
+		rtrs_err(clt_path->clt, "%s: unknown value: '%s'\n",
 			  attr->attr.name, buf);
 		return -EINVAL;
 	}
-	ret = rtrs_clt_remove_path_from_sysfs(sess, &attr->attr);
+	ret = rtrs_clt_remove_path_from_sysfs(clt_path, &attr->attr);
 	if (ret)
 		return ret;
 
@@ -288,8 +297,12 @@ static struct kobj_attribute rtrs_clt_remove_path_attr =
 	__ATTR(remove_path, 0644, rtrs_clt_remove_path_show,
 	       rtrs_clt_remove_path_store);
 
-STAT_ATTR(struct rtrs_clt_stats, cpu_migration,
-	  rtrs_clt_stats_migration_cnt_to_str,
+STAT_ATTR(struct rtrs_clt_stats, cpu_migration_from,
+	  rtrs_clt_stats_migration_from_cnt_to_str,
+	  rtrs_clt_reset_cpu_migr_stats);
+
+STAT_ATTR(struct rtrs_clt_stats, cpu_migration_to,
+	  rtrs_clt_stats_migration_to_cnt_to_str,
 	  rtrs_clt_reset_cpu_migr_stats);
 
 STAT_ATTR(struct rtrs_clt_stats, reconnects,
@@ -305,7 +318,8 @@ STAT_ATTR(struct rtrs_clt_stats, reset_all,
 	  rtrs_clt_reset_all_stats);
 
 static struct attribute *rtrs_clt_stats_attrs[] = {
-	&cpu_migration_attr.attr,
+	&cpu_migration_from_attr.attr,
+	&cpu_migration_to_attr.attr,
 	&reconnects_attr.attr,
 	&rdma_attr.attr,
 	&reset_all_attr.attr,
@@ -320,11 +334,11 @@ static ssize_t rtrs_clt_hca_port_show(struct kobject *kobj,
 				       struct kobj_attribute *attr,
 				       char *page)
 {
-	struct rtrs_clt_sess *sess;
+	struct rtrs_clt_path *clt_path;
 
-	sess = container_of(kobj, typeof(*sess), kobj);
+	clt_path = container_of(kobj, typeof(*clt_path), kobj);
 
-	return scnprintf(page, PAGE_SIZE, "%u\n", sess->hca_port);
+	return sysfs_emit(page, "%u\n", clt_path->hca_port);
 }
 
 static struct kobj_attribute rtrs_clt_hca_port_attr =
@@ -334,27 +348,43 @@ static ssize_t rtrs_clt_hca_name_show(struct kobject *kobj,
 				       struct kobj_attribute *attr,
 				       char *page)
 {
-	struct rtrs_clt_sess *sess;
+	struct rtrs_clt_path *clt_path;
 
-	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
+	clt_path = container_of(kobj, struct rtrs_clt_path, kobj);
 
-	return scnprintf(page, PAGE_SIZE, "%s\n", sess->hca_name);
+	return sysfs_emit(page, "%s\n", clt_path->hca_name);
 }
 
 static struct kobj_attribute rtrs_clt_hca_name_attr =
 	__ATTR(hca_name, 0444, rtrs_clt_hca_name_show, NULL);
 
+static ssize_t rtrs_clt_cur_latency_show(struct kobject *kobj,
+				    struct kobj_attribute *attr,
+				    char *page)
+{
+	struct rtrs_clt_path *clt_path;
+
+	clt_path = container_of(kobj, struct rtrs_clt_path, kobj);
+
+	return sysfs_emit(page, "%lld ns\n",
+			  ktime_to_ns(clt_path->s.hb_cur_latency));
+}
+
+static struct kobj_attribute rtrs_clt_cur_latency_attr =
+	__ATTR(cur_latency, 0444, rtrs_clt_cur_latency_show, NULL);
+
 static ssize_t rtrs_clt_src_addr_show(struct kobject *kobj,
 				       struct kobj_attribute *attr,
 				       char *page)
 {
-	struct rtrs_clt_sess *sess;
-	int cnt;
+	struct rtrs_clt_path *clt_path;
+	int len;
 
-	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
-	cnt = sockaddr_to_str((struct sockaddr *)&sess->s.src_addr,
-			      page, PAGE_SIZE);
-	return cnt + scnprintf(page + cnt, PAGE_SIZE - cnt, "\n");
+	clt_path = container_of(kobj, struct rtrs_clt_path, kobj);
+	len = sockaddr_to_str((struct sockaddr *)&clt_path->s.src_addr, page,
+			      PAGE_SIZE);
+	len += sysfs_emit_at(page, len, "\n");
+	return len;
 }
 
 static struct kobj_attribute rtrs_clt_src_addr_attr =
@@ -364,19 +394,20 @@ static ssize_t rtrs_clt_dst_addr_show(struct kobject *kobj,
 				       struct kobj_attribute *attr,
 				       char *page)
 {
-	struct rtrs_clt_sess *sess;
-	int cnt;
+	struct rtrs_clt_path *clt_path;
+	int len;
 
-	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
-	cnt = sockaddr_to_str((struct sockaddr *)&sess->s.dst_addr,
-			      page, PAGE_SIZE);
-	return cnt + scnprintf(page + cnt, PAGE_SIZE - cnt, "\n");
+	clt_path = container_of(kobj, struct rtrs_clt_path, kobj);
+	len = sockaddr_to_str((struct sockaddr *)&clt_path->s.dst_addr, page,
+			      PAGE_SIZE);
+	len += sysfs_emit_at(page, len, "\n");
+	return len;
 }
 
 static struct kobj_attribute rtrs_clt_dst_addr_attr =
 	__ATTR(dst_addr, 0444, rtrs_clt_dst_addr_show, NULL);
 
-static struct attribute *rtrs_clt_sess_attrs[] = {
+static struct attribute *rtrs_clt_path_attrs[] = {
 	&rtrs_clt_hca_name_attr.attr,
 	&rtrs_clt_hca_port_attr.attr,
 	&rtrs_clt_src_addr_attr.attr,
@@ -385,44 +416,47 @@ static struct attribute *rtrs_clt_sess_attrs[] = {
 	&rtrs_clt_reconnect_attr.attr,
 	&rtrs_clt_disconnect_attr.attr,
 	&rtrs_clt_remove_path_attr.attr,
+	&rtrs_clt_cur_latency_attr.attr,
 	NULL,
 };
 
-static const struct attribute_group rtrs_clt_sess_attr_group = {
-	.attrs = rtrs_clt_sess_attrs,
+static const struct attribute_group rtrs_clt_path_attr_group = {
+	.attrs = rtrs_clt_path_attrs,
 };
 
-int rtrs_clt_create_sess_files(struct rtrs_clt_sess *sess)
+int rtrs_clt_create_path_files(struct rtrs_clt_path *clt_path)
 {
-	struct rtrs_clt *clt = sess->clt;
+	struct rtrs_clt_sess *clt = clt_path->clt;
 	char str[NAME_MAX];
-	int err, cnt;
+	int err;
+	struct rtrs_addr path = {
+		.src = &clt_path->s.src_addr,
+		.dst = &clt_path->s.dst_addr,
+	};
 
-	cnt = sockaddr_to_str((struct sockaddr *)&sess->s.src_addr,
-			      str, sizeof(str));
-	cnt += scnprintf(str + cnt, sizeof(str) - cnt, "@");
-	sockaddr_to_str((struct sockaddr *)&sess->s.dst_addr,
-			str + cnt, sizeof(str) - cnt);
-
-	err = kobject_init_and_add(&sess->kobj, &ktype_sess, clt->kobj_paths,
+	rtrs_addr_to_str(&path, str, sizeof(str));
+	err = kobject_init_and_add(&clt_path->kobj, &ktype_sess,
+				   clt->kobj_paths,
 				   "%s", str);
 	if (err) {
 		pr_err("kobject_init_and_add: %d\n", err);
+		kobject_put(&clt_path->kobj);
 		return err;
 	}
-	err = sysfs_create_group(&sess->kobj, &rtrs_clt_sess_attr_group);
+	err = sysfs_create_group(&clt_path->kobj, &rtrs_clt_path_attr_group);
 	if (err) {
 		pr_err("sysfs_create_group(): %d\n", err);
 		goto put_kobj;
 	}
-	err = kobject_init_and_add(&sess->stats->kobj_stats, &ktype_stats,
-				   &sess->kobj, "stats");
+	err = kobject_init_and_add(&clt_path->stats->kobj_stats, &ktype_stats,
+				   &clt_path->kobj, "stats");
 	if (err) {
 		pr_err("kobject_init_and_add: %d\n", err);
+		kobject_put(&clt_path->stats->kobj_stats);
 		goto remove_group;
 	}
 
-	err = sysfs_create_group(&sess->stats->kobj_stats,
+	err = sysfs_create_group(&clt_path->stats->kobj_stats,
 				 &rtrs_clt_stats_attr_group);
 	if (err) {
 		pr_err("failed to create stats sysfs group, err: %d\n", err);
@@ -432,25 +466,25 @@ int rtrs_clt_create_sess_files(struct rtrs_clt_sess *sess)
 	return 0;
 
 put_kobj_stats:
-	kobject_del(&sess->stats->kobj_stats);
-	kobject_put(&sess->stats->kobj_stats);
+	kobject_del(&clt_path->stats->kobj_stats);
+	kobject_put(&clt_path->stats->kobj_stats);
 remove_group:
-	sysfs_remove_group(&sess->kobj, &rtrs_clt_sess_attr_group);
+	sysfs_remove_group(&clt_path->kobj, &rtrs_clt_path_attr_group);
 put_kobj:
-	kobject_del(&sess->kobj);
-	kobject_put(&sess->kobj);
+	kobject_del(&clt_path->kobj);
+	kobject_put(&clt_path->kobj);
 
 	return err;
 }
 
-void rtrs_clt_destroy_sess_files(struct rtrs_clt_sess *sess,
+void rtrs_clt_destroy_path_files(struct rtrs_clt_path *clt_path,
 				  const struct attribute *sysfs_self)
 {
-	kobject_del(&sess->stats->kobj_stats);
-	kobject_put(&sess->stats->kobj_stats);
+	kobject_del(&clt_path->stats->kobj_stats);
+	kobject_put(&clt_path->stats->kobj_stats);
 	if (sysfs_self)
-		sysfs_remove_file_self(&sess->kobj, sysfs_self);
-	kobject_del(&sess->kobj);
+		sysfs_remove_file_self(&clt_path->kobj, sysfs_self);
+	kobject_del(&clt_path->kobj);
 }
 
 static struct attribute *rtrs_clt_attrs[] = {
@@ -464,20 +498,17 @@ static const struct attribute_group rtrs_clt_attr_group = {
 	.attrs = rtrs_clt_attrs,
 };
 
-int rtrs_clt_create_sysfs_root_files(struct rtrs_clt *clt)
+int rtrs_clt_create_sysfs_root_files(struct rtrs_clt_sess *clt)
 {
 	return sysfs_create_group(&clt->dev.kobj, &rtrs_clt_attr_group);
 }
 
-void rtrs_clt_destroy_sysfs_root_folders(struct rtrs_clt *clt)
+void rtrs_clt_destroy_sysfs_root(struct rtrs_clt_sess *clt)
 {
+	sysfs_remove_group(&clt->dev.kobj, &rtrs_clt_attr_group);
+
 	if (clt->kobj_paths) {
 		kobject_del(clt->kobj_paths);
 		kobject_put(clt->kobj_paths);
 	}
-}
-
-void rtrs_clt_destroy_sysfs_root_files(struct rtrs_clt *clt)
-{
-	sysfs_remove_group(&clt->dev.kobj, &rtrs_clt_attr_group);
 }

@@ -81,7 +81,7 @@ static int codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0),
 				  SND_SOC_DAIFMT_I2S     |
 				  SND_SOC_DAIFMT_NB_NF   |
-				  SND_SOC_DAIFMT_CBS_CFS);
+				  SND_SOC_DAIFMT_CBC_CFC);
 	if (ret < 0) {
 		dev_err(rtd->dev, "can't set format to I2S, err %d\n", ret);
 		return ret;
@@ -195,9 +195,8 @@ static struct snd_soc_dai_link dailink[] = {
 		.id = 0,
 		.no_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
-						| SND_SOC_DAIFMT_CBS_CFS,
+						| SND_SOC_DAIFMT_CBC_CFC,
 		.be_hw_params_fixup = codec_fixup,
-		.nonatomic = true,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.ops = &ssp2_ops,
@@ -205,14 +204,12 @@ static struct snd_soc_dai_link dailink[] = {
 	},
 };
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 /* use space before codec name to simplify card ID, and simplify driver name */
-#define CARD_NAME "bytcht da7213" /* card name will be 'sof-bytcht da7213' */
-#define DRIVER_NAME "SOF"
-#else
+#define SOF_CARD_NAME "bytcht da7213" /* card name will be 'sof-bytcht da7213' */
+#define SOF_DRIVER_NAME "SOF"
+
 #define CARD_NAME "bytcht-da7213"
 #define DRIVER_NAME NULL /* card name will be used for driver name */
-#endif
 
 /* SoC card */
 static struct snd_soc_card bytcht_da7213_card = {
@@ -237,6 +234,7 @@ static int bytcht_da7213_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
 	struct acpi_device *adev;
+	bool sof_parent;
 	int dai_index = 0;
 	int ret_val = 0;
 	int i;
@@ -262,12 +260,27 @@ static int bytcht_da7213_probe(struct platform_device *pdev)
 		dailink[dai_index].codecs->name = codec_name;
 	}
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	platform_name = mach->mach_params.platform;
 
 	ret_val = snd_soc_fixup_dai_links_platform_name(card, platform_name);
 	if (ret_val)
 		return ret_val;
+
+	sof_parent = snd_soc_acpi_sof_parent(&pdev->dev);
+
+	/* set card and driver name */
+	if (sof_parent) {
+		bytcht_da7213_card.name = SOF_CARD_NAME;
+		bytcht_da7213_card.driver_name = SOF_DRIVER_NAME;
+	} else {
+		bytcht_da7213_card.name = CARD_NAME;
+		bytcht_da7213_card.driver_name = DRIVER_NAME;
+	}
+
+	/* set pm ops */
+	if (sof_parent)
+		pdev->dev.driver->pm = &snd_soc_pm_ops;
 
 	ret_val = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret_val) {
@@ -282,9 +295,6 @@ static int bytcht_da7213_probe(struct platform_device *pdev)
 static struct platform_driver bytcht_da7213_driver = {
 	.driver = {
 		.name = "bytcht_da7213",
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-		.pm = &snd_soc_pm_ops,
-#endif
 	},
 	.probe = bytcht_da7213_probe,
 };

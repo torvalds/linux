@@ -37,11 +37,10 @@ structure are filled by the driver. The file handle will also receive
 exceptions which the application may get by e.g. using the select system
 call.
 
-.. tabularcolumns:: |p{3.0cm}|p{4.4cm}|p{2.4cm}|p{7.7cm}|
-
 .. c:type:: v4l2_event
 
-.. cssclass: longtable
+.. tabularcolumns:: |p{3.0cm}|p{3.4cm}|p{10.9cm}|
+
 
 .. flat-table:: struct v4l2_event
     :header-rows:  0
@@ -98,7 +97,7 @@ call.
 	zero.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.2cm}|p{2.6cm}|p{8.5cm}|
 
 .. cssclass:: longtable
 
@@ -188,7 +187,7 @@ call.
       - Base event number for driver-private events.
 
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. c:type:: v4l2_event_vsync
 
@@ -202,7 +201,7 @@ call.
       - The upcoming field. See enum :c:type:`v4l2_field`.
 
 
-.. tabularcolumns:: |p{3.5cm}|p{3.0cm}|p{1.8cm}|p{8.5cm}|
+.. tabularcolumns:: |p{3.5cm}|p{3.0cm}|p{10.8cm}|
 
 .. c:type:: v4l2_event_ctrl
 
@@ -252,7 +251,7 @@ call.
 	:ref:`v4l2_queryctrl <v4l2-queryctrl>`.
 
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. c:type:: v4l2_event_frame_sync
 
@@ -266,7 +265,7 @@ call.
       - The sequence number of the frame being received.
 
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. c:type:: v4l2_event_src_change
 
@@ -281,7 +280,7 @@ call.
 	:ref:`src-changes-flags`.
 
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. c:type:: v4l2_event_motion_det
 
@@ -310,7 +309,7 @@ call.
 	automatically assigned to the default region 0.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _ctrl-changes-flags:
 
@@ -335,7 +334,7 @@ call.
 	step or the default value of the control changed.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _src-changes-flags:
 

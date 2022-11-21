@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * include/net/9p/9p.h
- *
  * 9P protocol definitions.
  *
  *  Copyright (C) 2005 by Latchesar Ionkov <lucho@ionkov.net>
@@ -32,13 +30,13 @@
  */
 
 enum p9_debug_flags {
-	P9_DEBUG_ERROR = 	(1<<0),
-	P9_DEBUG_9P = 		(1<<2),
+	P9_DEBUG_ERROR =	(1<<0),
+	P9_DEBUG_9P =		(1<<2),
 	P9_DEBUG_VFS =		(1<<3),
 	P9_DEBUG_CONV =		(1<<4),
 	P9_DEBUG_MUX =		(1<<5),
 	P9_DEBUG_TRANS =	(1<<6),
-	P9_DEBUG_SLABS =      	(1<<7),
+	P9_DEBUG_SLABS =	(1<<7),
 	P9_DEBUG_FCALL =	(1<<8),
 	P9_DEBUG_FID =		(1<<9),
 	P9_DEBUG_PKT =		(1<<10),
@@ -317,8 +315,8 @@ enum p9_qid_t {
 };
 
 /* 9P Magic Numbers */
-#define P9_NOTAG	(u16)(~0)
-#define P9_NOFID	(u32)(~0)
+#define P9_NOTAG	((u16)(~0))
+#define P9_NOFID	((u32)(~0))
 #define P9_MAXWELEM	16
 
 /* Minimal header size: size[4] type[1] tag[2] */
@@ -553,6 +551,4 @@ struct p9_fcall {
 int p9_errstr2errno(char *errstr, int len);
 
 int p9_error_init(void);
-int p9_trans_fd_init(void);
-void p9_trans_fd_exit(void);
 #endif /* NET_9P_H */

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/**
+/*
  * trace.h - DesignWare USB3 DRD Controller Trace Support
  *
  * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com
@@ -32,8 +32,10 @@ DECLARE_EVENT_CLASS(dwc3_log_io,
 		__entry->offset = offset;
 		__entry->value = value;
 	),
-	TP_printk("addr %p value %08x", __entry->base + __entry->offset,
-			__entry->value)
+	TP_printk("addr %p offset %04x value %08x",
+		__entry->base + __entry->offset,
+		__entry->offset,
+		__entry->value)
 );
 
 DEFINE_EVENT(dwc3_log_io, dwc3_readl,
@@ -220,8 +222,6 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 	TP_STRUCT__entry(
 		__string(name, dep->name)
 		__field(struct dwc3_trb *, trb)
-		__field(u32, allocated)
-		__field(u32, queued)
 		__field(u32, bpl)
 		__field(u32, bph)
 		__field(u32, size)

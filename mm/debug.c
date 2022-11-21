@@ -16,15 +16,19 @@
 #include <linux/ctype.h>
 
 #include "internal.h"
+#include <trace/events/migrate.h>
+
+/*
+ * Define EM() and EMe() so that MIGRATE_REASON from trace/events/migrate.h can
+ * be used to populate migrate_reason_names[].
+ */
+#undef EM
+#undef EMe
+#define EM(a, b)	b,
+#define EMe(a, b)	b
 
 const char *migrate_reason_names[MR_TYPES] = {
-	"compaction",
-	"memory_failure",
-	"memory_hotplug",
-	"syscall_or_cpuset",
-	"mempolicy_mbind",
-	"numa_misplaced",
-	"cma",
+	MIGRATE_REASON
 };
 
 const struct trace_print_flags pageflag_names[] = {
@@ -42,11 +46,11 @@ const struct trace_print_flags vmaflag_names[] = {
 	{0, NULL}
 };
 
-void __dump_page(struct page *page, const char *reason)
+static void __dump_page(struct page *page)
 {
-	struct page *head = compound_head(page);
+	struct folio *folio = page_folio(page);
+	struct page *head = &folio->page;
 	struct address_space *mapping;
-	bool page_poisoned = PagePoisoned(page);
 	bool compound = PageCompound(page);
 	/*
 	 * Accessing the pageblock without the zone lock. It could change to
@@ -57,16 +61,6 @@ void __dump_page(struct page *page, const char *reason)
 	bool page_cma = is_migrate_cma_page(page);
 	int mapcount;
 	char *type = "";
-
-	/*
-	 * If struct page is poisoned don't access Page*() functions as that
-	 * leads to recursive loop. Page*() check for poisoned pages, and calls
-	 * dump_page() when detected.
-	 */
-	if (page_poisoned) {
-		pr_warn("page:%px is uninitialized and poisoned", page);
-		goto hex_only;
-	}
 
 	if (page < head || (page >= head + MAX_ORDER_NR_PAGES)) {
 		/*
@@ -83,6 +77,7 @@ void __dump_page(struct page *page, const char *reason)
 		else
 			mapping = (void *)(tmp & ~PAGE_MAPPING_FLAGS);
 		head = page;
+		folio = (struct folio *)page;
 		compound = false;
 	} else {
 		mapping = page_mapping(page);
@@ -99,77 +94,26 @@ void __dump_page(struct page *page, const char *reason)
 			page, page_ref_count(head), mapcount, mapping,
 			page_to_pgoff(page), page_to_pfn(page));
 	if (compound) {
-		if (hpage_pincount_available(page)) {
-			pr_warn("head:%p order:%u compound_mapcount:%d compound_pincount:%d\n",
-					head, compound_order(head),
-					head_compound_mapcount(head),
-					head_compound_pincount(head));
-		} else {
-			pr_warn("head:%p order:%u compound_mapcount:%d\n",
-					head, compound_order(head),
-					head_compound_mapcount(head));
-		}
+		pr_warn("head:%p order:%u compound_mapcount:%d compound_pincount:%d\n",
+				head, compound_order(head),
+				folio_entire_mapcount(folio),
+				head_compound_pincount(head));
 	}
+
+#ifdef CONFIG_MEMCG
+	if (head->memcg_data)
+		pr_warn("memcg:%lx\n", head->memcg_data);
+#endif
 	if (PageKsm(page))
 		type = "ksm ";
 	else if (PageAnon(page))
 		type = "anon ";
-	else if (mapping) {
-		struct inode *host;
-		const struct address_space_operations *a_ops;
-		struct hlist_node *dentry_first;
-		struct dentry *dentry_ptr;
-		struct dentry dentry;
-		unsigned long ino;
-
-		/*
-		 * mapping can be invalid pointer and we don't want to crash
-		 * accessing it, so probe everything depending on it carefully
-		 */
-		if (get_kernel_nofault(host, &mapping->host) ||
-		    get_kernel_nofault(a_ops, &mapping->a_ops)) {
-			pr_warn("failed to read mapping contents, not a valid kernel address?\n");
-			goto out_mapping;
-		}
-
-		if (!host) {
-			pr_warn("aops:%ps\n", a_ops);
-			goto out_mapping;
-		}
-
-		if (get_kernel_nofault(dentry_first, &host->i_dentry.first) ||
-		    get_kernel_nofault(ino, &host->i_ino)) {
-			pr_warn("aops:%ps with invalid host inode %px\n",
-					a_ops, host);
-			goto out_mapping;
-		}
-
-		if (!dentry_first) {
-			pr_warn("aops:%ps ino:%lx\n", a_ops, ino);
-			goto out_mapping;
-		}
-
-		dentry_ptr = container_of(dentry_first, struct dentry, d_u.d_alias);
-		if (get_kernel_nofault(dentry, dentry_ptr)) {
-			pr_warn("aops:%ps ino:%lx with invalid dentry %px\n",
-					a_ops, ino, dentry_ptr);
-		} else {
-			/*
-			 * if dentry is corrupted, the %pd handler may still
-			 * crash, but it's unlikely that we reach here with a
-			 * corrupted struct page
-			 */
-			pr_warn("aops:%ps ino:%lx dentry name:\"%pd\"\n",
-					a_ops, ino, &dentry);
-		}
-	}
-out_mapping:
+	else if (mapping)
+		dump_mapping(mapping);
 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
 
-	pr_warn("%sflags: %#lx(%pGp)%s\n", type, head->flags, &head->flags,
+	pr_warn("%sflags: %pGp%s\n", type, &head->flags,
 		page_cma ? " CMA" : "");
-
-hex_only:
 	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_NONE, 32,
 			sizeof(unsigned long), page,
 			sizeof(struct page), false);
@@ -177,19 +121,16 @@ hex_only:
 		print_hex_dump(KERN_WARNING, "head: ", DUMP_PREFIX_NONE, 32,
 			sizeof(unsigned long), head,
 			sizeof(struct page), false);
-
-	if (reason)
-		pr_warn("page dumped because: %s\n", reason);
-
-#ifdef CONFIG_MEMCG
-	if (!page_poisoned && page->mem_cgroup)
-		pr_warn("page->mem_cgroup:%px\n", page->mem_cgroup);
-#endif
 }
 
 void dump_page(struct page *page, const char *reason)
 {
-	__dump_page(page, reason);
+	if (PagePoisoned(page))
+		pr_warn("page:%p is uninitialized and poisoned", page);
+	else
+		__dump_page(page);
+	if (reason)
+		pr_warn("page dumped because: %s\n", reason);
 	dump_page_owner(page);
 }
 EXPORT_SYMBOL(dump_page);
@@ -225,7 +166,7 @@ void dump_mm(const struct mm_struct *mm)
 		"start_code %lx end_code %lx start_data %lx end_data %lx\n"
 		"start_brk %lx brk %lx start_stack %lx\n"
 		"arg_start %lx arg_end %lx env_start %lx env_end %lx\n"
-		"binfmt %px flags %lx core_state %px\n"
+		"binfmt %px flags %lx\n"
 #ifdef CONFIG_AIO
 		"ioctx_table %px\n"
 #endif
@@ -257,7 +198,7 @@ void dump_mm(const struct mm_struct *mm)
 		mm->start_code, mm->end_code, mm->start_data, mm->end_data,
 		mm->start_brk, mm->brk, mm->start_stack,
 		mm->arg_start, mm->arg_end, mm->env_start, mm->env_end,
-		mm->binfmt, mm->flags, mm->core_state,
+		mm->binfmt, mm->flags,
 #ifdef CONFIG_AIO
 		mm->ioctx_table,
 #endif
@@ -320,5 +261,4 @@ void page_init_poison(struct page *page, size_t size)
 	if (page_init_poisoning)
 		memset(page, PAGE_POISON_PATTERN, size);
 }
-EXPORT_SYMBOL_GPL(page_init_poison);
 #endif		/* CONFIG_DEBUG_VM */

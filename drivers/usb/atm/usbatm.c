@@ -249,7 +249,7 @@ static void usbatm_complete(struct urb *urb)
 	/* vdbg("%s: urb 0x%p, status %d, actual_length %d",
 	     __func__, urb, status, urb->actual_length); */
 
-	/* usually in_interrupt(), but not always */
+	/* Can be invoked from task context, protect against interrupts */
 	spin_lock_irqsave(&channel->lock, flags);
 
 	/* must add to the back when receiving; doesn't matter when sending */
@@ -969,7 +969,7 @@ static int usbatm_do_heavy_init(void *arg)
 	instance->thread = NULL;
 	mutex_unlock(&instance->serialize);
 
-	complete_and_exit(&instance->thread_exited, ret);
+	kthread_complete_and_exit(&instance->thread_exited, ret);
 }
 
 static int usbatm_heavy_init(struct usbatm_data *instance)
@@ -1015,9 +1015,11 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	int error = -ENOMEM;
 	int i, length;
 	unsigned int maxpacket, num_packets;
+	size_t size;
 
 	/* instance init */
-	instance = kzalloc(sizeof(*instance) + sizeof(struct urb *) * (num_rcv_urbs + num_snd_urbs), GFP_KERNEL);
+	size = struct_size(instance, urbs, num_rcv_urbs + num_snd_urbs);
+	instance = kzalloc(size, GFP_KERNEL);
 	if (!instance)
 		return -ENOMEM;
 
@@ -1278,7 +1280,7 @@ EXPORT_SYMBOL_GPL(usbatm_usb_disconnect);
 static int __init usbatm_usb_init(void)
 {
 	if (sizeof(struct usbatm_control) > sizeof_field(struct sk_buff, cb)) {
-		printk(KERN_ERR "%s unusable with this kernel!\n", usbatm_driver_name);
+		pr_err("%s unusable with this kernel!\n", usbatm_driver_name);
 		return -EIO;
 	}
 

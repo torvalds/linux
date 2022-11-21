@@ -31,60 +31,43 @@
  */
 
 #include <linux/dmapool.h>
-#include <linux/platform_device.h>
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
 #include "hns_roce_cmd.h"
 
-#define CMD_POLL_TOKEN		0xffff
-#define CMD_MAX_NUM		32
-#define CMD_TOKEN_MASK		0x1f
+#define CMD_POLL_TOKEN 0xffff
+#define CMD_MAX_NUM 32
 
-static int hns_roce_cmd_mbox_post_hw(struct hns_roce_dev *hr_dev, u64 in_param,
-				     u64 out_param, u32 in_modifier,
-				     u8 op_modifier, u16 op, u16 token,
-				     int event)
+static int hns_roce_cmd_mbox_post_hw(struct hns_roce_dev *hr_dev,
+				     struct hns_roce_mbox_msg *mbox_msg)
 {
-	struct hns_roce_cmdq *cmd = &hr_dev->cmd;
-	int ret;
-
-	mutex_lock(&cmd->hcr_mutex);
-	ret = hr_dev->hw->post_mbox(hr_dev, in_param, out_param, in_modifier,
-				    op_modifier, op, token, event);
-	mutex_unlock(&cmd->hcr_mutex);
-
-	return ret;
+	return hr_dev->hw->post_mbox(hr_dev, mbox_msg);
 }
 
 /* this should be called with "poll_sem" */
-static int __hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
-				    u64 out_param, unsigned long in_modifier,
-				    u8 op_modifier, u16 op,
-				    unsigned long timeout)
+static int __hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev,
+				    struct hns_roce_mbox_msg *mbox_msg)
 {
-	struct device *dev = hr_dev->dev;
 	int ret;
 
-	ret = hns_roce_cmd_mbox_post_hw(hr_dev, in_param, out_param,
-					in_modifier, op_modifier, op,
-					CMD_POLL_TOKEN, 0);
+	ret = hns_roce_cmd_mbox_post_hw(hr_dev, mbox_msg);
 	if (ret) {
-		dev_err(dev, "[cmd_poll]hns_roce_cmd_mbox_post_hw failed\n");
+		dev_err_ratelimited(hr_dev->dev,
+				    "failed to post mailbox 0x%x in poll mode, ret = %d.\n",
+				    mbox_msg->cmd, ret);
 		return ret;
 	}
 
-	return hr_dev->hw->chk_mbox(hr_dev, timeout);
+	return hr_dev->hw->poll_mbox_done(hr_dev);
 }
 
-static int hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
-				  u64 out_param, unsigned long in_modifier,
-				  u8 op_modifier, u16 op, unsigned long timeout)
+static int hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev,
+				  struct hns_roce_mbox_msg *mbox_msg)
 {
 	int ret;
 
 	down(&hr_dev->cmd.poll_sem);
-	ret = __hns_roce_cmd_mbox_poll(hr_dev, in_param, out_param, in_modifier,
-				       op_modifier, op, timeout);
+	ret = __hns_roce_cmd_mbox_poll(hr_dev, mbox_msg);
 	up(&hr_dev->cmd.poll_sem);
 
 	return ret;
@@ -93,22 +76,23 @@ static int hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
 			u64 out_param)
 {
-	struct hns_roce_cmd_context
-		*context = &hr_dev->cmd.context[token & hr_dev->cmd.token_mask];
+	struct hns_roce_cmd_context *context =
+		&hr_dev->cmd.context[token % hr_dev->cmd.max_cmds];
 
-	if (token != context->token)
+	if (unlikely(token != context->token)) {
+		dev_err_ratelimited(hr_dev->dev,
+				    "[cmd] invalid ae token 0x%x, context token is 0x%x.\n",
+				    token, context->token);
 		return;
+	}
 
 	context->result = (status == HNS_ROCE_CMD_SUCCESS) ? 0 : (-EIO);
 	context->out_param = out_param;
 	complete(&context->done);
 }
 
-/* this should be called with "use_events" */
-static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
-				    u64 out_param, unsigned long in_modifier,
-				    u8 op_modifier, u16 op,
-				    unsigned long timeout)
+static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev,
+				    struct hns_roce_mbox_msg *mbox_msg)
 {
 	struct hns_roce_cmdq *cmd = &hr_dev->cmd;
 	struct hns_roce_cmd_context *context;
@@ -116,103 +100,91 @@ static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 	int ret;
 
 	spin_lock(&cmd->context_lock);
-	WARN_ON(cmd->free_head < 0);
-	context = &cmd->context[cmd->free_head];
-	context->token += cmd->token_mask + 1;
-	cmd->free_head = context->next;
+
+	do {
+		context = &cmd->context[cmd->free_head];
+		cmd->free_head = context->next;
+	} while (context->busy);
+
+	context->busy = 1;
+	context->token += cmd->max_cmds;
+
 	spin_unlock(&cmd->context_lock);
 
-	init_completion(&context->done);
+	reinit_completion(&context->done);
 
-	ret = hns_roce_cmd_mbox_post_hw(hr_dev, in_param, out_param,
-					in_modifier, op_modifier, op,
-					context->token, 1);
-	if (ret)
+	mbox_msg->token = context->token;
+	ret = hns_roce_cmd_mbox_post_hw(hr_dev, mbox_msg);
+	if (ret) {
+		dev_err_ratelimited(dev,
+				    "failed to post mailbox 0x%x in event mode, ret = %d.\n",
+				    mbox_msg->cmd, ret);
 		goto out;
+	}
 
-	/*
-	 * It is timeout when wait_for_completion_timeout return 0
-	 * The return value is the time limit set in advance
-	 * how many seconds showing
-	 */
 	if (!wait_for_completion_timeout(&context->done,
-					 msecs_to_jiffies(timeout))) {
-		dev_err(dev, "[cmd]wait_for_completion_timeout timeout\n");
+				msecs_to_jiffies(HNS_ROCE_CMD_TIMEOUT_MSECS))) {
+		dev_err_ratelimited(dev, "[cmd] token 0x%x mailbox 0x%x timeout.\n",
+				    context->token, mbox_msg->cmd);
 		ret = -EBUSY;
 		goto out;
 	}
 
 	ret = context->result;
-	if (ret) {
-		dev_err(dev, "[cmd]event mod cmd process error!err=%d\n", ret);
-		goto out;
-	}
+	if (ret)
+		dev_err_ratelimited(dev, "[cmd] token 0x%x mailbox 0x%x error %d.\n",
+				    context->token, mbox_msg->cmd, ret);
 
 out:
-	spin_lock(&cmd->context_lock);
-	context->next = cmd->free_head;
-	cmd->free_head = context - cmd->context;
-	spin_unlock(&cmd->context_lock);
-
+	context->busy = 0;
 	return ret;
 }
 
-static int hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
-				  u64 out_param, unsigned long in_modifier,
-				  u8 op_modifier, u16 op, unsigned long timeout)
+static int hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev,
+				  struct hns_roce_mbox_msg *mbox_msg)
 {
 	int ret;
 
 	down(&hr_dev->cmd.event_sem);
-	ret = __hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param,
-				       in_modifier, op_modifier, op, timeout);
+	ret = __hns_roce_cmd_mbox_wait(hr_dev, mbox_msg);
 	up(&hr_dev->cmd.event_sem);
 
 	return ret;
 }
 
 int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
-		      unsigned long in_modifier, u8 op_modifier, u16 op,
-		      unsigned long timeout)
+		      u8 cmd, unsigned long tag)
 {
-	int ret;
+	struct hns_roce_mbox_msg mbox_msg = {};
+	bool is_busy;
 
-	if (hr_dev->hw->rst_prc_mbox) {
-		ret = hr_dev->hw->rst_prc_mbox(hr_dev);
-		if (ret == CMD_RST_PRC_SUCCESS)
-			return 0;
-		else if (ret == CMD_RST_PRC_EBUSY)
-			return -EBUSY;
+	if (hr_dev->hw->chk_mbox_avail)
+		if (!hr_dev->hw->chk_mbox_avail(hr_dev, &is_busy))
+			return is_busy ? -EBUSY : 0;
+
+	mbox_msg.in_param = in_param;
+	mbox_msg.out_param = out_param;
+	mbox_msg.cmd = cmd;
+	mbox_msg.tag = tag;
+
+	if (hr_dev->cmd.use_events) {
+		mbox_msg.event_en = 1;
+
+		return hns_roce_cmd_mbox_wait(hr_dev, &mbox_msg);
+	} else {
+		mbox_msg.event_en = 0;
+		mbox_msg.token = CMD_POLL_TOKEN;
+
+		return hns_roce_cmd_mbox_poll(hr_dev, &mbox_msg);
 	}
-
-	if (hr_dev->cmd.use_events)
-		ret = hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param,
-					     in_modifier, op_modifier, op,
-					     timeout);
-	else
-		ret = hns_roce_cmd_mbox_poll(hr_dev, in_param, out_param,
-					     in_modifier, op_modifier, op,
-					     timeout);
-
-	if (ret == CMD_RST_PRC_EBUSY)
-		return -EBUSY;
-
-	if (ret && (hr_dev->hw->rst_prc_mbox &&
-		    hr_dev->hw->rst_prc_mbox(hr_dev) == CMD_RST_PRC_SUCCESS))
-		return 0;
-
-	return ret;
 }
 
 int hns_roce_cmd_init(struct hns_roce_dev *hr_dev)
 {
-	struct device *dev = hr_dev->dev;
-
-	mutex_init(&hr_dev->cmd.hcr_mutex);
 	sema_init(&hr_dev->cmd.poll_sem, 1);
 	hr_dev->cmd.use_events = 0;
 	hr_dev->cmd.max_cmds = CMD_MAX_NUM;
-	hr_dev->cmd.pool = dma_pool_create("hns_roce_cmd", dev,
+	hr_dev->cmd.pool = dma_pool_create("hns_roce_cmd", hr_dev->dev,
 					   HNS_ROCE_MAILBOX_SIZE,
 					   HNS_ROCE_MAILBOX_SIZE, 0);
 	if (!hr_dev->cmd.pool)
@@ -231,24 +203,24 @@ int hns_roce_cmd_use_events(struct hns_roce_dev *hr_dev)
 	struct hns_roce_cmdq *hr_cmd = &hr_dev->cmd;
 	int i;
 
-	hr_cmd->context = kmalloc_array(hr_cmd->max_cmds,
-					sizeof(*hr_cmd->context),
-					GFP_KERNEL);
-	if (!hr_cmd->context)
+	hr_cmd->context =
+		kcalloc(hr_cmd->max_cmds, sizeof(*hr_cmd->context), GFP_KERNEL);
+	if (!hr_cmd->context) {
+		hr_dev->cmd_mod = 0;
 		return -ENOMEM;
+	}
 
 	for (i = 0; i < hr_cmd->max_cmds; ++i) {
 		hr_cmd->context[i].token = i;
 		hr_cmd->context[i].next = i + 1;
+		init_completion(&hr_cmd->context[i].done);
 	}
-
-	hr_cmd->context[hr_cmd->max_cmds - 1].next = -1;
+	hr_cmd->context[hr_cmd->max_cmds - 1].next = 0;
 	hr_cmd->free_head = 0;
 
 	sema_init(&hr_cmd->event_sem, hr_cmd->max_cmds);
 	spin_lock_init(&hr_cmd->context_lock);
 
-	hr_cmd->token_mask = CMD_TOKEN_MASK;
 	hr_cmd->use_events = 1;
 
 	return 0;
@@ -262,8 +234,8 @@ void hns_roce_cmd_use_polling(struct hns_roce_dev *hr_dev)
 	hr_cmd->use_events = 0;
 }
 
-struct hns_roce_cmd_mailbox
-	*hns_roce_alloc_cmd_mailbox(struct hns_roce_dev *hr_dev)
+struct hns_roce_cmd_mailbox *
+hns_roce_alloc_cmd_mailbox(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_cmd_mailbox *mailbox;
 
@@ -271,8 +243,8 @@ struct hns_roce_cmd_mailbox
 	if (!mailbox)
 		return ERR_PTR(-ENOMEM);
 
-	mailbox->buf = dma_pool_alloc(hr_dev->cmd.pool, GFP_KERNEL,
-				      &mailbox->dma);
+	mailbox->buf =
+		dma_pool_alloc(hr_dev->cmd.pool, GFP_KERNEL, &mailbox->dma);
 	if (!mailbox->buf) {
 		kfree(mailbox);
 		return ERR_PTR(-ENOMEM);
@@ -289,4 +261,16 @@ void hns_roce_free_cmd_mailbox(struct hns_roce_dev *hr_dev,
 
 	dma_pool_free(hr_dev->cmd.pool, mailbox->buf, mailbox->dma);
 	kfree(mailbox);
+}
+
+int hns_roce_create_hw_ctx(struct hns_roce_dev *dev,
+			   struct hns_roce_cmd_mailbox *mailbox,
+			   u8 cmd, unsigned long idx)
+{
+	return hns_roce_cmd_mbox(dev, mailbox->dma, 0, cmd, idx);
+}
+
+int hns_roce_destroy_hw_ctx(struct hns_roce_dev *dev, u8 cmd, unsigned long idx)
+{
+	return hns_roce_cmd_mbox(dev, 0, 0, cmd, idx);
 }

@@ -3,11 +3,13 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <linux/iosys-map.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/shmem_fs.h>
 
 #include "gem/i915_gem_object.h"
+#include "gem/i915_gem_lmem.h"
 #include "shmem_utils.h"
 
 struct file *shmem_create_from_data(const char *name, void *data, size_t len)
@@ -33,13 +35,14 @@ struct file *shmem_create_from_object(struct drm_i915_gem_object *obj)
 	struct file *file;
 	void *ptr;
 
-	if (obj->ops == &i915_gem_shmem_ops) {
+	if (i915_gem_object_is_shmem(obj)) {
 		file = obj->base.filp;
 		atomic_long_inc(&file->f_count);
 		return file;
 	}
 
-	ptr = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	ptr = i915_gem_object_pin_map_unlocked(obj, i915_gem_object_is_lmem(obj) ?
+						I915_MAP_WC : I915_MAP_WB);
 	if (IS_ERR(ptr))
 		return ERR_CAST(ptr);
 
@@ -115,6 +118,37 @@ static int __shmem_rw(struct file *file, loff_t off,
 
 		len -= this;
 		ptr += this;
+		off = 0;
+	}
+
+	return 0;
+}
+
+int shmem_read_to_iosys_map(struct file *file, loff_t off,
+			    struct iosys_map *map, size_t map_off, size_t len)
+{
+	unsigned long pfn;
+
+	for (pfn = off >> PAGE_SHIFT; len; pfn++) {
+		unsigned int this =
+			min_t(size_t, PAGE_SIZE - offset_in_page(off), len);
+		struct page *page;
+		void *vaddr;
+
+		page = shmem_read_mapping_page_gfp(file->f_mapping, pfn,
+						   GFP_KERNEL);
+		if (IS_ERR(page))
+			return PTR_ERR(page);
+
+		vaddr = kmap(page);
+		iosys_map_memcpy_to(map, map_off, vaddr + offset_in_page(off),
+				    this);
+		mark_page_accessed(page);
+		kunmap(page);
+		put_page(page);
+
+		len -= this;
+		map_off += this;
 		off = 0;
 	}
 

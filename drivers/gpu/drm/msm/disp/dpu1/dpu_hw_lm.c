@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
 #include "dpu_kms.h"
@@ -23,6 +24,15 @@
 
 #define LM_BLEND0_FG_ALPHA               0x04
 #define LM_BLEND0_BG_ALPHA               0x08
+
+#define LM_MISR_CTRL                     0x310
+#define LM_MISR_SIGNATURE                0x314
+#define LM_MISR_FRAME_COUNT_MASK         0xFF
+#define LM_MISR_CTRL_ENABLE              BIT(8)
+#define LM_MISR_CTRL_STATUS              BIT(9)
+#define LM_MISR_CTRL_STATUS_CLEAR        BIT(10)
+#define LM_MISR_CTRL_FREE_RUN_MASK     BIT(31)
+
 
 static const struct dpu_lm_cfg *_lm_offset(enum dpu_lm mixer,
 		const struct dpu_mdss_cfg *m,
@@ -48,7 +58,7 @@ static const struct dpu_lm_cfg *_lm_offset(enum dpu_lm mixer,
 /**
  * _stage_offset(): returns the relative offset of the blend registers
  * for the stage to be setup
- * @c:     mixer ctx contains the mixer to be programmed
+ * @ctx:     mixer ctx contains the mixer to be programmed
  * @stage: stage index to setup
  */
 static inline int _stage_offset(struct dpu_hw_mixer *ctx, enum dpu_stage stage)
@@ -94,6 +104,48 @@ static void dpu_hw_lm_setup_border_color(struct dpu_hw_mixer *ctx,
 			(color->color_2 & 0xFFF) |
 			((color->color_3 & 0xFFF) << 0x10));
 	}
+}
+
+static void dpu_hw_lm_setup_misr(struct dpu_hw_mixer *ctx, bool enable, u32 frame_count)
+{
+	struct dpu_hw_blk_reg_map *c = &ctx->hw;
+	u32 config = 0;
+
+	DPU_REG_WRITE(c, LM_MISR_CTRL, LM_MISR_CTRL_STATUS_CLEAR);
+
+	/* Clear old MISR value (in case it's read before a new value is calculated)*/
+	wmb();
+
+	if (enable) {
+		config = (frame_count & LM_MISR_FRAME_COUNT_MASK) |
+			LM_MISR_CTRL_ENABLE | LM_MISR_CTRL_FREE_RUN_MASK;
+
+		DPU_REG_WRITE(c, LM_MISR_CTRL, config);
+	} else {
+		DPU_REG_WRITE(c, LM_MISR_CTRL, 0);
+	}
+
+}
+
+static int dpu_hw_lm_collect_misr(struct dpu_hw_mixer *ctx, u32 *misr_value)
+{
+	struct dpu_hw_blk_reg_map *c = &ctx->hw;
+	u32 ctrl = 0;
+
+	if (!misr_value)
+		return -EINVAL;
+
+	ctrl = DPU_REG_READ(c, LM_MISR_CTRL);
+
+	if (!(ctrl & LM_MISR_CTRL_ENABLE))
+		return -EINVAL;
+
+	if (!(ctrl & LM_MISR_CTRL_STATUS))
+		return -EINVAL;
+
+	*misr_value = DPU_REG_READ(c, LM_MISR_SIGNATURE);
+
+	return 0;
 }
 
 static void dpu_hw_lm_setup_blend_config_sdm845(struct dpu_hw_mixer *ctx,
@@ -158,9 +210,9 @@ static void _setup_mixer_ops(const struct dpu_mdss_cfg *m,
 		ops->setup_blend_config = dpu_hw_lm_setup_blend_config;
 	ops->setup_alpha_out = dpu_hw_lm_setup_color3;
 	ops->setup_border_color = dpu_hw_lm_setup_border_color;
+	ops->setup_misr = dpu_hw_lm_setup_misr;
+	ops->collect_misr = dpu_hw_lm_collect_misr;
 }
-
-static struct dpu_hw_blk_ops dpu_hw_ops;
 
 struct dpu_hw_mixer *dpu_hw_lm_init(enum dpu_lm idx,
 		void __iomem *addr,
@@ -184,14 +236,10 @@ struct dpu_hw_mixer *dpu_hw_lm_init(enum dpu_lm idx,
 	c->cap = cfg;
 	_setup_mixer_ops(m, &c->ops, c->cap->features);
 
-	dpu_hw_blk_init(&c->base, DPU_HW_BLK_LM, idx, &dpu_hw_ops);
-
 	return c;
 }
 
 void dpu_hw_lm_destroy(struct dpu_hw_mixer *lm)
 {
-	if (lm)
-		dpu_hw_blk_destroy(&lm->base);
 	kfree(lm);
 }

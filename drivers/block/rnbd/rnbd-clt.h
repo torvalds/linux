@@ -20,10 +20,6 @@
 #include "rnbd-proto.h"
 #include "rnbd-log.h"
 
-/* Max. number of segments per IO request, Mellanox Connect X ~ Connect X5,
- * choose minimial 30 for all, minus 1 for internal protocol, so 29.
- */
-#define BMAX_SEGMENTS 29
 /*  time in seconds between reconnect tries, default to 30 s */
 #define RECONNECT_DELAY 30
 /*
@@ -44,6 +40,13 @@ struct rnbd_iu_comp {
 	int errno;
 };
 
+#ifdef CONFIG_ARCH_NO_SG_CHAIN
+#define RNBD_INLINE_SG_CNT 0
+#else
+#define RNBD_INLINE_SG_CNT 2
+#endif
+#define RNBD_RDMA_SGL_SIZE (sizeof(struct scatterlist) * RNBD_INLINE_SG_CNT)
+
 struct rnbd_iu {
 	union {
 		struct request *rq; /* for block io */
@@ -56,11 +59,12 @@ struct rnbd_iu {
 		/* use to send msg associated with a sess */
 		struct rnbd_clt_session *sess;
 	};
-	struct scatterlist	sglist[BMAX_SEGMENTS];
+	struct sg_table		sgt;
 	struct work_struct	work;
 	int			errno;
 	struct rnbd_iu_comp	comp;
 	atomic_t		refcount;
+	struct scatterlist	first_sgl[]; /* must be the last one */
 };
 
 struct rnbd_cpu_qlist {
@@ -71,7 +75,7 @@ struct rnbd_cpu_qlist {
 
 struct rnbd_clt_session {
 	struct list_head        list;
-	struct rtrs_clt        *rtrs;
+	struct rtrs_clt_sess        *rtrs;
 	wait_queue_head_t       rtrs_waitq;
 	bool                    rtrs_ready;
 	struct rnbd_cpu_qlist	__percpu
@@ -79,9 +83,11 @@ struct rnbd_clt_session {
 	DECLARE_BITMAP(cpu_queues_bm, NR_CPUS);
 	int	__percpu	*cpu_rr; /* per-cpu var for CPU round-robin */
 	atomic_t		busy;
-	int			queue_depth;
+	size_t			queue_depth;
 	u32			max_io_size;
+	u32			max_segments;
 	struct blk_mq_tag_set	tag_set;
+	u32			nr_poll_queues;
 	struct mutex		lock; /* protects state and devs_list */
 	struct list_head        devs_list; /* list of struct rnbd_clt_dev */
 	refcount_t		refcount;
@@ -108,12 +114,13 @@ struct rnbd_clt_dev {
 	u32			clt_device_id;
 	struct mutex		lock;
 	enum rnbd_clt_dev_state	dev_state;
-	char			pathname[NAME_MAX];
+	char			*pathname;
 	enum rnbd_access_mode	access_mode;
+	u32			nr_poll_queues;
 	bool			read_only;
-	bool			rotational;
+	bool			wc;
+	bool			fua;
 	u32			max_hw_sectors;
-	u32			max_write_same_sectors;
 	u32			max_discard_sectors;
 	u32			discard_granularity;
 	u32			discard_alignment;
@@ -126,7 +133,7 @@ struct rnbd_clt_dev {
 	struct list_head        list;
 	struct gendisk		*gd;
 	struct kobject		kobj;
-	char			blk_symlink_name[NAME_MAX];
+	char			*blk_symlink_name;
 	refcount_t		refcount;
 	struct work_struct	unmap_on_rmmod_work;
 };
@@ -137,7 +144,8 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
 					   struct rtrs_addr *paths,
 					   size_t path_cnt, u16 port_nr,
 					   const char *pathname,
-					   enum rnbd_access_mode access_mode);
+					   enum rnbd_access_mode access_mode,
+					   u32 nr_poll_queues);
 int rnbd_clt_unmap_device(struct rnbd_clt_dev *dev, bool force,
 			   const struct attribute *sysfs_self);
 
@@ -149,7 +157,6 @@ int rnbd_clt_resize_disk(struct rnbd_clt_dev *dev, size_t newsize);
 int rnbd_clt_create_sysfs_files(void);
 
 void rnbd_clt_destroy_sysfs_files(void);
-void rnbd_clt_destroy_default_group(void);
 
 void rnbd_clt_remove_dev_symlink(struct rnbd_clt_dev *dev);
 

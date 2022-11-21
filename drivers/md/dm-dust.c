@@ -130,7 +130,7 @@ static int dust_add_block(struct dust_device *dd, unsigned long long block,
 
 	dd->badblock_count++;
 	if (!dd->quiet_mode) {
-		DMINFO("%s: badblock added at block %llu with write fail count %hhu",
+		DMINFO("%s: badblock added at block %llu with write fail count %u",
 		       __func__, block, wr_fail_cnt);
 	}
 	spin_unlock_irqrestore(&dd->dust_lock, flags);
@@ -415,7 +415,7 @@ static int dust_message(struct dm_target *ti, unsigned int argc, char **argv,
 			char *result, unsigned int maxlen)
 {
 	struct dust_device *dd = ti->private;
-	sector_t size = i_size_read(dd->dev->bdev->bd_inode) >> SECTOR_SHIFT;
+	sector_t size = bdev_nr_sectors(dd->dev->bdev);
 	bool invalid_msg = false;
 	int r = -EINVAL;
 	unsigned long long tmp, block;
@@ -527,6 +527,10 @@ static void dust_status(struct dm_target *ti, status_type_t type,
 		DMEMIT("%s %llu %u", dd->dev->name,
 		       (unsigned long long)dd->start, dd->blksz);
 		break;
+
+	case STATUSTYPE_IMA:
+		*result = '\0';
+		break;
 	}
 }
 
@@ -540,8 +544,7 @@ static int dust_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
 	/*
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
-	if (dd->start ||
-	    ti->len != i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT)
+	if (dd->start || ti->len != bdev_nr_sectors(dev->bdev))
 		return 1;
 
 	return 0;

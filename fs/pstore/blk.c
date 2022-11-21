@@ -8,15 +8,16 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include "../../block/blk.h"
 #include <linux/blkdev.h>
 #include <linux/string.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pstore_blk.h>
+#include <linux/fs.h>
+#include <linux/file.h>
+#include <linux/init_syscalls.h>
 #include <linux/mount.h>
-#include <linux/uio.h>
 
 static long kmsg_size = CONFIG_PSTORE_BLK_KMSG_SIZE;
 module_param(kmsg_size, long, 0400);
@@ -57,27 +58,7 @@ MODULE_PARM_DESC(best_effort, "use best effort to write (i.e. do not require sto
 
 /*
  * blkdev - the block device to use for pstore storage
- *
- * Usually, this will be a partition of a block device.
- *
- * blkdev accepts the following variants:
- * 1) <hex_major><hex_minor> device number in hexadecimal representation,
- *    with no leading 0x, for example b302.
- * 2) /dev/<disk_name> represents the device number of disk
- * 3) /dev/<disk_name><decimal> represents the device number
- *    of partition - device number of disk plus the partition number
- * 4) /dev/<disk_name>p<decimal> - same as the above, that form is
- *    used when disk name of partitioned disk ends on a digit.
- * 5) PARTUUID=00112233-4455-6677-8899-AABBCCDDEEFF representing the
- *    unique id of a partition if the partition table provides it.
- *    The UUID may be either an EFI/GPT UUID, or refer to an MSDOS
- *    partition using the format SSSSSSSS-PP, where SSSSSSSS is a zero-
- *    filled hex representation of the 32-bit "NT disk signature", and PP
- *    is a zero-filled hex representation of the 1-based partition number.
- * 6) PARTUUID=<UUID>/PARTNROFF=<int> to select a partition in relation to
- *    a partition with a known unique id.
- * 7) <major>:<minor> major and minor number of the device separated by
- *    a colon.
+ * See Documentation/admin-guide/pstore-blk.rst for details.
  */
 static char blkdev[80] = CONFIG_PSTORE_BLK_BLKDEV;
 module_param_string(blkdev, blkdev, 80, 0400);
@@ -88,15 +69,8 @@ MODULE_PARM_DESC(blkdev, "block device for pstore storage");
  * during the register/unregister functions.
  */
 static DEFINE_MUTEX(pstore_blk_lock);
-static struct block_device *psblk_bdev;
-static struct pstore_zone_info *pstore_zone_info;
-static pstore_blk_panic_write_op blkdev_panic_write;
-
-struct bdev_info {
-	dev_t devt;
-	sector_t nr_sects;
-	sector_t start_sect;
-};
+static struct file *psblk_file;
+static struct pstore_device_info *pstore_device_info;
 
 #define check_size(name, alignsize) ({				\
 	long _##name_ = (name);					\
@@ -109,57 +83,63 @@ struct bdev_info {
 	_##name_;						\
 })
 
+#define verify_size(name, alignsize, enabled) {			\
+	long _##name_;						\
+	if (enabled)						\
+		_##name_ = check_size(name, alignsize);		\
+	else							\
+		_##name_ = 0;					\
+	/* Synchronize module parameters with resuls. */	\
+	name = _##name_ / 1024;					\
+	dev->zone.name = _##name_;				\
+}
+
 static int __register_pstore_device(struct pstore_device_info *dev)
 {
 	int ret;
 
 	lockdep_assert_held(&pstore_blk_lock);
 
-	if (!dev || !dev->total_size || !dev->read || !dev->write)
+	if (!dev) {
+		pr_err("NULL device info\n");
 		return -EINVAL;
+	}
+	if (!dev->zone.total_size) {
+		pr_err("zero sized device\n");
+		return -EINVAL;
+	}
+	if (!dev->zone.read) {
+		pr_err("no read handler for device\n");
+		return -EINVAL;
+	}
+	if (!dev->zone.write) {
+		pr_err("no write handler for device\n");
+		return -EINVAL;
+	}
 
 	/* someone already registered before */
-	if (pstore_zone_info)
+	if (pstore_device_info)
 		return -EBUSY;
-
-	pstore_zone_info = kzalloc(sizeof(struct pstore_zone_info), GFP_KERNEL);
-	if (!pstore_zone_info)
-		return -ENOMEM;
 
 	/* zero means not limit on which backends to attempt to store. */
 	if (!dev->flags)
 		dev->flags = UINT_MAX;
 
-#define verify_size(name, alignsize, enabled) {				\
-		long _##name_;						\
-		if (enabled)						\
-			_##name_ = check_size(name, alignsize);		\
-		else							\
-			_##name_ = 0;					\
-		name = _##name_ / 1024;					\
-		pstore_zone_info->name = _##name_;			\
-	}
-
+	/* Copy in module parameters. */
 	verify_size(kmsg_size, 4096, dev->flags & PSTORE_FLAGS_DMESG);
 	verify_size(pmsg_size, 4096, dev->flags & PSTORE_FLAGS_PMSG);
 	verify_size(console_size, 4096, dev->flags & PSTORE_FLAGS_CONSOLE);
 	verify_size(ftrace_size, 4096, dev->flags & PSTORE_FLAGS_FTRACE);
-#undef verify_size
+	dev->zone.max_reason = max_reason;
 
-	pstore_zone_info->total_size = dev->total_size;
-	pstore_zone_info->max_reason = max_reason;
-	pstore_zone_info->read = dev->read;
-	pstore_zone_info->write = dev->write;
-	pstore_zone_info->erase = dev->erase;
-	pstore_zone_info->panic_write = dev->panic_write;
-	pstore_zone_info->name = KBUILD_MODNAME;
-	pstore_zone_info->owner = THIS_MODULE;
+	/* Initialize required zone ownership details. */
+	dev->zone.name = KBUILD_MODNAME;
+	dev->zone.owner = THIS_MODULE;
 
-	ret = register_pstore_zone(pstore_zone_info);
-	if (ret) {
-		kfree(pstore_zone_info);
-		pstore_zone_info = NULL;
-	}
+	ret = register_pstore_zone(&dev->zone);
+	if (ret == 0)
+		pstore_device_info = dev;
+
 	return ret;
 }
 /**
@@ -186,10 +166,9 @@ EXPORT_SYMBOL_GPL(register_pstore_device);
 static void __unregister_pstore_device(struct pstore_device_info *dev)
 {
 	lockdep_assert_held(&pstore_blk_lock);
-	if (pstore_zone_info && pstore_zone_info->read == dev->read) {
-		unregister_pstore_zone(pstore_zone_info);
-		kfree(pstore_zone_info);
-		pstore_zone_info = NULL;
+	if (pstore_device_info && pstore_device_info == dev) {
+		unregister_pstore_zone(&dev->zone);
+		pstore_device_info = NULL;
 	}
 }
 
@@ -206,266 +185,58 @@ void unregister_pstore_device(struct pstore_device_info *dev)
 }
 EXPORT_SYMBOL_GPL(unregister_pstore_device);
 
-/**
- * psblk_get_bdev() - open block device
- *
- * @holder:	Exclusive holder identifier
- * @info:	Information about bdev to fill in
- *
- * Return: pointer to block device on success and others on error.
- *
- * On success, the returned block_device has reference count of one.
- */
-static struct block_device *psblk_get_bdev(void *holder,
-					   struct bdev_info *info)
-{
-	struct block_device *bdev = ERR_PTR(-ENODEV);
-	fmode_t mode = FMODE_READ | FMODE_WRITE;
-	sector_t nr_sects;
-
-	lockdep_assert_held(&pstore_blk_lock);
-
-	if (pstore_zone_info)
-		return ERR_PTR(-EBUSY);
-
-	if (!blkdev[0])
-		return ERR_PTR(-ENODEV);
-
-	if (holder)
-		mode |= FMODE_EXCL;
-	bdev = blkdev_get_by_path(blkdev, mode, holder);
-	if (IS_ERR(bdev)) {
-		dev_t devt;
-
-		devt = name_to_dev_t(blkdev);
-		if (devt == 0)
-			return ERR_PTR(-ENODEV);
-		bdev = blkdev_get_by_dev(devt, mode, holder);
-		if (IS_ERR(bdev))
-			return bdev;
-	}
-
-	nr_sects = part_nr_sects_read(bdev->bd_part);
-	if (!nr_sects) {
-		pr_err("not enough space for '%s'\n", blkdev);
-		blkdev_put(bdev, mode);
-		return ERR_PTR(-ENOSPC);
-	}
-
-	if (info) {
-		info->devt = bdev->bd_dev;
-		info->nr_sects = nr_sects;
-		info->start_sect = get_start_sect(bdev);
-	}
-
-	return bdev;
-}
-
-static void psblk_put_bdev(struct block_device *bdev, void *holder)
-{
-	fmode_t mode = FMODE_READ | FMODE_WRITE;
-
-	lockdep_assert_held(&pstore_blk_lock);
-
-	if (!bdev)
-		return;
-
-	if (holder)
-		mode |= FMODE_EXCL;
-	blkdev_put(bdev, mode);
-}
-
 static ssize_t psblk_generic_blk_read(char *buf, size_t bytes, loff_t pos)
 {
-	struct block_device *bdev = psblk_bdev;
-	struct file file;
-	struct kiocb kiocb;
-	struct iov_iter iter;
-	struct kvec iov = {.iov_base = buf, .iov_len = bytes};
-
-	if (!bdev)
-		return -ENODEV;
-
-	memset(&file, 0, sizeof(struct file));
-	file.f_mapping = bdev->bd_inode->i_mapping;
-	file.f_flags = O_DSYNC | __O_SYNC | O_NOATIME;
-	file.f_inode = bdev->bd_inode;
-	file_ra_state_init(&file.f_ra, file.f_mapping);
-
-	init_sync_kiocb(&kiocb, &file);
-	kiocb.ki_pos = pos;
-	iov_iter_kvec(&iter, READ, &iov, 1, bytes);
-
-	return generic_file_read_iter(&kiocb, &iter);
+	return kernel_read(psblk_file, buf, bytes, &pos);
 }
 
 static ssize_t psblk_generic_blk_write(const char *buf, size_t bytes,
 		loff_t pos)
 {
-	struct block_device *bdev = psblk_bdev;
-	struct iov_iter iter;
-	struct kiocb kiocb;
-	struct file file;
-	ssize_t ret;
-	struct kvec iov = {.iov_base = (void *)buf, .iov_len = bytes};
-
-	if (!bdev)
-		return -ENODEV;
-
 	/* Console/Ftrace backend may handle buffer until flush dirty zones */
 	if (in_interrupt() || irqs_disabled())
 		return -EBUSY;
-
-	memset(&file, 0, sizeof(struct file));
-	file.f_mapping = bdev->bd_inode->i_mapping;
-	file.f_flags = O_DSYNC | __O_SYNC | O_NOATIME;
-	file.f_inode = bdev->bd_inode;
-
-	init_sync_kiocb(&kiocb, &file);
-	kiocb.ki_pos = pos;
-	iov_iter_kvec(&iter, WRITE, &iov, 1, bytes);
-
-	inode_lock(bdev->bd_inode);
-	ret = generic_write_checks(&kiocb, &iter);
-	if (ret > 0)
-		ret = generic_perform_write(&file, &iter, pos);
-	inode_unlock(bdev->bd_inode);
-
-	if (likely(ret > 0)) {
-		const struct file_operations f_op = {.fsync = blkdev_fsync};
-
-		file.f_op = &f_op;
-		kiocb.ki_pos += ret;
-		ret = generic_write_sync(&kiocb, ret);
-	}
-	return ret;
+	return kernel_write(psblk_file, buf, bytes, &pos);
 }
 
-static ssize_t psblk_blk_panic_write(const char *buf, size_t size,
-		loff_t off)
+/*
+ * This takes its configuration only from the module parameters now.
+ */
+static int __register_pstore_blk(struct pstore_device_info *dev,
+				 const char *devpath)
 {
-	int ret;
-
-	if (!blkdev_panic_write)
-		return -EOPNOTSUPP;
-
-	/* size and off must align to SECTOR_SIZE for block device */
-	ret = blkdev_panic_write(buf, off >> SECTOR_SHIFT,
-			size >> SECTOR_SHIFT);
-	/* try next zone */
-	if (ret == -ENOMSG)
-		return ret;
-	return ret ? -EIO : size;
-}
-
-static int __register_pstore_blk(struct pstore_blk_info *info)
-{
-	char bdev_name[BDEVNAME_SIZE];
-	struct block_device *bdev;
-	struct pstore_device_info dev;
-	struct bdev_info binfo;
-	void *holder = blkdev;
 	int ret = -ENODEV;
 
 	lockdep_assert_held(&pstore_blk_lock);
 
-	/* hold bdev exclusively */
-	memset(&binfo, 0, sizeof(binfo));
-	bdev = psblk_get_bdev(holder, &binfo);
-	if (IS_ERR(bdev)) {
-		pr_err("failed to open '%s'!\n", blkdev);
-		return PTR_ERR(bdev);
+	psblk_file = filp_open(devpath, O_RDWR | O_DSYNC | O_NOATIME | O_EXCL, 0);
+	if (IS_ERR(psblk_file)) {
+		ret = PTR_ERR(psblk_file);
+		pr_err("failed to open '%s': %d!\n", devpath, ret);
+		goto err;
 	}
 
-	/* only allow driver matching the @blkdev */
-	if (!binfo.devt || (!best_effort &&
-			    MAJOR(binfo.devt) != info->major)) {
-		pr_debug("invalid major %u (expect %u)\n",
-				info->major, MAJOR(binfo.devt));
-		ret = -ENODEV;
-		goto err_put_bdev;
+	if (!S_ISBLK(file_inode(psblk_file)->i_mode)) {
+		pr_err("'%s' is not block device!\n", devpath);
+		goto err_fput;
 	}
 
-	/* psblk_bdev must be assigned before register to pstore/blk */
-	psblk_bdev = bdev;
-	blkdev_panic_write = info->panic_write;
+	dev->zone.total_size =
+		bdev_nr_bytes(I_BDEV(psblk_file->f_mapping->host));
 
-	/* Copy back block device details. */
-	info->devt = binfo.devt;
-	info->nr_sects = binfo.nr_sects;
-	info->start_sect = binfo.start_sect;
-
-	memset(&dev, 0, sizeof(dev));
-	dev.total_size = info->nr_sects << SECTOR_SHIFT;
-	dev.flags = info->flags;
-	dev.read = psblk_generic_blk_read;
-	dev.write = psblk_generic_blk_write;
-	dev.erase = NULL;
-	dev.panic_write = info->panic_write ? psblk_blk_panic_write : NULL;
-
-	ret = __register_pstore_device(&dev);
+	ret = __register_pstore_device(dev);
 	if (ret)
-		goto err_put_bdev;
+		goto err_fput;
 
-	bdevname(bdev, bdev_name);
-	pr_info("attached %s%s\n", bdev_name,
-		info->panic_write ? "" : " (no dedicated panic_write!)");
 	return 0;
 
-err_put_bdev:
-	psblk_bdev = NULL;
-	blkdev_panic_write = NULL;
-	psblk_put_bdev(bdev, holder);
-	return ret;
-}
-
-/**
- * register_pstore_blk() - register block device to pstore/blk
- *
- * @info: details on the desired block device interface
- *
- * Return:
- * * 0		- OK
- * * Others	- something error.
- */
-int register_pstore_blk(struct pstore_blk_info *info)
-{
-	int ret;
-
-	mutex_lock(&pstore_blk_lock);
-	ret = __register_pstore_blk(info);
-	mutex_unlock(&pstore_blk_lock);
+err_fput:
+	fput(psblk_file);
+err:
+	psblk_file = NULL;
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(register_pstore_blk);
-
-static void __unregister_pstore_blk(unsigned int major)
-{
-	struct pstore_device_info dev = { .read = psblk_generic_blk_read };
-	void *holder = blkdev;
-
-	lockdep_assert_held(&pstore_blk_lock);
-	if (psblk_bdev && MAJOR(psblk_bdev->bd_dev) == major) {
-		__unregister_pstore_device(&dev);
-		psblk_put_bdev(psblk_bdev, holder);
-		blkdev_panic_write = NULL;
-		psblk_bdev = NULL;
-	}
-}
-
-/**
- * unregister_pstore_blk() - unregister block device from pstore/blk
- *
- * @major: the major device number of device
- */
-void unregister_pstore_blk(unsigned int major)
-{
-	mutex_lock(&pstore_blk_lock);
-	__unregister_pstore_blk(major);
-	mutex_unlock(&pstore_blk_lock);
-}
-EXPORT_SYMBOL_GPL(unregister_pstore_blk);
 
 /* get information of pstore/blk */
 int pstore_blk_get_config(struct pstore_blk_config *info)
@@ -481,14 +252,93 @@ int pstore_blk_get_config(struct pstore_blk_config *info)
 }
 EXPORT_SYMBOL_GPL(pstore_blk_get_config);
 
+
+#ifndef MODULE
+static const char devname[] = "/dev/pstore-blk";
+static __init const char *early_boot_devpath(const char *initial_devname)
+{
+	/*
+	 * During early boot the real root file system hasn't been
+	 * mounted yet, and no device nodes are present yet. Use the
+	 * same scheme to find the device that we use for mounting
+	 * the root file system.
+	 */
+	dev_t dev = name_to_dev_t(initial_devname);
+
+	if (!dev) {
+		pr_err("failed to resolve '%s'!\n", initial_devname);
+		return initial_devname;
+	}
+
+	init_unlink(devname);
+	init_mknod(devname, S_IFBLK | 0600, new_encode_dev(dev));
+
+	return devname;
+}
+#else
+static inline const char *early_boot_devpath(const char *initial_devname)
+{
+	return initial_devname;
+}
+#endif
+
+static int __init __best_effort_init(void)
+{
+	struct pstore_device_info *best_effort_dev;
+	int ret;
+
+	/* No best-effort mode requested. */
+	if (!best_effort)
+		return 0;
+
+	/* Reject an empty blkdev. */
+	if (!blkdev[0]) {
+		pr_err("blkdev empty with best_effort=Y\n");
+		return -EINVAL;
+	}
+
+	best_effort_dev = kzalloc(sizeof(*best_effort_dev), GFP_KERNEL);
+	if (!best_effort_dev)
+		return -ENOMEM;
+
+	best_effort_dev->zone.read = psblk_generic_blk_read;
+	best_effort_dev->zone.write = psblk_generic_blk_write;
+
+	ret = __register_pstore_blk(best_effort_dev,
+				    early_boot_devpath(blkdev));
+	if (ret)
+		kfree(best_effort_dev);
+	else
+		pr_info("attached %s (%lu) (no dedicated panic_write!)\n",
+			blkdev, best_effort_dev->zone.total_size);
+
+	return ret;
+}
+
+static void __exit __best_effort_exit(void)
+{
+	/*
+	 * Currently, the only user of psblk_file is best_effort, so
+	 * we can assume that pstore_device_info is associated with it.
+	 * Once there are "real" blk devices, there will need to be a
+	 * dedicated pstore_blk_info, etc.
+	 */
+	if (psblk_file) {
+		struct pstore_device_info *dev = pstore_device_info;
+
+		__unregister_pstore_device(dev);
+		kfree(dev);
+		fput(psblk_file);
+		psblk_file = NULL;
+	}
+}
+
 static int __init pstore_blk_init(void)
 {
-	struct pstore_blk_info info = { };
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&pstore_blk_lock);
-	if (!pstore_zone_info && best_effort && blkdev[0])
-		ret = __register_pstore_blk(&info);
+	ret = __best_effort_init();
 	mutex_unlock(&pstore_blk_lock);
 
 	return ret;
@@ -498,15 +348,9 @@ late_initcall(pstore_blk_init);
 static void __exit pstore_blk_exit(void)
 {
 	mutex_lock(&pstore_blk_lock);
-	if (psblk_bdev)
-		__unregister_pstore_blk(MAJOR(psblk_bdev->bd_dev));
-	else {
-		struct pstore_device_info dev = { };
-
-		if (pstore_zone_info)
-			dev.read = pstore_zone_info->read;
-		__unregister_pstore_device(&dev);
-	}
+	__best_effort_exit();
+	/* If we've been asked to unload, unregister any remaining device. */
+	__unregister_pstore_device(pstore_device_info);
 	mutex_unlock(&pstore_blk_lock);
 }
 module_exit(pstore_blk_exit);

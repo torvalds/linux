@@ -12,7 +12,7 @@
  * Command line options
  */
 int quiet;		/* Level of quietness */
-int reservenum;		/* Number of memory reservation slots */
+unsigned int reservenum;/* Number of memory reservation slots */
 int minsize;		/* Minimum blob size */
 int padsize;		/* Additional padding to blob */
 int alignsize;		/* Additional padding to blob accroding to the alignsize */
@@ -122,6 +122,8 @@ static const char *guess_type_by_name(const char *fname, const char *fallback)
 		return "dts";
 	if (!strcasecmp(s, ".yaml"))
 		return "yaml";
+	if (!strcasecmp(s, ".dtbo"))
+		return "dtb";
 	if (!strcasecmp(s, ".dtb"))
 		return "dtb";
 	return fallback;
@@ -195,7 +197,7 @@ int main(int argc, char *argv[])
 			depname = optarg;
 			break;
 		case 'R':
-			reservenum = strtol(optarg, NULL, 0);
+			reservenum = strtoul(optarg, NULL, 0);
 			break;
 		case 'S':
 			minsize = strtol(optarg, NULL, 0);

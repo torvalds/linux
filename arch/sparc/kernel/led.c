@@ -50,6 +50,7 @@ static void led_blink(struct timer_list *unused)
 	add_timer(&led_blink_timer);
 }
 
+#ifdef CONFIG_PROC_FS
 static int led_proc_show(struct seq_file *m, void *v)
 {
 	if (get_auxio() & AUXIO_LED)
@@ -111,8 +112,7 @@ static const struct proc_ops led_proc_ops = {
 	.proc_release	= single_release,
 	.proc_write	= led_proc_write,
 };
-
-static struct proc_dir_entry *led;
+#endif
 
 #define LED_VERSION	"0.1"
 
@@ -120,10 +120,10 @@ static int __init led_init(void)
 {
 	timer_setup(&led_blink_timer, led_blink, 0);
 
-	led = proc_create("led", 0, NULL, &led_proc_ops);
-	if (!led)
+#ifdef CONFIG_PROC_FS
+	if (!proc_create("led", 0, NULL, &led_proc_ops))
 		return -ENOMEM;
-
+#endif
 	printk(KERN_INFO
 	       "led: version %s, Lars Kotthoff <metalhead@metalhead.ws>\n",
 	       LED_VERSION);

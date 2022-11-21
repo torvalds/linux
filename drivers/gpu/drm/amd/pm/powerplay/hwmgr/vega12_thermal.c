@@ -60,11 +60,10 @@ int vega12_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 }
 
 /**
- * @fn vega12_enable_fan_control_feature
- * @brief Enables the SMC Fan Control Feature.
+ * vega12_enable_fan_control_feature -Enables the SMC Fan Control Feature.
  *
- * @param    hwmgr - the address of the powerplay hardware manager.
- * @return   0 on success. -1 otherwise.
+ * @hwmgr: the address of the powerplay hardware manager.
+ * Return:   0 on success. -1 otherwise.
  */
 static int vega12_enable_fan_control_feature(struct pp_hwmgr *hwmgr)
 {
@@ -129,20 +128,20 @@ int vega12_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Reset Fan Speed to default.
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @exception Always succeeds.
-*/
+ * vega12_fan_ctrl_reset_fan_speed_to_default - Reset Fan Speed to default.
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Exception Always succeeds.
+ */
 int vega12_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr)
 {
 	return vega12_fan_ctrl_start_smc_fan_control(hwmgr);
 }
 
 /**
-* Reads the remote temperature from the SIslands thermal controller.
-*
-* @param    hwmgr The address of the hardware manager.
-*/
+ * vega12_thermal_get_temperature - Reads the remote temperature from the SIslands thermal controller.
+ *
+ * @hwmgr: The address of the hardware manager.
+ */
 int vega12_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
@@ -160,13 +159,14 @@ int vega12_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Set the requested temperature range for high and low alert signals
-*
-* @param    hwmgr The address of the hardware manager.
-* @param    range Temperature range to be programmed for
-*           high and low alert signals
-* @exception PP_Result_BadInput if the input data is not valid.
-*/
+ * vega12_thermal_set_temperature_range - Set the requested temperature range
+ *                                        for high and low alert signals
+ *
+ * @hwmgr: The address of the hardware manager.
+ * @range: Temperature range to be programmed for
+ *           high and low alert signals
+ * Exception: PP_Result_BadInput if the input data is not valid.
+ */
 static int vega12_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 		struct PP_TemperatureRange *range)
 {
@@ -200,10 +200,10 @@ static int vega12_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 }
 
 /**
-* Enable thermal alerts on the RV770 thermal controller.
-*
-* @param    hwmgr The address of the hardware manager.
-*/
+ * vega12_thermal_enable_alert - Enable thermal alerts on the RV770 thermal controller.
+ *
+ * @hwmgr: The address of the hardware manager.
+ */
 static int vega12_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
@@ -219,9 +219,9 @@ static int vega12_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Disable thermal alerts on the RV770 thermal controller.
-* @param    hwmgr The address of the hardware manager.
-*/
+ * vega12_thermal_disable_alert - Disable thermal alerts on the RV770 thermal controller.
+ * @hwmgr: The address of the hardware manager.
+ */
 int vega12_thermal_disable_alert(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
@@ -232,10 +232,10 @@ int vega12_thermal_disable_alert(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Uninitialize the thermal controller.
-* Currently just disables alerts.
-* @param    hwmgr The address of the hardware manager.
-*/
+ * vega12_thermal_stop_thermal_controller - Uninitialize the thermal controller.
+ * Currently just disables alerts.
+ * @hwmgr: The address of the hardware manager.
+ */
 int vega12_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 {
 	int result = vega12_thermal_disable_alert(hwmgr);
@@ -244,14 +244,9 @@ int vega12_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Set up the fan table to control the fan using the SMC.
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @param    pInput the pointer to input data
-* @param    pOutput the pointer to output data
-* @param    pStorage the pointer to temporary storage
-* @param    Result the last failure code
-* @return   result from set temperature range routine
-*/
+ * vega12_thermal_setup_fan_table - Set up the fan table to control the fan using the SMC.
+ * @hwmgr:  the address of the powerplay hardware manager.
+ */
 static int vega12_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
 	int ret;
@@ -267,14 +262,10 @@ static int vega12_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Start the fan control on the SMC.
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @param    pInput the pointer to input data
-* @param    pOutput the pointer to output data
-* @param    pStorage the pointer to temporary storage
-* @param    Result the last failure code
-* @return   result from set temperature range routine
-*/
+ * vega12_thermal_start_smc_fan_control - Start the fan control on the SMC.
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * Return:  result from set temperature range routine
+ */
 static int vega12_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
 	/* If the fantable setup has failed we could have disabled

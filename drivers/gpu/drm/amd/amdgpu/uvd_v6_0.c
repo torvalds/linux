@@ -198,9 +198,9 @@ static int uvd_v6_0_enc_ring_test_ring(struct amdgpu_ring *ring)
 /**
  * uvd_v6_0_enc_get_create_msg - generate a UVD ENC create msg
  *
- * @adev: amdgpu_device pointer
  * @ring: ring we should submit the msg to
  * @handle: session handle to use
+ * @bo: amdgpu object for which we query the offset
  * @fence: optional fence to return
  *
  * Open up a stream for HW test
@@ -261,9 +261,9 @@ err:
 /**
  * uvd_v6_0_enc_get_destroy_msg - generate a UVD ENC destroy msg
  *
- * @adev: amdgpu_device pointer
  * @ring: ring we should submit the msg to
  * @handle: session handle to use
+ * @bo: amdgpu object for which we query the offset
  * @fence: optional fence to return
  *
  * Close up a stream for HW test or if userspace failed to do so
@@ -326,19 +326,14 @@ err:
  * uvd_v6_0_enc_ring_test_ib - test if UVD ENC IBs are working
  *
  * @ring: the engine to test on
+ * @timeout: timeout value in jiffies, or MAX_SCHEDULE_TIMEOUT
  *
  */
 static int uvd_v6_0_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct dma_fence *fence = NULL;
-	struct amdgpu_bo *bo = NULL;
+	struct amdgpu_bo *bo = ring->adev->uvd.ib_bo;
 	long r;
-
-	r = amdgpu_bo_create_reserved(ring->adev, 128 * 1024, PAGE_SIZE,
-				      AMDGPU_GEM_DOMAIN_VRAM,
-				      &bo, NULL, NULL);
-	if (r)
-		return r;
 
 	r = uvd_v6_0_enc_get_create_msg(ring, 1, bo, NULL);
 	if (r)
@@ -356,8 +351,6 @@ static int uvd_v6_0_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 
 error:
 	dma_fence_put(fence);
-	amdgpu_bo_unreserve(bo);
-	amdgpu_bo_unref(&bo);
 	return r;
 }
 
@@ -419,7 +412,7 @@ static int uvd_v6_0_sw_init(void *handle)
 	ring = &adev->uvd.inst->ring;
 	sprintf(ring->name, "uvd");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.inst->irq, 0,
-			     AMDGPU_RING_PRIO_DEFAULT);
+			     AMDGPU_RING_PRIO_DEFAULT, NULL);
 	if (r)
 		return r;
 
@@ -433,7 +426,7 @@ static int uvd_v6_0_sw_init(void *handle)
 			sprintf(ring->name, "uvd_enc%d", i);
 			r = amdgpu_ring_init(adev, ring, 512,
 					     &adev->uvd.inst->irq, 0,
-					     AMDGPU_RING_PRIO_DEFAULT);
+					     AMDGPU_RING_PRIO_DEFAULT, NULL);
 			if (r)
 				return r;
 		}
@@ -464,7 +457,7 @@ static int uvd_v6_0_sw_fini(void *handle)
 /**
  * uvd_v6_0_hw_init - start and test UVD block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  * Initialize the hardware, boot up the VCPU and do some testing
  */
@@ -533,13 +526,15 @@ done:
 /**
  * uvd_v6_0_hw_fini - stop the hardware block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  * Stop the UVD block, mark ring as not ready any more
  */
 static int uvd_v6_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	cancel_delayed_work_sync(&adev->uvd.idle_work);
 
 	if (RREG32(mmUVD_STATUS) != 0)
 		uvd_v6_0_stop(adev);
@@ -551,6 +546,30 @@ static int uvd_v6_0_suspend(void *handle)
 {
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	/*
+	 * Proper cleanups before halting the HW engine:
+	 *   - cancel the delayed idle work
+	 *   - enable powergating
+	 *   - enable clockgating
+	 *   - disable dpm
+	 *
+	 * TODO: to align with the VCN implementation, move the
+	 * jobs for clockgating/powergating/dpm setting to
+	 * ->set_powergating_state().
+	 */
+	cancel_delayed_work_sync(&adev->uvd.idle_work);
+
+	if (adev->pm.dpm_enabled) {
+		amdgpu_dpm_enable_uvd(adev, false);
+	} else {
+		amdgpu_asic_set_uvd_clocks(adev, 0, 0);
+		/* shutdown the UVD block */
+		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+						       AMD_PG_STATE_GATE);
+		amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+						       AMD_CG_STATE_GATE);
+	}
 
 	r = uvd_v6_0_hw_fini(adev);
 	if (r)
@@ -891,7 +910,9 @@ static void uvd_v6_0_stop(struct amdgpu_device *adev)
  * uvd_v6_0_ring_emit_fence - emit an fence & trap command
  *
  * @ring: amdgpu_ring pointer
- * @fence: fence to emit
+ * @addr: address
+ * @seq: sequence number
+ * @flags: fence related flags
  *
  * Write a fence and a trap command to the ring.
  */
@@ -921,7 +942,9 @@ static void uvd_v6_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq
  * uvd_v6_0_enc_ring_emit_fence - emit an enc fence & trap command
  *
  * @ring: amdgpu_ring pointer
- * @fence: fence to emit
+ * @addr: address
+ * @seq: sequence number
+ * @flags: fence related flags
  *
  * Write enc a fence and a trap command to the ring.
  */
@@ -986,7 +1009,9 @@ static int uvd_v6_0_ring_test_ring(struct amdgpu_ring *ring)
  * uvd_v6_0_ring_emit_ib - execute indirect buffer
  *
  * @ring: amdgpu_ring pointer
+ * @job: job to retrieve vmid from
  * @ib: indirect buffer to execute
+ * @flags: unused
  *
  * Write ring commands to execute the indirect buffer
  */
@@ -1012,7 +1037,9 @@ static void uvd_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
  * uvd_v6_0_enc_ring_emit_ib - enc execute indirect buffer
  *
  * @ring: amdgpu_ring pointer
+ * @job: job to retrive vmid from
  * @ib: indirect buffer to execute
+ * @flags: unused
  *
  * Write enc ring commands to execute the indirect buffer
  */

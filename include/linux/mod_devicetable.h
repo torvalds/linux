@@ -16,6 +16,10 @@ typedef unsigned long kernel_ulong_t;
 
 #define PCI_ANY_ID (~0)
 
+enum {
+	PCI_ID_F_VFIO_DRIVER_OVERRIDE = 1,
+};
+
 /**
  * struct pci_device_id - PCI device ID structure
  * @vendor:		Vendor ID to match (or PCI_ANY_ID)
@@ -34,12 +38,14 @@ typedef unsigned long kernel_ulong_t;
  *			Best practice is to use driver_data as an index
  *			into a static list of equivalent device types,
  *			instead of using it as a pointer.
+ * @override_only:	Match only when dev->driver_override is this driver.
  */
 struct pci_device_id {
 	__u32 vendor, device;		/* Vendor and device ID or PCI_ANY_ID*/
 	__u32 subvendor, subdevice;	/* Subsystem ID's or PCI_ANY_ID */
 	__u32 class, class_mask;	/* (class,subclass,prog-if) triplet */
 	kernel_ulong_t driver_data;	/* Data private to the driver */
+	__u32 override_only;
 };
 
 
@@ -205,7 +211,7 @@ struct css_device_id {
 	kernel_ulong_t driver_data;
 };
 
-#define ACPI_ID_LEN	9
+#define ACPI_ID_LEN	16
 
 struct acpi_device_id {
 	__u8 id[ACPI_ID_LEN];
@@ -447,6 +453,7 @@ struct hv_vmbus_device_id {
 
 struct rpmsg_device_id {
 	char name[RPMSG_NAME_SIZE];
+	kernel_ulong_t driver_data;
 };
 
 /* i2c */
@@ -835,6 +842,70 @@ struct wmi_device_id {
  */
 struct mhi_device_id {
 	const char chan[MHI_NAME_SIZE];
+	kernel_ulong_t driver_data;
+};
+
+#define AUXILIARY_NAME_SIZE 32
+#define AUXILIARY_MODULE_PREFIX "auxiliary:"
+
+struct auxiliary_device_id {
+	char name[AUXILIARY_NAME_SIZE];
+	kernel_ulong_t driver_data;
+};
+
+/* Surface System Aggregator Module */
+
+#define SSAM_MATCH_TARGET	0x1
+#define SSAM_MATCH_INSTANCE	0x2
+#define SSAM_MATCH_FUNCTION	0x4
+
+struct ssam_device_id {
+	__u8 match_flags;
+
+	__u8 domain;
+	__u8 category;
+	__u8 target;
+	__u8 instance;
+	__u8 function;
+
+	kernel_ulong_t driver_data;
+};
+
+/*
+ * DFL (Device Feature List)
+ *
+ * DFL defines a linked list of feature headers within the device MMIO space to
+ * provide an extensible way of adding features. Software can walk through these
+ * predefined data structures to enumerate features. It is now used in the FPGA.
+ * See Documentation/fpga/dfl.rst for more information.
+ *
+ * The dfl bus type is introduced to match the individual feature devices (dfl
+ * devices) for specific dfl drivers.
+ */
+
+/**
+ * struct dfl_device_id -  dfl device identifier
+ * @type: DFL FIU type of the device. See enum dfl_id_type.
+ * @feature_id: feature identifier local to its DFL FIU type.
+ * @driver_data: driver specific data.
+ */
+struct dfl_device_id {
+	__u16 type;
+	__u16 feature_id;
+	kernel_ulong_t driver_data;
+};
+
+/* ISHTP (Integrated Sensor Hub Transport Protocol) */
+
+#define ISHTP_MODULE_PREFIX	"ishtp:"
+
+/**
+ * struct ishtp_device_id - ISHTP device identifier
+ * @guid: GUID of the device.
+ * @driver_data: pointer to driver specific data
+ */
+struct ishtp_device_id {
+	guid_t guid;
 	kernel_ulong_t driver_data;
 };
 

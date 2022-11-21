@@ -84,6 +84,11 @@ static inline bool device_may_wakeup(struct device *dev)
 	return dev->power.can_wakeup && !!dev->power.wakeup;
 }
 
+static inline bool device_wakeup_path(struct device *dev)
+{
+	return dev->power.wakeup_path;
+}
+
 static inline void device_set_wakeup_path(struct device *dev)
 {
 	dev->power.wakeup_path = true;
@@ -172,6 +177,11 @@ static inline int device_init_wakeup(struct device *dev, bool val)
 static inline bool device_may_wakeup(struct device *dev)
 {
 	return dev->power.can_wakeup && dev->power.should_wakeup;
+}
+
+static inline bool device_wakeup_path(struct device *dev)
+{
+	return false;
 }
 
 static inline void device_set_wakeup_path(struct device *dev) {}

@@ -102,7 +102,7 @@ static void reuseport_array_free(struct bpf_map *map)
 	/*
 	 * ops->map_*_elem() will not be able to access this
 	 * array now. Hence, this function only races with
-	 * bpf_sk_reuseport_detach() which was triggerred by
+	 * bpf_sk_reuseport_detach() which was triggered by
 	 * close() or disconnect().
 	 *
 	 * This function and bpf_sk_reuseport_detach() are
@@ -143,38 +143,26 @@ static void reuseport_array_free(struct bpf_map *map)
 
 	/*
 	 * Once reaching here, all sk->sk_user_data is not
-	 * referenceing this "array".  "array" can be freed now.
+	 * referencing this "array". "array" can be freed now.
 	 */
 	bpf_map_area_free(array);
 }
 
 static struct bpf_map *reuseport_array_alloc(union bpf_attr *attr)
 {
-	int err, numa_node = bpf_map_attr_numa_node(attr);
+	int numa_node = bpf_map_attr_numa_node(attr);
 	struct reuseport_array *array;
-	struct bpf_map_memory mem;
-	u64 array_size;
 
 	if (!bpf_capable())
 		return ERR_PTR(-EPERM);
 
-	array_size = sizeof(*array);
-	array_size += (u64)attr->max_entries * sizeof(struct sock *);
-
-	err = bpf_map_charge_init(&mem, array_size);
-	if (err)
-		return ERR_PTR(err);
-
 	/* allocate all map elements and zero-initialize them */
-	array = bpf_map_area_alloc(array_size, numa_node);
-	if (!array) {
-		bpf_map_charge_finish(&mem);
+	array = bpf_map_area_alloc(struct_size(array, ptrs, attr->max_entries), numa_node);
+	if (!array)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/* copy mandatory map attributes */
 	bpf_map_init_from_attr(&array->map, attr);
-	bpf_map_charge_move(&array->map.memory, &mem);
 
 	return &array->map;
 }

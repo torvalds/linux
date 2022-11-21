@@ -875,7 +875,6 @@ static struct i2c_driver ltc2978_driver = {
 		   .of_match_table = of_match_ptr(ltc2978_of_match),
 		   },
 	.probe_new = ltc2978_probe,
-	.remove = pmbus_do_remove,
 	.id_table = ltc2978_id,
 };
 
@@ -884,3 +883,4 @@ module_i2c_driver(ltc2978_driver);
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for LTC2978 and compatible chips");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

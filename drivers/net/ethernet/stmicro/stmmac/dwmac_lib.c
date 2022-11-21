@@ -155,7 +155,7 @@ static void show_rx_process_state(unsigned int status)
 #endif
 
 int dwmac_dma_interrupt(void __iomem *ioaddr,
-			struct stmmac_extra_stats *x, u32 chan)
+			struct stmmac_extra_stats *x, u32 chan, u32 dir)
 {
 	int ret = 0;
 	/* read the status register (CSR5) */
@@ -167,6 +167,12 @@ int dwmac_dma_interrupt(void __iomem *ioaddr,
 	show_tx_process_state(intr_status);
 	show_rx_process_state(intr_status);
 #endif
+
+	if (dir == DMA_DIR_RX)
+		intr_status &= DMA_STATUS_MSK_RX;
+	else if (dir == DMA_DIR_TX)
+		intr_status &= DMA_STATUS_MSK_TX;
+
 	/* ABNORMAL interrupts */
 	if (unlikely(intr_status & DMA_STATUS_AIS)) {
 		if (unlikely(intr_status & DMA_STATUS_UNF)) {
@@ -233,7 +239,7 @@ void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr)
 	do {} while ((readl(ioaddr + DMA_CONTROL) & DMA_CONTROL_FTF));
 }
 
-void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
+void stmmac_set_mac_addr(void __iomem *ioaddr, const u8 addr[6],
 			 unsigned int high, unsigned int low)
 {
 	unsigned long data;

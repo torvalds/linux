@@ -15,8 +15,16 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - ti,j721e-pcie-host
+    oneOf:
+      - const: ti,j721e-pcie-host
+      - description: PCIe controller in AM64
+        items:
+          - const: ti,am64-pcie-host
+          - const: ti,j721e-pcie-host
+      - description: PCIe controller in J7200
+        items:
+          - const: ti,j7200-pcie-host
+          - const: ti,j721e-pcie-host
 
   reg:
     maxItems: 4
@@ -29,26 +37,42 @@ properties:
       - const: cfg
 
   ti,syscon-pcie-ctrl:
-    description: Phandle to the SYSCON entry required for configuring PCIe mode
-      and link speed.
-    $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: Phandle to the SYSCON entry
+          - description: pcie_ctrl register offset within SYSCON
+    description: Specifier for configuring PCIe mode and link speed.
 
   power-domains:
     maxItems: 1
 
   clocks:
-    maxItems: 1
-    description: clock-specifier to represent input to the PCIe
+    minItems: 1
+    maxItems: 2
+    description: |+
+      clock-specifier to represent input to the PCIe for 1 item.
+      2nd item if present represents reference clock to the connector.
 
   clock-names:
+    minItems: 1
     items:
       - const: fck
+      - const: pcie_refclk
+
+  dma-coherent: true
 
   vendor-id:
     const: 0x104c
 
   device-id:
-    const: 0xb00d
+    oneOf:
+      - items:
+          - const: 0xb00d
+      - items:
+          - const: 0xb00f
+      - items:
+          - const: 0xb010
 
   msi-map: true
 
@@ -65,7 +89,6 @@ required:
   - vendor-id
   - device-id
   - msi-map
-  - dma-coherent
   - dma-ranges
   - ranges
   - reset-gpios
@@ -90,7 +113,7 @@ examples:
                   <0x00 0x0d000000 0x00 0x00800000>,
                   <0x00 0x10000000 0x00 0x00001000>;
             reg-names = "intd_cfg", "user_cfg", "reg", "cfg";
-            ti,syscon-pcie-ctrl = <&pcie0_ctrl>;
+            ti,syscon-pcie-ctrl = <&pcie0_ctrl 0x4070>;
             max-link-speed = <3>;
             num-lanes = <2>;
             power-domains = <&k3_pds 239 TI_SCI_PD_EXCLUSIVE>;

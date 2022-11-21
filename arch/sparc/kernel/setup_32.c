@@ -266,7 +266,6 @@ static __init void leon_patch(void)
 }
 
 struct tt_entry *sparc_ttable;
-static struct pt_regs fake_swapper_regs;
 
 /* Called from head_32.S - before we have setup anything
  * in the kernel. Be very careful with what you do here.
@@ -362,8 +361,6 @@ void __init setup_arch(char **cmdline_p)
 		printk("Booted under KADB. Syncing trap table.\n");
 		(*(linux_dbvec->teach_debugger))();
 	}
-
-	init_task.thread.kregs = &fake_swapper_regs;
 
 	/* Run-time patch instructions to match the cpu model */
 	per_cpu_patch();

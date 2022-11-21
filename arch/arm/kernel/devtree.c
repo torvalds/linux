@@ -84,33 +84,15 @@ void __init arm_dt_init_cpu_maps(void)
 		return;
 
 	for_each_of_cpu_node(cpu) {
-		const __be32 *cell;
-		int prop_bytes;
-		u32 hwid;
+		u32 hwid = of_get_cpu_hwid(cpu, 0);
 
 		pr_debug(" * %pOF...\n", cpu);
-		/*
-		 * A device tree containing CPU nodes with missing "reg"
-		 * properties is considered invalid to build the
-		 * cpu_logical_map.
-		 */
-		cell = of_get_property(cpu, "reg", &prop_bytes);
-		if (!cell || prop_bytes < sizeof(*cell)) {
-			pr_debug(" * %pOF missing reg property\n", cpu);
-			of_node_put(cpu);
-			return;
-		}
 
 		/*
 		 * Bits n:24 must be set to 0 in the DT since the reg property
 		 * defines the MPIDR[23:0].
 		 */
-		do {
-			hwid = be32_to_cpu(*cell++);
-			prop_bytes -= sizeof(*cell);
-		} while (!hwid && prop_bytes > 0);
-
-		if (prop_bytes || (hwid & ~MPIDR_HWID_BITMASK)) {
+		if (hwid & ~MPIDR_HWID_BITMASK) {
 			of_node_put(cpu);
 			return;
 		}
@@ -203,12 +185,12 @@ static const void * __init arch_get_next_mach(const char *const **match)
 
 /**
  * setup_machine_fdt - Machine setup when an dtb was passed to the kernel
- * @dt_phys: physical address of dt blob
+ * @dt_virt: virtual address of dt blob
  *
  * If a dtb was passed to the kernel in r2, then use it to choose the
  * correct machine_desc and to setup the system.
  */
-const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
+const struct machine_desc * __init setup_machine_fdt(void *dt_virt)
 {
 	const struct machine_desc *mdesc, *mdesc_best = NULL;
 
@@ -221,7 +203,7 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 	mdesc_best = &__mach_desc_GENERIC_DT;
 #endif
 
-	if (!dt_phys || !early_init_dt_verify(phys_to_virt(dt_phys)))
+	if (!dt_virt || !early_init_dt_verify(dt_virt))
 		return NULL;
 
 	mdesc = of_flat_dt_match_machine(mdesc_best, arch_get_next_mach);

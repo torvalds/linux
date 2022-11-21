@@ -22,7 +22,6 @@ struct rxe_pkt_info {
 	u16			paylen;		/* length of bth - icrc */
 	u8			port_num;	/* port pkt received on */
 	u8			opcode;		/* bth opcode of packet */
-	u8			offset;		/* bth offset from pkt->hdr */
 };
 
 /* Macros should be used only for received skb */
@@ -280,134 +279,134 @@ static inline void __bth_set_psn(void *arg, u32 psn)
 
 static inline u8 bth_opcode(struct rxe_pkt_info *pkt)
 {
-	return __bth_opcode(pkt->hdr + pkt->offset);
+	return __bth_opcode(pkt->hdr);
 }
 
 static inline void bth_set_opcode(struct rxe_pkt_info *pkt, u8 opcode)
 {
-	__bth_set_opcode(pkt->hdr + pkt->offset, opcode);
+	__bth_set_opcode(pkt->hdr, opcode);
 }
 
 static inline u8 bth_se(struct rxe_pkt_info *pkt)
 {
-	return __bth_se(pkt->hdr + pkt->offset);
+	return __bth_se(pkt->hdr);
 }
 
 static inline void bth_set_se(struct rxe_pkt_info *pkt, int se)
 {
-	__bth_set_se(pkt->hdr + pkt->offset, se);
+	__bth_set_se(pkt->hdr, se);
 }
 
 static inline u8 bth_mig(struct rxe_pkt_info *pkt)
 {
-	return __bth_mig(pkt->hdr + pkt->offset);
+	return __bth_mig(pkt->hdr);
 }
 
 static inline void bth_set_mig(struct rxe_pkt_info *pkt, u8 mig)
 {
-	__bth_set_mig(pkt->hdr + pkt->offset, mig);
+	__bth_set_mig(pkt->hdr, mig);
 }
 
 static inline u8 bth_pad(struct rxe_pkt_info *pkt)
 {
-	return __bth_pad(pkt->hdr + pkt->offset);
+	return __bth_pad(pkt->hdr);
 }
 
 static inline void bth_set_pad(struct rxe_pkt_info *pkt, u8 pad)
 {
-	__bth_set_pad(pkt->hdr + pkt->offset, pad);
+	__bth_set_pad(pkt->hdr, pad);
 }
 
 static inline u8 bth_tver(struct rxe_pkt_info *pkt)
 {
-	return __bth_tver(pkt->hdr + pkt->offset);
+	return __bth_tver(pkt->hdr);
 }
 
 static inline void bth_set_tver(struct rxe_pkt_info *pkt, u8 tver)
 {
-	__bth_set_tver(pkt->hdr + pkt->offset, tver);
+	__bth_set_tver(pkt->hdr, tver);
 }
 
 static inline u16 bth_pkey(struct rxe_pkt_info *pkt)
 {
-	return __bth_pkey(pkt->hdr + pkt->offset);
+	return __bth_pkey(pkt->hdr);
 }
 
 static inline void bth_set_pkey(struct rxe_pkt_info *pkt, u16 pkey)
 {
-	__bth_set_pkey(pkt->hdr + pkt->offset, pkey);
+	__bth_set_pkey(pkt->hdr, pkey);
 }
 
 static inline u32 bth_qpn(struct rxe_pkt_info *pkt)
 {
-	return __bth_qpn(pkt->hdr + pkt->offset);
+	return __bth_qpn(pkt->hdr);
 }
 
 static inline void bth_set_qpn(struct rxe_pkt_info *pkt, u32 qpn)
 {
-	__bth_set_qpn(pkt->hdr + pkt->offset, qpn);
+	__bth_set_qpn(pkt->hdr, qpn);
 }
 
 static inline int bth_fecn(struct rxe_pkt_info *pkt)
 {
-	return __bth_fecn(pkt->hdr + pkt->offset);
+	return __bth_fecn(pkt->hdr);
 }
 
 static inline void bth_set_fecn(struct rxe_pkt_info *pkt, int fecn)
 {
-	__bth_set_fecn(pkt->hdr + pkt->offset, fecn);
+	__bth_set_fecn(pkt->hdr, fecn);
 }
 
 static inline int bth_becn(struct rxe_pkt_info *pkt)
 {
-	return __bth_becn(pkt->hdr + pkt->offset);
+	return __bth_becn(pkt->hdr);
 }
 
 static inline void bth_set_becn(struct rxe_pkt_info *pkt, int becn)
 {
-	__bth_set_becn(pkt->hdr + pkt->offset, becn);
+	__bth_set_becn(pkt->hdr, becn);
 }
 
 static inline u8 bth_resv6a(struct rxe_pkt_info *pkt)
 {
-	return __bth_resv6a(pkt->hdr + pkt->offset);
+	return __bth_resv6a(pkt->hdr);
 }
 
 static inline void bth_set_resv6a(struct rxe_pkt_info *pkt)
 {
-	__bth_set_resv6a(pkt->hdr + pkt->offset);
+	__bth_set_resv6a(pkt->hdr);
 }
 
 static inline int bth_ack(struct rxe_pkt_info *pkt)
 {
-	return __bth_ack(pkt->hdr + pkt->offset);
+	return __bth_ack(pkt->hdr);
 }
 
 static inline void bth_set_ack(struct rxe_pkt_info *pkt, int ack)
 {
-	__bth_set_ack(pkt->hdr + pkt->offset, ack);
+	__bth_set_ack(pkt->hdr, ack);
 }
 
 static inline void bth_set_resv7(struct rxe_pkt_info *pkt)
 {
-	__bth_set_resv7(pkt->hdr + pkt->offset);
+	__bth_set_resv7(pkt->hdr);
 }
 
 static inline u32 bth_psn(struct rxe_pkt_info *pkt)
 {
-	return __bth_psn(pkt->hdr + pkt->offset);
+	return __bth_psn(pkt->hdr);
 }
 
 static inline void bth_set_psn(struct rxe_pkt_info *pkt, u32 psn)
 {
-	__bth_set_psn(pkt->hdr + pkt->offset, psn);
+	__bth_set_psn(pkt->hdr, psn);
 }
 
 static inline void bth_init(struct rxe_pkt_info *pkt, u8 opcode, int se,
 			    int mig, int pad, u16 pkey, u32 qpn, int ack_req,
 			    u32 psn)
 {
-	struct rxe_bth *bth = (struct rxe_bth *)(pkt->hdr + pkt->offset);
+	struct rxe_bth *bth = (struct rxe_bth *)(pkt->hdr);
 
 	bth->opcode = opcode;
 	bth->flags = (pad << 4) & BTH_PAD_MASK;
@@ -448,14 +447,14 @@ static inline void __rdeth_set_een(void *arg, u32 een)
 
 static inline u8 rdeth_een(struct rxe_pkt_info *pkt)
 {
-	return __rdeth_een(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_RDETH]);
+	return __rdeth_een(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_RDETH]);
 }
 
 static inline void rdeth_set_een(struct rxe_pkt_info *pkt, u32 een)
 {
-	__rdeth_set_een(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_RDETH], een);
+	__rdeth_set_een(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_RDETH], een);
 }
 
 /******************************************************************************
@@ -499,26 +498,26 @@ static inline void __deth_set_sqp(void *arg, u32 sqp)
 
 static inline u32 deth_qkey(struct rxe_pkt_info *pkt)
 {
-	return __deth_qkey(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_DETH]);
+	return __deth_qkey(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_DETH]);
 }
 
 static inline void deth_set_qkey(struct rxe_pkt_info *pkt, u32 qkey)
 {
-	__deth_set_qkey(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_DETH], qkey);
+	__deth_set_qkey(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_DETH], qkey);
 }
 
 static inline u32 deth_sqp(struct rxe_pkt_info *pkt)
 {
-	return __deth_sqp(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_DETH]);
+	return __deth_sqp(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_DETH]);
 }
 
 static inline void deth_set_sqp(struct rxe_pkt_info *pkt, u32 sqp)
 {
-	__deth_set_sqp(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_DETH], sqp);
+	__deth_set_sqp(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_DETH], sqp);
 }
 
 /******************************************************************************
@@ -574,38 +573,38 @@ static inline void __reth_set_len(void *arg, u32 len)
 
 static inline u64 reth_va(struct rxe_pkt_info *pkt)
 {
-	return __reth_va(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_RETH]);
+	return __reth_va(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_RETH]);
 }
 
 static inline void reth_set_va(struct rxe_pkt_info *pkt, u64 va)
 {
-	__reth_set_va(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_RETH], va);
+	__reth_set_va(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_RETH], va);
 }
 
 static inline u32 reth_rkey(struct rxe_pkt_info *pkt)
 {
-	return __reth_rkey(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_RETH]);
+	return __reth_rkey(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_RETH]);
 }
 
 static inline void reth_set_rkey(struct rxe_pkt_info *pkt, u32 rkey)
 {
-	__reth_set_rkey(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_RETH], rkey);
+	__reth_set_rkey(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_RETH], rkey);
 }
 
 static inline u32 reth_len(struct rxe_pkt_info *pkt)
 {
-	return __reth_len(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_RETH]);
+	return __reth_len(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_RETH]);
 }
 
 static inline void reth_set_len(struct rxe_pkt_info *pkt, u32 len)
 {
-	__reth_set_len(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_RETH], len);
+	__reth_set_len(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_RETH], len);
 }
 
 /******************************************************************************
@@ -676,50 +675,50 @@ static inline void __atmeth_set_comp(void *arg, u64 comp)
 
 static inline u64 atmeth_va(struct rxe_pkt_info *pkt)
 {
-	return __atmeth_va(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_ATMETH]);
+	return __atmeth_va(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_ATMETH]);
 }
 
 static inline void atmeth_set_va(struct rxe_pkt_info *pkt, u64 va)
 {
-	__atmeth_set_va(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_ATMETH], va);
+	__atmeth_set_va(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_ATMETH], va);
 }
 
 static inline u32 atmeth_rkey(struct rxe_pkt_info *pkt)
 {
-	return __atmeth_rkey(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_ATMETH]);
+	return __atmeth_rkey(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_ATMETH]);
 }
 
 static inline void atmeth_set_rkey(struct rxe_pkt_info *pkt, u32 rkey)
 {
-	__atmeth_set_rkey(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_ATMETH], rkey);
+	__atmeth_set_rkey(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_ATMETH], rkey);
 }
 
 static inline u64 atmeth_swap_add(struct rxe_pkt_info *pkt)
 {
-	return __atmeth_swap_add(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_ATMETH]);
+	return __atmeth_swap_add(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_ATMETH]);
 }
 
 static inline void atmeth_set_swap_add(struct rxe_pkt_info *pkt, u64 swap_add)
 {
-	__atmeth_set_swap_add(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_ATMETH], swap_add);
+	__atmeth_set_swap_add(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_ATMETH], swap_add);
 }
 
 static inline u64 atmeth_comp(struct rxe_pkt_info *pkt)
 {
-	return __atmeth_comp(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_ATMETH]);
+	return __atmeth_comp(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_ATMETH]);
 }
 
 static inline void atmeth_set_comp(struct rxe_pkt_info *pkt, u64 comp)
 {
-	__atmeth_set_comp(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_ATMETH], comp);
+	__atmeth_set_comp(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_ATMETH], comp);
 }
 
 /******************************************************************************
@@ -780,26 +779,26 @@ static inline void __aeth_set_msn(void *arg, u32 msn)
 
 static inline u8 aeth_syn(struct rxe_pkt_info *pkt)
 {
-	return __aeth_syn(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_AETH]);
+	return __aeth_syn(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_AETH]);
 }
 
 static inline void aeth_set_syn(struct rxe_pkt_info *pkt, u8 syn)
 {
-	__aeth_set_syn(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_AETH], syn);
+	__aeth_set_syn(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_AETH], syn);
 }
 
 static inline u32 aeth_msn(struct rxe_pkt_info *pkt)
 {
-	return __aeth_msn(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_AETH]);
+	return __aeth_msn(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_AETH]);
 }
 
 static inline void aeth_set_msn(struct rxe_pkt_info *pkt, u32 msn)
 {
-	__aeth_set_msn(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_AETH], msn);
+	__aeth_set_msn(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_AETH], msn);
 }
 
 /******************************************************************************
@@ -825,14 +824,14 @@ static inline void __atmack_set_orig(void *arg, u64 orig)
 
 static inline u64 atmack_orig(struct rxe_pkt_info *pkt)
 {
-	return __atmack_orig(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_ATMACK]);
+	return __atmack_orig(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_ATMACK]);
 }
 
 static inline void atmack_set_orig(struct rxe_pkt_info *pkt, u64 orig)
 {
-	__atmack_set_orig(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_ATMACK], orig);
+	__atmack_set_orig(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_ATMACK], orig);
 }
 
 /******************************************************************************
@@ -858,14 +857,14 @@ static inline void __immdt_set_imm(void *arg, __be32 imm)
 
 static inline __be32 immdt_imm(struct rxe_pkt_info *pkt)
 {
-	return __immdt_imm(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_IMMDT]);
+	return __immdt_imm(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_IMMDT]);
 }
 
 static inline void immdt_set_imm(struct rxe_pkt_info *pkt, __be32 imm)
 {
-	__immdt_set_imm(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_IMMDT], imm);
+	__immdt_set_imm(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_IMMDT], imm);
 }
 
 /******************************************************************************
@@ -891,14 +890,14 @@ static inline void __ieth_set_rkey(void *arg, u32 rkey)
 
 static inline u32 ieth_rkey(struct rxe_pkt_info *pkt)
 {
-	return __ieth_rkey(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_IETH]);
+	return __ieth_rkey(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_IETH]);
 }
 
 static inline void ieth_set_rkey(struct rxe_pkt_info *pkt, u32 rkey)
 {
-	__ieth_set_rkey(pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_IETH], rkey);
+	__ieth_set_rkey(pkt->hdr +
+		rxe_opcode[pkt->opcode].offset[RXE_IETH], rkey);
 }
 
 enum rxe_hdr_length {
@@ -915,13 +914,12 @@ enum rxe_hdr_length {
 
 static inline size_t header_size(struct rxe_pkt_info *pkt)
 {
-	return pkt->offset + rxe_opcode[pkt->opcode].length;
+	return rxe_opcode[pkt->opcode].length;
 }
 
 static inline void *payload_addr(struct rxe_pkt_info *pkt)
 {
-	return pkt->hdr + pkt->offset
-		+ rxe_opcode[pkt->opcode].offset[RXE_PAYLOAD];
+	return pkt->hdr + rxe_opcode[pkt->opcode].offset[RXE_PAYLOAD];
 }
 
 static inline size_t payload_size(struct rxe_pkt_info *pkt)

@@ -94,6 +94,7 @@ sf_pdma_prep_dma_memcpy(struct dma_chan *dchan,	dma_addr_t dest, dma_addr_t src,
 {
 	struct sf_pdma_chan *chan = to_sf_pdma_chan(dchan);
 	struct sf_pdma_desc *desc;
+	unsigned long iflags;
 
 	if (chan && (!len || !dest || !src)) {
 		dev_err(chan->pdma->dma_dev.dev,
@@ -109,10 +110,10 @@ sf_pdma_prep_dma_memcpy(struct dma_chan *dchan,	dma_addr_t dest, dma_addr_t src,
 	desc->dirn = DMA_MEM_TO_MEM;
 	desc->async_tx = vchan_tx_prep(&chan->vchan, &desc->vdesc, flags);
 
-	spin_lock_irqsave(&chan->vchan.lock, flags);
+	spin_lock_irqsave(&chan->vchan.lock, iflags);
 	chan->desc = desc;
 	sf_pdma_fill_desc(desc, dest, src, len);
-	spin_unlock_irqrestore(&chan->vchan.lock, flags);
+	spin_unlock_irqrestore(&chan->vchan.lock, iflags);
 
 	return desc->async_tx;
 }
@@ -326,10 +327,9 @@ static irqreturn_t sf_pdma_done_isr(int irq, void *dev_id)
 {
 	struct sf_pdma_chan *chan = dev_id;
 	struct pdma_regs *regs = &chan->regs;
-	unsigned long flags;
 	u64 residue;
 
-	spin_lock_irqsave(&chan->vchan.lock, flags);
+	spin_lock(&chan->vchan.lock);
 	writel((readl(regs->ctrl)) & ~PDMA_DONE_STATUS_MASK, regs->ctrl);
 	residue = readq(regs->residue);
 
@@ -346,7 +346,7 @@ static irqreturn_t sf_pdma_done_isr(int irq, void *dev_id)
 		sf_pdma_xfer_desc(chan);
 	}
 
-	spin_unlock_irqrestore(&chan->vchan.lock, flags);
+	spin_unlock(&chan->vchan.lock);
 
 	return IRQ_HANDLED;
 }
@@ -355,11 +355,10 @@ static irqreturn_t sf_pdma_err_isr(int irq, void *dev_id)
 {
 	struct sf_pdma_chan *chan = dev_id;
 	struct pdma_regs *regs = &chan->regs;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chan->lock, flags);
+	spin_lock(&chan->lock);
 	writel((readl(regs->ctrl)) & ~PDMA_ERR_STATUS_MASK, regs->ctrl);
-	spin_unlock_irqrestore(&chan->lock, flags);
+	spin_unlock(&chan->lock);
 
 	tasklet_schedule(&chan->err_tasklet);
 
@@ -584,7 +583,7 @@ static struct platform_driver sf_pdma_driver = {
 	.remove		= sf_pdma_remove,
 	.driver		= {
 		.name	= "sf-pdma",
-		.of_match_table = of_match_ptr(sf_pdma_dt_ids),
+		.of_match_table = sf_pdma_dt_ids,
 	},
 };
 

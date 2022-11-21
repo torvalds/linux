@@ -9,6 +9,7 @@
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 
+#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_ioctl.h>
@@ -27,7 +28,7 @@
 #include <drm/armada_drm.h>
 #include "armada_ioctlP.h"
 
-static struct drm_ioctl_desc armada_ioctls[] = {
+static const struct drm_ioctl_desc armada_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ARMADA_GEM_CREATE, armada_gem_create_ioctl,0),
 	DRM_IOCTL_DEF_DRV(ARMADA_GEM_MMAP, armada_gem_mmap_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(ARMADA_GEM_PWRITE, armada_gem_pwrite_ioctl, 0),
@@ -35,15 +36,12 @@ static struct drm_ioctl_desc armada_ioctls[] = {
 
 DEFINE_DRM_GEM_FOPS(armada_drm_fops);
 
-static struct drm_driver armada_drm_driver = {
+static const struct drm_driver armada_drm_driver = {
 	.lastclose		= drm_fb_helper_lastclose,
-	.gem_free_object_unlocked = armada_gem_free_object,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_export	= armada_gem_prime_export,
 	.gem_prime_import	= armada_gem_prime_import,
 	.dumb_create		= armada_gem_dumb_create,
-	.gem_vm_ops		= &armada_gem_vm_ops,
 	.major			= 1,
 	.minor			= 0,
 	.name			= "armada-drm",
@@ -51,6 +49,7 @@ static struct drm_driver armada_drm_driver = {
 	.date			= "20120730",
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.ioctls			= armada_ioctls,
+	.num_ioctls = ARRAY_SIZE(armada_ioctls),
 	.fops			= &armada_drm_fops,
 };
 
@@ -96,9 +95,7 @@ static int armada_drm_bind(struct device *dev)
 	}
 
 	/* Remove early framebuffers */
-	ret = drm_fb_helper_remove_conflicting_framebuffers(NULL,
-							    "armada-drm-fb",
-							    false);
+	ret = drm_aperture_remove_framebuffers(false, &armada_drm_driver);
 	if (ret) {
 		dev_err(dev, "[" DRM_NAME ":%s] can't kick out simple-fb: %d\n",
 			__func__, ret);
@@ -132,8 +129,6 @@ static int armada_drm_bind(struct device *dev)
 	ret = drm_vblank_init(&priv->drm, priv->drm.mode_config.num_crtc);
 	if (ret)
 		goto err_comp;
-
-	priv->drm.irq_enabled = true;
 
 	drm_mode_config_reset(&priv->drm);
 
@@ -182,17 +177,6 @@ static void armada_drm_unbind(struct device *dev)
 	drm_mm_takedown(&priv->linear);
 }
 
-static int compare_of(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
-
-static int compare_dev_name(struct device *dev, void *data)
-{
-	const char *name = data;
-	return !strcmp(dev_name(dev), name);
-}
-
 static void armada_add_endpoints(struct device *dev,
 	struct component_match **match, struct device_node *dev_node)
 {
@@ -201,7 +185,7 @@ static void armada_add_endpoints(struct device *dev,
 	for_each_endpoint_of_node(dev_node, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
 		if (remote && of_device_is_available(remote))
-			drm_of_component_match_add(dev, match, compare_of,
+			drm_of_component_match_add(dev, match, component_compare_of,
 						   remote);
 		of_node_put(remote);
 	}
@@ -218,7 +202,7 @@ static int armada_drm_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	ret = drm_of_component_probe(dev, compare_dev_name, &armada_master_ops);
+	ret = drm_of_component_probe(dev, component_compare_dev_name, &armada_master_ops);
 	if (ret != -EINVAL)
 		return ret;
 
@@ -228,7 +212,7 @@ static int armada_drm_probe(struct platform_device *pdev)
 		int i;
 
 		for (i = 0; devices[i]; i++)
-			component_match_add(dev, &match, compare_dev_name,
+			component_match_add(dev, &match, component_compare_dev_name,
 					    devices[i]);
 
 		if (i == 0) {
@@ -278,7 +262,8 @@ static int __init armada_drm_init(void)
 {
 	int ret;
 
-	armada_drm_driver.num_ioctls = ARRAY_SIZE(armada_ioctls);
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
 
 	ret = platform_driver_register(&armada_lcd_platform_driver);
 	if (ret)

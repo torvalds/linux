@@ -8,14 +8,39 @@
  */
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/interconnect.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/soc/qcom/qcom_aoss.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
 #include <linux/remoteproc.h>
+#include "qcom_common.h"
 #include "qcom_q6v5.h"
 
+#define Q6V5_LOAD_STATE_MSG_LEN	64
 #define Q6V5_PANIC_DELAY_MS	200
+
+static int q6v5_load_state_toggle(struct qcom_q6v5 *q6v5, bool enable)
+{
+	char buf[Q6V5_LOAD_STATE_MSG_LEN];
+	int ret;
+
+	if (!q6v5->qmp)
+		return 0;
+
+	ret = snprintf(buf, sizeof(buf),
+		       "{class: image, res: load_state, name: %s, val: %s}",
+		       q6v5->load_state, enable ? "on" : "off");
+
+	WARN_ON(ret >= Q6V5_LOAD_STATE_MSG_LEN);
+
+	ret = qmp_send(q6v5->qmp, buf, sizeof(buf));
+	if (ret)
+		dev_err(q6v5->dev, "failed to toggle load state\n");
+
+	return ret;
+}
 
 /**
  * qcom_q6v5_prepare() - reinitialize the qcom_q6v5 context before start
@@ -25,6 +50,20 @@
  */
 int qcom_q6v5_prepare(struct qcom_q6v5 *q6v5)
 {
+	int ret;
+
+	ret = icc_set_bw(q6v5->path, 0, UINT_MAX);
+	if (ret < 0) {
+		dev_err(q6v5->dev, "failed to set bandwidth request\n");
+		return ret;
+	}
+
+	ret = q6v5_load_state_toggle(q6v5, true);
+	if (ret) {
+		icc_set_bw(q6v5->path, 0, 0);
+		return ret;
+	}
+
 	reinit_completion(&q6v5->start_done);
 	reinit_completion(&q6v5->stop_done);
 
@@ -46,6 +85,10 @@ EXPORT_SYMBOL_GPL(qcom_q6v5_prepare);
 int qcom_q6v5_unprepare(struct qcom_q6v5 *q6v5)
 {
 	disable_irq(q6v5->handover_irq);
+	q6v5_load_state_toggle(q6v5, false);
+
+	/* Disable interconnect vote, in case handover never happened */
+	icc_set_bw(q6v5->path, 0, 0);
 
 	return !q6v5->handover_issued;
 }
@@ -129,6 +172,8 @@ static irqreturn_t q6v5_handover_interrupt(int irq, void *data)
 	if (q6v5->handover)
 		q6v5->handover(q6v5);
 
+	icc_set_bw(q6v5->path, 0, 0);
+
 	q6v5->handover_issued = true;
 
 	return IRQ_HANDLED;
@@ -146,14 +191,19 @@ static irqreturn_t q6v5_stop_interrupt(int irq, void *data)
 /**
  * qcom_q6v5_request_stop() - request the remote processor to stop
  * @q6v5:	reference to qcom_q6v5 context
+ * @sysmon:	reference to the remote's sysmon instance, or NULL
  *
  * Return: 0 on success, negative errno on failure
  */
-int qcom_q6v5_request_stop(struct qcom_q6v5 *q6v5)
+int qcom_q6v5_request_stop(struct qcom_q6v5 *q6v5, struct qcom_sysmon *sysmon)
 {
 	int ret;
 
 	q6v5->running = false;
+
+	/* Don't perform SMP2P dance if sysmon already shut down the remote */
+	if (qcom_sysmon_shutdown_acked(sysmon))
+		return 0;
 
 	qcom_smem_state_update_bits(q6v5->state,
 				    BIT(q6v5->stop_bit), BIT(q6v5->stop_bit));
@@ -190,12 +240,13 @@ EXPORT_SYMBOL_GPL(qcom_q6v5_panic);
  * @pdev:	platform_device reference for acquiring resources
  * @rproc:	associated remoteproc instance
  * @crash_reason: SMEM id for crash reason string, or 0 if none
+ * @load_state: load state resource string
  * @handover:	function to be called when proxy resources should be released
  *
  * Return: 0 on success, negative errno on failure
  */
 int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
-		   struct rproc *rproc, int crash_reason,
+		   struct rproc *rproc, int crash_reason, const char *load_state,
 		   void (*handover)(struct qcom_q6v5 *q6v5))
 {
 	int ret;
@@ -274,15 +325,45 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 		return ret;
 	}
 
-	q6v5->state = qcom_smem_state_get(&pdev->dev, "stop", &q6v5->stop_bit);
+	q6v5->state = devm_qcom_smem_state_get(&pdev->dev, "stop", &q6v5->stop_bit);
 	if (IS_ERR(q6v5->state)) {
 		dev_err(&pdev->dev, "failed to acquire stop state\n");
 		return PTR_ERR(q6v5->state);
 	}
 
+	q6v5->load_state = devm_kstrdup_const(&pdev->dev, load_state, GFP_KERNEL);
+	q6v5->qmp = qmp_get(&pdev->dev);
+	if (IS_ERR(q6v5->qmp)) {
+		if (PTR_ERR(q6v5->qmp) != -ENODEV)
+			return dev_err_probe(&pdev->dev, PTR_ERR(q6v5->qmp),
+					     "failed to acquire load state\n");
+		q6v5->qmp = NULL;
+	} else if (!q6v5->load_state) {
+		if (!load_state)
+			dev_err(&pdev->dev, "load state resource string empty\n");
+
+		qmp_put(q6v5->qmp);
+		return load_state ? -ENOMEM : -EINVAL;
+	}
+
+	q6v5->path = devm_of_icc_get(&pdev->dev, NULL);
+	if (IS_ERR(q6v5->path))
+		return dev_err_probe(&pdev->dev, PTR_ERR(q6v5->path),
+				     "failed to acquire interconnect path\n");
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_q6v5_init);
+
+/**
+ * qcom_q6v5_deinit() - deinitialize the q6v5 common struct
+ * @q6v5:	reference to qcom_q6v5 context to be deinitialized
+ */
+void qcom_q6v5_deinit(struct qcom_q6v5 *q6v5)
+{
+	qmp_put(q6v5->qmp);
+}
+EXPORT_SYMBOL_GPL(qcom_q6v5_deinit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Qualcomm Peripheral Image Loader for Q6V5");

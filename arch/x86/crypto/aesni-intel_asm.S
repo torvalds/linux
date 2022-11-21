@@ -43,10 +43,6 @@
 #ifdef __x86_64__
 
 # constants in mergeable sections, linker can reorder and merge
-.section	.rodata.cst16.gf128mul_x_ble_mask, "aM", @progbits, 16
-.align 16
-.Lgf128mul_x_ble_mask:
-	.octa 0x00000000000000010000000000000087
 .section	.rodata.cst16.POLY, "aM", @progbits, 16
 .align 16
 POLY:   .octa 0xC2000000000000000000000000000001
@@ -146,7 +142,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 #define CTR	%xmm11
 #define INC	%xmm12
 
-#define GF128MUL_MASK %xmm10
+#define GF128MUL_MASK %xmm7
 
 #ifdef __x86_64__
 #define AREG	%rax
@@ -318,7 +314,7 @@ _initial_blocks_\@:
 
 	# Main loop - Encrypt/Decrypt remaining blocks
 
-	cmp	$0, %r13
+	test	%r13, %r13
 	je	_zero_cipher_left_\@
 	sub	$64, %r13
 	je	_four_cipher_left_\@
@@ -437,7 +433,7 @@ _multiple_of_16_bytes_\@:
 
 	mov PBlockLen(%arg2), %r12
 
-	cmp $0, %r12
+	test %r12, %r12
 	je _partial_done\@
 
 	GHASH_MUL %xmm8, %xmm13, %xmm9, %xmm10, %xmm11, %xmm5, %xmm6
@@ -474,7 +470,7 @@ _T_8_\@:
 	add	$8, %r10
 	sub	$8, %r11
 	psrldq	$8, %xmm0
-	cmp	$0, %r11
+	test	%r11, %r11
 	je	_return_T_done_\@
 _T_4_\@:
 	movd	%xmm0, %eax
@@ -482,7 +478,7 @@ _T_4_\@:
 	add	$4, %r10
 	sub	$4, %r11
 	psrldq	$4, %xmm0
-	cmp	$0, %r11
+	test	%r11, %r11
 	je	_return_T_done_\@
 _T_123_\@:
 	movd	%xmm0, %eax
@@ -619,7 +615,7 @@ _get_AAD_blocks\@:
 
 	/* read the last <16B of AAD */
 _get_AAD_rest\@:
-	cmp	   $0, %r11
+	test	   %r11, %r11
 	je	   _get_AAD_done\@
 
 	READ_PARTIAL_BLOCK %r10, %r11, \TMP1, \TMP7
@@ -640,7 +636,7 @@ _get_AAD_done\@:
 .macro PARTIAL_BLOCK CYPH_PLAIN_OUT PLAIN_CYPH_IN PLAIN_CYPH_LEN DATA_OFFSET \
 	AAD_HASH operation
 	mov 	PBlockLen(%arg2), %r13
-	cmp	$0, %r13
+	test	%r13, %r13
 	je	_partial_block_done_\@	# Leave Macro if no partial blocks
 	# Read in input data without over reading
 	cmp	$16, \PLAIN_CYPH_LEN
@@ -692,7 +688,7 @@ _no_extra_mask_1_\@:
 	pshufb	%xmm2, %xmm3
 	pxor	%xmm3, \AAD_HASH
 
-	cmp	$0, %r10
+	test	%r10, %r10
 	jl	_partial_incomplete_1_\@
 
 	# GHASH computation for the last <16 Byte block
@@ -727,7 +723,7 @@ _no_extra_mask_2_\@:
 	pshufb	%xmm2, %xmm9
 	pxor	%xmm9, \AAD_HASH
 
-	cmp	$0, %r10
+	test	%r10, %r10
 	jl	_partial_incomplete_2_\@
 
 	# GHASH computation for the last <16 Byte block
@@ -747,7 +743,7 @@ _encode_done_\@:
 	pshufb	%xmm2, %xmm9
 .endif
 	# output encrypted Bytes
-	cmp	$0, %r10
+	test	%r10, %r10
 	jl	_partial_fill_\@
 	mov	%r13, %r12
 	mov	$16, %r13
@@ -1598,7 +1594,7 @@ SYM_FUNC_START(aesni_gcm_dec)
 	GCM_ENC_DEC dec
 	GCM_COMPLETE arg10, arg11
 	FUNC_RESTORE
-	ret
+	RET
 SYM_FUNC_END(aesni_gcm_dec)
 
 
@@ -1687,7 +1683,7 @@ SYM_FUNC_START(aesni_gcm_enc)
 
 	GCM_COMPLETE arg10, arg11
 	FUNC_RESTORE
-	ret
+	RET
 SYM_FUNC_END(aesni_gcm_enc)
 
 /*****************************************************************************
@@ -1705,7 +1701,7 @@ SYM_FUNC_START(aesni_gcm_init)
 	FUNC_SAVE
 	GCM_INIT %arg3, %arg4,%arg5, %arg6
 	FUNC_RESTORE
-	ret
+	RET
 SYM_FUNC_END(aesni_gcm_init)
 
 /*****************************************************************************
@@ -1720,7 +1716,7 @@ SYM_FUNC_START(aesni_gcm_enc_update)
 	FUNC_SAVE
 	GCM_ENC_DEC enc
 	FUNC_RESTORE
-	ret
+	RET
 SYM_FUNC_END(aesni_gcm_enc_update)
 
 /*****************************************************************************
@@ -1735,7 +1731,7 @@ SYM_FUNC_START(aesni_gcm_dec_update)
 	FUNC_SAVE
 	GCM_ENC_DEC dec
 	FUNC_RESTORE
-	ret
+	RET
 SYM_FUNC_END(aesni_gcm_dec_update)
 
 /*****************************************************************************
@@ -1750,13 +1746,11 @@ SYM_FUNC_START(aesni_gcm_finalize)
 	FUNC_SAVE
 	GCM_COMPLETE %arg3 %arg4
 	FUNC_RESTORE
-	ret
+	RET
 SYM_FUNC_END(aesni_gcm_finalize)
 
 #endif
 
-
-SYM_FUNC_START_LOCAL_ALIAS(_key_expansion_128)
 SYM_FUNC_START_LOCAL(_key_expansion_256a)
 	pshufd $0b11111111, %xmm1, %xmm1
 	shufps $0b00010000, %xmm0, %xmm4
@@ -1766,9 +1760,9 @@ SYM_FUNC_START_LOCAL(_key_expansion_256a)
 	pxor %xmm1, %xmm0
 	movaps %xmm0, (TKEYP)
 	add $0x10, TKEYP
-	ret
+	RET
 SYM_FUNC_END(_key_expansion_256a)
-SYM_FUNC_END_ALIAS(_key_expansion_128)
+SYM_FUNC_ALIAS_LOCAL(_key_expansion_128, _key_expansion_256a)
 
 SYM_FUNC_START_LOCAL(_key_expansion_192a)
 	pshufd $0b01010101, %xmm1, %xmm1
@@ -1791,7 +1785,7 @@ SYM_FUNC_START_LOCAL(_key_expansion_192a)
 	shufps $0b01001110, %xmm2, %xmm1
 	movaps %xmm1, 0x10(TKEYP)
 	add $0x20, TKEYP
-	ret
+	RET
 SYM_FUNC_END(_key_expansion_192a)
 
 SYM_FUNC_START_LOCAL(_key_expansion_192b)
@@ -1810,7 +1804,7 @@ SYM_FUNC_START_LOCAL(_key_expansion_192b)
 
 	movaps %xmm0, (TKEYP)
 	add $0x10, TKEYP
-	ret
+	RET
 SYM_FUNC_END(_key_expansion_192b)
 
 SYM_FUNC_START_LOCAL(_key_expansion_256b)
@@ -1822,7 +1816,7 @@ SYM_FUNC_START_LOCAL(_key_expansion_256b)
 	pxor %xmm1, %xmm2
 	movaps %xmm2, (TKEYP)
 	add $0x10, TKEYP
-	ret
+	RET
 SYM_FUNC_END(_key_expansion_256b)
 
 /*
@@ -1937,7 +1931,7 @@ SYM_FUNC_START(aesni_set_key)
 	popl KEYP
 #endif
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(aesni_set_key)
 
 /*
@@ -1961,7 +1955,7 @@ SYM_FUNC_START(aesni_enc)
 	popl KEYP
 #endif
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(aesni_enc)
 
 /*
@@ -2018,7 +2012,7 @@ SYM_FUNC_START_LOCAL(_aesni_enc1)
 	aesenc KEY, STATE
 	movaps 0x70(TKEYP), KEY
 	aesenclast KEY, STATE
-	ret
+	RET
 SYM_FUNC_END(_aesni_enc1)
 
 /*
@@ -2126,7 +2120,7 @@ SYM_FUNC_START_LOCAL(_aesni_enc4)
 	aesenclast KEY, STATE2
 	aesenclast KEY, STATE3
 	aesenclast KEY, STATE4
-	ret
+	RET
 SYM_FUNC_END(_aesni_enc4)
 
 /*
@@ -2151,7 +2145,7 @@ SYM_FUNC_START(aesni_dec)
 	popl KEYP
 #endif
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(aesni_dec)
 
 /*
@@ -2208,7 +2202,7 @@ SYM_FUNC_START_LOCAL(_aesni_dec1)
 	aesdec KEY, STATE
 	movaps 0x70(TKEYP), KEY
 	aesdeclast KEY, STATE
-	ret
+	RET
 SYM_FUNC_END(_aesni_dec1)
 
 /*
@@ -2316,7 +2310,7 @@ SYM_FUNC_START_LOCAL(_aesni_dec4)
 	aesdeclast KEY, STATE2
 	aesdeclast KEY, STATE3
 	aesdeclast KEY, STATE4
-	ret
+	RET
 SYM_FUNC_END(_aesni_dec4)
 
 /*
@@ -2376,7 +2370,7 @@ SYM_FUNC_START(aesni_ecb_enc)
 	popl LEN
 #endif
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(aesni_ecb_enc)
 
 /*
@@ -2437,7 +2431,7 @@ SYM_FUNC_START(aesni_ecb_dec)
 	popl LEN
 #endif
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(aesni_ecb_dec)
 
 /*
@@ -2481,7 +2475,7 @@ SYM_FUNC_START(aesni_cbc_enc)
 	popl IVP
 #endif
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(aesni_cbc_enc)
 
 /*
@@ -2574,16 +2568,143 @@ SYM_FUNC_START(aesni_cbc_dec)
 	popl IVP
 #endif
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(aesni_cbc_dec)
 
-#ifdef __x86_64__
+/*
+ * void aesni_cts_cbc_enc(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
+ *			  size_t len, u8 *iv)
+ */
+SYM_FUNC_START(aesni_cts_cbc_enc)
+	FRAME_BEGIN
+#ifndef __x86_64__
+	pushl IVP
+	pushl LEN
+	pushl KEYP
+	pushl KLEN
+	movl (FRAME_OFFSET+20)(%esp), KEYP	# ctx
+	movl (FRAME_OFFSET+24)(%esp), OUTP	# dst
+	movl (FRAME_OFFSET+28)(%esp), INP	# src
+	movl (FRAME_OFFSET+32)(%esp), LEN	# len
+	movl (FRAME_OFFSET+36)(%esp), IVP	# iv
+	lea .Lcts_permute_table, T1
+#else
+	lea .Lcts_permute_table(%rip), T1
+#endif
+	mov 480(KEYP), KLEN
+	movups (IVP), STATE
+	sub $16, LEN
+	mov T1, IVP
+	add $32, IVP
+	add LEN, T1
+	sub LEN, IVP
+	movups (T1), %xmm4
+	movups (IVP), %xmm5
+
+	movups (INP), IN1
+	add LEN, INP
+	movups (INP), IN2
+
+	pxor IN1, STATE
+	call _aesni_enc1
+
+	pshufb %xmm5, IN2
+	pxor STATE, IN2
+	pshufb %xmm4, STATE
+	add OUTP, LEN
+	movups STATE, (LEN)
+
+	movaps IN2, STATE
+	call _aesni_enc1
+	movups STATE, (OUTP)
+
+#ifndef __x86_64__
+	popl KLEN
+	popl KEYP
+	popl LEN
+	popl IVP
+#endif
+	FRAME_END
+	RET
+SYM_FUNC_END(aesni_cts_cbc_enc)
+
+/*
+ * void aesni_cts_cbc_dec(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
+ *			  size_t len, u8 *iv)
+ */
+SYM_FUNC_START(aesni_cts_cbc_dec)
+	FRAME_BEGIN
+#ifndef __x86_64__
+	pushl IVP
+	pushl LEN
+	pushl KEYP
+	pushl KLEN
+	movl (FRAME_OFFSET+20)(%esp), KEYP	# ctx
+	movl (FRAME_OFFSET+24)(%esp), OUTP	# dst
+	movl (FRAME_OFFSET+28)(%esp), INP	# src
+	movl (FRAME_OFFSET+32)(%esp), LEN	# len
+	movl (FRAME_OFFSET+36)(%esp), IVP	# iv
+	lea .Lcts_permute_table, T1
+#else
+	lea .Lcts_permute_table(%rip), T1
+#endif
+	mov 480(KEYP), KLEN
+	add $240, KEYP
+	movups (IVP), IV
+	sub $16, LEN
+	mov T1, IVP
+	add $32, IVP
+	add LEN, T1
+	sub LEN, IVP
+	movups (T1), %xmm4
+
+	movups (INP), STATE
+	add LEN, INP
+	movups (INP), IN1
+
+	call _aesni_dec1
+	movaps STATE, IN2
+	pshufb %xmm4, STATE
+	pxor IN1, STATE
+
+	add OUTP, LEN
+	movups STATE, (LEN)
+
+	movups (IVP), %xmm0
+	pshufb %xmm0, IN1
+	pblendvb IN2, IN1
+	movaps IN1, STATE
+	call _aesni_dec1
+
+	pxor IV, STATE
+	movups STATE, (OUTP)
+
+#ifndef __x86_64__
+	popl KLEN
+	popl KEYP
+	popl LEN
+	popl IVP
+#endif
+	FRAME_END
+	RET
+SYM_FUNC_END(aesni_cts_cbc_dec)
+
 .pushsection .rodata
 .align 16
+.Lcts_permute_table:
+	.byte		0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
+	.byte		0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
+	.byte		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+	.byte		0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+	.byte		0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
+	.byte		0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
+#ifdef __x86_64__
 .Lbswap_mask:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+#endif
 .popsection
 
+#ifdef __x86_64__
 /*
  * _aesni_inc_init:	internal ABI
  *	setup registers used by _aesni_inc
@@ -2602,7 +2723,7 @@ SYM_FUNC_START_LOCAL(_aesni_inc_init)
 	mov $1, TCTR_LOW
 	movq TCTR_LOW, INC
 	movq CTR, TCTR_LOW
-	ret
+	RET
 SYM_FUNC_END(_aesni_inc_init)
 
 /*
@@ -2630,7 +2751,7 @@ SYM_FUNC_START_LOCAL(_aesni_inc)
 .Linc_low:
 	movaps CTR, IV
 	pshufb BSWAP_MASK, IV
-	ret
+	RET
 SYM_FUNC_END(_aesni_inc)
 
 /*
@@ -2693,8 +2814,16 @@ SYM_FUNC_START(aesni_ctr_enc)
 	movups IV, (IVP)
 .Lctr_enc_just_ret:
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(aesni_ctr_enc)
+
+#endif
+
+.section	.rodata.cst16.gf128mul_x_ble_mask, "aM", @progbits, 16
+.align 16
+.Lgf128mul_x_ble_mask:
+	.octa 0x00000000000000010000000000000087
+.previous
 
 /*
  * _aesni_gf128mul_x_ble:		internal ABI
@@ -2708,120 +2837,325 @@ SYM_FUNC_END(aesni_ctr_enc)
  *	CTR:	== temporary value
  */
 #define _aesni_gf128mul_x_ble() \
-	pshufd $0x13, IV, CTR; \
+	pshufd $0x13, IV, KEY; \
 	paddq IV, IV; \
-	psrad $31, CTR; \
-	pand GF128MUL_MASK, CTR; \
-	pxor CTR, IV;
+	psrad $31, KEY; \
+	pand GF128MUL_MASK, KEY; \
+	pxor KEY, IV;
 
 /*
- * void aesni_xts_crypt8(const struct crypto_aes_ctx *ctx, u8 *dst,
- *			 const u8 *src, bool enc, le128 *iv)
+ * void aesni_xts_encrypt(const struct crypto_aes_ctx *ctx, u8 *dst,
+ *			  const u8 *src, unsigned int len, le128 *iv)
  */
-SYM_FUNC_START(aesni_xts_crypt8)
+SYM_FUNC_START(aesni_xts_encrypt)
 	FRAME_BEGIN
-	cmpb $0, %cl
-	movl $0, %ecx
-	movl $240, %r10d
-	leaq _aesni_enc4, %r11
-	leaq _aesni_dec4, %rax
-	cmovel %r10d, %ecx
-	cmoveq %rax, %r11
-
+#ifndef __x86_64__
+	pushl IVP
+	pushl LEN
+	pushl KEYP
+	pushl KLEN
+	movl (FRAME_OFFSET+20)(%esp), KEYP	# ctx
+	movl (FRAME_OFFSET+24)(%esp), OUTP	# dst
+	movl (FRAME_OFFSET+28)(%esp), INP	# src
+	movl (FRAME_OFFSET+32)(%esp), LEN	# len
+	movl (FRAME_OFFSET+36)(%esp), IVP	# iv
 	movdqa .Lgf128mul_x_ble_mask, GF128MUL_MASK
+#else
+	movdqa .Lgf128mul_x_ble_mask(%rip), GF128MUL_MASK
+#endif
 	movups (IVP), IV
 
 	mov 480(KEYP), KLEN
-	addq %rcx, KEYP
+
+.Lxts_enc_loop4:
+	sub $64, LEN
+	jl .Lxts_enc_1x
 
 	movdqa IV, STATE1
-	movdqu 0x00(INP), INC
-	pxor INC, STATE1
+	movdqu 0x00(INP), IN
+	pxor IN, STATE1
 	movdqu IV, 0x00(OUTP)
 
 	_aesni_gf128mul_x_ble()
 	movdqa IV, STATE2
-	movdqu 0x10(INP), INC
-	pxor INC, STATE2
+	movdqu 0x10(INP), IN
+	pxor IN, STATE2
 	movdqu IV, 0x10(OUTP)
 
 	_aesni_gf128mul_x_ble()
 	movdqa IV, STATE3
-	movdqu 0x20(INP), INC
-	pxor INC, STATE3
+	movdqu 0x20(INP), IN
+	pxor IN, STATE3
 	movdqu IV, 0x20(OUTP)
 
 	_aesni_gf128mul_x_ble()
 	movdqa IV, STATE4
-	movdqu 0x30(INP), INC
-	pxor INC, STATE4
+	movdqu 0x30(INP), IN
+	pxor IN, STATE4
 	movdqu IV, 0x30(OUTP)
 
-	CALL_NOSPEC r11
+	call _aesni_enc4
 
-	movdqu 0x00(OUTP), INC
-	pxor INC, STATE1
+	movdqu 0x00(OUTP), IN
+	pxor IN, STATE1
 	movdqu STATE1, 0x00(OUTP)
 
-	_aesni_gf128mul_x_ble()
-	movdqa IV, STATE1
-	movdqu 0x40(INP), INC
-	pxor INC, STATE1
-	movdqu IV, 0x40(OUTP)
-
-	movdqu 0x10(OUTP), INC
-	pxor INC, STATE2
+	movdqu 0x10(OUTP), IN
+	pxor IN, STATE2
 	movdqu STATE2, 0x10(OUTP)
 
-	_aesni_gf128mul_x_ble()
-	movdqa IV, STATE2
-	movdqu 0x50(INP), INC
-	pxor INC, STATE2
-	movdqu IV, 0x50(OUTP)
-
-	movdqu 0x20(OUTP), INC
-	pxor INC, STATE3
+	movdqu 0x20(OUTP), IN
+	pxor IN, STATE3
 	movdqu STATE3, 0x20(OUTP)
 
-	_aesni_gf128mul_x_ble()
-	movdqa IV, STATE3
-	movdqu 0x60(INP), INC
-	pxor INC, STATE3
-	movdqu IV, 0x60(OUTP)
-
-	movdqu 0x30(OUTP), INC
-	pxor INC, STATE4
+	movdqu 0x30(OUTP), IN
+	pxor IN, STATE4
 	movdqu STATE4, 0x30(OUTP)
 
 	_aesni_gf128mul_x_ble()
-	movdqa IV, STATE4
-	movdqu 0x70(INP), INC
-	pxor INC, STATE4
-	movdqu IV, 0x70(OUTP)
 
-	_aesni_gf128mul_x_ble()
+	add $64, INP
+	add $64, OUTP
+	test LEN, LEN
+	jnz .Lxts_enc_loop4
+
+.Lxts_enc_ret_iv:
 	movups IV, (IVP)
 
-	CALL_NOSPEC r11
-
-	movdqu 0x40(OUTP), INC
-	pxor INC, STATE1
-	movdqu STATE1, 0x40(OUTP)
-
-	movdqu 0x50(OUTP), INC
-	pxor INC, STATE2
-	movdqu STATE2, 0x50(OUTP)
-
-	movdqu 0x60(OUTP), INC
-	pxor INC, STATE3
-	movdqu STATE3, 0x60(OUTP)
-
-	movdqu 0x70(OUTP), INC
-	pxor INC, STATE4
-	movdqu STATE4, 0x70(OUTP)
-
-	FRAME_END
-	ret
-SYM_FUNC_END(aesni_xts_crypt8)
-
+.Lxts_enc_ret:
+#ifndef __x86_64__
+	popl KLEN
+	popl KEYP
+	popl LEN
+	popl IVP
 #endif
+	FRAME_END
+	RET
+
+.Lxts_enc_1x:
+	add $64, LEN
+	jz .Lxts_enc_ret_iv
+	sub $16, LEN
+	jl .Lxts_enc_cts4
+
+.Lxts_enc_loop1:
+	movdqu (INP), STATE
+	pxor IV, STATE
+	call _aesni_enc1
+	pxor IV, STATE
+	_aesni_gf128mul_x_ble()
+
+	test LEN, LEN
+	jz .Lxts_enc_out
+
+	add $16, INP
+	sub $16, LEN
+	jl .Lxts_enc_cts1
+
+	movdqu STATE, (OUTP)
+	add $16, OUTP
+	jmp .Lxts_enc_loop1
+
+.Lxts_enc_out:
+	movdqu STATE, (OUTP)
+	jmp .Lxts_enc_ret_iv
+
+.Lxts_enc_cts4:
+	movdqa STATE4, STATE
+	sub $16, OUTP
+
+.Lxts_enc_cts1:
+#ifndef __x86_64__
+	lea .Lcts_permute_table, T1
+#else
+	lea .Lcts_permute_table(%rip), T1
+#endif
+	add LEN, INP		/* rewind input pointer */
+	add $16, LEN		/* # bytes in final block */
+	movups (INP), IN1
+
+	mov T1, IVP
+	add $32, IVP
+	add LEN, T1
+	sub LEN, IVP
+	add OUTP, LEN
+
+	movups (T1), %xmm4
+	movaps STATE, IN2
+	pshufb %xmm4, STATE
+	movups STATE, (LEN)
+
+	movups (IVP), %xmm0
+	pshufb %xmm0, IN1
+	pblendvb IN2, IN1
+	movaps IN1, STATE
+
+	pxor IV, STATE
+	call _aesni_enc1
+	pxor IV, STATE
+
+	movups STATE, (OUTP)
+	jmp .Lxts_enc_ret
+SYM_FUNC_END(aesni_xts_encrypt)
+
+/*
+ * void aesni_xts_decrypt(const struct crypto_aes_ctx *ctx, u8 *dst,
+ *			  const u8 *src, unsigned int len, le128 *iv)
+ */
+SYM_FUNC_START(aesni_xts_decrypt)
+	FRAME_BEGIN
+#ifndef __x86_64__
+	pushl IVP
+	pushl LEN
+	pushl KEYP
+	pushl KLEN
+	movl (FRAME_OFFSET+20)(%esp), KEYP	# ctx
+	movl (FRAME_OFFSET+24)(%esp), OUTP	# dst
+	movl (FRAME_OFFSET+28)(%esp), INP	# src
+	movl (FRAME_OFFSET+32)(%esp), LEN	# len
+	movl (FRAME_OFFSET+36)(%esp), IVP	# iv
+	movdqa .Lgf128mul_x_ble_mask, GF128MUL_MASK
+#else
+	movdqa .Lgf128mul_x_ble_mask(%rip), GF128MUL_MASK
+#endif
+	movups (IVP), IV
+
+	mov 480(KEYP), KLEN
+	add $240, KEYP
+
+	test $15, LEN
+	jz .Lxts_dec_loop4
+	sub $16, LEN
+
+.Lxts_dec_loop4:
+	sub $64, LEN
+	jl .Lxts_dec_1x
+
+	movdqa IV, STATE1
+	movdqu 0x00(INP), IN
+	pxor IN, STATE1
+	movdqu IV, 0x00(OUTP)
+
+	_aesni_gf128mul_x_ble()
+	movdqa IV, STATE2
+	movdqu 0x10(INP), IN
+	pxor IN, STATE2
+	movdqu IV, 0x10(OUTP)
+
+	_aesni_gf128mul_x_ble()
+	movdqa IV, STATE3
+	movdqu 0x20(INP), IN
+	pxor IN, STATE3
+	movdqu IV, 0x20(OUTP)
+
+	_aesni_gf128mul_x_ble()
+	movdqa IV, STATE4
+	movdqu 0x30(INP), IN
+	pxor IN, STATE4
+	movdqu IV, 0x30(OUTP)
+
+	call _aesni_dec4
+
+	movdqu 0x00(OUTP), IN
+	pxor IN, STATE1
+	movdqu STATE1, 0x00(OUTP)
+
+	movdqu 0x10(OUTP), IN
+	pxor IN, STATE2
+	movdqu STATE2, 0x10(OUTP)
+
+	movdqu 0x20(OUTP), IN
+	pxor IN, STATE3
+	movdqu STATE3, 0x20(OUTP)
+
+	movdqu 0x30(OUTP), IN
+	pxor IN, STATE4
+	movdqu STATE4, 0x30(OUTP)
+
+	_aesni_gf128mul_x_ble()
+
+	add $64, INP
+	add $64, OUTP
+	test LEN, LEN
+	jnz .Lxts_dec_loop4
+
+.Lxts_dec_ret_iv:
+	movups IV, (IVP)
+
+.Lxts_dec_ret:
+#ifndef __x86_64__
+	popl KLEN
+	popl KEYP
+	popl LEN
+	popl IVP
+#endif
+	FRAME_END
+	RET
+
+.Lxts_dec_1x:
+	add $64, LEN
+	jz .Lxts_dec_ret_iv
+
+.Lxts_dec_loop1:
+	movdqu (INP), STATE
+
+	add $16, INP
+	sub $16, LEN
+	jl .Lxts_dec_cts1
+
+	pxor IV, STATE
+	call _aesni_dec1
+	pxor IV, STATE
+	_aesni_gf128mul_x_ble()
+
+	test LEN, LEN
+	jz .Lxts_dec_out
+
+	movdqu STATE, (OUTP)
+	add $16, OUTP
+	jmp .Lxts_dec_loop1
+
+.Lxts_dec_out:
+	movdqu STATE, (OUTP)
+	jmp .Lxts_dec_ret_iv
+
+.Lxts_dec_cts1:
+	movdqa IV, STATE4
+	_aesni_gf128mul_x_ble()
+
+	pxor IV, STATE
+	call _aesni_dec1
+	pxor IV, STATE
+
+#ifndef __x86_64__
+	lea .Lcts_permute_table, T1
+#else
+	lea .Lcts_permute_table(%rip), T1
+#endif
+	add LEN, INP		/* rewind input pointer */
+	add $16, LEN		/* # bytes in final block */
+	movups (INP), IN1
+
+	mov T1, IVP
+	add $32, IVP
+	add LEN, T1
+	sub LEN, IVP
+	add OUTP, LEN
+
+	movups (T1), %xmm4
+	movaps STATE, IN2
+	pshufb %xmm4, STATE
+	movups STATE, (LEN)
+
+	movups (IVP), %xmm0
+	pshufb %xmm0, IN1
+	pblendvb IN2, IN1
+	movaps IN1, STATE
+
+	pxor STATE4, STATE
+	call _aesni_dec1
+	pxor STATE4, STATE
+
+	movups STATE, (OUTP)
+	jmp .Lxts_dec_ret
+SYM_FUNC_END(aesni_xts_decrypt)

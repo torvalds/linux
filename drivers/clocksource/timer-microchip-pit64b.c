@@ -42,8 +42,7 @@
 #define MCHP_PIT64B_LSBMASK		GENMASK_ULL(31, 0)
 #define MCHP_PIT64B_PRES_TO_MODE(p)	(MCHP_PIT64B_MR_PRES & ((p) << 8))
 #define MCHP_PIT64B_MODE_TO_PRES(m)	((MCHP_PIT64B_MR_PRES & (m)) >> 8)
-#define MCHP_PIT64B_DEF_CS_FREQ		5000000UL	/* 5 MHz */
-#define MCHP_PIT64B_DEF_CE_FREQ		32768		/* 32 KHz */
+#define MCHP_PIT64B_DEF_FREQ		5000000UL	/* 5 MHz */
 
 #define MCHP_PIT64B_NAME		"pit64b"
 
@@ -71,9 +70,23 @@ struct mchp_pit64b_clkevt {
 	struct clock_event_device	clkevt;
 };
 
-#define to_mchp_pit64b_timer(x) \
+#define clkevt_to_mchp_pit64b_timer(x) \
 	((struct mchp_pit64b_timer *)container_of(x,\
 		struct mchp_pit64b_clkevt, clkevt))
+
+/**
+ * mchp_pit64b_clksrc - PIT64B clocksource data structure
+ * @timer: PIT64B timer
+ * @clksrc: clocksource
+ */
+struct mchp_pit64b_clksrc {
+	struct mchp_pit64b_timer	timer;
+	struct clocksource		clksrc;
+};
+
+#define clksrc_to_mchp_pit64b_timer(x) \
+	((struct mchp_pit64b_timer *)container_of(x,\
+		struct mchp_pit64b_clksrc, clksrc))
 
 /* Base address for clocksource timer. */
 static void __iomem *mchp_pit64b_cs_base;
@@ -116,19 +129,49 @@ static inline void mchp_pit64b_reset(struct mchp_pit64b_timer *timer,
 	writel_relaxed(MCHP_PIT64B_CR_START, timer->base + MCHP_PIT64B_CR);
 }
 
+static void mchp_pit64b_suspend(struct mchp_pit64b_timer *timer)
+{
+	writel_relaxed(MCHP_PIT64B_CR_SWRST, timer->base + MCHP_PIT64B_CR);
+	if (timer->mode & MCHP_PIT64B_MR_SGCLK)
+		clk_disable_unprepare(timer->gclk);
+	clk_disable_unprepare(timer->pclk);
+}
+
+static void mchp_pit64b_resume(struct mchp_pit64b_timer *timer)
+{
+	clk_prepare_enable(timer->pclk);
+	if (timer->mode & MCHP_PIT64B_MR_SGCLK)
+		clk_prepare_enable(timer->gclk);
+}
+
+static void mchp_pit64b_clksrc_suspend(struct clocksource *cs)
+{
+	struct mchp_pit64b_timer *timer = clksrc_to_mchp_pit64b_timer(cs);
+
+	mchp_pit64b_suspend(timer);
+}
+
+static void mchp_pit64b_clksrc_resume(struct clocksource *cs)
+{
+	struct mchp_pit64b_timer *timer = clksrc_to_mchp_pit64b_timer(cs);
+
+	mchp_pit64b_resume(timer);
+	mchp_pit64b_reset(timer, ULLONG_MAX, MCHP_PIT64B_MR_CONT, 0);
+}
+
 static u64 mchp_pit64b_clksrc_read(struct clocksource *cs)
 {
 	return mchp_pit64b_cnt_read(mchp_pit64b_cs_base);
 }
 
-static u64 mchp_pit64b_sched_read_clk(void)
+static u64 notrace mchp_pit64b_sched_read_clk(void)
 {
 	return mchp_pit64b_cnt_read(mchp_pit64b_cs_base);
 }
 
 static int mchp_pit64b_clkevt_shutdown(struct clock_event_device *cedev)
 {
-	struct mchp_pit64b_timer *timer = to_mchp_pit64b_timer(cedev);
+	struct mchp_pit64b_timer *timer = clkevt_to_mchp_pit64b_timer(cedev);
 
 	writel_relaxed(MCHP_PIT64B_CR_SWRST, timer->base + MCHP_PIT64B_CR);
 
@@ -137,7 +180,7 @@ static int mchp_pit64b_clkevt_shutdown(struct clock_event_device *cedev)
 
 static int mchp_pit64b_clkevt_set_periodic(struct clock_event_device *cedev)
 {
-	struct mchp_pit64b_timer *timer = to_mchp_pit64b_timer(cedev);
+	struct mchp_pit64b_timer *timer = clkevt_to_mchp_pit64b_timer(cedev);
 
 	mchp_pit64b_reset(timer, mchp_pit64b_ce_cycles, MCHP_PIT64B_MR_CONT,
 			  MCHP_PIT64B_IER_PERIOD);
@@ -148,7 +191,7 @@ static int mchp_pit64b_clkevt_set_periodic(struct clock_event_device *cedev)
 static int mchp_pit64b_clkevt_set_next_event(unsigned long evt,
 					     struct clock_event_device *cedev)
 {
-	struct mchp_pit64b_timer *timer = to_mchp_pit64b_timer(cedev);
+	struct mchp_pit64b_timer *timer = clkevt_to_mchp_pit64b_timer(cedev);
 
 	mchp_pit64b_reset(timer, evt, MCHP_PIT64B_MR_ONE_SHOT,
 			  MCHP_PIT64B_IER_PERIOD);
@@ -158,21 +201,16 @@ static int mchp_pit64b_clkevt_set_next_event(unsigned long evt,
 
 static void mchp_pit64b_clkevt_suspend(struct clock_event_device *cedev)
 {
-	struct mchp_pit64b_timer *timer = to_mchp_pit64b_timer(cedev);
+	struct mchp_pit64b_timer *timer = clkevt_to_mchp_pit64b_timer(cedev);
 
-	writel_relaxed(MCHP_PIT64B_CR_SWRST, timer->base + MCHP_PIT64B_CR);
-	if (timer->mode & MCHP_PIT64B_MR_SGCLK)
-		clk_disable_unprepare(timer->gclk);
-	clk_disable_unprepare(timer->pclk);
+	mchp_pit64b_suspend(timer);
 }
 
 static void mchp_pit64b_clkevt_resume(struct clock_event_device *cedev)
 {
-	struct mchp_pit64b_timer *timer = to_mchp_pit64b_timer(cedev);
+	struct mchp_pit64b_timer *timer = clkevt_to_mchp_pit64b_timer(cedev);
 
-	clk_prepare_enable(timer->pclk);
-	if (timer->mode & MCHP_PIT64B_MR_SGCLK)
-		clk_prepare_enable(timer->gclk);
+	mchp_pit64b_resume(timer);
 }
 
 static irqreturn_t mchp_pit64b_interrupt(int irq, void *dev_id)
@@ -198,7 +236,7 @@ static void __init mchp_pit64b_pres_compute(u32 *pres, u32 clk_rate,
 			break;
 	}
 
-	/* Use the bigest prescaler if we didn't match one. */
+	/* Use the biggest prescaler if we didn't match one. */
 	if (*pres == MCHP_PIT64B_PRES_MAX)
 		*pres = MCHP_PIT64B_PRES_MAX - 1;
 }
@@ -296,20 +334,37 @@ done:
 static int __init mchp_pit64b_init_clksrc(struct mchp_pit64b_timer *timer,
 					  u32 clk_rate)
 {
+	struct mchp_pit64b_clksrc *cs;
 	int ret;
+
+	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
+	if (!cs)
+		return -ENOMEM;
 
 	mchp_pit64b_reset(timer, ULLONG_MAX, MCHP_PIT64B_MR_CONT, 0);
 
 	mchp_pit64b_cs_base = timer->base;
 
-	ret = clocksource_mmio_init(timer->base, MCHP_PIT64B_NAME, clk_rate,
-				    210, 64, mchp_pit64b_clksrc_read);
+	cs->timer.base = timer->base;
+	cs->timer.pclk = timer->pclk;
+	cs->timer.gclk = timer->gclk;
+	cs->timer.mode = timer->mode;
+	cs->clksrc.name = MCHP_PIT64B_NAME;
+	cs->clksrc.mask = CLOCKSOURCE_MASK(64);
+	cs->clksrc.flags = CLOCK_SOURCE_IS_CONTINUOUS;
+	cs->clksrc.rating = 210;
+	cs->clksrc.read = mchp_pit64b_clksrc_read;
+	cs->clksrc.suspend = mchp_pit64b_clksrc_suspend;
+	cs->clksrc.resume = mchp_pit64b_clksrc_resume;
+
+	ret = clocksource_register_hz(&cs->clksrc, clk_rate);
 	if (ret) {
 		pr_debug("clksrc: Failed to register PIT64B clocksource!\n");
 
 		/* Stop timer. */
 		writel_relaxed(MCHP_PIT64B_CR_SWRST,
 			       timer->base + MCHP_PIT64B_CR);
+		kfree(cs);
 
 		return ret;
 	}
@@ -362,7 +417,6 @@ static int __init mchp_pit64b_init_clkevt(struct mchp_pit64b_timer *timer,
 static int __init mchp_pit64b_dt_init_timer(struct device_node *node,
 					    bool clkevt)
 {
-	u32 freq = clkevt ? MCHP_PIT64B_DEF_CE_FREQ : MCHP_PIT64B_DEF_CS_FREQ;
 	struct mchp_pit64b_timer timer;
 	unsigned long clk_rate;
 	u32 irq = 0;
@@ -390,7 +444,7 @@ static int __init mchp_pit64b_dt_init_timer(struct device_node *node,
 	}
 
 	/* Initialize mode (prescaler + SGCK bit). To be used at runtime. */
-	ret = mchp_pit64b_init_mode(&timer, freq);
+	ret = mchp_pit64b_init_mode(&timer, MCHP_PIT64B_DEF_FREQ);
 	if (ret)
 		goto irq_unmap;
 

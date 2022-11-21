@@ -76,6 +76,8 @@ struct inet_connection_sock_af_ops {
  * @icsk_ext_hdr_len:	   Network protocol overhead (IP/IPv6 options)
  * @icsk_ack:		   Delayed ACK control data
  * @icsk_mtup;		   MTU probing control data
+ * @icsk_probes_tstamp:    Probe timestamp (cleared by non-zero window ack)
+ * @icsk_user_timeout:	   TCP_USER_TIMEOUT value
  */
 struct inet_connection_sock {
 	/* inet_sock has to be the first member! */
@@ -118,27 +120,27 @@ struct inet_connection_sock {
 		__u16		  rcv_mss;	 /* MSS used for delayed ACK decisions	   */
 	} icsk_ack;
 	struct {
-		int		  enabled;
-
 		/* Range of MTUs to search */
 		int		  search_high;
 		int		  search_low;
 
 		/* Information on the current probe. */
-		int		  probe_size;
+		u32		  probe_size:31,
+		/* Is the MTUP feature enabled for this connection? */
+				  enabled:1;
 
 		u32		  probe_timestamp;
 	} icsk_mtup;
+	u32			  icsk_probes_tstamp;
 	u32			  icsk_user_timeout;
 
 	u64			  icsk_ca_priv[104 / sizeof(u64)];
-#define ICSK_CA_PRIV_SIZE      (13 * sizeof(u64))
+#define ICSK_CA_PRIV_SIZE	  sizeof_field(struct inet_connection_sock, icsk_ca_priv)
 };
 
 #define ICSK_TIME_RETRANS	1	/* Retransmit timer */
 #define ICSK_TIME_DACK		2	/* Delayed ack timer */
 #define ICSK_TIME_PROBE0	3	/* Zero window probe timer */
-#define ICSK_TIME_EARLY_RETRANS 4	/* Early retransmit timer */
 #define ICSK_TIME_LOSS_PROBE	5	/* Tail loss probe timer */
 #define ICSK_TIME_REO_TIMEOUT	6	/* Reordering timer */
 
@@ -224,8 +226,7 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 	}
 
 	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0 ||
-	    what == ICSK_TIME_EARLY_RETRANS || what == ICSK_TIME_LOSS_PROBE ||
-	    what == ICSK_TIME_REO_TIMEOUT) {
+	    what == ICSK_TIME_LOSS_PROBE || what == ICSK_TIME_REO_TIMEOUT) {
 		icsk->icsk_pending = what;
 		icsk->icsk_timeout = jiffies + when;
 		sk_reset_timer(sk, &icsk->icsk_retransmit_timer, icsk->icsk_timeout);
@@ -281,14 +282,22 @@ static inline int inet_csk_reqsk_queue_is_full(const struct sock *sk)
 	return inet_csk_reqsk_queue_len(sk) >= sk->sk_max_ack_backlog;
 }
 
-void inet_csk_reqsk_queue_drop(struct sock *sk, struct request_sock *req);
+bool inet_csk_reqsk_queue_drop(struct sock *sk, struct request_sock *req);
 void inet_csk_reqsk_queue_drop_and_put(struct sock *sk, struct request_sock *req);
+
+static inline unsigned long
+reqsk_timeout(struct request_sock *req, unsigned long max_timeout)
+{
+	u64 timeout = (u64)req->timeout << req->num_timeout;
+
+	return (unsigned long)min_t(u64, timeout, max_timeout);
+}
 
 static inline void inet_csk_prepare_for_destroy_sock(struct sock *sk)
 {
 	/* The below has to be done to allow calling inet_csk_destroy_sock */
 	sock_set_flag(sk, SOCK_DEAD);
-	percpu_counter_inc(sk->sk_prot->orphan_count);
+	this_cpu_inc(*sk->sk_prot->orphan_count);
 }
 
 void inet_csk_destroy_sock(struct sock *sk);
@@ -303,7 +312,7 @@ static inline __poll_t inet_csk_listen_poll(const struct sock *sk)
 			(EPOLLIN | EPOLLRDNORM) : 0;
 }
 
-int inet_csk_listen_start(struct sock *sk, int backlog);
+int inet_csk_listen_start(struct sock *sk);
 void inet_csk_listen_stop(struct sock *sk);
 
 void inet_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr);

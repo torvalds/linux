@@ -35,6 +35,7 @@
 #include "gpio-core.h"
 #include "gpio-cfg.h"
 #include "gpio-cfg-helpers.h"
+#include "hardware-s3c24xx.h"
 #include "pm.h"
 
 int samsung_gpio_setpull_updown(struct samsung_gpio_chip *chip,

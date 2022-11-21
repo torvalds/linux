@@ -24,7 +24,7 @@
 
 enum arch_timer_reg {
 	ARCH_TIMER_REG_CTRL,
-	ARCH_TIMER_REG_TVAL,
+	ARCH_TIMER_REG_CVAL,
 };
 
 enum arch_timer_ppi_nr {
@@ -32,6 +32,7 @@ enum arch_timer_ppi_nr {
 	ARCH_TIMER_PHYS_NONSECURE_PPI,
 	ARCH_TIMER_VIRT_PPI,
 	ARCH_TIMER_HYP_PPI,
+	ARCH_TIMER_HYP_VIRT_PPI,
 	ARCH_TIMER_MAX_TIMER_PPI
 };
 
@@ -55,6 +56,7 @@ enum arch_timer_spi_nr {
 #define ARCH_TIMER_EVT_TRIGGER_MASK	(0xF << ARCH_TIMER_EVT_TRIGGER_SHIFT)
 #define ARCH_TIMER_USR_VT_ACCESS_EN	(1 << 8) /* virtual timer registers */
 #define ARCH_TIMER_USR_PT_ACCESS_EN	(1 << 9) /* physical timer registers */
+#define ARCH_TIMER_EVT_INTERVAL_SCALE	(1 << 17) /* EVNTIS in the ARMv8 ARM */
 
 #define ARCH_TIMER_EVT_STREAM_PERIOD_US	100
 #define ARCH_TIMER_EVT_STREAM_FREQ				\

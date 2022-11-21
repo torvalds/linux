@@ -19,8 +19,6 @@
 #include <linux/phy.h>
 #include <linux/netdevice.h>
 
-#define DEBUG
-
 /* DP83865 phy identifier values */
 #define DP83865_PHY_ID	0x20005c7a
 
@@ -63,19 +61,6 @@ static void ns_exp_write(struct phy_device *phydev, u16 reg, u8 data)
 	phy_write(phydev, NS_EXP_MEM_DATA, data);
 }
 
-static int ns_config_intr(struct phy_device *phydev)
-{
-	int err;
-
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		err = phy_write(phydev, DP83865_INT_MASK,
-				DP83865_INT_MASK_DEFAULT);
-	else
-		err = phy_write(phydev, DP83865_INT_MASK, 0);
-
-	return err;
-}
-
 static int ns_ack_interrupt(struct phy_device *phydev)
 {
 	int ret = phy_read(phydev, DP83865_INT_STATUS);
@@ -83,10 +68,54 @@ static int ns_ack_interrupt(struct phy_device *phydev)
 		return ret;
 
 	/* Clear the interrupt status bit by writing a “1”
-	 * to the corresponding bit in INT_CLEAR (2:0 are reserved) */
+	 * to the corresponding bit in INT_CLEAR (2:0 are reserved)
+	 */
 	ret = phy_write(phydev, DP83865_INT_CLEAR, ret & ~0x7);
 
 	return ret;
+}
+
+static irqreturn_t ns_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, DP83865_INT_STATUS);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & DP83865_INT_MASK_DEFAULT))
+		return IRQ_NONE;
+
+	/* clear the interrupt */
+	phy_write(phydev, DP83865_INT_CLEAR, irq_status & ~0x7);
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
+static int ns_config_intr(struct phy_device *phydev)
+{
+	int err;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = ns_ack_interrupt(phydev);
+		if (err)
+			return err;
+
+		err = phy_write(phydev, DP83865_INT_MASK,
+				DP83865_INT_MASK_DEFAULT);
+	} else {
+		err = phy_write(phydev, DP83865_INT_MASK, 0);
+		if (err)
+			return err;
+
+		err = ns_ack_interrupt(phydev);
+	}
+
+	return err;
 }
 
 static void ns_giga_speed_fallback(struct phy_device *phydev, int mode)
@@ -122,7 +151,8 @@ static int ns_config_init(struct phy_device *phydev)
 {
 	ns_giga_speed_fallback(phydev, ALL_FALLBACK_ON);
 	/* In the latest MAC or switches design, the 10 Mbps loopback
-	   is desired to be turned off. */
+	 * is desired to be turned off.
+	 */
 	ns_10_base_t_hdx_loopack(phydev, hdx_loopback_off);
 	return ns_ack_interrupt(phydev);
 }
@@ -133,8 +163,8 @@ static struct phy_driver dp83865_driver[] = { {
 	.name = "NatSemi DP83865",
 	/* PHY_GBIT_FEATURES */
 	.config_init = ns_config_init,
-	.ack_interrupt = ns_ack_interrupt,
 	.config_intr = ns_config_intr,
+	.handle_interrupt = ns_handle_interrupt,
 } };
 
 module_phy_driver(dp83865_driver);

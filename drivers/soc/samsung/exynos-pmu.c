@@ -8,6 +8,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/mfd/core.h>
 #include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
@@ -93,8 +94,14 @@ static const struct of_device_id exynos_pmu_of_device_ids[] = {
 		.compatible = "samsung,exynos5433-pmu",
 	}, {
 		.compatible = "samsung,exynos7-pmu",
+	}, {
+		.compatible = "samsung,exynos850-pmu",
 	},
 	{ /*sentinel*/ },
+};
+
+static const struct mfd_cell exynos_pmu_devs[] = {
+	{ .name = "exynos-clkout", },
 };
 
 struct regmap *exynos_get_pmu_regmap(void)
@@ -110,6 +117,7 @@ EXPORT_SYMBOL_GPL(exynos_get_pmu_regmap);
 static int exynos_pmu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	int ret;
 
 	pmu_base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pmu_base_addr))
@@ -127,6 +135,11 @@ static int exynos_pmu_probe(struct platform_device *pdev)
 		pmu_context->pmu_data->pmu_init();
 
 	platform_set_drvdata(pdev, pmu_context);
+
+	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE, exynos_pmu_devs,
+				   ARRAY_SIZE(exynos_pmu_devs), NULL, 0, NULL);
+	if (ret)
+		return ret;
 
 	if (devm_of_platform_populate(dev))
 		dev_err(dev, "Error populating children, reboot and poweroff might not work properly\n");

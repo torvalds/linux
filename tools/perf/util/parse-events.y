@@ -69,7 +69,7 @@ static void inc_group_count(struct list_head *list,
 %token PE_NAME_CACHE_TYPE PE_NAME_CACHE_OP_RESULT
 %token PE_PREFIX_MEM PE_PREFIX_RAW PE_PREFIX_GROUP
 %token PE_ERROR
-%token PE_PMU_EVENT_PRE PE_PMU_EVENT_SUF PE_KERNEL_PMU_EVENT PE_PMU_EVENT_FAKE
+%token PE_PMU_EVENT_PRE PE_PMU_EVENT_SUF PE_PMU_EVENT_SUF2 PE_KERNEL_PMU_EVENT PE_PMU_EVENT_FAKE
 %token PE_ARRAY_ALL PE_ARRAY_RANGE
 %token PE_DRV_CFG_TERM
 %type <num> PE_VALUE
@@ -87,8 +87,9 @@ static void inc_group_count(struct list_head *list,
 %type <str> PE_MODIFIER_EVENT
 %type <str> PE_MODIFIER_BP
 %type <str> PE_EVENT_NAME
-%type <str> PE_PMU_EVENT_PRE PE_PMU_EVENT_SUF PE_KERNEL_PMU_EVENT PE_PMU_EVENT_FAKE
+%type <str> PE_PMU_EVENT_PRE PE_PMU_EVENT_SUF PE_PMU_EVENT_SUF2 PE_KERNEL_PMU_EVENT PE_PMU_EVENT_FAKE
 %type <str> PE_DRV_CFG_TERM
+%type <str> event_pmu_name
 %destructor { free ($$); } <str>
 %type <term> event_term
 %destructor { parse_events_term__delete ($$); } <term>
@@ -182,6 +183,11 @@ group_def ':' PE_MODIFIER_EVENT
 	err = parse_events__modifier_group(list, $3);
 	free($3);
 	if (err) {
+		struct parse_events_state *parse_state = _parse_state;
+		struct parse_events_error *error = parse_state->error;
+
+		parse_events_error__handle(error, @3.first_column,
+					   strdup("Bad modifier"), NULL);
 		free_list_evsel(list);
 		YYABORT;
 	}
@@ -239,6 +245,11 @@ event_name PE_MODIFIER_EVENT
 	err = parse_events__modifier_event(list, $2, false);
 	free($2);
 	if (err) {
+		struct parse_events_state *parse_state = _parse_state;
+		struct parse_events_error *error = parse_state->error;
+
+		parse_events_error__handle(error, @2.first_column,
+					   strdup("Bad modifier"), NULL);
 		free_list_evsel(list);
 		YYABORT;
 	}
@@ -272,8 +283,11 @@ event_def: event_pmu |
 	   event_legacy_raw sep_dc |
 	   event_bpf_file
 
+event_pmu_name:
+PE_NAME | PE_PMU_EVENT_PRE
+
 event_pmu:
-PE_NAME opt_pmu_config
+event_pmu_name opt_pmu_config
 {
 	struct parse_events_state *parse_state = _parse_state;
 	struct parse_events_error *error = parse_state->error;
@@ -312,7 +326,8 @@ PE_NAME opt_pmu_config
 			if (!strncmp(name, "uncore_", 7) &&
 			    strncmp($1, "uncore_", 7))
 				name += 7;
-			if (!fnmatch(pattern, name, 0)) {
+			if (!perf_pmu__match(pattern, name, $1) ||
+			    !perf_pmu__match(pattern, pmu->alias_name, $1)) {
 				if (parse_events_copy_term_list(orig_terms, &terms))
 					CLEANUP_YYABORT;
 				if (!parse_events_add_pmu(_parse_state, list, pmu->name, terms, true, false))
@@ -337,9 +352,35 @@ PE_KERNEL_PMU_EVENT sep_dc
 	struct list_head *list;
 	int err;
 
-	err = parse_events_multi_pmu_add(_parse_state, $1, &list);
+	err = parse_events_multi_pmu_add(_parse_state, $1, NULL, &list);
 	free($1);
 	if (err < 0)
+		YYABORT;
+	$$ = list;
+}
+|
+PE_KERNEL_PMU_EVENT opt_pmu_config
+{
+	struct list_head *list;
+	int err;
+
+	/* frees $2 */
+	err = parse_events_multi_pmu_add(_parse_state, $1, $2, &list);
+	free($1);
+	if (err < 0)
+		YYABORT;
+	$$ = list;
+}
+|
+PE_PMU_EVENT_PRE '-' PE_PMU_EVENT_SUF '-' PE_PMU_EVENT_SUF2 sep_dc
+{
+	struct list_head *list;
+	char pmu_name[128];
+	snprintf(pmu_name, sizeof(pmu_name), "%s-%s-%s", $1, $3, $5);
+	free($1);
+	free($3);
+	free($5);
+	if (parse_events_multi_pmu_add(_parse_state, pmu_name, NULL, &list) < 0)
 		YYABORT;
 	$$ = list;
 }
@@ -352,7 +393,7 @@ PE_PMU_EVENT_PRE '-' PE_PMU_EVENT_SUF sep_dc
 	snprintf(pmu_name, sizeof(pmu_name), "%s-%s", $1, $3);
 	free($1);
 	free($3);
-	if (parse_events_multi_pmu_add(_parse_state, pmu_name, &list) < 0)
+	if (parse_events_multi_pmu_add(_parse_state, pmu_name, NULL, &list) < 0)
 		YYABORT;
 	$$ = list;
 }
@@ -450,7 +491,8 @@ PE_NAME_CACHE_TYPE '-' PE_NAME_CACHE_OP_RESULT '-' PE_NAME_CACHE_OP_RESULT opt_e
 
 	list = alloc_list();
 	ABORT_ON(!list);
-	err = parse_events_add_cache(list, &parse_state->idx, $1, $3, $5, error, $6);
+	err = parse_events_add_cache(list, &parse_state->idx, $1, $3, $5, error, $6,
+				     parse_state);
 	parse_events_terms__delete($6);
 	free($1);
 	free($3);
@@ -471,7 +513,8 @@ PE_NAME_CACHE_TYPE '-' PE_NAME_CACHE_OP_RESULT opt_event_config
 
 	list = alloc_list();
 	ABORT_ON(!list);
-	err = parse_events_add_cache(list, &parse_state->idx, $1, $3, NULL, error, $4);
+	err = parse_events_add_cache(list, &parse_state->idx, $1, $3, NULL, error, $4,
+				     parse_state);
 	parse_events_terms__delete($4);
 	free($1);
 	free($3);
@@ -491,7 +534,8 @@ PE_NAME_CACHE_TYPE opt_event_config
 
 	list = alloc_list();
 	ABORT_ON(!list);
-	err = parse_events_add_cache(list, &parse_state->idx, $1, NULL, NULL, error, $2);
+	err = parse_events_add_cache(list, &parse_state->idx, $1, NULL, NULL, error, $2,
+				     parse_state);
 	parse_events_terms__delete($2);
 	free($1);
 	if (err) {

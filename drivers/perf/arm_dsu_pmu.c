@@ -136,8 +136,7 @@ static ssize_t dsu_pmu_sysfs_event_show(struct device *dev,
 {
 	struct dev_ext_attribute *eattr = container_of(attr,
 					struct dev_ext_attribute, attr);
-	return snprintf(buf, PAGE_SIZE, "event=0x%lx\n",
-					 (unsigned long)eattr->var);
+	return sysfs_emit(buf, "event=0x%lx\n", (unsigned long)eattr->var);
 }
 
 static ssize_t dsu_pmu_sysfs_format_show(struct device *dev,
@@ -146,7 +145,7 @@ static ssize_t dsu_pmu_sysfs_format_show(struct device *dev,
 {
 	struct dev_ext_attribute *eattr = container_of(attr,
 					struct dev_ext_attribute, attr);
-	return snprintf(buf, PAGE_SIZE, "%s\n", (char *)eattr->var);
+	return sysfs_emit(buf, "%s\n", (char *)eattr->var);
 }
 
 static ssize_t dsu_pmu_cpumask_show(struct device *dev,
@@ -688,7 +687,7 @@ static void dsu_pmu_probe_pmu(struct dsu_pmu *dsu_pmu)
 static void dsu_pmu_set_active_cpu(int cpu, struct dsu_pmu *dsu_pmu)
 {
 	cpumask_set_cpu(cpu, &dsu_pmu->active_cpu);
-	if (irq_set_affinity_hint(dsu_pmu->irq, &dsu_pmu->active_cpu))
+	if (irq_set_affinity(dsu_pmu->irq, &dsu_pmu->active_cpu))
 		pr_warn("Failed to set irq affinity to %d\n", cpu);
 }
 
@@ -715,9 +714,6 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 	dsu_pmu = dsu_pmu_alloc(pdev);
 	if (IS_ERR(dsu_pmu))
 		return PTR_ERR(dsu_pmu);
-
-	if (IS_ERR_OR_NULL(fwnode))
-		return -ENOENT;
 
 	if (is_of_node(fwnode))
 		rc = dsu_pmu_dt_get_cpus(&pdev->dev, &dsu_pmu->associated_cpus);
@@ -773,7 +769,6 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 	if (rc) {
 		cpuhp_state_remove_instance(dsu_pmu_cpuhp_state,
 						 &dsu_pmu->cpuhp_node);
-		irq_set_affinity_hint(dsu_pmu->irq, NULL);
 	}
 
 	return rc;
@@ -785,7 +780,6 @@ static int dsu_pmu_device_remove(struct platform_device *pdev)
 
 	perf_pmu_unregister(&dsu_pmu->pmu);
 	cpuhp_state_remove_instance(dsu_pmu_cpuhp_state, &dsu_pmu->cpuhp_node);
-	irq_set_affinity_hint(dsu_pmu->irq, NULL);
 
 	return 0;
 }
@@ -844,10 +838,8 @@ static int dsu_pmu_cpu_teardown(unsigned int cpu, struct hlist_node *node)
 
 	dst = dsu_pmu_get_online_cpu_any_but(dsu_pmu, cpu);
 	/* If there are no active CPUs in the DSU, leave IRQ disabled */
-	if (dst >= nr_cpu_ids) {
-		irq_set_affinity_hint(dsu_pmu->irq, NULL);
+	if (dst >= nr_cpu_ids)
 		return 0;
-	}
 
 	perf_pmu_migrate_context(&dsu_pmu->pmu, cpu, dst);
 	dsu_pmu_set_active_cpu(dst, dsu_pmu);

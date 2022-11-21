@@ -6,6 +6,9 @@
 
 #ifdef CONFIG_IIO_BUFFER
 
+#include <uapi/linux/iio/buffer.h>
+#include <linux/iio/buffer.h>
+
 struct iio_dev;
 struct iio_buffer;
 
@@ -21,6 +24,10 @@ struct iio_buffer;
  * @read:		try to get a specified number of bytes (must exist)
  * @data_available:	indicates how much data is available for reading from
  *			the buffer.
+ * @remove_from:	remove scan from buffer. Drivers should calls this to
+ *			remove a scan from a buffer.
+ * @write:		try to write a number of bytes
+ * @space_available:	returns the amount of bytes available in a buffer
  * @request_update:	if a parameter change has been marked, update underlying
  *			storage.
  * @set_bytes_per_datum:set number of bytes per datum
@@ -47,6 +54,9 @@ struct iio_buffer_access_funcs {
 	int (*store_to)(struct iio_buffer *buffer, const void *data);
 	int (*read)(struct iio_buffer *buffer, size_t n, char __user *buf);
 	size_t (*data_available)(struct iio_buffer *buffer);
+	int (*remove_from)(struct iio_buffer *buffer, void *data);
+	int (*write)(struct iio_buffer *buffer, size_t n, const char __user *buf);
+	size_t (*space_available)(struct iio_buffer *buffer);
 
 	int (*request_update)(struct iio_buffer *buffer);
 
@@ -72,8 +82,14 @@ struct iio_buffer {
 	/** @length: Number of datums in buffer. */
 	unsigned int length;
 
+	/** @flags: File ops flags including busy flag. */
+	unsigned long flags;
+
 	/**  @bytes_per_datum: Size of individual datum including timestamp. */
 	size_t bytes_per_datum;
+
+	/* @direction: Direction of the data stream (in/out). */
+	enum iio_buffer_direction direction;
 
 	/**
 	 * @access: Buffer access functions associated with the
@@ -97,23 +113,23 @@ struct iio_buffer {
 	/* @scan_timestamp: Does the scan mode include a timestamp. */
 	bool scan_timestamp;
 
-	/* @scan_el_dev_attr_list: List of scan element related attributes. */
-	struct list_head scan_el_dev_attr_list;
-
-	/* @buffer_group: Attributes of the buffer group. */
-	struct attribute_group buffer_group;
+	/* @buffer_attr_list: List of buffer attributes. */
+	struct list_head buffer_attr_list;
 
 	/*
-	 * @scan_el_group: Attribute group for those attributes not
-	 * created from the iio_chan_info array.
+	 * @buffer_group: Attributes of the new buffer group.
+	 * Includes scan elements attributes.
 	 */
-	struct attribute_group scan_el_group;
+	struct attribute_group buffer_group;
 
 	/* @attrs: Standard attributes of the buffer. */
 	const struct attribute **attrs;
 
 	/* @demux_bounce: Buffer for doing gather from incoming scan. */
 	void *demux_bounce;
+
+	/* @attached_entry: Entry in the devices list of buffers attached by the driver. */
+	struct list_head attached_entry;
 
 	/* @buffer_list: Entry in the devices list of current buffers. */
 	struct list_head buffer_list;

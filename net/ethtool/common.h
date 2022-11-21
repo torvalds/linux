@@ -14,6 +14,12 @@
 
 #define __SOF_TIMESTAMPING_CNT (const_ilog2(SOF_TIMESTAMPING_LAST) + 1)
 
+struct link_mode_info {
+	int				speed;
+	u8				lanes;
+	u8				duplex;
+};
+
 extern const char
 netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN];
 extern const char
@@ -23,6 +29,7 @@ tunable_strings[__ETHTOOL_TUNABLE_COUNT][ETH_GSTRING_LEN];
 extern const char
 phy_tunable_strings[__ETHTOOL_PHY_TUNABLE_COUNT][ETH_GSTRING_LEN];
 extern const char link_mode_names[][ETH_GSTRING_LEN];
+extern const struct link_mode_info link_mode_params[];
 extern const char netif_msg_class_names[][ETH_GSTRING_LEN];
 extern const char wol_mode_names[][ETH_GSTRING_LEN];
 extern const char sof_timestamping_names[][ETH_GSTRING_LEN];
@@ -39,5 +46,10 @@ int ethtool_get_max_rxfh_channel(struct net_device *dev, u32 *max);
 int __ethtool_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info);
 
 extern const struct ethtool_phy_ops *ethtool_phy_ops;
+
+int ethtool_get_module_info_call(struct net_device *dev,
+				 struct ethtool_modinfo *modinfo);
+int ethtool_get_module_eeprom_call(struct net_device *dev,
+				   struct ethtool_eeprom *ee, u8 *data);
 
 #endif /* _ETHTOOL_COMMON_H */

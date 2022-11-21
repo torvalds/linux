@@ -1482,7 +1482,7 @@ static void handler_return(struct wiimote_data *wdata, const __u8 *payload)
 		wdata->state.cmd_err = err;
 		wiimote_cmd_complete(wdata);
 	} else if (err) {
-		hid_warn(wdata->hdev, "Remote error %hhu on req %hhu\n", err,
+		hid_warn(wdata->hdev, "Remote error %u on req %u\n", err,
 									cmd);
 	}
 }

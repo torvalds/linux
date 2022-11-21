@@ -30,7 +30,7 @@ static inline void seq_buf_clear(struct seq_buf *s)
 }
 
 static inline void
-seq_buf_init(struct seq_buf *s, unsigned char *buf, unsigned int size)
+seq_buf_init(struct seq_buf *s, char *buf, unsigned int size)
 {
 	s->buffer = buf;
 	s->size = size;
@@ -69,6 +69,31 @@ seq_buf_buffer_left(struct seq_buf *s)
 static inline unsigned int seq_buf_used(struct seq_buf *s)
 {
 	return min(s->len, s->size);
+}
+
+/**
+ * seq_buf_terminate - Make sure buffer is nul terminated
+ * @s: the seq_buf descriptor to terminate.
+ *
+ * This makes sure that the buffer in @s is nul terminated and
+ * safe to read as a string.
+ *
+ * Note, if this is called when the buffer has overflowed, then
+ * the last byte of the buffer is zeroed, and the len will still
+ * point passed it.
+ *
+ * After this function is called, s->buffer is safe to use
+ * in string operations.
+ */
+static inline void seq_buf_terminate(struct seq_buf *s)
+{
+	if (WARN_ON(s->size == 0))
+		return;
+
+	if (seq_buf_buffer_left(s))
+		s->buffer[s->len] = 0;
+	else
+		s->buffer[s->size - 1] = 0;
 }
 
 /**

@@ -343,8 +343,7 @@ static int pxa_gpio_of_xlate(struct gpio_chip *gc,
 }
 #endif
 
-static int pxa_init_gpio_chip(struct pxa_gpio_chip *pchip, int ngpio,
-			      struct device_node *np, void __iomem *regbase)
+static int pxa_init_gpio_chip(struct pxa_gpio_chip *pchip, int ngpio, void __iomem *regbase)
 {
 	int i, gpio, nbanks = DIV_ROUND_UP(ngpio, 32);
 	struct pxa_gpio_bank *bank;
@@ -354,6 +353,7 @@ static int pxa_init_gpio_chip(struct pxa_gpio_chip *pchip, int ngpio,
 	if (!pchip->banks)
 		return -ENOMEM;
 
+	pchip->chip.parent = pchip->dev;
 	pchip->chip.label = "gpio-pxa";
 	pchip->chip.direction_input  = pxa_gpio_direction_input;
 	pchip->chip.direction_output = pxa_gpio_direction_output;
@@ -365,7 +365,6 @@ static int pxa_init_gpio_chip(struct pxa_gpio_chip *pchip, int ngpio,
 	pchip->chip.free = gpiochip_generic_free;
 
 #ifdef CONFIG_OF_GPIO
-	pchip->chip.of_node = np;
 	pchip->chip.of_xlate = pxa_gpio_of_xlate;
 	pchip->chip.of_gpio_n_cells = 2;
 #endif
@@ -455,9 +454,8 @@ static irqreturn_t pxa_gpio_demux_handler(int in_irq, void *d)
 			for_each_set_bit(n, &gedr, BITS_PER_LONG) {
 				loop = 1;
 
-				generic_handle_irq(
-					irq_find_mapping(pchip->irqdomain,
-							 gpio + n));
+				generic_handle_domain_irq(pchip->irqdomain,
+							  gpio + n);
 			}
 		}
 		handled += loop;
@@ -471,9 +469,9 @@ static irqreturn_t pxa_gpio_direct_handler(int in_irq, void *d)
 	struct pxa_gpio_chip *pchip = d;
 
 	if (in_irq == pchip->irq0) {
-		generic_handle_irq(irq_find_mapping(pchip->irqdomain, 0));
+		generic_handle_domain_irq(pchip->irqdomain, 0);
 	} else if (in_irq == pchip->irq1) {
-		generic_handle_irq(irq_find_mapping(pchip->irqdomain, 1));
+		generic_handle_domain_irq(pchip->irqdomain, 1);
 	} else {
 		pr_err("%s() unknown irq %d\n", __func__, in_irq);
 		return IRQ_NONE;
@@ -676,8 +674,7 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize GPIO chips */
-	ret = pxa_init_gpio_chip(pchip, pxa_last_gpio + 1, pdev->dev.of_node,
-				 gpio_reg_base);
+	ret = pxa_init_gpio_chip(pchip, pxa_last_gpio + 1, gpio_reg_base);
 	if (ret) {
 		clk_put(clk);
 		return ret;

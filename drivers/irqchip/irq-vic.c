@@ -163,7 +163,7 @@ static struct syscore_ops vic_syscore_ops = {
 };
 
 /**
- * vic_pm_init - initicall to register VIC pm
+ * vic_pm_init - initcall to register VIC pm
  *
  * This is called via late_initcall() to register
  * the resources for the VICs due to the early
@@ -208,7 +208,7 @@ static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
 
 	while ((stat = readl_relaxed(vic->base + VIC_IRQ_STATUS))) {
 		irq = ffs(stat) - 1;
-		handle_domain_irq(vic->domain, irq, regs);
+		generic_handle_domain_irq(vic->domain, irq);
 		handled = 1;
 	}
 
@@ -225,7 +225,7 @@ static void vic_handle_irq_cascaded(struct irq_desc *desc)
 
 	while ((stat = readl_relaxed(vic->base + VIC_IRQ_STATUS))) {
 		hwirq = ffs(stat) - 1;
-		generic_handle_irq(irq_find_mapping(vic->domain, hwirq));
+		generic_handle_domain_irq(vic->domain, hwirq);
 	}
 
 	chained_irq_exit(host_chip, desc);
@@ -397,7 +397,7 @@ static void __init vic_clear_interrupts(void __iomem *base)
 /*
  * The PL190 cell from ARM has been modified by ST to handle 64 interrupts.
  * The original cell has 32 interrupts, while the modified one has 64,
- * replocating two blocks 0x00..0x1f in 0x20..0x3f. In that case
+ * replicating two blocks 0x00..0x1f in 0x20..0x3f. In that case
  * the probe function is called twice, with base set to offset 000
  *  and 020 within the page. We call this "second block".
  */

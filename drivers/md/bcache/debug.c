@@ -50,7 +50,7 @@ void bch_btree_verify(struct btree *b)
 	v->keys.ops = b->keys.ops;
 
 	bio = bch_bbio_alloc(b->c);
-	bio_set_dev(bio, PTR_CACHE(b->c, &b->key, 0)->bdev);
+	bio_set_dev(bio, b->c->cache->bdev);
 	bio->bi_iter.bi_sector	= PTR_OFFSET(&b->key, 0);
 	bio->bi_iter.bi_size	= KEY_SIZE(&v->key) << 9;
 	bio->bi_opf		= REQ_OP_READ | REQ_META;
@@ -114,7 +114,7 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 	check = bio_kmalloc(GFP_NOIO, bio_segments(bio));
 	if (!check)
 		return;
-	check->bi_disk = bio->bi_disk;
+	bio_set_dev(check, bio->bi_bdev);
 	check->bi_opf = REQ_OP_READ;
 	check->bi_iter.bi_sector = bio->bi_iter.bi_sector;
 	check->bi_iter.bi_size = bio->bi_iter.bi_size;
@@ -127,21 +127,20 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 
 	citer.bi_size = UINT_MAX;
 	bio_for_each_segment(bv, bio, iter) {
-		void *p1 = kmap_atomic(bv.bv_page);
+		void *p1 = bvec_kmap_local(&bv);
 		void *p2;
 
 		cbv = bio_iter_iovec(check, citer);
-		p2 = page_address(cbv.bv_page);
+		p2 = bvec_kmap_local(&cbv);
 
-		cache_set_err_on(memcmp(p1 + bv.bv_offset,
-					p2 + bv.bv_offset,
-					bv.bv_len),
+		cache_set_err_on(memcmp(p1, p2, bv.bv_len),
 				 dc->disk.c,
-				 "verify failed at dev %s sector %llu",
-				 dc->backing_dev_name,
+				 "verify failed at dev %pg sector %llu",
+				 dc->bdev,
 				 (uint64_t) bio->bi_iter.bi_sector);
 
-		kunmap_atomic(p1);
+		kunmap_local(p2);
+		kunmap_local(p1);
 		bio_advance_iter(check, &citer, bv.bv_len);
 	}
 

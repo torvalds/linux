@@ -60,7 +60,7 @@ static void zfcp_scsi_command_fail(struct scsi_cmnd *scpnt, int result)
 {
 	set_host_byte(scpnt, result);
 	zfcp_dbf_scsi_fail_send(scpnt);
-	scpnt->scsi_done(scpnt);
+	scsi_done(scpnt);
 }
 
 static
@@ -78,7 +78,7 @@ int zfcp_scsi_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scpnt)
 	if (unlikely(scsi_result)) {
 		scpnt->result = scsi_result;
 		zfcp_dbf_scsi_fail_send(scpnt);
-		scpnt->scsi_done(scpnt);
+		scsi_done(scpnt);
 		return 0;
 	}
 
@@ -444,8 +444,8 @@ static struct scsi_host_template zfcp_scsi_host_template = {
 	/* report size limit per scatter-gather segment */
 	.max_segment_size	 = ZFCP_QDIO_SBALE_LEN,
 	.dma_boundary		 = ZFCP_QDIO_SBALE_LEN - 1,
-	.shost_attrs		 = zfcp_sysfs_shost_attrs,
-	.sdev_attrs		 = zfcp_sysfs_sdev_attrs,
+	.shost_groups		 = zfcp_sysfs_shost_attr_groups,
+	.sdev_groups		 = zfcp_sysfs_sdev_attr_groups,
 	.track_queue_depth	 = 1,
 	.supported_mode		 = MODE_INITIATOR,
 };
@@ -856,10 +856,7 @@ void zfcp_scsi_set_prot(struct zfcp_adapter *adapter)
  */
 void zfcp_scsi_dif_sense_error(struct scsi_cmnd *scmd, int ascq)
 {
-	scsi_build_sense_buffer(1, scmd->sense_buffer,
-				ILLEGAL_REQUEST, 0x10, ascq);
-	set_driver_byte(scmd, DRIVER_SENSE);
-	scmd->result |= SAM_STAT_CHECK_CONDITION;
+	scsi_build_sense(scmd, 1, ILLEGAL_REQUEST, 0x10, ascq);
 	set_host_byte(scmd, DID_SOFT_ERROR);
 }
 

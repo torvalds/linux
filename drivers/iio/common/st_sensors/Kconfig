@@ -13,5 +13,3 @@ config IIO_ST_SENSORS_SPI
 
 config IIO_ST_SENSORS_CORE
 	tristate
-	select IIO_ST_SENSORS_I2C if I2C
-	select IIO_ST_SENSORS_SPI if SPI_MASTER

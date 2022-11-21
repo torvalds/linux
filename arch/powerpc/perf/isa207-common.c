@@ -21,7 +21,7 @@ PMU_FORMAT_ATTR(thresh_stop,	"config:32-35");
 PMU_FORMAT_ATTR(thresh_start,	"config:36-39");
 PMU_FORMAT_ATTR(thresh_cmp,	"config:40-49");
 
-struct attribute *isa207_pmu_format_attr[] = {
+static struct attribute *isa207_pmu_format_attr[] = {
 	&format_attr_event.attr,
 	&format_attr_pmcxsel.attr,
 	&format_attr_mark.attr,
@@ -37,7 +37,7 @@ struct attribute *isa207_pmu_format_attr[] = {
 	NULL,
 };
 
-struct attribute_group isa207_pmu_format_group = {
+const struct attribute_group isa207_pmu_format_group = {
 	.name = "format",
 	.attrs = isa207_pmu_format_attr,
 };
@@ -108,12 +108,57 @@ static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
 		*mmcra |= MMCRA_SDAR_MODE_TLB;
 }
 
+static u64 p10_thresh_cmp_val(u64 value)
+{
+	int exp = 0;
+	u64 result = value;
+
+	if (!value)
+		return value;
+
+	/*
+	 * Incase of P10, thresh_cmp value is not part of raw event code
+	 * and provided via attr.config1 parameter. To program threshold in MMCRA,
+	 * take a 18 bit number N and shift right 2 places and increment
+	 * the exponent E by 1 until the upper 10 bits of N are zero.
+	 * Write E to the threshold exponent and write the lower 8 bits of N
+	 * to the threshold mantissa.
+	 * The max threshold that can be written is 261120.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+		if (value > 261120)
+			value = 261120;
+		while ((64 - __builtin_clzl(value)) > 8) {
+			exp++;
+			value >>= 2;
+		}
+
+		/*
+		 * Note that it is invalid to write a mantissa with the
+		 * upper 2 bits of mantissa being zero, unless the
+		 * exponent is also zero.
+		 */
+		if (!(value & 0xC0) && exp)
+			result = 0;
+		else
+			result = (exp << 8) | value;
+	}
+	return result;
+}
+
 static u64 thresh_cmp_val(u64 value)
 {
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		value = p10_thresh_cmp_val(value);
+
+	/*
+	 * Since location of threshold compare bits in MMCRA
+	 * is different for p8, using different shift value.
+	 */
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
 		return value << p9_MMCRA_THR_CMP_SHIFT;
-
-	return value << MMCRA_THR_CMP_SHIFT;
+	else
+		return value << MMCRA_THR_CMP_SHIFT;
 }
 
 static unsigned long combine_from_event(u64 event)
@@ -141,13 +186,13 @@ static bool is_thresh_cmp_valid(u64 event)
 {
 	unsigned int cmp, exp;
 
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		return p10_thresh_cmp_val(event) != 0;
+
 	/*
 	 * Check the mantissa upper two bits are not zero, unless the
 	 * exponent is also zero. See the THRESH_CMP_MANTISSA doc.
-	 * Power10: thresh_cmp is replaced by l2_l3 event select.
 	 */
-	if (cpu_has_feature(CPU_FTR_ARCH_31))
-		return false;
 
 	cmp = (event >> EVENT_THR_CMP_SHIFT) & EVENT_THR_CMP_MASK;
 	exp = cmp >> 7;
@@ -175,36 +220,82 @@ static inline u64 isa207_find_source(u64 idx, u32 sub_idx)
 		/* Nothing to do */
 		break;
 	case 1:
-		ret = PH(LVL, L1);
+		ret = PH(LVL, L1) | LEVEL(L1) | P(SNOOP, HIT);
 		break;
 	case 2:
-		ret = PH(LVL, L2);
+		ret = PH(LVL, L2) | LEVEL(L2) | P(SNOOP, HIT);
 		break;
 	case 3:
-		ret = PH(LVL, L3);
+		ret = PH(LVL, L3) | LEVEL(L3) | P(SNOOP, HIT);
 		break;
 	case 4:
-		if (sub_idx <= 1)
-			ret = PH(LVL, LOC_RAM);
-		else if (sub_idx > 1 && sub_idx <= 2)
-			ret = PH(LVL, REM_RAM1);
-		else
-			ret = PH(LVL, REM_RAM2);
-		ret |= P(SNOOP, HIT);
+		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+			ret = P(SNOOP, HIT);
+
+			if (sub_idx == 1)
+				ret |= PH(LVL, LOC_RAM) | LEVEL(RAM);
+			else if (sub_idx == 2 || sub_idx == 3)
+				ret |= P(LVL, HIT) | LEVEL(PMEM);
+			else if (sub_idx == 4)
+				ret |= PH(LVL, REM_RAM1) | REM | LEVEL(RAM) | P(HOPS, 2);
+			else if (sub_idx == 5 || sub_idx == 7)
+				ret |= P(LVL, HIT) | LEVEL(PMEM) | REM;
+			else if (sub_idx == 6)
+				ret |= PH(LVL, REM_RAM2) | REM | LEVEL(RAM) | P(HOPS, 3);
+		} else {
+			if (sub_idx <= 1)
+				ret = PH(LVL, LOC_RAM);
+			else if (sub_idx > 1 && sub_idx <= 2)
+				ret = PH(LVL, REM_RAM1);
+			else
+				ret = PH(LVL, REM_RAM2);
+			ret |= P(SNOOP, HIT);
+		}
 		break;
 	case 5:
-		ret = PH(LVL, REM_CCE1);
-		if ((sub_idx == 0) || (sub_idx == 2) || (sub_idx == 4))
-			ret |= P(SNOOP, HIT);
-		else if ((sub_idx == 1) || (sub_idx == 3) || (sub_idx == 5))
-			ret |= P(SNOOP, HITM);
+		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+			ret = REM | P(HOPS, 0);
+
+			if (sub_idx == 0 || sub_idx == 4)
+				ret |= PH(LVL, L2) | LEVEL(L2) | P(SNOOP, HIT);
+			else if (sub_idx == 1 || sub_idx == 5)
+				ret |= PH(LVL, L2) | LEVEL(L2) | P(SNOOP, HITM);
+			else if (sub_idx == 2 || sub_idx == 6)
+				ret |= PH(LVL, L3) | LEVEL(L3) | P(SNOOP, HIT);
+			else if (sub_idx == 3 || sub_idx == 7)
+				ret |= PH(LVL, L3) | LEVEL(L3) | P(SNOOP, HITM);
+		} else {
+			if (sub_idx == 0)
+				ret = PH(LVL, L2) | LEVEL(L2) | REM | P(SNOOP, HIT) | P(HOPS, 0);
+			else if (sub_idx == 1)
+				ret = PH(LVL, L2) | LEVEL(L2) | REM | P(SNOOP, HITM) | P(HOPS, 0);
+			else if (sub_idx == 2 || sub_idx == 4)
+				ret = PH(LVL, L3) | LEVEL(L3) | REM | P(SNOOP, HIT) | P(HOPS, 0);
+			else if (sub_idx == 3 || sub_idx == 5)
+				ret = PH(LVL, L3) | LEVEL(L3) | REM | P(SNOOP, HITM) | P(HOPS, 0);
+		}
 		break;
 	case 6:
-		ret = PH(LVL, REM_CCE2);
-		if ((sub_idx == 0) || (sub_idx == 2))
-			ret |= P(SNOOP, HIT);
-		else if ((sub_idx == 1) || (sub_idx == 3))
-			ret |= P(SNOOP, HITM);
+		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+			if (sub_idx == 0)
+				ret = PH(LVL, REM_CCE1) | LEVEL(ANY_CACHE) | REM |
+					P(SNOOP, HIT) | P(HOPS, 2);
+			else if (sub_idx == 1)
+				ret = PH(LVL, REM_CCE1) | LEVEL(ANY_CACHE) | REM |
+					P(SNOOP, HITM) | P(HOPS, 2);
+			else if (sub_idx == 2)
+				ret = PH(LVL, REM_CCE2) | LEVEL(ANY_CACHE) | REM |
+					P(SNOOP, HIT) | P(HOPS, 3);
+			else if (sub_idx == 3)
+				ret = PH(LVL, REM_CCE2) | LEVEL(ANY_CACHE) | REM |
+					P(SNOOP, HITM) | P(HOPS, 3);
+		} else {
+			ret = PH(LVL, REM_CCE2);
+			if (sub_idx == 0 || sub_idx == 2)
+				ret |= P(SNOOP, HIT);
+			else if (sub_idx == 1 || sub_idx == 3)
+				ret |= P(SNOOP, HITM);
+		}
 		break;
 	case 7:
 		ret = PM(LVL, L1);
@@ -230,30 +321,84 @@ void isa207_get_mem_data_src(union perf_mem_data_src *dsrc, u32 flags,
 
 	sier = mfspr(SPRN_SIER);
 	val = (sier & ISA207_SIER_TYPE_MASK) >> ISA207_SIER_TYPE_SHIFT;
-	if (val == 1 || val == 2) {
-		idx = (sier & ISA207_SIER_LDST_MASK) >> ISA207_SIER_LDST_SHIFT;
-		sub_idx = (sier & ISA207_SIER_DATA_SRC_MASK) >> ISA207_SIER_DATA_SRC_SHIFT;
+	if (val != 1 && val != 2 && !(val == 7 && cpu_has_feature(CPU_FTR_ARCH_31)))
+		return;
 
-		dsrc->val = isa207_find_source(idx, sub_idx);
+	idx = (sier & ISA207_SIER_LDST_MASK) >> ISA207_SIER_LDST_SHIFT;
+	sub_idx = (sier & ISA207_SIER_DATA_SRC_MASK) >> ISA207_SIER_DATA_SRC_SHIFT;
+
+	dsrc->val = isa207_find_source(idx, sub_idx);
+	if (val == 7) {
+		u64 mmcra;
+		u32 op_type;
+
+		/*
+		 * Type 0b111 denotes either larx or stcx instruction. Use the
+		 * MMCRA sampling bits [57:59] along with the type value
+		 * to determine the exact instruction type. If the sampling
+		 * criteria is neither load or store, set the type as default
+		 * to NA.
+		 */
+		mmcra = mfspr(SPRN_MMCRA);
+
+		op_type = (mmcra >> MMCRA_SAMP_ELIG_SHIFT) & MMCRA_SAMP_ELIG_MASK;
+		switch (op_type) {
+		case 5:
+			dsrc->val |= P(OP, LOAD);
+			break;
+		case 7:
+			dsrc->val |= P(OP, STORE);
+			break;
+		default:
+			dsrc->val |= P(OP, NA);
+			break;
+		}
+	} else {
 		dsrc->val |= (val == 1) ? P(OP, LOAD) : P(OP, STORE);
 	}
 }
 
-void isa207_get_mem_weight(u64 *weight)
+void isa207_get_mem_weight(u64 *weight, u64 type)
 {
+	union perf_sample_weight *weight_fields;
+	u64 weight_lat;
 	u64 mmcra = mfspr(SPRN_MMCRA);
 	u64 exp = MMCRA_THR_CTR_EXP(mmcra);
 	u64 mantissa = MMCRA_THR_CTR_MANT(mmcra);
 	u64 sier = mfspr(SPRN_SIER);
 	u64 val = (sier & ISA207_SIER_TYPE_MASK) >> ISA207_SIER_TYPE_SHIFT;
 
-	if (val == 0 || val == 7)
-		*weight = 0;
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		mantissa = P10_MMCRA_THR_CTR_MANT(mmcra);
+
+	if (val == 0 || (val == 7 && !cpu_has_feature(CPU_FTR_ARCH_31)))
+		weight_lat = 0;
 	else
-		*weight = mantissa << (2 * exp);
+		weight_lat = mantissa << (2 * exp);
+
+	/*
+	 * Use 64 bit weight field (full) if sample type is
+	 * WEIGHT.
+	 *
+	 * if sample type is WEIGHT_STRUCT:
+	 * - store memory latency in the lower 32 bits.
+	 * - For ISA v3.1, use remaining two 16 bit fields of
+	 *   perf_sample_weight to store cycle counter values
+	 *   from sier2.
+	 */
+	weight_fields = (union perf_sample_weight *)weight;
+	if (type & PERF_SAMPLE_WEIGHT)
+		weight_fields->full = weight_lat;
+	else {
+		weight_fields->var1_dw = (u32)weight_lat;
+		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+			weight_fields->var2_w = P10_SIER2_FINISH_CYC(mfspr(SPRN_SIER2));
+			weight_fields->var3_w = P10_SIER2_DISPATCH_CYC(mfspr(SPRN_SIER2));
+		}
+	}
 }
 
-int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
+int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp, u64 event_config1)
 {
 	unsigned int unit, pmc, cache, ebb;
 	unsigned long mask, value;
@@ -311,9 +456,11 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 	}
 
 	if (unit >= 6 && unit <= 9) {
-		if (cpu_has_feature(CPU_FTR_ARCH_31) && (unit == 6)) {
-			mask |= CNST_L2L3_GROUP_MASK;
-			value |= CNST_L2L3_GROUP_VAL(event >> p10_L2L3_EVENT_SHIFT);
+		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+			if (unit == 6) {
+				mask |= CNST_L2L3_GROUP_MASK;
+				value |= CNST_L2L3_GROUP_VAL(event >> p10_L2L3_EVENT_SHIFT);
+			}
 		} else if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 			mask  |= CNST_CACHE_GROUP_MASK;
 			value |= CNST_CACHE_GROUP_VAL(event & 0xff);
@@ -339,12 +486,24 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 		value |= CNST_L1_QUAL_VAL(cache);
 	}
 
+	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+		mask |= CNST_RADIX_SCOPE_GROUP_MASK;
+		value |= CNST_RADIX_SCOPE_GROUP_VAL(event >> p10_EVENT_RADIX_SCOPE_QUAL_SHIFT);
+	}
+
 	if (is_event_marked(event)) {
 		mask  |= CNST_SAMPLE_MASK;
 		value |= CNST_SAMPLE_VAL(event >> EVENT_SAMPLE_SHIFT);
 	}
 
-	if (cpu_has_feature(CPU_FTR_ARCH_300))  {
+	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+		if (event_is_threshold(event) && is_thresh_cmp_valid(event_config1)) {
+			mask  |= CNST_THRESH_CTL_SEL_MASK;
+			value |= CNST_THRESH_CTL_SEL_VAL(event >> EVENT_THRESH_SHIFT);
+			mask  |= p10_CNST_THRESH_CMP_MASK;
+			value |= p10_CNST_THRESH_CMP_VAL(p10_thresh_cmp_val(event_config1));
+		}
+	} else if (cpu_has_feature(CPU_FTR_ARCH_300))  {
 		if (event_is_threshold(event) && is_thresh_cmp_valid(event)) {
 			mask  |= CNST_THRESH_MASK;
 			value |= CNST_THRESH_VAL(event >> EVENT_THRESH_SHIFT);
@@ -385,8 +544,8 @@ ebb_bhrb:
 	 * EBB events are pinned & exclusive, so this should never actually
 	 * hit, but we leave it as a fallback in case.
 	 */
-	mask  |= CNST_EBB_VAL(ebb);
-	value |= CNST_EBB_MASK;
+	mask  |= CNST_EBB_MASK;
+	value |= CNST_EBB_VAL(ebb);
 
 	*maskp = mask;
 	*valp = value;
@@ -396,7 +555,7 @@ ebb_bhrb:
 
 int isa207_compute_mmcr(u64 event[], int n_ev,
 			       unsigned int hwc[], struct mmcr_regs *mmcr,
-			       struct perf_event *pevents[])
+			       struct perf_event *pevents[], u32 flags)
 {
 	unsigned long mmcra, mmcr1, mmcr2, unit, combine, psel, cache, val;
 	unsigned long mmcr3;
@@ -456,6 +615,13 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 			}
 		}
 
+		/* Set RADIX_SCOPE_QUAL bit */
+		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+			val = (event[i] >> p10_EVENT_RADIX_SCOPE_QUAL_SHIFT) &
+				p10_EVENT_RADIX_SCOPE_QUAL_MASK;
+			mmcr1 |= val << p10_MMCR1_RADIX_SCOPE_QUAL_SHIFT;
+		}
+
 		if (is_event_marked(event[i])) {
 			mmcra |= MMCRA_SAMPLE_ENABLE;
 
@@ -481,6 +647,10 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 			if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
 				val = (event[i] >> EVENT_THR_CMP_SHIFT) &
 					EVENT_THR_CMP_MASK;
+				mmcra |= thresh_cmp_val(val);
+			} else if (flags & PPMU_HAS_ATTR_CONFIG1) {
+				val = (pevents[i]->attr.config1 >> p10_EVENT_THR_CMP_SHIFT) &
+					p10_EVENT_THR_CMP_MASK;
 				mmcra |= thresh_cmp_val(val);
 			}
 		}
@@ -538,6 +708,14 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 	/* If we're not using PMC 5 or 6, freeze them */
 	if (!(pmc_inuse & 0x60))
 		mmcr->mmcr0 |= MMCR0_FC56;
+
+	/*
+	 * Set mmcr0 (PMCCEXT) for p10 which
+	 * will restrict access to group B registers
+	 * when MMCR0 PMCC=0b00.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		mmcr->mmcr0 |= MMCR0_PMCCEXT;
 
 	mmcr->mmcr1 = mmcr1;
 	mmcr->mmcra = mmcra;
@@ -612,4 +790,46 @@ int isa207_get_alternatives(u64 event, u64 alt[], int size, unsigned int flags,
 	}
 
 	return num_alt;
+}
+
+int isa3XX_check_attr_config(struct perf_event *ev)
+{
+	u64 val, sample_mode;
+	u64 event = ev->attr.config;
+
+	val = (event >> EVENT_SAMPLE_SHIFT) & EVENT_SAMPLE_MASK;
+	sample_mode = val & 0x3;
+
+	/*
+	 * MMCRA[61:62] is Random Sampling Mode (SM).
+	 * value of 0b11 is reserved.
+	 */
+	if (sample_mode == 0x3)
+		return -EINVAL;
+
+	/*
+	 * Check for all reserved value
+	 * Source: Performance Monitoring Unit User Guide
+	 */
+	switch (val) {
+	case 0x5:
+	case 0x9:
+	case 0xD:
+	case 0x19:
+	case 0x1D:
+	case 0x1A:
+	case 0x1E:
+		return -EINVAL;
+	}
+
+	/*
+	 * MMCRA[48:51]/[52:55]) Threshold Start/Stop
+	 * Events Selection.
+	 * 0b11110000/0b00001111 is reserved.
+	 */
+	val = (event >> EVENT_THR_CTL_SHIFT) & EVENT_THR_CTL_MASK;
+	if (((val & 0xF0) == 0xF0) || ((val & 0xF) == 0xF))
+		return -EINVAL;
+
+	return 0;
 }

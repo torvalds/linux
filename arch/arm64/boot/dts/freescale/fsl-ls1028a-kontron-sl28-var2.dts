@@ -5,7 +5,7 @@
  * This is for the network variant 2 which has two ethernet ports. These
  * ports are connected to the internal switch.
  *
- * Copyright (C) 2020 Michael Walle <michael@walle.cc>
+ * Copyright (C) 2021 Michael Walle <michael@walle.cc>
  *
  */
 
@@ -18,12 +18,6 @@
 };
 
 &enetc_mdio_pf3 {
-	phy0: ethernet-phy@5 {
-		reg = <0x5>;
-		eee-broken-1000t;
-		eee-broken-100tx;
-	};
-
 	phy1: ethernet-phy@4 {
 		reg = <0x4>;
 		eee-broken-1000t;
@@ -34,14 +28,11 @@
 &enetc_port0 {
 	status = "disabled";
 	/*
-	 * In the base device tree the PHY was registered in the mdio
-	 * subnode as it is PHY for this port. On this module this PHY
-	 * is connected to a switch port instead and registered above.
-	 * Therefore, delete the mdio subnode as well as the phy-handle
-	 * property here.
+	 * In the base device tree the PHY at address 5 was assigned for
+	 * this port. On this module this PHY is connected to a switch
+	 * port instead. Therefore, delete the phy-handle property here.
 	 */
 	/delete-property/ phy-handle;
-	/delete-node/ mdio;
 };
 
 &enetc_port2 {
@@ -54,6 +45,7 @@
 
 &mscc_felix_port0 {
 	label = "swp0";
+	managed = "in-band-status";
 	phy-handle = <&phy0>;
 	phy-mode = "sgmii";
 	status = "okay";
@@ -61,6 +53,7 @@
 
 &mscc_felix_port1 {
 	label = "swp1";
+	managed = "in-band-status";
 	phy-handle = <&phy1>;
 	phy-mode = "sgmii";
 	status = "okay";

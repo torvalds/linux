@@ -42,6 +42,7 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/code-patching.h>
 #include <asm/svm.h>
+#include <asm/kvm_guest.h>
 
 #include "pseries.h"
 
@@ -103,9 +104,6 @@ static inline int smp_startup_cpu(unsigned int lcpu)
 		cpumask_set_cpu(lcpu, of_spin_mask);
 		return 1;
 	}
-
-	/* Fixup atomic count: it exited inside IRQ handler. */
-	task_thread_info(paca_ptrs[lcpu]->__current)->preempt_count	= 0;
 
 	/* 
 	 * If the RTAS start-cpu token does not exist then presume the
@@ -209,6 +207,8 @@ static __init void pSeries_smp_probe(void)
 	/* Doorbells can only be used for IPIs between SMT siblings */
 	if (!cpu_has_feature(CPU_FTR_SMT))
 		return;
+
+	check_kvm_guest();
 
 	if (is_kvm_guest()) {
 		/*

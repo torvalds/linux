@@ -83,7 +83,7 @@ Example:
 		#interrupt-cells = <2>;
 
 		switch0: switch@0 {
-			compatible = "marvell,mv88e6390";
+			compatible = "marvell,mv88e6190";
 			reg = <0>;
 			reset-gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
 

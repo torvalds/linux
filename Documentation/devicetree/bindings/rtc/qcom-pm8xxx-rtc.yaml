@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/qcom-pm8xxx-rtc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm PM8xxx PMIC RTC device
+
+maintainers:
+  - Satya Priya <skakit@codeaurora.org>
+
+properties:
+  compatible:
+    enum:
+      - qcom,pm8058-rtc
+      - qcom,pm8921-rtc
+      - qcom,pm8941-rtc
+      - qcom,pm8018-rtc
+      - qcom,pmk8350-rtc
+
+  reg:
+    minItems: 1
+    maxItems: 2
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: rtc
+      - const: alarm
+
+  interrupts:
+    maxItems: 1
+
+  allow-set-time:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Indicates that the setting of RTC time is allowed by the host CPU.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/spmi/spmi.h>
+    spmi_bus: spmi@c440000 {
+      reg = <0x0c440000 0x1100>;
+      #address-cells = <2>;
+      #size-cells = <0>;
+      pmicintc: pmic@0 {
+        reg = <0x0 SPMI_USID>;
+        compatible = "qcom,pm8921";
+        interrupts = <104 8>;
+        #interrupt-cells = <2>;
+        interrupt-controller;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pm8921_rtc: rtc@11d {
+          compatible = "qcom,pm8921-rtc";
+          reg = <0x11d>;
+          interrupts = <0x27 0>;
+        };
+      };
+    };
+...

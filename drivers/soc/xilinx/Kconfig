@@ -1,22 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 menu "Xilinx SoC drivers"
 
-config XILINX_VCU
-	tristate "Xilinx VCU logicoreIP Init"
-	depends on HAS_IOMEM
-	help
-	  Provides the driver to enable and disable the isolation between the
-	  processing system and programmable logic part by using the logicoreIP
-	  register set. This driver also configures the frequency based on the
-	  clock information from the logicoreIP register set.
-
-	  If you say yes here you get support for the logicoreIP.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called xlnx_vcu.
-
 config ZYNQMP_POWER
 	bool "Enable Xilinx Zynq MPSoC Power Management driver"
 	depends on PM && ZYNQMP_FIRMWARE
@@ -41,4 +25,14 @@ config ZYNQMP_PM_DOMAINS
 	  Say yes to enable device power management through PM domains
 	  If in doubt, say N.
 
+config XLNX_EVENT_MANAGER
+	bool "Enable Xilinx Event Management Driver"
+	depends on ZYNQMP_FIRMWARE
+	default ZYNQMP_FIRMWARE
+	help
+	  Say yes to enable event management support for Xilinx.
+	  This driver uses firmware driver as an interface for event/power
+	  management request to firmware.
+
+	  If in doubt, say N.
 endmenu

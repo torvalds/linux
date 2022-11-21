@@ -32,6 +32,28 @@
 #include "../amdtp-am824.h"
 #include "../cmp.h"
 
+enum snd_oxfw_quirk {
+	// Postpone transferring packets during handling asynchronous transaction. As a result,
+	// next isochronous packet includes more events than one packet can include.
+	SND_OXFW_QUIRK_JUMBO_PAYLOAD = 0x01,
+	// The dbs field of CIP header in tx packet is wrong.
+	SND_OXFW_QUIRK_WRONG_DBS = 0x02,
+	// Blocking transmission mode is used.
+	SND_OXFW_QUIRK_BLOCKING_TRANSMISSION = 0x04,
+	// Stanton SCS1.d and SCS1.m support unique transaction.
+	SND_OXFW_QUIRK_SCS_TRANSACTION = 0x08,
+	// Apogee Duet FireWire ignores data blocks in packet with NO_INFO for audio data
+	// processing, while output level meter moves. Any value in syt field of packet takes
+	// the device to process audio data even if the value is invalid in a point of
+	// IEC 61883-1/6.
+	SND_OXFW_QUIRK_IGNORE_NO_INFO_PACKET = 0x10,
+	// Loud Technologies Mackie Onyx 1640i seems to configure OXFW971 ASIC so that it decides
+	// event frequency according to events in received isochronous packets. The device looks to
+	// performs media clock recovery voluntarily. In the recovery, the packets with NO_INFO
+	// are ignored, thus driver should transfer packets with timestamp.
+	SND_OXFW_QUIRK_VOLUNTARY_RECOVERY = 0x20,
+};
+
 /* This is an arbitrary number for convinience. */
 #define	SND_OXFW_STREAM_FORMAT_ENTRIES	10
 struct snd_oxfw {
@@ -40,10 +62,8 @@ struct snd_oxfw {
 	struct mutex mutex;
 	spinlock_t lock;
 
-	bool registered;
-	struct delayed_work dwork;
-
-	bool wrong_dbs;
+	// The combination of snd_oxfw_quirk enumeration-constants.
+	unsigned int quirks;
 	bool has_output;
 	bool has_input;
 	u8 *tx_stream_formats[SND_OXFW_STREAM_FORMAT_ENTRIES];
@@ -62,7 +82,6 @@ struct snd_oxfw {
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
 
-	const struct ieee1394_device_id *entry;
 	void *spec;
 
 	struct amdtp_domain domain;

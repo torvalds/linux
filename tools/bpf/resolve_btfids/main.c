@@ -60,8 +60,8 @@
 #include <linux/rbtree.h>
 #include <linux/zalloc.h>
 #include <linux/err.h>
-#include <btf.h>
-#include <libbpf.h>
+#include <bpf/btf.h>
+#include <bpf/libbpf.h>
 #include <parse-options.h>
 
 #define BTF_IDS_SECTION	".BTF_ids"
@@ -83,12 +83,14 @@ struct btf_id {
 		int	 cnt;
 	};
 	int		 addr_cnt;
+	bool		 is_set;
 	Elf64_Addr	 addr[ADDR_CNT];
 };
 
 struct object {
 	const char *path;
 	const char *btf;
+	const char *base_btf_path;
 
 	struct {
 		int		 fd;
@@ -115,10 +117,10 @@ struct object {
 
 static int verbose;
 
-int eprintf(int level, int var, const char *fmt, ...)
+static int eprintf(int level, int var, const char *fmt, ...)
 {
 	va_list args;
-	int ret;
+	int ret = 0;
 
 	if (var >= level) {
 		va_start(args, fmt);
@@ -138,6 +140,8 @@ int eprintf(int level, int var, const char *fmt, ...)
 	eprintf(n, verbose, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_debug2(fmt, ...) pr_debugN(2, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_err(fmt, ...) \
+	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_info(fmt, ...) \
 	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
 
 static bool is_btf_id(const char *name)
@@ -164,7 +168,7 @@ static struct btf_id *btf_id__find(struct rb_root *root, const char *name)
 	return NULL;
 }
 
-static struct btf_id*
+static struct btf_id *
 btf_id__add(struct rb_root *root, char *name, bool unique)
 {
 	struct rb_node **p = &root->rb_node;
@@ -258,6 +262,11 @@ static struct btf_id *add_symbol(struct rb_root *root, char *name, size_t size)
 	return btf_id__add(root, id, false);
 }
 
+/* Older libelf.h and glibc elf.h might not yet define the ELF compression types. */
+#ifndef SHF_COMPRESSED
+#define SHF_COMPRESSED (1 << 11) /* Section with compressed data. */
+#endif
+
 /*
  * The data of compressed section should be aligned to 4
  * (for 32bit) or 8 (for 64 bit) bytes. The binutils ld
@@ -284,7 +293,7 @@ static int compressed_section_fix(Elf *elf, Elf_Scn *scn, GElf_Shdr *sh)
 	sh->sh_addralign = expected;
 
 	if (gelf_update_shdr(scn, sh) == 0) {
-		printf("FAILED cannot update section header: %s\n",
+		pr_err("FAILED cannot update section header: %s\n",
 			elf_errmsg(-1));
 		return -1;
 	}
@@ -310,6 +319,7 @@ static int elf_collect(struct object *obj)
 
 	elf = elf_begin(fd, ELF_C_RDWR_MMAP, NULL);
 	if (!elf) {
+		close(fd);
 		pr_err("FAILED cannot create ELF descriptor: %s\n",
 			elf_errmsg(-1));
 		return -1;
@@ -378,7 +388,7 @@ static int elf_collect(struct object *obj)
 static int symbols_collect(struct object *obj)
 {
 	Elf_Scn *scn = NULL;
-	int n, i, err = 0;
+	int n, i;
 	GElf_Shdr sh;
 	char *name;
 
@@ -395,11 +405,10 @@ static int symbols_collect(struct object *obj)
 	 * Scan symbols and look for the ones starting with
 	 * __BTF_ID__* over .BTF_ids section.
 	 */
-	for (i = 0; !err && i < n; i++) {
-		char *tmp, *prefix;
+	for (i = 0; i < n; i++) {
+		char *prefix;
 		struct btf_id *id;
 		GElf_Sym sym;
-		int err = -1;
 
 		if (!gelf_getsym(obj->efile.symbols, i, &sym))
 			return -1;
@@ -443,8 +452,10 @@ static int symbols_collect(struct object *obj)
 			 * in symbol's size, together with 'cnt' field hence
 			 * that - 1.
 			 */
-			if (id)
+			if (id) {
 				id->cnt = sym.st_size / sizeof(int) - 1;
+				id->is_set = true;
+			}
 		} else {
 			pr_err("FAILED unsupported prefix %s\n", prefix);
 			return -1;
@@ -454,7 +465,7 @@ static int symbols_collect(struct object *obj)
 			return -ENOMEM;
 
 		if (id->addr_cnt >= ADDR_CNT) {
-			pr_err("FAILED symbol %s crossed the number of allowed lists",
+			pr_err("FAILED symbol %s crossed the number of allowed lists\n",
 				id->name);
 			return -1;
 		}
@@ -470,25 +481,36 @@ static int symbols_resolve(struct object *obj)
 	int nr_structs  = obj->nr_structs;
 	int nr_unions   = obj->nr_unions;
 	int nr_funcs    = obj->nr_funcs;
+	struct btf *base_btf = NULL;
 	int err, type_id;
 	struct btf *btf;
-	__u32 nr;
+	__u32 nr_types;
 
-	btf = btf__parse(obj->btf ?: obj->path, NULL);
+	if (obj->base_btf_path) {
+		base_btf = btf__parse(obj->base_btf_path, NULL);
+		err = libbpf_get_error(base_btf);
+		if (err) {
+			pr_err("FAILED: load base BTF from %s: %s\n",
+			       obj->base_btf_path, strerror(-err));
+			return -1;
+		}
+	}
+
+	btf = btf__parse_split(obj->btf ?: obj->path, base_btf);
 	err = libbpf_get_error(btf);
 	if (err) {
-		pr_err("FAILED: load BTF from %s: %s",
-			obj->path, strerror(err));
-		return -1;
+		pr_err("FAILED: load BTF from %s: %s\n",
+			obj->btf ?: obj->path, strerror(-err));
+		goto out;
 	}
 
 	err = -1;
-	nr  = btf__get_nr_types(btf);
+	nr_types = btf__type_cnt(btf);
 
 	/*
 	 * Iterate all the BTF types and search for collected symbol IDs.
 	 */
-	for (type_id = 1; type_id <= nr; type_id++) {
+	for (type_id = 1; type_id < nr_types; type_id++) {
 		const struct btf_type *type;
 		struct rb_root *root;
 		struct btf_id *id;
@@ -526,13 +548,19 @@ static int symbols_resolve(struct object *obj)
 
 		id = btf_id__find(root, str);
 		if (id) {
-			id->id = type_id;
-			(*nr)--;
+			if (id->id) {
+				pr_info("WARN: multiple IDs found for '%s': %d, %d - using %d\n",
+					str, id->id, type_id, id->id);
+			} else {
+				id->id = type_id;
+				(*nr)--;
+			}
 		}
 	}
 
 	err = 0;
 out:
+	btf__free(base_btf);
 	btf__free(btf);
 	return err;
 }
@@ -543,10 +571,8 @@ static int id_patch(struct object *obj, struct btf_id *id)
 	int *ptr = data->d_buf;
 	int i;
 
-	if (!id->id) {
-		pr_err("FAILED unresolved symbol %s\n", id->name);
-		return -EINVAL;
-	}
+	if (!id->id && !id->is_set)
+		pr_err("WARN: resolve_btfids: unresolved symbol %s\n", id->name);
 
 	for (i = 0; i < id->addr_cnt; i++) {
 		unsigned long addr = id->addr[i];
@@ -644,6 +670,9 @@ static int symbols_patch(struct object *obj)
 	if (sets_patch(obj))
 		return -1;
 
+	/* Set type to ensure endian translation occurs. */
+	obj->efile.idlist->d_type = ELF_T_WORD;
+
 	elf_flagdata(obj->efile.idlist, ELF_C_SET, ELF_F_DIRTY);
 
 	err = elf_update(obj->efile.elf, ELF_C_WRITE);
@@ -664,7 +693,6 @@ static const char * const resolve_btfids_usage[] = {
 
 int main(int argc, const char **argv)
 {
-	bool no_fail = false;
 	struct object obj = {
 		.efile = {
 			.idlist_shndx  = -1,
@@ -681,8 +709,8 @@ int main(int argc, const char **argv)
 			 "be more verbose (show errors, etc)"),
 		OPT_STRING(0, "btf", &obj.btf, "BTF data",
 			   "BTF data"),
-		OPT_BOOLEAN(0, "no-fail", &no_fail,
-			   "do not fail if " BTF_IDS_SECTION " section is not found"),
+		OPT_STRING('b', "btf_base", &obj.base_btf_path, "file",
+			   "path of file providing base BTF"),
 		OPT_END()
 	};
 	int err = -1;
@@ -703,10 +731,9 @@ int main(int argc, const char **argv)
 	 */
 	if (obj.efile.idlist_shndx == -1 ||
 	    obj.efile.symbols_shndx == -1) {
-		if (no_fail)
-			return 0;
-		pr_err("FAILED to find needed sections\n");
-		return -1;
+		pr_debug("Cannot find .BTF_ids or symbols sections, nothing to do\n");
+		err = 0;
+		goto out;
 	}
 
 	if (symbols_collect(&obj))
@@ -720,8 +747,9 @@ int main(int argc, const char **argv)
 
 	err = 0;
 out:
-	if (obj.efile.elf)
+	if (obj.efile.elf) {
 		elf_end(obj.efile.elf);
-	close(obj.efile.fd);
+		close(obj.efile.fd);
+	}
 	return err;
 }

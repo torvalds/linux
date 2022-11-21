@@ -174,6 +174,34 @@ enum afs_vl_operation {
 	afs_VL_GetCapabilities	= 65537,	/* AFS Get VL server capabilities */
 };
 
+enum afs_cm_operation {
+	afs_CB_CallBack			= 204,	/* AFS break callback promises */
+	afs_CB_InitCallBackState	= 205,	/* AFS initialise callback state */
+	afs_CB_Probe			= 206,	/* AFS probe client */
+	afs_CB_GetLock			= 207,	/* AFS get contents of CM lock table */
+	afs_CB_GetCE			= 208,	/* AFS get cache file description */
+	afs_CB_GetXStatsVersion		= 209,	/* AFS get version of extended statistics */
+	afs_CB_GetXStats		= 210,	/* AFS get contents of extended statistics data */
+	afs_CB_InitCallBackState3	= 213,	/* AFS initialise callback state, version 3 */
+	afs_CB_ProbeUuid		= 214,	/* AFS check the client hasn't rebooted */
+};
+
+enum yfs_cm_operation {
+	yfs_CB_Probe			= 206,	/* YFS probe client */
+	yfs_CB_GetLock			= 207,	/* YFS get contents of CM lock table */
+	yfs_CB_XStatsVersion		= 209,	/* YFS get version of extended statistics */
+	yfs_CB_GetXStats		= 210,	/* YFS get contents of extended statistics data */
+	yfs_CB_InitCallBackState3	= 213,	/* YFS initialise callback state, version 3 */
+	yfs_CB_ProbeUuid		= 214,	/* YFS check the client hasn't rebooted */
+	yfs_CB_GetServerPrefs		= 215,
+	yfs_CB_GetCellServDV		= 216,
+	yfs_CB_GetLocalCell		= 217,
+	yfs_CB_GetCacheConfig		= 218,
+	yfs_CB_GetCellByNum		= 65537,
+	yfs_CB_TellMeAboutYourself	= 65538, /* get client capabilities */
+	yfs_CB_CallBack			= 64204,
+};
+
 enum afs_edit_dir_op {
 	afs_edit_dir_create,
 	afs_edit_dir_create_error,
@@ -231,6 +259,7 @@ enum afs_file_error {
 	afs_file_error_dir_bad_magic,
 	afs_file_error_dir_big,
 	afs_file_error_dir_missing_page,
+	afs_file_error_dir_name_too_long,
 	afs_file_error_dir_over_end,
 	afs_file_error_dir_small,
 	afs_file_error_dir_unmarked_ext,
@@ -277,11 +306,13 @@ enum afs_flock_operation {
 
 enum afs_cb_break_reason {
 	afs_cb_break_no_break,
+	afs_cb_break_no_promise,
 	afs_cb_break_for_callback,
 	afs_cb_break_for_deleted,
 	afs_cb_break_for_lapsed,
+	afs_cb_break_for_s_reinit,
 	afs_cb_break_for_unlink,
-	afs_cb_break_for_vsbreak,
+	afs_cb_break_for_v_break,
 	afs_cb_break_for_volume_callback,
 	afs_cb_break_for_zap,
 };
@@ -435,6 +466,32 @@ enum afs_cb_break_reason {
 	EM(afs_YFSVL_GetCellName,		"YFSVL.GetCellName") \
 	E_(afs_VL_GetCapabilities,		"VL.GetCapabilities")
 
+#define afs_cm_operations \
+	EM(afs_CB_CallBack,			"CB.CallBack") \
+	EM(afs_CB_InitCallBackState,		"CB.InitCallBackState") \
+	EM(afs_CB_Probe,			"CB.Probe") \
+	EM(afs_CB_GetLock,			"CB.GetLock") \
+	EM(afs_CB_GetCE,			"CB.GetCE") \
+	EM(afs_CB_GetXStatsVersion,		"CB.GetXStatsVersion") \
+	EM(afs_CB_GetXStats,			"CB.GetXStats") \
+	EM(afs_CB_InitCallBackState3,		"CB.InitCallBackState3") \
+	E_(afs_CB_ProbeUuid,			"CB.ProbeUuid")
+
+#define yfs_cm_operations \
+	EM(yfs_CB_Probe,			"YFSCB.Probe") \
+	EM(yfs_CB_GetLock,			"YFSCB.GetLock") \
+	EM(yfs_CB_XStatsVersion,		"YFSCB.XStatsVersion") \
+	EM(yfs_CB_GetXStats,			"YFSCB.GetXStats") \
+	EM(yfs_CB_InitCallBackState3,		"YFSCB.InitCallBackState3") \
+	EM(yfs_CB_ProbeUuid,			"YFSCB.ProbeUuid") \
+	EM(yfs_CB_GetServerPrefs,		"YFSCB.GetServerPrefs") \
+	EM(yfs_CB_GetCellServDV,		"YFSCB.GetCellServDV") \
+	EM(yfs_CB_GetLocalCell,			"YFSCB.GetLocalCell") \
+	EM(yfs_CB_GetCacheConfig,		"YFSCB.GetCacheConfig") \
+	EM(yfs_CB_GetCellByNum,			"YFSCB.GetCellByNum") \
+	EM(yfs_CB_TellMeAboutYourself,		"YFSCB.TellMeAboutYourself") \
+	E_(yfs_CB_CallBack,			"YFSCB.CallBack")
+
 #define afs_edit_dir_ops				  \
 	EM(afs_edit_dir_create,			"create") \
 	EM(afs_edit_dir_create_error,		"c_fail") \
@@ -488,6 +545,7 @@ enum afs_cb_break_reason {
 	EM(afs_file_error_dir_bad_magic,	"DIR_BAD_MAGIC")	\
 	EM(afs_file_error_dir_big,		"DIR_BIG")		\
 	EM(afs_file_error_dir_missing_page,	"DIR_MISSING_PAGE")	\
+	EM(afs_file_error_dir_name_too_long,	"DIR_NAME_TOO_LONG")	\
 	EM(afs_file_error_dir_over_end,		"DIR_ENT_OVER_END")	\
 	EM(afs_file_error_dir_small,		"DIR_SMALL")		\
 	EM(afs_file_error_dir_unmarked_ext,	"DIR_UNMARKED_EXT")	\
@@ -546,11 +604,13 @@ enum afs_cb_break_reason {
 
 #define afs_cb_break_reasons						\
 	EM(afs_cb_break_no_break,		"no-break")		\
+	EM(afs_cb_break_no_promise,		"no-promise")		\
 	EM(afs_cb_break_for_callback,		"break-cb")		\
 	EM(afs_cb_break_for_deleted,		"break-del")		\
 	EM(afs_cb_break_for_lapsed,		"break-lapsed")		\
+	EM(afs_cb_break_for_s_reinit,		"s-reinit")		\
 	EM(afs_cb_break_for_unlink,		"break-unlink")		\
-	EM(afs_cb_break_for_vsbreak,		"break-vs")		\
+	EM(afs_cb_break_for_v_break,		"break-v")		\
 	EM(afs_cb_break_for_volume_callback,	"break-v-cb")		\
 	E_(afs_cb_break_for_zap,		"break-zap")
 
@@ -567,6 +627,8 @@ afs_server_traces;
 afs_cell_traces;
 afs_fs_operations;
 afs_vl_operations;
+afs_cm_operations;
+yfs_cm_operations;
 afs_edit_dir_ops;
 afs_edit_dir_reasons;
 afs_eproto_causes;
@@ -647,20 +709,21 @@ TRACE_EVENT(afs_cb_call,
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
-		    __field(const char *,		name		)
 		    __field(u32,			op		)
+		    __field(u16,			service_id	)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call	= call->debug_id;
-		    __entry->name	= call->type->name;
 		    __entry->op		= call->operation_ID;
+		    __entry->service_id	= call->service_id;
 			   ),
 
-	    TP_printk("c=%08x %s o=%u",
+	    TP_printk("c=%08x %s",
 		      __entry->call,
-		      __entry->name,
-		      __entry->op)
+		      __entry->service_id == 2501 ?
+		      __print_symbolic(__entry->op, yfs_cm_operations) :
+		      __print_symbolic(__entry->op, afs_cm_operations))
 	    );
 
 TRACE_EVENT(afs_call,
@@ -884,65 +947,52 @@ TRACE_EVENT(afs_call_done,
 		      __entry->rx_call)
 	    );
 
-TRACE_EVENT(afs_send_pages,
-	    TP_PROTO(struct afs_call *call, struct msghdr *msg,
-		     pgoff_t first, pgoff_t last, unsigned int offset),
+TRACE_EVENT(afs_send_data,
+	    TP_PROTO(struct afs_call *call, struct msghdr *msg),
 
-	    TP_ARGS(call, msg, first, last, offset),
+	    TP_ARGS(call, msg),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
-		    __field(pgoff_t,			first		)
-		    __field(pgoff_t,			last		)
-		    __field(unsigned int,		nr		)
-		    __field(unsigned int,		bytes		)
-		    __field(unsigned int,		offset		)
 		    __field(unsigned int,		flags		)
+		    __field(loff_t,			offset		)
+		    __field(loff_t,			count		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call = call->debug_id;
-		    __entry->first = first;
-		    __entry->last = last;
-		    __entry->nr = msg->msg_iter.nr_segs;
-		    __entry->bytes = msg->msg_iter.count;
-		    __entry->offset = offset;
 		    __entry->flags = msg->msg_flags;
+		    __entry->offset = msg->msg_iter.xarray_start + msg->msg_iter.iov_offset;
+		    __entry->count = iov_iter_count(&msg->msg_iter);
 			   ),
 
-	    TP_printk(" c=%08x %lx-%lx-%lx b=%x o=%x f=%x",
-		      __entry->call,
-		      __entry->first, __entry->first + __entry->nr - 1, __entry->last,
-		      __entry->bytes, __entry->offset,
+	    TP_printk(" c=%08x o=%llx n=%llx f=%x",
+		      __entry->call, __entry->offset, __entry->count,
 		      __entry->flags)
 	    );
 
-TRACE_EVENT(afs_sent_pages,
-	    TP_PROTO(struct afs_call *call, pgoff_t first, pgoff_t last,
-		     pgoff_t cursor, int ret),
+TRACE_EVENT(afs_sent_data,
+	    TP_PROTO(struct afs_call *call, struct msghdr *msg, int ret),
 
-	    TP_ARGS(call, first, last, cursor, ret),
+	    TP_ARGS(call, msg, ret),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
-		    __field(pgoff_t,			first		)
-		    __field(pgoff_t,			last		)
-		    __field(pgoff_t,			cursor		)
 		    __field(int,			ret		)
+		    __field(loff_t,			offset		)
+		    __field(loff_t,			count		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call = call->debug_id;
-		    __entry->first = first;
-		    __entry->last = last;
-		    __entry->cursor = cursor;
 		    __entry->ret = ret;
+		    __entry->offset = msg->msg_iter.xarray_start + msg->msg_iter.iov_offset;
+		    __entry->count = iov_iter_count(&msg->msg_iter);
 			   ),
 
-	    TP_printk(" c=%08x %lx-%lx c=%lx r=%d",
-		      __entry->call,
-		      __entry->first, __entry->last,
-		      __entry->cursor, __entry->ret)
+	    TP_printk(" c=%08x o=%llx n=%llx r=%x",
+		      __entry->call, __entry->offset, __entry->count,
+		      __entry->ret)
 	    );
 
 TRACE_EVENT(afs_dir_check_failed,
@@ -966,31 +1016,35 @@ TRACE_EVENT(afs_dir_check_failed,
 		      __entry->vnode, __entry->off, __entry->i_size)
 	    );
 
-TRACE_EVENT(afs_page_dirty,
-	    TP_PROTO(struct afs_vnode *vnode, const char *where,
-		     pgoff_t page, unsigned long priv),
+TRACE_EVENT(afs_folio_dirty,
+	    TP_PROTO(struct afs_vnode *vnode, const char *where, struct folio *folio),
 
-	    TP_ARGS(vnode, where, page, priv),
+	    TP_ARGS(vnode, where, folio),
 
 	    TP_STRUCT__entry(
 		    __field(struct afs_vnode *,		vnode		)
 		    __field(const char *,		where		)
-		    __field(pgoff_t,			page		)
-		    __field(unsigned long,		priv		)
+		    __field(pgoff_t,			index		)
+		    __field(unsigned long,		from		)
+		    __field(unsigned long,		to		)
 			     ),
 
 	    TP_fast_assign(
+		    unsigned long priv = (unsigned long)folio_get_private(folio);
 		    __entry->vnode = vnode;
 		    __entry->where = where;
-		    __entry->page = page;
-		    __entry->priv = priv;
+		    __entry->index = folio_index(folio);
+		    __entry->from  = afs_folio_dirty_from(folio, priv);
+		    __entry->to    = afs_folio_dirty_to(folio, priv);
+		    __entry->to   |= (afs_is_folio_dirty_mmapped(priv) ?
+				      (1UL << (BITS_PER_LONG - 1)) : 0);
 			   ),
 
-	    TP_printk("vn=%p %lx %s %zx-%zx%s",
-		      __entry->vnode, __entry->page, __entry->where,
-		      afs_page_dirty_from(__entry->priv),
-		      afs_page_dirty_to(__entry->priv),
-		      afs_is_page_dirty_mmapped(__entry->priv) ? " M" : "")
+	    TP_printk("vn=%p %lx %s %lx-%lx%s",
+		      __entry->vnode, __entry->index, __entry->where,
+		      __entry->from,
+		      __entry->to & ~(1UL << (BITS_PER_LONG - 1)),
+		      __entry->to & (1UL << (BITS_PER_LONG - 1)) ? " M" : "")
 	    );
 
 TRACE_EVENT(afs_call_state,

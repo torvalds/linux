@@ -4,6 +4,9 @@
 ##############################################################################
 # Defines
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 # Can be overridden by the configuration file.
 PING=${PING:=ping}
 PING6=${PING6:=ping6}
@@ -17,9 +20,13 @@ NETIF_TYPE=${NETIF_TYPE:=veth}
 NETIF_CREATE=${NETIF_CREATE:=yes}
 MCD=${MCD:=smcrouted}
 MC_CLI=${MC_CLI:=smcroutectl}
+PING_COUNT=${PING_COUNT:=10}
 PING_TIMEOUT=${PING_TIMEOUT:=5}
 WAIT_TIMEOUT=${WAIT_TIMEOUT:=20}
 INTERFACE_TIMEOUT=${INTERFACE_TIMEOUT:=600}
+LOW_AGEING_TIME=${LOW_AGEING_TIME:=1000}
+REQUIRE_JQ=${REQUIRE_JQ:=yes}
+REQUIRE_MZ=${REQUIRE_MZ:=yes}
 
 relative_path="${BASH_SOURCE%/*}"
 if [[ "$relative_path" == "${BASH_SOURCE}" ]]; then
@@ -38,7 +45,48 @@ check_tc_version()
 	tc -j &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc is missing JSON support"
-		exit 1
+		exit $ksft_skip
+	fi
+}
+
+# Old versions of tc don't understand "mpls_uc"
+check_tc_mpls_support()
+{
+	local dev=$1; shift
+
+	tc filter add dev $dev ingress protocol mpls_uc pref 1 handle 1 \
+		matchall action pipe &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc is missing MPLS support"
+		return $ksft_skip
+	fi
+	tc filter del dev $dev ingress protocol mpls_uc pref 1 handle 1 \
+		matchall
+}
+
+# Old versions of tc produce invalid json output for mpls lse statistics
+check_tc_mpls_lse_stats()
+{
+	local dev=$1; shift
+	local ret;
+
+	tc filter add dev $dev ingress protocol mpls_uc pref 1 handle 1 \
+		flower mpls lse depth 2                                 \
+		action continue &> /dev/null
+
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc-flower is missing extended MPLS support"
+		return $ksft_skip
+	fi
+
+	tc -j filter show dev $dev ingress protocol mpls_uc | jq . &> /dev/null
+	ret=$?
+	tc filter del dev $dev ingress protocol mpls_uc pref 1 handle 1 \
+		flower
+
+	if [[ $ret -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc-flower produces invalid json output for extended MPLS filters"
+		return $ksft_skip
 	fi
 }
 
@@ -47,7 +95,7 @@ check_tc_shblock_support()
 	tc filter help 2>&1 | grep block &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc is missing shared block support"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
@@ -56,7 +104,7 @@ check_tc_chain_support()
 	tc help 2>&1|grep chain &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc is missing chain support"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
@@ -65,13 +113,30 @@ check_tc_action_hw_stats_support()
 	tc actions help 2>&1 | grep -q hw_stats
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc is missing action hw_stats support"
-		exit 1
+		exit $ksft_skip
+	fi
+}
+
+check_ethtool_lanes_support()
+{
+	ethtool --help 2>&1| grep lanes &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: ethtool too old; it is missing lanes support"
+		exit $ksft_skip
+	fi
+}
+
+check_locked_port_support()
+{
+	if ! bridge -d link show | grep -q " locked"; then
+		echo "SKIP: iproute2 too old; Locked port feature not supported."
+		return $ksft_skip
 	fi
 }
 
 if [[ "$(id -u)" -ne 0 ]]; then
 	echo "SKIP: need root privileges"
-	exit 0
+	exit $ksft_skip
 fi
 
 if [[ "$CHECK_TC" = "yes" ]]; then
@@ -84,16 +149,20 @@ require_command()
 
 	if [[ ! -x "$(command -v "$cmd")" ]]; then
 		echo "SKIP: $cmd not installed"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
-require_command jq
-require_command $MZ
+if [[ "$REQUIRE_JQ" = "yes" ]]; then
+	require_command jq
+fi
+if [[ "$REQUIRE_MZ" = "yes" ]]; then
+	require_command $MZ
+fi
 
 if [[ ! -v NUM_NETIFS ]]; then
 	echo "SKIP: importer does not define \"NUM_NETIFS\""
-	exit 1
+	exit $ksft_skip
 fi
 
 ##############################################################################
@@ -153,7 +222,7 @@ for ((i = 1; i <= NUM_NETIFS; ++i)); do
 	ip link show dev ${NETIFS[p$i]} &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: could not find all required interfaces"
-		exit 1
+		exit $ksft_skip
 	fi
 done
 
@@ -227,6 +296,15 @@ log_test()
 	return 0
 }
 
+log_test_skip()
+{
+	local test_name=$1
+	local opt_str=$2
+
+	printf "TEST: %-60s  [SKIP]\n" "$test_name $opt_str"
+	return 0
+}
+
 log_info()
 {
 	local msg=$1
@@ -263,6 +341,20 @@ not()
 	[[ $? != 0 ]]
 }
 
+get_max()
+{
+	local arr=("$@")
+
+	max=${arr[0]}
+	for cur in ${arr[@]}; do
+		if [[ $cur -gt $max ]]; then
+			max=$cur
+		fi
+	done
+
+	echo $max
+}
+
 grep_bridge_fdb()
 {
 	local addr=$1; shift
@@ -279,9 +371,19 @@ grep_bridge_fdb()
 	$@ | grep $addr | grep $flag "$word"
 }
 
+wait_for_port_up()
+{
+	"$@" | grep -q "Link detected: yes"
+}
+
 wait_for_offload()
 {
 	"$@" | grep -q offload
+}
+
+wait_for_trap()
+{
+	"$@" | grep -q trap
 }
 
 until_counter_is()
@@ -674,6 +776,14 @@ qdisc_parent_stats_get()
 	    | jq '.[] | select(.parent == "'"$parent"'") | '"$selector"
 }
 
+ipv6_stats_get()
+{
+	local dev=$1; shift
+	local stat=$1; shift
+
+	cat /proc/net/dev_snmp6/$dev | grep "^$stat" | cut -f2
+}
+
 humanize()
 {
 	local speed=$1; shift
@@ -696,6 +806,15 @@ rate()
 	local interval=$1; shift
 
 	echo $((8 * (t1 - t0) / interval))
+}
+
+packets_rate()
+{
+	local t0=$1; shift
+	local t1=$1; shift
+	local interval=$1; shift
+
+	echo $(((t1 - t0) / interval))
 }
 
 mac_get()
@@ -1002,7 +1121,8 @@ ping_do()
 
 	vrf_name=$(master_name_get $if_name)
 	ip vrf exec $vrf_name \
-		$PING $args $dip -c 10 -i 0.1 -w $PING_TIMEOUT &> /dev/null
+		$PING $args $dip -c $PING_COUNT -i 0.1 \
+		-w $PING_TIMEOUT &> /dev/null
 }
 
 ping_test()
@@ -1023,7 +1143,8 @@ ping6_do()
 
 	vrf_name=$(master_name_get $if_name)
 	ip vrf exec $vrf_name \
-		$PING6 $args $dip -c 10 -i 0.1 -w $PING_TIMEOUT &> /dev/null
+		$PING6 $args $dip -c $PING_COUNT -i 0.1 \
+		-w $PING_TIMEOUT &> /dev/null
 }
 
 ping6_test()
@@ -1269,4 +1390,171 @@ tcpdump_cleanup()
 tcpdump_show()
 {
 	tcpdump -e -n -r $capfile 2>&1
+}
+
+# return 0 if the packet wasn't seen on host2_if or 1 if it was
+mcast_packet_test()
+{
+	local mac=$1
+	local src_ip=$2
+	local ip=$3
+	local host1_if=$4
+	local host2_if=$5
+	local seen=0
+	local tc_proto="ip"
+	local mz_v6arg=""
+
+	# basic check to see if we were passed an IPv4 address, if not assume IPv6
+	if [[ ! $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+		tc_proto="ipv6"
+		mz_v6arg="-6"
+	fi
+
+	# Add an ACL on `host2_if` which will tell us whether the packet
+	# was received by it or not.
+	tc qdisc add dev $host2_if ingress
+	tc filter add dev $host2_if ingress protocol $tc_proto pref 1 handle 101 \
+		flower ip_proto udp dst_mac $mac action drop
+
+	$MZ $host1_if $mz_v6arg -c 1 -p 64 -b $mac -A $src_ip -B $ip -t udp "dp=4096,sp=2048" -q
+	sleep 1
+
+	tc -j -s filter show dev $host2_if ingress \
+		| jq -e ".[] | select(.options.handle == 101) \
+		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
+	if [[ $? -eq 0 ]]; then
+		seen=1
+	fi
+
+	tc filter del dev $host2_if ingress protocol $tc_proto pref 1 handle 101 flower
+	tc qdisc del dev $host2_if ingress
+
+	return $seen
+}
+
+brmcast_check_sg_entries()
+{
+	local report=$1; shift
+	local slist=("$@")
+	local sarg=""
+
+	for src in "${slist[@]}"; do
+		sarg="${sarg} and .source_list[].address == \"$src\""
+	done
+	bridge -j -d -s mdb show dev br0 \
+		| jq -e ".[].mdb[] | \
+			 select(.grp == \"$TEST_GROUP\" and .source_list != null $sarg)" &>/dev/null
+	check_err $? "Wrong *,G entry source list after $report report"
+
+	for sgent in "${slist[@]}"; do
+		bridge -j -d -s mdb show dev br0 \
+			| jq -e ".[].mdb[] | \
+				 select(.grp == \"$TEST_GROUP\" and .src == \"$sgent\")" &>/dev/null
+		check_err $? "Missing S,G entry ($sgent, $TEST_GROUP)"
+	done
+}
+
+brmcast_check_sg_fwding()
+{
+	local should_fwd=$1; shift
+	local sources=("$@")
+
+	for src in "${sources[@]}"; do
+		local retval=0
+
+		mcast_packet_test $TEST_GROUP_MAC $src $TEST_GROUP $h2 $h1
+		retval=$?
+		if [ $should_fwd -eq 1 ]; then
+			check_fail $retval "Didn't forward traffic from S,G ($src, $TEST_GROUP)"
+		else
+			check_err $retval "Forwarded traffic for blocked S,G ($src, $TEST_GROUP)"
+		fi
+	done
+}
+
+brmcast_check_sg_state()
+{
+	local is_blocked=$1; shift
+	local sources=("$@")
+	local should_fail=1
+
+	if [ $is_blocked -eq 1 ]; then
+		should_fail=0
+	fi
+
+	for src in "${sources[@]}"; do
+		bridge -j -d -s mdb show dev br0 \
+			| jq -e ".[].mdb[] | \
+				 select(.grp == \"$TEST_GROUP\" and .source_list != null) |
+				 .source_list[] |
+				 select(.address == \"$src\") |
+				 select(.timer == \"0.00\")" &>/dev/null
+		check_err_fail $should_fail $? "Entry $src has zero timer"
+
+		bridge -j -d -s mdb show dev br0 \
+			| jq -e ".[].mdb[] | \
+				 select(.grp == \"$TEST_GROUP\" and .src == \"$src\" and \
+				 .flags[] == \"blocked\")" &>/dev/null
+		check_err_fail $should_fail $? "Entry $src has blocked flag"
+	done
+}
+
+start_ip_monitor()
+{
+	local mtype=$1; shift
+	local ip=${1-ip}; shift
+
+	# start the monitor in the background
+	tmpfile=`mktemp /var/run/nexthoptestXXX`
+	mpid=`($ip monitor $mtype > $tmpfile & echo $!) 2>/dev/null`
+	sleep 0.2
+	echo "$mpid $tmpfile"
+}
+
+stop_ip_monitor()
+{
+	local mpid=$1; shift
+	local tmpfile=$1; shift
+	local el=$1; shift
+	local what=$1; shift
+
+	sleep 0.2
+	kill $mpid
+	local lines=`grep '^\w' $tmpfile | wc -l`
+	test $lines -eq $el
+	check_err $? "$what: $lines lines of events, expected $el"
+	rm -rf $tmpfile
+}
+
+hw_stats_monitor_test()
+{
+	local dev=$1; shift
+	local type=$1; shift
+	local make_suitable=$1; shift
+	local make_unsuitable=$1; shift
+	local ip=${1-ip}; shift
+
+	RET=0
+
+	# Expect a notification about enablement.
+	local ipmout=$(start_ip_monitor stats "$ip")
+	$ip stats set dev $dev ${type}_stats on
+	stop_ip_monitor $ipmout 1 "${type}_stats enablement"
+
+	# Expect a notification about offload.
+	local ipmout=$(start_ip_monitor stats "$ip")
+	$make_suitable
+	stop_ip_monitor $ipmout 1 "${type}_stats installation"
+
+	# Expect a notification about loss of offload.
+	local ipmout=$(start_ip_monitor stats "$ip")
+	$make_unsuitable
+	stop_ip_monitor $ipmout 1 "${type}_stats deinstallation"
+
+	# Expect a notification about disablement
+	local ipmout=$(start_ip_monitor stats "$ip")
+	$ip stats set dev $dev ${type}_stats off
+	stop_ip_monitor $ipmout 1 "${type}_stats disablement"
+
+	log_test "${type}_stats notifications"
 }

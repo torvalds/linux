@@ -52,15 +52,15 @@ static void mt76x0_set_chip_cap(struct mt76x02_dev *dev)
 
 	mt76x02_eeprom_parse_hw_cap(dev);
 	dev_dbg(dev->mt76.dev, "2GHz %d 5GHz %d\n",
-		dev->mt76.cap.has_2ghz, dev->mt76.cap.has_5ghz);
+		dev->mphy.cap.has_2ghz, dev->mphy.cap.has_5ghz);
 
 	if (dev->no_2ghz) {
-		dev->mt76.cap.has_2ghz = false;
+		dev->mphy.cap.has_2ghz = false;
 		dev_dbg(dev->mt76.dev, "mask out 2GHz support\n");
 	}
 
 	if (is_mt7630(dev)) {
-		dev->mt76.cap.has_5ghz = false;
+		dev->mphy.cap.has_5ghz = false;
 		dev_dbg(dev->mt76.dev, "mask out 5GHz support\n");
 	}
 
@@ -68,7 +68,7 @@ static void mt76x0_set_chip_cap(struct mt76x02_dev *dev)
 		nic_conf1 &= 0xff00;
 
 	if (nic_conf1 & MT_EE_NIC_CONF_1_HW_RF_CTRL)
-		dev_err(dev->mt76.dev,
+		dev_dbg(dev->mt76.dev,
 			"driver does not support HW RF ctrl\n");
 
 	if (!mt76x02_field_valid(nic_conf0 >> 8))
@@ -201,7 +201,7 @@ void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev,
 	t->stbc[6] = t->stbc[7] = s6_to_s8(val >> 8);
 
 	/* vht mcs 8, 9 5GHz */
-	val = mt76x02_eeprom_get(dev, 0x132);
+	val = mt76x02_eeprom_get(dev, 0x12c);
 	t->vht[8] = s6_to_s8(val);
 	t->vht[9] = s6_to_s8(val >> 8);
 
@@ -342,10 +342,10 @@ int mt76x0_eeprom_init(struct mt76x02_dev *dev)
 	dev_info(dev->mt76.dev, "EEPROM ver:%02hhx fae:%02hhx\n",
 		 version, fae);
 
-	memcpy(dev->mt76.macaddr, (u8 *)dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
+	memcpy(dev->mphy.macaddr, (u8 *)dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
 	       ETH_ALEN);
-	mt76_eeprom_override(&dev->mt76);
-	mt76x02_mac_setaddr(dev, dev->mt76.macaddr);
+	mt76_eeprom_override(&dev->mphy);
+	mt76x02_mac_setaddr(dev, dev->mphy.macaddr);
 
 	mt76x0_set_chip_cap(dev);
 	mt76x0_set_freq_offset(dev);

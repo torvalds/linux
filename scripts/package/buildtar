@@ -39,6 +39,10 @@ case "${1}" in
 		opts="-I ${XZ}"
 		tarball=${tarball}.xz
 		;;
+	tarzst-pkg)
+		opts="-I ${ZSTD}"
+		tarball=${tarball}.zst
+		;;
 	*)
 		echo "Unknown tarball target \"${1}\" requested, please add it to ${0}." >&2
 		exit 1
@@ -121,6 +125,14 @@ case "${ARCH}" in
 		for i in Image.bz2 Image.gz Image.lz4 Image.lzma Image.lzo ; do
 			if [ -f "${objtree}/arch/arm64/boot/${i}" ] ; then
 				cp -v -- "${objtree}/arch/arm64/boot/${i}" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
+				break
+			fi
+		done
+		;;
+	riscv)
+		for i in Image.bz2 Image.gz Image; do
+			if [ -f "${objtree}/arch/riscv/boot/${i}" ] ; then
+				cp -v -- "${objtree}/arch/riscv/boot/${i}" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
 				break
 			fi
 		done

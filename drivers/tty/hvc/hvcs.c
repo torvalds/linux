@@ -290,36 +290,11 @@ static LIST_HEAD(hvcs_structs);
 static DEFINE_SPINLOCK(hvcs_structs_lock);
 static DEFINE_MUTEX(hvcs_init_mutex);
 
-static void hvcs_unthrottle(struct tty_struct *tty);
-static void hvcs_throttle(struct tty_struct *tty);
-static irqreturn_t hvcs_handle_interrupt(int irq, void *dev_instance);
-
-static int hvcs_write(struct tty_struct *tty,
-		const unsigned char *buf, int count);
-static int hvcs_write_room(struct tty_struct *tty);
-static int hvcs_chars_in_buffer(struct tty_struct *tty);
-
-static int hvcs_has_pi(struct hvcs_struct *hvcsd);
-static void hvcs_set_pi(struct hvcs_partner_info *pi,
-		struct hvcs_struct *hvcsd);
 static int hvcs_get_pi(struct hvcs_struct *hvcsd);
 static int hvcs_rescan_devices_list(void);
 
-static int hvcs_partner_connect(struct hvcs_struct *hvcsd);
 static void hvcs_partner_free(struct hvcs_struct *hvcsd);
 
-static int hvcs_enable_device(struct hvcs_struct *hvcsd,
-		uint32_t unit_address, unsigned int irq, struct vio_dev *dev);
-
-static int hvcs_open(struct tty_struct *tty, struct file *filp);
-static void hvcs_close(struct tty_struct *tty, struct file *filp);
-static void hvcs_hangup(struct tty_struct * tty);
-
-static int hvcs_probe(struct vio_dev *dev,
-		const struct vio_device_id *id);
-static int hvcs_remove(struct vio_dev *dev);
-static int __init hvcs_module_init(void);
-static void __exit hvcs_module_exit(void);
 static int hvcs_initialize(void);
 
 #define HVCS_SCHED_READ	0x00000001
@@ -605,7 +580,7 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 		hvcsd->todo_mask |= HVCS_QUICK_READ;
 
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
-	/* This is synch because tty->low_latency == 1 */
+	/* This is synch -- FIXME :js: it is not! */
 	if(got)
 		tty_flip_buffer_push(&hvcsd->port);
 
@@ -819,14 +794,11 @@ static int hvcs_probe(
 	return 0;
 }
 
-static int hvcs_remove(struct vio_dev *dev)
+static void hvcs_remove(struct vio_dev *dev)
 {
 	struct hvcs_struct *hvcsd = dev_get_drvdata(&dev->dev);
 	unsigned long flags;
 	struct tty_struct *tty;
-
-	if (!hvcsd)
-		return -ENODEV;
 
 	/* By this time the vty-server won't be getting any more interrupts */
 
@@ -852,7 +824,6 @@ static int hvcs_remove(struct vio_dev *dev)
 
 	printk(KERN_INFO "HVCS: vty-server@%X removed from the"
 			" vio bus.\n", dev->unit_address);
-	return 0;
 };
 
 static struct vio_driver hvcs_vio_driver = {
@@ -1405,7 +1376,7 @@ static int hvcs_write(struct tty_struct *tty,
  * absolutely WILL BUFFER if we can't send it.  This driver MUST honor the
  * return value, hence the reason for hvcs_struct buffering.
  */
-static int hvcs_write_room(struct tty_struct *tty)
+static unsigned int hvcs_write_room(struct tty_struct *tty)
 {
 	struct hvcs_struct *hvcsd = tty->driver_data;
 
@@ -1415,7 +1386,7 @@ static int hvcs_write_room(struct tty_struct *tty)
 	return HVCS_BUFF_LEN - hvcsd->chars_in_buffer;
 }
 
-static int hvcs_chars_in_buffer(struct tty_struct *tty)
+static unsigned int hvcs_chars_in_buffer(struct tty_struct *tty)
 {
 	struct hvcs_struct *hvcsd = tty->driver_data;
 
@@ -1474,10 +1445,11 @@ static int hvcs_initialize(void)
 	} else
 		num_ttys_to_alloc = hvcs_parm_num_devs;
 
-	hvcs_tty_driver = alloc_tty_driver(num_ttys_to_alloc);
-	if (!hvcs_tty_driver) {
+	hvcs_tty_driver = tty_alloc_driver(num_ttys_to_alloc,
+			TTY_DRIVER_REAL_RAW);
+	if (IS_ERR(hvcs_tty_driver)) {
 		mutex_unlock(&hvcs_init_mutex);
-		return -ENOMEM;
+		return PTR_ERR(hvcs_tty_driver);
 	}
 
 	if (hvcs_alloc_index_list(num_ttys_to_alloc)) {
@@ -1502,7 +1474,6 @@ static int hvcs_initialize(void)
 	 * throw us into a horrible recursive echo-echo-echo loop.
 	 */
 	hvcs_tty_driver->init_termios = hvcs_tty_termios;
-	hvcs_tty_driver->flags = TTY_DRIVER_REAL_RAW;
 
 	tty_set_operations(hvcs_tty_driver, &hvcs_ops);
 
@@ -1538,7 +1509,7 @@ buff_alloc_fail:
 register_fail:
 	hvcs_free_index_list();
 index_fail:
-	put_tty_driver(hvcs_tty_driver);
+	tty_driver_kref_put(hvcs_tty_driver);
 	hvcs_tty_driver = NULL;
 	mutex_unlock(&hvcs_init_mutex);
 	return rc;
@@ -1591,7 +1562,7 @@ static void __exit hvcs_module_exit(void)
 
 	hvcs_free_index_list();
 
-	put_tty_driver(hvcs_tty_driver);
+	tty_driver_kref_put(hvcs_tty_driver);
 
 	printk(KERN_INFO "HVCS: driver module removed.\n");
 }

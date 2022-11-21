@@ -33,6 +33,7 @@ static struct pci_driver adf_driver = {
 	.probe = adf_probe,
 	.remove = adf_remove,
 	.sriov_configure = adf_sriov_configure,
+	.err_handler = &adf_err_handler,
 };
 
 static void adf_cleanup_pci_dev(struct adf_accel_dev *accel_dev)
@@ -126,10 +127,12 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &accel_pci_dev->revid);
 	pci_read_config_dword(pdev, ADF_DEVICE_FUSECTL_OFFSET,
 			      &hw_data->fuses);
+	pci_read_config_dword(pdev, ADF_C3XXX_SOFTSTRAP_CSR_OFFSET,
+			      &hw_data->straps);
 
 	/* Get Accelerators and Accelerators Engines masks */
-	hw_data->accel_mask = hw_data->get_accel_mask(hw_data->fuses);
-	hw_data->ae_mask = hw_data->get_ae_mask(hw_data->fuses);
+	hw_data->accel_mask = hw_data->get_accel_mask(hw_data);
+	hw_data->ae_mask = hw_data->get_ae_mask(hw_data);
 	accel_pci_dev->sku = hw_data->get_sku(hw_data);
 	/* If the device has no acceleration engines then ignore it. */
 	if (!hw_data->accel_mask || !hw_data->ae_mask ||
@@ -157,17 +160,10 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* set dma identifier */
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		if ((pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))) {
-			dev_err(&pdev->dev, "No usable DMA configuration\n");
-			ret = -EFAULT;
-			goto out_err_disable;
-		} else {
-			pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		}
-
-	} else {
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48));
+	if (ret) {
+		dev_err(&pdev->dev, "No usable DMA configuration\n");
+		goto out_err_disable;
 	}
 
 	if (pci_request_regions(pdev, ADF_C3XXX_DEVICE_NAME)) {
@@ -175,9 +171,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err_disable;
 	}
 
-	/* Read accelerator capabilities mask */
-	pci_read_config_dword(pdev, ADF_DEVICE_LEGFUSE_OFFSET,
-			      &hw_data->accel_capabilities_mask);
+	/* Get accelerator capabilities mask */
+	hw_data->accel_capabilities_mask = hw_data->get_accel_cap(accel_dev);
 
 	/* Find and map all the device's BARS */
 	i = 0;
@@ -198,21 +193,17 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	pci_set_master(pdev);
 
-	if (adf_enable_aer(accel_dev)) {
-		dev_err(&pdev->dev, "Failed to enable aer\n");
-		ret = -EFAULT;
-		goto out_err_free_reg;
-	}
+	adf_enable_aer(accel_dev);
 
 	if (pci_save_state(pdev)) {
 		dev_err(&pdev->dev, "Failed to save pci state\n");
 		ret = -ENOMEM;
-		goto out_err_free_reg;
+		goto out_err_disable_aer;
 	}
 
 	ret = qat_crypto_dev_config(accel_dev);
 	if (ret)
-		goto out_err_free_reg;
+		goto out_err_disable_aer;
 
 	ret = adf_dev_init(accel_dev);
 	if (ret)
@@ -228,6 +219,8 @@ out_err_dev_stop:
 	adf_dev_stop(accel_dev);
 out_err_dev_shutdown:
 	adf_dev_shutdown(accel_dev);
+out_err_disable_aer:
+	adf_disable_aer(accel_dev);
 out_err_free_reg:
 	pci_release_regions(accel_pci_dev->pci_dev);
 out_err_disable:

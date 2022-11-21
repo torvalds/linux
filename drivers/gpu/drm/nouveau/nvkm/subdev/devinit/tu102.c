@@ -65,7 +65,7 @@ tu102_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 	return ret;
 }
 
-static int
+int
 tu102_devinit_post(struct nvkm_devinit *base, bool post)
 {
 	struct nv50_devinit *init = nv50_devinit(base);
@@ -82,8 +82,8 @@ tu102_devinit = {
 };
 
 int
-tu102_devinit_new(struct nvkm_device *device, int index,
-		struct nvkm_devinit **pinit)
+tu102_devinit_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+		  struct nvkm_devinit **pinit)
 {
-	return nv50_devinit_new_(&tu102_devinit, device, index, pinit);
+	return nv50_devinit_new_(&tu102_devinit, device, type, inst, pinit);
 }

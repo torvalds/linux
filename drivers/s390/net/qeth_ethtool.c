@@ -41,6 +41,7 @@ static const struct qeth_stats txq_stats[] = {
 	QETH_TXQ_STAT("Queue stopped", stopped),
 	QETH_TXQ_STAT("Doorbell", doorbell),
 	QETH_TXQ_STAT("IRQ for frames", coal_frames),
+	QETH_TXQ_STAT("Completion IRQ", completion_irq),
 	QETH_TXQ_STAT("Completion yield", completion_yield),
 	QETH_TXQ_STAT("Completion timer", completion_timer),
 };
@@ -79,10 +80,8 @@ static void qeth_add_stat_strings(u8 **data, const char *prefix,
 {
 	unsigned int i;
 
-	for (i = 0; i < size; i++) {
-		snprintf(*data, ETH_GSTRING_LEN, "%s%s", prefix, stats[i].name);
-		*data += ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < size; i++)
+		ethtool_sprintf(data, "%s%s", prefix, stats[i].name);
 }
 
 static int qeth_get_sset_count(struct net_device *dev, int stringset)
@@ -124,7 +123,9 @@ static void __qeth_set_coalesce(struct net_device *dev,
 }
 
 static int qeth_set_coalesce(struct net_device *dev,
-			     struct ethtool_coalesce *coal)
+			     struct ethtool_coalesce *coal,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct qeth_card *card = dev->ml_priv;
 	struct qeth_qdio_out_q *queue;
@@ -143,7 +144,9 @@ static int qeth_set_coalesce(struct net_device *dev,
 }
 
 static void qeth_get_ringparam(struct net_device *dev,
-			       struct ethtool_ringparam *param)
+			       struct ethtool_ringparam *param,
+			       struct kernel_ethtool_ringparam *kernel_param,
+			       struct netlink_ext_ack *extack)
 {
 	struct qeth_card *card = dev->ml_priv;
 
@@ -324,8 +327,8 @@ static int qeth_set_per_queue_coalesce(struct net_device *dev, u32 queue,
 /* Autoneg and full-duplex are supported and advertised unconditionally.     */
 /* Always advertise and support all speeds up to specified, and only one     */
 /* specified port type.							     */
-static void qeth_set_cmd_adv_sup(struct ethtool_link_ksettings *cmd,
-				int maxspeed, int porttype)
+static void qeth_set_ethtool_link_modes(struct ethtool_link_ksettings *cmd,
+					enum qeth_link_mode link_mode)
 {
 	ethtool_link_ksettings_zero_link_mode(cmd, supported);
 	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
@@ -334,186 +337,119 @@ static void qeth_set_cmd_adv_sup(struct ethtool_link_ksettings *cmd,
 	ethtool_link_ksettings_add_link_mode(cmd, supported, Autoneg);
 	ethtool_link_ksettings_add_link_mode(cmd, advertising, Autoneg);
 
-	switch (porttype) {
+	switch (cmd->base.port) {
 	case PORT_TP:
 		ethtool_link_ksettings_add_link_mode(cmd, supported, TP);
 		ethtool_link_ksettings_add_link_mode(cmd, advertising, TP);
+
+		switch (cmd->base.speed) {
+		case SPEED_10000:
+			ethtool_link_ksettings_add_link_mode(cmd, supported,
+							     10000baseT_Full);
+			ethtool_link_ksettings_add_link_mode(cmd, advertising,
+							     10000baseT_Full);
+			fallthrough;
+		case SPEED_1000:
+			ethtool_link_ksettings_add_link_mode(cmd, supported,
+							     1000baseT_Full);
+			ethtool_link_ksettings_add_link_mode(cmd, advertising,
+							     1000baseT_Full);
+			ethtool_link_ksettings_add_link_mode(cmd, supported,
+							     1000baseT_Half);
+			ethtool_link_ksettings_add_link_mode(cmd, advertising,
+							     1000baseT_Half);
+			fallthrough;
+		case SPEED_100:
+			ethtool_link_ksettings_add_link_mode(cmd, supported,
+							     100baseT_Full);
+			ethtool_link_ksettings_add_link_mode(cmd, advertising,
+							     100baseT_Full);
+			ethtool_link_ksettings_add_link_mode(cmd, supported,
+							     100baseT_Half);
+			ethtool_link_ksettings_add_link_mode(cmd, advertising,
+							     100baseT_Half);
+			fallthrough;
+		case SPEED_10:
+			ethtool_link_ksettings_add_link_mode(cmd, supported,
+							     10baseT_Full);
+			ethtool_link_ksettings_add_link_mode(cmd, advertising,
+							     10baseT_Full);
+			ethtool_link_ksettings_add_link_mode(cmd, supported,
+							     10baseT_Half);
+			ethtool_link_ksettings_add_link_mode(cmd, advertising,
+							     10baseT_Half);
+			break;
+		default:
+			break;
+		}
+
 		break;
 	case PORT_FIBRE:
 		ethtool_link_ksettings_add_link_mode(cmd, supported, FIBRE);
 		ethtool_link_ksettings_add_link_mode(cmd, advertising, FIBRE);
-		break;
-	default:
-		ethtool_link_ksettings_add_link_mode(cmd, supported, TP);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising, TP);
-		WARN_ON_ONCE(1);
-	}
 
-	/* partially does fall through, to also select lower speeds */
-	switch (maxspeed) {
-	case SPEED_25000:
-		ethtool_link_ksettings_add_link_mode(cmd, supported,
-						     25000baseSR_Full);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     25000baseSR_Full);
-		break;
-	case SPEED_10000:
-		ethtool_link_ksettings_add_link_mode(cmd, supported,
-						     10000baseT_Full);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     10000baseT_Full);
-		fallthrough;
-	case SPEED_1000:
-		ethtool_link_ksettings_add_link_mode(cmd, supported,
-						     1000baseT_Full);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     1000baseT_Full);
-		ethtool_link_ksettings_add_link_mode(cmd, supported,
-						     1000baseT_Half);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     1000baseT_Half);
-		fallthrough;
-	case SPEED_100:
-		ethtool_link_ksettings_add_link_mode(cmd, supported,
-						     100baseT_Full);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     100baseT_Full);
-		ethtool_link_ksettings_add_link_mode(cmd, supported,
-						     100baseT_Half);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     100baseT_Half);
-		fallthrough;
-	case SPEED_10:
-		ethtool_link_ksettings_add_link_mode(cmd, supported,
-						     10baseT_Full);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     10baseT_Full);
-		ethtool_link_ksettings_add_link_mode(cmd, supported,
-						     10baseT_Half);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     10baseT_Half);
+		switch (cmd->base.speed) {
+		case SPEED_25000:
+			ethtool_link_ksettings_add_link_mode(cmd, supported,
+							     25000baseSR_Full);
+			ethtool_link_ksettings_add_link_mode(cmd, advertising,
+							     25000baseSR_Full);
+			break;
+		case SPEED_10000:
+			if (link_mode == QETH_LINK_MODE_FIBRE_LONG) {
+				ethtool_link_ksettings_add_link_mode(cmd, supported,
+								     10000baseLR_Full);
+				ethtool_link_ksettings_add_link_mode(cmd, advertising,
+								     10000baseLR_Full);
+			} else if (link_mode == QETH_LINK_MODE_FIBRE_SHORT) {
+				ethtool_link_ksettings_add_link_mode(cmd, supported,
+								     10000baseSR_Full);
+				ethtool_link_ksettings_add_link_mode(cmd, advertising,
+								     10000baseSR_Full);
+			}
+			break;
+		case SPEED_1000:
+			ethtool_link_ksettings_add_link_mode(cmd, supported,
+							     1000baseX_Full);
+			ethtool_link_ksettings_add_link_mode(cmd, advertising,
+							     1000baseX_Full);
+			break;
+		default:
+			break;
+		}
+
 		break;
 	default:
-		ethtool_link_ksettings_add_link_mode(cmd, supported,
-						     10baseT_Full);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     10baseT_Full);
-		ethtool_link_ksettings_add_link_mode(cmd, supported,
-						     10baseT_Half);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     10baseT_Half);
-		WARN_ON_ONCE(1);
+		break;
 	}
 }
-
 
 static int qeth_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct qeth_card *card = netdev->ml_priv;
-	enum qeth_link_types link_type;
-	struct carrier_info carrier_info;
-	int rc;
+	struct qeth_link_info link_info;
 
-	if (IS_IQD(card) || IS_VM_NIC(card))
-		link_type = QETH_LINK_TYPE_10GBIT_ETH;
-	else
-		link_type = card->info.link_type;
-
-	cmd->base.duplex = DUPLEX_FULL;
+	cmd->base.speed = card->info.link_info.speed;
+	cmd->base.duplex = card->info.link_info.duplex;
+	cmd->base.port = card->info.link_info.port;
 	cmd->base.autoneg = AUTONEG_ENABLE;
 	cmd->base.phy_address = 0;
 	cmd->base.mdio_support = 0;
 	cmd->base.eth_tp_mdix = ETH_TP_MDI_INVALID;
 	cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI_INVALID;
 
-	switch (link_type) {
-	case QETH_LINK_TYPE_FAST_ETH:
-	case QETH_LINK_TYPE_LANE_ETH100:
-		cmd->base.speed = SPEED_100;
-		cmd->base.port = PORT_TP;
-		break;
-	case QETH_LINK_TYPE_GBIT_ETH:
-	case QETH_LINK_TYPE_LANE_ETH1000:
-		cmd->base.speed = SPEED_1000;
-		cmd->base.port = PORT_FIBRE;
-		break;
-	case QETH_LINK_TYPE_10GBIT_ETH:
-		cmd->base.speed = SPEED_10000;
-		cmd->base.port = PORT_FIBRE;
-		break;
-	case QETH_LINK_TYPE_25GBIT_ETH:
-		cmd->base.speed = SPEED_25000;
-		cmd->base.port = PORT_FIBRE;
-		break;
-	default:
-		cmd->base.speed = SPEED_10;
-		cmd->base.port = PORT_TP;
-	}
-	qeth_set_cmd_adv_sup(cmd, cmd->base.speed, cmd->base.port);
-
 	/* Check if we can obtain more accurate information.	 */
-	/* If QUERY_CARD_INFO command is not supported or fails, */
-	/* just return the heuristics that was filled above.	 */
-	rc = qeth_query_card_info(card, &carrier_info);
-	if (rc == -EOPNOTSUPP) /* for old hardware, return heuristic */
-		return 0;
-	if (rc) /* report error from the hardware operation */
-		return rc;
-	/* on success, fill in the information got from the hardware */
-
-	netdev_dbg(netdev,
-	"card info: card_type=0x%02x, port_mode=0x%04x, port_speed=0x%08x\n",
-			carrier_info.card_type,
-			carrier_info.port_mode,
-			carrier_info.port_speed);
-
-	/* Update attributes for which we've obtained more authoritative */
-	/* information, leave the rest the way they where filled above.  */
-	switch (carrier_info.card_type) {
-	case CARD_INFO_TYPE_1G_COPPER_A:
-	case CARD_INFO_TYPE_1G_COPPER_B:
-		cmd->base.port = PORT_TP;
-		qeth_set_cmd_adv_sup(cmd, SPEED_1000, cmd->base.port);
-		break;
-	case CARD_INFO_TYPE_1G_FIBRE_A:
-	case CARD_INFO_TYPE_1G_FIBRE_B:
-		cmd->base.port = PORT_FIBRE;
-		qeth_set_cmd_adv_sup(cmd, SPEED_1000, cmd->base.port);
-		break;
-	case CARD_INFO_TYPE_10G_FIBRE_A:
-	case CARD_INFO_TYPE_10G_FIBRE_B:
-		cmd->base.port = PORT_FIBRE;
-		qeth_set_cmd_adv_sup(cmd, SPEED_10000, cmd->base.port);
-		break;
+	if (!qeth_query_card_info(card, &link_info)) {
+		if (link_info.speed != SPEED_UNKNOWN)
+			cmd->base.speed = link_info.speed;
+		if (link_info.duplex != DUPLEX_UNKNOWN)
+			cmd->base.duplex = link_info.duplex;
+		if (link_info.port != PORT_OTHER)
+			cmd->base.port = link_info.port;
 	}
 
-	switch (carrier_info.port_mode) {
-	case CARD_INFO_PORTM_FULLDUPLEX:
-		cmd->base.duplex = DUPLEX_FULL;
-		break;
-	case CARD_INFO_PORTM_HALFDUPLEX:
-		cmd->base.duplex = DUPLEX_HALF;
-		break;
-	}
-
-	switch (carrier_info.port_speed) {
-	case CARD_INFO_PORTS_10M:
-		cmd->base.speed = SPEED_10;
-		break;
-	case CARD_INFO_PORTS_100M:
-		cmd->base.speed = SPEED_100;
-		break;
-	case CARD_INFO_PORTS_1G:
-		cmd->base.speed = SPEED_1000;
-		break;
-	case CARD_INFO_PORTS_10G:
-		cmd->base.speed = SPEED_10000;
-		break;
-	case CARD_INFO_PORTS_25G:
-		cmd->base.speed = SPEED_25000;
-		break;
-	}
+	qeth_set_ethtool_link_modes(cmd, card->info.link_info.link_mode);
 
 	return 0;
 }
@@ -536,11 +472,4 @@ const struct ethtool_ops qeth_ethtool_ops = {
 	.get_per_queue_coalesce = qeth_get_per_queue_coalesce,
 	.set_per_queue_coalesce = qeth_set_per_queue_coalesce,
 	.get_link_ksettings = qeth_get_link_ksettings,
-};
-
-const struct ethtool_ops qeth_osn_ethtool_ops = {
-	.get_strings = qeth_get_strings,
-	.get_ethtool_stats = qeth_get_ethtool_stats,
-	.get_sset_count = qeth_get_sset_count,
-	.get_drvinfo = qeth_get_drvinfo,
 };

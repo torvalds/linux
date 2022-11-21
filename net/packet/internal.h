@@ -77,11 +77,12 @@ struct packet_ring_buffer {
 };
 
 extern struct mutex fanout_mutex;
-#define PACKET_FANOUT_MAX	256
+#define PACKET_FANOUT_MAX	(1 << 16)
 
 struct packet_fanout {
 	possible_net_t		net;
 	unsigned int		num_members;
+	u32			max_num_members;
 	u16			id;
 	u8			type;
 	u8			flags;
@@ -90,10 +91,10 @@ struct packet_fanout {
 		struct bpf_prog __rcu	*bpf_prog;
 	};
 	struct list_head	list;
-	struct sock		*arr[PACKET_FANOUT_MAX];
 	spinlock_t		lock;
 	refcount_t		sk_ref;
 	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
+	struct sock	__rcu	*arr[];
 };
 
 struct packet_rollover {
@@ -138,7 +139,7 @@ struct packet_sock {
 	atomic_t		tp_drops ____cacheline_aligned_in_smp;
 };
 
-static struct packet_sock *pkt_sk(struct sock *sk)
+static inline struct packet_sock *pkt_sk(struct sock *sk)
 {
 	return (struct packet_sock *)sk;
 }

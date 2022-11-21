@@ -54,8 +54,8 @@
  *
  */
 	__HEAD
-_ENTRY(_stext);
-_ENTRY(_start);
+_GLOBAL(_stext);
+_GLOBAL(_start);
 	/*
 	 * Reserve a word at a fixed location to store the address
 	 * of abatron_pteptrs
@@ -79,7 +79,7 @@ _ENTRY(_start);
 	mr	r23,r3
 	mr	r25,r4
 
-	bl	0f
+	bcl	20,31,$+4
 0:	mflr	r8
 	addis	r3,r8,(is_second_reloc - 0b)@ha
 	lwz	r19,(is_second_reloc - 0b)@l(r3)
@@ -113,7 +113,7 @@ _ENTRY(_start);
 
 1:
 	/*
-	 * We have the runtime (virutal) address of our base.
+	 * We have the runtime (virtual) address of our base.
 	 * We calculate our shift of offset from a 64M page.
 	 * We could map the 64M page we belong to at PAGE_OFFSET and
 	 * get going from there.
@@ -154,7 +154,7 @@ _ENTRY(_start);
  * if needed
  */
 
-_ENTRY(__early_start)
+_GLOBAL(__early_start)
 	LOAD_REG_ADDR_PIC(r20, kernstart_virt_addr)
 	lwz     r20,0(r20)
 
@@ -187,9 +187,6 @@ set_ivor:
 
 	/* Setup the defaults for TLB entries */
 	li	r2,(MAS4_TSIZED(BOOK3E_PAGESZ_4K))@l
-#ifdef CONFIG_E200
-	oris	r2,r2,MAS4_TLBSELD(1)@h
-#endif
 	mtspr	SPRN_MAS4, r2
 
 #if !defined(CONFIG_BDI_SWITCH)
@@ -362,33 +359,30 @@ interrupt_base:
 	CRITICAL_EXCEPTION(0x0100, CRITICAL, CriticalInput, unknown_exception)
 
 	/* Machine Check Interrupt */
-#ifdef CONFIG_E200
-	/* no RFMCI, MCSRRs on E200 */
-	CRITICAL_EXCEPTION(0x0200, MACHINE_CHECK, MachineCheck, \
-			   machine_check_exception)
-#else
 	MCHECK_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
-#endif
 
 	/* Data Storage Interrupt */
 	START_EXCEPTION(DataStorage)
-	NORMAL_EXCEPTION_PROLOG(DATA_STORAGE)
-	mfspr	r5,SPRN_ESR		/* Grab the ESR, save it, pass arg3 */
+	NORMAL_EXCEPTION_PROLOG(0x300, DATA_STORAGE)
+	mfspr	r5,SPRN_ESR		/* Grab the ESR, save it */
 	stw	r5,_ESR(r11)
-	mfspr	r4,SPRN_DEAR		/* Grab the DEAR, save it, pass arg2 */
+	mfspr	r4,SPRN_DEAR		/* Grab the DEAR, save it */
+	stw	r4, _DEAR(r11)
 	andis.	r10,r5,(ESR_ILK|ESR_DLK)@h
 	bne	1f
-	stw	r4, _DEAR(r11)
-	EXC_XFER_LITE(0x0300, handle_page_fault)
+	prepare_transfer_to_handler
+	bl	do_page_fault
+	b	interrupt_return
 1:
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_LITE(0x0300, CacheLockingException)
+	prepare_transfer_to_handler
+	bl	CacheLockingException
+	b	interrupt_return
 
 	/* Instruction Storage Interrupt */
 	INSTRUCTION_STORAGE_EXCEPTION
 
 	/* External Input Interrupt */
-	EXCEPTION(0x0500, EXTERNAL, ExternalInput, do_IRQ, EXC_XFER_LITE)
+	EXCEPTION(0x0500, EXTERNAL, ExternalInput, do_IRQ)
 
 	/* Alignment Interrupt */
 	ALIGNMENT_EXCEPTION
@@ -400,14 +394,7 @@ interrupt_base:
 #ifdef CONFIG_PPC_FPU
 	FP_UNAVAILABLE_EXCEPTION
 #else
-#ifdef CONFIG_E200
-	/* E200 treats 'normal' floating point instructions as FP Unavail exception */
-	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, \
-		  program_check_exception, EXC_XFER_STD)
-#else
-	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, \
-		  unknown_exception, EXC_XFER_STD)
-#endif
+	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, unknown_exception)
 #endif
 
 	/* System Call Interrupt */
@@ -415,16 +402,14 @@ interrupt_base:
 	SYSCALL_ENTRY   0xc00 BOOKE_INTERRUPT_SYSCALL SPRN_SRR1
 
 	/* Auxiliary Processor Unavailable Interrupt */
-	EXCEPTION(0x2900, AP_UNAVAIL, AuxillaryProcessorUnavailable, \
-		  unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x2900, AP_UNAVAIL, AuxillaryProcessorUnavailable, unknown_exception)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
 
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
-	EXCEPTION(0x3100, FIT, FixedIntervalTimer, \
-		  unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x3100, FIT, FixedIntervalTimer, unknown_exception)
 
 	/* Watchdog Timer Interrupt */
 #ifdef CONFIG_BOOKE_WDT
@@ -477,6 +462,12 @@ END_BTB_FLUSH_SECTION
 	mfspr	r11,SPRN_SPRG_THREAD
 	lwz	r11,PGDIR(r11)
 
+#ifdef CONFIG_PPC_KUAP
+	mfspr	r12, SPRN_MAS1
+	rlwinm.	r12,r12,0,0x3fff0000
+	beq	2f			/* KUAP fault */
+#endif
+
 4:
 	/* Mask of required permission bits. Note that while we
 	 * do copy ESR:ST to _PAGE_RW position as trying to write
@@ -512,7 +503,7 @@ END_BTB_FLUSH_SECTION
 #endif
 #endif
 
-	bne	2f			/* Bail if permission/valid mismach */
+	bne	2f			/* Bail if permission/valid mismatch */
 
 	/* Jump to common tlb load */
 	b	finish_tlb_load
@@ -586,6 +577,12 @@ END_BTB_FLUSH_SECTION
 	mfspr	r11,SPRN_SPRG_THREAD
 	lwz	r11,PGDIR(r11)
 
+#ifdef CONFIG_PPC_KUAP
+	mfspr	r12, SPRN_MAS1
+	rlwinm.	r12,r12,0,0x3fff0000
+	beq	2f			/* KUAP fault */
+#endif
+
 	/* Make up the required permissions for user code */
 #ifdef CONFIG_PTE_64BIT
 	li	r13,_PAGE_PRESENT | _PAGE_BAP_UX
@@ -607,7 +604,7 @@ END_BTB_FLUSH_SECTION
 #endif
 #endif
 
-	bne	2f			/* Bail if permission mismach */
+	bne	2f			/* Bail if permission mismatch */
 
 	/* Jump to common TLB load point */
 	b	finish_tlb_load
@@ -625,42 +622,48 @@ END_BTB_FLUSH_SECTION
 	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	b	InstructionStorage
 
-/* Define SPE handlers for e200 and e500v2 */
+/* Define SPE handlers for e500v2 */
 #ifdef CONFIG_SPE
 	/* SPE Unavailable */
 	START_EXCEPTION(SPEUnavailable)
-	NORMAL_EXCEPTION_PROLOG(SPE_UNAVAIL)
+	NORMAL_EXCEPTION_PROLOG(0x2010, SPE_UNAVAIL)
 	beq	1f
 	bl	load_up_spe
 	b	fast_exception_return
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_LITE(0x2010, KernelSPE)
+1:	prepare_transfer_to_handler
+	bl	KernelSPE
+	b	interrupt_return
 #elif defined(CONFIG_SPE_POSSIBLE)
-	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, \
-		  unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, unknown_exception)
 #endif /* CONFIG_SPE_POSSIBLE */
 
 	/* SPE Floating Point Data */
 #ifdef CONFIG_SPE
-	EXCEPTION(0x2030, SPE_FP_DATA, SPEFloatingPointData,
-		  SPEFloatingPointException, EXC_XFER_STD)
+	START_EXCEPTION(SPEFloatingPointData)
+	NORMAL_EXCEPTION_PROLOG(0x2030, SPE_FP_DATA)
+	prepare_transfer_to_handler
+	bl	SPEFloatingPointException
+	REST_NVGPRS(r1)
+	b	interrupt_return
 
 	/* SPE Floating Point Round */
-	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
-		  SPEFloatingPointRoundException, EXC_XFER_STD)
+	START_EXCEPTION(SPEFloatingPointRound)
+	NORMAL_EXCEPTION_PROLOG(0x2050, SPE_FP_ROUND)
+	prepare_transfer_to_handler
+	bl	SPEFloatingPointRoundException
+	REST_NVGPRS(r1)
+	b	interrupt_return
 #elif defined(CONFIG_SPE_POSSIBLE)
-	EXCEPTION(0x2040, SPE_FP_DATA, SPEFloatingPointData,
-		  unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
-		  unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x2040, SPE_FP_DATA, SPEFloatingPointData, unknown_exception)
+	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, unknown_exception)
 #endif /* CONFIG_SPE_POSSIBLE */
 
 
 	/* Performance Monitor */
 	EXCEPTION(0x2060, PERFORMANCE_MONITOR, PerformanceMonitor, \
-		  performance_monitor_exception, EXC_XFER_STD)
+		  performance_monitor_exception)
 
-	EXCEPTION(0x2070, DOORBELL, Doorbell, doorbell_exception, EXC_XFER_STD)
+	EXCEPTION(0x2070, DOORBELL, Doorbell, doorbell_exception)
 
 	CRITICAL_EXCEPTION(0x2080, DOORBELL_CRITICAL, \
 			   CriticalDoorbell, unknown_exception)
@@ -675,10 +678,10 @@ END_BTB_FLUSH_SECTION
 			   unknown_exception)
 
 	/* Hypercall */
-	EXCEPTION(0, HV_SYSCALL, Hypercall, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0, HV_SYSCALL, Hypercall, unknown_exception)
 
 	/* Embedded Hypervisor Privilege */
-	EXCEPTION(0, HV_PRIV, Ehvpriv, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0, HV_PRIV, Ehvpriv, unknown_exception)
 
 interrupt_end:
 
@@ -786,6 +789,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 	andi.	r10, r11, _PAGE_USER	/* Test for _PAGE_USER */
 	slwi	r10, r12, 1
 	or	r10, r10, r12
+	rlwinm	r10, r10, 0, ~_PAGE_EXEC	/* Clear SX on user pages */
 	iseleq	r12, r12, r10
 	rlwimi	r13, r12, 0, 20, 31	/* Get RPN from PTE, merge w/ perms */
 	mtspr	SPRN_MAS3, r13
@@ -806,31 +810,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 	andc	r12, r12, r13		/* mask off ea bits within the page */
 #endif
 3:	mtspr	SPRN_MAS2, r12
-
-#ifdef CONFIG_E200
-	/* Round robin TLB1 entries assignment */
-	mfspr	r12, SPRN_MAS0
-
-	/* Extract TLB1CFG(NENTRY) */
-	mfspr	r11, SPRN_TLB1CFG
-	andi.	r11, r11, 0xfff
-
-	/* Extract MAS0(NV) */
-	andi.	r13, r12, 0xfff
-	addi	r13, r13, 1
-	cmpw	0, r13, r11
-	addi	r12, r12, 1
-
-	/* check if we need to wrap */
-	blt	7f
-
-	/* wrap back to first free tlbcam entry */
-	lis	r13, tlbcam_index@ha
-	lwz	r13, tlbcam_index@l(r13)
-	rlwimi	r12, r13, 0, 20, 31
-7:
-	mtspr	SPRN_MAS0,r12
-#endif /* CONFIG_E200 */
 
 tlb_write_entry:
 	tlbwe
@@ -892,9 +871,9 @@ KernelSPE:
 	ori	r3,r3,87f@l
 	mr	r4,r2		/* current */
 	lwz	r5,_NIP(r1)
-	bl	printk
+	bl	_printk
 #endif
-	b	ret_from_except
+	b	interrupt_return
 #ifdef CONFIG_PRINTK
 87:	.string	"SPE used in kernel  (task=%p, pc=%x)  \n"
 #endif
@@ -932,21 +911,6 @@ get_phys_addr:
 /*
  * Global functions
  */
-
-#ifdef CONFIG_E200
-/* Adjust or setup IVORs for e200 */
-_GLOBAL(__setup_e200_ivors)
-	li	r3,DebugDebug@l
-	mtspr	SPRN_IVOR15,r3
-	li	r3,SPEUnavailable@l
-	mtspr	SPRN_IVOR32,r3
-	li	r3,SPEFloatingPointData@l
-	mtspr	SPRN_IVOR33,r3
-	li	r3,SPEFloatingPointRound@l
-	mtspr	SPRN_IVOR34,r3
-	sync
-	blr
-#endif
 
 #ifdef CONFIG_E500
 #ifndef CONFIG_PPC_E500MC
@@ -1033,20 +997,6 @@ _GLOBAL(abort)
 	lis	r13,(DBCR0_IDM|DBCR0_RST_CHIP)@h
 	mtspr	SPRN_DBCR0,r13
 	isync
-
-_GLOBAL(set_context)
-
-#ifdef CONFIG_BDI_SWITCH
-	/* Context switch the PTE pointer for the Abatron BDI2000.
-	 * The PGDIR is the second parameter.
-	 */
-	lis	r5, abatron_pteptrs@h
-	ori	r5, r5, abatron_pteptrs@l
-	stw	r4, 0x4(r5)
-#endif
-	mtspr	SPRN_PID,r3
-	isync			/* Force context change */
-	blr
 
 #ifdef CONFIG_SMP
 /* When we get here, r24 needs to hold the CPU # */
@@ -1195,7 +1145,7 @@ _GLOBAL(switch_to_as1)
 	bne	1b
 
 	/* Get the tlb entry used by the current running code */
-	bl	0f
+	bcl	20,31,$+4
 0:	mflr	r4
 	tlbsx	0,r4
 
@@ -1229,7 +1179,7 @@ _GLOBAL(switch_to_as1)
 _GLOBAL(restore_to_as0)
 	mflr	r0
 
-	bl	0f
+	bcl	20,31,$+4
 0:	mflr	r9
 	addi	r9,r9,1f - 0b
 
@@ -1275,26 +1225,3 @@ _GLOBAL(restore_to_as0)
 	*/
 3:	mr	r3,r5
 	bl	_start
-
-/*
- * We put a few things here that have to be page-aligned. This stuff
- * goes at the beginning of the data segment, which is page-aligned.
- */
-	.data
-	.align	12
-	.globl	sdata
-sdata:
-	.globl	empty_zero_page
-empty_zero_page:
-	.space	4096
-EXPORT_SYMBOL(empty_zero_page)
-	.globl	swapper_pg_dir
-swapper_pg_dir:
-	.space	PGD_TABLE_SIZE
-
-/*
- * Room for two PTE pointers, usually the kernel and current user pointers
- * to their respective root page table.
- */
-abatron_pteptrs:
-	.space	8

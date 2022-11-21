@@ -1,0 +1,175 @@
+// SPDX-License-Identifier: ISC
+/*
+ * Device Tree file for the Linksys WRV54G router
+ * Also known as Gemtek GTWX5715
+ * Based on a board file by George T. Joseph and other patches.
+ * This machine is based on IXP425.
+ */
+
+/dts-v1/;
+
+#include "intel-ixp42x.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "Linksys WRV54G / Gemtek GTWX5715";
+	compatible = "linksys,wrv54g", "gemtek,gtwx5715", "intel,ixp42x";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory@0 {
+		/* 32 MB memory */
+		device_type = "memory";
+		reg = <0x00000000 0x2000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+		stdout-path = "uart1:115200n8";
+	};
+
+	aliases {
+		/* UART2 is the primary console */
+		serial0 = &uart1;
+		serial1 = &uart0;
+	};
+
+	/* There is an unpopulated LED slot (3) connected to GPIO 8 */
+	leds {
+		compatible = "gpio-leds";
+		led-power {
+			label = "wrv54g:yellow:power";
+			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+		led-wireless {
+			label = "wrv54g:yellow:wireless";
+			gpios = <&gpio0 9 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+		led-internet {
+			label = "wrv54g:yellow:internet";
+			gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+		led-dmz {
+			label = "wrv54g:green:dmz";
+			gpios = <&gpio0 4 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+	};
+
+	/* This set-up comes from an OpenWrt patch */
+	spi {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sck-gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+		num-chipselects = <1>;
+
+		switch@0 {
+			compatible = "micrel,ks8995";
+			reg = <0>;
+			spi-max-frequency = <50000000>;
+		};
+	};
+
+	soc {
+		bus@c4000000 {
+			flash@0,0 {
+				compatible = "intel,ixp4xx-flash", "cfi-flash";
+				bank-width = <2>;
+				/* Enable writes on the expansion bus */
+				intel,ixp4xx-eb-write-enable = <1>;
+				/* 8 MB of Flash mapped in at CS0 */
+				reg = <0 0x00000000 0x00800000>;
+
+				partitions {
+					compatible = "fixed-partitions";
+					/*
+					 * Partition info from a boot log
+					 * CHECKME: not using redboot? FIS index 0x3f @7e00000?
+					 */
+					#address-cells = <1>;
+					#size-cells = <1>;
+					partition@0 {
+						label = "boot";
+						reg = <0x0 0x140000>;
+						read-only;
+					};
+					partition@140000 {
+						label = "linux";
+						reg = <0x140000 0x100000>;
+						read-only;
+					};
+					partition@240000 {
+						label = "root";
+						reg = <0x240000 0x480000>;
+						read-write;
+					};
+				};
+			};
+		};
+
+		pci@c0000000 {
+			status = "ok";
+
+			/*
+			 * We have up to 2 slots (IDSEL) with 2 swizzled IRQs.
+			 * Derived from the GTWX5715 PCI boardfile.
+			 */
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map =
+			/* IDSEL 0 */
+			<0x0000 0 0 1 &gpio0 10 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 0 is irq 10 */
+			<0x0000 0 0 2 &gpio0 11 IRQ_TYPE_LEVEL_LOW>, /* INT B on slot 0 is irq 11 */
+			/* IDSEL 1 */
+			<0x0800 0 0 1 &gpio0 11 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 1 is irq 11 */
+			<0x0800 0 0 2 &gpio0 10 IRQ_TYPE_LEVEL_LOW>; /* INT B on slot 1 is irq 10 */
+		};
+
+		/*
+		 * EthB - connected to the KS8995 switch ports 1-4
+		 * FIXME: the boardfile defines .phy_mask = 0x1e for this port to enable output to
+		 * all four switch ports, also using an out of tree multiphy patch.
+		 * Do we need a new binding and property for this?
+		 */
+		ethernet@c8009000 {
+			status = "ok";
+			queue-rx = <&qmgr 3>;
+			queue-txready = <&qmgr 20>;
+			phy-mode = "rgmii";
+			phy-handle = <&phy4>;
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/* Should be ports 1-4 on the KS8995 switch */
+				phy4: ethernet-phy@4 {
+					reg = <4>;
+				};
+
+				/* Should be port 5 on the KS8995 switch */
+				phy5: ethernet-phy@5 {
+					reg = <5>;
+				};
+			};
+		};
+
+		/* EthC - connected to KS8995 switch port 5 */
+		ethernet@c800a000 {
+			status = "ok";
+			queue-rx = <&qmgr 4>;
+			queue-txready = <&qmgr 21>;
+			phy-mode = "rgmii";
+			phy-handle = <&phy5>;
+		};
+	};
+};

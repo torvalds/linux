@@ -12,7 +12,10 @@
 #include <dt-bindings/pwm/pwm.h>
 
 / {
+	chassis-type = "handset";
+
 	aliases {
+		ethernet0 = &rtl8723cs;
 		serial0 = &uart0;
 	};
 
@@ -20,7 +23,13 @@
 		compatible = "pwm-backlight";
 		pwms = <&r_pwm 0 50000 PWM_POLARITY_INVERTED>;
 		enable-gpios = <&pio 7 10 GPIO_ACTIVE_HIGH>; /* PH10 */
+		power-supply = <&reg_ps>;
 		/* Backlight configuration differs per PinePhone revision. */
+	};
+
+	bt_sco_codec: bt-sco-codec {
+		#sound-dai-cells = <1>;
+		compatible = "linux,bt-sco";
 	};
 
 	chosen {
@@ -30,22 +39,48 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led-0 {
 			function = LED_FUNCTION_INDICATOR;
 			color = <LED_COLOR_ID_BLUE>;
 			gpios = <&pio 3 20 GPIO_ACTIVE_HIGH>; /* PD20 */
 		};
 
-		green {
+		led-1 {
 			function = LED_FUNCTION_INDICATOR;
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&pio 3 18 GPIO_ACTIVE_HIGH>; /* PD18 */
 		};
 
-		red {
+		led-2 {
 			function = LED_FUNCTION_INDICATOR;
 			color = <LED_COLOR_ID_RED>;
 			gpios = <&pio 3 19 GPIO_ACTIVE_HIGH>; /* PD19 */
+		};
+	};
+
+	reg_ps: ps-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "ps";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
+
+	reg_vbat_wifi: vbat-wifi {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "vbat-wifi";
+	};
+
+	sgm3140: led-controller {
+		compatible = "sgmicro,sgm3140";
+		vin-supply = <&reg_dcdc1>;
+
+		sgm3140_flash: led {
+			function = LED_FUNCTION_FLASH;
+			color = <LED_COLOR_ID_WHITE>;
+			flash-max-timeout-us = <250000>;
 		};
 	};
 
@@ -63,6 +98,8 @@
 };
 
 &codec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&aif3_pins>;
 	status = "okay";
 };
 
@@ -142,15 +179,23 @@
 	status = "okay";
 
 	/* Magnetometer */
-	lis3mdl: lis3mdl@1e {
+	lis3mdl: magnetometer@1e {
 		compatible = "st,lis3mdl-magn";
 		reg = <0x1e>;
 		vdd-supply = <&reg_dldo1>;
 		vddio-supply = <&reg_dldo1>;
 	};
 
+	/* Light/proximity sensor */
+	light-sensor@48 {
+		compatible = "sensortek,stk3311";
+		reg = <0x48>;
+		interrupt-parent = <&pio>;
+		interrupts = <1 0 IRQ_TYPE_EDGE_FALLING>; /* PB0 */
+	};
+
 	/* Accelerometer/gyroscope */
-	mpu6050@68 {
+	accelerometer@68 {
 		compatible = "invensense,mpu6050";
 		reg = <0x68>;
 		interrupt-parent = <&pio>;
@@ -167,6 +212,7 @@
 
 &lradc {
 	vref-supply = <&reg_aldo3>;
+	wakeup-source;
 	status = "okay";
 
 	button-200 {
@@ -193,6 +239,20 @@
 	disable-wp;
 	bus-width = <4>;
 	status = "okay";
+};
+
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+	vmmc-supply = <&reg_vbat_wifi>;
+	vqmmc-supply = <&reg_dldo4>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
+
+	rtl8723cs: wifi@1 {
+		reg = <1>;
+	};
 };
 
 &mmc2 {
@@ -245,15 +305,11 @@
 		compatible = "x-powers,axp803";
 		reg = <0x3a3>;
 		interrupt-parent = <&r_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
 #include "axp803.dtsi"
-
-&ac_power_supply {
-	status = "okay";
-};
 
 &battery_power_supply {
 	status = "okay";
@@ -274,8 +330,8 @@
 
 &reg_aldo3 {
 	regulator-always-on;
-	regulator-min-microvolt = <2700000>;
-	regulator-max-microvolt = <3300000>;
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
 	regulator-name = "vcc-pll-avcc";
 };
 
@@ -379,6 +435,7 @@
 
 &sound {
 	status = "okay";
+	simple-audio-card,name = "PinePhone";
 	simple-audio-card,aux-devs = <&codec_analog>, <&speaker_amp>;
 	simple-audio-card,widgets = "Microphone", "Headset Microphone",
 				    "Microphone", "Internal Microphone",
@@ -400,12 +457,42 @@
 			"MIC1", "Internal Microphone",
 			"Headset Microphone", "HBIAS",
 			"MIC2", "Headset Microphone";
+
+	simple-audio-card,dai-link@2 {
+		format = "dsp_a";
+		frame-master = <&link2_codec>;
+		bitclock-master = <&link2_codec>;
+		bitclock-inversion;
+
+		link2_cpu: cpu {
+			sound-dai = <&bt_sco_codec 0>;
+		};
+
+		link2_codec: codec {
+			sound-dai = <&codec 2>;
+			dai-tdm-slot-num = <1>;
+			dai-tdm-slot-width = <32>;
+		};
+	};
 };
 
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
+	status = "okay";
+
+	bluetooth {
+		compatible = "realtek,rtl8723cs-bt";
+		device-wake-gpios = <&pio 7 6 GPIO_ACTIVE_LOW>; /* PH6 */
+		enable-gpios = <&r_pio 0 4 GPIO_ACTIVE_HIGH>; /* PL4 */
+		host-wake-gpios = <&r_pio 0 5 GPIO_ACTIVE_HIGH>; /* PL5 */
+	};
 };
 
 /* Connected to the modem (hardware flow control can't be used) */

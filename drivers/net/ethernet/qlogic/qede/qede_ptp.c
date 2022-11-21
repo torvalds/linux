@@ -304,11 +304,6 @@ int qede_ptp_hw_ts(struct qede_dev *edev, struct ifreq *ifr)
 		   "HWTSTAMP IOCTL: Requested tx_type = %d, requested rx_filters = %d\n",
 		   config.tx_type, config.rx_filter);
 
-	if (config.flags) {
-		DP_ERR(edev, "config.flags is reserved for future use\n");
-		return -EINVAL;
-	}
-
 	ptp->hw_ts_ioctl_called = 1;
 	ptp->tx_type = config.tx_type;
 	ptp->rx_filter = config.rx_filter;

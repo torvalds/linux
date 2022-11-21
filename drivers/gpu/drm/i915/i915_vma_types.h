@@ -95,14 +95,30 @@ enum i915_cache_level;
  *
  */
 
+struct i915_vma_resource;
+
 struct intel_remapped_plane_info {
 	/* in gtt pages */
-	unsigned int width, height, stride, offset;
+	u32 offset:31;
+	u32 linear:1;
+	union {
+		/* in gtt pages for !linear */
+		struct {
+			u16 width;
+			u16 height;
+			u16 src_stride;
+			u16 dst_stride;
+		};
+
+		/* in gtt pages for linear */
+		u32 size;
+	};
 } __packed;
 
 struct intel_remapped_info {
-	struct intel_remapped_plane_info plane[2];
-	unsigned int unused_mbz;
+	struct intel_remapped_plane_info plane[4];
+	/* in gtt pages */
+	u32 plane_alignment;
 } __packed;
 
 struct intel_rotation_info {
@@ -123,9 +139,9 @@ enum i915_ggtt_view_type {
 
 static inline void assert_i915_gem_gtt_types(void)
 {
-	BUILD_BUG_ON(sizeof(struct intel_rotation_info) != 8*sizeof(unsigned int));
+	BUILD_BUG_ON(sizeof(struct intel_rotation_info) != 2 * sizeof(u32) + 8 * sizeof(u16));
 	BUILD_BUG_ON(sizeof(struct intel_partial_info) != sizeof(u64) + sizeof(unsigned int));
-	BUILD_BUG_ON(sizeof(struct intel_remapped_info) != 9*sizeof(unsigned int));
+	BUILD_BUG_ON(sizeof(struct intel_remapped_info) != 5 * sizeof(u32) + 16 * sizeof(u16));
 
 	/* Check that rotation/remapped shares offsets for simplicity */
 	BUILD_BUG_ON(offsetof(struct intel_remapped_info, plane[0]) !=
@@ -173,7 +189,6 @@ struct i915_vma {
 	const struct i915_vma_ops *ops;
 
 	struct drm_i915_gem_object *obj;
-	struct dma_resv *resv; /** Alias of obj->resv */
 
 	struct sg_table *pages;
 	void __iomem *iomap;
@@ -234,27 +249,27 @@ struct i915_vma {
 
 #define I915_VMA_BIND_MASK (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND)
 
-#define I915_VMA_ALLOC_BIT	12
-
-#define I915_VMA_ERROR_BIT	13
+#define I915_VMA_ERROR_BIT	12
 #define I915_VMA_ERROR		((int)BIT(I915_VMA_ERROR_BIT))
 
-#define I915_VMA_GGTT_BIT	14
-#define I915_VMA_CAN_FENCE_BIT	15
-#define I915_VMA_USERFAULT_BIT	16
-#define I915_VMA_GGTT_WRITE_BIT	17
+#define I915_VMA_GGTT_BIT	13
+#define I915_VMA_CAN_FENCE_BIT	14
+#define I915_VMA_USERFAULT_BIT	15
+#define I915_VMA_GGTT_WRITE_BIT	16
 
 #define I915_VMA_GGTT		((int)BIT(I915_VMA_GGTT_BIT))
 #define I915_VMA_CAN_FENCE	((int)BIT(I915_VMA_CAN_FENCE_BIT))
 #define I915_VMA_USERFAULT	((int)BIT(I915_VMA_USERFAULT_BIT))
 #define I915_VMA_GGTT_WRITE	((int)BIT(I915_VMA_GGTT_WRITE_BIT))
 
+#define I915_VMA_SCANOUT_BIT	17
+#define I915_VMA_SCANOUT	((int)BIT(I915_VMA_SCANOUT_BIT))
+
 	struct i915_active active;
 
 #define I915_VMA_PAGES_BIAS 24
 #define I915_VMA_PAGES_ACTIVE (BIT(24) | 1)
 	atomic_t pages_count; /* number of active binds to the pages */
-	struct mutex pages_mutex; /* protect acquire/release of backing pages */
 
 	/**
 	 * Support different GGTT views into the same object.
@@ -276,7 +291,9 @@ struct i915_vma {
 	struct list_head evict_link;
 
 	struct list_head closed_link;
+
+	/** The async vma resource. Protected by the vm_mutex */
+	struct i915_vma_resource *resource;
 };
 
 #endif
-

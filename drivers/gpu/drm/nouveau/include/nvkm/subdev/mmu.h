@@ -15,7 +15,6 @@ struct nvkm_vma {
 	u8   refd:3; /* Current page type (index, or NONE for unreferenced). */
 	bool used:1; /* Region allocated. */
 	bool part:1; /* Region was split from an allocated region by map(). */
-	bool user:1; /* Region user-allocated. */
 	bool busy:1; /* Region busy (for temporarily preventing user access). */
 	bool mapped:1; /* Region contains valid pages. */
 	struct nvkm_memory *memory; /* Memory currently mapped into VMA. */
@@ -117,22 +116,24 @@ struct nvkm_mmu {
 		struct list_head list;
 	} ptc, ptp;
 
+	struct mutex mutex; /* serialises mmu invalidations */
+
 	struct nvkm_device_oclass user;
 };
 
-int nv04_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int nv41_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int nv44_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int nv50_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int g84_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int mcp77_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gf100_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gk104_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gk20a_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gm200_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gm20b_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gp100_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gp10b_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gv100_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int tu102_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
+int nv04_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int nv41_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int nv44_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int nv50_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int g84_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int mcp77_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gf100_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gk104_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gk20a_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gm200_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gm20b_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gp100_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gp10b_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gv100_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int tu102_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
 #endif

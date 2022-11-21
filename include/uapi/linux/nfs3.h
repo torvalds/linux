@@ -63,6 +63,12 @@ enum nfs3_ftype {
 	NF3BAD  = 8
 };
 
+enum nfs3_time_how {
+	DONT_CHANGE		= 0,
+	SET_TO_SERVER_TIME	= 1,
+	SET_TO_CLIENT_TIME	= 2,
+};
+
 struct nfs3_fh {
 	unsigned short size;
 	unsigned char  data[NFS3_FHSIZE];

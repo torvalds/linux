@@ -26,12 +26,16 @@
  * @dev:	cec device
  * @cdev:	cec character device
  * @minor:	device node minor number
+ * @lock:	lock to serialize open/release and registration
  * @registered:	the device was correctly registered
  * @unregistered: the device was unregistered
- * @fhs_lock:	lock to control access to the filehandle list
+ * @lock_fhs:	lock to control access to @fhs
  * @fhs:	the list of open filehandles (cec_fh)
  *
  * This structure represents a cec-related device node.
+ *
+ * To add or remove filehandles from @fhs the @lock must be taken first,
+ * followed by @lock_fhs. It is safe to access @fhs if either lock is held.
  *
  * The @parent is a physical device. It must be set by core or device drivers
  * before registering the node.
@@ -43,10 +47,13 @@ struct cec_devnode {
 
 	/* device info */
 	int minor;
+	/* serialize open/release and registration */
+	struct mutex lock;
 	bool registered;
 	bool unregistered;
+	/* protect access to fhs */
+	struct mutex lock_fhs;
 	struct list_head fhs;
-	struct mutex lock;
 };
 
 struct cec_adapter;

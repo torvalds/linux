@@ -108,9 +108,10 @@ displayed as follows:
 
 	perf script --itrace=ibxwpe -F+flags
 
-The flags are "bcrosyiABEx" which stand for branch, call, return, conditional,
-system, asynchronous, interrupt, transaction abort, trace begin, trace end, and
-in transaction, respectively.
+The flags are "bcrosyiABExghDt" which stand for branch, call, return, conditional,
+system, asynchronous, interrupt, transaction abort, trace begin, trace end,
+in transaction, VM-entry, VM-exit, interrupt disabled, and interrupt disable
+toggle respectively.
 
 perf script also supports higher level ways to dump instruction traces:
 
@@ -157,6 +158,17 @@ of instructions and number of cycles since the last update, and thus represent
 the average IPC since the last IPC for that event type.  Note IPC for "branches"
 events is calculated separately from IPC for "instructions" events.
 
+Even with the 'cyc' config term, it is possible to produce IPC information for
+every change of timestamp, but at the expense of accuracy.  That is selected by
+specifying the itrace 'A' option.  Due to the granularity of timestamps, the
+actual number of cycles increases even though the cycles reported does not.
+The number of instructions is known, but if IPC is reported, cycles can be too
+low and so IPC is too high.  Note that inaccuracy decreases as the period of
+sampling increases i.e. if the number of cycles is too low by a small amount,
+that becomes less significant if the number of cycles is large.  It may also be
+useful to use the 'A' option in conjunction with dlfilter-show-cycles.so to
+provide higher granularity cycle information.
+
 Also note that the IPC instruction count may or may not include the current
 instruction.  If the cycle count is associated with an asynchronous branch
 (e.g. page fault or interrupt), then the instruction count does not include the
@@ -174,7 +186,11 @@ Refer to script export-to-sqlite.py or export-to-postgresql.py for more details,
 and to script exported-sql-viewer.py for an example of using the database.
 
 There is also script intel-pt-events.py which provides an example of how to
-unpack the raw data for power events and PTWRITE.
+unpack the raw data for power events and PTWRITE. The script also displays
+branches, and supports 2 additional modes selected by option:
+
+ --insn-trace - instruction trace
+ --src-trace - source trace
 
 As mentioned above, it is easy to capture too much data.  One way to limit the
 data captured is to use 'snapshot' mode which is explained further below.
@@ -464,6 +480,30 @@ pwr_evt		Enable power events.  The power events provide information about
 		Support for this feature is indicated by:
 
 			/sys/bus/event_source/devices/intel_pt/caps/power_event_trace
+
+		which contains "1" if the feature is supported and
+		"0" otherwise.
+
+event		Enable Event Trace.  The events provide information about asynchronous
+		events.
+
+		Support for this feature is indicated by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/event_trace
+
+		which contains "1" if the feature is supported and
+		"0" otherwise.
+
+notnt		Disable TNT packets.  Without TNT packets, it is not possible to walk
+		executable code to reconstruct control flow, however FUP, TIP, TIP.PGE
+		and TIP.PGD packets still indicate asynchronous control flow, and (if
+		return compression is disabled - see noretcomp) return statements.
+		The advantage of eliminating TNT packets is reducing the size of the
+		trace and corresponding tracing overhead.
+
+		Support for this feature is indicated by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/tnt_disable
 
 		which contains "1" if the feature is supported and
 		"0" otherwise.
@@ -858,9 +898,11 @@ The letters are:
 	b	synthesize "branches" events
 	x	synthesize "transactions" events
 	w	synthesize "ptwrite" events
-	p	synthesize "power" events
+	p	synthesize "power" events (incl. PSB events)
 	c	synthesize branches events (calls only)
 	r	synthesize branches events (returns only)
+	o	synthesize PEBS-via-PT events
+	I	synthesize Event Trace events
 	e	synthesize tracing error events
 	d	create a debug log
 	g	synthesize a call chain (use with i or x)
@@ -869,6 +911,8 @@ The letters are:
 	L	synthesize last branch entries on existing event records
 	s	skip initial number of events
 	q	quicker (less detailed) decoding
+	A	approximate IPC
+	Z	prefer to ignore timestamps (so-called "timeless" decoding)
 
 "Instructions" events look like they were recorded by "perf record -e
 instructions".
@@ -878,7 +922,7 @@ and "r" can be combined to get calls and returns.
 
 "Transactions" events correspond to the start or end of transactions. The
 'flags' field can be used in perf script to determine whether the event is a
-tranasaction start, commit or abort.
+transaction start, commit or abort.
 
 Note that "instructions", "branches" and "transactions" events depend on code
 flow packets which can be disabled by using the config term "branch=0".  Refer
@@ -913,6 +957,11 @@ Where:
 For more details refer to the Intel 64 and IA-32 Architectures Software
 Developer Manuals.
 
+PSB events show when a PSB+ occurred and also the byte-offset in the trace.
+Emitting a PSB+ can cause a CPU a slight delay. When doing timing analysis
+of code with Intel PT, it is useful to know if a timing bubble was caused
+by Intel PT or not.
+
 Error events show where the decoder lost the trace.  Error events
 are quite important.  Users must know if what they are seeing is a complete
 picture or not. The "e" option may be followed by flags which affect what errors
@@ -931,6 +980,7 @@ by flags which affect what debug messages will or will not be logged. Each flag
 must be preceded by either '+' or '-'. The flags support by Intel PT are:
 		-a	Suppress logging of perf events
 		+a	Log all perf events
+		+o	Output to stdout instead of "intel_pt.log"
 By default, logged perf events are filtered by any specified time ranges, but
 flag +a overrides that.
 
@@ -1057,6 +1107,25 @@ What *will* be decoded with the qq option:
 
 	- instruction pointer associated with PSB packets
 
+The Z option is equivalent to having recorded a trace without TSC
+(i.e. config term tsc=0). It can be useful to avoid timestamp issues when
+decoding a trace of a virtual machine.
+
+
+dlfilter-show-cycles.so
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Cycles can be displayed using dlfilter-show-cycles.so in which case the itrace A
+option can be useful to provide higher granularity cycle information:
+
+	perf script --itrace=A --call-trace --dlfilter dlfilter-show-cycles.so
+
+To see a list of dlfilters:
+
+	perf script -v --list-dlfilters
+
+See also linkperf:perf-dlfilters[1]
+
 
 dump option
 ~~~~~~~~~~~
@@ -1130,7 +1199,12 @@ Recording is selected by using the aux-output config term e.g.
 
 	perf record -c 10000 -e '{intel_pt/branch=0/,cycles/aux-output/ppp}' uname
 
-Note that currently, software only supports redirecting at most one PEBS event.
+Originally, software only supported redirecting at most one PEBS event because it
+was not able to differentiate one event from another. To overcome that, more recent
+kernels and perf tools add support for the PERF_RECORD_AUX_OUTPUT_HW_ID side-band event.
+To check for the presence of that event in a PEBS-via-PT trace:
+
+	perf script -D --no-itrace | grep PERF_RECORD_AUX_OUTPUT_HW_ID
 
 To display PEBS events from the Intel PT trace, use the itrace 'o' option e.g.
 
@@ -1140,6 +1214,263 @@ XED
 ---
 
 include::build-xed.txt[]
+
+
+Tracing Virtual Machines
+------------------------
+
+Currently, only kernel tracing is supported and only with either "timeless" decoding
+(i.e. no TSC timestamps) or VM Time Correlation. VM Time Correlation is an extra step
+using 'perf inject' and requires unchanging VMX TSC Offset and no VMX TSC Scaling.
+
+Other limitations and caveats
+
+ VMX controls may suppress packets needed for decoding resulting in decoding errors
+ VMX controls may block the perf NMI to the host potentially resulting in lost trace data
+ Guest kernel self-modifying code (e.g. jump labels or JIT-compiled eBPF) will result in decoding errors
+ Guest thread information is unknown
+ Guest VCPU is unknown but may be able to be inferred from the host thread
+ Callchains are not supported
+
+Example using "timeless" decoding
+
+Start VM
+
+ $ sudo virsh start kubuntu20.04
+ Domain kubuntu20.04 started
+
+Mount the guest file system.  Note sshfs needs -o direct_io to enable reading of proc files.  root access is needed to read /proc/kcore.
+
+ $ mkdir vm0
+ $ sshfs -o direct_io root@vm0:/ vm0
+
+Copy the guest /proc/kallsyms, /proc/modules and /proc/kcore
+
+ $ perf buildid-cache -v --kcore vm0/proc/kcore
+ kcore added to build-id cache directory /home/user/.debug/[kernel.kcore]/9600f316a53a0f54278885e8d9710538ec5f6a08/2021021807494306
+ $ KALLSYMS=/home/user/.debug/[kernel.kcore]/9600f316a53a0f54278885e8d9710538ec5f6a08/2021021807494306/kallsyms
+
+Find the VM process
+
+ $ ps -eLl | grep 'KVM\|PID'
+ F S   UID     PID    PPID     LWP  C PRI  NI ADDR SZ WCHAN  TTY          TIME CMD
+ 3 S 64055    1430       1    1440  1  80   0 - 1921718 -    ?        00:02:47 CPU 0/KVM
+ 3 S 64055    1430       1    1441  1  80   0 - 1921718 -    ?        00:02:41 CPU 1/KVM
+ 3 S 64055    1430       1    1442  1  80   0 - 1921718 -    ?        00:02:38 CPU 2/KVM
+ 3 S 64055    1430       1    1443  2  80   0 - 1921718 -    ?        00:03:18 CPU 3/KVM
+
+Start an open-ended perf record, tracing the VM process, do something on the VM, and then ctrl-C to stop.
+TSC is not supported and tsc=0 must be specified.  That means mtc is useless, so add mtc=0.
+However, IPC can still be determined, hence cyc=1 can be added.
+Only kernel decoding is supported, so 'k' must be specified.
+Intel PT traces both the host and the guest so --guest and --host need to be specified.
+Without timestamps, --per-thread must be specified to distinguish threads.
+
+ $ sudo perf kvm --guest --host --guestkallsyms $KALLSYMS record --kcore -e intel_pt/tsc=0,mtc=0,cyc=1/k -p 1430 --per-thread
+ ^C
+ [ perf record: Woken up 1 times to write data ]
+ [ perf record: Captured and wrote 5.829 MB ]
+
+perf script can be used to provide an instruction trace
+
+ $ perf script --guestkallsyms $KALLSYMS --insn-trace --xed -F+ipc | grep -C10 vmresume | head -21
+       CPU 0/KVM  1440  ffffffff82133cdd __vmx_vcpu_run+0x3d ([kernel.kallsyms])                movq  0x48(%rax), %r9
+       CPU 0/KVM  1440  ffffffff82133ce1 __vmx_vcpu_run+0x41 ([kernel.kallsyms])                movq  0x50(%rax), %r10
+       CPU 0/KVM  1440  ffffffff82133ce5 __vmx_vcpu_run+0x45 ([kernel.kallsyms])                movq  0x58(%rax), %r11
+       CPU 0/KVM  1440  ffffffff82133ce9 __vmx_vcpu_run+0x49 ([kernel.kallsyms])                movq  0x60(%rax), %r12
+       CPU 0/KVM  1440  ffffffff82133ced __vmx_vcpu_run+0x4d ([kernel.kallsyms])                movq  0x68(%rax), %r13
+       CPU 0/KVM  1440  ffffffff82133cf1 __vmx_vcpu_run+0x51 ([kernel.kallsyms])                movq  0x70(%rax), %r14
+       CPU 0/KVM  1440  ffffffff82133cf5 __vmx_vcpu_run+0x55 ([kernel.kallsyms])                movq  0x78(%rax), %r15
+       CPU 0/KVM  1440  ffffffff82133cf9 __vmx_vcpu_run+0x59 ([kernel.kallsyms])                movq  (%rax), %rax
+       CPU 0/KVM  1440  ffffffff82133cfc __vmx_vcpu_run+0x5c ([kernel.kallsyms])                callq  0xffffffff82133c40
+       CPU 0/KVM  1440  ffffffff82133c40 vmx_vmenter+0x0 ([kernel.kallsyms])            jz 0xffffffff82133c46
+       CPU 0/KVM  1440  ffffffff82133c42 vmx_vmenter+0x2 ([kernel.kallsyms])            vmresume         IPC: 0.11 (50/445)
+           :1440  1440  ffffffffbb678b06 native_write_msr+0x6 ([guest.kernel.kallsyms])                 nopl  %eax, (%rax,%rax,1)
+           :1440  1440  ffffffffbb678b0b native_write_msr+0xb ([guest.kernel.kallsyms])                 retq     IPC: 0.04 (2/41)
+           :1440  1440  ffffffffbb666646 lapic_next_deadline+0x26 ([guest.kernel.kallsyms])             data16 nop
+           :1440  1440  ffffffffbb666648 lapic_next_deadline+0x28 ([guest.kernel.kallsyms])             xor %eax, %eax
+           :1440  1440  ffffffffbb66664a lapic_next_deadline+0x2a ([guest.kernel.kallsyms])             popq  %rbp
+           :1440  1440  ffffffffbb66664b lapic_next_deadline+0x2b ([guest.kernel.kallsyms])             retq     IPC: 0.16 (4/25)
+           :1440  1440  ffffffffbb74607f clockevents_program_event+0x8f ([guest.kernel.kallsyms])               test %eax, %eax
+           :1440  1440  ffffffffbb746081 clockevents_program_event+0x91 ([guest.kernel.kallsyms])               jz 0xffffffffbb74603c    IPC: 0.06 (2/30)
+           :1440  1440  ffffffffbb74603c clockevents_program_event+0x4c ([guest.kernel.kallsyms])               popq  %rbx
+           :1440  1440  ffffffffbb74603d clockevents_program_event+0x4d ([guest.kernel.kallsyms])               popq  %r12
+
+Example using VM Time Correlation
+
+Start VM
+
+ $ sudo virsh start kubuntu20.04
+ Domain kubuntu20.04 started
+
+Mount the guest file system.  Note sshfs needs -o direct_io to enable reading of proc files.  root access is needed to read /proc/kcore.
+
+ $ mkdir -p vm0
+ $ sshfs -o direct_io root@vm0:/ vm0
+
+Copy the guest /proc/kallsyms, /proc/modules and /proc/kcore
+
+ $ perf buildid-cache -v --kcore vm0/proc/kcore
+ same kcore found in /home/user/.debug/[kernel.kcore]/cc9c55a98c5e4ec0aeda69302554aabed5cd6491/2021021312450777
+ $ KALLSYMS=/home/user/.debug/\[kernel.kcore\]/cc9c55a98c5e4ec0aeda69302554aabed5cd6491/2021021312450777/kallsyms
+
+Find the VM process
+
+ $ ps -eLl | grep 'KVM\|PID'
+ F S   UID     PID    PPID     LWP  C PRI  NI ADDR SZ WCHAN  TTY          TIME CMD
+ 3 S 64055   16998       1   17005 13  80   0 - 1818189 -    ?        00:00:16 CPU 0/KVM
+ 3 S 64055   16998       1   17006  4  80   0 - 1818189 -    ?        00:00:05 CPU 1/KVM
+ 3 S 64055   16998       1   17007  3  80   0 - 1818189 -    ?        00:00:04 CPU 2/KVM
+ 3 S 64055   16998       1   17008  4  80   0 - 1818189 -    ?        00:00:05 CPU 3/KVM
+
+Start an open-ended perf record, tracing the VM process, do something on the VM, and then ctrl-C to stop.
+IPC can be determined, hence cyc=1 can be added.
+Only kernel decoding is supported, so 'k' must be specified.
+Intel PT traces both the host and the guest so --guest and --host need to be specified.
+
+ $ sudo perf kvm --guest --host --guestkallsyms $KALLSYMS record --kcore -e intel_pt/cyc=1/k -p 16998
+ ^C[ perf record: Woken up 1 times to write data ]
+ [ perf record: Captured and wrote 9.041 MB perf.data.kvm ]
+
+Now 'perf inject' can be used to determine the VMX TCS Offset. Note, Intel PT TSC packets are
+only 7-bytes, so the TSC Offset might differ from the actual value in the 8th byte. That will
+have no effect i.e. the resulting timestamps will be correct anyway.
+
+ $ perf inject -i perf.data.kvm --vm-time-correlation=dry-run
+ ERROR: Unknown TSC Offset for VMCS 0x1bff6a
+ VMCS: 0x1bff6a  TSC Offset 0xffffe42722c64c41
+ ERROR: Unknown TSC Offset for VMCS 0x1cbc08
+ VMCS: 0x1cbc08  TSC Offset 0xffffe42722c64c41
+ ERROR: Unknown TSC Offset for VMCS 0x1c3ce8
+ VMCS: 0x1c3ce8  TSC Offset 0xffffe42722c64c41
+ ERROR: Unknown TSC Offset for VMCS 0x1cbce9
+ VMCS: 0x1cbce9  TSC Offset 0xffffe42722c64c41
+
+Each virtual CPU has a different Virtual Machine Control Structure (VMCS)
+shown above with the calculated TSC Offset. For an unchanging TSC Offset
+they should all be the same for the same virtual machine.
+
+Now that the TSC Offset is known, it can be provided to 'perf inject'
+
+ $ perf inject -i perf.data.kvm --vm-time-correlation="dry-run 0xffffe42722c64c41"
+
+Note the options for 'perf inject' --vm-time-correlation are:
+
+ [ dry-run ] [ <TSC Offset> [ : <VMCS> [ , <VMCS> ]... ]  ]...
+
+So it is possible to specify different TSC Offsets for different VMCS.
+The option "dry-run" will cause the file to be processed but without updating it.
+Note it is also possible to get a intel_pt.log file by adding option --itrace=d
+
+There were no errors so, do it for real
+
+ $ perf inject -i perf.data.kvm --vm-time-correlation=0xffffe42722c64c41 --force
+
+'perf script' can be used to see if there are any decoder errors
+
+ $ perf script -i perf.data.kvm --guestkallsyms $KALLSYMS --itrace=e-o
+
+There were none.
+
+'perf script' can be used to provide an instruction trace showing timestamps
+
+ $ perf script -i perf.data.kvm --guestkallsyms $KALLSYMS --insn-trace --xed -F+ipc | grep -C10 vmresume | head -21
+       CPU 1/KVM 17006 [001] 11500.262865593:  ffffffff82133cdd __vmx_vcpu_run+0x3d ([kernel.kallsyms])                 movq  0x48(%rax), %r9
+       CPU 1/KVM 17006 [001] 11500.262865593:  ffffffff82133ce1 __vmx_vcpu_run+0x41 ([kernel.kallsyms])                 movq  0x50(%rax), %r10
+       CPU 1/KVM 17006 [001] 11500.262865593:  ffffffff82133ce5 __vmx_vcpu_run+0x45 ([kernel.kallsyms])                 movq  0x58(%rax), %r11
+       CPU 1/KVM 17006 [001] 11500.262865593:  ffffffff82133ce9 __vmx_vcpu_run+0x49 ([kernel.kallsyms])                 movq  0x60(%rax), %r12
+       CPU 1/KVM 17006 [001] 11500.262865593:  ffffffff82133ced __vmx_vcpu_run+0x4d ([kernel.kallsyms])                 movq  0x68(%rax), %r13
+       CPU 1/KVM 17006 [001] 11500.262865593:  ffffffff82133cf1 __vmx_vcpu_run+0x51 ([kernel.kallsyms])                 movq  0x70(%rax), %r14
+       CPU 1/KVM 17006 [001] 11500.262865593:  ffffffff82133cf5 __vmx_vcpu_run+0x55 ([kernel.kallsyms])                 movq  0x78(%rax), %r15
+       CPU 1/KVM 17006 [001] 11500.262865593:  ffffffff82133cf9 __vmx_vcpu_run+0x59 ([kernel.kallsyms])                 movq  (%rax), %rax
+       CPU 1/KVM 17006 [001] 11500.262865593:  ffffffff82133cfc __vmx_vcpu_run+0x5c ([kernel.kallsyms])                 callq  0xffffffff82133c40
+       CPU 1/KVM 17006 [001] 11500.262865593:  ffffffff82133c40 vmx_vmenter+0x0 ([kernel.kallsyms])             jz 0xffffffff82133c46
+       CPU 1/KVM 17006 [001] 11500.262866075:  ffffffff82133c42 vmx_vmenter+0x2 ([kernel.kallsyms])             vmresume         IPC: 0.05 (40/769)
+          :17006 17006 [001] 11500.262869216:  ffffffff82200cb0 asm_sysvec_apic_timer_interrupt+0x0 ([guest.kernel.kallsyms])           clac
+          :17006 17006 [001] 11500.262869216:  ffffffff82200cb3 asm_sysvec_apic_timer_interrupt+0x3 ([guest.kernel.kallsyms])           pushq  $0xffffffffffffffff
+          :17006 17006 [001] 11500.262869216:  ffffffff82200cb5 asm_sysvec_apic_timer_interrupt+0x5 ([guest.kernel.kallsyms])           callq  0xffffffff82201160
+          :17006 17006 [001] 11500.262869216:  ffffffff82201160 error_entry+0x0 ([guest.kernel.kallsyms])               cld
+          :17006 17006 [001] 11500.262869216:  ffffffff82201161 error_entry+0x1 ([guest.kernel.kallsyms])               pushq  %rsi
+          :17006 17006 [001] 11500.262869216:  ffffffff82201162 error_entry+0x2 ([guest.kernel.kallsyms])               movq  0x8(%rsp), %rsi
+          :17006 17006 [001] 11500.262869216:  ffffffff82201167 error_entry+0x7 ([guest.kernel.kallsyms])               movq  %rdi, 0x8(%rsp)
+          :17006 17006 [001] 11500.262869216:  ffffffff8220116c error_entry+0xc ([guest.kernel.kallsyms])               pushq  %rdx
+          :17006 17006 [001] 11500.262869216:  ffffffff8220116d error_entry+0xd ([guest.kernel.kallsyms])               pushq  %rcx
+          :17006 17006 [001] 11500.262869216:  ffffffff8220116e error_entry+0xe ([guest.kernel.kallsyms])               pushq  %rax
+
+
+Event Trace
+-----------
+
+Event Trace records information about asynchronous events, for example interrupts,
+faults, VM exits and entries.  The information is recorded in CFE and EVD packets,
+and also the Interrupt Flag is recorded on the MODE.Exec packet.  The CFE packet
+contains a type field to identify one of the following:
+
+	 1	INTR		interrupt, fault, exception, NMI
+	 2	IRET		interrupt return
+	 3	SMI		system management interrupt
+	 4	RSM		resume from system management mode
+	 5	SIPI		startup interprocessor interrupt
+	 6	INIT		INIT signal
+	 7	VMENTRY		VM-Entry
+	 8	VMEXIT		VM-Entry
+	 9	VMEXIT_INTR	VM-Exit due to interrupt
+	10	SHUTDOWN	Shutdown
+
+For more details, refer to the Intel 64 and IA-32 Architectures Software
+Developer Manuals (version 076 or later).
+
+The capability to do Event Trace is indicated by the
+/sys/bus/event_source/devices/intel_pt/caps/event_trace file.
+
+Event trace is selected for recording using the "event" config term. e.g.
+
+	perf record -e intel_pt/event/u uname
+
+Event trace events are output using the --itrace I option. e.g.
+
+	perf script --itrace=Ie
+
+perf script displays events containing CFE type, vector and event data,
+in the form:
+
+	  evt:   hw int            (t)  cfe: INTR IP: 1 vector: 3 PFA: 0x8877665544332211
+
+The IP flag indicates if the event binds to an IP, which includes any case where
+flow control packet generation is enabled, as well as when CFE packet IP bit is
+set.
+
+perf script displays events containing changes to the Interrupt Flag in the form:
+
+	iflag:   t                      IFLAG: 1->0 via branch
+
+where "via branch" indicates a branch (interrupt or return from interrupt) and
+"non branch" indicates an instruction such as CFI, STI or POPF).
+
+In addition, the current state of the interrupt flag is indicated by the presence
+or absence of the "D" (interrupt disabled) perf script flag.  If the interrupt
+flag is changed, then the "t" flag is also included i.e.
+
+		no flag, interrupts enabled IF=1
+	t	interrupts become disabled IF=1 -> IF=0
+	D	interrupts are disabled IF=0
+	Dt	interrupts become enabled  IF=0 -> IF=1
+
+The intel-pt-events.py script illustrates how to access Event Trace information
+using a Python script.
+
+
+TNT Disable
+-----------
+
+TNT packets are disabled using the "notnt" config term. e.g.
+
+	perf record -e intel_pt/notnt/u uname
+
+In that case the --itrace q option is forced because walking executable code
+to reconstruct the control flow is not possible.
+
+
 
 SEE ALSO
 --------

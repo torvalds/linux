@@ -9,21 +9,26 @@
 #include "rxe.h"
 #include "rxe_loc.h"
 
+/* check that QP matches packet opcode type and is in a valid state */
 static int check_type_state(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 			    struct rxe_qp *qp)
 {
+	unsigned int pkt_type;
+
 	if (unlikely(!qp->valid))
 		goto err1;
 
+	pkt_type = pkt->opcode & 0xe0;
+
 	switch (qp_type(qp)) {
 	case IB_QPT_RC:
-		if (unlikely((pkt->opcode & IB_OPCODE_RC) != 0)) {
+		if (unlikely(pkt_type != IB_OPCODE_RC)) {
 			pr_warn_ratelimited("bad qp type\n");
 			goto err1;
 		}
 		break;
 	case IB_QPT_UC:
-		if (unlikely(!(pkt->opcode & IB_OPCODE_UC))) {
+		if (unlikely(pkt_type != IB_OPCODE_UC)) {
 			pr_warn_ratelimited("bad qp type\n");
 			goto err1;
 		}
@@ -31,7 +36,7 @@ static int check_type_state(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	case IB_QPT_UD:
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
-		if (unlikely(!(pkt->opcode & IB_OPCODE_UD))) {
+		if (unlikely(pkt_type != IB_OPCODE_UD)) {
 			pr_warn_ratelimited("bad qp type\n");
 			goto err1;
 		}
@@ -85,8 +90,7 @@ static int check_keys(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		goto err1;
 	}
 
-	if ((qp_type(qp) == IB_QPT_UD || qp_type(qp) == IB_QPT_GSI) &&
-	    pkt->mask) {
+	if (qp_type(qp) == IB_QPT_UD || qp_type(qp) == IB_QPT_GSI) {
 		u32 qkey = (qpn == 1) ? GSI_QKEY : qp->attr.qkey;
 
 		if (unlikely(deth_qkey(pkt) != qkey)) {
@@ -213,7 +217,7 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 	return 0;
 
 err2:
-	rxe_drop_ref(qp);
+	rxe_put(qp);
 err1:
 	return -EINVAL;
 }
@@ -229,12 +233,10 @@ static inline void rxe_rcv_pkt(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 {
 	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
-	struct rxe_mc_grp *mcg;
-	struct rxe_mc_elem *mce;
+	struct rxe_mcg *mcg;
+	struct rxe_mca *mca;
 	struct rxe_qp *qp;
 	union ib_gid dgid;
-	struct sk_buff *per_qp_skb;
-	struct rxe_pkt_info *per_qp_pkt;
 	int err;
 
 	if (skb->protocol == htons(ETH_P_IP))
@@ -244,15 +246,19 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 		memcpy(&dgid, &ipv6_hdr(skb)->daddr, sizeof(dgid));
 
 	/* lookup mcast group corresponding to mgid, takes a ref */
-	mcg = rxe_pool_get_key(&rxe->mc_grp_pool, &dgid);
+	mcg = rxe_lookup_mcg(rxe, &dgid);
 	if (!mcg)
-		goto err1;	/* mcast group not registered */
+		goto drop;	/* mcast group not registered */
 
-	spin_lock_bh(&mcg->mcg_lock);
+	spin_lock_bh(&rxe->mcg_lock);
 
-	list_for_each_entry(mce, &mcg->qp_list, qp_list) {
-		qp = mce->qp;
-		pkt = SKB_TO_PKT(skb);
+	/* this is unreliable datagram service so we let
+	 * failures to deliver a multicast packet to a
+	 * single QP happen and just move on and try
+	 * the rest of them on the list
+	 */
+	list_for_each_entry(mca, &mcg->qp_list, qp_list) {
+		qp = mca->qp;
 
 		/* validate qp for incoming packet */
 		err = check_type_state(rxe, pkt, qp);
@@ -263,31 +269,49 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 		if (err)
 			continue;
 
-		/* for all but the last qp create a new clone of the
-		 * skb and pass to the qp.
+		/* for all but the last QP create a new clone of the
+		 * skb and pass to the QP. Pass the original skb to
+		 * the last QP in the list.
 		 */
-		if (mce->qp_list.next != &mcg->qp_list)
-			per_qp_skb = skb_clone(skb, GFP_ATOMIC);
-		else
-			per_qp_skb = skb;
+		if (mca->qp_list.next != &mcg->qp_list) {
+			struct sk_buff *cskb;
+			struct rxe_pkt_info *cpkt;
 
-		if (unlikely(!per_qp_skb))
-			continue;
+			cskb = skb_clone(skb, GFP_ATOMIC);
+			if (unlikely(!cskb))
+				continue;
 
-		per_qp_pkt = SKB_TO_PKT(per_qp_skb);
-		per_qp_pkt->qp = qp;
-		rxe_add_ref(qp);
-		rxe_rcv_pkt(per_qp_pkt, per_qp_skb);
+			if (WARN_ON(!ib_device_try_get(&rxe->ib_dev))) {
+				kfree_skb(cskb);
+				break;
+			}
+
+			cpkt = SKB_TO_PKT(cskb);
+			cpkt->qp = qp;
+			rxe_get(qp);
+			rxe_rcv_pkt(cpkt, cskb);
+		} else {
+			pkt->qp = qp;
+			rxe_get(qp);
+			rxe_rcv_pkt(pkt, skb);
+			skb = NULL;	/* mark consumed */
+		}
 	}
 
-	spin_unlock_bh(&mcg->mcg_lock);
+	spin_unlock_bh(&rxe->mcg_lock);
 
-	rxe_drop_ref(mcg);	/* drop ref from rxe_pool_get_key. */
+	kref_put(&mcg->ref_cnt, rxe_cleanup_mcg);
 
-	return;
+	if (likely(!skb))
+		return;
 
-err1:
+	/* This only occurs if one of the checks fails on the last
+	 * QP in the list above
+	 */
+
+drop:
 	kfree_skb(skb);
+	ib_device_put(&rxe->ib_dev);
 }
 
 /**
@@ -337,12 +361,8 @@ void rxe_rcv(struct sk_buff *skb)
 	int err;
 	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
 	struct rxe_dev *rxe = pkt->rxe;
-	__be32 *icrcp;
-	u32 calc_icrc, pack_icrc;
 
-	pkt->offset = 0;
-
-	if (unlikely(skb->len < pkt->offset + RXE_BTH_BYTES))
+	if (unlikely(skb->len < RXE_BTH_BYTES))
 		goto drop;
 
 	if (rxe_chk_dgid(rxe, skb) < 0) {
@@ -362,26 +382,9 @@ void rxe_rcv(struct sk_buff *skb)
 	if (unlikely(err))
 		goto drop;
 
-	/* Verify ICRC */
-	icrcp = (__be32 *)(pkt->hdr + pkt->paylen - RXE_ICRC_SIZE);
-	pack_icrc = be32_to_cpu(*icrcp);
-
-	calc_icrc = rxe_icrc_hdr(pkt, skb);
-	calc_icrc = rxe_crc32(rxe, calc_icrc, (u8 *)payload_addr(pkt),
-			      payload_size(pkt) + bth_pad(pkt));
-	calc_icrc = (__force u32)cpu_to_be32(~calc_icrc);
-	if (unlikely(calc_icrc != pack_icrc)) {
-		if (skb->protocol == htons(ETH_P_IPV6))
-			pr_warn_ratelimited("bad ICRC from %pI6c\n",
-					    &ipv6_hdr(skb)->saddr);
-		else if (skb->protocol == htons(ETH_P_IP))
-			pr_warn_ratelimited("bad ICRC from %pI4\n",
-					    &ip_hdr(skb)->saddr);
-		else
-			pr_warn_ratelimited("bad ICRC from unknown\n");
-
+	err = rxe_icrc_check(skb, pkt);
+	if (unlikely(err))
 		goto drop;
-	}
 
 	rxe_counter_inc(rxe, RXE_CNT_RCVD_PKTS);
 
@@ -394,7 +397,8 @@ void rxe_rcv(struct sk_buff *skb)
 
 drop:
 	if (pkt->qp)
-		rxe_drop_ref(pkt->qp);
+		rxe_put(pkt->qp);
 
 	kfree_skb(skb);
+	ib_device_put(&rxe->ib_dev);
 }

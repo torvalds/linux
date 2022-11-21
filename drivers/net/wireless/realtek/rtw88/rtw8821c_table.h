@@ -7,6 +7,7 @@
 
 extern const struct rtw_table rtw8821c_mac_tbl;
 extern const struct rtw_table rtw8821c_agc_tbl;
+extern const struct rtw_table rtw8821c_agc_btg_type2_tbl;
 extern const struct rtw_table rtw8821c_bb_tbl;
 extern const struct rtw_table rtw8821c_bb_pg_type0_tbl;
 extern const struct rtw_table rtw8821c_rf_a_tbl;

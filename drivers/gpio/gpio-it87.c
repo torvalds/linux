@@ -125,14 +125,6 @@ static inline int superio_inw(int reg)
 	return val;
 }
 
-static inline void superio_outw(int val, int reg)
-{
-	outb(reg++, REG);
-	outb(val >> 8, VAL);
-	outb(reg, REG);
-	outb(val, VAL);
-}
-
 static inline void superio_set_mask(int mask, int reg)
 {
 	u8 curr_val = superio_inb(reg);

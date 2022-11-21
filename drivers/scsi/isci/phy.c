@@ -339,10 +339,11 @@ done:
 }
 
 /**
- * This method returns the port currently containing this phy. If the phy is
- *    currently contained by the dummy port, then the phy is considered to not
- *    be part of a port.
- * @sci_phy: This parameter specifies the phy for which to retrieve the
+ * phy_get_non_dummy_port() - This method returns the port currently containing
+ * this phy. If the phy is currently contained by the dummy port, then the phy
+ * is considered to not be part of a port.
+ *
+ * @iphy: This parameter specifies the phy for which to retrieve the
  *    containing port.
  *
  * This method returns a handle to a port that contains the supplied phy.
@@ -360,12 +361,8 @@ struct isci_port *phy_get_non_dummy_port(struct isci_phy *iphy)
 	return iphy->owning_port;
 }
 
-/**
- * This method will assign a port to the phy object.
- * @out]: iphy This parameter specifies the phy for which to assign a port
- *    object.
- *
- *
+/*
+ * sci_phy_set_port() - This method will assign a port to the phy object.
  */
 void sci_phy_set_port(
 	struct isci_phy *iphy,
@@ -398,11 +395,11 @@ enum sci_status sci_phy_initialize(struct isci_phy *iphy,
 }
 
 /**
- * This method assigns the direct attached device ID for this phy.
+ * sci_phy_setup_transport() - This method assigns the direct attached device ID for this phy.
  *
- * @iphy The phy for which the direct attached device id is to
+ * @iphy: The phy for which the direct attached device id is to
  *       be assigned.
- * @device_id The direct attached device ID to assign to the phy.
+ * @device_id: The direct attached device ID to assign to the phy.
  *       This will either be the RNi for the device or an invalid RNi if there
  *       is no current device assigned to the phy.
  */
@@ -597,7 +594,7 @@ static void sci_phy_start_sata_link_training(struct isci_phy *iphy)
 /**
  * sci_phy_complete_link_training - perform processing common to
  *    all protocols upon completion of link training.
- * @sci_phy: This parameter specifies the phy object for which link training
+ * @iphy: This parameter specifies the phy object for which link training
  *    has completed.
  * @max_link_rate: This parameter specifies the maximum link rate to be
  *    associated with this phy.
@@ -753,7 +750,6 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 		default:
 			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE;
-			break;
 		}
 		return SCI_SUCCESS;
 	case SCI_PHY_SUB_AWAIT_IAF_UF:
@@ -958,7 +954,6 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 		default:
 			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE_INVALID_STATE;
-			break;
 		}
 		return SCI_SUCCESS;
 	default:
@@ -1169,8 +1164,8 @@ static void sci_phy_starting_final_substate_enter(struct sci_base_state_machine 
 }
 
 /**
- *
- * @sci_phy: This is the struct isci_phy object to stop.
+ * scu_link_layer_stop_protocol_engine()
+ * @iphy: This is the struct isci_phy object to stop.
  *
  * This method will stop the struct isci_phy object. This does not reset the
  * protocol engine it just suspends it and places it in a state where it will
@@ -1221,7 +1216,8 @@ static void scu_link_layer_start_oob(struct isci_phy *iphy)
 }
 
 /**
- *
+ * scu_link_layer_tx_hard_reset()
+ * @iphy: This is the struct isci_phy object to stop.
  *
  * This method will transmit a hard reset request on the specified phy. The SCU
  * hardware requires that we reset the OOB state machine and set the hard reset
@@ -1422,7 +1418,7 @@ void isci_phy_init(struct isci_phy *iphy, struct isci_host *ihost, int index)
 /**
  * isci_phy_control() - This function is one of the SAS Domain Template
  *    functions. This is a phy management function.
- * @phy: This parameter specifies the sphy being controlled.
+ * @sas_phy: This parameter specifies the sphy being controlled.
  * @func: This parameter specifies the phy control function being invoked.
  * @buf: This parameter is specific to the phy function being invoked.
  *

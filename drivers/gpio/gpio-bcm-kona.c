@@ -466,9 +466,6 @@ static void bcm_kona_gpio_irq_handler(struct irq_desc *desc)
 		    (~(readl(reg_base + GPIO_INT_MASK(bank_id)))))) {
 		for_each_set_bit(bit, &sta, 32) {
 			int hwirq = GPIO_PER_BANK * bank_id + bit;
-			int child_irq =
-				irq_find_mapping(bank->kona_gpio->irq_domain,
-						 hwirq);
 			/*
 			 * Clear interrupt before handler is called so we don't
 			 * miss any interrupt occurred during executing them.
@@ -476,7 +473,8 @@ static void bcm_kona_gpio_irq_handler(struct irq_desc *desc)
 			writel(readl(reg_base + GPIO_INT_STATUS(bank_id)) |
 			       BIT(bit), reg_base + GPIO_INT_STATUS(bank_id));
 			/* Invoke interrupt handler */
-			generic_handle_irq(child_irq);
+			generic_handle_domain_irq(bank->kona_gpio->irq_domain,
+						  hwirq);
 		}
 	}
 
@@ -608,7 +606,7 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 
 	kona_gpio->pdev = pdev;
 	platform_set_drvdata(pdev, kona_gpio);
-	chip->of_node = dev->of_node;
+	chip->parent = dev;
 	chip->ngpio = kona_gpio->num_bank * GPIO_PER_BANK;
 
 	kona_gpio->irq_domain = irq_domain_add_linear(dev->of_node,

@@ -94,6 +94,7 @@ static void __init hsmmc2_internal_input_clk(void)
 	omap_ctrl_writel(reg, OMAP343X_CONTROL_DEVCONF1);
 }
 
+#ifdef CONFIG_OMAP_HWMOD
 static struct iommu_platform_data omap3_iommu_pdata = {
 	.reset_name = "mmu",
 	.assert_reset = omap_device_assert_hardreset,
@@ -106,6 +107,7 @@ static struct iommu_platform_data omap3_iommu_isp_pdata = {
 	.device_enable = omap_device_enable,
 	.device_idle = omap_device_idle,
 };
+#endif
 
 static int omap3_sbc_t3730_twl_callback(struct device *dev,
 					   unsigned gpio,
@@ -272,42 +274,10 @@ static void __init omap3_pandora_legacy_init(void)
 }
 #endif /* CONFIG_ARCH_OMAP3 */
 
-#if defined(CONFIG_SOC_AM33XX) || defined(CONFIG_SOC_AM43XX)
-static struct wkup_m3_platform_data wkup_m3_data = {
-	.reset_name = "wkup_m3",
-	.assert_reset = omap_device_assert_hardreset,
-	.deassert_reset = omap_device_deassert_hardreset,
-};
-#endif
-
-#ifdef CONFIG_SOC_OMAP5
-static void __init omap5_uevm_legacy_init(void)
-{
-}
-#endif
-
 #ifdef CONFIG_SOC_DRA7XX
 static struct iommu_platform_data dra7_ipu1_dsp_iommu_pdata = {
 	.set_pwrdm_constraint = omap_iommu_set_pwrdm_constraint,
 };
-
-static struct omap_hsmmc_platform_data dra7_hsmmc_data_mmc1;
-static struct omap_hsmmc_platform_data dra7_hsmmc_data_mmc2;
-static struct omap_hsmmc_platform_data dra7_hsmmc_data_mmc3;
-
-static void __init dra7x_evm_mmc_quirk(void)
-{
-	if (omap_rev() == DRA752_REV_ES1_1 || omap_rev() == DRA752_REV_ES1_0) {
-		dra7_hsmmc_data_mmc1.version = "rev11";
-		dra7_hsmmc_data_mmc1.max_freq = 96000000;
-
-		dra7_hsmmc_data_mmc2.version = "rev11";
-		dra7_hsmmc_data_mmc2.max_freq = 48000000;
-
-		dra7_hsmmc_data_mmc3.version = "rev11";
-		dra7_hsmmc_data_mmc3.max_freq = 48000000;
-	}
-}
 #endif
 
 static struct clockdomain *ti_sysc_find_one_clockdomain(struct clk *clk)
@@ -370,6 +340,7 @@ static void ti_sysc_clkdm_allow_idle(struct device *dev,
 		clkdm_allow_idle(cookie->clkdm);
 }
 
+#ifdef CONFIG_OMAP_HWMOD
 static int ti_sysc_enable_module(struct device *dev,
 				 const struct ti_sysc_cookie *cookie)
 {
@@ -396,6 +367,7 @@ static int ti_sysc_shutdown_module(struct device *dev,
 
 	return omap_hwmod_shutdown(cookie->data);
 }
+#endif	/* CONFIG_OMAP_HWMOD */
 
 static bool ti_sysc_soc_type_gp(void)
 {
@@ -410,10 +382,12 @@ static struct ti_sysc_platform_data ti_sysc_pdata = {
 	.init_clockdomain = ti_sysc_clkdm_init,
 	.clkdm_deny_idle = ti_sysc_clkdm_deny_idle,
 	.clkdm_allow_idle = ti_sysc_clkdm_allow_idle,
+#ifdef CONFIG_OMAP_HWMOD
 	.init_module = omap_hwmod_init_module,
 	.enable_module = ti_sysc_enable_module,
 	.idle_module = ti_sysc_idle_module,
 	.shutdown_module = ti_sysc_shutdown_module,
+#endif
 };
 
 static struct pcs_pdata pcs_pdata;
@@ -445,7 +419,7 @@ void omap_auxdata_legacy_init(struct device *dev)
 	dev->platform_data = &twl_gpio_auxdata;
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_OMAP_MCBSP)
+#if defined(CONFIG_ARCH_OMAP3) && IS_ENABLED(CONFIG_SND_SOC_OMAP_MCBSP)
 static struct omap_mcbsp_platform_data mcbsp_pdata;
 static void __init omap3_mcbsp_init(void)
 {
@@ -501,14 +475,6 @@ static struct of_dev_auxdata omap_auxdata_lookup[] = {
 	OF_DEV_AUXDATA("ti,omap3-mcbsp", 0x49024000, "49024000.mcbsp", &mcbsp_pdata),
 #endif
 #endif
-#ifdef CONFIG_SOC_AM33XX
-	OF_DEV_AUXDATA("ti,am3352-wkup-m3", 0x44d00000, "44d00000.wkup_m3",
-		       &wkup_m3_data),
-#endif
-#ifdef CONFIG_SOC_AM43XX
-	OF_DEV_AUXDATA("ti,am4372-wkup-m3", 0x44d00000, "44d00000.wkup_m3",
-		       &wkup_m3_data),
-#endif
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
 	OF_DEV_AUXDATA("ti,omap4-smartreflex-iva", 0x4a0db000,
 		       "4a0db000.smartreflex", &omap_sr_pdata[OMAP_SR_IVA]),
@@ -518,12 +484,6 @@ static struct of_dev_auxdata omap_auxdata_lookup[] = {
 		       "4a0d9000.smartreflex", &omap_sr_pdata[OMAP_SR_MPU]),
 #endif
 #ifdef CONFIG_SOC_DRA7XX
-	OF_DEV_AUXDATA("ti,dra7-hsmmc", 0x4809c000, "4809c000.mmc",
-		       &dra7_hsmmc_data_mmc1),
-	OF_DEV_AUXDATA("ti,dra7-hsmmc", 0x480b4000, "480b4000.mmc",
-		       &dra7_hsmmc_data_mmc2),
-	OF_DEV_AUXDATA("ti,dra7-hsmmc", 0x480ad000, "480ad000.mmc",
-		       &dra7_hsmmc_data_mmc3),
 	OF_DEV_AUXDATA("ti,dra7-dsp-iommu", 0x40d01000, "40d01000.mmu",
 		       &dra7_ipu1_dsp_iommu_pdata),
 	OF_DEV_AUXDATA("ti,dra7-dsp-iommu", 0x41501000, "41501000.mmu",
@@ -532,6 +492,7 @@ static struct of_dev_auxdata omap_auxdata_lookup[] = {
 		       &dra7_ipu1_dsp_iommu_pdata),
 #endif
 	/* Common auxdata */
+	OF_DEV_AUXDATA("simple-pm-bus", 0, NULL, omap_auxdata_lookup),
 	OF_DEV_AUXDATA("ti,sysc", 0, NULL, &ti_sysc_pdata),
 	OF_DEV_AUXDATA("pinctrl-single", 0, NULL, &pcs_pdata),
 	OF_DEV_AUXDATA("ti,omap-prm-inst", 0, NULL, &ti_prm_pdata),
@@ -558,12 +519,6 @@ static struct pdata_init pdata_quirks[] __initdata = {
 	{ "openpandora,omap3-pandora-600mhz", omap3_pandora_legacy_init, },
 	{ "openpandora,omap3-pandora-1ghz", omap3_pandora_legacy_init, },
 #endif
-#ifdef CONFIG_SOC_OMAP5
-	{ "ti,omap5-uevm", omap5_uevm_legacy_init, },
-#endif
-#ifdef CONFIG_SOC_DRA7XX
-	{ "ti,dra7-evm", dra7x_evm_mmc_quirk, },
-#endif
 	{ /* sentinel */ },
 };
 
@@ -575,6 +530,27 @@ static void pdata_quirks_check(struct pdata_init *quirks)
 				quirks->fn();
 		}
 		quirks++;
+	}
+}
+
+static const char * const pdata_quirks_init_nodes[] = {
+	"prcm",
+	"prm",
+};
+
+static void __init
+pdata_quirks_init_clocks(const struct of_device_id *omap_dt_match_table)
+{
+	struct device_node *np;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pdata_quirks_init_nodes); i++) {
+		np = of_find_node_by_name(NULL, pdata_quirks_init_nodes[i]);
+		if (!np)
+			continue;
+
+		of_platform_populate(np, omap_dt_match_table,
+				     omap_auxdata_lookup, NULL);
 	}
 }
 
@@ -591,6 +567,9 @@ void __init pdata_quirks_init(const struct of_device_id *omap_dt_match_table)
 	if (of_machine_is_compatible("ti,omap3"))
 		omap3_mcbsp_init();
 	pdata_quirks_check(auxdata_quirks);
+
+	pdata_quirks_init_clocks(omap_dt_match_table);
+
 	of_platform_populate(NULL, omap_dt_match_table,
 			     omap_auxdata_lookup, NULL);
 	pdata_quirks_check(pdata_quirks);

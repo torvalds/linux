@@ -230,6 +230,5 @@ static inline ktime_t ms_to_ktime(u64 ms)
 }
 
 # include <linux/timekeeping.h>
-# include <linux/timekeeping32.h>
 
 #endif

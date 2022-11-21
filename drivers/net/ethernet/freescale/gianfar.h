@@ -445,6 +445,60 @@ struct ethtool_rx_list {
 #define RQFPR_PER		0x00000002
 #define RQFPR_EER		0x00000001
 
+/* CAR1 bits */
+#define CAR1_C164		0x80000000
+#define CAR1_C1127		0x40000000
+#define CAR1_C1255		0x20000000
+#define CAR1_C1511		0x10000000
+#define CAR1_C11K		0x08000000
+#define CAR1_C1MAX		0x04000000
+#define CAR1_C1MGV		0x02000000
+#define CAR1_C1REJ		0x00020000
+#define CAR1_C1RBY		0x00010000
+#define CAR1_C1RPK		0x00008000
+#define CAR1_C1RFC		0x00004000
+#define CAR1_C1RMC		0x00002000
+#define CAR1_C1RBC		0x00001000
+#define CAR1_C1RXC		0x00000800
+#define CAR1_C1RXP		0x00000400
+#define CAR1_C1RXU		0x00000200
+#define CAR1_C1RAL		0x00000100
+#define CAR1_C1RFL		0x00000080
+#define CAR1_C1RCD		0x00000040
+#define CAR1_C1RCS		0x00000020
+#define CAR1_C1RUN		0x00000010
+#define CAR1_C1ROV		0x00000008
+#define CAR1_C1RFR		0x00000004
+#define CAR1_C1RJB		0x00000002
+#define CAR1_C1RDR		0x00000001
+
+/* CAM1 bits */
+#define CAM1_M164		0x80000000
+#define CAM1_M1127		0x40000000
+#define CAM1_M1255		0x20000000
+#define CAM1_M1511		0x10000000
+#define CAM1_M11K		0x08000000
+#define CAM1_M1MAX		0x04000000
+#define CAM1_M1MGV		0x02000000
+#define CAM1_M1REJ		0x00020000
+#define CAM1_M1RBY		0x00010000
+#define CAM1_M1RPK		0x00008000
+#define CAM1_M1RFC		0x00004000
+#define CAM1_M1RMC		0x00002000
+#define CAM1_M1RBC		0x00001000
+#define CAM1_M1RXC		0x00000800
+#define CAM1_M1RXP		0x00000400
+#define CAM1_M1RXU		0x00000200
+#define CAM1_M1RAL		0x00000100
+#define CAM1_M1RFL		0x00000080
+#define CAM1_M1RCD		0x00000040
+#define CAM1_M1RCS		0x00000020
+#define CAM1_M1RUN		0x00000010
+#define CAM1_M1ROV		0x00000008
+#define CAM1_M1RFR		0x00000004
+#define CAM1_M1RJB		0x00000002
+#define CAM1_M1RDR		0x00000001
+
 /* TxBD status field bits */
 #define TXBD_READY		0x8000
 #define TXBD_PADCRC		0x4000
@@ -607,6 +661,15 @@ struct rmon_mib
 	u32	car2;	/* 0x.734 - Carry Register Two */
 	u32	cam1;	/* 0x.738 - Carry Mask Register One */
 	u32	cam2;	/* 0x.73c - Carry Mask Register Two */
+};
+
+struct rmon_overflow {
+	/* lock for synchronization of the rdrp field of this struct, and
+	 * CAR1/CAR2 registers
+	 */
+	spinlock_t lock;
+	u32	imask;
+	u64	rdrp;
 };
 
 struct gfar_extra_stats {
@@ -909,28 +972,12 @@ enum {
 	MQ_MG_MODE
 };
 
-/* GFAR_SQ_POLLING: Single Queue NAPI polling mode
- *	The driver supports a single pair of RX/Tx queues
- *	per interrupt group (Rx/Tx int line). MQ_MG mode
- *	devices have 2 interrupt groups, so the device will
- *	have a total of 2 Tx and 2 Rx queues in this case.
- * GFAR_MQ_POLLING: Multi Queue NAPI polling mode
- *	The driver supports all the 8 Rx and Tx HW queues
- *	each queue mapped by the Device Tree to one of
- *	the 2 interrupt groups. This mode implies significant
- *	processing overhead (CPU and controller level).
- */
-enum gfar_poll_mode {
-	GFAR_SQ_POLLING = 0,
-	GFAR_MQ_POLLING
-};
-
 /*
  * Per TX queue stats
  */
 struct tx_q_stats {
-	unsigned long tx_packets;
-	unsigned long tx_bytes;
+	u64 tx_packets;
+	u64 tx_bytes;
 };
 
 /**
@@ -979,9 +1026,9 @@ struct gfar_priv_tx_q {
  * Per RX queue stats
  */
 struct rx_q_stats {
-	unsigned long rx_packets;
-	unsigned long rx_bytes;
-	unsigned long rx_dropped;
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_dropped;
 };
 
 struct gfar_rx_buff {
@@ -1105,7 +1152,6 @@ struct gfar_private {
 	unsigned long state;
 
 	unsigned short mode;
-	unsigned short poll_mode;
 	unsigned int num_tx_queues;
 	unsigned int num_rx_queues;
 	unsigned int num_grps;
@@ -1113,6 +1159,7 @@ struct gfar_private {
 
 	/* Network Statistics */
 	struct gfar_extra_stats extra_stats;
+	struct rmon_overflow rmon_overflow;
 
 	/* PHY stuff */
 	phy_interface_t interface;

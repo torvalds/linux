@@ -8,6 +8,46 @@
 #include "cxgb4_filter.h"
 #include "cxgb4_tc_flower.h"
 
+static int cxgb4_policer_validate(const struct flow_action *action,
+				  const struct flow_action_entry *act,
+				  struct netlink_ext_ack *extack)
+{
+	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when exceed action is not drop");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is not pipe or ok");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	    !flow_action_is_last_entry(action, act)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is ok, but action is not last");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.peakrate_bytes_ps ||
+	    act->police.avrate || act->police.overhead) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when peakrate/avrate/overhead is configured");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "QoS offload not support packets per second");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int cxgb4_matchall_egress_validate(struct net_device *dev,
 					  struct tc_cls_matchall_offload *cls)
 {
@@ -48,6 +88,10 @@ static int cxgb4_matchall_egress_validate(struct net_device *dev,
 	flow_action_for_each(i, entry, actions) {
 		switch (entry->id) {
 		case FLOW_ACTION_POLICE:
+			ret = cxgb4_policer_validate(actions, entry, extack);
+			if (ret)
+				return ret;
+
 			/* Convert bytes per second to bits per second */
 			if (entry->police.rate_bytes_ps * 8 > max_link_rate) {
 				NL_SET_ERR_MSG_MOD(extack,
@@ -145,6 +189,10 @@ static int cxgb4_matchall_alloc_tc(struct net_device *dev,
 	flow_action_for_each(i, entry, &cls->rule->action)
 		if (entry->id == FLOW_ACTION_POLICE)
 			break;
+
+	ret = cxgb4_policer_validate(&cls->rule->action, entry, extack);
+	if (ret)
+		return ret;
 
 	/* Convert from bytes per second to Kbps */
 	p.u.params.maxrate = div_u64(entry->police.rate_bytes_ps * 8, 1000);

@@ -15,11 +15,13 @@ properties:
     oneOf:
       - const: allwinner,sun8i-a83t-emac
       - const: allwinner,sun8i-h3-emac
-      - const: allwinner,sun8i-r40-emac
+      - const: allwinner,sun8i-r40-gmac
       - const: allwinner,sun8i-v3s-emac
       - const: allwinner,sun50i-a64-emac
       - items:
-          - const: allwinner,sun50i-h6-emac
+          - enum:
+              - allwinner,sun20i-d1-emac
+              - allwinner,sun50i-h6-emac
           - const: allwinner,sun50i-a64-emac
 
   reg:
@@ -38,7 +40,7 @@ properties:
     const: stmmaceth
 
   syscon:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Phandle to the device containing the EMAC or GMAC clock
       register
@@ -91,7 +93,7 @@ allOf:
         compatible:
           contains:
             enum:
-              - allwinner,sun8i-r40-emac
+              - allwinner,sun8i-r40-gmac
 
     then:
       properties:
@@ -114,33 +116,35 @@ allOf:
     then:
       properties:
         allwinner,leds-active-low:
-          $ref: /schemas/types.yaml#definitions/flag
+          $ref: /schemas/types.yaml#/definitions/flag
           description:
             EPHY LEDs are active low.
 
         mdio-mux:
           type: object
+          unevaluatedProperties: false
 
           properties:
             compatible:
               const: allwinner,sun8i-h3-mdio-mux
 
             mdio-parent-bus:
-              $ref: /schemas/types.yaml#definitions/phandle
+              $ref: /schemas/types.yaml#/definitions/phandle
               description:
                 Phandle to EMAC MDIO.
 
+            "#address-cells":
+              const: 1
+
+            "#size-cells":
+              const: 0
+
             mdio@1:
-              type: object
+              $ref: mdio.yaml#
+              unevaluatedProperties: false
               description: Internal MDIO Bus
 
               properties:
-                "#address-cells":
-                  const: 1
-
-                "#size-cells":
-                  const: 0
-
                 compatible:
                   const: allwinner,sun8i-h3-mdio-internal
 
@@ -166,16 +170,11 @@ allOf:
 
 
             mdio@2:
-              type: object
+              $ref: mdio.yaml#
+              unevaluatedProperties: false
               description: External MDIO Bus (H3 only)
 
               properties:
-                "#address-cells":
-                  const: 1
-
-                "#size-cells":
-                  const: 0
-
                 reg:
                   const: 2
 

@@ -200,7 +200,7 @@ int mlx4_ib_umem_write_mtt(struct mlx4_ib_dev *dev, struct mlx4_mtt *mtt,
 	mtt_shift = mtt->page_shift;
 	mtt_size = 1ULL << mtt_shift;
 
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, i) {
+	for_each_sgtable_dma_sg(&umem->sgt_append.sgt, sg, i) {
 		if (cur_start_addr + len == sg_dma_address(sg)) {
 			/* still the same block */
 			len += sg_dma_len(sg);
@@ -273,7 +273,7 @@ int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem, u64 start_va,
 
 	*num_of_mtts = ib_umem_num_dma_blocks(umem, PAGE_SIZE);
 
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, i) {
+	for_each_sgtable_dma_sg(&umem->sgt_append.sgt, sg, i) {
 		/*
 		 * Initialization - save the first chunk start as the
 		 * current_block_start - block means contiguous pages.
@@ -456,10 +456,10 @@ err_free:
 	return ERR_PTR(err);
 }
 
-int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
-			  u64 start, u64 length, u64 virt_addr,
-			  int mr_access_flags, struct ib_pd *pd,
-			  struct ib_udata *udata)
+struct ib_mr *mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags, u64 start,
+				    u64 length, u64 virt_addr,
+				    int mr_access_flags, struct ib_pd *pd,
+				    struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(mr->device);
 	struct mlx4_ib_mr *mmr = to_mmr(mr);
@@ -472,9 +472,8 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 	 * race exists.
 	 */
 	err =  mlx4_mr_hw_get_mpt(dev->dev, &mmr->mmr, &pmpt_entry);
-
 	if (err)
-		return err;
+		return ERR_PTR(err);
 
 	if (flags & IB_MR_REREG_PD) {
 		err = mlx4_mr_hw_change_pd(dev->dev, *pmpt_entry,
@@ -542,8 +541,9 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 
 release_mpt_entry:
 	mlx4_mr_hw_put_mpt(dev->dev, pmpt_entry);
-
-	return err;
+	if (err)
+		return ERR_PTR(err);
+	return NULL;
 }
 
 static int

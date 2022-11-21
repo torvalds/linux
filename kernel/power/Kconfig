@@ -98,20 +98,20 @@ config PM_STD_PARTITION
 	default ""
 	help
 	  The default resume partition is the partition that the suspend-
-	  to-disk implementation will look for a suspended disk image. 
+	  to-disk implementation will look for a suspended disk image.
 
-	  The partition specified here will be different for almost every user. 
+	  The partition specified here will be different for almost every user.
 	  It should be a valid swap partition (at least for now) that is turned
-	  on before suspending. 
+	  on before suspending.
 
 	  The partition specified can be overridden by specifying:
 
-		resume=/dev/<other device> 
+		resume=/dev/<other device>
 
-	  which will set the resume partition to the device specified. 
+	  which will set the resume partition to the device specified.
 
 	  Note there is currently not a way to specify which device to save the
-	  suspended image to. It will simply pick the first available swap 
+	  suspended image to. It will simply pick the first available swap
 	  device.
 
 config PM_SLEEP
@@ -139,7 +139,6 @@ config PM_SLEEP_SMP_NONZERO_CPU
 config PM_AUTOSLEEP
 	bool "Opportunistic sleep"
 	depends on PM_SLEEP
-	default n
 	help
 	Allow the kernel to trigger a system transition into a global sleep
 	state automatically whenever there are no active wakeup sources.
@@ -147,7 +146,6 @@ config PM_AUTOSLEEP
 config PM_WAKELOCKS
 	bool "User space wakeup sources interface"
 	depends on PM_SLEEP
-	default n
 	help
 	Allow user space to create, activate and deactivate wakeup source
 	objects with the help of a sysfs-based interface.
@@ -293,7 +291,6 @@ config PM_GENERIC_DOMAINS
 config WQ_POWER_EFFICIENT_DEFAULT
 	bool "Enable workqueue power-efficient mode by default"
 	depends on PM
-	default n
 	help
 	  Per-cpu workqueues are generally preferred because they show
 	  better performance thanks to cache locality; unfortunately,
@@ -322,15 +319,14 @@ config CPU_PM
 	bool
 
 config ENERGY_MODEL
-	bool "Energy Model for CPUs"
+	bool "Energy Model for devices with DVFS (CPUs, GPUs, etc)"
 	depends on SMP
 	depends on CPU_FREQ
-	default n
 	help
 	  Several subsystems (thermal and/or the task scheduler for example)
-	  can leverage information about the energy consumed by CPUs to make
-	  smarter decisions. This config option enables the framework from
-	  which subsystems can access the energy models.
+	  can leverage information about the energy consumed by devices to
+	  make smarter decisions. This config option enables the framework
+	  from which subsystems can access the energy models.
 
 	  The exact usage of the energy model is subsystem-dependent.
 

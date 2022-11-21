@@ -319,6 +319,7 @@ enum pmbus_fan_mode { percent = 0, rpm };
 /*
  * STATUS_VOUT, STATUS_INPUT
  */
+#define PB_VOLTAGE_VIN_OFF		BIT(3)
 #define PB_VOLTAGE_UV_FAULT		BIT(4)
 #define PB_VOLTAGE_UV_WARNING		BIT(5)
 #define PB_VOLTAGE_OV_WARNING		BIT(6)
@@ -375,7 +376,7 @@ enum pmbus_sensor_classes {
 };
 
 #define PMBUS_PAGES	32	/* Per PMBus specification */
-#define PMBUS_PHASES	8	/* Maximum number of phases per page */
+#define PMBUS_PHASES	10	/* Maximum number of phases per page */
 
 /* Functionality bit mask */
 #define PMBUS_HAVE_VIN		BIT(0)
@@ -464,6 +465,7 @@ extern const struct regulator_ops pmbus_regulator_ops;
 #define PMBUS_REGULATOR(_name, _id)				\
 	[_id] = {						\
 		.name = (_name # _id),				\
+		.supply_name = "vin",				\
 		.id = (_id),					\
 		.of_match = of_match_ptr(_name # _id),		\
 		.regulators_node = of_match_ptr("regulators"),	\
@@ -475,6 +477,7 @@ extern const struct regulator_ops pmbus_regulator_ops;
 /* Function declarations */
 
 void pmbus_clear_cache(struct i2c_client *client);
+void pmbus_set_update(struct i2c_client *client, u8 reg, bool update);
 int pmbus_set_page(struct i2c_client *client, int page, int phase);
 int pmbus_read_word_data(struct i2c_client *client, int page, int phase,
 			 u8 reg);
@@ -490,7 +493,6 @@ void pmbus_clear_faults(struct i2c_client *client);
 bool pmbus_check_byte_register(struct i2c_client *client, int page, int reg);
 bool pmbus_check_word_register(struct i2c_client *client, int page, int reg);
 int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info);
-int pmbus_do_remove(struct i2c_client *client);
 const struct pmbus_driver_info *pmbus_get_driver_info(struct i2c_client
 						      *client);
 int pmbus_get_fan_rate_device(struct i2c_client *client, int page, int id,

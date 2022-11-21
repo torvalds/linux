@@ -572,7 +572,7 @@ static struct snd_soc_dai_link broxton_dais[] = {
 		.no_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
+			SND_SOC_DAIFMT_CBC_CFC,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = broxton_ssp_fixup,
 		.dpcm_playback = 1,
@@ -585,7 +585,7 @@ static struct snd_soc_dai_link broxton_dais[] = {
 		.no_pcm = 1,
 		.init = broxton_da7219_codec_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
+			SND_SOC_DAIFMT_CBC_CFC,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = broxton_ssp_fixup,
 		.dpcm_playback = 1,
@@ -813,6 +813,7 @@ static int broxton_audio_probe(struct platform_device *pdev)
 				if (ctx->spkamp == SPKAMP_MAX98390) {
 					broxton_dais[i].codecs = max98390_codec;
 					broxton_dais[i].num_codecs = ARRAY_SIZE(max98390_codec);
+					broxton_dais[i].dpcm_capture = 1;
 				}
 			}
 			/* DIALOG_CODEC is connected to SSP0 */
@@ -824,7 +825,7 @@ static int broxton_audio_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	mach = pdev->dev.platform_data;
 	platform_name = mach->mach_params.platform;
 
@@ -839,11 +840,12 @@ static int broxton_audio_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id bxt_board_ids[] = {
-	{ .name = "bxt_da7219_max98357a" },
-	{ .name = "glk_da7219_max98357a" },
-	{ .name = "cml_da7219_max98357a" },
+	{ .name = "bxt_da7219_mx98357a" },
+	{ .name = "glk_da7219_mx98357a" },
+	{ .name = "cml_da7219_mx98357a" },
 	{ }
 };
+MODULE_DEVICE_TABLE(platform, bxt_board_ids);
 
 static struct platform_driver broxton_audio = {
 	.probe = broxton_audio_probe,
@@ -865,6 +867,4 @@ MODULE_AUTHOR("Naveen Manohar <naveen.m@intel.com>");
 MODULE_AUTHOR("Mac Chiang <mac.chiang@intel.com>");
 MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:bxt_da7219_max98357a");
-MODULE_ALIAS("platform:glk_da7219_max98357a");
-MODULE_ALIAS("platform:cml_da7219_max98357a");
+MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);

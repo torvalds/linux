@@ -19,7 +19,25 @@
 #include <linux/fdtable.h>
 #include <linux/fsnotify_backend.h>
 
-int dir_notify_enable __read_mostly = 1;
+static int dir_notify_enable __read_mostly = 1;
+#ifdef CONFIG_SYSCTL
+static struct ctl_table dnotify_sysctls[] = {
+	{
+		.procname	= "dir-notify-enable",
+		.data		= &dir_notify_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{}
+};
+static void __init dnotify_sysctl_init(void)
+{
+	register_sysctl_init("fs", dnotify_sysctls);
+}
+#else
+#define dnotify_sysctl_init() do { } while (0)
+#endif
 
 static struct kmem_cache *dnotify_struct_cache __read_mostly;
 static struct kmem_cache *dnotify_mark_cache __read_mostly;
@@ -72,7 +90,7 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
  */
 static int dnotify_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
 				struct inode *inode, struct inode *dir,
-				const struct qstr *name)
+				const struct qstr *name, u32 cookie)
 {
 	struct dnotify_mark *dn_mark;
 	struct dnotify_struct *dn;
@@ -196,7 +214,7 @@ static __u32 convert_arg(unsigned long arg)
 	if (arg & DN_ATTRIB)
 		new_mask |= FS_ATTRIB;
 	if (arg & DN_RENAME)
-		new_mask |= FS_DN_RENAME;
+		new_mask |= FS_RENAME;
 	if (arg & DN_CREATE)
 		new_mask |= (FS_CREATE | FS_MOVED_TO);
 
@@ -327,7 +345,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	}
 
 	rcu_read_lock();
-	f = fcheck(fd);
+	f = lookup_fd_rcu(fd);
 	rcu_read_unlock();
 
 	/* if (f != filp) means that we lost a race and another task/thread
@@ -386,6 +404,7 @@ static int __init dnotify_init(void)
 	dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops);
 	if (IS_ERR(dnotify_group))
 		panic("unable to allocate fsnotify group for dnotify\n");
+	dnotify_sysctl_init();
 	return 0;
 }
 

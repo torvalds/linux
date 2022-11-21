@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2011-2020  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Antonio Quartulli
  */
@@ -11,6 +11,7 @@
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/byteorder/generic.h>
+#include <linux/container_of.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/gfp.h>
@@ -20,13 +21,11 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/jiffies.h>
-#include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/netlink.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
-#include <linux/seq_file.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -88,7 +87,7 @@ struct batadv_dhcp_packet {
 	__u8 sname[64];
 	__u8 file[128];
 	__be32 magic;
-	__u8 options[];
+	/* __u8 options[]; */
 };
 
 #define BATADV_DHCP_YIADDR_LEN sizeof(((struct batadv_dhcp_packet *)0)->yiaddr)
@@ -128,6 +127,9 @@ static void batadv_dat_entry_release(struct kref *ref)
  */
 static void batadv_dat_entry_put(struct batadv_dat_entry *dat_entry)
 {
+	if (!dat_entry)
+		return;
+
 	kref_put(&dat_entry->refcount, batadv_dat_entry_release);
 }
 
@@ -406,8 +408,7 @@ static void batadv_dat_entry_add(struct batadv_priv *bat_priv, __be32 ip,
 		   &dat_entry->ip, dat_entry->mac_addr, batadv_print_vid(vid));
 
 out:
-	if (dat_entry)
-		batadv_dat_entry_put(dat_entry);
+	batadv_dat_entry_put(dat_entry);
 }
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
@@ -595,8 +596,7 @@ static void batadv_choose_next_candidate(struct batadv_priv *bat_priv,
 				continue;
 
 			max = tmp_max;
-			if (max_orig_node)
-				batadv_orig_node_put(max_orig_node);
+			batadv_orig_node_put(max_orig_node);
 			max_orig_node = orig_node;
 		}
 		rcu_read_unlock();
@@ -842,60 +842,6 @@ void batadv_dat_free(struct batadv_priv *bat_priv)
 	batadv_dat_hash_free(bat_priv);
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-/**
- * batadv_dat_cache_seq_print_text() - print the local DAT hash table
- * @seq: seq file to print on
- * @offset: not used
- *
- * Return: always 0
- */
-int batadv_dat_cache_seq_print_text(struct seq_file *seq, void *offset)
-{
-	struct net_device *net_dev = (struct net_device *)seq->private;
-	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	struct batadv_hashtable *hash = bat_priv->dat.hash;
-	struct batadv_dat_entry *dat_entry;
-	struct batadv_hard_iface *primary_if;
-	struct hlist_head *head;
-	unsigned long last_seen_jiffies;
-	int last_seen_msecs, last_seen_secs, last_seen_mins;
-	u32 i;
-
-	primary_if = batadv_seq_print_text_primary_if_get(seq);
-	if (!primary_if)
-		goto out;
-
-	seq_printf(seq, "Distributed ARP Table (%s):\n", net_dev->name);
-	seq_puts(seq,
-		 "          IPv4             MAC        VID   last-seen\n");
-
-	for (i = 0; i < hash->size; i++) {
-		head = &hash->table[i];
-
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(dat_entry, head, hash_entry) {
-			last_seen_jiffies = jiffies - dat_entry->last_update;
-			last_seen_msecs = jiffies_to_msecs(last_seen_jiffies);
-			last_seen_mins = last_seen_msecs / 60000;
-			last_seen_msecs = last_seen_msecs % 60000;
-			last_seen_secs = last_seen_msecs / 1000;
-
-			seq_printf(seq, " * %15pI4 %pM %4i %6i:%02i\n",
-				   &dat_entry->ip, dat_entry->mac_addr,
-				   batadv_print_vid(dat_entry->vid),
-				   last_seen_mins, last_seen_secs);
-		}
-		rcu_read_unlock();
-	}
-
-out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
-	return 0;
-}
-#endif
-
 /**
  * batadv_dat_cache_dump_entry() - dump one entry of the DAT cache table to a
  *  netlink socket
@@ -1036,11 +982,9 @@ int batadv_dat_cache_dump(struct sk_buff *msg, struct netlink_callback *cb)
 	ret = msg->len;
 
 out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
+	batadv_hardif_put(primary_if);
 
-	if (soft_iface)
-		dev_put(soft_iface);
+	dev_put(soft_iface);
 
 	return ret;
 }
@@ -1273,8 +1217,7 @@ bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
 					      BATADV_P_DAT_DHT_GET);
 	}
 out:
-	if (dat_entry)
-		batadv_dat_entry_put(dat_entry);
+	batadv_dat_entry_put(dat_entry);
 	return ret;
 }
 
@@ -1341,8 +1284,7 @@ bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
 		ret = true;
 	}
 out:
-	if (dat_entry)
-		batadv_dat_entry_put(dat_entry);
+	batadv_dat_entry_put(dat_entry);
 	if (ret)
 		kfree_skb(skb);
 	return ret;
@@ -1475,8 +1417,7 @@ bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 out:
 	if (dropped)
 		kfree_skb(skb);
-	if (dat_entry)
-		batadv_dat_entry_put(dat_entry);
+	batadv_dat_entry_put(dat_entry);
 	/* if dropped == false -> deliver to the interface */
 	return dropped;
 }
@@ -1619,7 +1560,7 @@ static int batadv_dat_get_dhcp_message_type(struct sk_buff *skb)
 }
 
 /**
- * batadv_dat_get_dhcp_yiaddr() - get yiaddr from a DHCP packet
+ * batadv_dat_dhcp_get_yiaddr() - get yiaddr from a DHCP packet
  * @skb: the DHCP packet to parse
  * @buf: a buffer to store the yiaddr in
  *
@@ -1885,7 +1826,6 @@ bool batadv_dat_drop_broadcast_packet(struct batadv_priv *bat_priv,
 	ret = true;
 
 out:
-	if (dat_entry)
-		batadv_dat_entry_put(dat_entry);
+	batadv_dat_entry_put(dat_entry);
 	return ret;
 }

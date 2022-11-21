@@ -40,16 +40,16 @@ On 64bit systems, even if all overlay layers are not on the same
 underlying filesystem, the same compliant behavior could be achieved
 with the "xino" feature.  The "xino" feature composes a unique object
 identifier from the real object st_ino and an underlying fsid index.
-
-If all underlying filesystems support NFS file handles and export file
-handles with 32bit inode number encoding (e.g. ext4), overlay filesystem
-will use the high inode number bits for fsid.  Even when the underlying
-filesystem uses 64bit inode numbers, users can still enable the "xino"
-feature with the "-o xino=on" overlay mount option.  That is useful for the
-case of underlying filesystems like xfs and tmpfs, which use 64bit inode
-numbers, but are very unlikely to use the high inode number bits.  In case
+The "xino" feature uses the high inode number bits for fsid, because the
+underlying filesystems rarely use the high inode number bits.  In case
 the underlying inode number does overflow into the high xino bits, overlay
 filesystem will fall back to the non xino behavior for that inode.
+
+The "xino" feature can be enabled with the "-o xino=on" overlay mount option.
+If all underlying filesystems support NFS file handles, the value of st_ino
+for overlay filesystem objects is not only unique, but also persistent over
+the lifetime of the filesystem.  The "-o xino=auto" overlay mount option
+enables the "xino" feature only if the persistent st_ino requirement is met.
 
 The following table summarizes what can be expected in different overlay
 configurations.
@@ -66,21 +66,19 @@ Inode properties
 | All layers   |  Y  |  Y   |  Y  |  Y   |  Y     |   Y    |  Y     |  Y    |
 | on same fs   |     |      |     |      |        |        |        |       |
 +--------------+-----+------+-----+------+--------+--------+--------+-------+
-| Layers not   |  N  |  Y   |  Y  |  N   |  N     |   Y    |  N     |  Y    |
+| Layers not   |  N  |  N   |  Y  |  N   |  N     |   Y    |  N     |  Y    |
 | on same fs,  |     |      |     |      |        |        |        |       |
 | xino=off     |     |      |     |      |        |        |        |       |
 +--------------+-----+------+-----+------+--------+--------+--------+-------+
 | xino=on/auto |  Y  |  Y   |  Y  |  Y   |  Y     |   Y    |  Y     |  Y    |
-|              |     |      |     |      |        |        |        |       |
 +--------------+-----+------+-----+------+--------+--------+--------+-------+
-| xino=on/auto,|  N  |  Y   |  Y  |  N   |  N     |   Y    |  N     |  Y    |
+| xino=on/auto,|  N  |  N   |  Y  |  N   |  N     |   Y    |  N     |  Y    |
 | ino overflow |     |      |     |      |        |        |        |       |
 +--------------+-----+------+-----+------+--------+--------+--------+-------+
 
 [*] nfsd v3 readdirplus verifies d_ino == i_ino. i_ino is exposed via several
 /proc files, such as /proc/locks and /proc/self/fdinfo/<fd> of an inotify
 file descriptor.
-
 
 Upper and Lower
 ---------------
@@ -97,11 +95,13 @@ directory trees to be in the same filesystem and there is no
 requirement that the root of a filesystem be given for either upper or
 lower.
 
-The lower filesystem can be any filesystem supported by Linux and does
-not need to be writable.  The lower filesystem can even be another
-overlayfs.  The upper filesystem will normally be writable and if it
-is it must support the creation of trusted.* extended attributes, and
-must provide valid d_type in readdir responses, so NFS is not suitable.
+A wide range of filesystems supported by Linux can be the lower filesystem,
+but not all filesystems that are mountable by Linux have the features
+needed for OverlayFS to work.  The lower filesystem does not need to be
+writable.  The lower filesystem can even be another overlayfs.  The upper
+filesystem will normally be writable and if it is it must support the
+creation of trusted.* and/or user.* extended attributes, and must provide
+valid d_type in readdir responses, so NFS is not suitable.
 
 A read-only overlay of two read-only filesystems may use any
 filesystem type.
@@ -427,6 +427,9 @@ b) If a file residing on a lower layer is opened for read-only and then
 memory mapped with MAP_SHARED, then subsequent changes to the file are not
 reflected in the memory mapping.
 
+c) If a file residing on a lower layer is being executed, then opening that
+file for write or truncating the file will not be denied with ETXTBSY.
+
 The following options allow overlayfs to act more like a standards
 compliant filesystem:
 
@@ -459,7 +462,7 @@ enough free bits in the inode number, then overlayfs will not be able to
 guarantee that the values of st_ino and st_dev returned by stat(2) and the
 value of d_ino returned by readdir(3) will act like on a normal filesystem.
 E.g. the value of st_dev may be different for two objects in the same
-overlay filesystem and the value of st_ino for directory objects may not be
+overlay filesystem and the value of st_ino for filesystem objects may not be
 persistent and could change even while the overlay filesystem is mounted, as
 summarized in the `Inode properties`_ table above.
 
@@ -467,13 +470,17 @@ summarized in the `Inode properties`_ table above.
 Changes to underlying filesystems
 ---------------------------------
 
-Offline changes, when the overlay is not mounted, are allowed to either
-the upper or the lower trees.
-
 Changes to the underlying filesystems while part of a mounted overlay
 filesystem are not allowed.  If the underlying filesystem is changed,
 the behavior of the overlay is undefined, though it will not result in
 a crash or deadlock.
+
+Offline changes, when the overlay is not mounted, are allowed to the
+upper tree.  Offline changes to the lower tree are only allowed if the
+"metadata only copy up", "inode index", "xino" and "redirect_dir" features
+have not been used.  If the lower tree is modified and any of these
+features has been used, the behavior of the overlay is undefined,
+though it will not result in a crash or deadlock.
 
 When the overlay NFS export feature is enabled, overlay filesystems
 behavior on offline changes of the underlying lower layer is different
@@ -563,6 +570,11 @@ This verification may cause significant overhead in some cases.
 Note: the mount options index=off,nfs_export=on are conflicting for a
 read-write mount and will result in an error.
 
+Note: the mount option uuid=off can be used to replace UUID of the underlying
+filesystem in file handles with null, and effectively disable UUID checks. This
+can be useful in case the underlying disk is copied and the UUID of this copy
+is changed. This is only applicable if all lower/upper/work directories are on
+the same filesystem, otherwise it will fallback to normal behaviour.
 
 Volatile mount
 --------------
@@ -575,6 +587,14 @@ without significant effort.
 The advantage of mounting with the "volatile" option is that all forms of
 sync calls to the upper filesystem are omitted.
 
+In order to avoid a giving a false sense of safety, the syncfs (and fsync)
+semantics of volatile mounts are slightly different than that of the rest of
+VFS.  If any writeback error occurs on the upperdir's filesystem after a
+volatile mount takes place, all sync functions will return an error.  Once this
+condition is reached, the filesystem will not recover, and every subsequent sync
+call will return an error, even if the upperdir has not experience a new error
+since the last sync call.
+
 When overlay is mounted with "volatile" option, the directory
 "$workdir/work/incompat/volatile" is created.  During next mount, overlay
 checks for this directory and refuses to mount if present. This is a strong
@@ -582,6 +602,15 @@ indicator that user should throw away upper and work directories and create
 fresh one. In very limited cases where the user knows that the system has
 not crashed and contents of upperdir are intact, The "volatile" directory
 can be removed.
+
+
+User xattr
+----------
+
+The the "-o userxattr" mount option forces overlayfs to use the
+"user.overlay." xattr namespace instead of "trusted.overlay.".  This is
+useful for unprivileged mounting of overlayfs.
+
 
 Testsuite
 ---------

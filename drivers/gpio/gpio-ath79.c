@@ -123,6 +123,7 @@ static int ath79_gpio_irq_set_type(struct irq_data *data,
 	switch (flow_type) {
 	case IRQ_TYPE_EDGE_RISING:
 		polarity |= mask;
+		fallthrough;
 	case IRQ_TYPE_EDGE_FALLING:
 	case IRQ_TYPE_EDGE_BOTH:
 		break;
@@ -203,11 +204,8 @@ static void ath79_gpio_irq_handler(struct irq_desc *desc)
 
 	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
 
-	if (pending) {
-		for_each_set_bit(irq, &pending, gc->ngpio)
-			generic_handle_irq(
-				irq_linear_revmap(gc->irq.domain, irq));
-	}
+	for_each_set_bit(irq, &pending, gc->ngpio)
+		generic_handle_domain_irq(gc->irq.domain, irq);
 
 	chained_irq_exit(irqchip, desc);
 }
@@ -233,7 +231,6 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
 		return -ENOMEM;
-	platform_set_drvdata(pdev, ctrl);
 
 	if (np) {
 		err = of_property_read_u32(np, "ngpios", &ath79_gpio_count);
@@ -289,13 +286,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 		girq->handler = handle_simple_irq;
 	}
 
-	err = devm_gpiochip_add_data(dev, &ctrl->gc, ctrl);
-	if (err) {
-		dev_err(dev,
-			"cannot add AR71xx GPIO chip, error=%d", err);
-		return err;
-	}
-	return 0;
+	return devm_gpiochip_add_data(dev, &ctrl->gc, ctrl);
 }
 
 static struct platform_driver ath79_gpio_driver = {

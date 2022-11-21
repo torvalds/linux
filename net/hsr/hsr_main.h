@@ -13,6 +13,7 @@
 #include <linux/netdevice.h>
 #include <linux/list.h>
 #include <linux/if_vlan.h>
+#include <linux/if_hsr.h>
 
 /* Time constants as specified in the HSR specification (IEC-62439-3 2010)
  * Table 8.
@@ -21,6 +22,7 @@
 #define HSR_LIFE_CHECK_INTERVAL		 2000 /* ms */
 #define HSR_NODE_FORGET_TIME		60000 /* ms */
 #define HSR_ANNOUNCE_INTERVAL		  100 /* ms */
+#define HSR_ENTRY_FORGET_TIME		  400 /* ms */
 
 /* By how much may slave1 and slave2 timestamps of latest received frame from
  * each node differ before we notify of communication problem?
@@ -33,31 +35,20 @@
  * HSR_NODE_FORGET_TIME?
  */
 #define PRUNE_PERIOD			 3000 /* ms */
-
+#define HSR_TLV_EOT				   0  /* End of TLVs */
 #define HSR_TLV_ANNOUNCE		   22
 #define HSR_TLV_LIFE_CHECK		   23
 /* PRP V1 life check for Duplicate discard */
 #define PRP_TLV_LIFE_CHECK_DD		   20
 /* PRP V1 life check for Duplicate Accept */
 #define PRP_TLV_LIFE_CHECK_DA		   21
-
-/* HSR Tag.
- * As defined in IEC-62439-3:2010, the HSR tag is really { ethertype = 0x88FB,
- * path, LSDU_size, sequence Nr }. But we let eth_header() create { h_dest,
- * h_source, h_proto = 0x88FB }, and add { path, LSDU_size, sequence Nr,
- * encapsulated protocol } instead.
- *
- * Field names as defined in the IEC:2010 standard for HSR.
- */
-struct hsr_tag {
-	__be16		path_and_LSDU_size;
-	__be16		sequence_nr;
-	__be16		encap_proto;
-} __packed;
-
-#define HSR_HLEN	6
+/* PRP V1 life redundancy box MAC address */
+#define PRP_TLV_REDBOX_MAC		   30
 
 #define HSR_V1_SUP_LSDUSIZE		52
+
+#define HSR_HSIZE_SHIFT	8
+#define HSR_HSIZE	BIT(HSR_HSIZE_SHIFT)
 
 /* The helper functions below assumes that 'path' occupies the 4 most
  * significant bits of the 16-bit field shared by 'path' and 'LSDU_size' (or
@@ -92,14 +83,18 @@ struct hsr_vlan_ethhdr {
 	struct hsr_tag	hsr_tag;
 } __packed;
 
+struct hsr_sup_tlv {
+	u8		HSR_TLV_type;
+	u8		HSR_TLV_length;
+};
+
 /* HSR/PRP Supervision Frame data types.
  * Field names as defined in the IEC:2010 standard for HSR.
  */
 struct hsr_sup_tag {
-	__be16		path_and_HSR_ver;
-	__be16		sequence_nr;
-	__u8		HSR_TLV_type;
-	__u8		HSR_TLV_length;
+	__be16				path_and_HSR_ver;
+	__be16				sequence_nr;
+	struct hsr_sup_tlv  tlv;
 } __packed;
 
 struct hsr_sup_payload {
@@ -171,13 +166,6 @@ struct hsr_port {
 	enum hsr_port_type	type;
 };
 
-/* used by driver internally to differentiate various protocols */
-enum hsr_version {
-	HSR_V0 = 0,
-	HSR_V1,
-	PRP_V1,
-};
-
 struct hsr_frame_info;
 struct hsr_node;
 
@@ -191,8 +179,8 @@ struct hsr_proto_ops {
 					       struct hsr_port *port);
 	struct sk_buff * (*create_tagged_frame)(struct hsr_frame_info *frame,
 						struct hsr_port *port);
-	void (*fill_frame_info)(__be16 proto, struct sk_buff *skb,
-				struct hsr_frame_info *frame);
+	int (*fill_frame_info)(__be16 proto, struct sk_buff *skb,
+			       struct hsr_frame_info *frame);
 	bool (*invalid_dan_ingress_frame)(__be16 protocol);
 	void (*update_san_info)(struct hsr_node *node, bool is_sup);
 };
@@ -200,8 +188,8 @@ struct hsr_proto_ops {
 struct hsr_priv {
 	struct rcu_head		rcu_head;
 	struct list_head	ports;
-	struct list_head	node_db;	/* Known HSR nodes */
-	struct list_head	self_node_db;	/* MACs of slaves */
+	struct hlist_head	node_db[HSR_HSIZE];	/* Known HSR nodes */
+	struct hlist_head	self_node_db;	/* MACs of slaves */
 	struct timer_list	announce_timer;	/* Supervision frame dispatch */
 	struct timer_list	prune_timer;
 	int announce_count;
@@ -211,13 +199,18 @@ struct hsr_priv {
 	spinlock_t seqnr_lock;	/* locking for sequence_nr */
 	spinlock_t list_lock;	/* locking for node list */
 	struct hsr_proto_ops	*proto_ops;
+	u32 hash_buckets;
+	u32 hash_seed;
 #define PRP_LAN_ID	0x5     /* 0x1010 for A and 0x1011 for B. Bit 0 is set
 				 * based on SLAVE_A or SLAVE_B
 				 */
 	u8 net_id;		/* for PRP, it occupies most significant 3 bits
 				 * of lan_id
 				 */
-	unsigned char		sup_multicast_addr[ETH_ALEN];
+	unsigned char		sup_multicast_addr[ETH_ALEN] __aligned(sizeof(u16));
+				/* Align to u16 boundary to avoid unaligned access
+				 * in ether_addr_equal
+				 */
 #ifdef	CONFIG_DEBUG_FS
 	struct dentry *node_tbl_root;
 #endif
@@ -253,11 +246,6 @@ static inline struct prp_rct *skb_get_PRP_rct(struct sk_buff *skb)
 static inline u16 prp_get_skb_sequence_nr(struct prp_rct *rct)
 {
 	return ntohs(rct->sequence_nr);
-}
-
-static inline u16 get_prp_lan_id(struct prp_rct *rct)
-{
-	return ntohs(rct->lan_id_and_LSDU_size) >> 12;
 }
 
 /* assume there is a valid rct */

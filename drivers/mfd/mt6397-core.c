@@ -13,9 +13,11 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/mt6323/core.h>
 #include <linux/mfd/mt6358/core.h>
+#include <linux/mfd/mt6359/core.h>
 #include <linux/mfd/mt6397/core.h>
 #include <linux/mfd/mt6323/registers.h>
 #include <linux/mfd/mt6358/registers.h>
+#include <linux/mfd/mt6359/registers.h>
 #include <linux/mfd/mt6397/registers.h>
 
 #define MT6323_RTC_BASE		0x8000
@@ -45,14 +47,21 @@ static const struct resource mt6397_rtc_resources[] = {
 	DEFINE_RES_IRQ(MT6397_IRQ_RTC),
 };
 
+static const struct resource mt6358_keys_resources[] = {
+	DEFINE_RES_IRQ_NAMED(MT6358_IRQ_PWRKEY, "powerkey"),
+	DEFINE_RES_IRQ_NAMED(MT6358_IRQ_HOMEKEY, "homekey"),
+	DEFINE_RES_IRQ_NAMED(MT6358_IRQ_PWRKEY_R, "powerkey_r"),
+	DEFINE_RES_IRQ_NAMED(MT6358_IRQ_HOMEKEY_R, "homekey_r"),
+};
+
 static const struct resource mt6323_keys_resources[] = {
-	DEFINE_RES_IRQ(MT6323_IRQ_STATUS_PWRKEY),
-	DEFINE_RES_IRQ(MT6323_IRQ_STATUS_FCHRKEY),
+	DEFINE_RES_IRQ_NAMED(MT6323_IRQ_STATUS_PWRKEY, "powerkey"),
+	DEFINE_RES_IRQ_NAMED(MT6323_IRQ_STATUS_FCHRKEY, "homekey"),
 };
 
 static const struct resource mt6397_keys_resources[] = {
-	DEFINE_RES_IRQ(MT6397_IRQ_PWRKEY),
-	DEFINE_RES_IRQ(MT6397_IRQ_HOMEKEY),
+	DEFINE_RES_IRQ_NAMED(MT6397_IRQ_PWRKEY, "powerkey"),
+	DEFINE_RES_IRQ_NAMED(MT6397_IRQ_HOMEKEY, "homekey"),
 };
 
 static const struct resource mt6323_pwrc_resources[] = {
@@ -96,7 +105,23 @@ static const struct mfd_cell mt6358_devs[] = {
 	}, {
 		.name = "mt6358-sound",
 		.of_compatible = "mediatek,mt6358-sound"
+	}, {
+		.name = "mt6358-keys",
+		.num_resources = ARRAY_SIZE(mt6358_keys_resources),
+		.resources = mt6358_keys_resources,
+		.of_compatible = "mediatek,mt6358-keys"
 	},
+};
+
+static const struct mfd_cell mt6359_devs[] = {
+	{ .name = "mt6359-regulator", },
+	{
+		.name = "mt6359-rtc",
+		.num_resources = ARRAY_SIZE(mt6358_rtc_resources),
+		.resources = mt6358_rtc_resources,
+		.of_compatible = "mediatek,mt6358-rtc",
+	},
+	{ .name = "mt6359-sound", },
 };
 
 static const struct mfd_cell mt6397_devs[] = {
@@ -146,6 +171,14 @@ static const struct chip_data mt6358_core = {
 	.cid_shift = 8,
 	.cells = mt6358_devs,
 	.cell_size = ARRAY_SIZE(mt6358_devs),
+	.irq_init = mt6358_irq_init,
+};
+
+static const struct chip_data mt6359_core = {
+	.cid_addr = MT6359_SWCID,
+	.cid_shift = 8,
+	.cells = mt6359_devs,
+	.cell_size = ARRAY_SIZE(mt6359_devs),
 	.irq_init = mt6358_irq_init,
 };
 
@@ -219,6 +252,9 @@ static const struct of_device_id mt6397_of_match[] = {
 		.compatible = "mediatek,mt6358",
 		.data = &mt6358_core,
 	}, {
+		.compatible = "mediatek,mt6359",
+		.data = &mt6359_core,
+	}, {
 		.compatible = "mediatek,mt6397",
 		.data = &mt6397_core,
 	}, {
@@ -237,7 +273,7 @@ static struct platform_driver mt6397_driver = {
 	.probe = mt6397_probe,
 	.driver = {
 		.name = "mt6397",
-		.of_match_table = of_match_ptr(mt6397_of_match),
+		.of_match_table = mt6397_of_match,
 	},
 	.id_table = mt6397_id,
 };

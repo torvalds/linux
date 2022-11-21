@@ -56,7 +56,7 @@ static int qcom_pil_info_init(void)
 	memset_io(base, 0, resource_size(&imem));
 
 	_reloc.base = base;
-	_reloc.num_entries = resource_size(&imem) / PIL_RELOC_ENTRY_SIZE;
+	_reloc.num_entries = (u32)resource_size(&imem) / PIL_RELOC_ENTRY_SIZE;
 
 	return 0;
 }
@@ -104,7 +104,7 @@ int qcom_pil_info_store(const char *image, phys_addr_t base, size_t size)
 	return -ENOMEM;
 
 found_unused:
-	memcpy_toio(entry, image, PIL_RELOC_NAME_LEN);
+	memcpy_toio(entry, image, strnlen(image, PIL_RELOC_NAME_LEN));
 found_existing:
 	/* Use two writel() as base is only aligned to 4 bytes on odd entries */
 	writel(base, entry + PIL_RELOC_NAME_LEN);

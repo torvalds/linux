@@ -183,7 +183,6 @@ static struct i2c_driver max8688_driver = {
 		   .name = "max8688",
 		   },
 	.probe_new = max8688_probe,
-	.remove = pmbus_do_remove,
 	.id_table = max8688_id,
 };
 
@@ -192,3 +191,4 @@ module_i2c_driver(max8688_driver);
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for Maxim MAX8688");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

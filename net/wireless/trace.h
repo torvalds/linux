@@ -167,6 +167,19 @@
 			__entry->center_freq1, __entry->freq1_offset,	\
 			__entry->center_freq2
 
+#define FILS_AAD_ASSIGN(fa)						\
+	do {								\
+		if (fa) {						\
+			ether_addr_copy(__entry->macaddr, fa->macaddr);	\
+			__entry->kek_len = fa->kek_len;			\
+		} else {						\
+			eth_zero_addr(__entry->macaddr);		\
+			__entry->kek_len = 0;				\
+		}							\
+	} while (0)
+#define FILS_AAD_PR_FMT							\
+	"macaddr: %pM, kek_len: %d"
+
 #define SINFO_ENTRY __field(int, generation)	    \
 		    __field(u32, connected_time)    \
 		    __field(u32, inactive_time)	    \
@@ -838,11 +851,6 @@ DEFINE_EVENT(wiphy_netdev_mac_evt, rdev_del_mpath,
 	TP_ARGS(wiphy, netdev, mac)
 );
 
-DEFINE_EVENT(wiphy_netdev_mac_evt, rdev_set_wds_peer,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, const u8 *mac),
-	TP_ARGS(wiphy, netdev, mac)
-);
-
 TRACE_EVENT(rdev_dump_station,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, int _idx,
 		 u8 *mac),
@@ -1200,8 +1208,9 @@ TRACE_EVENT(rdev_auth,
 
 TRACE_EVENT(rdev_assoc,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		 struct cfg80211_assoc_request *req),
-	TP_ARGS(wiphy, netdev, req),
+		 struct cfg80211_assoc_request *req,
+		 const struct cfg80211_bss_ies *bss_ies),
+	TP_ARGS(wiphy, netdev, req, bss_ies),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
@@ -1209,6 +1218,17 @@ TRACE_EVENT(rdev_assoc,
 		MAC_ENTRY(prev_bssid)
 		__field(bool, use_mfp)
 		__field(u32, flags)
+		__dynamic_array(u8, bss_elements, bss_ies->len)
+		__field(bool, bss_elements_bcon)
+		__field(u64, bss_elements_tsf)
+		__dynamic_array(u8, elements, req->ie_len)
+		__array(u8, ht_capa, sizeof(struct ieee80211_ht_cap))
+		__array(u8, ht_capa_mask, sizeof(struct ieee80211_ht_cap))
+		__array(u8, vht_capa, sizeof(struct ieee80211_vht_cap))
+		__array(u8, vht_capa_mask, sizeof(struct ieee80211_vht_cap))
+		__dynamic_array(u8, fils_kek, req->fils_kek_len)
+		__dynamic_array(u8, fils_nonces,
+				req->fils_nonces ? 2 * FILS_NONCE_LEN : 0)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
@@ -1220,6 +1240,26 @@ TRACE_EVENT(rdev_assoc,
 		MAC_ASSIGN(prev_bssid, req->prev_bssid);
 		__entry->use_mfp = req->use_mfp;
 		__entry->flags = req->flags;
+		if (bss_ies->len)
+			memcpy(__get_dynamic_array(bss_elements),
+			       bss_ies->data, bss_ies->len);
+		__entry->bss_elements_bcon = bss_ies->from_beacon;
+		__entry->bss_elements_tsf = bss_ies->tsf;
+		if (req->ie)
+			memcpy(__get_dynamic_array(elements),
+			       req->ie, req->ie_len);
+		memcpy(__entry->ht_capa, &req->ht_capa, sizeof(req->ht_capa));
+		memcpy(__entry->ht_capa_mask, &req->ht_capa_mask,
+		       sizeof(req->ht_capa_mask));
+		memcpy(__entry->vht_capa, &req->vht_capa, sizeof(req->vht_capa));
+		memcpy(__entry->vht_capa_mask, &req->vht_capa_mask,
+		       sizeof(req->vht_capa_mask));
+		if (req->fils_kek)
+			memcpy(__get_dynamic_array(fils_kek),
+			       req->fils_kek, req->fils_kek_len);
+		if (req->fils_nonces)
+			memcpy(__get_dynamic_array(fils_nonces),
+			       req->fils_nonces, 2 * FILS_NONCE_LEN);
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", bssid: " MAC_PR_FMT
 		  ", previous bssid: " MAC_PR_FMT ", use mfp: %s, flags: %u",
@@ -2587,6 +2627,24 @@ DEFINE_EVENT(wiphy_wdev_cookie_evt, rdev_abort_pmsr,
 	TP_ARGS(wiphy, wdev, cookie)
 );
 
+TRACE_EVENT(rdev_set_fils_aad,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_fils_aad *fils_aad),
+	TP_ARGS(wiphy, netdev, fils_aad),
+	TP_STRUCT__entry(WIPHY_ENTRY
+		NETDEV_ENTRY
+		__array(u8, macaddr, ETH_ALEN)
+		__field(u8, kek_len)
+	),
+	TP_fast_assign(WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		FILS_AAD_ASSIGN(fils_aad);
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " FILS_AAD_PR_FMT,
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->macaddr,
+		  __entry->kek_len)
+);
+
 /*************************************************************
  *	     cfg80211 exported functions traces		     *
  *************************************************************/
@@ -2684,19 +2742,23 @@ DEFINE_EVENT(netdev_frame_event, cfg80211_rx_mlme_mgmt,
 );
 
 TRACE_EVENT(cfg80211_tx_mlme_mgmt,
-	TP_PROTO(struct net_device *netdev, const u8 *buf, int len),
-	TP_ARGS(netdev, buf, len),
+	TP_PROTO(struct net_device *netdev, const u8 *buf, int len,
+		 bool reconnect),
+	TP_ARGS(netdev, buf, len, reconnect),
 	TP_STRUCT__entry(
 		NETDEV_ENTRY
 		__dynamic_array(u8, frame, len)
+		__field(int, reconnect)
 	),
 	TP_fast_assign(
 		NETDEV_ASSIGN;
 		memcpy(__get_dynamic_array(frame), buf, len);
+		__entry->reconnect = reconnect;
 	),
-	TP_printk(NETDEV_PR_FMT ", ftype:0x%.2x",
+	TP_printk(NETDEV_PR_FMT ", ftype:0x%.2x reconnect:%d",
 		  NETDEV_PR_ARG,
-		  le16_to_cpup((__le16 *)__get_dynamic_array(frame)))
+		  le16_to_cpup((__le16 *)__get_dynamic_array(frame)),
+		  __entry->reconnect)
 );
 
 DECLARE_EVENT_CLASS(netdev_mac_evt,
@@ -2991,18 +3053,21 @@ TRACE_EVENT(cfg80211_ch_switch_started_notify,
 );
 
 TRACE_EVENT(cfg80211_radar_event,
-	TP_PROTO(struct wiphy *wiphy, struct cfg80211_chan_def *chandef),
-	TP_ARGS(wiphy, chandef),
+	TP_PROTO(struct wiphy *wiphy, struct cfg80211_chan_def *chandef,
+		 bool offchan),
+	TP_ARGS(wiphy, chandef, offchan),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		CHAN_DEF_ENTRY
+		__field(bool, offchan)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		CHAN_DEF_ASSIGN(chandef);
+		__entry->offchan = offchan;
 	),
-	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT,
-		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG)
+	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT ", offchan %d",
+		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG, __entry->offchan)
 );
 
 TRACE_EVENT(cfg80211_cac_event,
@@ -3547,6 +3612,107 @@ TRACE_EVENT(rdev_reset_tid_config,
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", peer: " MAC_PR_FMT ", tids: 0x%x",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(peer), __entry->tids)
 );
+
+TRACE_EVENT(rdev_set_sar_specs,
+	TP_PROTO(struct wiphy *wiphy, struct cfg80211_sar_specs *sar),
+	TP_ARGS(wiphy, sar),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		__field(u16, type)
+		__field(u16, num)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		__entry->type = sar->type;
+		__entry->num = sar->num_sub_specs;
+
+	),
+	TP_printk(WIPHY_PR_FMT ", Set type:%d, num_specs:%d",
+		  WIPHY_PR_ARG, __entry->type, __entry->num)
+);
+
+TRACE_EVENT(rdev_color_change,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_color_change_settings *params),
+	TP_ARGS(wiphy, netdev, params),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		__field(u8, count)
+		__field(u16, bcn_ofs)
+		__field(u16, pres_ofs)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		__entry->count = params->count;
+		__entry->bcn_ofs = params->counter_offset_beacon;
+		__entry->pres_ofs = params->counter_offset_presp;
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT
+		  ", count: %u",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG,
+		  __entry->count)
+);
+
+TRACE_EVENT(cfg80211_bss_color_notify,
+	TP_PROTO(struct net_device *netdev,
+		 enum nl80211_commands cmd,
+		 u8 count, u64 color_bitmap),
+	TP_ARGS(netdev, cmd, count, color_bitmap),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		__field(u32, cmd)
+		__field(u8, count)
+		__field(u64, color_bitmap)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		__entry->cmd = cmd;
+		__entry->count = count;
+		__entry->color_bitmap = color_bitmap;
+	),
+	TP_printk(NETDEV_PR_FMT ", cmd: %x, count: %u, bitmap: %llx",
+		  NETDEV_PR_ARG, __entry->cmd, __entry->count,
+		  __entry->color_bitmap)
+);
+
+TRACE_EVENT(rdev_set_radar_background,
+	TP_PROTO(struct wiphy *wiphy, struct cfg80211_chan_def *chandef),
+
+	TP_ARGS(wiphy, chandef),
+
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		CHAN_DEF_ENTRY
+	),
+
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		CHAN_DEF_ASSIGN(chandef)
+	),
+
+	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT,
+		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG)
+);
+
+TRACE_EVENT(cfg80211_assoc_comeback,
+	TP_PROTO(struct wireless_dev *wdev, const u8 *bssid, u32 timeout),
+	TP_ARGS(wdev, bssid, timeout),
+	TP_STRUCT__entry(
+		WDEV_ENTRY
+		MAC_ENTRY(bssid)
+		__field(u32, timeout)
+	),
+	TP_fast_assign(
+		WDEV_ASSIGN;
+		MAC_ASSIGN(bssid, bssid);
+		__entry->timeout = timeout;
+	),
+	TP_printk(WDEV_PR_FMT ", " MAC_PR_FMT ", timeout: %u TUs",
+		  WDEV_PR_ARG, MAC_PR_ARG(bssid), __entry->timeout)
+);
+
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */
 
 #undef TRACE_INCLUDE_PATH

@@ -6,10 +6,10 @@
  */
 
 #include <linux/of.h>
+#include <linux/of_clk.h>
 #include <linux/of_fdt.h>
 #include <linux/clocksource.h>
 #include <linux/irqchip.h>
-#include <linux/clk-provider.h>
 #include <asm/machvec.h>
 #include <asm/rtc.h>
 
@@ -62,9 +62,8 @@ static void sh_of_smp_probe(void)
 	init_cpu_possible(cpumask_of(0));
 
 	for_each_of_cpu_node(np) {
-		const __be32 *cell = of_get_property(np, "reg", NULL);
-		u64 id = -1;
-		if (cell) id = of_read_number(cell, of_n_addr_cells(np));
+		u64 id = of_get_cpu_hwid(np, 0);
+
 		if (id < NR_CPUS) {
 			if (!method)
 				of_property_read_string(np, "enable-method", &method);

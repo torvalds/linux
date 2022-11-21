@@ -80,7 +80,7 @@ static bool check_dawrx_constraints(struct pt_regs *regs, int type,
  * Return true if the event is valid wrt dawr configuration,
  * including extraneous exception. Otherwise return false.
  */
-bool wp_check_constraints(struct pt_regs *regs, struct ppc_inst instr,
+bool wp_check_constraints(struct pt_regs *regs, ppc_inst_t instr,
 			  unsigned long ea, int type, int size,
 			  struct arch_hw_breakpoint *info)
 {
@@ -127,34 +127,25 @@ bool wp_check_constraints(struct pt_regs *regs, struct ppc_inst instr,
 	return false;
 }
 
-static int cache_op_size(void)
-{
-#ifdef __powerpc64__
-	return ppc64_caches.l1d.block_size;
-#else
-	return L1_CACHE_BYTES;
-#endif
-}
-
-void wp_get_instr_detail(struct pt_regs *regs, struct ppc_inst *instr,
+void wp_get_instr_detail(struct pt_regs *regs, ppc_inst_t *instr,
 			 int *type, int *size, unsigned long *ea)
 {
 	struct instruction_op op;
 
-	if (__get_user_instr_inatomic(*instr, (void __user *)regs->nip))
+	if (__get_user_instr(*instr, (void __user *)regs->nip))
 		return;
 
 	analyse_instr(&op, regs, *instr);
 	*type = GETTYPE(op.type);
 	*ea = op.ea;
-#ifdef __powerpc64__
+
 	if (!(regs->msr & MSR_64BIT))
 		*ea &= 0xffffffffUL;
-#endif
+
 
 	*size = GETSIZE(op.type);
 	if (*type == CACHEOP) {
-		*size = cache_op_size();
+		*size = l1_dcache_bytes();
 		*ea &= ~(*size - 1);
 	} else if (*type == LOAD_VMX || *type == STORE_VMX) {
 		*ea &= ~(*size - 1);

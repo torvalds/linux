@@ -50,6 +50,22 @@ registers).
 
 	.level          PA_ASM_LEVEL
 
+	.macro	lws_pagefault_disable reg1,reg2
+	mfctl	%cr30, \reg2
+	ldo	TASK_PAGEFAULT_DISABLED(\reg2), \reg2
+	ldw	0(%sr2,\reg2), \reg1
+	ldo	1(\reg1), \reg1
+	stw	\reg1, 0(%sr2,\reg2)
+	.endm
+
+	.macro	lws_pagefault_enable reg1,reg2
+	mfctl	%cr30, \reg2
+	ldo	TASK_PAGEFAULT_DISABLED(\reg2), \reg2
+	ldw	0(%sr2,\reg2), \reg1
+	ldo	-1(\reg1), \reg1
+	stw	\reg1, 0(%sr2,\reg2)
+	.endm
+
 	.text
 
 	.import syscall_exit,code
@@ -74,11 +90,11 @@ ENTRY(linux_gateway_page)
 	/* ADDRESS 0xb0 to 0xb8, lws uses two insns for entry */
 	/* Light-weight-syscall entry must always be located at 0xb0 */
 	/* WARNING: Keep this number updated with table size changes */
-#define __NR_lws_entries (3)
+#define __NR_lws_entries (5)
 
 lws_entry:
 	gate	lws_start, %r0		/* increase privilege */
-	depi	3, 31, 2, %r31		/* Ensure we return into user mode. */
+	depi	PRIV_USER, 31, 2, %r31	/* Ensure we return into user mode. */
 
 	/* Fill from 0xb8 to 0xe0 */
 	.rept 10
@@ -89,7 +105,7 @@ lws_entry:
 	mechanism to work. DO NOT MOVE THIS CODE EVER! */
 set_thread_pointer:
 	gate	.+8, %r0		/* increase privilege */
-	depi	3, 31, 2, %r31		/* Ensure we return into user mode. */
+	depi	PRIV_USER, 31, 2, %r31	/* Ensure we return into user mode. */
 	be	0(%sr7,%r31)		/* return to user space */
 	mtctl	%r26, %cr27		/* move arg0 to the control register */
 
@@ -139,9 +155,9 @@ linux_gateway_entry:
 	xor     %r1,%r30,%r30                   /* ye olde xor trick */
 	xor     %r1,%r30,%r1
 	xor     %r1,%r30,%r30
-	
-	ldo     THREAD_SZ_ALGN+FRAME_SIZE(%r30),%r30  /* set up kernel stack */
 
+	LDREG	TASK_STACK(%r30),%r30		/* set up kernel stack */
+	ldo	FRAME_SIZE(%r30),%r30
 	/* N.B.: It is critical that we don't set sr7 to 0 until r30
 	 *       contains a valid kernel stack pointer. It is also
 	 *       critical that we don't start using the kernel stack
@@ -152,7 +168,6 @@ linux_gateway_entry:
 	ssm	PSW_SM_I, %r0			/* enable interrupts */
 	STREGM	%r1,FRAME_SIZE(%r30)		/* save r1 (usp) here for now */
 	mfctl	%cr30,%r1			/* get task ptr in %r1 */
-	LDREG	TI_TASK(%r1),%r1
 
 	/* Save some registers for sigcontext and potential task
 	   switch (see entry.S for the details of which ones are
@@ -207,7 +222,7 @@ linux_gateway_entry:
 
 	/* Are we being ptraced? */
 	mfctl	%cr30, %r1
-	LDREG	TI_FLAGS(%r1),%r1
+	LDREG	TASK_TI_FLAGS(%r1),%r1
 	ldi	_TIF_SYSCALL_TRACE_MASK, %r19
 	and,COND(=) %r1, %r19, %r0
 	b,n	.Ltracesys
@@ -272,8 +287,7 @@ tracesys:
 	 * C bit set, a non-straced syscall entry results in C and D clear
 	 * in the saved PSW.
 	 */
-	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
-	LDREG	TI_TASK(%r1), %r1
+	mfctl	%cr30,%r1			/* get task ptr */
 	ssm	0,%r2
 	STREG	%r2,TASK_PT_PSW(%r1)		/* Lower 8 bits only!! */
 	mfsp	%sr0,%r2
@@ -327,8 +341,7 @@ tracesys_next:
 	 */
 	copy	%ret0,%r20
 
-	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
-	LDREG	TI_TASK(%r1), %r1
+	mfctl	%cr30,%r1			/* get task ptr */
 	LDREG   TASK_PT_GR28(%r1), %r28		/* Restore return value */
 	LDREG   TASK_PT_GR26(%r1), %r26		/* Restore the users args */
 	LDREG   TASK_PT_GR25(%r1), %r25
@@ -385,16 +398,14 @@ tracesys_next:
 	makes a direct call to syscall_trace. */
 	
 tracesys_exit:
-	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
-	LDREG	TI_TASK(%r1), %r1
+	mfctl	%cr30,%r1			/* get task ptr */
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
 	ldo	TASK_REGS(%r1),%r26
 	BL	do_syscall_trace_exit,%r2
 	STREG   %r28,TASK_PT_GR28(%r1)          /* save return value now */
-	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
-	LDREG	TI_TASK(%r1), %r1
+	mfctl	%cr30,%r1			/* get task ptr */
 	LDREG   TASK_PT_GR28(%r1), %r28		/* Restore return val. */
 
 	ldil	L%syscall_exit,%r1
@@ -407,8 +418,7 @@ tracesys_exit:
 	ldo	R%tracesys_sigexit(%r2),%r2
 
 tracesys_sigexit:
-	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
-	LDREG	TI_TASK(%r1), %r1
+	mfctl	%cr30,%r1			/* get task ptr */
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
@@ -478,7 +488,7 @@ lws_start:
 	extrd,u	%r1,PSW_W_BIT,1,%r1
 	/* sp must be aligned on 4, so deposit the W bit setting into
 	 * the bottom of sp temporarily */
-	or,ev	%r1,%r30,%r30
+	or,od	%r1,%r30,%r30
 
 	/* Clip LWS number to a 32-bit value for 32-bit processes */
 	depdi	0, 31, 32, %r20
@@ -496,8 +506,34 @@ lws_start:
 	/* Jump to lws, lws table pointers already relocated */
 	be,n	0(%sr2,%r21)
 
+lws_exit_noerror:
+	lws_pagefault_enable	%r1,%r21
+	stw,ma	%r20, 0(%sr2,%r20)
+	ssm	PSW_SM_I, %r0
+	b	lws_exit
+	copy	%r0, %r21
+
+lws_wouldblock:
+	ssm	PSW_SM_I, %r0
+	ldo	2(%r0), %r28
+	b	lws_exit
+	ldo	-EAGAIN(%r0), %r21
+
+lws_pagefault:
+	lws_pagefault_enable	%r1,%r21
+	stw,ma	%r20, 0(%sr2,%r20)
+	ssm	PSW_SM_I, %r0
+	ldo	3(%r0),%r28
+	b	lws_exit
+	ldo	-EAGAIN(%r0),%r21
+
+lws_fault:
+	ldo	1(%r0),%r28
+	b	lws_exit
+	ldo	-EFAULT(%r0),%r21
+
 lws_exit_nosys:
-	ldo	-ENOSYS(%r0),%r21		   /* set errno */
+	ldo	-ENOSYS(%r0),%r21
 	/* Fall through: Return to userspace */
 
 lws_exit:
@@ -524,26 +560,18 @@ lws_exit:
 		%r28 - Return prev through this register.
 		%r21 - Kernel error code
 
-		If debugging is DISabled:
-
-		%r21 has the following meanings:
-
+		%r21 returns the following error codes:
 		EAGAIN - CAS is busy, ldcw failed, try again.
 		EFAULT - Read or write failed.		
 
-		If debugging is enabled:
-
-		EDEADLOCK - CAS called recursively.
-		EAGAIN && r28 == 1 - CAS is busy. Lock contended.
-		EAGAIN && r28 == 2 - CAS is busy. ldcw failed.
-		EFAULT - Read or write failed.
+		If EAGAIN is returned, %r28 indicates the busy reason:
+		r28 == 1 - CAS is busy. lock contended.
+		r28 == 2 - CAS is busy. ldcw failed.
+		r28 == 3 - CAS is busy. page fault.
 
 		Scratch: r20, r28, r1
 
 	****************************************************/
-
-	/* Do not enable LWS debugging */
-#define ENABLE_LWS_DEBUG 0 
 
 	/* ELF64 Process entry path */
 lws_compare_and_swap64:
@@ -557,61 +585,45 @@ lws_compare_and_swap64:
 	b,n	lws_exit_nosys
 #endif
 
-	/* ELF32 Process entry path */
+	/* ELF32/ELF64 Process entry path */
 lws_compare_and_swap32:
 #ifdef CONFIG_64BIT
-	/* Clip all the input registers */
+	/* Wide mode user process? */
+	bb,<,n  %sp, 31, lws_compare_and_swap
+
+	/* Clip all the input registers for 32-bit processes */
 	depdi	0, 31, 32, %r26
 	depdi	0, 31, 32, %r25
 	depdi	0, 31, 32, %r24
 #endif
 
 lws_compare_and_swap:
+	/* Trigger memory reference interruptions without writing to memory */
+1:	ldw	0(%r26), %r28
+2:	stbys,e	%r0, 0(%r26)
+
+	/* Calculate 8-bit hash index from virtual address */
+	extru_safe	%r26, 27, 8, %r20
+
 	/* Load start of lock table */
-	ldil	L%lws_lock_start, %r20
-	ldo	R%lws_lock_start(%r20), %r28
+	ldil	L%lws_lock_start, %r28
+	ldo	R%lws_lock_start(%r28), %r28
 
-	/* Extract eight bits from r26 and hash lock (Bits 3-11) */
-	extru  %r26, 28, 8, %r20
-
-	/* Find lock to use, the hash is either one of 0 to
-	   15, multiplied by 16 (keep it 16-byte aligned)
+	/* Find lock to use, the hash index is one of 0 to
+	   255, multiplied by 16 (keep it 16-byte aligned)
 	   and add to the lock table offset. */
 	shlw	%r20, 4, %r20
 	add	%r20, %r28, %r20
 
-# if ENABLE_LWS_DEBUG
-	/*	
-		DEBUG, check for deadlock! 
-		If the thread register values are the same
-		then we were the one that locked it last and
-		this is a recurisve call that will deadlock.
-		We *must* giveup this call and fail.
-	*/
-	ldw	4(%sr2,%r20), %r28			/* Load thread register */
-	/* WARNING: If cr27 cycles to the same value we have problems */
-	mfctl	%cr27, %r21				/* Get current thread register */
-	cmpb,<>,n	%r21, %r28, cas_lock		/* Called recursive? */
-	b	lws_exit				/* Return error! */
-	ldo	-EDEADLOCK(%r0), %r21
-cas_lock:
-	cmpb,=,n	%r0, %r28, cas_nocontend	/* Is nobody using it? */
-	ldo	1(%r0), %r28				/* 1st case */
-	b	lws_exit				/* Contended... */
-	ldo	-EAGAIN(%r0), %r21			/* Spin in userspace */
-cas_nocontend:
-# endif
-/* ENABLE_LWS_DEBUG */
-
 	rsm	PSW_SM_I, %r0				/* Disable interrupts */
-	/* COW breaks can cause contention on UP systems */
-	LDCW	0(%sr2,%r20), %r28			/* Try to acquire the lock */
-	cmpb,<>,n	%r0, %r28, cas_action		/* Did we get it? */
-cas_wouldblock:
-	ldo	2(%r0), %r28				/* 2nd case */
-	ssm	PSW_SM_I, %r0
-	b	lws_exit				/* Contended... */
-	ldo	-EAGAIN(%r0), %r21			/* Spin in userspace */
+
+	/* Try to acquire the lock */
+	LDCW	0(%sr2,%r20), %r28
+	comclr,<>	%r0, %r28, %r0
+	b,n	lws_wouldblock
+
+	/* Disable page faults to prevent sleeping in critical region */
+	lws_pagefault_disable	%r21,%r28
 
 	/*
 		prev = *addr;
@@ -621,62 +633,35 @@ cas_wouldblock:
 	*/
 
 	/* NOTES:
-		This all works becuse intr_do_signal
+		This all works because intr_do_signal
 		and schedule both check the return iasq
 		and see that we are on the kernel page
 		so this process is never scheduled off
 		or is ever sent any signal of any sort,
-		thus it is wholly atomic from usrspaces
+		thus it is wholly atomic from usrspace's
 		perspective
 	*/
-cas_action:
-#if defined CONFIG_SMP && ENABLE_LWS_DEBUG
-	/* DEBUG */
-	mfctl	%cr27, %r1
-	stw	%r1, 4(%sr2,%r20)
-#endif
 	/* The load and store could fail */
-1:	ldw	0(%r26), %r28
+3:	ldw	0(%r26), %r28
 	sub,<>	%r28, %r25, %r0
-2:	stw	%r24, 0(%r26)
-	/* Free lock */
-	stw,ma	%r20, 0(%sr2,%r20)
-#if ENABLE_LWS_DEBUG
-	/* Clear thread register indicator */
-	stw	%r0, 4(%sr2,%r20)
-#endif
-	/* Enable interrupts */
-	ssm	PSW_SM_I, %r0
-	/* Return to userspace, set no error */
-	b	lws_exit
-	copy	%r0, %r21
+4:	stw	%r24, 0(%r26)
+	b,n	lws_exit_noerror
 
-3:		
-	/* Error occurred on load or store */
-	/* Free lock */
-	stw,ma	%r20, 0(%sr2,%r20)
-#if ENABLE_LWS_DEBUG
-	stw	%r0, 4(%sr2,%r20)
-#endif
-	ssm	PSW_SM_I, %r0
-	b	lws_exit
-	ldo	-EFAULT(%r0),%r21	/* set errno */
-	nop
-	nop
-	nop
-	nop
+	/* A fault occurred on load or stbys,e store */
+5:	b,n	lws_fault
+	ASM_EXCEPTIONTABLE_ENTRY(1b-linux_gateway_page, 5b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(2b-linux_gateway_page, 5b-linux_gateway_page)
 
-	/* Two exception table entries, one for the load,
-	   the other for the store. Either return -EFAULT.
-	   Each of the entries must be relocated. */
-	ASM_EXCEPTIONTABLE_ENTRY(1b-linux_gateway_page, 3b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(2b-linux_gateway_page, 3b-linux_gateway_page)
+	/* A page fault occurred in critical region */
+6:	b,n	lws_pagefault
+	ASM_EXCEPTIONTABLE_ENTRY(3b-linux_gateway_page, 6b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(4b-linux_gateway_page, 6b-linux_gateway_page)
 
 
 	/***************************************************
 		New CAS implementation which uses pointers and variable size
 		information. The value pointed by old and new MUST NOT change
-		while performing CAS. The lock only protect the value at %r26.
+		while performing CAS. The lock only protects the value at %r26.
 
 		%r26 - Address to examine
 		%r25 - Pointer to the value to check (old)
@@ -685,25 +670,32 @@ cas_action:
 		%r28 - Return non-zero on failure
 		%r21 - Kernel error code
 
-		%r21 has the following meanings:
-
+		%r21 returns the following error codes:
 		EAGAIN - CAS is busy, ldcw failed, try again.
 		EFAULT - Read or write failed.
+
+		If EAGAIN is returned, %r28 indicates the busy reason:
+		r28 == 1 - CAS is busy. lock contended.
+		r28 == 2 - CAS is busy. ldcw failed.
+		r28 == 3 - CAS is busy. page fault.
 
 		Scratch: r20, r22, r28, r29, r1, fr4 (32bit for 64bit CAS only)
 
 	****************************************************/
 
-	/* ELF32 Process entry path */
 lws_compare_and_swap_2:
 #ifdef CONFIG_64BIT
-	/* Clip the input registers. We don't need to clip %r23 as we
-	   only use it for word operations */
+	/* Wide mode user process? */
+	bb,<,n	%sp, 31, cas2_begin
+
+	/* Clip the input registers for 32-bit processes. We don't
+	   need to clip %r23 as we only use it for word operations */
 	depdi	0, 31, 32, %r26
 	depdi	0, 31, 32, %r25
 	depdi	0, 31, 32, %r24
 #endif
 
+cas2_begin:
 	/* Check the validity of the size pointer */
 	subi,>>= 3, %r23, %r0
 	b,n	lws_exit_nosys
@@ -714,71 +706,77 @@ lws_compare_and_swap_2:
 	blr	%r29, %r0
 	nop
 
-	/* 8bit load */
-4:	ldb	0(%r25), %r25
+	/* 8-bit load */
+1:	ldb	0(%r25), %r25
 	b	cas2_lock_start
-5:	ldb	0(%r24), %r24
+2:	ldb	0(%r24), %r24
 	nop
 	nop
 	nop
 	nop
 	nop
 
-	/* 16bit load */
-6:	ldh	0(%r25), %r25
+	/* 16-bit load */
+3:	ldh	0(%r25), %r25
 	b	cas2_lock_start
-7:	ldh	0(%r24), %r24
+4:	ldh	0(%r24), %r24
 	nop
 	nop
 	nop
 	nop
 	nop
 
-	/* 32bit load */
-8:	ldw	0(%r25), %r25
+	/* 32-bit load */
+5:	ldw	0(%r25), %r25
 	b	cas2_lock_start
-9:	ldw	0(%r24), %r24
+6:	ldw	0(%r24), %r24
 	nop
 	nop
 	nop
 	nop
 	nop
 
-	/* 64bit load */
+	/* 64-bit load */
 #ifdef CONFIG_64BIT
-10:	ldd	0(%r25), %r25
-11:	ldd	0(%r24), %r24
+7:	ldd	0(%r25), %r25
+8:	ldd	0(%r24), %r24
 #else
 	/* Load old value into r22/r23 - high/low */
-10:	ldw	0(%r25), %r22
-11:	ldw	4(%r25), %r23
+7:	ldw	0(%r25), %r22
+8:	ldw	4(%r25), %r23
 	/* Load new value into fr4 for atomic store later */
-12:	flddx	0(%r24), %fr4
+9:	flddx	0(%r24), %fr4
 #endif
 
 cas2_lock_start:
+	/* Trigger memory reference interruptions without writing to memory */
+	copy	%r26, %r28
+	depi_safe	0, 31, 2, %r28
+10:	ldw	0(%r28), %r1
+11:	stbys,e	%r0, 0(%r28)
+
+	/* Calculate 8-bit hash index from virtual address */
+	extru_safe	%r26, 27, 8, %r20
+
 	/* Load start of lock table */
-	ldil	L%lws_lock_start, %r20
-	ldo	R%lws_lock_start(%r20), %r28
+	ldil	L%lws_lock_start, %r28
+	ldo	R%lws_lock_start(%r28), %r28
 
-	/* Extract eight bits from r26 and hash lock (Bits 3-11) */
-	extru  %r26, 28, 8, %r20
-
-	/* Find lock to use, the hash is either one of 0 to
-	   15, multiplied by 16 (keep it 16-byte aligned)
+	/* Find lock to use, the hash index is one of 0 to
+	   255, multiplied by 16 (keep it 16-byte aligned)
 	   and add to the lock table offset. */
 	shlw	%r20, 4, %r20
 	add	%r20, %r28, %r20
 
 	rsm	PSW_SM_I, %r0			/* Disable interrupts */
-	/* COW breaks can cause contention on UP systems */
-	LDCW	0(%sr2,%r20), %r28		/* Try to acquire the lock */
-	cmpb,<>,n	%r0, %r28, cas2_action	/* Did we get it? */
-cas2_wouldblock:
-	ldo	2(%r0), %r28			/* 2nd case */
-	ssm	PSW_SM_I, %r0
-	b	lws_exit			/* Contended... */
-	ldo	-EAGAIN(%r0), %r21		/* Spin in userspace */
+
+	/* Try to acquire the lock */
+	LDCW	0(%sr2,%r20), %r28
+	comclr,<>	%r0, %r28, %r0
+	b,n	lws_wouldblock
+
+	/* Disable page faults to prevent sleeping in critical region */
+	lws_pagefault_disable	%r21,%r28
 
 	/*
 		prev = *addr;
@@ -788,114 +786,492 @@ cas2_wouldblock:
 	*/
 
 	/* NOTES:
-		This all works becuse intr_do_signal
+		This all works because intr_do_signal
 		and schedule both check the return iasq
 		and see that we are on the kernel page
 		so this process is never scheduled off
 		or is ever sent any signal of any sort,
-		thus it is wholly atomic from usrspaces
+		thus it is wholly atomic from usrspace's
 		perspective
 	*/
-cas2_action:
+
 	/* Jump to the correct function */
 	blr	%r29, %r0
 	/* Set %r28 as non-zero for now */
 	ldo	1(%r0),%r28
 
-	/* 8bit CAS */
-13:	ldb	0(%r26), %r29
+	/* 8-bit CAS */
+12:	ldb	0(%r26), %r29
 	sub,=	%r29, %r25, %r0
-	b,n	cas2_end
-14:	stb	%r24, 0(%r26)
-	b	cas2_end
+	b,n	lws_exit_noerror
+13:	stb	%r24, 0(%r26)
+	b	lws_exit_noerror
 	copy	%r0, %r28
 	nop
 	nop
 
-	/* 16bit CAS */
-15:	ldh	0(%r26), %r29
+	/* 16-bit CAS */
+14:	ldh	0(%r26), %r29
 	sub,=	%r29, %r25, %r0
-	b,n	cas2_end
-16:	sth	%r24, 0(%r26)
-	b	cas2_end
+	b,n	lws_exit_noerror
+15:	sth	%r24, 0(%r26)
+	b	lws_exit_noerror
 	copy	%r0, %r28
 	nop
 	nop
 
-	/* 32bit CAS */
-17:	ldw	0(%r26), %r29
+	/* 32-bit CAS */
+16:	ldw	0(%r26), %r29
 	sub,=	%r29, %r25, %r0
-	b,n	cas2_end
-18:	stw	%r24, 0(%r26)
-	b	cas2_end
+	b,n	lws_exit_noerror
+17:	stw	%r24, 0(%r26)
+	b	lws_exit_noerror
 	copy	%r0, %r28
 	nop
 	nop
 
-	/* 64bit CAS */
+	/* 64-bit CAS */
 #ifdef CONFIG_64BIT
-19:	ldd	0(%r26), %r29
+18:	ldd	0(%r26), %r29
 	sub,*=	%r29, %r25, %r0
-	b,n	cas2_end
-20:	std	%r24, 0(%r26)
+	b,n	lws_exit_noerror
+19:	std	%r24, 0(%r26)
 	copy	%r0, %r28
 #else
 	/* Compare first word */
-19:	ldw	0(%r26), %r29
+18:	ldw	0(%r26), %r29
 	sub,=	%r29, %r22, %r0
-	b,n	cas2_end
+	b,n	lws_exit_noerror
 	/* Compare second word */
-20:	ldw	4(%r26), %r29
+19:	ldw	4(%r26), %r29
 	sub,=	%r29, %r23, %r0
-	b,n	cas2_end
+	b,n	lws_exit_noerror
 	/* Perform the store */
-21:	fstdx	%fr4, 0(%r26)
+20:	fstdx	%fr4, 0(%r26)
 	copy	%r0, %r28
 #endif
+	b	lws_exit_noerror
+	copy	%r0, %r28
 
-cas2_end:
-	/* Free lock */
-	stw,ma	%r20, 0(%sr2,%r20)
-	/* Enable interrupts */
-	ssm	PSW_SM_I, %r0
-	/* Return to userspace, set no error */
-	b	lws_exit
-	copy	%r0, %r21
-
-22:
-	/* Error occurred on load or store */
-	/* Free lock */
-	stw,ma	%r20, 0(%sr2,%r20)
-	ssm	PSW_SM_I, %r0
-	ldo	1(%r0),%r28
-	b	lws_exit
-	ldo	-EFAULT(%r0),%r21	/* set errno */
-	nop
-	nop
-	nop
-
-	/* Exception table entries, for the load and store, return EFAULT.
-	   Each of the entries must be relocated. */
-	ASM_EXCEPTIONTABLE_ENTRY(4b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(5b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(6b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(7b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(8b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(9b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(10b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(11b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(13b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(14b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(15b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(16b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(17b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(18b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(19b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(20b-linux_gateway_page, 22b-linux_gateway_page)
+	/* A fault occurred on load or stbys,e store */
+30:	b,n	lws_fault
+	ASM_EXCEPTIONTABLE_ENTRY(1b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(2b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(3b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(4b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(5b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(6b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(7b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(8b-linux_gateway_page, 30b-linux_gateway_page)
 #ifndef CONFIG_64BIT
-	ASM_EXCEPTIONTABLE_ENTRY(12b-linux_gateway_page, 22b-linux_gateway_page)
-	ASM_EXCEPTIONTABLE_ENTRY(21b-linux_gateway_page, 22b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(9b-linux_gateway_page, 30b-linux_gateway_page)
 #endif
+
+	ASM_EXCEPTIONTABLE_ENTRY(10b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(11b-linux_gateway_page, 30b-linux_gateway_page)
+
+	/* A page fault occurred in critical region */
+31:	b,n	lws_pagefault
+	ASM_EXCEPTIONTABLE_ENTRY(12b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(13b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(14b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(15b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(16b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(17b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(18b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(19b-linux_gateway_page, 31b-linux_gateway_page)
+#ifndef CONFIG_64BIT
+	ASM_EXCEPTIONTABLE_ENTRY(20b-linux_gateway_page, 31b-linux_gateway_page)
+#endif
+
+
+	/***************************************************
+		LWS atomic exchange.
+
+		%r26 - Exchange address
+		%r25 - Size of the variable (0/1/2/3 for 8/16/32/64 bit)
+		%r24 - Address of new value
+		%r23 - Address of old value
+		%r28 - Return non-zero on failure
+		%r21 - Kernel error code
+
+		%r21 returns the following error codes:
+		EAGAIN - CAS is busy, ldcw failed, try again.
+		EFAULT - Read or write failed.
+
+		If EAGAIN is returned, %r28 indicates the busy reason:
+		r28 == 1 - CAS is busy. lock contended.
+		r28 == 2 - CAS is busy. ldcw failed.
+		r28 == 3 - CAS is busy. page fault.
+
+		Scratch: r20, r1
+
+	****************************************************/
+
+lws_atomic_xchg:
+#ifdef CONFIG_64BIT
+	/* Wide mode user process? */
+	bb,<,n	%sp, 31, atomic_xchg_begin
+
+	/* Clip the input registers for 32-bit processes. We don't
+	   need to clip %r23 as we only use it for word operations */
+	depdi	0, 31, 32, %r26
+	depdi	0, 31, 32, %r25
+	depdi	0, 31, 32, %r24
+	depdi	0, 31, 32, %r23
+#endif
+
+atomic_xchg_begin:
+	/* Check the validity of the size pointer */
+	subi,>>= 3, %r25, %r0
+	b,n	lws_exit_nosys
+
+	/* Jump to the functions which will load the old and new values into
+	   registers depending on the their size */
+	shlw	%r25, 2, %r1
+	blr	%r1, %r0
+	nop
+
+	/* Perform exception checks */
+
+	/* 8-bit exchange */
+1:	ldb	0(%r24), %r20
+	copy	%r23, %r20
+	depi_safe	0, 31, 2, %r20
+	b	atomic_xchg_start
+2:	stbys,e	%r0, 0(%r20)
+	nop
+	nop
+	nop
+
+	/* 16-bit exchange */
+3:	ldh	0(%r24), %r20
+	copy	%r23, %r20
+	depi_safe	0, 31, 2, %r20
+	b	atomic_xchg_start
+4:	stbys,e	%r0, 0(%r20)
+	nop
+	nop
+	nop
+
+	/* 32-bit exchange */
+5:	ldw	0(%r24), %r20
+	b	atomic_xchg_start
+6:	stbys,e	%r0, 0(%r23)
+	nop
+	nop
+	nop
+	nop
+	nop
+
+	/* 64-bit exchange */
+#ifdef CONFIG_64BIT
+7:	ldd	0(%r24), %r20
+8:	stdby,e	%r0, 0(%r23)
+#else
+7:	ldw	0(%r24), %r20
+8:	ldw	4(%r24), %r20
+	copy	%r23, %r20
+	depi_safe	0, 31, 2, %r20
+9:	stbys,e	%r0, 0(%r20)
+10:	stbys,e	%r0, 4(%r20)
+#endif
+
+atomic_xchg_start:
+	/* Trigger memory reference interruptions without writing to memory */
+	copy	%r26, %r28
+	depi_safe	0, 31, 2, %r28
+11:	ldw	0(%r28), %r1
+12:	stbys,e	%r0, 0(%r28)
+
+	/* Calculate 8-bit hash index from virtual address */
+	extru_safe  %r26, 27, 8, %r20
+
+	/* Load start of lock table */
+	ldil	L%lws_lock_start, %r28
+	ldo	R%lws_lock_start(%r28), %r28
+
+	/* Find lock to use, the hash index is one of 0 to
+	   255, multiplied by 16 (keep it 16-byte aligned)
+	   and add to the lock table offset. */
+	shlw	%r20, 4, %r20
+	add	%r20, %r28, %r20
+
+	rsm	PSW_SM_I, %r0			/* Disable interrupts */
+
+	/* Try to acquire the lock */
+	LDCW	0(%sr2,%r20), %r28
+	comclr,<>	%r0, %r28, %r0
+	b,n	lws_wouldblock
+
+	/* Disable page faults to prevent sleeping in critical region */
+	lws_pagefault_disable	%r21,%r28
+
+	/* NOTES:
+		This all works because intr_do_signal
+		and schedule both check the return iasq
+		and see that we are on the kernel page
+		so this process is never scheduled off
+		or is ever sent any signal of any sort,
+		thus it is wholly atomic from userspace's
+		perspective
+	*/
+
+	/* Jump to the correct function */
+	blr	%r1, %r0
+	/* Set %r28 as non-zero for now */
+	ldo	1(%r0),%r28
+
+	/* 8-bit exchange */
+14:	ldb	0(%r26), %r1
+15:	stb	%r1, 0(%r23)
+15:	ldb	0(%r24), %r1
+17:	stb	%r1, 0(%r26)
+	b	lws_exit_noerror
+	copy	%r0, %r28
+	nop
+	nop
+
+	/* 16-bit exchange */
+18:	ldh	0(%r26), %r1
+19:	sth	%r1, 0(%r23)
+20:	ldh	0(%r24), %r1
+21:	sth	%r1, 0(%r26)
+	b	lws_exit_noerror
+	copy	%r0, %r28
+	nop
+	nop
+
+	/* 32-bit exchange */
+22:	ldw	0(%r26), %r1
+23:	stw	%r1, 0(%r23)
+24:	ldw	0(%r24), %r1
+25:	stw	%r1, 0(%r26)
+	b	lws_exit_noerror
+	copy	%r0, %r28
+	nop
+	nop
+
+	/* 64-bit exchange */
+#ifdef CONFIG_64BIT
+26:	ldd	0(%r26), %r1
+27:	std	%r1, 0(%r23)
+28:	ldd	0(%r24), %r1
+29:	std	%r1, 0(%r26)
+#else
+26:	flddx	0(%r26), %fr4
+27:	fstdx	%fr4, 0(%r23)
+28:	flddx	0(%r24), %fr4
+29:	fstdx	%fr4, 0(%r26)
+#endif
+	b	lws_exit_noerror
+	copy	%r0, %r28
+
+	/* A fault occurred on load or stbys,e store */
+30:	b,n	lws_fault
+	ASM_EXCEPTIONTABLE_ENTRY(1b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(2b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(3b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(4b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(5b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(6b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(7b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(8b-linux_gateway_page, 30b-linux_gateway_page)
+#ifndef CONFIG_64BIT
+	ASM_EXCEPTIONTABLE_ENTRY(9b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(10b-linux_gateway_page, 30b-linux_gateway_page)
+#endif
+
+	ASM_EXCEPTIONTABLE_ENTRY(11b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(12b-linux_gateway_page, 30b-linux_gateway_page)
+
+	/* A page fault occurred in critical region */
+31:	b,n	lws_pagefault
+	ASM_EXCEPTIONTABLE_ENTRY(14b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(15b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(16b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(17b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(18b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(19b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(20b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(21b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(22b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(23b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(24b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(25b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(26b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(27b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(28b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(29b-linux_gateway_page, 31b-linux_gateway_page)
+
+	/***************************************************
+		LWS atomic store.
+
+		%r26 - Address to store
+		%r25 - Size of the variable (0/1/2/3 for 8/16/32/64 bit)
+		%r24 - Address of value to store
+		%r28 - Return non-zero on failure
+		%r21 - Kernel error code
+
+		%r21 returns the following error codes:
+		EAGAIN - CAS is busy, ldcw failed, try again.
+		EFAULT - Read or write failed.
+
+		If EAGAIN is returned, %r28 indicates the busy reason:
+		r28 == 1 - CAS is busy. lock contended.
+		r28 == 2 - CAS is busy. ldcw failed.
+		r28 == 3 - CAS is busy. page fault.
+
+		Scratch: r20, r1
+
+	****************************************************/
+
+lws_atomic_store:
+#ifdef CONFIG_64BIT
+	/* Wide mode user process? */
+	bb,<,n	%sp, 31, atomic_store_begin
+
+	/* Clip the input registers for 32-bit processes. We don't
+	   need to clip %r23 as we only use it for word operations */
+	depdi	0, 31, 32, %r26
+	depdi	0, 31, 32, %r25
+	depdi	0, 31, 32, %r24
+#endif
+
+atomic_store_begin:
+	/* Check the validity of the size pointer */
+	subi,>>= 3, %r25, %r0
+	b,n	lws_exit_nosys
+
+	shlw	%r25, 1, %r1
+	blr	%r1, %r0
+	nop
+
+	/* Perform exception checks */
+
+	/* 8-bit store */
+1:	ldb	0(%r24), %r20
+	b,n	atomic_store_start
+	nop
+	nop
+
+	/* 16-bit store */
+2:	ldh	0(%r24), %r20
+	b,n	atomic_store_start
+	nop
+	nop
+
+	/* 32-bit store */
+3:	ldw	0(%r24), %r20
+	b,n	atomic_store_start
+	nop
+	nop
+
+	/* 64-bit store */
+#ifdef CONFIG_64BIT
+4:	ldd	0(%r24), %r20
+#else
+4:	ldw	0(%r24), %r20
+5:	ldw	4(%r24), %r20
+#endif
+
+atomic_store_start:
+	/* Trigger memory reference interruptions without writing to memory */
+	copy	%r26, %r28
+	depi_safe	0, 31, 2, %r28
+6:	ldw	0(%r28), %r1
+7:	stbys,e	%r0, 0(%r28)
+
+	/* Calculate 8-bit hash index from virtual address */
+	extru_safe  %r26, 27, 8, %r20
+
+	/* Load start of lock table */
+	ldil	L%lws_lock_start, %r28
+	ldo	R%lws_lock_start(%r28), %r28
+
+	/* Find lock to use, the hash index is one of 0 to
+	   255, multiplied by 16 (keep it 16-byte aligned)
+	   and add to the lock table offset. */
+	shlw	%r20, 4, %r20
+	add	%r20, %r28, %r20
+
+	rsm	PSW_SM_I, %r0			/* Disable interrupts */
+
+	/* Try to acquire the lock */
+	LDCW	0(%sr2,%r20), %r28
+	comclr,<>	%r0, %r28, %r0
+	b,n	lws_wouldblock
+
+	/* Disable page faults to prevent sleeping in critical region */
+	lws_pagefault_disable	%r21,%r28
+
+	/* NOTES:
+		This all works because intr_do_signal
+		and schedule both check the return iasq
+		and see that we are on the kernel page
+		so this process is never scheduled off
+		or is ever sent any signal of any sort,
+		thus it is wholly atomic from userspace's
+		perspective
+	*/
+
+	/* Jump to the correct function */
+	blr	%r1, %r0
+	/* Set %r28 as non-zero for now */
+	ldo	1(%r0),%r28
+
+	/* 8-bit store */
+9:	ldb	0(%r24), %r1
+10:	stb	%r1, 0(%r26)
+	b	lws_exit_noerror
+	copy	%r0, %r28
+
+	/* 16-bit store */
+11:	ldh	0(%r24), %r1
+12:	sth	%r1, 0(%r26)
+	b	lws_exit_noerror
+	copy	%r0, %r28
+
+	/* 32-bit store */
+13:	ldw	0(%r24), %r1
+14:	stw	%r1, 0(%r26)
+	b	lws_exit_noerror
+	copy	%r0, %r28
+
+	/* 64-bit store */
+#ifdef CONFIG_64BIT
+15:	ldd	0(%r24), %r1
+16:	std	%r1, 0(%r26)
+#else
+15:	flddx	0(%r24), %fr4
+16:	fstdx	%fr4, 0(%r26)
+#endif
+	b	lws_exit_noerror
+	copy	%r0, %r28
+
+	/* A fault occurred on load or stbys,e store */
+30:	b,n	lws_fault
+	ASM_EXCEPTIONTABLE_ENTRY(1b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(2b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(3b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(4b-linux_gateway_page, 30b-linux_gateway_page)
+#ifndef CONFIG_64BIT
+	ASM_EXCEPTIONTABLE_ENTRY(5b-linux_gateway_page, 30b-linux_gateway_page)
+#endif
+
+	ASM_EXCEPTIONTABLE_ENTRY(6b-linux_gateway_page, 30b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(7b-linux_gateway_page, 30b-linux_gateway_page)
+
+	/* A page fault occurred in critical region */
+31:	b,n	lws_pagefault
+	ASM_EXCEPTIONTABLE_ENTRY(9b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(10b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(11b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(12b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(13b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(14b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(15b-linux_gateway_page, 31b-linux_gateway_page)
+	ASM_EXCEPTIONTABLE_ENTRY(16b-linux_gateway_page, 31b-linux_gateway_page)
 
 	/* Make sure nothing else is placed on this page */
 	.align PAGE_SIZE
@@ -915,28 +1291,30 @@ ENTRY(end_linux_gateway_page)
 ENTRY(lws_table)
 	LWS_ENTRY(compare_and_swap32)		/* 0 - ELF32 Atomic 32bit CAS */
 	LWS_ENTRY(compare_and_swap64)		/* 1 - ELF64 Atomic 32bit CAS */
-	LWS_ENTRY(compare_and_swap_2)		/* 2 - ELF32 Atomic 64bit CAS */
+	LWS_ENTRY(compare_and_swap_2)		/* 2 - Atomic 64bit CAS */
+	LWS_ENTRY(atomic_xchg)			/* 3 - Atomic Exchange */
+	LWS_ENTRY(atomic_store)			/* 4 - Atomic Store */
 END(lws_table)
 	/* End of lws table */
 
+#ifdef CONFIG_64BIT
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, compat)
+#else
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, native)
+#endif
 #define __SYSCALL(nr, entry)	ASM_ULONG_INSN entry
 	.align 8
 ENTRY(sys_call_table)
 	.export sys_call_table,data
-#ifdef CONFIG_64BIT
-#include <asm/syscall_table_c32.h>   /* Compat syscalls */
-#else
-#include <asm/syscall_table_32.h>    /* 32-bit native syscalls */
-#endif
+#include <asm/syscall_table_32.h>    /* 32-bit syscalls */
 END(sys_call_table)
 
 #ifdef CONFIG_64BIT
 	.align 8
 ENTRY(sys_call_table64)
-#include <asm/syscall_table_64.h>    /* 64-bit native syscalls */
+#include <asm/syscall_table_64.h>    /* 64-bit syscalls */
 END(sys_call_table64)
 #endif
-#undef __SYSCALL
 
 	/*
 		All light-weight-syscall atomic operations 
@@ -961,5 +1339,3 @@ END(lws_lock_start)
 	.previous
 
 .end
-
-

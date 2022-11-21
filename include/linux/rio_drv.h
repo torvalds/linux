@@ -444,9 +444,6 @@ static inline void rio_set_drvdata(struct rio_dev *rdev, void *data)
 /* Misc driver helpers */
 extern u16 rio_local_get_device_id(struct rio_mport *port);
 extern void rio_local_set_device_id(struct rio_mport *port, u16 did);
-extern struct rio_dev *rio_get_device(u16 vid, u16 did, struct rio_dev *from);
-extern struct rio_dev *rio_get_asm(u16 vid, u16 did, u16 asm_vid, u16 asm_did,
-				   struct rio_dev *from);
 extern int rio_init_mports(void);
 
 #endif				/* LINUX_RIO_DRV_H */

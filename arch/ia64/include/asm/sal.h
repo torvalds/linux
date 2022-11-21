@@ -385,7 +385,7 @@ typedef struct sal_processor_static_info {
 		    fr              : 1,
 		    reserved        : 58;
 	} valid;
-	pal_min_state_area_t min_state_area;
+	struct pal_min_state_area min_state_area;
 	u64 br[8];
 	u64 cr[128];
 	u64 ar[128];
@@ -420,7 +420,7 @@ typedef struct sal_log_processor_info {
 	 * The rest of this structure consists of variable-length arrays, which can't be
 	 * expressed in C.
 	 */
-	sal_log_mod_error_info_t info[0];
+	sal_log_mod_error_info_t info[];
 	/*
 	 * This is what the rest looked like if C supported variable-length arrays:
 	 *

@@ -37,6 +37,14 @@ static inline int snd_sof_remove(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static inline int snd_sof_shutdown(struct snd_sof_dev *sdev)
+{
+	if (sof_ops(sdev)->shutdown)
+		return sof_ops(sdev)->shutdown(sdev);
+
+	return 0;
+}
+
 /* control */
 
 /*
@@ -48,10 +56,10 @@ static inline int snd_sof_dsp_run(struct snd_sof_dev *sdev)
 	return sof_ops(sdev)->run(sdev);
 }
 
-static inline int snd_sof_dsp_stall(struct snd_sof_dev *sdev)
+static inline int snd_sof_dsp_stall(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
 	if (sof_ops(sdev)->stall)
-		return sof_ops(sdev)->stall(sdev);
+		return sof_ops(sdev)->stall(sdev, core_mask);
 
 	return 0;
 }
@@ -64,21 +72,66 @@ static inline int snd_sof_dsp_reset(struct snd_sof_dev *sdev)
 	return 0;
 }
 
-/* dsp core power up/power down */
-static inline int snd_sof_dsp_core_power_up(struct snd_sof_dev *sdev,
-					    unsigned int core_mask)
+/* dsp core get/put */
+static inline int snd_sof_dsp_core_get(struct snd_sof_dev *sdev, int core)
 {
-	if (sof_ops(sdev)->core_power_up)
-		return sof_ops(sdev)->core_power_up(sdev, core_mask);
+	if (core > sdev->num_cores - 1) {
+		dev_err(sdev->dev, "invalid core id: %d for num_cores: %d\n", core,
+			sdev->num_cores);
+		return -EINVAL;
+	}
+
+	if (sof_ops(sdev)->core_get) {
+		int ret;
+
+		/* if current ref_count is > 0, increment it and return */
+		if (sdev->dsp_core_ref_count[core] > 0) {
+			sdev->dsp_core_ref_count[core]++;
+			return 0;
+		}
+
+		/* power up the core */
+		ret = sof_ops(sdev)->core_get(sdev, core);
+		if (ret < 0)
+			return ret;
+
+		/* increment ref_count */
+		sdev->dsp_core_ref_count[core]++;
+
+		/* and update enabled_cores_mask */
+		sdev->enabled_cores_mask |= BIT(core);
+
+		dev_dbg(sdev->dev, "Core %d powered up\n", core);
+	}
 
 	return 0;
 }
 
-static inline int snd_sof_dsp_core_power_down(struct snd_sof_dev *sdev,
-					      unsigned int core_mask)
+static inline int snd_sof_dsp_core_put(struct snd_sof_dev *sdev, int core)
 {
-	if (sof_ops(sdev)->core_power_down)
-		return sof_ops(sdev)->core_power_down(sdev, core_mask);
+	if (core > sdev->num_cores - 1) {
+		dev_err(sdev->dev, "invalid core id: %d for num_cores: %d\n", core,
+			sdev->num_cores);
+		return -EINVAL;
+	}
+
+	if (sof_ops(sdev)->core_put) {
+		int ret;
+
+		/* decrement ref_count and return if it is > 0 */
+		if (--(sdev->dsp_core_ref_count[core]) > 0)
+			return 0;
+
+		/* power down the core */
+		ret = sof_ops(sdev)->core_put(sdev, core);
+		if (ret < 0)
+			return ret;
+
+		/* and update enabled_cores_mask */
+		sdev->enabled_cores_mask &= ~BIT(core);
+
+		dev_dbg(sdev->dev, "Core %d powered down\n", core);
+	}
 
 	return 0;
 }
@@ -96,6 +149,16 @@ static inline int snd_sof_dsp_post_fw_run(struct snd_sof_dev *sdev)
 {
 	if (sof_ops(sdev)->post_fw_run)
 		return sof_ops(sdev)->post_fw_run(sdev);
+
+	return 0;
+}
+
+/* parse platform specific extended manifest */
+static inline int snd_sof_dsp_parse_platform_ext_manifest(struct snd_sof_dev *sdev,
+							  const struct sof_ext_man_elem_header *hdr)
+{
+	if (sof_ops(sdev)->parse_platform_ext_manifest)
+		return sof_ops(sdev)->parse_platform_ext_manifest(sdev, hdr);
 
 	return 0;
 }
@@ -198,24 +261,30 @@ static inline int
 snd_sof_dsp_set_power_state(struct snd_sof_dev *sdev,
 			    const struct sof_dsp_power_state *target_state)
 {
-	if (sof_ops(sdev)->set_power_state)
-		return sof_ops(sdev)->set_power_state(sdev, target_state);
+	int ret = 0;
 
-	/* D0 substate is not supported, do nothing here. */
-	return 0;
+	mutex_lock(&sdev->power_state_access);
+
+	if (sof_ops(sdev)->set_power_state)
+		ret = sof_ops(sdev)->set_power_state(sdev, target_state);
+
+	mutex_unlock(&sdev->power_state_access);
+
+	return ret;
 }
 
 /* debug */
-static inline void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, u32 flags)
-{
-	if (sof_ops(sdev)->dbg_dump)
-		return sof_ops(sdev)->dbg_dump(sdev, flags);
-}
+void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, const char *msg, u32 flags);
 
-static inline void snd_sof_ipc_dump(struct snd_sof_dev *sdev)
+static inline int snd_sof_debugfs_add_region_item(struct snd_sof_dev *sdev,
+		enum snd_sof_fw_blk_type blk_type, u32 offset, size_t size,
+		const char *name, enum sof_debugfs_access_type access_type)
 {
-	if (sof_ops(sdev)->ipc_dump)
-		return sof_ops(sdev)->ipc_dump(sdev);
+	if (sof_ops(sdev) && sof_ops(sdev)->debugfs_add_region_item)
+		return sof_ops(sdev)->debugfs_add_region_item(sdev, blk_type, offset,
+							      size, name, access_type);
+
+	return 0;
 }
 
 /* register IO */
@@ -262,16 +331,33 @@ static inline u64 snd_sof_dsp_read64(struct snd_sof_dev *sdev, u32 bar,
 }
 
 /* block IO */
-static inline void snd_sof_dsp_block_read(struct snd_sof_dev *sdev, u32 bar,
-					  u32 offset, void *dest, size_t bytes)
+static inline int snd_sof_dsp_block_read(struct snd_sof_dev *sdev,
+					 enum snd_sof_fw_blk_type blk_type,
+					 u32 offset, void *dest, size_t bytes)
 {
-	sof_ops(sdev)->block_read(sdev, bar, offset, dest, bytes);
+	return sof_ops(sdev)->block_read(sdev, blk_type, offset, dest, bytes);
 }
 
-static inline void snd_sof_dsp_block_write(struct snd_sof_dev *sdev, u32 bar,
-					   u32 offset, void *src, size_t bytes)
+static inline int snd_sof_dsp_block_write(struct snd_sof_dev *sdev,
+					  enum snd_sof_fw_blk_type blk_type,
+					  u32 offset, void *src, size_t bytes)
 {
-	sof_ops(sdev)->block_write(sdev, bar, offset, src, bytes);
+	return sof_ops(sdev)->block_write(sdev, blk_type, offset, src, bytes);
+}
+
+/* mailbox IO */
+static inline void snd_sof_dsp_mailbox_read(struct snd_sof_dev *sdev,
+					    u32 offset, void *dest, size_t bytes)
+{
+	if (sof_ops(sdev)->mailbox_read)
+		sof_ops(sdev)->mailbox_read(sdev, offset, dest, bytes);
+}
+
+static inline void snd_sof_dsp_mailbox_write(struct snd_sof_dev *sdev,
+					     u32 offset, void *src, size_t bytes)
+{
+	if (sof_ops(sdev)->mailbox_write)
+		sof_ops(sdev)->mailbox_write(sdev, offset, src, bytes);
 }
 
 /* ipc */
@@ -283,10 +369,10 @@ static inline int snd_sof_dsp_send_msg(struct snd_sof_dev *sdev,
 
 /* host DMA trace */
 static inline int snd_sof_dma_trace_init(struct snd_sof_dev *sdev,
-					 u32 *stream_tag)
+					 struct sof_ipc_dma_trace_params_ext *dtrace_params)
 {
 	if (sof_ops(sdev)->trace_init)
-		return sof_ops(sdev)->trace_init(sdev, stream_tag);
+		return sof_ops(sdev)->trace_init(sdev, dtrace_params);
 
 	return 0;
 }
@@ -334,11 +420,11 @@ static inline int
 snd_sof_pcm_platform_hw_params(struct snd_sof_dev *sdev,
 			       struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params,
-			       struct sof_ipc_stream_params *ipc_params)
+			       struct snd_sof_platform_stream_params *platform_params)
 {
 	if (sof_ops(sdev) && sof_ops(sdev)->pcm_hw_params)
-		return sof_ops(sdev)->pcm_hw_params(sdev, substream,
-						    params, ipc_params);
+		return sof_ops(sdev)->pcm_hw_params(sdev, substream, params,
+						    platform_params);
 
 	return 0;
 }
@@ -365,21 +451,32 @@ snd_sof_pcm_platform_trigger(struct snd_sof_dev *sdev,
 	return 0;
 }
 
-/* host DSP message data */
-static inline void snd_sof_ipc_msg_data(struct snd_sof_dev *sdev,
-					struct snd_pcm_substream *substream,
-					void *p, size_t sz)
+/* Firmware loading */
+static inline int snd_sof_load_firmware(struct snd_sof_dev *sdev)
 {
-	sof_ops(sdev)->ipc_msg_data(sdev, substream, p, sz);
+	dev_dbg(sdev->dev, "loading firmware\n");
+
+	return sof_ops(sdev)->load_firmware(sdev);
 }
 
-/* host configure DSP HW parameters */
-static inline int
-snd_sof_ipc_pcm_params(struct snd_sof_dev *sdev,
-		       struct snd_pcm_substream *substream,
-		       const struct sof_ipc_pcm_params_reply *reply)
+/* host DSP message data */
+static inline int snd_sof_ipc_msg_data(struct snd_sof_dev *sdev,
+				       struct snd_pcm_substream *substream,
+				       void *p, size_t sz)
 {
-	return sof_ops(sdev)->ipc_pcm_params(sdev, substream, reply);
+	return sof_ops(sdev)->ipc_msg_data(sdev, substream, p, sz);
+}
+/* host side configuration of the stream's data offset in stream mailbox area */
+static inline int
+snd_sof_set_stream_data_offset(struct snd_sof_dev *sdev,
+			       struct snd_pcm_substream *substream,
+			       size_t posn_offset)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->set_stream_data_offset)
+		return sof_ops(sdev)->set_stream_data_offset(sdev, substream,
+							     posn_offset);
+
+	return 0;
 }
 
 /* host stream pointer */
@@ -393,48 +490,15 @@ snd_sof_pcm_platform_pointer(struct snd_sof_dev *sdev,
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-static inline int
-snd_sof_probe_compr_assign(struct snd_sof_dev *sdev,
-		struct snd_compr_stream *cstream, struct snd_soc_dai *dai)
+/* pcm ack */
+static inline int snd_sof_pcm_platform_ack(struct snd_sof_dev *sdev,
+					   struct snd_pcm_substream *substream)
 {
-	return sof_ops(sdev)->probe_assign(sdev, cstream, dai);
-}
-
-static inline int
-snd_sof_probe_compr_free(struct snd_sof_dev *sdev,
-		struct snd_compr_stream *cstream, struct snd_soc_dai *dai)
-{
-	return sof_ops(sdev)->probe_free(sdev, cstream, dai);
-}
-
-static inline int
-snd_sof_probe_compr_set_params(struct snd_sof_dev *sdev,
-		struct snd_compr_stream *cstream,
-		struct snd_compr_params *params, struct snd_soc_dai *dai)
-{
-	return sof_ops(sdev)->probe_set_params(sdev, cstream, params, dai);
-}
-
-static inline int
-snd_sof_probe_compr_trigger(struct snd_sof_dev *sdev,
-		struct snd_compr_stream *cstream, int cmd,
-		struct snd_soc_dai *dai)
-{
-	return sof_ops(sdev)->probe_trigger(sdev, cstream, cmd, dai);
-}
-
-static inline int
-snd_sof_probe_compr_pointer(struct snd_sof_dev *sdev,
-		struct snd_compr_stream *cstream,
-		struct snd_compr_tstamp *tstamp, struct snd_soc_dai *dai)
-{
-	if (sof_ops(sdev) && sof_ops(sdev)->probe_pointer)
-		return sof_ops(sdev)->probe_pointer(sdev, cstream, tstamp, dai);
+	if (sof_ops(sdev) && sof_ops(sdev)->pcm_ack)
+		return sof_ops(sdev)->pcm_ack(sdev, substream);
 
 	return 0;
 }
-#endif
 
 /* machine driver */
 static inline int
@@ -453,36 +517,21 @@ snd_sof_machine_unregister(struct snd_sof_dev *sdev, void *pdata)
 		sof_ops(sdev)->machine_unregister(sdev, pdata);
 }
 
-static inline void
+static inline struct snd_soc_acpi_mach *
 snd_sof_machine_select(struct snd_sof_dev *sdev)
 {
 	if (sof_ops(sdev) && sof_ops(sdev)->machine_select)
-		sof_ops(sdev)->machine_select(sdev);
+		return sof_ops(sdev)->machine_select(sdev);
+
+	return NULL;
 }
 
 static inline void
-snd_sof_set_mach_params(const struct snd_soc_acpi_mach *mach,
-			struct device *dev)
+snd_sof_set_mach_params(struct snd_soc_acpi_mach *mach,
+			struct snd_sof_dev *sdev)
 {
-	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
-
 	if (sof_ops(sdev) && sof_ops(sdev)->set_mach_params)
-		sof_ops(sdev)->set_mach_params(mach, dev);
-}
-
-static inline const struct snd_sof_dsp_ops
-*sof_get_ops(const struct sof_dev_desc *d,
-	     const struct sof_ops_table mach_ops[], int asize)
-{
-	int i;
-
-	for (i = 0; i < asize; i++) {
-		if (d == mach_ops[i].desc)
-			return mach_ops[i].ops;
-	}
-
-	/* not found */
-	return NULL;
+		sof_ops(sdev)->set_mach_params(mach, sdev);
 }
 
 /**
@@ -513,14 +562,16 @@ static inline const struct snd_sof_dsp_ops
 		(val) = snd_sof_dsp_read(sdev, bar, offset);		\
 		if (cond) { \
 			dev_dbg(sdev->dev, \
-				"FW Poll Status: reg=%#x successful\n", (val)); \
+				"FW Poll Status: reg[%#x]=%#x successful\n", \
+				(offset), (val)); \
 			break; \
 		} \
 		if (__timeout_us && \
 		    ktime_compare(ktime_get(), __timeout) > 0) { \
 			(val) = snd_sof_dsp_read(sdev, bar, offset); \
 			dev_dbg(sdev->dev, \
-				"FW Poll Status: reg=%#x timedout\n", (val)); \
+				"FW Poll Status: reg[%#x]=%#x timedout\n", \
+				(offset), (val)); \
 			break; \
 		} \
 		if (__sleep_us) \
@@ -552,5 +603,5 @@ int snd_sof_dsp_register_poll(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 			      u32 mask, u32 target, u32 timeout_ms,
 			      u32 interval_us);
 
-void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset);
+void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset, bool non_recoverable);
 #endif

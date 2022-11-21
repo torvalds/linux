@@ -1525,7 +1525,11 @@ EXPORT_SYMBOL_GPL(dm_bufio_get_block_size);
 
 sector_t dm_bufio_get_device_size(struct dm_bufio_client *c)
 {
-	sector_t s = i_size_read(c->bdev->bd_inode) >> SECTOR_SHIFT;
+	sector_t s = bdev_nr_sectors(c->bdev);
+	if (s >= c->start)
+		s -= c->start;
+	else
+		s = 0;
 	if (likely(c->sectors_per_block_bits >= 0))
 		s >>= c->sectors_per_block_bits;
 	else
@@ -1533,6 +1537,12 @@ sector_t dm_bufio_get_device_size(struct dm_bufio_client *c)
 	return s;
 }
 EXPORT_SYMBOL_GPL(dm_bufio_get_device_size);
+
+struct dm_io_client *dm_bufio_get_dm_io_client(struct dm_bufio_client *c)
+{
+	return c->dm_io;
+}
+EXPORT_SYMBOL_GPL(dm_bufio_get_dm_io_client);
 
 sector_t dm_bufio_get_block_number(struct dm_buffer *b)
 {
@@ -2072,7 +2082,6 @@ static void __exit dm_bufio_exit(void)
 	int bug = 0;
 
 	cancel_delayed_work_sync(&dm_bufio_cleanup_old_work);
-	flush_workqueue(dm_bufio_wq);
 	destroy_workqueue(dm_bufio_wq);
 
 	if (dm_bufio_client_count) {

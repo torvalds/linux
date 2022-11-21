@@ -17,27 +17,8 @@
 #define IOMMU_PC_DEVID_MATCH_REG		0x20
 #define IOMMU_PC_COUNTER_REPORT_REG		0x28
 
-/* maximun specified bank/counters */
+/* maximum specified bank/counters */
 #define PC_MAX_SPEC_BNKS			64
 #define PC_MAX_SPEC_CNTRS			16
-
-struct amd_iommu;
-
-/* amd_iommu_init.c external support functions */
-extern int amd_iommu_get_num_iommus(void);
-
-extern bool amd_iommu_pc_supported(void);
-
-extern u8 amd_iommu_pc_get_max_banks(unsigned int idx);
-
-extern u8 amd_iommu_pc_get_max_counters(unsigned int idx);
-
-extern int amd_iommu_pc_set_reg(struct amd_iommu *iommu, u8 bank, u8 cntr,
-				u8 fxn, u64 *value);
-
-extern int amd_iommu_pc_get_reg(struct amd_iommu *iommu, u8 bank, u8 cntr,
-				u8 fxn, u64 *value);
-
-extern struct amd_iommu *get_amd_iommu(int idx);
 
 #endif /*_PERF_EVENT_AMD_IOMMU_H_*/

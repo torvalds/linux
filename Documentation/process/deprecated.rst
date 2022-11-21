@@ -59,8 +59,9 @@ risk of them overflowing. This could lead to values wrapping around and a
 smaller allocation being made than the caller was expecting. Using those
 allocations could lead to linear overflows of heap memory and other
 misbehaviors. (One exception to this is literal values where the compiler
-can warn if they might overflow. Though using literals for arguments as
-suggested below is also harmless.)
+can warn if they might overflow. However, the preferred way in these
+cases is to refactor the code as suggested below to avoid the open-coded
+arithmetic.)
 
 For example, do not use ``count * size`` as an argument, as in::
 
@@ -69,6 +70,9 @@ For example, do not use ``count * size`` as an argument, as in::
 Instead, the 2-factor form of the allocator should be used::
 
 	foo = kmalloc_array(count, size, GFP_KERNEL);
+
+Specifically, kmalloc() can be replaced with kmalloc_array(), and
+kzalloc() can be replaced with kcalloc().
 
 If no 2-factor form is available, the saturate-on-overflow helpers should
 be used::
@@ -90,9 +94,20 @@ Instead, use the helper::
         array usage and switch to a `flexible array member
         <#zero-length-and-one-element-arrays>`_ instead.
 
-See array_size(), array3_size(), and struct_size(),
-for more details as well as the related check_add_overflow() and
-check_mul_overflow() family of functions.
+For other calculations, please compose the use of the size_mul(),
+size_add(), and size_sub() helpers. For example, in the case of::
+
+	foo = krealloc(current_size + chunk_size * (count - 3), GFP_KERNEL);
+
+Instead, use the helpers::
+
+	foo = krealloc(size_add(current_size,
+				size_mul(chunk_size,
+					 size_sub(count, 3))), GFP_KERNEL);
+
+For more details, also see array3_size() and flex_array_size(),
+as well as the related check_mul_overflow(), check_add_overflow(),
+check_sub_overflow(), and check_shl_overflow() family of functions.
 
 simple_strtol(), simple_strtoll(), simple_strtoul(), simple_strtoull()
 ----------------------------------------------------------------------
@@ -164,7 +179,9 @@ Paraphrasing Linus's current `guidance <https://lore.kernel.org/lkml/CA+55aFwQEd
   up to Linus's scrutiny, maybe you can use "%px", along with making sure
   you have sensible permissions.
 
-And finally, know that a toggle for "%p" hashing will `not be accepted <https://lore.kernel.org/lkml/CA+55aFwieC1-nAs+NFq9RTwaR8ef9hWa4MjNBWL41F-8wM49eA@mail.gmail.com/>`_.
+If you are debugging something where "%p" hashing is causing problems,
+you can temporarily boot with the debug flag "`no_hash_pointers
+<https://git.kernel.org/linus/5ead723a20e0447bc7db33dc3070b420e5f80aa6>`_".
 
 Variable Length Arrays (VLAs)
 -----------------------------

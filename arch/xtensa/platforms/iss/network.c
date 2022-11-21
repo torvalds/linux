@@ -124,7 +124,7 @@ static char *split_if_spec(char *str, ...)
 
 static void setup_etheraddr(struct net_device *dev, char *str)
 {
-	unsigned char *addr = dev->dev_addr;
+	u8 addr[ETH_ALEN];
 
 	if (str == NULL)
 		goto random;
@@ -147,6 +147,7 @@ static void setup_etheraddr(struct net_device *dev, char *str)
 	if (!is_local_ether_addr(addr))
 		pr_warn("%s: assigning a globally valid ethernet address\n",
 			dev->name);
+	eth_hw_addr_set(dev, addr);
 	return;
 
 random:
@@ -173,7 +174,7 @@ static int tuntap_open(struct iss_net_private *lp)
 
 	memset(&ifr, 0, sizeof(ifr));
 	ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-	strlcpy(ifr.ifr_name, dev_name, sizeof(ifr.ifr_name));
+	strscpy(ifr.ifr_name, dev_name, sizeof(ifr.ifr_name));
 
 	err = simc_ioctl(fd, TUNSETIFF, &ifr);
 	if (err < 0) {
@@ -248,7 +249,7 @@ static int tuntap_probe(struct iss_net_private *lp, int index, char *init)
 		return 0;
 	}
 
-	strlcpy(lp->tp.info.tuntap.dev_name, dev_name,
+	strscpy(lp->tp.info.tuntap.dev_name, dev_name,
 		sizeof(lp->tp.info.tuntap.dev_name));
 
 	setup_etheraddr(dev, mac_str);
@@ -303,7 +304,7 @@ static int iss_net_rx(struct net_device *dev)
 
 		lp->stats.rx_bytes += skb->len;
 		lp->stats.rx_packets++;
-		netif_rx_ni(skb);
+		netif_rx(skb);
 		return pkt_len;
 	}
 	kfree_skb(skb);
@@ -467,7 +468,7 @@ static int iss_net_set_mac(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(hwaddr->sa_data))
 		return -EADDRNOTAVAIL;
 	spin_lock_bh(&lp->lock);
-	memcpy(dev->dev_addr, hwaddr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, hwaddr->sa_data);
 	spin_unlock_bh(&lp->lock);
 	return 0;
 }

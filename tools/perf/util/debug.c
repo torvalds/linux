@@ -10,6 +10,7 @@
 #include <api/debug.h>
 #include <linux/kernel.h>
 #include <linux/time64.h>
+#include <sys/time.h>
 #ifdef HAVE_BACKTRACE_SUPPORT
 #include <execinfo.h>
 #endif
@@ -30,16 +31,49 @@ bool dump_trace = false, quiet = false;
 int debug_ordered_events;
 static int redirect_to_stderr;
 int debug_data_convert;
+static FILE *debug_file;
+bool debug_display_time;
+
+void debug_set_file(FILE *file)
+{
+	debug_file = file;
+}
+
+void debug_set_display_time(bool set)
+{
+	debug_display_time = set;
+}
+
+static int fprintf_time(FILE *file)
+{
+	struct timeval tod;
+	struct tm ltime;
+	char date[64];
+
+	if (!debug_display_time)
+		return 0;
+
+	if (gettimeofday(&tod, NULL) != 0)
+		return 0;
+
+	if (localtime_r(&tod.tv_sec, &ltime) == NULL)
+		return 0;
+
+	strftime(date, sizeof(date),  "%F %H:%M:%S", &ltime);
+	return fprintf(file, "[%s.%06lu] ", date, (long)tod.tv_usec);
+}
 
 int veprintf(int level, int var, const char *fmt, va_list args)
 {
 	int ret = 0;
 
 	if (var >= level) {
-		if (use_browser >= 1 && !redirect_to_stderr)
+		if (use_browser >= 1 && !redirect_to_stderr) {
 			ui_helpline__vshow(fmt, args);
-		else
-			ret = vfprintf(stderr, fmt, args);
+		} else {
+			ret = fprintf_time(debug_file);
+			ret += vfprintf(debug_file, fmt, args);
+		}
 	}
 
 	return ret;
@@ -145,7 +179,7 @@ static int trace_event_printer(enum binary_printer_ops op,
 		break;
 	case BINARY_PRINT_CHAR_DATA:
 		printed += color_fprintf(fp, color, "%c",
-			      isprint(ch) ? ch : '.');
+			      isprint(ch) && isascii(ch) ? ch : '.');
 		break;
 	case BINARY_PRINT_CHAR_PAD:
 		printed += color_fprintf(fp, color, " ");
@@ -227,6 +261,7 @@ DEBUG_WRAPPER(debug, 1);
 
 void perf_debug_setup(void)
 {
+	debug_set_file(stderr);
 	libapi_set_print(pr_warning_wrapper, pr_warning_wrapper, pr_debug_wrapper);
 }
 

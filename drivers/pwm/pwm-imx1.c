@@ -61,7 +61,7 @@ static void pwm_imx1_clk_disable_unprepare(struct pwm_chip *chip)
 }
 
 static int pwm_imx1_config(struct pwm_chip *chip,
-			   struct pwm_device *pwm, int duty_ns, int period_ns)
+			   struct pwm_device *pwm, u64 duty_ns, u64 period_ns)
 {
 	struct pwm_imx1_chip *imx = to_pwm_imx1_chip(chip);
 	u32 max, p;
@@ -84,7 +84,7 @@ static int pwm_imx1_config(struct pwm_chip *chip,
 	 * (/2 .. /16).
 	 */
 	max = readl(imx->mmio_base + MX1_PWMP);
-	p = max * duty_ns / period_ns;
+	p = mul_u64_u64_div_u64(max, duty_ns, period_ns);
 
 	writel(max - p, imx->mmio_base + MX1_PWMS);
 
@@ -120,10 +120,33 @@ static void pwm_imx1_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	pwm_imx1_clk_disable_unprepare(chip);
 }
 
+static int pwm_imx1_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			  const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			pwm_imx1_disable(chip, pwm);
+
+		return 0;
+	}
+
+	err = pwm_imx1_config(chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		return pwm_imx1_enable(chip, pwm);
+
+	return 0;
+}
+
 static const struct pwm_ops pwm_imx1_ops = {
-	.enable = pwm_imx1_enable,
-	.disable = pwm_imx1_disable,
-	.config = pwm_imx1_config,
+	.apply = pwm_imx1_apply,
 	.owner = THIS_MODULE,
 };
 
@@ -136,53 +159,30 @@ MODULE_DEVICE_TABLE(of, pwm_imx1_dt_ids);
 static int pwm_imx1_probe(struct platform_device *pdev)
 {
 	struct pwm_imx1_chip *imx;
-	struct resource *r;
 
 	imx = devm_kzalloc(&pdev->dev, sizeof(*imx), GFP_KERNEL);
 	if (!imx)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, imx);
-
 	imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
-	if (IS_ERR(imx->clk_ipg)) {
-		dev_err(&pdev->dev, "getting ipg clock failed with %ld\n",
-				PTR_ERR(imx->clk_ipg));
-		return PTR_ERR(imx->clk_ipg);
-	}
+	if (IS_ERR(imx->clk_ipg))
+		return dev_err_probe(&pdev->dev, PTR_ERR(imx->clk_ipg),
+				     "getting ipg clock failed\n");
 
 	imx->clk_per = devm_clk_get(&pdev->dev, "per");
-	if (IS_ERR(imx->clk_per)) {
-		int ret = PTR_ERR(imx->clk_per);
-
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"failed to get peripheral clock: %d\n",
-				ret);
-
-		return ret;
-	}
+	if (IS_ERR(imx->clk_per))
+		return dev_err_probe(&pdev->dev, PTR_ERR(imx->clk_per),
+				     "failed to get peripheral clock\n");
 
 	imx->chip.ops = &pwm_imx1_ops;
 	imx->chip.dev = &pdev->dev;
-	imx->chip.base = -1;
 	imx->chip.npwm = 1;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	imx->mmio_base = devm_ioremap_resource(&pdev->dev, r);
+	imx->mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(imx->mmio_base))
 		return PTR_ERR(imx->mmio_base);
 
-	return pwmchip_add(&imx->chip);
-}
-
-static int pwm_imx1_remove(struct platform_device *pdev)
-{
-	struct pwm_imx1_chip *imx = platform_get_drvdata(pdev);
-
-	pwm_imx1_clk_disable_unprepare(&imx->chip);
-
-	return pwmchip_remove(&imx->chip);
+	return devm_pwmchip_add(&pdev->dev, &imx->chip);
 }
 
 static struct platform_driver pwm_imx1_driver = {
@@ -191,7 +191,6 @@ static struct platform_driver pwm_imx1_driver = {
 		.of_match_table = pwm_imx1_dt_ids,
 	},
 	.probe = pwm_imx1_probe,
-	.remove = pwm_imx1_remove,
 };
 module_platform_driver(pwm_imx1_driver);
 

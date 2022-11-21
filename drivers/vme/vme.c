@@ -52,28 +52,23 @@ static struct vme_bridge *find_bridge(struct vme_resource *resource)
 	case VME_MASTER:
 		return list_entry(resource->entry, struct vme_master_resource,
 			list)->parent;
-		break;
 	case VME_SLAVE:
 		return list_entry(resource->entry, struct vme_slave_resource,
 			list)->parent;
-		break;
 	case VME_DMA:
 		return list_entry(resource->entry, struct vme_dma_resource,
 			list)->parent;
-		break;
 	case VME_LM:
 		return list_entry(resource->entry, struct vme_lm_resource,
 			list)->parent;
-		break;
 	default:
 		printk(KERN_ERR "Unknown resource type\n");
 		return NULL;
-		break;
 	}
 }
 
 /**
- * vme_free_consistent - Allocate contiguous memory.
+ * vme_alloc_consistent - Allocate contiguous memory.
  * @resource: Pointer to VME resource.
  * @size: Size of allocation required.
  * @dma: Pointer to variable to store physical address of allocation.
@@ -179,7 +174,6 @@ size_t vme_get_size(struct vme_resource *resource)
 			return 0;
 
 		return size;
-		break;
 	case VME_SLAVE:
 		retval = vme_slave_get(resource, &enabled, &base, &size,
 			&buf_base, &aspace, &cycle);
@@ -187,14 +181,11 @@ size_t vme_get_size(struct vme_resource *resource)
 			return 0;
 
 		return size;
-		break;
 	case VME_DMA:
 		return 0;
-		break;
 	default:
 		printk(KERN_ERR "Unknown resource type\n");
 		return 0;
-		break;
 	}
 }
 EXPORT_SYMBOL(vme_get_size);
@@ -647,7 +638,7 @@ int vme_master_get(struct vme_resource *resource, int *enabled,
 EXPORT_SYMBOL(vme_master_get);
 
 /**
- * vme_master_write - Read data from VME space into a buffer.
+ * vme_master_read - Read data from VME space into a buffer.
  * @resource: Pointer to VME master resource.
  * @buf: Pointer to buffer where data should be transferred.
  * @count: Number of bytes to transfer.
@@ -1999,16 +1990,14 @@ static int vme_bus_probe(struct device *dev)
 	return -ENODEV;
 }
 
-static int vme_bus_remove(struct device *dev)
+static void vme_bus_remove(struct device *dev)
 {
 	struct vme_driver *driver;
 	struct vme_dev *vdev = dev_to_vme_dev(dev);
 
 	driver = dev->platform_data;
 	if (driver->remove)
-		return driver->remove(vdev);
-
-	return -ENODEV;
+		driver->remove(vdev);
 }
 
 struct bus_type vme_bus_type = {

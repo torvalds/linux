@@ -1,13 +1,17 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2019 Intel Corporation
  */
 
+#include "gem/i915_gem_internal.h"
+#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_object.h"
+
 #include "i915_drv.h"
 #include "i915_vma.h"
 #include "intel_engine.h"
+#include "intel_engine_regs.h"
+#include "intel_gpu_commands.h"
 #include "intel_ring.h"
 #include "intel_timeline.h"
 
@@ -40,7 +44,7 @@ int intel_ring_pin(struct intel_ring *ring, struct i915_gem_ww_ctx *ww)
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
 	flags = PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
 
-	if (vma->obj->stolen)
+	if (i915_gem_object_is_stolen(vma->obj))
 		flags |= PIN_MAPPABLE;
 	else
 		flags |= PIN_HIGH;
@@ -49,11 +53,14 @@ int intel_ring_pin(struct intel_ring *ring, struct i915_gem_ww_ctx *ww)
 	if (unlikely(ret))
 		goto err_unpin;
 
-	if (i915_vma_is_map_and_fenceable(vma))
+	if (i915_vma_is_map_and_fenceable(vma)) {
 		addr = (void __force *)i915_vma_pin_iomap(vma);
-	else
-		addr = i915_gem_object_pin_map(vma->obj,
-					       i915_coherent_map_type(vma->vm->i915));
+	} else {
+		int type = i915_coherent_map_type(vma->vm->i915, vma->obj, false);
+
+		addr = i915_gem_object_pin_map(vma->obj, type);
+	}
+
 	if (IS_ERR(addr)) {
 		ret = PTR_ERR(addr);
 		goto err_ring;
@@ -107,8 +114,9 @@ static struct i915_vma *create_ring_vma(struct i915_ggtt *ggtt, int size)
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 
-	obj = ERR_PTR(-ENODEV);
-	if (i915_ggtt_has_aperture(ggtt))
+	obj = i915_gem_object_create_lmem(i915, size, I915_BO_ALLOC_VOLATILE |
+					  I915_BO_ALLOC_PM_VOLATILE);
+	if (IS_ERR(obj) && i915_ggtt_has_aperture(ggtt))
 		obj = i915_gem_object_create_stolen(i915, size);
 	if (IS_ERR(obj))
 		obj = i915_gem_object_create_internal(i915, size);

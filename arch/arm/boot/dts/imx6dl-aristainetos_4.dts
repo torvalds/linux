@@ -10,7 +10,7 @@
 
 / {
 	model = "aristainetos i.MX6 Dual Lite Board 4";
-	compatible = "fsl,imx6dl";
+	compatible = "abb,aristainetos-imx6dl-4", "fsl,imx6dl";
 
 	backlight {
 		compatible = "pwm-backlight";

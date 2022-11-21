@@ -23,8 +23,6 @@
 #include <asm/processor.h>
 #include <asm/cache.h>
 
-static inline spinlock_t *pgd_spinlock(pgd_t *);
-
 /*
  * kern_addr_valid(ADDR) tests if ADDR is pointing to valid kernel
  * memory.  For the return value to be meaningful, ADDR must be >=
@@ -42,12 +40,8 @@ static inline spinlock_t *pgd_spinlock(pgd_t *);
 
 /* This is for the serialization of PxTLB broadcasts. At least on the N class
  * systems, only one PxTLB inter processor broadcast can be active at any one
- * time on the Merced bus.
-
- * PTE updates are protected by locks in the PMD.
- */
+ * time on the Merced bus. */
 extern spinlock_t pa_tlb_flush_lock;
-extern spinlock_t pa_swapper_pg_lock;
 #if defined(CONFIG_64BIT) && defined(CONFIG_SMP)
 extern int pa_serialize_tlb_flushes;
 #else
@@ -76,28 +70,31 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 	unsigned long flags;
 
 	purge_tlb_start(flags);
-	mtsp(mm->context, 1);
-	pdtlb(addr);
-	pitlb(addr);
+	mtsp(mm->context.space_id, SR_TEMP1);
+	pdtlb(SR_TEMP1, addr);
+	pitlb(SR_TEMP1, addr);
 	purge_tlb_end(flags);
 }
+
+extern void __update_cache(pte_t pte);
 
 /* Certain architectures need to do special things when PTEs
  * within a page table are directly modified.  Thus, the following
  * hook is made available.
  */
-#define set_pte(pteptr, pteval)                                 \
-        do{                                                     \
-                *(pteptr) = (pteval);                           \
-        } while(0)
+#define set_pte(pteptr, pteval)			\
+	do {					\
+		*(pteptr) = (pteval);		\
+		mb();				\
+	} while(0)
 
-#define set_pte_at(mm, addr, ptep, pteval)			\
-	do {							\
-		unsigned long flags;				\
-		spin_lock_irqsave(pgd_spinlock((mm)->pgd), flags);\
-		set_pte(ptep, pteval);				\
-		purge_tlb_entries(mm, addr);			\
-		spin_unlock_irqrestore(pgd_spinlock((mm)->pgd), flags);\
+#define set_pte_at(mm, addr, pteptr, pteval)	\
+	do {					\
+		if (pte_present(pteval) &&	\
+		    pte_user(pteval))		\
+			__update_cache(pteval);	\
+		*(pteptr) = (pteval);		\
+		purge_tlb_entries(mm, addr);	\
 	} while (0)
 
 #endif /* !__ASSEMBLY__ */
@@ -120,12 +117,10 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #define KERNEL_INITIAL_SIZE	(1 << KERNEL_INITIAL_ORDER)
 
 #if CONFIG_PGTABLE_LEVELS == 3
-#define PGD_ORDER	1 /* Number of pages per pgd */
-#define PMD_ORDER	1 /* Number of pages per pmd */
-#define PGD_ALLOC_ORDER	(2 + 1) /* first pgd contains pmd */
+#define PMD_TABLE_ORDER	1
+#define PGD_ORDER	0
 #else
-#define PGD_ORDER	1 /* Number of pages per pgd */
-#define PGD_ALLOC_ORDER	(PGD_ORDER + 1)
+#define PGD_ORDER	1
 #endif
 
 /* Definitions for 3rd level (we use PLD here for Page Lower directory
@@ -141,7 +136,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #define PMD_SHIFT       (PLD_SHIFT + BITS_PER_PTE)
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
-#define BITS_PER_PMD	(PAGE_SHIFT + PMD_ORDER - BITS_PER_PMD_ENTRY)
+#define BITS_PER_PMD	(PAGE_SHIFT + PMD_TABLE_ORDER - BITS_PER_PMD_ENTRY)
 #define PTRS_PER_PMD    (1UL << BITS_PER_PMD)
 #else
 #define BITS_PER_PMD	0
@@ -165,7 +160,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #define SPACEID_SHIFT	(MAX_ADDRBITS - 32)
 #else
 #define MAX_ADDRBITS	(BITS_PER_LONG)
-#define MAX_ADDRESS	(1UL << MAX_ADDRBITS)
+#define MAX_ADDRESS	(1ULL << MAX_ADDRBITS)
 #define SPACEID_SHIFT	0
 #endif
 
@@ -180,8 +175,6 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 /*
  * pgd entries used up by user/kernel:
  */
-
-#define FIRST_USER_ADDRESS	0UL
 
 /* NB: The tlb miss handlers make certain assumptions about the order */
 /*     of the following bits, so be careful (One example, bits 25-31  */
@@ -226,9 +219,10 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #define _PAGE_PRESENT  (1 << xlate_pabit(_PAGE_PRESENT_BIT))
 #define _PAGE_HUGE     (1 << xlate_pabit(_PAGE_HPAGE_BIT))
 #define _PAGE_USER     (1 << xlate_pabit(_PAGE_USER_BIT))
+#define _PAGE_SPECIAL  (_PAGE_DMB)
 
 #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | _PAGE_DIRTY | _PAGE_ACCESSED)
-#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
+#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_SPECIAL)
 #define _PAGE_KERNEL_RO	(_PAGE_PRESENT | _PAGE_READ | _PAGE_DIRTY | _PAGE_ACCESSED)
 #define _PAGE_KERNEL_EXEC	(_PAGE_KERNEL_RO | _PAGE_EXEC)
 #define _PAGE_KERNEL_RWX	(_PAGE_KERNEL_EXEC | _PAGE_WRITE)
@@ -240,11 +234,9 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
  * able to effectively address 40/42/44-bits of physical address space
  * depending on 4k/16k/64k PAGE_SIZE */
 #define _PxD_PRESENT_BIT   31
-#define _PxD_ATTACHED_BIT  30
-#define _PxD_VALID_BIT     29
+#define _PxD_VALID_BIT     30
 
 #define PxD_FLAG_PRESENT  (1 << xlate_pabit(_PxD_PRESENT_BIT))
-#define PxD_FLAG_ATTACHED (1 << xlate_pabit(_PxD_ATTACHED_BIT))
 #define PxD_FLAG_VALID    (1 << xlate_pabit(_PxD_VALID_BIT))
 #define PxD_FLAG_MASK     (0xf)
 #define PxD_FLAG_SHIFT    (4)
@@ -317,6 +309,7 @@ extern unsigned long *empty_zero_page;
 
 #define pte_none(x)     (pte_val(x) == 0)
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
+#define pte_user(x)	(pte_val(x) & _PAGE_USER)
 #define pte_clear(mm, addr, xp)  set_pte_at(mm, addr, xp, __pte(0))
 
 #define pmd_flag(x)	(pmd_val(x) & PxD_FLAG_MASK)
@@ -326,31 +319,18 @@ extern unsigned long *empty_zero_page;
 #define pgd_flag(x)	(pgd_val(x) & PxD_FLAG_MASK)
 #define pgd_address(x)	((unsigned long)(pgd_val(x) &~ PxD_FLAG_MASK) << PxD_VALUE_SHIFT)
 
-#if CONFIG_PGTABLE_LEVELS == 3
-/* The first entry of the permanent pmd is not there if it contains
- * the gateway marker */
-#define pmd_none(x)	(!pmd_val(x) || pmd_flag(x) == PxD_FLAG_ATTACHED)
-#else
 #define pmd_none(x)	(!pmd_val(x))
-#endif
 #define pmd_bad(x)	(!(pmd_flag(x) & PxD_FLAG_VALID))
 #define pmd_present(x)	(pmd_flag(x) & PxD_FLAG_PRESENT)
 static inline void pmd_clear(pmd_t *pmd) {
-#if CONFIG_PGTABLE_LEVELS == 3
-	if (pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
-		/* This is the entry pointing to the permanent pmd
-		 * attached to the pgd; cannot clear it */
-		set_pmd(pmd, __pmd(PxD_FLAG_ATTACHED));
-	else
-#endif
 		set_pmd(pmd,  __pmd(0));
 }
 
 
 
 #if CONFIG_PGTABLE_LEVELS == 3
-#define pud_page_vaddr(pud) ((unsigned long) __va(pud_address(pud)))
-#define pud_page(pud)	virt_to_page((void *)pud_page_vaddr(pud))
+#define pud_pgtable(pud) ((pmd_t *) __va(pud_address(pud)))
+#define pud_page(pud)	virt_to_page((void *)pud_pgtable(pud))
 
 /* For 64 bit we have three level tables */
 
@@ -358,12 +338,6 @@ static inline void pmd_clear(pmd_t *pmd) {
 #define pud_bad(x)      (!(pud_flag(x) & PxD_FLAG_VALID))
 #define pud_present(x)  (pud_flag(x) & PxD_FLAG_PRESENT)
 static inline void pud_clear(pud_t *pud) {
-#if CONFIG_PGTABLE_LEVELS == 3
-	if(pud_flag(*pud) & PxD_FLAG_ATTACHED)
-		/* This is the permanent pmd attached to the pud; cannot
-		 * free it */
-		return;
-#endif
 	set_pud(pud, __pud(0));
 }
 #endif
@@ -375,6 +349,7 @@ static inline void pud_clear(pud_t *pud) {
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_WRITE; }
+static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
 
 static inline pte_t pte_mkclean(pte_t pte)	{ pte_val(pte) &= ~_PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkold(pte_t pte)	{ pte_val(pte) &= ~_PAGE_ACCESSED; return pte; }
@@ -382,6 +357,7 @@ static inline pte_t pte_wrprotect(pte_t pte)	{ pte_val(pte) &= ~_PAGE_WRITE; ret
 static inline pte_t pte_mkdirty(pte_t pte)	{ pte_val(pte) |= _PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ pte_val(pte) |= _PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkwrite(pte_t pte)	{ pte_val(pte) |= _PAGE_WRITE; return pte; }
+static inline pte_t pte_mkspecial(pte_t pte)	{ pte_val(pte) |= _PAGE_SPECIAL; return pte; }
 
 /*
  * Huge pte definitions.
@@ -432,6 +408,7 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 	return ((unsigned long) __va(pmd_address(pmd)));
 }
 
+#define pmd_pfn(pmd)	(pmd_address(pmd) >> PAGE_SHIFT)
 #define __pmd_page(pmd) ((unsigned long) __va(pmd_address(pmd)))
 #define pmd_page(pmd)	virt_to_page((void *)__pmd_page(pmd))
 
@@ -443,7 +420,7 @@ extern void paging_init (void);
 
 #define PG_dcache_dirty         PG_arch_1
 
-extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
+#define update_mmu_cache(vms,addr,ptep) __update_cache(*ptep)
 
 /* Encode and de-code a swap entry */
 
@@ -456,32 +433,18 @@ extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
-
-static inline spinlock_t *pgd_spinlock(pgd_t *pgd)
-{
-	if (unlikely(pgd == swapper_pg_dir))
-		return &pa_swapper_pg_lock;
-	return (spinlock_t *)((char *)pgd + (PAGE_SIZE << (PGD_ALLOC_ORDER - 1)));
-}
-
-
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
 	pte_t pte;
-	unsigned long flags;
 
 	if (!pte_young(*ptep))
 		return 0;
 
-	spin_lock_irqsave(pgd_spinlock(vma->vm_mm->pgd), flags);
 	pte = *ptep;
 	if (!pte_young(pte)) {
-		spin_unlock_irqrestore(pgd_spinlock(vma->vm_mm->pgd), flags);
 		return 0;
 	}
-	set_pte(ptep, pte_mkold(pte));
-	purge_tlb_entries(vma->vm_mm, addr);
-	spin_unlock_irqrestore(pgd_spinlock(vma->vm_mm->pgd), flags);
+	set_pte_at(vma->vm_mm, addr, ptep, pte_mkold(pte));
 	return 1;
 }
 
@@ -489,24 +452,16 @@ struct mm_struct;
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_t old_pte;
-	unsigned long flags;
 
-	spin_lock_irqsave(pgd_spinlock(mm->pgd), flags);
 	old_pte = *ptep;
-	set_pte(ptep, __pte(0));
-	purge_tlb_entries(mm, addr);
-	spin_unlock_irqrestore(pgd_spinlock(mm->pgd), flags);
+	set_pte_at(mm, addr, ptep, __pte(0));
 
 	return old_pte;
 }
 
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	unsigned long flags;
-	spin_lock_irqsave(pgd_spinlock(mm->pgd), flags);
-	set_pte(ptep, pte_wrprotect(*ptep));
-	purge_tlb_entries(mm, addr);
-	spin_unlock_irqrestore(pgd_spinlock(mm->pgd), flags);
+	set_pte_at(mm, addr, ptep, pte_wrprotect(*ptep));
 }
 
 #define pte_same(A,B)	(pte_val(A) == pte_val(B))

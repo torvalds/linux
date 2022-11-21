@@ -87,7 +87,7 @@ int restrict_link_by_signature(struct key *dest_keyring,
 	sig = payload->data[asym_auth];
 	if (!sig)
 		return -ENOPKG;
-	if (!sig->auth_ids[0] && !sig->auth_ids[1])
+	if (!sig->auth_ids[0] && !sig->auth_ids[1] && !sig->auth_ids[2])
 		return -ENOKEY;
 
 	if (ca_keyid && !asymmetric_key_id_partial(sig->auth_ids[1], ca_keyid))
@@ -96,7 +96,7 @@ int restrict_link_by_signature(struct key *dest_keyring,
 	/* See if we have a key that signed this one. */
 	key = find_asymmetric_key(trust_keyring,
 				  sig->auth_ids[0], sig->auth_ids[1],
-				  false);
+				  sig->auth_ids[2], false);
 	if (IS_ERR(key))
 		return -ENOKEY;
 
@@ -108,11 +108,11 @@ int restrict_link_by_signature(struct key *dest_keyring,
 	return ret;
 }
 
-static bool match_either_id(const struct asymmetric_key_ids *pair,
+static bool match_either_id(const struct asymmetric_key_id **pair,
 			    const struct asymmetric_key_id *single)
 {
-	return (asymmetric_key_id_same(pair->id[0], single) ||
-		asymmetric_key_id_same(pair->id[1], single));
+	return (asymmetric_key_id_same(pair[0], single) ||
+		asymmetric_key_id_same(pair[1], single));
 }
 
 static int key_or_keyring_common(struct key *dest_keyring,
@@ -140,20 +140,22 @@ static int key_or_keyring_common(struct key *dest_keyring,
 	sig = payload->data[asym_auth];
 	if (!sig)
 		return -ENOPKG;
-	if (!sig->auth_ids[0] && !sig->auth_ids[1])
+	if (!sig->auth_ids[0] && !sig->auth_ids[1] && !sig->auth_ids[2])
 		return -ENOKEY;
 
 	if (trusted) {
 		if (trusted->type == &key_type_keyring) {
 			/* See if we have a key that signed this one. */
 			key = find_asymmetric_key(trusted, sig->auth_ids[0],
-						  sig->auth_ids[1], false);
+						  sig->auth_ids[1],
+						  sig->auth_ids[2], false);
 			if (IS_ERR(key))
 				key = NULL;
 		} else if (trusted->type == &key_type_asymmetric) {
-			const struct asymmetric_key_ids *signer_ids;
+			const struct asymmetric_key_id **signer_ids;
 
-			signer_ids = asymmetric_key_ids(trusted);
+			signer_ids = (const struct asymmetric_key_id **)
+				asymmetric_key_ids(trusted)->id;
 
 			/*
 			 * The auth_ids come from the candidate key (the
@@ -164,22 +166,29 @@ static int key_or_keyring_common(struct key *dest_keyring,
 			 * The signer_ids are identifiers for the
 			 * signing key specified for dest_keyring.
 			 *
-			 * The first auth_id is the preferred id, and
-			 * the second is the fallback. If only one
-			 * auth_id is present, it may match against
-			 * either signer_id. If two auth_ids are
-			 * present, the first auth_id must match one
-			 * signer_id and the second auth_id must match
-			 * the second signer_id.
+			 * The first auth_id is the preferred id, 2nd and
+			 * 3rd are the fallbacks. If exactly one of
+			 * auth_ids[0] and auth_ids[1] is present, it may
+			 * match either signer_ids[0] or signed_ids[1].
+			 * If both are present the first one may match
+			 * either signed_id but the second one must match
+			 * the second signer_id. If neither of them is
+			 * available, auth_ids[2] is matched against
+			 * signer_ids[2] as a fallback.
 			 */
-			if (!sig->auth_ids[0] || !sig->auth_ids[1]) {
+			if (!sig->auth_ids[0] && !sig->auth_ids[1]) {
+				if (asymmetric_key_id_same(signer_ids[2],
+							   sig->auth_ids[2]))
+					key = __key_get(trusted);
+
+			} else if (!sig->auth_ids[0] || !sig->auth_ids[1]) {
 				const struct asymmetric_key_id *auth_id;
 
 				auth_id = sig->auth_ids[0] ?: sig->auth_ids[1];
 				if (match_either_id(signer_ids, auth_id))
 					key = __key_get(trusted);
 
-			} else if (asymmetric_key_id_same(signer_ids->id[1],
+			} else if (asymmetric_key_id_same(signer_ids[1],
 							  sig->auth_ids[1]) &&
 				   match_either_id(signer_ids,
 						   sig->auth_ids[0])) {
@@ -193,7 +202,8 @@ static int key_or_keyring_common(struct key *dest_keyring,
 	if (check_dest && !key) {
 		/* See if the destination has a key that signed this one. */
 		key = find_asymmetric_key(dest_keyring, sig->auth_ids[0],
-					  sig->auth_ids[1], false);
+					  sig->auth_ids[1], sig->auth_ids[2],
+					  false);
 		if (IS_ERR(key))
 			key = NULL;
 	}
@@ -244,9 +254,10 @@ int restrict_link_by_key_or_keyring(struct key *dest_keyring,
  * @payload: The payload of the new key.
  * @trusted: A key or ring of keys that can be used to vouch for the new cert.
  *
- * Check the new certificate only against the key or keys passed in the data
- * parameter. If one of those is the signing key and validates the new
- * certificate, then mark the new certificate as being ok to link.
+ * Check the new certificate against the key or keys passed in the data
+ * parameter and against the keys already linked to the destination keyring. If
+ * one of those is the signing key and validates the new certificate, then mark
+ * the new certificate as being ok to link.
  *
  * Returns 0 if the new certificate was accepted, -ENOKEY if we
  * couldn't find a matching parent certificate in the trusted list,

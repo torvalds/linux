@@ -8,7 +8,8 @@ title: Atmel AT91 device tree bindings.
 
 maintainers:
   - Alexandre Belloni <alexandre.belloni@bootlin.com>
-  - Ludovic Desroches <ludovic.desroches@microchip.com>
+  - Claudiu Beznea <claudiu.beznea@microchip.com>
+  - Nicolas Ferre <nicolas.ferre@microchip.com>
 
 description: |
   Boards with a SoC of the Atmel AT91 or SMART family shall have the following
@@ -126,6 +127,18 @@ properties:
           - const: atmel,sama5d3
           - const: atmel,sama5
 
+      - description: CalAmp LMU5000 board
+        items:
+          - const: calamp,lmu5000
+          - const: atmel,at91sam9g20
+          - const: atmel,at91sam9
+
+      - description: Exegin Q5xR5 board
+        items:
+          - const: exegin,q5xr5
+          - const: atmel,at91sam9g20
+          - const: atmel,at91sam9
+
       - items:
           - enum:
               - atmel,sama5d31
@@ -144,6 +157,32 @@ properties:
               - atmel,sama5d44
           - const: atmel,sama5d4
           - const: atmel,sama5
+
+      - items:
+          - const: microchip,sama7g5ek # SAMA7G5 Evaluation Kit
+          - const: microchip,sama7g5
+          - const: microchip,sama7
+
+      - description: Microchip LAN9662 PCB8291 Evaluation Board.
+        items:
+          - const: microchip,lan9662-pcb8291
+          - const: microchip,lan9662
+          - const: microchip,lan966
+
+      - description: Microchip LAN9668 PCB8290 Evaluation Board.
+        items:
+          - const: microchip,lan9668-pcb8290
+          - const: microchip,lan9668
+          - const: microchip,lan966
+
+      - description: Kontron KSwitch D10 MMT series
+        items:
+          - enum:
+              - kontron,kswitch-d10-mmt-8g
+              - kontron,kswitch-d10-mmt-6g-2gs
+          - const: kontron,s1921
+          - const: microchip,lan9668
+          - const: microchip,lan966
 
       - items:
           - enum:

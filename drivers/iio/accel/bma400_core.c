@@ -136,7 +136,7 @@ const struct regmap_config bma400_regmap_config = {
 	.writeable_reg = bma400_is_writable_reg,
 	.volatile_reg = bma400_is_volatile_reg,
 };
-EXPORT_SYMBOL(bma400_regmap_config);
+EXPORT_SYMBOL_NS(bma400_regmap_config, IIO_BMA400);
 
 static const struct iio_mount_matrix *
 bma400_accel_get_mount_matrix(const struct iio_dev *indio_dev,
@@ -811,7 +811,7 @@ int bma400_probe(struct device *dev, struct regmap *regmap, const char *name)
 	if (ret)
 		return ret;
 
-	ret = iio_read_mount_matrix(dev, "mount-matrix", &data->orientation);
+	ret = iio_read_mount_matrix(dev, &data->orientation);
 	if (ret)
 		return ret;
 
@@ -826,9 +826,9 @@ int bma400_probe(struct device *dev, struct regmap *regmap, const char *name)
 
 	return iio_device_register(indio_dev);
 }
-EXPORT_SYMBOL(bma400_probe);
+EXPORT_SYMBOL_NS(bma400_probe, IIO_BMA400);
 
-int bma400_remove(struct device *dev)
+void bma400_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bma400_data *data = iio_priv(indio_dev);
@@ -838,14 +838,15 @@ int bma400_remove(struct device *dev)
 	ret = bma400_set_power_mode(data, POWER_MODE_SLEEP);
 	mutex_unlock(&data->mutex);
 
+	if (ret)
+		dev_warn(dev, "Failed to put device into sleep mode (%pe)\n", ERR_PTR(ret));
+
 	regulator_bulk_disable(ARRAY_SIZE(data->regulators),
 			       data->regulators);
 
 	iio_device_unregister(indio_dev);
-
-	return ret;
 }
-EXPORT_SYMBOL(bma400_remove);
+EXPORT_SYMBOL_NS(bma400_remove, IIO_BMA400);
 
 MODULE_AUTHOR("Dan Robertson <dan@dlrobertson.com>");
 MODULE_DESCRIPTION("Bosch BMA400 triaxial acceleration sensor core");

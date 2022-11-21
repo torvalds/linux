@@ -327,7 +327,7 @@ MODULE_PARM_DESC(dma, "LANCE/PCnet ISA DMA channel (ignored for some devices)");
 MODULE_PARM_DESC(irq, "LANCE/PCnet IRQ number (ignored for some devices)");
 MODULE_PARM_DESC(lance_debug, "LANCE/PCnet debug level (0-7)");
 
-int __init init_module(void)
+static int __init lance_init_module(void)
 {
 	struct net_device *dev;
 	int this_dev, found = 0;
@@ -356,6 +356,7 @@ int __init init_module(void)
 		return 0;
 	return -ENXIO;
 }
+module_init(lance_init_module);
 
 static void cleanup_card(struct net_device *dev)
 {
@@ -368,7 +369,7 @@ static void cleanup_card(struct net_device *dev)
 	kfree(lp);
 }
 
-void __exit cleanup_module(void)
+static void __exit lance_cleanup_module(void)
 {
 	int this_dev;
 
@@ -381,6 +382,7 @@ void __exit cleanup_module(void)
 		}
 	}
 }
+module_exit(lance_cleanup_module);
 #endif /* MODULE */
 MODULE_LICENSE("GPL");
 
@@ -478,6 +480,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	unsigned long flags;
 	int err = -ENOMEM;
 	void __iomem *bios;
+	u8 addr[ETH_ALEN];
 
 	/* First we look for special cases.
 	   Check for HP's on-board ethernet by looking for 'HP' in the BIOS.
@@ -539,7 +542,8 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	/* There is a 16 byte station address PROM at the base address.
 	   The first six bytes are the station address. */
 	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = inb(ioaddr + i);
+		addr[i] = inb(ioaddr + i);
+	eth_hw_addr_set(dev, addr);
 	printk("%pM", dev->dev_addr);
 
 	dev->base_addr = ioaddr;
@@ -780,7 +784,7 @@ lance_open(struct net_device *dev)
 		outw(0x0002, ioaddr+LANCE_ADDR);
 		/* Only touch autoselect bit. */
 		outw(inw(ioaddr+LANCE_BUS_IF) | 0x0002, ioaddr+LANCE_BUS_IF);
- 	}
+	}
 
 	if (lance_debug > 1)
 		printk("%s: lance_open() irq %d dma %d tx/rx rings %#x/%#x init %#x.\n",
@@ -812,7 +816,7 @@ lance_open(struct net_device *dev)
 	 * We used to clear the InitDone bit, 0x0100, here but Mark Stockton
 	 * reports that doing so triggers a bug in the '974.
 	 */
- 	outw(0x0042, ioaddr+LANCE_DATA);
+	outw(0x0042, ioaddr+LANCE_DATA);
 
 	if (lance_debug > 2)
 		printk("%s: LANCE open after %d ticks, init block %#x csr0 %4.4x.\n",

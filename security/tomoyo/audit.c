@@ -166,7 +166,7 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 		       "#%04u/%02u/%02u %02u:%02u:%02u# profile=%u mode=%s granted=%s (global-pid=%u) task={ pid=%u ppid=%u uid=%u gid=%u euid=%u egid=%u suid=%u sgid=%u fsuid=%u fsgid=%u }",
 		       stamp.year, stamp.month, stamp.day, stamp.hour,
 		       stamp.min, stamp.sec, r->profile, tomoyo_mode[r->mode],
-		       tomoyo_yesno(r->granted), gpid, tomoyo_sys_getpid(),
+		       str_yes_no(r->granted), gpid, tomoyo_sys_getpid(),
 		       tomoyo_sys_getppid(),
 		       from_kuid(&init_user_ns, current_uid()),
 		       from_kgid(&init_user_ns, current_gid()),
@@ -311,7 +311,7 @@ static LIST_HEAD(tomoyo_log);
 /* Lock for "struct list_head tomoyo_log". */
 static DEFINE_SPINLOCK(tomoyo_log_lock);
 
-/* Length of "stuct list_head tomoyo_log". */
+/* Length of "struct list_head tomoyo_log". */
 static unsigned int tomoyo_log_count;
 
 /**
@@ -320,6 +320,7 @@ static unsigned int tomoyo_log_count;
  * @ns:          Pointer to "struct tomoyo_policy_namespace".
  * @profile:     Profile number.
  * @index:       Index number of functionality.
+ * @matched_acl: Pointer to "struct tomoyo_acl_info".
  * @is_granted:  True if granted log, false otherwise.
  *
  * Returns true if this request should be audited, false otherwise.

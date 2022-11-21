@@ -511,14 +511,14 @@ static int ixgbe_ipsec_check_mgmt_ip(struct xfrm_state *xs)
 					continue;
 
 				reg = IXGBE_READ_REG(hw, MIPAF_ARR(3, i));
-				if (reg == xs->id.daddr.a4)
+				if (reg == (__force u32)xs->id.daddr.a4)
 					return 1;
 			}
 		}
 
 		if ((bmcipval & BMCIP_MASK) == BMCIP_V4) {
 			reg = IXGBE_READ_REG(hw, IXGBE_BMCIP(3));
-			if (reg == xs->id.daddr.a4)
+			if (reg == (__force u32)xs->id.daddr.a4)
 				return 1;
 		}
 
@@ -533,7 +533,7 @@ static int ixgbe_ipsec_check_mgmt_ip(struct xfrm_state *xs)
 
 			for (j = 0; j < 4; j++) {
 				reg = IXGBE_READ_REG(hw, MIPAF_ARR(i, j));
-				if (reg != xs->id.daddr.a6[j])
+				if (reg != (__force u32)xs->id.daddr.a6[j])
 					break;
 			}
 			if (j == 4)   /* did we match all 4 words? */
@@ -543,7 +543,7 @@ static int ixgbe_ipsec_check_mgmt_ip(struct xfrm_state *xs)
 		if ((bmcipval & BMCIP_MASK) == BMCIP_V6) {
 			for (j = 0; j < 4; j++) {
 				reg = IXGBE_READ_REG(hw, IXGBE_BMCIP(j));
-				if (reg != xs->id.daddr.a6[j])
+				if (reg != (__force u32)xs->id.daddr.a6[j])
 					break;
 			}
 			if (j == 4)   /* did we match all 4 words? */
@@ -572,6 +572,11 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs)
 	if (xs->id.proto != IPPROTO_ESP && xs->id.proto != IPPROTO_AH) {
 		netdev_err(dev, "Unsupported protocol 0x%04x for ipsec offload\n",
 			   xs->id.proto);
+		return -EINVAL;
+	}
+
+	if (xs->props.mode != XFRM_MODE_TRANSPORT) {
+		netdev_err(dev, "Unsupported mode for ipsec offload\n");
 		return -EINVAL;
 	}
 
@@ -898,7 +903,8 @@ int ixgbe_ipsec_vf_add_sa(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 	/* Tx IPsec offload doesn't seem to work on this
 	 * device, so block these requests for now.
 	 */
-	if (!(sam->flags & XFRM_OFFLOAD_INBOUND)) {
+	sam->flags = sam->flags & ~XFRM_OFFLOAD_IPV6;
+	if (sam->flags != XFRM_OFFLOAD_INBOUND) {
 		err = -EOPNOTSUPP;
 		goto err_out;
 	}

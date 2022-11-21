@@ -247,11 +247,13 @@ static int handle_recv(struct ipmi_file_private *priv,
 
 	if (msg->msg.data_len > 0) {
 		if (rsp->msg.data_len < msg->msg.data_len) {
-			rv2 = -EMSGSIZE;
-			if (trunc)
+			if (trunc) {
+				rv2 = -EMSGSIZE;
 				msg->msg.data_len = rsp->msg.data_len;
-			else
+			} else {
+				rv = -EMSGSIZE;
 				goto recv_putback_on_err;
+			}
 		}
 
 		if (copy_to_user(rsp->msg.data,
@@ -490,7 +492,6 @@ static long ipmi_ioctl(struct file   *file,
 		}
 
 		return ipmi_set_my_address(priv->user, val.channel, val.value);
-		break;
 	}
 
 	case IPMICTL_GET_MY_CHANNEL_ADDRESS_CMD:

@@ -77,6 +77,83 @@ static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
+static int mip6_rthdr_offset(struct sk_buff *skb, u8 **nexthdr, int type)
+{
+	const unsigned char *nh = skb_network_header(skb);
+	unsigned int offset = sizeof(struct ipv6hdr);
+	unsigned int packet_len;
+	int found_rhdr = 0;
+
+	packet_len = skb_tail_pointer(skb) - nh;
+	*nexthdr = &ipv6_hdr(skb)->nexthdr;
+
+	while (offset <= packet_len) {
+		struct ipv6_opt_hdr *exthdr;
+
+		switch (**nexthdr) {
+		case NEXTHDR_HOP:
+			break;
+		case NEXTHDR_ROUTING:
+			if (type == IPPROTO_ROUTING && offset + 3 <= packet_len) {
+				struct ipv6_rt_hdr *rt;
+
+				rt = (struct ipv6_rt_hdr *)(nh + offset);
+				if (rt->type != 0)
+					return offset;
+			}
+			found_rhdr = 1;
+			break;
+		case NEXTHDR_DEST:
+			/* HAO MUST NOT appear more than once.
+			 * XXX: It is better to try to find by the end of
+			 * XXX: packet if HAO exists.
+			 */
+			if (ipv6_find_tlv(skb, offset, IPV6_TLV_HAO) >= 0) {
+				net_dbg_ratelimited("mip6: hao exists already, override\n");
+				return offset;
+			}
+
+			if (found_rhdr)
+				return offset;
+
+			break;
+		default:
+			return offset;
+		}
+
+		if (offset + sizeof(struct ipv6_opt_hdr) > packet_len)
+			return -EINVAL;
+
+		exthdr = (struct ipv6_opt_hdr *)(skb_network_header(skb) +
+						 offset);
+		offset += ipv6_optlen(exthdr);
+		if (offset > IPV6_MAXPLEN)
+			return -EINVAL;
+		*nexthdr = &exthdr->nexthdr;
+	}
+
+	return -EINVAL;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_IPV6)
+static int xfrm6_hdr_offset(struct xfrm_state *x, struct sk_buff *skb, u8 **prevhdr)
+{
+	switch (x->type->proto) {
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
+	case IPPROTO_DSTOPTS:
+	case IPPROTO_ROUTING:
+		return mip6_rthdr_offset(skb, prevhdr, x->type->proto);
+#endif
+	default:
+		break;
+	}
+
+	return ip6_find_1stfragopt(skb, prevhdr);
+}
+#endif
+
 /* Add encapsulation header.
  *
  * The IP header and mutable extension headers will be moved forward to make
@@ -92,7 +169,7 @@ static int xfrm6_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 	iph = ipv6_hdr(skb);
 	skb_set_inner_transport_header(skb, skb_transport_offset(skb));
 
-	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
+	hdr_len = xfrm6_hdr_offset(x, skb, &prevhdr);
 	if (hdr_len < 0)
 		return hdr_len;
 	skb_set_mac_header(skb,
@@ -122,7 +199,7 @@ static int xfrm6_ro_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	iph = ipv6_hdr(skb);
 
-	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
+	hdr_len = xfrm6_hdr_offset(x, skb, &prevhdr);
 	if (hdr_len < 0)
 		return hdr_len;
 	skb_set_mac_header(skb,
@@ -448,7 +525,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 			goto error;
 		}
 
-		err = x->repl->overflow(x, skb);
+		err = xfrm_replay_overflow(x, skb);
 		if (err) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATESEQERROR);
 			goto error;
@@ -456,6 +533,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 
 		x->curlft.bytes += skb->len;
 		x->curlft.packets++;
+		x->curlft.use_time = ktime_get_real_seconds();
 
 		spin_unlock_bh(&x->lock);
 
@@ -503,22 +581,22 @@ out:
 	return err;
 }
 
-int xfrm_output_resume(struct sk_buff *skb, int err)
+int xfrm_output_resume(struct sock *sk, struct sk_buff *skb, int err)
 {
 	struct net *net = xs_net(skb_dst(skb)->xfrm);
 
 	while (likely((err = xfrm_output_one(skb, err)) == 0)) {
 		nf_reset_ct(skb);
 
-		err = skb_dst(skb)->ops->local_out(net, skb->sk, skb);
+		err = skb_dst(skb)->ops->local_out(net, sk, skb);
 		if (unlikely(err != 1))
 			goto out;
 
 		if (!skb_dst(skb)->xfrm)
-			return dst_output(net, skb->sk, skb);
+			return dst_output(net, sk, skb);
 
 		err = nf_hook(skb_dst(skb)->ops->family,
-			      NF_INET_POST_ROUTING, net, skb->sk, skb,
+			      NF_INET_POST_ROUTING, net, sk, skb,
 			      NULL, skb_dst(skb)->dev, xfrm_output2);
 		if (unlikely(err != 1))
 			goto out;
@@ -534,7 +612,7 @@ EXPORT_SYMBOL_GPL(xfrm_output_resume);
 
 static int xfrm_output2(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	return xfrm_output_resume(skb, 1);
+	return xfrm_output_resume(sk, skb, 1);
 }
 
 static int xfrm_output_gso(struct net *net, struct sock *sk, struct sk_buff *skb)
@@ -563,6 +641,63 @@ static int xfrm_output_gso(struct net *net, struct sock *sk, struct sk_buff *skb
 	}
 
 	return 0;
+}
+
+/* For partial checksum offload, the outer header checksum is calculated
+ * by software and the inner header checksum is calculated by hardware.
+ * This requires hardware to know the inner packet type to calculate
+ * the inner header checksum. Save inner ip protocol here to avoid
+ * traversing the packet in the vendor's xmit code.
+ * For IPsec tunnel mode save the ip protocol from the IP header of the
+ * plain text packet. Otherwise If the encap type is IPIP, just save
+ * skb->inner_ipproto in any other case get the ip protocol from the IP
+ * header.
+ */
+static void xfrm_get_inner_ipproto(struct sk_buff *skb, struct xfrm_state *x)
+{
+	struct xfrm_offload *xo = xfrm_offload(skb);
+	const struct ethhdr *eth;
+
+	if (!xo)
+		return;
+
+	if (x->outer_mode.encap == XFRM_MODE_TUNNEL) {
+		switch (x->outer_mode.family) {
+		case AF_INET:
+			xo->inner_ipproto = ip_hdr(skb)->protocol;
+			break;
+		case AF_INET6:
+			xo->inner_ipproto = ipv6_hdr(skb)->nexthdr;
+			break;
+		default:
+			break;
+		}
+
+		return;
+	}
+
+	/* non-Tunnel Mode */
+	if (!skb->encapsulation)
+		return;
+
+	if (skb->inner_protocol_type == ENCAP_TYPE_IPPROTO) {
+		xo->inner_ipproto = skb->inner_ipproto;
+		return;
+	}
+
+	if (skb->inner_protocol_type != ENCAP_TYPE_ETHER)
+		return;
+
+	eth = (struct ethhdr *)skb_inner_mac_header(skb);
+
+	switch (ntohs(eth->h_proto)) {
+	case ETH_P_IPV6:
+		xo->inner_ipproto = inner_ipv6_hdr(skb)->nexthdr;
+		break;
+	case ETH_P_IP:
+		xo->inner_ipproto = inner_ip_hdr(skb)->protocol;
+		break;
+	}
 }
 
 int xfrm_output(struct sock *sk, struct sk_buff *skb)
@@ -594,11 +729,13 @@ int xfrm_output(struct sock *sk, struct sk_buff *skb)
 			kfree_skb(skb);
 			return -ENOMEM;
 		}
-		skb->encapsulation = 1;
 
 		sp->olen++;
 		sp->xvec[sp->len++] = x;
 		xfrm_state_hold(x);
+
+		xfrm_get_inner_ipproto(skb, x);
+		skb->encapsulation = 1;
 
 		if (skb_is_gso(skb)) {
 			if (skb->inner_protocol)
@@ -659,6 +796,12 @@ out:
 static int xfrm4_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
+
+	if (x->outer_mode.encap == XFRM_MODE_BEET &&
+	    ip_is_fragment(ip_hdr(skb))) {
+		net_warn_ratelimited("BEET mode doesn't support inner IPv4 fragments\n");
+		return -EAFNOSUPPORT;
+	}
 
 	err = xfrm4_tunnel_check_size(skb);
 	if (err)

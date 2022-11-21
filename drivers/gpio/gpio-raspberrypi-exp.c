@@ -208,7 +208,7 @@ static int rpi_exp_gpio_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	fw = rpi_firmware_get(fw_node);
+	fw = devm_rpi_firmware_get(&pdev->dev, fw_node);
 	of_node_put(fw_node);
 	if (!fw)
 		return -EPROBE_DEFER;
@@ -221,7 +221,6 @@ static int rpi_exp_gpio_probe(struct platform_device *pdev)
 	rpi_gpio->gc.parent = dev;
 	rpi_gpio->gc.label = MODULE_NAME;
 	rpi_gpio->gc.owner = THIS_MODULE;
-	rpi_gpio->gc.of_node = np;
 	rpi_gpio->gc.base = -1;
 	rpi_gpio->gc.ngpio = NUM_GPIO;
 

@@ -7,6 +7,7 @@ powerpc
 .. toctree::
     :maxdepth: 1
 
+    associativity
     booting
     bootwrapper
     cpu_families
@@ -33,6 +34,8 @@ powerpc
     ultravisor
     vas-api
     vcpudispatch_stats
+
+    features
 
 .. only::  subproject and html
 

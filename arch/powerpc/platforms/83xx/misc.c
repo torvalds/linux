@@ -132,8 +132,6 @@ void __init mpc83xx_setup_arch(void)
 		setbat(-1, va, immrbase, immrsize, PAGE_KERNEL_NCG);
 		update_bats();
 	}
-
-	mpc83xx_setup_pci();
 }
 
 int machine_check_83xx(struct pt_regs *regs)

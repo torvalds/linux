@@ -31,13 +31,13 @@ struct wlan_acl_pool {
 	struct __queue	acl_node_q;
 };
 
-typedef struct _RSSI_STA {
+struct rssi_sta {
 	s32	UndecoratedSmoothedPWDB;
 	s32	UndecoratedSmoothedCCK;
 	s32	UndecoratedSmoothedOFDM;
 	u64	PacketMap;
 	u8 ValidBit;
-} RSSI_STA, *PRSSI_STA;
+};
 
 struct	stainfo_stats	{
 
@@ -69,7 +69,7 @@ struct	stainfo_stats	{
 
 struct sta_info {
 
-	_lock	lock;
+	spinlock_t	lock;
 	struct list_head	list; /* free_sta_queue */
 	struct list_head	hash_list; /* sta_hash */
 	struct adapter *padapter;
@@ -92,11 +92,6 @@ struct sta_info {
 	union Keytype	dot11tkiprxmickey;
 	union Keytype	dot118021x_UncstKey;
 	union pn48		dot11txpn;			/*  PN48 used for Unicast xmit */
-#ifdef CONFIG_GTK_OL
-	u8 kek[RTW_KEK_LEN];
-	u8 kck[RTW_KCK_LEN];
-	u8 replay_ctr[RTW_REPLAY_CTR_LEN];
-#endif /* CONFIG_GTK_OL */
 	union pn48		dot11wtxpn;			/*  PN48 used for Unicast mgmt xmit. */
 	union pn48		dot11rxpn;			/*  PN48 used for Unicast recv. */
 
@@ -121,7 +116,7 @@ struct sta_info {
 	struct stainfo_stats sta_stats;
 
 	/* for A-MPDU TX, ADDBA timeout check */
-	_timer addba_retry_timer;
+	struct timer_list addba_retry_timer;
 
 	/* for A-MPDU Rx reordering buffer control */
 	struct recv_reorder_ctrl recvreorder_ctrl[16];
@@ -187,16 +182,11 @@ struct sta_info {
 
 	u8 keep_alive_trycnt;
 
-#ifdef CONFIG_AUTO_AP_MODE
-	u8 isrc; /* this device is rc */
-	u16 pid; /*  pairing id */
-#endif
-
 	u8 *passoc_req;
 	u32 assoc_req_len;
 
 	/* for DM */
-	RSSI_STA	 rssi_stat;
+	struct rssi_sta	 rssi_stat;
 
 	/* ODM_STA_INFO_T */
 	/*  ================ODM Relative Info ======================= */
@@ -314,7 +304,7 @@ struct	sta_priv {
 	u8 *pstainfo_buf;
 	struct __queue	free_sta_queue;
 
-	_lock sta_hash_lock;
+	spinlock_t sta_hash_lock;
 	struct list_head   sta_hash[NUM_STA];
 	int asoc_sta_count;
 	struct __queue sleep_q;
@@ -324,8 +314,8 @@ struct	sta_priv {
 
 	struct list_head asoc_list;
 	struct list_head auth_list;
-	_lock asoc_list_lock;
-	_lock auth_list_lock;
+	spinlock_t asoc_list_lock;
+	spinlock_t auth_list_lock;
 	u8 asoc_list_cnt;
 	u8 auth_list_cnt;
 
@@ -339,7 +329,7 @@ struct	sta_priv {
 	 */
 	struct sta_info *sta_aid[NUM_STA];
 
-	u16 sta_dz_bitmap;/* only support 15 stations, staion aid bitmap for sleeping sta. */
+	u16 sta_dz_bitmap;/* only support for 15 stations, aid bitmap for sleeping stations. */
 	u16 tim_bitmap;/* only support 15 stations, aid = 0~15 mapping bit0~bit15 */
 
 	u16 max_num_sta;
@@ -378,7 +368,7 @@ extern u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta);
 extern void rtw_free_all_stainfo(struct adapter *padapter);
 extern struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr);
 extern u32 rtw_init_bcmc_stainfo(struct adapter *padapter);
-extern struct sta_info* rtw_get_bcmc_stainfo(struct adapter *padapter);
+extern struct sta_info *rtw_get_bcmc_stainfo(struct adapter *padapter);
 extern u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr);
 
 #endif /* _STA_INFO_H_ */

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2017 Redpine Signals Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -19,7 +19,6 @@
 #include <net/bluetooth/hci_core.h>
 #include <asm/unaligned.h>
 #include <net/rsi_91x.h>
-#include <net/genetlink.h>
 
 #define RSI_DMA_ALIGN	8
 #define RSI_FRAME_DESC_SIZE	16
@@ -194,5 +193,4 @@ module_init(rsi_91x_bt_module_init);
 module_exit(rsi_91x_bt_module_exit);
 MODULE_AUTHOR("Redpine Signals Inc");
 MODULE_DESCRIPTION("RSI BT driver");
-MODULE_SUPPORTED_DEVICE("RSI-BT");
 MODULE_LICENSE("Dual BSD/GPL");

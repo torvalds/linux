@@ -21,7 +21,7 @@
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
 
-/**
+/*
  * LVDS I2C backlight control macros
  */
 #define BRIGHTNESS_MAX_LEVEL 100
@@ -57,7 +57,7 @@ struct cdv_intel_lvds_priv {
  */
 static u32 cdv_intel_lvds_get_max_backlight(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 retval;
 
 	if (gma_power_begin(dev, false)) {
@@ -74,14 +74,14 @@ static u32 cdv_intel_lvds_get_max_backlight(struct drm_device *dev)
 	return retval;
 }
 
-/**
+/*
  * Sets the backlight level.
  *
  * level backlight level, from 0 to cdv_intel_lvds_get_max_backlight().
  */
 static void cdv_intel_lvds_set_backlight(struct drm_device *dev, int level)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 blc_pwm_ctl;
 
 	if (gma_power_begin(dev, false)) {
@@ -99,13 +99,13 @@ static void cdv_intel_lvds_set_backlight(struct drm_device *dev, int level)
 	}
 }
 
-/**
+/*
  * Sets the power state for the panel.
  */
 static void cdv_intel_lvds_set_power(struct drm_device *dev,
 				     struct drm_encoder *encoder, bool on)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 pp_status;
 
 	if (!gma_power_begin(dev, true))
@@ -154,7 +154,7 @@ static enum drm_mode_status cdv_intel_lvds_mode_valid(struct drm_connector *conn
 			      struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct drm_display_mode *fixed_mode =
 					dev_priv->mode_dev.panel_fixed_mode;
 
@@ -180,7 +180,7 @@ static bool cdv_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
 	struct drm_encoder *tmp_encoder;
 	struct drm_display_mode *panel_fixed_mode = mode_dev->panel_fixed_mode;
@@ -227,7 +227,7 @@ static bool cdv_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 static void cdv_intel_lvds_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
 
 	if (!gma_power_begin(dev, true))
@@ -245,7 +245,7 @@ static void cdv_intel_lvds_prepare(struct drm_encoder *encoder)
 static void cdv_intel_lvds_commit(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
 
 	if (mode_dev->backlight_duty_cycle == 0)
@@ -260,7 +260,7 @@ static void cdv_intel_lvds_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gma_crtc *gma_crtc = to_gma_crtc(encoder->crtc);
 	u32 pfit_control;
 
@@ -291,13 +291,13 @@ static void cdv_intel_lvds_mode_set(struct drm_encoder *encoder,
 	REG_WRITE(PFIT_CONTROL, pfit_control);
 }
 
-/**
+/*
  * Return the list of DDC modes if available, or the BIOS fixed mode otherwise.
  */
 static int cdv_intel_lvds_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
 	int ret;
@@ -428,7 +428,7 @@ static const struct drm_connector_funcs cdv_intel_lvds_connector_funcs = {
 static bool lvds_is_present_in_vbt(struct drm_device *dev,
 				   u8 *i2c_pin)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	int i;
 
 	if (!dev_priv->child_dev_num)
@@ -471,6 +471,7 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 /**
  * cdv_intel_lvds_init - setup LVDS connectors on this device
  * @dev: drm device
+ * @mode_dev: PSB mode device
  *
  * Create the connector, register the LVDS DDC bus, and try to figure out what
  * modes we can display on the LVDS panel (if present).
@@ -485,7 +486,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	struct drm_encoder *encoder;
 	struct drm_display_mode *scan;
 	struct drm_crtc *crtc;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 lvds;
 	int pipe;
 	u8 pin;
@@ -554,7 +555,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 							 "LVDSBLC_B");
 	if (!gma_encoder->i2c_bus) {
 		dev_printk(KERN_ERR,
-			&dev->pdev->dev, "I2C bus registration failed.\n");
+			dev->dev, "I2C bus registration failed.\n");
 		goto failed_blc_i2c;
 	}
 	gma_encoder->i2c_bus->slave_addr = 0x2C;
@@ -575,7 +576,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 							 GPIOC,
 							 "LVDSDDC_C");
 	if (!gma_encoder->ddc_bus) {
-		dev_printk(KERN_ERR, &dev->pdev->dev,
+		dev_printk(KERN_ERR, dev->dev,
 			   "DDC bus registration " "failed.\n");
 		goto failed_ddc;
 	}

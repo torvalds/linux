@@ -443,7 +443,7 @@ static void free_rx_bufs(struct adapter *adap, struct sge_fl *q, int n)
 		if (is_buf_mapped(d))
 			dma_unmap_page(adap->pdev_dev, get_buf_addr(d),
 				       get_buf_size(adap, d),
-				       PCI_DMA_FROMDEVICE);
+				       DMA_FROM_DEVICE);
 		put_page(d->page);
 		d->page = NULL;
 		if (++q->cidx == q->size)
@@ -469,7 +469,7 @@ static void unmap_rx_buf(struct adapter *adap, struct sge_fl *q)
 
 	if (is_buf_mapped(d))
 		dma_unmap_page(adap->pdev_dev, get_buf_addr(d),
-			       get_buf_size(adap, d), PCI_DMA_FROMDEVICE);
+			       get_buf_size(adap, d), DMA_FROM_DEVICE);
 	d->page = NULL;
 	if (++q->cidx == q->size)
 		q->cidx = 0;
@@ -566,7 +566,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 
 		mapping = dma_map_page(adap->pdev_dev, pg, 0,
 				       PAGE_SIZE << s->fl_pg_order,
-				       PCI_DMA_FROMDEVICE);
+				       DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(adap->pdev_dev, mapping))) {
 			__free_pages(pg, s->fl_pg_order);
 			q->mapping_err++;
@@ -596,7 +596,7 @@ alloc_small_pages:
 		}
 
 		mapping = dma_map_page(adap->pdev_dev, pg, 0, PAGE_SIZE,
-				       PCI_DMA_FROMDEVICE);
+				       DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(adap->pdev_dev, mapping))) {
 			put_page(pg);
 			q->mapping_err++;
@@ -1600,7 +1600,8 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * has opened up.
 		 */
 		eth_txq_stop(q);
-		wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
+		if (chip_ver > CHELSIO_T5)
+			wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
 	}
 
 	wr = (void *)&q->q.desc[q->q.pidx];
@@ -1832,6 +1833,7 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 	struct adapter *adapter;
 	int qidx, credits, ret;
 	size_t fw_hdr_copy_len;
+	unsigned int chip_ver;
 	u64 cntrl, *end;
 	u32 wr_mid;
 
@@ -1840,8 +1842,10 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 	 * (including the VLAN tag) into the header so we reject anything
 	 * smaller than that ...
 	 */
-	fw_hdr_copy_len = sizeof(wr->ethmacdst) + sizeof(wr->ethmacsrc) +
-			  sizeof(wr->ethtype) + sizeof(wr->vlantci);
+	BUILD_BUG_ON(sizeof(wr->firmware) !=
+		     (sizeof(wr->ethmacdst) + sizeof(wr->ethmacsrc) +
+		      sizeof(wr->ethtype) + sizeof(wr->vlantci)));
+	fw_hdr_copy_len = sizeof(wr->firmware);
 	ret = cxgb4_validate_skb(skb, dev, fw_hdr_copy_len);
 	if (ret)
 		goto out_free;
@@ -1896,6 +1900,7 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 		goto out_free;
 	}
 
+	chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
 	wr_mid = FW_WR_LEN16_V(DIV_ROUND_UP(flits, 2));
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
 		/* After we're done injecting the Work Request for this
@@ -1907,7 +1912,8 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 		 * has opened up.
 		 */
 		eth_txq_stop(txq);
-		wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
+		if (chip_ver > CHELSIO_T5)
+			wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
 	}
 
 	/* Start filling in our Work Request.  Note that we do _not_ handle
@@ -1920,7 +1926,7 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 	wr->equiq_to_len16 = cpu_to_be32(wr_mid);
 	wr->r3[0] = cpu_to_be32(0);
 	wr->r3[1] = cpu_to_be32(0);
-	skb_copy_from_linear_data(skb, (void *)wr->ethmacdst, fw_hdr_copy_len);
+	skb_copy_from_linear_data(skb, &wr->firmware, fw_hdr_copy_len);
 	end = (u64 *)wr + flits;
 
 	/* If this is a Large Send Offload packet we'll put in an LSO CPL
@@ -1960,7 +1966,7 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 		 */
 		cpl = (void *)(lso + 1);
 
-		if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
+		if (chip_ver <= CHELSIO_T5)
 			cntrl = TXPKT_ETHHDR_LEN_V(eth_xtra_len);
 		else
 			cntrl = T6_TXPKT_ETHHDR_LEN_V(eth_xtra_len);
@@ -2552,6 +2558,12 @@ int cxgb4_ethofld_send_flowc(struct net_device *dev, u32 eotid, u32 tc)
 	if (!eosw_txq)
 		return -ENOMEM;
 
+	if (!(adap->flags & CXGB4_FW_OK)) {
+		/* Don't stall caller when access to FW is lost */
+		complete(&eosw_txq->completion);
+		return -EIO;
+	}
+
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
@@ -2559,12 +2571,12 @@ int cxgb4_ethofld_send_flowc(struct net_device *dev, u32 eotid, u32 tc)
 	spin_lock_bh(&eosw_txq->lock);
 	if (tc != FW_SCHED_CLS_NONE) {
 		if (eosw_txq->state != CXGB4_EO_STATE_CLOSED)
-			goto out_unlock;
+			goto out_free_skb;
 
 		next_state = CXGB4_EO_STATE_FLOWC_OPEN_SEND;
 	} else {
 		if (eosw_txq->state != CXGB4_EO_STATE_ACTIVE)
-			goto out_unlock;
+			goto out_free_skb;
 
 		next_state = CXGB4_EO_STATE_FLOWC_CLOSE_SEND;
 	}
@@ -2600,17 +2612,19 @@ int cxgb4_ethofld_send_flowc(struct net_device *dev, u32 eotid, u32 tc)
 		eosw_txq_flush_pending_skbs(eosw_txq);
 
 	ret = eosw_txq_enqueue(eosw_txq, skb);
-	if (ret) {
-		dev_consume_skb_any(skb);
-		goto out_unlock;
-	}
+	if (ret)
+		goto out_free_skb;
 
 	eosw_txq->state = next_state;
 	eosw_txq->flowc_idx = eosw_txq->pidx;
 	eosw_txq_advance(eosw_txq, 1);
 	ethofld_xmit(dev, eosw_txq);
 
-out_unlock:
+	spin_unlock_bh(&eosw_txq->lock);
+	return 0;
+
+out_free_skb:
+	dev_consume_skb_any(skb);
 	spin_unlock_bh(&eosw_txq->lock);
 	return ret;
 }
@@ -2842,17 +2856,22 @@ int t4_mgmt_tx(struct adapter *adap, struct sk_buff *skb)
  *	@skb: the packet
  *
  *	Returns true if a packet can be sent as an offload WR with immediate
- *	data.  We currently use the same limit as for Ethernet packets.
+ *	data.
+ *	FW_OFLD_TX_DATA_WR limits the payload to 255 bytes due to 8-bit field.
+ *      However, FW_ULPTX_WR commands have a 256 byte immediate only
+ *      payload limit.
  */
 static inline int is_ofld_imm(const struct sk_buff *skb)
 {
 	struct work_request_hdr *req = (struct work_request_hdr *)skb->data;
 	unsigned long opcode = FW_WR_OP_G(ntohl(req->wr_hi));
 
-	if (opcode == FW_CRYPTO_LOOKASIDE_WR)
+	if (unlikely(opcode == FW_ULPTX_WR))
+		return skb->len <= MAX_IMM_ULPTX_WR_LEN;
+	else if (opcode == FW_CRYPTO_LOOKASIDE_WR)
 		return skb->len <= SGE_MAX_WR_LEN;
 	else
-		return skb->len <= MAX_IMM_TX_PKT_LEN;
+		return skb->len <= MAX_IMM_OFLD_TX_DATA_WR_LEN;
 }
 
 /**
@@ -3598,6 +3617,25 @@ static void t4_tx_completion_handler(struct sge_rspq *rspq,
 	}
 
 	txq = &s->ethtxq[pi->first_qset + rspq->idx];
+
+	/* We've got the Hardware Consumer Index Update in the Egress Update
+	 * message. These Egress Update messages will be our sole CIDX Updates
+	 * we get since we don't want to chew up PCIe bandwidth for both Ingress
+	 * Messages and Status Page writes.  However, The code which manages
+	 * reclaiming successfully DMA'ed TX Work Requests uses the CIDX value
+	 * stored in the Status Page at the end of the TX Queue.  It's easiest
+	 * to simply copy the CIDX Update value from the Egress Update message
+	 * to the Status Page.  Also note that no Endian issues need to be
+	 * considered here since both are Big Endian and we're just copying
+	 * bytes consistently ...
+	 */
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5) {
+		struct cpl_sge_egr_update *egr;
+
+		egr = (struct cpl_sge_egr_update *)rsp;
+		WRITE_ONCE(txq->q.stat->cidx, egr->cidx);
+	}
+
 	t4_sge_eth_txq_egress_update(adapter, txq, -1);
 }
 
@@ -4583,11 +4621,15 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 	 * write the CIDX Updates into the Status Page at the end of the
 	 * TX Queue.
 	 */
-	c.autoequiqe_to_viid = htonl(FW_EQ_ETH_CMD_AUTOEQUEQE_F |
+	c.autoequiqe_to_viid = htonl(((chip_ver <= CHELSIO_T5) ?
+				      FW_EQ_ETH_CMD_AUTOEQUIQE_F :
+				      FW_EQ_ETH_CMD_AUTOEQUEQE_F) |
 				     FW_EQ_ETH_CMD_VIID_V(pi->viid));
 
 	c.fetchszm_to_iqid =
-		htonl(FW_EQ_ETH_CMD_HOSTFCMODE_V(HOSTFCMODE_STATUS_PAGE_X) |
+		htonl(FW_EQ_ETH_CMD_HOSTFCMODE_V((chip_ver <= CHELSIO_T5) ?
+						 HOSTFCMODE_INGRESS_QUEUE_X :
+						 HOSTFCMODE_STATUS_PAGE_X) |
 		      FW_EQ_ETH_CMD_PCIECHN_V(pi->tx_chan) |
 		      FW_EQ_ETH_CMD_FETCHRO_F | FW_EQ_ETH_CMD_IQID_V(iqid));
 
@@ -4598,6 +4640,7 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 					    : FETCHBURSTMIN_64B_T6_X) |
 		      FW_EQ_ETH_CMD_FBMAX_V(FETCHBURSTMAX_512B_X) |
 		      FW_EQ_ETH_CMD_CIDXFTHRESH_V(CIDXFLUSHTHRESH_32_X) |
+		      FW_EQ_ETH_CMD_CIDXFTHRESHO_V(chip_ver == CHELSIO_T5) |
 		      FW_EQ_ETH_CMD_EQSIZE_V(nentries));
 
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);

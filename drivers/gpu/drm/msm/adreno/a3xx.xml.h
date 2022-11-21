@@ -8,21 +8,21 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/envytools/rnndb/adreno.xml                     (    594 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml        (   1572 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml                (  90159 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml       (  14386 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml          (  65048 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml                (  84226 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml                ( 112556 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml                ( 149461 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml                ( 184695 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml            (  11218 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml               (   1773 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_control_regs.xml (   4559 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pipe_regs.xml    (   2872 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno.xml                     (    594 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/freedreno_copyright.xml        (   1572 bytes, from 2020-12-31 19:26:32)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a2xx.xml                (  90810 bytes, from 2021-06-21 15:24:24)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_common.xml       (  14609 bytes, from 2021-11-24 23:05:10)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pm4.xml          (  69086 bytes, from 2022-03-03 16:41:33)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a3xx.xml                (  84231 bytes, from 2021-11-24 23:05:10)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a4xx.xml                ( 113358 bytes, from 2022-01-31 23:06:21)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a5xx.xml                ( 149512 bytes, from 2022-01-31 23:06:21)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx.xml                ( 184954 bytes, from 2022-03-03 16:41:33)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx_gmu.xml            (  11331 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/ocmem.xml               (   1773 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_control_regs.xml (   6038 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pipe_regs.xml    (   2924 bytes, from 2021-07-22 15:21:56)
 
-Copyright (C) 2013-2020 by the following authors:
+Copyright (C) 2013-2021 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -1215,7 +1215,7 @@ static inline uint32_t A3XX_RB_ALPHA_REF_UINT(uint32_t val)
 #define A3XX_RB_ALPHA_REF_FLOAT__SHIFT				16
 static inline uint32_t A3XX_RB_ALPHA_REF_FLOAT(float val)
 {
-	return ((util_float_to_half(val)) << A3XX_RB_ALPHA_REF_FLOAT__SHIFT) & A3XX_RB_ALPHA_REF_FLOAT__MASK;
+	return ((_mesa_float_to_half(val)) << A3XX_RB_ALPHA_REF_FLOAT__SHIFT) & A3XX_RB_ALPHA_REF_FLOAT__MASK;
 }
 
 static inline uint32_t REG_A3XX_RB_MRT(uint32_t i0) { return 0x000020c4 + 0x4*i0; }
@@ -1328,7 +1328,7 @@ static inline uint32_t A3XX_RB_BLEND_RED_UINT(uint32_t val)
 #define A3XX_RB_BLEND_RED_FLOAT__SHIFT				16
 static inline uint32_t A3XX_RB_BLEND_RED_FLOAT(float val)
 {
-	return ((util_float_to_half(val)) << A3XX_RB_BLEND_RED_FLOAT__SHIFT) & A3XX_RB_BLEND_RED_FLOAT__MASK;
+	return ((_mesa_float_to_half(val)) << A3XX_RB_BLEND_RED_FLOAT__SHIFT) & A3XX_RB_BLEND_RED_FLOAT__MASK;
 }
 
 #define REG_A3XX_RB_BLEND_GREEN					0x000020e5
@@ -1342,7 +1342,7 @@ static inline uint32_t A3XX_RB_BLEND_GREEN_UINT(uint32_t val)
 #define A3XX_RB_BLEND_GREEN_FLOAT__SHIFT			16
 static inline uint32_t A3XX_RB_BLEND_GREEN_FLOAT(float val)
 {
-	return ((util_float_to_half(val)) << A3XX_RB_BLEND_GREEN_FLOAT__SHIFT) & A3XX_RB_BLEND_GREEN_FLOAT__MASK;
+	return ((_mesa_float_to_half(val)) << A3XX_RB_BLEND_GREEN_FLOAT__SHIFT) & A3XX_RB_BLEND_GREEN_FLOAT__MASK;
 }
 
 #define REG_A3XX_RB_BLEND_BLUE					0x000020e6
@@ -1356,7 +1356,7 @@ static inline uint32_t A3XX_RB_BLEND_BLUE_UINT(uint32_t val)
 #define A3XX_RB_BLEND_BLUE_FLOAT__SHIFT				16
 static inline uint32_t A3XX_RB_BLEND_BLUE_FLOAT(float val)
 {
-	return ((util_float_to_half(val)) << A3XX_RB_BLEND_BLUE_FLOAT__SHIFT) & A3XX_RB_BLEND_BLUE_FLOAT__MASK;
+	return ((_mesa_float_to_half(val)) << A3XX_RB_BLEND_BLUE_FLOAT__SHIFT) & A3XX_RB_BLEND_BLUE_FLOAT__MASK;
 }
 
 #define REG_A3XX_RB_BLEND_ALPHA					0x000020e7
@@ -1370,7 +1370,7 @@ static inline uint32_t A3XX_RB_BLEND_ALPHA_UINT(uint32_t val)
 #define A3XX_RB_BLEND_ALPHA_FLOAT__SHIFT			16
 static inline uint32_t A3XX_RB_BLEND_ALPHA_FLOAT(float val)
 {
-	return ((util_float_to_half(val)) << A3XX_RB_BLEND_ALPHA_FLOAT__SHIFT) & A3XX_RB_BLEND_ALPHA_FLOAT__MASK;
+	return ((_mesa_float_to_half(val)) << A3XX_RB_BLEND_ALPHA_FLOAT__SHIFT) & A3XX_RB_BLEND_ALPHA_FLOAT__MASK;
 }
 
 #define REG_A3XX_RB_CLEAR_COLOR_DW0				0x000020e8
@@ -1466,7 +1466,7 @@ static inline uint32_t A3XX_RB_COPY_DEST_INFO_ENDIAN(enum adreno_rb_surface_endi
 
 #define REG_A3XX_RB_DEPTH_CONTROL				0x00002100
 #define A3XX_RB_DEPTH_CONTROL_FRAG_WRITES_Z			0x00000001
-#define A3XX_RB_DEPTH_CONTROL_Z_ENABLE				0x00000002
+#define A3XX_RB_DEPTH_CONTROL_Z_TEST_ENABLE			0x00000002
 #define A3XX_RB_DEPTH_CONTROL_Z_WRITE_ENABLE			0x00000004
 #define A3XX_RB_DEPTH_CONTROL_EARLY_Z_DISABLE			0x00000008
 #define A3XX_RB_DEPTH_CONTROL_ZFUNC__MASK			0x00000070
@@ -1476,7 +1476,7 @@ static inline uint32_t A3XX_RB_DEPTH_CONTROL_ZFUNC(enum adreno_compare_func val)
 	return ((val) << A3XX_RB_DEPTH_CONTROL_ZFUNC__SHIFT) & A3XX_RB_DEPTH_CONTROL_ZFUNC__MASK;
 }
 #define A3XX_RB_DEPTH_CONTROL_Z_CLAMP_ENABLE			0x00000080
-#define A3XX_RB_DEPTH_CONTROL_Z_TEST_ENABLE			0x80000000
+#define A3XX_RB_DEPTH_CONTROL_Z_READ_ENABLE			0x80000000
 
 #define REG_A3XX_RB_DEPTH_CLEAR					0x00002101
 

@@ -19,7 +19,7 @@
 
 /**
  * struct ab8500_ponkey - ab8500 ponkey information
- * @input_dev: pointer to input device
+ * @idev: pointer to input device
  * @ab8500: ab8500 parent
  * @irq_dbf: irq number for falling transition
  * @irq_dbr: irq number for rising transition

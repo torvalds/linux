@@ -32,6 +32,7 @@ enum v4l2_exposure_auto_type -
     should ignore such requests. Possible values are:
 
 
+.. tabularcolumns:: |p{7.1cm}|p{10.4cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -81,7 +82,7 @@ enum v4l2_exposure_metering -
     Determines how the camera measures the amount of light available for
     the frame exposure. Possible values are:
 
-.. tabularcolumns:: |p{8.7cm}|p{8.8cm}|
+.. tabularcolumns:: |p{8.7cm}|p{8.7cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -173,7 +174,7 @@ enum v4l2_exposure_metering -
     control may stop updates of the ``V4L2_CID_AUTO_FOCUS_STATUS``
     control value.
 
-.. tabularcolumns:: |p{6.7cm}|p{10.8cm}|
+.. tabularcolumns:: |p{6.8cm}|p{10.7cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -199,7 +200,7 @@ enum v4l2_exposure_metering -
 enum v4l2_auto_focus_range -
     Determines auto focus distance range for which lens may be adjusted.
 
-.. tabularcolumns:: |p{6.8cm}|p{10.7cm}|
+.. tabularcolumns:: |p{6.9cm}|p{10.6cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -274,7 +275,7 @@ enum v4l2_auto_n_preset_white_balance -
     representation. The following white balance presets are listed in
     order of increasing color temperature.
 
-.. tabularcolumns:: |p{7.2 cm}|p{10.3cm}|
+.. tabularcolumns:: |p{7.4cm}|p{10.1cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -384,7 +385,9 @@ enum v4l2_scene_mode -
 
     \small
 
-.. tabularcolumns:: |p{5.9cm}|p{11.5cm}|
+.. tabularcolumns:: |p{5.9cm}|p{11.6cm}|
+
+.. cssclass:: longtable
 
 .. flat-table::
     :header-rows:  0
@@ -519,6 +522,7 @@ enum v4l2_scene_mode -
     have the ``V4L2_CAMERA_ORIENTATION_EXTERNAL`` orientation.
 
 
+.. tabularcolumns:: |p{7.7cm}|p{9.8cm}|
 
 .. flat-table::
     :header-rows:  0

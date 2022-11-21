@@ -36,30 +36,32 @@ ia_css_crop_encode(
 	to->crop_pos = from->crop_pos;
 }
 
-void
-ia_css_crop_config(
-    struct sh_css_isp_crop_isp_config *to,
-    const struct ia_css_crop_configuration  *from,
-    unsigned int size)
+int ia_css_crop_config(struct sh_css_isp_crop_isp_config *to,
+		       const struct ia_css_crop_configuration *from,
+		       unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
+	int ret;
 
-	(void)size;
-	ia_css_dma_configure_from_info(&to->port_b, from->info);
+	ret = ia_css_dma_configure_from_info(&to->port_b, from->info);
+	if (ret)
+		return ret;
+
 	to->width_a_over_b = elems_a / to->port_b.elems;
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
-	assert(elems_a % to->port_b.elems == 0);
+	if (elems_a % to->port_b.elems != 0)
+		return -EINVAL;
+
+	return 0;
 }
 
-void
-ia_css_crop_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *info)
+int ia_css_crop_configure(const struct ia_css_binary     *binary,
+			  const struct ia_css_frame_info *info)
 {
 	struct ia_css_crop_configuration config = default_config;
 
 	config.info = info;
 
-	ia_css_configure_crop(binary, &config);
+	return ia_css_configure_crop(binary, &config);
 }

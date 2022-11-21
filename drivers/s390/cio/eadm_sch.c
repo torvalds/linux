@@ -112,16 +112,10 @@ static void eadm_subchannel_set_timeout(struct subchannel *sch, int expires)
 {
 	struct eadm_private *private = get_eadm_private(sch);
 
-	if (expires == 0) {
+	if (expires == 0)
 		del_timer(&private->timer);
-		return;
-	}
-	if (timer_pending(&private->timer)) {
-		if (mod_timer(&private->timer, jiffies + expires))
-			return;
-	}
-	private->timer.expires = jiffies + expires;
-	add_timer(&private->timer);
+	else
+		mod_timer(&private->timer, jiffies + expires);
 }
 
 static void eadm_subchannel_irq(struct subchannel *sch)
@@ -243,11 +237,6 @@ static int eadm_subchannel_probe(struct subchannel *sch)
 	spin_lock_irq(&list_lock);
 	list_add(&private->head, &eadm_list);
 	spin_unlock_irq(&list_lock);
-
-	if (dev_get_uevent_suppress(&sch->dev)) {
-		dev_set_uevent_suppress(&sch->dev, 0);
-		kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
-	}
 out:
 	return ret;
 }
@@ -282,7 +271,7 @@ disable:
 	spin_unlock_irq(sch->lock);
 }
 
-static int eadm_subchannel_remove(struct subchannel *sch)
+static void eadm_subchannel_remove(struct subchannel *sch)
 {
 	struct eadm_private *private = get_eadm_private(sch);
 
@@ -297,23 +286,11 @@ static int eadm_subchannel_remove(struct subchannel *sch)
 	spin_unlock_irq(sch->lock);
 
 	kfree(private);
-
-	return 0;
 }
 
 static void eadm_subchannel_shutdown(struct subchannel *sch)
 {
 	eadm_quiesce(sch);
-}
-
-static int eadm_subchannel_freeze(struct subchannel *sch)
-{
-	return cio_disable_subchannel(sch);
-}
-
-static int eadm_subchannel_restore(struct subchannel *sch)
-{
-	return cio_enable_subchannel(sch, (u32)(unsigned long)sch);
 }
 
 /**
@@ -369,9 +346,6 @@ static struct css_driver eadm_subchannel_driver = {
 	.remove = eadm_subchannel_remove,
 	.shutdown = eadm_subchannel_shutdown,
 	.sch_event = eadm_subchannel_sch_event,
-	.freeze = eadm_subchannel_freeze,
-	.thaw = eadm_subchannel_restore,
-	.restore = eadm_subchannel_restore,
 };
 
 static int __init eadm_sch_init(void)

@@ -1,4 +1,4 @@
-/**
+/*
  * \file ati_pcigart.c
  * ATI PCI GART support
  *
@@ -45,24 +45,41 @@
 static int drm_ati_alloc_pcigart_table(struct drm_device *dev,
 				       struct drm_ati_pcigart_info *gart_info)
 {
-	gart_info->table_handle = drm_pci_alloc(dev, gart_info->table_size,
-						PAGE_SIZE);
-	if (gart_info->table_handle == NULL)
+	drm_dma_handle_t *dmah = kmalloc(sizeof(drm_dma_handle_t), GFP_KERNEL);
+
+	if (!dmah)
 		return -ENOMEM;
 
+	dmah->size = gart_info->table_size;
+	dmah->vaddr = dma_alloc_coherent(dev->dev,
+					 dmah->size,
+					 &dmah->busaddr,
+					 GFP_KERNEL);
+
+	if (!dmah->vaddr) {
+		kfree(dmah);
+		return -ENOMEM;
+	}
+
+	gart_info->table_handle = dmah;
 	return 0;
 }
 
 static void drm_ati_free_pcigart_table(struct drm_device *dev,
 				       struct drm_ati_pcigart_info *gart_info)
 {
-	drm_pci_free(dev, gart_info->table_handle);
+	drm_dma_handle_t *dmah = gart_info->table_handle;
+
+	dma_free_coherent(dev->dev, dmah->size, dmah->vaddr, dmah->busaddr);
+	kfree(dmah);
+
 	gart_info->table_handle = NULL;
 }
 
 int drm_ati_pcigart_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info *gart_info)
 {
 	struct drm_sg_mem *entry = dev->sg;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	unsigned long pages;
 	int i;
 	int max_pages;
@@ -82,8 +99,8 @@ int drm_ati_pcigart_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info 
 		for (i = 0; i < pages; i++) {
 			if (!entry->busaddr[i])
 				break;
-			pci_unmap_page(dev->pdev, entry->busaddr[i],
-					 PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+			dma_unmap_page(&pdev->dev, entry->busaddr[i],
+				       PAGE_SIZE, DMA_BIDIRECTIONAL);
 		}
 
 		if (gart_info->gart_table_location == DRM_ATI_GART_MAIN)
@@ -102,6 +119,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 {
 	struct drm_local_map *map = &gart_info->mapping;
 	struct drm_sg_mem *entry = dev->sg;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	void *address = NULL;
 	unsigned long pages;
 	u32 *pci_gart = NULL, page_base, gart_idx;
@@ -117,7 +135,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	if (gart_info->gart_table_location == DRM_ATI_GART_MAIN) {
 		DRM_DEBUG("PCI: no table in VRAM: using normal RAM\n");
 
-		if (pci_set_dma_mask(dev->pdev, gart_info->table_mask)) {
+		if (dma_set_mask(&pdev->dev, gart_info->table_mask)) {
 			DRM_ERROR("fail to set dma mask to 0x%Lx\n",
 				  (unsigned long long)gart_info->table_mask);
 			ret = -EFAULT;
@@ -156,9 +174,9 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	gart_idx = 0;
 	for (i = 0; i < pages; i++) {
 		/* we need to support large memory configurations */
-		entry->busaddr[i] = pci_map_page(dev->pdev, entry->pagelist[i],
-						 0, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-		if (pci_dma_mapping_error(dev->pdev, entry->busaddr[i])) {
+		entry->busaddr[i] = dma_map_page(&pdev->dev, entry->pagelist[i],
+						 0, PAGE_SIZE, DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(&pdev->dev, entry->busaddr[i])) {
 			DRM_ERROR("unable to map PCIGART pages!\n");
 			drm_ati_pcigart_cleanup(dev, gart_info);
 			address = NULL;
@@ -197,7 +215,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	}
 	ret = 0;
 
-#if defined(__i386__) || defined(__x86_64__)
+#ifdef CONFIG_X86
 	wbinvd();
 #else
 	mb();

@@ -399,7 +399,7 @@
 	tsc {
 		ti,wires = <4>;
 		ti,x-plate-resistance = <200>;
-		ti,coordiante-readouts = <5>;
+		ti,coordinate-readouts = <5>;
 		ti,wire-config = <0x00 0x11 0x22 0x33>;
 	};
 
@@ -415,4 +415,8 @@
 			   <720000 1200000>,
 			   <600000 1100000>,
 			   <300000 950000>;
+};
+
+&pruss1_mdio {
+	status = "disabled";
 };

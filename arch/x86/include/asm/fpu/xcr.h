@@ -2,18 +2,8 @@
 #ifndef _ASM_X86_FPU_XCR_H
 #define _ASM_X86_FPU_XCR_H
 
-/*
- * MXCSR and XCR definitions:
- */
-
-static inline void ldmxcsr(u32 mxcsr)
-{
-	asm volatile("ldmxcsr %0" :: "m" (mxcsr));
-}
-
-extern unsigned int mxcsr_feature_mask;
-
 #define XCR_XFEATURE_ENABLED_MASK	0x00000000
+#define XCR_XFEATURE_IN_USE_MASK	0x00000001
 
 static inline u64 xgetbv(u32 index)
 {
@@ -29,6 +19,17 @@ static inline void xsetbv(u32 index, u64 value)
 	u32 edx = value >> 32;
 
 	asm volatile("xsetbv" :: "a" (eax), "d" (edx), "c" (index));
+}
+
+/*
+ * Return a mask of xfeatures which are currently being tracked
+ * by the processor as being in the initial configuration.
+ *
+ * Callers should check X86_FEATURE_XGETBV1.
+ */
+static inline u64 xfeatures_in_use(void)
+{
+	return xgetbv(XCR_XFEATURE_IN_USE_MASK);
 }
 
 #endif /* _ASM_X86_FPU_XCR_H */

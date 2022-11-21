@@ -247,6 +247,7 @@ LIBBPF_0.0.8 {
 		bpf_link_create;
 		bpf_link_update;
 		bpf_map__set_initial_value;
+		bpf_prog_attach_opts;
 		bpf_program__attach_cgroup;
 		bpf_program__attach_lsm;
 		bpf_program__is_lsm;
@@ -337,3 +338,113 @@ LIBBPF_0.2.0 {
 		perf_buffer__consume_buffer;
 		xsk_socket__create_shared;
 } LIBBPF_0.1.0;
+
+LIBBPF_0.3.0 {
+	global:
+		btf__base_btf;
+		btf__parse_elf_split;
+		btf__parse_raw_split;
+		btf__parse_split;
+		btf__new_empty_split;
+		btf__new_split;
+		ring_buffer__epoll_fd;
+		xsk_setup_xdp_prog;
+		xsk_socket__update_xskmap;
+} LIBBPF_0.2.0;
+
+LIBBPF_0.4.0 {
+	global:
+		btf__add_float;
+		btf__add_type;
+		bpf_linker__add_file;
+		bpf_linker__finalize;
+		bpf_linker__free;
+		bpf_linker__new;
+		bpf_map__inner_map;
+		bpf_object__set_kversion;
+		bpf_tc_attach;
+		bpf_tc_detach;
+		bpf_tc_hook_create;
+		bpf_tc_hook_destroy;
+		bpf_tc_query;
+} LIBBPF_0.3.0;
+
+LIBBPF_0.5.0 {
+	global:
+		bpf_map__initial_value;
+		bpf_map__pin_path;
+		bpf_map_lookup_and_delete_elem_flags;
+		bpf_program__attach_kprobe_opts;
+		bpf_program__attach_perf_event_opts;
+		bpf_program__attach_tracepoint_opts;
+		bpf_program__attach_uprobe_opts;
+		bpf_object__gen_loader;
+		btf__load_from_kernel_by_id;
+		btf__load_from_kernel_by_id_split;
+		btf__load_into_kernel;
+		btf__load_module_btf;
+		btf__load_vmlinux_btf;
+		btf_dump__dump_type_data;
+		libbpf_set_strict_mode;
+} LIBBPF_0.4.0;
+
+LIBBPF_0.6.0 {
+	global:
+		bpf_map__map_extra;
+		bpf_map__set_map_extra;
+		bpf_map_create;
+		bpf_object__next_map;
+		bpf_object__next_program;
+		bpf_object__prev_map;
+		bpf_object__prev_program;
+		bpf_prog_load_deprecated;
+		bpf_prog_load;
+		bpf_program__flags;
+		bpf_program__insn_cnt;
+		bpf_program__insns;
+		bpf_program__set_flags;
+		btf__add_btf;
+		btf__add_decl_tag;
+		btf__add_type_tag;
+		btf__dedup;
+		btf__dedup_deprecated;
+		btf__raw_data;
+		btf__type_cnt;
+		btf_dump__new;
+		btf_dump__new_deprecated;
+		libbpf_major_version;
+		libbpf_minor_version;
+		libbpf_version_string;
+		perf_buffer__new;
+		perf_buffer__new_deprecated;
+		perf_buffer__new_raw;
+		perf_buffer__new_raw_deprecated;
+} LIBBPF_0.5.0;
+
+LIBBPF_0.7.0 {
+	global:
+		bpf_btf_load;
+		bpf_program__expected_attach_type;
+		bpf_program__log_buf;
+		bpf_program__log_level;
+		bpf_program__set_log_buf;
+		bpf_program__set_log_level;
+		bpf_program__type;
+		bpf_xdp_attach;
+		bpf_xdp_detach;
+		bpf_xdp_query;
+		bpf_xdp_query_id;
+		libbpf_probe_bpf_helper;
+		libbpf_probe_bpf_map_type;
+		libbpf_probe_bpf_prog_type;
+		libbpf_set_memlock_rlim_max;
+} LIBBPF_0.6.0;
+
+LIBBPF_0.8.0 {
+	global:
+		bpf_object__destroy_subskeleton;
+		bpf_object__open_subskeleton;
+		libbpf_register_prog_handler;
+		libbpf_unregister_prog_handler;
+		bpf_program__attach_kprobe_multi_opts;
+} LIBBPF_0.7.0;

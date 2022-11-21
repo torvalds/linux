@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Routines supporting the Power 7+ Nest Accelerators driver
  *
  * Copyright (C) 2011-2012 International Business Machines Inc.
@@ -10,7 +10,7 @@
 #include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
 #include <crypto/aes.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <crypto/algapi.h>
 #include <crypto/scatterwalk.h>
 #include <linux/module.h>
@@ -200,7 +200,8 @@ struct nx_sg *nx_walk_and_build(struct nx_sg       *nx_dst,
  * @sg: sg list head
  * @end: sg lisg end
  * @delta:  is the amount we need to crop in order to bound the list.
- *
+ * @nbytes: length of data in the scatterlists or data length - whichever
+ *          is greater.
  */
 static long int trim_sg_list(struct nx_sg *sg,
 			     struct nx_sg *end,
@@ -783,7 +784,7 @@ static int nx_probe(struct vio_dev *viodev, const struct vio_device_id *id)
 	return nx_register_algs();
 }
 
-static int nx_remove(struct vio_dev *viodev)
+static void nx_remove(struct vio_dev *viodev)
 {
 	dev_dbg(&viodev->dev, "entering nx_remove for UA 0x%x\n",
 		viodev->unit_address);
@@ -811,8 +812,6 @@ static int nx_remove(struct vio_dev *viodev)
 		nx_unregister_skcipher(&nx_ecb_aes_alg, NX_FC_AES,
 				       NX_MODE_AES_ECB);
 	}
-
-	return 0;
 }
 
 

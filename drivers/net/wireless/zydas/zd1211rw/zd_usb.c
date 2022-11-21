@@ -65,7 +65,6 @@ static const struct usb_device_id usb_ids[] = {
 	{ USB_DEVICE(0x0586, 0x3412), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x0586, 0x3413), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x079b, 0x0062), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x07b8, 0x6001), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x07fa, 0x1196), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x083a, 0x4505), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x083a, 0xe501), .driver_info = DEVICE_ZD1211B },
@@ -1544,14 +1543,14 @@ static int __init usb_init(void)
 
 	zd_workqueue = create_singlethread_workqueue(driver.name);
 	if (zd_workqueue == NULL) {
-		printk(KERN_ERR "%s couldn't create workqueue\n", driver.name);
+		pr_err("%s couldn't create workqueue\n", driver.name);
 		return -ENOMEM;
 	}
 
 	r = usb_register(&driver);
 	if (r) {
 		destroy_workqueue(zd_workqueue);
-		printk(KERN_ERR "%s usb_register() failed. Error number %d\n",
+		pr_err("%s usb_register() failed. Error number %d\n",
 		       driver.name, r);
 		return r;
 	}
@@ -1710,11 +1709,6 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 			 "error: count %u exceeds possible max %u\n",
 			 count, USB_MAX_IOREAD16_COUNT);
 		return -EINVAL;
-	}
-	if (in_atomic()) {
-		dev_dbg_f(zd_usb_dev(usb),
-			 "error: io in atomic context not supported\n");
-		return -EWOULDBLOCK;
 	}
 	if (!usb_int_enabled(usb)) {
 		dev_dbg_f(zd_usb_dev(usb),
@@ -1882,11 +1876,6 @@ int zd_usb_iowrite16v_async(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 			count, USB_MAX_IOWRITE16_COUNT);
 		return -EINVAL;
 	}
-	if (in_atomic()) {
-		dev_dbg_f(zd_usb_dev(usb),
-			"error: io in atomic context not supported\n");
-		return -EWOULDBLOCK;
-	}
 
 	udev = zd_usb_to_usbdev(usb);
 
@@ -1966,11 +1955,6 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 	int i, req_len, actual_req_len;
 	u16 bit_value_template;
 
-	if (in_atomic()) {
-		dev_dbg_f(zd_usb_dev(usb),
-			"error: io in atomic context not supported\n");
-		return -EWOULDBLOCK;
-	}
 	if (bits < USB_MIN_RFWRITE_BIT_COUNT) {
 		dev_dbg_f(zd_usb_dev(usb),
 			"error: bits %d are smaller than"

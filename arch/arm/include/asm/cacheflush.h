@@ -291,6 +291,7 @@ extern void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 extern void flush_dcache_page(struct page *);
 
+#define ARCH_IMPLEMENTS_FLUSH_KERNEL_VMAP_RANGE 1
 static inline void flush_kernel_vmap_range(void *addr, int size)
 {
 	if ((cache_is_vivt() || cache_is_vipt_aliasing()))
@@ -311,9 +312,6 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
 	if (PageAnon(page))
 		__flush_anon_page(vma, page, vmaddr);
 }
-
-#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
-extern void flush_kernel_dcache_page(struct page *);
 
 #define flush_dcache_mmap_lock(mapping)		xa_lock_irq(&mapping->i_pages)
 #define flush_dcache_mmap_unlock(mapping)	xa_unlock_irq(&mapping->i_pages)
@@ -447,15 +445,10 @@ static inline void __sync_cache_range_r(volatile void *p, size_t size)
  *   however some exceptions may exist.  Caveat emptor.
  *
  * - The clobber list is dictated by the call to v7_flush_dcache_*.
- *   fp is preserved to the stack explicitly prior disabling the cache
- *   since adding it to the clobber list is incompatible with having
- *   CONFIG_FRAME_POINTER=y.  ip is saved as well if ever r12-clobbering
- *   trampoline are inserted by the linker and to keep sp 64-bit aligned.
  */
 #define v7_exit_coherency_flush(level) \
 	asm volatile( \
 	".arch	armv7-a \n\t" \
-	"stmfd	sp!, {fp, ip} \n\t" \
 	"mrc	p15, 0, r0, c1, c0, 0	@ get SCTLR \n\t" \
 	"bic	r0, r0, #"__stringify(CR_C)" \n\t" \
 	"mcr	p15, 0, r0, c1, c0, 0	@ set SCTLR \n\t" \
@@ -465,10 +458,9 @@ static inline void __sync_cache_range_r(volatile void *p, size_t size)
 	"bic	r0, r0, #(1 << 6)	@ disable local coherency \n\t" \
 	"mcr	p15, 0, r0, c1, c0, 1	@ set ACTLR \n\t" \
 	"isb	\n\t" \
-	"dsb	\n\t" \
-	"ldmfd	sp!, {fp, ip}" \
-	: : : "r0","r1","r2","r3","r4","r5","r6","r7", \
-	      "r9","r10","lr","memory" )
+	"dsb" \
+	: : : "r0","r1","r2","r3","r4","r5","r6", \
+	      "r9","r10","ip","lr","memory" )
 
 void flush_uprobe_xol_access(struct page *page, unsigned long uaddr,
 			     void *kaddr, unsigned long len);

@@ -8,11 +8,24 @@
 
 #include <linux/interconnect.h>
 
-/* Transfer mode supported by GENI Serial Engines */
+/**
+ * enum geni_se_xfer_mode: Transfer modes supported by Serial Engines
+ *
+ * @GENI_SE_INVALID: Invalid mode
+ * @GENI_SE_FIFO: FIFO mode. Data is transferred with SE FIFO
+ * by programmed IO method
+ * @GENI_SE_DMA: Serial Engine DMA mode. Data is transferred
+ * with SE by DMAengine internal to SE
+ * @GENI_GPI_DMA: GPI DMA mode. Data is transferred using a DMAengine
+ * configured by a firmware residing on a GSI engine. This DMA name is
+ * interchangeably used as GSI or GPI which seem to imply the same DMAengine
+ */
+
 enum geni_se_xfer_mode {
 	GENI_SE_INVALID,
 	GENI_SE_FIFO,
 	GENI_SE_DMA,
+	GENI_GPI_DMA,
 };
 
 /* Protocols supported by GENI Serial Engines */
@@ -47,8 +60,6 @@ struct geni_icc_path {
  * @num_clk_levels:	Number of valid clock levels in clk_perf_tbl
  * @clk_perf_tbl:	Table of clock frequency input to serial engine clock
  * @icc_paths:		Array of ICC paths for SE
- * @opp_table:		Pointer to the OPP table
- * @has_opp_table:	Specifies if the SE has an OPP table
  */
 struct geni_se {
 	void __iomem *base;
@@ -58,8 +69,6 @@ struct geni_se {
 	unsigned int num_clk_levels;
 	unsigned long *clk_perf_tbl;
 	struct geni_icc_path icc_paths[3];
-	struct opp_table *opp_table;
-	bool has_opp_table;
 };
 
 /* Common SE registers */
@@ -67,6 +76,7 @@ struct geni_se {
 #define SE_GENI_STATUS			0x40
 #define GENI_SER_M_CLK_CFG		0x48
 #define GENI_SER_S_CLK_CFG		0x4c
+#define GENI_IF_DISABLE_RO		0x64
 #define GENI_FW_REVISION_RO		0x68
 #define SE_GENI_CLK_SEL			0x7c
 #define SE_GENI_DMA_MODE_EN		0x258
@@ -108,6 +118,9 @@ struct geni_se {
 #define SER_CLK_EN			BIT(0)
 #define CLK_DIV_MSK			GENMASK(15, 4)
 #define CLK_DIV_SHFT			4
+
+/* GENI_IF_DISABLE_RO fields */
+#define FIFO_IF_DISABLE			(BIT(0))
 
 /* GENI_FW_REVISION_RO fields */
 #define FW_REV_PROTOCOL_MSK		GENMASK(15, 8)
@@ -462,7 +475,5 @@ void geni_icc_set_tag(struct geni_se *se, u32 tag);
 int geni_icc_enable(struct geni_se *se);
 
 int geni_icc_disable(struct geni_se *se);
-
-void geni_remove_earlycon_icc_vote(void);
 #endif
 #endif

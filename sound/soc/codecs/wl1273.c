@@ -311,7 +311,6 @@ static int wl1273_startup(struct snd_pcm_substream *substream,
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	return 0;
@@ -415,13 +414,13 @@ int wl1273_get_format(struct snd_soc_component *component, unsigned int *fmt)
 	case WL1273_MODE_FM_TX:
 		*fmt =	SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM;
+			SND_SOC_DAIFMT_CBP_CFP;
 
 		break;
 	case WL1273_MODE_BT:
 		*fmt =	SND_SOC_DAIFMT_DSP_A |
 			SND_SOC_DAIFMT_IB_NF |
-			SND_SOC_DAIFMT_CBM_CFM;
+			SND_SOC_DAIFMT_CBP_CFP;
 
 		break;
 	default:

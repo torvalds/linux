@@ -269,7 +269,7 @@ static u8 orc_nv_read(struct orc_host * host, u8 address, u8 *ptr)
 }
 
 /**
- *	orc_exec_sb		-	Queue an SCB with the HA
+ *	orc_exec_scb		-	Queue an SCB with the HA
  *	@host: host adapter the SCB belongs to
  *	@scb: SCB to queue for execution
  */
@@ -586,7 +586,7 @@ static int orc_reset_scsi_bus(struct orc_host * host)
  *	orc_device_reset	-	device reset handler
  *	@host: host to reset
  *	@cmd: command causing the reset
- *	@target; target device
+ *	@target: target device
  *
  *	Reset registers, reset a hanging bus and kill active and disconnected
  *	commands for target w/o soft reset
@@ -727,7 +727,7 @@ static void orc_release_scb(struct orc_host *host, struct orc_scb *scb)
 	spin_unlock_irqrestore(&(host->allocation_lock), flags);
 }
 
-/**
+/*
  *	orchid_abort_scb	-	abort a command
  *
  *	Abort a queued command that has been passed to the firmware layer
@@ -902,22 +902,19 @@ static int inia100_build_scb(struct orc_host * host, struct orc_scb * scb, struc
 }
 
 /**
- *	inia100_queue		-	queue command with host
+ *	inia100_queue_lck		-	queue command with host
  *	@cmd: Command block
- *	@done: Completion function
  *
  *	Called by the mid layer to queue a command. Process the command
  *	block, build the host specific scb structures and if there is room
  *	queue the command down to the controller
  */
-
-static int inia100_queue_lck(struct scsi_cmnd * cmd, void (*done) (struct scsi_cmnd *))
+static int inia100_queue_lck(struct scsi_cmnd *cmd)
 {
 	struct orc_scb *scb;
 	struct orc_host *host;		/* Point to Host adapter control block */
 
 	host = (struct orc_host *) cmd->device->host->hostdata;
-	cmd->scsi_done = done;
 	/* Get free SCSI control block  */
 	if ((scb = orc_alloc_scb(host)) == NULL)
 		return SCSI_MLQUEUE_HOST_BUSY;
@@ -1042,7 +1039,7 @@ static void inia100_scb_handler(struct orc_host *host, struct orc_scb *scb)
 	}
 	cmd->result = scb->tastat | (scb->hastat << 16);
 	scsi_dma_unmap(cmd);
-	cmd->scsi_done(cmd);	/* Notify system DONE           */
+	scsi_done(cmd);		/* Notify system DONE           */
 	orc_release_scb(host, scb);	/* Release SCB for current channel */
 }
 
@@ -1088,8 +1085,6 @@ static int inia100_probe_one(struct pci_dev *pdev,
 	unsigned long port, bios;
 	int error = -ENODEV;
 	u32 sz;
-	unsigned long biosaddr;
-	char *bios_phys;
 
 	if (pci_enable_device(pdev))
 		goto out;
@@ -1139,9 +1134,6 @@ static int inia100_probe_one(struct pci_dev *pdev,
 		goto out_free_scb_array;
 	}
 
-	biosaddr = host->BIOScfg;
-	biosaddr = (biosaddr << 4);
-	bios_phys = phys_to_virt(biosaddr);
 	if (init_orchid(host)) {	/* Initialize orchid chip */
 		printk("inia100: initial orchid fail!!\n");
 		goto out_free_escb_array;

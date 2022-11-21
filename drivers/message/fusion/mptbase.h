@@ -257,7 +257,7 @@ typedef enum {
 } MPT_DRIVER_CLASS;
 
 struct mpt_pci_driver{
-	int  (*probe) (struct pci_dev *dev, const struct pci_device_id *id);
+	int  (*probe) (struct pci_dev *dev);
 	void (*remove) (struct pci_dev *dev);
 };
 
@@ -274,7 +274,7 @@ typedef union _MPT_FRAME_TRACKER {
 	} linkage;
 	/*
 	 * NOTE: When request frames are free, on the linkage structure
-	 * contets are valid.  All other values are invalid.
+	 * contents are valid.  All other values are invalid.
 	 * In particular, do NOT reply on offset [2]
 	 * (in words) being the * message context.
 	 * The message context must be reset (computed via base address

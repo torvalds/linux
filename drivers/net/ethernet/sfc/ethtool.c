@@ -97,7 +97,9 @@ static void efx_ethtool_get_regs(struct net_device *net_dev,
  */
 
 static int efx_ethtool_get_coalesce(struct net_device *net_dev,
-				    struct ethtool_coalesce *coalesce)
+				    struct ethtool_coalesce *coalesce,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	unsigned int tx_usecs, rx_usecs;
@@ -115,7 +117,9 @@ static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 }
 
 static int efx_ethtool_set_coalesce(struct net_device *net_dev,
-				    struct ethtool_coalesce *coalesce)
+				    struct ethtool_coalesce *coalesce,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_channel *channel;
@@ -153,8 +157,11 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 	return 0;
 }
 
-static void efx_ethtool_get_ringparam(struct net_device *net_dev,
-				      struct ethtool_ringparam *ring)
+static void
+efx_ethtool_get_ringparam(struct net_device *net_dev,
+			  struct ethtool_ringparam *ring,
+			  struct kernel_ethtool_ringparam *kernel_ring,
+			  struct netlink_ext_ack *extack)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -164,8 +171,11 @@ static void efx_ethtool_get_ringparam(struct net_device *net_dev,
 	ring->tx_pending = efx->txq_entries;
 }
 
-static int efx_ethtool_set_ringparam(struct net_device *net_dev,
-				     struct ethtool_ringparam *ring)
+static int
+efx_ethtool_set_ringparam(struct net_device *net_dev,
+			  struct ethtool_ringparam *ring,
+			  struct kernel_ethtool_ringparam *kernel_ring,
+			  struct netlink_ext_ack *extack)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	u32 txq_entries;
@@ -204,6 +214,15 @@ static int efx_ethtool_set_wol(struct net_device *net_dev,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	return efx->type->set_wol(efx, wol->wolopts);
+}
+
+static void efx_ethtool_get_fec_stats(struct net_device *net_dev,
+				      struct ethtool_fec_stats *fec_stats)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	if (efx->type->get_fec_stats)
+		efx->type->get_fec_stats(efx, fec_stats);
 }
 
 static int efx_ethtool_get_ts_info(struct net_device *net_dev,
@@ -257,6 +276,7 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_module_eeprom	= efx_ethtool_get_module_eeprom,
 	.get_link_ksettings	= efx_ethtool_get_link_ksettings,
 	.set_link_ksettings	= efx_ethtool_set_link_ksettings,
+	.get_fec_stats		= efx_ethtool_get_fec_stats,
 	.get_fecparam		= efx_ethtool_get_fecparam,
 	.set_fecparam		= efx_ethtool_set_fecparam,
 };

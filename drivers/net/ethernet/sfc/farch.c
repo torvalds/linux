@@ -835,14 +835,14 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		/* Transmit completion */
 		tx_ev_desc_ptr = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_DESC_PTR);
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_Q_LABEL);
-		tx_queue = efx_channel_get_tx_queue(
-			channel, tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
+		tx_queue = channel->tx_queue +
+				(tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
 		efx_xmit_done(tx_queue, tx_ev_desc_ptr);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_WQ_FF_FULL)) {
 		/* Rewrite the FIFO write pointer */
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_Q_LABEL);
-		tx_queue = efx_channel_get_tx_queue(
-			channel, tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
+		tx_queue = channel->tx_queue +
+				(tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
 
 		netif_tx_lock(efx->net_dev);
 		efx_farch_notify_tx_desc(tx_queue);
@@ -1081,16 +1081,16 @@ static void
 efx_farch_handle_tx_flush_done(struct efx_nic *efx, efx_qword_t *event)
 {
 	struct efx_tx_queue *tx_queue;
+	struct efx_channel *channel;
 	int qid;
 
 	qid = EFX_QWORD_FIELD(*event, FSF_AZ_DRIVER_EV_SUBDATA);
 	if (qid < EFX_MAX_TXQ_PER_CHANNEL * (efx->n_tx_channels + efx->n_extra_tx_channels)) {
-		tx_queue = efx_get_tx_queue(efx, qid / EFX_MAX_TXQ_PER_CHANNEL,
-					    qid % EFX_MAX_TXQ_PER_CHANNEL);
-		if (atomic_cmpxchg(&tx_queue->flush_outstanding, 1, 0)) {
+		channel = efx_get_tx_channel(efx, qid / EFX_MAX_TXQ_PER_CHANNEL);
+		tx_queue = channel->tx_queue + (qid % EFX_MAX_TXQ_PER_CHANNEL);
+		if (atomic_cmpxchg(&tx_queue->flush_outstanding, 1, 0))
 			efx_farch_magic_event(tx_queue->channel,
 					      EFX_CHANNEL_MAGIC_TX_DRAIN(tx_queue));
-		}
 	}
 }
 
@@ -1668,13 +1668,17 @@ void efx_farch_rx_pull_indir_table(struct efx_nic *efx)
  */
 void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw)
 {
-	unsigned vi_count, buftbl_min, total_tx_channels;
-
+	unsigned vi_count, total_tx_channels;
 #ifdef CONFIG_SFC_SRIOV
-	struct siena_nic_data *nic_data = efx->nic_data;
+	struct siena_nic_data *nic_data;
+	unsigned buftbl_min;
 #endif
 
 	total_tx_channels = efx->n_tx_channels + efx->n_extra_tx_channels;
+	vi_count = max(efx->n_channels, total_tx_channels * EFX_MAX_TXQ_PER_CHANNEL);
+
+#ifdef CONFIG_SFC_SRIOV
+	nic_data = efx->nic_data;
 	/* Account for the buffer table entries backing the datapath channels
 	 * and the descriptor caches for those channels.
 	 */
@@ -1682,9 +1686,6 @@ void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw)
 		       total_tx_channels * EFX_MAX_TXQ_PER_CHANNEL * EFX_MAX_DMAQ_SIZE +
 		       efx->n_channels * EFX_MAX_EVQ_SIZE)
 		      * sizeof(efx_qword_t) / EFX_BUF_SIZE);
-	vi_count = max(efx->n_channels, total_tx_channels * EFX_MAX_TXQ_PER_CHANNEL);
-
-#ifdef CONFIG_SFC_SRIOV
 	if (efx->type->sriov_wanted) {
 		if (efx->type->sriov_wanted(efx)) {
 			unsigned vi_dc_entries, buftbl_free;

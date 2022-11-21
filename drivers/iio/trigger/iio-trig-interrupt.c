@@ -25,9 +25,6 @@ static irqreturn_t iio_interrupt_trigger_poll(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
-static const struct iio_trigger_ops iio_interrupt_trigger_ops = {
-};
-
 static int iio_interrupt_trigger_probe(struct platform_device *pdev)
 {
 	struct iio_interrupt_trigger_info *trig_info;
@@ -45,7 +42,7 @@ static int iio_interrupt_trigger_probe(struct platform_device *pdev)
 
 	irq = irq_res->start;
 
-	trig = iio_trigger_alloc("irqtrig%d", irq);
+	trig = iio_trigger_alloc(NULL, "irqtrig%d", irq);
 	if (!trig) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -58,7 +55,6 @@ static int iio_interrupt_trigger_probe(struct platform_device *pdev)
 	}
 	iio_trigger_set_drvdata(trig, trig_info);
 	trig_info->irq = irq;
-	trig->ops = &iio_interrupt_trigger_ops;
 	ret = request_irq(irq, iio_interrupt_trigger_poll,
 			  irqflags, trig->name, trig);
 	if (ret) {

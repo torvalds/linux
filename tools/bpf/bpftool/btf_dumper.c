@@ -32,14 +32,16 @@ static int dump_prog_id_as_func_ptr(const struct btf_dumper *d,
 				    const struct btf_type *func_proto,
 				    __u32 prog_id)
 {
-	struct bpf_prog_info_linear *prog_info = NULL;
 	const struct btf_type *func_type;
+	int prog_fd = -1, func_sig_len;
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
 	const char *prog_name = NULL;
-	struct bpf_func_info *finfo;
 	struct btf *prog_btf = NULL;
-	struct bpf_prog_info *info;
-	int prog_fd, func_sig_len;
+	struct bpf_func_info finfo;
+	__u32 finfo_rec_size;
 	char prog_str[1024];
+	int err;
 
 	/* Get the ptr's func_proto */
 	func_sig_len = btf_dump_func(d->btf, prog_str, func_proto, NULL, 0,
@@ -52,23 +54,30 @@ static int dump_prog_id_as_func_ptr(const struct btf_dumper *d,
 
 	/* Get the bpf_prog's name.  Obtain from func_info. */
 	prog_fd = bpf_prog_get_fd_by_id(prog_id);
-	if (prog_fd == -1)
+	if (prog_fd < 0)
 		goto print;
 
-	prog_info = bpf_program__get_prog_info_linear(prog_fd,
-						1UL << BPF_PROG_INFO_FUNC_INFO);
-	close(prog_fd);
-	if (IS_ERR(prog_info)) {
-		prog_info = NULL;
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	if (err)
 		goto print;
-	}
-	info = &prog_info->info;
 
-	if (!info->btf_id || !info->nr_func_info ||
-	    btf__get_from_id(info->btf_id, &prog_btf))
+	if (!info.btf_id || !info.nr_func_info)
 		goto print;
-	finfo = u64_to_ptr(info->func_info);
-	func_type = btf__type_by_id(prog_btf, finfo->type_id);
+
+	finfo_rec_size = info.func_info_rec_size;
+	memset(&info, 0, sizeof(info));
+	info.nr_func_info = 1;
+	info.func_info_rec_size = finfo_rec_size;
+	info.func_info = ptr_to_u64(&finfo);
+
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	if (err)
+		goto print;
+
+	prog_btf = btf__load_from_kernel_by_id(info.btf_id);
+	if (libbpf_get_error(prog_btf))
+		goto print;
+	func_type = btf__type_by_id(prog_btf, finfo.type_id);
 	if (!func_type || !btf_is_func(func_type))
 		goto print;
 
@@ -90,7 +99,8 @@ print:
 	prog_str[sizeof(prog_str) - 1] = '\0';
 	jsonw_string(d->jw, prog_str);
 	btf__free(prog_btf);
-	free(prog_info);
+	if (prog_fd >= 0)
+		close(prog_fd);
 	return 0;
 }
 
@@ -596,6 +606,7 @@ static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
 	switch (BTF_INFO_KIND(t->info)) {
 	case BTF_KIND_INT:
 	case BTF_KIND_TYPEDEF:
+	case BTF_KIND_FLOAT:
 		BTF_PRINT_ARG("%s ", btf__name_by_offset(btf, t->name_off));
 		break;
 	case BTF_KIND_STRUCT:

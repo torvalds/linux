@@ -39,7 +39,7 @@
 #include <linux/delay.h>
 #include <linux/of_device.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
 #include <asm/setup.h>
@@ -127,7 +127,8 @@ static void serial_out(struct uart_sunsu_port *up, int offset, int value)
 	 * gate outputs a logical one. Since we use level triggered interrupts
 	 * we have lockup and watchdog reset. We cannot mask IRQ because
 	 * keyboard shares IRQ with us (Word has it as Bob Smelik's design).
-	 * This problem is similar to what Alpha people suffer, see serial.c.
+	 * This problem is similar to what Alpha people suffer, see
+	 * 8250_alpha.c.
 	 */
 	if (offset == UART_MCR)
 		value |= UART_MCR_OUT2;
@@ -466,11 +467,7 @@ static irqreturn_t sunsu_serial_interrupt(int irq, void *dev_id)
 		if (status & UART_LSR_THRE)
 			transmit_chars(up);
 
-		spin_unlock_irqrestore(&up->port.lock, flags);
-
 		tty_flip_buffer_push(&up->port.state->port);
-
-		spin_lock_irqsave(&up->port.lock, flags);
 
 	} while (!(serial_in(up, UART_IIR) & UART_IIR_NO_INT));
 
@@ -1284,7 +1281,7 @@ static void wait_for_xmitr(struct uart_sunsu_port *up)
 	}
 }
 
-static void sunsu_console_putchar(struct uart_port *port, int ch)
+static void sunsu_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct uart_sunsu_port *up =
 		container_of(port, struct uart_sunsu_port, port);

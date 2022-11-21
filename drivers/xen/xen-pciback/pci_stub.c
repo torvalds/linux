@@ -19,7 +19,8 @@
 #include <linux/sched.h>
 #include <linux/atomic.h>
 #include <xen/events.h>
-#include <asm/xen/pci.h>
+#include <xen/pci.h>
+#include <xen/xen.h>
 #include <asm/xen/hypervisor.h>
 #include <xen/interface/physdev.h>
 #include "pciback.h"
@@ -802,7 +803,7 @@ static pci_ers_result_t xen_pcibk_slot_reset(struct pci_dev *dev)
 			"guest with no AER driver should have been killed\n");
 		goto end;
 	}
-	result = common_process(psdev, 1, XEN_PCI_OP_aer_slotreset, result);
+	result = common_process(psdev, pci_channel_io_normal, XEN_PCI_OP_aer_slotreset, result);
 
 	if (result == PCI_ERS_RESULT_NONE ||
 		result == PCI_ERS_RESULT_DISCONNECT) {
@@ -859,7 +860,7 @@ static pci_ers_result_t xen_pcibk_mmio_enabled(struct pci_dev *dev)
 			"guest with no AER driver should have been killed\n");
 		goto end;
 	}
-	result = common_process(psdev, 1, XEN_PCI_OP_aer_mmio, result);
+	result = common_process(psdev, pci_channel_io_normal, XEN_PCI_OP_aer_mmio, result);
 
 	if (result == PCI_ERS_RESULT_NONE ||
 		result == PCI_ERS_RESULT_DISCONNECT) {
@@ -970,7 +971,7 @@ static void xen_pcibk_error_resume(struct pci_dev *dev)
 		kill_domain_by_device(psdev);
 		goto end;
 	}
-	common_process(psdev, 1, XEN_PCI_OP_aer_resume,
+	common_process(psdev, pci_channel_io_normal, XEN_PCI_OP_aer_resume,
 		       PCI_ERS_RESULT_RECOVERED);
 end:
 	if (psdev)

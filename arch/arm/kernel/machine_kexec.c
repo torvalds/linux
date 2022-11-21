@@ -13,6 +13,7 @@
 #include <linux/of_fdt.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
+#include <asm/kexec-internal.h>
 #include <asm/fncpy.h>
 #include <asm/mach-types.h>
 #include <asm/smp_plat.h>
@@ -21,11 +22,6 @@
 
 extern void relocate_new_kernel(void);
 extern const unsigned int relocate_new_kernel_size;
-
-extern unsigned long kexec_start_address;
-extern unsigned long kexec_indirection_page;
-extern unsigned long kexec_mach_type;
-extern unsigned long kexec_boot_atags;
 
 static atomic_t waiting_for_crash_ipi;
 
@@ -151,14 +147,10 @@ void machine_crash_shutdown(struct pt_regs *regs)
 	pr_info("Loading crashdump kernel...\n");
 }
 
-/*
- * Function pointer to optional machine-specific reinitialization
- */
-void (*kexec_reinit)(void);
-
 void machine_kexec(struct kimage *image)
 {
 	unsigned long page_list, reboot_entry_phys;
+	struct kexec_relocate_data *data;
 	void (*reboot_entry)(void);
 	void *reboot_code_buffer;
 
@@ -174,25 +166,21 @@ void machine_kexec(struct kimage *image)
 
 	reboot_code_buffer = page_address(image->control_code_page);
 
-	/* Prepare parameters for reboot_code_buffer*/
-	set_kernel_text_rw();
-	kexec_start_address = image->start;
-	kexec_indirection_page = page_list;
-	kexec_mach_type = machine_arch_type;
-	kexec_boot_atags = image->arch.kernel_r2;
-
 	/* copy our kernel relocation code to the control code page */
 	reboot_entry = fncpy(reboot_code_buffer,
 			     &relocate_new_kernel,
 			     relocate_new_kernel_size);
 
+	data = reboot_code_buffer + relocate_new_kernel_size;
+	data->kexec_start_address = image->start;
+	data->kexec_indirection_page = page_list;
+	data->kexec_mach_type = machine_arch_type;
+	data->kexec_r2 = image->arch.kernel_r2;
+
 	/* get the identity mapping physical address for the reboot code */
 	reboot_entry_phys = virt_to_idmap(reboot_entry);
 
 	pr_info("Bye!\n");
-
-	if (kexec_reinit)
-		kexec_reinit();
 
 	soft_restart(reboot_entry_phys);
 }

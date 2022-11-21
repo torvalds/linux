@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * AMCC SoC PPC4xx Crypto Driver
  *
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
@@ -20,7 +20,7 @@
 #include <crypto/aead.h>
 #include <crypto/aes.h>
 #include <crypto/gcm.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 #include <crypto/ctr.h>
 #include <crypto/skcipher.h>
 #include "crypto4xx_reg_def.h"
@@ -115,7 +115,7 @@ int crypto4xx_decrypt_iv_block(struct skcipher_request *req)
 	return crypto4xx_crypt(req, AES_IV_SIZE, true, true);
 }
 
-/**
+/*
  * AES Functions
  */
 static int crypto4xx_setkey_aes(struct crypto_skcipher *cipher,
@@ -374,7 +374,7 @@ static int crypto4xx_aead_setup_fallback(struct crypto4xx_ctx *ctx,
 	return crypto_aead_setkey(ctx->sw_cipher.aead, key, keylen);
 }
 
-/**
+/*
  * AES-CCM Functions
  */
 
@@ -489,7 +489,7 @@ int crypto4xx_setauthsize_aead(struct crypto_aead *cipher,
 	return crypto_aead_setauthsize(ctx->sw_cipher.aead, authsize);
 }
 
-/**
+/*
  * AES-GCM Functions
  */
 
@@ -617,7 +617,7 @@ int crypto4xx_decrypt_aes_gcm(struct aead_request *req)
 	return crypto4xx_crypt_aes_gcm(req, true);
 }
 
-/**
+/*
  * HASH SHA1 Functions
  */
 static int crypto4xx_hash_alg_init(struct crypto_tfm *tfm,
@@ -711,7 +711,7 @@ int crypto4xx_hash_digest(struct ahash_request *req)
 				  ctx->sa_len, 0, NULL);
 }
 
-/**
+/*
  * SHA1 Algorithm
  */
 int crypto4xx_sha1_alg_init(struct crypto_tfm *tfm)

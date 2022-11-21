@@ -31,8 +31,8 @@ static int devfreq_userspace_func(struct devfreq *df, unsigned long *freq)
 	return 0;
 }
 
-static ssize_t store_freq(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t set_freq_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct devfreq *devfreq = to_devfreq(dev);
 	struct userspace_data *data;
@@ -52,8 +52,8 @@ static ssize_t store_freq(struct device *dev, struct device_attribute *attr,
 	return err;
 }
 
-static ssize_t show_freq(struct device *dev, struct device_attribute *attr,
-			 char *buf)
+static ssize_t set_freq_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct devfreq *devfreq = to_devfreq(dev);
 	struct userspace_data *data;
@@ -70,7 +70,7 @@ static ssize_t show_freq(struct device *dev, struct device_attribute *attr,
 	return err;
 }
 
-static DEVICE_ATTR(set_freq, 0644, show_freq, store_freq);
+static DEVICE_ATTR_RW(set_freq);
 static struct attribute *dev_entries[] = {
 	&dev_attr_set_freq.attr,
 	NULL,

@@ -1,0 +1,490 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/phy/phy.h>
+#include <dt-bindings/soc/bcm-pmb.h>
+
+/dts-v1/;
+
+/ {
+	interrupt-parent = <&gic>;
+
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "brcm,brahma-b53";
+			reg = <0x0>;
+			next-level-cache = <&l2>;
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "brcm,brahma-b53";
+			reg = <0x1>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+			next-level-cache = <&l2>;
+		};
+
+		cpu2: cpu@2 {
+			device_type = "cpu";
+			compatible = "brcm,brahma-b53";
+			reg = <0x2>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+			next-level-cache = <&l2>;
+		};
+
+		cpu3: cpu@3 {
+			device_type = "cpu";
+			compatible = "brcm,brahma-b53";
+			reg = <0x3>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+			next-level-cache = <&l2>;
+		};
+
+		l2: l2-cache0 {
+			compatible = "cache";
+		};
+	};
+
+	axi@81000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00 0x00 0x81000000 0x4000>;
+
+		gic: interrupt-controller@1000 {
+			compatible = "arm,gic-400";
+			#interrupt-cells = <3>;
+			#address-cells = <0>;
+			interrupt-controller;
+			reg = <0x1000 0x1000>,
+			      <0x2000 0x2000>;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a53-pmu";
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+	};
+
+	clocks {
+		periph_clk: periph_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <50000000>;
+			clock-output-names = "periph";
+		};
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00 0x00 0x80000000 0x281000>;
+
+		enet: ethernet@2000 {
+			compatible = "brcm,bcm4908-enet";
+			reg = <0x2000 0x1000>;
+
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "rx", "tx";
+		};
+
+		usb_phy: usb-phy@c200 {
+			compatible = "brcm,bcm4908-usb-phy";
+			reg = <0xc200 0x100>;
+			reg-names = "ctrl";
+			power-domains = <&pmb BCM_PMB_HOST_USB>;
+			dr_mode = "host";
+			brcm,has-xhci;
+			brcm,has-eohci;
+			#phy-cells = <1>;
+			status = "disabled";
+		};
+
+		ehci: usb@c300 {
+			compatible = "generic-ehci";
+			reg = <0xc300 0x100>;
+			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+			phys = <&usb_phy PHY_TYPE_USB2>;
+			status = "disabled";
+		};
+
+		ohci: usb@c400 {
+			compatible = "generic-ohci";
+			reg = <0xc400 0x100>;
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			phys = <&usb_phy PHY_TYPE_USB2>;
+			status = "disabled";
+		};
+
+		xhci: usb@d000 {
+			compatible = "generic-xhci";
+			reg = <0xd000 0x8c8>;
+			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+			phys = <&usb_phy PHY_TYPE_USB3>;
+			status = "disabled";
+		};
+
+		bus@80000 {
+			compatible = "simple-bus";
+			#size-cells = <1>;
+			#address-cells = <1>;
+			ranges = <0 0x80000 0x50000>;
+
+			ethernet-switch@0 {
+				compatible = "brcm,bcm4908-switch";
+				reg = <0x0 0x40000>,
+				      <0x40000 0x110>,
+				      <0x40340 0x30>,
+				      <0x40380 0x30>,
+				      <0x40600 0x34>,
+				      <0x40800 0x208>;
+				reg-names = "core", "reg", "intrl2_0",
+					    "intrl2_1", "fcb", "acb";
+				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+				brcm,num-gphy = <5>;
+				brcm,num-rgmii-ports = <2>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ports: ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						phy-mode = "internal";
+						phy-handle = <&phy8>;
+					};
+
+					port@1 {
+						reg = <1>;
+						phy-mode = "internal";
+						phy-handle = <&phy9>;
+					};
+
+					port@2 {
+						reg = <2>;
+						phy-mode = "internal";
+						phy-handle = <&phy10>;
+					};
+
+					port@3 {
+						reg = <3>;
+						phy-mode = "internal";
+						phy-handle = <&phy11>;
+					};
+
+					port@8 {
+						reg = <8>;
+						phy-mode = "internal";
+						ethernet = <&enet>;
+
+						fixed-link {
+							speed = <1000>;
+							full-duplex;
+						};
+					};
+				};
+			};
+
+			mdio: mdio@405c0 {
+				compatible = "brcm,unimac-mdio";
+				reg = <0x405c0 0x8>;
+				reg-names = "mdio";
+				#size-cells = <0>;
+				#address-cells = <1>;
+
+				phy8: ethernet-phy@8 {
+					reg = <8>;
+				};
+
+				phy9: ethernet-phy@9 {
+					reg = <9>;
+				};
+
+				phy10: ethernet-phy@a {
+					reg = <10>;
+				};
+
+				phy11: ethernet-phy@b {
+					reg = <11>;
+				};
+
+				phy12: ethernet-phy@c {
+					reg = <12>;
+				};
+			};
+		};
+
+		procmon: syscon@280000 {
+			compatible = "simple-bus";
+			reg = <0x280000 0x1000>;
+			ranges;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			pmb: power-controller@2800c0 {
+				compatible = "brcm,bcm4908-pmb";
+				reg = <0x2800c0 0x40>;
+				#power-domain-cells = <1>;
+			};
+		};
+	};
+
+	bus@ff800000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00 0x00 0xff800000 0x3000>;
+
+		twd: timer-mfd@400 {
+			compatible = "brcm,bcm4908-twd", "simple-mfd", "syscon";
+			reg = <0x400 0x4c>;
+			ranges = <0x0 0x400 0x4c>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			watchdog@28 {
+				compatible = "brcm,bcm6345-wdt";
+				reg = <0x28 0x8>;
+			};
+		};
+
+		gpio0: gpio-controller@500 {
+			compatible = "brcm,bcm6345-gpio";
+			reg-names = "dirout", "dat";
+			reg = <0x500 0x28>, <0x528 0x28>;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
+
+		pinctrl@560 {
+			compatible = "brcm,bcm4908-pinctrl";
+			reg = <0x560 0x10>;
+
+			pins_led_0_a: led_0-a-pins {
+				function = "led_0";
+				groups = "led_0_grp_a";
+			};
+
+			pins_led_1_a: led_1-a-pins {
+				function = "led_1";
+				groups = "led_1_grp_a";
+			};
+
+			pins_led_2_a: led_2-a-pins {
+				function = "led_2";
+				groups = "led_2_grp_a";
+			};
+
+			pins_led_3_a: led_3-a-pins {
+				function = "led_3";
+				groups = "led_3_grp_a";
+			};
+
+			pins_led_4_a: led_4-a-pins {
+				function = "led_4";
+				groups = "led_4_grp_a";
+			};
+
+			pins_led_5_a: led_5-a-pins {
+				function = "led_5";
+				groups = "led_5_grp_a";
+			};
+
+			pins_led_6_a: led_6-a-pins {
+				function = "led_6";
+				groups = "led_6_grp_a";
+			};
+
+			pins_led_7_a: led_7-a-pins {
+				function = "led_7";
+				groups = "led_7_grp_a";
+			};
+
+			pins_led_8_a: led_8-a-pins {
+				function = "led_8";
+				groups = "led_8_grp_a";
+			};
+
+			pins_led_9_a: led_9-a-pins {
+				function = "led_9";
+				groups = "led_9_grp_a";
+			};
+
+			pins_led_21_a: led_21-a-pins {
+				function = "led_21";
+				groups = "led_21_grp_a";
+			};
+
+			pins_led_22_a: led_22-a-pins {
+				function = "led_22";
+				groups = "led_22_grp_a";
+			};
+
+			pins_led_26_a: led_26-a-pins {
+				function = "led_26";
+				groups = "led_26_grp_a";
+			};
+
+			pins_led_27_a: led_27-a-pins {
+				function = "led_27";
+				groups = "led_27_grp_a";
+			};
+
+			pins_led_28_a: led_28-a-pins {
+				function = "led_28";
+				groups = "led_28_grp_a";
+			};
+
+			pins_led_29_a: led_29-a-pins {
+				function = "led_29";
+				groups = "led_29_grp_a";
+			};
+
+			pins_led_30_a: led_30-a-pins {
+				function = "led_30";
+				groups = "led_30_grp_a";
+			};
+
+			pins_hs_uart: hs_uart-pins {
+				function = "hs_uart";
+				groups = "hs_uart_grp";
+			};
+
+			pins_i2c_a: i2c-a-pins {
+				function = "i2c";
+				groups = "i2c_grp_a";
+			};
+
+			pins_i2c_b: i2c-b-pins {
+				function = "i2c";
+				groups = "i2c_grp_b";
+			};
+
+			pins_i2s: i2s-pins {
+				function = "i2s";
+				groups = "i2s_grp";
+			};
+
+			pins_nand_ctrl: nand_ctrl-pins {
+				function = "nand_ctrl";
+				groups = "nand_ctrl_grp";
+			};
+
+			pins_nand_data: nand_data-pins {
+				function = "nand_data";
+				groups = "nand_data_grp";
+			};
+
+			pins_emmc_ctrl: emmc_ctrl-pins {
+				function = "emmc_ctrl";
+				groups = "emmc_ctrl_grp";
+			};
+
+			pins_usb0_pwr: usb0_pwr-pins {
+				function = "usb0_pwr";
+				groups = "usb0_pwr_grp";
+			};
+
+			pins_usb1_pwr: usb1_pwr-pins {
+				function = "usb1_pwr";
+				groups = "usb1_pwr_grp";
+			};
+		};
+
+		uart0: serial@640 {
+			compatible = "brcm,bcm6345-uart";
+			reg = <0x640 0x18>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&periph_clk>;
+			clock-names = "refclk";
+			status = "okay";
+		};
+
+		nand-controller@1800 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,nand-bcm63138", "brcm,brcmnand-v7.1", "brcm,brcmnand";
+			reg = <0x1800 0x600>, <0x2000 0x10>;
+			reg-names = "nand", "nand-int-base";
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "nand";
+			status = "okay";
+
+			nandcs: nand@0 {
+				compatible = "brcm,nandcs";
+				reg = <0>;
+			};
+		};
+
+		i2c@2100 {
+			compatible = "brcm,brcmper-i2c";
+			reg = <0x2100 0x58>;
+			clock-frequency = <97500>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pins_i2c_a>;
+			status = "disabled";
+		};
+
+		misc@2600 {
+			compatible = "brcm,misc", "simple-mfd";
+			reg = <0x2600 0xe4>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x00 0x2600 0xe4>;
+
+			reset-controller@2644 {
+				compatible = "brcm,bcm4908-misc-pcie-reset";
+				reg = <0x44 0x04>;
+				#reset-cells = <1>;
+			};
+		};
+	};
+
+	reboot {
+		compatible = "syscon-reboot";
+		regmap = <&twd>;
+		offset = <0x34>;
+		mask = <1>;
+	};
+};

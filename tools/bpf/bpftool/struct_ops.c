@@ -32,7 +32,7 @@ static const struct btf *get_btf_vmlinux(void)
 		return btf_vmlinux;
 
 	btf_vmlinux = libbpf_find_kernel_btf();
-	if (IS_ERR(btf_vmlinux))
+	if (libbpf_get_error(btf_vmlinux))
 		p_err("struct_ops requires kernel CONFIG_DEBUG_INFO_BTF=y");
 
 	return btf_vmlinux;
@@ -45,7 +45,7 @@ static const char *get_kern_struct_ops_name(const struct bpf_map_info *info)
 	const char *st_ops_name;
 
 	kern_btf = get_btf_vmlinux();
-	if (IS_ERR(kern_btf))
+	if (libbpf_get_error(kern_btf))
 		return "<btf_vmlinux_not_found>";
 
 	t = btf__type_by_id(kern_btf, info->btf_vmlinux_value_type_id);
@@ -63,7 +63,7 @@ static __s32 get_map_info_type_id(void)
 		return map_info_type_id;
 
 	kern_btf = get_btf_vmlinux();
-	if (IS_ERR(kern_btf)) {
+	if (libbpf_get_error(kern_btf)) {
 		map_info_type_id = PTR_ERR(kern_btf);
 		return map_info_type_id;
 	}
@@ -252,7 +252,7 @@ static struct res do_one_id(const char *id_str, work_func func, void *data,
 	}
 
 	fd = bpf_map_get_fd_by_id(id);
-	if (fd == -1) {
+	if (fd < 0) {
 		p_err("can't get map by id (%lu): %s", id, strerror(errno));
 		res.nr_errs++;
 		return res;
@@ -415,7 +415,7 @@ static int do_dump(int argc, char **argv)
 	}
 
 	kern_btf = get_btf_vmlinux();
-	if (IS_ERR(kern_btf))
+	if (libbpf_get_error(kern_btf))
 		return -1;
 
 	if (!json_output) {
@@ -479,8 +479,7 @@ static int do_unregister(int argc, char **argv)
 
 static int do_register(int argc, char **argv)
 {
-	struct bpf_object_load_attr load_attr = {};
-	const struct bpf_map_def *def;
+	LIBBPF_OPTS(bpf_object_open_opts, open_opts);
 	struct bpf_map_info info = {};
 	__u32 info_len = sizeof(info);
 	int nr_errs = 0, nr_maps = 0;
@@ -494,29 +493,27 @@ static int do_register(int argc, char **argv)
 
 	file = GET_ARG();
 
-	obj = bpf_object__open(file);
-	if (IS_ERR_OR_NULL(obj))
+	if (verifier_logs)
+		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		open_opts.kernel_log_level = 1 + 2 + 4;
+
+	obj = bpf_object__open_file(file, &open_opts);
+	if (libbpf_get_error(obj))
 		return -1;
 
 	set_max_rlimit();
 
-	load_attr.obj = obj;
-	if (verifier_logs)
-		/* log_level1 + log_level2 + stats, but not stable UAPI */
-		load_attr.log_level = 1 + 2 + 4;
-
-	if (bpf_object__load_xattr(&load_attr)) {
+	if (bpf_object__load(obj)) {
 		bpf_object__close(obj);
 		return -1;
 	}
 
 	bpf_object__for_each_map(map, obj) {
-		def = bpf_map__def(map);
-		if (def->type != BPF_MAP_TYPE_STRUCT_OPS)
+		if (bpf_map__type(map) != BPF_MAP_TYPE_STRUCT_OPS)
 			continue;
 
 		link = bpf_map__attach_struct_ops(map);
-		if (IS_ERR(link)) {
+		if (libbpf_get_error(link)) {
 			p_err("can't register struct_ops %s: %s",
 			      bpf_map__name(map),
 			      strerror(-PTR_ERR(link)));
@@ -572,8 +569,8 @@ static int do_help(int argc, char **argv)
 		"       %1$s %2$s unregister STRUCT_OPS_MAP\n"
 		"       %1$s %2$s help\n"
 		"\n"
-		"       OPTIONS := { {-j|--json} [{-p|--pretty}] }\n"
 		"       STRUCT_OPS_MAP := [ id STRUCT_OPS_MAP_ID | name STRUCT_OPS_MAP_NAME ]\n"
+		"       " HELP_SPEC_OPTIONS " }\n"
 		"",
 		bin_name, argv[-2]);
 
@@ -596,7 +593,7 @@ int do_struct_ops(int argc, char **argv)
 
 	err = cmd_select(cmds, argc, argv, do_help);
 
-	if (!IS_ERR(btf_vmlinux))
+	if (!libbpf_get_error(btf_vmlinux))
 		btf__free(btf_vmlinux);
 
 	return err;

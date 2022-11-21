@@ -21,8 +21,10 @@ static inline u32 read_cpucfg(u32 reg)
 	u32 __res;
 
 	__asm__ __volatile__(
+		_ASM_SET_PARSE_R
 		"parse_r __res,%0\n\t"
 		"parse_r reg,%1\n\t"
+		_ASM_UNSET_PARSE_R
 		".insn \n\t"
 		".word (0xc8080118 | (reg << 21) | (__res << 11))\n\t"
 		:"=r"(__res)
@@ -143,8 +145,10 @@ static inline u32 csr_readl(u32 reg)
 
 	/* RDCSR reg, val */
 	__asm__ __volatile__(
+		_ASM_SET_PARSE_R
 		"parse_r __res,%0\n\t"
 		"parse_r reg,%1\n\t"
+		_ASM_UNSET_PARSE_R
 		".insn \n\t"
 		".word (0xc8000118 | (reg << 21) | (__res << 11))\n\t"
 		:"=r"(__res)
@@ -160,8 +164,10 @@ static inline u64 csr_readq(u32 reg)
 
 	/* DRDCSR reg, val */
 	__asm__ __volatile__(
+		_ASM_SET_PARSE_R
 		"parse_r __res,%0\n\t"
 		"parse_r reg,%1\n\t"
+		_ASM_UNSET_PARSE_R
 		".insn \n\t"
 		".word (0xc8020118 | (reg << 21) | (__res << 11))\n\t"
 		:"=r"(__res)
@@ -175,8 +181,10 @@ static inline void csr_writel(u32 val, u32 reg)
 {
 	/* WRCSR reg, val */
 	__asm__ __volatile__(
+		_ASM_SET_PARSE_R
 		"parse_r reg,%0\n\t"
 		"parse_r val,%1\n\t"
+		_ASM_UNSET_PARSE_R
 		".insn \n\t"
 		".word (0xc8010118 | (reg << 21) | (val << 11))\n\t"
 		:
@@ -189,8 +197,10 @@ static inline void csr_writeq(u64 val, u32 reg)
 {
 	/* DWRCSR reg, val */
 	__asm__ __volatile__(
+		_ASM_SET_PARSE_R
 		"parse_r reg,%0\n\t"
 		"parse_r val,%1\n\t"
+		_ASM_UNSET_PARSE_R
 		".insn \n\t"
 		".word (0xc8030118 | (reg << 21) | (val << 11))\n\t"
 		:
@@ -227,14 +237,26 @@ static inline void csr_writeq(u64 val, u32 reg)
 #define CSR_IPI_SEND_CPU_SHIFT	16
 #define CSR_IPI_SEND_BLOCK	BIT(31)
 
+#define LOONGSON_CSR_MAIL_BUF0		0x1020
+#define LOONGSON_CSR_MAIL_SEND		0x1048
+#define CSR_MAIL_SEND_BLOCK		BIT_ULL(31)
+#define CSR_MAIL_SEND_BOX_LOW(box)	(box << 1)
+#define CSR_MAIL_SEND_BOX_HIGH(box)	((box << 1) + 1)
+#define CSR_MAIL_SEND_BOX_SHIFT		2
+#define CSR_MAIL_SEND_CPU_SHIFT		16
+#define CSR_MAIL_SEND_BUF_SHIFT		32
+#define CSR_MAIL_SEND_H32_MASK		0xFFFFFFFF00000000ULL
+
 static inline u64 drdtime(void)
 {
 	int rID = 0;
 	u64 val = 0;
 
 	__asm__ __volatile__(
+		_ASM_SET_PARSE_R
 		"parse_r rID,%0\n\t"
 		"parse_r val,%1\n\t"
+		_ASM_UNSET_PARSE_R
 		".insn \n\t"
 		".word (0xc8090118 | (rID << 21) | (val << 11))\n\t"
 		:"=r"(rID),"=r"(val)

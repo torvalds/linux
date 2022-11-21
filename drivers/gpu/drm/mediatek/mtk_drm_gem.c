@@ -8,10 +8,22 @@
 #include <drm/drm.h>
 #include <drm/drm_device.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_prime.h>
 
 #include "mtk_drm_drv.h"
 #include "mtk_drm_gem.h"
+
+static int mtk_drm_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
+
+static const struct drm_gem_object_funcs mtk_drm_gem_object_funcs = {
+	.free = mtk_drm_gem_free_object,
+	.get_sg_table = mtk_gem_prime_get_sg_table,
+	.vmap = mtk_drm_gem_prime_vmap,
+	.vunmap = mtk_drm_gem_prime_vunmap,
+	.mmap = mtk_drm_gem_object_mmap,
+	.vm_ops = &drm_gem_cma_vm_ops,
+};
 
 static struct mtk_drm_gem_obj *mtk_drm_gem_init(struct drm_device *dev,
 						unsigned long size)
@@ -24,6 +36,8 @@ static struct mtk_drm_gem_obj *mtk_drm_gem_init(struct drm_device *dev,
 	mtk_gem_obj = kzalloc(sizeof(*mtk_gem_obj), GFP_KERNEL);
 	if (!mtk_gem_obj)
 		return ERR_PTR(-ENOMEM);
+
+	mtk_gem_obj->base.funcs = &mtk_drm_gem_object_funcs;
 
 	ret = drm_gem_object_init(dev, &mtk_gem_obj->base, size);
 	if (ret < 0) {
@@ -135,10 +149,18 @@ static int mtk_drm_gem_object_mmap(struct drm_gem_object *obj,
 	struct mtk_drm_private *priv = obj->dev->dev_private;
 
 	/*
+	 * Set vm_pgoff (used as a fake buffer offset by DRM) to 0 and map the
+	 * whole buffer from the start.
+	 */
+	vma->vm_pgoff = 0;
+
+	/*
 	 * dma_alloc_attrs() allocated a struct page table for mtk_gem, so clear
 	 * VM_PFNMAP flag that was set by drm_gem_mmap_obj()/drm_gem_mmap().
 	 */
-	vma->vm_flags &= ~VM_PFNMAP;
+	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
+	vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
 
 	ret = dma_mmap_attrs(priv->dma_dev, vma, mtk_gem->cookie,
 			     mtk_gem->dma_addr, obj->size, mtk_gem->dma_attrs);
@@ -146,37 +168,6 @@ static int mtk_drm_gem_object_mmap(struct drm_gem_object *obj,
 		drm_gem_vm_close(vma);
 
 	return ret;
-}
-
-int mtk_drm_gem_mmap_buf(struct drm_gem_object *obj, struct vm_area_struct *vma)
-{
-	int ret;
-
-	ret = drm_gem_mmap_obj(obj, obj->size, vma);
-	if (ret)
-		return ret;
-
-	return mtk_drm_gem_object_mmap(obj, vma);
-}
-
-int mtk_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	struct drm_gem_object *obj;
-	int ret;
-
-	ret = drm_gem_mmap(filp, vma);
-	if (ret)
-		return ret;
-
-	obj = vma->vm_private_data;
-
-	/*
-	 * Set vm_pgoff (used as a fake buffer offset by DRM) to 0 and map the
-	 * whole buffer from the start.
-	 */
-	vma->vm_pgoff = 0;
-
-	return mtk_drm_gem_object_mmap(obj, vma);
 }
 
 /*
@@ -229,38 +220,43 @@ struct drm_gem_object *mtk_gem_prime_import_sg_table(struct drm_device *dev,
 	return &mtk_gem->base;
 }
 
-void *mtk_drm_gem_prime_vmap(struct drm_gem_object *obj)
+int mtk_drm_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
 	struct mtk_drm_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
-	struct sg_table *sgt;
+	struct sg_table *sgt = NULL;
 	unsigned int npages;
 
 	if (mtk_gem->kvaddr)
-		return mtk_gem->kvaddr;
+		goto out;
 
 	sgt = mtk_gem_prime_get_sg_table(obj);
 	if (IS_ERR(sgt))
-		return NULL;
+		return PTR_ERR(sgt);
 
 	npages = obj->size >> PAGE_SHIFT;
 	mtk_gem->pages = kcalloc(npages, sizeof(*mtk_gem->pages), GFP_KERNEL);
-	if (!mtk_gem->pages)
-		goto out;
+	if (!mtk_gem->pages) {
+		kfree(sgt);
+		return -ENOMEM;
+	}
 
-	drm_prime_sg_to_page_addr_arrays(sgt, mtk_gem->pages, NULL, npages);
+	drm_prime_sg_to_page_array(sgt, mtk_gem->pages, npages);
 
 	mtk_gem->kvaddr = vmap(mtk_gem->pages, npages, VM_MAP,
 			       pgprot_writecombine(PAGE_KERNEL));
 
 out:
 	kfree(sgt);
+	iosys_map_set_vaddr(map, mtk_gem->kvaddr);
 
-	return mtk_gem->kvaddr;
+	return 0;
 }
 
-void mtk_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
+void mtk_drm_gem_prime_vunmap(struct drm_gem_object *obj,
+			      struct iosys_map *map)
 {
 	struct mtk_drm_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
+	void *vaddr = map->vaddr;
 
 	if (!mtk_gem->pages)
 		return;

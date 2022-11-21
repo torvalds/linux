@@ -117,11 +117,12 @@ struct msm_kms_funcs {
 			struct drm_encoder *encoder,
 			struct drm_encoder *slave_encoder,
 			bool is_cmd_mode);
-	void (*set_encoder_mode)(struct msm_kms *kms,
-				 struct drm_encoder *encoder,
-				 bool cmd_mode);
 	/* cleanup: */
 	void (*destroy)(struct msm_kms *kms);
+
+	/* snapshot: */
+	void (*snapshot)(struct msm_disp_state *disp_state, struct msm_kms *kms);
+
 #ifdef CONFIG_DEBUG_FS
 	/* debugfs: */
 	int (*debugfs_init)(struct msm_kms *kms, struct drm_minor *minor);
@@ -135,8 +136,8 @@ struct msm_kms;
  * shortly before vblank to flush pending async updates.
  */
 struct msm_pending_timer {
-	struct hrtimer timer;
-	struct work_struct work;
+	struct msm_hrtimer_work work;
+	struct kthread_worker *worker;
 	struct msm_kms *kms;
 	unsigned crtc_idx;
 };
@@ -145,53 +146,81 @@ struct msm_kms {
 	const struct msm_kms_funcs *funcs;
 	struct drm_device *dev;
 
-	/* irq number to be passed on to drm_irq_install */
+	/* irq number to be passed on to msm_irq_install */
 	int irq;
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	struct msm_gem_address_space *aspace;
 
+	/* disp snapshot support */
+	struct kthread_worker *dump_worker;
+	struct kthread_work dump_work;
+	struct mutex dump_mutex;
+
 	/*
 	 * For async commit, where ->flush_commit() and later happens
 	 * from the crtc's pending_timer close to end of the frame:
 	 */
-	struct mutex commit_lock;
+	struct mutex commit_lock[MAX_CRTCS];
 	unsigned pending_crtc_mask;
 	struct msm_pending_timer pending_timers[MAX_CRTCS];
 };
 
-static inline void msm_kms_init(struct msm_kms *kms,
+static inline int msm_kms_init(struct msm_kms *kms,
 		const struct msm_kms_funcs *funcs)
+{
+	unsigned i, ret;
+
+	for (i = 0; i < ARRAY_SIZE(kms->commit_lock); i++)
+		mutex_init(&kms->commit_lock[i]);
+
+	kms->funcs = funcs;
+
+	for (i = 0; i < ARRAY_SIZE(kms->pending_timers); i++) {
+		ret = msm_atomic_init_pending_timer(&kms->pending_timers[i], kms, i);
+		if (ret) {
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static inline void msm_kms_destroy(struct msm_kms *kms)
 {
 	unsigned i;
 
-	mutex_init(&kms->commit_lock);
-	kms->funcs = funcs;
-
 	for (i = 0; i < ARRAY_SIZE(kms->pending_timers); i++)
-		msm_atomic_init_pending_timer(&kms->pending_timers[i], kms, i);
+		msm_atomic_destroy_pending_timer(&kms->pending_timers[i]);
 }
 
 struct msm_kms *mdp4_kms_init(struct drm_device *dev);
 struct msm_kms *mdp5_kms_init(struct drm_device *dev);
 struct msm_kms *dpu_kms_init(struct drm_device *dev);
 
+extern const struct of_device_id dpu_dt_match[];
+extern const struct of_device_id mdp5_dt_match[];
+
 struct msm_mdss_funcs {
 	int (*enable)(struct msm_mdss *mdss);
 	int (*disable)(struct msm_mdss *mdss);
-	void (*destroy)(struct drm_device *dev);
+	void (*destroy)(struct msm_mdss *mdss);
 };
 
 struct msm_mdss {
-	struct drm_device *dev;
+	struct device *dev;
 	const struct msm_mdss_funcs *funcs;
 };
 
-int mdp5_mdss_init(struct drm_device *dev);
-int dpu_mdss_init(struct drm_device *dev);
+int mdp5_mdss_init(struct platform_device *dev);
+int dpu_mdss_init(struct platform_device *dev);
 
 #define for_each_crtc_mask(dev, crtc, crtc_mask) \
 	drm_for_each_crtc(crtc, dev) \
+		for_each_if (drm_crtc_mask(crtc) & (crtc_mask))
+
+#define for_each_crtc_mask_reverse(dev, crtc, crtc_mask) \
+	drm_for_each_crtc_reverse(crtc, dev) \
 		for_each_if (drm_crtc_mask(crtc) & (crtc_mask))
 
 #endif /* __MSM_KMS_H__ */

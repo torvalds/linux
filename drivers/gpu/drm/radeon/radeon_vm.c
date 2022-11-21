@@ -41,7 +41,7 @@
  * (uncached system pages).
  * Each VM has an ID associated with it and there is a page table
  * associated with each VMID.  When execting a command buffer,
- * the kernel tells the the ring what VMID to use for that command
+ * the kernel tells the ring what VMID to use for that command
  * buffer.  VMIDs are allocated dynamically as commands are submitted.
  * The userspace drivers maintain their own address space and the kernel
  * sets up their pages tables accordingly when they submit their
@@ -51,7 +51,7 @@
  */
 
 /**
- * radeon_vm_num_pde - return the number of page directory entries
+ * radeon_vm_num_pdes - return the number of page directory entries
  *
  * @rdev: radeon_device pointer
  *
@@ -119,6 +119,7 @@ void radeon_vm_manager_fini(struct radeon_device *rdev)
 /**
  * radeon_vm_get_bos - add the vm BOs to a validation list
  *
+ * @rdev: radeon_device pointer
  * @vm: vm providing the BOs
  * @head: head of validation list
  *
@@ -625,12 +626,10 @@ static uint32_t radeon_vm_page_flags(uint32_t flags)
 }
 
 /**
- * radeon_vm_update_pdes - make sure that page directory is valid
+ * radeon_vm_update_page_directory - make sure that page directory is valid
  *
  * @rdev: radeon_device pointer
  * @vm: requested vm
- * @start: start of GPU address range
- * @end: end of GPU address range
  *
  * Allocates new page tables if necessary
  * and updates the page directory (cayman+).
@@ -802,6 +801,7 @@ static void radeon_vm_frag_ptes(struct radeon_device *rdev,
  *
  * @rdev: radeon_device pointer
  * @vm: requested vm
+ * @ib: indirect buffer to use for the update
  * @start: start of GPU address range
  * @end: end of GPU address range
  * @dst: destination address to map to
@@ -900,8 +900,7 @@ static void radeon_vm_fence_pts(struct radeon_vm *vm,
  * radeon_vm_bo_update - map a bo into the vm page table
  *
  * @rdev: radeon_device pointer
- * @vm: requested vm
- * @bo: radeon buffer object
+ * @bo_va: radeon buffer virtual address object
  * @mem: ttm mem
  *
  * Fill in the page table entries for @bo (cayman+).
@@ -1145,7 +1144,6 @@ void radeon_vm_bo_rmv(struct radeon_device *rdev,
  * radeon_vm_bo_invalidate - mark the bo as invalid
  *
  * @rdev: radeon_device pointer
- * @vm: requested vm
  * @bo: radeon buffer object
  *
  * Mark @bo as invalid (cayman+).

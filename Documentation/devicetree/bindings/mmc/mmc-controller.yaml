@@ -40,6 +40,7 @@ properties:
       There is no card detection available; polling must be used.
 
   cd-gpios:
+    maxItems: 1
     description:
       The card detection will be done using the GPIO provided.
 
@@ -104,6 +105,7 @@ properties:
       line. Not used in combination with eMMC or SDIO.
 
   wp-gpios:
+    maxItems: 1
     description:
       GPIO to use for the write-protect detection.
 
@@ -218,6 +220,11 @@ properties:
     description:
       eMMC HS400 enhanced strobe mode is supported
 
+  no-mmc-hs400:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      All eMMC HS400 modes are not supported.
+
   dsr:
     description:
       Value the card Driver Stage Register (DSR) should be programmed
@@ -259,7 +266,6 @@ properties:
       waiting for I/O signalling and card power supply to be stable,
       regardless of whether pwrseq-simple is used. Default to 10ms if
       no available.
-    $ref: /schemas/types.yaml#/definitions/uint32
     default: 10
 
   supports-cqe:
@@ -327,12 +333,6 @@ patternProperties:
               subnode describes. A value of 0 denotes the memory SD
               function, values from 1 to 7 denote the SDIO functions.
 
-      broken-hpi:
-        $ref: /schemas/types.yaml#/definitions/flag
-        description:
-          Use this to indicate that the mmc-card has a broken hpi
-          implementation, and that hpi should not be used.
-
     required:
       - reg
 
@@ -357,22 +357,6 @@ additionalProperties: true
 
 examples:
   - |
-    mmc@ab000000 {
-        compatible = "sdhci";
-        reg = <0xab000000 0x200>;
-        interrupts = <23>;
-        bus-width = <4>;
-        cd-gpios = <&gpio 69 0>;
-        cd-inverted;
-        wp-gpios = <&gpio 70 0>;
-        max-frequency = <50000000>;
-        keep-power-in-suspend;
-        wakeup-source;
-        mmc-pwrseq = <&sdhci0_pwrseq>;
-        clk-phase-sd-hs = <63>, <72>;
-    };
-
-  - |
     mmc3: mmc@1c12000 {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -384,9 +368,9 @@ examples:
         non-removable;
         mmc-pwrseq = <&sdhci0_pwrseq>;
 
-        brcmf: bcrmf@1 {
+        brcmf: wifi@1 {
             reg = <1>;
-            compatible = "brcm,bcm43xx-fmac";
+            compatible = "brcm,bcm4329-fmac";
             interrupt-parent = <&pio>;
             interrupts = <10 8>;
             interrupt-names = "host-wake";

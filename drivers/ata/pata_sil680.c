@@ -57,6 +57,7 @@ static unsigned long sil680_selreg(struct ata_port *ap, int r)
 /**
  *	sil680_seldev		-	return register base
  *	@ap: ATA interface
+ *	@adev: ATA device
  *	@r: config offset
  *
  *	Turn a config register offset into the right address in PCI space
@@ -211,7 +212,6 @@ static void sil680_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 static void sil680_sff_exec_command(struct ata_port *ap,
 				    const struct ata_taskfile *tf)
 {
-	DPRINTK("ata%u: cmd 0x%X\n", ap->print_id, tf->command);
 	iowrite8(tf->command, ap->ioaddr.command_addr);
 	ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 }
@@ -244,6 +244,7 @@ static struct ata_port_operations sil680_port_ops = {
 /**
  *	sil680_init_chip		-	chip setup
  *	@pdev: PCI device
+ *	@try_mmio: Indicates to caller whether MMIO should be attempted
  *
  *	Perform all the chip setup which must be done both when the device
  *	is powered up on boot and when we resume in case we resumed from RAM.
@@ -307,17 +308,17 @@ static u8 sil680_init_chip(struct pci_dev *pdev, int *try_mmio)
 
 	switch (tmpbyte & 0x30) {
 	case 0x00:
-		printk(KERN_INFO "sil680: 100MHz clock.\n");
+		dev_info(&pdev->dev, "sil680: 100MHz clock.\n");
 		break;
 	case 0x10:
-		printk(KERN_INFO "sil680: 133MHz clock.\n");
+		dev_info(&pdev->dev, "sil680: 133MHz clock.\n");
 		break;
 	case 0x20:
-		printk(KERN_INFO "sil680: Using PCI clock.\n");
+		dev_info(&pdev->dev, "sil680: Using PCI clock.\n");
 		break;
 	/* This last case is _NOT_ ok */
 	case 0x30:
-		printk(KERN_ERR "sil680: Clock disabled ?\n");
+		dev_err(&pdev->dev, "sil680: Clock disabled ?\n");
 	}
 	return tmpbyte & 0x30;
 }

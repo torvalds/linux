@@ -938,13 +938,20 @@ struct pxa2xx_spi_chip tsc2046_chip_info = {
 	.tx_threshold	= 1,
 	.rx_threshold	= 2,
 	.timeout	= 64,
-	/* NOTICE must be GPIO, incompatibility with hw PXA SPI framing */
-	.gpio_cs	= GPIO14_MAGICIAN_TSC2046_CS,
 };
 
 static struct pxa2xx_spi_controller magician_spi_info = {
 	.num_chipselect	= 1,
 	.enable_dma	= 1,
+};
+
+static struct gpiod_lookup_table magician_spi_gpio_table = {
+	.dev_id = "pxa2xx-spi.2",
+	.table = {
+		/* NOTICE must be GPIO, incompatibility with hw PXA SPI framing */
+		GPIO_LOOKUP_IDX("gpio-pxa", GPIO14_MAGICIAN_TSC2046_CS, "cs", 0, GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct spi_board_info ads7846_spi_board_info[] __initdata = {
@@ -1031,6 +1038,7 @@ static void __init magician_init(void)
 	} else
 		pr_err("LCD detection: CPLD mapping failed\n");
 
+	gpiod_add_lookup_table(&magician_spi_gpio_table);
 	pxa2xx_set_spi_info(2, &magician_spi_info);
 	spi_register_board_info(ARRAY_AND_SIZE(ads7846_spi_board_info));
 

@@ -23,9 +23,10 @@ properties:
       - socionext,uniphier-pxs2-usb3-ssphy
       - socionext,uniphier-ld20-usb3-ssphy
       - socionext,uniphier-pxs3-usb3-ssphy
+      - socionext,uniphier-nx1-usb3-ssphy
 
   reg:
-    description: PHY register region (offset and length)
+    maxItems: 1
 
   "#phy-cells":
     const: 0

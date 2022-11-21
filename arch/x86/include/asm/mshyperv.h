@@ -9,73 +9,32 @@
 #include <asm/hyperv-tlfs.h>
 #include <asm/nospec-branch.h>
 #include <asm/paravirt.h>
+#include <asm/mshyperv.h>
+
+union hv_ghcb;
+
+DECLARE_STATIC_KEY_FALSE(isolation_type_snp);
 
 typedef int (*hyperv_fill_flush_list_func)(
 		struct hv_guest_mapping_flush_list *flush,
 		void *data);
 
-#define hv_init_timer(timer, tick) \
-	wrmsrl(HV_X64_MSR_STIMER0_COUNT + (2*timer), tick)
-#define hv_init_timer_config(timer, val) \
-	wrmsrl(HV_X64_MSR_STIMER0_CONFIG + (2*timer), val)
-
-#define hv_get_simp(val) rdmsrl(HV_X64_MSR_SIMP, val)
-#define hv_set_simp(val) wrmsrl(HV_X64_MSR_SIMP, val)
-
-#define hv_get_siefp(val) rdmsrl(HV_X64_MSR_SIEFP, val)
-#define hv_set_siefp(val) wrmsrl(HV_X64_MSR_SIEFP, val)
-
-#define hv_get_synic_state(val) rdmsrl(HV_X64_MSR_SCONTROL, val)
-#define hv_set_synic_state(val) wrmsrl(HV_X64_MSR_SCONTROL, val)
-
-#define hv_get_vp_index(index) rdmsrl(HV_X64_MSR_VP_INDEX, index)
-
-#define hv_signal_eom() wrmsrl(HV_X64_MSR_EOM, 0)
-
-#define hv_get_synint_state(int_num, val) \
-	rdmsrl(HV_X64_MSR_SINT0 + int_num, val)
-#define hv_set_synint_state(int_num, val) \
-	wrmsrl(HV_X64_MSR_SINT0 + int_num, val)
-#define hv_recommend_using_aeoi() \
-	(!(ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED))
-
-#define hv_get_crash_ctl(val) \
-	rdmsrl(HV_X64_MSR_CRASH_CTL, val)
-
-#define hv_get_time_ref_count(val) \
-	rdmsrl(HV_X64_MSR_TIME_REF_COUNT, val)
-
-#define hv_get_reference_tsc(val) \
-	rdmsrl(HV_X64_MSR_REFERENCE_TSC, val)
-#define hv_set_reference_tsc(val) \
-	wrmsrl(HV_X64_MSR_REFERENCE_TSC, val)
-#define hv_set_clocksource_vdso(val) \
-	((val).vdso_clock_mode = VDSO_CLOCKMODE_HVCLOCK)
-#define hv_enable_vdso_clocksource() \
-	vclocks_set_used(VDSO_CLOCKMODE_HVCLOCK);
 #define hv_get_raw_timer() rdtsc_ordered()
-#define hv_get_vector() HYPERVISOR_CALLBACK_VECTOR
-
-/*
- * Reference to pv_ops must be inline so objtool
- * detection of noinstr violations can work correctly.
- */
-static __always_inline void hv_setup_sched_clock(void *sched_clock)
-{
-#ifdef CONFIG_PARAVIRT
-	pv_ops.time.sched_clock = sched_clock;
-#endif
-}
 
 void hyperv_vector_handler(struct pt_regs *regs);
 
-static inline void hv_enable_stimer0_percpu_irq(int irq) {}
-static inline void hv_disable_stimer0_percpu_irq(int irq) {}
-
-
 #if IS_ENABLED(CONFIG_HYPERV)
+extern int hyperv_init_cpuhp;
+
 extern void *hv_hypercall_pg;
-extern void  __percpu  **hyperv_pcpu_input_arg;
+
+extern u64 hv_current_partition_id;
+
+extern union hv_ghcb * __percpu *hv_ghcb_pg;
+
+int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages);
+int hv_call_add_logical_proc(int node, u32 lp_index, u32 acpi_id);
+int hv_call_create_vp(int node, u64 partition_id, u32 vp_index, u32 flags);
 
 static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 {
@@ -180,38 +139,6 @@ static inline u64 hv_do_fast_hypercall16(u16 code, u64 input1, u64 input2)
 	return hv_status;
 }
 
-/*
- * Rep hypercalls. Callers of this functions are supposed to ensure that
- * rep_count and varhead_size comply with Hyper-V hypercall definition.
- */
-static inline u64 hv_do_rep_hypercall(u16 code, u16 rep_count, u16 varhead_size,
-				      void *input, void *output)
-{
-	u64 control = code;
-	u64 status;
-	u16 rep_comp;
-
-	control |= (u64)varhead_size << HV_HYPERCALL_VARHEAD_OFFSET;
-	control |= (u64)rep_count << HV_HYPERCALL_REP_COMP_OFFSET;
-
-	do {
-		status = hv_do_hypercall(control, input, output);
-		if ((status & HV_HYPERCALL_RESULT_MASK) != HV_STATUS_SUCCESS)
-			return status;
-
-		/* Bits 32-43 of status have 'Reps completed' data. */
-		rep_comp = (status & HV_HYPERCALL_REP_COMP_MASK) >>
-			HV_HYPERCALL_REP_COMP_OFFSET;
-
-		control &= ~HV_HYPERCALL_REP_START_MASK;
-		control |= (u64)rep_comp << HV_HYPERCALL_REP_START_OFFSET;
-
-		touch_nmi_watchdog();
-	} while (rep_comp < rep_count);
-
-	return status;
-}
-
 extern struct hv_vp_assist_page **hv_vp_assist_page;
 
 static inline struct hv_vp_assist_page *hv_get_vp_assist_page(unsigned int cpu)
@@ -224,9 +151,6 @@ static inline struct hv_vp_assist_page *hv_get_vp_assist_page(unsigned int cpu)
 
 void __init hyperv_init(void);
 void hyperv_setup_mmu_ops(void);
-void *hv_alloc_hyperv_page(void);
-void *hv_alloc_hyperv_zeroed_page(void);
-void hv_free_hyperv_page(unsigned long addr);
 void set_hv_tscchange_cb(void (*cb)(void));
 void clear_hv_tscchange_cb(void);
 void hyperv_stop_tsc_emulation(void);
@@ -245,18 +169,59 @@ bool hv_vcpu_is_preempted(int vcpu);
 static inline void hv_apic_init(void) {}
 #endif
 
-static inline void hv_set_msi_entry_from_desc(union hv_msi_entry *msi_entry,
-					      struct msi_desc *msi_desc)
+struct irq_domain *hv_create_pci_msi_domain(void);
+
+int hv_map_ioapic_interrupt(int ioapic_id, bool level, int vcpu, int vector,
+		struct hv_interrupt_entry *entry);
+int hv_unmap_ioapic_interrupt(int ioapic_id, struct hv_interrupt_entry *entry);
+int hv_set_mem_host_visibility(unsigned long addr, int numpages, bool visible);
+
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+void hv_ghcb_msr_write(u64 msr, u64 value);
+void hv_ghcb_msr_read(u64 msr, u64 *value);
+#else
+static inline void hv_ghcb_msr_write(u64 msr, u64 value) {}
+static inline void hv_ghcb_msr_read(u64 msr, u64 *value) {}
+#endif
+
+extern bool hv_isolation_type_snp(void);
+
+static inline bool hv_is_synic_reg(unsigned int reg)
 {
-	msi_entry->address = msi_desc->msg.address_lo;
-	msi_entry->data = msi_desc->msg.data;
+	if ((reg >= HV_REGISTER_SCONTROL) &&
+	    (reg <= HV_REGISTER_SINT15))
+		return true;
+	return false;
+}
+
+static inline u64 hv_get_register(unsigned int reg)
+{
+	u64 value;
+
+	if (hv_is_synic_reg(reg) && hv_isolation_type_snp())
+		hv_ghcb_msr_read(reg, &value);
+	else
+		rdmsrl(reg, value);
+	return value;
+}
+
+static inline void hv_set_register(unsigned int reg, u64 value)
+{
+	if (hv_is_synic_reg(reg) && hv_isolation_type_snp()) {
+		hv_ghcb_msr_write(reg, value);
+
+		/* Write proxy bit via wrmsl instruction */
+		if (reg >= HV_REGISTER_SINT0 &&
+		    reg <= HV_REGISTER_SINT15)
+			wrmsrl(reg, value | 1 << 20);
+	} else {
+		wrmsrl(reg, value);
+	}
 }
 
 #else /* CONFIG_HYPERV */
 static inline void hyperv_init(void) {}
 static inline void hyperv_setup_mmu_ops(void) {}
-static inline void *hv_alloc_hyperv_page(void) { return NULL; }
-static inline void hv_free_hyperv_page(unsigned long addr) {}
 static inline void set_hv_tscchange_cb(void (*cb)(void)) {}
 static inline void clear_hv_tscchange_cb(void) {}
 static inline void hyperv_stop_tsc_emulation(void) {};
@@ -267,6 +232,13 @@ static inline struct hv_vp_assist_page *hv_get_vp_assist_page(unsigned int cpu)
 static inline int hyperv_flush_guest_mapping(u64 as) { return -1; }
 static inline int hyperv_flush_guest_mapping_range(u64 as,
 		hyperv_fill_flush_list_func fill_func, void *data)
+{
+	return -1;
+}
+static inline void hv_set_register(unsigned int reg, u64 value) { }
+static inline u64 hv_get_register(unsigned int reg) { return 0; }
+static inline int hv_set_mem_host_visibility(unsigned long addr, int numpages,
+					     bool visible)
 {
 	return -1;
 }

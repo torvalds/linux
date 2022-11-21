@@ -72,8 +72,8 @@ void bt_sock_reclassify_lock(struct sock *sk, int proto)
 	BUG_ON(!sock_allow_reclassification(sk));
 
 	sock_lock_init_class_and_name(sk,
-			bt_slock_key_strings[proto], &bt_slock_key[proto],
-				bt_key_strings[proto], &bt_lock_key[proto]);
+				      bt_slock_key_strings[proto], &bt_slock_key[proto],
+				      bt_key_strings[proto], &bt_lock_key[proto]);
 }
 EXPORT_SYMBOL(bt_sock_reclassify_lock);
 
@@ -451,7 +451,7 @@ static inline __poll_t bt_accept_poll(struct sock *parent)
 }
 
 __poll_t bt_sock_poll(struct file *file, struct socket *sock,
-			  poll_table *wait)
+		      poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	__poll_t mask = 0;
@@ -478,8 +478,8 @@ __poll_t bt_sock_poll(struct file *file, struct socket *sock,
 		mask |= EPOLLHUP;
 
 	if (sk->sk_state == BT_CONNECT ||
-			sk->sk_state == BT_CONNECT2 ||
-			sk->sk_state == BT_CONFIG)
+	    sk->sk_state == BT_CONNECT2 ||
+	    sk->sk_state == BT_CONFIG)
 		return mask;
 
 	if (!test_bit(BT_SK_SUSPEND, &bt_sk(sk)->flags) && sock_writeable(sk))
@@ -508,7 +508,7 @@ int bt_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		amount = sk->sk_sndbuf - sk_wmem_alloc_get(sk);
 		if (amount < 0)
 			amount = 0;
-		err = put_user(amount, (int __user *) arg);
+		err = put_user(amount, (int __user *)arg);
 		break;
 
 	case TIOCINQ:
@@ -519,7 +519,7 @@ int bt_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		skb = skb_peek(&sk->sk_receive_queue);
 		amount = skb ? skb->len : 0;
 		release_sock(sk);
-		err = put_user(amount, (int __user *) arg);
+		err = put_user(amount, (int __user *)arg);
 		break;
 
 	default:
@@ -568,7 +568,7 @@ int bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo)
 EXPORT_SYMBOL(bt_sock_wait_state);
 
 /* This function expects the sk lock to be held when called */
-int bt_sock_wait_ready(struct sock *sk, unsigned long flags)
+int bt_sock_wait_ready(struct sock *sk, unsigned int msg_flags)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long timeo;
@@ -576,7 +576,7 @@ int bt_sock_wait_ready(struct sock *sk, unsigned long flags)
 
 	BT_DBG("sk %p", sk);
 
-	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
+	timeo = sock_sndtimeo(sk, !!(msg_flags & MSG_DONTWAIT));
 
 	add_wait_queue(sk_sleep(sk), &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -611,7 +611,7 @@ EXPORT_SYMBOL(bt_sock_wait_ready);
 static void *bt_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(seq->private->l->lock)
 {
-	struct bt_sock_list *l = PDE_DATA(file_inode(seq->file));
+	struct bt_sock_list *l = pde_data(file_inode(seq->file));
 
 	read_lock(&l->lock);
 	return seq_hlist_start_head(&l->head, *pos);
@@ -619,7 +619,7 @@ static void *bt_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void *bt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct bt_sock_list *l = PDE_DATA(file_inode(seq->file));
+	struct bt_sock_list *l = pde_data(file_inode(seq->file));
 
 	return seq_hlist_next(v, &l->head, pos);
 }
@@ -627,17 +627,17 @@ static void *bt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 static void bt_seq_stop(struct seq_file *seq, void *v)
 	__releases(seq->private->l->lock)
 {
-	struct bt_sock_list *l = PDE_DATA(file_inode(seq->file));
+	struct bt_sock_list *l = pde_data(file_inode(seq->file));
 
 	read_unlock(&l->lock);
 }
 
 static int bt_seq_show(struct seq_file *seq, void *v)
 {
-	struct bt_sock_list *l = PDE_DATA(file_inode(seq->file));
+	struct bt_sock_list *l = pde_data(file_inode(seq->file));
 
 	if (v == SEQ_START_TOKEN) {
-		seq_puts(seq ,"sk               RefCnt Rmem   Wmem   User   Inode  Parent");
+		seq_puts(seq, "sk               RefCnt Rmem   Wmem   User   Inode  Parent");
 
 		if (l->custom_seq_show) {
 			seq_putc(seq, ' ');
@@ -657,7 +657,7 @@ static int bt_seq_show(struct seq_file *seq, void *v)
 			   sk_wmem_alloc_get(sk),
 			   from_kuid(seq_user_ns(seq), sock_i_uid(sk)),
 			   sock_i_ino(sk),
-			   bt->parent? sock_i_ino(bt->parent): 0LU);
+			   bt->parent ? sock_i_ino(bt->parent) : 0LU);
 
 		if (l->custom_seq_show) {
 			seq_putc(seq, ' ');
@@ -678,7 +678,7 @@ static const struct seq_operations bt_seq_ops = {
 
 int bt_procfs_init(struct net *net, const char *name,
 		   struct bt_sock_list *sk_list,
-		   int (* seq_show)(struct seq_file *, void *))
+		   int (*seq_show)(struct seq_file *, void *))
 {
 	sk_list->custom_seq_show = seq_show;
 
@@ -694,7 +694,7 @@ void bt_procfs_cleanup(struct net *net, const char *name)
 #else
 int bt_procfs_init(struct net *net, const char *name,
 		   struct bt_sock_list *sk_list,
-		   int (* seq_show)(struct seq_file *, void *))
+		   int (*seq_show)(struct seq_file *, void *))
 {
 	return 0;
 }

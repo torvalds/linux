@@ -84,7 +84,7 @@ struct audit_fsnotify_mark *audit_alloc_mark(struct audit_krule *krule, char *pa
 
 	dentry = kern_path_locked(pathname, &path);
 	if (IS_ERR(dentry))
-		return (void *)dentry; /* returning an error */
+		return ERR_CAST(dentry); /* returning an error */
 	inode = path.dentry->d_inode;
 	inode_unlock(inode);
 
@@ -154,14 +154,13 @@ static void audit_autoremove_mark_rule(struct audit_fsnotify_mark *audit_mark)
 /* Update mark data in audit rules based on fsnotify events. */
 static int audit_mark_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
 				   struct inode *inode, struct inode *dir,
-				   const struct qstr *dname)
+				   const struct qstr *dname, u32 cookie)
 {
 	struct audit_fsnotify_mark *audit_mark;
 
 	audit_mark = container_of(inode_mark, struct audit_fsnotify_mark, mark);
 
-	if (WARN_ON_ONCE(inode_mark->group != audit_fsnotify_group) ||
-	    WARN_ON_ONCE(!inode))
+	if (WARN_ON_ONCE(inode_mark->group != audit_fsnotify_group))
 		return 0;
 
 	if (mask & (FS_CREATE|FS_MOVED_TO|FS_DELETE|FS_MOVED_FROM)) {

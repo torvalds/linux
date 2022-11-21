@@ -30,6 +30,7 @@
 
 /dts-v1/;
 #include "r8a7742-iwg21m.dtsi"
+#include <dt-bindings/pwm/pwm.h>
 
 / {
 	model = "iWave Systems RainboW-G21D-Qseven board based on RZ/G1H";
@@ -52,6 +53,16 @@
 		clock-frequency = <26000000>;
 	};
 
+	lcd_backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&tpu 2 5000000 0>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		pinctrl-0 = <&backlight_pins>;
+		pinctrl-names = "default";
+		default-brightness-level = <7>;
+		enable-gpios = <&gpio3 11 GPIO_ACTIVE_HIGH>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
@@ -59,6 +70,41 @@
 			label = "sdio-led";
 			gpios = <&gpio5 22 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc1";
+		};
+	};
+
+	lvds-receiver {
+		compatible = "ti,ds90cf384a", "lvds-decoder";
+		power-supply = <&vcc_3v3_tft1>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				lvds_receiver_in: endpoint {
+					remote-endpoint = <&lvds0_out>;
+				};
+			};
+			port@1 {
+				reg = <1>;
+				lvds_receiver_out: endpoint {
+					remote-endpoint = <&panel_in>;
+				};
+			};
+		};
+	};
+
+	panel {
+		compatible = "edt,etm0700g0dh6";
+		backlight = <&lcd_backlight>;
+		power-supply = <&vcc_3v3_tft1>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&lvds_receiver_out>;
+			};
 		};
 	};
 
@@ -83,6 +129,17 @@
 		sndcodec: simple-audio-card,codec {
 			sound-dai = <&sgtl5000>;
 		};
+	};
+
+	vcc_3v3_tft1: regulator-panel {
+		compatible = "regulator-fixed";
+
+		regulator-name = "vcc-3v3-tft1";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		startup-delay-us = <500>;
+		gpio = <&gpio5 28 GPIO_ACTIVE_HIGH>;
 	};
 
 	vcc_sdhi2: regulator-vcc-sdhi2 {
@@ -118,6 +175,8 @@
 	status = "okay";
 
 	phy3: ethernet-phy@3 {
+		compatible = "ethernet-phy-id0022.1622",
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <3>;
 		micrel,led-mode = <1>;
 	};
@@ -139,6 +198,16 @@
 		VDDIO-supply = <&reg_3p3v>;
 		VDDD-supply = <&reg_1p5v>;
 	};
+
+	touch: touchpanel@38 {
+		compatible = "edt,edt-ft5406";
+		reg = <0x38>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <24 IRQ_TYPE_EDGE_FALLING>;
+		/* GP1_29 is also shared with audio codec reset pin */
+		reset-gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
+		vcc-supply = <&vcc_3v3_tft1>;
+	};
 };
 
 &can1 {
@@ -152,8 +221,20 @@
 	status = "okay";
 };
 
+&du {
+	status = "okay";
+};
+
+&gpio0 {
+	touch-interrupt-hog {
+		gpio-hog;
+		gpios = <24 GPIO_ACTIVE_LOW>;
+		input;
+	};
+};
+
 &gpio1 {
-	can-trx-en-gpio{
+	can-trx-en-hog {
 		gpio-hog;
 		gpios = <28 GPIO_ACTIVE_HIGH>;
 		output-low;
@@ -165,6 +246,17 @@
 	pinctrl-0 = <&usb0_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+};
+
+&lvds0 {
+	status = "okay";
+	ports {
+		port@1 {
+			lvds0_out: endpoint {
+				remote-endpoint = <&lvds_receiver_in>;
+			};
+		};
+	};
 };
 
 &msiof0 {
@@ -227,6 +319,11 @@
 	avb_pins: avb {
 		groups = "avb_mdio", "avb_gmii";
 		function = "avb";
+	};
+
+	backlight_pins: backlight {
+		groups = "tpu0_to2";
+		function = "tpu0";
 	};
 
 	can1_pins: can1 {
@@ -292,8 +389,8 @@
 
 	rcar_sound,dai {
 		dai0 {
-			playback = <&ssi4 &src4 &dvc1>;
-			capture = <&ssi3 &src3 &dvc0>;
+			playback = <&ssi4>, <&src4>, <&dvc1>;
+			capture = <&ssi3>, <&src3>, <&dvc0>;
 		};
 	};
 };
@@ -333,6 +430,10 @@
 
 &ssi4 {
 	shared-pin;
+};
+
+&tpu {
+	status = "okay";
 };
 
 &usbphy {

@@ -76,10 +76,10 @@
 	samsung,i2c-max-bus-freq = <100000>;
 	status = "okay";
 
-	s2mps14_pmic@66 {
+	pmic@66 {
 		compatible = "samsung,s2mps14-pmic";
 		interrupt-parent = <&gpx3>;
-		interrupts = <5 IRQ_TYPE_NONE>;
+		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&s2mps14_irq>;
 		reg = <0x66>;
@@ -356,7 +356,7 @@
 };
 
 &pinctrl_1 {
-	bten: bten {
+	bten: bten-pins {
 		samsung,pins ="gpx1-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
@@ -364,7 +364,7 @@
 		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
 	};
 
-	wlanen: wlanen {
+	wlanen: wlanen-pins {
 		samsung,pins = "gpx2-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -372,12 +372,12 @@
 		samsung,pin-val = <1>;
 	};
 
-	s2mps14_irq: s2mps14-irq {
+	s2mps14_irq: s2mps14-irq-pins {
 		samsung,pins = "gpx3-5";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	bthostwake: bthostwake {
+	bthostwake: bthostwake-pins {
 		samsung,pins = "gpx3-6";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
@@ -385,7 +385,7 @@
 		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	btwake: btwake {
+	btwake: btwake-pins {
 		samsung,pins = "gpx3-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;

@@ -280,18 +280,6 @@ static int imx8m_ddrc_get_cur_freq(struct device *dev, unsigned long *freq)
 	return 0;
 }
 
-static int imx8m_ddrc_get_dev_status(struct device *dev,
-				     struct devfreq_dev_status *stat)
-{
-	struct imx8m_ddrc *priv = dev_get_drvdata(dev);
-
-	stat->busy_time = 0;
-	stat->total_time = 0;
-	stat->current_frequency = clk_get_rate(priv->dram_core);
-
-	return 0;
-}
-
 static int imx8m_ddrc_init_freq_info(struct device *dev)
 {
 	struct imx8m_ddrc *priv = dev_get_drvdata(dev);
@@ -429,9 +417,7 @@ static int imx8m_ddrc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err;
 
-	priv->profile.polling_ms = 1000;
 	priv->profile.target = imx8m_ddrc_target;
-	priv->profile.get_dev_status = imx8m_ddrc_get_dev_status;
 	priv->profile.exit = imx8m_ddrc_exit;
 	priv->profile.get_cur_freq = imx8m_ddrc_get_cur_freq;
 	priv->profile.initial_freq = clk_get_rate(priv->dram_core);
@@ -461,7 +447,7 @@ static struct platform_driver imx8m_ddrc_platdrv = {
 	.probe		= imx8m_ddrc_probe,
 	.driver = {
 		.name	= "imx8m-ddrc-devfreq",
-		.of_match_table = of_match_ptr(imx8m_ddrc_of_match),
+		.of_match_table = imx8m_ddrc_of_match,
 	},
 };
 module_platform_driver(imx8m_ddrc_platdrv);

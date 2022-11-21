@@ -81,9 +81,6 @@ MODULE_DESCRIPTION("Driver for Applicom Profibus card");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(AC_MINOR);
 
-MODULE_SUPPORTED_DEVICE("ac");
-
-
 static struct applicom_board {
 	unsigned long PhysIO;
 	void __iomem *RamIO;
@@ -92,8 +89,8 @@ static struct applicom_board {
 	spinlock_t mutex;
 } apbs[MAX_BOARD];
 
-static unsigned int irq = 0;	/* interrupt number IRQ       */
-static unsigned long mem = 0;	/* physical segment of board  */
+static unsigned int irq;	/* interrupt number IRQ       */
+static unsigned long mem;	/* physical segment of board  */
 
 module_param_hw(irq, uint, irq, 0);
 MODULE_PARM_DESC(irq, "IRQ of the Applicom board");
@@ -839,7 +836,7 @@ static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	Dummy = readb(apbs[IndexCard].RamIO + VERS);
 	kfree(adgl);
 	mutex_unlock(&ac_mutex);
-	return 0;
+	return ret;
 
 err:
 	if (warncount) {

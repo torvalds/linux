@@ -748,7 +748,7 @@ static int jmb38x_ms_set_param(struct memstick_host *msh,
 				      clock_delay);
 		host->ifmode = value;
 		break;
-	};
+	}
 	return 0;
 }
 
@@ -882,7 +882,7 @@ static struct memstick_host *jmb38x_ms_alloc_host(struct jmb38x_ms *jm, int cnt)
 
 	iounmap(host->addr);
 err_out_free:
-	kfree(msh);
+	memstick_free_host(msh);
 	return NULL;
 }
 
@@ -927,8 +927,7 @@ static int jmb38x_ms_probe(struct pci_dev *pdev,
 		goto err_out_int;
 	}
 
-	jm = kzalloc(sizeof(struct jmb38x_ms)
-		     + cnt * sizeof(struct memstick_host *), GFP_KERNEL);
+	jm = kzalloc(struct_size(jm, hosts, cnt), GFP_KERNEL);
 	if (!jm) {
 		rc = -ENOMEM;
 		goto err_out_int;

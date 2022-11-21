@@ -13,23 +13,23 @@ C MP+porevlocks
 
 {}
 
-P0(int *x, int *y, spinlock_t *mylock)
+P0(int *buf, int *flag, spinlock_t *mylock) // Consumer
 {
 	int r0;
 	int r1;
 
-	r0 = READ_ONCE(*y);
+	r0 = READ_ONCE(*flag);
 	spin_lock(mylock);
-	r1 = READ_ONCE(*x);
+	r1 = READ_ONCE(*buf);
 	spin_unlock(mylock);
 }
 
-P1(int *x, int *y, spinlock_t *mylock)
+P1(int *buf, int *flag, spinlock_t *mylock) // Producer
 {
 	spin_lock(mylock);
-	WRITE_ONCE(*x, 1);
+	WRITE_ONCE(*buf, 1);
 	spin_unlock(mylock);
-	WRITE_ONCE(*y, 1);
+	WRITE_ONCE(*flag, 1);
 }
 
-exists (0:r0=1 /\ 0:r1=0)
+exists (0:r0=1 /\ 0:r1=0) (* Bad outcome. *)

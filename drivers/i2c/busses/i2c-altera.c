@@ -55,7 +55,7 @@
 #define ALTR_I2C_XFER_TIMEOUT	(msecs_to_jiffies(250))
 
 /**
- * altr_i2c_dev - I2C device context
+ * struct altr_i2c_dev - I2C device context
  * @base: pointer to register struct
  * @msg: pointer to current message
  * @msg_len: number of bytes transferred in msg
@@ -172,7 +172,7 @@ static void altr_i2c_init(struct altr_i2c_dev *idev)
 	altr_i2c_int_enable(idev, ALTR_I2C_ALL_IRQ, false);
 }
 
-/**
+/*
  * altr_i2c_transfer - On the last byte to be transmitted, send
  * a Stop bit on the last byte.
  */
@@ -185,7 +185,7 @@ static void altr_i2c_transfer(struct altr_i2c_dev *idev, u32 data)
 		writel(data, idev->base + ALTR_I2C_TFR_CMD);
 }
 
-/**
+/*
  * altr_i2c_empty_rx_fifo - Fetch data from RX FIFO until end of
  * transfer. Send a Stop bit on the last byte.
  */
@@ -201,9 +201,8 @@ static void altr_i2c_empty_rx_fifo(struct altr_i2c_dev *idev)
 	}
 }
 
-/**
+/*
  * altr_i2c_fill_tx_fifo - Fill TX FIFO from current message buffer.
- * @return: Number of bytes left to transfer.
  */
 static int altr_i2c_fill_tx_fifo(struct altr_i2c_dev *idev)
 {

@@ -7,8 +7,6 @@
  * Author: Chunfeng Yun <chunfeng.yun@mediatek.com>
  */
 
-#include <linux/usb/role.h>
-
 #include "mtu3.h"
 #include "mtu3_dr.h"
 #include "mtu3_debug.h"
@@ -16,35 +14,15 @@
 #define USB2_PORT 2
 #define USB3_PORT 3
 
-enum mtu3_vbus_id_state {
-	MTU3_ID_FLOAT = 1,
-	MTU3_ID_GROUND,
-	MTU3_VBUS_OFF,
-	MTU3_VBUS_VALID,
-};
-
-static char *mailbox_state_string(enum mtu3_vbus_id_state state)
+static inline struct ssusb_mtk *otg_sx_to_ssusb(struct otg_switch_mtk *otg_sx)
 {
-	switch (state) {
-	case MTU3_ID_FLOAT:
-		return "ID_FLOAT";
-	case MTU3_ID_GROUND:
-		return "ID_GROUND";
-	case MTU3_VBUS_OFF:
-		return "VBUS_OFF";
-	case MTU3_VBUS_VALID:
-		return "VBUS_VALID";
-	default:
-		return "UNKNOWN";
-	}
+	return container_of(otg_sx, struct ssusb_mtk, otg_switch);
 }
 
 static void toggle_opstate(struct ssusb_mtk *ssusb)
 {
-	if (!ssusb->otg_switch.is_u3_drd) {
-		mtu3_setbits(ssusb->mac_base, U3D_DEVICE_CONTROL, DC_SESSION);
-		mtu3_setbits(ssusb->mac_base, U3D_POWER_MANAGEMENT, SOFT_CONN);
-	}
+	mtu3_setbits(ssusb->mac_base, U3D_DEVICE_CONTROL, DC_SESSION);
+	mtu3_setbits(ssusb->mac_base, U3D_POWER_MANAGEMENT, SOFT_CONN);
 }
 
 /* only port0 supports dual-role mode */
@@ -123,8 +101,7 @@ static void switch_port_to_device(struct ssusb_mtk *ssusb)
 
 int ssusb_set_vbus(struct otg_switch_mtk *otg_sx, int is_on)
 {
-	struct ssusb_mtk *ssusb =
-		container_of(otg_sx, struct ssusb_mtk, otg_switch);
+	struct ssusb_mtk *ssusb = otg_sx_to_ssusb(otg_sx);
 	struct regulator *vbus = otg_sx->vbus;
 	int ret;
 
@@ -147,113 +124,84 @@ int ssusb_set_vbus(struct otg_switch_mtk *otg_sx, int is_on)
 	return 0;
 }
 
-/*
- * switch to host: -> MTU3_VBUS_OFF --> MTU3_ID_GROUND
- * switch to device: -> MTU3_ID_FLOAT --> MTU3_VBUS_VALID
- */
-static void ssusb_set_mailbox(struct otg_switch_mtk *otg_sx,
-	enum mtu3_vbus_id_state status)
+static void ssusb_mode_sw_work(struct work_struct *work)
 {
-	struct ssusb_mtk *ssusb =
-		container_of(otg_sx, struct ssusb_mtk, otg_switch);
+	struct otg_switch_mtk *otg_sx =
+		container_of(work, struct otg_switch_mtk, dr_work);
+	struct ssusb_mtk *ssusb = otg_sx_to_ssusb(otg_sx);
 	struct mtu3 *mtu = ssusb->u3d;
+	enum usb_role desired_role = otg_sx->desired_role;
+	enum usb_role current_role;
 
-	dev_dbg(ssusb->dev, "mailbox %s\n", mailbox_state_string(status));
-	mtu3_dbg_trace(ssusb->dev, "mailbox %s", mailbox_state_string(status));
+	current_role = ssusb->is_host ? USB_ROLE_HOST : USB_ROLE_DEVICE;
 
-	switch (status) {
-	case MTU3_ID_GROUND:
+	if (desired_role == USB_ROLE_NONE) {
+		/* the default mode is host as probe does */
+		desired_role = USB_ROLE_HOST;
+		if (otg_sx->default_role == USB_ROLE_DEVICE)
+			desired_role = USB_ROLE_DEVICE;
+	}
+
+	if (current_role == desired_role)
+		return;
+
+	dev_dbg(ssusb->dev, "set role : %s\n", usb_role_string(desired_role));
+	mtu3_dbg_trace(ssusb->dev, "set role : %s", usb_role_string(desired_role));
+	pm_runtime_get_sync(ssusb->dev);
+
+	switch (desired_role) {
+	case USB_ROLE_HOST:
+		ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_HOST);
+		mtu3_stop(mtu);
 		switch_port_to_host(ssusb);
 		ssusb_set_vbus(otg_sx, 1);
 		ssusb->is_host = true;
 		break;
-	case MTU3_ID_FLOAT:
+	case USB_ROLE_DEVICE:
+		ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_DEVICE);
 		ssusb->is_host = false;
 		ssusb_set_vbus(otg_sx, 0);
 		switch_port_to_device(ssusb);
-		break;
-	case MTU3_VBUS_OFF:
-		mtu3_stop(mtu);
-		pm_relax(ssusb->dev);
-		break;
-	case MTU3_VBUS_VALID:
-		/* avoid suspend when works as device */
-		pm_stay_awake(ssusb->dev);
 		mtu3_start(mtu);
 		break;
+	case USB_ROLE_NONE:
 	default:
-		dev_err(ssusb->dev, "invalid state\n");
+		dev_err(ssusb->dev, "invalid role\n");
 	}
+	pm_runtime_put(ssusb->dev);
 }
 
-static void ssusb_id_work(struct work_struct *work)
+static void ssusb_set_mode(struct otg_switch_mtk *otg_sx, enum usb_role role)
 {
-	struct otg_switch_mtk *otg_sx =
-		container_of(work, struct otg_switch_mtk, id_work);
+	struct ssusb_mtk *ssusb = otg_sx_to_ssusb(otg_sx);
 
-	if (otg_sx->id_event)
-		ssusb_set_mailbox(otg_sx, MTU3_ID_GROUND);
-	else
-		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
+	if (ssusb->dr_mode != USB_DR_MODE_OTG)
+		return;
+
+	otg_sx->desired_role = role;
+	queue_work(system_freezable_wq, &otg_sx->dr_work);
 }
 
-static void ssusb_vbus_work(struct work_struct *work)
-{
-	struct otg_switch_mtk *otg_sx =
-		container_of(work, struct otg_switch_mtk, vbus_work);
-
-	if (otg_sx->vbus_event)
-		ssusb_set_mailbox(otg_sx, MTU3_VBUS_VALID);
-	else
-		ssusb_set_mailbox(otg_sx, MTU3_VBUS_OFF);
-}
-
-/*
- * @ssusb_id_notifier is called in atomic context, but @ssusb_set_mailbox
- * may sleep, so use work queue here
- */
 static int ssusb_id_notifier(struct notifier_block *nb,
 	unsigned long event, void *ptr)
 {
 	struct otg_switch_mtk *otg_sx =
 		container_of(nb, struct otg_switch_mtk, id_nb);
 
-	otg_sx->id_event = event;
-	schedule_work(&otg_sx->id_work);
-
-	return NOTIFY_DONE;
-}
-
-static int ssusb_vbus_notifier(struct notifier_block *nb,
-	unsigned long event, void *ptr)
-{
-	struct otg_switch_mtk *otg_sx =
-		container_of(nb, struct otg_switch_mtk, vbus_nb);
-
-	otg_sx->vbus_event = event;
-	schedule_work(&otg_sx->vbus_work);
+	ssusb_set_mode(otg_sx, event ? USB_ROLE_HOST : USB_ROLE_DEVICE);
 
 	return NOTIFY_DONE;
 }
 
 static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
 {
-	struct ssusb_mtk *ssusb =
-		container_of(otg_sx, struct ssusb_mtk, otg_switch);
+	struct ssusb_mtk *ssusb = otg_sx_to_ssusb(otg_sx);
 	struct extcon_dev *edev = otg_sx->edev;
 	int ret;
 
 	/* extcon is optional */
 	if (!edev)
 		return 0;
-
-	otg_sx->vbus_nb.notifier_call = ssusb_vbus_notifier;
-	ret = devm_extcon_register_notifier(ssusb->dev, edev, EXTCON_USB,
-					&otg_sx->vbus_nb);
-	if (ret < 0) {
-		dev_err(ssusb->dev, "failed to register notifier for USB\n");
-		return ret;
-	}
 
 	otg_sx->id_nb.notifier_call = ssusb_id_notifier;
 	ret = devm_extcon_register_notifier(ssusb->dev, edev, EXTCON_USB_HOST,
@@ -263,15 +211,12 @@ static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
 		return ret;
 	}
 
-	dev_dbg(ssusb->dev, "EXTCON_USB: %d, EXTCON_USB_HOST: %d\n",
-		extcon_get_state(edev, EXTCON_USB),
-		extcon_get_state(edev, EXTCON_USB_HOST));
+	ret = extcon_get_state(edev, EXTCON_USB_HOST);
+	dev_dbg(ssusb->dev, "EXTCON_USB_HOST: %d\n", ret);
 
 	/* default as host, switch to device mode if needed */
-	if (extcon_get_state(edev, EXTCON_USB_HOST) == false)
-		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
-	if (extcon_get_state(edev, EXTCON_USB) == true)
-		ssusb_set_mailbox(otg_sx, MTU3_VBUS_VALID);
+	if (!ret)
+		ssusb_set_mode(otg_sx, USB_ROLE_DEVICE);
 
 	return 0;
 }
@@ -286,15 +231,7 @@ void ssusb_mode_switch(struct ssusb_mtk *ssusb, int to_host)
 {
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
-	if (to_host) {
-		ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_HOST);
-		ssusb_set_mailbox(otg_sx, MTU3_VBUS_OFF);
-		ssusb_set_mailbox(otg_sx, MTU3_ID_GROUND);
-	} else {
-		ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_DEVICE);
-		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
-		ssusb_set_mailbox(otg_sx, MTU3_VBUS_VALID);
-	}
+	ssusb_set_mode(otg_sx, to_host ? USB_ROLE_HOST : USB_ROLE_DEVICE);
 }
 
 void ssusb_set_force_mode(struct ssusb_mtk *ssusb,
@@ -323,13 +260,9 @@ void ssusb_set_force_mode(struct ssusb_mtk *ssusb,
 static int ssusb_role_sw_set(struct usb_role_switch *sw, enum usb_role role)
 {
 	struct ssusb_mtk *ssusb = usb_role_switch_get_drvdata(sw);
-	bool to_host = false;
+	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
-	if (role == USB_ROLE_HOST)
-		to_host = true;
-
-	if (to_host ^ ssusb->is_host)
-		ssusb_mode_switch(ssusb, to_host);
+	ssusb_set_mode(otg_sx, role);
 
 	return 0;
 }
@@ -337,29 +270,37 @@ static int ssusb_role_sw_set(struct usb_role_switch *sw, enum usb_role role)
 static enum usb_role ssusb_role_sw_get(struct usb_role_switch *sw)
 {
 	struct ssusb_mtk *ssusb = usb_role_switch_get_drvdata(sw);
-	enum usb_role role;
 
-	role = ssusb->is_host ? USB_ROLE_HOST : USB_ROLE_DEVICE;
-
-	return role;
+	return ssusb->is_host ? USB_ROLE_HOST : USB_ROLE_DEVICE;
 }
 
 static int ssusb_role_sw_register(struct otg_switch_mtk *otg_sx)
 {
 	struct usb_role_switch_desc role_sx_desc = { 0 };
-	struct ssusb_mtk *ssusb =
-		container_of(otg_sx, struct ssusb_mtk, otg_switch);
+	struct ssusb_mtk *ssusb = otg_sx_to_ssusb(otg_sx);
+	struct device *dev = ssusb->dev;
+	enum usb_dr_mode mode;
 
 	if (!otg_sx->role_sw_used)
 		return 0;
 
+	mode = usb_get_role_switch_default_mode(dev);
+	if (mode == USB_DR_MODE_PERIPHERAL)
+		otg_sx->default_role = USB_ROLE_DEVICE;
+	else
+		otg_sx->default_role = USB_ROLE_HOST;
+
 	role_sx_desc.set = ssusb_role_sw_set;
 	role_sx_desc.get = ssusb_role_sw_get;
-	role_sx_desc.fwnode = dev_fwnode(ssusb->dev);
+	role_sx_desc.fwnode = dev_fwnode(dev);
 	role_sx_desc.driver_data = ssusb;
-	otg_sx->role_sw = usb_role_switch_register(ssusb->dev, &role_sx_desc);
+	otg_sx->role_sw = usb_role_switch_register(dev, &role_sx_desc);
+	if (IS_ERR(otg_sx->role_sw))
+		return PTR_ERR(otg_sx->role_sw);
 
-	return PTR_ERR_OR_ZERO(otg_sx->role_sw);
+	ssusb_set_mode(otg_sx, otg_sx->default_role);
+
+	return 0;
 }
 
 int ssusb_otg_switch_init(struct ssusb_mtk *ssusb)
@@ -367,8 +308,7 @@ int ssusb_otg_switch_init(struct ssusb_mtk *ssusb)
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 	int ret = 0;
 
-	INIT_WORK(&otg_sx->id_work, ssusb_id_work);
-	INIT_WORK(&otg_sx->vbus_work, ssusb_vbus_work);
+	INIT_WORK(&otg_sx->dr_work, ssusb_mode_sw_work);
 
 	if (otg_sx->manual_drd_enabled)
 		ssusb_dr_debugfs_init(ssusb);
@@ -384,7 +324,6 @@ void ssusb_otg_switch_exit(struct ssusb_mtk *ssusb)
 {
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
-	cancel_work_sync(&otg_sx->id_work);
-	cancel_work_sync(&otg_sx->vbus_work);
+	cancel_work_sync(&otg_sx->dr_work);
 	usb_role_switch_unregister(otg_sx->role_sw);
 }

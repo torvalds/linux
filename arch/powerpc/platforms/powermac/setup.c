@@ -79,8 +79,6 @@ int pmac_newworld;
 
 static int current_root_goodness = -1;
 
-extern struct machdep_calls pmac_md;
-
 #define DEFAULT_ROOT_DEVICE Root_SDA1	/* sda1 - slightly silly choice */
 
 #ifdef CONFIG_PPC64
@@ -168,7 +166,7 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 }
 
 #ifndef CONFIG_ADB_CUDA
-int find_via_cuda(void)
+int __init find_via_cuda(void)
 {
 	struct device_node *dn = of_find_node_by_name(NULL, "via-cuda");
 
@@ -182,7 +180,7 @@ int find_via_cuda(void)
 #endif
 
 #ifndef CONFIG_ADB_PMU
-int find_via_pmu(void)
+int __init find_via_pmu(void)
 {
 	struct device_node *dn = of_find_node_by_name(NULL, "via-pmu");
 
@@ -196,7 +194,7 @@ int find_via_pmu(void)
 #endif
 
 #ifndef CONFIG_PMAC_SMU
-int smu_init(void)
+int __init smu_init(void)
 {
 	/* should check and warn if SMU is present */
 	return 0;
@@ -297,9 +295,6 @@ static void __init pmac_setup_arch(void)
 		pmac_newworld = 1;
 		of_node_put(ic);
 	}
-
-	/* Lookup PCI hosts */
-	pmac_pci_init();
 
 #ifdef CONFIG_PPC32
 	ohare_init();
@@ -600,6 +595,7 @@ define_machine(powermac) {
 	.name			= "PowerMac",
 	.probe			= pmac_probe,
 	.setup_arch		= pmac_setup_arch,
+	.discover_phbs		= pmac_pci_init,
 	.show_cpuinfo		= pmac_show_cpuinfo,
 	.init_IRQ		= pmac_pic_init,
 	.get_irq		= NULL,	/* changed later */

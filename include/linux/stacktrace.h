@@ -8,21 +8,6 @@
 struct task_struct;
 struct pt_regs;
 
-#ifdef CONFIG_STACKTRACE
-void stack_trace_print(const unsigned long *trace, unsigned int nr_entries,
-		       int spaces);
-int stack_trace_snprint(char *buf, size_t size, const unsigned long *entries,
-			unsigned int nr_entries, int spaces);
-unsigned int stack_trace_save(unsigned long *store, unsigned int size,
-			      unsigned int skipnr);
-unsigned int stack_trace_save_tsk(struct task_struct *task,
-				  unsigned long *store, unsigned int size,
-				  unsigned int skipnr);
-unsigned int stack_trace_save_regs(struct pt_regs *regs, unsigned long *store,
-				   unsigned int size, unsigned int skipnr);
-unsigned int stack_trace_save_user(unsigned long *store, unsigned int size);
-
-/* Internal interfaces. Do not use in generic code */
 #ifdef CONFIG_ARCH_STACKWALK
 
 /**
@@ -52,12 +37,48 @@ typedef bool (*stack_trace_consume_fn)(void *cookie, unsigned long addr);
  */
 void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
 		     struct task_struct *task, struct pt_regs *regs);
+
+/**
+ * arch_stack_walk_reliable - Architecture specific function to walk the
+ *			      stack reliably
+ *
+ * @consume_entry:	Callback which is invoked by the architecture code for
+ *			each entry.
+ * @cookie:		Caller supplied pointer which is handed back to
+ *			@consume_entry
+ * @task:		Pointer to a task struct, can be NULL
+ *
+ * This function returns an error if it detects any unreliable
+ * features of the stack. Otherwise it guarantees that the stack
+ * trace is reliable.
+ *
+ * If the task is not 'current', the caller *must* ensure the task is
+ * inactive and its stack is pinned.
+ */
 int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry, void *cookie,
 			     struct task_struct *task);
+
 void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
 			  const struct pt_regs *regs);
+#endif /* CONFIG_ARCH_STACKWALK */
 
-#else /* CONFIG_ARCH_STACKWALK */
+#ifdef CONFIG_STACKTRACE
+void stack_trace_print(const unsigned long *trace, unsigned int nr_entries,
+		       int spaces);
+int stack_trace_snprint(char *buf, size_t size, const unsigned long *entries,
+			unsigned int nr_entries, int spaces);
+unsigned int stack_trace_save(unsigned long *store, unsigned int size,
+			      unsigned int skipnr);
+unsigned int stack_trace_save_tsk(struct task_struct *task,
+				  unsigned long *store, unsigned int size,
+				  unsigned int skipnr);
+unsigned int stack_trace_save_regs(struct pt_regs *regs, unsigned long *store,
+				   unsigned int size, unsigned int skipnr);
+unsigned int stack_trace_save_user(unsigned long *store, unsigned int size);
+unsigned int filter_irq_stacks(unsigned long *entries, unsigned int nr_entries);
+
+#ifndef CONFIG_ARCH_STACKWALK
+/* Internal interfaces. Do not use in generic code */
 struct stack_trace {
 	unsigned int nr_entries, max_entries;
 	unsigned long *entries;

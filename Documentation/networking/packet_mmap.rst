@@ -8,7 +8,7 @@ Abstract
 ========
 
 This file documents the mmap() facility available with the PACKET
-socket interface on 2.4/2.6/3.x kernels. This type of sockets is used for
+socket interface. This type of sockets is used for
 
 i) capture network traffic with utilities like tcpdump,
 ii) transmit network traffic, or any other that needs raw
@@ -25,12 +25,12 @@ Please send your comments to
 Why use PACKET_MMAP
 ===================
 
-In Linux 2.4/2.6/3.x if PACKET_MMAP is not enabled, the capture process is very
+Non PACKET_MMAP capture process (plain AF_PACKET) is very
 inefficient. It uses very limited buffers and requires one system call to
 capture each packet, it requires two if you want to get packet's timestamp
 (like libpcap always does).
 
-In the other hand PACKET_MMAP is very efficient. PACKET_MMAP provides a size
+On the other hand PACKET_MMAP is very efficient. PACKET_MMAP provides a size
 configurable circular buffer mapped in user space that can be used to either
 send or receive packets. This way reading packets just needs to wait for them,
 most of the time there is no need to issue a single system call. Concerning
@@ -153,7 +153,7 @@ As capture, each frame contains two parts::
     struct ifreq s_ifr;
     ...
 
-    strncpy (s_ifr.ifr_name, "eth0", sizeof(s_ifr.ifr_name));
+    strscpy_pad (s_ifr.ifr_name, "eth0", sizeof(s_ifr.ifr_name));
 
     /* get interface index of eth0 */
     ioctl(this->socket, SIOCGIFINDEX, &s_ifr);
@@ -252,8 +252,7 @@ PACKET_MMAP setting constraints
 
 In kernel versions prior to 2.4.26 (for the 2.4 branch) and 2.6.5 (2.6 branch),
 the PACKET_MMAP buffer could hold only 32768 frames in a 32 bit architecture or
-16384 in a 64 bit architecture. For information on these kernel versions
-see http://pusa.uv.es/~ulisses/packet_mmap/packet_mmap.pre-2.4.26_2.6.5.txt
+16384 in a 64 bit architecture.
 
 Block size limit
 ----------------
@@ -437,7 +436,7 @@ and the following flags apply:
 Capture process
 ^^^^^^^^^^^^^^^
 
-     from include/linux/if_packet.h
+From include/linux/if_packet.h::
 
      #define TP_STATUS_COPY          (1 << 1)
      #define TP_STATUS_LOSING        (1 << 2)

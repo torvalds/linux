@@ -1,3 +1,0 @@
-key.subkey = value
-# We can not override pre-defined subkeys with value
-key := value

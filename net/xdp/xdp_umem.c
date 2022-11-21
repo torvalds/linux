@@ -27,7 +27,7 @@ static void xdp_umem_unpin_pages(struct xdp_umem *umem)
 {
 	unpin_user_pages_dirty_lock(umem->pgs, umem->npgs, true);
 
-	kfree(umem->pgs);
+	kvfree(umem->pgs);
 	umem->pgs = NULL;
 }
 
@@ -99,8 +99,7 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem, unsigned long address)
 	long npgs;
 	int err;
 
-	umem->pgs = kcalloc(umem->npgs, sizeof(*umem->pgs),
-			    GFP_KERNEL | __GFP_NOWARN);
+	umem->pgs = kvcalloc(umem->npgs, sizeof(*umem->pgs), GFP_KERNEL | __GFP_NOWARN);
 	if (!umem->pgs)
 		return -ENOMEM;
 
@@ -123,7 +122,7 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem, unsigned long address)
 out_pin:
 	xdp_umem_unpin_pages(umem);
 out_pgs:
-	kfree(umem->pgs);
+	kvfree(umem->pgs);
 	umem->pgs = NULL;
 	return err;
 }

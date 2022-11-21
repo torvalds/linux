@@ -50,9 +50,6 @@
 #define MIN_RCV_WND (24 * 1024U)
 #define LOOPBACK(x)     (((x) & htonl(0xff000000)) == htonl(0x7f000000))
 
-/* ulp_mem_io + ulptx_idata + payload + padding */
-#define MAX_IMM_ULPTX_WR_LEN (32 + 8 + 256 + 8)
-
 /* for TX: a skb must have a headroom of at least TX_HEADER_LEN bytes */
 #define TX_HEADER_LEN \
 	(sizeof(struct fw_ofld_tx_data_wr) + sizeof(struct sge_opaque_hdr))
@@ -98,7 +95,7 @@ struct deferred_skb_cb {
 #define WSCALE_OK(tp) ((tp)->rx_opt.wscale_ok)
 #define TSTAMP_OK(tp) ((tp)->rx_opt.tstamp_ok)
 #define SACK_OK(tp) ((tp)->rx_opt.sack_ok)
-#define INC_ORPHAN_COUNT(sk) percpu_counter_inc((sk)->sk_prot->orphan_count)
+#define INC_ORPHAN_COUNT(sk) this_cpu_inc(*(sk)->sk_prot->orphan_count)
 
 /* TLS SKB */
 #define skb_ulp_tls_inline(skb)      (ULP_SKB_CB(skb)->ulp.tls.ofld)

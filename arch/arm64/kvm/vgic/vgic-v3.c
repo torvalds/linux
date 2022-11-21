@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/irqchip/arm-gic-v3.h>
+#include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <kvm/arm_vgic.h>
@@ -13,6 +15,7 @@
 static bool group0_trap;
 static bool group1_trap;
 static bool common_trap;
+static bool dir_trap;
 static bool gicv4_enable;
 
 void vgic_v3_set_underflow(struct kvm_vcpu *vcpu)
@@ -44,6 +47,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 		u32 intid, cpuid;
 		struct vgic_irq *irq;
 		bool is_v2_sgi = false;
+		bool deactivated;
 
 		cpuid = val & GICH_LR_PHYSID_CPUID;
 		cpuid >>= GICH_LR_PHYSID_CPUID_SHIFT;
@@ -66,7 +70,8 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 
 		raw_spin_lock(&irq->irq_lock);
 
-		/* Always preserve the active bit */
+		/* Always preserve the active bit, note deactivation */
+		deactivated = irq->active && !(val & ICH_LR_ACTIVE_BIT);
 		irq->active = !!(val & ICH_LR_ACTIVE_BIT);
 
 		if (irq->active && is_v2_sgi)
@@ -87,25 +92,8 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 		if (irq->config == VGIC_CONFIG_LEVEL && !(val & ICH_LR_STATE))
 			irq->pending_latch = false;
 
-		/*
-		 * Level-triggered mapped IRQs are special because we only
-		 * observe rising edges as input to the VGIC.
-		 *
-		 * If the guest never acked the interrupt we have to sample
-		 * the physical line and set the line level, because the
-		 * device state could have changed or we simply need to
-		 * process the still pending interrupt later.
-		 *
-		 * If this causes us to lower the level, we have to also clear
-		 * the physical active state, since we will otherwise never be
-		 * told when the interrupt becomes asserted again.
-		 */
-		if (vgic_irq_is_mapped_level(irq) && (val & ICH_LR_PENDING_BIT)) {
-			irq->line_level = vgic_get_phys_line_level(irq);
-
-			if (!irq->line_level)
-				vgic_irq_set_phys_active(irq, false);
-		}
+		/* Handle resampling for mapped interrupts if required */
+		vgic_irq_handle_resampling(irq, deactivated, val & ICH_LR_PENDING_BIT);
 
 		raw_spin_unlock(&irq->irq_lock);
 		vgic_put_irq(vcpu->kvm, irq);
@@ -134,7 +122,7 @@ void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 		}
 	}
 
-	if (irq->hw) {
+	if (irq->hw && !vgic_irq_needs_resampling(irq)) {
 		val |= ICH_LR_HW;
 		val |= ((u64)irq->hwintid) << ICH_LR_PHYS_ID_SHIFT;
 		/*
@@ -309,6 +297,8 @@ void vgic_v3_enable(struct kvm_vcpu *vcpu)
 		vgic_v3->vgic_hcr |= ICH_HCR_TALL1;
 	if (common_trap)
 		vgic_v3->vgic_hcr |= ICH_HCR_TC;
+	if (dir_trap)
+		vgic_v3->vgic_hcr |= ICH_HCR_TDIR;
 }
 
 int vgic_v3_lpi_sync_pending_status(struct kvm *kvm, struct vgic_irq *irq)
@@ -356,6 +346,32 @@ retry:
 	return 0;
 }
 
+/*
+ * The deactivation of the doorbell interrupt will trigger the
+ * unmapping of the associated vPE.
+ */
+static void unmap_all_vpes(struct vgic_dist *dist)
+{
+	struct irq_desc *desc;
+	int i;
+
+	for (i = 0; i < dist->its_vm.nr_vpes; i++) {
+		desc = irq_to_desc(dist->its_vm.vpes[i]->irq);
+		irq_domain_deactivate_irq(irq_desc_get_irq_data(desc));
+	}
+}
+
+static void map_all_vpes(struct vgic_dist *dist)
+{
+	struct irq_desc *desc;
+	int i;
+
+	for (i = 0; i < dist->its_vm.nr_vpes; i++) {
+		desc = irq_to_desc(dist->its_vm.vpes[i]->irq);
+		irq_domain_activate_irq(irq_desc_get_irq_data(desc), false);
+	}
+}
+
 /**
  * vgic_v3_save_pending_tables - Save the pending tables into guest RAM
  * kvm lock and all vcpu lock must be held
@@ -365,13 +381,28 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct vgic_irq *irq;
 	gpa_t last_ptr = ~(gpa_t)0;
-	int ret;
+	bool vlpi_avail = false;
+	int ret = 0;
 	u8 val;
+
+	if (unlikely(!vgic_initialized(kvm)))
+		return -ENXIO;
+
+	/*
+	 * A preparation for getting any VLPI states.
+	 * The above vgic initialized check also ensures that the allocation
+	 * and enabling of the doorbells have already been done.
+	 */
+	if (kvm_vgic_global_state.has_gicv4_1) {
+		unmap_all_vpes(dist);
+		vlpi_avail = true;
+	}
 
 	list_for_each_entry(irq, &dist->lpi_list_head, lpi_list) {
 		int byte_offset, bit_nr;
 		struct kvm_vcpu *vcpu;
 		gpa_t pendbase, ptr;
+		bool is_pending;
 		bool stored;
 
 		vcpu = irq->target_vcpu;
@@ -387,24 +418,35 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 		if (ptr != last_ptr) {
 			ret = kvm_read_guest_lock(kvm, ptr, &val, 1);
 			if (ret)
-				return ret;
+				goto out;
 			last_ptr = ptr;
 		}
 
 		stored = val & (1U << bit_nr);
-		if (stored == irq->pending_latch)
+
+		is_pending = irq->pending_latch;
+
+		if (irq->hw && vlpi_avail)
+			vgic_v4_get_vlpi_state(irq, &is_pending);
+
+		if (stored == is_pending)
 			continue;
 
-		if (irq->pending_latch)
+		if (is_pending)
 			val |= 1 << bit_nr;
 		else
 			val &= ~(1 << bit_nr);
 
 		ret = kvm_write_guest_lock(kvm, ptr, &val, 1);
 		if (ret)
-			return ret;
+			goto out;
 	}
-	return 0;
+
+out:
+	if (vlpi_avail)
+		map_all_vpes(dist);
+
+	return ret;
 }
 
 /**
@@ -444,8 +486,10 @@ bool vgic_v3_check_base(struct kvm *kvm)
 		return false;
 
 	list_for_each_entry(rdreg, &d->rd_regions, list) {
-		if (rdreg->base + vgic_v3_rd_region_size(kvm, rdreg) <
-			rdreg->base)
+		size_t sz = vgic_v3_rd_region_size(kvm, rdreg);
+
+		if (vgic_check_iorange(kvm, VGIC_ADDR_UNDEF,
+				       rdreg->base, SZ_64K, sz))
 			return false;
 	}
 
@@ -498,31 +542,25 @@ int vgic_v3_map_resources(struct kvm *kvm)
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu;
 	int ret = 0;
-	int c;
-
-	if (vgic_ready(kvm))
-		goto out;
+	unsigned long c;
 
 	kvm_for_each_vcpu(c, vcpu, kvm) {
 		struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 
 		if (IS_VGIC_ADDR_UNDEF(vgic_cpu->rd_iodev.base_addr)) {
-			kvm_debug("vcpu %d redistributor base not set\n", c);
-			ret = -ENXIO;
-			goto out;
+			kvm_debug("vcpu %ld redistributor base not set\n", c);
+			return -ENXIO;
 		}
 	}
 
 	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base)) {
-		kvm_err("Need to set vgic distributor addresses first\n");
-		ret = -ENXIO;
-		goto out;
+		kvm_debug("Need to set vgic distributor addresses first\n");
+		return -ENXIO;
 	}
 
 	if (!vgic_v3_check_base(kvm)) {
-		kvm_err("VGIC redist and dist frames overlap\n");
-		ret = -EINVAL;
-		goto out;
+		kvm_debug("VGIC redist and dist frames overlap\n");
+		return -EINVAL;
 	}
 
 	/*
@@ -530,22 +568,19 @@ int vgic_v3_map_resources(struct kvm *kvm)
 	 * the VGIC before we need to use it.
 	 */
 	if (!vgic_initialized(kvm)) {
-		ret = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
 
 	ret = vgic_register_dist_iodev(kvm, dist->vgic_dist_base, VGIC_V3);
 	if (ret) {
 		kvm_err("Unable to register VGICv3 dist MMIO regions\n");
-		goto out;
+		return ret;
 	}
 
 	if (kvm_vgic_global_state.has_gicv4_1)
 		vgic_v4_configure_vsgis(kvm);
-	dist->ready = true;
 
-out:
-	return ret;
+	return 0;
 }
 
 DEFINE_STATIC_KEY_FALSE(vgic_v3_cpuif_trap);
@@ -574,6 +609,18 @@ static int __init early_gicv4_enable(char *buf)
 }
 early_param("kvm-arm.vgic_v4_enable", early_gicv4_enable);
 
+static const struct midr_range broken_seis[] = {
+	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_ICESTORM),
+	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_FIRESTORM),
+	{},
+};
+
+static bool vgic_v3_broken_seis(void)
+{
+	return ((kvm_vgic_global_state.ich_vtr_el2 & ICH_VTR_SEIS_MASK) &&
+		is_midr_in_range_list(read_cpuid_id(), broken_seis));
+}
+
 /**
  * vgic_v3_probe - probe for a VGICv3 compatible interrupt controller
  * @info:	pointer to the GIC description
@@ -583,8 +630,12 @@ early_param("kvm-arm.vgic_v4_enable", early_gicv4_enable);
  */
 int vgic_v3_probe(const struct gic_kvm_info *info)
 {
-	u32 ich_vtr_el2 = kvm_call_hyp_ret(__vgic_v3_get_ich_vtr_el2);
+	u64 ich_vtr_el2 = kvm_call_hyp_ret(__vgic_v3_get_gic_config);
+	bool has_v2;
 	int ret;
+
+	has_v2 = ich_vtr_el2 >> 63;
+	ich_vtr_el2 = (u32)ich_vtr_el2;
 
 	/*
 	 * The ListRegs field is 5 bits, but there is an architectural
@@ -603,14 +654,16 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 			 gicv4_enable ? "en" : "dis");
 	}
 
+	kvm_vgic_global_state.vcpu_base = 0;
+
 	if (!info->vcpu.start) {
 		kvm_info("GICv3: no GICV resource entry\n");
-		kvm_vgic_global_state.vcpu_base = 0;
+	} else if (!has_v2) {
+		pr_warn(FW_BUG "CPU interface incapable of MMIO access\n");
 	} else if (!PAGE_ALIGNED(info->vcpu.start)) {
 		pr_warn("GICV physical address 0x%llx not page aligned\n",
 			(unsigned long long)info->vcpu.start);
-		kvm_vgic_global_state.vcpu_base = 0;
-	} else {
+	} else if (kvm_get_mode() != KVM_MODE_PROTECTED) {
 		kvm_vgic_global_state.vcpu_base = info->vcpu.start;
 		kvm_vgic_global_state.can_emulate_gicv2 = true;
 		ret = kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V2);
@@ -635,11 +688,24 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 		group1_trap = true;
 	}
 
-	if (group0_trap || group1_trap || common_trap) {
-		kvm_info("GICv3 sysreg trapping enabled ([%s%s%s], reduced performance)\n",
+	if (vgic_v3_broken_seis()) {
+		kvm_info("GICv3 with broken locally generated SEI\n");
+
+		kvm_vgic_global_state.ich_vtr_el2 &= ~ICH_VTR_SEIS_MASK;
+		group0_trap = true;
+		group1_trap = true;
+		if (ich_vtr_el2 & ICH_VTR_TDS_MASK)
+			dir_trap = true;
+		else
+			common_trap = true;
+	}
+
+	if (group0_trap || group1_trap || common_trap | dir_trap) {
+		kvm_info("GICv3 sysreg trapping enabled ([%s%s%s%s], reduced performance)\n",
 			 group0_trap ? "G0" : "",
 			 group1_trap ? "G1" : "",
-			 common_trap ? "C"  : "");
+			 common_trap ? "C"  : "",
+			 dir_trap    ? "D"  : "");
 		static_branch_enable(&vgic_v3_cpuif_trap);
 	}
 

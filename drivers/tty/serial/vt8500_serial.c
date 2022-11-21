@@ -184,9 +184,7 @@ static void handle_rx(struct uart_port *port)
 			tty_insert_flip_char(tport, c, flag);
 	}
 
-	spin_unlock(&port->lock);
 	tty_flip_buffer_push(tport);
-	spin_lock(&port->lock);
 }
 
 static void handle_tx(struct uart_port *port)
@@ -486,7 +484,7 @@ static void wait_for_xmitr(struct uart_port *port)
 	} while (status & 0x10);
 }
 
-static void vt8500_console_putchar(struct uart_port *port, int c)
+static void vt8500_console_putchar(struct uart_port *port, unsigned char c)
 {
 	wait_for_xmitr(port);
 	writeb(c, port->membase + VT8500_TXFIFO);
@@ -623,23 +621,24 @@ static const struct of_device_id wmt_dt_ids[] = {
 static int vt8500_serial_probe(struct platform_device *pdev)
 {
 	struct vt8500_port *vt8500_port;
-	struct resource *mmres, *irqres;
+	struct resource *mmres;
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *match;
 	const unsigned int *flags;
 	int ret;
 	int port;
+	int irq;
 
-	match = of_match_device(wmt_dt_ids, &pdev->dev);
-	if (!match)
+	flags = of_device_get_match_data(&pdev->dev);
+	if (!flags)
 		return -EINVAL;
 
-	flags = match->data;
-
 	mmres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	irqres = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!mmres || !irqres)
+	if (!mmres)
 		return -ENODEV;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	if (np) {
 		port = of_alias_get_id(np, "serial");
@@ -693,7 +692,7 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	vt8500_port->uart.type = PORT_VT8500;
 	vt8500_port->uart.iotype = UPIO_MEM;
 	vt8500_port->uart.mapbase = mmres->start;
-	vt8500_port->uart.irq = irqres->start;
+	vt8500_port->uart.irq = irq;
 	vt8500_port->uart.fifosize = 16;
 	vt8500_port->uart.ops = &vt8500_uart_pops;
 	vt8500_port->uart.line = port;

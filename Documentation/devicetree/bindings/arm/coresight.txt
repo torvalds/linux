@@ -34,8 +34,11 @@ its hardware characteristcs.
 					Program Flow Trace Macrocell:
 			"arm,coresight-etm3x", "arm,primecell";
 
-		- Embedded Trace Macrocell (version 4.x):
+		- Embedded Trace Macrocell (version 4.x), with memory mapped access.
 			"arm,coresight-etm4x", "arm,primecell";
+
+		- Embedded Trace Macrocell (version 4.x), with system register access only.
+			"arm,coresight-etm4x-sysreg";
 
 		- Coresight programmable Replicator :
 			"arm,coresight-dynamic-replicator", "arm,primecell";
@@ -123,6 +126,11 @@ its hardware characteristcs.
 
 	* arm,scatter-gather: boolean. Indicates that the TMC-ETR can safely
 	  use the SG mode on this system.
+
+	* arm,max-burst-size: The maximum burst size initiated by TMC on the
+	  AXI master interface. The burst size can be in the range [0..15],
+	  the setting supports one data transfer per burst up to a maximum of
+	  16 data transfers per burst.
 
 * Optional property for CATU :
 	* interrupts : Exactly one SPI may be listed for reporting the address

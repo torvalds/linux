@@ -9,10 +9,7 @@
 #include <subdev/bios/dp.h>
 
 struct nvkm_dp {
-	union {
-		struct nvkm_outp base;
-		struct nvkm_outp outp;
-	};
+	struct nvkm_outp outp;
 
 	struct nvbios_dpout info;
 	u8 version;
@@ -21,7 +18,16 @@ struct nvkm_dp {
 
 	struct nvkm_notify hpd;
 	bool present;
+	u8 lttpr[6];
+	u8 lttprs;
 	u8 dpcd[16];
+
+	struct {
+		int dpcd; /* -1, or index into SUPPORTED_LINK_RATES table */
+		u32 rate;
+	} rate[8];
+	int rates;
+	int links;
 
 	struct mutex mutex;
 	struct {
@@ -32,6 +38,7 @@ struct nvkm_dp {
 
 int nvkm_dp_new(struct nvkm_disp *, int index, struct dcb_output *,
 		struct nvkm_outp **);
+void nvkm_dp_disable(struct nvkm_outp *, struct nvkm_ior *);
 
 /* DPCD Receiver Capabilities */
 #define DPCD_RC00_DPCD_REV                                              0x00000
@@ -41,8 +48,12 @@ int nvkm_dp_new(struct nvkm_disp *, int index, struct dcb_output *,
 #define DPCD_RC02_TPS3_SUPPORTED                                           0x40
 #define DPCD_RC02_MAX_LANE_COUNT                                           0x1f
 #define DPCD_RC03                                                       0x00003
+#define DPCD_RC03_TPS4_SUPPORTED                                           0x80
 #define DPCD_RC03_MAX_DOWNSPREAD                                           0x01
-#define DPCD_RC0E_AUX_RD_INTERVAL                                       0x0000e
+#define DPCD_RC0E                                                       0x0000e
+#define DPCD_RC0E_AUX_RD_INTERVAL                                          0x7f
+#define DPCD_RC10_SUPPORTED_LINK_RATES(i)                               0x00010
+#define DPCD_RC10_SUPPORTED_LINK_RATES__SIZE                                 16
 
 /* DPCD Link Configuration */
 #define DPCD_LC00_LINK_BW_SET                                           0x00100
@@ -50,7 +61,8 @@ int nvkm_dp_new(struct nvkm_disp *, int index, struct dcb_output *,
 #define DPCD_LC01_ENHANCED_FRAME_EN                                        0x80
 #define DPCD_LC01_LANE_COUNT_SET                                           0x1f
 #define DPCD_LC02                                                       0x00102
-#define DPCD_LC02_TRAINING_PATTERN_SET                                     0x03
+#define DPCD_LC02_TRAINING_PATTERN_SET                                     0x0f
+#define DPCD_LC02_SCRAMBLING_DISABLE                                       0x20
 #define DPCD_LC03(l)                                            ((l) +  0x00103)
 #define DPCD_LC03_MAX_PRE_EMPHASIS_REACHED                                 0x20
 #define DPCD_LC03_PRE_EMPHASIS_SET                                         0x18
@@ -66,6 +78,8 @@ int nvkm_dp_new(struct nvkm_disp *, int index, struct dcb_output *,
 #define DPCD_LC10_LANE3_POST_CURSOR2_SET                                   0x30
 #define DPCD_LC10_LANE2_MAX_POST_CURSOR2_REACHED                           0x04
 #define DPCD_LC10_LANE2_POST_CURSOR2_SET                                   0x03
+#define DPCD_LC15_LINK_RATE_SET                                         0x00115
+#define DPCD_LC15_LINK_RATE_SET_MASK                                       0x07
 
 /* DPCD Link/Sink Status */
 #define DPCD_LS02                                                       0x00202
@@ -107,4 +121,14 @@ int nvkm_dp_new(struct nvkm_disp *, int index, struct dcb_output *,
 #define DPCD_SC00_SET_POWER                                                0x03
 #define DPCD_SC00_SET_POWER_D0                                             0x01
 #define DPCD_SC00_SET_POWER_D3                                             0x03
+
+#define DPCD_LTTPR_REV                                                  0xf0000
+#define DPCD_LTTPR_MODE                                                 0xf0003
+#define DPCD_LTTPR_MODE_TRANSPARENT                                        0x55
+#define DPCD_LTTPR_MODE_NON_TRANSPARENT                                    0xaa
+#define DPCD_LTTPR_PATTERN_SET(i)                     ((i - 1) * 0x50 + 0xf0010)
+#define DPCD_LTTPR_LANE0_SET(i)                       ((i - 1) * 0x50 + 0xf0011)
+#define DPCD_LTTPR_AUX_RD_INTERVAL(i)                 ((i - 1) * 0x50 + 0xf0020)
+#define DPCD_LTTPR_LANE0_1_STATUS(i)                  ((i - 1) * 0x50 + 0xf0030)
+#define DPCD_LTTPR_LANE0_1_ADJUST(i)                  ((i - 1) * 0x50 + 0xf0033)
 #endif

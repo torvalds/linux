@@ -24,9 +24,6 @@ properties:
   $nodename:
     pattern: "^spmi@.*"
 
-  reg:
-    maxItems: 1
-
   "#address-cells":
     const: 2
 
@@ -40,14 +37,15 @@ patternProperties:
 
     properties:
       reg:
-        minItems: 1
-        maxItems: 2
         items:
-          - minimum: 0
-            maximum: 0xf
-          - enum: [ 0 ]
-            description: |
-              0 means user ID address. 1 is reserved for group ID address.
+          - minItems: 1
+            items:
+              - minimum: 0
+                maximum: 0xf
+              - enum: [ 0 ]
+                description:
+                  0 means user ID address. 1 is reserved for group ID
+                  address.
 
     required:
       - reg

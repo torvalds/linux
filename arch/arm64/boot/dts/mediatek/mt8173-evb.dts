@@ -62,6 +62,10 @@
 	};
 };
 
+&mfg_async {
+	domain-supply = <&da9211_vgpu_reg>;
+};
+
 &cec {
 	status = "okay";
 };
@@ -294,7 +298,7 @@
 
 &pwrap {
 	/* Only MT8173 E1 needs USB power domain */
-	power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
+	power-domains = <&spm MT8173_POWER_DOMAIN_USB>;
 
 	pmic: mt6397 {
 		compatible = "mediatek,mt6397";
@@ -516,10 +520,8 @@
 	extcon = <&extcon_usb>;
 	dr_mode = "otg";
 	wakeup-source;
-	pinctrl-names = "default", "id_float", "id_ground";
+	pinctrl-names = "default";
 	pinctrl-0 = <&usb_id_pins_float>;
-	pinctrl-1 = <&usb_id_pins_float>;
-	pinctrl-2 = <&usb_id_pins_ground>;
 	status = "okay";
 };
 

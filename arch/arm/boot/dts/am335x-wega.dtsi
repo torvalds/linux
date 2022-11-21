@@ -55,7 +55,7 @@
 		2 1 0 0 /* # 0: INACTIVE, 1: TX, 2: RX */
 	>;
 	tx-num-evt = <16>;
-	rt-num-evt = <16>;
+	rx-num-evt = <16>;
 	status = "okay";
 };
 
@@ -111,23 +111,22 @@
 	};
 };
 
-&cpsw_emac1 {
+&cpsw_port2 {
+	status = "okay";
 	phy-handle = <&phy1>;
 	phy-mode = "mii";
-	dual_emac_res_vlan = <2>;
+	ti,dual-emac-pvid = <2>;
 };
 
-&davinci_mdio {
+&davinci_mdio_sw {
 	phy1: ethernet-phy@1 {
 		reg = <1>;
 	};
 };
 
-&mac {
-	slaves = <2>;
+&mac_sw {
 	pinctrl-names = "default";
 	pinctrl-0 = <&ethernet0_pins &ethernet1_pins>;
-	dual_emac = <1>;
 };
 
 /* MMC */

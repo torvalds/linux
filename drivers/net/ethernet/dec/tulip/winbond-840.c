@@ -36,7 +36,7 @@
 		power management.
 		support for big endian descriptors
 			Copyright (C) 2001 Manfred Spraul
-  	* ethtool support (jgarzik)
+	* ethtool support (jgarzik)
 	* Replace some MII-related magic numbers with constants (jgarzik)
 
 	TODO:
@@ -341,7 +341,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_start_xmit		= start_tx,
 	.ndo_get_stats		= get_stats,
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_do_ioctl		= netdev_ioctl,
+	.ndo_eth_ioctl		= netdev_ioctl,
 	.ndo_tx_timeout		= tx_timeout,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -355,9 +355,10 @@ static int w840_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int chip_idx = ent->driver_data;
 	int irq;
 	int i, option = find_cnt < MAX_UNITS ? options[find_cnt] : 0;
+	__le16 addr[ETH_ALEN / 2];
 	void __iomem *ioaddr;
 
-	i = pci_enable_device(pdev);
+	i = pcim_enable_device(pdev);
 	if (i) return i;
 
 	pci_set_master(pdev);
@@ -379,10 +380,11 @@ static int w840_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ioaddr = pci_iomap(pdev, TULIP_BAR, netdev_res_size);
 	if (!ioaddr)
-		goto err_out_free_res;
+		goto err_out_netdev;
 
 	for (i = 0; i < 3; i++)
-		((__le16 *)dev->dev_addr)[i] = cpu_to_le16(eeprom_read(ioaddr, i));
+		addr[i] = cpu_to_le16(eeprom_read(ioaddr, i));
+	eth_hw_addr_set(dev, (u8 *)addr);
 
 	/* Reset the chip to erase previous misconfiguration.
 	   No hold time required! */
@@ -458,8 +460,6 @@ static int w840_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_out_cleardev:
 	pci_iounmap(pdev, ioaddr);
-err_out_free_res:
-	pci_release_regions(pdev);
 err_out_netdev:
 	free_netdev (dev);
 	return -ENODEV;
@@ -879,7 +879,7 @@ static void init_registers(struct net_device *dev)
 		8000	16 longwords		0200 2 longwords	2000 32 longwords
 		C000	32  longwords		0400 4 longwords */
 
-#if defined (__i386__) && !defined(MODULE)
+#if defined (__i386__) && !defined(MODULE) && !defined(CONFIG_UML)
 	/* When not a module we can work around broken '486 PCI boards. */
 	if (boot_cpu_data.x86 <= 4) {
 		i |= 0x4800;
@@ -1479,7 +1479,7 @@ static int netdev_close(struct net_device *dev)
 			   np->cur_rx, np->dirty_rx);
 	}
 
- 	/* Stop the chip's Tx and Rx processes. */
+	/* Stop the chip's Tx and Rx processes. */
 	spin_lock_irq(&np->lock);
 	netif_device_detach(dev);
 	update_csr6(dev, 0);
@@ -1526,7 +1526,6 @@ static void w840_remove1(struct pci_dev *pdev)
 	if (dev) {
 		struct netdev_private *np = netdev_priv(dev);
 		unregister_netdev(dev);
-		pci_release_regions(pdev);
 		pci_iounmap(pdev, np->base_addr);
 		free_netdev(dev);
 	}
@@ -1629,15 +1628,4 @@ static struct pci_driver w840_driver = {
 	.driver.pm	= &w840_pm_ops,
 };
 
-static int __init w840_init(void)
-{
-	return pci_register_driver(&w840_driver);
-}
-
-static void __exit w840_exit(void)
-{
-	pci_unregister_driver(&w840_driver);
-}
-
-module_init(w840_init);
-module_exit(w840_exit);
+module_pci_driver(w840_driver);

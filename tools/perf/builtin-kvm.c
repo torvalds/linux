@@ -24,6 +24,7 @@
 #include "util/ordered-events.h"
 #include "util/kvm-stat.h"
 #include "ui/ui.h"
+#include "util/string2.h"
 
 #include <sys/prctl.h>
 #ifdef HAVE_TIMERFD_SUPPORT
@@ -764,14 +765,14 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 		return (err == -EAGAIN) ? 0 : -1;
 
 	while ((event = perf_mmap__read_event(&md->core)) != NULL) {
-		err = perf_evlist__parse_sample_timestamp(evlist, event, &timestamp);
+		err = evlist__parse_sample_timestamp(evlist, event, &timestamp);
 		if (err) {
 			perf_mmap__consume(&md->core);
 			pr_err("Failed to parse sample\n");
 			return -1;
 		}
 
-		err = perf_session__queue_event(kvm->session, event, timestamp, 0);
+		err = perf_session__queue_event(kvm->session, event, timestamp, 0, NULL);
 		/*
 		 * FIXME: Here we can't consume the event, as perf_session__queue_event will
 		 *        point to it, and it'll get possibly overwritten by the kernel.
@@ -1022,7 +1023,7 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 	struct evlist *evlist = kvm->evlist;
 	char sbuf[STRERR_BUFSIZE];
 
-	perf_evlist__config(evlist, &kvm->opts, NULL);
+	evlist__config(evlist, &kvm->opts, NULL);
 
 	/*
 	 * Note: exclude_{guest,host} do not apply here.
@@ -1093,7 +1094,7 @@ static int read_events(struct perf_kvm_stat *kvm)
 	};
 
 	kvm->tool = eops;
-	kvm->session = perf_session__new(&file, false, &kvm->tool);
+	kvm->session = perf_session__new(&file, &kvm->tool);
 	if (IS_ERR(kvm->session)) {
 		pr_err("Initializing perf session failed\n");
 		return PTR_ERR(kvm->session);
@@ -1349,8 +1350,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 		OPT_STRING('p', "pid", &kvm->opts.target.pid, "pid",
 			"record events on existing process id"),
 		OPT_CALLBACK('m', "mmap-pages", &kvm->opts.mmap_pages, "pages",
-			"number of mmap data pages",
-			perf_evlist__parse_mmap_pages),
+			"number of mmap data pages", evlist__parse_mmap_pages),
 		OPT_INCR('v', "verbose", &verbose,
 			"be more verbose (show counter open errors, etc)"),
 		OPT_BOOLEAN('a', "all-cpus", &kvm->opts.target.system_wide,
@@ -1442,13 +1442,13 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 		goto out;
 	}
 
-	if (perf_evlist__create_maps(kvm->evlist, &kvm->opts.target) < 0)
+	if (evlist__create_maps(kvm->evlist, &kvm->opts.target) < 0)
 		usage_with_options(live_usage, live_options);
 
 	/*
 	 * perf session
 	 */
-	kvm->session = perf_session__new(&data, false, &kvm->tool);
+	kvm->session = perf_session__new(&data, &kvm->tool);
 	if (IS_ERR(kvm->session)) {
 		err = PTR_ERR(kvm->session);
 		goto out;
@@ -1457,7 +1457,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	perf_session__set_id_hdr_size(kvm->session);
 	ordered_events__set_copy_on_queue(&kvm->session->ordered_events, true);
 	machine__synthesize_threads(&kvm->session->machines.host, &kvm->opts.target,
-				    kvm->evlist->core.threads, false, 1);
+				    kvm->evlist->core.threads, true, false, 1);
 	err = kvm_live_open_events(kvm);
 	if (err)
 		goto out;
@@ -1501,10 +1501,10 @@ static int kvm_cmd_stat(const char *file_name, int argc, const char **argv)
 		goto perf_stat;
 	}
 
-	if (!strncmp(argv[1], "rec", 3))
+	if (strlen(argv[1]) > 2 && strstarts("record", argv[1]))
 		return kvm_events_record(&kvm, argc - 1, argv + 1);
 
-	if (!strncmp(argv[1], "rep", 3))
+	if (strlen(argv[1]) > 2 && strstarts("report", argv[1]))
 		return kvm_events_report(&kvm, argc - 1 , argv + 1);
 
 #ifdef HAVE_TIMERFD_SUPPORT
@@ -1632,9 +1632,9 @@ int cmd_kvm(int argc, const char **argv)
 		}
 	}
 
-	if (!strncmp(argv[0], "rec", 3))
+	if (strlen(argv[0]) > 2 && strstarts("record", argv[0]))
 		return __cmd_record(file_name, argc, argv);
-	else if (!strncmp(argv[0], "rep", 3))
+	else if (strlen(argv[0]) > 2 && strstarts("report", argv[0]))
 		return __cmd_report(file_name, argc, argv);
 	else if (!strncmp(argv[0], "diff", 4))
 		return cmd_diff(argc, argv);

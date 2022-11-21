@@ -18,6 +18,7 @@ properties:
 
   compatible:
     enum:
+      - brcm,bcm2711-dsi1
       - brcm,bcm2835-dsi0
       - brcm,bcm2835-dsi1
 
@@ -44,6 +45,9 @@ properties:
     #   - description: The DSI DDR clock
 
   interrupts:
+    maxItems: 1
+
+  power-domains:
     maxItems: 1
 
 required:
@@ -76,12 +80,6 @@ examples:
 
         clock-output-names = "dsi1_byte", "dsi1_ddr2", "dsi1_ddr";
 
-        pitouchscreen: panel@0 {
-            compatible = "raspberrypi,touchscreen";
-            reg = <0>;
-
-            /* ... */
-        };
     };
 
 ...

@@ -28,13 +28,20 @@ properties:
     contains:
       enum:
         - mmio-sram
+        - amlogic,meson-gxbb-sram
+        - arm,juno-sram-ns
         - atmel,sama5d2-securam
+        - nvidia,tegra186-sysram
+        - nvidia,tegra194-sysram
+        - nvidia,tegra234-sysram
+        - qcom,rpm-msg-ram
         - rockchip,rk3288-pmu-sram
 
   reg:
     maxItems: 1
 
   clocks:
+    maxItems: 1
     description:
       A list of phandle and clock specifier pair that controls the single
       SRAM clock.
@@ -46,6 +53,7 @@ properties:
     const: 1
 
   ranges:
+    maxItems: 1
     description:
       Should translate from local addresses within the sram to bus addresses.
 
@@ -56,7 +64,7 @@ properties:
     type: boolean
 
 patternProperties:
-  "^([a-z]*-)?sram(-section)?@[a-f0-9]+$":
+  "^([a-z0-9]*-)?sram(-section)?@[a-f0-9]+$":
     type: object
     description:
       Each child of the sram node specifies a region of reserved memory.
@@ -72,10 +80,15 @@ patternProperties:
             - allwinner,sun4i-a10-sram-d
             - allwinner,sun9i-a80-smp-sram
             - allwinner,sun50i-a64-sram-c
+            - amlogic,meson8-ao-arc-sram
+            - amlogic,meson8b-ao-arc-sram
             - amlogic,meson8-smp-sram
             - amlogic,meson8b-smp-sram
             - amlogic,meson-gxbb-scp-shmem
             - amlogic,meson-axg-scp-shmem
+            - arm,juno-scp-shmem
+            - arm,scmi-shmem
+            - arm,scp-shmem
             - renesas,smp-sram
             - rockchip,rk3066-smp-sram
             - samsung,exynos4210-sysram
@@ -123,12 +136,14 @@ required:
   - reg
 
 if:
-  properties:
-    compatible:
-      contains:
-        const: rockchip,rk3288-pmu-sram
-
-else:
+  not:
+    properties:
+      compatible:
+        contains:
+          enum:
+            - qcom,rpm-msg-ram
+            - rockchip,rk3288-pmu-sram
+then:
   required:
     - "#address-cells"
     - "#size-cells"

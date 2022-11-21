@@ -8,7 +8,6 @@
 #ifndef __OS_H__
 #define __OS_H__
 
-#include <stdarg.h>
 #include <irq_user.h>
 #include <longjmp.h>
 #include <mm_id.h>
@@ -160,24 +159,16 @@ extern int os_create_unix_socket(const char *file, int len, int close_on_exec);
 extern int os_shutdown_socket(int fd, int r, int w);
 extern void os_close_file(int fd);
 extern int os_rcv_fd(int fd, int *helper_pid_out);
-extern int create_unix_socket(char *file, int len, int close_on_exec);
 extern int os_connect_socket(const char *name);
 extern int os_file_type(char *file);
 extern int os_file_mode(const char *file, struct openflags *mode_out);
 extern int os_lock_file(int fd, int excl);
 extern void os_flush_stdout(void);
-extern int os_stat_filesystem(char *path, long *bsize_out,
-			      long long *blocks_out, long long *bfree_out,
-			      long long *bavail_out, long long *files_out,
-			      long long *ffree_out, void *fsid_out,
-			      int fsid_size, long *namelen_out,
-			      long *spare_out);
-extern int os_change_dir(char *dir);
-extern int os_fchange_dir(int fd);
 extern unsigned os_major(unsigned long long dev);
 extern unsigned os_minor(unsigned long long dev);
 extern unsigned long long os_makedev(unsigned major, unsigned minor);
 extern int os_falloc_punch(int fd, unsigned long long offset, int count);
+extern int os_falloc_zeroes(int fd, unsigned long long offset, int count);
 extern int os_eventfd(unsigned int initval, int flags);
 extern int os_sendmsg_fds(int fd, const void *buf, unsigned int len,
 			  const int *fds, unsigned int fds_num);
@@ -187,6 +178,9 @@ int os_poll(unsigned int n, const int *fds);
 extern void os_early_checks(void);
 extern void os_check_bugs(void);
 extern void check_host_supports_tls(int *supports_tls, int *tls_min);
+extern void get_host_cpu_features(
+	void (*flags_helper_func)(char *line),
+	void (*cache_helper_func)(char *line));
 
 /* mem.c */
 extern int create_mem_file(unsigned long long len);
@@ -211,7 +205,6 @@ extern int os_protect_memory(void *addr, unsigned long len,
 extern int os_unmap_memory(void *addr, int len);
 extern int os_drop_memory(void *addr, int length);
 extern int can_drop_memory(void);
-extern void os_flush_stdout(void);
 extern int os_mincore(void *addr, unsigned long len);
 
 /* execvp.c */
@@ -231,16 +224,19 @@ extern char *get_umid(void);
 /* signal.c */
 extern void timer_set_signal_handler(void);
 extern void set_sigstack(void *sig_stack, int size);
-extern void remove_sigstack(void);
 extern void set_handler(int sig);
+extern void send_sigio_to_self(void);
 extern int change_sig(int signal, int on);
 extern void block_signals(void);
 extern void unblock_signals(void);
-extern int get_signals(void);
-extern int set_signals(int enable);
-extern int set_signals_trace(int enable);
+extern int um_set_signals(int enable);
+extern int um_set_signals_trace(int enable);
 extern int os_is_signal_stack(void);
 extern void deliver_alarm(void);
+extern void register_pm_wake_signal(void);
+extern void block_signals_hard(void);
+extern void unblock_signals_hard(void);
+extern void mark_sigio_pending(void);
 
 /* util.c */
 extern void stack_protections(unsigned long address);
@@ -256,12 +252,11 @@ extern void os_warn(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
 /* time.c */
-extern void os_idle_sleep(unsigned long long nsecs);
+extern void os_idle_sleep(void);
 extern int os_timer_create(void);
 extern int os_timer_set_interval(unsigned long long nsecs);
 extern int os_timer_one_shot(unsigned long long nsecs);
 extern void os_timer_disable(void);
-extern void uml_idle_timer(void);
 extern long long os_persistent_clock_emulation(void);
 extern long long os_nsecs(void);
 
@@ -285,8 +280,6 @@ extern int is_skas_winch(int pid, int fd, void *data);
 extern int start_userspace(unsigned long stub_stack);
 extern int copy_context_skas0(unsigned long stack, int pid);
 extern void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs);
-extern int map_stub_pages(int fd, unsigned long code, unsigned long data,
-			  unsigned long stack);
 extern void new_thread(void *stack, jmp_buf *buf, void (*handler)(void));
 extern void switch_threads(jmp_buf *me, jmp_buf *you);
 extern int start_idle_thread(void *stack, jmp_buf *switch_buf);
@@ -299,19 +292,29 @@ extern void reboot_skas(void);
 extern int os_waiting_for_events_epoll(void);
 extern void *os_epoll_get_data_pointer(int index);
 extern int os_epoll_triggered(int index, int events);
-extern int os_event_mask(int irq_type);
+extern int os_event_mask(enum um_irq_type irq_type);
 extern int os_setup_epoll(void);
 extern int os_add_epoll_fd(int events, int fd, void *data);
 extern int os_mod_epoll_fd(int events, int fd, void *data);
 extern int os_del_epoll_fd(int fd);
 extern void os_set_ioignore(void);
 extern void os_close_epoll_fd(void);
+extern void um_irqs_suspend(void);
+extern void um_irqs_resume(void);
 
 /* sigio.c */
 extern int add_sigio_fd(int fd);
 extern int ignore_sigio_fd(int fd);
-extern void maybe_sigio_broken(int fd, int read);
-extern void sigio_broken(int fd, int read);
+extern void maybe_sigio_broken(int fd);
+extern void sigio_broken(int fd);
+/*
+ * unlocked versions for IRQ controller code.
+ *
+ * This is safe because it's used at suspend/resume and nothing
+ * else is running.
+ */
+extern int __add_sigio_fd(int fd);
+extern int __ignore_sigio_fd(int fd);
 
 /* prctl.c */
 extern int os_arch_prctl(int pid, int option, unsigned long *arg2);
@@ -329,5 +332,8 @@ extern void block_signals_trace(void);
 extern void unblock_signals_trace(void);
 extern void um_trace_signals_on(void);
 extern void um_trace_signals_off(void);
+
+/* time-travel */
+extern void deliver_time_travel_irqs(void);
 
 #endif

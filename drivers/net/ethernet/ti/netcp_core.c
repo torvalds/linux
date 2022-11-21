@@ -1350,8 +1350,8 @@ int netcp_txpipe_open(struct netcp_tx_pipe *tx_pipe)
 	tx_pipe->dma_queue = knav_queue_open(name, tx_pipe->dma_queue_id,
 					     KNAV_QUEUE_SHARED);
 	if (IS_ERR(tx_pipe->dma_queue)) {
-		dev_err(dev, "Could not open DMA queue for channel \"%s\": %d\n",
-			name, ret);
+		dev_err(dev, "Could not open DMA queue for channel \"%s\": %pe\n",
+			name, tx_pipe->dma_queue);
 		ret = PTR_ERR(tx_pipe->dma_queue);
 		goto err;
 	}
@@ -1944,7 +1944,7 @@ static const struct net_device_ops netcp_netdev_ops = {
 	.ndo_stop		= netcp_ndo_stop,
 	.ndo_start_xmit		= netcp_ndo_start_xmit,
 	.ndo_set_rx_mode	= netcp_set_rx_mode,
-	.ndo_do_ioctl           = netcp_ndo_ioctl,
+	.ndo_eth_ioctl           = netcp_ndo_ioctl,
 	.ndo_get_stats64        = netcp_get_stats,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -1966,7 +1966,6 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 	struct resource res;
 	void __iomem *efuse = NULL;
 	u32 efuse_mac = 0;
-	const void *mac_addr;
 	u8 efuse_mac_addr[6];
 	u32 temp[2];
 	int ret = 0;
@@ -2029,18 +2028,16 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 
 		emac_arch_get_mac_addr(efuse_mac_addr, efuse, efuse_mac);
 		if (is_valid_ether_addr(efuse_mac_addr))
-			ether_addr_copy(ndev->dev_addr, efuse_mac_addr);
+			eth_hw_addr_set(ndev, efuse_mac_addr);
 		else
-			eth_random_addr(ndev->dev_addr);
+			eth_hw_addr_random(ndev);
 
 		devm_iounmap(dev, efuse);
 		devm_release_mem_region(dev, res.start, size);
 	} else {
-		mac_addr = of_get_mac_address(node_interface);
-		if (!IS_ERR(mac_addr))
-			ether_addr_copy(ndev->dev_addr, mac_addr);
-		else
-			eth_random_addr(ndev->dev_addr);
+		ret = of_get_ethdev_address(node_interface, ndev);
+		if (ret)
+			eth_hw_addr_random(ndev);
 	}
 
 	ret = of_property_read_string(node_interface, "rx-channel",
@@ -2085,7 +2082,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 	netcp->tx_pool_region_id = temp[1];
 
 	if (netcp->tx_pool_size < MAX_SKB_FRAGS) {
-		dev_err(dev, "tx-pool size too small, must be atleast(%ld)\n",
+		dev_err(dev, "tx-pool size too small, must be at least %ld\n",
 			MAX_SKB_FRAGS);
 		ret = -ENODEV;
 		goto quit;

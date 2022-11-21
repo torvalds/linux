@@ -11,6 +11,16 @@ static unsigned int inv_scan_query_mpu6050(struct iio_dev *indio_dev)
 	struct inv_mpu6050_state  *st = iio_priv(indio_dev);
 	unsigned int mask;
 
+	/*
+	 * If the MPU6050 is just used as a trigger, then the scan mask
+	 * is not allocated so we simply enable the temperature channel
+	 * as a dummy and bail out.
+	 */
+	if (!indio_dev->active_scan_mask) {
+		st->chip_config.temp_fifo_enable = true;
+		return INV_MPU6050_SENSOR_TEMP;
+	}
+
 	st->chip_config.gyro_fifo_enable =
 		test_bit(INV_MPU6050_SCAN_GYRO_X,
 			 indio_dev->active_scan_mask) ||
@@ -81,22 +91,11 @@ static unsigned int inv_scan_query(struct iio_dev *indio_dev)
 
 static unsigned int inv_compute_skip_samples(const struct inv_mpu6050_state *st)
 {
-	unsigned int gyro_skip = 0;
-	unsigned int magn_skip = 0;
-	unsigned int skip_samples;
-
-	/* gyro first sample is out of specs, skip it */
-	if (st->chip_config.gyro_fifo_enable)
-		gyro_skip = 1;
+	unsigned int skip_samples = 0;
 
 	/* mag first sample is always not ready, skip it */
 	if (st->chip_config.magn_fifo_enable)
-		magn_skip = 1;
-
-	/* compute first samples to skip */
-	skip_samples = gyro_skip;
-	if (magn_skip > skip_samples)
-		skip_samples = magn_skip;
+		skip_samples = 1;
 
 	return skip_samples;
 }
@@ -163,11 +162,9 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 
 	if (enable) {
 		scan = inv_scan_query(indio_dev);
-		result = pm_runtime_get_sync(pdev);
-		if (result < 0) {
-			pm_runtime_put_noidle(pdev);
+		result = pm_runtime_resume_and_get(pdev);
+		if (result)
 			return result;
-		}
 		/*
 		 * In case autosuspend didn't trigger, turn off first not
 		 * required sensors.
@@ -228,7 +225,7 @@ int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev, int irq_type)
 	st->trig = devm_iio_trigger_alloc(&indio_dev->dev,
 					  "%s-dev%d",
 					  indio_dev->name,
-					  indio_dev->id);
+					  iio_device_id(indio_dev));
 	if (!st->trig)
 		return -ENOMEM;
 

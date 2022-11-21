@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2016-2018 Advanced Micro Devices, Inc.
+ * Copyright 2016-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -61,10 +62,19 @@ static int update_qpd_v9(struct device_queue_manager *dqm,
 		qpd->sh_mem_config =
 				SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
 					SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT;
-		if (dqm->dev->noretry &&
-		    !dqm->dev->use_iommu_v2)
+
+		if (KFD_GC_VERSION(dqm->dev) == IP_VERSION(9, 4, 2)) {
+			/* Aldebaran can safely support different XNACK modes
+			 * per process
+			 */
+			if (!pdd->process->xnack_enabled)
+				qpd->sh_mem_config |=
+					1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;
+		} else if (dqm->dev->noretry &&
+			   !dqm->dev->use_iommu_v2) {
 			qpd->sh_mem_config |=
 				1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;
+		}
 
 		qpd->sh_mem_ape1_limit = 0;
 		qpd->sh_mem_ape1_base = 0;

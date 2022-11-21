@@ -43,8 +43,8 @@ enum vfl_devnode_type {
 };
 
 /**
- * enum  vfl_direction - Identifies if a &struct video_device corresponds
- *	to a receiver, a transmitter or a mem-to-mem device.
+ * enum  vfl_devnode_direction - Identifies if a &struct video_device
+ * 	corresponds to a receiver, a transmitter or a mem-to-mem device.
  *
  * @VFL_DIR_RX:		device is a receiver.
  * @VFL_DIR_TX:		device is a transmitter.
@@ -260,8 +260,7 @@ struct v4l2_file_operations {
  *	Only set @dev_parent if that can't be deduced from @v4l2_dev.
  */
 
-struct video_device
-{
+struct video_device {
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	struct media_entity entity;
 	struct media_intf_devnode *intf_devnode;

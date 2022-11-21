@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * typec_wcove.c - WhiskeyCove PMIC USB Type-C PHY driver
  *
  * Copyright (C) 2017 Intel Corporation
@@ -356,7 +356,8 @@ static int wcove_set_pd_rx(struct tcpc_dev *tcpc, bool on)
 
 static int wcove_pd_transmit(struct tcpc_dev *tcpc,
 			     enum tcpm_transmit_type type,
-			     const struct pd_message *msg)
+			     const struct pd_message *msg,
+			     unsigned int negotiated_rev)
 {
 	struct wcove_typec *wcove = tcpc_to_wcove(tcpc);
 	unsigned int info = 0;
@@ -377,7 +378,7 @@ static int wcove_pd_transmit(struct tcpc_dev *tcpc,
 		const u8 *data = (void *)msg;
 		int i;
 
-		for (i = 0; i < pd_header_cnt(msg->header) * 4 + 2; i++) {
+		for (i = 0; i < pd_header_cnt_le(msg->header) * 4 + 2; i++) {
 			ret = regmap_write(wcove->regmap, USBC_TX_DATA + i,
 					   data[i]);
 			if (ret)

@@ -35,8 +35,8 @@ static inline struct thread_info *current_thread_info(void)
 }
 
 /* thread information allocation */
-unsigned long *alloc_thread_stack_node(struct task_struct *, int node);
-void free_thread_stack(struct task_struct *tsk);
+unsigned long *arch_alloc_thread_stack_node(struct task_struct *, int node);
+void arch_free_thread_stack(struct task_struct *tsk);
 
 void threads_init(void);
 void threads_cleanup(void);
@@ -50,6 +50,7 @@ void threads_cleanup(void);
 #define TIF_NOHZ			6
 #define TIF_SCHED_JB			7
 #define TIF_HOST_THREAD			8
+#define TIF_NOTIFY_SIGNAL		9
 
 #define __HAVE_THREAD_FUNCTIONS
 

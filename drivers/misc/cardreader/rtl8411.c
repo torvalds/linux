@@ -76,7 +76,7 @@ static void rtl8411b_fetch_vendor_settings(struct rtsx_pcr *pcr)
 		map_sd_drive(rtl8411b_reg_to_sd30_drive_sel_3v3(reg));
 }
 
-static void rtl8411_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
+static void rtl8411_force_power_down(struct rtsx_pcr *pcr, u8 pm_state, bool runtime)
 {
 	rtsx_pci_write_register(pcr, FPDCTL, 0x07, 0x07);
 }
@@ -468,6 +468,7 @@ static void rtl8411_init_common_params(struct rtsx_pcr *pcr)
 	pcr->sd30_drive_sel_1v8 = DRIVER_TYPE_B;
 	pcr->sd30_drive_sel_3v3 = DRIVER_TYPE_D;
 	pcr->aspm_en = ASPM_L1_EN;
+	pcr->aspm_mode = ASPM_MODE_CFG;
 	pcr->tx_initial_phase = SET_CLOCK_PHASE(23, 7, 14);
 	pcr->rx_initial_phase = SET_CLOCK_PHASE(4, 3, 10);
 	pcr->ic_version = rtl8411_get_ic_version(pcr);

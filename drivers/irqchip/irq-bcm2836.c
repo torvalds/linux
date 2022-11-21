@@ -143,7 +143,7 @@ __exception_irq_entry bcm2836_arm_irqchip_handle_irq(struct pt_regs *regs)
 	if (stat) {
 		u32 hwirq = ffs(stat) - 1;
 
-		handle_domain_irq(intc.domain, hwirq, regs);
+		generic_handle_domain_irq(intc.domain, hwirq);
 	}
 }
 
@@ -161,13 +161,13 @@ static void bcm2836_arm_irqchip_handle_ipi(struct irq_desc *desc)
 	mbox_val = readl_relaxed(intc.base + LOCAL_MAILBOX0_CLR0 + 16 * cpu);
 	if (mbox_val) {
 		int hwirq = ffs(mbox_val) - 1;
-		generic_handle_irq(irq_find_mapping(ipi_domain, hwirq));
+		generic_handle_domain_irq(ipi_domain, hwirq);
 	}
 
 	chained_irq_exit(chip, desc);
 }
 
-static void bcm2836_arm_irqchip_ipi_eoi(struct irq_data *d)
+static void bcm2836_arm_irqchip_ipi_ack(struct irq_data *d)
 {
 	int cpu = smp_processor_id();
 
@@ -195,7 +195,7 @@ static struct irq_chip bcm2836_arm_irqchip_ipi = {
 	.name		= "IPI",
 	.irq_mask	= bcm2836_arm_irqchip_dummy_op,
 	.irq_unmask	= bcm2836_arm_irqchip_dummy_op,
-	.irq_eoi	= bcm2836_arm_irqchip_ipi_eoi,
+	.irq_ack	= bcm2836_arm_irqchip_ipi_ack,
 	.ipi_send_mask	= bcm2836_arm_irqchip_ipi_send_mask,
 };
 
@@ -209,7 +209,7 @@ static int bcm2836_arm_irqchip_ipi_alloc(struct irq_domain *d,
 		irq_set_percpu_devid(virq + i);
 		irq_domain_set_info(d, virq + i, i, &bcm2836_arm_irqchip_ipi,
 				    d->host_data,
-				    handle_percpu_devid_fasteoi_ipi,
+				    handle_percpu_devid_irq,
 				    NULL, NULL);
 	}
 

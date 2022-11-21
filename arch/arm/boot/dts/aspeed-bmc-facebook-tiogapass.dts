@@ -37,7 +37,7 @@
 	};
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "console=ttyS4,115200 earlyprintk";
+		bootargs = "console=ttyS4,115200 earlycon";
 	};
 
 	memory@80000000 {
@@ -79,11 +79,6 @@
 
 &lpc_ctrl {
 	// Enable lpc clock
-	status = "okay";
-};
-
-&vuart {
-	// VUART Host Console
 	status = "okay";
 };
 
@@ -193,6 +188,14 @@
 	clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>,
 		 <&syscon ASPEED_CLK_MAC1RCLK>;
 	clock-names = "MACCLK", "RCLK";
+	use-ncsi;
+};
+
+&mac1 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii2_default>;
 	use-ncsi;
 };
 
@@ -504,6 +507,11 @@
 &i2c7 {
 	status = "okay";
 	//HSC, AirMax Conn A
+	adm1278@45 {
+		compatible = "adm1275";
+		reg = <0x45>;
+		shunt-resistor-micro-ohms = <250>;
+	};
 };
 
 &i2c8 {

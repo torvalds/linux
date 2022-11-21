@@ -1,27 +1,13 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/smb2misc.c
  *
  *   Copyright (C) International Business Machines  Corp., 2002,2011
  *                 Etersoft, 2012
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *              Pavel Shilovsky (pshilovsky@samba.org) 2012
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/ctype.h>
-#include "smb2pdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "smb2proto.h"
@@ -32,7 +18,7 @@
 #include "nterr.h"
 
 static int
-check_smb2_hdr(struct smb2_sync_hdr *shdr, __u64 mid)
+check_smb2_hdr(struct smb2_hdr *shdr, __u64 mid)
 {
 	__u64 wire_mid = le64_to_cpu(shdr->MessageId);
 
@@ -94,7 +80,9 @@ static const __le16 smb2_rsp_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
 	/* SMB2_OPLOCK_BREAK */ cpu_to_le16(24)
 };
 
-static __u32 get_neg_ctxt_len(struct smb2_sync_hdr *hdr, __u32 len,
+#define SMB311_NEGPROT_BASE_SIZE (sizeof(struct smb2_hdr) + sizeof(struct smb2_negotiate_rsp))
+
+static __u32 get_neg_ctxt_len(struct smb2_hdr *hdr, __u32 len,
 			      __u32 non_ctxlen)
 {
 	__u16 neg_count;
@@ -107,13 +95,28 @@ static __u32 get_neg_ctxt_len(struct smb2_sync_hdr *hdr, __u32 len,
 	   (pneg_rsp->DialectRevision != cpu_to_le16(SMB311_PROT_ID)))
 		return 0;
 
-	/* Make sure that negotiate contexts start after gss security blob */
+	/*
+	 * if SPNEGO blob present (ie the RFC2478 GSS info which indicates
+	 * which security mechanisms the server supports) make sure that
+	 * the negotiate contexts start after it
+	 */
 	nc_offset = le32_to_cpu(pneg_rsp->NegotiateContextOffset);
-	if (nc_offset < non_ctxlen) {
-		pr_warn_once("Invalid negotiate context offset\n");
+	/*
+	 * non_ctxlen is at least shdr->StructureSize + pdu->StructureSize2
+	 * and the latter is 1 byte bigger than the fix-sized area of the
+	 * NEGOTIATE response
+	 */
+	if (nc_offset + 1 < non_ctxlen) {
+		pr_warn_once("Invalid negotiate context offset %d\n", nc_offset);
 		return 0;
-	}
-	size_of_pad_before_neg_ctxts = nc_offset - non_ctxlen;
+	} else if (nc_offset + 1 == non_ctxlen) {
+		cifs_dbg(FYI, "no SPNEGO security blob in negprot rsp\n");
+		size_of_pad_before_neg_ctxts = 0;
+	} else if (non_ctxlen == SMB311_NEGPROT_BASE_SIZE)
+		/* has padding, but no SPNEGO blob */
+		size_of_pad_before_neg_ctxts = nc_offset - non_ctxlen + 1;
+	else
+		size_of_pad_before_neg_ctxts = nc_offset - non_ctxlen;
 
 	/* Verify that at least minimal negotiate contexts fit within frame */
 	if (len < nc_offset + (neg_count * sizeof(struct smb2_neg_context))) {
@@ -131,13 +134,13 @@ static __u32 get_neg_ctxt_len(struct smb2_sync_hdr *hdr, __u32 len,
 int
 smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 {
-	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
-	struct smb2_sync_pdu *pdu = (struct smb2_sync_pdu *)shdr;
+	struct smb2_hdr *shdr = (struct smb2_hdr *)buf;
+	struct smb2_pdu *pdu = (struct smb2_pdu *)shdr;
 	__u64 mid;
 	__u32 clc_len;  /* calculated length */
 	int command;
-	int pdu_size = sizeof(struct smb2_sync_pdu);
-	int hdr_size = sizeof(struct smb2_sync_hdr);
+	int pdu_size = sizeof(struct smb2_pdu);
+	int hdr_size = sizeof(struct smb2_hdr);
 
 	/*
 	 * Add function to do table lookup of StructureSize by command
@@ -147,19 +150,18 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 		struct smb2_transform_hdr *thdr =
 			(struct smb2_transform_hdr *)buf;
 		struct cifs_ses *ses = NULL;
-		struct list_head *tmp;
+		struct cifs_ses *iter;
 
 		/* decrypt frame now that it is completely read in */
 		spin_lock(&cifs_tcp_ses_lock);
-		list_for_each(tmp, &srvr->smb_ses_list) {
-			ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
-			if (ses->Suid == thdr->SessionId)
+		list_for_each_entry(iter, &srvr->smb_ses_list, smb_ses_list) {
+			if (iter->Suid == le64_to_cpu(thdr->SessionId)) {
+				ses = iter;
 				break;
-
-			ses = NULL;
+			}
 		}
 		spin_unlock(&cifs_tcp_ses_lock);
-		if (ses == NULL) {
+		if (!ses) {
 			cifs_dbg(VFS, "no decryption - session id not found\n");
 			return 1;
 		}
@@ -203,7 +205,7 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 
 	if (smb2_rsp_struct_sizes[command] != pdu->StructureSize2) {
 		if (command != SMB2_OPLOCK_BREAK_HE && (shdr->Status == 0 ||
-		    pdu->StructureSize2 != SMB2_ERROR_STRUCTURE_SIZE2)) {
+		    pdu->StructureSize2 != SMB2_ERROR_STRUCTURE_SIZE2_LE)) {
 			/* error packets have 9 byte structure size */
 			cifs_dbg(VFS, "Invalid response size %u for command %d\n",
 				 le16_to_cpu(pdu->StructureSize2), command);
@@ -295,7 +297,7 @@ static const bool has_smb2_data_area[NUMBER_OF_SMB2_COMMANDS] = {
  * area and the offset to it (from the beginning of the smb are also returned.
  */
 char *
-smb2_get_data_area_len(int *off, int *len, struct smb2_sync_hdr *shdr)
+smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *shdr)
 {
 	*off = 0;
 	*len = 0;
@@ -303,7 +305,7 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_sync_hdr *shdr)
 	/* error responses do not have data area */
 	if (shdr->Status && shdr->Status != STATUS_MORE_PROCESSING_REQUIRED &&
 	    (((struct smb2_err_rsp *)shdr)->StructureSize) ==
-						SMB2_ERROR_STRUCTURE_SIZE2)
+						SMB2_ERROR_STRUCTURE_SIZE2_LE)
 		return NULL;
 
 	/*
@@ -400,8 +402,8 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_sync_hdr *shdr)
 unsigned int
 smb2_calc_size(void *buf, struct TCP_Server_Info *srvr)
 {
-	struct smb2_sync_pdu *pdu = (struct smb2_sync_pdu *)buf;
-	struct smb2_sync_hdr *shdr = &pdu->sync_hdr;
+	struct smb2_pdu *pdu = (struct smb2_pdu *)buf;
+	struct smb2_hdr *shdr = &pdu->hdr;
 	int offset; /* the offset from the beginning of SMB to data area */
 	int data_length; /* the length of the variable length data area */
 	/* Structure Size has already been checked to make sure it is 64 */
@@ -478,11 +480,11 @@ smb2_get_lease_state(struct cifsInodeInfo *cinode)
 	__le32 lease = 0;
 
 	if (CIFS_CACHE_WRITE(cinode))
-		lease |= SMB2_LEASE_WRITE_CACHING;
+		lease |= SMB2_LEASE_WRITE_CACHING_LE;
 	if (CIFS_CACHE_HANDLE(cinode))
-		lease |= SMB2_LEASE_HANDLE_CACHING;
+		lease |= SMB2_LEASE_HANDLE_CACHING_LE;
 	if (CIFS_CACHE_READ(cinode))
-		lease |= SMB2_LEASE_READ_CACHING;
+		lease |= SMB2_LEASE_READ_CACHING_LE;
 	return lease;
 }
 
@@ -531,7 +533,6 @@ static bool
 smb2_tcon_has_lease(struct cifs_tcon *tcon, struct smb2_lease_break *rsp)
 {
 	__u8 lease_state;
-	struct list_head *tmp;
 	struct cifsFileInfo *cfile;
 	struct cifsInodeInfo *cinode;
 	int ack_req = le32_to_cpu(rsp->Flags &
@@ -539,8 +540,7 @@ smb2_tcon_has_lease(struct cifs_tcon *tcon, struct smb2_lease_break *rsp)
 
 	lease_state = le32_to_cpu(rsp->NewLeaseState);
 
-	list_for_each(tmp, &tcon->openFileList) {
-		cfile = list_entry(tmp, struct cifsFileInfo, tlist);
+	list_for_each_entry(cfile, &tcon->openFileList, tlist) {
 		cinode = CIFS_I(d_inode(cfile->dentry));
 
 		if (memcmp(cinode->lease_key, rsp->LeaseKey,
@@ -601,7 +601,6 @@ static bool
 smb2_is_valid_lease_break(char *buffer)
 {
 	struct smb2_lease_break *rsp = (struct smb2_lease_break *)buffer;
-	struct list_head *tmp, *tmp1, *tmp2;
 	struct TCP_Server_Info *server;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
@@ -611,15 +610,9 @@ smb2_is_valid_lease_break(char *buffer)
 
 	/* look up tcon based on tid & uid */
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each(tmp, &cifs_tcp_ses_list) {
-		server = list_entry(tmp, struct TCP_Server_Info, tcp_ses_list);
-
-		list_for_each(tmp1, &server->smb_ses_list) {
-			ses = list_entry(tmp1, struct cifs_ses, smb_ses_list);
-
-			list_for_each(tmp2, &ses->tcon_list) {
-				tcon = list_entry(tmp2, struct cifs_tcon,
-						  tcon_list);
+	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
+		list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
+			list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 				spin_lock(&tcon->open_file_lock);
 				cifs_stats_inc(
 				    &tcon->stats.cifs_stats.num_oplock_brks);
@@ -650,6 +643,7 @@ smb2_is_valid_lease_break(char *buffer)
 				    !memcmp(rsp->LeaseKey,
 					    tcon->crfid.fid->lease_key,
 					    SMB2_LEASE_KEY_SIZE)) {
+					tcon->crfid.time = 0;
 					INIT_WORK(&tcon->crfid.lease_break,
 						  smb2_cached_lease_break);
 					queue_work(cifsiod_wq,
@@ -669,7 +663,6 @@ bool
 smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 {
 	struct smb2_oplock_break *rsp = (struct smb2_oplock_break *)buffer;
-	struct list_head *tmp, *tmp1, *tmp2;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 	struct cifsInodeInfo *cinode;
@@ -677,7 +670,7 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 
 	cifs_dbg(FYI, "Checking for oplock break\n");
 
-	if (rsp->sync_hdr.Command != SMB2_OPLOCK_BREAK)
+	if (rsp->hdr.Command != SMB2_OPLOCK_BREAK)
 		return false;
 
 	if (rsp->StructureSize !=
@@ -692,16 +685,11 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 
 	/* look up tcon based on tid & uid */
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each(tmp, &server->smb_ses_list) {
-		ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
-
-		list_for_each(tmp1, &ses->tcon_list) {
-			tcon = list_entry(tmp1, struct cifs_tcon, tcon_list);
+	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
+		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 
 			spin_lock(&tcon->open_file_lock);
-			list_for_each(tmp2, &tcon->openFileList) {
-				cfile = list_entry(tmp2, struct cifsFileInfo,
-						     tlist);
+			list_for_each_entry(cfile, &tcon->openFileList, tlist) {
 				if (rsp->PersistentFid !=
 				    cfile->fid.persistent_fid ||
 				    rsp->VolatileFid !=
@@ -737,8 +725,8 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
-	cifs_dbg(FYI, "Can not process oplock break for non-existent connection\n");
-	return false;
+	cifs_dbg(FYI, "No file id matched, oplock break ignored\n");
+	return true;
 }
 
 void
@@ -750,7 +738,7 @@ smb2_cancelled_close_fid(struct work_struct *work)
 	int rc;
 
 	if (cancelled->mid)
-		cifs_tcon_dbg(VFS, "Close unmatched open for MID:%llx\n",
+		cifs_tcon_dbg(VFS, "Close unmatched open for MID:%llu\n",
 			      cancelled->mid);
 	else
 		cifs_tcon_dbg(VFS, "Close interrupted close\n");
@@ -827,25 +815,25 @@ smb2_handle_cancelled_close(struct cifs_tcon *tcon, __u64 persistent_fid,
 }
 
 int
-smb2_handle_cancelled_mid(char *buffer, struct TCP_Server_Info *server)
+smb2_handle_cancelled_mid(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 {
-	struct smb2_sync_hdr *sync_hdr = (struct smb2_sync_hdr *)buffer;
-	struct smb2_create_rsp *rsp = (struct smb2_create_rsp *)buffer;
+	struct smb2_hdr *hdr = mid->resp_buf;
+	struct smb2_create_rsp *rsp = mid->resp_buf;
 	struct cifs_tcon *tcon;
 	int rc;
 
-	if (sync_hdr->Command != SMB2_CREATE ||
-	    sync_hdr->Status != STATUS_SUCCESS)
+	if ((mid->optype & CIFS_CP_CREATE_CLOSE_OP) || hdr->Command != SMB2_CREATE ||
+	    hdr->Status != STATUS_SUCCESS)
 		return 0;
 
-	tcon = smb2_find_smb_tcon(server, sync_hdr->SessionId,
-				  sync_hdr->TreeId);
+	tcon = smb2_find_smb_tcon(server, le64_to_cpu(hdr->SessionId),
+				  le32_to_cpu(hdr->Id.SyncId.TreeId));
 	if (!tcon)
 		return -ENOENT;
 
 	rc = __smb2_handle_cancelled_cmd(tcon,
-					 le16_to_cpu(sync_hdr->Command),
-					 le64_to_cpu(sync_hdr->MessageId),
+					 le16_to_cpu(hdr->Command),
+					 le64_to_cpu(hdr->MessageId),
 					 rsp->PersistentFileId,
 					 rsp->VolatileFileId);
 	if (rc)
@@ -859,16 +847,21 @@ smb2_handle_cancelled_mid(char *buffer, struct TCP_Server_Info *server)
  *
  * Assumes @iov does not contain the rfc1002 length and iov[0] has the
  * SMB2 header.
+ *
+ * @ses:	server session structure
+ * @server:	pointer to server info
+ * @iov:	array containing the SMB request we will send to the server
+ * @nvec:	number of array entries for the iov
  */
 int
-smb311_update_preauth_hash(struct cifs_ses *ses, struct kvec *iov, int nvec)
+smb311_update_preauth_hash(struct cifs_ses *ses, struct TCP_Server_Info *server,
+			   struct kvec *iov, int nvec)
 {
 	int i, rc;
 	struct sdesc *d;
-	struct smb2_sync_hdr *hdr;
-	struct TCP_Server_Info *server = cifs_ses_server(ses);
+	struct smb2_hdr *hdr;
 
-	hdr = (struct smb2_sync_hdr *)iov[0].iov_base;
+	hdr = (struct smb2_hdr *)iov[0].iov_base;
 	/* neg prot are always taken */
 	if (hdr->Command == SMB2_NEGOTIATE)
 		goto ok;

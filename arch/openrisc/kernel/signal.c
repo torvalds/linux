@@ -21,14 +21,12 @@
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
 #include <linux/stddef.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 
 #include <asm/processor.h>
 #include <asm/syscall.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
-
-#define DEBUG_SIG 0
 
 struct rt_sigframe {
 	struct siginfo info;
@@ -299,7 +297,7 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 			if (unlikely(!user_mode(regs)))
 				return 0;
 			local_irq_enable();
-			if (thread_flags & _TIF_SIGPENDING) {
+			if (thread_flags & (_TIF_SIGPENDING|_TIF_NOTIFY_SIGNAL)) {
 				int restart = do_signal(regs, syscall);
 				if (unlikely(restart)) {
 					/*
@@ -311,11 +309,11 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 				}
 				syscall = 0;
 			} else {
-				tracehook_notify_resume(regs);
+				resume_user_mode_work(regs);
 			}
 		}
 		local_irq_disable();
-		thread_flags = current_thread_info()->flags;
+		thread_flags = read_thread_flags();
 	} while (thread_flags & _TIF_WORK_MASK);
 	return 0;
 }

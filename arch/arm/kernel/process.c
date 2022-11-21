@@ -5,8 +5,6 @@
  *  Copyright (C) 1996-2000 Russell King - Converted to ARM.
  *  Original Copyright (C) 1995  Linus Torvalds
  */
-#include <stdarg.h>
-
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -38,10 +36,19 @@
 
 #include "signal.h"
 
+#if defined(CONFIG_CURRENT_POINTER_IN_TPIDRURO) || defined(CONFIG_SMP)
+DEFINE_PER_CPU(struct task_struct *, __entry_task);
+#endif
+
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_STACKPROTECTOR_PER_TASK)
 #include <linux/stackprotector.h>
 unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
+#endif
+
+#ifndef CONFIG_CURRENT_POINTER_IN_TPIDRURO
+asmlinkage struct task_struct *__current;
+EXPORT_SYMBOL(__current);
 #endif
 
 static const char *processor_modes[] __maybe_unused = {
@@ -92,12 +99,23 @@ void arch_cpu_idle_exit(void)
 	ledtrig_cpu(CPU_LED_IDLE_END);
 }
 
+void __show_regs_alloc_free(struct pt_regs *regs)
+{
+	int i;
+
+	/* check for r0 - r12 only */
+	for (i = 0; i < 13; i++) {
+		pr_alert("Register r%d information:", i);
+		mem_dump_obj((void *)regs->uregs[i]);
+	}
+}
+
 void __show_regs(struct pt_regs *regs)
 {
 	unsigned long flags;
 	char buf[64];
 #ifndef CONFIG_CPU_V7M
-	unsigned int domain, fs;
+	unsigned int domain;
 #ifdef CONFIG_CPU_SW_DOMAIN_PAN
 	/*
 	 * Get the domain register for the parent context. In user
@@ -106,14 +124,11 @@ void __show_regs(struct pt_regs *regs)
 	 */
 	if (user_mode(regs)) {
 		domain = DACR_UACCESS_ENABLE;
-		fs = get_fs();
 	} else {
 		domain = to_svc_pt_regs(regs)->dacr;
-		fs = to_svc_pt_regs(regs)->addr_limit;
 	}
 #else
 	domain = get_domain();
-	fs = get_fs();
 #endif
 #endif
 
@@ -149,8 +164,6 @@ void __show_regs(struct pt_regs *regs)
 		if ((domain & domain_mask(DOMAIN_USER)) ==
 		    domain_val(DOMAIN_USER, DOMAIN_NOACCESS))
 			segment = "none";
-		else if (fs == KERNEL_DS)
-			segment = "kernel";
 		else
 			segment = "user";
 
@@ -243,7 +256,7 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	thread->cpu_domain = get_domain();
 #endif
 
-	if (likely(!(p->flags & PF_KTHREAD))) {
+	if (likely(!(p->flags & (PF_KTHREAD | PF_IO_WORKER)))) {
 		*childregs = *current_pt_regs();
 		childregs->ARM_r0 = 0;
 		if (stack_start)
@@ -265,29 +278,14 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 
 	thread_notify(THREAD_NOTIFY_COPY, thread);
 
-#ifdef CONFIG_STACKPROTECTOR_PER_TASK
-	thread->stack_canary = p->stack_canary;
-#endif
-
 	return 0;
 }
 
-/*
- * Fill in the task's elfregs structure for a core dump.
- */
-int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs)
-{
-	elf_core_copy_regs(elfregs, task_pt_regs(t));
-	return 1;
-}
-
-unsigned long get_wchan(struct task_struct *p)
+unsigned long __get_wchan(struct task_struct *p)
 {
 	struct stackframe frame;
 	unsigned long stack_page;
 	int count = 0;
-	if (!p || p == current || p->state == TASK_RUNNING)
-		return 0;
 
 	frame.fp = thread_saved_fp(p);
 	frame.sp = thread_saved_sp(p);

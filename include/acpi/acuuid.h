@@ -3,7 +3,7 @@
  *
  * Name: acuuid.h - ACPI-related UUID/GUID definitions
  *
- * Copyright (C) 2000 - 2020, Intel Corp.
+ * Copyright (C) 2000 - 2021, Intel Corp.
  *
  *****************************************************************************/
 
@@ -39,6 +39,7 @@
 
 /* NVDIMM - NFIT table */
 
+#define UUID_NFIT_DIMM                  "4309ac30-0d11-11e4-9191-0800200c9a66"
 #define UUID_VOLATILE_MEMORY            "7305944f-fdda-44e3-b16c-3f22d252e5d0"
 #define UUID_PERSISTENT_MEMORY          "66f0d379-b4f3-4074-ac43-0d3318b78cdb"
 #define UUID_CONTROL_REGION             "92f701f6-13b4-405d-910b-299367e8234c"
@@ -47,6 +48,10 @@
 #define UUID_VOLATILE_VIRTUAL_CD        "3d5abd30-4175-87ce-6d64-d2ade523c4bb"
 #define UUID_PERSISTENT_VIRTUAL_DISK    "5cea02c9-4d07-69d3-269f-4496fbe096f9"
 #define UUID_PERSISTENT_VIRTUAL_CD      "08018188-42cd-bb48-100f-5387d53ded3d"
+#define UUID_NFIT_DIMM_N_MSFT           "1ee68b36-d4bd-4a1a-9a16-4f8e53d46e05"
+#define UUID_NFIT_DIMM_N_HPE1           "9002c334-acf3-4c0e-9642-a235f0d53bc6"
+#define UUID_NFIT_DIMM_N_HPE2           "5008664b-b758-41a0-a03c-27c2f2d04f7e"
+#define UUID_NFIT_DIMM_N_HYPERV         "5746c5f2-a9a2-4264-ad0e-e4ddc9e09e80"
 
 /* Processor Properties (ACPI 6.2) */
 
@@ -63,5 +68,6 @@
 #define UUID_DEVICE_GRAPHS              "ab02a46b-74c7-45a2-bd68-f7d344ef2153"
 #define UUID_HIERARCHICAL_DATA_EXTENSION "dbb8e3e6-5886-4ba6-8795-1319f52a966b"
 #define UUID_CORESIGHT_GRAPH            "3ecbc8b6-1d0e-4fb3-8107-e627f805c6cd"
+#define UUID_USB4_CAPABILITIES          "23a0d13a-26ab-486c-9c5f-0ffa525a575a"
 
 #endif				/* __ACUUID_H__ */

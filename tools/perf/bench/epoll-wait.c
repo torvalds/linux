@@ -17,7 +17,7 @@
  * While the second model, enabled via --multiq option, uses multiple
  * queueing (which refers to one epoll instance per worker). For example,
  * short lived tcp connections in a high throughput httpd server will
- * ditribute the accept()'ing  connections across CPUs. In this case each
+ * distribute the accept()'ing  connections across CPUs. In this case each
  * worker does a limited  amount of processing.
  *
  *             [queue A]  ---> [worker]
@@ -76,7 +76,6 @@
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/types.h>
-#include <internal/cpumap.h>
 #include <perf/cpumap.h>
 
 #include "../util/stat.h"
@@ -199,7 +198,7 @@ static void *workerfn(void *arg)
 
 	do {
 		/*
-		 * Block undefinitely waiting for the IN event.
+		 * Block indefinitely waiting for the IN event.
 		 * In order to stress the epoll_wait(2) syscall,
 		 * call it event per event, instead of a larger
 		 * batch (max)limit.
@@ -292,9 +291,11 @@ static void print_summary(void)
 static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 {
 	pthread_attr_t thread_attr, *attrp = NULL;
-	cpu_set_t cpuset;
+	cpu_set_t *cpuset;
 	unsigned int i, j;
 	int ret = 0, events = EPOLLIN;
+	int nrcpus;
+	size_t size;
 
 	if (oneshot)
 		events |= EPOLLONESHOT;
@@ -306,6 +307,11 @@ static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 		  nonblocking ? " (nonblocking)":"");
 	if (!noaffinity)
 		pthread_attr_init(&thread_attr);
+
+	nrcpus = perf_cpu_map__nr(cpu);
+	cpuset = CPU_ALLOC(nrcpus);
+	BUG_ON(!cpuset);
+	size = CPU_ALLOC_SIZE(nrcpus);
 
 	for (i = 0; i < nthreads; i++) {
 		struct worker *w = &worker[i];
@@ -342,22 +348,28 @@ static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 		}
 
 		if (!noaffinity) {
-			CPU_ZERO(&cpuset);
-			CPU_SET(cpu->map[i % cpu->nr], &cpuset);
+			CPU_ZERO_S(size, cpuset);
+			CPU_SET_S(perf_cpu_map__cpu(cpu, i % perf_cpu_map__nr(cpu)).cpu,
+					size, cpuset);
 
-			ret = pthread_attr_setaffinity_np(&thread_attr, sizeof(cpu_set_t), &cpuset);
-			if (ret)
+			ret = pthread_attr_setaffinity_np(&thread_attr, size, cpuset);
+			if (ret) {
+				CPU_FREE(cpuset);
 				err(EXIT_FAILURE, "pthread_attr_setaffinity_np");
+			}
 
 			attrp = &thread_attr;
 		}
 
 		ret = pthread_create(&w->thread, attrp, workerfn,
 				     (void *)(struct worker *) w);
-		if (ret)
+		if (ret) {
+			CPU_FREE(cpuset);
 			err(EXIT_FAILURE, "pthread_create");
+		}
 	}
 
+	CPU_FREE(cpuset);
 	if (!noaffinity)
 		pthread_attr_destroy(&thread_attr);
 
@@ -453,7 +465,7 @@ int bench_epoll_wait(int argc, const char **argv)
 
 	/* default to the number of CPUs and leave one for the writer pthread */
 	if (!nthreads)
-		nthreads = cpu->nr - 1;
+		nthreads = perf_cpu_map__nr(cpu) - 1;
 
 	worker = calloc(nthreads, sizeof(*worker));
 	if (!worker) {

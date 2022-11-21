@@ -61,7 +61,7 @@ static int find_comm(struct evlist *evlist, const char *comm)
  * when an event is disabled but a dummy software event is not disabled.  If the
  * test passes %0 is returned, otherwise %-1 is returned.
  */
-int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__keep_tracking(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct record_opts opts = {
 		.mmap_pages	     = UINT_MAX,
@@ -92,7 +92,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 	CHECK__(parse_events(evlist, "dummy:u", NULL));
 	CHECK__(parse_events(evlist, "cycles:u", NULL));
 
-	perf_evlist__config(evlist, &opts, NULL);
+	evlist__config(evlist, &opts, NULL);
 
 	evsel = evlist__first(evlist);
 
@@ -154,10 +154,11 @@ out_err:
 	if (evlist) {
 		evlist__disable(evlist);
 		evlist__delete(evlist);
-	} else {
-		perf_cpu_map__put(cpus);
-		perf_thread_map__put(threads);
 	}
+	perf_cpu_map__put(cpus);
+	perf_thread_map__put(threads);
 
 	return err;
 }
+
+DEFINE_SUITE("Use a dummy software event to keep tracking", keep_tracking);

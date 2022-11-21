@@ -13,7 +13,6 @@
  * more details.
  */
 
-#if !defined(HAS_NO_HMEM)
 
 #include "ia_css_types.h"
 #include "sh_css_internal.h"
@@ -63,4 +62,3 @@ ia_css_bh_encode(
 	    uDIGIT_FITTING(from->ae_y_coef_b, 16, SH_CSS_AE_YCOEF_SHIFT);
 }
 
-#endif

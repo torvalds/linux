@@ -2,7 +2,7 @@
 /**
  * dts file for Hisilicon D02 Development Board
  *
- * Copyright (C) 2014,2015 Hisilicon Ltd.
+ * Copyright (C) 2014,2015 HiSilicon Ltd.
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -242,28 +242,28 @@
 		      <0x0 0xfe020000 0 0x10000>;       /* GICV */
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 
-		its_peri: interrupt-controller@8c000000 {
+		its_peri: msi-controller@8c000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x0 0x8c000000 0x0 0x40000>;
 		};
 
-		its_m3: interrupt-controller@a3000000 {
+		its_m3: msi-controller@a3000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x0 0xa3000000 0x0 0x40000>;
 		};
 
-		its_pcie: interrupt-controller@b7000000 {
+		its_pcie: msi-controller@b7000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x0 0xb7000000 0x0 0x40000>;
 		};
 
-		its_dsa: interrupt-controller@c6000000 {
+		its_dsa: msi-controller@c6000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
@@ -296,29 +296,29 @@
 			clock-frequency = <200000000>;
 		};
 
-		uart0: uart@80300000 {
+		uart0: serial@80300000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x0 0x80300000 0x0 0x10000>;
 			interrupts = <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&refclk200mhz>;
-			clock-names = "apb_pclk";
+			clocks = <&refclk200mhz>, <&refclk200mhz>;
+			clock-names = "baudclk", "apb_pclk";
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			status = "disabled";
 		};
 
-		uart1: uart@80310000 {
+		uart1: serial@80310000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x0 0x80310000 0x0 0x10000>;
 			interrupts = <GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&refclk200mhz>;
-			clock-names = "apb_pclk";
+			clocks = <&refclk200mhz>, <&refclk200mhz>;
+			clock-names = "baudclk", "apb_pclk";
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			status = "disabled";
 		};
 
-		lbc: localbus@80380000 {
+		lbc: local-bus@80380000 {
 			compatible = "hisilicon,hisi-localbus", "simple-bus";
 			reg = <0x0 0x80380000 0x0 0x10000>;
 			status = "disabled";
@@ -335,7 +335,7 @@
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
 				#gpio-cells = <2>;
-				snps,nr-gpios = <32>;
+				ngpios = <32>;
 				reg = <0>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
@@ -354,7 +354,7 @@
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
 				#gpio-cells = <2>;
-				snps,nr-gpios = <32>;
+				ngpios = <32>;
 				reg = <0>;
 				interrupt-controller;
 				#interrupt-cells = <2>;

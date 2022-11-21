@@ -15,7 +15,7 @@
 
 / {
 	model = "Qualcomm Technologies, Inc. SM8150 MTP";
-	compatible = "qcom,sm8150-mtp";
+	compatible = "qcom,sm8150-mtp", "qcom,sm8150";
 
 	aliases {
 		serial0 = &uart2;
@@ -349,34 +349,46 @@
 	};
 };
 
+&gmu {
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+};
+
+&pon_pwrkey {
+	status = "okay";
+};
+
+&pon_resin {
+	status = "okay";
+
+	linux,code = <KEY_VOLUMEDOWN>;
+};
+
 &qupv3_id_1 {
 	status = "okay";
 };
 
-&pon {
-	pwrkey {
-		status = "okay";
-	};
-
-	resin {
-		compatible = "qcom,pm8941-resin";
-		interrupts = <0x0 0x8 0x1 IRQ_TYPE_EDGE_BOTH>;
-		debounce = <15625>;
-		bias-pull-up;
-		linux,code = <KEY_VOLUMEDOWN>;
-	};
-};
-
 &remoteproc_adsp {
 	status = "okay";
+	firmware-name = "qcom/sm8150/adsp.mdt";
 };
 
 &remoteproc_cdsp {
 	status = "okay";
+	firmware-name = "qcom/sm8150/cdsp.mdt";
+};
+
+&remoteproc_mpss {
+	status = "okay";
+	firmware-name = "qcom/sm8150/modem.mdt";
 };
 
 &remoteproc_slpi {
 	status = "okay";
+	firmware-name = "qcom/sm8150/slpi.mdt";
 };
 
 &tlmm {
@@ -404,9 +416,7 @@
 	status = "okay";
 
 	vdda-phy-supply = <&vdda_ufs_2ln_core_1>;
-	vdda-max-microamp = <90200>;
 	vdda-pll-supply = <&vreg_l3c_1p2>;
-	vdda-pll-max-microamp = <19000>;
 };
 
 &usb_1_hsphy {
@@ -428,4 +438,13 @@
 
 &usb_1_dwc3 {
 	dr_mode = "peripheral";
+};
+
+&wifi {
+	status = "okay";
+
+	vdd-0.8-cx-mx-supply = <&vdda_wcss_pll>;
+	vdd-1.8-xo-supply = <&vreg_l7a_1p8>;
+	vdd-1.3-rfa-supply = <&vdda_wcss_adcdac_1>;
+	vdd-3.3-ch0-supply = <&vreg_l11c_3p3>;
 };

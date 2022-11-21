@@ -21,9 +21,11 @@ properties:
   compatible:
     items:
       - enum:
-          - renesas,r7s72100-ostm # RZ/A1H
-          - renesas,r7s9210-ostm  # RZ/A2M
-      - const: renesas,ostm       # Generic
+          - renesas,r7s72100-ostm  # RZ/A1H
+          - renesas,r7s9210-ostm   # RZ/A2M
+          - renesas,r9a07g044-ostm # RZ/G2{L,LC}
+          - renesas,r9a07g054-ostm # RZ/V2L
+      - const: renesas,ostm        # Generic
 
   reg:
     maxItems: 1
@@ -37,12 +39,26 @@ properties:
   power-domains:
     maxItems: 1
 
+  resets:
+    maxItems: 1
+
 required:
   - compatible
   - reg
   - interrupts
   - clocks
   - power-domains
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - renesas,r9a07g044-ostm
+          - renesas,r9a07g054-ostm
+then:
+  required:
+    - resets
 
 additionalProperties: false
 

@@ -21,6 +21,8 @@
 #include "vc4_drv.h"
 #include "uapi/drm/vc4_drm.h"
 
+static const struct drm_gem_object_funcs vc4_gem_object_funcs;
+
 static const char * const bo_type_names[] = {
 	"kernel",
 	"V3D",
@@ -175,7 +177,7 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 		bo->validated_shader = NULL;
 	}
 
-	drm_gem_cma_free_object(obj);
+	drm_gem_cma_free(&bo->base);
 }
 
 static void vc4_bo_remove_from_cache(struct vc4_bo *bo)
@@ -353,8 +355,6 @@ static struct vc4_bo *vc4_bo_get_from_cache(struct drm_device *dev,
 	uint32_t page_index = bo_page_index(size);
 	struct vc4_bo *bo = NULL;
 
-	size = roundup(size, PAGE_SIZE);
-
 	mutex_lock(&vc4->bo_lock);
 	if (page_index >= vc4->bo_cache.size_list_size)
 		goto out;
@@ -375,7 +375,7 @@ out:
 }
 
 /**
- * vc4_gem_create_object - Implementation of driver->gem_create_object.
+ * vc4_create_object - Implementation of driver->gem_create_object.
  * @dev: DRM device
  * @size: Size in bytes of the memory the object will reference
  *
@@ -399,6 +399,8 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 	vc4->bo_labels[VC4_BO_TYPE_KERNEL].num_allocated++;
 	vc4->bo_labels[VC4_BO_TYPE_KERNEL].size_allocated += size;
 	mutex_unlock(&vc4->bo_lock);
+
+	bo->base.base.funcs = &vc4_gem_object_funcs;
 
 	return &bo->base.base;
 }
@@ -520,7 +522,7 @@ static void vc4_bo_cache_free_old(struct drm_device *dev)
 /* Called on the last userspace/kernel unreference of the BO.  Returns
  * it to the BO cache if possible, otherwise frees it.
  */
-void vc4_free_object(struct drm_gem_object *gem_bo)
+static void vc4_free_object(struct drm_gem_object *gem_bo)
 {
 	struct drm_device *dev = gem_bo->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -655,7 +657,7 @@ static void vc4_bo_cache_time_timer(struct timer_list *t)
 	schedule_work(&vc4->bo_cache.time_work);
 }
 
-struct dma_buf * vc4_prime_export(struct drm_gem_object *obj, int flags)
+static struct dma_buf *vc4_prime_export(struct drm_gem_object *obj, int flags)
 {
 	struct vc4_bo *bo = to_vc4_bo(obj);
 	struct dma_buf *dmabuf;
@@ -684,7 +686,7 @@ struct dma_buf * vc4_prime_export(struct drm_gem_object *obj, int flags)
 	return dmabuf;
 }
 
-vm_fault_t vc4_fault(struct vm_fault *vmf)
+static vm_fault_t vc4_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
@@ -700,19 +702,9 @@ vm_fault_t vc4_fault(struct vm_fault *vmf)
 	return VM_FAULT_SIGBUS;
 }
 
-int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
+static int vc4_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
-	struct drm_gem_object *gem_obj;
-	unsigned long vm_pgoff;
-	struct vc4_bo *bo;
-	int ret;
-
-	ret = drm_gem_mmap(filp, vma);
-	if (ret)
-		return ret;
-
-	gem_obj = vma->vm_private_data;
-	bo = to_vc4_bo(gem_obj);
+	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
 		DRM_DEBUG("mmaping of shader BOs for writing not allowed.\n");
@@ -726,72 +718,23 @@ int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	/*
-	 * Clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
-	 * vm_pgoff (used as a fake buffer offset by DRM) to 0 as we want to map
-	 * the whole buffer.
-	 */
-	vma->vm_flags &= ~VM_PFNMAP;
-
-	/* This ->vm_pgoff dance is needed to make all parties happy:
-	 * - dma_mmap_wc() uses ->vm_pgoff as an offset within the allocated
-	 *   mem-region, hence the need to set it to zero (the value set by
-	 *   the DRM core is a virtual offset encoding the GEM object-id)
-	 * - the mmap() core logic needs ->vm_pgoff to be restored to its
-	 *   initial value before returning from this function because it
-	 *   encodes the  offset of this GEM in the dev->anon_inode pseudo-file
-	 *   and this information will be used when we invalidate userspace
-	 *   mappings  with drm_vma_node_unmap() (called from vc4_gem_purge()).
-	 */
-	vm_pgoff = vma->vm_pgoff;
-	vma->vm_pgoff = 0;
-	ret = dma_mmap_wc(bo->base.base.dev->dev, vma, bo->base.vaddr,
-			  bo->base.paddr, vma->vm_end - vma->vm_start);
-	vma->vm_pgoff = vm_pgoff;
-
-	if (ret)
-		drm_gem_vm_close(vma);
-
-	return ret;
+	return drm_gem_cma_mmap(&bo->base, vma);
 }
 
-int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
-{
-	struct vc4_bo *bo = to_vc4_bo(obj);
+static const struct vm_operations_struct vc4_vm_ops = {
+	.fault = vc4_fault,
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
 
-	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
-		DRM_DEBUG("mmaping of shader BOs for writing not allowed.\n");
-		return -EINVAL;
-	}
-
-	return drm_gem_cma_prime_mmap(obj, vma);
-}
-
-void *vc4_prime_vmap(struct drm_gem_object *obj)
-{
-	struct vc4_bo *bo = to_vc4_bo(obj);
-
-	if (bo->validated_shader) {
-		DRM_DEBUG("mmaping of shader BOs not allowed.\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	return drm_gem_cma_prime_vmap(obj);
-}
-
-struct drm_gem_object *
-vc4_prime_import_sg_table(struct drm_device *dev,
-			  struct dma_buf_attachment *attach,
-			  struct sg_table *sgt)
-{
-	struct drm_gem_object *obj;
-
-	obj = drm_gem_cma_prime_import_sg_table(dev, attach, sgt);
-	if (IS_ERR(obj))
-		return obj;
-
-	return obj;
-}
+static const struct drm_gem_object_funcs vc4_gem_object_funcs = {
+	.free = vc4_free_object,
+	.export = vc4_prime_export,
+	.get_sg_table = drm_gem_cma_object_get_sg_table,
+	.vmap = drm_gem_cma_object_vmap,
+	.mmap = vc4_gem_object_mmap,
+	.vm_ops = &vc4_vm_ops,
+};
 
 static int vc4_grab_bin_bo(struct vc4_dev *vc4, struct vc4_file *vc4file)
 {

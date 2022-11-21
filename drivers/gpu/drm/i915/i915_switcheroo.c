@@ -5,6 +5,7 @@
 
 #include <linux/vga_switcheroo.h>
 
+#include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_switcheroo.h"
 
@@ -24,12 +25,12 @@ static void i915_switcheroo_set_state(struct pci_dev *pdev,
 		i915->drm.switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		/* i915 resume handler doesn't set to D0 */
 		pci_set_power_state(pdev, PCI_D0);
-		i915_resume_switcheroo(i915);
+		i915_driver_resume_switcheroo(i915);
 		i915->drm.switch_power_state = DRM_SWITCH_POWER_ON;
 	} else {
 		drm_info(&i915->drm, "switched off\n");
 		i915->drm.switch_power_state = DRM_SWITCH_POWER_CHANGING;
-		i915_suspend_switcheroo(i915, pmm);
+		i915_driver_suspend_switcheroo(i915, pmm);
 		i915->drm.switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
@@ -54,14 +55,14 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 
 int i915_switcheroo_register(struct drm_i915_private *i915)
 {
-	struct pci_dev *pdev = i915->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 
 	return vga_switcheroo_register_client(pdev, &i915_switcheroo_ops, false);
 }
 
 void i915_switcheroo_unregister(struct drm_i915_private *i915)
 {
-	struct pci_dev *pdev = i915->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 
 	vga_switcheroo_unregister_client(pdev);
 }

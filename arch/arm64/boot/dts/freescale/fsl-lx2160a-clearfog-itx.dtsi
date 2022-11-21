@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include "fsl-lx2160a-cex7.dtsi"
+#include <dt-bindings/input/linux-event-codes.h>
 
 / {
 	aliases {
@@ -18,6 +19,69 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key {
+			label = "power";
+			linux,can-disable;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	sfp0: sfp-0 {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfp0_i2c>;
+		mod-def0-gpio = <&gpio2 0 GPIO_ACTIVE_LOW>;
+		maximum-power-milliwatt = <2000>;
+	};
+
+	sfp1: sfp-1 {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfp1_i2c>;
+		mod-def0-gpio = <&gpio2 9 GPIO_ACTIVE_LOW>;
+		maximum-power-milliwatt = <2000>;
+	};
+
+	sfp2: sfp-2 {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfp2_i2c>;
+		mod-def0-gpio = <&gpio2 10 GPIO_ACTIVE_LOW>;
+		maximum-power-milliwatt = <2000>;
+	};
+
+	sfp3: sfp-3 {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfp3_i2c>;
+		mod-def0-gpio = <&gpio2 11 GPIO_ACTIVE_LOW>;
+		maximum-power-milliwatt = <2000>;
+	};
+};
+
+&dpmac7 {
+	sfp = <&sfp0>;
+	managed = "in-band-status";
+	phys = <&serdes_1 3>;
+};
+
+&dpmac8 {
+	sfp = <&sfp1>;
+	managed = "in-band-status";
+	phys = <&serdes_1 2>;
+};
+
+&dpmac9 {
+	sfp = <&sfp2>;
+	managed = "in-band-status";
+	phys = <&serdes_1 1>;
+};
+
+&dpmac10 {
+	sfp = <&sfp3>;
+	managed = "in-band-status";
+	phys = <&serdes_1 0>;
 };
 
 &emdio2 {
@@ -29,6 +93,22 @@
 	sd-uhs-sdr50;
 	sd-uhs-sdr25;
 	sd-uhs-sdr12;
+	status = "okay";
+};
+
+&pcs_mdio7 {
+	status = "okay";
+};
+
+&pcs_mdio8 {
+	status = "okay";
+};
+
+&pcs_mdio9 {
+	status = "okay";
+};
+
+&pcs_mdio10 {
 	status = "okay";
 };
 

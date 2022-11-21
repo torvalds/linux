@@ -68,11 +68,11 @@ static struct atom_voltage_objects_info_v4_1 *pp_atomfwctrl_get_voltage_info_tab
 	return (struct atom_voltage_objects_info_v4_1 *)table_address;
 }
 
-/**
-* Returns TRUE if the given voltage type is controlled by GPIO pins.
-* voltage_type is one of SET_VOLTAGE_TYPE_ASIC_VDDC, SET_VOLTAGE_TYPE_ASIC_MVDDC, SET_VOLTAGE_TYPE_ASIC_MVDDQ.
-* voltage_mode is one of ATOM_SET_VOLTAGE, ATOM_SET_VOLTAGE_PHASE
-*/
+/*
+ * Returns TRUE if the given voltage type is controlled by GPIO pins.
+ * voltage_type is one of SET_VOLTAGE_TYPE_ASIC_VDDC, SET_VOLTAGE_TYPE_ASIC_MVDDC, SET_VOLTAGE_TYPE_ASIC_MVDDQ.
+ * voltage_mode is one of ATOM_SET_VOLTAGE, ATOM_SET_VOLTAGE_PHASE
+ */
 bool pp_atomfwctrl_is_voltage_controlled_by_gpio_v4(struct pp_hwmgr *hwmgr,
 		uint8_t voltage_type, uint8_t voltage_mode)
 {
@@ -202,9 +202,9 @@ static bool pp_atomfwctrl_lookup_gpio_pin(
 	return false;
 }
 
-/**
-* Returns TRUE if the given pin id find in lookup table.
-*/
+/*
+ * Returns TRUE if the given pin id find in lookup table.
+ */
 bool pp_atomfwctrl_get_pp_assign_pin(struct pp_hwmgr *hwmgr,
 		const uint32_t pin_id,
 		struct pp_atomfwctrl_gpio_pin_assignment *gpio_pin_assignment)
@@ -224,10 +224,10 @@ bool pp_atomfwctrl_get_pp_assign_pin(struct pp_hwmgr *hwmgr,
 	return ret;
 }
 
-/**
-* Enter to SelfRefresh mode.
-* @param hwmgr
-*/
+/*
+ * Enter to SelfRefresh mode.
+ * @param hwmgr
+ */
 int pp_atomfwctrl_enter_self_refresh(struct pp_hwmgr *hwmgr)
 {
 	/* 0 - no action

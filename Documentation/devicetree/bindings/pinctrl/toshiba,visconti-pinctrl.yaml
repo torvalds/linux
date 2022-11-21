@@ -20,6 +20,9 @@ properties:
   reg:
     maxItems: 1
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - reg
@@ -80,7 +83,7 @@ examples:
         #address-cells = <2>;
         #size-cells = <2>;
 
-        pmux: pmux@24190000 {
+        pmux: pinmux@24190000 {
             compatible = "toshiba,tmpv7708-pinctrl";
             reg = <0 0x24190000 0 0x10000>;
 

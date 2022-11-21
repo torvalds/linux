@@ -124,14 +124,18 @@
 	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd_irq>;
+	vdd-supply = <&ldo6_reg>;
+	vdd_osc-supply = <&ldo7_reg>;
+	vdd_pll-supply = <&ldo6_reg>;
 };
 
 &hsi2c_4 {
 	status = "okay";
 
-	s2mps11_pmic@66 {
+	pmic@66 {
 		compatible = "samsung,s2mps11-pmic";
 		reg = <0x66>;
+		wakeup-source;
 
 		s2mps11_osc: clocks {
 			compatible = "samsung,s2mps11-clk";
@@ -376,7 +380,7 @@
 };
 
 &pinctrl_0 {
-	hdmi_hpd_irq: hdmi-hpd-irq {
+	hdmi_hpd_irq: hdmi-hpd-irq-pins {
 		samsung,pins = "gpx3-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
@@ -385,14 +389,14 @@
 };
 
 &pinctrl_2 {
-	usb300_vbus_en: usb300-vbus-en {
+	usb300_vbus_en: usb300-vbus-en-pins {
 		samsung,pins = "gpg0-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 
-	usb301_vbus_en: usb301-vbus-en {
+	usb301_vbus_en: usb301-vbus-en-pins {
 		samsung,pins = "gpg1-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -404,6 +408,16 @@
 	status = "okay";
 	clocks = <&clock CLK_RTC>, <&s2mps11_osc S2MPS11_CLK_AP>;
 	clock-names = "rtc", "rtc_src";
+};
+
+&usbdrd3_0 {
+	vdd10-supply = <&ldo11_reg>;
+	vdd33-supply = <&ldo9_reg>;
+};
+
+&usbdrd3_1 {
+	vdd10-supply = <&ldo11_reg>;
+	vdd33-supply = <&ldo9_reg>;
 };
 
 &usbdrd_phy0 {

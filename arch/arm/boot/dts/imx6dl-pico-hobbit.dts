@@ -13,5 +13,5 @@
 
 / {
 	model = "TechNexion PICO-IMX6 DualLite/Solo Board and Hobbit baseboard";
-	compatible = "technexion,imx6dl-pico", "fsl,imx6dl";
+	compatible = "technexion,imx6dl-pico-hobbit", "fsl,imx6dl";
 };

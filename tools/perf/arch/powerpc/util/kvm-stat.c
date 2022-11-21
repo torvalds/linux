@@ -113,10 +113,11 @@ static int is_tracepoint_available(const char *str, struct evlist *evlist)
 	struct parse_events_error err;
 	int ret;
 
-	bzero(&err, sizeof(err));
+	parse_events_error__init(&err);
 	ret = parse_events(evlist, str, &err);
 	if (err.str)
-		parse_events_print_error(&err, "tracepoint");
+		parse_events_error__print(&err, "tracepoint");
+	parse_events_error__exit(&err);
 	return ret;
 }
 
@@ -176,7 +177,7 @@ int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid __maybe_unused)
 }
 
 /*
- * Incase of powerpc architecture, pmu registers are programmable
+ * In case of powerpc architecture, pmu registers are programmable
  * by guest kernel. So monitoring guest via host may not provide
  * valid samples with default 'cycles' event. It is better to use
  * 'trace_imc/trace_cycles' event for guest profiling, since it

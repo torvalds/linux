@@ -24,11 +24,24 @@ config REMOTEPROC_CDEV
 	  It's safe to say N if you don't want to use this interface.
 
 config IMX_REMOTEPROC
-	tristate "IMX6/7 remoteproc support"
+	tristate "i.MX remoteproc support"
 	depends on ARCH_MXC
+	depends on HAVE_ARM_SMCCC
+	select MAILBOX
 	help
-	  Say y here to support iMX's remote processors (Cortex M4
-	  on iMX7D) via the remote processor framework.
+	  Say y here to support iMX's remote processors via the remote
+	  processor framework.
+
+	  It's safe to say N here.
+
+config IMX_DSP_REMOTEPROC
+	tristate "i.MX DSP remoteproc support"
+	depends on ARCH_MXC
+	depends on HAVE_ARM_SMCCC
+	select MAILBOX
+	help
+	  Say y here to support iMX's DSP remote processors via the remote
+	  processor framework.
 
 	  It's safe to say N here.
 
@@ -125,6 +138,29 @@ config KEYSTONE_REMOTEPROC
 	  It's safe to say N here if you're not interested in the Keystone
 	  DSPs or just want to use a bare minimum kernel.
 
+config MESON_MX_AO_ARC_REMOTEPROC
+	tristate "Amlogic Meson6/8/8b/8m2 AO ARC remote processor support"
+	depends on HAS_IOMEM
+	depends on (ARM && ARCH_MESON) || COMPILE_TEST
+	select GENERIC_ALLOCATOR
+	help
+	  Say m or y here to have support for the AO ARC remote processor
+	  on Amlogic Meson6/Meson8/Meson8b/Meson8m2 SoCs. This is
+	  typically used for system suspend.
+	  If unsure say N.
+
+config PRU_REMOTEPROC
+	tristate "TI PRU remoteproc support"
+	depends on TI_PRUSS
+	default TI_PRUSS
+	help
+	  Support for TI PRU remote processors present within a PRU-ICSS
+	  subsystem via the remote processor framework.
+
+	  Say Y or M here to support the Programmable Realtime Unit (PRU)
+	  processors on various TI SoCs. It's safe to say N here if you're
+	  not interested in the PRU or if you are unsure.
+
 config QCOM_PIL_INFO
 	tristate
 
@@ -140,9 +176,11 @@ config QCOM_Q6V5_ADSP
 	tristate "Qualcomm Technology Inc ADSP Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
 	depends on QCOM_SMEM
-	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_SMD || RPMSG_QCOM_SMD=n
 	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
 	depends on QCOM_SYSMON || QCOM_SYSMON=n
+	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	depends on QCOM_AOSS_QMP || QCOM_AOSS_QMP=n
 	select MFD_SYSCON
 	select QCOM_PIL_INFO
 	select QCOM_MDT_LOADER
@@ -150,15 +188,19 @@ config QCOM_Q6V5_ADSP
 	select QCOM_RPROC_COMMON
 	help
 	  Say y here to support the Peripheral Image Loader
-	  for the Qualcomm Technology Inc. ADSP remote processors.
+	  for the non-TrustZone part of Qualcomm Technology Inc. ADSP and CDSP
+	  remote processors. The TrustZone part is handled by QCOM_Q6V5_PAS
+	  driver.
 
 config QCOM_Q6V5_MSS
 	tristate "Qualcomm Hexagon V5 self-authenticating modem subsystem support"
 	depends on OF && ARCH_QCOM
 	depends on QCOM_SMEM
-	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_SMD || RPMSG_QCOM_SMD=n
 	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
 	depends on QCOM_SYSMON || QCOM_SYSMON=n
+	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	depends on QCOM_AOSS_QMP || QCOM_AOSS_QMP=n
 	select MFD_SYSCON
 	select QCOM_MDT_LOADER
 	select QCOM_PIL_INFO
@@ -167,15 +209,18 @@ config QCOM_Q6V5_MSS
 	select QCOM_SCM
 	help
 	  Say y here to support the Qualcomm self-authenticating modem
-	  subsystem based on Hexagon V5.
+	  subsystem based on Hexagon V5. The TrustZone based system is
+	  handled by QCOM_Q6V5_PAS driver.
 
 config QCOM_Q6V5_PAS
 	tristate "Qualcomm Hexagon v5 Peripheral Authentication Service support"
 	depends on OF && ARCH_QCOM
 	depends on QCOM_SMEM
-	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_SMD || RPMSG_QCOM_SMD=n
 	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
 	depends on QCOM_SYSMON || QCOM_SYSMON=n
+	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	depends on QCOM_AOSS_QMP || QCOM_AOSS_QMP=n
 	select MFD_SYSCON
 	select QCOM_PIL_INFO
 	select QCOM_MDT_LOADER
@@ -183,17 +228,21 @@ config QCOM_Q6V5_PAS
 	select QCOM_RPROC_COMMON
 	select QCOM_SCM
 	help
-	  Say y here to support the TrustZone based Peripherial Image Loader
+	  Say y here to support the TrustZone based Peripheral Image Loader
 	  for the Qualcomm Hexagon v5 based remote processors. This is commonly
-	  used to control subsystems such as ADSP, Compute and Sensor.
+	  used to control subsystems such as ADSP (Audio DSP),
+	  CDSP (Compute DSP), MPSS (Modem Peripheral SubSystem), and
+	  SLPI (Sensor Low Power Island).
 
 config QCOM_Q6V5_WCSS
 	tristate "Qualcomm Hexagon based WCSS Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
 	depends on QCOM_SMEM
-	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_SMD || RPMSG_QCOM_SMD=n
 	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
 	depends on QCOM_SYSMON || QCOM_SYSMON=n
+	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	depends on QCOM_AOSS_QMP || QCOM_AOSS_QMP=n
 	select MFD_SYSCON
 	select QCOM_MDT_LOADER
 	select QCOM_PIL_INFO
@@ -202,7 +251,8 @@ config QCOM_Q6V5_WCSS
 	select QCOM_SCM
 	help
 	  Say y here to support the Qualcomm Peripheral Image Loader for the
-	  Hexagon V5 based WCSS remote processors.
+	  Hexagon V5 based WCSS remote processors on e.g. IPQ8074.  This is
+	  a non-TrustZone wireless subsystem.
 
 config QCOM_SYSMON
 	tristate "Qualcomm sysmon driver"
@@ -222,17 +272,31 @@ config QCOM_SYSMON
 config QCOM_WCNSS_PIL
 	tristate "Qualcomm WCNSS Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
-	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_SMD || RPMSG_QCOM_SMD=n
 	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
 	depends on QCOM_SMEM
 	depends on QCOM_SYSMON || QCOM_SYSMON=n
+	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
 	select QCOM_MDT_LOADER
 	select QCOM_PIL_INFO
 	select QCOM_RPROC_COMMON
 	select QCOM_SCM
 	help
-	  Say y here to support the Peripheral Image Loader for the Qualcomm
-	  Wireless Connectivity Subsystem.
+	  Say y here to support the Peripheral Image Loader for loading WCNSS
+	  firmware and boot the core on e.g. MSM8974, MSM8916. The firmware is
+	  verified and booted with the help of the Peripheral Authentication
+	  System (PAS) in TrustZone.
+
+config RCAR_REMOTEPROC
+	tristate "Renesas R-Car Gen3 remoteproc support"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	  Say y here to support R-Car realtime processor via the
+	  remote processor framework. An ELF firmware can be loaded
+	  thanks to sysfs remoteproc entries. The remote processor
+	  can be started and stopped.
+	  This can be either built-in or a loadable module.
+	  If compiled as module (M), the module name is rcar_rproc.
 
 config ST_REMOTEPROC
 	tristate "ST remoteproc support"

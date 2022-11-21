@@ -15,7 +15,7 @@
 #define BDO_MODE_CARRIER2	(5 << 28)
 #define BDO_MODE_CARRIER3	(6 << 28)
 #define BDO_MODE_EYE		(7 << 28)
-#define BDO_MODE_TESTDATA	(8 << 28)
+#define BDO_MODE_TESTDATA	(8U << 28)
 
 #define BDO_MODE_MASK(mode)	((mode) & 0xf0000000)
 

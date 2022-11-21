@@ -9,6 +9,7 @@
 #include <dt-bindings/power/meson8-power.h>
 #include <dt-bindings/reset/amlogic,meson8b-clkc-reset.h>
 #include <dt-bindings/reset/amlogic,meson8b-reset.h>
+#include <dt-bindings/thermal/thermal.h>
 #include "meson.dtsi"
 
 / {
@@ -28,6 +29,7 @@
 			resets = <&clkc CLKC_RESET_CPU0_SOFT_RESET>;
 			operating-points-v2 = <&cpu_opp_table>;
 			clocks = <&clkc CLKID_CPUCLK>;
+			#cooling-cells = <2>; /* min followed by max */
 		};
 
 		cpu1: cpu@201 {
@@ -39,6 +41,7 @@
 			resets = <&clkc CLKC_RESET_CPU1_SOFT_RESET>;
 			operating-points-v2 = <&cpu_opp_table>;
 			clocks = <&clkc CLKID_CPUCLK>;
+			#cooling-cells = <2>; /* min followed by max */
 		};
 
 		cpu2: cpu@202 {
@@ -50,6 +53,7 @@
 			resets = <&clkc CLKC_RESET_CPU2_SOFT_RESET>;
 			operating-points-v2 = <&cpu_opp_table>;
 			clocks = <&clkc CLKID_CPUCLK>;
+			#cooling-cells = <2>; /* min followed by max */
 		};
 
 		cpu3: cpu@203 {
@@ -61,6 +65,7 @@
 			resets = <&clkc CLKC_RESET_CPU3_SOFT_RESET>;
 			operating-points-v2 = <&cpu_opp_table>;
 			clocks = <&clkc CLKID_CPUCLK>;
+			#cooling-cells = <2>; /* min followed by max */
 		};
 	};
 
@@ -190,6 +195,54 @@
 		};
 	};
 
+	thermal-zones {
+		soc {
+			polling-delay-passive = <250>; /* milliseconds */
+			polling-delay = <1000>; /* milliseconds */
+			thermal-sensors = <&thermal_sensor>;
+
+			cooling-maps {
+				map0 {
+					trip = <&soc_passive>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&mali THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+
+				map1 {
+					trip = <&soc_hot>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&mali THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+
+			trips {
+				soc_passive: soc-passive {
+					temperature = <80000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
+					type = "passive";
+				};
+
+				soc_hot: soc-hot {
+					temperature = <90000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
+					type = "hot";
+				};
+
+				soc_critical: soc-critical {
+					temperature = <110000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
+					type = "critical";
+				};
+			};
+		};
+	};
+
 	mmcbus: bus@c8000000 {
 		compatible = "simple-bus";
 		reg = <0xc8000000 0x8000>;
@@ -251,12 +304,41 @@
 					  "pp2", "ppmmu2", "pp4", "ppmmu4",
 					  "pp5", "ppmmu5", "pp6", "ppmmu6";
 			resets = <&reset RESET_MALI>;
+
 			clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_MALI>;
 			clock-names = "bus", "core";
+
+			assigned-clocks = <&clkc CLKID_MALI>;
+			assigned-clock-rates = <318750000>;
+
 			operating-points-v2 = <&gpu_opp_table>;
+			#cooling-cells = <2>; /* min followed by max */
 		};
 	};
 }; /* end of / */
+
+&aiu {
+	compatible = "amlogic,aiu-meson8", "amlogic,aiu";
+	clocks = <&clkc CLKID_AIU_GLUE>,
+		 <&clkc CLKID_I2S_OUT>,
+		 <&clkc CLKID_AOCLK_GATE>,
+		 <&clkc CLKID_CTS_AMCLK>,
+		 <&clkc CLKID_MIXER_IFACE>,
+		 <&clkc CLKID_IEC958>,
+		 <&clkc CLKID_IEC958_GATE>,
+		 <&clkc CLKID_CTS_MCLK_I958>,
+		 <&clkc CLKID_CTS_I958>;
+	clock-names = "pclk",
+		      "i2s_pclk",
+		      "i2s_aoclk",
+		      "i2s_mclk",
+		      "i2s_mixer",
+		      "spdif_pclk",
+		      "spdif_aoclk",
+		      "spdif_mclk",
+		      "spdif_mclk_sel";
+	resets = <&reset RESET_AIU>;
+};
 
 &aobus {
 	pmu: pmu@e0 {
@@ -279,6 +361,38 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-ranges = <&pinctrl_aobus 0 0 16>;
+		};
+
+		i2s_am_clk_pins: i2s-am-clk-out {
+			mux {
+				groups = "i2s_am_clk_out_ao";
+				function = "i2s_ao";
+				bias-disable;
+			};
+		};
+
+		i2s_out_ao_clk_pins: i2s-ao-clk-out {
+			mux {
+				groups = "i2s_ao_clk_out_ao";
+				function = "i2s_ao";
+				bias-disable;
+			};
+		};
+
+		i2s_out_lr_clk_pins: i2s-lr-clk-out {
+			mux {
+				groups = "i2s_lr_clk_out_ao";
+				function = "i2s_ao";
+				bias-disable;
+			};
+		};
+
+		i2s_out_ch01_ao_pins: i2s-out-ch01 {
+			mux {
+				groups = "i2s_out_ch01_ao";
+				function = "i2s_ao";
+				bias-disable;
+			};
 		};
 
 		uart_ao_a_pins: uart_ao_a {
@@ -313,6 +427,14 @@
 			};
 		};
 	};
+};
+
+&ao_arc_rproc {
+	compatible= "amlogic,meson8-ao-arc", "amlogic,meson-mx-ao-arc";
+	amlogic,secbus2 = <&secbus2>;
+	sram = <&ao_arc_sram>;
+	resets = <&reset RESET_MEDIA_CPU>;
+	clocks = <&clkc CLKID_AO_MEDIA_CPU>;
 };
 
 &cbus {
@@ -393,6 +515,14 @@
 			};
 		};
 
+		spdif_out_pins: spdif-out {
+			mux {
+				groups = "spdif_out";
+				function = "spdif";
+				bias-disable;
+			};
+		};
+
 		spi_nor_pins: nor {
 			mux {
 				groups = "nor_d", "nor_q", "nor_c", "nor_cs";
@@ -442,6 +572,12 @@
 };
 
 &ahb_sram {
+	ao_arc_sram: ao-arc-sram@0 {
+		compatible = "amlogic,meson8-ao-arc-sram";
+		reg = <0x0 0x8000>;
+		pool;
+	};
+
 	smp-sram@1ff80 {
 		compatible = "amlogic,meson8-smp-sram";
 		reg = <0x1ff80 0x8>;
@@ -577,6 +713,13 @@
 	clock-names = "clkin0", "clkin1", "clkin2", "clkin3", "pclk";
 };
 
+&secbus {
+	secbus2: system-controller@4000 {
+		compatible = "amlogic,meson8-secbus2", "syscon";
+		reg = <0x4000 0x2000>;
+	};
+};
+
 &sdio {
 	compatible = "amlogic,meson8-sdio", "amlogic,meson-mx-sdio";
 	clocks = <&clkc CLKID_SDIO>, <&clkc CLKID_CLK81>;
@@ -593,27 +736,27 @@
 };
 
 &uart_AO {
-	compatible = "amlogic,meson8-uart", "amlogic,meson-uart";
-	clocks = <&clkc CLKID_CLK81>, <&xtal>, <&clkc CLKID_CLK81>;
-	clock-names = "baud", "xtal", "pclk";
+	compatible = "amlogic,meson8-uart", "amlogic,meson-ao-uart";
+	clocks = <&xtal>, <&clkc CLKID_CLK81>, <&clkc CLKID_CLK81>;
+	clock-names = "xtal", "pclk", "baud";
 };
 
 &uart_A {
-	compatible = "amlogic,meson8-uart", "amlogic,meson-uart";
-	clocks = <&clkc CLKID_CLK81>, <&xtal>, <&clkc CLKID_UART0>;
-	clock-names = "baud", "xtal", "pclk";
+	compatible = "amlogic,meson8-uart";
+	clocks = <&xtal>, <&clkc CLKID_UART0>, <&clkc CLKID_CLK81>;
+	clock-names = "xtal", "pclk", "baud";
 };
 
 &uart_B {
-	compatible = "amlogic,meson8-uart", "amlogic,meson-uart";
-	clocks = <&clkc CLKID_CLK81>, <&xtal>, <&clkc CLKID_UART1>;
-	clock-names = "baud", "xtal", "pclk";
+	compatible = "amlogic,meson8-uart";
+	clocks = <&xtal>, <&clkc CLKID_UART0>, <&clkc CLKID_CLK81>;
+	clock-names = "xtal", "pclk", "baud";
 };
 
 &uart_C {
-	compatible = "amlogic,meson8-uart", "amlogic,meson-uart";
-	clocks = <&clkc CLKID_CLK81>, <&xtal>, <&clkc CLKID_UART2>;
-	clock-names = "baud", "xtal", "pclk";
+	compatible = "amlogic,meson8-uart";
+	clocks = <&xtal>, <&clkc CLKID_UART0>, <&clkc CLKID_CLK81>;
+	clock-names = "xtal", "pclk", "baud";
 };
 
 &usb0 {

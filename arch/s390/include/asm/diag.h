@@ -11,6 +11,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/percpu.h>
+#include <asm/asm-extable.h>
 
 enum diag_stat_enum {
 	DIAG_STAT_X008,
@@ -47,8 +48,8 @@ static inline void diag10_range(unsigned long start_pfn, unsigned long num_pfn)
 {
 	unsigned long start_addr, end_addr;
 
-	start_addr = start_pfn << PAGE_SHIFT;
-	end_addr = (start_pfn + num_pfn - 1) << PAGE_SHIFT;
+	start_addr = pfn_to_phys(start_pfn);
+	end_addr = pfn_to_phys(start_pfn + num_pfn - 1);
 
 	diag_stat_inc(DIAG_STAT_X010);
 	asm volatile(
@@ -309,6 +310,10 @@ int diag26c(void *req, void *resp, enum diag26c_sc subcode);
 
 struct hypfs_diag0c_entry;
 
+/*
+ * This structure must contain only pointers/references into
+ * the AMODE31 text section.
+ */
 struct diag_ops {
 	int (*diag210)(struct diag210 *addr);
 	int (*diag26c)(void *req, void *resp, enum diag26c_sc subcode);
@@ -317,6 +322,13 @@ struct diag_ops {
 	void (*diag308_reset)(void);
 };
 
-extern struct diag_ops diag_dma_ops;
-extern struct diag210 *__diag210_tmp_dma;
+extern struct diag_ops diag_amode31_ops;
+extern struct diag210 *__diag210_tmp_amode31;
+
+int _diag210_amode31(struct diag210 *addr);
+int _diag26c_amode31(void *req, void *resp, enum diag26c_sc subcode);
+int _diag14_amode31(unsigned long rx, unsigned long ry1, unsigned long subcode);
+void _diag0c_amode31(struct hypfs_diag0c_entry *entry);
+void _diag308_reset_amode31(void);
+
 #endif /* _ASM_S390_DIAG_H */

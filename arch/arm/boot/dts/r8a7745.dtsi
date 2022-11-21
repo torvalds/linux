@@ -64,7 +64,6 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		enable-method = "renesas,apmu";
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
@@ -73,6 +72,7 @@
 			clock-frequency = <1000000000>;
 			clocks = <&cpg CPG_CORE R8A7745_CLK_Z2>;
 			power-domains = <&sysc R8A7745_PD_CA7_CPU0>;
+			enable-method = "renesas,apmu";
 			next-level-cache = <&L2_CA7>;
 		};
 
@@ -83,6 +83,7 @@
 			clock-frequency = <1000000000>;
 			clocks = <&cpg CPG_CORE R8A7745_CLK_Z2>;
 			power-domains = <&sysc R8A7745_PD_CA7_CPU1>;
+			enable-method = "renesas,apmu";
 			next-level-cache = <&L2_CA7>;
 		};
 
@@ -258,7 +259,7 @@
 		apmu@e6151000 {
 			compatible = "renesas,r8a7745-apmu", "renesas,apmu";
 			reg = <0 0xe6151000 0 0x188>;
-			cpus = <&cpu0 &cpu1>;
+			cpus = <&cpu0>, <&cpu1>;
 		};
 
 		rst: reset-controller@e6160000 {
@@ -645,6 +646,7 @@
 			reg = <0 0xe6800000 0 0x800>, <0 0xee0e8000 0 0x4000>;
 			interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 812>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
 			resets = <&cpg 812>;
 			#address-cells = <1>;

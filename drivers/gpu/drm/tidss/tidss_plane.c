@@ -10,6 +10,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 
 #include "tidss_crtc.h"
 #include "tidss_dispc.h"
@@ -19,8 +20,10 @@
 /* drm_plane_helper_funcs */
 
 static int tidss_plane_atomic_check(struct drm_plane *plane,
-				    struct drm_plane_state *state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct drm_device *ddev = plane->dev;
 	struct tidss_device *tidss = to_tidss(ddev);
 	struct tidss_plane *tplane = to_tidss_plane(plane);
@@ -32,20 +35,22 @@ static int tidss_plane_atomic_check(struct drm_plane *plane,
 
 	dev_dbg(ddev->dev, "%s\n", __func__);
 
-	if (!state->crtc) {
+	if (!new_plane_state->crtc) {
 		/*
 		 * The visible field is not reset by the DRM core but only
 		 * updated by drm_plane_helper_check_state(), set it manually.
 		 */
-		state->visible = false;
+		new_plane_state->visible = false;
 		return 0;
 	}
 
-	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
+	crtc_state = drm_atomic_get_crtc_state(state,
+					       new_plane_state->crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state, 0,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
+						  0,
 						  INT_MAX, true, true);
 	if (ret < 0)
 		return ret;
@@ -62,35 +67,37 @@ static int tidss_plane_atomic_check(struct drm_plane *plane,
 	 * check for odd height).
 	 */
 
-	finfo = drm_format_info(state->fb->format->format);
+	finfo = drm_format_info(new_plane_state->fb->format->format);
 
-	if ((state->src_x >> 16) % finfo->hsub != 0) {
+	if ((new_plane_state->src_x >> 16) % finfo->hsub != 0) {
 		dev_dbg(ddev->dev,
 			"%s: x-position %u not divisible subpixel size %u\n",
-			__func__, (state->src_x >> 16), finfo->hsub);
+			__func__, (new_plane_state->src_x >> 16), finfo->hsub);
 		return -EINVAL;
 	}
 
-	if ((state->src_y >> 16) % finfo->vsub != 0) {
+	if ((new_plane_state->src_y >> 16) % finfo->vsub != 0) {
 		dev_dbg(ddev->dev,
 			"%s: y-position %u not divisible subpixel size %u\n",
-			__func__, (state->src_y >> 16), finfo->vsub);
+			__func__, (new_plane_state->src_y >> 16), finfo->vsub);
 		return -EINVAL;
 	}
 
-	if ((state->src_w >> 16) % finfo->hsub != 0) {
+	if ((new_plane_state->src_w >> 16) % finfo->hsub != 0) {
 		dev_dbg(ddev->dev,
 			"%s: src width %u not divisible by subpixel size %u\n",
-			 __func__, (state->src_w >> 16), finfo->hsub);
+			 __func__, (new_plane_state->src_w >> 16),
+			 finfo->hsub);
 		return -EINVAL;
 	}
 
-	if (!state->visible)
+	if (!new_plane_state->visible)
 		return 0;
 
-	hw_videoport = to_tidss_crtc(state->crtc)->hw_videoport;
+	hw_videoport = to_tidss_crtc(new_plane_state->crtc)->hw_videoport;
 
-	ret = dispc_plane_check(tidss->dispc, hw_plane, state, hw_videoport);
+	ret = dispc_plane_check(tidss->dispc, hw_plane, new_plane_state,
+				hw_videoport);
 	if (ret)
 		return ret;
 
@@ -98,26 +105,27 @@ static int tidss_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void tidss_plane_atomic_update(struct drm_plane *plane,
-				      struct drm_plane_state *old_state)
+				      struct drm_atomic_state *state)
 {
 	struct drm_device *ddev = plane->dev;
 	struct tidss_device *tidss = to_tidss(ddev);
 	struct tidss_plane *tplane = to_tidss_plane(plane);
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	u32 hw_videoport;
 	int ret;
 
 	dev_dbg(ddev->dev, "%s\n", __func__);
 
-	if (!state->visible) {
+	if (!new_state->visible) {
 		dispc_plane_enable(tidss->dispc, tplane->hw_plane_id, false);
 		return;
 	}
 
-	hw_videoport = to_tidss_crtc(state->crtc)->hw_videoport;
+	hw_videoport = to_tidss_crtc(new_state->crtc)->hw_videoport;
 
 	ret = dispc_plane_setup(tidss->dispc, tplane->hw_plane_id,
-				state, hw_videoport);
+				new_state, hw_videoport);
 
 	if (ret) {
 		dev_err(plane->dev->dev, "%s: Failed to setup plane %d\n",
@@ -130,7 +138,7 @@ static void tidss_plane_atomic_update(struct drm_plane *plane,
 }
 
 static void tidss_plane_atomic_disable(struct drm_plane *plane,
-				       struct drm_plane_state *old_state)
+				       struct drm_atomic_state *state)
 {
 	struct drm_device *ddev = plane->dev;
 	struct tidss_device *tidss = to_tidss(ddev);

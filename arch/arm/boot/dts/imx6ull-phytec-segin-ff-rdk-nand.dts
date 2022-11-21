@@ -9,6 +9,8 @@
 #include "imx6ull-phytec-phycore-som.dtsi"
 #include "imx6ull-phytec-segin.dtsi"
 #include "imx6ull-phytec-segin-peb-eval-01.dtsi"
+#include "imx6ull-phytec-segin-peb-av-02.dtsi"
+#include "imx6ull-phytec-segin-peb-wlbt-05.dtsi"
 
 / {
 	model = "PHYTEC phyBOARD-Segin i.MX6 ULL Full Featured with NAND";

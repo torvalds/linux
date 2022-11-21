@@ -2,20 +2,34 @@
 // Copyright (c) 2019, Linaro Limited
 
 #include <linux/clk.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/wcd934x/registers.h>
 #include <linux/mfd/wcd934x/wcd934x.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slimbus.h>
+
+#define WCD934X_REGMAP_IRQ_REG(_irq, _off, _mask)		\
+	[_irq] = {						\
+		.reg_offset = (_off),				\
+		.mask = (_mask),				\
+		.type = {					\
+			.type_reg_offset = (_off),		\
+			.types_supported = IRQ_TYPE_EDGE_BOTH,	\
+			.type_reg_mask  = (_mask),		\
+			.type_level_low_val = (_mask),		\
+			.type_level_high_val = (_mask),		\
+			.type_falling_val = 0,			\
+			.type_rising_val = 0,			\
+		},						\
+	}
 
 static const struct mfd_cell wcd934x_devices[] = {
 	{
@@ -30,32 +44,15 @@ static const struct mfd_cell wcd934x_devices[] = {
 };
 
 static const struct regmap_irq wcd934x_irqs[] = {
-	[WCD934X_IRQ_SLIMBUS] = {
-		.reg_offset = 0,
-		.mask = BIT(0),
-		.type = {
-			.type_reg_offset = 0,
-			.types_supported = IRQ_TYPE_EDGE_BOTH,
-			.type_reg_mask  = BIT(0),
-			.type_level_low_val = BIT(0),
-			.type_level_high_val = BIT(0),
-			.type_falling_val = 0,
-			.type_rising_val = 0,
-		},
-	},
-	[WCD934X_IRQ_SOUNDWIRE] = {
-		.reg_offset = 2,
-		.mask = BIT(4),
-		.type = {
-			.type_reg_offset = 2,
-			.types_supported = IRQ_TYPE_EDGE_BOTH,
-			.type_reg_mask  = BIT(4),
-			.type_level_low_val = BIT(4),
-			.type_level_high_val = BIT(4),
-			.type_falling_val = 0,
-			.type_rising_val = 0,
-		},
-	},
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_SLIMBUS, 0, BIT(0)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_HPH_PA_OCPL_FAULT, 0, BIT(2)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_HPH_PA_OCPR_FAULT, 0, BIT(3)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_MBHC_SW_DET, 1, BIT(0)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_MBHC_ELECT_INS_REM_DET, 1, BIT(1)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_MBHC_BUTTON_PRESS_DET, 1, BIT(2)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_MBHC_BUTTON_RELEASE_DET, 1, BIT(3)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_MBHC_ELECT_INS_REM_LEG_DET, 1, BIT(4)),
+	WCD934X_REGMAP_IRQ_REG(WCD934X_IRQ_SOUNDWIRE, 2, BIT(4)),
 };
 
 static const struct regmap_irq_chip wcd934x_regmap_irq_chip = {
@@ -212,7 +209,8 @@ static int wcd934x_slim_probe(struct slim_device *sdev)
 	struct device *dev = &sdev->dev;
 	struct device_node *np = dev->of_node;
 	struct wcd934x_ddata *ddata;
-	int reset_gpio, ret;
+	struct gpio_desc *reset_gpio;
+	int ret;
 
 	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
@@ -222,13 +220,6 @@ static int wcd934x_slim_probe(struct slim_device *sdev)
 	if (ddata->irq < 0)
 		return dev_err_probe(ddata->dev, ddata->irq,
 				     "Failed to get IRQ\n");
-
-	reset_gpio = of_get_named_gpio(np, "reset-gpios", 0);
-	if (reset_gpio < 0) {
-		dev_err(dev, "Failed to get reset gpio: err = %d\n",
-			reset_gpio);
-		return reset_gpio;
-	}
 
 	ddata->extclk = devm_clk_get(dev, "extclk");
 	if (IS_ERR(ddata->extclk)) {
@@ -260,9 +251,13 @@ static int wcd934x_slim_probe(struct slim_device *sdev)
 	 * SYS_RST_N shouldn't be pulled high during this time
 	 */
 	usleep_range(600, 650);
-	gpio_direction_output(reset_gpio, 0);
+	reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(reset_gpio)) {
+		return dev_err_probe(dev, PTR_ERR(reset_gpio),
+				"Failed to get reset gpio: err = %ld\n", PTR_ERR(reset_gpio));
+	}
 	msleep(20);
-	gpio_set_value(reset_gpio, 1);
+	gpiod_set_value(reset_gpio, 1);
 	msleep(20);
 
 	ddata->dev = dev;

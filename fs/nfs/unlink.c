@@ -347,6 +347,7 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return ERR_PTR(-ENOMEM);
+	task_setup_data.task = &data->task;
 	task_setup_data.callback_data = data;
 
 	data->cred = get_current_cred();
@@ -500,9 +501,9 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 		spin_lock(&inode->i_lock);
 		NFS_I(inode)->attr_gencount = nfs_inc_attr_generation_counter();
-		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_CHANGE
-			| NFS_INO_INVALID_CTIME
-			| NFS_INO_REVAL_FORCED;
+		nfs_set_cache_invalid(inode, NFS_INO_INVALID_CHANGE |
+						     NFS_INO_INVALID_CTIME |
+						     NFS_INO_REVAL_FORCED);
 		spin_unlock(&inode->i_lock);
 		d_move(dentry, sdentry);
 		break;

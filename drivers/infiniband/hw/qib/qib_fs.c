@@ -32,7 +32,6 @@
  * SOFTWARE.
  */
 
-#include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/fs_context.h>
 #include <linux/mount.h>
@@ -427,79 +426,21 @@ bail:
 	return ret;
 }
 
-static int remove_file(struct dentry *parent, char *name)
-{
-	struct dentry *tmp;
-	int ret;
-
-	tmp = lookup_one_len(name, parent, strlen(name));
-
-	if (IS_ERR(tmp)) {
-		ret = PTR_ERR(tmp);
-		goto bail;
-	}
-
-	spin_lock(&tmp->d_lock);
-	if (simple_positive(tmp)) {
-		__d_drop(tmp);
-		spin_unlock(&tmp->d_lock);
-		simple_unlink(d_inode(parent), tmp);
-	} else {
-		spin_unlock(&tmp->d_lock);
-	}
-	dput(tmp);
-
-	ret = 0;
-bail:
-	/*
-	 * We don't expect clients to care about the return value, but
-	 * it's there if they need it.
-	 */
-	return ret;
-}
-
 static int remove_device_files(struct super_block *sb,
 			       struct qib_devdata *dd)
 {
-	struct dentry *dir, *root;
+	struct dentry *dir;
 	char unit[10];
-	int ret, i;
 
-	root = dget(sb->s_root);
-	inode_lock(d_inode(root));
 	snprintf(unit, sizeof(unit), "%u", dd->unit);
-	dir = lookup_one_len(unit, root, strlen(unit));
+	dir = lookup_one_len_unlocked(unit, sb->s_root, strlen(unit));
 
 	if (IS_ERR(dir)) {
-		ret = PTR_ERR(dir);
 		pr_err("Lookup of %s failed\n", unit);
-		goto bail;
+		return PTR_ERR(dir);
 	}
-
-	inode_lock(d_inode(dir));
-	remove_file(dir, "counters");
-	remove_file(dir, "counter_names");
-	remove_file(dir, "portcounter_names");
-	for (i = 0; i < dd->num_pports; i++) {
-		char fname[24];
-
-		sprintf(fname, "port%dcounters", i + 1);
-		remove_file(dir, fname);
-		if (dd->flags & QIB_HAS_QSFP) {
-			sprintf(fname, "qsfp%d", i + 1);
-			remove_file(dir, fname);
-		}
-	}
-	remove_file(dir, "flash");
-	inode_unlock(d_inode(dir));
-	ret = simple_rmdir(d_inode(root), dir);
-	d_drop(dir);
-	dput(dir);
-
-bail:
-	inode_unlock(d_inode(root));
-	dput(root);
-	return ret;
+	simple_recursive_removal(dir, NULL);
+	return 0;
 }
 
 /*

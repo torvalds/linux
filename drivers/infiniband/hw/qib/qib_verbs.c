@@ -425,7 +425,7 @@ static inline u32 clear_upper_bytes(u32 data, u32 n, u32 off)
 }
 #endif
 
-static void copy_io(u32 __iomem *piobuf, struct rvt_sge_state *ss,
+static void qib_copy_io(u32 __iomem *piobuf, struct rvt_sge_state *ss,
 		    u32 length, unsigned flush_wc)
 {
 	u32 extra = 0;
@@ -975,7 +975,7 @@ static int qib_verbs_send_pio(struct rvt_qp *qp, struct ib_header *ibhdr,
 			qib_pio_copy(piobuf, addr, dwords);
 		goto done;
 	}
-	copy_io(piobuf, ss, len, flush_wc);
+	qib_copy_io(piobuf, ss, len, flush_wc);
 done:
 	if (dd->flags & QIB_USE_SPCL_TRIG) {
 		u32 spcl_off = (pbufn >= dd->piobcnt2k) ? 2047 : 1023;
@@ -1067,7 +1067,7 @@ bail:
 
 /**
  * qib_get_counters - get various chip counters
- * @dd: the qlogic_ib device
+ * @ppd: the qlogic_ib device
  * @cntrs: counters are placed here
  *
  * Return the counters needed by recv_pma_get_portcounters().
@@ -1188,7 +1188,7 @@ full:
 	}
 }
 
-static int qib_query_port(struct rvt_dev_info *rdi, u8 port_num,
+static int qib_query_port(struct rvt_dev_info *rdi, u32 port_num,
 			  struct ib_port_attr *props)
 {
 	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
@@ -1273,7 +1273,7 @@ bail:
 	return ret;
 }
 
-static int qib_shut_down_port(struct rvt_dev_info *rdi, u8 port_num)
+static int qib_shut_down_port(struct rvt_dev_info *rdi, u32 port_num)
 {
 	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
 	struct qib_devdata *dd = dd_from_dev(ibdev);
@@ -1342,7 +1342,7 @@ struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid)
 	struct rvt_qp *qp0;
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 	struct qib_devdata *dd = dd_from_ppd(ppd);
-	u8 port_num = ppd->port;
+	u32 port_num = ppd->port;
 
 	memset(&attr, 0, sizeof(attr));
 	attr.type = rdma_ah_find_type(&dd->verbs_dev.rdi.ibdev, port_num);
@@ -1483,7 +1483,8 @@ static const struct ib_device_ops qib_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_QIB,
 
-	.init_port = qib_create_port_files,
+	.port_groups = qib_attr_port_groups,
+	.device_group = &qib_attr_group,
 	.modify_device = qib_modify_device,
 	.process_mad = qib_process_mad,
 };
@@ -1612,7 +1613,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 			      i,
 			      dd->rcd[ctxt]->pkeys);
 	}
-	rdma_set_device_sysfs_group(&dd->verbs_dev.rdi.ibdev, &qib_attr_group);
 
 	ib_set_device_ops(ibdev, &qib_dev_ops);
 	ret = rvt_register_device(&dd->verbs_dev.rdi);
@@ -1644,8 +1644,6 @@ void qib_unregister_ib_device(struct qib_devdata *dd)
 {
 	struct qib_ibdev *dev = &dd->verbs_dev;
 
-	qib_verbs_unregister_sysfs(dd);
-
 	rvt_unregister_device(&dd->verbs_dev.rdi);
 
 	if (!list_empty(&dev->piowait))
@@ -1675,7 +1673,7 @@ void qib_unregister_ib_device(struct qib_devdata *dd)
 
 /**
  * _qib_schedule_send - schedule progress
- * @qp - the qp
+ * @qp: the qp
  *
  * This schedules progress w/o regard to the s_flags.
  *
@@ -1694,7 +1692,7 @@ bool _qib_schedule_send(struct rvt_qp *qp)
 
 /**
  * qib_schedule_send - schedule progress
- * @qp - the qp
+ * @qp: the qp
  *
  * This schedules qp progress.  The s_lock
  * should be held.

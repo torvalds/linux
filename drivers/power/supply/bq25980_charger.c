@@ -606,33 +606,6 @@ static int bq25980_get_state(struct bq25980_device *bq,
 	return 0;
 }
 
-static int bq25980_set_battery_property(struct power_supply *psy,
-				enum power_supply_property psp,
-				const union power_supply_propval *val)
-{
-	struct bq25980_device *bq = power_supply_get_drvdata(psy);
-	int ret = 0;
-
-	switch (psp) {
-	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
-		ret = bq25980_set_const_charge_curr(bq, val->intval);
-		if (ret)
-			return ret;
-		break;
-
-	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
-		ret = bq25980_set_const_charge_volt(bq, val->intval);
-		if (ret)
-			return ret;
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
 static int bq25980_get_battery_property(struct power_supply *psy,
 				enum power_supply_property psp,
 				union power_supply_propval *val)
@@ -697,6 +670,18 @@ static int bq25980_set_charger_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_STATUS:
 		ret = bq25980_set_chg_en(bq, val->intval);
+		if (ret)
+			return ret;
+		break;
+
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
+		ret = bq25980_set_const_charge_curr(bq, val->intval);
+		if (ret)
+			return ret;
+		break;
+
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+		ret = bq25980_set_const_charge_volt(bq, val->intval);
 		if (ret)
 			return ret;
 		break;
@@ -779,7 +764,7 @@ static int bq25980_get_charger_property(struct power_supply *psy,
 		if (!state.ce)
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
 		else if (state.bypass)
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_FAST;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_BYPASS;
 		else if (!state.bypass)
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
 		break;
@@ -922,7 +907,6 @@ static struct power_supply_desc bq25980_battery_desc = {
 	.name			= "bq25980-battery",
 	.type			= POWER_SUPPLY_TYPE_BATTERY,
 	.get_property		= bq25980_get_battery_property,
-	.set_property		= bq25980_set_battery_property,
 	.properties		= bq25980_battery_props,
 	.num_properties		= ARRAY_SIZE(bq25980_battery_props),
 	.property_is_writeable	= bq25980_property_is_writeable,
@@ -1095,7 +1079,7 @@ static int bq25980_power_supply_init(struct bq25980_device *bq,
 
 static int bq25980_hw_init(struct bq25980_device *bq)
 {
-	struct power_supply_battery_info bat_info = { };
+	struct power_supply_battery_info *bat_info;
 	int wd_reg_val = BQ25980_WATCHDOG_DIS;
 	int wd_max_val = BQ25980_NUM_WD_VAL - 1;
 	int ret = 0;
@@ -1128,8 +1112,8 @@ static int bq25980_hw_init(struct bq25980_device *bq)
 		return -EINVAL;
 	}
 
-	bq->init_data.ichg_max = bat_info.constant_charge_current_max_ua;
-	bq->init_data.vreg_max = bat_info.constant_charge_voltage_max_uv;
+	bq->init_data.ichg_max = bat_info->constant_charge_current_max_ua;
+	bq->init_data.vreg_max = bat_info->constant_charge_voltage_max_uv;
 
 	if (bq->state.bypass) {
 		ret = regmap_update_bits(bq->regmap, BQ25980_CHRGR_CTRL_2,
@@ -1285,7 +1269,7 @@ static int bq25980_probe(struct i2c_client *client,
 static const struct i2c_device_id bq25980_i2c_ids[] = {
 	{ "bq25980", BQ25980 },
 	{ "bq25975", BQ25975 },
-	{ "bq25975", BQ25975 },
+	{ "bq25960", BQ25960 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, bq25980_i2c_ids);

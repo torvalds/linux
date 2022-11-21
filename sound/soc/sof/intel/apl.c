@@ -27,9 +27,10 @@ static const struct snd_sof_debugfs_map apl_dsp_debugfs[] = {
 
 /* apollolake ops */
 const struct snd_sof_dsp_ops sof_apl_ops = {
-	/* probe and remove */
+	/* probe/remove/shutdown */
 	.probe		= hda_dsp_probe,
 	.remove		= hda_dsp_remove,
+	.shutdown	= hda_dsp_shutdown,
 
 	/* Register IO */
 	.write		= sof_io_write,
@@ -41,6 +42,10 @@ const struct snd_sof_dsp_ops sof_apl_ops = {
 	.block_read	= sof_block_read,
 	.block_write	= sof_block_write,
 
+	/* Mailbox IO */
+	.mailbox_read	= sof_mailbox_read,
+	.mailbox_write	= sof_mailbox_write,
+
 	/* doorbell */
 	.irq_thread	= hda_dsp_ipc_irq_thread,
 
@@ -51,7 +56,7 @@ const struct snd_sof_dsp_ops sof_apl_ops = {
 	.get_window_offset = hda_dsp_ipc_get_window_offset,
 
 	.ipc_msg_data	= hda_ipc_msg_data,
-	.ipc_pcm_params	= hda_ipc_pcm_params,
+	.set_stream_data_offset = hda_set_stream_data_offset,
 
 	/* machine driver */
 	.machine_select = hda_machine_select,
@@ -64,6 +69,7 @@ const struct snd_sof_dsp_ops sof_apl_ops = {
 	.debug_map_count	= ARRAY_SIZE(apl_dsp_debugfs),
 	.dbg_dump	= hda_dsp_dump,
 	.ipc_dump	= hda_ipc_dump,
+	.debugfs_add_region_item = snd_sof_debugfs_add_region_item_iomem,
 
 	/* stream callbacks */
 	.pcm_open	= hda_dsp_pcm_open,
@@ -72,15 +78,7 @@ const struct snd_sof_dsp_ops sof_apl_ops = {
 	.pcm_hw_free	= hda_dsp_stream_hw_free,
 	.pcm_trigger	= hda_dsp_pcm_trigger,
 	.pcm_pointer	= hda_dsp_pcm_pointer,
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_PROBES)
-	/* probe callbacks */
-	.probe_assign	= hda_probe_compr_assign,
-	.probe_free	= hda_probe_compr_free,
-	.probe_set_params	= hda_probe_compr_set_params,
-	.probe_trigger	= hda_probe_compr_trigger,
-	.probe_pointer	= hda_probe_compr_pointer,
-#endif
+	.pcm_ack	= hda_dsp_pcm_ack,
 
 	/* firmware loading */
 	.load_firmware = snd_sof_load_firmware_raw,
@@ -92,14 +90,20 @@ const struct snd_sof_dsp_ops sof_apl_ops = {
 	.pre_fw_run = hda_dsp_pre_fw_run,
 	.post_fw_run = hda_dsp_post_fw_run,
 
-	/* dsp core power up/down */
-	.core_power_up = hda_dsp_enable_core,
-	.core_power_down = hda_dsp_core_reset_power_down,
+	/* parse platform specific extended manifest */
+	.parse_platform_ext_manifest = hda_dsp_ext_man_get_cavs_config_data,
+
+	/* dsp core get/put */
+	.core_get = hda_dsp_core_get,
 
 	/* trace callback */
 	.trace_init = hda_dsp_trace_init,
 	.trace_release = hda_dsp_trace_release,
 	.trace_trigger = hda_dsp_trace_trigger,
+
+	/* client ops */
+	.register_ipc_clients = hda_register_clients,
+	.unregister_ipc_clients = hda_unregister_clients,
 
 	/* DAI drivers */
 	.drv		= skl_dai,
@@ -121,7 +125,7 @@ const struct snd_sof_dsp_ops sof_apl_ops = {
 			SNDRV_PCM_INFO_PAUSE |
 			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
 
-	.arch_ops = &sof_xtensa_arch_ops,
+	.dsp_arch_ops = &sof_xtensa_arch_ops,
 };
 EXPORT_SYMBOL_NS(sof_apl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
 
@@ -138,5 +142,6 @@ const struct sof_intel_dsp_desc apl_chip_info = {
 	.rom_init_timeout	= 150,
 	.ssp_count = APL_SSP_COUNT,
 	.ssp_base_offset = APL_SSP_BASE_OFFSET,
+	.quirks = SOF_INTEL_PROCEN_FMT_QUIRK,
 };
 EXPORT_SYMBOL_NS(apl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);

@@ -582,7 +582,9 @@ config FB_HP300
 
 config FB_TGA
 	tristate "TGA/SFB+ framebuffer support"
-	depends on FB && (ALPHA || TC)
+	depends on FB
+	depends on PCI || TC
+	depends on ALPHA || TC
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -827,7 +829,7 @@ config FB_PVR2
 	  You can pass several parameters to the driver at boot time or at
 	  module load time.  The parameters look like "video=pvr2:XXX", where
 	  the meaning of XXX can be found at the end of the main source file
-	  (<file:drivers/video/pvr2fb.c>). Please see the file
+	  (<file:drivers/video/fbdev/pvr2fb.c>). Please see the file
 	  <file:Documentation/fb/pvr2fb.rst>.
 
 config FB_OPENCORES
@@ -1269,6 +1271,7 @@ config FB_ATY
 	select FB_CFB_IMAGEBLIT
 	select FB_BACKLIGHT if FB_ATY_BACKLIGHT
 	select FB_MACMODES if PPC
+	select FB_ATY_CT if SPARC64 && PCI
 	help
 	  This driver supports graphics boards with the ATI Mach64 chips.
 	  Say Y if you have such a graphics board.
@@ -1279,7 +1282,6 @@ config FB_ATY
 config FB_ATY_CT
 	bool "Mach64 CT/VT/GT/LT (incl. 3D RAGE) support"
 	depends on PCI && FB_ATY
-	default y if SPARC64 && PCI
 	help
 	  Say Y here to support use of ATI's 64-bit Rage boards (or other
 	  boards based on the Mach64 CT, VT, GT, and LT chipsets) as a
@@ -2191,8 +2193,9 @@ config FB_HYPERV
 	  This framebuffer driver supports Microsoft Hyper-V Synthetic Video.
 
 config FB_SIMPLE
-	bool "Simple framebuffer support"
-	depends on (FB = y)
+	tristate "Simple framebuffer support"
+	depends on FB
+	depends on !DRM_SIMPLEDRM
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2209,7 +2212,6 @@ config FB_SIMPLE
 config FB_SSD1307
 	tristate "Solomon SSD1307 framebuffer support"
 	depends on FB && I2C
-	depends on OF
 	depends on GPIOLIB || COMPILE_TEST
 	select FB_SYS_FOPS
 	select FB_SYS_FILLRECT

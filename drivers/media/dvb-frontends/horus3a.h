@@ -33,7 +33,7 @@ struct horus3a_config {
 
 #if IS_REACHABLE(CONFIG_DVB_HORUS3A)
 /**
- * Attach a horus3a tuner
+ * horus3a_attach - Attach a horus3a tuner
  *
  * @fe: frontend to be attached
  * @config: pointer to &struct helene_config with tuner configuration.

@@ -8,6 +8,7 @@
  * Author: Auryn Verwegen
  * Author: Mike Looijmans
  */
+#include <linux/devm-helpers.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -111,7 +112,8 @@ static int ltc294x_read_regs(struct i2c_client *client,
 
 	ret = i2c_transfer(client->adapter, &msgs[0], 2);
 	if (ret < 0) {
-		dev_err(&client->dev, "ltc2941 read_reg failed!\n");
+		dev_err(&client->dev, "ltc2941 read_reg(0x%x[%d]) failed: %pe\n",
+			reg, num_regs, ERR_PTR(ret));
 		return ret;
 	}
 
@@ -129,7 +131,8 @@ static int ltc294x_write_regs(struct i2c_client *client,
 
 	ret = i2c_smbus_write_i2c_block_data(client, reg_start, num_regs, buf);
 	if (ret < 0) {
-		dev_err(&client->dev, "ltc2941 write_reg failed!\n");
+		dev_err(&client->dev, "ltc2941 write_reg(0x%x[%d]) failed: %pe\n",
+			reg, num_regs, ERR_PTR(ret));
 		return ret;
 	}
 
@@ -147,11 +150,8 @@ static int ltc294x_reset(const struct ltc294x_info *info, int prescaler_exp)
 
 	/* Read status and control registers */
 	ret = ltc294x_read_regs(info->client, LTC294X_REG_CONTROL, &value, 1);
-	if (ret < 0) {
-		dev_err(&info->client->dev,
-			"Could not read registers from device\n");
-		goto error_exit;
-	}
+	if (ret < 0)
+		return ret;
 
 	control = LTC294X_REG_CONTROL_PRESCALER_SET(prescaler_exp) |
 				LTC294X_REG_CONTROL_ALCC_CONFIG_DISABLED;
@@ -171,17 +171,11 @@ static int ltc294x_reset(const struct ltc294x_info *info, int prescaler_exp)
 	if (value != control) {
 		ret = ltc294x_write_regs(info->client,
 			LTC294X_REG_CONTROL, &control, 1);
-		if (ret < 0) {
-			dev_err(&info->client->dev,
-				"Could not write register\n");
-			goto error_exit;
-		}
+		if (ret < 0)
+			return ret;
 	}
 
 	return 0;
-
-error_exit:
-	return ret;
 }
 
 static int ltc294x_read_charge_register(const struct ltc294x_info *info,
@@ -445,15 +439,6 @@ static enum power_supply_property ltc294x_properties[] = {
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
-static int ltc294x_i2c_remove(struct i2c_client *client)
-{
-	struct ltc294x_info *info = i2c_get_clientdata(client);
-
-	cancel_delayed_work_sync(&info->work);
-	power_supply_unregister(info->supply);
-	return 0;
-}
-
 static int ltc294x_i2c_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
@@ -480,11 +465,9 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 	/* r_sense can be negative, when sense+ is connected to the battery
 	 * instead of the sense-. This results in reversed measurements. */
 	ret = of_property_read_u32(np, "lltc,resistor-sense", &r_sense);
-	if (ret < 0) {
-		dev_err(&client->dev,
+	if (ret < 0)
+		return dev_err_probe(&client->dev, ret,
 			"Could not find lltc,resistor-sense in devicetree\n");
-		return ret;
-	}
 	info->r_sense = r_sense;
 
 	ret = of_property_read_u32(np, "lltc,prescaler-exponent",
@@ -498,23 +481,21 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 	if (info->id == LTC2943_ID) {
 		if (prescaler_exp > LTC2943_MAX_PRESCALER_EXP)
 			prescaler_exp = LTC2943_MAX_PRESCALER_EXP;
-		info->Qlsb = ((340 * 50000) / r_sense) /
-				(4096 / (1 << (2*prescaler_exp)));
+		info->Qlsb = ((340 * 50000) / r_sense) >>
+			     (12 - 2*prescaler_exp);
 	} else {
 		if (prescaler_exp > LTC2941_MAX_PRESCALER_EXP)
 			prescaler_exp = LTC2941_MAX_PRESCALER_EXP;
-		info->Qlsb = ((85 * 50000) / r_sense) /
-				(128 / (1 << prescaler_exp));
+		info->Qlsb = ((85 * 50000) / r_sense) >>
+			     (7 - prescaler_exp);
 	}
 
 	/* Read status register to check for LTC2942 */
 	if (info->id == LTC2941_ID || info->id == LTC2942_ID) {
 		ret = ltc294x_read_regs(client, LTC294X_REG_STATUS, &status, 1);
-		if (ret < 0) {
-			dev_err(&client->dev,
+		if (ret < 0)
+			return dev_err_probe(&client->dev, ret,
 				"Could not read status register\n");
-			return ret;
-		}
 		if (status & LTC2941_REG_STATUS_CHIP_ID)
 			info->id = LTC2941_ID;
 		else
@@ -547,22 +528,23 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 
 	psy_cfg.drv_data = info;
 
-	INIT_DELAYED_WORK(&info->work, ltc294x_work);
+	ret = devm_delayed_work_autocancel(&client->dev, &info->work,
+					   ltc294x_work);
+	if (ret)
+		return ret;
 
 	ret = ltc294x_reset(info, prescaler_exp);
-	if (ret < 0) {
-		dev_err(&client->dev, "Communication with chip failed\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(&client->dev, ret,
+			"Communication with chip failed\n");
 
-	info->supply = power_supply_register(&client->dev, &info->supply_desc,
-					     &psy_cfg);
-	if (IS_ERR(info->supply)) {
-		dev_err(&client->dev, "failed to register ltc2941\n");
-		return PTR_ERR(info->supply);
-	} else {
-		schedule_delayed_work(&info->work, LTC294X_WORK_DELAY * HZ);
-	}
+	info->supply = devm_power_supply_register(&client->dev,
+						  &info->supply_desc, &psy_cfg);
+	if (IS_ERR(info->supply))
+		return dev_err_probe(&client->dev, PTR_ERR(info->supply),
+			"failed to register ltc2941\n");
+
+	schedule_delayed_work(&info->work, LTC294X_WORK_DELAY * HZ);
 
 	return 0;
 }
@@ -655,7 +637,6 @@ static struct i2c_driver ltc294x_driver = {
 		.pm	= LTC294X_PM_OPS,
 	},
 	.probe		= ltc294x_i2c_probe,
-	.remove		= ltc294x_i2c_remove,
 	.shutdown	= ltc294x_i2c_shutdown,
 	.id_table	= ltc294x_i2c_id,
 };

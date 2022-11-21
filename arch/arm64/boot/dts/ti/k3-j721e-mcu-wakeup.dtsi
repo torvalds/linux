@@ -2,11 +2,11 @@
 /*
  * Device Tree Source for J721E SoC Family MCU/WAKEUP Domain peripherals
  *
- * Copyright (C) 2016-2019 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2016-2020 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 &cbass_mcu_wakeup {
-	dmsc: dmsc@44083000 {
+	dmsc: system-controller@44083000 {
 		compatible = "ti,k2g-sci";
 		ti,host-id = <12>;
 
@@ -23,7 +23,7 @@
 			#power-domain-cells = <2>;
 		};
 
-		k3_clks: clocks {
+		k3_clks: clock-controller {
 			compatible = "ti,k2g-sci-clk";
 			#clock-cells = <2>;
 		};
@@ -73,8 +73,6 @@
 	wkup_uart0: serial@42300000 {
 		compatible = "ti,j721e-uart", "ti,am654-uart";
 		reg = <0x00 0x42300000 0x00 0x100>;
-		reg-shift = <2>;
-		reg-io-width = <4>;
 		interrupts = <GIC_SPI 897 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
 		current-speed = <115200>;
@@ -86,8 +84,6 @@
 	mcu_uart0: serial@40a00000 {
 		compatible = "ti,j721e-uart", "ti,am654-uart";
 		reg = <0x00 0x40a00000 0x00 0x100>;
-		reg-shift = <2>;
-		reg-io-width = <4>;
 		interrupts = <GIC_SPI 846 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <96000000>;
 		current-speed = <115200>;
@@ -96,8 +92,9 @@
 		clock-names = "fclk";
 	};
 
-	wkup_gpio_intr: interrupt-controller2 {
+	wkup_gpio_intr: interrupt-controller@42200000 {
 		compatible = "ti,sci-intr";
+		reg = <0x00 0x42200000 0x00 0x400>;
 		ti,intr-trigger-type = <1>;
 		interrupt-controller;
 		interrupt-parent = <&gic500>;
@@ -180,7 +177,7 @@
 		ranges;
 
 		ospi0: spi@47040000 {
-			compatible = "ti,am654-ospi";
+			compatible = "ti,am654-ospi", "cdns,qspi-nor";
 			reg = <0x0 0x47040000 0x0 0x100>,
 				<0x5 0x00000000 0x1 0x0000000>;
 			interrupts = <GIC_SPI 840 IRQ_TYPE_LEVEL_HIGH>;
@@ -197,7 +194,7 @@
 		};
 
 		ospi1: spi@47050000 {
-			compatible = "ti,am654-ospi";
+			compatible = "ti,am654-ospi", "cdns,qspi-nor";
 			reg = <0x0 0x47050000 0x0 0x100>,
 				<0x7 0x00000000 0x1 0x00000000>;
 			interrupts = <GIC_SPI 841 IRQ_TYPE_LEVEL_HIGH>;
@@ -249,11 +246,11 @@
 		};
 	};
 
-	mcu-navss {
+	mcu_navss: bus@28380000 {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;
-		ranges;
+		ranges = <0x00 0x28380000 0x00 0x28380000 0x00 0x03880000>;
 		dma-coherent;
 		dma-ranges;
 
@@ -352,5 +349,73 @@
 			ti,cpts-ext-ts-inputs = <4>;
 			ti,cpts-periodic-outputs = <2>;
 		};
+	};
+
+	mcu_r5fss0: r5fss@41000000 {
+		compatible = "ti,j721e-r5fss";
+		ti,cluster-mode = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x41000000 0x00 0x41000000 0x20000>,
+			 <0x41400000 0x00 0x41400000 0x20000>;
+		power-domains = <&k3_pds 249 TI_SCI_PD_EXCLUSIVE>;
+
+		mcu_r5fss0_core0: r5f@41000000 {
+			compatible = "ti,j721e-r5f";
+			reg = <0x41000000 0x00008000>,
+			      <0x41010000 0x00008000>;
+			reg-names = "atcm", "btcm";
+			ti,sci = <&dmsc>;
+			ti,sci-dev-id = <250>;
+			ti,sci-proc-ids = <0x01 0xff>;
+			resets = <&k3_reset 250 1>;
+			firmware-name = "j7-mcu-r5f0_0-fw";
+			ti,atcm-enable = <1>;
+			ti,btcm-enable = <1>;
+			ti,loczrama = <1>;
+		};
+
+		mcu_r5fss0_core1: r5f@41400000 {
+			compatible = "ti,j721e-r5f";
+			reg = <0x41400000 0x00008000>,
+			      <0x41410000 0x00008000>;
+			reg-names = "atcm", "btcm";
+			ti,sci = <&dmsc>;
+			ti,sci-dev-id = <251>;
+			ti,sci-proc-ids = <0x02 0xff>;
+			resets = <&k3_reset 251 1>;
+			firmware-name = "j7-mcu-r5f0_1-fw";
+			ti,atcm-enable = <1>;
+			ti,btcm-enable = <1>;
+			ti,loczrama = <1>;
+		};
+	};
+
+	mcu_mcan0: can@40528000 {
+		compatible = "bosch,m_can";
+		reg = <0x00 0x40528000 0x00 0x200>,
+		      <0x00 0x40500000 0x00 0x8000>;
+		reg-names = "m_can", "message_ram";
+		power-domains = <&k3_pds 172 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&k3_clks 172 0>, <&k3_clks 172 1>;
+		clock-names = "hclk", "cclk";
+		interrupts = <GIC_SPI 832 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 833 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "int0", "int1";
+		bosch,mram-cfg = <0x0 128 64 64 64 64 32 32>;
+	};
+
+	mcu_mcan1: can@40568000 {
+		compatible = "bosch,m_can";
+		reg = <0x00 0x40568000 0x00 0x200>,
+		      <0x00 0x40540000 0x00 0x8000>;
+		reg-names = "m_can", "message_ram";
+		power-domains = <&k3_pds 173 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&k3_clks 173 0>, <&k3_clks 173 1>;
+		clock-names = "hclk", "cclk";
+		interrupts = <GIC_SPI 835 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 836 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "int0", "int1";
+		bosch,mram-cfg = <0x0 128 64 64 64 64 32 32>;
 	};
 };

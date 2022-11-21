@@ -3,6 +3,7 @@
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdarg.h>
@@ -770,7 +771,7 @@ int uml_vector_detach_bpf(int fd, void *bpf)
 		printk(KERN_ERR BPF_DETACH_FAIL, prog->len, prog->filter, fd, -errno);
 	return err;
 }
-void *uml_vector_default_bpf(void *mac)
+void *uml_vector_default_bpf(const void *mac)
 {
 	struct sock_filter *bpf;
 	uint32_t *mac1 = (uint32_t *)(mac + 2);

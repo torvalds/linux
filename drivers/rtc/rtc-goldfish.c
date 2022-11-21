@@ -194,7 +194,7 @@ static int goldfish_rtc_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	return rtc_register_device(rtcdrv->rtc);
+	return devm_rtc_register_device(rtcdrv->rtc);
 }
 
 static const struct of_device_id goldfish_rtc_of_match[] = {

@@ -12,6 +12,7 @@ enum aggr_mode_class {
  */
 struct pmu_event {
 	const char *name;
+	const char *compat;
 	const char *event;
 	const char *desc;
 	const char *topic;
@@ -40,13 +41,19 @@ struct pmu_events_map {
 	const char *cpuid;
 	const char *version;
 	const char *type;		/* core, uncore etc */
-	struct pmu_event *table;
+	const struct pmu_event *table;
+};
+
+struct pmu_sys_events {
+	const char *name;
+	const struct pmu_event *table;
 };
 
 /*
  * Global table mapping each known CPU for the architecture to its
  * table of PMU events.
  */
-extern struct pmu_events_map pmu_events_map[];
+extern const struct pmu_events_map pmu_events_map[];
+extern const struct pmu_sys_events pmu_sys_event_tables[];
 
 #endif

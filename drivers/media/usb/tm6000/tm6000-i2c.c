@@ -15,7 +15,7 @@
 #include "tm6000-regs.h"
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 
 
 /* ----------------------------------------------------------- */

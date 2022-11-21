@@ -38,8 +38,14 @@
 /* Offset 0x02: MGMT Enable Register 2x */
 #define MV88E6XXX_G2_MGMT_EN_2X		0x02
 
+/* Offset 0x02: MAC LINK change IRQ Register for MV88E6393X */
+#define MV88E6393X_G2_MACLINK_INT_SRC		0x02
+
 /* Offset 0x03: MGMT Enable Register 0x */
 #define MV88E6XXX_G2_MGMT_EN_0X		0x03
+
+/* Offset 0x03: MAC LINK change IRQ Mask Register for MV88E6393X */
+#define MV88E6393X_G2_MACLINK_INT_MASK		0x03
 
 /* Offset 0x04: Flow Control Delay Register */
 #define MV88E6XXX_G2_FLOW_CTL	0x04
@@ -51,6 +57,8 @@
 #define MV88E6XXX_G2_SWITCH_MGMT_FLOW_CTL_MSG		0x2000
 #define MV88E6XXX_G2_SWITCH_MGMT_FORCE_FLOW_CTL_PRI	0x0080
 #define MV88E6XXX_G2_SWITCH_MGMT_RSVD2CPU		0x0008
+
+#define MV88E6393X_G2_EGRESS_MONITOR_DEST		0x05
 
 /* Offset 0x06: Device Mapping Table Register */
 #define MV88E6XXX_G2_DEVICE_MAPPING		0x06
@@ -101,6 +109,7 @@
 #define MV88E6XXX_G2_PVT_ADDR_OP_WRITE_PVLAN	0x3000
 #define MV88E6XXX_G2_PVT_ADDR_OP_READ		0x4000
 #define MV88E6XXX_G2_PVT_ADDR_PTR_MASK		0x01ff
+#define MV88E6XXX_G2_PVT_ADDR_DEV_TRUNK		0x1f
 
 /* Offset 0x0C: Cross-chip Port VLAN Data Register */
 #define MV88E6XXX_G2_PVT_DATA		0x0c
@@ -290,17 +299,12 @@
 #define MV88E6352_G2_SCRATCH_CONFIG_DATA1_NO_CPU	BIT(2)
 #define MV88E6352_G2_SCRATCH_CONFIG_DATA2	0x72
 #define MV88E6352_G2_SCRATCH_CONFIG_DATA2_P0_MODE_MASK	0x3
+#define MV88E6352_G2_SCRATCH_CONFIG_DATA3	0x73
+#define MV88E6352_G2_SCRATCH_CONFIG_DATA3_S_SEL		BIT(1)
 
 #define MV88E6352_G2_SCRATCH_GPIO_PCTL_GPIO	0
 #define MV88E6352_G2_SCRATCH_GPIO_PCTL_TRIG	1
 #define MV88E6352_G2_SCRATCH_GPIO_PCTL_EVREQ	2
-
-#ifdef CONFIG_NET_DSA_MV88E6XXX_GLOBAL2
-
-static inline int mv88e6xxx_g2_require(struct mv88e6xxx_chip *chip)
-{
-	return 0;
-}
 
 int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val);
 int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 val);
@@ -328,6 +332,8 @@ int mv88e6xxx_g2_get_eeprom16(struct mv88e6xxx_chip *chip,
 int mv88e6xxx_g2_set_eeprom16(struct mv88e6xxx_chip *chip,
 			      struct ethtool_eeprom *eeprom, u8 *data);
 
+int mv88e6xxx_g2_pvt_read(struct mv88e6xxx_chip *chip, int src_dev,
+			  int src_port, u16 *data);
 int mv88e6xxx_g2_pvt_write(struct mv88e6xxx_chip *chip, int src_dev,
 			   int src_port, u16 data);
 int mv88e6xxx_g2_misc_4_bit_port(struct mv88e6xxx_chip *chip);
@@ -345,6 +351,10 @@ int mv88e6352_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
 
 int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip);
 
+int mv88e6xxx_g2_trunk_mask_write(struct mv88e6xxx_chip *chip, int num,
+				  bool hash, u16 mask);
+int mv88e6xxx_g2_trunk_mapping_write(struct mv88e6xxx_chip *chip, int id,
+				     u16 map);
 int mv88e6xxx_g2_trunk_clear(struct mv88e6xxx_chip *chip);
 
 int mv88e6xxx_g2_device_mapping_write(struct mv88e6xxx_chip *chip, int target,
@@ -362,182 +372,8 @@ extern const struct mv88e6xxx_gpio_ops mv88e6352_gpio_ops;
 
 int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
 				      bool external);
+int mv88e6352_g2_scratch_port_has_serdes(struct mv88e6xxx_chip *chip, int port);
 int mv88e6xxx_g2_atu_stats_set(struct mv88e6xxx_chip *chip, u16 kind, u16 bin);
 int mv88e6xxx_g2_atu_stats_get(struct mv88e6xxx_chip *chip, u16 *stats);
-
-#else /* !CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 */
-
-static inline int mv88e6xxx_g2_require(struct mv88e6xxx_chip *chip)
-{
-	if (chip->info->global2_addr) {
-		dev_err(chip->dev, "this chip requires CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 enabled\n");
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
-}
-
-static inline int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_wait_bit(struct mv88e6xxx_chip *chip,
-					int reg, int bit, int val)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6352_g2_irl_init_all(struct mv88e6xxx_chip *chip,
-					    int port)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6390_g2_irl_init_all(struct mv88e6xxx_chip *chip,
-					    int port)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip,
-					    struct mii_bus *bus,
-					    int addr, int reg, u16 *val)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip,
-					     struct mii_bus *bus,
-					     int addr, int reg, u16 val)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_set_switch_mac(struct mv88e6xxx_chip *chip,
-					      u8 *addr)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_get_eeprom8(struct mv88e6xxx_chip *chip,
-					   struct ethtool_eeprom *eeprom,
-					   u8 *data)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_set_eeprom8(struct mv88e6xxx_chip *chip,
-					   struct ethtool_eeprom *eeprom,
-					   u8 *data)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_get_eeprom16(struct mv88e6xxx_chip *chip,
-					    struct ethtool_eeprom *eeprom,
-					    u8 *data)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_set_eeprom16(struct mv88e6xxx_chip *chip,
-					    struct ethtool_eeprom *eeprom,
-					    u8 *data)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_pvt_write(struct mv88e6xxx_chip *chip,
-					 int src_dev, int src_port, u16 data)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_misc_4_bit_port(struct mv88e6xxx_chip *chip)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline void mv88e6xxx_g2_irq_free(struct mv88e6xxx_chip *chip)
-{
-}
-
-static inline int mv88e6xxx_g2_irq_mdio_setup(struct mv88e6xxx_chip *chip,
-					      struct mii_bus *bus)
-{
-	return 0;
-}
-
-static inline void mv88e6xxx_g2_irq_mdio_free(struct mv88e6xxx_chip *chip,
-					      struct mii_bus *bus)
-{
-}
-
-static inline int mv88e6185_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6352_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip)
-{
-	return -EOPNOTSUPP;
-}
-
-static const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops = {};
-static const struct mv88e6xxx_irq_ops mv88e6250_watchdog_ops = {};
-static const struct mv88e6xxx_irq_ops mv88e6390_watchdog_ops = {};
-
-static const struct mv88e6xxx_avb_ops mv88e6165_avb_ops = {};
-static const struct mv88e6xxx_avb_ops mv88e6352_avb_ops = {};
-static const struct mv88e6xxx_avb_ops mv88e6390_avb_ops = {};
-
-static const struct mv88e6xxx_gpio_ops mv88e6352_gpio_ops = {};
-
-static inline int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
-						    bool external)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_trunk_clear(struct mv88e6xxx_chip *chip)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_device_mapping_write(struct mv88e6xxx_chip *chip,
-						    int target, int port)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_atu_stats_set(struct mv88e6xxx_chip *chip,
-					     u16 kind, u16 bin)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mv88e6xxx_g2_atu_stats_get(struct mv88e6xxx_chip *chip,
-					     u16 *stats)
-{
-	return -EOPNOTSUPP;
-}
-
-#endif /* CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 */
 
 #endif /* _MV88E6XXX_GLOBAL2_H */

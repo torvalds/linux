@@ -8,7 +8,7 @@ Required properties:
 - reg : offset and length of the register set for the mux registers
 
 - #pinctrl-cells : number of cells in addition to the index, set to 1
-  for pinctrl-single,pins and 2 for pinctrl-single,bits
+  or 2 for pinctrl-single,pins and set to 2 for pinctrl-single,bits
 
 - pinctrl-single,register-width : pinmux register access width in bits
 
@@ -80,7 +80,7 @@ Optional properties:
   property.
 
 		/* pin base, nr pins & gpio function */
-		pinctrl-single,gpio-range = <&range 0 3 0 &range 3 9 1>;
+		pinctrl-single,gpio-range = <&range 0 3 0>, <&range 3 9 1>;
 
 - interrupt-controller : standard interrupt controller binding if using
   interrupts for wake-up events for example. In this case pinctrl-single
@@ -185,10 +185,10 @@ pmx_gpio: pinmux@d401e000 {
 	pinctrl-single,function-mask = <7>;
 
 	/* sparse GPIO range could be supported */
-	pinctrl-single,gpio-range = <&range 0 3 0 &range 3 9 1
-				&range 12 1 0 &range 13 29 1
-				&range 43 1 0 &range 44 49 1
-				&range 94 1 1 &range 96 2 1>;
+	pinctrl-single,gpio-range = <&range 0 3 0>, <&range 3 9 1>,
+				    <&range 12 1 0>, <&range 13 29 1>,
+				    <&range 43 1 0>, <&range 44 49 1>,
+				    <&range 94 1 1>, <&range 96 2 1>;
 
 	range: gpio-range {
 		#pinctrl-single,gpio-range-cells = <3>;

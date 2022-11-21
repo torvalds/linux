@@ -6,8 +6,6 @@
  *
  * CBC & ECB parts based on code (crypto/cbc.c,ecb.c) by:
  *   Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- * CTR part based on code (crypto/ctr.c) by:
- *   (C) Copyright IBM Corp. 2007 - Joy Latten <latten@us.ibm.com>
  */
 
 #include <crypto/algapi.h>
@@ -45,14 +43,6 @@ static inline void des3_ede_dec_blk(struct des3_ede_x86_ctx *ctx, u8 *dst,
 	u32 *dec_ctx = ctx->dec.expkey;
 
 	des3_ede_x86_64_crypt_blk(dec_ctx, dst, src);
-}
-
-static inline void des3_ede_enc_blk_3way(struct des3_ede_x86_ctx *ctx, u8 *dst,
-					 const u8 *src)
-{
-	u32 *enc_ctx = ctx->enc.expkey;
-
-	des3_ede_x86_64_crypt_blk_3way(enc_ctx, dst, src);
 }
 
 static inline void des3_ede_dec_blk_3way(struct des3_ede_x86_ctx *ctx, u8 *dst,
@@ -166,7 +156,7 @@ static int cbc_encrypt(struct skcipher_request *req)
 
 	err = skcipher_walk_virt(&walk, req, false);
 
-	while ((nbytes = walk.nbytes)) {
+	while (walk.nbytes) {
 		nbytes = __cbc_encrypt(ctx, &walk);
 		err = skcipher_walk_done(&walk, nbytes);
 	}
@@ -245,97 +235,9 @@ static int cbc_decrypt(struct skcipher_request *req)
 
 	err = skcipher_walk_virt(&walk, req, false);
 
-	while ((nbytes = walk.nbytes)) {
+	while (walk.nbytes) {
 		nbytes = __cbc_decrypt(ctx, &walk);
 		err = skcipher_walk_done(&walk, nbytes);
-	}
-
-	return err;
-}
-
-static void ctr_crypt_final(struct des3_ede_x86_ctx *ctx,
-			    struct skcipher_walk *walk)
-{
-	u8 *ctrblk = walk->iv;
-	u8 keystream[DES3_EDE_BLOCK_SIZE];
-	u8 *src = walk->src.virt.addr;
-	u8 *dst = walk->dst.virt.addr;
-	unsigned int nbytes = walk->nbytes;
-
-	des3_ede_enc_blk(ctx, keystream, ctrblk);
-	crypto_xor_cpy(dst, keystream, src, nbytes);
-
-	crypto_inc(ctrblk, DES3_EDE_BLOCK_SIZE);
-}
-
-static unsigned int __ctr_crypt(struct des3_ede_x86_ctx *ctx,
-				struct skcipher_walk *walk)
-{
-	unsigned int bsize = DES3_EDE_BLOCK_SIZE;
-	unsigned int nbytes = walk->nbytes;
-	__be64 *src = (__be64 *)walk->src.virt.addr;
-	__be64 *dst = (__be64 *)walk->dst.virt.addr;
-	u64 ctrblk = be64_to_cpu(*(__be64 *)walk->iv);
-	__be64 ctrblocks[3];
-
-	/* Process four block batch */
-	if (nbytes >= bsize * 3) {
-		do {
-			/* create ctrblks for parallel encrypt */
-			ctrblocks[0] = cpu_to_be64(ctrblk++);
-			ctrblocks[1] = cpu_to_be64(ctrblk++);
-			ctrblocks[2] = cpu_to_be64(ctrblk++);
-
-			des3_ede_enc_blk_3way(ctx, (u8 *)ctrblocks,
-					      (u8 *)ctrblocks);
-
-			dst[0] = src[0] ^ ctrblocks[0];
-			dst[1] = src[1] ^ ctrblocks[1];
-			dst[2] = src[2] ^ ctrblocks[2];
-
-			src += 3;
-			dst += 3;
-		} while ((nbytes -= bsize * 3) >= bsize * 3);
-
-		if (nbytes < bsize)
-			goto done;
-	}
-
-	/* Handle leftovers */
-	do {
-		ctrblocks[0] = cpu_to_be64(ctrblk++);
-
-		des3_ede_enc_blk(ctx, (u8 *)ctrblocks, (u8 *)ctrblocks);
-
-		dst[0] = src[0] ^ ctrblocks[0];
-
-		src += 1;
-		dst += 1;
-	} while ((nbytes -= bsize) >= bsize);
-
-done:
-	*(__be64 *)walk->iv = cpu_to_be64(ctrblk);
-	return nbytes;
-}
-
-static int ctr_crypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct des3_ede_x86_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct skcipher_walk walk;
-	unsigned int nbytes;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while ((nbytes = walk.nbytes) >= DES3_EDE_BLOCK_SIZE) {
-		nbytes = __ctr_crypt(ctx, &walk);
-		err = skcipher_walk_done(&walk, nbytes);
-	}
-
-	if (nbytes) {
-		ctr_crypt_final(ctx, &walk);
-		err = skcipher_walk_done(&walk, 0);
 	}
 
 	return err;
@@ -428,20 +330,6 @@ static struct skcipher_alg des3_ede_skciphers[] = {
 		.setkey			= des3_ede_x86_setkey_skcipher,
 		.encrypt		= cbc_encrypt,
 		.decrypt		= cbc_decrypt,
-	}, {
-		.base.cra_name		= "ctr(des3_ede)",
-		.base.cra_driver_name	= "ctr-des3_ede-asm",
-		.base.cra_priority	= 300,
-		.base.cra_blocksize	= 1,
-		.base.cra_ctxsize	= sizeof(struct des3_ede_x86_ctx),
-		.base.cra_module	= THIS_MODULE,
-		.min_keysize		= DES3_EDE_KEY_SIZE,
-		.max_keysize		= DES3_EDE_KEY_SIZE,
-		.ivsize			= DES3_EDE_BLOCK_SIZE,
-		.chunksize		= DES3_EDE_BLOCK_SIZE,
-		.setkey			= des3_ede_x86_setkey_skcipher,
-		.encrypt		= ctr_crypt,
-		.decrypt		= ctr_crypt,
 	}
 };
 

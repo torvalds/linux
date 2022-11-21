@@ -16,6 +16,7 @@
 #include <linux/uaccess.h>
 #include <linux/smp.h>
 #include <linux/perf_event.h>
+#include <linux/extable.h>
 
 #include <asm/setup.h>
 
@@ -213,10 +214,10 @@ static inline int ok_for_kernel(unsigned int insn)
 
 static void kernel_mna_trap_fault(struct pt_regs *regs, unsigned int insn)
 {
-	unsigned long g2 = regs->u_regs [UREG_G2];
-	unsigned long fixup = search_extables_range(regs->pc, &g2);
+	const struct exception_table_entry *entry;
 
-	if (!fixup) {
+	entry = search_exception_tables(regs->pc);
+	if (!entry) {
 		unsigned long address = compute_effective_address(regs, insn);
         	if(address < PAGE_SIZE) {
                 	printk(KERN_ALERT "Unable to handle kernel NULL pointer dereference in mna handler");
@@ -232,9 +233,8 @@ static void kernel_mna_trap_fault(struct pt_regs *regs, unsigned int insn)
 	        die_if_kernel("Oops", regs);
 		/* Not reached */
 	}
-	regs->pc = fixup;
+	regs->pc = entry->fixup;
 	regs->npc = regs->pc + 4;
-	regs->u_regs [UREG_G2] = g2;
 }
 
 asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
@@ -274,103 +274,9 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 	}
 }
 
-static inline int ok_for_user(struct pt_regs *regs, unsigned int insn,
-			      enum direction dir)
-{
-	unsigned int reg;
-	int size = ((insn >> 19) & 3) == 3 ? 8 : 4;
-
-	if ((regs->pc | regs->npc) & 3)
-		return 0;
-
-	/* Must access_ok() in all the necessary places. */
-#define WINREG_ADDR(regnum) \
-	((void __user *)(((unsigned long *)regs->u_regs[UREG_FP])+(regnum)))
-
-	reg = (insn >> 25) & 0x1f;
-	if (reg >= 16) {
-		if (!access_ok(WINREG_ADDR(reg - 16), size))
-			return -EFAULT;
-	}
-	reg = (insn >> 14) & 0x1f;
-	if (reg >= 16) {
-		if (!access_ok(WINREG_ADDR(reg - 16), size))
-			return -EFAULT;
-	}
-	if (!(insn & 0x2000)) {
-		reg = (insn & 0x1f);
-		if (reg >= 16) {
-			if (!access_ok(WINREG_ADDR(reg - 16), size))
-				return -EFAULT;
-		}
-	}
-#undef WINREG_ADDR
-	return 0;
-}
-
-static void user_mna_trap_fault(struct pt_regs *regs, unsigned int insn)
+asmlinkage void user_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 {
 	send_sig_fault(SIGBUS, BUS_ADRALN,
 		       (void __user *)safe_compute_effective_address(regs, insn),
-		       0, current);
-}
-
-asmlinkage void user_unaligned_trap(struct pt_regs *regs, unsigned int insn)
-{
-	enum direction dir;
-
-	if(!(current->thread.flags & SPARC_FLAG_UNALIGNED) ||
-	   (((insn >> 30) & 3) != 3))
-		goto kill_user;
-	dir = decode_direction(insn);
-	if(!ok_for_user(regs, insn, dir)) {
-		goto kill_user;
-	} else {
-		int err, size = decode_access_size(insn);
-		unsigned long addr;
-
-		if(floating_point_load_or_store_p(insn)) {
-			printk("User FPU load/store unaligned unsupported.\n");
-			goto kill_user;
-		}
-
-		addr = compute_effective_address(regs, insn);
-		perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, addr);
-		switch(dir) {
-		case load:
-			err = do_int_load(fetch_reg_addr(((insn>>25)&0x1f),
-							 regs),
-					  size, (unsigned long *) addr,
-					  decode_signedness(insn));
-			break;
-
-		case store:
-			err = do_int_store(((insn>>25)&0x1f), size,
-					   (unsigned long *) addr, regs);
-			break;
-
-		case both:
-			/*
-			 * This was supported in 2.4. However, we question
-			 * the value of SWAP instruction across word boundaries.
-			 */
-			printk("Unaligned SWAP unsupported.\n");
-			err = -EFAULT;
-			break;
-
-		default:
-			unaligned_panic("Impossible user unaligned trap.");
-			goto out;
-		}
-		if (err)
-			goto kill_user;
-		else
-			advance(regs);
-		goto out;
-	}
-
-kill_user:
-	user_mna_trap_fault(regs, insn);
-out:
-	;
+		       current);
 }

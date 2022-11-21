@@ -1,4 +1,4 @@
-/**
+/*
  * OMAP1 Dual-Mode Timers - platform device registration
  *
  * Contains first level initialization routines which internally

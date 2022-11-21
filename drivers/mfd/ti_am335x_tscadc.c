@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI Touch Screen / ADC MFD driver
  *
  * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -113,59 +105,27 @@ static void tscadc_idle_config(struct ti_tscadc_dev *tscadc)
 {
 	unsigned int idleconfig;
 
-	idleconfig = STEPCONFIG_YNN | STEPCONFIG_INM_ADCREFM |
-			STEPCONFIG_INP_ADCREFM | STEPCONFIG_YPN;
+	idleconfig = STEPCONFIG_INM_ADCREFM | STEPCONFIG_INP_ADCREFM;
+	if (ti_adc_with_touchscreen(tscadc))
+		idleconfig |= STEPCONFIG_YNN | STEPCONFIG_YPN;
 
 	regmap_write(tscadc->regmap, REG_IDLECONFIG, idleconfig);
 }
 
 static	int ti_tscadc_probe(struct platform_device *pdev)
 {
-	struct ti_tscadc_dev	*tscadc;
-	struct resource		*res;
-	struct clk		*clk;
-	struct device_node	*node;
-	struct mfd_cell		*cell;
-	struct property         *prop;
-	const __be32            *cur;
-	u32			val;
-	int			err, ctrl;
-	int			clock_rate;
-	int			tsc_wires = 0, adc_channels = 0, total_channels;
-	int			readouts = 0;
-
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "Could not find valid DT data.\n");
-		return -EINVAL;
-	}
-
-	node = of_get_child_by_name(pdev->dev.of_node, "tsc");
-	of_property_read_u32(node, "ti,wires", &tsc_wires);
-	of_property_read_u32(node, "ti,coordiante-readouts", &readouts);
-
-	node = of_get_child_by_name(pdev->dev.of_node, "adc");
-	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
-		adc_channels++;
-		if (val > 7) {
-			dev_err(&pdev->dev, " PIN numbers are 0..7 (not %d)\n",
-					val);
-			return -EINVAL;
-		}
-	}
-	total_channels = tsc_wires + adc_channels;
-	if (total_channels > 8) {
-		dev_err(&pdev->dev, "Number of i/p channels more than 8\n");
-		return -EINVAL;
-	}
-	if (total_channels == 0) {
-		dev_err(&pdev->dev, "Need atleast one channel.\n");
-		return -EINVAL;
-	}
-
-	if (readouts * 2 + 2 + adc_channels > 16) {
-		dev_err(&pdev->dev, "Too many step configurations requested\n");
-		return -EINVAL;
-	}
+	struct ti_tscadc_dev *tscadc;
+	struct resource *res;
+	struct clk *clk;
+	struct device_node *node;
+	struct mfd_cell *cell;
+	struct property *prop;
+	const __be32 *cur;
+	bool use_tsc = false, use_mag = false;
+	u32 val;
+	int err;
+	int tscmag_wires = 0, adc_channels = 0, cell_idx = 0, total_channels;
+	int readouts = 0, mag_tracks = 0;
 
 	/* Allocate memory for device */
 	tscadc = devm_kzalloc(&pdev->dev, sizeof(*tscadc), GFP_KERNEL);
@@ -174,11 +134,71 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 
 	tscadc->dev = &pdev->dev;
 
+	if (!pdev->dev.of_node) {
+		dev_err(&pdev->dev, "Could not find valid DT data.\n");
+		return -EINVAL;
+	}
+
+	tscadc->data = of_device_get_match_data(&pdev->dev);
+
+	if (ti_adc_with_touchscreen(tscadc)) {
+		node = of_get_child_by_name(pdev->dev.of_node, "tsc");
+		of_property_read_u32(node, "ti,wires", &tscmag_wires);
+		err = of_property_read_u32(node, "ti,coordinate-readouts",
+					   &readouts);
+		if (err < 0)
+			of_property_read_u32(node, "ti,coordiante-readouts",
+					     &readouts);
+
+		of_node_put(node);
+
+		if (tscmag_wires)
+			use_tsc = true;
+	} else {
+		/*
+		 * When adding support for the magnetic stripe reader, here is
+		 * the place to look for the number of tracks used from device
+		 * tree. Let's default to 0 for now.
+		 */
+		mag_tracks = 0;
+		tscmag_wires = mag_tracks * 2;
+		if (tscmag_wires)
+			use_mag = true;
+	}
+
+	node = of_get_child_by_name(pdev->dev.of_node, "adc");
+	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
+		adc_channels++;
+		if (val > 7) {
+			dev_err(&pdev->dev, " PIN numbers are 0..7 (not %d)\n",
+				val);
+			of_node_put(node);
+			return -EINVAL;
+		}
+	}
+
+	of_node_put(node);
+
+	total_channels = tscmag_wires + adc_channels;
+	if (total_channels > 8) {
+		dev_err(&pdev->dev, "Number of i/p channels more than 8\n");
+		return -EINVAL;
+	}
+
+	if (total_channels == 0) {
+		dev_err(&pdev->dev, "Need at least one channel.\n");
+		return -EINVAL;
+	}
+
+	if (use_tsc && (readouts * 2 + 2 + adc_channels > 16)) {
+		dev_err(&pdev->dev, "Too many step configurations requested\n");
+		return -EINVAL;
+	}
+
 	err = platform_get_irq(pdev, 0);
-	if (err < 0) {
-		dev_err(&pdev->dev, "no irq ID is specified.\n");
-		goto ret;
-	} else
+	if (err < 0)
+		return err;
+	else
 		tscadc->irq = err;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -188,11 +208,11 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 
 	tscadc->tscadc_phys_base = res->start;
 	tscadc->regmap = devm_regmap_init_mmio(&pdev->dev,
-			tscadc->tscadc_base, &tscadc_regmap_config);
+					       tscadc->tscadc_base,
+					       &tscadc_regmap_config);
 	if (IS_ERR(tscadc->regmap)) {
 		dev_err(&pdev->dev, "regmap init failed\n");
-		err = PTR_ERR(tscadc->regmap);
-		goto ret;
+		return PTR_ERR(tscadc->regmap);
 	}
 
 	spin_lock_init(&tscadc->reg_lock);
@@ -202,71 +222,70 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	/*
-	 * The TSC_ADC_Subsystem has 2 clock domains
-	 * OCP_CLK and ADC_CLK.
-	 * The ADC clock is expected to run at target of 3MHz,
-	 * and expected to capture 12-bit data at a rate of 200 KSPS.
-	 * The TSC_ADC_SS controller design assumes the OCP clock is
-	 * at least 6x faster than the ADC clock.
+	 * The TSC_ADC_Subsystem has 2 clock domains: OCP_CLK and ADC_CLK.
+	 * ADCs produce a 12-bit sample every 15 ADC_CLK cycles.
+	 * am33xx ADCs expect to capture 200ksps.
+	 * am47xx ADCs expect to capture 867ksps.
+	 * We need ADC clocks respectively running at 3MHz and 13MHz.
+	 * These frequencies are valid since TSC_ADC_SS controller design
+	 * assumes the OCP clock is at least 6x faster than the ADC clock.
 	 */
-	clk = devm_clk_get(&pdev->dev, "adc_tsc_fck");
+	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "failed to get TSC fck\n");
+		dev_err(&pdev->dev, "failed to get fck\n");
 		err = PTR_ERR(clk);
 		goto err_disable_clk;
 	}
-	clock_rate = clk_get_rate(clk);
-	tscadc->clk_div = clock_rate / ADC_CLK;
 
-	/* TSCADC_CLKDIV needs to be configured to the value minus 1 */
-	tscadc->clk_div--;
+	tscadc->clk_div = (clk_get_rate(clk) / tscadc->data->target_clk_rate) - 1;
 	regmap_write(tscadc->regmap, REG_CLKDIV, tscadc->clk_div);
 
-	/* Set the control register bits */
-	ctrl = CNTRLREG_STEPCONFIGWRT |	CNTRLREG_STEPID;
-	regmap_write(tscadc->regmap, REG_CTRL, ctrl);
-
-	/* Set register bits for Idle Config Mode */
-	if (tsc_wires > 0) {
-		tscadc->tsc_wires = tsc_wires;
-		if (tsc_wires == 5)
-			ctrl |= CNTRLREG_5WIRE | CNTRLREG_TSCENB;
-		else
-			ctrl |= CNTRLREG_4WIRE | CNTRLREG_TSCENB;
-		tscadc_idle_config(tscadc);
+	/*
+	 * Set the control register bits. tscadc->ctrl stores the configuration
+	 * of the CTRL register but not the subsystem enable bit which must be
+	 * added manually when timely.
+	 */
+	tscadc->ctrl = CNTRLREG_STEPID;
+	if (ti_adc_with_touchscreen(tscadc)) {
+		tscadc->ctrl |= CNTRLREG_TSC_STEPCONFIGWRT;
+		if (use_tsc) {
+			tscadc->ctrl |= CNTRLREG_TSC_ENB;
+			if (tscmag_wires == 5)
+				tscadc->ctrl |= CNTRLREG_TSC_5WIRE;
+			else
+				tscadc->ctrl |= CNTRLREG_TSC_4WIRE;
+		}
+	} else {
+		tscadc->ctrl |= CNTRLREG_MAG_PREAMP_PWRDOWN |
+				CNTRLREG_MAG_PREAMP_BYPASS;
 	}
+	regmap_write(tscadc->regmap, REG_CTRL, tscadc->ctrl);
+
+	tscadc_idle_config(tscadc);
 
 	/* Enable the TSC module enable bit */
-	ctrl |= CNTRLREG_TSCSSENB;
-	regmap_write(tscadc->regmap, REG_CTRL, ctrl);
+	regmap_write(tscadc->regmap, REG_CTRL, tscadc->ctrl | CNTRLREG_SSENB);
 
-	tscadc->used_cells = 0;
-	tscadc->tsc_cell = -1;
-	tscadc->adc_cell = -1;
-
-	/* TSC Cell */
-	if (tsc_wires > 0) {
-		tscadc->tsc_cell = tscadc->used_cells;
-		cell = &tscadc->cells[tscadc->used_cells++];
-		cell->name = "TI-am335x-tsc";
-		cell->of_compatible = "ti,am3359-tsc";
+	/* TSC or MAG Cell */
+	if (use_tsc || use_mag) {
+		cell = &tscadc->cells[cell_idx++];
+		cell->name = tscadc->data->secondary_feature_name;
+		cell->of_compatible = tscadc->data->secondary_feature_compatible;
 		cell->platform_data = &tscadc;
 		cell->pdata_size = sizeof(tscadc);
 	}
 
 	/* ADC Cell */
 	if (adc_channels > 0) {
-		tscadc->adc_cell = tscadc->used_cells;
-		cell = &tscadc->cells[tscadc->used_cells++];
-		cell->name = "TI-am335x-adc";
-		cell->of_compatible = "ti,am3359-adc";
+		cell = &tscadc->cells[cell_idx++];
+		cell->name = tscadc->data->adc_feature_name;
+		cell->of_compatible = tscadc->data->adc_feature_compatible;
 		cell->platform_data = &tscadc;
 		cell->pdata_size = sizeof(tscadc);
 	}
 
 	err = mfd_add_devices(&pdev->dev, PLATFORM_DEVID_AUTO,
-			      tscadc->cells, tscadc->used_cells, NULL,
-			      0, NULL);
+			      tscadc->cells, cell_idx, NULL, 0, NULL);
 	if (err < 0)
 		goto err_disable_clk;
 
@@ -276,13 +295,13 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 err_disable_clk:
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-ret:
+
 	return err;
 }
 
 static int ti_tscadc_remove(struct platform_device *pdev)
 {
-	struct ti_tscadc_dev	*tscadc = platform_get_drvdata(pdev);
+	struct ti_tscadc_dev *tscadc = platform_get_drvdata(pdev);
 
 	regmap_write(tscadc->regmap, REG_SE, 0x00);
 
@@ -301,7 +320,7 @@ static int __maybe_unused ti_tscadc_can_wakeup(struct device *dev, void *data)
 
 static int __maybe_unused tscadc_suspend(struct device *dev)
 {
-	struct ti_tscadc_dev	*tscadc = dev_get_drvdata(dev);
+	struct ti_tscadc_dev *tscadc = dev_get_drvdata(dev);
 
 	regmap_write(tscadc->regmap, REG_SE, 0x00);
 	if (device_for_each_child(dev, NULL, ti_tscadc_can_wakeup)) {
@@ -309,7 +328,7 @@ static int __maybe_unused tscadc_suspend(struct device *dev)
 
 		regmap_read(tscadc->regmap, REG_CTRL, &ctrl);
 		ctrl &= ~(CNTRLREG_POWERDOWN);
-		ctrl |= CNTRLREG_TSCSSENB;
+		ctrl |= CNTRLREG_SSENB;
 		regmap_write(tscadc->regmap, REG_CTRL, ctrl);
 	}
 	pm_runtime_put_sync(dev);
@@ -319,34 +338,39 @@ static int __maybe_unused tscadc_suspend(struct device *dev)
 
 static int __maybe_unused tscadc_resume(struct device *dev)
 {
-	struct ti_tscadc_dev	*tscadc = dev_get_drvdata(dev);
-	u32 ctrl;
+	struct ti_tscadc_dev *tscadc = dev_get_drvdata(dev);
 
 	pm_runtime_get_sync(dev);
 
-	/* context restore */
-	ctrl = CNTRLREG_STEPCONFIGWRT |	CNTRLREG_STEPID;
-	regmap_write(tscadc->regmap, REG_CTRL, ctrl);
-
-	if (tscadc->tsc_cell != -1) {
-		if (tscadc->tsc_wires == 5)
-			ctrl |= CNTRLREG_5WIRE | CNTRLREG_TSCENB;
-		else
-			ctrl |= CNTRLREG_4WIRE | CNTRLREG_TSCENB;
-		tscadc_idle_config(tscadc);
-	}
-	ctrl |= CNTRLREG_TSCSSENB;
-	regmap_write(tscadc->regmap, REG_CTRL, ctrl);
-
 	regmap_write(tscadc->regmap, REG_CLKDIV, tscadc->clk_div);
+	regmap_write(tscadc->regmap, REG_CTRL, tscadc->ctrl);
+	tscadc_idle_config(tscadc);
+	regmap_write(tscadc->regmap, REG_CTRL, tscadc->ctrl | CNTRLREG_SSENB);
 
 	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(tscadc_pm_ops, tscadc_suspend, tscadc_resume);
 
+static const struct ti_tscadc_data tscdata = {
+	.adc_feature_name = "TI-am335x-adc",
+	.adc_feature_compatible = "ti,am3359-adc",
+	.secondary_feature_name = "TI-am335x-tsc",
+	.secondary_feature_compatible = "ti,am3359-tsc",
+	.target_clk_rate = TSC_ADC_CLK,
+};
+
+static const struct ti_tscadc_data magdata = {
+	.adc_feature_name = "TI-am43xx-adc",
+	.adc_feature_compatible = "ti,am4372-adc",
+	.secondary_feature_name = "TI-am43xx-mag",
+	.secondary_feature_compatible = "ti,am4372-mag",
+	.target_clk_rate = MAG_ADC_CLK,
+};
+
 static const struct of_device_id ti_tscadc_dt_ids[] = {
-	{ .compatible = "ti,am3359-tscadc", },
+	{ .compatible = "ti,am3359-tscadc", .data = &tscdata },
+	{ .compatible = "ti,am4372-magadc", .data = &magdata },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ti_tscadc_dt_ids);
@@ -364,6 +388,6 @@ static struct platform_driver ti_tscadc_driver = {
 
 module_platform_driver(ti_tscadc_driver);
 
-MODULE_DESCRIPTION("TI touchscreen / ADC MFD controller driver");
+MODULE_DESCRIPTION("TI touchscreen/magnetic stripe reader/ADC MFD controller driver");
 MODULE_AUTHOR("Rachna Patil <rachna@ti.com>");
 MODULE_LICENSE("GPL");

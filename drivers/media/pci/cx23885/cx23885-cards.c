@@ -15,7 +15,7 @@
 #include <linux/firmware.h>
 #include <misc/altera.h>
 
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "netup-eeprom.h"
 #include "netup-init.h"
 #include "altera-ci.h"
@@ -657,14 +657,11 @@ struct cx23885_board cx23885_boards[] = {
 		.porta		= CX23885_ANALOG_VIDEO,
 		.input          = {{
 			.type   = CX23885_VMUX_COMPOSITE1,
-			.vmux   = CX25840_VIN7_CH3 |
-				  CX25840_VIN4_CH2 |
-				  CX25840_VIN6_CH1,
+			.vmux   = CX25840_VIN6_CH1,
 			.amux   = CX25840_AUDIO7,
 		}, {
 			.type   = CX23885_VMUX_SVIDEO,
-			.vmux   = CX25840_VIN7_CH3 |
-				  CX25840_VIN4_CH2 |
+			.vmux   = CX25840_VIN4_CH2 |
 				  CX25840_VIN8_CH1 |
 				  CX25840_SVIDEO_ON,
 			.amux   = CX25840_AUDIO7,
@@ -715,6 +712,16 @@ struct cx23885_board cx23885_boards[] = {
 					CX25840_VIN2_CH1 |
 					CX25840_DIF_ON,
 			.amux   = CX25840_AUDIO8,
+		}, {
+			.type   = CX23885_VMUX_COMPOSITE1,
+			.vmux   = CX25840_VIN6_CH1,
+			.amux   = CX25840_AUDIO7,
+		}, {
+			.type   = CX23885_VMUX_SVIDEO,
+			.vmux   = CX25840_VIN7_CH3 |
+				  CX25840_VIN8_CH1 |
+				  CX25840_SVIDEO_ON,
+			.amux   = CX25840_AUDIO7,
 		} },
 	},
 	[CX23885_BOARD_VIEWCAST_260E] = {
@@ -823,16 +830,9 @@ struct cx23885_board cx23885_boards[] = {
 					CX25840_DIF_ON,
 			.amux   = CX25840_AUDIO8,
 		}, {
-			.type   = CX23885_VMUX_COMPOSITE1,
-			.vmux   =	CX25840_VIN7_CH3 |
-					CX25840_VIN4_CH2 |
-					CX25840_VIN6_CH1,
-			.amux   = CX25840_AUDIO7,
-		}, {
 			.type   = CX23885_VMUX_SVIDEO,
-			.vmux   =	CX25840_VIN7_CH3 |
-					CX25840_VIN4_CH2 |
-					CX25840_VIN8_CH1 |
+			.vmux   =	CX25840_VIN4_CH2 |
+					CX25840_VIN6_CH1 |
 					CX25840_SVIDEO_ON,
 			.amux   = CX25840_AUDIO7,
 		} },

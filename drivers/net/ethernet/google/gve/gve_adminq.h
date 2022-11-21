@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MIT)
  * Google virtual Ethernet (gve) driver
  *
- * Copyright (C) 2015-2019 Google, Inc.
+ * Copyright (C) 2015-2021 Google, Inc.
  */
 
 #ifndef _GVE_ADMINQ_H
@@ -22,7 +22,8 @@ enum gve_adminq_opcodes {
 	GVE_ADMINQ_DECONFIGURE_DEVICE_RESOURCES	= 0x9,
 	GVE_ADMINQ_SET_DRIVER_PARAMETER		= 0xB,
 	GVE_ADMINQ_REPORT_STATS			= 0xC,
-	GVE_ADMINQ_REPORT_LINK_SPEED	= 0xD
+	GVE_ADMINQ_REPORT_LINK_SPEED		= 0xD,
+	GVE_ADMINQ_GET_PTYPE_MAP		= 0xE,
 };
 
 /* Admin queue status codes */
@@ -79,12 +80,71 @@ struct gve_device_descriptor {
 
 static_assert(sizeof(struct gve_device_descriptor) == 40);
 
-struct device_option {
-	__be32 option_id;
-	__be32 option_length;
+struct gve_device_option {
+	__be16 option_id;
+	__be16 option_length;
+	__be32 required_features_mask;
 };
 
-static_assert(sizeof(struct device_option) == 8);
+static_assert(sizeof(struct gve_device_option) == 8);
+
+struct gve_device_option_gqi_rda {
+	__be32 supported_features_mask;
+};
+
+static_assert(sizeof(struct gve_device_option_gqi_rda) == 4);
+
+struct gve_device_option_gqi_qpl {
+	__be32 supported_features_mask;
+};
+
+static_assert(sizeof(struct gve_device_option_gqi_qpl) == 4);
+
+struct gve_device_option_dqo_rda {
+	__be32 supported_features_mask;
+	__be16 tx_comp_ring_entries;
+	__be16 rx_buff_ring_entries;
+};
+
+static_assert(sizeof(struct gve_device_option_dqo_rda) == 8);
+
+struct gve_device_option_jumbo_frames {
+	__be32 supported_features_mask;
+	__be16 max_mtu;
+	u8 padding[2];
+};
+
+static_assert(sizeof(struct gve_device_option_jumbo_frames) == 8);
+
+/* Terminology:
+ *
+ * RDA - Raw DMA Addressing - Buffers associated with SKBs are directly DMA
+ *       mapped and read/updated by the device.
+ *
+ * QPL - Queue Page Lists - Driver uses bounce buffers which are DMA mapped with
+ *       the device for read/write and data is copied from/to SKBs.
+ */
+enum gve_dev_opt_id {
+	GVE_DEV_OPT_ID_GQI_RAW_ADDRESSING = 0x1,
+	GVE_DEV_OPT_ID_GQI_RDA = 0x2,
+	GVE_DEV_OPT_ID_GQI_QPL = 0x3,
+	GVE_DEV_OPT_ID_DQO_RDA = 0x4,
+	GVE_DEV_OPT_ID_JUMBO_FRAMES = 0x8,
+};
+
+enum gve_dev_opt_req_feat_mask {
+	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RAW_ADDRESSING = 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RDA = 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_QPL = 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_RDA = 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_JUMBO_FRAMES = 0x0,
+};
+
+enum gve_sup_feature_mask {
+	GVE_SUP_JUMBO_FRAMES_MASK = 1 << 2,
+};
+
+#define GVE_DEV_OPT_LEN_GQI_RAW_ADDRESSING 0x0
 
 struct gve_adminq_configure_device_resources {
 	__be64 counter_array;
@@ -93,9 +153,11 @@ struct gve_adminq_configure_device_resources {
 	__be32 num_irq_dbs;
 	__be32 irq_db_stride;
 	__be32 ntfy_blk_msix_base_idx;
+	u8 queue_format;
+	u8 padding[7];
 };
 
-static_assert(sizeof(struct gve_adminq_configure_device_resources) == 32);
+static_assert(sizeof(struct gve_adminq_configure_device_resources) == 40);
 
 struct gve_adminq_register_page_list {
 	__be32 page_list_id;
@@ -111,6 +173,8 @@ struct gve_adminq_unregister_page_list {
 
 static_assert(sizeof(struct gve_adminq_unregister_page_list) == 4);
 
+#define GVE_RAW_ADDRESSING_QPL_ID 0xFFFFFFFF
+
 struct gve_adminq_create_tx_queue {
 	__be32 queue_id;
 	__be32 reserved;
@@ -118,9 +182,13 @@ struct gve_adminq_create_tx_queue {
 	__be64 tx_ring_addr;
 	__be32 queue_page_list_id;
 	__be32 ntfy_id;
+	__be64 tx_comp_ring_addr;
+	__be16 tx_ring_size;
+	__be16 tx_comp_ring_size;
+	u8 padding[4];
 };
 
-static_assert(sizeof(struct gve_adminq_create_tx_queue) == 32);
+static_assert(sizeof(struct gve_adminq_create_tx_queue) == 48);
 
 struct gve_adminq_create_rx_queue {
 	__be32 queue_id;
@@ -131,10 +199,14 @@ struct gve_adminq_create_rx_queue {
 	__be64 rx_desc_ring_addr;
 	__be64 rx_data_ring_addr;
 	__be32 queue_page_list_id;
-	u8 padding[4];
+	__be16 rx_ring_size;
+	__be16 packet_buffer_size;
+	__be16 rx_buff_ring_size;
+	u8 enable_rsc;
+	u8 padding[5];
 };
 
-static_assert(sizeof(struct gve_adminq_create_rx_queue) == 48);
+static_assert(sizeof(struct gve_adminq_create_rx_queue) == 56);
 
 /* Queue resources that are shared with the device */
 struct gve_queue_resources {
@@ -212,11 +284,47 @@ enum gve_stat_names {
 	TX_LAST_COMPLETION_PROCESSED	= 5,
 	RX_NEXT_EXPECTED_SEQUENCE	= 6,
 	RX_BUFFERS_POSTED		= 7,
+	TX_TIMEOUT_CNT			= 8,
 	// stats from NIC
 	RX_QUEUE_DROP_CNT		= 65,
 	RX_NO_BUFFERS_POSTED		= 66,
 	RX_DROPS_PACKET_OVER_MRU	= 67,
 	RX_DROPS_INVALID_CHECKSUM	= 68,
+};
+
+enum gve_l3_type {
+	/* Must be zero so zero initialized LUT is unknown. */
+	GVE_L3_TYPE_UNKNOWN = 0,
+	GVE_L3_TYPE_OTHER,
+	GVE_L3_TYPE_IPV4,
+	GVE_L3_TYPE_IPV6,
+};
+
+enum gve_l4_type {
+	/* Must be zero so zero initialized LUT is unknown. */
+	GVE_L4_TYPE_UNKNOWN = 0,
+	GVE_L4_TYPE_OTHER,
+	GVE_L4_TYPE_TCP,
+	GVE_L4_TYPE_UDP,
+	GVE_L4_TYPE_ICMP,
+	GVE_L4_TYPE_SCTP,
+};
+
+/* These are control path types for PTYPE which are the same as the data path
+ * types.
+ */
+struct gve_ptype_entry {
+	u8 l3_type;
+	u8 l4_type;
+};
+
+struct gve_ptype_map {
+	struct gve_ptype_entry ptypes[1 << 10]; /* PTYPES are always 10 bits. */
+};
+
+struct gve_adminq_get_ptype_map {
+	__be64 ptype_map_len;
+	__be64 ptype_map_addr;
 };
 
 union gve_adminq_command {
@@ -236,6 +344,7 @@ union gve_adminq_command {
 			struct gve_adminq_set_driver_parameter set_driver_param;
 			struct gve_adminq_report_stats report_stats;
 			struct gve_adminq_report_link_speed report_link_speed;
+			struct gve_adminq_get_ptype_map get_ptype_map;
 		};
 	};
 	u8 reserved[64];
@@ -264,4 +373,9 @@ int gve_adminq_set_mtu(struct gve_priv *priv, u64 mtu);
 int gve_adminq_report_stats(struct gve_priv *priv, u64 stats_report_len,
 			    dma_addr_t stats_report_addr, u64 interval);
 int gve_adminq_report_link_speed(struct gve_priv *priv);
+
+struct gve_ptype_lut;
+int gve_adminq_get_ptype_map_dqo(struct gve_priv *priv,
+				 struct gve_ptype_lut *ptype_lut);
+
 #endif /* _GVE_ADMINQ_H */

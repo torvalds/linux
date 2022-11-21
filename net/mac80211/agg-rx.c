@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  */
 
 /**
@@ -180,7 +180,8 @@ static void sta_rx_agg_reorder_timer_expired(struct timer_list *t)
 
 static void ieee80211_add_addbaext(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb,
-				   const struct ieee80211_addba_ext_ie *req)
+				   const struct ieee80211_addba_ext_ie *req,
+				   u16 buf_size)
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_addba_ext_ie *resp;
@@ -191,7 +192,8 @@ static void ieee80211_add_addbaext(struct ieee80211_sub_if_data *sdata,
 	sband = ieee80211_get_sband(sdata);
 	if (!sband)
 		return;
-	he_cap = ieee80211_get_he_iftype_cap(sband, sdata->vif.type);
+	he_cap = ieee80211_get_he_iftype_cap(sband,
+					     ieee80211_vif_type_p2p(&sdata->vif));
 	if (!he_cap)
 		return;
 
@@ -209,6 +211,8 @@ static void ieee80211_add_addbaext(struct ieee80211_sub_if_data *sdata,
 		frag_level = cap_frag_level;
 	resp->data |= u8_encode_bits(frag_level,
 				     IEEE80211_ADDBA_EXT_FRAG_LEVEL_MASK);
+	resp->data |= u8_encode_bits(buf_size >> IEEE80211_ADDBA_EXT_BUF_SIZE_SHIFT,
+				     IEEE80211_ADDBA_EXT_BUF_SIZE_MASK);
 }
 
 static void ieee80211_send_addba_resp(struct sta_info *sta, u8 *da, u16 tid,
@@ -250,17 +254,17 @@ static void ieee80211_send_addba_resp(struct sta_info *sta, u8 *da, u16 tid,
 	mgmt->u.action.u.addba_resp.action_code = WLAN_ACTION_ADDBA_RESP;
 	mgmt->u.action.u.addba_resp.dialog_token = dialog_token;
 
-	capab = (u16)(amsdu << 0);	/* bit 0 A-MSDU support */
-	capab |= (u16)(policy << 1);	/* bit 1 aggregation policy */
-	capab |= (u16)(tid << 2); 	/* bit 5:2 TID number */
-	capab |= (u16)(buf_size << 6);	/* bit 15:6 max size of aggregation */
+	capab = u16_encode_bits(amsdu, IEEE80211_ADDBA_PARAM_AMSDU_MASK);
+	capab |= u16_encode_bits(policy, IEEE80211_ADDBA_PARAM_POLICY_MASK);
+	capab |= u16_encode_bits(tid, IEEE80211_ADDBA_PARAM_TID_MASK);
+	capab |= u16_encode_bits(buf_size, IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK);
 
 	mgmt->u.action.u.addba_resp.capab = cpu_to_le16(capab);
 	mgmt->u.action.u.addba_resp.timeout = cpu_to_le16(timeout);
 	mgmt->u.action.u.addba_resp.status = cpu_to_le16(status);
 
 	if (sta->sta.he_cap.has_he && addbaext)
-		ieee80211_add_addbaext(sdata, skb, addbaext);
+		ieee80211_add_addbaext(sdata, skb, addbaext, buf_size);
 
 	ieee80211_tx_skb(sdata, skb);
 }
@@ -308,8 +312,10 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 		goto end;
 	}
 
-	if (sta->sta.he_cap.has_he)
-		max_buf_size = IEEE80211_MAX_AMPDU_BUF;
+	if (sta->sta.eht_cap.has_eht)
+		max_buf_size = IEEE80211_MAX_AMPDU_BUF_EHT;
+	else if (sta->sta.he_cap.has_he)
+		max_buf_size = IEEE80211_MAX_AMPDU_BUF_HE;
 	else
 		max_buf_size = IEEE80211_MAX_AMPDU_BUF_HT;
 
@@ -477,7 +483,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 				     size_t len)
 {
 	u16 capab, tid, timeout, ba_policy, buf_size, start_seq_num;
-	struct ieee802_11_elems elems = { };
+	struct ieee802_11_elems *elems = NULL;
 	u8 dialog_token;
 	int ies_len;
 
@@ -495,16 +501,25 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	ies_len = len - offsetof(struct ieee80211_mgmt,
 				 u.action.u.addba_req.variable);
 	if (ies_len) {
-		ieee802_11_parse_elems(mgmt->u.action.u.addba_req.variable,
-                                ies_len, true, &elems, mgmt->bssid, NULL);
-		if (elems.parse_error)
-			return;
+		elems = ieee802_11_parse_elems(mgmt->u.action.u.addba_req.variable,
+					       ies_len, true, mgmt->bssid, NULL);
+		if (!elems || elems->parse_error)
+			goto free;
+	}
+
+	if (sta->sta.eht_cap.has_eht && elems && elems->addba_ext_ie) {
+		u8 buf_size_1k = u8_get_bits(elems->addba_ext_ie->data,
+					     IEEE80211_ADDBA_EXT_BUF_SIZE_MASK);
+
+		buf_size |= buf_size_1k << IEEE80211_ADDBA_EXT_BUF_SIZE_SHIFT;
 	}
 
 	__ieee80211_start_rx_ba_session(sta, dialog_token, timeout,
 					start_seq_num, ba_policy, tid,
 					buf_size, true, false,
-					elems.addba_ext_ie);
+					elems ? elems->addba_ext_ie : NULL);
+free:
+	kfree(elems);
 }
 
 void ieee80211_manage_rx_ba_offl(struct ieee80211_vif *vif,

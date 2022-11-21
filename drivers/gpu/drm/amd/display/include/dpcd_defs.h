@@ -26,7 +26,7 @@
 #ifndef __DAL_DPCD_DEFS_H__
 #define __DAL_DPCD_DEFS_H__
 
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 #ifndef DP_SINK_HW_REVISION_START // can remove this once the define gets into linux drm_dp_helper.h
 #define DP_SINK_HW_REVISION_START 0x409
 #endif
@@ -80,6 +80,15 @@ enum dpcd_phy_test_patterns {
 	PHY_TEST_PATTERN_CP2520_1,
 	PHY_TEST_PATTERN_CP2520_2,
 	PHY_TEST_PATTERN_CP2520_3, /* same as TPS4 */
+	PHY_TEST_PATTERN_128b_132b_TPS1 = 0x8,
+	PHY_TEST_PATTERN_128b_132b_TPS2 = 0x10,
+	PHY_TEST_PATTERN_PRBS9 = 0x18,
+	PHY_TEST_PATTERN_PRBS11 = 0x20,
+	PHY_TEST_PATTERN_PRBS15 = 0x28,
+	PHY_TEST_PATTERN_PRBS23 = 0x30,
+	PHY_TEST_PATTERN_PRBS31 = 0x38,
+	PHY_TEST_PATTERN_264BIT_CUSTOM = 0x40,
+	PHY_TEST_PATTERN_SQUARE_PULSE = 0x48,
 };
 
 enum dpcd_test_dyn_range {
@@ -135,7 +144,10 @@ enum dpcd_training_patterns {
 	DPCD_TRAINING_PATTERN_1,
 	DPCD_TRAINING_PATTERN_2,
 	DPCD_TRAINING_PATTERN_3,
-	DPCD_TRAINING_PATTERN_4 = 7
+	DPCD_TRAINING_PATTERN_4 = 7,
+	DPCD_128b_132b_TPS1 = 1,
+	DPCD_128b_132b_TPS2 = 2,
+	DPCD_128b_132b_TPS2_CDS = 3,
 };
 
 /* This enum is for use with PsrSinkPsrStatus.bits.sinkSelfRefreshStatus
@@ -149,6 +161,7 @@ enum dpcd_psr_sink_states {
 	PSR_SINK_STATE_SINK_INTERNAL_ERROR = 7,
 };
 
+#define DP_SOURCE_SEQUENCE    		    0x30c
 #define DP_SOURCE_TABLE_REVISION	    0x310
 #define DP_SOURCE_PAYLOAD_SIZE		    0x311
 #define DP_SOURCE_SINK_CAP		    0x317
@@ -156,5 +169,6 @@ enum dpcd_psr_sink_states {
 #define DP_SOURCE_BACKLIGHT_CURRENT_PEAK    0x326
 #define DP_SOURCE_BACKLIGHT_CONTROL	    0x32E
 #define DP_SOURCE_BACKLIGHT_ENABLE	    0x32F
+#define DP_SOURCE_MINIMUM_HBLANK_SUPPORTED	0x340
 
 #endif /* __DAL_DPCD_DEFS_H__ */

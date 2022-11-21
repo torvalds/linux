@@ -3,9 +3,35 @@
  * Copyright (c) 2020, Konrad Dybcio
  */
 
+#include <dt-bindings/iio/qcom,spmi-vadc.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/spmi/spmi.h>
+#include <dt-bindings/thermal/thermal.h>
+
+/ {
+	thermal-zones {
+		pm660 {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&pm660_temp>;
+
+			trips {
+				pm660_alert0: pm660-alert0 {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				pm660_crit: pm660-crit {
+					temperature = <125000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+	};
+};
 
 &spmi_bus {
 
@@ -23,18 +49,125 @@
 		};
 
 		pon: pon@800 {
-			compatible = "qcom,pm8916-pon";
-
+			compatible = "qcom,pm8998-pon";
 			reg = <0x800>;
+			mode-bootloader = <0x2>;
+			mode-recovery = <0x1>;
 
-			pwrkey {
+			pon_pwrkey: pwrkey {
 				compatible = "qcom,pm8941-pwrkey";
 				interrupts = <0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
 				debounce = <15625>;
 				bias-pull-up;
 				linux,code = <KEY_POWER>;
+
+				status = "disabled";
 			};
 
+			pon_resin: resin {
+				compatible = "qcom,pm8941-resin";
+				interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
+				debounce = <15625>;
+				bias-pull-up;
+
+				status = "disabled";
+			};
+		};
+
+		pm660_temp: temp-alarm@2400 {
+			compatible = "qcom,spmi-temp-alarm";
+			reg = <0x2400>;
+			interrupts = <0x0 0x24 0x0 IRQ_TYPE_EDGE_RISING>;
+			io-channels = <&pm660_adc ADC5_DIE_TEMP>;
+			io-channel-names = "thermal";
+			#thermal-sensor-cells = <0>;
+		};
+
+		pm660_adc: adc@3100 {
+			compatible = "qcom,spmi-adc-rev2";
+			reg = <0x3100>;
+			interrupts = <0x0 0x31 0x0 IRQ_TYPE_EDGE_RISING>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#io-channel-cells = <1>;
+
+			ref_gnd: ref_gnd@0 {
+				reg = <ADC5_REF_GND>;
+				qcom,decimation = <1024>;
+				qcom,pre-scaling = <1 1>;
+			};
+
+			vref_1p25: vref_1p25@1 {
+				reg = <ADC5_1P25VREF>;
+				qcom,decimation = <1024>;
+				qcom,pre-scaling = <1 1>;
+			};
+
+			die_temp: die_temp@6 {
+				reg = <ADC5_DIE_TEMP>;
+				qcom,decimation = <1024>;
+				qcom,pre-scaling = <1 1>;
+			};
+
+			xo_therm: xo_therm@4c {
+				reg = <ADC5_XO_THERM_100K_PU>;
+				qcom,pre-scaling = <1 1>;
+				qcom,decimation = <1024>;
+				qcom,hw-settle-time = <200>;
+				qcom,ratiometric;
+			};
+
+			msm_therm: msm_therm@4d {
+				reg = <ADC5_AMUX_THM1_100K_PU>;
+				qcom,pre-scaling = <1 1>;
+				qcom,decimation = <1024>;
+				qcom,hw-settle-time = <200>;
+				qcom,ratiometric;
+			};
+
+			emmc_therm: emmc_therm@4e {
+				reg = <ADC5_AMUX_THM2_100K_PU>;
+				qcom,pre-scaling = <1 1>;
+				qcom,decimation = <1024>;
+				qcom,hw-settle-time = <200>;
+				qcom,ratiometric;
+			};
+
+			pa_therm0: thermistor0@4f {
+				reg = <ADC5_AMUX_THM3_100K_PU>;
+				qcom,pre-scaling = <1 1>;
+				qcom,decimation = <1024>;
+				qcom,hw-settle-time = <200>;
+				qcom,ratiometric;
+			};
+
+			pa_therm1: thermistor1@50 {
+				reg = <ADC5_AMUX_THM4_100K_PU>;
+				qcom,pre-scaling = <1 1>;
+				qcom,decimation = <1024>;
+				qcom,hw-settle-time = <200>;
+				qcom,ratiometric;
+			};
+
+			quiet_therm: quiet_therm@51 {
+				reg = <ADC5_AMUX_THM5_100K_PU>;
+				qcom,pre-scaling = <1 1>;
+				qcom,decimation = <1024>;
+				qcom,hw-settle-time = <200>;
+				qcom,ratiometric;
+			};
+
+			vadc_vph_pwr: vph_pwr@83 {
+				reg = <ADC5_VPH_PWR>;
+				qcom,decimation = <1024>;
+				qcom,pre-scaling = <1 3>;
+			};
+
+			vcoin: vcoin@83 {
+				reg = <ADC5_VCOIN>;
+				qcom,decimation = <1024>;
+				qcom,pre-scaling = <1 3>;
+			};
 		};
 
 		pm660_gpios: gpios@c000 {
@@ -45,6 +178,17 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+		};
+	};
+
+	pmic@1 {
+		compatible = "qcom,pm660", "qcom,spmi-pmic";
+		reg = <0x1 SPMI_USID>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pm660_spmi_regulators: pm660-regulators {
+			compatible = "qcom,pm660-regulators";
 		};
 	};
 };

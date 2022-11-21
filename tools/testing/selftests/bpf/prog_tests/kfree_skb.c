@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 #include <network_helpers.h>
+#include "kfree_skb.skel.h"
 
 struct meta {
 	int ifindex;
@@ -48,83 +49,60 @@ static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 	*(bool *)ctx = true;
 }
 
-void test_kfree_skb(void)
+/* TODO: fix kernel panic caused by this test in parallel mode */
+void serial_test_kfree_skb(void)
 {
 	struct __sk_buff skb = {};
-	struct bpf_prog_test_run_attr tattr = {
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
 		.data_in = &pkt_v6,
 		.data_size_in = sizeof(pkt_v6),
 		.ctx_in = &skb,
 		.ctx_size_in = sizeof(skb),
-	};
-	struct bpf_prog_load_attr attr = {
-		.file = "./kfree_skb.o",
-	};
-
-	struct bpf_link *link = NULL, *link_fentry = NULL, *link_fexit = NULL;
-	struct bpf_map *perf_buf_map, *global_data;
-	struct bpf_program *prog, *fentry, *fexit;
-	struct bpf_object *obj, *obj2 = NULL;
-	struct perf_buffer_opts pb_opts = {};
+	);
+	struct kfree_skb *skel = NULL;
+	struct bpf_link *link;
+	struct bpf_object *obj;
 	struct perf_buffer *pb = NULL;
-	int err, kfree_skb_fd;
+	int err, prog_fd;
 	bool passed = false;
 	__u32 duration = 0;
 	const int zero = 0;
 	bool test_ok[2];
 
-	err = bpf_prog_load("./test_pkt_access.o", BPF_PROG_TYPE_SCHED_CLS,
-			    &obj, &tattr.prog_fd);
+	err = bpf_prog_test_load("./test_pkt_access.o", BPF_PROG_TYPE_SCHED_CLS,
+				 &obj, &prog_fd);
 	if (CHECK(err, "prog_load sched cls", "err %d errno %d\n", err, errno))
 		return;
 
-	err = bpf_prog_load_xattr(&attr, &obj2, &kfree_skb_fd);
-	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
+	skel = kfree_skb__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "kfree_skb_skel"))
 		goto close_prog;
 
-	prog = bpf_object__find_program_by_title(obj2, "tp_btf/kfree_skb");
-	if (CHECK(!prog, "find_prog", "prog kfree_skb not found\n"))
+	link = bpf_program__attach_raw_tracepoint(skel->progs.trace_kfree_skb, NULL);
+	if (!ASSERT_OK_PTR(link, "attach_raw_tp"))
 		goto close_prog;
-	fentry = bpf_object__find_program_by_title(obj2, "fentry/eth_type_trans");
-	if (CHECK(!fentry, "find_prog", "prog eth_type_trans not found\n"))
-		goto close_prog;
-	fexit = bpf_object__find_program_by_title(obj2, "fexit/eth_type_trans");
-	if (CHECK(!fexit, "find_prog", "prog eth_type_trans not found\n"))
-		goto close_prog;
+	skel->links.trace_kfree_skb = link;
 
-	global_data = bpf_object__find_map_by_name(obj2, "kfree_sk.bss");
-	if (CHECK(!global_data, "find global data", "not found\n"))
+	link = bpf_program__attach_trace(skel->progs.fentry_eth_type_trans);
+	if (!ASSERT_OK_PTR(link, "attach fentry"))
 		goto close_prog;
+	skel->links.fentry_eth_type_trans = link;
 
-	link = bpf_program__attach_raw_tracepoint(prog, NULL);
-	if (CHECK(IS_ERR(link), "attach_raw_tp", "err %ld\n", PTR_ERR(link)))
+	link = bpf_program__attach_trace(skel->progs.fexit_eth_type_trans);
+	if (!ASSERT_OK_PTR(link, "attach fexit"))
 		goto close_prog;
-	link_fentry = bpf_program__attach_trace(fentry);
-	if (CHECK(IS_ERR(link_fentry), "attach fentry", "err %ld\n",
-		  PTR_ERR(link_fentry)))
-		goto close_prog;
-	link_fexit = bpf_program__attach_trace(fexit);
-	if (CHECK(IS_ERR(link_fexit), "attach fexit", "err %ld\n",
-		  PTR_ERR(link_fexit)))
-		goto close_prog;
-
-	perf_buf_map = bpf_object__find_map_by_name(obj2, "perf_buf_map");
-	if (CHECK(!perf_buf_map, "find_perf_buf_map", "not found\n"))
-		goto close_prog;
+	skel->links.fexit_eth_type_trans = link;
 
 	/* set up perf buffer */
-	pb_opts.sample_cb = on_sample;
-	pb_opts.ctx = &passed;
-	pb = perf_buffer__new(bpf_map__fd(perf_buf_map), 1, &pb_opts);
-	if (CHECK(IS_ERR(pb), "perf_buf__new", "err %ld\n", PTR_ERR(pb)))
+	pb = perf_buffer__new(bpf_map__fd(skel->maps.perf_buf_map), 1,
+			      on_sample, NULL, &passed, NULL);
+	if (!ASSERT_OK_PTR(pb, "perf_buf__new"))
 		goto close_prog;
 
 	memcpy(skb.cb, &cb, sizeof(cb));
-	err = bpf_prog_test_run_xattr(&tattr);
-	duration = tattr.duration;
-	CHECK(err || tattr.retval, "ipv6",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, tattr.retval, duration);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "ipv6 test_run");
+	ASSERT_OK(topts.retval, "ipv6 test_run retval");
 
 	/* read perf buffer */
 	err = perf_buffer__poll(pb, 100);
@@ -134,9 +112,9 @@ void test_kfree_skb(void)
 	/* make sure kfree_skb program was triggered
 	 * and it sent expected skb into ring buffer
 	 */
-	CHECK_FAIL(!passed);
+	ASSERT_TRUE(passed, "passed");
 
-	err = bpf_map_lookup_elem(bpf_map__fd(global_data), &zero, test_ok);
+	err = bpf_map_lookup_elem(bpf_map__fd(skel->maps.bss), &zero, test_ok);
 	if (CHECK(err, "get_result",
 		  "failed to get output data: %d\n", err))
 		goto close_prog;
@@ -144,12 +122,6 @@ void test_kfree_skb(void)
 	CHECK_FAIL(!test_ok[0] || !test_ok[1]);
 close_prog:
 	perf_buffer__free(pb);
-	if (!IS_ERR_OR_NULL(link))
-		bpf_link__destroy(link);
-	if (!IS_ERR_OR_NULL(link_fentry))
-		bpf_link__destroy(link_fentry);
-	if (!IS_ERR_OR_NULL(link_fexit))
-		bpf_link__destroy(link_fexit);
 	bpf_object__close(obj);
-	bpf_object__close(obj2);
+	kfree_skb__destroy(skel);
 }

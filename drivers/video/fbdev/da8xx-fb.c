@@ -1066,7 +1066,7 @@ static void lcd_da8xx_cpufreq_deregister(struct da8xx_fb_par *par)
 
 static int fb_remove(struct platform_device *dev)
 {
-	struct fb_info *info = dev_get_drvdata(&dev->dev);
+	struct fb_info *info = platform_get_drvdata(dev);
 	struct da8xx_fb_par *par = info->par;
 	int ret;
 
@@ -1354,10 +1354,9 @@ static int fb_probe(struct platform_device *device)
 		return PTR_ERR(da8xx_fb_reg_base);
 
 	tmp_lcdc_clk = devm_clk_get(&device->dev, "fck");
-	if (IS_ERR(tmp_lcdc_clk)) {
-		dev_err(&device->dev, "Can not get device clock\n");
-		return PTR_ERR(tmp_lcdc_clk);
-	}
+	if (IS_ERR(tmp_lcdc_clk))
+		return dev_err_probe(&device->dev, PTR_ERR(tmp_lcdc_clk),
+				     "Can not get device clock\n");
 
 	pm_runtime_enable(&device->dev);
 	pm_runtime_get_sync(&device->dev);
@@ -1482,7 +1481,7 @@ static int fb_probe(struct platform_device *device)
 	da8xx_fb_var.activate = FB_ACTIVATE_FORCE;
 	fb_set_var(da8xx_fb_info, &da8xx_fb_var);
 
-	dev_set_drvdata(&device->dev, da8xx_fb_info);
+	platform_set_drvdata(device, da8xx_fb_info);
 
 	/* initialize the vsync wait queue */
 	init_waitqueue_head(&par->vsync_wait);

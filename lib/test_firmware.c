@@ -260,8 +260,8 @@ static ssize_t config_show(struct device *dev,
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"send_uevent:\t\t%s\n",
 			test_fw_config->send_uevent ?
-			"FW_ACTION_HOTPLUG" :
-			"FW_ACTION_NOHOTPLUG");
+			"FW_ACTION_UEVENT" :
+			"FW_ACTION_NOUEVENT");
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"into_buf:\t\t%s\n",
 			test_fw_config->into_buf ? "true" : "false");
@@ -364,18 +364,15 @@ static ssize_t test_dev_config_show_int(char *buf, int val)
 
 static int test_dev_config_update_u8(const char *buf, size_t size, u8 *cfg)
 {
+	u8 val;
 	int ret;
-	long new;
 
-	ret = kstrtol(buf, 10, &new);
+	ret = kstrtou8(buf, 10, &val);
 	if (ret)
 		return ret;
 
-	if (new > U8_MAX)
-		return -EINVAL;
-
 	mutex_lock(&test_fw_mutex);
-	*(u8 *)cfg = new;
+	*(u8 *)cfg = val;
 	mutex_unlock(&test_fw_mutex);
 
 	/* Always return full write size even if we didn't consume all */
@@ -732,7 +729,7 @@ static ssize_t trigger_custom_fallback_store(struct device *dev,
 	mutex_lock(&test_fw_mutex);
 	release_firmware(test_firmware);
 	test_firmware = NULL;
-	rc = request_firmware_nowait(THIS_MODULE, FW_ACTION_NOHOTPLUG, name,
+	rc = request_firmware_nowait(THIS_MODULE, FW_ACTION_NOUEVENT, name,
 				     dev, GFP_KERNEL, NULL,
 				     trigger_async_request_cb);
 	if (rc) {
@@ -941,8 +938,8 @@ ssize_t trigger_batched_requests_async_store(struct device *dev,
 	pr_info("batched loading '%s' custom fallback mechanism %u times\n",
 		test_fw_config->name, test_fw_config->num_requests);
 
-	send_uevent = test_fw_config->send_uevent ? FW_ACTION_HOTPLUG :
-		FW_ACTION_NOHOTPLUG;
+	send_uevent = test_fw_config->send_uevent ? FW_ACTION_UEVENT :
+		FW_ACTION_NOUEVENT;
 
 	for (i = 0; i < test_fw_config->num_requests; i++) {
 		req = &test_fw_config->reqs[i];

@@ -1176,20 +1176,12 @@ static int amd_ntb_init_pci(struct amd_ntb_dev *ndev,
 
 	pci_set_master(pdev);
 
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (rc) {
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (rc)
 			goto err_dma_mask;
 		dev_warn(&pdev->dev, "Cannot DMA highmem\n");
-	}
-
-	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (rc) {
-		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (rc)
-			goto err_dma_mask;
-		dev_warn(&pdev->dev, "Cannot DMA consistent highmem\n");
 	}
 
 	ndev->self_mmio = pci_iomap(pdev, 0, 0);
@@ -1329,6 +1321,8 @@ static const struct ntb_dev_data dev_data[] = {
 static const struct pci_device_id amd_ntb_pci_tbl[] = {
 	{ PCI_VDEVICE(AMD, 0x145b), (kernel_ulong_t)&dev_data[0] },
 	{ PCI_VDEVICE(AMD, 0x148b), (kernel_ulong_t)&dev_data[1] },
+	{ PCI_VDEVICE(AMD, 0x14c0), (kernel_ulong_t)&dev_data[1] },
+	{ PCI_VDEVICE(AMD, 0x14c3), (kernel_ulong_t)&dev_data[1] },
 	{ PCI_VDEVICE(HYGON, 0x145b), (kernel_ulong_t)&dev_data[0] },
 	{ 0, }
 };

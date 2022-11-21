@@ -13,6 +13,7 @@
 #define _ASM_X86_KVM_X86_EMULATE_H
 
 #include <asm/desc_defs.h>
+#include "fpu.h"
 
 struct x86_emulate_ctxt;
 enum x86_intercept;
@@ -205,10 +206,12 @@ struct x86_emulate_ops {
 	ulong (*get_cr)(struct x86_emulate_ctxt *ctxt, int cr);
 	int (*set_cr)(struct x86_emulate_ctxt *ctxt, int cr, ulong val);
 	int (*cpl)(struct x86_emulate_ctxt *ctxt);
-	int (*get_dr)(struct x86_emulate_ctxt *ctxt, int dr, ulong *dest);
+	void (*get_dr)(struct x86_emulate_ctxt *ctxt, int dr, ulong *dest);
 	int (*set_dr)(struct x86_emulate_ctxt *ctxt, int dr, ulong value);
 	u64 (*get_smbase)(struct x86_emulate_ctxt *ctxt);
 	void (*set_smbase)(struct x86_emulate_ctxt *ctxt, u64 smbase);
+	int (*set_msr_with_filter)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 data);
+	int (*get_msr_with_filter)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 *pdata);
 	int (*set_msr)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 data);
 	int (*get_msr)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 *pdata);
 	int (*check_pmc)(struct x86_emulate_ctxt *ctxt, u32 pmc);
@@ -225,18 +228,16 @@ struct x86_emulate_ops {
 	bool (*guest_has_long_mode)(struct x86_emulate_ctxt *ctxt);
 	bool (*guest_has_movbe)(struct x86_emulate_ctxt *ctxt);
 	bool (*guest_has_fxsr)(struct x86_emulate_ctxt *ctxt);
+	bool (*guest_has_rdpid)(struct x86_emulate_ctxt *ctxt);
 
 	void (*set_nmi_mask)(struct x86_emulate_ctxt *ctxt, bool masked);
 
 	unsigned (*get_hflags)(struct x86_emulate_ctxt *ctxt);
-	void (*set_hflags)(struct x86_emulate_ctxt *ctxt, unsigned hflags);
-	int (*pre_leave_smm)(struct x86_emulate_ctxt *ctxt,
-			     const char *smstate);
-	void (*post_leave_smm)(struct x86_emulate_ctxt *ctxt);
+	void (*exiting_smm)(struct x86_emulate_ctxt *ctxt);
+	int (*leave_smm)(struct x86_emulate_ctxt *ctxt, const char *smstate);
+	void (*triple_fault)(struct x86_emulate_ctxt *ctxt);
 	int (*set_xcr)(struct x86_emulate_ctxt *ctxt, u32 index, u64 xcr);
 };
-
-typedef u32 __attribute__((vector_size(16))) sse128_t;
 
 /* Type, address-of, and value of an instruction's operand. */
 struct operand {
@@ -314,7 +315,6 @@ struct x86_emulate_ctxt {
 	int interruptibility;
 
 	bool perm_ok; /* do not check permissions if true */
-	bool ud;	/* inject an #UD if host doesn't support insn */
 	bool tf;	/* TF value before instruction (after for syscall/sysret) */
 
 	bool have_exception;
@@ -339,11 +339,7 @@ struct x86_emulate_ctxt {
 		fastop_t fop;
 	};
 	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
-	/*
-	 * The following six fields are cleared together,
-	 * the rest are initialized unconditionally in x86_decode_insn
-	 * or elsewhere
-	 */
+
 	bool rip_relative;
 	u8 rex_prefix;
 	u8 lock_prefix;
@@ -372,6 +368,7 @@ struct x86_emulate_ctxt {
 	struct fetch_cache fetch;
 	struct read_cache io_read;
 	struct read_cache mem_read;
+	bool is_branch;
 };
 
 /* Repeat String Operation Prefix */
@@ -468,6 +465,7 @@ enum x86_intercept {
 	x86_intercept_clgi,
 	x86_intercept_skinit,
 	x86_intercept_rdtscp,
+	x86_intercept_rdpid,
 	x86_intercept_icebp,
 	x86_intercept_wbinvd,
 	x86_intercept_monitor,
@@ -490,7 +488,7 @@ enum x86_intercept {
 #define X86EMUL_MODE_HOST X86EMUL_MODE_PROT64
 #endif
 
-int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len);
+int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len, int emulation_type);
 bool x86_page_table_writing_insn(struct x86_emulate_ctxt *ctxt);
 #define EMULATION_FAILED -1
 #define EMULATION_OK 0

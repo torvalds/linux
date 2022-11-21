@@ -17,7 +17,7 @@
  * @new_ctx: expected new packet context
  * @ctx_unchanged: the packet context must not change
  */
-struct test_data {
+static struct test_data {
 	int len;
 	u8 bytes[INTEL_PT_PKT_MAX_SZ];
 	enum intel_pt_pkt_ctx ctx;
@@ -66,12 +66,15 @@ struct test_data {
 	{7, {0x9d, 1, 2, 3, 4, 5, 6}, 0, {INTEL_PT_FUP, 4, 0x60504030201}, 0, 0 },
 	{9, {0xdd, 1, 2, 3, 4, 5, 6, 7, 8}, 0, {INTEL_PT_FUP, 6, 0x807060504030201}, 0, 0 },
 	/* Paging Information Packet */
-	{8, {0x02, 0x43, 2, 4, 6, 8, 10, 12}, 0, {INTEL_PT_PIP, 0, 0x60504030201}, 0, 0 },
-	{8, {0x02, 0x43, 3, 4, 6, 8, 10, 12}, 0, {INTEL_PT_PIP, 0, 0x60504030201 | (1ULL << 63)}, 0, 0 },
+	{8, {0x02, 0x43, 2, 4, 6, 8, 10, 12}, 0, {INTEL_PT_PIP, 0, 0xC0A08060402}, 0, 0 },
+	{8, {0x02, 0x43, 3, 4, 6, 8, 10, 12}, 0, {INTEL_PT_PIP, 0, 0xC0A08060403}, 0, 0 },
 	/* Mode Exec Packet */
 	{2, {0x99, 0x00}, 0, {INTEL_PT_MODE_EXEC, 0, 16}, 0, 0 },
-	{2, {0x99, 0x01}, 0, {INTEL_PT_MODE_EXEC, 0, 64}, 0, 0 },
-	{2, {0x99, 0x02}, 0, {INTEL_PT_MODE_EXEC, 0, 32}, 0, 0 },
+	{2, {0x99, 0x01}, 0, {INTEL_PT_MODE_EXEC, 1, 64}, 0, 0 },
+	{2, {0x99, 0x02}, 0, {INTEL_PT_MODE_EXEC, 2, 32}, 0, 0 },
+	{2, {0x99, 0x04}, 0, {INTEL_PT_MODE_EXEC, 4, 16}, 0, 0 },
+	{2, {0x99, 0x05}, 0, {INTEL_PT_MODE_EXEC, 5, 64}, 0, 0 },
+	{2, {0x99, 0x06}, 0, {INTEL_PT_MODE_EXEC, 6, 32}, 0, 0 },
 	/* Mode TSX Packet */
 	{2, {0x99, 0x20}, 0, {INTEL_PT_MODE_TSX, 0, 0}, 0, 0 },
 	{2, {0x99, 0x21}, 0, {INTEL_PT_MODE_TSX, 0, 1}, 0, 0 },
@@ -166,6 +169,14 @@ struct test_data {
 	{2, {0x02, 0xb3}, INTEL_PT_BLK_4_CTX, {INTEL_PT_BEP_IP, 0, 0}, 0, 0 },
 	{2, {0x02, 0x33}, INTEL_PT_BLK_8_CTX, {INTEL_PT_BEP, 0, 0}, 0, 0 },
 	{2, {0x02, 0xb3}, INTEL_PT_BLK_8_CTX, {INTEL_PT_BEP_IP, 0, 0}, 0, 0 },
+	/* Control Flow Event Packet */
+	{4, {0x02, 0x13, 0x01, 0x03}, 0, {INTEL_PT_CFE, 1, 3}, 0, 0 },
+	{4, {0x02, 0x13, 0x81, 0x03}, 0, {INTEL_PT_CFE_IP, 1, 3}, 0, 0 },
+	{4, {0x02, 0x13, 0x1f, 0x00}, 0, {INTEL_PT_CFE, 0x1f, 0}, 0, 0 },
+	{4, {0x02, 0x13, 0x9f, 0xff}, 0, {INTEL_PT_CFE_IP, 0x1f, 0xff}, 0, 0 },
+	/*  */
+	{11, {0x02, 0x53, 0x09, 1, 2, 3, 4, 5, 6, 7}, 0, {INTEL_PT_EVD, 0x09, 0x7060504030201}, 0, 0 },
+	{11, {0x02, 0x53, 0x3f, 2, 3, 4, 5, 6, 7, 8}, 0, {INTEL_PT_EVD, 0x3f, 0x8070605040302}, 0, 0 },
 	/* Terminator */
 	{0, {0}, 0, {0, 0, 0}, 0, 0 },
 };
@@ -289,7 +300,7 @@ static int test_one(struct test_data *d)
  * This test feeds byte sequences to the Intel PT packet decoder and checks the
  * results. Changes to the packet context are also checked.
  */
-int test__intel_pt_pkt_decoder(struct test *test __maybe_unused, int subtest __maybe_unused)
+int test__intel_pt_pkt_decoder(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct test_data *d = data;
 	int ret;

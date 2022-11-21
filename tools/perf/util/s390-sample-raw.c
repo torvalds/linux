@@ -135,12 +135,12 @@ static int get_counterset_start(int setnr)
  * the name of this counter.
  * If no match is found a NULL pointer is returned.
  */
-static const char *get_counter_name(int set, int nr, struct pmu_events_map *map)
+static const char *get_counter_name(int set, int nr, const struct pmu_events_map *map)
 {
 	int rc, event_nr, wanted = get_counterset_start(set) + nr;
 
 	if (map) {
-		struct pmu_event *evp = map->table;
+		const struct pmu_event *evp = map->table;
 
 		for (; evp->name || evp->event || evp->desc; ++evp) {
 			if (evp->name == NULL || evp->event == NULL)
@@ -159,12 +159,10 @@ static void s390_cpumcfdg_dump(struct perf_sample *sample)
 	unsigned char *buf = sample->raw_data;
 	const char *color = PERF_COLOR_BLUE;
 	struct cf_ctrset_entry *cep, ce;
-	struct pmu_events_map *map;
-	struct perf_pmu pmu;
+	const struct pmu_events_map *map;
 	u64 *p;
 
-	memset(&pmu, 0, sizeof(pmu));
-	map = perf_pmu__find_map(&pmu);
+	map = pmu_events_map__find();
 	while (offset < len) {
 		cep = (struct cf_ctrset_entry *)(buf + offset);
 
@@ -197,15 +195,14 @@ static void s390_cpumcfdg_dump(struct perf_sample *sample)
  * its raw data.
  * The function is only invoked when the dump flag -D is set.
  */
-void perf_evlist__s390_sample_raw(struct evlist *evlist, union perf_event *event,
-				  struct perf_sample *sample)
+void evlist__s390_sample_raw(struct evlist *evlist, union perf_event *event, struct perf_sample *sample)
 {
 	struct evsel *ev_bc000;
 
 	if (event->header.type != PERF_RECORD_SAMPLE)
 		return;
 
-	ev_bc000 = perf_evlist__event2evsel(evlist, event);
+	ev_bc000 = evlist__event2evsel(evlist, event);
 	if (ev_bc000 == NULL ||
 	    ev_bc000->core.attr.config != PERF_EVENT_CPUM_CF_DIAG)
 		return;

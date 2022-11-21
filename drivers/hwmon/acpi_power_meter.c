@@ -20,7 +20,6 @@
 #include <linux/acpi.h>
 
 #define ACPI_POWER_METER_NAME		"power_meter"
-ACPI_MODULE_NAME(ACPI_POWER_METER_NAME);
 #define ACPI_POWER_METER_DEVICE_NAME	"Power Meter"
 #define ACPI_POWER_METER_CLASS		"pwr_meter_resource"
 
@@ -114,7 +113,8 @@ static int update_avg_interval(struct acpi_power_meter_resource *resource)
 	status = acpi_evaluate_integer(resource->acpi_dev->handle, "_GAI",
 				       NULL, &data);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _GAI"));
+		acpi_evaluation_failure_warn(resource->acpi_dev->handle, "_GAI",
+					     status);
 		return -ENODEV;
 	}
 
@@ -161,12 +161,13 @@ static ssize_t set_avg_interval(struct device *dev,
 	mutex_lock(&resource->lock);
 	status = acpi_evaluate_integer(resource->acpi_dev->handle, "_PAI",
 				       &args, &data);
-	if (!ACPI_FAILURE(status))
+	if (ACPI_SUCCESS(status))
 		resource->avg_interval = temp;
 	mutex_unlock(&resource->lock);
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PAI"));
+		acpi_evaluation_failure_warn(resource->acpi_dev->handle, "_PAI",
+					     status);
 		return -EINVAL;
 	}
 
@@ -186,7 +187,8 @@ static int update_cap(struct acpi_power_meter_resource *resource)
 	status = acpi_evaluate_integer(resource->acpi_dev->handle, "_GHL",
 				       NULL, &data);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _GHL"));
+		acpi_evaluation_failure_warn(resource->acpi_dev->handle, "_GHL",
+					     status);
 		return -ENODEV;
 	}
 
@@ -232,12 +234,13 @@ static ssize_t set_cap(struct device *dev, struct device_attribute *devattr,
 	mutex_lock(&resource->lock);
 	status = acpi_evaluate_integer(resource->acpi_dev->handle, "_SHL",
 				       &args, &data);
-	if (!ACPI_FAILURE(status))
+	if (ACPI_SUCCESS(status))
 		resource->cap = temp;
 	mutex_unlock(&resource->lock);
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _SHL"));
+		acpi_evaluation_failure_warn(resource->acpi_dev->handle, "_SHL",
+					     status);
 		return -EINVAL;
 	}
 
@@ -270,7 +273,8 @@ static int set_acpi_trip(struct acpi_power_meter_resource *resource)
 	status = acpi_evaluate_integer(resource->acpi_dev->handle, "_PTP",
 				       &args, &data);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PTP"));
+		acpi_evaluation_failure_warn(resource->acpi_dev->handle, "_PTP",
+					     status);
 		return -EINVAL;
 	}
 
@@ -322,7 +326,8 @@ static int update_meter(struct acpi_power_meter_resource *resource)
 	status = acpi_evaluate_integer(resource->acpi_dev->handle, "_PMM",
 				       NULL, &data);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PMM"));
+		acpi_evaluation_failure_warn(resource->acpi_dev->handle, "_PMM",
+					     status);
 		return -ENODEV;
 	}
 
@@ -530,7 +535,7 @@ static void remove_domain_devices(struct acpi_power_meter_resource *resource)
 
 		sysfs_remove_link(resource->holders_dir,
 				  kobject_name(&obj->dev.kobj));
-		put_device(&obj->dev);
+		acpi_dev_put(obj);
 	}
 
 	kfree(resource->domain_devices);
@@ -549,7 +554,8 @@ static int read_domain_devices(struct acpi_power_meter_resource *resource)
 	status = acpi_evaluate_object(resource->acpi_dev->handle, "_PMD", NULL,
 				      &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PMD"));
+		acpi_evaluation_failure_warn(resource->acpi_dev->handle, "_PMD",
+					     status);
 		return -ENODEV;
 	}
 
@@ -591,18 +597,15 @@ static int read_domain_devices(struct acpi_power_meter_resource *resource)
 			continue;
 
 		/* Create a symlink to domain objects */
-		resource->domain_devices[i] = NULL;
-		if (acpi_bus_get_device(element->reference.handle,
-					&resource->domain_devices[i]))
+		obj = acpi_bus_get_acpi_device(element->reference.handle);
+		resource->domain_devices[i] = obj;
+		if (!obj)
 			continue;
-
-		obj = resource->domain_devices[i];
-		get_device(&obj->dev);
 
 		res = sysfs_create_link(resource->holders_dir, &obj->dev.kobj,
 				      kobject_name(&obj->dev.kobj));
 		if (res) {
-			put_device(&obj->dev);
+			acpi_dev_put(obj);
 			resource->domain_devices[i] = NULL;
 		}
 	}
@@ -725,8 +728,10 @@ static void free_capabilities(struct acpi_power_meter_resource *resource)
 	int i;
 
 	str = &resource->model_number;
-	for (i = 0; i < 3; i++, str++)
+	for (i = 0; i < 3; i++, str++) {
 		kfree(*str);
+		*str = NULL;
+	}
 }
 
 static int read_capabilities(struct acpi_power_meter_resource *resource)
@@ -743,7 +748,8 @@ static int read_capabilities(struct acpi_power_meter_resource *resource)
 	status = acpi_evaluate_object(resource->acpi_dev->handle, "_PMC", NULL,
 				      &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PMC"));
+		acpi_evaluation_failure_warn(resource->acpi_dev->handle, "_PMC",
+					     status);
 		return -ENODEV;
 	}
 
@@ -763,7 +769,9 @@ static int read_capabilities(struct acpi_power_meter_resource *resource)
 
 	status = acpi_extract_package(pss, &format, &state);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Invalid data"));
+		dev_err(&resource->acpi_dev->dev, ACPI_POWER_METER_NAME
+			"_PMC package parsing failed: %s\n",
+			acpi_format_exception(status));
 		res = -EFAULT;
 		goto end;
 	}
@@ -801,9 +809,7 @@ static int read_capabilities(struct acpi_power_meter_resource *resource)
 	dev_info(&resource->acpi_dev->dev, "Found ACPI power meter.\n");
 	goto end;
 error:
-	str = &resource->model_number;
-	for (i = 0; i < 3; i++, str++)
-		kfree(*str);
+	free_capabilities(resource);
 end:
 	kfree(buffer.pointer);
 	return res;
@@ -874,7 +880,6 @@ static int acpi_power_meter_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_POWER_METER_CLASS);
 	device->driver_data = resource;
 
-	free_capabilities(resource);
 	res = read_capabilities(resource);
 	if (res)
 		goto exit_free;

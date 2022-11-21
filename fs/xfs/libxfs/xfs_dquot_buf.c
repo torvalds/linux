@@ -22,7 +22,7 @@ xfs_calc_dquots_per_chunk(
 	unsigned int		nbblks)	/* basic block units */
 {
 	ASSERT(nbblks > 0);
-	return BBTOB(nbblks) / sizeof(xfs_dqblk_t);
+	return BBTOB(nbblks) / sizeof(struct xfs_dqblk);
 }
 
 /*
@@ -70,7 +70,7 @@ xfs_dquot_verify(
 		return __this_address;
 
 	if ((ddq->d_type & XFS_DQTYPE_BIGTIME) &&
-	    !xfs_sb_version_hasbigtime(&mp->m_sb))
+	    !xfs_has_bigtime(mp))
 		return __this_address;
 
 	if ((ddq->d_type & XFS_DQTYPE_BIGTIME) && !ddq->d_id)
@@ -106,7 +106,7 @@ xfs_dqblk_verify(
 	struct xfs_dqblk	*dqb,
 	xfs_dqid_t		id)	/* used only during quotacheck */
 {
-	if (xfs_sb_version_hascrc(&mp->m_sb) &&
+	if (xfs_has_crc(mp) &&
 	    !uuid_equal(&dqb->dd_uuid, &mp->m_sb.sb_meta_uuid))
 		return __this_address;
 
@@ -127,14 +127,14 @@ xfs_dqblk_repair(
 	 * Typically, a repair is only requested by quotacheck.
 	 */
 	ASSERT(id != -1);
-	memset(dqb, 0, sizeof(xfs_dqblk_t));
+	memset(dqb, 0, sizeof(struct xfs_dqblk));
 
 	dqb->dd_diskdq.d_magic = cpu_to_be16(XFS_DQUOT_MAGIC);
 	dqb->dd_diskdq.d_version = XFS_DQUOT_VERSION;
 	dqb->dd_diskdq.d_type = type;
 	dqb->dd_diskdq.d_id = cpu_to_be32(id);
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		uuid_copy(&dqb->dd_uuid, &mp->m_sb.sb_meta_uuid);
 		xfs_update_cksum((char *)dqb, sizeof(struct xfs_dqblk),
 				 XFS_DQUOT_CRC_OFF);
@@ -151,7 +151,7 @@ xfs_dquot_buf_verify_crc(
 	int			ndquots;
 	int			i;
 
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return true;
 
 	/*

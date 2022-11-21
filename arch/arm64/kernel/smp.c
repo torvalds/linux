@@ -120,9 +120,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	 * page tables.
 	 */
 	secondary_data.task = idle;
-	secondary_data.stack = task_stack_page(idle) + THREAD_SIZE;
 	update_cpu_boot_status(CPU_MMU_OFF);
-	__flush_dcache_area(&secondary_data, sizeof(secondary_data));
 
 	/* Now bring the CPU into our world */
 	ret = boot_secondary(cpu, idle);
@@ -142,8 +140,6 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 
 	pr_crit("CPU%u: failed to come online\n", cpu);
 	secondary_data.task = NULL;
-	secondary_data.stack = NULL;
-	__flush_dcache_area(&secondary_data, sizeof(secondary_data));
 	status = READ_ONCE(secondary_data.status);
 	if (status == CPU_MMU_OFF)
 		status = READ_ONCE(__early_cpu_boot_status);
@@ -188,6 +184,7 @@ static void init_gic_priority_masking(void)
 	cpuflags = read_sysreg(daif);
 
 	WARN_ON(!(cpuflags & PSR_I_BIT));
+	WARN_ON(!(cpuflags & PSR_F_BIT));
 
 	gic_write_pmr(GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET);
 }
@@ -201,10 +198,7 @@ asmlinkage notrace void secondary_start_kernel(void)
 	u64 mpidr = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
 	struct mm_struct *mm = &init_mm;
 	const struct cpu_operations *ops;
-	unsigned int cpu;
-
-	cpu = task_cpu(current);
-	set_my_cpu_offset(per_cpu_offset(cpu));
+	unsigned int cpu = smp_processor_id();
 
 	/*
 	 * All kernel threads share the same mm context; grab a
@@ -223,7 +217,6 @@ asmlinkage notrace void secondary_start_kernel(void)
 		init_gic_priority_masking();
 
 	rcu_cpu_starting(cpu);
-	preempt_disable();
 	trace_hardirqs_off();
 
 	/*
@@ -241,6 +234,7 @@ asmlinkage notrace void secondary_start_kernel(void)
 	 * Log the CPU info before it is marked online and might get read.
 	 */
 	cpuinfo_store_cpu();
+	store_cpu_topology(cpu);
 
 	/*
 	 * Enable GIC and timers.
@@ -249,7 +243,6 @@ asmlinkage notrace void secondary_start_kernel(void)
 
 	ipi_setup(cpu);
 
-	store_cpu_topology(cpu);
 	numa_add_cpu(cpu);
 
 	/*
@@ -351,7 +344,7 @@ void __cpu_die(unsigned int cpu)
 		pr_crit("CPU%u: cpu didn't die\n", cpu);
 		return;
 	}
-	pr_notice("CPU%u: shutdown\n", cpu);
+	pr_debug("CPU%u: shutdown\n", cpu);
 
 	/*
 	 * Now that the dying CPU is beyond the point of no return w.r.t.
@@ -434,8 +427,10 @@ static void __init hyp_mode_check(void)
 			   "CPU: CPUs started in inconsistent modes");
 	else
 		pr_info("CPU: All CPU(s) started at EL1\n");
-	if (IS_ENABLED(CONFIG_KVM))
+	if (IS_ENABLED(CONFIG_KVM) && !is_kernel_in_hyp_mode()) {
 		kvm_compute_layout();
+		kvm_apply_hyp_relocations();
+	}
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
@@ -449,6 +444,11 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 void __init smp_prepare_boot_cpu(void)
 {
+	/*
+	 * The runtime per-cpu areas have been allocated by
+	 * setup_per_cpu_areas(), and CPU0's boot time per-cpu area will be
+	 * freed shortly, so we must move over to the runtime per-cpu area.
+	 */
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
 	cpuinfo_store_boot_cpu();
 
@@ -462,33 +462,8 @@ void __init smp_prepare_boot_cpu(void)
 	/* Conditionally switch to GIC PMR for interrupt masking */
 	if (system_uses_irq_prio_masking())
 		init_gic_priority_masking();
-}
 
-static u64 __init of_get_cpu_mpidr(struct device_node *dn)
-{
-	const __be32 *cell;
-	u64 hwid;
-
-	/*
-	 * A cpu node with missing "reg" property is
-	 * considered invalid to build a cpu_logical_map
-	 * entry.
-	 */
-	cell = of_get_property(dn, "reg", NULL);
-	if (!cell) {
-		pr_err("%pOF: missing reg property\n", dn);
-		return INVALID_HWID;
-	}
-
-	hwid = of_read_number(cell, of_n_addr_cells(dn));
-	/*
-	 * Non affinity bits must be set to 0 in the DT
-	 */
-	if (hwid & ~MPIDR_HWID_BITMASK) {
-		pr_err("%pOF: invalid reg property\n", dn);
-		return INVALID_HWID;
-	}
-	return hwid;
+	kasan_init_hw_tags();
 }
 
 /*
@@ -654,9 +629,9 @@ static void __init of_parse_and_init_cpus(void)
 	struct device_node *dn;
 
 	for_each_of_cpu_node(dn) {
-		u64 hwid = of_get_cpu_mpidr(dn);
+		u64 hwid = of_get_cpu_hwid(dn, 0);
 
-		if (hwid == INVALID_HWID)
+		if (hwid & ~MPIDR_HWID_BITMASK)
 			goto next;
 
 		if (is_mpidr_duplicate(cpu_count, hwid)) {
@@ -787,14 +762,13 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 }
 
 static const char *ipi_types[NR_IPI] __tracepoint_string = {
-#define S(x,s)	[x] = s
-	S(IPI_RESCHEDULE, "Rescheduling interrupts"),
-	S(IPI_CALL_FUNC, "Function call interrupts"),
-	S(IPI_CPU_STOP, "CPU stop interrupts"),
-	S(IPI_CPU_CRASH_STOP, "CPU stop (for crash dump) interrupts"),
-	S(IPI_TIMER, "Timer broadcast interrupts"),
-	S(IPI_IRQ_WORK, "IRQ work interrupts"),
-	S(IPI_WAKEUP, "CPU wake-up interrupts"),
+	[IPI_RESCHEDULE]	= "Rescheduling interrupts",
+	[IPI_CALL_FUNC]		= "Function call interrupts",
+	[IPI_CPU_STOP]		= "CPU stop interrupts",
+	[IPI_CPU_CRASH_STOP]	= "CPU stop (for crash dump) interrupts",
+	[IPI_TIMER]		= "Timer broadcast interrupts",
+	[IPI_IRQ_WORK]		= "IRQ work interrupts",
+	[IPI_WAKEUP]		= "CPU wake-up interrupts",
 };
 
 static void smp_cross_call(const struct cpumask *target, unsigned int ipinr);
@@ -806,11 +780,10 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	unsigned int cpu, i;
 
 	for (i = 0; i < NR_IPI; i++) {
-		unsigned int irq = irq_desc_get_irq(ipi_desc[i]);
 		seq_printf(p, "%*s%u:%s", prec - 1, "IPI", i,
 			   prec >= 4 ? " " : "");
 		for_each_online_cpu(cpu)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(irq, cpu));
+			seq_printf(p, "%10u ", irq_desc_kstat_cpu(ipi_desc[i], cpu));
 		seq_printf(p, "      %s\n", ipi_types[i]);
 	}
 
@@ -1128,5 +1101,6 @@ bool cpus_are_stuck_in_kernel(void)
 {
 	bool smp_spin_tables = (num_possible_cpus() > 1 && !have_cpu_die());
 
-	return !!cpus_stuck_in_kernel || smp_spin_tables;
+	return !!cpus_stuck_in_kernel || smp_spin_tables ||
+		is_protected_kvm_enabled();
 }

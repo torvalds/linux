@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *    Copyright IBM Corp. 2006
- *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
+#include <linux/memory_hotplug.h>
 #include <linux/memblock.h>
 #include <linux/pfn.h>
 #include <linux/mm.h>
@@ -12,6 +12,7 @@
 #include <linux/hugetlb.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
+#include <asm/nospec-branch.h>
 #include <asm/pgalloc.h>
 #include <asm/setup.h>
 #include <asm/tlbflush.h>
@@ -26,14 +27,14 @@ static void __ref *vmem_alloc_pages(unsigned int order)
 
 	if (slab_is_available())
 		return (void *)__get_free_pages(GFP_KERNEL, order);
-	return (void *) memblock_phys_alloc(size, size);
+	return memblock_alloc(size, size);
 }
 
 static void vmem_free_pages(unsigned long addr, int order)
 {
 	/* We don't expect boot memory to be removed ever. */
 	if (!slab_is_available() ||
-	    WARN_ON_ONCE(PageReserved(phys_to_page(addr))))
+	    WARN_ON_ONCE(PageReserved(virt_to_page(addr))))
 		return;
 	free_pages(addr, order);
 }
@@ -56,7 +57,7 @@ pte_t __ref *vmem_pte_alloc(void)
 	if (slab_is_available())
 		pte = (pte_t *) page_table_alloc(&init_mm);
 	else
-		pte = (pte_t *) memblock_phys_alloc(size, size);
+		pte = (pte_t *) memblock_alloc(size, size);
 	if (!pte)
 		return NULL;
 	memset64((u64 *)pte, _PAGE_INVALID, PTRS_PER_PTE);
@@ -76,20 +77,20 @@ static void vmem_pte_free(unsigned long *table)
 
 /*
  * The unused vmemmap range, which was not yet memset(PAGE_UNUSED) ranges
- * from unused_pmd_start to next PMD_SIZE boundary.
+ * from unused_sub_pmd_start to next PMD_SIZE boundary.
  */
-static unsigned long unused_pmd_start;
+static unsigned long unused_sub_pmd_start;
 
-static void vmemmap_flush_unused_pmd(void)
+static void vmemmap_flush_unused_sub_pmd(void)
 {
-	if (!unused_pmd_start)
+	if (!unused_sub_pmd_start)
 		return;
-	memset(__va(unused_pmd_start), PAGE_UNUSED,
-	       ALIGN(unused_pmd_start, PMD_SIZE) - unused_pmd_start);
-	unused_pmd_start = 0;
+	memset((void *)unused_sub_pmd_start, PAGE_UNUSED,
+	       ALIGN(unused_sub_pmd_start, PMD_SIZE) - unused_sub_pmd_start);
+	unused_sub_pmd_start = 0;
 }
 
-static void __vmemmap_use_sub_pmd(unsigned long start, unsigned long end)
+static void vmemmap_mark_sub_pmd_used(unsigned long start, unsigned long end)
 {
 	/*
 	 * As we expect to add in the same granularity as we remove, it's
@@ -97,7 +98,7 @@ static void __vmemmap_use_sub_pmd(unsigned long start, unsigned long end)
 	 * getting removed (just in case the memmap never gets initialized,
 	 * e.g., because the memory block never gets onlined).
 	 */
-	memset(__va(start), 0, sizeof(struct page));
+	memset((void *)start, 0, sizeof(struct page));
 }
 
 static void vmemmap_use_sub_pmd(unsigned long start, unsigned long end)
@@ -106,45 +107,45 @@ static void vmemmap_use_sub_pmd(unsigned long start, unsigned long end)
 	 * We only optimize if the new used range directly follows the
 	 * previously unused range (esp., when populating consecutive sections).
 	 */
-	if (unused_pmd_start == start) {
-		unused_pmd_start = end;
-		if (likely(IS_ALIGNED(unused_pmd_start, PMD_SIZE)))
-			unused_pmd_start = 0;
+	if (unused_sub_pmd_start == start) {
+		unused_sub_pmd_start = end;
+		if (likely(IS_ALIGNED(unused_sub_pmd_start, PMD_SIZE)))
+			unused_sub_pmd_start = 0;
 		return;
 	}
-	vmemmap_flush_unused_pmd();
-	__vmemmap_use_sub_pmd(start, end);
+	vmemmap_flush_unused_sub_pmd();
+	vmemmap_mark_sub_pmd_used(start, end);
 }
 
 static void vmemmap_use_new_sub_pmd(unsigned long start, unsigned long end)
 {
-	void *page = __va(ALIGN_DOWN(start, PMD_SIZE));
+	unsigned long page = ALIGN_DOWN(start, PMD_SIZE);
 
-	vmemmap_flush_unused_pmd();
+	vmemmap_flush_unused_sub_pmd();
 
 	/* Could be our memmap page is filled with PAGE_UNUSED already ... */
-	__vmemmap_use_sub_pmd(start, end);
+	vmemmap_mark_sub_pmd_used(start, end);
 
 	/* Mark the unused parts of the new memmap page PAGE_UNUSED. */
 	if (!IS_ALIGNED(start, PMD_SIZE))
-		memset(page, PAGE_UNUSED, start - __pa(page));
+		memset((void *)page, PAGE_UNUSED, start - page);
 	/*
 	 * We want to avoid memset(PAGE_UNUSED) when populating the vmemmap of
 	 * consecutive sections. Remember for the last added PMD the last
 	 * unused range in the populated PMD.
 	 */
 	if (!IS_ALIGNED(end, PMD_SIZE))
-		unused_pmd_start = end;
+		unused_sub_pmd_start = end;
 }
 
 /* Returns true if the PMD is completely unused and can be freed. */
 static bool vmemmap_unuse_sub_pmd(unsigned long start, unsigned long end)
 {
-	void *page = __va(ALIGN_DOWN(start, PMD_SIZE));
+	unsigned long page = ALIGN_DOWN(start, PMD_SIZE);
 
-	vmemmap_flush_unused_pmd();
-	memset(__va(start), PAGE_UNUSED, end - start);
-	return !memchr_inv(page, PAGE_UNUSED, PMD_SIZE);
+	vmemmap_flush_unused_sub_pmd();
+	memset((void *)start, PAGE_UNUSED, end - start);
+	return !memchr_inv((void *)page, PAGE_UNUSED, PMD_SIZE);
 }
 
 /* __ref: we'll only call vmemmap_alloc_block() via vmemmap_populate() */
@@ -165,7 +166,7 @@ static int __ref modify_pte_table(pmd_t *pmd, unsigned long addr,
 			if (pte_none(*pte))
 				continue;
 			if (!direct)
-				vmem_free_pages(pfn_to_phys(pte_pfn(*pte)), 0);
+				vmem_free_pages((unsigned long) pfn_to_virt(pte_pfn(*pte)), 0);
 			pte_clear(&init_mm, addr, pte);
 		} else if (pte_none(*pte)) {
 			if (!direct) {
@@ -173,9 +174,9 @@ static int __ref modify_pte_table(pmd_t *pmd, unsigned long addr,
 
 				if (!new_page)
 					goto out;
-				pte_val(*pte) = __pa(new_page) | prot;
+				set_pte(pte, __pte(__pa(new_page) | prot));
 			} else {
-				pte_val(*pte) = addr | prot;
+				set_pte(pte, __pte(__pa(addr) | prot));
 			}
 		} else {
 			continue;
@@ -200,7 +201,7 @@ static void try_free_pte_table(pmd_t *pmd, unsigned long start)
 		if (!pte_none(*pte))
 			return;
 	}
-	vmem_pte_free(__va(pmd_deref(*pmd)));
+	vmem_pte_free((unsigned long *) pmd_deref(*pmd));
 	pmd_clear(pmd);
 }
 
@@ -223,7 +224,7 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 		if (!add) {
 			if (pmd_none(*pmd))
 				continue;
-			if (pmd_large(*pmd) && !add) {
+			if (pmd_large(*pmd)) {
 				if (IS_ALIGNED(addr, PMD_SIZE) &&
 				    IS_ALIGNED(next, PMD_SIZE)) {
 					if (!direct)
@@ -241,7 +242,7 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 			    IS_ALIGNED(next, PMD_SIZE) &&
 			    MACHINE_HAS_EDAT1 && addr && direct &&
 			    !debug_pagealloc_enabled()) {
-				pmd_val(*pmd) = addr | prot;
+				set_pmd(pmd, __pmd(__pa(addr) | prot));
 				pages++;
 				continue;
 			} else if (!direct && MACHINE_HAS_EDAT1) {
@@ -256,7 +257,7 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 				 */
 				new_page = vmemmap_alloc_block(PMD_SIZE, NUMA_NO_NODE);
 				if (new_page) {
-					pmd_val(*pmd) = __pa(new_page) | prot;
+					set_pmd(pmd, __pmd(__pa(new_page) | prot));
 					if (!IS_ALIGNED(addr, PMD_SIZE) ||
 					    !IS_ALIGNED(next, PMD_SIZE)) {
 						vmemmap_use_new_sub_pmd(addr, next);
@@ -337,7 +338,7 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 			    IS_ALIGNED(next, PUD_SIZE) &&
 			    MACHINE_HAS_EDAT2 && addr && direct &&
 			    !debug_pagealloc_enabled()) {
-				pud_val(*pud) = addr | prot;
+				set_pud(pud, __pud(__pa(addr) | prot));
 				pages++;
 				continue;
 			}
@@ -532,11 +533,22 @@ void vmem_remove_mapping(unsigned long start, unsigned long size)
 	mutex_unlock(&vmem_mutex);
 }
 
+struct range arch_get_mappable_range(void)
+{
+	struct range mhp_range;
+
+	mhp_range.start = 0;
+	mhp_range.end =  VMEM_MAX_PHYS - 1;
+	return mhp_range;
+}
+
 int vmem_add_mapping(unsigned long start, unsigned long size)
 {
+	struct range range = arch_get_mappable_range();
 	int ret;
 
-	if (start + size > VMEM_MAX_PHYS ||
+	if (start < range.start ||
+	    start + size > range.end + 1 ||
 	    start + size < start)
 		return -ERANGE;
 
@@ -569,11 +581,12 @@ void __init vmem_map_init(void)
 	__set_memory((unsigned long)_sinittext,
 		     (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT,
 		     SET_MEMORY_RO | SET_MEMORY_X);
-	__set_memory(__stext_dma, (__etext_dma - __stext_dma) >> PAGE_SHIFT,
+	__set_memory(__stext_amode31, (__etext_amode31 - __stext_amode31) >> PAGE_SHIFT,
 		     SET_MEMORY_RO | SET_MEMORY_X);
 
-	/* we need lowcore executable for our LPSWE instructions */
-	set_memory_x(0, 1);
+	/* lowcore must be executable for LPSWE */
+	if (!static_key_enabled(&cpu_has_bear))
+		set_memory_x(0, 1);
 
 	pr_info("Write protected kernel read-only data: %luk\n",
 		(unsigned long)(__end_rodata - _stext) >> 10);

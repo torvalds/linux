@@ -83,6 +83,8 @@
 	SE_SF(DIG0_HDMI_METADATA_PACKET_CONTROL, HDMI_METADATA_PACKET_LINE, mask_sh),\
 	SE_SF(DIG0_DIG_FE_CNTL, DOLBY_VISION_EN, mask_sh),\
 	SE_SF(DP0_DP_PIXEL_FORMAT, DP_PIXEL_COMBINE, mask_sh),\
+	SE_SF(DP0_DP_SEC_CNTL1, DP_SEC_GSP5_LINE_REFERENCE, mask_sh),\
+	SE_SF(DP0_DP_SEC_CNTL5, DP_SEC_GSP5_LINE_NUM, mask_sh),\
 	SE_SF(DP0_DP_SEC_FRAMING4, DP_SST_SDP_SPLITTING, mask_sh)
 
 void dcn20_stream_encoder_construct(
@@ -102,6 +104,7 @@ void enc2_stream_encoder_dp_set_stream_attribute(
 	uint32_t enable_sdp_splitting);
 
 void enc2_stream_encoder_dp_unblank(
+	struct dc_link *link,
 	struct stream_encoder *enc,
 	const struct encoder_unblank_param *param);
 
@@ -109,5 +112,8 @@ void enc2_set_dynamic_metadata(struct stream_encoder *enc,
 		bool enable_dme,
 		uint32_t hubp_requestor_id,
 		enum dynamic_metadata_mode dmdata_mode);
+
+uint32_t enc2_get_fifo_cal_average_level(
+		struct stream_encoder *enc);
 
 #endif /* __DC_STREAM_ENCODER_DCN20_H__ */

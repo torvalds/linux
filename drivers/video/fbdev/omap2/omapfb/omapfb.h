@@ -29,7 +29,7 @@ extern bool omapfb_debug;
 			printk(KERN_DEBUG "OMAPFB: " format, ## __VA_ARGS__); \
 	} while (0)
 #else
-#define DBG(format, ...)
+#define DBG(format, ...) no_printk(format, ## __VA_ARGS__)
 #endif
 
 #define FB2OFB(fb_info) ((struct omapfb_info *)(fb_info->par))

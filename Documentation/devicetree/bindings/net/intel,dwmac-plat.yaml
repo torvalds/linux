@@ -116,9 +116,8 @@ examples:
         snps,mtl-rx-config = <&mtl_rx_setup>;
         snps,mtl-tx-config = <&mtl_tx_setup>;
         snps,tso;
-        status = "okay";
 
-        mdio0 {
+        mdio {
             #address-cells = <1>;
             #size-cells = <0>;
             compatible = "snps,dwmac-mdio";

@@ -26,6 +26,8 @@ enum {
 	SEG6_LOCAL_IIF,
 	SEG6_LOCAL_OIF,
 	SEG6_LOCAL_BPF,
+	SEG6_LOCAL_VRFTABLE,
+	SEG6_LOCAL_COUNTERS,
 	__SEG6_LOCAL_MAX,
 };
 #define SEG6_LOCAL_MAX (__SEG6_LOCAL_MAX - 1)
@@ -62,6 +64,8 @@ enum {
 	SEG6_LOCAL_ACTION_END_AM	= 14,
 	/* custom BPF action */
 	SEG6_LOCAL_ACTION_END_BPF	= 15,
+	/* decap and lookup of DA in v4 or v6 table */
+	SEG6_LOCAL_ACTION_END_DT46	= 16,
 
 	__SEG6_LOCAL_ACTION_MAX,
 };
@@ -76,5 +80,34 @@ enum {
 };
 
 #define SEG6_LOCAL_BPF_PROG_MAX (__SEG6_LOCAL_BPF_PROG_MAX - 1)
+
+/* SRv6 Behavior counters are encoded as netlink attributes guaranteeing the
+ * correct alignment.
+ * Each counter is identified by a different attribute type (i.e.
+ * SEG6_LOCAL_CNT_PACKETS).
+ *
+ * - SEG6_LOCAL_CNT_PACKETS: identifies a counter that counts the number of
+ *   packets that have been CORRECTLY processed by an SRv6 Behavior instance
+ *   (i.e., packets that generate errors or are dropped are NOT counted).
+ *
+ * - SEG6_LOCAL_CNT_BYTES: identifies a counter that counts the total amount
+ *   of traffic in bytes of all packets that have been CORRECTLY processed by
+ *   an SRv6 Behavior instance (i.e., packets that generate errors or are
+ *   dropped are NOT counted).
+ *
+ * - SEG6_LOCAL_CNT_ERRORS: identifies a counter that counts the number of
+ *   packets that have NOT been properly processed by an SRv6 Behavior instance
+ *   (i.e., packets that generate errors or are dropped).
+ */
+enum {
+	SEG6_LOCAL_CNT_UNSPEC,
+	SEG6_LOCAL_CNT_PAD,		/* pad for 64 bits values */
+	SEG6_LOCAL_CNT_PACKETS,
+	SEG6_LOCAL_CNT_BYTES,
+	SEG6_LOCAL_CNT_ERRORS,
+	__SEG6_LOCAL_CNT_MAX,
+};
+
+#define SEG6_LOCAL_CNT_MAX (__SEG6_LOCAL_CNT_MAX - 1)
 
 #endif

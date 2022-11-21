@@ -31,8 +31,6 @@
 #define IFNAMSIZ 16
 #endif
 
-int _version SEC("version") = 1;
-
 __attribute__ ((noinline))
 int do_bind(struct bpf_sock_addr *ctx)
 {

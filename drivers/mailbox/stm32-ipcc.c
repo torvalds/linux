@@ -144,11 +144,11 @@ static irqreturn_t stm32_ipcc_tx_irq(int irq, void *data)
 
 static int stm32_ipcc_send_data(struct mbox_chan *link, void *data)
 {
-	unsigned int chan = (unsigned int)link->con_priv;
+	unsigned long chan = (unsigned long)link->con_priv;
 	struct stm32_ipcc *ipcc = container_of(link->mbox, struct stm32_ipcc,
 					       controller);
 
-	dev_dbg(ipcc->controller.dev, "%s: chan:%d\n", __func__, chan);
+	dev_dbg(ipcc->controller.dev, "%s: chan:%lu\n", __func__, chan);
 
 	/* set channel n occupied */
 	stm32_ipcc_set_bits(&ipcc->lock, ipcc->reg_proc + IPCC_XSCR,
@@ -163,7 +163,7 @@ static int stm32_ipcc_send_data(struct mbox_chan *link, void *data)
 
 static int stm32_ipcc_startup(struct mbox_chan *link)
 {
-	unsigned int chan = (unsigned int)link->con_priv;
+	unsigned long chan = (unsigned long)link->con_priv;
 	struct stm32_ipcc *ipcc = container_of(link->mbox, struct stm32_ipcc,
 					       controller);
 	int ret;
@@ -183,7 +183,7 @@ static int stm32_ipcc_startup(struct mbox_chan *link)
 
 static void stm32_ipcc_shutdown(struct mbox_chan *link)
 {
-	unsigned int chan = (unsigned int)link->con_priv;
+	unsigned long chan = (unsigned long)link->con_priv;
 	struct stm32_ipcc *ipcc = container_of(link->mbox, struct stm32_ipcc,
 					       controller);
 
@@ -205,8 +205,7 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct stm32_ipcc *ipcc;
-	struct resource *res;
-	unsigned int i;
+	unsigned long i;
 	int ret;
 	u32 ip_ver;
 	static const char * const irq_name[] = {"rx", "tx"};
@@ -235,8 +234,7 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 	}
 
 	/* regs */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ipcc->reg_base = devm_ioremap_resource(dev, res);
+	ipcc->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ipcc->reg_base))
 		return PTR_ERR(ipcc->reg_base);
 
@@ -257,9 +255,6 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 	for (i = 0; i < IPCC_IRQ_NUM; i++) {
 		ipcc->irqs[i] = platform_get_irq_byname(pdev, irq_name[i]);
 		if (ipcc->irqs[i] < 0) {
-			if (ipcc->irqs[i] != -EPROBE_DEFER)
-				dev_err(dev, "no IRQ specified %s\n",
-					irq_name[i]);
 			ret = ipcc->irqs[i];
 			goto err_clk;
 		}
@@ -268,7 +263,7 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 						irq_thread[i], IRQF_ONESHOT,
 						dev_name(dev), ipcc);
 		if (ret) {
-			dev_err(dev, "failed to request irq %d (%d)\n", i, ret);
+			dev_err(dev, "failed to request irq %lu (%d)\n", i, ret);
 			goto err_clk;
 		}
 	}

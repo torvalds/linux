@@ -42,17 +42,16 @@
 #include <net/ipv6.h>
 #include <net/inet_frag.h>
 
-extern unsigned int nf_conntrack_net_id;
-
 static DEFINE_MUTEX(nf_ct_proto_mutex);
 
 #ifdef CONFIG_SYSCTL
-__printf(5, 6)
+__printf(4, 5)
 void nf_l4proto_log_invalid(const struct sk_buff *skb,
-			    struct net *net,
-			    u16 pf, u8 protonum,
+			    const struct nf_hook_state *state,
+			    u8 protonum,
 			    const char *fmt, ...)
 {
+	struct net *net = state->net;
 	struct va_format vaf;
 	va_list args;
 
@@ -64,15 +63,16 @@ void nf_l4proto_log_invalid(const struct sk_buff *skb,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-		      "nf_ct_proto_%d: %pV ", protonum, &vaf);
+	nf_log_packet(net, state->pf, 0, skb, state->in, state->out,
+		      NULL, "nf_ct_proto_%d: %pV ", protonum, &vaf);
 	va_end(args);
 }
 EXPORT_SYMBOL_GPL(nf_l4proto_log_invalid);
 
-__printf(3, 4)
+__printf(4, 5)
 void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
 			       const struct nf_conn *ct,
+			       const struct nf_hook_state *state,
 			       const char *fmt, ...)
 {
 	struct va_format vaf;
@@ -87,7 +87,7 @@ void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	nf_l4proto_log_invalid(skb, net, nf_ct_l3num(ct),
+	nf_l4proto_log_invalid(skb, state,
 			       nf_ct_protonum(ct), "%pV", &vaf);
 	va_end(args);
 }
@@ -155,6 +155,16 @@ unsigned int nf_confirm(struct sk_buff *skb, unsigned int protoff,
 }
 EXPORT_SYMBOL_GPL(nf_confirm);
 
+static bool in_vrf_postrouting(const struct nf_hook_state *state)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	if (state->hook == NF_INET_POST_ROUTING &&
+	    netif_is_l3_master(state->out))
+		return true;
+#endif
+	return false;
+}
+
 static unsigned int ipv4_confirm(void *priv,
 				 struct sk_buff *skb,
 				 const struct nf_hook_state *state)
@@ -165,6 +175,9 @@ static unsigned int ipv4_confirm(void *priv,
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
 		return nf_conntrack_confirm(skb);
+
+	if (in_vrf_postrouting(state))
+		return NF_ACCEPT;
 
 	return nf_confirm(skb,
 			  skb_network_offset(skb) + ip_hdrlen(skb),
@@ -374,6 +387,9 @@ static unsigned int ipv6_confirm(void *priv,
 	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
 		return nf_conntrack_confirm(skb);
 
+	if (in_vrf_postrouting(state))
+		return NF_ACCEPT;
+
 	protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &pnum,
 				   &frag_off);
 	if (protoff < 0 || (frag_off & htons(~0x7)) != 0) {
@@ -446,7 +462,7 @@ static struct nf_ct_bridge_info *nf_ct_bridge_info;
 
 static int nf_ct_netns_do_get(struct net *net, u8 nfproto)
 {
-	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 	bool fixup_needed = false, retry = true;
 	int err = 0;
 retry:
@@ -531,20 +547,24 @@ retry:
 
 static void nf_ct_netns_do_put(struct net *net, u8 nfproto)
 {
-	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
 	mutex_lock(&nf_ct_proto_mutex);
 	switch (nfproto) {
 	case NFPROTO_IPV4:
-		if (cnet->users4 && (--cnet->users4 == 0))
+		if (cnet->users4 && (--cnet->users4 == 0)) {
 			nf_unregister_net_hooks(net, ipv4_conntrack_ops,
 						ARRAY_SIZE(ipv4_conntrack_ops));
+			nf_defrag_ipv4_disable(net);
+		}
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case NFPROTO_IPV6:
-		if (cnet->users6 && (--cnet->users6 == 0))
+		if (cnet->users6 && (--cnet->users6 == 0)) {
 			nf_unregister_net_hooks(net, ipv6_conntrack_ops,
 						ARRAY_SIZE(ipv6_conntrack_ops));
+			nf_defrag_ipv6_disable(net);
+		}
 		break;
 #endif
 	case NFPROTO_BRIDGE:
@@ -660,7 +680,7 @@ int nf_conntrack_proto_init(void)
 
 #if IS_ENABLED(CONFIG_IPV6)
 cleanup_sockopt:
-	nf_unregister_sockopt(&so_getorigdst6);
+	nf_unregister_sockopt(&so_getorigdst);
 #endif
 	return ret;
 }
@@ -690,13 +710,6 @@ void nf_conntrack_proto_pernet_init(struct net *net)
 #endif
 #ifdef CONFIG_NF_CT_PROTO_GRE
 	nf_conntrack_gre_init_net(net);
-#endif
-}
-
-void nf_conntrack_proto_pernet_fini(struct net *net)
-{
-#ifdef CONFIG_NF_CT_PROTO_GRE
-	nf_ct_gre_keymap_flush(net);
 #endif
 }
 

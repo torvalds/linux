@@ -37,9 +37,6 @@ struct vmw_fence_manager {
 	spinlock_t lock;
 	struct list_head fence_list;
 	struct work_struct work;
-	u32 user_fence_size;
-	u32 fence_size;
-	u32 event_fence_action_size;
 	bool fifo_down;
 	struct list_head cleanup_list;
 	uint32_t pending_actions[VMW_ACTION_MAX];
@@ -58,13 +55,11 @@ struct vmw_user_fence {
 /**
  * struct vmw_event_fence_action - fence action that delivers a drm event.
  *
- * @e: A struct drm_pending_event that controls the event delivery.
  * @action: A struct vmw_fence_action to hook up to a fence.
+ * @event: A pointer to the pending event.
  * @fence: A referenced pointer to the fence to keep it alive while @action
  * hangs on it.
  * @dev: Pointer to a struct drm_device so we can access the event stuff.
- * @kref: Both @e and @action has destructors, so we need to refcount.
- * @size: Size accounted for this object.
  * @tv_sec: If non-null, the variable pointed to will be assigned
  * current time tv_sec val when the fence signals.
  * @tv_usec: Must be set if @tv_sec is set, and the variable pointed to will
@@ -87,7 +82,23 @@ fman_from_fence(struct vmw_fence_obj *fence)
 	return container_of(fence->base.lock, struct vmw_fence_manager, lock);
 }
 
-/**
+static u32 vmw_fence_goal_read(struct vmw_private *vmw)
+{
+	if ((vmw->capabilities2 & SVGA_CAP2_EXTRA_REGS) != 0)
+		return vmw_read(vmw, SVGA_REG_FENCE_GOAL);
+	else
+		return vmw_fifo_mem_read(vmw, SVGA_FIFO_FENCE_GOAL);
+}
+
+static void vmw_fence_goal_write(struct vmw_private *vmw, u32 value)
+{
+	if ((vmw->capabilities2 & SVGA_CAP2_EXTRA_REGS) != 0)
+		vmw_write(vmw, SVGA_REG_FENCE_GOAL, value);
+	else
+		vmw_fifo_mem_write(vmw, SVGA_FIFO_FENCE_GOAL, value);
+}
+
+/*
  * Note on fencing subsystem usage of irqs:
  * Typically the vmw_fences_update function is called
  *
@@ -141,12 +152,9 @@ static bool vmw_fence_enable_signaling(struct dma_fence *f)
 	struct vmw_fence_manager *fman = fman_from_fence(fence);
 	struct vmw_private *dev_priv = fman->dev_priv;
 
-	u32 *fifo_mem = dev_priv->mmio_virt;
-	u32 seqno = vmw_mmio_read(fifo_mem + SVGA_FIFO_FENCE);
+	u32 seqno = vmw_fence_read(dev_priv);
 	if (seqno - fence->base.seqno < VMW_FENCE_WRAP)
 		return false;
-
-	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
 
 	return true;
 }
@@ -180,7 +188,6 @@ static long vmw_fence_wait(struct dma_fence *f, bool intr, signed long timeout)
 	if (likely(vmw_fence_obj_signaled(fence)))
 		return timeout;
 
-	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
 	vmw_seqno_waiter_add(dev_priv);
 
 	spin_lock(f->lock);
@@ -251,7 +258,7 @@ static const struct dma_fence_ops vmw_fence_ops = {
 };
 
 
-/**
+/*
  * Execute signal actions on fences recently signaled.
  * This is done from a workqueue so we don't have to execute
  * signal actions from atomic context.
@@ -310,11 +317,6 @@ struct vmw_fence_manager *vmw_fence_manager_init(struct vmw_private *dev_priv)
 	INIT_LIST_HEAD(&fman->cleanup_list);
 	INIT_WORK(&fman->work, &vmw_fence_work_func);
 	fman->fifo_down = true;
-	fman->user_fence_size = ttm_round_pot(sizeof(struct vmw_user_fence)) +
-		TTM_OBJ_EXTRA_SIZE;
-	fman->fence_size = ttm_round_pot(sizeof(struct vmw_fence_obj));
-	fman->event_fence_action_size =
-		ttm_round_pot(sizeof(struct vmw_event_fence_action));
 	mutex_init(&fman->goal_irq_mutex);
 	fman->ctx = dma_fence_context_alloc(1);
 
@@ -401,14 +403,12 @@ static bool vmw_fence_goal_new_locked(struct vmw_fence_manager *fman,
 				      u32 passed_seqno)
 {
 	u32 goal_seqno;
-	u32 *fifo_mem;
 	struct vmw_fence_obj *fence;
 
 	if (likely(!fman->seqno_valid))
 		return false;
 
-	fifo_mem = fman->dev_priv->mmio_virt;
-	goal_seqno = vmw_mmio_read(fifo_mem + SVGA_FIFO_FENCE_GOAL);
+	goal_seqno = vmw_fence_goal_read(fman->dev_priv);
 	if (likely(passed_seqno - goal_seqno >= VMW_FENCE_WRAP))
 		return false;
 
@@ -416,8 +416,8 @@ static bool vmw_fence_goal_new_locked(struct vmw_fence_manager *fman,
 	list_for_each_entry(fence, &fman->fence_list, head) {
 		if (!list_empty(&fence->seq_passed_actions)) {
 			fman->seqno_valid = true;
-			vmw_mmio_write(fence->base.seqno,
-				       fifo_mem + SVGA_FIFO_FENCE_GOAL);
+			vmw_fence_goal_write(fman->dev_priv,
+					     fence->base.seqno);
 			break;
 		}
 	}
@@ -445,18 +445,16 @@ static bool vmw_fence_goal_check_locked(struct vmw_fence_obj *fence)
 {
 	struct vmw_fence_manager *fman = fman_from_fence(fence);
 	u32 goal_seqno;
-	u32 *fifo_mem;
 
 	if (dma_fence_is_signaled_locked(&fence->base))
 		return false;
 
-	fifo_mem = fman->dev_priv->mmio_virt;
-	goal_seqno = vmw_mmio_read(fifo_mem + SVGA_FIFO_FENCE_GOAL);
+	goal_seqno = vmw_fence_goal_read(fman->dev_priv);
 	if (likely(fman->seqno_valid &&
 		   goal_seqno - fence->base.seqno < VMW_FENCE_WRAP))
 		return false;
 
-	vmw_mmio_write(fence->base.seqno, fifo_mem + SVGA_FIFO_FENCE_GOAL);
+	vmw_fence_goal_write(fman->dev_priv, fence->base.seqno);
 	fman->seqno_valid = true;
 
 	return true;
@@ -468,9 +466,8 @@ static void __vmw_fences_update(struct vmw_fence_manager *fman)
 	struct list_head action_list;
 	bool needs_rerun;
 	uint32_t seqno, new_seqno;
-	u32 *fifo_mem = fman->dev_priv->mmio_virt;
 
-	seqno = vmw_mmio_read(fifo_mem + SVGA_FIFO_FENCE);
+	seqno = vmw_fence_read(fman->dev_priv);
 rerun:
 	list_for_each_entry_safe(fence, next_fence, &fman->fence_list, head) {
 		if (seqno - fence->base.seqno < VMW_FENCE_WRAP) {
@@ -492,7 +489,7 @@ rerun:
 
 	needs_rerun = vmw_fence_goal_new_locked(fman, seqno);
 	if (unlikely(needs_rerun)) {
-		new_seqno = vmw_mmio_read(fifo_mem + SVGA_FIFO_FENCE);
+		new_seqno = vmw_fence_read(fman->dev_priv);
 		if (new_seqno != seqno) {
 			seqno = new_seqno;
 			goto rerun;
@@ -535,13 +532,6 @@ int vmw_fence_obj_wait(struct vmw_fence_obj *fence, bool lazy,
 		return ret;
 }
 
-void vmw_fence_obj_flush(struct vmw_fence_obj *fence)
-{
-	struct vmw_private *dev_priv = fman_from_fence(fence)->dev_priv;
-
-	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
-}
-
 static void vmw_fence_destroy(struct vmw_fence_obj *fence)
 {
 	dma_fence_free(&fence->base);
@@ -576,14 +566,8 @@ static void vmw_user_fence_destroy(struct vmw_fence_obj *fence)
 {
 	struct vmw_user_fence *ufence =
 		container_of(fence, struct vmw_user_fence, fence);
-	struct vmw_fence_manager *fman = fman_from_fence(fence);
 
 	ttm_base_object_kfree(ufence, base);
-	/*
-	 * Free kernel space accounting.
-	 */
-	ttm_mem_global_free(vmw_mem_glob(fman->dev_priv),
-			    fman->user_fence_size);
 }
 
 static void vmw_user_fence_base_release(struct ttm_base_object **p_base)
@@ -606,22 +590,7 @@ int vmw_user_fence_create(struct drm_file *file_priv,
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	struct vmw_user_fence *ufence;
 	struct vmw_fence_obj *tmp;
-	struct ttm_mem_global *mem_glob = vmw_mem_glob(fman->dev_priv);
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
 	int ret;
-
-	/*
-	 * Kernel memory space accounting, since this object may
-	 * be created by a user-space request.
-	 */
-
-	ret = ttm_mem_global_alloc(mem_glob, fman->user_fence_size,
-				   &ctx);
-	if (unlikely(ret != 0))
-		return ret;
 
 	ufence = kzalloc(sizeof(*ufence), GFP_KERNEL);
 	if (unlikely(!ufence)) {
@@ -641,9 +610,10 @@ int vmw_user_fence_create(struct drm_file *file_priv,
 	 * vmw_user_fence_base_release.
 	 */
 	tmp = vmw_fence_obj_reference(&ufence->fence);
+
 	ret = ttm_base_object_init(tfile, &ufence->base, false,
 				   VMW_RES_FENCE,
-				   &vmw_user_fence_base_release, NULL);
+				   &vmw_user_fence_base_release);
 
 
 	if (unlikely(ret != 0)) {
@@ -662,57 +632,10 @@ out_err:
 	tmp = &ufence->fence;
 	vmw_fence_obj_unreference(&tmp);
 out_no_object:
-	ttm_mem_global_free(mem_glob, fman->user_fence_size);
 	return ret;
 }
 
-
-/**
- * vmw_wait_dma_fence - Wait for a dma fence
- *
- * @fman: pointer to a fence manager
- * @fence: DMA fence to wait on
- *
- * This function handles the case when the fence is actually a fence
- * array.  If that's the case, it'll wait on each of the child fence
- */
-int vmw_wait_dma_fence(struct vmw_fence_manager *fman,
-		       struct dma_fence *fence)
-{
-	struct dma_fence_array *fence_array;
-	int ret = 0;
-	int i;
-
-
-	if (dma_fence_is_signaled(fence))
-		return 0;
-
-	if (!dma_fence_is_array(fence))
-		return dma_fence_wait(fence, true);
-
-	/* From i915: Note that if the fence-array was created in
-	 * signal-on-any mode, we should *not* decompose it into its individual
-	 * fences. However, we don't currently store which mode the fence-array
-	 * is operating in. Fortunately, the only user of signal-on-any is
-	 * private to amdgpu and we should not see any incoming fence-array
-	 * from sync-file being in signal-on-any mode.
-	 */
-
-	fence_array = to_dma_fence_array(fence);
-	for (i = 0; i < fence_array->num_fences; i++) {
-		struct dma_fence *child = fence_array->fences[i];
-
-		ret = dma_fence_wait(child, true);
-
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
-}
-
-
-/**
+/*
  * vmw_fence_fifo_down - signal all unsignaled fence objects.
  */
 
@@ -847,8 +770,7 @@ out:
 	 */
 
 	if (ret == 0 && (arg->wait_options & DRM_VMW_WAIT_OPTION_UNREF))
-		return ttm_ref_object_base_unref(tfile, arg->handle,
-						 TTM_REF_USAGE);
+		return ttm_ref_object_base_unref(tfile, arg->handle);
 	return ret;
 }
 
@@ -890,8 +812,7 @@ int vmw_fence_obj_unref_ioctl(struct drm_device *dev, void *data,
 		(struct drm_vmw_fence_arg *) data;
 
 	return ttm_ref_object_base_unref(vmw_fpriv(file_priv)->tfile,
-					 arg->handle,
-					 TTM_REF_USAGE);
+					 arg->handle);
 }
 
 /**
@@ -952,8 +873,8 @@ static void vmw_event_fence_action_cleanup(struct vmw_fence_action *action)
 /**
  * vmw_fence_obj_add_action - Add an action to a fence object.
  *
- * @fence - The fence object.
- * @action - The action to add.
+ * @fence: The fence object.
+ * @action: The action to add.
  *
  * Note that the action callbacks may be executed before this function
  * returns.
@@ -998,13 +919,17 @@ static void vmw_fence_obj_add_action(struct vmw_fence_obj *fence,
 }
 
 /**
- * vmw_event_fence_action_create - Post an event for sending when a fence
+ * vmw_event_fence_action_queue - Post an event for sending when a fence
  * object seqno has passed.
  *
  * @file_priv: The file connection on which the event should be posted.
  * @fence: The fence object on which to post the event.
  * @event: Event to be posted. This event should've been alloced
  * using k[mz]alloc, and should've been completely initialized.
+ * @tv_sec: If non-null, the variable pointed to will be assigned
+ * current time tv_sec val when the fence signals.
+ * @tv_usec: Must be set if @tv_sec is set, and the variable pointed to will
+ * be assigned the current time tv_usec val when the fence signals.
  * @interruptible: Interruptible waits if possible.
  *
  * As a side effect, the object pointed to by @event may have been
@@ -1033,7 +958,7 @@ int vmw_event_fence_action_queue(struct drm_file *file_priv,
 	eaction->action.type = VMW_ACTION_EVENT;
 
 	eaction->fence = vmw_fence_obj_reference(fence);
-	eaction->dev = fman->dev_priv->dev;
+	eaction->dev = &fman->dev_priv->drm;
 	eaction->tv_sec = tv_sec;
 	eaction->tv_usec = tv_usec;
 
@@ -1055,7 +980,7 @@ static int vmw_event_fence_action_create(struct drm_file *file_priv,
 {
 	struct vmw_event_fence_pending *event;
 	struct vmw_fence_manager *fman = fman_from_fence(fence);
-	struct drm_device *dev = fman->dev_priv->dev;
+	struct drm_device *dev = &fman->dev_priv->drm;
 	int ret;
 
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
@@ -1133,7 +1058,7 @@ int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 
 		if (user_fence_rep != NULL) {
 			ret = ttm_ref_object_add(vmw_fp->tfile, base,
-						 TTM_REF_USAGE, NULL, false);
+						 NULL, false);
 			if (unlikely(ret != 0)) {
 				DRM_ERROR("Failed to reference a fence "
 					  "object.\n");
@@ -1171,12 +1096,12 @@ int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 	}
 
 	vmw_execbuf_copy_fence_user(dev_priv, vmw_fp, 0, user_fence_rep, fence,
-				    handle, -1, NULL);
+				    handle, -1);
 	vmw_fence_obj_unreference(&fence);
 	return 0;
 out_no_create:
 	if (user_fence_rep != NULL)
-		ttm_ref_object_base_unref(tfile, handle, TTM_REF_USAGE);
+		ttm_ref_object_base_unref(tfile, handle);
 out_no_ref_obj:
 	vmw_fence_obj_unreference(&fence);
 	return ret;

@@ -173,39 +173,6 @@ my $mcount_regex;	# Find the call site to mcount (return offset)
 my $mcount_adjust;	# Address adjustment to mcount offset
 my $alignment;		# The .align value to use for $mcount_section
 my $section_type;	# Section header plus possible alignment command
-my $can_use_local = 0; 	# If we can use local function references
-
-# Shut up recordmcount if user has older objcopy
-my $quiet_recordmcount = ".tmp_quiet_recordmcount";
-my $print_warning = 1;
-$print_warning = 0 if ( -f $quiet_recordmcount);
-
-##
-# check_objcopy - whether objcopy supports --globalize-symbols
-#
-#  --globalize-symbols came out in 2.17, we must test the version
-#  of objcopy, and if it is less than 2.17, then we can not
-#  record local functions.
-sub check_objcopy
-{
-    open (IN, "$objcopy --version |") or die "error running $objcopy";
-    while (<IN>) {
-	if (/objcopy.*\s(\d+)\.(\d+)/) {
-	    $can_use_local = 1 if ($1 > 2 || ($1 == 2 && $2 >= 17));
-	    last;
-	}
-    }
-    close (IN);
-
-    if (!$can_use_local && $print_warning) {
-	print STDERR "WARNING: could not find objcopy version or version " .
-	    "is less than 2.17.\n" .
-	    "\tLocal function references are disabled.\n";
-	open (QUIET, ">$quiet_recordmcount");
-	printf QUIET "Disables the warning from recordmcount.pl\n";
-	close QUIET;
-    }
-}
 
 if ($arch =~ /(x86(_64)?)|(i386)/) {
     if ($bits == 64) {
@@ -222,7 +189,7 @@ if ($arch =~ /(x86(_64)?)|(i386)/) {
 $local_regex = "^[0-9a-fA-F]+\\s+t\\s+(\\S+)";
 $weak_regex = "^[0-9a-fA-F]+\\s+([wW])\\s+(\\S+)";
 $section_regex = "Disassembly of section\\s+(\\S+):";
-$function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
+$function_regex = "^([0-9a-fA-F]+)\\s+<([^^]*?)>:";
 $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s(mcount|__fentry__)\$";
 $section_type = '@progbits';
 $mcount_adjust = 0;
@@ -252,11 +219,8 @@ if ($arch eq "x86_64") {
 
 } elsif ($arch eq "s390" && $bits == 64) {
     if ($cc =~ /-DCC_USING_HOTPATCH/) {
-	$mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*c0 04 00 00 00 00\\s*brcl\\s*0,[0-9a-f]+ <([^\+]*)>\$";
+	$mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*c0 04 00 00 00 00\\s*(brcl\\s*0,|jgnop\\s*)[0-9a-f]+ <([^\+]*)>\$";
 	$mcount_adjust = 0;
-    } else {
-	$mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_390_(PC|PLT)32DBL\\s+_mcount\\+0x2\$";
-	$mcount_adjust = -14;
     }
     $alignment = 8;
     $type = ".quad";
@@ -268,7 +232,11 @@ if ($arch eq "x86_64") {
 
     # force flags for this arch
     $ld .= " -m shlelf_linux";
-    $objcopy .= " -O elf32-sh-linux";
+    if ($endian eq "big") {
+	$objcopy .= " -O elf32-shbig-linux";
+    } else {
+	$objcopy .= " -O elf32-sh-linux";
+    }
 
 } elsif ($arch eq "powerpc") {
     my $ldemulation;
@@ -288,12 +256,12 @@ if ($arch eq "x86_64") {
 	    $ldemulation = "lppc"
     }
     if ($bits == 64) {
-        $type = ".quad";
-        $cc .= " -m64 ";
-        $ld .= " -m elf64".$ldemulation." ";
+	$type = ".quad";
+	$cc .= " -m64 ";
+	$ld .= " -m elf64".$ldemulation." ";
     } else {
-        $cc .= " -m32 ";
-        $ld .= " -m elf32".$ldemulation." ";
+	$cc .= " -m32 ";
+	$ld .= " -m elf32".$ldemulation." ";
     }
 
 } elsif ($arch eq "arm") {
@@ -312,7 +280,7 @@ if ($arch eq "x86_64") {
     $type = "data8";
 
     if ($is_module eq "0") {
-        $cc .= " -mconstant-gp";
+	$cc .= " -mconstant-gp";
     }
 } elsif ($arch eq "sparc64") {
     # In the objdump output there are giblets like:
@@ -391,11 +359,8 @@ if ($arch eq "x86_64") {
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s_mcount\$";
 } elsif ($arch eq "riscv") {
     $function_regex = "^([0-9a-fA-F]+)\\s+<([^.0-9][0-9a-zA-Z_\\.]+)>:";
-    $mcount_regex = "^\\s*([0-9a-fA-F]+):\\sR_RISCV_CALL\\s_mcount\$";
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):\\sR_RISCV_CALL(_PLT)?\\s_?mcount\$";
     $type = ".quad";
-    $alignment = 2;
-} elsif ($arch eq "nds32") {
-    $mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_NDS32_HI20_RELA\\s+_mcount\$";
     $alignment = 2;
 } elsif ($arch eq "csky") {
     $mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_CKCORE_PCREL_JSR_IMM26BY2\\s+_mcount\$";
@@ -432,8 +397,6 @@ if ($filename =~ m,^(.*)(\.\S),) {
 
 my $mcount_s = $dirname . "/.tmp_mc_" . $prefix . ".s";
 my $mcount_o = $dirname . "/.tmp_mc_" . $prefix . ".o";
-
-check_objcopy();
 
 #
 # Step 1: find all the local (static functions) and weak symbols.
@@ -472,11 +435,6 @@ sub update_funcs
 
     # is this function static? If so, note this fact.
     if (defined $locals{$ref_func}) {
-
-	# only use locals if objcopy supports globalize-symbols
-	if (!$can_use_local) {
-	    return;
-	}
 	$convert{$ref_func} = 1;
     }
 
@@ -496,7 +454,7 @@ sub update_funcs
 #
 # Step 2: find the sections and mcount call sites
 #
-open(IN, "LANG=C $objdump -hdr $inputfile|") || die "error running $objdump";
+open(IN, "LC_ALL=C $objdump -hdr $inputfile|") || die "error running $objdump";
 
 my $text;
 
@@ -529,10 +487,10 @@ while (<IN>) {
 	$read_function = defined($text_sections{$1});
 	if (!$read_function) {
 	    foreach my $prefix (keys %text_section_prefixes) {
-	        if (substr($1, 0, length $prefix) eq $prefix) {
-	            $read_function = 1;
-	            last;
-	        }
+		if (substr($1, 0, length $prefix) eq $prefix) {
+		    $read_function = 1;
+		    last;
+		}
 	    }
 	}
 	# print out any recorded offsets
@@ -641,3 +599,5 @@ if ($#converts >= 0) {
 `$rm $mcount_o $mcount_s`;
 
 exit(0);
+
+# vim: softtabstop=4

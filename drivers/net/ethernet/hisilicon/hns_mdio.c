@@ -279,7 +279,7 @@ static int hns_mdio_write(struct mii_bus *bus,
 static int hns_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 {
 	int ret;
-	u16 reg_val = 0;
+	u16 reg_val;
 	u8 devad = ((regnum >> 16) & 0x1f);
 	u8 is_c45 = !!(regnum & MII_ADDR_C45);
 	u16 reg = (u16)(regnum & 0xffff);
@@ -354,7 +354,7 @@ static int hns_mdio_reset(struct mii_bus *bus)
 
 	if (dev_of_node(bus->parent)) {
 		if (!mdio_dev->subctrl_vbase) {
-			dev_err(&bus->dev, "mdio sys ctl reg has not maped\n");
+			dev_err(&bus->dev, "mdio sys ctl reg has not mapped\n");
 			return -ENODEV;
 		}
 
@@ -420,7 +420,7 @@ static int hns_mdio_probe(struct platform_device *pdev)
 {
 	struct hns_mdio_device *mdio_dev;
 	struct mii_bus *new_bus;
-	int ret = -ENODEV;
+	int ret;
 
 	if (!pdev) {
 		dev_err(NULL, "pdev is NULL!\r\n");

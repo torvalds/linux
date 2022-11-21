@@ -32,7 +32,7 @@ xfs_dir3_get_dtype(
 	struct xfs_mount	*mp,
 	uint8_t			filetype)
 {
-	if (!xfs_sb_version_hasftype(&mp->m_sb))
+	if (!xfs_has_ftype(mp))
 		return DT_UNKNOWN;
 
 	if (filetype >= XFS_DIR3_FT_MAX)
@@ -57,8 +57,8 @@ xfs_dir2_sf_getdents(
 	xfs_ino_t		ino;
 	struct xfs_da_geometry	*geo = args->geo;
 
-	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
-	ASSERT(dp->i_df.if_bytes == dp->i_d.di_size);
+	ASSERT(dp->i_df.if_format == XFS_DINODE_FMT_LOCAL);
+	ASSERT(dp->i_df.if_bytes == dp->i_disk_size);
 	ASSERT(dp->i_df.if_u1.if_data != NULL);
 
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
@@ -138,7 +138,8 @@ xfs_dir2_sf_getdents(
 STATIC int
 xfs_dir2_block_getdents(
 	struct xfs_da_args	*args,
-	struct dir_context	*ctx)
+	struct dir_context	*ctx,
+	unsigned int		*lock_mode)
 {
 	struct xfs_inode	*dp = args->dp;	/* incore directory inode */
 	struct xfs_buf		*bp;		/* buffer for block */
@@ -146,7 +147,6 @@ xfs_dir2_block_getdents(
 	int			wantoff;	/* starting block offset */
 	xfs_off_t		cook;
 	struct xfs_da_geometry	*geo = args->geo;
-	int			lock_mode;
 	unsigned int		offset, next_offset;
 	unsigned int		end;
 
@@ -156,11 +156,12 @@ xfs_dir2_block_getdents(
 	if (xfs_dir2_dataptr_to_db(geo, ctx->pos) > geo->datablk)
 		return 0;
 
-	lock_mode = xfs_ilock_data_map_shared(dp);
 	error = xfs_dir3_block_read(args->trans, dp, &bp);
-	xfs_iunlock(dp, lock_mode);
 	if (error)
 		return error;
+
+	xfs_iunlock(dp, *lock_mode);
+	*lock_mode = 0;
 
 	/*
 	 * Extract the byte offset we start at from the seek pointer.
@@ -258,11 +259,9 @@ xfs_dir2_leaf_readbuf(
 	int			ra_want;
 	int			error = 0;
 
-	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
-		error = xfs_iread_extents(args->trans, dp, XFS_DATA_FORK);
-		if (error)
-			goto out;
-	}
+	error = xfs_iread_extents(args->trans, dp, XFS_DATA_FORK);
+	if (error)
+		goto out;
 
 	/*
 	 * Look for mapped directory blocks at or above the current offset.
@@ -346,7 +345,8 @@ STATIC int
 xfs_dir2_leaf_getdents(
 	struct xfs_da_args	*args,
 	struct dir_context	*ctx,
-	size_t			bufsize)
+	size_t			bufsize,
+	unsigned int		*lock_mode)
 {
 	struct xfs_inode	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
@@ -358,7 +358,6 @@ xfs_dir2_leaf_getdents(
 	xfs_dir2_off_t		curoff;		/* current overall offset */
 	int			length;		/* temporary length value */
 	int			byteoff;	/* offset in current block */
-	int			lock_mode;
 	unsigned int		offset = 0;
 	int			error = 0;	/* error return value */
 
@@ -392,12 +391,15 @@ xfs_dir2_leaf_getdents(
 				bp = NULL;
 			}
 
-			lock_mode = xfs_ilock_data_map_shared(dp);
+			if (*lock_mode == 0)
+				*lock_mode = xfs_ilock_data_map_shared(dp);
 			error = xfs_dir2_leaf_readbuf(args, bufsize, &curoff,
 					&rablk, &bp);
-			xfs_iunlock(dp, lock_mode);
 			if (error || !bp)
 				break;
+
+			xfs_iunlock(dp, *lock_mode);
+			*lock_mode = 0;
 
 			xfs_dir3_data_check(dp, bp);
 			/*
@@ -498,7 +500,7 @@ xfs_dir2_leaf_getdents(
  *
  * If supplied, the transaction collects locked dir buffers to avoid
  * nested buffer deadlocks.  This function does not dirty the
- * transaction.  The caller should ensure that the inode is locked
+ * transaction.  The caller must hold the IOLOCK (shared or exclusive)
  * before calling this function.
  */
 int
@@ -509,15 +511,17 @@ xfs_readdir(
 	size_t			bufsize)
 {
 	struct xfs_da_args	args = { NULL };
-	int			rval;
-	int			v;
+	unsigned int		lock_mode;
+	int			isblock;
+	int			error;
 
 	trace_xfs_readdir(dp);
 
-	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
+	if (xfs_is_shutdown(dp->i_mount))
 		return -EIO;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
+	ASSERT(xfs_isilocked(dp, XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
 	XFS_STATS_INC(dp->i_mount, xs_dir_getdents);
 
 	args.dp = dp;
@@ -525,13 +529,22 @@ xfs_readdir(
 	args.trans = tp;
 
 	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
-		rval = xfs_dir2_sf_getdents(&args, ctx);
-	else if ((rval = xfs_dir2_isblock(&args, &v)))
-		;
-	else if (v)
-		rval = xfs_dir2_block_getdents(&args, ctx);
-	else
-		rval = xfs_dir2_leaf_getdents(&args, ctx, bufsize);
+		return xfs_dir2_sf_getdents(&args, ctx);
 
-	return rval;
+	lock_mode = xfs_ilock_data_map_shared(dp);
+	error = xfs_dir2_isblock(&args, &isblock);
+	if (error)
+		goto out_unlock;
+
+	if (isblock) {
+		error = xfs_dir2_block_getdents(&args, ctx, &lock_mode);
+		goto out_unlock;
+	}
+
+	error = xfs_dir2_leaf_getdents(&args, ctx, bufsize, &lock_mode);
+
+out_unlock:
+	if (lock_mode)
+		xfs_iunlock(dp, lock_mode);
+	return error;
 }

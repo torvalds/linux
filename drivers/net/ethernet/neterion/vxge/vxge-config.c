@@ -871,11 +871,11 @@ static enum vxge_hw_status
 __vxge_hw_vpath_card_info_get(struct __vxge_hw_virtualpath *vpath,
 			      struct vxge_hw_device_hw_info *hw_info)
 {
+	__be64 *serial_number = (void *)hw_info->serial_number;
+	__be64 *product_desc = (void *)hw_info->product_desc;
+	__be64 *part_number = (void *)hw_info->part_number;
 	enum vxge_hw_status status;
 	u64 data0, data1 = 0, steer_ctrl = 0;
-	u8 *serial_number = hw_info->serial_number;
-	u8 *part_number = hw_info->part_number;
-	u8 *product_desc = hw_info->product_desc;
 	u32 i, j = 0;
 
 	data0 = VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_SERIAL_NUMBER;
@@ -887,8 +887,8 @@ __vxge_hw_vpath_card_info_get(struct __vxge_hw_virtualpath *vpath,
 	if (status != VXGE_HW_OK)
 		return status;
 
-	((u64 *)serial_number)[0] = be64_to_cpu(data0);
-	((u64 *)serial_number)[1] = be64_to_cpu(data1);
+	serial_number[0] = cpu_to_be64(data0);
+	serial_number[1] = cpu_to_be64(data1);
 
 	data0 = VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_PART_NUMBER;
 	data1 = steer_ctrl = 0;
@@ -900,8 +900,8 @@ __vxge_hw_vpath_card_info_get(struct __vxge_hw_virtualpath *vpath,
 	if (status != VXGE_HW_OK)
 		return status;
 
-	((u64 *)part_number)[0] = be64_to_cpu(data0);
-	((u64 *)part_number)[1] = be64_to_cpu(data1);
+	part_number[0] = cpu_to_be64(data0);
+	part_number[1] = cpu_to_be64(data1);
 
 	for (i = VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_DESC_0;
 	     i <= VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_DESC_3; i++) {
@@ -915,8 +915,8 @@ __vxge_hw_vpath_card_info_get(struct __vxge_hw_virtualpath *vpath,
 		if (status != VXGE_HW_OK)
 			return status;
 
-		((u64 *)product_desc)[j++] = be64_to_cpu(data0);
-		((u64 *)product_desc)[j++] = be64_to_cpu(data1);
+		product_desc[j++] = cpu_to_be64(data0);
+		product_desc[j++] = cpu_to_be64(data1);
 	}
 
 	return status;
@@ -1121,7 +1121,7 @@ static void __vxge_hw_blockpool_destroy(struct __vxge_hw_blockpool *blockpool)
 
 	list_for_each_safe(p, n, &blockpool->free_entry_list) {
 		list_del(&((struct __vxge_hw_blockpool_entry *)p)->item);
-		kfree((void *)p);
+		kfree(p);
 	}
 
 	return;
@@ -3784,6 +3784,7 @@ vxge_hw_rts_rth_data0_data1_get(u32 j, u64 *data0, u64 *data1,
 			VXGE_HW_RTS_ACCESS_STEER_DATA1_RTH_ITEM1_ENTRY_EN |
 			VXGE_HW_RTS_ACCESS_STEER_DATA1_RTH_ITEM1_BUCKET_DATA(
 			itable[j]);
+		return;
 	default:
 		return;
 	}
@@ -4884,7 +4885,7 @@ vpath_open_exit1:
 }
 
 /**
- * vxge_hw_vpath_rx_doorbell_post - Close the handle got from previous vpath
+ * vxge_hw_vpath_rx_doorbell_init - Close the handle got from previous vpath
  * (vpath) open
  * @vp: Handle got from previous vpath open
  *

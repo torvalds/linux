@@ -198,15 +198,15 @@ static int jz4725b_out_stage_enable(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		return regmap_update_bits(map, JZ4725B_CODEC_REG_IFR,
-					  BIT(REG_IFR_RAMP_UP_DONE_OFFSET), 0);
+		return regmap_clear_bits(map, JZ4725B_CODEC_REG_IFR,
+					 BIT(REG_IFR_RAMP_UP_DONE_OFFSET));
 	case SND_SOC_DAPM_POST_PMU:
 		return regmap_read_poll_timeout(map, JZ4725B_CODEC_REG_IFR,
 			       val, val & BIT(REG_IFR_RAMP_UP_DONE_OFFSET),
 			       100000, 500000);
 	case SND_SOC_DAPM_PRE_PMD:
-		return regmap_update_bits(map, JZ4725B_CODEC_REG_IFR,
-				BIT(REG_IFR_RAMP_DOWN_DONE_OFFSET), 0);
+		return regmap_clear_bits(map, JZ4725B_CODEC_REG_IFR,
+				BIT(REG_IFR_RAMP_DOWN_DONE_OFFSET));
 	case SND_SOC_DAPM_POST_PMD:
 		return regmap_read_poll_timeout(map, JZ4725B_CODEC_REG_IFR,
 			       val, val & BIT(REG_IFR_RAMP_DOWN_DONE_OFFSET),
@@ -303,24 +303,22 @@ static int jz4725b_codec_set_bias_level(struct snd_soc_component *component,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		regmap_update_bits(map, JZ4725B_CODEC_REG_PMR2,
-				   BIT(REG_PMR2_SB_SLEEP_OFFSET), 0);
+		regmap_clear_bits(map, JZ4725B_CODEC_REG_PMR2,
+				  BIT(REG_PMR2_SB_SLEEP_OFFSET));
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		/* Enable sound hardware */
-		regmap_update_bits(map, JZ4725B_CODEC_REG_PMR2,
-				   BIT(REG_PMR2_SB_OFFSET), 0);
+		regmap_clear_bits(map, JZ4725B_CODEC_REG_PMR2,
+				  BIT(REG_PMR2_SB_OFFSET));
 		msleep(224);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		regmap_update_bits(map, JZ4725B_CODEC_REG_PMR2,
-				   BIT(REG_PMR2_SB_SLEEP_OFFSET),
-				   BIT(REG_PMR2_SB_SLEEP_OFFSET));
+		regmap_set_bits(map, JZ4725B_CODEC_REG_PMR2,
+				BIT(REG_PMR2_SB_SLEEP_OFFSET));
 		break;
 	case SND_SOC_BIAS_OFF:
-		regmap_update_bits(map, JZ4725B_CODEC_REG_PMR2,
-				   BIT(REG_PMR2_SB_OFFSET),
-				   BIT(REG_PMR2_SB_OFFSET));
+		regmap_set_bits(map, JZ4725B_CODEC_REG_PMR2,
+				BIT(REG_PMR2_SB_OFFSET));
 		break;
 	}
 

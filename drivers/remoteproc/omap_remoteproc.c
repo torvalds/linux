@@ -728,7 +728,7 @@ out:
  * Return: translated virtual address in kernel memory space on success,
  *         or NULL on failure.
  */
-static void *omap_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len)
+static void *omap_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
 {
 	struct omap_rproc *oproc = rproc->priv;
 	int i;
@@ -901,8 +901,7 @@ out:
 
 static int __maybe_unused omap_rproc_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rproc *rproc = platform_get_drvdata(pdev);
+	struct rproc *rproc = dev_get_drvdata(dev);
 	struct omap_rproc *oproc = rproc->priv;
 	int ret = 0;
 
@@ -938,8 +937,7 @@ out:
 
 static int __maybe_unused omap_rproc_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rproc *rproc = platform_get_drvdata(pdev);
+	struct rproc *rproc = dev_get_drvdata(dev);
 	struct omap_rproc *oproc = rproc->priv;
 	int ret = 0;
 

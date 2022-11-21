@@ -18,12 +18,11 @@ ccflags-y += -DDISABLE_BRANCH_PROFILING -DBUILD_VDSO32
 
 ldflags-$(CONFIG_CPU_ENDIAN_BE8) := --be8
 ldflags-y := -Bsymbolic --no-undefined -soname=linux-vdso.so.1 \
-	    -z max-page-size=4096 -nostdlib -shared $(ldflags-y) \
+	    -z max-page-size=4096 -shared $(ldflags-y) \
 	    --hash-style=sysv --build-id=sha1 \
 	    -T
 
 obj-$(CONFIG_VDSO) += vdso.o
-extra-$(CONFIG_VDSO) += vdso.lds
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
 
 CFLAGS_REMOVE_vdso.o = -pg
@@ -41,6 +40,8 @@ GCOV_PROFILE := n
 
 # Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
 KCOV_INSTRUMENT := n
+
+KASAN_SANITIZE := n
 
 # Force dependency
 $(obj)/vdso.o : $(obj)/vdso.so

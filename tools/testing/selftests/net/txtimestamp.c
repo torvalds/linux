@@ -26,6 +26,7 @@
 #include <inttypes.h>
 #include <linux/errqueue.h>
 #include <linux/if_ether.h>
+#include <linux/if_packet.h>
 #include <linux/ipv6.h>
 #include <linux/net_tstamp.h>
 #include <netdb.h>
@@ -34,7 +35,6 @@
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
-#include <netpacket/packet.h>
 #include <poll.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -161,7 +161,7 @@ static void validate_timestamp(struct timespec *cur, int min_delay)
 	max_delay = min_delay + cfg_delay_tolerance_usec;
 
 	if (cur64 < start64 + min_delay || cur64 > start64 + max_delay) {
-		fprintf(stderr, "ERROR: %lu us expected between %d and %d\n",
+		fprintf(stderr, "ERROR: %" PRId64 " us expected between %d and %d\n",
 				cur64 - start64, min_delay, max_delay);
 		test_failed = true;
 	}
@@ -170,9 +170,9 @@ static void validate_timestamp(struct timespec *cur, int min_delay)
 static void __print_ts_delta_formatted(int64_t ts_delta)
 {
 	if (cfg_print_nsec)
-		fprintf(stderr, "%lu ns", ts_delta);
+		fprintf(stderr, "%" PRId64 " ns", ts_delta);
 	else
-		fprintf(stderr, "%lu us", ts_delta / NSEC_PER_USEC);
+		fprintf(stderr, "%" PRId64 " us", ts_delta / NSEC_PER_USEC);
 }
 
 static void __print_timestamp(const char *name, struct timespec *cur,
@@ -495,12 +495,12 @@ static void do_test(int family, unsigned int report_opt)
 	total_len = cfg_payload_len;
 	if (cfg_use_pf_packet || cfg_proto == SOCK_RAW) {
 		total_len += sizeof(struct udphdr);
-		if (cfg_use_pf_packet || cfg_ipproto == IPPROTO_RAW)
+		if (cfg_use_pf_packet || cfg_ipproto == IPPROTO_RAW) {
 			if (family == PF_INET)
 				total_len += sizeof(struct iphdr);
 			else
 				total_len += sizeof(struct ipv6hdr);
-
+		}
 		/* special case, only rawv6_sendmsg:
 		 * pass proto in sin6_port if not connected
 		 * also see ANK comment in net/ipv4/raw.c

@@ -109,6 +109,8 @@ static inline u64 arm_pmu_event_max_period(struct perf_event *event)
 {
 	if (event->hw.flags & ARMPMU_EVT_64BIT)
 		return GENMASK_ULL(63, 0);
+	else if (event->hw.flags & ARMPMU_EVT_47BIT)
+		return GENMASK_ULL(46, 0);
 	else
 		return GENMASK_ULL(31, 0);
 }
@@ -398,6 +400,9 @@ validate_group(struct perf_event *event)
 	if (!validate_event(event->pmu, &fake_pmu, leader))
 		return -EINVAL;
 
+	if (event == leader)
+		return 0;
+
 	for_each_sibling_event(sibling, leader) {
 		if (!validate_event(event->pmu, &fake_pmu, sibling))
 			return -EINVAL;
@@ -487,12 +492,7 @@ __hw_perf_event_init(struct perf_event *event)
 		local64_set(&hwc->period_left, hwc->sample_period);
 	}
 
-	if (event->group_leader != event) {
-		if (validate_group(event) != 0)
-			return -EINVAL;
-	}
-
-	return 0;
+	return validate_group(event);
 }
 
 static int armpmu_event_init(struct perf_event *event)
@@ -524,7 +524,7 @@ static void armpmu_enable(struct pmu *pmu)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(pmu);
 	struct pmu_hw_events *hw_events = this_cpu_ptr(armpmu->hw_events);
-	int enabled = bitmap_weight(hw_events->used_mask, armpmu->num_events);
+	bool enabled = !bitmap_empty(hw_events->used_mask, armpmu->num_events);
 
 	/* For task-bound events we may be called on other CPUs */
 	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->supported_cpus))
@@ -563,50 +563,23 @@ static int armpmu_filter_match(struct perf_event *event)
 	return ret;
 }
 
-static ssize_t armpmu_cpumask_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t cpus_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(dev_get_drvdata(dev));
 	return cpumap_print_to_pagebuf(true, buf, &armpmu->supported_cpus);
 }
 
-static DEVICE_ATTR(cpus, S_IRUGO, armpmu_cpumask_show, NULL);
+static DEVICE_ATTR_RO(cpus);
 
 static struct attribute *armpmu_common_attrs[] = {
 	&dev_attr_cpus.attr,
 	NULL,
 };
 
-static struct attribute_group armpmu_common_attr_group = {
+static const struct attribute_group armpmu_common_attr_group = {
 	.attrs = armpmu_common_attrs,
 };
-
-/* Set at runtime when we know what CPU type we are. */
-static struct arm_pmu *__oprofile_cpu_pmu;
-
-/*
- * Despite the names, these two functions are CPU-specific and are used
- * by the OProfile/perf code.
- */
-const char *perf_pmu_name(void)
-{
-	if (!__oprofile_cpu_pmu)
-		return NULL;
-
-	return __oprofile_cpu_pmu->name;
-}
-EXPORT_SYMBOL_GPL(perf_pmu_name);
-
-int perf_num_counters(void)
-{
-	int max_events = 0;
-
-	if (__oprofile_cpu_pmu != NULL)
-		max_events = __oprofile_cpu_pmu->num_events;
-
-	return max_events;
-}
-EXPORT_SYMBOL_GPL(perf_num_counters);
 
 static int armpmu_count_irq_users(const int irq)
 {
@@ -671,10 +644,8 @@ int armpmu_request_irq(int irq, int cpu)
 		}
 
 		irq_flags = IRQF_PERCPU |
-			    IRQF_NOBALANCING |
+			    IRQF_NOBALANCING | IRQF_NO_AUTOEN |
 			    IRQF_NO_THREAD;
-
-		irq_set_status_flags(irq, IRQ_NOAUTOEN);
 
 		err = request_nmi(irq, handler, irq_flags, "arm-pmu",
 				  per_cpu_ptr(&cpu_armpmu, cpu));
@@ -697,7 +668,7 @@ int armpmu_request_irq(int irq, int cpu)
 						 &cpu_armpmu);
 			irq_ops = &percpu_pmuirq_ops;
 		} else {
-			has_nmi= true;
+			has_nmi = true;
 			irq_ops = &percpu_pmunmi_ops;
 		}
 	} else {
@@ -814,7 +785,7 @@ static int cpu_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
 {
 	struct arm_pmu *armpmu = container_of(b, struct arm_pmu, cpu_pm_nb);
 	struct pmu_hw_events *hw_events = this_cpu_ptr(armpmu->hw_events);
-	int enabled = bitmap_weight(hw_events->used_mask, armpmu->num_events);
+	bool enabled = !bitmap_empty(hw_events->used_mask, armpmu->num_events);
 
 	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->supported_cpus))
 		return NOTIFY_DONE;
@@ -896,10 +867,8 @@ static struct arm_pmu *__armpmu_alloc(gfp_t flags)
 	int cpu;
 
 	pmu = kzalloc(sizeof(*pmu), flags);
-	if (!pmu) {
-		pr_info("failed to allocate PMU device!\n");
+	if (!pmu)
 		goto out;
-	}
 
 	pmu->hw_events = alloc_percpu_gfp(struct pmu_hw_events, flags);
 	if (!pmu->hw_events) {
@@ -979,12 +948,11 @@ int armpmu_register(struct arm_pmu *pmu)
 	if (ret)
 		goto out_destroy;
 
-	if (!__oprofile_cpu_pmu)
-		__oprofile_cpu_pmu = pmu;
-
 	pr_info("enabled with %s PMU driver, %d counters available%s\n",
 		pmu->name, pmu->num_events,
 		has_nmi ? ", using NMIs" : "");
+
+	kvm_host_pmu_init(pmu);
 
 	return 0;
 

@@ -107,9 +107,9 @@ static struct regulator *mpr121_vdd_supply_init(struct device *dev)
 		return ERR_PTR(err);
 	}
 
-	err = devm_add_action(dev, mpr121_vdd_supply_disable, vdd_supply);
+	err = devm_add_action_or_reset(dev, mpr121_vdd_supply_disable,
+				       vdd_supply);
 	if (err) {
-		regulator_disable(vdd_supply);
 		dev_err(dev, "failed to add disable regulator action: %d\n",
 			err);
 		return ERR_PTR(err);

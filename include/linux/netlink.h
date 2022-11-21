@@ -11,6 +11,8 @@
 
 struct net;
 
+void do_trace_netlink_extack(const char *msg);
+
 static inline struct nlmsghdr *nlmsg_hdr(const struct sk_buff *skb)
 {
 	return (struct nlmsghdr *)skb->data;
@@ -90,6 +92,8 @@ struct netlink_ext_ack {
 	static const char __msg[] = msg;		\
 	struct netlink_ext_ack *__extack = (extack);	\
 							\
+	do_trace_netlink_extack(__msg);			\
+							\
 	if (__extack)					\
 		__extack->_msg = __msg;			\
 } while (0)
@@ -110,6 +114,8 @@ struct netlink_ext_ack {
 	static const char __msg[] = msg;			\
 	struct netlink_ext_ack *__extack = (extack);		\
 								\
+	do_trace_netlink_extack(__msg);				\
+								\
 	if (__extack) {						\
 		__extack->_msg = __msg;				\
 		__extack->bad_attr = (attr);			\
@@ -123,23 +129,10 @@ struct netlink_ext_ack {
 static inline void nl_set_extack_cookie_u64(struct netlink_ext_ack *extack,
 					    u64 cookie)
 {
-	u64 __cookie = cookie;
-
 	if (!extack)
 		return;
-	memcpy(extack->cookie, &__cookie, sizeof(__cookie));
-	extack->cookie_len = sizeof(__cookie);
-}
-
-static inline void nl_set_extack_cookie_u32(struct netlink_ext_ack *extack,
-					    u32 cookie)
-{
-	u32 __cookie = cookie;
-
-	if (!extack)
-		return;
-	memcpy(extack->cookie, &__cookie, sizeof(__cookie));
-	extack->cookie_len = sizeof(__cookie);
+	memcpy(extack->cookie, &cookie, sizeof(cookie));
+	extack->cookie_len = sizeof(cookie);
 }
 
 void netlink_kernel_release(struct sock *sk);
@@ -154,10 +147,6 @@ bool netlink_strict_get_check(struct sk_buff *skb);
 int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 portid, int nonblock);
 int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, __u32 portid,
 		      __u32 group, gfp_t allocation);
-int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb,
-			       __u32 portid, __u32 group, gfp_t allocation,
-			       int (*filter)(struct sock *dsk, struct sk_buff *skb, void *data),
-			       void *filter_data);
 int netlink_set_err(struct sock *ssk, __u32 portid, __u32 group, int code);
 int netlink_register_notifier(struct notifier_block *nb);
 int netlink_unregister_notifier(struct notifier_block *nb);

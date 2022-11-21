@@ -18,7 +18,7 @@ struct nvkm_sec2 {
 	bool initmsg_received;
 };
 
-int gp102_sec2_new(struct nvkm_device *, int, struct nvkm_sec2 **);
-int gp108_sec2_new(struct nvkm_device *, int, struct nvkm_sec2 **);
-int tu102_sec2_new(struct nvkm_device *, int, struct nvkm_sec2 **);
+int gp102_sec2_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_sec2 **);
+int gp108_sec2_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_sec2 **);
+int tu102_sec2_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_sec2 **);
 #endif

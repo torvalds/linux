@@ -18,6 +18,8 @@ void __init trap_init(void);
 asmlinkage __visible noinstr struct pt_regs *vc_switch_off_ist(struct pt_regs *eregs);
 #endif
 
+extern bool ibt_selftest(void);
+
 #ifdef CONFIG_X86_F00F_BUG
 /* For handling the FOOF bug */
 void handle_invalid_op(struct pt_regs *regs);
@@ -40,9 +42,9 @@ void math_emulate(struct math_emu_info *);
 bool fault_in_kernel_space(unsigned long address);
 
 #ifdef CONFIG_VMAP_STACK
-void __noreturn handle_stack_overflow(const char *message,
-				      struct pt_regs *regs,
-				      unsigned long fault_address);
+void __noreturn handle_stack_overflow(struct pt_regs *regs,
+				      unsigned long fault_address,
+				      struct stack_info *info);
 #endif
 
 #endif /* _ASM_X86_TRAPS_H */

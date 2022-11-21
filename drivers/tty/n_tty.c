@@ -49,6 +49,7 @@
 #include <linux/module.h>
 #include <linux/ratelimit.h>
 #include <linux/vmalloc.h>
+#include "tty.h"
 
 /*
  * Until this number of characters is queued in the xmit buffer, select will
@@ -164,43 +165,37 @@ static void zero_buffer(struct tty_struct *tty, u8 *buffer, int size)
 		memset(buffer, 0x00, size);
 }
 
-static int tty_copy_to_user(struct tty_struct *tty, void __user *to,
-			    size_t tail, size_t n)
+static void tty_copy(struct tty_struct *tty, void *to, size_t tail, size_t n)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t size = N_TTY_BUF_SIZE - tail;
 	void *from = read_buf_addr(ldata, tail);
-	int uncopied;
 
 	if (n > size) {
 		tty_audit_add_data(tty, from, size);
-		uncopied = copy_to_user(to, from, size);
-		zero_buffer(tty, from, size - uncopied);
-		if (uncopied)
-			return uncopied;
+		memcpy(to, from, size);
+		zero_buffer(tty, from, size);
 		to += size;
 		n -= size;
 		from = ldata->read_buf;
 	}
 
 	tty_audit_add_data(tty, from, n);
-	uncopied = copy_to_user(to, from, n);
-	zero_buffer(tty, from, n - uncopied);
-	return uncopied;
+	memcpy(to, from, n);
+	zero_buffer(tty, from, n);
 }
 
 /**
- *	n_tty_kick_worker - start input worker (if required)
- *	@tty: terminal
+ * n_tty_kick_worker - start input worker (if required)
+ * @tty: terminal
  *
- *	Re-schedules the flip buffer work if it may have stopped
+ * Re-schedules the flip buffer work if it may have stopped.
  *
- *	Caller holds exclusive termios_rwsem
- *	   or
- *	n_tty_read()/consumer path:
- *		holds non-exclusive termios_rwsem
+ * Locking:
+ *  * Caller holds exclusive %termios_rwsem, or
+ *  * n_tty_read()/consumer path:
+ *	holds non-exclusive %termios_rwsem
  */
-
 static void n_tty_kick_worker(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -234,14 +229,12 @@ static ssize_t chars_in_buffer(struct tty_struct *tty)
 }
 
 /**
- *	n_tty_write_wakeup	-	asynchronous I/O notifier
- *	@tty: tty device
+ * n_tty_write_wakeup	-	asynchronous I/O notifier
+ * @tty: tty device
  *
- *	Required for the ptys, serial driver etc. since processes
- *	that attach themselves to the master and rely on ASYNC
- *	IO must be woken up
+ * Required for the ptys, serial driver etc. since processes that attach
+ * themselves to the master and rely on ASYNC IO must be woken up.
  */
-
 static void n_tty_write_wakeup(struct tty_struct *tty)
 {
 	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
@@ -304,16 +297,16 @@ static void n_tty_check_unthrottle(struct tty_struct *tty)
 }
 
 /**
- *	put_tty_queue		-	add character to tty
- *	@c: character
- *	@ldata: n_tty data
+ * put_tty_queue		-	add character to tty
+ * @c: character
+ * @ldata: n_tty data
  *
- *	Add a character to the tty read_buf queue.
+ * Add a character to the tty read_buf queue.
  *
- *	n_tty_receive_buf()/producer path:
- *		caller holds non-exclusive termios_rwsem
+ * Locking:
+ *  * n_tty_receive_buf()/producer path:
+ *	caller holds non-exclusive %termios_rwsem
  */
-
 static inline void put_tty_queue(unsigned char c, struct n_tty_data *ldata)
 {
 	*read_buf_addr(ldata, ldata->read_head) = c;
@@ -321,16 +314,16 @@ static inline void put_tty_queue(unsigned char c, struct n_tty_data *ldata)
 }
 
 /**
- *	reset_buffer_flags	-	reset buffer state
- *	@ldata: line disc data to reset
+ * reset_buffer_flags	-	reset buffer state
+ * @ldata: line disc data to reset
  *
- *	Reset the read buffer counters and clear the flags.
- *	Called from n_tty_open() and n_tty_flush_buffer().
+ * Reset the read buffer counters and clear the flags. Called from
+ * n_tty_open() and n_tty_flush_buffer().
  *
- *	Locking: caller holds exclusive termios_rwsem
- *		 (or locking is not required)
+ * Locking:
+ *  * caller holds exclusive %termios_rwsem, or
+ *  * (locking is not required)
  */
-
 static void reset_buffer_flags(struct n_tty_data *ldata)
 {
 	ldata->read_head = ldata->canon_head = ldata->read_tail = 0;
@@ -346,28 +339,27 @@ static void n_tty_packet_mode_flush(struct tty_struct *tty)
 {
 	unsigned long flags;
 
-	if (tty->link->packet) {
-		spin_lock_irqsave(&tty->ctrl_lock, flags);
-		tty->ctrl_status |= TIOCPKT_FLUSHREAD;
-		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+	if (tty->link->ctrl.packet) {
+		spin_lock_irqsave(&tty->ctrl.lock, flags);
+		tty->ctrl.pktstatus |= TIOCPKT_FLUSHREAD;
+		spin_unlock_irqrestore(&tty->ctrl.lock, flags);
 		wake_up_interruptible(&tty->link->read_wait);
 	}
 }
 
 /**
- *	n_tty_flush_buffer	-	clean input queue
- *	@tty:	terminal device
+ * n_tty_flush_buffer	-	clean input queue
+ * @tty: terminal device
  *
- *	Flush the input buffer. Called when the tty layer wants the
- *	buffer flushed (eg at hangup) or when the N_TTY line discipline
- *	internally has to clean the pending queue (for example some signals).
+ * Flush the input buffer. Called when the tty layer wants the buffer flushed
+ * (eg at hangup) or when the %N_TTY line discipline internally has to clean
+ * the pending queue (for example some signals).
  *
- *	Holds termios_rwsem to exclude producer/consumer while
- *	buffer indices are reset.
+ * Holds %termios_rwsem to exclude producer/consumer while buffer indices are
+ * reset.
  *
- *	Locking: ctrl_lock, exclusive termios_rwsem
+ * Locking: %ctrl.lock, exclusive %termios_rwsem
  */
-
 static void n_tty_flush_buffer(struct tty_struct *tty)
 {
 	down_write(&tty->termios_rwsem);
@@ -380,54 +372,50 @@ static void n_tty_flush_buffer(struct tty_struct *tty)
 }
 
 /**
- *	is_utf8_continuation	-	utf8 multibyte check
- *	@c: byte to check
+ * is_utf8_continuation	-	utf8 multibyte check
+ * @c: byte to check
  *
- *	Returns true if the utf8 character 'c' is a multibyte continuation
- *	character. We use this to correctly compute the on screen size
- *	of the character when printing
+ * Returns: true if the utf8 character @c is a multibyte continuation
+ * character. We use this to correctly compute the on-screen size of the
+ * character when printing.
  */
-
 static inline int is_utf8_continuation(unsigned char c)
 {
 	return (c & 0xc0) == 0x80;
 }
 
 /**
- *	is_continuation		-	multibyte check
- *	@c: byte to check
+ * is_continuation	-	multibyte check
+ * @c: byte to check
+ * @tty: terminal device
  *
- *	Returns true if the utf8 character 'c' is a multibyte continuation
- *	character and the terminal is in unicode mode.
+ * Returns: true if the utf8 character @c is a multibyte continuation character
+ * and the terminal is in unicode mode.
  */
-
 static inline int is_continuation(unsigned char c, struct tty_struct *tty)
 {
 	return I_IUTF8(tty) && is_utf8_continuation(c);
 }
 
 /**
- *	do_output_char			-	output one character
- *	@c: character (or partial unicode symbol)
- *	@tty: terminal device
- *	@space: space available in tty driver write buffer
+ * do_output_char	-	output one character
+ * @c: character (or partial unicode symbol)
+ * @tty: terminal device
+ * @space: space available in tty driver write buffer
  *
- *	This is a helper function that handles one output character
- *	(including special characters like TAB, CR, LF, etc.),
- *	doing OPOST processing and putting the results in the
- *	tty driver's write buffer.
+ * This is a helper function that handles one output character (including
+ * special characters like TAB, CR, LF, etc.), doing OPOST processing and
+ * putting the results in the tty driver's write buffer.
  *
- *	Note that Linux currently ignores TABDLY, CRDLY, VTDLY, FFDLY
- *	and NLDLY.  They simply aren't relevant in the world today.
- *	If you ever need them, add them here.
+ * Note that Linux currently ignores TABDLY, CRDLY, VTDLY, FFDLY and NLDLY.
+ * They simply aren't relevant in the world today. If you ever need them, add
+ * them here.
  *
- *	Returns the number of bytes of buffer space used or -1 if
- *	no space left.
+ * Returns: the number of bytes of buffer space used or -1 if no space left.
  *
- *	Locking: should be called under the output_lock to protect
- *		 the column state and space left in the buffer
+ * Locking: should be called under the %output_lock to protect the column state
+ * and space left in the buffer.
  */
-
 static int do_output_char(unsigned char c, struct tty_struct *tty, int space)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -490,19 +478,18 @@ static int do_output_char(unsigned char c, struct tty_struct *tty, int space)
 }
 
 /**
- *	process_output			-	output post processor
- *	@c: character (or partial unicode symbol)
- *	@tty: terminal device
+ * process_output	-	output post processor
+ * @c: character (or partial unicode symbol)
+ * @tty: terminal device
  *
- *	Output one character with OPOST processing.
- *	Returns -1 when the output device is full and the character
- *	must be retried.
+ * Output one character with OPOST processing.
  *
- *	Locking: output_lock to protect column state and space left
- *		 (also, this is called from n_tty_write under the
- *		  tty layer write lock)
+ * Returns: -1 when the output device is full and the character must be
+ * retried.
+ *
+ * Locking: %output_lock to protect column state and space left (also, this is
+ *called from n_tty_write() under the tty layer write lock).
  */
-
 static int process_output(unsigned char c, struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -521,24 +508,23 @@ static int process_output(unsigned char c, struct tty_struct *tty)
 }
 
 /**
- *	process_output_block		-	block post processor
- *	@tty: terminal device
- *	@buf: character buffer
- *	@nr: number of bytes to output
+ * process_output_block	-	block post processor
+ * @tty: terminal device
+ * @buf: character buffer
+ * @nr: number of bytes to output
  *
- *	Output a block of characters with OPOST processing.
- *	Returns the number of characters output.
+ * Output a block of characters with OPOST processing.
  *
- *	This path is used to speed up block console writes, among other
- *	things when processing blocks of output data. It handles only
- *	the simple cases normally found and helps to generate blocks of
- *	symbols for the console driver and thus improve performance.
+ * This path is used to speed up block console writes, among other things when
+ * processing blocks of output data. It handles only the simple cases normally
+ * found and helps to generate blocks of symbols for the console driver and
+ * thus improve performance.
  *
- *	Locking: output_lock to protect column state and space left
- *		 (also, this is called from n_tty_write under the
- *		  tty layer write lock)
+ * Returns: the number of characters output.
+ *
+ * Locking: %output_lock to protect column state and space left (also, this is
+ * called from n_tty_write() under the tty layer write lock).
  */
-
 static ssize_t process_output_block(struct tty_struct *tty,
 				    const unsigned char *buf, unsigned int nr)
 {
@@ -599,30 +585,27 @@ break_out:
 }
 
 /**
- *	process_echoes	-	write pending echo characters
- *	@tty: terminal device
+ * __process_echoes	-	write pending echo characters
+ * @tty: terminal device
  *
- *	Write previously buffered echo (and other ldisc-generated)
- *	characters to the tty.
+ * Write previously buffered echo (and other ldisc-generated) characters to the
+ * tty.
  *
- *	Characters generated by the ldisc (including echoes) need to
- *	be buffered because the driver's write buffer can fill during
- *	heavy program output.  Echoing straight to the driver will
- *	often fail under these conditions, causing lost characters and
- *	resulting mismatches of ldisc state information.
+ * Characters generated by the ldisc (including echoes) need to be buffered
+ * because the driver's write buffer can fill during heavy program output.
+ * Echoing straight to the driver will often fail under these conditions,
+ * causing lost characters and resulting mismatches of ldisc state information.
  *
- *	Since the ldisc state must represent the characters actually sent
- *	to the driver at the time of the write, operations like certain
- *	changes in column state are also saved in the buffer and executed
- *	here.
+ * Since the ldisc state must represent the characters actually sent to the
+ * driver at the time of the write, operations like certain changes in column
+ * state are also saved in the buffer and executed here.
  *
- *	A circular fifo buffer is used so that the most recent characters
- *	are prioritized.  Also, when control characters are echoed with a
- *	prefixed "^", the pair is treated atomically and thus not separated.
+ * A circular fifo buffer is used so that the most recent characters are
+ * prioritized. Also, when control characters are echoed with a prefixed "^",
+ * the pair is treated atomically and thus not separated.
  *
- *	Locking: callers must hold output_lock
+ * Locking: callers must hold %output_lock.
  */
-
 static size_t __process_echoes(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -831,13 +814,12 @@ static void flush_echoes(struct tty_struct *tty)
 }
 
 /**
- *	add_echo_byte	-	add a byte to the echo buffer
- *	@c: unicode byte to echo
- *	@ldata: n_tty data
+ * add_echo_byte	-	add a byte to the echo buffer
+ * @c: unicode byte to echo
+ * @ldata: n_tty data
  *
- *	Add a character or operation byte to the echo buffer.
+ * Add a character or operation byte to the echo buffer.
  */
-
 static inline void add_echo_byte(unsigned char c, struct n_tty_data *ldata)
 {
 	*echo_buf_addr(ldata, ldata->echo_head) = c;
@@ -846,12 +828,11 @@ static inline void add_echo_byte(unsigned char c, struct n_tty_data *ldata)
 }
 
 /**
- *	echo_move_back_col	-	add operation to move back a column
- *	@ldata: n_tty data
+ * echo_move_back_col	-	add operation to move back a column
+ * @ldata: n_tty data
  *
- *	Add an operation to the echo buffer to move back one column.
+ * Add an operation to the echo buffer to move back one column.
  */
-
 static void echo_move_back_col(struct n_tty_data *ldata)
 {
 	add_echo_byte(ECHO_OP_START, ldata);
@@ -859,13 +840,12 @@ static void echo_move_back_col(struct n_tty_data *ldata)
 }
 
 /**
- *	echo_set_canon_col	-	add operation to set the canon column
- *	@ldata: n_tty data
+ * echo_set_canon_col	-	add operation to set the canon column
+ * @ldata: n_tty data
  *
- *	Add an operation to the echo buffer to set the canon column
- *	to the current column.
+ * Add an operation to the echo buffer to set the canon column to the current
+ * column.
  */
-
 static void echo_set_canon_col(struct n_tty_data *ldata)
 {
 	add_echo_byte(ECHO_OP_START, ldata);
@@ -873,20 +853,18 @@ static void echo_set_canon_col(struct n_tty_data *ldata)
 }
 
 /**
- *	echo_erase_tab	-	add operation to erase a tab
- *	@num_chars: number of character columns already used
- *	@after_tab: true if num_chars starts after a previous tab
- *	@ldata: n_tty data
+ * echo_erase_tab	-	add operation to erase a tab
+ * @num_chars: number of character columns already used
+ * @after_tab: true if num_chars starts after a previous tab
+ * @ldata: n_tty data
  *
- *	Add an operation to the echo buffer to erase a tab.
+ * Add an operation to the echo buffer to erase a tab.
  *
- *	Called by the eraser function, which knows how many character
- *	columns have been used since either a previous tab or the start
- *	of input.  This information will be used later, along with
- *	canon column (if applicable), to go back the correct number
- *	of columns.
+ * Called by the eraser function, which knows how many character columns have
+ * been used since either a previous tab or the start of input. This
+ * information will be used later, along with canon column (if applicable), to
+ * go back the correct number of columns.
  */
-
 static void echo_erase_tab(unsigned int num_chars, int after_tab,
 			   struct n_tty_data *ldata)
 {
@@ -904,16 +882,15 @@ static void echo_erase_tab(unsigned int num_chars, int after_tab,
 }
 
 /**
- *	echo_char_raw	-	echo a character raw
- *	@c: unicode byte to echo
- *	@ldata: line disc data
+ * echo_char_raw	-	echo a character raw
+ * @c: unicode byte to echo
+ * @ldata: line disc data
  *
- *	Echo user input back onto the screen. This must be called only when
- *	L_ECHO(tty) is true. Called from the driver receive_buf path.
+ * Echo user input back onto the screen. This must be called only when
+ * L_ECHO(tty) is true. Called from the &tty_driver.receive_buf() path.
  *
- *	This variant does not treat control characters specially.
+ * This variant does not treat control characters specially.
  */
-
 static void echo_char_raw(unsigned char c, struct n_tty_data *ldata)
 {
 	if (c == ECHO_OP_START) {
@@ -925,17 +902,16 @@ static void echo_char_raw(unsigned char c, struct n_tty_data *ldata)
 }
 
 /**
- *	echo_char	-	echo a character
- *	@c: unicode byte to echo
- *	@tty: terminal device
+ * echo_char		-	echo a character
+ * @c: unicode byte to echo
+ * @tty: terminal device
  *
- *	Echo user input back onto the screen. This must be called only when
- *	L_ECHO(tty) is true. Called from the driver receive_buf path.
+ * Echo user input back onto the screen. This must be called only when
+ * L_ECHO(tty) is true. Called from the &tty_driver.receive_buf() path.
  *
- *	This variant tags control characters to be echoed as "^X"
- *	(where X is the letter representing the control char).
+ * This variant tags control characters to be echoed as "^X" (where X is the
+ * letter representing the control char).
  */
-
 static void echo_char(unsigned char c, struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -951,10 +927,9 @@ static void echo_char(unsigned char c, struct tty_struct *tty)
 }
 
 /**
- *	finish_erasing		-	complete erase
- *	@ldata: n_tty data
+ * finish_erasing	-	complete erase
+ * @ldata: n_tty data
  */
-
 static inline void finish_erasing(struct n_tty_data *ldata)
 {
 	if (ldata->erasing) {
@@ -964,18 +939,17 @@ static inline void finish_erasing(struct n_tty_data *ldata)
 }
 
 /**
- *	eraser		-	handle erase function
- *	@c: character input
- *	@tty: terminal device
+ * eraser		-	handle erase function
+ * @c: character input
+ * @tty: terminal device
  *
- *	Perform erase and necessary output when an erase character is
- *	present in the stream from the driver layer. Handles the complexities
- *	of UTF-8 multibyte symbols.
+ * Perform erase and necessary output when an erase character is present in the
+ * stream from the driver layer. Handles the complexities of UTF-8 multibyte
+ * symbols.
  *
- *	n_tty_receive_buf()/producer path:
- *		caller holds non-exclusive termios_rwsem
+ * Locking: n_tty_receive_buf()/producer path:
+ *	caller holds non-exclusive %termios_rwsem
  */
-
 static void eraser(unsigned char c, struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1094,20 +1068,6 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 		finish_erasing(ldata);
 }
 
-/**
- *	isig		-	handle the ISIG optio
- *	@sig: signal
- *	@tty: terminal
- *
- *	Called when a signal is being sent due to terminal input.
- *	Called from the driver receive_buf path so serialized.
- *
- *	Performs input and output flush if !NOFLSH. In this context, the echo
- *	buffer is 'output'. The signal is processed first to alert any current
- *	readers or writers to discontinue and exit their i/o loops.
- *
- *	Locking: ctrl_lock
- */
 
 static void __isig(int sig, struct tty_struct *tty)
 {
@@ -1118,6 +1078,20 @@ static void __isig(int sig, struct tty_struct *tty)
 	}
 }
 
+/**
+ * isig			-	handle the ISIG optio
+ * @sig: signal
+ * @tty: terminal
+ *
+ * Called when a signal is being sent due to terminal input. Called from the
+ * &tty_driver.receive_buf() path, so serialized.
+ *
+ * Performs input and output flush if !NOFLSH. In this context, the echo
+ * buffer is 'output'. The signal is processed first to alert any current
+ * readers or writers to discontinue and exit their i/o loops.
+ *
+ * Locking: %ctrl.lock
+ */
 static void isig(int sig, struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1154,18 +1128,17 @@ static void isig(int sig, struct tty_struct *tty)
 }
 
 /**
- *	n_tty_receive_break	-	handle break
- *	@tty: terminal
+ * n_tty_receive_break	-	handle break
+ * @tty: terminal
  *
- *	An RS232 break event has been hit in the incoming bitstream. This
- *	can cause a variety of events depending upon the termios settings.
+ * An RS232 break event has been hit in the incoming bitstream. This can cause
+ * a variety of events depending upon the termios settings.
  *
- *	n_tty_receive_buf()/producer path:
- *		caller holds non-exclusive termios_rwsem
+ * Locking: n_tty_receive_buf()/producer path:
+ *	caller holds non-exclusive termios_rwsem
  *
- *	Note: may get exclusive termios_rwsem if flushing input buffer
+ * Note: may get exclusive %termios_rwsem if flushing input buffer
  */
-
 static void n_tty_receive_break(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1184,18 +1157,15 @@ static void n_tty_receive_break(struct tty_struct *tty)
 }
 
 /**
- *	n_tty_receive_overrun	-	handle overrun reporting
- *	@tty: terminal
+ * n_tty_receive_overrun	-	handle overrun reporting
+ * @tty: terminal
  *
- *	Data arrived faster than we could process it. While the tty
- *	driver has flagged this the bits that were missed are gone
- *	forever.
+ * Data arrived faster than we could process it. While the tty driver has
+ * flagged this the bits that were missed are gone forever.
  *
- *	Called from the receive_buf path so single threaded. Does not
- *	need locking as num_overrun and overrun_time are function
- *	private.
+ * Called from the receive_buf path so single threaded. Does not need locking
+ * as num_overrun and overrun_time are function private.
  */
-
 static void n_tty_receive_overrun(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1210,15 +1180,15 @@ static void n_tty_receive_overrun(struct tty_struct *tty)
 }
 
 /**
- *	n_tty_receive_parity_error	-	error notifier
- *	@tty: terminal device
- *	@c: character
+ * n_tty_receive_parity_error	-	error notifier
+ * @tty: terminal device
+ * @c: character
  *
- *	Process a parity error and queue the right data to indicate
- *	the error case if necessary.
+ * Process a parity error and queue the right data to indicate the error case
+ * if necessary.
  *
- *	n_tty_receive_buf()/producer path:
- *		caller holds non-exclusive termios_rwsem
+ * Locking: n_tty_receive_buf()/producer path:
+ * 	caller holds non-exclusive %termios_rwsem
  */
 static void n_tty_receive_parity_error(struct tty_struct *tty, unsigned char c)
 {
@@ -1248,27 +1218,9 @@ n_tty_receive_signal_char(struct tty_struct *tty, int signal, unsigned char c)
 		commit_echoes(tty);
 	} else
 		process_echoes(tty);
-	return;
 }
 
-/**
- *	n_tty_receive_char	-	perform processing
- *	@tty: terminal device
- *	@c: character
- *
- *	Process an individual character of input received from the driver.
- *	This is serialized with respect to itself by the rules for the
- *	driver above.
- *
- *	n_tty_receive_buf()/producer path:
- *		caller holds non-exclusive termios_rwsem
- *		publishes canon_head if canonical mode is active
- *
- *	Returns 1 if LNEXT was received, else returns 0
- */
-
-static int
-n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
+static void n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
@@ -1276,35 +1228,35 @@ n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 		if (c == START_CHAR(tty)) {
 			start_tty(tty);
 			process_echoes(tty);
-			return 0;
+			return;
 		}
 		if (c == STOP_CHAR(tty)) {
 			stop_tty(tty);
-			return 0;
+			return;
 		}
 	}
 
 	if (L_ISIG(tty)) {
 		if (c == INTR_CHAR(tty)) {
 			n_tty_receive_signal_char(tty, SIGINT, c);
-			return 0;
+			return;
 		} else if (c == QUIT_CHAR(tty)) {
 			n_tty_receive_signal_char(tty, SIGQUIT, c);
-			return 0;
+			return;
 		} else if (c == SUSP_CHAR(tty)) {
 			n_tty_receive_signal_char(tty, SIGTSTP, c);
-			return 0;
+			return;
 		}
 	}
 
-	if (tty->stopped && !tty->flow_stopped && I_IXON(tty) && I_IXANY(tty)) {
+	if (tty->flow.stopped && !tty->flow.tco_stopped && I_IXON(tty) && I_IXANY(tty)) {
 		start_tty(tty);
 		process_echoes(tty);
 	}
 
 	if (c == '\r') {
 		if (I_IGNCR(tty))
-			return 0;
+			return;
 		if (I_ICRNL(tty))
 			c = '\n';
 	} else if (c == '\n' && I_INLCR(tty))
@@ -1315,7 +1267,7 @@ n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 		    (c == WERASE_CHAR(tty) && L_IEXTEN(tty))) {
 			eraser(c, tty);
 			commit_echoes(tty);
-			return 0;
+			return;
 		}
 		if (c == LNEXT_CHAR(tty) && L_IEXTEN(tty)) {
 			ldata->lnext = 1;
@@ -1327,7 +1279,7 @@ n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 					commit_echoes(tty);
 				}
 			}
-			return 1;
+			return;
 		}
 		if (c == REPRINT_CHAR(tty) && L_ECHO(tty) && L_IEXTEN(tty)) {
 			size_t tail = ldata->canon_head;
@@ -1340,7 +1292,7 @@ n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 				tail++;
 			}
 			commit_echoes(tty);
-			return 0;
+			return;
 		}
 		if (c == '\n') {
 			if (L_ECHO(tty) || L_ECHONL(tty)) {
@@ -1377,8 +1329,8 @@ handle_newline:
 			put_tty_queue(c, ldata);
 			smp_store_release(&ldata->canon_head, ldata->read_head);
 			kill_fasync(&tty->fasync, SIGIO, POLL_IN);
-			wake_up_interruptible_poll(&tty->read_wait, EPOLLIN);
-			return 0;
+			wake_up_interruptible_poll(&tty->read_wait, EPOLLIN | EPOLLRDNORM);
+			return;
 		}
 	}
 
@@ -1400,15 +1352,25 @@ handle_newline:
 		put_tty_queue(c, ldata);
 
 	put_tty_queue(c, ldata);
-	return 0;
 }
 
-static inline void
-n_tty_receive_char_inline(struct tty_struct *tty, unsigned char c)
+/**
+ * n_tty_receive_char	-	perform processing
+ * @tty: terminal device
+ * @c: character
+ *
+ * Process an individual character of input received from the driver.  This is
+ * serialized with respect to itself by the rules for the driver above.
+ *
+ * Locking: n_tty_receive_buf()/producer path:
+ *	caller holds non-exclusive %termios_rwsem
+ *	publishes canon_head if canonical mode is active
+ */
+static void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
-	if (tty->stopped && !tty->flow_stopped && I_IXON(tty) && I_IXANY(tty)) {
+	if (tty->flow.stopped && !tty->flow.tco_stopped && I_IXON(tty) && I_IXANY(tty)) {
 		start_tty(tty);
 		process_echoes(tty);
 	}
@@ -1426,31 +1388,6 @@ n_tty_receive_char_inline(struct tty_struct *tty, unsigned char c)
 	put_tty_queue(c, ldata);
 }
 
-static void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
-{
-	n_tty_receive_char_inline(tty, c);
-}
-
-static inline void
-n_tty_receive_char_fast(struct tty_struct *tty, unsigned char c)
-{
-	struct n_tty_data *ldata = tty->disc_data;
-
-	if (tty->stopped && !tty->flow_stopped && I_IXON(tty) && I_IXANY(tty)) {
-		start_tty(tty);
-		process_echoes(tty);
-	}
-	if (L_ECHO(tty)) {
-		finish_erasing(ldata);
-		/* Record the column of first canon char. */
-		if (ldata->canon_head == ldata->read_head)
-			echo_set_canon_col(ldata);
-		echo_char(c, tty);
-		commit_echoes(tty);
-	}
-	put_tty_queue(c, ldata);
-}
-
 static void n_tty_receive_char_closing(struct tty_struct *tty, unsigned char c)
 {
 	if (I_ISTRIP(tty))
@@ -1462,7 +1399,7 @@ static void n_tty_receive_char_closing(struct tty_struct *tty, unsigned char c)
 		if (c == STOP_CHAR(tty))
 			stop_tty(tty);
 		else if (c == START_CHAR(tty) ||
-			 (tty->stopped && !tty->flow_stopped && I_IXANY(tty) &&
+			 (tty->flow.stopped && !tty->flow.tco_stopped && I_IXANY(tty) &&
 			  c != INTR_CHAR(tty) && c != QUIT_CHAR(tty) &&
 			  c != SUSP_CHAR(tty))) {
 			start_tty(tty);
@@ -1509,7 +1446,7 @@ n_tty_receive_char_lnext(struct tty_struct *tty, unsigned char c, char flag)
 
 static void
 n_tty_receive_buf_real_raw(struct tty_struct *tty, const unsigned char *cp,
-			   char *fp, int count)
+			   const char *fp, int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t n, head;
@@ -1529,7 +1466,7 @@ n_tty_receive_buf_real_raw(struct tty_struct *tty, const unsigned char *cp,
 
 static void
 n_tty_receive_buf_raw(struct tty_struct *tty, const unsigned char *cp,
-		      char *fp, int count)
+		      const char *fp, int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	char flag = TTY_NORMAL;
@@ -1546,7 +1483,7 @@ n_tty_receive_buf_raw(struct tty_struct *tty, const unsigned char *cp,
 
 static void
 n_tty_receive_buf_closing(struct tty_struct *tty, const unsigned char *cp,
-			  char *fp, int count)
+			  const char *fp, int count)
 {
 	char flag = TTY_NORMAL;
 
@@ -1558,68 +1495,46 @@ n_tty_receive_buf_closing(struct tty_struct *tty, const unsigned char *cp,
 	}
 }
 
-static void
-n_tty_receive_buf_standard(struct tty_struct *tty, const unsigned char *cp,
-			  char *fp, int count)
+static void n_tty_receive_buf_standard(struct tty_struct *tty,
+		const unsigned char *cp, const char *fp, int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	char flag = TTY_NORMAL;
 
 	while (count--) {
+		unsigned char c = *cp++;
+
 		if (fp)
 			flag = *fp++;
-		if (likely(flag == TTY_NORMAL)) {
-			unsigned char c = *cp++;
 
-			if (I_ISTRIP(tty))
-				c &= 0x7f;
-			if (I_IUCLC(tty) && L_IEXTEN(tty))
-				c = tolower(c);
-			if (L_EXTPROC(tty)) {
-				put_tty_queue(c, ldata);
-				continue;
-			}
-			if (!test_bit(c, ldata->char_map))
-				n_tty_receive_char_inline(tty, c);
-			else if (n_tty_receive_char_special(tty, c) && count) {
-				if (fp)
-					flag = *fp++;
-				n_tty_receive_char_lnext(tty, *cp++, flag);
-				count--;
-			}
-		} else
-			n_tty_receive_char_flagged(tty, *cp++, flag);
-	}
-}
+		if (ldata->lnext) {
+			n_tty_receive_char_lnext(tty, c, flag);
+			continue;
+		}
 
-static void
-n_tty_receive_buf_fast(struct tty_struct *tty, const unsigned char *cp,
-		       char *fp, int count)
-{
-	struct n_tty_data *ldata = tty->disc_data;
-	char flag = TTY_NORMAL;
+		if (unlikely(flag != TTY_NORMAL)) {
+			n_tty_receive_char_flagged(tty, c, flag);
+			continue;
+		}
 
-	while (count--) {
-		if (fp)
-			flag = *fp++;
-		if (likely(flag == TTY_NORMAL)) {
-			unsigned char c = *cp++;
+		if (I_ISTRIP(tty))
+			c &= 0x7f;
+		if (I_IUCLC(tty) && L_IEXTEN(tty))
+			c = tolower(c);
+		if (L_EXTPROC(tty)) {
+			put_tty_queue(c, ldata);
+			continue;
+		}
 
-			if (!test_bit(c, ldata->char_map))
-				n_tty_receive_char_fast(tty, c);
-			else if (n_tty_receive_char_special(tty, c) && count) {
-				if (fp)
-					flag = *fp++;
-				n_tty_receive_char_lnext(tty, *cp++, flag);
-				count--;
-			}
-		} else
-			n_tty_receive_char_flagged(tty, *cp++, flag);
+		if (test_bit(c, ldata->char_map))
+			n_tty_receive_char_special(tty, c);
+		else
+			n_tty_receive_char(tty, c);
 	}
 }
 
 static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
-			  char *fp, int count)
+			  const char *fp, int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	bool preops = I_ISTRIP(tty) || (I_IUCLC(tty) && L_IEXTEN(tty));
@@ -1631,19 +1546,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	else if (tty->closing && !L_EXTPROC(tty))
 		n_tty_receive_buf_closing(tty, cp, fp, count);
 	else {
-		if (ldata->lnext) {
-			char flag = TTY_NORMAL;
-
-			if (fp)
-				flag = *fp++;
-			n_tty_receive_char_lnext(tty, *cp++, flag);
-			count--;
-		}
-
-		if (!preops && !I_PARMRK(tty))
-			n_tty_receive_buf_fast(tty, cp, fp, count);
-		else
-			n_tty_receive_buf_standard(tty, cp, fp, count);
+		n_tty_receive_buf_standard(tty, cp, fp, count);
 
 		flush_echoes(tty);
 		if (tty->ops->flush_chars)
@@ -1658,46 +1561,46 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 
 	if (read_cnt(ldata)) {
 		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
-		wake_up_interruptible_poll(&tty->read_wait, EPOLLIN);
+		wake_up_interruptible_poll(&tty->read_wait, EPOLLIN | EPOLLRDNORM);
 	}
 }
 
 /**
- *	n_tty_receive_buf_common	-	process input
- *	@tty: device to receive input
- *	@cp: input chars
- *	@fp: flags for each char (if NULL, all chars are TTY_NORMAL)
- *	@count: number of input chars in @cp
+ * n_tty_receive_buf_common	-	process input
+ * @tty: device to receive input
+ * @cp: input chars
+ * @fp: flags for each char (if %NULL, all chars are %TTY_NORMAL)
+ * @count: number of input chars in @cp
+ * @flow: enable flow control
  *
- *	Called by the terminal driver when a block of characters has
- *	been received. This function must be called from soft contexts
- *	not from interrupt context. The driver is responsible for making
- *	calls one at a time and in order (or using flush_to_ldisc)
+ * Called by the terminal driver when a block of characters has been received.
+ * This function must be called from soft contexts not from interrupt context.
+ * The driver is responsible for making calls one at a time and in order (or
+ * using flush_to_ldisc()).
  *
- *	Returns the # of input chars from @cp which were processed.
+ * Returns: the # of input chars from @cp which were processed.
  *
- *	In canonical mode, the maximum line length is 4096 chars (including
- *	the line termination char); lines longer than 4096 chars are
- *	truncated. After 4095 chars, input data is still processed but
- *	not stored. Overflow processing ensures the tty can always
- *	receive more input until at least one line can be read.
+ * In canonical mode, the maximum line length is 4096 chars (including the line
+ * termination char); lines longer than 4096 chars are truncated. After 4095
+ * chars, input data is still processed but not stored. Overflow processing
+ * ensures the tty can always receive more input until at least one line can be
+ * read.
  *
- *	In non-canonical mode, the read buffer will only accept 4095 chars;
- *	this provides the necessary space for a newline char if the input
- *	mode is switched to canonical.
+ * In non-canonical mode, the read buffer will only accept 4095 chars; this
+ * provides the necessary space for a newline char if the input mode is
+ * switched to canonical.
  *
- *	Note it is possible for the read buffer to _contain_ 4096 chars
- *	in non-canonical mode: the read buffer could already contain the
- *	maximum canon line of 4096 chars when the mode is switched to
- *	non-canonical.
+ * Note it is possible for the read buffer to _contain_ 4096 chars in
+ * non-canonical mode: the read buffer could already contain the maximum canon
+ * line of 4096 chars when the mode is switched to non-canonical.
  *
- *	n_tty_receive_buf()/producer path:
- *		claims non-exclusive termios_rwsem
- *		publishes commit_head or canon_head
+ * Locking: n_tty_receive_buf()/producer path:
+ *	claims non-exclusive %termios_rwsem
+ *	publishes commit_head or canon_head
  */
 static int
 n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
-			 char *fp, int count, int flow)
+			 const char *fp, int count, int flow)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	int room, n, rcvd = 0, overflow;
@@ -1766,31 +1669,29 @@ n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
 }
 
 static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-			      char *fp, int count)
+			      const char *fp, int count)
 {
 	n_tty_receive_buf_common(tty, cp, fp, count, 0);
 }
 
 static int n_tty_receive_buf2(struct tty_struct *tty, const unsigned char *cp,
-			      char *fp, int count)
+			      const char *fp, int count)
 {
 	return n_tty_receive_buf_common(tty, cp, fp, count, 1);
 }
 
 /**
- *	n_tty_set_termios	-	termios data changed
- *	@tty: terminal
- *	@old: previous data
+ * n_tty_set_termios	-	termios data changed
+ * @tty: terminal
+ * @old: previous data
  *
- *	Called by the tty layer when the user changes termios flags so
- *	that the line discipline can plan ahead. This function cannot sleep
- *	and is protected from re-entry by the tty layer. The user is
- *	guaranteed that this function will not be re-entered or in progress
- *	when the ldisc is closed.
+ * Called by the tty layer when the user changes termios flags so that the line
+ * discipline can plan ahead. This function cannot sleep and is protected from
+ * re-entry by the tty layer. The user is guaranteed that this function will
+ * not be re-entered or in progress when the ldisc is closed.
  *
- *	Locking: Caller holds tty->termios_rwsem
+ * Locking: Caller holds @tty->termios_rwsem
  */
-
 static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1865,7 +1766,7 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	 * Fix tty hang when I_IXON(tty) is cleared, but the tty
 	 * been stopped by STOP_CHAR(tty) before it.
 	 */
-	if (!I_IXON(tty) && old && (old->c_iflag & IXON) && !tty->flow_stopped) {
+	if (!I_IXON(tty) && old && (old->c_iflag & IXON) && !tty->flow.tco_stopped) {
 		start_tty(tty);
 		process_echoes(tty);
 	}
@@ -1876,15 +1777,13 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 }
 
 /**
- *	n_tty_close		-	close the ldisc for this tty
- *	@tty: device
+ * n_tty_close		-	close the ldisc for this tty
+ * @tty: device
  *
- *	Called from the terminal layer when this line discipline is
- *	being shut down, either because of a close or becsuse of a
- *	discipline change. The function will not be called while other
- *	ldisc methods are in progress.
+ * Called from the terminal layer when this line discipline is being shut down,
+ * either because of a close or becsuse of a discipline change. The function
+ * will not be called while other ldisc methods are in progress.
  */
-
 static void n_tty_close(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1892,20 +1791,20 @@ static void n_tty_close(struct tty_struct *tty)
 	if (tty->link)
 		n_tty_packet_mode_flush(tty);
 
+	down_write(&tty->termios_rwsem);
 	vfree(ldata);
 	tty->disc_data = NULL;
+	up_write(&tty->termios_rwsem);
 }
 
 /**
- *	n_tty_open		-	open an ldisc
- *	@tty: terminal to open
+ * n_tty_open		-	open an ldisc
+ * @tty: terminal to open
  *
- *	Called when this line discipline is being attached to the
- *	terminal device. Can sleep. Called serialized so that no
- *	other events will occur in parallel. No further open will occur
- *	until a close.
+ * Called when this line discipline is being attached to the terminal device.
+ * Can sleep. Called serialized so that no other events will occur in parallel.
+ * No further open will occur until a close.
  */
-
 static int n_tty_open(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata;
@@ -1940,44 +1839,39 @@ static inline int input_available_p(struct tty_struct *tty, int poll)
 }
 
 /**
- *	copy_from_read_buf	-	copy read data directly
- *	@tty: terminal device
- *	@b: user data
- *	@nr: size of data
+ * copy_from_read_buf	-	copy read data directly
+ * @tty: terminal device
+ * @kbp: data
+ * @nr: size of data
  *
- *	Helper function to speed up n_tty_read.  It is only called when
- *	ICANON is off; it copies characters straight from the tty queue to
- *	user space directly.  It can be profitably called twice; once to
- *	drain the space from the tail pointer to the (physical) end of the
- *	buffer, and once to drain the space from the (physical) beginning of
- *	the buffer to head pointer.
+ * Helper function to speed up n_tty_read(). It is only called when %ICANON is
+ * off; it copies characters straight from the tty queue.
  *
- *	Called under the ldata->atomic_read_lock sem
+ * Returns: true if it successfully copied data, but there is still more data
+ * to be had.
  *
- *	n_tty_read()/consumer path:
- *		caller holds non-exclusive termios_rwsem
+ * Locking:
+ *  * called under the @ldata->atomic_read_lock sem
+ *  * n_tty_read()/consumer path:
+ *		caller holds non-exclusive %termios_rwsem;
  *		read_tail published
  */
-
-static int copy_from_read_buf(struct tty_struct *tty,
-				      unsigned char __user **b,
+static bool copy_from_read_buf(struct tty_struct *tty,
+				      unsigned char **kbp,
 				      size_t *nr)
 
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	int retval;
 	size_t n;
 	bool is_eof;
 	size_t head = smp_load_acquire(&ldata->commit_head);
 	size_t tail = ldata->read_tail & (N_TTY_BUF_SIZE - 1);
 
-	retval = 0;
 	n = min(head - ldata->read_tail, N_TTY_BUF_SIZE - tail);
 	n = min(*nr, n);
 	if (n) {
 		unsigned char *from = read_buf_addr(ldata, tail);
-		retval = copy_to_user(*b, from, n);
-		n -= retval;
+		memcpy(*kbp, from, n);
 		is_eof = n == 1 && *from == EOF_CHAR(tty);
 		tty_audit_add_data(tty, from, n);
 		zero_buffer(tty, from, n);
@@ -1985,51 +1879,54 @@ static int copy_from_read_buf(struct tty_struct *tty,
 		/* Turn single EOF into zero-length read */
 		if (L_EXTPROC(tty) && ldata->icanon && is_eof &&
 		    (head == ldata->read_tail))
-			n = 0;
-		*b += n;
+			return false;
+		*kbp += n;
 		*nr -= n;
+
+		/* If we have more to copy, let the caller know */
+		return head != ldata->read_tail;
 	}
-	return retval;
+	return false;
 }
 
 /**
- *	canon_copy_from_read_buf	-	copy read data in canonical mode
- *	@tty: terminal device
- *	@b: user data
- *	@nr: size of data
+ * canon_copy_from_read_buf	-	copy read data in canonical mode
+ * @tty: terminal device
+ * @kbp: data
+ * @nr: size of data
  *
- *	Helper function for n_tty_read.  It is only called when ICANON is on;
- *	it copies one line of input up to and including the line-delimiting
- *	character into the user-space buffer.
+ * Helper function for n_tty_read(). It is only called when %ICANON is on; it
+ * copies one line of input up to and including the line-delimiting character
+ * into the result buffer.
  *
- *	NB: When termios is changed from non-canonical to canonical mode and
- *	the read buffer contains data, n_tty_set_termios() simulates an EOF
- *	push (as if C-d were input) _without_ the DISABLED_CHAR in the buffer.
- *	This causes data already processed as input to be immediately available
- *	as input although a newline has not been received.
+ * Note: When termios is changed from non-canonical to canonical mode and the
+ * read buffer contains data, n_tty_set_termios() simulates an EOF push (as if
+ * C-d were input) _without_ the %DISABLED_CHAR in the buffer. This causes data
+ * already processed as input to be immediately available as input although a
+ * newline has not been received.
  *
- *	Called under the atomic_read_lock mutex
- *
- *	n_tty_read()/consumer path:
- *		caller holds non-exclusive termios_rwsem
- *		read_tail published
+ * Locking:
+ *  * called under the %atomic_read_lock mutex
+ *  * n_tty_read()/consumer path:
+ *	caller holds non-exclusive %termios_rwsem;
+ *	read_tail published
  */
-
-static int canon_copy_from_read_buf(struct tty_struct *tty,
-				    unsigned char __user **b,
-				    size_t *nr)
+static bool canon_copy_from_read_buf(struct tty_struct *tty,
+				     unsigned char **kbp,
+				     size_t *nr)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t n, size, more, c;
 	size_t eol;
-	size_t tail;
-	int ret, found = 0;
+	size_t tail, canon_head;
+	int found = 0;
 
 	/* N.B. avoid overrun if nr == 0 */
 	if (!*nr)
-		return 0;
+		return false;
 
-	n = min(*nr + 1, smp_load_acquire(&ldata->canon_head) - ldata->read_tail);
+	canon_head = smp_load_acquire(&ldata->canon_head);
+	n = min(*nr, canon_head - ldata->read_tail);
 
 	tail = ldata->read_tail & (N_TTY_BUF_SIZE - 1);
 	size = min_t(size_t, tail + n, N_TTY_BUF_SIZE);
@@ -2041,7 +1938,7 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 	more = n - (size - tail);
 	if (eol == N_TTY_BUF_SIZE && more) {
 		/* scan wrapped without finding set bit */
-		eol = find_next_bit(ldata->read_flags, more, 0);
+		eol = find_first_bit(ldata->read_flags, more);
 		found = eol != more;
 	} else
 		found = eol != size;
@@ -2051,18 +1948,14 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 		n += N_TTY_BUF_SIZE;
 	c = n + found;
 
-	if (!found || read_buf(ldata, eol) != __DISABLED_CHAR) {
-		c = min(*nr, c);
+	if (!found || read_buf(ldata, eol) != __DISABLED_CHAR)
 		n = c;
-	}
 
 	n_tty_trace("%s: eol:%zu found:%d n:%zu c:%zu tail:%zu more:%zu\n",
 		    __func__, eol, found, n, c, tail, more);
 
-	ret = tty_copy_to_user(tty, *b, tail, n);
-	if (ret)
-		return -EFAULT;
-	*b += n;
+	tty_copy(tty, *kbp, tail, n);
+	*kbp += n;
 	*nr -= n;
 
 	if (found)
@@ -2075,27 +1968,27 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 		else
 			ldata->push = 0;
 		tty_audit_push();
+		return false;
 	}
-	return 0;
+
+	/* No EOL found - do a continuation retry if there is more data */
+	return ldata->read_tail != canon_head;
 }
 
-extern ssize_t redirected_tty_write(struct file *, const char __user *,
-							size_t, loff_t *);
-
 /**
- *	job_control		-	check job control
- *	@tty: tty
- *	@file: file handle
+ * job_control		-	check job control
+ * @tty: tty
+ * @file: file handle
  *
- *	Perform job control management checks on this file/tty descriptor
- *	and if appropriate send any needed signals and return a negative
- *	error code if action should be taken.
+ * Perform job control management checks on this @file/@tty descriptor and if
+ * appropriate send any needed signals and return a negative error code if
+ * action should be taken.
  *
- *	Locking: redirected write test is safe
- *		 current->signal->tty check is safe
- *		 ctrl_lock to safely reference tty->pgrp
+ * Locking:
+ *  * redirected write test is safe
+ *  * current->signal->tty check is safe
+ *  * ctrl.lock to safely reference @tty->ctrl.pgrp
  */
-
 static int job_control(struct tty_struct *tty, struct file *file)
 {
 	/* Job control check -- must be done at start and after
@@ -2103,7 +1996,7 @@ static int job_control(struct tty_struct *tty, struct file *file)
 	/* NOTE: not yet done after every sleep pending a thorough
 	   check of the logic of this change. -- jlc */
 	/* don't stop on /dev/console */
-	if (file->f_op->write == redirected_tty_write)
+	if (file->f_op->write_iter == redirected_tty_write)
 		return 0;
 
 	return __tty_check_change(tty, SIGTTIN);
@@ -2111,36 +2004,62 @@ static int job_control(struct tty_struct *tty, struct file *file)
 
 
 /**
- *	n_tty_read		-	read function for tty
- *	@tty: tty device
- *	@file: file object
- *	@buf: userspace buffer pointer
- *	@nr: size of I/O
+ * n_tty_read		-	read function for tty
+ * @tty: tty device
+ * @file: file object
+ * @kbuf: kernelspace buffer pointer
+ * @nr: size of I/O
+ * @cookie: if non-%NULL, this is a continuation read
+ * @offset: where to continue reading from (unused in n_tty)
  *
- *	Perform reads for the line discipline. We are guaranteed that the
- *	line discipline will not be closed under us but we may get multiple
- *	parallel readers and must handle this ourselves. We may also get
- *	a hangup. Always called in user context, may sleep.
+ * Perform reads for the line discipline. We are guaranteed that the line
+ * discipline will not be closed under us but we may get multiple parallel
+ * readers and must handle this ourselves. We may also get a hangup. Always
+ * called in user context, may sleep.
  *
- *	This code must be sure never to sleep through a hangup.
+ * This code must be sure never to sleep through a hangup.
  *
- *	n_tty_read()/consumer path:
- *		claims non-exclusive termios_rwsem
- *		publishes read_tail
+ * Locking: n_tty_read()/consumer path:
+ *	claims non-exclusive termios_rwsem;
+ *	publishes read_tail
  */
-
 static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
-			 unsigned char __user *buf, size_t nr)
+			  unsigned char *kbuf, size_t nr,
+			  void **cookie, unsigned long offset)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	unsigned char __user *b = buf;
+	unsigned char *kb = kbuf;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	int c;
 	int minimum, time;
 	ssize_t retval = 0;
 	long timeout;
-	int packet;
+	bool packet;
 	size_t tail;
+
+	/*
+	 * Is this a continuation of a read started earler?
+	 *
+	 * If so, we still hold the atomic_read_lock and the
+	 * termios_rwsem, and can just continue to copy data.
+	 */
+	if (*cookie) {
+		if (ldata->icanon && !L_EXTPROC(tty)) {
+			if (canon_copy_from_read_buf(tty, &kb, &nr))
+				return kb - kbuf;
+		} else {
+			if (copy_from_read_buf(tty, &kb, &nr))
+				return kb - kbuf;
+		}
+
+		/* No more data - release locks and stop retries */
+		n_tty_kick_worker(tty);
+		n_tty_check_unthrottle(tty);
+		up_read(&tty->termios_rwsem);
+		mutex_unlock(&ldata->atomic_read_lock);
+		*cookie = NULL;
+		return kb - kbuf;
+	}
 
 	c = job_control(tty, file);
 	if (c < 0)
@@ -2171,25 +2090,21 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 		}
 	}
 
-	packet = tty->packet;
+	packet = tty->ctrl.packet;
 	tail = ldata->read_tail;
 
 	add_wait_queue(&tty->read_wait, &wait);
 	while (nr) {
 		/* First test for status change. */
-		if (packet && tty->link->ctrl_status) {
+		if (packet && tty->link->ctrl.pktstatus) {
 			unsigned char cs;
-			if (b != buf)
+			if (kb != kbuf)
 				break;
-			spin_lock_irq(&tty->link->ctrl_lock);
-			cs = tty->link->ctrl_status;
-			tty->link->ctrl_status = 0;
-			spin_unlock_irq(&tty->link->ctrl_lock);
-			if (put_user(cs, b)) {
-				retval = -EFAULT;
-				break;
-			}
-			b++;
+			spin_lock_irq(&tty->link->ctrl.lock);
+			cs = tty->link->ctrl.pktstatus;
+			tty->link->ctrl.pktstatus = 0;
+			spin_unlock_irq(&tty->link->ctrl.lock);
+			*kb++ = cs;
 			nr--;
 			break;
 		}
@@ -2232,33 +2147,35 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 		}
 
 		if (ldata->icanon && !L_EXTPROC(tty)) {
-			retval = canon_copy_from_read_buf(tty, &b, &nr);
-			if (retval)
-				break;
+			if (canon_copy_from_read_buf(tty, &kb, &nr))
+				goto more_to_be_read;
 		} else {
-			int uncopied;
-
 			/* Deal with packet mode. */
-			if (packet && b == buf) {
-				if (put_user(TIOCPKT_DATA, b)) {
-					retval = -EFAULT;
-					break;
-				}
-				b++;
+			if (packet && kb == kbuf) {
+				*kb++ = TIOCPKT_DATA;
 				nr--;
 			}
 
-			uncopied = copy_from_read_buf(tty, &b, &nr);
-			uncopied += copy_from_read_buf(tty, &b, &nr);
-			if (uncopied) {
-				retval = -EFAULT;
-				break;
+			/*
+			 * Copy data, and if there is more to be had
+			 * and we have nothing more to wait for, then
+			 * let's mark us for retries.
+			 *
+			 * NOTE! We return here with both the termios_sem
+			 * and atomic_read_lock still held, the retries
+			 * will release them when done.
+			 */
+			if (copy_from_read_buf(tty, &kb, &nr) && kb - kbuf >= minimum) {
+more_to_be_read:
+				remove_wait_queue(&tty->read_wait, &wait);
+				*cookie = cookie;
+				return kb - kbuf;
 			}
 		}
 
 		n_tty_check_unthrottle(tty);
 
-		if (b - buf >= minimum)
+		if (kb - kbuf >= minimum)
 			break;
 		if (time)
 			timeout = time;
@@ -2270,32 +2187,30 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	remove_wait_queue(&tty->read_wait, &wait);
 	mutex_unlock(&ldata->atomic_read_lock);
 
-	if (b - buf)
-		retval = b - buf;
+	if (kb - kbuf)
+		retval = kb - kbuf;
 
 	return retval;
 }
 
 /**
- *	n_tty_write		-	write function for tty
- *	@tty: tty device
- *	@file: file object
- *	@buf: userspace buffer pointer
- *	@nr: size of I/O
+ * n_tty_write		-	write function for tty
+ * @tty: tty device
+ * @file: file object
+ * @buf: userspace buffer pointer
+ * @nr: size of I/O
  *
- *	Write function of the terminal device.  This is serialized with
- *	respect to other write callers but not to termios changes, reads
- *	and other such events.  Since the receive code will echo characters,
- *	thus calling driver write methods, the output_lock is used in
- *	the output processing functions called here as well as in the
- *	echo processing function to protect the column state and space
- *	left in the buffer.
+ * Write function of the terminal device. This is serialized with respect to
+ * other write callers but not to termios changes, reads and other such events.
+ * Since the receive code will echo characters, thus calling driver write
+ * methods, the %output_lock is used in the output processing functions called
+ * here as well as in the echo processing function to protect the column state
+ * and space left in the buffer.
  *
- *	This code must be sure never to sleep through a hangup.
+ * This code must be sure never to sleep through a hangup.
  *
- *	Locking: output_lock to protect column state and space left
- *		 (note that the process_output*() functions take this
- *		  lock themselves)
+ * Locking: output_lock to protect column state and space left
+ *	 (note that the process_output*() functions take this lock themselves)
  */
 
 static ssize_t n_tty_write(struct tty_struct *tty, struct file *file,
@@ -2307,7 +2222,7 @@ static ssize_t n_tty_write(struct tty_struct *tty, struct file *file,
 	ssize_t retval = 0;
 
 	/* Job control check -- must be done at start (POSIX.1 7.1.1.4). */
-	if (L_TOSTOP(tty) && file->f_op->write != redirected_tty_write) {
+	if (L_TOSTOP(tty) && file->f_op->write_iter != redirected_tty_write) {
 		retval = tty_check_change(tty);
 		if (retval)
 			return retval;
@@ -2386,19 +2301,19 @@ break_out:
 }
 
 /**
- *	n_tty_poll		-	poll method for N_TTY
- *	@tty: terminal device
- *	@file: file accessing it
- *	@wait: poll table
+ * n_tty_poll		-	poll method for N_TTY
+ * @tty: terminal device
+ * @file: file accessing it
+ * @wait: poll table
  *
- *	Called when the line discipline is asked to poll() for data or
- *	for special events. This code is not serialized with respect to
- *	other events save open/close.
+ * Called when the line discipline is asked to poll() for data or for special
+ * events. This code is not serialized with respect to other events save
+ * open/close.
  *
- *	This code must be sure never to sleep through a hangup.
- *	Called without the kernel lock held - fine
+ * This code must be sure never to sleep through a hangup.
+ *
+ * Locking: called without the kernel lock held -- fine.
  */
-
 static __poll_t n_tty_poll(struct tty_struct *tty, struct file *file,
 							poll_table *wait)
 {
@@ -2413,7 +2328,7 @@ static __poll_t n_tty_poll(struct tty_struct *tty, struct file *file,
 		if (input_available_p(tty, 1))
 			mask |= EPOLLIN | EPOLLRDNORM;
 	}
-	if (tty->packet && tty->link->ctrl_status)
+	if (tty->ctrl.packet && tty->link->ctrl.pktstatus)
 		mask |= EPOLLPRI | EPOLLIN | EPOLLRDNORM;
 	if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
 		mask |= EPOLLHUP;
@@ -2445,8 +2360,8 @@ static unsigned long inq_canon(struct n_tty_data *ldata)
 	return nr;
 }
 
-static int n_tty_ioctl(struct tty_struct *tty, struct file *file,
-		       unsigned int cmd, unsigned long arg)
+static int n_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+		       unsigned long arg)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	int retval;
@@ -2463,12 +2378,13 @@ static int n_tty_ioctl(struct tty_struct *tty, struct file *file,
 		up_write(&tty->termios_rwsem);
 		return put_user(retval, (unsigned int __user *) arg);
 	default:
-		return n_tty_ioctl_helper(tty, file, cmd, arg);
+		return n_tty_ioctl_helper(tty, cmd, arg);
 	}
 }
 
 static struct tty_ldisc_ops n_tty_ops = {
-	.magic           = TTY_LDISC_MAGIC,
+	.owner		 = THIS_MODULE,
+	.num		 = N_TTY,
 	.name            = "n_tty",
 	.open            = n_tty_open,
 	.close           = n_tty_close,
@@ -2494,11 +2410,10 @@ void n_tty_inherit_ops(struct tty_ldisc_ops *ops)
 {
 	*ops = n_tty_ops;
 	ops->owner = NULL;
-	ops->refcount = ops->flags = 0;
 }
 EXPORT_SYMBOL_GPL(n_tty_inherit_ops);
 
 void __init n_tty_init(void)
 {
-	tty_register_ldisc(N_TTY, &n_tty_ops);
+	tty_register_ldisc(&n_tty_ops);
 }

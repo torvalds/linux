@@ -38,31 +38,31 @@
     "EventName": "ic_fetch_stall.ic_stall_any",
     "EventCode": "0x87",
     "BriefDescription": "Instruction Pipe Stall. IC pipe was stalled during this clock cycle for any reason (nothing valid in pipe ICM1).",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "ic_fetch_stall.ic_stall_dq_empty",
     "EventCode": "0x87",
     "BriefDescription": "Instruction Pipe Stall. IC pipe was stalled during this clock cycle (including IC to OC fetches) due to DQ empty.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "ic_fetch_stall.ic_stall_back_pressure",
     "EventCode": "0x87",
     "BriefDescription": "Instruction Pipe Stall. IC pipe was stalled during this clock cycle (including IC to OC fetches) due to back-pressure.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "ic_cache_inval.l2_invalidating_probe",
     "EventCode": "0x8c",
     "BriefDescription": "IC line invalidated due to L2 invalidating probe (external or LS). The number of instruction cache lines invalidated. A non-SMC event is CMC (cross modifying code), either from the other thread of the core or another core.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "ic_cache_inval.fill_invalidated",
     "EventCode": "0x8c",
     "BriefDescription": "IC line invalidated due to overwriting fill response. The number of instruction cache lines invalidated. A non-SMC event is CMC (cross modifying code), either from the other thread of the core or another core.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "bp_tlb_rel",
@@ -97,25 +97,25 @@
     "EventName": "l2_request_g1.change_to_x",
     "EventCode": "0x60",
     "BriefDescription": "All L2 Cache Requests (Breakdown 1 - Common). Data cache state change requests. Request change to writable, check L2 for current state.",
-    "UMask": "0x8"
+    "UMask": "0x08"
   },
   {
     "EventName": "l2_request_g1.prefetch_l2_cmd",
     "EventCode": "0x60",
     "BriefDescription": "All L2 Cache Requests (Breakdown 1 - Common). PrefetchL2Cmd.",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "l2_request_g1.l2_hw_pf",
     "EventCode": "0x60",
     "BriefDescription": "All L2 Cache Requests (Breakdown 1 - Common). L2 Prefetcher. All prefetches accepted by L2 pipeline, hit or miss. Types of PF and L2 hit/miss broken out in a separate perfmon event.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "l2_request_g1.group2",
     "EventCode": "0x60",
     "BriefDescription": "Miscellaneous events covered in more detail by l2_request_g2 (PMCx061).",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "l2_request_g1.all_no_prefetch",
@@ -150,31 +150,31 @@
     "EventName": "l2_request_g2.ic_rd_sized_nc",
     "EventCode": "0x61",
     "BriefDescription": "All L2 Cache Requests (Breakdown 2 - Rare). Instruction cache read sized non-cacheable.",
-    "UMask": "0x8"
+    "UMask": "0x08"
   },
   {
     "EventName": "l2_request_g2.smc_inval",
     "EventCode": "0x61",
     "BriefDescription": "All L2 Cache Requests (Breakdown 2 - Rare). Self-modifying code invalidates.",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "l2_request_g2.bus_locks_originator",
     "EventCode": "0x61",
     "BriefDescription": "All L2 Cache Requests (Breakdown 2 - Rare). Bus locks.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "l2_request_g2.bus_locks_responses",
     "EventCode": "0x61",
     "BriefDescription": "All L2 Cache Requests (Breakdown 2 - Rare). Bus lock response.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "l2_latency.l2_cycles_waiting_on_fills",
     "EventCode": "0x62",
     "BriefDescription": "Total cycles spent waiting for L2 fills to complete from L3 or memory, divided by four. Event counts are for both threads. To calculate average latency, the number of fills from both threads must be used.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "l2_wcb_req.wcb_write",
@@ -192,13 +192,13 @@
     "EventName": "l2_wcb_req.zero_byte_store",
     "EventCode": "0x63",
     "BriefDescription": "LS to L2 WCB zero byte store requests. LS (Load/Store unit) to L2 WCB (Write Combining Buffer) zero byte store requests.",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "l2_wcb_req.cl_zero",
     "EventCode": "0x63",
     "BriefDescription": "LS to L2 WCB cache line zeroing requests. LS (Load/Store unit) to L2 WCB (Write Combining Buffer) cache line zeroing requests.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_cs",
@@ -228,37 +228,37 @@
     "EventName": "l2_cache_req_stat.ls_rd_blk_c",
     "EventCode": "0x64",
     "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Data cache request miss in L2 (all types).",
-    "UMask": "0x8"
+    "UMask": "0x08"
   },
   {
     "EventName": "l2_cache_req_stat.ic_fill_hit_x",
     "EventCode": "0x64",
     "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache hit modifiable line in L2.",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "l2_cache_req_stat.ic_fill_hit_s",
     "EventCode": "0x64",
     "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache hit clean line in L2.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "l2_cache_req_stat.ic_fill_miss",
     "EventCode": "0x64",
     "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache request miss in L2.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "l2_cache_req_stat.ic_access_in_l2",
     "EventCode": "0x64",
     "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache requests in L2.",
-    "UMask": "0x7"
+    "UMask": "0x07"
   },
   {
     "EventName": "l2_cache_req_stat.ic_dc_miss_in_l2",
     "EventCode": "0x64",
     "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache request miss in L2 and Data cache request miss in L2 (all types).",
-    "UMask": "0x9"
+    "UMask": "0x09"
   },
   {
     "EventName": "l2_cache_req_stat.ic_dc_hit_in_l2",
@@ -270,12 +270,12 @@
     "EventName": "l2_fill_pending.l2_fill_busy",
     "EventCode": "0x6d",
     "BriefDescription": "Cycles with fill pending from L2. Total cycles spent with one or more fill requests in flight from L2.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "l2_pf_hit_l2",
     "EventCode": "0x70",
-    "BriefDescription": "L2 prefetch hit in L2.",
+    "BriefDescription": "L2 prefetch hit in L2. Use l2_cache_hits_from_l2_hwpf instead.",
     "UMask": "0xff"
   },
   {

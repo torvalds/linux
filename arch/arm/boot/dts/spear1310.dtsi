@@ -82,8 +82,6 @@
 			reg = <0xb1000000 0x4000>, <0x80000000 0x20000>;
 			reg-names = "dbi", "config";
 			interrupts = <0 68 0x4>;
-			interrupt-map-mask = <0 0 0 0>;
-			interrupt-map = <0x0 0 &gic 0 68 0x4>;
 			num-lanes = <1>;
 			phys = <&miphy0 1>;
 			phy-names = "pcie-phy";
@@ -101,8 +99,6 @@
 			reg = <0xb1800000 0x4000>, <0x90000000 0x20000>;
 			reg-names = "dbi", "config";
 			interrupts = <0 69 0x4>;
-			interrupt-map-mask = <0 0 0 0>;
-			interrupt-map = <0x0 0 &gic 0 69 0x4>;
 			num-lanes = <1>;
 			phys = <&miphy1 1>;
 			phy-names = "pcie-phy";
@@ -120,8 +116,6 @@
 			reg = <0xb4000000 0x4000>, <0xc0000000 0x20000>;
 			reg-names = "dbi", "config";
 			interrupts = <0 70 0x4>;
-			interrupt-map-mask = <0 0 0 0>;
-			interrupt-map = <0x0 0 &gic 0 70 0x4>;
 			num-lanes = <1>;
 			phys = <&miphy2 1>;
 			phy-names = "pcie-phy";

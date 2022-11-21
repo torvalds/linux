@@ -33,27 +33,33 @@ struct vxcan_priv {
 	struct net_device __rcu	*peer;
 };
 
-static netdev_tx_t vxcan_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t vxcan_xmit(struct sk_buff *oskb, struct net_device *dev)
 {
 	struct vxcan_priv *priv = netdev_priv(dev);
 	struct net_device *peer;
-	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
+	struct canfd_frame *cfd = (struct canfd_frame *)oskb->data;
 	struct net_device_stats *peerstats, *srcstats = &dev->stats;
+	struct sk_buff *skb;
+	u8 len;
 
-	if (can_dropped_invalid_skb(dev, skb))
+	if (can_dropped_invalid_skb(dev, oskb))
 		return NETDEV_TX_OK;
 
 	rcu_read_lock();
 	peer = rcu_dereference(priv->peer);
 	if (unlikely(!peer)) {
-		kfree_skb(skb);
+		kfree_skb(oskb);
 		dev->stats.tx_dropped++;
 		goto out_unlock;
 	}
 
-	skb = can_create_echo_skb(skb);
-	if (!skb)
+	skb = skb_clone(oskb, GFP_ATOMIC);
+	if (skb) {
+		consume_skb(oskb);
+	} else {
+		kfree_skb(oskb);
 		goto out_unlock;
+	}
 
 	/* reset CAN GW hop counter */
 	skb->csum_start = 0;
@@ -61,12 +67,13 @@ static netdev_tx_t vxcan_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb->dev        = peer;
 	skb->ip_summed  = CHECKSUM_UNNECESSARY;
 
-	if (netif_rx_ni(skb) == NET_RX_SUCCESS) {
+	len = cfd->can_id & CAN_RTR_FLAG ? 0 : cfd->len;
+	if (netif_rx(skb) == NET_RX_SUCCESS) {
 		srcstats->tx_packets++;
-		srcstats->tx_bytes += cfd->len;
+		srcstats->tx_bytes += len;
 		peerstats = &peer->stats;
 		peerstats->rx_packets++;
-		peerstats->rx_bytes += cfd->len;
+		peerstats->rx_bytes += len;
 	}
 
 out_unlock:
@@ -139,15 +146,19 @@ static const struct net_device_ops vxcan_netdev_ops = {
 
 static void vxcan_setup(struct net_device *dev)
 {
+	struct can_ml_priv *can_ml;
+
 	dev->type		= ARPHRD_CAN;
 	dev->mtu		= CANFD_MTU;
 	dev->hard_header_len	= 0;
 	dev->addr_len		= 0;
 	dev->tx_queue_len	= 0;
-	dev->flags		= (IFF_NOARP|IFF_ECHO);
+	dev->flags		= IFF_NOARP;
 	dev->netdev_ops		= &vxcan_netdev_ops;
 	dev->needs_free_netdev	= true;
-	dev->ml_priv		= netdev_priv(dev) + ALIGN(sizeof(struct vxcan_priv), NETDEV_ALIGN);
+
+	can_ml = netdev_priv(dev) + ALIGN(sizeof(struct vxcan_priv), NETDEV_ALIGN);
+	can_set_ml_priv(dev, can_ml);
 }
 
 /* forward declaration for rtnl_create_link() */
@@ -186,7 +197,7 @@ static int vxcan_newlink(struct net *net, struct net_device *dev,
 	}
 
 	if (ifmp && tbp[IFLA_IFNAME]) {
-		nla_strlcpy(ifname, tbp[IFLA_IFNAME], IFNAMSIZ);
+		nla_strscpy(ifname, tbp[IFLA_IFNAME], IFNAMSIZ);
 		name_assign_type = NET_NAME_USER;
 	} else {
 		snprintf(ifname, IFNAMSIZ, DRV_NAME "%%d");
@@ -223,7 +234,7 @@ static int vxcan_newlink(struct net *net, struct net_device *dev,
 
 	/* register first device */
 	if (tb[IFLA_IFNAME])
-		nla_strlcpy(dev->name, tb[IFLA_IFNAME], IFNAMSIZ);
+		nla_strscpy(dev->name, tb[IFLA_IFNAME], IFNAMSIZ);
 	else
 		snprintf(dev->name, IFNAMSIZ, DRV_NAME "%%d");
 

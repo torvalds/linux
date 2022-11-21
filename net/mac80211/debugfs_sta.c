@@ -5,7 +5,7 @@
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2016 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2020 Intel Corporation
+ * Copyright (C) 2018 - 2021 Intel Corporation
  */
 
 #include <linux/debugfs.h>
@@ -79,6 +79,7 @@ static const char * const sta_flag_names[] = {
 	FLAG(MPSP_RECIPIENT),
 	FLAG(PS_DELIVER),
 	FLAG(USES_ENCRYPTION),
+	FLAG(DECAP_OFFLOAD),
 #undef FLAG
 };
 
@@ -152,20 +153,20 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 	rcu_read_lock();
 
 	p += scnprintf(p,
-		       bufsz+buf-p,
+		       bufsz + buf - p,
 		       "target %uus interval %uus ecn %s\n",
 		       codel_time_to_us(sta->cparams.target),
 		       codel_time_to_us(sta->cparams.interval),
 		       sta->cparams.ecn ? "yes" : "no");
 	p += scnprintf(p,
-		       bufsz+buf-p,
+		       bufsz + buf - p,
 		       "tid ac backlog-bytes backlog-packets new-flows drops marks overlimit collisions tx-bytes tx-packets flags\n");
 
 	for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
 		if (!sta->sta.txq[i])
 			continue;
 		txqi = to_txq_info(sta->sta.txq[i]);
-		p += scnprintf(p, bufsz+buf-p,
+		p += scnprintf(p, bufsz + buf - p,
 			       "%d %d %u %u %u %u %u %u %u %u %u 0x%lx(%s%s%s)\n",
 			       txqi->txq.tid,
 			       txqi->txq.ac,
@@ -201,7 +202,7 @@ static ssize_t sta_airtime_read(struct file *file, char __user *userbuf,
 	size_t bufsz = 400;
 	char *buf = kzalloc(bufsz, GFP_KERNEL), *p = buf;
 	u64 rx_airtime = 0, tx_airtime = 0;
-	s64 deficit[IEEE80211_NUM_ACS];
+	u64 v_t[IEEE80211_NUM_ACS];
 	ssize_t rv;
 	int ac;
 
@@ -209,18 +210,18 @@ static ssize_t sta_airtime_read(struct file *file, char __user *userbuf,
 		return -ENOMEM;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		spin_lock_bh(&local->active_txq_lock[ac]);
+		spin_lock_bh(&local->airtime[ac].lock);
 		rx_airtime += sta->airtime[ac].rx_airtime;
 		tx_airtime += sta->airtime[ac].tx_airtime;
-		deficit[ac] = sta->airtime[ac].deficit;
-		spin_unlock_bh(&local->active_txq_lock[ac]);
+		v_t[ac] = sta->airtime[ac].v_t;
+		spin_unlock_bh(&local->airtime[ac].lock);
 	}
 
 	p += scnprintf(p, bufsz + buf - p,
 		"RX: %llu us\nTX: %llu us\nWeight: %u\n"
-		"Deficit: VO: %lld us VI: %lld us BE: %lld us BK: %lld us\n",
-		rx_airtime, tx_airtime, sta->airtime_weight,
-		deficit[0], deficit[1], deficit[2], deficit[3]);
+		"Virt-T: VO: %lld us VI: %lld us BE: %lld us BK: %lld us\n",
+		rx_airtime, tx_airtime, sta->airtime[0].weight,
+		v_t[0], v_t[1], v_t[2], v_t[3]);
 
 	rv = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 	kfree(buf);
@@ -235,11 +236,11 @@ static ssize_t sta_airtime_write(struct file *file, const char __user *userbuf,
 	int ac;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		spin_lock_bh(&local->active_txq_lock[ac]);
+		spin_lock_bh(&local->airtime[ac].lock);
 		sta->airtime[ac].rx_airtime = 0;
 		sta->airtime[ac].tx_airtime = 0;
-		sta->airtime[ac].deficit = sta->airtime_weight;
-		spin_unlock_bh(&local->active_txq_lock[ac]);
+		sta->airtime[ac].v_t = 0;
+		spin_unlock_bh(&local->airtime[ac].lock);
 	}
 
 	return count;
@@ -262,10 +263,10 @@ static ssize_t sta_aql_read(struct file *file, char __user *userbuf,
 		return -ENOMEM;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		spin_lock_bh(&local->active_txq_lock[ac]);
+		spin_lock_bh(&local->airtime[ac].lock);
 		q_limit_l[ac] = sta->airtime[ac].aql_limit_low;
 		q_limit_h[ac] = sta->airtime[ac].aql_limit_high;
-		spin_unlock_bh(&local->active_txq_lock[ac]);
+		spin_unlock_bh(&local->airtime[ac].lock);
 		q_depth[ac] = atomic_read(&sta->airtime[ac].aql_tx_pending);
 	}
 
@@ -274,7 +275,7 @@ static ssize_t sta_aql_read(struct file *file, char __user *userbuf,
 		"Q limit[low/high]: VO: %u/%u VI: %u/%u BE: %u/%u BK: %u/%u\n",
 		q_depth[0], q_depth[1], q_depth[2], q_depth[3],
 		q_limit_l[0], q_limit_h[0], q_limit_l[1], q_limit_h[1],
-		q_limit_l[2], q_limit_h[2], q_limit_l[3], q_limit_h[3]),
+		q_limit_l[2], q_limit_h[2], q_limit_l[3], q_limit_h[3]);
 
 	rv = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 	kfree(buf);
@@ -313,17 +314,24 @@ STA_OPS_RW(aql);
 static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 					size_t count, loff_t *ppos)
 {
-	char buf[71 + IEEE80211_NUM_TIDS * 40], *p = buf;
+	char *buf, *p;
+	ssize_t bufsz = 71 + IEEE80211_NUM_TIDS * 40;
 	int i;
 	struct sta_info *sta = file->private_data;
 	struct tid_ampdu_rx *tid_rx;
 	struct tid_ampdu_tx *tid_tx;
+	ssize_t ret;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	p = buf;
 
 	rcu_read_lock();
 
-	p += scnprintf(p, sizeof(buf) + buf - p, "next dialog_token: %#02x\n",
+	p += scnprintf(p, bufsz + buf - p, "next dialog_token: %#02x\n",
 			sta->ampdu_mlme.dialog_token_allocator + 1);
-	p += scnprintf(p, sizeof(buf) + buf - p,
+	p += scnprintf(p, bufsz + buf - p,
 		       "TID\t\tRX\tDTKN\tSSN\t\tTX\tDTKN\tpending\n");
 
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
@@ -333,25 +341,27 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 		tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[i]);
 		tid_rx_valid = test_bit(i, sta->ampdu_mlme.agg_session_valid);
 
-		p += scnprintf(p, sizeof(buf) + buf - p, "%02d", i);
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x",
+		p += scnprintf(p, bufsz + buf - p, "%02d", i);
+		p += scnprintf(p, bufsz + buf - p, "\t\t%x",
 			       tid_rx_valid);
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
+		p += scnprintf(p, bufsz + buf - p, "\t%#.2x",
 			       tid_rx_valid ?
 					sta->ampdu_mlme.tid_rx_token[i] : 0);
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.3x",
+		p += scnprintf(p, bufsz + buf - p, "\t%#.3x",
 				tid_rx ? tid_rx->ssn : 0);
 
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x", !!tid_tx);
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
+		p += scnprintf(p, bufsz + buf - p, "\t\t%x", !!tid_tx);
+		p += scnprintf(p, bufsz + buf - p, "\t%#.2x",
 				tid_tx ? tid_tx->dialog_token : 0);
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t%03d",
+		p += scnprintf(p, bufsz + buf - p, "\t%03d",
 				tid_tx ? skb_queue_len(&tid_tx->pending) : 0);
-		p += scnprintf(p, sizeof(buf) + buf - p, "\n");
+		p += scnprintf(p, bufsz + buf - p, "\n");
 	}
 	rcu_read_unlock();
 
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	ret = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	kfree(buf);
+	return ret;
 }
 
 static ssize_t sta_agg_status_write(struct file *file, const char __user *userbuf,
@@ -431,17 +441,24 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 #define PRINT_HT_CAP(_cond, _str) \
 	do { \
 	if (_cond) \
-			p += scnprintf(p, sizeof(buf)+buf-p, "\t" _str "\n"); \
+			p += scnprintf(p, bufsz + buf - p, "\t" _str "\n"); \
 	} while (0)
-	char buf[512], *p = buf;
+	char *buf, *p;
 	int i;
+	ssize_t bufsz = 512;
 	struct sta_info *sta = file->private_data;
 	struct ieee80211_sta_ht_cap *htc = &sta->sta.ht_cap;
+	ssize_t ret;
 
-	p += scnprintf(p, sizeof(buf) + buf - p, "ht %ssupported\n",
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	p = buf;
+
+	p += scnprintf(p, bufsz + buf - p, "ht %ssupported\n",
 			htc->ht_supported ? "" : "not ");
 	if (htc->ht_supported) {
-		p += scnprintf(p, sizeof(buf)+buf-p, "cap: %#.4x\n", htc->cap);
+		p += scnprintf(p, bufsz + buf - p, "cap: %#.4x\n", htc->cap);
 
 		PRINT_HT_CAP((htc->cap & BIT(0)), "RX LDPC");
 		PRINT_HT_CAP((htc->cap & BIT(1)), "HT20/HT40");
@@ -483,81 +500,90 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 
 		PRINT_HT_CAP((htc->cap & BIT(15)), "L-SIG TXOP protection");
 
-		p += scnprintf(p, sizeof(buf)+buf-p, "ampdu factor/density: %d/%d\n",
+		p += scnprintf(p, bufsz + buf - p, "ampdu factor/density: %d/%d\n",
 				htc->ampdu_factor, htc->ampdu_density);
-		p += scnprintf(p, sizeof(buf)+buf-p, "MCS mask:");
+		p += scnprintf(p, bufsz + buf - p, "MCS mask:");
 
 		for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++)
-			p += scnprintf(p, sizeof(buf)+buf-p, " %.2x",
+			p += scnprintf(p, bufsz + buf - p, " %.2x",
 					htc->mcs.rx_mask[i]);
-		p += scnprintf(p, sizeof(buf)+buf-p, "\n");
+		p += scnprintf(p, bufsz + buf - p, "\n");
 
 		/* If not set this is meaningless */
 		if (le16_to_cpu(htc->mcs.rx_highest)) {
-			p += scnprintf(p, sizeof(buf)+buf-p,
+			p += scnprintf(p, bufsz + buf - p,
 				       "MCS rx highest: %d Mbps\n",
 				       le16_to_cpu(htc->mcs.rx_highest));
 		}
 
-		p += scnprintf(p, sizeof(buf)+buf-p, "MCS tx params: %x\n",
+		p += scnprintf(p, bufsz + buf - p, "MCS tx params: %x\n",
 				htc->mcs.tx_params);
 	}
 
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	ret = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	kfree(buf);
+	return ret;
 }
 STA_OPS(ht_capa);
 
 static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 				 size_t count, loff_t *ppos)
 {
-	char buf[512], *p = buf;
+	char *buf, *p;
 	struct sta_info *sta = file->private_data;
 	struct ieee80211_sta_vht_cap *vhtc = &sta->sta.vht_cap;
+	ssize_t ret;
+	ssize_t bufsz = 512;
 
-	p += scnprintf(p, sizeof(buf) + buf - p, "VHT %ssupported\n",
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	p = buf;
+
+	p += scnprintf(p, bufsz + buf - p, "VHT %ssupported\n",
 			vhtc->vht_supported ? "" : "not ");
 	if (vhtc->vht_supported) {
-		p += scnprintf(p, sizeof(buf) + buf - p, "cap: %#.8x\n",
+		p += scnprintf(p, bufsz + buf - p, "cap: %#.8x\n",
 			       vhtc->cap);
 #define PFLAG(a, b)							\
 		do {							\
 			if (vhtc->cap & IEEE80211_VHT_CAP_ ## a)	\
-				p += scnprintf(p, sizeof(buf) + buf - p, \
+				p += scnprintf(p, bufsz + buf - p, \
 					       "\t\t%s\n", b);		\
 		} while (0)
 
 		switch (vhtc->cap & 0x3) {
 		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895:
-			p += scnprintf(p, sizeof(buf) + buf - p,
+			p += scnprintf(p, bufsz + buf - p,
 				       "\t\tMAX-MPDU-3895\n");
 			break;
 		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991:
-			p += scnprintf(p, sizeof(buf) + buf - p,
+			p += scnprintf(p, bufsz + buf - p,
 				       "\t\tMAX-MPDU-7991\n");
 			break;
 		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
-			p += scnprintf(p, sizeof(buf) + buf - p,
+			p += scnprintf(p, bufsz + buf - p,
 				       "\t\tMAX-MPDU-11454\n");
 			break;
 		default:
-			p += scnprintf(p, sizeof(buf) + buf - p,
+			p += scnprintf(p, bufsz + buf - p,
 				       "\t\tMAX-MPDU-UNKNOWN\n");
 		}
 		switch (vhtc->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) {
 		case 0:
-			p += scnprintf(p, sizeof(buf) + buf - p,
+			p += scnprintf(p, bufsz + buf - p,
 				       "\t\t80Mhz\n");
 			break;
 		case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ:
-			p += scnprintf(p, sizeof(buf) + buf - p,
+			p += scnprintf(p, bufsz + buf - p,
 				       "\t\t160Mhz\n");
 			break;
 		case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ:
-			p += scnprintf(p, sizeof(buf) + buf - p,
+			p += scnprintf(p, bufsz + buf - p,
 				       "\t\t80+80Mhz\n");
 			break;
 		default:
-			p += scnprintf(p, sizeof(buf) + buf - p,
+			p += scnprintf(p, bufsz + buf - p,
 				       "\t\tUNKNOWN-MHZ: 0x%x\n",
 				       (vhtc->cap >> 2) & 0x3);
 		}
@@ -565,15 +591,15 @@ static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 		PFLAG(SHORT_GI_80, "SHORT-GI-80");
 		PFLAG(SHORT_GI_160, "SHORT-GI-160");
 		PFLAG(TXSTBC, "TXSTBC");
-		p += scnprintf(p, sizeof(buf) + buf - p,
+		p += scnprintf(p, bufsz + buf - p,
 			       "\t\tRXSTBC_%d\n", (vhtc->cap >> 8) & 0x7);
 		PFLAG(SU_BEAMFORMER_CAPABLE, "SU-BEAMFORMER-CAPABLE");
 		PFLAG(SU_BEAMFORMEE_CAPABLE, "SU-BEAMFORMEE-CAPABLE");
-		p += scnprintf(p, sizeof(buf) + buf - p,
+		p += scnprintf(p, bufsz + buf - p,
 			"\t\tBEAMFORMEE-STS: 0x%x\n",
 			(vhtc->cap & IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK) >>
 			IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT);
-		p += scnprintf(p, sizeof(buf) + buf - p,
+		p += scnprintf(p, bufsz + buf - p,
 			"\t\tSOUNDING-DIMENSIONS: 0x%x\n",
 			(vhtc->cap & IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK)
 			>> IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT);
@@ -581,34 +607,36 @@ static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 		PFLAG(MU_BEAMFORMEE_CAPABLE, "MU-BEAMFORMEE-CAPABLE");
 		PFLAG(VHT_TXOP_PS, "TXOP-PS");
 		PFLAG(HTC_VHT, "HTC-VHT");
-		p += scnprintf(p, sizeof(buf) + buf - p,
+		p += scnprintf(p, bufsz + buf - p,
 			"\t\tMPDU-LENGTH-EXPONENT: 0x%x\n",
 			(vhtc->cap & IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK) >>
 			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT);
 		PFLAG(VHT_LINK_ADAPTATION_VHT_UNSOL_MFB,
 		      "LINK-ADAPTATION-VHT-UNSOL-MFB");
-		p += scnprintf(p, sizeof(buf) + buf - p,
+		p += scnprintf(p, bufsz + buf - p,
 			"\t\tLINK-ADAPTATION-VHT-MRQ-MFB: 0x%x\n",
 			(vhtc->cap & IEEE80211_VHT_CAP_VHT_LINK_ADAPTATION_VHT_MRQ_MFB) >> 26);
 		PFLAG(RX_ANTENNA_PATTERN, "RX-ANTENNA-PATTERN");
 		PFLAG(TX_ANTENNA_PATTERN, "TX-ANTENNA-PATTERN");
 
-		p += scnprintf(p, sizeof(buf)+buf-p, "RX MCS: %.4x\n",
+		p += scnprintf(p, bufsz + buf - p, "RX MCS: %.4x\n",
 			       le16_to_cpu(vhtc->vht_mcs.rx_mcs_map));
 		if (vhtc->vht_mcs.rx_highest)
-			p += scnprintf(p, sizeof(buf)+buf-p,
+			p += scnprintf(p, bufsz + buf - p,
 				       "MCS RX highest: %d Mbps\n",
 				       le16_to_cpu(vhtc->vht_mcs.rx_highest));
-		p += scnprintf(p, sizeof(buf)+buf-p, "TX MCS: %.4x\n",
+		p += scnprintf(p, bufsz + buf - p, "TX MCS: %.4x\n",
 			       le16_to_cpu(vhtc->vht_mcs.tx_mcs_map));
 		if (vhtc->vht_mcs.tx_highest)
-			p += scnprintf(p, sizeof(buf)+buf-p,
+			p += scnprintf(p, bufsz + buf - p,
 				       "MCS TX highest: %d Mbps\n",
 				       le16_to_cpu(vhtc->vht_mcs.tx_highest));
 #undef PFLAG
 	}
 
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	ret = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	kfree(buf);
+	return ret;
 }
 STA_OPS(vht_capa);
 
@@ -710,17 +738,17 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 	PFLAG(MAC, 3, OFDMA_RA, "OFDMA-RA");
 
 	switch (cap[3] & IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_MASK) {
-	case IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_USE_VHT:
-		PRINT("MAX-AMPDU-LEN-EXP-USE-VHT");
+	case IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_0:
+		PRINT("MAX-AMPDU-LEN-EXP-USE-EXT-0");
 		break;
-	case IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_VHT_1:
-		PRINT("MAX-AMPDU-LEN-EXP-VHT-1");
+	case IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_1:
+		PRINT("MAX-AMPDU-LEN-EXP-VHT-EXT-1");
 		break;
-	case IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_VHT_2:
-		PRINT("MAX-AMPDU-LEN-EXP-VHT-2");
+	case IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_2:
+		PRINT("MAX-AMPDU-LEN-EXP-VHT-EXT-2");
 		break;
-	case IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_RESERVED:
-		PRINT("MAX-AMPDU-LEN-EXP-RESERVED");
+	case IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_3:
+		PRINT("MAX-AMPDU-LEN-EXP-VHT-EXT-3");
 		break;
 	}
 
@@ -731,15 +759,15 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 	PFLAG(MAC, 4, BSRP_BQRP_A_MPDU_AGG, "BSRP-BQRP-A-MPDU-AGG");
 	PFLAG(MAC, 4, QTP, "QTP");
 	PFLAG(MAC, 4, BQR, "BQR");
-	PFLAG(MAC, 4, SRP_RESP, "SRP-RESP");
+	PFLAG(MAC, 4, PSR_RESP, "PSR-RESP");
 	PFLAG(MAC, 4, NDP_FB_REP, "NDP-FB-REP");
 	PFLAG(MAC, 4, OPS, "OPS");
-	PFLAG(MAC, 4, AMDSU_IN_AMPDU, "AMSDU-IN-AMPDU");
+	PFLAG(MAC, 4, AMSDU_IN_AMPDU, "AMSDU-IN-AMPDU");
 
 	PRINT("MULTI-TID-AGG-TX-QOS-%d", ((cap[5] << 1) | (cap[4] >> 7)) & 0x7);
 
-	PFLAG(MAC, 5, SUBCHAN_SELECVITE_TRANSMISSION,
-	      "SUBCHAN-SELECVITE-TRANSMISSION");
+	PFLAG(MAC, 5, SUBCHAN_SELECTIVE_TRANSMISSION,
+	      "SUBCHAN-SELECTIVE-TRANSMISSION");
 	PFLAG(MAC, 5, UL_2x996_TONE_RU, "UL-2x996-TONE-RU");
 	PFLAG(MAC, 5, OM_CTRL_UL_MU_DATA_DIS_RX, "OM-CTRL-UL-MU-DATA-DIS-RX");
 	PFLAG(MAC, 5, HE_DYNAMIC_SM_PS, "HE-DYNAMIC-SM-PS");
@@ -831,8 +859,8 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 
 	PFLAG(PHY, 3, DCM_MAX_RX_NSS_1, "DCM-MAX-RX-NSS-1");
 	PFLAG(PHY, 3, DCM_MAX_RX_NSS_2, "DCM-MAX-RX-NSS-2");
-	PFLAG(PHY, 3, RX_HE_MU_PPDU_FROM_NON_AP_STA,
-	      "RX-HE-MU-PPDU-FROM-NON-AP-STA");
+	PFLAG(PHY, 3, RX_PARTIAL_BW_SU_IN_20MHZ_MU,
+	      "RX-PARTIAL-BW-SU-IN-20MHZ-MU");
 	PFLAG(PHY, 3, SU_BEAMFORMER, "SU-BEAMFORMER");
 
 	PFLAG(PHY, 4, SU_BEAMFORMEE, "SU-BEAMFORMEE");
@@ -852,16 +880,17 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 
 	PFLAG(PHY, 6, CODEBOOK_SIZE_42_SU, "CODEBOOK-SIZE-42-SU");
 	PFLAG(PHY, 6, CODEBOOK_SIZE_75_MU, "CODEBOOK-SIZE-75-MU");
-	PFLAG(PHY, 6, TRIG_SU_BEAMFORMER_FB, "TRIG-SU-BEAMFORMER-FB");
-	PFLAG(PHY, 6, TRIG_MU_BEAMFORMER_FB, "TRIG-MU-BEAMFORMER-FB");
+	PFLAG(PHY, 6, TRIG_SU_BEAMFORMING_FB, "TRIG-SU-BEAMFORMING-FB");
+	PFLAG(PHY, 6, TRIG_MU_BEAMFORMING_PARTIAL_BW_FB,
+	      "MU-BEAMFORMING-PARTIAL-BW-FB");
 	PFLAG(PHY, 6, TRIG_CQI_FB, "TRIG-CQI-FB");
 	PFLAG(PHY, 6, PARTIAL_BW_EXT_RANGE, "PARTIAL-BW-EXT-RANGE");
 	PFLAG(PHY, 6, PARTIAL_BANDWIDTH_DL_MUMIMO,
 	      "PARTIAL-BANDWIDTH-DL-MUMIMO");
 	PFLAG(PHY, 6, PPE_THRESHOLD_PRESENT, "PPE-THRESHOLD-PRESENT");
 
-	PFLAG(PHY, 7, SRP_BASED_SR, "SRP-BASED-SR");
-	PFLAG(PHY, 7, POWER_BOOST_FACTOR_AR, "POWER-BOOST-FACTOR-AR");
+	PFLAG(PHY, 7, PSR_BASED_SR, "PSR-BASED-SR");
+	PFLAG(PHY, 7, POWER_BOOST_FACTOR_SUPP, "POWER-BOOST-FACTOR-SUPP");
 	PFLAG(PHY, 7, HE_SU_MU_PPDU_4XLTF_AND_08_US_GI,
 	      "HE-SU-MU-PPDU-4XLTF-AND-08-US-GI");
 	PFLAG_RANGE(PHY, 7, MAX_NC, 0, 1, 1, "MAX-NC-%d");
@@ -907,14 +936,15 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 	PFLAG(PHY, 9, RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB,
 	      "RX-FULL-BW-SU-USING-MU-WITH-NON-COMP-SIGB");
 
-	switch (cap[9] & IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_MASK) {
-	case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_0US:
+	switch (u8_get_bits(cap[9],
+			    IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK)) {
+	case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_0US:
 		PRINT("NOMINAL-PACKET-PADDING-0US");
 		break;
-	case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_8US:
+	case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_8US:
 		PRINT("NOMINAL-PACKET-PADDING-8US");
 		break;
-	case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_16US:
+	case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US:
 		PRINT("NOMINAL-PACKET-PADDING-16US");
 		break;
 	}
@@ -985,7 +1015,7 @@ STA_OPS(he_capa);
 
 #define DEBUGFS_ADD(name) \
 	debugfs_create_file(#name, 0400, \
-		sta->debugfs_dir, sta, &sta_ ##name## _ops);
+		sta->debugfs_dir, sta, &sta_ ##name## _ops)
 
 #define DEBUGFS_ADD_COUNTER(name, field)				\
 	debugfs_create_ulong(#name, 0400, sta->debugfs_dir, &sta->field);

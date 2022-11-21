@@ -46,7 +46,7 @@ Parameters::
         capi:authenc(hmac(sha256),xts(aes))-random
         capi:rfc7539(chacha20,poly1305)-random
 
-    The /proc/crypto contains a list of curently loaded crypto modes.
+    The /proc/crypto contains a list of currently loaded crypto modes.
 
 <key>
     Key used for encryption. It is encoded either as a hexadecimal number
@@ -67,7 +67,7 @@ Parameters::
     the value passed in <key_size>.
 
 <key_type>
-    Either 'logon', 'user' or 'encrypted' kernel key type.
+    Either 'logon', 'user', 'encrypted' or 'trusted' kernel key type.
 
 <key_description>
     The kernel keyring key description crypt target should look for
@@ -92,7 +92,7 @@ Parameters::
 
 <#opt_params>
     Number of optional parameters. If there are no optional parameters,
-    the optional paramaters section can be skipped or #opt_params can be zero.
+    the optional parameters section can be skipped or #opt_params can be zero.
     Otherwise #opt_params is the number of following arguments.
 
     Example of optional parameters section:

@@ -8,18 +8,8 @@ UBSAN_SANITIZE := n
 KCOV_INSTRUMENT := n
 
 CFLAGS_REMOVE_common.o		= $(CC_FLAGS_FTRACE)
-CFLAGS_REMOVE_syscall_64.o	= $(CC_FLAGS_FTRACE)
-CFLAGS_REMOVE_syscall_32.o	= $(CC_FLAGS_FTRACE)
-CFLAGS_REMOVE_syscall_x32.o	= $(CC_FLAGS_FTRACE)
 
 CFLAGS_common.o			+= -fno-stack-protector
-CFLAGS_syscall_64.o		+= -fno-stack-protector
-CFLAGS_syscall_32.o		+= -fno-stack-protector
-CFLAGS_syscall_x32.o		+= -fno-stack-protector
-
-CFLAGS_syscall_64.o		+= $(call cc-option,-Wno-override-init,)
-CFLAGS_syscall_32.o		+= $(call cc-option,-Wno-override-init,)
-CFLAGS_syscall_x32.o		+= $(call cc-option,-Wno-override-init,)
 
 obj-y				:= entry_$(BITS).o thunk_$(BITS).o syscall_$(BITS).o
 obj-y				+= common.o

@@ -80,7 +80,7 @@
 };
 
 &rcar_sound {
-	pinctrl-0 = <&sound_pins &sound_clk_pins>;
+	pinctrl-0 = <&sound_pins>, <&sound_clk_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 
@@ -91,7 +91,11 @@
 	#clock-cells = <1>;
 	clock-frequency = <12288000 11289600>;
 
-	/* update <audio_clk_b> to <cs2000> */
+	/*
+	 * Update <audio_clk_b> to <cs2000>
+	 * Switch SW2404 should be at position 1 so that clock from
+	 * CS2000 is connected to AUDIO_CLKB_A
+	 */
 	clocks = <&cpg CPG_MOD 1005>,
 		 <&cpg CPG_MOD 1006>, <&cpg CPG_MOD 1007>,
 		 <&cpg CPG_MOD 1008>, <&cpg CPG_MOD 1009>,

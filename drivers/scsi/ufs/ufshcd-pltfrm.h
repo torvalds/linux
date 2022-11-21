@@ -28,26 +28,9 @@ struct ufs_dev_params {
 int ufshcd_get_pwr_dev_param(struct ufs_dev_params *dev_param,
 			     struct ufs_pa_layer_attr *dev_max,
 			     struct ufs_pa_layer_attr *agreed_pwr);
+void ufshcd_init_pwr_dev_param(struct ufs_dev_params *dev_param);
 int ufshcd_pltfrm_init(struct platform_device *pdev,
 		       const struct ufs_hba_variant_ops *vops);
 void ufshcd_pltfrm_shutdown(struct platform_device *pdev);
-
-#ifdef CONFIG_PM
-
-int ufshcd_pltfrm_suspend(struct device *dev);
-int ufshcd_pltfrm_resume(struct device *dev);
-int ufshcd_pltfrm_runtime_suspend(struct device *dev);
-int ufshcd_pltfrm_runtime_resume(struct device *dev);
-int ufshcd_pltfrm_runtime_idle(struct device *dev);
-
-#else /* !CONFIG_PM */
-
-#define ufshcd_pltfrm_suspend	NULL
-#define ufshcd_pltfrm_resume	NULL
-#define ufshcd_pltfrm_runtime_suspend	NULL
-#define ufshcd_pltfrm_runtime_resume	NULL
-#define ufshcd_pltfrm_runtime_idle	NULL
-
-#endif /* CONFIG_PM */
 
 #endif /* UFSHCD_PLTFRM_H_ */

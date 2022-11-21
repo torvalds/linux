@@ -290,6 +290,7 @@
 
 		hvs: hvs@7e400000 {
 			compatible = "brcm,bcm2711-hvs";
+			reg = <0x7e400000 0x8000>;
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
@@ -300,12 +301,28 @@
 			status = "disabled";
 		};
 
+		vec: vec@7ec13000 {
+			compatible = "brcm,bcm2711-vec";
+			reg = <0x7ec13000 0x1000>;
+			clocks = <&clocks BCM2835_CLOCK_VEC>;
+			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		dvp: clock@7ef00000 {
 			compatible = "brcm,brcm2711-dvp";
 			reg = <0x7ef00000 0x10>;
 			clocks = <&clk_108MHz>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+		};
+
+		aon_intr: interrupt-controller@7ef00100 {
+			compatible = "brcm,bcm2711-l2-intc", "brcm,l2-intc";
+			reg = <0x7ef00100 0x30>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
 		};
 
 		hdmi0: hdmi@7ef00700 {
@@ -330,6 +347,11 @@
 				    "hd";
 			clock-names = "hdmi", "bvb", "audio", "cec";
 			resets = <&dvp 0>;
+			interrupt-parent = <&aon_intr>;
+			interrupts = <0>, <1>, <2>,
+				     <3>, <4>, <5>;
+			interrupt-names = "cec-tx", "cec-rx", "cec-low",
+					  "wakeup", "hpd-connected", "hpd-removed";
 			ddc = <&ddc0>;
 			dmas = <&dma 10>;
 			dma-names = "audio-rx";
@@ -367,6 +389,11 @@
 			ddc = <&ddc1>;
 			clock-names = "hdmi", "bvb", "audio", "cec";
 			resets = <&dvp 1>;
+			interrupt-parent = <&aon_intr>;
+			interrupts = <8>, <7>, <6>,
+				     <9>, <10>, <11>;
+			interrupt-names = "cec-tx", "cec-rx", "cec-low",
+					  "wakeup", "hpd-connected", "hpd-removed";
 			dmas = <&dma 17>;
 			dma-names = "audio-rx";
 			status = "disabled";
@@ -395,7 +422,7 @@
 		ranges = <0x0 0x7e000000  0x0 0xfe000000  0x01800000>;
 		dma-ranges = <0x0 0xc0000000  0x0 0x00000000  0x40000000>;
 
-		emmc2: emmc2@7e340000 {
+		emmc2: mmc@7e340000 {
 			compatible = "brcm,bcm2711-emmc2";
 			reg = <0x0 0x7e340000 0x100>;
 			interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
@@ -432,12 +459,26 @@
 		#size-cells = <0>;
 		enable-method = "brcm,bcm2836-smp"; // for ARM 32-bit
 
+		/* Source for d/i-cache-line-size and d/i-cache-sets
+		 * https://developer.arm.com/documentation/100095/0003
+		 * /Level-1-Memory-System/About-the-L1-memory-system?lang=en
+		 * Source for d/i-cache-size
+		 * https://www.raspberrypi.com/documentation/computers
+		 * /processors.html#bcm2711
+		 */
 		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a72";
 			reg = <0>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x0 0x000000d8>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>; // 32KiB(size)/64(line-size)=512ways/2-way set
+			i-cache-size = <0xc000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>; // 48KiB(size)/64(line-size)=768ways/3-way set
+			next-level-cache = <&l2>;
 		};
 
 		cpu1: cpu@1 {
@@ -446,6 +487,13 @@
 			reg = <1>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x0 0x000000e0>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>; // 32KiB(size)/64(line-size)=512ways/2-way set
+			i-cache-size = <0xc000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>; // 48KiB(size)/64(line-size)=768ways/3-way set
+			next-level-cache = <&l2>;
 		};
 
 		cpu2: cpu@2 {
@@ -454,6 +502,13 @@
 			reg = <2>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x0 0x000000e8>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>; // 32KiB(size)/64(line-size)=512ways/2-way set
+			i-cache-size = <0xc000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>; // 48KiB(size)/64(line-size)=768ways/3-way set
+			next-level-cache = <&l2>;
 		};
 
 		cpu3: cpu@3 {
@@ -462,6 +517,28 @@
 			reg = <3>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x0 0x000000f0>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>; // 32KiB(size)/64(line-size)=512ways/2-way set
+			i-cache-size = <0xc000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>; // 48KiB(size)/64(line-size)=768ways/3-way set
+			next-level-cache = <&l2>;
+		};
+
+		/* Source for d/i-cache-line-size and d/i-cache-sets
+		 *  https://developer.arm.com/documentation/100095/0003
+		 *  /Level-2-Memory-System/About-the-L2-memory-system?lang=en
+		 *  Source for d/i-cache-size
+		 *  https://www.raspberrypi.com/documentation/computers
+		 *  /processors.html#bcm2711
+		 */
+		l2: l2-cache0 {
+			compatible = "cache";
+			cache-size = <0x100000>;
+			cache-line-size = <64>;
+			cache-sets = <1024>; // 1MiB(size)/64(line-size)=16384ways/16-way set
+			cache-level = <2>;
 		};
 	};
 
@@ -480,11 +557,17 @@
 			#address-cells = <3>;
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
-			interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "pcie", "msi";
 			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
 			interrupt-map = <0 0 0 1 &gicv2 GIC_SPI 143
+							IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &gicv2 GIC_SPI 144
+							IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &gicv2 GIC_SPI 145
+							IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &gicv2 GIC_SPI 146
 							IRQ_TYPE_LEVEL_HIGH>;
 			msi-controller;
 			msi-parent = <&pcie0>;
@@ -514,8 +597,8 @@
 				compatible = "brcm,genet-mdio-v5";
 				reg = <0xe14 0x8>;
 				reg-names = "mdio";
-				#address-cells = <0x0>;
-				#size-cells = <0x1>;
+				#address-cells = <0x1>;
+				#size-cells = <0x0>;
 			};
 		};
 	};
@@ -540,6 +623,7 @@
 
 &dsi1 {
 	interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+	compatible = "brcm,bcm2711-dsi1";
 };
 
 &gpio {
@@ -548,6 +632,8 @@
 		     <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+
+	gpio-ranges = <&gpio 0 0 58>;
 
 	gpclk0_gpio49: gpclk0_gpio49 {
 		pin-gpclk {
@@ -1068,5 +1154,6 @@
 };
 
 &vec {
+	compatible = "brcm,bcm2711-vec";
 	interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
 };

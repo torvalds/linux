@@ -28,45 +28,6 @@
 	.text
 
 /*
- * We store the saved ksp_limit in the unused part
- * of the STACK_FRAME_OVERHEAD
- */
-_GLOBAL(call_do_softirq)
-	mflr	r0
-	stw	r0,4(r1)
-	lwz	r10,THREAD+KSP_LIMIT(r2)
-	stw	r3, THREAD+KSP_LIMIT(r2)
-	stwu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r3)
-	mr	r1,r3
-	stw	r10,8(r1)
-	bl	__do_softirq
-	lwz	r10,8(r1)
-	lwz	r1,0(r1)
-	lwz	r0,4(r1)
-	stw	r10,THREAD+KSP_LIMIT(r2)
-	mtlr	r0
-	blr
-
-/*
- * void call_do_irq(struct pt_regs *regs, void *sp);
- */
-_GLOBAL(call_do_irq)
-	mflr	r0
-	stw	r0,4(r1)
-	lwz	r10,THREAD+KSP_LIMIT(r2)
-	stw	r4, THREAD+KSP_LIMIT(r2)
-	stwu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r4)
-	mr	r1,r4
-	stw	r10,8(r1)
-	bl	__do_irq
-	lwz	r10,8(r1)
-	lwz	r1,0(r1)
-	lwz	r0,4(r1)
-	stw	r10,THREAD+KSP_LIMIT(r2)
-	mtlr	r0
-	blr
-
-/*
  * This returns the high 64 bits of the product of two 64-bit numbers.
  */
 _GLOBAL(mulhdu)
@@ -106,7 +67,7 @@ _GLOBAL(reloc_got2)
 	srwi.	r8,r8,2
 	beqlr
 	mtctr	r8
-	bl	1f
+	bcl	20,31,$+4
 1:	mflr	r0
 	lis	r4,1b@ha
 	addi	r4,r4,1b@l
@@ -276,7 +237,7 @@ _GLOBAL(copy_page)
 	addi	r3,r3,-4
 
 0:	twnei	r5, 0	/* WARN if r3 is not cache aligned */
-	EMIT_BUG_ENTRY 0b,__FILE__,__LINE__, BUGFLAG_WARNING
+	EMIT_WARN_ENTRY 0b,__FILE__,__LINE__, BUGFLAG_WARNING
 
 	addi	r4,r4,-4
 
@@ -427,9 +388,3 @@ _GLOBAL(start_secondary_resume)
 	bl	start_secondary
 	b	.
 #endif /* CONFIG_SMP */
-	
-/*
- * This routine is just here to keep GCC happy - sigh...
- */
-_GLOBAL(__main)
-	blr

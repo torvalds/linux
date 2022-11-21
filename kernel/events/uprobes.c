@@ -155,11 +155,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 				struct page *old_page, struct page *new_page)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	struct page_vma_mapped_walk pvmw = {
-		.page = compound_head(old_page),
-		.vma = vma,
-		.address = addr,
-	};
+	DEFINE_FOLIO_VMA_WALK(pvmw, page_folio(old_page), vma, addr, 0);
 	int err;
 	struct mmu_notifier_range range;
 
@@ -167,12 +163,13 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 				addr + PAGE_SIZE);
 
 	if (new_page) {
-		err = mem_cgroup_charge(new_page, vma->vm_mm, GFP_KERNEL);
+		err = mem_cgroup_charge(page_folio(new_page), vma->vm_mm,
+					GFP_KERNEL);
 		if (err)
 			return err;
 	}
 
-	/* For try_to_free_swap() and munlock_vma_page() below */
+	/* For try_to_free_swap() below */
 	lock_page(old_page);
 
 	mmu_notifier_invalidate_range_start(&range);
@@ -200,13 +197,10 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 		set_pte_at_notify(mm, addr, pvmw.pte,
 				  mk_pte(new_page, vma->vm_page_prot));
 
-	page_remove_rmap(old_page, false);
+	page_remove_rmap(old_page, vma, false);
 	if (!page_mapped(old_page))
 		try_to_free_swap(old_page);
 	page_vma_mapped_walk_done(&pvmw);
-
-	if ((vma->vm_flags & VM_LOCKED) && !PageCompound(old_page))
-		munlock_vma_page(old_page);
 	put_page(old_page);
 
 	err = 0;
@@ -453,6 +447,7 @@ static int update_ref_ctr(struct uprobe *uprobe, struct mm_struct *mm,
  * that have fixed length instructions.
  *
  * uprobe_write_opcode - write the opcode at a given virtual address.
+ * @auprobe: arch specific probepoint information.
  * @mm: the probed process address space.
  * @vaddr: the virtual address to store the opcode.
  * @opcode: opcode to be written at @vaddr.
@@ -613,41 +608,56 @@ static void put_uprobe(struct uprobe *uprobe)
 	}
 }
 
-static int match_uprobe(struct uprobe *l, struct uprobe *r)
+static __always_inline
+int uprobe_cmp(const struct inode *l_inode, const loff_t l_offset,
+	       const struct uprobe *r)
 {
-	if (l->inode < r->inode)
+	if (l_inode < r->inode)
 		return -1;
 
-	if (l->inode > r->inode)
+	if (l_inode > r->inode)
 		return 1;
 
-	if (l->offset < r->offset)
+	if (l_offset < r->offset)
 		return -1;
 
-	if (l->offset > r->offset)
+	if (l_offset > r->offset)
 		return 1;
 
 	return 0;
 }
 
+#define __node_2_uprobe(node) \
+	rb_entry((node), struct uprobe, rb_node)
+
+struct __uprobe_key {
+	struct inode *inode;
+	loff_t offset;
+};
+
+static inline int __uprobe_cmp_key(const void *key, const struct rb_node *b)
+{
+	const struct __uprobe_key *a = key;
+	return uprobe_cmp(a->inode, a->offset, __node_2_uprobe(b));
+}
+
+static inline int __uprobe_cmp(struct rb_node *a, const struct rb_node *b)
+{
+	struct uprobe *u = __node_2_uprobe(a);
+	return uprobe_cmp(u->inode, u->offset, __node_2_uprobe(b));
+}
+
 static struct uprobe *__find_uprobe(struct inode *inode, loff_t offset)
 {
-	struct uprobe u = { .inode = inode, .offset = offset };
-	struct rb_node *n = uprobes_tree.rb_node;
-	struct uprobe *uprobe;
-	int match;
+	struct __uprobe_key key = {
+		.inode = inode,
+		.offset = offset,
+	};
+	struct rb_node *node = rb_find(&key, &uprobes_tree, __uprobe_cmp_key);
 
-	while (n) {
-		uprobe = rb_entry(n, struct uprobe, rb_node);
-		match = match_uprobe(&u, uprobe);
-		if (!match)
-			return get_uprobe(uprobe);
+	if (node)
+		return get_uprobe(__node_2_uprobe(node));
 
-		if (match < 0)
-			n = n->rb_left;
-		else
-			n = n->rb_right;
-	}
 	return NULL;
 }
 
@@ -668,32 +678,15 @@ static struct uprobe *find_uprobe(struct inode *inode, loff_t offset)
 
 static struct uprobe *__insert_uprobe(struct uprobe *uprobe)
 {
-	struct rb_node **p = &uprobes_tree.rb_node;
-	struct rb_node *parent = NULL;
-	struct uprobe *u;
-	int match;
+	struct rb_node *node;
 
-	while (*p) {
-		parent = *p;
-		u = rb_entry(parent, struct uprobe, rb_node);
-		match = match_uprobe(uprobe, u);
-		if (!match)
-			return get_uprobe(u);
+	node = rb_find_add(&uprobe->rb_node, &uprobes_tree, __uprobe_cmp);
+	if (node)
+		return get_uprobe(__node_2_uprobe(node));
 
-		if (match < 0)
-			p = &parent->rb_left;
-		else
-			p = &parent->rb_right;
-
-	}
-
-	u = NULL;
-	rb_link_node(&uprobe->rb_node, parent, p);
-	rb_insert_color(&uprobe->rb_node, &uprobes_tree);
 	/* get access + creation ref */
 	refcount_set(&uprobe->ref, 2);
-
-	return u;
+	return NULL;
 }
 
 /*
@@ -1735,7 +1728,7 @@ void uprobe_free_utask(struct task_struct *t)
 }
 
 /*
- * Allocate a uprobe_task object for the task if if necessary.
+ * Allocate a uprobe_task object for the task if necessary.
  * Called when the thread hits a breakpoint.
  *
  * Returns:
@@ -1973,7 +1966,7 @@ bool uprobe_deny_signal(void)
 
 	WARN_ON_ONCE(utask->state != UTASK_SSTEP);
 
-	if (signal_pending(t)) {
+	if (task_sigpending(t)) {
 		spin_lock_irq(&t->sighand->siglock);
 		clear_tsk_thread_flag(t, TIF_SIGPENDING);
 		spin_unlock_irq(&t->sighand->siglock);
@@ -2048,8 +2041,8 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 	struct vm_area_struct *vma;
 
 	mmap_read_lock(mm);
-	vma = find_vma(mm, bp_vaddr);
-	if (vma && vma->vm_start <= bp_vaddr) {
+	vma = vma_lookup(mm, bp_vaddr);
+	if (vma) {
 		if (valid_vma(vma, false)) {
 			struct inode *inode = file_inode(vma->vm_file);
 			loff_t offset = vaddr_to_offset(vma, bp_vaddr);

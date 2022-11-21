@@ -30,10 +30,12 @@
 #define PAD_SIZE 16
 #define FILL_CHAR '$'
 
-static unsigned total_tests __initdata;
-static unsigned failed_tests __initdata;
+KSTM_MODULE_GLOBALS();
+
 static char *test_buffer __initdata;
 static char *alloced_buffer __initdata;
+
+extern bool no_hash_pointers;
 
 static int __printf(4, 0) __init
 do_test(int bufsize, const char *expect, int elen,
@@ -301,6 +303,12 @@ plain(void)
 {
 	int err;
 
+	if (no_hash_pointers) {
+		pr_warn("skipping plain 'p' tests");
+		skipped_tests += 2;
+		return;
+	}
+
 	err = plain_hash();
 	if (err) {
 		pr_warn("plain 'p' does not appear to be hashed\n");
@@ -520,6 +528,11 @@ time_and_date(void)
 	test("0119-00-04T15:32:23", "%ptTr", &t);
 	test("15:32:23|2019-01-04", "%ptTt|%ptTd", &t, &t);
 	test("15:32:23|0119-00-04", "%ptTtr|%ptTdr", &t, &t);
+
+	test("2019-01-04 15:32:23", "%ptTs", &t);
+	test("0119-00-04 15:32:23", "%ptTsr", &t);
+	test("15:32:23|2019-01-04", "%ptTts|%ptTds", &t, &t);
+	test("15:32:23|0119-00-04", "%ptTtrs|%ptTdrs", &t, &t);
 }
 
 static void __init
@@ -569,28 +582,90 @@ netdev_features(void)
 {
 }
 
+struct page_flags_test {
+	int width;
+	int shift;
+	int mask;
+	const char *fmt;
+	const char *name;
+};
+
+static const struct page_flags_test pft[] = {
+	{SECTIONS_WIDTH, SECTIONS_PGSHIFT, SECTIONS_MASK,
+	 "%d", "section"},
+	{NODES_WIDTH, NODES_PGSHIFT, NODES_MASK,
+	 "%d", "node"},
+	{ZONES_WIDTH, ZONES_PGSHIFT, ZONES_MASK,
+	 "%d", "zone"},
+	{LAST_CPUPID_WIDTH, LAST_CPUPID_PGSHIFT, LAST_CPUPID_MASK,
+	 "%#x", "lastcpupid"},
+	{KASAN_TAG_WIDTH, KASAN_TAG_PGSHIFT, KASAN_TAG_MASK,
+	 "%#x", "kasantag"},
+};
+
+static void __init
+page_flags_test(int section, int node, int zone, int last_cpupid,
+		int kasan_tag, unsigned long flags, const char *name,
+		char *cmp_buf)
+{
+	unsigned long values[] = {section, node, zone, last_cpupid, kasan_tag};
+	unsigned long size;
+	bool append = false;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(values); i++)
+		flags |= (values[i] & pft[i].mask) << pft[i].shift;
+
+	size = scnprintf(cmp_buf, BUF_SIZE, "%#lx(", flags);
+	if (flags & PAGEFLAGS_MASK) {
+		size += scnprintf(cmp_buf + size, BUF_SIZE - size, "%s", name);
+		append = true;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(pft); i++) {
+		if (!pft[i].width)
+			continue;
+
+		if (append)
+			size += scnprintf(cmp_buf + size, BUF_SIZE - size, "|");
+
+		size += scnprintf(cmp_buf + size, BUF_SIZE - size, "%s=",
+				pft[i].name);
+		size += scnprintf(cmp_buf + size, BUF_SIZE - size, pft[i].fmt,
+				values[i] & pft[i].mask);
+		append = true;
+	}
+
+	snprintf(cmp_buf + size, BUF_SIZE - size, ")");
+
+	test(cmp_buf, "%pGp", &flags);
+}
+
 static void __init
 flags(void)
 {
 	unsigned long flags;
-	gfp_t gfp;
 	char *cmp_buffer;
+	gfp_t gfp;
+
+	cmp_buffer = kmalloc(BUF_SIZE, GFP_KERNEL);
+	if (!cmp_buffer)
+		return;
 
 	flags = 0;
-	test("", "%pGp", &flags);
+	page_flags_test(0, 0, 0, 0, 0, flags, "", cmp_buffer);
 
-	/* Page flags should filter the zone id */
 	flags = 1UL << NR_PAGEFLAGS;
-	test("", "%pGp", &flags);
+	page_flags_test(0, 0, 0, 0, 0, flags, "", cmp_buffer);
 
 	flags |= 1UL << PG_uptodate | 1UL << PG_dirty | 1UL << PG_lru
 		| 1UL << PG_active | 1UL << PG_swapbacked;
-	test("uptodate|dirty|lru|active|swapbacked", "%pGp", &flags);
+	page_flags_test(1, 1, 1, 0x1fffff, 1, flags,
+			"uptodate|dirty|lru|active|swapbacked",
+			cmp_buffer);
 
-
-	flags = VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC
-			| VM_DENYWRITE;
-	test("read|exec|mayread|maywrite|mayexec|denywrite", "%pGv", &flags);
+	flags = VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+	test("read|exec|mayread|maywrite|mayexec", "%pGv", &flags);
 
 	gfp = GFP_TRANSHUGE;
 	test("GFP_TRANSHUGE", "%pGg", &gfp);
@@ -600,10 +675,6 @@ flags(void)
 
 	gfp = __GFP_ATOMIC;
 	test("__GFP_ATOMIC", "%pGg", &gfp);
-
-	cmp_buffer = kmalloc(BUF_SIZE, GFP_KERNEL);
-	if (!cmp_buffer)
-		return;
 
 	/* Any flags not translated by the table should remain numeric */
 	gfp = ~__GFP_BITS_MASK;
@@ -644,9 +715,24 @@ static void __init fwnode_pointer(void)
 	test(second_name, "%pfwP", software_node_fwnode(&softnodes[1]));
 	test(third_name, "%pfwP", software_node_fwnode(&softnodes[2]));
 
-	software_node_unregister(&softnodes[2]);
-	software_node_unregister(&softnodes[1]);
-	software_node_unregister(&softnodes[0]);
+	software_node_unregister_nodes(softnodes);
+}
+
+static void __init fourcc_pointer(void)
+{
+	struct {
+		u32 code;
+		char *str;
+	} const try[] = {
+		{ 0x3231564e, "NV12 little-endian (0x3231564e)", },
+		{ 0xb231564e, "NV12 big-endian (0xb231564e)", },
+		{ 0x10111213, ".... little-endian (0x10111213)", },
+		{ 0x20303159, "Y10  little-endian (0x20303159)", },
+	};
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(try); i++)
+		test(try[i].str, "%p4cc", &try[i].code);
 }
 
 static void __init
@@ -694,6 +780,7 @@ test_pointer(void)
 	flags();
 	errptr();
 	fwnode_pointer();
+	fourcc_pointer();
 }
 
 static void __init selftest(void)

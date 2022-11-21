@@ -828,7 +828,7 @@ static const struct uart_ops sccnxp_ops = {
 };
 
 #ifdef CONFIG_SERIAL_SCCNXP_CONSOLE
-static void sccnxp_console_putchar(struct uart_port *port, int c)
+static void sccnxp_console_putchar(struct uart_port *port, unsigned char c)
 {
 	int tryes = 100000;
 

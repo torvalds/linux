@@ -134,7 +134,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	s5m8767: s5m8767-pmic@66 {
+	s5m8767: pmic@66 {
 		compatible = "samsung,s5m8767-pmic";
 		reg = <0x66>;
 
@@ -163,6 +163,7 @@
 						 <1025000>, <950000>,
 						 <918750>, <900000>,
 						 <875000>, <831250>;
+		wakeup-source;
 
 		regulators {
 			ldo1_reg: LDO1 {
@@ -483,7 +484,7 @@
 };
 
 &pinctrl_1 {
-	hsic_reset: hsic-reset {
+	hsic_reset: hsic-reset-pins {
 		samsung,pins = "gpm2-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;

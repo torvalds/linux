@@ -29,7 +29,7 @@
  * Then it checks if the number of syscalls reported as perf events by
  * the kernel corresponds to the number of syscalls made.
  */
-int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__basic_mmap(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1;
 	union perf_event *event;
@@ -59,17 +59,18 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 	}
 
 	CPU_ZERO(&cpu_set);
-	CPU_SET(cpus->map[0], &cpu_set);
+	CPU_SET(perf_cpu_map__cpu(cpus, 0).cpu, &cpu_set);
 	sched_setaffinity(0, sizeof(cpu_set), &cpu_set);
 	if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set) < 0) {
 		pr_debug("sched_setaffinity() failed on CPU %d: %s ",
-			 cpus->map[0], str_error_r(errno, sbuf, sizeof(sbuf)));
+			 perf_cpu_map__cpu(cpus, 0).cpu,
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_free_cpus;
 	}
 
 	evlist = evlist__new();
 	if (evlist == NULL) {
-		pr_debug("perf_evlist__new\n");
+		pr_debug("evlist__new\n");
 		goto out_free_cpus;
 	}
 
@@ -126,20 +127,20 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 			goto out_delete_evlist;
 		}
 
-		err = perf_evlist__parse_sample(evlist, event, &sample);
+		err = evlist__parse_sample(evlist, event, &sample);
 		if (err) {
 			pr_err("Can't parse sample, err = %d\n", err);
 			goto out_delete_evlist;
 		}
 
 		err = -1;
-		evsel = perf_evlist__id2evsel(evlist, sample.id);
+		evsel = evlist__id2evsel(evlist, sample.id);
 		if (evsel == NULL) {
 			pr_debug("event with id %" PRIu64
 				 " doesn't map to an evsel\n", sample.id);
 			goto out_delete_evlist;
 		}
-		nr_events[evsel->idx]++;
+		nr_events[evsel->core.idx]++;
 		perf_mmap__consume(&md->core);
 	}
 	perf_mmap__read_done(&md->core);
@@ -147,10 +148,10 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 out_init:
 	err = 0;
 	evlist__for_each_entry(evlist, evsel) {
-		if (nr_events[evsel->idx] != expected_nr_events[evsel->idx]) {
+		if (nr_events[evsel->core.idx] != expected_nr_events[evsel->core.idx]) {
 			pr_debug("expected %d %s events, got %d\n",
-				 expected_nr_events[evsel->idx],
-				 evsel__name(evsel), nr_events[evsel->idx]);
+				 expected_nr_events[evsel->core.idx],
+				 evsel__name(evsel), nr_events[evsel->core.idx]);
 			err = -1;
 			goto out_delete_evlist;
 		}
@@ -158,11 +159,11 @@ out_init:
 
 out_delete_evlist:
 	evlist__delete(evlist);
-	cpus	= NULL;
-	threads = NULL;
 out_free_cpus:
 	perf_cpu_map__put(cpus);
 out_free_threads:
 	perf_thread_map__put(threads);
 	return err;
 }
+
+DEFINE_SUITE("Read samples using the mmap interface", basic_mmap);

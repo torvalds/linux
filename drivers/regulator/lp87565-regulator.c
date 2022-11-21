@@ -11,6 +11,17 @@
 
 #include <linux/mfd/lp87565.h>
 
+enum LP87565_regulator_id {
+	/* BUCK's */
+	LP87565_BUCK_0,
+	LP87565_BUCK_1,
+	LP87565_BUCK_2,
+	LP87565_BUCK_3,
+	LP87565_BUCK_10,
+	LP87565_BUCK_23,
+	LP87565_BUCK_3210,
+};
+
 #define LP87565_REGULATOR(_name, _id, _of, _ops, _n, _vr, _vm,		\
 			  _er, _em, _ev, _delay, _lr, _cr)		\
 	[_id] = {							\

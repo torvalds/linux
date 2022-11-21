@@ -93,7 +93,7 @@ static const struct devlink_health_reporter_ops qed_fw_fatal_reporter_ops = {
 		.dump = qed_fw_fatal_reporter_dump,
 };
 
-#define QED_REPORTER_FW_GRACEFUL_PERIOD 1200000
+#define QED_REPORTER_FW_GRACEFUL_PERIOD 0
 
 void qed_fw_reporters_create(struct devlink *devlink)
 {
@@ -207,16 +207,13 @@ struct devlink *qed_devlink_register(struct qed_dev *cdev)
 	struct devlink *dl;
 	int rc;
 
-	dl = devlink_alloc(&qed_dl_ops, sizeof(struct qed_devlink));
+	dl = devlink_alloc(&qed_dl_ops, sizeof(struct qed_devlink),
+			   &cdev->pdev->dev);
 	if (!dl)
 		return ERR_PTR(-ENOMEM);
 
 	qdevlink = devlink_priv(dl);
 	qdevlink->cdev = cdev;
-
-	rc = devlink_register(dl, &cdev->pdev->dev);
-	if (rc)
-		goto err_free;
 
 	rc = devlink_params_register(dl, qed_devlink_params,
 				     ARRAY_SIZE(qed_devlink_params));
@@ -228,17 +225,13 @@ struct devlink *qed_devlink_register(struct qed_dev *cdev)
 					   QED_DEVLINK_PARAM_ID_IWARP_CMT,
 					   value);
 
-	devlink_params_publish(dl);
 	cdev->iwarp_cmt = false;
 
 	qed_fw_reporters_create(dl);
-
+	devlink_register(dl);
 	return dl;
 
 err_unregister:
-	devlink_unregister(dl);
-
-err_free:
 	devlink_free(dl);
 
 	return ERR_PTR(rc);
@@ -249,11 +242,11 @@ void qed_devlink_unregister(struct devlink *devlink)
 	if (!devlink)
 		return;
 
+	devlink_unregister(devlink);
 	qed_fw_reporters_destroy(devlink);
 
 	devlink_params_unregister(devlink, qed_devlink_params,
 				  ARRAY_SIZE(qed_devlink_params));
 
-	devlink_unregister(devlink);
 	devlink_free(devlink);
 }

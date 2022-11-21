@@ -6,12 +6,33 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+#include <dt-bindings/sound/sc7180-lpass.h>
 
 /* PMICs depend on spmi_bus label and so must come after SoC */
 #include "pm6150.dtsi"
 #include "pm6150l.dtsi"
+
+/ {
+	thermal-zones {
+		charger_thermal: charger-thermal {
+			polling-delay-passive = <0>;
+			polling-delay = <0>;
+
+			thermal-sensors = <&pm6150_adc_tm 0>;
+
+			trips {
+				charger-crit {
+					temperature = <125000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
+	};
+};
 
 /*
  * Reserved memory changes
@@ -28,7 +49,7 @@
 
 /* Increase the size from 2MB to 8MB */
 &rmtfs_mem {
-	reg = <0x0 0x84400000 0x0 0x800000>;
+	reg = <0x0 0x94600000 0x0 0x800000>;
 };
 
 / {
@@ -39,12 +60,7 @@
 		};
 
 		mpss_mem: memory@86000000 {
-			reg = <0x0 0x86000000 0x0 0x8c00000>;
-			no-map;
-		};
-
-		camera_mem: memory@8ec00000 {
-			reg = <0x0 0x8ec00000 0x0 0x500000>;
+			reg = <0x0 0x86000000 0x0 0x2000000>;
 			no-map;
 		};
 
@@ -128,6 +144,100 @@
 		vin-supply = <&ppvar_sys>;
 	};
 
+	pp1800_ec:
+	pp1800_sensors:
+	pp1800_ldo: pp1800-ldo-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1800_ldo";
+
+		/* EC turns on with hibernate_l; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		/*
+		 * Actually should be pp1800_h1 but we don't have any need to
+		 * model that so we use the parent of pp1800_h1.
+		 */
+		vin-supply = <&pp3300_a>;
+	};
+
+	pp1800_uf_cam: pp1800-uf-cam-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1800_uf_cam";
+		status = "disabled";
+
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		gpio = <&tlmm 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uf_cam_en>;
+
+		vin-supply = <&pp1800_ldo>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	pp1800_wf_cam: pp1800-wf-cam-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1800_wf_cam";
+		status = "disabled";
+
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		gpio = <&tlmm 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wf_cam_en>;
+
+		vin-supply = <&pp1800_ldo>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	pp2800_uf_cam: pp2800-uf-cam-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp2800_uf_cam";
+		status = "disabled";
+
+		regulator-min-microvolt = <2850000>;
+		regulator-max-microvolt = <2850000>;
+
+		gpio = <&tlmm 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		/*
+		 * The pinconf can only be referenced once so we put it on the
+		 * first regulator and comment it out here.
+		 * pinctrl-names = "default";
+		 * pinctrl-0 = <&uf_cam_en>;
+		 */
+
+		vin-supply = <&pp3300_a>;
+	};
+
+	pp2800_vcm_wf_cam:
+	pp2800_wf_cam: pp2800-wf-cam-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp2800_wf_cam";
+		status = "disabled";
+
+		regulator-min-microvolt = <2850000>;
+		regulator-max-microvolt = <2850000>;
+
+		gpio = <&tlmm 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		/*
+		 * The pinconf can only be referenced once so we put it on the
+		 * first regulator and comment it out here.
+		 * pinctrl-names = "default";
+		 * pinctrl-0 = <&wf_cam_en>;
+		 */
+
+		vin-supply = <&pp3300_a>;
+	};
+
 	pp3300_audio:
 	pp3300_codec: pp3300-codec-regulator {
 		compatible = "regulator-fixed";
@@ -174,10 +284,37 @@
 		vin-supply = <&pp3300_a>;
 	};
 
+	pp3300_hub: pp3300-hub-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_hub";
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&tlmm 84 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&en_pp3300_hub>;
+
+		regulator-always-on;
+		regulator-boot-on;
+
+		vin-supply = <&pp3300_a>;
+	};
+
 	/* BOARD-SPECIFIC TOP LEVEL NODES */
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
+
+		/* The panels don't seem to like anything below ~ 5% */
+		brightness-levels = <
+			196 256 324 400 484 576 676 784 900 1024 1156 1296
+			1444 1600 1764 1936 2116 2304 2500 2704 2916 3136
+			3364 3600 3844 4096
+		>;
+		num-interpolated-steps = <64>;
+		default-brightness-level = <951>;
 
 		pwms = <&cros_ec_pwm 1>;
 		enable-gpios = <&tlmm 12 GPIO_ACTIVE_HIGH>;
@@ -192,19 +329,20 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pen_pdct_l>;
 
-		pen-insert {
+		pen_insert: pen-insert {
 			label = "Pen Insert";
 
 			/* Insert = low, eject = high */
 			gpios = <&tlmm 52 GPIO_ACTIVE_LOW>;
 			linux,code = <SW_PEN_INSERTED>;
 			linux,input-type = <EV_SW>;
+			wakeup-event-action = <EV_ACT_DEASSERTED>;
 			wakeup-source;
 		};
 	};
 
-	max98357a: audio-codec-0 {
-		compatible = "maxim,max98357a";
+	max98360a: audio-codec-0 {
+		compatible = "maxim,max98360a";
 		pinctrl-names = "default";
 		pinctrl-0 = <&amp_en>;
 		sdmode-gpios = <&tlmm 23 GPIO_ACTIVE_HIGH>;
@@ -218,6 +356,54 @@
 			label = "cros_ec::kbd_backlight";
 			pwms = <&cros_ec_pwm 0>;
 			max-brightness = <1023>;
+		};
+	};
+
+	sound: sound {
+		compatible = "google,sc7180-trogdor";
+		model = "sc7180-rt5682-max98357a-1mic";
+
+		audio-routing =
+			"Headphone Jack", "HPOL",
+			"Headphone Jack", "HPOR";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dai-link@0 {
+			link-name = "MultiMedia0";
+			reg = <MI2S_PRIMARY>;
+			cpu {
+				sound-dai = <&lpass_cpu MI2S_PRIMARY>;
+			};
+
+			sound_multimedia0_codec: codec {
+				sound-dai = <&alc5682 0 /* aif1 */>;
+			};
+		};
+
+		dai-link@1 {
+			link-name = "MultiMedia1";
+			reg = <MI2S_SECONDARY>;
+			cpu {
+				sound-dai = <&lpass_cpu MI2S_SECONDARY>;
+			};
+
+			sound_multimedia1_codec: codec {
+				sound-dai = <&max98360a>;
+			};
+		};
+
+		dai-link@5 {
+			link-name = "MultiMedia2";
+			reg = <LPASS_DP_RX>;
+			cpu {
+				sound-dai = <&lpass_cpu LPASS_DP_RX>;
+			};
+
+			codec {
+				sound-dai = <&mdss_dp>;
+			};
 		};
 	};
 };
@@ -235,8 +421,7 @@
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 
-		/* TODO: Increase frequency after testing */
-		spi-max-frequency = <25000000>;
+		spi-max-frequency = <37500000>;
 		spi-tx-bus-width = <2>;
 		spi-rx-bus-width = <2>;
 	};
@@ -254,40 +439,6 @@
 			regulator-max-microvolt = <1128000>;
 		};
 
-		/*
-		 * pp2040_s5a (smps5) and pp1056_s4a (smps4) are just
-		 * inputs to other rails on AOP-managed PMICs on trogdor.
-		 * The system is already configured to manage these rails
-		 * automatically (enable when needed, adjust voltage for
-		 * headroom) so we won't specify anything here.
-		 *
-		 * NOTE: though the rails have a voltage implied by their
-		 * name, the automatic headroom calculation might not result
-		 * in them being that voltage.  ...and that's OK.
-		 * Specifically the only point of these rails is to provide
-		 * an input source for other rails and if we can satisify the
-		 * needs of those other rails with a lower source voltage then
-		 * we save power.
-		 */
-
-		pp1200_l1a: ldo1 {
-			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1200000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		pp1000_l2a: ldo2 {
-			regulator-min-microvolt = <944000>;
-			regulator-max-microvolt = <1056000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		pp1000_l3a: ldo3 {
-			regulator-min-microvolt = <968000>;
-			regulator-max-microvolt = <1064000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
 		vdd_qlink_lv:
 		vdd_qlink_lv_ck:
 		vdd_qusb_hs0_core:
@@ -303,24 +454,6 @@
 		pp900_l4a: ldo4 {
 			regulator-min-microvolt = <824000>;
 			regulator-max-microvolt = <928000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		pp2700_l5a: ldo5 {
-			regulator-min-microvolt = <2704000>;
-			regulator-max-microvolt = <2704000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		ebi0_cal:
-		ebi1_cal:
-		vddio_ck_ebi0:
-		vddio_ck_ebi1:
-		vddio_ebi0:
-		vddq:
-		pp600_l6a: ldo6 {
-			regulator-min-microvolt = <568000>;
-			regulator-max-microvolt = <648000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -360,6 +493,11 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
+		/*
+		 * On trogdor this needs to match l10a since we use it to
+		 * give power to things like SPI flash which communicate back
+		 * on lines powered by l10a.  Thus we force to 1.8V.
+		 */
 		pp1800_l13a: ldo13 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
@@ -377,12 +515,6 @@
 		pp1800_l15a: ldo15 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		pp2700_l16a: ldo16 {
-			regulator-min-microvolt = <2496000>;
-			regulator-max-microvolt = <3304000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -419,8 +551,8 @@
 		};
 
 		pp1800_l1c: ldo1 {
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
+			regulator-min-microvolt = <1616000>;
+			regulator-max-microvolt = <1984000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -447,35 +579,17 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		ld_pp1800_esim_l4c:
-		vddpx_5:
-		pp1800_l4c: ldo4 {
-			regulator-min-microvolt = <1648000>;
-			regulator-max-microvolt = <3304000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vddpx_6:
-		pp1800_l5c: ldo5 {
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
 		vddpx_2:
 		ppvar_l6c: ldo6 {
 			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <3304000>;
+			regulator-max-microvolt = <2952000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		pp3300_hub:
 		pp3300_l7c: ldo7 {
 			regulator-min-microvolt = <3304000>;
 			regulator-max-microvolt = <3304000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-			regulator-always-on;
-			regulator-boot-on;
 		};
 
 		pp1800_brij_vccio:
@@ -523,7 +637,7 @@
 		pinctrl-0 = <&ap_ec_int_l>;
 		spi-max-frequency = <3000000>;
 
-		cros_ec_pwm: ec-pwm {
+		cros_ec_pwm: pwm {
 			compatible = "google,cros-ec-pwm";
 			#pwm-cells = <1>;
 		};
@@ -533,10 +647,6 @@
 			google,remote-bus = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-		};
-
-		pdupdate {
-			compatible = "google,cros-ec-pd-update";
 		};
 
 		typec {
@@ -578,18 +688,17 @@
 	};
 };
 
+&camcc {
+	status = "disabled";
+};
+
 &dsi0 {
 	status = "okay";
 	vdda-supply = <&vdda_mipi_dsi0_1p2>;
+};
 
-	ports {
-		port@1 {
-			endpoint {
-				remote-endpoint = <&sn65dsi86_in>;
-				data-lanes = <0 1 2 3>;
-			};
-		};
-	};
+&dsi0_out {
+	data-lanes = <0 1 2 3>;
 };
 
 &dsi_phy {
@@ -597,55 +706,7 @@
 	vdds-supply = <&vdda_mipi_dsi0_pll>;
 };
 
-edp_brij_i2c: &i2c2 {
-	status = "okay";
-	clock-frequency = <400000>;
-
-	sn65dsi86_bridge: bridge@2d {
-		compatible = "ti,sn65dsi86";
-		reg = <0x2d>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&edp_brij_en>, <&edp_brij_irq>;
-		gpio-controller;
-		#gpio-cells = <2>;
-
-		interrupt-parent = <&tlmm>;
-		interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
-
-		enable-gpios = <&tlmm 104 GPIO_ACTIVE_HIGH>;
-
-		vpll-supply = <&pp1800_edp_vpll>;
-		vccio-supply = <&pp1800_brij_vccio>;
-		vcca-supply = <&pp1200_brij>;
-		vcc-supply = <&pp1200_brij>;
-
-		clocks = <&rpmhcc RPMH_LN_BB_CLK3>;
-		clock-names = "refclk";
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-				sn65dsi86_in: endpoint {
-					remote-endpoint = <&dsi0_out>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-				sn65dsi86_out: endpoint {
-					data-lanes = <0 1>;
-					remote-endpoint = <&panel_in_edp>;
-				};
-			};
-		};
-	};
-};
-
 ap_sar_sensor_i2c: &i2c5 {
-	status = "okay";
 	clock-frequency = <400000>;
 
 	ap_sar_sensor: proximity@28 {
@@ -670,14 +731,14 @@ ap_tp_i2c: &i2c7 {
 	status = "okay";
 	clock-frequency = <400000>;
 
-	trackpad@15 {
+	trackpad: trackpad@15 {
 		compatible = "elan,ekth3000";
 		reg = <0x15>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&trackpad_int_1v8_odl>;
+		pinctrl-0 = <&tp_int_odl>;
 
 		interrupt-parent = <&tlmm>;
-		interrupts = <58 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
 
 		vcc-supply = <&pp3300_fp_tp>;
 
@@ -714,15 +775,29 @@ hp_i2c: &i2c9 {
 	};
 };
 
-&ipa {
+&lpass_cpu {
 	status = "okay";
 
-	/*
-	 * Trogdor doesn't have QHEE (Qualcomm's EL2 blob), so the
-	 * modem needs to cover certain init steps (GSI init), and
-	 * the AP needs to wait for it.
-	 */
-	modem-init;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sec_mi2s_active>, <&pri_mi2s_active>, <&pri_mi2s_mclk_active>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	mi2s@0 {
+		reg = <MI2S_PRIMARY>;
+		qcom,playback-sd-lines = <1>;
+		qcom,capture-sd-lines = <0>;
+	};
+
+	secondary_mi2s: mi2s@1 {
+		reg = <MI2S_SECONDARY>;
+		qcom,playback-sd-lines = <0>;
+	};
+
+	hdmi@5 {
+		reg = <LPASS_DP_RX>;
+	};
 };
 
 &mdp {
@@ -733,7 +808,35 @@ hp_i2c: &i2c9 {
 	status = "okay";
 };
 
-&pm6150_pwrkey {
+&mdss_dp {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&dp_hot_plug_det>;
+	data-lanes = <0 1>;
+	vdda-1p2-supply = <&vdda_usb_ss_dp_1p2>;
+	vdda-0p9-supply = <&vdda_usb_ss_dp_core>;
+};
+
+&pm6150_adc {
+	charger-thermistor@4f {
+		reg = <ADC5_AMUX_THM3_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+};
+
+&pm6150_adc_tm {
+	status = "okay";
+
+	charger-thermistor@0 {
+		reg = <0>;
+		io-channels = <&pm6150_adc ADC5_AMUX_THM3_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+};
+
+&pm6150_pon {
 	status = "disabled";
 };
 
@@ -776,14 +879,27 @@ hp_i2c: &i2c9 {
 	cd-gpios = <&tlmm 69 GPIO_ACTIVE_LOW>;
 };
 
+&spi0 {
+	pinctrl-0 = <&qup_spi0_cs_gpio_init_high>, <&qup_spi0_cs_gpio>;
+	cs-gpios = <&tlmm 37 GPIO_ACTIVE_LOW>;
+};
+
+&spi6 {
+	pinctrl-0 = <&qup_spi6_cs_gpio_init_high>, <&qup_spi6_cs_gpio>;
+	cs-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>;
+};
+
 ap_spi_fp: &spi10 {
+	pinctrl-0 = <&qup_spi10_cs_gpio_init_high>, <&qup_spi10_cs_gpio>;
+	cs-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
+
 	cros_ec_fp: ec@0 {
 		compatible = "google,cros-ec-spi";
 		reg = <0>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&fp_to_ap_irq_l>, <&fp_rst_l>, <&fpmcu_boot0>, <&fpmcu_sel>;
+		pinctrl-0 = <&fp_to_ap_irq_l>;
 		spi-max-frequency = <3000000>;
 	};
 };
@@ -808,7 +924,6 @@ ap_spi_fp: &spi10 {
 		vddrf-supply = <&pp1300_l2c>;
 		vddch0-supply = <&pp3300_l10c>;
 		max-speed = <3200000>;
-		clocks = <&rpmhcc RPMH_RF_CLK2>;
 	};
 };
 
@@ -864,6 +979,29 @@ ap_spi_fp: &spi10 {
 
 /* PINCTRL - additions to nodes defined in sc7180.dtsi */
 
+&dp_hot_plug_det {
+	pinconf {
+		pins = "gpio117";
+		bias-disable;
+	};
+};
+
+&pri_mi2s_active {
+	pinconf {
+		pins = "gpio53", "gpio54", "gpio55", "gpio56";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+};
+
+&pri_mi2s_mclk_active {
+	pinconf {
+		pins = "gpio57";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+};
+
 &qspi_cs0 {
 	pinconf {
 		pins = "gpio68";
@@ -874,6 +1012,7 @@ ap_spi_fp: &spi10 {
 &qspi_clk {
 	pinconf {
 		pins = "gpio63";
+		drive-strength = <8>;
 		bias-disable;
 	};
 };
@@ -937,7 +1076,7 @@ ap_spi_fp: &spi10 {
 	};
 };
 
-&qup_spi0_default {
+&qup_spi0_cs_gpio {
 	pinconf {
 		pins = "gpio34", "gpio35", "gpio36", "gpio37";
 		drive-strength = <2>;
@@ -945,7 +1084,7 @@ ap_spi_fp: &spi10 {
 	};
 };
 
-&qup_spi6_default {
+&qup_spi6_cs_gpio {
 	pinconf {
 		pins = "gpio59", "gpio60", "gpio61", "gpio62";
 		drive-strength = <2>;
@@ -953,7 +1092,7 @@ ap_spi_fp: &spi10 {
 	};
 };
 
-&qup_spi10_default {
+&qup_spi10_cs_gpio {
 	pinconf {
 		pins = "gpio86", "gpio87", "gpio88", "gpio89";
 		drive-strength = <2>;
@@ -1001,6 +1140,14 @@ ap_spi_fp: &spi10 {
 		pins = "gpio45";
 		drive-strength = <2>;
 		bias-pull-up;
+	};
+};
+
+&sec_mi2s_active {
+	pinconf {
+		pins = "gpio49", "gpio50", "gpio51";
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 };
 
@@ -1098,20 +1245,6 @@ ap_spi_fp: &spi10 {
 		};
 	};
 
-	dp_hot_plug_det: dp-hot-plug-det {
-		 pinmux {
-			 pins = "gpio117";
-			 function = "dp_hot";
-		 };
-
-		 config {
-			 pins = "gpio117";
-			 bias-disable;
-			 input-enable;
-			 drive-strength = <2>;
-		 };
-	 };
-
 	edp_brij_en: edp-brij-en {
 		pinmux {
 			pins = "gpio104";
@@ -1122,19 +1255,6 @@ ap_spi_fp: &spi10 {
 			pins = "gpio104";
 			drive-strength = <2>;
 			bias-disable;
-		};
-	};
-
-	edp_brij_irq: edp-brij-irq {
-		pinmux {
-			pins = "gpio11";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio11";
-			drive-strength = <2>;
-			bias-pull-down;
 		};
 	};
 
@@ -1164,45 +1284,16 @@ ap_spi_fp: &spi10 {
 		};
 	};
 
-	fpmcu_boot0: fpmcu-boot0 {
+	en_pp3300_hub: en-pp3300-hub {
 		pinmux {
-			pins = "gpio10";
+			pins = "gpio84";
 			function = "gpio";
 		};
 
 		pinconf {
-			pins = "gpio10";
-			bias-disable;
+			pins = "gpio84";
 			drive-strength = <2>;
-			output-low;
-		};
-	};
-
-	fpmcu_sel: fpmcu-sel {
-		pinmux {
-			pins = "gpio22";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio22";
 			bias-disable;
-			drive-strength = <2>;
-			output-high;
-		};
-	};
-
-	fp_rst_l: fp-rst-l {
-		pinmux {
-			pins = "gpio5";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio5";
-			bias-disable;
-			drive-strength = <2>;
-			output-high;
 		};
 	};
 
@@ -1220,7 +1311,6 @@ ap_spi_fp: &spi10 {
 			bias-disable;
 		};
 	};
-
 
 	h1_ap_int_odl: h1-ap-int-odl {
 		pinmux {
@@ -1310,7 +1400,29 @@ ap_spi_fp: &spi10 {
 
 		pinconf {
 			pins = "gpio24";
-			bias-pull-up;
+			/* Has external pullup */
+			bias-disable;
+		};
+	};
+
+	qup_spi0_cs_gpio_init_high: qup-spi0-cs-gpio-init-high {
+		pinconf {
+			pins = "gpio37";
+			output-high;
+		};
+	};
+
+	qup_spi6_cs_gpio_init_high: qup-spi6-cs-gpio-init-high {
+		pinconf {
+			pins = "gpio62";
+			output-high;
+		};
+	};
+
+	qup_spi10_cs_gpio_init_high: qup-spi10-cs-gpio-init-high {
+		pinconf {
+			pins = "gpio89";
+			output-high;
 		};
 	};
 
@@ -1361,14 +1473,16 @@ ap_spi_fp: &spi10 {
 		};
 	};
 
-	trackpad_int_1v8_odl: trackpad-int-1v8-odl {
+	/* Named trackpad_int_1v8_odl on earlier revision schematics */
+	trackpad_int_1v8_odl:
+	tp_int_odl: tp-int-odl {
 		pinmux {
-			pins = "gpio58";
+			pins = "gpio0";
 			function = "gpio";
 		};
 
 		pinconf {
-			pins = "gpio58";
+			pins = "gpio0";
 
 			/* Has external pullup */
 			bias-disable;
@@ -1397,6 +1511,136 @@ ap_spi_fp: &spi10 {
 			pins = "gpio8";
 			bias-disable;
 			drive-strength = <2>;
+		};
+	};
+
+	sdc1_on: sdc1-on {
+		pinconf-clk {
+			pins = "sdc1_clk";
+			bias-disable;
+			drive-strength = <16>;
+		};
+
+		pinconf-cmd {
+			pins = "sdc1_cmd";
+			bias-pull-up;
+			drive-strength = <16>;
+		};
+
+		pinconf-data {
+			pins = "sdc1_data";
+			bias-pull-up;
+			drive-strength = <16>;
+		};
+
+		pinconf-rclk {
+			pins = "sdc1_rclk";
+			bias-pull-down;
+		};
+	};
+
+	sdc1_off: sdc1-off {
+		pinconf-clk {
+			pins = "sdc1_clk";
+			bias-disable;
+			drive-strength = <2>;
+		};
+
+		pinconf-cmd {
+			pins = "sdc1_cmd";
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+
+		pinconf-data {
+			pins = "sdc1_data";
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+
+		pinconf-rclk {
+			pins = "sdc1_rclk";
+			bias-pull-down;
+		};
+	};
+
+	sdc2_on: sdc2-on {
+		pinconf-clk {
+			pins = "sdc2_clk";
+			bias-disable;
+			drive-strength = <16>;
+		};
+
+		pinconf-cmd {
+			pins = "sdc2_cmd";
+			bias-pull-up;
+			drive-strength = <10>;
+		};
+
+		pinconf-data {
+			pins = "sdc2_data";
+			bias-pull-up;
+			drive-strength = <10>;
+		};
+
+		pinconf-sd-cd {
+			pins = "gpio69";
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+
+	sdc2_off: sdc2-off {
+		pinconf-clk {
+			pins = "sdc2_clk";
+			bias-disable;
+			drive-strength = <2>;
+		};
+
+		pinconf-cmd {
+			pins = "sdc2_cmd";
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+
+		pinconf-data {
+			pins = "sdc2_data";
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+
+		pinconf-sd-cd {
+			pins = "gpio69";
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+
+	uf_cam_en: uf-cam-en {
+		pinmux {
+			pins = "gpio6";
+			function = "gpio";
+		};
+
+		pinconf {
+			pins = "gpio6";
+			drive-strength = <2>;
+			/* External pull down */
+			bias-disable;
+		};
+	};
+
+	wf_cam_en: wf-cam-en {
+		pinmux {
+			pins = "gpio7";
+			function = "gpio";
+		};
+
+		pinconf {
+			pins = "gpio7";
+			drive-strength = <2>;
+			/* External pull down */
+			bias-disable;
 		};
 	};
 };

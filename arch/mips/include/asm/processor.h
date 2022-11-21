@@ -32,16 +32,11 @@ extern unsigned int vced_count, vcei_count;
 extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 
 #ifdef CONFIG_32BIT
-#ifdef CONFIG_KVM_GUEST
-/* User space process size is limited to 1GB in KVM Guest Mode */
-#define TASK_SIZE	0x3fff8000UL
-#else
 /*
  * User space process size: 2GB. This is hardcoded into a few places,
  * so don't change it unless you know what you are doing.
  */
 #define TASK_SIZE	0x80000000UL
-#endif
 
 #define STACK_TOP_MAX	TASK_SIZE
 
@@ -212,23 +207,9 @@ struct octeon_cvmseg_state {
 			    [cpu_dcache_line_size() / sizeof(unsigned long)];
 };
 
-#elif defined(CONFIG_CPU_XLP)
-struct nlm_cop2_state {
-	u64	rx[4];
-	u64	tx[4];
-	u32	tx_msg_status;
-	u32	rx_msg_status;
-};
-
-#define COP2_INIT						\
-	.cp2			= {{0}, {0}, 0, 0},
 #else
 #define COP2_INIT
 #endif
-
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
 
 #ifdef CONFIG_CPU_HAS_MSA
 # define ARCH_MIN_TASKALIGN	16
@@ -283,9 +264,6 @@ struct thread_struct {
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 	struct octeon_cop2_state cp2 __attribute__ ((__aligned__(128)));
 	struct octeon_cvmseg_state cvmseg __attribute__ ((__aligned__(128)));
-#endif
-#ifdef CONFIG_CPU_XLP
-	struct nlm_cop2_state cp2;
 #endif
 	struct mips_abi *abi;
 };
@@ -378,7 +356,7 @@ static inline void flush_thread(void)
 {
 }
 
-unsigned long get_wchan(struct task_struct *p);
+unsigned long __get_wchan(struct task_struct *p);
 
 #define __KSTK_TOS(tsk) ((unsigned long)task_stack_page(tsk) + \
 			 THREAD_SIZE - 32 - sizeof(struct pt_regs))

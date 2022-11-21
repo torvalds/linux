@@ -193,8 +193,7 @@ get_queue_num:
 		if (recontend_queue)
 			goto get_queue_num;
 
-		q_num = INVALID_QUEUE;
-		return q_num;
+		return INVALID_QUEUE;
 	}
 
 	common->selected_qnum = q_num;
@@ -400,6 +399,8 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 
 	info = IEEE80211_SKB_CB(skb);
 	tx_params = (struct skb_info *)info->driver_data;
+	/* info->driver_data and info->control part of union so make copy */
+	tx_params->have_key = !!info->control.hw_key;
 	wh = (struct ieee80211_hdr *)&skb->data[0];
 	tx_params->sta_id = 0;
 

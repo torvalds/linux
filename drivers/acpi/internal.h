@@ -9,12 +9,12 @@
 #ifndef _ACPI_INTERNAL_H_
 #define _ACPI_INTERNAL_H_
 
-#define PREFIX "ACPI: "
+#include <linux/idr.h>
 
 int early_acpi_osi_init(void);
 int acpi_osi_init(void);
 acpi_status acpi_os_initialize1(void);
-int acpi_scan_init(void);
+void acpi_scan_init(void);
 #ifdef CONFIG_PCI
 void acpi_pci_root_init(void);
 void acpi_pci_link_init(void);
@@ -86,7 +86,7 @@ void acpi_device_hotplug(struct acpi_device *adev, u32 src);
 bool acpi_scan_is_offline(struct acpi_device *adev, bool uevent);
 
 acpi_status acpi_sysfs_table_handler(u32 event, void *table, void *context);
-void acpi_scan_table_handler(u32 event, void *table, void *context);
+void acpi_scan_table_notify(void);
 
 /* --------------------------------------------------------------------------
                      Device Node Initialization / Removal
@@ -97,15 +97,15 @@ void acpi_scan_table_handler(u32 event, void *table, void *context);
 extern struct list_head acpi_bus_id_list;
 
 struct acpi_device_bus_id {
-	char bus_id[15];
-	unsigned int instance_no;
+	const char *bus_id;
+	struct ida instance_ida;
 	struct list_head node;
 };
 
 int acpi_device_add(struct acpi_device *device,
 		    void (*release)(struct device *));
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
-			     int type, unsigned long long sta);
+			     int type);
 int acpi_device_setup_files(struct acpi_device *dev);
 void acpi_device_remove_files(struct acpi_device *dev);
 void acpi_device_add_finalize(struct acpi_device *device);
@@ -130,7 +130,7 @@ int acpi_power_init(void);
 void acpi_power_resources_list_free(struct list_head *list);
 int acpi_extract_power_resources(union acpi_object *package, unsigned int start,
 				 struct list_head *list);
-int acpi_add_power_resource(acpi_handle handle);
+struct acpi_device *acpi_add_power_resource(acpi_handle handle);
 void acpi_power_add_remove_device(struct acpi_device *adev, bool add);
 int acpi_power_wakeup_list_init(struct list_head *list, int *system_level);
 int acpi_device_sleep_wake(struct acpi_device *dev,
@@ -138,6 +138,7 @@ int acpi_device_sleep_wake(struct acpi_device *dev,
 int acpi_power_get_inferred_state(struct acpi_device *device, int *state);
 int acpi_power_on_resources(struct acpi_device *device, int state);
 int acpi_power_transition(struct acpi_device *device, int state);
+void acpi_turn_off_unused_power_resources(void);
 
 /* --------------------------------------------------------------------------
                               Device Power Management
@@ -163,6 +164,13 @@ static inline void acpi_early_processor_osc(void) {}
 /* --------------------------------------------------------------------------
                                   Embedded Controller
    -------------------------------------------------------------------------- */
+
+enum acpi_ec_event_state {
+	EC_EVENT_READY = 0,	/* Event work can be submitted */
+	EC_EVENT_IN_PROGRESS,	/* Event work is pending or being processed */
+	EC_EVENT_COMPLETE,	/* Event work processing has completed */
+};
+
 struct acpi_ec {
 	acpi_handle handle;
 	int gpe;
@@ -179,7 +187,10 @@ struct acpi_ec {
 	spinlock_t lock;
 	struct work_struct work;
 	unsigned long timestamp;
-	unsigned long nr_pending_queries;
+	enum acpi_ec_event_state event_state;
+	unsigned int events_to_process;
+	unsigned int events_in_progress;
+	unsigned int queries_in_progress;
 	bool busy_polling;
 	unsigned int polling_guard;
 };
@@ -229,6 +240,15 @@ static inline int suspend_nvs_alloc(void) { return 0; }
 static inline void suspend_nvs_free(void) {}
 static inline int suspend_nvs_save(void) { return 0; }
 static inline void suspend_nvs_restore(void) {}
+#endif
+
+#ifdef CONFIG_X86
+bool force_storage_d3(void);
+#else
+static inline bool force_storage_d3(void)
+{
+	return false;
+}
 #endif
 
 /*--------------------------------------------------------------------------

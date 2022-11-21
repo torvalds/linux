@@ -23,32 +23,24 @@ struct icc_path;
 struct net_device;
 struct platform_device;
 
-struct ipa_clock;
+struct ipa_power;
 struct ipa_smp2p;
 struct ipa_interrupt;
 
 /**
- * enum ipa_flag - IPA state flags
- * @IPA_FLAG_RESUMED:	Whether resume from suspend has been signaled
- * @IPA_FLAG_COUNT:	Number of defined IPA flags
- */
-enum ipa_flag {
-	IPA_FLAG_RESUMED,
-	IPA_FLAG_COUNT,		/* Last; not a flag */
-};
-
-/**
  * struct ipa - IPA information
  * @gsi:		Embedded GSI structure
- * @flags:		Boolean state flags
  * @version:		IPA hardware version
  * @pdev:		Platform device
- * @modem_rproc:	Remoteproc handle for modem subsystem
+ * @completion:		Used to signal pipeline clear transfer complete
+ * @nb:			Notifier block used for remoteproc SSR
+ * @notifier:		Remoteproc SSR notifier
  * @smp2p:		SMP2P information
- * @clock:		IPA clocking information
+ * @power:		IPA power information
  * @table_addr:		DMA address of filter/route table content
  * @table_virt:		Virtual address of filter/route table content
  * @interrupt:		IPA Interrupt information
+ * @uc_powered:		true if power is active by proxy for microcontroller
  * @uc_loaded:		true after microcontroller has reported it's ready
  * @reg_addr:		DMA address used for IPA register access
  * @reg_virt:		Virtual address used for IPA register access
@@ -56,15 +48,15 @@ enum ipa_flag {
  * @mem_virt:		Virtual address of IPA-local memory space
  * @mem_offset:		Offset from @mem_virt used for access to IPA memory
  * @mem_size:		Total size (bytes) of memory at @mem_virt
+ * @mem_count:		Number of entries in the mem array
  * @mem:		Array of IPA-local memory region descriptors
  * @imem_iova:		I/O virtual address of IPA region in IMEM
- * @imem_size;		Size of IMEM region
+ * @imem_size:		Size of IMEM region
  * @smem_iova:		I/O virtual address of IPA region in SMEM
- * @smem_size;		Size of SMEM region
+ * @smem_size:		Size of SMEM region
  * @zero_addr:		DMA address of preallocated zero-filled memory
  * @zero_virt:		Virtual address of preallocated zero-filled memory
  * @zero_size:		Size (bytes) of preallocated zero-filled memory
- * @wakeup_source:	Wakeup source information
  * @available:		Bit mask indicating endpoints hardware supports
  * @filter_map:		Bit mask indicating endpoints that support filtering
  * @initialized:	Bit mask indicating endpoints initialized
@@ -80,19 +72,19 @@ enum ipa_flag {
  */
 struct ipa {
 	struct gsi gsi;
-	DECLARE_BITMAP(flags, IPA_FLAG_COUNT);
 	enum ipa_version version;
 	struct platform_device *pdev;
-	struct rproc *modem_rproc;
+	struct completion completion;
 	struct notifier_block nb;
 	void *notifier;
 	struct ipa_smp2p *smp2p;
-	struct ipa_clock *clock;
+	struct ipa_power *power;
 
 	dma_addr_t table_addr;
 	__le64 *table_virt;
 
 	struct ipa_interrupt *interrupt;
+	bool uc_powered;
 	bool uc_loaded;
 
 	dma_addr_t reg_addr;
@@ -102,6 +94,7 @@ struct ipa {
 	void *mem_virt;
 	u32 mem_offset;
 	u32 mem_size;
+	u32 mem_count;
 	const struct ipa_mem *mem;
 
 	unsigned long imem_iova;
@@ -141,11 +134,11 @@ struct ipa {
  *
  * Activities performed at the init stage can be done without requiring
  * any access to IPA hardware.  Activities performed at the config stage
- * require the IPA clock to be running, because they involve access
- * to IPA registers.  The setup stage is performed only after the GSI
- * hardware is ready (more on this below).  The setup stage allows
- * the AP to perform more complex initialization by issuing "immediate
- * commands" using a special interface to the IPA.
+ * require IPA power, because they involve access to IPA registers.
+ * The setup stage is performed only after the GSI hardware is ready
+ * (more on this below).  The setup stage allows the AP to perform
+ * more complex initialization by issuing "immediate commands" using
+ * a special interface to the IPA.
  *
  * This function, @ipa_setup(), starts the setup stage.
  *

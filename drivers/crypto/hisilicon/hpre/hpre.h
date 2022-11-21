@@ -4,22 +4,28 @@
 #define __HISI_HPRE_H
 
 #include <linux/list.h>
-#include "../qm.h"
+#include <linux/hisi_acc_qm.h>
 
 #define HPRE_SQE_SIZE			sizeof(struct hpre_sqe)
 #define HPRE_PF_DEF_Q_NUM		64
 #define HPRE_PF_DEF_Q_BASE		0
 
+/*
+ * type used in qm sqc DW6.
+ * 0 - Algorithm which has been supported in V2, like RSA, DH and so on;
+ * 1 - ECC algorithm in V3.
+ */
+#define HPRE_V2_ALG_TYPE	0
+#define HPRE_V3_ECC_ALG_TYPE	1
+
 enum {
 	HPRE_CLUSTER0,
 	HPRE_CLUSTER1,
 	HPRE_CLUSTER2,
-	HPRE_CLUSTER3,
-	HPRE_CLUSTERS_NUM,
+	HPRE_CLUSTER3
 };
 
 enum hpre_ctrl_dbgfs_file {
-	HPRE_CURRENT_QM,
 	HPRE_CLEAR_ENABLE,
 	HPRE_CLUSTER_CTRL,
 	HPRE_DEBUG_FILE_NUM,
@@ -36,7 +42,10 @@ enum hpre_dfx_dbgfs_file {
 	HPRE_DFX_FILE_NUM
 };
 
-#define HPRE_DEBUGFS_FILE_NUM    (HPRE_DEBUG_FILE_NUM + HPRE_CLUSTERS_NUM - 1)
+#define HPRE_CLUSTERS_NUM_V2		(HPRE_CLUSTER3 + 1)
+#define HPRE_CLUSTERS_NUM_V3		1
+#define HPRE_CLUSTERS_NUM_MAX		HPRE_CLUSTERS_NUM_V2
+#define HPRE_DEBUGFS_FILE_NUM (HPRE_DEBUG_FILE_NUM + HPRE_CLUSTERS_NUM_MAX - 1)
 
 struct hpre_debugfs_file {
 	int index;
@@ -73,6 +82,9 @@ enum hpre_alg_type {
 	HPRE_ALG_KG_CRT = 0x3,
 	HPRE_ALG_DH_G2 = 0x4,
 	HPRE_ALG_DH = 0x5,
+	HPRE_ALG_ECC_MUL = 0xD,
+	/* shared by x25519 and x448, but x448 is not supported now */
+	HPRE_ALG_CURVE25519_MUL = 0x10,
 };
 
 struct hpre_sqe {
@@ -90,8 +102,8 @@ struct hpre_sqe {
 	__le32 rsvd1[_HPRE_SQE_ALIGN_EXT];
 };
 
-struct hisi_qp *hpre_create_qp(void);
-int hpre_algs_register(void);
-void hpre_algs_unregister(void);
+struct hisi_qp *hpre_create_qp(u8 type);
+int hpre_algs_register(struct hisi_qm *qm);
+void hpre_algs_unregister(struct hisi_qm *qm);
 
 #endif

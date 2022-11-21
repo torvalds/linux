@@ -1,0 +1,387 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for Travese Ten64 (LS1088) board
+ * Based on fsl-ls1088a-rdb.dts
+ * Copyright 2017-2020 NXP
+ * Copyright 2019-2021 Traverse Technologies
+ *
+ * Author: Mathew McBride <matt@traverse.com.au>
+ */
+
+/dts-v1/;
+
+#include "fsl-ls1088a.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "Traverse Ten64";
+	compatible = "traverse,ten64", "fsl,ls1088a";
+
+	aliases {
+		serial0 = &duart0;
+		serial1 = &duart1;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	buttons {
+		compatible = "gpio-keys";
+
+		/* Fired by system controller when
+		 * external power off (e.g ATX Power Button)
+		 * asserted
+		 */
+		powerdn {
+			label = "External Power Down";
+			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+		};
+
+		/* Rear Panel 'ADMIN' button (GPIO_H) */
+		admin {
+			label = "ADMIN button";
+			gpios = <&gpio3 8 GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_WPS_BUTTON>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		sfp1down {
+			label = "ten64:green:sfp1:down";
+			gpios = <&gpio3 11 GPIO_ACTIVE_HIGH>;
+		};
+
+		sfp2up {
+			label = "ten64:green:sfp2:up";
+			gpios = <&gpio3 12 GPIO_ACTIVE_HIGH>;
+		};
+
+		admin {
+			label = "ten64:admin";
+			gpios = <&sfpgpio 12 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	sfp_xg0: dpmac2-sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfplower_i2c>;
+		tx-fault-gpios = <&sfpgpio 0 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&sfpgpio 1 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&sfpgpio 2 GPIO_ACTIVE_LOW>;
+		los-gpios = <&sfpgpio 3 GPIO_ACTIVE_HIGH>;
+		maximum-power-milliwatt = <2000>;
+	};
+
+	sfp_xg1: dpmac1-sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfpupper_i2c>;
+		tx-fault-gpios = <&sfpgpio 4 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&sfpgpio 5 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&sfpgpio 6 GPIO_ACTIVE_LOW>;
+		los-gpios = <&sfpgpio 7 GPIO_ACTIVE_HIGH>;
+		maximum-power-milliwatt = <2000>;
+	};
+};
+
+/* XG1 - Upper SFP */
+&dpmac1 {
+	sfp = <&sfp_xg1>;
+	pcs-handle = <&pcs1>;
+	phy-connection-type = "10gbase-r";
+	managed = "in-band-status";
+};
+
+/* XG0 - Lower SFP */
+&dpmac2 {
+	sfp = <&sfp_xg0>;
+	pcs-handle = <&pcs2>;
+	phy-connection-type = "10gbase-r";
+	managed = "in-band-status";
+};
+
+/* DPMAC3..6 is GE4 to GE8 */
+&dpmac3 {
+	phy-handle = <&mdio1_phy5>;
+	phy-connection-type = "qsgmii";
+	managed = "in-band-status";
+	pcs-handle = <&pcs3_0>;
+};
+
+&dpmac4 {
+	phy-handle = <&mdio1_phy6>;
+	phy-connection-type = "qsgmii";
+	managed = "in-band-status";
+	pcs-handle = <&pcs3_1>;
+};
+
+&dpmac5 {
+	phy-handle = <&mdio1_phy7>;
+	phy-connection-type = "qsgmii";
+	managed = "in-band-status";
+	pcs-handle = <&pcs3_2>;
+};
+
+&dpmac6 {
+	phy-handle = <&mdio1_phy8>;
+	phy-connection-type = "qsgmii";
+	managed = "in-band-status";
+	pcs-handle = <&pcs3_3>;
+};
+
+/* DPMAC7..10 is GE0 to GE3 */
+&dpmac7 {
+	phy-handle = <&mdio1_phy1>;
+	phy-connection-type = "qsgmii";
+	managed = "in-band-status";
+	pcs-handle = <&pcs7_0>;
+};
+
+&dpmac8 {
+	phy-handle = <&mdio1_phy2>;
+	phy-connection-type = "qsgmii";
+	managed = "in-band-status";
+	pcs-handle = <&pcs7_1>;
+};
+
+&dpmac9 {
+	phy-handle = <&mdio1_phy3>;
+	phy-connection-type = "qsgmii";
+	managed = "in-band-status";
+	pcs-handle = <&pcs7_2>;
+};
+
+&dpmac10 {
+	phy-handle = <&mdio1_phy4>;
+	phy-connection-type = "qsgmii";
+	managed = "in-band-status";
+	pcs-handle = <&pcs7_3>;
+};
+
+&duart0 {
+	status = "okay";
+};
+
+&duart1 {
+	status = "okay";
+};
+
+&emdio1 {
+	status = "okay";
+
+	mdio1_phy5: ethernet-phy@c {
+		reg = <0xc>;
+	};
+
+	mdio1_phy6: ethernet-phy@d {
+		reg = <0xd>;
+	};
+
+	mdio1_phy7: ethernet-phy@e {
+		reg = <0xe>;
+	};
+
+	mdio1_phy8: ethernet-phy@f {
+		reg = <0xf>;
+	};
+
+	mdio1_phy1: ethernet-phy@1c {
+		reg = <0x1c>;
+	};
+
+	mdio1_phy2: ethernet-phy@1d {
+		reg = <0x1d>;
+	};
+
+	mdio1_phy3: ethernet-phy@1e {
+		reg = <0x1e>;
+	};
+
+	mdio1_phy4: ethernet-phy@1f {
+		reg = <0x1f>;
+	};
+};
+
+&esdhc {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	sfpgpio: gpio@76 {
+		compatible = "ti,tca9539";
+		reg = <0x76>;
+		#gpio-cells = <2>;
+		gpio-controller;
+
+		admin_led_lower {
+			gpio-hog;
+			gpios = <13 GPIO_ACTIVE_HIGH>;
+			output-low;
+		};
+	};
+
+	at97sc: tpm@29 {
+		compatible = "atmel,at97sc3204t";
+		reg = <0x29>;
+	};
+};
+
+&i2c2 {
+	status = "okay";
+
+	rx8035: rtc@32 {
+		compatible = "epson,rx8035";
+		reg = <0x32>;
+	};
+};
+
+&i2c3 {
+	status = "okay";
+
+	i2c-switch@70 {
+		compatible = "nxp,pca9540";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x70>;
+
+		sfpupper_i2c: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+		};
+
+		sfplower_i2c: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+		};
+	};
+};
+
+&pcs_mdio1 {
+	status = "okay";
+};
+
+&pcs_mdio2 {
+	status = "okay";
+};
+
+&pcs_mdio3 {
+	status = "okay";
+};
+
+&pcs_mdio7 {
+	status = "okay";
+};
+
+&qspi {
+	status = "okay";
+
+	en25s64: flash@0 {
+		compatible = "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0>;
+		spi-max-frequency = <20000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bl2";
+				reg = <0 0x100000>;
+			};
+
+			partition@100000 {
+				label = "bl3";
+				reg = <0x100000 0x200000>;
+			};
+
+			partition@300000 {
+				label = "mcfirmware";
+				reg = <0x300000 0x200000>;
+			};
+
+			partition@500000 {
+				label = "ubootenv";
+				reg = <0x500000 0x80000>;
+			};
+
+			partition@580000 {
+				label = "dpl";
+				reg = <0x580000 0x40000>;
+			};
+
+			partition@5C0000 {
+				label = "dpc";
+				reg = <0x5C0000 0x40000>;
+			};
+
+			partition@600000 {
+				label = "devicetree";
+				reg = <0x600000 0x40000>;
+			};
+		};
+	};
+
+	nand: flash@1 {
+		compatible = "spi-nand";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <1>;
+		spi-max-frequency = <20000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			/* reserved for future boot direct from NAND flash
+			 * (this would use the same layout as the 8MiB NOR flash)
+			 */
+			partition@0 {
+				label = "nand-boot-reserved";
+				reg = <0 0x800000>;
+			};
+
+			/* recovery / install environment */
+			partition@800000 {
+				label = "recovery";
+				reg = <0x800000 0x2000000>;
+			};
+
+			/* ubia (first OpenWrt) - a/b names to prevent confusion with ubi0/1/etc. */
+			partition@2800000 {
+				label = "ubia";
+				reg = <0x2800000 0x6C00000>;
+			};
+
+			/* ubib (second OpenWrt) */
+			partition@9400000 {
+				label = "ubib";
+				reg = <0x9400000 0x6C00000>;
+			};
+		};
+	};
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};

@@ -46,6 +46,7 @@
 struct dln2_gpio {
 	struct platform_device *pdev;
 	struct gpio_chip gpio;
+	struct irq_chip irqchip;
 
 	/*
 	 * Cache pin direction to save us one transfer, since the hardware has
@@ -383,19 +384,10 @@ static void dln2_irq_bus_unlock(struct irq_data *irqd)
 	mutex_unlock(&dln2->irq_lock);
 }
 
-static struct irq_chip dln2_gpio_irqchip = {
-	.name = "dln2-irq",
-	.irq_mask = dln2_irq_mask,
-	.irq_unmask = dln2_irq_unmask,
-	.irq_set_type = dln2_irq_set_type,
-	.irq_bus_lock = dln2_irq_bus_lock,
-	.irq_bus_sync_unlock = dln2_irq_bus_unlock,
-};
-
 static void dln2_gpio_event(struct platform_device *pdev, u16 echo,
 			    const void *data, int len)
 {
-	int pin, irq;
+	int pin, ret;
 
 	const struct {
 		__le16 count;
@@ -416,24 +408,20 @@ static void dln2_gpio_event(struct platform_device *pdev, u16 echo,
 		return;
 	}
 
-	irq = irq_find_mapping(dln2->gpio.irq.domain, pin);
-	if (!irq) {
-		dev_err(dln2->gpio.parent, "pin %d not mapped to IRQ\n", pin);
-		return;
-	}
-
 	switch (dln2->irq_type[pin]) {
 	case DLN2_GPIO_EVENT_CHANGE_RISING:
-		if (event->value)
-			generic_handle_irq(irq);
+		if (!event->value)
+			return;
 		break;
 	case DLN2_GPIO_EVENT_CHANGE_FALLING:
-		if (!event->value)
-			generic_handle_irq(irq);
+		if (event->value)
+			return;
 		break;
-	default:
-		generic_handle_irq(irq);
 	}
+
+	ret = generic_handle_domain_irq(dln2->gpio.irq.domain, pin);
+	if (unlikely(ret))
+		dev_err(dln2->gpio.parent, "pin %d not mapped to IRQ\n", pin);
 }
 
 static int dln2_gpio_probe(struct platform_device *pdev)
@@ -477,8 +465,15 @@ static int dln2_gpio_probe(struct platform_device *pdev)
 	dln2->gpio.direction_output = dln2_gpio_direction_output;
 	dln2->gpio.set_config = dln2_gpio_set_config;
 
+	dln2->irqchip.name = "dln2-irq",
+	dln2->irqchip.irq_mask = dln2_irq_mask,
+	dln2->irqchip.irq_unmask = dln2_irq_unmask,
+	dln2->irqchip.irq_set_type = dln2_irq_set_type,
+	dln2->irqchip.irq_bus_lock = dln2_irq_bus_lock,
+	dln2->irqchip.irq_bus_sync_unlock = dln2_irq_bus_unlock,
+
 	girq = &dln2->gpio.irq;
-	girq->chip = &dln2_gpio_irqchip;
+	girq->chip = &dln2->irqchip;
 	/* The event comes from the outside so no parent handler */
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;

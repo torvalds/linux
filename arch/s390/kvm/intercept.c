@@ -269,6 +269,7 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 
 /**
  * handle_external_interrupt - used for external interruption interceptions
+ * @vcpu: virtual cpu
  *
  * This interception only occurs if the CPUSTAT_EXT_INT bit was set, or if
  * the new PSW does not have external interrupts disabled. In the first case,
@@ -315,7 +316,8 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 }
 
 /**
- * Handle MOVE PAGE partial execution interception.
+ * handle_mvpg_pei - Handle MOVE PAGE partial execution interception.
+ * @vcpu: virtual cpu
  *
  * This interception can only happen for guests with DAT disabled and
  * addresses that are currently not mapped in the host. Thus we try to
@@ -329,18 +331,18 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 
 	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
 
-	/* Make sure that the source is paged-in */
-	rc = guest_translate_address(vcpu, vcpu->run->s.regs.gprs[reg2],
-				     reg2, &srcaddr, GACC_FETCH);
+	/* Ensure that the source is paged-in, no actual access -> no key checking */
+	rc = guest_translate_address_with_key(vcpu, vcpu->run->s.regs.gprs[reg2],
+					      reg2, &srcaddr, GACC_FETCH, 0);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
 	rc = kvm_arch_fault_in_page(vcpu, srcaddr, 0);
 	if (rc != 0)
 		return rc;
 
-	/* Make sure that the destination is paged-in */
-	rc = guest_translate_address(vcpu, vcpu->run->s.regs.gprs[reg1],
-				     reg1, &dstaddr, GACC_STORE);
+	/* Ensure that the source is paged-in, no actual access -> no key checking */
+	rc = guest_translate_address_with_key(vcpu, vcpu->run->s.regs.gprs[reg1],
+					      reg1, &dstaddr, GACC_STORE, 0);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
 	rc = kvm_arch_fault_in_page(vcpu, dstaddr, 1);
@@ -398,7 +400,7 @@ int handle_sthyi(struct kvm_vcpu *vcpu)
 	if (!kvm_s390_pv_cpu_is_protected(vcpu) && (addr & ~PAGE_MASK))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	sctns = (void *)get_zeroed_page(GFP_KERNEL);
+	sctns = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
 	if (!sctns)
 		return -ENOMEM;
 
@@ -516,6 +518,11 @@ static int handle_pv_uvc(struct kvm_vcpu *vcpu)
 	 */
 	if (rc == -EINVAL)
 		return 0;
+	/*
+	 * If we got -EAGAIN here, we simply return it. It will eventually
+	 * get propagated all the way to userspace, which should then try
+	 * again.
+	 */
 	return rc;
 }
 

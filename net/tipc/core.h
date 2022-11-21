@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2005-2006, 2013-2018 Ericsson AB
  * Copyright (c) 2005-2007, 2010-2013, Wind River Systems
+ * Copyright (c) 2020, Red Hat Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -90,12 +91,6 @@ extern unsigned int tipc_net_id __read_mostly;
 extern int sysctl_tipc_rmem[3] __read_mostly;
 extern int sysctl_tipc_named_timeout __read_mostly;
 
-struct tipc_net_work {
-	struct work_struct work;
-	struct net *net;
-	u32 addr;
-};
-
 struct tipc_net {
 	u8  node_id[NODE_ID_LEN];
 	u32 node_addr;
@@ -132,9 +127,6 @@ struct tipc_net {
 	spinlock_t nametbl_lock;
 	struct name_table *nametbl;
 
-	/* Name dist queue */
-	struct list_head dist_queue;
-
 	/* Topology subscription server */
 	struct tipc_topsrv *topsrv;
 	atomic_t subscription_count;
@@ -150,7 +142,9 @@ struct tipc_net {
 	struct tipc_crypto *crypto_tx;
 #endif
 	/* Work item for net finalize */
-	struct tipc_net_work final_work;
+	struct work_struct work;
+	/* The numbers of work queues in schedule */
+	atomic_t wq_count;
 };
 
 static inline struct tipc_net *tipc_net(struct net *net)
@@ -211,6 +205,17 @@ static inline int in_range(u16 val, u16 min, u16 max)
 static inline u32 tipc_net_hash_mixes(struct net *net, int tn_rand)
 {
 	return net_hash_mix(&init_net) ^ net_hash_mix(net) ^ tn_rand;
+}
+
+static inline u32 hash128to32(char *bytes)
+{
+	__be32 *tmp = (__be32 *)bytes;
+	u32 res;
+
+	res = ntohl(tmp[0] ^ tmp[1] ^ tmp[2] ^ tmp[3]);
+	if (likely(res))
+		return res;
+	return  ntohl(tmp[0] | tmp[1] | tmp[2] | tmp[3]);
 }
 
 #ifdef CONFIG_SYSCTL

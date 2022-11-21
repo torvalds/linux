@@ -1,24 +1,11 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/smb2inode.c
  *
  *   Copyright (C) International Business Machines  Corp., 2002, 2011
  *                 Etersoft, 2012
  *   Author(s): Pavel Shilovsky (pshilovsky@samba.org),
  *              Steve French (sfrench@us.ibm.com)
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
 #include <linux/stat.h>
@@ -59,6 +46,10 @@ struct cop_vars {
 	struct smb2_file_link_info link_info;
 };
 
+/*
+ * note: If cfile is passed, the reference to it is dropped here.
+ * So make sure that you do not reuse cfile after return from this func.
+ */
 static int
 smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		 struct cifs_sb_info *cifs_sb, const char *full_path,
@@ -358,6 +349,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	if (cfile)
 		goto after_close;
 	/* Close */
+	flags |= CIFS_CP_CREATE_CLOSE_OP;
 	rqst[num_rqst].rq_iov = &vars->close_iov[0];
 	rqst[num_rqst].rq_nvec = 1;
 	rc = SMB2_close_init(tcon, server,
@@ -511,7 +503,6 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc;
 	struct smb2_file_all_info *smb2_data;
 	__u32 create_options = 0;
-	bool no_cached_open = tcon->nohandlecache;
 	struct cifsFileInfo *cfile;
 	struct cached_fid *cfid = NULL;
 
@@ -524,11 +515,8 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		return -ENOMEM;
 
 	/* If it is a root and its handle is cached then use it */
-	if (!strlen(full_path) && !no_cached_open) {
-		rc = open_shroot(xid, tcon, cifs_sb, &cfid);
-		if (rc)
-			goto out;
-
+	rc = open_cached_dir(xid, tcon, full_path, cifs_sb, &cfid);
+	if (!rc) {
 		if (tcon->crfid.file_all_info_is_valid) {
 			move_smb2_info_to_cifs(data,
 					       &tcon->crfid.file_all_info);
@@ -539,7 +527,7 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 			if (!rc)
 				move_smb2_info_to_cifs(data, smb2_data);
 		}
-		close_shroot(cfid);
+		close_cached_dir(cfid);
 		goto out;
 	}
 
@@ -552,10 +540,11 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		create_options |= OPEN_REPARSE_POINT;
 
 		/* Failed on a symbolic link - query a reparse point info */
+		cifs_get_readable_path(tcon, full_path, &cfile);
 		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
 				      FILE_READ_ATTRIBUTES, FILE_OPEN,
 				      create_options, ACL_NO_MODE,
-				      smb2_data, SMB2_OP_QUERY_INFO, NULL);
+				      smb2_data, SMB2_OP_QUERY_INFO, cfile);
 	}
 	if (rc)
 		goto out;
@@ -603,10 +592,11 @@ smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		create_options |= OPEN_REPARSE_POINT;
 
 		/* Failed on a symbolic link - query a reparse point info */
+		cifs_get_readable_path(tcon, full_path, &cfile);
 		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
 				      FILE_READ_ATTRIBUTES, FILE_OPEN,
 				      create_options, ACL_NO_MODE,
-				      smb2_data, SMB2_OP_POSIX_QUERY_INFO, NULL);
+				      smb2_data, SMB2_OP_POSIX_QUERY_INFO, cfile);
 	}
 	if (rc)
 		goto out;
@@ -723,10 +713,12 @@ smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifs_sb_info *cifs_sb, bool set_alloc)
 {
 	__le64 eof = cpu_to_le64(size);
+	struct cifsFileInfo *cfile;
 
+	cifs_get_writable_path(tcon, full_path, FIND_WR_ANY, &cfile);
 	return smb2_compound_op(xid, tcon, cifs_sb, full_path,
 				FILE_WRITE_DATA, FILE_OPEN, 0, ACL_NO_MODE,
-				&eof, SMB2_OP_SET_EOF, NULL);
+				&eof, SMB2_OP_SET_EOF, cfile);
 }
 
 int
@@ -735,6 +727,8 @@ smb2_set_file_info(struct inode *inode, const char *full_path,
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink;
+	struct cifs_tcon *tcon;
+	struct cifsFileInfo *cfile;
 	int rc;
 
 	if ((buf->CreationTime == 0) && (buf->LastAccessTime == 0) &&
@@ -745,10 +739,12 @@ smb2_set_file_info(struct inode *inode, const char *full_path,
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
+	tcon = tlink_tcon(tlink);
 
-	rc = smb2_compound_op(xid, tlink_tcon(tlink), cifs_sb, full_path,
+	cifs_get_writable_path(tcon, full_path, FIND_WR_ANY, &cfile);
+	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
 			      FILE_WRITE_ATTRIBUTES, FILE_OPEN,
-			      0, ACL_NO_MODE, buf, SMB2_OP_SET_INFO, NULL);
+			      0, ACL_NO_MODE, buf, SMB2_OP_SET_INFO, cfile);
 	cifs_put_tlink(tlink);
 	return rc;
 }

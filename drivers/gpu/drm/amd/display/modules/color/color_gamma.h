@@ -76,7 +76,7 @@ struct regamma_lut {
 	};
 };
 
-struct freesync_hdr_tf_params {
+struct hdr_tm_params {
 	unsigned int sdr_white_level;
 	unsigned int min_content; // luminance in 1/10000 nits
 	unsigned int max_content; // luminance in nits
@@ -108,7 +108,7 @@ void precompute_de_pq(void);
 
 bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 		const struct dc_gamma *ramp, bool mapUserRamp, bool canRomBeUsed,
-		const struct freesync_hdr_tf_params *fs_params,
+		const struct hdr_tm_params *fs_params,
 		struct calculate_buffer *cal_buffer);
 
 bool mod_color_calculate_degamma_params(struct dc_color_caps *dc_caps,
@@ -120,11 +120,13 @@ bool mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 
 bool calculate_user_regamma_coeff(struct dc_transfer_func *output_tf,
 		const struct regamma_lut *regamma,
-		struct calculate_buffer *cal_buffer);
+		struct calculate_buffer *cal_buffer,
+		const struct dc_gamma *ramp);
 
 bool calculate_user_regamma_ramp(struct dc_transfer_func *output_tf,
 		const struct regamma_lut *regamma,
-		struct calculate_buffer *cal_buffer);
+		struct calculate_buffer *cal_buffer,
+		const struct dc_gamma *ramp);
 
 
 #endif /* COLOR_MOD_COLOR_GAMMA_H_ */

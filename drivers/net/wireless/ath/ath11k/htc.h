@@ -65,7 +65,9 @@ enum ath11k_htc_msg_id {
 	ATH11K_HTC_MSG_CONNECT_SERVICE_RESP_ID = 3,
 	ATH11K_HTC_MSG_SETUP_COMPLETE_ID       = 4,
 	ATH11K_HTC_MSG_SETUP_COMPLETE_EX_ID    = 5,
-	ATH11K_HTC_MSG_SEND_SUSPEND_COMPLETE   = 6
+	ATH11K_HTC_MSG_SEND_SUSPEND_COMPLETE   = 6,
+	ATH11K_HTC_MSG_NACK_SUSPEND	       = 7,
+	ATH11K_HTC_MSG_WAKEUP_FROM_SUSPEND_ID  = 8,
 };
 
 enum ath11k_htc_version {
@@ -81,8 +83,8 @@ enum ath11k_htc_conn_flags {
 	ATH11K_HTC_CONN_FLAGS_THRESHOLD_LEVEL_ONE_HALF      = 0x1,
 	ATH11K_HTC_CONN_FLAGS_THRESHOLD_LEVEL_THREE_FOURTHS = 0x2,
 	ATH11K_HTC_CONN_FLAGS_THRESHOLD_LEVEL_UNITY         = 0x3,
-	ATH11K_HTC_CONN_FLAGS_REDUCE_CREDIT_DRIBBLE    = 1 << 2,
-	ATH11K_HTC_CONN_FLAGS_DISABLE_CREDIT_FLOW_CTRL = 1 << 3
+	ATH11K_HTC_CONN_FLAGS_REDUCE_CREDIT_DRIBBLE	    = 0x4,
+	ATH11K_HTC_CONN_FLAGS_DISABLE_CREDIT_FLOW_CTRL	    = 0x8,
 };
 
 enum ath11k_htc_conn_svc_status {
@@ -113,6 +115,8 @@ struct ath11k_htc_conn_svc_resp {
 	u32 flags_len;
 	u32 svc_meta_pad;
 } __packed;
+
+#define ATH11K_GLOBAL_DISABLE_CREDIT_FLOW BIT(1)
 
 struct ath11k_htc_setup_complete_extended {
 	u32 msg_id;
@@ -221,10 +225,6 @@ enum ath11k_htc_ep_id {
 	ATH11K_HTC_EP_COUNT,
 };
 
-struct ath11k_htc_ops {
-	void (*target_send_suspend_complete)(struct ath11k_base *ar);
-};
-
 struct ath11k_htc_ep_ops {
 	void (*ep_tx_complete)(struct ath11k_base *, struct sk_buff *);
 	void (*ep_rx_complete)(struct ath11k_base *, struct sk_buff *);
@@ -284,8 +284,6 @@ struct ath11k_htc {
 	/* protects endpoints */
 	spinlock_t tx_lock;
 
-	struct ath11k_htc_ops htc_ops;
-
 	u8 control_resp_buffer[ATH11K_HTC_MAX_CTRL_MSG_LEN];
 	int control_resp_len;
 
@@ -309,5 +307,6 @@ int ath11k_htc_send(struct ath11k_htc *htc, enum ath11k_htc_ep_id eid,
 struct sk_buff *ath11k_htc_alloc_skb(struct ath11k_base *ar, int size);
 void ath11k_htc_rx_completion_handler(struct ath11k_base *ar,
 				      struct sk_buff *skb);
-
+void ath11k_htc_tx_completion_handler(struct ath11k_base *ab,
+				      struct sk_buff *skb);
 #endif

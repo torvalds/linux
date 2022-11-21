@@ -49,11 +49,10 @@
 #define QED_NVM_CFG_MAX_ATTRS		50
 
 static char version[] =
-	"QLogic FastLinQ 4xxxx Core Module qed " DRV_MODULE_VERSION "\n";
+	"QLogic FastLinQ 4xxxx Core Module qed\n";
 
 MODULE_DESCRIPTION("QLogic FastLinQ 4xxxx Core Module");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_MODULE_VERSION);
 
 #define FW_FILE_VERSION				\
 	__stringify(FW_MAJOR_VERSION) "."	\
@@ -98,10 +97,6 @@ static const u32 qed_mfw_ext_10g[] __initconst = {
 	ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
 	ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
 	ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
-};
-
-static const u32 qed_mfw_ext_20g[] __initconst = {
-	ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT,
 };
 
 static const u32 qed_mfw_ext_25g[] __initconst = {
@@ -149,7 +144,6 @@ static const u32 qed_mfw_ext_100g_base_r4[] __initconst = {
 static struct qed_mfw_speed_map qed_mfw_ext_maps[] __ro_after_init = {
 	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_1G, qed_mfw_ext_1g),
 	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_10G, qed_mfw_ext_10g),
-	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_20G, qed_mfw_ext_20g),
 	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_25G, qed_mfw_ext_25g),
 	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_40G, qed_mfw_ext_40g),
 	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_50G_BASE_R,
@@ -261,27 +255,6 @@ static void __exit qed_exit(void)
 }
 module_exit(qed_exit);
 
-/* Check if the DMA controller on the machine can properly handle the DMA
- * addressing required by the device.
-*/
-static int qed_set_coherency_mask(struct qed_dev *cdev)
-{
-	struct device *dev = &cdev->pdev->dev;
-
-	if (dma_set_mask(dev, DMA_BIT_MASK(64)) == 0) {
-		if (dma_set_coherent_mask(dev, DMA_BIT_MASK(64)) != 0) {
-			DP_NOTICE(cdev,
-				  "Can't request 64-bit consistent allocations\n");
-			return -EIO;
-		}
-	} else if (dma_set_mask(dev, DMA_BIT_MASK(32)) != 0) {
-		DP_NOTICE(cdev, "Can't request 64b/32b DMA addresses\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
 static void qed_free_pci(struct qed_dev *cdev)
 {
 	struct pci_dev *pdev = cdev->pdev;
@@ -357,9 +330,12 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 	if (IS_PF(cdev) && !cdev->pci_params.pm_cap)
 		DP_NOTICE(cdev, "Cannot find power management capability\n");
 
-	rc = qed_set_coherency_mask(cdev);
-	if (rc)
+	rc = dma_set_mask_and_coherent(&cdev->pdev->dev, DMA_BIT_MASK(64));
+	if (rc) {
+		DP_NOTICE(cdev, "Can't request DMA addresses\n");
+		rc = -EIO;
 		goto err2;
+	}
 
 	cdev->pci_params.mem_start = pci_resource_start(pdev, 0);
 	cdev->pci_params.mem_end = pci_resource_end(pdev, 0);
@@ -453,7 +429,7 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 			dev_info->wol_support = true;
 
 		dev_info->smart_an = qed_mcp_is_smart_an_supported(p_hwfn);
-
+		dev_info->esl = qed_mcp_is_esl_supported(p_hwfn);
 		dev_info->abs_pf_id = QED_LEADING_HWFN(cdev)->abs_pf_id;
 	} else {
 		qed_vf_get_fw_version(&cdev->hwfns[0], &dev_info->fw_major,
@@ -548,7 +524,7 @@ static struct qed_dev *qed_probe(struct pci_dev *pdev,
 		goto err2;
 	}
 
-	DP_INFO(cdev, "qed_probe completed successfully\n");
+	DP_INFO(cdev, "%s completed successfully\n", __func__);
 
 	return cdev;
 
@@ -616,7 +592,12 @@ static int qed_enable_msix(struct qed_dev *cdev,
 			rc = cnt;
 	}
 
-	if (rc > 0) {
+	/* For VFs, we should return with an error in case we didn't get the
+	 * exact number of msix vectors as we requested.
+	 * Not doing that will lead to a crash when starting queues for
+	 * this VF.
+	 */
+	if ((IS_PF(cdev) && rc > 0) || (IS_VF(cdev) && rc == cnt)) {
 		/* MSI-x configuration was achieved */
 		int_params->out.int_mode = QED_INT_MODE_MSIX;
 		int_params->out.num_vectors = rc;
@@ -976,7 +957,7 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 
 	rc = qed_set_int_mode(cdev, false);
 	if (rc)  {
-		DP_ERR(cdev, "qed_slowpath_setup_int ERR\n");
+		DP_ERR(cdev, "%s ERR\n", __func__);
 		return rc;
 	}
 
@@ -1157,6 +1138,7 @@ static int qed_slowpath_delayed_work(struct qed_hwfn *hwfn,
 	/* Memory barrier for setting atomic bit */
 	smp_mb__before_atomic();
 	set_bit(wq_flag, &hwfn->slowpath_task_flags);
+	/* Memory barrier after setting atomic bit */
 	smp_mb__after_atomic();
 	queue_delayed_work(hwfn->slowpath_wq, &hwfn->slowpath_task, delay);
 
@@ -1216,6 +1198,10 @@ static void qed_slowpath_task(struct work_struct *work)
 
 	if (test_and_clear_bit(QED_SLOWPATH_PERIODIC_DB_REC,
 			       &hwfn->slowpath_task_flags)) {
+		/* skip qed_db_rec_handler during recovery/unload */
+		if (hwfn->cdev->recov_in_prog || !hwfn->slowpath_wq_active)
+			goto out;
+
 		qed_db_rec_handler(hwfn, ptt);
 		if (hwfn->periodic_db_rec_count--)
 			qed_slowpath_delayed_work(hwfn,
@@ -1223,6 +1209,7 @@ static void qed_slowpath_task(struct work_struct *work)
 						  QED_PERIODIC_DB_REC_INTERVAL);
 	}
 
+out:
 	qed_ptt_release(hwfn, ptt);
 }
 
@@ -1290,6 +1277,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 			} else {
 				DP_NOTICE(cdev,
 					  "Failed to acquire PTT for aRFS\n");
+				rc = -EINVAL;
 				goto err;
 			}
 		}
@@ -1372,7 +1360,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 				      (params->drv_minor << 16) |
 				      (params->drv_rev << 8) |
 				      (params->drv_eng);
-		strlcpy(drv_version.name, params->name,
+		strscpy(drv_version.name, params->name,
 			MCP_DRV_VER_STR_SIZE - 4);
 		rc = qed_mcp_send_drv_version(hwfn, hwfn->p_main_ptt,
 					      &drv_version);
@@ -2882,7 +2870,7 @@ static int qed_update_drv_state(struct qed_dev *cdev, bool active)
 	return status;
 }
 
-static int qed_update_mac(struct qed_dev *cdev, u8 *mac)
+static int qed_update_mac(struct qed_dev *cdev, const u8 *mac)
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_ptt *ptt;
@@ -2930,6 +2918,30 @@ out:
 	return status;
 }
 
+static int
+qed_get_sb_info(struct qed_dev *cdev, struct qed_sb_info *sb,
+		u16 qid, struct qed_sb_info_dbg *sb_dbg)
+{
+	struct qed_hwfn *hwfn = &cdev->hwfns[qid % cdev->num_hwfns];
+	struct qed_ptt *ptt;
+	int rc;
+
+	if (IS_VF(cdev))
+		return -EINVAL;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt) {
+		DP_NOTICE(hwfn, "Can't acquire PTT\n");
+		return -EAGAIN;
+	}
+
+	memset(sb_dbg, 0, sizeof(*sb_dbg));
+	rc = qed_int_get_sb_dbg(hwfn, ptt, sb, sb_dbg);
+
+	qed_ptt_release(hwfn, ptt);
+	return rc;
+}
+
 static int qed_read_module_eeprom(struct qed_dev *cdev, char *buf,
 				  u8 dev_addr, u32 offset, u32 len)
 {
@@ -2972,9 +2984,52 @@ static int qed_set_grc_config(struct qed_dev *cdev, u32 cfg_id, u32 val)
 	return rc;
 }
 
+static __printf(2, 3) void qed_mfw_report(struct qed_dev *cdev, char *fmt, ...)
+{
+	char buf[QED_MFW_REPORT_STR_SIZE];
+	struct qed_hwfn *p_hwfn;
+	struct qed_ptt *p_ptt;
+	va_list vl;
+
+	va_start(vl, fmt);
+	vsnprintf(buf, QED_MFW_REPORT_STR_SIZE, fmt, vl);
+	va_end(vl);
+
+	if (IS_PF(cdev)) {
+		p_hwfn = QED_LEADING_HWFN(cdev);
+		p_ptt = qed_ptt_acquire(p_hwfn);
+		if (p_ptt) {
+			qed_mcp_send_raw_debug_data(p_hwfn, p_ptt, buf, strlen(buf));
+			qed_ptt_release(p_hwfn, p_ptt);
+		}
+	}
+}
+
 static u8 qed_get_affin_hwfn_idx(struct qed_dev *cdev)
 {
 	return QED_AFFIN_HWFN_IDX(cdev);
+}
+
+static int qed_get_esl_status(struct qed_dev *cdev, bool *esl_active)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int rc = 0;
+
+	*esl_active = false;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	rc = qed_mcp_get_esl_status(hwfn, ptt, esl_active);
+
+	qed_ptt_release(hwfn, ptt);
+
+	return rc;
 }
 
 static struct qed_selftest_ops qed_selftest_ops_pass = {
@@ -3032,6 +3087,9 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.read_nvm_cfg = &qed_nvm_flash_cfg_read,
 	.read_nvm_cfg_len = &qed_nvm_flash_cfg_len,
 	.set_grc_config = &qed_set_grc_config,
+	.mfw_report = &qed_mfw_report,
+	.get_sb_info = &qed_get_sb_info,
+	.get_esl_status = &qed_get_esl_status,
 };
 
 void qed_get_protocol_stats(struct qed_dev *cdev,
@@ -3069,8 +3127,10 @@ int qed_mfw_tlv_req(struct qed_hwfn *hwfn)
 	DP_VERBOSE(hwfn->cdev, NETIF_MSG_DRV,
 		   "Scheduling slowpath task [Flag: %d]\n",
 		   QED_SLOWPATH_MFW_TLV_REQ);
+	/* Memory barrier for setting atomic bit */
 	smp_mb__before_atomic();
 	set_bit(QED_SLOWPATH_MFW_TLV_REQ, &hwfn->slowpath_task_flags);
+	/* Memory barrier after setting atomic bit */
 	smp_mb__after_atomic();
 	queue_delayed_work(hwfn->slowpath_wq, &hwfn->slowpath_task, 0);
 
@@ -3148,4 +3208,9 @@ int qed_mfw_fill_tlv_data(struct qed_hwfn *hwfn, enum qed_mfw_tlv_type type,
 	}
 
 	return 0;
+}
+
+unsigned long qed_get_epoch_time(void)
+{
+	return ktime_get_real_seconds();
 }

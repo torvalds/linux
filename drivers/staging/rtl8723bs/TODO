@@ -1,7 +1,4 @@
 TODO:
-- find and remove code blocks guarded by never set CONFIG_FOO defines
-- find and remove remaining code valid only for 5 GHz. Most of the obvious
-  ones have been removed, but things like channel > 14 still exist.
 - find and remove any code for other chips that is left over
 - convert any remaining unusual variable types
 - find codes that can use %pM and %Nph formatting

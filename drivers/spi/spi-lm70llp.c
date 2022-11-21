@@ -202,7 +202,7 @@ static void spi_lm70llp_attach(struct parport *p)
 	 * the lm70 driver could verify it, reading the manf ID.
 	 */
 
-	master = spi_alloc_master(p->physport->dev, sizeof *pp);
+	master = spi_alloc_master(p->physport->dev, sizeof(*pp));
 	if (!master) {
 		status = -ENOMEM;
 		goto out_fail;
@@ -320,18 +320,7 @@ static struct parport_driver spi_lm70llp_drv = {
 	.detach =	spi_lm70llp_detach,
 	.devmodel =	true,
 };
-
-static int __init init_spi_lm70llp(void)
-{
-	return parport_register_driver(&spi_lm70llp_drv);
-}
-module_init(init_spi_lm70llp);
-
-static void __exit cleanup_spi_lm70llp(void)
-{
-	parport_unregister_driver(&spi_lm70llp_drv);
-}
-module_exit(cleanup_spi_lm70llp);
+module_parport_driver(spi_lm70llp_drv);
 
 MODULE_AUTHOR("Kaiwan N Billimoria <kaiwan@designergraphix.com>");
 MODULE_DESCRIPTION(

@@ -36,7 +36,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_util.h>
 
 #include "nouveau_crtc.h"
@@ -46,7 +46,14 @@ struct nvkm_i2c_port;
 struct dcb_output;
 
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
-struct nouveau_backlight;
+struct nouveau_backlight {
+	struct backlight_device *dev;
+
+	struct drm_edp_backlight_info edp_info;
+	bool uses_dpcd : 1;
+
+	int id;
+};
 #endif
 
 #define nouveau_conn_atom(p)                                                   \

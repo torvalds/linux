@@ -6,16 +6,6 @@
  * Copyright (C) 2016 Google, Inc.
  *
  * Based on code by Dmitry Chernenkov.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
  */
 
 #include <linux/gfp.h>
@@ -37,7 +27,7 @@
 /* Data structure and operations for quarantine queues. */
 
 /*
- * Each queue is a signle-linked list, which also stores the total size of
+ * Each queue is a single-linked list, which also stores the total size of
  * objects inside of it.
  */
 struct qlist_head {
@@ -127,7 +117,7 @@ static unsigned long quarantine_batch_size;
 
 static struct kmem_cache *qlink_to_cache(struct qlist_node *qlink)
 {
-	return virt_to_head_page(qlink)->slab_cache;
+	return virt_to_slab(qlink)->slab_cache;
 }
 
 static void *qlink_to_object(struct qlist_node *qlink, struct kmem_cache *cache)
@@ -142,12 +132,28 @@ static void *qlink_to_object(struct qlist_node *qlink, struct kmem_cache *cache)
 static void qlink_free(struct qlist_node *qlink, struct kmem_cache *cache)
 {
 	void *object = qlink_to_object(qlink, cache);
+	struct kasan_free_meta *meta = kasan_get_free_meta(cache, object);
 	unsigned long flags;
 
 	if (IS_ENABLED(CONFIG_SLAB))
 		local_irq_save(flags);
 
+	/*
+	 * If init_on_free is enabled and KASAN's free metadata is stored in
+	 * the object, zero the metadata. Otherwise, the object's memory will
+	 * not be properly zeroed, as KASAN saves the metadata after the slab
+	 * allocator zeroes the object.
+	 */
+	if (slab_want_init_on_free(cache) &&
+	    cache->kasan_info.free_meta_offset == 0)
+		memzero_explicit(meta, sizeof(*meta));
+
+	/*
+	 * As the object now gets freed from the quarantine, assume that its
+	 * free track is no longer valid.
+	 */
 	*(u8 *)kasan_mem_to_shadow(object) = KASAN_KMALLOC_FREE;
+
 	___cache_free(cache, object, _THIS_IP_);
 
 	if (IS_ENABLED(CONFIG_SLAB))
@@ -173,28 +179,36 @@ static void qlist_free_all(struct qlist_head *q, struct kmem_cache *cache)
 	qlist_init(q);
 }
 
-void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache)
+bool kasan_quarantine_put(struct kmem_cache *cache, void *object)
 {
 	unsigned long flags;
 	struct qlist_head *q;
 	struct qlist_head temp = QLIST_INIT;
+	struct kasan_free_meta *meta = kasan_get_free_meta(cache, object);
+
+	/*
+	 * If there's no metadata for this object, don't put it into
+	 * quarantine.
+	 */
+	if (!meta)
+		return false;
 
 	/*
 	 * Note: irq must be disabled until after we move the batch to the
-	 * global quarantine. Otherwise quarantine_remove_cache() can miss
-	 * some objects belonging to the cache if they are in our local temp
-	 * list. quarantine_remove_cache() executes on_each_cpu() at the
-	 * beginning which ensures that it either sees the objects in per-cpu
-	 * lists or in the global quarantine.
+	 * global quarantine. Otherwise kasan_quarantine_remove_cache() can
+	 * miss some objects belonging to the cache if they are in our local
+	 * temp list. kasan_quarantine_remove_cache() executes on_each_cpu()
+	 * at the beginning which ensures that it either sees the objects in
+	 * per-cpu lists or in the global quarantine.
 	 */
 	local_irq_save(flags);
 
 	q = this_cpu_ptr(&cpu_quarantine);
 	if (q->offline) {
 		local_irq_restore(flags);
-		return;
+		return false;
 	}
-	qlist_put(q, &info->quarantine_link, cache->size);
+	qlist_put(q, &meta->quarantine_link, cache->size);
 	if (unlikely(q->bytes > QUARANTINE_PERCPU_SIZE)) {
 		qlist_move_all(q, &temp);
 
@@ -215,9 +229,11 @@ void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache)
 	}
 
 	local_irq_restore(flags);
+
+	return true;
 }
 
-void quarantine_reduce(void)
+void kasan_quarantine_reduce(void)
 {
 	size_t total_size, new_quarantine_size, percpu_quarantines;
 	unsigned long flags;
@@ -229,7 +245,7 @@ void quarantine_reduce(void)
 		return;
 
 	/*
-	 * srcu critical section ensures that quarantine_remove_cache()
+	 * srcu critical section ensures that kasan_quarantine_remove_cache()
 	 * will not miss objects belonging to the cache while they are in our
 	 * local to_free list. srcu is chosen because (1) it gives us private
 	 * grace period domain that does not interfere with anything else,
@@ -299,20 +315,27 @@ static void per_cpu_remove_cache(void *arg)
 	struct qlist_head *q;
 
 	q = this_cpu_ptr(&cpu_quarantine);
+	/*
+	 * Ensure the ordering between the writing to q->offline and
+	 * per_cpu_remove_cache.  Prevent cpu_quarantine from being corrupted
+	 * by interrupt.
+	 */
+	if (READ_ONCE(q->offline))
+		return;
 	qlist_move_cache(q, &to_free, cache);
 	qlist_free_all(&to_free, cache);
 }
 
 /* Free all quarantined objects belonging to cache. */
-void quarantine_remove_cache(struct kmem_cache *cache)
+void kasan_quarantine_remove_cache(struct kmem_cache *cache)
 {
 	unsigned long flags, i;
 	struct qlist_head to_free = QLIST_INIT;
 
 	/*
 	 * Must be careful to not miss any objects that are being moved from
-	 * per-cpu list to the global quarantine in quarantine_put(),
-	 * nor objects being freed in quarantine_reduce(). on_each_cpu()
+	 * per-cpu list to the global quarantine in kasan_quarantine_put(),
+	 * nor objects being freed in kasan_quarantine_reduce(). on_each_cpu()
 	 * achieves the first goal, while synchronize_srcu() achieves the
 	 * second.
 	 */

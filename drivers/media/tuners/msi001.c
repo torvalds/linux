@@ -442,6 +442,13 @@ static int msi001_probe(struct spi_device *spi)
 			V4L2_CID_RF_TUNER_BANDWIDTH_AUTO, 0, 1, 1, 1);
 	dev->bandwidth = v4l2_ctrl_new_std(&dev->hdl, &msi001_ctrl_ops,
 			V4L2_CID_RF_TUNER_BANDWIDTH, 200000, 8000000, 1, 200000);
+	if (dev->hdl.error) {
+		ret = dev->hdl.error;
+		dev_err(&spi->dev, "Could not initialize controls\n");
+		/* control init failed, free handler */
+		goto err_ctrl_handler_free;
+	}
+
 	v4l2_ctrl_auto_cluster(2, &dev->bandwidth_auto, 0, false);
 	dev->lna_gain = v4l2_ctrl_new_std(&dev->hdl, &msi001_ctrl_ops,
 			V4L2_CID_RF_TUNER_LNA_GAIN, 0, 1, 1, 1);
@@ -465,7 +472,7 @@ err:
 	return ret;
 }
 
-static int msi001_remove(struct spi_device *spi)
+static void msi001_remove(struct spi_device *spi)
 {
 	struct v4l2_subdev *sd = spi_get_drvdata(spi);
 	struct msi001_dev *dev = sd_to_msi001_dev(sd);
@@ -479,7 +486,6 @@ static int msi001_remove(struct spi_device *spi)
 	v4l2_device_unregister_subdev(&dev->sd);
 	v4l2_ctrl_handler_free(&dev->hdl);
 	kfree(dev);
-	return 0;
 }
 
 static const struct spi_device_id msi001_id_table[] = {

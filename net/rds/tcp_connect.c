@@ -78,6 +78,7 @@ void rds_tcp_state_change(struct sock *sk)
 	case TCP_CLOSE_WAIT:
 	case TCP_CLOSE:
 		rds_conn_path_drop(cp, false);
+		break;
 	default:
 		break;
 	}
@@ -123,7 +124,10 @@ int rds_tcp_conn_path_connect(struct rds_conn_path *cp)
 	if (ret < 0)
 		goto out;
 
-	rds_tcp_tune(sock);
+	if (!rds_tcp_tune(sock)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	if (isv6) {
 		sin6.sin6_family = AF_INET6;

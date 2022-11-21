@@ -12,6 +12,8 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/pm_runtime.h>
+#include <linux/scatterlist.h>
+#include <linux/sysfs.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
@@ -65,6 +67,14 @@ static const unsigned int sd_au_size[] = {
 			__res |= resp[__off-1] << ((32 - __shft) % 32);	\
 		__res & __mask;						\
 	})
+
+#define SD_POWEROFF_NOTIFY_TIMEOUT_MS 1000
+#define SD_WRITE_EXTR_SINGLE_TIMEOUT_MS 1000
+
+struct sd_busy_data {
+	struct mmc_card *card;
+	u8 *reg_buf;
+};
 
 /*
  * Given the decoded CSD structure, decode the raw CID to our CID structure.
@@ -135,6 +145,9 @@ static int mmc_decode_csd(struct mmc_card *card)
 			csd->erase_size = UNSTUFF_BITS(resp, 39, 7) + 1;
 			csd->erase_size <<= csd->write_blkbits - 9;
 		}
+
+		if (UNSTUFF_BITS(resp, 13, 1))
+			mmc_card_set_readonly(card);
 		break;
 	case 1:
 		/*
@@ -169,6 +182,9 @@ static int mmc_decode_csd(struct mmc_card *card)
 		csd->write_blkbits = 9;
 		csd->write_partial = 0;
 		csd->erase_size = 1;
+
+		if (UNSTUFF_BITS(resp, 13, 1))
+			mmc_card_set_readonly(card);
 		break;
 	default:
 		pr_err("%s: unrecognised CSD structure version %d\n",
@@ -216,7 +232,9 @@ static int mmc_decode_scr(struct mmc_card *card)
 	else
 		card->erased_byte = 0x0;
 
-	if (scr->sda_spec3)
+	if (scr->sda_spec4)
+		scr->cmds = UNSTUFF_BITS(resp, 32, 4);
+	else if (scr->sda_spec3)
 		scr->cmds = UNSTUFF_BITS(resp, 32, 2);
 
 	/* SD Spec says: any SD Card shall set at least bits 0 and 2 */
@@ -691,18 +709,16 @@ MMC_DEV_ATTR(ocr, "0x%08x\n", card->ocr);
 MMC_DEV_ATTR(rca, "0x%04x\n", card->rca);
 
 
-static ssize_t mmc_dsr_show(struct device *dev,
-                           struct device_attribute *attr,
-                           char *buf)
+static ssize_t mmc_dsr_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
-       struct mmc_card *card = mmc_dev_to_card(dev);
-       struct mmc_host *host = card->host;
+	struct mmc_card *card = mmc_dev_to_card(dev);
+	struct mmc_host *host = card->host;
 
-       if (card->csd.dsr_imp && host->dsr_req)
-               return sprintf(buf, "0x%x\n", host->dsr);
-       else
-               /* return default DSR value */
-               return sprintf(buf, "0x%x\n", 0x404);
+	if (card->csd.dsr_imp && host->dsr_req)
+		return sysfs_emit(buf, "0x%x\n", host->dsr);
+	/* return default DSR value */
+	return sysfs_emit(buf, "0x%x\n", 0x404);
 }
 
 static DEVICE_ATTR(dsr, S_IRUGO, mmc_dsr_show, NULL);
@@ -718,9 +734,9 @@ static ssize_t info##num##_show(struct device *dev, struct device_attribute *att
 												\
 	if (num > card->num_info)								\
 		return -ENODATA;								\
-	if (!card->info[num-1][0])								\
+	if (!card->info[num - 1][0])								\
 		return 0;									\
-	return sprintf(buf, "%s\n", card->info[num-1]);						\
+	return sysfs_emit(buf, "%s\n", card->info[num - 1]);					\
 }												\
 static DEVICE_ATTR_RO(info##num)
 
@@ -841,11 +857,13 @@ try_again:
 		return err;
 
 	/*
-	 * In case CCS and S18A in the response is set, start Signal Voltage
-	 * Switch procedure. SPI mode doesn't support CMD11.
+	 * In case the S18A bit is set in the response, let's start the signal
+	 * voltage switch procedure. SPI mode doesn't support CMD11.
+	 * Note that, according to the spec, the S18A bit is not valid unless
+	 * the CCS bit is set as well. We deliberately deviate from the spec in
+	 * regards to this, which allows UHS-I to be supported for SDSC cards.
 	 */
-	if (!mmc_host_is_spi(host) && rocr &&
-	   ((*rocr & 0x41000000) == 0x41000000)) {
+	if (!mmc_host_is_spi(host) && rocr && (*rocr & 0x01000000)) {
 		err = mmc_set_uhs_voltage(host, pocr);
 		if (err == -EAGAIN) {
 			retries--;
@@ -860,7 +878,7 @@ try_again:
 	return err;
 }
 
-int mmc_sd_get_csd(struct mmc_host *host, struct mmc_card *card)
+int mmc_sd_get_csd(struct mmc_card *card)
 {
 	int err;
 
@@ -988,6 +1006,380 @@ static bool mmc_sd_card_using_v18(struct mmc_card *card)
 	       (SD_MODE_UHS_SDR50 | SD_MODE_UHS_SDR104 | SD_MODE_UHS_DDR50);
 }
 
+static int sd_write_ext_reg(struct mmc_card *card, u8 fno, u8 page, u16 offset,
+			    u8 reg_data)
+{
+	struct mmc_host *host = card->host;
+	struct mmc_request mrq = {};
+	struct mmc_command cmd = {};
+	struct mmc_data data = {};
+	struct scatterlist sg;
+	u8 *reg_buf;
+
+	reg_buf = kzalloc(512, GFP_KERNEL);
+	if (!reg_buf)
+		return -ENOMEM;
+
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+
+	/*
+	 * Arguments of CMD49:
+	 * [31:31] MIO (0 = memory).
+	 * [30:27] FNO (function number).
+	 * [26:26] MW - mask write mode (0 = disable).
+	 * [25:18] page number.
+	 * [17:9] offset address.
+	 * [8:0] length (0 = 1 byte).
+	 */
+	cmd.arg = fno << 27 | page << 18 | offset << 9;
+
+	/* The first byte in the buffer is the data to be written. */
+	reg_buf[0] = reg_data;
+
+	data.flags = MMC_DATA_WRITE;
+	data.blksz = 512;
+	data.blocks = 1;
+	data.sg = &sg;
+	data.sg_len = 1;
+	sg_init_one(&sg, reg_buf, 512);
+
+	cmd.opcode = SD_WRITE_EXTR_SINGLE;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+
+	mmc_set_data_timeout(&data, card);
+	mmc_wait_for_req(host, &mrq);
+
+	kfree(reg_buf);
+
+	/*
+	 * Note that, the SD card is allowed to signal busy on DAT0 up to 1s
+	 * after the CMD49. Although, let's leave this to be managed by the
+	 * caller.
+	 */
+
+	if (cmd.error)
+		return cmd.error;
+	if (data.error)
+		return data.error;
+
+	return 0;
+}
+
+static int sd_read_ext_reg(struct mmc_card *card, u8 fno, u8 page,
+			   u16 offset, u16 len, u8 *reg_buf)
+{
+	u32 cmd_args;
+
+	/*
+	 * Command arguments of CMD48:
+	 * [31:31] MIO (0 = memory).
+	 * [30:27] FNO (function number).
+	 * [26:26] reserved (0).
+	 * [25:18] page number.
+	 * [17:9] offset address.
+	 * [8:0] length (0 = 1 byte, 1ff = 512 bytes).
+	 */
+	cmd_args = fno << 27 | page << 18 | offset << 9 | (len -1);
+
+	return mmc_send_adtc_data(card, card->host, SD_READ_EXTR_SINGLE,
+				  cmd_args, reg_buf, 512);
+}
+
+static int sd_parse_ext_reg_power(struct mmc_card *card, u8 fno, u8 page,
+				  u16 offset)
+{
+	int err;
+	u8 *reg_buf;
+
+	reg_buf = kzalloc(512, GFP_KERNEL);
+	if (!reg_buf)
+		return -ENOMEM;
+
+	/* Read the extension register for power management function. */
+	err = sd_read_ext_reg(card, fno, page, offset, 512, reg_buf);
+	if (err) {
+		pr_warn("%s: error %d reading PM func of ext reg\n",
+			mmc_hostname(card->host), err);
+		goto out;
+	}
+
+	/* PM revision consists of 4 bits. */
+	card->ext_power.rev = reg_buf[0] & 0xf;
+
+	/* Power Off Notification support at bit 4. */
+	if (reg_buf[1] & BIT(4))
+		card->ext_power.feature_support |= SD_EXT_POWER_OFF_NOTIFY;
+
+	/* Power Sustenance support at bit 5. */
+	if (reg_buf[1] & BIT(5))
+		card->ext_power.feature_support |= SD_EXT_POWER_SUSTENANCE;
+
+	/* Power Down Mode support at bit 6. */
+	if (reg_buf[1] & BIT(6))
+		card->ext_power.feature_support |= SD_EXT_POWER_DOWN_MODE;
+
+	card->ext_power.fno = fno;
+	card->ext_power.page = page;
+	card->ext_power.offset = offset;
+
+out:
+	kfree(reg_buf);
+	return err;
+}
+
+static int sd_parse_ext_reg_perf(struct mmc_card *card, u8 fno, u8 page,
+				 u16 offset)
+{
+	int err;
+	u8 *reg_buf;
+
+	reg_buf = kzalloc(512, GFP_KERNEL);
+	if (!reg_buf)
+		return -ENOMEM;
+
+	err = sd_read_ext_reg(card, fno, page, offset, 512, reg_buf);
+	if (err) {
+		pr_warn("%s: error %d reading PERF func of ext reg\n",
+			mmc_hostname(card->host), err);
+		goto out;
+	}
+
+	/* PERF revision. */
+	card->ext_perf.rev = reg_buf[0];
+
+	/* FX_EVENT support at bit 0. */
+	if (reg_buf[1] & BIT(0))
+		card->ext_perf.feature_support |= SD_EXT_PERF_FX_EVENT;
+
+	/* Card initiated self-maintenance support at bit 0. */
+	if (reg_buf[2] & BIT(0))
+		card->ext_perf.feature_support |= SD_EXT_PERF_CARD_MAINT;
+
+	/* Host initiated self-maintenance support at bit 1. */
+	if (reg_buf[2] & BIT(1))
+		card->ext_perf.feature_support |= SD_EXT_PERF_HOST_MAINT;
+
+	/* Cache support at bit 0. */
+	if (reg_buf[4] & BIT(0))
+		card->ext_perf.feature_support |= SD_EXT_PERF_CACHE;
+
+	/* Command queue support indicated via queue depth bits (0 to 4). */
+	if (reg_buf[6] & 0x1f)
+		card->ext_perf.feature_support |= SD_EXT_PERF_CMD_QUEUE;
+
+	card->ext_perf.fno = fno;
+	card->ext_perf.page = page;
+	card->ext_perf.offset = offset;
+
+out:
+	kfree(reg_buf);
+	return err;
+}
+
+static int sd_parse_ext_reg(struct mmc_card *card, u8 *gen_info_buf,
+			    u16 *next_ext_addr)
+{
+	u8 num_regs, fno, page;
+	u16 sfc, offset, ext = *next_ext_addr;
+	u32 reg_addr;
+
+	/*
+	 * Parse only one register set per extension, as that is sufficient to
+	 * support the standard functions. This means another 48 bytes in the
+	 * buffer must be available.
+	 */
+	if (ext + 48 > 512)
+		return -EFAULT;
+
+	/* Standard Function Code */
+	memcpy(&sfc, &gen_info_buf[ext], 2);
+
+	/* Address to the next extension. */
+	memcpy(next_ext_addr, &gen_info_buf[ext + 40], 2);
+
+	/* Number of registers for this extension. */
+	num_regs = gen_info_buf[ext + 42];
+
+	/* We support only one register per extension. */
+	if (num_regs != 1)
+		return 0;
+
+	/* Extension register address. */
+	memcpy(&reg_addr, &gen_info_buf[ext + 44], 4);
+
+	/* 9 bits (0 to 8) contains the offset address. */
+	offset = reg_addr & 0x1ff;
+
+	/* 8 bits (9 to 16) contains the page number. */
+	page = reg_addr >> 9 & 0xff ;
+
+	/* 4 bits (18 to 21) contains the function number. */
+	fno = reg_addr >> 18 & 0xf;
+
+	/* Standard Function Code for power management. */
+	if (sfc == 0x1)
+		return sd_parse_ext_reg_power(card, fno, page, offset);
+
+	/* Standard Function Code for performance enhancement. */
+	if (sfc == 0x2)
+		return sd_parse_ext_reg_perf(card, fno, page, offset);
+
+	return 0;
+}
+
+static int sd_read_ext_regs(struct mmc_card *card)
+{
+	int err, i;
+	u8 num_ext, *gen_info_buf;
+	u16 rev, len, next_ext_addr;
+
+	if (mmc_host_is_spi(card->host))
+		return 0;
+
+	if (!(card->scr.cmds & SD_SCR_CMD48_SUPPORT))
+		return 0;
+
+	gen_info_buf = kzalloc(512, GFP_KERNEL);
+	if (!gen_info_buf)
+		return -ENOMEM;
+
+	/*
+	 * Read 512 bytes of general info, which is found at function number 0,
+	 * at page 0 and with no offset.
+	 */
+	err = sd_read_ext_reg(card, 0, 0, 0, 512, gen_info_buf);
+	if (err) {
+		pr_warn("%s: error %d reading general info of SD ext reg\n",
+			mmc_hostname(card->host), err);
+		goto out;
+	}
+
+	/* General info structure revision. */
+	memcpy(&rev, &gen_info_buf[0], 2);
+
+	/* Length of general info in bytes. */
+	memcpy(&len, &gen_info_buf[2], 2);
+
+	/* Number of extensions to be find. */
+	num_ext = gen_info_buf[4];
+
+	/* We support revision 0, but limit it to 512 bytes for simplicity. */
+	if (rev != 0 || len > 512) {
+		pr_warn("%s: non-supported SD ext reg layout\n",
+			mmc_hostname(card->host));
+		goto out;
+	}
+
+	/*
+	 * Parse the extension registers. The first extension should start
+	 * immediately after the general info header (16 bytes).
+	 */
+	next_ext_addr = 16;
+	for (i = 0; i < num_ext; i++) {
+		err = sd_parse_ext_reg(card, gen_info_buf, &next_ext_addr);
+		if (err) {
+			pr_warn("%s: error %d parsing SD ext reg\n",
+				mmc_hostname(card->host), err);
+			goto out;
+		}
+	}
+
+out:
+	kfree(gen_info_buf);
+	return err;
+}
+
+static bool sd_cache_enabled(struct mmc_host *host)
+{
+	return host->card->ext_perf.feature_enabled & SD_EXT_PERF_CACHE;
+}
+
+static int sd_flush_cache(struct mmc_host *host)
+{
+	struct mmc_card *card = host->card;
+	u8 *reg_buf, fno, page;
+	u16 offset;
+	int err;
+
+	if (!sd_cache_enabled(host))
+		return 0;
+
+	reg_buf = kzalloc(512, GFP_KERNEL);
+	if (!reg_buf)
+		return -ENOMEM;
+
+	/*
+	 * Set Flush Cache at bit 0 in the performance enhancement register at
+	 * 261 bytes offset.
+	 */
+	fno = card->ext_perf.fno;
+	page = card->ext_perf.page;
+	offset = card->ext_perf.offset + 261;
+
+	err = sd_write_ext_reg(card, fno, page, offset, BIT(0));
+	if (err) {
+		pr_warn("%s: error %d writing Cache Flush bit\n",
+			mmc_hostname(host), err);
+		goto out;
+	}
+
+	err = mmc_poll_for_busy(card, SD_WRITE_EXTR_SINGLE_TIMEOUT_MS, false,
+				MMC_BUSY_EXTR_SINGLE);
+	if (err)
+		goto out;
+
+	/*
+	 * Read the Flush Cache bit. The card shall reset it, to confirm that
+	 * it's has completed the flushing of the cache.
+	 */
+	err = sd_read_ext_reg(card, fno, page, offset, 1, reg_buf);
+	if (err) {
+		pr_warn("%s: error %d reading Cache Flush bit\n",
+			mmc_hostname(host), err);
+		goto out;
+	}
+
+	if (reg_buf[0] & BIT(0))
+		err = -ETIMEDOUT;
+out:
+	kfree(reg_buf);
+	return err;
+}
+
+static int sd_enable_cache(struct mmc_card *card)
+{
+	u8 *reg_buf;
+	int err;
+
+	card->ext_perf.feature_enabled &= ~SD_EXT_PERF_CACHE;
+
+	reg_buf = kzalloc(512, GFP_KERNEL);
+	if (!reg_buf)
+		return -ENOMEM;
+
+	/*
+	 * Set Cache Enable at bit 0 in the performance enhancement register at
+	 * 260 bytes offset.
+	 */
+	err = sd_write_ext_reg(card, card->ext_perf.fno, card->ext_perf.page,
+			       card->ext_perf.offset + 260, BIT(0));
+	if (err) {
+		pr_warn("%s: error %d writing Cache Enable bit\n",
+			mmc_hostname(card->host), err);
+		goto out;
+	}
+
+	err = mmc_poll_for_busy(card, SD_WRITE_EXTR_SINGLE_TIMEOUT_MS, false,
+				MMC_BUSY_EXTR_SINGLE);
+	if (!err)
+		card->ext_perf.feature_enabled |= SD_EXT_PERF_CACHE;
+
+out:
+	kfree(reg_buf);
+	return err;
+}
+
 /*
  * Handle the detection and initialisation of a card.
  *
@@ -1046,7 +1438,7 @@ retry:
 	}
 
 	if (!oldcard) {
-		err = mmc_sd_get_csd(host, card);
+		err = mmc_sd_get_csd(card);
 		if (err)
 			goto free_card;
 
@@ -1136,6 +1528,20 @@ retry:
 		}
 	}
 
+	if (!oldcard) {
+		/* Read/parse the extension registers. */
+		err = sd_read_ext_regs(card);
+		if (err)
+			goto free_card;
+	}
+
+	/* Enable internal SD cache if supported. */
+	if (card->ext_perf.feature_support & SD_EXT_PERF_CACHE) {
+		err = sd_enable_cache(card);
+		if (err)
+			goto free_card;
+	}
+
 	if (host->cqe_ops && !host->cqe_enabled) {
 		err = host->cqe_ops->cqe_enable(host, card);
 		if (!err) {
@@ -1207,21 +1613,90 @@ static void mmc_sd_detect(struct mmc_host *host)
 	}
 }
 
+static int sd_can_poweroff_notify(struct mmc_card *card)
+{
+	return card->ext_power.feature_support & SD_EXT_POWER_OFF_NOTIFY;
+}
+
+static int sd_busy_poweroff_notify_cb(void *cb_data, bool *busy)
+{
+	struct sd_busy_data *data = cb_data;
+	struct mmc_card *card = data->card;
+	int err;
+
+	/*
+	 * Read the status register for the power management function. It's at
+	 * one byte offset and is one byte long. The Power Off Notification
+	 * Ready is bit 0.
+	 */
+	err = sd_read_ext_reg(card, card->ext_power.fno, card->ext_power.page,
+			      card->ext_power.offset + 1, 1, data->reg_buf);
+	if (err) {
+		pr_warn("%s: error %d reading status reg of PM func\n",
+			mmc_hostname(card->host), err);
+		return err;
+	}
+
+	*busy = !(data->reg_buf[0] & BIT(0));
+	return 0;
+}
+
+static int sd_poweroff_notify(struct mmc_card *card)
+{
+	struct sd_busy_data cb_data;
+	u8 *reg_buf;
+	int err;
+
+	reg_buf = kzalloc(512, GFP_KERNEL);
+	if (!reg_buf)
+		return -ENOMEM;
+
+	/*
+	 * Set the Power Off Notification bit in the power management settings
+	 * register at 2 bytes offset.
+	 */
+	err = sd_write_ext_reg(card, card->ext_power.fno, card->ext_power.page,
+			       card->ext_power.offset + 2, BIT(0));
+	if (err) {
+		pr_warn("%s: error %d writing Power Off Notify bit\n",
+			mmc_hostname(card->host), err);
+		goto out;
+	}
+
+	/* Find out when the command is completed. */
+	err = mmc_poll_for_busy(card, SD_WRITE_EXTR_SINGLE_TIMEOUT_MS, false,
+				MMC_BUSY_EXTR_SINGLE);
+	if (err)
+		goto out;
+
+	cb_data.card = card;
+	cb_data.reg_buf = reg_buf;
+	err = __mmc_poll_for_busy(card->host, 0, SD_POWEROFF_NOTIFY_TIMEOUT_MS,
+				  &sd_busy_poweroff_notify_cb, &cb_data);
+
+out:
+	kfree(reg_buf);
+	return err;
+}
+
 static int _mmc_sd_suspend(struct mmc_host *host)
 {
+	struct mmc_card *card = host->card;
 	int err = 0;
 
 	mmc_claim_host(host);
 
-	if (mmc_card_suspended(host->card))
+	if (mmc_card_suspended(card))
 		goto out;
 
-	if (!mmc_host_is_spi(host))
+	if (sd_can_poweroff_notify(card))
+		err = sd_poweroff_notify(card);
+	else if (!mmc_host_is_spi(host))
 		err = mmc_deselect_cards(host);
 
 	if (!err) {
 		mmc_power_off(host);
-		mmc_card_set_suspended(host->card);
+		mmc_card_set_suspended(card);
 	}
 
 out:
@@ -1325,6 +1800,8 @@ static const struct mmc_bus_ops mmc_sd_ops = {
 	.alive = mmc_sd_alive,
 	.shutdown = mmc_sd_suspend,
 	.hw_reset = mmc_sd_hw_reset,
+	.cache_enabled = sd_cache_enabled,
+	.flush_cache = sd_flush_cache,
 };
 
 /*

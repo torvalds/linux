@@ -58,9 +58,11 @@ struct sof_ext_man_header {
 /* Extended manifest elements types */
 enum sof_ext_man_elem_type {
 	SOF_EXT_MAN_ELEM_FW_VERSION		= 0,
-	SOF_EXT_MAN_ELEM_WINDOW			= SOF_IPC_EXT_WINDOW,
-	SOF_EXT_MAN_ELEM_CC_VERSION		= SOF_IPC_EXT_CC_INFO,
-	SOF_EXT_MAN_ELEM_DBG_ABI		= SOF_IPC_EXT_USER_ABI_INFO,
+	SOF_EXT_MAN_ELEM_WINDOW			= 1,
+	SOF_EXT_MAN_ELEM_CC_VERSION		= 2,
+	SOF_EXT_MAN_ELEM_DBG_ABI		= 4,
+	SOF_EXT_MAN_ELEM_CONFIG_DATA		= 5, /**< ABI3.17 */
+	SOF_EXT_MAN_ELEM_PLATFORM_CONFIG_DATA   = 6,
 };
 
 /* extended manifest element header */
@@ -97,6 +99,25 @@ struct ext_man_dbg_abi {
 	struct sof_ext_man_elem_header hdr;
 	/* use sof_ipc struct because of code re-use */
 	struct sof_ipc_user_abi_version dbg_abi;
+} __packed;
+
+/* EXT_MAN_ELEM_CONFIG_DATA elements identificators, ABI3.17 */
+enum config_elem_type {
+	SOF_EXT_MAN_CONFIG_EMPTY		= 0,
+	SOF_EXT_MAN_CONFIG_IPC_MSG_SIZE		= 1,
+	SOF_EXT_MAN_CONFIG_MEMORY_USAGE_SCAN	= 2, /**< ABI 3.18 */
+};
+
+struct sof_config_elem {
+	uint32_t token;
+	uint32_t value;
+} __packed;
+
+/* firmware configuration information */
+struct sof_ext_man_config_data {
+	struct sof_ext_man_elem_header hdr;
+
+	struct sof_config_elem elems[];
 } __packed;
 
 #endif /* __SOF_FIRMWARE_EXT_MANIFEST_H__ */

@@ -95,21 +95,23 @@ out_pm:
 
 static void intel_th_device_remove(struct intel_th_device *thdev);
 
-static int intel_th_remove(struct device *dev)
+static void intel_th_remove(struct device *dev)
 {
 	struct intel_th_driver *thdrv = to_intel_th_driver(dev->driver);
 	struct intel_th_device *thdev = to_intel_th_device(dev);
 	struct intel_th_device *hub = to_intel_th_hub(thdev);
-	int err;
 
 	if (thdev->type == INTEL_TH_SWITCH) {
 		struct intel_th *th = to_intel_th(hub);
 		int i, lowest;
 
-		/* disconnect outputs */
-		err = device_for_each_child(dev, thdev, intel_th_child_remove);
-		if (err)
-			return err;
+		/*
+		 * disconnect outputs
+		 *
+		 * intel_th_child_remove returns 0 unconditionally, so there is
+		 * no need to check the return value of device_for_each_child.
+		 */
+		device_for_each_child(dev, thdev, intel_th_child_remove);
 
 		/*
 		 * Remove outputs, that is, hub's children: they are created
@@ -162,8 +164,6 @@ static int intel_th_remove(struct device *dev)
 	pm_runtime_disable(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-
-	return 0;
 }
 
 static struct bus_type intel_th_bus = {
@@ -215,6 +215,22 @@ static ssize_t port_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RO(port);
 
+static void intel_th_trace_prepare(struct intel_th_device *thdev)
+{
+	struct intel_th_device *hub = to_intel_th_hub(thdev);
+	struct intel_th_driver *hubdrv = to_intel_th_driver(hub->dev.driver);
+
+	if (hub->type != INTEL_TH_SWITCH)
+		return;
+
+	if (thdev->type != INTEL_TH_OUTPUT)
+		return;
+
+	pm_runtime_get_sync(&thdev->dev);
+	hubdrv->prepare(hub, &thdev->output);
+	pm_runtime_put(&thdev->dev);
+}
+
 static int intel_th_output_activate(struct intel_th_device *thdev)
 {
 	struct intel_th_driver *thdrv =
@@ -235,6 +251,7 @@ static int intel_th_output_activate(struct intel_th_device *thdev)
 	if (ret)
 		goto fail_put;
 
+	intel_th_trace_prepare(thdev);
 	if (thdrv->activate)
 		ret = thdrv->activate(thdev);
 	else
@@ -844,7 +861,7 @@ static irqreturn_t intel_th_irq(int irq, void *data)
  * @irq:	irq number
  */
 struct intel_th *
-intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
+intel_th_alloc(struct device *dev, const struct intel_th_drvdata *drvdata,
 	       struct resource *devres, unsigned int ndevres)
 {
 	int err, r, nr_mmios = 0;

@@ -25,6 +25,14 @@ struct imx_icc_node {
 	struct dev_pm_qos_request qos_req;
 };
 
+static int imx_icc_get_bw(struct icc_node *node, u32 *avg, u32 *peak)
+{
+	*avg = 0;
+	*peak = 0;
+
+	return 0;
+}
+
 static int imx_icc_node_set(struct icc_node *node)
 {
 	struct device *dev = node->provider->dev;
@@ -96,9 +104,10 @@ static int imx_icc_node_init_qos(struct icc_provider *provider,
 			return -ENODEV;
 		}
 		/* Allow scaling to be disabled on a per-node basis */
-		if (!dn || !of_device_is_available(dn)) {
+		if (!of_device_is_available(dn)) {
 			dev_warn(dev, "Missing property %s, skip scaling %s\n",
 				 adj->phandle_name, node->name);
+			of_node_put(dn);
 			return 0;
 		}
 
@@ -240,6 +249,7 @@ int imx_icc_register(struct platform_device *pdev,
 	if (!provider)
 		return -ENOMEM;
 	provider->set = imx_icc_set;
+	provider->get_bw = imx_icc_get_bw;
 	provider->aggregate = icc_std_aggregate;
 	provider->xlate = of_icc_xlate_onecell;
 	provider->data = data;

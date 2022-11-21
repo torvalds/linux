@@ -124,5 +124,5 @@
 		"EventName": "L2C_STORES_SENT",
 		"BriefDescription": "L2C Stores Sent",
 		"PublicDescription": "Incremented by one for every store sent to Level-2 (L1.5) cache"
-	},
+	}
 ]

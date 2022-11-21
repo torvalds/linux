@@ -47,13 +47,12 @@ static int mt6660_reg_write(void *context, unsigned int reg, unsigned int val)
 	struct mt6660_chip *chip = context;
 	int size = mt6660_get_reg_size(reg);
 	u8 reg_data[4];
-	int i, ret;
+	int i;
 
 	for (i = 0; i < size; i++)
 		reg_data[size - i - 1] = (val >> (8 * i)) & 0xff;
 
-	ret = i2c_smbus_write_i2c_block_data(chip->i2c, reg, size, reg_data);
-	return ret;
+	return i2c_smbus_write_i2c_block_data(chip->i2c, reg, size, reg_data);
 }
 
 static int mt6660_reg_read(void *context, unsigned int reg, unsigned int *val)
@@ -404,9 +403,9 @@ static struct snd_soc_dai_driver mt6660_codec_dai = {
 		.formats = STUB_FORMATS,
 	},
 	/* dai properties */
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 	.symmetric_channels = 1,
-	.symmetric_samplebits = 1,
+	.symmetric_sample_bits = 1,
 	/* dai operations */
 	.ops = &mt6660_component_aif_ops,
 };

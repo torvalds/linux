@@ -8,7 +8,7 @@
  */
 
 /* handling of USB vendor/product ID pairs as 32-bit numbers */
-#define USB_ID(vendor, product) (((vendor) << 16) | (product))
+#define USB_ID(vendor, product) (((unsigned int)(vendor) << 16) | (product))
 #define USB_ID_VENDOR(id) ((id) >> 16)
 #define USB_ID_PRODUCT(id) ((u16)(id))
 
@@ -27,15 +27,14 @@ struct snd_usb_audio {
 	struct snd_card *card;
 	struct usb_interface *intf[MAX_CARD_INTERFACES];
 	u32 usb_id;
+	uint16_t quirk_type;
 	struct mutex mutex;
 	unsigned int system_suspend;
 	atomic_t active;
 	atomic_t shutdown;
 	atomic_t usage_count;
 	wait_queue_head_t shutdown_wait;
-	unsigned int txfr_quirk:1; /* Subframe boundaries on transfers */
-	unsigned int tx_length_quirk:1; /* Put length specifier in transfers */
-	unsigned int setup_fmt_after_resume_quirk:1; /* setup the format to interface after resume */
+	unsigned int quirk_flags;
 	unsigned int need_delayed_register:1; /* warn for delayed registration */
 	int num_interfaces;
 	int num_suspended_intf;
@@ -45,6 +44,7 @@ struct snd_usb_audio {
 
 	struct list_head pcm_list;	/* list of pcm streams */
 	struct list_head ep_list;	/* list of audio-related endpoints */
+	struct list_head iface_ref_list; /* list of interface refcounts */
 	int pcm_devs;
 
 	struct list_head midi_list;	/* list of midi interfaces */
@@ -52,15 +52,16 @@ struct snd_usb_audio {
 	struct list_head mixer_list;	/* list of mixer interfaces */
 
 	int setup;			/* from the 'device_setup' module param */
+	bool generic_implicit_fb;	/* from the 'implicit_fb' module param */
 	bool autoclock;			/* from the 'autoclock' module param */
-	bool keep_iface;		/* keep interface/altset after closing
-					 * or parameter change
-					 */
 
+	bool lowlatency;		/* from the 'lowlatency' module param */
 	struct usb_host_interface *ctrl_intf;	/* the audio control interface */
 	struct media_device *media_dev;
 	struct media_intf_devnode *ctl_intf_media_devnode;
 };
+
+#define USB_AUDIO_IFACE_UNUSED	((void *)-1L)
 
 #define usb_audio_err(chip, fmt, args...) \
 	dev_err(&(chip)->dev->dev, fmt, ##args)
@@ -76,6 +77,7 @@ struct snd_usb_audio {
  */
 
 /* special values for .ifnum */
+#define QUIRK_NODEV_INTERFACE		-3	/* return -ENODEV */
 #define QUIRK_NO_INTERFACE		-2
 #define QUIRK_ANY_INTERFACE		-1
 
@@ -99,10 +101,7 @@ enum quirk_type {
 	QUIRK_AUDIO_STANDARD_INTERFACE,
 	QUIRK_AUDIO_FIXED_ENDPOINT,
 	QUIRK_AUDIO_EDIROL_UAXX,
-	QUIRK_AUDIO_ALIGN_TRANSFER,
 	QUIRK_AUDIO_STANDARD_MIXER,
-	QUIRK_SETUP_FMT_AFTER_RESUME,
-	QUIRK_SETUP_DISABLE_AUTOSUSPEND,
 
 	QUIRK_TYPE_COUNT
 };
@@ -112,7 +111,6 @@ struct snd_usb_audio_quirk {
 	const char *product_name;
 	int16_t ifnum;
 	uint16_t type;
-	bool shares_media_device;
 	const void *data;
 };
 
@@ -125,5 +123,65 @@ void snd_usb_unlock_shutdown(struct snd_usb_audio *chip);
 
 extern bool snd_usb_use_vmalloc;
 extern bool snd_usb_skip_validation;
+
+/*
+ * Driver behavior quirk flags, stored in chip->quirk_flags
+ *
+ * QUIRK_FLAG_GET_SAMPLE_RATE:
+ *  Skip reading sample rate for devices, as some devices behave inconsistently
+ *  or return error
+ * QUIRK_FLAG_SHARE_MEDIA_DEVICE:
+ *  Create Media Controller API entries
+ * QUIRK_FLAG_ALIGN_TRANSFER:
+ *  Allow alignment on audio sub-slot (channel samples) rather than on audio
+ *  slots (audio frames)
+ * QUIRK_TX_LENGTH:
+ *  Add length specifier to transfers
+ * QUIRK_FLAG_PLAYBACK_FIRST:
+ *  Start playback stream at first even in implement feedback mode
+ * QUIRK_FLAG_SKIP_CLOCK_SELECTOR:
+ *  Skip clock selector setup; the device may reset to invalid state
+ * QUIRK_FLAG_IGNORE_CLOCK_SOURCE:
+ *  Ignore errors from clock source search; i.e. hardcoded clock
+ * QUIRK_FLAG_ITF_USB_DSD_DAC:
+ *  Indicates the device is for ITF-USB DSD based DACs that need a vendor cmd
+ *  to switch between PCM and native DSD mode
+ * QUIRK_FLAG_CTL_MSG_DELAY:
+ *  Add a delay of 20ms at each control message handling
+ * QUIRK_FLAG_CTL_MSG_DELAY_1M:
+ *  Add a delay of 1-2ms at each control message handling
+ * QUIRK_FLAG_CTL_MSG_DELAY_5M:
+ *  Add a delay of 5-6ms at each control message handling
+ * QUIRK_FLAG_IFACE_DELAY:
+ *  Add a delay of 50ms at each interface setup
+ * QUIRK_FLAG_VALIDATE_RATES:
+ *  Perform sample rate validations at probe
+ * QUIRK_FLAG_DISABLE_AUTOSUSPEND:
+ *  Disable runtime PM autosuspend
+ * QUIRK_FLAG_IGNORE_CTL_ERROR:
+ *  Ignore errors for mixer access
+ * QUIRK_FLAG_DSD_RAW:
+ *  Support generic DSD raw U32_BE format
+ * QUIRK_FLAG_SET_IFACE_FIRST:
+ *  Set up the interface at first like UAC1
+ */
+
+#define QUIRK_FLAG_GET_SAMPLE_RATE	(1U << 0)
+#define QUIRK_FLAG_SHARE_MEDIA_DEVICE	(1U << 1)
+#define QUIRK_FLAG_ALIGN_TRANSFER	(1U << 2)
+#define QUIRK_FLAG_TX_LENGTH		(1U << 3)
+#define QUIRK_FLAG_PLAYBACK_FIRST	(1U << 4)
+#define QUIRK_FLAG_SKIP_CLOCK_SELECTOR	(1U << 5)
+#define QUIRK_FLAG_IGNORE_CLOCK_SOURCE	(1U << 6)
+#define QUIRK_FLAG_ITF_USB_DSD_DAC	(1U << 7)
+#define QUIRK_FLAG_CTL_MSG_DELAY	(1U << 8)
+#define QUIRK_FLAG_CTL_MSG_DELAY_1M	(1U << 9)
+#define QUIRK_FLAG_CTL_MSG_DELAY_5M	(1U << 10)
+#define QUIRK_FLAG_IFACE_DELAY		(1U << 11)
+#define QUIRK_FLAG_VALIDATE_RATES	(1U << 12)
+#define QUIRK_FLAG_DISABLE_AUTOSUSPEND	(1U << 13)
+#define QUIRK_FLAG_IGNORE_CTL_ERROR	(1U << 14)
+#define QUIRK_FLAG_DSD_RAW		(1U << 15)
+#define QUIRK_FLAG_SET_IFACE_FIRST	(1U << 16)
 
 #endif /* __USBAUDIO_H */

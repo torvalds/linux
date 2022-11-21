@@ -87,7 +87,6 @@ struct r1conf {
 
 	/* queue pending writes to be submitted on unplug */
 	struct bio_list		pending_bio_list;
-	int			pending_count;
 
 	/* for use when syncing mirrors:
 	 * We don't allow both normal IO and resync/recovery IO at
@@ -158,6 +157,7 @@ struct r1bio {
 	sector_t		sector;
 	int			sectors;
 	unsigned long		state;
+	unsigned long		start_time;
 	struct mddev		*mddev;
 	/*
 	 * original bio going to /dev/mdx

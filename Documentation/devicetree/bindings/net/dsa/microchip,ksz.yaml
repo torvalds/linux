@@ -1,0 +1,156 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/dsa/microchip,ksz.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip KSZ Series Ethernet switches
+
+maintainers:
+  - Marek Vasut <marex@denx.de>
+  - Woojung Huh <Woojung.Huh@microchip.com>
+
+allOf:
+  - $ref: dsa.yaml#
+
+properties:
+  # See Documentation/devicetree/bindings/net/dsa/dsa.yaml for a list of additional
+  # required and optional properties.
+  compatible:
+    enum:
+      - microchip,ksz8765
+      - microchip,ksz8794
+      - microchip,ksz8795
+      - microchip,ksz8863
+      - microchip,ksz8873
+      - microchip,ksz9477
+      - microchip,ksz9897
+      - microchip,ksz9896
+      - microchip,ksz9567
+      - microchip,ksz8565
+      - microchip,ksz9893
+      - microchip,ksz9563
+      - microchip,ksz8563
+
+  reset-gpios:
+    description:
+      Should be a gpio specifier for a reset line.
+    maxItems: 1
+
+  microchip,synclko-125:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set if the output SYNCLKO frequency should be set to 125MHz instead of 25MHz.
+
+  microchip,synclko-disable:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set if the output SYNCLKO clock should be disabled. Do not mix with
+      microchip,synclko-125.
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    // Ethernet switch connected via SPI to the host, CPU port wired to eth0:
+    eth0 {
+        fixed-link {
+            speed = <1000>;
+            full-duplex;
+        };
+    };
+
+    spi0 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pinctrl-0 = <&pinctrl_spi_ksz>;
+        cs-gpios = <&pioC 25 0>;
+        id = <1>;
+
+        ksz9477: switch@0 {
+            compatible = "microchip,ksz9477";
+            reg = <0>;
+            reset-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
+
+            spi-max-frequency = <44000000>;
+
+            ethernet-ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                port@0 {
+                    reg = <0>;
+                    label = "lan1";
+                };
+                port@1 {
+                    reg = <1>;
+                    label = "lan2";
+                };
+                port@2 {
+                    reg = <2>;
+                    label = "lan3";
+                };
+                port@3 {
+                    reg = <3>;
+                    label = "lan4";
+                };
+                port@4 {
+                    reg = <4>;
+                    label = "lan5";
+                };
+                port@5 {
+                    reg = <5>;
+                    label = "cpu";
+                    ethernet = <&eth0>;
+                    fixed-link {
+                        speed = <1000>;
+                        full-duplex;
+                    };
+                };
+            };
+        };
+
+        ksz8565: switch@1 {
+            compatible = "microchip,ksz8565";
+            reg = <1>;
+
+            spi-max-frequency = <44000000>;
+
+            ethernet-ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                port@0 {
+                    reg = <0>;
+                    label = "lan1";
+                };
+                port@1 {
+                    reg = <1>;
+                    label = "lan2";
+                };
+                port@2 {
+                    reg = <2>;
+                    label = "lan3";
+                };
+                port@3 {
+                    reg = <3>;
+                    label = "lan4";
+                };
+                port@6 {
+                    reg = <6>;
+                    label = "cpu";
+                    ethernet = <&eth0>;
+                    fixed-link {
+                        speed = <1000>;
+                        full-duplex;
+                    };
+                };
+            };
+        };
+    };
+...

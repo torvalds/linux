@@ -72,7 +72,7 @@ MODULE_PARM_DESC(dma_tx_num, "Number of descriptors in the TX list");
  */
 #define ALTERA_RXDMABUFFER_SIZE	2048
 
-/* Allow network stack to resume queueing packets after we've
+/* Allow network stack to resume queuing packets after we've
  * finished transmitting at least 1/4 of the packets in the queue.
  */
 #define TSE_TX_THRESH(x)	(x->tx_ring_size / 4)
@@ -390,7 +390,7 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 				   "RCV pktstatus %08X pktlength %08X\n",
 				   pktstatus, pktlength);
 
-		/* DMA trasfer from TSE starts with 2 aditional bytes for
+		/* DMA transfer from TSE starts with 2 additional bytes for
 		 * IP payload alignment. Status returned by get_rx_status()
 		 * contains DMA transfer length. Packet is 2 bytes shorter.
 		 */
@@ -849,7 +849,7 @@ static int init_phy(struct net_device *dev)
 	return 0;
 }
 
-static void tse_update_mac_addr(struct altera_tse_private *priv, u8 *addr)
+static void tse_update_mac_addr(struct altera_tse_private *priv, const u8 *addr)
 {
 	u32 msb;
 	u32 lsb;
@@ -1044,7 +1044,7 @@ static void altera_tse_set_mcfilterall(struct net_device *dev)
 		csrwr32(1, priv->mac_dev, tse_csroffs(hash_table) + i * 4);
 }
 
-/* Set or clear the multicast filter for this adaptor
+/* Set or clear the multicast filter for this adapter
  */
 static void tse_set_rx_mode_hashfilter(struct net_device *dev)
 {
@@ -1064,7 +1064,7 @@ static void tse_set_rx_mode_hashfilter(struct net_device *dev)
 	spin_unlock(&priv->mac_cfg_lock);
 }
 
-/* Set or clear the multicast filter for this adaptor
+/* Set or clear the multicast filter for this adapter
  */
 static void tse_set_rx_mode(struct net_device *dev)
 {
@@ -1351,7 +1351,6 @@ static int altera_tse_probe(struct platform_device *pdev)
 	struct resource *control_port;
 	struct resource *dma_res;
 	struct altera_tse_private *priv;
-	const unsigned char *macaddr;
 	void __iomem *descmap;
 	const struct of_device_id *of_id = NULL;
 
@@ -1431,16 +1430,19 @@ static int altera_tse_probe(struct platform_device *pdev)
 		priv->rxdescmem_busaddr = dma_res->start;
 
 	} else {
+		ret = -ENODEV;
 		goto err_free_netdev;
 	}
 
-	if (!dma_set_mask(priv->device, DMA_BIT_MASK(priv->dmaops->dmamask)))
+	if (!dma_set_mask(priv->device, DMA_BIT_MASK(priv->dmaops->dmamask))) {
 		dma_set_coherent_mask(priv->device,
 				      DMA_BIT_MASK(priv->dmaops->dmamask));
-	else if (!dma_set_mask(priv->device, DMA_BIT_MASK(32)))
+	} else if (!dma_set_mask(priv->device, DMA_BIT_MASK(32))) {
 		dma_set_coherent_mask(priv->device, DMA_BIT_MASK(32));
-	else
+	} else {
+		ret = -EIO;
 		goto err_free_netdev;
+	}
 
 	/* MAC address space */
 	ret = request_and_map(pdev, "control_port", &control_port,
@@ -1525,10 +1527,8 @@ static int altera_tse_probe(struct platform_device *pdev)
 	priv->rx_dma_buf_sz = ALTERA_RXDMABUFFER_SIZE;
 
 	/* get default MAC address from device tree */
-	macaddr = of_get_mac_address(pdev->dev.of_node);
-	if (!IS_ERR(macaddr))
-		ether_addr_copy(ndev->dev_addr, macaddr);
-	else
+	ret = of_get_ethdev_address(pdev->dev.of_node, ndev);
+	if (ret)
 		eth_hw_addr_random(ndev);
 
 	/* get phy addr and create mdio */

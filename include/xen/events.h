@@ -12,6 +12,8 @@
 #include <asm/xen/hypercall.h>
 #include <asm/xen/events.h>
 
+struct xenbus_device;
+
 unsigned xen_evtchn_nr_channels(void);
 
 int bind_evtchn_to_irq(evtchn_port_t evtchn);
@@ -35,9 +37,9 @@ int bind_ipi_to_irqhandler(enum ipi_vector ipi,
 			   unsigned long irqflags,
 			   const char *devname,
 			   void *dev_id);
-int bind_interdomain_evtchn_to_irq_lateeoi(unsigned int remote_domain,
+int bind_interdomain_evtchn_to_irq_lateeoi(struct xenbus_device *dev,
 					   evtchn_port_t remote_port);
-int bind_interdomain_evtchn_to_irqhandler_lateeoi(unsigned int remote_domain,
+int bind_interdomain_evtchn_to_irqhandler_lateeoi(struct xenbus_device *dev,
 						  evtchn_port_t remote_port,
 						  irq_handler_t handler,
 						  unsigned long irqflags,

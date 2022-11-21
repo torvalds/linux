@@ -125,9 +125,9 @@ static int tegra186_emc_debug_min_rate_set(void *data, u64 rate)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(tegra186_emc_debug_min_rate_fops,
-			tegra186_emc_debug_min_rate_get,
-			tegra186_emc_debug_min_rate_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(tegra186_emc_debug_min_rate_fops,
+			  tegra186_emc_debug_min_rate_get,
+			  tegra186_emc_debug_min_rate_set, "%llu\n");
 
 static int tegra186_emc_debug_max_rate_get(void *data, u64 *rate)
 {
@@ -155,9 +155,9 @@ static int tegra186_emc_debug_max_rate_set(void *data, u64 rate)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(tegra186_emc_debug_max_rate_fops,
-			tegra186_emc_debug_max_rate_get,
-			tegra186_emc_debug_max_rate_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(tegra186_emc_debug_max_rate_fops,
+			  tegra186_emc_debug_max_rate_get,
+			  tegra186_emc_debug_max_rate_set, "%llu\n");
 
 static int tegra186_emc_probe(struct platform_device *pdev)
 {
@@ -195,6 +195,11 @@ static int tegra186_emc_probe(struct platform_device *pdev)
 	err = tegra_bpmp_transfer(emc->bpmp, &msg);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to EMC DVFS pairs: %d\n", err);
+		goto put_bpmp;
+	}
+	if (msg.rx.ret < 0) {
+		err = -EINVAL;
+		dev_err(&pdev->dev, "EMC DVFS MRQ failed: %d (BPMP error code)\n", msg.rx.ret);
 		goto put_bpmp;
 	}
 

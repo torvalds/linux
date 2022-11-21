@@ -807,7 +807,7 @@ static int ti_adpll_init_registers(struct ti_adpll_data *d)
 
 static int ti_adpll_init_inputs(struct ti_adpll_data *d)
 {
-	const char *error = "need at least %i inputs";
+	static const char error[] = "need at least %i inputs";
 	struct clk *clock;
 	int nr_inputs;
 
@@ -896,11 +896,8 @@ static int ti_adpll_probe(struct platform_device *pdev)
 	d->pa = res->start;
 
 	d->iobase = devm_ioremap_resource(dev, res);
-	if (IS_ERR(d->iobase)) {
-		dev_err(dev, "could not get IO base: %li\n",
-			PTR_ERR(d->iobase));
+	if (IS_ERR(d->iobase))
 		return PTR_ERR(d->iobase);
-	}
 
 	err = ti_adpll_init_registers(d);
 	if (err)

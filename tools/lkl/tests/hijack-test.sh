@@ -114,7 +114,7 @@ test_pipe_setup()
                 "param":"${fifo1}|${fifo2}",
                 "ip":"$(ip_lkl)",
                 "masklen":"$TEST_IP_NETMASK",
-                "mac":"$TEST_MAC0",
+                "mac":"$TEST_MAC0"
             }
         ]
     }

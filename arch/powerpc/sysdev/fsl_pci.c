@@ -55,7 +55,7 @@ static void quirk_fsl_pcie_early(struct pci_dev *dev)
 	if ((hdr_type & 0x7f) != PCI_HEADER_TYPE_BRIDGE)
 		return;
 
-	dev->class = PCI_CLASS_BRIDGE_PCI << 8;
+	dev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
 	fsl_pcie_bus_fixup = 1;
 	return;
 }
@@ -455,7 +455,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 	}
 }
 
-static void __init setup_pci_cmd(struct pci_controller *hose)
+static void setup_pci_cmd(struct pci_controller *hose)
 {
 	u16 cmd;
 	int cap_x;
@@ -1072,7 +1072,7 @@ int fsl_pci_mcheck_exception(struct pt_regs *regs)
 			ret = get_kernel_nofault(inst, (void *)regs->nip);
 
 		if (!ret && mcheck_handle_load(regs, inst)) {
-			regs->nip += 4;
+			regs_add_return_ip(regs, 4);
 			return 1;
 		}
 	}
@@ -1106,7 +1106,7 @@ static const struct of_device_id pci_ids[] = {
 
 struct device_node *fsl_pci_primary;
 
-void fsl_pci_assign_primary(void)
+void __init fsl_pci_assign_primary(void)
 {
 	struct device_node *np;
 

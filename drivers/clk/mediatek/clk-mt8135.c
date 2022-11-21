@@ -11,8 +11,9 @@
 #include <linux/mfd/syscon.h>
 #include <dt-bindings/clock/mt8135-clk.h>
 
-#include "clk-mtk.h"
 #include "clk-gate.h"
+#include "clk-mtk.h"
+#include "clk-pll.h"
 
 static DEFINE_SPINLOCK(mt8135_clk_lock);
 

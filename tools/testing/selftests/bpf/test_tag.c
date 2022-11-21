@@ -21,6 +21,7 @@
 
 #include "../../../include/linux/filter.h"
 #include "bpf_rlimit.h"
+#include "testing_helpers.h"
 
 static struct bpf_insn prog[BPF_MAXINSNS];
 
@@ -57,7 +58,7 @@ static int bpf_try_load_prog(int insns, int fd_map,
 	int fd_prog;
 
 	bpf_filler(insns, fd_map);
-	fd_prog = bpf_load_program(BPF_PROG_TYPE_SCHED_CLS, prog, insns, "", 0,
+	fd_prog = bpf_test_load_program(BPF_PROG_TYPE_SCHED_CLS, prog, insns, "", 0,
 				   NULL, 0);
 	assert(fd_prog > 0);
 	if (fd_map > 0)
@@ -184,11 +185,12 @@ static void do_test(uint32_t *tests, int start_insns, int fd_map,
 
 int main(void)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
 	uint32_t tests = 0;
 	int i, fd_map;
 
-	fd_map = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(int),
-				sizeof(int), 1, BPF_F_NO_PREALLOC);
+	fd_map = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(int),
+				sizeof(int), 1, &opts);
 	assert(fd_map > 0);
 
 	for (i = 0; i < 5; i++) {

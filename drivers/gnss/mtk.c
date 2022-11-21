@@ -126,7 +126,7 @@ static void mtk_remove(struct serdev_device *serdev)
 	if (data->vbackup)
 		regulator_disable(data->vbackup);
 	gnss_serial_free(gserial);
-};
+}
 
 #ifdef CONFIG_OF
 static const struct of_device_id mtk_of_match[] = {

@@ -200,8 +200,7 @@ static int ps3rom_write_request(struct ps3_storage_device *dev,
 	return 0;
 }
 
-static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd,
-			       void (*done)(struct scsi_cmnd *))
+static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd)
 {
 	struct ps3rom_private *priv = shost_priv(cmd->device->host);
 	struct ps3_storage_device *dev = priv->dev;
@@ -209,7 +208,6 @@ static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd,
 	int res;
 
 	priv->curr_cmd = cmd;
-	cmd->scsi_done = done;
 
 	opcode = cmd->cmnd[0];
 	/*
@@ -234,12 +232,10 @@ static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd,
 	}
 
 	if (res) {
-		memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
+		scsi_build_sense(cmd, 0, ILLEGAL_REQUEST, 0, 0);
 		cmd->result = res;
-		cmd->sense_buffer[0] = 0x70;
-		cmd->sense_buffer[2] = ILLEGAL_REQUEST;
 		priv->curr_cmd = NULL;
-		cmd->scsi_done(cmd);
+		scsi_done(cmd);
 	}
 
 	return 0;
@@ -319,12 +315,11 @@ static irqreturn_t ps3rom_interrupt(int irq, void *data)
 		goto done;
 	}
 
-	scsi_build_sense_buffer(0, cmd->sense_buffer, sense_key, asc, ascq);
-	cmd->result = SAM_STAT_CHECK_CONDITION;
+	scsi_build_sense(cmd, 0, sense_key, asc, ascq);
 
 done:
 	priv->curr_cmd = NULL;
-	cmd->scsi_done(cmd);
+	scsi_done(cmd);
 	return IRQ_HANDLED;
 }
 
@@ -402,7 +397,7 @@ fail_free_bounce:
 	return error;
 }
 
-static int ps3rom_remove(struct ps3_system_bus_device *_dev)
+static void ps3rom_remove(struct ps3_system_bus_device *_dev)
 {
 	struct ps3_storage_device *dev = to_ps3_storage_device(&_dev->core);
 	struct Scsi_Host *host = ps3_system_bus_get_drvdata(&dev->sbd);
@@ -412,7 +407,6 @@ static int ps3rom_remove(struct ps3_system_bus_device *_dev)
 	scsi_host_put(host);
 	ps3_system_bus_set_drvdata(&dev->sbd, NULL);
 	kfree(dev->bounce_buf);
-	return 0;
 }
 
 static struct ps3_system_bus_driver ps3rom = {

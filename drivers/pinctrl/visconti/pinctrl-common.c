@@ -245,11 +245,34 @@ static int visconti_set_mux(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static int visconti_gpio_request_enable(struct pinctrl_dev *pctldev,
+				      struct pinctrl_gpio_range *range,
+				      unsigned int pin)
+{
+	struct visconti_pinctrl *priv = pinctrl_dev_get_drvdata(pctldev);
+	const struct visconti_mux *gpio_mux = &priv->devdata->gpio_mux[pin];
+	unsigned long flags;
+	unsigned int val;
+
+	dev_dbg(priv->dev, "%s: pin = %d\n", __func__, pin);
+
+	/* update mux */
+	spin_lock_irqsave(&priv->lock, flags);
+	val = readl(priv->base + gpio_mux->offset);
+	val &= ~gpio_mux->mask;
+	val |= gpio_mux->val;
+	writel(val, priv->base + gpio_mux->offset);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
 static const struct pinmux_ops visconti_pinmux_ops = {
 	.get_functions_count	= visconti_get_functions_count,
 	.get_function_name	= visconti_get_function_name,
 	.get_function_groups	= visconti_get_function_groups,
 	.set_mux		= visconti_set_mux,
+	.gpio_request_enable	= visconti_gpio_request_enable,
 	.strict			= true,
 };
 

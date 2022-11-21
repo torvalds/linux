@@ -298,6 +298,7 @@ enum cvmx_board_types_enum {
 	CVMX_BOARD_TYPE_UBNT_E200 = 20003,
 	CVMX_BOARD_TYPE_UBNT_E220 = 20005,
 	CVMX_BOARD_TYPE_CUST_DSR1000N = 20006,
+	CVMX_BOARD_TYPE_UBNT_E300 = 20300,
 	CVMX_BOARD_TYPE_KONTRON_S1901 = 21901,
 	CVMX_BOARD_TYPE_CUST_PRIVATE_MAX = 30000,
 
@@ -317,7 +318,7 @@ enum cvmx_chip_types_enum {
 
 /* Functions to return string based on type */
 #define ENUM_BRD_TYPE_CASE(x) \
-	case x: return(#x + 16);	/* Skip CVMX_BOARD_TYPE_ */
+	case x: return (&#x[16]);	/* Skip CVMX_BOARD_TYPE_ */
 static inline const char *cvmx_board_type_to_string(enum
 						    cvmx_board_types_enum type)
 {
@@ -401,6 +402,7 @@ static inline const char *cvmx_board_type_to_string(enum
 		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_UBNT_E200)
 		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_UBNT_E220)
 		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_DSR1000N)
+		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_UBNT_E300)
 		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_KONTRON_S1901)
 		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_PRIVATE_MAX)
 	}
@@ -408,7 +410,7 @@ static inline const char *cvmx_board_type_to_string(enum
 }
 
 #define ENUM_CHIP_TYPE_CASE(x) \
-	case x: return(#x + 15);	/* Skip CVMX_CHIP_TYPE */
+	case x: return (&#x[15]);	/* Skip CVMX_CHIP_TYPE */
 static inline const char *cvmx_chip_type_to_string(enum
 						   cvmx_chip_types_enum type)
 {

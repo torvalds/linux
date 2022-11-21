@@ -31,7 +31,7 @@ mcp89_fb = {
 };
 
 int
-mcp89_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+mcp89_fb_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
-	return nv50_fb_new_(&mcp89_fb, device, index, pfb);
+	return nv50_fb_new_(&mcp89_fb, device, type, inst, pfb);
 }

@@ -168,6 +168,11 @@
 			interrupts = <14>;
 		};
 
+		srnprot@d800060 {
+			compatible = "nintendo,hollywood-srnprot";
+			reg = <0x0d800060 0x4>;
+		};
+
 		GPIO: gpio@d8000c0 {
 			#gpio-cells = <2>;
 			compatible = "nintendo,hollywood-gpio";
@@ -216,7 +221,18 @@
 
 		control@d800100 {
 			compatible = "nintendo,hollywood-control";
-			reg = <0x0d800100 0x300>;
+			/*
+			 * Both the address and length are wrong, according to
+			 * Wiibrew this should be <0x0d800000 0x400>, but it
+			 * requires refactoring the PIC1, GPIO and OTP nodes
+			 * before changing that.
+			 */
+			reg = <0x0d800100 0xa0>;
+		};
+
+		otp@d8001ec {
+			compatible = "nintendo,hollywood-otp";
+			reg = <0x0d8001ec 0x8>;
 		};
 
 		disk@d806000 {

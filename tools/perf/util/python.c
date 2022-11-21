@@ -58,9 +58,20 @@ int parse_callchain_record(const char *arg __maybe_unused,
 }
 
 /*
- * Add this one here not to drag util/env.c
+ * Add these not to drag util/env.c
  */
 struct perf_env perf_env;
+
+const char *perf_env__cpuid(struct perf_env *env __maybe_unused)
+{
+	return NULL;
+}
+
+// This one is a bit easier, wouldn't drag too much, but leave it as a stub we need it here
+const char *perf_env__arch(struct perf_env *env __maybe_unused)
+{
+	return NULL;
+}
 
 /*
  * Add this one here not to drag util/stat-shadow.c
@@ -70,11 +81,50 @@ void perf_stat__collect_metric_expr(struct evlist *evsel_list)
 }
 
 /*
+ * This one is needed not to drag the PMU bandwagon, jevents generated
+ * pmu_sys_event_tables, etc and evsel__find_pmu() is used so far just for
+ * doing per PMU perf_event_attr.exclude_guest handling, not really needed, so
+ * far, for the perf python binding known usecases, revisit if this become
+ * necessary.
+ */
+struct perf_pmu *evsel__find_pmu(struct evsel *evsel __maybe_unused)
+{
+	return NULL;
+}
+
+/*
  * Add this one here not to drag util/metricgroup.c
  */
 int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 				    struct rblist *new_metric_events,
 				    struct rblist *old_metric_events)
+{
+	return 0;
+}
+
+/*
+ * XXX: All these evsel destructors need some better mechanism, like a linked
+ * list of destructors registered when the relevant code indeed is used instead
+ * of having more and more calls in perf_evsel__delete(). -- acme
+ *
+ * For now, add some more:
+ *
+ * Not to drag the BPF bandwagon...
+ */
+void bpf_counter__destroy(struct evsel *evsel);
+int bpf_counter__install_pe(struct evsel *evsel, int cpu, int fd);
+int bpf_counter__disable(struct evsel *evsel);
+
+void bpf_counter__destroy(struct evsel *evsel __maybe_unused)
+{
+}
+
+int bpf_counter__install_pe(struct evsel *evsel __maybe_unused, int cpu __maybe_unused, int fd __maybe_unused)
+{
+	return 0;
+}
+
+int bpf_counter__disable(struct evsel *evsel __maybe_unused)
 {
 	return 0;
 }
@@ -389,6 +439,8 @@ tracepoint_field(struct pyrf_event *pe, struct tep_format_field *field)
 			offset  = val;
 			len     = offset >> 16;
 			offset &= 0xffff;
+			if (field->flags & TEP_FIELD_IS_RELATIVE)
+				offset += field->offset + field->size;
 		}
 		if (field->flags & TEP_FIELD_IS_STRING &&
 		    is_printable_array(data + offset, len)) {
@@ -422,7 +474,7 @@ get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 		struct tep_event *tp_format;
 
 		tp_format = trace_event__tp_format_id(evsel->core.attr.config);
-		if (!tp_format)
+		if (IS_ERR_OR_NULL(tp_format))
 			return NULL;
 
 		evsel->tp_format = tp_format;
@@ -597,17 +649,17 @@ static Py_ssize_t pyrf_cpu_map__length(PyObject *obj)
 {
 	struct pyrf_cpu_map *pcpus = (void *)obj;
 
-	return pcpus->cpus->nr;
+	return perf_cpu_map__nr(pcpus->cpus);
 }
 
 static PyObject *pyrf_cpu_map__item(PyObject *obj, Py_ssize_t i)
 {
 	struct pyrf_cpu_map *pcpus = (void *)obj;
 
-	if (i >= pcpus->cpus->nr)
+	if (i >= perf_cpu_map__nr(pcpus->cpus))
 		return NULL;
 
-	return Py_BuildValue("i", pcpus->cpus->map[i]);
+	return Py_BuildValue("i", perf_cpu_map__cpu(pcpus->cpus, i).cpu);
 }
 
 static PySequenceMethods pyrf_cpu_map__sequence_methods = {
@@ -1005,7 +1057,7 @@ static PyObject *pyrf_evlist__add(struct pyrf_evlist *pevlist,
 
 	Py_INCREF(pevsel);
 	evsel = &((struct pyrf_evsel *)pevsel)->evsel;
-	evsel->idx = evlist->core.nr_entries;
+	evsel->core.idx = evlist->core.nr_entries;
 	evlist__add(evlist, evsel);
 
 	return Py_BuildValue("i", evlist->core.nr_entries);
@@ -1018,7 +1070,7 @@ static struct mmap *get_md(struct evlist *evlist, int cpu)
 	for (i = 0; i < evlist->core.nr_mmaps; i++) {
 		struct mmap *md = &evlist->mmap[i];
 
-		if (md->core.cpu == cpu)
+		if (md->core.cpu.cpu == cpu)
 			return md;
 	}
 
@@ -1055,7 +1107,7 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 		if (pyevent == NULL)
 			return PyErr_NoMemory();
 
-		evsel = perf_evlist__event2evsel(evlist, event);
+		evsel = evlist__event2evsel(evlist, event);
 		if (!evsel) {
 			Py_INCREF(Py_None);
 			return Py_None;
@@ -1089,7 +1141,7 @@ static PyObject *pyrf_evlist__open(struct pyrf_evlist *pevlist,
 		return NULL;
 
 	if (group)
-		perf_evlist__set_leader(evlist);
+		evlist__set_leader(evlist);
 
 	if (evlist__open(evlist) < 0) {
 		PyErr_SetFromErrno(PyExc_OSError);
@@ -1404,7 +1456,7 @@ error:
  * Dummy, to avoid dragging all the test_attr infrastructure in the python
  * binding.
  */
-void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
+void test_attr__open(struct perf_event_attr *attr, pid_t pid, struct perf_cpu cpu,
                      int fd, int group_fd, unsigned long flags)
 {
 }

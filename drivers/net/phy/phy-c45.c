@@ -9,7 +9,50 @@
 #include <linux/phy.h>
 
 /**
- * genphy_c45_setup_forced - configures a forced speed
+ * genphy_c45_pma_can_sleep - checks if the PMA have sleep support
+ * @phydev: target phy_device struct
+ */
+static bool genphy_c45_pma_can_sleep(struct phy_device *phydev)
+{
+	int stat1;
+
+	stat1 = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_STAT1);
+	if (stat1 < 0)
+		return false;
+
+	return !!(stat1 & MDIO_STAT1_LPOWERABLE);
+}
+
+/**
+ * genphy_c45_pma_resume - wakes up the PMA module
+ * @phydev: target phy_device struct
+ */
+int genphy_c45_pma_resume(struct phy_device *phydev)
+{
+	if (!genphy_c45_pma_can_sleep(phydev))
+		return -EOPNOTSUPP;
+
+	return phy_clear_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_CTRL1,
+				  MDIO_CTRL1_LPOWER);
+}
+EXPORT_SYMBOL_GPL(genphy_c45_pma_resume);
+
+/**
+ * genphy_c45_pma_suspend - suspends the PMA module
+ * @phydev: target phy_device struct
+ */
+int genphy_c45_pma_suspend(struct phy_device *phydev)
+{
+	if (!genphy_c45_pma_can_sleep(phydev))
+		return -EOPNOTSUPP;
+
+	return phy_set_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_CTRL1,
+				MDIO_CTRL1_LPOWER);
+}
+EXPORT_SYMBOL_GPL(genphy_c45_pma_suspend);
+
+/**
+ * genphy_c45_pma_setup_forced - configures a forced speed
  * @phydev: target phy_device struct
  */
 int genphy_c45_pma_setup_forced(struct phy_device *phydev)
@@ -129,7 +172,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_an_config_aneg);
  * @phydev: target phy_device struct
  *
  * Disable auto-negotiation in the Clause 45 PHY. The link parameters
- * parameters are controlled through the PMA/PMD MMD registers.
+ * are controlled through the PMA/PMD MMD registers.
  *
  * Returns zero on success, negative errno code on failure.
  */
@@ -559,6 +602,49 @@ int gen10g_config_aneg(struct phy_device *phydev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gen10g_config_aneg);
+
+int genphy_c45_loopback(struct phy_device *phydev, bool enable)
+{
+	return phy_modify_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1,
+			      MDIO_PCS_CTRL1_LOOPBACK,
+			      enable ? MDIO_PCS_CTRL1_LOOPBACK : 0);
+}
+EXPORT_SYMBOL_GPL(genphy_c45_loopback);
+
+/**
+ * genphy_c45_fast_retrain - configure fast retrain registers
+ * @phydev: target phy_device struct
+ * @enable: enable fast retrain or not
+ *
+ * Description: If fast-retrain is enabled, we configure PHY as
+ *   advertising fast retrain capable and THP Bypass Request, then
+ *   enable fast retrain. If it is not enabled, we configure fast
+ *   retrain disabled.
+ */
+int genphy_c45_fast_retrain(struct phy_device *phydev, bool enable)
+{
+	int ret;
+
+	if (!enable)
+		return phy_clear_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_FSRT_CSR,
+				MDIO_PMA_10GBR_FSRT_ENABLE);
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, phydev->supported)) {
+		ret = phy_set_bits_mmd(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
+				MDIO_AN_10GBT_CTRL_ADVFSRT2_5G);
+		if (ret)
+			return ret;
+
+		ret = phy_set_bits_mmd(phydev, MDIO_MMD_AN, MDIO_AN_CTRL2,
+				MDIO_AN_THP_BP2_5GT);
+		if (ret)
+			return ret;
+	}
+
+	return phy_set_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_FSRT_CSR,
+			MDIO_PMA_10GBR_FSRT_ENABLE);
+}
+EXPORT_SYMBOL_GPL(genphy_c45_fast_retrain);
 
 struct phy_driver genphy_c45_driver = {
 	.phy_id         = 0xffffffff,

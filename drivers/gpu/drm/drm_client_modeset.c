@@ -7,9 +7,11 @@
  * Copyright (c) 2007 Dave Airlie <airlied@linux.ie>
  */
 
+#include "drm/drm_modeset_lock.h"
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/string_helpers.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_client.h>
@@ -240,7 +242,7 @@ static void drm_client_connectors_enabled(struct drm_connector **connectors,
 		connector = connectors[i];
 		enabled[i] = drm_connector_enabled(connector, true);
 		DRM_DEBUG_KMS("connector %d enabled? %s\n", connector->base.id,
-			      connector->display_info.non_desktop ? "non desktop" : enabled[i] ? "yes" : "no");
+			      connector->display_info.non_desktop ? "non desktop" : str_yes_no(enabled[i]));
 
 		any_enabled |= enabled[i];
 	}
@@ -1181,9 +1183,11 @@ static void drm_client_modeset_dpms_legacy(struct drm_client_dev *client, int dp
 	struct drm_device *dev = client->dev;
 	struct drm_connector *connector;
 	struct drm_mode_set *modeset;
+	struct drm_modeset_acquire_ctx ctx;
 	int j;
+	int ret;
 
-	drm_modeset_lock_all(dev);
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 	drm_client_for_each_modeset(modeset, client) {
 		if (!modeset->crtc->enabled)
 			continue;
@@ -1195,7 +1199,7 @@ static void drm_client_modeset_dpms_legacy(struct drm_client_dev *client, int dp
 				dev->mode_config.dpms_property, dpms_mode);
 		}
 	}
-	drm_modeset_unlock_all(dev);
+	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
 }
 
 /**

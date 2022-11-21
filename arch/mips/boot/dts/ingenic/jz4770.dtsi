@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <dt-bindings/clock/jz4770-cgu.h>
+#include <dt-bindings/clock/ingenic,jz4770-cgu.h>
 #include <dt-bindings/clock/ingenic,tcu.h>
 
 / {
@@ -399,7 +399,7 @@
 
 	lcd: lcd-controller@13050000 {
 		compatible = "ingenic,jz4770-lcd";
-		reg = <0x13050000 0x300>;
+		reg = <0x13050000 0x130>; /* tbc */
 
 		interrupt-parent = <&intc>;
 		interrupts = <31>;
@@ -430,7 +430,7 @@
 		interrupts = <23>;
 	};
 
-	uhc: uhc@13430000 {
+	uhc: usb@13430000 {
 		compatible = "generic-ohci";
 		reg = <0x13430000 0x1000>;
 

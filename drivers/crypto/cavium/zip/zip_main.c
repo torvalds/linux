@@ -55,6 +55,11 @@ static const struct pci_device_id zip_id_table[] = {
 	{ 0, }
 };
 
+static void zip_debugfs_init(void);
+static void zip_debugfs_exit(void);
+static int zip_register_compression_device(void);
+static void zip_unregister_compression_device(void);
+
 void zip_reg_write(u64 val, u64 __iomem *addr)
 {
 	writeq(val, addr);
@@ -235,6 +240,15 @@ static int zip_init_hw(struct zip_device *zip)
 	return 0;
 }
 
+static void zip_reset(struct zip_device *zip)
+{
+	union zip_cmd_ctl cmd_ctl;
+
+	cmd_ctl.u_reg64 = 0x0ull;
+	cmd_ctl.s.reset = 1;  /* Forces ZIP cores to do reset */
+	zip_reg_write(cmd_ctl.u_reg64, (zip->reg_base + ZIP_CMD_CTL));
+}
+
 static int zip_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct device *dev = &pdev->dev;
@@ -263,15 +277,9 @@ static int zip_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_disable_device;
 	}
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(48));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48));
 	if (err) {
-		dev_err(dev, "Unable to get usable DMA configuration\n");
-		goto err_release_regions;
-	}
-
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(48));
-	if (err) {
-		dev_err(dev, "Unable to get 48-bit DMA for allocations\n");
+		dev_err(dev, "Unable to get usable 48-bit DMA configuration\n");
 		goto err_release_regions;
 	}
 
@@ -288,7 +296,20 @@ static int zip_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_release_regions;
 
+	/* Register with the Kernel Crypto Interface */
+	err = zip_register_compression_device();
+	if (err < 0) {
+		zip_err("ZIP: Kernel Crypto Registration failed\n");
+		goto err_register;
+	}
+
+	/* comp-decomp statistics are handled with debugfs interface */
+	zip_debugfs_init();
+
 	return 0;
+
+err_register:
+	zip_reset(zip);
 
 err_release_regions:
 	if (zip->reg_base)
@@ -311,16 +332,17 @@ err_free_device:
 static void zip_remove(struct pci_dev *pdev)
 {
 	struct zip_device *zip = pci_get_drvdata(pdev);
-	union zip_cmd_ctl cmd_ctl;
 	int q = 0;
 
 	if (!zip)
 		return;
 
+	zip_debugfs_exit();
+
+	zip_unregister_compression_device();
+
 	if (zip->reg_base) {
-		cmd_ctl.u_reg64 = 0x0ull;
-		cmd_ctl.s.reset = 1;  /* Forces ZIP cores to do reset */
-		zip_reg_write(cmd_ctl.u_reg64, (zip->reg_base + ZIP_CMD_CTL));
+		zip_reset(zip);
 		iounmap(zip->reg_base);
 	}
 
@@ -591,7 +613,7 @@ DEFINE_SHOW_ATTRIBUTE(zip_regs);
 /* Root directory for thunderx_zip debugfs entry */
 static struct dentry *zip_debugfs_root;
 
-static void __init zip_debugfs_init(void)
+static void zip_debugfs_init(void)
 {
 	if (!debugfs_initialized())
 		return;
@@ -610,7 +632,7 @@ static void __init zip_debugfs_init(void)
 
 }
 
-static void __exit zip_debugfs_exit(void)
+static void zip_debugfs_exit(void)
 {
 	debugfs_remove_recursive(zip_debugfs_root);
 }
@@ -621,48 +643,7 @@ static void __exit zip_debugfs_exit(void) { }
 #endif
 /* debugfs - end */
 
-static int __init zip_init_module(void)
-{
-	int ret;
-
-	zip_msg("%s\n", DRV_NAME);
-
-	ret = pci_register_driver(&zip_driver);
-	if (ret < 0) {
-		zip_err("ZIP: pci_register_driver() failed\n");
-		return ret;
-	}
-
-	/* Register with the Kernel Crypto Interface */
-	ret = zip_register_compression_device();
-	if (ret < 0) {
-		zip_err("ZIP: Kernel Crypto Registration failed\n");
-		goto err_pci_unregister;
-	}
-
-	/* comp-decomp statistics are handled with debugfs interface */
-	zip_debugfs_init();
-
-	return ret;
-
-err_pci_unregister:
-	pci_unregister_driver(&zip_driver);
-	return ret;
-}
-
-static void __exit zip_cleanup_module(void)
-{
-	zip_debugfs_exit();
-
-	/* Unregister from the kernel crypto interface */
-	zip_unregister_compression_device();
-
-	/* Unregister this driver for pci zip devices */
-	pci_unregister_driver(&zip_driver);
-}
-
-module_init(zip_init_module);
-module_exit(zip_cleanup_module);
+module_pci_driver(zip_driver);
 
 MODULE_AUTHOR("Cavium Inc");
 MODULE_DESCRIPTION("Cavium Inc ThunderX ZIP Driver");

@@ -21,6 +21,7 @@
 #include <asm/pte-walk.h>
 #include <asm/ultravisor.h>
 #include <asm/kvm_book3s_uvmem.h>
+#include <asm/plpar_wrappers.h>
 
 /*
  * Supported radix tree geometry.
@@ -43,6 +44,9 @@ unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 					  (to != NULL) ? __pa(to): 0,
 					  (from != NULL) ? __pa(from): 0, n);
 
+	if (eaddr & (0xFFFUL << 52))
+		return ret;
+
 	quadrant = 1;
 	if (!pid)
 		quadrant = 2;
@@ -53,6 +57,8 @@ unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 
 	preempt_disable();
 
+	asm volatile("hwsync" ::: "memory");
+	isync();
 	/* switch the lpid first to avoid running host with unallocated pid */
 	old_lpid = mfspr(SPRN_LPID);
 	if (old_lpid != lpid)
@@ -64,11 +70,15 @@ unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 	}
 	isync();
 
+	pagefault_disable();
 	if (is_load)
-		ret = copy_from_user_nofault(to, (const void __user *)from, n);
+		ret = __copy_from_user_inatomic(to, (const void __user *)from, n);
 	else
-		ret = copy_to_user_nofault((void __user *)to, from, n);
+		ret = __copy_to_user_inatomic((void __user *)to, from, n);
+	pagefault_enable();
 
+	asm volatile("hwsync" ::: "memory");
+	isync();
 	/* switch the pid first to avoid running host with unallocated pid */
 	if (quadrant == 1 && pid != old_pid)
 		mtspr(SPRN_PID, old_pid);
@@ -80,7 +90,6 @@ unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(__kvmhv_copy_tofrom_guest_radix);
 
 static long kvmhv_copy_tofrom_guest_radix(struct kvm_vcpu *vcpu, gva_t eaddr,
 					  void *to, void *from, unsigned long n)
@@ -116,14 +125,12 @@ long kvmhv_copy_from_guest_radix(struct kvm_vcpu *vcpu, gva_t eaddr, void *to,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(kvmhv_copy_from_guest_radix);
 
 long kvmhv_copy_to_guest_radix(struct kvm_vcpu *vcpu, gva_t eaddr, void *from,
 			       unsigned long n)
 {
 	return kvmhv_copy_tofrom_guest_radix(vcpu, eaddr, NULL, from, n);
 }
-EXPORT_SYMBOL_GPL(kvmhv_copy_to_guest_radix);
 
 int kvmppc_mmu_walk_radix_tree(struct kvm_vcpu *vcpu, gva_t eaddr,
 			       struct kvmppc_pte *gpte, u64 root,
@@ -161,9 +168,10 @@ int kvmppc_mmu_walk_radix_tree(struct kvm_vcpu *vcpu, gva_t eaddr,
 			return -EINVAL;
 		/* Read the entry from guest memory */
 		addr = base + (index * sizeof(rpte));
-		vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
+
+		kvm_vcpu_srcu_read_lock(vcpu);
 		ret = kvm_read_guest(kvm, addr, &rpte, sizeof(rpte));
-		srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
+		kvm_vcpu_srcu_read_unlock(vcpu);
 		if (ret) {
 			if (pte_ret_p)
 				*pte_ret_p = addr;
@@ -239,9 +247,9 @@ int kvmppc_mmu_radix_translate_table(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 	/* Read the table to find the root of the radix tree */
 	ptbl = (table & PRTB_MASK) + (table_index * sizeof(entry));
-	vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
+	kvm_vcpu_srcu_read_lock(vcpu);
 	ret = kvm_read_guest(kvm, ptbl, &entry, sizeof(entry));
-	srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
+	kvm_vcpu_srcu_read_unlock(vcpu);
 	if (ret)
 		return ret;
 
@@ -318,9 +326,19 @@ void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
 	}
 
 	psi = shift_to_mmu_psize(pshift);
-	rb = addr | (mmu_get_ap(psi) << PPC_BITLSHIFT(58));
-	rc = plpar_hcall_norets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(0, 0, 1),
-				lpid, rb);
+
+	if (!firmware_has_feature(FW_FEATURE_RPT_INVALIDATE)) {
+		rb = addr | (mmu_get_ap(psi) << PPC_BITLSHIFT(58));
+		rc = plpar_hcall_norets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(0, 0, 1),
+					lpid, rb);
+	} else {
+		rc = pseries_rpt_invalidate(lpid, H_RPTI_TARGET_CMMU,
+					    H_RPTI_TYPE_NESTED |
+					    H_RPTI_TYPE_TLB,
+					    psize_to_rpti_pgsize(psi),
+					    addr, addr + psize);
+	}
+
 	if (rc)
 		pr_err("KVM: TLB page invalidation hcall failed, rc=%ld\n", rc);
 }
@@ -334,8 +352,14 @@ static void kvmppc_radix_flush_pwc(struct kvm *kvm, unsigned int lpid)
 		return;
 	}
 
-	rc = plpar_hcall_norets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(1, 0, 1),
-				lpid, TLBIEL_INVAL_SET_LPID);
+	if (!firmware_has_feature(FW_FEATURE_RPT_INVALIDATE))
+		rc = plpar_hcall_norets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(1, 0, 1),
+					lpid, TLBIEL_INVAL_SET_LPID);
+	else
+		rc = pseries_rpt_invalidate(lpid, H_RPTI_TARGET_CMMU,
+					    H_RPTI_TYPE_NESTED |
+					    H_RPTI_TYPE_PWC, H_RPTI_PAGE_ALL,
+					    0, -1UL);
 	if (rc)
 		pr_err("KVM: TLB PWC invalidation hcall failed, rc=%ld\n", rc);
 }
@@ -822,7 +846,7 @@ int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 
 		/* Call KVM generic code to do the slow-path check */
 		pfn = __gfn_to_pfn_memslot(memslot, gfn, false, NULL,
-					   writing, upgrade_p);
+					   writing, upgrade_p, NULL);
 		if (is_error_noslot_pfn(pfn))
 			return -EFAULT;
 		page = NULL;
@@ -993,8 +1017,8 @@ int kvmppc_book3s_radix_page_fault(struct kvm_vcpu *vcpu,
 }
 
 /* Called with kvm->mmu_lock held */
-int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
-		    unsigned long gfn)
+void kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+		     unsigned long gfn)
 {
 	pte_t *ptep;
 	unsigned long gpa = gfn << PAGE_SHIFT;
@@ -1002,24 +1026,23 @@ int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 
 	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE) {
 		uv_page_inval(kvm->arch.lpid, gpa, PAGE_SHIFT);
-		return 0;
+		return;
 	}
 
 	ptep = find_kvm_secondary_pte(kvm, gpa, &shift);
 	if (ptep && pte_present(*ptep))
 		kvmppc_unmap_pte(kvm, ptep, gpa, shift, memslot,
 				 kvm->arch.lpid);
-	return 0;
 }
 
 /* Called with kvm->mmu_lock held */
-int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
-		  unsigned long gfn)
+bool kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+		   unsigned long gfn)
 {
 	pte_t *ptep;
 	unsigned long gpa = gfn << PAGE_SHIFT;
 	unsigned int shift;
-	int ref = 0;
+	bool ref = false;
 	unsigned long old, *rmapp;
 
 	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE)
@@ -1035,26 +1058,27 @@ int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		kvmhv_update_nest_rmap_rc_list(kvm, rmapp, _PAGE_ACCESSED, 0,
 					       old & PTE_RPN_MASK,
 					       1UL << shift);
-		ref = 1;
+		ref = true;
 	}
 	return ref;
 }
 
 /* Called with kvm->mmu_lock held */
-int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
-		       unsigned long gfn)
+bool kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			unsigned long gfn)
+
 {
 	pte_t *ptep;
 	unsigned long gpa = gfn << PAGE_SHIFT;
 	unsigned int shift;
-	int ref = 0;
+	bool ref = false;
 
 	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE)
 		return ref;
 
 	ptep = find_kvm_secondary_pte(kvm, gpa, &shift);
 	if (ptep && pte_present(*ptep) && pte_young(*ptep))
-		ref = 1;
+		ref = true;
 	return ref;
 }
 
@@ -1431,7 +1455,7 @@ static const struct file_operations debugfs_radix_fops = {
 
 void kvmhv_radix_debugfs_init(struct kvm *kvm)
 {
-	debugfs_create_file("radix", 0400, kvm->arch.debugfs_dir, kvm,
+	debugfs_create_file("radix", 0400, kvm->debugfs_dentry, kvm,
 			    &debugfs_radix_fops);
 }
 

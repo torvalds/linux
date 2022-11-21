@@ -41,6 +41,7 @@ enum fc_els_cmd {
 	ELS_REC =	0x13,	/* read exchange concise */
 	ELS_SRR =	0x14,	/* sequence retransmission request */
 	ELS_FPIN =	0x16,	/* Fabric Performance Impact Notification */
+	ELS_EDC =	0x17,	/* Exchange Diagnostic Capabilities */
 	ELS_RDP =	0x18,	/* Read Diagnostic Parameters */
 	ELS_RDF =	0x19,	/* Register Diagnostic Functions */
 	ELS_PRLI =	0x20,	/* process login */
@@ -111,6 +112,7 @@ enum fc_els_cmd {
 	[ELS_REC] =	"REC",			\
 	[ELS_SRR] =	"SRR",			\
 	[ELS_FPIN] =	"FPIN",			\
+	[ELS_EDC] =	"EDC",			\
 	[ELS_RDP] =	"RDP",			\
 	[ELS_RDF] =	"RDF",			\
 	[ELS_PRLI] =	"PRLI",			\
@@ -218,6 +220,10 @@ enum fc_els_rjt_explan {
 enum fc_ls_tlv_dtag {
 	ELS_DTAG_LS_REQ_INFO =		0x00000001,
 		/* Link Service Request Information Descriptor */
+	ELS_DTAG_LNK_FAULT_CAP =	0x0001000D,
+		/* Link Fault Capability Descriptor */
+	ELS_DTAG_CG_SIGNAL_CAP =	0x0001000F,
+		/* Congestion Signaling Capability Descriptor */
 	ELS_DTAG_LNK_INTEGRITY =	0x00020001,
 		/* Link Integrity Notification Descriptor */
 	ELS_DTAG_DELIVERY =		0x00020002,
@@ -236,6 +242,8 @@ enum fc_ls_tlv_dtag {
  */
 #define FC_LS_TLV_DTAG_INIT {					      \
 	{ ELS_DTAG_LS_REQ_INFO,		"Link Service Request Information" }, \
+	{ ELS_DTAG_LNK_FAULT_CAP,	"Link Fault Capability" },	      \
+	{ ELS_DTAG_CG_SIGNAL_CAP,	"Congestion Signaling Capability" },  \
 	{ ELS_DTAG_LNK_INTEGRITY,	"Link Integrity Notification" },      \
 	{ ELS_DTAG_DELIVERY,		"Delivery Notification Present" },    \
 	{ ELS_DTAG_PEER_CONGEST,	"Peer Congestion Notification" },     \
@@ -916,7 +924,9 @@ enum fc_els_clid_ic {
 	ELS_CLID_IC_LIP =	8,	/* receiving LIP */
 };
 
-
+/*
+ * Link Integrity event types
+ */
 enum fc_fpin_li_event_types {
 	FPIN_LI_UNKNOWN =		0x0,
 	FPIN_LI_LINK_FAILURE =		0x1,
@@ -943,6 +953,54 @@ enum fc_fpin_li_event_types {
 	{ FPIN_LI_DEVICE_SPEC,		"Device Specific" },		\
 }
 
+/*
+ * Delivery event types
+ */
+enum fc_fpin_deli_event_types {
+	FPIN_DELI_UNKNOWN =		0x0,
+	FPIN_DELI_TIMEOUT =		0x1,
+	FPIN_DELI_UNABLE_TO_ROUTE =	0x2,
+	FPIN_DELI_DEVICE_SPEC =		0xF,
+};
+
+/*
+ * Initializer useful for decoding table.
+ * Please keep this in sync with the above definitions.
+ */
+#define FC_FPIN_DELI_EVT_TYPES_INIT {					\
+	{ FPIN_DELI_UNKNOWN,		"Unknown" },			\
+	{ FPIN_DELI_TIMEOUT,		"Timeout" },			\
+	{ FPIN_DELI_UNABLE_TO_ROUTE,	"Unable to Route" },		\
+	{ FPIN_DELI_DEVICE_SPEC,	"Device Specific" },		\
+}
+
+/*
+ * Congestion event types
+ */
+enum fc_fpin_congn_event_types {
+	FPIN_CONGN_CLEAR =		0x0,
+	FPIN_CONGN_LOST_CREDIT =	0x1,
+	FPIN_CONGN_CREDIT_STALL =	0x2,
+	FPIN_CONGN_OVERSUBSCRIPTION =	0x3,
+	FPIN_CONGN_DEVICE_SPEC =	0xF,
+};
+
+/*
+ * Initializer useful for decoding table.
+ * Please keep this in sync with the above definitions.
+ */
+#define FC_FPIN_CONGN_EVT_TYPES_INIT {					\
+	{ FPIN_CONGN_CLEAR,		"Clear" },			\
+	{ FPIN_CONGN_LOST_CREDIT,	"Lost Credit" },		\
+	{ FPIN_CONGN_CREDIT_STALL,	"Credit Stall" },		\
+	{ FPIN_CONGN_OVERSUBSCRIPTION,	"Oversubscription" },		\
+	{ FPIN_CONGN_DEVICE_SPEC,	"Device Specific" },		\
+}
+
+enum fc_fpin_congn_severity_types {
+	FPIN_CONGN_SEVERITY_WARNING =	0xF1,
+	FPIN_CONGN_SEVERITY_ERROR =	0xF7,
+};
 
 /*
  * Link Integrity Notification Descriptor
@@ -972,6 +1030,68 @@ struct fc_fn_li_desc {
 	__be64		pname_list[0];	/* list of N_Port_Names accessible
 					 * through the attached port
 					 */
+};
+
+/*
+ * Delivery Notification Descriptor
+ */
+struct fc_fn_deli_desc {
+	__be32		desc_tag;	/* Descriptor Tag (0x00020002) */
+	__be32		desc_len;	/* Length of Descriptor (in bytes).
+					 * Size of descriptor excluding
+					 * desc_tag and desc_len fields.
+					 */
+	__be64		detecting_wwpn;	/* Port Name that detected event */
+	__be64		attached_wwpn;	/* Port Name of device attached to
+					 * detecting Port Name
+					 */
+	__be32		deli_reason_code;/* see enum fc_fpin_deli_event_types */
+};
+
+/*
+ * Peer Congestion Notification Descriptor
+ */
+struct fc_fn_peer_congn_desc {
+	__be32		desc_tag;	/* Descriptor Tag (0x00020003) */
+	__be32		desc_len;	/* Length of Descriptor (in bytes).
+					 * Size of descriptor excluding
+					 * desc_tag and desc_len fields.
+					 */
+	__be64		detecting_wwpn;	/* Port Name that detected event */
+	__be64		attached_wwpn;	/* Port Name of device attached to
+					 * detecting Port Name
+					 */
+	__be16		event_type;	/* see enum fc_fpin_congn_event_types */
+	__be16		event_modifier;	/* Implementation specific value
+					 * describing the event type
+					 */
+	__be32		event_period;	/* duration (ms) of the detected
+					 * congestion event
+					 */
+	__be32		pname_count;	/* number of portname_list elements */
+	__be64		pname_list[0];	/* list of N_Port_Names accessible
+					 * through the attached port
+					 */
+};
+
+/*
+ * Congestion Notification Descriptor
+ */
+struct fc_fn_congn_desc {
+	__be32		desc_tag;	/* Descriptor Tag (0x00020004) */
+	__be32		desc_len;	/* Length of Descriptor (in bytes).
+					 * Size of descriptor excluding
+					 * desc_tag and desc_len fields.
+					 */
+	__be16		event_type;	/* see enum fc_fpin_congn_event_types */
+	__be16		event_modifier;	/* Implementation specific value
+					 * describing the event type
+					 */
+	__be32		event_period;	/* duration (ms) of the detected
+					 * congestion event
+					 */
+	__u8		severity;	/* command */
+	__u8		resv[3];	/* reserved - must be zero */
 };
 
 /*
@@ -1029,6 +1149,104 @@ struct fc_els_rdf_resp {
 						 */
 	struct fc_els_lsri_desc	lsri;
 	struct fc_tlv_desc	desc[0];	/* Supported Descriptor list */
+};
+
+
+/*
+ * Diagnostic Capability Descriptors for EDC ELS
+ */
+
+/*
+ * Diagnostic: Link Fault Capability Descriptor
+ */
+struct fc_diag_lnkflt_desc {
+	__be32		desc_tag;	/* Descriptor Tag (0x0001000D) */
+	__be32		desc_len;	/* Length of Descriptor (in bytes).
+					 * Size of descriptor excluding
+					 * desc_tag and desc_len fields.
+					 * 12 bytes
+					 */
+	__be32		degrade_activate_threshold;
+	__be32		degrade_deactivate_threshold;
+	__be32		fec_degrade_interval;
+};
+
+enum fc_edc_cg_signal_cap_types {
+	/* Note: Capability: bits 31:4 Rsvd; bits 3:0 are capabilities */
+	EDC_CG_SIG_NOTSUPPORTED =	0x00, /* neither supported */
+	EDC_CG_SIG_WARN_ONLY =		0x01,
+	EDC_CG_SIG_WARN_ALARM =		0x02, /* both supported */
+};
+
+/*
+ * Initializer useful for decoding table.
+ * Please keep this in sync with the above definitions.
+ */
+#define FC_EDC_CG_SIGNAL_CAP_TYPES_INIT {				\
+	{ EDC_CG_SIG_NOTSUPPORTED,	"Signaling Not Supported" },	\
+	{ EDC_CG_SIG_WARN_ONLY,		"Warning Signal" },		\
+	{ EDC_CG_SIG_WARN_ALARM,	"Warning and Alarm Signals" },	\
+}
+
+enum fc_diag_cg_sig_freq_types {
+	EDC_CG_SIGFREQ_CNT_MIN =	1,	/* Min Frequency Count */
+	EDC_CG_SIGFREQ_CNT_MAX =	999,	/* Max Frequency Count */
+
+	EDC_CG_SIGFREQ_SEC =		0x1,	/* Units: seconds */
+	EDC_CG_SIGFREQ_MSEC =		0x2,	/* Units: milliseconds */
+};
+
+struct fc_diag_cg_sig_freq {
+	__be16		count;		/* Time between signals
+					 * note: upper 6 bits rsvd
+					 */
+	__be16		units;		/* Time unit for count
+					 * note: upper 12 bits rsvd
+					 */
+};
+
+/*
+ * Diagnostic: Congestion Signaling Capability Descriptor
+ */
+struct fc_diag_cg_sig_desc {
+	__be32		desc_tag;	/* Descriptor Tag (0x0001000F) */
+	__be32		desc_len;	/* Length of Descriptor (in bytes).
+					 * Size of descriptor excluding
+					 * desc_tag and desc_len fields.
+					 * 16 bytes
+					 */
+	__be32				xmt_signal_capability;
+	struct fc_diag_cg_sig_freq	xmt_signal_frequency;
+	__be32				rcv_signal_capability;
+	struct fc_diag_cg_sig_freq	rcv_signal_frequency;
+};
+
+/*
+ * ELS_EDC - Exchange Diagnostic Capabilities
+ */
+struct fc_els_edc {
+	__u8		edc_cmd;	/* command (0x17) */
+	__u8		edc_zero[3];	/* specified as zero - part of cmd */
+	__be32		desc_len;	/* Length of Descriptor List (in bytes).
+					 * Size of ELS excluding edc_cmd,
+					 * edc_zero and desc_len fields.
+					 */
+	struct fc_tlv_desc	desc[0];
+					/* Diagnostic Descriptor list */
+};
+
+/*
+ * ELS EDC LS_ACC Response.
+ */
+struct fc_els_edc_resp {
+	struct fc_els_ls_acc	acc_hdr;
+	__be32			desc_list_len;	/* Length of response (in
+						 * bytes). Excludes acc_hdr
+						 * and desc_list_len fields.
+						 */
+	struct fc_els_lsri_desc	lsri;
+	struct fc_tlv_desc	desc[0];
+				    /* Supported Diagnostic Descriptor list */
 };
 
 

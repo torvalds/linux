@@ -1,4 +1,3 @@
-/* vim: set ts=8 sw=8 tw=78 ai noexpandtab */
 /* qxl_drv.c -- QXL driver -*- linux-c -*-
  *
  * Copyright 2011 Red Hat, Inc.
@@ -29,14 +28,18 @@
  */
 
 #include "qxl_drv.h"
-#include <linux/console.h>
+
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/vgaarb.h>
 
 #include <drm/drm.h>
+#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
+#include <drm/drm_gem_ttm_helper.h>
+#include <drm/drm_module.h>
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_probe_helper.h>
@@ -92,7 +95,7 @@ qxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, "qxl");
+	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &qxl_driver);
 	if (ret)
 		goto disable_pci;
 
@@ -141,7 +144,7 @@ static void qxl_drm_release(struct drm_device *dev)
 
 	/*
 	 * TODO: qxl_device_fini() call should be in qxl_pci_remove(),
-	 * reodering qxl_modeset_fini() + qxl_device_fini() calls is
+	 * reordering qxl_modeset_fini() + qxl_device_fini() calls is
 	 * non-trivial though.
 	 */
 	qxl_modeset_fini(qdev);
@@ -163,7 +166,7 @@ DEFINE_DRM_GEM_FOPS(qxl_fops);
 
 static int qxl_drm_freeze(struct drm_device *dev)
 {
-	struct pci_dev *pdev = dev->pdev;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct qxl_device *qdev = to_qxl(dev);
 	int ret;
 
@@ -267,21 +270,30 @@ static struct pci_driver qxl_pci_driver = {
 	 .driver.pm = &qxl_pm_ops,
 };
 
+static const struct drm_ioctl_desc qxl_ioctls[] = {
+	DRM_IOCTL_DEF_DRV(QXL_ALLOC, qxl_alloc_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(QXL_MAP, qxl_map_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(QXL_EXECBUFFER, qxl_execbuffer_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(QXL_UPDATE_AREA, qxl_update_area_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(QXL_GETPARAM, qxl_getparam_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(QXL_CLIENTCAP, qxl_clientcap_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(QXL_ALLOC_SURF, qxl_alloc_surf_ioctl, DRM_AUTH),
+};
+
 static struct drm_driver qxl_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 
 	.dumb_create = qxl_mode_dumb_create,
-	.dumb_map_offset = qxl_mode_dumb_mmap,
+	.dumb_map_offset = drm_gem_ttm_dumb_map_offset,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = qxl_debugfs_init,
 #endif
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = qxl_gem_prime_import_sg_table,
-	.gem_prime_mmap = qxl_gem_prime_mmap,
 	.fops = &qxl_fops,
 	.ioctls = qxl_ioctls,
-	.irq_handler = qxl_irq_handler,
+	.num_ioctls = ARRAY_SIZE(qxl_ioctls),
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
@@ -292,24 +304,7 @@ static struct drm_driver qxl_driver = {
 	.release = qxl_drm_release,
 };
 
-static int __init qxl_init(void)
-{
-	if (vgacon_text_force() && qxl_modeset == -1)
-		return -EINVAL;
-
-	if (qxl_modeset == 0)
-		return -EINVAL;
-	qxl_driver.num_ioctls = qxl_max_ioctls;
-	return pci_register_driver(&qxl_pci_driver);
-}
-
-static void __exit qxl_exit(void)
-{
-	pci_unregister_driver(&qxl_pci_driver);
-}
-
-module_init(qxl_init);
-module_exit(qxl_exit);
+drm_module_pci_driver_if_modeset(qxl_pci_driver, qxl_modeset);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

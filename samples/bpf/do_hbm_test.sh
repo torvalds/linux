@@ -10,7 +10,7 @@
 Usage() {
   echo "Script for testing HBM (Host Bandwidth Manager) framework."
   echo "It creates a cgroup to use for testing and load a BPF program to limit"
-  echo "egress or ingress bandwidht. It then uses iperf3 or netperf to create"
+  echo "egress or ingress bandwidth. It then uses iperf3 or netperf to create"
   echo "loads. The output is the goodput in Mbps (unless -D was used)."
   echo ""
   echo "USAGE: $name [out] [-b=<prog>|--bpf=<prog>] [-c=<cc>|--cc=<cc>]"
@@ -90,6 +90,16 @@ server=""
 qdisc=""
 flags=""
 do_stats=0
+
+BPFFS=/sys/fs/bpf
+function config_bpffs () {
+	if mount | grep $BPFFS > /dev/null; then
+		echo "bpffs already mounted"
+	else
+		echo "bpffs not mounted. Mounting..."
+		mount -t bpf none $BPFFS
+	fi
+}
 
 function start_hbm () {
   rm -f hbm.out
@@ -192,6 +202,7 @@ processArgs () {
 }
 
 processArgs
+config_bpffs
 
 if [ $debug_flag -eq 1 ] ; then
   rm -f hbm_out.log
@@ -201,7 +212,7 @@ hbm_pid=$(start_hbm)
 usleep 100000
 
 host=`hostname`
-cg_base_dir=/sys/fs/cgroup
+cg_base_dir=/sys/fs/cgroup/unified
 cg_dir="$cg_base_dir/cgroup-test-work-dir/hbm$id"
 
 echo $$ >> $cg_dir/cgroup.procs
@@ -411,23 +422,8 @@ fi
 
 sleep 1
 
-# Detach any BPF programs that may have lingered
-ttx=`bpftool cgroup tree | grep hbm`
-v=2
-for x in $ttx ; do
-    if [ "${x:0:36}" == "/sys/fs/cgroup/cgroup-test-work-dir/" ] ; then
-	cg=$x ; v=0
-    else
-	if [ $v -eq 0 ] ; then
-	    id=$x ; v=1
-	else
-	    if [ $v -eq 1 ] ; then
-		type=$x ; bpftool cgroup detach $cg $type id $id
-		v=0
-	    fi
-	fi
-    fi
-done
+# Detach any pinned BPF programs that may have lingered
+rm -rf $BPFFS/hbm*
 
 if [ $use_netperf -ne 0 ] ; then
   if [ "$server" == "" ] ; then

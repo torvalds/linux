@@ -55,7 +55,7 @@ static const struct clk_ops omap_gate_clk_hsdiv_restore_ops = {
 /**
  * omap36xx_gate_clk_enable_with_hsdiv_restore - enable clocks suffering
  *         from HSDivider PWRDN problem Implements Errata ID: i556.
- * @clk: DPLL output struct clk
+ * @hw: DPLL output struct clk_hw
  *
  * 3630 only: dpll3_m3_ck, dpll4_m2_ck, dpll4_m3_ck, dpll4_m4_ck,
  * dpll4_m5_ck & dpll4_m6_ck dividers gets loaded with reset
@@ -138,6 +138,7 @@ static void __init _of_ti_gate_clk_setup(struct device_node *node,
 	struct clk *clk;
 	const char *parent_name;
 	struct clk_omap_reg reg;
+	const char *name;
 	u8 enable_bit = 0;
 	u32 val;
 	u32 flags = 0;
@@ -164,7 +165,8 @@ static void __init _of_ti_gate_clk_setup(struct device_node *node,
 	if (of_property_read_bool(node, "ti,set-bit-to-disable"))
 		clk_gate_flags |= INVERT_ENABLE;
 
-	clk = _register_gate(NULL, node->name, parent_name, flags, &reg,
+	name = ti_dt_clk_name(node);
+	clk = _register_gate(NULL, name, parent_name, flags, &reg,
 			     enable_bit, clk_gate_flags, ops, hw_ops);
 
 	if (!IS_ERR(clk))

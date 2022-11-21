@@ -13,10 +13,23 @@
 / {
 	aliases {
 		serial0 = &uart0;
+		mmc0 = &mmc0;
+		mmc1 = &mmc1;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	backlight_lcd0: backlight_lcd0 {
+		compatible = "pwm-backlight";
+		pwms = <&pwm0 0 500000>;
+		power-supply = <&bl_pp5000>;
+		enable-gpios = <&pio 176 0>;
+		brightness-levels = <0 1023>;
+		num-interpolated-steps = <1023>;
+		default-brightness-level = <576>;
+		status = "okay";
 	};
 
 	memory@40000000 {
@@ -102,12 +115,18 @@
 		};
 	};
 
-	max98357a: codec0 {
-		compatible = "maxim,max98357a";
-		sdmode-gpios = <&pio 175 0>;
+	sound: mt8183-sound {
+		mediatek,platform = <&afe>;
+		pinctrl-names = "default",
+				"aud_tdm_out_on",
+				"aud_tdm_out_off";
+		pinctrl-0 = <&aud_pins_default>;
+		pinctrl-1 = <&aud_pins_tdm_out_on>;
+		pinctrl-2 = <&aud_pins_tdm_out_off>;
+		status = "okay";
 	};
 
-	btsco: codec1 {
+	btsco: bt-sco {
 		compatible = "linux,bt-sco";
 	};
 
@@ -138,33 +157,33 @@
 		#thermal-sensor-cells = <0>;
 		io-channels = <&auxadc 0>;
 		io-channel-names = "sensor-channel";
-		temperature-lookup-table = <    (-5000) 4241
-						0 4063
-						5000 3856
-						10000 3621
-						15000 3364
-						20000 3091
-						25000 2810
-						30000 2526
-						35000 2247
-						40000 1982
-						45000 1734
-						50000 1507
-						55000 1305
-						60000 1122
-						65000 964
-						70000 827
-						75000 710
-						80000 606
-						85000 519
-						90000 445
-						95000 382
-						100000 330
-						105000 284
-						110000 245
-						115000 213
-						120000 183
-						125000 161>;
+		temperature-lookup-table = <    (-5000) 1553
+						0 1488
+						5000 1412
+						10000 1326
+						15000 1232
+						20000 1132
+						25000 1029
+						30000 925
+						35000 823
+						40000 726
+						45000 635
+						50000 552
+						55000 478
+						60000 411
+						65000 353
+						70000 303
+						75000 260
+						80000 222
+						85000 190
+						90000 163
+						95000 140
+						100000 121
+						105000 104
+						110000 90
+						115000 78
+						120000 67
+						125000 59>;
 	};
 
 	tboard_thermistor2: thermal-sensor2 {
@@ -172,34 +191,39 @@
 		#thermal-sensor-cells = <0>;
 		io-channels = <&auxadc 1>;
 		io-channel-names = "sensor-channel";
-		temperature-lookup-table = <    (-5000) 4241
-						0 4063
-						5000 3856
-						10000 3621
-						15000 3364
-						20000 3091
-						25000 2810
-						30000 2526
-						35000 2247
-						40000 1982
-						45000 1734
-						50000 1507
-						55000 1305
-						60000 1122
-						65000 964
-						70000 827
-						75000 710
-						80000 606
-						85000 519
-						90000 445
-						95000 382
-						100000 330
-						105000 284
-						110000 245
-						115000 213
-						120000 183
-						125000 161>;
+		temperature-lookup-table = <    (-5000) 1553
+						0 1488
+						5000 1412
+						10000 1326
+						15000 1232
+						20000 1132
+						25000 1029
+						30000 925
+						35000 823
+						40000 726
+						45000 635
+						50000 552
+						55000 478
+						60000 411
+						65000 353
+						70000 303
+						75000 260
+						80000 222
+						85000 190
+						90000 163
+						95000 140
+						100000 121
+						105000 104
+						110000 90
+						115000 78
+						120000 67
+						125000 59>;
 	};
+};
+
+&afe {
+	i2s3-share = "I2S2";
+	i2s0-share = "I2S5";
 };
 
 &auxadc {
@@ -236,6 +260,41 @@
 
 &cpu7 {
 	proc-supply = <&mt6358_vproc11_reg>;
+};
+
+&dsi0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	panel: panel@0 {
+		/* compatible will be set in board dts */
+		reg = <0>;
+		enable-gpios = <&pio 45 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_pins_default>;
+		avdd-supply = <&ppvarn_lcd>;
+		avee-supply = <&ppvarp_lcd>;
+		pp1800-supply = <&pp1800_lcd>;
+		backlight = <&backlight_lcd0>;
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&dsi_out>;
+			};
+		};
+	};
+
+	ports {
+		port {
+			dsi_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
+	};
+};
+
+&gpu {
+	mali-supply = <&mt6358_vgpu_reg>;
+	sram-supply = <&mt6358_vsram_gpu_reg>;
 };
 
 &i2c0 {
@@ -277,6 +336,10 @@
 	pinctrl-0 = <&i2c6_pins>;
 	status = "okay";
 	clock-frequency = <100000>;
+};
+
+&mipi_tx0 {
+	status = "okay";
 };
 
 &mmc0 {
@@ -350,6 +413,54 @@
 };
 
 &pio {
+	aud_pins_default: audiopins {
+		pins_bus {
+			pinmux = <PINMUX_GPIO97__FUNC_I2S2_MCK>,
+				<PINMUX_GPIO98__FUNC_I2S2_BCK>,
+				<PINMUX_GPIO101__FUNC_I2S2_LRCK>,
+				<PINMUX_GPIO102__FUNC_I2S2_DI>,
+				<PINMUX_GPIO3__FUNC_I2S3_DO>, /*i2s to da7219/max98357*/
+				<PINMUX_GPIO89__FUNC_I2S5_BCK>,
+				<PINMUX_GPIO90__FUNC_I2S5_LRCK>,
+				<PINMUX_GPIO91__FUNC_I2S5_DO>,
+				<PINMUX_GPIO174__FUNC_I2S0_DI>, /*i2s to wifi/bt*/
+				<PINMUX_GPIO136__FUNC_AUD_CLK_MOSI>,
+				<PINMUX_GPIO137__FUNC_AUD_SYNC_MOSI>,
+				<PINMUX_GPIO138__FUNC_AUD_DAT_MOSI0>,
+				<PINMUX_GPIO139__FUNC_AUD_DAT_MOSI1>,
+				<PINMUX_GPIO140__FUNC_AUD_CLK_MISO>,
+				<PINMUX_GPIO141__FUNC_AUD_SYNC_MISO>,
+				<PINMUX_GPIO142__FUNC_AUD_DAT_MISO0>,
+				<PINMUX_GPIO143__FUNC_AUD_DAT_MISO1>; /*mtkaif3.0*/
+		};
+	};
+
+	aud_pins_tdm_out_on: audiotdmouton {
+		pins_bus {
+			pinmux = <PINMUX_GPIO169__FUNC_TDM_BCK_2ND>,
+				<PINMUX_GPIO170__FUNC_TDM_LRCK_2ND>,
+				<PINMUX_GPIO171__FUNC_TDM_DATA0_2ND>,
+				<PINMUX_GPIO172__FUNC_TDM_DATA1_2ND>,
+				<PINMUX_GPIO173__FUNC_TDM_DATA2_2ND>,
+				<PINMUX_GPIO10__FUNC_TDM_DATA3>; /*8ch-i2s to it6505*/
+			drive-strength = <MTK_DRIVE_6mA>;
+		};
+	};
+
+	aud_pins_tdm_out_off: audiotdmoutoff {
+		pins_bus {
+			pinmux = <PINMUX_GPIO169__FUNC_GPIO169>,
+				<PINMUX_GPIO170__FUNC_GPIO170>,
+				<PINMUX_GPIO171__FUNC_GPIO171>,
+				<PINMUX_GPIO172__FUNC_GPIO172>,
+				<PINMUX_GPIO173__FUNC_GPIO173>,
+				<PINMUX_GPIO10__FUNC_GPIO10>;
+			input-enable;
+			bias-pull-down;
+			drive-strength = <MTK_DRIVE_2mA>;
+		};
+	};
+
 	bt_pins: bt-pins {
 		pins_bt_en {
 			pinmux = <PINMUX_GPIO120__FUNC_GPIO120>;
@@ -536,6 +647,25 @@
 		};
 	};
 
+	panel_pins_default: panel_pins_default {
+		panel_reset {
+			pinmux = <PINMUX_GPIO45__FUNC_GPIO45>;
+			output-low;
+			bias-pull-up;
+		};
+	};
+
+	pwm0_pin_default: pwm0_pin_default {
+		pins1 {
+			pinmux = <PINMUX_GPIO176__FUNC_GPIO176>;
+			output-high;
+			bias-pull-up;
+		};
+		pins2 {
+			pinmux = <PINMUX_GPIO43__FUNC_DISP_PWM>;
+		};
+	};
+
 	scp_pins: scp {
 		pins_scp_uart {
 			pinmux = <PINMUX_GPIO110__FUNC_TP_URXD1_AO>,
@@ -670,6 +800,12 @@
 	};
 };
 
+&pwm0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0_pin_default>;
+};
+
 &scp {
 	status = "okay";
 	pinctrl-names = "default";
@@ -677,8 +813,12 @@
 
 	cros_ec {
 		compatible = "google,cros-ec-rpmsg";
-		mtk,rpmsg-name = "cros-ec-rpmsg";
+		mediatek,rpmsg-name = "cros-ec-rpmsg";
 	};
+};
+
+&mfg {
+	domain-supply = <&mt6358_vgpu_reg>;
 };
 
 &soc_data {
@@ -742,6 +882,24 @@
 			compatible = "google,extcon-usbc-cros-ec";
 			google,usb-port-id = <0>;
 		};
+
+		cbas {
+			compatible = "google,cros-cbas";
+		};
+
+		typec {
+			compatible = "google,cros-ec-typec";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			usb_c0: connector@0 {
+				compatible = "usb-c-connector";
+				reg = <0>;
+				power-role = "dual";
+				data-role = "host";
+				try-power-role = "sink";
+			};
+		};
 	};
 };
 
@@ -771,6 +929,20 @@
 	wakeup-source;
 	vusb33-supply = <&mt6358_vusb_reg>;
 	status = "okay";
+};
+
+&thermal_zones {
+	tboard1 {
+		polling-delay = <1000>; /* milliseconds */
+		polling-delay-passive = <0>; /* milliseconds */
+		thermal-sensors = <&tboard_thermistor1>;
+	};
+
+	tboard2 {
+		polling-delay = <1000>; /* milliseconds */
+		polling-delay-passive = <0>; /* milliseconds */
+		thermal-sensors = <&tboard_thermistor2>;
+	};
 };
 
 &u3phy {

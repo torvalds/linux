@@ -348,6 +348,7 @@ static void fsl_edma_set_tcd_regs(struct fsl_edma_chan *fsl_chan,
 	struct fsl_edma_engine *edma = fsl_chan->edma;
 	struct edma_regs *regs = &fsl_chan->edma->regs;
 	u32 ch = fsl_chan->vchan.chan.chan_id;
+	u16 csr = 0;
 
 	/*
 	 * TCD parameters are stored in struct fsl_edma_hw_tcd in little
@@ -372,6 +373,12 @@ static void fsl_edma_set_tcd_regs(struct fsl_edma_chan *fsl_chan,
 
 	edma_writel(edma, (s32)tcd->dlast_sga,
 			&regs->tcd[ch].dlast_sga);
+
+	if (fsl_chan->is_sw) {
+		csr = le16_to_cpu(tcd->csr);
+		csr |= EDMA_TCD_CSR_START;
+		tcd->csr = cpu_to_le16(csr);
+	}
 
 	edma_writew(edma, (s16)tcd->csr, &regs->tcd[ch].csr);
 }
@@ -587,6 +594,29 @@ struct dma_async_tx_descriptor *fsl_edma_prep_slave_sg(
 }
 EXPORT_SYMBOL_GPL(fsl_edma_prep_slave_sg);
 
+struct dma_async_tx_descriptor *fsl_edma_prep_memcpy(struct dma_chan *chan,
+						     dma_addr_t dma_dst, dma_addr_t dma_src,
+						     size_t len, unsigned long flags)
+{
+	struct fsl_edma_chan *fsl_chan = to_fsl_edma_chan(chan);
+	struct fsl_edma_desc *fsl_desc;
+
+	fsl_desc = fsl_edma_alloc_desc(fsl_chan, 1);
+	if (!fsl_desc)
+		return NULL;
+	fsl_desc->iscyclic = false;
+
+	fsl_chan->is_sw = true;
+
+	/* To match with copy_align and max_seg_size so 1 tcd is enough */
+	fsl_edma_fill_tcd(fsl_desc->tcd[0].vtcd, dma_src, dma_dst,
+			EDMA_TCD_ATTR_SSIZE_32BYTE | EDMA_TCD_ATTR_DSIZE_32BYTE,
+			32, len, 0, 1, 1, 32, 0, true, true, false);
+
+	return vchan_tx_prep(&fsl_chan->vchan, &fsl_desc->vdesc, flags);
+}
+EXPORT_SYMBOL_GPL(fsl_edma_prep_memcpy);
+
 void fsl_edma_xfer_desc(struct fsl_edma_chan *fsl_chan)
 {
 	struct virt_dma_desc *vdesc;
@@ -638,12 +668,14 @@ EXPORT_SYMBOL_GPL(fsl_edma_alloc_chan_resources);
 void fsl_edma_free_chan_resources(struct dma_chan *chan)
 {
 	struct fsl_edma_chan *fsl_chan = to_fsl_edma_chan(chan);
+	struct fsl_edma_engine *edma = fsl_chan->edma;
 	unsigned long flags;
 	LIST_HEAD(head);
 
 	spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
 	fsl_edma_disable_request(fsl_chan);
-	fsl_edma_chan_mux(fsl_chan, 0, false);
+	if (edma->drvdata->dmamuxs)
+		fsl_edma_chan_mux(fsl_chan, 0, false);
 	fsl_chan->edesc = NULL;
 	vchan_get_all_descriptors(&fsl_chan->vchan, &head);
 	fsl_edma_unprep_slave_dma(fsl_chan);
@@ -652,6 +684,7 @@ void fsl_edma_free_chan_resources(struct dma_chan *chan)
 	vchan_dma_desc_free_list(&fsl_chan->vchan, &head);
 	dma_pool_destroy(fsl_chan->tcd_pool);
 	fsl_chan->tcd_pool = NULL;
+	fsl_chan->is_sw = false;
 }
 EXPORT_SYMBOL_GPL(fsl_edma_free_chan_resources);
 

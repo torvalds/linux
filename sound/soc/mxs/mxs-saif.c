@@ -455,7 +455,10 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 		* basic clock which should be fast enough for the internal
 		* logic.
 		*/
-		clk_enable(saif->clk);
+		ret = clk_enable(saif->clk);
+		if (ret)
+			return ret;
+
 		ret = clk_set_rate(saif->clk, 24000000);
 		clk_disable(saif->clk);
 		if (ret)
@@ -642,18 +645,8 @@ static const struct snd_soc_dai_ops mxs_saif_dai_ops = {
 	.set_fmt = mxs_saif_set_dai_fmt,
 };
 
-static int mxs_saif_dai_probe(struct snd_soc_dai *dai)
-{
-	struct mxs_saif *saif = dev_get_drvdata(dai->dev);
-
-	snd_soc_dai_set_drvdata(dai, saif);
-
-	return 0;
-}
-
 static struct snd_soc_dai_driver mxs_saif_dai = {
 	.name = "mxs-saif",
-	.probe = mxs_saif_dai_probe,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,

@@ -41,8 +41,6 @@
 #include <linux/uaccess.h>
 #include <linux/gpio/consumer.h>
 
-#include <asm/mach-au1x00/au1000.h>
-
 #define MTX1_WDT_INTERVAL	(5 * HZ)
 
 static int ticks = 100 * HZ;

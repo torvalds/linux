@@ -506,6 +506,7 @@ static int snd_sb8_open(struct snd_pcm_substream *substream)
 		} else {
 			runtime->hw.rate_max = 15000;
 		}
+		break;
 	default:
 		break;
 	}
@@ -566,7 +567,8 @@ int snd_sb8dsp_pcm(struct snd_sb *chip, int device)
 	int err;
 	size_t max_prealloc = 64 * 1024;
 
-	if ((err = snd_pcm_new(card, "SB8 DSP", device, 1, 1, &pcm)) < 0)
+	err = snd_pcm_new(card, "SB8 DSP", device, 1, 1, &pcm);
+	if (err < 0)
 		return err;
 	sprintf(pcm->name, "DSP v%i.%i", chip->version >> 8, chip->version & 0xff);
 	pcm->info_flags = SNDRV_PCM_INFO_HALF_DUPLEX;

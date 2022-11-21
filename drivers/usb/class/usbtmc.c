@@ -25,7 +25,7 @@
 /* Increment API VERSION when changing tmc.h with new flags or ioctls
  * or when changing a significant behavior of the driver.
  */
-#define USBTMC_API_VERSION (2)
+#define USBTMC_API_VERSION (3)
 
 #define USBTMC_HEADER_SIZE	12
 #define USBTMC_MINOR_BASE	176
@@ -475,32 +475,16 @@ static int usbtmc_ioctl_abort_bulk_out(struct usbtmc_device_data *data)
 	return usbtmc_ioctl_abort_bulk_out_tag(data, data->bTag_last_write);
 }
 
-static int usbtmc488_ioctl_read_stb(struct usbtmc_file_data *file_data,
-				void __user *arg)
+static int usbtmc_get_stb(struct usbtmc_file_data *file_data, __u8 *stb)
 {
 	struct usbtmc_device_data *data = file_data->data;
 	struct device *dev = &data->intf->dev;
-	int srq_asserted = 0;
 	u8 *buffer;
 	u8 tag;
-	__u8 stb;
 	int rv;
 
 	dev_dbg(dev, "Enter ioctl_read_stb iin_ep_present: %d\n",
 		data->iin_ep_present);
-
-	spin_lock_irq(&data->dev_lock);
-	srq_asserted = atomic_xchg(&file_data->srq_asserted, srq_asserted);
-	if (srq_asserted) {
-		/* a STB with SRQ is already received */
-		stb = file_data->srq_byte;
-		spin_unlock_irq(&data->dev_lock);
-		rv = put_user(stb, (__u8 __user *)arg);
-		dev_dbg(dev, "stb:0x%02x with srq received %d\n",
-			(unsigned int)stb, rv);
-		return rv;
-	}
-	spin_unlock_irq(&data->dev_lock);
 
 	buffer = kmalloc(8, GFP_KERNEL);
 	if (!buffer)
@@ -548,13 +532,12 @@ static int usbtmc488_ioctl_read_stb(struct usbtmc_file_data *file_data,
 				data->iin_bTag, tag);
 		}
 
-		stb = data->bNotify2;
+		*stb = data->bNotify2;
 	} else {
-		stb = buffer[2];
+		*stb = buffer[2];
 	}
 
-	rv = put_user(stb, (__u8 __user *)arg);
-	dev_dbg(dev, "stb:0x%02x received %d\n", (unsigned int)stb, rv);
+	dev_dbg(dev, "stb:0x%02x received %d\n", (unsigned int)*stb, rv);
 
  exit:
 	/* bump interrupt bTag */
@@ -564,6 +547,53 @@ static int usbtmc488_ioctl_read_stb(struct usbtmc_file_data *file_data,
 		data->iin_bTag = 2;
 
 	kfree(buffer);
+	return rv;
+}
+
+static int usbtmc488_ioctl_read_stb(struct usbtmc_file_data *file_data,
+				void __user *arg)
+{
+	int srq_asserted = 0;
+	__u8 stb;
+	int rv;
+
+	rv = usbtmc_get_stb(file_data, &stb);
+
+	if (rv > 0) {
+		srq_asserted = atomic_xchg(&file_data->srq_asserted,
+					srq_asserted);
+		if (srq_asserted)
+			stb |= 0x40; /* Set RQS bit */
+
+		rv = put_user(stb, (__u8 __user *)arg);
+	}
+	return rv;
+
+}
+
+static int usbtmc_ioctl_get_srq_stb(struct usbtmc_file_data *file_data,
+				void __user *arg)
+{
+	struct usbtmc_device_data *data = file_data->data;
+	struct device *dev = &data->intf->dev;
+	int srq_asserted = 0;
+	__u8 stb = 0;
+	int rv;
+
+	spin_lock_irq(&data->dev_lock);
+	srq_asserted  = atomic_xchg(&file_data->srq_asserted, srq_asserted);
+
+	if (srq_asserted) {
+		stb = file_data->srq_byte;
+		spin_unlock_irq(&data->dev_lock);
+		rv = put_user(stb, (__u8 __user *)arg);
+	} else {
+		spin_unlock_irq(&data->dev_lock);
+		rv = -ENOMSG;
+	}
+
+	dev_dbg(dev, "stb:0x%02x with srq received %d\n", (unsigned int)stb, rv);
+
 	return rv;
 }
 
@@ -1889,6 +1919,7 @@ static int usbtmc_ioctl_request(struct usbtmc_device_data *data,
 	struct usbtmc_ctrlrequest request;
 	u8 *buffer = NULL;
 	int rv;
+	unsigned int is_in, pipe;
 	unsigned long res;
 
 	res = copy_from_user(&request, arg, sizeof(struct usbtmc_ctrlrequest));
@@ -1898,12 +1929,14 @@ static int usbtmc_ioctl_request(struct usbtmc_device_data *data,
 	if (request.req.wLength > USBTMC_BUFSIZE)
 		return -EMSGSIZE;
 
+	is_in = request.req.bRequestType & USB_DIR_IN;
+
 	if (request.req.wLength) {
 		buffer = kmalloc(request.req.wLength, GFP_KERNEL);
 		if (!buffer)
 			return -ENOMEM;
 
-		if ((request.req.bRequestType & USB_DIR_IN) == 0) {
+		if (!is_in) {
 			/* Send control data to device */
 			res = copy_from_user(buffer, request.data,
 					     request.req.wLength);
@@ -1914,8 +1947,12 @@ static int usbtmc_ioctl_request(struct usbtmc_device_data *data,
 		}
 	}
 
+	if (is_in)
+		pipe = usb_rcvctrlpipe(data->usb_dev, 0);
+	else
+		pipe = usb_sndctrlpipe(data->usb_dev, 0);
 	rv = usb_control_msg(data->usb_dev,
-			usb_rcvctrlpipe(data->usb_dev, 0),
+			pipe,
 			request.req.bRequest,
 			request.req.bRequestType,
 			request.req.wValue,
@@ -1927,7 +1964,7 @@ static int usbtmc_ioctl_request(struct usbtmc_device_data *data,
 		goto exit;
 	}
 
-	if (rv && (request.req.bRequestType & USB_DIR_IN)) {
+	if (rv && is_in) {
 		/* Read control data from device */
 		res = copy_to_user(request.data, buffer, rv);
 		if (res)
@@ -2145,6 +2182,17 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			file_data->auto_abort = !!tmp_byte;
 		break;
 
+	case USBTMC_IOCTL_GET_STB:
+		retval = usbtmc_get_stb(file_data, &tmp_byte);
+		if (retval > 0)
+			retval = put_user(tmp_byte, (__u8 __user *)arg);
+		break;
+
+	case USBTMC_IOCTL_GET_SRQ_STB:
+		retval = usbtmc_ioctl_get_srq_stb(file_data,
+						  (void __user *)arg);
+		break;
+
 	case USBTMC_IOCTL_CANCEL_IO:
 		retval = usbtmc_ioctl_cancel_io(file_data);
 		break;
@@ -2283,17 +2331,10 @@ static void usbtmc_interrupt(struct urb *urb)
 		dev_err(dev, "overflow with length %d, actual length is %d\n",
 			data->iin_wMaxPacketSize, urb->actual_length);
 		fallthrough;
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-	case -EILSEQ:
-	case -ETIME:
-	case -EPIPE:
+	default:
 		/* urb terminated, clean up */
 		dev_dbg(dev, "urb terminated, status: %d\n", status);
 		return;
-	default:
-		dev_err(dev, "unknown status received: %d\n", status);
 	}
 exit:
 	rv = usb_submit_urb(urb, GFP_ATOMIC);

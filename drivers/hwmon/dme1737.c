@@ -203,7 +203,7 @@ struct dme1737_data {
 	unsigned int addr;		/* for ISA devices only */
 
 	struct mutex update_lock;
-	int valid;			/* !=0 if following fields are valid */
+	bool valid;			/* true if following fields are valid */
 	unsigned long last_update;	/* in jiffies */
 	unsigned long last_vbat;	/* in jiffies */
 	enum chips type;
@@ -778,7 +778,7 @@ static struct dme1737_data *dme1737_update_device(struct device *dev)
 		}
 
 		data->last_update = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

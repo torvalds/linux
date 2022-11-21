@@ -30,8 +30,8 @@
  * keep a constant PAGE_OFFSET and "fallback" to using the higher end
  * of the VMEMMAP where 52-bit support is not available in hardware.
  */
-#define VMEMMAP_SIZE ((_PAGE_END(VA_BITS_MIN) - PAGE_OFFSET) \
-			>> (PAGE_SHIFT - STRUCT_PAGE_MAX_SHIFT))
+#define VMEMMAP_SHIFT	(PAGE_SHIFT - STRUCT_PAGE_MAX_SHIFT)
+#define VMEMMAP_SIZE	((_PAGE_END(VA_BITS_MIN) - PAGE_OFFSET) >> VMEMMAP_SHIFT)
 
 /*
  * PAGE_OFFSET - the virtual address of the start of the linear map, at the
@@ -44,17 +44,14 @@
 #define _PAGE_OFFSET(va)	(-(UL(1) << (va)))
 #define PAGE_OFFSET		(_PAGE_OFFSET(VA_BITS))
 #define KIMAGE_VADDR		(MODULES_END)
-#define BPF_JIT_REGION_START	(KASAN_SHADOW_END)
-#define BPF_JIT_REGION_SIZE	(SZ_128M)
-#define BPF_JIT_REGION_END	(BPF_JIT_REGION_START + BPF_JIT_REGION_SIZE)
 #define MODULES_END		(MODULES_VADDR + MODULES_VSIZE)
-#define MODULES_VADDR		(BPF_JIT_REGION_END)
+#define MODULES_VADDR		(_PAGE_END(VA_BITS_MIN))
 #define MODULES_VSIZE		(SZ_128M)
-#define VMEMMAP_START		(-VMEMMAP_SIZE - SZ_2M)
+#define VMEMMAP_START		(-(UL(1) << (VA_BITS - VMEMMAP_SHIFT)))
 #define VMEMMAP_END		(VMEMMAP_START + VMEMMAP_SIZE)
-#define PCI_IO_END		(VMEMMAP_START - SZ_2M)
+#define PCI_IO_END		(VMEMMAP_START - SZ_8M)
 #define PCI_IO_START		(PCI_IO_END - PCI_IO_SIZE)
-#define FIXADDR_TOP		(PCI_IO_START - SZ_2M)
+#define FIXADDR_TOP		(VMEMMAP_START - SZ_32M)
 
 #if VA_BITS > 48
 #define VA_BITS_MIN		(48)
@@ -72,14 +69,15 @@
  * address space for the shadow region respectively. They can bloat the stack
  * significantly, so double the (minimum) stack size when they are in use.
  */
-#ifdef CONFIG_KASAN
+#if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 #define KASAN_SHADOW_OFFSET	_AC(CONFIG_KASAN_SHADOW_OFFSET, UL)
 #define KASAN_SHADOW_END	((UL(1) << (64 - KASAN_SHADOW_SCALE_SHIFT)) \
 					+ KASAN_SHADOW_OFFSET)
+#define PAGE_END		(KASAN_SHADOW_END - (1UL << (vabits_actual - KASAN_SHADOW_SCALE_SHIFT)))
 #define KASAN_THREAD_SHIFT	1
 #else
 #define KASAN_THREAD_SHIFT	0
-#define KASAN_SHADOW_END	(_PAGE_END(VA_BITS_MIN))
+#define PAGE_END		(_PAGE_END(VA_BITS_MIN))
 #endif /* CONFIG_KASAN */
 
 #define MIN_THREAD_SHIFT	(14 + KASAN_THREAD_SHIFT)
@@ -134,10 +132,8 @@
 #define MT_NORMAL		0
 #define MT_NORMAL_TAGGED	1
 #define MT_NORMAL_NC		2
-#define MT_NORMAL_WT		3
-#define MT_DEVICE_nGnRnE	4
-#define MT_DEVICE_nGnRE		5
-#define MT_DEVICE_GRE		6
+#define MT_DEVICE_nGnRnE	3
+#define MT_DEVICE_nGnRE		4
 
 /*
  * Memory types for Stage-2 translation
@@ -158,6 +154,18 @@
 #define IOREMAP_MAX_ORDER	(PMD_SHIFT)
 #endif
 
+/*
+ *  Open-coded (swapper_pg_dir - reserved_pg_dir) as this cannot be calculated
+ *  until link time.
+ */
+#define RESERVED_SWAPPER_OFFSET	(PAGE_SIZE)
+
+/*
+ *  Open-coded (swapper_pg_dir - tramp_pg_dir) as this cannot be calculated
+ *  until link time.
+ */
+#define TRAMP_SWAPPER_OFFSET	(2 * PAGE_SIZE)
+
 #ifndef __ASSEMBLY__
 
 #include <linux/bitops.h>
@@ -167,7 +175,6 @@
 #include <asm/bug.h>
 
 extern u64			vabits_actual;
-#define PAGE_END		(_PAGE_END(vabits_actual))
 
 extern s64			memstart_addr;
 /* PHYS_OFFSET - the physical address of the start of memory. */
@@ -214,7 +221,7 @@ static inline unsigned long kaslr_offset(void)
 	(__force __typeof__(addr))__addr;				\
 })
 
-#ifdef CONFIG_KASAN_SW_TAGS
+#if defined(CONFIG_KASAN_SW_TAGS) || defined(CONFIG_KASAN_HW_TAGS)
 #define __tag_shifted(tag)	((u64)(tag) << 56)
 #define __tag_reset(addr)	__untagged_addr(addr)
 #define __tag_get(addr)		(__u8)((u64)(addr) >> 56)
@@ -222,13 +229,24 @@ static inline unsigned long kaslr_offset(void)
 #define __tag_shifted(tag)	0UL
 #define __tag_reset(addr)	(addr)
 #define __tag_get(addr)		0
-#endif /* CONFIG_KASAN_SW_TAGS */
+#endif /* CONFIG_KASAN_SW_TAGS || CONFIG_KASAN_HW_TAGS */
 
 static inline const void *__tag_set(const void *addr, u8 tag)
 {
 	u64 __addr = (u64)addr & ~__tag_shifted(0xff);
 	return (const void *)(__addr | __tag_shifted(tag));
 }
+
+#ifdef CONFIG_KASAN_HW_TAGS
+#define arch_enable_tagging_sync()		mte_enable_kernel_sync()
+#define arch_enable_tagging_async()		mte_enable_kernel_async()
+#define arch_enable_tagging_asymm()		mte_enable_kernel_asymm()
+#define arch_force_async_tag_fault()		mte_check_tfsr_exit()
+#define arch_get_random_tag()			mte_get_random_tag()
+#define arch_get_mem_tag(addr)			mte_get_mem_tag(addr)
+#define arch_set_mem_tag_range(addr, size, tag, init)	\
+			mte_set_mem_tag_range((addr), (size), (tag), (init))
+#endif /* CONFIG_KASAN_HW_TAGS */
 
 /*
  * Physical vs virtual RAM address space conversion.  These are
@@ -238,13 +256,13 @@ static inline const void *__tag_set(const void *addr, u8 tag)
 
 
 /*
- * The linear kernel range starts at the bottom of the virtual address
- * space. Testing the top bit for the start of the region is a
- * sufficient check and avoids having to worry about the tag.
+ * Check whether an arbitrary address is within the linear map, which
+ * lives in the [PAGE_OFFSET, PAGE_END) interval at the bottom of the
+ * kernel's TTBR1 address range.
  */
-#define __is_lm_address(addr)	(!(((u64)addr) & BIT(vabits_actual - 1)))
+#define __is_lm_address(addr)	(((u64)(addr) - PAGE_OFFSET) < (PAGE_END - PAGE_OFFSET))
 
-#define __lm_to_phys(addr)	(((addr) & ~PAGE_OFFSET) + PHYS_OFFSET)
+#define __lm_to_phys(addr)	(((addr) - PAGE_OFFSET) + PHYS_OFFSET)
 #define __kimg_to_phys(addr)	((addr) - kimage_voffset)
 
 #define __virt_to_phys_nodebug(x) ({					\
@@ -305,7 +323,12 @@ static inline void *phys_to_virt(phys_addr_t x)
  */
 #define ARCH_PFN_OFFSET		((unsigned long)PHYS_PFN_OFFSET)
 
-#if !defined(CONFIG_SPARSEMEM_VMEMMAP) || defined(CONFIG_DEBUG_VIRTUAL)
+#if defined(CONFIG_DEBUG_VIRTUAL)
+#define page_to_virt(x)	({						\
+	__typeof__(x) __page = x;					\
+	void *__addr = __va(page_to_phys(__page));			\
+	(void *)__tag_set((const void *)__addr, page_kasan_tag(__page));\
+})
 #define virt_to_page(x)		pfn_to_page(virt_to_pfn(x))
 #else
 #define page_to_virt(x)	({						\
@@ -320,11 +343,11 @@ static inline void *phys_to_virt(phys_addr_t x)
 	u64 __addr = VMEMMAP_START + (__idx * sizeof(struct page));	\
 	(struct page *)__addr;						\
 })
-#endif /* !CONFIG_SPARSEMEM_VMEMMAP || CONFIG_DEBUG_VIRTUAL */
+#endif /* CONFIG_DEBUG_VIRTUAL */
 
 #define virt_addr_valid(addr)	({					\
-	__typeof__(addr) __addr = addr;					\
-	__is_lm_address(__addr) && pfn_valid(virt_to_pfn(__addr));	\
+	__typeof__(addr) __addr = __tag_reset(addr);			\
+	__is_lm_address(__addr) && pfn_is_map_memory(virt_to_pfn(__addr));	\
 })
 
 void dump_mem_limit(void);

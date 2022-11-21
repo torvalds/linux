@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
+#include <linux/async.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -11,8 +12,10 @@
 #include <linux/utime.h>
 #include <linux/file.h>
 #include <linux/memblock.h>
+#include <linux/mm.h>
 #include <linux/namei.h>
 #include <linux/init_syscalls.h>
+#include <linux/umh.h>
 
 static ssize_t __init xwrite(struct file *file, const char *p, size_t count,
 		loff_t *pos)
@@ -43,6 +46,16 @@ static void __init error(char *x)
 {
 	if (!message)
 		message = x;
+}
+
+static void panic_show_mem(const char *fmt, ...)
+{
+	va_list args;
+
+	show_mem(0, NULL);
+	va_start(args, fmt);
+	panic(fmt, args);
+	va_end(args);
 }
 
 /* link hash */
@@ -80,7 +93,7 @@ static char __init *find_link(int major, int minor, int ino,
 	}
 	q = kmalloc(sizeof(struct hash), GFP_KERNEL);
 	if (!q)
-		panic("can't allocate link hash entry");
+		panic_show_mem("can't allocate link hash entry");
 	q->major = major;
 	q->minor = minor;
 	q->ino = ino;
@@ -125,7 +138,7 @@ static void __init dir_add(const char *name, time64_t mtime)
 {
 	struct dir_entry *de = kmalloc(sizeof(struct dir_entry), GFP_KERNEL);
 	if (!de)
-		panic("can't allocate dir_entry buffer");
+		panic_show_mem("can't allocate dir_entry buffer");
 	INIT_LIST_HEAD(&de->list);
 	de->name = kstrdup(name, GFP_KERNEL);
 	de->mtime = mtime;
@@ -460,7 +473,7 @@ static char * __init unpack_to_rootfs(char *buf, unsigned long len)
 	name_buf = kmalloc(N_ALIGN(PATH_MAX), GFP_KERNEL);
 
 	if (!header_buf || !symlink_buf || !name_buf)
-		panic("can't allocate buffers");
+		panic_show_mem("can't allocate buffers");
 
 	state = Start;
 	this_header = 0;
@@ -530,10 +543,63 @@ static int __init keepinitrd_setup(char *__unused)
 __setup("keepinitrd", keepinitrd_setup);
 #endif
 
+static bool __initdata initramfs_async = true;
+static int __init initramfs_async_setup(char *str)
+{
+	strtobool(str, &initramfs_async);
+	return 1;
+}
+__setup("initramfs_async=", initramfs_async_setup);
+
 extern char __initramfs_start[];
 extern unsigned long __initramfs_size;
 #include <linux/initrd.h>
 #include <linux/kexec.h>
+
+void __init reserve_initrd_mem(void)
+{
+	phys_addr_t start;
+	unsigned long size;
+
+	/* Ignore the virtul address computed during device tree parsing */
+	initrd_start = initrd_end = 0;
+
+	if (!phys_initrd_size)
+		return;
+	/*
+	 * Round the memory region to page boundaries as per free_initrd_mem()
+	 * This allows us to detect whether the pages overlapping the initrd
+	 * are in use, but more importantly, reserves the entire set of pages
+	 * as we don't want these pages allocated for other purposes.
+	 */
+	start = round_down(phys_initrd_start, PAGE_SIZE);
+	size = phys_initrd_size + (phys_initrd_start - start);
+	size = round_up(size, PAGE_SIZE);
+
+	if (!memblock_is_region_memory(start, size)) {
+		pr_err("INITRD: 0x%08llx+0x%08lx is not a memory region",
+		       (u64)start, size);
+		goto disable;
+	}
+
+	if (memblock_is_region_reserved(start, size)) {
+		pr_err("INITRD: 0x%08llx+0x%08lx overlaps in-use memory region\n",
+		       (u64)start, size);
+		goto disable;
+	}
+
+	memblock_reserve(start, size);
+	/* Now convert initrd to virtual addresses */
+	initrd_start = (unsigned long)__va(phys_initrd_start);
+	initrd_end = initrd_start + phys_initrd_size;
+	initrd_below_start_ok = 1;
+
+	return;
+disable:
+	pr_cont(" - disabling initrd\n");
+	initrd_start = 0;
+	initrd_end = 0;
+}
 
 void __weak __init free_initrd_mem(unsigned long start, unsigned long end)
 {
@@ -541,7 +607,7 @@ void __weak __init free_initrd_mem(unsigned long start, unsigned long end)
 	unsigned long aligned_start = ALIGN_DOWN(start, PAGE_SIZE);
 	unsigned long aligned_end = ALIGN(end, PAGE_SIZE);
 
-	memblock_free(__pa(aligned_start), aligned_end - aligned_start);
+	memblock_free((void *)aligned_start, aligned_end - aligned_start);
 #endif
 
 	free_reserved_area((void *)start, (void *)end, POISON_FREE_INITMEM,
@@ -602,12 +668,12 @@ static void __init populate_initrd_image(char *err)
 }
 #endif /* CONFIG_BLK_DEV_RAM */
 
-static int __init populate_rootfs(void)
+static void __init do_populate_rootfs(void *unused, async_cookie_t cookie)
 {
 	/* Load the built in initramfs */
 	char *err = unpack_to_rootfs(__initramfs_start, __initramfs_size);
 	if (err)
-		panic("%s", err); /* Failed to decompress INTERNAL initramfs */
+		panic_show_mem("%s", err); /* Failed to decompress INTERNAL initramfs */
 
 	if (!initrd_start || IS_ENABLED(CONFIG_INITRAMFS_FORCE))
 		goto done;
@@ -637,6 +703,34 @@ done:
 	initrd_end = 0;
 
 	flush_delayed_fput();
+}
+
+static ASYNC_DOMAIN_EXCLUSIVE(initramfs_domain);
+static async_cookie_t initramfs_cookie;
+
+void wait_for_initramfs(void)
+{
+	if (!initramfs_cookie) {
+		/*
+		 * Something before rootfs_initcall wants to access
+		 * the filesystem/initramfs. Probably a bug. Make a
+		 * note, avoid deadlocking the machine, and let the
+		 * caller's access fail as it used to.
+		 */
+		pr_warn_once("wait_for_initramfs() called before rootfs_initcalls\n");
+		return;
+	}
+	async_synchronize_cookie_domain(initramfs_cookie + 1, &initramfs_domain);
+}
+EXPORT_SYMBOL_GPL(wait_for_initramfs);
+
+static int __init populate_rootfs(void)
+{
+	initramfs_cookie = async_schedule_domain(do_populate_rootfs, NULL,
+						 &initramfs_domain);
+	usermodehelper_enable();
+	if (!initramfs_async)
+		wait_for_initramfs();
 	return 0;
 }
 rootfs_initcall(populate_rootfs);

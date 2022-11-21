@@ -33,7 +33,10 @@ static unsigned long read_sysfs(char *str)
 		ksft_print_msg("ERR: missing %s\n", str);
 		return 0;
 	}
-	fscanf(f, "%lu", &val);
+	if (fscanf(f, "%lu", &val) != 1) {
+		ksft_print_msg("ERR: parsing %s\n", str);
+		val = 0;
+	}
 	fclose(f);
 	return val;
 }

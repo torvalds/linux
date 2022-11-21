@@ -18,11 +18,13 @@
 #ifndef LSI_MEGARAID_SAS_H
 #define LSI_MEGARAID_SAS_H
 
+#include <scsi/scsi_cmnd.h>
+
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"07.714.04.00-rc1"
-#define MEGASAS_RELDATE				"Apr 14, 2020"
+#define MEGASAS_VERSION				"07.719.03.00-rc1"
+#define MEGASAS_RELDATE				"Sep 29, 2021"
 
 #define MEGASAS_MSIX_NAME_LEN			32
 
@@ -2019,10 +2021,12 @@ union megasas_frame {
  * struct MR_PRIV_DEVICE - sdev private hostdata
  * @is_tm_capable: firmware managed tm_capable flag
  * @tm_busy: TM request is in progress
+ * @sdev_priv_busy: pending command per sdev
  */
 struct MR_PRIV_DEVICE {
 	bool is_tm_capable;
 	bool tm_busy;
+	atomic_t sdev_priv_busy;
 	atomic_t r1_ldio_hint;
 	u8 interface_type;
 	u8 task_abort_tmo;
@@ -2212,6 +2216,7 @@ struct megasas_irq_context {
 	struct irq_poll irqpoll;
 	bool irq_poll_scheduled;
 	bool irq_line_enable;
+	atomic_t   in_used;
 };
 
 struct MR_DRV_SYSTEM_INFO {
@@ -2258,6 +2263,15 @@ enum MR_PERF_MODE {
 		 (mode) == MR_IOPS_PERF_MODE ? "IOPS" : \
 		 (mode) == MR_LATENCY_PERF_MODE ? "Latency" : \
 		 "Unknown")
+
+enum MEGASAS_LD_TARGET_ID_STATUS {
+	LD_TARGET_ID_INITIAL,
+	LD_TARGET_ID_ACTIVE,
+	LD_TARGET_ID_DELETED,
+};
+
+#define MEGASAS_TARGET_ID(sdev)						\
+	(((sdev->channel % 2) * MEGASAS_MAX_DEV_PER_CHANNEL) + sdev->id)
 
 struct megasas_instance {
 
@@ -2323,6 +2337,9 @@ struct megasas_instance {
 	struct megasas_pd_list          pd_list[MEGASAS_MAX_PD];
 	struct megasas_pd_list          local_pd_list[MEGASAS_MAX_PD];
 	u8 ld_ids[MEGASAS_MAX_LD_IDS];
+	u8 ld_tgtid_status[MEGASAS_MAX_LD_IDS];
+	u8 ld_ids_prev[MEGASAS_MAX_LD_IDS];
+	u8 ld_ids_from_raidmap[MEGASAS_MAX_LD_IDS];
 	s8 init_id;
 
 	u16 max_num_sge;
@@ -2446,6 +2463,7 @@ struct megasas_instance {
 	bool support_pci_lane_margining;
 	u8  low_latency_index_start;
 	int perf_mode;
+	int iopoll_q_count;
 };
 
 struct MR_LD_VF_MAP {
@@ -2542,6 +2560,9 @@ struct megasas_instance_template {
 #define MEGASAS_IS_LOGICAL(sdev)					\
 	((sdev->channel < MEGASAS_MAX_PD_CHANNELS) ? 0 : 1)
 
+#define MEGASAS_IS_LUN_VALID(sdev)					\
+	(((sdev)->lun == 0) ? 1 : 0)
+
 #define MEGASAS_DEV_INDEX(scp)						\
 	(((scp->device->channel % 2) * MEGASAS_MAX_DEV_PER_CHANNEL) +	\
 	scp->device->id)
@@ -2578,6 +2599,16 @@ struct megasas_cmd {
 	};
 };
 
+struct megasas_cmd_priv {
+	void	*cmd_priv;
+	u8	status;
+};
+
+static inline struct megasas_cmd_priv *megasas_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
+
 #define MAX_MGMT_ADAPTERS		1024
 #define MAX_IOCTL_SGE			16
 
@@ -2605,7 +2636,6 @@ struct megasas_aen {
 	u32 class_locale_word;
 } __attribute__ ((packed));
 
-#ifdef CONFIG_COMPAT
 struct compat_megasas_iocpacket {
 	u16 host_no;
 	u16 __pad1;
@@ -2621,7 +2651,6 @@ struct compat_megasas_iocpacket {
 } __attribute__ ((packed));
 
 #define MEGASAS_IOC_FIRMWARE32	_IOWR('M', 1, struct compat_megasas_iocpacket)
-#endif
 
 #define MEGASAS_IOC_FIRMWARE	_IOWR('M', 1, struct megasas_iocpacket)
 #define MEGASAS_IOC_GET_AEN	_IOW('M', 3, struct megasas_aen)
@@ -2728,5 +2757,6 @@ void megasas_init_debugfs(void);
 void megasas_exit_debugfs(void);
 void megasas_setup_debugfs(struct megasas_instance *instance);
 void megasas_destroy_debugfs(struct megasas_instance *instance);
+int megasas_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num);
 
 #endif				/*LSI_MEGARAID_SAS_H */

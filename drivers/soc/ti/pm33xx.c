@@ -19,6 +19,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_data/pm33xx.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/rtc.h>
 #include <linux/rtc/rtc-omap.h>
 #include <linux/sizes.h>
@@ -135,13 +136,11 @@ static int am33xx_push_sram_idle(void)
 
 static int am33xx_do_sram_idle(u32 wfi_flags)
 {
-	int ret = 0;
-
 	if (!m3_ipc || !pm_ops)
 		return 0;
 
 	if (wfi_flags & WFI_FLAG_WAKE_M3)
-		ret = m3_ipc->ops->prepare_low_power(m3_ipc, WKUP_M3_IDLE);
+		m3_ipc->ops->prepare_low_power(m3_ipc, WKUP_M3_IDLE);
 
 	return pm_ops->cpu_suspend(am33xx_do_wfi_sram, wfi_flags);
 }
@@ -536,7 +535,7 @@ static int am33xx_pm_probe(struct platform_device *pdev)
 
 	ret = am33xx_push_sram_idle();
 	if (ret)
-		goto err_free_sram;
+		goto err_unsetup_rtc;
 
 	am33xx_pm_set_ipc_ops();
 
@@ -555,17 +554,30 @@ static int am33xx_pm_probe(struct platform_device *pdev)
 	suspend_wfi_flags |= WFI_FLAG_WAKE_M3;
 #endif /* CONFIG_SUSPEND */
 
+	pm_runtime_enable(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
+		goto err_pm_runtime_disable;
+	}
+
 	ret = pm_ops->init(am33xx_do_sram_idle);
 	if (ret) {
 		dev_err(dev, "Unable to call core pm init!\n");
 		ret = -ENODEV;
-		goto err_put_wkup_m3_ipc;
+		goto err_pm_runtime_put;
 	}
 
 	return 0;
 
-err_put_wkup_m3_ipc:
+err_pm_runtime_put:
+	pm_runtime_put_sync(dev);
+err_pm_runtime_disable:
+	pm_runtime_disable(dev);
 	wkup_m3_ipc_put(m3_ipc);
+err_unsetup_rtc:
+	iounmap(rtc_base_virt);
+	clk_put(rtc_fck);
 err_free_sram:
 	am33xx_pm_free_sram();
 	pm33xx_dev = NULL;
@@ -574,6 +586,8 @@ err_free_sram:
 
 static int am33xx_pm_remove(struct platform_device *pdev)
 {
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 	if (pm_ops->deinit)
 		pm_ops->deinit();
 	suspend_set_ops(NULL);

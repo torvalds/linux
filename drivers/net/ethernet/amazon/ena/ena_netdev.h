@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <uapi/linux/bpf.h>
 
 #include "ena_com.h"
 #include "ena_eth_com.h"
@@ -54,12 +55,6 @@
 
 #define ENA_TX_WAKEUP_THRESH		(MAX_SKB_FRAGS + 2)
 #define ENA_DEFAULT_RX_COPYBREAK	(256 - NET_IP_ALIGN)
-
-/* limit the buffer size to 600 bytes to handle MTU changes from very
- * small to very large, in which case the number of buffers per packet
- * could exceed ENA_PKT_MAX_BUFS
- */
-#define ENA_DEFAULT_MIN_RX_BUFF_ALLOC_SIZE 600
 
 #define ENA_MIN_MTU		128
 
@@ -135,26 +130,14 @@ struct ena_irq {
 };
 
 struct ena_napi {
-	struct napi_struct napi ____cacheline_aligned;
+	u8 first_interrupt ____cacheline_aligned;
+	u8 interrupts_masked;
+	struct napi_struct napi;
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
 	struct ena_ring *xdp_ring;
-	bool first_interrupt;
-	bool interrupts_masked;
 	u32 qid;
 	struct dim dim;
-};
-
-struct ena_calc_queue_size_ctx {
-	struct ena_com_dev_get_features_ctx *get_feat_ctx;
-	struct ena_com_dev *ena_dev;
-	struct pci_dev *pdev;
-	u32 tx_queue_size;
-	u32 rx_queue_size;
-	u32 max_tx_queue_size;
-	u32 max_rx_queue_size;
-	u16 max_tx_sgl_size;
-	u16 max_rx_sgl_size;
 };
 
 struct ena_tx_buffer {
@@ -170,12 +153,6 @@ struct ena_tx_buffer {
 	 * the xdp queues
 	 */
 	struct xdp_frame *xdpf;
-	/* The rx page for the rx buffer that was received in rx and
-	 * re transmitted on xdp tx queues as a result of XDP_TX action.
-	 * We need to free the page once we finished cleaning the buffer in
-	 * clean_xdp_irq()
-	 */
-	struct page *xdp_rx_page;
 
 	/* Indicate if bufs[0] map the linear data of the skb. */
 	u8 map_linear_data;
@@ -218,6 +195,7 @@ struct ena_stats_tx {
 	u64 llq_buffer_copy;
 	u64 missed_tx;
 	u64 unmask_interrupt;
+	u64 last_napi_jiffies;
 };
 
 struct ena_stats_rx {
@@ -226,7 +204,7 @@ struct ena_stats_rx {
 	u64 rx_copybreak_pkt;
 	u64 csum_good;
 	u64 refil_partial;
-	u64 bad_csum;
+	u64 csum_bad;
 	u64 page_alloc_fail;
 	u64 skb_alloc_fail;
 	u64 dma_mapping_err;
@@ -239,6 +217,7 @@ struct ena_stats_rx {
 	u64 xdp_pass;
 	u64 xdp_tx;
 	u64 xdp_invalid;
+	u64 xdp_redirect;
 };
 
 struct ena_ring {
@@ -263,6 +242,11 @@ struct ena_ring {
 	struct ena_com_io_sq *ena_com_io_sq;
 	struct bpf_prog *xdp_bpf_prog;
 	struct xdp_rxq_info xdp_rxq;
+	spinlock_t xdp_tx_lock;	/* synchronize XDP TX/Redirect traffic */
+	/* Used for rx queues only to point to the xdp tx ring, to
+	 * which traffic should be redirected from this rx ring.
+	 */
+	struct ena_ring *xdp_ring;
 
 	u16 next_to_use;
 	u16 next_to_clean;
@@ -275,7 +259,6 @@ struct ena_ring {
 	/* The maximum header length the device can handle */
 	u8 tx_max_header_size;
 
-	bool first_interrupt;
 	bool disable_meta_caching;
 	u16 no_interrupt_event_cnt;
 
@@ -384,7 +367,6 @@ struct ena_adapter {
 	struct u64_stats_sync syncp;
 	struct ena_stats_dev dev_stats;
 	struct ena_admin_eni_stats eni_stats;
-	bool eni_stats_supported;
 
 	/* last queue index that was checked for uncompleted tx packets */
 	u32 last_monitored_tx_qid;
@@ -412,16 +394,20 @@ int ena_update_queue_count(struct ena_adapter *adapter, u32 new_channel_count);
 
 int ena_get_sset_count(struct net_device *netdev, int sset);
 
+static inline void ena_reset_device(struct ena_adapter *adapter,
+				    enum ena_regs_reset_reason_types reset_reason)
+{
+	adapter->reset_reason = reset_reason;
+	/* Make sure reset reason is set before triggering the reset */
+	smp_mb__before_atomic();
+	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+}
+
 enum ena_xdp_errors_t {
 	ENA_XDP_ALLOWED = 0,
 	ENA_XDP_CURRENT_MTU_TOO_LARGE,
 	ENA_XDP_NO_ENOUGH_QUEUES,
 };
-
-static inline bool ena_xdp_queues_present(struct ena_adapter *adapter)
-{
-	return adapter->xdp_first_ring != 0;
-}
 
 static inline bool ena_xdp_present(struct ena_adapter *adapter)
 {
@@ -433,8 +419,8 @@ static inline bool ena_xdp_present_ring(struct ena_ring *ring)
 	return !!ring->xdp_bpf_prog;
 }
 
-static inline int ena_xdp_legal_queue_count(struct ena_adapter *adapter,
-					    u32 queues)
+static inline bool ena_xdp_legal_queue_count(struct ena_adapter *adapter,
+					     u32 queues)
 {
 	return 2 * queues <= adapter->max_num_io_queues;
 }

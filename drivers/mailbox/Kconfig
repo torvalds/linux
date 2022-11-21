@@ -8,6 +8,18 @@ menuconfig MAILBOX
 
 if MAILBOX
 
+config APPLE_MAILBOX
+	tristate "Apple Mailbox driver"
+	depends on ARCH_APPLE || (ARM64 && COMPILE_TEST)
+	default ARCH_APPLE
+	help
+	  Apple SoCs have various co-processors required for certain
+	  peripherals to work (NVMe, display controller, etc.). This
+	  driver adds support for the mailbox controller used to
+	  communicate with those.
+
+	  Say Y here if you have a Apple SoC.
+
 config ARM_MHU
 	tristate "ARM MHU Mailbox"
 	depends on ARM_AMBA
@@ -15,6 +27,13 @@ config ARM_MHU
 	  Say Y here if you want to build the ARM MHU controller driver.
 	  The controller has 3 mailbox channels, the last of which can be
 	  used in Secure mode only.
+
+config ARM_MHU_V2
+	tristate "ARM MHUv2 Mailbox"
+	depends on ARM_AMBA
+	help
+	  Say Y here if you want to build the ARM MHUv2 controller driver,
+	  which provides unidirectional mailboxes between processing elements.
 
 config IMX_MBOX
 	tristate "i.MX Mailbox"
@@ -71,7 +90,7 @@ config OMAP_MBOX_KFIFO_SIZE
 	  module parameter).
 
 config ROCKCHIP_MBOX
-	bool "Rockchip Soc Intergrated Mailbox Support"
+	bool "Rockchip Soc Integrated Mailbox Support"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	help
 	  This driver provides support for inter-processor communication
@@ -153,6 +172,18 @@ config MAILBOX_TEST
 	  Test client to help with testing new Controller driver
 	  implementations.
 
+config POLARFIRE_SOC_MAILBOX
+	tristate "PolarFire SoC (MPFS) Mailbox"
+	depends on HAS_IOMEM
+	depends on SOC_MICROCHIP_POLARFIRE || COMPILE_TEST
+	help
+	  This driver adds support for the PolarFire SoC (MPFS) mailbox controller.
+
+	  To compile this driver as a module, choose M here. the
+	  module will be called mailbox-mpfs.
+
+	  If unsure, say N.
+
 config QCOM_APCS_IPC
 	tristate "Qualcomm APCS IPC driver"
 	depends on ARCH_QCOM || COMPILE_TEST
@@ -201,11 +232,20 @@ config BCM_FLEXRM_MBOX
 
 config STM32_IPCC
 	tristate "STM32 IPCC Mailbox"
-	depends on MACH_STM32MP157
+	depends on MACH_STM32MP157 || COMPILE_TEST
 	help
 	  Mailbox implementation for STMicroelectonics STM32 family chips
 	  with hardware for Inter-Processor Communication Controller (IPCC)
 	  between processors. Say Y here if you want to have this support.
+
+config MTK_ADSP_MBOX
+	tristate "MediaTek ADSP Mailbox Controller"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+          Say yes here to add support for "MediaTek ADSP Mailbox Controller.
+          This mailbox driver is used to send notification or short message
+          between processors with ADSP. It will place the message to share
+	  buffer and will access the ipc control.
 
 config MTK_CMDQ_MBOX
 	tristate "MediaTek CMDQ Mailbox Support"
@@ -245,7 +285,7 @@ config SPRD_MBOX
 	  you want to build the Spreatrum mailbox controller driver.
 
 config QCOM_IPCC
-	bool "Qualcomm Technologies, Inc. IPCC driver"
+	tristate "Qualcomm Technologies, Inc. IPCC driver"
 	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  Qualcomm Technologies, Inc. Inter-Processor Communication Controller

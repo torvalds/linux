@@ -12,6 +12,7 @@
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
+#include <asm/errata_list.h>
 
 #if !IS_ENABLED(CONFIG_PREEMPTION)
 .set resume_kernel, restore_all
@@ -29,6 +30,15 @@ ENTRY(handle_exception)
 _restore_kernel_tpsp:
 	csrr tp, CSR_SCRATCH
 	REG_S sp, TASK_TI_KERNEL_SP(tp)
+
+#ifdef CONFIG_VMAP_STACK
+	addi sp, sp, -(PT_SIZE_ON_STACK)
+	srli sp, sp, THREAD_SHIFT
+	andi sp, sp, 0x1
+	bnez sp, handle_kernel_stack_overflow
+	REG_L sp, TASK_TI_KERNEL_SP(tp)
+#endif
+
 _save_context:
 	REG_S sp, TASK_TI_USER_SP(tp)
 	REG_L sp, TASK_TI_KERNEL_SP(tp)
@@ -98,7 +108,7 @@ _save_context:
 .option pop
 
 #ifdef CONFIG_TRACE_IRQFLAGS
-	call trace_hardirqs_off
+	call __trace_hardirqs_off
 #endif
 
 #ifdef CONFIG_CONTEXT_TRACKING
@@ -120,19 +130,21 @@ skip_context_tracking:
 
 	/* Handle interrupts */
 	move a0, sp /* pt_regs */
-	la a1, handle_arch_irq
-	REG_L a1, (a1)
+	la a1, generic_handle_arch_irq
 	jr a1
 1:
-#ifdef CONFIG_TRACE_IRQFLAGS
-	call trace_hardirqs_on
-#endif
 	/*
 	 * Exceptions run with interrupts enabled or disabled depending on the
 	 * state of SR_PIE in m/sstatus.
 	 */
 	andi t0, s1, SR_PIE
 	beqz t0, 1f
+	/* kprobes, entered via ebreak, must have interrupts disabled. */
+	li t0, EXC_BREAKPOINT
+	beq s4, t0, 1f
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call __trace_hardirqs_on
+#endif
 	csrs CSR_STATUS, SR_IE
 
 1:
@@ -155,6 +167,15 @@ skip_context_tracking:
 	tail do_trap_unknown
 
 handle_syscall:
+#ifdef CONFIG_RISCV_M_MODE
+	/*
+	 * When running is M-Mode (no MMU config), MPIE does not get set.
+	 * As a result, we need to force enable interrupts here because
+	 * handle_exception did not do set SR_IE as it always sees SR_PIE
+	 * being cleared.
+	 */
+	csrs CSR_STATUS, SR_IE
+#endif
 #if defined(CONFIG_TRACE_IRQFLAGS) || defined(CONFIG_CONTEXT_TRACKING)
 	/* Recover a0 - a7 for system calls */
 	REG_L a0, PT_A0(sp)
@@ -186,14 +207,7 @@ check_syscall_nr:
 	 * Syscall number held in a7.
 	 * If syscall number is above allowed value, redirect to ni_syscall.
 	 */
-	bge a7, t0, 1f
-	/*
-	 * Check if syscall is rejected by tracer, i.e., a7 == -1.
-	 * If yes, we pretend it was executed.
-	 */
-	li t1, -1
-	beq a7, t1, ret_from_syscall_rejected
-	blt a7, t1, 1f
+	bgeu a7, t0, 1f
 	/* Call syscall */
 	la s0, sys_call_table
 	slli t0, a7, RISCV_LGPTR
@@ -211,6 +225,10 @@ ret_from_syscall:
 	 * (If it was configured with SECCOMP_RET_ERRNO/TRACE)
 	 */
 ret_from_syscall_rejected:
+#ifdef CONFIG_DEBUG_RSEQ
+	move a0, sp
+	call rseq_syscall
+#endif
 	/* Trace syscalls, but only if requested by the user. */
 	REG_L t0, TASK_TI_FLAGS(tp)
 	andi t0, t0, _TIF_SYSCALL_WORK
@@ -220,7 +238,7 @@ ret_from_exception:
 	REG_L s0, PT_STATUS(sp)
 	csrc CSR_STATUS, SR_IE
 #ifdef CONFIG_TRACE_IRQFLAGS
-	call trace_hardirqs_off
+	call __trace_hardirqs_off
 #endif
 #ifdef CONFIG_RISCV_M_MODE
 	/* the MPP value is too large to be used as an immediate arg for addi */
@@ -256,10 +274,10 @@ restore_all:
 	REG_L s1, PT_STATUS(sp)
 	andi t0, s1, SR_PIE
 	beqz t0, 1f
-	call trace_hardirqs_on
+	call __trace_hardirqs_on
 	j 2f
 1:
-	call trace_hardirqs_off
+	call __trace_hardirqs_off
 2:
 #endif
 	REG_L a0, PT_STATUS(sp)
@@ -370,6 +388,105 @@ handle_syscall_trace_exit:
 	call do_syscall_trace_exit
 	j ret_from_exception
 
+#ifdef CONFIG_VMAP_STACK
+handle_kernel_stack_overflow:
+	la sp, shadow_stack
+	addi sp, sp, SHADOW_OVERFLOW_STACK_SIZE
+
+	//save caller register to shadow stack
+	addi sp, sp, -(PT_SIZE_ON_STACK)
+	REG_S x1,  PT_RA(sp)
+	REG_S x5,  PT_T0(sp)
+	REG_S x6,  PT_T1(sp)
+	REG_S x7,  PT_T2(sp)
+	REG_S x10, PT_A0(sp)
+	REG_S x11, PT_A1(sp)
+	REG_S x12, PT_A2(sp)
+	REG_S x13, PT_A3(sp)
+	REG_S x14, PT_A4(sp)
+	REG_S x15, PT_A5(sp)
+	REG_S x16, PT_A6(sp)
+	REG_S x17, PT_A7(sp)
+	REG_S x28, PT_T3(sp)
+	REG_S x29, PT_T4(sp)
+	REG_S x30, PT_T5(sp)
+	REG_S x31, PT_T6(sp)
+
+	la ra, restore_caller_reg
+	tail get_overflow_stack
+
+restore_caller_reg:
+	//save per-cpu overflow stack
+	REG_S a0, -8(sp)
+	//restore caller register from shadow_stack
+	REG_L x1,  PT_RA(sp)
+	REG_L x5,  PT_T0(sp)
+	REG_L x6,  PT_T1(sp)
+	REG_L x7,  PT_T2(sp)
+	REG_L x10, PT_A0(sp)
+	REG_L x11, PT_A1(sp)
+	REG_L x12, PT_A2(sp)
+	REG_L x13, PT_A3(sp)
+	REG_L x14, PT_A4(sp)
+	REG_L x15, PT_A5(sp)
+	REG_L x16, PT_A6(sp)
+	REG_L x17, PT_A7(sp)
+	REG_L x28, PT_T3(sp)
+	REG_L x29, PT_T4(sp)
+	REG_L x30, PT_T5(sp)
+	REG_L x31, PT_T6(sp)
+
+	//load per-cpu overflow stack
+	REG_L sp, -8(sp)
+	addi sp, sp, -(PT_SIZE_ON_STACK)
+
+	//save context to overflow stack
+	REG_S x1,  PT_RA(sp)
+	REG_S x3,  PT_GP(sp)
+	REG_S x5,  PT_T0(sp)
+	REG_S x6,  PT_T1(sp)
+	REG_S x7,  PT_T2(sp)
+	REG_S x8,  PT_S0(sp)
+	REG_S x9,  PT_S1(sp)
+	REG_S x10, PT_A0(sp)
+	REG_S x11, PT_A1(sp)
+	REG_S x12, PT_A2(sp)
+	REG_S x13, PT_A3(sp)
+	REG_S x14, PT_A4(sp)
+	REG_S x15, PT_A5(sp)
+	REG_S x16, PT_A6(sp)
+	REG_S x17, PT_A7(sp)
+	REG_S x18, PT_S2(sp)
+	REG_S x19, PT_S3(sp)
+	REG_S x20, PT_S4(sp)
+	REG_S x21, PT_S5(sp)
+	REG_S x22, PT_S6(sp)
+	REG_S x23, PT_S7(sp)
+	REG_S x24, PT_S8(sp)
+	REG_S x25, PT_S9(sp)
+	REG_S x26, PT_S10(sp)
+	REG_S x27, PT_S11(sp)
+	REG_S x28, PT_T3(sp)
+	REG_S x29, PT_T4(sp)
+	REG_S x30, PT_T5(sp)
+	REG_S x31, PT_T6(sp)
+
+	REG_L s0, TASK_TI_KERNEL_SP(tp)
+	csrr s1, CSR_STATUS
+	csrr s2, CSR_EPC
+	csrr s3, CSR_TVAL
+	csrr s4, CSR_CAUSE
+	csrr s5, CSR_SCRATCH
+	REG_S s0, PT_SP(sp)
+	REG_S s1, PT_STATUS(sp)
+	REG_S s2, PT_EPC(sp)
+	REG_S s3, PT_BADADDR(sp)
+	REG_S s4, PT_CAUSE(sp)
+	REG_S s5, PT_TP(sp)
+	move a0, sp
+	tail handle_bad_stack
+#endif
+
 END(handle_exception)
 
 ENTRY(ret_from_fork)
@@ -430,11 +547,6 @@ ENTRY(__switch_to)
 	REG_L s9,  TASK_THREAD_S9_RA(a4)
 	REG_L s10, TASK_THREAD_S10_RA(a4)
 	REG_L s11, TASK_THREAD_S11_RA(a4)
-	/* Swap the CPU entry around. */
-	lw a3, TASK_TI_CPU(a0)
-	lw a4, TASK_TI_CPU(a1)
-	sw a3, TASK_TI_CPU(a1)
-	sw a4, TASK_TI_CPU(a0)
 	/* The offset of thread_info in task_struct is zero. */
 	move tp, a1
 	ret
@@ -445,10 +557,11 @@ ENDPROC(__switch_to)
 #endif
 
 	.section ".rodata"
+	.align LGREG
 	/* Exception vector table */
 ENTRY(excp_vect_table)
 	RISCV_PTR do_trap_insn_misaligned
-	RISCV_PTR do_trap_insn_fault
+	ALT_INSN_FAULT(RISCV_PTR do_trap_insn_fault)
 	RISCV_PTR do_trap_insn_illegal
 	RISCV_PTR do_trap_break
 	RISCV_PTR do_trap_load_misaligned
@@ -459,7 +572,8 @@ ENTRY(excp_vect_table)
 	RISCV_PTR do_trap_ecall_s
 	RISCV_PTR do_trap_unknown
 	RISCV_PTR do_trap_ecall_m
-	RISCV_PTR do_page_fault   /* instruction page fault */
+	/* instruciton page fault */
+	ALT_PAGE_FAULT(RISCV_PTR do_page_fault)
 	RISCV_PTR do_page_fault   /* load page fault */
 	RISCV_PTR do_trap_unknown
 	RISCV_PTR do_page_fault   /* store page fault */

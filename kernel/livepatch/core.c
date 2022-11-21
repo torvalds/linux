@@ -19,6 +19,7 @@
 #include <linux/moduleloader.h>
 #include <linux/completion.h>
 #include <linux/memory.h>
+#include <linux/rcupdate.h>
 #include <asm/cacheflush.h>
 #include "core.h"
 #include "patch.h"
@@ -57,7 +58,7 @@ static void klp_find_object_module(struct klp_object *obj)
 	if (!klp_is_module(obj))
 		return;
 
-	mutex_lock(&module_mutex);
+	rcu_read_lock_sched();
 	/*
 	 * We do not want to block removal of patched modules and therefore
 	 * we do not take a reference here. The patches are removed by
@@ -74,7 +75,7 @@ static void klp_find_object_module(struct klp_object *obj)
 	if (mod && mod->klp_alive)
 		obj->mod = mod;
 
-	mutex_unlock(&module_mutex);
+	rcu_read_unlock_sched();
 }
 
 static bool klp_initialized(void)
@@ -163,12 +164,10 @@ static int klp_find_object_symbol(const char *objname, const char *name,
 		.pos = sympos,
 	};
 
-	mutex_lock(&module_mutex);
 	if (objname)
 		module_kallsyms_on_each_symbol(klp_find_callback, &args);
 	else
 		kallsyms_on_each_symbol(klp_find_callback, &args);
-	mutex_unlock(&module_mutex);
 
 	/*
 	 * Ensure an address was found. If sympos is 0, ensure symbol is unique;
@@ -191,7 +190,7 @@ static int klp_find_object_symbol(const char *objname, const char *name,
 	return -EINVAL;
 }
 
-static int klp_resolve_symbols(Elf64_Shdr *sechdrs, const char *strtab,
+static int klp_resolve_symbols(Elf_Shdr *sechdrs, const char *strtab,
 			       unsigned int symndx, Elf_Shdr *relasec,
 			       const char *sec_objname)
 {
@@ -219,7 +218,7 @@ static int klp_resolve_symbols(Elf64_Shdr *sechdrs, const char *strtab,
 	relas = (Elf_Rela *) relasec->sh_addr;
 	/* For each rela in this klp relocation section */
 	for (i = 0; i < relasec->sh_size / sizeof(Elf_Rela); i++) {
-		sym = (Elf64_Sym *)sechdrs[symndx].sh_addr + ELF_R_SYM(relas[i].r_info);
+		sym = (Elf_Sym *)sechdrs[symndx].sh_addr + ELF_R_SYM(relas[i].r_info);
 		if (sym->st_shndx != SHN_LIVEPATCH) {
 			pr_err("symbol %s is not marked as a livepatch symbol\n",
 			       strtab + sym->st_name);
@@ -863,13 +862,10 @@ static void klp_init_object_early(struct klp_patch *patch,
 	list_add_tail(&obj->node, &patch->obj_list);
 }
 
-static int klp_init_patch_early(struct klp_patch *patch)
+static void klp_init_patch_early(struct klp_patch *patch)
 {
 	struct klp_object *obj;
 	struct klp_func *func;
-
-	if (!patch->objs)
-		return -EINVAL;
 
 	INIT_LIST_HEAD(&patch->list);
 	INIT_LIST_HEAD(&patch->obj_list);
@@ -880,20 +876,12 @@ static int klp_init_patch_early(struct klp_patch *patch)
 	init_completion(&patch->finish);
 
 	klp_for_each_object_static(patch, obj) {
-		if (!obj->funcs)
-			return -EINVAL;
-
 		klp_init_object_early(patch, obj);
 
 		klp_for_each_func_static(obj, func) {
 			klp_init_func_early(obj, func);
 		}
 	}
-
-	if (!try_module_get(patch->mod))
-		return -ENODEV;
-
-	return 0;
 }
 
 static int klp_init_patch(struct klp_patch *patch)
@@ -1025,9 +1013,16 @@ err:
 int klp_enable_patch(struct klp_patch *patch)
 {
 	int ret;
+	struct klp_object *obj;
 
-	if (!patch || !patch->mod)
+	if (!patch || !patch->mod || !patch->objs)
 		return -EINVAL;
+
+	klp_for_each_object_static(patch, obj) {
+		if (!obj->funcs)
+			return -EINVAL;
+	}
+
 
 	if (!is_livepatch_module(patch->mod)) {
 		pr_err("module %s is not marked as a livepatch module\n",
@@ -1052,11 +1047,12 @@ int klp_enable_patch(struct klp_patch *patch)
 		return -EINVAL;
 	}
 
-	ret = klp_init_patch_early(patch);
-	if (ret) {
+	if (!try_module_get(patch->mod)) {
 		mutex_unlock(&klp_mutex);
-		return ret;
+		return -ENODEV;
 	}
+
+	klp_init_patch_early(patch);
 
 	ret = klp_init_patch(patch);
 	if (ret)

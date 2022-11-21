@@ -95,11 +95,10 @@ struct occ {
 	struct occ_sensors sensors;
 
 	int powr_sample_time_us;	/* average power sample time */
-	u8 seq_no;
 	u8 poll_cmd_data;		/* to perform OCC poll command */
-	int (*send_cmd)(struct occ *occ, u8 *cmd);
+	int (*send_cmd)(struct occ *occ, u8 *cmd, size_t len);
 
-	unsigned long last_update;
+	unsigned long next_update;
 	struct mutex lock;		/* lock OCC access */
 
 	struct device *hwmon;
@@ -120,6 +119,8 @@ struct occ {
 	u8 prev_stat;
 	u8 prev_ext_stat;
 	u8 prev_occs_present;
+	u8 prev_ips_status;
+	u8 prev_mode;
 };
 
 int occ_setup(struct occ *occ, const char *name);

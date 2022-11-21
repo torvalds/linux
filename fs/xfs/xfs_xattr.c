@@ -9,6 +9,8 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_da_format.h"
+#include "xfs_trans_resv.h"
+#include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_attr.h"
 #include "xfs_acl.h"
@@ -38,9 +40,10 @@ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
 }
 
 static int
-xfs_xattr_set(const struct xattr_handler *handler, struct dentry *unused,
-		struct inode *inode, const char *name, const void *value,
-		size_t size, int flags)
+xfs_xattr_set(const struct xattr_handler *handler,
+	      struct user_namespace *mnt_userns, struct dentry *unused,
+	      struct inode *inode, const char *name, const void *value,
+	      size_t size, int flags)
 {
 	struct xfs_da_args	args = {
 		.dp		= XFS_I(inode),

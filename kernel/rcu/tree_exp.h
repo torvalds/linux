@@ -255,7 +255,7 @@ static void rcu_report_exp_cpu_mult(struct rcu_node *rnp,
  */
 static void rcu_report_exp_rdp(struct rcu_data *rdp)
 {
-	WRITE_ONCE(rdp->exp_deferred_qs, false);
+	WRITE_ONCE(rdp->cpu_no_qs.b.exp, false);
 	rcu_report_exp_cpu_mult(rdp->mynode, rdp->grpmask, true);
 }
 
@@ -387,6 +387,7 @@ retry_ipi:
 			continue;
 		}
 		if (get_cpu() == cpu) {
+			mask_ofl_test |= mask;
 			put_cpu();
 			continue;
 		}
@@ -501,18 +502,21 @@ static void synchronize_rcu_expedited_wait(void)
 		if (synchronize_rcu_expedited_wait_once(1))
 			return;
 		rcu_for_each_leaf_node(rnp) {
-			for_each_leaf_node_cpu_mask(rnp, cpu, rnp->expmask) {
+			mask = READ_ONCE(rnp->expmask);
+			for_each_leaf_node_cpu_mask(rnp, cpu, mask) {
 				rdp = per_cpu_ptr(&rcu_data, cpu);
 				if (rdp->rcu_forced_tick_exp)
 					continue;
 				rdp->rcu_forced_tick_exp = true;
-				tick_dep_set_cpu(cpu, TICK_DEP_BIT_RCU_EXP);
+				preempt_disable();
+				if (cpu_online(cpu))
+					tick_dep_set_cpu(cpu, TICK_DEP_BIT_RCU_EXP);
+				preempt_enable();
 			}
 		}
 		j = READ_ONCE(jiffies_till_first_fqs);
 		if (synchronize_rcu_expedited_wait_once(j + HZ))
 			return;
-		WARN_ON_ONCE(IS_ENABLED(CONFIG_PREEMPT_RT));
 	}
 
 	for (;;) {
@@ -521,6 +525,7 @@ static void synchronize_rcu_expedited_wait(void)
 		if (rcu_stall_is_suppressed())
 			continue;
 		panic_on_rcu_stall();
+		trace_rcu_stall_warning(rcu_state.name, TPS("ExpeditedStall"));
 		pr_err("INFO: %s detected expedited stalls on CPUs/tasks: {",
 		       rcu_state.name);
 		ndetected = 0;
@@ -545,7 +550,7 @@ static void synchronize_rcu_expedited_wait(void)
 			data_race(rnp_root->expmask),
 			".T"[!!data_race(rnp_root->exp_tasks)]);
 		if (ndetected) {
-			pr_err("blocking rcu_node structures:");
+			pr_err("blocking rcu_node structures (internal RCU debug):");
 			rcu_for_each_node_breadth_first(rnp) {
 				if (rnp == rnp_root)
 					continue; /* printed unconditionally */
@@ -652,10 +657,10 @@ static void rcu_exp_handler(void *unused)
 	 */
 	if (!depth) {
 		if (!(preempt_count() & (PREEMPT_MASK | SOFTIRQ_MASK)) ||
-		    rcu_dynticks_curr_cpu_in_eqs()) {
+		    rcu_is_cpu_rrupt_from_idle()) {
 			rcu_report_exp_rdp(rdp);
 		} else {
-			rdp->exp_deferred_qs = true;
+			WRITE_ONCE(rdp->cpu_no_qs.b.exp, true);
 			set_tsk_need_resched(t);
 			set_preempt_need_resched();
 		}
@@ -677,7 +682,7 @@ static void rcu_exp_handler(void *unused)
 	if (depth > 0) {
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		if (rnp->expmask & rdp->grpmask) {
-			rdp->exp_deferred_qs = true;
+			WRITE_ONCE(rdp->cpu_no_qs.b.exp, true);
 			t->rcu_read_unlock_special.b.exp_hint = true;
 		}
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
@@ -759,7 +764,7 @@ static void sync_sched_exp_online_cleanup(int cpu)
 	my_cpu = get_cpu();
 	/* Quiescent state either not needed or already requested, leave. */
 	if (!(READ_ONCE(rnp->expmask) & rdp->grpmask) ||
-	    __this_cpu_read(rcu_data.cpu_no_qs.b.exp)) {
+	    READ_ONCE(rdp->cpu_no_qs.b.exp)) {
 		put_cpu();
 		return;
 	}

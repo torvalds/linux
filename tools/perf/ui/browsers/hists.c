@@ -117,7 +117,7 @@ static void hist_browser__update_rows(struct hist_browser *hb)
 	browser->rows -= browser->extra_title_lines;
 	/*
 	 * Verify if we were at the last line and that line isn't
-	 * visibe because we now show the header line(s).
+	 * visible because we now show the header line(s).
 	 */
 	index_row = browser->index - browser->top_idx;
 	if (index_row >= browser->rows)
@@ -682,6 +682,7 @@ static int hist_browser__handle_hotkey(struct hist_browser *browser, bool warn_l
 	switch (key) {
 	case K_TIMER: {
 		struct hist_browser_timer *hbt = browser->hbt;
+		struct evsel *evsel = hists_to_evsel(browser->hists);
 		u64 nr_entries;
 
 		WARN_ON_ONCE(!hbt);
@@ -696,10 +697,10 @@ static int hist_browser__handle_hotkey(struct hist_browser *browser, bool warn_l
 		ui_browser__update_nr_entries(&browser->b, nr_entries);
 
 		if (warn_lost_event &&
-		    (browser->hists->stats.nr_lost_warned !=
-		    browser->hists->stats.nr_events[PERF_RECORD_LOST])) {
-			browser->hists->stats.nr_lost_warned =
-				browser->hists->stats.nr_events[PERF_RECORD_LOST];
+		    (evsel->evlist->stats.nr_lost_warned !=
+		     evsel->evlist->stats.nr_events[PERF_RECORD_LOST])) {
+			evsel->evlist->stats.nr_lost_warned =
+				evsel->evlist->stats.nr_events[PERF_RECORD_LOST];
 			ui_browser__warn_lost_events(&browser->b);
 		}
 
@@ -2946,14 +2947,10 @@ next:
 	}
 }
 
-static int perf_evsel__hists_browse(struct evsel *evsel, int nr_events,
-				    const char *helpline,
-				    bool left_exits,
-				    struct hist_browser_timer *hbt,
-				    float min_pcnt,
-				    struct perf_env *env,
-				    bool warn_lost_event,
-				    struct annotation_options *annotation_opts)
+static int evsel__hists_browse(struct evsel *evsel, int nr_events, const char *helpline,
+			       bool left_exits, struct hist_browser_timer *hbt, float min_pcnt,
+			       struct perf_env *env, bool warn_lost_event,
+			       struct annotation_options *annotation_opts)
 {
 	struct hists *hists = evsel__hists(evsel);
 	struct hist_browser *browser = perf_evsel_browser__new(evsel, hbt, env, annotation_opts);
@@ -3268,7 +3265,7 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 			if (!is_report_browser(hbt)) {
 				struct perf_top *top = hbt->arg;
 
-				perf_evlist__toggle_enable(top->evlist);
+				evlist__toggle_enable(top->evlist);
 				/*
 				 * No need to refresh, resort/decay histogram
 				 * entries if we are not collecting samples:
@@ -3420,7 +3417,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 	struct evsel *evsel = list_entry(entry, struct evsel, core.node);
 	struct hists *hists = evsel__hists(evsel);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
-	unsigned long nr_events = hists->stats.nr_events[PERF_RECORD_SAMPLE];
+	unsigned long nr_events = hists->stats.nr_samples;
 	const char *ev_name = evsel__name(evsel);
 	char bf[256], unit;
 	const char *warn = " ";
@@ -3436,7 +3433,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 
 		for_each_group_member(pos, evsel) {
 			struct hists *pos_hists = evsel__hists(pos);
-			nr_events += pos_hists->stats.nr_events[PERF_RECORD_SAMPLE];
+			nr_events += pos_hists->stats.nr_samples;
 		}
 	}
 
@@ -3445,7 +3442,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 			   unit, unit == ' ' ? "" : " ", ev_name);
 	ui_browser__printf(browser, "%s", bf);
 
-	nr_events = hists->stats.nr_events[PERF_RECORD_LOST];
+	nr_events = evsel->evlist->stats.nr_events[PERF_RECORD_LOST];
 	if (nr_events != 0) {
 		menu->lost_events = true;
 		if (!current_entry)
@@ -3498,19 +3495,17 @@ static int perf_evsel_menu__run(struct evsel_menu *menu,
 				continue;
 			pos = menu->selection;
 browse_hists:
-			perf_evlist__set_selected(evlist, pos);
+			evlist__set_selected(evlist, pos);
 			/*
 			 * Give the calling tool a chance to populate the non
 			 * default evsel resorted hists tree.
 			 */
 			if (hbt)
 				hbt->timer(hbt->arg);
-			key = perf_evsel__hists_browse(pos, nr_events, help,
-						       true, hbt,
-						       menu->min_pcnt,
-						       menu->env,
-						       warn_lost_event,
-						       menu->annotation_opts);
+			key = evsel__hists_browse(pos, nr_events, help, true, hbt,
+						  menu->min_pcnt, menu->env,
+						  warn_lost_event,
+						  menu->annotation_opts);
 			ui_browser__show_title(&menu->b, title);
 			switch (key) {
 			case K_TAB:
@@ -3565,13 +3560,9 @@ static bool filter_group_entries(struct ui_browser *browser __maybe_unused,
 	return false;
 }
 
-static int __perf_evlist__tui_browse_hists(struct evlist *evlist,
-					   int nr_entries, const char *help,
-					   struct hist_browser_timer *hbt,
-					   float min_pcnt,
-					   struct perf_env *env,
-					   bool warn_lost_event,
-					   struct annotation_options *annotation_opts)
+static int __evlist__tui_browse_hists(struct evlist *evlist, int nr_entries, const char *help,
+				      struct hist_browser_timer *hbt, float min_pcnt, struct perf_env *env,
+				      bool warn_lost_event, struct annotation_options *annotation_opts)
 {
 	struct evsel *pos;
 	struct evsel_menu menu = {
@@ -3603,7 +3594,7 @@ static int __perf_evlist__tui_browse_hists(struct evlist *evlist,
 				    hbt, warn_lost_event);
 }
 
-static bool perf_evlist__single_entry(struct evlist *evlist)
+static bool evlist__single_entry(struct evlist *evlist)
 {
 	int nr_entries = evlist->core.nr_entries;
 
@@ -3620,23 +3611,18 @@ static bool perf_evlist__single_entry(struct evlist *evlist)
 	return false;
 }
 
-int perf_evlist__tui_browse_hists(struct evlist *evlist, const char *help,
-				  struct hist_browser_timer *hbt,
-				  float min_pcnt,
-				  struct perf_env *env,
-				  bool warn_lost_event,
-				  struct annotation_options *annotation_opts)
+int evlist__tui_browse_hists(struct evlist *evlist, const char *help, struct hist_browser_timer *hbt,
+			     float min_pcnt, struct perf_env *env, bool warn_lost_event,
+			     struct annotation_options *annotation_opts)
 {
 	int nr_entries = evlist->core.nr_entries;
 
-	if (perf_evlist__single_entry(evlist)) {
+	if (evlist__single_entry(evlist)) {
 single_entry: {
 		struct evsel *first = evlist__first(evlist);
 
-		return perf_evsel__hists_browse(first, nr_entries, help,
-						false, hbt, min_pcnt,
-						env, warn_lost_event,
-						annotation_opts);
+		return evsel__hists_browse(first, nr_entries, help, false, hbt, min_pcnt,
+					   env, warn_lost_event, annotation_opts);
 	}
 	}
 
@@ -3653,10 +3639,8 @@ single_entry: {
 			goto single_entry;
 	}
 
-	return __perf_evlist__tui_browse_hists(evlist, nr_entries, help,
-					       hbt, min_pcnt, env,
-					       warn_lost_event,
-					       annotation_opts);
+	return __evlist__tui_browse_hists(evlist, nr_entries, help, hbt, min_pcnt, env,
+					  warn_lost_event, annotation_opts);
 }
 
 static int block_hists_browser__title(struct hist_browser *browser, char *bf,
@@ -3664,7 +3648,7 @@ static int block_hists_browser__title(struct hist_browser *browser, char *bf,
 {
 	struct hists *hists = evsel__hists(browser->block_evsel);
 	const char *evname = evsel__name(browser->block_evsel);
-	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
+	unsigned long nr_samples = hists->stats.nr_samples;
 	int ret;
 
 	ret = scnprintf(bf, size, "# Samples: %lu", nr_samples);

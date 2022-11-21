@@ -19,6 +19,11 @@ enum rtw_debug_mask {
 	RTW_DBG_PS		= 0x00000400,
 	RTW_DBG_BF		= 0x00000800,
 	RTW_DBG_WOW		= 0x00001000,
+	RTW_DBG_CFO		= 0x00002000,
+	RTW_DBG_PATH_DIV	= 0x00004000,
+	RTW_DBG_ADAPTIVITY	= 0x00008000,
+	RTW_DBG_HW_SCAN		= 0x00010000,
+	RTW_DBG_STATE		= 0x00020000,
 
 	RTW_DBG_ALL		= 0xffffffff
 };
@@ -26,6 +31,7 @@ enum rtw_debug_mask {
 #ifdef CONFIG_RTW88_DEBUGFS
 
 void rtw_debugfs_init(struct rtw_dev *rtwdev);
+void rtw_debugfs_get_simple_phy_info(struct seq_file *m);
 
 #else
 

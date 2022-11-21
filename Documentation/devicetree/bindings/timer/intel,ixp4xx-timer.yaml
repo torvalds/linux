@@ -18,11 +18,10 @@ properties:
       - const: intel,ixp4xx-timer
 
   reg:
-    description: Should contain registers location and length
+    maxItems: 1
 
   interrupts:
     minItems: 1
-    maxItems: 2
     items:
       - description: Timer 1 interrupt
       - description: Timer 2 interrupt

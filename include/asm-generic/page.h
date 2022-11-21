@@ -63,11 +63,7 @@ extern unsigned long memory_end;
 
 #endif /* !__ASSEMBLY__ */
 
-#ifdef CONFIG_KERNEL_RAM_BASE_ADDRESS
-#define PAGE_OFFSET		(CONFIG_KERNEL_RAM_BASE_ADDRESS)
-#else
 #define PAGE_OFFSET		(0)
-#endif
 
 #ifndef ARCH_PFN_OFFSET
 #define ARCH_PFN_OFFSET		(PAGE_OFFSET >> PAGE_SHIFT)

@@ -118,6 +118,9 @@
 	status = "okay";
 	ddc = <&i2c_2>;
 	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
+	vdd-supply = <&ldo8_reg>;
+	vdd_osc-supply = <&ldo10_reg>;
+	vdd_pll-supply = <&ldo8_reg>;
 };
 
 &i2c_0 {
@@ -134,7 +137,7 @@
 		compatible = "maxim,max77686";
 		reg = <0x09>;
 		interrupt-parent = <&gpx3>;
-		interrupts = <2 IRQ_TYPE_NONE>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&max77686_irq>;
 		#clock-cells = <1>;
@@ -290,7 +293,7 @@
 		reg = <0x51>;
 	};
 
-	wm8994: wm8994@1a {
+	wm8994: audio-codec@1a {
 		compatible = "wlf,wm8994";
 		reg = <0x1a>;
 
@@ -385,7 +388,7 @@
 	status = "okay";
 	cs-gpios = <&gpa2 5 GPIO_ACTIVE_HIGH>;
 
-	w25q80bw@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "w25x80";
@@ -410,10 +413,15 @@
 };
 
 &pinctrl_0 {
-	max77686_irq: max77686-irq {
+	max77686_irq: max77686-irq-pins {
 		samsung,pins = "gpx3-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
+};
+
+&usbdrd {
+	vdd10-supply = <&ldo15_reg>;
+	vdd33-supply = <&ldo12_reg>;
 };

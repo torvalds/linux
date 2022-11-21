@@ -51,7 +51,7 @@ struct machine {
 	struct vdso_info  *vdso_info;
 	struct perf_env   *env;
 	struct dsos	  dsos;
-	struct maps	  kmaps;
+	struct maps	  *kmaps;
 	struct map	  *vmlinux_map;
 	u64		  kernel_start;
 	pid_t		  *current_tid;
@@ -83,7 +83,7 @@ struct map *machine__kernel_map(struct machine *machine)
 static inline
 struct maps *machine__kernel_maps(struct machine *machine)
 {
-	return &machine->kmaps;
+	return machine->kmaps;
 }
 
 int machine__get_kernel_start(struct machine *machine);
@@ -106,6 +106,7 @@ u8 machine__addr_cpumode(struct machine *machine, u8 cpumode, u64 addr);
 
 struct thread *machine__find_thread(struct machine *machine, pid_t pid,
 				    pid_t tid);
+struct thread *machine__idle_thread(struct machine *machine);
 struct comm *machine__thread_exec_comm(struct machine *machine,
 				       struct thread *thread);
 
@@ -123,6 +124,8 @@ int machine__process_aux_event(struct machine *machine,
 			       union perf_event *event);
 int machine__process_itrace_start_event(struct machine *machine,
 					union perf_event *event);
+int machine__process_aux_output_hw_id_event(struct machine *machine,
+					    union perf_event *event);
 int machine__process_switch_event(struct machine *machine,
 				  union perf_event *event);
 int machine__process_namespaces_event(struct machine *machine,
@@ -162,6 +165,7 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 struct machine *machines__find_host(struct machines *machines);
 struct machine *machines__find(struct machines *machines, pid_t pid);
 struct machine *machines__findnew(struct machines *machines, pid_t pid);
+struct machine *machines__find_guest(struct machines *machines, pid_t pid);
 
 void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size);
 void machines__set_comm_exec(struct machines *machines, bool comm_exec);
@@ -204,6 +208,7 @@ static inline bool machine__is_host(struct machine *machine)
 }
 
 bool machine__is(struct machine *machine, const char *arch);
+bool machine__normalized_is(struct machine *machine, const char *arch);
 int machine__nr_cpus_avail(struct machine *machine);
 
 struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid);
@@ -218,7 +223,7 @@ static inline
 struct symbol *machine__find_kernel_symbol(struct machine *machine, u64 addr,
 					   struct map **mapp)
 {
-	return maps__find_symbol(&machine->kmaps, addr, mapp);
+	return maps__find_symbol(machine->kmaps, addr, mapp);
 }
 
 static inline
@@ -226,7 +231,7 @@ struct symbol *machine__find_kernel_symbol_by_name(struct machine *machine,
 						   const char *name,
 						   struct map **mapp)
 {
-	return maps__find_symbol_by_name(&machine->kmaps, name, mapp);
+	return maps__find_symbol_by_name(machine->kmaps, name, mapp);
 }
 
 int arch__fix_module_text_start(u64 *start, u64 *size, const char *name);

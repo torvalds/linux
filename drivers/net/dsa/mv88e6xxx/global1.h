@@ -22,6 +22,7 @@
 #define MV88E6185_G1_STS_PPU_STATE_DISABLED		0x8000
 #define MV88E6185_G1_STS_PPU_STATE_POLLING		0xc000
 #define MV88E6XXX_G1_STS_INIT_READY			0x0800
+#define MV88E6393X_G1_STS_IRQ_DEVICE_2			9
 #define MV88E6XXX_G1_STS_IRQ_AVB			8
 #define MV88E6XXX_G1_STS_IRQ_DEVICE			7
 #define MV88E6XXX_G1_STS_IRQ_STATS			6
@@ -45,6 +46,7 @@
 
 /* Offset 0x02: VTU FID Register */
 #define MV88E6352_G1_VTU_FID		0x02
+#define MV88E6352_G1_VTU_FID_VID_POLICY	0x1000
 #define MV88E6352_G1_VTU_FID_MASK	0x0fff
 
 /* Offset 0x03: VTU SID Register */
@@ -59,6 +61,7 @@
 #define MV88E6185_G1_CTL1_SCHED_PRIO		0x0800
 #define MV88E6185_G1_CTL1_MAX_FRAME_1632	0x0400
 #define MV88E6185_G1_CTL1_RELOAD_EEPROM		0x0200
+#define MV88E6393X_G1_CTL1_DEVICE2_EN		0x0200
 #define MV88E6XXX_G1_CTL1_DEVICE_EN		0x0080
 #define MV88E6XXX_G1_CTL1_STATS_DONE_EN		0x0040
 #define MV88E6XXX_G1_CTL1_VTU_PROBLEM_EN	0x0020
@@ -330,13 +333,11 @@ void mv88e6xxx_g1_atu_prob_irq_free(struct mv88e6xxx_chip *chip);
 int mv88e6165_g1_atu_get_hash(struct mv88e6xxx_chip *chip, u8 *hash);
 int mv88e6165_g1_atu_set_hash(struct mv88e6xxx_chip *chip, u8 hash);
 
+int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
+			     struct mv88e6xxx_vtu_entry *entry);
 int mv88e6185_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 			     struct mv88e6xxx_vtu_entry *entry);
 int mv88e6185_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
-			       struct mv88e6xxx_vtu_entry *entry);
-int mv88e6250_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
-			     struct mv88e6xxx_vtu_entry *entry);
-int mv88e6250_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 			       struct mv88e6xxx_vtu_entry *entry);
 int mv88e6352_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 			     struct mv88e6xxx_vtu_entry *entry);
@@ -347,6 +348,16 @@ int mv88e6390_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 int mv88e6390_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 			       struct mv88e6xxx_vtu_entry *entry);
 int mv88e6xxx_g1_vtu_flush(struct mv88e6xxx_chip *chip);
+int mv88e6xxx_g1_stu_getnext(struct mv88e6xxx_chip *chip,
+			     struct mv88e6xxx_stu_entry *entry);
+int mv88e6352_g1_stu_getnext(struct mv88e6xxx_chip *chip,
+			     struct mv88e6xxx_stu_entry *entry);
+int mv88e6352_g1_stu_loadpurge(struct mv88e6xxx_chip *chip,
+			       struct mv88e6xxx_stu_entry *entry);
+int mv88e6390_g1_stu_getnext(struct mv88e6xxx_chip *chip,
+			     struct mv88e6xxx_stu_entry *entry);
+int mv88e6390_g1_stu_loadpurge(struct mv88e6xxx_chip *chip,
+			       struct mv88e6xxx_stu_entry *entry);
 int mv88e6xxx_g1_vtu_prob_irq_setup(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_g1_vtu_prob_irq_free(struct mv88e6xxx_chip *chip);
 int mv88e6xxx_g1_atu_get_next(struct mv88e6xxx_chip *chip, u16 fid);

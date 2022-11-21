@@ -23,7 +23,6 @@ config KILAUEA
 	select PPC4xx_PCI_EXPRESS
 	select FORCE_PCI
 	select PCI_MSI
-	select PPC4xx_MSI
 	help
 	  This option enables support for the AMCC PPC405EX evaluation board.
 

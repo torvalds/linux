@@ -10,6 +10,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/bcd.h>
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -80,6 +81,10 @@
 
 #define RV3028_BACKUP_TCE		BIT(5)
 #define RV3028_BACKUP_TCR_MASK		GENMASK(1,0)
+#define RV3028_BACKUP_BSM		GENMASK(3,2)
+
+#define RV3028_BACKUP_BSM_DSM		0x1
+#define RV3028_BACKUP_BSM_LSM		0x3
 
 #define OFFSET_STEP_PPT			953674
 
@@ -265,8 +270,7 @@ static irqreturn_t rv3028_handle_irq(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	if (status & RV3028_STATUS_PORF)
-		dev_warn(&rv3028->rtc->dev, "Voltage low, data loss detected.\n");
+	status &= ~RV3028_STATUS_PORF;
 
 	if (status & RV3028_STATUS_TF) {
 		status |= RV3028_STATUS_TF;
@@ -311,10 +315,8 @@ static int rv3028_get_time(struct device *dev, struct rtc_time *tm)
 	if (ret < 0)
 		return ret;
 
-	if (status & RV3028_STATUS_PORF) {
-		dev_warn(dev, "Voltage low, data is invalid.\n");
+	if (status & RV3028_STATUS_PORF)
 		return -EINVAL;
-	}
 
 	ret = regmap_bulk_read(rv3028->regmap, RV3028_SEC, date, sizeof(date));
 	if (ret)
@@ -323,7 +325,7 @@ static int rv3028_get_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_sec  = bcd2bin(date[RV3028_SEC] & 0x7f);
 	tm->tm_min  = bcd2bin(date[RV3028_MIN] & 0x7f);
 	tm->tm_hour = bcd2bin(date[RV3028_HOUR] & 0x3f);
-	tm->tm_wday = ilog2(date[RV3028_WDAY] & 0x7f);
+	tm->tm_wday = date[RV3028_WDAY] & 0x7f;
 	tm->tm_mday = bcd2bin(date[RV3028_DAY] & 0x3f);
 	tm->tm_mon  = bcd2bin(date[RV3028_MONTH] & 0x1f) - 1;
 	tm->tm_year = bcd2bin(date[RV3028_YEAR]) + 100;
@@ -340,7 +342,7 @@ static int rv3028_set_time(struct device *dev, struct rtc_time *tm)
 	date[RV3028_SEC]   = bin2bcd(tm->tm_sec);
 	date[RV3028_MIN]   = bin2bcd(tm->tm_min);
 	date[RV3028_HOUR]  = bin2bcd(tm->tm_hour);
-	date[RV3028_WDAY]  = 1 << (tm->tm_wday);
+	date[RV3028_WDAY]  = tm->tm_wday;
 	date[RV3028_DAY]   = bin2bcd(tm->tm_mday);
 	date[RV3028_MONTH] = bin2bcd(tm->tm_mon + 1);
 	date[RV3028_YEAR]  = bin2bcd(tm->tm_year - 100);
@@ -513,6 +515,71 @@ exit_eerd:
 
 	return ret;
 
+}
+
+static int rv3028_param_get(struct device *dev, struct rtc_param *param)
+{
+	struct rv3028_data *rv3028 = dev_get_drvdata(dev);
+	int ret;
+
+	switch(param->param) {
+		u32 value;
+
+	case RTC_PARAM_BACKUP_SWITCH_MODE:
+		ret = regmap_read(rv3028->regmap, RV3028_BACKUP, &value);
+		if (ret < 0)
+			return ret;
+
+		value = FIELD_GET(RV3028_BACKUP_BSM, value);
+
+		switch(value) {
+		case RV3028_BACKUP_BSM_DSM:
+			param->uvalue = RTC_BSM_DIRECT;
+			break;
+		case RV3028_BACKUP_BSM_LSM:
+			param->uvalue = RTC_BSM_LEVEL;
+			break;
+		default:
+			param->uvalue = RTC_BSM_DISABLED;
+		}
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rv3028_param_set(struct device *dev, struct rtc_param *param)
+{
+	struct rv3028_data *rv3028 = dev_get_drvdata(dev);
+
+	switch(param->param) {
+		u8 mode;
+	case RTC_PARAM_BACKUP_SWITCH_MODE:
+		switch (param->uvalue) {
+		case RTC_BSM_DISABLED:
+			mode = 0;
+			break;
+		case RTC_BSM_DIRECT:
+			mode = RV3028_BACKUP_BSM_DSM;
+			break;
+		case RTC_BSM_LEVEL:
+			mode = RV3028_BACKUP_BSM_LSM;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		return rv3028_update_cfg(rv3028, RV3028_BACKUP, RV3028_BACKUP_BSM,
+					 FIELD_PREP(RV3028_BACKUP_BSM, mode));
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int rv3028_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
@@ -770,12 +837,17 @@ static int rv3028_clkout_register_clk(struct rv3028_data *rv3028,
 }
 #endif
 
-static struct rtc_class_ops rv3028_rtc_ops = {
+static const struct rtc_class_ops rv3028_rtc_ops = {
 	.read_time = rv3028_get_time,
 	.set_time = rv3028_set_time,
+	.read_alarm = rv3028_get_alarm,
+	.set_alarm = rv3028_set_alarm,
+	.alarm_irq_enable = rv3028_alarm_irq_enable,
 	.read_offset = rv3028_read_offset,
 	.set_offset = rv3028_set_offset,
 	.ioctl = rv3028_ioctl,
+	.param_get = rv3028_param_get,
+	.param_set = rv3028_param_set,
 };
 
 static const struct regmap_config regmap_config = {
@@ -823,9 +895,6 @@ static int rv3028_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	if (status & RV3028_STATUS_PORF)
-		dev_warn(&client->dev, "Voltage low, data loss detected.\n");
-
 	if (status & RV3028_STATUS_AF)
 		dev_warn(&client->dev, "An alarm may have been missed.\n");
 
@@ -841,12 +910,10 @@ static int rv3028_probe(struct i2c_client *client)
 		if (ret) {
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
 			client->irq = 0;
-		} else {
-			rv3028_rtc_ops.read_alarm = rv3028_get_alarm;
-			rv3028_rtc_ops.set_alarm = rv3028_set_alarm;
-			rv3028_rtc_ops.alarm_irq_enable = rv3028_alarm_irq_enable;
 		}
 	}
+	if (!client->irq)
+		clear_bit(RTC_FEATURE_ALARM, rv3028->rtc->features);
 
 	ret = regmap_update_bits(rv3028->regmap, RV3028_CTRL1,
 				 RV3028_CTRL1_WADA, RV3028_CTRL1_WADA);
@@ -883,17 +950,19 @@ static int rv3028_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
+	set_bit(RTC_FEATURE_BACKUP_SWITCH_MODE, rv3028->rtc->features);
+
 	rv3028->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rv3028->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	rv3028->rtc->ops = &rv3028_rtc_ops;
-	ret = rtc_register_device(rv3028->rtc);
+	ret = devm_rtc_register_device(rv3028->rtc);
 	if (ret)
 		return ret;
 
 	nvmem_cfg.priv = rv3028->regmap;
-	rtc_nvmem_register(rv3028->rtc, &nvmem_cfg);
+	devm_rtc_nvmem_register(rv3028->rtc, &nvmem_cfg);
 	eeprom_cfg.priv = rv3028;
-	rtc_nvmem_register(rv3028->rtc, &eeprom_cfg);
+	devm_rtc_nvmem_register(rv3028->rtc, &eeprom_cfg);
 
 	rv3028->rtc->max_user_freq = 1;
 
@@ -903,7 +972,7 @@ static int rv3028_probe(struct i2c_client *client)
 	return 0;
 }
 
-static const struct of_device_id rv3028_of_match[] = {
+static const __maybe_unused struct of_device_id rv3028_of_match[] = {
 	{ .compatible = "microcrystal,rv3028", },
 	{ }
 };

@@ -9,6 +9,7 @@
  * Copyright (C) 2009 Texas Instruments
  * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
  */
+#include <linux/cpu_pm.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -232,7 +233,11 @@ struct gpmc_device {
 	int irq;
 	struct irq_chip irq_chip;
 	struct gpio_chip gpio_chip;
+	struct notifier_block nb;
+	struct omap3_gpmc_regs context;
 	int nirqs;
+	unsigned int is_suspended:1;
+	struct resource *data;
 };
 
 static struct irq_domain *gpmc_irq_domain;
@@ -1009,8 +1014,8 @@ EXPORT_SYMBOL(gpmc_cs_request);
 
 void gpmc_cs_free(int cs)
 {
-	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
-	struct resource *res = &gpmc->mem;
+	struct gpmc_cs_data *gpmc;
+	struct resource *res;
 
 	spin_lock(&gpmc_mem_lock);
 	if (cs >= gpmc_cs_num || cs < 0 || !gpmc_cs_reserved(cs)) {
@@ -1018,6 +1023,9 @@ void gpmc_cs_free(int cs)
 		spin_unlock(&gpmc_mem_lock);
 		return;
 	}
+	gpmc = &gpmc_cs[cs];
+	res = &gpmc->mem;
+
 	gpmc_cs_disable_mem(cs);
 	if (res->flags)
 		release_resource(res);
@@ -1449,12 +1457,18 @@ static void gpmc_mem_exit(void)
 	}
 }
 
-static void gpmc_mem_init(void)
+static void gpmc_mem_init(struct gpmc_device *gpmc)
 {
 	int cs;
 
-	gpmc_mem_root.start = GPMC_MEM_START;
-	gpmc_mem_root.end = GPMC_MEM_END;
+	if (!gpmc->data) {
+		/* All legacy devices have same data IO window */
+		gpmc_mem_root.start = GPMC_MEM_START;
+		gpmc_mem_root.end = GPMC_MEM_END;
+	} else {
+		gpmc_mem_root.start = gpmc->data->start;
+		gpmc_mem_root.end = gpmc->data->end;
+	}
 
 	/* Reserve all regions that has been set up by bootloader */
 	for (cs = 0; cs < gpmc_cs_num; cs++) {
@@ -1881,6 +1895,7 @@ static const struct of_device_id gpmc_dt_ids[] = {
 	{ .compatible = "ti,omap3430-gpmc" },	/* omap3430 & omap3630 */
 	{ .compatible = "ti,omap4430-gpmc" },	/* omap4430 & omap4460 & omap543x */
 	{ .compatible = "ti,am3352-gpmc" },	/* am335x devices */
+	{ .compatible = "ti,am64-gpmc" },
 	{ }
 };
 
@@ -2168,7 +2183,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 		}
 	}
 
-	if (of_device_is_compatible(child, "ti,omap2-nand")) {
+	if (of_match_node(omap_nand_ids, child)) {
 		/* NAND specific setup */
 		val = 8;
 		of_property_read_u32(child, "nand-bus-width", &val);
@@ -2381,6 +2396,106 @@ static int gpmc_gpio_init(struct gpmc_device *gpmc)
 	return 0;
 }
 
+static void omap3_gpmc_save_context(struct gpmc_device *gpmc)
+{
+	struct omap3_gpmc_regs *gpmc_context;
+	int i;
+
+	if (!gpmc || !gpmc_base)
+		return;
+
+	gpmc_context = &gpmc->context;
+
+	gpmc_context->sysconfig = gpmc_read_reg(GPMC_SYSCONFIG);
+	gpmc_context->irqenable = gpmc_read_reg(GPMC_IRQENABLE);
+	gpmc_context->timeout_ctrl = gpmc_read_reg(GPMC_TIMEOUT_CONTROL);
+	gpmc_context->config = gpmc_read_reg(GPMC_CONFIG);
+	gpmc_context->prefetch_config1 = gpmc_read_reg(GPMC_PREFETCH_CONFIG1);
+	gpmc_context->prefetch_config2 = gpmc_read_reg(GPMC_PREFETCH_CONFIG2);
+	gpmc_context->prefetch_control = gpmc_read_reg(GPMC_PREFETCH_CONTROL);
+	for (i = 0; i < gpmc_cs_num; i++) {
+		gpmc_context->cs_context[i].is_valid = gpmc_cs_mem_enabled(i);
+		if (gpmc_context->cs_context[i].is_valid) {
+			gpmc_context->cs_context[i].config1 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG1);
+			gpmc_context->cs_context[i].config2 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG2);
+			gpmc_context->cs_context[i].config3 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG3);
+			gpmc_context->cs_context[i].config4 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG4);
+			gpmc_context->cs_context[i].config5 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG5);
+			gpmc_context->cs_context[i].config6 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG6);
+			gpmc_context->cs_context[i].config7 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG7);
+		}
+	}
+}
+
+static void omap3_gpmc_restore_context(struct gpmc_device *gpmc)
+{
+	struct omap3_gpmc_regs *gpmc_context;
+	int i;
+
+	if (!gpmc || !gpmc_base)
+		return;
+
+	gpmc_context = &gpmc->context;
+
+	gpmc_write_reg(GPMC_SYSCONFIG, gpmc_context->sysconfig);
+	gpmc_write_reg(GPMC_IRQENABLE, gpmc_context->irqenable);
+	gpmc_write_reg(GPMC_TIMEOUT_CONTROL, gpmc_context->timeout_ctrl);
+	gpmc_write_reg(GPMC_CONFIG, gpmc_context->config);
+	gpmc_write_reg(GPMC_PREFETCH_CONFIG1, gpmc_context->prefetch_config1);
+	gpmc_write_reg(GPMC_PREFETCH_CONFIG2, gpmc_context->prefetch_config2);
+	gpmc_write_reg(GPMC_PREFETCH_CONTROL, gpmc_context->prefetch_control);
+	for (i = 0; i < gpmc_cs_num; i++) {
+		if (gpmc_context->cs_context[i].is_valid) {
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG1,
+					  gpmc_context->cs_context[i].config1);
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG2,
+					  gpmc_context->cs_context[i].config2);
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG3,
+					  gpmc_context->cs_context[i].config3);
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG4,
+					  gpmc_context->cs_context[i].config4);
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG5,
+					  gpmc_context->cs_context[i].config5);
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG6,
+					  gpmc_context->cs_context[i].config6);
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG7,
+					  gpmc_context->cs_context[i].config7);
+		} else {
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG7, 0);
+		}
+	}
+}
+
+static int omap_gpmc_context_notifier(struct notifier_block *nb,
+				      unsigned long cmd, void *v)
+{
+	struct gpmc_device *gpmc;
+
+	gpmc = container_of(nb, struct gpmc_device, nb);
+	if (gpmc->is_suspended || pm_runtime_suspended(gpmc->dev))
+		return NOTIFY_OK;
+
+	switch (cmd) {
+	case CPU_CLUSTER_PM_ENTER:
+		omap3_gpmc_save_context(gpmc);
+		break;
+	case CPU_CLUSTER_PM_ENTER_FAILED:	/* No need to restore context */
+		break;
+	case CPU_CLUSTER_PM_EXIT:
+		omap3_gpmc_restore_context(gpmc);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 static int gpmc_probe(struct platform_device *pdev)
 {
 	int rc;
@@ -2395,21 +2510,29 @@ static int gpmc_probe(struct platform_device *pdev)
 	gpmc->dev = &pdev->dev;
 	platform_set_drvdata(pdev, gpmc);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
-
-	gpmc_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(gpmc_base))
-		return PTR_ERR(gpmc_base);
-
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg");
 	if (!res) {
-		dev_err(&pdev->dev, "Failed to get resource: irq\n");
-		return -ENOENT;
+		/* legacy DT */
+		gpmc_base = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(gpmc_base))
+			return PTR_ERR(gpmc_base);
+	} else {
+		gpmc_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(gpmc_base))
+			return PTR_ERR(gpmc_base);
+
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "data");
+		if (!res) {
+			dev_err(&pdev->dev, "couldn't get data reg resource\n");
+			return -ENOENT;
+		}
+
+		gpmc->data = res;
 	}
 
-	gpmc->irq = res->start;
+	gpmc->irq = platform_get_irq(pdev, 0);
+	if (gpmc->irq < 0)
+		return gpmc->irq;
 
 	gpmc_l3_clk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(gpmc_l3_clk)) {
@@ -2455,7 +2578,7 @@ static int gpmc_probe(struct platform_device *pdev)
 	dev_info(gpmc->dev, "GPMC revision %d.%d\n", GPMC_REVISION_MAJOR(l),
 		 GPMC_REVISION_MINOR(l));
 
-	gpmc_mem_init();
+	gpmc_mem_init(gpmc);
 	rc = gpmc_gpio_init(gpmc);
 	if (rc)
 		goto gpio_init_failed;
@@ -2468,6 +2591,9 @@ static int gpmc_probe(struct platform_device *pdev)
 	}
 
 	gpmc_probe_dt_children(pdev);
+
+	gpmc->nb.notifier_call = omap_gpmc_context_notifier;
+	cpu_pm_register_notifier(&gpmc->nb);
 
 	return 0;
 
@@ -2483,6 +2609,7 @@ static int gpmc_remove(struct platform_device *pdev)
 {
 	struct gpmc_device *gpmc = platform_get_drvdata(pdev);
 
+	cpu_pm_unregister_notifier(&gpmc->nb);
 	gpmc_free_irq(gpmc);
 	gpmc_mem_exit();
 	pm_runtime_put_sync(&pdev->dev);
@@ -2494,15 +2621,23 @@ static int gpmc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int gpmc_suspend(struct device *dev)
 {
-	omap3_gpmc_save_context();
+	struct gpmc_device *gpmc = dev_get_drvdata(dev);
+
+	omap3_gpmc_save_context(gpmc);
 	pm_runtime_put_sync(dev);
+	gpmc->is_suspended = 1;
+
 	return 0;
 }
 
 static int gpmc_resume(struct device *dev)
 {
+	struct gpmc_device *gpmc = dev_get_drvdata(dev);
+
 	pm_runtime_get_sync(dev);
-	omap3_gpmc_restore_context();
+	omap3_gpmc_restore_context(gpmc);
+	gpmc->is_suspended = 0;
+
 	return 0;
 }
 #endif
@@ -2524,74 +2659,3 @@ static __init int gpmc_init(void)
 	return platform_driver_register(&gpmc_driver);
 }
 postcore_initcall(gpmc_init);
-
-static struct omap3_gpmc_regs gpmc_context;
-
-void omap3_gpmc_save_context(void)
-{
-	int i;
-
-	if (!gpmc_base)
-		return;
-
-	gpmc_context.sysconfig = gpmc_read_reg(GPMC_SYSCONFIG);
-	gpmc_context.irqenable = gpmc_read_reg(GPMC_IRQENABLE);
-	gpmc_context.timeout_ctrl = gpmc_read_reg(GPMC_TIMEOUT_CONTROL);
-	gpmc_context.config = gpmc_read_reg(GPMC_CONFIG);
-	gpmc_context.prefetch_config1 = gpmc_read_reg(GPMC_PREFETCH_CONFIG1);
-	gpmc_context.prefetch_config2 = gpmc_read_reg(GPMC_PREFETCH_CONFIG2);
-	gpmc_context.prefetch_control = gpmc_read_reg(GPMC_PREFETCH_CONTROL);
-	for (i = 0; i < gpmc_cs_num; i++) {
-		gpmc_context.cs_context[i].is_valid = gpmc_cs_mem_enabled(i);
-		if (gpmc_context.cs_context[i].is_valid) {
-			gpmc_context.cs_context[i].config1 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG1);
-			gpmc_context.cs_context[i].config2 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG2);
-			gpmc_context.cs_context[i].config3 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG3);
-			gpmc_context.cs_context[i].config4 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG4);
-			gpmc_context.cs_context[i].config5 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG5);
-			gpmc_context.cs_context[i].config6 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG6);
-			gpmc_context.cs_context[i].config7 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG7);
-		}
-	}
-}
-
-void omap3_gpmc_restore_context(void)
-{
-	int i;
-
-	if (!gpmc_base)
-		return;
-
-	gpmc_write_reg(GPMC_SYSCONFIG, gpmc_context.sysconfig);
-	gpmc_write_reg(GPMC_IRQENABLE, gpmc_context.irqenable);
-	gpmc_write_reg(GPMC_TIMEOUT_CONTROL, gpmc_context.timeout_ctrl);
-	gpmc_write_reg(GPMC_CONFIG, gpmc_context.config);
-	gpmc_write_reg(GPMC_PREFETCH_CONFIG1, gpmc_context.prefetch_config1);
-	gpmc_write_reg(GPMC_PREFETCH_CONFIG2, gpmc_context.prefetch_config2);
-	gpmc_write_reg(GPMC_PREFETCH_CONTROL, gpmc_context.prefetch_control);
-	for (i = 0; i < gpmc_cs_num; i++) {
-		if (gpmc_context.cs_context[i].is_valid) {
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG1,
-				gpmc_context.cs_context[i].config1);
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG2,
-				gpmc_context.cs_context[i].config2);
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG3,
-				gpmc_context.cs_context[i].config3);
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG4,
-				gpmc_context.cs_context[i].config4);
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG5,
-				gpmc_context.cs_context[i].config5);
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG6,
-				gpmc_context.cs_context[i].config6);
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG7,
-				gpmc_context.cs_context[i].config7);
-		}
-	}
-}

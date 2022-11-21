@@ -272,6 +272,7 @@ static int uli526x_init_one(struct pci_dev *pdev,
 	struct uli526x_board_info *db;	/* board information structure */
 	struct net_device *dev;
 	void __iomem *ioaddr;
+	u8 addr[ETH_ALEN];
 	int i, err;
 
 	ULI526X_DBUG(0, "uli526x_init_one()", 0);
@@ -379,7 +380,7 @@ static int uli526x_init_one(struct pci_dev *pdev,
 		uw32(DCR13, 0x1b0);	//Select ID Table access port
 		//Read MAC address from CR14
 		for (i = 0; i < 6; i++)
-			dev->dev_addr[i] = ur32(DCR14);
+			addr[i] = ur32(DCR14);
 		//Read end
 		uw32(DCR13, 0);		//Clear CR13
 		uw32(DCR0, 0);		//Clear CR0
@@ -388,8 +389,10 @@ static int uli526x_init_one(struct pci_dev *pdev,
 	else		/*Exist SROM*/
 	{
 		for (i = 0; i < 6; i++)
-			dev->dev_addr[i] = db->srom[20 + i];
+			addr[i] = db->srom[20 + i];
 	}
+	eth_hw_addr_set(dev, addr);
+
 	err = register_netdev (dev);
 	if (err)
 		goto err_out_unmap;
@@ -780,7 +783,7 @@ static void uli526x_free_tx_pkt(struct net_device *dev,
 			}
 		}
 
-    		txptr = txptr->next_tx_desc;
+		txptr = txptr->next_tx_desc;
 	}/* End of while */
 
 	/* Update TX remove pointer to next */
@@ -1015,7 +1018,7 @@ static void uli526x_timer(struct timer_list *t)
 	struct net_device *dev = pci_get_drvdata(db->pdev);
 	struct uli_phy_ops *phy = &db->phy;
 	void __iomem *ioaddr = db->ioaddr;
- 	unsigned long flags;
+	unsigned long flags;
 	u8 tmp_cr12 = 0;
 	u32 tmp_cr8;
 
@@ -1343,7 +1346,7 @@ static void send_filter_frame(struct net_device *dev, int mc_cnt)
 	void __iomem *ioaddr = db->ioaddr;
 	struct netdev_hw_addr *ha;
 	struct tx_desc *txptr;
-	u16 * addrptr;
+	const u16 * addrptr;
 	u32 * suptr;
 	int i;
 
@@ -1353,7 +1356,7 @@ static void send_filter_frame(struct net_device *dev, int mc_cnt)
 	suptr = (u32 *) txptr->tx_buf_ptr;
 
 	/* Node address */
-	addrptr = (u16 *) dev->dev_addr;
+	addrptr = (const u16 *) dev->dev_addr;
 	*suptr++ = addrptr[0] << FLT_SHIFT;
 	*suptr++ = addrptr[1] << FLT_SHIFT;
 	*suptr++ = addrptr[2] << FLT_SHIFT;
@@ -1535,14 +1538,14 @@ static void uli526x_set_phyxcer(struct uli526x_board_info *db)
 
 	}
 
-  	/* Write new capability to Phyxcer Reg4 */
+	/* Write new capability to Phyxcer Reg4 */
 	if ( !(phy_reg & 0x01e0)) {
 		phy_reg|=db->PHY_reg4;
 		db->media_mode|=ULI526X_AUTO;
 	}
 	phy->write(db, db->phy_addr, 4, phy_reg);
 
- 	/* Restart Auto-Negotiation */
+	/* Restart Auto-Negotiation */
 	phy->write(db, db->phy_addr, 0, 0x1200);
 	udelay(50);
 }
@@ -1550,7 +1553,7 @@ static void uli526x_set_phyxcer(struct uli526x_board_info *db)
 
 /*
  *	Process op-mode
- 	AUTO mode : PHY controller in Auto-negotiation Mode
+	AUTO mode : PHY controller in Auto-negotiation Mode
  *	Force mode: PHY controller in force mode with HUB
  *			N-way force capability with SWITCH
  */

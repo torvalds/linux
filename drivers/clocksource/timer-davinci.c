@@ -7,6 +7,8 @@
  * (with tiny parts adopted from code by Kevin Hilman <khilman@baylibre.com>)
  */
 
+#define pr_fmt(fmt) "%s: " fmt, __func__
+
 #include <linux/clk.h>
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
@@ -16,9 +18,6 @@
 #include <linux/sched_clock.h>
 
 #include <clocksource/timer-davinci.h>
-
-#undef pr_fmt
-#define pr_fmt(fmt) "%s: " fmt, __func__
 
 #define DAVINCI_TIMER_REG_TIM12			0x10
 #define DAVINCI_TIMER_REG_TIM34			0x14

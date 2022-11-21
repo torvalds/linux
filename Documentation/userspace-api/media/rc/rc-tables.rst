@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
 
 .. _Remote_controllers_tables:
 
@@ -25,7 +25,7 @@ the remote via /dev/input/event devices.
 
 .. _rc_standard_keymap:
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: IR default keymapping
     :header-rows:  0

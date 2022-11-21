@@ -12,35 +12,6 @@
 #include <asm/smap.h>
 #include <asm/extable.h>
 
-/*
- * Test whether a block of memory is a valid user space address.
- * Returns 0 if the range is valid, nonzero otherwise.
- */
-static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, unsigned long limit)
-{
-	/*
-	 * If we have used "sizeof()" for the size,
-	 * we know it won't overflow the limit (but
-	 * it might overflow the 'addr', so it's
-	 * important to subtract the size from the
-	 * limit, not add it to the address).
-	 */
-	if (__builtin_constant_p(size))
-		return unlikely(addr > limit - size);
-
-	/* Arbitrary sizes? Be careful about overflow */
-	addr += size;
-	if (unlikely(addr < size))
-		return true;
-	return unlikely(addr > limit);
-}
-
-#define __range_not_ok(addr, size, limit)				\
-({									\
-	__chk_user_ptr(addr);						\
-	__chk_range_not_ok((unsigned long __force)(addr), size, limit); \
-})
-
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 static inline bool pagefault_disabled(void);
 # define WARN_ON_IN_IRQ()	\
@@ -69,8 +40,10 @@ static inline bool pagefault_disabled(void);
 #define access_ok(addr, size)					\
 ({									\
 	WARN_ON_IN_IRQ();						\
-	likely(!__range_not_ok(addr, size, TASK_SIZE_MAX));		\
+	likely(__access_ok(addr, size));				\
 })
+
+#include <asm-generic/access_ok.h>
 
 extern int __get_user_1(void);
 extern int __get_user_2(void);
@@ -301,8 +274,8 @@ do {									\
 	unsigned int __gu_low, __gu_high;				\
 	const unsigned int __user *__gu_ptr;				\
 	__gu_ptr = (const void __user *)(ptr);				\
-	__get_user_asm(__gu_low, ptr, "l", "=r", label);		\
-	__get_user_asm(__gu_high, ptr+1, "l", "=r", label);		\
+	__get_user_asm(__gu_low, __gu_ptr, "l", "=r", label);		\
+	__get_user_asm(__gu_high, __gu_ptr+1, "l", "=r", label);	\
 	(x) = ((unsigned long long)__gu_high << 32) | __gu_low;		\
 } while (0)
 #else
@@ -314,11 +287,12 @@ do {									\
 do {									\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
-	unsigned char x_u8__;						\
-	case 1:								\
+	case 1:	{							\
+		unsigned char x_u8__;					\
 		__get_user_asm(x_u8__, ptr, "b", "=q", label);		\
 		(x) = x_u8__;						\
 		break;							\
+	}								\
 	case 2:								\
 		__get_user_asm(x, ptr, "w", "=r", label);		\
 		break;							\
@@ -351,24 +325,22 @@ do {									\
 		     "1:	movl %[lowbits],%%eax\n"		\
 		     "2:	movl %[highbits],%%edx\n"		\
 		     "3:\n"						\
-		     ".section .fixup,\"ax\"\n"				\
-		     "4:	mov %[efault],%[errout]\n"		\
-		     "	xorl %%eax,%%eax\n"				\
-		     "	xorl %%edx,%%edx\n"				\
-		     "	jmp 3b\n"					\
-		     ".previous\n"					\
-		     _ASM_EXTABLE_UA(1b, 4b)				\
-		     _ASM_EXTABLE_UA(2b, 4b)				\
+		     _ASM_EXTABLE_TYPE_REG(1b, 3b, EX_TYPE_EFAULT_REG |	\
+					   EX_FLAG_CLEAR_AX_DX,		\
+					   %[errout])			\
+		     _ASM_EXTABLE_TYPE_REG(2b, 3b, EX_TYPE_EFAULT_REG |	\
+					   EX_FLAG_CLEAR_AX_DX,		\
+					   %[errout])			\
 		     : [errout] "=r" (retval),				\
 		       [output] "=&A"(x)				\
 		     : [lowbits] "m" (__m(__ptr)),			\
 		       [highbits] "m" __m(((u32 __user *)(__ptr)) + 1),	\
-		       [efault] "i" (-EFAULT), "0" (retval));		\
+		       "0" (retval));					\
 })
 
 #else
 #define __get_user_asm_u64(x, ptr, retval) \
-	 __get_user_asm(x, ptr, retval, "q", "=r")
+	 __get_user_asm(x, ptr, retval, "q")
 #endif
 
 #define __get_user_size(x, ptr, size, retval)				\
@@ -379,14 +351,14 @@ do {									\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
 	case 1:								\
-		__get_user_asm(x_u8__, ptr, retval, "b", "=q");		\
+		__get_user_asm(x_u8__, ptr, retval, "b");		\
 		(x) = x_u8__;						\
 		break;							\
 	case 2:								\
-		__get_user_asm(x, ptr, retval, "w", "=r");		\
+		__get_user_asm(x, ptr, retval, "w");			\
 		break;							\
 	case 4:								\
-		__get_user_asm(x, ptr, retval, "l", "=r");		\
+		__get_user_asm(x, ptr, retval, "l");			\
 		break;							\
 	case 8:								\
 		__get_user_asm_u64(x, ptr, retval);			\
@@ -396,22 +368,19 @@ do {									\
 	}								\
 } while (0)
 
-#define __get_user_asm(x, addr, err, itype, ltype)			\
+#define __get_user_asm(x, addr, err, itype)				\
 	asm volatile("\n"						\
 		     "1:	mov"itype" %[umem],%[output]\n"		\
 		     "2:\n"						\
-		     ".section .fixup,\"ax\"\n"				\
-		     "3:	mov %[efault],%[errout]\n"		\
-		     "	xorl %k[output],%k[output]\n"			\
-		     "	jmp 2b\n"					\
-		     ".previous\n"					\
-		     _ASM_EXTABLE_UA(1b, 3b)				\
+		     _ASM_EXTABLE_TYPE_REG(1b, 2b, EX_TYPE_EFAULT_REG | \
+					   EX_FLAG_CLEAR_AX,		\
+					   %[errout])			\
 		     : [errout] "=r" (err),				\
-		       [output] ltype(x)				\
+		       [output] "=a" (x)				\
 		     : [umem] "m" (__m(addr)),				\
-		       [efault] "i" (-EFAULT), "0" (err))
+		       "0" (err))
 
-#endif // CONFIG_CC_ASM_GOTO_OUTPUT
+#endif // CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 
 /* FIXME: this hack is definitely wrong -AK */
 struct __large_struct { unsigned long buf[100]; };
@@ -527,8 +496,6 @@ do {									\
 	unsafe_copy_loop(__ucu_dst, __ucu_src, __ucu_len, u16, label);	\
 	unsafe_copy_loop(__ucu_dst, __ucu_src, __ucu_len, u8, label);	\
 } while (0)
-
-#define HAVE_GET_KERNEL_NOFAULT
 
 #ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 #define __get_kernel_nofault(dst, src, type, err_label)			\

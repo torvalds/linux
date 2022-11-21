@@ -3,7 +3,7 @@
  *
  * Name: acrestyp.h - Defines, types, and structures for resource descriptors
  *
- * Copyright (C) 2000 - 2020, Intel Corp.
+ * Copyright (C) 2000 - 2021, Intel Corp.
  *
  *****************************************************************************/
 
@@ -381,7 +381,7 @@ struct acpi_resource_gpio {
 #define ACPI_IO_RESTRICT_OUTPUT                 2
 #define ACPI_IO_RESTRICT_NONE_PRESERVE          3
 
-/* Common structure for I2C, SPI, and UART serial descriptors */
+/* Common structure for I2C, SPI, UART, CSI2 serial descriptors */
 
 #define ACPI_RESOURCE_SERIAL_COMMON \
 	u8                                      revision_id; \
@@ -403,6 +403,7 @@ ACPI_RESOURCE_SERIAL_COMMON};
 #define ACPI_RESOURCE_SERIAL_TYPE_I2C           1
 #define ACPI_RESOURCE_SERIAL_TYPE_SPI           2
 #define ACPI_RESOURCE_SERIAL_TYPE_UART          3
+#define ACPI_RESOURCE_SERIAL_TYPE_CSI2          4
 
 /* Values for slave_mode field above */
 
@@ -504,6 +505,11 @@ struct acpi_resource_uart_serialbus {
 #define ACPI_UART_DATA_TERMINAL_READY           (1<<5)
 #define ACPI_UART_CLEAR_TO_SEND                 (1<<6)
 #define ACPI_UART_REQUEST_TO_SEND               (1<<7)
+
+struct acpi_resource_csi2_serialbus {
+	ACPI_RESOURCE_SERIAL_COMMON u8 local_port_instance;
+	u8 phy_type;
+};
 
 struct acpi_resource_pin_function {
 	u8 revision_id;
@@ -634,6 +640,7 @@ union acpi_resource_data {
 	struct acpi_resource_i2c_serialbus i2c_serial_bus;
 	struct acpi_resource_spi_serialbus spi_serial_bus;
 	struct acpi_resource_uart_serialbus uart_serial_bus;
+	struct acpi_resource_csi2_serialbus csi2_serial_bus;
 	struct acpi_resource_common_serialbus common_serial_bus;
 	struct acpi_resource_pin_function pin_function;
 	struct acpi_resource_pin_config pin_config;

@@ -100,89 +100,6 @@ struct dcn30_afmt_mask {
 };
 
 
-/**
-* speakersToChannels
-*
-* @brief
-*  translate speakers to channels
-*
-*  FL  - Front Left
-*  FR  - Front Right
-*  RL  - Rear Left
-*  RR  - Rear Right
-*  RC  - Rear Center
-*  FC  - Front Center
-*  FLC - Front Left Center
-*  FRC - Front Right Center
-*  RLC - Rear Left Center
-*  RRC - Rear Right Center
-*  LFE - Low Freq Effect
-*
-*               FC
-*          FLC      FRC
-*    FL                    FR
-*
-*                    LFE
-*              ()
-*
-*
-*    RL                    RR
-*          RLC      RRC
-*               RC
-*
-*             ch  8   7   6   5   4   3   2   1
-* 0b00000011      -   -   -   -   -   -   FR  FL
-* 0b00000111      -   -   -   -   -   LFE FR  FL
-* 0b00001011      -   -   -   -   FC  -   FR  FL
-* 0b00001111      -   -   -   -   FC  LFE FR  FL
-* 0b00010011      -   -   -   RC  -   -   FR  FL
-* 0b00010111      -   -   -   RC  -   LFE FR  FL
-* 0b00011011      -   -   -   RC  FC  -   FR  FL
-* 0b00011111      -   -   -   RC  FC  LFE FR  FL
-* 0b00110011      -   -   RR  RL  -   -   FR  FL
-* 0b00110111      -   -   RR  RL  -   LFE FR  FL
-* 0b00111011      -   -   RR  RL  FC  -   FR  FL
-* 0b00111111      -   -   RR  RL  FC  LFE FR  FL
-* 0b01110011      -   RC  RR  RL  -   -   FR  FL
-* 0b01110111      -   RC  RR  RL  -   LFE FR  FL
-* 0b01111011      -   RC  RR  RL  FC  -   FR  FL
-* 0b01111111      -   RC  RR  RL  FC  LFE FR  FL
-* 0b11110011      RRC RLC RR  RL  -   -   FR  FL
-* 0b11110111      RRC RLC RR  RL  -   LFE FR  FL
-* 0b11111011      RRC RLC RR  RL  FC  -   FR  FL
-* 0b11111111      RRC RLC RR  RL  FC  LFE FR  FL
-* 0b11000011      FRC FLC -   -   -   -   FR  FL
-* 0b11000111      FRC FLC -   -   -   LFE FR  FL
-* 0b11001011      FRC FLC -   -   FC  -   FR  FL
-* 0b11001111      FRC FLC -   -   FC  LFE FR  FL
-* 0b11010011      FRC FLC -   RC  -   -   FR  FL
-* 0b11010111      FRC FLC -   RC  -   LFE FR  FL
-* 0b11011011      FRC FLC -   RC  FC  -   FR  FL
-* 0b11011111      FRC FLC -   RC  FC  LFE FR  FL
-* 0b11110011      FRC FLC RR  RL  -   -   FR  FL
-* 0b11110111      FRC FLC RR  RL  -   LFE FR  FL
-* 0b11111011      FRC FLC RR  RL  FC  -   FR  FL
-* 0b11111111      FRC FLC RR  RL  FC  LFE FR  FL
-*
-* @param
-*  speakers - speaker information as it comes from CEA audio block
-*/
-/* translate speakers to channels */
-
-union audio_cea_channels {
-	uint8_t all;
-	struct audio_cea_channels_bits {
-		uint32_t FL:1;
-		uint32_t FR:1;
-		uint32_t LFE:1;
-		uint32_t FC:1;
-		uint32_t RL_RC:1;
-		uint32_t RR:1;
-		uint32_t RC_RLC_FLC:1;
-		uint32_t RRC_FRC:1;
-	} channels;
-};
-
 struct afmt;
 
 struct afmt_funcs {
@@ -204,6 +121,12 @@ struct afmt_funcs {
 
 	void (*setup_dp_audio)(
 		struct afmt *afmt);
+
+	void (*afmt_poweron)(
+		struct afmt *afmt);
+
+	void (*afmt_powerdown)(
+		struct afmt *afmt);
 };
 
 struct afmt {
@@ -218,6 +141,24 @@ struct dcn30_afmt {
 	const struct dcn30_afmt_shift *afmt_shift;
 	const struct dcn30_afmt_mask *afmt_mask;
 };
+
+void afmt3_setup_hdmi_audio(
+	struct afmt *afmt);
+
+void afmt3_se_audio_setup(
+	struct afmt *afmt,
+	unsigned int az_inst,
+	struct audio_info *audio_info);
+
+void afmt3_audio_mute_control(
+	struct afmt *afmt,
+	bool mute);
+
+void afmt3_audio_info_immediate_update(
+	struct afmt *afmt);
+
+void afmt3_setup_dp_audio(
+		struct afmt *afmt);
 
 void afmt3_construct(struct dcn30_afmt *afmt3,
 	struct dc_context *ctx,

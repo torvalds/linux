@@ -59,7 +59,9 @@ static void inet_twsk_kill(struct inet_timewait_sock *tw)
 	inet_twsk_bind_unhash(tw, hashinfo);
 	spin_unlock(&bhead->lock);
 
-	atomic_dec(&tw->tw_dr->tw_count);
+	if (refcount_dec_and_test(&tw->tw_dr->tw_refcount))
+		kfree(tw->tw_dr);
+
 	inet_twsk_put(tw);
 }
 
@@ -145,10 +147,6 @@ static void tw_timer_handler(struct timer_list *t)
 {
 	struct inet_timewait_sock *tw = from_timer(tw, t, tw_timer);
 
-	if (tw->tw_kill)
-		__NET_INC_STATS(twsk_net(tw), LINUX_MIB_TIMEWAITKILLED);
-	else
-		__NET_INC_STATS(twsk_net(tw), LINUX_MIB_TIMEWAITED);
 	inet_twsk_kill(tw);
 }
 
@@ -158,7 +156,7 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk,
 {
 	struct inet_timewait_sock *tw;
 
-	if (atomic_read(&dr->tw_count) >= dr->sysctl_max_tw_buckets)
+	if (refcount_read(&dr->tw_refcount) - 1 >= dr->sysctl_max_tw_buckets)
 		return NULL;
 
 	tw = kmem_cache_alloc(sk->sk_prot_creator->twsk_prot->twsk_slab,
@@ -244,10 +242,13 @@ void __inet_twsk_schedule(struct inet_timewait_sock *tw, int timeo, bool rearm)
 	 * of PAWS.
 	 */
 
-	tw->tw_kill = timeo <= 4*HZ;
 	if (!rearm) {
+		bool kill = timeo <= 4*HZ;
+
+		__NET_INC_STATS(twsk_net(tw), kill ? LINUX_MIB_TIMEWAITKILLED :
+						     LINUX_MIB_TIMEWAITED);
 		BUG_ON(mod_timer(&tw->tw_timer, jiffies + timeo));
-		atomic_inc(&tw->tw_dr->tw_count);
+		refcount_inc(&tw->tw_dr->tw_refcount);
 	} else {
 		mod_timer_pending(&tw->tw_timer, jiffies + timeo);
 	}
@@ -272,14 +273,14 @@ restart:
 				continue;
 			tw = inet_twsk(sk);
 			if ((tw->tw_family != family) ||
-				refcount_read(&twsk_net(tw)->count))
+				refcount_read(&twsk_net(tw)->ns.count))
 				continue;
 
 			if (unlikely(!refcount_inc_not_zero(&tw->tw_refcnt)))
 				continue;
 
 			if (unlikely((tw->tw_family != family) ||
-				     refcount_read(&twsk_net(tw)->count))) {
+				     refcount_read(&twsk_net(tw)->ns.count))) {
 				inet_twsk_put(tw);
 				goto restart;
 			}

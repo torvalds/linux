@@ -245,6 +245,23 @@ static enum bp_result encoder_control_digx_v3(
 					cntl->enable_dp_audio);
 	params.ucLaneNum = (uint8_t)(cntl->lanes_number);
 
+	switch (cntl->color_depth) {
+	case COLOR_DEPTH_888:
+		params.ucBitPerColor = PANEL_8BIT_PER_COLOR;
+		break;
+	case COLOR_DEPTH_101010:
+		params.ucBitPerColor = PANEL_10BIT_PER_COLOR;
+		break;
+	case COLOR_DEPTH_121212:
+		params.ucBitPerColor = PANEL_12BIT_PER_COLOR;
+		break;
+	case COLOR_DEPTH_161616:
+		params.ucBitPerColor = PANEL_16BIT_PER_COLOR;
+		break;
+	default:
+		break;
+	}
+
 	if (EXEC_BIOS_CMD_TABLE(DIGxEncoderControl, params))
 		result = BP_RESULT_OK;
 
@@ -273,6 +290,23 @@ static enum bp_result encoder_control_digx_v4(
 					cntl->signal,
 					cntl->enable_dp_audio));
 	params.ucLaneNum = (uint8_t)(cntl->lanes_number);
+
+	switch (cntl->color_depth) {
+	case COLOR_DEPTH_888:
+		params.ucBitPerColor = PANEL_8BIT_PER_COLOR;
+		break;
+	case COLOR_DEPTH_101010:
+		params.ucBitPerColor = PANEL_10BIT_PER_COLOR;
+		break;
+	case COLOR_DEPTH_121212:
+		params.ucBitPerColor = PANEL_12BIT_PER_COLOR;
+		break;
+	case COLOR_DEPTH_161616:
+		params.ucBitPerColor = PANEL_16BIT_PER_COLOR;
+		break;
+	default:
+		break;
+	}
 
 	if (EXEC_BIOS_CMD_TABLE(DIGxEncoderControl, params))
 		result = BP_RESULT_OK;
@@ -422,7 +456,7 @@ static enum bp_result transmitter_control_v2(
 		if ((CONNECTOR_ID_DUAL_LINK_DVII == connector_id) ||
 				(CONNECTOR_ID_DUAL_LINK_DVID == connector_id))
 			/* on INIT this bit should be set according to the
-			 * phisycal connector
+			 * physical connector
 			 * Bit0: dual link connector flag
 			 * =0 connector is single link connector
 			 * =1 connector is dual link connector
@@ -434,7 +468,7 @@ static enum bp_result transmitter_control_v2(
 				cpu_to_le16((uint8_t)cntl->connector_obj_id.id);
 		break;
 	case TRANSMITTER_CONTROL_SET_VOLTAGE_AND_PREEMPASIS:
-		/* votage swing and pre-emphsis */
+		/* voltage swing and pre-emphsis */
 		params.asMode.ucLaneSel = (uint8_t)cntl->lane_select;
 		params.asMode.ucLaneSet = (uint8_t)cntl->lane_settings;
 		break;
@@ -1057,6 +1091,19 @@ static enum bp_result set_pixel_clock_v5(
 		 * driver choose program it itself, i.e. here we program it
 		 * to 888 by default.
 		 */
+		if (bp_params->signal_type == SIGNAL_TYPE_HDMI_TYPE_A)
+			switch (bp_params->color_depth) {
+			case TRANSMITTER_COLOR_DEPTH_30:
+				/* yes this is correct, the atom define is wrong */
+				clk.sPCLKInput.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_32BPP;
+				break;
+			case TRANSMITTER_COLOR_DEPTH_36:
+				/* yes this is correct, the atom define is wrong */
+				clk.sPCLKInput.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_30BPP;
+				break;
+			default:
+				break;
+			}
 
 		if (EXEC_BIOS_CMD_TABLE(SetPixelClock, clk))
 			result = BP_RESULT_OK;
@@ -1135,6 +1182,20 @@ static enum bp_result set_pixel_clock_v6(
 		 * driver choose program it itself, i.e. here we pass required
 		 * target rate that includes deep color.
 		 */
+		if (bp_params->signal_type == SIGNAL_TYPE_HDMI_TYPE_A)
+			switch (bp_params->color_depth) {
+			case TRANSMITTER_COLOR_DEPTH_30:
+				clk.sPCLKInput.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_30BPP_V6;
+				break;
+			case TRANSMITTER_COLOR_DEPTH_36:
+				clk.sPCLKInput.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_36BPP_V6;
+				break;
+			case TRANSMITTER_COLOR_DEPTH_48:
+				clk.sPCLKInput.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_48BPP;
+				break;
+			default:
+				break;
+			}
 
 		if (EXEC_BIOS_CMD_TABLE(SetPixelClock, clk))
 			result = BP_RESULT_OK;
@@ -1470,6 +1531,27 @@ static enum bp_result adjust_display_pll_v2(
 	params.ucEncodeMode =
 			(uint8_t)bp->cmd_helper->encoder_mode_bp_to_atom(
 					bp_params->signal_type, false);
+
+	if (EXEC_BIOS_CMD_TABLE(AdjustDisplayPll, params)) {
+		/* Convert output pixel clock back 10KHz-->KHz: multiply
+		 * original pixel clock in KHz by ratio
+		 * [output pxlClk/input pxlClk] */
+		uint64_t pixel_clk_10_khz_out =
+				(uint64_t)le16_to_cpu(params.usPixelClock);
+		uint64_t pixel_clk = (uint64_t)bp_params->pixel_clock;
+
+		if (pixel_clock_10KHz_in != 0) {
+			bp_params->adjusted_pixel_clock =
+					div_u64(pixel_clk * pixel_clk_10_khz_out,
+							pixel_clock_10KHz_in);
+		} else {
+			bp_params->adjusted_pixel_clock = 0;
+			BREAK_TO_DEBUGGER();
+		}
+
+		result = BP_RESULT_OK;
+	}
+
 	return result;
 }
 
@@ -2038,7 +2120,7 @@ static enum bp_result program_clock_v5(
 	memset(&params, 0, sizeof(params));
 	if (!bp->cmd_helper->clock_source_id_to_atom(
 			bp_params->pll_id, &atom_pll_id)) {
-		BREAK_TO_DEBUGGER(); /* Invalid Inpute!! */
+		BREAK_TO_DEBUGGER(); /* Invalid Input!! */
 		return BP_RESULT_BADINPUT;
 	}
 

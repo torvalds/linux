@@ -1,13 +1,11 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2019 Intel Corporation
  */
 
 #include <linux/suspend.h>
 
 #include "i915_drv.h"
-#include "i915_globals.h"
 #include "i915_params.h"
 #include "intel_context.h"
 #include "intel_engine_pm.h"
@@ -20,6 +18,9 @@
 #include "intel_rc6.h"
 #include "intel_rps.h"
 #include "intel_wakeref.h"
+#include "pxp/intel_pxp_pm.h"
+
+#define I915_GT_SUSPEND_IDLE_TIMEOUT (HZ / 2)
 
 static void user_forcewake(struct intel_gt *gt, bool suspend)
 {
@@ -39,14 +40,34 @@ static void user_forcewake(struct intel_gt *gt, bool suspend)
 	intel_gt_pm_put(gt);
 }
 
+static void runtime_begin(struct intel_gt *gt)
+{
+	local_irq_disable();
+	write_seqcount_begin(&gt->stats.lock);
+	gt->stats.start = ktime_get();
+	gt->stats.active = true;
+	write_seqcount_end(&gt->stats.lock);
+	local_irq_enable();
+}
+
+static void runtime_end(struct intel_gt *gt)
+{
+	local_irq_disable();
+	write_seqcount_begin(&gt->stats.lock);
+	gt->stats.active = false;
+	gt->stats.total =
+		ktime_add(gt->stats.total,
+			  ktime_sub(ktime_get(), gt->stats.start));
+	write_seqcount_end(&gt->stats.lock);
+	local_irq_enable();
+}
+
 static int __gt_unpark(struct intel_wakeref *wf)
 {
 	struct intel_gt *gt = container_of(wf, typeof(*gt), wakeref);
 	struct drm_i915_private *i915 = gt->i915;
 
 	GT_TRACE(gt, "\n");
-
-	i915_globals_unpark();
 
 	/*
 	 * It seems that the DMC likes to transition between the DC states a lot
@@ -65,8 +86,10 @@ static int __gt_unpark(struct intel_wakeref *wf)
 	intel_rc6_unpark(&gt->rc6);
 	intel_rps_unpark(&gt->rps);
 	i915_pmu_gt_unparked(i915);
+	intel_guc_busyness_unpark(gt);
 
 	intel_gt_unpark_requests(gt);
+	runtime_begin(gt);
 
 	return 0;
 }
@@ -79,8 +102,10 @@ static int __gt_park(struct intel_wakeref *wf)
 
 	GT_TRACE(gt, "\n");
 
+	runtime_end(gt);
 	intel_gt_park_requests(gt);
 
+	intel_guc_busyness_park(gt);
 	i915_vma_parked(gt);
 	i915_pmu_gt_parked(i915);
 	intel_rps_park(&gt->rps);
@@ -93,8 +118,6 @@ static int __gt_park(struct intel_wakeref *wf)
 	GEM_BUG_ON(!wakeref);
 	intel_display_power_put_async(i915, POWER_DOMAIN_GT_IRQ, wakeref);
 
-	i915_globals_park();
-
 	return 0;
 }
 
@@ -106,6 +129,7 @@ static const struct intel_wakeref_ops wf_ops = {
 void intel_gt_pm_init_early(struct intel_gt *gt)
 {
 	intel_wakeref_init(&gt->wakeref, gt->uncore->rpm, &wf_ops);
+	seqcount_mutex_init(&gt->stats.lock, &gt->wakeref.mutex);
 }
 
 void intel_gt_pm_init(struct intel_gt *gt)
@@ -150,8 +174,6 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 	if (intel_gt_is_wedged(gt))
 		intel_gt_unset_wedged(gt);
 
-	intel_uc_sanitize(&gt->uc);
-
 	for_each_engine(engine, gt, id)
 		if (engine->reset.prepare)
 			engine->reset.prepare(engine);
@@ -166,6 +188,8 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 		for_each_engine(engine, gt, id)
 			__intel_engine_reset(engine, false);
 	}
+
+	intel_uc_reset(&gt->uc, false);
 
 	for_each_engine(engine, gt, id)
 		if (engine->reset.finish)
@@ -219,6 +243,8 @@ int intel_gt_resume(struct intel_gt *gt)
 		goto err_wedged;
 	}
 
+	intel_uc_reset_finish(&gt->uc);
+
 	intel_rps_enable(&gt->rps);
 	intel_llc_enable(&gt->llc);
 
@@ -241,6 +267,8 @@ int intel_gt_resume(struct intel_gt *gt)
 
 	intel_uc_resume(&gt->uc);
 
+	intel_pxp_resume(&gt->pxp);
+
 	user_forcewake(gt, false);
 
 out_fw:
@@ -258,7 +286,7 @@ static void wait_for_suspend(struct intel_gt *gt)
 	if (!intel_gt_pm_is_awake(gt))
 		return;
 
-	if (intel_gt_wait_for_idle(gt, I915_GEM_IDLE_TIMEOUT) == -ETIME) {
+	if (intel_gt_wait_for_idle(gt, I915_GT_SUSPEND_IDLE_TIMEOUT) == -ETIME) {
 		/*
 		 * Forcibly cancel outstanding work and leave
 		 * the gpu quiet.
@@ -275,7 +303,7 @@ void intel_gt_suspend_prepare(struct intel_gt *gt)
 	user_forcewake(gt, true);
 	wait_for_suspend(gt);
 
-	intel_uc_suspend(&gt->uc);
+	intel_pxp_suspend_prepare(&gt->pxp);
 }
 
 static suspend_state_t pm_suspend_target(void)
@@ -298,6 +326,9 @@ void intel_gt_suspend_late(struct intel_gt *gt)
 		return;
 
 	GEM_BUG_ON(gt->awake);
+
+	intel_uc_suspend(&gt->uc);
+	intel_pxp_suspend(&gt->pxp);
 
 	/*
 	 * On disabling the device, we want to turn off HW access to memory
@@ -325,6 +356,7 @@ void intel_gt_suspend_late(struct intel_gt *gt)
 
 void intel_gt_runtime_suspend(struct intel_gt *gt)
 {
+	intel_pxp_runtime_suspend(&gt->pxp);
 	intel_uc_runtime_suspend(&gt->uc);
 
 	GT_TRACE(gt, "\n");
@@ -332,11 +364,43 @@ void intel_gt_runtime_suspend(struct intel_gt *gt)
 
 int intel_gt_runtime_resume(struct intel_gt *gt)
 {
+	int ret;
+
 	GT_TRACE(gt, "\n");
 	intel_gt_init_swizzling(gt);
 	intel_ggtt_restore_fences(gt->ggtt);
 
-	return intel_uc_runtime_resume(&gt->uc);
+	ret = intel_uc_runtime_resume(&gt->uc);
+	if (ret)
+		return ret;
+
+	intel_pxp_runtime_resume(&gt->pxp);
+
+	return 0;
+}
+
+static ktime_t __intel_gt_get_awake_time(const struct intel_gt *gt)
+{
+	ktime_t total = gt->stats.total;
+
+	if (gt->stats.active)
+		total = ktime_add(total,
+				  ktime_sub(ktime_get(), gt->stats.start));
+
+	return total;
+}
+
+ktime_t intel_gt_get_awake_time(const struct intel_gt *gt)
+{
+	unsigned int seq;
+	ktime_t total;
+
+	do {
+		seq = read_seqcount_begin(&gt->stats.lock);
+		total = __intel_gt_get_awake_time(gt);
+	} while (read_seqcount_retry(&gt->stats.lock, seq));
+
+	return total;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

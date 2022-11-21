@@ -1,60 +1,7 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2020 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2020 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2020-2022 Intel Corporation
+ */
 #ifndef __iwl_trans_queue_tx_h__
 #define __iwl_trans_queue_tx_h__
 #include "iwl-fh.h"
@@ -94,7 +41,7 @@ static inline void *iwl_txq_get_tfd(struct iwl_trans *trans,
 	if (trans->trans_cfg->use_tfh)
 		idx = iwl_txq_get_cmd_index(txq, idx);
 
-	return txq->tfds + trans->txqs.tfd.size * idx;
+	return (u8 *)txq->tfds + trans->txqs.tfd.size * idx;
 }
 
 int iwl_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq, int slots_num,
@@ -165,10 +112,9 @@ void iwl_txq_gen2_tfd_unmap(struct iwl_trans *trans,
 			    struct iwl_cmd_meta *meta,
 			    struct iwl_tfh_tfd *tfd);
 
-int iwl_txq_dyn_alloc(struct iwl_trans *trans,
-		      __le16 flags, u8 sta_id, u8 tid,
-		      int cmd_id, int size,
-		      unsigned int timeout);
+int iwl_txq_dyn_alloc(struct iwl_trans *trans, u32 flags,
+		      u32 sta_mask, u8 tid,
+		      int size, unsigned int timeout);
 
 int iwl_txq_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		    struct iwl_device_tx_cmd *dev_cmd, int txq_id);
@@ -176,7 +122,6 @@ int iwl_txq_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 void iwl_txq_dyn_free(struct iwl_trans *trans, int queue);
 void iwl_txq_gen2_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq);
 void iwl_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq);
-void iwl_txq_gen2_tx_stop(struct iwl_trans *trans);
 void iwl_txq_gen2_tx_free(struct iwl_trans *trans);
 int iwl_txq_init(struct iwl_trans *trans, struct iwl_txq *txq, int slots_num,
 		 bool cmd_queue);
@@ -191,9 +136,9 @@ static inline u8 iwl_txq_gen1_tfd_get_num_tbs(struct iwl_trans *trans,
 	struct iwl_tfd *tfd;
 
 	if (trans->trans_cfg->use_tfh) {
-		struct iwl_tfh_tfd *tfd = _tfd;
+		struct iwl_tfh_tfd *tfh_tfd = _tfd;
 
-		return le16_to_cpu(tfd->num_tbs) & 0x1f;
+		return le16_to_cpu(tfh_tfd->num_tbs) & 0x1f;
 	}
 
 	tfd = (struct iwl_tfd *)_tfd;
@@ -207,10 +152,10 @@ static inline u16 iwl_txq_gen1_tfd_tb_get_len(struct iwl_trans *trans,
 	struct iwl_tfd_tb *tb;
 
 	if (trans->trans_cfg->use_tfh) {
-		struct iwl_tfh_tfd *tfd = _tfd;
-		struct iwl_tfh_tb *tb = &tfd->tbs[idx];
+		struct iwl_tfh_tfd *tfh_tfd = _tfd;
+		struct iwl_tfh_tb *tfh_tb = &tfh_tfd->tbs[idx];
 
-		return le16_to_cpu(tb->tb_len);
+		return le16_to_cpu(tfh_tb->tb_len);
 	}
 
 	tfd = (struct iwl_tfd *)_tfd;
@@ -227,4 +172,12 @@ void iwl_txq_gen1_inval_byte_cnt_tbl(struct iwl_trans *trans,
 void iwl_txq_gen1_update_byte_cnt_tbl(struct iwl_trans *trans,
 				      struct iwl_txq *txq, u16 byte_cnt,
 				      int num_tbs);
+void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
+		     struct sk_buff_head *skbs);
+void iwl_txq_set_q_ptrs(struct iwl_trans *trans, int txq_id, int ptr);
+void iwl_trans_txq_freeze_timer(struct iwl_trans *trans, unsigned long txqs,
+				bool freeze);
+void iwl_txq_progress(struct iwl_txq *txq);
+void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq);
+int iwl_trans_txq_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 #endif /* __iwl_trans_queue_tx_h__ */

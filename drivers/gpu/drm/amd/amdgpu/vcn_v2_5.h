@@ -25,5 +25,6 @@
 #define __VCN_V2_5_H__
 
 extern const struct amdgpu_ip_block_version vcn_v2_5_ip_block;
+extern const struct amdgpu_ip_block_version vcn_v2_6_ip_block;
 
 #endif /* __VCN_V2_5_H__ */

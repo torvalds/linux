@@ -34,11 +34,11 @@ static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {
 };
 
 static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
-			struct tc_action **a, int ovr, int bind,
-			bool rtnl_held,	struct tcf_proto *tp,
+			struct tc_action **a, struct tcf_proto *tp,
 			u32 flags, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, nat_net_id);
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_NAT_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
 	struct tc_nat *parm;
@@ -61,7 +61,7 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (!err) {
 		ret = tcf_idr_create(tn, index, est, a,
-				     &act_nat_ops, bind, false, 0);
+				     &act_nat_ops, bind, false, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;
@@ -70,7 +70,7 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	} else if (err > 0) {
 		if (bind)
 			return 0;
-		if (!ovr) {
+		if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 			tcf_idr_release(*a, bind);
 			return -EEXIST;
 		}

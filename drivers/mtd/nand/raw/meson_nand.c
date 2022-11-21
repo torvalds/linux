@@ -510,7 +510,7 @@ static int meson_nfc_dma_buffer_setup(struct nand_chip *nand, void *databuf,
 }
 
 static void meson_nfc_dma_buffer_release(struct nand_chip *nand,
-					 int infolen, int datalen,
+					 int datalen, int infolen,
 					 enum dma_data_direction dir)
 {
 	struct meson_nfc *nfc = nand_get_controller_data(nand);
@@ -580,7 +580,7 @@ static int meson_nfc_rw_cmd_prepare_and_execute(struct nand_chip *nand,
 	u32 *addrs = nfc->cmdfifo.rw.addrs;
 	u32 cs = nfc->param.chip_select;
 	u32 cmd0, cmd_num, row_start;
-	int ret = 0, i;
+	int i;
 
 	cmd_num = sizeof(struct nand_rw_cmd) / sizeof(int);
 
@@ -620,7 +620,7 @@ static int meson_nfc_rw_cmd_prepare_and_execute(struct nand_chip *nand,
 		meson_nfc_cmd_idle(nfc, nfc->timing.tadl);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int meson_nfc_write_page_sub(struct nand_chip *nand,
@@ -1044,9 +1044,12 @@ static int meson_nfc_clk_init(struct meson_nfc *nfc)
 
 	ret = clk_set_rate(nfc->device_clk, 24000000);
 	if (ret)
-		goto err_phase_rx;
+		goto err_disable_rx;
 
 	return 0;
+
+err_disable_rx:
+	clk_disable_unprepare(nfc->phase_rx);
 err_phase_rx:
 	clk_disable_unprepare(nfc->phase_tx);
 err_phase_tx:

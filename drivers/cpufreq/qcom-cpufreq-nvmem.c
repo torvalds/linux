@@ -130,7 +130,7 @@ static void get_krait_bin_format_b(struct device *cpu_dev,
 	}
 
 	/* Check PVS_BLOW_STATUS */
-	pte_efuse = *(((u32 *)buf) + 4);
+	pte_efuse = *(((u32 *)buf) + 1);
 	pte_efuse &= BIT(21);
 	if (pte_efuse) {
 		dev_dbg(cpu_dev, "PVS bin: %d\n", *pvs);
@@ -397,19 +397,19 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 
 free_genpd_opp:
 	for_each_possible_cpu(cpu) {
-		if (IS_ERR_OR_NULL(drv->genpd_opp_tables[cpu]))
+		if (IS_ERR(drv->genpd_opp_tables[cpu]))
 			break;
 		dev_pm_opp_detach_genpd(drv->genpd_opp_tables[cpu]);
 	}
 	kfree(drv->genpd_opp_tables);
 free_opp:
 	for_each_possible_cpu(cpu) {
-		if (IS_ERR_OR_NULL(drv->names_opp_tables[cpu]))
+		if (IS_ERR(drv->names_opp_tables[cpu]))
 			break;
 		dev_pm_opp_put_prop_name(drv->names_opp_tables[cpu]);
 	}
 	for_each_possible_cpu(cpu) {
-		if (IS_ERR_OR_NULL(drv->hw_opp_tables[cpu]))
+		if (IS_ERR(drv->hw_opp_tables[cpu]))
 			break;
 		dev_pm_opp_put_supported_hw(drv->hw_opp_tables[cpu]);
 	}
@@ -430,12 +430,9 @@ static int qcom_cpufreq_remove(struct platform_device *pdev)
 	platform_device_unregister(cpufreq_dt_pdev);
 
 	for_each_possible_cpu(cpu) {
-		if (drv->names_opp_tables[cpu])
-			dev_pm_opp_put_supported_hw(drv->names_opp_tables[cpu]);
-		if (drv->hw_opp_tables[cpu])
-			dev_pm_opp_put_supported_hw(drv->hw_opp_tables[cpu]);
-		if (drv->genpd_opp_tables[cpu])
-			dev_pm_opp_detach_genpd(drv->genpd_opp_tables[cpu]);
+		dev_pm_opp_put_supported_hw(drv->names_opp_tables[cpu]);
+		dev_pm_opp_put_supported_hw(drv->hw_opp_tables[cpu]);
+		dev_pm_opp_detach_genpd(drv->genpd_opp_tables[cpu]);
 	}
 
 	kfree(drv->names_opp_tables);
@@ -464,6 +461,7 @@ static const struct of_device_id qcom_cpufreq_match_list[] __initconst = {
 	{ .compatible = "qcom,msm8960", .data = &match_data_krait },
 	{},
 };
+MODULE_DEVICE_TABLE(of, qcom_cpufreq_match_list);
 
 /*
  * Since the driver depends on smem and nvmem drivers, which may

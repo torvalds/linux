@@ -139,7 +139,7 @@ static int evlist__init_callchain_streams(struct evlist *evlist,
 
 		hists__output_resort(hists, NULL);
 		init_hot_callchain(hists, &es[i]);
-		es[i].evsel_idx = pos->idx;
+		es[i].evsel_idx = pos->core.idx;
 		i++;
 	}
 

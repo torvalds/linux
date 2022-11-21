@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  */
@@ -39,10 +39,14 @@ int batadv_send_broadcast_skb(struct sk_buff *skb,
 			      struct batadv_hard_iface *hard_iface);
 int batadv_send_unicast_skb(struct sk_buff *skb,
 			    struct batadv_neigh_node *neigh_node);
-int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
-				    const struct sk_buff *skb,
-				    unsigned long delay,
-				    bool own_packet);
+int batadv_forw_bcast_packet(struct batadv_priv *bat_priv,
+			     struct sk_buff *skb,
+			     unsigned long delay,
+			     bool own_packet);
+void batadv_send_bcast_packet(struct batadv_priv *bat_priv,
+			      struct sk_buff *skb,
+			      unsigned long delay,
+			      bool own_packet);
 void
 batadv_purge_outstanding_packets(struct batadv_priv *bat_priv,
 				 const struct batadv_hard_iface *hard_iface);

@@ -559,6 +559,11 @@ int hw_atl_utils_fw_rpc_wait(struct aq_hw_s *self,
 			goto err_exit;
 
 		if (fw.len == 0xFFFFU) {
+			if (sw.len > sizeof(self->rpc)) {
+				printk(KERN_INFO "Invalid sw len: %x\n", sw.len);
+				err = -EINVAL;
+				goto err_exit;
+			}
 			err = hw_atl_utils_fw_rpc_call(self, sw.len);
 			if (err < 0)
 				goto err_exit;
@@ -567,6 +572,11 @@ int hw_atl_utils_fw_rpc_wait(struct aq_hw_s *self,
 
 	if (rpc) {
 		if (fw.len) {
+			if (fw.len > sizeof(self->rpc)) {
+				printk(KERN_INFO "Invalid fw len: %x\n", fw.len);
+				err = -EINVAL;
+				goto err_exit;
+			}
 			err =
 			hw_atl_utils_fw_downld_dwords(self,
 						      self->rpc_addr,
@@ -857,12 +867,20 @@ static int hw_atl_fw1x_deinit(struct aq_hw_s *self)
 int hw_atl_utils_update_stats(struct aq_hw_s *self)
 {
 	struct aq_stats_s *cs = &self->curr_stats;
+	struct aq_stats_s curr_stats = *cs;
 	struct hw_atl_utils_mbox mbox;
+	bool corrupted_stats = false;
 
 	hw_atl_utils_mpi_read_stats(self, &mbox);
 
-#define AQ_SDELTA(_N_) (self->curr_stats._N_ += \
-			mbox.stats._N_ - self->last_stats._N_)
+#define AQ_SDELTA(_N_)  \
+do { \
+	if (!corrupted_stats && \
+	    ((s64)(mbox.stats._N_ - self->last_stats._N_)) >= 0) \
+		curr_stats._N_ += mbox.stats._N_ - self->last_stats._N_; \
+	else \
+		corrupted_stats = true; \
+} while (0)
 
 	if (self->aq_link_status.mbps) {
 		AQ_SDELTA(uprc);
@@ -882,6 +900,9 @@ int hw_atl_utils_update_stats(struct aq_hw_s *self)
 		AQ_SDELTA(bbrc);
 		AQ_SDELTA(bbtc);
 		AQ_SDELTA(dpc);
+
+		if (!corrupted_stats)
+			*cs = curr_stats;
 	}
 #undef AQ_SDELTA
 
@@ -944,7 +965,7 @@ u32 hw_atl_utils_get_fw_version(struct aq_hw_s *self)
 }
 
 static int aq_fw1x_set_wake_magic(struct aq_hw_s *self, bool wol_enabled,
-				  u8 *mac)
+				  const u8 *mac)
 {
 	struct hw_atl_utils_fw_rpc *prpc = NULL;
 	unsigned int rpc_size = 0U;
@@ -987,7 +1008,7 @@ err_exit:
 }
 
 static int aq_fw1x_set_power(struct aq_hw_s *self, unsigned int power_state,
-			     u8 *mac)
+			     const u8 *mac)
 {
 	struct hw_atl_utils_fw_rpc *prpc = NULL;
 	unsigned int rpc_size = 0U;

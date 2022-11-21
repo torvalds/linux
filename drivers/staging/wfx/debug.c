@@ -31,8 +31,7 @@ static const struct trace_print_flags wfx_reg_print_map[] = {
 	wfx_reg_list,
 };
 
-static const char *get_symbol(unsigned long val,
-			      const struct trace_print_flags *symbol_array)
+static const char *get_symbol(unsigned long val, const struct trace_print_flags *symbol_array)
 {
 	int i;
 
@@ -44,17 +43,17 @@ static const char *get_symbol(unsigned long val,
 	return "unknown";
 }
 
-const char *get_hif_name(unsigned long id)
+const char *wfx_get_hif_name(unsigned long id)
 {
 	return get_symbol(id, hif_msg_print_map);
 }
 
-const char *get_mib_name(unsigned long id)
+const char *wfx_get_mib_name(unsigned long id)
 {
 	return get_symbol(id, hif_mib_print_map);
 }
 
-const char *get_reg_name(unsigned long id)
+const char *wfx_get_reg_name(unsigned long id)
 {
 	return get_symbol(id, wfx_reg_print_map);
 }
@@ -63,52 +62,55 @@ static int wfx_counters_show(struct seq_file *seq, void *v)
 {
 	int ret, i;
 	struct wfx_dev *wdev = seq->private;
-	struct hif_mib_extended_count_table counters[3];
+	struct wfx_hif_mib_extended_count_table counters[3];
 
 	for (i = 0; i < ARRAY_SIZE(counters); i++) {
-		ret = hif_get_counters_table(wdev, i, counters + i);
+		ret = wfx_hif_get_counters_table(wdev, i, counters + i);
 		if (ret < 0)
 			return ret;
 		if (ret > 0)
 			return -EIO;
 	}
 
-	seq_printf(seq, "%-24s %12s %12s %12s\n",
-		   "", "global", "iface 0", "iface 1");
+	seq_printf(seq, "%-24s %12s %12s %12s\n", "", "global", "iface 0", "iface 1");
 
 #define PUT_COUNTER(name) \
-	seq_printf(seq, "%-24s %12d %12d %12d\n", #name, \
+	seq_printf(seq, "%-24s %12d %12d %12d\n", #name,  \
 		   le32_to_cpu(counters[2].count_##name), \
 		   le32_to_cpu(counters[0].count_##name), \
 		   le32_to_cpu(counters[1].count_##name))
 
-	PUT_COUNTER(tx_packets);
-	PUT_COUNTER(tx_multicast_frames);
+	PUT_COUNTER(tx_frames);
+	PUT_COUNTER(tx_frames_multicast);
 	PUT_COUNTER(tx_frames_success);
-	PUT_COUNTER(tx_frame_failures);
 	PUT_COUNTER(tx_frames_retried);
 	PUT_COUNTER(tx_frames_multi_retried);
+	PUT_COUNTER(tx_frames_failed);
 
+	PUT_COUNTER(ack_failed);
 	PUT_COUNTER(rts_success);
-	PUT_COUNTER(rts_failures);
-	PUT_COUNTER(ack_failures);
+	PUT_COUNTER(rts_failed);
 
-	PUT_COUNTER(rx_packets);
+	PUT_COUNTER(rx_frames);
+	PUT_COUNTER(rx_frames_multicast);
 	PUT_COUNTER(rx_frames_success);
-	PUT_COUNTER(rx_packet_errors);
-	PUT_COUNTER(plcp_errors);
-	PUT_COUNTER(fcs_errors);
-	PUT_COUNTER(rx_decryption_failures);
-	PUT_COUNTER(rx_mic_failures);
-	PUT_COUNTER(rx_no_key_failures);
-	PUT_COUNTER(rx_frame_duplicates);
-	PUT_COUNTER(rx_multicast_frames);
-	PUT_COUNTER(rx_cmacicv_errors);
-	PUT_COUNTER(rx_cmac_replays);
-	PUT_COUNTER(rx_mgmt_ccmp_replays);
+	PUT_COUNTER(rx_frames_failed);
+	PUT_COUNTER(drop_plcp);
+	PUT_COUNTER(drop_fcs);
+	PUT_COUNTER(drop_no_key);
+	PUT_COUNTER(drop_decryption);
+	PUT_COUNTER(drop_tkip_mic);
+	PUT_COUNTER(drop_bip_mic);
+	PUT_COUNTER(drop_cmac_icv);
+	PUT_COUNTER(drop_cmac_replay);
+	PUT_COUNTER(drop_ccmp_replay);
+	PUT_COUNTER(drop_duplicate);
 
-	PUT_COUNTER(rx_beacon);
-	PUT_COUNTER(miss_beacon);
+	PUT_COUNTER(rx_bcn_miss);
+	PUT_COUNTER(rx_bcn_success);
+	PUT_COUNTER(rx_bcn_dtim);
+	PUT_COUNTER(rx_bcn_dtim_aid0_clr);
+	PUT_COUNTER(rx_bcn_dtim_aid0_set);
 
 #undef PUT_COUNTER
 
@@ -149,16 +151,14 @@ static const char * const channel_names[] = {
 static int wfx_rx_stats_show(struct seq_file *seq, void *v)
 {
 	struct wfx_dev *wdev = seq->private;
-	struct hif_rx_stats *st = &wdev->rx_stats;
+	struct wfx_hif_rx_stats *st = &wdev->rx_stats;
 	int i;
 
 	mutex_lock(&wdev->rx_stats_lock);
 	seq_printf(seq, "Timestamp: %dus\n", st->date);
 	seq_printf(seq, "Low power clock: frequency %uHz, external %s\n",
-		   le32_to_cpu(st->pwr_clk_freq),
-		   st->is_ext_pwr_clk ? "yes" : "no");
-	seq_printf(seq,
-		   "Num. of frames: %d, PER (x10e4): %d, Throughput: %dKbps/s\n",
+		   le32_to_cpu(st->pwr_clk_freq), st->is_ext_pwr_clk ? "yes" : "no");
+	seq_printf(seq, "Num. of frames: %d, PER (x10e4): %d, Throughput: %dKbps/s\n",
 		   st->nb_rx_frame, st->per_total, st->throughput);
 	seq_puts(seq, "       Num. of      PER     RSSI      SNR      CFO\n");
 	seq_puts(seq, "        frames  (x10e4)    (dBm)     (dB)    (kHz)\n");
@@ -181,7 +181,7 @@ DEFINE_SHOW_ATTRIBUTE(wfx_rx_stats);
 static int wfx_tx_power_loop_show(struct seq_file *seq, void *v)
 {
 	struct wfx_dev *wdev = seq->private;
-	struct hif_tx_power_loop_info *st = &wdev->tx_power_loop_info;
+	struct wfx_hif_tx_power_loop_info *st = &wdev->tx_power_loop_info;
 	int tmp;
 
 	mutex_lock(&wdev->tx_power_loop_info_lock);
@@ -202,8 +202,7 @@ static int wfx_tx_power_loop_show(struct seq_file *seq, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(wfx_tx_power_loop);
 
-static ssize_t wfx_send_pds_write(struct file *file,
-				  const char __user *user_buf,
+static ssize_t wfx_send_pds_write(struct file *file, const char __user *user_buf,
 				  size_t count, loff_t *ppos)
 {
 	struct wfx_dev *wdev = file->private_data;
@@ -237,24 +236,24 @@ struct dbgfs_hif_msg {
 	int ret;
 };
 
-static ssize_t wfx_send_hif_msg_write(struct file *file,
-				      const char __user *user_buf,
+static ssize_t wfx_send_hif_msg_write(struct file *file, const char __user *user_buf,
 				      size_t count, loff_t *ppos)
 {
 	struct dbgfs_hif_msg *context = file->private_data;
 	struct wfx_dev *wdev = context->wdev;
-	struct hif_msg *request;
+	struct wfx_hif_msg *request;
 
 	if (completion_done(&context->complete)) {
 		dev_dbg(wdev->dev, "read previous result before start a new one\n");
 		return -EBUSY;
 	}
-	if (count < sizeof(struct hif_msg))
+	if (count < sizeof(struct wfx_hif_msg))
 		return -EINVAL;
 
-	// wfx_cmd_send() checks that reply buffer is wide enough, but does not
-	// return precise length read. User have to know how many bytes should
-	// be read. Filling reply buffer with a memory pattern may help user.
+	/* wfx_cmd_send() checks that reply buffer is wide enough, but does not return precise
+	 * length read. User have to know how many bytes should be read. Filling reply buffer with a
+	 * memory pattern may help user.
+	 */
 	memset(context->reply, 0xFF, sizeof(context->reply));
 	request = memdup_user(user_buf, count);
 	if (IS_ERR(request))
@@ -263,8 +262,7 @@ static ssize_t wfx_send_hif_msg_write(struct file *file,
 		kfree(request);
 		return -EINVAL;
 	}
-	context->ret = wfx_cmd_send(wdev, request, context->reply,
-				    sizeof(context->reply), false);
+	context->ret = wfx_cmd_send(wdev, request, context->reply, sizeof(context->reply), false);
 
 	kfree(request);
 	complete(&context->complete);
@@ -284,8 +282,7 @@ static ssize_t wfx_send_hif_msg_read(struct file *file, char __user *user_buf,
 		return ret;
 	if (context->ret < 0)
 		return context->ret;
-	// Be careful, write() is waiting for a full message while read()
-	// only returns a payload
+	/* Be careful, write() is waiting for a full message while read() only returns a payload */
 	if (copy_to_user(user_buf, context->reply, count))
 		return -EFAULT;
 
@@ -319,28 +316,6 @@ static const struct file_operations wfx_send_hif_msg_fops = {
 	.read = wfx_send_hif_msg_read,
 };
 
-static int wfx_ps_timeout_set(void *data, u64 val)
-{
-	struct wfx_dev *wdev = (struct wfx_dev *)data;
-	struct wfx_vif *wvif;
-
-	wdev->force_ps_timeout = val;
-	wvif = NULL;
-	while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
-		wfx_update_pm(wvif);
-	return 0;
-}
-
-static int wfx_ps_timeout_get(void *data, u64 *val)
-{
-	struct wfx_dev *wdev = (struct wfx_dev *)data;
-
-	*val = wdev->force_ps_timeout;
-	return 0;
-}
-
-DEFINE_DEBUGFS_ATTRIBUTE(wfx_ps_timeout_fops, wfx_ps_timeout_get, wfx_ps_timeout_set, "%lld\n");
-
 int wfx_debug_init(struct wfx_dev *wdev)
 {
 	struct dentry *d;
@@ -348,12 +323,9 @@ int wfx_debug_init(struct wfx_dev *wdev)
 	d = debugfs_create_dir("wfx", wdev->hw->wiphy->debugfsdir);
 	debugfs_create_file("counters", 0444, d, wdev, &wfx_counters_fops);
 	debugfs_create_file("rx_stats", 0444, d, wdev, &wfx_rx_stats_fops);
-	debugfs_create_file("tx_power_loop", 0444, d, wdev,
-			    &wfx_tx_power_loop_fops);
+	debugfs_create_file("tx_power_loop", 0444, d, wdev, &wfx_tx_power_loop_fops);
 	debugfs_create_file("send_pds", 0200, d, wdev, &wfx_send_pds_fops);
-	debugfs_create_file("send_hif_msg", 0600, d, wdev,
-			    &wfx_send_hif_msg_fops);
-	debugfs_create_file("ps_timeout", 0600, d, wdev, &wfx_ps_timeout_fops);
+	debugfs_create_file("send_hif_msg", 0600, d, wdev, &wfx_send_hif_msg_fops);
 
 	return 0;
 }

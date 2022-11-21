@@ -130,10 +130,9 @@ static int mq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct net_device *dev = qdisc_dev(sch);
 	struct Qdisc *qdisc;
 	unsigned int ntx;
-	__u32 qlen = 0;
 
 	sch->q.qlen = 0;
-	memset(&sch->bstats, 0, sizeof(sch->bstats));
+	gnet_stats_basic_sync_init(&sch->bstats);
 	memset(&sch->qstats, 0, sizeof(sch->qstats));
 
 	/* MQ supports lockless qdiscs. However, statistics accounting needs
@@ -145,25 +144,11 @@ static int mq_dump(struct Qdisc *sch, struct sk_buff *skb)
 		qdisc = netdev_get_tx_queue(dev, ntx)->qdisc_sleeping;
 		spin_lock_bh(qdisc_lock(qdisc));
 
-		if (qdisc_is_percpu_stats(qdisc)) {
-			qlen = qdisc_qlen_sum(qdisc);
-			__gnet_stats_copy_basic(NULL, &sch->bstats,
-						qdisc->cpu_bstats,
-						&qdisc->bstats);
-			__gnet_stats_copy_queue(&sch->qstats,
-						qdisc->cpu_qstats,
-						&qdisc->qstats, qlen);
-			sch->q.qlen		+= qlen;
-		} else {
-			sch->q.qlen		+= qdisc->q.qlen;
-			sch->bstats.bytes	+= qdisc->bstats.bytes;
-			sch->bstats.packets	+= qdisc->bstats.packets;
-			sch->qstats.qlen	+= qdisc->qstats.qlen;
-			sch->qstats.backlog	+= qdisc->qstats.backlog;
-			sch->qstats.drops	+= qdisc->qstats.drops;
-			sch->qstats.requeues	+= qdisc->qstats.requeues;
-			sch->qstats.overlimits	+= qdisc->qstats.overlimits;
-		}
+		gnet_stats_add_basic(&sch->bstats, qdisc->cpu_bstats,
+				     &qdisc->bstats, false);
+		gnet_stats_add_queue(&sch->qstats, qdisc->cpu_qstats,
+				     &qdisc->qstats);
+		sch->q.qlen += qdisc_qlen(qdisc);
 
 		spin_unlock_bh(qdisc_lock(qdisc));
 	}
@@ -246,8 +231,7 @@ static int mq_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	struct netdev_queue *dev_queue = mq_queue_get(sch, cl);
 
 	sch = dev_queue->qdisc_sleeping;
-	if (gnet_stats_copy_basic(&sch->running, d, sch->cpu_bstats,
-				  &sch->bstats) < 0 ||
+	if (gnet_stats_copy_basic(d, sch->cpu_bstats, &sch->bstats, true) < 0 ||
 	    qdisc_qstats_copy(d, sch) < 0)
 		return -1;
 	return 0;
@@ -288,6 +272,7 @@ struct Qdisc_ops mq_qdisc_ops __read_mostly = {
 	.init		= mq_init,
 	.destroy	= mq_destroy,
 	.attach		= mq_attach,
+	.change_real_num_tx = mq_change_real_num_tx,
 	.dump		= mq_dump,
 	.owner		= THIS_MODULE,
 };

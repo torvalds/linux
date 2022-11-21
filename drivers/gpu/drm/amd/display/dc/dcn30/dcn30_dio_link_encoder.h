@@ -78,4 +78,8 @@ void dcn30_link_encoder_construct(
 
 void enc3_hw_init(struct link_encoder *enc);
 
+bool dcn30_link_encoder_validate_output_with_stream(
+	struct link_encoder *enc,
+	const struct dc_stream_state *stream);
+
 #endif /* __DC_LINK_ENCODER__DCN30_H__ */

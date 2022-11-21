@@ -864,7 +864,8 @@ static void ath10k_qmi_event_server_exit(struct ath10k_qmi *qmi)
 
 	ath10k_qmi_remove_msa_permission(qmi);
 	ath10k_core_free_board_files(ar);
-	if (!test_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_snoc->flags))
+	if (!test_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_snoc->flags) &&
+	    !test_bit(ATH10K_SNOC_FLAG_MODEM_STOPPED, &ar_snoc->flags))
 		ath10k_snoc_fw_crashed_dump(ar);
 
 	ath10k_snoc_fw_indication(ar, ATH10K_QMI_EVENT_FW_DOWN_IND);
@@ -917,7 +918,7 @@ static void ath10k_qmi_msa_ready_ind(struct qmi_handle *qmi_hdl,
 	ath10k_qmi_driver_event_post(qmi, ATH10K_QMI_EVENT_MSA_READY_IND, NULL);
 }
 
-static struct qmi_msg_handler qmi_msg_handler[] = {
+static const struct qmi_msg_handler qmi_msg_handler[] = {
 	{
 		.type = QMI_INDICATION,
 		.msg_id = QMI_WLFW_FW_READY_IND_V01,
@@ -981,7 +982,7 @@ static void ath10k_qmi_del_server(struct qmi_handle *qmi_hdl,
 					     NULL);
 }
 
-static struct qmi_ops ath10k_qmi_ops = {
+static const struct qmi_ops ath10k_qmi_ops = {
 	.new_server = ath10k_qmi_new_server,
 	.del_server = ath10k_qmi_del_server,
 };

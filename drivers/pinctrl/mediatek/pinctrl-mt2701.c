@@ -270,13 +270,6 @@ static const struct mtk_pin_spec_pupd_set_samereg mt2701_spec_pupd[] = {
 	MTK_PIN_PUPD_SPEC_SR(261, 0x140, 8, 9, 10),	/* ms1 ins */
 };
 
-static int mt2701_spec_pull_set(struct regmap *regmap, unsigned int pin,
-		unsigned char align, bool isup, unsigned int r1r0)
-{
-	return mtk_pctrl_spec_pull_set_samereg(regmap, mt2701_spec_pupd,
-		ARRAY_SIZE(mt2701_spec_pupd), pin, align, isup, r1r0);
-}
-
 static const struct mtk_pin_ies_smt_set mt2701_ies_set[] = {
 	MTK_PIN_IES_SMT_SPEC(0, 6, 0xb20, 0),
 	MTK_PIN_IES_SMT_SPEC(7, 9, 0xb20, 1),
@@ -436,18 +429,6 @@ static const struct mtk_pin_ies_smt_set mt2701_smt_set[] = {
 	MTK_PIN_IES_SMT_SPEC(278, 278, 0xb70, 13),
 };
 
-static int mt2701_ies_smt_set(struct regmap *regmap, unsigned int pin,
-		unsigned char align, int value, enum pin_config_param arg)
-{
-	if (arg == PIN_CONFIG_INPUT_ENABLE)
-		return mtk_pconf_spec_set_ies_smt_range(regmap, mt2701_ies_set,
-			ARRAY_SIZE(mt2701_ies_set), pin, align, value);
-	else if (arg == PIN_CONFIG_INPUT_SCHMITT_ENABLE)
-		return mtk_pconf_spec_set_ies_smt_range(regmap, mt2701_smt_set,
-			ARRAY_SIZE(mt2701_smt_set), pin, align, value);
-	return -EINVAL;
-}
-
 static const struct mtk_spec_pinmux_set mt2701_spec_pinmux[] = {
 	MTK_PINMUX_SPEC(22, 0xb10, 3),
 	MTK_PINMUX_SPEC(23, 0xb10, 4),
@@ -508,8 +489,14 @@ static const struct mtk_pinctrl_devdata mt2701_pinctrl_data = {
 	.n_grp_cls = ARRAY_SIZE(mt2701_drv_grp),
 	.pin_drv_grp = mt2701_pin_drv,
 	.n_pin_drv_grps = ARRAY_SIZE(mt2701_pin_drv),
-	.spec_pull_set = mt2701_spec_pull_set,
-	.spec_ies_smt_set = mt2701_ies_smt_set,
+	.spec_ies = mt2701_ies_set,
+	.n_spec_ies = ARRAY_SIZE(mt2701_ies_set),
+	.spec_pupd = mt2701_spec_pupd,
+	.n_spec_pupd = ARRAY_SIZE(mt2701_spec_pupd),
+	.spec_smt = mt2701_smt_set,
+	.n_spec_smt = ARRAY_SIZE(mt2701_smt_set),
+	.spec_pull_set = mtk_pctrl_spec_pull_set_samereg,
+	.spec_ies_smt_set = mtk_pconf_spec_set_ies_smt_range,
 	.spec_pinmux_set = mt2701_spec_pinmux_set,
 	.spec_dir_set = mt2701_spec_dir_set,
 	.dir_offset = 0x0000,
@@ -523,6 +510,9 @@ static const struct mtk_pinctrl_devdata mt2701_pinctrl_data = {
 	.port_shf = 4,
 	.port_mask = 0x1f,
 	.port_align = 4,
+	.mode_mask = 0xf,
+	.mode_per_reg = 5,
+	.mode_shf = 4,
 	.eint_hw = {
 		.port_mask = 6,
 		.ports     = 6,
@@ -531,20 +521,15 @@ static const struct mtk_pinctrl_devdata mt2701_pinctrl_data = {
 	},
 };
 
-static int mt2701_pinctrl_probe(struct platform_device *pdev)
-{
-	return mtk_pctrl_init(pdev, &mt2701_pinctrl_data, NULL);
-}
-
 static const struct of_device_id mt2701_pctrl_match[] = {
-	{ .compatible = "mediatek,mt2701-pinctrl", },
-	{ .compatible = "mediatek,mt7623-pinctrl", },
+	{ .compatible = "mediatek,mt2701-pinctrl", .data = &mt2701_pinctrl_data },
+	{ .compatible = "mediatek,mt7623-pinctrl", .data = &mt2701_pinctrl_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, mt2701_pctrl_match);
 
 static struct platform_driver mtk_pinctrl_driver = {
-	.probe = mt2701_pinctrl_probe,
+	.probe = mtk_pctrl_common_probe,
 	.driver = {
 		.name = "mediatek-mt2701-pinctrl",
 		.of_match_table = mt2701_pctrl_match,

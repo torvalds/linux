@@ -66,6 +66,7 @@ config USB_SERIAL_SIMPLE
 		- Libtransistor USB console
 		- a number of Motorola phones
 		- Motorola Tetra devices
+		- Nokia mobile phones
 		- Novatel Wireless GPS receivers
 		- Siemens USB/MPI adapter.
 		- ViVOtech ViVOpay USB device.
@@ -298,12 +299,12 @@ config USB_SERIAL_IUU
 	  module will be called iuu_phoenix.o
 
 config USB_SERIAL_KEYSPAN_PDA
-	tristate "USB Keyspan PDA Single Port Serial Driver"
+	tristate "USB Keyspan PDA / Xircom Single Port Serial Driver"
 	select USB_EZUSB_FX2
 	help
-	  Say Y here if you want to use a Keyspan PDA single port USB to
-	  serial converter device.  This driver makes use of firmware
-	  developed from scratch by Brian Warner.
+	  Say Y here if you want to use a Keyspan PDA, Xircom or Entrega single
+	  port USB to serial converter device. This driver makes use of
+	  firmware developed from scratch by Brian Warner.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called keyspan_pda.
@@ -538,17 +539,6 @@ config USB_SERIAL_CYBERJACK
 
 	  If unsure, say N.
 
-config USB_SERIAL_XIRCOM
-	tristate "USB Xircom / Entrega Single Port Serial Driver"
-	select USB_EZUSB_FX2
-	help
-	  Say Y here if you want to use a Xircom or Entrega single port USB to
-	  serial converter device.  This driver makes use of firmware
-	  developed from scratch by Brian Warner.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called keyspan_pda.
-
 config USB_SERIAL_WWAN
 	tristate
 
@@ -643,6 +633,15 @@ config USB_SERIAL_UPD78F0730
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called upd78f0730.
+
+config USB_SERIAL_XR
+	tristate "USB MaxLinear/Exar USB to Serial driver"
+	help
+	  Say Y here if you want to use MaxLinear/Exar USB to Serial converter
+	  devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xr_serial.
 
 config USB_SERIAL_DEBUG
 	tristate "USB Debugging Device"

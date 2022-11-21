@@ -16,401 +16,23 @@ static char *idxd_wq_type_names[] = {
 	[IDXD_WQT_USER]		= "user",
 };
 
-static void idxd_conf_device_release(struct device *dev)
-{
-	dev_dbg(dev, "%s for %s\n", __func__, dev_name(dev));
-}
-
-static struct device_type idxd_group_device_type = {
-	.name = "group",
-	.release = idxd_conf_device_release,
-};
-
-static struct device_type idxd_wq_device_type = {
-	.name = "wq",
-	.release = idxd_conf_device_release,
-};
-
-static struct device_type idxd_engine_device_type = {
-	.name = "engine",
-	.release = idxd_conf_device_release,
-};
-
-static struct device_type dsa_device_type = {
-	.name = "dsa",
-	.release = idxd_conf_device_release,
-};
-
-static inline bool is_dsa_dev(struct device *dev)
-{
-	return dev ? dev->type == &dsa_device_type : false;
-}
-
-static inline bool is_idxd_dev(struct device *dev)
-{
-	return is_dsa_dev(dev);
-}
-
-static inline bool is_idxd_wq_dev(struct device *dev)
-{
-	return dev ? dev->type == &idxd_wq_device_type : false;
-}
-
-static inline bool is_idxd_wq_dmaengine(struct idxd_wq *wq)
-{
-	if (wq->type == IDXD_WQT_KERNEL &&
-	    strcmp(wq->name, "dmaengine") == 0)
-		return true;
-	return false;
-}
-
-static inline bool is_idxd_wq_cdev(struct idxd_wq *wq)
-{
-	return wq->type == IDXD_WQT_USER;
-}
-
-static int idxd_config_bus_match(struct device *dev,
-				 struct device_driver *drv)
-{
-	int matched = 0;
-
-	if (is_idxd_dev(dev)) {
-		struct idxd_device *idxd = confdev_to_idxd(dev);
-
-		if (idxd->state != IDXD_DEV_CONF_READY)
-			return 0;
-		matched = 1;
-	} else if (is_idxd_wq_dev(dev)) {
-		struct idxd_wq *wq = confdev_to_wq(dev);
-		struct idxd_device *idxd = wq->idxd;
-
-		if (idxd->state < IDXD_DEV_CONF_READY)
-			return 0;
-
-		if (wq->state != IDXD_WQ_DISABLED) {
-			dev_dbg(dev, "%s not disabled\n", dev_name(dev));
-			return 0;
-		}
-		matched = 1;
-	}
-
-	if (matched)
-		dev_dbg(dev, "%s matched\n", dev_name(dev));
-
-	return matched;
-}
-
-static int idxd_config_bus_probe(struct device *dev)
-{
-	int rc;
-	unsigned long flags;
-
-	dev_dbg(dev, "%s called\n", __func__);
-
-	if (is_idxd_dev(dev)) {
-		struct idxd_device *idxd = confdev_to_idxd(dev);
-
-		if (idxd->state != IDXD_DEV_CONF_READY) {
-			dev_warn(dev, "Device not ready for config\n");
-			return -EBUSY;
-		}
-
-		if (!try_module_get(THIS_MODULE))
-			return -ENXIO;
-
-		/* Perform IDXD configuration and enabling */
-		spin_lock_irqsave(&idxd->dev_lock, flags);
-		rc = idxd_device_config(idxd);
-		spin_unlock_irqrestore(&idxd->dev_lock, flags);
-		if (rc < 0) {
-			module_put(THIS_MODULE);
-			dev_warn(dev, "Device config failed: %d\n", rc);
-			return rc;
-		}
-
-		/* start device */
-		rc = idxd_device_enable(idxd);
-		if (rc < 0) {
-			module_put(THIS_MODULE);
-			dev_warn(dev, "Device enable failed: %d\n", rc);
-			return rc;
-		}
-
-		dev_info(dev, "Device %s enabled\n", dev_name(dev));
-
-		rc = idxd_register_dma_device(idxd);
-		if (rc < 0) {
-			module_put(THIS_MODULE);
-			dev_dbg(dev, "Failed to register dmaengine device\n");
-			return rc;
-		}
-		return 0;
-	} else if (is_idxd_wq_dev(dev)) {
-		struct idxd_wq *wq = confdev_to_wq(dev);
-		struct idxd_device *idxd = wq->idxd;
-
-		mutex_lock(&wq->wq_lock);
-
-		if (idxd->state != IDXD_DEV_ENABLED) {
-			mutex_unlock(&wq->wq_lock);
-			dev_warn(dev, "Enabling while device not enabled.\n");
-			return -EPERM;
-		}
-
-		if (wq->state != IDXD_WQ_DISABLED) {
-			mutex_unlock(&wq->wq_lock);
-			dev_warn(dev, "WQ %d already enabled.\n", wq->id);
-			return -EBUSY;
-		}
-
-		if (!wq->group) {
-			mutex_unlock(&wq->wq_lock);
-			dev_warn(dev, "WQ not attached to group.\n");
-			return -EINVAL;
-		}
-
-		if (strlen(wq->name) == 0) {
-			mutex_unlock(&wq->wq_lock);
-			dev_warn(dev, "WQ name not set.\n");
-			return -EINVAL;
-		}
-
-		rc = idxd_wq_alloc_resources(wq);
-		if (rc < 0) {
-			mutex_unlock(&wq->wq_lock);
-			dev_warn(dev, "WQ resource alloc failed\n");
-			return rc;
-		}
-
-		spin_lock_irqsave(&idxd->dev_lock, flags);
-		rc = idxd_device_config(idxd);
-		spin_unlock_irqrestore(&idxd->dev_lock, flags);
-		if (rc < 0) {
-			mutex_unlock(&wq->wq_lock);
-			dev_warn(dev, "Writing WQ %d config failed: %d\n",
-				 wq->id, rc);
-			return rc;
-		}
-
-		rc = idxd_wq_enable(wq);
-		if (rc < 0) {
-			mutex_unlock(&wq->wq_lock);
-			dev_warn(dev, "WQ %d enabling failed: %d\n",
-				 wq->id, rc);
-			return rc;
-		}
-
-		rc = idxd_wq_map_portal(wq);
-		if (rc < 0) {
-			dev_warn(dev, "wq portal mapping failed: %d\n", rc);
-			rc = idxd_wq_disable(wq);
-			if (rc < 0)
-				dev_warn(dev, "IDXD wq disable failed\n");
-			mutex_unlock(&wq->wq_lock);
-			return rc;
-		}
-
-		wq->client_count = 0;
-
-		dev_info(dev, "wq %s enabled\n", dev_name(&wq->conf_dev));
-
-		if (is_idxd_wq_dmaengine(wq)) {
-			rc = idxd_register_dma_channel(wq);
-			if (rc < 0) {
-				dev_dbg(dev, "DMA channel register failed\n");
-				mutex_unlock(&wq->wq_lock);
-				return rc;
-			}
-		} else if (is_idxd_wq_cdev(wq)) {
-			rc = idxd_wq_add_cdev(wq);
-			if (rc < 0) {
-				dev_dbg(dev, "Cdev creation failed\n");
-				mutex_unlock(&wq->wq_lock);
-				return rc;
-			}
-		}
-
-		mutex_unlock(&wq->wq_lock);
-		return 0;
-	}
-
-	return -ENODEV;
-}
-
-static void disable_wq(struct idxd_wq *wq)
-{
-	struct idxd_device *idxd = wq->idxd;
-	struct device *dev = &idxd->pdev->dev;
-	int rc;
-
-	mutex_lock(&wq->wq_lock);
-	dev_dbg(dev, "%s removing WQ %s\n", __func__, dev_name(&wq->conf_dev));
-	if (wq->state == IDXD_WQ_DISABLED) {
-		mutex_unlock(&wq->wq_lock);
-		return;
-	}
-
-	if (is_idxd_wq_dmaengine(wq))
-		idxd_unregister_dma_channel(wq);
-	else if (is_idxd_wq_cdev(wq))
-		idxd_wq_del_cdev(wq);
-
-	if (idxd_wq_refcount(wq))
-		dev_warn(dev, "Clients has claim on wq %d: %d\n",
-			 wq->id, idxd_wq_refcount(wq));
-
-	idxd_wq_unmap_portal(wq);
-
-	idxd_wq_drain(wq);
-	rc = idxd_wq_disable(wq);
-
-	idxd_wq_free_resources(wq);
-	wq->client_count = 0;
-	mutex_unlock(&wq->wq_lock);
-
-	if (rc < 0)
-		dev_warn(dev, "Failed to disable %s: %d\n",
-			 dev_name(&wq->conf_dev), rc);
-	else
-		dev_info(dev, "wq %s disabled\n", dev_name(&wq->conf_dev));
-}
-
-static int idxd_config_bus_remove(struct device *dev)
-{
-	int rc;
-
-	dev_dbg(dev, "%s called for %s\n", __func__, dev_name(dev));
-
-	/* disable workqueue here */
-	if (is_idxd_wq_dev(dev)) {
-		struct idxd_wq *wq = confdev_to_wq(dev);
-
-		disable_wq(wq);
-	} else if (is_idxd_dev(dev)) {
-		struct idxd_device *idxd = confdev_to_idxd(dev);
-		int i;
-
-		dev_dbg(dev, "%s removing dev %s\n", __func__,
-			dev_name(&idxd->conf_dev));
-		for (i = 0; i < idxd->max_wqs; i++) {
-			struct idxd_wq *wq = &idxd->wqs[i];
-
-			if (wq->state == IDXD_WQ_DISABLED)
-				continue;
-			dev_warn(dev, "Active wq %d on disable %s.\n", i,
-				 dev_name(&idxd->conf_dev));
-			device_release_driver(&wq->conf_dev);
-		}
-
-		idxd_unregister_dma_device(idxd);
-		rc = idxd_device_disable(idxd);
-		for (i = 0; i < idxd->max_wqs; i++) {
-			struct idxd_wq *wq = &idxd->wqs[i];
-
-			mutex_lock(&wq->wq_lock);
-			idxd_wq_disable_cleanup(wq);
-			mutex_unlock(&wq->wq_lock);
-		}
-		module_put(THIS_MODULE);
-		if (rc < 0)
-			dev_warn(dev, "Device disable failed\n");
-		else
-			dev_info(dev, "Device %s disabled\n", dev_name(dev));
-
-	}
-
-	return 0;
-}
-
-static void idxd_config_bus_shutdown(struct device *dev)
-{
-	dev_dbg(dev, "%s called\n", __func__);
-}
-
-struct bus_type dsa_bus_type = {
-	.name = "dsa",
-	.match = idxd_config_bus_match,
-	.probe = idxd_config_bus_probe,
-	.remove = idxd_config_bus_remove,
-	.shutdown = idxd_config_bus_shutdown,
-};
-
-static struct bus_type *idxd_bus_types[] = {
-	&dsa_bus_type
-};
-
-static struct idxd_device_driver dsa_drv = {
-	.drv = {
-		.name = "dsa",
-		.bus = &dsa_bus_type,
-		.owner = THIS_MODULE,
-		.mod_name = KBUILD_MODNAME,
-	},
-};
-
-static struct idxd_device_driver *idxd_drvs[] = {
-	&dsa_drv
-};
-
-struct bus_type *idxd_get_bus_type(struct idxd_device *idxd)
-{
-	return idxd_bus_types[idxd->type];
-}
-
-static struct device_type *idxd_get_device_type(struct idxd_device *idxd)
-{
-	if (idxd->type == IDXD_TYPE_DSA)
-		return &dsa_device_type;
-	else
-		return NULL;
-}
-
-/* IDXD generic driver setup */
-int idxd_register_driver(void)
-{
-	int i, rc;
-
-	for (i = 0; i < IDXD_TYPE_MAX; i++) {
-		rc = driver_register(&idxd_drvs[i]->drv);
-		if (rc < 0)
-			goto drv_fail;
-	}
-
-	return 0;
-
-drv_fail:
-	for (; i > 0; i--)
-		driver_unregister(&idxd_drvs[i]->drv);
-	return rc;
-}
-
-void idxd_unregister_driver(void)
-{
-	int i;
-
-	for (i = 0; i < IDXD_TYPE_MAX; i++)
-		driver_unregister(&idxd_drvs[i]->drv);
-}
-
 /* IDXD engine attributes */
 static ssize_t engine_group_id_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct idxd_engine *engine =
-		container_of(dev, struct idxd_engine, conf_dev);
+	struct idxd_engine *engine = confdev_to_engine(dev);
 
 	if (engine->group)
-		return sprintf(buf, "%d\n", engine->group->id);
+		return sysfs_emit(buf, "%d\n", engine->group->id);
 	else
-		return sprintf(buf, "%d\n", -1);
+		return sysfs_emit(buf, "%d\n", -1);
 }
 
 static ssize_t engine_group_id_store(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	struct idxd_engine *engine =
-		container_of(dev, struct idxd_engine, conf_dev);
+	struct idxd_engine *engine = confdev_to_engine(dev);
 	struct idxd_device *idxd = engine->idxd;
 	long id;
 	int rc;
@@ -438,7 +60,7 @@ static ssize_t engine_group_id_store(struct device *dev,
 
 	if (prevg)
 		prevg->num_engines--;
-	engine->group = &idxd->groups[id];
+	engine->group = idxd->groups[id];
 	engine->group->num_engines++;
 
 	return count;
@@ -462,37 +84,56 @@ static const struct attribute_group *idxd_engine_attribute_groups[] = {
 	NULL,
 };
 
+static void idxd_conf_engine_release(struct device *dev)
+{
+	struct idxd_engine *engine = confdev_to_engine(dev);
+
+	kfree(engine);
+}
+
+struct device_type idxd_engine_device_type = {
+	.name = "engine",
+	.release = idxd_conf_engine_release,
+	.groups = idxd_engine_attribute_groups,
+};
+
 /* Group attributes */
 
-static void idxd_set_free_tokens(struct idxd_device *idxd)
+static void idxd_set_free_rdbufs(struct idxd_device *idxd)
 {
-	int i, tokens;
+	int i, rdbufs;
 
-	for (i = 0, tokens = 0; i < idxd->max_groups; i++) {
-		struct idxd_group *g = &idxd->groups[i];
+	for (i = 0, rdbufs = 0; i < idxd->max_groups; i++) {
+		struct idxd_group *g = idxd->groups[i];
 
-		tokens += g->tokens_reserved;
+		rdbufs += g->rdbufs_reserved;
 	}
 
-	idxd->nr_tokens = idxd->max_tokens - tokens;
+	idxd->nr_rdbufs = idxd->max_rdbufs - rdbufs;
+}
+
+static ssize_t group_read_buffers_reserved_show(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct idxd_group *group = confdev_to_group(dev);
+
+	return sysfs_emit(buf, "%u\n", group->rdbufs_reserved);
 }
 
 static ssize_t group_tokens_reserved_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct idxd_group *group =
-		container_of(dev, struct idxd_group, conf_dev);
-
-	return sprintf(buf, "%u\n", group->tokens_reserved);
+	dev_warn_once(dev, "attribute deprecated, see read_buffers_reserved.\n");
+	return group_read_buffers_reserved_show(dev, attr, buf);
 }
 
-static ssize_t group_tokens_reserved_store(struct device *dev,
-					   struct device_attribute *attr,
-					   const char *buf, size_t count)
+static ssize_t group_read_buffers_reserved_store(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf, size_t count)
 {
-	struct idxd_group *group =
-		container_of(dev, struct idxd_group, conf_dev);
+	struct idxd_group *group = confdev_to_group(dev);
 	struct idxd_device *idxd = group->idxd;
 	unsigned long val;
 	int rc;
@@ -500,6 +141,9 @@ static ssize_t group_tokens_reserved_store(struct device *dev,
 	rc = kstrtoul(buf, 10, &val);
 	if (rc < 0)
 		return -EINVAL;
+
+	if (idxd->data->type == IDXD_TYPE_IAX)
+		return -EOPNOTSUPP;
 
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
@@ -507,37 +151,55 @@ static ssize_t group_tokens_reserved_store(struct device *dev,
 	if (idxd->state == IDXD_DEV_ENABLED)
 		return -EPERM;
 
-	if (val > idxd->max_tokens)
+	if (val > idxd->max_rdbufs)
 		return -EINVAL;
 
-	if (val > idxd->nr_tokens + group->tokens_reserved)
+	if (val > idxd->nr_rdbufs + group->rdbufs_reserved)
 		return -EINVAL;
 
-	group->tokens_reserved = val;
-	idxd_set_free_tokens(idxd);
+	group->rdbufs_reserved = val;
+	idxd_set_free_rdbufs(idxd);
 	return count;
+}
+
+static ssize_t group_tokens_reserved_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	dev_warn_once(dev, "attribute deprecated, see read_buffers_reserved.\n");
+	return group_read_buffers_reserved_store(dev, attr, buf, count);
 }
 
 static struct device_attribute dev_attr_group_tokens_reserved =
 		__ATTR(tokens_reserved, 0644, group_tokens_reserved_show,
 		       group_tokens_reserved_store);
 
+static struct device_attribute dev_attr_group_read_buffers_reserved =
+		__ATTR(read_buffers_reserved, 0644, group_read_buffers_reserved_show,
+		       group_read_buffers_reserved_store);
+
+static ssize_t group_read_buffers_allowed_show(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct idxd_group *group = confdev_to_group(dev);
+
+	return sysfs_emit(buf, "%u\n", group->rdbufs_allowed);
+}
+
 static ssize_t group_tokens_allowed_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct idxd_group *group =
-		container_of(dev, struct idxd_group, conf_dev);
-
-	return sprintf(buf, "%u\n", group->tokens_allowed);
+	dev_warn_once(dev, "attribute deprecated, see read_buffers_allowed.\n");
+	return group_read_buffers_allowed_show(dev, attr, buf);
 }
 
-static ssize_t group_tokens_allowed_store(struct device *dev,
-					  struct device_attribute *attr,
-					  const char *buf, size_t count)
+static ssize_t group_read_buffers_allowed_store(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf, size_t count)
 {
-	struct idxd_group *group =
-		container_of(dev, struct idxd_group, conf_dev);
+	struct idxd_group *group = confdev_to_group(dev);
 	struct idxd_device *idxd = group->idxd;
 	unsigned long val;
 	int rc;
@@ -545,6 +207,9 @@ static ssize_t group_tokens_allowed_store(struct device *dev,
 	rc = kstrtoul(buf, 10, &val);
 	if (rc < 0)
 		return -EINVAL;
+
+	if (idxd->data->type == IDXD_TYPE_IAX)
+		return -EOPNOTSUPP;
 
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
@@ -553,33 +218,51 @@ static ssize_t group_tokens_allowed_store(struct device *dev,
 		return -EPERM;
 
 	if (val < 4 * group->num_engines ||
-	    val > group->tokens_reserved + idxd->nr_tokens)
+	    val > group->rdbufs_reserved + idxd->nr_rdbufs)
 		return -EINVAL;
 
-	group->tokens_allowed = val;
+	group->rdbufs_allowed = val;
 	return count;
+}
+
+static ssize_t group_tokens_allowed_store(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	dev_warn_once(dev, "attribute deprecated, see read_buffers_allowed.\n");
+	return group_read_buffers_allowed_store(dev, attr, buf, count);
 }
 
 static struct device_attribute dev_attr_group_tokens_allowed =
 		__ATTR(tokens_allowed, 0644, group_tokens_allowed_show,
 		       group_tokens_allowed_store);
 
+static struct device_attribute dev_attr_group_read_buffers_allowed =
+		__ATTR(read_buffers_allowed, 0644, group_read_buffers_allowed_show,
+		       group_read_buffers_allowed_store);
+
+static ssize_t group_use_read_buffer_limit_show(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct idxd_group *group = confdev_to_group(dev);
+
+	return sysfs_emit(buf, "%u\n", group->use_rdbuf_limit);
+}
+
 static ssize_t group_use_token_limit_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct idxd_group *group =
-		container_of(dev, struct idxd_group, conf_dev);
-
-	return sprintf(buf, "%u\n", group->use_token_limit);
+	dev_warn_once(dev, "attribute deprecated, see use_read_buffer_limit.\n");
+	return group_use_read_buffer_limit_show(dev, attr, buf);
 }
 
-static ssize_t group_use_token_limit_store(struct device *dev,
-					   struct device_attribute *attr,
-					   const char *buf, size_t count)
+static ssize_t group_use_read_buffer_limit_store(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf, size_t count)
 {
-	struct idxd_group *group =
-		container_of(dev, struct idxd_group, conf_dev);
+	struct idxd_group *group = confdev_to_group(dev);
 	struct idxd_device *idxd = group->idxd;
 	unsigned long val;
 	int rc;
@@ -588,45 +271,59 @@ static ssize_t group_use_token_limit_store(struct device *dev,
 	if (rc < 0)
 		return -EINVAL;
 
+	if (idxd->data->type == IDXD_TYPE_IAX)
+		return -EOPNOTSUPP;
+
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
 
 	if (idxd->state == IDXD_DEV_ENABLED)
 		return -EPERM;
 
-	if (idxd->token_limit == 0)
+	if (idxd->rdbuf_limit == 0)
 		return -EPERM;
 
-	group->use_token_limit = !!val;
+	group->use_rdbuf_limit = !!val;
 	return count;
+}
+
+static ssize_t group_use_token_limit_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	dev_warn_once(dev, "attribute deprecated, see use_read_buffer_limit.\n");
+	return group_use_read_buffer_limit_store(dev, attr, buf, count);
 }
 
 static struct device_attribute dev_attr_group_use_token_limit =
 		__ATTR(use_token_limit, 0644, group_use_token_limit_show,
 		       group_use_token_limit_store);
 
+static struct device_attribute dev_attr_group_use_read_buffer_limit =
+		__ATTR(use_read_buffer_limit, 0644, group_use_read_buffer_limit_show,
+		       group_use_read_buffer_limit_store);
+
 static ssize_t group_engines_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	struct idxd_group *group =
-		container_of(dev, struct idxd_group, conf_dev);
+	struct idxd_group *group = confdev_to_group(dev);
 	int i, rc = 0;
-	char *tmp = buf;
 	struct idxd_device *idxd = group->idxd;
 
 	for (i = 0; i < idxd->max_engines; i++) {
-		struct idxd_engine *engine = &idxd->engines[i];
+		struct idxd_engine *engine = idxd->engines[i];
 
 		if (!engine->group)
 			continue;
 
 		if (engine->group->id == group->id)
-			rc += sprintf(tmp + rc, "engine%d.%d ",
-					idxd->id, engine->id);
+			rc += sysfs_emit_at(buf, rc, "engine%d.%d ", idxd->id, engine->id);
 	}
 
+	if (!rc)
+		return 0;
 	rc--;
-	rc += sprintf(tmp + rc, "\n");
+	rc += sysfs_emit_at(buf, rc, "\n");
 
 	return rc;
 }
@@ -637,25 +334,24 @@ static struct device_attribute dev_attr_group_engines =
 static ssize_t group_work_queues_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
-	struct idxd_group *group =
-		container_of(dev, struct idxd_group, conf_dev);
+	struct idxd_group *group = confdev_to_group(dev);
 	int i, rc = 0;
-	char *tmp = buf;
 	struct idxd_device *idxd = group->idxd;
 
 	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = &idxd->wqs[i];
+		struct idxd_wq *wq = idxd->wqs[i];
 
 		if (!wq->group)
 			continue;
 
 		if (wq->group->id == group->id)
-			rc += sprintf(tmp + rc, "wq%d.%d ",
-					idxd->id, wq->id);
+			rc += sysfs_emit_at(buf, rc, "wq%d.%d ", idxd->id, wq->id);
 	}
 
+	if (!rc)
+		return 0;
 	rc--;
-	rc += sprintf(tmp + rc, "\n");
+	rc += sysfs_emit_at(buf, rc, "\n");
 
 	return rc;
 }
@@ -667,18 +363,16 @@ static ssize_t group_traffic_class_a_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct idxd_group *group =
-		container_of(dev, struct idxd_group, conf_dev);
+	struct idxd_group *group = confdev_to_group(dev);
 
-	return sprintf(buf, "%d\n", group->tc_a);
+	return sysfs_emit(buf, "%d\n", group->tc_a);
 }
 
 static ssize_t group_traffic_class_a_store(struct device *dev,
 					   struct device_attribute *attr,
 					   const char *buf, size_t count)
 {
-	struct idxd_group *group =
-		container_of(dev, struct idxd_group, conf_dev);
+	struct idxd_group *group = confdev_to_group(dev);
 	struct idxd_device *idxd = group->idxd;
 	long val;
 	int rc;
@@ -691,6 +385,9 @@ static ssize_t group_traffic_class_a_store(struct device *dev,
 		return -EPERM;
 
 	if (idxd->state == IDXD_DEV_ENABLED)
+		return -EPERM;
+
+	if (idxd->hw.version < DEVICE_VERSION_2 && !tc_override)
 		return -EPERM;
 
 	if (val < 0 || val > 7)
@@ -708,18 +405,16 @@ static ssize_t group_traffic_class_b_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct idxd_group *group =
-		container_of(dev, struct idxd_group, conf_dev);
+	struct idxd_group *group = confdev_to_group(dev);
 
-	return sprintf(buf, "%d\n", group->tc_b);
+	return sysfs_emit(buf, "%d\n", group->tc_b);
 }
 
 static ssize_t group_traffic_class_b_store(struct device *dev,
 					   struct device_attribute *attr,
 					   const char *buf, size_t count)
 {
-	struct idxd_group *group =
-		container_of(dev, struct idxd_group, conf_dev);
+	struct idxd_group *group = confdev_to_group(dev);
 	struct idxd_device *idxd = group->idxd;
 	long val;
 	int rc;
@@ -732,6 +427,9 @@ static ssize_t group_traffic_class_b_store(struct device *dev,
 		return -EPERM;
 
 	if (idxd->state == IDXD_DEV_ENABLED)
+		return -EPERM;
+
+	if (idxd->hw.version < DEVICE_VERSION_2 && !tc_override)
 		return -EPERM;
 
 	if (val < 0 || val > 7)
@@ -749,8 +447,11 @@ static struct attribute *idxd_group_attributes[] = {
 	&dev_attr_group_work_queues.attr,
 	&dev_attr_group_engines.attr,
 	&dev_attr_group_use_token_limit.attr,
+	&dev_attr_group_use_read_buffer_limit.attr,
 	&dev_attr_group_tokens_allowed.attr,
+	&dev_attr_group_read_buffers_allowed.attr,
 	&dev_attr_group_tokens_reserved.attr,
+	&dev_attr_group_read_buffers_reserved.attr,
 	&dev_attr_group_traffic_class_a.attr,
 	&dev_attr_group_traffic_class_b.attr,
 	NULL,
@@ -765,13 +466,26 @@ static const struct attribute_group *idxd_group_attribute_groups[] = {
 	NULL,
 };
 
+static void idxd_conf_group_release(struct device *dev)
+{
+	struct idxd_group *group = confdev_to_group(dev);
+
+	kfree(group);
+}
+
+struct device_type idxd_group_device_type = {
+	.name = "group",
+	.release = idxd_conf_group_release,
+	.groups = idxd_group_attribute_groups,
+};
+
 /* IDXD work queue attribs */
 static ssize_t wq_clients_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 
-	return sprintf(buf, "%d\n", wq->client_count);
+	return sysfs_emit(buf, "%d\n", wq->client_count);
 }
 
 static struct device_attribute dev_attr_wq_clients =
@@ -780,16 +494,16 @@ static struct device_attribute dev_attr_wq_clients =
 static ssize_t wq_state_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 
 	switch (wq->state) {
 	case IDXD_WQ_DISABLED:
-		return sprintf(buf, "disabled\n");
+		return sysfs_emit(buf, "disabled\n");
 	case IDXD_WQ_ENABLED:
-		return sprintf(buf, "enabled\n");
+		return sysfs_emit(buf, "enabled\n");
 	}
 
-	return sprintf(buf, "unknown\n");
+	return sysfs_emit(buf, "unknown\n");
 }
 
 static struct device_attribute dev_attr_wq_state =
@@ -798,19 +512,19 @@ static struct device_attribute dev_attr_wq_state =
 static ssize_t wq_group_id_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 
 	if (wq->group)
-		return sprintf(buf, "%u\n", wq->group->id);
+		return sysfs_emit(buf, "%u\n", wq->group->id);
 	else
-		return sprintf(buf, "-1\n");
+		return sysfs_emit(buf, "-1\n");
 }
 
 static ssize_t wq_group_id_store(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 	struct idxd_device *idxd = wq->idxd;
 	long id;
 	int rc;
@@ -837,7 +551,7 @@ static ssize_t wq_group_id_store(struct device *dev,
 		return count;
 	}
 
-	group = &idxd->groups[id];
+	group = idxd->groups[id];
 	prevg = wq->group;
 
 	if (prevg)
@@ -853,17 +567,16 @@ static struct device_attribute dev_attr_wq_group_id =
 static ssize_t wq_mode_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 
-	return sprintf(buf, "%s\n",
-			wq_dedicated(wq) ? "dedicated" : "shared");
+	return sysfs_emit(buf, "%s\n", wq_dedicated(wq) ? "dedicated" : "shared");
 }
 
 static ssize_t wq_mode_store(struct device *dev,
 			     struct device_attribute *attr, const char *buf,
 			     size_t count)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 	struct idxd_device *idxd = wq->idxd;
 
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
@@ -875,6 +588,8 @@ static ssize_t wq_mode_store(struct device *dev,
 	if (sysfs_streq(buf, "dedicated")) {
 		set_bit(WQ_FLAG_DEDICATED, &wq->flags);
 		wq->threshold = 0;
+	} else if (sysfs_streq(buf, "shared") && device_swq_supported(idxd)) {
+		clear_bit(WQ_FLAG_DEDICATED, &wq->flags);
 	} else {
 		return -EINVAL;
 	}
@@ -888,9 +603,9 @@ static struct device_attribute dev_attr_wq_mode =
 static ssize_t wq_size_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 
-	return sprintf(buf, "%u\n", wq->size);
+	return sysfs_emit(buf, "%u\n", wq->size);
 }
 
 static int total_claimed_wq_size(struct idxd_device *idxd)
@@ -899,7 +614,7 @@ static int total_claimed_wq_size(struct idxd_device *idxd)
 	int wq_size = 0;
 
 	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = &idxd->wqs[i];
+		struct idxd_wq *wq = idxd->wqs[i];
 
 		wq_size += wq->size;
 	}
@@ -911,7 +626,7 @@ static ssize_t wq_size_store(struct device *dev,
 			     struct device_attribute *attr, const char *buf,
 			     size_t count)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 	unsigned long size;
 	struct idxd_device *idxd = wq->idxd;
 	int rc;
@@ -923,7 +638,7 @@ static ssize_t wq_size_store(struct device *dev,
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
 
-	if (wq->state != IDXD_WQ_DISABLED)
+	if (idxd->state == IDXD_DEV_ENABLED)
 		return -EPERM;
 
 	if (size + total_claimed_wq_size(idxd) - wq->size > idxd->max_wq_size)
@@ -939,16 +654,16 @@ static struct device_attribute dev_attr_wq_size =
 static ssize_t wq_priority_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 
-	return sprintf(buf, "%u\n", wq->priority);
+	return sysfs_emit(buf, "%u\n", wq->priority);
 }
 
 static ssize_t wq_priority_store(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 	unsigned long prio;
 	struct idxd_device *idxd = wq->idxd;
 	int rc;
@@ -973,22 +688,102 @@ static ssize_t wq_priority_store(struct device *dev,
 static struct device_attribute dev_attr_wq_priority =
 		__ATTR(priority, 0644, wq_priority_show, wq_priority_store);
 
+static ssize_t wq_block_on_fault_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+
+	return sysfs_emit(buf, "%u\n", test_bit(WQ_FLAG_BLOCK_ON_FAULT, &wq->flags));
+}
+
+static ssize_t wq_block_on_fault_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+	struct idxd_device *idxd = wq->idxd;
+	bool bof;
+	int rc;
+
+	if (!idxd->hw.gen_cap.block_on_fault)
+		return -EOPNOTSUPP;
+
+	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
+		return -EPERM;
+
+	if (wq->state != IDXD_WQ_DISABLED)
+		return -ENXIO;
+
+	rc = kstrtobool(buf, &bof);
+	if (rc < 0)
+		return rc;
+
+	if (bof)
+		set_bit(WQ_FLAG_BLOCK_ON_FAULT, &wq->flags);
+	else
+		clear_bit(WQ_FLAG_BLOCK_ON_FAULT, &wq->flags);
+
+	return count;
+}
+
+static struct device_attribute dev_attr_wq_block_on_fault =
+		__ATTR(block_on_fault, 0644, wq_block_on_fault_show,
+		       wq_block_on_fault_store);
+
+static ssize_t wq_threshold_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+
+	return sysfs_emit(buf, "%u\n", wq->threshold);
+}
+
+static ssize_t wq_threshold_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+	struct idxd_device *idxd = wq->idxd;
+	unsigned int val;
+	int rc;
+
+	rc = kstrtouint(buf, 0, &val);
+	if (rc < 0)
+		return -EINVAL;
+
+	if (val > wq->size || val <= 0)
+		return -EINVAL;
+
+	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
+		return -EPERM;
+
+	if (wq->state != IDXD_WQ_DISABLED)
+		return -ENXIO;
+
+	if (test_bit(WQ_FLAG_DEDICATED, &wq->flags))
+		return -EINVAL;
+
+	wq->threshold = val;
+
+	return count;
+}
+
+static struct device_attribute dev_attr_wq_threshold =
+		__ATTR(threshold, 0644, wq_threshold_show, wq_threshold_store);
+
 static ssize_t wq_type_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 
 	switch (wq->type) {
 	case IDXD_WQT_KERNEL:
-		return sprintf(buf, "%s\n",
-			       idxd_wq_type_names[IDXD_WQT_KERNEL]);
+		return sysfs_emit(buf, "%s\n", idxd_wq_type_names[IDXD_WQT_KERNEL]);
 	case IDXD_WQT_USER:
-		return sprintf(buf, "%s\n",
-			       idxd_wq_type_names[IDXD_WQT_USER]);
+		return sysfs_emit(buf, "%s\n", idxd_wq_type_names[IDXD_WQT_USER]);
 	case IDXD_WQT_NONE:
 	default:
-		return sprintf(buf, "%s\n",
-			       idxd_wq_type_names[IDXD_WQT_NONE]);
+		return sysfs_emit(buf, "%s\n", idxd_wq_type_names[IDXD_WQT_NONE]);
 	}
 
 	return -EINVAL;
@@ -998,7 +793,7 @@ static ssize_t wq_type_store(struct device *dev,
 			     struct device_attribute *attr, const char *buf,
 			     size_t count)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 	enum idxd_wq_type old_type;
 
 	if (wq->state != IDXD_WQ_DISABLED)
@@ -1027,22 +822,29 @@ static struct device_attribute dev_attr_wq_type =
 static ssize_t wq_name_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 
-	return sprintf(buf, "%s\n", wq->name);
+	return sysfs_emit(buf, "%s\n", wq->name);
 }
 
 static ssize_t wq_name_store(struct device *dev,
 			     struct device_attribute *attr, const char *buf,
 			     size_t count)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 
 	if (wq->state != IDXD_WQ_DISABLED)
 		return -EPERM;
 
 	if (strlen(buf) > WQ_NAME_SIZE || strlen(buf) == 0)
 		return -EINVAL;
+
+	/*
+	 * This is temporarily placed here until we have SVM support for
+	 * dmaengine.
+	 */
+	if (wq->type == IDXD_WQT_KERNEL && device_pasid_enabled(wq->idxd))
+		return -EOPNOTSUPP;
 
 	memset(wq->name, 0, WQ_NAME_SIZE + 1);
 	strncpy(wq->name, buf, WQ_NAME_SIZE);
@@ -1056,9 +858,17 @@ static struct device_attribute dev_attr_wq_name =
 static ssize_t wq_cdev_minor_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
+	int minor = -1;
 
-	return sprintf(buf, "%d\n", wq->idxd_cdev.minor);
+	mutex_lock(&wq->wq_lock);
+	if (wq->idxd_cdev)
+		minor = wq->idxd_cdev->minor;
+	mutex_unlock(&wq->wq_lock);
+
+	if (minor == -1)
+		return -ENXIO;
+	return sysfs_emit(buf, "%d\n", minor);
 }
 
 static struct device_attribute dev_attr_wq_cdev_minor =
@@ -1082,18 +892,21 @@ static int __get_sysfs_u64(const char *buf, u64 *val)
 static ssize_t wq_max_transfer_size_show(struct device *dev, struct device_attribute *attr,
 					 char *buf)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 
-	return sprintf(buf, "%llu\n", wq->max_xfer_bytes);
+	return sysfs_emit(buf, "%llu\n", wq->max_xfer_bytes);
 }
 
 static ssize_t wq_max_transfer_size_store(struct device *dev, struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 	struct idxd_device *idxd = wq->idxd;
 	u64 xfer_size;
 	int rc;
+
+	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
+		return -EPERM;
 
 	if (wq->state != IDXD_WQ_DISABLED)
 		return -EPERM;
@@ -1116,18 +929,21 @@ static struct device_attribute dev_attr_wq_max_transfer_size =
 
 static ssize_t wq_max_batch_size_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 
-	return sprintf(buf, "%u\n", wq->max_batch_size);
+	return sysfs_emit(buf, "%u\n", wq->max_batch_size);
 }
 
 static ssize_t wq_max_batch_size_store(struct device *dev, struct device_attribute *attr,
 				       const char *buf, size_t count)
 {
-	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_wq *wq = confdev_to_wq(dev);
 	struct idxd_device *idxd = wq->idxd;
 	u64 batch_size;
 	int rc;
+
+	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
+		return -EPERM;
 
 	if (wq->state != IDXD_WQ_DISABLED)
 		return -EPERM;
@@ -1147,6 +963,92 @@ static ssize_t wq_max_batch_size_store(struct device *dev, struct device_attribu
 static struct device_attribute dev_attr_wq_max_batch_size =
 		__ATTR(max_batch_size, 0644, wq_max_batch_size_show, wq_max_batch_size_store);
 
+static ssize_t wq_ats_disable_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+
+	return sysfs_emit(buf, "%u\n", wq->ats_dis);
+}
+
+static ssize_t wq_ats_disable_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+	struct idxd_device *idxd = wq->idxd;
+	bool ats_dis;
+	int rc;
+
+	if (wq->state != IDXD_WQ_DISABLED)
+		return -EPERM;
+
+	if (!idxd->hw.wq_cap.wq_ats_support)
+		return -EOPNOTSUPP;
+
+	rc = kstrtobool(buf, &ats_dis);
+	if (rc < 0)
+		return rc;
+
+	wq->ats_dis = ats_dis;
+
+	return count;
+}
+
+static struct device_attribute dev_attr_wq_ats_disable =
+		__ATTR(ats_disable, 0644, wq_ats_disable_show, wq_ats_disable_store);
+
+static ssize_t wq_occupancy_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+	struct idxd_device *idxd = wq->idxd;
+	u32 occup, offset;
+
+	if (!idxd->hw.wq_cap.occupancy)
+		return -EOPNOTSUPP;
+
+	offset = WQCFG_OFFSET(idxd, wq->id, WQCFG_OCCUP_IDX);
+	occup = ioread32(idxd->reg_base + offset) & WQCFG_OCCUP_MASK;
+
+	return sysfs_emit(buf, "%u\n", occup);
+}
+
+static struct device_attribute dev_attr_wq_occupancy =
+		__ATTR(occupancy, 0444, wq_occupancy_show, NULL);
+
+static ssize_t wq_enqcmds_retries_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+
+	if (wq_dedicated(wq))
+		return -EOPNOTSUPP;
+
+	return sysfs_emit(buf, "%u\n", wq->enqcmds_retries);
+}
+
+static ssize_t wq_enqcmds_retries_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+	int rc;
+	unsigned int retries;
+
+	if (wq_dedicated(wq))
+		return -EOPNOTSUPP;
+
+	rc = kstrtouint(buf, 10, &retries);
+	if (rc < 0)
+		return rc;
+
+	if (retries > IDXD_ENQCMDS_MAX_RETRIES)
+		retries = IDXD_ENQCMDS_MAX_RETRIES;
+
+	wq->enqcmds_retries = retries;
+	return count;
+}
+
+static struct device_attribute dev_attr_wq_enqcmds_retries =
+		__ATTR(enqcmds_retries, 0644, wq_enqcmds_retries_show, wq_enqcmds_retries_store);
+
 static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_clients.attr,
 	&dev_attr_wq_state.attr,
@@ -1154,11 +1056,16 @@ static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_mode.attr,
 	&dev_attr_wq_size.attr,
 	&dev_attr_wq_priority.attr,
+	&dev_attr_wq_block_on_fault.attr,
+	&dev_attr_wq_threshold.attr,
 	&dev_attr_wq_type.attr,
 	&dev_attr_wq_name.attr,
 	&dev_attr_wq_cdev_minor.attr,
 	&dev_attr_wq_max_transfer_size.attr,
 	&dev_attr_wq_max_batch_size.attr,
+	&dev_attr_wq_ats_disable.attr,
+	&dev_attr_wq_occupancy.attr,
+	&dev_attr_wq_enqcmds_retries.attr,
 	NULL,
 };
 
@@ -1171,14 +1078,27 @@ static const struct attribute_group *idxd_wq_attribute_groups[] = {
 	NULL,
 };
 
+static void idxd_conf_wq_release(struct device *dev)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+
+	kfree(wq->wqcfg);
+	kfree(wq);
+}
+
+struct device_type idxd_wq_device_type = {
+	.name = "wq",
+	.release = idxd_conf_wq_release,
+	.groups = idxd_wq_attribute_groups,
+};
+
 /* IDXD device attribs */
 static ssize_t version_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sprintf(buf, "%#x\n", idxd->hw.version);
+	return sysfs_emit(buf, "%#x\n", idxd->hw.version);
 }
 static DEVICE_ATTR_RO(version);
 
@@ -1186,60 +1106,54 @@ static ssize_t max_work_queues_size_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sprintf(buf, "%u\n", idxd->max_wq_size);
+	return sysfs_emit(buf, "%u\n", idxd->max_wq_size);
 }
 static DEVICE_ATTR_RO(max_work_queues_size);
 
 static ssize_t max_groups_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sprintf(buf, "%u\n", idxd->max_groups);
+	return sysfs_emit(buf, "%u\n", idxd->max_groups);
 }
 static DEVICE_ATTR_RO(max_groups);
 
 static ssize_t max_work_queues_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sprintf(buf, "%u\n", idxd->max_wqs);
+	return sysfs_emit(buf, "%u\n", idxd->max_wqs);
 }
 static DEVICE_ATTR_RO(max_work_queues);
 
 static ssize_t max_engines_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sprintf(buf, "%u\n", idxd->max_engines);
+	return sysfs_emit(buf, "%u\n", idxd->max_engines);
 }
 static DEVICE_ATTR_RO(max_engines);
 
 static ssize_t numa_node_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sprintf(buf, "%d\n", dev_to_node(&idxd->pdev->dev));
+	return sysfs_emit(buf, "%d\n", dev_to_node(&idxd->pdev->dev));
 }
 static DEVICE_ATTR_RO(numa_node);
 
 static ssize_t max_batch_size_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sprintf(buf, "%u\n", idxd->max_batch_size);
+	return sysfs_emit(buf, "%u\n", idxd->max_batch_size);
 }
 static DEVICE_ATTR_RO(max_batch_size);
 
@@ -1247,127 +1161,144 @@ static ssize_t max_transfer_size_show(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sprintf(buf, "%llu\n", idxd->max_xfer_bytes);
+	return sysfs_emit(buf, "%llu\n", idxd->max_xfer_bytes);
 }
 static DEVICE_ATTR_RO(max_transfer_size);
 
 static ssize_t op_cap_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
+	int i, rc = 0;
 
-	return sprintf(buf, "%#llx\n", idxd->hw.opcap.bits[0]);
+	for (i = 0; i < 4; i++)
+		rc += sysfs_emit_at(buf, rc, "%#llx ", idxd->hw.opcap.bits[i]);
+
+	rc--;
+	rc += sysfs_emit_at(buf, rc, "\n");
+	return rc;
 }
 static DEVICE_ATTR_RO(op_cap);
 
 static ssize_t gen_cap_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sprintf(buf, "%#llx\n", idxd->hw.gen_cap.bits);
+	return sysfs_emit(buf, "%#llx\n", idxd->hw.gen_cap.bits);
 }
 static DEVICE_ATTR_RO(gen_cap);
 
 static ssize_t configurable_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sprintf(buf, "%u\n",
-			test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags));
+	return sysfs_emit(buf, "%u\n", test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags));
 }
 static DEVICE_ATTR_RO(configurable);
 
 static ssize_t clients_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
-	unsigned long flags;
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 	int count = 0, i;
 
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock(&idxd->dev_lock);
 	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = &idxd->wqs[i];
+		struct idxd_wq *wq = idxd->wqs[i];
 
 		count += wq->client_count;
 	}
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	spin_unlock(&idxd->dev_lock);
 
-	return sprintf(buf, "%d\n", count);
+	return sysfs_emit(buf, "%d\n", count);
 }
 static DEVICE_ATTR_RO(clients);
+
+static ssize_t pasid_enabled_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct idxd_device *idxd = confdev_to_idxd(dev);
+
+	return sysfs_emit(buf, "%u\n", device_pasid_enabled(idxd));
+}
+static DEVICE_ATTR_RO(pasid_enabled);
 
 static ssize_t state_show(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 
 	switch (idxd->state) {
 	case IDXD_DEV_DISABLED:
-	case IDXD_DEV_CONF_READY:
-		return sprintf(buf, "disabled\n");
+		return sysfs_emit(buf, "disabled\n");
 	case IDXD_DEV_ENABLED:
-		return sprintf(buf, "enabled\n");
+		return sysfs_emit(buf, "enabled\n");
 	case IDXD_DEV_HALTED:
-		return sprintf(buf, "halted\n");
+		return sysfs_emit(buf, "halted\n");
 	}
 
-	return sprintf(buf, "unknown\n");
+	return sysfs_emit(buf, "unknown\n");
 }
 static DEVICE_ATTR_RO(state);
 
 static ssize_t errors_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 	int i, out = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock(&idxd->dev_lock);
 	for (i = 0; i < 4; i++)
-		out += sprintf(buf + out, "%#018llx ", idxd->sw_err.bits[i]);
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+		out += sysfs_emit_at(buf, out, "%#018llx ", idxd->sw_err.bits[i]);
+	spin_unlock(&idxd->dev_lock);
 	out--;
-	out += sprintf(buf + out, "\n");
+	out += sysfs_emit_at(buf, out, "\n");
 	return out;
 }
 static DEVICE_ATTR_RO(errors);
 
+static ssize_t max_read_buffers_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct idxd_device *idxd = confdev_to_idxd(dev);
+
+	return sysfs_emit(buf, "%u\n", idxd->max_rdbufs);
+}
+
 static ssize_t max_tokens_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
-
-	return sprintf(buf, "%u\n", idxd->max_tokens);
+	dev_warn_once(dev, "attribute deprecated, see max_read_buffers.\n");
+	return max_read_buffers_show(dev, attr, buf);
 }
-static DEVICE_ATTR_RO(max_tokens);
+
+static DEVICE_ATTR_RO(max_tokens);	/* deprecated */
+static DEVICE_ATTR_RO(max_read_buffers);
+
+static ssize_t read_buffer_limit_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct idxd_device *idxd = confdev_to_idxd(dev);
+
+	return sysfs_emit(buf, "%u\n", idxd->rdbuf_limit);
+}
 
 static ssize_t token_limit_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
-
-	return sprintf(buf, "%u\n", idxd->token_limit);
+	dev_warn_once(dev, "attribute deprecated, see read_buffer_limit.\n");
+	return read_buffer_limit_show(dev, attr, buf);
 }
 
-static ssize_t token_limit_store(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t read_buffer_limit_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 	unsigned long val;
 	int rc;
 
@@ -1381,35 +1312,53 @@ static ssize_t token_limit_store(struct device *dev,
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
 
-	if (!idxd->hw.group_cap.token_limit)
+	if (!idxd->hw.group_cap.rdbuf_limit)
 		return -EPERM;
 
-	if (val > idxd->hw.group_cap.total_tokens)
+	if (val > idxd->hw.group_cap.total_rdbufs)
 		return -EINVAL;
 
-	idxd->token_limit = val;
+	idxd->rdbuf_limit = val;
 	return count;
 }
-static DEVICE_ATTR_RW(token_limit);
+
+static ssize_t token_limit_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	dev_warn_once(dev, "attribute deprecated, see read_buffer_limit\n");
+	return read_buffer_limit_store(dev, attr, buf, count);
+}
+
+static DEVICE_ATTR_RW(token_limit);	/* deprecated */
+static DEVICE_ATTR_RW(read_buffer_limit);
 
 static ssize_t cdev_major_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd =
-		container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sprintf(buf, "%u\n", idxd->major);
+	return sysfs_emit(buf, "%u\n", idxd->major);
 }
 static DEVICE_ATTR_RO(cdev_major);
 
 static ssize_t cmd_status_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd = container_of(dev, struct idxd_device, conf_dev);
+	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sprintf(buf, "%#x\n", idxd->cmd_status);
+	return sysfs_emit(buf, "%#x\n", idxd->cmd_status);
 }
-static DEVICE_ATTR_RO(cmd_status);
+
+static ssize_t cmd_status_store(struct device *dev, struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct idxd_device *idxd = confdev_to_idxd(dev);
+
+	idxd->cmd_status = 0;
+	return count;
+}
+static DEVICE_ATTR_RW(cmd_status);
 
 static struct attribute *idxd_device_attributes[] = {
 	&dev_attr_version.attr,
@@ -1424,10 +1373,13 @@ static struct attribute *idxd_device_attributes[] = {
 	&dev_attr_gen_cap.attr,
 	&dev_attr_configurable.attr,
 	&dev_attr_clients.attr,
+	&dev_attr_pasid_enabled.attr,
 	&dev_attr_state.attr,
 	&dev_attr_errors.attr,
 	&dev_attr_max_tokens.attr,
+	&dev_attr_max_read_buffers.attr,
 	&dev_attr_token_limit.attr,
+	&dev_attr_read_buffer_limit.attr,
 	&dev_attr_cdev_major.attr,
 	&dev_attr_cmd_status.attr,
 	NULL,
@@ -1442,212 +1394,182 @@ static const struct attribute_group *idxd_attribute_groups[] = {
 	NULL,
 };
 
-static int idxd_setup_engine_sysfs(struct idxd_device *idxd)
+static void idxd_conf_device_release(struct device *dev)
 {
-	struct device *dev = &idxd->pdev->dev;
-	int i, rc;
+	struct idxd_device *idxd = confdev_to_idxd(dev);
+
+	kfree(idxd->groups);
+	kfree(idxd->wqs);
+	kfree(idxd->engines);
+	ida_free(&idxd_ida, idxd->id);
+	kfree(idxd);
+}
+
+struct device_type dsa_device_type = {
+	.name = "dsa",
+	.release = idxd_conf_device_release,
+	.groups = idxd_attribute_groups,
+};
+
+struct device_type iax_device_type = {
+	.name = "iax",
+	.release = idxd_conf_device_release,
+	.groups = idxd_attribute_groups,
+};
+
+static int idxd_register_engine_devices(struct idxd_device *idxd)
+{
+	struct idxd_engine *engine;
+	int i, j, rc;
 
 	for (i = 0; i < idxd->max_engines; i++) {
-		struct idxd_engine *engine = &idxd->engines[i];
-
-		engine->conf_dev.parent = &idxd->conf_dev;
-		dev_set_name(&engine->conf_dev, "engine%d.%d",
-			     idxd->id, engine->id);
-		engine->conf_dev.bus = idxd_get_bus_type(idxd);
-		engine->conf_dev.groups = idxd_engine_attribute_groups;
-		engine->conf_dev.type = &idxd_engine_device_type;
-		dev_dbg(dev, "Engine device register: %s\n",
-			dev_name(&engine->conf_dev));
-		rc = device_register(&engine->conf_dev);
-		if (rc < 0) {
-			put_device(&engine->conf_dev);
+		engine = idxd->engines[i];
+		rc = device_add(engine_confdev(engine));
+		if (rc < 0)
 			goto cleanup;
-		}
 	}
 
 	return 0;
 
 cleanup:
-	while (i--) {
-		struct idxd_engine *engine = &idxd->engines[i];
+	j = i - 1;
+	for (; i < idxd->max_engines; i++) {
+		engine = idxd->engines[i];
+		put_device(engine_confdev(engine));
+	}
 
-		device_unregister(&engine->conf_dev);
+	while (j--) {
+		engine = idxd->engines[j];
+		device_unregister(engine_confdev(engine));
 	}
 	return rc;
 }
 
-static int idxd_setup_group_sysfs(struct idxd_device *idxd)
+static int idxd_register_group_devices(struct idxd_device *idxd)
 {
-	struct device *dev = &idxd->pdev->dev;
-	int i, rc;
+	struct idxd_group *group;
+	int i, j, rc;
 
 	for (i = 0; i < idxd->max_groups; i++) {
-		struct idxd_group *group = &idxd->groups[i];
-
-		group->conf_dev.parent = &idxd->conf_dev;
-		dev_set_name(&group->conf_dev, "group%d.%d",
-			     idxd->id, group->id);
-		group->conf_dev.bus = idxd_get_bus_type(idxd);
-		group->conf_dev.groups = idxd_group_attribute_groups;
-		group->conf_dev.type = &idxd_group_device_type;
-		dev_dbg(dev, "Group device register: %s\n",
-			dev_name(&group->conf_dev));
-		rc = device_register(&group->conf_dev);
-		if (rc < 0) {
-			put_device(&group->conf_dev);
+		group = idxd->groups[i];
+		rc = device_add(group_confdev(group));
+		if (rc < 0)
 			goto cleanup;
-		}
 	}
 
 	return 0;
 
 cleanup:
-	while (i--) {
-		struct idxd_group *group = &idxd->groups[i];
+	j = i - 1;
+	for (; i < idxd->max_groups; i++) {
+		group = idxd->groups[i];
+		put_device(group_confdev(group));
+	}
 
-		device_unregister(&group->conf_dev);
+	while (j--) {
+		group = idxd->groups[j];
+		device_unregister(group_confdev(group));
 	}
 	return rc;
 }
 
-static int idxd_setup_wq_sysfs(struct idxd_device *idxd)
+static int idxd_register_wq_devices(struct idxd_device *idxd)
 {
-	struct device *dev = &idxd->pdev->dev;
-	int i, rc;
+	struct idxd_wq *wq;
+	int i, rc, j;
 
 	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = &idxd->wqs[i];
-
-		wq->conf_dev.parent = &idxd->conf_dev;
-		dev_set_name(&wq->conf_dev, "wq%d.%d", idxd->id, wq->id);
-		wq->conf_dev.bus = idxd_get_bus_type(idxd);
-		wq->conf_dev.groups = idxd_wq_attribute_groups;
-		wq->conf_dev.type = &idxd_wq_device_type;
-		dev_dbg(dev, "WQ device register: %s\n",
-			dev_name(&wq->conf_dev));
-		rc = device_register(&wq->conf_dev);
-		if (rc < 0) {
-			put_device(&wq->conf_dev);
+		wq = idxd->wqs[i];
+		rc = device_add(wq_confdev(wq));
+		if (rc < 0)
 			goto cleanup;
-		}
 	}
 
 	return 0;
 
 cleanup:
-	while (i--) {
-		struct idxd_wq *wq = &idxd->wqs[i];
+	j = i - 1;
+	for (; i < idxd->max_wqs; i++) {
+		wq = idxd->wqs[i];
+		put_device(wq_confdev(wq));
+	}
 
-		device_unregister(&wq->conf_dev);
+	while (j--) {
+		wq = idxd->wqs[j];
+		device_unregister(wq_confdev(wq));
 	}
 	return rc;
 }
 
-static int idxd_setup_device_sysfs(struct idxd_device *idxd)
+int idxd_register_devices(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
-	int rc;
-	char devname[IDXD_NAME_SIZE];
+	int rc, i;
 
-	sprintf(devname, "%s%d", idxd_get_dev_name(idxd), idxd->id);
-	idxd->conf_dev.parent = dev;
-	dev_set_name(&idxd->conf_dev, "%s", devname);
-	idxd->conf_dev.bus = idxd_get_bus_type(idxd);
-	idxd->conf_dev.groups = idxd_attribute_groups;
-	idxd->conf_dev.type = idxd_get_device_type(idxd);
-
-	dev_dbg(dev, "IDXD device register: %s\n", dev_name(&idxd->conf_dev));
-	rc = device_register(&idxd->conf_dev);
-	if (rc < 0) {
-		put_device(&idxd->conf_dev);
+	rc = device_add(idxd_confdev(idxd));
+	if (rc < 0)
 		return rc;
+
+	rc = idxd_register_wq_devices(idxd);
+	if (rc < 0) {
+		dev_dbg(dev, "WQ devices registering failed: %d\n", rc);
+		goto err_wq;
+	}
+
+	rc = idxd_register_engine_devices(idxd);
+	if (rc < 0) {
+		dev_dbg(dev, "Engine devices registering failed: %d\n", rc);
+		goto err_engine;
+	}
+
+	rc = idxd_register_group_devices(idxd);
+	if (rc < 0) {
+		dev_dbg(dev, "Group device registering failed: %d\n", rc);
+		goto err_group;
 	}
 
 	return 0;
+
+ err_group:
+	for (i = 0; i < idxd->max_engines; i++)
+		device_unregister(engine_confdev(idxd->engines[i]));
+ err_engine:
+	for (i = 0; i < idxd->max_wqs; i++)
+		device_unregister(wq_confdev(idxd->wqs[i]));
+ err_wq:
+	device_del(idxd_confdev(idxd));
+	return rc;
 }
 
-int idxd_setup_sysfs(struct idxd_device *idxd)
-{
-	struct device *dev = &idxd->pdev->dev;
-	int rc;
-
-	rc = idxd_setup_device_sysfs(idxd);
-	if (rc < 0) {
-		dev_dbg(dev, "Device sysfs registering failed: %d\n", rc);
-		return rc;
-	}
-
-	rc = idxd_setup_wq_sysfs(idxd);
-	if (rc < 0) {
-		/* unregister conf dev */
-		dev_dbg(dev, "Work Queue sysfs registering failed: %d\n", rc);
-		return rc;
-	}
-
-	rc = idxd_setup_group_sysfs(idxd);
-	if (rc < 0) {
-		/* unregister conf dev */
-		dev_dbg(dev, "Group sysfs registering failed: %d\n", rc);
-		return rc;
-	}
-
-	rc = idxd_setup_engine_sysfs(idxd);
-	if (rc < 0) {
-		/* unregister conf dev */
-		dev_dbg(dev, "Engine sysfs registering failed: %d\n", rc);
-		return rc;
-	}
-
-	return 0;
-}
-
-void idxd_cleanup_sysfs(struct idxd_device *idxd)
+void idxd_unregister_devices(struct idxd_device *idxd)
 {
 	int i;
 
 	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = &idxd->wqs[i];
+		struct idxd_wq *wq = idxd->wqs[i];
 
-		device_unregister(&wq->conf_dev);
+		device_unregister(wq_confdev(wq));
 	}
 
 	for (i = 0; i < idxd->max_engines; i++) {
-		struct idxd_engine *engine = &idxd->engines[i];
+		struct idxd_engine *engine = idxd->engines[i];
 
-		device_unregister(&engine->conf_dev);
+		device_unregister(engine_confdev(engine));
 	}
 
 	for (i = 0; i < idxd->max_groups; i++) {
-		struct idxd_group *group = &idxd->groups[i];
+		struct idxd_group *group = idxd->groups[i];
 
-		device_unregister(&group->conf_dev);
+		device_unregister(group_confdev(group));
 	}
-
-	device_unregister(&idxd->conf_dev);
 }
 
 int idxd_register_bus_type(void)
 {
-	int i, rc;
-
-	for (i = 0; i < IDXD_TYPE_MAX; i++) {
-		rc = bus_register(idxd_bus_types[i]);
-		if (rc < 0)
-			goto bus_err;
-	}
-
-	return 0;
-
-bus_err:
-	for (; i > 0; i--)
-		bus_unregister(idxd_bus_types[i]);
-	return rc;
+	return bus_register(&dsa_bus_type);
 }
 
 void idxd_unregister_bus_type(void)
 {
-	int i;
-
-	for (i = 0; i < IDXD_TYPE_MAX; i++)
-		bus_unregister(idxd_bus_types[i]);
+	bus_unregister(&dsa_bus_type);
 }

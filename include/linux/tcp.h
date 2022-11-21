@@ -394,6 +394,7 @@ struct tcp_sock {
 	bool	is_mptcp;
 #endif
 #if IS_ENABLED(CONFIG_SMC)
+	bool	(*smc_hs_congested)(const struct sock *sk);
 	bool	syn_smc;	/* SYN includes SMC */
 #endif
 
@@ -496,7 +497,8 @@ static inline u32 tcp_saved_syn_len(const struct saved_syn *saved_syn)
 }
 
 struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk,
-					       const struct sk_buff *orig_skb);
+					       const struct sk_buff *orig_skb,
+					       const struct sk_buff *ack_skb);
 
 static inline u16 tcp_mss_clamp(const struct tcp_sock *tp, u16 mss)
 {
@@ -511,11 +513,13 @@ static inline u16 tcp_mss_clamp(const struct tcp_sock *tp, u16 mss)
 int tcp_skb_shift(struct sk_buff *to, struct sk_buff *from, int pcount,
 		  int shiftlen);
 
+void __tcp_sock_set_cork(struct sock *sk, bool on);
 void tcp_sock_set_cork(struct sock *sk, bool on);
 int tcp_sock_set_keepcnt(struct sock *sk, int val);
 int tcp_sock_set_keepidle_locked(struct sock *sk, int val);
 int tcp_sock_set_keepidle(struct sock *sk, int val);
 int tcp_sock_set_keepintvl(struct sock *sk, int val);
+void __tcp_sock_set_nodelay(struct sock *sk, bool on);
 void tcp_sock_set_nodelay(struct sock *sk);
 void tcp_sock_set_quickack(struct sock *sk, int val);
 int tcp_sock_set_syncnt(struct sock *sk, int val);

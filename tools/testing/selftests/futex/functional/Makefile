@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
-INCLUDES := -I../include -I../../
-CFLAGS := $(CFLAGS) -g -O2 -Wall -D_GNU_SOURCE -pthread $(INCLUDES)
+INCLUDES := -I../include -I../../ -I../../../../../usr/include/
+CFLAGS := $(CFLAGS) -g -O2 -Wall -D_GNU_SOURCE -pthread $(INCLUDES) $(KHDR_INCLUDES)
 LDLIBS := -lpthread -lrt
 
 HEADERS := \
@@ -14,12 +14,16 @@ TEST_GEN_FILES := \
 	futex_requeue_pi_signal_restart \
 	futex_requeue_pi_mismatched_ops \
 	futex_wait_uninitialized_heap \
-	futex_wait_private_mapped_file
+	futex_wait_private_mapped_file \
+	futex_wait \
+	futex_requeue \
+	futex_waitv
 
 TEST_PROGS := run.sh
 
 top_srcdir = ../../../../..
 KSFT_KHDR_INSTALL := 1
+DEFAULT_INSTALL_HDR_PATH := 1
 include ../../lib.mk
 
 $(TEST_GEN_FILES): $(HEADERS)

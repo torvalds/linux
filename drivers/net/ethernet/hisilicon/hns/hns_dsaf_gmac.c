@@ -130,14 +130,6 @@ static void hns_gmac_get_tx_auto_pause_frames(void *mac_drv, u16 *newval)
 				     GMAC_FC_TX_TIMER_M, GMAC_FC_TX_TIMER_S);
 }
 
-static void hns_gmac_set_rx_auto_pause_frames(void *mac_drv, u32 newval)
-{
-	struct mac_driver *drv = (struct mac_driver *)mac_drv;
-
-	dsaf_set_dev_bit(drv, GMAC_PAUSE_EN_REG,
-			 GMAC_PAUSE_EN_RX_FDFC_B, !!newval);
-}
-
 static void hns_gmac_config_max_frame_length(void *mac_drv, u16 newval)
 {
 	struct mac_driver *drv = (struct mac_driver *)mac_drv;
@@ -177,14 +169,6 @@ static void hns_gmac_tx_loop_pkt_dis(void *mac_drv)
 	dsaf_set_bit(tx_loop_pkt_pri, GMAC_TX_LOOP_PKT_EN_B, 1);
 	dsaf_set_bit(tx_loop_pkt_pri, GMAC_TX_LOOP_PKT_HIG_PRI_B, 0);
 	dsaf_write_dev(drv, GMAC_TX_LOOP_PKT_PRI_REG, tx_loop_pkt_pri);
-}
-
-static void hns_gmac_set_duplex_type(void *mac_drv, u8 newval)
-{
-	struct mac_driver *drv = (struct mac_driver *)mac_drv;
-
-	dsaf_set_dev_bit(drv, GMAC_DUPLEX_TYPE_REG,
-			 GMAC_DUPLEX_TYPE_B, !!newval);
 }
 
 static void hns_gmac_get_duplex_type(void *mac_drv,
@@ -466,7 +450,7 @@ static void hns_gmac_update_stats(void *mac_drv)
 		+= dsaf_read_dev(drv, GMAC_TX_PAUSE_FRAMES_REG);
 }
 
-static void hns_gmac_set_mac_addr(void *mac_drv, char *mac_addr)
+static void hns_gmac_set_mac_addr(void *mac_drv, const char *mac_addr)
 {
 	struct mac_driver *drv = (struct mac_driver *)mac_drv;
 
@@ -687,17 +671,14 @@ static void hns_gmac_get_stats(void *mac_drv, u64 *data)
 
 static void hns_gmac_get_strings(u32 stringset, u8 *data)
 {
-	char *buff = (char *)data;
+	u8 *buff = data;
 	u32 i;
 
 	if (stringset != ETH_SS_STATS)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(g_gmac_stats_string); i++) {
-		snprintf(buff, ETH_GSTRING_LEN, "%s",
-			 g_gmac_stats_string[i].desc);
-		buff = buff + ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < ARRAY_SIZE(g_gmac_stats_string); i++)
+		ethtool_sprintf(&buff, g_gmac_stats_string[i].desc);
 }
 
 static int hns_gmac_get_sset_count(int stringset)
@@ -741,8 +722,6 @@ void *hns_gmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->set_an_mode = hns_gmac_config_an_mode;
 	mac_drv->config_loopback = hns_gmac_config_loopback;
 	mac_drv->config_pad_and_crc = hns_gmac_config_pad_and_crc;
-	mac_drv->config_half_duplex = hns_gmac_set_duplex_type;
-	mac_drv->set_rx_ignore_pause_frames = hns_gmac_set_rx_auto_pause_frames;
 	mac_drv->get_info = hns_gmac_get_info;
 	mac_drv->autoneg_stat = hns_gmac_autoneg_stat;
 	mac_drv->get_pause_enable = hns_gmac_get_pausefrm_cfg;

@@ -17,8 +17,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include <linux/devm-helpers.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -31,9 +31,8 @@
 
 #include <linux/power/bq24735-charger.h>
 
-#define BQ24735_CHG_OPT			0x12
-#define BQ24735_CHG_OPT_CHARGE_DISABLE	(1 << 0)
-#define BQ24735_CHG_OPT_AC_PRESENT	(1 << 4)
+/* BQ24735 available commands and their respective masks */
+#define BQ24735_CHARGE_OPT		0x12
 #define BQ24735_CHARGE_CURRENT		0x14
 #define BQ24735_CHARGE_CURRENT_MASK	0x1fc0
 #define BQ24735_CHARGE_VOLTAGE		0x15
@@ -42,6 +41,10 @@
 #define BQ24735_INPUT_CURRENT_MASK	0x1f80
 #define BQ24735_MANUFACTURER_ID		0xfe
 #define BQ24735_DEVICE_ID		0xff
+
+/* ChargeOptions bits of interest */
+#define BQ24735_CHARGE_OPT_CHG_DISABLE	(1 << 0)
+#define BQ24735_CHARGE_OPT_AC_PRESENT	(1 << 4)
 
 struct bq24735 {
 	struct power_supply		*charger;
@@ -167,8 +170,8 @@ static inline int bq24735_enable_charging(struct bq24735 *charger)
 	if (ret)
 		return ret;
 
-	return bq24735_update_word(charger->client, BQ24735_CHG_OPT,
-				   BQ24735_CHG_OPT_CHARGE_DISABLE, 0);
+	return bq24735_update_word(charger->client, BQ24735_CHARGE_OPT,
+				   BQ24735_CHARGE_OPT_CHG_DISABLE, 0);
 }
 
 static inline int bq24735_disable_charging(struct bq24735 *charger)
@@ -176,9 +179,9 @@ static inline int bq24735_disable_charging(struct bq24735 *charger)
 	if (charger->pdata->ext_control)
 		return 0;
 
-	return bq24735_update_word(charger->client, BQ24735_CHG_OPT,
-				   BQ24735_CHG_OPT_CHARGE_DISABLE,
-				   BQ24735_CHG_OPT_CHARGE_DISABLE);
+	return bq24735_update_word(charger->client, BQ24735_CHARGE_OPT,
+				   BQ24735_CHARGE_OPT_CHG_DISABLE,
+				   BQ24735_CHARGE_OPT_CHG_DISABLE);
 }
 
 static bool bq24735_charger_is_present(struct bq24735 *charger)
@@ -188,14 +191,14 @@ static bool bq24735_charger_is_present(struct bq24735 *charger)
 	} else {
 		int ac = 0;
 
-		ac = bq24735_read_word(charger->client, BQ24735_CHG_OPT);
+		ac = bq24735_read_word(charger->client, BQ24735_CHARGE_OPT);
 		if (ac < 0) {
 			dev_dbg(&charger->client->dev,
 				"Failed to read charger options : %d\n",
 				ac);
 			return false;
 		}
-		return (ac & BQ24735_CHG_OPT_AC_PRESENT) ? true : false;
+		return (ac & BQ24735_CHARGE_OPT_AC_PRESENT) ? true : false;
 	}
 
 	return false;
@@ -208,11 +211,11 @@ static int bq24735_charger_is_charging(struct bq24735 *charger)
 	if (!bq24735_charger_is_present(charger))
 		return 0;
 
-	ret  = bq24735_read_word(charger->client, BQ24735_CHG_OPT);
+	ret  = bq24735_read_word(charger->client, BQ24735_CHARGE_OPT);
 	if (ret < 0)
 		return ret;
 
-	return !(ret & BQ24735_CHG_OPT_CHARGE_DISABLE);
+	return !(ret & BQ24735_CHARGE_OPT_CHG_DISABLE);
 }
 
 static void bq24735_update(struct bq24735 *charger)
@@ -474,20 +477,14 @@ static int bq24735_charger_probe(struct i2c_client *client,
 		if (!charger->poll_interval)
 			return 0;
 
-		INIT_DELAYED_WORK(&charger->poll, bq24735_poll);
+		ret = devm_delayed_work_autocancel(&client->dev, &charger->poll,
+						   bq24735_poll);
+		if (ret)
+			return ret;
+
 		schedule_delayed_work(&charger->poll,
 				      msecs_to_jiffies(charger->poll_interval));
 	}
-
-	return 0;
-}
-
-static int bq24735_charger_remove(struct i2c_client *client)
-{
-	struct bq24735 *charger = i2c_get_clientdata(client);
-
-	if (charger->poll_interval)
-		cancel_delayed_work_sync(&charger->poll);
 
 	return 0;
 }
@@ -510,7 +507,6 @@ static struct i2c_driver bq24735_charger_driver = {
 		.of_match_table = bq24735_match_ids,
 	},
 	.probe = bq24735_charger_probe,
-	.remove = bq24735_charger_remove,
 	.id_table = bq24735_charger_id,
 };
 

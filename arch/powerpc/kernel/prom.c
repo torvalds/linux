@@ -11,7 +11,6 @@
 
 #undef DEBUG
 
-#include <stdarg.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
@@ -64,6 +63,8 @@
 #else
 #define DBG(fmt...)
 #endif
+
+int *chip_id_lookup_table;
 
 #ifdef CONFIG_PPC64
 int __initdata iommu_is_off;
@@ -165,7 +166,6 @@ static struct ibm_pa_feature {
 #ifdef CONFIG_PPC_RADIX_MMU
 	{ .pabyte = 40, .pabit = 0, .mmu_features  = MMU_FTR_TYPE_RADIX | MMU_FTR_GTSE },
 #endif
-	{ .pabyte = 1,  .pabit = 1, .invert = 1, .cpu_features = CPU_FTR_NODSISRALIGN },
 	{ .pabyte = 5,  .pabit = 0, .cpu_features  = CPU_FTR_REAL_LE,
 				    .cpu_user_ftrs = PPC_FEATURE_TRUE_LE },
 	/*
@@ -231,7 +231,7 @@ static void __init check_cpu_pa_features(unsigned long node)
 		      ibm_pa_features, ARRAY_SIZE(ibm_pa_features));
 }
 
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 static void __init init_mmu_slb_size(unsigned long node)
 {
 	const __be32 *slb_size_ptr;
@@ -268,7 +268,7 @@ static struct feature_property {
 };
 
 #if defined(CONFIG_44x) && defined(CONFIG_PPC_FPU)
-static inline void identical_pvr_fixup(unsigned long node)
+static __init void identical_pvr_fixup(unsigned long node)
 {
 	unsigned int pvr;
 	const char *model = of_get_flat_dt_prop(node, "model", NULL);
@@ -352,6 +352,9 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	    be32_to_cpu(intserv[found_thread]));
 	boot_cpuid = found;
 
+	// Pass the boot CPU's hard CPU id back to our caller
+	*((u32 *)data) = be32_to_cpu(intserv[found_thread]);
+
 	/*
 	 * PAPR defines "logical" PVR values for cpus that
 	 * meet various levels of the architecture:
@@ -388,9 +391,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 		cur_cpu_spec->cpu_features &= ~CPU_FTR_SMT;
 	else if (!dt_cpu_ftrs_in_use())
 		cur_cpu_spec->cpu_features |= CPU_FTR_SMT;
-	allocate_paca(boot_cpuid);
 #endif
-	set_hard_smp_processor_id(found, be32_to_cpu(intserv[found_thread]));
 
 	return 0;
 }
@@ -402,7 +403,7 @@ static int __init early_init_dt_scan_chosen_ppc(unsigned long node,
 	const unsigned long *lprop; /* All these set by kernel, so no need to convert endian */
 
 	/* Use common scan routine to determine if this is the chosen node */
-	if (early_init_dt_scan_chosen(node, uname, depth, data) == 0)
+	if (early_init_dt_scan_chosen(data) < 0)
 		return 0;
 
 #ifdef CONFIG_PPC64
@@ -447,7 +448,7 @@ static int __init early_init_dt_scan_chosen_ppc(unsigned long node,
  */
 
 #ifdef CONFIG_SPARSEMEM
-static bool validate_mem_limit(u64 base, u64 *size)
+static bool __init validate_mem_limit(u64 base, u64 *size)
 {
 	u64 max_mem = 1UL << (MAX_PHYSMEM_BITS);
 
@@ -458,7 +459,7 @@ static bool validate_mem_limit(u64 base, u64 *size)
 	return true;
 }
 #else
-static bool validate_mem_limit(u64 base, u64 *size)
+static bool __init validate_mem_limit(u64 base, u64 *size)
 {
 	return true;
 }
@@ -532,19 +533,18 @@ static int  __init early_init_drmem_lmb(struct drmem_lmb *lmb,
 }
 #endif /* CONFIG_PPC_PSERIES */
 
-static int __init early_init_dt_scan_memory_ppc(unsigned long node,
-						const char *uname,
-						int depth, void *data)
+static int __init early_init_dt_scan_memory_ppc(void)
 {
 #ifdef CONFIG_PPC_PSERIES
-	if (depth == 1 &&
-	    strcmp(uname, "ibm,dynamic-reconfiguration-memory") == 0) {
+	const void *fdt = initial_boot_params;
+	int node = fdt_path_offset(fdt, "/ibm,dynamic-reconfiguration-memory");
+
+	if (node > 0)
 		walk_drmem_lmbs_early(node, NULL, early_init_drmem_lmb);
-		return 0;
-	}
+
 #endif
-	
-	return early_init_dt_scan_memory(node, uname, depth, data);
+
+	return early_init_dt_scan_memory();
 }
 
 /*
@@ -639,7 +639,9 @@ static void __init early_reserve_mem(void)
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */
 
-#ifdef CONFIG_PPC32
+	if (!IS_ENABLED(CONFIG_PPC32))
+		return;
+
 	/* 
 	 * Handle the case where we might be booting from an old kexec
 	 * image that setup the mem_rsvmap as pairs of 32-bit values
@@ -660,7 +662,6 @@ static void __init early_reserve_mem(void)
 		}
 		return;
 	}
-#endif
 }
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -708,12 +709,13 @@ static void __init save_fscr_to_task(void)
 		init_task.thread.fscr = mfspr(SPRN_FSCR);
 }
 #else
-static inline void save_fscr_to_task(void) {};
+static inline void save_fscr_to_task(void) {}
 #endif
 
 
 void __init early_init_devtree(void *params)
 {
+	u32 boot_cpu_hwid;
 	phys_addr_t limit;
 
 	DBG(" -> early_init_devtree(%px)\n", params);
@@ -747,8 +749,8 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_chosen_ppc, boot_command_line);
 
 	/* Scan memory nodes and rebuild MEMBLOCKs */
-	of_scan_flat_dt(early_init_dt_scan_root, NULL);
-	of_scan_flat_dt(early_init_dt_scan_memory_ppc, NULL);
+	early_init_dt_scan_root();
+	early_init_dt_scan_memory_ppc();
 
 	parse_early_param();
 
@@ -757,7 +759,7 @@ void __init early_init_devtree(void *params)
 		first_memblock_size = min_t(u64, first_memblock_size, memory_limit);
 	setup_initial_memory_limit(memstart_addr, first_memblock_size);
 	/* Reserve MEMBLOCK regions used by kernel, initrd, dt, etc... */
-	memblock_reserve(PHYSICAL_START, __pa(klimit) - PHYSICAL_START);
+	memblock_reserve(PHYSICAL_START, __pa(_end) - PHYSICAL_START);
 	/* If relocatable, reserve first 32k for interrupt vectors etc. */
 	if (PHYSICAL_START > MEMORY_START)
 		memblock_reserve(MEMORY_START, 0x8000);
@@ -790,8 +792,6 @@ void __init early_init_devtree(void *params)
 	 * FIXME .. and the initrd too? */
 	move_device_tree();
 
-	allocate_paca_ptrs();
-
 	DBG("Scanning CPUs ...\n");
 
 	dt_cpu_ftrs_scan();
@@ -799,7 +799,7 @@ void __init early_init_devtree(void *params)
 	/* Retrieve CPU related informations from the flat tree
 	 * (altivec support, boot CPU ID, ...)
 	 */
-	of_scan_flat_dt(early_init_dt_scan_cpus, NULL);
+	of_scan_flat_dt(early_init_dt_scan_cpus, &boot_cpu_hwid);
 	if (boot_cpuid < 0) {
 		printk("Failed to identify boot CPU !\n");
 		BUG();
@@ -815,6 +815,11 @@ void __init early_init_devtree(void *params)
 #endif
 
 	mmu_early_init_devtree();
+
+	// NB. paca is not installed until later in early_setup()
+	allocate_paca_ptrs();
+	allocate_paca(boot_cpuid);
+	set_hard_smp_processor_id(boot_cpuid, boot_cpu_hwid);
 
 #ifdef CONFIG_PPC_POWERNV
 	/* Scan and build the list of machine check recoverable ranges */
@@ -856,8 +861,8 @@ void __init early_get_first_memblock_info(void *params, phys_addr_t *size)
 	 * mess the memblock.
 	 */
 	add_mem_to_memblock = 0;
-	of_scan_flat_dt(early_init_dt_scan_root, NULL);
-	of_scan_flat_dt(early_init_dt_scan_memory_ppc, NULL);
+	early_init_dt_scan_root();
+	early_init_dt_scan_memory_ppc();
 	add_mem_to_memblock = 1;
 
 	if (size)
@@ -915,13 +920,22 @@ EXPORT_SYMBOL(of_get_ibm_chip_id);
 int cpu_to_chip_id(int cpu)
 {
 	struct device_node *np;
+	int ret = -1, idx;
+
+	idx = cpu / threads_per_core;
+	if (chip_id_lookup_table && chip_id_lookup_table[idx] != -1)
+		return chip_id_lookup_table[idx];
 
 	np = of_get_cpu_node(cpu, NULL);
-	if (!np)
-		return -1;
+	if (np) {
+		ret = of_get_ibm_chip_id(np);
+		of_node_put(np);
 
-	of_node_put(np);
-	return of_get_ibm_chip_id(np);
+		if (chip_id_lookup_table)
+			chip_id_lookup_table[idx] = ret;
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(cpu_to_chip_id);
 

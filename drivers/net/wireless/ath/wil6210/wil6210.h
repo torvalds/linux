@@ -89,6 +89,9 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL_MAX_AGG_WSIZE_64	(64) /* FW/HW limit */
 #define WIL6210_MAX_STATUS_RINGS	(8)
 #define WIL_WMI_CALL_GENERAL_TO_MS 100
+#define WIL_EXTENDED_MCS_26 (26) /* FW reports MCS 12.1 to driver as "26" */
+#define WIL_BASE_MCS_FOR_EXTENDED_26 (7) /* MCS 7 is base MCS for MCS 12.1 */
+#define WIL_EXTENDED_MCS_CHECK(x) (((x) == WIL_EXTENDED_MCS_26) ? "12.1" : #x)
 
 /* Hardware offload block adds the following:
  * 26 bytes - 3-address QoS data header
@@ -1338,7 +1341,7 @@ struct wil6210_priv *wil_cfg80211_init(struct device *dev);
 void wil_cfg80211_deinit(struct wil6210_priv *wil);
 void wil_p2p_wdev_free(struct wil6210_priv *wil);
 
-int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);
+int wmi_set_mac_address(struct wil6210_priv *wil, const void *addr);
 int wmi_pcp_start(struct wil6210_vif *vif, int bi, u8 wmi_nettype, u8 chan,
 		  u8 edmg_chan, u8 hidden_ssid, u8 is_go);
 int wmi_pcp_stop(struct wil6210_vif *vif);

@@ -29,6 +29,7 @@
 #include <linux/types.h>
 
 #include "amdgpu_irq.h"
+#include "amdgpu_ras.h"
 
 /* VA hole for 48bit addresses on Vega10 */
 #define AMDGPU_GMC_HOLE_START	0x0000800000000000ULL
@@ -66,9 +67,9 @@ struct firmware;
  * GMC page fault information
  */
 struct amdgpu_gmc_fault {
-	uint64_t	timestamp;
+	uint64_t	timestamp:48;
 	uint64_t	next:AMDGPU_GMC_FAULT_RING_ORDER;
-	uint64_t	key:52;
+	atomic64_t	key;
 };
 
 /*
@@ -135,6 +136,10 @@ struct amdgpu_gmc_funcs {
 	unsigned int (*get_vbios_fb_size)(struct amdgpu_device *adev);
 };
 
+struct amdgpu_xgmi_ras {
+	struct amdgpu_ras_block_object ras_block;
+};
+
 struct amdgpu_xgmi {
 	/* from psp */
 	u64 node_id;
@@ -149,6 +154,9 @@ struct amdgpu_xgmi {
 	struct list_head head;
 	bool supported;
 	struct ras_common_if *ras_if;
+	bool connected_to_cpu;
+	bool pending_reset;
+	struct amdgpu_xgmi_ras *ras;
 };
 
 struct amdgpu_gmc {
@@ -189,10 +197,13 @@ struct amdgpu_gmc {
 	u64			gart_end;
 	/* Frame buffer aperture of this GPU device. Different from
 	 * fb_start (see below), this only covers the local GPU device.
-	 * Driver get fb_start from MC_VM_FB_LOCATION_BASE (set by vbios)
-	 * and calculate vram_start of this local device by adding an
-	 * offset inside the XGMI hive.
-	 * Under VMID0, logical address == MC address
+	 * If driver uses FB aperture to access FB, driver get fb_start from
+	 * MC_VM_FB_LOCATION_BASE (set by vbios) and calculate vram_start
+	 * of this local device by adding an offset inside the XGMI hive.
+	 * If driver uses GART table for VMID0 FB access, driver finds a hole in
+	 * VMID0's virtual address space to place the SYSVM aperture inside
+	 * which the first part is vram and the second part is gart (covering
+	 * system ram).
 	 */
 	u64			vram_start;
 	u64			vram_end;
@@ -240,6 +251,12 @@ struct amdgpu_gmc {
 	struct amdgpu_xgmi xgmi;
 	struct amdgpu_irq_src	ecc_irq;
 	int noretry;
+
+	uint32_t	vmid0_page_table_block_size;
+	uint32_t	vmid0_page_table_depth;
+	struct amdgpu_bo		*pdb0_bo;
+	/* CPU kmapped address of pdb0*/
+	void				*ptr_pdb0;
 };
 
 #define amdgpu_gmc_flush_gpu_tlb(adev, vmid, vmhub, type) ((adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid), (vmhub), (type)))
@@ -281,6 +298,7 @@ static inline uint64_t amdgpu_gmc_sign_extend(uint64_t addr)
 	return addr;
 }
 
+int amdgpu_gmc_pdb0_alloc(struct amdgpu_device *adev);
 void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 			       uint64_t *addr, uint64_t *flags);
 int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
@@ -288,14 +306,19 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 				uint64_t flags);
 uint64_t amdgpu_gmc_pd_addr(struct amdgpu_bo *bo);
 uint64_t amdgpu_gmc_agp_addr(struct ttm_buffer_object *bo);
+void amdgpu_gmc_sysvm_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc);
 void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
 			      u64 base);
 void amdgpu_gmc_gart_location(struct amdgpu_device *adev,
 			      struct amdgpu_gmc *mc);
 void amdgpu_gmc_agp_location(struct amdgpu_device *adev,
 			     struct amdgpu_gmc *mc);
-bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
+bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev,
+			      struct amdgpu_ih_ring *ih, uint64_t addr,
 			      uint16_t pasid, uint64_t timestamp);
+void amdgpu_gmc_filter_faults_remove(struct amdgpu_device *adev, uint64_t addr,
+				     uint16_t pasid);
+int amdgpu_gmc_ras_early_init(struct amdgpu_device *adev);
 int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev);
 void amdgpu_gmc_ras_fini(struct amdgpu_device *adev);
 int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev);
@@ -309,4 +332,9 @@ amdgpu_gmc_set_vm_fault_masks(struct amdgpu_device *adev, int hub_type,
 
 void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev);
 
+void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev);
+uint64_t amdgpu_gmc_vram_mc2pa(struct amdgpu_device *adev, uint64_t mc_addr);
+uint64_t amdgpu_gmc_vram_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo);
+uint64_t amdgpu_gmc_vram_cpu_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo);
+int amdgpu_gmc_vram_checking(struct amdgpu_device *adev);
 #endif

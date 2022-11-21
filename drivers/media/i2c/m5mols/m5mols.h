@@ -13,6 +13,7 @@
 #define M5MOLS_H
 
 #include <linux/sizes.h>
+#include <linux/gpio/consumer.h>
 #include <media/v4l2-subdev.h>
 #include "m5mols_reg.h"
 
@@ -50,6 +51,7 @@ struct m5mols_resolution {
  * @exposure_time: exposure time register value
  * @shutter_speed: speed of the shutter register value
  * @aperture: aperture register value
+ * @brightness: brightness register value
  * @exposure_bias: it calls also EV bias
  * @iso_speed: ISO register value
  * @flash: status register value of the flash
@@ -126,6 +128,8 @@ struct m5mols_scenemode {
 	u8 wdr;
 };
 
+#define VERSION_STRING_SIZE	22
+
 /**
  * struct m5mols_version - firmware version information
  * @customer:	customer information
@@ -144,7 +148,6 @@ struct m5mols_scenemode {
  * about manufacturer and the vendor of the sensor's packaging. The least
  * significant 2 bytes of the string indicate packaging manufacturer.
  */
-#define VERSION_STRING_SIZE	22
 struct m5mols_version {
 	u8	customer;
 	u8	project;
@@ -179,6 +182,7 @@ struct m5mols_version {
  * @stabilization: image stabilization control
  * @jpeg_quality: JPEG compression quality control
  * @set_power: optional power callback to the board code
+ * @reset: GPIO driving the reset pin of M-5MOLS
  * @lock: mutex protecting the structure fields below
  * @ffmt: current fmt according to resolution type
  * @res_type: current resolution type
@@ -222,6 +226,7 @@ struct m5mols_info {
 	struct v4l2_ctrl *jpeg_quality;
 
 	int (*set_power)(struct device *dev, int on);
+	struct gpio_desc *reset;
 
 	struct mutex lock;
 

@@ -249,7 +249,6 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun			=
 		ESAS2R_DEFAULT_CMD_PER_LUN,
 	.present			= 0,
-	.unchecked_isa_dma		= 0,
 	.emulated			= 0,
 	.proc_name			= ESAS2R_DRVR_NAME,
 	.change_queue_depth		= scsi_change_queue_depth,
@@ -346,8 +345,7 @@ static struct pci_driver
 	.id_table	= esas2r_pci_table,
 	.probe		= esas2r_probe,
 	.remove		= esas2r_remove,
-	.suspend	= esas2r_suspend,
-	.resume		= esas2r_resume,
+	.driver.pm	= &esas2r_pm_ops,
 };
 
 static int esas2r_probe(struct pci_dev *pcid,
@@ -618,6 +616,7 @@ static const struct file_operations esas2r_proc_fops = {
 };
 
 static const struct proc_ops esas2r_proc_ops = {
+	.proc_lseek		= default_llseek,
 	.proc_ioctl		= esas2r_proc_ioctl,
 #ifdef CONFIG_COMPAT
 	.proc_compat_ioctl	= compat_ptr_ioctl,
@@ -829,7 +828,7 @@ int esas2r_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	if (unlikely(test_bit(AF_DEGRADED_MODE, &a->flags))) {
 		cmd->result = DID_NO_CONNECT << 16;
-		cmd->scsi_done(cmd);
+		scsi_done(cmd);
 		return 0;
 	}
 
@@ -894,15 +893,11 @@ static void complete_task_management_request(struct esas2r_adapter *a,
 	esas2r_free_request(a, rq);
 }
 
-/**
+/*
  * Searches the specified queue for the specified queue for the command
  * to abort.
  *
- * @param [in] a
- * @param [in] abort_request
- * @param [in] cmd
- * t
- * @return 0 on failure, 1 if command was not found, 2 if command was found
+ * Return 0 on failure, 1 if command was not found, 2 if command was found
  */
 static int esas2r_check_active_queue(struct esas2r_adapter *a,
 				     struct esas2r_request **abort_request,
@@ -993,7 +988,7 @@ int esas2r_eh_abort(struct scsi_cmnd *cmd)
 
 		scsi_set_resid(cmd, 0);
 
-		cmd->scsi_done(cmd);
+		scsi_done(cmd);
 
 		return SUCCESS;
 	}
@@ -1059,7 +1054,7 @@ check_active_queue:
 
 	scsi_set_resid(cmd, 0);
 
-	cmd->scsi_done(cmd);
+	scsi_done(cmd);
 
 	return SUCCESS;
 }
@@ -1530,7 +1525,7 @@ void esas2r_complete_request_cb(struct esas2r_adapter *a,
 
 		rq->cmd->result =
 			((esas2r_req_status_to_error(rq->req_stat) << 16)
-			 | (rq->func_rsp.scsi_rsp.scsi_stat & STATUS_MASK));
+			 | rq->func_rsp.scsi_rsp.scsi_stat);
 
 		if (rq->req_stat == RS_UNDERRUN)
 			scsi_set_resid(rq->cmd,
@@ -1540,7 +1535,7 @@ void esas2r_complete_request_cb(struct esas2r_adapter *a,
 			scsi_set_resid(rq->cmd, 0);
 	}
 
-	rq->cmd->scsi_done(rq->cmd);
+	scsi_done(rq->cmd);
 
 	esas2r_free_request(a, rq);
 }

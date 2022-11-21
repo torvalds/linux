@@ -17,37 +17,20 @@
 #include <linux/irq_work.h>
 #include <linux/extable.h>
 #include <linux/ftrace.h>
+#include <linux/memblock.h>
+#include <linux/of.h>
 
+#include <asm/interrupt.h>
 #include <asm/machdep.h>
 #include <asm/mce.h>
 #include <asm/nmi.h>
 
-static DEFINE_PER_CPU(int, mce_nest_count);
-static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT], mce_event);
+#include "setup.h"
 
-/* Queue for delayed MCE events. */
-static DEFINE_PER_CPU(int, mce_queue_count);
-static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT], mce_event_queue);
-
-/* Queue for delayed MCE UE events. */
-static DEFINE_PER_CPU(int, mce_ue_count);
-static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT],
-					mce_ue_event_queue);
-
-static void machine_check_process_queued_event(struct irq_work *work);
-static void machine_check_ue_irq_work(struct irq_work *work);
 static void machine_check_ue_event(struct machine_check_event *evt);
 static void machine_process_ue_event(struct work_struct *work);
 
-static struct irq_work mce_event_process_work = {
-        .func = machine_check_process_queued_event,
-};
-
-static struct irq_work mce_ue_event_irq_work = {
-	.func = machine_check_ue_irq_work,
-};
-
-DECLARE_WORK(mce_ue_event_work, machine_process_ue_event);
+static DECLARE_WORK(mce_ue_event_work, machine_process_ue_event);
 
 static BLOCKING_NOTIFIER_HEAD(mce_notifier_list);
 
@@ -95,6 +78,13 @@ static void mce_set_error_info(struct machine_check_event *mce,
 	}
 }
 
+void mce_irq_work_queue(void)
+{
+	/* Raise decrementer interrupt */
+	arch_irq_work_raise();
+	set_mce_pending_irq_work();
+}
+
 /*
  * Decode and save high level MCE information into per cpu buffer which
  * is an array of machine_check_event structure.
@@ -103,9 +93,10 @@ void save_mce_event(struct pt_regs *regs, long handled,
 		    struct mce_error_info *mce_err,
 		    uint64_t nip, uint64_t addr, uint64_t phys_addr)
 {
-	int index = __this_cpu_inc_return(mce_nest_count) - 1;
-	struct machine_check_event *mce = this_cpu_ptr(&mce_event[index]);
+	int index = local_paca->mce_info->mce_nest_count++;
+	struct machine_check_event *mce;
 
+	mce = &local_paca->mce_info->mce_event[index];
 	/*
 	 * Return if we don't have enough space to log mce event.
 	 * mce_nest_count may go beyond MAX_MC_EVT but that's ok,
@@ -137,6 +128,8 @@ void save_mce_event(struct pt_regs *regs, long handled,
 	 * Populate the mce error_type and type-specific error_type.
 	 */
 	mce_set_error_info(mce, mce_err);
+	if (mce->error_type == MCE_ERROR_TYPE_UE)
+		mce->u.ue_error.ignore_event = mce_err->ignore_event;
 
 	if (!addr)
 		return;
@@ -165,7 +158,6 @@ void save_mce_event(struct pt_regs *regs, long handled,
 		if (phys_addr != ULONG_MAX) {
 			mce->u.ue_error.physical_address_provided = true;
 			mce->u.ue_error.physical_address = phys_addr;
-			mce->u.ue_error.ignore_event = mce_err->ignore_event;
 			machine_check_ue_event(mce);
 		}
 	}
@@ -191,7 +183,7 @@ void save_mce_event(struct pt_regs *regs, long handled,
  */
 int get_mce_event(struct machine_check_event *mce, bool release)
 {
-	int index = __this_cpu_read(mce_nest_count) - 1;
+	int index = local_paca->mce_info->mce_nest_count - 1;
 	struct machine_check_event *mc_evt;
 	int ret = 0;
 
@@ -201,7 +193,7 @@ int get_mce_event(struct machine_check_event *mce, bool release)
 
 	/* Check if we have MCE info to process. */
 	if (index < MAX_MC_EVT) {
-		mc_evt = this_cpu_ptr(&mce_event[index]);
+		mc_evt = &local_paca->mce_info->mce_event[index];
 		/* Copy the event structure and release the original */
 		if (mce)
 			*mce = *mc_evt;
@@ -211,7 +203,7 @@ int get_mce_event(struct machine_check_event *mce, bool release)
 	}
 	/* Decrement the count to free the slot. */
 	if (release)
-		__this_cpu_dec(mce_nest_count);
+		local_paca->mce_info->mce_nest_count--;
 
 	return ret;
 }
@@ -221,7 +213,7 @@ void release_mce_event(void)
 	get_mce_event(NULL, true);
 }
 
-static void machine_check_ue_irq_work(struct irq_work *work)
+static void machine_check_ue_work(void)
 {
 	schedule_work(&mce_ue_event_work);
 }
@@ -233,16 +225,17 @@ static void machine_check_ue_event(struct machine_check_event *evt)
 {
 	int index;
 
-	index = __this_cpu_inc_return(mce_ue_count) - 1;
+	index = local_paca->mce_info->mce_ue_count++;
 	/* If queue is full, just return for now. */
 	if (index >= MAX_MC_EVT) {
-		__this_cpu_dec(mce_ue_count);
+		local_paca->mce_info->mce_ue_count--;
 		return;
 	}
-	memcpy(this_cpu_ptr(&mce_ue_event_queue[index]), evt, sizeof(*evt));
+	memcpy(&local_paca->mce_info->mce_ue_event_queue[index],
+	       evt, sizeof(*evt));
 
 	/* Queue work to process this event later. */
-	irq_work_queue(&mce_ue_event_irq_work);
+	mce_irq_work_queue();
 }
 
 /*
@@ -256,16 +249,16 @@ void machine_check_queue_event(void)
 	if (!get_mce_event(&evt, MCE_EVENT_RELEASE))
 		return;
 
-	index = __this_cpu_inc_return(mce_queue_count) - 1;
+	index = local_paca->mce_info->mce_queue_count++;
 	/* If queue is full, just return for now. */
 	if (index >= MAX_MC_EVT) {
-		__this_cpu_dec(mce_queue_count);
+		local_paca->mce_info->mce_queue_count--;
 		return;
 	}
-	memcpy(this_cpu_ptr(&mce_event_queue[index]), &evt, sizeof(evt));
+	memcpy(&local_paca->mce_info->mce_event_queue[index],
+	       &evt, sizeof(evt));
 
-	/* Queue irq work to process this event later. */
-	irq_work_queue(&mce_event_process_work);
+	mce_irq_work_queue();
 }
 
 void mce_common_process_ue(struct pt_regs *regs,
@@ -276,7 +269,7 @@ void mce_common_process_ue(struct pt_regs *regs,
 	entry = search_kernel_exception_table(regs->nip);
 	if (entry) {
 		mce_err->ignore_event = true;
-		regs->nip = extable_fixup(entry);
+		regs_set_return_ip(regs, extable_fixup(entry));
 	}
 }
 
@@ -289,9 +282,9 @@ static void machine_process_ue_event(struct work_struct *work)
 	int index;
 	struct machine_check_event *evt;
 
-	while (__this_cpu_read(mce_ue_count) > 0) {
-		index = __this_cpu_read(mce_ue_count) - 1;
-		evt = this_cpu_ptr(&mce_ue_event_queue[index]);
+	while (local_paca->mce_info->mce_ue_count > 0) {
+		index = local_paca->mce_info->mce_ue_count - 1;
+		evt = &local_paca->mce_info->mce_ue_event_queue[index];
 		blocking_notifier_call_chain(&mce_notifier_list, 0, evt);
 #ifdef CONFIG_MEMORY_FAILURE
 		/*
@@ -304,7 +297,7 @@ static void machine_process_ue_event(struct work_struct *work)
 		 */
 		if (evt->error_type == MCE_ERROR_TYPE_UE) {
 			if (evt->u.ue_error.ignore_event) {
-				__this_cpu_dec(mce_ue_count);
+				local_paca->mce_info->mce_ue_count--;
 				continue;
 			}
 
@@ -320,14 +313,14 @@ static void machine_process_ue_event(struct work_struct *work)
 					"was generated\n");
 		}
 #endif
-		__this_cpu_dec(mce_ue_count);
+		local_paca->mce_info->mce_ue_count--;
 	}
 }
 /*
  * process pending MCE event from the mce event queue. This function will be
  * called during syscall exit.
  */
-static void machine_check_process_queued_event(struct irq_work *work)
+static void machine_check_process_queued_event(void)
 {
 	int index;
 	struct machine_check_event *evt;
@@ -338,17 +331,38 @@ static void machine_check_process_queued_event(struct irq_work *work)
 	 * For now just print it to console.
 	 * TODO: log this error event to FSP or nvram.
 	 */
-	while (__this_cpu_read(mce_queue_count) > 0) {
-		index = __this_cpu_read(mce_queue_count) - 1;
-		evt = this_cpu_ptr(&mce_event_queue[index]);
+	while (local_paca->mce_info->mce_queue_count > 0) {
+		index = local_paca->mce_info->mce_queue_count - 1;
+		evt = &local_paca->mce_info->mce_event_queue[index];
 
 		if (evt->error_type == MCE_ERROR_TYPE_UE &&
 		    evt->u.ue_error.ignore_event) {
-			__this_cpu_dec(mce_queue_count);
+			local_paca->mce_info->mce_queue_count--;
 			continue;
 		}
 		machine_check_print_event_info(evt, false, false);
-		__this_cpu_dec(mce_queue_count);
+		local_paca->mce_info->mce_queue_count--;
+	}
+}
+
+void set_mce_pending_irq_work(void)
+{
+	local_paca->mce_pending_irq_work = 1;
+}
+
+void clear_mce_pending_irq_work(void)
+{
+	local_paca->mce_pending_irq_work = 0;
+}
+
+void mce_run_irq_context_handlers(void)
+{
+	if (unlikely(local_paca->mce_pending_irq_work)) {
+		if (ppc_md.machine_check_log_err)
+			ppc_md.machine_check_log_err();
+		machine_check_process_queued_event();
+		machine_check_ue_work();
+		clear_mce_pending_irq_work();
 	}
 }
 
@@ -390,14 +404,14 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 	static const char *mc_ra_types[] = {
 		"Indeterminate",
 		"Instruction fetch (bad)",
-		"Instruction fetch (foreign)",
+		"Instruction fetch (foreign/control memory)",
 		"Page table walk ifetch (bad)",
-		"Page table walk ifetch (foreign)",
+		"Page table walk ifetch (foreign/control memory)",
 		"Load (bad)",
 		"Store (bad)",
 		"Page table walk Load/Store (bad)",
-		"Page table walk Load/Store (foreign)",
-		"Load/Store (foreign)",
+		"Page table walk Load/Store (foreign/control memory)",
+		"Load/Store (foreign/control memory)",
 	};
 	static const char *mc_link_types[] = {
 		"Indeterminate",
@@ -555,7 +569,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 	}
 
 	printk("%sMCE: CPU%d: machine check (%s) %s %s %s %s[%s]\n",
-		level, evt->cpu, sevstr, in_guest ? "Guest" : "Host",
+		level, evt->cpu, sevstr, in_guest ? "Guest" : "",
 		err_type, subtype, dar_str,
 		evt->disposition == MCE_DISPOSITION_RECOVERED ?
 		"Recovered" : "Not recovered");
@@ -575,9 +589,9 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		mc_error_class[evt->error_class] : "Unknown";
 	printk("%sMCE: CPU%d: %s\n", level, evt->cpu, subtype);
 
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	/* Display faulty slb contents for SLB errors. */
-	if (evt->error_type == MCE_ERROR_TYPE_SLB)
+	if (evt->error_type == MCE_ERROR_TYPE_SLB && !in_guest)
 		slb_dump_contents(local_paca->mce_faulty_slbs);
 #endif
 }
@@ -588,15 +602,9 @@ EXPORT_SYMBOL_GPL(machine_check_print_event_info);
  *
  * regs->nip and regs->msr contains srr0 and ssr1.
  */
-long notrace machine_check_early(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER_NMI(machine_check_early)
 {
 	long handled = 0;
-	u8 ftrace_enabled = this_cpu_get_ftrace_enabled();
-
-	this_cpu_set_ftrace_enabled(0);
-	/* Do not use nmi_enter/exit for pseries hpte guest */
-	if (radix_enabled() || !firmware_has_feature(FW_FEATURE_LPAR))
-		nmi_enter();
 
 	hv_nmi_check_nonrecoverable(regs);
 
@@ -605,11 +613,6 @@ long notrace machine_check_early(struct pt_regs *regs)
 	 */
 	if (ppc_md.machine_check_early)
 		handled = ppc_md.machine_check_early(regs);
-
-	if (radix_enabled() || !firmware_has_feature(FW_FEATURE_LPAR))
-		nmi_exit();
-
-	this_cpu_set_ftrace_enabled(ftrace_enabled);
 
 	return handled;
 }
@@ -722,7 +725,7 @@ long hmi_handle_debugtrig(struct pt_regs *regs)
 /*
  * Return values:
  */
-long hmi_exception_realmode(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER_NMI(hmi_exception_realmode)
 {	
 	int ret;
 
@@ -740,4 +743,25 @@ long hmi_exception_realmode(struct pt_regs *regs)
 	wait_for_tb_resync();
 
 	return 1;
+}
+
+void __init mce_init(void)
+{
+	struct mce_info *mce_info;
+	u64 limit;
+	int i;
+
+	limit = min(ppc64_bolted_size(), ppc64_rma_size);
+	for_each_possible_cpu(i) {
+		mce_info = memblock_alloc_try_nid(sizeof(*mce_info),
+						  __alignof__(*mce_info),
+						  MEMBLOCK_LOW_LIMIT,
+						  limit, cpu_to_node(i));
+		if (!mce_info)
+			goto err;
+		paca_ptrs[i]->mce_info = mce_info;
+	}
+	return;
+err:
+	panic("Failed to allocate memory for MCE event data\n");
 }

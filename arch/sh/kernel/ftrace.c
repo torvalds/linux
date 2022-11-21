@@ -67,7 +67,7 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
  * Modifying code must take extra care. On an SMP machine, if
  * the code being modified is also being executed on another CPU
  * that CPU will have undefined results and possibly take a GPF.
- * We use kstop_machine to stop other CPUS from exectuing code.
+ * We use kstop_machine to stop other CPUS from executing code.
  * But this does not stop NMIs from happening. We still need
  * to protect against that. We separate out the modification of
  * the code to take care of this.
@@ -251,11 +251,6 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	new = ftrace_call_replace(ip, addr);
 
 	return ftrace_modify_code(rec->ip, old, new);
-}
-
-int __init ftrace_dyn_arch_init(void)
-{
-	return 0;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 

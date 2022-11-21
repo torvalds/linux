@@ -226,6 +226,23 @@ exit_rx_proc:
 	return 0;
 }
 
+static void maybe_quirk_fw_disable_ds(struct mwifiex_adapter *adapter)
+{
+	struct mwifiex_private *priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
+	struct mwifiex_ver_ext ver_ext;
+
+	if (test_and_set_bit(MWIFIEX_IS_REQUESTING_FW_VEREXT, &adapter->work_flags))
+		return;
+
+	memset(&ver_ext, 0, sizeof(ver_ext));
+	ver_ext.version_str_sel = 1;
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_VERSION_EXT,
+			     HostCmd_ACT_GEN_GET, 0, &ver_ext, false)) {
+		mwifiex_dbg(priv->adapter, MSG,
+			    "Checking hardware revision failed.\n");
+	}
+}
+
 /*
  * The main process.
  *
@@ -356,6 +373,7 @@ process_start:
 			if (adapter->hw_status == MWIFIEX_HW_STATUS_INIT_DONE) {
 				adapter->hw_status = MWIFIEX_HW_STATUS_READY;
 				mwifiex_init_fw_complete(adapter);
+				maybe_quirk_fw_disable_ds(adapter);
 			}
 		}
 
@@ -401,6 +419,12 @@ process_start:
 		     !adapter->scan_processing) &&
 		    !adapter->data_sent &&
 		    !skb_queue_empty(&adapter->tx_data_q)) {
+			if (adapter->hs_activated_manually) {
+				mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY),
+						  MWIFIEX_ASYNC_CMD);
+				adapter->hs_activated_manually = false;
+			}
+
 			mwifiex_process_tx_queue(adapter);
 			if (adapter->hs_activated) {
 				clear_bit(MWIFIEX_IS_HS_CONFIGURED,
@@ -418,6 +442,12 @@ process_start:
 		    !mwifiex_bypass_txlist_empty(adapter) &&
 		    !mwifiex_is_tdls_chan_switching
 			(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA))) {
+			if (adapter->hs_activated_manually) {
+				mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY),
+						  MWIFIEX_ASYNC_CMD);
+				adapter->hs_activated_manually = false;
+			}
+
 			mwifiex_process_bypass_tx(adapter);
 			if (adapter->hs_activated) {
 				clear_bit(MWIFIEX_IS_HS_CONFIGURED,
@@ -434,6 +464,12 @@ process_start:
 		    !adapter->data_sent && !mwifiex_wmm_lists_empty(adapter) &&
 		    !mwifiex_is_tdls_chan_switching
 			(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA))) {
+			if (adapter->hs_activated_manually) {
+				mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY),
+						  MWIFIEX_ASYNC_CMD);
+				adapter->hs_activated_manually = false;
+			}
+
 			mwifiex_wmm_process_tx(adapter);
 			if (adapter->hs_activated) {
 				clear_bit(MWIFIEX_IS_HS_CONFIGURED,
@@ -498,13 +534,11 @@ static void mwifiex_free_adapter(struct mwifiex_adapter *adapter)
 static void mwifiex_terminate_workqueue(struct mwifiex_adapter *adapter)
 {
 	if (adapter->workqueue) {
-		flush_workqueue(adapter->workqueue);
 		destroy_workqueue(adapter->workqueue);
 		adapter->workqueue = NULL;
 	}
 
 	if (adapter->rx_workqueue) {
-		flush_workqueue(adapter->rx_workqueue);
 		destroy_workqueue(adapter->rx_workqueue);
 		adapter->rx_workqueue = NULL;
 	}
@@ -598,12 +632,14 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	}
 
 	rtnl_lock();
+	wiphy_lock(adapter->wiphy);
 	/* Create station interface by default */
 	wdev = mwifiex_add_virtual_intf(adapter->wiphy, "mlan%d", NET_NAME_ENUM,
 					NL80211_IFTYPE_STATION, NULL);
 	if (IS_ERR(wdev)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "cannot create default STA interface\n");
+		wiphy_unlock(adapter->wiphy);
 		rtnl_unlock();
 		goto err_add_intf;
 	}
@@ -614,6 +650,7 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 		if (IS_ERR(wdev)) {
 			mwifiex_dbg(adapter, ERROR,
 				    "cannot create AP interface\n");
+			wiphy_unlock(adapter->wiphy);
 			rtnl_unlock();
 			goto err_add_intf;
 		}
@@ -625,10 +662,12 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 		if (IS_ERR(wdev)) {
 			mwifiex_dbg(adapter, ERROR,
 				    "cannot create p2p client interface\n");
+			wiphy_unlock(adapter->wiphy);
 			rtnl_unlock();
 			goto err_add_intf;
 		}
 	}
+	wiphy_unlock(adapter->wiphy);
 	rtnl_unlock();
 
 	mwifiex_drv_get_driver_version(adapter, fmt, sizeof(fmt) - 1);
@@ -982,7 +1021,7 @@ int mwifiex_set_mac_address(struct mwifiex_private *priv,
 		return ret;
 	}
 
-	ether_addr_copy(dev->dev_addr, priv->curr_addr);
+	eth_hw_addr_set(dev, priv->curr_addr);
 	return 0;
 }
 
@@ -1441,8 +1480,17 @@ static void mwifiex_uninit_sw(struct mwifiex_adapter *adapter)
 			continue;
 		rtnl_lock();
 		if (priv->netdev &&
-		    priv->wdev.iftype != NL80211_IFTYPE_UNSPECIFIED)
+		    priv->wdev.iftype != NL80211_IFTYPE_UNSPECIFIED) {
+			/*
+			 * Close the netdev now, because if we do it later, the
+			 * netdev notifiers will need to acquire the wiphy lock
+			 * again --> deadlock.
+			 */
+			dev_close(priv->wdev.netdev);
+			wiphy_lock(adapter->wiphy);
 			mwifiex_del_virtual_intf(adapter->wiphy, &priv->wdev);
+			wiphy_unlock(adapter->wiphy);
+		}
 		rtnl_unlock();
 	}
 
@@ -1455,7 +1503,7 @@ static void mwifiex_uninit_sw(struct mwifiex_adapter *adapter)
 }
 
 /*
- * This function gets called during PCIe function level reset.
+ * This function can be used for shutting down the adapter SW.
  */
 int mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 {
@@ -1471,6 +1519,8 @@ int mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	mwifiex_deauthenticate(priv, NULL);
 
+	mwifiex_init_shutdown_fw(priv, MWIFIEX_FUNC_SHUTDOWN);
+
 	mwifiex_uninit_sw(adapter);
 	adapter->is_up = false;
 
@@ -1481,7 +1531,7 @@ int mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 }
 EXPORT_SYMBOL_GPL(mwifiex_shutdown_sw);
 
-/* This function gets called during PCIe function level reset. Required
+/* This function can be used for reinitting the adapter SW. Required
  * code is extracted from mwifiex_add_card()
  */
 int

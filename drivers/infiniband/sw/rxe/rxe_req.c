@@ -45,15 +45,20 @@ static void req_retry(struct rxe_qp *qp)
 	unsigned int mask;
 	int npsn;
 	int first = 1;
+	struct rxe_queue *q = qp->sq.queue;
+	unsigned int cons;
+	unsigned int prod;
 
-	qp->req.wqe_index	= consumer_index(qp->sq.queue);
+	cons = queue_get_consumer(q, QUEUE_TYPE_FROM_CLIENT);
+	prod = queue_get_producer(q, QUEUE_TYPE_FROM_CLIENT);
+
+	qp->req.wqe_index	= cons;
 	qp->req.psn		= qp->comp.psn;
 	qp->req.opcode		= -1;
 
-	for (wqe_index = consumer_index(qp->sq.queue);
-		wqe_index != producer_index(qp->sq.queue);
-		wqe_index = next_index(qp->sq.queue, wqe_index)) {
-		wqe = addr_from_index(qp->sq.queue, wqe_index);
+	for (wqe_index = cons; wqe_index != prod;
+			wqe_index = queue_next_index(q, wqe_index)) {
+		wqe = queue_addr_from_index(qp->sq.queue, wqe_index);
 		mask = wr_opcode_mask(wqe->wr.opcode, qp);
 
 		if (wqe->state == wqe_state_posted)
@@ -104,33 +109,37 @@ void rnr_nak_timer(struct timer_list *t)
 
 static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 {
-	struct rxe_send_wqe *wqe = queue_head(qp->sq.queue);
-	unsigned long flags;
+	struct rxe_send_wqe *wqe;
+	struct rxe_queue *q = qp->sq.queue;
+	unsigned int index = qp->req.wqe_index;
+	unsigned int cons;
+	unsigned int prod;
+
+	wqe = queue_head(q, QUEUE_TYPE_FROM_CLIENT);
+	cons = queue_get_consumer(q, QUEUE_TYPE_FROM_CLIENT);
+	prod = queue_get_producer(q, QUEUE_TYPE_FROM_CLIENT);
 
 	if (unlikely(qp->req.state == QP_STATE_DRAIN)) {
 		/* check to see if we are drained;
 		 * state_lock used by requester and completer
 		 */
-		spin_lock_irqsave(&qp->state_lock, flags);
+		spin_lock_bh(&qp->state_lock);
 		do {
 			if (qp->req.state != QP_STATE_DRAIN) {
 				/* comp just finished */
-				spin_unlock_irqrestore(&qp->state_lock,
-						       flags);
+				spin_unlock_bh(&qp->state_lock);
 				break;
 			}
 
-			if (wqe && ((qp->req.wqe_index !=
-				consumer_index(qp->sq.queue)) ||
+			if (wqe && ((index != cons) ||
 				(wqe->state != wqe_state_posted))) {
 				/* comp not done yet */
-				spin_unlock_irqrestore(&qp->state_lock,
-						       flags);
+				spin_unlock_bh(&qp->state_lock);
 				break;
 			}
 
 			qp->req.state = QP_STATE_DRAINED;
-			spin_unlock_irqrestore(&qp->state_lock, flags);
+			spin_unlock_bh(&qp->state_lock);
 
 			if (qp->ibqp.event_handler) {
 				struct ib_event ev;
@@ -144,10 +153,10 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 		} while (0);
 	}
 
-	if (qp->req.wqe_index == producer_index(qp->sq.queue))
+	if (index == prod)
 		return NULL;
 
-	wqe = addr_from_index(qp->sq.queue, qp->req.wqe_index);
+	wqe = queue_addr_from_index(q, index);
 
 	if (unlikely((qp->req.state == QP_STATE_DRAIN ||
 		      qp->req.state == QP_STATE_DRAINED) &&
@@ -155,7 +164,7 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 		return NULL;
 
 	if (unlikely((wqe->wr.send_flags & IB_SEND_FENCE) &&
-		     (qp->req.wqe_index != consumer_index(qp->sq.queue)))) {
+						     (index != cons))) {
 		qp->req.wait_fence = 1;
 		return NULL;
 	}
@@ -349,37 +358,25 @@ static inline int get_mtu(struct rxe_qp *qp)
 }
 
 static struct sk_buff *init_req_packet(struct rxe_qp *qp,
+				       struct rxe_av *av,
 				       struct rxe_send_wqe *wqe,
-				       int opcode, int payload,
+				       int opcode, u32 payload,
 				       struct rxe_pkt_info *pkt)
 {
 	struct rxe_dev		*rxe = to_rdev(qp->ibqp.device);
 	struct sk_buff		*skb;
 	struct rxe_send_wr	*ibwr = &wqe->wr;
-	struct rxe_av		*av;
 	int			pad = (-payload) & 0x3;
 	int			paylen;
 	int			solicited;
-	u16			pkey;
 	u32			qp_num;
 	int			ack_req;
 
 	/* length from start of bth to end of icrc */
 	paylen = rxe_opcode[opcode].length + payload + pad + RXE_ICRC_SIZE;
-
-	/* pkt->hdr, rxe, port_num and mask are initialized in ifc
-	 * layer
-	 */
-	pkt->opcode	= opcode;
-	pkt->qp		= qp;
-	pkt->psn	= qp->req.psn;
-	pkt->mask	= rxe_opcode[opcode].mask;
-	pkt->paylen	= paylen;
-	pkt->offset	= 0;
-	pkt->wqe	= wqe;
+	pkt->paylen = paylen;
 
 	/* init skb */
-	av = rxe_get_av(pkt);
 	skb = rxe_init_packet(rxe, av, paylen, pkt);
 	if (unlikely(!skb))
 		return NULL;
@@ -391,8 +388,6 @@ static struct sk_buff *init_req_packet(struct rxe_qp *qp,
 			(pkt->mask & (RXE_WRITE_MASK | RXE_IMMDT_MASK)) ==
 			(RXE_WRITE_MASK | RXE_IMMDT_MASK));
 
-	pkey = IB_DEFAULT_PKEY_FULL;
-
 	qp_num = (pkt->mask & RXE_DETH_MASK) ? ibwr->wr.ud.remote_qpn :
 					 qp->attr.dest_qp_num;
 
@@ -401,7 +396,7 @@ static struct sk_buff *init_req_packet(struct rxe_qp *qp,
 	if (ack_req)
 		qp->req.noack_pkts = 0;
 
-	bth_init(pkt, pkt->opcode, solicited, 0, pad, pkey, qp_num,
+	bth_init(pkt, pkt->opcode, solicited, 0, pad, IB_DEFAULT_PKEY_FULL, qp_num,
 		 ack_req, pkt->psn);
 
 	/* init optional headers */
@@ -440,24 +435,20 @@ static struct sk_buff *init_req_packet(struct rxe_qp *qp,
 	return skb;
 }
 
-static int fill_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
-		       struct rxe_pkt_info *pkt, struct sk_buff *skb,
-		       int paylen)
+static int finish_packet(struct rxe_qp *qp, struct rxe_av *av,
+			 struct rxe_send_wqe *wqe, struct rxe_pkt_info *pkt,
+			 struct sk_buff *skb, u32 paylen)
 {
-	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
-	u32 crc = 0;
-	u32 *p;
 	int err;
 
-	err = rxe_prepare(pkt, skb, &crc);
+	err = rxe_prepare(av, pkt, skb);
 	if (err)
 		return err;
 
-	if (pkt->mask & RXE_WRITE_OR_SEND) {
+	if (pkt->mask & RXE_WRITE_OR_SEND_MASK) {
 		if (wqe->wr.send_flags & IB_SEND_INLINE) {
 			u8 *tmp = &wqe->dma.inline_data[wqe->dma.sge_offset];
 
-			crc = rxe_crc32(rxe, crc, tmp, paylen);
 			memcpy(payload_addr(pkt), tmp, paylen);
 
 			wqe->dma.resid -= paylen;
@@ -465,8 +456,7 @@ static int fill_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		} else {
 			err = copy_data(qp->pd, 0, &wqe->dma,
 					payload_addr(pkt), paylen,
-					from_mem_obj,
-					&crc);
+					RXE_FROM_MR_OBJ);
 			if (err)
 				return err;
 		}
@@ -474,12 +464,8 @@ static int fill_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 			u8 *pad = payload_addr(pkt) + paylen;
 
 			memset(pad, 0, bth_pad(pkt));
-			crc = rxe_crc32(rxe, crc, pad, bth_pad(pkt));
 		}
 	}
-	p = payload_addr(pkt) + paylen + bth_pad(pkt);
-
-	*p = ~crc;
 
 	return 0;
 }
@@ -499,7 +485,7 @@ static void update_wqe_state(struct rxe_qp *qp,
 static void update_wqe_psn(struct rxe_qp *qp,
 			   struct rxe_send_wqe *wqe,
 			   struct rxe_pkt_info *pkt,
-			   int payload)
+			   u32 payload)
 {
 	/* number of packets left to send including current one */
 	int num_pkt = (wqe->dma.resid + payload + qp->mtu - 1) / qp->mtu;
@@ -542,12 +528,13 @@ static void rollback_state(struct rxe_send_wqe *wqe,
 }
 
 static void update_state(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
-			 struct rxe_pkt_info *pkt, int payload)
+			 struct rxe_pkt_info *pkt)
 {
 	qp->req.opcode = pkt->opcode;
 
 	if (pkt->mask & RXE_END_MASK)
-		qp->req.wqe_index = next_index(qp->sq.queue, qp->req.wqe_index);
+		qp->req.wqe_index = queue_next_index(qp->sq.queue,
+						     qp->req.wqe_index);
 
 	qp->need_req_skb = 0;
 
@@ -556,28 +543,83 @@ static void update_state(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 			  jiffies + qp->qp_timeout_jiffies);
 }
 
+static int rxe_do_local_ops(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
+{
+	u8 opcode = wqe->wr.opcode;
+	u32 rkey;
+	int ret;
+
+	switch (opcode) {
+	case IB_WR_LOCAL_INV:
+		rkey = wqe->wr.ex.invalidate_rkey;
+		if (rkey_is_mw(rkey))
+			ret = rxe_invalidate_mw(qp, rkey);
+		else
+			ret = rxe_invalidate_mr(qp, rkey);
+
+		if (unlikely(ret)) {
+			wqe->status = IB_WC_LOC_QP_OP_ERR;
+			return ret;
+		}
+		break;
+	case IB_WR_REG_MR:
+		ret = rxe_reg_fast_mr(qp, wqe);
+		if (unlikely(ret)) {
+			wqe->status = IB_WC_LOC_QP_OP_ERR;
+			return ret;
+		}
+		break;
+	case IB_WR_BIND_MW:
+		ret = rxe_bind_mw(qp, wqe);
+		if (unlikely(ret)) {
+			wqe->status = IB_WC_MW_BIND_ERR;
+			return ret;
+		}
+		break;
+	default:
+		pr_err("Unexpected send wqe opcode %d\n", opcode);
+		wqe->status = IB_WC_LOC_QP_OP_ERR;
+		return -EINVAL;
+	}
+
+	wqe->state = wqe_state_done;
+	wqe->status = IB_WC_SUCCESS;
+	qp->req.wqe_index = queue_next_index(qp->sq.queue, qp->req.wqe_index);
+
+	if ((wqe->wr.send_flags & IB_SEND_SIGNALED) ||
+	    qp->sq_sig_type == IB_SIGNAL_ALL_WR)
+		rxe_run_task(&qp->comp.task, 1);
+
+	return 0;
+}
+
 int rxe_requester(void *arg)
 {
 	struct rxe_qp *qp = (struct rxe_qp *)arg;
+	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	struct rxe_pkt_info pkt;
 	struct sk_buff *skb;
 	struct rxe_send_wqe *wqe;
 	enum rxe_hdr_mask mask;
-	int payload;
+	u32 payload;
 	int mtu;
 	int opcode;
 	int ret;
 	struct rxe_send_wqe rollback_wqe;
 	u32 rollback_psn;
+	struct rxe_queue *q = qp->sq.queue;
+	struct rxe_ah *ah;
+	struct rxe_av *av;
 
-	rxe_add_ref(qp);
+	rxe_get(qp);
 
 next_wqe:
 	if (unlikely(!qp->valid || qp->req.state == QP_STATE_ERROR))
 		goto exit;
 
 	if (unlikely(qp->req.state == QP_STATE_RESET)) {
-		qp->req.wqe_index = consumer_index(qp->sq.queue);
+		qp->req.wqe_index = queue_get_consumer(q,
+						QUEUE_TYPE_FROM_CLIENT);
 		qp->req.opcode = -1;
 		qp->req.need_rd_atomic = 0;
 		qp->req.wait_psn = 0;
@@ -594,47 +636,17 @@ next_wqe:
 	if (unlikely(!wqe))
 		goto exit;
 
-	if (wqe->mask & WR_REG_MASK) {
-		if (wqe->wr.opcode == IB_WR_LOCAL_INV) {
-			struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
-			struct rxe_mem *rmr;
-
-			rmr = rxe_pool_get_index(&rxe->mr_pool,
-						 wqe->wr.ex.invalidate_rkey >> 8);
-			if (!rmr) {
-				pr_err("No mr for key %#x\n",
-				       wqe->wr.ex.invalidate_rkey);
-				wqe->state = wqe_state_error;
-				wqe->status = IB_WC_MW_BIND_ERR;
-				goto exit;
-			}
-			rmr->state = RXE_MEM_STATE_FREE;
-			rxe_drop_ref(rmr);
-			wqe->state = wqe_state_done;
-			wqe->status = IB_WC_SUCCESS;
-		} else if (wqe->wr.opcode == IB_WR_REG_MR) {
-			struct rxe_mem *rmr = to_rmr(wqe->wr.wr.reg.mr);
-
-			rmr->state = RXE_MEM_STATE_VALID;
-			rmr->access = wqe->wr.wr.reg.access;
-			rmr->ibmr.lkey = wqe->wr.wr.reg.key;
-			rmr->ibmr.rkey = wqe->wr.wr.reg.key;
-			rmr->iova = wqe->wr.wr.reg.mr->iova;
-			wqe->state = wqe_state_done;
-			wqe->status = IB_WC_SUCCESS;
-		} else {
-			goto exit;
-		}
-		if ((wqe->wr.send_flags & IB_SEND_SIGNALED) ||
-		    qp->sq_sig_type == IB_SIGNAL_ALL_WR)
-			rxe_run_task(&qp->comp.task, 1);
-		qp->req.wqe_index = next_index(qp->sq.queue,
-						qp->req.wqe_index);
-		goto next_wqe;
+	if (wqe->mask & WR_LOCAL_OP_MASK) {
+		ret = rxe_do_local_ops(qp, wqe);
+		if (unlikely(ret))
+			goto err;
+		else
+			goto next_wqe;
 	}
 
 	if (unlikely(qp_type(qp) == IB_QPT_RC &&
-		     qp->req.psn > (qp->comp.psn + RXE_MAX_UNACKED_PSNS))) {
+		psn_compare(qp->req.psn, (qp->comp.psn +
+				RXE_MAX_UNACKED_PSNS)) > 0)) {
 		qp->req.wait_psn = 1;
 		goto exit;
 	}
@@ -653,13 +665,13 @@ next_wqe:
 	}
 
 	mask = rxe_opcode[opcode].mask;
-	if (unlikely(mask & RXE_READ_OR_ATOMIC)) {
+	if (unlikely(mask & RXE_READ_OR_ATOMIC_MASK)) {
 		if (check_init_depth(qp, wqe))
 			goto exit;
 	}
 
 	mtu = get_mtu(qp);
-	payload = (mask & RXE_WRITE_OR_SEND) ? wqe->dma.resid : 0;
+	payload = (mask & RXE_WRITE_OR_SEND_MASK) ? wqe->dma.resid : 0;
 	if (payload > mtu) {
 		if (qp_type(qp) == IB_QPT_UD) {
 			/* C10-93.1.1: If the total sum of all the buffer lengths specified for a
@@ -673,28 +685,51 @@ next_wqe:
 			wqe->last_psn = qp->req.psn;
 			qp->req.psn = (qp->req.psn + 1) & BTH_PSN_MASK;
 			qp->req.opcode = IB_OPCODE_UD_SEND_ONLY;
-			qp->req.wqe_index = next_index(qp->sq.queue,
+			qp->req.wqe_index = queue_next_index(qp->sq.queue,
 						       qp->req.wqe_index);
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
 			__rxe_do_task(&qp->comp.task);
-			rxe_drop_ref(qp);
+			rxe_put(qp);
 			return 0;
 		}
 		payload = mtu;
 	}
 
-	skb = init_req_packet(qp, wqe, opcode, payload, &pkt);
-	if (unlikely(!skb)) {
-		pr_err("qp#%d Failed allocating skb\n", qp_num(qp));
-		goto err;
+	pkt.rxe = rxe;
+	pkt.opcode = opcode;
+	pkt.qp = qp;
+	pkt.psn = qp->req.psn;
+	pkt.mask = rxe_opcode[opcode].mask;
+	pkt.wqe = wqe;
+
+	av = rxe_get_av(&pkt, &ah);
+	if (unlikely(!av)) {
+		pr_err("qp#%d Failed no address vector\n", qp_num(qp));
+		wqe->status = IB_WC_LOC_QP_OP_ERR;
+		goto err_drop_ah;
 	}
 
-	if (fill_packet(qp, wqe, &pkt, skb, payload)) {
-		pr_debug("qp#%d Error during fill packet\n", qp_num(qp));
-		kfree_skb(skb);
-		goto err;
+	skb = init_req_packet(qp, av, wqe, opcode, payload, &pkt);
+	if (unlikely(!skb)) {
+		pr_err("qp#%d Failed allocating skb\n", qp_num(qp));
+		wqe->status = IB_WC_LOC_QP_OP_ERR;
+		goto err_drop_ah;
 	}
+
+	ret = finish_packet(qp, av, wqe, &pkt, skb, payload);
+	if (unlikely(ret)) {
+		pr_debug("qp#%d Error during finish packet\n", qp_num(qp));
+		if (ret == -EFAULT)
+			wqe->status = IB_WC_LOC_PROT_ERR;
+		else
+			wqe->status = IB_WC_LOC_QP_OP_ERR;
+		kfree_skb(skb);
+		goto err_drop_ah;
+	}
+
+	if (ah)
+		rxe_put(ah);
 
 	/*
 	 * To prevent a race on wqe access between requester and completer,
@@ -716,19 +751,22 @@ next_wqe:
 			goto exit;
 		}
 
+		wqe->status = IB_WC_LOC_QP_OP_ERR;
 		goto err;
 	}
 
-	update_state(qp, wqe, &pkt, payload);
+	update_state(qp, wqe, &pkt);
 
 	goto next_wqe;
 
+err_drop_ah:
+	if (ah)
+		rxe_put(ah);
 err:
-	wqe->status = IB_WC_LOC_PROT_ERR;
 	wqe->state = wqe_state_error;
 	__rxe_do_task(&qp->comp.task);
 
 exit:
-	rxe_drop_ref(qp);
+	rxe_put(qp);
 	return -EAGAIN;
 }

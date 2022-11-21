@@ -12,16 +12,17 @@ maintainers:
 
 properties:
   compatible:
-    const: arm,cmn-600
+    enum:
+      - arm,cmn-600
+      - arm,ci-700
 
   reg:
     items:
       - description: Physical address of the base (PERIPHBASE) and
-          size (up to 64MB) of the configuration address space.
+          size of the configuration address space.
 
   interrupts:
     minItems: 1
-    maxItems: 4
     items:
       - description: Overflow interrupt for DTC0
       - description: Overflow interrupt for DTC1
@@ -32,14 +33,23 @@ properties:
 
   arm,root-node:
     $ref: /schemas/types.yaml#/definitions/uint32
-    description: Offset from PERIPHBASE of the configuration
-      discovery node (see TRM definition of ROOTNODEBASE).
+    description: Offset from PERIPHBASE of CMN-600's configuration
+      discovery node (see TRM definition of ROOTNODEBASE). Not
+      relevant for newer CMN/CI products.
 
 required:
   - compatible
   - reg
   - interrupts
-  - arm,root-node
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: arm,cmn-600
+then:
+  required:
+    - arm,root-node
 
 additionalProperties: false
 

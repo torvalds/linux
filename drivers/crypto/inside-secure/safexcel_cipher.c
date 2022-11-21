@@ -18,7 +18,8 @@
 #include <crypto/gcm.h>
 #include <crypto/ghash.h>
 #include <crypto/poly1305.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/sm3.h>
 #include <crypto/sm4.h>
 #include <crypto/xts.h>

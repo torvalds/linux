@@ -160,6 +160,12 @@ struct inet_hashinfo {
 					____cacheline_aligned_in_smp;
 };
 
+#define inet_lhash2_for_each_icsk_continue(__icsk) \
+	hlist_for_each_entry_continue(__icsk, icsk_listen_portaddr_node)
+
+#define inet_lhash2_for_each_icsk(__icsk, list) \
+	hlist_for_each_entry(__icsk, list, icsk_listen_portaddr_node)
+
 #define inet_lhash2_for_each_icsk_rcu(__icsk, list) \
 	hlist_for_each_entry_rcu(__icsk, list, icsk_listen_portaddr_node)
 
@@ -419,7 +425,7 @@ static inline void sk_rcv_saddr_set(struct sock *sk, __be32 addr)
 }
 
 int __inet_hash_connect(struct inet_timewait_death_row *death_row,
-			struct sock *sk, u32 port_offset,
+			struct sock *sk, u64 port_offset,
 			int (*check_established)(struct inet_timewait_death_row *,
 						 struct sock *, __u16,
 						 struct inet_timewait_sock **));

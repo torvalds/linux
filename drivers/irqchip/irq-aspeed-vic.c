@@ -71,7 +71,7 @@ static void vic_init_hw(struct aspeed_vic *vic)
 	writel(0, vic->base + AVIC_INT_SELECT);
 	writel(0, vic->base + AVIC_INT_SELECT + 4);
 
-	/* Some interrupts have a programable high/low level trigger
+	/* Some interrupts have a programmable high/low level trigger
 	 * (4 GPIO direct inputs), for now we assume this was configured
 	 * by firmware. We read which ones are edge now.
 	 */
@@ -100,7 +100,7 @@ static void __exception_irq_entry avic_handle_irq(struct pt_regs *regs)
 		if (stat == 0)
 			break;
 		irq += ffs(stat) - 1;
-		handle_domain_irq(vic->dom, irq, regs);
+		generic_handle_domain_irq(vic->dom, irq);
 	}
 }
 
@@ -203,7 +203,7 @@ static int __init avic_of_init(struct device_node *node,
 	}
 	vic->base = regs;
 
-	/* Initialize soures, all masked */
+	/* Initialize sources, all masked */
 	vic_init_hw(vic);
 
 	/* Ready to receive interrupts */

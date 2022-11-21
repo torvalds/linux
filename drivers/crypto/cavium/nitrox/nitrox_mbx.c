@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/bitmap.h>
 #include <linux/workqueue.h>
 
 #include "nitrox_csr.h"
 #include "nitrox_hal.h"
 #include "nitrox_dev.h"
+#include "nitrox_mbx.h"
 
 #define RING_TO_VFNO(_x, _y)	((_x) / (_y))
 
-/**
+/*
  * mbx_msg_type - Mailbox message types
  */
 enum mbx_msg_type {
@@ -17,7 +19,7 @@ enum mbx_msg_type {
 	MBX_MSG_TYPE_NACK,
 };
 
-/**
+/*
  * mbx_msg_opcode - Mailbox message opcodes
  */
 enum mbx_msg_opcode {
@@ -112,13 +114,14 @@ static void pf2vf_resp_handler(struct work_struct *work)
 	case MBX_MSG_TYPE_ACK:
 	case MBX_MSG_TYPE_NACK:
 		break;
-	};
+	}
 
 	kfree(pf2vf_resp);
 }
 
 void nitrox_pf2vf_mbox_handler(struct nitrox_device *ndev)
 {
+	DECLARE_BITMAP(csr, BITS_PER_TYPE(u64));
 	struct nitrox_vfdev *vfdev;
 	struct pf2vf_work *pfwork;
 	u64 value, reg_addr;
@@ -128,7 +131,8 @@ void nitrox_pf2vf_mbox_handler(struct nitrox_device *ndev)
 	/* loop for VF(0..63) */
 	reg_addr = NPS_PKT_MBOX_INT_LO;
 	value = nitrox_read_csr(ndev, reg_addr);
-	for_each_set_bit(i, (const unsigned long *)&value, BITS_PER_LONG) {
+	bitmap_from_u64(csr, value);
+	for_each_set_bit(i, csr, BITS_PER_TYPE(csr)) {
 		/* get the vfno from ring */
 		vfno = RING_TO_VFNO(i, ndev->iov.max_vf_queues);
 		vfdev = ndev->iov.vfdev + vfno;
@@ -150,7 +154,8 @@ void nitrox_pf2vf_mbox_handler(struct nitrox_device *ndev)
 	/* loop for VF(64..127) */
 	reg_addr = NPS_PKT_MBOX_INT_HI;
 	value = nitrox_read_csr(ndev, reg_addr);
-	for_each_set_bit(i, (const unsigned long *)&value, BITS_PER_LONG) {
+	bitmap_from_u64(csr, value);
+	for_each_set_bit(i, csr, BITS_PER_TYPE(csr)) {
 		/* get the vfno from ring */
 		vfno = RING_TO_VFNO(i + 64, ndev->iov.max_vf_queues);
 		vfdev = ndev->iov.vfdev + vfno;

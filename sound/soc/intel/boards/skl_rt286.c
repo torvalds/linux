@@ -434,7 +434,7 @@ static struct snd_soc_dai_link skylake_rt286_dais[] = {
 		.init = skylake_rt286_codec_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
+			SND_SOC_DAIFMT_CBC_CFC,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = skylake_ssp0_fixup,
 		.ops = &skylake_rt286_ops,
@@ -548,6 +548,7 @@ static const struct platform_device_id skl_board_ids[] = {
 	{ .name = "kbl_alc286s_i2s" },
 	{ }
 };
+MODULE_DEVICE_TABLE(platform, skl_board_ids);
 
 static struct platform_driver skylake_audio = {
 	.probe = skylake_audio_probe,
@@ -565,5 +566,3 @@ module_platform_driver(skylake_audio)
 MODULE_AUTHOR("Omair Mohammed Abdullah <omair.m.abdullah@intel.com>");
 MODULE_DESCRIPTION("Intel SST Audio for Skylake");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:skl_alc286s_i2s");
-MODULE_ALIAS("platform:kbl_alc286s_i2s");

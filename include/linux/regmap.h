@@ -27,6 +27,7 @@ struct device_node;
 struct i2c_client;
 struct i3c_device;
 struct irq_domain;
+struct mdio_device;
 struct slim_device;
 struct spi_device;
 struct spmi_device;
@@ -236,6 +237,10 @@ typedef void (*regmap_unlock)(void *);
  * @reg_stride: The register address stride. Valid register addresses are a
  *              multiple of this value. If set to 0, a value of 1 will be
  *              used.
+ * @reg_downshift: The number of bits to downshift the register before
+ *		   performing any operations.
+ * @reg_base: Value to be added to every register address before performing any
+ *	      operation.
  * @pad_bits: Number of bits of padding between register and value.
  * @val_bits: Number of bits in a register value, mandatory.
  *
@@ -289,6 +294,11 @@ typedef void (*regmap_unlock)(void *);
  *		  read operation on a bus such as SPI, I2C, etc. Most of the
  *		  devices do not need this.
  * @reg_write:	  Same as above for writing.
+ * @reg_update_bits: Optional callback that if filled will be used to perform
+ *		     all the update_bits(rmw) operation. Should only be provided
+ *		     if the function require special handling with lock and reg
+ *		     handling and the operation cannot be represented as a simple
+ *		     update_bits operation on a bus such as SPI, I2C, etc.
  * @fast_io:	  Register IO is fast. Use a spinlock instead of a mutex
  *	     	  to perform locking. This field is ignored if custom lock/unlock
  *	     	  functions are used (see fields lock/unlock of struct regmap_config).
@@ -315,6 +325,10 @@ typedef void (*regmap_unlock)(void *);
  *                   masks are used.
  * @zero_flag_mask: If set, read_flag_mask and write_flag_mask are used even
  *                   if they are both empty.
+ * @use_relaxed_mmio: If set, MMIO R/W operations will not use memory barriers.
+ *                    This can avoid load on devices which don't require strict
+ *                    orderings, but drivers should carefully add any explicit
+ *                    memory barriers when they may require them.
  * @use_single_read: If set, converts the bulk read operation into a series of
  *                   single read operations. This is useful for a device that
  *                   does not support  bulk read.
@@ -339,6 +353,7 @@ typedef void (*regmap_unlock)(void *);
  * @ranges: Array of configuration entries for virtual address ranges.
  * @num_ranges: Number of range configuration entries.
  * @use_hwlock: Indicate if a hardware spinlock should be used.
+ * @use_raw_spinlock: Indicate if a raw spinlock should be used.
  * @hwlock_id: Specify the hardware spinlock id.
  * @hwlock_mode: The hardware spinlock mode, should be HWLOCK_IRQSTATE,
  *		 HWLOCK_IRQ or 0.
@@ -349,6 +364,8 @@ struct regmap_config {
 
 	int reg_bits;
 	int reg_stride;
+	int reg_downshift;
+	unsigned int reg_base;
 	int pad_bits;
 	int val_bits;
 
@@ -366,6 +383,8 @@ struct regmap_config {
 
 	int (*reg_read)(void *context, unsigned int reg, unsigned int *val);
 	int (*reg_write)(void *context, unsigned int reg, unsigned int val);
+	int (*reg_update_bits)(void *context, unsigned int reg,
+			       unsigned int mask, unsigned int val);
 
 	bool fast_io;
 
@@ -388,6 +407,7 @@ struct regmap_config {
 
 	bool use_single_read;
 	bool use_single_write;
+	bool use_relaxed_mmio;
 	bool can_multi_write;
 
 	enum regmap_endian reg_format_endian;
@@ -397,6 +417,7 @@ struct regmap_config {
 	unsigned int num_ranges;
 
 	bool use_hwlock;
+	bool use_raw_spinlock;
 	unsigned int hwlock_id;
 	unsigned int hwlock_mode;
 
@@ -497,6 +518,7 @@ typedef void (*regmap_hw_free_context)(void *context);
  *     DEFAULT, BIG is assumed.
  * @max_raw_read: Max raw read size that can be used on the bus.
  * @max_raw_write: Max raw write size that can be used on the bus.
+ * @free_on_exit: kfree this on exit of regmap
  */
 struct regmap_bus {
 	bool fast_io;
@@ -514,6 +536,7 @@ struct regmap_bus {
 	enum regmap_endian val_format_endian_default;
 	size_t max_raw_read;
 	size_t max_raw_write;
+	bool free_on_exit;
 };
 
 /*
@@ -530,6 +553,10 @@ struct regmap *__regmap_init(struct device *dev,
 			     struct lock_class_key *lock_key,
 			     const char *lock_name);
 struct regmap *__regmap_init_i2c(struct i2c_client *i2c,
+				 const struct regmap_config *config,
+				 struct lock_class_key *lock_key,
+				 const char *lock_name);
+struct regmap *__regmap_init_mdio(struct mdio_device *mdio_dev,
 				 const struct regmap_config *config,
 				 struct lock_class_key *lock_key,
 				 const char *lock_name);
@@ -570,6 +597,10 @@ struct regmap *__regmap_init_sdw(struct sdw_slave *sdw,
 				 const struct regmap_config *config,
 				 struct lock_class_key *lock_key,
 				 const char *lock_name);
+struct regmap *__regmap_init_sdw_mbq(struct sdw_slave *sdw,
+				     const struct regmap_config *config,
+				     struct lock_class_key *lock_key,
+				     const char *lock_name);
 struct regmap *__regmap_init_spi_avmm(struct spi_device *spi,
 				      const struct regmap_config *config,
 				      struct lock_class_key *lock_key,
@@ -582,6 +613,10 @@ struct regmap *__devm_regmap_init(struct device *dev,
 				  struct lock_class_key *lock_key,
 				  const char *lock_name);
 struct regmap *__devm_regmap_init_i2c(struct i2c_client *i2c,
+				      const struct regmap_config *config,
+				      struct lock_class_key *lock_key,
+				      const char *lock_name);
+struct regmap *__devm_regmap_init_mdio(struct mdio_device *mdio_dev,
 				      const struct regmap_config *config,
 				      struct lock_class_key *lock_key,
 				      const char *lock_name);
@@ -619,6 +654,10 @@ struct regmap *__devm_regmap_init_sdw(struct sdw_slave *sdw,
 				 const struct regmap_config *config,
 				 struct lock_class_key *lock_key,
 				 const char *lock_name);
+struct regmap *__devm_regmap_init_sdw_mbq(struct sdw_slave *sdw,
+					  const struct regmap_config *config,
+					  struct lock_class_key *lock_key,
+					  const char *lock_name);
 struct regmap *__devm_regmap_init_slimbus(struct slim_device *slimbus,
 				 const struct regmap_config *config,
 				 struct lock_class_key *lock_key,
@@ -683,6 +722,19 @@ int regmap_attach_dev(struct device *dev, struct regmap *map,
 #define regmap_init_i2c(i2c, config)					\
 	__regmap_lockdep_wrapper(__regmap_init_i2c, #config,		\
 				i2c, config)
+
+/**
+ * regmap_init_mdio() - Initialise register map
+ *
+ * @mdio_dev: Device that will be interacted with
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer to
+ * a struct regmap.
+ */
+#define regmap_init_mdio(mdio_dev, config)				\
+	__regmap_lockdep_wrapper(__regmap_init_mdio, #config,		\
+				mdio_dev, config)
 
 /**
  * regmap_init_sccb() - Initialise register map
@@ -818,6 +870,19 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 				sdw, config)
 
 /**
+ * regmap_init_sdw_mbq() - Initialise register map
+ *
+ * @sdw: Device that will be interacted with
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer to
+ * a struct regmap.
+ */
+#define regmap_init_sdw_mbq(sdw, config)					\
+	__regmap_lockdep_wrapper(__regmap_init_sdw_mbq, #config,		\
+				sdw, config)
+
+/**
  * regmap_init_spi_avmm() - Initialize register map for Intel SPI Slave
  * to AVMM Bus Bridge
  *
@@ -861,6 +926,20 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 #define devm_regmap_init_i2c(i2c, config)				\
 	__regmap_lockdep_wrapper(__devm_regmap_init_i2c, #config,	\
 				i2c, config)
+
+/**
+ * devm_regmap_init_mdio() - Initialise managed register map
+ *
+ * @mdio_dev: Device that will be interacted with
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap.  The regmap will be automatically freed by the
+ * device management code.
+ */
+#define devm_regmap_init_mdio(mdio_dev, config)				\
+	__regmap_lockdep_wrapper(__devm_regmap_init_mdio, #config,	\
+				mdio_dev, config)
 
 /**
  * devm_regmap_init_sccb() - Initialise managed register map
@@ -987,6 +1066,20 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
  */
 #define devm_regmap_init_sdw(sdw, config)				\
 	__regmap_lockdep_wrapper(__devm_regmap_init_sdw, #config,	\
+				sdw, config)
+
+/**
+ * devm_regmap_init_sdw_mbq() - Initialise managed register map
+ *
+ * @sdw: Device that will be interacted with
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap. The regmap will be automatically freed by the
+ * device management code.
+ */
+#define devm_regmap_init_sdw_mbq(sdw, config)			\
+	__regmap_lockdep_wrapper(__devm_regmap_init_sdw_mbq, #config,   \
 				sdw, config)
 
 /**
@@ -1191,12 +1284,13 @@ void devm_regmap_field_free(struct device *dev,	struct regmap_field *field);
 
 int regmap_field_bulk_alloc(struct regmap *regmap,
 			     struct regmap_field **rm_field,
-			     struct reg_field *reg_field,
+			     const struct reg_field *reg_field,
 			     int num_fields);
 void regmap_field_bulk_free(struct regmap_field *field);
 int devm_regmap_field_bulk_alloc(struct device *dev, struct regmap *regmap,
 				 struct regmap_field **field,
-				 struct reg_field *reg_field, int num_fields);
+				 const struct reg_field *reg_field,
+				 int num_fields);
 void devm_regmap_field_bulk_free(struct device *dev,
 				 struct regmap_field *field);
 
@@ -1338,6 +1432,9 @@ struct regmap_irq_sub_irq_map {
  *		     status_base. Should contain num_regs arrays.
  *		     Can be provided for chips with more complex mapping than
  *		     1.st bit to 1.st sub-reg, 2.nd bit to 2.nd sub-reg, ...
+ *		     When used with not_fixed_stride, each one-element array
+ *		     member contains offset calculated as address from each
+ *		     peripheral to first peripheral.
  * @num_main_regs: Number of 'main status' irq registers for chips which have
  *		   main_status set.
  *
@@ -1350,6 +1447,7 @@ struct regmap_irq_sub_irq_map {
  *               Using zero value is possible with @use_ack bit.
  * @wake_base:   Base address for wake enables.  If zero unsupported.
  * @type_base:   Base address for irq type.  If zero unsupported.
+ * @virt_reg_base:   Base addresses for extra config regs.
  * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
  * @init_ack_masked: Ack all masked interrupts once during initalization.
  * @mask_invert: Inverted mask register: cleared bits are masked out.
@@ -1364,6 +1462,10 @@ struct regmap_irq_sub_irq_map {
  * @clear_on_unmask: For chips with interrupts cleared on read: read the status
  *                   registers before unmasking interrupts to clear any bits
  *                   set when they were masked.
+ * @not_fixed_stride: Used when chip peripherals are not laid out with fixed
+ * 		      stride. Must be used with sub_reg_offsets containing the
+ * 		      offsets to each peripheral.
+ * @status_invert: Inverted status register: cleared bits are active interrupts.
  * @runtime_pm:  Hold a runtime PM lock on the device when accessing it.
  *
  * @num_regs:    Number of registers in each control bank.
@@ -1371,12 +1473,16 @@ struct regmap_irq_sub_irq_map {
  *               assigned based on the index in the array of the interrupt.
  * @num_irqs:    Number of descriptors.
  * @num_type_reg:    Number of type registers.
+ * @num_virt_regs:   Number of non-standard irq configuration registers.
+ *		     If zero unsupported.
  * @type_reg_stride: Stride to use for chips where type registers are not
  *			contiguous.
  * @handle_pre_irq:  Driver specific callback to handle interrupt from device
  *		     before regmap_irq_handler process the interrupts.
  * @handle_post_irq: Driver specific callback to handle interrupt from device
  *		     after handling the interrupts in regmap_irq_handler().
+ * @set_type_virt:   Driver specific callback to extend regmap_irq_set_type()
+ *		     and configure virt regs.
  * @irq_drv_data:    Driver specific IRQ data which is passed as parameter when
  *		     driver specific pre/post interrupt handler is called.
  *
@@ -1398,6 +1504,7 @@ struct regmap_irq_chip {
 	unsigned int ack_base;
 	unsigned int wake_base;
 	unsigned int type_base;
+	unsigned int *virt_reg_base;
 	unsigned int irq_reg_stride;
 	bool mask_writeonly:1;
 	bool init_ack_masked:1;
@@ -1410,6 +1517,8 @@ struct regmap_irq_chip {
 	bool type_invert:1;
 	bool type_in_mask:1;
 	bool clear_on_unmask:1;
+	bool not_fixed_stride:1;
+	bool status_invert:1;
 
 	int num_regs;
 
@@ -1417,10 +1526,13 @@ struct regmap_irq_chip {
 	int num_irqs;
 
 	int num_type_reg;
+	int num_virt_regs;
 	unsigned int type_reg_stride;
 
 	int (*handle_pre_irq)(void *irq_drv_data);
 	int (*handle_post_irq)(void *irq_drv_data);
+	int (*set_type_virt)(unsigned int **buf, unsigned int type,
+			     unsigned long hwirq, int reg);
 	void *irq_drv_data;
 };
 

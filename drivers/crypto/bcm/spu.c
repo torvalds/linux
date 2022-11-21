@@ -41,7 +41,7 @@ void spum_dump_msg_hdr(u8 *buf, unsigned int buf_len)
 	packet_log("SPU Message header %p len: %u\n", buf, buf_len);
 
 	/* ========== Decode MH ========== */
-	packet_log("  MH 0x%08x\n", be32_to_cpu(*((u32 *)ptr)));
+	packet_log("  MH 0x%08x\n", be32_to_cpup((__be32 *)ptr));
 	if (spuh->mh.flags & MH_SCTX_PRES)
 		packet_log("    SCTX  present\n");
 	if (spuh->mh.flags & MH_BDESC_PRES)
@@ -273,22 +273,21 @@ void spum_dump_msg_hdr(u8 *buf, unsigned int buf_len)
 
 	/* ========== Decode BDESC ========== */
 	if (spuh->mh.flags & MH_BDESC_PRES) {
-#ifdef DEBUG
 		struct BDESC_HEADER *bdesc = (struct BDESC_HEADER *)ptr;
-#endif
-		packet_log("  BDESC[0] 0x%08x\n", be32_to_cpu(*((u32 *)ptr)));
+
+		packet_log("  BDESC[0] 0x%08x\n", be32_to_cpup((__be32 *)ptr));
 		packet_log("    OffsetMAC:%u LengthMAC:%u\n",
 			   be16_to_cpu(bdesc->offset_mac),
 			   be16_to_cpu(bdesc->length_mac));
 		ptr += sizeof(u32);
 
-		packet_log("  BDESC[1] 0x%08x\n", be32_to_cpu(*((u32 *)ptr)));
+		packet_log("  BDESC[1] 0x%08x\n", be32_to_cpup((__be32 *)ptr));
 		packet_log("    OffsetCrypto:%u LengthCrypto:%u\n",
 			   be16_to_cpu(bdesc->offset_crypto),
 			   be16_to_cpu(bdesc->length_crypto));
 		ptr += sizeof(u32);
 
-		packet_log("  BDESC[2] 0x%08x\n", be32_to_cpu(*((u32 *)ptr)));
+		packet_log("  BDESC[2] 0x%08x\n", be32_to_cpup((__be32 *)ptr));
 		packet_log("    OffsetICV:%u OffsetIV:%u\n",
 			   be16_to_cpu(bdesc->offset_icv),
 			   be16_to_cpu(bdesc->offset_iv));
@@ -297,10 +296,9 @@ void spum_dump_msg_hdr(u8 *buf, unsigned int buf_len)
 
 	/* ========== Decode BD ========== */
 	if (spuh->mh.flags & MH_BD_PRES) {
-#ifdef DEBUG
 		struct BD_HEADER *bd = (struct BD_HEADER *)ptr;
-#endif
-		packet_log("  BD[0] 0x%08x\n", be32_to_cpu(*((u32 *)ptr)));
+
+		packet_log("  BD[0] 0x%08x\n", be32_to_cpup((__be32 *)ptr));
 		packet_log("    Size:%ubytes PrevLength:%u\n",
 			   be16_to_cpu(bd->size), be16_to_cpu(bd->prev_length));
 		ptr += 4;
@@ -459,7 +457,7 @@ u16 spum_hash_pad_len(enum hash_alg hash_alg, enum hash_mode hash_mode,
  * @cipher_mode:	Algo type
  * @data_size:		Length of plaintext (bytes)
  *
- * @Return: Length of padding, in bytes
+ * Return: Length of padding, in bytes
  */
 u32 spum_gcm_ccm_pad_len(enum spu_cipher_mode cipher_mode,
 			 unsigned int data_size)
@@ -512,10 +510,10 @@ u32 spum_assoc_resp_len(enum spu_cipher_mode cipher_mode,
 }
 
 /**
- * spu_aead_ivlen() - Calculate the length of the AEAD IV to be included
+ * spum_aead_ivlen() - Calculate the length of the AEAD IV to be included
  * in a SPU request after the AAD and before the payload.
  * @cipher_mode:  cipher mode
- * @iv_ctr_len:   initialization vector length in bytes
+ * @iv_len:   initialization vector length in bytes
  *
  * In Linux ~4.2 and later, the assoc_data sg includes the IV. So no need
  * to include the IV as a separate field in the SPU request msg.
@@ -545,9 +543,9 @@ enum hash_type spum_hash_type(u32 src_sent)
 /**
  * spum_digest_size() - Determine the size of a hash digest to expect the SPU to
  * return.
- * alg_digest_size: Number of bytes in the final digest for the given algo
- * alg:             The hash algorithm
- * htype:           Type of hash operation (init, update, full, etc)
+ * @alg_digest_size: Number of bytes in the final digest for the given algo
+ * @alg:             The hash algorithm
+ * @htype:           Type of hash operation (init, update, full, etc)
  *
  * When doing incremental hashing for an algorithm with a truncated hash
  * (e.g., SHA224), the SPU returns the full digest so that it can be fed back as
@@ -582,7 +580,7 @@ u32 spum_digest_size(u32 alg_digest_size, enum hash_alg alg,
  * @aead_parms:   Parameters related to AEAD operation
  * @data_size:    Length of data to be encrypted or authenticated. If AEAD, does
  *		  not include length of AAD.
-
+ *
  * Return: the length of the SPU header in bytes. 0 if an error occurs.
  */
 u32 spum_create_request(u8 *spu_hdr,
@@ -913,7 +911,7 @@ u16 spum_cipher_req_init(u8 *spu_hdr, struct spu_cipher_parms *cipher_parms)
  * setkey() time in spu_cipher_req_init().
  * @spu_hdr:         Start of the request message header (MH field)
  * @spu_req_hdr_len: Length in bytes of the SPU request header
- * @isInbound:       0 encrypt, 1 decrypt
+ * @is_inbound:      0 encrypt, 1 decrypt
  * @cipher_parms:    Parameters describing cipher operation to be performed
  * @data_size:       Length of the data in the BD field
  *
@@ -1056,9 +1054,9 @@ void spum_request_pad(u8 *pad_start,
 
 			/* add the size at the end as required per alg */
 			if (auth_alg == HASH_ALG_MD5)
-				*(u64 *)ptr = cpu_to_le64((u64)total_sent * 8);
+				*(__le64 *)ptr = cpu_to_le64(total_sent * 8ull);
 			else		/* SHA1, SHA2-224, SHA2-256 */
-				*(u64 *)ptr = cpu_to_be64((u64)total_sent * 8);
+				*(__be64 *)ptr = cpu_to_be64(total_sent * 8ull);
 			ptr += sizeof(u64);
 		}
 	}

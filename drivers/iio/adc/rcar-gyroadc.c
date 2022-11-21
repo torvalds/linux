@@ -162,18 +162,13 @@ static const struct iio_chan_spec rcar_gyroadc_iio_channels_3[] = {
 static int rcar_gyroadc_set_power(struct rcar_gyroadc *priv, bool on)
 {
 	struct device *dev = priv->dev;
-	int ret;
 
 	if (on) {
-		ret = pm_runtime_get_sync(dev);
-		if (ret < 0)
-			pm_runtime_put_noidle(dev);
+		return pm_runtime_resume_and_get(dev);
 	} else {
 		pm_runtime_mark_last_busy(dev);
-		ret = pm_runtime_put_autosuspend(dev);
+		return pm_runtime_put_autosuspend(dev);
 	}
-
-	return ret;
 }
 
 static int rcar_gyroadc_read_raw(struct iio_dev *indio_dev,
@@ -516,8 +511,7 @@ static int rcar_gyroadc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	priv->model = (enum rcar_gyroadc_model)
-		of_device_get_match_data(&pdev->dev);
+	priv->model = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
 	platform_set_drvdata(pdev, indio_dev);
 
@@ -535,7 +529,10 @@ static int rcar_gyroadc_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_enable(dev);
 
-	pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
+		goto err_power_up;
+
 	rcar_gyroadc_hw_init(priv);
 	rcar_gyroadc_hw_start(priv);
 
@@ -552,6 +549,7 @@ static int rcar_gyroadc_probe(struct platform_device *pdev)
 err_iio_device_register:
 	rcar_gyroadc_hw_stop(priv);
 	pm_runtime_put_sync(dev);
+err_power_up:
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
 	clk_disable_unprepare(priv->clk);
@@ -579,7 +577,6 @@ static int rcar_gyroadc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if defined(CONFIG_PM)
 static int rcar_gyroadc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -599,10 +596,9 @@ static int rcar_gyroadc_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops rcar_gyroadc_pm_ops = {
-	SET_RUNTIME_PM_OPS(rcar_gyroadc_suspend, rcar_gyroadc_resume, NULL)
+	RUNTIME_PM_OPS(rcar_gyroadc_suspend, rcar_gyroadc_resume, NULL)
 };
 
 static struct platform_driver rcar_gyroadc_driver = {
@@ -611,7 +607,7 @@ static struct platform_driver rcar_gyroadc_driver = {
 	.driver         = {
 		.name		= DRIVER_NAME,
 		.of_match_table	= rcar_gyroadc_match,
-		.pm		= &rcar_gyroadc_pm_ops,
+		.pm		= pm_ptr(&rcar_gyroadc_pm_ops),
 	},
 };
 

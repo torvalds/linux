@@ -8,6 +8,7 @@
 
 #include <linux/indirect_call_wrapper.h>
 #include <linux/skbuff.h>
+#include <net/gro.h>
 #include <net/tcp.h>
 #include <net/protocol.h>
 
@@ -297,6 +298,9 @@ int tcp_gro_complete(struct sk_buff *skb)
 
 	if (th->cwr)
 		skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
+
+	if (skb->encapsulation)
+		skb->inner_transport_header = skb->transport_header;
 
 	return 0;
 }

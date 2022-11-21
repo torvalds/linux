@@ -305,7 +305,7 @@ nfp_abm_vnic_set_mac(struct nfp_pf *pf, struct nfp_abm *abm, struct nfp_net *nn,
 		return;
 	}
 
-	ether_addr_copy(nn->dp.netdev->dev_addr, mac_addr);
+	eth_hw_addr_set(nn->dp.netdev, mac_addr);
 	ether_addr_copy(nn->dp.netdev->perm_addr, mac_addr);
 }
 
@@ -419,8 +419,8 @@ nfp_abm_port_get_stats_strings(struct nfp_app *app, struct nfp_port *port,
 		return data;
 	alink = repr->app_priv;
 	for (i = 0; i < alink->vnic->dp.num_r_vecs; i++) {
-		data = nfp_pr_et(data, "q%u_no_wait", i);
-		data = nfp_pr_et(data, "q%u_delayed", i);
+		ethtool_sprintf(&data, "q%u_no_wait", i);
+		ethtool_sprintf(&data, "q%u_delayed", i);
 	}
 	return data;
 }

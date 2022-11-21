@@ -51,7 +51,9 @@ RE_typedef = re.compile(r'\b(typedef)\s+([a-zA-Z_]\w+)', flags=ascii_p3)
 # Detects a reference to a documentation page of the form Documentation/... with
 # an optional extension
 #
-RE_doc = re.compile(r'\bDocumentation(/[\w\-_/]+)(\.\w+)*')
+RE_doc = re.compile(r'(\bDocumentation/)?((\.\./)*[\w\-/]+)\.(rst|txt)')
+
+RE_namespace = re.compile(r'^\s*..\s*c:namespace::\s*(\S+)\s*$')
 
 #
 # Reserved C words that we should skip when cross-referencing
@@ -69,6 +71,8 @@ Skipnames = [ 'for', 'if', 'register', 'sizeof', 'struct', 'unsigned' ]
 Skipfuncs = [ 'open', 'close', 'read', 'write', 'fcntl', 'mmap',
               'select', 'poll', 'fork', 'execve', 'clone', 'ioctl',
               'socket' ]
+
+c_namespace = ''
 
 def markup_refs(docname, app, node):
     t = node.astext()
@@ -128,30 +132,38 @@ def markup_func_ref_sphinx3(docname, app, match):
     #
     # Go through the dance of getting an xref out of the C domain
     #
-    target = match.group(2)
+    base_target = match.group(2)
     target_text = nodes.Text(match.group(0))
     xref = None
-    if not (target in Skipfuncs or target in Skipnames):
-        for class_s, reftype_s in zip(class_str, reftype_str):
-            lit_text = nodes.literal(classes=['xref', 'c', class_s])
-            lit_text += target_text
-            pxref = addnodes.pending_xref('', refdomain = 'c',
-                                          reftype = reftype_s,
-                                          reftarget = target, modname = None,
-                                          classname = None)
-            #
-            # XXX The Latex builder will throw NoUri exceptions here,
-            # work around that by ignoring them.
-            #
-            try:
-                xref = cdom.resolve_xref(app.env, docname, app.builder,
-                                         reftype_s, target, pxref,
-                                         lit_text)
-            except NoUri:
-                xref = None
+    possible_targets = [base_target]
+    # Check if this document has a namespace, and if so, try
+    # cross-referencing inside it first.
+    if c_namespace:
+        possible_targets.insert(0, c_namespace + "." + base_target)
 
-            if xref:
-                return xref
+    if base_target not in Skipnames:
+        for target in possible_targets:
+            if target not in Skipfuncs:
+                for class_s, reftype_s in zip(class_str, reftype_str):
+                    lit_text = nodes.literal(classes=['xref', 'c', class_s])
+                    lit_text += target_text
+                    pxref = addnodes.pending_xref('', refdomain = 'c',
+                                                  reftype = reftype_s,
+                                                  reftarget = target, modname = None,
+                                                  classname = None)
+                    #
+                    # XXX The Latex builder will throw NoUri exceptions here,
+                    # work around that by ignoring them.
+                    #
+                    try:
+                        xref = cdom.resolve_xref(app.env, docname, app.builder,
+                                                 reftype_s, target, pxref,
+                                                 lit_text)
+                    except NoUri:
+                        xref = None
+
+                    if xref:
+                        return xref
 
     return target_text
 
@@ -179,34 +191,39 @@ def markup_c_ref(docname, app, match):
     #
     # Go through the dance of getting an xref out of the C domain
     #
-    target = match.group(2)
+    base_target = match.group(2)
     target_text = nodes.Text(match.group(0))
     xref = None
-    if not ((match.re == RE_function and target in Skipfuncs)
-            or (target in Skipnames)):
-        lit_text = nodes.literal(classes=['xref', 'c', class_str[match.re]])
-        lit_text += target_text
-        pxref = addnodes.pending_xref('', refdomain = 'c',
-                                      reftype = reftype_str[match.re],
-                                      reftarget = target, modname = None,
-                                      classname = None)
-        #
-        # XXX The Latex builder will throw NoUri exceptions here,
-        # work around that by ignoring them.
-        #
-        try:
-            xref = cdom.resolve_xref(app.env, docname, app.builder,
-                                     reftype_str[match.re], target, pxref,
-                                     lit_text)
-        except NoUri:
-            xref = None
-    #
-    # Return the xref if we got it; otherwise just return the plain text.
-    #
-    if xref:
-        return xref
-    else:
-        return target_text
+    possible_targets = [base_target]
+    # Check if this document has a namespace, and if so, try
+    # cross-referencing inside it first.
+    if c_namespace:
+        possible_targets.insert(0, c_namespace + "." + base_target)
+
+    if base_target not in Skipnames:
+        for target in possible_targets:
+            if not (match.re == RE_function and target in Skipfuncs):
+                lit_text = nodes.literal(classes=['xref', 'c', class_str[match.re]])
+                lit_text += target_text
+                pxref = addnodes.pending_xref('', refdomain = 'c',
+                                              reftype = reftype_str[match.re],
+                                              reftarget = target, modname = None,
+                                              classname = None)
+                #
+                # XXX The Latex builder will throw NoUri exceptions here,
+                # work around that by ignoring them.
+                #
+                try:
+                    xref = cdom.resolve_xref(app.env, docname, app.builder,
+                                             reftype_str[match.re], target, pxref,
+                                             lit_text)
+                except NoUri:
+                    xref = None
+
+                if xref:
+                    return xref
+
+    return target_text
 
 #
 # Try to replace a documentation reference of the form Documentation/... with a
@@ -217,7 +234,10 @@ def markup_doc_ref(docname, app, match):
     #
     # Go through the dance of getting an xref out of the std domain
     #
-    target = match.group(1)
+    absolute = match.group(1)
+    target = match.group(2)
+    if absolute:
+       target = "/" + target
     xref = None
     pxref = addnodes.pending_xref('', refdomain = 'std', reftype = 'doc',
                                   reftarget = target, modname = None,
@@ -239,20 +259,42 @@ def markup_doc_ref(docname, app, match):
     else:
         return nodes.Text(match.group(0))
 
+def get_c_namespace(app, docname):
+    source = app.env.doc2path(docname)
+    with open(source) as f:
+        for l in f:
+            match = RE_namespace.search(l)
+            if match:
+                return match.group(1)
+    return ''
+
 def auto_markup(app, doctree, name):
+    global c_namespace
+    c_namespace = get_c_namespace(app, name)
+    def text_but_not_a_reference(node):
+        # The nodes.literal test catches ``literal text``, its purpose is to
+        # avoid adding cross-references to functions that have been explicitly
+        # marked with cc:func:.
+        if not isinstance(node, nodes.Text) or isinstance(node.parent, nodes.literal):
+            return False
+
+        child_of_reference = False
+        parent = node.parent
+        while parent:
+            if isinstance(parent, nodes.Referential):
+                child_of_reference = True
+                break
+            parent = parent.parent
+        return not child_of_reference
+
     #
     # This loop could eventually be improved on.  Someday maybe we
     # want a proper tree traversal with a lot of awareness of which
     # kinds of nodes to prune.  But this works well for now.
     #
-    # The nodes.literal test catches ``literal text``, its purpose is to
-    # avoid adding cross-references to functions that have been explicitly
-    # marked with cc:func:.
-    #
     for para in doctree.traverse(nodes.paragraph):
-        for node in para.traverse(nodes.Text):
-            if not isinstance(node.parent, nodes.literal):
-                node.parent.replace(node, markup_refs(name, app, node))
+        for node in para.traverse(condition=text_but_not_a_reference):
+            node.parent.replace(node, markup_refs(name, app, node))
 
 def setup(app):
     app.connect('doctree-resolved', auto_markup)

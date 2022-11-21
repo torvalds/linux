@@ -140,6 +140,8 @@ struct imx319 {
 
 	/* Streaming on/off */
 	bool streaming;
+	/* True if the device has been identified */
+	bool identified;
 };
 
 static const struct imx319_reg imx319_global_regs[] = {
@@ -1860,7 +1862,7 @@ static int imx319_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct imx319 *imx319 = to_imx319(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->pad, 0);
+		v4l2_subdev_get_try_format(sd, fh->state, 0);
 
 	mutex_lock(&imx319->mutex);
 
@@ -1947,7 +1949,7 @@ static const struct v4l2_ctrl_ops imx319_ctrl_ops = {
 };
 
 static int imx319_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct imx319 *imx319 = to_imx319(sd);
@@ -1963,7 +1965,7 @@ static int imx319_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int imx319_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct imx319 *imx319 = to_imx319(sd);
@@ -1997,14 +1999,14 @@ static void imx319_update_pad_format(struct imx319 *imx319,
 }
 
 static int imx319_do_get_pad_format(struct imx319 *imx319,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt;
 	struct v4l2_subdev *sd = &imx319->sd;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		imx319_update_pad_format(imx319, imx319->cur_mode, fmt);
@@ -2014,14 +2016,14 @@ static int imx319_do_get_pad_format(struct imx319 *imx319,
 }
 
 static int imx319_get_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct imx319 *imx319 = to_imx319(sd);
 	int ret;
 
 	mutex_lock(&imx319->mutex);
-	ret = imx319_do_get_pad_format(imx319, cfg, fmt);
+	ret = imx319_do_get_pad_format(imx319, sd_state, fmt);
 	mutex_unlock(&imx319->mutex);
 
 	return ret;
@@ -2029,7 +2031,7 @@ static int imx319_get_pad_format(struct v4l2_subdev *sd,
 
 static int
 imx319_set_pad_format(struct v4l2_subdev *sd,
-		      struct v4l2_subdev_pad_config *cfg,
+		      struct v4l2_subdev_state *sd_state,
 		      struct v4l2_subdev_format *fmt)
 {
 	struct imx319 *imx319 = to_imx319(sd);
@@ -2055,7 +2057,7 @@ imx319_set_pad_format(struct v4l2_subdev *sd,
 				      fmt->format.width, fmt->format.height);
 	imx319_update_pad_format(imx319, mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		imx319->cur_mode = mode;
@@ -2084,12 +2086,41 @@ imx319_set_pad_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
+/* Verify chip ID */
+static int imx319_identify_module(struct imx319 *imx319)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&imx319->sd);
+	int ret;
+	u32 val;
+
+	if (imx319->identified)
+		return 0;
+
+	ret = imx319_read_reg(imx319, IMX319_REG_CHIP_ID, 2, &val);
+	if (ret)
+		return ret;
+
+	if (val != IMX319_CHIP_ID) {
+		dev_err(&client->dev, "chip id mismatch: %x!=%x",
+			IMX319_CHIP_ID, val);
+		return -EIO;
+	}
+
+	imx319->identified = true;
+
+	return 0;
+}
+
 /* Start streaming */
 static int imx319_start_streaming(struct imx319 *imx319)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&imx319->sd);
 	const struct imx319_reg_list *reg_list;
 	int ret;
+
+	ret = imx319_identify_module(imx319);
+	if (ret)
+		return ret;
 
 	/* Global Setting */
 	reg_list = &imx319_global_setting;
@@ -2141,11 +2172,9 @@ static int imx319_set_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret < 0)
 			goto err_unlock;
-		}
 
 		/*
 		 * Apply default & customized values
@@ -2179,8 +2208,7 @@ err_unlock:
 
 static int __maybe_unused imx319_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx319 *imx319 = to_imx319(sd);
 
 	if (imx319->streaming)
@@ -2191,8 +2219,7 @@ static int __maybe_unused imx319_suspend(struct device *dev)
 
 static int __maybe_unused imx319_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx319 *imx319 = to_imx319(sd);
 	int ret;
 
@@ -2208,26 +2235,6 @@ error:
 	imx319_stop_streaming(imx319);
 	imx319->streaming = 0;
 	return ret;
-}
-
-/* Verify chip ID */
-static int imx319_identify_module(struct imx319 *imx319)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&imx319->sd);
-	int ret;
-	u32 val;
-
-	ret = imx319_read_reg(imx319, IMX319_REG_CHIP_ID, 2, &val);
-	if (ret)
-		return ret;
-
-	if (val != IMX319_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x",
-			IMX319_CHIP_ID, val);
-		return -EIO;
-	}
-
-	return 0;
 }
 
 static const struct v4l2_subdev_core_ops imx319_subdev_core_ops = {
@@ -2424,6 +2431,7 @@ out_err:
 static int imx319_probe(struct i2c_client *client)
 {
 	struct imx319 *imx319;
+	bool full_power;
 	int ret;
 	u32 i;
 
@@ -2436,11 +2444,14 @@ static int imx319_probe(struct i2c_client *client)
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx319->sd, client, &imx319_subdev_ops);
 
-	/* Check module identity */
-	ret = imx319_identify_module(imx319);
-	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d", ret);
-		goto error_probe;
+	full_power = acpi_dev_state_d0(&client->dev);
+	if (full_power) {
+		/* Check module identity */
+		ret = imx319_identify_module(imx319);
+		if (ret) {
+			dev_err(&client->dev, "failed to find sensor: %d", ret);
+			goto error_probe;
+		}
 	}
 
 	imx319->hwcfg = imx319_get_hwcfg(&client->dev);
@@ -2488,15 +2499,13 @@ static int imx319_probe(struct i2c_client *client)
 		goto error_handler_free;
 	}
 
-	ret = v4l2_async_register_subdev_sensor_common(&imx319->sd);
+	ret = v4l2_async_register_subdev_sensor(&imx319->sd);
 	if (ret < 0)
 		goto error_media_entity;
 
-	/*
-	 * Device is already turned on by i2c-core with ACPI domain PM.
-	 * Enable runtime PM and turn off the device.
-	 */
-	pm_runtime_set_active(&client->dev);
+	/* Set the device's state to active if it's in D0 state. */
+	if (full_power)
+		pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
@@ -2535,7 +2544,7 @@ static const struct dev_pm_ops imx319_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(imx319_suspend, imx319_resume)
 };
 
-static const struct acpi_device_id imx319_acpi_ids[] = {
+static const struct acpi_device_id imx319_acpi_ids[] __maybe_unused = {
 	{ "SONY319A" },
 	{ /* sentinel */ }
 };
@@ -2549,12 +2558,13 @@ static struct i2c_driver imx319_i2c_driver = {
 	},
 	.probe_new = imx319_probe,
 	.remove = imx319_remove,
+	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };
 module_i2c_driver(imx319_i2c_driver);
 
 MODULE_AUTHOR("Qiu, Tianshu <tian.shu.qiu@intel.com>");
 MODULE_AUTHOR("Rapolu, Chiranjeevi <chiranjeevi.rapolu@intel.com>");
 MODULE_AUTHOR("Bingbu Cao <bingbu.cao@intel.com>");
-MODULE_AUTHOR("Yang, Hyungwoo <hyungwoo.yang@intel.com>");
+MODULE_AUTHOR("Yang, Hyungwoo");
 MODULE_DESCRIPTION("Sony imx319 sensor driver");
 MODULE_LICENSE("GPL v2");

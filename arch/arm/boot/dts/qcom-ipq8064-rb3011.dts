@@ -19,12 +19,12 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory@0 {
+	memory@42000000 {
 		reg = <0x42000000 0x3e000000>;
 		device_type = "memory";
 	};
 
-	mdio0: mdio@0 {
+	mdio0: mdio-0 {
 		status = "okay";
 		compatible = "virtual,mdio-gpio";
 		gpios = <&qcom_pinmux 1 GPIO_ACTIVE_HIGH>,
@@ -91,7 +91,7 @@
 		};
 	};
 
-	mdio1: mdio@1 {
+	mdio1: mdio-1 {
 		status = "okay";
 		compatible = "virtual,mdio-gpio";
 		gpios = <&qcom_pinmux 11 GPIO_ACTIVE_HIGH>,
@@ -172,7 +172,7 @@
 
 				cs-gpios = <&qcom_pinmux 20 GPIO_ACTIVE_HIGH>;
 
-				norflash: s25fl016k@0 {
+				norflash: flash@0 {
 					compatible = "jedec,spi-nor";
 					#address-cells = <1>;
 					#size-cells = <1>;
@@ -216,6 +216,10 @@
 	};
 };
 
+&adm_dma {
+	status = "okay";
+};
+
 &gmac0 {
 	status = "okay";
 
@@ -249,6 +253,39 @@
 
 &gsbi7_serial {
 	status = "okay";
+};
+
+&hs_phy_1 {
+	status = "okay";
+};
+
+&nand {
+	status = "okay";
+
+	nandcs@0 {
+		compatible = "qcom,nandcs";
+		reg = <0>;
+
+		nand-ecc-strength = <4>;
+		nand-bus-width = <8>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			boot@0 {
+				label = "RouterBoard NAND 1 Boot";
+				reg = <0x0000000 0x0800000>;
+			};
+
+			main@800000 {
+				label = "RouterBoard NAND 1 Main";
+				reg = <0x0800000 0x7800000>;
+			};
+		};
+	};
 };
 
 &qcom_pinmux {
@@ -305,4 +342,25 @@
 			input-disable;
 		};
 	};
+
+	usb1_pwr_en_pins: usb1_pwr_en_pins {
+		mux {
+			pins = "gpio4";
+			function = "gpio";
+			drive-strength = <16>;
+			bias-disable;
+			output-high;
+		};
+	};
+};
+
+&ss_phy_1 {
+	status = "okay";
+};
+
+&usb3_1 {
+	pinctrl-0 = <&usb1_pwr_en_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };

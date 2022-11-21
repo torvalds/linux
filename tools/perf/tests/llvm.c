@@ -2,31 +2,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <bpf/libbpf.h>
-#include <util/llvm-utils.h>
-#include "llvm.h"
 #include "tests.h"
 #include "debug.h"
 
 #ifdef HAVE_LIBBPF_SUPPORT
+#include <bpf/libbpf.h>
+#include <util/llvm-utils.h>
+#include "llvm.h"
 static int test__bpf_parsing(void *obj_buf, size_t obj_buf_sz)
 {
 	struct bpf_object *obj;
 
-	obj = bpf_object__open_buffer(obj_buf, obj_buf_sz, NULL);
+	obj = bpf_object__open_mem(obj_buf, obj_buf_sz, NULL);
 	if (libbpf_get_error(obj))
 		return TEST_FAIL;
 	bpf_object__close(obj);
 	return TEST_OK;
 }
-#else
-static int test__bpf_parsing(void *obj_buf __maybe_unused,
-			     size_t obj_buf_sz __maybe_unused)
-{
-	pr_debug("Skip bpf parsing\n");
-	return TEST_OK;
-}
-#endif
 
 static struct {
 	const char *source;
@@ -75,12 +67,11 @@ test_llvm__fetch_bpf_obj(void **p_obj_buf,
 
 	/*
 	 * Skip this test if user's .perfconfig doesn't set [llvm] section
-	 * and clang is not found in $PATH, and this is not perf test -v
+	 * and clang is not found in $PATH
 	 */
-	if (!force && (verbose <= 0 &&
-		       !llvm_param.user_set_param &&
+	if (!force && (!llvm_param.user_set_param &&
 		       llvm__search_clang())) {
-		pr_debug("No clang and no verbosive, skip this test\n");
+		pr_debug("No clang, skip this test\n");
 		return TEST_SKIP;
 	}
 
@@ -133,7 +124,7 @@ out:
 	return ret;
 }
 
-int test__llvm(struct test *test __maybe_unused, int subtest)
+static int test__llvm(int subtest)
 {
 	int ret;
 	void *obj_buf = NULL;
@@ -157,16 +148,72 @@ int test__llvm(struct test *test __maybe_unused, int subtest)
 
 	return ret;
 }
+#endif //HAVE_LIBBPF_SUPPORT
 
-int test__llvm_subtest_get_nr(void)
+static int test__llvm__bpf_base_prog(struct test_suite *test __maybe_unused,
+				     int subtest __maybe_unused)
 {
-	return __LLVM_TESTCASE_MAX;
+#ifdef HAVE_LIBBPF_SUPPORT
+	return test__llvm(LLVM_TESTCASE_BASE);
+#else
+	pr_debug("Skip LLVM test because BPF support is not compiled\n");
+	return TEST_SKIP;
+#endif
 }
 
-const char *test__llvm_subtest_get_desc(int subtest)
+static int test__llvm__bpf_test_kbuild_prog(struct test_suite *test __maybe_unused,
+					    int subtest __maybe_unused)
 {
-	if ((subtest < 0) || (subtest >= __LLVM_TESTCASE_MAX))
-		return NULL;
-
-	return bpf_source_table[subtest].desc;
+#ifdef HAVE_LIBBPF_SUPPORT
+	return test__llvm(LLVM_TESTCASE_KBUILD);
+#else
+	pr_debug("Skip LLVM test because BPF support is not compiled\n");
+	return TEST_SKIP;
+#endif
 }
+
+static int test__llvm__bpf_test_prologue_prog(struct test_suite *test __maybe_unused,
+					      int subtest __maybe_unused)
+{
+#ifdef HAVE_LIBBPF_SUPPORT
+	return test__llvm(LLVM_TESTCASE_BPF_PROLOGUE);
+#else
+	pr_debug("Skip LLVM test because BPF support is not compiled\n");
+	return TEST_SKIP;
+#endif
+}
+
+static int test__llvm__bpf_test_relocation(struct test_suite *test __maybe_unused,
+					   int subtest __maybe_unused)
+{
+#ifdef HAVE_LIBBPF_SUPPORT
+	return test__llvm(LLVM_TESTCASE_BPF_RELOCATION);
+#else
+	pr_debug("Skip LLVM test because BPF support is not compiled\n");
+	return TEST_SKIP;
+#endif
+}
+
+
+static struct test_case llvm_tests[] = {
+#ifdef HAVE_LIBBPF_SUPPORT
+	TEST_CASE("Basic BPF llvm compile", llvm__bpf_base_prog),
+	TEST_CASE("kbuild searching", llvm__bpf_test_kbuild_prog),
+	TEST_CASE("Compile source for BPF prologue generation",
+		  llvm__bpf_test_prologue_prog),
+	TEST_CASE("Compile source for BPF relocation", llvm__bpf_test_relocation),
+#else
+	TEST_CASE_REASON("Basic BPF llvm compile", llvm__bpf_base_prog, "not compiled in"),
+	TEST_CASE_REASON("kbuild searching", llvm__bpf_test_kbuild_prog, "not compiled in"),
+	TEST_CASE_REASON("Compile source for BPF prologue generation",
+			llvm__bpf_test_prologue_prog, "not compiled in"),
+	TEST_CASE_REASON("Compile source for BPF relocation",
+			llvm__bpf_test_relocation, "not compiled in"),
+#endif
+	{ .name = NULL, }
+};
+
+struct test_suite suite__llvm = {
+	.desc = "LLVM search and compile",
+	.test_cases = llvm_tests,
+};

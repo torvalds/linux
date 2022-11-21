@@ -6,7 +6,7 @@ Description:
 		providing a standardized interface to the ancillary
 		features of PTP hardware clocks.
 
-What:		/sys/class/ptp/ptpN/
+What:		/sys/class/ptp/ptp<N>/
 Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
@@ -14,7 +14,7 @@ Description:
 		hardware clock registered into the PTP class driver
 		subsystem.
 
-What:		/sys/class/ptp/ptpN/clock_name
+What:		/sys/class/ptp/ptp<N>/clock_name
 Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
@@ -25,7 +25,7 @@ Description:
 		MAC based ones. The string does not necessarily have
 		to be any kind of unique id.
 
-What:		/sys/class/ptp/ptpN/max_adjustment
+What:		/sys/class/ptp/ptp<N>/max_adjustment
 Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
@@ -33,35 +33,55 @@ Description:
 		frequency adjustment value (a positive integer) in
 		parts per billion.
 
-What:		/sys/class/ptp/ptpN/n_alarms
+What:		/sys/class/ptp/ptp<N>/max_vclocks
+Date:		May 2021
+Contact:	Yangbo Lu <yangbo.lu@nxp.com>
+Description:
+		This file contains the maximum number of ptp vclocks.
+		Write integer to re-configure it.
+
+What:		/sys/class/ptp/ptp<N>/n_alarms
 Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
 		This file contains the number of periodic or one shot
 		alarms offer by the PTP hardware clock.
 
-What:		/sys/class/ptp/ptpN/n_external_timestamps
+What:		/sys/class/ptp/ptp<N>/n_external_timestamps
 Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
 		This file contains the number of external timestamp
 		channels offered by the PTP hardware clock.
 
-What:		/sys/class/ptp/ptpN/n_periodic_outputs
+What:		/sys/class/ptp/ptp<N>/n_periodic_outputs
 Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
 		This file contains the number of programmable periodic
 		output channels offered by the PTP hardware clock.
 
-What:		/sys/class/ptp/ptpN/n_pins
+What:		/sys/class/ptp/ptp<N>/n_pins
 Date:		March 2014
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
 		This file contains the number of programmable pins
 		offered by the PTP hardware clock.
 
-What:		/sys/class/ptp/ptpN/pins
+What:		/sys/class/ptp/ptp<N>/n_vclocks
+Date:		May 2021
+Contact:	Yangbo Lu <yangbo.lu@nxp.com>
+Description:
+		This file contains the number of virtual PTP clocks in
+		use.  By default, the value is 0 meaning that only the
+		physical clock is in use.  Setting the value creates
+		the corresponding number of virtual clocks and causes
+		the physical clock to become free running.  Setting the
+		value back to 0 deletes the virtual clocks and
+		switches the physical clock back to normal, adjustable
+		operation.
+
+What:		/sys/class/ptp/ptp<N>/pins
 Date:		March 2014
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
@@ -74,7 +94,7 @@ Description:
 		assignment may be changed by two writing numbers into
 		the file.
 
-What:		/sys/class/ptp/ptpN/pps_available
+What:		/sys/class/ptp/ptp<N>/pps_available
 Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
@@ -83,7 +103,7 @@ Description:
 		"1" means that the PPS is supported, while "0" means
 		not supported.
 
-What:		/sys/class/ptp/ptpN/extts_enable
+What:		/sys/class/ptp/ptp<N>/extts_enable
 Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
@@ -93,7 +113,7 @@ Description:
 		To disable external timestamps, write the channel
 		index followed by a "0" into the file.
 
-What:		/sys/class/ptp/ptpN/fifo
+What:		/sys/class/ptp/ptp<N>/fifo
 Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
@@ -101,7 +121,7 @@ Description:
 		the form of three integers: channel index, seconds,
 		and nanoseconds.
 
-What:		/sys/class/ptp/ptpN/period
+What:		/sys/class/ptp/ptp<N>/period
 Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:
@@ -112,7 +132,7 @@ Description:
 		period nanoseconds. To disable a periodic output, set
 		all the seconds and nanoseconds values to zero.
 
-What:		/sys/class/ptp/ptpN/pps_enable
+What:		/sys/class/ptp/ptp<N>/pps_enable
 Date:		September 2010
 Contact:	Richard Cochran <richardcochran@gmail.com>
 Description:

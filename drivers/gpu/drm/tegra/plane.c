@@ -4,11 +4,12 @@
  */
 
 #include <linux/iommu.h>
+#include <linux/interconnect.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 
 #include "dc.h"
@@ -64,13 +65,16 @@ tegra_plane_atomic_duplicate_state(struct drm_plane *plane)
 	copy->reflect_x = state->reflect_x;
 	copy->reflect_y = state->reflect_y;
 	copy->opaque = state->opaque;
+	copy->total_peak_memory_bandwidth = state->total_peak_memory_bandwidth;
+	copy->peak_memory_bandwidth = state->peak_memory_bandwidth;
+	copy->avg_memory_bandwidth = state->avg_memory_bandwidth;
 
 	for (i = 0; i < 2; i++)
 		copy->blending[i] = state->blending[i];
 
 	for (i = 0; i < 3; i++) {
 		copy->iova[i] = DMA_MAPPING_ERROR;
-		copy->sgt[i] = NULL;
+		copy->map[i] = NULL;
 	}
 
 	return &copy->base;
@@ -83,6 +87,22 @@ static void tegra_plane_atomic_destroy_state(struct drm_plane *plane,
 	kfree(state);
 }
 
+static bool tegra_plane_supports_sector_layout(struct drm_plane *plane)
+{
+	struct drm_crtc *crtc;
+
+	drm_for_each_crtc(crtc, plane->dev) {
+		if (plane->possible_crtcs & drm_crtc_mask(crtc)) {
+			struct tegra_dc *dc = to_tegra_dc(crtc);
+
+			if (!dc->soc->supports_sector_layout)
+				return false;
+		}
+	}
+
+	return true;
+}
+
 static bool tegra_plane_format_mod_supported(struct drm_plane *plane,
 					     uint32_t format,
 					     uint64_t modifier)
@@ -91,6 +111,14 @@ static bool tegra_plane_format_mod_supported(struct drm_plane *plane,
 
 	if (modifier == DRM_FORMAT_MOD_LINEAR)
 		return true;
+
+	/* check for the sector layout bit */
+	if (fourcc_mod_is_vendor(modifier, NVIDIA)) {
+		if (modifier & DRM_FORMAT_MOD_NVIDIA_SECTOR_LAYOUT) {
+			if (!tegra_plane_supports_sector_layout(plane))
+				return false;
+		}
+	}
 
 	if (info->num_planes == 1)
 		return true;
@@ -110,47 +138,37 @@ const struct drm_plane_funcs tegra_plane_funcs = {
 
 static int tegra_dc_pin(struct tegra_dc *dc, struct tegra_plane_state *state)
 {
-	struct iommu_domain *domain = iommu_get_domain_for_dev(dc->dev);
 	unsigned int i;
 	int err;
 
 	for (i = 0; i < state->base.fb->format->num_planes; i++) {
 		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
-		dma_addr_t phys_addr, *phys;
-		struct sg_table *sgt;
+		struct host1x_bo_mapping *map;
 
-		if (!domain || dc->client.group)
-			phys = &phys_addr;
-		else
-			phys = NULL;
-
-		sgt = host1x_bo_pin(dc->dev, &bo->base, phys);
-		if (IS_ERR(sgt)) {
-			err = PTR_ERR(sgt);
+		map = host1x_bo_pin(dc->dev, &bo->base, DMA_TO_DEVICE, &dc->client.cache);
+		if (IS_ERR(map)) {
+			err = PTR_ERR(map);
 			goto unpin;
 		}
 
-		if (sgt) {
-			err = dma_map_sgtable(dc->dev, sgt, DMA_TO_DEVICE, 0);
-			if (err)
-				goto unpin;
-
+		if (!dc->client.group) {
 			/*
 			 * The display controller needs contiguous memory, so
 			 * fail if the buffer is discontiguous and we fail to
 			 * map its SG table to a single contiguous chunk of
 			 * I/O virtual memory.
 			 */
-			if (sgt->nents > 1) {
+			if (map->chunks > 1) {
 				err = -EINVAL;
 				goto unpin;
 			}
 
-			state->iova[i] = sg_dma_address(sgt->sgl);
-			state->sgt[i] = sgt;
+			state->iova[i] = map->phys;
 		} else {
-			state->iova[i] = phys_addr;
+			state->iova[i] = bo->iova;
 		}
+
+		state->map[i] = map;
 	}
 
 	return 0;
@@ -159,15 +177,9 @@ unpin:
 	dev_err(dc->dev, "failed to map plane %u: %d\n", i, err);
 
 	while (i--) {
-		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
-		struct sg_table *sgt = state->sgt[i];
-
-		if (sgt)
-			dma_unmap_sgtable(dc->dev, sgt, DMA_TO_DEVICE, 0);
-
-		host1x_bo_unpin(dc->dev, &bo->base, sgt);
+		host1x_bo_unpin(state->map[i]);
 		state->iova[i] = DMA_MAPPING_ERROR;
-		state->sgt[i] = NULL;
+		state->map[i] = NULL;
 	}
 
 	return err;
@@ -178,15 +190,9 @@ static void tegra_dc_unpin(struct tegra_dc *dc, struct tegra_plane_state *state)
 	unsigned int i;
 
 	for (i = 0; i < state->base.fb->format->num_planes; i++) {
-		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
-		struct sg_table *sgt = state->sgt[i];
-
-		if (sgt)
-			dma_unmap_sgtable(dc->dev, sgt, DMA_TO_DEVICE, 0);
-
-		host1x_bo_unpin(dc->dev, &bo->base, sgt);
+		host1x_bo_unpin(state->map[i]);
 		state->iova[i] = DMA_MAPPING_ERROR;
-		state->sgt[i] = NULL;
+		state->map[i] = NULL;
 	}
 }
 
@@ -194,11 +200,14 @@ int tegra_plane_prepare_fb(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
 	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+	int err;
 
 	if (!state->fb)
 		return 0;
 
-	drm_gem_fb_prepare_fb(plane, state);
+	err = drm_gem_plane_helper_prepare_fb(plane, state);
+	if (err < 0)
+		return err;
 
 	return tegra_dc_pin(dc, to_tegra_plane_state(state));
 }
@@ -210,6 +219,78 @@ void tegra_plane_cleanup_fb(struct drm_plane *plane,
 
 	if (dc)
 		tegra_dc_unpin(dc, to_tegra_plane_state(state));
+}
+
+static int tegra_plane_calculate_memory_bandwidth(struct drm_plane_state *state)
+{
+	struct tegra_plane_state *tegra_state = to_tegra_plane_state(state);
+	unsigned int i, bpp, dst_w, dst_h, src_w, src_h, mul;
+	const struct tegra_dc_soc_info *soc;
+	const struct drm_format_info *fmt;
+	struct drm_crtc_state *crtc_state;
+	u64 avg_bandwidth, peak_bandwidth;
+
+	if (!state->visible)
+		return 0;
+
+	crtc_state = drm_atomic_get_new_crtc_state(state->state, state->crtc);
+	if (!crtc_state)
+		return -EINVAL;
+
+	src_w = drm_rect_width(&state->src) >> 16;
+	src_h = drm_rect_height(&state->src) >> 16;
+	dst_w = drm_rect_width(&state->dst);
+	dst_h = drm_rect_height(&state->dst);
+
+	fmt = state->fb->format;
+	soc = to_tegra_dc(state->crtc)->soc;
+
+	/*
+	 * Note that real memory bandwidth vary depending on format and
+	 * memory layout, we are not taking that into account because small
+	 * estimation error isn't important since bandwidth is rounded up
+	 * anyway.
+	 */
+	for (i = 0, bpp = 0; i < fmt->num_planes; i++) {
+		unsigned int bpp_plane = fmt->cpp[i] * 8;
+
+		/*
+		 * Sub-sampling is relevant for chroma planes only and vertical
+		 * readouts are not cached, hence only horizontal sub-sampling
+		 * matters.
+		 */
+		if (i > 0)
+			bpp_plane /= fmt->hsub;
+
+		bpp += bpp_plane;
+	}
+
+	/* average bandwidth in kbytes/sec */
+	avg_bandwidth  = min(src_w, dst_w) * min(src_h, dst_h);
+	avg_bandwidth *= drm_mode_vrefresh(&crtc_state->adjusted_mode);
+	avg_bandwidth  = DIV_ROUND_UP(avg_bandwidth * bpp, 8) + 999;
+	do_div(avg_bandwidth, 1000);
+
+	/* mode.clock in kHz, peak bandwidth in kbytes/sec */
+	peak_bandwidth = DIV_ROUND_UP(crtc_state->adjusted_mode.clock * bpp, 8);
+
+	/*
+	 * Tegra30/114 Memory Controller can't interleave DC memory requests
+	 * for the tiled windows because DC uses 16-bytes atom, while DDR3
+	 * uses 32-bytes atom.  Hence there is x2 memory overfetch for tiled
+	 * framebuffer and DDR3 on these SoCs.
+	 */
+	if (soc->plane_tiled_memory_bandwidth_x2 &&
+	    tegra_state->tiling.mode == TEGRA_BO_TILING_MODE_TILED)
+		mul = 2;
+	else
+		mul = 1;
+
+	/* ICC bandwidth in kbytes/sec */
+	tegra_state->peak_memory_bandwidth = kBps_to_icc(peak_bandwidth) * mul;
+	tegra_state->avg_memory_bandwidth  = kBps_to_icc(avg_bandwidth)  * mul;
+
+	return 0;
 }
 
 int tegra_plane_state_add(struct tegra_plane *plane,
@@ -227,6 +308,10 @@ int tegra_plane_state_add(struct tegra_plane *plane,
 	/* Check plane state for visibility and calculate clipping bounds */
 	err = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  0, INT_MAX, true, true);
+	if (err < 0)
+		return err;
+
+	err = tegra_plane_calculate_memory_bandwidth(state);
 	if (err < 0)
 		return err;
 
@@ -328,12 +413,56 @@ int tegra_plane_format(u32 fourcc, u32 *format, u32 *swap)
 		*swap = BYTE_SWAP_SWAP2;
 		break;
 
+	case DRM_FORMAT_YVYU:
+		if (!swap)
+			return -EINVAL;
+
+		*format = WIN_COLOR_DEPTH_YCbCr422;
+		*swap = BYTE_SWAP_SWAP4;
+		break;
+
+	case DRM_FORMAT_VYUY:
+		if (!swap)
+			return -EINVAL;
+
+		*format = WIN_COLOR_DEPTH_YCbCr422;
+		*swap = BYTE_SWAP_SWAP4HW;
+		break;
+
 	case DRM_FORMAT_YUV420:
 		*format = WIN_COLOR_DEPTH_YCbCr420P;
 		break;
 
 	case DRM_FORMAT_YUV422:
 		*format = WIN_COLOR_DEPTH_YCbCr422P;
+		break;
+
+	case DRM_FORMAT_YUV444:
+		*format = WIN_COLOR_DEPTH_YCbCr444P;
+		break;
+
+	case DRM_FORMAT_NV12:
+		*format = WIN_COLOR_DEPTH_YCbCr420SP;
+		break;
+
+	case DRM_FORMAT_NV21:
+		*format = WIN_COLOR_DEPTH_YCrCb420SP;
+		break;
+
+	case DRM_FORMAT_NV16:
+		*format = WIN_COLOR_DEPTH_YCbCr422SP;
+		break;
+
+	case DRM_FORMAT_NV61:
+		*format = WIN_COLOR_DEPTH_YCrCb422SP;
+		break;
+
+	case DRM_FORMAT_NV24:
+		*format = WIN_COLOR_DEPTH_YCbCr444SP;
+		break;
+
+	case DRM_FORMAT_NV42:
+		*format = WIN_COLOR_DEPTH_YCrCb444SP;
 		break;
 
 	default:
@@ -343,13 +472,29 @@ int tegra_plane_format(u32 fourcc, u32 *format, u32 *swap)
 	return 0;
 }
 
-bool tegra_plane_format_is_yuv(unsigned int format, bool *planar)
+bool tegra_plane_format_is_indexed(unsigned int format)
+{
+	switch (format) {
+	case WIN_COLOR_DEPTH_P1:
+	case WIN_COLOR_DEPTH_P2:
+	case WIN_COLOR_DEPTH_P4:
+	case WIN_COLOR_DEPTH_P8:
+		return true;
+	}
+
+	return false;
+}
+
+bool tegra_plane_format_is_yuv(unsigned int format, unsigned int *planes, unsigned int *bpc)
 {
 	switch (format) {
 	case WIN_COLOR_DEPTH_YCbCr422:
 	case WIN_COLOR_DEPTH_YUV422:
-		if (planar)
-			*planar = false;
+		if (planes)
+			*planes = 1;
+
+		if (bpc)
+			*bpc = 8;
 
 		return true;
 
@@ -361,14 +506,32 @@ bool tegra_plane_format_is_yuv(unsigned int format, bool *planar)
 	case WIN_COLOR_DEPTH_YUV422R:
 	case WIN_COLOR_DEPTH_YCbCr422RA:
 	case WIN_COLOR_DEPTH_YUV422RA:
-		if (planar)
-			*planar = true;
+	case WIN_COLOR_DEPTH_YCbCr444P:
+		if (planes)
+			*planes = 3;
+
+		if (bpc)
+			*bpc = 8;
+
+		return true;
+
+	case WIN_COLOR_DEPTH_YCrCb420SP:
+	case WIN_COLOR_DEPTH_YCbCr420SP:
+	case WIN_COLOR_DEPTH_YCrCb422SP:
+	case WIN_COLOR_DEPTH_YCbCr422SP:
+	case WIN_COLOR_DEPTH_YCrCb444SP:
+	case WIN_COLOR_DEPTH_YCbCr444SP:
+		if (planes)
+			*planes = 2;
+
+		if (bpc)
+			*bpc = 8;
 
 		return true;
 	}
 
-	if (planar)
-		*planar = false;
+	if (planes)
+		*planes = 1;
 
 	return false;
 }
@@ -389,7 +552,7 @@ static bool __drm_format_has_alpha(u32 format)
 static int tegra_plane_format_get_alpha(unsigned int opaque,
 					unsigned int *alpha)
 {
-	if (tegra_plane_format_is_yuv(opaque, NULL)) {
+	if (tegra_plane_format_is_yuv(opaque, NULL, NULL)) {
 		*alpha = opaque;
 		return 0;
 	}
@@ -592,6 +755,43 @@ int tegra_plane_setup_legacy_state(struct tegra_plane *tegra,
 	err = tegra_plane_setup_transparency(tegra, state);
 	if (err < 0)
 		return err;
+
+	return 0;
+}
+
+static const char * const tegra_plane_icc_names[TEGRA_DC_LEGACY_PLANES_NUM] = {
+	"wina", "winb", "winc", NULL, NULL, NULL, "cursor",
+};
+
+int tegra_plane_interconnect_init(struct tegra_plane *plane)
+{
+	const char *icc_name = tegra_plane_icc_names[plane->index];
+	struct device *dev = plane->dc->dev;
+	struct tegra_dc *dc = plane->dc;
+	int err;
+
+	if (WARN_ON(plane->index >= TEGRA_DC_LEGACY_PLANES_NUM) ||
+	    WARN_ON(!tegra_plane_icc_names[plane->index]))
+		return -EINVAL;
+
+	plane->icc_mem = devm_of_icc_get(dev, icc_name);
+	err = PTR_ERR_OR_ZERO(plane->icc_mem);
+	if (err) {
+		dev_err_probe(dev, err, "failed to get %s interconnect\n",
+			      icc_name);
+		return err;
+	}
+
+	/* plane B on T20/30 has a dedicated memory client for a 6-tap vertical filter */
+	if (plane->index == 1 && dc->soc->has_win_b_vfilter_mem_client) {
+		plane->icc_mem_vfilter = devm_of_icc_get(dev, "winb-vfilter");
+		err = PTR_ERR_OR_ZERO(plane->icc_mem_vfilter);
+		if (err) {
+			dev_err_probe(dev, err, "failed to get %s interconnect\n",
+				      "winb-vfilter");
+			return err;
+		}
+	}
 
 	return 0;
 }

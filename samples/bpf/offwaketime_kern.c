@@ -20,6 +20,7 @@
 	})
 
 #define MINBLOCK_US	1
+#define MAX_ENTRIES	10000
 
 struct key_t {
 	char waker[TASK_COMM_LEN];
@@ -32,14 +33,14 @@ struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, struct key_t);
 	__type(value, u64);
-	__uint(max_entries, 10000);
+	__uint(max_entries, MAX_ENTRIES);
 } counts SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, u32);
 	__type(value, u64);
-	__uint(max_entries, 10000);
+	__uint(max_entries, MAX_ENTRIES);
 } start SEC(".maps");
 
 struct wokeby_t {
@@ -51,14 +52,14 @@ struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, u32);
 	__type(value, struct wokeby_t);
-	__uint(max_entries, 10000);
+	__uint(max_entries, MAX_ENTRIES);
 } wokeby SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_STACK_TRACE);
 	__uint(key_size, sizeof(u32));
 	__uint(value_size, PERF_MAX_STACK_DEPTH * sizeof(u64));
-	__uint(max_entries, 10000);
+	__uint(max_entries, MAX_ENTRIES);
 } stackmap SEC(".maps");
 
 #define STACKID_FLAGS (0 | BPF_F_FAST_STACK_CMP)
@@ -112,11 +113,11 @@ static inline int update_counts(void *ctx, u32 pid, u64 delta)
 /* taken from /sys/kernel/debug/tracing/events/sched/sched_switch/format */
 struct sched_switch_args {
 	unsigned long long pad;
-	char prev_comm[16];
+	char prev_comm[TASK_COMM_LEN];
 	int prev_pid;
 	int prev_prio;
 	long long prev_state;
-	char next_comm[16];
+	char next_comm[TASK_COMM_LEN];
 	int next_pid;
 	int next_prio;
 };

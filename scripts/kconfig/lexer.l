@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "lkc.h"
 #include "parser.tab.h"
@@ -85,14 +84,12 @@ static void warn_ignored_character(char chr)
 n	[A-Za-z0-9_-]
 
 %%
-	int str = 0;
-	int ts, i;
+	char open_quote = 0;
 
 #.*			/* ignore comment */
 [ \t]*			/* whitespaces */
 \\\n			/* escaped new line */
 \n			return T_EOL;
-"allnoconfig_y"		return T_ALLNOCONFIG_Y;
 "bool"			return T_BOOL;
 "choice"		return T_CHOICE;
 "comment"		return T_COMMENT;
@@ -100,7 +97,6 @@ n	[A-Za-z0-9_-]
 "def_bool"		return T_DEF_BOOL;
 "def_tristate"		return T_DEF_TRISTATE;
 "default"		return T_DEFAULT;
-"defconfig_list"	return T_DEFCONFIG_LIST;
 "depends"		return T_DEPENDS;
 "endchoice"		return T_ENDCHOICE;
 "endif"			return T_ENDIF;
@@ -115,7 +111,6 @@ n	[A-Za-z0-9_-]
 "menuconfig"		return T_MENUCONFIG;
 "modules"		return T_MODULES;
 "on"			return T_ON;
-"option"		return T_OPTION;
 "optional"		return T_OPTIONAL;
 "prompt"		return T_PROMPT;
 "range"			return T_RANGE;
@@ -138,7 +133,7 @@ n	[A-Za-z0-9_-]
 ":="			return T_COLON_EQUAL;
 "+="			return T_PLUS_EQUAL;
 \"|\'			{
-				str = yytext[0];
+				open_quote = yytext[0];
 				new_string();
 				BEGIN(STRING);
 			}
@@ -175,7 +170,7 @@ n	[A-Za-z0-9_-]
 		append_string(yytext + 1, yyleng - 1);
 	}
 	\'|\"	{
-		if (str == yytext[0]) {
+		if (open_quote == yytext[0]) {
 			BEGIN(INITIAL);
 			yylval.string = text;
 			return T_WORD_QUOTE;
@@ -200,6 +195,8 @@ n	[A-Za-z0-9_-]
 
 <HELP>{
 	[ \t]+	{
+		int ts, i;
+
 		ts = 0;
 		for (i = 0; i < yyleng; i++) {
 			if (yytext[i] == '\t')

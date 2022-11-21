@@ -94,15 +94,13 @@ static int alloc_pending_queues(struct otx_cpt_pending_qinfo *pqinfo, u32 qlen,
 				u32 num_queues)
 {
 	struct otx_cpt_pending_queue *queue = NULL;
-	size_t size;
 	int ret;
 	u32 i;
 
 	pqinfo->num_queues = num_queues;
-	size = (qlen * sizeof(struct otx_cpt_pending_entry));
 
 	for_each_pending_queue(pqinfo, queue, i) {
-		queue->head = kzalloc((size), GFP_KERNEL);
+		queue->head = kcalloc(qlen, sizeof(*queue->head), GFP_KERNEL);
 		if (!queue->head) {
 			ret = -ENOMEM;
 			goto pending_qfail;
@@ -206,7 +204,6 @@ static int alloc_command_queues(struct otx_cptvf *cptvf,
 
 	/* per queue initialization */
 	for (i = 0; i < cptvf->num_queues; i++) {
-		c_size = 0;
 		rem_q_size = q_size;
 		first = NULL;
 		last = NULL;
@@ -804,15 +801,9 @@ static int otx_cptvf_probe(struct pci_dev *pdev,
 		dev_err(dev, "PCI request regions failed 0x%x\n", err);
 		goto disable_device;
 	}
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(48));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48));
 	if (err) {
-		dev_err(dev, "Unable to get usable DMA configuration\n");
-		goto release_regions;
-	}
-
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(48));
-	if (err) {
-		dev_err(dev, "Unable to get 48-bit DMA for consistent allocations\n");
+		dev_err(dev, "Unable to get usable 48-bit DMA configuration\n");
 		goto release_regions;
 	}
 

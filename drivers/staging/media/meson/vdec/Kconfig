@@ -2,7 +2,7 @@
 
 config VIDEO_MESON_VDEC
 	tristate "Amlogic video decoder driver"
-	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
+	depends on VIDEO_DEV && HAS_DMA
 	depends on ARCH_MESON || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV

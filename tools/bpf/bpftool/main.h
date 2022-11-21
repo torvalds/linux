@@ -8,12 +8,12 @@
 #undef GCC_VERSION
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <linux/bpf.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
-#include <linux/hashtable.h>
-#include <tools/libc_compat.h>
 
+#include <bpf/hashmap.h>
 #include <bpf/libbpf.h>
 
 #include "json_writer.h"
@@ -57,8 +57,7 @@ static inline void *u64_to_ptr(__u64 ptr)
 #define HELP_SPEC_PROGRAM						\
 	"PROG := { id PROG_ID | pinned FILE | tag PROG_TAG | name PROG_NAME }"
 #define HELP_SPEC_OPTIONS						\
-	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-f|--bpffs} |\n"	\
-	"\t            {-m|--mapcompat} | {-n|--nomount} }"
+	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-d|--debug} | {-l|--legacy}"
 #define HELP_SPEC_MAP							\
 	"MAP := { id MAP_ID | pinned FILE | name MAP_NAME }"
 #define HELP_SPEC_LINK							\
@@ -90,10 +89,10 @@ extern bool show_pids;
 extern bool block_mount;
 extern bool verifier_logs;
 extern bool relaxed_maps;
-extern struct pinned_obj_table prog_table;
-extern struct pinned_obj_table map_table;
-extern struct pinned_obj_table link_table;
-extern struct obj_refs_table refs_table;
+extern bool use_loader;
+extern bool legacy_libbpf;
+extern struct btf *base_btf;
+extern struct hashmap *refs_table;
 
 void __printf(1, 2) p_err(const char *fmt, ...);
 void __printf(1, 2) p_info(const char *fmt, ...);
@@ -107,44 +106,30 @@ void set_max_rlimit(void);
 
 int mount_tracefs(const char *target);
 
-struct pinned_obj_table {
-	DECLARE_HASHTABLE(table, 16);
-};
-
-struct pinned_obj {
-	__u32 id;
-	char *path;
-	struct hlist_node hash;
-};
-
-struct obj_refs_table {
-	DECLARE_HASHTABLE(table, 16);
-};
-
 struct obj_ref {
 	int pid;
 	char comm[16];
 };
 
 struct obj_refs {
-	struct hlist_node node;
-	__u32 id;
 	int ref_cnt;
+	bool has_bpf_cookie;
 	struct obj_ref *refs;
+	__u64 bpf_cookie;
 };
 
 struct btf;
 struct bpf_line_info;
 
-int build_pinned_obj_table(struct pinned_obj_table *table,
+int build_pinned_obj_table(struct hashmap *table,
 			   enum bpf_obj_type type);
-void delete_pinned_obj_table(struct pinned_obj_table *tab);
-__weak int build_obj_refs_table(struct obj_refs_table *table,
+void delete_pinned_obj_table(struct hashmap *table);
+__weak int build_obj_refs_table(struct hashmap **table,
 				enum bpf_obj_type type);
-__weak void delete_obj_refs_table(struct obj_refs_table *table);
-__weak void emit_obj_refs_json(struct obj_refs_table *table, __u32 id,
+__weak void delete_obj_refs_table(struct hashmap *table);
+__weak void emit_obj_refs_json(struct hashmap *table, __u32 id,
 			       json_writer_t *json_wtr);
-__weak void emit_obj_refs_plain(struct obj_refs_table *table, __u32 id,
+__weak void emit_obj_refs_plain(struct hashmap *table, __u32 id,
 				const char *prefix);
 void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode);
 void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode);
@@ -156,6 +141,10 @@ struct cmd {
 
 int cmd_select(const struct cmd *cmds, int argc, char **argv,
 	       int (*help)(int argc, char **argv));
+
+#define MAX_PROG_FULL_NAME 128
+void get_prog_full_name(const struct bpf_prog_info *prog_info, int prog_fd,
+			char *name_buff, size_t buff_len);
 
 int get_fd_type(int fd);
 const char *get_fd_type_name(enum bpf_obj_type type);
@@ -258,4 +247,23 @@ int do_filter_dump(struct tcmsg *ifinfo, struct nlattr **tb, const char *kind,
 
 int print_all_levels(__maybe_unused enum libbpf_print_level level,
 		     const char *format, va_list args);
+
+size_t hash_fn_for_key_as_id(const void *key, void *ctx);
+bool equal_fn_for_key_as_id(const void *k1, const void *k2, void *ctx);
+
+static inline void *u32_as_hash_field(__u32 x)
+{
+	return (void *)(uintptr_t)x;
+}
+
+static inline __u32 hash_field_as_u32(const void *x)
+{
+	return (__u32)(uintptr_t)x;
+}
+
+static inline bool hashmap__empty(struct hashmap *map)
+{
+	return map ? hashmap__size(map) == 0 : true;
+}
+
 #endif

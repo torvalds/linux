@@ -197,7 +197,7 @@ static int rs5c348_probe(struct spi_device *spi)
 
 	rtc->ops = &rs5c348_rtc_ops;
 
-	return rtc_register_device(rtc);
+	return devm_rtc_register_device(rtc);
 }
 
 static struct spi_driver rs5c348_driver = {

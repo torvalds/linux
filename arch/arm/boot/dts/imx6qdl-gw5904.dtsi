@@ -72,8 +72,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		user-pb {
 			label = "user_pb";
@@ -467,6 +465,11 @@
 				regulator-always-on;
 			};
 		};
+	};
+
+	crypto@60 {
+		compatible = "atmel,atecc508a";
+		reg = <0x60>;
 	};
 
 	imu@6a {

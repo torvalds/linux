@@ -71,7 +71,7 @@
  *
  * A simple static executable may be built this way :
  *      $ gcc -fno-asynchronous-unwind-tables -fno-ident -s -Os -nostdlib \
- *            -static -include nolibc.h -lgcc -o hello hello.c
+ *            -static -include nolibc.h -o hello hello.c -lgcc
  *
  * A very useful calling convention table may be found here :
  *      http://man7.org/linux/man-pages/man2/syscall.2.html
@@ -81,19 +81,12 @@
  *
  */
 
-/* Some archs (at least aarch64) don't expose the regular syscalls anymore by
- * default, either because they have an "_at" replacement, or because there are
- * more modern alternatives. For now we'd rather still use them.
- */
-#define __ARCH_WANT_SYSCALL_NO_AT
-#define __ARCH_WANT_SYSCALL_NO_FLAGS
-#define __ARCH_WANT_SYSCALL_DEPRECATED
-
 #include <asm/unistd.h>
 #include <asm/ioctls.h>
 #include <asm/errno.h>
 #include <linux/fs.h>
 #include <linux/loop.h>
+#include <linux/time.h>
 
 #define NOLIBC
 
@@ -107,7 +100,7 @@ static int errno;
 #endif
 
 /* errno codes all ensure that they will not conflict with a valid pointer
- * because they all correspond to the highest addressable memry page.
+ * because they all correspond to the highest addressable memory page.
  */
 #define MAX_ERRNO 4095
 
@@ -150,24 +143,6 @@ struct pollfd {
 	int fd;
 	short int events;
 	short int revents;
-};
-
-/* for select() */
-struct timeval {
-	long    tv_sec;
-	long    tv_usec;
-};
-
-/* for pselect() */
-struct timespec {
-	long    tv_sec;
-	long    tv_nsec;
-};
-
-/* for gettimeofday() */
-struct timezone {
-	int tz_minuteswest;
-	int tz_dsttime;
 };
 
 /* for getdents64() */
@@ -231,7 +206,7 @@ struct rusage {
 #define DT_SOCK   12
 
 /* all the *at functions */
-#ifndef AT_FDWCD
+#ifndef AT_FDCWD
 #define AT_FDCWD             -100
 #endif
 
@@ -271,6 +246,8 @@ struct stat {
 #define WEXITSTATUS(status)   (((status) & 0xff00) >> 8)
 #define WIFEXITED(status)     (((status) & 0x7f) == 0)
 
+/* for SIGCHLD */
+#include <asm/signal.h>
 
 /* Below comes the architecture-specific code. For each architecture, we have
  * the syscall declarations and the _start code definition. This is the only
@@ -288,12 +265,17 @@ struct stat {
  *   - arguments are in rdi, rsi, rdx, r10, r8, r9 respectively
  *   - the system call is performed by calling the syscall instruction
  *   - syscall return comes in rax
- *   - rcx and r8..r11 may be clobbered, others are preserved.
+ *   - rcx and r11 are clobbered, others are preserved.
  *   - the arguments are cast to long and assigned into the target registers
  *     which are then simply passed as registers to the asm code, so that we
  *     don't have to experience issues with register constraints.
  *   - the syscall number is always specified last in order to allow to force
  *     some registers before (gcc refuses a %-register at the last position).
+ *   - see also x86-64 ABI section A.2 AMD64 Linux Kernel Conventions, A.2.1
+ *     Calling Conventions.
+ *
+ * Link x86-64 ABI: https://gitlab.com/x86-psABIs/x86-64-ABI/-/wikis/x86-64-psABI
+ *
  */
 
 #define my_syscall0(num)                                                      \
@@ -303,9 +285,9 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret)                                                 \
+		: "=a"(_ret)                                                  \
 		: "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
+		: "rcx", "r11", "memory", "cc"                                \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -318,10 +300,10 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret)                                                 \
+		: "=a"(_ret)                                                  \
 		: "r"(_arg1),                                                 \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
+		: "rcx", "r11", "memory", "cc"                                \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -335,10 +317,10 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret)                                                 \
+		: "=a"(_ret)                                                  \
 		: "r"(_arg1), "r"(_arg2),                                     \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
+		: "rcx", "r11", "memory", "cc"                                \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -353,10 +335,10 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret)                                                 \
+		: "=a"(_ret)                                                  \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3),                         \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
+		: "rcx", "r11", "memory", "cc"                                \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -372,10 +354,10 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret), "=r"(_arg4)                                    \
+		: "=a"(_ret)                                                  \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4),             \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r11", "memory", "cc"                    \
+		: "rcx", "r11", "memory", "cc"                                \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -392,10 +374,10 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret), "=r"(_arg4), "=r"(_arg5)                       \
+		: "=a"(_ret)                                                  \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5), \
 		  "0"(_num)                                                   \
-		: "rcx", "r9", "r11", "memory", "cc"                          \
+		: "rcx", "r11", "memory", "cc"                                \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -413,7 +395,7 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret), "=r"(_arg4), "=r"(_arg5)                       \
+		: "=a"(_ret)                                                  \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5), \
 		  "r"(_arg6), "0"(_num)                                       \
 		: "rcx", "r11", "memory", "cc"                                \
@@ -422,17 +404,23 @@ struct stat {
 })
 
 /* startup code */
+/*
+ * x86-64 System V ABI mandates:
+ * 1) %rsp must be 16-byte aligned right before the function call.
+ * 2) The deepest stack frame should be zero (the %rbp).
+ *
+ */
 asm(".section .text\n"
     ".global _start\n"
     "_start:\n"
     "pop %rdi\n"                // argc   (first arg, %rdi)
     "mov %rsp, %rsi\n"          // argv[] (second arg, %rsi)
     "lea 8(%rsi,%rdi,8),%rdx\n" // then a NULL then envp (third arg, %rdx)
-    "and $-16, %rsp\n"          // x86 ABI : esp must be 16-byte aligned when
-    "sub $8, %rsp\n"            // entering the callee
+    "xor %ebp, %ebp\n"          // zero the stack frame
+    "and $-16, %rsp\n"          // x86 ABI : esp must be 16-byte aligned before call
     "call main\n"               // main() returns the status code, we'll exit with it.
-    "movzb %al, %rdi\n"         // retrieve exit code from 8 lower bits
-    "mov $60, %rax\n"           // NR_exit == 60
+    "mov %eax, %edi\n"          // retrieve exit code (32 bit)
+    "mov $60, %eax\n"           // NR_exit == 60
     "syscall\n"                 // really exit
     "hlt\n"                     // ensure it does not return
     "");
@@ -600,20 +588,28 @@ struct sys_stat_struct {
 })
 
 /* startup code */
+/*
+ * i386 System V ABI mandates:
+ * 1) last pushed argument must be 16-byte aligned.
+ * 2) The deepest stack frame should be set to zero
+ *
+ */
 asm(".section .text\n"
     ".global _start\n"
     "_start:\n"
     "pop %eax\n"                // argc   (first arg, %eax)
     "mov %esp, %ebx\n"          // argv[] (second arg, %ebx)
     "lea 4(%ebx,%eax,4),%ecx\n" // then a NULL then envp (third arg, %ecx)
-    "and $-16, %esp\n"          // x86 ABI : esp must be 16-byte aligned when
+    "xor %ebp, %ebp\n"          // zero the stack frame
+    "and $-16, %esp\n"          // x86 ABI : esp must be 16-byte aligned before
+    "sub $4, %esp\n"            // the call instruction (args are aligned)
     "push %ecx\n"               // push all registers on the stack so that we
     "push %ebx\n"               // support both regparm and plain stack modes
     "push %eax\n"
     "call main\n"               // main() returns the status code in %eax
-    "movzbl %al, %ebx\n"        // retrieve exit code from lower 8 bits
-    "movl   $1, %eax\n"         // NR_exit == 1
-    "int    $0x80\n"            // exit now
+    "mov %eax, %ebx\n"          // retrieve exit code (32-bit int)
+    "movl $1, %eax\n"           // NR_exit == 1
+    "int $0x80\n"               // exit now
     "hlt\n"                     // ensure it does not
     "");
 
@@ -797,7 +793,6 @@ asm(".section .text\n"
     "and %r3, %r1, $-8\n"         // AAPCS : sp must be 8-byte aligned in the
     "mov %sp, %r3\n"              //         callee, an bl doesn't push (lr=pc)
     "bl main\n"                   // main() returns the status code, we'll exit with it.
-    "and %r0, %r0, $0xff\n"       // limit exit code to 8 bits
     "movs r7, $1\n"               // NR_exit == 1
     "svc $0x00\n"
     "");
@@ -994,7 +989,6 @@ asm(".section .text\n"
     "add x2, x2, x1\n"            //           + argv
     "and sp, x1, -16\n"           // sp must be 16-byte aligned in the callee
     "bl main\n"                   // main() returns the status code, we'll exit with it.
-    "and x0, x0, 0xff\n"          // limit exit code to 8 bits
     "mov x8, 93\n"                // NR_exit == 93
     "svc #0\n"
     "");
@@ -1054,7 +1048,7 @@ struct sys_stat_struct {
  *     scall32-o32.S in the kernel sources.
  *   - the system call is performed by calling "syscall"
  *   - syscall return comes in v0, and register a3 needs to be checked to know
- *     if an error occured, in which case errno is in v0.
+ *     if an error occurred, in which case errno is in v0.
  *   - the arguments are cast to long and assigned into the target registers
  *     which are then simply passed as registers to the asm code, so that we
  *     don't have to experience issues with register constraints.
@@ -1199,7 +1193,7 @@ asm(".section .text\n"
     "addiu $sp,$sp,-16\n"         // the callee expects to save a0..a3 there!
     "jal main\n"                  // main() returns the status code, we'll exit with it.
     "nop\n"                       // delayed slot
-    "and $a0, $v0, 0xff\n"        // limit exit code to 8 bits
+    "move $a0, $v0\n"             // retrieve 32-bit exit code from v0
     "li $v0, 4001\n"              // NR_exit == 4001
     "syscall\n"
     ".end __start\n"
@@ -1397,7 +1391,6 @@ asm(".section .text\n"
     "add   a2,a2,a1\n"           //             + argv
     "andi  sp,a1,-16\n"          // sp must be 16-byte aligned
     "call  main\n"               // main() returns the status code, we'll exit with it.
-    "andi  a0, a0, 0xff\n"       // limit exit code to 8 bits
     "li a7, 93\n"                // NR_exit == 93
     "ecall\n"
     "");
@@ -1469,8 +1462,10 @@ int sys_chmod(const char *path, mode_t mode)
 {
 #ifdef __NR_fchmodat
 	return my_syscall4(__NR_fchmodat, AT_FDCWD, path, mode, 0);
-#else
+#elif defined(__NR_chmod)
 	return my_syscall2(__NR_chmod, path, mode);
+#else
+#error Neither __NR_fchmodat nor __NR_chmod defined, cannot implement sys_chmod()
 #endif
 }
 
@@ -1479,8 +1474,10 @@ int sys_chown(const char *path, uid_t owner, gid_t group)
 {
 #ifdef __NR_fchownat
 	return my_syscall5(__NR_fchownat, AT_FDCWD, path, owner, group, 0);
-#else
+#elif defined(__NR_chown)
 	return my_syscall3(__NR_chown, path, owner, group);
+#else
+#error Neither __NR_fchownat nor __NR_chown defined, cannot implement sys_chown()
 #endif
 }
 
@@ -1502,10 +1499,24 @@ int sys_dup(int fd)
 	return my_syscall1(__NR_dup, fd);
 }
 
+#ifdef __NR_dup3
+static __attribute__((unused))
+int sys_dup3(int old, int new, int flags)
+{
+	return my_syscall3(__NR_dup3, old, new, flags);
+}
+#endif
+
 static __attribute__((unused))
 int sys_dup2(int old, int new)
 {
+#ifdef __NR_dup3
+	return my_syscall3(__NR_dup3, old, new, 0);
+#elif defined(__NR_dup2)
 	return my_syscall2(__NR_dup2, old, new);
+#else
+#error Neither __NR_dup3 nor __NR_dup2 defined, cannot implement sys_dup2()
+#endif
 }
 
 static __attribute__((unused))
@@ -1517,7 +1528,17 @@ int sys_execve(const char *filename, char *const argv[], char *const envp[])
 static __attribute__((unused))
 pid_t sys_fork(void)
 {
+#ifdef __NR_clone
+	/* note: some archs only have clone() and not fork(). Different archs
+	 * have a different API, but most archs have the flags on first arg and
+	 * will not use the rest with no other flag.
+	 */
+	return my_syscall5(__NR_clone, SIGCHLD, 0, 0, 0, 0);
+#elif defined(__NR_fork)
 	return my_syscall0(__NR_fork);
+#else
+#error Neither __NR_clone nor __NR_fork defined, cannot implement sys_fork()
+#endif
 }
 
 static __attribute__((unused))
@@ -1533,15 +1554,27 @@ int sys_getdents64(int fd, struct linux_dirent64 *dirp, int count)
 }
 
 static __attribute__((unused))
+pid_t sys_getpgid(pid_t pid)
+{
+	return my_syscall1(__NR_getpgid, pid);
+}
+
+static __attribute__((unused))
 pid_t sys_getpgrp(void)
 {
-	return my_syscall0(__NR_getpgrp);
+	return sys_getpgid(0);
 }
 
 static __attribute__((unused))
 pid_t sys_getpid(void)
 {
 	return my_syscall0(__NR_getpid);
+}
+
+static __attribute__((unused))
+pid_t sys_gettid(void)
+{
+	return my_syscall0(__NR_gettid);
 }
 
 static __attribute__((unused))
@@ -1567,8 +1600,10 @@ int sys_link(const char *old, const char *new)
 {
 #ifdef __NR_linkat
 	return my_syscall5(__NR_linkat, AT_FDCWD, old, AT_FDCWD, new, 0);
-#else
+#elif defined(__NR_link)
 	return my_syscall2(__NR_link, old, new);
+#else
+#error Neither __NR_linkat nor __NR_link defined, cannot implement sys_link()
 #endif
 }
 
@@ -1583,8 +1618,10 @@ int sys_mkdir(const char *path, mode_t mode)
 {
 #ifdef __NR_mkdirat
 	return my_syscall3(__NR_mkdirat, AT_FDCWD, path, mode);
-#else
+#elif defined(__NR_mkdir)
 	return my_syscall2(__NR_mkdir, path, mode);
+#else
+#error Neither __NR_mkdirat nor __NR_mkdir defined, cannot implement sys_mkdir()
 #endif
 }
 
@@ -1593,8 +1630,10 @@ long sys_mknod(const char *path, mode_t mode, dev_t dev)
 {
 #ifdef __NR_mknodat
 	return my_syscall4(__NR_mknodat, AT_FDCWD, path, mode, dev);
-#else
+#elif defined(__NR_mknod)
 	return my_syscall3(__NR_mknod, path, mode, dev);
+#else
+#error Neither __NR_mknodat nor __NR_mknod defined, cannot implement sys_mknod()
 #endif
 }
 
@@ -1610,8 +1649,10 @@ int sys_open(const char *path, int flags, mode_t mode)
 {
 #ifdef __NR_openat
 	return my_syscall4(__NR_openat, AT_FDCWD, path, flags, mode);
-#else
+#elif defined(__NR_open)
 	return my_syscall3(__NR_open, path, flags, mode);
+#else
+#error Neither __NR_openat nor __NR_open defined, cannot implement sys_open()
 #endif
 }
 
@@ -1624,7 +1665,19 @@ int sys_pivot_root(const char *new, const char *old)
 static __attribute__((unused))
 int sys_poll(struct pollfd *fds, int nfds, int timeout)
 {
+#if defined(__NR_ppoll)
+	struct timespec t;
+
+	if (timeout >= 0) {
+		t.tv_sec  = timeout / 1000;
+		t.tv_nsec = (timeout % 1000) * 1000000;
+	}
+	return my_syscall4(__NR_ppoll, fds, nfds, (timeout >= 0) ? &t : NULL, NULL);
+#elif defined(__NR_poll)
 	return my_syscall3(__NR_poll, fds, nfds, timeout);
+#else
+#error Neither __NR_ppoll nor __NR_poll defined, cannot implement sys_poll()
+#endif
 }
 
 static __attribute__((unused))
@@ -1663,11 +1716,13 @@ int sys_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeva
 		t.tv_nsec = timeout->tv_usec * 1000;
 	}
 	return my_syscall6(__NR_pselect6, nfds, rfds, wfds, efds, timeout ? &t : NULL, NULL);
-#else
+#elif defined(__NR__newselect) || defined(__NR_select)
 #ifndef __NR__newselect
 #define __NR__newselect __NR_select
 #endif
 	return my_syscall5(__NR__newselect, nfds, rfds, wfds, efds, timeout);
+#else
+#error None of __NR_select, __NR_pselect6, nor __NR__newselect defined, cannot implement sys_select()
 #endif
 }
 
@@ -1692,8 +1747,10 @@ int sys_stat(const char *path, struct stat *buf)
 #ifdef __NR_newfstatat
 	/* only solution for arm64 */
 	ret = my_syscall4(__NR_newfstatat, AT_FDCWD, path, &stat, 0);
-#else
+#elif defined(__NR_stat)
 	ret = my_syscall2(__NR_stat, path, &stat);
+#else
+#error Neither __NR_newfstatat nor __NR_stat defined, cannot implement sys_stat()
 #endif
 	buf->st_dev     = stat.st_dev;
 	buf->st_ino     = stat.st_ino;
@@ -1717,8 +1774,10 @@ int sys_symlink(const char *old, const char *new)
 {
 #ifdef __NR_symlinkat
 	return my_syscall3(__NR_symlinkat, old, AT_FDCWD, new);
-#else
+#elif defined(__NR_symlink)
 	return my_syscall2(__NR_symlink, old, new);
+#else
+#error Neither __NR_symlinkat nor __NR_symlink defined, cannot implement sys_symlink()
 #endif
 }
 
@@ -1739,8 +1798,10 @@ int sys_unlink(const char *path)
 {
 #ifdef __NR_unlinkat
 	return my_syscall3(__NR_unlinkat, AT_FDCWD, path, 0);
-#else
+#elif defined(__NR_unlink)
 	return my_syscall1(__NR_unlink, path);
+#else
+#error Neither __NR_unlinkat nor __NR_unlink defined, cannot implement sys_unlink()
 #endif
 }
 
@@ -1853,6 +1914,18 @@ int close(int fd)
 }
 
 static __attribute__((unused))
+int dup(int fd)
+{
+	int ret = sys_dup(fd);
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+
+static __attribute__((unused))
 int dup2(int old, int new)
 {
 	int ret = sys_dup2(old, new);
@@ -1863,6 +1936,20 @@ int dup2(int old, int new)
 	}
 	return ret;
 }
+
+#ifdef __NR_dup3
+static __attribute__((unused))
+int dup3(int old, int new, int flags)
+{
+	int ret = sys_dup3(old, new, flags);
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+#endif
 
 static __attribute__((unused))
 int execve(const char *filename, char *const argv[], char *const envp[])
@@ -1913,6 +2000,18 @@ int getdents64(int fd, struct linux_dirent64 *dirp, int count)
 }
 
 static __attribute__((unused))
+pid_t getpgid(pid_t pid)
+{
+	pid_t ret = sys_getpgid(pid);
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+
+static __attribute__((unused))
 pid_t getpgrp(void)
 {
 	pid_t ret = sys_getpgrp();
@@ -1928,6 +2027,18 @@ static __attribute__((unused))
 pid_t getpid(void)
 {
 	pid_t ret = sys_getpid();
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+
+static __attribute__((unused))
+pid_t gettid(void)
+{
+	pid_t ret = sys_gettid();
 
 	if (ret < 0) {
 		SET_ERRNO(-ret);
@@ -2162,6 +2273,19 @@ unsigned int sleep(unsigned int seconds)
 
 	if (sys_select(0, 0, 0, 0, &my_timeval) < 0)
 		return my_timeval.tv_sec + !!my_timeval.tv_usec;
+	else
+		return 0;
+}
+
+static __attribute__((unused))
+int msleep(unsigned int msecs)
+{
+	struct timeval my_timeval = { msecs / 1000, (msecs % 1000) * 1000 };
+
+	if (sys_select(0, 0, 0, 0, &my_timeval) < 0)
+		return (my_timeval.tv_sec * 1000) +
+			(my_timeval.tv_usec / 1000) +
+			!!(my_timeval.tv_usec % 1000);
 	else
 		return 0;
 }

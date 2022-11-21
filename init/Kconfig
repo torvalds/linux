@@ -1,13 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config DEFCONFIG_LIST
-	string
-	depends on !UML
-	option defconfig_list
-	default "/lib/modules/$(shell,uname -r)/.config"
-	default "/etc/kernel-config"
-	default "/boot/config-$(shell,uname -r)"
-	default "arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG)"
-
 config CC_VERSION_TEXT
 	string
 	default "$(CC_VERSION_TEXT)"
@@ -19,47 +10,65 @@ config CC_VERSION_TEXT
 	    CC_VERSION_TEXT so it is recorded in include/config/auto.conf.cmd.
 	    When the compiler is updated, Kconfig will be invoked.
 
-	  - Ensure full rebuild when the compier is updated
-	    include/linux/kconfig.h contains this option in the comment line so
-	    fixdep adds include/config/cc/version/text.h into the auto-generated
-	    dependency. When the compiler is updated, syncconfig will touch it
-	    and then every file will be rebuilt.
+	  - Ensure full rebuild when the compiler is updated
+	    include/linux/compiler-version.h contains this option in the comment
+	    line so fixdep adds include/config/CC_VERSION_TEXT into the
+	    auto-generated dependency. When the compiler is updated, syncconfig
+	    will touch it and then every file will be rebuilt.
 
 config CC_IS_GCC
-	def_bool $(success,echo "$(CC_VERSION_TEXT)" | grep -q gcc)
+	def_bool $(success,test "$(cc-name)" = GCC)
 
 config GCC_VERSION
 	int
-	default $(shell,$(srctree)/scripts/gcc-version.sh $(CC)) if CC_IS_GCC
+	default $(cc-version) if CC_IS_GCC
 	default 0
 
-config LD_VERSION
-	int
-	default $(shell,$(LD) --version | $(srctree)/scripts/ld-version.sh)
-
 config CC_IS_CLANG
-	def_bool $(success,echo "$(CC_VERSION_TEXT)" | grep -q clang)
-
-config LD_IS_LLD
-	def_bool $(success,$(LD) -v | head -n 1 | grep -q LLD)
+	def_bool $(success,test "$(cc-name)" = Clang)
 
 config CLANG_VERSION
 	int
-	default $(shell,$(srctree)/scripts/clang-version.sh $(CC))
+	default $(cc-version) if CC_IS_CLANG
+	default 0
+
+config AS_IS_GNU
+	def_bool $(success,test "$(as-name)" = GNU)
+
+config AS_IS_LLVM
+	def_bool $(success,test "$(as-name)" = LLVM)
+
+config AS_VERSION
+	int
+	# Use clang version if this is the integrated assembler
+	default CLANG_VERSION if AS_IS_LLVM
+	default $(as-version)
+
+config LD_IS_BFD
+	def_bool $(success,test "$(ld-name)" = BFD)
+
+config LD_VERSION
+	int
+	default $(ld-version) if LD_IS_BFD
+	default 0
+
+config LD_IS_LLD
+	def_bool $(success,test "$(ld-name)" = LLD)
 
 config LLD_VERSION
 	int
-	default $(shell,$(srctree)/scripts/lld-version.sh $(LD))
+	default $(ld-version) if LD_IS_LLD
+	default 0
 
 config CC_CAN_LINK
 	bool
-	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(m64-flag)) if 64BIT
-	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(m32-flag))
+	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m64-flag)) if 64BIT
+	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m32-flag))
 
 config CC_CAN_LINK_STATIC
 	bool
-	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(m64-flag) -static) if 64BIT
-	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(m32-flag) -static)
+	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m64-flag) -static) if 64BIT
+	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m32-flag) -static)
 
 config CC_HAS_ASM_GOTO
 	def_bool $(success,$(srctree)/scripts/gcc-goto.sh $(CC))
@@ -74,9 +83,15 @@ config TOOLS_SUPPORT_RELR
 config CC_HAS_ASM_INLINE
 	def_bool $(success,echo 'void foo(void) { asm inline (""); }' | $(CC) -x c - -c -o /dev/null)
 
+config CC_HAS_NO_PROFILE_FN_ATTR
+	def_bool $(success,echo '__attribute__((no_profile_instrument_function)) int x();' | $(CC) -x c - -c -o /dev/null -Werror)
+
+config PAHOLE_VERSION
+	int
+	default $(shell,$(srctree)/scripts/pahole-version.sh $(PAHOLE))
+
 config CONSTRUCTORS
 	bool
-	depends on !UML
 
 config IRQ_WORK
 	bool
@@ -114,8 +129,7 @@ config INIT_ENV_ARG_LIMIT
 
 config COMPILE_TEST
 	bool "Compile also drivers which will not load"
-	depends on !UML
-	default n
+	depends on HAS_IOMEM
 	help
 	  Some drivers can be compiled on a different platform than they are
 	  intended to be run on. Despite they cannot be loaded there (or even
@@ -126,6 +140,20 @@ config COMPILE_TEST
 	  If you are a developer and want to build everything available, say Y
 	  here. If you are a user/distributor, say N here to exclude useless
 	  drivers to be distributed.
+
+config WERROR
+	bool "Compile the kernel with warnings as errors"
+	default COMPILE_TEST
+	help
+	  A kernel build should not cause any compiler warnings, and this
+	  enables the '-Werror' flag to enforce that rule by default.
+
+	  However, if you have a new (or very old) compiler with odd and
+	  unusual warnings, or you have some architecture with problems,
+	  you may need to disable this config option in order to
+	  successfully build the kernel.
+
+	  If in doubt, say Y.
 
 config UAPI_HEADER_TEST
 	bool "Compile test UAPI headers"
@@ -435,6 +463,7 @@ config AUDITSYSCALL
 
 source "kernel/irq/Kconfig"
 source "kernel/time/Kconfig"
+source "kernel/bpf/Kconfig"
 source "kernel/Kconfig.preempt"
 
 menu "CPU/Task time and stats accounting"
@@ -525,7 +554,7 @@ config SCHED_THERMAL_PRESSURE
 	  i.e. put less load on throttled CPUs than on non/less throttled ones.
 
 	  This requires the architecture to implement
-	  arch_set_thermal_pressure() and arch_get_thermal_pressure().
+	  arch_update_thermal_pressure() and arch_scale_thermal_pressure().
 
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
@@ -764,6 +793,20 @@ config PRINTK_SAFE_LOG_BUF_SHIFT
 		     13 =>   8 KB for each CPU
 		     12 =>   4 KB for each CPU
 
+config PRINTK_INDEX
+	bool "Printk indexing debugfs interface"
+	depends on PRINTK && DEBUG_FS
+	help
+	  Add support for indexing of all printk formats known at compile time
+	  at <debugfs>/printk/index/<module>.
+
+	  This can be used as part of maintaining daemons which monitor
+	  /dev/kmsg, as it permits auditing the printk formats present in a
+	  kernel, allowing detection of cases where monitored printks are
+	  changed or no longer present.
+
+	  There is no additional runtime cost to printk with this enabled.
+
 #
 # Architectures with an unreliable sched_clock() should select this:
 #
@@ -846,6 +889,11 @@ config ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
 config CC_HAS_INT128
 	def_bool !$(cc-option,$(m64-flag) -D__SIZEOF_INT128__=0) && 64BIT
 
+config CC_IMPLICIT_FALLTHROUGH
+	string
+	default "-Wimplicit-fallthrough=5" if CC_IS_GCC && $(cc-option,-Wimplicit-fallthrough=5)
+	default "-Wimplicit-fallthrough" if CC_IS_CLANG && $(cc-option,-Wunreachable-code-fallthrough)
+
 #
 # For architectures that know their GCC __int128 support is sound
 #
@@ -862,7 +910,7 @@ config NUMA_BALANCING
 	bool "Memory placement aware NUMA scheduler"
 	depends on ARCH_SUPPORTS_NUMA_BALANCING
 	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
-	depends on SMP && NUMA && MIGRATION
+	depends on SMP && NUMA && MIGRATION && !PREEMPT_RT
 	help
 	  This option adds support for automatic NUMA aware memory/task placement.
 	  The mechanism is quite primitive and is based on migrating memory when
@@ -1106,6 +1154,20 @@ config CGROUP_BPF
 	  BPF_CGROUP_INET_INGRESS will be executed on the ingress path of
 	  inet sockets.
 
+config CGROUP_MISC
+	bool "Misc resource controller"
+	default n
+	help
+	  Provides a controller for miscellaneous resources on a host.
+
+	  Miscellaneous scalar resources are the resources on the host system
+	  which cannot be abstracted like the other cgroups. This controller
+	  tracks and limits the miscellaneous resources used by a process
+	  attached to a cgroup hierarchy.
+
+	  For more information, please check misc cgroup section in
+	  /Documentation/admin-guide/cgroup-v2.rst.
+
 config CGROUP_DEBUG
 	bool "Debug controller"
 	default n
@@ -1194,6 +1256,7 @@ endif # NAMESPACES
 config CHECKPOINT_RESTORE
 	bool "Checkpoint/restore support"
 	select PROC_CHILDREN
+	select KCMP
 	default n
 	help
 	  Enables additional kernel features in a sake of checkpoint/restore.
@@ -1355,7 +1418,6 @@ config LD_DEAD_CODE_DATA_ELIMINATION
 config LD_ORPHAN_WARN
 	def_bool y
 	depends on ARCH_WANT_LD_ORPHAN_WARN
-	depends on !LD_IS_LLD || LLD_VERSION >= 110000
 	depends on $(ld-option,--orphan-handling=warn)
 
 config SYSCTL
@@ -1483,11 +1545,6 @@ config PRINTK
 	  very difficult to diagnose system problems, saying N here is
 	  strongly discouraged.
 
-config PRINTK_NMI
-	def_bool y
-	depends on PRINTK
-	depends on HAVE_NMI
-
 config BUG
 	bool "BUG() support" if EXPERT
 	default y
@@ -1525,6 +1582,7 @@ config BASE_FULL
 
 config FUTEX
 	bool "Enable futex support" if EXPERT
+	depends on !(SPARC32 && SMP)
 	default y
 	imply RT_MUTEXES
 	help
@@ -1536,14 +1594,6 @@ config FUTEX_PI
 	bool
 	depends on FUTEX && RT_MUTEXES
 	default y
-
-config HAVE_FUTEX_CMPXCHG
-	bool
-	depends on FUTEX
-	help
-	  Architectures should select this if futex_atomic_cmpxchg_inatomic()
-	  is implemented and always working. This removes a couple of runtime
-	  checks.
 
 config EPOLL
 	bool "Enable eventpoll support" if EXPERT
@@ -1622,6 +1672,11 @@ config HAVE_ARCH_USERFAULTFD_WP
 	help
 	  Arch has userfaultfd write protection support
 
+config HAVE_ARCH_USERFAULTFD_MINOR
+	bool
+	help
+	  Arch has userfaultfd minor fault support
+
 config MEMBARRIER
 	bool "Enable membarrier() system call" if EXPERT
 	default y
@@ -1698,44 +1753,6 @@ config KALLSYMS_USE_DATA_SECTION
 
 # syscall, maps, verifier
 
-config BPF_LSM
-	bool "LSM Instrumentation with BPF"
-	depends on BPF_EVENTS
-	depends on BPF_SYSCALL
-	depends on SECURITY
-	depends on BPF_JIT
-	help
-	  Enables instrumentation of the security hooks with eBPF programs for
-	  implementing dynamic MAC and Audit Policies.
-
-	  If you are unsure how to answer this question, answer N.
-
-config BPF_SYSCALL
-	bool "Enable bpf() system call"
-	select BPF
-	select IRQ_WORK
-	select TASKS_TRACE_RCU
-	default n
-	help
-	  Enable the bpf() system call that allows to manipulate eBPF
-	  programs and maps via file descriptors.
-
-config ARCH_WANT_DEFAULT_BPF_JIT
-	bool
-
-config BPF_JIT_ALWAYS_ON
-	bool "Permanently enable BPF JIT and remove BPF interpreter"
-	depends on BPF_SYSCALL && HAVE_EBPF_JIT && BPF_JIT
-	help
-	  Enables BPF JIT and removes BPF interpreter to avoid
-	  speculative execution of BPF instructions by the interpreter
-
-config BPF_JIT_DEFAULT_ON
-	def_bool ARCH_WANT_DEFAULT_BPF_JIT || BPF_JIT_ALWAYS_ON
-	depends on HAVE_EBPF_JIT && BPF_JIT
-
-source "kernel/bpf/preload/Kconfig"
-
 config USERFAULTFD
 	bool "Enable userfaultfd() system call"
 	depends on MMU
@@ -1748,6 +1765,16 @@ config ARCH_HAS_MEMBARRIER_CALLBACKS
 
 config ARCH_HAS_MEMBARRIER_SYNC_CORE
 	bool
+
+config KCMP
+	bool "Enable kcmp() system call" if EXPERT
+	help
+	  Enable the kernel resource comparison system call. It provides
+	  user-space with the ability to compare two processes to see if they
+	  share a common resource, such as a file descriptor or even virtual
+	  memory space.
+
+	  If unsure, say N.
 
 config RSEQ
 	bool "Enable rseq() system call" if EXPERT
@@ -1774,7 +1801,6 @@ config DEBUG_RSEQ
 
 config EMBEDDED
 	bool "Embedded system"
-	option allnoconfig_y
 	select EXPERT
 	help
 	  This option should be enabled if compiling the kernel for
@@ -1785,6 +1811,10 @@ config HAVE_PERF_EVENTS
 	bool
 	help
 	  See tools/perf/design.txt for details.
+
+config GUEST_PERF_EVENTS
+	bool
+	depends on HAVE_PERF_EVENTS
 
 config PERF_USE_VMALLOC
 	bool
@@ -1863,20 +1893,6 @@ config SLUB_DEBUG
 	  SLUB sysfs support. /sys/slab will not exist and there will be
 	  no support for cache validation etc.
 
-config SLUB_MEMCG_SYSFS_ON
-	default n
-	bool "Enable memcg SLUB sysfs support by default" if EXPERT
-	depends on SLUB && SYSFS && MEMCG
-	help
-	  SLUB creates a directory under /sys/kernel/slab for each
-	  allocation cache to host info and debug files. If memory
-	  cgroup is enabled, each cache can have per memory cgroup
-	  caches. SLUB can create the same sysfs directories for these
-	  caches under /sys/kernel/slab/CACHE/cgroup but it can lead
-	  to a very high number of debug files being created. This is
-	  controlled by slub_memcg_sysfs boot parameter and this
-	  config option determines the parameter's default value.
-
 config COMPAT_BRK
 	bool "Disable heap randomization"
 	default y
@@ -1897,6 +1913,7 @@ choice
 
 config SLAB
 	bool "SLAB"
+	depends on !PREEMPT_RT
 	select HAVE_HARDENED_USERCOPY_ALLOCATOR
 	help
 	  The regular slab allocator that is established and known to work
@@ -1917,6 +1934,7 @@ config SLUB
 config SLOB
 	depends on EXPERT
 	bool "SLOB (Simple Allocator)"
+	depends on !PREEMPT_RT
 	help
 	   SLOB replaces the stock allocator with a drastically simpler
 	   allocator. SLOB is generally more space efficient but
@@ -1927,6 +1945,7 @@ endchoice
 config SLAB_MERGE_DEFAULT
 	bool "Allow slab caches to be merged"
 	default y
+	depends on SLAB || SLUB
 	help
 	  For reduced kernel memory fragmentation, slab caches can be
 	  merged when they share the same size and other characteristics.
@@ -2036,7 +2055,7 @@ config PROFILING
 	bool "Profiling support"
 	help
 	  Say Y here to enable the extended profiling support mechanisms used
-	  by profilers such as OProfile.
+	  by profilers.
 
 #
 # Place an empty function call at each tracepoint site. Can be
@@ -2051,6 +2070,7 @@ source "arch/Kconfig"
 
 config RT_MUTEXES
 	bool
+	default y if PREEMPT_RT
 
 config BASE_SMALL
 	int
@@ -2063,7 +2083,7 @@ config MODULE_SIG_FORMAT
 
 menuconfig MODULES
 	bool "Enable loadable module support"
-	option modules
+	modules
 	help
 	  Kernel modules are small pieces of compiled code which can
 	  be inserted in the running kernel, rather than being
@@ -2175,7 +2195,7 @@ config MODULE_SIG_FORCE
 config MODULE_SIG_ALL
 	bool "Automatically sign all modules"
 	default y
-	depends on MODULE_SIG
+	depends on MODULE_SIG || IMA_APPRAISE_MODSIG
 	help
 	  Sign all modules during make modules_install. Without this option,
 	  modules must be signed manually, using the scripts/sign-file tool.
@@ -2185,7 +2205,7 @@ comment "Do not forget to sign required modules with scripts/sign-file"
 
 choice
 	prompt "Which hash algorithm should modules be signed with?"
-	depends on MODULE_SIG
+	depends on MODULE_SIG || IMA_APPRAISE_MODSIG
 	help
 	  This determines which sort of hashing algorithm will be used during
 	  signature generation.  This algorithm _must_ be built into the kernel
@@ -2217,49 +2237,75 @@ endchoice
 
 config MODULE_SIG_HASH
 	string
-	depends on MODULE_SIG
+	depends on MODULE_SIG || IMA_APPRAISE_MODSIG
 	default "sha1" if MODULE_SIG_SHA1
 	default "sha224" if MODULE_SIG_SHA224
 	default "sha256" if MODULE_SIG_SHA256
 	default "sha384" if MODULE_SIG_SHA384
 	default "sha512" if MODULE_SIG_SHA512
 
-config MODULE_COMPRESS
-	bool "Compress modules on installation"
-	help
-
-	  Compresses kernel modules when 'make modules_install' is run; gzip or
-	  xz depending on "Compression algorithm" below.
-
-	  module-init-tools MAY support gzip, and kmod MAY support gzip and xz.
-
-	  Out-of-tree kernel modules installed using Kbuild will also be
-	  compressed upon installation.
-
-	  Note: for modules inside an initrd or initramfs, it's more efficient
-	  to compress the whole initrd or initramfs instead.
-
-	  Note: This is fully compatible with signed modules.
-
-	  If in doubt, say N.
-
 choice
-	prompt "Compression algorithm"
-	depends on MODULE_COMPRESS
-	default MODULE_COMPRESS_GZIP
+	prompt "Module compression mode"
 	help
-	  This determines which sort of compression will be used during
-	  'make modules_install'.
+	  This option allows you to choose the algorithm which will be used to
+	  compress modules when 'make modules_install' is run. (or, you can
+	  choose to not compress modules at all.)
 
-	  GZIP (default) and XZ are supported.
+	  External modules will also be compressed in the same way during the
+	  installation.
+
+	  For modules inside an initrd or initramfs, it's more efficient to
+	  compress the whole initrd or initramfs instead.
+
+	  This is fully compatible with signed modules.
+
+	  Please note that the tool used to load modules needs to support the
+	  corresponding algorithm. module-init-tools MAY support gzip, and kmod
+	  MAY support gzip, xz and zstd.
+
+	  Your build system needs to provide the appropriate compression tool
+	  to compress the modules.
+
+	  If in doubt, select 'None'.
+
+config MODULE_COMPRESS_NONE
+	bool "None"
+	help
+	  Do not compress modules. The installed modules are suffixed
+	  with .ko.
 
 config MODULE_COMPRESS_GZIP
 	bool "GZIP"
+	help
+	  Compress modules with GZIP. The installed modules are suffixed
+	  with .ko.gz.
 
 config MODULE_COMPRESS_XZ
 	bool "XZ"
+	help
+	  Compress modules with XZ. The installed modules are suffixed
+	  with .ko.xz.
+
+config MODULE_COMPRESS_ZSTD
+	bool "ZSTD"
+	help
+	  Compress modules with ZSTD. The installed modules are suffixed
+	  with .ko.zst.
 
 endchoice
+
+config MODULE_DECOMPRESS
+	bool "Support in-kernel module decompression"
+	depends on MODULE_COMPRESS_GZIP || MODULE_COMPRESS_XZ
+	select ZLIB_INFLATE if MODULE_COMPRESS_GZIP
+	select XZ_DEC if MODULE_COMPRESS_XZ
+	help
+
+	  Support for decompressing kernel modules by the kernel itself
+	  instead of relying on userspace to perform this task. Useful when
+	  load pinning security policy is enabled.
+
+	  If unsure, say N.
 
 config MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS
 	bool "Allow loading of modules with missing namespace imports"
@@ -2274,25 +2320,21 @@ config MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS
 
 	  If unsure, say N.
 
-config UNUSED_SYMBOLS
-	bool "Enable unused/obsolete exported symbols"
-	default y if X86
+config MODPROBE_PATH
+	string "Path to modprobe binary"
+	default "/sbin/modprobe"
 	help
-	  Unused but exported symbols make the kernel needlessly bigger.  For
-	  that reason most of these unused exports will soon be removed.  This
-	  option is provided temporarily to provide a transition period in case
-	  some external kernel module needs one of these symbols anyway. If you
-	  encounter such a case in your module, consider if you are actually
-	  using the right API.  (rationale: since nobody in the kernel is using
-	  this in a module, there is a pretty good chance it's actually the
-	  wrong interface to use).  If you really need the symbol, please send a
-	  mail to the linux kernel mailing list mentioning the symbol and why
-	  you really need it, and what the merge plan to the mainline kernel for
-	  your module is.
+	  When kernel code requests a module, it does so by calling
+	  the "modprobe" userspace utility. This option allows you to
+	  set the path where that binary is found. This can be changed
+	  at runtime via the sysctl file
+	  /proc/sys/kernel/modprobe. Setting this to the empty string
+	  removes the kernel's ability to request modules (but
+	  userspace can still load modules explicitly).
 
 config TRIM_UNUSED_KSYMS
-	bool "Trim unused exported kernel symbols"
-	depends on !UNUSED_SYMBOLS
+	bool "Trim unused exported kernel symbols" if EXPERT
+	depends on !COMPILE_TEST
 	help
 	  The kernel and some modules make many symbols available for
 	  other modules to use via EXPORT_SYMBOL() and variants. Depending
@@ -2323,7 +2365,7 @@ endif # MODULES
 
 config MODULES_TREE_LOOKUP
 	def_bool y
-	depends on PERF_EVENTS || TRACING
+	depends on PERF_EVENTS || TRACING || CFI_CLANG
 
 config INIT_ALL_POSSIBLE
 	bool

@@ -1,62 +1,8 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2020 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- * Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2020 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2015-2017 Intel Deutschland GmbH
+ * Copyright (C) 2018-2021 Intel Corporation
+ */
 #include <net/cfg80211.h>
 #include <linux/etherdevice.h>
 #include "mvm.h"
@@ -100,8 +46,8 @@ static int iwl_mvm_ftm_responder_set_bw_v1(struct cfg80211_chan_def *chandef,
 }
 
 static int iwl_mvm_ftm_responder_set_bw_v2(struct cfg80211_chan_def *chandef,
-					   u8 *format_bw,
-					   u8 *ctrl_ch_position)
+					   u8 *format_bw, u8 *ctrl_ch_position,
+					   u8 cmd_ver)
 {
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -122,6 +68,14 @@ static int iwl_mvm_ftm_responder_set_bw_v2(struct cfg80211_chan_def *chandef,
 		*format_bw |= IWL_LOCATION_BW_80MHZ << LOCATION_BW_POS;
 		*ctrl_ch_position = iwl_mvm_get_ctrl_pos(chandef);
 		break;
+	case NL80211_CHAN_WIDTH_160:
+		if (cmd_ver >= 9) {
+			*format_bw = IWL_LOCATION_FRAME_FORMAT_HE;
+			*format_bw |= IWL_LOCATION_BW_160MHZ << LOCATION_BW_POS;
+			*ctrl_ch_position = iwl_mvm_get_ctrl_pos(chandef);
+			break;
+		}
+		fallthrough;
 	default:
 		return -ENOTSUPP;
 	}
@@ -129,18 +83,37 @@ static int iwl_mvm_ftm_responder_set_bw_v2(struct cfg80211_chan_def *chandef,
 	return 0;
 }
 
+static void
+iwl_mvm_ftm_responder_set_ndp(struct iwl_mvm *mvm,
+			      struct iwl_tof_responder_config_cmd_v9 *cmd)
+{
+	/* Up to 2 R2I STS are allowed on the responder */
+	u32 r2i_max_sts = IWL_MVM_FTM_R2I_MAX_STS < 2 ?
+		IWL_MVM_FTM_R2I_MAX_STS : 1;
+
+	cmd->r2i_ndp_params = IWL_MVM_FTM_R2I_MAX_REP |
+		(r2i_max_sts << IWL_RESPONDER_STS_POS) |
+		(IWL_MVM_FTM_R2I_MAX_TOTAL_LTF << IWL_RESPONDER_TOTAL_LTF_POS);
+	cmd->i2r_ndp_params = IWL_MVM_FTM_I2R_MAX_REP |
+		(IWL_MVM_FTM_I2R_MAX_STS << IWL_RESPONDER_STS_POS) |
+		(IWL_MVM_FTM_I2R_MAX_TOTAL_LTF << IWL_RESPONDER_TOTAL_LTF_POS);
+	cmd->cmd_valid_fields |=
+		cpu_to_le32(IWL_TOF_RESPONDER_CMD_VALID_NDP_PARAMS);
+}
+
 static int
 iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 			  struct ieee80211_vif *vif,
 			  struct cfg80211_chan_def *chandef)
 {
+	u32 cmd_id = WIDE_ID(LOCATION_GROUP, TOF_RESPONDER_CONFIG_CMD);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	/*
-	 * The command structure is the same for versions 6 and 7, (only the
+	 * The command structure is the same for versions 6, 7 and 8 (only the
 	 * field interpretation is different), so the same struct can be use
 	 * for all cases.
 	 */
-	struct iwl_tof_responder_config_cmd cmd = {
+	struct iwl_tof_responder_config_cmd_v9 cmd = {
 		.channel_num = chandef->chan->hw_value,
 		.cmd_valid_fields =
 			cpu_to_le32(IWL_TOF_RESPONDER_CMD_VALID_CHAN_INFO |
@@ -148,15 +121,35 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 				    IWL_TOF_RESPONDER_CMD_VALID_STA_ID),
 		.sta_id = mvmvif->bcast_sta.sta_id,
 	};
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
-					   TOF_RESPONDER_CONFIG_CMD, 6);
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 6);
 	int err;
+	int cmd_size;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (cmd_ver == 7)
+	/* Use a default of bss_color=1 for now */
+	if (cmd_ver == 9) {
+		cmd.cmd_valid_fields |=
+			cpu_to_le32(IWL_TOF_RESPONDER_CMD_VALID_BSS_COLOR |
+				    IWL_TOF_RESPONDER_CMD_VALID_MIN_MAX_TIME_BETWEEN_MSR);
+		cmd.bss_color = 1;
+		cmd.min_time_between_msr =
+			cpu_to_le16(IWL_MVM_FTM_NON_TB_MIN_TIME_BETWEEN_MSR);
+		cmd.max_time_between_msr =
+			cpu_to_le16(IWL_MVM_FTM_NON_TB_MAX_TIME_BETWEEN_MSR);
+		cmd_size = sizeof(struct iwl_tof_responder_config_cmd_v9);
+	} else {
+		/* All versions up to version 8 have the same size */
+		cmd_size = sizeof(struct iwl_tof_responder_config_cmd_v8);
+	}
+
+	if (cmd_ver >= 8)
+		iwl_mvm_ftm_responder_set_ndp(mvm, &cmd);
+
+	if (cmd_ver >= 7)
 		err = iwl_mvm_ftm_responder_set_bw_v2(chandef, &cmd.format_bw,
-						      &cmd.ctrl_ch_position);
+						      &cmd.ctrl_ch_position,
+						      cmd_ver);
 	else
 		err = iwl_mvm_ftm_responder_set_bw_v1(chandef, &cmd.format_bw,
 						      &cmd.ctrl_ch_position);
@@ -168,9 +161,7 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 
 	memcpy(cmd.bssid, vif->addr, ETH_ALEN);
 
-	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(TOF_RESPONDER_CONFIG_CMD,
-						    LOCATION_GROUP, 0),
-				    0, sizeof(cmd), &cmd);
+	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, cmd_size, &cmd);
 }
 
 static int
@@ -184,8 +175,7 @@ iwl_mvm_ftm_responder_dyn_cfg_v2(struct iwl_mvm *mvm,
 	};
 	u8 data[IWL_LCI_CIVIC_IE_MAX_SIZE] = {0};
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RESPONDER_DYN_CONFIG_CMD,
-				 LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RESPONDER_DYN_CONFIG_CMD),
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
 		.data[1] = &data,
@@ -227,8 +217,7 @@ iwl_mvm_ftm_responder_dyn_cfg_v3(struct iwl_mvm *mvm,
 {
 	struct iwl_tof_responder_dyn_config_cmd cmd;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RESPONDER_DYN_CONFIG_CMD,
-				 LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RESPONDER_DYN_CONFIG_CMD),
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
 		/* may not be able to DMA from stack */
@@ -285,8 +274,9 @@ iwl_mvm_ftm_responder_dyn_cfg_cmd(struct iwl_mvm *mvm,
 				  struct ieee80211_ftm_responder_params *params)
 {
 	int ret;
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
-					   TOF_RESPONDER_DYN_CONFIG_CMD, 2);
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+					   WIDE_ID(LOCATION_GROUP, TOF_RESPONDER_DYN_CONFIG_CMD),
+					   2);
 
 	switch (cmd_ver) {
 	case 2:
@@ -327,8 +317,9 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 		.addr = addr,
 		.hltk = hltk,
 	};
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
-					   TOF_RESPONDER_DYN_CONFIG_CMD, 2);
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+					   WIDE_ID(LOCATION_GROUP, TOF_RESPONDER_DYN_CONFIG_CMD),
+					   2);
 
 	lockdep_assert_held(&mvm->mutex);
 

@@ -10,7 +10,7 @@
 #ifndef _MEDIA_V4L2_H264_H
 #define _MEDIA_V4L2_H264_H
 
-#include <media/h264-ctrls.h>
+#include <media/v4l2-ctrls.h>
 
 /**
  * struct v4l2_h264_reflist_builder - Reference list builder object
@@ -66,11 +66,11 @@ v4l2_h264_build_b_ref_lists(const struct v4l2_h264_reflist_builder *builder,
 			    u8 *b0_reflist, u8 *b1_reflist);
 
 /**
- * v4l2_h264_build_b_ref_lists() - Build the P reference list
+ * v4l2_h264_build_p_ref_list() - Build the P reference list
  *
  * @builder: reference list builder context
- * @p_reflist: 16-bytes array used to store the P reference list. Each entry
- *	       is an index in the DPB
+ * @reflist: 16-bytes array used to store the P reference list. Each entry
+ *	     is an index in the DPB
  *
  * This functions builds the P reference lists. This procedure is describe in
  * section '8.2.4 Decoding process for reference picture lists construction'

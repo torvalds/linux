@@ -44,7 +44,7 @@ static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
 static DECLARE_TLV_DB_SCALE(noise_tlv, -13200, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
-static const struct wm_adsp_region wm5102_dsp1_regions[] = {
+static const struct cs_dsp_region wm5102_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x100000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x180000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x190000 },
@@ -682,9 +682,7 @@ static int wm5102_out_comp_coeff_put(struct snd_kcontrol *kcontrol,
 	struct arizona *arizona = dev_get_drvdata(component->dev->parent);
 
 	mutex_lock(&arizona->dac_comp_lock);
-	memcpy(&arizona->dac_comp_coeff, ucontrol->value.bytes.data,
-	       sizeof(arizona->dac_comp_coeff));
-	arizona->dac_comp_coeff = be16_to_cpu(arizona->dac_comp_coeff);
+	arizona->dac_comp_coeff = get_unaligned_be16(ucontrol->value.bytes.data);
 	mutex_unlock(&arizona->dac_comp_lock);
 
 	return 0;
@@ -1782,8 +1780,8 @@ static struct snd_soc_dai_driver wm5102_dai[] = {
 			 .formats = WM5102_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm5102-aif2",
@@ -1804,8 +1802,8 @@ static struct snd_soc_dai_driver wm5102_dai[] = {
 			 .formats = WM5102_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm5102-aif3",
@@ -1826,8 +1824,8 @@ static struct snd_soc_dai_driver wm5102_dai[] = {
 			 .formats = WM5102_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm5102-slim1",
@@ -1991,7 +1989,7 @@ static unsigned int wm5102_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_5R,
 };
 
-static struct snd_compress_ops wm5102_compress_ops = {
+static const struct snd_compress_ops wm5102_compress_ops = {
 	.open		= wm5102_open,
 	.free		= wm_adsp_compr_free,
 	.set_params	= wm_adsp_compr_set_params,
@@ -2006,6 +2004,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm5102 = {
 	.remove			= wm5102_component_remove,
 	.set_sysclk		= arizona_set_sysclk,
 	.set_pll		= wm5102_set_fll,
+	.set_jack		= arizona_jack_set_jack,
 	.name			= DRV_NAME,
 	.compress_ops		= &wm5102_compress_ops,
 	.controls		= wm5102_snd_controls,
@@ -2047,16 +2046,21 @@ static int wm5102_probe(struct platform_device *pdev)
 	arizona_init_dvfs(&wm5102->core);
 
 	wm5102->core.adsp[0].part = "wm5102";
-	wm5102->core.adsp[0].num = 1;
-	wm5102->core.adsp[0].type = WMFW_ADSP2;
-	wm5102->core.adsp[0].base = ARIZONA_DSP1_CONTROL_1;
-	wm5102->core.adsp[0].dev = arizona->dev;
-	wm5102->core.adsp[0].regmap = arizona->regmap;
-	wm5102->core.adsp[0].mem = wm5102_dsp1_regions;
-	wm5102->core.adsp[0].num_mems = ARRAY_SIZE(wm5102_dsp1_regions);
+	wm5102->core.adsp[0].cs_dsp.num = 1;
+	wm5102->core.adsp[0].cs_dsp.type = WMFW_ADSP2;
+	wm5102->core.adsp[0].cs_dsp.base = ARIZONA_DSP1_CONTROL_1;
+	wm5102->core.adsp[0].cs_dsp.dev = arizona->dev;
+	wm5102->core.adsp[0].cs_dsp.regmap = arizona->regmap;
+	wm5102->core.adsp[0].cs_dsp.mem = wm5102_dsp1_regions;
+	wm5102->core.adsp[0].cs_dsp.num_mems = ARRAY_SIZE(wm5102_dsp1_regions);
 
 	ret = wm_adsp2_init(&wm5102->core.adsp[0]);
 	if (ret != 0)
+		return ret;
+
+	/* This may return -EPROBE_DEFER, so do this early on */
+	ret = arizona_jack_codec_dev_probe(&wm5102->core, &pdev->dev);
+	if (ret)
 		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(wm5102->fll); i++)
@@ -2091,7 +2095,7 @@ static int wm5102_probe(struct platform_device *pdev)
 				  wm5102);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request DSP IRQ: %d\n", ret);
-		return ret;
+		goto err_jack_codec_dev;
 	}
 
 	ret = arizona_set_irq_wake(arizona, ARIZONA_IRQ_DSP_IRQ1, 1);
@@ -2125,6 +2129,8 @@ err_spk_irqs:
 err_dsp_irq:
 	arizona_set_irq_wake(arizona, ARIZONA_IRQ_DSP_IRQ1, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5102);
+err_jack_codec_dev:
+	arizona_jack_codec_dev_remove(&wm5102->core);
 
 	return ret;
 }
@@ -2142,6 +2148,8 @@ static int wm5102_remove(struct platform_device *pdev)
 
 	arizona_set_irq_wake(arizona, ARIZONA_IRQ_DSP_IRQ1, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5102);
+
+	arizona_jack_codec_dev_remove(&wm5102->core);
 
 	return 0;
 }

@@ -18,9 +18,13 @@
 #define DEFAULT_REGSPACING	1
 #define DEFAULT_REGSIZE		1
 
+/* Numbers in this enumerator should be mapped to si_to_str[] */
 enum si_type {
-	SI_TYPE_INVALID, SI_KCS, SI_SMIC, SI_BT
+	SI_TYPE_INVALID, SI_KCS, SI_SMIC, SI_BT, SI_TYPE_MAX
 };
+
+/* Array is defined in the ipmi_si_intf.c */
+extern const char *const si_to_str[];
 
 enum ipmi_addr_space {
 	IPMI_IO_ADDR_SPACE, IPMI_MEM_ADDR_SPACE
@@ -48,8 +52,6 @@ struct si_sm_io {
 	enum ipmi_addr_space addr_space;
 	unsigned long addr_data;
 	enum ipmi_addr_src addr_source; /* ACPI, PCI, SMBIOS, hardcode, etc. */
-	void (*addr_source_cleanup)(struct si_sm_io *io);
-	void *addr_source_data;
 	union ipmi_smi_info_union addr_info;
 
 	int (*io_setup)(struct si_sm_io *info);
@@ -71,7 +73,7 @@ irqreturn_t ipmi_si_irq_handler(int irq, void *data);
 void ipmi_irq_start_cleanup(struct si_sm_io *io);
 int ipmi_std_irq_setup(struct si_sm_io *io);
 void ipmi_irq_finish_setup(struct si_sm_io *io);
-int ipmi_si_remove_by_dev(struct device *dev);
+void ipmi_si_remove_by_dev(struct device *dev);
 struct device *ipmi_si_remove_by_data(int addr_space, enum si_type si_type,
 				      unsigned long addr);
 void ipmi_hardcode_init(void);

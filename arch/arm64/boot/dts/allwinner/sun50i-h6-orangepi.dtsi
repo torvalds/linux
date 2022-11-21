@@ -42,13 +42,13 @@
 	leds {
 		compatible = "gpio-leds";
 
-		power {
+		led-0 {
 			label = "orangepi:red:power";
 			gpios = <&r_pio 0 4 GPIO_ACTIVE_HIGH>; /* PL4 */
 			default-state = "on";
 		};
 
-		status {
+		led-1 {
 			label = "orangepi:green:status";
 			gpios = <&r_pio 0 7 GPIO_ACTIVE_HIGH>; /* PL7 */
 		};
@@ -112,14 +112,22 @@
 	vcc-pg-supply = <&reg_aldo1>;
 };
 
-&r_i2c {
+&r_ir {
+	status = "okay";
+};
+
+&r_pio {
+	vcc-pm-supply = <&reg_bldo3>;
+};
+
+&r_rsb {
 	status = "okay";
 
-	axp805: pmic@36 {
+	axp805: pmic@745 {
 		compatible = "x-powers,axp805", "x-powers,axp806";
-		reg = <0x36>;
+		reg = <0x745>;
 		interrupt-parent = <&r_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
 		x-powers,self-working-mode;
@@ -230,14 +238,6 @@
 			};
 		};
 	};
-};
-
-&r_ir {
-	status = "okay";
-};
-
-&r_pio {
-	vcc-pm-supply = <&reg_bldo3>;
 };
 
 &rtc {

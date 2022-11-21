@@ -179,32 +179,21 @@ ia_css_isys_error_t ia_css_isys_stream_create(
 	isys_stream->linked_isys_stream_id = isys_stream_descr->linked_isys_stream_id;
 	rc = create_input_system_input_port(isys_stream_descr,
 					    &isys_stream->input_port);
-	if (rc == false)
+	if (!rc)
 		return false;
 
 	rc = create_input_system_channel(isys_stream_descr, false,
 					 &isys_stream->channel);
-	if (rc == false) {
+	if (!rc) {
 		destroy_input_system_input_port(&isys_stream->input_port);
 		return false;
 	}
 
-#ifdef ISP2401
-	/*
-	 * Early polling is required for timestamp accuracy in certain cause.
-	 * The ISYS HW polling is started on
-	 * ia_css_isys_stream_capture_indication() instead of
-	 * ia_css_pipeline_sp_wait_for_isys_stream_N() as isp processing of
-	 * capture takes longer than getting an ISYS frame
-	 */
-	isys_stream->polling_mode = isys_stream_descr->polling_mode;
-
-#endif
 	/* create metadata channel */
 	if (isys_stream_descr->metadata.enable) {
 		rc = create_input_system_channel(isys_stream_descr, true,
 						 &isys_stream->md_channel);
-		if (rc == false) {
+		if (!rc) {
 			destroy_input_system_input_port(&isys_stream->input_port);
 			destroy_input_system_channel(&isys_stream->channel);
 			return false;
@@ -248,7 +237,7 @@ ia_css_isys_error_t ia_css_isys_stream_calculate_cfg(
 		  isys_stream_descr,
 		  &isys_stream_cfg->channel_cfg,
 		  false);
-	if (rc == false)
+	if (!rc)
 		return false;
 
 	/* configure metadata channel */
@@ -260,7 +249,7 @@ ia_css_isys_error_t ia_css_isys_stream_calculate_cfg(
 			  isys_stream_descr,
 			  &isys_stream_cfg->md_channel_cfg,
 			  true);
-		if (rc == false)
+		if (!rc)
 			return false;
 	}
 
@@ -269,7 +258,7 @@ ia_css_isys_error_t ia_css_isys_stream_calculate_cfg(
 		 &isys_stream->input_port,
 		 isys_stream_descr,
 		 &isys_stream_cfg->input_port_cfg);
-	if (rc == false)
+	if (!rc)
 		return false;
 
 	isys_stream->valid = 1;

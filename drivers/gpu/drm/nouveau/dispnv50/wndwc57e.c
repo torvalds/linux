@@ -80,7 +80,7 @@ wndwc57e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	return 0;
 }
 
-static int
+int
 wndwc57e_csc_clr(struct nv50_wndw *wndw)
 {
 	struct nvif_push *push = wndw->wndw.push;
@@ -98,7 +98,7 @@ wndwc57e_csc_clr(struct nv50_wndw *wndw)
 	return 0;
 }
 
-static int
+int
 wndwc57e_csc_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
 	struct nvif_push *push = wndw->wndw.push;
@@ -111,7 +111,7 @@ wndwc57e_csc_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	return 0;
 }
 
-static int
+int
 wndwc57e_ilut_clr(struct nv50_wndw *wndw)
 {
 	struct nvif_push *push = wndw->wndw.push;
@@ -124,7 +124,7 @@ wndwc57e_ilut_clr(struct nv50_wndw *wndw)
 	return 0;
 }
 
-static int
+int
 wndwc57e_ilut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
 	struct nvif_push *push = wndw->wndw.push;
@@ -179,11 +179,11 @@ wndwc57e_ilut_load(struct drm_color_lut *in, int size, void __iomem *mem)
 	writew(readw(mem - 4), mem + 4);
 }
 
-static bool
+void
 wndwc57e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw, int size)
 {
-	if (size = size ? size : 1024, size != 256 && size != 1024)
-		return false;
+	if (!size)
+		size = 1024;
 
 	if (size == 256)
 		asyw->xlut.i.mode = NVC57E_SET_ILUT_CONTROL_MODE_DIRECT8;
@@ -193,7 +193,6 @@ wndwc57e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw, int size)
 	asyw->xlut.i.size = 4 /* VSS header. */ + size + 1 /* Entries. */;
 	asyw->xlut.i.output_mode = NVC57E_SET_ILUT_CONTROL_INTERPOLATE_DISABLE;
 	asyw->xlut.i.load = wndwc57e_ilut_load;
-	return true;
 }
 
 /****************************************************************

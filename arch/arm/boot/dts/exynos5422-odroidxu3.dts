@@ -15,34 +15,38 @@
 / {
 	model = "Hardkernel Odroid XU3";
 	compatible = "hardkernel,odroid-xu3", "samsung,exynos5800", "samsung,exynos5";
+
+	aliases {
+		ethernet = &ethernet;
+	};
 };
 
 &i2c_0 {
 	status = "okay";
 
 	/* A15 cluster: VDD_ARM */
-	ina231@40 {
+	power-sensor@40 {
 		compatible = "ti,ina231";
 		reg = <0x40>;
 		shunt-resistor = <10000>;
 	};
 
 	/* memory: VDD_MEM */
-	ina231@41 {
+	power-sensor@41 {
 		compatible = "ti,ina231";
 		reg = <0x41>;
 		shunt-resistor = <10000>;
 	};
 
 	/* GPU: VDD_G3D */
-	ina231@44 {
+	power-sensor@44 {
 		compatible = "ti,ina231";
 		reg = <0x44>;
 		shunt-resistor = <10000>;
 	};
 
 	/* A7 cluster: VDD_KFC */
-	ina231@45 {
+	power-sensor@45 {
 		compatible = "ti,ina231";
 		reg = <0x45>;
 		shunt-resistor = <10000>;
@@ -69,4 +73,22 @@
 
 &usbdrd_dwc3_1 {
 	dr_mode = "peripheral";
+};
+
+&usbhost2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	hub@1 {
+		compatible = "usb0424,9514";
+		reg = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethernet: usbether@1 {
+			compatible = "usb0424,ec00";
+			reg = <1>;
+			local-mac-address = [00 00 00 00 00 00]; /* Filled in by a bootloader */
+		};
+	};
 };

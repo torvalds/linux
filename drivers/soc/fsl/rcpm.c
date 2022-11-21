@@ -2,7 +2,7 @@
 //
 // rcpm.c - Freescale QorIQ RCPM driver
 //
-// Copyright 2019 NXP
+// Copyright 2019-2020 NXP
 //
 // Author: Ran Wang <ran.wang_1@nxp.com>
 
@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/kernel.h>
+#include <linux/acpi.h>
 
 #define RCPM_WAKEUP_CELL_MAX_SIZE	7
 
@@ -21,6 +22,28 @@ struct rcpm {
 	void __iomem	*ippdexpcr_base;
 	bool		little_endian;
 };
+
+#define  SCFG_SPARECR8	0x051c
+
+static void copy_ippdexpcr1_setting(u32 val)
+{
+	struct device_node *np;
+	void __iomem *regs;
+	u32 reg_val;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,ls1021a-scfg");
+	if (!np)
+		return;
+
+	regs = of_iomap(np, 0);
+	if (!regs)
+		return;
+
+	reg_val = ioread32be(regs + SCFG_SPARECR8);
+	iowrite32be(val | reg_val, regs + SCFG_SPARECR8);
+
+	iounmap(regs);
+}
 
 /**
  * rcpm_pm_prepare - performs device-level tasks associated with power
@@ -56,9 +79,19 @@ static int rcpm_pm_prepare(struct device *dev)
 				"fsl,rcpm-wakeup", value,
 				rcpm->wakeup_cells + 1);
 
-		/*  Wakeup source should refer to current rcpm device */
-		if (ret || (np->phandle != value[0]))
+		if (ret)
 			continue;
+
+		/*
+		 * For DT mode, would handle devices with "fsl,rcpm-wakeup"
+		 * pointing to the current RCPM node.
+		 *
+		 * For ACPI mode, currently we assume there is only one
+		 * RCPM controller existing.
+		 */
+		if (is_of_node(dev->fwnode))
+			if (np->phandle != value[0])
+				continue;
 
 		/* Property "#fsl,rcpm-wakeup-cells" of rcpm node defines the
 		 * number of IPPDEXPCR register cells, and "fsl,rcpm-wakeup"
@@ -90,6 +123,17 @@ static int rcpm_pm_prepare(struct device *dev)
 			tmp |= ioread32be(address);
 			iowrite32be(tmp, address);
 		}
+		/*
+		 * Workaround of errata A-008646 on SoC LS1021A:
+		 * There is a bug of register ippdexpcr1.
+		 * Reading configuration register RCPM_IPPDEXPCR1
+		 * always return zero. So save ippdexpcr1's value
+		 * to register SCFG_SPARECR8.And the value of
+		 * ippdexpcr1 will be read from SCFG_SPARECR8.
+		 */
+		if (dev_of_node(dev) && (i == 1))
+			if (of_device_is_compatible(np, "fsl,ls1021a-rcpm"))
+				copy_ippdexpcr1_setting(tmp);
 	}
 
 	return 0;
@@ -102,7 +146,6 @@ static const struct dev_pm_ops rcpm_pm_ops = {
 static int rcpm_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
-	struct resource *r;
 	struct rcpm	*rcpm;
 	int ret;
 
@@ -110,11 +153,7 @@ static int rcpm_probe(struct platform_device *pdev)
 	if (!rcpm)
 		return -ENOMEM;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r)
-		return -ENODEV;
-
-	rcpm->ippdexpcr_base = devm_ioremap_resource(&pdev->dev, r);
+	rcpm->ippdexpcr_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rcpm->ippdexpcr_base)) {
 		ret =  PTR_ERR(rcpm->ippdexpcr_base);
 		return ret;
@@ -139,10 +178,19 @@ static const struct of_device_id rcpm_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rcpm_of_match);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id rcpm_acpi_ids[] = {
+	{"NXP0015",},
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, rcpm_acpi_ids);
+#endif
+
 static struct platform_driver rcpm_driver = {
 	.driver = {
 		.name = "rcpm",
 		.of_match_table = rcpm_of_match,
+		.acpi_match_table = ACPI_PTR(rcpm_acpi_ids),
 		.pm	= &rcpm_pm_ops,
 	},
 	.probe = rcpm_probe,

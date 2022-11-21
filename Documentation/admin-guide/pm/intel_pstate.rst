@@ -18,8 +18,8 @@ General Information
 (``CPUFreq``).  It is a scaling driver for the Sandy Bridge and later
 generations of Intel processors.  Note, however, that some of those processors
 may not be supported.  [To understand ``intel_pstate`` it is necessary to know
-how ``CPUFreq`` works in general, so this is the time to read :doc:`cpufreq` if
-you have not done that yet.]
+how ``CPUFreq`` works in general, so this is the time to read
+Documentation/admin-guide/pm/cpufreq.rst if you have not done that yet.]
 
 For the processors supported by ``intel_pstate``, the P-state concept is broader
 than just an operating frequency or an operating performance point (see the
@@ -56,7 +56,7 @@ Operation Modes
 
 ``intel_pstate`` can operate in two different modes, active or passive.  In the
 active mode, it uses its own internal performance scaling governor algorithm or
-allows the hardware to do preformance scaling by itself, while in the passive
+allows the hardware to do performance scaling by itself, while in the passive
 mode it responds to requests made by a generic ``CPUFreq`` governor implementing
 a certain performance scaling algorithm.  Which of them will be in effect
 depends on what kernel command line options are used and on the capabilities of
@@ -365,6 +365,9 @@ argument is passed to the kernel in the command line.
 	inclusive) including both turbo and non-turbo P-states (see
 	`Turbo P-states Support`_).
 
+	This attribute is present only if the value exposed by it is the same
+	for all of the CPUs in the system.
+
 	The value of this attribute is not affected by the ``no_turbo``
 	setting described `below <no_turbo_attr_>`_.
 
@@ -374,19 +377,22 @@ argument is passed to the kernel in the command line.
 	Ratio of the `turbo range <turbo_>`_ size to the size of the entire
 	range of supported P-states, in percent.
 
+	This attribute is present only if the value exposed by it is the same
+	for all of the CPUs in the system.
+
 	This attribute is read-only.
 
 .. _no_turbo_attr:
 
 ``no_turbo``
 	If set (equal to 1), the driver is not allowed to set any turbo P-states
-	(see `Turbo P-states Support`_).  If unset (equalt to 0, which is the
+	(see `Turbo P-states Support`_).  If unset (equal to 0, which is the
 	default), turbo P-states can be set by the driver.
 	[Note that ``intel_pstate`` does not support the general ``boost``
 	attribute (supported by some other scaling drivers) which is replaced
 	by this one.]
 
-	This attrubute does not affect the maximum supported frequency value
+	This attribute does not affect the maximum supported frequency value
 	supplied to the ``CPUFreq`` core and exposed via the policy interface,
 	but it affects the maximum possible value of per-policy P-state	limits
 	(see `Interpretation of Policy Attributes`_ below for details).
@@ -445,8 +451,9 @@ Interpretation of Policy Attributes
 -----------------------------------
 
 The interpretation of some ``CPUFreq`` policy attributes described in
-:doc:`cpufreq` is special with ``intel_pstate`` as the current scaling driver
-and it generally depends on the driver's `operation mode <Operation Modes_>`_.
+Documentation/admin-guide/pm/cpufreq.rst is special with ``intel_pstate``
+as the current scaling driver and it generally depends on the driver's
+`operation mode <Operation Modes_>`_.
 
 First of all, the values of the ``cpuinfo_max_freq``, ``cpuinfo_min_freq`` and
 ``scaling_cur_freq`` attributes are produced by applying a processor-specific

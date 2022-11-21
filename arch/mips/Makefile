@@ -8,8 +8,7 @@
 # Copyright (C) 2002, 2003, 2004  Maciej W. Rozycki
 #
 # This file is included by the global makefile so that you can add your own
-# architecture-specific flags and dependencies. Remember to do have actions
-# for "archclean" cleaning up for this architecture.
+# architecture-specific flags and dependencies.
 #
 
 archscripts: scripts_basic
@@ -50,7 +49,7 @@ tool-archpref		= $(64bit-tool-archpref)
 UTS_MACHINE		:= mips64
 endif
 
-ifneq ($(SUBARCH),$(ARCH))
+ifdef cross_compiling
   ifeq ($(CROSS_COMPILE),)
     CROSS_COMPILE := $(call cc-cross-prefix, $(tool-archpref)-linux-  $(tool-archpref)-linux-gnu-  $(tool-archpref)-unknown-linux-gnu-)
   endif
@@ -136,11 +135,30 @@ cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-mno-sched-prolog) \
 #
 cflags-y += -fno-stack-check
 
+# binutils from v2.35 when built with --enable-mips-fix-loongson3-llsc=yes,
+# supports an -mfix-loongson3-llsc flag which emits a sync prior to each ll
+# instruction to work around a CPU bug (see __SYNC_loongson3_war in asm/sync.h
+# for a description).
+#
+# We disable this in order to prevent the assembler meddling with the
+# instruction that labels refer to, ie. if we label an ll instruction:
+#
+# 1: ll v0, 0(a0)
+#
+# ...then with the assembler fix applied the label may actually point at a sync
+# instruction inserted by the assembler, and if we were using the label in an
+# exception table the table would no longer contain the address of the ll
+# instruction.
+#
+# Avoid this by explicitly disabling that assembler behaviour.
+#
+cflags-y += $(call as-option,-Wa$(comma)-mno-fix-loongson3-llsc,)
+
 #
 # CPU-dependent compiler/assembler options for optimization.
 #
 cflags-$(CONFIG_CPU_R3000)	+= -march=r3000
-cflags-$(CONFIG_CPU_TX39XX)	+= -march=r3900
+cflags-$(CONFIG_CPU_R4300)	+= -march=r4300 -Wa,--trap
 cflags-$(CONFIG_CPU_VR41XX)	+= -march=r4100 -Wa,--trap
 cflags-$(CONFIG_CPU_R4X00)	+= -march=r4600 -Wa,--trap
 cflags-$(CONFIG_CPU_TX49XX)	+= -march=r4600 -Wa,--trap
@@ -234,7 +252,7 @@ endif
 #
 # Board-dependent options and extra files
 #
-include arch/mips/Kbuild.platforms
+include $(srctree)/arch/mips/Kbuild.platforms
 
 ifdef CONFIG_PHYSICAL_START
 load-y					= $(CONFIG_PHYSICAL_START)
@@ -301,7 +319,7 @@ KBUILD_LDFLAGS		+= -m $(ld-emul)
 
 ifdef CONFIG_MIPS
 CHECKFLAGS += $(shell $(CC) $(KBUILD_CFLAGS) -dM -E -x c /dev/null | \
-	egrep -vw '__GNUC_(|MINOR_|PATCHLEVEL_)_' | \
+	egrep -vw '__GNUC_(MINOR_|PATCHLEVEL_)?_' | \
 	sed -e "s/^\#define /-D'/" -e "s/ /'='/" -e "s/$$/'/" -e 's/\$$/&&/g')
 endif
 
@@ -312,11 +330,7 @@ head-y := arch/mips/kernel/head.o
 libs-y			+= arch/mips/lib/
 libs-$(CONFIG_MIPS_FP_SUPPORT) += arch/mips/math-emu/
 
-# See arch/mips/Kbuild for content of core part of the kernel
-core-y += arch/mips/
-
 drivers-y			+= arch/mips/crypto/
-drivers-$(CONFIG_OPROFILE)	+= arch/mips/oprofile/
 
 # suspend and hibernation support
 drivers-$(CONFIG_PM)	+= arch/mips/power/
@@ -325,14 +339,12 @@ drivers-$(CONFIG_PM)	+= arch/mips/power/
 boot-y			:= vmlinux.bin
 boot-y			+= vmlinux.ecoff
 boot-y			+= vmlinux.srec
-ifeq ($(shell expr $(load-y) \< 0xffffffff80000000 2> /dev/null), 0)
 boot-y			+= uImage
 boot-y			+= uImage.bin
 boot-y			+= uImage.bz2
 boot-y			+= uImage.gz
 boot-y			+= uImage.lzma
 boot-y			+= uImage.lzo
-endif
 boot-y			+= vmlinux.itb
 boot-y			+= vmlinux.gz.itb
 boot-y			+= vmlinux.bz2.itb
@@ -344,9 +356,8 @@ bootz-y			:= vmlinuz
 bootz-y			+= vmlinuz.bin
 bootz-y			+= vmlinuz.ecoff
 bootz-y			+= vmlinuz.srec
-ifeq ($(shell expr $(zload-y) \< 0xffffffff80000000 2> /dev/null), 0)
 bootz-y			+= uzImage.bin
-endif
+bootz-y			+= vmlinuz.itb
 
 #
 # Some machines like the Indy need 32-bit ELF binaries for booting purposes.
@@ -378,7 +389,7 @@ ifdef CONFIG_SYS_SUPPORTS_ZBOOT
 # boot/compressed
 $(bootz-y): $(vmlinux-32) FORCE
 	$(Q)$(MAKE) $(build)=arch/mips/boot/compressed \
-		$(bootvars-y) 32bit-bfd=$(32bit-bfd) $@
+		$(bootvars-y) 32bit-bfd=$(32bit-bfd) arch/mips/boot/$@
 else
 vmlinuz: FORCE
 	@echo '   CONFIG_SYS_SUPPORTS_ZBOOT is not enabled'
@@ -408,11 +419,6 @@ ifdef CONFIG_SYS_SUPPORTS_ZBOOT
 endif
 	$(Q)install -D -m 644 .config $(INSTALL_PATH)/config-$(KERNELRELEASE)
 	$(Q)install -D -m 644 System.map $(INSTALL_PATH)/System.map-$(KERNELRELEASE)
-
-archclean:
-	$(Q)$(MAKE) $(clean)=arch/mips/boot
-	$(Q)$(MAKE) $(clean)=arch/mips/boot/compressed
-	$(Q)$(MAKE) $(clean)=arch/mips/boot/tools
 
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/mips/kernel/syscalls all
@@ -542,6 +548,9 @@ sead3micro_defconfig-y		:= micro32r2el_defconfig BOARDS=sead-3
 
 legacy_defconfigs		+= xilfpga_defconfig
 xilfpga_defconfig-y		:= 32r2el_defconfig BOARDS=xilfpga
+
+legacy_defconfigs		+= pistachio_defconfig
+pistachio_defconfig-y		:= 32r2el_defconfig BOARDS=marduk
 
 .PHONY: $(legacy_defconfigs)
 $(legacy_defconfigs):

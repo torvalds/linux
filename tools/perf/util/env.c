@@ -5,15 +5,19 @@
 #include "util/header.h"
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
-#include "bpf-event.h"
 #include "cgroup.h"
 #include <errno.h>
 #include <sys/utsname.h>
-#include <bpf/libbpf.h>
 #include <stdlib.h>
 #include <string.h>
+#include "strbuf.h"
 
 struct perf_env perf_env;
+
+#ifdef HAVE_LIBBPF_SUPPORT
+#include "bpf-event.h"
+#include "bpf-utils.h"
+#include <bpf/libbpf.h>
 
 void perf_env__insert_bpf_prog_info(struct perf_env *env,
 				    struct bpf_prog_info_node *info_node)
@@ -71,12 +75,13 @@ out:
 	return node;
 }
 
-void perf_env__insert_btf(struct perf_env *env, struct btf_node *btf_node)
+bool perf_env__insert_btf(struct perf_env *env, struct btf_node *btf_node)
 {
 	struct rb_node *parent = NULL;
 	__u32 btf_id = btf_node->id;
 	struct btf_node *node;
 	struct rb_node **p;
+	bool ret = true;
 
 	down_write(&env->bpf_progs.lock);
 	p = &env->bpf_progs.btfs.rb_node;
@@ -90,6 +95,7 @@ void perf_env__insert_btf(struct perf_env *env, struct btf_node *btf_node)
 			p = &(*p)->rb_right;
 		} else {
 			pr_debug("duplicated btf %u\n", btf_id);
+			ret = false;
 			goto out;
 		}
 	}
@@ -99,6 +105,7 @@ void perf_env__insert_btf(struct perf_env *env, struct btf_node *btf_node)
 	env->bpf_progs.btfs_cnt++;
 out:
 	up_write(&env->bpf_progs.lock);
+	return ret;
 }
 
 struct btf_node *perf_env__find_btf(struct perf_env *env, __u32 btf_id)
@@ -142,6 +149,7 @@ static void perf_env__purge_bpf(struct perf_env *env)
 		node = rb_entry(next, struct bpf_prog_info_node, rb_node);
 		next = rb_next(&node->rb_node);
 		rb_erase(&node->rb_node, root);
+		free(node->info_linear);
 		free(node);
 	}
 
@@ -163,6 +171,11 @@ static void perf_env__purge_bpf(struct perf_env *env)
 
 	up_write(&env->bpf_progs.lock);
 }
+#else // HAVE_LIBBPF_SUPPORT
+static void perf_env__purge_bpf(struct perf_env *env __maybe_unused)
+{
+}
+#endif // HAVE_LIBBPF_SUPPORT
 
 void perf_env__exit(struct perf_env *env)
 {
@@ -178,10 +191,12 @@ void perf_env__exit(struct perf_env *env)
 	zfree(&env->cpuid);
 	zfree(&env->cmdline);
 	zfree(&env->cmdline_argv);
+	zfree(&env->sibling_dies);
 	zfree(&env->sibling_cores);
 	zfree(&env->sibling_threads);
 	zfree(&env->pmu_mappings);
 	zfree(&env->cpu);
+	zfree(&env->cpu_pmu_caps);
 	zfree(&env->numa_map);
 
 	for (i = 0; i < env->nr_numa_nodes; i++)
@@ -195,13 +210,49 @@ void perf_env__exit(struct perf_env *env)
 	for (i = 0; i < env->nr_memory_nodes; i++)
 		zfree(&env->memory_nodes[i].set);
 	zfree(&env->memory_nodes);
+
+	for (i = 0; i < env->nr_hybrid_nodes; i++) {
+		zfree(&env->hybrid_nodes[i].pmu_name);
+		zfree(&env->hybrid_nodes[i].cpus);
+	}
+	zfree(&env->hybrid_nodes);
+
+	for (i = 0; i < env->nr_hybrid_cpc_nodes; i++) {
+		zfree(&env->hybrid_cpc_nodes[i].cpu_pmu_caps);
+		zfree(&env->hybrid_cpc_nodes[i].pmu_name);
+	}
+	zfree(&env->hybrid_cpc_nodes);
 }
 
 void perf_env__init(struct perf_env *env)
 {
+#ifdef HAVE_LIBBPF_SUPPORT
 	env->bpf_progs.infos = RB_ROOT;
 	env->bpf_progs.btfs = RB_ROOT;
 	init_rwsem(&env->bpf_progs.lock);
+#endif
+	env->kernel_is_64_bit = -1;
+}
+
+static void perf_env__init_kernel_mode(struct perf_env *env)
+{
+	const char *arch = perf_env__raw_arch(env);
+
+	if (!strncmp(arch, "x86_64", 6) || !strncmp(arch, "aarch64", 7) ||
+	    !strncmp(arch, "arm64", 5) || !strncmp(arch, "mips64", 6) ||
+	    !strncmp(arch, "parisc64", 8) || !strncmp(arch, "riscv64", 7) ||
+	    !strncmp(arch, "s390x", 5) || !strncmp(arch, "sparc64", 7))
+		env->kernel_is_64_bit = 1;
+	else
+		env->kernel_is_64_bit = 0;
+}
+
+int perf_env__kernel_is_64_bit(struct perf_env *env)
+{
+	if (env->kernel_is_64_bit == -1)
+		perf_env__init_kernel_mode(env);
+
+	return env->kernel_is_64_bit;
 }
 
 int perf_env__set_cmdline(struct perf_env *env, int argc, const char *argv[])
@@ -234,13 +285,13 @@ out_enomem:
 
 int perf_env__read_cpu_topology_map(struct perf_env *env)
 {
-	int cpu, nr_cpus;
+	int idx, nr_cpus;
 
 	if (env->cpu != NULL)
 		return 0;
 
 	if (env->nr_cpus_avail == 0)
-		env->nr_cpus_avail = cpu__max_present_cpu();
+		env->nr_cpus_avail = cpu__max_present_cpu().cpu;
 
 	nr_cpus = env->nr_cpus_avail;
 	if (nr_cpus == -1)
@@ -250,14 +301,55 @@ int perf_env__read_cpu_topology_map(struct perf_env *env)
 	if (env->cpu == NULL)
 		return -ENOMEM;
 
-	for (cpu = 0; cpu < nr_cpus; ++cpu) {
-		env->cpu[cpu].core_id	= cpu_map__get_core_id(cpu);
-		env->cpu[cpu].socket_id	= cpu_map__get_socket_id(cpu);
-		env->cpu[cpu].die_id	= cpu_map__get_die_id(cpu);
+	for (idx = 0; idx < nr_cpus; ++idx) {
+		struct perf_cpu cpu = { .cpu = idx };
+
+		env->cpu[idx].core_id	= cpu__get_core_id(cpu);
+		env->cpu[idx].socket_id	= cpu__get_socket_id(cpu);
+		env->cpu[idx].die_id	= cpu__get_die_id(cpu);
 	}
 
 	env->nr_cpus_avail = nr_cpus;
 	return 0;
+}
+
+int perf_env__read_pmu_mappings(struct perf_env *env)
+{
+	struct perf_pmu *pmu = NULL;
+	u32 pmu_num = 0;
+	struct strbuf sb;
+
+	while ((pmu = perf_pmu__scan(pmu))) {
+		if (!pmu->name)
+			continue;
+		pmu_num++;
+	}
+	if (!pmu_num) {
+		pr_debug("pmu mappings not available\n");
+		return -ENOENT;
+	}
+	env->nr_pmu_mappings = pmu_num;
+
+	if (strbuf_init(&sb, 128 * pmu_num) < 0)
+		return -ENOMEM;
+
+	while ((pmu = perf_pmu__scan(pmu))) {
+		if (!pmu->name)
+			continue;
+		if (strbuf_addf(&sb, "%u:%s", pmu->type, pmu->name) < 0)
+			goto error;
+		/* include a NULL character at the end */
+		if (strbuf_add(&sb, "", 1) < 0)
+			goto error;
+	}
+
+	env->pmu_mappings = strbuf_detach(&sb, NULL);
+
+	return 0;
+
+error:
+	strbuf_release(&sb);
+	return -1;
 }
 
 int perf_env__read_cpuid(struct perf_env *env)
@@ -291,7 +383,7 @@ static int perf_env__read_arch(struct perf_env *env)
 static int perf_env__read_nr_cpus_avail(struct perf_env *env)
 {
 	if (env->nr_cpus_avail == 0)
-		env->nr_cpus_avail = cpu__max_present_cpu();
+		env->nr_cpus_avail = cpu__max_present_cpu().cpu;
 
 	return env->nr_cpus_avail ? 0 : -ENOENT;
 }
@@ -325,7 +417,7 @@ static const char *normalize_arch(char *arch)
 		return "x86";
 	if (!strcmp(arch, "sun4u") || !strncmp(arch, "sparc", 5))
 		return "sparc";
-	if (!strcmp(arch, "aarch64") || !strcmp(arch, "arm64"))
+	if (!strncmp(arch, "aarch64", 7) || !strncmp(arch, "arm64", 5))
 		return "arm64";
 	if (!strncmp(arch, "arm", 3) || !strcmp(arch, "sa110"))
 		return "arm";
@@ -358,8 +450,46 @@ const char *perf_env__arch(struct perf_env *env)
 	return normalize_arch(arch_name);
 }
 
+const char *perf_env__cpuid(struct perf_env *env)
+{
+	int status;
 
-int perf_env__numa_node(struct perf_env *env, int cpu)
+	if (!env || !env->cpuid) { /* Assume local operation */
+		status = perf_env__read_cpuid(env);
+		if (status)
+			return NULL;
+	}
+
+	return env->cpuid;
+}
+
+int perf_env__nr_pmu_mappings(struct perf_env *env)
+{
+	int status;
+
+	if (!env || !env->nr_pmu_mappings) { /* Assume local operation */
+		status = perf_env__read_pmu_mappings(env);
+		if (status)
+			return 0;
+	}
+
+	return env->nr_pmu_mappings;
+}
+
+const char *perf_env__pmu_mappings(struct perf_env *env)
+{
+	int status;
+
+	if (!env || !env->pmu_mappings) { /* Assume local operation */
+		status = perf_env__read_pmu_mappings(env);
+		if (status)
+			return NULL;
+	}
+
+	return env->pmu_mappings;
+}
+
+int perf_env__numa_node(struct perf_env *env, struct perf_cpu cpu)
 {
 	if (!env->nr_numa_map) {
 		struct numa_node *nn;
@@ -367,7 +497,7 @@ int perf_env__numa_node(struct perf_env *env, int cpu)
 
 		for (i = 0; i < env->nr_numa_nodes; i++) {
 			nn = &env->numa_nodes[i];
-			nr = max(nr, perf_cpu_map__max(nn->map));
+			nr = max(nr, perf_cpu_map__max(nn->map).cpu);
 		}
 
 		nr++;
@@ -386,13 +516,14 @@ int perf_env__numa_node(struct perf_env *env, int cpu)
 		env->nr_numa_map = nr;
 
 		for (i = 0; i < env->nr_numa_nodes; i++) {
-			int tmp, j;
+			struct perf_cpu tmp;
+			int j;
 
 			nn = &env->numa_nodes[i];
-			perf_cpu_map__for_each_cpu(j, tmp, nn->map)
-				env->numa_map[j] = i;
+			perf_cpu_map__for_each_cpu(tmp, j, nn->map)
+				env->numa_map[tmp.cpu] = i;
 		}
 	}
 
-	return cpu >= 0 && cpu < env->nr_numa_map ? env->numa_map[cpu] : -1;
+	return cpu.cpu >= 0 && cpu.cpu < env->nr_numa_map ? env->numa_map[cpu.cpu] : -1;
 }

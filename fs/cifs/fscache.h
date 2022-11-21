@@ -1,171 +1,162 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/fscache.h - CIFS filesystem cache interface definitions
+ *   CIFS filesystem cache interface definitions
  *
  *   Copyright (c) 2010 Novell, Inc.
  *   Authors(s): Suresh Jayaraman (sjayaraman@suse.de>
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef _CIFS_FSCACHE_H
 #define _CIFS_FSCACHE_H
 
+#include <linux/swap.h>
 #include <linux/fscache.h>
 
 #include "cifsglob.h"
 
-#ifdef CONFIG_CIFS_FSCACHE
-
 /*
- * Auxiliary data attached to CIFS superblock within the cache
+ * Coherency data attached to CIFS volume within the cache
  */
-struct cifs_fscache_super_auxdata {
-	u64	resource_id;		/* unique server resource id */
+struct cifs_fscache_volume_coherency_data {
+	__le64	resource_id;		/* unique server resource id */
 	__le64	vol_create_time;
-	u32	vol_serial_number;
+	__le32	vol_serial_number;
 } __packed;
 
 /*
- * Auxiliary data attached to CIFS inode within the cache
+ * Coherency data attached to CIFS inode within the cache.
  */
-struct cifs_fscache_inode_auxdata {
-	u64 last_write_time_sec;
-	u64 last_change_time_sec;
-	u32 last_write_time_nsec;
-	u32 last_change_time_nsec;
-	u64 eof;
+struct cifs_fscache_inode_coherency_data {
+	__le64 last_write_time_sec;
+	__le64 last_change_time_sec;
+	__le32 last_write_time_nsec;
+	__le32 last_change_time_nsec;
 };
 
-/*
- * cache.c
- */
-extern struct fscache_netfs cifs_fscache_netfs;
-extern const struct fscache_cookie_def cifs_fscache_server_index_def;
-extern const struct fscache_cookie_def cifs_fscache_super_index_def;
-extern const struct fscache_cookie_def cifs_fscache_inode_object_def;
-
-extern int cifs_fscache_register(void);
-extern void cifs_fscache_unregister(void);
-extern char *extract_sharename(const char *);
+#ifdef CONFIG_CIFS_FSCACHE
 
 /*
  * fscache.c
  */
-extern void cifs_fscache_get_client_cookie(struct TCP_Server_Info *);
-extern void cifs_fscache_release_client_cookie(struct TCP_Server_Info *);
-extern void cifs_fscache_get_super_cookie(struct cifs_tcon *);
+extern int cifs_fscache_get_super_cookie(struct cifs_tcon *);
 extern void cifs_fscache_release_super_cookie(struct cifs_tcon *);
 
+extern void cifs_fscache_get_inode_cookie(struct inode *inode);
 extern void cifs_fscache_release_inode_cookie(struct inode *);
-extern void cifs_fscache_set_inode_cookie(struct inode *, struct file *);
-extern void cifs_fscache_reset_inode_cookie(struct inode *);
+extern void cifs_fscache_unuse_inode_cookie(struct inode *inode, bool update);
 
-extern void __cifs_fscache_invalidate_page(struct page *, struct inode *);
-extern int cifs_fscache_release_page(struct page *page, gfp_t gfp);
-extern int __cifs_readpage_from_fscache(struct inode *, struct page *);
-extern int __cifs_readpages_from_fscache(struct inode *,
-					 struct address_space *,
-					 struct list_head *,
-					 unsigned *);
-extern void __cifs_fscache_readpages_cancel(struct inode *, struct list_head *);
-
-extern void __cifs_readpage_to_fscache(struct inode *, struct page *);
-
-static inline void cifs_fscache_invalidate_page(struct page *page,
-					       struct inode *inode)
+static inline
+void cifs_fscache_fill_coherency(struct inode *inode,
+				 struct cifs_fscache_inode_coherency_data *cd)
 {
-	if (PageFsCache(page))
-		__cifs_fscache_invalidate_page(page, inode);
+	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+
+	memset(cd, 0, sizeof(*cd));
+	cd->last_write_time_sec   = cpu_to_le64(cifsi->vfs_inode.i_mtime.tv_sec);
+	cd->last_write_time_nsec  = cpu_to_le32(cifsi->vfs_inode.i_mtime.tv_nsec);
+	cd->last_change_time_sec  = cpu_to_le64(cifsi->vfs_inode.i_ctime.tv_sec);
+	cd->last_change_time_nsec = cpu_to_le32(cifsi->vfs_inode.i_ctime.tv_nsec);
 }
+
+
+static inline struct fscache_cookie *cifs_inode_cookie(struct inode *inode)
+{
+	return netfs_i_cookie(inode);
+}
+
+static inline void cifs_invalidate_cache(struct inode *inode, unsigned int flags)
+{
+	struct cifs_fscache_inode_coherency_data cd;
+
+	cifs_fscache_fill_coherency(inode, &cd);
+	fscache_invalidate(cifs_inode_cookie(inode), &cd,
+			   i_size_read(inode), flags);
+}
+
+extern int __cifs_fscache_query_occupancy(struct inode *inode,
+					  pgoff_t first, unsigned int nr_pages,
+					  pgoff_t *_data_first,
+					  unsigned int *_data_nr_pages);
+
+static inline int cifs_fscache_query_occupancy(struct inode *inode,
+					       pgoff_t first, unsigned int nr_pages,
+					       pgoff_t *_data_first,
+					       unsigned int *_data_nr_pages)
+{
+	if (!cifs_inode_cookie(inode))
+		return -ENOBUFS;
+	return __cifs_fscache_query_occupancy(inode, first, nr_pages,
+					      _data_first, _data_nr_pages);
+}
+
+extern int __cifs_readpage_from_fscache(struct inode *pinode, struct page *ppage);
+extern void __cifs_readpage_to_fscache(struct inode *pinode, struct page *ppage);
+
 
 static inline int cifs_readpage_from_fscache(struct inode *inode,
 					     struct page *page)
 {
-	if (CIFS_I(inode)->fscache)
+	if (cifs_inode_cookie(inode))
 		return __cifs_readpage_from_fscache(inode, page);
-
-	return -ENOBUFS;
-}
-
-static inline int cifs_readpages_from_fscache(struct inode *inode,
-					      struct address_space *mapping,
-					      struct list_head *pages,
-					      unsigned *nr_pages)
-{
-	if (CIFS_I(inode)->fscache)
-		return __cifs_readpages_from_fscache(inode, mapping, pages,
-						     nr_pages);
 	return -ENOBUFS;
 }
 
 static inline void cifs_readpage_to_fscache(struct inode *inode,
 					    struct page *page)
 {
-	if (PageFsCache(page))
+	if (cifs_inode_cookie(inode))
 		__cifs_readpage_to_fscache(inode, page);
 }
 
-static inline void cifs_fscache_readpages_cancel(struct inode *inode,
-						 struct list_head *pages)
+static inline int cifs_fscache_release_page(struct page *page, gfp_t gfp)
 {
-	if (CIFS_I(inode)->fscache)
-		return __cifs_fscache_readpages_cancel(inode, pages);
+	if (PageFsCache(page)) {
+		if (current_is_kswapd() || !(gfp & __GFP_FS))
+			return false;
+		wait_on_page_fscache(page);
+		fscache_note_page_release(cifs_inode_cookie(page->mapping->host));
+	}
+	return true;
 }
 
 #else /* CONFIG_CIFS_FSCACHE */
-static inline int cifs_fscache_register(void) { return 0; }
-static inline void cifs_fscache_unregister(void) {}
-
-static inline void
-cifs_fscache_get_client_cookie(struct TCP_Server_Info *server) {}
-static inline void
-cifs_fscache_release_client_cookie(struct TCP_Server_Info *server) {}
-static inline void cifs_fscache_get_super_cookie(struct cifs_tcon *tcon) {}
-static inline void
-cifs_fscache_release_super_cookie(struct cifs_tcon *tcon) {}
-
-static inline void cifs_fscache_release_inode_cookie(struct inode *inode) {}
-static inline void cifs_fscache_set_inode_cookie(struct inode *inode,
-						 struct file *filp) {}
-static inline void cifs_fscache_reset_inode_cookie(struct inode *inode) {}
-static inline int cifs_fscache_release_page(struct page *page, gfp_t gfp)
+static inline
+void cifs_fscache_fill_coherency(struct inode *inode,
+				 struct cifs_fscache_inode_coherency_data *cd)
 {
-	return 1; /* May release page */
 }
 
-static inline void cifs_fscache_invalidate_page(struct page *page,
-			struct inode *inode) {}
+static inline int cifs_fscache_get_super_cookie(struct cifs_tcon *tcon) { return 0; }
+static inline void cifs_fscache_release_super_cookie(struct cifs_tcon *tcon) {}
+
+static inline void cifs_fscache_get_inode_cookie(struct inode *inode) {}
+static inline void cifs_fscache_release_inode_cookie(struct inode *inode) {}
+static inline void cifs_fscache_unuse_inode_cookie(struct inode *inode, bool update) {}
+static inline struct fscache_cookie *cifs_inode_cookie(struct inode *inode) { return NULL; }
+static inline void cifs_invalidate_cache(struct inode *inode, unsigned int flags) {}
+
+static inline int cifs_fscache_query_occupancy(struct inode *inode,
+					       pgoff_t first, unsigned int nr_pages,
+					       pgoff_t *_data_first,
+					       unsigned int *_data_nr_pages)
+{
+	*_data_first = ULONG_MAX;
+	*_data_nr_pages = 0;
+	return -ENOBUFS;
+}
+
 static inline int
 cifs_readpage_from_fscache(struct inode *inode, struct page *page)
 {
 	return -ENOBUFS;
 }
 
-static inline int cifs_readpages_from_fscache(struct inode *inode,
-					      struct address_space *mapping,
-					      struct list_head *pages,
-					      unsigned *nr_pages)
-{
-	return -ENOBUFS;
-}
+static inline
+void cifs_readpage_to_fscache(struct inode *inode, struct page *page) {}
 
-static inline void cifs_readpage_to_fscache(struct inode *inode,
-			struct page *page) {}
-
-static inline void cifs_fscache_readpages_cancel(struct inode *inode,
-						 struct list_head *pages)
+static inline int nfs_fscache_release_page(struct page *page, gfp_t gfp)
 {
+	return true; /* May release page */
 }
 
 #endif /* CONFIG_CIFS_FSCACHE */

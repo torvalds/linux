@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/interrupt.h>
+#include <uapi/linux/fsl_mc.h>
 
 #define FSL_MC_VENDOR_FREESCALE	0x1957
 
@@ -90,13 +91,13 @@ struct fsl_mc_resource {
 
 /**
  * struct fsl_mc_device_irq - MC object device message-based interrupt
- * @msi_desc: pointer to MSI descriptor allocated by fsl_mc_msi_alloc_descs()
+ * @virq: Linux virtual interrupt number
  * @mc_dev: MC object device that owns this interrupt
  * @dev_irq_index: device-relative IRQ index
  * @resource: MC generic resource associated with the interrupt
  */
 struct fsl_mc_device_irq {
-	struct msi_desc *msi_desc;
+	unsigned int virq;
 	struct fsl_mc_device *mc_dev;
 	u8 dev_irq_index;
 	struct fsl_mc_resource resource;
@@ -209,8 +210,6 @@ struct fsl_mc_device {
 #define to_fsl_mc_device(_dev) \
 	container_of(_dev, struct fsl_mc_device, dev)
 
-#define MC_CMD_NUM_OF_PARAMS	7
-
 struct mc_cmd_header {
 	u8 src_id;
 	u8 flags_hw;
@@ -218,11 +217,6 @@ struct mc_cmd_header {
 	u8 flags_sw;
 	__le16 token;
 	__le16 cmd_id;
-};
-
-struct fsl_mc_command {
-	__le64 header;
-	__le64 params[MC_CMD_NUM_OF_PARAMS];
 };
 
 enum mc_cmd_status {
@@ -429,7 +423,8 @@ int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev);
 
 void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev);
 
-struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev);
+struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev,
+					  u16 if_id);
 
 extern struct bus_type fsl_mc_bus_type;
 
@@ -624,6 +619,20 @@ int dpcon_disable(struct fsl_mc_io *mc_io,
 int dpcon_reset(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
+
+int fsl_mc_obj_open(struct fsl_mc_io *mc_io,
+		    u32 cmd_flags,
+		    int obj_id,
+		    char *obj_type,
+		    u16 *token);
+
+int fsl_mc_obj_close(struct fsl_mc_io *mc_io,
+		     u32 cmd_flags,
+		     u16 token);
+
+int fsl_mc_obj_reset(struct fsl_mc_io *mc_io,
+		     u32 cmd_flags,
+		     u16 token);
 
 /**
  * struct dpcon_attr - Structure representing DPCON attributes

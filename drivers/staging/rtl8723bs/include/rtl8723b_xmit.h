@@ -59,7 +59,7 @@
 /*  */
 /* defined for TX DESC Operation */
 /*  */
-typedef struct txdesc_8723b {
+struct txdesc_8723b {
 	/*  Offset 0 */
 	u32 pktlen:16;
 	u32 offset:8;
@@ -175,7 +175,7 @@ typedef struct txdesc_8723b {
 	u32 txbf_path:1;
 	u32 seq:12;
 	u32 final_data_rate:8;
-} TXDESC_8723B, *PTXDESC_8723B;
+};
 
 #ifndef __INC_HAL8723BDESC_H
 #define __INC_HAL8723BDESC_H
@@ -394,35 +394,6 @@ typedef struct txdesc_8723b {
 #define DESC8723B_RATEMCS5				0x11
 #define DESC8723B_RATEMCS6				0x12
 #define DESC8723B_RATEMCS7				0x13
-#define DESC8723B_RATEMCS8				0x14
-#define DESC8723B_RATEMCS9				0x15
-#define DESC8723B_RATEMCS10		0x16
-#define DESC8723B_RATEMCS11		0x17
-#define DESC8723B_RATEMCS12		0x18
-#define DESC8723B_RATEMCS13		0x19
-#define DESC8723B_RATEMCS14		0x1a
-#define DESC8723B_RATEMCS15		0x1b
-#define DESC8723B_RATEVHTSS1MCS0		0x2c
-#define DESC8723B_RATEVHTSS1MCS1		0x2d
-#define DESC8723B_RATEVHTSS1MCS2		0x2e
-#define DESC8723B_RATEVHTSS1MCS3		0x2f
-#define DESC8723B_RATEVHTSS1MCS4		0x30
-#define DESC8723B_RATEVHTSS1MCS5		0x31
-#define DESC8723B_RATEVHTSS1MCS6		0x32
-#define DESC8723B_RATEVHTSS1MCS7		0x33
-#define DESC8723B_RATEVHTSS1MCS8		0x34
-#define DESC8723B_RATEVHTSS1MCS9		0x35
-#define DESC8723B_RATEVHTSS2MCS0		0x36
-#define DESC8723B_RATEVHTSS2MCS1		0x37
-#define DESC8723B_RATEVHTSS2MCS2		0x38
-#define DESC8723B_RATEVHTSS2MCS3		0x39
-#define DESC8723B_RATEVHTSS2MCS4		0x3a
-#define DESC8723B_RATEVHTSS2MCS5		0x3b
-#define DESC8723B_RATEVHTSS2MCS6		0x3c
-#define DESC8723B_RATEVHTSS2MCS7		0x3d
-#define DESC8723B_RATEVHTSS2MCS8		0x3e
-#define DESC8723B_RATEVHTSS2MCS9		0x3f
-
 
 #define		RX_HAL_IS_CCK_RATE_8723B(pDesc)\
 			(GET_RX_STATUS_DESC_RX_RATE_8723B(pDesc) == DESC8723B_RATE1M ||\
@@ -443,7 +414,7 @@ s32 rtl8723bs_xmit_buf_handler(struct adapter *padapter);
 int rtl8723bs_xmit_thread(void *context);
 #define hal_xmit_handler rtl8723bs_xmit_buf_handler
 
-u8 BWMapping_8723B(struct adapter * Adapter, struct pkt_attrib *pattrib);
-u8 SCMapping_8723B(struct adapter * Adapter, struct pkt_attrib	*pattrib);
+u8 BWMapping_8723B(struct adapter *Adapter, struct pkt_attrib *pattrib);
+u8 SCMapping_8723B(struct adapter *Adapter, struct pkt_attrib *pattrib);
 
 #endif

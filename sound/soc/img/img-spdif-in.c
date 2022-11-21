@@ -732,19 +732,16 @@ static int img_spdif_in_probe(struct platform_device *pdev)
 
 	spdif->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
 	spdif->base = base;
 
 	spdif->clk_sys = devm_clk_get(dev, "sys");
-	if (IS_ERR(spdif->clk_sys)) {
-		if (PTR_ERR(spdif->clk_sys) != -EPROBE_DEFER)
-			dev_err(dev, "Failed to acquire clock 'sys'\n");
-		return PTR_ERR(spdif->clk_sys);
-	}
+	if (IS_ERR(spdif->clk_sys))
+		return dev_err_probe(dev, PTR_ERR(spdif->clk_sys),
+				     "Failed to acquire clock 'sys'\n");
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {

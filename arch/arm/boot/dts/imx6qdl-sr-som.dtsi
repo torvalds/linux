@@ -53,9 +53,14 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_microsom_enet_ar8035>;
-	phy-handle = <&phy>;
 	phy-mode = "rgmii-id";
-	phy-reset-duration = <2>;
+
+	/*
+	 * The PHY seems to require a long-enough reset duration to avoid
+	 * some rare issues where the PHY gets stuck in an inconsistent and
+	 * non-functional state at boot-up. 10ms proved to be fine .
+	 */
+	phy-reset-duration = <10>;
 	phy-reset-gpios = <&gpio4 15 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
@@ -63,9 +68,20 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		phy: ethernet-phy@0 {
+		/*
+		 * The PHY can appear at either address 0 or 4 due to the
+		 * configuration (LED) pin not being pulled sufficiently.
+		 */
+		ethernet-phy@0 {
 			reg = <0>;
 			qca,clk-out-frequency = <125000000>;
+			qca,smarteee-tw-us-1g = <24>;
+		};
+
+		ethernet-phy@4 {
+			reg = <4>;
+			qca,clk-out-frequency = <125000000>;
+			qca,smarteee-tw-us-1g = <24>;
 		};
 	};
 };

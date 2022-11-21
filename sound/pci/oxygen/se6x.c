@@ -29,7 +29,6 @@
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("Studio Evolution SE6X driver");
 MODULE_LICENSE("GPL v2");
-MODULE_SUPPORTED_DEVICE("{{Studio Evolution,SE6X}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
@@ -138,7 +137,6 @@ static struct pci_driver se6x_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = se6x_ids,
 	.probe = se6x_probe,
-	.remove = oxygen_pci_remove,
 #ifdef CONFIG_PM_SLEEP
 	.driver = {
 		.pm = &oxygen_pci_pm,

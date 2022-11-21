@@ -39,7 +39,7 @@
 static ssize_t type_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
-	struct zcrypt_card *zc = to_ap_card(dev)->private;
+	struct zcrypt_card *zc = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", zc->type_string);
 }
@@ -50,8 +50,8 @@ static ssize_t online_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
+	struct zcrypt_card *zc = dev_get_drvdata(dev);
 	struct ap_card *ac = to_ap_card(dev);
-	struct zcrypt_card *zc = ac->private;
 	int online = ac->config && zc->online ? 1 : 0;
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", online);
@@ -61,10 +61,11 @@ static ssize_t online_store(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
+	struct zcrypt_card *zc = dev_get_drvdata(dev);
 	struct ap_card *ac = to_ap_card(dev);
-	struct zcrypt_card *zc = ac->private;
 	struct zcrypt_queue *zq;
-	int online, id;
+	int online, id, i = 0, maxzqs = 0;
+	struct zcrypt_queue **zq_uelist = NULL;
 
 	if (sscanf(buf, "%d\n", &online) != 1 || online < 0 || online > 1)
 		return -EINVAL;
@@ -75,12 +76,37 @@ static ssize_t online_store(struct device *dev,
 	zc->online = online;
 	id = zc->card->id;
 
-	ZCRYPT_DBF(DBF_INFO, "card=%02x online=%d\n", id, online);
+	ZCRYPT_DBF_INFO("%s card=%02x online=%d\n", __func__, id, online);
+
+	ap_send_online_uevent(&ac->ap_dev, online);
 
 	spin_lock(&zcrypt_list_lock);
+	/*
+	 * As we are in atomic context here, directly sending uevents
+	 * does not work. So collect the zqueues in a dynamic array
+	 * and process them after zcrypt_list_lock release. As we get/put
+	 * the zqueue objects, we make sure they exist after lock release.
+	 */
 	list_for_each_entry(zq, &zc->zqueues, list)
-		zcrypt_queue_force_online(zq, online);
+		maxzqs++;
+	if (maxzqs > 0)
+		zq_uelist = kcalloc(maxzqs + 1, sizeof(*zq_uelist), GFP_ATOMIC);
+	list_for_each_entry(zq, &zc->zqueues, list)
+		if (zcrypt_queue_force_online(zq, online))
+			if (zq_uelist) {
+				zcrypt_queue_get(zq);
+				zq_uelist[i++] = zq;
+			}
 	spin_unlock(&zcrypt_list_lock);
+	if (zq_uelist) {
+		for (i = 0; zq_uelist[i]; i++) {
+			zq = zq_uelist[i];
+			ap_send_online_uevent(&zq->queue->ap_dev, online);
+			zcrypt_queue_put(zq);
+		}
+		kfree(zq_uelist);
+	}
+
 	return count;
 }
 
@@ -90,7 +116,7 @@ static ssize_t load_show(struct device *dev,
 			 struct device_attribute *attr,
 			 char *buf)
 {
-	struct zcrypt_card *zc = to_ap_card(dev)->private;
+	struct zcrypt_card *zc = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&zc->load));
 }
@@ -163,7 +189,8 @@ int zcrypt_card_register(struct zcrypt_card *zc)
 
 	zc->online = 1;
 
-	ZCRYPT_DBF(DBF_INFO, "card=%02x register online=1\n", zc->card->id);
+	ZCRYPT_DBF_INFO("%s card=%02x register online=1\n",
+			__func__, zc->card->id);
 
 	rc = sysfs_create_group(&zc->card->ap_dev.device.kobj,
 				&zcrypt_card_attr_group);
@@ -185,12 +212,14 @@ EXPORT_SYMBOL(zcrypt_card_register);
  */
 void zcrypt_card_unregister(struct zcrypt_card *zc)
 {
-	ZCRYPT_DBF(DBF_INFO, "card=%02x unregister\n", zc->card->id);
+	ZCRYPT_DBF_INFO("%s card=%02x unregister\n",
+			__func__, zc->card->id);
 
 	spin_lock(&zcrypt_list_lock);
 	list_del_init(&zc->list);
 	spin_unlock(&zcrypt_list_lock);
 	sysfs_remove_group(&zc->card->ap_dev.device.kobj,
 			   &zcrypt_card_attr_group);
+	zcrypt_card_put(zc);
 }
 EXPORT_SYMBOL(zcrypt_card_unregister);

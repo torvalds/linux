@@ -14,9 +14,11 @@ struct ovl_config {
 	bool redirect_follow;
 	const char *redirect_mode;
 	bool index;
+	bool uuid;
 	bool nfs_export;
 	int xino;
 	bool metacopy;
+	bool userxattr;
 	bool ovl_volatile;
 };
 
@@ -79,6 +81,8 @@ struct ovl_fs {
 	atomic_long_t last_ino;
 	/* Whiteout dentry cache */
 	struct dentry *whiteout;
+	/* r/o snapshot of upperdir sb's only taken on volatile mounts */
+	errseq_t errseq;
 };
 
 static inline struct vfsmount *ovl_upper_mnt(struct ovl_fs *ofs)

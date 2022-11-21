@@ -2,12 +2,9 @@
 # Loongson Processors' Support
 #
 
-# Only gcc >= 4.4 have Loongson specific support
 cflags-$(CONFIG_CPU_LOONGSON2EF)	+= -Wa,--trap
-cflags-$(CONFIG_CPU_LOONGSON2E) += \
-	$(call cc-option,-march=loongson2e,-march=r4600)
-cflags-$(CONFIG_CPU_LOONGSON2F) += \
-	$(call cc-option,-march=loongson2f,-march=r4600)
+cflags-$(CONFIG_CPU_LOONGSON2E) += -march=loongson2e
+cflags-$(CONFIG_CPU_LOONGSON2F) += -march=loongson2f
 #
 # Some versions of binutils, not currently mainline as of 2019/02/04, support
 # an -mfix-loongson3-llsc flag which emits a sync prior to each ll instruction
@@ -32,16 +29,8 @@ cflags-$(CONFIG_CPU_LOONGSON2EF)	+= $(call as-option,-Wa$(comma)-mno-fix-loongso
 
 # Enable the workarounds for Loongson2f
 ifdef CONFIG_CPU_LOONGSON2F_WORKAROUNDS
-  ifeq ($(call as-option,-Wa$(comma)-mfix-loongson2f-nop,),)
-    $(error only binutils >= 2.20.2 have needed option -mfix-loongson2f-nop)
-  else
-    cflags-$(CONFIG_CPU_NOP_WORKAROUNDS) += -Wa$(comma)-mfix-loongson2f-nop
-  endif
-  ifeq ($(call as-option,-Wa$(comma)-mfix-loongson2f-jump,),)
-    $(error only binutils >= 2.20.2 have needed option -mfix-loongson2f-jump)
-  else
-    cflags-$(CONFIG_CPU_JUMP_WORKAROUNDS) += -Wa$(comma)-mfix-loongson2f-jump
-  endif
+cflags-$(CONFIG_CPU_NOP_WORKAROUNDS) += -Wa,-mfix-loongson2f-nop
+cflags-$(CONFIG_CPU_JUMP_WORKAROUNDS) += -Wa,-mfix-loongson2f-jump
 endif
 
 # Some -march= flags enable MMI instructions, and GCC complains about that
@@ -52,6 +41,7 @@ cflags-y += $(call cc-option,-mno-loongson-mmi)
 # Loongson Machines' Support
 #
 
-cflags-$(CONFIG_MACH_LOONGSON2EF) += -I$(srctree)/arch/mips/include/asm/mach-loongson2ef -mno-branch-likely
+cflags-$(CONFIG_MACH_LOONGSON2EF) += -I$(srctree)/arch/mips/include/asm/mach-loongson2ef
+cflags-$(CONFIG_CC_HAS_MNO_BRANCH_LIKELY) += -mno-branch-likely
 load-$(CONFIG_LEMOTE_FULOONG2E) += 0xffffffff80100000
 load-$(CONFIG_LEMOTE_MACH2F) += 0xffffffff80200000

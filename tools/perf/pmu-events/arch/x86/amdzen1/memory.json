@@ -3,25 +3,25 @@
     "EventName": "ls_locks.bus_lock",
     "EventCode": "0x25",
     "BriefDescription": "Bus lock when a locked operations crosses a cache boundary or is done on an uncacheable memory type.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "ls_dispatch.ld_st_dispatch",
     "EventCode": "0x29",
     "BriefDescription": "Counts the number of operations dispatched to the LS unit. Unit Masks ADDed. Load-op-Stores.",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "ls_dispatch.store_dispatch",
     "EventCode": "0x29",
     "BriefDescription": "Counts the number of stores dispatched to the LS unit. Unit Masks ADDed.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "ls_dispatch.ld_dispatch",
     "EventCode": "0x29",
     "BriefDescription": "Counts the number of loads dispatched to the LS unit. Unit Masks ADDed.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "ls_stlf",
@@ -37,13 +37,13 @@
     "EventName": "ls_mab_alloc.dc_prefetcher",
     "EventCode": "0x41",
     "BriefDescription": "LS MAB allocates by type - DC prefetcher.",
-    "UMask": "0x8"
+    "UMask": "0x08"
   },
   {
     "EventName": "ls_mab_alloc.stores",
     "EventCode": "0x41",
     "BriefDescription": "LS MAB allocates by type - stores.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "ls_mab_alloc.loads",
@@ -85,61 +85,61 @@
     "EventName": "ls_l1_d_tlb_miss.tlb_reload_1g_l2_hit",
     "EventCode": "0x45",
     "BriefDescription": "L1 DTLB Reload of a page of 1G size.",
-    "UMask": "0x8"
+    "UMask": "0x08"
   },
   {
     "EventName": "ls_l1_d_tlb_miss.tlb_reload_2m_l2_hit",
     "EventCode": "0x45",
     "BriefDescription": "L1 DTLB Reload of a page of 2M size.",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "ls_l1_d_tlb_miss.tlb_reload_32k_l2_hit",
     "EventCode": "0x45",
     "BriefDescription": "L1 DTLB Reload of a page of 32K size.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "ls_l1_d_tlb_miss.tlb_reload_4k_l2_hit",
     "EventCode": "0x45",
     "BriefDescription": "L1 DTLB Reload of a page of 4K size.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "ls_tablewalker.iside",
     "EventCode": "0x46",
     "BriefDescription": "Total Page Table Walks on I-side.",
-    "UMask": "0xc"
+    "UMask": "0x0c"
   },
   {
     "EventName": "ls_tablewalker.ic_type1",
     "EventCode": "0x46",
     "BriefDescription": "Total Page Table Walks IC Type 1.",
-    "UMask": "0x8"
+    "UMask": "0x08"
   },
   {
     "EventName": "ls_tablewalker.ic_type0",
     "EventCode": "0x46",
     "BriefDescription": "Total Page Table Walks IC Type 0.",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "ls_tablewalker.dside",
     "EventCode": "0x46",
     "BriefDescription": "Total Page Table Walks on D-side.",
-    "UMask": "0x3"
+    "UMask": "0x03"
   },
   {
     "EventName": "ls_tablewalker.dc_type1",
     "EventCode": "0x46",
     "BriefDescription": "Total Page Table Walks DC Type 1.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "ls_tablewalker.dc_type0",
     "EventCode": "0x46",
     "BriefDescription": "Total Page Table Walks DC Type 0.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "ls_misal_accesses",
@@ -150,31 +150,31 @@
     "EventName": "ls_pref_instr_disp.prefetch_nta",
     "EventCode": "0x4b",
     "BriefDescription": "Software Prefetch Instructions (PREFETCHNTA instruction) Dispatched.",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "ls_pref_instr_disp.store_prefetch_w",
     "EventCode": "0x4b",
     "BriefDescription": "Software Prefetch Instructions (3DNow PREFETCHW instruction) Dispatched.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "ls_pref_instr_disp.load_prefetch_w",
     "EventCode": "0x4b",
     "BriefDescription": "Software Prefetch Instructions Dispatched. Prefetch, Prefetch_T0_T1_T2.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "ls_inef_sw_pref.mab_mch_cnt",
     "EventCode": "0x52",
     "BriefDescription": "The number of software prefetches that did not fetch data outside of the processor core. Software PREFETCH instruction saw a match on an already-allocated miss request buffer.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "ls_inef_sw_pref.data_pipe_sw_pf_dc_hit",
     "EventCode": "0x52",
     "BriefDescription": "The number of software prefetches that did not fetch data outside of the processor core. Software PREFETCH instruction saw a DC hit.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "ls_not_halted_cyc",

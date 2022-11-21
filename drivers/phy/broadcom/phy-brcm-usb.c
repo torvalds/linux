@@ -11,12 +11,14 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/soc/brcmstb/brcmstb.h>
 #include <dt-bindings/phy/phy.h>
 #include <linux/mfd/syscon.h>
+#include <linux/suspend.h>
 
 #include "phy-brcm-usb-init.h"
 
@@ -34,7 +36,7 @@ struct value_to_name_map {
 };
 
 struct match_chip_info {
-	void *init_func;
+	void (*init_func)(struct brcm_usb_init_params *params);
 	u8 required_regs[BRCM_REGS_MAX + 1];
 	u8 optional_reg;
 };
@@ -69,11 +71,34 @@ struct brcm_usb_phy_data {
 	int			init_count;
 	int			wake_irq;
 	struct brcm_usb_phy	phys[BRCM_USB_PHY_ID_MAX];
+	struct notifier_block	pm_notifier;
+	bool			pm_active;
 };
 
 static s8 *node_reg_names[BRCM_REGS_MAX] = {
 	"crtl", "xhci_ec", "xhci_gbl", "usb_phy", "usb_mdio", "bdc_ec"
 };
+
+static int brcm_pm_notifier(struct notifier_block *notifier,
+			    unsigned long pm_event,
+			    void *unused)
+{
+	struct brcm_usb_phy_data *priv =
+		container_of(notifier, struct brcm_usb_phy_data, pm_notifier);
+
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		priv->pm_active = true;
+		break;
+	case PM_POST_RESTORE:
+	case PM_POST_HIBERNATION:
+	case PM_POST_SUSPEND:
+		priv->pm_active = false;
+		break;
+	}
+	return NOTIFY_DONE;
+}
 
 static irqreturn_t brcm_usb_phy_wake_isr(int irq, void *dev_id)
 {
@@ -89,6 +114,9 @@ static int brcm_usb_phy_init(struct phy *gphy)
 	struct brcm_usb_phy *phy = phy_get_drvdata(gphy);
 	struct brcm_usb_phy_data *priv =
 		container_of(phy, struct brcm_usb_phy_data, phys[phy->id]);
+
+	if (priv->pm_active)
+		return 0;
 
 	/*
 	 * Use a lock to make sure a second caller waits until
@@ -118,6 +146,9 @@ static int brcm_usb_phy_exit(struct phy *gphy)
 	struct brcm_usb_phy *phy = phy_get_drvdata(gphy);
 	struct brcm_usb_phy_data *priv =
 		container_of(phy, struct brcm_usb_phy_data, phys[phy->id]);
+
+	if (priv->pm_active)
+		return 0;
 
 	dev_dbg(&gphy->dev, "EXIT\n");
 	if (phy->id == BRCM_USB_PHY_2_0)
@@ -252,6 +283,15 @@ static const struct attribute_group brcm_usb_phy_group = {
 	.attrs = brcm_usb_phy_attrs,
 };
 
+static const struct match_chip_info chip_info_4908 = {
+	.init_func = &brcm_usb_dvr_init_4908,
+	.required_regs = {
+		BRCM_REGS_CTRL,
+		BRCM_REGS_XHCI_EC,
+		-1,
+	},
+};
+
 static const struct match_chip_info chip_info_7216 = {
 	.init_func = &brcm_usb_dvr_init_7216,
 	.required_regs = {
@@ -285,6 +325,10 @@ static const struct match_chip_info chip_info_7445 = {
 };
 
 static const struct of_device_id brcm_usb_dt_ids[] = {
+	{
+		.compatible = "brcm,bcm4908-usb-phy",
+		.data = &chip_info_4908,
+	},
 	{
 		.compatible = "brcm,bcm7216-usb-phy",
 		.data = &chip_info_7216,
@@ -427,8 +471,6 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	struct device_node *dn = pdev->dev.of_node;
 	int err;
 	const char *mode;
-	const struct of_device_id *match;
-	void (*dvr_init)(struct brcm_usb_init_params *params);
 	const struct match_chip_info *info;
 	struct regmap *rmap;
 	int x;
@@ -441,10 +483,11 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	priv->ini.family_id = brcmstb_get_family_id();
 	priv->ini.product_id = brcmstb_get_product_id();
 
-	match = of_match_node(brcm_usb_dt_ids, dev->of_node);
-	info = match->data;
-	dvr_init = info->init_func;
-	(*dvr_init)(&priv->ini);
+	info = of_device_get_match_data(&pdev->dev);
+	if (!info)
+		return -ENOENT;
+
+	info->init_func(&priv->ini);
 
 	dev_dbg(dev, "Best mapping table is for %s\n",
 		priv->ini.family_name);
@@ -483,6 +526,9 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	err = brcm_usb_phy_dvr_init(pdev, priv, dn);
 	if (err)
 		return err;
+
+	priv->pm_notifier.notifier_call = brcm_pm_notifier;
+	register_pm_notifier(&priv->pm_notifier);
 
 	mutex_init(&priv->mutex);
 
@@ -524,7 +570,10 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 
 static int brcm_usb_phy_remove(struct platform_device *pdev)
 {
+	struct brcm_usb_phy_data *priv = dev_get_drvdata(&pdev->dev);
+
 	sysfs_remove_group(&pdev->dev.kobj, &brcm_usb_phy_group);
+	unregister_pm_notifier(&priv->pm_notifier);
 
 	return 0;
 }
@@ -535,6 +584,7 @@ static int brcm_usb_phy_suspend(struct device *dev)
 	struct brcm_usb_phy_data *priv = dev_get_drvdata(dev);
 
 	if (priv->init_count) {
+		dev_dbg(dev, "SUSPEND\n");
 		priv->ini.wake_enabled = device_may_wakeup(dev);
 		if (priv->phys[BRCM_USB_PHY_3_0].inited)
 			brcm_usb_uninit_xhci(&priv->ini);
@@ -574,6 +624,7 @@ static int brcm_usb_phy_resume(struct device *dev)
 	 * Uninitialize anything that wasn't previously initialized.
 	 */
 	if (priv->init_count) {
+		dev_dbg(dev, "RESUME\n");
 		if (priv->wake_irq >= 0)
 			disable_irq_wake(priv->wake_irq);
 		brcm_usb_init_common(&priv->ini);

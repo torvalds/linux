@@ -146,13 +146,13 @@ static int sparc64_setup_msi_irq(unsigned int *irq_p,
 	msiqid = pick_msiq(pbm);
 
 	err = ops->msi_setup(pbm, msiqid, msi,
-			     (entry->msi_attrib.is_64 ? 1 : 0));
+			     (entry->pci.msi_attrib.is_64 ? 1 : 0));
 	if (err)
 		goto out_msi_free;
 
 	pbm->msi_irq_table[msi - pbm->msi_first] = *irq_p;
 
-	if (entry->msi_attrib.is_64) {
+	if (entry->pci.msi_attrib.is_64) {
 		msg.address_hi = pbm->msi64_start >> 32;
 		msg.address_lo = pbm->msi64_start & 0xffffffff;
 	} else {

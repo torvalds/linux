@@ -35,7 +35,8 @@ nv04_mmu = {
 };
 
 int
-nv04_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+nv04_mmu_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	     struct nvkm_mmu **pmmu)
 {
-	return nvkm_mmu_new_(&nv04_mmu, device, index, pmmu);
+	return nvkm_mmu_new_(&nv04_mmu, device, type, inst, pmmu);
 }

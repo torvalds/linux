@@ -44,19 +44,19 @@
  * they VM-Fail, whereas a successful VM-Enter + VM-Exit will jump
  * to vmx_vmexit.
  */
-SYM_FUNC_START(vmx_vmenter)
+SYM_FUNC_START_LOCAL(vmx_vmenter)
 	/* EFLAGS.ZF is set if VMCS.LAUNCHED == 0 */
 	je 2f
 
 1:	vmresume
-	ret
+	RET
 
 2:	vmlaunch
-	ret
+	RET
 
 3:	cmpb $0, kvm_rebooting
 	je 4f
-	ret
+	RET
 4:	ud2
 
 	_ASM_EXTABLE(1b, 3b)
@@ -89,7 +89,7 @@ SYM_FUNC_START(vmx_vmexit)
 	pop %_ASM_AX
 .Lvmexit_skip_rsb:
 #endif
-	ret
+	RET
 SYM_FUNC_END(vmx_vmexit)
 
 /**
@@ -132,7 +132,7 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	mov (%_ASM_SP), %_ASM_AX
 
 	/* Check if vmlaunch or vmresume is needed */
-	cmpb $0, %bl
+	testb %bl, %bl
 
 	/* Load guest registers.  Don't clobber flags. */
 	mov VCPU_RCX(%_ASM_AX), %_ASM_CX
@@ -228,7 +228,7 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	pop %edi
 #endif
 	pop %_ASM_BP
-	ret
+	RET
 
 	/* VM-Fail.  Out-of-line to avoid a taken Jcc after VM-Exit. */
 2:	mov $1, %eax
@@ -293,7 +293,7 @@ SYM_FUNC_START(vmread_error_trampoline)
 	pop %_ASM_AX
 	pop %_ASM_BP
 
-	ret
+	RET
 SYM_FUNC_END(vmread_error_trampoline)
 
 SYM_FUNC_START(vmx_do_interrupt_nmi_irqoff)
@@ -326,5 +326,5 @@ SYM_FUNC_START(vmx_do_interrupt_nmi_irqoff)
 	 */
 	mov %_ASM_BP, %_ASM_SP
 	pop %_ASM_BP
-	ret
+	RET
 SYM_FUNC_END(vmx_do_interrupt_nmi_irqoff)

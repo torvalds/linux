@@ -496,7 +496,7 @@ static netdev_tx_t ti_hecc_xmit(struct sk_buff *skb, struct net_device *ndev)
 	spin_unlock_irqrestore(&priv->mbx_lock, flags);
 
 	/* Prepare mailbox for transmission */
-	data = cf->can_dlc | (get_tx_head_prio(priv) << 8);
+	data = cf->len | (get_tx_head_prio(priv) << 8);
 	if (cf->can_id & CAN_RTR_FLAG) /* Remote transmission request */
 		data |= HECC_CANMCF_RTR;
 	hecc_write_mbx(priv, mbxno, HECC_CANMCF, data);
@@ -508,12 +508,12 @@ static netdev_tx_t ti_hecc_xmit(struct sk_buff *skb, struct net_device *ndev)
 	hecc_write_mbx(priv, mbxno, HECC_CANMID, data);
 	hecc_write_mbx(priv, mbxno, HECC_CANMDL,
 		       be32_to_cpu(*(__be32 *)(cf->data)));
-	if (cf->can_dlc > 4)
+	if (cf->len > 4)
 		hecc_write_mbx(priv, mbxno, HECC_CANMDH,
 			       be32_to_cpu(*(__be32 *)(cf->data + 4)));
 	else
 		*(u32 *)(cf->data + 4) = 0;
-	can_put_echo_skb(skb, ndev, mbxno);
+	can_put_echo_skb(skb, ndev, mbxno, 0);
 
 	spin_lock_irqsave(&priv->mbx_lock, flags);
 	--priv->tx_head;
@@ -566,11 +566,11 @@ static struct sk_buff *ti_hecc_mailbox_read(struct can_rx_offload *offload,
 	data = hecc_read_mbx(priv, mbxno, HECC_CANMCF);
 	if (data & HECC_CANMCF_RTR)
 		cf->can_id |= CAN_RTR_FLAG;
-	cf->can_dlc = get_can_dlc(data & 0xF);
+	cf->len = can_cc_dlc2len(data & 0xF);
 
 	data = hecc_read_mbx(priv, mbxno, HECC_CANMDL);
 	*(__be32 *)(cf->data) = cpu_to_be32(data);
-	if (cf->can_dlc > 4) {
+	if (cf->len > 4) {
 		data = hecc_read_mbx(priv, mbxno, HECC_CANMDH);
 		*(__be32 *)(cf->data + 4) = cpu_to_be32(data);
 	}
@@ -757,7 +757,7 @@ static irqreturn_t ti_hecc_interrupt(int irq, void *dev_id)
 			stamp = hecc_read_stamp(priv, mbxno);
 			stats->tx_bytes +=
 				can_rx_offload_get_echo_skb(&priv->offload,
-							    mbxno, stamp);
+							    mbxno, stamp, NULL);
 			stats->tx_packets++;
 			can_led_event(ndev, CAN_LED_EVENT_TX);
 			--priv->tx_tail;
@@ -785,6 +785,8 @@ static irqreturn_t ti_hecc_interrupt(int irq, void *dev_id)
 		hecc_write(priv, HECC_CANGIF0, handled);
 		int_status = hecc_read(priv, HECC_CANGIF0);
 	}
+
+	can_rx_offload_irq_finish(&priv->offload);
 
 	return IRQ_HANDLED;
 }
@@ -857,7 +859,6 @@ static int ti_hecc_probe(struct platform_device *pdev)
 	struct net_device *ndev = (struct net_device *)0;
 	struct ti_hecc_priv *priv;
 	struct device_node *np = pdev->dev.of_node;
-	struct resource *irq;
 	struct regulator *reg_xceiver;
 	int err = -ENODEV;
 
@@ -902,9 +903,9 @@ static int ti_hecc_probe(struct platform_device *pdev)
 		goto probe_exit_candev;
 	}
 
-	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!irq) {
-		dev_err(&pdev->dev, "No irq resource\n");
+	ndev->irq = platform_get_irq(pdev, 0);
+	if (ndev->irq < 0) {
+		err = ndev->irq;
 		goto probe_exit_candev;
 	}
 
@@ -918,7 +919,6 @@ static int ti_hecc_probe(struct platform_device *pdev)
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 
 	spin_lock_init(&priv->mbx_lock);
-	ndev->irq = irq->start;
 	ndev->flags |= IFF_ECHO;
 	platform_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);

@@ -184,25 +184,9 @@ static int ab8500_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	int retval, i;
 	unsigned char buf[ARRAY_SIZE(ab8500_rtc_alarm_regs)];
-	unsigned long mins, secs = 0, cursec = 0;
-	struct rtc_time curtm;
+	unsigned long mins;
 
-	/* Get the number of seconds since 1970 */
-	secs = rtc_tm_to_time64(&alarm->time);
-
-	/*
-	 * Check whether alarm is set less than 1min.
-	 * Since our RTC doesn't support alarm resolution less than 1min,
-	 * return -EINVAL, so UIE EMUL can take it up, incase of UIE_ON
-	 */
-	ab8500_rtc_read_time(dev, &curtm); /* Read current time */
-	cursec = rtc_tm_to_time64(&curtm);
-	if ((secs - cursec) < 59) {
-		dev_dbg(dev, "Alarm less than 1 minute not supported\r\n");
-		return -EINVAL;
-	}
-
-	mins = secs / 60;
+	mins = (unsigned long)rtc_tm_to_time64(&alarm->time) / 60;
 
 	buf[2] = mins & 0xFF;
 	buf[1] = (mins >> 8) & 0xFF;
@@ -394,7 +378,8 @@ static int ab8500_rtc_probe(struct platform_device *pdev)
 	dev_pm_set_wake_irq(&pdev->dev, irq);
 	platform_set_drvdata(pdev, rtc);
 
-	rtc->uie_unsupported = 1;
+	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, rtc->features);
+	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->features);
 
 	rtc->range_max = (1ULL << 24) * 60 - 1; // 24-bit minutes + 59 secs
 	rtc->start_secs = RTC_TIMESTAMP_BEGIN_2000;
@@ -404,7 +389,7 @@ static int ab8500_rtc_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	return rtc_register_device(rtc);
+	return devm_rtc_register_device(rtc);
 }
 
 static int ab8500_rtc_remove(struct platform_device *pdev)

@@ -235,13 +235,12 @@ enum {
 	AHCI_HFLAG_YES_ALPM		= (1 << 23), /* force ALPM cap on */
 	AHCI_HFLAG_NO_WRITE_TO_RO	= (1 << 24), /* don't write to read
 							only registers */
-	AHCI_HFLAG_IS_MOBILE		= (1 << 25), /* mobile chipset, use
+	AHCI_HFLAG_USE_LPM_POLICY	= (1 << 25), /* chipset that should use
 							SATA_MOBILE_LPM_POLICY
 							as default lpm_policy */
 	AHCI_HFLAG_SUSPEND_PHYS		= (1 << 26), /* handle PHYs during
 							suspend/resume */
-	AHCI_HFLAG_IGN_NOTSUPP_POWER_ON	= (1 << 27), /* ignore -EOPNOTSUPP
-							from phy_power_on() */
+	AHCI_HFLAG_NO_SXS		= (1 << 28), /* SXS not supported */
 
 	/* ap->flags bits */
 
@@ -375,20 +374,23 @@ struct ahci_host_priv {
 
 extern int ahci_ignore_sss;
 
-extern struct device_attribute *ahci_shost_attrs[];
-extern struct device_attribute *ahci_sdev_attrs[];
+extern const struct attribute_group *ahci_shost_groups[];
+extern const struct attribute_group *ahci_sdev_groups[];
 
 /*
  * This must be instantiated by the edge drivers.  Read the comments
  * for ATA_BASE_SHT
  */
 #define AHCI_SHT(drv_name)						\
-	ATA_NCQ_SHT(drv_name),						\
+	__ATA_BASE_SHT(drv_name),					\
 	.can_queue		= AHCI_MAX_CMDS,			\
 	.sg_tablesize		= AHCI_MAX_SG,				\
 	.dma_boundary		= AHCI_DMA_BOUNDARY,			\
-	.shost_attrs		= ahci_shost_attrs,			\
-	.sdev_attrs		= ahci_sdev_attrs
+	.shost_groups		= ahci_shost_groups,			\
+	.sdev_groups		= ahci_sdev_groups,			\
+	.change_queue_depth     = ata_scsi_change_queue_depth,		\
+	.tag_alloc_policy       = BLK_TAG_ALLOC_RR,             	\
+	.slave_configure        = ata_scsi_slave_config
 
 extern struct ata_port_operations ahci_ops;
 extern struct ata_port_operations ahci_platform_ops;

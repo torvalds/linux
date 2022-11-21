@@ -28,7 +28,7 @@ struct ebs_c {
 	spinlock_t lock;		/* Guard bios input list above. */
 	sector_t start;			/* <start> table line argument, see ebs_ctr below. */
 	unsigned int e_bs;		/* Emulated block size in sectors exposed to upper layer. */
-	unsigned int u_bs;		/* Underlying block size in sectors retrievd from/set on lower layer device. */
+	unsigned int u_bs;		/* Underlying block size in sectors retrieved from/set on lower layer device. */
 	unsigned char block_shift;	/* bitshift sectors -> blocks used in dm-bufio API. */
 	bool u_bs_set:1;		/* Flag to indicate underlying block size is set on table line. */
 };
@@ -43,7 +43,7 @@ static inline sector_t __block_mod(sector_t sector, unsigned int bs)
 	return sector & (bs - 1);
 }
 
-/* Return number of blocks for a bio, accounting for misalignement of start and end sectors. */
+/* Return number of blocks for a bio, accounting for misalignment of start and end sectors. */
 static inline unsigned int __nr_blocks(struct ebs_c *ec, struct bio *bio)
 {
 	sector_t end_sector = __block_mod(bio->bi_iter.bi_sector, ec->u_bs) + bio_sectors(bio);
@@ -74,7 +74,7 @@ static int __ebs_rw_bvec(struct ebs_c *ec, int rw, struct bio_vec *bv, struct bv
 	if (unlikely(!bv->bv_page || !bv_len))
 		return -EIO;
 
-	pa = page_address(bv->bv_page) + bv->bv_offset;
+	pa = bvec_virt(bv);
 
 	/* Handle overlapping page <-> blocks */
 	while (bv_len) {
@@ -86,7 +86,7 @@ static int __ebs_rw_bvec(struct ebs_c *ec, int rw, struct bio_vec *bv, struct bv
 		else
 			ba = dm_bufio_new(ec->bufio, block, &b);
 
-		if (unlikely(IS_ERR(ba))) {
+		if (IS_ERR(ba)) {
 			/*
 			 * Carry on with next buffer, if any, to issue all possible
 			 * data but return error.
@@ -171,7 +171,7 @@ static void __ebs_forget_bio(struct ebs_c *ec, struct bio *bio)
 	dm_bufio_forget_buffers(ec->bufio, __sector_to_block(ec, sector), blocks);
 }
 
-/* Worker funtion to process incoming bios. */
+/* Worker function to process incoming bios. */
 static void __ebs_process_bios(struct work_struct *ws)
 {
 	int r;
@@ -335,7 +335,6 @@ static int ebs_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
 	ti->num_secure_erase_bios = 0;
-	ti->num_write_same_bios = 0;
 	ti->num_write_zeroes_bios = 0;
 	return 0;
 bad:
@@ -401,6 +400,9 @@ static void ebs_status(struct dm_target *ti, status_type_t type,
 		snprintf(result, maxlen, ec->u_bs_set ? "%s %llu %u %u" : "%s %llu %u",
 			 ec->dev->name, (unsigned long long) ec->start, ec->e_bs, ec->u_bs);
 		break;
+	case STATUSTYPE_IMA:
+		*result = '\0';
+		break;
 	}
 }
 
@@ -413,7 +415,7 @@ static int ebs_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
 	*bdev = dev->bdev;
-	return !!(ec->start || ti->len != i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT);
+	return !!(ec->start || ti->len != bdev_nr_sectors(dev->bdev));
 }
 
 static void ebs_io_hints(struct dm_target *ti, struct queue_limits *limits)

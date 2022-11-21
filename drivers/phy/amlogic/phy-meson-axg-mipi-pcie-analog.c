@@ -4,9 +4,13 @@
  *
  * Copyright (C) 2019 Remi Pommarel <repk@triplefau.lt>
  */
+#include <linux/bitfield.h>
+#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/phy/phy.h>
 #include <linux/regmap.h>
+#include <linux/delay.h>
+#include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <dt-bindings/phy/phy.h>
 
@@ -14,10 +18,10 @@
 #define		HHI_MIPI_CNTL0_COMMON_BLOCK	GENMASK(31, 28)
 #define		HHI_MIPI_CNTL0_ENABLE		BIT(29)
 #define		HHI_MIPI_CNTL0_BANDGAP		BIT(26)
-#define		HHI_MIPI_CNTL0_DECODE_TO_RTERM	GENMASK(15, 12)
-#define		HHI_MIPI_CNTL0_OUTPUT_EN	BIT(3)
+#define		HHI_MIPI_CNTL0_DIF_REF_CTL1	GENMASK(25, 16)
+#define		HHI_MIPI_CNTL0_DIF_REF_CTL0	GENMASK(15, 0)
 
-#define HHI_MIPI_CNTL1 0x01
+#define HHI_MIPI_CNTL1 0x04
 #define		HHI_MIPI_CNTL1_CH0_CML_PDR_EN	BIT(12)
 #define		HHI_MIPI_CNTL1_LP_ABILITY	GENMASK(5, 4)
 #define		HHI_MIPI_CNTL1_LP_RESISTER	BIT(3)
@@ -25,41 +29,145 @@
 #define		HHI_MIPI_CNTL1_INPUT_SEL	BIT(1)
 #define		HHI_MIPI_CNTL1_PRBS7_EN		BIT(0)
 
-#define HHI_MIPI_CNTL2 0x02
+#define HHI_MIPI_CNTL2 0x08
 #define		HHI_MIPI_CNTL2_CH_PU		GENMASK(31, 25)
 #define		HHI_MIPI_CNTL2_CH_CTL		GENMASK(24, 19)
 #define		HHI_MIPI_CNTL2_CH0_DIGDR_EN	BIT(18)
 #define		HHI_MIPI_CNTL2_CH_DIGDR_EN	BIT(17)
 #define		HHI_MIPI_CNTL2_LPULPS_EN	BIT(16)
-#define		HHI_MIPI_CNTL2_CH_EN(n)		BIT(15 - (n))
+#define		HHI_MIPI_CNTL2_CH_EN		GENMASK(15, 11)
 #define		HHI_MIPI_CNTL2_CH0_LP_CTL	GENMASK(10, 1)
+
+#define DSI_LANE_0              BIT(4)
+#define DSI_LANE_1              BIT(3)
+#define DSI_LANE_CLK            BIT(2)
+#define DSI_LANE_2              BIT(1)
+#define DSI_LANE_3              BIT(0)
 
 struct phy_axg_mipi_pcie_analog_priv {
 	struct phy *phy;
-	unsigned int mode;
 	struct regmap *regmap;
+	bool dsi_configured;
+	bool dsi_enabled;
+	bool powered;
+	struct phy_configure_opts_mipi_dphy config;
 };
 
-static const struct regmap_config phy_axg_mipi_pcie_analog_regmap_conf = {
-	.reg_bits = 8,
-	.val_bits = 32,
-	.reg_stride = 4,
-	.max_register = HHI_MIPI_CNTL2,
-};
+static void phy_bandgap_enable(struct phy_axg_mipi_pcie_analog_priv *priv)
+{
+	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0,
+			HHI_MIPI_CNTL0_BANDGAP, HHI_MIPI_CNTL0_BANDGAP);
+
+	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0,
+			HHI_MIPI_CNTL0_ENABLE, HHI_MIPI_CNTL0_ENABLE);
+}
+
+static void phy_bandgap_disable(struct phy_axg_mipi_pcie_analog_priv *priv)
+{
+	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0,
+			HHI_MIPI_CNTL0_BANDGAP, 0);
+	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0,
+			HHI_MIPI_CNTL0_ENABLE, 0);
+}
+
+static void phy_dsi_analog_enable(struct phy_axg_mipi_pcie_analog_priv *priv)
+{
+	u32 reg;
+
+	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0,
+			   HHI_MIPI_CNTL0_DIF_REF_CTL1,
+			   FIELD_PREP(HHI_MIPI_CNTL0_DIF_REF_CTL1, 0x1b8));
+	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0,
+			   BIT(31), BIT(31));
+	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0,
+			   HHI_MIPI_CNTL0_DIF_REF_CTL0,
+			   FIELD_PREP(HHI_MIPI_CNTL0_DIF_REF_CTL0, 0x8));
+
+	regmap_write(priv->regmap, HHI_MIPI_CNTL1, 0x001e);
+
+	regmap_write(priv->regmap, HHI_MIPI_CNTL2,
+		     (0x26e0 << 16) | (0x459 << 0));
+
+	reg = DSI_LANE_CLK;
+	switch (priv->config.lanes) {
+	case 4:
+		reg |= DSI_LANE_3;
+		fallthrough;
+	case 3:
+		reg |= DSI_LANE_2;
+		fallthrough;
+	case 2:
+		reg |= DSI_LANE_1;
+		fallthrough;
+	case 1:
+		reg |= DSI_LANE_0;
+		break;
+	default:
+		reg = 0;
+	}
+
+	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL2,
+			   HHI_MIPI_CNTL2_CH_EN,
+			   FIELD_PREP(HHI_MIPI_CNTL2_CH_EN, reg));
+
+	priv->dsi_enabled = true;
+}
+
+static void phy_dsi_analog_disable(struct phy_axg_mipi_pcie_analog_priv *priv)
+{
+	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0,
+			HHI_MIPI_CNTL0_DIF_REF_CTL1,
+			FIELD_PREP(HHI_MIPI_CNTL0_DIF_REF_CTL1, 0));
+	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0, BIT(31), 0);
+	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0,
+			HHI_MIPI_CNTL0_DIF_REF_CTL1, 0);
+
+	regmap_write(priv->regmap, HHI_MIPI_CNTL1, 0x6);
+
+	regmap_write(priv->regmap, HHI_MIPI_CNTL2, 0x00200000);
+
+	priv->dsi_enabled = false;
+}
+
+static int phy_axg_mipi_pcie_analog_configure(struct phy *phy,
+					      union phy_configure_opts *opts)
+{
+	struct phy_axg_mipi_pcie_analog_priv *priv = phy_get_drvdata(phy);
+	int ret;
+
+	ret = phy_mipi_dphy_config_validate(&opts->mipi_dphy);
+	if (ret)
+		return ret;
+
+	memcpy(&priv->config, opts, sizeof(priv->config));
+
+	priv->dsi_configured = true;
+
+	/* If PHY was already powered on, setup the DSI analog part */
+	if (priv->powered) {
+		/* If reconfiguring, disable & reconfigure */
+		if (priv->dsi_enabled)
+			phy_dsi_analog_disable(priv);
+
+		usleep_range(100, 200);
+
+		phy_dsi_analog_enable(priv);
+	}
+
+	return 0;
+}
 
 static int phy_axg_mipi_pcie_analog_power_on(struct phy *phy)
 {
 	struct phy_axg_mipi_pcie_analog_priv *priv = phy_get_drvdata(phy);
 
-	/* MIPI not supported yet */
-	if (priv->mode != PHY_TYPE_PCIE)
-		return -EINVAL;
+	phy_bandgap_enable(priv);
 
-	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0,
-			   HHI_MIPI_CNTL0_BANDGAP, HHI_MIPI_CNTL0_BANDGAP);
+	if (priv->dsi_configured)
+		phy_dsi_analog_enable(priv);
 
-	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0,
-			   HHI_MIPI_CNTL0_ENABLE, HHI_MIPI_CNTL0_ENABLE);
+	priv->powered = true;
+
 	return 0;
 }
 
@@ -67,57 +175,22 @@ static int phy_axg_mipi_pcie_analog_power_off(struct phy *phy)
 {
 	struct phy_axg_mipi_pcie_analog_priv *priv = phy_get_drvdata(phy);
 
-	/* MIPI not supported yet */
-	if (priv->mode != PHY_TYPE_PCIE)
-		return -EINVAL;
+	phy_bandgap_disable(priv);
 
-	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0,
-			   HHI_MIPI_CNTL0_BANDGAP, 0);
-	regmap_update_bits(priv->regmap, HHI_MIPI_CNTL0,
-			   HHI_MIPI_CNTL0_ENABLE, 0);
-	return 0;
-}
+	if (priv->dsi_enabled)
+		phy_dsi_analog_disable(priv);
 
-static int phy_axg_mipi_pcie_analog_init(struct phy *phy)
-{
-	return 0;
-}
+	priv->powered = false;
 
-static int phy_axg_mipi_pcie_analog_exit(struct phy *phy)
-{
 	return 0;
 }
 
 static const struct phy_ops phy_axg_mipi_pcie_analog_ops = {
-	.init = phy_axg_mipi_pcie_analog_init,
-	.exit = phy_axg_mipi_pcie_analog_exit,
+	.configure = phy_axg_mipi_pcie_analog_configure,
 	.power_on = phy_axg_mipi_pcie_analog_power_on,
 	.power_off = phy_axg_mipi_pcie_analog_power_off,
 	.owner = THIS_MODULE,
 };
-
-static struct phy *phy_axg_mipi_pcie_analog_xlate(struct device *dev,
-						  struct of_phandle_args *args)
-{
-	struct phy_axg_mipi_pcie_analog_priv *priv = dev_get_drvdata(dev);
-	unsigned int mode;
-
-	if (args->args_count != 1) {
-		dev_err(dev, "invalid number of arguments\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	mode = args->args[0];
-
-	/* MIPI mode is not supported yet */
-	if (mode != PHY_TYPE_PCIE) {
-		dev_err(dev, "invalid phy mode select argument\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	priv->mode = mode;
-	return priv->phy;
-}
 
 static int phy_axg_mipi_pcie_analog_probe(struct platform_device *pdev)
 {
@@ -126,27 +199,20 @@ static int phy_axg_mipi_pcie_analog_probe(struct platform_device *pdev)
 	struct phy_axg_mipi_pcie_analog_priv *priv;
 	struct device_node *np = dev->of_node;
 	struct regmap *map;
-	struct resource *res;
-	void __iomem *base;
 	int ret;
 
 	priv = devm_kmalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(base)) {
-		dev_err(dev, "failed to get regmap base\n");
-		return PTR_ERR(base);
-	}
-
-	map = devm_regmap_init_mmio(dev, base,
-				    &phy_axg_mipi_pcie_analog_regmap_conf);
+	/* Get the hhi system controller node */
+	map = syscon_node_to_regmap(of_get_parent(dev->of_node));
 	if (IS_ERR(map)) {
-		dev_err(dev, "failed to get HHI regmap\n");
+		dev_err(dev,
+			"failed to get HHI regmap\n");
 		return PTR_ERR(map);
 	}
+
 	priv->regmap = map;
 
 	priv->phy = devm_phy_create(dev, np, &phy_axg_mipi_pcie_analog_ops);
@@ -160,8 +226,7 @@ static int phy_axg_mipi_pcie_analog_probe(struct platform_device *pdev)
 	phy_set_drvdata(priv->phy, priv);
 	dev_set_drvdata(dev, priv);
 
-	phy = devm_of_phy_provider_register(dev,
-					    phy_axg_mipi_pcie_analog_xlate);
+	phy = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 
 	return PTR_ERR_OR_ZERO(phy);
 }

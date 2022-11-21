@@ -42,11 +42,13 @@ struct rt_firmware_hdr {
 
 	/*  LONG WORD 0 ---- */
 	__le16 signature;  /* 92C0: test chip; 92C, 88C0: test chip;
-			    * 88C1: MP A-cut; 92C1: MP A-cut */
+			    * 88C1: MP A-cut; 92C1: MP A-cut
+			    */
 	u8 category;	   /* AP/NIC and USB/PCI */
 	u8 function;	   /* Reserved for different FW function indications,
 			    * for further use when driver needs to download
-			    * different FW in different conditions. */
+			    * different FW in different conditions.
+			    */
 	__le16 version;    /* FW Version */
 	__le16 subversion; /* FW Subversion, default 0x00 */
 
@@ -90,29 +92,11 @@ struct rt_firmware_hdr {
 #define BCNQ_PAGE_NUM_8723B  0x08
 #define BCNQ1_PAGE_NUM_8723B 0x00
 
-#ifdef CONFIG_PNO_SUPPORT
-#undef BCNQ1_PAGE_NUM_8723B
-#define BCNQ1_PAGE_NUM_8723B 0x00 /* 0x04 */
-#endif
-
 #define MAX_RX_DMA_BUFFER_SIZE_8723B 0x2800 /* RX 10K */
 
 /* For WoWLan, more reserved page */
 /* ARP Rsp:1, RWC:1, GTK Info:1, GTK RSP:2, GTK EXT MEM:2, PNO: 6 */
-#ifdef CONFIG_WOWLAN
-#define WOWLAN_PAGE_NUM_8723B 0x07
-#else
 #define WOWLAN_PAGE_NUM_8723B 0x00
-#endif
-
-#ifdef CONFIG_PNO_SUPPORT
-#undef WOWLAN_PAGE_NUM_8723B
-#define WOWLAN_PAGE_NUM_8723B 0x0d
-#endif
-
-#ifdef CONFIG_AP_WOWLAN
-#define AP_WOWLAN_PAGE_NUM_8723B 0x02
-#endif
 
 #define TX_TOTAL_PAGE_NUMBER_8723B     \
 	(0xFF - BCNQ_PAGE_NUM_8723B  - \
@@ -135,7 +119,6 @@ struct rt_firmware_hdr {
 #define WMM_NORMAL_PAGE_NUM_LPQ_8723B 0x20
 #define WMM_NORMAL_PAGE_NUM_NPQ_8723B 0x20
 
-
 #include "HalVerDef.h"
 #include "hal_com.h"
 
@@ -149,7 +132,8 @@ struct rt_firmware_hdr {
 #define EFUSE_MAX_SECTION_8723B      64
 
 #define EFUSE_IC_ID_OFFSET 506 /* For some inferiority IC purpose.
-				* Added by Roger, 2009.09.02. */
+				* Added by Roger, 2009.09.02.
+				*/
 #define AVAILABLE_EFUSE_ADDR(addr) (addr < EFUSE_REAL_CONTENT_LEN_8723B)
 
 #define EFUSE_ACCESS_ON  0x69 /* For RTL8723 only. */
@@ -168,12 +152,13 @@ struct rt_firmware_hdr {
 /* Description: Determine the types of C2H events that are the same in driver
  * and FW; First constructed by tynli. 2009.10.09.
  */
-typedef enum _C2H_EVT {
+enum {
 	C2H_DBG = 0,
 	C2H_TSF = 1,
 	C2H_AP_RPT_RSP = 2,
 	C2H_CCX_TX_RPT = 3, /* The FW notify the report
-			     * of the specific tx packet. */
+			     * of the specific tx packet.
+			     */
 	C2H_BT_RSSI = 4,
 	C2H_BT_OP_MODE = 5,
 	C2H_EXT_RA_RPT = 6,
@@ -181,21 +166,21 @@ typedef enum _C2H_EVT {
 	C2H_HW_INFO_EXCH = 10,
 	C2H_8723B_BT_MP_INFO = 11,
 	MAX_C2HEVENT
-} C2H_EVT;
+};
 
-typedef struct _C2H_EVT_HDR {
+struct c2h_evt_hdr_t {
 	u8 CmdID;
 	u8 CmdLen;
 	u8 CmdSeq;
-} __attribute__((__packed__)) C2H_EVT_HDR, *PC2H_EVT_HDR;
+} __attribute__((__packed__));
 
-typedef enum tag_Package_Definition {
+enum { /* tag_Package_Definition */
 	PACKAGE_DEFAULT,
 	PACKAGE_QFN68,
 	PACKAGE_TFBGA90,
 	PACKAGE_TFBGA80,
 	PACKAGE_TFBGA79
-} PACKAGE_TYPE_E;
+};
 
 #define INCLUDE_MULTI_FUNC_BT(_Adapter)  \
 	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_BT)
@@ -242,32 +227,18 @@ void C2HPacketHandler_8723B(struct adapter *padapter, u8 *pbuffer, u16 length);
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc);
 void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val);
 void GetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val);
-u8 SetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable,
+u8 SetHalDefVar8723B(struct adapter *padapter, enum hal_def_variable variable,
 		     void *pval);
-u8 GetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable,
+u8 GetHalDefVar8723B(struct adapter *padapter, enum hal_def_variable variable,
 		     void *pval);
 
 /*  register */
 void rtl8723b_InitBeaconParameters(struct adapter *padapter);
 void _InitBurstPktLen_8723BS(struct adapter *adapter);
 void _8051Reset8723(struct adapter *padapter);
-#ifdef CONFIG_WOWLAN
-void Hal_DetectWoWMode(struct adapter *padapter);
-#endif /* CONFIG_WOWLAN */
 
 void rtl8723b_start_thread(struct adapter *padapter);
 void rtl8723b_stop_thread(struct adapter *padapter);
-
-#if defined(CONFIG_CHECK_BT_HANG)
-void rtl8723bs_init_checkbthang_workqueue(struct adapter *adapter);
-void rtl8723bs_free_checkbthang_workqueue(struct adapter *adapter);
-void rtl8723bs_cancle_checkbthang_workqueue(struct adapter *adapter);
-void rtl8723bs_hal_check_bt_hang(struct adapter *adapter);
-#endif
-
-#ifdef CONFIG_GPIO_WAKEUP
-void HalSetOutPutGPIO(struct adapter *padapter, u8 index, u8 OutPutValue);
-#endif
 
 int FirmwareDownloadBT(struct adapter *adapter, struct rt_firmware *firmware);
 

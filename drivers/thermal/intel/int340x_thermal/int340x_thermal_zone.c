@@ -146,12 +146,18 @@ static int int340x_thermal_get_trip_hyst(struct thermal_zone_device *zone,
 	return 0;
 }
 
+static void int340x_thermal_critical(struct thermal_zone_device *zone)
+{
+	dev_dbg(&zone->device, "%s: critical temperature reached\n", zone->type);
+}
+
 static struct thermal_zone_device_ops int340x_thermal_zone_ops = {
 	.get_temp       = int340x_thermal_get_zone_temp,
 	.get_trip_temp	= int340x_thermal_get_trip_temp,
 	.get_trip_type	= int340x_thermal_get_trip_type,
 	.set_trip_temp	= int340x_thermal_set_trip_temp,
 	.get_trip_hyst =  int340x_thermal_get_trip_hyst,
+	.critical	= int340x_thermal_critical,
 };
 
 static int int340x_thermal_get_trip_config(acpi_handle handle, char *name,
@@ -231,6 +237,8 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 	if (ACPI_FAILURE(status))
 		trip_cnt = 0;
 	else {
+		int i;
+
 		int34x_thermal_zone->aux_trips =
 			kcalloc(trip_cnt,
 				sizeof(*int34x_thermal_zone->aux_trips),
@@ -241,6 +249,8 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 		}
 		trip_mask = BIT(trip_cnt) - 1;
 		int34x_thermal_zone->aux_trip_nr = trip_cnt;
+		for (i = 0; i < trip_cnt; ++i)
+			int34x_thermal_zone->aux_trips[i] = THERMAL_TEMP_INVALID;
 	}
 
 	trip_cnt = int340x_thermal_read_trips(int34x_thermal_zone);

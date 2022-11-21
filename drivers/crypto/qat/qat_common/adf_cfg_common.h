@@ -19,6 +19,19 @@
 #define ADF_MAX_DEVICES (32 * 32)
 #define ADF_DEVS_ARRAY_SIZE BITS_TO_LONGS(ADF_MAX_DEVICES)
 
+#define ADF_CFG_SERV_RING_PAIR_0_SHIFT 0
+#define ADF_CFG_SERV_RING_PAIR_1_SHIFT 3
+#define ADF_CFG_SERV_RING_PAIR_2_SHIFT 6
+#define ADF_CFG_SERV_RING_PAIR_3_SHIFT 9
+enum adf_cfg_service_type {
+	UNUSED = 0,
+	CRYPTO,
+	COMP,
+	SYM,
+	ASYM,
+	USED
+};
+
 enum adf_cfg_val_type {
 	ADF_DEC,
 	ADF_HEX,
@@ -32,7 +45,8 @@ enum adf_device_type {
 	DEV_C62X,
 	DEV_C62XVF,
 	DEV_C3XXX,
-	DEV_C3XXXVF
+	DEV_C3XXXVF,
+	DEV_4XXX,
 };
 
 struct adf_dev_status_info {

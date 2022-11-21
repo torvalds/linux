@@ -51,14 +51,11 @@ static const struct reg_default stih407_sas_reg_defaults[] = {
 struct sti_dac_audio {
 	struct regmap *regmap;
 	struct regmap *virt_regmap;
-	struct regmap_field  **field;
-	struct reset_control *rst;
 	int mclk;
 };
 
 struct sti_spdif_audio {
 	struct regmap *regmap;
-	struct regmap_field  **field;
 	int mclk;
 };
 
@@ -157,10 +154,10 @@ static int  sti_sas_init_sas_registers(struct snd_soc_component *component,
 static int sti_sas_dac_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	/* Sanity check only */
-	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
+	if ((fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) != SND_SOC_DAIFMT_CBC_CFC) {
 		dev_err(dai->component->dev,
-			"%s: ERROR: Unsupporter master mask 0x%x\n",
-			__func__, fmt & SND_SOC_DAIFMT_MASTER_MASK);
+			"%s: ERROR: Unsupported clocking 0x%x\n",
+			__func__, fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK);
 		return -EINVAL;
 	}
 
@@ -411,6 +408,7 @@ static const struct of_device_id sti_sas_dev_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, sti_sas_dev_match);
 
 static int sti_sas_driver_probe(struct platform_device *pdev)
 {

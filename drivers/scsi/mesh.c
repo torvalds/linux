@@ -342,15 +342,6 @@ static inline void mesh_flush_io(volatile struct mesh_regs __iomem *mr)
 }
 
 
-/*
- * Complete a SCSI command
- */
-static void mesh_completed(struct mesh_state *ms, struct scsi_cmnd *cmd)
-{
-	(*cmd->scsi_done)(cmd);
-}
-
-
 /* Called with  meshinterrupt disabled, initialize the chipset
  * and eventually do the initial bus reset. The lock must not be
  * held since we can schedule.
@@ -595,9 +586,12 @@ static void mesh_done(struct mesh_state *ms, int start_next)
 	ms->current_req = NULL;
 	tp->current_req = NULL;
 	if (cmd) {
-		cmd->result = (ms->stat << 16) | cmd->SCp.Status;
+		struct mesh_cmd_priv *mcmd = mesh_priv(cmd);
+
+		set_host_byte(cmd, ms->stat);
+		set_status_byte(cmd, mcmd->status);
 		if (ms->stat == DID_OK)
-			cmd->result |= cmd->SCp.Message << 8;
+			scsi_msg_to_host_byte(cmd, mcmd->message);
 		if (DEBUG_TARGET(cmd)) {
 			printk(KERN_DEBUG "mesh_done: result = %x, data_ptr=%d, buflen=%d\n",
 			       cmd->result, ms->data_ptr, scsi_bufflen(cmd));
@@ -611,8 +605,8 @@ static void mesh_done(struct mesh_state *ms, int start_next)
 			}
 #endif
 		}
-		cmd->SCp.this_residual -= ms->data_ptr;
-		mesh_completed(ms, cmd);
+		mcmd->this_residual -= ms->data_ptr;
+		scsi_done(cmd);
 	}
 	if (start_next) {
 		out_8(&ms->mesh->sequence, SEQ_ENBRESEL);
@@ -993,9 +987,9 @@ static void handle_reset(struct mesh_state *ms)
 	for (tgt = 0; tgt < 8; ++tgt) {
 		tp = &ms->tgts[tgt];
 		if ((cmd = tp->current_req) != NULL) {
-			cmd->result = DID_RESET << 16;
+			set_host_byte(cmd, DID_RESET);
 			tp->current_req = NULL;
-			mesh_completed(ms, cmd);
+			scsi_done(cmd);
 		}
 		ms->tgts[tgt].sdtr_state = do_sdtr;
 		ms->tgts[tgt].sync_params = ASYNC_PARAMS;
@@ -1003,8 +997,8 @@ static void handle_reset(struct mesh_state *ms)
 	ms->current_req = NULL;
 	while ((cmd = ms->request_q) != NULL) {
 		ms->request_q = (struct scsi_cmnd *) cmd->host_scribble;
-		cmd->result = DID_RESET << 16;
-		mesh_completed(ms, cmd);
+		set_host_byte(cmd, DID_RESET);
+		scsi_done(cmd);
 	}
 	ms->phase = idle;
 	ms->msgphase = msg_none;
@@ -1179,7 +1173,7 @@ static void handle_msgin(struct mesh_state *ms)
 	if (ms->n_msgin < msgin_length(ms))
 		goto reject;
 	if (cmd)
-		cmd->SCp.Message = code;
+		mesh_priv(cmd)->message = code;
 	switch (code) {
 	case COMMAND_COMPLETE:
 		break;
@@ -1270,7 +1264,7 @@ static void set_dma_cmds(struct mesh_state *ms, struct scsi_cmnd *cmd)
 	if (cmd) {
 		int nseg;
 
-		cmd->SCp.this_residual = scsi_bufflen(cmd);
+		mesh_priv(cmd)->this_residual = scsi_bufflen(cmd);
 
 		nseg = scsi_dma_map(cmd);
 		BUG_ON(nseg < 0);
@@ -1600,10 +1594,12 @@ static void cmd_complete(struct mesh_state *ms)
 			break;
 		case statusing:
 			if (cmd) {
-				cmd->SCp.Status = mr->fifo;
+				struct mesh_cmd_priv *mcmd = mesh_priv(cmd);
+
+				mcmd->status = mr->fifo;
 				if (DEBUG_TARGET(cmd))
 					printk(KERN_DEBUG "mesh: status is %x\n",
-					       cmd->SCp.Status);
+					       mcmd->status);
 			}
 			ms->msgphase = msg_in;
 			break;
@@ -1629,11 +1625,10 @@ static void cmd_complete(struct mesh_state *ms)
  * Called by midlayer with host locked to queue a new
  * request
  */
-static int mesh_queue_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+static int mesh_queue_lck(struct scsi_cmnd *cmd)
 {
 	struct mesh_state *ms;
 
-	cmd->scsi_done = done;
 	cmd->host_scribble = NULL;
 
 	ms = (struct mesh_state *) cmd->device->host->hostdata;
@@ -1846,6 +1841,7 @@ static struct scsi_host_template mesh_template = {
 	.sg_tablesize			= SG_ALL,
 	.cmd_per_lun			= 2,
 	.max_segment_size		= 65535,
+	.cmd_size			= sizeof(struct mesh_cmd_priv),
 };
 
 static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)

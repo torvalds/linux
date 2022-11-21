@@ -74,7 +74,7 @@ memory node's access class 0 initiators as follows::
 	/sys/devices/system/node/nodeY/access0/initiators/
 
 These attributes apply only when accessed from nodes that have the
-are linked under the this access's inititiators.
+are linked under the this access's initiators.
 
 The performance characteristics the kernel provides for the local initiators
 are exported are as follows::
@@ -151,7 +151,7 @@ Each cache level's directory provides its attributes. For example, the
 following shows a single cache level and the attributes available for
 software to query::
 
-	# tree sys/devices/system/node/node0/memory_side_cache/
+	# tree /sys/devices/system/node/node0/memory_side_cache/
 	/sys/devices/system/node/node0/memory_side_cache/
 	|-- index1
 	|   |-- indexing

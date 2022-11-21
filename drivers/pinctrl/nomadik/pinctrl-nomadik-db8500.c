@@ -421,6 +421,8 @@ static const unsigned lcd_d0_d7_a_1_pins[] = {
 /* D8 thru D11 often used as TVOUT lines */
 static const unsigned lcd_d8_d11_a_1_pins[] = { DB8500_PIN_F4,
 	DB8500_PIN_E3, DB8500_PIN_E4, DB8500_PIN_D2 };
+static const unsigned lcd_d12_d15_a_1_pins[] = {
+	DB8500_PIN_C1, DB8500_PIN_D3, DB8500_PIN_C2, DB8500_PIN_D5 };
 static const unsigned lcd_d12_d23_a_1_pins[] = {
 	DB8500_PIN_C1, DB8500_PIN_D3, DB8500_PIN_C2, DB8500_PIN_D5,
 	DB8500_PIN_C6, DB8500_PIN_B3, DB8500_PIN_C4, DB8500_PIN_E6,
@@ -533,6 +535,9 @@ static const unsigned lcda_b_1_pins[] = { DB8500_PIN_D22,
 static const unsigned lcd_b_1_pins[] = { DB8500_PIN_D17, DB8500_PIN_D16,
 	DB8500_PIN_B17, DB8500_PIN_C16, DB8500_PIN_C19, DB8500_PIN_C17,
 	DB8500_PIN_A18, DB8500_PIN_C18, DB8500_PIN_B19, DB8500_PIN_B20,
+	DB8500_PIN_D21, DB8500_PIN_D20, DB8500_PIN_C20, DB8500_PIN_B21,
+	DB8500_PIN_C21, DB8500_PIN_A22, DB8500_PIN_B24, DB8500_PIN_C22 };
+static const unsigned lcd_d16_d23_b_1_pins[] = {
 	DB8500_PIN_D21, DB8500_PIN_D20, DB8500_PIN_C20, DB8500_PIN_B21,
 	DB8500_PIN_C21, DB8500_PIN_A22, DB8500_PIN_B24, DB8500_PIN_C22 };
 static const unsigned ddrtrig_b_1_pins[] = { DB8500_PIN_AJ27 };
@@ -689,6 +694,7 @@ static const struct nmk_pingroup nmk_db8500_groups[] = {
 	DB8500_PIN_GROUP(lcdvsi1_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(lcd_d0_d7_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(lcd_d8_d11_a_1, NMK_GPIO_ALT_A),
+	DB8500_PIN_GROUP(lcd_d12_d15_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(lcd_d12_d23_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(kp_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(kpskaskb_a_1, NMK_GPIO_ALT_A),
@@ -741,6 +747,7 @@ static const struct nmk_pingroup nmk_db8500_groups[] = {
 	DB8500_PIN_GROUP(lcdaclk_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(lcda_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(lcd_b_1, NMK_GPIO_ALT_B),
+	DB8500_PIN_GROUP(lcd_d16_d23_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(ddrtrig_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(pwl_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(spi1_b_1, NMK_GPIO_ALT_B),
@@ -846,7 +853,8 @@ DB8500_FUNC_GROUPS(mc0, "mc0_a_1", "mc0_a_2", "mc0_dat47_a_1", "mc0dat31dir_a_1"
 DB8500_FUNC_GROUPS(msp1, "msp1txrx_a_1", "msp1_a_1", "msp1txrx_b_1");
 DB8500_FUNC_GROUPS(lcdb, "lcdb_a_1");
 DB8500_FUNC_GROUPS(lcd, "lcdvsi0_a_1", "lcdvsi1_a_1", "lcd_d0_d7_a_1",
-	"lcd_d8_d11_a_1", "lcd_d12_d23_a_1", "lcd_b_1");
+		   "lcd_d8_d11_a_1", "lcd_d12_d15_a_1", "lcd_d12_d23_a_1", "lcd_b_1",
+		   "lcd_d16_d23_b_1");
 DB8500_FUNC_GROUPS(kp, "kp_a_1", "kp_a_2", "kp_b_1", "kp_b_2", "kp_c_1", "kp_oc1_1");
 DB8500_FUNC_GROUPS(mc2, "mc2_a_1", "mc2rstn_c_1");
 DB8500_FUNC_GROUPS(ssp1, "ssp1_a_1");

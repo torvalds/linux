@@ -108,6 +108,12 @@ OPTIONS
 	- period: Raw number of event count of sample
 	- time: Separate the samples by time stamp with the resolution specified by
 	--time-quantum (default 100ms). Specify with overhead and before it.
+	- code_page_size: the code page size of sampled code address (ip)
+	- ins_lat: Instruction latency in core cycles. This is the global instruction
+	  latency
+	- local_ins_lat: Local instruction latency version
+	- p_stage_cyc: On powerpc, this presents the number of cycles spent in a
+	  pipeline stage. And currently supported only on powerpc.
 
 	By default, comm, dso and symbol keys are used.
 	(i.e. --sort comm,dso,symbol)
@@ -139,7 +145,7 @@ OPTIONS
 
 	If the --mem-mode option is used, the following sort keys are also available
 	(incompatible with --branch-stack):
-	symbol_daddr, dso_daddr, locked, tlb, mem, snoop, dcacheline.
+	symbol_daddr, dso_daddr, locked, tlb, mem, snoop, dcacheline, blocked.
 
 	- symbol_daddr: name of data symbol being executed on at the time of sample
 	- dso_daddr: name of library or module containing the data being executed
@@ -150,9 +156,12 @@ OPTIONS
 	- snoop: type of snoop (if any) for the data at the time of the sample
 	- dcacheline: the cacheline the data address is on at the time of the sample
 	- phys_daddr: physical address of data being executed on at the time of sample
+	- data_page_size: the data page size of data being executed on at the time of sample
+	- blocked: reason of blocked load access for the data at the time of the sample
 
 	And the default sort keys are changed to local_weight, mem, sym, dso,
-	symbol_daddr, dso_daddr, snoop, tlb, locked, see '--mem-mode'.
+	symbol_daddr, dso_daddr, snoop, tlb, locked, blocked, local_ins_lat,
+	see '--mem-mode'.
 
 	If the data file has tracepoint event(s), following (dynamic) sort keys
 	are also available:
@@ -216,6 +225,9 @@ OPTIONS
 -D::
 --dump-raw-trace::
         Dump raw trace in ASCII.
+
+--disable-order::
+	Disable raw trace ordering.
 
 -g::
 --call-graph=<print_type,threshold[,print_limit],order,sort_key[,branch],value>::
@@ -465,7 +477,7 @@ OPTIONS
 	but probably we'll make the default not to show the switch-on/off events
         on the --group mode and if there is only one event besides the off/on ones,
 	go straight to the histogram browser, just like 'perf report' with no events
-	explicitely specified does.
+	explicitly specified does.
 
 --itrace::
 	Options for decoding instruction tracing data. The options are:
@@ -558,6 +570,9 @@ include::itrace.txt[]
 	'Avg Cycles%'     - block average sampled cycles / sum of total block average
 			    sampled cycles
 	'Avg Cycles'      - block average sampled cycles
+
+--skip-empty::
+	Do not print 0 results in the --stat output.
 
 include::callchain-overhead-calculation.txt[]
 

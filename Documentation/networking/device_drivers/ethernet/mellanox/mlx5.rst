@@ -12,11 +12,14 @@ Contents
 - `Enabling the driver and kconfig options`_
 - `Devlink info`_
 - `Devlink parameters`_
+- `Bridge offload`_
+- `mlx5 subfunction`_
+- `mlx5 function attributes`_
 - `Devlink health reporters`_
 - `mlx5 tracepoints`_
 
 Enabling the driver and kconfig options
-================================================
+=======================================
 
 | mlx5 core is modular and most of the major mlx5 core driver features can be selected (compiled in/out)
 | at build time via kernel Kconfig flags.
@@ -97,6 +100,11 @@ Enabling the driver and kconfig options
 
 |   Provides low-level InfiniBand/RDMA and `RoCE <https://community.mellanox.com/s/article/recommended-network-configuration-examples-for-roce-deployment>`_ support.
 
+**CONFIG_MLX5_SF=(y/n)**
+
+|   Build support for subfunction.
+|   Subfunctons are more light weight than PCI SRIOV VFs. Choosing this option
+|   will enable support for creating subfunction devices.
 
 **External options** ( Choose if the corresponding mlx5 feature is required )
 
@@ -175,6 +183,279 @@ User command examples:
       name enable_roce type generic
       values:
          cmode driverinit value true
+
+esw_port_metadata: Eswitch port metadata state
+----------------------------------------------
+When applicable, disabling Eswitch metadata can increase packet rate
+up to 20% depending on the use case and packet sizes.
+
+Eswitch port metadata state controls whether to internally tag packets with
+metadata. Metadata tagging must be enabled for multi-port RoCE, failover
+between representors and stacked devices.
+By default metadata is enabled on the supported devices in E-switch.
+Metadata is applicable only for E-switch in switchdev mode and
+users may disable it when NONE of the below use cases will be in use:
+1. HCA is in Dual/multi-port RoCE mode.
+2. VF/SF representor bonding (Usually used for Live migration)
+3. Stacked devices
+
+When metadata is disabled, the above use cases will fail to initialize if
+users try to enable them.
+
+- Show eswitch port metadata::
+
+    $ devlink dev param show pci/0000:06:00.0 name esw_port_metadata
+      pci/0000:06:00.0:
+        name esw_port_metadata type driver-specific
+          values:
+            cmode runtime value true
+
+- Disable eswitch port metadata::
+
+    $ devlink dev param set pci/0000:06:00.0 name esw_port_metadata value false cmode runtime
+
+- Change eswitch mode to switchdev mode where after choosing the metadata value::
+
+    $ devlink dev eswitch set pci/0000:06:00.0 mode switchdev
+
+Bridge offload
+==============
+The mlx5 driver implements support for offloading bridge rules when in switchdev
+mode. Linux bridge FDBs are automatically offloaded when mlx5 switchdev
+representor is attached to bridge.
+
+- Change device to switchdev mode::
+
+    $ devlink dev eswitch set pci/0000:06:00.0 mode switchdev
+
+- Attach mlx5 switchdev representor 'enp8s0f0' to bridge netdev 'bridge1'::
+
+    $ ip link set enp8s0f0 master bridge1
+
+VLANs
+-----
+Following bridge VLAN functions are supported by mlx5:
+
+- VLAN filtering (including multiple VLANs per port)::
+
+    $ ip link set bridge1 type bridge vlan_filtering 1
+    $ bridge vlan add dev enp8s0f0 vid 2-3
+
+- VLAN push on bridge ingress::
+
+    $ bridge vlan add dev enp8s0f0 vid 3 pvid
+
+- VLAN pop on bridge egress::
+
+    $ bridge vlan add dev enp8s0f0 vid 3 untagged
+
+mlx5 subfunction
+================
+mlx5 supports subfunction management using devlink port (see :ref:`Documentation/networking/devlink/devlink-port.rst <devlink_port>`) interface.
+
+A Subfunction has its own function capabilities and its own resources. This
+means a subfunction has its own dedicated queues (txq, rxq, cq, eq). These
+queues are neither shared nor stolen from the parent PCI function.
+
+When a subfunction is RDMA capable, it has its own QP1, GID table and rdma
+resources neither shared nor stolen from the parent PCI function.
+
+A subfunction has a dedicated window in PCI BAR space that is not shared
+with ther other subfunctions or the parent PCI function. This ensures that all
+devices (netdev, rdma, vdpa etc.) of the subfunction accesses only assigned
+PCI BAR space.
+
+A Subfunction supports eswitch representation through which it supports tc
+offloads. The user configures eswitch to send/receive packets from/to
+the subfunction port.
+
+Subfunctions share PCI level resources such as PCI MSI-X IRQs with
+other subfunctions and/or with its parent PCI function.
+
+Example mlx5 software, system and device view::
+
+       _______
+      | admin |
+      | user  |----------
+      |_______|         |
+          |             |
+      ____|____       __|______            _________________
+     |         |     |         |          |                 |
+     | devlink |     | tc tool |          |    user         |
+     | tool    |     |_________|          | applications    |
+     |_________|         |                |_________________|
+           |             |                   |          |
+           |             |                   |          |         Userspace
+ +---------|-------------|-------------------|----------|--------------------+
+           |             |           +----------+   +----------+   Kernel
+           |             |           |  netdev  |   | rdma dev |
+           |             |           +----------+   +----------+
+   (devlink port add/del |              ^               ^
+    port function set)   |              |               |
+           |             |              +---------------|
+      _____|___          |              |        _______|_______
+     |         |         |              |       | mlx5 class    |
+     | devlink |   +------------+       |       |   drivers     |
+     | kernel  |   | rep netdev |       |       |(mlx5_core,ib) |
+     |_________|   +------------+       |       |_______________|
+           |             |              |               ^
+   (devlink ops)         |              |          (probe/remove)
+  _________|________     |              |           ____|________
+ | subfunction      |    |     +---------------+   | subfunction |
+ | management driver|-----     | subfunction   |---|  driver     |
+ | (mlx5_core)      |          | auxiliary dev |   | (mlx5_core) |
+ |__________________|          +---------------+   |_____________|
+           |                                            ^
+  (sf add/del, vhca events)                             |
+           |                                      (device add/del)
+      _____|____                                    ____|________
+     |          |                                  | subfunction |
+     |  PCI NIC |---- activate/deactive events---->| host driver |
+     |__________|                                  | (mlx5_core) |
+                                                   |_____________|
+
+Subfunction is created using devlink port interface.
+
+- Change device to switchdev mode::
+
+    $ devlink dev eswitch set pci/0000:06:00.0 mode switchdev
+
+- Add a devlink port of subfunction flaovur::
+
+    $ devlink port add pci/0000:06:00.0 flavour pcisf pfnum 0 sfnum 88
+    pci/0000:06:00.0/32768: type eth netdev eth6 flavour pcisf controller 0 pfnum 0 sfnum 88 external false splittable false
+      function:
+        hw_addr 00:00:00:00:00:00 state inactive opstate detached
+
+- Show a devlink port of the subfunction::
+
+    $ devlink port show pci/0000:06:00.0/32768
+    pci/0000:06:00.0/32768: type eth netdev enp6s0pf0sf88 flavour pcisf pfnum 0 sfnum 88
+      function:
+        hw_addr 00:00:00:00:00:00 state inactive opstate detached
+
+- Delete a devlink port of subfunction after use::
+
+    $ devlink port del pci/0000:06:00.0/32768
+
+mlx5 function attributes
+========================
+The mlx5 driver provides a mechanism to setup PCI VF/SF function attributes in
+a unified way for SmartNIC and non-SmartNIC.
+
+This is supported only when the eswitch mode is set to switchdev. Port function
+configuration of the PCI VF/SF is supported through devlink eswitch port.
+
+Port function attributes should be set before PCI VF/SF is enumerated by the
+driver.
+
+MAC address setup
+-----------------
+mlx5 driver provides mechanism to setup the MAC address of the PCI VF/SF.
+
+The configured MAC address of the PCI VF/SF will be used by netdevice and rdma
+device created for the PCI VF/SF.
+
+- Get the MAC address of the VF identified by its unique devlink port index::
+
+    $ devlink port show pci/0000:06:00.0/2
+    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
+      function:
+        hw_addr 00:00:00:00:00:00
+
+- Set the MAC address of the VF identified by its unique devlink port index::
+
+    $ devlink port function set pci/0000:06:00.0/2 hw_addr 00:11:22:33:44:55
+
+    $ devlink port show pci/0000:06:00.0/2
+    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
+      function:
+        hw_addr 00:11:22:33:44:55
+
+- Get the MAC address of the SF identified by its unique devlink port index::
+
+    $ devlink port show pci/0000:06:00.0/32768
+    pci/0000:06:00.0/32768: type eth netdev enp6s0pf0sf88 flavour pcisf pfnum 0 sfnum 88
+      function:
+        hw_addr 00:00:00:00:00:00
+
+- Set the MAC address of the VF identified by its unique devlink port index::
+
+    $ devlink port function set pci/0000:06:00.0/32768 hw_addr 00:00:00:00:88:88
+
+    $ devlink port show pci/0000:06:00.0/32768
+    pci/0000:06:00.0/32768: type eth netdev enp6s0pf0sf88 flavour pcivf pfnum 0 sfnum 88
+      function:
+        hw_addr 00:00:00:00:88:88
+
+SF state setup
+--------------
+To use the SF, the user must active the SF using the SF function state
+attribute.
+
+- Get the state of the SF identified by its unique devlink port index::
+
+   $ devlink port show ens2f0npf0sf88
+   pci/0000:06:00.0/32768: type eth netdev ens2f0npf0sf88 flavour pcisf controller 0 pfnum 0 sfnum 88 external false splittable false
+     function:
+       hw_addr 00:00:00:00:88:88 state inactive opstate detached
+
+- Activate the function and verify its state is active::
+
+   $ devlink port function set ens2f0npf0sf88 state active
+
+   $ devlink port show ens2f0npf0sf88
+   pci/0000:06:00.0/32768: type eth netdev ens2f0npf0sf88 flavour pcisf controller 0 pfnum 0 sfnum 88 external false splittable false
+     function:
+       hw_addr 00:00:00:00:88:88 state active opstate detached
+
+Upon function activation, the PF driver instance gets the event from the device
+that a particular SF was activated. It's the cue to put the device on bus, probe
+it and instantiate the devlink instance and class specific auxiliary devices
+for it.
+
+- Show the auxiliary device and port of the subfunction::
+
+    $ devlink dev show
+    devlink dev show auxiliary/mlx5_core.sf.4
+
+    $ devlink port show auxiliary/mlx5_core.sf.4/1
+    auxiliary/mlx5_core.sf.4/1: type eth netdev p0sf88 flavour virtual port 0 splittable false
+
+    $ rdma link show mlx5_0/1
+    link mlx5_0/1 state ACTIVE physical_state LINK_UP netdev p0sf88
+
+    $ rdma dev show
+    8: rocep6s0f1: node_type ca fw 16.29.0550 node_guid 248a:0703:00b3:d113 sys_image_guid 248a:0703:00b3:d112
+    13: mlx5_0: node_type ca fw 16.29.0550 node_guid 0000:00ff:fe00:8888 sys_image_guid 248a:0703:00b3:d112
+
+- Subfunction auxiliary device and class device hierarchy::
+
+                 mlx5_core.sf.4
+          (subfunction auxiliary device)
+                       /\
+                      /  \
+                     /    \
+                    /      \
+                   /        \
+      mlx5_core.eth.4     mlx5_core.rdma.4
+     (sf eth aux dev)     (sf rdma aux dev)
+         |                      |
+         |                      |
+      p0sf88                  mlx5_0
+     (sf netdev)          (sf rdma device)
+
+Additionally, the SF port also gets the event when the driver attaches to the
+auxiliary device of the subfunction. This results in changing the operational
+state of the function. This provides visiblity to the user to decide when is it
+safe to delete the SF port for graceful termination of the subfunction.
+
+- Show the SF port operational state::
+
+    $ devlink port show ens2f0npf0sf88
+    pci/0000:06:00.0/32768: type eth netdev ens2f0npf0sf88 flavour pcisf controller 0 pfnum 0 sfnum 88 external false splittable false
+      function:
+        hw_addr 00:00:00:00:88:88 state active opstate attached
 
 Devlink health reporters
 ========================
@@ -262,6 +543,8 @@ The CR-space dump uses vsc interface which is valid even if the FW command
 interface is not functional, which is the case in most FW fatal errors.
 The recover function runs recover flow which reloads the driver and triggers fw
 reset if needed.
+On firmware error, the health buffer is dumped into the dmesg. The log
+level is derived from the error's severity (given in health buffer).
 
 User commands examples:
 
@@ -319,3 +602,161 @@ tc and eswitch offloads tracepoints:
     $ cat /sys/kernel/debug/tracing/trace
     ...
     kworker/u48:7-2221  [009] ...1  1475.387435: mlx5e_rep_neigh_update: netdev: ens1f0 MAC: 24:8a:07:9a:17:9a IPv4: 1.1.1.10 IPv6: ::ffff:1.1.1.10 neigh_connected=1
+
+Bridge offloads tracepoints:
+
+- mlx5_esw_bridge_fdb_entry_init: trace bridge FDB entry offloaded to mlx5::
+
+    $ echo mlx5:mlx5_esw_bridge_fdb_entry_init >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u20:9-2217    [003] ...1   318.582243: mlx5_esw_bridge_fdb_entry_init: net_device=enp8s0f0_0 addr=e4:fd:05:08:00:02 vid=0 flags=0 used=0
+
+- mlx5_esw_bridge_fdb_entry_cleanup: trace bridge FDB entry deleted from mlx5::
+
+    $ echo mlx5:mlx5_esw_bridge_fdb_entry_cleanup >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    ip-2581    [005] ...1   318.629871: mlx5_esw_bridge_fdb_entry_cleanup: net_device=enp8s0f0_1 addr=e4:fd:05:08:00:03 vid=0 flags=0 used=16
+
+- mlx5_esw_bridge_fdb_entry_refresh: trace bridge FDB entry offload refreshed in
+  mlx5::
+
+    $ echo mlx5:mlx5_esw_bridge_fdb_entry_refresh >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u20:8-3849    [003] ...1       466716: mlx5_esw_bridge_fdb_entry_refresh: net_device=enp8s0f0_0 addr=e4:fd:05:08:00:02 vid=3 flags=0 used=0
+
+- mlx5_esw_bridge_vlan_create: trace bridge VLAN object add on mlx5
+  representor::
+
+    $ echo mlx5:mlx5_esw_bridge_vlan_create >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    ip-2560    [007] ...1   318.460258: mlx5_esw_bridge_vlan_create: vid=1 flags=6
+
+- mlx5_esw_bridge_vlan_cleanup: trace bridge VLAN object delete from mlx5
+  representor::
+
+    $ echo mlx5:mlx5_esw_bridge_vlan_cleanup >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    bridge-2582    [007] ...1   318.653496: mlx5_esw_bridge_vlan_cleanup: vid=2 flags=8
+
+- mlx5_esw_bridge_vport_init: trace mlx5 vport assigned with bridge upper
+  device::
+
+    $ echo mlx5:mlx5_esw_bridge_vport_init >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    ip-2560    [007] ...1   318.458915: mlx5_esw_bridge_vport_init: vport_num=1
+
+- mlx5_esw_bridge_vport_cleanup: trace mlx5 vport removed from bridge upper
+  device::
+
+    $ echo mlx5:mlx5_esw_bridge_vport_cleanup >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    ip-5387    [000] ...1       573713: mlx5_esw_bridge_vport_cleanup: vport_num=1
+
+Eswitch QoS tracepoints:
+
+- mlx5_esw_vport_qos_create: trace creation of transmit scheduler arbiter for vport::
+
+    $ echo mlx5:mlx5_esw_vport_qos_create >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    <...>-23496   [018] .... 73136.838831: mlx5_esw_vport_qos_create: (0000:82:00.0) vport=2 tsar_ix=4 bw_share=0, max_rate=0 group=000000007b576bb3
+
+- mlx5_esw_vport_qos_config: trace configuration of transmit scheduler arbiter for vport::
+
+    $ echo mlx5:mlx5_esw_vport_qos_config >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    <...>-26548   [023] .... 75754.223823: mlx5_esw_vport_qos_config: (0000:82:00.0) vport=1 tsar_ix=3 bw_share=34, max_rate=10000 group=000000007b576bb3
+
+- mlx5_esw_vport_qos_destroy: trace deletion of transmit scheduler arbiter for vport::
+
+    $ echo mlx5:mlx5_esw_vport_qos_destroy >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    <...>-27418   [004] .... 76546.680901: mlx5_esw_vport_qos_destroy: (0000:82:00.0) vport=1 tsar_ix=3
+
+- mlx5_esw_group_qos_create: trace creation of transmit scheduler arbiter for rate group::
+
+    $ echo mlx5:mlx5_esw_group_qos_create >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    <...>-26578   [008] .... 75776.022112: mlx5_esw_group_qos_create: (0000:82:00.0) group=000000008dac63ea tsar_ix=5
+
+- mlx5_esw_group_qos_config: trace configuration of transmit scheduler arbiter for rate group::
+
+    $ echo mlx5:mlx5_esw_group_qos_config >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    <...>-27303   [020] .... 76461.455356: mlx5_esw_group_qos_config: (0000:82:00.0) group=000000008dac63ea tsar_ix=5 bw_share=100 max_rate=20000
+
+- mlx5_esw_group_qos_destroy: trace deletion of transmit scheduler arbiter for group::
+
+    $ echo mlx5:mlx5_esw_group_qos_destroy >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    <...>-27418   [006] .... 76547.187258: mlx5_esw_group_qos_destroy: (0000:82:00.0) group=000000007b576bb3 tsar_ix=1
+
+SF tracepoints:
+
+- mlx5_sf_add: trace addition of the SF port::
+
+    $ echo mlx5:mlx5_sf_add >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-9363    [031] ..... 24610.188722: mlx5_sf_add: (0000:06:00.0) port_index=32768 controller=0 hw_id=0x8000 sfnum=88
+
+- mlx5_sf_free: trace freeing of the SF port::
+
+    $ echo mlx5:mlx5_sf_free >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-9830    [038] ..... 26300.404749: mlx5_sf_free: (0000:06:00.0) port_index=32768 controller=0 hw_id=0x8000
+
+- mlx5_sf_hwc_alloc: trace allocating of the hardware SF context::
+
+    $ echo mlx5:mlx5_sf_hwc_alloc >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-9775    [031] ..... 26296.385259: mlx5_sf_hwc_alloc: (0000:06:00.0) controller=0 hw_id=0x8000 sfnum=88
+
+- mlx5_sf_hwc_free: trace freeing of the hardware SF context::
+
+    $ echo mlx5:mlx5_sf_hwc_free >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u128:3-9093    [046] ..... 24625.365771: mlx5_sf_hwc_free: (0000:06:00.0) hw_id=0x8000
+
+- mlx5_sf_hwc_deferred_free : trace deferred freeing of the hardware SF context::
+
+    $ echo mlx5:mlx5_sf_hwc_deferred_free >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-9519    [046] ..... 24624.400271: mlx5_sf_hwc_deferred_free: (0000:06:00.0) hw_id=0x8000
+
+- mlx5_sf_vhca_event: trace SF vhca event and state::
+
+    $ echo mlx5:mlx5_sf_vhca_event >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u128:3-9093    [046] ..... 24625.365525: mlx5_sf_vhca_event: (0000:06:00.0) hw_id=0x8000 sfnum=88 vhca_state=1
+
+- mlx5_sf_dev_add : trace SF device add event::
+
+    $ echo mlx5:mlx5_sf_dev_add>> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u128:3-9093    [000] ..... 24616.524495: mlx5_sf_dev_add: (0000:06:00.0) sfdev=00000000fc5d96fd aux_id=4 hw_id=0x8000 sfnum=88
+
+- mlx5_sf_dev_del : trace SF device delete event::
+
+    $ echo mlx5:mlx5_sf_dev_del >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u128:3-9093    [044] ..... 24624.400749: mlx5_sf_dev_del: (0000:06:00.0) sfdev=00000000fc5d96fd aux_id=4 hw_id=0x8000 sfnum=88

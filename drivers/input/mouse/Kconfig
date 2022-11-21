@@ -372,7 +372,7 @@ config MOUSE_VSXXXAA
 	select SERIO
 	help
 	  Say Y (or M) if you want to use a DEC VSXXX-AA (hockey
-	  puck) or a VSXXX-GA (rectangular) mouse. Theses mice are
+	  puck) or a VSXXX-GA (rectangular) mouse. These mice are
 	  typically used on DECstations or VAXstations, but can also
 	  be used on any box capable of RS232 (with some adaptor
 	  described in the source file). This driver also works with the

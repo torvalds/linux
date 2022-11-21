@@ -261,6 +261,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 	r->idiag_state = sk->sk_state;
 	r->idiag_timer = 0;
 	r->idiag_retrans = 0;
+	r->idiag_expires = 0;
 
 	if (inet_diag_msg_attrs_fill(sk, skb, r, ext,
 				     sk_user_ns(NETLINK_CB(cb->skb).sk),
@@ -271,7 +272,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		struct inet_diag_meminfo minfo = {
 			.idiag_rmem = sk_rmem_alloc_get(sk),
 			.idiag_wmem = READ_ONCE(sk->sk_wmem_queued),
-			.idiag_fmem = sk->sk_forward_alloc,
+			.idiag_fmem = sk_forward_alloc_get(sk),
 			.idiag_tmem = sk_wmem_alloc_get(sk),
 		};
 
@@ -314,9 +315,6 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		r->idiag_retrans = icsk->icsk_probes_out;
 		r->idiag_expires =
 			jiffies_delta_to_msecs(sk->sk_timer.expires - jiffies);
-	} else {
-		r->idiag_timer = 0;
-		r->idiag_expires = 0;
 	}
 
 	if ((ext & (1 << (INET_DIAG_INFO - 1))) && handler->idiag_info_size) {
@@ -416,7 +414,7 @@ EXPORT_SYMBOL_GPL(inet_sk_diag_fill);
 static int inet_twsk_diag_fill(struct sock *sk,
 			       struct sk_buff *skb,
 			       struct netlink_callback *cb,
-			       u16 nlmsg_flags)
+			       u16 nlmsg_flags, bool net_admin)
 {
 	struct inet_timewait_sock *tw = inet_twsk(sk);
 	struct inet_diag_msg *r;
@@ -443,6 +441,12 @@ static int inet_twsk_diag_fill(struct sock *sk,
 	r->idiag_wqueue	      = 0;
 	r->idiag_uid	      = 0;
 	r->idiag_inode	      = 0;
+
+	if (net_admin && nla_put_u32(skb, INET_DIAG_MARK,
+				     tw->tw_mark)) {
+		nlmsg_cancel(skb, nlh);
+		return -EMSGSIZE;
+	}
 
 	nlmsg_end(skb, nlh);
 	return 0;
@@ -494,7 +498,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 			u16 nlmsg_flags, bool net_admin)
 {
 	if (sk->sk_state == TCP_TIME_WAIT)
-		return inet_twsk_diag_fill(sk, skb, cb, nlmsg_flags);
+		return inet_twsk_diag_fill(sk, skb, cb, nlmsg_flags, net_admin);
 
 	if (sk->sk_state == TCP_NEW_SYN_RECV)
 		return inet_req_diag_fill(sk, skb, cb, nlmsg_flags, net_admin);
@@ -574,10 +578,7 @@ int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo,
 		nlmsg_free(rep);
 		goto out;
 	}
-	err = netlink_unicast(net->diag_nlsk, rep, NETLINK_CB(in_skb).portid,
-			      MSG_DONTWAIT);
-	if (err > 0)
-		err = 0;
+	err = nlmsg_unicast(net->diag_nlsk, rep, NETLINK_CB(in_skb).portid);
 
 out:
 	if (sk)
@@ -801,6 +802,8 @@ int inet_diag_bc_sk(const struct nlattr *bc, struct sock *sk)
 		entry.mark = sk->sk_mark;
 	else if (sk->sk_state == TCP_NEW_SYN_RECV)
 		entry.mark = inet_rsk(inet_reqsk(sk))->ir_mark;
+	else if (sk->sk_state == TCP_TIME_WAIT)
+		entry.mark = inet_twsk(sk)->tw_mark;
 	else
 		entry.mark = 0;
 #ifdef CONFIG_SOCK_CGROUP_DATA

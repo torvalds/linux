@@ -112,7 +112,7 @@ static void assert_uverbs_usecnt(struct ib_uobject *uobj,
  * however the type's allocat_commit function cannot have been called and the
  * uobject cannot be on the uobjects_lists
  *
- * For RDMA_REMOVE_DESTROY the caller shold be holding a kref (eg via
+ * For RDMA_REMOVE_DESTROY the caller should be holding a kref (eg via
  * rdma_lookup_get_uobject) and the object is left in a state where the caller
  * needs to call rdma_lookup_put_uobject.
  *
@@ -137,15 +137,9 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 	} else if (uobj->object) {
 		ret = uobj->uapi_object->type_class->destroy_hw(uobj, reason,
 								attrs);
-		if (ret) {
-			if (ib_is_destroy_retryable(ret, reason, uobj))
-				return ret;
-
-			/* Nothing to be done, dangle the memory and move on */
-			WARN(true,
-			     "ib_uverbs: failed to remove uobject id %d, driver err=%d",
-			     uobj->id, ret);
-		}
+		if (ret)
+			/* Nothing to be done, wait till ucontext will clean it */
+			return ret;
 
 		uobj->object = NULL;
 	}
@@ -543,12 +537,7 @@ static int __must_check destroy_hw_idr_uobject(struct ib_uobject *uobj,
 			     struct uverbs_obj_idr_type, type);
 	int ret = idr_type->destroy_object(uobj, why, attrs);
 
-	/*
-	 * We can only fail gracefully if the user requested to destroy the
-	 * object or when a retry may be called upon an error.
-	 * In the rest of the cases, just remove whatever you can.
-	 */
-	if (ib_is_destroy_retryable(ret, why, uobj))
+	if (ret)
 		return ret;
 
 	if (why == RDMA_REMOVE_ABORT)
@@ -581,11 +570,8 @@ static int __must_check destroy_hw_fd_uobject(struct ib_uobject *uobj,
 {
 	const struct uverbs_obj_fd_type *fd_type = container_of(
 		uobj->uapi_object->type_attrs, struct uverbs_obj_fd_type, type);
-	int ret = fd_type->destroy_object(uobj, why);
 
-	if (ib_is_destroy_retryable(ret, why, uobj))
-		return ret;
-
+	fd_type->destroy_object(uobj, why);
 	return 0;
 }
 
@@ -606,6 +592,27 @@ static void alloc_commit_idr_uobject(struct ib_uobject *uobj)
 	 * It will be put by remove_commit_idr_uobject()
 	 */
 	old = xa_store(&ufile->idr, uobj->id, uobj, GFP_KERNEL);
+	WARN_ON(old != NULL);
+}
+
+static void swap_idr_uobjects(struct ib_uobject *obj_old,
+			     struct ib_uobject *obj_new)
+{
+	struct ib_uverbs_file *ufile = obj_old->ufile;
+	void *old;
+
+	/*
+	 * New must be an object that been allocated but not yet committed, this
+	 * moves the pre-committed state to obj_old, new still must be comitted.
+	 */
+	old = xa_cmpxchg(&ufile->idr, obj_old->id, obj_old, XA_ZERO_ENTRY,
+			 GFP_KERNEL);
+	if (WARN_ON(old != obj_old))
+		return;
+
+	swap(obj_old->id, obj_new->id);
+
+	old = xa_cmpxchg(&ufile->idr, obj_old->id, NULL, obj_old, GFP_KERNEL);
 	WARN_ON(old != NULL);
 }
 
@@ -652,6 +659,35 @@ void rdma_alloc_commit_uobject(struct ib_uobject *uobj,
 
 	/* Matches the down_read in rdma_alloc_begin_uobject */
 	up_read(&ufile->hw_destroy_rwsem);
+}
+
+/*
+ * new_uobj will be assigned to the handle currently used by to_uobj, and
+ * to_uobj will be destroyed.
+ *
+ * Upon return the caller must do:
+ *    rdma_alloc_commit_uobject(new_uobj)
+ *    uobj_put_destroy(to_uobj)
+ *
+ * to_uobj must have a write get but the put mode switches to destroy once
+ * this is called.
+ */
+void rdma_assign_uobject(struct ib_uobject *to_uobj, struct ib_uobject *new_uobj,
+			struct uverbs_attr_bundle *attrs)
+{
+	assert_uverbs_usecnt(new_uobj, UVERBS_LOOKUP_WRITE);
+
+	if (WARN_ON(to_uobj->uapi_object != new_uobj->uapi_object ||
+		    !to_uobj->uapi_object->type_class->swap_uobjects))
+		return;
+
+	to_uobj->uapi_object->type_class->swap_uobjects(to_uobj, new_uobj);
+
+	/*
+	 * If this fails then the uobject is still completely valid (though with
+	 * a new ID) and we leak it until context close.
+	 */
+	uverbs_destroy_uobject(to_uobj, RDMA_REMOVE_DESTROY, attrs);
 }
 
 /*
@@ -761,6 +797,7 @@ const struct uverbs_obj_type_class uverbs_idr_class = {
 	.lookup_put = lookup_put_idr_uobject,
 	.destroy_hw = destroy_hw_idr_uobject,
 	.remove_handle = remove_handle_idr_uobject,
+	.swap_uobjects = swap_idr_uobjects,
 };
 EXPORT_SYMBOL(uverbs_idr_class);
 
@@ -863,16 +900,23 @@ static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 		 * racing with a lookup_get.
 		 */
 		WARN_ON(uverbs_try_lock_object(obj, UVERBS_LOOKUP_WRITE));
+		if (reason == RDMA_REMOVE_DRIVER_FAILURE)
+			obj->object = NULL;
 		if (!uverbs_destroy_uobject(obj, reason, &attrs))
 			ret = 0;
 		else
 			atomic_set(&obj->usecnt, 0);
 	}
+
+	if (reason == RDMA_REMOVE_DRIVER_FAILURE) {
+		WARN_ON(!list_empty(&ufile->uobjects));
+		return 0;
+	}
 	return ret;
 }
 
 /*
- * Destroy the uncontext and every uobject associated with it.
+ * Destroy the ucontext and every uobject associated with it.
  *
  * This is internally locked and can be called in parallel from multiple
  * contexts.
@@ -889,21 +933,12 @@ void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 	if (!ufile->ucontext)
 		goto done;
 
-	ufile->ucontext->cleanup_retryable = true;
-	while (!list_empty(&ufile->uobjects))
-		if (__uverbs_cleanup_ufile(ufile, reason)) {
-			/*
-			 * No entry was cleaned-up successfully during this
-			 * iteration. It is a driver bug to fail destruction.
-			 */
-			WARN_ON(!list_empty(&ufile->uobjects));
-			break;
-		}
+	while (!list_empty(&ufile->uobjects) &&
+	       !__uverbs_cleanup_ufile(ufile, reason)) {
+	}
 
-	ufile->ucontext->cleanup_retryable = false;
-	if (!list_empty(&ufile->uobjects))
-		__uverbs_cleanup_ufile(ufile, reason);
-
+	if (WARN_ON(!list_empty(&ufile->uobjects)))
+		__uverbs_cleanup_ufile(ufile, RDMA_REMOVE_DRIVER_FAILURE);
 	ufile_destroy_ucontext(ufile, reason);
 
 done:

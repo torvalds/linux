@@ -1,7 +1,7 @@
 /*
  * Linux driver for VMware's vmxnet3 ethernet NIC.
  *
- * Copyright (C) 2008-2020, VMware, Inc. All Rights Reserved.
+ * Copyright (C) 2008-2021, VMware, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -26,6 +26,10 @@
 
 
 #include "vmxnet3_int.h"
+#include <net/vxlan.h>
+#include <net/geneve.h>
+
+#define VXLAN_UDP_PORT 8472
 
 struct vmxnet3_stat_desc {
 	char desc[ETH_GSTRING_LEN];
@@ -218,43 +222,28 @@ vmxnet3_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 static void
 vmxnet3_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
 {
-	 struct vmxnet3_adapter *adapter = netdev_priv(netdev);
-	if (stringset == ETH_SS_STATS) {
-		int i, j;
-		for (j = 0; j < adapter->num_tx_queues; j++) {
-			for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_dev_stats); i++) {
-				memcpy(buf, vmxnet3_tq_dev_stats[i].desc,
-				       ETH_GSTRING_LEN);
-				buf += ETH_GSTRING_LEN;
-			}
-			for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_driver_stats);
-			     i++) {
-				memcpy(buf, vmxnet3_tq_driver_stats[i].desc,
-				       ETH_GSTRING_LEN);
-				buf += ETH_GSTRING_LEN;
-			}
-		}
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	int i, j;
 
-		for (j = 0; j < adapter->num_rx_queues; j++) {
-			for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_dev_stats); i++) {
-				memcpy(buf, vmxnet3_rq_dev_stats[i].desc,
-				       ETH_GSTRING_LEN);
-				buf += ETH_GSTRING_LEN;
-			}
-			for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_driver_stats);
-			     i++) {
-				memcpy(buf, vmxnet3_rq_driver_stats[i].desc,
-				       ETH_GSTRING_LEN);
-				buf += ETH_GSTRING_LEN;
-			}
-		}
+	if (stringset != ETH_SS_STATS)
+		return;
 
-		for (i = 0; i < ARRAY_SIZE(vmxnet3_global_stats); i++) {
-			memcpy(buf, vmxnet3_global_stats[i].desc,
-				ETH_GSTRING_LEN);
-			buf += ETH_GSTRING_LEN;
-		}
+	for (j = 0; j < adapter->num_tx_queues; j++) {
+		for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_dev_stats); i++)
+			ethtool_sprintf(&buf, vmxnet3_tq_dev_stats[i].desc);
+		for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_driver_stats); i++)
+			ethtool_sprintf(&buf, vmxnet3_tq_driver_stats[i].desc);
 	}
+
+	for (j = 0; j < adapter->num_rx_queues; j++) {
+		for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_dev_stats); i++)
+			ethtool_sprintf(&buf, vmxnet3_rq_dev_stats[i].desc);
+		for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_driver_stats); i++)
+			ethtool_sprintf(&buf, vmxnet3_rq_driver_stats[i].desc);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(vmxnet3_global_stats); i++)
+		ethtool_sprintf(&buf, vmxnet3_global_stats[i].desc);
 }
 
 netdev_features_t vmxnet3_fix_features(struct net_device *netdev,
@@ -277,6 +266,8 @@ netdev_features_t vmxnet3_features_check(struct sk_buff *skb,
 	if (VMXNET3_VERSION_GE_4(adapter) &&
 	    skb->encapsulation && skb->ip_summed == CHECKSUM_PARTIAL) {
 		u8 l4_proto = 0;
+		u16 port;
+		struct udphdr *udph;
 
 		switch (vlan_get_protocol(skb)) {
 		case htons(ETH_P_IP):
@@ -289,8 +280,20 @@ netdev_features_t vmxnet3_features_check(struct sk_buff *skb,
 			return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 		}
 
-		if (l4_proto != IPPROTO_UDP)
+		switch (l4_proto) {
+		case IPPROTO_UDP:
+			udph = udp_hdr(skb);
+			port = be16_to_cpu(udph->dest);
+			/* Check if offloaded port is supported */
+			if (port != GENEVE_UDP_PORT &&
+			    port != IANA_VXLAN_UDP_PORT &&
+			    port != VXLAN_UDP_PORT) {
+				return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
+			}
+			break;
+		default:
 			return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
+		}
 	}
 	return features;
 }
@@ -572,10 +575,11 @@ vmxnet3_get_link_ksettings(struct net_device *netdev,
 	return 0;
 }
 
-
 static void
 vmxnet3_get_ringparam(struct net_device *netdev,
-		      struct ethtool_ringparam *param)
+		      struct ethtool_ringparam *param,
+		      struct kernel_ethtool_ringparam *kernel_param,
+		      struct netlink_ext_ack *extack)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 
@@ -592,10 +596,11 @@ vmxnet3_get_ringparam(struct net_device *netdev,
 	param->rx_jumbo_pending = adapter->rx_ring2_size;
 }
 
-
 static int
 vmxnet3_set_ringparam(struct net_device *netdev,
-		      struct ethtool_ringparam *param)
+		      struct ethtool_ringparam *param,
+		      struct kernel_ethtool_ringparam *kernel_param,
+		      struct netlink_ext_ack *extack)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	u32 new_tx_ring_size, new_rx_ring_size, new_rx_ring2_size;
@@ -784,6 +789,10 @@ vmxnet3_get_rss_hash_opts(struct vmxnet3_adapter *adapter,
 	case AH_ESP_V6_FLOW:
 	case AH_V6_FLOW:
 	case ESP_V6_FLOW:
+		if (VMXNET3_VERSION_GE_6(adapter) &&
+		    (rss_fields & VMXNET3_RSS_FIELDS_ESPIP6))
+			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		fallthrough;
 	case SCTP_V6_FLOW:
 	case IPV6_FLOW:
 		info->data |= RXH_IP_SRC | RXH_IP_DST;
@@ -868,6 +877,22 @@ vmxnet3_set_rss_hash_opt(struct net_device *netdev,
 	case ESP_V6_FLOW:
 	case AH_V6_FLOW:
 	case AH_ESP_V6_FLOW:
+		if (!VMXNET3_VERSION_GE_6(adapter))
+			return -EOPNOTSUPP;
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST))
+			return -EINVAL;
+		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+		case 0:
+			rss_fields &= ~VMXNET3_RSS_FIELDS_ESPIP6;
+			break;
+		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+			rss_fields |= VMXNET3_RSS_FIELDS_ESPIP6;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
 	case SCTP_V4_FLOW:
 	case SCTP_V6_FLOW:
 		if (!(nfc->data & RXH_IP_SRC) ||
@@ -1030,8 +1055,10 @@ vmxnet3_set_rss(struct net_device *netdev, const u32 *p, const u8 *key,
 }
 #endif
 
-static int
-vmxnet3_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec)
+static int vmxnet3_get_coalesce(struct net_device *netdev,
+				struct ethtool_coalesce *ec,
+				struct kernel_ethtool_coalesce *kernel_coal,
+				struct netlink_ext_ack *extack)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 
@@ -1065,8 +1092,10 @@ vmxnet3_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec)
 	return 0;
 }
 
-static int
-vmxnet3_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec)
+static int vmxnet3_set_coalesce(struct net_device *netdev,
+				struct ethtool_coalesce *ec,
+				struct kernel_ethtool_coalesce *kernel_coal,
+				struct netlink_ext_ack *extack)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	struct Vmxnet3_DriverShared *shared = adapter->shared;
@@ -1107,9 +1136,8 @@ vmxnet3_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec)
 	}
 
 	if (ec->use_adaptive_rx_coalesce != 0) {
-		if ((ec->rx_coalesce_usecs != 0) ||
-		    (ec->tx_max_coalesced_frames != 0) ||
-		    (ec->rx_max_coalesced_frames != 0)) {
+		if (ec->tx_max_coalesced_frames != 0 ||
+		    ec->rx_max_coalesced_frames != 0) {
 			return -EINVAL;
 		}
 		memset(adapter->coal_conf, 0, sizeof(*adapter->coal_conf));
@@ -1119,11 +1147,6 @@ vmxnet3_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec)
 
 	if ((ec->tx_max_coalesced_frames != 0) ||
 	    (ec->rx_max_coalesced_frames != 0)) {
-		if ((ec->rx_coalesce_usecs != 0) ||
-		    (ec->use_adaptive_rx_coalesce != 0)) {
-			return -EINVAL;
-		}
-
 		if ((ec->tx_max_coalesced_frames >
 		    VMXNET3_COAL_STATIC_MAX_DEPTH) ||
 		    (ec->rx_max_coalesced_frames >

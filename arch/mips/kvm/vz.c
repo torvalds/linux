@@ -292,9 +292,8 @@ static int kvm_vz_irq_clear_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 	switch (priority) {
 	case MIPS_EXC_INT_TIMER:
 		/*
-		 * Call to kvm_write_c0_guest_compare() clears Cause.TI in
-		 * kvm_mips_emulate_CP0(). Explicitly clear irq associated with
-		 * Cause.IP[IPTI] if GuestCtl2 virtual interrupt register not
+		 * Explicitly clear irq associated with Cause.IP[IPTI]
+		 * if GuestCtl2 virtual interrupt register not
 		 * supported or if not using GuestCtl2 Hardware Clear.
 		 */
 		if (cpu_has_guestctl2) {
@@ -389,7 +388,6 @@ static void _kvm_vz_restore_htimer(struct kvm_vcpu *vcpu,
 				   u32 compare, u32 cause)
 {
 	u32 start_count, after_count;
-	ktime_t freeze_time;
 	unsigned long flags;
 
 	/*
@@ -397,7 +395,7 @@ static void _kvm_vz_restore_htimer(struct kvm_vcpu *vcpu,
 	 * this with interrupts disabled to avoid latency.
 	 */
 	local_irq_save(flags);
-	freeze_time = kvm_mips_freeze_hrtimer(vcpu, &start_count);
+	kvm_mips_freeze_hrtimer(vcpu, &start_count);
 	write_c0_gtoffset(start_count - read_c0_count());
 	local_irq_restore(flags);
 
@@ -460,8 +458,8 @@ void kvm_vz_acquire_htimer(struct kvm_vcpu *vcpu)
 /**
  * _kvm_vz_save_htimer() - Switch to software emulation of guest timer.
  * @vcpu:	Virtual CPU.
- * @compare:	Pointer to write compare value to.
- * @cause:	Pointer to write cause value to.
+ * @out_compare: Pointer to write compare value to.
+ * @out_cause:	Pointer to write cause value to.
  *
  * Save VZ guest timer state and switch to software emulation of guest CP0
  * timer. The hard timer must already be in use, so preemption should be
@@ -1543,11 +1541,14 @@ static int kvm_trap_vz_handle_guest_exit(struct kvm_vcpu *vcpu)
 }
 
 /**
- * kvm_trap_vz_handle_cop_unusuable() - Guest used unusable coprocessor.
+ * kvm_trap_vz_handle_cop_unusable() - Guest used unusable coprocessor.
  * @vcpu:	Virtual CPU context.
  *
  * Handle when the guest attempts to use a coprocessor which hasn't been allowed
  * by the root context.
+ *
+ * Return: value indicating whether to resume the host or the guest
+ * 	   (RESUME_HOST or RESUME_GUEST)
  */
 static int kvm_trap_vz_handle_cop_unusable(struct kvm_vcpu *vcpu)
 {
@@ -1594,6 +1595,9 @@ static int kvm_trap_vz_handle_cop_unusable(struct kvm_vcpu *vcpu)
  *
  * Handle when the guest attempts to use MSA when it is disabled in the root
  * context.
+ *
+ * Return: value indicating whether to resume the host or the guest
+ * 	   (RESUME_HOST or RESUME_GUEST)
  */
 static int kvm_trap_vz_handle_msa_disabled(struct kvm_vcpu *vcpu)
 {
@@ -3211,30 +3215,20 @@ static int kvm_vz_vcpu_setup(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static void kvm_vz_flush_shadow_all(struct kvm *kvm)
+static void kvm_vz_prepare_flush_shadow(struct kvm *kvm)
 {
-	if (cpu_has_guestid) {
-		/* Flush GuestID for each VCPU individually */
-		kvm_flush_remote_tlbs(kvm);
-	} else {
+	if (!cpu_has_guestid) {
 		/*
 		 * For each CPU there is a single GPA ASID used by all VCPUs in
 		 * the VM, so it doesn't make sense for the VCPUs to handle
 		 * invalidation of these ASIDs individually.
 		 *
 		 * Instead mark all CPUs as needing ASID invalidation in
-		 * asid_flush_mask, and just use kvm_flush_remote_tlbs(kvm) to
+		 * asid_flush_mask, and kvm_flush_remote_tlbs(kvm) will
 		 * kick any running VCPUs so they check asid_flush_mask.
 		 */
 		cpumask_setall(&kvm->arch.asid_flush_mask);
-		kvm_flush_remote_tlbs(kvm);
 	}
-}
-
-static void kvm_vz_flush_shadow_memslot(struct kvm *kvm,
-					const struct kvm_memory_slot *slot)
-{
-	kvm_vz_flush_shadow_all(kvm);
 }
 
 static void kvm_vz_vcpu_reenter(struct kvm_vcpu *vcpu)
@@ -3292,8 +3286,7 @@ static struct kvm_mips_callbacks kvm_vz_callbacks = {
 	.vcpu_init = kvm_vz_vcpu_init,
 	.vcpu_uninit = kvm_vz_vcpu_uninit,
 	.vcpu_setup = kvm_vz_vcpu_setup,
-	.flush_shadow_all = kvm_vz_flush_shadow_all,
-	.flush_shadow_memslot = kvm_vz_flush_shadow_memslot,
+	.prepare_flush_shadow = kvm_vz_prepare_flush_shadow,
 	.gva_to_gpa = kvm_vz_gva_to_gpa_cb,
 	.queue_timer_int = kvm_vz_queue_timer_int_cb,
 	.dequeue_timer_int = kvm_vz_dequeue_timer_int_cb,

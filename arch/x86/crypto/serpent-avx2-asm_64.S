@@ -20,16 +20,6 @@
 .Lbswap128_mask:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 
-.section	.rodata.cst16.xts_gf128mul_and_shl1_mask_0, "aM", @progbits, 16
-.align 16
-.Lxts_gf128mul_and_shl1_mask_0:
-	.byte 0x87, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
-
-.section	.rodata.cst16.xts_gf128mul_and_shl1_mask_1, "aM", @progbits, 16
-.align 16
-.Lxts_gf128mul_and_shl1_mask_1:
-	.byte 0x0e, 1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0
-
 .text
 
 #define CTX %rdi
@@ -611,7 +601,7 @@ SYM_FUNC_START_LOCAL(__serpent_enc_blk16)
 	write_blocks(RA1, RB1, RC1, RD1, RK0, RK1, RK2);
 	write_blocks(RA2, RB2, RC2, RD2, RK0, RK1, RK2);
 
-	ret;
+	RET;
 SYM_FUNC_END(__serpent_enc_blk16)
 
 .align 8
@@ -665,7 +655,7 @@ SYM_FUNC_START_LOCAL(__serpent_dec_blk16)
 	write_blocks(RC1, RD1, RB1, RE1, RK0, RK1, RK2);
 	write_blocks(RC2, RD2, RB2, RE2, RK0, RK1, RK2);
 
-	ret;
+	RET;
 SYM_FUNC_END(__serpent_dec_blk16)
 
 SYM_FUNC_START(serpent_ecb_enc_16way)
@@ -687,7 +677,7 @@ SYM_FUNC_START(serpent_ecb_enc_16way)
 	vzeroupper;
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(serpent_ecb_enc_16way)
 
 SYM_FUNC_START(serpent_ecb_dec_16way)
@@ -709,7 +699,7 @@ SYM_FUNC_START(serpent_ecb_dec_16way)
 	vzeroupper;
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(serpent_ecb_dec_16way)
 
 SYM_FUNC_START(serpent_cbc_dec_16way)
@@ -732,82 +722,5 @@ SYM_FUNC_START(serpent_cbc_dec_16way)
 	vzeroupper;
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(serpent_cbc_dec_16way)
-
-SYM_FUNC_START(serpent_ctr_16way)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst (16 blocks)
-	 *	%rdx: src (16 blocks)
-	 *	%rcx: iv (little endian, 128bit)
-	 */
-	FRAME_BEGIN
-
-	vzeroupper;
-
-	load_ctr_16way(%rcx, .Lbswap128_mask, RA1, RB1, RC1, RD1, RA2, RB2, RC2,
-		       RD2, RK0, RK0x, RK1, RK1x, RK2, RK2x, RK3, RK3x, RNOT,
-		       tp);
-
-	call __serpent_enc_blk16;
-
-	store_ctr_16way(%rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
-
-	vzeroupper;
-
-	FRAME_END
-	ret;
-SYM_FUNC_END(serpent_ctr_16way)
-
-SYM_FUNC_START(serpent_xts_enc_16way)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst (16 blocks)
-	 *	%rdx: src (16 blocks)
-	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
-	 */
-	FRAME_BEGIN
-
-	vzeroupper;
-
-	load_xts_16way(%rcx, %rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2,
-		       RD2, RK0, RK0x, RK1, RK1x, RK2, RK2x, RK3, RK3x, RNOT,
-		       .Lxts_gf128mul_and_shl1_mask_0,
-		       .Lxts_gf128mul_and_shl1_mask_1);
-
-	call __serpent_enc_blk16;
-
-	store_xts_16way(%rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
-
-	vzeroupper;
-
-	FRAME_END
-	ret;
-SYM_FUNC_END(serpent_xts_enc_16way)
-
-SYM_FUNC_START(serpent_xts_dec_16way)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst (16 blocks)
-	 *	%rdx: src (16 blocks)
-	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
-	 */
-	FRAME_BEGIN
-
-	vzeroupper;
-
-	load_xts_16way(%rcx, %rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2,
-		       RD2, RK0, RK0x, RK1, RK1x, RK2, RK2x, RK3, RK3x, RNOT,
-		       .Lxts_gf128mul_and_shl1_mask_0,
-		       .Lxts_gf128mul_and_shl1_mask_1);
-
-	call __serpent_dec_blk16;
-
-	store_xts_16way(%rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
-
-	vzeroupper;
-
-	FRAME_END
-	ret;
-SYM_FUNC_END(serpent_xts_dec_16way)

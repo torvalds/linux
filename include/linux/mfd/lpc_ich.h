@@ -8,7 +8,7 @@
 #ifndef LPC_ICH_H
 #define LPC_ICH_H
 
-#include <linux/platform_data/intel-spi.h>
+#include <linux/platform_data/x86/spi-intel.h>
 
 /* GPIO resources */
 #define ICH_RES_GPIO	0

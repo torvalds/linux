@@ -670,7 +670,9 @@ static int params_show(struct seq_file *seq, void *v)
 	struct dwc2_core_params *p = &hsotg->params;
 	int i;
 
-	print_param(seq, p, otg_cap);
+	print_param(seq, p, otg_caps.hnp_support);
+	print_param(seq, p, otg_caps.srp_support);
+	print_param(seq, p, otg_caps.otg_rev);
 	print_param(seq, p, dma_desc_enable);
 	print_param(seq, p, dma_desc_fs_enable);
 	print_param(seq, p, speed);
@@ -691,6 +693,8 @@ static int params_show(struct seq_file *seq, void *v)
 	print_param(seq, p, ulpi_fs_ls);
 	print_param(seq, p, host_support_fs_ls_low_power);
 	print_param(seq, p, host_ls_low_power_phy_clk);
+	print_param(seq, p, activate_stm_fs_transceiver);
+	print_param(seq, p, activate_stm_id_vb_detection);
 	print_param(seq, p, ts_dline);
 	print_param(seq, p, reload_ctl);
 	print_param_hex(seq, p, ahbcfg);

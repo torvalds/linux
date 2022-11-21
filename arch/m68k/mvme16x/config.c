@@ -24,7 +24,6 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <linux/major.h>
-#include <linux/genhd.h>
 #include <linux/rtc.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -37,13 +36,14 @@
 #include <asm/traps.h>
 #include <asm/machdep.h>
 #include <asm/mvme16xhw.h>
+#include <asm/config.h>
 
 extern t_bdid mvme_bdid;
 
 static MK48T08ptr_t volatile rtc = (MK48T08ptr_t)MVME_RTC_BASE;
 
 static void mvme16x_get_model(char *model);
-extern void mvme16x_sched_init(irq_handler_t handler);
+extern void mvme16x_sched_init(void);
 extern int mvme16x_hwclk (int, struct rtc_time *);
 extern void mvme16x_reset (void);
 
@@ -268,7 +268,6 @@ void __init config_mvme16x(void)
     char id[40];
     uint16_t brdno = be16_to_cpu(p->brdno);
 
-    mach_max_dma_address = 0xffffffff;
     mach_sched_init      = mvme16x_sched_init;
     mach_init_IRQ        = mvme16x_init_IRQ;
     mach_hwclk           = mvme16x_hwclk;
@@ -367,37 +366,38 @@ static u32 clk_total;
 #define PCCTOVR1_COC_EN      0x02
 #define PCCTOVR1_OVR_CLR     0x04
 
+#define PCCTIC1_INT_LEVEL    6
 #define PCCTIC1_INT_CLR      0x08
 #define PCCTIC1_INT_EN       0x10
 
 static irqreturn_t mvme16x_timer_int (int irq, void *dev_id)
 {
-	irq_handler_t timer_routine = dev_id;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	out_8(PCCTIC1, in_8(PCCTIC1) | PCCTIC1_INT_CLR);
-	out_8(PCCTOVR1, PCCTOVR1_OVR_CLR);
+	out_8(PCCTOVR1, PCCTOVR1_OVR_CLR | PCCTOVR1_TIC_EN | PCCTOVR1_COC_EN);
+	out_8(PCCTIC1, PCCTIC1_INT_EN | PCCTIC1_INT_CLR | PCCTIC1_INT_LEVEL);
 	clk_total += PCC_TIMER_CYCLES;
-	timer_routine(0, NULL);
+	legacy_timer_tick(1);
 	local_irq_restore(flags);
 
 	return IRQ_HANDLED;
 }
 
-void mvme16x_sched_init (irq_handler_t timer_routine)
+void mvme16x_sched_init(void)
 {
     uint16_t brdno = be16_to_cpu(mvme_bdid.brdno);
     int irq;
 
     /* Using PCCchip2 or MC2 chip tick timer 1 */
+    if (request_irq(MVME16x_IRQ_TIMER, mvme16x_timer_int, IRQF_TIMER, "timer",
+                    NULL))
+	panic ("Couldn't register timer int");
+
     out_be32(PCCTCNT1, 0);
     out_be32(PCCTCMP1, PCC_TIMER_CYCLES);
-    out_8(PCCTOVR1, in_8(PCCTOVR1) | PCCTOVR1_TIC_EN | PCCTOVR1_COC_EN);
-    out_8(PCCTIC1, PCCTIC1_INT_EN | 6);
-    if (request_irq(MVME16x_IRQ_TIMER, mvme16x_timer_int, IRQF_TIMER, "timer",
-                    timer_routine))
-	panic ("Couldn't register timer int");
+    out_8(PCCTOVR1, PCCTOVR1_OVR_CLR | PCCTOVR1_TIC_EN | PCCTOVR1_COC_EN);
+    out_8(PCCTIC1, PCCTIC1_INT_EN | PCCTIC1_INT_CLR | PCCTIC1_INT_LEVEL);
 
     clocksource_register_hz(&mvme16x_clk, PCC_TIMER_CLOCK_FREQ);
 
@@ -436,7 +436,6 @@ int bcd2int (unsigned char b)
 
 int mvme16x_hwclk(int op, struct rtc_time *t)
 {
-#warning check me!
 	if (!op) {
 		rtc->ctrl = RTC_READ;
 		t->tm_year = bcd2int (rtc->bcd_year);
@@ -448,6 +447,9 @@ int mvme16x_hwclk(int op, struct rtc_time *t)
 		rtc->ctrl = 0;
 		if (t->tm_year < 70)
 			t->tm_year += 100;
+	} else {
+		/* FIXME Setting the time is not yet supported */
+		return -EOPNOTSUPP;
 	}
 	return 0;
 }

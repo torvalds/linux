@@ -13,9 +13,13 @@
 #include <linux/dmi.h>
 #include <linux/io.h>
 #include <linux/smp.h>
+#include <linux/spinlock.h>
 #include <asm/io_apic.h>
 #include <linux/irq.h>
 #include <linux/acpi.h>
+
+#include <asm/i8259.h>
+#include <asm/pc-conf-reg.h>
 #include <asm/pci_x86.h>
 
 #define PIRQ_SIGNATURE	(('$' << 0) + ('P' << 8) + ('I' << 16) + ('R' << 24))
@@ -47,6 +51,8 @@ struct irq_router {
 	int (*get)(struct pci_dev *router, struct pci_dev *dev, int pirq);
 	int (*set)(struct pci_dev *router, struct pci_dev *dev, int pirq,
 		int new);
+	int (*lvl)(struct pci_dev *router, struct pci_dev *dev, int pirq,
+		int irq);
 };
 
 struct irq_router_handler {
@@ -153,7 +159,7 @@ static void __init pirq_peer_trick(void)
 void elcr_set_level_irq(unsigned int irq)
 {
 	unsigned char mask = 1 << (irq & 7);
-	unsigned int port = 0x4d0 + (irq >> 3);
+	unsigned int port = PIC_ELCR1 + (irq >> 3);
 	unsigned char val;
 	static u16 elcr_irq_mask;
 
@@ -167,6 +173,139 @@ void elcr_set_level_irq(unsigned int irq)
 		DBG(KERN_DEBUG " -> edge");
 		outb(val | mask, port);
 	}
+}
+
+/*
+ *	PIRQ routing for the M1487 ISA Bus Controller (IBC) ASIC used
+ *	with the ALi FinALi 486 chipset.  The IBC is not decoded in the
+ *	PCI configuration space, so we identify it by the accompanying
+ *	M1489 Cache-Memory PCI Controller (CMP) ASIC.
+ *
+ *	There are four 4-bit mappings provided, spread across two PCI
+ *	INTx Routing Table Mapping Registers, available in the port I/O
+ *	space accessible indirectly via the index/data register pair at
+ *	0x22/0x23, located at indices 0x42 and 0x43 for the INT1/INT2
+ *	and INT3/INT4 lines respectively.  The INT1/INT3 and INT2/INT4
+ *	lines are mapped in the low and the high 4-bit nibble of the
+ *	corresponding register as follows:
+ *
+ *	0000 : Disabled
+ *	0001 : IRQ9
+ *	0010 : IRQ3
+ *	0011 : IRQ10
+ *	0100 : IRQ4
+ *	0101 : IRQ5
+ *	0110 : IRQ7
+ *	0111 : IRQ6
+ *	1000 : Reserved
+ *	1001 : IRQ11
+ *	1010 : Reserved
+ *	1011 : IRQ12
+ *	1100 : Reserved
+ *	1101 : IRQ14
+ *	1110 : Reserved
+ *	1111 : IRQ15
+ *
+ *	In addition to the usual ELCR register pair there is a separate
+ *	PCI INTx Sensitivity Register at index 0x44 in the same port I/O
+ *	space, whose bits 3:0 select the trigger mode for INT[4:1] lines
+ *	respectively.  Any bit set to 1 causes interrupts coming on the
+ *	corresponding line to be passed to ISA as edge-triggered and
+ *	otherwise they are passed as level-triggered.  Manufacturer's
+ *	documentation says this register has to be set consistently with
+ *	the relevant ELCR register.
+ *
+ *	Accesses to the port I/O space concerned here need to be unlocked
+ *	by writing the value of 0xc5 to the Lock Register at index 0x03
+ *	beforehand.  Any other value written to said register prevents
+ *	further accesses from reaching the register file, except for the
+ *	Lock Register being written with 0xc5 again.
+ *
+ *	References:
+ *
+ *	"M1489/M1487: 486 PCI Chip Set", Version 1.2, Acer Laboratories
+ *	Inc., July 1997
+ */
+
+#define PC_CONF_FINALI_LOCK		0x03u
+#define PC_CONF_FINALI_PCI_INTX_RT1	0x42u
+#define PC_CONF_FINALI_PCI_INTX_RT2	0x43u
+#define PC_CONF_FINALI_PCI_INTX_SENS	0x44u
+
+#define PC_CONF_FINALI_LOCK_KEY		0xc5u
+
+static u8 read_pc_conf_nybble(u8 base, u8 index)
+{
+	u8 reg = base + (index >> 1);
+	u8 x;
+
+	x = pc_conf_get(reg);
+	return index & 1 ? x >> 4 : x & 0xf;
+}
+
+static void write_pc_conf_nybble(u8 base, u8 index, u8 val)
+{
+	u8 reg = base + (index >> 1);
+	u8 x;
+
+	x = pc_conf_get(reg);
+	x = index & 1 ? (x & 0x0f) | (val << 4) : (x & 0xf0) | val;
+	pc_conf_set(reg, x);
+}
+
+static int pirq_finali_get(struct pci_dev *router, struct pci_dev *dev,
+			   int pirq)
+{
+	static const u8 irqmap[16] = {
+		0, 9, 3, 10, 4, 5, 7, 6, 0, 11, 0, 12, 0, 14, 0, 15
+	};
+	unsigned long flags;
+	u8 x;
+
+	raw_spin_lock_irqsave(&pc_conf_lock, flags);
+	pc_conf_set(PC_CONF_FINALI_LOCK, PC_CONF_FINALI_LOCK_KEY);
+	x = irqmap[read_pc_conf_nybble(PC_CONF_FINALI_PCI_INTX_RT1, pirq - 1)];
+	pc_conf_set(PC_CONF_FINALI_LOCK, 0);
+	raw_spin_unlock_irqrestore(&pc_conf_lock, flags);
+	return x;
+}
+
+static int pirq_finali_set(struct pci_dev *router, struct pci_dev *dev,
+			   int pirq, int irq)
+{
+	static const u8 irqmap[16] = {
+		0, 0, 0, 2, 4, 5, 7, 6, 0, 1, 3, 9, 11, 0, 13, 15
+	};
+	u8 val = irqmap[irq];
+	unsigned long flags;
+
+	if (!val)
+		return 0;
+
+	raw_spin_lock_irqsave(&pc_conf_lock, flags);
+	pc_conf_set(PC_CONF_FINALI_LOCK, PC_CONF_FINALI_LOCK_KEY);
+	write_pc_conf_nybble(PC_CONF_FINALI_PCI_INTX_RT1, pirq - 1, val);
+	pc_conf_set(PC_CONF_FINALI_LOCK, 0);
+	raw_spin_unlock_irqrestore(&pc_conf_lock, flags);
+	return 1;
+}
+
+static int pirq_finali_lvl(struct pci_dev *router, struct pci_dev *dev,
+			   int pirq, int irq)
+{
+	u8 mask = ~(1u << (pirq - 1));
+	unsigned long flags;
+	u8 trig;
+
+	elcr_set_level_irq(irq);
+	raw_spin_lock_irqsave(&pc_conf_lock, flags);
+	pc_conf_set(PC_CONF_FINALI_LOCK, PC_CONF_FINALI_LOCK_KEY);
+	trig = pc_conf_get(PC_CONF_FINALI_PCI_INTX_SENS);
+	trig &= mask;
+	pc_conf_set(PC_CONF_FINALI_PCI_INTX_SENS, trig);
+	pc_conf_set(PC_CONF_FINALI_LOCK, 0);
+	raw_spin_unlock_irqrestore(&pc_conf_lock, flags);
+	return 1;
 }
 
 /*
@@ -220,6 +359,74 @@ static int pirq_ali_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
 }
 
 /*
+ *	PIRQ routing for the 82374EB/82374SB EISA System Component (ESC)
+ *	ASIC used with the Intel 82420 and 82430 PCIsets.  The ESC is not
+ *	decoded in the PCI configuration space, so we identify it by the
+ *	accompanying 82375EB/82375SB PCI-EISA Bridge (PCEB) ASIC.
+ *
+ *	There are four PIRQ Route Control registers, available in the
+ *	port I/O space accessible indirectly via the index/data register
+ *	pair at 0x22/0x23, located at indices 0x60/0x61/0x62/0x63 for the
+ *	PIRQ0/1/2/3# lines respectively.  The semantics is the same as
+ *	with the PIIX router.
+ *
+ *	Accesses to the port I/O space concerned here need to be unlocked
+ *	by writing the value of 0x0f to the ESC ID Register at index 0x02
+ *	beforehand.  Any other value written to said register prevents
+ *	further accesses from reaching the register file, except for the
+ *	ESC ID Register being written with 0x0f again.
+ *
+ *	References:
+ *
+ *	"82374EB/82374SB EISA System Component (ESC)", Intel Corporation,
+ *	Order Number: 290476-004, March 1996
+ *
+ *	"82375EB/82375SB PCI-EISA Bridge (PCEB)", Intel Corporation, Order
+ *	Number: 290477-004, March 1996
+ */
+
+#define PC_CONF_I82374_ESC_ID			0x02u
+#define PC_CONF_I82374_PIRQ_ROUTE_CONTROL	0x60u
+
+#define PC_CONF_I82374_ESC_ID_KEY		0x0fu
+
+static int pirq_esc_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
+{
+	unsigned long flags;
+	int reg;
+	u8 x;
+
+	reg = pirq;
+	if (reg >= 1 && reg <= 4)
+		reg += PC_CONF_I82374_PIRQ_ROUTE_CONTROL - 1;
+
+	raw_spin_lock_irqsave(&pc_conf_lock, flags);
+	pc_conf_set(PC_CONF_I82374_ESC_ID, PC_CONF_I82374_ESC_ID_KEY);
+	x = pc_conf_get(reg);
+	pc_conf_set(PC_CONF_I82374_ESC_ID, 0);
+	raw_spin_unlock_irqrestore(&pc_conf_lock, flags);
+	return (x < 16) ? x : 0;
+}
+
+static int pirq_esc_set(struct pci_dev *router, struct pci_dev *dev, int pirq,
+		       int irq)
+{
+	unsigned long flags;
+	int reg;
+
+	reg = pirq;
+	if (reg >= 1 && reg <= 4)
+		reg += PC_CONF_I82374_PIRQ_ROUTE_CONTROL - 1;
+
+	raw_spin_lock_irqsave(&pc_conf_lock, flags);
+	pc_conf_set(PC_CONF_I82374_ESC_ID, PC_CONF_I82374_ESC_ID_KEY);
+	pc_conf_set(reg, irq);
+	pc_conf_set(PC_CONF_I82374_ESC_ID, 0);
+	raw_spin_unlock_irqrestore(&pc_conf_lock, flags);
+	return 1;
+}
+
+/*
  * The Intel PIIX4 pirq rules are fairly simple: "pirq" is
  * just a pointer to the config space.
  */
@@ -234,6 +441,50 @@ static int pirq_piix_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 static int pirq_piix_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
 {
 	pci_write_config_byte(router, pirq, irq);
+	return 1;
+}
+
+/*
+ *	PIRQ routing for the 82426EX ISA Bridge (IB) ASIC used with the
+ *	Intel 82420EX PCIset.
+ *
+ *	There are only two PIRQ Route Control registers, available in the
+ *	combined 82425EX/82426EX PCI configuration space, at 0x66 and 0x67
+ *	for the PIRQ0# and PIRQ1# lines respectively.  The semantics is
+ *	the same as with the PIIX router.
+ *
+ *	References:
+ *
+ *	"82420EX PCIset Data Sheet, 82425EX PCI System Controller (PSC)
+ *	and 82426EX ISA Bridge (IB)", Intel Corporation, Order Number:
+ *	290488-004, December 1995
+ */
+
+#define PCI_I82426EX_PIRQ_ROUTE_CONTROL	0x66u
+
+static int pirq_ib_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
+{
+	int reg;
+	u8 x;
+
+	reg = pirq;
+	if (reg >= 1 && reg <= 2)
+		reg += PCI_I82426EX_PIRQ_ROUTE_CONTROL - 1;
+
+	pci_read_config_byte(router, reg, &x);
+	return (x < 16) ? x : 0;
+}
+
+static int pirq_ib_set(struct pci_dev *router, struct pci_dev *dev, int pirq,
+		       int irq)
+{
+	int reg;
+
+	reg = pirq;
+	if (reg >= 1 && reg <= 2)
+		reg += PCI_I82426EX_PIRQ_ROUTE_CONTROL - 1;
+
+	pci_write_config_byte(router, reg, irq);
 	return 1;
 }
 
@@ -549,6 +800,11 @@ static __init int intel_router_probe(struct irq_router *r, struct pci_dev *route
 		return 0;
 
 	switch (device) {
+	case PCI_DEVICE_ID_INTEL_82375:
+		r->name = "PCEB/ESC";
+		r->get = pirq_esc_get;
+		r->set = pirq_esc_set;
+		return 1;
 	case PCI_DEVICE_ID_INTEL_82371FB_0:
 	case PCI_DEVICE_ID_INTEL_82371SB_0:
 	case PCI_DEVICE_ID_INTEL_82371AB_0:
@@ -593,6 +849,11 @@ static __init int intel_router_probe(struct irq_router *r, struct pci_dev *route
 		r->name = "PIIX/ICH";
 		r->get = pirq_piix_get;
 		r->set = pirq_piix_set;
+		return 1;
+	case PCI_DEVICE_ID_INTEL_82425:
+		r->name = "PSC/IB";
+		r->get = pirq_ib_get;
+		r->set = pirq_ib_set;
 		return 1;
 	}
 
@@ -745,6 +1006,12 @@ static __init int ite_router_probe(struct irq_router *r, struct pci_dev *router,
 static __init int ali_router_probe(struct irq_router *r, struct pci_dev *router, u16 device)
 {
 	switch (device) {
+	case PCI_DEVICE_ID_AL_M1489:
+		r->name = "FinALi";
+		r->get = pirq_finali_get;
+		r->set = pirq_finali_set;
+		r->lvl = pirq_finali_lvl;
+		return 1;
 	case PCI_DEVICE_ID_AL_M1533:
 	case PCI_DEVICE_ID_AL_M1563:
 		r->name = "ALI";
@@ -968,11 +1235,17 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	} else if (r->get && (irq = r->get(pirq_router_dev, dev, pirq)) && \
 	((!(pci_probe & PCI_USE_PIRQ_MASK)) || ((1 << irq) & mask))) {
 		msg = "found";
-		elcr_set_level_irq(irq);
+		if (r->lvl)
+			r->lvl(pirq_router_dev, dev, pirq, irq);
+		else
+			elcr_set_level_irq(irq);
 	} else if (newirq && r->set &&
 		(dev->class >> 8) != PCI_CLASS_DISPLAY_VGA) {
 		if (r->set(pirq_router_dev, dev, pirq, newirq)) {
-			elcr_set_level_irq(newirq);
+			if (r->lvl)
+				r->lvl(pirq_router_dev, dev, pirq, newirq);
+			else
+				elcr_set_level_irq(newirq);
 			msg = "assigned";
 			irq = newirq;
 		}

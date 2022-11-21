@@ -2,14 +2,10 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018, 2020 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
 
 
@@ -155,7 +151,6 @@ static void iwl_tt_check_exit_ct_kill(struct timer_list *t)
 	struct iwl_priv *priv = from_timer(priv, t,
 					   thermal_throttle.ct_kill_exit_tm);
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
-	unsigned long flags;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
@@ -171,8 +166,8 @@ static void iwl_tt_check_exit_ct_kill(struct timer_list *t)
 			priv->thermal_throttle.ct_kill_toggle = true;
 		}
 		iwl_read32(priv->trans, CSR_UCODE_DRV_GP1);
-		if (iwl_trans_grab_nic_access(priv->trans, &flags))
-			iwl_trans_release_nic_access(priv->trans, &flags);
+		if (iwl_trans_grab_nic_access(priv->trans))
+			iwl_trans_release_nic_access(priv->trans);
 
 		/* Reschedule the ct_kill timer to occur in
 		 * CT_KILL_EXIT_DURATION seconds to ensure we get a

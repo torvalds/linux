@@ -13,6 +13,7 @@
 #ifndef __DMA_BUF_H__
 #define __DMA_BUF_H__
 
+#include <linux/iosys-map.h>
 #include <linux/file.h>
 #include <linux/err.h>
 #include <linux/scatterlist.h>
@@ -53,7 +54,7 @@ struct dma_buf_ops {
 	 * device), and otherwise need to fail the attach operation.
 	 *
 	 * The exporter should also in general check whether the current
-	 * allocation fullfills the DMA constraints of the new device. If this
+	 * allocation fulfills the DMA constraints of the new device. If this
 	 * is not the case, and the allocation cannot be moved, it should also
 	 * fail the attach operation.
 	 *
@@ -84,14 +85,22 @@ struct dma_buf_ops {
 	/**
 	 * @pin:
 	 *
-	 * This is called by dma_buf_pin and lets the exporter know that the
-	 * DMA-buf can't be moved any more.
+	 * This is called by dma_buf_pin() and lets the exporter know that the
+	 * DMA-buf can't be moved any more. Ideally, the exporter should
+	 * pin the buffer so that it is generally accessible by all
+	 * devices.
 	 *
-	 * This is called with the dmabuf->resv object locked and is mutual
+	 * This is called with the &dmabuf.resv object locked and is mutual
 	 * exclusive with @cache_sgt_mapping.
 	 *
-	 * This callback is optional and should only be used in limited use
-	 * cases like scanout and not for temporary pin operations.
+	 * This is called automatically for non-dynamic importers from
+	 * dma_buf_attach().
+	 *
+	 * Note that similar to non-dynamic exporters in their @map_dma_buf
+	 * callback the driver must guarantee that the memory is available for
+	 * use and cleared of any old data by the time this function returns.
+	 * Drivers which pipeline their buffer moves internally must wait for
+	 * all moves and clears to complete.
 	 *
 	 * Returns:
 	 *
@@ -102,7 +111,7 @@ struct dma_buf_ops {
 	/**
 	 * @unpin:
 	 *
-	 * This is called by dma_buf_unpin and lets the exporter know that the
+	 * This is called by dma_buf_unpin() and lets the exporter know that the
 	 * DMA-buf can be moved again.
 	 *
 	 * This is called with the dmabuf->resv object locked and is mutual
@@ -141,15 +150,31 @@ struct dma_buf_ops {
 	 * This is always called with the dmabuf->resv object locked when
 	 * the dynamic_mapping flag is true.
 	 *
+	 * Note that for non-dynamic exporters the driver must guarantee that
+	 * that the memory is available for use and cleared of any old data by
+	 * the time this function returns.  Drivers which pipeline their buffer
+	 * moves internally must wait for all moves and clears to complete.
+	 * Dynamic exporters do not need to follow this rule: For non-dynamic
+	 * importers the buffer is already pinned through @pin, which has the
+	 * same requirements. Dynamic importers otoh are required to obey the
+	 * dma_resv fences.
+	 *
 	 * Returns:
 	 *
-	 * A &sg_table scatter list of or the backing storage of the DMA buffer,
+	 * A &sg_table scatter list of the backing storage of the DMA buffer,
 	 * already mapped into the device address space of the &device attached
-	 * with the provided &dma_buf_attachment.
+	 * with the provided &dma_buf_attachment. The addresses and lengths in
+	 * the scatter list are PAGE_SIZE aligned.
 	 *
 	 * On failure, returns a negative error value wrapped into a pointer.
 	 * May also return -EINTR when a signal was received while being
 	 * blocked.
+	 *
+	 * Note that exporters should not try to cache the scatter list, or
+	 * return the same one for multiple calls. Caching is done either by the
+	 * DMA-BUF code (for non-dynamic importers) or the importer. Ownership
+	 * of the scatter list is transferred to the caller, and returned by
+	 * @unmap_dma_buf.
 	 */
 	struct sg_table * (*map_dma_buf)(struct dma_buf_attachment *,
 					 enum dma_data_direction);
@@ -158,7 +183,7 @@ struct dma_buf_ops {
 	 *
 	 * This is called by dma_buf_unmap_attachment() and should unmap and
 	 * release the &sg_table allocated in @map_dma_buf, and it is mandatory.
-	 * For static dma_buf handling this might also unpins the backing
+	 * For static dma_buf handling this might also unpin the backing
 	 * storage if this is the last mapping of the DMA buffer.
 	 */
 	void (*unmap_dma_buf)(struct dma_buf_attachment *,
@@ -181,24 +206,19 @@ struct dma_buf_ops {
 	 * @begin_cpu_access:
 	 *
 	 * This is called from dma_buf_begin_cpu_access() and allows the
-	 * exporter to ensure that the memory is actually available for cpu
-	 * access - the exporter might need to allocate or swap-in and pin the
-	 * backing storage. The exporter also needs to ensure that cpu access is
-	 * coherent for the access direction. The direction can be used by the
-	 * exporter to optimize the cache flushing, i.e. access with a different
+	 * exporter to ensure that the memory is actually coherent for cpu
+	 * access. The exporter also needs to ensure that cpu access is coherent
+	 * for the access direction. The direction can be used by the exporter
+	 * to optimize the cache flushing, i.e. access with a different
 	 * direction (read instead of write) might return stale or even bogus
 	 * data (e.g. when the exporter needs to copy the data to temporary
 	 * storage).
 	 *
-	 * This callback is optional.
+	 * Note that this is both called through the DMA_BUF_IOCTL_SYNC IOCTL
+	 * command for userspace mappings established through @mmap, and also
+	 * for kernel mappings established with @vmap.
 	 *
-	 * FIXME: This is both called through the DMA_BUF_IOCTL_SYNC command
-	 * from userspace (where storage shouldn't be pinned to avoid handing
-	 * de-factor mlock rights to userspace) and for the kernel-internal
-	 * users of the various kmap interfaces, where the backing storage must
-	 * be pinned to guarantee that the atomic kmap calls can succeed. Since
-	 * there's no in-kernel users of the kmap interfaces yet this isn't a
-	 * real problem.
+	 * This callback is optional.
 	 *
 	 * Returns:
 	 *
@@ -214,9 +234,7 @@ struct dma_buf_ops {
 	 *
 	 * This is called from dma_buf_end_cpu_access() when the importer is
 	 * done accessing the CPU. The exporter can use this to flush caches and
-	 * unpin any resources pinned in @begin_cpu_access.
-	 * The result of any dma_buf kmap calls after end_cpu_access is
-	 * undefined.
+	 * undo anything else done in @begin_cpu_access.
 	 *
 	 * This callback is optional.
 	 *
@@ -234,7 +252,7 @@ struct dma_buf_ops {
 	 * This callback is used by the dma_buf_mmap() function
 	 *
 	 * Note that the mapping needs to be incoherent, userspace is expected
-	 * to braket CPU access using the DMA_BUF_IOCTL_SYNC interface.
+	 * to bracket CPU access using the DMA_BUF_IOCTL_SYNC interface.
 	 *
 	 * Because dma-buf buffers have invariant size over their lifetime, the
 	 * dma-buf core checks whether a vma is too large and rejects such
@@ -265,33 +283,12 @@ struct dma_buf_ops {
 	 */
 	int (*mmap)(struct dma_buf *, struct vm_area_struct *vma);
 
-	void *(*vmap)(struct dma_buf *);
-	void (*vunmap)(struct dma_buf *, void *vaddr);
+	int (*vmap)(struct dma_buf *dmabuf, struct iosys_map *map);
+	void (*vunmap)(struct dma_buf *dmabuf, struct iosys_map *map);
 };
 
 /**
  * struct dma_buf - shared buffer object
- * @size: size of the buffer
- * @file: file pointer used for sharing buffers across, and for refcounting.
- * @attachments: list of dma_buf_attachment that denotes all devices attached,
- *               protected by dma_resv lock.
- * @ops: dma_buf_ops associated with this buffer object.
- * @lock: used internally to serialize list manipulation, attach/detach and
- *        vmap/unmap
- * @vmapping_counter: used internally to refcnt the vmaps
- * @vmap_ptr: the current vmap ptr if vmapping_counter > 0
- * @exp_name: name of the exporter; useful for debugging.
- * @name: userspace-provided name; useful for accounting and debugging,
- *        protected by @resv.
- * @name_lock: spinlock to protect name access
- * @owner: pointer to exporter module; used for refcounting when exporter is a
- *         kernel module.
- * @list_node: node for dma_buf accounting and debugging.
- * @priv: exporter specific private data for this buffer object.
- * @resv: reservation object linked to this dma-buf
- * @poll: for userspace poll support
- * @cb_excl: for userspace poll support
- * @cb_shared: for userspace poll support
  *
  * This represents a shared buffer, created by calling dma_buf_export(). The
  * userspace representation is a normal file descriptor, which can be created by
@@ -303,30 +300,159 @@ struct dma_buf_ops {
  * Device DMA access is handled by the separate &struct dma_buf_attachment.
  */
 struct dma_buf {
+	/**
+	 * @size:
+	 *
+	 * Size of the buffer; invariant over the lifetime of the buffer.
+	 */
 	size_t size;
+
+	/**
+	 * @file:
+	 *
+	 * File pointer used for sharing buffers across, and for refcounting.
+	 * See dma_buf_get() and dma_buf_put().
+	 */
 	struct file *file;
+
+	/**
+	 * @attachments:
+	 *
+	 * List of dma_buf_attachment that denotes all devices attached,
+	 * protected by &dma_resv lock @resv.
+	 */
 	struct list_head attachments;
+
+	/** @ops: dma_buf_ops associated with this buffer object. */
 	const struct dma_buf_ops *ops;
+
+	/**
+	 * @lock:
+	 *
+	 * Used internally to serialize list manipulation, attach/detach and
+	 * vmap/unmap. Note that in many cases this is superseeded by
+	 * dma_resv_lock() on @resv.
+	 */
 	struct mutex lock;
+
+	/**
+	 * @vmapping_counter:
+	 *
+	 * Used internally to refcnt the vmaps returned by dma_buf_vmap().
+	 * Protected by @lock.
+	 */
 	unsigned vmapping_counter;
-	void *vmap_ptr;
+
+	/**
+	 * @vmap_ptr:
+	 * The current vmap ptr if @vmapping_counter > 0. Protected by @lock.
+	 */
+	struct iosys_map vmap_ptr;
+
+	/**
+	 * @exp_name:
+	 *
+	 * Name of the exporter; useful for debugging. See the
+	 * DMA_BUF_SET_NAME IOCTL.
+	 */
 	const char *exp_name;
+
+	/**
+	 * @name:
+	 *
+	 * Userspace-provided name; useful for accounting and debugging,
+	 * protected by dma_resv_lock() on @resv and @name_lock for read access.
+	 */
 	const char *name;
+
+	/** @name_lock: Spinlock to protect name acces for read access. */
 	spinlock_t name_lock;
+
+	/**
+	 * @owner:
+	 *
+	 * Pointer to exporter module; used for refcounting when exporter is a
+	 * kernel module.
+	 */
 	struct module *owner;
+
+	/** @list_node: node for dma_buf accounting and debugging. */
 	struct list_head list_node;
+
+	/** @priv: exporter specific private data for this buffer object. */
 	void *priv;
+
+	/**
+	 * @resv:
+	 *
+	 * Reservation object linked to this dma-buf.
+	 *
+	 * IMPLICIT SYNCHRONIZATION RULES:
+	 *
+	 * Drivers which support implicit synchronization of buffer access as
+	 * e.g. exposed in `Implicit Fence Poll Support`_ must follow the
+	 * below rules.
+	 *
+	 * - Drivers must add a shared fence through dma_resv_add_shared_fence()
+	 *   for anything the userspace API considers a read access. This highly
+	 *   depends upon the API and window system.
+	 *
+	 * - Similarly drivers must set the exclusive fence through
+	 *   dma_resv_add_excl_fence() for anything the userspace API considers
+	 *   write access.
+	 *
+	 * - Drivers may just always set the exclusive fence, since that only
+	 *   causes unecessarily synchronization, but no correctness issues.
+	 *
+	 * - Some drivers only expose a synchronous userspace API with no
+	 *   pipelining across drivers. These do not set any fences for their
+	 *   access. An example here is v4l.
+	 *
+	 * DYNAMIC IMPORTER RULES:
+	 *
+	 * Dynamic importers, see dma_buf_attachment_is_dynamic(), have
+	 * additional constraints on how they set up fences:
+	 *
+	 * - Dynamic importers must obey the exclusive fence and wait for it to
+	 *   signal before allowing access to the buffer's underlying storage
+	 *   through the device.
+	 *
+	 * - Dynamic importers should set fences for any access that they can't
+	 *   disable immediately from their &dma_buf_attach_ops.move_notify
+	 *   callback.
+	 *
+	 * IMPORTANT:
+	 *
+	 * All drivers must obey the struct dma_resv rules, specifically the
+	 * rules for updating fences, see &dma_resv.fence_excl and
+	 * &dma_resv.fence. If these dependency rules are broken access tracking
+	 * can be lost resulting in use after free issues.
+	 */
 	struct dma_resv *resv;
 
-	/* poll support */
+	/** @poll: for userspace poll support */
 	wait_queue_head_t poll;
 
+	/** @cb_in: for userspace poll support */
+	/** @cb_out: for userspace poll support */
 	struct dma_buf_poll_cb_t {
 		struct dma_fence_cb cb;
 		wait_queue_head_t *poll;
 
 		__poll_t active;
-	} cb_excl, cb_shared;
+	} cb_in, cb_out;
+#ifdef CONFIG_DMABUF_SYSFS_STATS
+	/**
+	 * @sysfs_entry:
+	 *
+	 * For exposing information about this buffer in sysfs. See also
+	 * `DMA-BUF statistics`_ for the uapi this enables.
+	 */
+	struct dma_buf_sysfs_entry {
+		struct kobject kobj;
+		struct dma_buf *dmabuf;
+	} *sysfs_entry;
+#endif
 };
 
 /**
@@ -403,7 +529,7 @@ struct dma_buf_attachment {
  * @exp_name:	name of the exporter - useful for debugging.
  * @owner:	pointer to exporter module - used for refcounting kernel module
  * @ops:	Attach allocator-defined dma buf ops to the new buffer
- * @size:	Size of the buffer
+ * @size:	Size of the buffer - invariant over the lifetime of the buffer
  * @flags:	mode flags for the file
  * @resv:	reservation-object, NULL to allocate default one
  * @priv:	Attach private data of allocator to this buffer
@@ -461,7 +587,7 @@ static inline bool dma_buf_is_dynamic(struct dma_buf *dmabuf)
 
 /**
  * dma_buf_attachment_is_dynamic - check if a DMA-buf attachment uses dynamic
- * mappinsg
+ * mappings
  * @attach: the DMA-buf attachment to check
  *
  * Returns true if a DMA-buf importer wants to call the map/unmap functions with
@@ -502,6 +628,6 @@ int dma_buf_end_cpu_access(struct dma_buf *dma_buf,
 
 int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *,
 		 unsigned long);
-void *dma_buf_vmap(struct dma_buf *);
-void dma_buf_vunmap(struct dma_buf *, void *vaddr);
+int dma_buf_vmap(struct dma_buf *dmabuf, struct iosys_map *map);
+void dma_buf_vunmap(struct dma_buf *dmabuf, struct iosys_map *map);
 #endif /* __DMA_BUF_H__ */

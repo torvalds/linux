@@ -23,11 +23,6 @@ static void qedf_cmd_timeout(struct work_struct *work)
 	struct qedf_ctx *qedf;
 	struct qedf_rport *fcport;
 
-	if (io_req == NULL) {
-		QEDF_INFO(NULL, QEDF_LOG_IO, "io_req is NULL.\n");
-		return;
-	}
-
 	fcport = io_req->fcport;
 	if (io_req->fcport == NULL) {
 		QEDF_INFO(NULL, QEDF_LOG_IO,  "fcport is NULL.\n");
@@ -589,7 +584,7 @@ static void qedf_build_fcp_cmnd(struct qedf_ioreq *io_req,
 }
 
 static void  qedf_init_task(struct qedf_rport *fcport, struct fc_lport *lport,
-	struct qedf_ioreq *io_req, struct e4_fcoe_task_context *task_ctx,
+	struct qedf_ioreq *io_req, struct fcoe_task_context *task_ctx,
 	struct fcoe_wqe *sqe)
 {
 	enum fcoe_task_type task_type;
@@ -607,7 +602,7 @@ static void  qedf_init_task(struct qedf_rport *fcport, struct fc_lport *lport,
 
 	/* Note init_initiator_rw_fcoe_task memsets the task context */
 	io_req->task = task_ctx;
-	memset(task_ctx, 0, sizeof(struct e4_fcoe_task_context));
+	memset(task_ctx, 0, sizeof(struct fcoe_task_context));
 	memset(io_req->task_params, 0, sizeof(struct fcoe_task_params));
 	memset(io_req->sgl_task_params, 0, sizeof(struct scsi_sgl_task_params));
 
@@ -679,7 +674,7 @@ static void  qedf_init_task(struct qedf_rport *fcport, struct fc_lport *lport,
 }
 
 void qedf_init_mp_task(struct qedf_ioreq *io_req,
-	struct e4_fcoe_task_context *task_ctx, struct fcoe_wqe *sqe)
+	struct fcoe_task_context *task_ctx, struct fcoe_wqe *sqe)
 {
 	struct qedf_mp_req *mp_req = &(io_req->mp_req);
 	struct qedf_rport *fcport = io_req->fcport;
@@ -697,7 +692,7 @@ void qedf_init_mp_task(struct qedf_ioreq *io_req,
 
 	memset(&tx_sgl_task_params, 0, sizeof(struct scsi_sgl_task_params));
 	memset(&rx_sgl_task_params, 0, sizeof(struct scsi_sgl_task_params));
-	memset(task_ctx, 0, sizeof(struct e4_fcoe_task_context));
+	memset(task_ctx, 0, sizeof(struct fcoe_task_context));
 	memset(&task_fc_hdr, 0, sizeof(struct fcoe_tx_mid_path_params));
 
 	/* Setup the task from io_req for easy reference */
@@ -855,14 +850,14 @@ int qedf_post_io_req(struct qedf_rport *fcport, struct qedf_ioreq *io_req)
 	struct Scsi_Host *host = sc_cmd->device->host;
 	struct fc_lport *lport = shost_priv(host);
 	struct qedf_ctx *qedf = lport_priv(lport);
-	struct e4_fcoe_task_context *task_ctx;
+	struct fcoe_task_context *task_ctx;
 	u16 xid;
 	struct fcoe_wqe *sqe;
 	u16 sqe_idx;
 
 	/* Initialize rest of io_req fileds */
 	io_req->data_xfer_len = scsi_bufflen(sc_cmd);
-	sc_cmd->SCp.ptr = (char *)io_req;
+	qedf_priv(sc_cmd)->io_req = io_req;
 	io_req->sge_type = QEDF_IOREQ_FAST_SGE; /* Assume fast SGL by default */
 
 	/* Record which cpu this request is associated with */
@@ -952,7 +947,7 @@ qedf_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc_cmd)
 			 "Number of SG elements %d exceeds what hardware limitation of %d.\n",
 			 num_sgs, QEDF_MAX_BDS_PER_CMD);
 		sc_cmd->result = DID_ERROR;
-		sc_cmd->scsi_done(sc_cmd);
+		scsi_done(sc_cmd);
 		return 0;
 	}
 
@@ -962,7 +957,7 @@ qedf_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc_cmd)
 			  "Returning DNC as unloading or stop io, flags 0x%lx.\n",
 			  qedf->flags);
 		sc_cmd->result = DID_NO_CONNECT << 16;
-		sc_cmd->scsi_done(sc_cmd);
+		scsi_done(sc_cmd);
 		return 0;
 	}
 
@@ -971,7 +966,7 @@ qedf_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc_cmd)
 		    "Completing sc_cmd=%p DID_NO_CONNECT as MSI-X is not enabled.\n",
 		    sc_cmd);
 		sc_cmd->result = DID_NO_CONNECT << 16;
-		sc_cmd->scsi_done(sc_cmd);
+		scsi_done(sc_cmd);
 		return 0;
 	}
 
@@ -981,7 +976,7 @@ qedf_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc_cmd)
 			  "fc_remote_port_chkready failed=0x%x for port_id=0x%06x.\n",
 			  rval, rport->port_id);
 		sc_cmd->result = rval;
-		sc_cmd->scsi_done(sc_cmd);
+		scsi_done(sc_cmd);
 		return 0;
 	}
 
@@ -1070,8 +1065,7 @@ static void qedf_parse_fcp_rsp(struct qedf_ioreq *io_req,
 		io_req->fcp_resid = fcp_rsp->fcp_resid;
 
 	io_req->scsi_comp_flags = rsp_flags;
-	CMD_SCSI_STATUS(sc_cmd) = io_req->cdb_status =
-	    fcp_rsp->scsi_status_code;
+	io_req->cdb_status = fcp_rsp->scsi_status_code;
 
 	if (rsp_flags &
 	    FCOE_FCP_RSP_FLAGS_FCP_RSP_LEN_VALID)
@@ -1155,9 +1149,9 @@ void qedf_scsi_completion(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 		return;
 	}
 
-	if (!sc_cmd->SCp.ptr) {
-		QEDF_WARN(&(qedf->dbg_ctx), "SCp.ptr is NULL, returned in "
-		    "another context.\n");
+	if (!qedf_priv(sc_cmd)->io_req) {
+		QEDF_WARN(&(qedf->dbg_ctx),
+			  "io_req is NULL, returned in another context.\n");
 		return;
 	}
 
@@ -1167,13 +1161,7 @@ void qedf_scsi_completion(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 		return;
 	}
 
-	if (!sc_cmd->request) {
-		QEDF_WARN(&(qedf->dbg_ctx), "sc_cmd->request is NULL, "
-		    "sc_cmd=%p.\n", sc_cmd);
-		return;
-	}
-
-	if (!sc_cmd->request->q) {
+	if (!scsi_cmd_to_rq(sc_cmd)->q) {
 		QEDF_WARN(&(qedf->dbg_ctx), "request->q is NULL so request "
 		   "is not valid, sc_cmd=%p.\n", sc_cmd);
 		return;
@@ -1323,8 +1311,8 @@ out:
 	clear_bit(QEDF_CMD_OUTSTANDING, &io_req->flags);
 
 	io_req->sc_cmd = NULL;
-	sc_cmd->SCp.ptr =  NULL;
-	sc_cmd->scsi_done(sc_cmd);
+	qedf_priv(sc_cmd)->io_req =  NULL;
+	scsi_done(sc_cmd);
 	kref_put(&io_req->refcount, qedf_release_cmd);
 }
 
@@ -1365,9 +1353,9 @@ void qedf_scsi_done(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 		goto bad_scsi_ptr;
 	}
 
-	if (!sc_cmd->SCp.ptr) {
-		QEDF_WARN(&(qedf->dbg_ctx), "SCp.ptr is NULL, returned in "
-		    "another context.\n");
+	if (!qedf_priv(sc_cmd)->io_req) {
+		QEDF_WARN(&(qedf->dbg_ctx),
+			  "io_req is NULL, returned in another context.\n");
 		return;
 	}
 
@@ -1397,13 +1385,6 @@ void qedf_scsi_done(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 		goto bad_scsi_ptr;
 	}
 
-	if (!sc_cmd->scsi_done) {
-		QEDF_ERR(&qedf->dbg_ctx,
-			 "sc_cmd->scsi_done for sc_cmd %p is NULL.\n",
-			 sc_cmd);
-		goto bad_scsi_ptr;
-	}
-
 	qedf_unmap_sg_list(qedf, io_req);
 
 	sc_cmd->result = result << 16;
@@ -1427,8 +1408,8 @@ void qedf_scsi_done(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 		qedf_trace_io(io_req->fcport, io_req, QEDF_IO_TRACE_RSP);
 
 	io_req->sc_cmd = NULL;
-	sc_cmd->SCp.ptr = NULL;
-	sc_cmd->scsi_done(sc_cmd);
+	qedf_priv(sc_cmd)->io_req = NULL;
+	scsi_done(sc_cmd);
 	kref_put(&io_req->refcount, qedf_release_cmd);
 	return;
 
@@ -1520,9 +1501,19 @@ void qedf_process_error_detect(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 {
 	int rval;
 
+	if (io_req == NULL) {
+		QEDF_INFO(NULL, QEDF_LOG_IO, "io_req is NULL.\n");
+		return;
+	}
+
+	if (io_req->fcport == NULL) {
+		QEDF_INFO(NULL, QEDF_LOG_IO, "fcport is NULL.\n");
+		return;
+	}
+
 	if (!cqe) {
 		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
-			  "cqe is NULL for io_req %p\n", io_req);
+			"cqe is NULL for io_req %p\n", io_req);
 		return;
 	}
 
@@ -1537,6 +1528,16 @@ void qedf_process_error_detect(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 		  le32_to_cpu(cqe->cqe_info.err_info.tx_buf_off),
 		  le32_to_cpu(cqe->cqe_info.err_info.rx_buf_off),
 		  le32_to_cpu(cqe->cqe_info.err_info.rx_id));
+
+	/* When flush is active, let the cmds be flushed out from the cleanup context */
+	if (test_bit(QEDF_RPORT_IN_TARGET_RESET, &io_req->fcport->flags) ||
+		(test_bit(QEDF_RPORT_IN_LUN_RESET, &io_req->fcport->flags) &&
+		 io_req->sc_cmd->device->lun == (u64)io_req->fcport->lun_reset_lun)) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			"Dropping EQE for xid=0x%x as fcport is flushing",
+			io_req->xid);
+		return;
+	}
 
 	if (qedf->stop_io_on_error) {
 		qedf_stop_all_io(qedf);
@@ -2248,6 +2249,7 @@ process_els:
 	    io_req->tm_flags == FCP_TMF_TGT_RESET) {
 		clear_bit(QEDF_CMD_OUTSTANDING, &io_req->flags);
 		io_req->sc_cmd = NULL;
+		kref_put(&io_req->refcount, qedf_release_cmd);
 		complete(&io_req->tm_done);
 	}
 
@@ -2284,7 +2286,7 @@ static int qedf_execute_tmf(struct qedf_rport *fcport, struct scsi_cmnd *sc_cmd,
 	uint8_t tm_flags)
 {
 	struct qedf_ioreq *io_req;
-	struct e4_fcoe_task_context *task;
+	struct fcoe_task_context *task;
 	struct qedf_ctx *qedf = fcport->qedf;
 	struct fc_lport *lport = qedf->lport;
 	int rc = 0;
@@ -2430,8 +2432,8 @@ int qedf_initiate_tmf(struct scsi_cmnd *sc_cmd, u8 tm_flags)
 		 (tm_flags == FCP_TMF_TGT_RESET) ? "TARGET RESET" :
 		 "LUN RESET");
 
-	if (sc_cmd->SCp.ptr) {
-		io_req = (struct qedf_ioreq *)sc_cmd->SCp.ptr;
+	if (qedf_priv(sc_cmd)->io_req) {
+		io_req = qedf_priv(sc_cmd)->io_req;
 		ref_cnt = kref_read(&io_req->refcount);
 		QEDF_ERR(NULL,
 			 "orig io_req = %p xid = 0x%x ref_cnt = %d.\n",

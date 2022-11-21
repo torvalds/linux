@@ -285,27 +285,17 @@ static int hinic_devlink_flash_update(struct devlink *devlink,
 				      struct netlink_ext_ack *extack)
 {
 	struct hinic_devlink_priv *priv = devlink_priv(devlink);
-	const struct firmware *fw;
-	int err;
 
-	err = request_firmware_direct(&fw, params->file_name,
-				      &priv->hwdev->hwif->pdev->dev);
-	if (err)
-		return err;
-
-	err = hinic_firmware_update(priv, fw, extack);
-	release_firmware(fw);
-
-	return err;
+	return hinic_firmware_update(priv, params->fw, extack);
 }
 
 static const struct devlink_ops hinic_devlink_ops = {
 	.flash_update = hinic_devlink_flash_update,
 };
 
-struct devlink *hinic_devlink_alloc(void)
+struct devlink *hinic_devlink_alloc(struct device *dev)
 {
-	return devlink_alloc(&hinic_devlink_ops, sizeof(struct hinic_dev));
+	return devlink_alloc(&hinic_devlink_ops, sizeof(struct hinic_dev), dev);
 }
 
 void hinic_devlink_free(struct devlink *devlink)
@@ -313,11 +303,11 @@ void hinic_devlink_free(struct devlink *devlink)
 	devlink_free(devlink);
 }
 
-int hinic_devlink_register(struct hinic_devlink_priv *priv, struct device *dev)
+void hinic_devlink_register(struct hinic_devlink_priv *priv)
 {
 	struct devlink *devlink = priv_to_devlink(priv);
 
-	return devlink_register(devlink, dev);
+	devlink_register(devlink);
 }
 
 void hinic_devlink_unregister(struct hinic_devlink_priv *priv)

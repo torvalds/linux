@@ -7,7 +7,6 @@
 #include <linux/etherdevice.h>
 #include "hclge_cmd.h"
 
-#define HCLGE_DBG_BUF_LEN	   256
 #define HCLGE_DBG_MNG_TBL_MAX	   64
 
 #define HCLGE_DBG_MNG_VLAN_MASK_B  BIT(0)
@@ -70,6 +69,11 @@ struct hclge_dbg_reg_common_msg {
 	enum hclge_opcode_type cmd;
 };
 
+struct hclge_dbg_tcam_msg {
+	u8 stage;
+	u32 loc;
+};
+
 #define	HCLGE_DBG_MAX_DFX_MSG_LEN	60
 struct hclge_dbg_dfx_message {
 	int flag;
@@ -78,9 +82,21 @@ struct hclge_dbg_dfx_message {
 
 #define HCLGE_DBG_MAC_REG_TYPE_LEN	32
 struct hclge_dbg_reg_type_info {
-	const char *reg_type;
+	enum hnae3_dbg_cmd cmd;
 	const struct hclge_dbg_dfx_message *dfx_msg;
 	struct hclge_dbg_reg_common_msg reg_msg;
+};
+
+struct hclge_dbg_func {
+	enum hnae3_dbg_cmd cmd;
+	int (*dbg_dump)(struct hclge_dev *hdev, char *buf, int len);
+	int (*dbg_dump_reg)(struct hclge_dev *hdev, enum hnae3_dbg_cmd cmd,
+			    char *buf, int len);
+};
+
+struct hclge_dbg_status_dfx_info {
+	u32  offset;
+	char message[HCLGE_DBG_MAX_DFX_MSG_LEN];
 };
 
 static const struct hclge_dbg_dfx_message hclge_dbg_bios_common_reg[] = {
@@ -310,10 +326,10 @@ static const struct hclge_dbg_dfx_message hclge_dbg_igu_egu_reg[] = {
 	{true,	"IGU_RX_OUT_UDP0_PKT"},
 
 	{true,	"IGU_RX_IN_UDP0_PKT"},
-	{false, "Reserved"},
-	{false, "Reserved"},
-	{false, "Reserved"},
-	{false, "Reserved"},
+	{true,	"IGU_MC_CAR_DROP_PKT_L"},
+	{true,	"IGU_MC_CAR_DROP_PKT_H"},
+	{true,	"IGU_BC_CAR_DROP_PKT_L"},
+	{true,	"IGU_BC_CAR_DROP_PKT_H"},
 	{false, "Reserved"},
 
 	{true,	"IGU_RX_OVERSIZE_PKT_L"},
@@ -721,6 +737,38 @@ static const struct hclge_dbg_dfx_message hclge_dbg_tqp_reg[] = {
 	{true, "RCB_CFG_TX_RING_FBDNUM"},
 	{true, "RCB_CFG_TX_RING_OFFSET"},
 	{true, "RCB_CFG_TX_RING_EBDNUM"},
+};
+
+#define HCLGE_DBG_INFO_LEN			256
+#define HCLGE_DBG_VLAN_FLTR_INFO_LEN		256
+#define HCLGE_DBG_VLAN_OFFLOAD_INFO_LEN		512
+#define HCLGE_DBG_ID_LEN			16
+#define HCLGE_DBG_ITEM_NAME_LEN			32
+#define HCLGE_DBG_DATA_STR_LEN			32
+#define HCLGE_DBG_TM_INFO_LEN			256
+
+#define HCLGE_BILLION_NANO_SECONDS	1000000000
+
+struct hclge_dbg_item {
+	char name[HCLGE_DBG_ITEM_NAME_LEN];
+	u16 interval; /* blank numbers after the item */
+};
+
+struct hclge_dbg_vlan_cfg {
+	u16 pvid;
+	u8 accept_tag1;
+	u8 accept_tag2;
+	u8 accept_untag1;
+	u8 accept_untag2;
+	u8 insert_tag1;
+	u8 insert_tag2;
+	u8 shift_tag;
+	u8 strip_tag1;
+	u8 strip_tag2;
+	u8 drop_tag1;
+	u8 drop_tag2;
+	u8 pri_only1;
+	u8 pri_only2;
 };
 
 #endif

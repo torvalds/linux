@@ -115,7 +115,7 @@ static inline pte_t ptep_flush_lazy(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (cpumask_equal(&mm->context.cpu_attach_mask,
 			  cpumask_of(smp_processor_id()))) {
-		pte_val(*ptep) |= _PAGE_INVALID;
+		set_pte(ptep, set_pte_bit(*ptep, __pgprot(_PAGE_INVALID)));
 		mm->context.flush_mm = 1;
 	} else
 		ptep_ipte_global(mm, addr, ptep, nodat);
@@ -224,15 +224,15 @@ static inline pgste_t pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
 			 * Without enhanced suppression-on-protection force
 			 * the dirty bit on for all writable ptes.
 			 */
-			pte_val(entry) |= _PAGE_DIRTY;
-			pte_val(entry) &= ~_PAGE_PROTECT;
+			entry = set_pte_bit(entry, __pgprot(_PAGE_DIRTY));
+			entry = clear_pte_bit(entry, __pgprot(_PAGE_PROTECT));
 		}
 		if (!(pte_val(entry) & _PAGE_PROTECT))
 			/* This pte allows write access, set user-dirty */
 			pgste_val(pgste) |= PGSTE_UC_BIT;
 	}
 #endif
-	*ptep = entry;
+	set_pte(ptep, entry);
 	return pgste;
 }
 
@@ -275,12 +275,12 @@ static inline pte_t ptep_xchg_commit(struct mm_struct *mm,
 			pgste = pgste_update_all(old, pgste, mm);
 			if ((pgste_val(pgste) & _PGSTE_GPS_USAGE_MASK) ==
 			    _PGSTE_GPS_USAGE_UNUSED)
-				pte_val(old) |= _PAGE_UNUSED;
+				old = set_pte_bit(old, __pgprot(_PAGE_UNUSED));
 		}
 		pgste = pgste_set_pte(ptep, pgste, new);
 		pgste_set_unlock(ptep, pgste);
 	} else {
-		*ptep = new;
+		set_pte(ptep, new);
 	}
 	return old;
 }
@@ -345,14 +345,14 @@ void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
 	struct mm_struct *mm = vma->vm_mm;
 
 	if (!MACHINE_HAS_NX)
-		pte_val(pte) &= ~_PAGE_NOEXEC;
+		pte = clear_pte_bit(pte, __pgprot(_PAGE_NOEXEC));
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get(ptep);
 		pgste_set_key(ptep, pgste, pte, mm);
 		pgste = pgste_set_pte(ptep, pgste, pte);
 		pgste_set_unlock(ptep, pgste);
 	} else {
-		*ptep = pte;
+		set_pte(ptep, pte);
 	}
 	preempt_enable();
 }
@@ -417,7 +417,7 @@ static inline pmd_t pmdp_flush_lazy(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (cpumask_equal(&mm->context.cpu_attach_mask,
 			  cpumask_of(smp_processor_id()))) {
-		pmd_val(*pmdp) |= _SEGMENT_ENTRY_INVALID;
+		set_pmd(pmdp, set_pmd_bit(*pmdp, __pgprot(_SEGMENT_ENTRY_INVALID)));
 		mm->context.flush_mm = 1;
 		if (mm_has_pgste(mm))
 			gmap_pmdp_invalidate(mm, addr);
@@ -429,22 +429,36 @@ static inline pmd_t pmdp_flush_lazy(struct mm_struct *mm,
 }
 
 #ifdef CONFIG_PGSTE
-static pmd_t *pmd_alloc_map(struct mm_struct *mm, unsigned long addr)
+static int pmd_lookup(struct mm_struct *mm, unsigned long addr, pmd_t **pmdp)
 {
+	struct vm_area_struct *vma;
 	pgd_t *pgd;
 	p4d_t *p4d;
 	pud_t *pud;
-	pmd_t *pmd;
+
+	/* We need a valid VMA, otherwise this is clearly a fault. */
+	vma = vma_lookup(mm, addr);
+	if (!vma)
+		return -EFAULT;
 
 	pgd = pgd_offset(mm, addr);
-	p4d = p4d_alloc(mm, pgd, addr);
-	if (!p4d)
-		return NULL;
-	pud = pud_alloc(mm, p4d, addr);
-	if (!pud)
-		return NULL;
-	pmd = pmd_alloc(mm, pud, addr);
-	return pmd;
+	if (!pgd_present(*pgd))
+		return -ENOENT;
+
+	p4d = p4d_offset(pgd, addr);
+	if (!p4d_present(*p4d))
+		return -ENOENT;
+
+	pud = pud_offset(p4d, addr);
+	if (!pud_present(*pud))
+		return -ENOENT;
+
+	/* Large PUDs are not supported yet. */
+	if (pud_large(*pud))
+		return -EFAULT;
+
+	*pmdp = pmd_offset(pud, addr);
+	return 0;
 }
 #endif
 
@@ -455,7 +469,7 @@ pmd_t pmdp_xchg_direct(struct mm_struct *mm, unsigned long addr,
 
 	preempt_disable();
 	old = pmdp_flush_direct(mm, addr, pmdp);
-	*pmdp = new;
+	set_pmd(pmdp, new);
 	preempt_enable();
 	return old;
 }
@@ -468,7 +482,7 @@ pmd_t pmdp_xchg_lazy(struct mm_struct *mm, unsigned long addr,
 
 	preempt_disable();
 	old = pmdp_flush_lazy(mm, addr, pmdp);
-	*pmdp = new;
+	set_pmd(pmdp, new);
 	preempt_enable();
 	return old;
 }
@@ -525,7 +539,7 @@ pud_t pudp_xchg_direct(struct mm_struct *mm, unsigned long addr,
 
 	preempt_disable();
 	old = pudp_flush_direct(mm, addr, pudp);
-	*pudp = new;
+	set_pud(pudp, new);
 	preempt_enable();
 	return old;
 }
@@ -565,9 +579,9 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
 		list_del(lh);
 	}
 	ptep = (pte_t *) pgtable;
-	pte_val(*ptep) = _PAGE_INVALID;
+	set_pte(ptep, __pte(_PAGE_INVALID));
 	ptep++;
-	pte_val(*ptep) = _PAGE_INVALID;
+	set_pte(ptep, __pte(_PAGE_INVALID));
 	return pgtable;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
@@ -632,12 +646,12 @@ int ptep_force_prot(struct mm_struct *mm, unsigned long addr,
 	if (prot == PROT_NONE && !pte_i) {
 		ptep_flush_direct(mm, addr, ptep, nodat);
 		pgste = pgste_update_all(entry, pgste, mm);
-		pte_val(entry) |= _PAGE_INVALID;
+		entry = set_pte_bit(entry, __pgprot(_PAGE_INVALID));
 	}
 	if (prot == PROT_READ && !pte_p) {
 		ptep_flush_direct(mm, addr, ptep, nodat);
-		pte_val(entry) &= ~_PAGE_INVALID;
-		pte_val(entry) |= _PAGE_PROTECT;
+		entry = clear_pte_bit(entry, __pgprot(_PAGE_INVALID));
+		entry = set_pte_bit(entry, __pgprot(_PAGE_PROTECT));
 	}
 	pgste_val(pgste) |= bit;
 	pgste = pgste_set_pte(ptep, pgste, entry);
@@ -661,8 +675,8 @@ int ptep_shadow_pte(struct mm_struct *mm, unsigned long saddr,
 	      !(pte_val(pte) & _PAGE_PROTECT))) {
 		pgste_val(spgste) |= PGSTE_VSIE_BIT;
 		tpgste = pgste_get_lock(tptep);
-		pte_val(tpte) = (pte_val(spte) & PAGE_MASK) |
-				(pte_val(pte) & _PAGE_PROTECT);
+		tpte = __pte((pte_val(spte) & PAGE_MASK) |
+			     (pte_val(pte) & _PAGE_PROTECT));
 		/* don't touch the storage key - it belongs to parent pgste */
 		tpgste = pgste_set_pte(tptep, tpgste, tpte);
 		pgste_set_unlock(tptep, tpgste);
@@ -691,7 +705,7 @@ static void ptep_zap_swap_entry(struct mm_struct *mm, swp_entry_t entry)
 	if (!non_swap_entry(entry))
 		dec_mm_counter(mm, MM_SWAPENTS);
 	else if (is_migration_entry(entry)) {
-		struct page *page = migration_entry_to_page(entry);
+		struct page *page = pfn_swap_entry_to_page(entry);
 
 		dec_mm_counter(mm, mm_counter(page));
 	}
@@ -759,10 +773,10 @@ bool ptep_test_and_clear_uc(struct mm_struct *mm, unsigned long addr,
 		nodat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
 		ptep_ipte_global(mm, addr, ptep, nodat);
 		if (MACHINE_HAS_ESOP || !(pte_val(pte) & _PAGE_WRITE))
-			pte_val(pte) |= _PAGE_PROTECT;
+			pte = set_pte_bit(pte, __pgprot(_PAGE_PROTECT));
 		else
-			pte_val(pte) |= _PAGE_INVALID;
-		*ptep = pte;
+			pte = set_pte_bit(pte, __pgprot(_PAGE_INVALID));
+		set_pte(ptep, pte);
 	}
 	pgste_set_unlock(ptep, pgste);
 	return dirty;
@@ -778,14 +792,23 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	pmd_t *pmdp;
 	pte_t *ptep;
 
-	pmdp = pmd_alloc_map(mm, addr);
-	if (unlikely(!pmdp))
+	/*
+	 * If we don't have a PTE table and if there is no huge page mapped,
+	 * we can ignore attempts to set the key to 0, because it already is 0.
+	 */
+	switch (pmd_lookup(mm, addr, &pmdp)) {
+	case -ENOENT:
+		return key ? -EFAULT : 0;
+	case 0:
+		break;
+	default:
 		return -EFAULT;
+	}
 
 	ptl = pmd_lock(mm, pmdp);
 	if (!pmd_present(*pmdp)) {
 		spin_unlock(ptl);
-		return -EFAULT;
+		return key ? -EFAULT : 0;
 	}
 
 	if (pmd_large(*pmdp)) {
@@ -801,10 +824,7 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	}
 	spin_unlock(ptl);
 
-	ptep = pte_alloc_map_lock(mm, pmdp, addr, &ptl);
-	if (unlikely(!ptep))
-		return -EFAULT;
-
+	ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
 	new = old = pgste_get_lock(ptep);
 	pgste_val(new) &= ~(PGSTE_GR_BIT | PGSTE_GC_BIT |
 			    PGSTE_ACC_BITS | PGSTE_FP_BIT);
@@ -834,7 +854,7 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 }
 EXPORT_SYMBOL(set_guest_storage_key);
 
-/**
+/*
  * Conditionally set a guest storage key (handling csske).
  * oldkey will be updated when either mr or mc is set and a pointer is given.
  *
@@ -867,7 +887,7 @@ int cond_set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 }
 EXPORT_SYMBOL(cond_set_guest_storage_key);
 
-/**
+/*
  * Reset a guest reference bit (rrbe), returning the reference and changed bit.
  *
  * Returns < 0 in case of error, otherwise the cc to be reported to the guest.
@@ -881,14 +901,23 @@ int reset_guest_reference_bit(struct mm_struct *mm, unsigned long addr)
 	pte_t *ptep;
 	int cc = 0;
 
-	pmdp = pmd_alloc_map(mm, addr);
-	if (unlikely(!pmdp))
+	/*
+	 * If we don't have a PTE table and if there is no huge page mapped,
+	 * the storage key is 0 and there is nothing for us to do.
+	 */
+	switch (pmd_lookup(mm, addr, &pmdp)) {
+	case -ENOENT:
+		return 0;
+	case 0:
+		break;
+	default:
 		return -EFAULT;
+	}
 
 	ptl = pmd_lock(mm, pmdp);
 	if (!pmd_present(*pmdp)) {
 		spin_unlock(ptl);
-		return -EFAULT;
+		return 0;
 	}
 
 	if (pmd_large(*pmdp)) {
@@ -900,10 +929,7 @@ int reset_guest_reference_bit(struct mm_struct *mm, unsigned long addr)
 	}
 	spin_unlock(ptl);
 
-	ptep = pte_alloc_map_lock(mm, pmdp, addr, &ptl);
-	if (unlikely(!ptep))
-		return -EFAULT;
-
+	ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
 	new = old = pgste_get_lock(ptep);
 	/* Reset guest reference bit only */
 	pgste_val(new) &= ~PGSTE_GR_BIT;
@@ -935,15 +961,24 @@ int get_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	pmd_t *pmdp;
 	pte_t *ptep;
 
-	pmdp = pmd_alloc_map(mm, addr);
-	if (unlikely(!pmdp))
+	/*
+	 * If we don't have a PTE table and if there is no huge page mapped,
+	 * the storage key is 0.
+	 */
+	*key = 0;
+
+	switch (pmd_lookup(mm, addr, &pmdp)) {
+	case -ENOENT:
+		return 0;
+	case 0:
+		break;
+	default:
 		return -EFAULT;
+	}
 
 	ptl = pmd_lock(mm, pmdp);
 	if (!pmd_present(*pmdp)) {
-		/* Not yet mapped memory has a zero key */
 		spin_unlock(ptl);
-		*key = 0;
 		return 0;
 	}
 
@@ -956,10 +991,7 @@ int get_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	}
 	spin_unlock(ptl);
 
-	ptep = pte_alloc_map_lock(mm, pmdp, addr, &ptl);
-	if (unlikely(!ptep))
-		return -EFAULT;
-
+	ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
 	pgste = pgste_get_lock(ptep);
 	*key = (pgste_val(pgste) & (PGSTE_ACC_BITS | PGSTE_FP_BIT)) >> 56;
 	paddr = pte_val(*ptep) & PAGE_MASK;
@@ -988,6 +1020,7 @@ EXPORT_SYMBOL(get_guest_storage_key);
 int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
 			unsigned long *oldpte, unsigned long *oldpgste)
 {
+	struct vm_area_struct *vma;
 	unsigned long pgstev;
 	spinlock_t *ptl;
 	pgste_t pgste;
@@ -997,6 +1030,10 @@ int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
 	WARN_ON_ONCE(orc > ESSA_MAX);
 	if (unlikely(orc > ESSA_MAX))
 		return -EINVAL;
+
+	vma = vma_lookup(mm, hva);
+	if (!vma || is_vm_hugetlb_page(vma))
+		return -EFAULT;
 	ptep = get_locked_pte(mm, hva, &ptl);
 	if (unlikely(!ptep))
 		return -EFAULT;
@@ -1089,10 +1126,14 @@ EXPORT_SYMBOL(pgste_perform_essa);
 int set_pgste_bits(struct mm_struct *mm, unsigned long hva,
 			unsigned long bits, unsigned long value)
 {
+	struct vm_area_struct *vma;
 	spinlock_t *ptl;
 	pgste_t new;
 	pte_t *ptep;
 
+	vma = vma_lookup(mm, hva);
+	if (!vma || is_vm_hugetlb_page(vma))
+		return -EFAULT;
 	ptep = get_locked_pte(mm, hva, &ptl);
 	if (unlikely(!ptep))
 		return -EFAULT;
@@ -1117,9 +1158,13 @@ EXPORT_SYMBOL(set_pgste_bits);
  */
 int get_pgste(struct mm_struct *mm, unsigned long hva, unsigned long *pgstep)
 {
+	struct vm_area_struct *vma;
 	spinlock_t *ptl;
 	pte_t *ptep;
 
+	vma = vma_lookup(mm, hva);
+	if (!vma || is_vm_hugetlb_page(vma))
+		return -EFAULT;
 	ptep = get_locked_pte(mm, hva, &ptl);
 	if (unlikely(!ptep))
 		return -EFAULT;

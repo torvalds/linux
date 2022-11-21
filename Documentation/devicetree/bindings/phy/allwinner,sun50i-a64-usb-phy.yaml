@@ -15,7 +15,9 @@ properties:
     const: 1
 
   compatible:
-    const: allwinner,sun50i-a64-usb-phy
+    enum:
+      - allwinner,sun20i-d1-usb-phy
+      - allwinner,sun50i-a64-usb-phy
 
   reg:
     items:
@@ -50,9 +52,11 @@ properties:
       - const: usb1_reset
 
   usb0_id_det-gpios:
+    maxItems: 1
     description: GPIO to the USB OTG ID pin
 
   usb0_vbus_det-gpios:
+    maxItems: 1
     description: GPIO to the USB OTG VBUS detect pin
 
   usb0_vbus_power-supply:

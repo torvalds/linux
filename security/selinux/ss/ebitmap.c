@@ -26,7 +26,7 @@
 
 #define BITS_PER_U64	(sizeof(u64) * 8)
 
-static struct kmem_cache *ebitmap_node_cachep;
+static struct kmem_cache *ebitmap_node_cachep __ro_after_init;
 
 int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2)
 {
@@ -359,7 +359,6 @@ void ebitmap_destroy(struct ebitmap *e)
 
 	e->highbit = 0;
 	e->node = NULL;
-	return;
 }
 
 int ebitmap_read(struct ebitmap *e, void *fp)

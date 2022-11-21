@@ -9,13 +9,12 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/iio/iio.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/spi/spi.h>
 
 #include <linux/iio/common/st_sensors_spi.h>
-#include "st_sensors_core.h"
 
 #define ST_SENSORS_SPI_MULTIREAD	0xc0
 
@@ -110,12 +109,11 @@ int st_sensors_spi_configure(struct iio_dev *indio_dev,
 
 	indio_dev->name = spi->modalias;
 
-	sdata->dev = &spi->dev;
 	sdata->irq = spi->irq;
 
 	return 0;
 }
-EXPORT_SYMBOL(st_sensors_spi_configure);
+EXPORT_SYMBOL_NS(st_sensors_spi_configure, IIO_ST_SENSORS);
 
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics ST-sensors spi driver");

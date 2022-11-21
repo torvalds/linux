@@ -96,8 +96,7 @@ static void s2idle_enter(void)
 	s2idle_state = S2IDLE_STATE_ENTER;
 	raw_spin_unlock_irq(&s2idle_lock);
 
-	get_online_cpus();
-	cpuidle_resume();
+	cpus_read_lock();
 
 	/* Push all the CPUs into the idle loop. */
 	wake_up_all_idle_cpus();
@@ -105,8 +104,7 @@ static void s2idle_enter(void)
 	swait_event_exclusive(s2idle_wait_head,
 		    s2idle_state == S2IDLE_STATE_WAKE);
 
-	cpuidle_pause();
-	put_online_cpus();
+	cpus_read_unlock();
 
 	raw_spin_lock_irq(&s2idle_lock);
 
@@ -138,8 +136,6 @@ static void s2idle_loop(void)
 			break;
 		}
 
-		pm_wakeup_clear(false);
-
 		s2idle_enter();
 	}
 
@@ -162,11 +158,13 @@ EXPORT_SYMBOL_GPL(s2idle_wake);
 static bool valid_state(suspend_state_t state)
 {
 	/*
-	 * PM_SUSPEND_STANDBY and PM_SUSPEND_MEM states need low level
-	 * support and need to be valid to the low level
-	 * implementation, no valid callback implies that none are valid.
+	 * The PM_SUSPEND_STANDBY and PM_SUSPEND_MEM states require low-level
+	 * support and need to be valid to the low-level implementation.
+	 *
+	 * No ->valid() or ->enter() callback implies that none are valid.
 	 */
-	return suspend_ops && suspend_ops->valid && suspend_ops->valid(state);
+	return suspend_ops && suspend_ops->valid && suspend_ops->valid(state) &&
+		suspend_ops->enter;
 }
 
 void __init pm_states_init(void)
@@ -224,6 +222,7 @@ EXPORT_SYMBOL_GPL(suspend_set_ops);
 
 /**
  * suspend_valid_only_mem - Generic memory-only valid callback.
+ * @state: Target system sleep state.
  *
  * Platform drivers that implement mem suspend only and only need to check for
  * that in their .valid() callback can use this instead of rolling their own
@@ -237,7 +236,7 @@ EXPORT_SYMBOL_GPL(suspend_valid_only_mem);
 
 static bool sleep_state_supported(suspend_state_t state)
 {
-	return state == PM_SUSPEND_TO_IDLE || (suspend_ops && suspend_ops->enter);
+	return state == PM_SUSPEND_TO_IDLE || valid_state(state);
 }
 
 static int platform_suspend_prepare(suspend_state_t state)
@@ -335,6 +334,7 @@ static int suspend_test(int level)
 
 /**
  * suspend_prepare - Prepare for entering system sleep state.
+ * @state: Target system sleep state.
  *
  * Common code run for every system sleep state that can be entered (except for
  * hibernation).  Run suspend notifiers, allocate the "suspend" console and
@@ -420,7 +420,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 		goto Platform_wake;
 	}
 
-	error = suspend_disable_secondary_cpus();
+	error = pm_sleep_disable_secondary_cpus();
 	if (error || suspend_test(TEST_CPUS))
 		goto Enable_cpus;
 
@@ -450,7 +450,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	BUG_ON(irqs_disabled());
 
  Enable_cpus:
-	suspend_enable_secondary_cpus();
+	pm_sleep_enable_secondary_cpus();
 
  Platform_wake:
 	platform_resume_noirq(state);

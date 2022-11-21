@@ -60,6 +60,7 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 		u32 val = cpuif->vgic_lr[lr];
 		u32 cpuid, intid = val & GICH_LR_VIRTUALID;
 		struct vgic_irq *irq;
+		bool deactivated;
 
 		/* Extract the source vCPU id from the LR */
 		cpuid = val & GICH_LR_PHYSID_CPUID;
@@ -75,7 +76,8 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 
 		raw_spin_lock(&irq->irq_lock);
 
-		/* Always preserve the active bit */
+		/* Always preserve the active bit, note deactivation */
+		deactivated = irq->active && !(val & GICH_LR_ACTIVE_BIT);
 		irq->active = !!(val & GICH_LR_ACTIVE_BIT);
 
 		if (irq->active && vgic_irq_is_sgi(intid))
@@ -96,25 +98,8 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 		if (irq->config == VGIC_CONFIG_LEVEL && !(val & GICH_LR_STATE))
 			irq->pending_latch = false;
 
-		/*
-		 * Level-triggered mapped IRQs are special because we only
-		 * observe rising edges as input to the VGIC.
-		 *
-		 * If the guest never acked the interrupt we have to sample
-		 * the physical line and set the line level, because the
-		 * device state could have changed or we simply need to
-		 * process the still pending interrupt later.
-		 *
-		 * If this causes us to lower the level, we have to also clear
-		 * the physical active state, since we will otherwise never be
-		 * told when the interrupt becomes asserted again.
-		 */
-		if (vgic_irq_is_mapped_level(irq) && (val & GICH_LR_PENDING_BIT)) {
-			irq->line_level = vgic_get_phys_line_level(irq);
-
-			if (!irq->line_level)
-				vgic_irq_set_phys_active(irq, false);
-		}
+		/* Handle resampling for mapped interrupts if required */
+		vgic_irq_handle_resampling(irq, deactivated, val & GICH_LR_PENDING_BIT);
 
 		raw_spin_unlock(&irq->irq_lock);
 		vgic_put_irq(vcpu->kvm, irq);
@@ -152,7 +137,7 @@ void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 	if (irq->group)
 		val |= GICH_LR_GROUP1;
 
-	if (irq->hw) {
+	if (irq->hw && !vgic_irq_needs_resampling(irq)) {
 		val |= GICH_LR_HW;
 		val |= irq->hwintid << GICH_LR_PHYSID_CPUID_SHIFT;
 		/*
@@ -306,20 +291,15 @@ int vgic_v2_map_resources(struct kvm *kvm)
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	int ret = 0;
 
-	if (vgic_ready(kvm))
-		goto out;
-
 	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base) ||
 	    IS_VGIC_ADDR_UNDEF(dist->vgic_cpu_base)) {
-		kvm_err("Need to set vgic cpu and dist addresses first\n");
-		ret = -ENXIO;
-		goto out;
+		kvm_debug("Need to set vgic cpu and dist addresses first\n");
+		return -ENXIO;
 	}
 
 	if (!vgic_v2_check_base(dist->vgic_dist_base, dist->vgic_cpu_base)) {
-		kvm_err("VGIC CPU and dist frames overlap\n");
-		ret = -EINVAL;
-		goto out;
+		kvm_debug("VGIC CPU and dist frames overlap\n");
+		return -EINVAL;
 	}
 
 	/*
@@ -329,13 +309,13 @@ int vgic_v2_map_resources(struct kvm *kvm)
 	ret = vgic_init(kvm);
 	if (ret) {
 		kvm_err("Unable to initialize VGIC dynamic data structures\n");
-		goto out;
+		return ret;
 	}
 
 	ret = vgic_register_dist_iodev(kvm, dist->vgic_dist_base, VGIC_V2);
 	if (ret) {
 		kvm_err("Unable to register VGIC MMIO regions\n");
-		goto out;
+		return ret;
 	}
 
 	if (!static_branch_unlikely(&vgic_v2_cpuif_trap)) {
@@ -344,14 +324,11 @@ int vgic_v2_map_resources(struct kvm *kvm)
 					    KVM_VGIC_V2_CPU_SIZE, true);
 		if (ret) {
 			kvm_err("Unable to remap VGIC CPU to VCPU\n");
-			goto out;
+			return ret;
 		}
 	}
 
-	dist->ready = true;
-
-out:
-	return ret;
+	return 0;
 }
 
 DEFINE_STATIC_KEY_FALSE(vgic_v2_cpuif_trap);
@@ -367,6 +344,11 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 {
 	int ret;
 	u32 vtr;
+
+	if (is_protected_kvm_enabled()) {
+		kvm_err("GICv2 not supported in protected mode\n");
+		return -ENXIO;
+	}
 
 	if (!info->vctrl.start) {
 		kvm_err("GICH not present in the firmware table\n");

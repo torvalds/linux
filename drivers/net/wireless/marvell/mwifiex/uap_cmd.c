@@ -108,6 +108,7 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			if (params->crypto.wpa_versions & NL80211_WPA_VERSION_2)
 				bss_config->wpa_cfg.pairwise_cipher_wpa2 |=
 								CIPHER_AES_CCMP;
+			break;
 		default:
 			break;
 		}
@@ -388,7 +389,7 @@ mwifiex_set_wmm_params(struct mwifiex_private *priv,
 {
 	const u8 *vendor_ie;
 	const u8 *wmm_ie;
-	u8 wmm_oui[] = {0x00, 0x50, 0xf2, 0x02};
+	static const u8 wmm_oui[] = {0x00, 0x50, 0xf2, 0x02};
 
 	vendor_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 					    WLAN_OUI_TYPE_MICROSOFT_WMM,

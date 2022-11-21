@@ -2,6 +2,8 @@
 #
 # Phy drivers for Broadcom platforms
 #
+menu "PHY drivers for Broadcom platforms"
+
 config PHY_BCM63XX_USBH
 	tristate "BCM63xx USBH PHY driver"
 	depends on BMIPS_GENERIC || COMPILE_TEST
@@ -91,11 +93,11 @@ config PHY_BRCM_SATA
 
 config PHY_BRCM_USB
 	tristate "Broadcom STB USB PHY driver"
-	depends on ARCH_BRCMSTB || COMPILE_TEST
+	depends on ARCH_BCM4908 || ARCH_BRCMSTB || COMPILE_TEST
 	depends on OF
 	select GENERIC_PHY
-	select SOC_BRCMSTB
-	default ARCH_BRCMSTB
+	select SOC_BRCMSTB if ARCH_BRCMSTB
+	default ARCH_BCM4908 || ARCH_BRCMSTB
 	help
 	  Enable this to support the Broadcom STB USB PHY.
 	  This driver is required by the USB XHCI, EHCI and OHCI
@@ -111,3 +113,5 @@ config PHY_BCM_SR_PCIE
 	help
 	  Enable this to support the Broadcom Stingray PCIe PHY
 	  If unsure, say N.
+
+endmenu

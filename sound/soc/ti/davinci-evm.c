@@ -46,8 +46,7 @@ static void evm_shutdown(struct snd_pcm_substream *substream)
 	struct snd_soc_card_drvdata_davinci *drvdata =
 		snd_soc_card_get_drvdata(soc_card);
 
-	if (drvdata->mclk)
-		clk_disable_unprepare(drvdata->mclk);
+	clk_disable_unprepare(drvdata->mclk);
 }
 
 static int evm_hw_params(struct snd_pcm_substream *substream,
@@ -74,7 +73,7 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops evm_ops = {
+static const struct snd_soc_ops evm_ops = {
 	.startup = evm_startup,
 	.shutdown = evm_shutdown,
 	.hw_params = evm_hw_params,

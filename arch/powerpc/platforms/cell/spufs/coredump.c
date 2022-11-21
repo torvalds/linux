@@ -74,7 +74,7 @@ static struct spu_context *coredump_next_context(int *fd)
 	*fd = n - 1;
 
 	rcu_read_lock();
-	file = fcheck(*fd);
+	file = lookup_fd_rcu(*fd);
 	ctx = SPUFS_I(file_inode(file))->i_ctx;
 	get_spu_context(ctx);
 	rcu_read_unlock();
@@ -149,8 +149,7 @@ static int spufs_arch_write_note(struct spu_context *ctx, int i,
 			return -EIO;
 	}
 
-	if (!dump_skip(cprm, roundup(cprm->pos - ret + sz, 4) - cprm->pos))
-		return -EIO;
+	dump_skip_to(cprm, roundup(cprm->pos - ret + sz, 4));
 	return 0;
 }
 

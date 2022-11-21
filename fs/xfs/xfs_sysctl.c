@@ -51,7 +51,7 @@ xfs_panic_mask_proc_handler(
 #endif /* CONFIG_PROC_FS */
 
 STATIC int
-xfs_deprecate_irix_sgid_inherit_proc_handler(
+xfs_deprecated_dointvec_minmax(
 	struct ctl_table	*ctl,
 	int			write,
 	void			*buffer,
@@ -59,24 +59,8 @@ xfs_deprecate_irix_sgid_inherit_proc_handler(
 	loff_t			*ppos)
 {
 	if (write) {
-		printk_once(KERN_WARNING
-				"XFS: " "%s sysctl option is deprecated.\n",
-				ctl->procname);
-	}
-	return proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
-}
-
-STATIC int
-xfs_deprecate_irix_symlink_mode_proc_handler(
-	struct ctl_table	*ctl,
-	int			write,
-	void			*buffer,
-	size_t			*lenp,
-	loff_t			*ppos)
-{
-	if (write) {
-		printk_once(KERN_WARNING
-				"XFS: " "%s sysctl option is deprecated.\n",
+		printk_ratelimited(KERN_WARNING
+				"XFS: %s sysctl option is deprecated.\n",
 				ctl->procname);
 	}
 	return proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
@@ -88,7 +72,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.sgid_inherit.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= xfs_deprecate_irix_sgid_inherit_proc_handler,
+		.proc_handler	= xfs_deprecated_dointvec_minmax,
 		.extra1		= &xfs_params.sgid_inherit.min,
 		.extra2		= &xfs_params.sgid_inherit.max
 	},
@@ -97,7 +81,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.symlink_mode.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= xfs_deprecate_irix_symlink_mode_proc_handler,
+		.proc_handler	= xfs_deprecated_dointvec_minmax,
 		.extra1		= &xfs_params.symlink_mode.min,
 		.extra2		= &xfs_params.symlink_mode.max
 	},
@@ -194,21 +178,21 @@ static struct ctl_table xfs_table[] = {
 	},
 	{
 		.procname	= "speculative_prealloc_lifetime",
-		.data		= &xfs_params.eofb_timer.val,
+		.data		= &xfs_params.blockgc_timer.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.eofb_timer.min,
-		.extra2		= &xfs_params.eofb_timer.max,
+		.extra1		= &xfs_params.blockgc_timer.min,
+		.extra2		= &xfs_params.blockgc_timer.max,
 	},
 	{
 		.procname	= "speculative_cow_prealloc_lifetime",
-		.data		= &xfs_params.cowb_timer.val,
+		.data		= &xfs_params.blockgc_timer.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.cowb_timer.min,
-		.extra2		= &xfs_params.cowb_timer.max,
+		.proc_handler	= xfs_deprecated_dointvec_minmax,
+		.extra1		= &xfs_params.blockgc_timer.min,
+		.extra2		= &xfs_params.blockgc_timer.max,
 	},
 	/* please keep this the last entry */
 #ifdef CONFIG_PROC_FS

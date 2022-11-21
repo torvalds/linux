@@ -1046,7 +1046,7 @@ static int rt5660_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 
 	ret = rl6231_pll_calc(freq_in, freq_out, &pll_code);
 	if (ret < 0) {
-		dev_err(component->dev, "Unsupport input clock %d\n", freq_in);
+		dev_err(component->dev, "Unsupported input clock %d\n", freq_in);
 		return ret;
 	}
 
@@ -1057,8 +1057,8 @@ static int rt5660_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	snd_soc_component_write(component, RT5660_PLL_CTRL1,
 		pll_code.n_code << RT5660_PLL_N_SFT | pll_code.k_code);
 	snd_soc_component_write(component, RT5660_PLL_CTRL2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5660_PLL_M_SFT |
-		pll_code.m_bp << RT5660_PLL_M_BP_SFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5660_PLL_M_SFT) |
+		(pll_code.m_bp << RT5660_PLL_M_BP_SFT));
 
 	rt5660->pll_in = freq_in;
 	rt5660->pll_out = freq_out;
@@ -1235,11 +1235,13 @@ static const struct i2c_device_id rt5660_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5660_i2c_id);
 
+#ifdef CONFIG_OF
 static const struct of_device_id rt5660_of_match[] = {
 	{ .compatible = "realtek,rt5660", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rt5660_of_match);
+#endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt5660_acpi_match[] = {

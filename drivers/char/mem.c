@@ -16,7 +16,6 @@
 #include <linux/mman.h>
 #include <linux/random.h>
 #include <linux/init.h>
-#include <linux/raw.h>
 #include <linux/tty.h>
 #include <linux/capability.h>
 #include <linux/ptrace.h>
@@ -31,9 +30,6 @@
 #include <linux/uio.h>
 #include <linux/uaccess.h>
 #include <linux/security.h>
-#include <linux/pseudo_fs.h>
-#include <uapi/linux/magic.h>
-#include <linux/mount.h>
 
 #ifdef CONFIG_IA64
 # include <linux/efi.h>
@@ -294,13 +290,6 @@ static int uncached_access(struct file *file, phys_addr_t addr)
 	 * attribute aliases.
 	 */
 	return !(efi_mem_attributes(addr) & EFI_MEMORY_WB);
-#elif defined(CONFIG_MIPS)
-	{
-		extern int __uncached_access(struct file *file,
-					     unsigned long addr);
-
-		return __uncached_access(file, addr);
-	}
 #else
 	/*
 	 * Accessing memory above the top the kernel knows about or through a
@@ -413,221 +402,6 @@ static int mmap_mem(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int mmap_kmem(struct file *file, struct vm_area_struct *vma)
-{
-	unsigned long pfn;
-
-	/* Turn a kernel-virtual address into a physical page frame */
-	pfn = __pa((u64)vma->vm_pgoff << PAGE_SHIFT) >> PAGE_SHIFT;
-
-	/*
-	 * RED-PEN: on some architectures there is more mapped memory than
-	 * available in mem_map which pfn_valid checks for. Perhaps should add a
-	 * new macro here.
-	 *
-	 * RED-PEN: vmalloc is not supported right now.
-	 */
-	if (!pfn_valid(pfn))
-		return -EIO;
-
-	vma->vm_pgoff = pfn;
-	return mmap_mem(file, vma);
-}
-
-/*
- * This function reads the *virtual* memory as seen by the kernel.
- */
-static ssize_t read_kmem(struct file *file, char __user *buf,
-			 size_t count, loff_t *ppos)
-{
-	unsigned long p = *ppos;
-	ssize_t low_count, read, sz;
-	char *kbuf; /* k-addr because vread() takes vmlist_lock rwlock */
-	int err = 0;
-
-	read = 0;
-	if (p < (unsigned long) high_memory) {
-		low_count = count;
-		if (count > (unsigned long)high_memory - p)
-			low_count = (unsigned long)high_memory - p;
-
-#ifdef __ARCH_HAS_NO_PAGE_ZERO_MAPPED
-		/* we don't have page 0 mapped on sparc and m68k.. */
-		if (p < PAGE_SIZE && low_count > 0) {
-			sz = size_inside_page(p, low_count);
-			if (clear_user(buf, sz))
-				return -EFAULT;
-			buf += sz;
-			p += sz;
-			read += sz;
-			low_count -= sz;
-			count -= sz;
-		}
-#endif
-		while (low_count > 0) {
-			sz = size_inside_page(p, low_count);
-
-			/*
-			 * On ia64 if a page has been mapped somewhere as
-			 * uncached, then it must also be accessed uncached
-			 * by the kernel or data corruption may occur
-			 */
-			kbuf = xlate_dev_kmem_ptr((void *)p);
-			if (!virt_addr_valid(kbuf))
-				return -ENXIO;
-
-			if (copy_to_user(buf, kbuf, sz))
-				return -EFAULT;
-			buf += sz;
-			p += sz;
-			read += sz;
-			low_count -= sz;
-			count -= sz;
-			if (should_stop_iteration()) {
-				count = 0;
-				break;
-			}
-		}
-	}
-
-	if (count > 0) {
-		kbuf = (char *)__get_free_page(GFP_KERNEL);
-		if (!kbuf)
-			return -ENOMEM;
-		while (count > 0) {
-			sz = size_inside_page(p, count);
-			if (!is_vmalloc_or_module_addr((void *)p)) {
-				err = -ENXIO;
-				break;
-			}
-			sz = vread(kbuf, (char *)p, sz);
-			if (!sz)
-				break;
-			if (copy_to_user(buf, kbuf, sz)) {
-				err = -EFAULT;
-				break;
-			}
-			count -= sz;
-			buf += sz;
-			read += sz;
-			p += sz;
-			if (should_stop_iteration())
-				break;
-		}
-		free_page((unsigned long)kbuf);
-	}
-	*ppos = p;
-	return read ? read : err;
-}
-
-
-static ssize_t do_write_kmem(unsigned long p, const char __user *buf,
-				size_t count, loff_t *ppos)
-{
-	ssize_t written, sz;
-	unsigned long copied;
-
-	written = 0;
-#ifdef __ARCH_HAS_NO_PAGE_ZERO_MAPPED
-	/* we don't have page 0 mapped on sparc and m68k.. */
-	if (p < PAGE_SIZE) {
-		sz = size_inside_page(p, count);
-		/* Hmm. Do something? */
-		buf += sz;
-		p += sz;
-		count -= sz;
-		written += sz;
-	}
-#endif
-
-	while (count > 0) {
-		void *ptr;
-
-		sz = size_inside_page(p, count);
-
-		/*
-		 * On ia64 if a page has been mapped somewhere as uncached, then
-		 * it must also be accessed uncached by the kernel or data
-		 * corruption may occur.
-		 */
-		ptr = xlate_dev_kmem_ptr((void *)p);
-		if (!virt_addr_valid(ptr))
-			return -ENXIO;
-
-		copied = copy_from_user(ptr, buf, sz);
-		if (copied) {
-			written += sz - copied;
-			if (written)
-				break;
-			return -EFAULT;
-		}
-		buf += sz;
-		p += sz;
-		count -= sz;
-		written += sz;
-		if (should_stop_iteration())
-			break;
-	}
-
-	*ppos += written;
-	return written;
-}
-
-/*
- * This function writes to the *virtual* memory as seen by the kernel.
- */
-static ssize_t write_kmem(struct file *file, const char __user *buf,
-			  size_t count, loff_t *ppos)
-{
-	unsigned long p = *ppos;
-	ssize_t wrote = 0;
-	ssize_t virtr = 0;
-	char *kbuf; /* k-addr because vwrite() takes vmlist_lock rwlock */
-	int err = 0;
-
-	if (p < (unsigned long) high_memory) {
-		unsigned long to_write = min_t(unsigned long, count,
-					       (unsigned long)high_memory - p);
-		wrote = do_write_kmem(p, buf, to_write, ppos);
-		if (wrote != to_write)
-			return wrote;
-		p += wrote;
-		buf += wrote;
-		count -= wrote;
-	}
-
-	if (count > 0) {
-		kbuf = (char *)__get_free_page(GFP_KERNEL);
-		if (!kbuf)
-			return wrote ? wrote : -ENOMEM;
-		while (count > 0) {
-			unsigned long sz = size_inside_page(p, count);
-			unsigned long n;
-
-			if (!is_vmalloc_or_module_addr((void *)p)) {
-				err = -ENXIO;
-				break;
-			}
-			n = copy_from_user(kbuf, buf, sz);
-			if (n) {
-				err = -EFAULT;
-				break;
-			}
-			vwrite(kbuf, (char *)p, sz);
-			count -= sz;
-			buf += sz;
-			virtr += sz;
-			p += sz;
-			if (should_stop_iteration())
-				break;
-		}
-		free_page((unsigned long)kbuf);
-	}
-
-	*ppos = p;
-	return virtr + wrote ? : err;
-}
-
 static ssize_t read_port(struct file *file, char __user *buf,
 			 size_t count, loff_t *ppos)
 {
@@ -721,6 +495,10 @@ static ssize_t read_iter_zero(struct kiocb *iocb, struct iov_iter *iter)
 		written += n;
 		if (signal_pending(current))
 			return written ? written : -ERESTARTSYS;
+		if (!need_resched())
+			continue;
+		if (iocb->ki_flags & IOCB_NOWAIT)
+			return written ? written : -EAGAIN;
 		cond_resched();
 	}
 	return written;
@@ -836,42 +614,6 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 	return ret;
 }
 
-static struct inode *devmem_inode;
-
-#ifdef CONFIG_IO_STRICT_DEVMEM
-void revoke_devmem(struct resource *res)
-{
-	/* pairs with smp_store_release() in devmem_init_inode() */
-	struct inode *inode = smp_load_acquire(&devmem_inode);
-
-	/*
-	 * Check that the initialization has completed. Losing the race
-	 * is ok because it means drivers are claiming resources before
-	 * the fs_initcall level of init and prevent /dev/mem from
-	 * establishing mappings.
-	 */
-	if (!inode)
-		return;
-
-	/*
-	 * The expectation is that the driver has successfully marked
-	 * the resource busy by this point, so devmem_is_allowed()
-	 * should start returning false, however for performance this
-	 * does not iterate the entire resource range.
-	 */
-	if (devmem_is_allowed(PHYS_PFN(res->start)) &&
-	    devmem_is_allowed(PHYS_PFN(res->end))) {
-		/*
-		 * *cringe* iomem=relaxed says "go ahead, what's the
-		 * worst that can happen?"
-		 */
-		return;
-	}
-
-	unmap_mapping_range(inode->i_mapping, res->start, resource_size(res), 1);
-}
-#endif
-
 static int open_port(struct inode *inode, struct file *filp)
 {
 	int rc;
@@ -891,8 +633,7 @@ static int open_port(struct inode *inode, struct file *filp)
 	 * revocations when drivers want to take over a /dev/mem mapped
 	 * range.
 	 */
-	inode->i_mapping = devmem_inode->i_mapping;
-	filp->f_mapping = inode->i_mapping;
+	filp->f_mapping = iomem_get_mapping();
 
 	return 0;
 }
@@ -902,7 +643,6 @@ static int open_port(struct inode *inode, struct file *filp)
 #define write_zero	write_null
 #define write_iter_zero	write_iter_null
 #define open_mem	open_port
-#define open_kmem	open_mem
 
 static const struct file_operations __maybe_unused mem_fops = {
 	.llseek		= memory_lseek,
@@ -910,18 +650,6 @@ static const struct file_operations __maybe_unused mem_fops = {
 	.write		= write_mem,
 	.mmap		= mmap_mem,
 	.open		= open_mem,
-#ifndef CONFIG_MMU
-	.get_unmapped_area = get_unmapped_area_mem,
-	.mmap_capabilities = memory_mmap_capabilities,
-#endif
-};
-
-static const struct file_operations __maybe_unused kmem_fops = {
-	.llseek		= memory_lseek,
-	.read		= read_kmem,
-	.write		= write_kmem,
-	.mmap		= mmap_kmem,
-	.open		= open_kmem,
 #ifndef CONFIG_MMU
 	.get_unmapped_area = get_unmapped_area_mem,
 	.mmap_capabilities = memory_mmap_capabilities,
@@ -972,14 +700,11 @@ static const struct memdev {
 #ifdef CONFIG_DEVMEM
 	 [DEVMEM_MINOR] = { "mem", 0, &mem_fops, FMODE_UNSIGNED_OFFSET },
 #endif
-#ifdef CONFIG_DEVKMEM
-	 [2] = { "kmem", 0, &kmem_fops, FMODE_UNSIGNED_OFFSET },
-#endif
-	 [3] = { "null", 0666, &null_fops, 0 },
+	 [3] = { "null", 0666, &null_fops, FMODE_NOWAIT },
 #ifdef CONFIG_DEVPORT
 	 [4] = { "port", 0, &port_fops, 0 },
 #endif
-	 [5] = { "zero", 0666, &zero_fops, 0 },
+	 [5] = { "zero", 0666, &zero_fops, FMODE_NOWAIT },
 	 [7] = { "full", 0666, &full_fops, 0 },
 	 [8] = { "random", 0666, &random_fops, 0 },
 	 [9] = { "urandom", 0666, &urandom_fops, 0 },
@@ -1024,48 +749,6 @@ static char *mem_devnode(struct device *dev, umode_t *mode)
 
 static struct class *mem_class;
 
-static int devmem_fs_init_fs_context(struct fs_context *fc)
-{
-	return init_pseudo(fc, DEVMEM_MAGIC) ? 0 : -ENOMEM;
-}
-
-static struct file_system_type devmem_fs_type = {
-	.name		= "devmem",
-	.owner		= THIS_MODULE,
-	.init_fs_context = devmem_fs_init_fs_context,
-	.kill_sb	= kill_anon_super,
-};
-
-static int devmem_init_inode(void)
-{
-	static struct vfsmount *devmem_vfs_mount;
-	static int devmem_fs_cnt;
-	struct inode *inode;
-	int rc;
-
-	rc = simple_pin_fs(&devmem_fs_type, &devmem_vfs_mount, &devmem_fs_cnt);
-	if (rc < 0) {
-		pr_err("Cannot mount /dev/mem pseudo filesystem: %d\n", rc);
-		return rc;
-	}
-
-	inode = alloc_anon_inode(devmem_vfs_mount->mnt_sb);
-	if (IS_ERR(inode)) {
-		rc = PTR_ERR(inode);
-		pr_err("Cannot allocate inode for /dev/mem: %d\n", rc);
-		simple_release_fs(&devmem_vfs_mount, &devmem_fs_cnt);
-		return rc;
-	}
-
-	/*
-	 * Publish /dev/mem initialized.
-	 * Pairs with smp_load_acquire() in revoke_devmem().
-	 */
-	smp_store_release(&devmem_inode, inode);
-
-	return 0;
-}
-
 static int __init chr_dev_init(void)
 {
 	int minor;
@@ -1086,8 +769,6 @@ static int __init chr_dev_init(void)
 		 * Create /dev/port?
 		 */
 		if ((minor == DEVPORT_MINOR) && !arch_has_dev_port())
-			continue;
-		if ((minor == DEVMEM_MINOR) && devmem_init_inode() != 0)
 			continue;
 
 		device_create(mem_class, NULL, MKDEV(MEM_MAJOR, minor),

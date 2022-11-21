@@ -12,8 +12,9 @@ extern "C" {
 extern void perf_clang__init(void);
 extern void perf_clang__cleanup(void);
 
-extern int test__clang_to_IR(void);
-extern int test__clang_to_obj(void);
+struct test_suite;
+extern int test__clang_to_IR(struct test_suite *test, int subtest);
+extern int test__clang_to_obj(struct test_suite *test, int subtest);
 
 extern int perf_clang__compile_bpf(const char *filename,
 				   void **p_obj_buf,
@@ -25,9 +26,6 @@ extern int perf_clang__compile_bpf(const char *filename,
 
 static inline void perf_clang__init(void) { }
 static inline void perf_clang__cleanup(void) { }
-
-static inline int test__clang_to_IR(void) { return -1; }
-static inline int test__clang_to_obj(void) { return -1;}
 
 static inline int
 perf_clang__compile_bpf(const char *filename __maybe_unused,

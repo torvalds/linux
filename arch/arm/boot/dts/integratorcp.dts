@@ -92,8 +92,9 @@
 		};
 
 		/* Oscillator on the core module, clocks the CPU core */
-		cmcore: cmosc@24M {
+		cmcore: clock-controller@8 {
 			compatible = "arm,syscon-icst525-integratorcp-cm-core";
+			reg = <0x08 0x04>;
 			#clock-cells = <0>;
 			lock-offset = <0x14>;
 			vco-offset = <0x08>;
@@ -101,8 +102,9 @@
 		};
 
 		/* Oscillator on the core module, clocks the memory bus */
-		cmmem: cmosc@24M {
+		cmmem: clock-controller@8,12 {
 			compatible = "arm,syscon-icst525-integratorcp-cm-mem";
+			reg = <0x08 0x04>;
 			#clock-cells = <0>;
 			lock-offset = <0x14>;
 			vco-offset = <0x08>;
@@ -110,8 +112,9 @@
 		};
 
 		/* Auxilary oscillator on the core module, clocks the CLCD */
-		auxosc: auxosc@24M {
+		auxosc: clock-controller@1c {
 			compatible = "arm,syscon-icst525";
+			reg = <0x1c 0x04>;
 			#clock-cells = <0>;
 			lock-offset = <0x14>;
 			vco-offset = <0x1c>;

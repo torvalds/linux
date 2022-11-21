@@ -32,7 +32,7 @@ struct nf_conntrack_l4proto {
 
 	/* convert protoinfo to nfnetink attributes */
 	int (*to_nlattr)(struct sk_buff *skb, struct nlattr *nla,
-			 struct nf_conn *ct);
+			 struct nf_conn *ct, bool destroy);
 
 	/* convert nfnetlink attributes to protoinfo */
 	int (*from_nlattr)(struct nlattr *tb[], struct nf_conn *ct);
@@ -159,22 +159,26 @@ unsigned int nf_ct_port_nlattr_tuple_size(void);
 extern const struct nla_policy nf_ct_port_nla_policy[];
 
 #ifdef CONFIG_SYSCTL
-__printf(3, 4) __cold
+__printf(4, 5) __cold
 void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
 			       const struct nf_conn *ct,
+			       const struct nf_hook_state *state,
 			       const char *fmt, ...);
-__printf(5, 6) __cold
+__printf(4, 5) __cold
 void nf_l4proto_log_invalid(const struct sk_buff *skb,
-			    struct net *net,
-			    u16 pf, u8 protonum,
+			    const struct nf_hook_state *state,
+			    u8 protonum,
 			    const char *fmt, ...);
 #else
-static inline __printf(5, 6) __cold
-void nf_l4proto_log_invalid(const struct sk_buff *skb, struct net *net,
-			    u16 pf, u8 protonum, const char *fmt, ...) {}
-static inline __printf(3, 4) __cold
+static inline __printf(4, 5) __cold
+void nf_l4proto_log_invalid(const struct sk_buff *skb,
+			    const struct nf_hook_state *state,
+			    u8 protonum,
+			    const char *fmt, ...) {}
+static inline __printf(4, 5) __cold
 void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
 			       const struct nf_conn *ct,
+			       const struct nf_hook_state *state,
 			       const char *fmt, ...) { }
 #endif /* CONFIG_SYSCTL */
 
@@ -202,6 +206,20 @@ static inline struct nf_icmp_net *nf_icmp_pernet(struct net *net)
 static inline struct nf_icmp_net *nf_icmpv6_pernet(struct net *net)
 {
 	return &net->ct.nf_ct_proto.icmpv6;
+}
+
+/* Caller must check nf_ct_protonum(ct) is IPPROTO_TCP before calling. */
+static inline void nf_ct_set_tcp_be_liberal(struct nf_conn *ct)
+{
+	ct->proto.tcp.seen[0].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+	ct->proto.tcp.seen[1].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+}
+
+/* Caller must check nf_ct_protonum(ct) is IPPROTO_TCP before calling. */
+static inline bool nf_conntrack_tcp_established(const struct nf_conn *ct)
+{
+	return ct->proto.tcp.state == TCP_CONNTRACK_ESTABLISHED &&
+	       test_bit(IPS_ASSURED_BIT, &ct->status);
 }
 #endif
 

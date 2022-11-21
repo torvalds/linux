@@ -119,8 +119,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adf_init_hw_data_c3xxxiov(accel_dev->hw_device);
 
 	/* Get Accelerators and Accelerators Engines masks */
-	hw_data->accel_mask = hw_data->get_accel_mask(hw_data->fuses);
-	hw_data->ae_mask = hw_data->get_ae_mask(hw_data->fuses);
+	hw_data->accel_mask = hw_data->get_accel_mask(hw_data);
+	hw_data->ae_mask = hw_data->get_ae_mask(hw_data);
 	accel_pci_dev->sku = hw_data->get_sku(hw_data);
 
 	/* Create dev top level debugfs entry */
@@ -141,17 +141,10 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* set dma identifier */
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		if ((pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))) {
-			dev_err(&pdev->dev, "No usable DMA configuration\n");
-			ret = -EFAULT;
-			goto out_err_disable;
-		} else {
-			pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		}
-
-	} else {
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48));
+	if (ret) {
+		dev_err(&pdev->dev, "No usable DMA configuration\n");
+		goto out_err_disable;
 	}
 
 	if (pci_request_regions(pdev, ADF_C3XXXVF_DEVICE_NAME)) {
@@ -178,17 +171,13 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	pci_set_master(pdev);
 	/* Completion for VF2PF request/response message exchange */
-	init_completion(&accel_dev->vf.iov_msg_completion);
-
-	ret = qat_crypto_dev_config(accel_dev);
-	if (ret)
-		goto out_err_free_reg;
-
-	set_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
+	init_completion(&accel_dev->vf.msg_received);
 
 	ret = adf_dev_init(accel_dev);
 	if (ret)
 		goto out_err_dev_shutdown;
+
+	set_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
 
 	ret = adf_dev_start(accel_dev);
 	if (ret)
@@ -218,6 +207,7 @@ static void adf_remove(struct pci_dev *pdev)
 		pr_err("QAT: Driver removal failed\n");
 		return;
 	}
+	adf_flush_vf_wq(accel_dev);
 	adf_dev_stop(accel_dev);
 	adf_dev_shutdown(accel_dev);
 	adf_cleanup_accel(accel_dev);

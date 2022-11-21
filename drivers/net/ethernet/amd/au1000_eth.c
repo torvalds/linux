@@ -1051,7 +1051,7 @@ static const struct net_device_ops au1000_netdev_ops = {
 	.ndo_stop		= au1000_close,
 	.ndo_start_xmit		= au1000_tx,
 	.ndo_set_rx_mode	= au1000_multicast_list,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_tx_timeout		= au1000_tx_timeout,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -1178,7 +1178,7 @@ static int au1000_probe(struct platform_device *pdev)
 		aup->phy1_search_mac0 = 1;
 	} else {
 		if (is_valid_ether_addr(pd->mac)) {
-			memcpy(dev->dev_addr, pd->mac, ETH_ALEN);
+			eth_hw_addr_set(dev, pd->mac);
 		} else {
 			/* Set a random MAC since no valid provided by platform_data. */
 			eth_hw_addr_random(dev);

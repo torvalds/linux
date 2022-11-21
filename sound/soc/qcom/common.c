@@ -26,6 +26,12 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		return ret;
 	}
 
+	if (of_property_read_bool(dev->of_node, "widgets")) {
+		ret = snd_soc_of_parse_audio_simple_widgets(card, "widgets");
+		if (ret)
+			return ret;
+	}
+
 	/* DAPM routes */
 	if (of_property_read_bool(dev->of_node, "audio-routing")) {
 		ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
@@ -39,12 +45,16 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 			return ret;
 	}
 
+	ret = snd_soc_of_parse_pin_switches(card, "pin-switches");
+	if (ret)
+		return ret;
+
 	ret = snd_soc_of_parse_aux_devs(card, "aux-devs");
 	if (ret)
 		return ret;
 
 	/* Populate links */
-	num_links = of_get_child_count(dev->of_node);
+	num_links = of_get_available_child_count(dev->of_node);
 
 	/* Allocate the DAI link array */
 	card->dai_link = devm_kcalloc(dev, num_links, sizeof(*link), GFP_KERNEL);
@@ -54,11 +64,11 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 	card->num_links = num_links;
 	link = card->dai_link;
 
-	for_each_child_of_node(dev->of_node, np) {
+	for_each_available_child_of_node(dev->of_node, np) {
 		dlc = devm_kzalloc(dev, 2 * sizeof(*dlc), GFP_KERNEL);
 		if (!dlc) {
 			ret = -ENOMEM;
-			goto err;
+			goto err_put_np;
 		}
 
 		link->cpus	= &dlc[0];
@@ -70,7 +80,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		ret = of_property_read_string(np, "link-name", &link->name);
 		if (ret) {
 			dev_err(card->dev, "error getting codec dai_link name\n");
-			goto err;
+			goto err_put_np;
 		}
 
 		cpu = of_get_child_by_name(np, "cpu");
@@ -94,9 +104,8 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 
 		ret = snd_soc_of_get_dai_name(cpu, &link->cpus->dai_name);
 		if (ret) {
-			if (ret != -EPROBE_DEFER)
-				dev_err(card->dev, "%s: error getting cpu dai name: %d\n",
-					link->name, ret);
+			dev_err_probe(card->dev, ret,
+				      "%s: error getting cpu dai name\n", link->name);
 			goto err;
 		}
 
@@ -116,9 +125,8 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		if (codec) {
 			ret = snd_soc_of_get_dai_link_codecs(dev, codec, link);
 			if (ret < 0) {
-				if (ret != -EPROBE_DEFER)
-					dev_err(card->dev, "%s: codec dai not found: %d\n",
-						link->name, ret);
+				dev_err_probe(card->dev, ret,
+					      "%s: codec dai not found\n", link->name);
 				goto err;
 			}
 
@@ -130,8 +138,10 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		} else {
 			/* DPCM frontend */
 			dlc = devm_kzalloc(dev, sizeof(*dlc), GFP_KERNEL);
-			if (!dlc)
-				return -ENOMEM;
+			if (!dlc) {
+				ret = -ENOMEM;
+				goto err;
+			}
 
 			link->codecs	 = dlc;
 			link->num_codecs = 1;
@@ -158,10 +168,11 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 
 	return 0;
 err:
-	of_node_put(np);
 	of_node_put(cpu);
 	of_node_put(codec);
 	of_node_put(platform);
+err_put_np:
+	of_node_put(np);
 	return ret;
 }
 EXPORT_SYMBOL(qcom_snd_parse_of);

@@ -1408,7 +1408,7 @@ static void     bfa_fcs_lport_fdmi_rpa_response(void *fcsarg,
 					       u32 resid_len,
 					       struct fchs_s *rsp_fchs);
 static void     bfa_fcs_lport_fdmi_timeout(void *arg);
-static u16 bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi,
+static int bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi,
 						  u8 *pyld);
 static u16 bfa_fcs_lport_fdmi_build_rprt_pyld(struct bfa_fcs_lport_fdmi_s *fdmi,
 						  u8 *pyld);
@@ -1887,6 +1887,8 @@ bfa_fcs_lport_fdmi_send_rhba(void *fdmi_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 		bfa_fcs_lport_fdmi_build_rhba_pyld(fdmi,
 					  (u8 *) ((struct ct_hdr_s *) pyld
 						       + 1));
+	if (attr_len < 0)
+		return;
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 			  FC_CLASS_3, (len + attr_len), &fchs,
@@ -1896,17 +1898,20 @@ bfa_fcs_lport_fdmi_send_rhba(void *fdmi_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	bfa_sm_send_event(fdmi, FDMISM_EVENT_RHBA_SENT);
 }
 
-static          u16
+static int
 bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 {
 	struct bfa_fcs_lport_s *port = fdmi->ms->port;
-	struct bfa_fcs_fdmi_hba_attr_s hba_attr;
-	struct bfa_fcs_fdmi_hba_attr_s *fcs_hba_attr = &hba_attr;
+	struct bfa_fcs_fdmi_hba_attr_s *fcs_hba_attr;
 	struct fdmi_rhba_s *rhba = (struct fdmi_rhba_s *) pyld;
 	struct fdmi_attr_s *attr;
+	int        len;
 	u8        *curr_ptr;
-	u16        len, count;
-	u16	templen;
+	u16	templen, count;
+
+	fcs_hba_attr = kzalloc(sizeof(*fcs_hba_attr), GFP_KERNEL);
+	if (!fcs_hba_attr)
+		return -ENOMEM;
 
 	/*
 	 * get hba attributes
@@ -2148,6 +2153,9 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	len += ((sizeof(attr->type) + sizeof(attr->len)) * count);
 
 	rhba->hba_attr_blk.attr_count = cpu_to_be32(count);
+
+	kfree(fcs_hba_attr);
+
 	return len;
 }
 
@@ -5671,7 +5679,7 @@ bfa_fcs_lport_scn_process_rscn(struct bfa_fcs_lport_s *port,
 				bfa_fcs_lport_ms_fabric_rscn(port);
 				break;
 			}
-			/* !!!!!!!!! Fall Through !!!!!!!!!!!!! */
+			fallthrough;
 
 		case FC_RSCN_FORMAT_AREA:
 		case FC_RSCN_FORMAT_DOMAIN:

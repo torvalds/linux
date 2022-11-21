@@ -41,6 +41,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <net/addrconf.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/iw_cm.h>
@@ -54,7 +55,7 @@
 #include "ocrdma_verbs.h"
 #include <rdma/ocrdma-abi.h>
 
-int ocrdma_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
+int ocrdma_query_pkey(struct ib_device *ibdev, u32 port, u16 index, u16 *pkey)
 {
 	if (index > 0)
 		return -EINVAL;
@@ -74,7 +75,8 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 	memset(attr, 0, sizeof *attr);
 	memcpy(&attr->fw_ver, &dev->attr.fw_ver[0],
 	       min(sizeof(dev->attr.fw_ver), sizeof(attr->fw_ver)));
-	ocrdma_get_guid(dev, (u8 *)&attr->sys_image_guid);
+	addrconf_addr_eui48((u8 *)&attr->sys_image_guid,
+			    dev->nic_info.mac_addr);
 	attr->max_mr_size = dev->attr.max_mr_size;
 	attr->page_size_cap = 0xffff000;
 	attr->vendor_id = dev->nic_info.pdev->vendor;
@@ -150,7 +152,7 @@ static inline void get_link_speed_and_width(struct ocrdma_dev *dev,
 }
 
 int ocrdma_query_port(struct ib_device *ibdev,
-		      u8 port, struct ib_port_attr *props)
+		      u32 port, struct ib_port_attr *props)
 {
 	enum ib_port_state port_state;
 	struct ocrdma_dev *dev;
@@ -245,13 +247,13 @@ static bool ocrdma_search_mmap(struct ocrdma_ucontext *uctx, u64 phy_addr,
 static u16 _ocrdma_pd_mgr_get_bitmap(struct ocrdma_dev *dev, bool dpp_pool)
 {
 	u16 pd_bitmap_idx = 0;
-	const unsigned long *pd_bitmap;
+	unsigned long *pd_bitmap;
 
 	if (dpp_pool) {
 		pd_bitmap = dev->pd_mgr->pd_dpp_bitmap;
 		pd_bitmap_idx = find_first_zero_bit(pd_bitmap,
 						    dev->pd_mgr->max_dpp_pd);
-		__set_bit(pd_bitmap_idx, dev->pd_mgr->pd_dpp_bitmap);
+		__set_bit(pd_bitmap_idx, pd_bitmap);
 		dev->pd_mgr->pd_dpp_count++;
 		if (dev->pd_mgr->pd_dpp_count > dev->pd_mgr->pd_dpp_thrsh)
 			dev->pd_mgr->pd_dpp_thrsh = dev->pd_mgr->pd_dpp_count;
@@ -259,7 +261,7 @@ static u16 _ocrdma_pd_mgr_get_bitmap(struct ocrdma_dev *dev, bool dpp_pool)
 		pd_bitmap = dev->pd_mgr->pd_norm_bitmap;
 		pd_bitmap_idx = find_first_zero_bit(pd_bitmap,
 						    dev->pd_mgr->max_normal_pd);
-		__set_bit(pd_bitmap_idx, dev->pd_mgr->pd_norm_bitmap);
+		__set_bit(pd_bitmap_idx, pd_bitmap);
 		dev->pd_mgr->pd_norm_count++;
 		if (dev->pd_mgr->pd_norm_count > dev->pd_mgr->pd_norm_thrsh)
 			dev->pd_mgr->pd_norm_thrsh = dev->pd_mgr->pd_norm_count;
@@ -434,9 +436,9 @@ static void ocrdma_dealloc_ucontext_pd(struct ocrdma_ucontext *uctx)
 		pr_err("%s(%d) Freeing in use pdid=0x%x.\n",
 		       __func__, dev->id, pd->id);
 	}
-	kfree(uctx->cntxt_pd);
 	uctx->cntxt_pd = NULL;
 	_ocrdma_dealloc_pd(dev, pd);
+	kfree(pd);
 }
 
 static struct ocrdma_pd *ocrdma_get_ucontext_pd(struct ocrdma_ucontext *uctx)
@@ -974,7 +976,7 @@ int ocrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	struct ocrdma_create_cq_ureq ureq;
 
 	if (attr->flags)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (udata) {
 		if (ib_copy_from_udata(&ureq, udata, sizeof(ureq)))
@@ -1288,16 +1290,19 @@ static void ocrdma_store_gsi_qp_cq(struct ocrdma_dev *dev,
 	}
 }
 
-struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
-			       struct ib_qp_init_attr *attrs,
-			       struct ib_udata *udata)
+int ocrdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
+		     struct ib_udata *udata)
 {
 	int status;
+	struct ib_pd *ibpd = ibqp->pd;
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
-	struct ocrdma_qp *qp;
-	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
+	struct ocrdma_qp *qp = get_ocrdma_qp(ibqp);
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibqp->device);
 	struct ocrdma_create_qp_ureq ureq;
 	u16 dpp_credit_lmt, dpp_offset;
+
+	if (attrs->create_flags)
+		return -EOPNOTSUPP;
 
 	status = ocrdma_check_qp_params(ibpd, dev, attrs, udata);
 	if (status)
@@ -1306,12 +1311,7 @@ struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
 	memset(&ureq, 0, sizeof(ureq));
 	if (udata) {
 		if (ib_copy_from_udata(&ureq, udata, sizeof(ureq)))
-			return ERR_PTR(-EFAULT);
-	}
-	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
-	if (!qp) {
-		status = -ENOMEM;
-		goto gen_err;
+			return -EFAULT;
 	}
 	ocrdma_set_qp_init_params(qp, pd, attrs);
 	if (udata == NULL)
@@ -1346,7 +1346,7 @@ struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
 	ocrdma_store_gsi_qp_cq(dev, attrs);
 	qp->ibqp.qp_num = qp->id;
 	mutex_unlock(&dev->dev_lock);
-	return &qp->ibqp;
+	return 0;
 
 cpy_err:
 	ocrdma_del_qpn_map(dev, qp);
@@ -1356,10 +1356,9 @@ mbx_err:
 	mutex_unlock(&dev->dev_lock);
 	kfree(qp->wqe_wr_id_tbl);
 	kfree(qp->rqe_wr_id_tbl);
-	kfree(qp);
 	pr_err("%s(%d) error=%d\n", __func__, dev->id, status);
 gen_err:
-	return ERR_PTR(status);
+	return status;
 }
 
 int _ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
@@ -1390,6 +1389,9 @@ int ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct ocrdma_qp *qp;
 	struct ocrdma_dev *dev;
 	enum ib_qp_state old_qps, new_qps;
+
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
 
 	qp = get_ocrdma_qp(ibqp);
 	dev = get_ocrdma_dev(ibqp->device);
@@ -1725,7 +1727,6 @@ int ocrdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 
 	kfree(qp->wqe_wr_id_tbl);
 	kfree(qp->rqe_wr_id_tbl);
-	kfree(qp);
 	return 0;
 }
 
@@ -1769,6 +1770,9 @@ int ocrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibsrq->pd);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibsrq->device);
 	struct ocrdma_srq *srq = get_ocrdma_srq(ibsrq);
+
+	if (init_attr->srq_type != IB_SRQT_BASIC)
+		return -EOPNOTSUPP;
 
 	if (init_attr->attr.max_sge > dev->attr.max_recv_sge)
 		return -EINVAL;
@@ -1842,12 +1846,10 @@ int ocrdma_modify_srq(struct ib_srq *ibsrq,
 
 int ocrdma_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 {
-	int status;
 	struct ocrdma_srq *srq;
 
 	srq = get_ocrdma_srq(ibsrq);
-	status = ocrdma_mbx_query_srq(srq, srq_attr);
-	return status;
+	return ocrdma_mbx_query_srq(srq, srq_attr);
 }
 
 int ocrdma_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
@@ -1958,7 +1960,6 @@ static int ocrdma_build_inline_sges(struct ocrdma_qp *qp,
 static int ocrdma_build_send(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 			     const struct ib_send_wr *wr)
 {
-	int status;
 	struct ocrdma_sge *sge;
 	u32 wqe_size = sizeof(*hdr);
 
@@ -1970,8 +1971,7 @@ static int ocrdma_build_send(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 		sge = (struct ocrdma_sge *)(hdr + 1);
 	}
 
-	status = ocrdma_build_inline_sges(qp, hdr, sge, wr, wqe_size);
-	return status;
+	return ocrdma_build_inline_sges(qp, hdr, sge, wr, wqe_size);
 }
 
 static int ocrdma_build_write(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,

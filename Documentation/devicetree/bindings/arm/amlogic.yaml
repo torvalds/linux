@@ -86,6 +86,7 @@ properties:
           - enum:
               - amlogic,p281
               - oranth,tx3-mini
+              - jethome,jethub-j80
           - const: amlogic,s905w
           - const: amlogic,meson-gxl
 
@@ -107,8 +108,10 @@ properties:
               - amlogic,p230
               - amlogic,p231
               - libretech,aml-s905d-pc
+              - osmc,vero4k-plus
               - phicomm,n1
               - smartlabs,sml5442tw
+              - videostrong,gxl-kii-pro
           - const: amlogic,s905d
           - const: amlogic,meson-gxl
 
@@ -120,8 +123,10 @@ properties:
               - khadas,vim2
               - kingnovel,r-box-pro
               - libretech,aml-s912-pc
+              - minix,neo-u9h
               - nexbox,a1
               - tronsmart,vega-s96
+              - videostrong,gxm-kiii-pro
               - wetek,core2
           - const: amlogic,s912
           - const: amlogic,meson-gxm
@@ -130,6 +135,7 @@ properties:
         items:
           - enum:
               - amlogic,s400
+              - jethome,jethub-j100
           - const: amlogic,a113d
           - const: amlogic,meson-axg
 
@@ -138,6 +144,7 @@ properties:
           - enum:
               - amediatech,x96-max
               - amlogic,u200
+              - radxa,zero
               - seirobotics,sei510
           - const: amlogic,g12a
 
@@ -151,6 +158,7 @@ properties:
       - description: Boards with the Amlogic Meson G12B S922X SoC
         items:
           - enum:
+              - azw,gsking-x
               - azw,gtking
               - azw,gtking-pro
               - hardkernel,odroid-n2
@@ -163,9 +171,16 @@ properties:
       - description: Boards with the Amlogic Meson SM1 S905X3/D3/Y3 SoC
         items:
           - enum:
-              - seirobotics,sei610
-              - khadas,vim3l
+              - amediatech,x96-air
+              - amediatech,x96-air-gbit
+              - bananapi,bpi-m5
+              - cyx,a95xf3-air
+              - cyx,a95xf3-air-gbit
               - hardkernel,odroid-c4
+              - hardkernel,odroid-hc4
+              - haochuangyi,h96-max
+              - khadas,vim3l
+              - seirobotics,sei610
           - const: amlogic,sm1
 
       - description: Boards with the Amlogic Meson A1 A113L SoC
@@ -173,6 +188,12 @@ properties:
           - enum:
               - amlogic,ad401
           - const: amlogic,a1
+
+      - description: Boards with the Amlogic Meson S4 S805X2 SoC
+        items:
+          - enum:
+              - amlogic,aq222
+          - const: amlogic,s4
 
 additionalProperties: true
 

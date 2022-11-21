@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
 ================
 bpftool-map
 ================
@@ -7,16 +9,18 @@ tool for inspection and simple manipulation of eBPF maps
 
 :Manual section: 8
 
+.. include:: substitutions.rst
+
 SYNOPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **map** *COMMAND*
 
-	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-f** | **--bpffs** } }
+	*OPTIONS* := { |COMMON_OPTIONS| | { **-f** | **--bpffs** } | { **-n** | **--nomount** } }
 
 	*COMMANDS* :=
-	{ **show** | **list** | **create** | **dump** | **update** | **lookup** | **getnext**
-	| **delete** | **pin** | **help** }
+	{ **show** | **list** | **create** | **dump** | **update** | **lookup** | **getnext** |
+	**delete** | **pin** | **help** }
 
 MAP COMMANDS
 =============
@@ -50,7 +54,8 @@ MAP COMMANDS
 |		| **lru_percpu_hash** | **lpm_trie** | **array_of_maps** | **hash_of_maps**
 |		| **devmap** | **devmap_hash** | **sockmap** | **cpumap** | **xskmap** | **sockhash**
 |		| **cgroup_storage** | **reuseport_sockarray** | **percpu_cgroup_storage**
-|		| **queue** | **stack** | **sk_storage** | **struct_ops** | **ringbuf** | **inode_storage** }
+|		| **queue** | **stack** | **sk_storage** | **struct_ops** | **ringbuf** | **inode_storage**
+|		| **task_storage** | **bloom_filter** }
 
 DESCRIPTION
 ===========

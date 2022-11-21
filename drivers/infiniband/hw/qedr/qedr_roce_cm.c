@@ -319,20 +319,19 @@ err1:
 	return rc;
 }
 
-struct ib_qp *qedr_create_gsi_qp(struct qedr_dev *dev,
-				 struct ib_qp_init_attr *attrs,
-				 struct qedr_qp *qp)
+int qedr_create_gsi_qp(struct qedr_dev *dev, struct ib_qp_init_attr *attrs,
+		       struct qedr_qp *qp)
 {
 	int rc;
 
 	rc = qedr_check_gsi_qp_attrs(dev, attrs);
 	if (rc)
-		return ERR_PTR(rc);
+		return rc;
 
 	rc = qedr_ll2_start(dev, attrs, qp);
 	if (rc) {
 		DP_ERR(dev, "create gsi qp: failed on ll2 start. rc=%d\n", rc);
-		return ERR_PTR(rc);
+		return rc;
 	}
 
 	/* create QP */
@@ -359,7 +358,7 @@ struct ib_qp *qedr_create_gsi_qp(struct qedr_dev *dev,
 
 	DP_DEBUG(dev, QEDR_MSG_GSI, "created GSI QP %p\n", qp);
 
-	return &qp->ibqp;
+	return 0;
 
 err:
 	kfree(qp->rqe_wr_id);
@@ -368,7 +367,7 @@ err:
 	if (rc)
 		DP_ERR(dev, "create gsi qp: failed destroy on create\n");
 
-	return ERR_PTR(-ENOMEM);
+	return -ENOMEM;
 }
 
 int qedr_destroy_gsi_qp(struct qedr_dev *dev)
@@ -586,8 +585,8 @@ int qedr_gsi_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		qp->wqe_wr_id[qp->sq.prod].wr_id = wr->wr_id;
 		qedr_inc_sw_prod(&qp->sq);
 		DP_DEBUG(qp->dev, QEDR_MSG_GSI,
-			 "gsi post send: opcode=%d, in_irq=%ld, irqs_disabled=%d, wr_id=%llx\n",
-			 wr->opcode, in_irq(), irqs_disabled(), wr->wr_id);
+			 "gsi post send: opcode=%d, wr_id=%llx\n", wr->opcode,
+			 wr->wr_id);
 	} else {
 		DP_ERR(dev, "gsi post send: failed to transmit (rc=%d)\n", rc);
 		rc = -EAGAIN;

@@ -28,16 +28,17 @@ struct {
 	__type(value, unsigned int);
 } verdict_map SEC(".maps");
 
-static volatile bool test_sockmap; /* toggled by user-space */
+bool test_sockmap = false; /* toggled by user-space */
+bool test_ingress = false; /* toggled by user-space */
 
 SEC("sk_skb/stream_parser")
-int prog_skb_parser(struct __sk_buff *skb)
+int prog_stream_parser(struct __sk_buff *skb)
 {
 	return skb->len;
 }
 
 SEC("sk_skb/stream_verdict")
-int prog_skb_verdict(struct __sk_buff *skb)
+int prog_stream_verdict(struct __sk_buff *skb)
 {
 	unsigned int *count;
 	__u32 zero = 0;
@@ -47,6 +48,27 @@ int prog_skb_verdict(struct __sk_buff *skb)
 		verdict = bpf_sk_redirect_map(skb, &sock_map, zero, 0);
 	else
 		verdict = bpf_sk_redirect_hash(skb, &sock_hash, &zero, 0);
+
+	count = bpf_map_lookup_elem(&verdict_map, &verdict);
+	if (count)
+		(*count)++;
+
+	return verdict;
+}
+
+SEC("sk_skb")
+int prog_skb_verdict(struct __sk_buff *skb)
+{
+	unsigned int *count;
+	__u32 zero = 0;
+	int verdict;
+
+	if (test_sockmap)
+		verdict = bpf_sk_redirect_map(skb, &sock_map, zero,
+					      test_ingress ? BPF_F_INGRESS : 0);
+	else
+		verdict = bpf_sk_redirect_hash(skb, &sock_hash, &zero,
+					       test_ingress ? BPF_F_INGRESS : 0);
 
 	count = bpf_map_lookup_elem(&verdict_map, &verdict);
 	if (count)
@@ -94,5 +116,4 @@ int prog_reuseport(struct sk_reuseport_md *reuse)
 	return verdict;
 }
 
-int _version SEC("version") = 1;
 char _license[] SEC("license") = "GPL";

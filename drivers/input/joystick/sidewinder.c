@@ -660,6 +660,7 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 					fallthrough;
 				case 45:				/* Ambiguous packet length */
 					if (j <= 40) {			/* ID length less or eq 40 -> FSP */
+					fallthrough;
 				case 43:
 						sw->type = SW_ID_FSP;
 						break;

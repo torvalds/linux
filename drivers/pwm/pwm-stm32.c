@@ -621,8 +621,6 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	priv->regmap = ddata->regmap;
 	priv->clk = ddata->clk;
 	priv->max_arr = ddata->max_arr;
-	priv->chip.of_xlate = of_pwm_xlate_with_flags;
-	priv->chip.of_pwm_n_cells = 3;
 
 	if (!priv->regmap || !priv->clk)
 		return -EINVAL;
@@ -633,7 +631,6 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 
 	stm32_pwm_detect_complementary(priv);
 
-	priv->chip.base = -1;
 	priv->chip.dev = dev;
 	priv->chip.ops = &stm32pwm_ops;
 	priv->chip.npwm = stm32_pwm_detect_channels(priv);

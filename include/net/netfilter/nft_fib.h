@@ -5,7 +5,7 @@
 #include <net/netfilter/nf_tables.h>
 
 struct nft_fib {
-	enum nft_registers	dreg:8;
+	u8			dreg;
 	u8			result;
 	u32			flags;
 };
@@ -37,4 +37,7 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 
 void nft_fib_store_result(void *reg, const struct nft_fib *priv,
 			  const struct net_device *dev);
+
+bool nft_fib_reduce(struct nft_regs_track *track,
+		    const struct nft_expr *expr);
 #endif

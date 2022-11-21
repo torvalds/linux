@@ -1,67 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(C) 2018 - 2020 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(C) 2018 - 2020 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fw_api_nvm_reg_h__
 #define __iwl_fw_api_nvm_reg_h__
 
@@ -90,6 +32,11 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	 * @TAS_CONFIG: &struct iwl_tas_config_cmd
 	 */
 	TAS_CONFIG = 0x3,
+
+	/**
+	 * @SAR_OFFSET_MAPPING_TABLE_CMD: &iwl_sar_offset_mapping_cmd
+	 */
+	SAR_OFFSET_MAPPING_TABLE_CMD = 0x4,
 
 	/**
 	 * @PNVM_INIT_COMPLETE_NTFY: &struct iwl_pnvm_init_complete_ntfy
@@ -446,17 +393,56 @@ enum iwl_mcc_source {
 	MCC_SOURCE_GETTING_MCC_TEST_MODE = 0x11,
 };
 
-#define IWL_TAS_BLACK_LIST_MAX 16
+#define IWL_TAS_BLOCK_LIST_MAX 16
 /**
- * struct iwl_tas_config_cmd - configures the TAS
- * @black_list_size: size of relevant field in black_list_array
- * @black_list_array: black list countries (without TAS)
+ * struct iwl_tas_config_cmd_v2 - configures the TAS
+ * @block_list_size: size of relevant field in block_list_array
+ * @block_list_array: list of countries where TAS must be disabled
  */
-struct iwl_tas_config_cmd {
-	__le32 black_list_size;
-	__le32 black_list_array[IWL_TAS_BLACK_LIST_MAX];
+struct iwl_tas_config_cmd_v2 {
+	__le32 block_list_size;
+	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_2 */
 
+/**
+ * struct iwl_tas_config_cmd_v3 - configures the TAS
+ * @block_list_size: size of relevant field in block_list_array
+ * @block_list_array: list of countries where TAS must be disabled
+ * @override_tas_iec: indicates whether to override default value of IEC regulatory
+ * @enable_tas_iec: in case override_tas_iec is set -
+ *	indicates whether IEC regulatory is enabled or disabled
+ */
+struct iwl_tas_config_cmd_v3 {
+	__le32 block_list_size;
+	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
+	__le16 override_tas_iec;
+	__le16 enable_tas_iec;
+} __packed; /* TAS_CONFIG_CMD_API_S_VER_3 */
+
+/**
+ * struct iwl_tas_config_cmd_v3 - configures the TAS
+ * @block_list_size: size of relevant field in block_list_array
+ * @block_list_array: list of countries where TAS must be disabled
+ * @override_tas_iec: indicates whether to override default value of IEC regulatory
+ * @enable_tas_iec: in case override_tas_iec is set -
+ *	indicates whether IEC regulatory is enabled or disabled
+ * @usa_tas_uhb_allowed: if set, allow TAS UHB in the USA
+ * @reserved: reserved
+*/
+struct iwl_tas_config_cmd_v4 {
+	__le32 block_list_size;
+	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
+	u8 override_tas_iec;
+	u8 enable_tas_iec;
+	u8 usa_tas_uhb_allowed;
+	u8 reserved;
+} __packed; /* TAS_CONFIG_CMD_API_S_VER_4 */
+
+union iwl_tas_config_cmd {
+	struct iwl_tas_config_cmd_v2 v2;
+	struct iwl_tas_config_cmd_v3 v3;
+	struct iwl_tas_config_cmd_v4 v4;
+};
 /**
  * enum iwl_lari_configs - bit masks for the various LARI config operations
  * @LARI_CONFIG_DISABLE_11AC_UKRAINE_MSK: disable 11ac in ukraine
@@ -472,14 +458,111 @@ enum iwl_lari_config_masks {
 	LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK		= BIT(3),
 };
 
+#define IWL_11AX_UKRAINE_MASK 3
+#define IWL_11AX_UKRAINE_SHIFT 8
+
 /**
- * struct iwl_lari_config_change_cmd - change LARI configuration
+ * struct iwl_lari_config_change_cmd_v1 - change LARI configuration
  * @config_bitmap: bit map of the config commands. each bit will trigger a
  * different predefined FW config operation
  */
-struct iwl_lari_config_change_cmd {
+struct iwl_lari_config_change_cmd_v1 {
 	__le32 config_bitmap;
 } __packed; /* LARI_CHANGE_CONF_CMD_S_VER_1 */
+
+/**
+ * struct iwl_lari_config_change_cmd_v2 - change LARI configuration
+ * @config_bitmap: bit map of the config commands. each bit will trigger a
+ * different predefined FW config operation
+ * @oem_uhb_allow_bitmap: bitmap of UHB enabled MCC sets
+ */
+struct iwl_lari_config_change_cmd_v2 {
+	__le32 config_bitmap;
+	__le32 oem_uhb_allow_bitmap;
+} __packed; /* LARI_CHANGE_CONF_CMD_S_VER_2 */
+
+/**
+ * struct iwl_lari_config_change_cmd_v3 - change LARI configuration
+ * @config_bitmap: bit map of the config commands. each bit will trigger a
+ * different predefined FW config operation
+ * @oem_uhb_allow_bitmap: bitmap of UHB enabled MCC sets
+ * @oem_11ax_allow_bitmap: bitmap of 11ax allowed MCCs.
+ * For each supported country, a pair of regulatory override bit and 11ax mode exist
+ * in the bit field.
+ */
+struct iwl_lari_config_change_cmd_v3 {
+	__le32 config_bitmap;
+	__le32 oem_uhb_allow_bitmap;
+	__le32 oem_11ax_allow_bitmap;
+} __packed; /* LARI_CHANGE_CONF_CMD_S_VER_3 */
+
+/**
+ * struct iwl_lari_config_change_cmd_v4 - change LARI configuration
+ * @config_bitmap: Bitmap of the config commands. Each bit will trigger a
+ *     different predefined FW config operation.
+ * @oem_uhb_allow_bitmap: Bitmap of UHB enabled MCC sets.
+ * @oem_11ax_allow_bitmap: Bitmap of 11ax allowed MCCs. There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate the value to use.
+ * @oem_unii4_allow_bitmap: Bitmap of unii4 allowed MCCs.There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate allow/disallow unii4 channels.
+ */
+struct iwl_lari_config_change_cmd_v4 {
+	__le32 config_bitmap;
+	__le32 oem_uhb_allow_bitmap;
+	__le32 oem_11ax_allow_bitmap;
+	__le32 oem_unii4_allow_bitmap;
+} __packed; /* LARI_CHANGE_CONF_CMD_S_VER_4 */
+
+/**
+ * struct iwl_lari_config_change_cmd_v5 - change LARI configuration
+ * @config_bitmap: Bitmap of the config commands. Each bit will trigger a
+ *     different predefined FW config operation.
+ * @oem_uhb_allow_bitmap: Bitmap of UHB enabled MCC sets.
+ * @oem_11ax_allow_bitmap: Bitmap of 11ax allowed MCCs. There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate the value to use.
+ * @oem_unii4_allow_bitmap: Bitmap of unii4 allowed MCCs.There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate allow/disallow unii4 channels.
+ * @chan_state_active_bitmap: Bitmap for overriding channel state to active.
+ *     Each bit represents a country or region to activate, according to the BIOS
+ *     definitions.
+ */
+struct iwl_lari_config_change_cmd_v5 {
+	__le32 config_bitmap;
+	__le32 oem_uhb_allow_bitmap;
+	__le32 oem_11ax_allow_bitmap;
+	__le32 oem_unii4_allow_bitmap;
+	__le32 chan_state_active_bitmap;
+} __packed; /* LARI_CHANGE_CONF_CMD_S_VER_5 */
+
+/**
+ * struct iwl_lari_config_change_cmd_v6 - change LARI configuration
+ * @config_bitmap: Bitmap of the config commands. Each bit will trigger a
+ *     different predefined FW config operation.
+ * @oem_uhb_allow_bitmap: Bitmap of UHB enabled MCC sets.
+ * @oem_11ax_allow_bitmap: Bitmap of 11ax allowed MCCs. There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate the value to use.
+ * @oem_unii4_allow_bitmap: Bitmap of unii4 allowed MCCs.There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate allow/disallow unii4 channels.
+ * @chan_state_active_bitmap: Bitmap for overriding channel state to active.
+ *     Each bit represents a country or region to activate, according to the BIOS
+ *     definitions.
+ * @force_disable_channels_bitmap: Bitmap of disabled bands/channels.
+ *     Each bit represents a set of channels in a specific band that should be disabled
+ */
+struct iwl_lari_config_change_cmd_v6 {
+	__le32 config_bitmap;
+	__le32 oem_uhb_allow_bitmap;
+	__le32 oem_11ax_allow_bitmap;
+	__le32 oem_unii4_allow_bitmap;
+	__le32 chan_state_active_bitmap;
+	__le32 force_disable_channels_bitmap;
+} __packed; /* LARI_CHANGE_CONF_CMD_S_VER_6 */
 
 /**
  * struct iwl_pnvm_init_complete_ntfy - PNVM initialization complete

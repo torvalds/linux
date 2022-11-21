@@ -16,7 +16,7 @@ static DEFINE_RAW_SPINLOCK(l2_access_lock);
 /**
  * kryo_l2_set_indirect_reg() - write value to an L2 register
  * @reg: Address of L2 register.
- * @value: Value to be written to register.
+ * @val: Value to be written to register.
  *
  * Use architecturally required barriers for ordering between system register
  * accesses, and system registers with respect to device memory

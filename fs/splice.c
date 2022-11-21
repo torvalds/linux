@@ -46,45 +46,45 @@
 static bool page_cache_pipe_buf_try_steal(struct pipe_inode_info *pipe,
 		struct pipe_buffer *buf)
 {
-	struct page *page = buf->page;
+	struct folio *folio = page_folio(buf->page);
 	struct address_space *mapping;
 
-	lock_page(page);
+	folio_lock(folio);
 
-	mapping = page_mapping(page);
+	mapping = folio_mapping(folio);
 	if (mapping) {
-		WARN_ON(!PageUptodate(page));
+		WARN_ON(!folio_test_uptodate(folio));
 
 		/*
 		 * At least for ext2 with nobh option, we need to wait on
-		 * writeback completing on this page, since we'll remove it
+		 * writeback completing on this folio, since we'll remove it
 		 * from the pagecache.  Otherwise truncate wont wait on the
-		 * page, allowing the disk blocks to be reused by someone else
+		 * folio, allowing the disk blocks to be reused by someone else
 		 * before we actually wrote our data to them. fs corruption
 		 * ensues.
 		 */
-		wait_on_page_writeback(page);
+		folio_wait_writeback(folio);
 
-		if (page_has_private(page) &&
-		    !try_to_release_page(page, GFP_KERNEL))
+		if (folio_has_private(folio) &&
+		    !filemap_release_folio(folio, GFP_KERNEL))
 			goto out_unlock;
 
 		/*
 		 * If we succeeded in removing the mapping, set LRU flag
 		 * and return good.
 		 */
-		if (remove_mapping(mapping, page)) {
+		if (remove_mapping(mapping, folio)) {
 			buf->flags |= PIPE_BUF_FLAG_LRU;
 			return true;
 		}
 	}
 
 	/*
-	 * Raced with truncate or failed to remove page from current
+	 * Raced with truncate or failed to remove folio from current
 	 * address space, unlock and return failure.
 	 */
 out_unlock:
-	unlock_page(page);
+	folio_unlock(folio);
 	return false;
 }
 
@@ -662,12 +662,14 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 
 		/* build the vector */
 		left = sd.total_len;
-		for (n = 0; !pipe_empty(head, tail) && left && n < nbufs; tail++, n++) {
+		for (n = 0; !pipe_empty(head, tail) && left && n < nbufs; tail++) {
 			struct pipe_buffer *buf = &pipe->bufs[tail & mask];
 			size_t this_len = buf->len;
 
-			if (this_len > left)
-				this_len = left;
+			/* zero-length bvecs are not supported, skip them */
+			if (!this_len)
+				continue;
+			this_len = min(this_len, left);
 
 			ret = pipe_buf_confirm(pipe, buf);
 			if (unlikely(ret)) {
@@ -680,6 +682,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 			array[n].bv_len = this_len;
 			array[n].bv_offset = buf->offset;
 			left -= this_len;
+			n++;
 		}
 
 		iov_iter_bvec(&from, WRITE, array, n, sd.total_len - left);
@@ -771,10 +774,15 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 			 struct pipe_inode_info *pipe, size_t len,
 			 unsigned int flags)
 {
+	unsigned int p_space;
 	int ret;
 
 	if (unlikely(!(in->f_mode & FMODE_READ)))
 		return -EBADF;
+
+	/* Don't try to read more the pipe has space for. */
+	p_space = pipe->max_usage - pipe_occupancy(pipe->head, pipe->tail);
+	len = min_t(size_t, len, p_space << PAGE_SHIFT);
 
 	ret = rw_verify_area(READ, in, ppos, len);
 	if (unlikely(ret < 0))
@@ -856,15 +864,10 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 	WARN_ON_ONCE(!pipe_empty(pipe->head, pipe->tail));
 
 	while (len) {
-		unsigned int p_space;
 		size_t read_len;
 		loff_t pos = sd->pos, prev_pos = pos;
 
-		/* Don't try to read more the pipe has space for. */
-		p_space = pipe->max_usage -
-			pipe_occupancy(pipe->head, pipe->tail);
-		read_len = min_t(size_t, len, p_space << PAGE_SHIFT);
-		ret = do_splice_to(in, &pos, pipe, read_len, flags);
+		ret = do_splice_to(in, &pos, pipe, len, flags);
 		if (unlikely(ret <= 0))
 			goto out_release;
 
@@ -1002,6 +1005,23 @@ static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,
 			       struct pipe_inode_info *opipe,
 			       size_t len, unsigned int flags);
 
+long splice_file_to_pipe(struct file *in,
+			 struct pipe_inode_info *opipe,
+			 loff_t *offset,
+			 size_t len, unsigned int flags)
+{
+	long ret;
+
+	pipe_lock(opipe);
+	ret = wait_for_space(opipe, flags);
+	if (!ret)
+		ret = do_splice_to(in, offset, opipe, len, flags);
+	pipe_unlock(opipe);
+	if (ret > 0)
+		wakeup_pipe_readers(opipe);
+	return ret;
+}
+
 /*
  * Determine where to splice to/from.
  */
@@ -1081,20 +1101,7 @@ long do_splice(struct file *in, loff_t *off_in, struct file *out,
 		if (out->f_flags & O_NONBLOCK)
 			flags |= SPLICE_F_NONBLOCK;
 
-		pipe_lock(opipe);
-		ret = wait_for_space(opipe, flags);
-		if (!ret) {
-			unsigned int p_space;
-
-			/* Don't try to read more the pipe has space for. */
-			p_space = opipe->max_usage - pipe_occupancy(opipe->head, opipe->tail);
-			len = min_t(size_t, len, p_space << PAGE_SHIFT);
-
-			ret = do_splice_to(in, &offset, opipe, len, flags);
-		}
-		pipe_unlock(opipe);
-		if (ret > 0)
-			wakeup_pipe_readers(opipe);
+		ret = splice_file_to_pipe(in, opipe, &offset, len, flags);
 		if (!off_in)
 			in->f_pos = offset;
 		else

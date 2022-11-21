@@ -9,9 +9,9 @@
 #include <linux/ktime.h>
 #include <linux/types.h>
 
-#include "display/intel_display.h"
 #include "i915_reg.h"
 
+enum pipe;
 struct drm_crtc;
 struct drm_device;
 struct drm_display_mode;
@@ -37,49 +37,19 @@ i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv);
 void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv);
 
+void intel_hpd_irq_setup(struct drm_i915_private *i915);
 void i915_hotplug_interrupt_update(struct drm_i915_private *dev_priv,
 				   u32 mask,
 				   u32 bits);
-void ilk_update_display_irq(struct drm_i915_private *dev_priv,
-			    u32 interrupt_mask,
-			    u32 enabled_irq_mask);
-static inline void
-ilk_enable_display_irq(struct drm_i915_private *dev_priv, u32 bits)
-{
-	ilk_update_display_irq(dev_priv, bits, bits);
-}
-static inline void
-ilk_disable_display_irq(struct drm_i915_private *dev_priv, u32 bits)
-{
-	ilk_update_display_irq(dev_priv, bits, 0);
-}
-void bdw_update_pipe_irq(struct drm_i915_private *dev_priv,
-			 enum pipe pipe,
-			 u32 interrupt_mask,
-			 u32 enabled_irq_mask);
-static inline void bdw_enable_pipe_irq(struct drm_i915_private *dev_priv,
-				       enum pipe pipe, u32 bits)
-{
-	bdw_update_pipe_irq(dev_priv, pipe, bits, bits);
-}
-static inline void bdw_disable_pipe_irq(struct drm_i915_private *dev_priv,
-					enum pipe pipe, u32 bits)
-{
-	bdw_update_pipe_irq(dev_priv, pipe, bits, 0);
-}
-void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
-				  u32 interrupt_mask,
-				  u32 enabled_irq_mask);
-static inline void
-ibx_enable_display_interrupt(struct drm_i915_private *dev_priv, u32 bits)
-{
-	ibx_display_interrupt_update(dev_priv, bits, bits);
-}
-static inline void
-ibx_disable_display_interrupt(struct drm_i915_private *dev_priv, u32 bits)
-{
-	ibx_display_interrupt_update(dev_priv, bits, 0);
-}
+
+void ilk_enable_display_irq(struct drm_i915_private *i915, u32 bits);
+void ilk_disable_display_irq(struct drm_i915_private *i915, u32 bits);
+
+void bdw_enable_pipe_irq(struct drm_i915_private *i915, enum pipe pipe, u32 bits);
+void bdw_disable_pipe_irq(struct drm_i915_private *i915, enum pipe pipe, u32 bits);
+
+void ibx_enable_display_interrupt(struct drm_i915_private *i915, u32 bits);
+void ibx_disable_display_interrupt(struct drm_i915_private *i915, u32 bits);
 
 void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, u32 mask);
 void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, u32 mask);
@@ -94,12 +64,14 @@ void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv);
 bool intel_irqs_enabled(struct drm_i915_private *dev_priv);
 void intel_synchronize_irq(struct drm_i915_private *i915);
+void intel_synchronize_hardirq(struct drm_i915_private *i915);
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask);
 void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask);
+u32 gen8_de_pipe_underrun_mask(struct drm_i915_private *dev_priv);
 
 bool intel_crtc_get_vblank_timestamp(struct drm_crtc *crtc, int *max_error,
 				     ktime_t *vblank_time, bool in_vblank_irq);

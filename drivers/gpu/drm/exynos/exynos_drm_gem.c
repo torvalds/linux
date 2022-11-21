@@ -9,6 +9,7 @@
 #include <linux/dma-buf.h>
 #include <linux/pfn_t.h>
 #include <linux/shmem_fs.h>
+#include <linux/module.h>
 
 #include <drm/drm_prime.h>
 #include <drm/drm_vma_manager.h>
@@ -16,6 +17,10 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
+
+static int exynos_drm_gem_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 
 static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem, bool kvmap)
 {
@@ -127,6 +132,18 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem)
 	kfree(exynos_gem);
 }
 
+static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
+
+static const struct drm_gem_object_funcs exynos_drm_gem_object_funcs = {
+	.free = exynos_drm_gem_free_object,
+	.get_sg_table = exynos_drm_gem_prime_get_sg_table,
+	.mmap = exynos_drm_gem_mmap,
+	.vm_ops = &exynos_drm_gem_vm_ops,
+};
+
 static struct exynos_drm_gem *exynos_drm_gem_init(struct drm_device *dev,
 						  unsigned long size)
 {
@@ -140,6 +157,8 @@ static struct exynos_drm_gem *exynos_drm_gem_init(struct drm_device *dev,
 
 	exynos_gem->size = size;
 	obj = &exynos_gem->base;
+
+	obj->funcs = &exynos_drm_gem_object_funcs;
 
 	ret = drm_gem_object_init(dev, obj, size);
 	if (ret < 0) {
@@ -341,11 +360,15 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	return 0;
 }
 
-static int exynos_drm_gem_mmap_obj(struct drm_gem_object *obj,
-				   struct vm_area_struct *vma)
+static int exynos_drm_gem_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
 	struct exynos_drm_gem *exynos_gem = to_exynos_gem(obj);
 	int ret;
+
+	if (obj->import_attach)
+		return dma_buf_mmap(obj->dma_buf, vma, 0);
+
+	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 
 	DRM_DEV_DEBUG_KMS(to_dma_dev(obj->dev), "flags = 0x%x\n",
 			  exynos_gem->flags);
@@ -370,26 +393,6 @@ err_close_vm:
 	drm_gem_vm_close(vma);
 
 	return ret;
-}
-
-int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	struct drm_gem_object *obj;
-	int ret;
-
-	/* set vm_area_struct. */
-	ret = drm_gem_mmap(filp, vma);
-	if (ret < 0) {
-		DRM_ERROR("failed to mmap.\n");
-		return ret;
-	}
-
-	obj = vma->vm_private_data;
-
-	if (obj->import_attach)
-		return dma_buf_mmap(obj->dma_buf, vma, 0);
-
-	return exynos_drm_gem_mmap_obj(obj, vma);
 }
 
 /* low-level interface prime helpers */
@@ -452,26 +455,4 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 	exynos_gem->dma_addr = sg_dma_address(sgt->sgl);
 	exynos_gem->sgt = sgt;
 	return &exynos_gem->base;
-}
-
-void *exynos_drm_gem_prime_vmap(struct drm_gem_object *obj)
-{
-	return NULL;
-}
-
-void exynos_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
-{
-	/* Nothing to do */
-}
-
-int exynos_drm_gem_prime_mmap(struct drm_gem_object *obj,
-			      struct vm_area_struct *vma)
-{
-	int ret;
-
-	ret = drm_gem_mmap_obj(obj, obj->size, vma);
-	if (ret < 0)
-		return ret;
-
-	return exynos_drm_gem_mmap_obj(obj, vma);
 }

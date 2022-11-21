@@ -244,7 +244,7 @@ static __always_inline void send_basic_event(struct sock *sk,
 	bpf_map_update_elem(&ev_record_map, &key, &ev, BPF_ANY);
 }
 
-SEC("dummy_tracepoint")
+SEC("tp/dummy/tracepoint")
 int _dummy_tracepoint(struct dummy_tracepoint_args *arg)
 {
 	if (!arg->sock)
@@ -255,4 +255,3 @@ int _dummy_tracepoint(struct dummy_tracepoint_args *arg)
 }
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = 1; /* ignored by tracepoints, required by libbpf.a */

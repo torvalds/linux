@@ -21,6 +21,7 @@
 
 #include "ti-thermal.h"
 #include "ti-bandgap.h"
+#include "../thermal_hwmon.h"
 
 /* common data structures */
 struct ti_thermal_data {
@@ -106,14 +107,6 @@ static inline int __ti_thermal_get_temp(void *devdata, int *temp)
 	return ret;
 }
 
-static inline int ti_thermal_get_temp(struct thermal_zone_device *thermal,
-				      int *temp)
-{
-	struct ti_thermal_data *data = thermal->devdata;
-
-	return __ti_thermal_get_temp(data, temp);
-}
-
 static int __ti_thermal_get_trend(void *p, int trip, enum thermal_trend *trend)
 {
 	struct ti_thermal_data *data = p;
@@ -166,6 +159,7 @@ int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id,
 			     char *domain)
 {
 	struct ti_thermal_data *data;
+	int interval;
 
 	data = ti_bandgap_get_sensor_data(bgp, id);
 
@@ -183,9 +177,13 @@ int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id,
 		return PTR_ERR(data->ti_thermal);
 	}
 
+	interval = jiffies_to_msecs(data->ti_thermal->polling_delay_jiffies);
+
 	ti_bandgap_set_sensor_data(bgp, id, data);
-	ti_bandgap_write_update_interval(bgp, data->sensor_id,
-					data->ti_thermal->polling_delay);
+	ti_bandgap_write_update_interval(bgp, data->sensor_id, interval);
+
+	if (devm_thermal_add_hwmon_sysfs(data->ti_thermal))
+		dev_warn(bgp->dev, "failed to add hwmon sysfs attributes\n");
 
 	return 0;
 }

@@ -29,11 +29,6 @@ static inline void siw_mem_put(struct siw_mem *mem)
 	kref_put(&mem->ref, siw_free_mem);
 }
 
-static inline struct siw_mr *siw_mem2mr(struct siw_mem *m)
-{
-	return container_of(m, struct siw_mr, mem);
-}
-
 static inline void siw_unref_mem_sgl(struct siw_mem **mem, unsigned int num_sge)
 {
 	while (num_sge) {

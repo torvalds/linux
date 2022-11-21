@@ -207,6 +207,7 @@ struct l2cap_hdr {
 	__le16     len;
 	__le16     cid;
 } __packed;
+#define L2CAP_LEN_SIZE		2
 #define L2CAP_HDR_SIZE		4
 #define L2CAP_ENH_HDR_SIZE	6
 #define L2CAP_EXT_HDR_SIZE	8
@@ -493,6 +494,7 @@ struct l2cap_le_credits {
 
 #define L2CAP_ECRED_MIN_MTU		64
 #define L2CAP_ECRED_MIN_MPS		64
+#define L2CAP_ECRED_MAX_CID		5
 
 struct l2cap_ecred_conn_req {
 	__le16 psm;

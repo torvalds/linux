@@ -24,7 +24,8 @@ mlxsw_sp_mall_entry_find(struct mlxsw_sp_flow_block *block, unsigned long cookie
 
 static int
 mlxsw_sp_mall_port_mirror_add(struct mlxsw_sp_port *mlxsw_sp_port,
-			      struct mlxsw_sp_mall_entry *mall_entry)
+			      struct mlxsw_sp_mall_entry *mall_entry,
+			      struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_span_agent_parms agent_parms = {};
@@ -33,28 +34,35 @@ mlxsw_sp_mall_port_mirror_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	int err;
 
 	if (!mall_entry->mirror.to_dev) {
-		netdev_err(mlxsw_sp_port->dev, "Could not find requested device\n");
+		NL_SET_ERR_MSG(extack, "Could not find requested device");
 		return -EINVAL;
 	}
 
 	agent_parms.to_dev = mall_entry->mirror.to_dev;
 	err = mlxsw_sp_span_agent_get(mlxsw_sp, &mall_entry->mirror.span_id,
 				      &agent_parms);
-	if (err)
+	if (err) {
+		NL_SET_ERR_MSG(extack, "Failed to get SPAN agent");
 		return err;
+	}
 
 	err = mlxsw_sp_span_analyzed_port_get(mlxsw_sp_port,
 					      mall_entry->ingress);
-	if (err)
+	if (err) {
+		NL_SET_ERR_MSG(extack, "Failed to get analyzed port");
 		goto err_analyzed_port_get;
+	}
 
 	trigger = mall_entry->ingress ? MLXSW_SP_SPAN_TRIGGER_INGRESS :
 					MLXSW_SP_SPAN_TRIGGER_EGRESS;
 	parms.span_id = mall_entry->mirror.span_id;
+	parms.probability_rate = 1;
 	err = mlxsw_sp_span_agent_bind(mlxsw_sp, trigger, mlxsw_sp_port,
 				       &parms);
-	if (err)
+	if (err) {
+		NL_SET_ERR_MSG(extack, "Failed to bind SPAN agent");
 		goto err_agent_bind;
+	}
 
 	return 0;
 
@@ -93,46 +101,64 @@ static int mlxsw_sp_mall_port_sample_set(struct mlxsw_sp_port *mlxsw_sp_port,
 
 static int
 mlxsw_sp_mall_port_sample_add(struct mlxsw_sp_port *mlxsw_sp_port,
-			      struct mlxsw_sp_mall_entry *mall_entry)
+			      struct mlxsw_sp_mall_entry *mall_entry,
+			      struct netlink_ext_ack *extack)
 {
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_sample_trigger trigger;
 	int err;
 
-	if (rtnl_dereference(mlxsw_sp_port->sample)) {
-		netdev_err(mlxsw_sp_port->dev, "sample already active\n");
-		return -EEXIST;
-	}
-	rcu_assign_pointer(mlxsw_sp_port->sample, &mall_entry->sample);
+	if (mall_entry->ingress)
+		trigger.type = MLXSW_SP_SAMPLE_TRIGGER_TYPE_INGRESS;
+	else
+		trigger.type = MLXSW_SP_SAMPLE_TRIGGER_TYPE_EGRESS;
+	trigger.local_port = mlxsw_sp_port->local_port;
+	err = mlxsw_sp_sample_trigger_params_set(mlxsw_sp, &trigger,
+						 &mall_entry->sample.params,
+						 extack);
+	if (err)
+		return err;
 
-	err = mlxsw_sp_mall_port_sample_set(mlxsw_sp_port, true,
-					    mall_entry->sample.rate);
+	err = mlxsw_sp->mall_ops->sample_add(mlxsw_sp, mlxsw_sp_port,
+					     mall_entry, extack);
 	if (err)
 		goto err_port_sample_set;
 	return 0;
 
 err_port_sample_set:
-	RCU_INIT_POINTER(mlxsw_sp_port->sample, NULL);
+	mlxsw_sp_sample_trigger_params_unset(mlxsw_sp, &trigger);
 	return err;
 }
 
 static void
-mlxsw_sp_mall_port_sample_del(struct mlxsw_sp_port *mlxsw_sp_port)
+mlxsw_sp_mall_port_sample_del(struct mlxsw_sp_port *mlxsw_sp_port,
+			      struct mlxsw_sp_mall_entry *mall_entry)
 {
-	if (!mlxsw_sp_port->sample)
-		return;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_sample_trigger trigger;
 
-	mlxsw_sp_mall_port_sample_set(mlxsw_sp_port, false, 1);
-	RCU_INIT_POINTER(mlxsw_sp_port->sample, NULL);
+	if (mall_entry->ingress)
+		trigger.type = MLXSW_SP_SAMPLE_TRIGGER_TYPE_INGRESS;
+	else
+		trigger.type = MLXSW_SP_SAMPLE_TRIGGER_TYPE_EGRESS;
+	trigger.local_port = mlxsw_sp_port->local_port;
+
+	mlxsw_sp->mall_ops->sample_del(mlxsw_sp, mlxsw_sp_port, mall_entry);
+	mlxsw_sp_sample_trigger_params_unset(mlxsw_sp, &trigger);
 }
 
 static int
 mlxsw_sp_mall_port_rule_add(struct mlxsw_sp_port *mlxsw_sp_port,
-			    struct mlxsw_sp_mall_entry *mall_entry)
+			    struct mlxsw_sp_mall_entry *mall_entry,
+			    struct netlink_ext_ack *extack)
 {
 	switch (mall_entry->type) {
 	case MLXSW_SP_MALL_ACTION_TYPE_MIRROR:
-		return mlxsw_sp_mall_port_mirror_add(mlxsw_sp_port, mall_entry);
+		return mlxsw_sp_mall_port_mirror_add(mlxsw_sp_port, mall_entry,
+						     extack);
 	case MLXSW_SP_MALL_ACTION_TYPE_SAMPLE:
-		return mlxsw_sp_mall_port_sample_add(mlxsw_sp_port, mall_entry);
+		return mlxsw_sp_mall_port_sample_add(mlxsw_sp_port, mall_entry,
+						     extack);
 	default:
 		WARN_ON(1);
 		return -EINVAL;
@@ -148,7 +174,7 @@ mlxsw_sp_mall_port_rule_del(struct mlxsw_sp_port *mlxsw_sp_port,
 		mlxsw_sp_mall_port_mirror_del(mlxsw_sp_port, mall_entry);
 		break;
 	case MLXSW_SP_MALL_ACTION_TYPE_SAMPLE:
-		mlxsw_sp_mall_port_sample_del(mlxsw_sp_port);
+		mlxsw_sp_mall_port_sample_del(mlxsw_sp_port, mall_entry);
 		break;
 	default:
 		WARN_ON(1);
@@ -212,6 +238,11 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 		flower_prio_valid = true;
 	}
 
+	if (protocol != htons(ETH_P_ALL)) {
+		NL_SET_ERR_MSG(f->common.extack, "matchall rules only supported with 'all' protocol");
+		return -EOPNOTSUPP;
+	}
+
 	mall_entry = kzalloc(sizeof(*mall_entry), GFP_KERNEL);
 	if (!mall_entry)
 		return -ENOMEM;
@@ -219,54 +250,41 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 	mall_entry->priority = f->common.prio;
 	mall_entry->ingress = mlxsw_sp_flow_block_is_ingress_bound(block);
 
+	if (flower_prio_valid && mall_entry->ingress &&
+	    mall_entry->priority >= flower_min_prio) {
+		NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
+		err = -EOPNOTSUPP;
+		goto errout;
+	}
+	if (flower_prio_valid && !mall_entry->ingress &&
+	    mall_entry->priority <= flower_max_prio) {
+		NL_SET_ERR_MSG(f->common.extack, "Failed to add in front of existing flower rules");
+		err = -EOPNOTSUPP;
+		goto errout;
+	}
+
 	act = &f->rule->action.entries[0];
 
-	if (act->id == FLOW_ACTION_MIRRED && protocol == htons(ETH_P_ALL)) {
-		if (flower_prio_valid && mall_entry->ingress &&
-		    mall_entry->priority >= flower_min_prio) {
-			NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
-		if (flower_prio_valid && !mall_entry->ingress &&
-		    mall_entry->priority <= flower_max_prio) {
-			NL_SET_ERR_MSG(f->common.extack, "Failed to add in front of existing flower rules");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
+	switch (act->id) {
+	case FLOW_ACTION_MIRRED:
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_MIRROR;
 		mall_entry->mirror.to_dev = act->dev;
-	} else if (act->id == FLOW_ACTION_SAMPLE &&
-		   protocol == htons(ETH_P_ALL)) {
-		if (!mall_entry->ingress) {
-			NL_SET_ERR_MSG(f->common.extack, "Sample is not supported on egress");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
-		if (flower_prio_valid &&
-		    mall_entry->priority >= flower_min_prio) {
-			NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
-		if (act->sample.rate > MLXSW_REG_MPSC_RATE_MAX) {
-			NL_SET_ERR_MSG(f->common.extack, "Sample rate not supported");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
+		break;
+	case FLOW_ACTION_SAMPLE:
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_SAMPLE;
-		mall_entry->sample.psample_group = act->sample.psample_group;
-		mall_entry->sample.truncate = act->sample.truncate;
-		mall_entry->sample.trunc_size = act->sample.trunc_size;
-		mall_entry->sample.rate = act->sample.rate;
-	} else {
+		mall_entry->sample.params.psample_group = act->sample.psample_group;
+		mall_entry->sample.params.truncate = act->sample.truncate;
+		mall_entry->sample.params.trunc_size = act->sample.trunc_size;
+		mall_entry->sample.params.rate = act->sample.rate;
+		break;
+	default:
 		err = -EOPNOTSUPP;
 		goto errout;
 	}
 
 	list_for_each_entry(binding, &block->binding_list, list) {
 		err = mlxsw_sp_mall_port_rule_add(binding->mlxsw_sp_port,
-						  mall_entry);
+						  mall_entry, f->common.extack);
 		if (err)
 			goto rollback;
 	}
@@ -314,13 +332,15 @@ void mlxsw_sp_mall_destroy(struct mlxsw_sp_flow_block *block,
 }
 
 int mlxsw_sp_mall_port_bind(struct mlxsw_sp_flow_block *block,
-			    struct mlxsw_sp_port *mlxsw_sp_port)
+			    struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_mall_entry *mall_entry;
 	int err;
 
 	list_for_each_entry(mall_entry, &block->mall.list, list) {
-		err = mlxsw_sp_mall_port_rule_add(mlxsw_sp_port, mall_entry);
+		err = mlxsw_sp_mall_port_rule_add(mlxsw_sp_port, mall_entry,
+						  extack);
 		if (err)
 			goto rollback;
 	}
@@ -355,3 +375,104 @@ int mlxsw_sp_mall_prio_get(struct mlxsw_sp_flow_block *block, u32 chain_index,
 	*p_max_prio = block->mall.max_prio;
 	return 0;
 }
+
+static int mlxsw_sp1_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_port *mlxsw_sp_port,
+				     struct mlxsw_sp_mall_entry *mall_entry,
+				     struct netlink_ext_ack *extack)
+{
+	u32 rate = mall_entry->sample.params.rate;
+
+	if (!mall_entry->ingress) {
+		NL_SET_ERR_MSG(extack, "Sampling is not supported on egress");
+		return -EOPNOTSUPP;
+	}
+
+	if (rate > MLXSW_REG_MPSC_RATE_MAX) {
+		NL_SET_ERR_MSG(extack, "Unsupported sampling rate");
+		return -EOPNOTSUPP;
+	}
+
+	return mlxsw_sp_mall_port_sample_set(mlxsw_sp_port, true, rate);
+}
+
+static void mlxsw_sp1_mall_sample_del(struct mlxsw_sp *mlxsw_sp,
+				      struct mlxsw_sp_port *mlxsw_sp_port,
+				      struct mlxsw_sp_mall_entry *mall_entry)
+{
+	mlxsw_sp_mall_port_sample_set(mlxsw_sp_port, false, 1);
+}
+
+const struct mlxsw_sp_mall_ops mlxsw_sp1_mall_ops = {
+	.sample_add = mlxsw_sp1_mall_sample_add,
+	.sample_del = mlxsw_sp1_mall_sample_del,
+};
+
+static int mlxsw_sp2_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_port *mlxsw_sp_port,
+				     struct mlxsw_sp_mall_entry *mall_entry,
+				     struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_span_trigger_parms trigger_parms = {};
+	struct mlxsw_sp_span_agent_parms agent_parms = {
+		.to_dev = NULL,	/* Mirror to CPU. */
+		.session_id = MLXSW_SP_SPAN_SESSION_ID_SAMPLING,
+	};
+	u32 rate = mall_entry->sample.params.rate;
+	enum mlxsw_sp_span_trigger span_trigger;
+	int err;
+
+	err = mlxsw_sp_span_agent_get(mlxsw_sp, &mall_entry->sample.span_id,
+				      &agent_parms);
+	if (err) {
+		NL_SET_ERR_MSG(extack, "Failed to get SPAN agent");
+		return err;
+	}
+
+	err = mlxsw_sp_span_analyzed_port_get(mlxsw_sp_port,
+					      mall_entry->ingress);
+	if (err) {
+		NL_SET_ERR_MSG(extack, "Failed to get analyzed port");
+		goto err_analyzed_port_get;
+	}
+
+	span_trigger = mall_entry->ingress ? MLXSW_SP_SPAN_TRIGGER_INGRESS :
+					     MLXSW_SP_SPAN_TRIGGER_EGRESS;
+	trigger_parms.span_id = mall_entry->sample.span_id;
+	trigger_parms.probability_rate = rate;
+	err = mlxsw_sp_span_agent_bind(mlxsw_sp, span_trigger, mlxsw_sp_port,
+				       &trigger_parms);
+	if (err) {
+		NL_SET_ERR_MSG(extack, "Failed to bind SPAN agent");
+		goto err_agent_bind;
+	}
+
+	return 0;
+
+err_agent_bind:
+	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, mall_entry->ingress);
+err_analyzed_port_get:
+	mlxsw_sp_span_agent_put(mlxsw_sp, mall_entry->sample.span_id);
+	return err;
+}
+
+static void mlxsw_sp2_mall_sample_del(struct mlxsw_sp *mlxsw_sp,
+				      struct mlxsw_sp_port *mlxsw_sp_port,
+				      struct mlxsw_sp_mall_entry *mall_entry)
+{
+	struct mlxsw_sp_span_trigger_parms trigger_parms = {};
+	enum mlxsw_sp_span_trigger span_trigger;
+
+	span_trigger = mall_entry->ingress ? MLXSW_SP_SPAN_TRIGGER_INGRESS :
+					     MLXSW_SP_SPAN_TRIGGER_EGRESS;
+	trigger_parms.span_id = mall_entry->sample.span_id;
+	mlxsw_sp_span_agent_unbind(mlxsw_sp, span_trigger, mlxsw_sp_port,
+				   &trigger_parms);
+	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, mall_entry->ingress);
+	mlxsw_sp_span_agent_put(mlxsw_sp, mall_entry->sample.span_id);
+}
+
+const struct mlxsw_sp_mall_ops mlxsw_sp2_mall_ops = {
+	.sample_add = mlxsw_sp2_mall_sample_add,
+	.sample_del = mlxsw_sp2_mall_sample_del,
+};

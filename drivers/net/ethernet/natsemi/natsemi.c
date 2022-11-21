@@ -790,7 +790,7 @@ static const struct net_device_ops natsemi_netdev_ops = {
 	.ndo_get_stats		= get_stats,
 	.ndo_set_rx_mode	= set_rx_mode,
 	.ndo_change_mtu		= natsemi_change_mtu,
-	.ndo_do_ioctl		= netdev_ioctl,
+	.ndo_eth_ioctl		= netdev_ioctl,
 	.ndo_tx_timeout 	= ns_tx_timeout,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -809,6 +809,7 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned long iosize;
 	void __iomem *ioaddr;
 	const int pcibar = 1; /* PCI base address register */
+	u8 addr[ETH_ALEN];
 	int prev_eedata;
 	u32 tmp;
 
@@ -819,7 +820,7 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 		printk(version);
 #endif
 
-	i = pci_enable_device(pdev);
+	i = pcim_enable_device(pdev);
 	if (i) return i;
 
 	/* natsemi has a non-standard PM control register
@@ -852,17 +853,18 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ioaddr = ioremap(iostart, iosize);
 	if (!ioaddr) {
 		i = -ENOMEM;
-		goto err_ioremap;
+		goto err_pci_request_regions;
 	}
 
 	/* Work around the dropped serial bit. */
 	prev_eedata = eeprom_read(ioaddr, 6);
 	for (i = 0; i < 3; i++) {
 		int eedata = eeprom_read(ioaddr, i + 7);
-		dev->dev_addr[i*2] = (eedata << 1) + (prev_eedata >> 15);
-		dev->dev_addr[i*2+1] = eedata >> 7;
+		addr[i*2] = (eedata << 1) + (prev_eedata >> 15);
+		addr[i*2+1] = eedata >> 7;
 		prev_eedata = eedata;
 	}
+	eth_hw_addr_set(dev, addr);
 
 	np = netdev_priv(dev);
 	np->ioaddr = ioaddr;
@@ -969,13 +971,10 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
  err_create_file:
- 	unregister_netdev(dev);
+	unregister_netdev(dev);
 
  err_register_netdev:
 	iounmap(ioaddr);
-
- err_ioremap:
-	pci_release_regions(pdev);
 
  err_pci_request_regions:
 	free_netdev(dev);
@@ -3103,14 +3102,14 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCSMIIREG:		/* Write MII PHY register. */
 		if (dev->if_port == PORT_TP) {
 			if ((data->phy_id & 0x1f) == np->phy_addr_external) {
- 				if ((data->reg_num & 0x1f) == MII_ADVERTISE)
+				if ((data->reg_num & 0x1f) == MII_ADVERTISE)
 					np->advertising = data->val_in;
 				mdio_write(dev, data->reg_num & 0x1f,
 							data->val_in);
 			}
 		} else {
 			if ((data->phy_id & 0x1f) == np->phy_addr_external) {
- 				if ((data->reg_num & 0x1f) == MII_ADVERTISE)
+				if ((data->reg_num & 0x1f) == MII_ADVERTISE)
 					np->advertising = data->val_in;
 			}
 			move_int_phy(dev, data->phy_id & 0x1f);
@@ -3241,7 +3240,6 @@ static void natsemi_remove1(struct pci_dev *pdev)
 
 	NATSEMI_REMOVE_FILE(pdev, dspcfg_workaround);
 	unregister_netdev (dev);
-	pci_release_regions (pdev);
 	iounmap(ioaddr);
 	free_netdev (dev);
 }

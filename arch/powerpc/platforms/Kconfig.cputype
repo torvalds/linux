@@ -11,9 +11,6 @@ config PPC64
 	  This option selects whether a 32-bit or a 64-bit kernel
 	  will be built.
 
-config PPC_BOOK3S_32
-	bool
-
 menu "Processor support"
 choice
 	prompt "Processor Type"
@@ -23,20 +20,17 @@ choice
 	  The most common ones are the desktop and server CPUs (603,
 	  604, 740, 750, 74xx) CPUs from Freescale and IBM, with their
 	  embedded 512x/52xx/82xx/83xx/86xx counterparts.
-	  The other embedded parts, namely 4xx, 8xx, e200 (55xx) and e500
+	  The other embedded parts, namely 4xx, 8xx and e500
 	  (85xx) each form a family of their own that is not compatible
 	  with the others.
 
 	  If unsure, select 52xx/6xx/7xx/74xx/82xx/83xx/86xx.
 
-config PPC_BOOK3S_6xx
+config PPC_BOOK3S_32
 	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
-	select PPC_BOOK3S_32
-	select PPC_FPU
+	imply PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
-	select PPC_HAVE_KUEP
-	select PPC_HAVE_KUAP
-	select HAVE_ARCH_VMAP_STACK if !ADB_PMU
+	select HAVE_ARCH_VMAP_STACK
 
 config PPC_85xx
 	bool "Freescale 85xx"
@@ -44,10 +38,9 @@ config PPC_85xx
 
 config PPC_8xx
 	bool "Freescale 8xx"
+	select ARCH_SUPPORTS_HUGETLBFS
 	select FSL_SOC
-	select SYS_SUPPORTS_HUGETLBFS
-	select PPC_HAVE_KUEP
-	select PPC_HAVE_KUAP
+	select PPC_KUEP
 	select HAVE_ARCH_VMAP_STACK
 	select HUGETLBFS
 
@@ -57,6 +50,7 @@ config 40x
 	select PPC_UDBG_16550
 	select 4xx_SOC
 	select HAVE_PCI
+	select PPC_KUEP if PPC_KUAP
 
 config 44x
 	bool "AMCC 44x, 46x or 47x"
@@ -65,11 +59,25 @@ config 44x
 	select 4xx_SOC
 	select HAVE_PCI
 	select PHYS_64BIT
-
-config E200
-	bool "Freescale e200"
+	select PPC_KUEP
 
 endchoice
+
+config PPC_BOOK3S_603
+	bool "Support for 603 SW loaded TLB"
+	depends on PPC_BOOK3S_32
+	default y
+	help
+	  Provide support for processors based on the 603 cores. Those
+	  processors don't have a HASH MMU and provide SW TLB loading.
+
+config PPC_BOOK3S_604
+	bool "Support for 604+ HASH MMU" if PPC_BOOK3S_603
+	depends on PPC_BOOK3S_32
+	default y
+	help
+	  Provide support for processors not based on the 603 cores.
+	  Those processors have a HASH MMU.
 
 choice
 	prompt "Processor Type"
@@ -86,18 +94,24 @@ config PPC_BOOK3S_64
 	bool "Server processors"
 	select PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
-	select SYS_SUPPORTS_HUGETLBFS
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select ARCH_ENABLE_HUGEPAGE_MIGRATION if HUGETLB_PAGE && MIGRATION
+	select ARCH_ENABLE_SPLIT_PMD_PTLOCK
 	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
+	select ARCH_SUPPORTS_HUGETLBFS
 	select ARCH_SUPPORTS_NUMA_BALANCING
+	select HAVE_MOVE_PMD
+	select HAVE_MOVE_PUD
 	select IRQ_WORK
-	select PPC_MM_SLICES
+	select PPC_64S_HASH_MMU if !PPC_RADIX_MMU
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
+	select PPC_FSL_BOOK3E
 	select PPC_FPU # Make it a choice ?
 	select PPC_SMP_MUXED_IPI
 	select PPC_DOORBELL
+	select ZONE_DMA
 
 endchoice
 
@@ -113,11 +127,13 @@ choice
 config GENERIC_CPU
 	bool "Generic (POWER4 and above)"
 	depends on PPC64 && !CPU_LITTLE_ENDIAN
+	select PPC_64S_HASH_MMU if PPC_BOOK3S_64
 
 config GENERIC_CPU
 	bool "Generic (POWER8 and above)"
 	depends on PPC64 && CPU_LITTLE_ENDIAN
 	select ARCH_HAS_FAST_MULTIPLIER
+	select PPC_64S_HASH_MMU
 
 config GENERIC_CPU
 	bool "Generic 32 bits powerpc"
@@ -126,24 +142,29 @@ config GENERIC_CPU
 config CELL_CPU
 	bool "Cell Broadband Engine"
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
+	select PPC_64S_HASH_MMU
 
 config POWER5_CPU
 	bool "POWER5"
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
+	select PPC_64S_HASH_MMU
 
 config POWER6_CPU
 	bool "POWER6"
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
+	select PPC_64S_HASH_MMU
 
 config POWER7_CPU
 	bool "POWER7"
 	depends on PPC_BOOK3S_64
 	select ARCH_HAS_FAST_MULTIPLIER
+	select PPC_64S_HASH_MMU
 
 config POWER8_CPU
 	bool "POWER8"
 	depends on PPC_BOOK3S_64
 	select ARCH_HAS_FAST_MULTIPLIER
+	select PPC_64S_HASH_MMU
 
 config POWER9_CPU
 	bool "POWER9"
@@ -218,9 +239,20 @@ config PPC_E500MC
 	  such as e5500/e6500), and must be disabled for running on
 	  e500v1 or e500v2.
 
-config PPC_FPU
+config PPC_FPU_REGS
 	bool
+
+config PPC_FPU
+	bool "Support for Floating Point Unit (FPU)" if PPC_MPC832x
 	default y if PPC64
+	select PPC_FPU_REGS
+	help
+	  This must be enabled to support the Floating Point Unit
+	  Most 6xx have an FPU but e300c2 core (mpc832x) don't have
+	  an FPU, so when building an embedded kernel for that target
+	  you can disable FPU support.
+
+	  If unsure say Y.
 
 config FSL_EMB_PERFMON
 	bool "Freescale Embedded Perfmon"
@@ -247,21 +279,27 @@ config 4xx
 
 config BOOKE
 	bool
-	depends on E200 || E500 || 44x || PPC_BOOK3E
+	depends on E500 || 44x || PPC_BOOK3E
+	default y
+
+config BOOKE_OR_40x
+	bool
+	depends on BOOKE || 40x
 	default y
 
 config FSL_BOOKE
 	bool
-	depends on (E200 || E500) && PPC32
+	depends on E500 && PPC32
 	default y
 
 # this is for common code between PPC32 & PPC64 FSL BOOKE
 config PPC_FSL_BOOK3E
 	bool
-	select FSL_EMB_PERFMON
+	select ARCH_SUPPORTS_HUGETLBFS if PHYS_64BIT || PPC64
+	imply FSL_EMB_PERFMON
 	select PPC_SMP_MUXED_IPI
-	select SYS_SUPPORTS_HUGETLBFS if PHYS_64BIT || PPC64
 	select PPC_DOORBELL
+	select PPC_KUEP
 	default y if FSL_BOOKE
 
 config PTE_64BIT
@@ -286,6 +324,7 @@ config PHYS_64BIT
 config ALTIVEC
 	bool "AltiVec Support"
 	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64 || (PPC_E500MC && PPC64)
+	select PPC_FPU
 	help
 	  This option enables kernel support for the Altivec extensions to the
 	  PowerPC processor. The kernel currently supports saving and restoring
@@ -317,7 +356,7 @@ config VSX
 
 config SPE_POSSIBLE
 	def_bool y
-	depends on E200 || (E500 && !PPC_E500MC)
+	depends on E500 && !PPC_E500MC
 
 config SPE
 	bool "SPE Support"
@@ -335,16 +374,26 @@ config SPE
 
 	  If in doubt, say Y here.
 
-config ARCH_ENABLE_SPLIT_PMD_PTLOCK
-	def_bool y
+config PPC_64S_HASH_MMU
+	bool "Hash MMU Support"
 	depends on PPC_BOOK3S_64
+	select PPC_MM_SLICES
+	default y
+	help
+	  Enable support for the Power ISA Hash style MMU. This is implemented
+	  by all IBM Power and other 64-bit Book3S CPUs before ISA v3.0. The
+	  OpenPOWER ISA does not mandate the hash MMU and some CPUs do not
+	  implement it (e.g., Microwatt).
+
+	  Note that POWER9 PowerVM platforms only support the hash
+	  MMU. From POWER10 radix is also supported by PowerVM.
+
+	  If you're unsure, say Y.
 
 config PPC_RADIX_MMU
 	bool "Radix MMU Support"
 	depends on PPC_BOOK3S_64
 	select ARCH_HAS_GIGANTIC_PAGE
-	select PPC_HAVE_KUEP
-	select PPC_HAVE_KUAP
 	default y
 	help
 	  Enable support for the Power ISA 3.0 Radix style MMU. Currently this
@@ -352,7 +401,8 @@ config PPC_RADIX_MMU
 	  you can probably disable this.
 
 config PPC_RADIX_MMU_DEFAULT
-	bool "Default to using the Radix MMU when possible"
+	bool "Default to using the Radix MMU when possible" if PPC_64S_HASH_MMU
+	depends on PPC_BOOK3S_64
 	depends on PPC_RADIX_MMU
 	default y
 	help
@@ -364,25 +414,17 @@ config PPC_RADIX_MMU_DEFAULT
 
 	  If you're unsure, say Y.
 
-config PPC_HAVE_KUEP
-	bool
-
 config PPC_KUEP
-	bool "Kernel Userspace Execution Prevention"
-	depends on PPC_HAVE_KUEP
-	default y if !PPC_BOOK3S_32
+	bool "Kernel Userspace Execution Prevention" if !40x
+	default y if !40x
 	help
 	  Enable support for Kernel Userspace Execution Prevention (KUEP)
 
 	  If you're unsure, say Y.
 
-config PPC_HAVE_KUAP
-	bool
-
 config PPC_KUAP
 	bool "Kernel Userspace Access Protection"
-	depends on PPC_HAVE_KUAP
-	default y if !PPC_BOOK3S_32
+	default y
 	help
 	  Enable support for Kernel Userspace Access Protection (KUAP)
 
@@ -390,23 +432,20 @@ config PPC_KUAP
 
 config PPC_KUAP_DEBUG
 	bool "Extra debugging for Kernel Userspace Access Protection"
-	depends on PPC_KUAP && (PPC_RADIX_MMU || PPC32)
+	depends on PPC_KUAP
 	help
 	  Add extra debugging for Kernel Userspace Access Protection (KUAP)
 	  If you're unsure, say N.
 
-config ARCH_ENABLE_HUGEPAGE_MIGRATION
+config PPC_PKEY
 	def_bool y
-	depends on PPC_BOOK3S_64 && HUGETLB_PAGE && MIGRATION
+	depends on PPC_BOOK3S_64
+	depends on PPC_MEM_KEYS || PPC_KUAP || PPC_KUEP
 
 
 config PPC_MMU_NOHASH
 	def_bool y
 	depends on !PPC_BOOK3S
-
-config PPC_MMU_NOHASH_32
-	def_bool y
-	depends on PPC_MMU_NOHASH && PPC32
 
 config PPC_BOOK3E_MMU
 	def_bool y
@@ -456,15 +495,15 @@ config SMP
 	  If you don't know what to do here, say N.
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-8192)"
-	range 2 8192
-	depends on SMP
+	int "Maximum number of CPUs (2-8192)" if SMP
+	range 2 8192 if SMP
+	default "1" if !SMP
 	default "32" if PPC64
 	default "4"
 
 config NOT_COHERENT_CACHE
 	bool
-	depends on 4xx || PPC_8xx || E200 || PPC_MPC512x || \
+	depends on 4xx || PPC_8xx || PPC_MPC512x || \
 		GAMECUBE_COMMON || AMIGAONE
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE

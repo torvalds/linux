@@ -239,15 +239,14 @@ static struct omap_dss_driver lb035q02_ops = {
 static int lb035q02_probe_of(struct spi_device *spi)
 {
 	struct device_node *node = spi->dev.of_node;
-	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
+	struct panel_drv_data *ddata = spi_get_drvdata(spi);
 	struct omap_dss_device *in;
 	struct gpio_desc *gpio;
 
 	gpio = devm_gpiod_get(&spi->dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(gpio)) {
-		dev_err(&spi->dev, "failed to parse enable gpio\n");
-		return PTR_ERR(gpio);
-	}
+	if (IS_ERR(gpio))
+		return dev_err_probe(&spi->dev, PTR_ERR(gpio),
+				     "failed to parse enable gpio\n");
 
 	ddata->enable_gpio = gpio;
 
@@ -277,7 +276,7 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 	if (ddata == NULL)
 		return -ENOMEM;
 
-	dev_set_drvdata(&spi->dev, ddata);
+	spi_set_drvdata(spi, ddata);
 
 	ddata->spi = spi;
 
@@ -316,9 +315,9 @@ err_gpio:
 	return r;
 }
 
-static int lb035q02_panel_spi_remove(struct spi_device *spi)
+static void lb035q02_panel_spi_remove(struct spi_device *spi)
 {
-	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
+	struct panel_drv_data *ddata = spi_get_drvdata(spi);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
 	struct omap_dss_device *in = ddata->in;
 
@@ -328,8 +327,6 @@ static int lb035q02_panel_spi_remove(struct spi_device *spi)
 	lb035q02_disconnect(dssdev);
 
 	omap_dss_put_device(in);
-
-	return 0;
 }
 
 static const struct of_device_id lb035q02_of_match[] = {

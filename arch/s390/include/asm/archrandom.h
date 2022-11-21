@@ -2,7 +2,7 @@
 /*
  * Kernel interface for the s390 arch_random_* functions
  *
- * Copyright IBM Corp. 2017
+ * Copyright IBM Corp. 2017, 2020
  *
  * Author: Harald Freudenberger <freude@de.ibm.com>
  *
@@ -19,10 +19,13 @@
 DECLARE_STATIC_KEY_FALSE(s390_arch_random_available);
 extern atomic64_t s390_arch_random_counter;
 
+bool s390_arch_get_random_long(unsigned long *v);
 bool s390_arch_random_generate(u8 *buf, unsigned int nbytes);
 
 static inline bool __must_check arch_get_random_long(unsigned long *v)
 {
+	if (static_branch_likely(&s390_arch_random_available))
+		return s390_arch_get_random_long(v);
 	return false;
 }
 

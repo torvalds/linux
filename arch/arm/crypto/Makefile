@@ -9,6 +9,9 @@ obj-$(CONFIG_CRYPTO_SHA1_ARM) += sha1-arm.o
 obj-$(CONFIG_CRYPTO_SHA1_ARM_NEON) += sha1-arm-neon.o
 obj-$(CONFIG_CRYPTO_SHA256_ARM) += sha256-arm.o
 obj-$(CONFIG_CRYPTO_SHA512_ARM) += sha512-arm.o
+obj-$(CONFIG_CRYPTO_BLAKE2S_ARM) += blake2s-arm.o
+obj-$(if $(CONFIG_CRYPTO_BLAKE2S_ARM),y) += libblake2s-arm.o
+obj-$(CONFIG_CRYPTO_BLAKE2B_NEON) += blake2b-neon.o
 obj-$(CONFIG_CRYPTO_CHACHA20_NEON) += chacha-neon.o
 obj-$(CONFIG_CRYPTO_POLY1305_ARM) += poly1305-arm.o
 obj-$(CONFIG_CRYPTO_NHPOLY1305_NEON) += nhpoly1305-neon.o
@@ -29,6 +32,9 @@ sha256-arm-neon-$(CONFIG_KERNEL_MODE_NEON) := sha256_neon_glue.o
 sha256-arm-y	:= sha256-core.o sha256_glue.o $(sha256-arm-neon-y)
 sha512-arm-neon-$(CONFIG_KERNEL_MODE_NEON) := sha512-neon-glue.o
 sha512-arm-y	:= sha512-core.o sha512-glue.o $(sha512-arm-neon-y)
+blake2s-arm-y   := blake2s-shash.o
+libblake2s-arm-y:= blake2s-core.o blake2s-glue.o
+blake2b-neon-y  := blake2b-neon-core.o blake2b-neon-glue.o
 sha1-arm-ce-y	:= sha1-ce-core.o sha1-ce-glue.o
 sha2-arm-ce-y	:= sha2-ce-core.o sha2-ce-glue.o
 aes-arm-ce-y	:= aes-ce-core.o aes-ce-glue.o
@@ -41,19 +47,11 @@ poly1305-arm-y := poly1305-core.o poly1305-glue.o
 nhpoly1305-neon-y := nh-neon-core.o nhpoly1305-neon-glue.o
 curve25519-neon-y := curve25519-core.o curve25519-glue.o
 
-ifdef REGENERATE_ARM_CRYPTO
 quiet_cmd_perl = PERL    $@
       cmd_perl = $(PERL) $(<) > $(@)
 
-$(src)/poly1305-core.S_shipped: $(src)/poly1305-armv4.pl
+$(obj)/%-core.S: $(src)/%-armv4.pl
 	$(call cmd,perl)
-
-$(src)/sha256-core.S_shipped: $(src)/sha256-armv4.pl
-	$(call cmd,perl)
-
-$(src)/sha512-core.S_shipped: $(src)/sha512-armv4.pl
-	$(call cmd,perl)
-endif
 
 clean-files += poly1305-core.S sha256-core.S sha512-core.S
 

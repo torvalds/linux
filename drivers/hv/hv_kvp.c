@@ -662,71 +662,87 @@ void hv_kvp_onchannelcallback(void *context)
 	if (kvp_transaction.state > HVUTIL_READY)
 		return;
 
-	vmbus_recvpacket(channel, recv_buffer, HV_HYP_PAGE_SIZE * 4, &recvlen,
-			 &requestid);
-
-	if (recvlen > 0) {
-		icmsghdrp = (struct icmsg_hdr *)&recv_buffer[
-			sizeof(struct vmbuspipe_hdr)];
-
-		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			if (vmbus_prep_negotiate_resp(icmsghdrp,
-				 recv_buffer, fw_versions, FW_VER_COUNT,
-				 kvp_versions, KVP_VER_COUNT,
-				 NULL, &kvp_srv_version)) {
-				pr_info("KVP IC version %d.%d\n",
-					kvp_srv_version >> 16,
-					kvp_srv_version & 0xFFFF);
-			}
-		} else {
-			kvp_msg = (struct hv_kvp_msg *)&recv_buffer[
-				sizeof(struct vmbuspipe_hdr) +
-				sizeof(struct icmsg_hdr)];
-
-			/*
-			 * Stash away this global state for completing the
-			 * transaction; note transactions are serialized.
-			 */
-
-			kvp_transaction.recv_len = recvlen;
-			kvp_transaction.recv_req_id = requestid;
-			kvp_transaction.kvp_msg = kvp_msg;
-
-			if (kvp_transaction.state < HVUTIL_READY) {
-				/* Userspace is not registered yet */
-				kvp_respond_to_host(NULL, HV_E_FAIL);
-				return;
-			}
-			kvp_transaction.state = HVUTIL_HOSTMSG_RECEIVED;
-
-			/*
-			 * Get the information from the
-			 * user-mode component.
-			 * component. This transaction will be
-			 * completed when we get the value from
-			 * the user-mode component.
-			 * Set a timeout to deal with
-			 * user-mode not responding.
-			 */
-			schedule_work(&kvp_sendkey_work);
-			schedule_delayed_work(&kvp_timeout_work,
-					      HV_UTIL_TIMEOUT * HZ);
-
-			return;
-
-		}
-
-		icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION
-			| ICMSGHDRFLAG_RESPONSE;
-
-		vmbus_sendpacket(channel, recv_buffer,
-				       recvlen, requestid,
-				       VM_PKT_DATA_INBAND, 0);
-
-		host_negotiatied = NEGO_FINISHED;
-		hv_poll_channel(kvp_transaction.recv_channel, kvp_poll_wrapper);
+	if (vmbus_recvpacket(channel, recv_buffer, HV_HYP_PAGE_SIZE * 4, &recvlen, &requestid)) {
+		pr_err_ratelimited("KVP request received. Could not read into recv buf\n");
+		return;
 	}
 
+	if (!recvlen)
+		return;
+
+	/* Ensure recvlen is big enough to read header data */
+	if (recvlen < ICMSG_HDR) {
+		pr_err_ratelimited("KVP request received. Packet length too small: %d\n",
+				   recvlen);
+		return;
+	}
+
+	icmsghdrp = (struct icmsg_hdr *)&recv_buffer[sizeof(struct vmbuspipe_hdr)];
+
+	if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
+		if (vmbus_prep_negotiate_resp(icmsghdrp,
+				recv_buffer, recvlen,
+				fw_versions, FW_VER_COUNT,
+				kvp_versions, KVP_VER_COUNT,
+				NULL, &kvp_srv_version)) {
+			pr_info("KVP IC version %d.%d\n",
+				kvp_srv_version >> 16,
+				kvp_srv_version & 0xFFFF);
+		}
+	} else if (icmsghdrp->icmsgtype == ICMSGTYPE_KVPEXCHANGE) {
+		/*
+		 * recvlen is not checked against sizeof(struct kvp_msg) because kvp_msg contains
+		 * a union of structs and the msg type received is not known. Code using this
+		 * struct should provide validation when accessing its fields.
+		 */
+		kvp_msg = (struct hv_kvp_msg *)&recv_buffer[ICMSG_HDR];
+
+		/*
+		 * Stash away this global state for completing the
+		 * transaction; note transactions are serialized.
+		 */
+
+		kvp_transaction.recv_len = recvlen;
+		kvp_transaction.recv_req_id = requestid;
+		kvp_transaction.kvp_msg = kvp_msg;
+
+		if (kvp_transaction.state < HVUTIL_READY) {
+			/* Userspace is not registered yet */
+			kvp_respond_to_host(NULL, HV_E_FAIL);
+			return;
+		}
+		kvp_transaction.state = HVUTIL_HOSTMSG_RECEIVED;
+
+		/*
+		 * Get the information from the
+		 * user-mode component.
+		 * component. This transaction will be
+		 * completed when we get the value from
+		 * the user-mode component.
+		 * Set a timeout to deal with
+		 * user-mode not responding.
+		 */
+		schedule_work(&kvp_sendkey_work);
+		schedule_delayed_work(&kvp_timeout_work,
+					HV_UTIL_TIMEOUT * HZ);
+
+		return;
+
+	} else {
+		pr_err_ratelimited("KVP request received. Invalid msg type: %d\n",
+				   icmsghdrp->icmsgtype);
+		return;
+	}
+
+	icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION
+		| ICMSGHDRFLAG_RESPONSE;
+
+	vmbus_sendpacket(channel, recv_buffer,
+			 recvlen, requestid,
+			 VM_PKT_DATA_INBAND, 0);
+
+	host_negotiatied = NEGO_FINISHED;
+	hv_poll_channel(kvp_transaction.recv_channel, kvp_poll_wrapper);
 }
 
 static void kvp_on_reset(void)
@@ -741,6 +757,7 @@ hv_kvp_init(struct hv_util_service *srv)
 {
 	recv_buffer = srv->recv_buffer;
 	kvp_transaction.recv_channel = srv->channel;
+	kvp_transaction.recv_channel->max_pkt_size = HV_HYP_PAGE_SIZE * 4;
 
 	/*
 	 * When this driver loads, the user level daemon that

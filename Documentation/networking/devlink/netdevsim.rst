@@ -46,7 +46,7 @@ Resources
 =========
 
 The ``netdevsim`` driver exposes resources to control the number of FIB
-entries and FIB rule entries that the driver will allow.
+entries, FIB rule entries and nexthops that the driver will allow.
 
 .. code:: shell
 
@@ -54,7 +54,34 @@ entries and FIB rule entries that the driver will allow.
     $ devlink resource set netdevsim/netdevsim0 path /IPv4/fib-rules size 16
     $ devlink resource set netdevsim/netdevsim0 path /IPv6/fib size 64
     $ devlink resource set netdevsim/netdevsim0 path /IPv6/fib-rules size 16
+    $ devlink resource set netdevsim/netdevsim0 path /nexthops size 16
     $ devlink dev reload netdevsim/netdevsim0
+
+Rate objects
+============
+
+The ``netdevsim`` driver supports rate objects management, which includes:
+
+- registerging/unregistering leaf rate objects per VF devlink port;
+- creation/deletion node rate objects;
+- setting tx_share and tx_max rate values for any rate object type;
+- setting parent node for any rate object type.
+
+Rate nodes and it's parameters are exposed in ``netdevsim`` debugfs in RO mode.
+For example created rate node with name ``some_group``:
+
+.. code:: shell
+
+    $ ls /sys/kernel/debug/netdevsim/netdevsim0/rate_groups/some_group
+    rate_parent  tx_max  tx_share
+
+Same parameters are exposed for leaf objects in corresponding ports directories.
+For ex.:
+
+.. code:: shell
+
+    $ ls /sys/kernel/debug/netdevsim/netdevsim0/ports/1
+    dev  ethtool  rate_parent  tx_max  tx_share
 
 Driver-specific Traps
 =====================

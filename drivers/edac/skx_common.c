@@ -23,10 +23,13 @@
 #include "skx_common.h"
 
 static const char * const component_names[] = {
-	[INDEX_SOCKET]	= "ProcessorSocketId",
-	[INDEX_MEMCTRL]	= "MemoryControllerId",
-	[INDEX_CHANNEL]	= "ChannelId",
-	[INDEX_DIMM]	= "DimmSlotId",
+	[INDEX_SOCKET]		= "ProcessorSocketId",
+	[INDEX_MEMCTRL]		= "MemoryControllerId",
+	[INDEX_CHANNEL]		= "ChannelId",
+	[INDEX_DIMM]		= "DimmSlotId",
+	[INDEX_NM_MEMCTRL]	= "NmMemoryControllerId",
+	[INDEX_NM_CHANNEL]	= "NmChannelId",
+	[INDEX_NM_DIMM]		= "NmDimmSlotId",
 };
 
 static int component_indices[ARRAY_SIZE(component_names)];
@@ -34,12 +37,14 @@ static int adxl_component_count;
 static const char * const *adxl_component_names;
 static u64 *adxl_values;
 static char *adxl_msg;
+static unsigned long adxl_nm_bitmap;
 
 static char skx_msg[MSG_SIZE];
 static skx_decode_f skx_decode;
 static skx_show_retry_log_f skx_show_retry_rd_err_log;
 static u64 skx_tolm, skx_tohm;
 static LIST_HEAD(dev_edac_list);
+static bool skx_mem_cfg_2lm;
 
 int __init skx_adxl_get(void)
 {
@@ -56,12 +61,23 @@ int __init skx_adxl_get(void)
 		for (j = 0; names[j]; j++) {
 			if (!strcmp(component_names[i], names[j])) {
 				component_indices[i] = j;
+
+				if (i >= INDEX_NM_FIRST)
+					adxl_nm_bitmap |= 1 << i;
+
 				break;
 			}
 		}
 
-		if (!names[j])
+		if (!names[j] && i < INDEX_NM_FIRST)
 			goto err;
+	}
+
+	if (skx_mem_cfg_2lm) {
+		if (!adxl_nm_bitmap)
+			skx_printk(KERN_NOTICE, "Not enough ADXL components for 2-level memory.\n");
+		else
+			edac_dbg(2, "adxl_nm_bitmap: 0x%lx\n", adxl_nm_bitmap);
 	}
 
 	adxl_component_names = names;
@@ -99,7 +115,7 @@ void __exit skx_adxl_put(void)
 	kfree(adxl_msg);
 }
 
-static bool skx_adxl_decode(struct decoded_addr *res)
+static bool skx_adxl_decode(struct decoded_addr *res, bool error_in_1st_level_mem)
 {
 	struct skx_dev *d;
 	int i, len = 0;
@@ -116,11 +132,20 @@ static bool skx_adxl_decode(struct decoded_addr *res)
 	}
 
 	res->socket  = (int)adxl_values[component_indices[INDEX_SOCKET]];
-	res->imc     = (int)adxl_values[component_indices[INDEX_MEMCTRL]];
-	res->channel = (int)adxl_values[component_indices[INDEX_CHANNEL]];
-	res->dimm    = (int)adxl_values[component_indices[INDEX_DIMM]];
+	if (error_in_1st_level_mem) {
+		res->imc     = (adxl_nm_bitmap & BIT_NM_MEMCTRL) ?
+			       (int)adxl_values[component_indices[INDEX_NM_MEMCTRL]] : -1;
+		res->channel = (adxl_nm_bitmap & BIT_NM_CHANNEL) ?
+			       (int)adxl_values[component_indices[INDEX_NM_CHANNEL]] : -1;
+		res->dimm    = (adxl_nm_bitmap & BIT_NM_DIMM) ?
+			       (int)adxl_values[component_indices[INDEX_NM_DIMM]] : -1;
+	} else {
+		res->imc     = (int)adxl_values[component_indices[INDEX_MEMCTRL]];
+		res->channel = (int)adxl_values[component_indices[INDEX_CHANNEL]];
+		res->dimm    = (int)adxl_values[component_indices[INDEX_DIMM]];
+	}
 
-	if (res->imc > NUM_IMC - 1) {
+	if (res->imc > NUM_IMC - 1 || res->imc < 0) {
 		skx_printk(KERN_ERR, "Bad imc %d\n", res->imc);
 		return false;
 	}
@@ -149,6 +174,11 @@ static bool skx_adxl_decode(struct decoded_addr *res)
 	}
 
 	return true;
+}
+
+void skx_set_mem_cfg(bool mem_cfg_2lm)
+{
+	skx_mem_cfg_2lm = mem_cfg_2lm;
 }
 
 void skx_set_decode(skx_decode_f decode, skx_show_retry_log_f show_retry_log)
@@ -304,14 +334,27 @@ static int skx_get_dimm_attr(u32 reg, int lobit, int hibit, int add,
 #define numcol(reg)	skx_get_dimm_attr(reg, 0, 1, 10, 0, 2, "cols")
 
 int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
-		      struct skx_imc *imc, int chan, int dimmno)
+		      struct skx_imc *imc, int chan, int dimmno,
+		      struct res_config *cfg)
 {
-	int  banks = 16, ranks, rows, cols, npages;
+	int  banks, ranks, rows, cols, npages;
+	enum mem_type mtype;
 	u64 size;
 
 	ranks = numrank(mtr);
 	rows = numrow(mtr);
-	cols = numcol(mtr);
+	cols = imc->hbm_mc ? 6 : numcol(mtr);
+
+	if (imc->hbm_mc) {
+		banks = 32;
+		mtype = MEM_HBM2;
+	} else if (cfg->support_ddr5 && (amap & 0x8)) {
+		banks = 32;
+		mtype = MEM_DDR5;
+	} else {
+		banks = 16;
+		mtype = MEM_DDR4;
+	}
 
 	/*
 	 * Compute size in 8-byte (2^3) words, then shift to MiB (2^20)
@@ -332,10 +375,15 @@ int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
 	dimm->nr_pages = npages;
 	dimm->grain = 32;
 	dimm->dtype = get_width(mtr);
-	dimm->mtype = MEM_DDR4;
+	dimm->mtype = mtype;
 	dimm->edac_mode = EDAC_SECDED; /* likely better than this */
-	snprintf(dimm->label, sizeof(dimm->label), "CPU_SrcID#%u_MC#%u_Chan#%u_DIMM#%u",
-		 imc->src_id, imc->lmc, chan, dimmno);
+
+	if (imc->hbm_mc)
+		snprintf(dimm->label, sizeof(dimm->label), "CPU_SrcID#%u_HBMC#%u_Chan#%u",
+			 imc->src_id, imc->lmc, chan);
+	else
+		snprintf(dimm->label, sizeof(dimm->label), "CPU_SrcID#%u_MC#%u_Chan#%u_DIMM#%u",
+			 imc->src_id, imc->lmc, chan, dimmno);
 
 	return 1;
 }
@@ -390,7 +438,8 @@ unknown_size:
 
 int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
 		     const char *ctl_name, const char *mod_str,
-		     get_dimm_config_f get_dimm_config)
+		     get_dimm_config_f get_dimm_config,
+		     struct res_config *cfg)
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[2];
@@ -425,13 +474,15 @@ int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
 	}
 
 	mci->mtype_cap = MEM_FLAG_DDR4 | MEM_FLAG_NVDIMM;
+	if (cfg->support_ddr5)
+		mci->mtype_cap |= MEM_FLAG_DDR5;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = mod_str;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
 
-	rc = get_dimm_config(mci);
+	rc = get_dimm_config(mci, cfg);
 	if (rc < 0)
 		goto fail;
 
@@ -481,6 +532,7 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 	bool ripv = GET_BITFIELD(m->mcgstatus, 0, 0);
 	bool overflow = GET_BITFIELD(m->status, 62, 62);
 	bool uncorrected_error = GET_BITFIELD(m->status, 61, 61);
+	bool scrub_err = false;
 	bool recoverable;
 	int len;
 	u32 core_err_cnt = GET_BITFIELD(m->status, 38, 52);
@@ -532,6 +584,7 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 			break;
 		case 4:
 			optype = "memory scrubbing error";
+			scrub_err = true;
 			break;
 		default:
 			optype = "reserved";
@@ -554,7 +607,7 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 	}
 
 	if (skx_show_retry_rd_err_log)
-		skx_show_retry_rd_err_log(res, skx_msg + len, MSG_SIZE - len);
+		skx_show_retry_rd_err_log(res, skx_msg + len, MSG_SIZE - len, scrub_err);
 
 	edac_dbg(0, "%s\n", skx_msg);
 
@@ -563,6 +616,21 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 			     m->addr >> PAGE_SHIFT, m->addr & ~PAGE_MASK, 0,
 			     res->channel, res->dimm, -1,
 			     optype, skx_msg);
+}
+
+static bool skx_error_in_1st_level_mem(const struct mce *m)
+{
+	u32 errcode;
+
+	if (!skx_mem_cfg_2lm)
+		return false;
+
+	errcode = GET_BITFIELD(m->status, 0, 15);
+
+	if ((errcode & 0xef80) != 0x280)
+		return false;
+
+	return true;
 }
 
 int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
@@ -584,7 +652,7 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	res.addr = mce->addr;
 
 	if (adxl_component_count) {
-		if (!skx_adxl_decode(&res))
+		if (!skx_adxl_decode(&res, skx_error_in_1st_level_mem(mce)))
 			return NOTIFY_DONE;
 	} else if (!skx_decode || !skx_decode(&res)) {
 		return NOTIFY_DONE;
@@ -645,6 +713,8 @@ void skx_remove(void)
 		}
 		if (d->util_all)
 			pci_dev_put(d->util_all);
+		if (d->pcu_cr3)
+			pci_dev_put(d->pcu_cr3);
 		if (d->sad_all)
 			pci_dev_put(d->sad_all);
 		if (d->uracu)

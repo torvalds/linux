@@ -14,7 +14,16 @@ allOf:
 
 properties:
   compatible:
-    const: renesas,sci
+    oneOf:
+      - items:
+          - enum:
+              - renesas,r9a07g043-sci     # RZ/G2UL
+              - renesas,r9a07g044-sci     # RZ/G2{L,LC}
+              - renesas,r9a07g054-sci     # RZ/V2L
+          - const: renesas,sci            # generic SCI compatible UART
+
+      - items:
+          - const: renesas,sci            # generic SCI compatible UART
 
   reg:
     maxItems: 1
@@ -54,18 +63,47 @@ required:
   - clocks
   - clock-names
 
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - renesas,r9a07g043-sci
+          - renesas,r9a07g044-sci
+          - renesas,r9a07g054-sci
+then:
+  properties:
+    resets:
+      maxItems: 1
+
+    power-domains:
+      maxItems: 1
+
+  required:
+    - resets
+    - power-domains
+
 unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/r9a07g044-cpg.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
     aliases {
             serial0 = &sci0;
     };
 
-    sci0: serial@ffff78 {
-            compatible = "renesas,sci";
-            reg = <0xffff78 8>;
-            interrupts = <88 0>, <89 0>, <90 0>, <91 0>;
-            clocks = <&fclk>;
+    sci0: serial@1004d000 {
+            compatible = "renesas,r9a07g044-sci", "renesas,sci";
+            reg = <0x1004d000 0x400>;
+            interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 407 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 408 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "eri", "rxi", "txi", "tei";
+            clocks = <&cpg CPG_MOD R9A07G044_SCI0_CLKP>;
             clock-names = "fck";
+            power-domains = <&cpg>;
+            resets = <&cpg R9A07G044_SCI0_RST>;
     };

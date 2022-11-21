@@ -9,7 +9,7 @@
  *
  * Copyright (C) 1996 Paul Mackerras.
  */
-#include <stdarg.h>
+#include <linux/stdarg.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -21,6 +21,7 @@
 #ifdef CONFIG_PPC
 #include <asm/prom.h>
 #include <asm/machdep.h>
+#include <asm/pmac_feature.h>
 #else
 #include <asm/macintosh.h>
 #include <asm/macints.h>

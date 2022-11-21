@@ -565,7 +565,6 @@ int wmt_pinctrl_probe(struct platform_device *pdev,
 
 	data->gpio_chip = wmt_gpio_chip;
 	data->gpio_chip.parent = &pdev->dev;
-	data->gpio_chip.of_node = pdev->dev.of_node;
 	data->gpio_chip.ngpio = data->nbanks * 32;
 
 	platform_set_drvdata(pdev, data);

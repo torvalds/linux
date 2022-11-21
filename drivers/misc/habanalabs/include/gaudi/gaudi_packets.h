@@ -54,7 +54,7 @@ struct gaudi_packet {
 	/* The rest of the packet data follows. Use the corresponding
 	 * packet_XXX struct to deference the data, based on packet type
 	 */
-	u8 contents[0];
+	u8 contents[];
 };
 
 struct packet_nop {
@@ -75,8 +75,11 @@ struct packet_wreg32 {
 struct packet_wreg_bulk {
 	__le32 size64;
 	__le32 ctl;
-	__le64 values[0]; /* data starts here */
+	__le64 values[]; /* data starts here */
 };
+
+#define GAUDI_PKT_LONG_CTL_OP_SHIFT		20
+#define GAUDI_PKT_LONG_CTL_OP_MASK		0x00300000
 
 struct packet_msg_long {
 	__le32 value;
@@ -111,18 +114,6 @@ struct packet_msg_long {
 #define GAUDI_PKT_SHORT_CTL_BASE_SHIFT		22
 #define GAUDI_PKT_SHORT_CTL_BASE_MASK		0x00C00000
 
-#define GAUDI_PKT_SHORT_CTL_OPCODE_SHIFT	24
-#define GAUDI_PKT_SHORT_CTL_OPCODE_MASK		0x1F000000
-
-#define GAUDI_PKT_SHORT_CTL_EB_SHIFT		29
-#define GAUDI_PKT_SHORT_CTL_EB_MASK		0x20000000
-
-#define GAUDI_PKT_SHORT_CTL_RB_SHIFT		30
-#define GAUDI_PKT_SHORT_CTL_RB_MASK		0x40000000
-
-#define GAUDI_PKT_SHORT_CTL_MB_SHIFT		31
-#define GAUDI_PKT_SHORT_CTL_MB_MASK		0x80000000
-
 struct packet_msg_short {
 	__le32 value;
 	__le32 ctl;
@@ -145,18 +136,6 @@ struct packet_msg_prot {
 
 #define GAUDI_PKT_FENCE_CTL_PRED_SHIFT		0
 #define GAUDI_PKT_FENCE_CTL_PRED_MASK		0x0000001F
-
-#define GAUDI_PKT_FENCE_CTL_OPCODE_SHIFT	24
-#define GAUDI_PKT_FENCE_CTL_OPCODE_MASK		0x1F000000
-
-#define GAUDI_PKT_FENCE_CTL_EB_SHIFT		29
-#define GAUDI_PKT_FENCE_CTL_EB_MASK		0x20000000
-
-#define GAUDI_PKT_FENCE_CTL_RB_SHIFT		30
-#define GAUDI_PKT_FENCE_CTL_RB_MASK		0x40000000
-
-#define GAUDI_PKT_FENCE_CTL_MB_SHIFT		31
-#define GAUDI_PKT_FENCE_CTL_MB_MASK		0x80000000
 
 struct packet_fence {
 	__le32 cfg;

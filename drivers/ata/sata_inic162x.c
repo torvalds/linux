@@ -488,8 +488,6 @@ static enum ata_completion_errors inic_qc_prep(struct ata_queued_cmd *qc)
 	bool is_data = ata_is_data(qc->tf.protocol);
 	unsigned int cdb_len = 0;
 
-	VPRINTK("ENTER\n");
-
 	if (is_atapi)
 		cdb_len = qc->dev->cdb_len;
 
@@ -559,13 +557,13 @@ static void inic_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	void __iomem *port_base = inic_port_base(ap);
 
-	tf->feature	= readb(port_base + PORT_TF_FEATURE);
+	tf->error	= readb(port_base + PORT_TF_FEATURE);
 	tf->nsect	= readb(port_base + PORT_TF_NSECT);
 	tf->lbal	= readb(port_base + PORT_TF_LBAL);
 	tf->lbam	= readb(port_base + PORT_TF_LBAM);
 	tf->lbah	= readb(port_base + PORT_TF_LBAH);
 	tf->device	= readb(port_base + PORT_TF_DEVICE);
-	tf->command	= readb(port_base + PORT_TF_COMMAND);
+	tf->status	= readb(port_base + PORT_TF_COMMAND);
 }
 
 static bool inic_qc_fill_rtf(struct ata_queued_cmd *qc)
@@ -582,11 +580,11 @@ static bool inic_qc_fill_rtf(struct ata_queued_cmd *qc)
 	 */
 	inic_tf_read(qc->ap, &tf);
 
-	if (!(tf.command & ATA_ERR))
+	if (!(tf.status & ATA_ERR))
 		return false;
 
-	rtf->command = tf.command;
-	rtf->feature = tf.feature;
+	rtf->status = tf.status;
+	rtf->error = tf.error;
 	return true;
 }
 
@@ -657,7 +655,7 @@ static int inic_hardreset(struct ata_link *link, unsigned int *class,
 		}
 
 		inic_tf_read(ap, &tf);
-		*class = ata_dev_classify(&tf);
+		*class = ata_port_classify(ap, &tf);
 	}
 
 	return 0;

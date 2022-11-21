@@ -209,17 +209,11 @@ err_unfill:
 static int tc_delete_knode(struct stmmac_priv *priv,
 			   struct tc_cls_u32_offload *cls)
 {
-	int ret;
-
 	/* Set entry and fragments as not used */
 	tc_unfill_entry(priv, cls);
 
-	ret = stmmac_rxp_config(priv, priv->hw->pcsr, priv->tc_entries,
-			priv->tc_entries_max);
-	if (ret)
-		return ret;
-
-	return 0;
+	return stmmac_rxp_config(priv, priv->hw->pcsr, priv->tc_entries,
+				 priv->tc_entries_max);
 }
 
 static int tc_setup_cls_u32(struct stmmac_priv *priv,
@@ -238,11 +232,35 @@ static int tc_setup_cls_u32(struct stmmac_priv *priv,
 	}
 }
 
+static int tc_rfs_init(struct stmmac_priv *priv)
+{
+	int i;
+
+	priv->rfs_entries_max[STMMAC_RFS_T_VLAN] = 8;
+	priv->rfs_entries_max[STMMAC_RFS_T_LLDP] = 1;
+	priv->rfs_entries_max[STMMAC_RFS_T_1588] = 1;
+
+	for (i = 0; i < STMMAC_RFS_T_MAX; i++)
+		priv->rfs_entries_total += priv->rfs_entries_max[i];
+
+	priv->rfs_entries = devm_kcalloc(priv->device,
+					 priv->rfs_entries_total,
+					 sizeof(*priv->rfs_entries),
+					 GFP_KERNEL);
+	if (!priv->rfs_entries)
+		return -ENOMEM;
+
+	dev_info(priv->device, "Enabled RFS Flow TC (entries=%d)\n",
+		 priv->rfs_entries_total);
+
+	return 0;
+}
+
 static int tc_init(struct stmmac_priv *priv)
 {
 	struct dma_features *dma_cap = &priv->dma_cap;
 	unsigned int count;
-	int i;
+	int ret, i;
 
 	if (dma_cap->l3l4fnum) {
 		priv->flow_entries_max = dma_cap->l3l4fnum;
@@ -256,8 +274,22 @@ static int tc_init(struct stmmac_priv *priv)
 		for (i = 0; i < priv->flow_entries_max; i++)
 			priv->flow_entries[i].idx = i;
 
-		dev_info(priv->device, "Enabled Flow TC (entries=%d)\n",
+		dev_info(priv->device, "Enabled L3L4 Flow TC (entries=%d)\n",
 			 priv->flow_entries_max);
+	}
+
+	ret = tc_rfs_init(priv);
+	if (ret)
+		return -ENOMEM;
+
+	if (!priv->plat->fpe_cfg) {
+		priv->plat->fpe_cfg = devm_kzalloc(priv->device,
+						   sizeof(*priv->plat->fpe_cfg),
+						   GFP_KERNEL);
+		if (!priv->plat->fpe_cfg)
+			return -ENOMEM;
+	} else {
+		memset(priv->plat->fpe_cfg, 0, sizeof(*priv->plat->fpe_cfg));
 	}
 
 	/* Fail silently as we can still use remaining features, e.g. CBS */
@@ -303,6 +335,7 @@ static int tc_init(struct stmmac_priv *priv)
 
 	dev_info(priv->device, "Enabling HW TC (entries=%d, max_off=%d)\n",
 			priv->tc_entries_max, priv->tc_off_max);
+
 	return 0;
 }
 
@@ -322,6 +355,32 @@ static int tc_setup_cbs(struct stmmac_priv *priv,
 	if (!priv->dma_cap.av)
 		return -EOPNOTSUPP;
 
+	/* Port Transmit Rate and Speed Divider */
+	switch (priv->speed) {
+	case SPEED_10000:
+		ptr = 32;
+		speed_div = 10000000;
+		break;
+	case SPEED_5000:
+		ptr = 32;
+		speed_div = 5000000;
+		break;
+	case SPEED_2500:
+		ptr = 8;
+		speed_div = 2500000;
+		break;
+	case SPEED_1000:
+		ptr = 8;
+		speed_div = 1000000;
+		break;
+	case SPEED_100:
+		ptr = 4;
+		speed_div = 100000;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
 	mode_to_use = priv->plat->tx_queues_cfg[queue].mode_to_use;
 	if (mode_to_use == MTL_QUEUE_DCB && qopt->enable) {
 		ret = stmmac_dma_qmode(priv, priv->ioaddr, queue, MTL_QUEUE_AVB);
@@ -330,12 +389,13 @@ static int tc_setup_cbs(struct stmmac_priv *priv,
 
 		priv->plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_AVB;
 	} else if (!qopt->enable) {
-		return stmmac_dma_qmode(priv, priv->ioaddr, queue, MTL_QUEUE_DCB);
-	}
+		ret = stmmac_dma_qmode(priv, priv->ioaddr, queue,
+				       MTL_QUEUE_DCB);
+		if (ret)
+			return ret;
 
-	/* Port Transmit Rate and Speed Divider */
-	ptr = (priv->speed == SPEED_100) ? 4 : 8;
-	speed_div = (priv->speed == SPEED_100) ? 100000 : 1000000;
+		priv->plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
+	}
 
 	/* Final adjustments for HW */
 	value = div_s64(qopt->idleslope * 1024ll * ptr, speed_div);
@@ -393,6 +453,8 @@ static int tc_parse_flow_actions(struct stmmac_priv *priv,
 	return 0;
 }
 
+#define ETHER_TYPE_FULL_MASK	cpu_to_be16(~0)
+
 static int tc_add_basic_flow(struct stmmac_priv *priv,
 			     struct flow_cls_offload *cls,
 			     struct stmmac_flow_entry *entry)
@@ -406,6 +468,7 @@ static int tc_add_basic_flow(struct stmmac_priv *priv,
 		return -EINVAL;
 
 	flow_rule_match_basic(rule, &match);
+
 	entry->ip_proto = match.key->ip_proto;
 	return 0;
 }
@@ -541,10 +604,8 @@ static int tc_add_flow(struct stmmac_priv *priv,
 
 	for (i = 0; i < ARRAY_SIZE(tc_flow_parsers); i++) {
 		ret = tc_flow_parsers[i].fn(priv, cls, entry);
-		if (!ret) {
+		if (!ret)
 			entry->in_use = true;
-			continue;
-		}
 	}
 
 	if (!entry->in_use)
@@ -577,6 +638,237 @@ static int tc_del_flow(struct stmmac_priv *priv,
 	return ret;
 }
 
+static struct stmmac_rfs_entry *tc_find_rfs(struct stmmac_priv *priv,
+					    struct flow_cls_offload *cls,
+					    bool get_free)
+{
+	int i;
+
+	for (i = 0; i < priv->rfs_entries_total; i++) {
+		struct stmmac_rfs_entry *entry = &priv->rfs_entries[i];
+
+		if (entry->cookie == cls->cookie)
+			return entry;
+		if (get_free && entry->in_use == false)
+			return entry;
+	}
+
+	return NULL;
+}
+
+#define VLAN_PRIO_FULL_MASK (0x07)
+
+static int tc_add_vlan_flow(struct stmmac_priv *priv,
+			    struct flow_cls_offload *cls)
+{
+	struct stmmac_rfs_entry *entry = tc_find_rfs(priv, cls, false);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct flow_dissector *dissector = rule->match.dissector;
+	int tc = tc_classid_to_hwtc(priv->dev, cls->classid);
+	struct flow_match_vlan match;
+
+	if (!entry) {
+		entry = tc_find_rfs(priv, cls, true);
+		if (!entry)
+			return -ENOENT;
+	}
+
+	if (priv->rfs_entries_cnt[STMMAC_RFS_T_VLAN] >=
+	    priv->rfs_entries_max[STMMAC_RFS_T_VLAN])
+		return -ENOENT;
+
+	/* Nothing to do here */
+	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_VLAN))
+		return -EINVAL;
+
+	if (tc < 0) {
+		netdev_err(priv->dev, "Invalid traffic class\n");
+		return -EINVAL;
+	}
+
+	flow_rule_match_vlan(rule, &match);
+
+	if (match.mask->vlan_priority) {
+		u32 prio;
+
+		if (match.mask->vlan_priority != VLAN_PRIO_FULL_MASK) {
+			netdev_err(priv->dev, "Only full mask is supported for VLAN priority");
+			return -EINVAL;
+		}
+
+		prio = BIT(match.key->vlan_priority);
+		stmmac_rx_queue_prio(priv, priv->hw, prio, tc);
+
+		entry->in_use = true;
+		entry->cookie = cls->cookie;
+		entry->tc = tc;
+		entry->type = STMMAC_RFS_T_VLAN;
+		priv->rfs_entries_cnt[STMMAC_RFS_T_VLAN]++;
+	}
+
+	return 0;
+}
+
+static int tc_del_vlan_flow(struct stmmac_priv *priv,
+			    struct flow_cls_offload *cls)
+{
+	struct stmmac_rfs_entry *entry = tc_find_rfs(priv, cls, false);
+
+	if (!entry || !entry->in_use || entry->type != STMMAC_RFS_T_VLAN)
+		return -ENOENT;
+
+	stmmac_rx_queue_prio(priv, priv->hw, 0, entry->tc);
+
+	entry->in_use = false;
+	entry->cookie = 0;
+	entry->tc = 0;
+	entry->type = 0;
+
+	priv->rfs_entries_cnt[STMMAC_RFS_T_VLAN]--;
+
+	return 0;
+}
+
+static int tc_add_ethtype_flow(struct stmmac_priv *priv,
+			       struct flow_cls_offload *cls)
+{
+	struct stmmac_rfs_entry *entry = tc_find_rfs(priv, cls, false);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct flow_dissector *dissector = rule->match.dissector;
+	int tc = tc_classid_to_hwtc(priv->dev, cls->classid);
+	struct flow_match_basic match;
+
+	if (!entry) {
+		entry = tc_find_rfs(priv, cls, true);
+		if (!entry)
+			return -ENOENT;
+	}
+
+	/* Nothing to do here */
+	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_BASIC))
+		return -EINVAL;
+
+	if (tc < 0) {
+		netdev_err(priv->dev, "Invalid traffic class\n");
+		return -EINVAL;
+	}
+
+	flow_rule_match_basic(rule, &match);
+
+	if (match.mask->n_proto) {
+		u16 etype = ntohs(match.key->n_proto);
+
+		if (match.mask->n_proto != ETHER_TYPE_FULL_MASK) {
+			netdev_err(priv->dev, "Only full mask is supported for EthType filter");
+			return -EINVAL;
+		}
+		switch (etype) {
+		case ETH_P_LLDP:
+			if (priv->rfs_entries_cnt[STMMAC_RFS_T_LLDP] >=
+			    priv->rfs_entries_max[STMMAC_RFS_T_LLDP])
+				return -ENOENT;
+
+			entry->type = STMMAC_RFS_T_LLDP;
+			priv->rfs_entries_cnt[STMMAC_RFS_T_LLDP]++;
+
+			stmmac_rx_queue_routing(priv, priv->hw,
+						PACKET_DCBCPQ, tc);
+			break;
+		case ETH_P_1588:
+			if (priv->rfs_entries_cnt[STMMAC_RFS_T_1588] >=
+			    priv->rfs_entries_max[STMMAC_RFS_T_1588])
+				return -ENOENT;
+
+			entry->type = STMMAC_RFS_T_1588;
+			priv->rfs_entries_cnt[STMMAC_RFS_T_1588]++;
+
+			stmmac_rx_queue_routing(priv, priv->hw,
+						PACKET_PTPQ, tc);
+			break;
+		default:
+			netdev_err(priv->dev, "EthType(0x%x) is not supported", etype);
+			return -EINVAL;
+		}
+
+		entry->in_use = true;
+		entry->cookie = cls->cookie;
+		entry->tc = tc;
+		entry->etype = etype;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int tc_del_ethtype_flow(struct stmmac_priv *priv,
+			       struct flow_cls_offload *cls)
+{
+	struct stmmac_rfs_entry *entry = tc_find_rfs(priv, cls, false);
+
+	if (!entry || !entry->in_use ||
+	    entry->type < STMMAC_RFS_T_LLDP ||
+	    entry->type > STMMAC_RFS_T_1588)
+		return -ENOENT;
+
+	switch (entry->etype) {
+	case ETH_P_LLDP:
+		stmmac_rx_queue_routing(priv, priv->hw,
+					PACKET_DCBCPQ, 0);
+		priv->rfs_entries_cnt[STMMAC_RFS_T_LLDP]--;
+		break;
+	case ETH_P_1588:
+		stmmac_rx_queue_routing(priv, priv->hw,
+					PACKET_PTPQ, 0);
+		priv->rfs_entries_cnt[STMMAC_RFS_T_1588]--;
+		break;
+	default:
+		netdev_err(priv->dev, "EthType(0x%x) is not supported",
+			   entry->etype);
+		return -EINVAL;
+	}
+
+	entry->in_use = false;
+	entry->cookie = 0;
+	entry->tc = 0;
+	entry->etype = 0;
+	entry->type = 0;
+
+	return 0;
+}
+
+static int tc_add_flow_cls(struct stmmac_priv *priv,
+			   struct flow_cls_offload *cls)
+{
+	int ret;
+
+	ret = tc_add_flow(priv, cls);
+	if (!ret)
+		return ret;
+
+	ret = tc_add_ethtype_flow(priv, cls);
+	if (!ret)
+		return ret;
+
+	return tc_add_vlan_flow(priv, cls);
+}
+
+static int tc_del_flow_cls(struct stmmac_priv *priv,
+			   struct flow_cls_offload *cls)
+{
+	int ret;
+
+	ret = tc_del_flow(priv, cls);
+	if (!ret)
+		return ret;
+
+	ret = tc_del_ethtype_flow(priv, cls);
+	if (!ret)
+		return ret;
+
+	return tc_del_vlan_flow(priv, cls);
+}
+
 static int tc_setup_cls(struct stmmac_priv *priv,
 			struct flow_cls_offload *cls)
 {
@@ -588,10 +880,10 @@ static int tc_setup_cls(struct stmmac_priv *priv,
 
 	switch (cls->command) {
 	case FLOW_CLS_REPLACE:
-		ret = tc_add_flow(priv, cls);
+		ret = tc_add_flow_cls(priv, cls);
 		break;
 	case FLOW_CLS_DESTROY:
-		ret = tc_del_flow(priv, cls);
+		ret = tc_del_flow_cls(priv, cls);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -600,12 +892,36 @@ static int tc_setup_cls(struct stmmac_priv *priv,
 	return ret;
 }
 
+struct timespec64 stmmac_calc_tas_basetime(ktime_t old_base_time,
+					   ktime_t current_time,
+					   u64 cycle_time)
+{
+	struct timespec64 time;
+
+	if (ktime_after(old_base_time, current_time)) {
+		time = ktime_to_timespec64(old_base_time);
+	} else {
+		s64 n;
+		ktime_t base_time;
+
+		n = div64_s64(ktime_sub_ns(current_time, old_base_time),
+			      cycle_time);
+		base_time = ktime_add_ns(old_base_time,
+					 (n + 1) * cycle_time);
+
+		time = ktime_to_timespec64(base_time);
+	}
+
+	return time;
+}
+
 static int tc_setup_taprio(struct stmmac_priv *priv,
 			   struct tc_taprio_qopt_offload *qopt)
 {
 	u32 size, wid = priv->dma_cap.estwid, dep = priv->dma_cap.estdep;
 	struct plat_stmmacenet_data *plat = priv->plat;
-	struct timespec64 time;
+	struct timespec64 time, current_time, qopt_time;
+	ktime_t current_time_ns;
 	bool fpe = false;
 	int i, ret = 0;
 	u64 ctr;
@@ -651,8 +967,6 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 		goto disable;
 	if (qopt->num_entries >= dep)
 		return -EINVAL;
-	if (!qopt->base_time)
-		return -ERANGE;
 	if (!qopt->cycle_time)
 		return -ERANGE;
 
@@ -661,14 +975,18 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 					 GFP_KERNEL);
 		if (!plat->est)
 			return -ENOMEM;
+
+		mutex_init(&priv->plat->est->lock);
 	} else {
 		memset(plat->est, 0, sizeof(*plat->est));
 	}
 
 	size = qopt->num_entries;
 
+	mutex_lock(&priv->plat->est->lock);
 	priv->plat->est->gcl_size = size;
 	priv->plat->est->enable = qopt->enable;
+	mutex_unlock(&priv->plat->est->lock);
 
 	for (i = 0; i < size; i++) {
 		s64 delta_ns = qopt->entries[i].interval;
@@ -699,40 +1017,70 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 		priv->plat->est->gcl[i] = delta_ns | (gates << wid);
 	}
 
+	mutex_lock(&priv->plat->est->lock);
 	/* Adjust for real system time */
-	time = ktime_to_timespec64(qopt->base_time);
+	priv->ptp_clock_ops.gettime64(&priv->ptp_clock_ops, &current_time);
+	current_time_ns = timespec64_to_ktime(current_time);
+	time = stmmac_calc_tas_basetime(qopt->base_time, current_time_ns,
+					qopt->cycle_time);
+
 	priv->plat->est->btr[0] = (u32)time.tv_nsec;
 	priv->plat->est->btr[1] = (u32)time.tv_sec;
+
+	qopt_time = ktime_to_timespec64(qopt->base_time);
+	priv->plat->est->btr_reserve[0] = (u32)qopt_time.tv_nsec;
+	priv->plat->est->btr_reserve[1] = (u32)qopt_time.tv_sec;
 
 	ctr = qopt->cycle_time;
 	priv->plat->est->ctr[0] = do_div(ctr, NSEC_PER_SEC);
 	priv->plat->est->ctr[1] = (u32)ctr;
 
-	if (fpe && !priv->dma_cap.fpesel)
+	if (fpe && !priv->dma_cap.fpesel) {
+		mutex_unlock(&priv->plat->est->lock);
 		return -EOPNOTSUPP;
-
-	ret = stmmac_fpe_configure(priv, priv->ioaddr,
-				   priv->plat->tx_queues_to_use,
-				   priv->plat->rx_queues_to_use, fpe);
-	if (ret && fpe) {
-		netdev_err(priv->dev, "failed to enable Frame Preemption\n");
-		return ret;
 	}
+
+	/* Actual FPE register configuration will be done after FPE handshake
+	 * is success.
+	 */
+	priv->plat->fpe_cfg->enable = fpe;
 
 	ret = stmmac_est_configure(priv, priv->ioaddr, priv->plat->est,
 				   priv->plat->clk_ptp_rate);
+	mutex_unlock(&priv->plat->est->lock);
 	if (ret) {
 		netdev_err(priv->dev, "failed to configure EST\n");
 		goto disable;
 	}
 
 	netdev_info(priv->dev, "configured EST\n");
+
+	if (fpe) {
+		stmmac_fpe_handshake(priv, true);
+		netdev_info(priv->dev, "start FPE handshake\n");
+	}
+
 	return 0;
 
 disable:
-	priv->plat->est->enable = false;
-	stmmac_est_configure(priv, priv->ioaddr, priv->plat->est,
-			     priv->plat->clk_ptp_rate);
+	if (priv->plat->est) {
+		mutex_lock(&priv->plat->est->lock);
+		priv->plat->est->enable = false;
+		stmmac_est_configure(priv, priv->ioaddr, priv->plat->est,
+				     priv->plat->clk_ptp_rate);
+		mutex_unlock(&priv->plat->est->lock);
+	}
+
+	priv->plat->fpe_cfg->enable = false;
+	stmmac_fpe_configure(priv, priv->ioaddr,
+			     priv->plat->tx_queues_to_use,
+			     priv->plat->rx_queues_to_use,
+			     false);
+	netdev_info(priv->dev, "disabled FPE\n");
+
+	stmmac_fpe_handshake(priv, false);
+	netdev_info(priv->dev, "stop FPE handshake\n");
+
 	return ret;
 }
 

@@ -1036,8 +1036,7 @@ void redraw_screen(struct vc_data *vc, int is_switch)
 	}
 	set_cursor(vc);
 	if (is_switch) {
-		set_leds();
-		compute_shiftstate();
+		vt_set_leds_compute_shiftstate();
 		notify_update(vc);
 	}
 }
@@ -1172,7 +1171,7 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
 	/* Resizes the resolution of the display adapater */
 	int err = 0;
 
-	if (vc->vc_mode != KD_GRAPHICS && vc->vc_sw->con_resize)
+	if (vc->vc_sw->con_resize)
 		err = vc->vc_sw->con_resize(vc, width, height, user);
 
 	return err;
@@ -1190,7 +1189,7 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
  *	information and perform any necessary signal handling.
  *
  *	Caller must hold the console semaphore. Takes the termios rwsem and
- *	ctrl_lock of the tty IFF a tty is passed.
+ *	ctrl.lock of the tty IFF a tty is passed.
  */
 
 static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
@@ -1220,8 +1219,25 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	new_row_size = new_cols << 1;
 	new_screen_size = new_row_size * new_rows;
 
-	if (new_cols == vc->vc_cols && new_rows == vc->vc_rows)
-		return 0;
+	if (new_cols == vc->vc_cols && new_rows == vc->vc_rows) {
+		/*
+		 * This function is being called here to cover the case
+		 * where the userspace calls the FBIOPUT_VSCREENINFO twice,
+		 * passing the same fb_var_screeninfo containing the fields
+		 * yres/xres equal to a number non-multiple of vc_font.height
+		 * and yres_virtual/xres_virtual equal to number lesser than the
+		 * vc_font.height and yres/xres.
+		 * In the second call, the struct fb_var_screeninfo isn't
+		 * being modified by the underlying driver because of the
+		 * if above, and this causes the fbcon_display->vrows to become
+		 * negative and it eventually leads to out-of-bound
+		 * access by the imageblit function.
+		 * To give the correct values to the struct and to not have
+		 * to deal with possible errors from the code below, we call
+		 * the resize_screen here as well.
+		 */
+		return resize_screen(vc, new_cols, new_rows, user);
+	}
 
 	if (new_screen_size > KMALLOC_MAX_SIZE || !new_screen_size)
 		return -EINVAL;
@@ -1356,7 +1372,7 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
  *	the actual work.
  *
  *	Takes the console sem and the called methods then take the tty
- *	termios_rwsem and the tty ctrl_lock in that order.
+ *	termios_rwsem and the tty ctrl.lock in that order.
  */
 static int vt_resize(struct tty_struct *tty, struct winsize *ws)
 {
@@ -1382,6 +1398,7 @@ struct vc_data *vc_deallocate(unsigned int currcons)
 		atomic_notifier_call_chain(&vt_notifier_list, VT_DEALLOCATE, &param);
 		vcs_remove_sysfs(currcons);
 		visual_deinit(vc);
+		con_free_unimap(vc);
 		put_pid(vc->vt_pid);
 		vc_uniscr_set(vc, NULL);
 		kfree(vc->vc_screenbuf);
@@ -1816,7 +1833,7 @@ static void csi_m(struct vc_data *vc)
 static void respond_string(const char *p, size_t len, struct tty_port *port)
 {
 	tty_insert_flip_string(port, p, len);
-	tty_schedule_flip(port);
+	tty_flip_buffer_push(port);
 }
 
 static void cursor_report(struct vc_data *vc, struct tty_struct *tty)
@@ -2059,7 +2076,7 @@ static void restore_cur(struct vc_data *vc)
 
 enum { ESnormal, ESesc, ESsquare, ESgetpars, ESfunckey,
 	EShash, ESsetG0, ESsetG1, ESpercent, EScsiignore, ESnonstd,
-	ESpalette, ESosc };
+	ESpalette, ESosc, ESapc, ESpm, ESdcs };
 
 /* console_lock is held (except via vc_init()) */
 static void reset_terminal(struct vc_data *vc, int do_clear)
@@ -2133,20 +2150,28 @@ static void vc_setGx(struct vc_data *vc, unsigned int which, int c)
 		vc->vc_translate = set_translate(*charset, vc);
 }
 
+/* is this state an ANSI control string? */
+static bool ansi_control_string(unsigned int state)
+{
+	if (state == ESosc || state == ESapc || state == ESpm || state == ESdcs)
+		return true;
+	return false;
+}
+
 /* console_lock is held */
 static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 {
 	/*
 	 *  Control characters can be used in the _middle_
-	 *  of an escape sequence.
+	 *  of an escape sequence, aside from ANSI control strings.
 	 */
-	if (vc->vc_state == ESosc && c>=8 && c<=13) /* ... except for OSC */
+	if (ansi_control_string(vc->vc_state) && c >= 8 && c <= 13)
 		return;
 	switch (c) {
 	case 0:
 		return;
 	case 7:
-		if (vc->vc_state == ESosc)
+		if (ansi_control_string(vc->vc_state))
 			vc->vc_state = ESnormal;
 		else if (vc->vc_bell_duration)
 			kd_mksound(vc->vc_bell_pitch, vc->vc_bell_duration);
@@ -2207,6 +2232,12 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		case ']':
 			vc->vc_state = ESnonstd;
 			return;
+		case '_':
+			vc->vc_state = ESapc;
+			return;
+		case '^':
+			vc->vc_state = ESpm;
+			return;
 		case '%':
 			vc->vc_state = ESpercent;
 			return;
@@ -2223,6 +2254,9 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		case 'H':
 			if (vc->state.x < VC_TABSTOPS_COUNT)
 				set_bit(vc->state.x, vc->vc_tab_stop);
+			return;
+		case 'P':
+			vc->vc_state = ESdcs;
 			return;
 		case 'Z':
 			respond_ID(tty);
@@ -2520,7 +2554,13 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		vc_setGx(vc, 1, c);
 		vc->vc_state = ESnormal;
 		return;
+	case ESapc:
+		return;
 	case ESosc:
+		return;
+	case ESpm:
+		return;
+	case ESdcs:
 		return;
 	default:
 		vc->vc_state = ESnormal;
@@ -2888,7 +2928,7 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 
 	param.vc = vc;
 
-	while (!tty->stopped && count) {
+	while (!tty->flow.stopped && count) {
 		int orig = *buf;
 		buf++;
 		n++;
@@ -3260,21 +3300,14 @@ static int con_write(struct tty_struct *tty, const unsigned char *buf, int count
 
 static int con_put_char(struct tty_struct *tty, unsigned char ch)
 {
-	if (in_interrupt())
-		return 0;	/* n_r3964 calls put_char() from interrupt context */
 	return do_con_write(tty, &ch, 1);
 }
 
-static int con_write_room(struct tty_struct *tty)
+static unsigned int con_write_room(struct tty_struct *tty)
 {
-	if (tty->stopped)
+	if (tty->flow.stopped)
 		return 0;
 	return 32768;		/* No limit, really; we're not buffering */
-}
-
-static int con_chars_in_buffer(struct tty_struct *tty)
-{
-	return 0;		/* we're not buffering */
 }
 
 /*
@@ -3523,7 +3556,6 @@ static const struct tty_operations con_ops = {
 	.write_room = con_write_room,
 	.put_char = con_put_char,
 	.flush_chars = con_flush_chars,
-	.chars_in_buffer = con_chars_in_buffer,
 	.ioctl = vt_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = vt_compat_ioctl,
@@ -3567,8 +3599,9 @@ int __init vty_init(const struct file_operations *console_fops)
 
 	vcs_init();
 
-	console_driver = alloc_tty_driver(MAX_NR_CONSOLES);
-	if (!console_driver)
+	console_driver = tty_alloc_driver(MAX_NR_CONSOLES, TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_RESET_TERMIOS);
+	if (IS_ERR(console_driver))
 		panic("Couldn't allocate console driver\n");
 
 	console_driver->name = "tty";
@@ -3579,7 +3612,6 @@ int __init vty_init(const struct file_operations *console_fops)
 	console_driver->init_termios = tty_std_termios;
 	if (default_utf8)
 		console_driver->init_termios.c_iflag |= IUTF8;
-	console_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_RESET_TERMIOS;
 	tty_set_operations(console_driver, &con_ops);
 	if (tty_register_driver(console_driver))
 		panic("Couldn't register console driver\n");
@@ -4449,7 +4481,7 @@ void poke_blanked_console(void)
 	might_sleep();
 
 	/* This isn't perfectly race free, but a race here would be mostly harmless,
-	 * at worse, we'll do a spurrious blank and it's unlikely
+	 * at worst, we'll do a spurious blank and it's unlikely
 	 */
 	del_timer(&console_timer);
 	blank_timer_expired = 0;
@@ -4584,16 +4616,8 @@ static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 
 	if (op->data && font.charcount > op->charcount)
 		rc = -ENOSPC;
-	if (!(op->flags & KD_FONT_FLAG_OLD)) {
-		if (font.width > op->width || font.height > op->height) 
-			rc = -ENOSPC;
-	} else {
-		if (font.width != 8)
-			rc = -EIO;
-		else if ((op->height && font.height > op->height) ||
-			 font.height > 32)
-			rc = -ENOSPC;
-	}
+	if (font.width > op->width || font.height > op->height)
+		rc = -ENOSPC;
 	if (rc)
 		goto out;
 
@@ -4621,7 +4645,7 @@ static int con_font_set(struct vc_data *vc, struct console_font_op *op)
 		return -EINVAL;
 	if (op->charcount > 512)
 		return -EINVAL;
-	if (op->width <= 0 || op->width > 32 || op->height > 32)
+	if (op->width <= 0 || op->width > 32 || !op->height || op->height > 32)
 		return -EINVAL;
 	size = (op->width+7)/8 * 32 * op->charcount;
 	if (size > max_font_size)
@@ -4630,31 +4654,6 @@ static int con_font_set(struct vc_data *vc, struct console_font_op *op)
 	font.data = memdup_user(op->data, size);
 	if (IS_ERR(font.data))
 		return PTR_ERR(font.data);
-
-	if (!op->height) {		/* Need to guess font height [compat] */
-		int h, i;
-		u8 *charmap = font.data;
-
-		/*
-		 * If from KDFONTOP ioctl, don't allow things which can be done
-		 * in userland,so that we can get rid of this soon
-		 */
-		if (!(op->flags & KD_FONT_FLAG_OLD)) {
-			kfree(font.data);
-			return -EINVAL;
-		}
-
-		for (h = 32; h > 0; h--)
-			for (i = 0; i < op->charcount; i++)
-				if (charmap[32*i+h-1])
-					goto nonzero;
-
-		kfree(font.data);
-		return -EINVAL;
-
-	nonzero:
-		op->height = h;
-	}
 
 	font.charcount = op->charcount;
 	font.width = op->width;

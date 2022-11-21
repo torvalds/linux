@@ -159,6 +159,12 @@ struct sdhci_arasan_data {
 /* Controller immediately reports SDHCI_CLOCK_INT_STABLE after enabling the
  * internal clock even when the clock isn't stable */
 #define SDHCI_ARASAN_QUIRK_CLOCK_UNSTABLE BIT(1)
+/*
+ * Some of the Arasan variations might not have timing requirements
+ * met at 25MHz for Default Speed mode, those controllers work at
+ * 19MHz instead
+ */
+#define SDHCI_ARASAN_QUIRK_CLOCK_25_BROKEN BIT(2)
 };
 
 struct sdhci_arasan_of_data {
@@ -182,6 +188,13 @@ static const struct sdhci_arasan_soc_ctl_map intel_lgm_emmc_soc_ctl_map = {
 static const struct sdhci_arasan_soc_ctl_map intel_lgm_sdxc_soc_ctl_map = {
 	.baseclkfreq = { .reg = 0x80, .width = 8, .shift = 2 },
 	.clockmultiplier = { .reg = 0, .width = -1, .shift = -1 },
+	.hiword_update = false,
+};
+
+static const struct sdhci_arasan_soc_ctl_map thunderbay_soc_ctl_map = {
+	.baseclkfreq = { .reg = 0x0, .width = 8, .shift = 14 },
+	.clockmultiplier = { .reg = 0x4, .width = 8, .shift = 14 },
+	.support64b = { .reg = 0x4, .width = 1, .shift = 24 },
 	.hiword_update = false,
 };
 
@@ -267,7 +280,12 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 			 * through low speeds without power cycling.
 			 */
 			sdhci_set_clock(host, host->max_clk);
-			phy_power_on(sdhci_arasan->phy);
+			if (phy_power_on(sdhci_arasan->phy)) {
+				pr_err("%s: Cannot power on phy.\n",
+				       mmc_hostname(host->mmc));
+				return;
+			}
+
 			sdhci_arasan->is_phy_on = true;
 
 			/*
@@ -290,6 +308,16 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 		sdhci_arasan->is_phy_on = false;
 	}
 
+	if (sdhci_arasan->quirks & SDHCI_ARASAN_QUIRK_CLOCK_25_BROKEN) {
+		/*
+		 * Some of the Arasan variations might not have timing
+		 * requirements met at 25MHz for Default Speed mode,
+		 * those controllers work at 19MHz instead.
+		 */
+		if (clock == DEFAULT_SPEED_MAX_DTR)
+			clock = (DEFAULT_SPEED_MAX_DTR * 19) / 25;
+	}
+
 	/* Set the Input and Output Clock Phase Delays */
 	if (clk_data->set_clk_delays)
 		clk_data->set_clk_delays(host);
@@ -307,7 +335,12 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 		msleep(20);
 
 	if (ctrl_phy) {
-		phy_power_on(sdhci_arasan->phy);
+		if (phy_power_on(sdhci_arasan->phy)) {
+			pr_err("%s: Cannot power on phy.\n",
+			       mmc_hostname(host->mmc));
+			return;
+		}
+
 		sdhci_arasan->is_phy_on = true;
 	}
 }
@@ -430,6 +463,15 @@ static const struct sdhci_pltfm_data sdhci_arasan_cqe_pdata = {
 			SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
 };
 
+static const struct sdhci_pltfm_data sdhci_arasan_thunderbay_pdata = {
+	.ops = &sdhci_arasan_cqe_ops,
+	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN | SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+		SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN |
+		SDHCI_QUIRK2_STOP_WITH_TC |
+		SDHCI_QUIRK2_CAPS_BIT63_FOR_HS400,
+};
+
 #ifdef CONFIG_PM_SLEEP
 /**
  * sdhci_arasan_suspend - Suspend method for the driver
@@ -463,7 +505,9 @@ static int sdhci_arasan_suspend(struct device *dev)
 		ret = phy_power_off(sdhci_arasan->phy);
 		if (ret) {
 			dev_err(dev, "Cannot power off phy.\n");
-			sdhci_resume_host(host);
+			if (sdhci_resume_host(host))
+				dev_err(dev, "Cannot resume host.\n");
+
 			return ret;
 		}
 		sdhci_arasan->is_phy_on = false;
@@ -624,6 +668,7 @@ static int sdhci_zynqmp_sdcardclk_set_phase(struct clk_hw *hw, int degrees)
 	case MMC_TIMING_MMC_HS200:
 		/* For 200MHz clock, 8 Taps are available */
 		tap_max = 8;
+		break;
 	default:
 		break;
 	}
@@ -692,6 +737,7 @@ static int sdhci_zynqmp_sampleclk_set_phase(struct clk_hw *hw, int degrees)
 	case MMC_TIMING_MMC_HS200:
 		/* For 200MHz clock, 30 Taps are available */
 		tap_max = 30;
+		break;
 	default:
 		break;
 	}
@@ -751,6 +797,7 @@ static int sdhci_versal_sdcardclk_set_phase(struct clk_hw *hw, int degrees)
 	case MMC_TIMING_MMC_HS200:
 		/* For 200MHz clock, 8 Taps are available */
 		tap_max = 8;
+		break;
 	default:
 		break;
 	}
@@ -817,6 +864,7 @@ static int sdhci_versal_sampleclk_set_phase(struct clk_hw *hw, int degrees)
 	case MMC_TIMING_MMC_HS200:
 		/* For 200MHz clock, 30 Taps are available */
 		tap_max = 30;
+		break;
 	default:
 		break;
 	}
@@ -873,6 +921,10 @@ static int arasan_zynqmp_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	u32 device_id = !strcmp(clk_name, "clk_out_sd0") ? NODE_SD_0 :
 							   NODE_SD_1;
 	int err;
+
+	/* ZynqMP SD controller does not perform auto tuning in DDR50 mode */
+	if (mmc->ios.timing == MMC_TIMING_UHS_DDR50)
+		return 0;
 
 	arasan_zynqmp_dll_reset(host, device_id);
 
@@ -948,7 +1000,7 @@ static void sdhci_arasan_update_baseclkfreq(struct sdhci_host *host)
 	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
 	const struct sdhci_arasan_soc_ctl_map *soc_ctl_map =
 		sdhci_arasan->soc_ctl_map;
-	u32 mhz = DIV_ROUND_CLOSEST(clk_get_rate(pltfm_host->clk), 1000000);
+	u32 mhz = DIV_ROUND_CLOSEST_ULL(clk_get_rate(pltfm_host->clk), 1000000);
 
 	/* Having a map is optional */
 	if (!soc_ctl_map)
@@ -982,14 +1034,16 @@ static void arasan_dt_read_clk_phase(struct device *dev,
 {
 	struct device_node *np = dev->of_node;
 
-	int clk_phase[2] = {0};
+	u32 clk_phase[2] = {0};
+	int ret;
 
 	/*
 	 * Read Tap Delay values from DT, if the DT does not contain the
 	 * Tap Values then use the pre-defined values.
 	 */
-	if (of_property_read_variable_u32_array(np, prop, &clk_phase[0],
-						2, 0)) {
+	ret = of_property_read_variable_u32_array(np, prop, &clk_phase[0],
+						  2, 0);
+	if (ret < 0) {
 		dev_dbg(dev, "Using predefined clock phase for %s = %d %d\n",
 			prop, clk_data->clk_phase_in[timing],
 			clk_data->clk_phase_out[timing]);
@@ -1091,6 +1145,12 @@ static const struct sdhci_arasan_clk_ops arasan_clk_ops = {
 
 static struct sdhci_arasan_of_data sdhci_arasan_generic_data = {
 	.pdata = &sdhci_arasan_pdata,
+	.clk_ops = &arasan_clk_ops,
+};
+
+static const struct sdhci_arasan_of_data sdhci_arasan_thunderbay_data = {
+	.soc_ctl_map = &thunderbay_soc_ctl_map,
+	.pdata = &sdhci_arasan_thunderbay_pdata,
 	.clk_ops = &arasan_clk_ops,
 };
 
@@ -1226,6 +1286,10 @@ static const struct of_device_id sdhci_arasan_of_match[] = {
 	{
 		.compatible = "intel,keembay-sdhci-5.1-sdio",
 		.data = &intel_keembay_sdio_data,
+	},
+	{
+		.compatible = "intel,thunderbay-sdhci-5.1",
+		.data = &sdhci_arasan_thunderbay_data,
 	},
 	/* Generic compatible below here */
 	{
@@ -1376,26 +1440,25 @@ static void sdhci_arasan_unregister_sdclk(struct device *dev)
 
 /**
  * sdhci_arasan_update_support64b - Set SUPPORT_64B (64-bit System Bus Support)
+ * @host:		The sdhci_host
+ * @value:		The value to write
  *
  * This should be set based on the System Address Bus.
  * 0: the Core supports only 32-bit System Address Bus.
  * 1: the Core supports 64-bit System Address Bus.
  *
- * NOTES:
- * - For Keem Bay, it is required to clear this bit. Its default value is 1'b1.
- *   Keem Bay does not support 64-bit access.
- *
- * @host:		The sdhci_host
- * @value:		The value to write
+ * NOTE:
+ * For Keem Bay, it is required to clear this bit. Its default value is 1'b1.
+ * Keem Bay does not support 64-bit access.
  */
 static void sdhci_arasan_update_support64b(struct sdhci_host *host, u32 value)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
-	const struct sdhci_arasan_soc_ctl_map *soc_ctl_map =
-		sdhci_arasan->soc_ctl_map;
+	const struct sdhci_arasan_soc_ctl_map *soc_ctl_map;
 
 	/* Having a map is optional */
+	soc_ctl_map = sdhci_arasan->soc_ctl_map;
 	if (!soc_ctl_map)
 		return;
 
@@ -1504,17 +1567,16 @@ cleanup:
 static int sdhci_arasan_probe(struct platform_device *pdev)
 {
 	int ret;
-	const struct of_device_id *match;
 	struct device_node *node;
 	struct clk *clk_xin;
 	struct sdhci_host *host;
 	struct sdhci_pltfm_host *pltfm_host;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct sdhci_arasan_data *sdhci_arasan;
-	struct device_node *np = pdev->dev.of_node;
 	const struct sdhci_arasan_of_data *data;
 
-	match = of_match_node(sdhci_arasan_of_match, pdev->dev.of_node);
-	data = match->data;
+	data = of_device_get_match_data(dev);
 	host = sdhci_pltfm_init(pdev, data->pdata, sizeof(*sdhci_arasan));
 
 	if (IS_ERR(host))
@@ -1527,46 +1589,55 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	sdhci_arasan->soc_ctl_map = data->soc_ctl_map;
 	sdhci_arasan->clk_ops = data->clk_ops;
 
-	node = of_parse_phandle(pdev->dev.of_node, "arasan,soc-ctl-syscon", 0);
+	node = of_parse_phandle(np, "arasan,soc-ctl-syscon", 0);
 	if (node) {
 		sdhci_arasan->soc_ctl_base = syscon_node_to_regmap(node);
 		of_node_put(node);
 
 		if (IS_ERR(sdhci_arasan->soc_ctl_base)) {
-			ret = dev_err_probe(&pdev->dev,
+			ret = dev_err_probe(dev,
 					    PTR_ERR(sdhci_arasan->soc_ctl_base),
 					    "Can't get syscon\n");
 			goto err_pltfm_free;
 		}
 	}
 
-	sdhci_arasan->clk_ahb = devm_clk_get(&pdev->dev, "clk_ahb");
+	sdhci_get_of_property(pdev);
+
+	sdhci_arasan->clk_ahb = devm_clk_get(dev, "clk_ahb");
 	if (IS_ERR(sdhci_arasan->clk_ahb)) {
-		dev_err(&pdev->dev, "clk_ahb clock not found.\n");
-		ret = PTR_ERR(sdhci_arasan->clk_ahb);
+		ret = dev_err_probe(dev, PTR_ERR(sdhci_arasan->clk_ahb),
+				    "clk_ahb clock not found.\n");
 		goto err_pltfm_free;
 	}
 
-	clk_xin = devm_clk_get(&pdev->dev, "clk_xin");
+	clk_xin = devm_clk_get(dev, "clk_xin");
 	if (IS_ERR(clk_xin)) {
-		dev_err(&pdev->dev, "clk_xin clock not found.\n");
-		ret = PTR_ERR(clk_xin);
+		ret = dev_err_probe(dev, PTR_ERR(clk_xin), "clk_xin clock not found.\n");
 		goto err_pltfm_free;
 	}
 
 	ret = clk_prepare_enable(sdhci_arasan->clk_ahb);
 	if (ret) {
-		dev_err(&pdev->dev, "Unable to enable AHB clock.\n");
+		dev_err(dev, "Unable to enable AHB clock.\n");
 		goto err_pltfm_free;
+	}
+
+	/* If clock-frequency property is set, use the provided value */
+	if (pltfm_host->clock &&
+	    pltfm_host->clock != clk_get_rate(clk_xin)) {
+		ret = clk_set_rate(clk_xin, pltfm_host->clock);
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to set SD clock rate\n");
+			goto clk_dis_ahb;
+		}
 	}
 
 	ret = clk_prepare_enable(clk_xin);
 	if (ret) {
-		dev_err(&pdev->dev, "Unable to enable SD clock.\n");
+		dev_err(dev, "Unable to enable SD clock.\n");
 		goto clk_dis_ahb;
 	}
-
-	sdhci_get_of_property(pdev);
 
 	if (of_property_read_bool(np, "xlnx,fails-without-test-cd"))
 		sdhci_arasan->quirks |= SDHCI_ARASAN_QUIRK_FORCE_CDTEST;
@@ -1576,13 +1647,13 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	pltfm_host->clk = clk_xin;
 
-	if (of_device_is_compatible(pdev->dev.of_node,
-				    "rockchip,rk3399-sdhci-5.1"))
+	if (of_device_is_compatible(np, "rockchip,rk3399-sdhci-5.1"))
 		sdhci_arasan_update_clockmultiplier(host, 0x0);
 
 	if (of_device_is_compatible(np, "intel,keembay-sdhci-5.1-emmc") ||
 	    of_device_is_compatible(np, "intel,keembay-sdhci-5.1-sd") ||
-	    of_device_is_compatible(np, "intel,keembay-sdhci-5.1-sdio")) {
+	    of_device_is_compatible(np, "intel,keembay-sdhci-5.1-sdio") ||
+	    of_device_is_compatible(np, "intel,thunderbay-sdhci-5.1")) {
 		sdhci_arasan_update_clockmultiplier(host, 0x0);
 		sdhci_arasan_update_support64b(host, 0x0);
 
@@ -1591,38 +1662,38 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	sdhci_arasan_update_baseclkfreq(host);
 
-	ret = sdhci_arasan_register_sdclk(sdhci_arasan, clk_xin, &pdev->dev);
+	ret = sdhci_arasan_register_sdclk(sdhci_arasan, clk_xin, dev);
 	if (ret)
 		goto clk_disable_all;
 
 	if (of_device_is_compatible(np, "xlnx,zynqmp-8.9a")) {
 		host->mmc_host_ops.execute_tuning =
 			arasan_zynqmp_execute_tuning;
+
+		sdhci_arasan->quirks |= SDHCI_ARASAN_QUIRK_CLOCK_25_BROKEN;
+		host->quirks |= SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12;
 	}
 
-	arasan_dt_parse_clk_phases(&pdev->dev, &sdhci_arasan->clk_data);
+	arasan_dt_parse_clk_phases(dev, &sdhci_arasan->clk_data);
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "parsing dt failed (%d)\n", ret);
+		ret = dev_err_probe(dev, ret, "parsing dt failed.\n");
 		goto unreg_clk;
 	}
 
 	sdhci_arasan->phy = ERR_PTR(-ENODEV);
-	if (of_device_is_compatible(pdev->dev.of_node,
-				    "arasan,sdhci-5.1")) {
-		sdhci_arasan->phy = devm_phy_get(&pdev->dev,
-						 "phy_arasan");
+	if (of_device_is_compatible(np, "arasan,sdhci-5.1")) {
+		sdhci_arasan->phy = devm_phy_get(dev, "phy_arasan");
 		if (IS_ERR(sdhci_arasan->phy)) {
-			ret = PTR_ERR(sdhci_arasan->phy);
-			dev_err(&pdev->dev, "No phy for arasan,sdhci-5.1.\n");
+			ret = dev_err_probe(dev, PTR_ERR(sdhci_arasan->phy),
+					    "No phy for arasan,sdhci-5.1.\n");
 			goto unreg_clk;
 		}
 
 		ret = phy_init(sdhci_arasan->phy);
 		if (ret < 0) {
-			dev_err(&pdev->dev, "phy_init err.\n");
+			dev_err(dev, "phy_init err.\n");
 			goto unreg_clk;
 		}
 
@@ -1647,7 +1718,7 @@ err_add_host:
 	if (!IS_ERR(sdhci_arasan->phy))
 		phy_exit(sdhci_arasan->phy);
 unreg_clk:
-	sdhci_arasan_unregister_sdclk(&pdev->dev);
+	sdhci_arasan_unregister_sdclk(dev);
 clk_disable_all:
 	clk_disable_unprepare(clk_xin);
 clk_dis_ahb:

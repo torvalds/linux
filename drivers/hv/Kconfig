@@ -4,25 +4,29 @@ menu "Microsoft Hyper-V guest support"
 
 config HYPERV
 	tristate "Microsoft Hyper-V client drivers"
-	depends on X86 && ACPI && X86_LOCAL_APIC && HYPERVISOR_GUEST
+	depends on ACPI && ((X86 && X86_LOCAL_APIC && HYPERVISOR_GUEST) \
+		|| (ARM64 && !CPU_BIG_ENDIAN))
 	select PARAVIRT
-	select X86_HV_CALLBACK_VECTOR
+	select X86_HV_CALLBACK_VECTOR if X86
+	select VMAP_PFN
 	help
 	  Select this option to run Linux as a Hyper-V client operating
 	  system.
 
 config HYPERV_TIMER
-	def_bool HYPERV
+	def_bool HYPERV && X86
 
 config HYPERV_UTILS
 	tristate "Microsoft Hyper-V Utilities driver"
 	depends on HYPERV && CONNECTOR && NLS
+	depends on PTP_1588_CLOCK_OPTIONAL
 	help
 	  Select this option to enable the Hyper-V Utilities.
 
 config HYPERV_BALLOON
 	tristate "Microsoft Hyper-V Balloon driver"
 	depends on HYPERV
+	select PAGE_REPORTING
 	help
 	  Select this option to enable Hyper-V Balloon driver.
 

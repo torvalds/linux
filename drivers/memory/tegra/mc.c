@@ -6,6 +6,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -38,9 +39,70 @@ static const struct of_device_id tegra_mc_of_match[] = {
 #ifdef CONFIG_ARCH_TEGRA_210_SOC
 	{ .compatible = "nvidia,tegra210-mc", .data = &tegra210_mc_soc },
 #endif
-	{ }
+#ifdef CONFIG_ARCH_TEGRA_186_SOC
+	{ .compatible = "nvidia,tegra186-mc", .data = &tegra186_mc_soc },
+#endif
+#ifdef CONFIG_ARCH_TEGRA_194_SOC
+	{ .compatible = "nvidia,tegra194-mc", .data = &tegra194_mc_soc },
+#endif
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, tegra_mc_of_match);
+
+static void tegra_mc_devm_action_put_device(void *data)
+{
+	struct tegra_mc *mc = data;
+
+	put_device(mc->dev);
+}
+
+/**
+ * devm_tegra_memory_controller_get() - get Tegra Memory Controller handle
+ * @dev: device pointer for the consumer device
+ *
+ * This function will search for the Memory Controller node in a device-tree
+ * and retrieve the Memory Controller handle.
+ *
+ * Return: ERR_PTR() on error or a valid pointer to a struct tegra_mc.
+ */
+struct tegra_mc *devm_tegra_memory_controller_get(struct device *dev)
+{
+	struct platform_device *pdev;
+	struct device_node *np;
+	struct tegra_mc *mc;
+	int err;
+
+	np = of_parse_phandle(dev->of_node, "nvidia,memory-controller", 0);
+	if (!np)
+		return ERR_PTR(-ENOENT);
+
+	pdev = of_find_device_by_node(np);
+	of_node_put(np);
+	if (!pdev)
+		return ERR_PTR(-ENODEV);
+
+	mc = platform_get_drvdata(pdev);
+	if (!mc) {
+		put_device(&pdev->dev);
+		return ERR_PTR(-EPROBE_DEFER);
+	}
+
+	err = devm_add_action_or_reset(dev, tegra_mc_devm_action_put_device, mc);
+	if (err)
+		return ERR_PTR(err);
+
+	return mc;
+}
+EXPORT_SYMBOL_GPL(devm_tegra_memory_controller_get);
+
+int tegra_mc_probe_device(struct tegra_mc *mc, struct device *dev)
+{
+	if (mc->soc->ops && mc->soc->ops->probe_device)
+		return mc->soc->ops->probe_device(mc, dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tegra_mc_probe_device);
 
 static int tegra_mc_block_dma_common(struct tegra_mc *mc,
 				     const struct tegra_mc_reset *rst)
@@ -126,6 +188,13 @@ static int tegra_mc_hotreset_assert(struct reset_controller_dev *rcdev,
 	rst_ops = mc->soc->reset_ops;
 	if (!rst_ops)
 		return -ENODEV;
+
+	/* DMA flushing will fail if reset is already asserted */
+	if (rst_ops->reset_status) {
+		/* check whether reset is asserted */
+		if (rst_ops->reset_status(mc, rst))
+			return 0;
+	}
 
 	if (rst_ops->block_dma) {
 		/* block clients DMA requests */
@@ -243,38 +312,6 @@ static int tegra_mc_reset_setup(struct tegra_mc *mc)
 	return 0;
 }
 
-static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
-{
-	unsigned long long tick;
-	unsigned int i;
-	u32 value;
-
-	/* compute the number of MC clock cycles per tick */
-	tick = (unsigned long long)mc->tick * clk_get_rate(mc->clk);
-	do_div(tick, NSEC_PER_SEC);
-
-	value = mc_readl(mc, MC_EMEM_ARB_CFG);
-	value &= ~MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE_MASK;
-	value |= MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE(tick);
-	mc_writel(mc, value, MC_EMEM_ARB_CFG);
-
-	/* write latency allowance defaults */
-	for (i = 0; i < mc->soc->num_clients; i++) {
-		const struct tegra_mc_la *la = &mc->soc->clients[i].la;
-		u32 value;
-
-		value = mc_readl(mc, la->reg);
-		value &= ~(la->mask << la->shift);
-		value |= (la->def & la->mask) << la->shift;
-		mc_writel(mc, value, la->reg);
-	}
-
-	/* latch new values */
-	mc_writel(mc, MC_TIMING_UPDATE, MC_TIMING_CONTROL);
-
-	return 0;
-}
-
 int tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate)
 {
 	unsigned int i;
@@ -298,6 +335,7 @@ int tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(tegra_mc_write_emem_configuration);
 
 unsigned int tegra_mc_get_emem_device_count(struct tegra_mc *mc)
 {
@@ -308,6 +346,44 @@ unsigned int tegra_mc_get_emem_device_count(struct tegra_mc *mc)
 	dram_count++;
 
 	return dram_count;
+}
+EXPORT_SYMBOL_GPL(tegra_mc_get_emem_device_count);
+
+#if defined(CONFIG_ARCH_TEGRA_3x_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_114_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_124_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_132_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_210_SOC)
+static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
+{
+	unsigned long long tick;
+	unsigned int i;
+	u32 value;
+
+	/* compute the number of MC clock cycles per tick */
+	tick = (unsigned long long)mc->tick * clk_get_rate(mc->clk);
+	do_div(tick, NSEC_PER_SEC);
+
+	value = mc_readl(mc, MC_EMEM_ARB_CFG);
+	value &= ~MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE_MASK;
+	value |= MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE(tick);
+	mc_writel(mc, value, MC_EMEM_ARB_CFG);
+
+	/* write latency allowance defaults */
+	for (i = 0; i < mc->soc->num_clients; i++) {
+		const struct tegra_mc_client *client = &mc->soc->clients[i];
+		u32 value;
+
+		value = mc_readl(mc, client->regs.la.reg);
+		value &= ~(client->regs.la.mask << client->regs.la.shift);
+		value |= (client->regs.la.def & client->regs.la.mask) << client->regs.la.shift;
+		mc_writel(mc, value, client->regs.la.reg);
+	}
+
+	/* latch new values */
+	mc_writel(mc, MC_TIMING_UPDATE, MC_TIMING_CONTROL);
+
+	return 0;
 }
 
 static int load_one_timing(struct tegra_mc *mc,
@@ -401,27 +477,35 @@ static int tegra_mc_setup_timings(struct tegra_mc *mc)
 	return 0;
 }
 
-static const char *const status_names[32] = {
-	[ 1] = "External interrupt",
-	[ 6] = "EMEM address decode error",
-	[ 7] = "GART page fault",
-	[ 8] = "Security violation",
-	[ 9] = "EMEM arbitration error",
-	[10] = "Page fault",
-	[11] = "Invalid APB ASID update",
-	[12] = "VPR violation",
-	[13] = "Secure carveout violation",
-	[16] = "MTS carveout violation",
-};
+int tegra30_mc_probe(struct tegra_mc *mc)
+{
+	int err;
 
-static const char *const error_names[8] = {
-	[2] = "EMEM decode error",
-	[3] = "TrustZone violation",
-	[4] = "Carveout violation",
-	[6] = "SMMU translation error",
-};
+	mc->clk = devm_clk_get_optional(mc->dev, "mc");
+	if (IS_ERR(mc->clk)) {
+		dev_err(mc->dev, "failed to get MC clock: %ld\n", PTR_ERR(mc->clk));
+		return PTR_ERR(mc->clk);
+	}
 
-static irqreturn_t tegra_mc_irq(int irq, void *data)
+	/* ensure that debug features are disabled */
+	mc_writel(mc, 0x00000000, MC_TIMING_CONTROL_DBG);
+
+	err = tegra_mc_setup_latency_allowance(mc);
+	if (err < 0) {
+		dev_err(mc->dev, "failed to setup latency allowance: %d\n", err);
+		return err;
+	}
+
+	err = tegra_mc_setup_timings(mc);
+	if (err < 0) {
+		dev_err(mc->dev, "failed to setup timings: %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static irqreturn_t tegra30_mc_handle_irq(int irq, void *data)
 {
 	struct tegra_mc *mc = data;
 	unsigned long status;
@@ -433,7 +517,7 @@ static irqreturn_t tegra_mc_irq(int irq, void *data)
 		return IRQ_NONE;
 
 	for_each_set_bit(bit, &status, 32) {
-		const char *error = status_names[bit] ?: "unknown";
+		const char *error = tegra_mc_status_names[bit] ?: "unknown";
 		const char *client = "unknown", *desc;
 		const char *direction, *secure;
 		phys_addr_t addr = 0;
@@ -473,7 +557,7 @@ static irqreturn_t tegra_mc_irq(int irq, void *data)
 
 		type = (value & MC_ERR_STATUS_TYPE_MASK) >>
 		       MC_ERR_STATUS_TYPE_SHIFT;
-		desc = error_names[type];
+		desc = tegra_mc_error_names[type];
 
 		switch (value & MC_ERR_STATUS_TYPE_MASK) {
 		case MC_ERR_STATUS_TYPE_INVALID_SMMU_PAGE:
@@ -518,84 +602,122 @@ static irqreturn_t tegra_mc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static __maybe_unused irqreturn_t tegra20_mc_irq(int irq, void *data)
+const struct tegra_mc_ops tegra30_mc_ops = {
+	.probe = tegra30_mc_probe,
+	.handle_irq = tegra30_mc_handle_irq,
+};
+#endif
+
+const char *const tegra_mc_status_names[32] = {
+	[ 1] = "External interrupt",
+	[ 6] = "EMEM address decode error",
+	[ 7] = "GART page fault",
+	[ 8] = "Security violation",
+	[ 9] = "EMEM arbitration error",
+	[10] = "Page fault",
+	[11] = "Invalid APB ASID update",
+	[12] = "VPR violation",
+	[13] = "Secure carveout violation",
+	[16] = "MTS carveout violation",
+};
+
+const char *const tegra_mc_error_names[8] = {
+	[2] = "EMEM decode error",
+	[3] = "TrustZone violation",
+	[4] = "Carveout violation",
+	[6] = "SMMU translation error",
+};
+
+/*
+ * Memory Controller (MC) has few Memory Clients that are issuing memory
+ * bandwidth allocation requests to the MC interconnect provider. The MC
+ * provider aggregates the requests and then sends the aggregated request
+ * up to the External Memory Controller (EMC) interconnect provider which
+ * re-configures hardware interface to External Memory (EMEM) in accordance
+ * to the required bandwidth. Each MC interconnect node represents an
+ * individual Memory Client.
+ *
+ * Memory interconnect topology:
+ *
+ *               +----+
+ * +--------+    |    |
+ * | TEXSRD +--->+    |
+ * +--------+    |    |
+ *               |    |    +-----+    +------+
+ *    ...        | MC +--->+ EMC +--->+ EMEM |
+ *               |    |    +-----+    +------+
+ * +--------+    |    |
+ * | DISP.. +--->+    |
+ * +--------+    |    |
+ *               +----+
+ */
+static int tegra_mc_interconnect_setup(struct tegra_mc *mc)
 {
-	struct tegra_mc *mc = data;
-	unsigned long status;
-	unsigned int bit;
+	struct icc_node *node;
+	unsigned int i;
+	int err;
 
-	/* mask all interrupts to avoid flooding */
-	status = mc_readl(mc, MC_INTSTATUS) & mc->soc->intmask;
-	if (!status)
-		return IRQ_NONE;
+	/* older device-trees don't have interconnect properties */
+	if (!device_property_present(mc->dev, "#interconnect-cells") ||
+	    !mc->soc->icc_ops)
+		return 0;
 
-	for_each_set_bit(bit, &status, 32) {
-		const char *direction = "read", *secure = "";
-		const char *error = status_names[bit];
-		const char *client, *desc;
-		phys_addr_t addr;
-		u32 value, reg;
-		u8 id, type;
+	mc->provider.dev = mc->dev;
+	mc->provider.data = &mc->provider;
+	mc->provider.set = mc->soc->icc_ops->set;
+	mc->provider.aggregate = mc->soc->icc_ops->aggregate;
+	mc->provider.xlate_extended = mc->soc->icc_ops->xlate_extended;
 
-		switch (BIT(bit)) {
-		case MC_INT_DECERR_EMEM:
-			reg = MC_DECERR_EMEM_OTHERS_STATUS;
-			value = mc_readl(mc, reg);
+	err = icc_provider_add(&mc->provider);
+	if (err)
+		return err;
 
-			id = value & mc->soc->client_id_mask;
-			desc = error_names[2];
-
-			if (value & BIT(31))
-				direction = "write";
-			break;
-
-		case MC_INT_INVALID_GART_PAGE:
-			reg = MC_GART_ERROR_REQ;
-			value = mc_readl(mc, reg);
-
-			id = (value >> 1) & mc->soc->client_id_mask;
-			desc = error_names[2];
-
-			if (value & BIT(0))
-				direction = "write";
-			break;
-
-		case MC_INT_SECURITY_VIOLATION:
-			reg = MC_SECURITY_VIOLATION_STATUS;
-			value = mc_readl(mc, reg);
-
-			id = value & mc->soc->client_id_mask;
-			type = (value & BIT(30)) ? 4 : 3;
-			desc = error_names[type];
-			secure = "secure ";
-
-			if (value & BIT(31))
-				direction = "write";
-			break;
-
-		default:
-			continue;
-		}
-
-		client = mc->soc->clients[id].name;
-		addr = mc_readl(mc, reg + sizeof(u32));
-
-		dev_err_ratelimited(mc->dev, "%s: %s%s @%pa: %s (%s)\n",
-				    client, secure, direction, &addr, error,
-				    desc);
+	/* create Memory Controller node */
+	node = icc_node_create(TEGRA_ICC_MC);
+	if (IS_ERR(node)) {
+		err = PTR_ERR(node);
+		goto del_provider;
 	}
 
-	/* clear interrupts */
-	mc_writel(mc, status, MC_INTSTATUS);
+	node->name = "Memory Controller";
+	icc_node_add(node, &mc->provider);
 
-	return IRQ_HANDLED;
+	/* link Memory Controller to External Memory Controller */
+	err = icc_link_create(node, TEGRA_ICC_EMC);
+	if (err)
+		goto remove_nodes;
+
+	for (i = 0; i < mc->soc->num_clients; i++) {
+		/* create MC client node */
+		node = icc_node_create(mc->soc->clients[i].id);
+		if (IS_ERR(node)) {
+			err = PTR_ERR(node);
+			goto remove_nodes;
+		}
+
+		node->name = mc->soc->clients[i].name;
+		icc_node_add(node, &mc->provider);
+
+		/* link Memory Client to Memory Controller */
+		err = icc_link_create(node, TEGRA_ICC_MC);
+		if (err)
+			goto remove_nodes;
+	}
+
+	return 0;
+
+remove_nodes:
+	icc_nodes_remove(&mc->provider);
+del_provider:
+	icc_provider_del(&mc->provider);
+
+	return err;
 }
 
 static int tegra_mc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct tegra_mc *mc;
-	void *isr;
 	u64 mask;
 	int err;
 
@@ -624,61 +746,41 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	if (IS_ERR(mc->regs))
 		return PTR_ERR(mc->regs);
 
-	mc->clk = devm_clk_get(&pdev->dev, "mc");
-	if (IS_ERR(mc->clk)) {
-		dev_err(&pdev->dev, "failed to get MC clock: %ld\n",
-			PTR_ERR(mc->clk));
-		return PTR_ERR(mc->clk);
+	mc->debugfs.root = debugfs_create_dir("mc", NULL);
+
+	if (mc->soc->ops && mc->soc->ops->probe) {
+		err = mc->soc->ops->probe(mc);
+		if (err < 0)
+			return err;
 	}
 
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
-	if (mc->soc == &tegra20_mc_soc) {
-		isr = tegra20_mc_irq;
-	} else
-#endif
-	{
-		/* ensure that debug features are disabled */
-		mc_writel(mc, 0x00000000, MC_TIMING_CONTROL_DBG);
+	if (mc->soc->ops && mc->soc->ops->handle_irq) {
+		mc->irq = platform_get_irq(pdev, 0);
+		if (mc->irq < 0)
+			return mc->irq;
 
-		err = tegra_mc_setup_latency_allowance(mc);
+		WARN(!mc->soc->client_id_mask, "missing client ID mask for this SoC\n");
+
+		mc_writel(mc, mc->soc->intmask, MC_INTMASK);
+
+		err = devm_request_irq(&pdev->dev, mc->irq, mc->soc->ops->handle_irq, 0,
+				       dev_name(&pdev->dev), mc);
 		if (err < 0) {
-			dev_err(&pdev->dev,
-				"failed to setup latency allowance: %d\n",
-				err);
-			return err;
-		}
-
-		isr = tegra_mc_irq;
-
-		err = tegra_mc_setup_timings(mc);
-		if (err < 0) {
-			dev_err(&pdev->dev, "failed to setup timings: %d\n",
+			dev_err(&pdev->dev, "failed to request IRQ#%u: %d\n", mc->irq,
 				err);
 			return err;
 		}
 	}
 
-	mc->irq = platform_get_irq(pdev, 0);
-	if (mc->irq < 0) {
-		dev_err(&pdev->dev, "interrupt not specified\n");
-		return mc->irq;
+	if (mc->soc->reset_ops) {
+		err = tegra_mc_reset_setup(mc);
+		if (err < 0)
+			dev_err(&pdev->dev, "failed to register reset controller: %d\n", err);
 	}
 
-	WARN(!mc->soc->client_id_mask, "missing client ID mask for this SoC\n");
-
-	mc_writel(mc, mc->soc->intmask, MC_INTMASK);
-
-	err = devm_request_irq(&pdev->dev, mc->irq, isr, 0,
-			       dev_name(&pdev->dev), mc);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to request IRQ#%u: %d\n", mc->irq,
-			err);
-		return err;
-	}
-
-	err = tegra_mc_reset_setup(mc);
+	err = tegra_mc_interconnect_setup(mc);
 	if (err < 0)
-		dev_err(&pdev->dev, "failed to register reset controller: %d\n",
+		dev_err(&pdev->dev, "failed to initialize interconnect: %d\n",
 			err);
 
 	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_SMMU) && mc->soc->smmu) {
@@ -702,37 +804,37 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra_mc_suspend(struct device *dev)
+static int __maybe_unused tegra_mc_suspend(struct device *dev)
 {
 	struct tegra_mc *mc = dev_get_drvdata(dev);
-	int err;
 
-	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_GART) && mc->gart) {
-		err = tegra_gart_suspend(mc->gart);
-		if (err)
-			return err;
-	}
+	if (mc->soc->ops && mc->soc->ops->suspend)
+		return mc->soc->ops->suspend(mc);
 
 	return 0;
 }
 
-static int tegra_mc_resume(struct device *dev)
+static int __maybe_unused tegra_mc_resume(struct device *dev)
 {
 	struct tegra_mc *mc = dev_get_drvdata(dev);
-	int err;
 
-	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_GART) && mc->gart) {
-		err = tegra_gart_resume(mc->gart);
-		if (err)
-			return err;
-	}
+	if (mc->soc->ops && mc->soc->ops->resume)
+		return mc->soc->ops->resume(mc);
 
 	return 0;
+}
+
+static void tegra_mc_sync_state(struct device *dev)
+{
+	struct tegra_mc *mc = dev_get_drvdata(dev);
+
+	/* check whether ICC provider is registered */
+	if (mc->provider.dev == dev)
+		icc_sync_state(dev);
 }
 
 static const struct dev_pm_ops tegra_mc_pm_ops = {
-	.suspend = tegra_mc_suspend,
-	.resume = tegra_mc_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(tegra_mc_suspend, tegra_mc_resume)
 };
 
 static struct platform_driver tegra_mc_driver = {
@@ -741,6 +843,7 @@ static struct platform_driver tegra_mc_driver = {
 		.of_match_table = tegra_mc_of_match,
 		.pm = &tegra_mc_pm_ops,
 		.suppress_bind_attrs = true,
+		.sync_state = tegra_mc_sync_state,
 	},
 	.prevent_deferred_probe = true,
 	.probe = tegra_mc_probe,

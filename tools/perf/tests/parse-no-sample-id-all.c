@@ -27,8 +27,8 @@ static int process_event(struct evlist **pevlist, union perf_event *event)
 	if (!*pevlist)
 		return -1;
 
-	if (perf_evlist__parse_sample(*pevlist, event, &sample)) {
-		pr_debug("perf_evlist__parse_sample failed\n");
+	if (evlist__parse_sample(*pevlist, event, &sample)) {
+		pr_debug("evlist__parse_sample failed\n");
 		return -1;
 	}
 
@@ -67,7 +67,8 @@ struct test_attr_event {
  *
  * Return: %0 on success, %-1 if the test fails.
  */
-int test__parse_no_sample_id_all(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__parse_no_sample_id_all(struct test_suite *test __maybe_unused,
+					int subtest __maybe_unused)
 {
 	int err;
 
@@ -103,3 +104,5 @@ int test__parse_no_sample_id_all(struct test *test __maybe_unused, int subtest _
 
 	return 0;
 }
+
+DEFINE_SUITE("Parse with no sample_id_all bit set", parse_no_sample_id_all);

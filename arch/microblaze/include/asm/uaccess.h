@@ -15,77 +15,10 @@
 #include <linux/pgtable.h>
 #include <asm/extable.h>
 #include <linux/string.h>
+#include <asm-generic/access_ok.h>
 
-/*
- * On Microblaze the fs value is actually the top of the corresponding
- * address space.
- *
- * The fs value determines whether argument validity checking should be
- * performed or not. If get_fs() == USER_DS, checking is performed, with
- * get_fs() == KERNEL_DS, checking is bypassed.
- *
- * For historical reasons, these macros are grossly misnamed.
- *
- * For non-MMU arch like Microblaze, KERNEL_DS and USER_DS is equal.
- */
-# define MAKE_MM_SEG(s)       ((mm_segment_t) { (s) })
-
-#  ifndef CONFIG_MMU
-#  define KERNEL_DS	MAKE_MM_SEG(0)
-#  define USER_DS	KERNEL_DS
-#  else
-#  define KERNEL_DS	MAKE_MM_SEG(0xFFFFFFFF)
-#  define USER_DS	MAKE_MM_SEG(TASK_SIZE - 1)
-#  endif
-
-# define get_fs()	(current_thread_info()->addr_limit)
-# define set_fs(val)	(current_thread_info()->addr_limit = (val))
-
-# define uaccess_kernel()	(get_fs().seg == KERNEL_DS.seg)
-
-#ifndef CONFIG_MMU
-
-/* Check against bounds of physical memory */
-static inline int ___range_ok(unsigned long addr, unsigned long size)
-{
-	return ((addr < memory_start) ||
-		((addr + size - 1) > (memory_start + memory_size - 1)));
-}
-
-#define __range_ok(addr, size) \
-		___range_ok((unsigned long)(addr), (unsigned long)(size))
-
-#define access_ok(addr, size) (__range_ok((addr), (size)) == 0)
-
-#else
-
-static inline int access_ok(const void __user *addr, unsigned long size)
-{
-	if (!size)
-		goto ok;
-
-	if ((get_fs().seg < ((unsigned long)addr)) ||
-			(get_fs().seg < ((unsigned long)addr + size - 1))) {
-		pr_devel("ACCESS fail at 0x%08x (size 0x%x), seg 0x%08x\n",
-			(__force u32)addr, (u32)size,
-			(u32)get_fs().seg);
-		return 0;
-	}
-ok:
-	pr_devel("ACCESS OK at 0x%08x (size 0x%x), seg 0x%08x\n",
-			(__force u32)addr, (u32)size,
-			(u32)get_fs().seg);
-	return 1;
-}
-#endif
-
-#ifdef CONFIG_MMU
 # define __FIXUP_SECTION	".section .fixup,\"ax\"\n"
 # define __EX_TABLE_SECTION	".section __ex_table,\"a\"\n"
-#else
-# define __FIXUP_SECTION	".section .discard,\"ax\"\n"
-# define __EX_TABLE_SECTION	".section .discard,\"ax\"\n"
-#endif
 
 extern unsigned long __copy_tofrom_user(void __user *to,
 		const void __user *from, unsigned long size);
@@ -167,27 +100,27 @@ extern long __user_bad(void);
 
 #define __get_user(x, ptr)						\
 ({									\
-	unsigned long __gu_val = 0;					\
 	long __gu_err;							\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
-		__get_user_asm("lbu", (ptr), __gu_val, __gu_err);	\
+		__get_user_asm("lbu", (ptr), x, __gu_err);		\
 		break;							\
 	case 2:								\
-		__get_user_asm("lhu", (ptr), __gu_val, __gu_err);	\
+		__get_user_asm("lhu", (ptr), x, __gu_err);		\
 		break;							\
 	case 4:								\
-		__get_user_asm("lw", (ptr), __gu_val, __gu_err);	\
+		__get_user_asm("lw", (ptr), x, __gu_err);		\
 		break;							\
-	case 8:								\
-		__gu_err = __copy_from_user(&__gu_val, ptr, 8);		\
-		if (__gu_err)						\
-			__gu_err = -EFAULT;				\
+	case 8: {							\
+		__u64 __x = 0;						\
+		__gu_err = raw_copy_from_user(&__x, ptr, 8) ?		\
+							-EFAULT : 0;	\
+		(x) = (typeof(x))(typeof((x) - (x)))__x;		\
 		break;							\
+	}								\
 	default:							\
 		/* __gu_val = 0; __gu_err = -EINVAL;*/ __gu_err = __user_bad();\
 	}								\
-	x = (__force __typeof__(*(ptr))) __gu_val;			\
 	__gu_err;							\
 })
 
@@ -323,28 +256,14 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 /*
  * Copy a null terminated string from userspace.
  */
-extern int __strncpy_user(char *to, const char __user *from, int len);
-
-static inline long
-strncpy_from_user(char *dst, const char __user *src, long count)
-{
-	if (!access_ok(src, 1))
-		return -EFAULT;
-	return __strncpy_user(dst, src, count);
-}
+__must_check long strncpy_from_user(char *dst, const char __user *src,
+				    long count);
 
 /*
  * Return the size of a string (including the ending 0)
  *
  * Return 0 on exception, a value greater than N if too long
  */
-extern int __strnlen_user(const char __user *sstr, int len);
-
-static inline long strnlen_user(const char __user *src, long n)
-{
-	if (!access_ok(src, 1))
-		return 0;
-	return __strnlen_user(src, n);
-}
+__must_check long strnlen_user(const char __user *sstr, long len);
 
 #endif /* _ASM_MICROBLAZE_UACCESS_H */

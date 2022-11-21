@@ -8,6 +8,8 @@
 
 /* PMIC Registers */
 #define MT6358_SWCID                          0xa
+#define MT6358_TOPSTATUS                      0x28
+#define MT6358_TOP_RST_MISC                   0x14c
 #define MT6358_MISC_TOP_INT_CON0              0x188
 #define MT6358_MISC_TOP_INT_STATUS0           0x194
 #define MT6358_TOP_INT_STATUS0                0x19e
@@ -92,6 +94,10 @@
 #define MT6358_BUCK_VCORE_CON0                0x1488
 #define MT6358_BUCK_VCORE_DBG0                0x149e
 #define MT6358_BUCK_VCORE_DBG1                0x14a0
+#define MT6358_BUCK_VCORE_SSHUB_CON0          0x14a4
+#define MT6358_BUCK_VCORE_SSHUB_CON1          0x14a6
+#define MT6358_BUCK_VCORE_SSHUB_ELR0          MT6358_BUCK_VCORE_SSHUB_CON1
+#define MT6358_BUCK_VCORE_SSHUB_DBG1          MT6358_BUCK_VCORE_DBG1
 #define MT6358_BUCK_VCORE_ELR0                0x14aa
 #define MT6358_BUCK_VGPU_CON0                 0x1508
 #define MT6358_BUCK_VGPU_DBG0                 0x151e
@@ -167,6 +173,9 @@
 #define MT6358_LDO_VSRAM_OTHERS_CON0          0x1ba6
 #define MT6358_LDO_VSRAM_OTHERS_DBG0          0x1bc0
 #define MT6358_LDO_VSRAM_OTHERS_DBG1          0x1bc2
+#define MT6358_LDO_VSRAM_OTHERS_SSHUB_CON0    0x1bc4
+#define MT6358_LDO_VSRAM_OTHERS_SSHUB_CON1    0x1bc6
+#define MT6358_LDO_VSRAM_OTHERS_SSHUB_DBG1    MT6358_LDO_VSRAM_OTHERS_DBG1
 #define MT6358_LDO_VSRAM_GPU_CON0             0x1bc8
 #define MT6358_LDO_VSRAM_GPU_DBG0             0x1be2
 #define MT6358_LDO_VSRAM_GPU_DBG1             0x1be4

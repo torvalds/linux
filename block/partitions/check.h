@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
-#include <linux/genhd.h>
 #include "../blk.h"
 
 /*
@@ -9,7 +8,7 @@
  * description.
  */
 struct parsed_partitions {
-	struct block_device *bdev;
+	struct gendisk *disk;
 	char name[BDEVNAME_SIZE];
 	struct {
 		sector_t from;

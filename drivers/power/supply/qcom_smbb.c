@@ -863,8 +863,8 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	}
 
 	chg->revision += 1;
-	if (chg->revision != 2 && chg->revision != 3) {
-		dev_err(&pdev->dev, "v1 hardware not supported\n");
+	if (chg->revision != 1 && chg->revision != 2 && chg->revision != 3) {
+		dev_err(&pdev->dev, "v%d hardware not supported\n", chg->revision);
 		return -ENODEV;
 	}
 	dev_info(&pdev->dev, "Initializing SMBB rev %u", chg->revision);
@@ -929,11 +929,8 @@ static int smbb_charger_probe(struct platform_device *pdev)
 		int irq;
 
 		irq = platform_get_irq_byname(pdev, smbb_charger_irqs[i].name);
-		if (irq < 0) {
-			dev_err(&pdev->dev, "failed to get irq '%s'\n",
-				smbb_charger_irqs[i].name);
+		if (irq < 0)
 			return irq;
-		}
 
 		smbb_charger_irqs[i].handler(irq, chg);
 
@@ -1015,6 +1012,7 @@ static int smbb_charger_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id smbb_charger_id_table[] = {
+	{ .compatible = "qcom,pm8226-charger" },
 	{ .compatible = "qcom,pm8941-charger" },
 	{ }
 };

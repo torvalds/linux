@@ -513,7 +513,7 @@ nfp_nsp_command_buf_dma_sg(struct nfp_nsp *nsp,
 	dma_size = BIT_ULL(dma_order);
 	nseg = DIV_ROUND_UP(max_size, chunk_size);
 
-	chunks = kzalloc(array_size(sizeof(*chunks), nseg), GFP_KERNEL);
+	chunks = kcalloc(nseg, sizeof(*chunks), GFP_KERNEL);
 	if (!chunks)
 		return -ENOMEM;
 
@@ -1070,7 +1070,7 @@ int nfp_nsp_read_module_eeprom(struct nfp_nsp *state, int eth_index,
 		__le16 offset;
 		__le16 readlen;
 		u8 eth_index;
-		u8 data[0];
+		u8 data[];
 	} __packed *buf;
 	int bufsz, ret;
 

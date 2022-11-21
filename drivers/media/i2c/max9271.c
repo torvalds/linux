@@ -18,6 +18,7 @@
 
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/module.h>
 
 #include "max9271.h"
 
@@ -79,6 +80,18 @@ static int max9271_pclk_detect(struct max9271_device *dev)
 	return -EIO;
 }
 
+void max9271_wake_up(struct max9271_device *dev)
+{
+	/*
+	 * Use the chip default address as this function has to be called
+	 * before any other one.
+	 */
+	dev->client->addr = MAX9271_DEFAULT_ADDR;
+	i2c_smbus_read_byte(dev->client);
+	usleep_range(5000, 8000);
+}
+EXPORT_SYMBOL_GPL(max9271_wake_up);
+
 int max9271_set_serial_link(struct max9271_device *dev, bool enable)
 {
 	int ret;
@@ -105,7 +118,10 @@ int max9271_set_serial_link(struct max9271_device *dev, bool enable)
 	 * Short delays here appear to show bit-errors in the writes following.
 	 * Therefore a conservative delay seems best here.
 	 */
-	max9271_write(dev, 0x04, val);
+	ret = max9271_write(dev, 0x04, val);
+	if (ret < 0)
+		return ret;
+
 	usleep_range(5000, 8000);
 
 	return 0;
@@ -117,7 +133,7 @@ int max9271_configure_i2c(struct max9271_device *dev, u8 i2c_config)
 	int ret;
 
 	ret = max9271_write(dev, 0x0d, i2c_config);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	/* The delay required after an I2C bus configuration change is not
@@ -142,7 +158,10 @@ int max9271_set_high_threshold(struct max9271_device *dev, bool enable)
 	 * Enable or disable reverse channel high threshold to increase
 	 * immunity to power supply noise.
 	 */
-	max9271_write(dev, 0x08, enable ? ret | BIT(0) : ret & ~BIT(0));
+	ret = max9271_write(dev, 0x08, enable ? ret | BIT(0) : ret & ~BIT(0));
+	if (ret < 0)
+		return ret;
+
 	usleep_range(2000, 2500);
 
 	return 0;
@@ -151,6 +170,8 @@ EXPORT_SYMBOL_GPL(max9271_set_high_threshold);
 
 int max9271_configure_gmsl_link(struct max9271_device *dev)
 {
+	int ret;
+
 	/*
 	 * Configure the GMSL link:
 	 *
@@ -161,16 +182,24 @@ int max9271_configure_gmsl_link(struct max9271_device *dev)
 	 *
 	 * TODO: Make the GMSL link configuration parametric.
 	 */
-	max9271_write(dev, 0x07, MAX9271_DBL | MAX9271_HVEN |
-		      MAX9271_EDC_1BIT_PARITY);
+	ret = max9271_write(dev, 0x07, MAX9271_DBL | MAX9271_HVEN |
+			    MAX9271_EDC_1BIT_PARITY);
+	if (ret < 0)
+		return ret;
+
 	usleep_range(5000, 8000);
 
 	/*
 	 * Adjust spread spectrum to +4% and auto-detect pixel clock
 	 * and serial link rate.
 	 */
-	max9271_write(dev, 0x02, MAX9271_SPREAD_SPECT_4 | MAX9271_R02_RES |
-		      MAX9271_PCLK_AUTODETECT | MAX9271_SERIAL_AUTODETECT);
+	ret = max9271_write(dev, 0x02,
+			    MAX9271_SPREAD_SPECT_4 | MAX9271_R02_RES |
+			    MAX9271_PCLK_AUTODETECT |
+			    MAX9271_SERIAL_AUTODETECT);
+	if (ret < 0)
+		return ret;
+
 	usleep_range(5000, 8000);
 
 	return 0;
@@ -223,12 +252,12 @@ int max9271_enable_gpios(struct max9271_device *dev, u8 gpio_mask)
 {
 	int ret;
 
-	ret = max9271_read(dev, 0x0f);
+	ret = max9271_read(dev, 0x0e);
 	if (ret < 0)
 		return 0;
 
 	/* BIT(0) reserved: GPO is always enabled. */
-	ret |= gpio_mask | BIT(0);
+	ret |= (gpio_mask & ~BIT(0));
 	ret = max9271_write(dev, 0x0e, ret);
 	if (ret < 0) {
 		dev_err(&dev->client->dev, "Failed to enable gpio (%d)\n", ret);
@@ -245,12 +274,12 @@ int max9271_disable_gpios(struct max9271_device *dev, u8 gpio_mask)
 {
 	int ret;
 
-	ret = max9271_read(dev, 0x0f);
+	ret = max9271_read(dev, 0x0e);
 	if (ret < 0)
 		return 0;
 
 	/* BIT(0) reserved: GPO cannot be disabled */
-	ret &= (~gpio_mask | BIT(0));
+	ret &= ~(gpio_mask | BIT(0));
 	ret = max9271_write(dev, 0x0e, ret);
 	if (ret < 0) {
 		dev_err(&dev->client->dev, "Failed to disable gpio (%d)\n", ret);
@@ -339,3 +368,7 @@ int max9271_set_translation(struct max9271_device *dev, u8 source, u8 dest)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(max9271_set_translation);
+
+MODULE_DESCRIPTION("Maxim MAX9271 GMSL Serializer");
+MODULE_AUTHOR("Jacopo Mondi");
+MODULE_LICENSE("GPL v2");

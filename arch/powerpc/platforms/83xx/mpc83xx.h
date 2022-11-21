@@ -68,15 +68,15 @@
 
 extern void __noreturn mpc83xx_restart(char *cmd);
 extern long mpc83xx_time_init(void);
-extern int mpc837x_usb_cfg(void);
-extern int mpc834x_usb_cfg(void);
-extern int mpc831x_usb_cfg(void);
+int __init mpc837x_usb_cfg(void);
+int __init mpc834x_usb_cfg(void);
+int __init mpc831x_usb_cfg(void);
 extern void mpc83xx_ipic_init_IRQ(void);
 
 #ifdef CONFIG_PCI
 extern void mpc83xx_setup_pci(void);
 #else
-#define mpc83xx_setup_pci()	do {} while (0)
+#define mpc83xx_setup_pci	NULL
 #endif
 
 extern int mpc83xx_declare_of_platform_devices(void);

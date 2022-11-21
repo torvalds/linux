@@ -37,13 +37,14 @@ static unsigned char get_index(struct spk_synth *synth);
 static int in_escape;
 static int is_flushing;
 
-static spinlock_t flush_lock;
+static DEFINE_SPINLOCK(flush_lock);
 static DECLARE_WAIT_QUEUE_HEAD(flush);
 
 static struct var_t vars[] = {
 	{ CAPS_START, .u.s = {"[:dv ap 160] " } },
 	{ CAPS_STOP, .u.s = {"[:dv ap 100 ] " } },
 	{ RATE, .u.n = {"[:ra %d] ", 180, 75, 650, 0, 0, NULL } },
+	{ PITCH, .u.n = {"[:dv ap %d] ", 122, 50, 350, 0, 0, NULL } },
 	{ INFLECTION, .u.n = {"[:dv pr %d] ", 100, 0, 10000, 0, 0, NULL } },
 	{ VOL, .u.n = {"[:dv g5 %d] ", 86, 60, 86, 0, 0, NULL } },
 	{ PUNCT, .u.n = {"[:pu %c] ", 0, 0, 2, 0, 0, "nsa" } },
@@ -78,6 +79,8 @@ static struct kobj_attribute direct_attribute =
 	__ATTR(direct, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute full_time_attribute =
 	__ATTR(full_time, 0644, spk_var_show, spk_var_store);
+static struct kobj_attribute flush_time_attribute =
+	__ATTR(flush_time, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute jiffy_delta_attribute =
 	__ATTR(jiffy_delta, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute trigger_time_attribute =
@@ -99,6 +102,7 @@ static struct attribute *synth_attrs[] = {
 	&delay_time_attribute.attr,
 	&direct_attribute.attr,
 	&full_time_attribute.attr,
+	&flush_time_attribute.attr,
 	&jiffy_delta_attribute.attr,
 	&trigger_time_attribute.attr,
 	NULL,	/* need to NULL terminate the list of attributes */
@@ -118,6 +122,7 @@ static struct spk_synth synth_dectlk = {
 	.trigger = 50,
 	.jiffies = 50,
 	.full = 40000,
+	.flush_time = 4000,
 	.dev_name = SYNTH_DEFAULT_DEV,
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
@@ -200,18 +205,23 @@ static void do_catch_up(struct spk_synth *synth)
 	static u_char last = '\0';
 	unsigned long flags;
 	unsigned long jiff_max;
-	unsigned long timeout = msecs_to_jiffies(4000);
+	unsigned long timeout;
 	DEFINE_WAIT(wait);
 	struct var_t *jiffy_delta;
 	struct var_t *delay_time;
+	struct var_t *flush_time;
 	int jiffy_delta_val;
 	int delay_time_val;
+	int timeout_val;
 
 	jiffy_delta = spk_get_var(JIFFY);
 	delay_time = spk_get_var(DELAY);
+	flush_time = spk_get_var(FLUSH);
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	jiffy_delta_val = jiffy_delta->u.n.value;
+	timeout_val = flush_time->u.n.value;
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
+	timeout = msecs_to_jiffies(timeout_val);
 	jiff_max = jiffies + jiffy_delta_val;
 
 	while (!kthread_should_stop()) {
@@ -289,7 +299,7 @@ static void synth_flush(struct spk_synth *synth)
 		synth->io_ops->synth_out(synth, ']');
 	in_escape = 0;
 	is_flushing = 1;
-	synth->io_ops->flush_buffer();
+	synth->io_ops->flush_buffer(synth);
 	synth->io_ops->synth_out(synth, SYNTH_CLEAR);
 }
 

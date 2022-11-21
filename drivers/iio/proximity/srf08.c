@@ -63,11 +63,11 @@ struct srf08_data {
 	int			range_mm;
 	struct mutex		lock;
 
-	/*
-	 * triggered buffer
-	 * 1x16-bit channel + 3x16 padding + 4x16 timestamp
-	 */
-	s16			buffer[8];
+	/* Ensure timestamp is naturally aligned */
+	struct {
+		s16 chan;
+		s64 timestamp __aligned(8);
+	} scan;
 
 	/* Sensor-Type */
 	enum srf08_sensor_type	sensor_type;
@@ -190,9 +190,9 @@ static irqreturn_t srf08_trigger_handler(int irq, void *p)
 
 	mutex_lock(&data->lock);
 
-	data->buffer[0] = sensor_data;
+	data->scan.chan = sensor_data;
 	iio_push_to_buffers_with_timestamp(indio_dev,
-						data->buffer, pf->timestamp);
+					   &data->scan, pf->timestamp);
 
 	mutex_unlock(&data->lock);
 err:
@@ -528,9 +528,9 @@ static int srf08_probe(struct i2c_client *client,
 }
 
 static const struct of_device_id of_srf08_match[] = {
-	{ .compatible = "devantech,srf02", (void *)SRF02},
-	{ .compatible = "devantech,srf08", (void *)SRF08},
-	{ .compatible = "devantech,srf10", (void *)SRF10},
+	{ .compatible = "devantech,srf02", (void *)SRF02 },
+	{ .compatible = "devantech,srf08", (void *)SRF08 },
+	{ .compatible = "devantech,srf10", (void *)SRF10 },
 	{},
 };
 

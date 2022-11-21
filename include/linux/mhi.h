@@ -117,6 +117,7 @@ struct mhi_link_info {
  * @MHI_EE_WFW: WLAN firmware mode
  * @MHI_EE_PTHRU: Passthrough
  * @MHI_EE_EDL: Embedded downloader
+ * @MHI_EE_FP: Flash Programmer Environment
  */
 enum mhi_ee_type {
 	MHI_EE_PBL,
@@ -126,7 +127,8 @@ enum mhi_ee_type {
 	MHI_EE_WFW,
 	MHI_EE_PTHRU,
 	MHI_EE_EDL,
-	MHI_EE_MAX_SUPPORTED = MHI_EE_EDL,
+	MHI_EE_FP,
+	MHI_EE_MAX_SUPPORTED = MHI_EE_FP,
 	MHI_EE_DISABLE_TRANSITION, /* local EE, not related to mhi spec */
 	MHI_EE_NOT_SUPPORTED,
 	MHI_EE_MAX,
@@ -203,7 +205,7 @@ enum mhi_db_brst_mode {
  * @num: The number assigned to this channel
  * @num_elements: The number of elements that can be queued to this channel
  * @local_elements: The local ring length of the channel
- * @event_ring: The event rung index that services this channel
+ * @event_ring: The event ring index that services this channel
  * @dir: Direction that data may flow on this channel
  * @type: Channel type
  * @ee_mask: Execution Environment mask for this channel
@@ -214,7 +216,6 @@ enum mhi_db_brst_mode {
  * @offload_channel: The client manages the channel completely
  * @doorbell_mode_switch: Channel switches to doorbell mode on M0 transition
  * @auto_queue: Framework will automatically queue buffers for DL traffic
- * @auto_start: Automatically start (open) this channel
  * @wake-capable: Channel capable of waking up the system
  */
 struct mhi_channel_config {
@@ -232,7 +233,6 @@ struct mhi_channel_config {
 	bool offload_channel;
 	bool doorbell_mode_switch;
 	bool auto_queue;
-	bool auto_start;
 	bool wake_capable;
 };
 
@@ -281,7 +281,7 @@ struct mhi_controller_config {
 	u32 num_channels;
 	const struct mhi_channel_config *ch_cfg;
 	u32 num_events;
-	const struct mhi_event_config *event_cfg;
+	struct mhi_event_config *event_cfg;
 	bool use_bounce_buf;
 	bool m2_no_db;
 };
@@ -298,11 +298,12 @@ struct mhi_controller_config {
  * @wake_db: MHI WAKE doorbell register address
  * @iova_start: IOMMU starting address for data (required)
  * @iova_stop: IOMMU stop address for data (required)
- * @fw_image: Firmware image name for normal booting (required)
+ * @fw_image: Firmware image name for normal booting (optional)
  * @edl_image: Firmware image name for emergency download mode (optional)
  * @rddm_size: RAM dump size that host should allocate for debugging purpose
  * @sbl_size: SBL image size downloaded through BHIe (optional)
  * @seg_len: BHIe vector size (optional)
+ * @reg_len: Length of the MHI MMIO region (required)
  * @fbc_image: Points to firmware image buffer
  * @rddm_image: Points to RAM dump buffer
  * @mhi_chan: Points to the channel configuration table
@@ -337,6 +338,7 @@ struct mhi_controller_config {
  * @wlock: Lock for protecting device wakeup
  * @mhi_link_info: Device bandwidth info
  * @st_worker: State transition worker
+ * @hiprio_wq: High priority workqueue for MHI work such as state transitions
  * @state_event: State change event
  * @status_cb: CB function to notify power states of the device (required)
  * @wake_get: CB function to assert device wake (optional)
@@ -348,11 +350,14 @@ struct mhi_controller_config {
  * @unmap_single: CB function to destroy TRE buffer
  * @read_reg: Read a MHI register via the physical link (required)
  * @write_reg: Write a MHI register via the physical link (required)
+ * @reset: Controller specific reset function (optional)
  * @buffer_len: Bounce buffer length
+ * @index: Index of the MHI controller instance
  * @bounce_buf: Use of bounce buffer
  * @fbc_download: MHI host needs to do complete image transfer (optional)
- * @pre_init: MHI host needs to do pre-initialization before power up
  * @wake_set: Device wakeup set flag
+ * @irq_flags: irq flags passed to request_irq (optional)
+ * @mru: the default MRU for the MHI device
  *
  * Fields marked as (required) need to be populated by the controller driver
  * before calling mhi_register_controller(). For the fields marked as (optional)
@@ -383,6 +388,7 @@ struct mhi_controller {
 	size_t rddm_size;
 	size_t sbl_size;
 	size_t seg_len;
+	size_t reg_len;
 	struct image_info *fbc_image;
 	struct image_info *rddm_image;
 	struct mhi_chan *mhi_chan;
@@ -419,6 +425,7 @@ struct mhi_controller {
 	spinlock_t wlock;
 	struct mhi_link_info mhi_link_info;
 	struct work_struct st_worker;
+	struct workqueue_struct *hiprio_wq;
 	wait_queue_head_t state_event;
 
 	void (*status_cb)(struct mhi_controller *mhi_cntrl,
@@ -436,12 +443,15 @@ struct mhi_controller {
 			u32 *out);
 	void (*write_reg)(struct mhi_controller *mhi_cntrl, void __iomem *addr,
 			  u32 val);
+	void (*reset)(struct mhi_controller *mhi_cntrl);
 
 	size_t buffer_len;
+	int index;
 	bool bounce_buf;
 	bool fbc_download;
-	bool pre_init;
 	bool wake_set;
+	unsigned long irq_flags;
+	u32 mru;
 };
 
 /**
@@ -597,6 +607,15 @@ void mhi_set_mhi_state(struct mhi_controller *mhi_cntrl,
 void mhi_notify(struct mhi_device *mhi_dev, enum mhi_callback cb_reason);
 
 /**
+ * mhi_get_free_desc_count - Get transfer ring length
+ * Get # of TD available to queue buffers
+ * @mhi_dev: Device associated with the channels
+ * @dir: Direction of the channel
+ */
+int mhi_get_free_desc_count(struct mhi_device *mhi_dev,
+				enum dma_data_direction dir);
+
+/**
  * mhi_prepare_for_power_up - Do pre-initialization before power up.
  *                            This is optional, call this before power up if
  *                            the controller does not want bus framework to
@@ -645,12 +664,25 @@ int mhi_pm_suspend(struct mhi_controller *mhi_cntrl);
 int mhi_pm_resume(struct mhi_controller *mhi_cntrl);
 
 /**
- * mhi_download_rddm_img - Download ramdump image from device for
- *                         debugging purpose.
+ * mhi_pm_resume_force - Force resume MHI from suspended state
+ * @mhi_cntrl: MHI controller
+ *
+ * Resume the device irrespective of its MHI state. As per the MHI spec, devices
+ * has to be in M3 state during resume. But some devices seem to be in a
+ * different MHI state other than M3 but they continue working fine if allowed.
+ * This API is intented to be used for such devices.
+ *
+ * Return: 0 if the resume succeeds, a negative error code otherwise
+ */
+int mhi_pm_resume_force(struct mhi_controller *mhi_cntrl);
+
+/**
+ * mhi_download_rddm_image - Download ramdump image from device for
+ *                           debugging purpose.
  * @mhi_cntrl: MHI controller
  * @in_panic: Download rddm image during kernel panic
  */
-int mhi_download_rddm_img(struct mhi_controller *mhi_cntrl, bool in_panic);
+int mhi_download_rddm_image(struct mhi_controller *mhi_cntrl, bool in_panic);
 
 /**
  * mhi_force_rddm_mode - Force device into rddm mode
@@ -659,10 +691,23 @@ int mhi_download_rddm_img(struct mhi_controller *mhi_cntrl, bool in_panic);
 int mhi_force_rddm_mode(struct mhi_controller *mhi_cntrl);
 
 /**
+ * mhi_get_exec_env - Get BHI execution environment of the device
+ * @mhi_cntrl: MHI controller
+ */
+enum mhi_ee_type mhi_get_exec_env(struct mhi_controller *mhi_cntrl);
+
+/**
  * mhi_get_mhi_state - Get MHI state of the device
  * @mhi_cntrl: MHI controller
  */
 enum mhi_state mhi_get_mhi_state(struct mhi_controller *mhi_cntrl);
+
+/**
+ * mhi_soc_reset - Trigger a device reset. This can be used as a last resort
+ *		   to reset and recover a device.
+ * @mhi_cntrl: MHI controller
+ */
+void mhi_soc_reset(struct mhi_controller *mhi_cntrl);
 
 /**
  * mhi_device_get - Disable device low power mode
@@ -684,13 +729,38 @@ int mhi_device_get_sync(struct mhi_device *mhi_dev);
 void mhi_device_put(struct mhi_device *mhi_dev);
 
 /**
- * mhi_prepare_for_transfer - Setup channel for data transfer
+ * mhi_prepare_for_transfer - Setup UL and DL channels for data transfer.
  * @mhi_dev: Device associated with the channels
+ *
+ * Allocate and initialize the channel context and also issue the START channel
+ * command to both channels. Channels can be started only if both host and
+ * device execution environments match and channels are in a DISABLED state.
  */
 int mhi_prepare_for_transfer(struct mhi_device *mhi_dev);
 
 /**
- * mhi_unprepare_from_transfer - Unprepare the channels
+ * mhi_prepare_for_transfer_autoqueue - Setup UL and DL channels with auto queue
+ *                                      buffers for DL traffic
+ * @mhi_dev: Device associated with the channels
+ *
+ * Allocate and initialize the channel context and also issue the START channel
+ * command to both channels. Channels can be started only if both host and
+ * device execution environments match and channels are in a DISABLED state.
+ * The MHI core will automatically allocate and queue buffers for the DL traffic.
+ */
+int mhi_prepare_for_transfer_autoqueue(struct mhi_device *mhi_dev);
+
+/**
+ * mhi_unprepare_from_transfer - Reset UL and DL channels for data transfer.
+ *                               Issue the RESET channel command and let the
+ *                               device clean-up the context so no incoming
+ *                               transfers are seen on the host. Free memory
+ *                               associated with the context on host. If device
+ *                               is unresponsive, only perform a host side
+ *                               clean-up. Channels can be reset only if both
+ *                               host and device execution environments match
+ *                               and channels are in an ENABLED, STOPPED or
+ *                               SUSPENDED state.
  * @mhi_dev: Device associated with the channels
  */
 void mhi_unprepare_from_transfer(struct mhi_device *mhi_dev);
@@ -736,5 +806,12 @@ int mhi_queue_buf(struct mhi_device *mhi_dev, enum dma_data_direction dir,
  */
 int mhi_queue_skb(struct mhi_device *mhi_dev, enum dma_data_direction dir,
 		  struct sk_buff *skb, size_t len, enum mhi_flags mflags);
+
+/**
+ * mhi_queue_is_full - Determine whether queueing new elements is possible
+ * @mhi_dev: Device associated with the channels
+ * @dir: DMA direction for the channel
+ */
+bool mhi_queue_is_full(struct mhi_device *mhi_dev, enum dma_data_direction dir);
 
 #endif /* _MHI_H_ */

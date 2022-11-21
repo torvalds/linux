@@ -12,6 +12,8 @@
 #include "i915_gem_ioctls.h"
 #include "i915_gem_mman.h"
 #include "i915_gem_object.h"
+#include "i915_gem_tiling.h"
+#include "i915_reg.h"
 
 /**
  * DOC: buffer object tiling
@@ -62,14 +64,14 @@ u32 i915_gem_fence_size(struct drm_i915_private *i915,
 
 	GEM_BUG_ON(!stride);
 
-	if (INTEL_GEN(i915) >= 4) {
+	if (GRAPHICS_VER(i915) >= 4) {
 		stride *= i915_gem_tile_height(tiling);
 		GEM_BUG_ON(!IS_ALIGNED(stride, I965_FENCE_PAGE));
 		return roundup(size, stride);
 	}
 
 	/* Previous chips need a power-of-two fence region when tiling */
-	if (IS_GEN(i915, 3))
+	if (GRAPHICS_VER(i915) == 3)
 		ggtt_size = 1024*1024;
 	else
 		ggtt_size = 512*1024;
@@ -102,7 +104,7 @@ u32 i915_gem_fence_alignment(struct drm_i915_private *i915, u32 size,
 	if (tiling == I915_TILING_NONE)
 		return I915_GTT_MIN_ALIGNMENT;
 
-	if (INTEL_GEN(i915) >= 4)
+	if (GRAPHICS_VER(i915) >= 4)
 		return I965_FENCE_PAGE;
 
 	/*
@@ -130,10 +132,10 @@ i915_tiling_ok(struct drm_i915_gem_object *obj,
 	/* check maximum stride & object size */
 	/* i965+ stores the end address of the gtt mapping in the fence
 	 * reg, so dont bother to check the size */
-	if (INTEL_GEN(i915) >= 7) {
+	if (GRAPHICS_VER(i915) >= 7) {
 		if (stride / 128 > GEN7_FENCE_MAX_PITCH_VAL)
 			return false;
-	} else if (INTEL_GEN(i915) >= 4) {
+	} else if (GRAPHICS_VER(i915) >= 4) {
 		if (stride / 128 > I965_FENCE_MAX_PITCH_VAL)
 			return false;
 	} else {
@@ -144,7 +146,7 @@ i915_tiling_ok(struct drm_i915_gem_object *obj,
 			return false;
 	}
 
-	if (IS_GEN(i915, 2) ||
+	if (GRAPHICS_VER(i915) == 2 ||
 	    (tiling == I915_TILING_Y && HAS_128_BYTE_Y_TILING(i915)))
 		tile_width = 128;
 	else
@@ -181,7 +183,8 @@ static int
 i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj,
 			      int tiling_mode, unsigned int stride)
 {
-	struct i915_ggtt *ggtt = &to_i915(obj->base.dev)->ggtt;
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	struct i915_vma *vma, *vn;
 	LIST_HEAD(unbind);
 	int ret = 0;
@@ -265,22 +268,20 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 	 * pages to prevent them being swapped out and causing corruption
 	 * due to the change in swizzling.
 	 */
-	mutex_lock(&obj->mm.lock);
 	if (i915_gem_object_has_pages(obj) &&
 	    obj->mm.madv == I915_MADV_WILLNEED &&
 	    i915->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
 		if (tiling == I915_TILING_NONE) {
-			GEM_BUG_ON(!obj->mm.quirked);
-			__i915_gem_object_unpin_pages(obj);
-			obj->mm.quirked = false;
+			GEM_BUG_ON(!i915_gem_object_has_tiling_quirk(obj));
+			i915_gem_object_clear_tiling_quirk(obj);
+			i915_gem_object_make_shrinkable(obj);
 		}
 		if (!i915_gem_object_is_tiled(obj)) {
-			GEM_BUG_ON(obj->mm.quirked);
-			__i915_gem_object_pin_pages(obj);
-			obj->mm.quirked = true;
+			GEM_BUG_ON(i915_gem_object_has_tiling_quirk(obj));
+			i915_gem_object_make_unshrinkable(obj);
+			i915_gem_object_set_tiling_quirk(obj);
 		}
 	}
-	mutex_unlock(&obj->mm.lock);
 
 	spin_lock(&obj->vma.lock);
 	for_each_ggtt_vma(vma, obj) {
@@ -338,7 +339,7 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	int err;
 
-	if (!dev_priv->ggtt.num_fences)
+	if (!to_gt(dev_priv)->ggtt->num_fences)
 		return -EOPNOTSUPP;
 
 	obj = i915_gem_object_lookup(file, args->handle);
@@ -364,9 +365,9 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 		args->stride = 0;
 	} else {
 		if (args->tiling_mode == I915_TILING_X)
-			args->swizzle_mode = to_i915(dev)->ggtt.bit_6_swizzle_x;
+			args->swizzle_mode = to_gt(dev_priv)->ggtt->bit_6_swizzle_x;
 		else
-			args->swizzle_mode = to_i915(dev)->ggtt.bit_6_swizzle_y;
+			args->swizzle_mode = to_gt(dev_priv)->ggtt->bit_6_swizzle_y;
 
 		/* Hide bit 17 swizzling from the user.  This prevents old Mesa
 		 * from aborting the application on sw fallbacks to bit 17,
@@ -421,7 +422,7 @@ i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	int err = -ENOENT;
 
-	if (!dev_priv->ggtt.num_fences)
+	if (!to_gt(dev_priv)->ggtt->num_fences)
 		return -EOPNOTSUPP;
 
 	rcu_read_lock();
@@ -437,10 +438,10 @@ i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->tiling_mode) {
 	case I915_TILING_X:
-		args->swizzle_mode = dev_priv->ggtt.bit_6_swizzle_x;
+		args->swizzle_mode = to_gt(dev_priv)->ggtt->bit_6_swizzle_x;
 		break;
 	case I915_TILING_Y:
-		args->swizzle_mode = dev_priv->ggtt.bit_6_swizzle_y;
+		args->swizzle_mode = to_gt(dev_priv)->ggtt->bit_6_swizzle_y;
 		break;
 	default:
 	case I915_TILING_NONE:

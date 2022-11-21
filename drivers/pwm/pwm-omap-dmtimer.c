@@ -403,10 +403,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 
 	omap->chip.dev = &pdev->dev;
 	omap->chip.ops = &pwm_omap_dmtimer_ops;
-	omap->chip.base = -1;
 	omap->chip.npwm = 1;
-	omap->chip.of_xlate = of_pwm_xlate_with_flags;
-	omap->chip.of_pwm_n_cells = 3;
 
 	mutex_init(&omap->mutex);
 
@@ -447,11 +444,8 @@ err_find_timer_pdev:
 static int pwm_omap_dmtimer_remove(struct platform_device *pdev)
 {
 	struct pwm_omap_dmtimer_chip *omap = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = pwmchip_remove(&omap->chip);
-	if (ret)
-		return ret;
+	pwmchip_remove(&omap->chip);
 
 	if (pm_runtime_active(&omap->dm_timer_pdev->dev))
 		omap->pdata->stop(omap->dm_timer);

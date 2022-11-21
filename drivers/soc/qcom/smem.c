@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -84,7 +85,7 @@
 #define SMEM_GLOBAL_HOST	0xfffe
 
 /* Max number of processors/hosts in a system */
-#define SMEM_HOST_COUNT		11
+#define SMEM_HOST_COUNT		15
 
 /**
   * struct smem_proc_comm - proc_comm communication struct (legacy)
@@ -122,7 +123,7 @@ struct smem_global_entry {
  * @free_offset:	index of the first unallocated byte in smem
  * @available:		number of bytes available for allocation
  * @reserved:		reserved field, must be 0
- * toc:			array of references to items
+ * @toc:		array of references to items
  */
 struct smem_header {
 	struct smem_proc_comm proc_comm[4];
@@ -240,7 +241,7 @@ static const u8 SMEM_INFO_MAGIC[] = { 0x53, 0x49, 0x49, 0x49 }; /* SIII */
  * @size:	size of the memory region
  */
 struct smem_region {
-	u32 aux_base;
+	phys_addr_t aux_base;
 	void __iomem *virt_base;
 	size_t size;
 };
@@ -255,6 +256,7 @@ struct smem_region {
  *		processor/host
  * @cacheline:	list of cacheline sizes for each host
  * @item_count: max accepted item number
+ * @socinfo:	platform device pointer
  * @num_regions: number of @regions
  * @regions:	list of the memory regions defining the shared memory
  */
@@ -498,7 +500,7 @@ static void *qcom_smem_get_global(struct qcom_smem *smem,
 	for (i = 0; i < smem->num_regions; i++) {
 		region = &smem->regions[i];
 
-		if (region->aux_base == aux_base || !aux_base) {
+		if ((u32)region->aux_base == aux_base || !aux_base) {
 			if (size != NULL)
 				*size = le32_to_cpu(entry->size);
 			return region->virt_base + le32_to_cpu(entry->offset);
@@ -663,7 +665,7 @@ phys_addr_t qcom_smem_virt_to_phys(void *p)
 		if (p < region->virt_base + region->size) {
 			u64 offset = p - region->virt_base;
 
-			return (phys_addr_t)region->aux_base + offset;
+			return region->aux_base + offset;
 		}
 	}
 
@@ -731,9 +733,7 @@ qcom_smem_partition_header(struct qcom_smem *smem,
 	header = smem->regions[0].virt_base + le32_to_cpu(entry->offset);
 
 	if (memcmp(header->magic, SMEM_PART_MAGIC, sizeof(header->magic))) {
-		dev_err(smem->dev, "bad partition magic %02x %02x %02x %02x\n",
-			header->magic[0], header->magic[1],
-			header->magic[2], header->magic[3]);
+		dev_err(smem->dev, "bad partition magic %4ph\n", header->magic);
 		return NULL;
 	}
 
@@ -864,12 +864,12 @@ qcom_smem_enumerate_partitions(struct qcom_smem *smem, u16 local_host)
 	return 0;
 }
 
-static int qcom_smem_map_memory(struct qcom_smem *smem, struct device *dev,
-				const char *name, int i)
+static int qcom_smem_resolve_mem(struct qcom_smem *smem, const char *name,
+				 struct smem_region *region)
 {
+	struct device *dev = smem->dev;
 	struct device_node *np;
 	struct resource r;
-	resource_size_t size;
 	int ret;
 
 	np = of_parse_phandle(dev->of_node, name, 0);
@@ -882,13 +882,9 @@ static int qcom_smem_map_memory(struct qcom_smem *smem, struct device *dev,
 	of_node_put(np);
 	if (ret)
 		return ret;
-	size = resource_size(&r);
 
-	smem->regions[i].virt_base = devm_ioremap_wc(dev, r.start, size);
-	if (!smem->regions[i].virt_base)
-		return -ENOMEM;
-	smem->regions[i].aux_base = (u32)r.start;
-	smem->regions[i].size = size;
+	region->aux_base = r.start;
+	region->size = resource_size(&r);
 
 	return 0;
 }
@@ -896,12 +892,14 @@ static int qcom_smem_map_memory(struct qcom_smem *smem, struct device *dev,
 static int qcom_smem_probe(struct platform_device *pdev)
 {
 	struct smem_header *header;
+	struct reserved_mem *rmem;
 	struct qcom_smem *smem;
 	size_t array_size;
 	int num_regions;
 	int hwlock_id;
 	u32 version;
 	int ret;
+	int i;
 
 	num_regions = 1;
 	if (of_find_property(pdev->dev.of_node, "qcom,rpm-msg-ram", NULL))
@@ -915,13 +913,35 @@ static int qcom_smem_probe(struct platform_device *pdev)
 	smem->dev = &pdev->dev;
 	smem->num_regions = num_regions;
 
-	ret = qcom_smem_map_memory(smem, &pdev->dev, "memory-region", 0);
-	if (ret)
-		return ret;
+	rmem = of_reserved_mem_lookup(pdev->dev.of_node);
+	if (rmem) {
+		smem->regions[0].aux_base = rmem->base;
+		smem->regions[0].size = rmem->size;
+	} else {
+		/*
+		 * Fall back to the memory-region reference, if we're not a
+		 * reserved-memory node.
+		 */
+		ret = qcom_smem_resolve_mem(smem, "memory-region", &smem->regions[0]);
+		if (ret)
+			return ret;
+	}
 
-	if (num_regions > 1 && (ret = qcom_smem_map_memory(smem, &pdev->dev,
-					"qcom,rpm-msg-ram", 1)))
-		return ret;
+	if (num_regions > 1) {
+		ret = qcom_smem_resolve_mem(smem, "qcom,rpm-msg-ram", &smem->regions[1]);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < num_regions; i++) {
+		smem->regions[i].virt_base = devm_ioremap_wc(&pdev->dev,
+							     smem->regions[i].aux_base,
+							     smem->regions[i].size);
+		if (!smem->regions[i].virt_base) {
+			dev_err(&pdev->dev, "failed to remap %pa\n", &smem->regions[i].aux_base);
+			return -ENOMEM;
+		}
+	}
 
 	header = smem->regions[0].virt_base;
 	if (le32_to_cpu(header->initialized) != 1 ||

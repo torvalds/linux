@@ -24,14 +24,13 @@ config NVME_TARGET_PASSTHRU
 	  This enables target side NVMe passthru controller support for the
 	  NVMe Over Fabrics protocol. It allows for hosts to manage and
 	  directly access an actual NVMe controller residing on the target
-	  side, incuding executing Vendor Unique Commands.
+	  side, including executing Vendor Unique Commands.
 
 	  If unsure, say N.
 
 config NVME_TARGET_LOOP
 	tristate "NVMe loopback device support"
 	depends on NVME_TARGET
-	select NVME_CORE
 	select NVME_FABRICS
 	select SG_POOL
 	help
@@ -65,7 +64,6 @@ config NVME_TARGET_FC
 config NVME_TARGET_FCLOOP
 	tristate "NVMe over Fabrics FC Transport Loopback Test driver"
 	depends on NVME_TARGET
-	select NVME_CORE
 	select NVME_FABRICS
 	select SG_POOL
 	depends on NVME_FC

@@ -26,6 +26,7 @@ properties:
       - enum:
           - nvidia,tegra210-ahub
           - nvidia,tegra186-ahub
+          - nvidia,tegra234-ahub
       - items:
           - const: nvidia,tegra194-ahub
           - const: nvidia,tegra186-ahub
@@ -56,6 +57,55 @@ properties:
 
   ranges: true
 
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    description: |
+      Contains list of ACIF (Audio CIF) port nodes for AHUB (Audio Hub).
+      These are connected to ACIF interfaces of AHUB clients. Thus the
+      number of port nodes depend on the number of clients that AHUB may
+      have depending on the SoC revision.
+
+    patternProperties:
+      '^port@[0-9]':
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+
+patternProperties:
+  '^i2s@[0-9a-f]+$':
+    type: object
+
+  '^dmic@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-dmic.yaml#
+
+  '^admaif@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-admaif.yaml#
+
+  '^dspk@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra186-dspk.yaml#
+
+  '^mvc@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-mvc.yaml#
+
+  '^sfc@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-sfc.yaml#
+
+  '^amx@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-amx.yaml#
+
+  '^adx@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-adx.yaml#
+
+  '^amixer@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-mixer.yaml#
+
 required:
   - compatible
   - reg
@@ -67,8 +117,7 @@ required:
   - "#size-cells"
   - ranges
 
-additionalProperties:
-  type: object
+additionalProperties: false
 
 examples:
   - |

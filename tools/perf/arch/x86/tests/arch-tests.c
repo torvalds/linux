@@ -3,39 +3,28 @@
 #include "tests/tests.h"
 #include "arch-tests.h"
 
-struct test arch_tests[] = {
-	{
-		.desc = "x86 rdpmc",
-		.func = test__rdpmc,
-	},
-	{
-		.desc = "Convert perf time to TSC",
-		.func = test__perf_time_to_tsc,
-	},
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
-	{
-		.desc = "DWARF unwind",
-		.func = test__dwarf_unwind,
-	},
-#endif
+DEFINE_SUITE("x86 rdpmc", rdpmc);
 #ifdef HAVE_AUXTRACE_SUPPORT
-	{
-		.desc = "x86 instruction decoder - new instructions",
-		.func = test__insn_x86,
-	},
-	{
-		.desc = "Intel PT packet decoder",
-		.func = test__intel_pt_pkt_decoder,
-	},
+DEFINE_SUITE("x86 instruction decoder - new instructions", insn_x86);
+DEFINE_SUITE("Intel PT packet decoder", intel_pt_pkt_decoder);
 #endif
 #if defined(__x86_64__)
-	{
-		.desc = "x86 bp modify",
-		.func = test__bp_modify,
-	},
+DEFINE_SUITE("x86 bp modify", bp_modify);
 #endif
-	{
-		.func = NULL,
-	},
+DEFINE_SUITE("x86 Sample parsing", x86_sample_parsing);
 
+struct test_suite *arch_tests[] = {
+	&suite__rdpmc,
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+	&suite__dwarf_unwind,
+#endif
+#ifdef HAVE_AUXTRACE_SUPPORT
+	&suite__insn_x86,
+	&suite__intel_pt_pkt_decoder,
+#endif
+#if defined(__x86_64__)
+	&suite__bp_modify,
+#endif
+	&suite__x86_sample_parsing,
+	NULL,
 };

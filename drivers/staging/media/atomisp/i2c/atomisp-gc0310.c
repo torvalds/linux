@@ -192,8 +192,8 @@ static int __gc0310_buf_reg_array(struct i2c_client *client,
 }
 
 static int __gc0310_write_reg_is_consecutive(struct i2c_client *client,
-	struct gc0310_write_ctrl *ctrl,
-	const struct gc0310_reg *next)
+					     struct gc0310_write_ctrl *ctrl,
+					     const struct gc0310_reg *next)
 {
 	if (ctrl->index == 0)
 		return 1;
@@ -266,7 +266,7 @@ static int gc0310_g_bin_factor_x(struct v4l2_subdev *sd, s32 *val)
 {
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 
-	*val = gc0310_res[dev->fmt_idx].bin_factor_x;
+	*val = dev->res->bin_factor_x;
 
 	return 0;
 }
@@ -275,7 +275,7 @@ static int gc0310_g_bin_factor_y(struct v4l2_subdev *sd, s32 *val)
 {
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 
-	*val = gc0310_res[dev->fmt_idx].bin_factor_y;
+	*val = dev->res->bin_factor_y;
 
 	return 0;
 }
@@ -300,7 +300,7 @@ static int gc0310_get_intg_factor(struct i2c_client *client,
 	/* pixel clock calculattion */
 	dev->vt_pix_clk_freq_mhz = 14400000; // 16.8MHz
 	buf->vt_pix_clk_freq_mhz = dev->vt_pix_clk_freq_mhz;
-	pr_info("vt_pix_clk_freq_mhz=%d\n", buf->vt_pix_clk_freq_mhz);
+	dev_dbg(&client->dev, "vt_pix_clk_freq_mhz=%d\n", buf->vt_pix_clk_freq_mhz);
 
 	/* get integration time */
 	buf->coarse_integration_time_min = GC0310_COARSE_INTG_TIME_MIN;
@@ -326,7 +326,7 @@ static int gc0310_get_intg_factor(struct i2c_client *client,
 	if (ret)
 		return ret;
 	buf->crop_horizontal_start = val | (reg_val & 0xFF);
-	pr_info("crop_horizontal_start=%d\n", buf->crop_horizontal_start);
+	dev_dbg(&client->dev, "crop_horizontal_start=%d\n", buf->crop_horizontal_start);
 
 	/* Getting crop_vertical_start */
 	ret =  gc0310_read_reg(client, GC0310_8BIT,
@@ -339,7 +339,7 @@ static int gc0310_get_intg_factor(struct i2c_client *client,
 	if (ret)
 		return ret;
 	buf->crop_vertical_start = val | (reg_val & 0xFF);
-	pr_info("crop_vertical_start=%d\n", buf->crop_vertical_start);
+	dev_dbg(&client->dev, "crop_vertical_start=%d\n", buf->crop_vertical_start);
 
 	/* Getting output_width */
 	ret = gc0310_read_reg(client, GC0310_8BIT,
@@ -352,7 +352,7 @@ static int gc0310_get_intg_factor(struct i2c_client *client,
 	if (ret)
 		return ret;
 	buf->output_width = val | (reg_val & 0xFF);
-	pr_info("output_width=%d\n", buf->output_width);
+	dev_dbg(&client->dev, "output_width=%d\n", buf->output_width);
 
 	/* Getting output_height */
 	ret = gc0310_read_reg(client, GC0310_8BIT,
@@ -365,12 +365,12 @@ static int gc0310_get_intg_factor(struct i2c_client *client,
 	if (ret)
 		return ret;
 	buf->output_height = val | (reg_val & 0xFF);
-	pr_info("output_height=%d\n", buf->output_height);
+	dev_dbg(&client->dev, "output_height=%d\n", buf->output_height);
 
 	buf->crop_horizontal_end = buf->crop_horizontal_start + buf->output_width - 1;
 	buf->crop_vertical_end = buf->crop_vertical_start + buf->output_height - 1;
-	pr_info("crop_horizontal_end=%d\n", buf->crop_horizontal_end);
-	pr_info("crop_vertical_end=%d\n", buf->crop_vertical_end);
+	dev_dbg(&client->dev, "crop_horizontal_end=%d\n", buf->crop_horizontal_end);
+	dev_dbg(&client->dev, "crop_vertical_end=%d\n", buf->crop_vertical_end);
 
 	/* Getting line_length_pck */
 	ret = gc0310_read_reg(client, GC0310_8BIT,
@@ -389,7 +389,7 @@ static int gc0310_get_intg_factor(struct i2c_client *client,
 		return ret;
 	sh_delay = reg_val;
 	buf->line_length_pck = buf->output_width + hori_blanking + sh_delay + 4;
-	pr_info("hori_blanking=%d sh_delay=%d line_length_pck=%d\n", hori_blanking,
+	dev_dbg(&client->dev, "hori_blanking=%d sh_delay=%d line_length_pck=%d\n", hori_blanking,
 		sh_delay, buf->line_length_pck);
 
 	/* Getting frame_length_lines */
@@ -404,7 +404,7 @@ static int gc0310_get_intg_factor(struct i2c_client *client,
 		return ret;
 	vert_blanking = val | (reg_val & 0xFF);
 	buf->frame_length_lines = buf->output_height + vert_blanking;
-	pr_info("vert_blanking=%d frame_length_lines=%d\n", vert_blanking,
+	dev_dbg(&client->dev, "vert_blanking=%d frame_length_lines=%d\n", vert_blanking,
 		buf->frame_length_lines);
 
 	buf->binning_factor_x = res->bin_factor_x ?
@@ -434,7 +434,7 @@ static int gc0310_set_gain(struct v4l2_subdev *sd, int gain)
 		dgain = gain / 2;
 	}
 
-	pr_info("gain=0x%x again=0x%x dgain=0x%x\n", gain, again, dgain);
+	dev_dbg(&client->dev, "gain=0x%x again=0x%x dgain=0x%x\n", gain, again, dgain);
 
 	/* set analog gain */
 	ret = gc0310_write_reg(client, GC0310_8BIT,
@@ -458,7 +458,7 @@ static int __gc0310_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	pr_info("coarse_itg=%d gain=%d digitgain=%d\n", coarse_itg, gain, digitgain);
+	dev_dbg(&client->dev, "coarse_itg=%d gain=%d digitgain=%d\n", coarse_itg, gain, digitgain);
 
 	/* set exposure */
 	ret = gc0310_write_reg(client, GC0310_8BIT,
@@ -718,7 +718,6 @@ static int gc0310_init(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 
-	pr_info("%s S\n", __func__);
 	mutex_lock(&dev->input_lock);
 
 	/* set initial registers */
@@ -730,7 +729,6 @@ static int gc0310_init(struct v4l2_subdev *sd)
 
 	mutex_unlock(&dev->input_lock);
 
-	pr_info("%s E\n", __func__);
 	return ret;
 }
 
@@ -796,7 +794,6 @@ static int power_up(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	pr_info("%s S\n", __func__);
 	if (!dev->platform_data) {
 		dev_err(&client->dev,
 			"no camera_sensor_platform_data");
@@ -823,7 +820,6 @@ static int power_up(struct v4l2_subdev *sd)
 
 	msleep(100);
 
-	pr_info("%s E\n", __func__);
 	return 0;
 
 fail_gpio:
@@ -874,82 +870,12 @@ static int gc0310_s_power(struct v4l2_subdev *sd, int on)
 
 	if (on == 0)
 		return power_down(sd);
-	else {
-		ret = power_up(sd);
-		if (!ret)
-			return gc0310_init(sd);
-	}
-	return ret;
-}
 
-/*
- * distance - calculate the distance
- * @res: resolution
- * @w: width
- * @h: height
- *
- * Get the gap between resolution and w/h.
- * res->width/height smaller than w/h wouldn't be considered.
- * Returns the value of gap or -1 if fail.
- */
-#define LARGEST_ALLOWED_RATIO_MISMATCH 800
-static int distance(struct gc0310_resolution *res, u32 w, u32 h)
-{
-	unsigned int w_ratio = (res->width << 13) / w;
-	unsigned int h_ratio;
-	int match;
+	ret = power_up(sd);
+	if (ret)
+		return ret;
 
-	if (h == 0)
-		return -1;
-	h_ratio = (res->height << 13) / h;
-	if (h_ratio == 0)
-		return -1;
-	match   = abs(((w_ratio << 13) / h_ratio) - 8192);
-
-	if ((w_ratio < 8192) || (h_ratio < 8192)  ||
-	    (match > LARGEST_ALLOWED_RATIO_MISMATCH))
-		return -1;
-
-	return w_ratio + h_ratio;
-}
-
-/* Return the nearest higher resolution index */
-static int nearest_resolution_index(int w, int h)
-{
-	int i;
-	int idx = -1;
-	int dist;
-	int min_dist = INT_MAX;
-	struct gc0310_resolution *tmp_res = NULL;
-
-	for (i = 0; i < N_RES; i++) {
-		tmp_res = &gc0310_res[i];
-		dist = distance(tmp_res, w, h);
-		if (dist == -1)
-			continue;
-		if (dist < min_dist) {
-			min_dist = dist;
-			idx = i;
-		}
-	}
-
-	return idx;
-}
-
-static int get_resolution_index(int w, int h)
-{
-	int i;
-
-	for (i = 0; i < N_RES; i++) {
-		if (w != gc0310_res[i].width)
-			continue;
-		if (h != gc0310_res[i].height)
-			continue;
-
-		return i;
-	}
-
-	return -1;
+	return gc0310_init(sd);
 }
 
 /* TODO: remove it. */
@@ -959,30 +885,25 @@ static int startup(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	pr_info("%s S\n", __func__);
-
-	ret = gc0310_write_reg_array(client, gc0310_res[dev->fmt_idx].regs);
+	ret = gc0310_write_reg_array(client, dev->res->regs);
 	if (ret) {
 		dev_err(&client->dev, "gc0310 write register err.\n");
 		return ret;
 	}
 
-	pr_info("%s E\n", __func__);
 	return ret;
 }
 
 static int gc0310_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct camera_mipi_info *gc0310_info = NULL;
+	struct gc0310_resolution *res;
 	int ret = 0;
-	int idx = 0;
-
-	pr_info("%s S\n", __func__);
 
 	if (format->pad)
 		return -EINVAL;
@@ -996,53 +917,45 @@ static int gc0310_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&dev->input_lock);
 
-	idx = nearest_resolution_index(fmt->width, fmt->height);
-	if (idx == -1) {
-		/* return the largest resolution */
-		fmt->width = gc0310_res[N_RES - 1].width;
-		fmt->height = gc0310_res[N_RES - 1].height;
-	} else {
-		fmt->width = gc0310_res[idx].width;
-		fmt->height = gc0310_res[idx].height;
-	}
+	res = v4l2_find_nearest_size(gc0310_res_preview,
+				     ARRAY_SIZE(gc0310_res_preview), width,
+				     height, fmt->width, fmt->height);
+	if (!res)
+		res = &gc0310_res_preview[N_RES - 1];
+
+	fmt->width = res->width;
+	fmt->height = res->height;
+	dev->res = res;
+
 	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		cfg->try_fmt = *fmt;
+		sd_state->pads->try_fmt = *fmt;
 		mutex_unlock(&dev->input_lock);
 		return 0;
 	}
 
-	dev->fmt_idx = get_resolution_index(fmt->width, fmt->height);
-	if (dev->fmt_idx == -1) {
-		dev_err(&client->dev, "get resolution fail\n");
-		mutex_unlock(&dev->input_lock);
-		return -EINVAL;
-	}
-
-	printk("%s: before gc0310_write_reg_array %s\n", __func__,
-	       gc0310_res[dev->fmt_idx].desc);
+	dev_dbg(&client->dev, "%s: before gc0310_write_reg_array %s\n",
+		__func__, dev->res->desc);
 	ret = startup(sd);
 	if (ret) {
 		dev_err(&client->dev, "gc0310 startup err\n");
 		goto err;
 	}
 
-	ret = gc0310_get_intg_factor(client, gc0310_info,
-				     &gc0310_res[dev->fmt_idx]);
+	ret = gc0310_get_intg_factor(client, gc0310_info, dev->res);
 	if (ret) {
 		dev_err(&client->dev, "failed to get integration_factor\n");
 		goto err;
 	}
 
-	pr_info("%s E\n", __func__);
 err:
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }
 
 static int gc0310_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
@@ -1054,8 +967,8 @@ static int gc0310_get_fmt(struct v4l2_subdev *sd,
 	if (!fmt)
 		return -EINVAL;
 
-	fmt->width = gc0310_res[dev->fmt_idx].width;
-	fmt->height = gc0310_res[dev->fmt_idx].height;
+	fmt->width = dev->res->width;
+	fmt->height = dev->res->height;
 	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
 
 	return 0;
@@ -1068,7 +981,6 @@ static int gc0310_detect(struct i2c_client *client)
 	int ret;
 	u16 id;
 
-	pr_info("%s S\n", __func__);
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
@@ -1085,7 +997,7 @@ static int gc0310_detect(struct i2c_client *client)
 		return -ENODEV;
 	}
 	id = ((((u16)high) << 8) | (u16)low);
-	pr_info("sensor ID = 0x%x\n", id);
+	dev_dbg(&client->dev, "sensor ID = 0x%x\n", id);
 
 	if (id != GC0310_ID) {
 		dev_err(&client->dev, "sensor ID error, read id = 0x%x, target id = 0x%x\n", id,
@@ -1094,8 +1006,6 @@ static int gc0310_detect(struct i2c_client *client)
 	}
 
 	dev_dbg(&client->dev, "detect gc0310 success\n");
-
-	pr_info("%s E\n", __func__);
 
 	return 0;
 }
@@ -1106,7 +1016,7 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	pr_info("%s S enable=%d\n", __func__, enable);
+	dev_dbg(&client->dev, "%s S enable=%d\n", __func__, enable);
 	mutex_lock(&dev->input_lock);
 
 	if (enable) {
@@ -1142,7 +1052,6 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	mutex_unlock(&dev->input_lock);
-	pr_info("%s E\n", __func__);
 	return ret;
 }
 
@@ -1153,7 +1062,6 @@ static int gc0310_s_config(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	pr_info("%s S\n", __func__);
 	if (!platform_data)
 		return -ENODEV;
 
@@ -1196,7 +1104,6 @@ static int gc0310_s_config(struct v4l2_subdev *sd,
 	}
 	mutex_unlock(&dev->input_lock);
 
-	pr_info("%s E\n", __func__);
 	return 0;
 
 fail_csi_cfg:
@@ -1215,13 +1122,13 @@ static int gc0310_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 
 	interval->interval.numerator = 1;
-	interval->interval.denominator = gc0310_res[dev->fmt_idx].fps;
+	interval->interval.denominator = dev->res->fps;
 
 	return 0;
 }
 
 static int gc0310_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= MAX_FMTS)
@@ -1232,7 +1139,7 @@ static int gc0310_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int gc0310_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	int index = fse->index;
@@ -1253,7 +1160,7 @@ static int gc0310_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 
 	mutex_lock(&dev->input_lock);
-	*frames = gc0310_res[dev->fmt_idx].skip_frames;
+	*frames = dev->res->skip_frames;
 	mutex_unlock(&dev->input_lock);
 
 	return 0;
@@ -1317,7 +1224,7 @@ static int gc0310_probe(struct i2c_client *client)
 
 	mutex_init(&dev->input_lock);
 
-	dev->fmt_idx = 0;
+	dev->res = &gc0310_res_preview[0];
 	v4l2_i2c_subdev_init(&dev->sd, client, &gc0310_ops);
 
 	pdata = gmin_camera_platform_data(&dev->sd,
@@ -1365,7 +1272,6 @@ static int gc0310_probe(struct i2c_client *client)
 	if (ret)
 		gc0310_remove(client);
 
-	pr_info("%s E\n", __func__);
 	return ret;
 out_free:
 	v4l2_device_unregister_subdev(&dev->sd);

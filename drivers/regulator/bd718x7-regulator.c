@@ -15,6 +15,36 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/slab.h>
 
+/* Typical regulator startup times as per data sheet in uS */
+#define BD71847_BUCK1_STARTUP_TIME 144
+#define BD71847_BUCK2_STARTUP_TIME 162
+#define BD71847_BUCK3_STARTUP_TIME 162
+#define BD71847_BUCK4_STARTUP_TIME 240
+#define BD71847_BUCK5_STARTUP_TIME 270
+#define BD71847_BUCK6_STARTUP_TIME 200
+#define BD71847_LDO1_STARTUP_TIME  440
+#define BD71847_LDO2_STARTUP_TIME  370
+#define BD71847_LDO3_STARTUP_TIME  310
+#define BD71847_LDO4_STARTUP_TIME  400
+#define BD71847_LDO5_STARTUP_TIME  530
+#define BD71847_LDO6_STARTUP_TIME  400
+
+#define BD71837_BUCK1_STARTUP_TIME 160
+#define BD71837_BUCK2_STARTUP_TIME 180
+#define BD71837_BUCK3_STARTUP_TIME 180
+#define BD71837_BUCK4_STARTUP_TIME 180
+#define BD71837_BUCK5_STARTUP_TIME 160
+#define BD71837_BUCK6_STARTUP_TIME 240
+#define BD71837_BUCK7_STARTUP_TIME 220
+#define BD71837_BUCK8_STARTUP_TIME 200
+#define BD71837_LDO1_STARTUP_TIME  440
+#define BD71837_LDO2_STARTUP_TIME  370
+#define BD71837_LDO3_STARTUP_TIME  310
+#define BD71837_LDO4_STARTUP_TIME  400
+#define BD71837_LDO5_STARTUP_TIME  310
+#define BD71837_LDO6_STARTUP_TIME  400
+#define BD71837_LDO7_STARTUP_TIME  530
+
 /*
  * BD718(37/47/50) have two "enable control modes". ON/OFF can either be
  * controlled by software - or by PMIC internal HW state machine. Whether
@@ -25,7 +55,8 @@
 #define BD718XX_HWOPNAME(swopname) swopname##_hwcontrol
 
 #define BD718XX_OPS(name, _list_voltage, _map_voltage, _set_voltage_sel, \
-		   _get_voltage_sel, _set_voltage_time_sel, _set_ramp_delay) \
+		   _get_voltage_sel, _set_voltage_time_sel, _set_ramp_delay, \
+		   _set_uvp, _set_ovp)				\
 static const struct regulator_ops name = {			\
 	.enable = regulator_enable_regmap,			\
 	.disable = regulator_disable_regmap,			\
@@ -36,6 +67,8 @@ static const struct regulator_ops name = {			\
 	.get_voltage_sel = (_get_voltage_sel),			\
 	.set_voltage_time_sel = (_set_voltage_time_sel),	\
 	.set_ramp_delay = (_set_ramp_delay),			\
+	.set_under_voltage_protection = (_set_uvp),		\
+	.set_over_voltage_protection = (_set_ovp),		\
 };								\
 								\
 static const struct regulator_ops BD718XX_HWOPNAME(name) = {	\
@@ -46,6 +79,8 @@ static const struct regulator_ops BD718XX_HWOPNAME(name) = {	\
 	.get_voltage_sel = (_get_voltage_sel),			\
 	.set_voltage_time_sel = (_set_voltage_time_sel),	\
 	.set_ramp_delay = (_set_ramp_delay),			\
+	.set_under_voltage_protection = (_set_uvp),		\
+	.set_over_voltage_protection = (_set_ovp),		\
 }								\
 
 /*
@@ -56,37 +91,7 @@ static const struct regulator_ops BD718XX_HWOPNAME(name) = {	\
  * 10: 2.50mV/usec	10mV 4uS
  * 11: 1.25mV/usec	10mV 8uS
  */
-static int bd718xx_buck1234_set_ramp_delay(struct regulator_dev *rdev,
-					   int ramp_delay)
-{
-	int id = rdev_get_id(rdev);
-	unsigned int ramp_value;
-
-	dev_dbg(&rdev->dev, "Buck[%d] Set Ramp = %d\n", id + 1,
-		ramp_delay);
-	switch (ramp_delay) {
-	case 1 ... 1250:
-		ramp_value = BUCK_RAMPRATE_1P25MV;
-		break;
-	case 1251 ... 2500:
-		ramp_value = BUCK_RAMPRATE_2P50MV;
-		break;
-	case 2501 ... 5000:
-		ramp_value = BUCK_RAMPRATE_5P00MV;
-		break;
-	case 5001 ... 10000:
-		ramp_value = BUCK_RAMPRATE_10P00MV;
-		break;
-	default:
-		ramp_value = BUCK_RAMPRATE_10P00MV;
-		dev_err(&rdev->dev,
-			"%s: ramp_delay: %d not supported, setting 10000mV//us\n",
-			rdev->desc->name, ramp_delay);
-	}
-
-	return regmap_update_bits(rdev->regmap, BD718XX_REG_BUCK1_CTRL + id,
-				  BUCK_RAMPRATE_MASK, ramp_value << 6);
-}
+static const unsigned int bd718xx_ramp_delay[] = { 10000, 5000, 2500, 1250 };
 
 /* These functions are used when regulators are under HW state machine control.
  * We assume PMIC is in RUN state because SW running and able to query the
@@ -120,27 +125,6 @@ static int bd71837_get_buck34_enable_hwctrl(struct regulator_dev *rdev)
 
 	return !!(BD718XX_BUCK_RUN_ON & val);
 }
-/*
- * On BD71837 (not on BD71847, BD71850, ...)
- * Bucks 1 to 4 support DVS. PWM mode is used when voltage is changed.
- * Bucks 5 to 8 and LDOs can use PFM and must be disabled when voltage
- * is changed. Hence we return -EBUSY for these if voltage is changed
- * when BUCK/LDO is enabled.
- *
- * On BD71847, BD71850, ... The LDO voltage can be changed when LDO is
- * enabled. But if voltage is increased the LDO power-good monitoring
- * must be disabled for the duration of changing + 1mS to ensure voltage
- * has reached the higher level before HW does next under voltage detection
- * cycle.
- */
-static int bd71837_set_voltage_sel_restricted(struct regulator_dev *rdev,
-						    unsigned int sel)
-{
-	if (rdev->desc->ops->is_enabled(rdev))
-		return -EBUSY;
-
-	return regulator_set_voltage_sel_regmap(rdev, sel);
-}
 
 static void voltage_change_done(struct regulator_dev *rdev, unsigned int sel,
 				unsigned int *mask)
@@ -154,17 +138,9 @@ static void voltage_change_done(struct regulator_dev *rdev, unsigned int sel,
 		 * exceed it due to the scheduling.
 		 */
 		msleep(1);
-		/*
-		 * Note for next hacker. The PWRGOOD should not be masked on
-		 * BD71847 so we will just unconditionally enable detection
-		 * when voltage is set.
-		 * If someone want's to disable PWRGOOD he must implement
-		 * caching and restoring the old value here. I am not
-		 * aware of such use-cases so for the sake of the simplicity
-		 * we just always enable PWRGOOD here.
-		 */
-		ret = regmap_update_bits(rdev->regmap, BD718XX_REG_MVRFLTMASK2,
-					 *mask, 0);
+
+		ret = regmap_clear_bits(rdev->regmap, BD718XX_REG_MVRFLTMASK2,
+					 *mask);
 		if (ret)
 			dev_err(&rdev->dev,
 				"Failed to re-enable voltage monitoring (%d)\n",
@@ -208,12 +184,27 @@ static int voltage_change_prepare(struct regulator_dev *rdev, unsigned int sel,
 		 * time configurable.
 		 */
 		if (new > now) {
+			int tmp;
+			int prot_bit;
 			int ldo_offset = rdev->desc->id - BD718XX_LDO1;
 
-			*mask = BD718XX_LDO1_VRMON80 << ldo_offset;
-			ret = regmap_update_bits(rdev->regmap,
-						 BD718XX_REG_MVRFLTMASK2,
-						 *mask, *mask);
+			prot_bit = BD718XX_LDO1_VRMON80 << ldo_offset;
+			ret = regmap_read(rdev->regmap, BD718XX_REG_MVRFLTMASK2,
+					  &tmp);
+			if (ret) {
+				dev_err(&rdev->dev,
+					"Failed to read voltage monitoring state\n");
+				return ret;
+			}
+
+			if (!(tmp & prot_bit)) {
+				/* We disable protection if it was enabled... */
+				ret = regmap_set_bits(rdev->regmap,
+						      BD718XX_REG_MVRFLTMASK2,
+						      prot_bit);
+				/* ...and we also want to re-enable it */
+				*mask = prot_bit;
+			}
 			if (ret) {
 				dev_err(&rdev->dev,
 					"Failed to stop voltage monitoring\n");
@@ -265,99 +256,6 @@ static int bd71837_set_voltage_sel_pickable_restricted(
 
 	return regulator_set_voltage_sel_pickable_regmap(rdev, sel);
 }
-
-/*
- * OPS common for BD71847 and BD71850
- */
-BD718XX_OPS(bd718xx_pickable_range_ldo_ops,
-	    regulator_list_voltage_pickable_linear_range, NULL,
-	    bd718xx_set_voltage_sel_pickable_restricted,
-	    regulator_get_voltage_sel_pickable_regmap, NULL, NULL);
-
-/* BD71847 and BD71850 LDO 5 is by default OFF at RUN state */
-static const struct regulator_ops bd718xx_ldo5_ops_hwstate = {
-	.is_enabled = never_enabled_by_hwstate,
-	.list_voltage = regulator_list_voltage_pickable_linear_range,
-	.set_voltage_sel = bd718xx_set_voltage_sel_pickable_restricted,
-	.get_voltage_sel = regulator_get_voltage_sel_pickable_regmap,
-};
-
-BD718XX_OPS(bd718xx_pickable_range_buck_ops,
-	    regulator_list_voltage_pickable_linear_range, NULL,
-	    regulator_set_voltage_sel_pickable_regmap,
-	    regulator_get_voltage_sel_pickable_regmap,
-	    regulator_set_voltage_time_sel, NULL);
-
-BD718XX_OPS(bd718xx_ldo_regulator_ops, regulator_list_voltage_linear_range,
-	    NULL, bd718xx_set_voltage_sel_restricted,
-	    regulator_get_voltage_sel_regmap, NULL, NULL);
-
-BD718XX_OPS(bd718xx_ldo_regulator_nolinear_ops, regulator_list_voltage_table,
-	    NULL, bd718xx_set_voltage_sel_restricted,
-	    regulator_get_voltage_sel_regmap, NULL, NULL);
-
-BD718XX_OPS(bd718xx_buck_regulator_ops, regulator_list_voltage_linear_range,
-	    NULL, regulator_set_voltage_sel_regmap,
-	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
-	    NULL);
-
-BD718XX_OPS(bd718xx_buck_regulator_nolinear_ops, regulator_list_voltage_table,
-	    regulator_map_voltage_ascend, regulator_set_voltage_sel_regmap,
-	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
-	    NULL);
-
-/*
- * OPS for BD71837
- */
-BD718XX_OPS(bd71837_pickable_range_ldo_ops,
-	    regulator_list_voltage_pickable_linear_range, NULL,
-	    bd71837_set_voltage_sel_pickable_restricted,
-	    regulator_get_voltage_sel_pickable_regmap, NULL, NULL);
-
-BD718XX_OPS(bd71837_pickable_range_buck_ops,
-	    regulator_list_voltage_pickable_linear_range, NULL,
-	    bd71837_set_voltage_sel_pickable_restricted,
-	    regulator_get_voltage_sel_pickable_regmap,
-	    regulator_set_voltage_time_sel, NULL);
-
-BD718XX_OPS(bd71837_ldo_regulator_ops, regulator_list_voltage_linear_range,
-	    NULL, bd71837_set_voltage_sel_restricted,
-	    regulator_get_voltage_sel_regmap, NULL, NULL);
-
-BD718XX_OPS(bd71837_ldo_regulator_nolinear_ops, regulator_list_voltage_table,
-	    NULL, bd71837_set_voltage_sel_restricted,
-	    regulator_get_voltage_sel_regmap, NULL, NULL);
-
-BD718XX_OPS(bd71837_buck_regulator_ops, regulator_list_voltage_linear_range,
-	    NULL, bd71837_set_voltage_sel_restricted,
-	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
-	    NULL);
-
-BD718XX_OPS(bd71837_buck_regulator_nolinear_ops, regulator_list_voltage_table,
-	    regulator_map_voltage_ascend, bd718xx_set_voltage_sel_restricted,
-	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
-	    NULL);
-/*
- * BD71837 bucks 3 and 4 support defining their enable/disable state also
- * when buck enable state is under HW state machine control. In that case the
- * bit [2] in CTRL register is used to indicate if regulator should be ON.
- */
-static const struct regulator_ops bd71837_buck34_ops_hwctrl = {
-	.is_enabled = bd71837_get_buck34_enable_hwctrl,
-	.list_voltage = regulator_list_voltage_linear_range,
-	.set_voltage_sel = regulator_set_voltage_sel_regmap,
-	.get_voltage_sel = regulator_get_voltage_sel_regmap,
-	.set_voltage_time_sel = regulator_set_voltage_time_sel,
-	.set_ramp_delay = bd718xx_buck1234_set_ramp_delay,
-};
-
-/*
- * OPS for all of the ICs - BD718(37/47/50)
- */
-BD718XX_OPS(bd718xx_dvs_buck_regulator_ops, regulator_list_voltage_linear_range,
-	    NULL, regulator_set_voltage_sel_regmap,
-	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
-	    bd718xx_buck1234_set_ramp_delay);
 
 /*
  * BD71837 BUCK1/2/3/4
@@ -536,6 +434,238 @@ struct bd718xx_regulator_data {
 	int additional_init_amnt;
 };
 
+static int bd718x7_xvp_sanity_check(struct regulator_dev *rdev, int lim_uV,
+				    int severity)
+{
+	/*
+	 * BD71837/47/50 ... (ICs supported by this driver) do not provide
+	 * warnings, only protection
+	 */
+	if (severity != REGULATOR_SEVERITY_PROT) {
+		dev_err(&rdev->dev,
+			"Unsupported Under Voltage protection level\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * And protection limit is not changeable. It can only be enabled
+	 * or disabled
+	 */
+	if (lim_uV)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int bd718x7_set_ldo_uvp(struct regulator_dev *rdev, int lim_uV,
+			       int severity, bool enable)
+{
+	int ldo_offset = rdev->desc->id - BD718XX_LDO1;
+	int prot_bit, ret;
+
+	ret = bd718x7_xvp_sanity_check(rdev, lim_uV, severity);
+	if (ret)
+		return ret;
+
+	prot_bit = BD718XX_LDO1_VRMON80 << ldo_offset;
+
+	if (enable)
+		return regmap_clear_bits(rdev->regmap, BD718XX_REG_MVRFLTMASK2,
+					 prot_bit);
+
+	return regmap_set_bits(rdev->regmap, BD718XX_REG_MVRFLTMASK2,
+			       prot_bit);
+}
+
+static int bd718x7_get_buck_prot_reg(int id, int *reg)
+{
+
+	if (id > BD718XX_BUCK8) {
+		WARN_ON(id > BD718XX_BUCK8);
+		return -EINVAL;
+	}
+
+	if (id > BD718XX_BUCK4)
+		*reg = BD718XX_REG_MVRFLTMASK0;
+	else
+		*reg = BD718XX_REG_MVRFLTMASK1;
+
+	return 0;
+}
+
+static int bd718x7_get_buck_ovp_info(int id, int *reg, int *bit)
+{
+	int ret;
+
+	ret = bd718x7_get_buck_prot_reg(id, reg);
+	if (ret)
+		return ret;
+
+	*bit = BIT((id % 4) * 2 + 1);
+
+	return 0;
+}
+
+static int bd718x7_get_buck_uvp_info(int id, int *reg, int *bit)
+{
+	int ret;
+
+	ret = bd718x7_get_buck_prot_reg(id, reg);
+	if (ret)
+		return ret;
+
+	*bit = BIT((id % 4) * 2);
+
+	return 0;
+}
+
+static int bd718x7_set_buck_uvp(struct regulator_dev *rdev, int lim_uV,
+				int severity, bool enable)
+{
+	int bit, reg, ret;
+
+	ret = bd718x7_xvp_sanity_check(rdev, lim_uV, severity);
+	if (ret)
+		return ret;
+
+	ret = bd718x7_get_buck_uvp_info(rdev->desc->id, &reg, &bit);
+	if (ret)
+		return ret;
+
+	if (enable)
+		return regmap_clear_bits(rdev->regmap, reg, bit);
+
+	return regmap_set_bits(rdev->regmap, reg, bit);
+
+}
+
+static int bd718x7_set_buck_ovp(struct regulator_dev *rdev, int lim_uV,
+				int severity,
+				bool enable)
+{
+	int bit, reg, ret;
+
+	ret = bd718x7_xvp_sanity_check(rdev, lim_uV, severity);
+	if (ret)
+		return ret;
+
+	ret = bd718x7_get_buck_ovp_info(rdev->desc->id, &reg, &bit);
+	if (ret)
+		return ret;
+
+	if (enable)
+		return regmap_clear_bits(rdev->regmap, reg, bit);
+
+	return regmap_set_bits(rdev->regmap, reg, bit);
+}
+
+/*
+ * OPS common for BD71847 and BD71850
+ */
+BD718XX_OPS(bd718xx_pickable_range_ldo_ops,
+	    regulator_list_voltage_pickable_linear_range, NULL,
+	    bd718xx_set_voltage_sel_pickable_restricted,
+	    regulator_get_voltage_sel_pickable_regmap, NULL, NULL,
+	    bd718x7_set_ldo_uvp, NULL);
+
+/* BD71847 and BD71850 LDO 5 is by default OFF at RUN state */
+static const struct regulator_ops bd718xx_ldo5_ops_hwstate = {
+	.is_enabled = never_enabled_by_hwstate,
+	.list_voltage = regulator_list_voltage_pickable_linear_range,
+	.set_voltage_sel = bd718xx_set_voltage_sel_pickable_restricted,
+	.get_voltage_sel = regulator_get_voltage_sel_pickable_regmap,
+	.set_under_voltage_protection = bd718x7_set_ldo_uvp,
+};
+
+BD718XX_OPS(bd718xx_pickable_range_buck_ops,
+	    regulator_list_voltage_pickable_linear_range, NULL,
+	    regulator_set_voltage_sel_pickable_regmap,
+	    regulator_get_voltage_sel_pickable_regmap,
+	    regulator_set_voltage_time_sel, NULL, bd718x7_set_buck_uvp,
+	    bd718x7_set_buck_ovp);
+
+BD718XX_OPS(bd718xx_ldo_regulator_ops, regulator_list_voltage_linear_range,
+	    NULL, bd718xx_set_voltage_sel_restricted,
+	    regulator_get_voltage_sel_regmap, NULL, NULL, bd718x7_set_ldo_uvp,
+	    NULL);
+
+BD718XX_OPS(bd718xx_ldo_regulator_nolinear_ops, regulator_list_voltage_table,
+	    NULL, bd718xx_set_voltage_sel_restricted,
+	    regulator_get_voltage_sel_regmap, NULL, NULL, bd718x7_set_ldo_uvp,
+	    NULL);
+
+BD718XX_OPS(bd718xx_buck_regulator_ops, regulator_list_voltage_linear_range,
+	    NULL, regulator_set_voltage_sel_regmap,
+	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
+	    NULL, bd718x7_set_buck_uvp, bd718x7_set_buck_ovp);
+
+BD718XX_OPS(bd718xx_buck_regulator_nolinear_ops, regulator_list_voltage_table,
+	    regulator_map_voltage_ascend, regulator_set_voltage_sel_regmap,
+	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
+	    NULL, bd718x7_set_buck_uvp, bd718x7_set_buck_ovp);
+
+/*
+ * OPS for BD71837
+ */
+BD718XX_OPS(bd71837_pickable_range_ldo_ops,
+	    regulator_list_voltage_pickable_linear_range, NULL,
+	    bd71837_set_voltage_sel_pickable_restricted,
+	    regulator_get_voltage_sel_pickable_regmap, NULL, NULL,
+	    bd718x7_set_ldo_uvp, NULL);
+
+BD718XX_OPS(bd71837_pickable_range_buck_ops,
+	    regulator_list_voltage_pickable_linear_range, NULL,
+	    bd71837_set_voltage_sel_pickable_restricted,
+	    regulator_get_voltage_sel_pickable_regmap,
+	    regulator_set_voltage_time_sel, NULL, bd718x7_set_buck_uvp,
+	    bd718x7_set_buck_ovp);
+
+BD718XX_OPS(bd71837_ldo_regulator_ops, regulator_list_voltage_linear_range,
+	    NULL, rohm_regulator_set_voltage_sel_restricted,
+	    regulator_get_voltage_sel_regmap, NULL, NULL, bd718x7_set_ldo_uvp,
+	    NULL);
+
+BD718XX_OPS(bd71837_ldo_regulator_nolinear_ops, regulator_list_voltage_table,
+	    NULL, rohm_regulator_set_voltage_sel_restricted,
+	    regulator_get_voltage_sel_regmap, NULL, NULL, bd718x7_set_ldo_uvp,
+	    NULL);
+
+BD718XX_OPS(bd71837_buck_regulator_ops, regulator_list_voltage_linear_range,
+	    NULL, rohm_regulator_set_voltage_sel_restricted,
+	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
+	    NULL, bd718x7_set_buck_uvp, bd718x7_set_buck_ovp);
+
+BD718XX_OPS(bd71837_buck_regulator_nolinear_ops, regulator_list_voltage_table,
+	    regulator_map_voltage_ascend, rohm_regulator_set_voltage_sel_restricted,
+	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
+	    NULL, bd718x7_set_buck_uvp, bd718x7_set_buck_ovp);
+/*
+ * BD71837 bucks 3 and 4 support defining their enable/disable state also
+ * when buck enable state is under HW state machine control. In that case the
+ * bit [2] in CTRL register is used to indicate if regulator should be ON.
+ */
+static const struct regulator_ops bd71837_buck34_ops_hwctrl = {
+	.is_enabled = bd71837_get_buck34_enable_hwctrl,
+	.list_voltage = regulator_list_voltage_linear_range,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.set_voltage_time_sel = regulator_set_voltage_time_sel,
+	.set_ramp_delay = regulator_set_ramp_delay_regmap,
+	.set_under_voltage_protection = bd718x7_set_buck_uvp,
+	.set_over_voltage_protection = bd718x7_set_buck_ovp,
+};
+
+/*
+ * OPS for all of the ICs - BD718(37/47/50)
+ */
+BD718XX_OPS(bd718xx_dvs_buck_regulator_ops, regulator_list_voltage_linear_range,
+	    NULL, regulator_set_voltage_sel_regmap,
+	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
+	    regulator_set_ramp_delay_regmap, bd718x7_set_buck_uvp,
+	    bd718x7_set_buck_ovp);
+
+
+
 /*
  * There is a HW quirk in BD71837. The shutdown sequence timings for
  * bucks/LDOs which are controlled via register interface are changed.
@@ -613,7 +743,12 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.vsel_mask = DVS_BUCK_RUN_MASK,
 			.enable_reg = BD718XX_REG_BUCK1_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71847_BUCK1_STARTUP_TIME,
 			.owner = THIS_MODULE,
+			.ramp_delay_table = bd718xx_ramp_delay,
+			.n_ramp_values = ARRAY_SIZE(bd718xx_ramp_delay),
+			.ramp_reg = BD718XX_REG_BUCK1_CTRL,
+			.ramp_mask = BUCK_RAMPRATE_MASK,
 			.of_parse_cb = buck_set_hw_dvs_levels,
 		},
 		.dvs = {
@@ -646,6 +781,11 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.vsel_mask = DVS_BUCK_RUN_MASK,
 			.enable_reg = BD718XX_REG_BUCK2_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71847_BUCK2_STARTUP_TIME,
+			.ramp_delay_table = bd718xx_ramp_delay,
+			.n_ramp_values = ARRAY_SIZE(bd718xx_ramp_delay),
+			.ramp_reg = BD718XX_REG_BUCK2_CTRL,
+			.ramp_mask = BUCK_RAMPRATE_MASK,
 			.owner = THIS_MODULE,
 			.of_parse_cb = buck_set_hw_dvs_levels,
 		},
@@ -680,6 +820,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.linear_range_selectors = bd71847_buck3_volt_range_sel,
 			.enable_reg = BD718XX_REG_1ST_NODVS_BUCK_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71847_BUCK3_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -706,6 +847,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.vsel_range_mask = BD71847_BUCK4_RANGE_MASK,
 			.linear_range_selectors = bd71847_buck4_volt_range_sel,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71847_BUCK4_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -727,6 +869,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.vsel_mask = BD718XX_3RD_NODVS_BUCK_MASK,
 			.enable_reg = BD718XX_REG_3RD_NODVS_BUCK_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71847_BUCK5_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -750,6 +893,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.vsel_mask = BD718XX_4TH_NODVS_BUCK_MASK,
 			.enable_reg = BD718XX_REG_4TH_NODVS_BUCK_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71847_BUCK6_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -775,6 +919,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.linear_range_selectors = bd718xx_ldo1_volt_range_sel,
 			.enable_reg = BD718XX_REG_LDO1_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
+			.enable_time = BD71847_LDO1_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -796,6 +941,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.n_voltages = ARRAY_SIZE(ldo_2_volts),
 			.enable_reg = BD718XX_REG_LDO2_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
+			.enable_time = BD71847_LDO2_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -818,6 +964,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.vsel_mask = BD718XX_LDO3_MASK,
 			.enable_reg = BD718XX_REG_LDO3_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
+			.enable_time = BD71847_LDO3_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -840,6 +987,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.vsel_mask = BD718XX_LDO4_MASK,
 			.enable_reg = BD718XX_REG_LDO4_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
+			.enable_time = BD71847_LDO4_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -865,6 +1013,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.linear_range_selectors = bd71847_ldo5_volt_range_sel,
 			.enable_reg = BD718XX_REG_LDO5_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
+			.enable_time = BD71847_LDO5_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -889,6 +1038,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.vsel_mask = BD718XX_LDO6_MASK,
 			.enable_reg = BD718XX_REG_LDO6_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
+			.enable_time = BD71847_LDO6_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -942,6 +1092,11 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = DVS_BUCK_RUN_MASK,
 			.enable_reg = BD718XX_REG_BUCK1_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71837_BUCK1_STARTUP_TIME,
+			.ramp_delay_table = bd718xx_ramp_delay,
+			.n_ramp_values = ARRAY_SIZE(bd718xx_ramp_delay),
+			.ramp_reg = BD718XX_REG_BUCK1_CTRL,
+			.ramp_mask = BUCK_RAMPRATE_MASK,
 			.owner = THIS_MODULE,
 			.of_parse_cb = buck_set_hw_dvs_levels,
 		},
@@ -975,6 +1130,11 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = DVS_BUCK_RUN_MASK,
 			.enable_reg = BD718XX_REG_BUCK2_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71837_BUCK2_STARTUP_TIME,
+			.ramp_delay_table = bd718xx_ramp_delay,
+			.n_ramp_values = ARRAY_SIZE(bd718xx_ramp_delay),
+			.ramp_reg = BD718XX_REG_BUCK2_CTRL,
+			.ramp_mask = BUCK_RAMPRATE_MASK,
 			.owner = THIS_MODULE,
 			.of_parse_cb = buck_set_hw_dvs_levels,
 		},
@@ -1005,6 +1165,11 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = DVS_BUCK_RUN_MASK,
 			.enable_reg = BD71837_REG_BUCK3_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71837_BUCK3_STARTUP_TIME,
+			.ramp_delay_table = bd718xx_ramp_delay,
+			.n_ramp_values = ARRAY_SIZE(bd718xx_ramp_delay),
+			.ramp_reg = BD71837_REG_BUCK3_CTRL,
+			.ramp_mask = BUCK_RAMPRATE_MASK,
 			.owner = THIS_MODULE,
 			.of_parse_cb = buck_set_hw_dvs_levels,
 		},
@@ -1033,6 +1198,11 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = DVS_BUCK_RUN_MASK,
 			.enable_reg = BD71837_REG_BUCK4_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71837_BUCK4_STARTUP_TIME,
+			.ramp_delay_table = bd718xx_ramp_delay,
+			.n_ramp_values = ARRAY_SIZE(bd718xx_ramp_delay),
+			.ramp_reg = BD71837_REG_BUCK4_CTRL,
+			.ramp_mask = BUCK_RAMPRATE_MASK,
 			.owner = THIS_MODULE,
 			.of_parse_cb = buck_set_hw_dvs_levels,
 		},
@@ -1065,6 +1235,7 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.linear_range_selectors = bd71837_buck5_volt_range_sel,
 			.enable_reg = BD718XX_REG_1ST_NODVS_BUCK_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71837_BUCK5_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -1088,6 +1259,7 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = BD71837_BUCK6_MASK,
 			.enable_reg = BD718XX_REG_2ND_NODVS_BUCK_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71837_BUCK6_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -1109,6 +1281,7 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = BD718XX_3RD_NODVS_BUCK_MASK,
 			.enable_reg = BD718XX_REG_3RD_NODVS_BUCK_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71837_BUCK7_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -1132,6 +1305,7 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = BD718XX_4TH_NODVS_BUCK_MASK,
 			.enable_reg = BD718XX_REG_4TH_NODVS_BUCK_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
+			.enable_time = BD71837_BUCK8_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -1157,6 +1331,7 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.linear_range_selectors = bd718xx_ldo1_volt_range_sel,
 			.enable_reg = BD718XX_REG_LDO1_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
+			.enable_time = BD71837_LDO1_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -1178,6 +1353,7 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.n_voltages = ARRAY_SIZE(ldo_2_volts),
 			.enable_reg = BD718XX_REG_LDO2_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
+			.enable_time = BD71837_LDO2_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -1200,6 +1376,7 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = BD718XX_LDO3_MASK,
 			.enable_reg = BD718XX_REG_LDO3_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
+			.enable_time = BD71837_LDO3_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -1222,6 +1399,7 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = BD718XX_LDO4_MASK,
 			.enable_reg = BD718XX_REG_LDO4_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
+			.enable_time = BD71837_LDO4_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -1246,6 +1424,7 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = BD71837_LDO5_MASK,
 			.enable_reg = BD718XX_REG_LDO5_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
+			.enable_time = BD71837_LDO5_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -1272,6 +1451,7 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = BD718XX_LDO6_MASK,
 			.enable_reg = BD718XX_REG_LDO6_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
+			.enable_time = BD71837_LDO6_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -1296,6 +1476,7 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = BD71837_LDO7_MASK,
 			.enable_reg = BD71837_REG_LDO7_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
+			.enable_time = BD71837_LDO7_STARTUP_TIME,
 			.owner = THIS_MODULE,
 		},
 		.init = {
@@ -1323,13 +1504,142 @@ static void mark_hw_controlled(struct device *dev, struct device_node *np,
 	dev_warn(dev, "Bad regulator node\n");
 }
 
-static int get_hw_controlled_regulators(struct device *dev,
-					struct bd718xx_regulator_data *reg_data,
-					unsigned int num_reg_data, int *info)
+/*
+ * Setups where regulator (especially the buck8) output voltage is scaled
+ * by adding external connection where some other regulator output is connected
+ * to feedback-pin (over suitable resistors) is getting popular amongst users
+ * of BD71837. (This allows for example scaling down the buck8 voltages to suit
+ * lover GPU voltages for projects where buck8 is (ab)used to supply power
+ * for GPU. Additionally some setups do allow DVS for buck8 but as this do
+ * produce voltage spikes the HW must be evaluated to be able to survive this
+ * - hence I keep the DVS disabled for non DVS bucks by default. I don't want
+ * to help you burn your proto board)
+ *
+ * So we allow describing this external connection from DT and scale the
+ * voltages accordingly. This is what the connection should look like:
+ *
+ * |------------|
+ * |	buck 8  |-------+----->Vout
+ * |		|	|
+ * |------------|	|
+ *	| FB pin	|
+ *	|		|
+ *	+-------+--R2---+
+ *		|
+ *		R1
+ *		|
+ *	V FB-pull-up
+ *
+ *	Here the buck output is sifted according to formula:
+ *
+ * Vout_o = Vo - (Vpu - Vo)*R2/R1
+ * Linear_step = step_orig*(R1+R2)/R1
+ *
+ * where:
+ * Vout_o is adjusted voltage output at vsel reg value 0
+ * Vo is original voltage output at vsel reg value 0
+ * Vpu is the pull-up voltage V FB-pull-up in the picture
+ * R1 and R2 are resistor values.
+ *
+ * As a real world example for buck8 and a specific GPU:
+ * VLDO = 1.6V (used as FB-pull-up)
+ * R1 = 1000ohms
+ * R2 = 150ohms
+ * VSEL 0x0 => 0.8V – (VLDO – 0.8) * R2 / R1 = 0.68V
+ * Linear Step = 10mV * (R1 + R2) / R1 = 11.5mV
+ */
+static int setup_feedback_loop(struct device *dev, struct device_node *np,
+			       struct bd718xx_regulator_data *reg_data,
+			       unsigned int num_reg_data, int fb_uv)
 {
+	int i, r1, r2, ret;
+
+	/*
+	 * We do adjust the values in the global desc based on DT settings.
+	 * This may not be best approach as it can cause problems if more than
+	 * one PMIC is controlled from same processor. I don't see such use-case
+	 * for BD718x7 now - so we spare some bits.
+	 *
+	 * If this will point out to be a problem - then we can allocate new
+	 * bd718xx_regulator_data array at probe and just use the global
+	 * array as a template where we copy initial values. Then we can
+	 * use allocated descs for regultor registration and do IC specific
+	 * modifications to this copy while leaving other PMICs untouched. But
+	 * that means allocating new array for each PMIC - and currently I see
+	 * no need for that.
+	 */
+
+	for (i = 0; i < num_reg_data; i++) {
+		struct regulator_desc *desc = &reg_data[i].desc;
+		int j;
+
+		if (!of_node_name_eq(np, desc->of_match))
+			continue;
+
+		pr_info("Looking at node '%s'\n", desc->of_match);
+
+		/* The feedback loop connection does not make sense for LDOs */
+		if (desc->id >= BD718XX_LDO1)
+			return -EINVAL;
+
+		ret = of_property_read_u32(np, "rohm,feedback-pull-up-r1-ohms",
+					   &r1);
+		if (ret)
+			return ret;
+
+		if (!r1)
+			return -EINVAL;
+
+		ret = of_property_read_u32(np, "rohm,feedback-pull-up-r2-ohms",
+					   &r2);
+		if (ret)
+			return ret;
+
+		if (desc->n_linear_ranges && desc->linear_ranges) {
+			struct linear_range *new;
+
+			new = devm_kzalloc(dev, desc->n_linear_ranges *
+					   sizeof(struct linear_range),
+					   GFP_KERNEL);
+			if (!new)
+				return -ENOMEM;
+
+			for (j = 0; j < desc->n_linear_ranges; j++) {
+				int min = desc->linear_ranges[j].min;
+				int step = desc->linear_ranges[j].step;
+
+				min -= (fb_uv - min)*r2/r1;
+				step = step * (r1 + r2);
+				step /= r1;
+
+				new[j].min = min;
+				new[j].step = step;
+
+				dev_dbg(dev, "%s: old range min %d, step %d\n",
+					desc->name, desc->linear_ranges[j].min,
+					desc->linear_ranges[j].step);
+				dev_dbg(dev, "new range min %d, step %d\n", min,
+					step);
+			}
+			desc->linear_ranges = new;
+		}
+		dev_dbg(dev, "regulator '%s' has FB pull-up configured\n",
+			desc->name);
+
+		return 0;
+	}
+
+	return -ENODEV;
+}
+
+static int get_special_regulators(struct device *dev,
+				  struct bd718xx_regulator_data *reg_data,
+				  unsigned int num_reg_data, int *info)
+{
+	int ret;
 	struct device_node *np;
 	struct device_node *nproot = dev->of_node;
-	const char *prop = "rohm,no-regulator-enable-control";
+	int uv;
 
 	*info = 0;
 
@@ -1338,18 +1648,37 @@ static int get_hw_controlled_regulators(struct device *dev,
 		dev_err(dev, "failed to find regulators node\n");
 		return -ENODEV;
 	}
-	for_each_child_of_node(nproot, np)
-		if (of_property_read_bool(np, prop))
+	for_each_child_of_node(nproot, np) {
+		if (of_property_read_bool(np, "rohm,no-regulator-enable-control"))
 			mark_hw_controlled(dev, np, reg_data, num_reg_data,
 					   info);
+		ret = of_property_read_u32(np, "rohm,fb-pull-up-microvolt",
+					   &uv);
+		if (ret) {
+			if (ret == -EINVAL)
+				continue;
+			else
+				goto err_out;
+		}
+
+		ret = setup_feedback_loop(dev, np, reg_data, num_reg_data, uv);
+		if (ret)
+			goto err_out;
+	}
 
 	of_node_put(nproot);
 	return 0;
+
+err_out:
+	of_node_put(np);
+	of_node_put(nproot);
+
+	return ret;
 }
 
 static int bd718xx_probe(struct platform_device *pdev)
 {
-	struct bd718xx *mfd;
+	struct regmap *regmap;
 	struct regulator_config config = { 0 };
 	int i, j, err, omit_enable;
 	bool use_snvs;
@@ -1358,11 +1687,10 @@ static int bd718xx_probe(struct platform_device *pdev)
 	enum rohm_chip_type chip = platform_get_device_id(pdev)->driver_data;
 	const struct regulator_ops **swops, **hwops;
 
-	mfd = dev_get_drvdata(pdev->dev.parent);
-	if (!mfd) {
+	regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	if (!regmap) {
 		dev_err(&pdev->dev, "No MFD driver data\n");
-		err = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	switch (chip) {
@@ -1385,7 +1713,7 @@ static int bd718xx_probe(struct platform_device *pdev)
 	}
 
 	/* Register LOCK release */
-	err = regmap_update_bits(mfd->chip.regmap, BD718XX_REG_REGLOCK,
+	err = regmap_update_bits(regmap, BD718XX_REG_REGLOCK,
 				 (REGLOCK_PWRSEQ | REGLOCK_VREG), 0);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to unlock PMIC (%d)\n", err);
@@ -1404,8 +1732,7 @@ static int bd718xx_probe(struct platform_device *pdev)
 	 * bit allowing HW defaults for power rails to be used
 	 */
 	if (!use_snvs) {
-		err = regmap_update_bits(mfd->chip.regmap,
-					 BD718XX_REG_TRANS_COND1,
+		err = regmap_update_bits(regmap, BD718XX_REG_TRANS_COND1,
 					 BD718XX_ON_REQ_POWEROFF_MASK |
 					 BD718XX_SWRESET_POWEROFF_MASK |
 					 BD718XX_WDOG_POWEROFF_MASK |
@@ -1421,7 +1748,7 @@ static int bd718xx_probe(struct platform_device *pdev)
 	}
 
 	config.dev = pdev->dev.parent;
-	config.regmap = mfd->chip.regmap;
+	config.regmap = regmap;
 	/*
 	 * There are cases when we want to leave the enable-control for
 	 * the HW state machine and use this driver only for voltage control.
@@ -1432,8 +1759,10 @@ static int bd718xx_probe(struct platform_device *pdev)
 	 * be affected by PMIC state machine - Eg. regulator is likely to stay
 	 * on even in SUSPEND
 	 */
-	get_hw_controlled_regulators(pdev->dev.parent, reg_data, num_reg_data,
+	err = get_special_regulators(pdev->dev.parent, reg_data, num_reg_data,
 				     &omit_enable);
+	if (err)
+		return err;
 
 	for (i = 0; i < num_reg_data; i++) {
 
@@ -1478,7 +1807,7 @@ static int bd718xx_probe(struct platform_device *pdev)
 		if (!no_enable_control && (!use_snvs ||
 		    !rdev->constraints->always_on ||
 		    !rdev->constraints->boot_on)) {
-			err = regmap_update_bits(mfd->chip.regmap, r->init.reg,
+			err = regmap_update_bits(regmap, r->init.reg,
 						 r->init.mask, r->init.val);
 			if (err) {
 				dev_err(&pdev->dev,
@@ -1488,7 +1817,7 @@ static int bd718xx_probe(struct platform_device *pdev)
 			}
 		}
 		for (j = 0; j < r->additional_init_amnt; j++) {
-			err = regmap_update_bits(mfd->chip.regmap,
+			err = regmap_update_bits(regmap,
 						 r->additional_inits[j].reg,
 						 r->additional_inits[j].mask,
 						 r->additional_inits[j].val);

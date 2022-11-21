@@ -326,10 +326,10 @@ void vc4_hvs_stop_channel(struct drm_device *dev, unsigned int chan)
 		     SCALER_DISPSTATX_EMPTY);
 }
 
-int vc4_hvs_atomic_check(struct drm_crtc *crtc,
-			 struct drm_crtc_state *state)
+int vc4_hvs_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_plane *plane;
@@ -341,10 +341,10 @@ int vc4_hvs_atomic_check(struct drm_crtc *crtc,
 	/* The pixelvalve can only feed one encoder (and encoders are
 	 * 1:1 with connectors.)
 	 */
-	if (hweight32(state->connector_mask) > 1)
+	if (hweight32(crtc_state->connector_mask) > 1)
 		return -EINVAL;
 
-	drm_atomic_crtc_state_for_each_plane_state(plane, plane_state, state)
+	drm_atomic_crtc_state_for_each_plane_state(plane, plane_state, crtc_state)
 		dlist_count += vc4_plane_dlist_size(plane_state);
 
 	dlist_count++; /* Account for SCALER_CTL0_END. */
@@ -365,17 +365,16 @@ static void vc4_hvs_update_dlist(struct drm_crtc *crtc)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+	unsigned long flags;
 
 	if (crtc->state->event) {
-		unsigned long flags;
-
 		crtc->state->event->pipe = drm_crtc_index(crtc);
 
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 
 		spin_lock_irqsave(&dev->event_lock, flags);
 
-		if (!vc4_state->feed_txp || vc4_state->txp_armed) {
+		if (!vc4_crtc->feeds_txp || vc4_state->txp_armed) {
 			vc4_crtc->event = crtc->state->event;
 			crtc->state->event = NULL;
 		}
@@ -388,25 +387,42 @@ static void vc4_hvs_update_dlist(struct drm_crtc *crtc)
 		HVS_WRITE(SCALER_DISPLISTX(vc4_state->assigned_channel),
 			  vc4_state->mm.start);
 	}
+
+	spin_lock_irqsave(&vc4_crtc->irq_lock, flags);
+	vc4_crtc->current_dlist = vc4_state->mm.start;
+	spin_unlock_irqrestore(&vc4_crtc->irq_lock, flags);
+}
+
+void vc4_hvs_atomic_begin(struct drm_crtc *crtc,
+			  struct drm_atomic_state *state)
+{
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+	unsigned long flags;
+
+	spin_lock_irqsave(&vc4_crtc->irq_lock, flags);
+	vc4_crtc->current_hvs_channel = vc4_state->assigned_channel;
+	spin_unlock_irqrestore(&vc4_crtc->irq_lock, flags);
 }
 
 void vc4_hvs_atomic_enable(struct drm_crtc *crtc,
-			   struct drm_crtc_state *old_state)
+			   struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
-	bool oneshot = vc4_state->feed_txp;
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	bool oneshot = vc4_crtc->feeds_txp;
 
 	vc4_hvs_update_dlist(crtc);
 	vc4_hvs_init_channel(vc4, crtc, mode, oneshot);
 }
 
 void vc4_hvs_atomic_disable(struct drm_crtc *crtc,
-			    struct drm_crtc_state *old_state)
+			    struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state, crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(old_state);
 	unsigned int chan = vc4_state->assigned_channel;
 
@@ -414,8 +430,10 @@ void vc4_hvs_atomic_disable(struct drm_crtc *crtc,
 }
 
 void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
-			  struct drm_crtc_state *old_state)
+			  struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state,
+									 crtc);
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
@@ -618,11 +636,11 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	 * for now we just allocate globally.
 	 */
 	if (!hvs->hvs5)
-		/* 96kB */
-		drm_mm_init(&hvs->lbm_mm, 0, 96 * 1024);
+		/* 48k words of 2x12-bit pixels */
+		drm_mm_init(&hvs->lbm_mm, 0, 48 * 1024);
 	else
-		/* 70k words */
-		drm_mm_init(&hvs->lbm_mm, 0, 70 * 2 * 1024);
+		/* 60k words of 4x12-bit pixels */
+		drm_mm_init(&hvs->lbm_mm, 0, 60 * 1024);
 
 	/* Upload filter kernels.  We only have the one for now, so we
 	 * keep it around for the lifetime of the driver.

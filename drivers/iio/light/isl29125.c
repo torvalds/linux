@@ -51,7 +51,11 @@
 struct isl29125_data {
 	struct i2c_client *client;
 	u8 conf1;
-	u16 buffer[8]; /* 3x 16-bit, padding, 8 bytes timestamp */
+	/* Ensure timestamp is naturally aligned */
+	struct {
+		u16 chans[3];
+		s64 timestamp __aligned(8);
+	} scan;
 };
 
 #define ISL29125_CHANNEL(_color, _si) { \
@@ -184,10 +188,10 @@ static irqreturn_t isl29125_trigger_handler(int irq, void *p)
 		if (ret < 0)
 			goto done;
 
-		data->buffer[j++] = ret;
+		data->scan.chans[j++] = ret;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 		iio_get_time_ns(indio_dev));
 
 done:
@@ -307,7 +311,6 @@ static int isl29125_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int isl29125_suspend(struct device *dev)
 {
 	struct isl29125_data *data = iio_priv(i2c_get_clientdata(
@@ -322,9 +325,9 @@ static int isl29125_resume(struct device *dev)
 	return i2c_smbus_write_byte_data(data->client, ISL29125_CONF1,
 		data->conf1);
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(isl29125_pm_ops, isl29125_suspend, isl29125_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(isl29125_pm_ops, isl29125_suspend,
+				isl29125_resume);
 
 static const struct i2c_device_id isl29125_id[] = {
 	{ "isl29125", 0 },
@@ -335,7 +338,7 @@ MODULE_DEVICE_TABLE(i2c, isl29125_id);
 static struct i2c_driver isl29125_driver = {
 	.driver = {
 		.name	= ISL29125_DRV_NAME,
-		.pm	= &isl29125_pm_ops,
+		.pm	= pm_sleep_ptr(&isl29125_pm_ops),
 	},
 	.probe		= isl29125_probe,
 	.remove		= isl29125_remove,

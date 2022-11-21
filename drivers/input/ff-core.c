@@ -67,7 +67,7 @@ static int compat_effect(struct ff_device *ff, struct ff_effect *effect)
 		effect->type = FF_PERIODIC;
 		effect->u.periodic.waveform = FF_SINE;
 		effect->u.periodic.period = 50;
-		effect->u.periodic.magnitude = max(magnitude, 0x7fff);
+		effect->u.periodic.magnitude = magnitude;
 		effect->u.periodic.offset = 0;
 		effect->u.periodic.phase = 0;
 		effect->u.periodic.envelope.attack_length = 0;

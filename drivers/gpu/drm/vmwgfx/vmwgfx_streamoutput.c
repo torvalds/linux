@@ -60,8 +60,6 @@ static int vmw_dx_streamoutput_unbind(struct vmw_resource *res, bool readback,
 static void vmw_dx_streamoutput_commit_notify(struct vmw_resource *res,
 					      enum vmw_cmdbuf_res_state state);
 
-static size_t vmw_streamoutput_size;
-
 static const struct vmw_res_func vmw_dx_streamoutput_func = {
 	.res_type = vmw_res_streamoutput,
 	.needs_backup = true,
@@ -99,17 +97,17 @@ static int vmw_dx_streamoutput_unscrub(struct vmw_resource *res)
 	if (!list_empty(&so->cotable_head) || !so->committed )
 		return 0;
 
-	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), so->ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), so->ctx->id);
 	if (!cmd)
 		return -ENOMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_BIND_STREAMOUTPUT;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.soid = so->id;
-	cmd->body.mobid = res->backup->base.mem.start;
+	cmd->body.mobid = res->backup->base.resource->start;
 	cmd->body.offsetInBytes = res->backup_offset;
 	cmd->body.sizeInBytes = so->size;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	vmw_cotable_add_resource(so->cotable, &so->cotable_head);
 
@@ -142,7 +140,7 @@ static int vmw_dx_streamoutput_bind(struct vmw_resource *res,
 	struct ttm_buffer_object *bo = val_buf->bo;
 	int ret;
 
-	if (WARN_ON(bo->mem.mem_type != VMW_PL_MOB))
+	if (WARN_ON(bo->resource->mem_type != VMW_PL_MOB))
 		return -EINVAL;
 
 	mutex_lock(&dev_priv->binding_mutex);
@@ -172,7 +170,7 @@ static int vmw_dx_streamoutput_scrub(struct vmw_resource *res)
 
 	WARN_ON_ONCE(!so->committed);
 
-	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), so->ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), so->ctx->id);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -182,7 +180,7 @@ static int vmw_dx_streamoutput_scrub(struct vmw_resource *res)
 	cmd->body.mobid = SVGA3D_INVALID_ID;
 	cmd->body.offsetInBytes = 0;
 	cmd->body.sizeInBytes = so->size;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	res->id = -1;
 	list_del_init(&so->cotable_head);
@@ -197,7 +195,7 @@ static int vmw_dx_streamoutput_unbind(struct vmw_resource *res, bool readback,
 	struct vmw_fence_obj *fence;
 	int ret;
 
-	if (WARN_ON(res->backup->base.mem.mem_type != VMW_PL_MOB))
+	if (WARN_ON(res->backup->base.resource->mem_type != VMW_PL_MOB))
 		return -EINVAL;
 
 	mutex_lock(&dev_priv->binding_mutex);
@@ -254,12 +252,10 @@ vmw_dx_streamoutput_lookup(struct vmw_cmdbuf_res_manager *man,
 
 static void vmw_dx_streamoutput_res_free(struct vmw_resource *res)
 {
-	struct vmw_private *dev_priv = res->dev_priv;
 	struct vmw_dx_streamoutput *so = vmw_res_to_dx_streamoutput(res);
 
 	vmw_resource_unreference(&so->cotable);
 	kfree(so);
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), vmw_streamoutput_size);
 }
 
 static void vmw_dx_streamoutput_hw_destroy(struct vmw_resource *res)
@@ -284,27 +280,10 @@ int vmw_dx_streamoutput_add(struct vmw_cmdbuf_res_manager *man,
 	struct vmw_dx_streamoutput *so;
 	struct vmw_resource *res;
 	struct vmw_private *dev_priv = ctx->dev_priv;
-	struct ttm_operation_ctx ttm_opt_ctx = {
-		.interruptible = true,
-		.no_wait_gpu = false
-	};
 	int ret;
-
-	if (!vmw_streamoutput_size)
-		vmw_streamoutput_size = ttm_round_pot(sizeof(*so));
-
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
-				   vmw_streamoutput_size, &ttm_opt_ctx);
-	if (ret) {
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for streamout.\n");
-		return ret;
-	}
 
 	so = kmalloc(sizeof(*so), GFP_KERNEL);
 	if (!so) {
-		ttm_mem_global_free(vmw_mem_glob(dev_priv),
-				    vmw_streamoutput_size);
 		return -ENOMEM;
 	}
 

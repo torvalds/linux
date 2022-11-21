@@ -97,7 +97,7 @@ Like Make, Kconfig provides several built-in functions. Every function takes a
 particular number of arguments.
 
 In Make, every built-in function takes at least one argument. Kconfig allows
-zero argument for built-in functions, such as $(fileno), $(lineno). You could
+zero argument for built-in functions, such as $(filename), $(lineno). You could
 consider those as "built-in variable", but it is just a matter of how we call
 it after all. Let's say "built-in function" here to refer to natively supported
 functionality.

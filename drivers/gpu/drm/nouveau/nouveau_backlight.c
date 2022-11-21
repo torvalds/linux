@@ -42,17 +42,13 @@
 static struct ida bl_ida;
 #define BL_NAME_SIZE 15 // 12 for name + 2 for digits + 1 for '\0'
 
-struct nouveau_backlight {
-	struct backlight_device *dev;
-	int id;
-};
-
 static bool
 nouveau_get_backlight_name(char backlight_name[BL_NAME_SIZE],
 			   struct nouveau_backlight *bl)
 {
-	const int nb = ida_simple_get(&bl_ida, 0, 0, GFP_KERNEL);
-	if (nb < 0 || nb >= 100)
+	const int nb = ida_alloc_max(&bl_ida, 99, GFP_KERNEL);
+
+	if (nb < 0)
 		return false;
 	if (nb > 0)
 		snprintf(backlight_name, BL_NAME_SIZE, "nv_backlight%d", nb);
@@ -106,7 +102,6 @@ nv40_backlight_init(struct nouveau_encoder *encoder,
 	if (!(nvif_rd32(device, NV40_PMC_BACKLIGHT) & NV40_PMC_BACKLIGHT_MASK))
 		return -ENODEV;
 
-	props->type = BACKLIGHT_RAW;
 	props->max_brightness = 31;
 	*ops = &nv40_bl_ops;
 	return 0;
@@ -146,6 +141,98 @@ static const struct backlight_ops nv50_bl_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
 	.get_brightness = nv50_get_intensity,
 	.update_status = nv50_set_intensity,
+};
+
+/*
+ * eDP brightness callbacks need to happen under lock, since we need to
+ * enable/disable the backlight ourselves for modesets
+ */
+static int
+nv50_edp_get_brightness(struct backlight_device *bd)
+{
+	struct drm_connector *connector = dev_get_drvdata(bd->dev.parent);
+	struct drm_device *dev = connector->dev;
+	struct drm_crtc *crtc;
+	struct drm_modeset_acquire_ctx ctx;
+	int ret = 0;
+
+	drm_modeset_acquire_init(&ctx, 0);
+
+retry:
+	ret = drm_modeset_lock(&dev->mode_config.connection_mutex, &ctx);
+	if (ret == -EDEADLK)
+		goto deadlock;
+	else if (ret < 0)
+		goto out;
+
+	crtc = connector->state->crtc;
+	if (!crtc)
+		goto out;
+
+	ret = drm_modeset_lock(&crtc->mutex, &ctx);
+	if (ret == -EDEADLK)
+		goto deadlock;
+	else if (ret < 0)
+		goto out;
+
+	if (!crtc->state->active)
+		goto out;
+
+	ret = bd->props.brightness;
+out:
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+	return ret;
+deadlock:
+	drm_modeset_backoff(&ctx);
+	goto retry;
+}
+
+static int
+nv50_edp_set_brightness(struct backlight_device *bd)
+{
+	struct drm_connector *connector = dev_get_drvdata(bd->dev.parent);
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct drm_device *dev = connector->dev;
+	struct drm_crtc *crtc;
+	struct drm_dp_aux *aux = &nv_connector->aux;
+	struct nouveau_backlight *nv_bl = nv_connector->backlight;
+	struct drm_modeset_acquire_ctx ctx;
+	int ret = 0;
+
+	drm_modeset_acquire_init(&ctx, 0);
+retry:
+	ret = drm_modeset_lock(&dev->mode_config.connection_mutex, &ctx);
+	if (ret == -EDEADLK)
+		goto deadlock;
+	else if (ret < 0)
+		goto out;
+
+	crtc = connector->state->crtc;
+	if (!crtc)
+		goto out;
+
+	ret = drm_modeset_lock(&crtc->mutex, &ctx);
+	if (ret == -EDEADLK)
+		goto deadlock;
+	else if (ret < 0)
+		goto out;
+
+	if (crtc->state->active)
+		ret = drm_edp_backlight_set_level(aux, &nv_bl->edp_info, bd->props.brightness);
+
+out:
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+	return ret;
+deadlock:
+	drm_modeset_backoff(&ctx);
+	goto retry;
+}
+
+static const struct backlight_ops nv50_edp_bl_ops = {
+	.get_brightness = nv50_edp_get_brightness,
+	.update_status = nv50_edp_set_brightness,
 };
 
 static int
@@ -194,16 +281,60 @@ static const struct backlight_ops nva3_bl_ops = {
 	.update_status = nva3_set_intensity,
 };
 
+/* FIXME: perform backlight probing for eDP _before_ this, this only gets called after connector
+ * registration which happens after the initial modeset
+ */
 static int
-nv50_backlight_init(struct nouveau_encoder *nv_encoder,
+nv50_backlight_init(struct nouveau_backlight *bl,
+		    struct nouveau_connector *nv_conn,
+		    struct nouveau_encoder *nv_encoder,
 		    struct backlight_properties *props,
 		    const struct backlight_ops **ops)
 {
 	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
 	struct nvif_object *device = &drm->client.device.object;
 
-	if (!nvif_rd32(device, NV50_PDISP_SOR_PWM_CTL(ffs(nv_encoder->dcb->or) - 1)))
+	if (!nvif_rd32(device, NV50_PDISP_SOR_PWM_CTL(ffs(nv_encoder->dcb->or) - 1)) ||
+	    nv_conn->base.status != connector_status_connected)
 		return -ENODEV;
+
+	if (nv_conn->type == DCB_CONNECTOR_eDP) {
+		int ret;
+		u16 current_level;
+		u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
+		u8 current_mode;
+
+		ret = drm_dp_dpcd_read(&nv_conn->aux, DP_EDP_DPCD_REV, edp_dpcd,
+				       EDP_DISPLAY_CTL_CAP_SIZE);
+		if (ret < 0)
+			return ret;
+
+		/* TODO: Add support for hybrid PWM/DPCD panels */
+		if (drm_edp_backlight_supported(edp_dpcd) &&
+		    (edp_dpcd[1] & DP_EDP_BACKLIGHT_AUX_ENABLE_CAP) &&
+		    (edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_AUX_SET_CAP)) {
+			NV_DEBUG(drm, "DPCD backlight controls supported on %s\n",
+				 nv_conn->base.name);
+
+			ret = drm_edp_backlight_init(&nv_conn->aux, &bl->edp_info, 0, edp_dpcd,
+						     &current_level, &current_mode);
+			if (ret < 0)
+				return ret;
+
+			ret = drm_edp_backlight_enable(&nv_conn->aux, &bl->edp_info, current_level);
+			if (ret < 0) {
+				NV_ERROR(drm, "Failed to enable backlight on %s: %d\n",
+					 nv_conn->base.name, ret);
+				return ret;
+			}
+
+			*ops = &nv50_edp_bl_ops;
+			props->brightness = current_level;
+			props->max_brightness = bl->edp_info.max;
+			bl->uses_dpcd = true;
+			return 0;
+		}
+	}
 
 	if (drm->client.device.info.chipset <= 0xa0 ||
 	    drm->client.device.info.chipset == 0xaa ||
@@ -212,7 +343,6 @@ nv50_backlight_init(struct nouveau_encoder *nv_encoder,
 	else
 		*ops = &nva3_bl_ops;
 
-	props->type = BACKLIGHT_RAW;
 	props->max_brightness = 100;
 
 	return 0;
@@ -245,6 +375,10 @@ nouveau_backlight_init(struct drm_connector *connector)
 	if (!nv_encoder)
 		return 0;
 
+	bl = kzalloc(sizeof(*bl), GFP_KERNEL);
+	if (!bl)
+		return -ENOMEM;
+
 	switch (device->info.family) {
 	case NV_DEVICE_INFO_V0_CURIE:
 		ret = nv40_backlight_init(nv_encoder, &props, &ops);
@@ -256,37 +390,40 @@ nouveau_backlight_init(struct drm_connector *connector)
 	case NV_DEVICE_INFO_V0_PASCAL:
 	case NV_DEVICE_INFO_V0_VOLTA:
 	case NV_DEVICE_INFO_V0_TURING:
-		ret = nv50_backlight_init(nv_encoder, &props, &ops);
+	case NV_DEVICE_INFO_V0_AMPERE: //XXX: not confirmed
+		ret = nv50_backlight_init(bl, nouveau_connector(connector),
+					  nv_encoder, &props, &ops);
 		break;
 	default:
-		return 0;
+		ret = 0;
+		goto fail_alloc;
 	}
 
-	if (ret == -ENODEV)
-		return 0;
-	else if (ret)
-		return ret;
-
-	bl = kzalloc(sizeof(*bl), GFP_KERNEL);
-	if (!bl)
-		return -ENOMEM;
+	if (ret) {
+		if (ret == -ENODEV)
+			ret = 0;
+		goto fail_alloc;
+	}
 
 	if (!nouveau_get_backlight_name(backlight_name, bl)) {
 		NV_ERROR(drm, "Failed to retrieve a unique name for the backlight interface\n");
 		goto fail_alloc;
 	}
 
+	props.type = BACKLIGHT_RAW;
 	bl->dev = backlight_device_register(backlight_name, connector->kdev,
 					    nv_encoder, ops, &props);
 	if (IS_ERR(bl->dev)) {
 		if (bl->id >= 0)
-			ida_simple_remove(&bl_ida, bl->id);
+			ida_free(&bl_ida, bl->id);
 		ret = PTR_ERR(bl->dev);
 		goto fail_alloc;
 	}
 
 	nouveau_connector(connector)->backlight = bl;
-	bl->dev->props.brightness = bl->dev->ops->get_brightness(bl->dev);
+	if (!bl->dev->props.brightness)
+		bl->dev->props.brightness =
+			bl->dev->ops->get_brightness(bl->dev);
 	backlight_update_status(bl->dev);
 
 	return 0;
@@ -306,7 +443,7 @@ nouveau_backlight_fini(struct drm_connector *connector)
 		return;
 
 	if (bl->id >= 0)
-		ida_simple_remove(&bl_ida, bl->id);
+		ida_free(&bl_ida, bl->id);
 
 	backlight_device_unregister(bl->dev);
 	nv_conn->backlight = NULL;

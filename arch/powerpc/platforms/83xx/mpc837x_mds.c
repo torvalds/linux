@@ -23,7 +23,7 @@
 #define BCSR12_USB_SER_PIN	0x80
 #define BCSR12_USB_SER_DEVICE	0x02
 
-static int mpc837xmds_usb_cfg(void)
+static int __init mpc837xmds_usb_cfg(void)
 {
 	struct device_node *np;
 	const void *phy_type, *mode;
@@ -93,6 +93,7 @@ define_machine(mpc837x_mds) {
 	.name			= "MPC837x MDS",
 	.probe			= mpc837x_mds_probe,
 	.setup_arch		= mpc837x_mds_setup_arch,
+	.discover_phbs  	= mpc83xx_setup_pci,
 	.init_IRQ		= mpc83xx_ipic_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.restart		= mpc83xx_restart,

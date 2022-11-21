@@ -1,0 +1,183 @@
+[
+    {
+        "BriefDescription": "Counts the total number of BTCLEARS.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xe8",
+        "EventName": "BTCLEAR.ANY",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the total number of BTCLEARS which occurs when the Branch Target Buffer (BTB) predicts a taken branch.",
+        "SampleAfterValue": "200003"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event BUS_LOCK.SELF_LOCKS",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EdgeDetect": "1",
+        "EventCode": "0x63",
+        "EventName": "BUS_LOCK.ALL",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "200003"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles a core is blocked due to an accepted lock issued by other cores.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x63",
+        "EventName": "BUS_LOCK.BLOCK_CYCLES",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of unhalted cycles a core is blocked due to an accepted lock issued by other cores. Counts on a per core basis.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event BUS_LOCK.BLOCK_CYCLES",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x63",
+        "EventName": "BUS_LOCK.CYCLES_OTHER_BLOCK",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event BUS_LOCK.LOCK_CYCLES",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x63",
+        "EventName": "BUS_LOCK.CYCLES_SELF_BLOCK",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles a core is blocked due to an accepted lock it issued.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x63",
+        "EventName": "BUS_LOCK.LOCK_CYCLES",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of unhalted cycles a core is blocked due to an accepted lock it issued. Counts on a per core basis.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of bus locks a core issued its self (e.g. lock to UC or Split Lock) and does not include cache locks.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EdgeDetect": "1",
+        "EventCode": "0x63",
+        "EventName": "BUS_LOCK.SELF_LOCKS",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of bus locks a core issued its self (e.g. lock to UC or Split Lock) and does not include cache locks. Counts on a per core basis.",
+        "SampleAfterValue": "200003"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event MEM_BOUND_STALLS.LOAD_DRAM_HIT",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x34",
+        "EventName": "C0_STALLS.LOAD_DRAM_HIT",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "200003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event MEM_BOUND_STALLS.LOAD_L2_HIT",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x34",
+        "EventName": "C0_STALLS.LOAD_L2_HIT",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event MEM_BOUND_STALLS.LOAD_LLC_HIT",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x34",
+        "EventName": "C0_STALLS.LOAD_LLC_HIT",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Counts the number of core cycles during which interrupts are masked (disabled).",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xcb",
+        "EventName": "HW_INTERRUPTS.MASKED",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of core cycles during which interrupts are masked (disabled). Increments by 1 each core cycle that EFLAGS.IF is 0, regardless of whether interrupts are pending or not.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Counts the number of core cycles during which there are pending interrupts while interrupts are masked (disabled).",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xcb",
+        "EventName": "HW_INTERRUPTS.PENDING_AND_MASKED",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of core cycles during which there are pending interrupts while interrupts are masked (disabled). Increments by 1 each core cycle that both EFLAGS.IF is 0 and an INTR is pending (which means the APIC is telling the ROB to cause an INTR). This event does not increment if EFLAGS.IF is 0 but all interrupt in the APICs Interrupt Request Register (IRR) are inhibited by the PPR (thus either by ISRV or TPR)  because in these cases the interrupts would be held up in the APIC and would not be pended to the ROB. This event does count when an interrupt is only inhibited by MOV/POP SS state machines or the STI state machine. These extra inhibits only last for a single instructions and would not be important.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts the number of hardware interrupts received by the processor.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xcb",
+        "EventName": "HW_INTERRUPTS.RECEIVED",
+        "PDIR_COUNTER": "na",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "203",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10001",
+        "Offcore": "1",
+        "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.ANY_RESPONSE",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10001",
+        "Offcore": "1",
+        "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10002",
+        "Offcore": "1",
+        "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    }
+]

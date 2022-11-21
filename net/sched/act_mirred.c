@@ -19,6 +19,7 @@
 #include <linux/if_arp.h>
 #include <net/net_namespace.h>
 #include <net/netlink.h>
+#include <net/dst.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
 #include <linux/tc_act/tc_mirred.h>
@@ -78,8 +79,7 @@ static void tcf_mirred_release(struct tc_action *a)
 
 	/* last reference to action, no need to lock */
 	dev = rcu_dereference_protected(m->tcfm_dev, 1);
-	if (dev)
-		dev_put(dev);
+	dev_put_track(dev, &m->tcfm_dev_tracker);
 }
 
 static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
@@ -91,17 +91,16 @@ static struct tc_action_ops act_mirred_ops;
 
 static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
-			   int ovr, int bind, bool rtnl_held,
 			   struct tcf_proto *tp,
 			   u32 flags, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_MIRRED_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
 	bool mac_header_xmit = false;
 	struct tc_mirred *parm;
 	struct tcf_mirred *m;
-	struct net_device *dev;
 	bool exists = false;
 	int ret, err;
 	u32 index;
@@ -155,7 +154,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			return ret;
 		}
 		ret = ACT_P_CREATED;
-	} else if (!ovr) {
+	} else if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
@@ -171,17 +170,19 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	spin_lock_bh(&m->tcf_lock);
 
 	if (parm->ifindex) {
-		dev = dev_get_by_index(net, parm->ifindex);
-		if (!dev) {
+		struct net_device *odev, *ndev;
+
+		ndev = dev_get_by_index(net, parm->ifindex);
+		if (!ndev) {
 			spin_unlock_bh(&m->tcf_lock);
 			err = -ENODEV;
 			goto put_chain;
 		}
-		mac_header_xmit = dev_is_mac_header_xmit(dev);
-		dev = rcu_replace_pointer(m->tcfm_dev, dev,
+		mac_header_xmit = dev_is_mac_header_xmit(ndev);
+		odev = rcu_replace_pointer(m->tcfm_dev, ndev,
 					  lockdep_is_held(&m->tcf_lock));
-		if (dev)
-			dev_put(dev);
+		dev_put_track(odev, &m->tcfm_dev_tracker);
+		netdev_tracker_alloc(ndev, &m->tcfm_dev_tracker, GFP_ATOMIC);
 		m->tcfm_mac_header_xmit = mac_header_xmit;
 	}
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
@@ -205,6 +206,18 @@ release_idr:
 	return err;
 }
 
+static int tcf_mirred_forward(bool want_ingress, struct sk_buff *skb)
+{
+	int err;
+
+	if (!want_ingress)
+		err = tcf_dev_queue_xmit(skb, dev_queue_xmit);
+	else
+		err = netif_receive_skb(skb);
+
+	return err;
+}
+
 static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 			  struct tcf_result *res)
 {
@@ -218,6 +231,7 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 	bool want_ingress;
 	bool is_redirect;
 	bool expects_nh;
+	bool at_ingress;
 	int m_eaction;
 	int mac_len;
 	bool at_nh;
@@ -253,7 +267,8 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 	 * ingress - that covers the TC S/W datapath.
 	 */
 	is_redirect = tcf_mirred_is_act_redirect(m_eaction);
-	use_reinsert = skb_at_tc_ingress(skb) && is_redirect &&
+	at_ingress = skb_at_tc_ingress(skb);
+	use_reinsert = at_ingress && is_redirect &&
 		       tcf_mirred_can_reinsert(retval);
 	if (!use_reinsert) {
 		skb2 = skb_clone(skb, GFP_ATOMIC);
@@ -262,6 +277,11 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 	}
 
 	want_ingress = tcf_mirred_act_wants_ingress(m_eaction);
+
+	/* All mirred/redirected skbs should clear previous ct info */
+	nf_reset_ct(skb2);
+	if (want_ingress && !at_ingress) /* drop dst for egress -> ingress */
+		skb_dst_drop(skb2);
 
 	expects_nh = want_ingress || !m_mac_header_xmit;
 	at_nh = skb->data == skb_network_header(skb);
@@ -287,18 +307,15 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 		/* let's the caller reinsert the packet, if possible */
 		if (use_reinsert) {
 			res->ingress = want_ingress;
-			if (skb_tc_reinsert(skb, res))
+			err = tcf_mirred_forward(res->ingress, skb);
+			if (err)
 				tcf_action_inc_overlimit_qstats(&m->common);
 			__this_cpu_dec(mirred_rec_level);
 			return TC_ACT_CONSUMED;
 		}
 	}
 
-	if (!want_ingress)
-		err = dev_queue_xmit(skb2);
-	else
-		err = netif_receive_skb(skb2);
-
+	err = tcf_mirred_forward(want_ingress, skb2);
 	if (err) {
 out:
 		tcf_action_inc_overlimit_qstats(&m->common);
@@ -385,7 +402,7 @@ static int mirred_device_event(struct notifier_block *unused,
 		list_for_each_entry(m, &mirred_list, tcfm_list) {
 			spin_lock_bh(&m->tcf_lock);
 			if (tcf_mirred_dev_dereference(m) == dev) {
-				dev_put(dev);
+				dev_put_track(dev, &m->tcfm_dev_tracker);
 				/* Note : no rcu grace period necessary, as
 				 * net_device are already rcu protected.
 				 */
@@ -433,6 +450,55 @@ static size_t tcf_mirred_get_fill_size(const struct tc_action *act)
 	return nla_total_size(sizeof(struct tc_mirred));
 }
 
+static void tcf_offload_mirred_get_dev(struct flow_action_entry *entry,
+				       const struct tc_action *act)
+{
+	entry->dev = act->ops->get_dev(act, &entry->destructor);
+	if (!entry->dev)
+		return;
+	entry->destructor_priv = entry->dev;
+}
+
+static int tcf_mirred_offload_act_setup(struct tc_action *act, void *entry_data,
+					u32 *index_inc, bool bind)
+{
+	if (bind) {
+		struct flow_action_entry *entry = entry_data;
+
+		if (is_tcf_mirred_egress_redirect(act)) {
+			entry->id = FLOW_ACTION_REDIRECT;
+			tcf_offload_mirred_get_dev(entry, act);
+		} else if (is_tcf_mirred_egress_mirror(act)) {
+			entry->id = FLOW_ACTION_MIRRED;
+			tcf_offload_mirred_get_dev(entry, act);
+		} else if (is_tcf_mirred_ingress_redirect(act)) {
+			entry->id = FLOW_ACTION_REDIRECT_INGRESS;
+			tcf_offload_mirred_get_dev(entry, act);
+		} else if (is_tcf_mirred_ingress_mirror(act)) {
+			entry->id = FLOW_ACTION_MIRRED_INGRESS;
+			tcf_offload_mirred_get_dev(entry, act);
+		} else {
+			return -EOPNOTSUPP;
+		}
+		*index_inc = 1;
+	} else {
+		struct flow_offload_action *fl_action = entry_data;
+
+		if (is_tcf_mirred_egress_redirect(act))
+			fl_action->id = FLOW_ACTION_REDIRECT;
+		else if (is_tcf_mirred_egress_mirror(act))
+			fl_action->id = FLOW_ACTION_MIRRED;
+		else if (is_tcf_mirred_ingress_redirect(act))
+			fl_action->id = FLOW_ACTION_REDIRECT_INGRESS;
+		else if (is_tcf_mirred_ingress_mirror(act))
+			fl_action->id = FLOW_ACTION_MIRRED_INGRESS;
+		else
+			return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
 	.id		=	TCA_ID_MIRRED,
@@ -445,6 +511,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.walk		=	tcf_mirred_walker,
 	.lookup		=	tcf_mirred_search,
 	.get_fill_size	=	tcf_mirred_get_fill_size,
+	.offload_act_setup =	tcf_mirred_offload_act_setup,
 	.size		=	sizeof(struct tcf_mirred),
 	.get_dev	=	tcf_mirred_get_dev,
 };

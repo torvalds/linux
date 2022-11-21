@@ -96,7 +96,7 @@ module_param_named(
 	boot_nr_channel, boot_nr_channel, int, S_IRUGO
 );
 
-/**
+/*
  * struct channel_space - central management entity for extended ports
  * @base:		memory mapped base address where channels start.
  * @phys:		physical base address of channel region.
@@ -258,6 +258,7 @@ static void stm_disable(struct coresight_device *csdev,
 			struct perf_event *event)
 {
 	struct stm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+	struct csdev_access *csa = &csdev->access;
 
 	/*
 	 * For as long as the tracer isn't disabled another entity can't
@@ -270,7 +271,7 @@ static void stm_disable(struct coresight_device *csdev,
 		spin_unlock(&drvdata->spinlock);
 
 		/* Wait until the engine has completely stopped */
-		coresight_timeout(drvdata->base, STMTCSR, STMTCSR_BUSY_BIT, 0);
+		coresight_timeout(csa, STMTCSR, STMTCSR_BUSY_BIT, 0);
 
 		pm_runtime_put(csdev->dev.parent);
 
@@ -855,13 +856,11 @@ static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret;
 	void __iomem *base;
-	unsigned long *guaranteed;
 	struct device *dev = &adev->dev;
 	struct coresight_platform_data *pdata = NULL;
 	struct stm_drvdata *drvdata;
 	struct resource *res = &adev->res;
 	struct resource ch_res;
-	size_t bitmap_size;
 	struct coresight_desc desc = { 0 };
 
 	desc.name = coresight_alloc_device_name(&stm_devs, dev);
@@ -884,6 +883,7 @@ static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 	drvdata->base = base;
+	desc.access = CSDEV_ACCESS_IOMEM(base);
 
 	ret = stm_get_stimulus_area(dev, &ch_res);
 	if (ret)
@@ -902,12 +902,10 @@ static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 	else
 		drvdata->numsp = stm_num_stimulus_port(drvdata);
 
-	bitmap_size = BITS_TO_LONGS(drvdata->numsp) * sizeof(long);
-
-	guaranteed = devm_kzalloc(dev, bitmap_size, GFP_KERNEL);
-	if (!guaranteed)
+	drvdata->chs.guaranteed = devm_bitmap_zalloc(dev, drvdata->numsp,
+						     GFP_KERNEL);
+	if (!drvdata->chs.guaranteed)
 		return -ENOMEM;
-	drvdata->chs.guaranteed = guaranteed;
 
 	spin_lock_init(&drvdata->spinlock);
 
@@ -951,15 +949,13 @@ stm_unregister:
 	return ret;
 }
 
-static int __exit stm_remove(struct amba_device *adev)
+static void stm_remove(struct amba_device *adev)
 {
 	struct stm_drvdata *drvdata = dev_get_drvdata(&adev->dev);
 
 	coresight_unregister(drvdata->csdev);
 
 	stm_unregister_device(&drvdata->stm);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

@@ -17,7 +17,10 @@ properties:
           - const: renesas,rza1-usbhs
 
       - items:
-          - const: renesas,usbhs-r7s9210 # RZ/A2
+          - enum:
+              - renesas,usbhs-r7s9210   # RZ/A2
+              - renesas,usbhs-r9a07g044 # RZ/G2{L,LC}
+              - renesas,usbhs-r9a07g054 # RZ/V2L
           - const: renesas,rza2-usbhs
 
       - items:
@@ -53,14 +56,14 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 3
     items:
       - description: USB 2.0 host
       - description: USB 2.0 peripheral
       - description: USB 2.0 clock selector
 
   interrupts:
-    maxItems: 1
+    minItems: 1
+    maxItems: 4
 
   renesas,buswait:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -68,17 +71,15 @@ properties:
       Integer to use BUSWAIT register.
 
   renesas,enable-gpio:
+    maxItems: 1
     description: |
       gpio specifier to check GPIO determining if USB function should be
       enabled.
 
   phys:
     maxItems: 1
-    items:
-      - description: phandle + phy specifier pair.
 
   phy-names:
-    maxItems: 1
     items:
       - const: usb
 
@@ -88,7 +89,6 @@ properties:
 
   dma-names:
     minItems: 2
-    maxItems: 4
     items:
       - const: ch0
       - const: ch1
@@ -102,7 +102,6 @@ properties:
 
   resets:
     minItems: 1
-    maxItems: 2
     items:
       - description: USB 2.0 host
       - description: USB 2.0 peripheral
@@ -112,6 +111,27 @@ required:
   - reg
   - clocks
   - interrupts
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,usbhs-r9a07g044
+              - renesas,usbhs-r9a07g054
+    then:
+      properties:
+        interrupts:
+          items:
+            - description: U2P_IXL_INT
+            - description: U2P_INT_DMA[0]
+            - description: U2P_INT_DMA[1]
+            - description: U2P_INT_DMAERR
+    else:
+      properties:
+        interrupts:
+          maxItems: 1
 
 additionalProperties: false
 

@@ -40,6 +40,7 @@ struct dp_rx_tid {
 
 #define DP_REO_DESC_FREE_THRESHOLD  64
 #define DP_REO_DESC_FREE_TIMEOUT_MS 1000
+#define DP_MON_PURGE_TIMEOUT_MS     100
 #define DP_MON_SERVICE_BUDGET       128
 
 struct dp_reo_cache_flush_elem {
@@ -63,6 +64,7 @@ struct dp_srng {
 	dma_addr_t paddr;
 	int size;
 	u32 ring_id;
+	u8 cached;
 };
 
 struct dp_rxdma_ring {
@@ -87,6 +89,19 @@ struct dp_tx_ring {
 	int tx_status_tail;
 };
 
+enum dp_mon_status_buf_state {
+	/* PPDU id matches in dst ring and status ring */
+	DP_MON_STATUS_MATCH,
+	/* status ring dma is not done */
+	DP_MON_STATUS_NO_DMA,
+	/* status ring is lagging, reap status ring */
+	DP_MON_STATUS_LAG,
+	/* status ring is leading, reap dst ring and drop */
+	DP_MON_STATUS_LEAD,
+	/* replinish monitor status ring */
+	DP_MON_STATUS_REPLINISH,
+};
+
 struct ath11k_pdev_mon_stats {
 	u32 status_ppdu_state;
 	u32 status_ppdu_start;
@@ -100,6 +115,14 @@ struct ath11k_pdev_mon_stats {
 	u32 dest_mpdu_drop;
 	u32 dup_mon_linkdesc_cnt;
 	u32 dup_mon_buf_cnt;
+	u32 dest_mon_stuck;
+	u32 dest_mon_not_reaped;
+};
+
+struct dp_full_mon_mpdu {
+	struct list_head list;
+	struct sk_buff *head;
+	struct sk_buff *tail;
 };
 
 struct dp_link_desc_bank {
@@ -133,7 +156,11 @@ struct ath11k_mon_data {
 	u32 mon_last_buf_cookie;
 	u64 mon_last_linkdesc_paddr;
 	u16 chan_noise_floor;
-
+	bool hold_mon_dst_ring;
+	enum dp_mon_status_buf_state buf_state;
+	dma_addr_t mon_status_paddr;
+	struct dp_full_mon_mpdu *mon_mpdu;
+	struct hal_sw_mon_ring_entries sw_mon_entries;
 	struct ath11k_pdev_mon_stats rx_mon_stats;
 	/* lock for monitor data */
 	spinlock_t mon_lock;
@@ -142,6 +169,7 @@ struct ath11k_mon_data {
 
 struct ath11k_pdev_dp {
 	u32 mac_id;
+	u32 mon_dest_ring_stuck_cnt;
 	atomic_t num_tx_pending;
 	wait_queue_head_t tx_empty_waitq;
 	struct dp_rxdma_ring rx_refill_buf_ring;
@@ -169,6 +197,7 @@ struct ath11k_pdev_dp {
 #define DP_BA_WIN_SZ_MAX	256
 
 #define DP_TCL_NUM_RING_MAX	3
+#define DP_TCL_NUM_RING_MAX_QCA6390	1
 
 #define DP_IDLE_SCATTER_BUFS_MAX 16
 
@@ -194,6 +223,7 @@ struct ath11k_pdev_dp {
 #define DP_RXDMA_MONITOR_DESC_RING_SIZE	4096
 
 #define DP_RX_BUFFER_SIZE	2048
+#define	DP_RX_BUFFER_SIZE_LITE  1024
 #define DP_RX_BUFFER_ALIGN_SIZE	128
 
 #define DP_RXDMA_BUF_COOKIE_BUF_ID	GENMASK(17, 0)
@@ -241,6 +271,7 @@ struct ath11k_dp {
 	struct hal_wbm_idle_scatter_list scatter_list[DP_IDLE_SCATTER_BUFS_MAX];
 	struct list_head reo_cmd_list;
 	struct list_head reo_cmd_cache_flush_list;
+	struct list_head dp_full_mon_mpdu_list;
 	u32 reo_cmd_cache_flush_count;
 	/**
 	 * protects access to below fields,
@@ -288,6 +319,7 @@ enum htt_h2t_msg_type {
 	HTT_H2T_MSG_TYPE_RX_RING_SELECTION_CFG	= 0xc,
 	HTT_H2T_MSG_TYPE_EXT_STATS_CFG		= 0x10,
 	HTT_H2T_MSG_TYPE_PPDU_STATS_CFG		= 0x11,
+	HTT_H2T_MSG_TYPE_RX_FULL_MONITOR_MODE	= 0x17,
 };
 
 #define HTT_VER_REQ_INFO_MSG_ID		GENMASK(7, 0)
@@ -423,7 +455,7 @@ enum htt_srng_ring_id {
  *                     Used only by Consumer ring to generate ring_sw_int_p.
  *                     Ring entries low threshold water mark, that is used
  *                     in combination with the interrupt timer as well as
- *                     the the clearing of the level interrupt.
+ *                     the clearing of the level interrupt.
  *           b'16:18 - prefetch_timer_cfg:
  *                     Used only by Consumer ring to set timer mode to
  *                     support Application prefetch handling.
@@ -514,7 +546,8 @@ struct htt_ppdu_stats_cfg_cmd {
 } __packed;
 
 #define HTT_PPDU_STATS_CFG_MSG_TYPE		GENMASK(7, 0)
-#define HTT_PPDU_STATS_CFG_PDEV_ID		GENMASK(15, 8)
+#define HTT_PPDU_STATS_CFG_SOC_STATS		BIT(8)
+#define HTT_PPDU_STATS_CFG_PDEV_ID		GENMASK(15, 9)
 #define HTT_PPDU_STATS_CFG_TLV_TYPE_BITMASK	GENMASK(31, 16)
 
 enum htt_ppdu_stats_tag_type {
@@ -952,6 +985,33 @@ struct htt_rx_ring_tlv_filter {
 	u32 pkt_filter_flags3; /* DATA */
 };
 
+#define HTT_RX_FULL_MON_MODE_CFG_CMD_INFO0_MSG_TYPE	GENMASK(7, 0)
+#define HTT_RX_FULL_MON_MODE_CFG_CMD_INFO0_PDEV_ID	GENMASK(15, 8)
+
+#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_ENABLE			BIT(0)
+#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_ZERO_MPDUS_END		BIT(1)
+#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_NON_ZERO_MPDUS_END	BIT(2)
+#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_RELEASE_RING		GENMASK(10, 3)
+
+/**
+ * Enumeration for full monitor mode destination ring select
+ * 0 - REO destination ring select
+ * 1 - FW destination ring select
+ * 2 - SW destination ring select
+ * 3 - Release destination ring select
+ */
+enum htt_rx_full_mon_release_ring {
+	HTT_RX_MON_RING_REO,
+	HTT_RX_MON_RING_FW,
+	HTT_RX_MON_RING_SW,
+	HTT_RX_MON_RING_RELEASE,
+};
+
+struct htt_rx_full_monitor_mode_cfg_cmd {
+	u32 info0;
+	u32 cfg;
+} __packed;
+
 /* HTT message target->host */
 
 enum htt_t2h_msg_type {
@@ -1113,12 +1173,12 @@ struct ath11k_htt_ppdu_stats_msg {
 	u32 ppdu_id;
 	u32 timestamp;
 	u32 rsvd;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct htt_tlv {
 	u32 header;
-	u8 value[0];
+	u8 value[];
 } __packed;
 
 #define HTT_TLV_TAG			GENMASK(11, 0)
@@ -1305,7 +1365,7 @@ struct htt_ppdu_stats_usr_cmn_array {
 	 * tx_ppdu_stats_info is variable length, with length =
 	 *     number_of_ppdu_stats * sizeof (struct htt_tx_ppdu_stats_info)
 	 */
-	struct htt_tx_ppdu_stats_info tx_ppdu_info[0];
+	struct htt_tx_ppdu_stats_info tx_ppdu_info[];
 } __packed;
 
 struct htt_ppdu_user_stats {
@@ -1367,7 +1427,7 @@ struct htt_ppdu_stats_info {
  */
 struct htt_pktlog_msg {
 	u32 hdr;
-	u8 payload[0];
+	u8 payload[];
 };
 
 /**
@@ -1588,8 +1648,15 @@ struct ath11k_htt_extd_stats_msg {
 	u32 info0;
 	u64 cookie;
 	u32 info1;
-	u8 data[0];
+	u8 data[];
 } __packed;
+
+#define	HTT_MAC_ADDR_L32_0	GENMASK(7, 0)
+#define	HTT_MAC_ADDR_L32_1	GENMASK(15, 8)
+#define	HTT_MAC_ADDR_L32_2	GENMASK(23, 16)
+#define	HTT_MAC_ADDR_L32_3	GENMASK(31, 24)
+#define	HTT_MAC_ADDR_H16_0	GENMASK(7, 0)
+#define	HTT_MAC_ADDR_H16_1	GENMASK(15, 8)
 
 struct htt_mac_addr {
 	u32 mac_addr_l32;
@@ -1640,5 +1707,6 @@ void ath11k_dp_shadow_stop_timer(struct ath11k_base *ab,
 void ath11k_dp_shadow_init_timer(struct ath11k_base *ab,
 				 struct ath11k_hp_update_timer *update_timer,
 				 u32 interval, u32 ring_id);
+void ath11k_dp_stop_shadow_timers(struct ath11k_base *ab);
 
 #endif

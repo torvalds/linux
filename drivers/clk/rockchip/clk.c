@@ -22,9 +22,11 @@
 #include <linux/regmap.h>
 #include <linux/reboot.h>
 #include <linux/rational.h>
+
+#include "../clk-fractional-divider.h"
 #include "clk.h"
 
-/**
+/*
  * Register a clock branch.
  * Most clock branches have a form like
  *
@@ -170,7 +172,7 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 	return notifier_from_errno(ret);
 }
 
-/**
+/*
  * fractional divider must set that denominator is 20 times larger than
  * numerator to generate precise clock frequency.
  */
@@ -181,7 +183,6 @@ static void rockchip_fractional_approximation(struct clk_hw *hw,
 	struct clk_fractional_divider *fd = to_clk_fd(hw);
 	unsigned long p_rate, p_parent_rate;
 	struct clk_hw *p_parent;
-	unsigned long scale;
 
 	p_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
 	if ((rate * 20 > p_rate) && (p_rate % rate != 0)) {
@@ -190,18 +191,9 @@ static void rockchip_fractional_approximation(struct clk_hw *hw,
 		*parent_rate = p_parent_rate;
 	}
 
-	/*
-	 * Get rate closer to *parent_rate to guarantee there is no overflow
-	 * for m and n. In the result it will be the nearest rate left shifted
-	 * by (scale - fd->nwidth) bits.
-	 */
-	scale = fls_long(*parent_rate / rate - 1);
-	if (scale > fd->nwidth)
-		rate <<= scale - fd->nwidth;
+	fd->flags |= CLK_FRAC_DIVIDER_POWER_OF_TWO_PS;
 
-	rational_best_approximation(rate, *parent_rate,
-			GENMASK(fd->mwidth - 1, 0), GENMASK(fd->nwidth - 1, 0),
-			m, n);
+	clk_fractional_divider_general_approximation(hw, rate, parent_rate, m, n);
 }
 
 static struct clk *rockchip_clk_register_frac_branch(
@@ -603,8 +595,7 @@ void rockchip_clk_protect_critical(const char *const clocks[],
 	for (i = 0; i < nclocks; i++) {
 		struct clk *clk = __clk_lookup(clocks[i]);
 
-		if (clk)
-			clk_prepare_enable(clk);
+		clk_prepare_enable(clk);
 	}
 }
 EXPORT_SYMBOL_GPL(rockchip_clk_protect_critical);

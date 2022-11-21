@@ -29,7 +29,6 @@ struct rsvd_region {
 };
 
 extern struct rsvd_region rsvd_region[IA64_MAX_RSVD_REGIONS + 1];
-extern int num_rsvd_regions;
 
 extern void find_memory (void);
 extern void reserve_memory (void);
@@ -40,7 +39,6 @@ extern unsigned long efi_memmap_init(u64 *s, u64 *e);
 extern int find_max_min_low_pfn (u64, u64, void *);
 
 extern unsigned long vmcore_find_descriptor_size(unsigned long address);
-extern int reserve_elfcorehdr(u64 *start, u64 *end);
 
 /*
  * For rounding an address to the next IA64_GRANULE_SIZE or order
@@ -58,17 +56,4 @@ extern int reserve_elfcorehdr(u64 *start, u64 *end);
 
 extern int register_active_ranges(u64 start, u64 len, int nid);
 
-#ifdef CONFIG_VIRTUAL_MEM_MAP
-# define LARGE_GAP	0x40000000 /* Use virtual mem map if hole is > than this */
-  extern unsigned long VMALLOC_END;
-  extern struct page *vmem_map;
-  extern int find_largest_hole(u64 start, u64 end, void *arg);
-  extern int create_mem_map_page_table(u64 start, u64 end, void *arg);
-  extern int vmemmap_find_next_valid_pfn(int, int);
-#else
-static inline int vmemmap_find_next_valid_pfn(int node, int i)
-{
-	return i + 1;
-}
-#endif
 #endif /* meminit_h */

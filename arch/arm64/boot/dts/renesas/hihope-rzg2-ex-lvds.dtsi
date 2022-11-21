@@ -20,7 +20,7 @@
 	 * When GP1_20 is LOW LVDS0 is connected to the LVDS connector
 	 * When GP1_20 is HIGH LVDS0 is connected to the LT8918L
 	 */
-	lvds-connector-en-gpio {
+	lvds-connector-en-hog {
 		gpio-hog;
 		gpios = <20 GPIO_ACTIVE_HIGH>;
 		output-low;

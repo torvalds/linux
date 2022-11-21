@@ -102,6 +102,7 @@ enum fetch_op {
 	FETCH_OP_MOD_BF,	/* Bitfield: .basesize, .lshift, .rshift */
 	// Stage 5 (loop) op
 	FETCH_OP_LP_ARRAY,	/* Array: .param = loop count */
+	FETCH_OP_TP_ARG,	/* Trace Point argument */
 	FETCH_OP_END,
 	FETCH_NOP_SYMBOL,	/* Unresolved Symbol holder */
 };
@@ -134,7 +135,7 @@ struct fetch_type {
 	size_t			size;		/* Byte size of type */
 	int			is_signed;	/* Signed flag */
 	print_type_func_t	print;		/* Print functions */
-	const char		*fmt;		/* Fromat string */
+	const char		*fmt;		/* Format string */
 	const char		*fmttype;	/* Name in format file */
 };
 
@@ -341,6 +342,7 @@ struct event_file_link *trace_probe_get_file_link(struct trace_probe *tp,
 int trace_probe_compare_arg_type(struct trace_probe *a, struct trace_probe *b);
 bool trace_probe_match_command_args(struct trace_probe *tp,
 				    int argc, const char **argv);
+int trace_probe_create(const char *raw_command, int (*createfn)(int, const char **));
 
 #define trace_probe_for_each_link(pos, tp)	\
 	list_for_each_entry(pos, &(tp)->event->files, list)
@@ -350,10 +352,11 @@ bool trace_probe_match_command_args(struct trace_probe *tp,
 #define TPARG_FL_RETURN BIT(0)
 #define TPARG_FL_KERNEL BIT(1)
 #define TPARG_FL_FENTRY BIT(2)
-#define TPARG_FL_MASK	GENMASK(2, 0)
+#define TPARG_FL_TPOINT BIT(3)
+#define TPARG_FL_MASK	GENMASK(3, 0)
 
 extern int traceprobe_parse_probe_arg(struct trace_probe *tp, int i,
-				char *arg, unsigned int flags);
+				const char *argv, unsigned int flags);
 
 extern int traceprobe_update_arg(struct probe_arg *arg);
 extern void traceprobe_free_probe_arg(struct probe_arg *arg);
@@ -362,7 +365,13 @@ extern int traceprobe_split_symbol_offset(char *symbol, long *offset);
 int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 				char *buf, int offset);
 
-extern int traceprobe_set_print_fmt(struct trace_probe *tp, bool is_return);
+enum probe_print_type {
+	PROBE_PRINT_NORMAL,
+	PROBE_PRINT_RETURN,
+	PROBE_PRINT_EVENT,
+};
+
+extern int traceprobe_set_print_fmt(struct trace_probe *tp, enum probe_print_type ptype);
 
 #ifdef CONFIG_PERF_EVENTS
 extern struct trace_event_call *
@@ -398,6 +407,7 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 	C(NO_EVENT_NAME,	"Event name is not specified"),		\
 	C(EVENT_TOO_LONG,	"Event name is too long"),		\
 	C(BAD_EVENT_NAME,	"Event name must follow the same rules as C identifiers"), \
+	C(EVENT_EXIST,		"Given group/event name is already used by another event"), \
 	C(RETVAL_ON_PROBE,	"$retval is not available on probe"),	\
 	C(BAD_STACK_NUM,	"Invalid stack number"),		\
 	C(BAD_ARG_NUM,		"Invalid argument number"),		\

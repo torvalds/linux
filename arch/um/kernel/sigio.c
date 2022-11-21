@@ -25,7 +25,7 @@ int write_sigio_irq(int fd)
 
 	err = um_request_irq(SIGIO_WRITE_IRQ, fd, IRQ_READ, sigio_interrupt,
 			     0, "write sigio", NULL);
-	if (err) {
+	if (err < 0) {
 		printk(KERN_ERR "write_sigio_irq : um_request_irq failed, "
 		       "err = %d\n", err);
 		return -1;

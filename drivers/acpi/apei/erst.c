@@ -54,7 +54,7 @@ EXPORT_SYMBOL_GPL(erst_disable);
 
 static struct acpi_table_erst *erst_tab;
 
-/* ERST Error Log Address Range atrributes */
+/* ERST Error Log Address Range attributes */
 #define ERST_RANGE_RESERVED	0x0001
 #define ERST_RANGE_NVRAM	0x0002
 #define ERST_RANGE_SLOW		0x0004
@@ -688,7 +688,7 @@ static int __erst_read_from_storage(u64 record_id, u64 offset)
 			break;
 		if (erst_timedout(&timeout, SPIN_UNIT))
 			return -EIO;
-	};
+	}
 	rc = apei_exec_run(&ctx, ACPI_ERST_GET_COMMAND_STATUS);
 	if (rc)
 		return rc;
@@ -891,7 +891,7 @@ EXPORT_SYMBOL_GPL(erst_clear);
 static int __init setup_erst_disable(char *str)
 {
 	erst_disable = 1;
-	return 0;
+	return 1;
 }
 
 __setup("erst_disable", setup_erst_disable);

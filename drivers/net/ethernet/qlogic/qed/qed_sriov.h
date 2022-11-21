@@ -62,6 +62,7 @@ struct qed_public_vf_info {
 	bool is_trusted_request;
 	u8 rx_accept_mode;
 	u8 tx_accept_mode;
+	bool accept_any_vlan;
 };
 
 struct qed_iov_vf_init_params {
@@ -142,7 +143,7 @@ struct qed_vf_queue {
 
 enum vf_state {
 	VF_FREE = 0,		/* VF ready to be acquired holds no resc */
-	VF_ACQUIRED,		/* VF, acquired, but not initalized */
+	VF_ACQUIRED,		/* VF, acquired, but not initialized */
 	VF_ENABLED,		/* VF, Enabled */
 	VF_RESET,		/* VF, FLR'd, pending cleanup */
 	VF_STOPPED		/* VF, Stopped */
@@ -250,29 +251,31 @@ extern const struct qed_iov_hv_ops qed_iov_ops_pass;
 
 #ifdef CONFIG_QED_SRIOV
 /**
- * @brief Check if given VF ID @vfid is valid
- *        w.r.t. @b_enabled_only value
- *        if b_enabled_only = true - only enabled VF id is valid
- *        else any VF id less than max_vfs is valid
+ * qed_iov_is_valid_vfid(): Check if given VF ID @vfid is valid
+ *                          w.r.t. @b_enabled_only value
+ *                          if b_enabled_only = true - only enabled
+ *                          VF id is valid.
+ *                          else any VF id less than max_vfs is valid.
  *
- * @param p_hwfn
- * @param rel_vf_id - Relative VF ID
- * @param b_enabled_only - consider only enabled VF
- * @param b_non_malicious - true iff we want to validate vf isn't malicious.
+ * @p_hwfn: HW device data.
+ * @rel_vf_id: Relative VF ID.
+ * @b_enabled_only: consider only enabled VF.
+ * @b_non_malicious: true iff we want to validate vf isn't malicious.
  *
- * @return bool - true for valid VF ID
+ * Return: bool - true for valid VF ID
  */
 bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
 			   int rel_vf_id,
 			   bool b_enabled_only, bool b_non_malicious);
 
 /**
- * @brief - Given a VF index, return index of next [including that] active VF.
+ * qed_iov_get_next_active_vf(): Given a VF index, return index of
+ *                               next [including that] active VF.
  *
- * @param p_hwfn
- * @param rel_vf_id
+ * @p_hwfn: HW device data.
+ * @rel_vf_id: VF ID.
  *
- * @return MAX_NUM_VFS in case no further active VFs, otherwise index.
+ * Return: MAX_NUM_VFS in case no further active VFs, otherwise index.
  */
 u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn, u16 rel_vf_id);
 
@@ -280,83 +283,117 @@ void qed_iov_bulletin_set_udp_ports(struct qed_hwfn *p_hwfn,
 				    int vfid, u16 vxlan_port, u16 geneve_port);
 
 /**
- * @brief Read sriov related information and allocated resources
- *  reads from configuration space, shmem, etc.
+ * qed_iov_hw_info(): Read sriov related information and allocated resources
+ *                    reads from configuration space, shmem, etc.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
  *
- * @return int
+ * Return: Int.
  */
 int qed_iov_hw_info(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_add_tlv - place a given tlv on the tlv buffer at next offset
+ * qed_add_tlv(): place a given tlv on the tlv buffer at next offset
  *
- * @param p_hwfn
- * @param p_iov
- * @param type
- * @param length
+ * @p_hwfn: HW device data.
+ * @offset: offset.
+ * @type: Type
+ * @length: Length.
  *
- * @return pointer to the newly placed tlv
+ * Return: pointer to the newly placed tlv
  */
 void *qed_add_tlv(struct qed_hwfn *p_hwfn, u8 **offset, u16 type, u16 length);
 
 /**
- * @brief list the types and lengths of the tlvs on the buffer
+ * qed_dp_tlv_list(): list the types and lengths of the tlvs on the buffer
  *
- * @param p_hwfn
- * @param tlvs_list
+ * @p_hwfn: HW device data.
+ * @tlvs_list: Tlvs_list.
+ *
+ * Return: Void.
  */
 void qed_dp_tlv_list(struct qed_hwfn *p_hwfn, void *tlvs_list);
 
 /**
- * @brief qed_iov_alloc - allocate sriov related resources
+ * qed_sriov_vfpf_malicious(): Handle malicious VF/PF.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ * @p_data: Pointer to data.
  *
- * @return int
+ * Return: Void.
+ */
+void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
+			      struct fw_err_data *p_data);
+
+/**
+ * qed_sriov_eqe_event(): Callback for SRIOV events.
+ *
+ * @p_hwfn: HW device data.
+ * @opcode: Opcode.
+ * @echo: Echo.
+ * @data: data
+ * @fw_return_code: FW return code.
+ *
+ * Return: Int.
+ */
+int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn, u8 opcode, __le16 echo,
+			union event_ring_data *data, u8  fw_return_code);
+
+/**
+ * qed_iov_alloc(): allocate sriov related resources
+ *
+ * @p_hwfn: HW device data.
+ *
+ * Return: Int.
  */
 int qed_iov_alloc(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_iov_setup - setup sriov related resources
+ * qed_iov_setup(): setup sriov related resources
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return: Void.
  */
 void qed_iov_setup(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_iov_free - free sriov related resources
+ * qed_iov_free(): free sriov related resources
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return: Void.
  */
 void qed_iov_free(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief free sriov related memory that was allocated during hw_prepare
+ * qed_iov_free_hw_info(): free sriov related memory that was
+ *                          allocated during hw_prepare
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
+ *
+ * Return: Void.
  */
 void qed_iov_free_hw_info(struct qed_dev *cdev);
 
 /**
- * @brief Mark structs of vfs that have been FLR-ed.
+ * qed_iov_mark_vf_flr(): Mark structs of vfs that have been FLR-ed.
  *
- * @param p_hwfn
- * @param disabled_vfs - bitmask of all VFs on path that were FLRed
+ * @p_hwfn: HW device data.
+ * @disabled_vfs: bitmask of all VFs on path that were FLRed
  *
- * @return true iff one of the PF's vfs got FLRed. false otherwise.
+ * Return: true iff one of the PF's vfs got FLRed. false otherwise.
  */
 bool qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *disabled_vfs);
 
 /**
- * @brief Search extended TLVs in request/reply buffer.
+ * qed_iov_search_list_tlvs(): Search extended TLVs in request/reply buffer.
  *
- * @param p_hwfn
- * @param p_tlvs_list - Pointer to tlvs list
- * @param req_type - Type of TLV
+ * @p_hwfn: HW device data.
+ * @p_tlvs_list: Pointer to tlvs list
+ * @req_type: Type of TLV
  *
- * @return pointer to tlv type if found, otherwise returns NULL.
+ * Return: pointer to tlv type if found, otherwise returns NULL.
  */
 void *qed_iov_search_list_tlvs(struct qed_hwfn *p_hwfn,
 			       void *p_tlvs_list, u16 req_type);
@@ -441,6 +478,18 @@ static inline int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
 
 static inline void qed_inform_vf_link_state(struct qed_hwfn *hwfn)
 {
+}
+
+static inline void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
+					    struct fw_err_data *p_data)
+{
+}
+
+static inline int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn, u8 opcode,
+				      __le16 echo, union event_ring_data *data,
+				      u8  fw_return_code)
+{
+	return 0;
 }
 #endif
 

@@ -97,7 +97,7 @@ enum {
 
 
 
-/**
+/*
  *	set_truncation
  *	1) set truncation depth: 0 for 18 bpp or 1 for 24 bpp
  *	2) enable truncation
@@ -142,7 +142,7 @@ static void set_truncation(
 }
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
-/**
+/*
  *	dce60_set_truncation
  *	1) set truncation depth: 0 for 18 bpp or 1 for 24 bpp
  *	2) enable truncation
@@ -183,7 +183,7 @@ static void dce60_set_truncation(
 }
 #endif
 
-/**
+/*
  *	set_spatial_dither
  *	1) set spatial dithering mode: pattern of seed
  *	2) set spatial dithering depth: 0 for 18bpp or 1 for 24bpp
@@ -216,9 +216,7 @@ static void set_spatial_dither(
 	REG_UPDATE(FMT_BIT_DEPTH_CONTROL,
 		FMT_TEMPORAL_DITHER_EN, 0);
 
-	/* no 10bpc on DCE11*/
-	if (params->flags.SPATIAL_DITHER_ENABLED == 0 ||
-		params->flags.SPATIAL_DITHER_DEPTH == 2)
+	if (params->flags.SPATIAL_DITHER_ENABLED == 0)
 		return;
 
 	/* only use FRAME_COUNTER_MAX if frameRandom == 1*/
@@ -291,7 +289,7 @@ static void set_spatial_dither(
 		FMT_SPATIAL_DITHER_EN, 1);
 }
 
-/**
+/*
  *	SetTemporalDither (Frame Modulation)
  *	1) set temporal dither depth
  *	2) select pattern: from hard-coded pattern or programmable pattern
@@ -355,7 +353,7 @@ static void set_temporal_dither(
 		FMT_TEMPORAL_DITHER_EN, 1);
 }
 
-/**
+/*
  *	Set Clamping
  *	1) Set clamping format based on bpc - 0 for 6bpc (No clamping)
  *		1 for 8 bpc
@@ -415,7 +413,7 @@ void dce110_opp_set_clamping(
 }
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
-/**
+/*
  *	Set Clamping for DCE6 parts
  *	1) Set clamping format based on bpc - 0 for 6bpc (No clamping)
  *		1 for 8 bpc
@@ -424,7 +422,7 @@ void dce110_opp_set_clamping(
  *		7 for programable
  *	2) Enable clamp if Limited range requested
  */
-void dce60_opp_set_clamping(
+static void dce60_opp_set_clamping(
 	struct dce110_opp *opp110,
 	const struct clamping_and_pixel_encoding_params *params)
 {
@@ -465,7 +463,7 @@ void dce60_opp_set_clamping(
 }
 #endif
 
-/**
+/*
  *	set_pixel_encoding
  *
  *	Set Pixel Encoding
@@ -501,7 +499,7 @@ static void set_pixel_encoding(
 }
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
-/**
+/*
  *	dce60_set_pixel_encoding
  *	DCE6 has no FMT_SUBSAMPLING_{MODE,ORDER} bits in FMT_CONTROL reg
  *	Set Pixel Encoding
@@ -545,7 +543,7 @@ void dce110_opp_program_bit_depth_reduction(
 }
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
-void dce60_opp_program_bit_depth_reduction(
+static void dce60_opp_program_bit_depth_reduction(
 	struct output_pixel_processor *opp,
 	const struct bit_depth_reduction_params *params)
 {
@@ -568,7 +566,7 @@ void dce110_opp_program_clamping_and_pixel_encoding(
 }
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
-void dce60_opp_program_clamping_and_pixel_encoding(
+static void dce60_opp_program_clamping_and_pixel_encoding(
 	struct output_pixel_processor *opp,
 	const struct clamping_and_pixel_encoding_params *params)
 {
@@ -678,7 +676,7 @@ void dce110_opp_program_fmt(
 }
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
-void dce60_opp_program_fmt(
+static void dce60_opp_program_fmt(
 	struct output_pixel_processor *opp,
 	struct bit_depth_reduction_params *fmt_bit_depth,
 	struct clamping_and_pixel_encoding_params *clamping)

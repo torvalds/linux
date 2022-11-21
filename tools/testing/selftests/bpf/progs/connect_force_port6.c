@@ -9,8 +9,9 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
+#include <bpf_sockopt_helpers.h>
+
 char _license[] SEC("license") = "GPL";
-int _version SEC("version") = 1;
 
 struct svc_addr {
 	__be32 addr[4];
@@ -63,6 +64,9 @@ int connect6(struct bpf_sock_addr *ctx)
 SEC("cgroup/getsockname6")
 int getsockname6(struct bpf_sock_addr *ctx)
 {
+	if (!get_set_sk_priority(ctx))
+		return 1;
+
 	/* Expose local server as [fc00::1]:60000 to client. */
 	if (ctx->user_port == bpf_htons(60124)) {
 		ctx->user_ip6[0] = bpf_htonl(0xfc000000);
@@ -78,6 +82,9 @@ SEC("cgroup/getpeername6")
 int getpeername6(struct bpf_sock_addr *ctx)
 {
 	struct svc_addr *orig;
+
+	if (!get_set_sk_priority(ctx))
+		return 1;
 
 	/* Expose service [fc00::1]:60000 as peer instead of backend. */
 	if (ctx->user_port == bpf_htons(60124)) {

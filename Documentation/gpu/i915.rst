@@ -118,6 +118,12 @@ Atomic Plane Helpers
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_atomic_plane.c
    :internal:
 
+Asynchronous Page Flip
+----------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_display.c
+   :doc: asynchronous flip implementation
+
 Output Probing
 --------------
 
@@ -177,26 +183,23 @@ Frame Buffer Compression (FBC)
 Display Refresh Rate Switching (DRRS)
 -------------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
    :doc: Display Refresh Rate Switching (DRRS)
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
-   :functions: intel_dp_set_drrs_state
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
+   :functions: intel_drrs_enable
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
-   :functions: intel_edp_drrs_enable
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
+   :functions: intel_drrs_disable
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
-   :functions: intel_edp_drrs_disable
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
+   :functions: intel_drrs_invalidate
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
-   :functions: intel_edp_drrs_invalidate
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
+   :functions: intel_drrs_flush
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
-   :functions: intel_edp_drrs_flush
-
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
-   :functions: intel_dp_drrs_init
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
+   :functions: intel_drrs_init
 
 DPIO
 ----
@@ -204,13 +207,13 @@ DPIO
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_dpio_phy.c
    :doc: DPIO
 
-CSR firmware support for DMC
-----------------------------
+DMC Firmware Support
+--------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_csr.c
-   :doc: csr support for dmc
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dmc.c
+   :doc: DMC Firmware Support
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_csr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dmc.c
    :internal:
 
 Video BIOS Table (VBT)
@@ -416,13 +419,20 @@ Batchbuffer Parsing
 User Batchbuffer Execution
 --------------------------
 
+.. kernel-doc:: drivers/gpu/drm/i915/gem/i915_gem_context_types.h
+
 .. kernel-doc:: drivers/gpu/drm/i915/gem/i915_gem_execbuffer.c
    :doc: User command execution
+
+Scheduling
+----------
+.. kernel-doc:: drivers/gpu/drm/i915/i915_scheduler_types.h
+   :functions: i915_sched_engine
 
 Logical Rings, Logical Ring Contexts and Execlists
 --------------------------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/gt/intel_lrc.c
+.. kernel-doc:: drivers/gpu/drm/i915/gt/intel_execlists_submission.c
    :doc: Logical Rings, Logical Ring Contexts and Execlists
 
 Global GTT views
@@ -461,6 +471,14 @@ Object Tiling IOCTLs
 .. kernel-doc:: drivers/gpu/drm/i915/gem/i915_gem_tiling.c
    :doc: buffer object tiling
 
+Protected Objects
+-----------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/pxp/intel_pxp.c
+   :doc: PXP
+
+.. kernel-doc:: drivers/gpu/drm/i915/pxp/intel_pxp_types.h
+
 Microcontrollers
 ================
 
@@ -484,6 +502,8 @@ GuC
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
    :doc: GuC
+
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.h
 
 GuC Firmware Layout
 ~~~~~~~~~~~~~~~~~~~
@@ -512,6 +532,15 @@ GuC-based command submission
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_submission.c
    :doc: GuC-based command submission
 
+GuC ABI
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/abi/guc_messages_abi.h
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/abi/guc_communication_mmio_abi.h
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/abi/guc_communication_ctb_abi.h
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/abi/guc_actions_abi.h
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/abi/guc_klvs_abi.h
+
 HuC
 ---
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_huc.c
@@ -531,7 +560,7 @@ The HuC FW layout is the same as the GuC one, see `GuC Firmware Layout`_
 
 DMC
 ---
-See `CSR firmware support for DMC`_
+See `DMC Firmware Support`_
 
 Tracing
 =======

@@ -5,6 +5,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
+#include <linux/clk.h>
 #include <linux/clk/at91_pmc.h>
 #include <linux/of.h>
 #include <linux/mfd/syscon.h>
@@ -15,17 +16,9 @@
 #define MASTER_PRES_MASK	0x7
 #define MASTER_PRES_MAX		MASTER_PRES_MASK
 #define MASTER_DIV_SHIFT	8
-#define MASTER_DIV_MASK		0x3
+#define MASTER_DIV_MASK		0x7
 
-#define PMC_MCR			0x30
-#define PMC_MCR_ID_MSK		GENMASK(3, 0)
-#define PMC_MCR_CMD		BIT(7)
-#define PMC_MCR_DIV		GENMASK(10, 8)
-#define PMC_MCR_CSS		GENMASK(20, 16)
 #define PMC_MCR_CSS_SHIFT	(16)
-#define PMC_MCR_EN		BIT(28)
-
-#define PMC_MCR_ID(x)		((x) & PMC_MCR_ID_MSK)
 
 #define MASTER_MAX_ID		4
 
@@ -37,13 +30,18 @@ struct clk_master {
 	spinlock_t *lock;
 	const struct clk_master_layout *layout;
 	const struct clk_master_characteristics *characteristics;
+	struct at91_clk_pms pms;
 	u32 *mux_table;
 	u32 mckr;
 	int chg_pid;
 	u8 id;
 	u8 parent;
 	u8 div;
+	u32 safe_div;
 };
+
+/* MCK div reference to be used by notifier. */
+static struct clk_master *master_div;
 
 static inline bool clk_master_ready(struct clk_master *master)
 {
@@ -58,9 +56,14 @@ static inline bool clk_master_ready(struct clk_master *master)
 static int clk_master_prepare(struct clk_hw *hw)
 {
 	struct clk_master *master = to_clk_master(hw);
+	unsigned long flags;
+
+	spin_lock_irqsave(master->lock, flags);
 
 	while (!clk_master_ready(master))
 		cpu_relax();
+
+	spin_unlock_irqrestore(master->lock, flags);
 
 	return 0;
 }
@@ -68,108 +71,284 @@ static int clk_master_prepare(struct clk_hw *hw)
 static int clk_master_is_prepared(struct clk_hw *hw)
 {
 	struct clk_master *master = to_clk_master(hw);
+	unsigned long flags;
+	bool status;
 
-	return clk_master_ready(master);
+	spin_lock_irqsave(master->lock, flags);
+	status = clk_master_ready(master);
+	spin_unlock_irqrestore(master->lock, flags);
+
+	return status;
 }
 
-static unsigned long clk_master_recalc_rate(struct clk_hw *hw,
-					    unsigned long parent_rate)
+static unsigned long clk_master_div_recalc_rate(struct clk_hw *hw,
+						unsigned long parent_rate)
 {
-	u8 pres;
 	u8 div;
-	unsigned long rate = parent_rate;
+	unsigned long flags, rate = parent_rate;
 	struct clk_master *master = to_clk_master(hw);
 	const struct clk_master_layout *layout = master->layout;
 	const struct clk_master_characteristics *characteristics =
 						master->characteristics;
 	unsigned int mckr;
 
+	spin_lock_irqsave(master->lock, flags);
 	regmap_read(master->regmap, master->layout->offset, &mckr);
+	spin_unlock_irqrestore(master->lock, flags);
+
 	mckr &= layout->mask;
 
-	pres = (mckr >> layout->pres_shift) & MASTER_PRES_MASK;
 	div = (mckr >> MASTER_DIV_SHIFT) & MASTER_DIV_MASK;
-
-	if (characteristics->have_div3_pres && pres == MASTER_PRES_MAX)
-		rate /= 3;
-	else
-		rate >>= pres;
 
 	rate /= characteristics->divisors[div];
 
 	if (rate < characteristics->output.min)
-		pr_warn("master clk is underclocked");
+		pr_warn("master clk div is underclocked");
 	else if (rate > characteristics->output.max)
-		pr_warn("master clk is overclocked");
+		pr_warn("master clk div is overclocked");
 
 	return rate;
 }
 
-static u8 clk_master_get_parent(struct clk_hw *hw)
+static int clk_master_div_save_context(struct clk_hw *hw)
 {
 	struct clk_master *master = to_clk_master(hw);
-	unsigned int mckr;
+	struct clk_hw *parent_hw = clk_hw_get_parent(hw);
+	unsigned long flags;
+	unsigned int mckr, div;
 
+	spin_lock_irqsave(master->lock, flags);
 	regmap_read(master->regmap, master->layout->offset, &mckr);
+	spin_unlock_irqrestore(master->lock, flags);
 
-	return mckr & AT91_PMC_CSS;
+	mckr &= master->layout->mask;
+	div = (mckr >> MASTER_DIV_SHIFT) & MASTER_DIV_MASK;
+	div = master->characteristics->divisors[div];
+
+	master->pms.parent_rate = clk_hw_get_rate(parent_hw);
+	master->pms.rate = DIV_ROUND_CLOSEST(master->pms.parent_rate, div);
+
+	return 0;
 }
 
-static const struct clk_ops master_ops = {
+static void clk_master_div_restore_context(struct clk_hw *hw)
+{
+	struct clk_master *master = to_clk_master(hw);
+	unsigned long flags;
+	unsigned int mckr;
+	u8 div;
+
+	spin_lock_irqsave(master->lock, flags);
+	regmap_read(master->regmap, master->layout->offset, &mckr);
+	spin_unlock_irqrestore(master->lock, flags);
+
+	mckr &= master->layout->mask;
+	div = (mckr >> MASTER_DIV_SHIFT) & MASTER_DIV_MASK;
+	div = master->characteristics->divisors[div];
+
+	if (div != DIV_ROUND_CLOSEST(master->pms.parent_rate, master->pms.rate))
+		pr_warn("MCKR DIV not configured properly by firmware!\n");
+}
+
+static const struct clk_ops master_div_ops = {
 	.prepare = clk_master_prepare,
 	.is_prepared = clk_master_is_prepared,
-	.recalc_rate = clk_master_recalc_rate,
-	.get_parent = clk_master_get_parent,
+	.recalc_rate = clk_master_div_recalc_rate,
+	.save_context = clk_master_div_save_context,
+	.restore_context = clk_master_div_restore_context,
 };
 
-struct clk_hw * __init
-at91_clk_register_master(struct regmap *regmap,
-		const char *name, int num_parents,
-		const char **parent_names,
-		const struct clk_master_layout *layout,
-		const struct clk_master_characteristics *characteristics)
+/* This function must be called with lock acquired. */
+static int clk_master_div_set(struct clk_master *master,
+			      unsigned long parent_rate, int div)
 {
-	struct clk_master *master;
-	struct clk_init_data init;
-	struct clk_hw *hw;
+	const struct clk_master_characteristics *characteristics =
+						master->characteristics;
+	unsigned long rate = parent_rate;
+	unsigned int max_div = 0, div_index = 0, max_div_index = 0;
+	unsigned int i, mckr, tmp;
 	int ret;
 
-	if (!name || !num_parents || !parent_names)
-		return ERR_PTR(-EINVAL);
+	for (i = 0; i < ARRAY_SIZE(characteristics->divisors); i++) {
+		if (!characteristics->divisors[i])
+			break;
 
-	master = kzalloc(sizeof(*master), GFP_KERNEL);
-	if (!master)
-		return ERR_PTR(-ENOMEM);
+		if (div == characteristics->divisors[i])
+			div_index = i;
 
-	init.name = name;
-	init.ops = &master_ops;
-	init.parent_names = parent_names;
-	init.num_parents = num_parents;
-	init.flags = 0;
-
-	master->hw.init = &init;
-	master->layout = layout;
-	master->characteristics = characteristics;
-	master->regmap = regmap;
-
-	hw = &master->hw;
-	ret = clk_hw_register(NULL, &master->hw);
-	if (ret) {
-		kfree(master);
-		hw = ERR_PTR(ret);
+		if (max_div < characteristics->divisors[i]) {
+			max_div = characteristics->divisors[i];
+			max_div_index = i;
+		}
 	}
 
-	return hw;
+	if (div > max_div)
+		div_index = max_div_index;
+
+	ret = regmap_read(master->regmap, master->layout->offset, &mckr);
+	if (ret)
+		return ret;
+
+	mckr &= master->layout->mask;
+	tmp = (mckr >> MASTER_DIV_SHIFT) & MASTER_DIV_MASK;
+	if (tmp == div_index)
+		return 0;
+
+	rate /= characteristics->divisors[div_index];
+	if (rate < characteristics->output.min)
+		pr_warn("master clk div is underclocked");
+	else if (rate > characteristics->output.max)
+		pr_warn("master clk div is overclocked");
+
+	mckr &= ~(MASTER_DIV_MASK << MASTER_DIV_SHIFT);
+	mckr |= (div_index << MASTER_DIV_SHIFT);
+	ret = regmap_write(master->regmap, master->layout->offset, mckr);
+	if (ret)
+		return ret;
+
+	while (!clk_master_ready(master))
+		cpu_relax();
+
+	master->div = characteristics->divisors[div_index];
+
+	return 0;
 }
 
-static unsigned long
-clk_sama7g5_master_recalc_rate(struct clk_hw *hw,
-			       unsigned long parent_rate)
+static unsigned long clk_master_div_recalc_rate_chg(struct clk_hw *hw,
+						    unsigned long parent_rate)
 {
 	struct clk_master *master = to_clk_master(hw);
 
-	return DIV_ROUND_CLOSEST_ULL(parent_rate, (1 << master->div));
+	return DIV_ROUND_CLOSEST_ULL(parent_rate, master->div);
 }
+
+static void clk_master_div_restore_context_chg(struct clk_hw *hw)
+{
+	struct clk_master *master = to_clk_master(hw);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(master->lock, flags);
+	ret = clk_master_div_set(master, master->pms.parent_rate,
+				 DIV_ROUND_CLOSEST(master->pms.parent_rate,
+						   master->pms.rate));
+	spin_unlock_irqrestore(master->lock, flags);
+	if (ret)
+		pr_warn("Failed to restore MCK DIV clock\n");
+}
+
+static const struct clk_ops master_div_ops_chg = {
+	.prepare = clk_master_prepare,
+	.is_prepared = clk_master_is_prepared,
+	.recalc_rate = clk_master_div_recalc_rate_chg,
+	.save_context = clk_master_div_save_context,
+	.restore_context = clk_master_div_restore_context_chg,
+};
+
+static int clk_master_div_notifier_fn(struct notifier_block *notifier,
+				      unsigned long code, void *data)
+{
+	const struct clk_master_characteristics *characteristics =
+						master_div->characteristics;
+	struct clk_notifier_data *cnd = data;
+	unsigned long flags, new_parent_rate, new_rate;
+	unsigned int mckr, div, new_div = 0;
+	int ret, i;
+	long tmp_diff;
+	long best_diff = -1;
+
+	spin_lock_irqsave(master_div->lock, flags);
+	switch (code) {
+	case PRE_RATE_CHANGE:
+		/*
+		 * We want to avoid any overclocking of MCK DIV domain. To do
+		 * this we set a safe divider (the underclocking is not of
+		 * interest as we can go as low as 32KHz). The relation
+		 * b/w this clock and its parents are as follows:
+		 *
+		 * FRAC PLL -> DIV PLL -> MCK DIV
+		 *
+		 * With the proper safe divider we should be good even with FRAC
+		 * PLL at its maximum value.
+		 */
+		ret = regmap_read(master_div->regmap, master_div->layout->offset,
+				  &mckr);
+		if (ret) {
+			ret = NOTIFY_STOP_MASK;
+			goto unlock;
+		}
+
+		mckr &= master_div->layout->mask;
+		div = (mckr >> MASTER_DIV_SHIFT) & MASTER_DIV_MASK;
+
+		/* Switch to safe divider. */
+		clk_master_div_set(master_div,
+				   cnd->old_rate * characteristics->divisors[div],
+				   master_div->safe_div);
+		break;
+
+	case POST_RATE_CHANGE:
+		/*
+		 * At this point we want to restore MCK DIV domain to its maximum
+		 * allowed rate.
+		 */
+		ret = regmap_read(master_div->regmap, master_div->layout->offset,
+				  &mckr);
+		if (ret) {
+			ret = NOTIFY_STOP_MASK;
+			goto unlock;
+		}
+
+		mckr &= master_div->layout->mask;
+		div = (mckr >> MASTER_DIV_SHIFT) & MASTER_DIV_MASK;
+		new_parent_rate = cnd->new_rate * characteristics->divisors[div];
+
+		for (i = 0; i < ARRAY_SIZE(characteristics->divisors); i++) {
+			if (!characteristics->divisors[i])
+				break;
+
+			new_rate = DIV_ROUND_CLOSEST_ULL(new_parent_rate,
+							 characteristics->divisors[i]);
+
+			tmp_diff = characteristics->output.max - new_rate;
+			if (tmp_diff < 0)
+				continue;
+
+			if (best_diff < 0 || best_diff > tmp_diff) {
+				new_div = characteristics->divisors[i];
+				best_diff = tmp_diff;
+			}
+
+			if (!tmp_diff)
+				break;
+		}
+
+		if (!new_div) {
+			ret = NOTIFY_STOP_MASK;
+			goto unlock;
+		}
+
+		/* Update the div to preserve MCK DIV clock rate. */
+		clk_master_div_set(master_div, new_parent_rate,
+				   new_div);
+
+		ret = NOTIFY_OK;
+		break;
+
+	default:
+		ret = NOTIFY_DONE;
+		break;
+	}
+
+unlock:
+	spin_unlock_irqrestore(master_div->lock, flags);
+
+	return ret;
+}
+
+static struct notifier_block clk_master_div_notifier = {
+	.notifier_call = clk_master_div_notifier_fn,
+};
 
 static void clk_sama7g5_master_best_diff(struct clk_rate_request *req,
 					 struct clk_hw *parent,
@@ -193,6 +372,209 @@ static void clk_sama7g5_master_best_diff(struct clk_rate_request *req,
 		req->best_parent_rate = parent_rate;
 		req->best_parent_hw = parent;
 	}
+}
+
+static unsigned long clk_master_pres_recalc_rate(struct clk_hw *hw,
+						 unsigned long parent_rate)
+{
+	struct clk_master *master = to_clk_master(hw);
+	const struct clk_master_characteristics *characteristics =
+						master->characteristics;
+	unsigned long flags;
+	unsigned int val, pres;
+
+	spin_lock_irqsave(master->lock, flags);
+	regmap_read(master->regmap, master->layout->offset, &val);
+	spin_unlock_irqrestore(master->lock, flags);
+
+	val &= master->layout->mask;
+	pres = (val >> master->layout->pres_shift) & MASTER_PRES_MASK;
+	if (pres == MASTER_PRES_MAX && characteristics->have_div3_pres)
+		pres = 3;
+	else
+		pres = (1 << pres);
+
+	return DIV_ROUND_CLOSEST_ULL(parent_rate, pres);
+}
+
+static u8 clk_master_pres_get_parent(struct clk_hw *hw)
+{
+	struct clk_master *master = to_clk_master(hw);
+	unsigned long flags;
+	unsigned int mckr;
+
+	spin_lock_irqsave(master->lock, flags);
+	regmap_read(master->regmap, master->layout->offset, &mckr);
+	spin_unlock_irqrestore(master->lock, flags);
+
+	mckr &= master->layout->mask;
+
+	return mckr & AT91_PMC_CSS;
+}
+
+static int clk_master_pres_save_context(struct clk_hw *hw)
+{
+	struct clk_master *master = to_clk_master(hw);
+	struct clk_hw *parent_hw = clk_hw_get_parent(hw);
+	unsigned long flags;
+	unsigned int val, pres;
+
+	spin_lock_irqsave(master->lock, flags);
+	regmap_read(master->regmap, master->layout->offset, &val);
+	spin_unlock_irqrestore(master->lock, flags);
+
+	val &= master->layout->mask;
+	pres = (val >> master->layout->pres_shift) & MASTER_PRES_MASK;
+	if (pres == MASTER_PRES_MAX && master->characteristics->have_div3_pres)
+		pres = 3;
+	else
+		pres = (1 << pres);
+
+	master->pms.parent = val & AT91_PMC_CSS;
+	master->pms.parent_rate = clk_hw_get_rate(parent_hw);
+	master->pms.rate = DIV_ROUND_CLOSEST_ULL(master->pms.parent_rate, pres);
+
+	return 0;
+}
+
+static void clk_master_pres_restore_context(struct clk_hw *hw)
+{
+	struct clk_master *master = to_clk_master(hw);
+	unsigned long flags;
+	unsigned int val, pres;
+
+	spin_lock_irqsave(master->lock, flags);
+	regmap_read(master->regmap, master->layout->offset, &val);
+	spin_unlock_irqrestore(master->lock, flags);
+
+	val &= master->layout->mask;
+	pres = (val >> master->layout->pres_shift) & MASTER_PRES_MASK;
+	if (pres == MASTER_PRES_MAX && master->characteristics->have_div3_pres)
+		pres = 3;
+	else
+		pres = (1 << pres);
+
+	if (master->pms.rate !=
+	    DIV_ROUND_CLOSEST_ULL(master->pms.parent_rate, pres) ||
+	    (master->pms.parent != (val & AT91_PMC_CSS)))
+		pr_warn("MCKR PRES was not configured properly by firmware!\n");
+}
+
+static const struct clk_ops master_pres_ops = {
+	.prepare = clk_master_prepare,
+	.is_prepared = clk_master_is_prepared,
+	.recalc_rate = clk_master_pres_recalc_rate,
+	.get_parent = clk_master_pres_get_parent,
+	.save_context = clk_master_pres_save_context,
+	.restore_context = clk_master_pres_restore_context,
+};
+
+static struct clk_hw * __init
+at91_clk_register_master_internal(struct regmap *regmap,
+		const char *name, int num_parents,
+		const char **parent_names,
+		const struct clk_master_layout *layout,
+		const struct clk_master_characteristics *characteristics,
+		const struct clk_ops *ops, spinlock_t *lock, u32 flags)
+{
+	struct clk_master *master;
+	struct clk_init_data init;
+	struct clk_hw *hw;
+	unsigned int mckr;
+	unsigned long irqflags;
+	int ret;
+
+	if (!name || !num_parents || !parent_names || !lock)
+		return ERR_PTR(-EINVAL);
+
+	master = kzalloc(sizeof(*master), GFP_KERNEL);
+	if (!master)
+		return ERR_PTR(-ENOMEM);
+
+	init.name = name;
+	init.ops = ops;
+	init.parent_names = parent_names;
+	init.num_parents = num_parents;
+	init.flags = flags;
+
+	master->hw.init = &init;
+	master->layout = layout;
+	master->characteristics = characteristics;
+	master->regmap = regmap;
+	master->lock = lock;
+
+	if (ops == &master_div_ops_chg) {
+		spin_lock_irqsave(master->lock, irqflags);
+		regmap_read(master->regmap, master->layout->offset, &mckr);
+		spin_unlock_irqrestore(master->lock, irqflags);
+
+		mckr &= layout->mask;
+		mckr = (mckr >> MASTER_DIV_SHIFT) & MASTER_DIV_MASK;
+		master->div = characteristics->divisors[mckr];
+	}
+
+	hw = &master->hw;
+	ret = clk_hw_register(NULL, &master->hw);
+	if (ret) {
+		kfree(master);
+		hw = ERR_PTR(ret);
+	}
+
+	return hw;
+}
+
+struct clk_hw * __init
+at91_clk_register_master_pres(struct regmap *regmap,
+		const char *name, int num_parents,
+		const char **parent_names,
+		const struct clk_master_layout *layout,
+		const struct clk_master_characteristics *characteristics,
+		spinlock_t *lock)
+{
+	return at91_clk_register_master_internal(regmap, name, num_parents,
+						 parent_names, layout,
+						 characteristics,
+						 &master_pres_ops,
+						 lock, CLK_SET_RATE_GATE);
+}
+
+struct clk_hw * __init
+at91_clk_register_master_div(struct regmap *regmap,
+		const char *name, const char *parent_name,
+		const struct clk_master_layout *layout,
+		const struct clk_master_characteristics *characteristics,
+		spinlock_t *lock, u32 flags, u32 safe_div)
+{
+	const struct clk_ops *ops;
+	struct clk_hw *hw;
+
+	if (flags & CLK_SET_RATE_GATE)
+		ops = &master_div_ops;
+	else
+		ops = &master_div_ops_chg;
+
+	hw = at91_clk_register_master_internal(regmap, name, 1,
+					       &parent_name, layout,
+					       characteristics, ops,
+					       lock, flags);
+
+	if (!IS_ERR(hw) && safe_div) {
+		master_div = to_clk_master(hw);
+		master_div->safe_div = safe_div;
+		clk_notifier_register(hw->clk,
+				      &clk_master_div_notifier);
+	}
+
+	return hw;
+}
+
+static unsigned long
+clk_sama7g5_master_recalc_rate(struct clk_hw *hw,
+			       unsigned long parent_rate)
+{
+	struct clk_master *master = to_clk_master(hw);
+
+	return DIV_ROUND_CLOSEST_ULL(parent_rate, (1 << master->div));
 }
 
 static int clk_sama7g5_master_determine_rate(struct clk_hw *hw,
@@ -294,30 +676,40 @@ static int clk_sama7g5_master_set_parent(struct clk_hw *hw, u8 index)
 	return 0;
 }
 
-static int clk_sama7g5_master_enable(struct clk_hw *hw)
+static void clk_sama7g5_master_set(struct clk_master *master,
+				   unsigned int status)
 {
-	struct clk_master *master = to_clk_master(hw);
 	unsigned long flags;
 	unsigned int val, cparent;
+	unsigned int enable = status ? AT91_PMC_MCR_V2_EN : 0;
+	unsigned int parent = master->parent << PMC_MCR_CSS_SHIFT;
+	unsigned int div = master->div << MASTER_DIV_SHIFT;
 
 	spin_lock_irqsave(master->lock, flags);
 
-	regmap_write(master->regmap, PMC_MCR, PMC_MCR_ID(master->id));
-	regmap_read(master->regmap, PMC_MCR, &val);
-	regmap_update_bits(master->regmap, PMC_MCR,
-			   PMC_MCR_EN | PMC_MCR_CSS | PMC_MCR_DIV |
-			   PMC_MCR_CMD | PMC_MCR_ID_MSK,
-			   PMC_MCR_EN | (master->parent << PMC_MCR_CSS_SHIFT) |
-			   (master->div << MASTER_DIV_SHIFT) |
-			   PMC_MCR_CMD | PMC_MCR_ID(master->id));
+	regmap_write(master->regmap, AT91_PMC_MCR_V2,
+		     AT91_PMC_MCR_V2_ID(master->id));
+	regmap_read(master->regmap, AT91_PMC_MCR_V2, &val);
+	regmap_update_bits(master->regmap, AT91_PMC_MCR_V2,
+			   enable | AT91_PMC_MCR_V2_CSS | AT91_PMC_MCR_V2_DIV |
+			   AT91_PMC_MCR_V2_CMD | AT91_PMC_MCR_V2_ID_MSK,
+			   enable | parent | div | AT91_PMC_MCR_V2_CMD |
+			   AT91_PMC_MCR_V2_ID(master->id));
 
-	cparent = (val & PMC_MCR_CSS) >> PMC_MCR_CSS_SHIFT;
+	cparent = (val & AT91_PMC_MCR_V2_CSS) >> PMC_MCR_CSS_SHIFT;
 
 	/* Wait here only if parent is being changed. */
 	while ((cparent != master->parent) && !clk_master_ready(master))
 		cpu_relax();
 
 	spin_unlock_irqrestore(master->lock, flags);
+}
+
+static int clk_sama7g5_master_enable(struct clk_hw *hw)
+{
+	struct clk_master *master = to_clk_master(hw);
+
+	clk_sama7g5_master_set(master, 1);
 
 	return 0;
 }
@@ -329,10 +721,12 @@ static void clk_sama7g5_master_disable(struct clk_hw *hw)
 
 	spin_lock_irqsave(master->lock, flags);
 
-	regmap_write(master->regmap, PMC_MCR, master->id);
-	regmap_update_bits(master->regmap, PMC_MCR,
-			   PMC_MCR_EN | PMC_MCR_CMD | PMC_MCR_ID_MSK,
-			   PMC_MCR_CMD | PMC_MCR_ID(master->id));
+	regmap_write(master->regmap, AT91_PMC_MCR_V2, master->id);
+	regmap_update_bits(master->regmap, AT91_PMC_MCR_V2,
+			   AT91_PMC_MCR_V2_EN | AT91_PMC_MCR_V2_CMD |
+			   AT91_PMC_MCR_V2_ID_MSK,
+			   AT91_PMC_MCR_V2_CMD |
+			   AT91_PMC_MCR_V2_ID(master->id));
 
 	spin_unlock_irqrestore(master->lock, flags);
 }
@@ -345,12 +739,12 @@ static int clk_sama7g5_master_is_enabled(struct clk_hw *hw)
 
 	spin_lock_irqsave(master->lock, flags);
 
-	regmap_write(master->regmap, PMC_MCR, master->id);
-	regmap_read(master->regmap, PMC_MCR, &val);
+	regmap_write(master->regmap, AT91_PMC_MCR_V2, master->id);
+	regmap_read(master->regmap, AT91_PMC_MCR_V2, &val);
 
 	spin_unlock_irqrestore(master->lock, flags);
 
-	return !!(val & PMC_MCR_EN);
+	return !!(val & AT91_PMC_MCR_V2_EN);
 }
 
 static int clk_sama7g5_master_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -365,7 +759,7 @@ static int clk_sama7g5_master_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (div == 3)
 		div = MASTER_PRES_MAX;
-	else
+	else if (div)
 		div = ffs(div) - 1;
 
 	spin_lock_irqsave(master->lock, flags);
@@ -373,6 +767,23 @@ static int clk_sama7g5_master_set_rate(struct clk_hw *hw, unsigned long rate,
 	spin_unlock_irqrestore(master->lock, flags);
 
 	return 0;
+}
+
+static int clk_sama7g5_master_save_context(struct clk_hw *hw)
+{
+	struct clk_master *master = to_clk_master(hw);
+
+	master->pms.status = clk_sama7g5_master_is_enabled(hw);
+
+	return 0;
+}
+
+static void clk_sama7g5_master_restore_context(struct clk_hw *hw)
+{
+	struct clk_master *master = to_clk_master(hw);
+
+	if (master->pms.status)
+		clk_sama7g5_master_set(master, master->pms.status);
 }
 
 static const struct clk_ops sama7g5_master_ops = {
@@ -384,6 +795,8 @@ static const struct clk_ops sama7g5_master_ops = {
 	.set_rate = clk_sama7g5_master_set_rate,
 	.get_parent = clk_sama7g5_master_get_parent,
 	.set_parent = clk_sama7g5_master_set_parent,
+	.save_context = clk_sama7g5_master_save_context,
+	.restore_context = clk_sama7g5_master_restore_context,
 };
 
 struct clk_hw * __init
@@ -427,10 +840,10 @@ at91_clk_sama7g5_register_master(struct regmap *regmap,
 	master->mux_table = mux_table;
 
 	spin_lock_irqsave(master->lock, flags);
-	regmap_write(master->regmap, PMC_MCR, master->id);
-	regmap_read(master->regmap, PMC_MCR, &val);
-	master->parent = (val & PMC_MCR_CSS) >> PMC_MCR_CSS_SHIFT;
-	master->div = (val & PMC_MCR_DIV) >> MASTER_DIV_SHIFT;
+	regmap_write(master->regmap, AT91_PMC_MCR_V2, master->id);
+	regmap_read(master->regmap, AT91_PMC_MCR_V2, &val);
+	master->parent = (val & AT91_PMC_MCR_V2_CSS) >> PMC_MCR_CSS_SHIFT;
+	master->div = (val & AT91_PMC_MCR_V2_DIV) >> MASTER_DIV_SHIFT;
 	spin_unlock_irqrestore(master->lock, flags);
 
 	hw = &master->hw;

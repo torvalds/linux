@@ -104,10 +104,14 @@ static struct cpg_core_clk r8a7795_core_clks[] __initdata = {
 	DEF_FIXED("s3d2",       R8A7795_CLK_S3D2,  CLK_S3,         2, 1),
 	DEF_FIXED("s3d4",       R8A7795_CLK_S3D4,  CLK_S3,         4, 1),
 
-	DEF_GEN3_SD("sd0",      R8A7795_CLK_SD0,   CLK_SDSRC,     0x074),
-	DEF_GEN3_SD("sd1",      R8A7795_CLK_SD1,   CLK_SDSRC,     0x078),
-	DEF_GEN3_SD("sd2",      R8A7795_CLK_SD2,   CLK_SDSRC,     0x268),
-	DEF_GEN3_SD("sd3",      R8A7795_CLK_SD3,   CLK_SDSRC,     0x26c),
+	DEF_GEN3_SDH("sd0h",    R8A7795_CLK_SD0H,  CLK_SDSRC,        0x074),
+	DEF_GEN3_SDH("sd1h",    R8A7795_CLK_SD1H,  CLK_SDSRC,        0x078),
+	DEF_GEN3_SDH("sd2h",    R8A7795_CLK_SD2H,  CLK_SDSRC,        0x268),
+	DEF_GEN3_SDH("sd3h",    R8A7795_CLK_SD3H,  CLK_SDSRC,        0x26c),
+	DEF_GEN3_SD("sd0",      R8A7795_CLK_SD0,   R8A7795_CLK_SD0H, 0x074),
+	DEF_GEN3_SD("sd1",      R8A7795_CLK_SD1,   R8A7795_CLK_SD1H, 0x078),
+	DEF_GEN3_SD("sd2",      R8A7795_CLK_SD2,   R8A7795_CLK_SD2H, 0x268),
+	DEF_GEN3_SD("sd3",      R8A7795_CLK_SD3,   R8A7795_CLK_SD3H, 0x26c),
 
 	DEF_FIXED("cl",         R8A7795_CLK_CL,    CLK_PLL1_DIV2, 48, 1),
 	DEF_FIXED("cr",         R8A7795_CLK_CR,    CLK_PLL1_DIV4,  2, 1),
@@ -128,6 +132,11 @@ static struct mssr_mod_clk r8a7795_mod_clks[] __initdata = {
 	DEF_MOD("fdp1-2",		 117,	R8A7795_CLK_S2D1), /* ES1.x */
 	DEF_MOD("fdp1-1",		 118,	R8A7795_CLK_S0D1),
 	DEF_MOD("fdp1-0",		 119,	R8A7795_CLK_S0D1),
+	DEF_MOD("tmu4",			 121,	R8A7795_CLK_S0D6),
+	DEF_MOD("tmu3",			 122,	R8A7795_CLK_S3D2),
+	DEF_MOD("tmu2",			 123,	R8A7795_CLK_S3D2),
+	DEF_MOD("tmu1",			 124,	R8A7795_CLK_S3D2),
+	DEF_MOD("tmu0",			 125,	R8A7795_CLK_CP),
 	DEF_MOD("scif5",		 202,	R8A7795_CLK_S3D4),
 	DEF_MOD("scif4",		 203,	R8A7795_CLK_S3D4),
 	DEF_MOD("scif3",		 204,	R8A7795_CLK_S3D4),
@@ -224,6 +233,7 @@ static struct mssr_mod_clk r8a7795_mod_clks[] __initdata = {
 	DEF_MOD("lvds",			 727,	R8A7795_CLK_S0D4),
 	DEF_MOD("hdmi1",		 728,	R8A7795_CLK_HDMI),
 	DEF_MOD("hdmi0",		 729,	R8A7795_CLK_HDMI),
+	DEF_MOD("mlp",			 802,	R8A7795_CLK_S2D1),
 	DEF_MOD("vin7",			 804,	R8A7795_CLK_S0D2),
 	DEF_MOD("vin6",			 805,	R8A7795_CLK_S0D2),
 	DEF_MOD("vin5",			 806,	R8A7795_CLK_S0D2),
@@ -362,6 +372,7 @@ static const unsigned int r8a7795es1_mod_nullify[] __initconst = {
 static const struct mssr_mod_reparent r8a7795es1_mod_reparent[] __initconst = {
 	{ MOD_CLK_ID(118), R8A7795_CLK_S2D1 },	/* FDP1-1 */
 	{ MOD_CLK_ID(119), R8A7795_CLK_S2D1 },	/* FDP1-0 */
+	{ MOD_CLK_ID(121), R8A7795_CLK_S3D2 },	/* TMU4 */
 	{ MOD_CLK_ID(217), R8A7795_CLK_S3D1 },	/* SYS-DMAC2 */
 	{ MOD_CLK_ID(218), R8A7795_CLK_S3D1 },	/* SYS-DMAC1 */
 	{ MOD_CLK_ID(219), R8A7795_CLK_S3D1 },	/* SYS-DMAC0 */

@@ -27,7 +27,7 @@ int sun4i_hash_crainit(struct crypto_tfm *tfm)
 	algt = container_of(alg, struct sun4i_ss_alg_template, alg.hash);
 	op->ss = algt->ss;
 
-	err = pm_runtime_get_sync(op->ss->dev);
+	err = pm_runtime_resume_and_get(op->ss->dev);
 	if (err < 0)
 		return err;
 
@@ -191,8 +191,10 @@ static int sun4i_hash(struct ahash_request *areq)
 	u32 spaces, rx_cnt = SS_RX_DEFAULT, bf[32] = {0}, v, ivmode = 0;
 	struct sun4i_req_ctx *op = ahash_request_ctx(areq);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
+	struct ahash_alg *alg = __crypto_ahash_alg(tfm->base.__crt_alg);
 	struct sun4i_tfm_ctx *tfmctx = crypto_ahash_ctx(tfm);
 	struct sun4i_ss_ctx *ss = tfmctx->ss;
+	struct sun4i_ss_alg_template *algt;
 	struct scatterlist *in_sg = areq->src;
 	struct sg_mapping_iter mi;
 	int in_r, err = 0;
@@ -398,6 +400,10 @@ static int sun4i_hash(struct ahash_request *areq)
  */
 
 hash_final:
+	if (IS_ENABLED(CONFIG_CRYPTO_DEV_SUN4I_SS_DEBUG)) {
+		algt = container_of(alg, struct sun4i_ss_alg_template, alg.hash);
+		algt->stat_req++;
+	}
 
 	/* write the remaining words of the wait buffer */
 	if (op->len) {

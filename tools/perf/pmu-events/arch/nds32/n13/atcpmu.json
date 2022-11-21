@@ -286,5 +286,5 @@
     "EventCode": "0x21e",
     "EventName": "pop25_inst",
     "BriefDescription": "V3 POP25 instructions"
-  },
+  }
 ]

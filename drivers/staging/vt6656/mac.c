@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: mac.c
- *
  * Purpose:  MAC routines
  *
  * Author: Tevin Chen
@@ -41,7 +39,7 @@ int vnt_mac_set_bb_type(struct vnt_private *priv, u8 type)
 	u8 data[2];
 
 	data[0] = type;
-	data[1] = EnCFG_BBType_MASK;
+	data[1] = EN_CFG_BB_TYPE_MASK;
 
 	return vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK, MAC_REG_ENCFG0,
 			       MESSAGE_REQUEST_MACREG,	ARRAY_SIZE(data),
@@ -122,8 +120,8 @@ int vnt_mac_enable_protect_mode(struct vnt_private *priv)
 {
 	u8 data[2];
 
-	data[0] = EnCFG_ProtectMd;
-	data[1] = EnCFG_ProtectMd;
+	data[0] = EN_CFG_PROTECT_MD;
+	data[1] = EN_CFG_PROTECT_MD;
 
 	return vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK, MAC_REG_ENCFG0,
 			       MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
@@ -134,7 +132,7 @@ int vnt_mac_disable_protect_mode(struct vnt_private *priv)
 	u8 data[2];
 
 	data[0] = 0;
-	data[1] = EnCFG_ProtectMd;
+	data[1] = EN_CFG_PROTECT_MD;
 
 	return vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK, MAC_REG_ENCFG0,
 			       MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
@@ -144,8 +142,8 @@ int vnt_mac_enable_barker_preamble_mode(struct vnt_private *priv)
 {
 	u8 data[2];
 
-	data[0] = EnCFG_BarkerPream;
-	data[1] = EnCFG_BarkerPream;
+	data[0] = EN_CFG_BARKER_PREAM;
+	data[1] = EN_CFG_BARKER_PREAM;
 
 	return vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK, MAC_REG_ENCFG2,
 			       MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
@@ -156,7 +154,7 @@ int vnt_mac_disable_barker_preamble_mode(struct vnt_private *priv)
 	u8 data[2];
 
 	data[0] = 0;
-	data[1] = EnCFG_BarkerPream;
+	data[1] = EN_CFG_BARKER_PREAM;
 
 	return vnt_control_out(priv, MESSAGE_TYPE_WRITE_MASK, MAC_REG_ENCFG2,
 			       MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);

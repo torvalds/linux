@@ -362,7 +362,7 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 		ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0),
 					SND_SOC_DAIFMT_I2S     |
 					SND_SOC_DAIFMT_NB_NF   |
-					SND_SOC_DAIFMT_CBS_CFS
+					SND_SOC_DAIFMT_CBC_CFC
 			);
 		if (ret < 0) {
 			dev_err(rtd->dev, "can't set format to I2S, err %d\n", ret);
@@ -372,7 +372,7 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 		ret = snd_soc_dai_set_fmt(asoc_rtd_to_codec(rtd, 0),
 					SND_SOC_DAIFMT_I2S     |
 					SND_SOC_DAIFMT_NB_NF   |
-					SND_SOC_DAIFMT_CBS_CFS
+					SND_SOC_DAIFMT_CBC_CFC
 			);
 		if (ret < 0) {
 			dev_err(rtd->dev, "can't set format to I2S, err %d\n", ret);
@@ -396,7 +396,7 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 		ret = snd_soc_dai_set_fmt(asoc_rtd_to_codec(rtd, 0),
 					SND_SOC_DAIFMT_DSP_B |
 					SND_SOC_DAIFMT_IB_NF |
-					SND_SOC_DAIFMT_CBS_CFS);
+					SND_SOC_DAIFMT_CBC_CFC);
 		if (ret < 0) {
 			dev_err(rtd->dev, "can't set format to TDM %d\n", ret);
 			return ret;
@@ -471,7 +471,6 @@ static struct snd_soc_dai_link cht_dailink[] = {
 		.no_pcm = 1,
 		.init = cht_codec_init,
 		.be_hw_params_fixup = cht_codec_fixup,
-		.nonatomic = true,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.ops = &cht_be_ssp2_ops,
@@ -479,21 +478,17 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	},
 };
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 /* use space before codec name to simplify card ID, and simplify driver name */
-#define CARD_RT5645_NAME "bytcht rt5645" /* card name 'sof-bytcht rt5645' */
-#define CARD_RT5650_NAME "bytcht rt5650" /* card name 'sof-bytcht rt5650' */
-#define DRIVER_NAME "SOF"
-#else
+#define SOF_CARD_RT5645_NAME "bytcht rt5645" /* card name 'sof-bytcht rt5645' */
+#define SOF_CARD_RT5650_NAME "bytcht rt5650" /* card name 'sof-bytcht rt5650' */
+#define SOF_DRIVER_NAME "SOF"
+
 #define CARD_RT5645_NAME "chtrt5645"
 #define CARD_RT5650_NAME "chtrt5650"
 #define DRIVER_NAME NULL /* card name will be used for driver name */
-#endif
 
 /* SoC card */
 static struct snd_soc_card snd_soc_card_chtrt5645 = {
-	.name = CARD_RT5645_NAME,
-	.driver_name = DRIVER_NAME,
 	.owner = THIS_MODULE,
 	.dai_link = cht_dailink,
 	.num_links = ARRAY_SIZE(cht_dailink),
@@ -506,8 +501,6 @@ static struct snd_soc_card snd_soc_card_chtrt5645 = {
 };
 
 static struct snd_soc_card snd_soc_card_chtrt5650 = {
-	.name = CARD_RT5650_NAME,
-	.driver_name = DRIVER_NAME,
 	.owner = THIS_MODULE,
 	.dai_link = cht_dailink,
 	.num_links = ARRAY_SIZE(cht_dailink),
@@ -541,6 +534,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	const char *platform_name;
 	struct cht_mc_private *drv;
 	struct acpi_device *adev;
+	bool sof_parent;
 	bool found = false;
 	bool is_bytcr = false;
 	int dai_index = 0;
@@ -659,7 +653,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	    (cht_rt5645_quirk & CHT_RT5645_SSP0_AIF2))
 		cht_dailink[dai_index].cpus->dai_name = "ssp0-port";
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	platform_name = mach->mach_params.platform;
 
 	ret_val = snd_soc_fixup_dai_links_platform_name(card,
@@ -680,6 +674,26 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	}
 
 	snd_soc_card_set_drvdata(card, drv);
+
+	sof_parent = snd_soc_acpi_sof_parent(&pdev->dev);
+
+	/* set card and driver name */
+	if (sof_parent) {
+		snd_soc_card_chtrt5645.name = SOF_CARD_RT5645_NAME;
+		snd_soc_card_chtrt5645.driver_name = SOF_DRIVER_NAME;
+		snd_soc_card_chtrt5650.name = SOF_CARD_RT5650_NAME;
+		snd_soc_card_chtrt5650.driver_name = SOF_DRIVER_NAME;
+	} else {
+		snd_soc_card_chtrt5645.name = CARD_RT5645_NAME;
+		snd_soc_card_chtrt5645.driver_name = DRIVER_NAME;
+		snd_soc_card_chtrt5650.name = CARD_RT5650_NAME;
+		snd_soc_card_chtrt5650.driver_name = DRIVER_NAME;
+	}
+
+	/* set pm ops */
+	if (sof_parent)
+		pdev->dev.driver->pm = &snd_soc_pm_ops;
+
 	ret_val = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret_val) {
 		dev_err(&pdev->dev,
@@ -693,9 +707,6 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 static struct platform_driver snd_cht_mc_driver = {
 	.driver = {
 		.name = "cht-bsw-rt5645",
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-		.pm = &snd_soc_pm_ops,
-#endif
 	},
 	.probe = snd_cht_mc_probe,
 };

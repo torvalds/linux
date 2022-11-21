@@ -34,12 +34,12 @@ int gfs2_replay_read_block(struct gfs2_jdesc *jd, unsigned int blk,
 {
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_glock *gl = ip->i_gl;
-	int new = 0;
 	u64 dblock;
 	u32 extlen;
 	int error;
 
-	error = gfs2_extent_map(&ip->i_inode, blk, &new, &dblock, &extlen);
+	extlen = 32;
+	error = gfs2_get_extent(&ip->i_inode, blk, &dblock, &extlen);
 	if (error)
 		return error;
 	if (!dblock) {
@@ -154,7 +154,7 @@ int __get_log_header(struct gfs2_sbd *sdp, const struct gfs2_log_header *lh,
  * get_log_header - read the log header for a given segment
  * @jd: the journal
  * @blk: the block to look at
- * @lh: the log header to return
+ * @head: the log header to return
  *
  * Read the log header for a given segement in a given journal.  Do a few
  * sanity checks on it.
@@ -187,6 +187,7 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
  * @jd: the journal
  * @start: the first log header in the active region
  * @end: the last log header (don't process the contents of this entry))
+ * @pass: iteration number (foreach_descriptor() is called in a for() loop)
  *
  * Call a given function once for every log descriptor in the active
  * portion of the log.
@@ -437,6 +438,7 @@ void gfs2_recover_func(struct work_struct *work)
 		case GLR_TRYFAILED:
 			fs_info(sdp, "jid=%u: Busy\n", jd->jd_jid);
 			error = 0;
+			goto fail;
 
 		default:
 			goto fail;
@@ -470,9 +472,7 @@ void gfs2_recover_func(struct work_struct *work)
 
 		/* Acquire a shared hold on the freeze lock */
 
-		error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED,
-					   LM_FLAG_NOEXP | LM_FLAG_PRIORITY |
-					   GL_EXACT, &thaw_gh);
+		error = gfs2_freeze_lock(sdp, &thaw_gh, LM_FLAG_PRIORITY);
 		if (error)
 			goto fail_gunlock_ji;
 
@@ -507,22 +507,24 @@ void gfs2_recover_func(struct work_struct *work)
 
 		/* We take the sd_log_flush_lock here primarily to prevent log
 		 * flushes and simultaneous journal replays from stomping on
-		 * each other wrt sd_log_bio. */
+		 * each other wrt jd_log_bio. */
 		down_read(&sdp->sd_log_flush_lock);
 		for (pass = 0; pass < 2; pass++) {
 			lops_before_scan(jd, &head, pass);
 			error = foreach_descriptor(jd, head.lh_tail,
 						   head.lh_blkno, pass);
 			lops_after_scan(jd, error, pass);
-			if (error)
+			if (error) {
+				up_read(&sdp->sd_log_flush_lock);
 				goto fail_gunlock_thaw;
+			}
 		}
 
 		recover_local_statfs(jd, &head);
 		clean_journal(jd, &head);
 		up_read(&sdp->sd_log_flush_lock);
 
-		gfs2_glock_dq_uninit(&thaw_gh);
+		gfs2_freeze_unlock(&thaw_gh);
 		t_rep = ktime_get();
 		fs_info(sdp, "jid=%u: Journal replayed in %lldms [jlck:%lldms, "
 			"jhead:%lldms, tlck:%lldms, replay:%lldms]\n",
@@ -544,7 +546,7 @@ void gfs2_recover_func(struct work_struct *work)
 	goto done;
 
 fail_gunlock_thaw:
-	gfs2_glock_dq_uninit(&thaw_gh);
+	gfs2_freeze_unlock(&thaw_gh);
 fail_gunlock_ji:
 	if (jlocked) {
 		gfs2_glock_dq_uninit(&ji_gh);

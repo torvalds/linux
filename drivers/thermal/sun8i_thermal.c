@@ -8,6 +8,7 @@
  * Based on the work of Josef Gajdusek <atx@atx.name>
  */
 
+#include <linux/bitmap.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -74,7 +75,7 @@ struct ths_thermal_chip {
 	int		(*calibrate)(struct ths_device *tmdev,
 				     u16 *caldata, int callen);
 	int		(*init)(struct ths_device *tmdev);
-	int             (*irq_ack)(struct ths_device *tmdev);
+	unsigned long	(*irq_ack)(struct ths_device *tmdev);
 	int		(*calc_temp)(struct ths_device *tmdev,
 				     int id, int reg);
 };
@@ -146,9 +147,10 @@ static const struct regmap_config config = {
 	.max_register = 0xfc,
 };
 
-static int sun8i_h3_irq_ack(struct ths_device *tmdev)
+static unsigned long sun8i_h3_irq_ack(struct ths_device *tmdev)
 {
-	int i, state, ret = 0;
+	unsigned long irq_bitmap = 0;
+	int i, state;
 
 	regmap_read(tmdev->regmap, SUN8I_THS_IS, &state);
 
@@ -156,16 +158,17 @@ static int sun8i_h3_irq_ack(struct ths_device *tmdev)
 		if (state & SUN8I_THS_DATA_IRQ_STS(i)) {
 			regmap_write(tmdev->regmap, SUN8I_THS_IS,
 				     SUN8I_THS_DATA_IRQ_STS(i));
-			ret |= BIT(i);
+			bitmap_set(&irq_bitmap, i, 1);
 		}
 	}
 
-	return ret;
+	return irq_bitmap;
 }
 
-static int sun50i_h6_irq_ack(struct ths_device *tmdev)
+static unsigned long sun50i_h6_irq_ack(struct ths_device *tmdev)
 {
-	int i, state, ret = 0;
+	unsigned long irq_bitmap = 0;
+	int i, state;
 
 	regmap_read(tmdev->regmap, SUN50I_H6_THS_DIS, &state);
 
@@ -173,24 +176,22 @@ static int sun50i_h6_irq_ack(struct ths_device *tmdev)
 		if (state & SUN50I_H6_THS_DATA_IRQ_STS(i)) {
 			regmap_write(tmdev->regmap, SUN50I_H6_THS_DIS,
 				     SUN50I_H6_THS_DATA_IRQ_STS(i));
-			ret |= BIT(i);
+			bitmap_set(&irq_bitmap, i, 1);
 		}
 	}
 
-	return ret;
+	return irq_bitmap;
 }
 
 static irqreturn_t sun8i_irq_thread(int irq, void *data)
 {
 	struct ths_device *tmdev = data;
-	int i, state;
+	unsigned long irq_bitmap = tmdev->chip->irq_ack(tmdev);
+	int i;
 
-	state = tmdev->chip->irq_ack(tmdev);
-
-	for (i = 0; i < tmdev->chip->sensor_num; i++) {
-		if (state & BIT(i))
-			thermal_zone_device_update(tmdev->sensor[i].tzd,
-						   THERMAL_EVENT_UNSPECIFIED);
+	for_each_set_bit(i, &irq_bitmap, tmdev->chip->sensor_num) {
+		thermal_zone_device_update(tmdev->sensor[i].tzd,
+					   THERMAL_EVENT_UNSPECIFIED);
 	}
 
 	return IRQ_HANDLED;
@@ -299,7 +300,7 @@ static int sun8i_ths_calibrate(struct ths_device *tmdev)
 		 * or 0x8xx, so they won't be away from the default value
 		 * for a lot.
 		 *
-		 * So here we do not return error if the calibartion data is
+		 * So here we do not return error if the calibration data is
 		 * not available, except the probe needs deferring.
 		 */
 		goto out;
@@ -417,7 +418,7 @@ static int sun8i_h3_thermal_init(struct ths_device *tmdev)
 }
 
 /*
- * Without this undocummented value, the returned temperatures would
+ * Without this undocumented value, the returned temperatures would
  * be higher than real ones by about 20C.
  */
 #define SUN50I_H6_CTRL0_UNK 0x0000002f

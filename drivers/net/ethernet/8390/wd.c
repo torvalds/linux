@@ -168,6 +168,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	int checksum = 0;
 	int ancient = 0;			/* An old card without config registers. */
 	int word16 = 0;				/* 0 = 8 bit, 1 = 16 bit */
+	u8 addr[ETH_ALEN];
 	const char *model_name;
 	static unsigned version_printed;
 	struct ei_device *ei_local = netdev_priv(dev);
@@ -191,7 +192,8 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 		netdev_info(dev, version);
 
 	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = inb(ioaddr + 8 + i);
+		addr[i] = inb(ioaddr + 8 + i);
+	eth_hw_addr_set(dev, addr);
 
 	netdev_info(dev, "WD80x3 at %#3x, %pM", ioaddr, dev->dev_addr);
 
@@ -519,7 +521,7 @@ MODULE_LICENSE("GPL");
 /* This is set up so that only a single autoprobe takes place per call.
 ISA device autoprobes on a running machine are not recommended. */
 
-int __init init_module(void)
+static int __init wd_init_module(void)
 {
 	struct net_device *dev;
 	int this_dev, found = 0;
@@ -548,6 +550,7 @@ int __init init_module(void)
 		return 0;
 	return -ENXIO;
 }
+module_init(wd_init_module);
 
 static void cleanup_card(struct net_device *dev)
 {
@@ -556,8 +559,7 @@ static void cleanup_card(struct net_device *dev)
 	iounmap(ei_status.mem);
 }
 
-void __exit
-cleanup_module(void)
+static void __exit wd_cleanup_module(void)
 {
 	int this_dev;
 
@@ -570,4 +572,5 @@ cleanup_module(void)
 		}
 	}
 }
+module_exit(wd_cleanup_module);
 #endif /* MODULE */

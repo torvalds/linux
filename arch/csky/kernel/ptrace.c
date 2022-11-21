@@ -12,7 +12,6 @@
 #include <linux/sched/task_stack.h>
 #include <linux/signal.h>
 #include <linux/smp.h>
-#include <linux/tracehook.h>
 #include <linux/uaccess.h>
 #include <linux/user.h>
 
@@ -22,6 +21,7 @@
 #include <asm/asm-offsets.h>
 
 #include <abi/regdef.h>
+#include <abi/ckmmu.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
@@ -83,7 +83,7 @@ static int gpr_get(struct task_struct *target,
 	/* Abiv1 regs->tls is fake and we need sync here. */
 	regs->tls = task_thread_info(target)->tp_value;
 
-	return membuf_write(&to, regs, sizeof(regs));
+	return membuf_write(&to, regs, sizeof(*regs));
 }
 
 static int gpr_set(struct task_struct *target,
@@ -98,7 +98,8 @@ static int gpr_set(struct task_struct *target,
 	if (ret)
 		return ret;
 
-	regs.sr = task_pt_regs(target)->sr;
+	/* BIT(0) of regs.sr is Condition Code/Carry bit */
+	regs.sr = (regs.sr & BIT(0)) | (task_pt_regs(target)->sr & ~BIT(0));
 #ifdef CONFIG_CPU_HAS_HILO
 	regs.dcsr = task_pt_regs(target)->dcsr;
 #endif
@@ -319,7 +320,7 @@ long arch_ptrace(struct task_struct *child, long request,
 asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		if (tracehook_report_syscall_entry(regs))
+		if (ptrace_report_syscall_entry(regs))
 			return -1;
 
 	if (secure_computing() == -1)
@@ -337,11 +338,129 @@ asmlinkage void syscall_trace_exit(struct pt_regs *regs)
 	audit_syscall_exit(regs);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, 0);
+		ptrace_report_syscall_exit(regs, 0);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
 		trace_sys_exit(regs, syscall_get_return_value(current, regs));
 }
+
+#ifdef CONFIG_CPU_CK860
+static void show_iutlb(void)
+{
+	int entry, i;
+	unsigned long flags;
+	unsigned long oldpid;
+	unsigned long entryhi[16], entrylo0[16], entrylo1[16];
+
+	oldpid = read_mmu_entryhi();
+
+	entry = 0x8000;
+
+	local_irq_save(flags);
+
+	for (i = 0; i < 16; i++) {
+		write_mmu_index(entry);
+		tlb_read();
+		entryhi[i]  = read_mmu_entryhi();
+		entrylo0[i] = read_mmu_entrylo0();
+		entrylo1[i] = read_mmu_entrylo1();
+
+		entry++;
+	}
+
+	local_irq_restore(flags);
+
+	write_mmu_entryhi(oldpid);
+
+	printk("\n\n\n");
+	for (i = 0; i < 16; i++)
+		printk("iutlb[%d]:	entryhi - 0x%lx;	entrylo0 - 0x%lx;"
+		       "	entrylo1 - 0x%lx\n",
+			 i, entryhi[i], entrylo0[i], entrylo1[i]);
+	printk("\n\n\n");
+}
+
+static void show_dutlb(void)
+{
+	int entry, i;
+	unsigned long flags;
+	unsigned long oldpid;
+	unsigned long entryhi[16], entrylo0[16], entrylo1[16];
+
+	oldpid = read_mmu_entryhi();
+
+	entry = 0x4000;
+
+	local_irq_save(flags);
+
+	for (i = 0; i < 16; i++) {
+		write_mmu_index(entry);
+		tlb_read();
+		entryhi[i]  = read_mmu_entryhi();
+		entrylo0[i] = read_mmu_entrylo0();
+		entrylo1[i] = read_mmu_entrylo1();
+
+		entry++;
+	}
+
+	local_irq_restore(flags);
+
+	write_mmu_entryhi(oldpid);
+
+	printk("\n\n\n");
+	for (i = 0; i < 16; i++)
+		printk("dutlb[%d]:	entryhi - 0x%lx;	entrylo0 - 0x%lx;"
+		       "	entrylo1 - 0x%lx\n",
+			 i, entryhi[i], entrylo0[i], entrylo1[i]);
+	printk("\n\n\n");
+}
+
+static unsigned long entryhi[1024], entrylo0[1024], entrylo1[1024];
+static void show_jtlb(void)
+{
+	int entry;
+	unsigned long flags;
+	unsigned long oldpid;
+
+	oldpid = read_mmu_entryhi();
+
+	entry = 0;
+
+	local_irq_save(flags);
+	while (entry < 1024) {
+		write_mmu_index(entry);
+		tlb_read();
+		entryhi[entry]  = read_mmu_entryhi();
+		entrylo0[entry] = read_mmu_entrylo0();
+		entrylo1[entry] = read_mmu_entrylo1();
+
+		entry++;
+	}
+	local_irq_restore(flags);
+
+	write_mmu_entryhi(oldpid);
+
+	printk("\n\n\n");
+
+	for (entry = 0; entry < 1024; entry++)
+		printk("jtlb[%x]:	entryhi - 0x%lx;	entrylo0 - 0x%lx;"
+		       "	entrylo1 - 0x%lx\n",
+			 entry, entryhi[entry], entrylo0[entry], entrylo1[entry]);
+	printk("\n\n\n");
+}
+
+static void show_tlb(void)
+{
+	show_iutlb();
+	show_dutlb();
+	show_jtlb();
+}
+#else
+static void show_tlb(void)
+{
+	return;
+}
+#endif
 
 void show_regs(struct pt_regs *fp)
 {
@@ -363,9 +482,10 @@ void show_regs(struct pt_regs *fp)
 
 	pr_info("PC: 0x%08lx (%pS)\n", (long)fp->pc, (void *)fp->pc);
 	pr_info("LR: 0x%08lx (%pS)\n", (long)fp->lr, (void *)fp->lr);
-	pr_info("SP: 0x%08lx\n", (long)fp);
-	pr_info("orig_a0: 0x%08lx\n", fp->orig_a0);
+	pr_info("SP: 0x%08lx\n", (long)fp->usp);
 	pr_info("PSR: 0x%08lx\n", (long)fp->sr);
+	pr_info("orig_a0: 0x%08lx\n", fp->orig_a0);
+	pr_info("PT_REGS: 0x%08lx\n", (long)fp);
 
 	pr_info(" a0: 0x%08lx   a1: 0x%08lx   a2: 0x%08lx   a3: 0x%08lx\n",
 		fp->a0, fp->a1, fp->a2, fp->a3);
@@ -394,6 +514,8 @@ void show_regs(struct pt_regs *fp)
 	pr_info("r14: 0x%08lx   r1: 0x%08lx\n",
 		fp->regs[8], fp->regs[9]);
 #endif
+
+	show_tlb();
 
 	return;
 }

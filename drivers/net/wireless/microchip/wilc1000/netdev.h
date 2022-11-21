@@ -197,6 +197,14 @@ struct wilc_vif {
 	struct cfg80211_bss *bss;
 };
 
+struct wilc_tx_queue_status {
+	u8 buffer[AC_BUFFER_SIZE];
+	u16 end_index;
+	u16 cnt[NQUEUES];
+	u16 sum;
+	bool initialized;
+};
+
 struct wilc {
 	struct wiphy *wiphy;
 	const struct wilc_hif_func *hif_func;
@@ -204,6 +212,8 @@ struct wilc {
 	s8 mac_status;
 	struct clk *rtc_clk;
 	bool initialized;
+	u32 chipid;
+	bool power_save_mode;
 	int dev_irq_num;
 	int close;
 	u8 vif_num;
@@ -245,9 +255,10 @@ struct wilc {
 	u32 rx_buffer_offset;
 	u8 *tx_buffer;
 
-	struct txq_entry_t txq_head;
+	struct txq_handle txq[NQUEUES];
 	int txq_entries;
 
+	struct wilc_tx_queue_status tx_q_limit;
 	struct rxq_entry_t rxq_head;
 
 	const struct firmware *firmware;
@@ -255,9 +266,7 @@ struct wilc {
 	struct device *dev;
 	bool suspend_event;
 
-	int clients_count;
 	struct workqueue_struct *hif_workqueue;
-	enum chip_ps_states chip_ps_state;
 	struct wilc_cfg cfg;
 	void *bus_data;
 	struct net_device *monitor_dev;
@@ -280,7 +289,8 @@ void wilc_frmw_to_host(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
 void wilc_mac_indicate(struct wilc *wilc);
 void wilc_netdev_cleanup(struct wilc *wilc);
 void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
-void wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode);
+void wilc_wlan_set_bssid(struct net_device *wilc_netdev, const u8 *bssid,
+			 u8 mode);
 struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 				      int vif_type, enum nl80211_iftype type,
 				      bool rtnl_locked);

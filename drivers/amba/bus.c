@@ -19,8 +19,7 @@
 #include <linux/clk/clk-conf.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
-
-#include <asm/irq.h>
+#include <linux/of_irq.h>
 
 #define to_amba_driver(d)	container_of(d, struct amba_driver, drv)
 
@@ -56,30 +55,27 @@ amba_lookup(const struct amba_id *table, struct amba_device *dev)
 	return NULL;
 }
 
-static int amba_match(struct device *dev, struct device_driver *drv)
+static int amba_get_enable_pclk(struct amba_device *pcdev)
 {
-	struct amba_device *pcdev = to_amba_device(dev);
-	struct amba_driver *pcdrv = to_amba_driver(drv);
+	int ret;
 
-	/* When driver_override is set, only bind to the matching driver */
-	if (pcdev->driver_override)
-		return !strcmp(pcdev->driver_override, drv->name);
+	pcdev->pclk = clk_get(&pcdev->dev, "apb_pclk");
+	if (IS_ERR(pcdev->pclk))
+		return PTR_ERR(pcdev->pclk);
 
-	return amba_lookup(pcdrv->id_table, pcdev) != NULL;
+	ret = clk_prepare_enable(pcdev->pclk);
+	if (ret)
+		clk_put(pcdev->pclk);
+
+	return ret;
 }
 
-static int amba_uevent(struct device *dev, struct kobj_uevent_env *env)
+static void amba_put_disable_pclk(struct amba_device *pcdev)
 {
-	struct amba_device *pcdev = to_amba_device(dev);
-	int retval = 0;
-
-	retval = add_uevent_var(env, "AMBA_ID=%08x", pcdev->periphid);
-	if (retval)
-		return retval;
-
-	retval = add_uevent_var(env, "MODALIAS=amba:d%08X", pcdev->periphid);
-	return retval;
+	clk_disable_unprepare(pcdev->pclk);
+	clk_put(pcdev->pclk);
 }
+
 
 static ssize_t driver_override_show(struct device *_dev,
 				    struct device_attribute *attr, char *buf)
@@ -138,8 +134,6 @@ static ssize_t name##_show(struct device *_dev,				\
 static DEVICE_ATTR_RO(name)
 
 amba_attr_func(id, "%08x\n", dev->periphid);
-amba_attr_func(irq0, "%u\n", dev->irq[0]);
-amba_attr_func(irq1, "%u\n", dev->irq[1]);
 amba_attr_func(resource, "\t%016llx\t%016llx\t%016lx\n",
 	 (unsigned long long)dev->res.start, (unsigned long long)dev->res.end,
 	 dev->res.flags);
@@ -151,6 +145,133 @@ static struct attribute *amba_dev_attrs[] = {
 	NULL,
 };
 ATTRIBUTE_GROUPS(amba_dev);
+
+static int amba_match(struct device *dev, struct device_driver *drv)
+{
+	struct amba_device *pcdev = to_amba_device(dev);
+	struct amba_driver *pcdrv = to_amba_driver(drv);
+
+	/* When driver_override is set, only bind to the matching driver */
+	if (pcdev->driver_override)
+		return !strcmp(pcdev->driver_override, drv->name);
+
+	return amba_lookup(pcdrv->id_table, pcdev) != NULL;
+}
+
+static int amba_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct amba_device *pcdev = to_amba_device(dev);
+	int retval = 0;
+
+	retval = add_uevent_var(env, "AMBA_ID=%08x", pcdev->periphid);
+	if (retval)
+		return retval;
+
+	retval = add_uevent_var(env, "MODALIAS=amba:d%08X", pcdev->periphid);
+	return retval;
+}
+
+static int of_amba_device_decode_irq(struct amba_device *dev)
+{
+	struct device_node *node = dev->dev.of_node;
+	int i, irq = 0;
+
+	if (IS_ENABLED(CONFIG_OF_IRQ) && node) {
+		/* Decode the IRQs and address ranges */
+		for (i = 0; i < AMBA_NR_IRQS; i++) {
+			irq = of_irq_get(node, i);
+			if (irq < 0) {
+				if (irq == -EPROBE_DEFER)
+					return irq;
+				irq = 0;
+			}
+
+			dev->irq[i] = irq;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * These are the device model conversion veneers; they convert the
+ * device model structures to our more specific structures.
+ */
+static int amba_probe(struct device *dev)
+{
+	struct amba_device *pcdev = to_amba_device(dev);
+	struct amba_driver *pcdrv = to_amba_driver(dev->driver);
+	const struct amba_id *id = amba_lookup(pcdrv->id_table, pcdev);
+	int ret;
+
+	do {
+		ret = of_amba_device_decode_irq(pcdev);
+		if (ret)
+			break;
+
+		ret = of_clk_set_defaults(dev->of_node, false);
+		if (ret < 0)
+			break;
+
+		ret = dev_pm_domain_attach(dev, true);
+		if (ret)
+			break;
+
+		ret = amba_get_enable_pclk(pcdev);
+		if (ret) {
+			dev_pm_domain_detach(dev, true);
+			break;
+		}
+
+		pm_runtime_get_noresume(dev);
+		pm_runtime_set_active(dev);
+		pm_runtime_enable(dev);
+
+		ret = pcdrv->probe(pcdev, id);
+		if (ret == 0)
+			break;
+
+		pm_runtime_disable(dev);
+		pm_runtime_set_suspended(dev);
+		pm_runtime_put_noidle(dev);
+
+		amba_put_disable_pclk(pcdev);
+		dev_pm_domain_detach(dev, true);
+	} while (0);
+
+	return ret;
+}
+
+static void amba_remove(struct device *dev)
+{
+	struct amba_device *pcdev = to_amba_device(dev);
+	struct amba_driver *drv = to_amba_driver(dev->driver);
+
+	pm_runtime_get_sync(dev);
+	if (drv->remove)
+		drv->remove(pcdev);
+	pm_runtime_put_noidle(dev);
+
+	/* Undo the runtime PM settings in amba_probe() */
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
+	pm_runtime_put_noidle(dev);
+
+	amba_put_disable_pclk(pcdev);
+	dev_pm_domain_detach(dev, true);
+}
+
+static void amba_shutdown(struct device *dev)
+{
+	struct amba_driver *drv;
+
+	if (!dev->driver)
+		return;
+
+	drv = to_amba_driver(dev->driver);
+	if (drv->shutdown)
+		drv->shutdown(to_amba_device(dev));
+}
 
 #ifdef CONFIG_PM
 /*
@@ -217,6 +338,9 @@ struct bus_type amba_bustype = {
 	.dev_groups	= amba_dev_groups,
 	.match		= amba_match,
 	.uevent		= amba_uevent,
+	.probe		= amba_probe,
+	.remove		= amba_remove,
+	.shutdown	= amba_shutdown,
 	.dma_configure	= platform_dma_configure,
 	.pm		= &amba_pm,
 };
@@ -229,99 +353,6 @@ static int __init amba_init(void)
 
 postcore_initcall(amba_init);
 
-static int amba_get_enable_pclk(struct amba_device *pcdev)
-{
-	int ret;
-
-	pcdev->pclk = clk_get(&pcdev->dev, "apb_pclk");
-	if (IS_ERR(pcdev->pclk))
-		return PTR_ERR(pcdev->pclk);
-
-	ret = clk_prepare_enable(pcdev->pclk);
-	if (ret)
-		clk_put(pcdev->pclk);
-
-	return ret;
-}
-
-static void amba_put_disable_pclk(struct amba_device *pcdev)
-{
-	clk_disable_unprepare(pcdev->pclk);
-	clk_put(pcdev->pclk);
-}
-
-/*
- * These are the device model conversion veneers; they convert the
- * device model structures to our more specific structures.
- */
-static int amba_probe(struct device *dev)
-{
-	struct amba_device *pcdev = to_amba_device(dev);
-	struct amba_driver *pcdrv = to_amba_driver(dev->driver);
-	const struct amba_id *id = amba_lookup(pcdrv->id_table, pcdev);
-	int ret;
-
-	do {
-		ret = of_clk_set_defaults(dev->of_node, false);
-		if (ret < 0)
-			break;
-
-		ret = dev_pm_domain_attach(dev, true);
-		if (ret)
-			break;
-
-		ret = amba_get_enable_pclk(pcdev);
-		if (ret) {
-			dev_pm_domain_detach(dev, true);
-			break;
-		}
-
-		pm_runtime_get_noresume(dev);
-		pm_runtime_set_active(dev);
-		pm_runtime_enable(dev);
-
-		ret = pcdrv->probe(pcdev, id);
-		if (ret == 0)
-			break;
-
-		pm_runtime_disable(dev);
-		pm_runtime_set_suspended(dev);
-		pm_runtime_put_noidle(dev);
-
-		amba_put_disable_pclk(pcdev);
-		dev_pm_domain_detach(dev, true);
-	} while (0);
-
-	return ret;
-}
-
-static int amba_remove(struct device *dev)
-{
-	struct amba_device *pcdev = to_amba_device(dev);
-	struct amba_driver *drv = to_amba_driver(dev->driver);
-	int ret;
-
-	pm_runtime_get_sync(dev);
-	ret = drv->remove(pcdev);
-	pm_runtime_put_noidle(dev);
-
-	/* Undo the runtime PM settings in amba_probe() */
-	pm_runtime_disable(dev);
-	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
-
-	amba_put_disable_pclk(pcdev);
-	dev_pm_domain_detach(dev, true);
-
-	return ret;
-}
-
-static void amba_shutdown(struct device *dev)
-{
-	struct amba_driver *drv = to_amba_driver(dev->driver);
-	drv->shutdown(to_amba_device(dev));
-}
-
 /**
  *	amba_driver_register - register an AMBA device driver
  *	@drv: amba device driver structure
@@ -332,15 +363,14 @@ static void amba_shutdown(struct device *dev)
  */
 int amba_driver_register(struct amba_driver *drv)
 {
-	drv->drv.bus = &amba_bustype;
+	if (!drv->probe)
+		return -EINVAL;
 
-#define SETFN(fn)	if (drv->fn) drv->drv.fn = amba_##fn
-	SETFN(probe);
-	SETFN(remove);
-	SETFN(shutdown);
+	drv->drv.bus = &amba_bustype;
 
 	return driver_register(&drv->drv);
 }
+EXPORT_SYMBOL(amba_driver_register);
 
 /**
  *	amba_driver_unregister - remove an AMBA device driver
@@ -354,7 +384,7 @@ void amba_driver_unregister(struct amba_driver *drv)
 {
 	driver_unregister(&drv->drv);
 }
-
+EXPORT_SYMBOL(amba_driver_unregister);
 
 static void amba_device_release(struct device *dev)
 {
@@ -370,9 +400,6 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 	u32 size;
 	void __iomem *tmp;
 	int i, ret;
-
-	WARN_ON(dev->irq[0] == (unsigned int)-1);
-	WARN_ON(dev->irq[1] == (unsigned int)-1);
 
 	ret = request_resource(parent, &dev->res);
 	if (ret)
@@ -458,20 +485,9 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 
  skip_probe:
 	ret = device_add(&dev->dev);
-	if (ret)
-		goto err_release;
-
-	if (dev->irq[0])
-		ret = device_create_file(&dev->dev, &dev_attr_irq0);
-	if (ret == 0 && dev->irq[1])
-		ret = device_create_file(&dev->dev, &dev_attr_irq1);
-	if (ret == 0)
-		return ret;
-
-	device_unregister(&dev->dev);
-
  err_release:
-	release_resource(&dev->res);
+	if (ret)
+		release_resource(&dev->res);
  err_out:
 	return ret;
 
@@ -573,78 +589,6 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 }
 EXPORT_SYMBOL_GPL(amba_device_add);
 
-static struct amba_device *
-amba_aphb_device_add(struct device *parent, const char *name,
-		     resource_size_t base, size_t size, int irq1, int irq2,
-		     void *pdata, unsigned int periphid, u64 dma_mask,
-		     struct resource *resbase)
-{
-	struct amba_device *dev;
-	int ret;
-
-	dev = amba_device_alloc(name, base, size);
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	dev->dev.coherent_dma_mask = dma_mask;
-	dev->irq[0] = irq1;
-	dev->irq[1] = irq2;
-	dev->periphid = periphid;
-	dev->dev.platform_data = pdata;
-	dev->dev.parent = parent;
-
-	ret = amba_device_add(dev, resbase);
-	if (ret) {
-		amba_device_put(dev);
-		return ERR_PTR(ret);
-	}
-
-	return dev;
-}
-
-struct amba_device *
-amba_apb_device_add(struct device *parent, const char *name,
-		    resource_size_t base, size_t size, int irq1, int irq2,
-		    void *pdata, unsigned int periphid)
-{
-	return amba_aphb_device_add(parent, name, base, size, irq1, irq2, pdata,
-				    periphid, 0, &iomem_resource);
-}
-EXPORT_SYMBOL_GPL(amba_apb_device_add);
-
-struct amba_device *
-amba_ahb_device_add(struct device *parent, const char *name,
-		    resource_size_t base, size_t size, int irq1, int irq2,
-		    void *pdata, unsigned int periphid)
-{
-	return amba_aphb_device_add(parent, name, base, size, irq1, irq2, pdata,
-				    periphid, ~0ULL, &iomem_resource);
-}
-EXPORT_SYMBOL_GPL(amba_ahb_device_add);
-
-struct amba_device *
-amba_apb_device_add_res(struct device *parent, const char *name,
-			resource_size_t base, size_t size, int irq1,
-			int irq2, void *pdata, unsigned int periphid,
-			struct resource *resbase)
-{
-	return amba_aphb_device_add(parent, name, base, size, irq1, irq2, pdata,
-				    periphid, 0, resbase);
-}
-EXPORT_SYMBOL_GPL(amba_apb_device_add_res);
-
-struct amba_device *
-amba_ahb_device_add_res(struct device *parent, const char *name,
-			resource_size_t base, size_t size, int irq1,
-			int irq2, void *pdata, unsigned int periphid,
-			struct resource *resbase)
-{
-	return amba_aphb_device_add(parent, name, base, size, irq1, irq2, pdata,
-				    periphid, ~0ULL, resbase);
-}
-EXPORT_SYMBOL_GPL(amba_ahb_device_add_res);
-
-
 static void amba_device_initialize(struct amba_device *dev, const char *name)
 {
 	device_initialize(&dev->dev);
@@ -699,6 +643,7 @@ int amba_device_register(struct amba_device *dev, struct resource *parent)
 
 	return amba_device_add(dev, parent);
 }
+EXPORT_SYMBOL(amba_device_register);
 
 /**
  *	amba_device_put - put an AMBA device
@@ -725,66 +670,7 @@ void amba_device_unregister(struct amba_device *dev)
 {
 	device_unregister(&dev->dev);
 }
-
-
-struct find_data {
-	struct amba_device *dev;
-	struct device *parent;
-	const char *busid;
-	unsigned int id;
-	unsigned int mask;
-};
-
-static int amba_find_match(struct device *dev, void *data)
-{
-	struct find_data *d = data;
-	struct amba_device *pcdev = to_amba_device(dev);
-	int r;
-
-	r = (pcdev->periphid & d->mask) == d->id;
-	if (d->parent)
-		r &= d->parent == dev->parent;
-	if (d->busid)
-		r &= strcmp(dev_name(dev), d->busid) == 0;
-
-	if (r) {
-		get_device(dev);
-		d->dev = pcdev;
-	}
-
-	return r;
-}
-
-/**
- *	amba_find_device - locate an AMBA device given a bus id
- *	@busid: bus id for device (or NULL)
- *	@parent: parent device (or NULL)
- *	@id: peripheral ID (or 0)
- *	@mask: peripheral ID mask (or 0)
- *
- *	Return the AMBA device corresponding to the supplied parameters.
- *	If no device matches, returns NULL.
- *
- *	NOTE: When a valid device is found, its refcount is
- *	incremented, and must be decremented before the returned
- *	reference.
- */
-struct amba_device *
-amba_find_device(const char *busid, struct device *parent, unsigned int id,
-		 unsigned int mask)
-{
-	struct find_data data;
-
-	data.dev = NULL;
-	data.parent = parent;
-	data.busid = busid;
-	data.id = id;
-	data.mask = mask;
-
-	bus_for_each_dev(&amba_bustype, NULL, &data, amba_find_match);
-
-	return data.dev;
-}
+EXPORT_SYMBOL(amba_device_unregister);
 
 /**
  *	amba_request_regions - request all mem regions associated with device
@@ -806,6 +692,7 @@ int amba_request_regions(struct amba_device *dev, const char *name)
 
 	return ret;
 }
+EXPORT_SYMBOL(amba_request_regions);
 
 /**
  *	amba_release_regions - release mem regions associated with device
@@ -820,11 +707,4 @@ void amba_release_regions(struct amba_device *dev)
 	size = resource_size(&dev->res);
 	release_mem_region(dev->res.start, size);
 }
-
-EXPORT_SYMBOL(amba_driver_register);
-EXPORT_SYMBOL(amba_driver_unregister);
-EXPORT_SYMBOL(amba_device_register);
-EXPORT_SYMBOL(amba_device_unregister);
-EXPORT_SYMBOL(amba_find_device);
-EXPORT_SYMBOL(amba_request_regions);
 EXPORT_SYMBOL(amba_release_regions);

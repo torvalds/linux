@@ -351,7 +351,7 @@ static bool sctp_error(struct sk_buff *skb,
 	}
 	return false;
 out_invalid:
-	nf_l4proto_log_invalid(skb, state->net, state->pf, IPPROTO_SCTP, "%s", logmsg);
+	nf_l4proto_log_invalid(skb, state, IPPROTO_SCTP, "%s", logmsg);
 	return true;
 }
 
@@ -489,6 +489,15 @@ int nf_conntrack_sctp_packet(struct nf_conn *ct,
 			pr_debug("Setting vtag %x for dir %d\n",
 				 ih->init_tag, !dir);
 			ct->proto.sctp.vtag[!dir] = ih->init_tag;
+
+			/* don't renew timeout on init retransmit so
+			 * port reuse by client or NAT middlebox cannot
+			 * keep entry alive indefinitely (incl. nat info).
+			 */
+			if (new_state == SCTP_CONNTRACK_CLOSED &&
+			    old_state == SCTP_CONNTRACK_CLOSED &&
+			    nf_ct_is_confirmed(ct))
+				ignore = true;
 		}
 
 		ct->proto.sctp.state = new_state;
@@ -543,7 +552,7 @@ static bool sctp_can_early_drop(const struct nf_conn *ct)
 #include <linux/netfilter/nfnetlink_conntrack.h>
 
 static int sctp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
-			  struct nf_conn *ct)
+			  struct nf_conn *ct, bool destroy)
 {
 	struct nlattr *nest_parms;
 
@@ -552,15 +561,20 @@ static int sctp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
 	if (!nest_parms)
 		goto nla_put_failure;
 
-	if (nla_put_u8(skb, CTA_PROTOINFO_SCTP_STATE, ct->proto.sctp.state) ||
-	    nla_put_be32(skb, CTA_PROTOINFO_SCTP_VTAG_ORIGINAL,
+	if (nla_put_u8(skb, CTA_PROTOINFO_SCTP_STATE, ct->proto.sctp.state))
+		goto nla_put_failure;
+
+	if (destroy)
+		goto skip_state;
+
+	if (nla_put_be32(skb, CTA_PROTOINFO_SCTP_VTAG_ORIGINAL,
 			 ct->proto.sctp.vtag[IP_CT_DIR_ORIGINAL]) ||
 	    nla_put_be32(skb, CTA_PROTOINFO_SCTP_VTAG_REPLY,
 			 ct->proto.sctp.vtag[IP_CT_DIR_REPLY]))
 		goto nla_put_failure;
 
+skip_state:
 	spin_unlock_bh(&ct->lock);
-
 	nla_nest_end(skb, nest_parms);
 
 	return 0;

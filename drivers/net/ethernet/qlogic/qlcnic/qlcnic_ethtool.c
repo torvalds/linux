@@ -632,7 +632,9 @@ qlcnic_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 
 static void
 qlcnic_get_ringparam(struct net_device *dev,
-		struct ethtool_ringparam *ring)
+		     struct ethtool_ringparam *ring,
+		     struct kernel_ethtool_ringparam *kernel_ring,
+		     struct netlink_ext_ack *extack)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 
@@ -663,7 +665,9 @@ qlcnic_validate_ringparam(u32 val, u32 min, u32 max, char *r_name)
 
 static int
 qlcnic_set_ringparam(struct net_device *dev,
-		struct ethtool_ringparam *ring)
+		     struct ethtool_ringparam *ring,
+		     struct kernel_ethtool_ringparam *kernel_ring,
+		     struct netlink_ext_ack *extack)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	u16 num_rxd, num_jumbo_rxd, num_txd;
@@ -1021,7 +1025,7 @@ clear_diag_irq:
 
 static void qlcnic_create_loopback_buff(unsigned char *data, u8 mac[])
 {
-	unsigned char random_data[] = {0xa8, 0x06, 0x45, 0x00};
+	static const unsigned char random_data[] = {0xa8, 0x06, 0x45, 0x00};
 
 	memset(data, 0x4e, QLCNIC_ILB_PKT_SIZE);
 
@@ -1048,7 +1052,7 @@ int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 	for (i = 0; i < QLCNIC_NUM_ILB_PKT; i++) {
 		skb = netdev_alloc_skb(adapter->netdev, QLCNIC_ILB_PKT_SIZE);
 		if (!skb)
-			break;
+			goto error;
 		qlcnic_create_loopback_buff(skb->data, adapter->mac_addr);
 		skb_put(skb, QLCNIC_ILB_PKT_SIZE);
 		adapter->ahw->diag_cnt = 0;
@@ -1072,6 +1076,7 @@ int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 			cnt++;
 	}
 	if (cnt != i) {
+error:
 		dev_err(&adapter->pdev->dev,
 			"LB Test: failed, TX[%d], RX[%d]\n", i, cnt);
 		if (mode != QLCNIC_ILB_MODE)
@@ -1350,7 +1355,7 @@ static void qlcnic_get_ethtool_stats(struct net_device *dev,
 
 	memset(data, 0, stats->n_stats * sizeof(u64));
 
-	for (ring = 0, index = 0; ring < adapter->drv_tx_rings; ring++) {
+	for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 		if (adapter->is_up == QLCNIC_ADAPTER_UP_MAGIC) {
 			tx_ring = &adapter->tx_ring[ring];
 			data = qlcnic_fill_tx_queue_stats(data, tx_ring);
@@ -1526,7 +1531,9 @@ qlcnic_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
  * firmware coalescing to default.
  */
 static int qlcnic_set_intr_coalesce(struct net_device *netdev,
-			struct ethtool_coalesce *ethcoal)
+				    struct ethtool_coalesce *ethcoal,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int err;
@@ -1550,7 +1557,9 @@ static int qlcnic_set_intr_coalesce(struct net_device *netdev,
 }
 
 static int qlcnic_get_intr_coalesce(struct net_device *netdev,
-			struct ethtool_coalesce *ethcoal)
+				    struct ethtool_coalesce *ethcoal,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 

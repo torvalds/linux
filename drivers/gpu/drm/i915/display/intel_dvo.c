@@ -33,6 +33,7 @@
 
 #include "i915_drv.h"
 #include "intel_connector.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dvo.h"
 #include "intel_dvo_dev.h"
@@ -222,9 +223,10 @@ static enum drm_mode_status
 intel_dvo_mode_valid(struct drm_connector *connector,
 		     struct drm_display_mode *mode)
 {
-	struct intel_dvo *intel_dvo = intel_attached_dvo(to_intel_connector(connector));
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct intel_dvo *intel_dvo = intel_attached_dvo(intel_connector);
 	const struct drm_display_mode *fixed_mode =
-		to_intel_connector(connector)->panel.fixed_mode;
+		intel_connector->panel.fixed_mode;
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
 	int target_clock = mode->clock;
 
@@ -234,10 +236,11 @@ intel_dvo_mode_valid(struct drm_connector *connector,
 	/* XXX: Validate clock range */
 
 	if (fixed_mode) {
-		if (mode->hdisplay > fixed_mode->hdisplay)
-			return MODE_PANEL;
-		if (mode->vdisplay > fixed_mode->vdisplay)
-			return MODE_PANEL;
+		enum drm_mode_status status;
+
+		status = intel_panel_mode_valid(intel_connector, mode);
+		if (status != MODE_OK)
+			return status;
 
 		target_clock = fixed_mode->clock;
 	}
@@ -253,6 +256,7 @@ static int intel_dvo_compute_config(struct intel_encoder *encoder,
 				    struct drm_connector_state *conn_state)
 {
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	const struct drm_display_mode *fixed_mode =
 		intel_dvo->attached_connector->panel.fixed_mode;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
@@ -263,8 +267,13 @@ static int intel_dvo_compute_config(struct intel_encoder *encoder,
 	 * with the panel scaling set up to source from the H/VDisplay
 	 * of the original mode.
 	 */
-	if (fixed_mode)
-		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
+	if (fixed_mode) {
+		int ret;
+
+		ret = intel_panel_compute_config(connector, adjusted_mode);
+		if (ret)
+			return ret;
+	}
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
@@ -301,12 +310,8 @@ static void intel_dvo_pre_enable(struct intel_atomic_state *state,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		dvo_val |= DVO_VSYNC_ACTIVE_HIGH;
 
-	/*I915_WRITE(DVOB_SRCDIM,
-	  (adjusted_mode->crtc_hdisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
-	  (adjusted_mode->crtc_vdisplay << DVO_SRCDIM_VERTICAL_SHIFT));*/
 	intel_de_write(dev_priv, dvo_srcdim_reg,
 		       (adjusted_mode->crtc_hdisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) | (adjusted_mode->crtc_vdisplay << DVO_SRCDIM_VERTICAL_SHIFT));
-	/*I915_WRITE(DVOB, dvo_val);*/
 	intel_de_write(dev_priv, dvo_reg, dvo_val);
 }
 

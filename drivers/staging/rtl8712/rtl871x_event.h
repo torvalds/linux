@@ -102,6 +102,7 @@ struct ADDBA_Req_Report_parm {
 	unsigned short StartSeqNum;
 	unsigned char tid;
 };
+
 #include "rtl8712_event.h"
 
 #endif /* _WLANEVENT_H_ */

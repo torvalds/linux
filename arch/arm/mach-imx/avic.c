@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -153,7 +154,7 @@ static void __exception_irq_entry avic_handle_irq(struct pt_regs *regs)
 		if (nivector == 0xffff)
 			break;
 
-		handle_domain_irq(domain, nivector, regs);
+		generic_handle_domain_irq(domain, nivector);
 	} while (1);
 }
 
@@ -162,7 +163,7 @@ static void __exception_irq_entry avic_handle_irq(struct pt_regs *regs)
  * interrupts. It registers the interrupt enable and disable functions
  * to the kernel for each interrupt source.
  */
-void __init mxc_init_irq(void __iomem *irqbase)
+static void __init mxc_init_irq(void __iomem *irqbase)
 {
 	struct device_node *np;
 	int irq_base;
@@ -220,3 +221,16 @@ void __init mxc_init_irq(void __iomem *irqbase)
 
 	printk(KERN_INFO "MXC IRQ initialized\n");
 }
+
+static int __init imx_avic_init(struct device_node *node,
+			       struct device_node *parent)
+{
+	void __iomem *avic_base;
+
+	avic_base = of_iomap(node, 0);
+	BUG_ON(!avic_base);
+	mxc_init_irq(avic_base);
+	return 0;
+}
+
+IRQCHIP_DECLARE(imx_avic, "fsl,avic", imx_avic_init);

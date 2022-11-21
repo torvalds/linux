@@ -24,47 +24,23 @@ enum cpumf_ctr_set {
 
 #define CPUMF_LCCTL_ENABLE_SHIFT    16
 #define CPUMF_LCCTL_ACTCTL_SHIFT     0
-static const u64 cpumf_ctr_ctl[CPUMF_CTR_SET_MAX] = {
-	[CPUMF_CTR_SET_BASIC]	= 0x02,
-	[CPUMF_CTR_SET_USER]	= 0x04,
-	[CPUMF_CTR_SET_CRYPTO]	= 0x08,
-	[CPUMF_CTR_SET_EXT]	= 0x01,
-	[CPUMF_CTR_SET_MT_DIAG] = 0x20,
-};
 
-static inline void ctr_set_enable(u64 *state, int ctr_set)
-{
-	*state |= cpumf_ctr_ctl[ctr_set] << CPUMF_LCCTL_ENABLE_SHIFT;
-}
-static inline void ctr_set_disable(u64 *state, int ctr_set)
-{
-	*state &= ~(cpumf_ctr_ctl[ctr_set] << CPUMF_LCCTL_ENABLE_SHIFT);
-}
-static inline void ctr_set_start(u64 *state, int ctr_set)
-{
-	*state |= cpumf_ctr_ctl[ctr_set] << CPUMF_LCCTL_ACTCTL_SHIFT;
-}
-static inline void ctr_set_stop(u64 *state, int ctr_set)
-{
-	*state &= ~(cpumf_ctr_ctl[ctr_set] << CPUMF_LCCTL_ACTCTL_SHIFT);
-}
-
-static inline void ctr_set_multiple_enable(u64 *state, u64 ctrsets)
+static inline void ctr_set_enable(u64 *state, u64 ctrsets)
 {
 	*state |= ctrsets << CPUMF_LCCTL_ENABLE_SHIFT;
 }
 
-static inline void ctr_set_multiple_disable(u64 *state, u64 ctrsets)
+static inline void ctr_set_disable(u64 *state, u64 ctrsets)
 {
 	*state &= ~(ctrsets << CPUMF_LCCTL_ENABLE_SHIFT);
 }
 
-static inline void ctr_set_multiple_start(u64 *state, u64 ctrsets)
+static inline void ctr_set_start(u64 *state, u64 ctrsets)
 {
 	*state |= ctrsets << CPUMF_LCCTL_ACTCTL_SHIFT;
 }
 
-static inline void ctr_set_multiple_stop(u64 *state, u64 ctrsets)
+static inline void ctr_set_stop(u64 *state, u64 ctrsets)
 {
 	*state &= ~(ctrsets << CPUMF_LCCTL_ACTCTL_SHIFT);
 }
@@ -92,9 +68,15 @@ struct cpu_cf_events {
 	struct cpumf_ctr_info	info;
 	atomic_t		ctr_set[CPUMF_CTR_SET_MAX];
 	atomic64_t		alert;
-	u64			state, tx_state;
+	u64			state;		/* For perf_event_open SVC */
+	u64			dev_state;	/* For /dev/hwctr */
 	unsigned int		flags;
-	unsigned int		txn_flags;
+	size_t used;			/* Bytes used in data */
+	size_t usedss;			/* Bytes used in start/stop */
+	unsigned char start[PAGE_SIZE];	/* Counter set at event add */
+	unsigned char stop[PAGE_SIZE];	/* Counter set at event delete */
+	unsigned char data[PAGE_SIZE];	/* Counter set at /dev/hwctr */
+	unsigned int sets;		/* # Counter set saved in memory */
 };
 DECLARE_PER_CPU(struct cpu_cf_events, cpu_cf_events);
 
@@ -123,4 +105,8 @@ static inline int stccm_avail(void)
 	return test_facility(142);
 }
 
+size_t cpum_cf_ctrset_size(enum cpumf_ctr_set ctrset,
+			   struct cpumf_ctr_info *info);
+int cfset_online_cpu(unsigned int cpu);
+int cfset_offline_cpu(unsigned int cpu);
 #endif /* _ASM_S390_CPU_MCF_H */

@@ -21,8 +21,8 @@
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 
-pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr,
-		      unsigned long sz)
+pte_t *huge_pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
+		      unsigned long addr, unsigned long sz)
 {
 	pgd_t *pgd;
 	p4d_t *p4d;
@@ -56,18 +56,6 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr,
 		}
 	}
 	return (pte_t *) pmd;
-}
-
-/*
- * This function checks for proper alignment of input addr and len parameters.
- */
-int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
-{
-	if (len & ~HPAGE_MASK)
-		return -EINVAL;
-	if (addr & ~HPAGE_MASK)
-		return -EINVAL;
-	return 0;
 }
 
 int pmd_huge(pmd_t pmd)

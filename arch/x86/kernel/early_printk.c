@@ -387,7 +387,7 @@ static int __init setup_early_printk(char *buf)
 #endif
 #ifdef CONFIG_EARLY_PRINTK_USB_XDBC
 		if (!strncmp(buf, "xdbc", 4))
-			early_xdbc_parse_parameter(buf + 4);
+			early_xdbc_parse_parameter(buf + 4, keep);
 #endif
 
 		buf++;

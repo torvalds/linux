@@ -45,21 +45,23 @@ config BITREVERSE
 config HAVE_ARCH_BITREVERSE
 	bool
 	default n
-	depends on BITREVERSE
 	help
 	  This option enables the use of hardware bit-reversal instructions on
 	  architectures which support such operations.
 
-config GENERIC_STRNCPY_FROM_USER
+config ARCH_HAS_STRNCPY_FROM_USER
 	bool
+
+config ARCH_HAS_STRNLEN_USER
+	bool
+
+config GENERIC_STRNCPY_FROM_USER
+	def_bool !ARCH_HAS_STRNCPY_FROM_USER
 
 config GENERIC_STRNLEN_USER
-	bool
+	def_bool !ARCH_HAS_STRNLEN_USER
 
 config GENERIC_NET_UTILS
-	bool
-
-config GENERIC_FIND_FIRST_BIT
 	bool
 
 source "lib/math/Kconfig"
@@ -102,6 +104,22 @@ config INDIRECT_PIO
 
 	  When in doubt, say N.
 
+config INDIRECT_IOMEM
+	bool
+	help
+	  This is selected by other options/architectures to provide the
+	  emulated iomem accessors.
+
+config INDIRECT_IOMEM_FALLBACK
+	bool
+	depends on INDIRECT_IOMEM
+	help
+	  If INDIRECT_IOMEM is selected, this enables falling back to plain
+	  mmio accesses when the IO memory address is not a registered
+	  emulated region.
+
+source "lib/crypto/Kconfig"
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -126,6 +144,15 @@ config CRC_T10DIF
 	  This option is only needed if a module that's not in the
 	  kernel tree needs to calculate CRC checks for use with the
 	  SCSI data integrity subsystem.
+
+config CRC64_ROCKSOFT
+	tristate "CRC calculation for the Rocksoft model CRC64"
+	select CRC64
+	select CRYPTO
+	select CRYPTO_CRC64_ROCKSOFT
+	help
+	  This option provides a CRC64 API to a registered crypto driver.
+	  This is used with the block layer's data integrity subsystem.
 
 config CRC_ITU_T
 	tristate "CRC ITU-T V.41 functions"
@@ -651,6 +678,24 @@ config STACKDEPOT
 	bool
 	select STACKTRACE
 
+config STACKDEPOT_ALWAYS_INIT
+	bool
+	select STACKDEPOT
+
+config STACK_HASH_ORDER
+	int "stack depot hash size (12 => 4KB, 20 => 1024KB)"
+	range 12 20
+	default 20
+	depends on STACKDEPOT
+	help
+	 Select the hash size as a power of 2 for the stackdepot hash table.
+	 Choose a lower value to reduce the memory impact.
+
+config REF_TRACKER
+	bool
+	depends on STACKTRACE_SUPPORT
+	select STACKDEPOT
+
 config SBITMAP
 	bool
 
@@ -659,9 +704,6 @@ config PARMAN
 
 config OBJAGG
 	tristate "objagg" if COMPILE_TEST
-
-config STRING_SELFTEST
-	tristate "Test string functions"
 
 endmenu
 
@@ -686,6 +728,12 @@ config GENERIC_LIB_CMPDI2
 config GENERIC_LIB_UCMPDI2
 	bool
 
+config GENERIC_LIB_DEVMEM_IS_ALLOWED
+	bool
+
 config PLDMFW
 	bool
 	default n
+
+config ASN1_ENCODER
+       tristate

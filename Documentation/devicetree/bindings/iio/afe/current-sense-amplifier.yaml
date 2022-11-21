@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/afe/current-sense-amplifier.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Current Sense Amplifier
+
+maintainers:
+  - Peter Rosin <peda@axentia.se>
+
+description: |
+  When an io-channel measures the output voltage from a current sense
+  amplifier, the interesting measurement is almost always the current
+  through the sense resistor, not the voltage output. This binding
+  describes such a current sense circuit.
+
+properties:
+  compatible:
+    const: current-sense-amplifier
+
+  io-channels:
+    maxItems: 1
+    description: |
+      Channel node of a voltage io-channel.
+
+  sense-resistor-micro-ohms:
+    description: The sense resistance.
+
+  sense-gain-mult:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Amplifier gain multiplier. The default is <1>.
+
+  sense-gain-div:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Amplifier gain divider. The default is <1>.
+
+required:
+  - compatible
+  - io-channels
+  - sense-resistor-micro-ohms
+
+additionalProperties: false
+
+examples:
+  - |
+    sysi {
+        compatible = "current-sense-amplifier";
+        io-channels = <&tiadc 0>;
+
+        sense-resistor-micro-ohms = <20000>;
+        sense-gain-mult = <50>;
+    };
+...

@@ -285,7 +285,6 @@
 	};
 
 	#include "stingray-fs4.dtsi"
-	#include "stingray-sata.dtsi"
 	#include "stingray-pcie.dtsi"
 	#include "stingray-usb.dtsi"
 
@@ -305,12 +304,6 @@
 
 			mdio@0 { /* PCIe serdes */
 				reg = <0x0>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
-
-			mdio@2 { /* SATA */
-				reg = <0x2>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
@@ -477,7 +470,7 @@
 			status = "disabled";
 		};
 
-		uart0: uart@100000 {
+		uart0: serial@100000 {
 			device_type = "serial";
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00100000 0x1000>;
@@ -488,7 +481,7 @@
 			status = "disabled";
 		};
 
-		uart1: uart@110000 {
+		uart1: serial@110000 {
 			device_type = "serial";
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00110000 0x1000>;
@@ -499,7 +492,7 @@
 			status = "disabled";
 		};
 
-		uart2: uart@120000 {
+		uart2: serial@120000 {
 			device_type = "serial";
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00120000 0x1000>;
@@ -510,7 +503,7 @@
 			status = "disabled";
 		};
 
-		uart3: uart@130000 {
+		uart3: serial@130000 {
 			device_type = "serial";
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00130000 0x1000>;
@@ -526,7 +519,7 @@
 			reg = <0x00180000 0x1000>;
 			interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&hsls_div2_clk>, <&hsls_div2_clk>;
-			clock-names = "spiclk", "apb_pclk";
+			clock-names = "sspclk", "apb_pclk";
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -538,7 +531,7 @@
 			reg = <0x00190000 0x1000>;
 			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&hsls_div2_clk>, <&hsls_div2_clk>;
-			clock-names = "spiclk", "apb_pclk";
+			clock-names = "sspclk", "apb_pclk";
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -550,7 +543,7 @@
 			reg = <0x00220000 0x28>;
 		};
 
-		dma0: dma@310000 {
+		dma0: dma-controller@310000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x00310000 0x1000>;
 			interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>,

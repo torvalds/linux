@@ -30,7 +30,7 @@ static const struct {
 	REGDEF(CLCD_PL111_LCUR),
 };
 
-int pl111_debugfs_regs(struct seq_file *m, void *unused)
+static int pl111_debugfs_regs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;

@@ -492,7 +492,9 @@ static void skge_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 }
 
 static void skge_get_ring_param(struct net_device *dev,
-				struct ethtool_ringparam *p)
+				struct ethtool_ringparam *p,
+				struct kernel_ethtool_ringparam *kernel_p,
+				struct netlink_ext_ack *extack)
 {
 	struct skge_port *skge = netdev_priv(dev);
 
@@ -504,7 +506,9 @@ static void skge_get_ring_param(struct net_device *dev,
 }
 
 static int skge_set_ring_param(struct net_device *dev,
-			       struct ethtool_ringparam *p)
+			       struct ethtool_ringparam *p,
+			       struct kernel_ethtool_ringparam *kernel_p,
+			       struct netlink_ext_ack *extack)
 {
 	struct skge_port *skge = netdev_priv(dev);
 	int err = 0;
@@ -615,7 +619,9 @@ static inline u32 skge_usecs2clk(const struct skge_hw *hw, u32 usec)
 }
 
 static int skge_get_coalesce(struct net_device *dev,
-			     struct ethtool_coalesce *ecmd)
+			     struct ethtool_coalesce *ecmd,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
@@ -639,7 +645,9 @@ static int skge_get_coalesce(struct net_device *dev,
 
 /* Note: interrupt timer is per board, but can turn on/off per port */
 static int skge_set_coalesce(struct net_device *dev,
-			     struct ethtool_coalesce *ecmd)
+			     struct ethtool_coalesce *ecmd,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
@@ -1617,7 +1625,7 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 		xm_write16(hw, port, XM_TX_THR, 512);
 
 	/*
-	 * Enable the reception of all error frames. This is is
+	 * Enable the reception of all error frames. This is
 	 * a necessary evil due to the design of the XMAC. The
 	 * XMAC's receive FIFO is only 8K in size, however jumbo
 	 * frames can be up to 9000 bytes in length. When bad
@@ -2959,8 +2967,9 @@ static void genesis_set_multicast(struct net_device *dev)
 
 static void yukon_add_filter(u8 filter[8], const u8 *addr)
 {
-	 u32 bit = ether_crc(ETH_ALEN, addr) & 0x3f;
-	 filter[bit/8] |= 1 << (bit%8);
+	u32 bit = ether_crc(ETH_ALEN, addr) & 0x3f;
+
+	filter[bit / 8] |= 1 << (bit % 8);
 }
 
 static void yukon_set_multicast(struct net_device *dev)
@@ -3454,7 +3463,7 @@ static int skge_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	if (!netif_running(dev)) {
 		memcpy_toio(hw->regs + B2_MAC_1 + port*8, dev->dev_addr, ETH_ALEN);
@@ -3786,7 +3795,7 @@ static const struct net_device_ops skge_netdev_ops = {
 	.ndo_open		= skge_up,
 	.ndo_stop		= skge_down,
 	.ndo_start_xmit		= skge_xmit_frame,
-	.ndo_do_ioctl		= skge_ioctl,
+	.ndo_eth_ioctl		= skge_ioctl,
 	.ndo_get_stats		= skge_get_stats,
 	.ndo_tx_timeout		= skge_tx_timeout,
 	.ndo_change_mtu		= skge_change_mtu,
@@ -3805,6 +3814,7 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 {
 	struct skge_port *skge;
 	struct net_device *dev = alloc_etherdev(sizeof(*skge));
+	u8 addr[ETH_ALEN];
 
 	if (!dev)
 		return NULL;
@@ -3849,7 +3859,7 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 
 	/* Only used for Genesis XMAC */
 	if (is_genesis(hw))
-	    timer_setup(&skge->link_timer, xm_link_timer, 0);
+		timer_setup(&skge->link_timer, xm_link_timer, 0);
 	else {
 		dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
 		                   NETIF_F_RXCSUM;
@@ -3857,7 +3867,8 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	}
 
 	/* read the mac address */
-	memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port*8, ETH_ALEN);
+	memcpy_fromio(addr, hw->regs + B2_MAC_1 + port*8, ETH_ALEN);
+	eth_hw_addr_set(dev, addr);
 
 	return dev;
 }

@@ -334,7 +334,7 @@ static int __write_initial_superblock(struct dm_cache_metadata *cmd)
 	int r;
 	struct dm_block *sblock;
 	struct cache_disk_superblock *disk_super;
-	sector_t bdev_size = i_size_read(cmd->bdev->bd_inode) >> SECTOR_SHIFT;
+	sector_t bdev_size = bdev_nr_sectors(cmd->bdev);
 
 	/* FIXME: see if we can lose the max sectors limit */
 	if (bdev_size > DM_CACHE_METADATA_MAX_SECTORS)
@@ -449,7 +449,7 @@ static int __check_incompat_features(struct cache_disk_superblock *disk_super,
 	/*
 	 * Check for read-only metadata to skip the following RDWR checks.
 	 */
-	if (get_disk_ro(cmd->bdev->bd_disk))
+	if (bdev_read_only(cmd->bdev))
 		return 0;
 
 	features = le32_to_cpu(disk_super->compat_ro_flags) & ~DM_CACHE_FEATURE_COMPAT_RO_SUPP;

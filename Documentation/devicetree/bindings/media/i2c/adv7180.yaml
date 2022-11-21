@@ -35,18 +35,24 @@ properties:
   powerdown-gpios:
     maxItems: 1
 
-  port:
-    type: object
-    description:
-      A node containing a single endpoint as doucmented in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
+  reset-gpios:
+    maxItems: 1
 
-  ports:
-    type: object
+  adv,force-bt656-4:
     description:
-      A node containing input and output port nodes with endpoint definitions
-      as documented in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
+      Indicates that the output is a BT.656-4 compatible stream.
+    type: boolean
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
+  ports: true
 
 additionalProperties: false
 
@@ -80,24 +86,19 @@ allOf:
     then:
       properties:
         ports:
+          $ref: /schemas/graph.yaml#/properties/ports
           properties:
-            '#address-cells':
-              const: 1
-            '#size-cells':
-              const: 0
             port@3:
-              type: object
+              $ref: /schemas/graph.yaml#/properties/port
               description: Output port
 
           patternProperties:
             "^port@[0-2]$":
-              type: object
+              $ref: /schemas/graph.yaml#/properties/port
               description: Input port
 
           required:
             - port@3
-
-          additionalProperties: false
 
       required:
         - ports
@@ -110,24 +111,19 @@ allOf:
     then:
       properties:
         ports:
+          $ref: /schemas/graph.yaml#/properties/ports
           properties:
-            '#address-cells':
-              const: 1
-            '#size-cells':
-              const: 0
             port@6:
-              type: object
+              $ref: /schemas/graph.yaml#/properties/port
               description: Output port
 
           patternProperties:
             "^port@[0-5]$":
-              type: object
+              $ref: /schemas/graph.yaml#/properties/port
               description: Input port
 
           required:
             - port@6
-
-          additionalProperties: false
 
       required:
         - ports

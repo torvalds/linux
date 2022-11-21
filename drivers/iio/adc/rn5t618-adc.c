@@ -16,6 +16,8 @@
 #include <linux/completion.h>
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
+#include <linux/iio/driver.h>
+#include <linux/iio/machine.h>
 #include <linux/slab.h>
 
 #define RN5T618_ADC_CONVERSION_TIMEOUT   (msecs_to_jiffies(500))
@@ -40,11 +42,6 @@ struct rn5t618_adc_data {
 	int irq;
 };
 
-struct rn5t618_channel_ratios {
-	u16 numerator;
-	u16 denominator;
-};
-
 enum rn5t618_channels {
 	LIMMON = 0,
 	VBAT,
@@ -56,7 +53,7 @@ enum rn5t618_channels {
 	AIN0
 };
 
-static const struct rn5t618_channel_ratios rn5t618_ratios[8] = {
+static const struct u16_fract rn5t618_ratios[8] = {
 	[LIMMON] = {50, 32}, /* measured across 20mOhm, amplified by 32 */
 	[VBAT] = {2, 1},
 	[VADP] = {3, 1},
@@ -189,6 +186,12 @@ static const struct iio_chan_spec rn5t618_adc_iio_channels[] = {
 	RN5T618_ADC_CHANNEL(AIN0, IIO_VOLTAGE, "AIN0")
 };
 
+static struct iio_map rn5t618_maps[] = {
+	IIO_MAP("VADP", "rn5t618-power", "vadp"),
+	IIO_MAP("VUSB", "rn5t618-power", "vusb"),
+	{ /* sentinel */ }
+};
+
 static int rn5t618_adc_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -238,6 +241,10 @@ static int rn5t618_adc_probe(struct platform_device *pdev)
 		dev_err(adc->dev, "request irq %d failed: %d\n", adc->irq, ret);
 		return ret;
 	}
+
+	ret = devm_iio_map_array_register(adc->dev, iio_dev, rn5t618_maps);
+	if (ret < 0)
+		return ret;
 
 	return devm_iio_device_register(adc->dev, iio_dev);
 }

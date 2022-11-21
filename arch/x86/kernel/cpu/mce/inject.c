@@ -88,11 +88,27 @@ MCE_INJECT_GET(status);
 MCE_INJECT_GET(misc);
 MCE_INJECT_GET(addr);
 MCE_INJECT_GET(synd);
+MCE_INJECT_GET(ipid);
 
 DEFINE_SIMPLE_ATTRIBUTE(status_fops, inj_status_get, inj_status_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(misc_fops, inj_misc_get, inj_misc_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(addr_fops, inj_addr_get, inj_addr_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(synd_fops, inj_synd_get, inj_synd_set, "%llx\n");
+
+/* Use the user provided IPID value on a sw injection. */
+static int inj_ipid_set(void *data, u64 val)
+{
+	struct mce *m = (struct mce *)data;
+
+	if (cpu_feature_enabled(X86_FEATURE_SMCA)) {
+		if (inj_type == SW_INJ)
+			m->ipid = val;
+	}
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(ipid_fops, inj_ipid_get, inj_ipid_set, "%llx\n");
 
 static void setup_inj_struct(struct mce *m)
 {
@@ -232,7 +248,7 @@ static void __maybe_unused raise_mce(struct mce *m)
 		unsigned long start;
 		int cpu;
 
-		get_online_cpus();
+		cpus_read_lock();
 		cpumask_copy(mce_inject_cpumask, cpu_online_mask);
 		cpumask_clear_cpu(get_cpu(), mce_inject_cpumask);
 		for_each_online_cpu(cpu) {
@@ -266,7 +282,7 @@ static void __maybe_unused raise_mce(struct mce *m)
 		}
 		raise_local();
 		put_cpu();
-		put_online_cpus();
+		cpus_read_unlock();
 	} else {
 		preempt_disable();
 		raise_local();
@@ -347,7 +363,7 @@ static ssize_t flags_write(struct file *filp, const char __user *ubuf,
 	char buf[MAX_FLAG_OPT_SIZE], *__buf;
 	int err;
 
-	if (cnt > MAX_FLAG_OPT_SIZE)
+	if (!cnt || cnt > MAX_FLAG_OPT_SIZE)
 		return -EINVAL;
 
 	if (copy_from_user(&buf, ubuf, cnt))
@@ -487,6 +503,8 @@ static void do_inject(void)
 
 	i_mce.tsc = rdtsc_ordered();
 
+	i_mce.status |= MCI_STATUS_VAL;
+
 	if (i_mce.misc)
 		i_mce.status |= MCI_STATUS_MISCV;
 
@@ -522,11 +540,11 @@ static void do_inject(void)
 	if (boot_cpu_has(X86_FEATURE_AMD_DCM) &&
 	    b == 4 &&
 	    boot_cpu_data.x86 < 0x17) {
-		toggle_nb_mca_mst_cpu(amd_get_nb_id(cpu));
-		cpu = get_nbc_for_node(amd_get_nb_id(cpu));
+		toggle_nb_mca_mst_cpu(topology_die_id(cpu));
+		cpu = get_nbc_for_node(topology_die_id(cpu));
 	}
 
-	get_online_cpus();
+	cpus_read_lock();
 	if (!cpu_online(cpu))
 		goto err;
 
@@ -550,7 +568,7 @@ static void do_inject(void)
 	}
 
 err:
-	put_online_cpus();
+	cpus_read_unlock();
 
 }
 
@@ -574,6 +592,33 @@ static int inj_bank_set(void *data, u64 val)
 	}
 
 	m->bank = val;
+
+	/*
+	 * sw-only injection allows to write arbitrary values into the MCA
+	 * registers because it tests only the decoding paths.
+	 */
+	if (inj_type == SW_INJ)
+		goto inject;
+
+	/*
+	 * Read IPID value to determine if a bank is populated on the target
+	 * CPU.
+	 */
+	if (cpu_feature_enabled(X86_FEATURE_SMCA)) {
+		u64 ipid;
+
+		if (rdmsrl_on_cpu(m->extcpu, MSR_AMD64_SMCA_MCx_IPID(val), &ipid)) {
+			pr_err("Error reading IPID on CPU%d\n", m->extcpu);
+			return -EINVAL;
+		}
+
+		if (!ipid) {
+			pr_err("Cannot inject into unpopulated bank %llu\n", val);
+			return -ENODEV;
+		}
+	}
+
+inject:
 	do_inject();
 
 	/* Reset injection struct */
@@ -629,6 +674,8 @@ static const char readme_msg[] =
 "\t    is present in hardware. \n"
 "\t  - \"th\": Trigger APIC interrupt for Threshold errors. Causes threshold \n"
 "\t    APIC interrupt handler to handle the error. \n"
+"\n"
+"ipid:\t IPID (AMD-specific)\n"
 "\n";
 
 static ssize_t
@@ -652,6 +699,7 @@ static struct dfs_node {
 	{ .name = "misc",	.fops = &misc_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "addr",	.fops = &addr_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "synd",	.fops = &synd_fops,   .perm = S_IRUSR | S_IWUSR },
+	{ .name = "ipid",	.fops = &ipid_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "bank",	.fops = &bank_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "flags",	.fops = &flags_fops,  .perm = S_IRUSR | S_IWUSR },
 	{ .name = "cpu",	.fops = &extcpu_fops, .perm = S_IRUSR | S_IWUSR },

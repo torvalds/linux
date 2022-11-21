@@ -5,7 +5,9 @@
 
 #include <linux/clk-provider.h>
 #include <linux/io.h>
-#include <linux/of_address.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 #include "ccu_common.h"
 #include "ccu_reset.h"
@@ -322,6 +324,7 @@ static struct clk_div_table ths_div_table[] = {
 	{ .val = 1, .div = 2 },
 	{ .val = 2, .div = 4 },
 	{ .val = 3, .div = 6 },
+	{ /* Sentinel */ },
 };
 static SUNXI_CCU_DIV_TABLE_WITH_GATE(ths_clk, "ths", "osc24M",
 				     0x074, 0, 2, ths_div_table, BIT(31), 0);
@@ -1136,24 +1139,29 @@ static struct ccu_mux_nb sun8i_h3_cpu_nb = {
 	.bypass_index	= 1, /* index of 24 MHz oscillator */
 };
 
-static void __init sunxi_h3_h5_ccu_init(struct device_node *node,
-					const struct sunxi_ccu_desc *desc)
+static int sun8i_h3_ccu_probe(struct platform_device *pdev)
 {
+	const struct sunxi_ccu_desc *desc;
 	void __iomem *reg;
+	int ret;
 	u32 val;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
-	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
-		return;
-	}
+	desc = of_device_get_match_data(&pdev->dev);
+	if (!desc)
+		return -EINVAL;
+
+	reg = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
 
 	/* Force the PLL-Audio-1x divider to 1 */
 	val = readl(reg + SUN8I_H3_PLL_AUDIO_REG);
 	val &= ~GENMASK(19, 16);
 	writel(val | (0 << 16), reg + SUN8I_H3_PLL_AUDIO_REG);
 
-	sunxi_ccu_probe(node, reg, desc);
+	ret = devm_sunxi_ccu_probe(&pdev->dev, reg, desc);
+	if (ret)
+		return ret;
 
 	/* Gate then ungate PLL CPU after any rate changes */
 	ccu_pll_notifier_register(&sun8i_h3_pll_cpu_nb);
@@ -1161,18 +1169,31 @@ static void __init sunxi_h3_h5_ccu_init(struct device_node *node,
 	/* Reparent CPU during PLL CPU rate changes */
 	ccu_mux_notifier_register(pll_cpux_clk.common.hw.clk,
 				  &sun8i_h3_cpu_nb);
+
+	return 0;
 }
 
-static void __init sun8i_h3_ccu_setup(struct device_node *node)
-{
-	sunxi_h3_h5_ccu_init(node, &sun8i_h3_ccu_desc);
-}
-CLK_OF_DECLARE(sun8i_h3_ccu, "allwinner,sun8i-h3-ccu",
-	       sun8i_h3_ccu_setup);
+static const struct of_device_id sun8i_h3_ccu_ids[] = {
+	{
+		.compatible = "allwinner,sun8i-h3-ccu",
+		.data = &sun8i_h3_ccu_desc,
+	},
+	{
+		.compatible = "allwinner,sun50i-h5-ccu",
+		.data = &sun50i_h5_ccu_desc,
+	},
+	{ }
+};
 
-static void __init sun50i_h5_ccu_setup(struct device_node *node)
-{
-	sunxi_h3_h5_ccu_init(node, &sun50i_h5_ccu_desc);
-}
-CLK_OF_DECLARE(sun50i_h5_ccu, "allwinner,sun50i-h5-ccu",
-	       sun50i_h5_ccu_setup);
+static struct platform_driver sun8i_h3_ccu_driver = {
+	.probe	= sun8i_h3_ccu_probe,
+	.driver	= {
+		.name			= "sun8i-h3-ccu",
+		.suppress_bind_attrs	= true,
+		.of_match_table		= sun8i_h3_ccu_ids,
+	},
+};
+module_platform_driver(sun8i_h3_ccu_driver);
+
+MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_LICENSE("GPL");

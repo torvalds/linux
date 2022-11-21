@@ -158,13 +158,13 @@ static int ks_wlan_get_name(struct net_device *dev,
 
 	/* for SLEEP MODE */
 	if (priv->dev_state < DEVICE_STATE_READY)
-		strcpy(cwrq->name, "NOT READY!");
+		strscpy(cwrq->name, "NOT READY!", sizeof(cwrq->name));
 	else if (priv->reg.phy_type == D_11B_ONLY_MODE)
-		strcpy(cwrq->name, "IEEE 802.11b");
+		strscpy(cwrq->name, "IEEE 802.11b", sizeof(cwrq->name));
 	else if (priv->reg.phy_type == D_11G_ONLY_MODE)
-		strcpy(cwrq->name, "IEEE 802.11g");
+		strscpy(cwrq->name, "IEEE 802.11g", sizeof(cwrq->name));
 	else
-		strcpy(cwrq->name, "IEEE 802.11b/g");
+		strscpy(cwrq->name, "IEEE 802.11b/g", sizeof(cwrq->name));
 
 	return 0;
 }
@@ -1120,6 +1120,7 @@ static int ks_wlan_set_scan(struct net_device *dev,
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct iw_scan_req *req = NULL;
+	int len;
 
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
@@ -1129,8 +1130,9 @@ static int ks_wlan_set_scan(struct net_device *dev,
 	if (wrqu->data.length == sizeof(struct iw_scan_req) &&
 	    wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 		req = (struct iw_scan_req *)extra;
-		priv->scan_ssid_len = req->essid_len;
-		memcpy(priv->scan_ssid, req->essid, priv->scan_ssid_len);
+		len = min_t(int, req->essid_len, IW_ESSID_MAX_SIZE);
+		priv->scan_ssid_len = len;
+		memcpy(priv->scan_ssid, req->essid, len);
 	} else {
 		priv->scan_ssid_len = 0;
 	}
@@ -1806,8 +1808,8 @@ static int ks_wlan_get_firmware_version(struct net_device *dev,
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	strcpy(extra, priv->firmware_version);
 	dwrq->length = priv->version_size + 1;
+	strscpy(extra, priv->firmware_version, dwrq->length);
 	return 0;
 }
 
@@ -2488,7 +2490,7 @@ int ks_wlan_set_mac_address(struct net_device *dev, void *addr)
 
 	if (netif_running(dev))
 		return -EBUSY;
-	memcpy(dev->dev_addr, mac_addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, mac_addr->sa_data);
 	ether_addr_copy(priv->eth_addr, mac_addr->sa_data);
 
 	priv->mac_address_valid = false;
@@ -2623,7 +2625,7 @@ int ks_wlan_net_start(struct net_device *dev)
 
 	/* dummy address set */
 	ether_addr_copy(priv->eth_addr, dummy_addr);
-	ether_addr_copy(dev->dev_addr, priv->eth_addr);
+	eth_hw_addr_set(dev, priv->eth_addr);
 
 	/* The ks_wlan-specific entries in the device structure. */
 	dev->netdev_ops = &ks_wlan_netdev_ops;

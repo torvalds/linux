@@ -37,9 +37,10 @@ gp100_mmu = {
 };
 
 int
-gp100_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+gp100_mmu_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_mmu **pmmu)
 {
 	if (!nvkm_boolopt(device->cfgopt, "GP100MmuLayout", true))
-		return gm200_mmu_new(device, index, pmmu);
-	return nvkm_mmu_new_(&gp100_mmu, device, index, pmmu);
+		return gm200_mmu_new(device, type, inst, pmmu);
+	return nvkm_mmu_new_(&gp100_mmu, device, type, inst, pmmu);
 }

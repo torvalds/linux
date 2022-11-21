@@ -17,12 +17,6 @@
 
 #include "kernfs-internal.h"
 
-static const struct address_space_operations kernfs_aops = {
-	.readpage	= simple_readpage,
-	.write_begin	= simple_write_begin,
-	.write_end	= simple_write_end,
-};
-
 static const struct inode_operations kernfs_iops = {
 	.permission	= kernfs_iop_permission,
 	.setattr	= kernfs_iop_setattr,
@@ -105,24 +99,28 @@ int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 {
 	int ret;
+	struct kernfs_root *root = kernfs_root(kn);
 
-	mutex_lock(&kernfs_mutex);
+	down_write(&root->kernfs_rwsem);
 	ret = __kernfs_setattr(kn, iattr);
-	mutex_unlock(&kernfs_mutex);
+	up_write(&root->kernfs_rwsem);
 	return ret;
 }
 
-int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr)
+int kernfs_iop_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		       struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct kernfs_node *kn = inode->i_private;
+	struct kernfs_root *root;
 	int error;
 
 	if (!kn)
 		return -EINVAL;
 
-	mutex_lock(&kernfs_mutex);
-	error = setattr_prepare(dentry, iattr);
+	root = kernfs_root(kn);
+	down_write(&root->kernfs_rwsem);
+	error = setattr_prepare(&init_user_ns, dentry, iattr);
 	if (error)
 		goto out;
 
@@ -131,10 +129,10 @@ int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr)
 		goto out;
 
 	/* this ignores size changes */
-	setattr_copy(inode, iattr);
+	setattr_copy(&init_user_ns, inode, iattr);
 
 out:
-	mutex_unlock(&kernfs_mutex);
+	up_write(&root->kernfs_rwsem);
 	return error;
 }
 
@@ -183,17 +181,21 @@ static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 		set_nlink(inode, kn->dir.subdirs + 2);
 }
 
-int kernfs_iop_getattr(const struct path *path, struct kstat *stat,
+int kernfs_iop_getattr(struct user_namespace *mnt_userns,
+		       const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct kernfs_node *kn = inode->i_private;
+	struct kernfs_root *root = kernfs_root(kn);
 
-	mutex_lock(&kernfs_mutex);
+	down_read(&root->kernfs_rwsem);
+	spin_lock(&inode->i_lock);
 	kernfs_refresh_inode(kn, inode);
-	mutex_unlock(&kernfs_mutex);
+	generic_fillattr(&init_user_ns, inode, stat);
+	spin_unlock(&inode->i_lock);
+	up_read(&root->kernfs_rwsem);
 
-	generic_fillattr(inode, stat);
 	return 0;
 }
 
@@ -201,7 +203,7 @@ static void kernfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 {
 	kernfs_get(kn);
 	inode->i_private = kn;
-	inode->i_mapping->a_ops = &kernfs_aops;
+	inode->i_mapping->a_ops = &ram_aops;
 	inode->i_op = &kernfs_iops;
 	inode->i_generation = kernfs_gen(kn);
 
@@ -272,20 +274,27 @@ void kernfs_evict_inode(struct inode *inode)
 	kernfs_put(kn);
 }
 
-int kernfs_iop_permission(struct inode *inode, int mask)
+int kernfs_iop_permission(struct user_namespace *mnt_userns,
+			  struct inode *inode, int mask)
 {
 	struct kernfs_node *kn;
+	struct kernfs_root *root;
+	int ret;
 
 	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
 	kn = inode->i_private;
+	root = kernfs_root(kn);
 
-	mutex_lock(&kernfs_mutex);
+	down_read(&root->kernfs_rwsem);
+	spin_lock(&inode->i_lock);
 	kernfs_refresh_inode(kn, inode);
-	mutex_unlock(&kernfs_mutex);
+	ret = generic_permission(&init_user_ns, inode, mask);
+	spin_unlock(&inode->i_lock);
+	up_read(&root->kernfs_rwsem);
 
-	return generic_permission(inode, mask);
+	return ret;
 }
 
 int kernfs_xattr_get(struct kernfs_node *kn, const char *name,
@@ -319,6 +328,7 @@ static int kernfs_vfs_xattr_get(const struct xattr_handler *handler,
 }
 
 static int kernfs_vfs_xattr_set(const struct xattr_handler *handler,
+				struct user_namespace *mnt_userns,
 				struct dentry *unused, struct inode *inode,
 				const char *suffix, const void *value,
 				size_t size, int flags)
@@ -385,6 +395,7 @@ static int kernfs_vfs_user_xattr_rm(struct kernfs_node *kn,
 }
 
 static int kernfs_vfs_user_xattr_set(const struct xattr_handler *handler,
+				     struct user_namespace *mnt_userns,
 				     struct dentry *unused, struct inode *inode,
 				     const char *suffix, const void *value,
 				     size_t size, int flags)

@@ -1,7 +1,13 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="ping_ipv4 ping_ipv6 multipath_test"
+ALL_TESTS="
+	ping_ipv4
+	ping_ipv6
+	multipath_test
+	ping_ipv4_blackhole
+	ping_ipv6_blackhole
+"
 NUM_NETIFS=8
 source lib.sh
 
@@ -197,7 +203,7 @@ multipath4_test()
 	t0_rp12=$(link_stats_tx_packets_get $rp12)
 	t0_rp13=$(link_stats_tx_packets_get $rp13)
 
-	ip vrf exec vrf-h1 $MZ -q -p 64 -A 192.0.2.2 -B 198.51.100.2 \
+	ip vrf exec vrf-h1 $MZ $h1 -q -p 64 -A 192.0.2.2 -B 198.51.100.2 \
 		-d 1msec -t udp "sp=1024,dp=0-32768"
 
 	t1_rp12=$(link_stats_tx_packets_get $rp12)
@@ -280,6 +286,17 @@ multipath_test()
 	multipath4_test "Weighted MP 2:1" 2 1
 	multipath4_test "Weighted MP 11:45" 11 45
 
+	log_info "Running IPv4 multipath tests with IPv6 link-local nexthops"
+	ip nexthop replace id 101 via fe80:2::22 dev $rp12
+	ip nexthop replace id 102 via fe80:3::23 dev $rp13
+
+	multipath4_test "ECMP" 1 1
+	multipath4_test "Weighted MP 2:1" 2 1
+	multipath4_test "Weighted MP 11:45" 11 45
+
+	ip nexthop replace id 102 via 169.254.3.23 dev $rp13
+	ip nexthop replace id 101 via 169.254.2.22 dev $rp12
+
 	log_info "Running IPv6 multipath tests"
 	multipath6_test "ECMP" 1 1
 	multipath6_test "Weighted MP 2:1" 2 1
@@ -289,6 +306,56 @@ multipath_test()
 	multipath6_l4_test "ECMP" 1 1
 	multipath6_l4_test "Weighted MP 2:1" 2 1
 	multipath6_l4_test "Weighted MP 11:45" 11 45
+}
+
+ping_ipv4_blackhole()
+{
+	RET=0
+
+	ip nexthop add id 1001 blackhole
+	ip nexthop add id 1002 group 1001
+
+	ip route replace 198.51.100.0/24 vrf vrf-r1 nhid 1001
+	ping_do $h1 198.51.100.2
+	check_fail $? "ping did not fail when using a blackhole nexthop"
+
+	ip route replace 198.51.100.0/24 vrf vrf-r1 nhid 1002
+	ping_do $h1 198.51.100.2
+	check_fail $? "ping did not fail when using a blackhole nexthop group"
+
+	ip route replace 198.51.100.0/24 vrf vrf-r1 nhid 103
+	ping_do $h1 198.51.100.2
+	check_err $? "ping failed with a valid nexthop"
+
+	log_test "IPv4 blackhole ping"
+
+	ip nexthop del id 1002
+	ip nexthop del id 1001
+}
+
+ping_ipv6_blackhole()
+{
+	RET=0
+
+	ip -6 nexthop add id 1001 blackhole
+	ip nexthop add id 1002 group 1001
+
+	ip route replace 2001:db8:2::/64 vrf vrf-r1 nhid 1001
+	ping6_do $h1 2001:db8:2::2
+	check_fail $? "ping did not fail when using a blackhole nexthop"
+
+	ip route replace 2001:db8:2::/64 vrf vrf-r1 nhid 1002
+	ping6_do $h1 2001:db8:2::2
+	check_fail $? "ping did not fail when using a blackhole nexthop group"
+
+	ip route replace 2001:db8:2::/64 vrf vrf-r1 nhid 106
+	ping6_do $h1 2001:db8:2::2
+	check_err $? "ping failed with a valid nexthop"
+
+	log_test "IPv6 blackhole ping"
+
+	ip nexthop del id 1002
+	ip -6 nexthop del id 1001
 }
 
 setup_prepare()
@@ -312,7 +379,6 @@ setup_prepare()
 
 	router1_create
 	router2_create
-	routing_nh_obj
 
 	forwarding_enable
 }
@@ -345,7 +411,7 @@ ping_ipv6()
 ip nexthop ls >/dev/null 2>&1
 if [ $? -ne 0 ]; then
 	echo "Nexthop objects not supported; skipping tests"
-	exit 0
+	exit $ksft_skip
 fi
 
 trap cleanup EXIT

@@ -4,8 +4,6 @@
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _XMIT_OSDEP_C_
-
 #include <drv_types.h>
 #include <rtw_debug.h>
 
@@ -15,7 +13,7 @@ uint rtw_remainder_len(struct pkt_file *pfile)
 	return (pfile->buf_len - ((SIZE_PTR)(pfile->cur_addr) - (SIZE_PTR)(pfile->buf_start)));
 }
 
-void _rtw_open_pktfile(_pkt *pktptr, struct pkt_file *pfile)
+void _rtw_open_pktfile(struct sk_buff *pktptr, struct pkt_file *pfile)
 {
 	pfile->pkt = pktptr;
 	pfile->cur_addr = pfile->buf_start = pktptr->data;
@@ -39,7 +37,7 @@ uint _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
 	return len;
 }
 
-sint rtw_endofpktfile(struct pkt_file *pfile)
+signed int rtw_endofpktfile(struct pkt_file *pfile)
 {
 	if (pfile->pkt_len == 0)
 		return true;
@@ -67,7 +65,7 @@ void rtw_os_xmit_resource_free(struct adapter *padapter, struct xmit_buf *pxmitb
 
 #define WMM_XMIT_THRESHOLD	(NR_XMITFRAME * 2 / 5)
 
-void rtw_os_pkt_complete(struct adapter *padapter, _pkt *pkt)
+void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt)
 {
 	u16 queue;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
@@ -104,7 +102,7 @@ void rtw_os_xmit_schedule(struct adapter *padapter)
 		complete(&pri_adapter->xmitpriv.xmit_comp);
 }
 
-static void rtw_check_xmit_resource(struct adapter *padapter, _pkt *pkt)
+static void rtw_check_xmit_resource(struct adapter *padapter, struct sk_buff *pkt)
 {
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	u16 queue;
@@ -112,10 +110,8 @@ static void rtw_check_xmit_resource(struct adapter *padapter, _pkt *pkt)
 	queue = skb_get_queue_mapping(pkt);
 	if (padapter->registrypriv.wifi_spec) {
 		/* No free space for Tx, tx_worker is too slow */
-		if (pxmitpriv->hwxmits[queue].accnt > WMM_XMIT_THRESHOLD) {
-			/* DBG_871X("%s(): stop netif_subqueue[%d]\n", __func__, queue); */
+		if (pxmitpriv->hwxmits[queue].accnt > WMM_XMIT_THRESHOLD)
 			netif_stop_subqueue(padapter->pnetdev, queue);
-		}
 	} else {
 		if (pxmitpriv->free_xmitframe_cnt <= 4) {
 			if (!netif_tx_queue_stopped(netdev_get_tx_queue(padapter->pnetdev, queue)))
@@ -139,17 +135,13 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 	int i;
 	s32	res;
 
-	DBG_COUNTER(padapter->tx_logs.os_tx_m2u);
-
 	spin_lock_bh(&pstapriv->asoc_list_lock);
 	phead = &pstapriv->asoc_list;
-	plist = get_next(phead);
-
 	/* free sta asoc_queue */
-	while (phead != plist) {
+	list_for_each(plist, phead) {
 		int stainfo_offset;
-		psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
-		plist = get_next(plist);
+
+		psta = list_entry(plist, struct sta_info, asoc_list);
 
 		stainfo_offset = rtw_stainfo_offset(pstapriv, psta);
 		if (stainfo_offset_valid(stainfo_offset)) {
@@ -160,20 +152,14 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 
 	for (i = 0; i < chk_alive_num; i++) {
 		psta = rtw_get_stainfo_by_offset(pstapriv, chk_alive_list[i]);
-		if (!(psta->state & _FW_LINKED)) {
-			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_ignore_fw_linked);
+		if (!(psta->state & _FW_LINKED))
 			continue;
-		}
 
 		/* avoid come from STA1 and send back STA1 */
 		if (!memcmp(psta->hwaddr, &skb->data[6], 6) ||
 		    !memcmp(psta->hwaddr, null_addr, 6) ||
-		    !memcmp(psta->hwaddr, bc_addr, 6)) {
-			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_ignore_self);
+		    !memcmp(psta->hwaddr, bc_addr, 6))
 			continue;
-		}
-
-		DBG_COUNTER(padapter->tx_logs.os_tx_m2u_entry);
 
 		newskb = rtw_skb_copy(skb);
 
@@ -181,14 +167,10 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 			memcpy(newskb->data, psta->hwaddr, 6);
 			res = rtw_xmit(padapter, &newskb);
 			if (res < 0) {
-				DBG_COUNTER(padapter->tx_logs.os_tx_m2u_entry_err_xmit);
-				DBG_871X("%s()-%d: rtw_xmit() return error!\n", __func__, __LINE__);
 				pxmitpriv->tx_drop++;
 				dev_kfree_skb_any(newskb);
 			}
 		} else {
-			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_entry_err_skb);
-			DBG_871X("%s-%d: rtw_skb_copy() failed!\n", __func__, __LINE__);
 			pxmitpriv->tx_drop++;
 			/* dev_kfree_skb_any(skb); */
 			return false;	/*  Caller shall tx this multicast frame via normal way. */
@@ -199,24 +181,15 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 	return true;
 }
 
-int _rtw_xmit_entry(_pkt *pkt, _nic_hdl pnetdev)
+int _rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 {
-	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
+	struct adapter *padapter = rtw_netdev_priv(pnetdev);
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	s32 res = 0;
 
-	DBG_COUNTER(padapter->tx_logs.os_tx);
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("+xmit_enry\n"));
-
-	if (rtw_if_up(padapter) == false) {
-		DBG_COUNTER(padapter->tx_logs.os_tx_err_up);
-		RT_TRACE(_module_xmit_osdep_c_, _drv_err_, ("rtw_xmit_entry: rtw_if_up fail\n"));
-		#ifdef DBG_TX_DROP_FRAME
-		DBG_871X("DBG_TX_DROP_FRAME %s if_up fail\n", __func__);
-		#endif
+	if (rtw_if_up(padapter) == false)
 		goto drop_packet;
-	}
 
 	rtw_check_xmit_resource(padapter, pkt);
 
@@ -224,50 +197,35 @@ int _rtw_xmit_entry(_pkt *pkt, _nic_hdl pnetdev)
 		&& check_fwstate(pmlmepriv, WIFI_AP_STATE) == true
 		&& (IP_MCAST_MAC(pkt->data)
 			|| ICMPV6_MCAST_MAC(pkt->data)
-			#ifdef CONFIG_TX_BCAST2UNI
-			|| is_broadcast_mac_addr(pkt->data)
-			#endif
 			)
 		&& padapter->registrypriv.wifi_spec == 0) {
 		if (pxmitpriv->free_xmitframe_cnt > (NR_XMITFRAME / 4)) {
 			res = rtw_mlcst2unicst(padapter, pkt);
 			if (res)
 				goto exit;
-		} else {
-			/* DBG_871X("Stop M2U(%d, %d)! ", pxmitpriv->free_xmitframe_cnt, pxmitpriv->free_xmitbuf_cnt); */
-			/* DBG_871X("!m2u); */
-			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_stop);
 		}
 	}
 
 	res = rtw_xmit(padapter, &pkt);
-	if (res < 0) {
-		#ifdef DBG_TX_DROP_FRAME
-		DBG_871X("DBG_TX_DROP_FRAME %s rtw_xmit fail\n", __func__);
-		#endif
+	if (res < 0)
 		goto drop_packet;
-	}
 
-	RT_TRACE(_module_xmit_osdep_c_, _drv_info_, ("rtw_xmit_entry: tx_pkts =%d\n", (u32)pxmitpriv->tx_pkts));
 	goto exit;
 
 drop_packet:
 	pxmitpriv->tx_drop++;
 	dev_kfree_skb_any(pkt);
-	RT_TRACE(_module_xmit_osdep_c_, _drv_notice_, ("rtw_xmit_entry: drop, tx_drop =%d\n", (u32)pxmitpriv->tx_drop));
 
 exit:
 	return 0;
 }
 
-int rtw_xmit_entry(_pkt *pkt, _nic_hdl pnetdev)
+int rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 {
 	int ret = 0;
 
-	if (pkt) {
-		rtw_mstat_update(MSTAT_TYPE_SKB, MSTAT_ALLOC_SUCCESS, pkt->truesize);
+	if (pkt)
 		ret = _rtw_xmit_entry(pkt, pnetdev);
-	}
 
 	return ret;
 }

@@ -39,6 +39,8 @@
 #ifndef __BNXT_QPLIB_FP_H__
 #define __BNXT_QPLIB_FP_H__
 
+#include <rdma/bnxt_re-abi.h>
+
 /* Few helper structures temporarily defined here
  * should get rid of these when roce_hsi.h is updated
  * in original code base

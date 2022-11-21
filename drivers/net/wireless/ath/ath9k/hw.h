@@ -820,6 +820,7 @@ struct ath_hw {
 	struct ath9k_pacal_info pacal_info;
 	struct ar5416Stats stats;
 	struct ath9k_tx_queue_info txq[ATH9K_NUM_TX_QUEUES];
+	DECLARE_BITMAP(pending_del_keymap, ATH_KEYMAX);
 
 	enum ath9k_int imask;
 	u32 imrs2_reg;
@@ -976,6 +977,8 @@ struct ath_hw {
 	bool disable_5ghz;
 
 	const struct firmware *eeprom_blob;
+	u16 *nvmem_blob;	/* devres managed */
+	size_t nvmem_blob_len;
 
 	struct ath_dynack dynack;
 

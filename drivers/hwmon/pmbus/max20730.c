@@ -328,8 +328,6 @@ static int max20730_init_debugfs(struct i2c_client *client,
 		return -ENOENT;
 
 	max20730_dir = debugfs_create_dir(client->name, debugfs);
-	if (!max20730_dir)
-		return -ENOENT;
 
 	for (i = 0; i < MAX20730_DEBUGFS_NUM_ENTRIES; ++i)
 		psu->debugfs_entries[i] = i;
@@ -779,7 +777,6 @@ static struct i2c_driver max20730_driver = {
 		.of_match_table = max20730_of_match,
 	},
 	.probe_new = max20730_probe,
-	.remove = pmbus_do_remove,
 	.id_table = max20730_id,
 };
 
@@ -788,3 +785,4 @@ module_i2c_driver(max20730_driver);
 MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
 MODULE_DESCRIPTION("PMBus driver for Maxim MAX20710 / MAX20730 / MAX20734 / MAX20743");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

@@ -52,7 +52,7 @@
 #include <linux/kdev_t.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>	/* for mdelay */
-#include <linux/interrupt.h>	/* needed for in_interrupt() proto */
+#include <linux/interrupt.h>
 #include <linux/reboot.h>	/* notifier code */
 #include <linux/workqueue.h>
 
@@ -1009,7 +1009,7 @@ out:
 	/* Unmap the DMA buffers, if any. */
 	scsi_dma_unmap(sc);
 
-	sc->scsi_done(sc);		/* Issue the command callback */
+	scsi_done(sc);			/* Issue the command callback */
 
 	/* Free Chain buffers */
 	mptscsih_freeChainBuffers(ioc, req_idx);
@@ -1054,7 +1054,7 @@ mptscsih_flush_running_cmds(MPT_SCSI_HOST *hd)
 		dtmprintk(ioc, sdev_printk(KERN_INFO, sc->device, MYIOC_s_FMT
 		    "completing cmds: fw_channel %d, fw_id %d, sc=%p, mf = %p, "
 		    "idx=%x\n", ioc->name, channel, id, sc, mf, ii));
-		sc->scsi_done(sc);
+		scsi_done(sc);
 	}
 }
 EXPORT_SYMBOL(mptscsih_flush_running_cmds);
@@ -1118,7 +1118,7 @@ mptscsih_search_running_cmds(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 			   "fw_id %d, sc=%p, mf = %p, idx=%x\n", ioc->name,
 			   vdevice->vtarget->channel, vdevice->vtarget->id,
 			   sc, mf, ii));
-			sc->scsi_done(sc);
+			scsi_done(sc);
 			spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 		}
 	}
@@ -1693,7 +1693,7 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 	 */
 	if ((hd = shost_priv(SCpnt->device->host)) == NULL) {
 		SCpnt->result = DID_RESET << 16;
-		SCpnt->scsi_done(SCpnt);
+		scsi_done(SCpnt);
 		printk(KERN_ERR MYNAM ": task abort: "
 		    "can't locate host! (sc=%p)\n", SCpnt);
 		return FAILED;
@@ -1710,7 +1710,7 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 		    "task abort: device has been deleted (sc=%p)\n",
 		    ioc->name, SCpnt));
 		SCpnt->result = DID_NO_CONNECT << 16;
-		SCpnt->scsi_done(SCpnt);
+		scsi_done(SCpnt);
 		retval = SUCCESS;
 		goto out;
 	}
@@ -3218,23 +3218,31 @@ mptscsih_debug_level_store(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(debug_level, S_IRUGO | S_IWUSR,
 	mptscsih_debug_level_show, mptscsih_debug_level_store);
 
-struct device_attribute *mptscsih_host_attrs[] = {
-	&dev_attr_version_fw,
-	&dev_attr_version_bios,
-	&dev_attr_version_mpi,
-	&dev_attr_version_product,
-	&dev_attr_version_nvdata_persistent,
-	&dev_attr_version_nvdata_default,
-	&dev_attr_board_name,
-	&dev_attr_board_assembly,
-	&dev_attr_board_tracer,
-	&dev_attr_io_delay,
-	&dev_attr_device_delay,
-	&dev_attr_debug_level,
+static struct attribute *mptscsih_host_attrs[] = {
+	&dev_attr_version_fw.attr,
+	&dev_attr_version_bios.attr,
+	&dev_attr_version_mpi.attr,
+	&dev_attr_version_product.attr,
+	&dev_attr_version_nvdata_persistent.attr,
+	&dev_attr_version_nvdata_default.attr,
+	&dev_attr_board_name.attr,
+	&dev_attr_board_assembly.attr,
+	&dev_attr_board_tracer.attr,
+	&dev_attr_io_delay.attr,
+	&dev_attr_device_delay.attr,
+	&dev_attr_debug_level.attr,
 	NULL,
 };
 
-EXPORT_SYMBOL(mptscsih_host_attrs);
+static const struct attribute_group mptscsih_host_attr_group = {
+	.attrs = mptscsih_host_attrs
+};
+
+const struct attribute_group *mptscsih_host_attr_groups[] = {
+	&mptscsih_host_attr_group,
+	NULL
+};
+EXPORT_SYMBOL(mptscsih_host_attr_groups);
 
 EXPORT_SYMBOL(mptscsih_remove);
 EXPORT_SYMBOL(mptscsih_shutdown);

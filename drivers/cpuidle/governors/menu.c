@@ -34,7 +34,7 @@
  * 1) Energy break even point
  * 2) Performance impact
  * 3) Latency tolerance (from pmqos infrastructure)
- * These these three factors are treated independently.
+ * These three factors are treated independently.
  *
  * Energy break even point
  * -----------------------
@@ -117,7 +117,7 @@ struct menu_device {
 	int		interval_ptr;
 };
 
-static inline int which_bucket(u64 duration_ns, unsigned long nr_iowaiters)
+static inline int which_bucket(u64 duration_ns, unsigned int nr_iowaiters)
 {
 	int bucket = 0;
 
@@ -150,7 +150,7 @@ static inline int which_bucket(u64 duration_ns, unsigned long nr_iowaiters)
  * to be, the higher this multiplier, and thus the higher
  * the barrier to go to an expensive C state.
  */
-static inline int performance_multiplier(unsigned long nr_iowaiters)
+static inline int performance_multiplier(unsigned int nr_iowaiters)
 {
 	/* for IO wait tasks (per cpu!) we add 10x each */
 	return 1 + 10 * nr_iowaiters;
@@ -270,8 +270,8 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	unsigned int predicted_us;
 	u64 predicted_ns;
 	u64 interactivity_req;
-	unsigned long nr_iowaiters;
-	ktime_t delta_next;
+	unsigned int nr_iowaiters;
+	ktime_t delta, delta_tick;
 	int i, idx;
 
 	if (data->needs_update) {
@@ -280,7 +280,12 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	}
 
 	/* determine the expected residency time, round up */
-	data->next_timer_ns = tick_nohz_get_sleep_length(&delta_next);
+	delta = tick_nohz_get_sleep_length(&delta_tick);
+	if (unlikely(delta < 0)) {
+		delta = 0;
+		delta_tick = 0;
+	}
+	data->next_timer_ns = delta;
 
 	nr_iowaiters = nr_iowait_cpu(dev->cpu);
 	data->bucket = which_bucket(data->next_timer_ns, nr_iowaiters);
@@ -318,7 +323,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		 * state selection.
 		 */
 		if (predicted_ns < TICK_NSEC)
-			predicted_ns = delta_next;
+			predicted_ns = data->next_timer_ns;
 	} else {
 		/*
 		 * Use the performance multiplier and the user-configurable
@@ -377,7 +382,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 			 * stuck in the shallow one for too long.
 			 */
 			if (drv->states[idx].target_residency_ns < TICK_NSEC &&
-			    s->target_residency_ns <= delta_next)
+			    s->target_residency_ns <= delta_tick)
 				idx = i;
 
 			return idx;
@@ -399,7 +404,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	     predicted_ns < TICK_NSEC) && !tick_nohz_tick_stopped()) {
 		*stop_tick = false;
 
-		if (idx > 0 && drv->states[idx].target_residency_ns > delta_next) {
+		if (idx > 0 && drv->states[idx].target_residency_ns > delta_tick) {
 			/*
 			 * The tick is not going to be stopped and the target
 			 * residency of the state to be returned is not within
@@ -411,7 +416,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 					continue;
 
 				idx = i;
-				if (drv->states[i].target_residency_ns <= delta_next)
+				if (drv->states[i].target_residency_ns <= delta_tick)
 					break;
 			}
 		}

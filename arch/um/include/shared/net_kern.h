@@ -39,7 +39,7 @@ struct uml_net_private {
 
 	void (*add_address)(unsigned char *, unsigned char *, void *);
 	void (*delete_address)(unsigned char *, unsigned char *, void *);
-	char user[0];
+	char user[];
 };
 
 struct net_kern_info {
@@ -59,8 +59,6 @@ struct transport {
 	const int setup_size;
 };
 
-extern struct net_device *ether_init(int);
-extern unsigned short ether_protocol(struct sk_buff *);
 extern int tap_setup_common(char *str, char *type, char **dev_name,
 			    char **mac_out, char **gate_addr);
 extern void register_transport(struct transport *new);

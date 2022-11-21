@@ -1878,7 +1878,9 @@ static int bnx2x_set_eeprom(struct net_device *dev,
 }
 
 static int bnx2x_get_coalesce(struct net_device *dev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -1891,7 +1893,9 @@ static int bnx2x_get_coalesce(struct net_device *dev,
 }
 
 static int bnx2x_set_coalesce(struct net_device *dev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -1910,7 +1914,9 @@ static int bnx2x_set_coalesce(struct net_device *dev,
 }
 
 static void bnx2x_get_ringparam(struct net_device *dev,
-				struct ethtool_ringparam *ering)
+				struct ethtool_ringparam *ering,
+				struct kernel_ethtool_ringparam *kernel_ering,
+				struct netlink_ext_ack *extack)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -1934,7 +1940,9 @@ static void bnx2x_get_ringparam(struct net_device *dev,
 }
 
 static int bnx2x_set_ringparam(struct net_device *dev,
-			       struct ethtool_ringparam *ering)
+			       struct ethtool_ringparam *ering,
+			       struct kernel_ethtool_ringparam *kernel_ering,
+			       struct netlink_ext_ack *extack)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 

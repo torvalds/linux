@@ -43,9 +43,7 @@ struct mcif_arb_params {
 	unsigned int		arbitration_slice;
 	unsigned int		slice_lines;
 	unsigned int		max_scaled_time;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	unsigned int		dram_speed_change_duration;
-#endif
 };
 
 struct mcif_irq_params {
@@ -75,11 +73,9 @@ struct mcif_wb {
 
 struct mcif_wb_funcs {
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	void (*warmup_mcif)(
 		struct mcif_wb *mcif_wb,
 		struct mcif_warmup_params *params);
-#endif
 	void (*enable_mcif)(struct mcif_wb *mcif_wb);
 
 	void (*disable_mcif)(struct mcif_wb *mcif_wb);

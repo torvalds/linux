@@ -128,6 +128,7 @@ static void round_robin_cpu(unsigned int tsk_index)
 static void exit_round_robin(unsigned int tsk_index)
 {
 	struct cpumask *pad_busy_cpus = to_cpumask(pad_busy_cpus_bits);
+
 	cpumask_clear_cpu(tsk_in_cpu[tsk_index], pad_busy_cpus);
 	tsk_in_cpu[tsk_index] = -1;
 }
@@ -248,12 +249,12 @@ static void set_power_saving_task_num(unsigned int num)
 
 static void acpi_pad_idle_cpus(unsigned int num_cpus)
 {
-	get_online_cpus();
+	cpus_read_lock();
 
 	num_cpus = min_t(unsigned int, num_cpus, num_online_cpus());
 	set_power_saving_task_num(num_cpus);
 
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
 static uint32_t acpi_pad_idle_cpus_num(void)
@@ -261,10 +262,11 @@ static uint32_t acpi_pad_idle_cpus_num(void)
 	return ps_tsk_num;
 }
 
-static ssize_t acpi_pad_rrtime_store(struct device *dev,
+static ssize_t rrtime_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long num;
+
 	if (kstrtoul(buf, 0, &num))
 		return -EINVAL;
 	if (num < 1 || num >= 100)
@@ -275,19 +277,18 @@ static ssize_t acpi_pad_rrtime_store(struct device *dev,
 	return count;
 }
 
-static ssize_t acpi_pad_rrtime_show(struct device *dev,
+static ssize_t rrtime_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", round_robin_time);
 }
-static DEVICE_ATTR(rrtime, S_IRUGO|S_IWUSR,
-	acpi_pad_rrtime_show,
-	acpi_pad_rrtime_store);
+static DEVICE_ATTR_RW(rrtime);
 
-static ssize_t acpi_pad_idlepct_store(struct device *dev,
+static ssize_t idlepct_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long num;
+
 	if (kstrtoul(buf, 0, &num))
 		return -EINVAL;
 	if (num < 1 || num >= 100)
@@ -298,19 +299,18 @@ static ssize_t acpi_pad_idlepct_store(struct device *dev,
 	return count;
 }
 
-static ssize_t acpi_pad_idlepct_show(struct device *dev,
+static ssize_t idlepct_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", idle_pct);
 }
-static DEVICE_ATTR(idlepct, S_IRUGO|S_IWUSR,
-	acpi_pad_idlepct_show,
-	acpi_pad_idlepct_store);
+static DEVICE_ATTR_RW(idlepct);
 
-static ssize_t acpi_pad_idlecpus_store(struct device *dev,
+static ssize_t idlecpus_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long num;
+
 	if (kstrtoul(buf, 0, &num))
 		return -EINVAL;
 	mutex_lock(&isolated_cpus_lock);
@@ -319,16 +319,14 @@ static ssize_t acpi_pad_idlecpus_store(struct device *dev,
 	return count;
 }
 
-static ssize_t acpi_pad_idlecpus_show(struct device *dev,
+static ssize_t idlecpus_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	return cpumap_print_to_pagebuf(false, buf,
 				       to_cpumask(pad_busy_cpus_bits));
 }
 
-static DEVICE_ATTR(idlecpus, S_IRUGO|S_IWUSR,
-	acpi_pad_idlecpus_show,
-	acpi_pad_idlecpus_store);
+static DEVICE_ATTR_RW(idlecpus);
 
 static int acpi_pad_add_sysfs(struct acpi_device *device)
 {

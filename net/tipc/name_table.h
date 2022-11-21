@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2000-2006, 2014-2018, Ericsson AB
  * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
+ * Copyright (c) 2020-2021, Red Hat Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +42,7 @@ struct tipc_subscription;
 struct tipc_plist;
 struct tipc_nlist;
 struct tipc_group;
+struct tipc_uaddr;
 
 /*
  * TIPC name types reserved for internal TIPC use (both current and planned)
@@ -49,19 +51,18 @@ struct tipc_group;
 #define TIPC_PUBL_SCOPE_NUM	(TIPC_NODE_SCOPE + 1)
 #define TIPC_NAMETBL_SIZE	1024	/* must be a power of 2 */
 
+#define TIPC_ANY_SCOPE 10      /* Both node and cluster scope will match */
+
 /**
- * struct publication - info about a published (name or) name sequence
- * @type: name sequence type
- * @lower: name sequence lower bound
- * @upper: name sequence upper bound
+ * struct publication - info about a published service address or range
+ * @sr: service range represented by this publication
+ * @sk: address of socket bound to this publication
  * @scope: scope of publication, TIPC_NODE_SCOPE or TIPC_CLUSTER_SCOPE
- * @node: network address of publishing socket's node
- * @port: publishing port
  * @key: publication key, unique across the cluster
  * @id: publication id
  * @binding_node: all publications from the same node which bound this one
- * - Remote publications: in node->publ_list
- *   Used by node/name distr to withdraw publications when node is lost
+ * - Remote publications: in node->publ_list;
+ * Used by node/name distr to withdraw publications when node is lost
  * - Local/node scope publications: in name_table->node_scope list
  * - Local/cluster scope publications: in name_table->cluster_scope list
  * @binding_sock: all publications from the same socket which bound this one
@@ -74,12 +75,9 @@ struct tipc_group;
  * @rcu: RCU callback head used for deferred freeing
  */
 struct publication {
-	u32 type;
-	u32 lower;
-	u32 upper;
-	u32 scope;
-	u32 node;
-	u32 port;
+	struct tipc_service_range sr;
+	struct tipc_socket_addr sk;
+	u16 scope;
 	u32 key;
 	u32 id;
 	struct list_head binding_node;
@@ -92,13 +90,16 @@ struct publication {
 
 /**
  * struct name_table - table containing all existing port name publications
- * @seq_hlist: name sequence hash lists
+ * @services: name sequence hash lists
  * @node_scope: all local publications with node scope
  *               - used by name_distr during re-init of name table
  * @cluster_scope: all local publications with cluster scope
  *               - used by name_distr to send bulk updates to new nodes
  *               - used by name_distr during re-init of name table
+ * @cluster_scope_lock: lock for accessing @cluster_scope
  * @local_publ_count: number of publications issued by this node
+ * @rc_dests: destination node counter
+ * @snd_nxt: next sequence number to be used
  */
 struct name_table {
 	struct hlist_head services[TIPC_NAMETBL_SIZE];
@@ -111,28 +112,29 @@ struct name_table {
 };
 
 int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb);
-
-u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *node);
-void tipc_nametbl_mc_lookup(struct net *net, u32 type, u32 lower, u32 upper,
-			    u32 scope, bool exact, struct list_head *dports);
+bool tipc_nametbl_lookup_anycast(struct net *net, struct tipc_uaddr *ua,
+				 struct tipc_socket_addr *sk);
+void tipc_nametbl_lookup_mcast_sockets(struct net *net, struct tipc_uaddr *ua,
+				       struct list_head *dports);
+void tipc_nametbl_lookup_mcast_nodes(struct net *net, struct tipc_uaddr *ua,
+				     struct tipc_nlist *nodes);
+bool tipc_nametbl_lookup_group(struct net *net, struct tipc_uaddr *ua,
+			       struct list_head *dsts, int *dstcnt,
+			       u32 exclude, bool mcast);
 void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
-			      u32 type, u32 domain);
-void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
-				   u32 upper, struct tipc_nlist *nodes);
-bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 domain,
-			 struct list_head *dsts, int *dstcnt, u32 exclude,
-			 bool all);
-struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
-					 u32 upper, u32 scope, u32 port,
-					 u32 key);
-int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower, u32 upper,
-			  u32 key);
-struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
-					     u32 lower, u32 upper, u32 scope,
-					     u32 node, u32 ref, u32 key);
-struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
-					     u32 lower, u32 upper,
-					     u32 node, u32 key);
+			      struct tipc_uaddr *ua);
+struct publication *tipc_nametbl_publish(struct net *net, struct tipc_uaddr *ua,
+					 struct tipc_socket_addr *sk, u32 key);
+void tipc_nametbl_withdraw(struct net *net, struct tipc_uaddr *ua,
+			   struct tipc_socket_addr *sk, u32 key);
+struct publication *tipc_nametbl_insert_publ(struct net *net,
+					     struct tipc_uaddr *ua,
+					     struct tipc_socket_addr *sk,
+					     u32 key);
+struct publication *tipc_nametbl_remove_publ(struct net *net,
+					     struct tipc_uaddr *ua,
+					     struct tipc_socket_addr *sk,
+					     u32 key);
 bool tipc_nametbl_subscribe(struct tipc_subscription *s);
 void tipc_nametbl_unsubscribe(struct tipc_subscription *s);
 int tipc_nametbl_init(struct net *net);

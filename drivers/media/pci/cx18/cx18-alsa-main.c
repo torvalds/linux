@@ -41,7 +41,6 @@ MODULE_PARM_DESC(debug,
 
 MODULE_AUTHOR("Andy Walls");
 MODULE_DESCRIPTION("CX23418 ALSA Interface");
-MODULE_SUPPORTED_DEVICE("CX23418 MPEG2 encoder");
 MODULE_LICENSE("GPL");
 
 MODULE_VERSION(CX18_VERSION);
@@ -50,12 +49,6 @@ static inline
 struct snd_cx18_card *to_snd_cx18_card(struct v4l2_device *v4l2_dev)
 {
 	return to_cx18(v4l2_dev)->alsa;
-}
-
-static inline
-struct snd_cx18_card *p_to_snd_cx18_card(struct v4l2_device **v4l2_dev)
-{
-	return container_of(v4l2_dev, struct snd_cx18_card, v4l2_dev);
 }
 
 static void snd_cx18_card_free(struct snd_cx18_card *cxsc)

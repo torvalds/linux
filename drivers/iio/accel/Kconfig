@@ -30,6 +30,35 @@ config ADIS16209
 	  To compile this driver as a module, say M here: the module will be
 	  called adis16209.
 
+config ADXL313
+	tristate
+
+config ADXL313_I2C
+	tristate "Analog Devices ADXL313 3-Axis Digital Accelerometer I2C Driver"
+	depends on I2C
+	select ADXL313
+	select REGMAP_I2C
+	help
+	  Say Y here if you want to build i2c support for the Analog Devices
+	  ADXL313 3-axis digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called adxl313_i2c and you will also get adxl313_core
+	  for the core module.
+
+config ADXL313_SPI
+	tristate "Analog Devices ADXL313 3-Axis Digital Accelerometer SPI Driver"
+	depends on SPI
+	select ADXL313
+	select REGMAP_SPI
+	help
+	  Say Y here if you want to build spi support for the Analog Devices
+	  ADXL313 3-axis digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called adxl313_spi and you will also get adxl313_core
+	  for the core module.
+
 config ADXL345
 	tristate
 
@@ -61,6 +90,66 @@ config ADXL345_SPI
 	  will be called adxl345_spi and you will also get adxl345_core
 	  for the core module.
 
+config ADXL355
+	tristate
+
+config ADXL355_I2C
+	tristate "Analog Devices ADXL355 3-Axis Digital Accelerometer I2C Driver"
+	depends on I2C
+	select ADXL355
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here if you want to build i2c support for the Analog Devices
+	  ADXL355 3-axis digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called adxl355_i2c and you will also get adxl355_core
+	  for the core module.
+
+config ADXL355_SPI
+	tristate "Analog Devices ADXL355 3-Axis Digital Accelerometer SPI Driver"
+	depends on SPI
+	select ADXL355
+	select REGMAP_SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here if you want to build spi support for the Analog Devices
+	  ADXL355 3-axis digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called adxl355_spi and you will also get adxl355_core
+	  for the core module.
+
+config ADXL367
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+
+config ADXL367_SPI
+	tristate "Analog Devices ADXL367 3-Axis Accelerometer SPI Driver"
+	depends on SPI
+	select ADXL367
+	select REGMAP_SPI
+	help
+	  Say yes here to add support for the Analog Devices ADXL367 triaxial
+	  acceleration sensor.
+	  To compile this driver as a module, choose M here: the
+	  module will be called adxl367_spi.
+
+config ADXL367_I2C
+	tristate "Analog Devices ADXL367 3-Axis Accelerometer I2C Driver"
+	depends on I2C
+	select ADXL367
+	select REGMAP_I2C
+	help
+	  Say yes here to add support for the Analog Devices ADXL367 triaxial
+	  acceleration sensor.
+	  To compile this driver as a module, choose M here: the
+	  module will be called adxl367_i2c.
+
 config ADXL372
 	tristate
 	select IIO_BUFFER
@@ -89,13 +178,13 @@ config ADXL372_I2C
 	  module will be called adxl372_i2c.
 
 config BMA180
-	tristate "Bosch BMA023/BMA1x0/BMA25x 3-Axis Accelerometer Driver"
+	tristate "Bosch BMA023/BMA1x0/BMA250 3-Axis Accelerometer Driver"
 	depends on I2C && INPUT_BMA150=n
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
 	  Say Y here if you want to build a driver for the Bosch BMA023, BMA150
-	  BMA180, SMB380, or BMA25x triaxial acceleration sensor.
+	  BMA180, BMA250 or SMB380 triaxial acceleration sensor.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bma180.
@@ -143,9 +232,13 @@ config BMC150_ACCEL
 	select BMC150_ACCEL_SPI if SPI
 	help
 	  Say yes here to build support for the following Bosch accelerometers:
-	  BMC150, BMI055, BMA250E, BMA222E, BMA255, BMA280.
+	  BMA222, BMA222E, BMA250E, BMA253, BMA254, BMA255, BMA280, BMC150, BMC156
+	  BMI055.
 
-	  This is a combo module with both accelerometer and magnetometer.
+	  Note that some of these are combo modules:
+	    - BMC150/BMC156: accelerometer and magnetometer
+	    - BMI055: accelerometer and gyroscope
+
 	  This driver is only implementing accelerometer part, which has
 	  its own address and register map.
 
@@ -154,6 +247,24 @@ config BMC150_ACCEL_I2C
 	select REGMAP_I2C
 
 config BMC150_ACCEL_SPI
+	tristate
+	select REGMAP_SPI
+
+config BMI088_ACCEL
+	tristate "Bosch BMI088 Accelerometer Driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP
+	select BMI088_ACCEL_SPI
+	help
+	  Say yes here to build support for the Bosch BMI088 accelerometer.
+
+	  This is a combo module with both accelerometer and gyroscope. This
+	  driver only implements the accelerometer part, which has its own
+	  address and register map. BMG160 provides the gyroscope driver.
+
+config BMI088_ACCEL_SPI
 	tristate
 	select REGMAP_SPI
 
@@ -208,10 +319,38 @@ config DMARD10
 	  Choosing M will build the driver as a module. If so, the module
 	  will be called dmard10.
 
+config FXLS8962AF
+	tristate
+	depends on I2C || !I2C # cannot be built-in for modular I2C
+
+config FXLS8962AF_I2C
+	tristate "NXP FXLS8962AF/FXLS8964AF Accelerometer I2C Driver"
+	depends on I2C
+	select FXLS8962AF
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for the NXP 3-axis automotive
+	  accelerometer FXLS8962AF/FXLS8964AF with I2C support.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called fxls8962af_i2c.
+
+config FXLS8962AF_SPI
+	tristate "NXP FXLS8962AF/FXLS8964AF Accelerometer SPI Driver"
+	depends on SPI
+	depends on I2C || !I2C
+	select FXLS8962AF
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for the NXP 3-axis automotive
+	  accelerometer FXLS8962AF/FXLS8964AF with SPI support.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called fxls8962af_spi.
+
 config HID_SENSOR_ACCEL_3D
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
 	select HID_SENSOR_IIO_COMMON
 	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID Accelerometers 3D"
@@ -237,8 +376,6 @@ config IIO_ST_ACCEL_3AXIS
 	depends on !SENSORS_LIS3_I2C
 	depends on !SENSORS_LIS3_SPI
 	select IIO_ST_SENSORS_CORE
-	select IIO_ST_ACCEL_I2C_3AXIS if (I2C)
-	select IIO_ST_ACCEL_SPI_3AXIS if (SPI_MASTER)
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics accelerometers:
@@ -246,23 +383,30 @@ config IIO_ST_ACCEL_3AXIS
 	  LIS331DLH, LSM303DL, LSM303DLM, LSM330, LIS2DH12, H3LIS331DL,
 	  LNG2DM, LIS3DE, LIS2DE12, LIS2HH12
 
-	  This driver can also be built as a module. If so, these modules
-	  will be created:
-	  - st_accel (core functions for the driver [it is mandatory]);
-	  - st_accel_i2c (necessary for the I2C devices [optional*]);
-	  - st_accel_spi (necessary for the SPI devices [optional*]);
-
-	  (*) one of these is necessary to do something.
+	  Also need to enable at least one of I2C and SPI interface drivers
+	  below.
 
 config IIO_ST_ACCEL_I2C_3AXIS
-	tristate
-	depends on IIO_ST_ACCEL_3AXIS
-	depends on IIO_ST_SENSORS_I2C
+	tristate "STMicroelectronics accelerometers 3-Axis I2C Interface"
+	depends on I2C && IIO_ST_ACCEL_3AXIS
+	default I2C && IIO_ST_ACCEL_3AXIS
+	select IIO_ST_SENSORS_I2C
+	help
+	  Build support for STMicroelectronics accelerometers I2C interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_accel_i2c.
 
 config IIO_ST_ACCEL_SPI_3AXIS
-	tristate
-	depends on IIO_ST_ACCEL_3AXIS
-	depends on IIO_ST_SENSORS_SPI
+	tristate "STMicroelectronics accelerometers 3-Axis SPI Interface"
+	depends on SPI_MASTER && IIO_ST_ACCEL_3AXIS
+	default SPI_MASTER && IIO_ST_ACCEL_3AXIS
+	select IIO_ST_SENSORS_SPI
+	help
+	  Build support for STMicroelectronics accelerometers SPI interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_accel_spi.
 
 config KXSD9
 	tristate "Kionix KXSD9 Accelerometer Driver"
@@ -431,6 +575,19 @@ config SCA3000
 
 	  To compile this driver as a module, say M here: the module will be
 	  called sca3000.
+
+config SCA3300
+	tristate "Murata SCA3300 3-Axis Accelerometer Driver"
+	depends on SPI
+	select CRC8
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Murata SCA3300 3-Axis
+	  accelerometer.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called sca3300.
 
 config STK8312
 	tristate "Sensortek STK8312 3-Axis Accelerometer Driver"

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Test module for in-kernel sythetic event creation and generation.
+ * Test module for in-kernel synthetic event creation and generation.
  *
  * Copyright (C) 2019 Tom Zanussi <zanussi@kernel.org>
  */
@@ -307,7 +307,7 @@ static int __init test_create_synth_event(void)
 	return ret;
  delete:
 	/* We got an error after creating the event, delete it */
-	ret = synth_event_delete("create_synth_test");
+	synth_event_delete("create_synth_test");
 
 	goto out;
 }

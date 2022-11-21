@@ -294,8 +294,8 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 	}
 	outb(val, port);
 
-	err = snd_card_new(pdev, index[ndev], id[ndev], THIS_MODULE,
-			   sizeof(struct snd_cmi8328), &card);
+	err = snd_devm_card_new(pdev, index[ndev], id[ndev], THIS_MODULE,
+				sizeof(struct snd_cmi8328), &card);
 	if (err < 0)
 		return err;
 	cmi = card->private_data;
@@ -306,18 +306,18 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 	err = snd_wss_create(card, port + 4, -1, irq[ndev], dma1[ndev],
 			dma2[ndev], WSS_HW_DETECT, 0, &cmi->wss);
 	if (err < 0)
-		goto error;
+		return err;
 
 	err = snd_wss_pcm(cmi->wss, 0);
 	if (err < 0)
-		goto error;
+		return err;
 
 	err = snd_wss_mixer(cmi->wss);
 	if (err < 0)
-		goto error;
+		return err;
 	err = snd_cmi8328_mixer(cmi->wss);
 	if (err < 0)
-		goto error;
+		return err;
 
 	if (snd_wss_timer(cmi->wss, 0) < 0)
 		snd_printk(KERN_WARNING "error initializing WSS timer\n");
@@ -371,24 +371,21 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 	dev_set_drvdata(pdev, card);
 	err = snd_card_register(card);
 	if (err < 0)
-		goto error;
+		return err;
 #ifdef SUPPORT_JOYSTICK
 	if (!gameport[ndev])
 		return 0;
 	/* gameport is hardwired to 0x200 */
-	res = request_region(0x200, 8, "CMI8328 gameport");
+	res = devm_request_region(pdev, 0x200, 8, "CMI8328 gameport");
 	if (!res)
 		snd_printk(KERN_WARNING "unable to allocate gameport I/O port\n");
 	else {
 		struct gameport *gp = cmi->gameport = gameport_allocate_port();
-		if (!cmi->gameport)
-			release_and_free_resource(res);
-		else {
+		if (cmi->gameport) {
 			gameport_set_name(gp, "CMI8328 Gameport");
 			gameport_set_phys(gp, "%s/gameport0", dev_name(pdev));
 			gameport_set_dev_parent(gp, pdev);
 			gp->io = 0x200;
-			gameport_set_port_data(gp, res);
 			/* Enable gameport */
 			snd_cmi8328_cfg_write(port, CFG1,
 					CFG1_SB_DISABLE | CFG1_GAMEPORT);
@@ -397,30 +394,21 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 	}
 #endif
 	return 0;
-error:
-	snd_card_free(card);
-
-	return err;
 }
 
-static int snd_cmi8328_remove(struct device *pdev, unsigned int dev)
+static void snd_cmi8328_remove(struct device *pdev, unsigned int dev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
 	struct snd_cmi8328 *cmi = card->private_data;
 
 #ifdef SUPPORT_JOYSTICK
-	if (cmi->gameport) {
-		struct resource *res = gameport_get_port_data(cmi->gameport);
+	if (cmi->gameport)
 		gameport_unregister_port(cmi->gameport);
-		release_and_free_resource(res);
-	}
 #endif
 	/* disable everything */
 	snd_cmi8328_cfg_write(cmi->port, CFG1, CFG1_SB_DISABLE);
 	snd_cmi8328_cfg_write(cmi->port, CFG2, 0);
 	snd_cmi8328_cfg_write(cmi->port, CFG3, 0);
-	snd_card_free(card);
-	return 0;
 }
 
 #ifdef CONFIG_PM

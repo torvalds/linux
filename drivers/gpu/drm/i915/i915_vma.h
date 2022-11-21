@@ -37,6 +37,7 @@
 
 #include "i915_active.h"
 #include "i915_request.h"
+#include "i915_vma_resource.h"
 #include "i915_vma_types.h"
 
 struct i915_vma *
@@ -52,17 +53,30 @@ static inline bool i915_vma_is_active(const struct i915_vma *vma)
 	return !i915_active_is_idle(&vma->active);
 }
 
-int __must_check __i915_vma_move_to_active(struct i915_vma *vma,
-					   struct i915_request *rq);
-int __must_check i915_vma_move_to_active(struct i915_vma *vma,
-					 struct i915_request *rq,
-					 unsigned int flags);
+/* do not reserve memory to prevent deadlocks */
+#define __EXEC_OBJECT_NO_RESERVE BIT(31)
+
+int __must_check _i915_vma_move_to_active(struct i915_vma *vma,
+					  struct i915_request *rq,
+					  struct dma_fence *fence,
+					  unsigned int flags);
+static inline int __must_check
+i915_vma_move_to_active(struct i915_vma *vma, struct i915_request *rq,
+			unsigned int flags)
+{
+	return _i915_vma_move_to_active(vma, rq, &rq->fence, flags);
+}
 
 #define __i915_vma_flags(v) ((unsigned long *)&(v)->flags.counter)
 
 static inline bool i915_vma_is_ggtt(const struct i915_vma *vma)
 {
 	return test_bit(I915_VMA_GGTT_BIT, __i915_vma_flags(vma));
+}
+
+static inline bool i915_vma_is_dpt(const struct i915_vma *vma)
+{
+	return i915_is_dpt(vma->vm);
 }
 
 static inline bool i915_vma_has_ggtt_write(const struct i915_vma *vma)
@@ -143,11 +157,6 @@ static inline void i915_vma_put(struct i915_vma *vma)
 	i915_gem_object_put(vma->obj);
 }
 
-static __always_inline ptrdiff_t ptrdiff(const void *a, const void *b)
-{
-	return a - b;
-}
-
 static inline long
 i915_vma_compare(struct i915_vma *vma,
 		 struct i915_address_space *vm,
@@ -155,7 +164,7 @@ i915_vma_compare(struct i915_vma *vma,
 {
 	ptrdiff_t cmp;
 
-	GEM_BUG_ON(view && !i915_is_ggtt(vm));
+	GEM_BUG_ON(view && !i915_is_ggtt_or_dpt(vm));
 
 	cmp = ptrdiff(vma->vm, vm);
 	if (cmp)
@@ -196,16 +205,19 @@ struct i915_vma_work *i915_vma_work(void);
 int i915_vma_bind(struct i915_vma *vma,
 		  enum i915_cache_level cache_level,
 		  u32 flags,
-		  struct i915_vma_work *work);
+		  struct i915_vma_work *work,
+		  struct i915_vma_resource *vma_res);
 
 bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long color);
 bool i915_vma_misplaced(const struct i915_vma *vma,
 			u64 size, u64 alignment, u64 flags);
 void __i915_vma_set_map_and_fenceable(struct i915_vma *vma);
 void i915_vma_revoke_mmap(struct i915_vma *vma);
-void __i915_vma_evict(struct i915_vma *vma);
+struct dma_fence *__i915_vma_evict(struct i915_vma *vma, bool async);
 int __i915_vma_unbind(struct i915_vma *vma);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
+int __must_check i915_vma_unbind_async(struct i915_vma *vma, bool trylock_vm);
+int __must_check i915_vma_unbind_unlocked(struct i915_vma *vma);
 void i915_vma_unlink_ctx(struct i915_vma *vma);
 void i915_vma_close(struct i915_vma *vma);
 void i915_vma_reopen(struct i915_vma *vma);
@@ -224,16 +236,19 @@ static inline void __i915_vma_put(struct i915_vma *vma)
 	kref_put(&vma->ref, i915_vma_release);
 }
 
-#define assert_vma_held(vma) dma_resv_assert_held((vma)->resv)
+void i915_vma_destroy_locked(struct i915_vma *vma);
+void i915_vma_destroy(struct i915_vma *vma);
+
+#define assert_vma_held(vma) dma_resv_assert_held((vma)->obj->base.resv)
 
 static inline void i915_vma_lock(struct i915_vma *vma)
 {
-	dma_resv_lock(vma->resv, NULL);
+	dma_resv_lock(vma->obj->base.resv, NULL);
 }
 
 static inline void i915_vma_unlock(struct i915_vma *vma)
 {
-	dma_resv_unlock(vma->resv);
+	dma_resv_unlock(vma->obj->base.resv);
 }
 
 int __must_check
@@ -243,7 +258,22 @@ i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 static inline int __must_check
 i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 {
-	return i915_vma_pin_ww(vma, NULL, size, alignment, flags);
+	struct i915_gem_ww_ctx ww;
+	int err;
+
+	i915_gem_ww_ctx_init(&ww, true);
+retry:
+	err = i915_gem_object_lock(vma->obj, &ww);
+	if (!err)
+		err = i915_vma_pin_ww(vma, &ww, size, alignment, flags);
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+
+	return err;
 }
 
 int i915_ggtt_pin(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
@@ -314,12 +344,6 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma);
  */
 void i915_vma_unpin_iomap(struct i915_vma *vma);
 
-static inline struct page *i915_vma_first_page(struct i915_vma *vma)
-{
-	GEM_BUG_ON(!vma->pages);
-	return sg_page(vma->pages->sgl);
-}
-
 /**
  * i915_vma_pin_fence - pin fencing state
  * @vma: vma to pin fencing for
@@ -363,6 +387,21 @@ i915_vma_unpin_fence(struct i915_vma *vma)
 
 void i915_vma_parked(struct intel_gt *gt);
 
+static inline bool i915_vma_is_scanout(const struct i915_vma *vma)
+{
+	return test_bit(I915_VMA_SCANOUT_BIT, __i915_vma_flags(vma));
+}
+
+static inline void i915_vma_mark_scanout(struct i915_vma *vma)
+{
+	set_bit(I915_VMA_SCANOUT_BIT, __i915_vma_flags(vma));
+}
+
+static inline void i915_vma_clear_scanout(struct i915_vma *vma)
+{
+	clear_bit(I915_VMA_SCANOUT_BIT, __i915_vma_flags(vma));
+}
+
 #define for_each_until(cond) if (cond) break; else
 
 /**
@@ -378,9 +417,6 @@ void i915_vma_parked(struct intel_gt *gt);
 	list_for_each_entry(V, &(OBJ)->vma.list, obj_link)		\
 		for_each_until(!i915_vma_is_ggtt(V))
 
-struct i915_vma *i915_vma_alloc(void);
-void i915_vma_free(struct i915_vma *vma);
-
 struct i915_vma *i915_vma_make_unshrinkable(struct i915_vma *vma);
 void i915_vma_make_shrinkable(struct i915_vma *vma);
 void i915_vma_make_purgeable(struct i915_vma *vma);
@@ -392,5 +428,31 @@ static inline int i915_vma_sync(struct i915_vma *vma)
 	/* Wait for the asynchronous bindings and pending GPU reads */
 	return i915_active_wait(&vma->active);
 }
+
+/**
+ * i915_vma_get_current_resource - Get the current resource of the vma
+ * @vma: The vma to get the current resource from.
+ *
+ * It's illegal to call this function if the vma is not bound.
+ *
+ * Return: A refcounted pointer to the current vma resource
+ * of the vma, assuming the vma is bound.
+ */
+static inline struct i915_vma_resource *
+i915_vma_get_current_resource(struct i915_vma *vma)
+{
+	return i915_vma_resource_get(vma->resource);
+}
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+void i915_vma_resource_init_from_vma(struct i915_vma_resource *vma_res,
+				     struct i915_vma *vma);
+#endif
+
+void i915_vma_module_exit(void);
+int i915_vma_module_init(void);
+
+I915_SELFTEST_DECLARE(int i915_vma_get_pages(struct i915_vma *vma));
+I915_SELFTEST_DECLARE(void i915_vma_put_pages(struct i915_vma *vma));
 
 #endif

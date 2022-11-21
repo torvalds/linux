@@ -5,16 +5,17 @@
  * Copyright (C) 2018, Red Hat, Inc.
  */
 
-#define _GNU_SOURCE /* for program_invocation_name */
-
 #include <linux/compiler.h>
+#include <assert.h>
 
+#include "guest_modes.h"
 #include "kvm_util.h"
 #include "../kvm_util_internal.h"
 #include "processor.h"
 
-#define KVM_GUEST_PAGE_TABLE_MIN_PADDR		0x180000
 #define DEFAULT_ARM64_GUEST_STACK_VADDR_MIN	0xac0000
+
+static vm_vaddr_t exception_handlers;
 
 static uint64_t page_align(struct kvm_vm *vm, uint64_t v)
 {
@@ -74,19 +75,19 @@ static uint64_t __maybe_unused ptrs_per_pte(struct kvm_vm *vm)
 	return 1 << (vm->page_shift - 3);
 }
 
-void virt_pgd_alloc(struct kvm_vm *vm, uint32_t pgd_memslot)
+void virt_pgd_alloc(struct kvm_vm *vm)
 {
 	if (!vm->pgd_created) {
 		vm_paddr_t paddr = vm_phy_pages_alloc(vm,
 			page_align(vm, ptrs_per_pgd(vm) * 8) / vm->page_size,
-			KVM_GUEST_PAGE_TABLE_MIN_PADDR, pgd_memslot);
+			KVM_GUEST_PAGE_TABLE_MIN_PADDR, 0);
 		vm->pgd = paddr;
 		vm->pgd_created = true;
 	}
 }
 
-void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
-		  uint32_t pgd_memslot, uint64_t flags)
+static void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+			 uint64_t flags)
 {
 	uint8_t attr_idx = flags & 7;
 	uint64_t *ptep;
@@ -106,25 +107,19 @@ void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 		paddr, vm->max_gfn, vm->page_size);
 
 	ptep = addr_gpa2hva(vm, vm->pgd) + pgd_index(vm, vaddr) * 8;
-	if (!*ptep) {
-		*ptep = vm_phy_page_alloc(vm, KVM_GUEST_PAGE_TABLE_MIN_PADDR, pgd_memslot);
-		*ptep |= 3;
-	}
+	if (!*ptep)
+		*ptep = vm_alloc_page_table(vm) | 3;
 
 	switch (vm->pgtable_levels) {
 	case 4:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pud_index(vm, vaddr) * 8;
-		if (!*ptep) {
-			*ptep = vm_phy_page_alloc(vm, KVM_GUEST_PAGE_TABLE_MIN_PADDR, pgd_memslot);
-			*ptep |= 3;
-		}
+		if (!*ptep)
+			*ptep = vm_alloc_page_table(vm) | 3;
 		/* fall through */
 	case 3:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pmd_index(vm, vaddr) * 8;
-		if (!*ptep) {
-			*ptep = vm_phy_page_alloc(vm, KVM_GUEST_PAGE_TABLE_MIN_PADDR, pgd_memslot);
-			*ptep |= 3;
-		}
+		if (!*ptep)
+			*ptep = vm_alloc_page_table(vm) | 3;
 		/* fall through */
 	case 2:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pte_index(vm, vaddr) * 8;
@@ -137,12 +132,11 @@ void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 	*ptep |= (attr_idx << 2) | (1 << 10) /* Access Flag */;
 }
 
-void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
-		 uint32_t pgd_memslot)
+void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 {
 	uint64_t attr_idx = 4; /* NORMAL (See DEFAULT_MAIR_EL1) */
 
-	_virt_pg_map(vm, vaddr, paddr, pgd_memslot, attr_idx);
+	_virt_pg_map(vm, vaddr, paddr, attr_idx);
 }
 
 vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
@@ -219,22 +213,7 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	}
 }
 
-struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
-				 void *guest_code)
-{
-	uint64_t ptrs_per_4k_pte = 512;
-	uint64_t extra_pg_pages = (extra_mem_pages / ptrs_per_4k_pte) * 2;
-	struct kvm_vm *vm;
-
-	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
-
-	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
-	vm_vcpu_add_default(vm, vcpuid, guest_code);
-
-	return vm;
-}
-
-void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *init)
+void aarch64_vcpu_setup(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_vcpu_init *init)
 {
 	struct kvm_vcpu_init default_init = { .target = -1, };
 	uint64_t sctlr_el1, tcr_el1;
@@ -254,11 +233,12 @@ void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *ini
 	 * Enable FP/ASIMD to avoid trapping when accessing Q0-Q15
 	 * registers, which the variable argument list macros do.
 	 */
-	set_reg(vm, vcpuid, ARM64_SYS_REG(CPACR_EL1), 3 << 20);
+	set_reg(vm, vcpuid, KVM_ARM64_SYS_REG(SYS_CPACR_EL1), 3 << 20);
 
-	get_reg(vm, vcpuid, ARM64_SYS_REG(SCTLR_EL1), &sctlr_el1);
-	get_reg(vm, vcpuid, ARM64_SYS_REG(TCR_EL1), &tcr_el1);
+	get_reg(vm, vcpuid, KVM_ARM64_SYS_REG(SYS_SCTLR_EL1), &sctlr_el1);
+	get_reg(vm, vcpuid, KVM_ARM64_SYS_REG(SYS_TCR_EL1), &tcr_el1);
 
+	/* Configure base granule size */
 	switch (vm->mode) {
 	case VM_MODE_P52V48_4K:
 		TEST_FAIL("AArch64 does not support 4K sized pages "
@@ -267,24 +247,46 @@ void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *ini
 		TEST_FAIL("AArch64 does not support 4K sized pages "
 			  "with ANY-bit physical address ranges");
 	case VM_MODE_P52V48_64K:
+	case VM_MODE_P48V48_64K:
+	case VM_MODE_P40V48_64K:
+	case VM_MODE_P36V48_64K:
 		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
+		break;
+	case VM_MODE_P48V48_16K:
+	case VM_MODE_P40V48_16K:
+	case VM_MODE_P36V48_16K:
+	case VM_MODE_P36V47_16K:
+		tcr_el1 |= 2ul << 14; /* TG0 = 16KB */
+		break;
+	case VM_MODE_P48V48_4K:
+	case VM_MODE_P40V48_4K:
+	case VM_MODE_P36V48_4K:
+		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
+		break;
+	default:
+		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
+	}
+
+	/* Configure output size */
+	switch (vm->mode) {
+	case VM_MODE_P52V48_64K:
 		tcr_el1 |= 6ul << 32; /* IPS = 52 bits */
 		break;
 	case VM_MODE_P48V48_4K:
-		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
-		tcr_el1 |= 5ul << 32; /* IPS = 48 bits */
-		break;
+	case VM_MODE_P48V48_16K:
 	case VM_MODE_P48V48_64K:
-		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
 		tcr_el1 |= 5ul << 32; /* IPS = 48 bits */
 		break;
 	case VM_MODE_P40V48_4K:
-		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
+	case VM_MODE_P40V48_16K:
+	case VM_MODE_P40V48_64K:
 		tcr_el1 |= 2ul << 32; /* IPS = 40 bits */
 		break;
-	case VM_MODE_P40V48_64K:
-		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
-		tcr_el1 |= 2ul << 32; /* IPS = 40 bits */
+	case VM_MODE_P36V48_4K:
+	case VM_MODE_P36V48_16K:
+	case VM_MODE_P36V48_64K:
+	case VM_MODE_P36V47_16K:
+		tcr_el1 |= 1ul << 32; /* IPS = 36 bits */
 		break;
 	default:
 		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
@@ -295,10 +297,11 @@ void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *ini
 	tcr_el1 |= (1 << 8) | (1 << 10) | (3 << 12);
 	tcr_el1 |= (64 - vm->va_bits) /* T0SZ */;
 
-	set_reg(vm, vcpuid, ARM64_SYS_REG(SCTLR_EL1), sctlr_el1);
-	set_reg(vm, vcpuid, ARM64_SYS_REG(TCR_EL1), tcr_el1);
-	set_reg(vm, vcpuid, ARM64_SYS_REG(MAIR_EL1), DEFAULT_MAIR_EL1);
-	set_reg(vm, vcpuid, ARM64_SYS_REG(TTBR0_EL1), vm->pgd);
+	set_reg(vm, vcpuid, KVM_ARM64_SYS_REG(SYS_SCTLR_EL1), sctlr_el1);
+	set_reg(vm, vcpuid, KVM_ARM64_SYS_REG(SYS_TCR_EL1), tcr_el1);
+	set_reg(vm, vcpuid, KVM_ARM64_SYS_REG(SYS_MAIR_EL1), DEFAULT_MAIR_EL1);
+	set_reg(vm, vcpuid, KVM_ARM64_SYS_REG(SYS_TTBR0_EL1), vm->pgd);
+	set_reg(vm, vcpuid, KVM_ARM64_SYS_REG(SYS_TPIDR_EL1), vcpuid);
 }
 
 void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
@@ -319,7 +322,7 @@ void aarch64_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid,
 					DEFAULT_STACK_PGS * vm->page_size :
 					vm->page_size;
 	uint64_t stack_vaddr = vm_vaddr_alloc(vm, stack_size,
-					DEFAULT_ARM64_GUEST_STACK_VADDR_MIN, 0, 0);
+					      DEFAULT_ARM64_GUEST_STACK_VADDR_MIN);
 
 	vm_vcpu_add(vm, vcpuid);
 	aarch64_vcpu_setup(vm, vcpuid, init);
@@ -351,6 +354,149 @@ void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)
 	va_end(ap);
 }
 
+void kvm_exit_unexpected_exception(int vector, uint64_t ec, bool valid_ec)
+{
+	ucall(UCALL_UNHANDLED, 3, vector, ec, valid_ec);
+	while (1)
+		;
+}
+
 void assert_on_unhandled_exception(struct kvm_vm *vm, uint32_t vcpuid)
 {
+	struct ucall uc;
+
+	if (get_ucall(vm, vcpuid, &uc) != UCALL_UNHANDLED)
+		return;
+
+	if (uc.args[2]) /* valid_ec */ {
+		assert(VECTOR_IS_SYNC(uc.args[0]));
+		TEST_FAIL("Unexpected exception (vector:0x%lx, ec:0x%lx)",
+			  uc.args[0], uc.args[1]);
+	} else {
+		assert(!VECTOR_IS_SYNC(uc.args[0]));
+		TEST_FAIL("Unexpected exception (vector:0x%lx)",
+			  uc.args[0]);
+	}
+}
+
+struct handlers {
+	handler_fn exception_handlers[VECTOR_NUM][ESR_EC_NUM];
+};
+
+void vcpu_init_descriptor_tables(struct kvm_vm *vm, uint32_t vcpuid)
+{
+	extern char vectors;
+
+	set_reg(vm, vcpuid, KVM_ARM64_SYS_REG(SYS_VBAR_EL1), (uint64_t)&vectors);
+}
+
+void route_exception(struct ex_regs *regs, int vector)
+{
+	struct handlers *handlers = (struct handlers *)exception_handlers;
+	bool valid_ec;
+	int ec = 0;
+
+	switch (vector) {
+	case VECTOR_SYNC_CURRENT:
+	case VECTOR_SYNC_LOWER_64:
+		ec = (read_sysreg(esr_el1) >> ESR_EC_SHIFT) & ESR_EC_MASK;
+		valid_ec = true;
+		break;
+	case VECTOR_IRQ_CURRENT:
+	case VECTOR_IRQ_LOWER_64:
+	case VECTOR_FIQ_CURRENT:
+	case VECTOR_FIQ_LOWER_64:
+	case VECTOR_ERROR_CURRENT:
+	case VECTOR_ERROR_LOWER_64:
+		ec = 0;
+		valid_ec = false;
+		break;
+	default:
+		valid_ec = false;
+		goto unexpected_exception;
+	}
+
+	if (handlers && handlers->exception_handlers[vector][ec])
+		return handlers->exception_handlers[vector][ec](regs);
+
+unexpected_exception:
+	kvm_exit_unexpected_exception(vector, ec, valid_ec);
+}
+
+void vm_init_descriptor_tables(struct kvm_vm *vm)
+{
+	vm->handlers = vm_vaddr_alloc(vm, sizeof(struct handlers),
+			vm->page_size);
+
+	*(vm_vaddr_t *)addr_gva2hva(vm, (vm_vaddr_t)(&exception_handlers)) = vm->handlers;
+}
+
+void vm_install_sync_handler(struct kvm_vm *vm, int vector, int ec,
+			 void (*handler)(struct ex_regs *))
+{
+	struct handlers *handlers = addr_gva2hva(vm, vm->handlers);
+
+	assert(VECTOR_IS_SYNC(vector));
+	assert(vector < VECTOR_NUM);
+	assert(ec < ESR_EC_NUM);
+	handlers->exception_handlers[vector][ec] = handler;
+}
+
+void vm_install_exception_handler(struct kvm_vm *vm, int vector,
+			 void (*handler)(struct ex_regs *))
+{
+	struct handlers *handlers = addr_gva2hva(vm, vm->handlers);
+
+	assert(!VECTOR_IS_SYNC(vector));
+	assert(vector < VECTOR_NUM);
+	handlers->exception_handlers[vector][0] = handler;
+}
+
+uint32_t guest_get_vcpuid(void)
+{
+	return read_sysreg(tpidr_el1);
+}
+
+void aarch64_get_supported_page_sizes(uint32_t ipa,
+				      bool *ps4k, bool *ps16k, bool *ps64k)
+{
+	struct kvm_vcpu_init preferred_init;
+	int kvm_fd, vm_fd, vcpu_fd, err;
+	uint64_t val;
+	struct kvm_one_reg reg = {
+		.id	= KVM_ARM64_SYS_REG(SYS_ID_AA64MMFR0_EL1),
+		.addr	= (uint64_t)&val,
+	};
+
+	kvm_fd = open_kvm_dev_path_or_exit();
+	vm_fd = ioctl(kvm_fd, KVM_CREATE_VM, ipa);
+	TEST_ASSERT(vm_fd >= 0, "Can't create VM");
+
+	vcpu_fd = ioctl(vm_fd, KVM_CREATE_VCPU, 0);
+	TEST_ASSERT(vcpu_fd >= 0, "Can't create vcpu");
+
+	err = ioctl(vm_fd, KVM_ARM_PREFERRED_TARGET, &preferred_init);
+	TEST_ASSERT(err == 0, "Can't get target");
+	err = ioctl(vcpu_fd, KVM_ARM_VCPU_INIT, &preferred_init);
+	TEST_ASSERT(err == 0, "Can't get init vcpu");
+
+	err = ioctl(vcpu_fd, KVM_GET_ONE_REG, &reg);
+	TEST_ASSERT(err == 0, "Can't get MMFR0");
+
+	*ps4k = ((val >> 28) & 0xf) != 0xf;
+	*ps64k = ((val >> 24) & 0xf) == 0;
+	*ps16k = ((val >> 20) & 0xf) != 0;
+
+	close(vcpu_fd);
+	close(vm_fd);
+	close(kvm_fd);
+}
+
+/*
+ * arm64 doesn't have a true default mode, so start by computing the
+ * available IPA space and page sizes early.
+ */
+void __attribute__((constructor)) init_guest_modes(void)
+{
+       guest_modes_append_default();
 }

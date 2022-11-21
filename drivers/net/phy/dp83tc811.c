@@ -197,6 +197,10 @@ static int dp83811_config_intr(struct phy_device *phydev)
 	int misr_status, err;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = dp83811_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		misr_status = phy_read(phydev, MII_DP83811_INT_STAT1);
 		if (misr_status < 0)
 			return misr_status;
@@ -249,9 +253,57 @@ static int dp83811_config_intr(struct phy_device *phydev)
 			return err;
 
 		err = phy_write(phydev, MII_DP83811_INT_STAT3, 0);
+		if (err < 0)
+			return err;
+
+		err = dp83811_ack_interrupt(phydev);
 	}
 
 	return err;
+}
+
+static irqreturn_t dp83811_handle_interrupt(struct phy_device *phydev)
+{
+	bool trigger_machine = false;
+	int irq_status;
+
+	/* The INT_STAT registers 1, 2 and 3 are holding the interrupt status
+	 * in the upper half (15:8), while the lower half (7:0) is used for
+	 * controlling the interrupt enable state of those individual interrupt
+	 * sources. To determine the possible interrupt sources, just read the
+	 * INT_STAT* register and use it directly to know which interrupts have
+	 * been enabled previously or not.
+	 */
+	irq_status = phy_read(phydev, MII_DP83811_INT_STAT1);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+	if (irq_status & ((irq_status & GENMASK(7, 0)) << 8))
+		trigger_machine = true;
+
+	irq_status = phy_read(phydev, MII_DP83811_INT_STAT2);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+	if (irq_status & ((irq_status & GENMASK(7, 0)) << 8))
+		trigger_machine = true;
+
+	irq_status = phy_read(phydev, MII_DP83811_INT_STAT3);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+	if (irq_status & ((irq_status & GENMASK(7, 0)) << 8))
+		trigger_machine = true;
+
+	if (!trigger_machine)
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int dp83811_config_aneg(struct phy_device *phydev)
@@ -343,8 +395,8 @@ static struct phy_driver dp83811_driver[] = {
 		.soft_reset = dp83811_phy_reset,
 		.get_wol = dp83811_get_wol,
 		.set_wol = dp83811_set_wol,
-		.ack_interrupt = dp83811_ack_interrupt,
 		.config_intr = dp83811_config_intr,
+		.handle_interrupt = dp83811_handle_interrupt,
 		.suspend = dp83811_suspend,
 		.resume = dp83811_resume,
 	 },

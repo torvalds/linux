@@ -30,7 +30,7 @@
 #define HISI_DMA_MODE			0x217c
 #define HISI_DMA_OFFSET			0x100
 
-#define HISI_DMA_MSI_NUM		30
+#define HISI_DMA_MSI_NUM		32
 #define HISI_DMA_CHAN_NUM		30
 #define HISI_DMA_Q_DEPTH_VAL		1024
 
@@ -131,11 +131,6 @@ static inline void hisi_dma_update_bit(void __iomem *addr, u32 pos, bool val)
 	tmp = readl_relaxed(addr);
 	tmp = val ? tmp | BIT(pos) : tmp & ~BIT(pos);
 	writel_relaxed(tmp, addr);
-}
-
-static void hisi_dma_free_irq_vectors(void *data)
-{
-	pci_free_irq_vectors(data);
 }
 
 static void hisi_dma_pause_dma(struct hisi_dma_dev *hdma_dev, u32 index,
@@ -431,9 +426,8 @@ static irqreturn_t hisi_dma_irq(int irq, void *data)
 	struct hisi_dma_dev *hdma_dev = chan->hdma_dev;
 	struct hisi_dma_desc *desc;
 	struct hisi_dma_cqe *cqe;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chan->vc.lock, flags);
+	spin_lock(&chan->vc.lock);
 
 	desc = chan->desc;
 	cqe = chan->cq + chan->cq_head;
@@ -452,7 +446,7 @@ static irqreturn_t hisi_dma_irq(int irq, void *data)
 		chan->desc = NULL;
 	}
 
-	spin_unlock_irqrestore(&chan->vc.lock, flags);
+	spin_unlock(&chan->vc.lock);
 
 	return IRQ_HANDLED;
 }
@@ -525,11 +519,7 @@ static int hisi_dma_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return ret;
 	}
 
-	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (ret)
-		return ret;
-
-	ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret)
 		return ret;
 
@@ -545,16 +535,13 @@ static int hisi_dma_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, hdma_dev);
 	pci_set_master(pdev);
 
+	/* This will be freed by 'pcim_release()'. See 'pcim_enable_device()' */
 	ret = pci_alloc_irq_vectors(pdev, HISI_DMA_MSI_NUM, HISI_DMA_MSI_NUM,
 				    PCI_IRQ_MSI);
 	if (ret < 0) {
 		dev_err(dev, "Failed to allocate MSI vectors!\n");
 		return ret;
 	}
-
-	ret = devm_add_action_or_reset(dev, hisi_dma_free_irq_vectors, pdev);
-	if (ret)
-		return ret;
 
 	dma_dev = &hdma_dev->dma_dev;
 	dma_cap_set(DMA_MEMCPY, dma_dev->cap_mask);

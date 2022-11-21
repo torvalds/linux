@@ -1271,7 +1271,7 @@ struct bnx2x_fw_stats_data {
 	struct per_port_stats		port;
 	struct per_pf_stats		pf;
 	struct fcoe_statistics_params	fcoe;
-	struct per_queue_stats		queue_stats[1];
+	struct per_queue_stats		queue_stats[];
 };
 
 /* Public slow path states */
@@ -1850,6 +1850,14 @@ struct bnx2x {
 
 	/* Vxlan/Geneve related information */
 	u16 udp_tunnel_ports[BNX2X_UDP_PORT_MAX];
+
+#define FW_CAP_INVALIDATE_VF_FP_HSI	BIT(0)
+	u32 fw_cap;
+
+	u32 fw_major;
+	u32 fw_minor;
+	u32 fw_rev;
+	u32 fw_eng;
 };
 
 /* Tx queues may be less or equal to Rx queues */
@@ -1994,7 +2002,7 @@ int bnx2x_idle_chk(struct bnx2x *bp);
  * operation has been successfully scheduled and a negative - if a requested
  * operations has failed.
  */
-int bnx2x_set_mac_one(struct bnx2x *bp, u8 *mac,
+int bnx2x_set_mac_one(struct bnx2x *bp, const u8 *mac,
 		      struct bnx2x_vlan_mac_obj *obj, bool set,
 		      int mac_type, unsigned long *ramrod_flags);
 
@@ -2407,7 +2415,6 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 #define ETH_MAX_RX_CLIENTS_E2		ETH_MAX_RX_CLIENTS_E1H
 #endif
 
-#define BNX2X_VPD_LEN			128
 #define VENDOR_ID_LEN			4
 
 #define VF_ACQUIRE_THRESH		3
@@ -2526,5 +2533,4 @@ void bnx2x_register_phc(struct bnx2x *bp);
  * Meant for implicit re-load flows.
  */
 int bnx2x_vlan_reconfigure_vid(struct bnx2x *bp);
-
 #endif /* bnx2x.h */

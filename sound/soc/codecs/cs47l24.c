@@ -37,21 +37,21 @@ struct cs47l24_priv {
 	struct arizona_fll fll[2];
 };
 
-static const struct wm_adsp_region cs47l24_dsp2_regions[] = {
+static const struct cs_dsp_region cs47l24_dsp2_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x200000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x280000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x290000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x2a8000 },
 };
 
-static const struct wm_adsp_region cs47l24_dsp3_regions[] = {
+static const struct cs_dsp_region cs47l24_dsp3_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x300000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x380000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x390000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x3a8000 },
 };
 
-static const struct wm_adsp_region *cs47l24_dsp_regions[] = {
+static const struct cs_dsp_region *cs47l24_dsp_regions[] = {
 	cs47l24_dsp2_regions,
 	cs47l24_dsp3_regions,
 };
@@ -977,8 +977,8 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 			 .formats = CS47L24_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "cs47l24-aif2",
@@ -999,8 +999,8 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 			 .formats = CS47L24_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "cs47l24-aif3",
@@ -1021,8 +1021,8 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 			 .formats = CS47L24_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "cs47l24-cpu-voicectrl",
@@ -1178,7 +1178,7 @@ static unsigned int cs47l24_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_4L,
 };
 
-static struct snd_compress_ops cs47l24_compress_ops = {
+static const struct snd_compress_ops cs47l24_compress_ops = {
 	.open		= cs47l24_open,
 	.free		= wm_adsp_compr_free,
 	.set_params	= wm_adsp_compr_set_params,
@@ -1234,15 +1234,15 @@ static int cs47l24_probe(struct platform_device *pdev)
 
 	for (i = 1; i <= 2; i++) {
 		cs47l24->core.adsp[i].part = "cs47l24";
-		cs47l24->core.adsp[i].num = i + 1;
-		cs47l24->core.adsp[i].type = WMFW_ADSP2;
-		cs47l24->core.adsp[i].dev = arizona->dev;
-		cs47l24->core.adsp[i].regmap = arizona->regmap;
+		cs47l24->core.adsp[i].cs_dsp.num = i + 1;
+		cs47l24->core.adsp[i].cs_dsp.type = WMFW_ADSP2;
+		cs47l24->core.adsp[i].cs_dsp.dev = arizona->dev;
+		cs47l24->core.adsp[i].cs_dsp.regmap = arizona->regmap;
 
-		cs47l24->core.adsp[i].base = ARIZONA_DSP1_CONTROL_1 +
+		cs47l24->core.adsp[i].cs_dsp.base = ARIZONA_DSP1_CONTROL_1 +
 					     (0x100 * i);
-		cs47l24->core.adsp[i].mem = cs47l24_dsp_regions[i - 1];
-		cs47l24->core.adsp[i].num_mems =
+		cs47l24->core.adsp[i].cs_dsp.mem = cs47l24_dsp_regions[i - 1];
+		cs47l24->core.adsp[i].cs_dsp.num_mems =
 				ARRAY_SIZE(cs47l24_dsp2_regions);
 
 		ret = wm_adsp2_init(&cs47l24->core.adsp[i]);

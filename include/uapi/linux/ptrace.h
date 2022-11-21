@@ -81,7 +81,8 @@ struct seccomp_metadata {
 
 struct ptrace_syscall_info {
 	__u8 op;	/* PTRACE_SYSCALL_INFO_* */
-	__u32 arch __attribute__((__aligned__(sizeof(__u32))));
+	__u8 pad[3];
+	__u32 arch;
 	__u64 instruction_pointer;
 	__u64 stack_pointer;
 	union {
@@ -101,9 +102,19 @@ struct ptrace_syscall_info {
 	};
 };
 
+#define PTRACE_GET_RSEQ_CONFIGURATION	0x420f
+
+struct ptrace_rseq_configuration {
+	__u64 rseq_abi_pointer;
+	__u32 rseq_abi_size;
+	__u32 signature;
+	__u32 flags;
+	__u32 pad;
+};
+
 /*
  * These values are stored in task->ptrace_message
- * by tracehook_report_syscall_* to describe the current syscall-stop.
+ * by ptrace_stop to describe the current syscall-stop.
  */
 #define PTRACE_EVENTMSG_SYSCALL_ENTRY	1
 #define PTRACE_EVENTMSG_SYSCALL_EXIT	2

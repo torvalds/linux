@@ -41,6 +41,7 @@
 #include <linux/slab.h>
 #include "pm8001_sas.h"
 #include "pm8001_ctl.h"
+#include "pm8001_chips.h"
 
 /* scsi host attributes */
 
@@ -76,7 +77,7 @@ DEVICE_ATTR(interface_rev, S_IRUGO, pm8001_ctl_mpi_interface_rev_show, NULL);
  * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
- * A sysfs 'read only' shost attribute.
+ * A sysfs 'read-only' shost attribute.
  */
 static ssize_t controller_fatal_error_show(struct device *cdev,
 		struct device_attribute *attr, char *buf)
@@ -148,7 +149,7 @@ static ssize_t pm8001_ctl_ila_version_show(struct device *cdev,
 static DEVICE_ATTR(ila_version, 0444, pm8001_ctl_ila_version_show, NULL);
 
 /**
- * pm8001_ctl_inactive_fw_version_show - Inacative firmware version number
+ * pm8001_ctl_inactive_fw_version_show - Inactive firmware version number
  * @cdev: pointer to embedded class device
  * @attr: device attribute (unused)
  * @buf: the buffer returned
@@ -299,7 +300,7 @@ static DEVICE_ATTR(sas_spec_support, S_IRUGO,
 		   pm8001_ctl_sas_spec_support_show, NULL);
 
 /**
- * pm8001_ctl_sas_address_show - sas address
+ * pm8001_ctl_host_sas_address_show - sas address
  * @cdev: pointer to embedded class device
  * @attr: device attribute (unused)
  * @buf: the buffer returned
@@ -369,24 +370,22 @@ static ssize_t pm8001_ctl_aap_log_show(struct device *cdev,
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	u8 *ptr = (u8 *)pm8001_ha->memoryMap.region[AAP1].virt_ptr;
 	int i;
-#define AAP1_MEMMAP(r, c) \
-	(*(u32 *)((u8*)pm8001_ha->memoryMap.region[AAP1].virt_ptr + (r) * 32 \
-	+ (c)))
 
 	char *str = buf;
 	int max = 2;
 	for (i = 0; i < max; i++) {
 		str += sprintf(str, "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x"
 			       "0x%08x 0x%08x\n",
-			       AAP1_MEMMAP(i, 0),
-			       AAP1_MEMMAP(i, 4),
-			       AAP1_MEMMAP(i, 8),
-			       AAP1_MEMMAP(i, 12),
-			       AAP1_MEMMAP(i, 16),
-			       AAP1_MEMMAP(i, 20),
-			       AAP1_MEMMAP(i, 24),
-			       AAP1_MEMMAP(i, 28));
+			       pm8001_ctl_aap1_memmap(ptr, i, 0),
+			       pm8001_ctl_aap1_memmap(ptr, i, 4),
+			       pm8001_ctl_aap1_memmap(ptr, i, 8),
+			       pm8001_ctl_aap1_memmap(ptr, i, 12),
+			       pm8001_ctl_aap1_memmap(ptr, i, 16),
+			       pm8001_ctl_aap1_memmap(ptr, i, 20),
+			       pm8001_ctl_aap1_memmap(ptr, i, 24),
+			       pm8001_ctl_aap1_memmap(ptr, i, 28));
 	}
 
 	return str - buf;
@@ -397,6 +396,7 @@ static DEVICE_ATTR(aap_log, S_IRUGO, pm8001_ctl_aap_log_show, NULL);
  * @cdev:pointer to embedded class device
  * @attr: device attribute (unused)
  * @buf: the buffer returned
+ *
  * A sysfs 'read-only' shost attribute.
  */
 static ssize_t pm8001_ctl_ib_queue_log_show(struct device *cdev,
@@ -409,6 +409,7 @@ static ssize_t pm8001_ctl_ib_queue_log_show(struct device *cdev,
 	char *str = buf;
 	int start = 0;
 	u32 ib_offset = pm8001_ha->ib_offset;
+	u32 queue_size = pm8001_ha->max_q_num * PM8001_MPI_QUEUE * 128;
 #define IB_MEMMAP(c)	\
 		(*(u32 *)((u8 *)pm8001_ha->	\
 		memoryMap.region[ib_offset].virt_ptr +	\
@@ -419,7 +420,7 @@ static ssize_t pm8001_ctl_ib_queue_log_show(struct device *cdev,
 		start = start + 4;
 	}
 	pm8001_ha->evtlog_ib_offset += SYSFS_OFFSET;
-	if (((pm8001_ha->evtlog_ib_offset) % (PM80XX_IB_OB_QUEUE_SIZE)) == 0)
+	if (((pm8001_ha->evtlog_ib_offset) % queue_size) == 0)
 		pm8001_ha->evtlog_ib_offset = 0;
 
 	return str - buf;
@@ -431,6 +432,7 @@ static DEVICE_ATTR(ib_log, S_IRUGO, pm8001_ctl_ib_queue_log_show, NULL);
  * @cdev:pointer to embedded class device
  * @attr: device attribute (unused)
  * @buf: the buffer returned
+ *
  * A sysfs 'read-only' shost attribute.
  */
 
@@ -444,6 +446,7 @@ static ssize_t pm8001_ctl_ob_queue_log_show(struct device *cdev,
 	char *str = buf;
 	int start = 0;
 	u32 ob_offset = pm8001_ha->ob_offset;
+	u32 queue_size = pm8001_ha->max_q_num * PM8001_MPI_QUEUE * 128;
 #define OB_MEMMAP(c)	\
 		(*(u32 *)((u8 *)pm8001_ha->	\
 		memoryMap.region[ob_offset].virt_ptr +	\
@@ -454,7 +457,7 @@ static ssize_t pm8001_ctl_ob_queue_log_show(struct device *cdev,
 		start = start + 4;
 	}
 	pm8001_ha->evtlog_ob_offset += SYSFS_OFFSET;
-	if (((pm8001_ha->evtlog_ob_offset) % (PM80XX_IB_OB_QUEUE_SIZE)) == 0)
+	if (((pm8001_ha->evtlog_ob_offset) % queue_size) == 0)
 		pm8001_ha->evtlog_ob_offset = 0;
 
 	return str - buf;
@@ -465,6 +468,7 @@ static DEVICE_ATTR(ob_log, S_IRUGO, pm8001_ctl_ob_queue_log_show, NULL);
  * @cdev:pointer to embedded class device
  * @attr: device attribute (unused)
  * @buf:the buffer returned
+ *
  * A sysfs 'read-only' shost attribute.
  */
 static ssize_t pm8001_ctl_bios_version_show(struct device *cdev,
@@ -518,7 +522,7 @@ static ssize_t event_log_size_show(struct device *cdev,
 }
 static DEVICE_ATTR_RO(event_log_size);
 /**
- * pm8001_ctl_aap_log_show - IOP event log
+ * pm8001_ctl_iop_log_show - IOP event log
  * @cdev: pointer to embedded class device
  * @attr: device attribute (unused)
  * @buf: the buffer returned
@@ -556,13 +560,13 @@ static ssize_t pm8001_ctl_iop_log_show(struct device *cdev,
 static DEVICE_ATTR(iop_log, S_IRUGO, pm8001_ctl_iop_log_show, NULL);
 
 /**
- ** pm8001_ctl_fatal_log_show - fatal error logging
- ** @cdev:pointer to embedded class device
- ** @attr: device attribute
- ** @buf: the buffer returned
- **
- ** A sysfs 'read-only' shost attribute.
- **/
+ * pm8001_ctl_fatal_log_show - fatal error logging
+ * @cdev:pointer to embedded class device
+ * @attr: device attribute
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
 
 static ssize_t pm8001_ctl_fatal_log_show(struct device *cdev,
 	struct device_attribute *attr, char *buf)
@@ -576,13 +580,13 @@ static ssize_t pm8001_ctl_fatal_log_show(struct device *cdev,
 static DEVICE_ATTR(fatal_log, S_IRUGO, pm8001_ctl_fatal_log_show, NULL);
 
 /**
- ** non_fatal_log_show - non fatal error logging
- ** @cdev:pointer to embedded class device
- ** @attr: device attribute
- ** @buf: the buffer returned
- **
- ** A sysfs 'read-only' shost attribute.
- **/
+ * non_fatal_log_show - non fatal error logging
+ * @cdev:pointer to embedded class device
+ * @attr: device attribute
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
 static ssize_t non_fatal_log_show(struct device *cdev,
 	struct device_attribute *attr, char *buf)
 {
@@ -621,12 +625,13 @@ static ssize_t non_fatal_count_store(struct device *cdev,
 static DEVICE_ATTR_RW(non_fatal_count);
 
 /**
- ** pm8001_ctl_gsm_log_show - gsm dump collection
- ** @cdev:pointer to embedded class device
- ** @attr: device attribute (unused)
- ** @buf: the buffer returned
- ** A sysfs 'read-only' shost attribute.
- **/
+ * pm8001_ctl_gsm_log_show - gsm dump collection
+ * @cdev:pointer to embedded class device
+ * @attr: device attribute (unused)
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
 static ssize_t pm8001_ctl_gsm_log_show(struct device *cdev,
 	struct device_attribute *attr, char *buf)
 {
@@ -647,8 +652,7 @@ struct flash_command {
      int     code;
 };
 
-static struct flash_command flash_command_table[] =
-{
+static const struct flash_command flash_command_table[] = {
      {"set_nvmd",    FLASH_CMD_SET_NVMD},
      {"update",      FLASH_CMD_UPDATE},
      {"",            FLASH_CMD_NONE} /* Last entry should be NULL. */
@@ -659,8 +663,7 @@ struct error_fw {
      int     err_code;
 };
 
-static struct error_fw flash_error_table[] =
-{
+static const struct error_fw flash_error_table[] = {
      {"Failed to open fw image file",	FAIL_OPEN_BIOS_FILE},
      {"image header mismatch",		FLASH_UPDATE_HDR_ERR},
      {"image offset mismatch",		FLASH_UPDATE_OFFSET_ERR},
@@ -718,12 +721,15 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 	DECLARE_COMPLETION_ONSTACK(completion);
 	u8		*ioctlbuffer;
 	struct fw_control_info	*fwControl;
-	u32		partitionSize, partitionSizeTmp;
+	__be32		partitionSizeTmp;
+	u32		partitionSize;
 	u32		loopNumber, loopcount;
 	struct pm8001_fw_image_header *image_hdr;
 	u32		sizeRead = 0;
 	u32		ret = 0;
 	u32		length = 1024 * 16 + sizeof(*payload) - 1;
+	u32		fc_len;
+	u8		*read_buf;
 
 	if (pm8001_ha->fw_image->size < 28) {
 		pm8001_ha->fw_status = FAIL_FILE_SIZE;
@@ -737,7 +743,7 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 	image_hdr = (struct pm8001_fw_image_header *)pm8001_ha->fw_image->data;
 	while (sizeRead < pm8001_ha->fw_image->size) {
 		partitionSizeTmp =
-			*(u32 *)((u8 *)&image_hdr->image_length + sizeRead);
+			*(__be32 *)((u8 *)&image_hdr->image_length + sizeRead);
 		partitionSize = be32_to_cpu(partitionSizeTmp);
 		loopcount = DIV_ROUND_UP(partitionSize + HEADER_LEN,
 					IOCTL_BUF_SIZE);
@@ -752,36 +758,35 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 			fwControl->retcode = 0;/* OUT */
 			fwControl->offset = loopNumber * IOCTL_BUF_SIZE;/*OUT */
 
-		/* for the last chunk of data in case file size is not even with
-		4k, load only the rest*/
-		if (((loopcount-loopNumber) == 1) &&
-			((partitionSize + HEADER_LEN) % IOCTL_BUF_SIZE)) {
-			fwControl->len =
-				(partitionSize + HEADER_LEN) % IOCTL_BUF_SIZE;
-			memcpy((u8 *)fwControl->buffer,
-				(u8 *)pm8001_ha->fw_image->data + sizeRead,
-				(partitionSize + HEADER_LEN) % IOCTL_BUF_SIZE);
-			sizeRead +=
-				(partitionSize + HEADER_LEN) % IOCTL_BUF_SIZE;
-		} else {
-			memcpy((u8 *)fwControl->buffer,
-				(u8 *)pm8001_ha->fw_image->data + sizeRead,
-				IOCTL_BUF_SIZE);
-			sizeRead += IOCTL_BUF_SIZE;
-		}
+			/*
+			 * for the last chunk of data in case file size is
+			 * not even with 4k, load only the rest
+			 */
 
-		pm8001_ha->nvmd_completion = &completion;
-		ret = PM8001_CHIP_DISP->fw_flash_update_req(pm8001_ha, payload);
-		if (ret) {
-			pm8001_ha->fw_status = FAIL_OUT_MEMORY;
-			goto out;
-		}
-		wait_for_completion(&completion);
-		if (fwControl->retcode > FLASH_UPDATE_IN_PROGRESS) {
-			pm8001_ha->fw_status = fwControl->retcode;
-			ret = -EFAULT;
-			goto out;
-		}
+			read_buf  = (u8 *)pm8001_ha->fw_image->data + sizeRead;
+			fc_len = (partitionSize + HEADER_LEN) % IOCTL_BUF_SIZE;
+
+			if (loopcount - loopNumber == 1 && fc_len) {
+				fwControl->len = fc_len;
+				memcpy((u8 *)fwControl->buffer, read_buf, fc_len);
+				sizeRead += fc_len;
+			} else {
+				memcpy((u8 *)fwControl->buffer, read_buf, IOCTL_BUF_SIZE);
+				sizeRead += IOCTL_BUF_SIZE;
+			}
+
+			pm8001_ha->nvmd_completion = &completion;
+			ret = PM8001_CHIP_DISP->fw_flash_update_req(pm8001_ha, payload);
+			if (ret) {
+				pm8001_ha->fw_status = FAIL_OUT_MEMORY;
+				goto out;
+			}
+			wait_for_completion(&completion);
+			if (fwControl->retcode > FLASH_UPDATE_IN_PROGRESS) {
+				pm8001_ha->fw_status = fwControl->retcode;
+				ret = -EFAULT;
+				goto out;
+			}
 		}
 	}
 out:
@@ -841,10 +846,9 @@ static ssize_t pm8001_store_update_fw(struct device *cdev,
 			       pm8001_ha->dev);
 
 	if (ret) {
-		PM8001_FAIL_DBG(pm8001_ha,
-			pm8001_printk(
-			"Failed to load firmware image file %s,	error %d\n",
-			filename_ptr, ret));
+		pm8001_dbg(pm8001_ha, FAIL,
+			   "Failed to load firmware image file %s, error %d\n",
+			   filename_ptr, ret);
 		pm8001_ha->fw_status = FAIL_OPEN_BIOS_FILE;
 		goto out;
 	}
@@ -884,32 +888,158 @@ static ssize_t pm8001_show_update_fw(struct device *cdev,
 			flash_error_table[i].err_code,
 			flash_error_table[i].reason);
 }
-
 static DEVICE_ATTR(update_fw, S_IRUGO|S_IWUSR|S_IWGRP,
 	pm8001_show_update_fw, pm8001_store_update_fw);
-struct device_attribute *pm8001_host_attrs[] = {
-	&dev_attr_interface_rev,
-	&dev_attr_controller_fatal_error,
-	&dev_attr_fw_version,
-	&dev_attr_update_fw,
-	&dev_attr_aap_log,
-	&dev_attr_iop_log,
-	&dev_attr_fatal_log,
-	&dev_attr_non_fatal_log,
-	&dev_attr_non_fatal_count,
-	&dev_attr_gsm_log,
-	&dev_attr_max_out_io,
-	&dev_attr_max_devices,
-	&dev_attr_max_sg_list,
-	&dev_attr_sas_spec_support,
-	&dev_attr_logging_level,
-	&dev_attr_event_log_size,
-	&dev_attr_host_sas_address,
-	&dev_attr_bios_version,
-	&dev_attr_ib_log,
-	&dev_attr_ob_log,
-	&dev_attr_ila_version,
-	&dev_attr_inc_fw_ver,
+
+static const char *const mpiStateText[] = {
+	"MPI is not initialized",
+	"MPI is successfully initialized",
+	"MPI termination is in progress",
+	"MPI initialization failed with error in [31:16]"
+};
+
+/**
+ * ctl_mpi_state_show - controller MPI state check
+ * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t ctl_mpi_state_show(struct device *cdev,
+		struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	unsigned int mpidw0;
+
+	mpidw0 = pm8001_mr32(pm8001_ha->general_stat_tbl_addr, 0);
+	return sysfs_emit(buf, "%s\n", mpiStateText[mpidw0 & 0x0003]);
+}
+static DEVICE_ATTR_RO(ctl_mpi_state);
+
+/**
+ * ctl_hmi_error_show - controller MPI initialization fails
+ * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t ctl_hmi_error_show(struct device *cdev,
+		struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	unsigned int mpidw0;
+
+	mpidw0 = pm8001_mr32(pm8001_ha->general_stat_tbl_addr, 0);
+	return sysfs_emit(buf, "0x%08x\n", (mpidw0 >> 16));
+}
+static DEVICE_ATTR_RO(ctl_hmi_error);
+
+/**
+ * ctl_raae_count_show - controller raae count check
+ * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t ctl_raae_count_show(struct device *cdev,
+		struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	unsigned int raaecnt;
+
+	raaecnt = pm8001_mr32(pm8001_ha->general_stat_tbl_addr, 12);
+	return sysfs_emit(buf, "0x%08x\n", raaecnt);
+}
+static DEVICE_ATTR_RO(ctl_raae_count);
+
+/**
+ * ctl_iop0_count_show - controller iop0 count check
+ * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t ctl_iop0_count_show(struct device *cdev,
+		struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	unsigned int iop0cnt;
+
+	iop0cnt = pm8001_mr32(pm8001_ha->general_stat_tbl_addr, 16);
+	return sysfs_emit(buf, "0x%08x\n", iop0cnt);
+}
+static DEVICE_ATTR_RO(ctl_iop0_count);
+
+/**
+ * ctl_iop1_count_show - controller iop1 count check
+ * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t ctl_iop1_count_show(struct device *cdev,
+		struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	unsigned int iop1cnt;
+
+	iop1cnt = pm8001_mr32(pm8001_ha->general_stat_tbl_addr, 20);
+	return sysfs_emit(buf, "0x%08x\n", iop1cnt);
+
+}
+static DEVICE_ATTR_RO(ctl_iop1_count);
+
+static struct attribute *pm8001_host_attrs[] = {
+	&dev_attr_interface_rev.attr,
+	&dev_attr_controller_fatal_error.attr,
+	&dev_attr_fw_version.attr,
+	&dev_attr_update_fw.attr,
+	&dev_attr_aap_log.attr,
+	&dev_attr_iop_log.attr,
+	&dev_attr_fatal_log.attr,
+	&dev_attr_non_fatal_log.attr,
+	&dev_attr_non_fatal_count.attr,
+	&dev_attr_gsm_log.attr,
+	&dev_attr_max_out_io.attr,
+	&dev_attr_max_devices.attr,
+	&dev_attr_max_sg_list.attr,
+	&dev_attr_sas_spec_support.attr,
+	&dev_attr_logging_level.attr,
+	&dev_attr_event_log_size.attr,
+	&dev_attr_host_sas_address.attr,
+	&dev_attr_bios_version.attr,
+	&dev_attr_ib_log.attr,
+	&dev_attr_ob_log.attr,
+	&dev_attr_ila_version.attr,
+	&dev_attr_inc_fw_ver.attr,
+	&dev_attr_ctl_mpi_state.attr,
+	&dev_attr_ctl_hmi_error.attr,
+	&dev_attr_ctl_raae_count.attr,
+	&dev_attr_ctl_iop0_count.attr,
+	&dev_attr_ctl_iop1_count.attr,
 	NULL,
 };
 
+static const struct attribute_group pm8001_host_attr_group = {
+	.attrs = pm8001_host_attrs
+};
+
+const struct attribute_group *pm8001_host_groups[] = {
+	&pm8001_host_attr_group,
+	NULL
+};

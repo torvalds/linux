@@ -18,7 +18,7 @@
 #include <scsi/sas_ata.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_sas.h>
-#include "../scsi_sas_internal.h"
+#include "scsi_sas_internal.h"
 
 static int sas_discover_expander(struct domain_device *dev);
 static int sas_configure_routing(struct domain_device *dev, u8 *sas_addr);
@@ -27,26 +27,6 @@ static int sas_configure_phy(struct domain_device *dev, int phy_id,
 static int sas_disable_routing(struct domain_device *dev,  u8 *sas_addr);
 
 /* ---------- SMP task management ---------- */
-
-static void smp_task_timedout(struct timer_list *t)
-{
-	struct sas_task_slow *slow = from_timer(slow, t, timer);
-	struct sas_task *task = slow->task;
-	unsigned long flags;
-
-	spin_lock_irqsave(&task->task_state_lock, flags);
-	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
-		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
-		complete(&task->slow_task->completion);
-	}
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
-}
-
-static void smp_task_done(struct sas_task *task)
-{
-	del_timer(&task->slow_task->timer);
-	complete(&task->slow_task->completion);
-}
 
 /* Give it some long enough timeout. In seconds. */
 #define SMP_TIMEOUT 10
@@ -58,7 +38,9 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	struct sas_task *task = NULL;
 	struct sas_internal *i =
 		to_sas_internal(dev->port->ha->core.shost->transportt);
+	struct sas_ha_struct *ha = dev->port->ha;
 
+	pm_runtime_get_sync(ha->dev);
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
 		if (test_bit(SAS_DEV_GONE, &dev->state)) {
@@ -76,9 +58,9 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		task->smp_task.smp_req = *req;
 		task->smp_task.smp_resp = *resp;
 
-		task->task_done = smp_task_done;
+		task->task_done = sas_task_internal_done;
 
-		task->slow_task->timer.function = smp_task_timedout;
+		task->slow_task->timer.function = sas_task_internal_timedout;
 		task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
 
@@ -101,7 +83,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			}
 		}
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
-		    task->task_status.stat == SAM_STAT_GOOD) {
+		    task->task_status.stat == SAS_SAM_STAT_GOOD) {
 			res = 0;
 			break;
 		}
@@ -131,6 +113,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		}
 	}
 	mutex_unlock(&dev->ex_dev.cmd_mutex);
+	pm_runtime_put_sync(ha->dev);
 
 	BUG_ON(retry == 3 && task != NULL);
 	sas_free_task(task);
@@ -553,7 +536,7 @@ static int sas_ex_manuf_info(struct domain_device *dev)
 
 	mi_req[1] = SMP_REPORT_MANUF_INFO;
 
-	res = smp_execute_task(dev, mi_req, MI_REQ_SIZE, mi_resp,MI_RESP_SIZE);
+	res = smp_execute_task(dev, mi_req, MI_REQ_SIZE, mi_resp, MI_RESP_SIZE);
 	if (res) {
 		pr_notice("MI: ex %016llx failed:0x%x\n",
 			  SAS_ADDR(dev->sas_addr), res);
@@ -594,13 +577,13 @@ int sas_smp_phy_control(struct domain_device *dev, int phy_id,
 
 	pc_req[1] = SMP_PHY_CONTROL;
 	pc_req[9] = phy_id;
-	pc_req[10]= phy_func;
+	pc_req[10] = phy_func;
 	if (rates) {
 		pc_req[32] = rates->minimum_linkrate << 4;
 		pc_req[33] = rates->maximum_linkrate << 4;
 	}
 
-	res = smp_execute_task(dev, pc_req, PC_REQ_SIZE, pc_resp,PC_RESP_SIZE);
+	res = smp_execute_task(dev, pc_req, PC_REQ_SIZE, pc_resp, PC_RESP_SIZE);
 	if (res) {
 		pr_err("ex %016llx phy%02d PHY control failed: %d\n",
 		       SAS_ADDR(dev->sas_addr), phy_id, res);
@@ -678,7 +661,7 @@ int sas_smp_get_phy_events(struct sas_phy *phy)
 	req[9] = phy->number;
 
 	res = smp_execute_task(dev, req, RPEL_REQ_SIZE,
-			            resp, RPEL_RESP_SIZE);
+			       resp, RPEL_RESP_SIZE);
 
 	if (res)
 		goto out;
@@ -714,7 +697,7 @@ int sas_get_report_phy_sata(struct domain_device *dev, int phy_id,
 	rps_req[9] = phy_id;
 
 	res = smp_execute_task(dev, rps_req, RPS_REQ_SIZE,
-			            rps_resp, RPS_RESP_SIZE);
+			       rps_resp, RPS_RESP_SIZE);
 
 	/* 0x34 is the FIS type for the D2H fis.  There's a potential
 	 * standards cockup here.  sas-2 explicitly specifies the FIS
@@ -1506,7 +1489,8 @@ static int sas_configure_phy(struct domain_device *dev, int phy_id,
 	if (res)
 		return res;
 	if (include ^ present)
-		return sas_configure_set(dev, phy_id, sas_addr, index,include);
+		return sas_configure_set(dev, phy_id, sas_addr, index,
+					 include);
 
 	return res;
 }

@@ -22,7 +22,8 @@
 #define AT_FDCWD       -100
 #endif
 
-int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__syscall_openat_tp_fields(struct test_suite *test __maybe_unused,
+					  int subtest __maybe_unused)
 {
 	struct record_opts opts = {
 		.target = {
@@ -42,7 +43,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 	char sbuf[STRERR_BUFSIZE];
 
 	if (evlist == NULL) {
-		pr_debug("%s: perf_evlist__new\n", __func__);
+		pr_debug("%s: evlist__new\n", __func__);
 		goto out;
 	}
 
@@ -54,9 +55,9 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 
 	evlist__add(evlist, evsel);
 
-	err = perf_evlist__create_maps(evlist, &opts.target);
+	err = evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
-		pr_debug("%s: perf_evlist__create_maps\n", __func__);
+		pr_debug("%s: evlist__create_maps\n", __func__);
 		goto out_delete_evlist;
 	}
 
@@ -142,3 +143,5 @@ out_delete_evlist:
 out:
 	return err;
 }
+
+DEFINE_SUITE("syscalls:sys_enter_openat event fields", syscall_openat_tp_fields);

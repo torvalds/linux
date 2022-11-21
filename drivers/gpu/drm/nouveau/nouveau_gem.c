@@ -24,6 +24,8 @@
  *
  */
 
+#include <drm/drm_gem_ttm_helper.h>
+
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
@@ -36,6 +38,40 @@
 
 #include <nvif/class.h>
 #include <nvif/push206e.h>
+
+static vm_fault_t nouveau_ttm_fault(struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
+	struct ttm_buffer_object *bo = vma->vm_private_data;
+	pgprot_t prot;
+	vm_fault_t ret;
+
+	ret = ttm_bo_vm_reserve(bo, vmf);
+	if (ret)
+		return ret;
+
+	ret = nouveau_ttm_fault_reserve_notify(bo);
+	if (ret)
+		goto error_unlock;
+
+	nouveau_bo_del_io_reserve_lru(bo);
+	prot = vm_get_page_prot(vma->vm_flags);
+	ret = ttm_bo_vm_fault_reserved(vmf, prot, TTM_BO_VM_NUM_PREFAULT);
+	nouveau_bo_add_io_reserve_lru(bo);
+	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
+		return ret;
+
+error_unlock:
+	dma_resv_unlock(bo->base.resv);
+	return ret;
+}
+
+static const struct vm_operations_struct nouveau_ttm_vm_ops = {
+	.fault = nouveau_ttm_fault,
+	.open = ttm_bo_vm_open,
+	.close = ttm_bo_vm_close,
+	.access = ttm_bo_vm_access
+};
 
 void
 nouveau_gem_object_del(struct drm_gem_object *gem)
@@ -169,6 +205,19 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 	ttm_bo_unreserve(&nvbo->bo);
 }
 
+const struct drm_gem_object_funcs nouveau_gem_object_funcs = {
+	.free = nouveau_gem_object_del,
+	.open = nouveau_gem_object_open,
+	.close = nouveau_gem_object_close,
+	.pin = nouveau_gem_prime_pin,
+	.unpin = nouveau_gem_prime_unpin,
+	.get_sg_table = nouveau_gem_prime_get_sg_table,
+	.vmap = drm_gem_ttm_vmap,
+	.vunmap = drm_gem_ttm_vunmap,
+	.mmap = drm_gem_ttm_mmap,
+	.vm_ops = &nouveau_ttm_vm_ops,
+};
+
 int
 nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 		uint32_t tile_mode, uint32_t tile_flags,
@@ -186,6 +235,8 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 	if (IS_ERR(nvbo))
 		return PTR_ERR(nvbo);
 
+	nvbo->bo.base.funcs = &nouveau_gem_object_funcs;
+
 	/* Initialize the embedded gem-object. We return a single gem-reference
 	 * to the caller, instead of a normal nouveau_bo ttm reference. */
 	ret = drm_gem_object_init(drm->dev, &nvbo->bo.base, size);
@@ -196,10 +247,8 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 	}
 
 	ret = nouveau_bo_init(nvbo, size, align, domain, NULL, NULL);
-	if (ret) {
-		nouveau_bo_ref(NULL, &nvbo);
+	if (ret)
 		return ret;
-	}
 
 	/* we restrict allowed domains on nv50+ to only the types
 	 * that were requested at creation time.  not possibly on
@@ -210,7 +259,6 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
 		nvbo->valid_domains &= domain;
 
-	nvbo->bo.persistent_swap_storage = nvbo->bo.base.filp;
 	*pnvbo = nvbo;
 	return 0;
 }
@@ -226,7 +274,7 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 
 	if (is_power_of_2(nvbo->valid_domains))
 		rep->domain = nvbo->valid_domains;
-	else if (nvbo->bo.mem.mem_type == TTM_PL_TT)
+	else if (nvbo->bo.resource->mem_type == TTM_PL_TT)
 		rep->domain = NOUVEAU_GEM_DOMAIN_GART;
 	else
 		rep->domain = NOUVEAU_GEM_DOMAIN_VRAM;
@@ -239,7 +287,7 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 		rep->offset = vma->addr;
 	}
 
-	rep->size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
+	rep->size = nvbo->bo.base.size;
 	rep->map_handle = drm_vma_node_offset_addr(&nvbo->bo.base.vma_node);
 	rep->tile_mode = nvbo->mode;
 	rep->tile_flags = nvbo->contig ? 0 : NOUVEAU_GEM_TILE_NONCONTIG;
@@ -289,7 +337,7 @@ nouveau_gem_set_domain(struct drm_gem_object *gem, uint32_t read_domains,
 	struct ttm_buffer_object *bo = &nvbo->bo;
 	uint32_t domains = valid_domains & nvbo->valid_domains &
 		(write_domains ? write_domains : read_domains);
-	uint32_t pref_domains = 0;;
+	uint32_t pref_domains = 0;
 
 	if (!domains)
 		return -EINVAL;
@@ -297,11 +345,11 @@ nouveau_gem_set_domain(struct drm_gem_object *gem, uint32_t read_domains,
 	valid_domains &= ~(NOUVEAU_GEM_DOMAIN_VRAM | NOUVEAU_GEM_DOMAIN_GART);
 
 	if ((domains & NOUVEAU_GEM_DOMAIN_VRAM) &&
-	    bo->mem.mem_type == TTM_PL_VRAM)
+	    bo->resource->mem_type == TTM_PL_VRAM)
 		pref_domains |= NOUVEAU_GEM_DOMAIN_VRAM;
 
 	else if ((domains & NOUVEAU_GEM_DOMAIN_GART) &&
-		 bo->mem.mem_type == TTM_PL_TT)
+		 bo->resource->mem_type == TTM_PL_TT)
 		pref_domains |= NOUVEAU_GEM_DOMAIN_GART;
 
 	else if (domains & NOUVEAU_GEM_DOMAIN_VRAM)
@@ -511,13 +559,13 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 
 		if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 			if (nvbo->offset == b->presumed.offset &&
-			    ((nvbo->bo.mem.mem_type == TTM_PL_VRAM &&
+			    ((nvbo->bo.resource->mem_type == TTM_PL_VRAM &&
 			      b->presumed.domain & NOUVEAU_GEM_DOMAIN_VRAM) ||
-			     (nvbo->bo.mem.mem_type == TTM_PL_TT &&
+			     (nvbo->bo.resource->mem_type == TTM_PL_TT &&
 			      b->presumed.domain & NOUVEAU_GEM_DOMAIN_GART)))
 				continue;
 
-			if (nvbo->bo.mem.mem_type == TTM_PL_TT)
+			if (nvbo->bo.resource->mem_type == TTM_PL_TT)
 				b->presumed.domain = NOUVEAU_GEM_DOMAIN_GART;
 			else
 				b->presumed.domain = NOUVEAU_GEM_DOMAIN_VRAM;
@@ -624,14 +672,14 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 		nvbo = (void *)(unsigned long)bo[r->reloc_bo_index].user_priv;
 
 		if (unlikely(r->reloc_bo_offset + 4 >
-			     nvbo->bo.mem.num_pages << PAGE_SHIFT)) {
+			     nvbo->bo.base.size)) {
 			NV_PRINTK(err, cli, "reloc outside of bo\n");
 			ret = -EINVAL;
 			break;
 		}
 
 		if (!nvbo->kmap.virtual) {
-			ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.mem.num_pages,
+			ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.resource->num_pages,
 					  &nvbo->kmap);
 			if (ret) {
 				NV_PRINTK(err, cli, "failed kmap for reloc\n");
@@ -820,7 +868,7 @@ revalidate:
 			if (unlikely(cmd != req->suffix0)) {
 				if (!nvbo->kmap.virtual) {
 					ret = ttm_bo_kmap(&nvbo->bo, 0,
-							  nvbo->bo.mem.
+							  nvbo->bo.resource->
 							  num_pages,
 							  &nvbo->kmap);
 					if (ret) {
@@ -914,8 +962,8 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 		return -ENOENT;
 	nvbo = nouveau_gem_object(gem);
 
-	lret = dma_resv_wait_timeout_rcu(nvbo->bo.base.resv, write, true,
-						   no_wait ? 0 : 30 * HZ);
+	lret = dma_resv_wait_timeout(nvbo->bo.base.resv, write, true,
+				     no_wait ? 0 : 30 * HZ);
 	if (!lret)
 		ret = -EBUSY;
 	else if (lret > 0)

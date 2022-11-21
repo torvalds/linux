@@ -7,29 +7,63 @@
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/sched/cputime.h>
+#include <linux/sched/clock.h>
 #include <linux/slab.h>
 #include <linux/taskstats.h>
-#include <linux/time.h>
 #include <linux/sysctl.h>
 #include <linux/delayacct.h>
 #include <linux/module.h>
 
-int delayacct_on __read_mostly = 1;	/* Delay accounting turned on/off */
-EXPORT_SYMBOL_GPL(delayacct_on);
+DEFINE_STATIC_KEY_FALSE(delayacct_key);
+int delayacct_on __read_mostly;	/* Delay accounting turned on/off */
 struct kmem_cache *delayacct_cache;
 
-static int __init delayacct_setup_disable(char *str)
+static void set_delayacct(bool enabled)
 {
-	delayacct_on = 0;
+	if (enabled) {
+		static_branch_enable(&delayacct_key);
+		delayacct_on = 1;
+	} else {
+		delayacct_on = 0;
+		static_branch_disable(&delayacct_key);
+	}
+}
+
+static int __init delayacct_setup_enable(char *str)
+{
+	delayacct_on = 1;
 	return 1;
 }
-__setup("nodelayacct", delayacct_setup_disable);
+__setup("delayacct", delayacct_setup_enable);
 
 void delayacct_init(void)
 {
 	delayacct_cache = KMEM_CACHE(task_delay_info, SLAB_PANIC|SLAB_ACCOUNT);
 	delayacct_tsk_init(&init_task);
+	set_delayacct(delayacct_on);
 }
+
+#ifdef CONFIG_PROC_SYSCTL
+int sysctl_delayacct(struct ctl_table *table, int write, void *buffer,
+		     size_t *lenp, loff_t *ppos)
+{
+	int state = delayacct_on;
+	struct ctl_table t;
+	int err;
+
+	if (write && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	t = *table;
+	t.data = &state;
+	err = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
+	if (err < 0)
+		return err;
+	if (write)
+		set_delayacct(state);
+	return err;
+}
+#endif
 
 void __delayacct_tsk_init(struct task_struct *tsk)
 {
@@ -42,10 +76,9 @@ void __delayacct_tsk_init(struct task_struct *tsk)
  * Finish delay accounting for a statistic using its timestamps (@start),
  * accumalator (@total) and @count
  */
-static void delayacct_end(raw_spinlock_t *lock, u64 *start, u64 *total,
-			  u32 *count)
+static void delayacct_end(raw_spinlock_t *lock, u64 *start, u64 *total, u32 *count)
 {
-	s64 ns = ktime_get_ns() - *start;
+	s64 ns = local_clock() - *start;
 	unsigned long flags;
 
 	if (ns > 0) {
@@ -58,7 +91,7 @@ static void delayacct_end(raw_spinlock_t *lock, u64 *start, u64 *total,
 
 void __delayacct_blkio_start(void)
 {
-	current->delays->blkio_start = ktime_get_ns();
+	current->delays->blkio_start = local_clock();
 }
 
 /*
@@ -67,22 +100,13 @@ void __delayacct_blkio_start(void)
  */
 void __delayacct_blkio_end(struct task_struct *p)
 {
-	struct task_delay_info *delays = p->delays;
-	u64 *total;
-	u32 *count;
-
-	if (p->delays->flags & DELAYACCT_PF_SWAPIN) {
-		total = &delays->swapin_delay;
-		count = &delays->swapin_count;
-	} else {
-		total = &delays->blkio_delay;
-		count = &delays->blkio_count;
-	}
-
-	delayacct_end(&delays->lock, &delays->blkio_start, total, count);
+	delayacct_end(&p->delays->lock,
+		      &p->delays->blkio_start,
+		      &p->delays->blkio_delay,
+		      &p->delays->blkio_count);
 }
 
-int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
+int delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 {
 	u64 utime, stime, stimescaled, utimescaled;
 	unsigned long long t2, t3;
@@ -117,6 +141,9 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	d->cpu_run_virtual_total =
 		(tmp < (s64)d->cpu_run_virtual_total) ?	0 : tmp;
 
+	if (!tsk->delays)
+		return 0;
+
 	/* zero XXX_total, non-zero XXX_count implies XXX stat overflowed */
 
 	raw_spin_lock_irqsave(&tsk->delays->lock, flags);
@@ -128,10 +155,13 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	d->freepages_delay_total = (tmp < d->freepages_delay_total) ? 0 : tmp;
 	tmp = d->thrashing_delay_total + tsk->delays->thrashing_delay;
 	d->thrashing_delay_total = (tmp < d->thrashing_delay_total) ? 0 : tmp;
+	tmp = d->compact_delay_total + tsk->delays->compact_delay;
+	d->compact_delay_total = (tmp < d->compact_delay_total) ? 0 : tmp;
 	d->blkio_count += tsk->delays->blkio_count;
 	d->swapin_count += tsk->delays->swapin_count;
 	d->freepages_count += tsk->delays->freepages_count;
 	d->thrashing_count += tsk->delays->thrashing_count;
+	d->compact_count += tsk->delays->compact_count;
 	raw_spin_unlock_irqrestore(&tsk->delays->lock, flags);
 
 	return 0;
@@ -143,29 +173,27 @@ __u64 __delayacct_blkio_ticks(struct task_struct *tsk)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&tsk->delays->lock, flags);
-	ret = nsec_to_clock_t(tsk->delays->blkio_delay +
-				tsk->delays->swapin_delay);
+	ret = nsec_to_clock_t(tsk->delays->blkio_delay);
 	raw_spin_unlock_irqrestore(&tsk->delays->lock, flags);
 	return ret;
 }
 
 void __delayacct_freepages_start(void)
 {
-	current->delays->freepages_start = ktime_get_ns();
+	current->delays->freepages_start = local_clock();
 }
 
 void __delayacct_freepages_end(void)
 {
-	delayacct_end(
-		&current->delays->lock,
-		&current->delays->freepages_start,
-		&current->delays->freepages_delay,
-		&current->delays->freepages_count);
+	delayacct_end(&current->delays->lock,
+		      &current->delays->freepages_start,
+		      &current->delays->freepages_delay,
+		      &current->delays->freepages_count);
 }
 
 void __delayacct_thrashing_start(void)
 {
-	current->delays->thrashing_start = ktime_get_ns();
+	current->delays->thrashing_start = local_clock();
 }
 
 void __delayacct_thrashing_end(void)
@@ -174,4 +202,30 @@ void __delayacct_thrashing_end(void)
 		      &current->delays->thrashing_start,
 		      &current->delays->thrashing_delay,
 		      &current->delays->thrashing_count);
+}
+
+void __delayacct_swapin_start(void)
+{
+	current->delays->swapin_start = local_clock();
+}
+
+void __delayacct_swapin_end(void)
+{
+	delayacct_end(&current->delays->lock,
+		      &current->delays->swapin_start,
+		      &current->delays->swapin_delay,
+		      &current->delays->swapin_count);
+}
+
+void __delayacct_compact_start(void)
+{
+	current->delays->compact_start = local_clock();
+}
+
+void __delayacct_compact_end(void)
+{
+	delayacct_end(&current->delays->lock,
+		      &current->delays->compact_start,
+		      &current->delays->compact_delay,
+		      &current->delays->compact_count);
 }

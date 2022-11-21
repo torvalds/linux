@@ -109,9 +109,10 @@ static struct rockchip_cpuclk_rate_table rk3308_cpuclk_rates[] __initdata = {
 };
 
 static const struct rockchip_cpuclk_reg_data rk3308_cpuclk_data = {
-	.core_reg = RK3308_CLKSEL_CON(0),
-	.div_core_shift = 0,
-	.div_core_mask = 0xf,
+	.core_reg[0] = RK3308_CLKSEL_CON(0),
+	.div_core_shift[0] = 0,
+	.div_core_mask[0] = 0xf,
+	.num_cores = 1,
 	.mux_core_alt = 1,
 	.mux_core_main = 0,
 	.mux_core_shift = 6,
@@ -910,6 +911,7 @@ static const char *const rk3308_critical_clocks[] __initconst = {
 	"hclk_audio",
 	"pclk_audio",
 	"sclk_ddrc",
+	"clk_ddrphy4x",
 };
 
 static void __init rk3308_clk_init(struct device_node *np)

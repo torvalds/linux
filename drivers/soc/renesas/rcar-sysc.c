@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/soc/renesas/rcar-sysc.h>
 
 #include "rcar-sysc.h"
@@ -44,13 +45,13 @@
 #define PWRER_OFFS		0x14	/* Power Shutoff/Resume Error */
 
 
-#define SYSCSR_RETRIES		100
+#define SYSCSR_TIMEOUT		100
 #define SYSCSR_DELAY_US		1
 
 #define PWRER_RETRIES		100
 #define PWRER_DELAY_US		1
 
-#define SYSCISR_RETRIES		1000
+#define SYSCISR_TIMEOUT		1000
 #define SYSCISR_DELAY_US	1
 
 #define RCAR_PD_ALWAYS_ON	32	/* Always-on power area */
@@ -68,7 +69,8 @@ static u32 rcar_sysc_extmask_offs, rcar_sysc_extmask_val;
 static int rcar_sysc_pwr_on_off(const struct rcar_sysc_ch *sysc_ch, bool on)
 {
 	unsigned int sr_bit, reg_offs;
-	int k;
+	u32 val;
+	int ret;
 
 	if (on) {
 		sr_bit = SYSCSR_PONENB;
@@ -79,13 +81,10 @@ static int rcar_sysc_pwr_on_off(const struct rcar_sysc_ch *sysc_ch, bool on)
 	}
 
 	/* Wait until SYSC is ready to accept a power request */
-	for (k = 0; k < SYSCSR_RETRIES; k++) {
-		if (ioread32(rcar_sysc_base + SYSCSR) & BIT(sr_bit))
-			break;
-		udelay(SYSCSR_DELAY_US);
-	}
-
-	if (k == SYSCSR_RETRIES)
+	ret = readl_poll_timeout_atomic(rcar_sysc_base + SYSCSR, val,
+					val & BIT(sr_bit), SYSCSR_DELAY_US,
+					SYSCSR_TIMEOUT);
+	if (ret)
 		return -EAGAIN;
 
 	/* Submit power shutoff or power resume request */
@@ -99,10 +98,9 @@ static int rcar_sysc_power(const struct rcar_sysc_ch *sysc_ch, bool on)
 {
 	unsigned int isr_mask = BIT(sysc_ch->isr_bit);
 	unsigned int chan_mask = BIT(sysc_ch->chan_bit);
-	unsigned int status;
+	unsigned int status, k;
 	unsigned long flags;
-	int ret = 0;
-	int k;
+	int ret;
 
 	spin_lock_irqsave(&rcar_sysc_lock, flags);
 
@@ -145,13 +143,10 @@ static int rcar_sysc_power(const struct rcar_sysc_ch *sysc_ch, bool on)
 	}
 
 	/* Wait until the power shutoff or resume request has completed * */
-	for (k = 0; k < SYSCISR_RETRIES; k++) {
-		if (ioread32(rcar_sysc_base + SYSCISR) & isr_mask)
-			break;
-		udelay(SYSCISR_DELAY_US);
-	}
-
-	if (k == SYSCISR_RETRIES)
+	ret = readl_poll_timeout_atomic(rcar_sysc_base + SYSCISR, status,
+					status & isr_mask, SYSCISR_DELAY_US,
+					SYSCISR_TIMEOUT);
+	if (ret)
 		ret = -EIO;
 
 	iowrite32(isr_mask, rcar_sysc_base + SYSCISCR);
@@ -401,19 +396,21 @@ static int __init rcar_sysc_pd_init(void)
 	for (i = 0; i < info->num_areas; i++) {
 		const struct rcar_sysc_area *area = &info->areas[i];
 		struct rcar_sysc_pd *pd;
+		size_t n;
 
 		if (!area->name) {
 			/* Skip NULLified area */
 			continue;
 		}
 
-		pd = kzalloc(sizeof(*pd) + strlen(area->name) + 1, GFP_KERNEL);
+		n = strlen(area->name) + 1;
+		pd = kzalloc(sizeof(*pd) + n, GFP_KERNEL);
 		if (!pd) {
 			error = -ENOMEM;
 			goto out_put;
 		}
 
-		strcpy(pd->name, area->name);
+		memcpy(pd->name, area->name, n);
 		pd->genpd.name = pd->name;
 		pd->ch.chan_offs = area->chan_offs;
 		pd->ch.chan_bit = area->chan_bit;
@@ -439,6 +436,8 @@ static int __init rcar_sysc_pd_init(void)
 	}
 
 	error = of_genpd_add_provider_onecell(np, &domains->onecell_data);
+	if (!error)
+		of_node_set_flag(np, OF_POPULATED);
 
 out_put:
 	of_node_put(np);

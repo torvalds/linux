@@ -32,9 +32,10 @@ PC Card, per esempio, probabilmente non dovreste preoccuparvi di pcmciautils.
 ====================== =================  ========================================
         Programma       Versione minima       Comando per verificare la versione
 ====================== =================  ========================================
-GNU C                  4.6                gcc --version
+GNU C                  4.9                gcc --version
+Clang/LLVM (optional)  10.0.1             clang --version
 GNU make               3.81               make --version
-binutils               2.21               ld -v
+binutils               2.23               ld -v
 flex                   2.5.35             flex --version
 bison                  2.0                bison --version
 util-linux             2.10o              fdformat --version
@@ -50,14 +51,13 @@ quota-tools            3.09               quota -V
 PPP                    2.4.0              pppd --version
 nfs-utils              1.0.5              showmount --version
 procps                 3.2.0              ps --version
-oprofile               0.9                oprofiled --version
 udev                   081                udevd --version
 grub                   0.93               grub --version || grub-install --version
 mcelog                 0.6                mcelog --version
 iptables               1.4.2              iptables -V
 openssl & libcrypto    1.0.0              openssl version
 bc                     1.06.95            bc --version
-Sphinx\ [#f1]_         1.3                sphinx-build --version
+Sphinx\ [#f1]_         1.7                sphinx-build --version
 ====================== =================  ========================================
 
 .. [#f1] Sphinx è necessario solo per produrre la documentazione del Kernel
@@ -71,6 +71,16 @@ GCC
 La versione necessaria di gcc potrebbe variare a seconda del tipo di CPU nel
 vostro calcolatore.
 
+Clang/LLVM (opzionale)
+----------------------
+
+L'ultima versione di clang e *LLVM utils* (secondo `releases.llvm.org
+<https://releases.llvm.org>`_) sono supportati per la generazione del
+kernel. Non garantiamo che anche i rilasci più vecchi funzionino, inoltre
+potremmo rimuovere gli espedienti che abbiamo implementato per farli
+funzionare. Per maggiori informazioni
+:ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
+
 Make
 ----
 
@@ -79,7 +89,7 @@ Per compilare il kernel vi servirà GNU make 3.81 o successivo.
 Binutils
 --------
 
-Per generare il kernel è necessario avere Binutils 2.21 o superiore.
+Per generare il kernel è necessario avere Binutils 2.23 o superiore.
 
 pkg-config
 ----------
@@ -337,6 +347,11 @@ gcc
 ---
 
 - <ftp://ftp.gnu.org/gnu/gcc/>
+
+Clang/LLVM
+----------
+
+- :ref:`Getting LLVM <getting_llvm>`.
 
 Make
 ----

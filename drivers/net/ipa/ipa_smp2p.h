@@ -27,19 +27,18 @@ int ipa_smp2p_init(struct ipa *ipa, bool modem_init);
 void ipa_smp2p_exit(struct ipa *ipa);
 
 /**
- * ipa_smp2p_disable() - Prevent "ipa-setup-ready" interrupt handling
- * @IPA:	IPA pointer
+ * ipa_smp2p_irq_disable_setup() - Disable the "setup ready" interrupt
+ * @ipa:	IPA pointer
  *
- * Prevent handling of the "setup ready" interrupt from the modem.
- * This is used before initiating shutdown of the driver.
+ * Disable the "ipa-setup-ready" interrupt from the modem.
  */
-void ipa_smp2p_disable(struct ipa *ipa);
+void ipa_smp2p_irq_disable_setup(struct ipa *ipa);
 
 /**
  * ipa_smp2p_notify_reset() - Reset modem notification state
  * @ipa:	IPA pointer
  *
- * If the modem crashes it queries the IPA clock state.  In cleaning
+ * If the modem crashes it queries the IPA power state.  In cleaning
  * up after such a crash this is used to reset some state maintained
  * for managing this notification.
  */

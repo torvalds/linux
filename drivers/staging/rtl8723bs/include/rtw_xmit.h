@@ -83,13 +83,6 @@ do {\
 
 #define TXDESC_OFFSET TXDESC_SIZE
 
-enum TXDESC_SC {
-	SC_DONT_CARE = 0x00,
-	SC_UPPER = 0x01,
-	SC_LOWER = 0x02,
-	SC_DUPLICATE = 0x03
-};
-
 #define TXDESC_40_BYTES
 
 struct tx_desc {
@@ -128,11 +121,11 @@ union txdesc {
 };
 
 struct	hw_xmit	{
-	/* _lock xmit_lock; */
+	/* spinlock_t xmit_lock; */
 	/* struct list_head	pending; */
 	struct __queue *sta_queue;
 	/* struct hw_txqueue *phwtxqueue; */
-	/* sint	txcmdcnt; */
+	/* signed int	txcmdcnt; */
 	int	accnt;
 };
 
@@ -149,7 +142,7 @@ struct pkt_attrib {
 	u32 pktlen;		/* the original 802.3 pkt raw_data len (not include ether_hdr data) */
 	u32 last_txcmdsz;
 	u8 nr_frags;
-	u8 encrypt;	/* when 0 indicate no encrypt. when non-zero, indicate the encrypt algorith */
+	u8 encrypt;	/* when 0 indicates no encryption; when non-zero, indicates the encryption algorithm */
 	u8 iv_len;
 	u8 icv_len;
 	u8 iv[18];
@@ -183,7 +176,7 @@ struct pkt_attrib {
 	u8   mbssid;
 	u8 ldpc;
 	u8 stbc;
-	struct sta_info * psta;
+	struct sta_info *psta;
 
 	u8 rtsen;
 	u8 cts2self;
@@ -241,7 +234,7 @@ enum {
 
 
 void rtw_sctx_init(struct submit_ctx *sctx, int timeout_ms);
-int rtw_sctx_wait(struct submit_ctx *sctx, const char *msg);
+int rtw_sctx_wait(struct submit_ctx *sctx);
 void rtw_sctx_done_err(struct submit_ctx **sctx, int status);
 void rtw_sctx_done(struct submit_ctx **sctx);
 
@@ -284,7 +277,7 @@ struct xmit_frame {
 
 	struct pkt_attrib attrib;
 
-	_pkt *pkt;
+	struct sk_buff *pkt;
 
 	int	frame_tag;
 
@@ -312,9 +305,9 @@ struct tx_servq {
 
 
 struct sta_xmit_priv {
-	_lock	lock;
-	sint	option;
-	sint	apsd_setting;	/* When bit mask is on, the associated edca queue supports APSD. */
+	spinlock_t	lock;
+	signed int	option;
+	signed int	apsd_setting;	/* When bit mask is on, the associated edca queue supports APSD. */
 
 
 	/* struct tx_servq blk_q[MAX_NUMBLKS]; */
@@ -336,19 +329,14 @@ struct sta_xmit_priv {
 
 
 struct	hw_txqueue	{
-	volatile sint	head;
-	volatile sint	tail;
-	volatile sint	free_sz;	/* in units of 64 bytes */
-	volatile sint      free_cmdsz;
-	volatile sint	 txsz[8];
+	volatile signed int	head;
+	volatile signed int	tail;
+	volatile signed int	free_sz;	/* in units of 64 bytes */
+	volatile signed int      free_cmdsz;
+	volatile signed int	 txsz[8];
 	uint	ff_hwaddr;
 	uint	cmd_hwaddr;
-	sint	ac_tag;
-};
-
-struct agg_pkt_info {
-	u16 offset;
-	u16 pkt_len;
+	signed int	ac_tag;
 };
 
 enum cmdbuf_type {
@@ -359,7 +347,7 @@ enum cmdbuf_type {
 
 struct	xmit_priv {
 
-	_lock	lock;
+	spinlock_t	lock;
 
 	struct completion xmit_comp;
 	struct completion terminate_xmitthread_comp;
@@ -412,13 +400,9 @@ struct	xmit_priv {
 
 	u8 wmm_para_seq[4];/* sequence for wmm ac parameter strength from large to small. it's value is 0->vo, 1->vi, 2->be, 3->bk. */
 
-#ifdef CONFIG_SDIO_TX_TASKLET
-	struct tasklet_struct xmit_tasklet;
-#else
 	void *SdioXmitThread;
 	struct completion SdioXmitStart;
 	struct completion SdioXmitTerminate;
-#endif /* CONFIG_SDIO_TX_TASKLET */
 
 	struct __queue free_xmitbuf_queue;
 	struct __queue pending_xmitbuf_queue;
@@ -436,10 +420,10 @@ struct	xmit_priv {
 	u16 nqos_ssn;
 
 	int	ack_tx;
-	_mutex ack_tx_mutex;
+	struct mutex ack_tx_mutex;
 	struct submit_ctx ack_tx_ops;
 	u8 seq_no;
-	_lock lock_sctx;
+	spinlock_t lock_sctx;
 };
 
 extern struct xmit_frame *__rtw_alloc_cmdxmitframe(struct xmit_priv *pxmitpriv,
@@ -463,20 +447,20 @@ struct xmit_frame *rtw_alloc_xmitframe_ext(struct xmit_priv *pxmitpriv);
 struct xmit_frame *rtw_alloc_xmitframe_once(struct xmit_priv *pxmitpriv);
 extern s32 rtw_free_xmitframe(struct xmit_priv *pxmitpriv, struct xmit_frame *pxmitframe);
 extern void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, struct __queue *pframequeue);
-struct tx_servq *rtw_get_sta_pending(struct adapter *padapter, struct sta_info *psta, sint up, u8 *ac);
+struct tx_servq *rtw_get_sta_pending(struct adapter *padapter, struct sta_info *psta, signed int up, u8 *ac);
 extern s32 rtw_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitframe);
 
 extern s32 rtw_xmit_classifier(struct adapter *padapter, struct xmit_frame *pxmitframe);
 extern u32 rtw_calculate_wlan_pkt_size_by_attribue(struct pkt_attrib *pattrib);
 #define rtw_wlan_pkt_size(f) rtw_calculate_wlan_pkt_size_by_attribue(&f->attrib)
-extern s32 rtw_xmitframe_coalesce(struct adapter *padapter, _pkt *pkt, struct xmit_frame *pxmitframe);
-extern s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, _pkt *pkt, struct xmit_frame *pxmitframe);
-s32 _rtw_init_hw_txqueue(struct hw_txqueue* phw_txqueue, u8 ac_tag);
+extern s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct xmit_frame *pxmitframe);
+extern s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct xmit_frame *pxmitframe);
+s32 _rtw_init_hw_txqueue(struct hw_txqueue *phw_txqueue, u8 ac_tag);
 void _rtw_init_sta_xmit_priv(struct sta_xmit_priv *psta_xmitpriv);
 
 
 s32 rtw_txframes_pending(struct adapter *padapter);
-void rtw_init_hwxmits(struct hw_xmit *phwxmit, sint entry);
+void rtw_init_hwxmits(struct hw_xmit *phwxmit, signed int entry);
 
 
 s32 _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter);
@@ -487,10 +471,10 @@ s32 rtw_alloc_hwxmits(struct adapter *padapter);
 void rtw_free_hwxmits(struct adapter *padapter);
 
 
-s32 rtw_xmit(struct adapter *padapter, _pkt **pkt);
+s32 rtw_xmit(struct adapter *padapter, struct sk_buff **pkt);
 bool xmitframe_hiq_filter(struct xmit_frame *xmitframe);
 
-sint xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_frame *pxmitframe);
+signed int xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_frame *pxmitframe);
 void stop_sta_xmit(struct adapter *padapter, struct sta_info *psta);
 void wakeup_sta_to_xmit(struct adapter *padapter, struct sta_info *psta);
 void xmit_delivery_enabled_frames(struct adapter *padapter, struct sta_info *psta);
@@ -501,9 +485,9 @@ u8 qos_acm(u8 acm_mask, u8 priority);
 
 void enqueue_pending_xmitbuf(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
 void enqueue_pending_xmitbuf_to_head(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
-struct xmit_buf*dequeue_pending_xmitbuf(struct xmit_priv *pxmitpriv);
-struct xmit_buf*dequeue_pending_xmitbuf_under_survey(struct xmit_priv *pxmitpriv);
-sint	check_pending_xmitbuf(struct xmit_priv *pxmitpriv);
+struct xmit_buf *dequeue_pending_xmitbuf(struct xmit_priv *pxmitpriv);
+struct xmit_buf *dequeue_pending_xmitbuf_under_survey(struct xmit_priv *pxmitpriv);
+signed int	check_pending_xmitbuf(struct xmit_priv *pxmitpriv);
 int	rtw_xmit_thread(void *context);
 
 u32 rtw_get_ff_hwaddr(struct xmit_frame	*pxmitframe);

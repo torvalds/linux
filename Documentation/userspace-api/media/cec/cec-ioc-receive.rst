@@ -48,9 +48,12 @@ it will return -1 and set errno to the ``ETIMEDOUT`` error code.
 A received message can be:
 
 1. a message received from another CEC device (the ``sequence`` field will
-   be 0).
-2. the result of an earlier non-blocking transmit (the ``sequence`` field will
-   be non-zero).
+   be 0, ``tx_status`` will be 0 and ``rx_status`` will be non-zero).
+2. the transmit result of an earlier non-blocking transmit (the ``sequence``
+   field will be non-zero, ``tx_status`` will be non-zero and ``rx_status``
+   will be 0).
+3. the reply to an earlier non-blocking transmit (the ``sequence`` field will
+   be non-zero, ``tx_status`` will be 0 and ``rx_status`` will be non-zero).
 
 To send a CEC message the application has to fill in the struct
 :c:type:`cec_msg` and pass it to :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`.
@@ -64,12 +67,11 @@ idea to fully fill up the transmit queue.
 
 If the file descriptor is in non-blocking mode then the transmit will
 return 0 and the result of the transmit will be available via
-:ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>` once the transmit has finished
-(including waiting for a reply, if requested).
-
-The ``sequence`` field is filled in for every transmit and this can be
-checked against the received messages to find the corresponding transmit
-result.
+:ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>` once the transmit has finished.
+If a non-blocking transmit also specified waiting for a reply, then
+the reply will arrive in a later message. The ``sequence`` field can
+be used to associate both transmit results and replies with the original
+transmit.
 
 Normally calling :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` when the physical
 address is invalid (due to e.g. a disconnect) will return ``ENONET``.
@@ -84,7 +86,7 @@ physical address, but the cable is still connected and CEC still works.
 In order to detect/wake up the device it is allowed to send poll and 'Image/Text
 View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
 
-.. tabularcolumns:: |p{1.0cm}|p{3.5cm}|p{13.0cm}|
+.. tabularcolumns:: |p{1.0cm}|p{3.5cm}|p{12.8cm}|
 
 .. c:type:: cec_msg
 
@@ -123,17 +125,16 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - ``sequence``
       - A non-zero sequence number is automatically assigned by the CEC framework
 	for all transmitted messages. It is used by the CEC framework when it queues
-	the transmit result (when transmit was called in non-blocking mode). This
-	allows the application to associate the received message with the original
-	transmit.
+	the transmit result for a non-blocking transmit. This allows the application
+	to associate the received message with the original transmit.
+
+	In addition, if a non-blocking transmit will wait for a reply (ii.e. ``timeout``
+	was not 0), then the ``sequence`` field of the reply will be set to the sequence
+	value of the original transmit. This allows the application to associate the
+	received message with the original transmit.
     * - __u32
       - ``flags``
       - Flags. See :ref:`cec-msg-flags` for a list of available flags.
-    * - __u8
-      - ``tx_status``
-      - The status bits of the transmitted message. See
-	:ref:`cec-tx-status` for the possible status values. It is 0 if
-	this message was received, not transmitted.
     * - __u8
       - ``msg[16]``
       - The message payload. For :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` this is filled in by the
@@ -162,15 +163,17 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
     * - __u8
       - ``rx_status``
       - The status bits of the received message. See
-	:ref:`cec-rx-status` for the possible status values. It is 0 if
-	this message was transmitted, not received, unless this is the
-	reply to a transmitted message. In that case both ``rx_status``
-	and ``tx_status`` are set.
+	:ref:`cec-rx-status` for the possible status values.
     * - __u8
       - ``tx_status``
       - The status bits of the transmitted message. See
-	:ref:`cec-tx-status` for the possible status values. It is 0 if
-	this message was received, not transmitted.
+	:ref:`cec-tx-status` for the possible status values.
+	When calling :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` in non-blocking mode,
+	this field will be 0 if the transmit started, or non-0 if the transmit
+	result is known immediately. The latter would be the case when attempting
+	to transmit a Poll message to yourself. That results in a
+	:ref:`CEC_TX_STATUS_NACK <CEC-TX-STATUS-NACK>` without ever actually
+	transmitting the Poll message.
     * - __u8
       - ``tx_arb_lost_cnt``
       - A counter of the number of transmit attempts that resulted in the
@@ -196,7 +199,7 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
 	supports this, otherwise it is always 0. This counter is only
 	valid if the :ref:`CEC_TX_STATUS_ERROR <CEC-TX-STATUS-ERROR>` status bit is set.
 
-.. tabularcolumns:: |p{6.2cm}|p{1.0cm}|p{10.3cm}|
+.. tabularcolumns:: |p{6.2cm}|p{1.0cm}|p{10.1cm}|
 
 .. _cec-msg-flags:
 
@@ -229,7 +232,7 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
 	capability. If that is not set, then the ``EPERM`` error code is
 	returned.
 
-.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{10.8cm}|
 
 .. _cec-tx-status:
 
@@ -298,7 +301,7 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - The transmit timed out. This should not normally happen and this
 	indicates a driver problem.
 
-.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{10.8cm}|
 
 .. _cec-rx-status:
 

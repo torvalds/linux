@@ -8,6 +8,7 @@
 #include <linux/kmemleak.h>
 #include <linux/page_owner.h>
 #include <linux/page_idle.h>
+#include <linux/page_table_check.h>
 
 /*
  * struct page extension
@@ -34,7 +35,7 @@
  *
  * The need callback is used to decide whether extended memory allocation is
  * needed or not. Sometimes users want to deactivate some features in this
- * boot and extra memory would be unneccessary. In this case, to avoid
+ * boot and extra memory would be unnecessary. In this case, to avoid
  * allocating huge chunk of memory, each clients represent their need of
  * extra memory through the need callback. If one of the need callbacks
  * returns true, it means that someone needs extra memory so that
@@ -58,12 +59,25 @@
  * can utilize this callback to initialize the state of it correctly.
  */
 
-static struct page_ext_operations *page_ext_ops[] = {
+#if defined(CONFIG_PAGE_IDLE_FLAG) && !defined(CONFIG_64BIT)
+static bool need_page_idle(void)
+{
+	return true;
+}
+static struct page_ext_operations page_idle_ops __initdata = {
+	.need = need_page_idle,
+};
+#endif
+
+static struct page_ext_operations *page_ext_ops[] __initdata = {
 #ifdef CONFIG_PAGE_OWNER
 	&page_owner_ops,
 #endif
-#if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
+#if defined(CONFIG_PAGE_IDLE_FLAG) && !defined(CONFIG_64BIT)
 	&page_idle_ops,
+#endif
+#ifdef CONFIG_PAGE_TABLE_CHECK
+	&page_table_check_ops,
 #endif
 };
 
@@ -99,12 +113,19 @@ static void __init invoke_init_callbacks(void)
 	}
 }
 
+#ifndef CONFIG_SPARSEMEM
+void __init page_ext_init_flatmem_late(void)
+{
+	invoke_init_callbacks();
+}
+#endif
+
 static inline struct page_ext *get_entry(void *base, unsigned long index)
 {
 	return base + page_ext_size * index;
 }
 
-#if !defined(CONFIG_SPARSEMEM)
+#ifndef CONFIG_SPARSEMEM
 
 
 void __meminit pgdat_page_ext_init(struct pglist_data *pgdat)
@@ -177,7 +198,6 @@ void __init page_ext_init_flatmem(void)
 			goto fail;
 	}
 	pr_info("allocated %ld bytes of page_ext\n", total_usage);
-	invoke_init_callbacks();
 	return;
 
 fail:
@@ -185,7 +205,7 @@ fail:
 	panic("Out of memory");
 }
 
-#else /* CONFIG_FLAT_NODE_MEM_MAP */
+#else /* CONFIG_SPARSEMEM */
 
 struct page_ext *lookup_page_ext(const struct page *page)
 {
@@ -253,7 +273,7 @@ static int __meminit init_section_page_ext(unsigned long pfn, int nid)
 	total_usage += table_size;
 	return 0;
 }
-#ifdef CONFIG_MEMORY_HOTPLUG
+
 static void free_page_ext(void *addr)
 {
 	if (is_vmalloc_addr(addr)) {
@@ -357,8 +377,6 @@ static int __meminit page_ext_callback(struct notifier_block *self,
 
 	return notifier_from_errno(ret);
 }
-
-#endif
 
 void __init page_ext_init(void)
 {

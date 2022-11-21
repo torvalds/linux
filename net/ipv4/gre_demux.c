@@ -128,7 +128,7 @@ int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	 * to 0 and sets the configured key in the
 	 * inner erspan header field
 	 */
-	if (greh->protocol == htons(ETH_P_ERSPAN) ||
+	if ((greh->protocol == htons(ETH_P_ERSPAN) && hdr_len != 4) ||
 	    greh->protocol == htons(ETH_P_ERSPAN2)) {
 		struct erspan_base_hdr *ershdr;
 
@@ -195,7 +195,6 @@ static int gre_err(struct sk_buff *skb, u32 info)
 static const struct net_protocol net_gre_protocol = {
 	.handler     = gre_rcv,
 	.err_handler = gre_err,
-	.netns_ok    = 1,
 };
 
 static int __init gre_init(void)

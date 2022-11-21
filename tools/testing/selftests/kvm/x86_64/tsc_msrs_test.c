@@ -18,15 +18,6 @@
 #define rounded_rdmsr(x)       ROUND(rdmsr(x))
 #define rounded_host_rdmsr(x)  ROUND(vcpu_get_msr(vm, 0, x))
 
-#define GUEST_ASSERT_EQ(a, b) do {				\
-	__typeof(a) _a = (a);					\
-	__typeof(b) _b = (b);					\
-	if (_a != _b)						\
-                ucall(UCALL_ABORT, 4,				\
-                        "Failed guest assert: "			\
-                        #a " == " #b, __LINE__, _a, _b);	\
-  } while(0)
-
 static void guest_code(void)
 {
 	u64 val = 0;
@@ -86,8 +77,8 @@ static void run_vcpu(struct kvm_vm *vm, uint32_t vcpuid, int stage)
 	switch (get_ucall(vm, vcpuid, &uc)) {
 	case UCALL_SYNC:
 		TEST_ASSERT(!strcmp((const char *)uc.args[0], "hello") &&
-                            uc.args[1] == stage + 1, "Stage %d: Unexpected register values vmexit, got %lx",
-                            stage + 1, (ulong)uc.args[1]);
+			    uc.args[1] == stage + 1, "Stage %d: Unexpected register values vmexit, got %lx",
+			    stage + 1, (ulong)uc.args[1]);
 		return;
 	case UCALL_DONE:
 		return;
@@ -107,7 +98,6 @@ int main(void)
 	uint64_t val;
 
 	vm = vm_create_default(VCPU_ID, 0, guest_code);
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 
 	val = 0;
 	ASSERT_EQ(rounded_host_rdmsr(MSR_IA32_TSC), val);

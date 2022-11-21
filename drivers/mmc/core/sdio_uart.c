@@ -28,6 +28,7 @@
 #include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/seq_file.h>
+#include <linux/serial.h>
 #include <linux/serial_reg.h>
 #include <linux/circ_buf.h>
 #include <linux/tty.h>
@@ -250,21 +251,7 @@ static void sdio_uart_change_speed(struct sdio_uart_port *port,
 	unsigned char cval, fcr = 0;
 	unsigned int baud, quot;
 
-	switch (termios->c_cflag & CSIZE) {
-	case CS5:
-		cval = UART_LCR_WLEN5;
-		break;
-	case CS6:
-		cval = UART_LCR_WLEN6;
-		break;
-	case CS7:
-		cval = UART_LCR_WLEN7;
-		break;
-	default:
-	case CS8:
-		cval = UART_LCR_WLEN8;
-		break;
-	}
+	cval = UART_LCR_WLEN(tty_get_char_size(termios->c_cflag));
 
 	if (termios->c_cflag & CSTOPB)
 		cval |= UART_LCR_STOP;
@@ -439,7 +426,7 @@ static void sdio_uart_transmit_chars(struct sdio_uart_port *port)
 	tty = tty_port_tty_get(&port->port);
 
 	if (tty == NULL || !kfifo_len(xmit) ||
-				tty->stopped || tty->hw_stopped) {
+				tty->flow.stopped || tty->hw_stopped) {
 		sdio_uart_stop_tx(port);
 		tty_kref_put(tty);
 		return;
@@ -797,13 +784,13 @@ static int sdio_uart_write(struct tty_struct *tty, const unsigned char *buf,
 	return ret;
 }
 
-static int sdio_uart_write_room(struct tty_struct *tty)
+static unsigned int sdio_uart_write_room(struct tty_struct *tty)
 {
 	struct sdio_uart_port *port = tty->driver_data;
 	return FIFO_SIZE - kfifo_len(&port->xmit_fifo);
 }
 
-static int sdio_uart_chars_in_buffer(struct tty_struct *tty)
+static unsigned int sdio_uart_chars_in_buffer(struct tty_struct *tty)
 {
 	struct sdio_uart_port *port = tty->driver_data;
 	return kfifo_len(&port->xmit_fifo);
@@ -1135,9 +1122,10 @@ static int __init sdio_uart_init(void)
 	int ret;
 	struct tty_driver *tty_drv;
 
-	sdio_uart_tty_driver = tty_drv = alloc_tty_driver(UART_NR);
-	if (!tty_drv)
-		return -ENOMEM;
+	sdio_uart_tty_driver = tty_drv = tty_alloc_driver(UART_NR,
+			TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(tty_drv))
+		return PTR_ERR(tty_drv);
 
 	tty_drv->driver_name = "sdio_uart";
 	tty_drv->name =   "ttySDIO";
@@ -1145,7 +1133,6 @@ static int __init sdio_uart_init(void)
 	tty_drv->minor_start = 0;
 	tty_drv->type = TTY_DRIVER_TYPE_SERIAL;
 	tty_drv->subtype = SERIAL_TYPE_NORMAL;
-	tty_drv->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_drv->init_termios = tty_std_termios;
 	tty_drv->init_termios.c_cflag = B4800 | CS8 | CREAD | HUPCL | CLOCAL;
 	tty_drv->init_termios.c_ispeed = 4800;
@@ -1165,7 +1152,7 @@ static int __init sdio_uart_init(void)
 err2:
 	tty_unregister_driver(tty_drv);
 err1:
-	put_tty_driver(tty_drv);
+	tty_driver_kref_put(tty_drv);
 	return ret;
 }
 
@@ -1173,7 +1160,7 @@ static void __exit sdio_uart_exit(void)
 {
 	sdio_unregister_driver(&sdio_uart_driver);
 	tty_unregister_driver(sdio_uart_tty_driver);
-	put_tty_driver(sdio_uart_tty_driver);
+	tty_driver_kref_put(sdio_uart_tty_driver);
 }
 
 module_init(sdio_uart_init);

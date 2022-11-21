@@ -88,6 +88,7 @@ static struct bench internals_benchmarks[] = {
 	{ "synthesize", "Benchmark perf event synthesis",	bench_synthesize	},
 	{ "kallsyms-parse", "Benchmark kallsyms parsing",	bench_kallsyms_parse	},
 	{ "inject-build-id", "Benchmark build-id injection",	bench_inject_build_id	},
+	{ "evlist-open-close", "Benchmark evlist open and close",	bench_evlist_open_close	},
 	{ NULL,		NULL,					NULL			}
 };
 
@@ -225,7 +226,6 @@ static void run_collection(struct collection *coll)
 		if (!bench->fn)
 			break;
 		printf("# Running %s/%s benchmark...\n", coll->name, bench->name);
-		fflush(stdout);
 
 		argv[1] = bench->name;
 		run_bench(coll->name, bench->name, bench->fn, 1, argv);
@@ -245,6 +245,9 @@ int cmd_bench(int argc, const char **argv)
 {
 	struct collection *coll;
 	int ret = 0;
+
+	/* Unbuffered output */
+	setvbuf(stdout, NULL, _IONBF, 0);
 
 	if (argc < 2) {
 		/* No collection specified. */
@@ -299,7 +302,6 @@ int cmd_bench(int argc, const char **argv)
 
 			if (bench_format == BENCH_FORMAT_DEFAULT)
 				printf("# Running '%s/%s' benchmark:\n", coll->name, bench->name);
-			fflush(stdout);
 			ret = run_bench(coll->name, bench->name, bench->fn, argc-1, argv+1);
 			goto end;
 		}

@@ -40,7 +40,7 @@ struct xfs_dir3_icfree_hdr {
 };
 
 /* xfs_dir2.c */
-xfs_dahash_t xfs_ascii_ci_hashname(struct xfs_name *name);
+xfs_dahash_t xfs_ascii_ci_hashname(const struct xfs_name *name);
 enum xfs_dacmp xfs_ascii_ci_compname(struct xfs_da_args *args,
 		const unsigned char *name, int len);
 extern int xfs_dir2_grow_inode(struct xfs_da_args *args, int space,
@@ -127,7 +127,8 @@ xfs_dir3_leaf_find_entry(struct xfs_dir3_icleaf_hdr *leafhdr,
 extern int xfs_dir2_node_to_leaf(struct xfs_da_state *state);
 
 extern xfs_failaddr_t xfs_dir3_leaf_check_int(struct xfs_mount *mp,
-		struct xfs_dir3_icleaf_hdr *hdr, struct xfs_dir2_leaf *leaf);
+		struct xfs_dir3_icleaf_hdr *hdr, struct xfs_dir2_leaf *leaf,
+		bool expensive_checks);
 
 /* xfs_dir2_node.c */
 void xfs_dir2_free_hdr_from_disk(struct xfs_mount *mp,
@@ -195,12 +196,13 @@ xfs_dir2_data_entsize(
 
 	len = offsetof(struct xfs_dir2_data_entry, name[0]) + namelen +
 			sizeof(xfs_dir2_data_off_t) /* tag */;
-	if (xfs_sb_version_hasftype(&mp->m_sb))
+	if (xfs_has_ftype(mp))
 		len += sizeof(uint8_t);
 	return round_up(len, XFS_DIR2_DATA_ALIGN);
 }
 
-xfs_dahash_t xfs_dir2_hashname(struct xfs_mount *mp, struct xfs_name *name);
+xfs_dahash_t xfs_dir2_hashname(struct xfs_mount *mp,
+		const struct xfs_name *name);
 enum xfs_dacmp xfs_dir2_compname(struct xfs_da_args *args,
 		const unsigned char *name, int len);
 

@@ -4,6 +4,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/log2.h>
 #include <linux/mfd/syscon.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
@@ -17,12 +18,15 @@
 
 #define DEVICE_NAME	"aspeed-lpc-ctrl"
 
-#define HICR5 0x0
+#define HICR5 0x80
 #define HICR5_ENL2H	BIT(8)
 #define HICR5_ENFWH	BIT(10)
 
-#define HICR7 0x8
-#define HICR8 0xc
+#define HICR6 0x84
+#define SW_FWH2AHB	BIT(17)
+
+#define HICR7 0x88
+#define HICR8 0x8c
 
 struct aspeed_lpc_ctrl {
 	struct miscdevice	miscdev;
@@ -30,8 +34,10 @@ struct aspeed_lpc_ctrl {
 	struct clk		*clk;
 	phys_addr_t		mem_base;
 	resource_size_t		mem_size;
-	u32		pnor_size;
-	u32		pnor_base;
+	u32			pnor_size;
+	u32			pnor_base;
+	bool			fwh2ahb;
+	struct regmap		*scu;
 };
 
 static struct aspeed_lpc_ctrl *file_aspeed_lpc_ctrl(struct file *file)
@@ -46,7 +52,7 @@ static int aspeed_lpc_ctrl_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long vsize = vma->vm_end - vma->vm_start;
 	pgprot_t prot = vma->vm_page_prot;
 
-	if (vma->vm_pgoff + vsize > lpc_ctrl->mem_base + lpc_ctrl->mem_size)
+	if (vma->vm_pgoff + vma_pages(vma) > lpc_ctrl->mem_size >> PAGE_SHIFT)
 		return -EINVAL;
 
 	/* ast2400/2500 AHB accesses are not cache coherent */
@@ -177,6 +183,25 @@ static long aspeed_lpc_ctrl_ioctl(struct file *file, unsigned int cmd,
 			return rc;
 
 		/*
+		 * Switch to FWH2AHB mode, AST2600 only.
+		 */
+		if (lpc_ctrl->fwh2ahb) {
+			/*
+			 * Enable FWH2AHB in SCU debug control register 2. This
+			 * does not turn it on, but makes it available for it
+			 * to be configured in HICR6.
+			 */
+			regmap_update_bits(lpc_ctrl->scu, 0x0D8, BIT(2), 0);
+
+			/*
+			 * The other bits in this register are interrupt status bits
+			 * that are cleared by writing 1. As we don't want to clear
+			 * them, set only the bit of interest.
+			 */
+			regmap_write(lpc_ctrl->regmap, HICR6, SW_FWH2AHB);
+		}
+
+		/*
 		 * Enable LPC FHW cycles. This is required for the host to
 		 * access the regions specified.
 		 */
@@ -200,6 +225,7 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
 	struct device_node *node;
 	struct resource resm;
 	struct device *dev;
+	struct device_node *np;
 	int rc;
 
 	dev = &pdev->dev;
@@ -241,20 +267,48 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
 
 		lpc_ctrl->mem_size = resource_size(&resm);
 		lpc_ctrl->mem_base = resm.start;
+
+		if (!is_power_of_2(lpc_ctrl->mem_size)) {
+			dev_err(dev, "Reserved memory size must be a power of 2, got %u\n",
+			       (unsigned int)lpc_ctrl->mem_size);
+			return -EINVAL;
+		}
+
+		if (!IS_ALIGNED(lpc_ctrl->mem_base, lpc_ctrl->mem_size)) {
+			dev_err(dev, "Reserved memory must be naturally aligned for size %u\n",
+			       (unsigned int)lpc_ctrl->mem_size);
+			return -EINVAL;
+		}
 	}
 
-	lpc_ctrl->regmap = syscon_node_to_regmap(
-			pdev->dev.parent->of_node);
+	np = pdev->dev.parent->of_node;
+	if (!of_device_is_compatible(np, "aspeed,ast2400-lpc-v2") &&
+	    !of_device_is_compatible(np, "aspeed,ast2500-lpc-v2") &&
+	    !of_device_is_compatible(np, "aspeed,ast2600-lpc-v2")) {
+		dev_err(dev, "unsupported LPC device binding\n");
+		return -ENODEV;
+	}
+
+	lpc_ctrl->regmap = syscon_node_to_regmap(np);
 	if (IS_ERR(lpc_ctrl->regmap)) {
 		dev_err(dev, "Couldn't get regmap\n");
 		return -ENODEV;
 	}
 
-	lpc_ctrl->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(lpc_ctrl->clk)) {
-		dev_err(dev, "couldn't get clock\n");
-		return PTR_ERR(lpc_ctrl->clk);
+	if (of_device_is_compatible(dev->of_node, "aspeed,ast2600-lpc-ctrl")) {
+		lpc_ctrl->fwh2ahb = true;
+
+		lpc_ctrl->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2600-scu");
+		if (IS_ERR(lpc_ctrl->scu)) {
+			dev_err(dev, "couldn't find scu\n");
+			return PTR_ERR(lpc_ctrl->scu);
+		}
 	}
+
+	lpc_ctrl->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(lpc_ctrl->clk))
+		return dev_err_probe(dev, PTR_ERR(lpc_ctrl->clk),
+				     "couldn't get clock\n");
 	rc = clk_prepare_enable(lpc_ctrl->clk);
 	if (rc) {
 		dev_err(dev, "couldn't enable clock\n");
@@ -291,6 +345,7 @@ static int aspeed_lpc_ctrl_remove(struct platform_device *pdev)
 static const struct of_device_id aspeed_lpc_ctrl_match[] = {
 	{ .compatible = "aspeed,ast2400-lpc-ctrl" },
 	{ .compatible = "aspeed,ast2500-lpc-ctrl" },
+	{ .compatible = "aspeed,ast2600-lpc-ctrl" },
 	{ },
 };
 
@@ -308,4 +363,4 @@ module_platform_driver(aspeed_lpc_ctrl_driver);
 MODULE_DEVICE_TABLE(of, aspeed_lpc_ctrl_match);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Cyril Bur <cyrilbur@gmail.com>");
-MODULE_DESCRIPTION("Control for aspeed 2400/2500 LPC HOST to BMC mappings");
+MODULE_DESCRIPTION("Control for ASPEED LPC HOST to BMC mappings");

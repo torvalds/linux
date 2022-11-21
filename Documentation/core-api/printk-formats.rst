@@ -37,14 +37,13 @@ Integer types
 		u64			%llu or %llx
 
 
-If <type> is dependent on a config option for its size (e.g., sector_t,
-blkcnt_t) or is architecture-dependent for its size (e.g., tcflag_t), use a
-format specifier of its largest possible type and explicitly cast to it.
+If <type> is architecture-dependent for its size (e.g., cycles_t, tcflag_t) or
+is dependent on a config option for its size (e.g., blk_status_t), use a format
+specifier of its largest possible type and explicitly cast to it.
 
 Example::
 
-	printk("test: sector number/total blocks: %llu/%llu\n",
-		(unsigned long long)sector, (unsigned long long)blockcount);
+	printk("test: latency: %llu cycles\n", (unsigned long long)time);
 
 Reminder: sizeof() returns type size_t.
 
@@ -79,7 +78,19 @@ Pointers printed without a specifier extension (i.e unadorned %p) are
 hashed to prevent leaking information about the kernel memory layout. This
 has the added benefit of providing a unique identifier. On 64-bit machines
 the first 32 bits are zeroed. The kernel will print ``(ptrval)`` until it
-gathers enough entropy. If you *really* want the address see %px below.
+gathers enough entropy.
+
+When possible, use specialised modifiers such as %pS or %pB (described below)
+to avoid the need of providing an unhashed address that has to be interpreted
+post-hoc. If not possible, and the aim of printing the address is to provide
+more information for debugging, use %p and boot the kernel with the
+``no_hash_pointers`` parameter during debugging, which will print all %p
+addresses unmodified. If you *really* always want the unmodified address, see
+%px below.
+
+If (and only if) you are printing addresses as a content of a virtual file in
+e.g. procfs or sysfs (using e.g. seq_printf(), not printk()) read by a
+userspace process, use the %pK modifier described below instead of %p or %px.
 
 Error Pointers
 --------------
@@ -114,6 +125,18 @@ used when printing stack backtraces. The specifier takes into
 consideration the effect of compiler optimisations which may occur
 when tail-calls are used and marked with the noreturn GCC attribute.
 
+If the pointer is within a module, the module name and optionally build ID is
+printed after the symbol name with an extra ``b`` appended to the end of the
+specifier.
+
+::
+
+	%pS	versatile_init+0x0/0x110 [module_name]
+	%pSb	versatile_init+0x0/0x110 [module_name ed5019fdf5e53be37cb1ba7899292d7e143b259e]
+	%pSRb	versatile_init+0x9/0x110 [module_name ed5019fdf5e53be37cb1ba7899292d7e143b259e]
+		(with __builtin_extract_return_addr() translation)
+	%pBb	prev_fn_of_versatile_init+0x88/0x88 [module_name ed5019fdf5e53be37cb1ba7899292d7e143b259e]
+
 Probed Pointers from BPF / tracing
 ----------------------------------
 
@@ -139,6 +162,11 @@ For printing kernel pointers which should be hidden from unprivileged
 users. The behaviour of %pK depends on the kptr_restrict sysctl - see
 Documentation/admin-guide/sysctl/kernel.rst for more details.
 
+This modifier is *only* intended when producing content of a file read by
+userspace from e.g. procfs or sysfs, not for dmesg. Please refer to the
+section about %p above for discussion about how to manage hashing pointers
+in printk().
+
 Unmodified Addresses
 --------------------
 
@@ -152,6 +180,13 @@ kernel memory layout before printing pointers with %px. %px is functionally
 equivalent to %lx (or %lu). %px is preferred because it is more uniquely
 grep'able. If in the future we need to modify the way the kernel handles
 printing pointers we will be better equipped to find the call sites.
+
+Before using %px, consider if using %p is sufficient together with enabling the
+``no_hash_pointers`` kernel parameter during debugging sessions (see the %p
+description above). One valid scenario for %px might be printing information
+immediately before a panic, which prevents any sensitive information to be
+exploited anyway, and with %px there would be no need to reproduce the panic
+with no_hash_pointers.
 
 Pointer Differences
 -------------------
@@ -490,9 +525,10 @@ Time and date
 ::
 
 	%pt[RT]			YYYY-mm-ddTHH:MM:SS
+	%pt[RT]s		YYYY-mm-dd HH:MM:SS
 	%pt[RT]d		YYYY-mm-dd
 	%pt[RT]t		HH:MM:SS
-	%pt[RT][dt][r]
+	%pt[RT][dt][r][s]
 
 For printing date and time as represented by::
 
@@ -503,6 +539,10 @@ in human readable format.
 
 By default year will be incremented by 1900 and month by 1.
 Use %pt[RT]r (raw) to suppress this behaviour.
+
+The %pt[RT]s (space) will override ISO 8601 separator by using ' ' (space)
+instead of 'T' (Capital T) between date and time. It won't have any effect
+when date or time is omitted.
 
 Passed by reference.
 
@@ -531,14 +571,16 @@ For printing bitmap and its derivatives such as cpumask and nodemask,
 %*pb outputs the bitmap with field width as the number of bits and %*pbl
 output the bitmap as range list with field width as the number of bits.
 
-Passed by reference.
+The field width is passed by value, the bitmap is passed by reference.
+Helper macros cpumask_pr_args() and nodemask_pr_args() are available to ease
+printing cpumask and nodemask.
 
 Flags bitfields such as page flags, gfp_flags
 ---------------------------------------------
 
 ::
 
-	%pGp	referenced|uptodate|lru|active|private
+	%pGp	0x17ffffc0002036(referenced|uptodate|lru|active|private|node=0|zone=2|lastcpupid=0x1fffff)
 	%pGg	GFP_USER|GFP_DMA32|GFP_NOWARN
 	%pGv	read|exec|mayread|maywrite|mayexec|denywrite
 
@@ -564,6 +606,24 @@ Network device features
 For printing netdev_features_t.
 
 Passed by reference.
+
+V4L2 and DRM FourCC code (pixel format)
+---------------------------------------
+
+::
+
+	%p4cc
+
+Print a FourCC code used by V4L2 or DRM, including format endianness and
+its numerical value as hexadecimal.
+
+Passed by reference.
+
+Examples::
+
+	%p4cc	BG12 little-endian (0x32314742)
+	%p4cc	Y10  little-endian (0x20303159)
+	%p4cc	NV12 big-endian (0xb231564e)
 
 Thanks
 ======

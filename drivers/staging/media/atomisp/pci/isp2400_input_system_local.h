@@ -16,10 +16,6 @@
 #ifndef __INPUT_SYSTEM_LOCAL_H_INCLUDED__
 #define __INPUT_SYSTEM_LOCAL_H_INCLUDED__
 
-#include <type_support.h>
-
-#include "input_system_global.h"
-
 #include "input_system_defs.h"		/* HIVE_ISYS_GPREG_MULTICAST_A_IDX,... */
 
 /*
@@ -33,78 +29,11 @@
 #include "isp_acquisition_defs.h"
 #include "input_system_ctrl_defs.h"
 
-typedef enum {
-	INPUT_SYSTEM_PORT_A = 0,
-	INPUT_SYSTEM_PORT_B,
-	INPUT_SYSTEM_PORT_C,
-	N_INPUT_SYSTEM_PORTS
-} input_system_csi_port_t;
-
-typedef struct ctrl_unit_cfg_s			ctrl_unit_cfg_t;
-typedef struct input_system_network_cfg_s	input_system_network_cfg_t;
-typedef struct target_cfg2400_s		target_cfg2400_t;
-typedef struct channel_cfg_s			channel_cfg_t;
-typedef struct backend_channel_cfg_s		backend_channel_cfg_t;
-typedef struct input_system_cfg2400_s		input_system_cfg2400_t;
-typedef struct mipi_port_state_s		mipi_port_state_t;
-typedef struct rx_channel_state_s		rx_channel_state_t;
-typedef struct input_switch_cfg_channel_s	input_switch_cfg_channel_t;
-typedef struct input_switch_cfg_s		input_switch_cfg_t;
-
-struct ctrl_unit_cfg_s {
-	isp2400_ib_buffer_t		buffer_mipi[N_CAPTURE_UNIT_ID];
-	isp2400_ib_buffer_t		buffer_acquire[N_ACQUISITION_UNIT_ID];
-};
-
-struct input_system_network_cfg_s {
-	input_system_connection_t	multicast_cfg[N_CAPTURE_UNIT_ID];
-	input_system_multiplex_t	mux_cfg;
-	ctrl_unit_cfg_t				ctrl_unit_cfg[N_CTRL_UNIT_ID];
-};
-
-typedef struct {
-// TBD.
-	u32	dummy_parameter;
-} target_isp_cfg_t;
-
-typedef struct {
-// TBD.
-	u32	dummy_parameter;
-} target_sp_cfg_t;
-
-typedef struct {
-// TBD.
-	u32	dummy_parameter;
-} target_strm2mem_cfg_t;
-
-struct input_switch_cfg_channel_s {
-	u32 hsync_data_reg[2];
-	u32 vsync_data_reg;
-};
-
 struct target_cfg2400_s {
 	input_switch_cfg_channel_t		input_switch_channel_cfg;
 	target_isp_cfg_t	target_isp_cfg;
 	target_sp_cfg_t		target_sp_cfg;
 	target_strm2mem_cfg_t	target_strm2mem_cfg;
-};
-
-struct backend_channel_cfg_s {
-	u32	fmt_control_word_1; // Format config.
-	u32	fmt_control_word_2;
-	u32	no_side_band;
-};
-
-typedef union  {
-	csi_cfg_t	csi_cfg;
-	tpg_cfg_t	tpg_cfg;
-	prbs_cfg_t	prbs_cfg;
-	gpfifo_cfg_t	gpfifo_cfg;
-} source_cfg_t;
-
-struct input_switch_cfg_s {
-	u32 hsync_data_reg[N_RX_CHANNEL_ID * 2];
-	u32 vsync_data_reg;
 };
 
 // Configuration of a channel.
@@ -238,47 +167,6 @@ typedef struct capture_unit_state_s	capture_unit_state_t;
 typedef struct acquisition_unit_state_s	acquisition_unit_state_t;
 typedef struct ctrl_unit_state_s	ctrl_unit_state_t;
 
-/*
- * In 2300 ports can be configured independently and stream
- * formats need to be specified. In 2400, there are only 8
- * supported configurations but the HW is fused to support
- * only a single one.
- *
- * In 2300 the compressed format types are programmed by the
- * user. In 2400 all stream formats are encoded on the stream.
- *
- * Use the enum to check validity of a user configuration
- */
-typedef enum {
-	MONO_4L_1L_0L = 0,
-	MONO_3L_1L_0L,
-	MONO_2L_1L_0L,
-	MONO_1L_1L_0L,
-	STEREO_2L_1L_2L,
-	STEREO_3L_1L_1L,
-	STEREO_2L_1L_1L,
-	STEREO_1L_1L_1L,
-	N_RX_MODE
-} rx_mode_t;
-
-typedef enum {
-	MIPI_PREDICTOR_NONE = 0,
-	MIPI_PREDICTOR_TYPE1,
-	MIPI_PREDICTOR_TYPE2,
-	N_MIPI_PREDICTOR_TYPES
-} mipi_predictor_t;
-
-typedef enum {
-	MIPI_COMPRESSOR_NONE = 0,
-	MIPI_COMPRESSOR_10_6_10,
-	MIPI_COMPRESSOR_10_7_10,
-	MIPI_COMPRESSOR_10_8_10,
-	MIPI_COMPRESSOR_12_6_12,
-	MIPI_COMPRESSOR_12_7_12,
-	MIPI_COMPRESSOR_12_8_12,
-	N_MIPI_COMPRESSOR_METHODS
-} mipi_compressor_t;
-
 typedef enum {
 	MIPI_FORMAT_RGB888 = 0,
 	MIPI_FORMAT_RGB555,
@@ -339,58 +227,14 @@ typedef enum {
 	RX_IRQ_INFO_ERR_LINE_SYNC    = 1UL << _HRT_CSS_RECEIVER_IRQ_ERR_LINE_SYNC_BIT,
 }  rx_irq_info_t;
 
-typedef struct rx_cfg_s		rx_cfg_t;
-
-/*
- * Applied per port
- */
-struct rx_cfg_s {
-	rx_mode_t			mode;	/* The HW config */
-	enum mipi_port_id		port;	/* The port ID to apply the control on */
-	unsigned int		timeout;
-	unsigned int		initcount;
-	unsigned int		synccount;
-	unsigned int		rxcount;
-	mipi_predictor_t	comp;	/* Just for backward compatibility */
-	bool                is_two_ppc;
-};
-
 /* NOTE: The base has already an offset of 0x0100 */
-static const hrt_address MIPI_PORT_OFFSET[N_MIPI_PORT_ID] = {
+static const hrt_address __maybe_unused MIPI_PORT_OFFSET[N_MIPI_PORT_ID] = {
 	0x00000000UL,
 	0x00000100UL,
 	0x00000200UL
 };
 
-static const mipi_lane_cfg_t MIPI_PORT_MAXLANES[N_MIPI_PORT_ID] = {
-	MIPI_4LANE_CFG,
-	MIPI_1LANE_CFG,
-	MIPI_2LANE_CFG
-};
-
-static const bool MIPI_PORT_ACTIVE[N_RX_MODE][N_MIPI_PORT_ID] = {
-	{true, true, false},
-	{true, true, false},
-	{true, true, false},
-	{true, true, false},
-	{true, true, true},
-	{true, true, true},
-	{true, true, true},
-	{true, true, true}
-};
-
-static const mipi_lane_cfg_t MIPI_PORT_LANES[N_RX_MODE][N_MIPI_PORT_ID] = {
-	{MIPI_4LANE_CFG, MIPI_1LANE_CFG, MIPI_0LANE_CFG},
-	{MIPI_3LANE_CFG, MIPI_1LANE_CFG, MIPI_0LANE_CFG},
-	{MIPI_2LANE_CFG, MIPI_1LANE_CFG, MIPI_0LANE_CFG},
-	{MIPI_1LANE_CFG, MIPI_1LANE_CFG, MIPI_0LANE_CFG},
-	{MIPI_2LANE_CFG, MIPI_1LANE_CFG, MIPI_2LANE_CFG},
-	{MIPI_3LANE_CFG, MIPI_1LANE_CFG, MIPI_1LANE_CFG},
-	{MIPI_2LANE_CFG, MIPI_1LANE_CFG, MIPI_1LANE_CFG},
-	{MIPI_1LANE_CFG, MIPI_1LANE_CFG, MIPI_1LANE_CFG}
-};
-
-static const hrt_address SUB_SYSTEM_OFFSET[N_SUB_SYSTEM_ID] = {
+static const hrt_address __maybe_unused SUB_SYSTEM_OFFSET[N_SUB_SYSTEM_ID] = {
 	0x00001000UL,
 	0x00002000UL,
 	0x00003000UL,

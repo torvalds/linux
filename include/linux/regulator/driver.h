@@ -40,6 +40,15 @@ enum regulator_status {
 	REGULATOR_STATUS_UNDEFINED,
 };
 
+enum regulator_detection_severity {
+	/* Hardware shut down voltage outputs if condition is detected */
+	REGULATOR_SEVERITY_PROT,
+	/* Hardware is probably damaged/inoperable */
+	REGULATOR_SEVERITY_ERR,
+	/* Hardware is still recoverable but recovery action must be taken */
+	REGULATOR_SEVERITY_WARN,
+};
+
 /* Initialize struct linear_range for regulators */
 #define REGULATOR_LINEAR_RANGE(_min_uV, _min_sel, _max_sel, _step_uV)	\
 {									\
@@ -78,8 +87,31 @@ enum regulator_status {
  * @get_current_limit: Get the configured limit for a current-limited regulator.
  * @set_input_current_limit: Configure an input limit.
  *
- * @set_over_current_protection: Support capability of automatically shutting
- *                               down when detecting an over current event.
+ * @set_over_current_protection: Support enabling of and setting limits for over
+ *	current situation detection. Detection can be configured for three
+ *	levels of severity.
+ *
+ *	- REGULATOR_SEVERITY_PROT should automatically shut down the regulator(s).
+ *
+ *	- REGULATOR_SEVERITY_ERR should indicate that over-current situation is
+ *		  caused by an unrecoverable error but HW does not perform
+ *		  automatic shut down.
+ *
+ *	- REGULATOR_SEVERITY_WARN should indicate situation where hardware is
+ *		  still believed to not be damaged but that a board sepcific
+ *		  recovery action is needed. If lim_uA is 0 the limit should not
+ *		  be changed but the detection should just be enabled/disabled as
+ *		  is requested.
+ *
+ * @set_over_voltage_protection: Support enabling of and setting limits for over
+ *	voltage situation detection. Detection can be configured for same
+ *	severities as over current protection. Units of uV.
+ * @set_under_voltage_protection: Support enabling of and setting limits for
+ *	under voltage situation detection. Detection can be configured for same
+ *	severities as over current protection. Units of uV.
+ * @set_thermal_protection: Support enabling of and setting limits for over
+ *	temperature situation detection.Detection can be configured for same
+ *	severities as over current protection. Units of degree Kelvin.
  *
  * @set_active_discharge: Set active discharge enable/disable of regulators.
  *
@@ -143,8 +175,15 @@ struct regulator_ops {
 	int (*get_current_limit) (struct regulator_dev *);
 
 	int (*set_input_current_limit) (struct regulator_dev *, int lim_uA);
-	int (*set_over_current_protection) (struct regulator_dev *);
-	int (*set_active_discharge) (struct regulator_dev *, bool enable);
+	int (*set_over_current_protection)(struct regulator_dev *, int lim_uA,
+					   int severity, bool enable);
+	int (*set_over_voltage_protection)(struct regulator_dev *, int lim_uV,
+					   int severity, bool enable);
+	int (*set_under_voltage_protection)(struct regulator_dev *, int lim_uV,
+					    int severity, bool enable);
+	int (*set_thermal_protection)(struct regulator_dev *, int lim,
+				      int severity, bool enable);
+	int (*set_active_discharge)(struct regulator_dev *, bool enable);
 
 	/* enable/disable regulator */
 	int (*enable) (struct regulator_dev *);
@@ -223,6 +262,8 @@ enum regulator_type {
  * @name: Identifying name for the regulator.
  * @supply_name: Identifying the regulator supply
  * @of_match: Name used to identify regulator in DT.
+ * @of_match_full_name: A flag to indicate that the of_match string, if
+ *			present, should be matched against the node full_name.
  * @regulators_node: Name of node containing regulator definitions in DT.
  * @of_parse_cb: Optional callback called only if of_match is present.
  *               Will be called for each regulator parsed from DT, during
@@ -302,6 +343,12 @@ enum regulator_type {
  * @pull_down_val_on: Enabling value for control when using regmap
  *                     set_pull_down
  *
+ * @ramp_reg:		Register for controlling the regulator ramp-rate.
+ * @ramp_mask:		Bitmask for the ramp-rate control register.
+ * @ramp_delay_table:	Table for mapping the regulator ramp-rate values. Values
+ *			should be given in units of V/S (uV/uS). See the
+ *			regulator_set_ramp_delay_regmap().
+ *
  * @enable_time: Time taken for initial enable of regulator (in uS).
  * @off_on_delay: guard time (in uS), before re-enabling a regulator
  *
@@ -314,6 +361,7 @@ struct regulator_desc {
 	const char *name;
 	const char *supply_name;
 	const char *of_match;
+	bool of_match_full_name;
 	const char *regulators_node;
 	int (*of_parse_cb)(struct device_node *,
 			    const struct regulator_desc *,
@@ -370,6 +418,10 @@ struct regulator_desc {
 	unsigned int pull_down_reg;
 	unsigned int pull_down_mask;
 	unsigned int pull_down_val_on;
+	unsigned int ramp_reg;
+	unsigned int ramp_mask;
+	const unsigned int *ramp_delay_table;
+	unsigned int n_ramp_values;
 
 	unsigned int enable_time;
 
@@ -404,6 +456,130 @@ struct regulator_config {
 	struct regmap *regmap;
 
 	struct gpio_desc *ena_gpiod;
+};
+
+/**
+ * struct regulator_err_state - regulator error/notification status
+ *
+ * @rdev:		Regulator which status the struct indicates.
+ * @notifs:		Events which have occurred on the regulator.
+ * @errors:		Errors which are active on the regulator.
+ * @possible_errs:	Errors which can be signaled (by given IRQ).
+ */
+struct regulator_err_state {
+	struct regulator_dev *rdev;
+	unsigned long notifs;
+	unsigned long errors;
+	int possible_errs;
+};
+
+/**
+ * struct regulator_irq_data - regulator error/notification status data
+ *
+ * @states:	Status structs for each of the associated regulators.
+ * @num_states:	Amount of associated regulators.
+ * @data:	Driver data pointer given at regulator_irq_desc.
+ * @opaque:	Value storage for IC driver. Core does not update this. ICs
+ *		may want to store status register value here at map_event and
+ *		compare contents at 'renable' callback to see if new problems
+ *		have been added to status. If that is the case it may be
+ *		desirable to return REGULATOR_ERROR_CLEARED and not
+ *		REGULATOR_ERROR_ON to allow IRQ fire again and to generate
+ *		notifications also for the new issues.
+ *
+ * This structure is passed to 'map_event' and 'renable' callbacks for
+ * reporting regulator status to core.
+ */
+struct regulator_irq_data {
+	struct regulator_err_state *states;
+	int num_states;
+	void *data;
+	long opaque;
+};
+
+/**
+ * struct regulator_irq_desc - notification sender for IRQ based events.
+ *
+ * @name:	The visible name for the IRQ
+ * @fatal_cnt:	If this IRQ is used to signal HW damaging condition it may be
+ *		best to shut-down regulator(s) or reboot the SOC if error
+ *		handling is repeatedly failing. If fatal_cnt is given the IRQ
+ *		handling is aborted if it fails for fatal_cnt times and die()
+ *		callback (if populated) is called. If die() is not populated
+ *		poweroff for the system is attempted in order to prevent any
+ *		further damage.
+ * @reread_ms:	The time which is waited before attempting to re-read status
+ *		at the worker if IC reading fails. Immediate re-read is done
+ *		if time is not specified.
+ * @irq_off_ms:	The time which IRQ is kept disabled before re-evaluating the
+ *		status for devices which keep IRQ disabled for duration of the
+ *		error. If this is not given the IRQ is left enabled and renable
+ *		is not called.
+ * @skip_off:	If set to true the IRQ handler will attempt to check if any of
+ *		the associated regulators are enabled prior to taking other
+ *		actions. If no regulators are enabled and this is set to true
+ *		a spurious IRQ is assumed and IRQ_NONE is returned.
+ * @high_prio:	Boolean to indicate that high priority WQ should be used.
+ * @data:	Driver private data pointer which will be passed as such to
+ *		the renable, map_event and die callbacks in regulator_irq_data.
+ * @die:	Protection callback. If IC status reading or recovery actions
+ *		fail fatal_cnt times this callback is called or system is
+ *		powered off. This callback should implement a final protection
+ *		attempt like disabling the regulator. If protection succeeded
+ *		die() may return 0. If anything else is returned the core
+ *		assumes final protection failed and attempts to perform a
+ *		poweroff as a last resort.
+ * @map_event:	Driver callback to map IRQ status into regulator devices with
+ *		events / errors. NOTE: callback MUST initialize both the
+ *		errors and notifs for all rdevs which it signals having
+ *		active events as core does not clean the map data.
+ *		REGULATOR_FAILED_RETRY can be returned to indicate that the
+ *		status reading from IC failed. If this is repeated for
+ *		fatal_cnt times the core will call die() callback or power-off
+ *		the system as a last resort to protect the HW.
+ * @renable:	Optional callback to check status (if HW supports that) before
+ *		re-enabling IRQ. If implemented this should clear the error
+ *		flags so that errors fetched by regulator_get_error_flags()
+ *		are updated. If callback is not implemented then errors are
+ *		assumed to be cleared and IRQ is re-enabled.
+ *		REGULATOR_FAILED_RETRY can be returned to
+ *		indicate that the status reading from IC failed. If this is
+ *		repeated for 'fatal_cnt' times the core will call die()
+ *		callback or if die() is not populated then attempt to power-off
+ *		the system as a last resort to protect the HW.
+ *		Returning zero indicates that the problem in HW has been solved
+ *		and IRQ will be re-enabled. Returning REGULATOR_ERROR_ON
+ *		indicates the error condition is still active and keeps IRQ
+ *		disabled. Please note that returning REGULATOR_ERROR_ON does
+ *		not retrigger evaluating what events are active or resending
+ *		notifications. If this is needed you probably want to return
+ *		zero and allow IRQ to retrigger causing events to be
+ *		re-evaluated and re-sent.
+ *
+ * This structure is used for registering regulator IRQ notification helper.
+ */
+struct regulator_irq_desc {
+	const char *name;
+	int fatal_cnt;
+	int reread_ms;
+	int irq_off_ms;
+	bool skip_off;
+	bool high_prio;
+	void *data;
+
+	int (*die)(struct regulator_irq_data *rid);
+	int (*map_event)(int irq, struct regulator_irq_data *rid,
+			  unsigned long *dev_mask);
+	int (*renable)(struct regulator_irq_data *rid);
+};
+
+/*
+ * Return values for regulator IRQ helpers.
+ */
+enum {
+	REGULATOR_ERROR_CLEARED,
+	REGULATOR_FAILED_RETRY,
+	REGULATOR_ERROR_ON,
 };
 
 /*
@@ -469,8 +645,45 @@ struct regulator_dev {
 	unsigned int is_switch:1;
 
 	/* time when this regulator was disabled last time */
-	unsigned long last_off_jiffy;
+	ktime_t last_off;
+	int cached_err;
+	bool use_cached_err;
+	spinlock_t err_lock;
 };
+
+/*
+ * Convert error flags to corresponding notifications.
+ *
+ * Can be used by drivers which use the notification helpers to
+ * find out correct notification flags based on the error flags. Drivers
+ * can avoid storing both supported notification and error flags which
+ * may save few bytes.
+ */
+static inline int regulator_err2notif(int err)
+{
+	switch (err) {
+	case REGULATOR_ERROR_UNDER_VOLTAGE:
+		return REGULATOR_EVENT_UNDER_VOLTAGE;
+	case REGULATOR_ERROR_OVER_CURRENT:
+		return REGULATOR_EVENT_OVER_CURRENT;
+	case REGULATOR_ERROR_REGULATION_OUT:
+		return REGULATOR_EVENT_REGULATION_OUT;
+	case REGULATOR_ERROR_FAIL:
+		return REGULATOR_EVENT_FAIL;
+	case REGULATOR_ERROR_OVER_TEMP:
+		return REGULATOR_EVENT_OVER_TEMP;
+	case REGULATOR_ERROR_UNDER_VOLTAGE_WARN:
+		return REGULATOR_EVENT_UNDER_VOLTAGE_WARN;
+	case REGULATOR_ERROR_OVER_CURRENT_WARN:
+		return REGULATOR_EVENT_OVER_CURRENT_WARN;
+	case REGULATOR_ERROR_OVER_VOLTAGE_WARN:
+		return REGULATOR_EVENT_OVER_VOLTAGE_WARN;
+	case REGULATOR_ERROR_OVER_TEMP_WARN:
+		return REGULATOR_EVENT_OVER_TEMP_WARN;
+	}
+	return 0;
+}
+
 
 struct regulator_dev *
 regulator_register(const struct regulator_desc *regulator_desc,
@@ -480,10 +693,21 @@ devm_regulator_register(struct device *dev,
 			const struct regulator_desc *regulator_desc,
 			const struct regulator_config *config);
 void regulator_unregister(struct regulator_dev *rdev);
-void devm_regulator_unregister(struct device *dev, struct regulator_dev *rdev);
 
 int regulator_notifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data);
+void *devm_regulator_irq_helper(struct device *dev,
+				const struct regulator_irq_desc *d, int irq,
+				int irq_flags, int common_errs,
+				int *per_rdev_errs, struct regulator_dev **rdev,
+				int rdev_amount);
+void *regulator_irq_helper(struct device *dev,
+			   const struct regulator_irq_desc *d, int irq,
+			   int irq_flags, int common_errs, int *per_rdev_errs,
+			   struct regulator_dev **rdev, int rdev_amount);
+void regulator_irq_helper_cancel(void **handle);
+int regulator_irq_map_event_simple(int irq, struct regulator_irq_data *rid,
+				   unsigned long *dev_mask);
 
 void *rdev_get_drvdata(struct regulator_dev *rdev);
 struct device *rdev_get_dev(struct regulator_dev *rdev);
@@ -532,6 +756,8 @@ int regulator_set_current_limit_regmap(struct regulator_dev *rdev,
 				       int min_uA, int max_uA);
 int regulator_get_current_limit_regmap(struct regulator_dev *rdev);
 void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data);
+int regulator_set_ramp_delay_regmap(struct regulator_dev *rdev, int ramp_delay);
+int regulator_sync_voltage_rdev(struct regulator_dev *rdev);
 
 /*
  * Helper functions intended to be used by regulator drivers prior registering
@@ -539,5 +765,17 @@ void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data);
  */
 int regulator_desc_list_voltage_linear_range(const struct regulator_desc *desc,
 					     unsigned int selector);
+
+int regulator_desc_list_voltage_linear(const struct regulator_desc *desc,
+				       unsigned int selector);
+
+#ifdef CONFIG_REGULATOR
+const char *rdev_get_name(struct regulator_dev *rdev);
+#else
+static inline const char *rdev_get_name(struct regulator_dev *rdev)
+{
+	return NULL;
+}
+#endif
 
 #endif

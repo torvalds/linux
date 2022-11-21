@@ -38,9 +38,8 @@ enum ras_command {
 	TA_RAS_COMMAND__TRIGGER_ERROR,
 };
 
-enum ta_ras_status
-{
-	TA_RAS_STATUS__SUCCESS                          = 0x00,
+enum ta_ras_status {
+	TA_RAS_STATUS__SUCCESS                          = 0x0000,
 	TA_RAS_STATUS__RESET_NEEDED                     = 0xA001,
 	TA_RAS_STATUS__ERROR_INVALID_PARAMETER          = 0xA002,
 	TA_RAS_STATUS__ERROR_RAS_NOT_AVAILABLE          = 0xA003,
@@ -55,7 +54,18 @@ enum ta_ras_status
 	TA_RAS_STATUS__ERROR_GET_DEV_INFO               = 0xA00C,
 	TA_RAS_STATUS__ERROR_UNSUPPORTED_DEV            = 0xA00D,
 	TA_RAS_STATUS__ERROR_NOT_INITIALIZED            = 0xA00E,
-	TA_RAS_STATUS__ERROR_TEE_INTERNAL               = 0xA00F
+	TA_RAS_STATUS__ERROR_TEE_INTERNAL               = 0xA00F,
+	TA_RAS_STATUS__ERROR_UNSUPPORTED_FUNCTION       = 0xA010,
+	TA_RAS_STATUS__ERROR_SYS_DRV_REG_ACCESS         = 0xA011,
+	TA_RAS_STATUS__ERROR_RAS_READ_WRITE             = 0xA012,
+	TA_RAS_STATUS__ERROR_NULL_PTR                   = 0xA013,
+	TA_RAS_STATUS__ERROR_UNSUPPORTED_IP             = 0xA014,
+	TA_RAS_STATUS__ERROR_PCS_STATE_QUIET            = 0xA015,
+	TA_RAS_STATUS__ERROR_PCS_STATE_ERROR            = 0xA016,
+	TA_RAS_STATUS__ERROR_PCS_STATE_HANG             = 0xA017,
+	TA_RAS_STATUS__ERROR_PCS_STATE_UNKNOWN          = 0xA018,
+	TA_RAS_STATUS__ERROR_UNSUPPORTED_ERROR_INJ      = 0xA019,
+	TA_RAS_STATUS__TEE_ERROR_ACCESS_DENIED          = 0xA01A
 };
 
 enum ta_ras_block {
@@ -73,7 +83,16 @@ enum ta_ras_block {
 	TA_RAS_BLOCK__MP0,
 	TA_RAS_BLOCK__MP1,
 	TA_RAS_BLOCK__FUSE,
+	TA_RAS_BLOCK__MCA,
 	TA_NUM_BLOCK_MAX
+};
+
+enum ta_ras_mca_block {
+	TA_RAS_MCA_BLOCK__MP0   = 0,
+	TA_RAS_MCA_BLOCK__MP1   = 1,
+	TA_RAS_MCA_BLOCK__MPIO  = 2,
+	TA_RAS_MCA_BLOCK__IOHC  = 3,
+	TA_MCA_NUM_BLOCK_MAX
 };
 
 enum ta_ras_error_type {
@@ -105,28 +124,32 @@ struct ta_ras_trigger_error_input {
 	uint64_t		value;			// method if error injection. i.e persistent, coherent etc.
 };
 
-struct ta_ras_output_flags
-{
-	uint8_t    ras_init_success_flag;
-	uint8_t    err_inject_switch_disable_flag;
-	uint8_t    reg_access_failure_flag;
+struct ta_ras_init_flags {
+	uint8_t poison_mode_en;
+	uint8_t dgpu_mode;
+};
+
+struct ta_ras_output_flags {
+	uint8_t ras_init_success_flag;
+	uint8_t err_inject_switch_disable_flag;
+	uint8_t reg_access_failure_flag;
 };
 
 /* Common input structure for RAS callbacks */
 /**********************************************************/
 union ta_ras_cmd_input {
+	struct ta_ras_init_flags		init_flags;
 	struct ta_ras_enable_features_input	enable_features;
 	struct ta_ras_disable_features_input	disable_features;
 	struct ta_ras_trigger_error_input	trigger_error;
 
-	uint32_t	reserve_pad[256];
+	uint32_t reserve_pad[256];
 };
 
-union ta_ras_cmd_output
-{
-	struct ta_ras_output_flags  flags;
+union ta_ras_cmd_output {
+	struct ta_ras_output_flags flags;
 
-	uint32_t	reserve_pad[256];
+	uint32_t reserve_pad[256];
 };
 
 /* Shared Memory structures */

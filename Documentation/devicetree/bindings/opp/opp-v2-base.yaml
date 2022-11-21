@@ -1,0 +1,239 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/opp/opp-v2-base.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Generic OPP (Operating Performance Points) Common Binding
+
+maintainers:
+  - Viresh Kumar <viresh.kumar@linaro.org>
+
+description: |
+  Devices work at voltage-current-frequency combinations and some implementations
+  have the liberty of choosing these. These combinations are called Operating
+  Performance Points aka OPPs. This document defines bindings for these OPPs
+  applicable across wide range of devices. For illustration purpose, this document
+  uses CPU as a device.
+
+  This describes the OPPs belonging to a device.
+
+select: false
+
+properties:
+  $nodename:
+    pattern: '^opp-table(-[a-z0-9]+)?$'
+
+  opp-shared:
+    description:
+      Indicates that device nodes using this OPP Table Node's phandle switch
+      their DVFS state together, i.e. they share clock/voltage/current lines.
+      Missing property means devices have independent clock/voltage/current
+      lines, but they share OPP tables.
+    type: boolean
+
+patternProperties:
+  '^opp(-?[0-9]+)*$':
+    type: object
+    description:
+      One or more OPP nodes describing voltage-current-frequency combinations.
+      Their name isn't significant but their phandle can be used to reference an
+      OPP. These are mandatory except for the case where the OPP table is
+      present only to indicate dependency between devices using the opp-shared
+      property.
+
+    properties:
+      opp-hz:
+        description:
+          Frequency in Hz, expressed as a 64-bit big-endian integer. This is a
+          required property for all device nodes, unless another "required"
+          property to uniquely identify the OPP nodes exists. Devices like power
+          domains must have another (implementation dependent) property.
+
+      opp-microvolt:
+        description: |
+          Voltage for the OPP
+
+          A single regulator's voltage is specified with an array of size one or three.
+          Single entry is for target voltage and three entries are for <target min max>
+          voltages.
+
+          Entries for multiple regulators shall be provided in the same field separated
+          by angular brackets <>. The OPP binding doesn't provide any provisions to
+          relate the values to their power supplies or the order in which the supplies
+          need to be configured and that is left for the implementation specific
+          binding.
+
+          Entries for all regulators shall be of the same size, i.e. either all use a
+          single value or triplets.
+        minItems: 1
+        maxItems: 8   # Should be enough regulators
+        items:
+          minItems: 1
+          maxItems: 3
+
+      opp-microamp:
+        description: |
+          The maximum current drawn by the device in microamperes considering
+          system specific parameters (such as transients, process, aging,
+          maximum operating temperature range etc.) as necessary. This may be
+          used to set the most efficient regulator operating mode.
+
+          Should only be set if opp-microvolt or opp-microvolt-<name> is set for
+          the OPP.
+
+          Entries for multiple regulators shall be provided in the same field
+          separated by angular brackets <>. If current values aren't required
+          for a regulator, then it shall be filled with 0. If current values
+          aren't required for any of the regulators, then this field is not
+          required. The OPP binding doesn't provide any provisions to relate the
+          values to their power supplies or the order in which the supplies need
+          to be configured and that is left for the implementation specific
+          binding.
+        minItems: 1
+        maxItems: 8   # Should be enough regulators
+
+      opp-microwatt:
+        description: |
+          The power for the OPP in micro-Watts.
+
+          Entries for multiple regulators shall be provided in the same field
+          separated by angular brackets <>. If current values aren't required
+          for a regulator, then it shall be filled with 0. If power values
+          aren't required for any of the regulators, then this field is not
+          required. The OPP binding doesn't provide any provisions to relate the
+          values to their power supplies or the order in which the supplies need
+          to be configured and that is left for the implementation specific
+          binding.
+        minItems: 1
+        maxItems: 8   # Should be enough regulators
+
+      opp-level:
+        description:
+          A value representing the performance level of the device.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      opp-peak-kBps:
+        description:
+          Peak bandwidth in kilobytes per second, expressed as an array of
+          32-bit big-endian integers. Each element of the array represents the
+          peak bandwidth value of each interconnect path. The number of elements
+          should match the number of interconnect paths.
+        minItems: 1
+        maxItems: 32  # Should be enough
+
+      opp-avg-kBps:
+        description:
+          Average bandwidth in kilobytes per second, expressed as an array
+          of 32-bit big-endian integers. Each element of the array represents the
+          average bandwidth value of each interconnect path. The number of elements
+          should match the number of interconnect paths. This property is only
+          meaningful in OPP tables where opp-peak-kBps is present.
+        minItems: 1
+        maxItems: 32  # Should be enough
+
+      clock-latency-ns:
+        description:
+          Specifies the maximum possible transition latency (in nanoseconds) for
+          switching to this OPP from any other OPP.
+
+      turbo-mode:
+        description:
+          Marks the OPP to be used only for turbo modes. Turbo mode is available
+          on some platforms, where the device can run over its operating
+          frequency for a short duration of time limited by the device's power,
+          current and thermal limits.
+        type: boolean
+
+      opp-suspend:
+        description:
+          Marks the OPP to be used during device suspend. If multiple OPPs in
+          the table have this, the OPP with highest opp-hz will be used.
+        type: boolean
+
+      opp-supported-hw:
+        description: |
+          This property allows a platform to enable only a subset of the OPPs
+          from the larger set present in the OPP table, based on the current
+          version of the hardware (already known to the operating system).
+
+          Each block present in the array of blocks in this property, represents
+          a sub-group of hardware versions supported by the OPP. i.e. <sub-group
+          A>, <sub-group B>, etc. The OPP will be enabled if _any_ of these
+          sub-groups match the hardware's version.
+
+          Each sub-group is a platform defined array representing the hierarchy
+          of hardware versions supported by the platform. For a platform with
+          three hierarchical levels of version (X.Y.Z), this field shall look
+          like
+
+          opp-supported-hw = <X1 Y1 Z1>, <X2 Y2 Z2>, <X3 Y3 Z3>.
+
+          Each level (eg. X1) in version hierarchy is represented by a 32 bit
+          value, one bit per version and so there can be maximum 32 versions per
+          level. Logical AND (&) operation is performed for each level with the
+          hardware's level version and a non-zero output for _all_ the levels in
+          a sub-group means the OPP is supported by hardware. A value of
+          0xFFFFFFFF for each level in the sub-group will enable the OPP for all
+          versions for the hardware.
+        $ref: /schemas/types.yaml#/definitions/uint32-matrix
+        maxItems: 32
+        items:
+          minItems: 1
+          maxItems: 4
+
+      required-opps:
+        description:
+          This contains phandle to an OPP node in another device's OPP table. It
+          may contain an array of phandles, where each phandle points to an OPP
+          of a different device. It should not contain multiple phandles to the
+          OPP nodes in the same OPP table. This specifies the minimum required
+          OPP of the device(s), whose OPP's phandle is present in this property,
+          for the functioning of the current device at the current OPP (where
+          this property is present).
+        $ref: /schemas/types.yaml#/definitions/phandle-array
+        items:
+          maxItems: 1
+
+    patternProperties:
+      '^opp-microvolt-':
+        description:
+          Named opp-microvolt property. This is exactly similar to the above
+          opp-microvolt property, but allows multiple voltage ranges to be
+          provided for the same OPP. At runtime, the platform can pick a <name>
+          and matching opp-microvolt-<name> property will be enabled for all
+          OPPs. If the platform doesn't pick a specific <name> or the <name>
+          doesn't match with any opp-microvolt-<name> properties, then
+          opp-microvolt property shall be used, if present.
+        $ref: /schemas/types.yaml#/definitions/uint32-matrix
+        minItems: 1
+        maxItems: 8   # Should be enough regulators
+        items:
+          minItems: 1
+          maxItems: 3
+
+      '^opp-microamp-':
+        description:
+          Named opp-microamp property. Similar to opp-microvolt-<name> property,
+          but for microamp instead.
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 8   # Should be enough regulators
+
+      '^opp-microwatt':
+        description:
+          Named opp-microwatt property. Similar to opp-microamp property,
+          but for microwatt instead.
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 8   # Should be enough regulators
+
+    dependencies:
+      opp-avg-kBps: [ opp-peak-kBps ]
+
+required:
+  - compatible
+
+additionalProperties: true
+
+...

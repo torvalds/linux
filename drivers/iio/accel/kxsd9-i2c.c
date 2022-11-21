@@ -34,7 +34,9 @@ static int kxsd9_i2c_probe(struct i2c_client *i2c,
 
 static int kxsd9_i2c_remove(struct i2c_client *client)
 {
-	return kxsd9_common_remove(&client->dev);
+	kxsd9_common_remove(&client->dev);
+
+	return 0;
 }
 
 static const struct of_device_id kxsd9_of_match[] = {
@@ -63,3 +65,4 @@ module_i2c_driver(kxsd9_i2c_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("KXSD9 accelerometer I2C interface");
+MODULE_IMPORT_NS(IIO_KXSD9);

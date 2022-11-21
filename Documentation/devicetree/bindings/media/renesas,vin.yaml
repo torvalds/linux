@@ -46,11 +46,13 @@ properties:
               - renesas,vin-r8a7779  # R-Car H1
               - renesas,vin-r8a7795  # R-Car H3
               - renesas,vin-r8a7796  # R-Car M3-W
+              - renesas,vin-r8a77961 # R-Car M3-W+
               - renesas,vin-r8a77965 # R-Car M3-N
               - renesas,vin-r8a77970 # R-Car V3M
               - renesas,vin-r8a77980 # R-Car V3H
               - renesas,vin-r8a77990 # R-Car E3
               - renesas,vin-r8a77995 # R-Car D3
+              - renesas,vin-r8a779a0 # R-Car V3U
 
   reg:
     maxItems: 1
@@ -69,15 +71,15 @@ properties:
 
   #The per-board settings for Gen2 and RZ/G1 platforms:
   port:
-    type: object
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
     description:
-      A node containing a parallel input with a single endpoint definitions as
-      documented in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
+      A node containing a parallel input
 
     properties:
       endpoint:
-        type: object
+        $ref: video-interfaces.yaml#
+        unevaluatedProperties: false
 
         properties:
           hsync-active:
@@ -106,40 +108,27 @@ properties:
 
           data-active: true
 
-          remote-endpoint: true
-
-        required:
-          - remote-endpoint
-
-        additionalProperties: false
-
-    additionalProperties: false
-
   #The per-board settings for Gen3 and RZ/G2 platforms:
   renesas,id:
     description: VIN channel number
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
-    maximum: 15
+    maximum: 31
 
   ports:
-    type: object
-    description:
-      A node containing input nodes with endpoint definitions as documented in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
         description:
           Input port node, single endpoint describing a parallel input source.
 
         properties:
-          reg:
-            const: 0
-
           endpoint:
-            type: object
+            $ref: video-interfaces.yaml#
+            unevaluatedProperties: false
 
             properties:
               hsync-active:
@@ -168,97 +157,28 @@ properties:
 
               data-active: true
 
-              remote-endpoint: true
-
-            required:
-              - remote-endpoint
-
-            additionalProperties: false
-
-        required:
-          - endpoint
-
-        additionalProperties: false
-
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description:
           Input port node, multiple endpoints describing all the R-Car CSI-2
           modules connected the VIN.
 
         properties:
-          '#address-cells':
-            const: 1
-
-          '#size-cells':
-            const: 0
-
-          reg:
-            const: 1
-
           endpoint@0:
-            type: object
+            $ref: /schemas/graph.yaml#/properties/endpoint
             description: Endpoint connected to CSI20.
 
-            properties:
-              reg:
-                const: 0
-
-              remote-endpoint: true
-
-            required:
-              - reg
-              - remote-endpoint
-
-            additionalProperties: false
-
           endpoint@1:
-            type: object
+            $ref: /schemas/graph.yaml#/properties/endpoint
             description: Endpoint connected to CSI21.
 
-            properties:
-              reg:
-                const: 1
-
-              remote-endpoint: true
-
-            required:
-              - reg
-              - remote-endpoint
-
-            additionalProperties: false
-
           endpoint@2:
-            type: object
+            $ref: /schemas/graph.yaml#/properties/endpoint
             description: Endpoint connected to CSI40.
 
-            properties:
-              reg:
-                const: 2
-
-              remote-endpoint: true
-
-            required:
-              - reg
-              - remote-endpoint
-
-            additionalProperties: false
-
           endpoint@3:
-            type: object
+            $ref: /schemas/graph.yaml#/properties/endpoint
             description: Endpoint connected to CSI41.
-
-            properties:
-              reg:
-                const: 3
-
-              remote-endpoint: true
-
-            required:
-              - reg
-              - remote-endpoint
-
-            additionalProperties: false
 
         anyOf:
           - required:
@@ -270,7 +190,28 @@ properties:
           - required:
               - endpoint@3
 
-        additionalProperties: false
+      port@2:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Input port node, multiple endpoints describing all the R-Car ISP
+          modules connected the VIN.
+
+        properties:
+          endpoint@0:
+            $ref: /schemas/graph.yaml#/properties/endpoint
+            description: Endpoint connected to ISP0.
+
+          endpoint@1:
+            $ref: /schemas/graph.yaml#/properties/endpoint
+            description: Endpoint connected to ISP1.
+
+          endpoint@2:
+            $ref: /schemas/graph.yaml#/properties/endpoint
+            description: Endpoint connected to ISP2.
+
+          endpoint@3:
+            $ref: /schemas/graph.yaml#/properties/endpoint
+            description: Endpoint connected to ISP3.
 
 required:
   - compatible
@@ -278,23 +219,35 @@ required:
   - interrupts
   - clocks
   - power-domains
-  - resets
 
-if:
-  properties:
-    compatible:
-      contains:
-        enum:
-          - renesas,vin-r8a7778
-          - renesas,vin-r8a7779
-          - renesas,rcar-gen2-vin
-then:
-  required:
-    - port
-else:
-  required:
-    - renesas,id
-    - ports
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - renesas,vin-r8a7778
+                - renesas,vin-r8a7779
+    then:
+      required:
+        - resets
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,vin-r8a7778
+              - renesas,vin-r8a7779
+              - renesas,rcar-gen2-vin
+    then:
+      required:
+        - port
+    else:
+      required:
+        - renesas,id
+        - ports
 
 additionalProperties: false
 

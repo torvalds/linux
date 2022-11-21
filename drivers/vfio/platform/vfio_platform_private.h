@@ -9,6 +9,7 @@
 
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/vfio.h>
 
 #define VFIO_PLATFORM_OFFSET_SHIFT   40
 #define VFIO_PLATFORM_OFFSET_MASK (((u64)(1) << VFIO_PLATFORM_OFFSET_SHIFT) - 1)
@@ -42,13 +43,12 @@ struct vfio_platform_region {
 };
 
 struct vfio_platform_device {
+	struct vfio_device		vdev;
 	struct vfio_platform_region	*regions;
 	u32				num_regions;
 	struct vfio_platform_irq	*irqs;
 	u32				num_irqs;
-	int				refcnt;
 	struct mutex			igate;
-	struct module			*parent_module;
 	const char			*compat;
 	const char			*acpihid;
 	struct module			*reset_module;
@@ -80,8 +80,7 @@ struct vfio_platform_reset_node {
 
 extern int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 				      struct device *dev);
-extern struct vfio_platform_device *vfio_platform_remove_common
-				     (struct device *dev);
+void vfio_platform_remove_common(struct vfio_platform_device *vdev);
 
 extern int vfio_platform_irq_init(struct vfio_platform_device *vdev);
 extern void vfio_platform_irq_cleanup(struct vfio_platform_device *vdev);

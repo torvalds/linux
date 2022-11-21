@@ -123,6 +123,8 @@
 	 * On some older versions of the platform (before R4.0) the phy address
 	 * may be 1 or 3. The address is fixed to 3 for R4.0 onwards.
 	 */
+		compatible = "ethernet-phy-id0022.1622",
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <3>;
 		micrel,led-mode = <1>;
 	};
@@ -289,8 +291,8 @@
 
 	rcar_sound,dai {
 		dai0 {
-			playback = <&ssi3 &src3 &dvc0>;
-			capture = <&ssi4 &src4 &dvc1>;
+			playback = <&ssi3>, <&src3>, <&dvc0>;
+			capture = <&ssi4>, <&src4>, <&dvc1>;
 		};
 	};
 };

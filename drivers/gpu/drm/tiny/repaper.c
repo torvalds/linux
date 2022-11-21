@@ -14,7 +14,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/dma-buf.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/property.h>
@@ -29,6 +28,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_format_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_managed.h>
@@ -508,30 +508,9 @@ static void repaper_get_temperature(struct repaper_epd *epd)
 	epd->factored_stage_time = epd->stage_time * factor10x / 10;
 }
 
-static void repaper_gray8_to_mono_reversed(u8 *buf, u32 width, u32 height)
-{
-	u8 *gray8 = buf, *mono = buf;
-	int y, xb, i;
-
-	for (y = 0; y < height; y++)
-		for (xb = 0; xb < width / 8; xb++) {
-			u8 byte = 0x00;
-
-			for (i = 0; i < 8; i++) {
-				int x = xb * 8 + i;
-
-				byte >>= 1;
-				if (gray8[y * width + x] >> 7)
-					byte |= BIT(7);
-			}
-			*mono++ = byte;
-		}
-}
-
 static int repaper_fb_dirty(struct drm_framebuffer *fb)
 {
 	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	struct dma_buf_attachment *import_attach = cma_obj->base.import_attach;
 	struct repaper_epd *epd = drm_to_epd(fb->dev);
 	struct drm_rect clip;
 	int idx, ret = 0;
@@ -557,23 +536,13 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb)
 		goto out_exit;
 	}
 
-	if (import_attach) {
-		ret = dma_buf_begin_cpu_access(import_attach->dmabuf,
-					       DMA_FROM_DEVICE);
-		if (ret)
-			goto out_free;
-	}
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret)
+		goto out_free;
 
-	drm_fb_xrgb8888_to_gray8(buf, cma_obj->vaddr, fb, &clip);
+	drm_fb_xrgb8888_to_mono_reversed(buf, 0, cma_obj->vaddr, fb, &clip);
 
-	if (import_attach) {
-		ret = dma_buf_end_cpu_access(import_attach->dmabuf,
-					     DMA_FROM_DEVICE);
-		if (ret)
-			goto out_free;
-	}
-
-	repaper_gray8_to_mono_reversed(buf, fb->width, fb->height);
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 
 	if (epd->partial) {
 		repaper_frame_data_repeat(epd, buf, epd->current_frame,
@@ -860,7 +829,6 @@ static const struct drm_simple_display_pipe_funcs repaper_pipe_funcs = {
 	.enable = repaper_pipe_enable,
 	.disable = repaper_pipe_disable,
 	.update = repaper_pipe_update,
-	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
 static int repaper_connector_get_modes(struct drm_connector *connector)
@@ -936,7 +904,7 @@ static const u8 repaper_e2271cs021_cs[] = { 0x00, 0x00, 0x00, 0x7f,
 
 DEFINE_DRM_GEM_CMA_FOPS(repaper_fops);
 
-static struct drm_driver repaper_driver = {
+static const struct drm_driver repaper_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &repaper_fops,
 	DRM_GEM_CMA_DRIVER_OPS_VMAP,
@@ -1150,14 +1118,12 @@ static int repaper_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int repaper_remove(struct spi_device *spi)
+static void repaper_remove(struct spi_device *spi)
 {
 	struct drm_device *drm = spi_get_drvdata(spi);
 
 	drm_dev_unplug(drm);
 	drm_atomic_helper_shutdown(drm);
-
-	return 0;
 }
 
 static void repaper_shutdown(struct spi_device *spi)

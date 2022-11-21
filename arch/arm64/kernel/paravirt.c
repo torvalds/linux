@@ -18,6 +18,7 @@
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/static_call.h>
 
 #include <asm/paravirt.h>
 #include <asm/pvclock-abi.h>
@@ -26,11 +27,15 @@
 struct static_key paravirt_steal_enabled;
 struct static_key paravirt_steal_rq_enabled;
 
-struct paravirt_patch_template pv_ops;
-EXPORT_SYMBOL_GPL(pv_ops);
+static u64 native_steal_clock(int cpu)
+{
+	return 0;
+}
+
+DEFINE_STATIC_CALL(pv_steal_clock, native_steal_clock);
 
 struct pv_time_stolen_time_region {
-	struct pvclock_vcpu_stolen_time *kaddr;
+	struct pvclock_vcpu_stolen_time __rcu *kaddr;
 };
 
 static DEFINE_PER_CPU(struct pv_time_stolen_time_region, stolen_time_region);
@@ -45,9 +50,11 @@ static int __init parse_no_stealacc(char *arg)
 early_param("no-steal-acc", parse_no_stealacc);
 
 /* return stolen time in ns by asking the hypervisor */
-static u64 pv_steal_clock(int cpu)
+static u64 para_steal_clock(int cpu)
 {
+	struct pvclock_vcpu_stolen_time *kaddr = NULL;
 	struct pv_time_stolen_time_region *reg;
+	u64 ret = 0;
 
 	reg = per_cpu_ptr(&stolen_time_region, cpu);
 
@@ -56,28 +63,37 @@ static u64 pv_steal_clock(int cpu)
 	 * online notification callback runs. Until the callback
 	 * has run we just return zero.
 	 */
-	if (!reg->kaddr)
+	rcu_read_lock();
+	kaddr = rcu_dereference(reg->kaddr);
+	if (!kaddr) {
+		rcu_read_unlock();
 		return 0;
+	}
 
-	return le64_to_cpu(READ_ONCE(reg->kaddr->stolen_time));
+	ret = le64_to_cpu(READ_ONCE(kaddr->stolen_time));
+	rcu_read_unlock();
+	return ret;
 }
 
 static int stolen_time_cpu_down_prepare(unsigned int cpu)
 {
+	struct pvclock_vcpu_stolen_time *kaddr = NULL;
 	struct pv_time_stolen_time_region *reg;
 
 	reg = this_cpu_ptr(&stolen_time_region);
 	if (!reg->kaddr)
 		return 0;
 
-	memunmap(reg->kaddr);
-	memset(reg, 0, sizeof(*reg));
+	kaddr = rcu_replace_pointer(reg->kaddr, NULL, true);
+	synchronize_rcu();
+	memunmap(kaddr);
 
 	return 0;
 }
 
 static int stolen_time_cpu_online(unsigned int cpu)
 {
+	struct pvclock_vcpu_stolen_time *kaddr = NULL;
 	struct pv_time_stolen_time_region *reg;
 	struct arm_smccc_res res;
 
@@ -88,17 +104,19 @@ static int stolen_time_cpu_online(unsigned int cpu)
 	if (res.a0 == SMCCC_RET_NOT_SUPPORTED)
 		return -EINVAL;
 
-	reg->kaddr = memremap(res.a0,
+	kaddr = memremap(res.a0,
 			      sizeof(struct pvclock_vcpu_stolen_time),
 			      MEMREMAP_WB);
+
+	rcu_assign_pointer(reg->kaddr, kaddr);
 
 	if (!reg->kaddr) {
 		pr_warn("Failed to map stolen time data structure\n");
 		return -ENOMEM;
 	}
 
-	if (le32_to_cpu(reg->kaddr->revision) != 0 ||
-	    le32_to_cpu(reg->kaddr->attributes) != 0) {
+	if (le32_to_cpu(kaddr->revision) != 0 ||
+	    le32_to_cpu(kaddr->attributes) != 0) {
 		pr_warn_once("Unexpected revision or attributes in stolen time data\n");
 		return -ENXIO;
 	}
@@ -150,7 +168,7 @@ int __init pv_time_init(void)
 	if (ret)
 		return ret;
 
-	pv_ops.time.steal_clock = pv_steal_clock;
+	static_call_update(pv_steal_clock, para_steal_clock);
 
 	static_key_slow_inc(&paravirt_steal_enabled);
 	if (steal_acc)

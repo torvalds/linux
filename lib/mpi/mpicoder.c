@@ -234,11 +234,11 @@ static int count_lzeros(MPI a)
 }
 
 /**
- * mpi_read_buffer() - read MPI to a bufer provided by user (msb first)
+ * mpi_read_buffer() - read MPI to a buffer provided by user (msb first)
  *
  * @a:		a multi precision integer
- * @buf:	bufer to which the output will be written to. Needs to be at
- *		leaset mpi_get_size(a) long.
+ * @buf:	buffer to which the output will be written to. Needs to be at
+ *		least mpi_get_size(a) long.
  * @buf_len:	size of the buf.
  * @nbytes:	receives the actual length of the data written on success and
  *		the data to-be-written on -EOVERFLOW in case buf_len was too

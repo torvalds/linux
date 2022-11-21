@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2014-2017 Broadcom
+ * Copyright (C) 2014-2021 Broadcom
  */
 
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/module.h>
+#include <linux/panic_notifier.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/sysfs.h>
@@ -484,7 +485,7 @@ static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 	list_add_tail(&gdev->next, &brcmstb_gisb_arb_device_list);
 
 #ifdef CONFIG_MIPS
-	board_be_handler = brcmstb_bus_error_handler;
+	mips_set_be_handler(brcmstb_bus_error_handler);
 #endif
 
 	if (list_is_singular(&brcmstb_gisb_arb_device_list)) {
@@ -535,6 +536,7 @@ static struct platform_driver brcmstb_gisb_arb_driver = {
 		.name	= "brcm-gisb-arb",
 		.of_match_table = brcmstb_gisb_arb_of_match,
 		.pm	= &brcmstb_gisb_arb_pm_ops,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -545,3 +547,7 @@ static int __init brcm_gisb_driver_init(void)
 }
 
 module_init(brcm_gisb_driver_init);
+
+MODULE_AUTHOR("Broadcom");
+MODULE_DESCRIPTION("Broadcom STB GISB arbiter driver");
+MODULE_LICENSE("GPL v2");

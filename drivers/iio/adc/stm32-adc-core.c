@@ -200,7 +200,7 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 {
 	u32 ckmode, presc, val;
 	unsigned long rate;
-	int i, div;
+	int i, div, duty;
 
 	/* stm32h7 bus clock is common for all ADC instances (mandatory) */
 	if (!priv->bclk) {
@@ -224,12 +224,24 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 			return -EINVAL;
 		}
 
+		/* If duty is an error, kindly use at least /2 divider */
+		duty = clk_get_scaled_duty_cycle(priv->aclk, 100);
+		if (duty < 0)
+			dev_warn(&pdev->dev, "adc clock duty: %d\n", duty);
+
 		for (i = 0; i < ARRAY_SIZE(stm32h7_adc_ckmodes_spec); i++) {
 			ckmode = stm32h7_adc_ckmodes_spec[i].ckmode;
 			presc = stm32h7_adc_ckmodes_spec[i].presc;
 			div = stm32h7_adc_ckmodes_spec[i].div;
 
 			if (ckmode)
+				continue;
+
+			/*
+			 * For proper operation, clock duty cycle range is 49%
+			 * to 51%. Apply at least /2 prescaler otherwise.
+			 */
+			if (div == 1 && (duty < 49 || duty > 51))
 				continue;
 
 			if ((rate / div) <= priv->max_clk_rate)
@@ -244,12 +256,19 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
+	duty = clk_get_scaled_duty_cycle(priv->bclk, 100);
+	if (duty < 0)
+		dev_warn(&pdev->dev, "bus clock duty: %d\n", duty);
+
 	for (i = 0; i < ARRAY_SIZE(stm32h7_adc_ckmodes_spec); i++) {
 		ckmode = stm32h7_adc_ckmodes_spec[i].ckmode;
 		presc = stm32h7_adc_ckmodes_spec[i].presc;
 		div = stm32h7_adc_ckmodes_spec[i].div;
 
 		if (!ckmode)
+			continue;
+
+		if (div == 1 && (duty < 49 || duty > 51))
 			continue;
 
 		if ((rate / div) <= priv->max_clk_rate)
@@ -516,20 +535,16 @@ static int stm32_adc_core_hw_start(struct device *dev)
 		goto err_switches_dis;
 	}
 
-	if (priv->bclk) {
-		ret = clk_prepare_enable(priv->bclk);
-		if (ret < 0) {
-			dev_err(dev, "bus clk enable failed\n");
-			goto err_regulator_disable;
-		}
+	ret = clk_prepare_enable(priv->bclk);
+	if (ret < 0) {
+		dev_err(dev, "bus clk enable failed\n");
+		goto err_regulator_disable;
 	}
 
-	if (priv->aclk) {
-		ret = clk_prepare_enable(priv->aclk);
-		if (ret < 0) {
-			dev_err(dev, "adc clk enable failed\n");
-			goto err_bclk_disable;
-		}
+	ret = clk_prepare_enable(priv->aclk);
+	if (ret < 0) {
+		dev_err(dev, "adc clk enable failed\n");
+		goto err_bclk_disable;
 	}
 
 	writel_relaxed(priv->ccr_bak, priv->common.base + priv->cfg->regs->ccr);
@@ -537,8 +552,7 @@ static int stm32_adc_core_hw_start(struct device *dev)
 	return 0;
 
 err_bclk_disable:
-	if (priv->bclk)
-		clk_disable_unprepare(priv->bclk);
+	clk_disable_unprepare(priv->bclk);
 err_regulator_disable:
 	regulator_disable(priv->vref);
 err_switches_dis:
@@ -556,10 +570,8 @@ static void stm32_adc_core_hw_stop(struct device *dev)
 
 	/* Backup CCR that may be lost (depends on power state to achieve) */
 	priv->ccr_bak = readl_relaxed(priv->common.base + priv->cfg->regs->ccr);
-	if (priv->aclk)
-		clk_disable_unprepare(priv->aclk);
-	if (priv->bclk)
-		clk_disable_unprepare(priv->bclk);
+	clk_disable_unprepare(priv->aclk);
+	clk_disable_unprepare(priv->bclk);
 	regulator_disable(priv->vref);
 	stm32_adc_core_switches_supply_dis(priv);
 	regulator_disable(priv->vdda);
@@ -647,6 +659,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 
 	priv->cfg = (const struct stm32_adc_priv_cfg *)
 		of_match_device(dev->driver->of_match_table, dev)->data;
+	spin_lock_init(&priv->common.lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->common.base = devm_ioremap_resource(&pdev->dev, res);
@@ -750,7 +763,6 @@ static int stm32_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if defined(CONFIG_PM)
 static int stm32_adc_core_runtime_suspend(struct device *dev)
 {
 	stm32_adc_core_hw_stop(dev);
@@ -769,15 +781,11 @@ static int stm32_adc_core_runtime_idle(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static const struct dev_pm_ops stm32_adc_core_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(stm32_adc_core_runtime_suspend,
-			   stm32_adc_core_runtime_resume,
-			   stm32_adc_core_runtime_idle)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(stm32_adc_core_pm_ops,
+				stm32_adc_core_runtime_suspend,
+				stm32_adc_core_runtime_resume,
+				stm32_adc_core_runtime_idle);
 
 static const struct stm32_adc_priv_cfg stm32f4_adc_priv_cfg = {
 	.regs = &stm32f4_adc_common_regs,
@@ -823,7 +831,7 @@ static struct platform_driver stm32_adc_driver = {
 	.driver = {
 		.name = "stm32-adc-core",
 		.of_match_table = stm32_adc_of_match,
-		.pm = &stm32_adc_core_pm_ops,
+		.pm = pm_ptr(&stm32_adc_core_pm_ops),
 	},
 };
 module_platform_driver(stm32_adc_driver);

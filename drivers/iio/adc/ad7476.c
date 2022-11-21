@@ -32,12 +32,14 @@ struct ad7476_chip_info {
 	/* channels used when convst gpio is defined */
 	struct iio_chan_spec		convst_channel[2];
 	void (*reset)(struct ad7476_state *);
+	bool				has_vref;
+	bool				has_vdrive;
 };
 
 struct ad7476_state {
 	struct spi_device		*spi;
 	const struct ad7476_chip_info	*chip_info;
-	struct regulator		*reg;
+	struct regulator		*ref_reg;
 	struct gpio_desc		*convst_gpio;
 	struct spi_transfer		xfer;
 	struct spi_message		msg;
@@ -52,13 +54,17 @@ struct ad7476_state {
 };
 
 enum ad7476_supported_device_ids {
+	ID_AD7091,
 	ID_AD7091R,
+	ID_AD7273,
+	ID_AD7274,
 	ID_AD7276,
 	ID_AD7277,
 	ID_AD7278,
 	ID_AD7466,
 	ID_AD7467,
 	ID_AD7468,
+	ID_AD7475,
 	ID_AD7495,
 	ID_AD7940,
 	ID_ADC081S,
@@ -67,6 +73,7 @@ enum ad7476_supported_device_ids {
 	ID_ADS7866,
 	ID_ADS7867,
 	ID_ADS7868,
+	ID_LTC2314_14,
 };
 
 static void ad7091_convst(struct ad7476_state *st)
@@ -144,8 +151,8 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 			GENMASK(st->chip_info->channel[0].scan_type.realbits - 1, 0);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		if (!st->chip_info->int_vref_uv) {
-			scale_uv = regulator_get_voltage(st->reg);
+		if (st->ref_reg) {
+			scale_uv = regulator_get_voltage(st->ref_reg);
 			if (scale_uv < 0)
 				return scale_uv;
 		} else {
@@ -186,12 +193,31 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 		BIT(IIO_CHAN_INFO_RAW))
 
 static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
-	[ID_AD7091R] = {
+	[ID_AD7091] = {
 		.channel[0] = AD7091R_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 		.convst_channel[0] = AD7091R_CONVST_CHAN(12),
 		.convst_channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 		.reset = ad7091_reset,
+	},
+	[ID_AD7091R] = {
+		.channel[0] = AD7091R_CHAN(12),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+		.convst_channel[0] = AD7091R_CONVST_CHAN(12),
+		.convst_channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+		.int_vref_uv = 2500000,
+		.has_vref = true,
+		.reset = ad7091_reset,
+	},
+	[ID_AD7273] = {
+		.channel[0] = AD7940_CHAN(10),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+		.has_vref = true,
+	},
+	[ID_AD7274] = {
+		.channel[0] = AD7940_CHAN(12),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+		.has_vref = true,
 	},
 	[ID_AD7276] = {
 		.channel[0] = AD7940_CHAN(12),
@@ -217,10 +243,17 @@ static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 		.channel[0] = AD7476_CHAN(8),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
+	[ID_AD7475] = {
+		.channel[0] = AD7476_CHAN(12),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+		.has_vref = true,
+		.has_vdrive = true,
+	},
 	[ID_AD7495] = {
 		.channel[0] = AD7476_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 		.int_vref_uv = 2500000,
+		.has_vdrive = true,
 	},
 	[ID_AD7940] = {
 		.channel[0] = AD7940_CHAN(14),
@@ -250,6 +283,11 @@ static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 		.channel[0] = ADS786X_CHAN(8),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
+	[ID_LTC2314_14] = {
+		.channel[0] = AD7940_CHAN(14),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+		.has_vref = true,
+	},
 };
 
 static const struct iio_info ad7476_info = {
@@ -258,15 +296,16 @@ static const struct iio_info ad7476_info = {
 
 static void ad7476_reg_disable(void *data)
 {
-	struct ad7476_state *st = data;
+	struct regulator *reg = data;
 
-	regulator_disable(st->reg);
+	regulator_disable(reg);
 }
 
 static int ad7476_probe(struct spi_device *spi)
 {
 	struct ad7476_state *st;
 	struct iio_dev *indio_dev;
+	struct regulator *reg;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
@@ -277,26 +316,78 @@ static int ad7476_probe(struct spi_device *spi)
 	st->chip_info =
 		&ad7476_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
-	st->reg = devm_regulator_get(&spi->dev, "vcc");
-	if (IS_ERR(st->reg))
-		return PTR_ERR(st->reg);
+	reg = devm_regulator_get(&spi->dev, "vcc");
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
 
-	ret = regulator_enable(st->reg);
+	ret = regulator_enable(reg);
 	if (ret)
 		return ret;
 
-	ret = devm_add_action_or_reset(&spi->dev, ad7476_reg_disable,
-				       st);
+	ret = devm_add_action_or_reset(&spi->dev, ad7476_reg_disable, reg);
 	if (ret)
 		return ret;
+
+	/* Either vcc or vref (below) as appropriate */
+	if (!st->chip_info->int_vref_uv)
+		st->ref_reg = reg;
+
+	if (st->chip_info->has_vref) {
+
+		/* If a device has an internal reference vref is optional */
+		if (st->chip_info->int_vref_uv) {
+			reg = devm_regulator_get_optional(&spi->dev, "vref");
+			if (IS_ERR(reg) && (PTR_ERR(reg) != -ENODEV))
+				return PTR_ERR(reg);
+		} else {
+			reg = devm_regulator_get(&spi->dev, "vref");
+			if (IS_ERR(reg))
+				return PTR_ERR(reg);
+		}
+
+		if (!IS_ERR(reg)) {
+			ret = regulator_enable(reg);
+			if (ret)
+				return ret;
+
+			ret = devm_add_action_or_reset(&spi->dev,
+						       ad7476_reg_disable,
+						       reg);
+			if (ret)
+				return ret;
+			st->ref_reg = reg;
+		} else {
+			/*
+			 * Can only get here if device supports both internal
+			 * and external reference, but the regulator connected
+			 * to the external reference is not connected.
+			 * Set the reference regulator pointer to NULL to
+			 * indicate this.
+			 */
+			st->ref_reg = NULL;
+		}
+	}
+
+	if (st->chip_info->has_vdrive) {
+		reg = devm_regulator_get(&spi->dev, "vdrive");
+		if (IS_ERR(reg))
+			return PTR_ERR(reg);
+
+		ret = regulator_enable(reg);
+		if (ret)
+			return ret;
+
+		ret = devm_add_action_or_reset(&spi->dev, ad7476_reg_disable,
+					       reg);
+		if (ret)
+			return ret;
+	}
 
 	st->convst_gpio = devm_gpiod_get_optional(&spi->dev,
 						  "adi,conversion-start",
 						  GPIOD_OUT_LOW);
 	if (IS_ERR(st->convst_gpio))
 		return PTR_ERR(st->convst_gpio);
-
-	spi_set_drvdata(spi, indio_dev);
 
 	st->spi = spi;
 
@@ -316,39 +407,29 @@ static int ad7476_probe(struct spi_device *spi)
 	spi_message_init(&st->msg);
 	spi_message_add_tail(&st->xfer, &st->msg);
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-			&ad7476_trigger_handler, NULL);
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev, NULL,
+					      &ad7476_trigger_handler, NULL);
 	if (ret)
-		goto error_disable_reg;
+		return ret;
 
 	if (st->chip_info->reset)
 		st->chip_info->reset(st);
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_ring_unregister;
-	return 0;
-
-error_ring_unregister:
-	iio_triggered_buffer_cleanup(indio_dev);
-error_disable_reg:
-	regulator_disable(st->reg);
-
-	return ret;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad7476_id[] = {
-	{"ad7091", ID_AD7091R},
+	{"ad7091", ID_AD7091},
 	{"ad7091r", ID_AD7091R},
-	{"ad7273", ID_AD7277},
-	{"ad7274", ID_AD7276},
+	{"ad7273", ID_AD7273},
+	{"ad7274", ID_AD7274},
 	{"ad7276", ID_AD7276},
 	{"ad7277", ID_AD7277},
 	{"ad7278", ID_AD7278},
 	{"ad7466", ID_AD7466},
 	{"ad7467", ID_AD7467},
 	{"ad7468", ID_AD7468},
-	{"ad7475", ID_AD7466},
+	{"ad7475", ID_AD7475},
 	{"ad7476", ID_AD7466},
 	{"ad7476a", ID_AD7466},
 	{"ad7477", ID_AD7467},
@@ -365,6 +446,7 @@ static const struct spi_device_id ad7476_id[] = {
 	{"ads7866", ID_ADS7866},
 	{"ads7867", ID_ADS7867},
 	{"ads7868", ID_ADS7868},
+	{"ltc2314-14", ID_LTC2314_14},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad7476_id);

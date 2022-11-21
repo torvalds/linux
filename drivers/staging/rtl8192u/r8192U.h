@@ -46,9 +46,9 @@
 #define KEY_BUF_SIZE    5
 
 #define	RX_SMOOTH_FACTOR		20
-#define DMESG(x, a...)
-#define DMESGW(x, a...)
-#define DMESGE(x, a...)
+#define DMESG(x, a...)  no_printk(x, ##a)
+#define DMESGW(x, a...) no_printk(x, ##a)
+#define DMESGE(x, a...) no_printk(x, ##a)
 extern u32 rt_global_debug_component;
 #define RT_TRACE(component, x, args...) \
 	do {							\
@@ -1114,6 +1114,7 @@ void rtl8192_set_rxconf(struct net_device *dev);
 void rtl819xusb_beacon_tx(struct net_device *dev, u16 tx_rate);
 
 void EnableHWSecurityConfig8192(struct net_device *dev);
-void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);
+void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
+	    const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);
 
 #endif

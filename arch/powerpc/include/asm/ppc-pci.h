@@ -13,10 +13,6 @@
 
 extern unsigned long isa_io_base;
 
-extern void pci_setup_phb_io(struct pci_controller *hose, int primary);
-extern void pci_setup_phb_io_dynamic(struct pci_controller *hose, int primary);
-
-
 extern struct list_head hose_list;
 
 extern struct pci_dev *isa_bridge_pcidev;	/* may be NULL if no ISA bus */
@@ -32,9 +28,6 @@ struct pci_dn;
 void *pci_traverse_device_nodes(struct device_node *start,
 				void *(*fn)(struct device_node *, void *),
 				void *data);
-void *traverse_pci_dn(struct pci_dn *root,
-		      void *(*fn)(struct pci_dn *, void *),
-		      void *data);
 extern void pci_devs_phb_init_dynamic(struct pci_controller *phb);
 
 /* From rtas_pci.h */
@@ -61,11 +54,6 @@ void eeh_pe_dev_mode_mark(struct eeh_pe *pe, int mode);
 
 void eeh_sysfs_add_device(struct pci_dev *pdev);
 void eeh_sysfs_remove_device(struct pci_dev *pdev);
-
-static inline const char *eeh_driver_name(struct pci_dev *pdev)
-{
-	return (pdev && pdev->driver) ? pdev->driver->name : "<null>";
-}
 
 #endif /* CONFIG_EEH */
 

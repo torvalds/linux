@@ -240,7 +240,7 @@ static void set_addr_filter(struct cmac *mac, int idx, const u8 * addr)
 }
 
 /* Set one of the station's unicast MAC addresses. */
-int t3_mac_set_address(struct cmac *mac, unsigned int idx, u8 addr[6])
+int t3_mac_set_address(struct cmac *mac, unsigned int idx, const u8 addr[6])
 {
 	if (idx >= mac->nucast)
 		return -EINVAL;

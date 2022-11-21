@@ -83,39 +83,21 @@ int dpmac_get_attributes(struct fsl_mc_io *mc_io,
 			 u16 token,
 			 struct dpmac_attr *attr);
 
-/**
- * DPMAC link configuration/state options
- */
+/* DPMAC link configuration/state options */
 
-/**
- * Enable auto-negotiation
- */
 #define DPMAC_LINK_OPT_AUTONEG			BIT_ULL(0)
-/**
- * Enable half-duplex mode
- */
 #define DPMAC_LINK_OPT_HALF_DUPLEX		BIT_ULL(1)
-/**
- * Enable pause frames
- */
 #define DPMAC_LINK_OPT_PAUSE			BIT_ULL(2)
-/**
- * Enable a-symmetric pause frames
- */
 #define DPMAC_LINK_OPT_ASYM_PAUSE		BIT_ULL(3)
 
-/**
- * Advertised link speeds
- */
+/* Advertised link speeds */
 #define DPMAC_ADVERTISED_10BASET_FULL		BIT_ULL(0)
 #define DPMAC_ADVERTISED_100BASET_FULL		BIT_ULL(1)
 #define DPMAC_ADVERTISED_1000BASET_FULL		BIT_ULL(2)
 #define DPMAC_ADVERTISED_10000BASET_FULL	BIT_ULL(4)
 #define DPMAC_ADVERTISED_2500BASEX_FULL		BIT_ULL(5)
 
-/**
- * Advertise auto-negotiation enable
- */
+/* Advertise auto-negotiation enable */
 #define DPMAC_ADVERTISED_AUTONEG		BIT_ULL(3)
 
 /**
@@ -223,4 +205,9 @@ enum dpmac_counter_id {
 int dpmac_get_counter(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 		      enum dpmac_counter_id id, u64 *value);
 
+int dpmac_get_api_version(struct fsl_mc_io *mc_io, u32 cmd_flags,
+			  u16 *major_ver, u16 *minor_ver);
+
+int dpmac_set_protocol(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+		       enum dpmac_eth_if protocol);
 #endif /* __FSL_DPMAC_H */

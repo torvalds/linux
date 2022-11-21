@@ -10,6 +10,7 @@
 
 #include <linux/acpi.h>
 #include <linux/delay.h>
+#include <linux/dmi.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -41,11 +42,11 @@ enum {
 	CHT_WC_CRIT_IRQ = 7,
 };
 
-static struct resource cht_wc_pwrsrc_resources[] = {
+static const struct resource cht_wc_pwrsrc_resources[] = {
 	DEFINE_RES_IRQ(CHT_WC_PWRSRC_IRQ),
 };
 
-static struct resource cht_wc_ext_charger_resources[] = {
+static const struct resource cht_wc_ext_charger_resources[] = {
 	DEFINE_RES_IRQ(CHT_WC_EXT_CHGR_IRQ),
 };
 
@@ -134,9 +135,44 @@ static const struct regmap_irq_chip cht_wc_regmap_irq_chip = {
 	.num_regs = 1,
 };
 
+static const struct dmi_system_id cht_wc_model_dmi_ids[] = {
+	{
+		/* GPD win / GPD pocket mini laptops */
+		.driver_data = (void *)(long)INTEL_CHT_WC_GPD_WIN_POCKET,
+		/*
+		 * This DMI match may not seem unique, but it is. In the 67000+
+		 * DMI decode dumps from linux-hardware.org only 116 have
+		 * board_vendor set to "AMI Corporation" and of those 116 only
+		 * the GPD win's and pocket's board_name is "Default string".
+		 */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Default string"),
+			DMI_EXACT_MATCH(DMI_BOARD_SERIAL, "Default string"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Default string"),
+		},
+	}, {
+		/* Xiaomi Mi Pad 2 */
+		.driver_data = (void *)(long)INTEL_CHT_WC_XIAOMI_MIPAD2,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Xiaomi Inc"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Mipad2"),
+		},
+	}, {
+		/* Lenovo Yoga Book X90F / X91F / X91L */
+		.driver_data = (void *)(long)INTEL_CHT_WC_LENOVO_YOGABOOK1,
+		.matches = {
+			/* Non exact match to match all versions */
+			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X9"),
+		},
+	},
+	{ }
+};
+
 static int cht_wc_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
+	const struct dmi_system_id *id;
 	struct intel_soc_pmic *pmic;
 	acpi_status status;
 	unsigned long long hrv;
@@ -159,6 +195,10 @@ static int cht_wc_probe(struct i2c_client *client)
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
+
+	id = dmi_first_match(cht_wc_model_dmi_ids);
+	if (id)
+		pmic->cht_wc_model = (long)id->driver_data;
 
 	pmic->irq = client->irq;
 	pmic->dev = dev;

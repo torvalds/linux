@@ -56,8 +56,14 @@ if echo "$test" | grep -q '^#' ; then
 fi
 
 # If no expected output given, assume an Oops with back trace is success.
+repeat=1
 if [ -z "$expect" ]; then
 	expect="call trace:"
+else
+	if echo "$expect" | grep -q '^repeat:' ; then
+		repeat=$(echo "$expect" | cut -d' ' -f1 | cut -d: -f2)
+		expect=$(echo "$expect" | cut -d' ' -f2-)
+	fi
 fi
 
 # Prepare log for report checking
@@ -76,10 +82,16 @@ fi
 # Save existing dmesg so we can detect new content below
 dmesg > "$DMESG"
 
-# Most shells yell about signals and we're expecting the "cat" process
-# to usually be killed by the kernel. So we have to run it in a sub-shell
-# and silence errors.
-($SHELL -c 'cat <(echo '"$test"') >'"$TRIGGER" 2>/dev/null) || true
+# Since the kernel is likely killing the process writing to the trigger
+# file, it must not be the script's shell itself. i.e. we cannot do:
+#     echo "$test" >"$TRIGGER"
+# Instead, use "cat" to take the signal. Since the shell will yell about
+# the signal that killed the subprocess, we must ignore the failure and
+# continue. However we don't silence stderr since there might be other
+# useful details reported there in the case of other unexpected conditions.
+for i in $(seq 1 $repeat); do
+	echo "$test" | cat >"$TRIGGER" || true
+done
 
 # Record and dump the results
 dmesg | comm --nocheck-order -13 "$DMESG" - > "$LOG" || true

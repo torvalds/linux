@@ -59,8 +59,11 @@ int amdgpu_vce_entity_init(struct amdgpu_device *adev);
 int amdgpu_vce_suspend(struct amdgpu_device *adev);
 int amdgpu_vce_resume(struct amdgpu_device *adev);
 void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp);
-int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx);
-int amdgpu_vce_ring_parse_cs_vm(struct amdgpu_cs_parser *p, uint32_t ib_idx);
+int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, struct amdgpu_job *job,
+			     struct amdgpu_ib *ib);
+int amdgpu_vce_ring_parse_cs_vm(struct amdgpu_cs_parser *p,
+				struct amdgpu_job *job,
+				struct amdgpu_ib *ib);
 void amdgpu_vce_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_job *job,
 				struct amdgpu_ib *ib, uint32_t flags);
 void amdgpu_vce_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
@@ -71,5 +74,6 @@ void amdgpu_vce_ring_begin_use(struct amdgpu_ring *ring);
 void amdgpu_vce_ring_end_use(struct amdgpu_ring *ring);
 unsigned amdgpu_vce_ring_get_emit_ib_size(struct amdgpu_ring *ring);
 unsigned amdgpu_vce_ring_get_dma_frame_size(struct amdgpu_ring *ring);
+enum amdgpu_ring_priority_level amdgpu_vce_get_ring_prio(int ring);
 
 #endif

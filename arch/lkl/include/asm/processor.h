@@ -29,16 +29,12 @@ static inline void prepare_to_copy(struct task_struct *tsk)
 {
 }
 
-static inline unsigned long get_wchan(struct task_struct *p)
+static inline unsigned long __get_wchan(struct task_struct *p)
 {
 	return 0;
 }
 
 static inline void flush_thread(void)
-{
-}
-
-static inline void trap_init(void)
 {
 }
 

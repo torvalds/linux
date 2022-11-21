@@ -24,6 +24,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  resets:
+    maxItems: 1
+
   clocks:
     minItems: 1
     items:
@@ -37,13 +40,6 @@ properties:
       - const: pclk
 
   clock-frequency: true
-
-  clock-freq:
-    $ref: "/schemas/types.yaml#/definitions/uint32"
-    description: |
-      Has the same meaning as the 'clock-frequency' property - timer clock
-      frequency in HZ, but is defined only for the backwards compatibility
-      with the picoxcell platform.
 
 additionalProperties: false
 

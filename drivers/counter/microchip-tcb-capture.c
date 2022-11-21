@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (C) 2020 Microchip
  *
  * Author: Kamel Bouhara <kamel.bouhara@bootlin.com>
@@ -24,7 +24,6 @@
 
 struct mchp_tc_data {
 	const struct atmel_tcb_config *tc_cfg;
-	struct counter_device counter;
 	struct regmap *regmap;
 	int qdec_mode;
 	int num_channels;
@@ -32,28 +31,16 @@ struct mchp_tc_data {
 	bool trig_inverted;
 };
 
-enum mchp_tc_count_function {
-	MCHP_TC_FUNCTION_INCREASE,
-	MCHP_TC_FUNCTION_QUADRATURE,
+static const enum counter_function mchp_tc_count_functions[] = {
+	COUNTER_FUNCTION_INCREASE,
+	COUNTER_FUNCTION_QUADRATURE_X4,
 };
 
-static enum counter_count_function mchp_tc_count_functions[] = {
-	[MCHP_TC_FUNCTION_INCREASE] = COUNTER_COUNT_FUNCTION_INCREASE,
-	[MCHP_TC_FUNCTION_QUADRATURE] = COUNTER_COUNT_FUNCTION_QUADRATURE_X4,
-};
-
-enum mchp_tc_synapse_action {
-	MCHP_TC_SYNAPSE_ACTION_NONE = 0,
-	MCHP_TC_SYNAPSE_ACTION_RISING_EDGE,
-	MCHP_TC_SYNAPSE_ACTION_FALLING_EDGE,
-	MCHP_TC_SYNAPSE_ACTION_BOTH_EDGE
-};
-
-static enum counter_synapse_action mchp_tc_synapse_actions[] = {
-	[MCHP_TC_SYNAPSE_ACTION_NONE] = COUNTER_SYNAPSE_ACTION_NONE,
-	[MCHP_TC_SYNAPSE_ACTION_RISING_EDGE] = COUNTER_SYNAPSE_ACTION_RISING_EDGE,
-	[MCHP_TC_SYNAPSE_ACTION_FALLING_EDGE] = COUNTER_SYNAPSE_ACTION_FALLING_EDGE,
-	[MCHP_TC_SYNAPSE_ACTION_BOTH_EDGE] = COUNTER_SYNAPSE_ACTION_BOTH_EDGES,
+static const enum counter_synapse_action mchp_tc_synapse_actions[] = {
+	COUNTER_SYNAPSE_ACTION_NONE,
+	COUNTER_SYNAPSE_ACTION_RISING_EDGE,
+	COUNTER_SYNAPSE_ACTION_FALLING_EDGE,
+	COUNTER_SYNAPSE_ACTION_BOTH_EDGES,
 };
 
 static struct counter_signal mchp_tc_count_signals[] = {
@@ -80,25 +67,25 @@ static struct counter_synapse mchp_tc_count_synapses[] = {
 	}
 };
 
-static int mchp_tc_count_function_get(struct counter_device *counter,
-				      struct counter_count *count,
-				      size_t *function)
+static int mchp_tc_count_function_read(struct counter_device *counter,
+				       struct counter_count *count,
+				       enum counter_function *function)
 {
-	struct mchp_tc_data *const priv = counter->priv;
+	struct mchp_tc_data *const priv = counter_priv(counter);
 
 	if (priv->qdec_mode)
-		*function = MCHP_TC_FUNCTION_QUADRATURE;
+		*function = COUNTER_FUNCTION_QUADRATURE_X4;
 	else
-		*function = MCHP_TC_FUNCTION_INCREASE;
+		*function = COUNTER_FUNCTION_INCREASE;
 
 	return 0;
 }
 
-static int mchp_tc_count_function_set(struct counter_device *counter,
-				      struct counter_count *count,
-				      size_t function)
+static int mchp_tc_count_function_write(struct counter_device *counter,
+					struct counter_count *count,
+					enum counter_function function)
 {
-	struct mchp_tc_data *const priv = counter->priv;
+	struct mchp_tc_data *const priv = counter_priv(counter);
 	u32 bmr, cmr;
 
 	regmap_read(priv->regmap, ATMEL_TC_BMR, &bmr);
@@ -108,7 +95,7 @@ static int mchp_tc_count_function_set(struct counter_device *counter,
 	cmr &= ~ATMEL_TC_WAVE;
 
 	switch (function) {
-	case MCHP_TC_FUNCTION_INCREASE:
+	case COUNTER_FUNCTION_INCREASE:
 		priv->qdec_mode = 0;
 		/* Set highest rate based on whether soc has gclk or not */
 		bmr &= ~(ATMEL_TC_QDEN | ATMEL_TC_POSEN);
@@ -120,7 +107,7 @@ static int mchp_tc_count_function_set(struct counter_device *counter,
 		cmr |=  ATMEL_TC_CMR_MASK;
 		cmr &= ~(ATMEL_TC_ABETRG | ATMEL_TC_XC0);
 		break;
-	case MCHP_TC_FUNCTION_QUADRATURE:
+	case COUNTER_FUNCTION_QUADRATURE_X4:
 		if (!priv->tc_cfg->has_qdec)
 			return -EINVAL;
 		/* In QDEC mode settings both channels 0 and 1 are required */
@@ -133,6 +120,9 @@ static int mchp_tc_count_function_set(struct counter_device *counter,
 		bmr |= ATMEL_TC_QDEN | ATMEL_TC_POSEN;
 		cmr |= ATMEL_TC_ETRGEDG_RISING | ATMEL_TC_ABETRG | ATMEL_TC_XC0;
 		break;
+	default:
+		/* should never reach this path */
+		return -EINVAL;
 	}
 
 	regmap_write(priv->regmap, ATMEL_TC_BMR, bmr);
@@ -155,9 +145,9 @@ static int mchp_tc_count_function_set(struct counter_device *counter,
 
 static int mchp_tc_count_signal_read(struct counter_device *counter,
 				     struct counter_signal *signal,
-				     enum counter_signal_value *val)
+				     enum counter_signal_level *lvl)
 {
-	struct mchp_tc_data *const priv = counter->priv;
+	struct mchp_tc_data *const priv = counter_priv(counter);
 	bool sigstatus;
 	u32 sr;
 
@@ -168,41 +158,45 @@ static int mchp_tc_count_signal_read(struct counter_device *counter,
 	else
 		sigstatus = (sr & ATMEL_TC_MTIOA);
 
-	*val = sigstatus ? COUNTER_SIGNAL_HIGH : COUNTER_SIGNAL_LOW;
+	*lvl = sigstatus ? COUNTER_SIGNAL_LEVEL_HIGH : COUNTER_SIGNAL_LEVEL_LOW;
 
 	return 0;
 }
 
-static int mchp_tc_count_action_get(struct counter_device *counter,
-				    struct counter_count *count,
-				    struct counter_synapse *synapse,
-				    size_t *action)
+static int mchp_tc_count_action_read(struct counter_device *counter,
+				     struct counter_count *count,
+				     struct counter_synapse *synapse,
+				     enum counter_synapse_action *action)
 {
-	struct mchp_tc_data *const priv = counter->priv;
+	struct mchp_tc_data *const priv = counter_priv(counter);
 	u32 cmr;
 
 	regmap_read(priv->regmap, ATMEL_TC_REG(priv->channel[0], CMR), &cmr);
 
-	*action = MCHP_TC_SYNAPSE_ACTION_NONE;
-
-	if (cmr & ATMEL_TC_ETRGEDG_NONE)
-		*action = MCHP_TC_SYNAPSE_ACTION_NONE;
-	else if (cmr & ATMEL_TC_ETRGEDG_RISING)
-		*action = MCHP_TC_SYNAPSE_ACTION_RISING_EDGE;
-	else if (cmr & ATMEL_TC_ETRGEDG_FALLING)
-		*action = MCHP_TC_SYNAPSE_ACTION_FALLING_EDGE;
-	else if (cmr & ATMEL_TC_ETRGEDG_BOTH)
-		*action = MCHP_TC_SYNAPSE_ACTION_BOTH_EDGE;
+	switch (cmr & ATMEL_TC_ETRGEDG) {
+	default:
+		*action = COUNTER_SYNAPSE_ACTION_NONE;
+		break;
+	case ATMEL_TC_ETRGEDG_RISING:
+		*action = COUNTER_SYNAPSE_ACTION_RISING_EDGE;
+		break;
+	case ATMEL_TC_ETRGEDG_FALLING:
+		*action = COUNTER_SYNAPSE_ACTION_FALLING_EDGE;
+		break;
+	case ATMEL_TC_ETRGEDG_BOTH:
+		*action = COUNTER_SYNAPSE_ACTION_BOTH_EDGES;
+		break;
+	}
 
 	return 0;
 }
 
-static int mchp_tc_count_action_set(struct counter_device *counter,
-				    struct counter_count *count,
-				    struct counter_synapse *synapse,
-				    size_t action)
+static int mchp_tc_count_action_write(struct counter_device *counter,
+				      struct counter_count *count,
+				      struct counter_synapse *synapse,
+				      enum counter_synapse_action action)
 {
-	struct mchp_tc_data *const priv = counter->priv;
+	struct mchp_tc_data *const priv = counter_priv(counter);
 	u32 edge = ATMEL_TC_ETRGEDG_NONE;
 
 	/* QDEC mode is rising edge only */
@@ -210,18 +204,21 @@ static int mchp_tc_count_action_set(struct counter_device *counter,
 		return -EINVAL;
 
 	switch (action) {
-	case MCHP_TC_SYNAPSE_ACTION_NONE:
+	case COUNTER_SYNAPSE_ACTION_NONE:
 		edge = ATMEL_TC_ETRGEDG_NONE;
 		break;
-	case MCHP_TC_SYNAPSE_ACTION_RISING_EDGE:
+	case COUNTER_SYNAPSE_ACTION_RISING_EDGE:
 		edge = ATMEL_TC_ETRGEDG_RISING;
 		break;
-	case MCHP_TC_SYNAPSE_ACTION_FALLING_EDGE:
+	case COUNTER_SYNAPSE_ACTION_FALLING_EDGE:
 		edge = ATMEL_TC_ETRGEDG_FALLING;
 		break;
-	case MCHP_TC_SYNAPSE_ACTION_BOTH_EDGE:
+	case COUNTER_SYNAPSE_ACTION_BOTH_EDGES:
 		edge = ATMEL_TC_ETRGEDG_BOTH;
 		break;
+	default:
+		/* should never reach this path */
+		return -EINVAL;
 	}
 
 	return regmap_write_bits(priv->regmap,
@@ -230,10 +227,9 @@ static int mchp_tc_count_action_set(struct counter_device *counter,
 }
 
 static int mchp_tc_count_read(struct counter_device *counter,
-			      struct counter_count *count,
-			      unsigned long *val)
+			      struct counter_count *count, u64 *val)
 {
-	struct mchp_tc_data *const priv = counter->priv;
+	struct mchp_tc_data *const priv = counter_priv(counter);
 	u32 cnt;
 
 	regmap_read(priv->regmap, ATMEL_TC_REG(priv->channel[0], CV), &cnt);
@@ -254,12 +250,12 @@ static struct counter_count mchp_tc_counts[] = {
 };
 
 static const struct counter_ops mchp_tc_ops = {
-	.signal_read  = mchp_tc_count_signal_read,
-	.count_read   = mchp_tc_count_read,
-	.function_get = mchp_tc_count_function_get,
-	.function_set = mchp_tc_count_function_set,
-	.action_get   = mchp_tc_count_action_get,
-	.action_set   = mchp_tc_count_action_set
+	.signal_read    = mchp_tc_count_signal_read,
+	.count_read     = mchp_tc_count_read,
+	.function_read  = mchp_tc_count_function_read,
+	.function_write = mchp_tc_count_function_write,
+	.action_read    = mchp_tc_count_action_read,
+	.action_write   = mchp_tc_count_action_write
 };
 
 static const struct atmel_tcb_config tcb_rm9200_config = {
@@ -299,6 +295,7 @@ static int mchp_tc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	const struct atmel_tcb_config *tcb_config;
 	const struct of_device_id *match;
+	struct counter_device *counter;
 	struct mchp_tc_data *priv;
 	char clk_name[7];
 	struct regmap *regmap;
@@ -306,11 +303,10 @@ static int mchp_tc_probe(struct platform_device *pdev)
 	int channel;
 	int ret, i;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
+	counter = devm_counter_alloc(&pdev->dev, sizeof(*priv));
+	if (!counter)
 		return -ENOMEM;
-
-	platform_set_drvdata(pdev, priv);
+	priv = counter_priv(counter);
 
 	match = of_match_node(atmel_tc_of_match, np->parent);
 	tcb_config = match->data;
@@ -365,16 +361,19 @@ static int mchp_tc_probe(struct platform_device *pdev)
 
 	priv->tc_cfg = tcb_config;
 	priv->regmap = regmap;
-	priv->counter.name = dev_name(&pdev->dev);
-	priv->counter.parent = &pdev->dev;
-	priv->counter.ops = &mchp_tc_ops;
-	priv->counter.num_counts = ARRAY_SIZE(mchp_tc_counts);
-	priv->counter.counts = mchp_tc_counts;
-	priv->counter.num_signals = ARRAY_SIZE(mchp_tc_count_signals);
-	priv->counter.signals = mchp_tc_count_signals;
-	priv->counter.priv = priv;
+	counter->name = dev_name(&pdev->dev);
+	counter->parent = &pdev->dev;
+	counter->ops = &mchp_tc_ops;
+	counter->num_counts = ARRAY_SIZE(mchp_tc_counts);
+	counter->counts = mchp_tc_counts;
+	counter->num_signals = ARRAY_SIZE(mchp_tc_count_signals);
+	counter->signals = mchp_tc_count_signals;
 
-	return devm_counter_register(&pdev->dev, &priv->counter);
+	ret = devm_counter_add(&pdev->dev, counter);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "Failed to add counter\n");
+
+	return 0;
 }
 
 static const struct of_device_id mchp_tc_dt_ids[] = {

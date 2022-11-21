@@ -18,7 +18,7 @@
 struct ls_extirq_data {
 	struct regmap		*syscon;
 	u32			intpcr;
-	bool			bit_reverse;
+	bool			is_ls1021a_or_ls1043a;
 	u32			nirq;
 	struct irq_fwspec	map[MAXIRQ];
 };
@@ -30,7 +30,7 @@ ls_extirq_set_type(struct irq_data *data, unsigned int type)
 	irq_hw_number_t hwirq = data->hwirq;
 	u32 value, mask;
 
-	if (priv->bit_reverse)
+	if (priv->is_ls1021a_or_ls1043a)
 		mask = 1U << (31 - hwirq);
 	else
 		mask = 1U << hwirq;
@@ -64,7 +64,7 @@ static struct irq_chip ls_extirq_chip = {
 	.irq_set_type		= ls_extirq_set_type,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
-	.flags                  = IRQCHIP_SET_TYPE_MASKED,
+	.flags                  = IRQCHIP_SET_TYPE_MASKED | IRQCHIP_SKIP_SET_WAKE,
 };
 
 static int
@@ -174,14 +174,8 @@ ls_extirq_of_init(struct device_node *node, struct device_node *parent)
 	if (ret)
 		goto out;
 
-	if (of_device_is_compatible(node, "fsl,ls1021a-extirq")) {
-		u32 revcr;
-
-		ret = regmap_read(priv->syscon, LS1021A_SCFGREVCR, &revcr);
-		if (ret)
-			goto out;
-		priv->bit_reverse = (revcr != 0);
-	}
+	priv->is_ls1021a_or_ls1043a = of_device_is_compatible(node, "fsl,ls1021a-extirq") ||
+				      of_device_is_compatible(node, "fsl,ls1043a-extirq");
 
 	domain = irq_domain_add_hierarchy(parent_domain, 0, priv->nirq, node,
 					  &extirq_domain_ops, priv);
@@ -195,3 +189,5 @@ out:
 }
 
 IRQCHIP_DECLARE(ls1021a_extirq, "fsl,ls1021a-extirq", ls_extirq_of_init);
+IRQCHIP_DECLARE(ls1043a_extirq, "fsl,ls1043a-extirq", ls_extirq_of_init);
+IRQCHIP_DECLARE(ls1088a_extirq, "fsl,ls1088a-extirq", ls_extirq_of_init);

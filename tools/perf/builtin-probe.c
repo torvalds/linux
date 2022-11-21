@@ -21,6 +21,7 @@
 #include "util/build-id.h"
 #include "util/strlist.h"
 #include "util/strfilter.h"
+#include "util/symbol.h"
 #include "util/symbol_conf.h"
 #include "util/debug.h"
 #include <subcmd/parse-options.h>
@@ -31,7 +32,7 @@
 #include <linux/zalloc.h>
 
 #define DEFAULT_VAR_FILTER "!__k???tab_* & !__crc_*"
-#define DEFAULT_FUNC_FILTER "!_*"
+#define DEFAULT_FUNC_FILTER "!_* & !*@plt"
 #define DEFAULT_LIST_FILTER "*"
 
 /* Session management structure */
@@ -216,7 +217,7 @@ static int opt_set_target_ns(const struct option *opt __maybe_unused,
 			return ret;
 		}
 		nsip = nsinfo__new(ns_pid);
-		if (nsip && nsip->need_setns)
+		if (nsip && nsinfo__need_setns(nsip))
 			params.nsi = nsinfo__get(nsip);
 		nsinfo__put(nsip);
 
@@ -347,7 +348,10 @@ static int perf_add_probe_events(struct perf_probe_event *pevs, int npevs)
 		goto out_cleanup;
 
 	if (params.command == 'D') {	/* it shows definition */
-		ret = show_probe_trace_events(pevs, npevs);
+		if (probe_conf.bootconfig)
+			ret = show_bootconfig_events(pevs, npevs);
+		else
+			ret = show_probe_trace_events(pevs, npevs);
 		goto out_cleanup;
 	}
 
@@ -581,6 +585,8 @@ __cmd_probe(int argc, const char **argv)
 		   "Look for files with symbols relative to this directory"),
 	OPT_CALLBACK(0, "target-ns", NULL, "pid",
 		     "target pid for namespace contexts", opt_set_target_ns),
+	OPT_BOOLEAN(0, "bootconfig", &probe_conf.bootconfig,
+		    "Output probe definition with bootconfig format"),
 	OPT_END()
 	};
 	int ret;
@@ -623,6 +629,10 @@ __cmd_probe(int argc, const char **argv)
 		}
 		params.command = 'a';
 	}
+
+	ret = symbol__validate_sym_arguments();
+	if (ret)
+		return ret;
 
 	if (params.quiet) {
 		if (verbose != 0) {
@@ -692,6 +702,11 @@ __cmd_probe(int argc, const char **argv)
 		}
 		break;
 	case 'D':
+		if (probe_conf.bootconfig && params.uprobes) {
+			pr_err("  Error: --bootconfig doesn't support uprobes.\n");
+			return -EINVAL;
+		}
+		__fallthrough;
 	case 'a':
 
 		/* Ensure the last given target is used */

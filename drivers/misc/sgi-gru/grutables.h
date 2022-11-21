@@ -129,6 +129,7 @@
  *
  */
 
+#include <linux/refcount.h>
 #include <linux/rmap.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
@@ -358,7 +359,7 @@ struct gru_thread_state {
 						     enabled */
 	int			ts_ctxnum;	/* context number where the
 						   context is loaded */
-	atomic_t		ts_refcnt;	/* reference count GTS */
+	refcount_t		ts_refcnt;	/* reference count GTS */
 	unsigned char		ts_dsr_au_count;/* Number of DSR resources
 						   required for contest */
 	unsigned char		ts_cbr_au_count;/* Number of CBR resources
@@ -528,12 +529,6 @@ struct gru_blade_state {
 	for_each_set_bit((k), (map), GRU_CBR_AU)			\
 		for ((i) = (k)*GRU_CBR_AU_SIZE;				\
 				(i) < ((k) + 1) * GRU_CBR_AU_SIZE; (i)++)
-
-/* Scan each DSR in a DSR bitmap. Note: multiple DSRs in an allocation unit */
-#define for_each_dsr_in_allocation_map(i, map, k)			\
-	for_each_set_bit((k), (const unsigned long *)(map), GRU_DSR_AU)	\
-		for ((i) = (k) * GRU_DSR_AU_CL;				\
-				(i) < ((k) + 1) * GRU_DSR_AU_CL; (i)++)
 
 #define gseg_physical_address(gru, ctxnum)				\
 		((gru)->gs_gru_base_paddr + ctxnum * GRU_GSEG_STRIDE)

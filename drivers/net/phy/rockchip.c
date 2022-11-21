@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/**
+/*
  * drivers/net/phy/rockchip.c
  *
  * Driver for ROCKCHIP Ethernet PHYs

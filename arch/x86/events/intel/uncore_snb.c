@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Nehalem/SandBridge/Haswell/Broadwell/Skylake uncore support */
 #include "uncore.h"
+#include "uncore_discovery.h"
 
 /* Uncore IMC PCI IDs */
 #define PCI_DEVICE_ID_INTEL_SNB_IMC		0x0100
@@ -60,7 +61,28 @@
 #define PCI_DEVICE_ID_INTEL_TGL_U3_IMC		0x9a12
 #define PCI_DEVICE_ID_INTEL_TGL_U4_IMC		0x9a14
 #define PCI_DEVICE_ID_INTEL_TGL_H_IMC		0x9a36
-
+#define PCI_DEVICE_ID_INTEL_RKL_1_IMC		0x4c43
+#define PCI_DEVICE_ID_INTEL_RKL_2_IMC		0x4c53
+#define PCI_DEVICE_ID_INTEL_ADL_1_IMC		0x4660
+#define PCI_DEVICE_ID_INTEL_ADL_2_IMC		0x4641
+#define PCI_DEVICE_ID_INTEL_ADL_3_IMC		0x4601
+#define PCI_DEVICE_ID_INTEL_ADL_4_IMC		0x4602
+#define PCI_DEVICE_ID_INTEL_ADL_5_IMC		0x4609
+#define PCI_DEVICE_ID_INTEL_ADL_6_IMC		0x460a
+#define PCI_DEVICE_ID_INTEL_ADL_7_IMC		0x4621
+#define PCI_DEVICE_ID_INTEL_ADL_8_IMC		0x4623
+#define PCI_DEVICE_ID_INTEL_ADL_9_IMC		0x4629
+#define PCI_DEVICE_ID_INTEL_ADL_10_IMC		0x4637
+#define PCI_DEVICE_ID_INTEL_ADL_11_IMC		0x463b
+#define PCI_DEVICE_ID_INTEL_ADL_12_IMC		0x4648
+#define PCI_DEVICE_ID_INTEL_ADL_13_IMC		0x4649
+#define PCI_DEVICE_ID_INTEL_ADL_14_IMC		0x4650
+#define PCI_DEVICE_ID_INTEL_ADL_15_IMC		0x4668
+#define PCI_DEVICE_ID_INTEL_ADL_16_IMC		0x4670
+#define PCI_DEVICE_ID_INTEL_RPL_1_IMC		0xA700
+#define PCI_DEVICE_ID_INTEL_RPL_2_IMC		0xA702
+#define PCI_DEVICE_ID_INTEL_RPL_3_IMC		0xA706
+#define PCI_DEVICE_ID_INTEL_RPL_4_IMC		0xA709
 
 /* SNB event control */
 #define SNB_UNC_CTL_EV_SEL_MASK			0x000000ff
@@ -130,12 +152,34 @@
 #define ICL_UNC_ARB_PER_CTR			0x3b1
 #define ICL_UNC_ARB_PERFEVTSEL			0x3b3
 
+/* ADL uncore global control */
+#define ADL_UNC_PERF_GLOBAL_CTL			0x2ff0
+#define ADL_UNC_FIXED_CTR_CTRL                  0x2fde
+#define ADL_UNC_FIXED_CTR                       0x2fdf
+
+/* ADL Cbo register */
+#define ADL_UNC_CBO_0_PER_CTR0			0x2002
+#define ADL_UNC_CBO_0_PERFEVTSEL0		0x2000
+#define ADL_UNC_CTL_THRESHOLD			0x3f000000
+#define ADL_UNC_RAW_EVENT_MASK			(SNB_UNC_CTL_EV_SEL_MASK | \
+						 SNB_UNC_CTL_UMASK_MASK | \
+						 SNB_UNC_CTL_EDGE_DET | \
+						 SNB_UNC_CTL_INVERT | \
+						 ADL_UNC_CTL_THRESHOLD)
+
+/* ADL ARB register */
+#define ADL_UNC_ARB_PER_CTR0			0x2FD2
+#define ADL_UNC_ARB_PERFEVTSEL0			0x2FD0
+#define ADL_UNC_ARB_MSR_OFFSET			0x8
+
 DEFINE_UNCORE_FORMAT_ATTR(event, event, "config:0-7");
 DEFINE_UNCORE_FORMAT_ATTR(umask, umask, "config:8-15");
+DEFINE_UNCORE_FORMAT_ATTR(chmask, chmask, "config:8-11");
 DEFINE_UNCORE_FORMAT_ATTR(edge, edge, "config:18");
 DEFINE_UNCORE_FORMAT_ATTR(inv, inv, "config:23");
 DEFINE_UNCORE_FORMAT_ATTR(cmask5, cmask, "config:24-28");
 DEFINE_UNCORE_FORMAT_ATTR(cmask8, cmask, "config:24-31");
+DEFINE_UNCORE_FORMAT_ATTR(threshold, threshold, "config:24-29");
 
 /* Sandy Bridge uncore support */
 static void snb_uncore_msr_enable_event(struct intel_uncore_box *box, struct perf_event *event)
@@ -405,6 +449,12 @@ static struct intel_uncore_type *tgl_msr_uncores[] = {
 	NULL,
 };
 
+static void rkl_uncore_msr_init_box(struct intel_uncore_box *box)
+{
+	if (box->pmu->pmu_idx == 0)
+		wrmsrl(SKL_UNC_PERF_GLOBAL_CTL, SNB_UNC_GLOBAL_CTL_EN);
+}
+
 void tgl_uncore_cpu_init(void)
 {
 	uncore_msr_uncores = tgl_msr_uncores;
@@ -412,6 +462,107 @@ void tgl_uncore_cpu_init(void)
 	icl_uncore_cbox.ops = &skl_uncore_msr_ops;
 	icl_uncore_clockbox.ops = &skl_uncore_msr_ops;
 	snb_uncore_arb.ops = &skl_uncore_msr_ops;
+	skl_uncore_msr_ops.init_box = rkl_uncore_msr_init_box;
+}
+
+static void adl_uncore_msr_init_box(struct intel_uncore_box *box)
+{
+	if (box->pmu->pmu_idx == 0)
+		wrmsrl(ADL_UNC_PERF_GLOBAL_CTL, SNB_UNC_GLOBAL_CTL_EN);
+}
+
+static void adl_uncore_msr_enable_box(struct intel_uncore_box *box)
+{
+	wrmsrl(ADL_UNC_PERF_GLOBAL_CTL, SNB_UNC_GLOBAL_CTL_EN);
+}
+
+static void adl_uncore_msr_disable_box(struct intel_uncore_box *box)
+{
+	if (box->pmu->pmu_idx == 0)
+		wrmsrl(ADL_UNC_PERF_GLOBAL_CTL, 0);
+}
+
+static void adl_uncore_msr_exit_box(struct intel_uncore_box *box)
+{
+	if (box->pmu->pmu_idx == 0)
+		wrmsrl(ADL_UNC_PERF_GLOBAL_CTL, 0);
+}
+
+static struct intel_uncore_ops adl_uncore_msr_ops = {
+	.init_box	= adl_uncore_msr_init_box,
+	.enable_box	= adl_uncore_msr_enable_box,
+	.disable_box	= adl_uncore_msr_disable_box,
+	.exit_box	= adl_uncore_msr_exit_box,
+	.disable_event	= snb_uncore_msr_disable_event,
+	.enable_event	= snb_uncore_msr_enable_event,
+	.read_counter	= uncore_msr_read_counter,
+};
+
+static struct attribute *adl_uncore_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_umask.attr,
+	&format_attr_edge.attr,
+	&format_attr_inv.attr,
+	&format_attr_threshold.attr,
+	NULL,
+};
+
+static const struct attribute_group adl_uncore_format_group = {
+	.name		= "format",
+	.attrs		= adl_uncore_formats_attr,
+};
+
+static struct intel_uncore_type adl_uncore_cbox = {
+	.name		= "cbox",
+	.num_counters   = 2,
+	.perf_ctr_bits	= 44,
+	.perf_ctr	= ADL_UNC_CBO_0_PER_CTR0,
+	.event_ctl	= ADL_UNC_CBO_0_PERFEVTSEL0,
+	.event_mask	= ADL_UNC_RAW_EVENT_MASK,
+	.msr_offset	= ICL_UNC_CBO_MSR_OFFSET,
+	.ops		= &adl_uncore_msr_ops,
+	.format_group	= &adl_uncore_format_group,
+};
+
+static struct intel_uncore_type adl_uncore_arb = {
+	.name		= "arb",
+	.num_counters   = 2,
+	.num_boxes	= 2,
+	.perf_ctr_bits	= 44,
+	.perf_ctr	= ADL_UNC_ARB_PER_CTR0,
+	.event_ctl	= ADL_UNC_ARB_PERFEVTSEL0,
+	.event_mask	= SNB_UNC_RAW_EVENT_MASK,
+	.msr_offset	= ADL_UNC_ARB_MSR_OFFSET,
+	.constraints	= snb_uncore_arb_constraints,
+	.ops		= &adl_uncore_msr_ops,
+	.format_group	= &snb_uncore_format_group,
+};
+
+static struct intel_uncore_type adl_uncore_clockbox = {
+	.name		= "clock",
+	.num_counters	= 1,
+	.num_boxes	= 1,
+	.fixed_ctr_bits	= 48,
+	.fixed_ctr	= ADL_UNC_FIXED_CTR,
+	.fixed_ctl	= ADL_UNC_FIXED_CTR_CTRL,
+	.single_fixed	= 1,
+	.event_mask	= SNB_UNC_CTL_EV_SEL_MASK,
+	.format_group	= &icl_uncore_clock_format_group,
+	.ops		= &adl_uncore_msr_ops,
+	.event_descs	= icl_uncore_events,
+};
+
+static struct intel_uncore_type *adl_msr_uncores[] = {
+	&adl_uncore_cbox,
+	&adl_uncore_arb,
+	&adl_uncore_clockbox,
+	NULL,
+};
+
+void adl_uncore_cpu_init(void)
+{
+	adl_uncore_cbox.num_boxes = icl_get_cbox_num();
+	uncore_msr_uncores = adl_msr_uncores;
 }
 
 enum {
@@ -649,7 +800,7 @@ int snb_pci2phy_map_init(int devid)
 		pci_dev_put(dev);
 		return -ENOMEM;
 	}
-	map->pbus_to_physid[bus] = 0;
+	map->pbus_to_dieid[bus] = 0;
 	raw_spin_unlock(&pci2phy_map_lock);
 
 	pci_dev_put(dev);
@@ -926,6 +1077,14 @@ static const struct pci_device_id icl_uncore_pci_ids[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICL_U2_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
 	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_RKL_1_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_RKL_2_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
 	{ /* end: all zeroes */ },
 };
 
@@ -1019,6 +1178,8 @@ static const struct imc_uncore_pci_dev desktop_imc_pci_ids[] = {
 	IMC_DEV(CML_S5_IMC, &skl_uncore_pci_driver),
 	IMC_DEV(ICL_U_IMC, &icl_uncore_pci_driver),	/* 10th Gen Core Mobile */
 	IMC_DEV(ICL_U2_IMC, &icl_uncore_pci_driver),	/* 10th Gen Core Mobile */
+	IMC_DEV(RKL_1_IMC, &icl_uncore_pci_driver),
+	IMC_DEV(RKL_2_IMC, &icl_uncore_pci_driver),
 	{  /* end marker */ }
 };
 
@@ -1185,6 +1346,86 @@ static const struct pci_device_id tgl_uncore_pci_ids[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_TGL_H_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
 	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_1_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_2_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_3_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_4_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_5_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_6_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_7_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_8_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_9_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_10_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_11_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_12_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_13_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_14_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_15_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ADL_16_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_RPL_1_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_RPL_2_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_RPL_3_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_RPL_4_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
 	{ /* end: all zeroes */ }
 };
 
@@ -1241,7 +1482,8 @@ static struct pci_dev *tgl_uncore_get_mc_dev(void)
 #define TGL_UNCORE_MMIO_IMC_MEM_OFFSET		0x10000
 #define TGL_UNCORE_PCI_IMC_MAP_SIZE		0xe000
 
-static void tgl_uncore_imc_freerunning_init_box(struct intel_uncore_box *box)
+static void __uncore_imc_init_box(struct intel_uncore_box *box,
+				  unsigned int base_offset)
 {
 	struct pci_dev *pdev = tgl_uncore_get_mc_dev();
 	struct intel_uncore_pmu *pmu = box->pmu;
@@ -1268,9 +1510,15 @@ static void tgl_uncore_imc_freerunning_init_box(struct intel_uncore_box *box)
 	addr |= ((resource_size_t)mch_bar << 32);
 #endif
 
+	addr += base_offset;
 	box->io_addr = ioremap(addr, type->mmio_map_size);
 	if (!box->io_addr)
 		pr_warn("perf uncore: Failed to ioremap for %s.\n", type->name);
+}
+
+static void tgl_uncore_imc_freerunning_init_box(struct intel_uncore_box *box)
+{
+	__uncore_imc_init_box(box, 0);
 }
 
 static struct intel_uncore_ops tgl_uncore_imc_freerunning_ops = {
@@ -1320,3 +1568,136 @@ void tgl_uncore_mmio_init(void)
 }
 
 /* end of Tiger Lake MMIO uncore support */
+
+/* Alder Lake MMIO uncore support */
+#define ADL_UNCORE_IMC_BASE			0xd900
+#define ADL_UNCORE_IMC_MAP_SIZE			0x200
+#define ADL_UNCORE_IMC_CTR			0xe8
+#define ADL_UNCORE_IMC_CTRL			0xd0
+#define ADL_UNCORE_IMC_GLOBAL_CTL		0xc0
+#define ADL_UNCORE_IMC_BOX_CTL			0xc4
+#define ADL_UNCORE_IMC_FREERUNNING_BASE		0xd800
+#define ADL_UNCORE_IMC_FREERUNNING_MAP_SIZE	0x100
+
+#define ADL_UNCORE_IMC_CTL_FRZ			(1 << 0)
+#define ADL_UNCORE_IMC_CTL_RST_CTRL		(1 << 1)
+#define ADL_UNCORE_IMC_CTL_RST_CTRS		(1 << 2)
+#define ADL_UNCORE_IMC_CTL_INT			(ADL_UNCORE_IMC_CTL_RST_CTRL | \
+						ADL_UNCORE_IMC_CTL_RST_CTRS)
+
+static void adl_uncore_imc_init_box(struct intel_uncore_box *box)
+{
+	__uncore_imc_init_box(box, ADL_UNCORE_IMC_BASE);
+
+	/* The global control in MC1 can control both MCs. */
+	if (box->io_addr && (box->pmu->pmu_idx == 1))
+		writel(ADL_UNCORE_IMC_CTL_INT, box->io_addr + ADL_UNCORE_IMC_GLOBAL_CTL);
+}
+
+static void adl_uncore_mmio_disable_box(struct intel_uncore_box *box)
+{
+	if (!box->io_addr)
+		return;
+
+	writel(ADL_UNCORE_IMC_CTL_FRZ, box->io_addr + uncore_mmio_box_ctl(box));
+}
+
+static void adl_uncore_mmio_enable_box(struct intel_uncore_box *box)
+{
+	if (!box->io_addr)
+		return;
+
+	writel(0, box->io_addr + uncore_mmio_box_ctl(box));
+}
+
+static struct intel_uncore_ops adl_uncore_mmio_ops = {
+	.init_box	= adl_uncore_imc_init_box,
+	.exit_box	= uncore_mmio_exit_box,
+	.disable_box	= adl_uncore_mmio_disable_box,
+	.enable_box	= adl_uncore_mmio_enable_box,
+	.disable_event	= intel_generic_uncore_mmio_disable_event,
+	.enable_event	= intel_generic_uncore_mmio_enable_event,
+	.read_counter	= uncore_mmio_read_counter,
+};
+
+#define ADL_UNC_CTL_CHMASK_MASK			0x00000f00
+#define ADL_UNC_IMC_EVENT_MASK			(SNB_UNC_CTL_EV_SEL_MASK | \
+						 ADL_UNC_CTL_CHMASK_MASK | \
+						 SNB_UNC_CTL_EDGE_DET)
+
+static struct attribute *adl_uncore_imc_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_chmask.attr,
+	&format_attr_edge.attr,
+	NULL,
+};
+
+static const struct attribute_group adl_uncore_imc_format_group = {
+	.name		= "format",
+	.attrs		= adl_uncore_imc_formats_attr,
+};
+
+static struct intel_uncore_type adl_uncore_imc = {
+	.name		= "imc",
+	.num_counters   = 5,
+	.num_boxes	= 2,
+	.perf_ctr_bits	= 64,
+	.perf_ctr	= ADL_UNCORE_IMC_CTR,
+	.event_ctl	= ADL_UNCORE_IMC_CTRL,
+	.event_mask	= ADL_UNC_IMC_EVENT_MASK,
+	.box_ctl	= ADL_UNCORE_IMC_BOX_CTL,
+	.mmio_offset	= 0,
+	.mmio_map_size	= ADL_UNCORE_IMC_MAP_SIZE,
+	.ops		= &adl_uncore_mmio_ops,
+	.format_group	= &adl_uncore_imc_format_group,
+};
+
+enum perf_adl_uncore_imc_freerunning_types {
+	ADL_MMIO_UNCORE_IMC_DATA_TOTAL,
+	ADL_MMIO_UNCORE_IMC_DATA_READ,
+	ADL_MMIO_UNCORE_IMC_DATA_WRITE,
+	ADL_MMIO_UNCORE_IMC_FREERUNNING_TYPE_MAX
+};
+
+static struct freerunning_counters adl_uncore_imc_freerunning[] = {
+	[ADL_MMIO_UNCORE_IMC_DATA_TOTAL]	= { 0x40, 0x0, 0x0, 1, 64 },
+	[ADL_MMIO_UNCORE_IMC_DATA_READ]		= { 0x58, 0x0, 0x0, 1, 64 },
+	[ADL_MMIO_UNCORE_IMC_DATA_WRITE]	= { 0xA0, 0x0, 0x0, 1, 64 },
+};
+
+static void adl_uncore_imc_freerunning_init_box(struct intel_uncore_box *box)
+{
+	__uncore_imc_init_box(box, ADL_UNCORE_IMC_FREERUNNING_BASE);
+}
+
+static struct intel_uncore_ops adl_uncore_imc_freerunning_ops = {
+	.init_box	= adl_uncore_imc_freerunning_init_box,
+	.exit_box	= uncore_mmio_exit_box,
+	.read_counter	= uncore_mmio_read_counter,
+	.hw_config	= uncore_freerunning_hw_config,
+};
+
+static struct intel_uncore_type adl_uncore_imc_free_running = {
+	.name			= "imc_free_running",
+	.num_counters		= 3,
+	.num_boxes		= 2,
+	.num_freerunning_types	= ADL_MMIO_UNCORE_IMC_FREERUNNING_TYPE_MAX,
+	.mmio_map_size		= ADL_UNCORE_IMC_FREERUNNING_MAP_SIZE,
+	.freerunning		= adl_uncore_imc_freerunning,
+	.ops			= &adl_uncore_imc_freerunning_ops,
+	.event_descs		= tgl_uncore_imc_events,
+	.format_group		= &tgl_uncore_imc_format_group,
+};
+
+static struct intel_uncore_type *adl_mmio_uncores[] = {
+	&adl_uncore_imc,
+	&adl_uncore_imc_free_running,
+	NULL
+};
+
+void adl_uncore_mmio_init(void)
+{
+	uncore_mmio_uncores = adl_mmio_uncores;
+}
+
+/* end of Alder Lake MMIO uncore support */

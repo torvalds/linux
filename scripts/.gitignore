@@ -1,13 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
-bin2c
-kallsyms
-kallsyms.exe
-unifdef
-unifdef.exe
-recordmcount
-sorttable
-asn1_compiler
-extract-cert
-sign-file
-insert-sys-cert
+/asn1_compiler
+/bin2c
+/insert-sys-cert
+/kallsyms
+/kallsyms.exe
 /module.lds
+/recordmcount
+/sign-file
+/sorttable
+/unifdef
+/unifdef.exe

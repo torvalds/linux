@@ -152,7 +152,8 @@ static void recent_entry_remove(struct recent_table *t, struct recent_entry *e)
 /*
  * Drop entries with timestamps older then 'time'.
  */
-static void recent_entry_reap(struct recent_table *t, unsigned long time)
+static void recent_entry_reap(struct recent_table *t, unsigned long time,
+			      struct recent_entry *working, bool update)
 {
 	struct recent_entry *e;
 
@@ -160,6 +161,12 @@ static void recent_entry_reap(struct recent_table *t, unsigned long time)
 	 * The head of the LRU list is always the oldest entry.
 	 */
 	e = list_entry(t->lru_list.next, struct recent_entry, lru_list);
+
+	/*
+	 * Do not reap the entry which are going to be updated.
+	 */
+	if (e == working && update)
+		return;
 
 	/*
 	 * The last time stamp is the most recent.
@@ -303,7 +310,8 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 		/* info->seconds must be non-zero */
 		if (info->check_set & XT_RECENT_REAP)
-			recent_entry_reap(t, time);
+			recent_entry_reap(t, time, e,
+				info->check_set & XT_RECENT_UPDATE && ret);
 	}
 
 	if (info->check_set & XT_RECENT_SET ||
@@ -543,7 +551,7 @@ static int recent_seq_open(struct inode *inode, struct file *file)
 	if (st == NULL)
 		return -ENOMEM;
 
-	st->table    = PDE_DATA(inode);
+	st->table    = pde_data(inode);
 	return 0;
 }
 
@@ -551,7 +559,7 @@ static ssize_t
 recent_mt_proc_write(struct file *file, const char __user *input,
 		     size_t size, loff_t *loff)
 {
-	struct recent_table *t = PDE_DATA(file_inode(file));
+	struct recent_table *t = pde_data(file_inode(file));
 	struct recent_entry *e;
 	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:5afe:c0de")];
 	const char *c = buf;

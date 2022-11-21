@@ -18,7 +18,7 @@ enum debug_obj_state {
 struct debug_obj_descr;
 
 /**
- * struct debug_obj - representaion of an tracked object
+ * struct debug_obj - representation of an tracked object
  * @node:	hlist node to link the object into the tracker list
  * @state:	tracked object state
  * @astate:	current active state

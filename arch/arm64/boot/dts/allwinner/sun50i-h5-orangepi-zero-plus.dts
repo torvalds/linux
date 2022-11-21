@@ -33,13 +33,13 @@
 	leds {
 		compatible = "gpio-leds";
 
-		pwr {
+		led-0 {
 			label = "orangepi:green:pwr";
 			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>; /* PA10 */
 			default-state = "on";
 		};
 
-		status {
+		led-1 {
 			label = "orangepi:red:status";
 			gpios = <&pio 0 17 GPIO_ACTIVE_HIGH>; /* PA17 */
 		};
@@ -69,7 +69,7 @@
 	pinctrl-0 = <&emac_rgmii_pins>;
 	phy-supply = <&reg_gmac_3v3>;
 	phy-handle = <&ext_rgmii_phy>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	status = "okay";
 };
 

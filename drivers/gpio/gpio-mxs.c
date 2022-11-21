@@ -60,11 +60,6 @@ static inline int is_imx23_gpio(struct mxs_gpio_port *port)
 	return port->devid == IMX23_GPIO;
 }
 
-static inline int is_imx28_gpio(struct mxs_gpio_port *port)
-{
-	return port->devid == IMX28_GPIO;
-}
-
 /* Note: This driver assumes 32 GPIOs are handled in one register */
 
 static int mxs_gpio_set_irq_type(struct irq_data *d, unsigned int type)
@@ -162,7 +157,7 @@ static void mxs_gpio_irq_handler(struct irq_desc *desc)
 		if (port->both_edges & (1 << irqoffset))
 			mxs_flip_edge(port, irqoffset);
 
-		generic_handle_irq(irq_find_mapping(port->domain, irqoffset));
+		generic_handle_domain_irq(port->domain, irqoffset);
 		irq_stat &= ~(1 << irqoffset);
 	}
 }
@@ -234,14 +229,14 @@ static int mxs_gpio_init_gc(struct mxs_gpio_port *port, int irq_base)
 	return rv;
 }
 
-static int mxs_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
+static int mxs_gpio_to_irq(struct gpio_chip *gc, unsigned int offset)
 {
 	struct mxs_gpio_port *port = gpiochip_get_data(gc);
 
 	return irq_find_mapping(port->domain, offset);
 }
 
-static int mxs_gpio_get_direction(struct gpio_chip *gc, unsigned offset)
+static int mxs_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 {
 	struct mxs_gpio_port *port = gpiochip_get_data(gc);
 	u32 mask = 1 << offset;
@@ -253,19 +248,6 @@ static int mxs_gpio_get_direction(struct gpio_chip *gc, unsigned offset)
 
 	return GPIO_LINE_DIRECTION_IN;
 }
-
-static const struct platform_device_id mxs_gpio_ids[] = {
-	{
-		.name = "imx23-gpio",
-		.driver_data = IMX23_GPIO,
-	}, {
-		.name = "imx28-gpio",
-		.driver_data = IMX28_GPIO,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, mxs_gpio_ids);
 
 static const struct of_device_id mxs_gpio_dt_ids[] = {
 	{ .compatible = "fsl,imx23-gpio", .data = (void *) IMX23_GPIO, },
@@ -370,7 +352,6 @@ static struct platform_driver mxs_gpio_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe		= mxs_gpio_probe,
-	.id_table	= mxs_gpio_ids,
 };
 
 static int __init mxs_gpio_init(void)

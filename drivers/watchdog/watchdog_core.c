@@ -34,6 +34,7 @@
 #include <linux/idr.h>		/* For ida_* macros */
 #include <linux/err.h>		/* For IS_ERR macros */
 #include <linux/of.h>		/* For of_get_timeout_sec */
+#include <linux/suspend.h>
 
 #include "watchdog_core.h"	/* For watchdog_dev_register/... */
 
@@ -158,7 +159,7 @@ static int watchdog_reboot_notifier(struct notifier_block *nb,
 
 	wdd = container_of(nb, struct watchdog_device, reboot_nb);
 	if (code == SYS_DOWN || code == SYS_HALT) {
-		if (watchdog_active(wdd)) {
+		if (watchdog_active(wdd) || watchdog_hw_running(wdd)) {
 			int ret;
 
 			ret = wdd->ops->stop(wdd);
@@ -179,6 +180,33 @@ static int watchdog_restart_notifier(struct notifier_block *nb,
 	int ret;
 
 	ret = wdd->ops->restart(wdd, action, data);
+	if (ret)
+		return NOTIFY_BAD;
+
+	return NOTIFY_DONE;
+}
+
+static int watchdog_pm_notifier(struct notifier_block *nb, unsigned long mode,
+				void *data)
+{
+	struct watchdog_device *wdd;
+	int ret = 0;
+
+	wdd = container_of(nb, struct watchdog_device, pm_nb);
+
+	switch (mode) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_RESTORE_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		ret = watchdog_dev_suspend(wdd);
+		break;
+	case PM_POST_HIBERNATION:
+	case PM_POST_RESTORE:
+	case PM_POST_SUSPEND:
+		ret = watchdog_dev_resume(wdd);
+		break;
+	}
+
 	if (ret)
 		return NOTIFY_BAD;
 
@@ -267,15 +295,19 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 	}
 
 	if (test_bit(WDOG_STOP_ON_REBOOT, &wdd->status)) {
-		wdd->reboot_nb.notifier_call = watchdog_reboot_notifier;
+		if (!wdd->ops->stop)
+			pr_warn("watchdog%d: stop_on_reboot not supported\n", wdd->id);
+		else {
+			wdd->reboot_nb.notifier_call = watchdog_reboot_notifier;
 
-		ret = register_reboot_notifier(&wdd->reboot_nb);
-		if (ret) {
-			pr_err("watchdog%d: Cannot register reboot notifier (%d)\n",
-			       wdd->id, ret);
-			watchdog_dev_unregister(wdd);
-			ida_simple_remove(&watchdog_ida, id);
-			return ret;
+			ret = register_reboot_notifier(&wdd->reboot_nb);
+			if (ret) {
+				pr_err("watchdog%d: Cannot register reboot notifier (%d)\n",
+					wdd->id, ret);
+				watchdog_dev_unregister(wdd);
+				ida_simple_remove(&watchdog_ida, id);
+				return ret;
+			}
 		}
 	}
 
@@ -285,6 +317,15 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 		ret = register_restart_handler(&wdd->restart_nb);
 		if (ret)
 			pr_warn("watchdog%d: Cannot register restart handler (%d)\n",
+				wdd->id, ret);
+	}
+
+	if (test_bit(WDOG_NO_PING_ON_SUSPEND, &wdd->status)) {
+		wdd->pm_nb.notifier_call = watchdog_pm_notifier;
+
+		ret = register_pm_notifier(&wdd->pm_nb);
+		if (ret)
+			pr_warn("watchdog%d: Cannot register pm handler (%d)\n",
 				wdd->id, ret);
 	}
 

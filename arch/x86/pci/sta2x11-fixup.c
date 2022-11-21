@@ -11,7 +11,8 @@
 #include <linux/pci_ids.h>
 #include <linux/export.h>
 #include <linux/list.h>
-#include <linux/dma-direct.h>
+#include <linux/dma-map-ops.h>
+#include <linux/swiotlb.h>
 #include <asm/iommu.h>
 
 #define STA2X11_SWIOTLB_SIZE (4*1024*1024)
@@ -145,8 +146,7 @@ static void sta2x11_map_ep(struct pci_dev *pdev)
 		dev_err(dev, "sta2x11: could not set DMA offset\n");
 
 	dev->bus_dma_limit = max_amba_addr;
-	pci_set_consistent_dma_mask(pdev, max_amba_addr);
-	pci_set_dma_mask(pdev, max_amba_addr);
+	dma_set_mask_and_coherent(&pdev->dev, max_amba_addr);
 
 	/* Configure AHB mapping */
 	pci_write_config_dword(pdev, AHB_PEXLBASE(0), 0);

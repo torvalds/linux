@@ -99,6 +99,15 @@ scpi_show_sensor(struct device *dev, struct device_attribute *attr, char *buf)
 
 	scpi_scale_reading(&value, sensor);
 
+	/*
+	 * Temperature sensor values are treated as signed values based on
+	 * observation even though that is not explicitly specified, and
+	 * because an unsigned u64 temperature does not really make practical
+	 * sense especially when the temperature is below zero degrees Celsius.
+	 */
+	if (sensor->info.class == TEMPERATURE)
+		return sprintf(buf, "%lld\n", (s64)value);
+
 	return sprintf(buf, "%llu\n", value);
 }
 
@@ -132,7 +141,6 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 	struct scpi_ops *scpi_ops;
 	struct device *hwdev, *dev = &pdev->dev;
 	struct scpi_sensors *scpi_sensors;
-	const struct of_device_id *of_id;
 	int idx, ret;
 
 	scpi_ops = get_scpi_ops();
@@ -162,12 +170,11 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 
 	scpi_sensors->scpi_ops = scpi_ops;
 
-	of_id = of_match_device(scpi_of_match, &pdev->dev);
-	if (!of_id) {
+	scale = of_device_get_match_data(&pdev->dev);
+	if (!scale) {
 		dev_err(&pdev->dev, "Unable to initialize scpi-hwmon data\n");
 		return -ENODEV;
 	}
-	scale = of_id->data;
 
 	for (i = 0, idx = 0; i < nr_sensors; i++) {
 		struct sensor_data *sensor = &scpi_sensors->data[idx];

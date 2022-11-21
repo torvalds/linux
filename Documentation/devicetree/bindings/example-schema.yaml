@@ -91,7 +91,6 @@ properties:
   interrupts:
     # Either 1 or 2 interrupts can be present
     minItems: 1
-    maxItems: 2
     items:
       - description: tx or combined interrupt
       - description: rx interrupt
@@ -105,7 +104,6 @@ properties:
   interrupt-names:
     # minItems must be specified here because the default would be 2
     minItems: 1
-    maxItems: 2
     items:
       - const: tx irq
       - const: rx irq
@@ -121,7 +119,7 @@ properties:
     # valid for this binding.
 
   clock-frequency:
-    # The type is set in the core schema. Per device schema only need to set
+    # The type is set in the core schema. Per-device schema only need to set
     # constraints on the possible values.
     minimum: 100
     maximum: 400000
@@ -135,24 +133,24 @@ properties:
   # *-supply is always a single phandle, so nothing more to define.
   foo-supply: true
 
-  # Vendor specific properties
+  # Vendor-specific properties
   #
-  # Vendor specific properties have slightly different schema requirements than
+  # Vendor-specific properties have slightly different schema requirements than
   # common properties. They must have at least a type definition and
   # 'description'.
   vendor,int-property:
-    description: Vendor specific properties must have a description
+    description: Vendor-specific properties must have a description
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [2, 4, 6, 8, 10]
 
   vendor,bool-property:
-    description: Vendor specific properties must have a description. Boolean
+    description: Vendor-specific properties must have a description. Boolean
       properties are one case where the json-schema 'type' keyword can be used
       directly.
     type: boolean
 
   vendor,string-array-property:
-    description: Vendor specific properties should reference a type in the
+    description: Vendor-specific properties should reference a type in the
       core schema.
     $ref: /schemas/types.yaml#/definitions/string-array
     items:
@@ -160,9 +158,19 @@ properties:
       - enum: [baz, boo]
 
   vendor,property-in-standard-units-microvolt:
-    description: Vendor specific properties having a standard unit suffix
+    description: Vendor-specific properties having a standard unit suffix
       don't need a type.
     enum: [ 100, 200, 300 ]
+
+  vendor,int-array-variable-length-and-constrained-values:
+    description: Array might define what type of elements might be used (e.g.
+      their range).
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 3
+    items:
+      minimum: 0
+      maximum: 8
 
   child-node:
     description: Child nodes are just another property from a json-schema
@@ -209,6 +217,10 @@ allOf:
     then:
       required:
         - foo-supply
+    else:
+      # If otherwise the property is not allowed:
+      properties:
+        foo-supply: false
   # Altering schema depending on presence of properties is usually done by
   # dependencies (see above), however some adjustments might require if:
   - if:

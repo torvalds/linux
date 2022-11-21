@@ -549,6 +549,8 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 
 	pci_set_master(pci_dev);
 
+	vp_dev->is_legacy = vp_dev->ldev.ioaddr ? true : false;
+
 	rc = register_virtio_device(&vp_dev->vdev);
 	reg_dev = vp_dev;
 	if (rc)
@@ -557,10 +559,10 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 	return 0;
 
 err_register:
-	if (vp_dev->ioaddr)
-	     virtio_pci_legacy_remove(vp_dev);
+	if (vp_dev->is_legacy)
+		virtio_pci_legacy_remove(vp_dev);
 	else
-	     virtio_pci_modern_remove(vp_dev);
+		virtio_pci_modern_remove(vp_dev);
 err_probe:
 	pci_disable_device(pci_dev);
 err_enable_device:
@@ -576,11 +578,18 @@ static void virtio_pci_remove(struct pci_dev *pci_dev)
 	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
 	struct device *dev = get_device(&vp_dev->vdev.dev);
 
+	/*
+	 * Device is marked broken on surprise removal so that virtio upper
+	 * layers can abort any ongoing operation.
+	 */
+	if (!pci_device_is_present(pci_dev))
+		virtio_break_device(&vp_dev->vdev);
+
 	pci_disable_sriov(pci_dev);
 
 	unregister_virtio_device(&vp_dev->vdev);
 
-	if (vp_dev->ioaddr)
+	if (vp_dev->is_legacy)
 		virtio_pci_legacy_remove(vp_dev);
 	else
 		virtio_pci_modern_remove(vp_dev);

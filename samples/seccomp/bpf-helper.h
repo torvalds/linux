@@ -62,9 +62,9 @@ void seccomp_bpf_print(struct sock_filter *filter, size_t count);
 #define EXPAND(...) __VA_ARGS__
 
 /* Ensure that we load the logically correct offset. */
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define LO_ARG(idx) offsetof(struct seccomp_data, args[(idx)])
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define LO_ARG(idx) offsetof(struct seccomp_data, args[(idx)]) + sizeof(__u32)
 #else
 #error "Unknown endianness"
@@ -85,10 +85,10 @@ void seccomp_bpf_print(struct sock_filter *filter, size_t count);
 #elif __BITS_PER_LONG == 64
 
 /* Ensure that we load the logically correct offset. */
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define ENDIAN(_lo, _hi) _lo, _hi
 #define HI_ARG(idx) offsetof(struct seccomp_data, args[(idx)]) + sizeof(__u32)
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define ENDIAN(_lo, _hi) _hi, _lo
 #define HI_ARG(idx) offsetof(struct seccomp_data, args[(idx)])
 #endif

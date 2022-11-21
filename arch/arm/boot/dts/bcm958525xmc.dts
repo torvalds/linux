@@ -37,7 +37,7 @@
 
 / {
 	model = "NorthStar Plus XMC (BCM958525xmc)";
-	compatible = "brcm,bcm58525", "brcm,nsp";
+	compatible = "brcm,bcm958525xmc", "brcm,bcm58525", "brcm,nsp";
 
 	chosen {
 		stdout-path = "serial0:115200n8";
@@ -90,8 +90,8 @@
 	};
 };
 
-&nand {
-	nandcs@0 {
+&nand_controller {
+	nand@0 {
 		compatible = "brcm,nandcs";
 		reg = <0>;
 		nand-on-flash-bbt;
@@ -150,6 +150,7 @@
 };
 
 &qspi {
+	status = "okay";
 	bspi-sel = <0>;
 	flash: m25p80@0 {
 		#address-cells = <1>;
@@ -209,4 +210,8 @@
 
 &xhci {
 	status = "okay";
+};
+
+&srab {
+	compatible = "brcm,bcm58525-srab", "brcm,nsp-srab";
 };

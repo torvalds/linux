@@ -45,8 +45,14 @@
  * @guilty: atomic_t set to 1 when a job on this queue
  *          is found to be guilty causing a timeout
  *
- * Note: the sched_list should have at least one element to schedule
- *       the entity
+ * Note that the &sched_list must have at least one element to schedule the entity.
+ *
+ * For changing @priority later on at runtime see
+ * drm_sched_entity_set_priority(). For changing the set of schedulers
+ * @sched_list at runtime see drm_sched_entity_modify_sched().
+ *
+ * An entity is cleaned up by callind drm_sched_entity_fini(). See also
+ * drm_sched_entity_destroy().
  *
  * Returns 0 on success or a negative error code on failure.
  */
@@ -73,6 +79,9 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 
 	init_completion(&entity->entity_idle);
 
+	/* We start in an idle state. */
+	complete(&entity->entity_idle);
+
 	spin_lock_init(&entity->rq_lock);
 	spsc_queue_init(&entity->job_queue);
 
@@ -89,6 +98,11 @@ EXPORT_SYMBOL(drm_sched_entity_init);
  * @sched_list: the list of new drm scheds which will replace
  *		 existing entity->sched_list
  * @num_sched_list: number of drm sched in sched_list
+ *
+ * Note that this must be called under the same common lock for @entity as
+ * drm_sched_job_arm() and drm_sched_entity_push_job(), or the driver needs to
+ * guarantee through some other means that this is never called while new jobs
+ * can be pushed to @entity.
  */
 void drm_sched_entity_modify_sched(struct drm_sched_entity *entity,
 				    struct drm_gpu_scheduler **sched_list,
@@ -101,31 +115,19 @@ void drm_sched_entity_modify_sched(struct drm_sched_entity *entity,
 }
 EXPORT_SYMBOL(drm_sched_entity_modify_sched);
 
-/**
- * drm_sched_entity_is_idle - Check if entity is idle
- *
- * @entity: scheduler entity
- *
- * Returns true if the entity does not have any unscheduled jobs.
- */
 static bool drm_sched_entity_is_idle(struct drm_sched_entity *entity)
 {
 	rmb(); /* for list_empty to work without lock */
 
 	if (list_empty(&entity->list) ||
-	    spsc_queue_count(&entity->job_queue) == 0)
+	    spsc_queue_count(&entity->job_queue) == 0 ||
+	    entity->stopped)
 		return true;
 
 	return false;
 }
 
-/**
- * drm_sched_entity_is_ready - Check if entity is ready
- *
- * @entity: scheduler entity
- *
- * Return true if entity could provide a job.
- */
+/* Return true if entity could provide a job. */
 bool drm_sched_entity_is_ready(struct drm_sched_entity *entity)
 {
 	if (spsc_queue_peek(&entity->job_queue) == NULL)
@@ -188,40 +190,52 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 }
 EXPORT_SYMBOL(drm_sched_entity_flush);
 
-/**
- * drm_sched_entity_kill_jobs - helper for drm_sched_entity_kill_jobs
- *
- * @f: signaled fence
- * @cb: our callback structure
- *
- * Signal the scheduler finished fence when the entity in question is killed.
- */
-static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
-					  struct dma_fence_cb *cb)
+static void drm_sched_entity_kill_jobs_irq_work(struct irq_work *wrk)
 {
-	struct drm_sched_job *job = container_of(cb, struct drm_sched_job,
-						 finish_cb);
+	struct drm_sched_job *job = container_of(wrk, typeof(*job), work);
 
 	drm_sched_fence_finished(job->s_fence);
 	WARN_ON(job->s_fence->parent);
 	job->sched->ops->free_job(job);
 }
 
-/**
- * drm_sched_entity_kill_jobs - Make sure all remaining jobs are killed
- *
- * @entity: entity which is cleaned up
- *
- * Makes sure that all remaining jobs in an entity are killed before it is
- * destroyed.
- */
+
+/* Signal the scheduler finished fence when the entity in question is killed. */
+static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
+					  struct dma_fence_cb *cb)
+{
+	struct drm_sched_job *job = container_of(cb, struct drm_sched_job,
+						 finish_cb);
+
+	init_irq_work(&job->work, drm_sched_entity_kill_jobs_irq_work);
+	irq_work_queue(&job->work);
+}
+
+static struct dma_fence *
+drm_sched_job_dependency(struct drm_sched_job *job,
+			 struct drm_sched_entity *entity)
+{
+	if (!xa_empty(&job->dependencies))
+		return xa_erase(&job->dependencies, job->last_dependency++);
+
+	if (job->sched->ops->dependency)
+		return job->sched->ops->dependency(job, entity);
+
+	return NULL;
+}
+
 static void drm_sched_entity_kill_jobs(struct drm_sched_entity *entity)
 {
 	struct drm_sched_job *job;
+	struct dma_fence *f;
 	int r;
 
 	while ((job = to_drm_sched_job(spsc_queue_pop(&entity->job_queue)))) {
 		struct drm_sched_fence *s_fence = job->s_fence;
+
+		/* Wait for all dependencies to avoid data corruptions */
+		while ((f = drm_sched_job_dependency(job, entity)))
+			dma_fence_wait(f, false);
 
 		drm_sched_fence_scheduled(s_fence);
 		dma_fence_set_error(&s_fence->finished, -ESRCH);
@@ -247,13 +261,15 @@ static void drm_sched_entity_kill_jobs(struct drm_sched_entity *entity)
 }
 
 /**
- * drm_sched_entity_cleanup - Destroy a context entity
+ * drm_sched_entity_fini - Destroy a context entity
  *
  * @entity: scheduler entity
  *
- * This should be called after @drm_sched_entity_do_release. It goes over the
- * entity and signals all jobs with an error code if the process was killed.
+ * Cleanups up @entity which has been initialized by drm_sched_entity_init().
  *
+ * If there are potentially job still in flight or getting newly queued
+ * drm_sched_entity_flush() must be called first. This function then goes over
+ * the entity and signals all jobs with an error code if the process was killed.
  */
 void drm_sched_entity_fini(struct drm_sched_entity *entity)
 {
@@ -292,11 +308,11 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity)
 EXPORT_SYMBOL(drm_sched_entity_fini);
 
 /**
- * drm_sched_entity_fini - Destroy a context entity
- *
+ * drm_sched_entity_destroy - Destroy a context entity
  * @entity: scheduler entity
  *
- * Calls drm_sched_entity_do_release() and drm_sched_entity_cleanup()
+ * Calls drm_sched_entity_flush() and drm_sched_entity_fini() as a
+ * convenience wrapper.
  */
 void drm_sched_entity_destroy(struct drm_sched_entity *entity)
 {
@@ -305,9 +321,7 @@ void drm_sched_entity_destroy(struct drm_sched_entity *entity)
 }
 EXPORT_SYMBOL(drm_sched_entity_destroy);
 
-/**
- * drm_sched_entity_clear_dep - callback to clear the entities dependency
- */
+/* drm_sched_entity_clear_dep - callback to clear the entities dependency */
 static void drm_sched_entity_clear_dep(struct dma_fence *f,
 				       struct dma_fence_cb *cb)
 {
@@ -318,7 +332,7 @@ static void drm_sched_entity_clear_dep(struct dma_fence *f,
 	dma_fence_put(f);
 }
 
-/**
+/*
  * drm_sched_entity_clear_dep - callback to clear the entities dependency and
  * wake up scheduler
  */
@@ -349,11 +363,7 @@ void drm_sched_entity_set_priority(struct drm_sched_entity *entity,
 }
 EXPORT_SYMBOL(drm_sched_entity_set_priority);
 
-/**
- * drm_sched_entity_add_dependency_cb - add callback for the entities dependency
- *
- * @entity: entity with dependency
- *
+/*
  * Add a callback to the current dependency of the entity to wake up the
  * scheduler when the entity becomes available.
  */
@@ -401,16 +411,8 @@ static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 	return false;
 }
 
-/**
- * drm_sched_entity_pop_job - get a ready to be scheduled job from the entity
- *
- * @entity: entity to get the job from
- *
- * Process all dependencies and try to get one job from the entities queue.
- */
 struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 {
-	struct drm_gpu_scheduler *sched = entity->rq->sched;
 	struct drm_sched_job *sched_job;
 
 	sched_job = to_drm_sched_job(spsc_queue_peek(&entity->job_queue));
@@ -418,7 +420,7 @@ struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 		return NULL;
 
 	while ((entity->dependency =
-			sched->ops->dependency(sched_job, entity))) {
+			drm_sched_job_dependency(sched_job, entity))) {
 		trace_drm_sched_job_wait_dep(sched_job, entity->dependency);
 
 		if (drm_sched_entity_add_dependency_cb(entity))
@@ -430,30 +432,45 @@ struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 		dma_fence_set_error(&sched_job->s_fence->finished, -ECANCELED);
 
 	dma_fence_put(entity->last_scheduled);
+
 	entity->last_scheduled = dma_fence_get(&sched_job->s_fence->finished);
+
+	/*
+	 * If the queue is empty we allow drm_sched_entity_select_rq() to
+	 * locklessly access ->last_scheduled. This only works if we set the
+	 * pointer before we dequeue and if we a write barrier here.
+	 */
+	smp_wmb();
 
 	spsc_queue_pop(&entity->job_queue);
 	return sched_job;
 }
 
-/**
- * drm_sched_entity_select_rq - select a new rq for the entity
- *
- * @entity: scheduler entity
- *
- * Check all prerequisites and select a new rq for the entity for load
- * balancing.
- */
 void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
 {
 	struct dma_fence *fence;
 	struct drm_gpu_scheduler *sched;
 	struct drm_sched_rq *rq;
 
-	if (spsc_queue_count(&entity->job_queue) || entity->num_sched_list <= 1)
+	/* single possible engine and already selected */
+	if (!entity->sched_list)
 		return;
 
-	fence = READ_ONCE(entity->last_scheduled);
+	/* queue non-empty, stay on the same engine */
+	if (spsc_queue_count(&entity->job_queue))
+		return;
+
+	/*
+	 * Only when the queue is empty are we guaranteed that the scheduler
+	 * thread cannot change ->last_scheduled. To enforce ordering we need
+	 * a read barrier here. See drm_sched_entity_pop_job() for the other
+	 * side.
+	 */
+	smp_rmb();
+
+	fence = entity->last_scheduled;
+
+	/* stay on the same engine if the previous job hasn't finished */
 	if (fence && !dma_fence_is_signaled(fence))
 		return;
 
@@ -464,29 +481,30 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
 		drm_sched_rq_remove_entity(entity->rq, entity);
 		entity->rq = rq;
 	}
-
 	spin_unlock(&entity->rq_lock);
+
+	if (entity->num_sched_list == 1)
+		entity->sched_list = NULL;
 }
 
 /**
  * drm_sched_entity_push_job - Submit a job to the entity's job queue
- *
  * @sched_job: job to submit
- * @entity: scheduler entity
  *
- * Note: To guarantee that the order of insertion to queue matches
- * the job's fence sequence number this function should be
- * called with drm_sched_job_init under common lock.
+ * Note: To guarantee that the order of insertion to queue matches the job's
+ * fence sequence number this function should be called with drm_sched_job_arm()
+ * under common lock for the struct drm_sched_entity that was set up for
+ * @sched_job in drm_sched_job_init().
  *
  * Returns 0 for success, negative error code otherwise.
  */
-void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
-			       struct drm_sched_entity *entity)
+void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
 {
+	struct drm_sched_entity *entity = sched_job->entity;
 	bool first;
 
 	trace_drm_sched_job(sched_job, entity);
-	atomic_inc(&entity->rq->sched->score);
+	atomic_inc(entity->rq->sched->score);
 	WRITE_ONCE(entity->last_user, current->group_leader);
 	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_node);
 

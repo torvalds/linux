@@ -245,6 +245,8 @@ struct pp_smu_funcs_nv {
 #define PP_SMU_NUM_DCFCLK_DPM_LEVELS  8
 #define PP_SMU_NUM_FCLK_DPM_LEVELS    4
 #define PP_SMU_NUM_MEMCLK_DPM_LEVELS  4
+#define PP_SMU_NUM_DCLK_DPM_LEVELS    8
+#define PP_SMU_NUM_VCLK_DPM_LEVELS    8
 
 struct dpm_clock {
   uint32_t  Freq;    // In MHz
@@ -258,6 +260,8 @@ struct dpm_clocks {
 	struct dpm_clock SocClocks[PP_SMU_NUM_SOCCLK_DPM_LEVELS];
 	struct dpm_clock FClocks[PP_SMU_NUM_FCLK_DPM_LEVELS];
 	struct dpm_clock MemClocks[PP_SMU_NUM_MEMCLK_DPM_LEVELS];
+	struct dpm_clock VClocks[PP_SMU_NUM_VCLK_DPM_LEVELS];
+	struct dpm_clock DClocks[PP_SMU_NUM_DCLK_DPM_LEVELS];
 };
 
 
@@ -279,13 +283,35 @@ struct pp_smu_funcs_rn {
 			struct dpm_clocks *clock_table);
 };
 
+struct pp_smu_funcs_vgh {
+	struct pp_smu pp_smu;
+
+	/*
+	 * reader and writer WM's are sent together as part of one table
+	 *
+	 * PPSMC_MSG_SetDriverDramAddrHigh
+	 * PPSMC_MSG_SetDriverDramAddrLow
+	 * PPSMC_MSG_TransferTableDram2Smu
+	 *
+	 */
+	// TODO: Check whether this is moved to DAL, and remove as needed
+	enum pp_smu_status (*set_wm_ranges)(struct pp_smu *pp,
+			struct pp_smu_wm_range_sets *ranges);
+
+	// TODO: Check whether this is moved to DAL, and remove as needed
+	enum pp_smu_status (*get_dpm_clock_table) (struct pp_smu *pp,
+			struct dpm_clocks *clock_table);
+
+	enum pp_smu_status (*notify_smu_timeout) (struct pp_smu *pp);
+};
+
 struct pp_smu_funcs {
 	struct pp_smu ctx;
 	union {
 		struct pp_smu_funcs_rv rv_funcs;
 		struct pp_smu_funcs_nv nv_funcs;
 		struct pp_smu_funcs_rn rn_funcs;
-
+		struct pp_smu_funcs_vgh vgh_funcs;
 	};
 };
 

@@ -41,8 +41,7 @@
 	dpp->tf_shift->field_name, dpp->tf_mask->field_name
 
 
-void dpp30_read_state(struct dpp *dpp_base,
-		struct dcn_dpp_state *s)
+static void dpp30_read_state(struct dpp *dpp_base, struct dcn_dpp_state *s)
 {
 	struct dcn20_dpp *dpp = TO_DCN20_DPP(dpp_base);
 
@@ -245,7 +244,8 @@ static void dpp3_cnv_setup (
 		select = INPUT_CSC_SELECT_ICSC;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
-		pixel_format = 22;
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
+		pixel_format = 26; /* ARGB16161616_UNORM */
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
 		pixel_format = 24;
@@ -372,7 +372,7 @@ void dpp3_set_cursor_attributes(
 }
 
 
-bool dpp3_get_optimal_number_of_taps(
+static bool dpp3_get_optimal_number_of_taps(
 		struct dpp *dpp,
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps)
@@ -381,13 +381,6 @@ bool dpp3_get_optimal_number_of_taps(
 	int max_taps_y, max_taps_c;
 	int min_taps_y, min_taps_c;
 	enum lb_memory_config lb_config;
-
-	/* Some ASICs does not support  FP16 scaling, so we reject modes require this*/
-	if (scl_data->viewport.width  != scl_data->h_active &&
-		scl_data->viewport.height != scl_data->v_active &&
-		dpp->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT &&
-		scl_data->format == PIXEL_FORMAT_FP16)
-		return false;
 
 	if (scl_data->viewport.width > scl_data->h_active &&
 		dpp->ctx->dc->debug.max_downscale_src_width != 0 &&
@@ -480,18 +473,51 @@ bool dpp3_get_optimal_number_of_taps(
 	return true;
 }
 
-void dpp3_cnv_set_bias_scale(
-		struct dpp *dpp_base,
-		struct  dc_bias_and_scale *bias_and_scale)
+static void dpp3_deferred_update(struct dpp *dpp_base)
 {
+	int bypass_state;
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 
-	REG_UPDATE(FCNV_FP_BIAS_R, FCNV_FP_BIAS_R, bias_and_scale->bias_red);
-	REG_UPDATE(FCNV_FP_BIAS_G, FCNV_FP_BIAS_G, bias_and_scale->bias_green);
-	REG_UPDATE(FCNV_FP_BIAS_B, FCNV_FP_BIAS_B, bias_and_scale->bias_blue);
-	REG_UPDATE(FCNV_FP_SCALE_R, FCNV_FP_SCALE_R, bias_and_scale->scale_red);
-	REG_UPDATE(FCNV_FP_SCALE_G, FCNV_FP_SCALE_G, bias_and_scale->scale_green);
-	REG_UPDATE(FCNV_FP_SCALE_B, FCNV_FP_SCALE_B, bias_and_scale->scale_blue);
+	if (dpp_base->deferred_reg_writes.bits.disable_dscl) {
+		REG_UPDATE(DSCL_MEM_PWR_CTRL, LUT_MEM_PWR_FORCE, 3);
+		dpp_base->deferred_reg_writes.bits.disable_dscl = false;
+	}
+
+	if (dpp_base->deferred_reg_writes.bits.disable_gamcor) {
+		REG_GET(CM_GAMCOR_CONTROL, CM_GAMCOR_MODE_CURRENT, &bypass_state);
+		if (bypass_state == 0) {	// only program if bypass was latched
+			REG_UPDATE(CM_MEM_PWR_CTRL, GAMCOR_MEM_PWR_FORCE, 3);
+		} else
+			ASSERT(0); // LUT select was updated again before vupdate
+		dpp_base->deferred_reg_writes.bits.disable_gamcor = false;
+	}
+
+	if (dpp_base->deferred_reg_writes.bits.disable_blnd_lut) {
+		REG_GET(CM_BLNDGAM_CONTROL, CM_BLNDGAM_MODE_CURRENT, &bypass_state);
+		if (bypass_state == 0) {	// only program if bypass was latched
+			REG_UPDATE(CM_MEM_PWR_CTRL, BLNDGAM_MEM_PWR_FORCE, 3);
+		} else
+			ASSERT(0); // LUT select was updated again before vupdate
+		dpp_base->deferred_reg_writes.bits.disable_blnd_lut = false;
+	}
+
+	if (dpp_base->deferred_reg_writes.bits.disable_3dlut) {
+		REG_GET(CM_3DLUT_MODE, CM_3DLUT_MODE_CURRENT, &bypass_state);
+		if (bypass_state == 0) {	// only program if bypass was latched
+			REG_UPDATE(CM_MEM_PWR_CTRL2, HDR3DLUT_MEM_PWR_FORCE, 3);
+		} else
+			ASSERT(0); // LUT select was updated again before vupdate
+		dpp_base->deferred_reg_writes.bits.disable_3dlut = false;
+	}
+
+	if (dpp_base->deferred_reg_writes.bits.disable_shaper) {
+		REG_GET(CM_SHAPER_CONTROL, CM_SHAPER_MODE_CURRENT, &bypass_state);
+		if (bypass_state == 0) {	// only program if bypass was latched
+			REG_UPDATE(CM_MEM_PWR_CTRL2, SHAPER_MEM_PWR_FORCE, 3);
+		} else
+			ASSERT(0); // LUT select was updated again before vupdate
+		dpp_base->deferred_reg_writes.bits.disable_shaper = false;
+	}
 }
 
 static void dpp3_power_on_blnd_lut(
@@ -500,9 +526,52 @@ static void dpp3_power_on_blnd_lut(
 {
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 
-	REG_SET(CM_MEM_PWR_CTRL, 0,
-			BLNDGAM_MEM_PWR_FORCE, power_on == true ? 0:1);
+	if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm) {
+		if (power_on) {
+			REG_UPDATE(CM_MEM_PWR_CTRL, BLNDGAM_MEM_PWR_FORCE, 0);
+			REG_WAIT(CM_MEM_PWR_STATUS, BLNDGAM_MEM_PWR_STATE, 0, 1, 5);
+		} else {
+			dpp_base->ctx->dc->optimized_required = true;
+			dpp_base->deferred_reg_writes.bits.disable_blnd_lut = true;
+		}
+	} else {
+		REG_SET(CM_MEM_PWR_CTRL, 0,
+				BLNDGAM_MEM_PWR_FORCE, power_on == true ? 0 : 1);
+	}
+}
 
+static void dpp3_power_on_hdr3dlut(
+	struct dpp *dpp_base,
+	bool power_on)
+{
+	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
+
+	if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm) {
+		if (power_on) {
+			REG_UPDATE(CM_MEM_PWR_CTRL2, HDR3DLUT_MEM_PWR_FORCE, 0);
+			REG_WAIT(CM_MEM_PWR_STATUS2, HDR3DLUT_MEM_PWR_STATE, 0, 1, 5);
+		} else {
+			dpp_base->ctx->dc->optimized_required = true;
+			dpp_base->deferred_reg_writes.bits.disable_3dlut = true;
+		}
+	}
+}
+
+static void dpp3_power_on_shaper(
+	struct dpp *dpp_base,
+	bool power_on)
+{
+	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
+
+	if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm) {
+		if (power_on) {
+			REG_UPDATE(CM_MEM_PWR_CTRL2, SHAPER_MEM_PWR_FORCE, 0);
+			REG_WAIT(CM_MEM_PWR_STATUS2, SHAPER_MEM_PWR_STATE, 0, 1, 5);
+		} else {
+			dpp_base->ctx->dc->optimized_required = true;
+			dpp_base->deferred_reg_writes.bits.disable_shaper = true;
+		}
+	}
 }
 
 static void dpp3_configure_blnd_lut(
@@ -666,8 +735,8 @@ static enum dc_lut_mode dpp3_get_blndgam_current(struct dpp *dpp_base)
 		return mode;
 }
 
-bool dpp3_program_blnd_lut(
-	struct dpp *dpp_base, const struct pwl_params *params)
+static bool dpp3_program_blnd_lut(struct dpp *dpp_base,
+				  const struct pwl_params *params)
 {
 	enum dc_lut_mode current_mode;
 	enum dc_lut_mode next_mode;
@@ -675,6 +744,8 @@ bool dpp3_program_blnd_lut(
 
 	if (params == NULL) {
 		REG_SET(CM_BLNDGAM_CONTROL, 0, CM_BLNDGAM_MODE, 0);
+		if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm)
+			dpp3_power_on_blnd_lut(dpp_base, false);
 		return false;
 	}
 
@@ -685,7 +756,7 @@ bool dpp3_program_blnd_lut(
 		next_mode = LUT_RAM_B;
 
 	dpp3_power_on_blnd_lut(dpp_base, true);
-	dpp3_configure_blnd_lut(dpp_base, next_mode == LUT_RAM_A ? true:false);
+	dpp3_configure_blnd_lut(dpp_base, next_mode == LUT_RAM_A);
 
 	if (next_mode == LUT_RAM_A)
 		dpp3_program_blnd_luta_settings(dpp_base, params);
@@ -1077,9 +1148,8 @@ static void dpp3_program_shaper_lutb_settings(
 }
 
 
-bool dpp3_program_shaper(
-		struct dpp *dpp_base,
-		const struct pwl_params *params)
+static bool dpp3_program_shaper(struct dpp *dpp_base,
+				const struct pwl_params *params)
 {
 	enum dc_lut_mode current_mode;
 	enum dc_lut_mode next_mode;
@@ -1088,8 +1158,14 @@ bool dpp3_program_shaper(
 
 	if (params == NULL) {
 		REG_SET(CM_SHAPER_CONTROL, 0, CM_SHAPER_LUT_MODE, 0);
+		if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm)
+			dpp3_power_on_shaper(dpp_base, false);
 		return false;
 	}
+
+	if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm)
+		dpp3_power_on_shaper(dpp_base, true);
+
 	current_mode = dpp3_get_shaper_current(dpp_base);
 
 	if (current_mode == LUT_BYPASS || current_mode == LUT_RAM_A)
@@ -1097,7 +1173,7 @@ bool dpp3_program_shaper(
 	else
 		next_mode = LUT_RAM_A;
 
-	dpp3_configure_shaper_lut(dpp_base, next_mode == LUT_RAM_A ? true:false);
+	dpp3_configure_shaper_lut(dpp_base, next_mode == LUT_RAM_A);
 
 	if (next_mode == LUT_RAM_A)
 		dpp3_program_shaper_luta_settings(dpp_base, params);
@@ -1262,9 +1338,8 @@ static void dpp3_select_3dlut_ram_mask(
 	REG_SET(CM_3DLUT_INDEX, 0, CM_3DLUT_INDEX, 0);
 }
 
-bool dpp3_program_3dlut(
-		struct dpp *dpp_base,
-		struct tetrahedral_params *params)
+static bool dpp3_program_3dlut(struct dpp *dpp_base,
+			       struct tetrahedral_params *params)
 {
 	enum dc_lut_mode mode;
 	bool is_17x17x17;
@@ -1278,8 +1353,14 @@ bool dpp3_program_3dlut(
 
 	if (params == NULL) {
 		dpp3_set_3dlut_mode(dpp_base, LUT_BYPASS, false, false);
+		if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm)
+			dpp3_power_on_hdr3dlut(dpp_base, false);
 		return false;
 	}
+
+	if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm)
+		dpp3_power_on_hdr3dlut(dpp_base, true);
+
 	mode = get3dlut_config(dpp_base, &is_17x17x17, &is_12bits_color_channel);
 
 	if (mode == LUT_BYPASS || mode == LUT_RAM_B)
@@ -1358,16 +1439,10 @@ static struct dpp_funcs dcn30_dpp_funcs = {
 	.dpp_program_degamma_pwl	= NULL,
 	.dpp_program_cm_dealpha = dpp3_program_cm_dealpha,
 	.dpp_program_cm_bias = dpp3_program_cm_bias,
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	.dpp_program_blnd_lut = dpp3_program_blnd_lut,
 	.dpp_program_shaper_lut = dpp3_program_shaper,
 	.dpp_program_3dlut = dpp3_program_3dlut,
-#else
-	.dpp_program_blnd_lut		= NULL,
-	.dpp_program_shaper_lut		= NULL,
-	.dpp_program_3dlut		= NULL,
-#endif
-
+	.dpp_deferred_update = dpp3_deferred_update,
 	.dpp_program_bias_and_scale	= NULL,
 	.dpp_cnv_set_alpha_keyer	= dpp2_cnv_set_alpha_keyer,
 	.set_cursor_attributes		= dpp3_set_cursor_attributes,
@@ -1400,14 +1475,6 @@ bool dpp3_construct(
 	dpp->tf_regs = tf_regs;
 	dpp->tf_shift = tf_shift;
 	dpp->tf_mask = tf_mask;
-
-	dpp->lb_pixel_depth_supported =
-		LB_PIXEL_DEPTH_18BPP |
-		LB_PIXEL_DEPTH_24BPP |
-		LB_PIXEL_DEPTH_30BPP;
-
-	dpp->lb_bits_per_entry = LB_BITS_PER_ENTRY;
-	dpp->lb_memory_size = LB_TOTAL_NUMBER_OF_ENTRIES; /*0x1404*/
 
 	return true;
 }

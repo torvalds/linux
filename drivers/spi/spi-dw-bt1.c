@@ -84,7 +84,7 @@ static void dw_spi_bt1_dirmap_copy_from_map(void *to, void __iomem *from, size_t
 	if (shift) {
 		chunk = min_t(size_t, 4 - shift, len);
 		data = readl_relaxed(from - shift);
-		memcpy(to, &data + shift, chunk);
+		memcpy(to, (char *)&data + shift, chunk);
 		from += chunk;
 		to += chunk;
 		len -= chunk;
@@ -123,7 +123,7 @@ static ssize_t dw_spi_bt1_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	len = min_t(size_t, len, dwsbt1->map_len - offs);
 
 	/* Collect the controller configuration required by the operation */
-	cfg.tmode = SPI_TMOD_EPROMREAD;
+	cfg.tmode = DW_SPI_CTRLR0_TMOD_EPROMREAD;
 	cfg.dfs = 8;
 	cfg.ndf = 4;
 	cfg.freq = mem->spi->max_speed_hz;
@@ -131,13 +131,13 @@ static ssize_t dw_spi_bt1_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	/* Make sure the corresponding CS is de-asserted on transmission */
 	dw_spi_set_cs(mem->spi, false);
 
-	spi_enable_chip(dws, 0);
+	dw_spi_enable_chip(dws, 0);
 
 	dw_spi_update_config(dws, mem->spi, &cfg);
 
-	spi_umask_intr(dws, SPI_INT_RXFI);
+	dw_spi_umask_intr(dws, DW_SPI_INT_RXFI);
 
-	spi_enable_chip(dws, 1);
+	dw_spi_enable_chip(dws, 1);
 
 	/*
 	 * Enable the transparent mode of the System Boot Controller.
@@ -217,7 +217,7 @@ static int dw_spi_bt1_sys_init(struct platform_device *pdev,
 	if (mem) {
 		dwsbt1->map = devm_ioremap_resource(&pdev->dev, mem);
 		if (!IS_ERR(dwsbt1->map)) {
-			dwsbt1->map_len = (mem->end - mem->start + 1);
+			dwsbt1->map_len = resource_size(mem);
 			dws->mem_ops.dirmap_create = dw_spi_bt1_dirmap_create;
 			dws->mem_ops.dirmap_read = dw_spi_bt1_dirmap_read;
 		} else {
@@ -280,8 +280,10 @@ static int dw_spi_bt1_probe(struct platform_device *pdev)
 	dws->bus_num = pdev->id;
 	dws->reg_io_width = 4;
 	dws->max_freq = clk_get_rate(dwsbt1->clk);
-	if (!dws->max_freq)
+	if (!dws->max_freq) {
+		ret = -EINVAL;
 		goto err_disable_clk;
+	}
 
 	init_func = device_get_match_data(&pdev->dev);
 	ret = init_func(pdev, dwsbt1);
@@ -337,3 +339,4 @@ module_platform_driver(dw_spi_bt1_driver);
 MODULE_AUTHOR("Serge Semin <Sergey.Semin@baikalelectronics.ru>");
 MODULE_DESCRIPTION("Baikal-T1 System Boot SPI Controller driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(SPI_DW_CORE);

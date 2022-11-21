@@ -50,13 +50,6 @@
 			linux,code = <KEY_VOLUMEDOWN>;
 		};
 
-		hp-det {
-			label = "HP_DET";
-			gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
-			wakeup-source;
-			linux,code = <KEY_HP>;
-		};
-
 		wwan-wake {
 			label = "WWAN_WAKE";
 			gpios = <&gpio3 8 GPIO_ACTIVE_LOW>;
@@ -163,21 +156,35 @@
 		#sound-dai-cells = <0>;
 	};
 
+	mic_mux: mic-mux {
+		compatible = "simple-audio-mux";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_micsel>;
+		mux-gpios = <&gpio5 5 GPIO_ACTIVE_LOW>;
+		sound-name-prefix = "Mic Mux";
+	};
+
 	sound {
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "sgtl5000";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hpdet>;
+		simple-audio-card,aux-devs = <&speaker_amp>, <&mic_mux>;
+		simple-audio-card,name = "Librem 5 Devkit";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,widgets =
-			"Microphone", "Microphone Jack",
-			"Headphone", "Headphone Jack",
-			"Speaker", "Speaker Ext",
-			"Line", "Line In Jack";
+			"Microphone", "Builtin Microphone",
+			"Microphone", "Headset Microphone",
+			"Headphone", "Headphones",
+			"Speaker", "Builtin Speaker";
 		simple-audio-card,routing =
-			"MIC_IN", "Microphone Jack",
-			"Microphone Jack", "Mic Bias",
-			"LINE_IN", "Line In Jack",
-			"Headphone Jack", "HP_OUT",
-			"Speaker Ext", "LINE_OUT";
+			"MIC_IN", "Mic Mux OUT",
+			"Mic Mux IN1", "Headset Microphone",
+			"Mic Mux IN2", "Builtin Microphone",
+			"Mic Mux OUT", "Mic Bias",
+			"Headphones", "HP_OUT",
+			"Builtin Speaker", "Speaker Amp OUTR",
+			"Speaker Amp INR", "LINE_OUT";
+		simple-audio-card,hp-det-gpio = <&gpio3 20 GPIO_ACTIVE_HIGH>;
 
 		simple-audio-card,cpu {
 			sound-dai = <&sai2>;
@@ -205,6 +212,15 @@
 			frame-master;
 			bitclock-master;
 		};
+	};
+
+	speaker_amp: speaker-amp {
+		compatible = "simple-audio-amplifier";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_spkamp>;
+		VCC-supply = <&reg_3v3_p>;
+		sound-name-prefix = "Speaker Amp";
+		enable-gpios = <&gpio5 3 GPIO_ACTIVE_HIGH>;
 	};
 
 	vibrator {
@@ -242,11 +258,6 @@
 
 &A53_3 {
 	cpu-supply = <&buck2_reg>;
-};
-
-&clk {
-	assigned-clocks = <&clk IMX8MQ_AUDIO_PLL1>, <&clk IMX8MQ_AUDIO_PLL2>;
-	assigned-clock-rates = <786432000>, <722534400>;
 };
 
 &dphy {
@@ -298,6 +309,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-boot-on;
+				regulator-always-on;
 				regulator-ramp-delay = <1250>;
 				rohm,dvs-run-voltage = <900000>;
 				rohm,dvs-idle-voltage = <850000>;
@@ -334,6 +346,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 
 			buck6_reg: BUCK6 {
@@ -341,6 +354,7 @@
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 
 			buck7_reg: BUCK7 {
@@ -348,6 +362,7 @@
 				regulator-min-microvolt = <1605000>;
 				regulator-max-microvolt = <1995000>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 
 			buck8_reg: BUCK8 {
@@ -355,6 +370,7 @@
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1400000>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 
 			ldo1_reg: LDO1 {
@@ -380,6 +396,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 
 			ldo4_reg: LDO4 {
@@ -387,12 +404,14 @@
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 
 			ldo5_reg: LDO5 {
 				regulator-name = "ldo5";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
 			};
 
 			ldo6_reg: LDO6 {
@@ -400,6 +419,7 @@
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 
 			ldo7_reg: LDO7 {
@@ -407,6 +427,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 		};
 	};
@@ -604,7 +625,6 @@
 		fsl,pins = <
 			MX8MQ_IOMUXC_SAI2_RXFS_GPIO4_IO21	0x16
 			MX8MQ_IOMUXC_SAI2_RXC_GPIO4_IO22	0x16
-			MX8MQ_IOMUXC_SAI5_RXC_GPIO3_IO20	0x180  /* HP_DET */
 			MX8MQ_IOMUXC_NAND_DATA02_GPIO3_IO8	0x80   /* nWoWWAN */
 		>;
 	};
@@ -612,6 +632,12 @@
 	pinctrl_haptic: hapticgrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_SPDIF_RX_GPIO5_IO4		0xc6   /* nHAPTIC */
+		>;
+	};
+
+	pinctrl_hpdet: hpdetgrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SAI5_RXC_GPIO3_IO20	0xC0   /* HP_DET */
 		>;
 	};
 
@@ -632,6 +658,18 @@
 	pinctrl_imu: imugrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_SAI5_RXFS_GPIO3_IO19	0x8  /* IMU_INT */
+		>;
+	};
+
+	pinctrl_micsel: micselgrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5	0xc6  /* MIC_SEL */
+		>;
+	};
+
+	pinctrl_spkamp: spkamp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SPDIF_TX_GPIO5_IO3		0x81  /* MUTE */
 		>;
 	};
 
@@ -884,6 +922,10 @@
 
 &snvs_pwrkey {
 	status = "okay";
+};
+
+&snvs_rtc {
+	status = "disabled";
 };
 
 &sai2 {

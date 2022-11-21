@@ -33,7 +33,6 @@ struct gb_sdio_host {
 	bool			read_only;
 };
 
-
 #define GB_SDIO_RSP_R1_R5_R6_R7	(GB_SDIO_RSP_PRESENT | GB_SDIO_RSP_CRC | \
 				 GB_SDIO_RSP_OPCODE)
 #define GB_SDIO_RSP_R3_R4	(GB_SDIO_RSP_PRESENT)
@@ -859,7 +858,6 @@ static void gb_sdio_remove(struct gbphy_device *gbphy_dev)
 	gb_connection_set_data(connection, NULL);
 	mutex_unlock(&host->lock);
 
-	flush_workqueue(host->mrq_workqueue);
 	destroy_workqueue(host->mrq_workqueue);
 	gb_connection_disable_rx(connection);
 	mmc_remove_host(mmc);

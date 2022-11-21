@@ -109,6 +109,7 @@ extern unsigned long end_iomem;
 #define p4d_newpage(x)  (p4d_val(x) & _PAGE_NEWPAGE)
 #define p4d_mkuptodate(x) (p4d_val(x) &= ~_PAGE_NEWPAGE)
 
+#define pmd_pfn(pmd) (pmd_val(pmd) >> PAGE_SHIFT)
 #define pmd_page(pmd) phys_to_page(pmd_val(pmd) & PAGE_MASK)
 
 #define pte_page(x) pfn_to_page(pte_pfn(x))
@@ -302,7 +303,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 struct mm_struct;
 extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
 
-#define update_mmu_cache(vma,address,ptep) do ; while (0)
+#define update_mmu_cache(vma,address,ptep) do {} while (0)
 
 /* Encode and de-code a swap entry */
 #define __swp_type(x)			(((x).val >> 5) & 0x1f)

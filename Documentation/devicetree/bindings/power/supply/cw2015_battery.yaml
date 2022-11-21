@@ -14,6 +14,9 @@ description: |
   phandle in monitored-battery. If specified the driver uses the
   charge-full-design-microamp-hours property of the battery.
 
+allOf:
+  - $ref: power-supply.yaml#
+
 properties:
   compatible:
     const: cellwise,cw2015
@@ -27,7 +30,7 @@ properties:
       of this binary blob is kept secret by CellWise. The only way to obtain
       it is to mail two batteries to a test facility of CellWise and receive
       back a test report with the binary blob.
-    $ref: /schemas/types.yaml#definitions/uint8-array
+    $ref: /schemas/types.yaml#/definitions/uint8-array
     minItems: 64
     maxItems: 64
 
@@ -37,9 +40,6 @@ properties:
     minimum: 250
 
   power-supplies:
-    description:
-      Specifies supplies used for charging the battery connected to this gauge
-    $ref: /schemas/types.yaml#/definitions/phandle-array
     minItems: 1
     maxItems: 8 # Should be enough
 
@@ -61,7 +61,7 @@ examples:
         #size-cells = <0>;
 
         cw2015@62 {
-            compatible = "cellwise,cw201x";
+            compatible = "cellwise,cw2015";
             reg = <0x62>;
             cellwise,battery-profile = /bits/ 8 <
                 0x17 0x67 0x80 0x73 0x6E 0x6C 0x6B 0x63

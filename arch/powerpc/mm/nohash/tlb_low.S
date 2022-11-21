@@ -92,36 +92,25 @@ _GLOBAL(__tlbil_va)
 	tlbsx.	r6,0,r3
 	bne	10f
 	sync
-BEGIN_MMU_FTR_SECTION
-	b	2f
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
+#ifndef CONFIG_PPC_47x
 	/* On 440 There are only 64 TLB entries, so r3 < 64, which means bit
 	 * 22, is clear.  Since 22 is the V bit in the TLB_PAGEID, loading this
 	 * value will invalidate the TLB entry.
 	 */
 	tlbwe	r6,r6,PPC44x_TLB_PAGEID
-	isync
-10:	wrtee	r10
-	blr
-2:
-#ifdef CONFIG_PPC_47x
+#else
 	oris	r7,r6,0x8000	/* specify way explicitly */
 	clrrwi	r4,r3,12	/* get an EPN for the hashing with V = 0 */
 	ori	r4,r4,PPC47x_TLBE_SIZE
 	tlbwe   r4,r7,0		/* write it */
-	isync
-	wrtee	r10
-	blr
-#else /* CONFIG_PPC_47x */
-1:	trap
-	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0;
 #endif /* !CONFIG_PPC_47x */
+	isync
+10:	wrtee	r10
+	blr
 
 _GLOBAL(_tlbil_all)
 _GLOBAL(_tlbil_pid)
-BEGIN_MMU_FTR_SECTION
-	b	2f
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
+#ifndef CONFIG_PPC_47x
 	li	r3,0
 	sync
 
@@ -136,8 +125,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
 
 	isync
 	blr
-2:
-#ifdef CONFIG_PPC_47x
+#else
 	/* 476 variant. There's not simple way to do this, hopefully we'll
 	 * try to limit the amount of such full invalidates
 	 */
@@ -179,11 +167,8 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
 	b	1b		/* Then loop */
 1:	isync			/* Sync shadows */
 	wrtee	r11
-#else /* CONFIG_PPC_47x */
-1:	trap
-	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0;
-#endif /* !CONFIG_PPC_47x */
 	blr
+#endif /* !CONFIG_PPC_47x */
 
 #ifdef CONFIG_PPC_47x
 
@@ -214,7 +199,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_476_DD2)
  * Touch enough instruction cache lines to ensure cache hits
  */
 1:	mflr	r9
-	bl	2f
+	bcl	20,31,$+4
 2:	mflr	r6
 	li	r7,32
 	PPC_ICBT(0,R6,R7)		/* touch next cache line */
@@ -375,19 +360,6 @@ _GLOBAL(_tlbivax_bcast)
 	sync
 	wrtee	r10
 	blr
-
-_GLOBAL(set_context)
-#ifdef CONFIG_BDI_SWITCH
-	/* Context switch the PTE pointer for the Abatron BDI2000.
-	 * The PGDIR is the second parameter.
-	 */
-	lis	r5, abatron_pteptrs@h
-	ori	r5, r5, abatron_pteptrs@l
-	stw	r4, 0x4(r5)
-#endif
-	mtspr	SPRN_PID,r3
-	isync			/* Force context change */
-	blr
 #else
 #error Unsupported processor type !
 #endif
@@ -397,7 +369,7 @@ _GLOBAL(set_context)
  * extern void loadcam_entry(unsigned int index)
  *
  * Load TLBCAM[index] entry in to the L2 CAM MMU
- * Must preserve r7, r8, r9, r10 and r11
+ * Must preserve r7, r8, r9, r10, r11, r12
  */
 _GLOBAL(loadcam_entry)
 	mflr	r5
@@ -429,7 +401,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
  *
  * r3 = first entry to write
  * r4 = number of entries to write
- * r5 = temporary tlb entry
+ * r5 = temporary tlb entry (0 means no switch to AS1)
  */
 _GLOBAL(loadcam_multi)
 	mflr	r8
@@ -437,12 +409,14 @@ _GLOBAL(loadcam_multi)
 	mfmsr	r11
 	andi.	r11,r11,MSR_IS
 	bne	10f
+	mr.	r12, r5
+	beq	10f
 
 	/*
 	 * Set up temporary TLB entry that is the same as what we're
 	 * running from, but in AS=1.
 	 */
-	bl	1f
+	bcl	20,31,$+4
 1:	mflr	r6
 	tlbsx	0,r8
 	mfspr	r6,SPRN_MAS1
@@ -474,6 +448,8 @@ _GLOBAL(loadcam_multi)
 	/* Don't return to AS=0 if we were in AS=1 at function start */
 	andi.	r11,r11,MSR_IS
 	bne	3f
+	cmpwi	r12, 0
+	beq	3f
 
 	/* Return to AS=0 and clear the temporary entry */
 	mfmsr	r6

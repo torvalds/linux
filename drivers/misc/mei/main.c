@@ -50,8 +50,6 @@ static int mei_open(struct inode *inode, struct file *file)
 	int err;
 
 	dev = container_of(inode->i_cdev, struct mei_device, cdev);
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->device_lock);
 
@@ -1026,7 +1024,7 @@ static ssize_t tx_queue_limit_show(struct device *device,
 	size = dev->tx_queue_limit;
 	mutex_unlock(&dev->device_lock);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", size);
+	return sysfs_emit(buf, "%u\n", size);
 }
 
 static ssize_t tx_queue_limit_store(struct device *device,
@@ -1104,7 +1102,7 @@ static ssize_t dev_state_show(struct device *device,
 static DEVICE_ATTR_RO(dev_state);
 
 /**
- * dev_set_devstate: set to new device state and notify sysfs file.
+ * mei_set_devstate: set to new device state and notify sysfs file.
  *
  * @dev: mei_device
  * @state: new device state

@@ -240,14 +240,10 @@ static int tua9001_remove(struct i2c_client *client)
 				   DVB_FRONTEND_COMPONENT_TUNER,
 				   TUA9001_CMD_CEN, 0);
 		if (ret)
-			goto err_kfree;
+			dev_err(&client->dev, "Tuner disable failed (%pe)\n", ERR_PTR(ret));
 	}
 	kfree(dev);
 	return 0;
-err_kfree:
-	kfree(dev);
-	dev_dbg(&client->dev, "failed=%d\n", ret);
-	return ret;
 }
 
 static const struct i2c_device_id tua9001_id_table[] = {

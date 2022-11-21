@@ -27,14 +27,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	int next_key_ret = 0;
 	u64 last_ret = 0;
 
-	if (root->fs_info->extent_root == root) {
-		/*
-		 * there's recursion here right now in the tree locking,
-		 * we can't defrag the extent root without deadlock
-		 */
-		goto out;
-	}
-
 	if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
 		goto out;
 
@@ -52,7 +44,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		u32 nritems;
 
 		root_node = btrfs_lock_root_node(root);
-		btrfs_set_lock_blocking_write(root_node);
 		nritems = btrfs_header_nritems(root_node);
 		root->defrag_max.objectid = 0;
 		/* from above we know this is not a leaf */

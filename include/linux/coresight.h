@@ -7,6 +7,7 @@
 #define _LINUX_CORESIGHT_H
 
 #include <linux/device.h>
+#include <linux/io.h>
 #include <linux/perf_event.h>
 #include <linux/sched.h>
 
@@ -35,7 +36,6 @@
 extern struct bus_type coresight_bustype;
 
 enum coresight_dev_type {
-	CORESIGHT_DEV_TYPE_NONE,
 	CORESIGHT_DEV_TYPE_SINK,
 	CORESIGHT_DEV_TYPE_LINK,
 	CORESIGHT_DEV_TYPE_LINKSINK,
@@ -45,28 +45,25 @@ enum coresight_dev_type {
 };
 
 enum coresight_dev_subtype_sink {
-	CORESIGHT_DEV_SUBTYPE_SINK_NONE,
 	CORESIGHT_DEV_SUBTYPE_SINK_PORT,
 	CORESIGHT_DEV_SUBTYPE_SINK_BUFFER,
 	CORESIGHT_DEV_SUBTYPE_SINK_SYSMEM,
+	CORESIGHT_DEV_SUBTYPE_SINK_PERCPU_SYSMEM,
 };
 
 enum coresight_dev_subtype_link {
-	CORESIGHT_DEV_SUBTYPE_LINK_NONE,
 	CORESIGHT_DEV_SUBTYPE_LINK_MERG,
 	CORESIGHT_DEV_SUBTYPE_LINK_SPLIT,
 	CORESIGHT_DEV_SUBTYPE_LINK_FIFO,
 };
 
 enum coresight_dev_subtype_source {
-	CORESIGHT_DEV_SUBTYPE_SOURCE_NONE,
 	CORESIGHT_DEV_SUBTYPE_SOURCE_PROC,
 	CORESIGHT_DEV_SUBTYPE_SOURCE_BUS,
 	CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE,
 };
 
 enum coresight_dev_subtype_helper {
-	CORESIGHT_DEV_SUBTYPE_HELPER_NONE,
 	CORESIGHT_DEV_SUBTYPE_HELPER_CATU,
 };
 
@@ -115,6 +112,32 @@ struct coresight_platform_data {
 };
 
 /**
+ * struct csdev_access - Abstraction of a CoreSight device access.
+ *
+ * @io_mem	: True if the device has memory mapped I/O
+ * @base	: When io_mem == true, base address of the component
+ * @read	: Read from the given "offset" of the given instance.
+ * @write	: Write "val" to the given "offset".
+ */
+struct csdev_access {
+	bool io_mem;
+	union {
+		void __iomem *base;
+		struct {
+			u64 (*read)(u32 offset, bool relaxed, bool _64bit);
+			void (*write)(u64 val, u32 offset, bool relaxed,
+				      bool _64bit);
+		};
+	};
+};
+
+#define CSDEV_ACCESS_IOMEM(_addr)		\
+	((struct csdev_access)	{		\
+		.io_mem		= true,		\
+		.base		= (_addr),	\
+	})
+
+/**
  * struct coresight_desc - description of a component required from drivers
  * @type:	as defined by @coresight_dev_type.
  * @subtype:	as defined by @coresight_dev_subtype.
@@ -125,6 +148,7 @@ struct coresight_platform_data {
  * @groups:	operations specific to this component. These will end up
  *		in the component's sysfs sub-directory.
  * @name:	name for the coresight device, also shown under sysfs.
+ * @access:	Describe access to the device
  */
 struct coresight_desc {
 	enum coresight_dev_type type;
@@ -134,6 +158,7 @@ struct coresight_desc {
 	struct device *dev;
 	const struct attribute_group **groups;
 	const char *name;
+	struct csdev_access access;
 };
 
 /**
@@ -173,7 +198,8 @@ struct coresight_sysfs_link {
  * @type:	as defined by @coresight_dev_type.
  * @subtype:	as defined by @coresight_dev_subtype.
  * @ops:	generic operations for this component, as defined
-		by @coresight_ops.
+ *		by @coresight_ops.
+ * @access:	Device i/o access abstraction for this device.
  * @dev:	The device entity associated to this component.
  * @refcnt:	keep track of what is in use.
  * @orphan:	true if the component has connections that haven't been linked.
@@ -189,12 +215,17 @@ struct coresight_sysfs_link {
  * @nr_links:   number of sysfs links created to other components from this
  *		device. These will appear in the "connections" group.
  * @has_conns_grp: Have added a "connections" group for sysfs links.
+ * @feature_csdev_list: List of complex feature programming added to the device.
+ * @config_csdev_list:  List of system configurations added to the device.
+ * @cscfg_csdev_lock:	Protect the lists of configurations and features.
+ * @active_cscfg_ctxt:  Context information for current active system configuration.
  */
 struct coresight_device {
 	struct coresight_platform_data *pdata;
 	enum coresight_dev_type type;
 	union coresight_dev_subtype subtype;
 	const struct coresight_ops *ops;
+	struct csdev_access access;
 	struct device dev;
 	atomic_t *refcnt;
 	bool orphan;
@@ -209,6 +240,11 @@ struct coresight_device {
 	int nr_links;
 	bool has_conns_grp;
 	bool ect_enabled; /* true only if associated ect device is enabled */
+	/* system configuration and feature lists */
+	struct list_head feature_csdev_list;
+	struct list_head config_csdev_list;
+	spinlock_t cscfg_csdev_lock;
+	void *active_cscfg_ctxt;
 };
 
 /*
@@ -326,23 +362,145 @@ struct coresight_ops {
 };
 
 #if IS_ENABLED(CONFIG_CORESIGHT)
+
+static inline u32 csdev_access_relaxed_read32(struct csdev_access *csa,
+					      u32 offset)
+{
+	if (likely(csa->io_mem))
+		return readl_relaxed(csa->base + offset);
+
+	return csa->read(offset, true, false);
+}
+
+static inline u32 csdev_access_read32(struct csdev_access *csa, u32 offset)
+{
+	if (likely(csa->io_mem))
+		return readl(csa->base + offset);
+
+	return csa->read(offset, false, false);
+}
+
+static inline void csdev_access_relaxed_write32(struct csdev_access *csa,
+						u32 val, u32 offset)
+{
+	if (likely(csa->io_mem))
+		writel_relaxed(val, csa->base + offset);
+	else
+		csa->write(val, offset, true, false);
+}
+
+static inline void csdev_access_write32(struct csdev_access *csa, u32 val, u32 offset)
+{
+	if (likely(csa->io_mem))
+		writel(val, csa->base + offset);
+	else
+		csa->write(val, offset, false, false);
+}
+
+#ifdef CONFIG_64BIT
+
+static inline u64 csdev_access_relaxed_read64(struct csdev_access *csa,
+					      u32 offset)
+{
+	if (likely(csa->io_mem))
+		return readq_relaxed(csa->base + offset);
+
+	return csa->read(offset, true, true);
+}
+
+static inline u64 csdev_access_read64(struct csdev_access *csa, u32 offset)
+{
+	if (likely(csa->io_mem))
+		return readq(csa->base + offset);
+
+	return csa->read(offset, false, true);
+}
+
+static inline void csdev_access_relaxed_write64(struct csdev_access *csa,
+						u64 val, u32 offset)
+{
+	if (likely(csa->io_mem))
+		writeq_relaxed(val, csa->base + offset);
+	else
+		csa->write(val, offset, true, true);
+}
+
+static inline void csdev_access_write64(struct csdev_access *csa, u64 val, u32 offset)
+{
+	if (likely(csa->io_mem))
+		writeq(val, csa->base + offset);
+	else
+		csa->write(val, offset, false, true);
+}
+
+#else	/* !CONFIG_64BIT */
+
+static inline u64 csdev_access_relaxed_read64(struct csdev_access *csa,
+					      u32 offset)
+{
+	WARN_ON(1);
+	return 0;
+}
+
+static inline u64 csdev_access_read64(struct csdev_access *csa, u32 offset)
+{
+	WARN_ON(1);
+	return 0;
+}
+
+static inline void csdev_access_relaxed_write64(struct csdev_access *csa,
+						u64 val, u32 offset)
+{
+	WARN_ON(1);
+}
+
+static inline void csdev_access_write64(struct csdev_access *csa, u64 val, u32 offset)
+{
+	WARN_ON(1);
+}
+#endif	/* CONFIG_64BIT */
+
+static inline bool coresight_is_percpu_source(struct coresight_device *csdev)
+{
+	return csdev && (csdev->type == CORESIGHT_DEV_TYPE_SOURCE) &&
+	       (csdev->subtype.source_subtype == CORESIGHT_DEV_SUBTYPE_SOURCE_PROC);
+}
+
+static inline bool coresight_is_percpu_sink(struct coresight_device *csdev)
+{
+	return csdev && (csdev->type == CORESIGHT_DEV_TYPE_SINK) &&
+	       (csdev->subtype.sink_subtype == CORESIGHT_DEV_SUBTYPE_SINK_PERCPU_SYSMEM);
+}
+
 extern struct coresight_device *
 coresight_register(struct coresight_desc *desc);
 extern void coresight_unregister(struct coresight_device *csdev);
 extern int coresight_enable(struct coresight_device *csdev);
 extern void coresight_disable(struct coresight_device *csdev);
-extern int coresight_timeout(void __iomem *addr, u32 offset,
+extern int coresight_timeout(struct csdev_access *csa, u32 offset,
 			     int position, int value);
 
-extern int coresight_claim_device(void __iomem *base);
-extern int coresight_claim_device_unlocked(void __iomem *base);
+extern int coresight_claim_device(struct coresight_device *csdev);
+extern int coresight_claim_device_unlocked(struct coresight_device *csdev);
 
-extern void coresight_disclaim_device(void __iomem *base);
-extern void coresight_disclaim_device_unlocked(void __iomem *base);
+extern void coresight_disclaim_device(struct coresight_device *csdev);
+extern void coresight_disclaim_device_unlocked(struct coresight_device *csdev);
 extern char *coresight_alloc_device_name(struct coresight_dev_list *devs,
 					 struct device *dev);
 
 extern bool coresight_loses_context_with_cpu(struct device *dev);
+
+u32 coresight_relaxed_read32(struct coresight_device *csdev, u32 offset);
+u32 coresight_read32(struct coresight_device *csdev, u32 offset);
+void coresight_write32(struct coresight_device *csdev, u32 val, u32 offset);
+void coresight_relaxed_write32(struct coresight_device *csdev,
+			       u32 val, u32 offset);
+u64 coresight_relaxed_read64(struct coresight_device *csdev, u32 offset);
+u64 coresight_read64(struct coresight_device *csdev, u32 offset);
+void coresight_relaxed_write64(struct coresight_device *csdev,
+			       u64 val, u32 offset);
+void coresight_write64(struct coresight_device *csdev, u64 val, u32 offset);
+
 #else
 static inline struct coresight_device *
 coresight_register(struct coresight_desc *desc) { return NULL; }
@@ -350,29 +508,78 @@ static inline void coresight_unregister(struct coresight_device *csdev) {}
 static inline int
 coresight_enable(struct coresight_device *csdev) { return -ENOSYS; }
 static inline void coresight_disable(struct coresight_device *csdev) {}
-static inline int coresight_timeout(void __iomem *addr, u32 offset,
-				     int position, int value) { return 1; }
-static inline int coresight_claim_device_unlocked(void __iomem *base)
+
+static inline int coresight_timeout(struct csdev_access *csa, u32 offset,
+				    int position, int value)
+{
+	return 1;
+}
+
+static inline int coresight_claim_device_unlocked(struct coresight_device *csdev)
 {
 	return -EINVAL;
 }
 
-static inline int coresight_claim_device(void __iomem *base)
+static inline int coresight_claim_device(struct coresight_device *csdev)
 {
 	return -EINVAL;
 }
 
-static inline void coresight_disclaim_device(void __iomem *base) {}
-static inline void coresight_disclaim_device_unlocked(void __iomem *base) {}
+static inline void coresight_disclaim_device(struct coresight_device *csdev) {}
+static inline void coresight_disclaim_device_unlocked(struct coresight_device *csdev) {}
 
 static inline bool coresight_loses_context_with_cpu(struct device *dev)
 {
 	return false;
 }
-#endif
+
+static inline u32 coresight_relaxed_read32(struct coresight_device *csdev, u32 offset)
+{
+	WARN_ON_ONCE(1);
+	return 0;
+}
+
+static inline u32 coresight_read32(struct coresight_device *csdev, u32 offset)
+{
+	WARN_ON_ONCE(1);
+	return 0;
+}
+
+static inline void coresight_write32(struct coresight_device *csdev, u32 val, u32 offset)
+{
+}
+
+static inline void coresight_relaxed_write32(struct coresight_device *csdev,
+					     u32 val, u32 offset)
+{
+}
+
+static inline u64 coresight_relaxed_read64(struct coresight_device *csdev,
+					   u32 offset)
+{
+	WARN_ON_ONCE(1);
+	return 0;
+}
+
+static inline u64 coresight_read64(struct coresight_device *csdev, u32 offset)
+{
+	WARN_ON_ONCE(1);
+	return 0;
+}
+
+static inline void coresight_relaxed_write64(struct coresight_device *csdev,
+					     u64 val, u32 offset)
+{
+}
+
+static inline void coresight_write64(struct coresight_device *csdev, u64 val, u32 offset)
+{
+}
+
+#endif		/* IS_ENABLED(CONFIG_CORESIGHT) */
 
 extern int coresight_get_cpu(struct device *dev);
 
 struct coresight_platform_data *coresight_get_platform_data(struct device *dev);
 
-#endif
+#endif		/* _LINUX_COREISGHT_H */

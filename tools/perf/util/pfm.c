@@ -62,8 +62,16 @@ int parse_libpfm_events_option(const struct option *opt, const char *str,
 		}
 
 		/* no event */
-		if (*q == '\0')
+		if (*q == '\0') {
+			if (*sep == '}') {
+				if (grp_evt < 0) {
+					ui__error("cannot close a non-existing event group\n");
+					goto error;
+				}
+				grp_evt--;
+			}
 			continue;
+		}
 
 		memset(&attr, 0, sizeof(attr));
 		event_attr_init(&attr);
@@ -79,7 +87,8 @@ int parse_libpfm_events_option(const struct option *opt, const char *str,
 
 		pmu = perf_pmu__find_by_type((unsigned int)attr.type);
 		evsel = parse_events__add_event(evlist->core.nr_entries,
-						&attr, q, pmu);
+						&attr, q, /*metric_id=*/NULL,
+						pmu);
 		if (evsel == NULL)
 			goto error;
 
@@ -91,7 +100,7 @@ int parse_libpfm_events_option(const struct option *opt, const char *str,
 			grp_leader = evsel;
 
 		if (grp_evt > -1) {
-			evsel->leader = grp_leader;
+			evsel__set_leader(evsel, grp_leader);
 			grp_leader->core.nr_members++;
 			grp_evt++;
 		}
@@ -102,11 +111,12 @@ int parse_libpfm_events_option(const struct option *opt, const char *str,
 				   "cannot close a non-existing event group\n");
 				goto error;
 			}
-			evlist->nr_groups++;
+			evlist->core.nr_groups++;
 			grp_leader = NULL;
 			grp_evt = -1;
 		}
 	}
+	free(p_orig);
 	return 0;
 error:
 	free(p_orig);

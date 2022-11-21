@@ -40,15 +40,15 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pci-ecam.h>
 #include <linux/delay.h>
 #include <linux/semaphore.h>
-#include <linux/irqdomain.h>
-#include <asm/irqdomain.h>
-#include <asm/apic.h>
 #include <linux/irq.h>
 #include <linux/msi.h>
 #include <linux/hyperv.h>
 #include <linux/refcount.h>
+#include <linux/irqdomain.h>
+#include <linux/acpi.h>
 #include <asm/mshyperv.h>
 
 /*
@@ -64,6 +64,7 @@ enum pci_protocol_version_t {
 	PCI_PROTOCOL_VERSION_1_1 = PCI_MAKE_VERSION(1, 1),	/* Win10 */
 	PCI_PROTOCOL_VERSION_1_2 = PCI_MAKE_VERSION(1, 2),	/* RS1 */
 	PCI_PROTOCOL_VERSION_1_3 = PCI_MAKE_VERSION(1, 3),	/* Vibranium */
+	PCI_PROTOCOL_VERSION_1_4 = PCI_MAKE_VERSION(1, 4),	/* WS2022 */
 };
 
 #define CPU_AFFINITY_ALL	-1ULL
@@ -73,6 +74,7 @@ enum pci_protocol_version_t {
  * first.
  */
 static enum pci_protocol_version_t pci_protocol_versions[] = {
+	PCI_PROTOCOL_VERSION_1_4,
 	PCI_PROTOCOL_VERSION_1_3,
 	PCI_PROTOCOL_VERSION_1_2,
 	PCI_PROTOCOL_VERSION_1_1,
@@ -122,6 +124,8 @@ enum pci_message_type {
 	PCI_CREATE_INTERRUPT_MESSAGE2	= PCI_MESSAGE_BASE + 0x17,
 	PCI_DELETE_INTERRUPT_MESSAGE2	= PCI_MESSAGE_BASE + 0x18, /* unused */
 	PCI_BUS_RELATIONS2		= PCI_MESSAGE_BASE + 0x19,
+	PCI_RESOURCES_ASSIGNED3         = PCI_MESSAGE_BASE + 0x1A,
+	PCI_CREATE_INTERRUPT_MESSAGE3   = PCI_MESSAGE_BASE + 0x1B,
 	PCI_MESSAGE_MAXIMUM
 };
 
@@ -230,6 +234,21 @@ struct hv_msi_desc {
 struct hv_msi_desc2 {
 	u8	vector;
 	u8	delivery_mode;
+	u16	vector_count;
+	u16	processor_count;
+	u16	processor_array[32];
+} __packed;
+
+/*
+ * struct hv_msi_desc3 - 1.3 version of hv_msi_desc
+ *	Everything is the same as in 'hv_msi_desc2' except that the size of the
+ *	'vector' field is larger to support bigger vector values. For ex: LPI
+ *	vectors on ARM.
+ */
+struct hv_msi_desc3 {
+	u32	vector;
+	u8	delivery_mode;
+	u8	reserved;
 	u16	vector_count;
 	u16	processor_count;
 	u16	processor_array[32];
@@ -383,6 +402,12 @@ struct pci_create_interrupt2 {
 	struct hv_msi_desc2 int_desc;
 } __packed;
 
+struct pci_create_interrupt3 {
+	struct pci_message message_type;
+	union win_slot_encoding wslot;
+	struct hv_msi_desc3 int_desc;
+} __packed;
+
 struct pci_delete_interrupt {
 	struct pci_message message_type;
 	union win_slot_encoding wslot;
@@ -444,16 +469,20 @@ enum hv_pcibus_state {
 	hv_pcibus_probed,
 	hv_pcibus_installed,
 	hv_pcibus_removing,
-	hv_pcibus_removed,
 	hv_pcibus_maximum
 };
 
 struct hv_pcibus_device {
+#ifdef CONFIG_X86
 	struct pci_sysdata sysdata;
+#elif defined(CONFIG_ARM64)
+	struct pci_config_window sysdata;
+#endif
+	struct pci_host_bridge *bridge;
+	struct fwnode_handle *fwnode;
 	/* Protocol version negotiated with the host */
 	enum pci_protocol_version_t protocol_version;
 	enum hv_pcibus_state state;
-	refcount_t remove_lock;
 	struct hv_device *hdev;
 	resource_size_t low_mmio_space;
 	resource_size_t high_mmio_space;
@@ -461,19 +490,15 @@ struct hv_pcibus_device {
 	struct resource *low_mmio_res;
 	struct resource *high_mmio_res;
 	struct completion *survey_event;
-	struct completion remove_event;
 	struct pci_bus *pci_bus;
 	spinlock_t config_lock;	/* Avoid two threads writing index page */
 	spinlock_t device_list_lock;	/* Protect lists below */
 	void __iomem *cfg_addr;
 
-	struct list_head resources_for_children;
-
 	struct list_head children;
 	struct list_head dr_list;
 
 	struct msi_domain_info msi_info;
-	struct msi_controller msi_chip;
 	struct irq_domain *irq_domain;
 
 	spinlock_t retarget_msi_interrupt_lock;
@@ -557,6 +582,378 @@ struct hv_pci_compl {
 
 static void hv_pci_onchannelcallback(void *context);
 
+#ifdef CONFIG_X86
+#define DELIVERY_MODE	APIC_DELIVERY_MODE_FIXED
+#define FLOW_HANDLER	handle_edge_irq
+#define FLOW_NAME	"edge"
+
+static int hv_pci_irqchip_init(void)
+{
+	return 0;
+}
+
+static struct irq_domain *hv_pci_get_root_domain(void)
+{
+	return x86_vector_domain;
+}
+
+static unsigned int hv_msi_get_int_vector(struct irq_data *data)
+{
+	struct irq_cfg *cfg = irqd_cfg(data);
+
+	return cfg->vector;
+}
+
+static void hv_set_msi_entry_from_desc(union hv_msi_entry *msi_entry,
+				       struct msi_desc *msi_desc)
+{
+	msi_entry->address.as_uint32 = msi_desc->msg.address_lo;
+	msi_entry->data.as_uint32 = msi_desc->msg.data;
+}
+
+static int hv_msi_prepare(struct irq_domain *domain, struct device *dev,
+			  int nvec, msi_alloc_info_t *info)
+{
+	return pci_msi_prepare(domain, dev, nvec, info);
+}
+
+/**
+ * hv_arch_irq_unmask() - "Unmask" the IRQ by setting its current
+ * affinity.
+ * @data:	Describes the IRQ
+ *
+ * Build new a destination for the MSI and make a hypercall to
+ * update the Interrupt Redirection Table. "Device Logical ID"
+ * is built out of this PCI bus's instance GUID and the function
+ * number of the device.
+ */
+static void hv_arch_irq_unmask(struct irq_data *data)
+{
+	struct msi_desc *msi_desc = irq_data_get_msi_desc(data);
+	struct hv_retarget_device_interrupt *params;
+	struct hv_pcibus_device *hbus;
+	struct cpumask *dest;
+	cpumask_var_t tmp;
+	struct pci_bus *pbus;
+	struct pci_dev *pdev;
+	unsigned long flags;
+	u32 var_size = 0;
+	int cpu, nr_bank;
+	u64 res;
+
+	dest = irq_data_get_effective_affinity_mask(data);
+	pdev = msi_desc_to_pci_dev(msi_desc);
+	pbus = pdev->bus;
+	hbus = container_of(pbus->sysdata, struct hv_pcibus_device, sysdata);
+
+	spin_lock_irqsave(&hbus->retarget_msi_interrupt_lock, flags);
+
+	params = &hbus->retarget_msi_interrupt_params;
+	memset(params, 0, sizeof(*params));
+	params->partition_id = HV_PARTITION_ID_SELF;
+	params->int_entry.source = HV_INTERRUPT_SOURCE_MSI;
+	hv_set_msi_entry_from_desc(&params->int_entry.msi_entry, msi_desc);
+	params->device_id = (hbus->hdev->dev_instance.b[5] << 24) |
+			   (hbus->hdev->dev_instance.b[4] << 16) |
+			   (hbus->hdev->dev_instance.b[7] << 8) |
+			   (hbus->hdev->dev_instance.b[6] & 0xf8) |
+			   PCI_FUNC(pdev->devfn);
+	params->int_target.vector = hv_msi_get_int_vector(data);
+
+	/*
+	 * Honoring apic->delivery_mode set to APIC_DELIVERY_MODE_FIXED by
+	 * setting the HV_DEVICE_INTERRUPT_TARGET_MULTICAST flag results in a
+	 * spurious interrupt storm. Not doing so does not seem to have a
+	 * negative effect (yet?).
+	 */
+
+	if (hbus->protocol_version >= PCI_PROTOCOL_VERSION_1_2) {
+		/*
+		 * PCI_PROTOCOL_VERSION_1_2 supports the VP_SET version of the
+		 * HVCALL_RETARGET_INTERRUPT hypercall, which also coincides
+		 * with >64 VP support.
+		 * ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED
+		 * is not sufficient for this hypercall.
+		 */
+		params->int_target.flags |=
+			HV_DEVICE_INTERRUPT_TARGET_PROCESSOR_SET;
+
+		if (!alloc_cpumask_var(&tmp, GFP_ATOMIC)) {
+			res = 1;
+			goto exit_unlock;
+		}
+
+		cpumask_and(tmp, dest, cpu_online_mask);
+		nr_bank = cpumask_to_vpset(&params->int_target.vp_set, tmp);
+		free_cpumask_var(tmp);
+
+		if (nr_bank <= 0) {
+			res = 1;
+			goto exit_unlock;
+		}
+
+		/*
+		 * var-sized hypercall, var-size starts after vp_mask (thus
+		 * vp_set.format does not count, but vp_set.valid_bank_mask
+		 * does).
+		 */
+		var_size = 1 + nr_bank;
+	} else {
+		for_each_cpu_and(cpu, dest, cpu_online_mask) {
+			params->int_target.vp_mask |=
+				(1ULL << hv_cpu_number_to_vp_number(cpu));
+		}
+	}
+
+	res = hv_do_hypercall(HVCALL_RETARGET_INTERRUPT | (var_size << 17),
+			      params, NULL);
+
+exit_unlock:
+	spin_unlock_irqrestore(&hbus->retarget_msi_interrupt_lock, flags);
+
+	/*
+	 * During hibernation, when a CPU is offlined, the kernel tries
+	 * to move the interrupt to the remaining CPUs that haven't
+	 * been offlined yet. In this case, the below hv_do_hypercall()
+	 * always fails since the vmbus channel has been closed:
+	 * refer to cpu_disable_common() -> fixup_irqs() ->
+	 * irq_migrate_all_off_this_cpu() -> migrate_one_irq().
+	 *
+	 * Suppress the error message for hibernation because the failure
+	 * during hibernation does not matter (at this time all the devices
+	 * have been frozen). Note: the correct affinity info is still updated
+	 * into the irqdata data structure in migrate_one_irq() ->
+	 * irq_do_set_affinity() -> hv_set_affinity(), so later when the VM
+	 * resumes, hv_pci_restore_msi_state() is able to correctly restore
+	 * the interrupt with the correct affinity.
+	 */
+	if (!hv_result_success(res) && hbus->state != hv_pcibus_removing)
+		dev_err(&hbus->hdev->device,
+			"%s() failed: %#llx", __func__, res);
+}
+#elif defined(CONFIG_ARM64)
+/*
+ * SPI vectors to use for vPCI; arch SPIs range is [32, 1019], but leaving a bit
+ * of room at the start to allow for SPIs to be specified through ACPI and
+ * starting with a power of two to satisfy power of 2 multi-MSI requirement.
+ */
+#define HV_PCI_MSI_SPI_START	64
+#define HV_PCI_MSI_SPI_NR	(1020 - HV_PCI_MSI_SPI_START)
+#define DELIVERY_MODE		0
+#define FLOW_HANDLER		NULL
+#define FLOW_NAME		NULL
+#define hv_msi_prepare		NULL
+
+struct hv_pci_chip_data {
+	DECLARE_BITMAP(spi_map, HV_PCI_MSI_SPI_NR);
+	struct mutex	map_lock;
+};
+
+/* Hyper-V vPCI MSI GIC IRQ domain */
+static struct irq_domain *hv_msi_gic_irq_domain;
+
+/* Hyper-V PCI MSI IRQ chip */
+static struct irq_chip hv_arm64_msi_irq_chip = {
+	.name = "MSI",
+	.irq_set_affinity = irq_chip_set_affinity_parent,
+	.irq_eoi = irq_chip_eoi_parent,
+	.irq_mask = irq_chip_mask_parent,
+	.irq_unmask = irq_chip_unmask_parent
+};
+
+static unsigned int hv_msi_get_int_vector(struct irq_data *irqd)
+{
+	return irqd->parent_data->hwirq;
+}
+
+/*
+ * @nr_bm_irqs:		Indicates the number of IRQs that were allocated from
+ *			the bitmap.
+ * @nr_dom_irqs:	Indicates the number of IRQs that were allocated from
+ *			the parent domain.
+ */
+static void hv_pci_vec_irq_free(struct irq_domain *domain,
+				unsigned int virq,
+				unsigned int nr_bm_irqs,
+				unsigned int nr_dom_irqs)
+{
+	struct hv_pci_chip_data *chip_data = domain->host_data;
+	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
+	int first = d->hwirq - HV_PCI_MSI_SPI_START;
+	int i;
+
+	mutex_lock(&chip_data->map_lock);
+	bitmap_release_region(chip_data->spi_map,
+			      first,
+			      get_count_order(nr_bm_irqs));
+	mutex_unlock(&chip_data->map_lock);
+	for (i = 0; i < nr_dom_irqs; i++) {
+		if (i)
+			d = irq_domain_get_irq_data(domain, virq + i);
+		irq_domain_reset_irq_data(d);
+	}
+
+	irq_domain_free_irqs_parent(domain, virq, nr_dom_irqs);
+}
+
+static void hv_pci_vec_irq_domain_free(struct irq_domain *domain,
+				       unsigned int virq,
+				       unsigned int nr_irqs)
+{
+	hv_pci_vec_irq_free(domain, virq, nr_irqs, nr_irqs);
+}
+
+static int hv_pci_vec_alloc_device_irq(struct irq_domain *domain,
+				       unsigned int nr_irqs,
+				       irq_hw_number_t *hwirq)
+{
+	struct hv_pci_chip_data *chip_data = domain->host_data;
+	int index;
+
+	/* Find and allocate region from the SPI bitmap */
+	mutex_lock(&chip_data->map_lock);
+	index = bitmap_find_free_region(chip_data->spi_map,
+					HV_PCI_MSI_SPI_NR,
+					get_count_order(nr_irqs));
+	mutex_unlock(&chip_data->map_lock);
+	if (index < 0)
+		return -ENOSPC;
+
+	*hwirq = index + HV_PCI_MSI_SPI_START;
+
+	return 0;
+}
+
+static int hv_pci_vec_irq_gic_domain_alloc(struct irq_domain *domain,
+					   unsigned int virq,
+					   irq_hw_number_t hwirq)
+{
+	struct irq_fwspec fwspec;
+	struct irq_data *d;
+	int ret;
+
+	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.param_count = 2;
+	fwspec.param[0] = hwirq;
+	fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
+
+	ret = irq_domain_alloc_irqs_parent(domain, virq, 1, &fwspec);
+	if (ret)
+		return ret;
+
+	/*
+	 * Since the interrupt specifier is not coming from ACPI or DT, the
+	 * trigger type will need to be set explicitly. Otherwise, it will be
+	 * set to whatever is in the GIC configuration.
+	 */
+	d = irq_domain_get_irq_data(domain->parent, virq);
+
+	return d->chip->irq_set_type(d, IRQ_TYPE_EDGE_RISING);
+}
+
+static int hv_pci_vec_irq_domain_alloc(struct irq_domain *domain,
+				       unsigned int virq, unsigned int nr_irqs,
+				       void *args)
+{
+	irq_hw_number_t hwirq;
+	unsigned int i;
+	int ret;
+
+	ret = hv_pci_vec_alloc_device_irq(domain, nr_irqs, &hwirq);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < nr_irqs; i++) {
+		ret = hv_pci_vec_irq_gic_domain_alloc(domain, virq + i,
+						      hwirq + i);
+		if (ret) {
+			hv_pci_vec_irq_free(domain, virq, nr_irqs, i);
+			return ret;
+		}
+
+		irq_domain_set_hwirq_and_chip(domain, virq + i,
+					      hwirq + i,
+					      &hv_arm64_msi_irq_chip,
+					      domain->host_data);
+		pr_debug("pID:%d vID:%u\n", (int)(hwirq + i), virq + i);
+	}
+
+	return 0;
+}
+
+/*
+ * Pick the first cpu as the irq affinity that can be temporarily used for
+ * composing MSI from the hypervisor. GIC will eventually set the right
+ * affinity for the irq and the 'unmask' will retarget the interrupt to that
+ * cpu.
+ */
+static int hv_pci_vec_irq_domain_activate(struct irq_domain *domain,
+					  struct irq_data *irqd, bool reserve)
+{
+	int cpu = cpumask_first(cpu_present_mask);
+
+	irq_data_update_effective_affinity(irqd, cpumask_of(cpu));
+
+	return 0;
+}
+
+static const struct irq_domain_ops hv_pci_domain_ops = {
+	.alloc	= hv_pci_vec_irq_domain_alloc,
+	.free	= hv_pci_vec_irq_domain_free,
+	.activate = hv_pci_vec_irq_domain_activate,
+};
+
+static int hv_pci_irqchip_init(void)
+{
+	static struct hv_pci_chip_data *chip_data;
+	struct fwnode_handle *fn = NULL;
+	int ret = -ENOMEM;
+
+	chip_data = kzalloc(sizeof(*chip_data), GFP_KERNEL);
+	if (!chip_data)
+		return ret;
+
+	mutex_init(&chip_data->map_lock);
+	fn = irq_domain_alloc_named_fwnode("hv_vpci_arm64");
+	if (!fn)
+		goto free_chip;
+
+	/*
+	 * IRQ domain once enabled, should not be removed since there is no
+	 * way to ensure that all the corresponding devices are also gone and
+	 * no interrupts will be generated.
+	 */
+	hv_msi_gic_irq_domain = acpi_irq_create_hierarchy(0, HV_PCI_MSI_SPI_NR,
+							  fn, &hv_pci_domain_ops,
+							  chip_data);
+
+	if (!hv_msi_gic_irq_domain) {
+		pr_err("Failed to create Hyper-V arm64 vPCI MSI IRQ domain\n");
+		goto free_chip;
+	}
+
+	return 0;
+
+free_chip:
+	kfree(chip_data);
+	if (fn)
+		irq_domain_free_fwnode(fn);
+
+	return ret;
+}
+
+static struct irq_domain *hv_pci_get_root_domain(void)
+{
+	return hv_msi_gic_irq_domain;
+}
+
+/*
+ * SPIs are used for interrupts of PCI devices and SPIs is managed via GICD
+ * registers which Hyper-V already supports, so no hypercall needed.
+ */
+static void hv_arch_irq_unmask(struct irq_data *data) { }
+#endif /* CONFIG_ARM64 */
+
 /**
  * hv_pci_generic_compl() - Invoked for a completion packet
  * @context:		Set up by the sender of the packet.
@@ -593,9 +990,6 @@ static void put_pcichild(struct hv_pci_dev *hpdev)
 	if (refcount_dec_and_test(&hpdev->refs))
 		kfree(hpdev);
 }
-
-static void get_hvpcibus(struct hv_pcibus_device *hv_pcibus);
-static void put_hvpcibus(struct hv_pcibus_device *hv_pcibus);
 
 /*
  * There is no good way to get notified from vmbus_onoffer_rescind(),
@@ -1168,134 +1562,19 @@ static void hv_msi_free(struct irq_domain *domain, struct msi_domain_info *info,
 	put_pcichild(hpdev);
 }
 
-static int hv_set_affinity(struct irq_data *data, const struct cpumask *dest,
-			   bool force)
-{
-	struct irq_data *parent = data->parent_data;
-
-	return parent->chip->irq_set_affinity(parent, dest, force);
-}
-
 static void hv_irq_mask(struct irq_data *data)
 {
 	pci_msi_mask_irq(data);
+	if (data->parent_data->chip->irq_mask)
+		irq_chip_mask_parent(data);
 }
 
-/**
- * hv_irq_unmask() - "Unmask" the IRQ by setting its current
- * affinity.
- * @data:	Describes the IRQ
- *
- * Build new a destination for the MSI and make a hypercall to
- * update the Interrupt Redirection Table. "Device Logical ID"
- * is built out of this PCI bus's instance GUID and the function
- * number of the device.
- */
 static void hv_irq_unmask(struct irq_data *data)
 {
-	struct msi_desc *msi_desc = irq_data_get_msi_desc(data);
-	struct irq_cfg *cfg = irqd_cfg(data);
-	struct hv_retarget_device_interrupt *params;
-	struct hv_pcibus_device *hbus;
-	struct cpumask *dest;
-	cpumask_var_t tmp;
-	struct pci_bus *pbus;
-	struct pci_dev *pdev;
-	unsigned long flags;
-	u32 var_size = 0;
-	int cpu, nr_bank;
-	u64 res;
+	hv_arch_irq_unmask(data);
 
-	dest = irq_data_get_effective_affinity_mask(data);
-	pdev = msi_desc_to_pci_dev(msi_desc);
-	pbus = pdev->bus;
-	hbus = container_of(pbus->sysdata, struct hv_pcibus_device, sysdata);
-
-	spin_lock_irqsave(&hbus->retarget_msi_interrupt_lock, flags);
-
-	params = &hbus->retarget_msi_interrupt_params;
-	memset(params, 0, sizeof(*params));
-	params->partition_id = HV_PARTITION_ID_SELF;
-	params->int_entry.source = 1; /* MSI(-X) */
-	hv_set_msi_entry_from_desc(&params->int_entry.msi_entry, msi_desc);
-	params->device_id = (hbus->hdev->dev_instance.b[5] << 24) |
-			   (hbus->hdev->dev_instance.b[4] << 16) |
-			   (hbus->hdev->dev_instance.b[7] << 8) |
-			   (hbus->hdev->dev_instance.b[6] & 0xf8) |
-			   PCI_FUNC(pdev->devfn);
-	params->int_target.vector = cfg->vector;
-
-	/*
-	 * Honoring apic->irq_delivery_mode set to dest_Fixed by
-	 * setting the HV_DEVICE_INTERRUPT_TARGET_MULTICAST flag results in a
-	 * spurious interrupt storm. Not doing so does not seem to have a
-	 * negative effect (yet?).
-	 */
-
-	if (hbus->protocol_version >= PCI_PROTOCOL_VERSION_1_2) {
-		/*
-		 * PCI_PROTOCOL_VERSION_1_2 supports the VP_SET version of the
-		 * HVCALL_RETARGET_INTERRUPT hypercall, which also coincides
-		 * with >64 VP support.
-		 * ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED
-		 * is not sufficient for this hypercall.
-		 */
-		params->int_target.flags |=
-			HV_DEVICE_INTERRUPT_TARGET_PROCESSOR_SET;
-
-		if (!alloc_cpumask_var(&tmp, GFP_ATOMIC)) {
-			res = 1;
-			goto exit_unlock;
-		}
-
-		cpumask_and(tmp, dest, cpu_online_mask);
-		nr_bank = cpumask_to_vpset(&params->int_target.vp_set, tmp);
-		free_cpumask_var(tmp);
-
-		if (nr_bank <= 0) {
-			res = 1;
-			goto exit_unlock;
-		}
-
-		/*
-		 * var-sized hypercall, var-size starts after vp_mask (thus
-		 * vp_set.format does not count, but vp_set.valid_bank_mask
-		 * does).
-		 */
-		var_size = 1 + nr_bank;
-	} else {
-		for_each_cpu_and(cpu, dest, cpu_online_mask) {
-			params->int_target.vp_mask |=
-				(1ULL << hv_cpu_number_to_vp_number(cpu));
-		}
-	}
-
-	res = hv_do_hypercall(HVCALL_RETARGET_INTERRUPT | (var_size << 17),
-			      params, NULL);
-
-exit_unlock:
-	spin_unlock_irqrestore(&hbus->retarget_msi_interrupt_lock, flags);
-
-	/*
-	 * During hibernation, when a CPU is offlined, the kernel tries
-	 * to move the interrupt to the remaining CPUs that haven't
-	 * been offlined yet. In this case, the below hv_do_hypercall()
-	 * always fails since the vmbus channel has been closed:
-	 * refer to cpu_disable_common() -> fixup_irqs() ->
-	 * irq_migrate_all_off_this_cpu() -> migrate_one_irq().
-	 *
-	 * Suppress the error message for hibernation because the failure
-	 * during hibernation does not matter (at this time all the devices
-	 * have been frozen). Note: the correct affinity info is still updated
-	 * into the irqdata data structure in migrate_one_irq() ->
-	 * irq_do_set_affinity() -> hv_set_affinity(), so later when the VM
-	 * resumes, hv_pci_restore_msi_state() is able to correctly restore
-	 * the interrupt with the correct affinity.
-	 */
-	if (res && hbus->state != hv_pcibus_removing)
-		dev_err(&hbus->hdev->device,
-			"%s() failed: %#llx", __func__, res);
-
+	if (data->parent_data->chip->irq_unmask)
+		irq_chip_unmask_parent(data);
 	pci_msi_unmask_irq(data);
 }
 
@@ -1324,7 +1603,7 @@ static u32 hv_compose_msi_req_v1(
 	int_pkt->wslot.slot = slot;
 	int_pkt->int_desc.vector = vector;
 	int_pkt->int_desc.vector_count = 1;
-	int_pkt->int_desc.delivery_mode = dest_Fixed;
+	int_pkt->int_desc.delivery_mode = DELIVERY_MODE;
 
 	/*
 	 * Create MSI w/ dummy vCPU set, overwritten by subsequent retarget in
@@ -1333,6 +1612,15 @@ static u32 hv_compose_msi_req_v1(
 	int_pkt->int_desc.cpu_mask = CPU_AFFINITY_ALL;
 
 	return sizeof(*int_pkt);
+}
+
+/*
+ * Create MSI w/ dummy vCPU set targeting just one vCPU, overwritten
+ * by subsequent retarget in hv_irq_unmask().
+ */
+static int hv_compose_msi_req_get_cpu(struct cpumask *affinity)
+{
+	return cpumask_first_and(affinity, cpu_online_mask);
 }
 
 static u32 hv_compose_msi_req_v2(
@@ -1345,13 +1633,28 @@ static u32 hv_compose_msi_req_v2(
 	int_pkt->wslot.slot = slot;
 	int_pkt->int_desc.vector = vector;
 	int_pkt->int_desc.vector_count = 1;
-	int_pkt->int_desc.delivery_mode = dest_Fixed;
+	int_pkt->int_desc.delivery_mode = DELIVERY_MODE;
+	cpu = hv_compose_msi_req_get_cpu(affinity);
+	int_pkt->int_desc.processor_array[0] =
+		hv_cpu_number_to_vp_number(cpu);
+	int_pkt->int_desc.processor_count = 1;
 
-	/*
-	 * Create MSI w/ dummy vCPU set targeting just one vCPU, overwritten
-	 * by subsequent retarget in hv_irq_unmask().
-	 */
-	cpu = cpumask_first_and(affinity, cpu_online_mask);
+	return sizeof(*int_pkt);
+}
+
+static u32 hv_compose_msi_req_v3(
+	struct pci_create_interrupt3 *int_pkt, struct cpumask *affinity,
+	u32 slot, u32 vector)
+{
+	int cpu;
+
+	int_pkt->message_type.type = PCI_CREATE_INTERRUPT_MESSAGE3;
+	int_pkt->wslot.slot = slot;
+	int_pkt->int_desc.vector = vector;
+	int_pkt->int_desc.reserved = 0;
+	int_pkt->int_desc.vector_count = 1;
+	int_pkt->int_desc.delivery_mode = DELIVERY_MODE;
+	cpu = hv_compose_msi_req_get_cpu(affinity);
 	int_pkt->int_desc.processor_array[0] =
 		hv_cpu_number_to_vp_number(cpu);
 	int_pkt->int_desc.processor_count = 1;
@@ -1372,7 +1675,6 @@ static u32 hv_compose_msi_req_v2(
  */
 static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
-	struct irq_cfg *cfg = irqd_cfg(data);
 	struct hv_pcibus_device *hbus;
 	struct vmbus_channel *channel;
 	struct hv_pci_dev *hpdev;
@@ -1386,6 +1688,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		union {
 			struct pci_create_interrupt v1;
 			struct pci_create_interrupt2 v2;
+			struct pci_create_interrupt3 v3;
 		} int_pkts;
 	} __packed ctxt;
 
@@ -1422,7 +1725,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		size = hv_compose_msi_req_v1(&ctxt.int_pkts.v1,
 					dest,
 					hpdev->desc.win_slot.slot,
-					cfg->vector);
+					hv_msi_get_int_vector(data));
 		break;
 
 	case PCI_PROTOCOL_VERSION_1_2:
@@ -1430,7 +1733,14 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		size = hv_compose_msi_req_v2(&ctxt.int_pkts.v2,
 					dest,
 					hpdev->desc.win_slot.slot,
-					cfg->vector);
+					hv_msi_get_int_vector(data));
+		break;
+
+	case PCI_PROTOCOL_VERSION_1_4:
+		size = hv_compose_msi_req_v3(&ctxt.int_pkts.v3,
+					dest,
+					hpdev->desc.win_slot.slot,
+					hv_msi_get_int_vector(data));
 		break;
 
 	default:
@@ -1458,7 +1768,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	 * Prevents hv_pci_onchannelcallback() from running concurrently
 	 * in the tasklet.
 	 */
-	tasklet_disable(&channel->callback_event);
+	tasklet_disable_in_atomic(&channel->callback_event);
 
 	/*
 	 * Since this function is called with IRQ locks held, can't
@@ -1539,14 +1849,18 @@ return_null_message:
 static struct irq_chip hv_msi_irq_chip = {
 	.name			= "Hyper-V PCIe MSI",
 	.irq_compose_msi_msg	= hv_compose_msi_msg,
-	.irq_set_affinity	= hv_set_affinity,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+#ifdef CONFIG_X86
 	.irq_ack		= irq_chip_ack_parent,
+#elif defined(CONFIG_ARM64)
+	.irq_eoi		= irq_chip_eoi_parent,
+#endif
 	.irq_mask		= hv_irq_mask,
 	.irq_unmask		= hv_irq_unmask,
 };
 
 static struct msi_domain_ops hv_msi_ops = {
-	.msi_prepare	= pci_msi_prepare,
+	.msi_prepare	= hv_msi_prepare,
 	.msi_free	= hv_msi_free,
 };
 
@@ -1570,17 +1884,19 @@ static int hv_pcie_init_irq_domain(struct hv_pcibus_device *hbus)
 	hbus->msi_info.flags = (MSI_FLAG_USE_DEF_DOM_OPS |
 		MSI_FLAG_USE_DEF_CHIP_OPS | MSI_FLAG_MULTI_PCI_MSI |
 		MSI_FLAG_PCI_MSIX);
-	hbus->msi_info.handler = handle_edge_irq;
-	hbus->msi_info.handler_name = "edge";
+	hbus->msi_info.handler = FLOW_HANDLER;
+	hbus->msi_info.handler_name = FLOW_NAME;
 	hbus->msi_info.data = hbus;
-	hbus->irq_domain = pci_msi_create_irq_domain(hbus->sysdata.fwnode,
+	hbus->irq_domain = pci_msi_create_irq_domain(hbus->fwnode,
 						     &hbus->msi_info,
-						     x86_vector_domain);
+						     hv_pci_get_root_domain());
 	if (!hbus->irq_domain) {
 		dev_err(&hbus->hdev->device,
 			"Failed to build an MSI IRQ domain\n");
 		return -ENODEV;
 	}
+
+	dev_set_msi_domain(&hbus->bridge->dev, hbus->irq_domain);
 
 	return 0;
 }
@@ -1714,10 +2030,10 @@ static void prepopulate_bars(struct hv_pcibus_device *hbus)
 	 * resumed and suspended again: see hibernation_snapshot() and
 	 * hibernation_platform_enter().
 	 *
-	 * If the memory enable bit is already set, Hyper-V sliently ignores
+	 * If the memory enable bit is already set, Hyper-V silently ignores
 	 * the below BAR updates, and the related PCI device driver can not
 	 * work, because reading from the device register(s) always returns
-	 * 0xFFFFFFFF.
+	 * 0xFFFFFFFF (PCI_ERROR_RESPONSE).
 	 */
 	list_for_each_entry(hpdev, &hbus->children, list_entry) {
 		_hv_pcifront_read_config(hpdev, PCI_COMMAND, 2, &command);
@@ -1804,7 +2120,7 @@ static void hv_pci_assign_slots(struct hv_pcibus_device *hbus)
 
 		slot_nr = PCI_SLOT(wslot_to_devfn(hpdev->desc.win_slot.slot));
 		snprintf(name, SLOT_NAME_SIZE, "%u", hpdev->desc.ser);
-		hpdev->pci_slot = pci_create_slot(hbus->pci_bus, slot_nr,
+		hpdev->pci_slot = pci_create_slot(hbus->bridge->bus, slot_nr,
 					  name, NULL);
 		if (IS_ERR(hpdev->pci_slot)) {
 			pr_warn("pci_create slot %s failed\n", name);
@@ -1834,7 +2150,7 @@ static void hv_pci_remove_slots(struct hv_pcibus_device *hbus)
 static void hv_pci_assign_numa_node(struct hv_pcibus_device *hbus)
 {
 	struct pci_dev *dev;
-	struct pci_bus *bus = hbus->pci_bus;
+	struct pci_bus *bus = hbus->bridge->bus;
 	struct hv_pci_dev *hv_dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
@@ -1842,8 +2158,17 @@ static void hv_pci_assign_numa_node(struct hv_pcibus_device *hbus)
 		if (!hv_dev)
 			continue;
 
-		if (hv_dev->desc.flags & HV_PCI_DEVICE_FLAG_NUMA_AFFINITY)
-			set_dev_node(&dev->dev, hv_dev->desc.virtual_numa_node);
+		if (hv_dev->desc.flags & HV_PCI_DEVICE_FLAG_NUMA_AFFINITY &&
+		    hv_dev->desc.virtual_numa_node < num_possible_nodes())
+			/*
+			 * The kernel may boot with some NUMA nodes offline
+			 * (e.g. in a KDUMP kernel) or with NUMA disabled via
+			 * "numa=off". In those cases, adjust the host provided
+			 * NUMA node to a valid NUMA node used by the kernel.
+			 */
+			set_dev_node(&dev->dev,
+				     numa_map_to_online_node(
+					     hv_dev->desc.virtual_numa_node));
 
 		put_pcichild(hv_dev);
 	}
@@ -1857,24 +2182,22 @@ static void hv_pci_assign_numa_node(struct hv_pcibus_device *hbus)
  */
 static int create_root_hv_pci_bus(struct hv_pcibus_device *hbus)
 {
-	/* Register the device */
-	hbus->pci_bus = pci_create_root_bus(&hbus->hdev->device,
-					    0, /* bus number is always zero */
-					    &hv_pcifront_ops,
-					    &hbus->sysdata,
-					    &hbus->resources_for_children);
-	if (!hbus->pci_bus)
-		return -ENODEV;
+	int error;
+	struct pci_host_bridge *bridge = hbus->bridge;
 
-	hbus->pci_bus->msi = &hbus->msi_chip;
-	hbus->pci_bus->msi->dev = &hbus->hdev->device;
+	bridge->dev.parent = &hbus->hdev->device;
+	bridge->sysdata = &hbus->sysdata;
+	bridge->ops = &hv_pcifront_ops;
+
+	error = pci_scan_root_bus_bridge(bridge);
+	if (error)
+		return error;
 
 	pci_lock_rescan_remove();
-	pci_scan_child_bus(hbus->pci_bus);
 	hv_pci_assign_numa_node(hbus);
-	pci_bus_assign_resources(hbus->pci_bus);
+	pci_bus_assign_resources(bridge->bus);
 	hv_pci_assign_slots(hbus);
-	pci_bus_add_devices(hbus->pci_bus);
+	pci_bus_add_devices(bridge->bus);
 	pci_unlock_rescan_remove();
 	hbus->state = hv_pcibus_installed;
 	return 0;
@@ -2068,10 +2391,8 @@ static void pci_devices_present_work(struct work_struct *work)
 	}
 	spin_unlock_irqrestore(&hbus->device_list_lock, flags);
 
-	if (!dr) {
-		put_hvpcibus(hbus);
+	if (!dr)
 		return;
-	}
 
 	/* First, mark all existing children as reported missing. */
 	spin_lock_irqsave(&hbus->device_list_lock, flags);
@@ -2139,7 +2460,7 @@ static void pci_devices_present_work(struct work_struct *work)
 		 * because there may have been changes.
 		 */
 		pci_lock_rescan_remove();
-		pci_scan_child_bus(hbus->pci_bus);
+		pci_scan_child_bus(hbus->bridge->bus);
 		hv_pci_assign_numa_node(hbus);
 		hv_pci_assign_slots(hbus);
 		pci_unlock_rescan_remove();
@@ -2154,7 +2475,6 @@ static void pci_devices_present_work(struct work_struct *work)
 		break;
 	}
 
-	put_hvpcibus(hbus);
 	kfree(dr);
 }
 
@@ -2195,12 +2515,10 @@ static int hv_pci_start_relations_work(struct hv_pcibus_device *hbus,
 	list_add_tail(&dr->list_entry, &hbus->dr_list);
 	spin_unlock_irqrestore(&hbus->device_list_lock, flags);
 
-	if (pending_dr) {
+	if (pending_dr)
 		kfree(dr_wrk);
-	} else {
-		get_hvpcibus(hbus);
+	else
 		queue_work(hbus->wq, &dr_wrk->wrk);
-	}
 
 	return 0;
 }
@@ -2310,11 +2628,11 @@ static void hv_eject_device_work(struct work_struct *work)
 	/*
 	 * Ejection can come before or after the PCI bus has been set up, so
 	 * attempt to find it and tear down the bus state, if it exists.  This
-	 * must be done without constructs like pci_domain_nr(hbus->pci_bus)
-	 * because hbus->pci_bus may not exist yet.
+	 * must be done without constructs like pci_domain_nr(hbus->bridge->bus)
+	 * because hbus->bridge->bus may not exist yet.
 	 */
 	wslot = wslot_to_devfn(hpdev->desc.win_slot.slot);
-	pdev = pci_get_domain_bus_and_slot(hbus->sysdata.domain, 0, wslot);
+	pdev = pci_get_domain_bus_and_slot(hbus->bridge->domain_nr, 0, wslot);
 	if (pdev) {
 		pci_lock_rescan_remove();
 		pci_stop_and_remove_bus_device(pdev);
@@ -2343,8 +2661,6 @@ static void hv_eject_device_work(struct work_struct *work)
 	put_pcichild(hpdev);
 	put_pcichild(hpdev);
 	/* hpdev has been freed. Do not use it any more. */
-
-	put_hvpcibus(hbus);
 }
 
 /**
@@ -2368,7 +2684,6 @@ static void hv_pci_eject_device(struct hv_pci_dev *hpdev)
 	hpdev->state = hv_pcichild_ejecting;
 	get_pcichild(hpdev);
 	INIT_WORK(&hpdev->wrk, hv_eject_device_work);
-	get_hvpcibus(hbus);
 	queue_work(hbus->wq, &hpdev->wrk);
 }
 
@@ -2680,8 +2995,7 @@ static int hv_pci_allocate_bridge_windows(struct hv_pcibus_device *hbus)
 		/* Modify this resource to become a bridge window. */
 		hbus->low_mmio_res->flags |= IORESOURCE_WINDOW;
 		hbus->low_mmio_res->flags &= ~IORESOURCE_BUSY;
-		pci_add_resource(&hbus->resources_for_children,
-				 hbus->low_mmio_res);
+		pci_add_resource(&hbus->bridge->windows, hbus->low_mmio_res);
 	}
 
 	if (hbus->high_mmio_space) {
@@ -2700,8 +3014,7 @@ static int hv_pci_allocate_bridge_windows(struct hv_pcibus_device *hbus)
 		/* Modify this resource to become a bridge window. */
 		hbus->high_mmio_res->flags |= IORESOURCE_WINDOW;
 		hbus->high_mmio_res->flags &= ~IORESOURCE_BUSY;
-		pci_add_resource(&hbus->resources_for_children,
-				 hbus->high_mmio_res);
+		pci_add_resource(&hbus->bridge->windows, hbus->high_mmio_res);
 	}
 
 	return 0;
@@ -2968,17 +3281,6 @@ static int hv_send_resources_released(struct hv_device *hdev)
 	return 0;
 }
 
-static void get_hvpcibus(struct hv_pcibus_device *hbus)
-{
-	refcount_inc(&hbus->remove_lock);
-}
-
-static void put_hvpcibus(struct hv_pcibus_device *hbus)
-{
-	if (refcount_dec_and_test(&hbus->remove_lock))
-		complete(&hbus->remove_event);
-}
-
 #define HVPCI_DOM_MAP_SIZE (64 * 1024)
 static DECLARE_BITMAP(hvpci_dom_map, HVPCI_DOM_MAP_SIZE);
 
@@ -3031,6 +3333,7 @@ static void hv_put_dom_num(u16 dom)
 static int hv_pci_probe(struct hv_device *hdev,
 			const struct hv_vmbus_device_id *dev_id)
 {
+	struct pci_host_bridge *bridge;
 	struct hv_pcibus_device *hbus;
 	u16 dom_req, dom;
 	char *name;
@@ -3042,6 +3345,10 @@ static int hv_pci_probe(struct hv_device *hdev,
 	 * hv_irq_unmask(). Those must not cross a page boundary.
 	 */
 	BUILD_BUG_ON(sizeof(*hbus) > HV_HYP_PAGE_SIZE);
+
+	bridge = devm_pci_alloc_host_bridge(&hdev->device, 0);
+	if (!bridge)
+		return -ENOMEM;
 
 	/*
 	 * With the recent 59bb47985c1d ("mm, sl[aou]b: guarantee natural
@@ -3064,6 +3371,8 @@ static int hv_pci_probe(struct hv_device *hdev,
 	hbus = kzalloc(HV_HYP_PAGE_SIZE, GFP_KERNEL);
 	if (!hbus)
 		return -ENOMEM;
+
+	hbus->bridge = bridge;
 	hbus->state = hv_pcibus_init;
 	hbus->wslot_res_allocated = -1;
 
@@ -3085,29 +3394,38 @@ static int hv_pci_probe(struct hv_device *hdev,
 
 	if (dom == HVPCI_DOM_INVALID) {
 		dev_err(&hdev->device,
-			"Unable to use dom# 0x%hx or other numbers", dom_req);
+			"Unable to use dom# 0x%x or other numbers", dom_req);
 		ret = -EINVAL;
 		goto free_bus;
 	}
 
 	if (dom != dom_req)
 		dev_info(&hdev->device,
-			 "PCI dom# 0x%hx has collision, using 0x%hx",
+			 "PCI dom# 0x%x has collision, using 0x%x",
 			 dom_req, dom);
 
+	hbus->bridge->domain_nr = dom;
+#ifdef CONFIG_X86
 	hbus->sysdata.domain = dom;
+#elif defined(CONFIG_ARM64)
+	/*
+	 * Set the PCI bus parent to be the corresponding VMbus
+	 * device. Then the VMbus device will be assigned as the
+	 * ACPI companion in pcibios_root_bridge_prepare() and
+	 * pci_dma_configure() will propagate device coherence
+	 * information to devices created on the bus.
+	 */
+	hbus->sysdata.parent = hdev->device.parent;
+#endif
 
 	hbus->hdev = hdev;
-	refcount_set(&hbus->remove_lock, 1);
 	INIT_LIST_HEAD(&hbus->children);
 	INIT_LIST_HEAD(&hbus->dr_list);
-	INIT_LIST_HEAD(&hbus->resources_for_children);
 	spin_lock_init(&hbus->config_lock);
 	spin_lock_init(&hbus->device_list_lock);
 	spin_lock_init(&hbus->retarget_msi_interrupt_lock);
-	init_completion(&hbus->remove_event);
 	hbus->wq = alloc_ordered_workqueue("hv_pci_%x", 0,
-					   hbus->sysdata.domain);
+					   hbus->bridge->domain_nr);
 	if (!hbus->wq) {
 		ret = -ENOMEM;
 		goto free_dom;
@@ -3144,9 +3462,9 @@ static int hv_pci_probe(struct hv_device *hdev,
 		goto unmap;
 	}
 
-	hbus->sysdata.fwnode = irq_domain_alloc_named_fwnode(name);
+	hbus->fwnode = irq_domain_alloc_named_fwnode(name);
 	kfree(name);
-	if (!hbus->sysdata.fwnode) {
+	if (!hbus->fwnode) {
 		ret = -ENOMEM;
 		goto unmap;
 	}
@@ -3224,7 +3542,7 @@ exit_d0:
 free_irq_domain:
 	irq_domain_remove(hbus->irq_domain);
 free_fwnode:
-	irq_domain_free_fwnode(hbus->sysdata.fwnode);
+	irq_domain_free_fwnode(hbus->fwnode);
 unmap:
 	iounmap(hbus->cfg_addr);
 free_config:
@@ -3234,7 +3552,7 @@ close:
 destroy_wq:
 	destroy_workqueue(hbus->wq);
 free_dom:
-	hv_put_dom_num(hbus->sysdata.domain);
+	hv_put_dom_num(hbus->bridge->domain_nr);
 free_bus:
 	kfree(hbus);
 	return ret;
@@ -3247,8 +3565,9 @@ static int hv_pci_bus_exit(struct hv_device *hdev, bool keep_devs)
 		struct pci_packet teardown_packet;
 		u8 buffer[sizeof(struct pci_message)];
 	} pkt;
-	struct hv_dr_state *dr;
 	struct hv_pci_compl comp_pkt;
+	struct hv_pci_dev *hpdev, *tmp;
+	unsigned long flags;
 	int ret;
 
 	/*
@@ -3259,10 +3578,24 @@ static int hv_pci_bus_exit(struct hv_device *hdev, bool keep_devs)
 		return 0;
 
 	if (!keep_devs) {
-		/* Delete any children which might still exist. */
-		dr = kzalloc(sizeof(*dr), GFP_KERNEL);
-		if (dr && hv_pci_start_relations_work(hbus, dr))
-			kfree(dr);
+		struct list_head removed;
+
+		/* Move all present children to the list on stack */
+		INIT_LIST_HEAD(&removed);
+		spin_lock_irqsave(&hbus->device_list_lock, flags);
+		list_for_each_entry_safe(hpdev, tmp, &hbus->children, list_entry)
+			list_move_tail(&hpdev->list_entry, &removed);
+		spin_unlock_irqrestore(&hbus->device_list_lock, flags);
+
+		/* Remove all children in the list */
+		list_for_each_entry_safe(hpdev, tmp, &removed, list_entry) {
+			list_del(&hpdev->list_entry);
+			if (hpdev->pci_slot)
+				pci_destroy_slot(hpdev->pci_slot);
+			/* For the two refs got in new_pcichild_device() */
+			put_pcichild(hpdev);
+			put_pcichild(hpdev);
+		}
 	}
 
 	ret = hv_send_resources_released(hdev);
@@ -3305,13 +3638,23 @@ static int hv_pci_remove(struct hv_device *hdev)
 
 	hbus = hv_get_drvdata(hdev);
 	if (hbus->state == hv_pcibus_installed) {
+		tasklet_disable(&hdev->channel->callback_event);
+		hbus->state = hv_pcibus_removing;
+		tasklet_enable(&hdev->channel->callback_event);
+		destroy_workqueue(hbus->wq);
+		hbus->wq = NULL;
+		/*
+		 * At this point, no work is running or can be scheduled
+		 * on hbus-wq. We can't race with hv_pci_devices_present()
+		 * or hv_pci_eject_device(), it's safe to proceed.
+		 */
+
 		/* Remove the bus from PCI's point of view. */
 		pci_lock_rescan_remove();
-		pci_stop_root_bus(hbus->pci_bus);
+		pci_stop_root_bus(hbus->bridge->bus);
 		hv_pci_remove_slots(hbus);
-		pci_remove_root_bus(hbus->pci_bus);
+		pci_remove_root_bus(hbus->bridge->bus);
 		pci_unlock_rescan_remove();
-		hbus->state = hv_pcibus_removed;
 	}
 
 	ret = hv_pci_bus_exit(hdev, false);
@@ -3320,15 +3663,11 @@ static int hv_pci_remove(struct hv_device *hdev)
 
 	iounmap(hbus->cfg_addr);
 	hv_free_config_window(hbus);
-	pci_free_resource_list(&hbus->resources_for_children);
 	hv_pci_free_bridge_windows(hbus);
 	irq_domain_remove(hbus->irq_domain);
-	irq_domain_free_fwnode(hbus->sysdata.fwnode);
-	put_hvpcibus(hbus);
-	wait_for_completion(&hbus->remove_event);
-	destroy_workqueue(hbus->wq);
+	irq_domain_free_fwnode(hbus->fwnode);
 
-	hv_put_dom_num(hbus->sysdata.domain);
+	hv_put_dom_num(hbus->bridge->domain_nr);
 
 	kfree(hbus);
 	return ret;
@@ -3383,18 +3722,23 @@ static int hv_pci_suspend(struct hv_device *hdev)
 
 static int hv_pci_restore_msi_msg(struct pci_dev *pdev, void *arg)
 {
-	struct msi_desc *entry;
 	struct irq_data *irq_data;
+	struct msi_desc *entry;
+	int ret = 0;
 
-	for_each_pci_msi_entry(entry, pdev) {
+	msi_lock_descs(&pdev->dev);
+	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_ASSOCIATED) {
 		irq_data = irq_get_irq_data(entry->irq);
-		if (WARN_ON_ONCE(!irq_data))
-			return -EINVAL;
+		if (WARN_ON_ONCE(!irq_data)) {
+			ret = -EINVAL;
+			break;
+		}
 
 		hv_compose_msi_msg(irq_data, &entry->msg);
 	}
+	msi_unlock_descs(&pdev->dev);
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -3406,7 +3750,7 @@ static int hv_pci_restore_msi_msg(struct pci_dev *pdev, void *arg)
  */
 static void hv_pci_restore_msi_state(struct hv_pcibus_device *hbus)
 {
-	pci_walk_bus(hbus->pci_bus, hv_pci_restore_msi_msg, NULL);
+	pci_walk_bus(hbus->bridge->bus, hv_pci_restore_msi_msg, NULL);
 }
 
 static int hv_pci_resume(struct hv_device *hdev)
@@ -3480,6 +3824,15 @@ static void __exit exit_hv_pci_drv(void)
 
 static int __init init_hv_pci_drv(void)
 {
+	int ret;
+
+	if (!hv_is_hyperv_initialized())
+		return -ENODEV;
+
+	ret = hv_pci_irqchip_init();
+	if (ret)
+		return ret;
+
 	/* Set the invalid domain number's bit, so it will not be used */
 	set_bit(HVPCI_DOM_INVALID, hvpci_dom_map);
 

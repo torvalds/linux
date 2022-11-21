@@ -94,10 +94,11 @@ static const struct nla_policy ipt_policy[TCA_IPT_MAX + 1] = {
 
 static int __tcf_ipt_init(struct net *net, unsigned int id, struct nlattr *nla,
 			  struct nlattr *est, struct tc_action **a,
-			  const struct tc_action_ops *ops, int ovr, int bind,
+			  const struct tc_action_ops *ops,
 			  struct tcf_proto *tp, u32 flags)
 {
 	struct tc_action_net *tn = net_generic(net, id);
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_IPT_MAX + 1];
 	struct tcf_ipt *ipt;
 	struct xt_entry_target *td, *t;
@@ -144,7 +145,7 @@ static int __tcf_ipt_init(struct net *net, unsigned int id, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, index, est, a, ops, bind,
-				     false, 0);
+				     false, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;
@@ -154,7 +155,7 @@ static int __tcf_ipt_init(struct net *net, unsigned int id, struct nlattr *nla,
 		if (bind)/* dont override defaults */
 			return 0;
 
-		if (!ovr) {
+		if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 			tcf_idr_release(*a, bind);
 			return -EEXIST;
 		}
@@ -166,7 +167,7 @@ static int __tcf_ipt_init(struct net *net, unsigned int id, struct nlattr *nla,
 	if (unlikely(!tname))
 		goto err1;
 	if (tb[TCA_IPT_TABLE] == NULL ||
-	    nla_strlcpy(tname, tb[TCA_IPT_TABLE], IFNAMSIZ) >= IFNAMSIZ)
+	    nla_strscpy(tname, tb[TCA_IPT_TABLE], IFNAMSIZ) >= IFNAMSIZ)
 		strcpy(tname, "mangle");
 
 	t = kmemdup(td, td->u.target_size, GFP_KERNEL);
@@ -201,21 +202,21 @@ err1:
 }
 
 static int tcf_ipt_init(struct net *net, struct nlattr *nla,
-			struct nlattr *est, struct tc_action **a, int ovr,
-			int bind, bool rtnl_held, struct tcf_proto *tp,
+			struct nlattr *est, struct tc_action **a,
+			struct tcf_proto *tp,
 			u32 flags, struct netlink_ext_ack *extack)
 {
-	return __tcf_ipt_init(net, ipt_net_id, nla, est, a, &act_ipt_ops, ovr,
-			      bind, tp, flags);
+	return __tcf_ipt_init(net, ipt_net_id, nla, est, a, &act_ipt_ops,
+			      tp, flags);
 }
 
 static int tcf_xt_init(struct net *net, struct nlattr *nla,
-		       struct nlattr *est, struct tc_action **a, int ovr,
-		       int bind, bool unlocked, struct tcf_proto *tp,
+		       struct nlattr *est, struct tc_action **a,
+		       struct tcf_proto *tp,
 		       u32 flags, struct netlink_ext_ack *extack)
 {
-	return __tcf_ipt_init(net, xt_net_id, nla, est, a, &act_xt_ops, ovr,
-			      bind, tp, flags);
+	return __tcf_ipt_init(net, xt_net_id, nla, est, a, &act_xt_ops,
+			      tp, flags);
 }
 
 static int tcf_ipt_act(struct sk_buff *skb, const struct tc_action *a,

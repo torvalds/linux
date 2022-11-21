@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *    driver for Microsemi PQI-based storage controllers
- *    Copyright (c) 2019-2020 Microchip Technology Inc. and its subsidiaries
+ *    driver for Microchip PQI-based storage controllers
+ *    Copyright (c) 2019-2021 Microchip Technology Inc. and its subsidiaries
  *    Copyright (c) 2016-2018 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
@@ -65,8 +65,8 @@ static int pqi_sas_port_add_phy(struct pqi_sas_phy *pqi_sas_phy)
 	memset(identify, 0, sizeof(*identify));
 	identify->sas_address = pqi_sas_port->sas_address;
 	identify->device_type = SAS_END_DEVICE;
-	identify->initiator_port_protocols = SAS_PROTOCOL_STP;
-	identify->target_port_protocols = SAS_PROTOCOL_STP;
+	identify->initiator_port_protocols = SAS_PROTOCOL_ALL;
+	identify->target_port_protocols = SAS_PROTOCOL_ALL;
 	phy->minimum_linkrate_hw = SAS_LINK_RATE_UNKNOWN;
 	phy->maximum_linkrate_hw = SAS_LINK_RATE_UNKNOWN;
 	phy->minimum_linkrate = SAS_LINK_RATE_UNKNOWN;
@@ -93,13 +93,24 @@ static int pqi_sas_port_add_rphy(struct pqi_sas_port *pqi_sas_port,
 	identify = &rphy->identify;
 	identify->sas_address = pqi_sas_port->sas_address;
 
-	if (pqi_sas_port->device &&
-		pqi_sas_port->device->is_expander_smp_device) {
-		identify->initiator_port_protocols = SAS_PROTOCOL_SMP;
-		identify->target_port_protocols = SAS_PROTOCOL_SMP;
-	} else {
-		identify->initiator_port_protocols = SAS_PROTOCOL_STP;
-		identify->target_port_protocols = SAS_PROTOCOL_STP;
+	identify->initiator_port_protocols = SAS_PROTOCOL_ALL;
+	identify->target_port_protocols = SAS_PROTOCOL_STP;
+
+	if (pqi_sas_port->device) {
+		identify->phy_identifier = pqi_sas_port->device->phy_id;
+		switch (pqi_sas_port->device->device_type) {
+		case SA_DEVICE_TYPE_SAS:
+		case SA_DEVICE_TYPE_SES:
+		case SA_DEVICE_TYPE_NVME:
+			identify->target_port_protocols = SAS_PROTOCOL_SSP;
+			break;
+		case SA_DEVICE_TYPE_EXPANDER_SMP:
+			identify->target_port_protocols = SAS_PROTOCOL_SMP;
+			break;
+		case SA_DEVICE_TYPE_SATA:
+		default:
+			break;
+		}
 	}
 
 	return sas_rphy_add(rphy);
@@ -107,8 +118,7 @@ static int pqi_sas_port_add_rphy(struct pqi_sas_port *pqi_sas_port,
 
 static struct sas_rphy *pqi_sas_rphy_alloc(struct pqi_sas_port *pqi_sas_port)
 {
-	if (pqi_sas_port->device &&
-		pqi_sas_port->device->is_expander_smp_device)
+	if (pqi_sas_port->device && pqi_sas_port->device->is_expander_smp_device)
 		return sas_expander_alloc(pqi_sas_port->port,
 				SAS_FANOUT_EXPANDER_DEVICE);
 
@@ -161,7 +171,7 @@ static void pqi_free_sas_port(struct pqi_sas_port *pqi_sas_port)
 
 	list_for_each_entry_safe(pqi_sas_phy, next,
 		&pqi_sas_port->phy_list_head, phy_list_entry)
-		pqi_free_sas_phy(pqi_sas_phy);
+			pqi_free_sas_phy(pqi_sas_phy);
 
 	sas_port_delete(pqi_sas_port->port);
 	list_del(&pqi_sas_port->port_list_entry);
@@ -191,7 +201,7 @@ static void pqi_free_sas_node(struct pqi_sas_node *pqi_sas_node)
 
 	list_for_each_entry_safe(pqi_sas_port, next,
 		&pqi_sas_node->port_list_head, port_list_entry)
-		pqi_free_sas_port(pqi_sas_port);
+			pqi_free_sas_port(pqi_sas_port);
 
 	kfree(pqi_sas_node);
 }
@@ -333,7 +343,7 @@ static int pqi_sas_get_enclosure_identifier(struct sas_rphy *rphy,
 	}
 
 	if (found_device->devtype == TYPE_ENCLOSURE) {
-		*identifier = get_unaligned_be64(&found_device->wwid);
+		*identifier = get_unaligned_be64(&found_device->wwid[8]);
 		rc = 0;
 		goto out;
 	}
@@ -354,7 +364,7 @@ static int pqi_sas_get_enclosure_identifier(struct sas_rphy *rphy,
 			memcmp(device->phys_connector,
 				found_device->phys_connector, 2) == 0) {
 			*identifier =
-				get_unaligned_be64(&device->wwid);
+				get_unaligned_be64(&device->wwid[8]);
 			rc = 0;
 			goto out;
 		}
@@ -370,7 +380,7 @@ static int pqi_sas_get_enclosure_identifier(struct sas_rphy *rphy,
 		if (device->devtype == TYPE_ENCLOSURE &&
 			CISS_GET_DRIVE_NUMBER(device->scsi3addr) ==
 				PQI_VSEP_CISS_BTL) {
-			*identifier = get_unaligned_be64(&device->wwid);
+			*identifier = get_unaligned_be64(&device->wwid[8]);
 			rc = 0;
 			goto out;
 		}
@@ -498,7 +508,7 @@ static unsigned int pqi_build_sas_smp_handler_reply(
 
 	job->reply_len = le16_to_cpu(error_info->sense_data_length);
 	memcpy(job->reply, error_info->data,
-			le16_to_cpu(error_info->sense_data_length));
+		le16_to_cpu(error_info->sense_data_length));
 
 	return job->reply_payload.payload_len -
 		get_unaligned_le32(&error_info->data_in_transferred);
@@ -547,9 +557,9 @@ void pqi_sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 		goto out;
 
 	reslen = pqi_build_sas_smp_handler_reply(smp_buf, job, &error_info);
+
 out:
 	bsg_job_done(job, rc, reslen);
-	pqi_ctrl_unbusy(ctrl_info);
 }
 struct sas_function_template pqi_sas_transport_functions = {
 	.get_linkerrors = pqi_sas_get_linkerrors,

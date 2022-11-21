@@ -40,7 +40,6 @@ properties:
 
   clock-names:
     minItems: 1
-    maxItems: 4
     items:
       - const: ext-26m
       - const: ext-32k

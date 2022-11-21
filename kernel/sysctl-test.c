@@ -49,7 +49,7 @@ static void sysctl_test_api_dointvec_null_tbl_data(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&null_data_table,
 					       KUNIT_PROC_READ, buffer, &len,
 					       &pos));
-	KUNIT_EXPECT_EQ(test, (size_t)0, len);
+	KUNIT_EXPECT_EQ(test, 0, len);
 
 	/*
 	 * See above.
@@ -58,7 +58,7 @@ static void sysctl_test_api_dointvec_null_tbl_data(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&null_data_table,
 					       KUNIT_PROC_WRITE, buffer, &len,
 					       &pos));
-	KUNIT_EXPECT_EQ(test, (size_t)0, len);
+	KUNIT_EXPECT_EQ(test, 0, len);
 }
 
 /*
@@ -95,7 +95,7 @@ static void sysctl_test_api_dointvec_table_maxlen_unset(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&data_maxlen_unset_table,
 					       KUNIT_PROC_READ, buffer, &len,
 					       &pos));
-	KUNIT_EXPECT_EQ(test, (size_t)0, len);
+	KUNIT_EXPECT_EQ(test, 0, len);
 
 	/*
 	 * See previous comment.
@@ -104,7 +104,7 @@ static void sysctl_test_api_dointvec_table_maxlen_unset(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&data_maxlen_unset_table,
 					       KUNIT_PROC_WRITE, buffer, &len,
 					       &pos));
-	KUNIT_EXPECT_EQ(test, (size_t)0, len);
+	KUNIT_EXPECT_EQ(test, 0, len);
 }
 
 /*
@@ -135,11 +135,11 @@ static void sysctl_test_api_dointvec_table_len_is_zero(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_READ, buffer,
 					       &len, &pos));
-	KUNIT_EXPECT_EQ(test, (size_t)0, len);
+	KUNIT_EXPECT_EQ(test, 0, len);
 
 	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_WRITE, buffer,
 					       &len, &pos));
-	KUNIT_EXPECT_EQ(test, (size_t)0, len);
+	KUNIT_EXPECT_EQ(test, 0, len);
 }
 
 /*
@@ -174,7 +174,7 @@ static void sysctl_test_api_dointvec_table_read_but_position_set(
 
 	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_READ, buffer,
 					       &len, &pos));
-	KUNIT_EXPECT_EQ(test, (size_t)0, len);
+	KUNIT_EXPECT_EQ(test, 0, len);
 }
 
 /*
@@ -203,7 +203,7 @@ static void sysctl_test_dointvec_read_happy_single_positive(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_READ,
 					       user_buffer, &len, &pos));
-	KUNIT_ASSERT_EQ(test, (size_t)3, len);
+	KUNIT_ASSERT_EQ(test, 3, len);
 	buffer[len] = '\0';
 	/* And we read 13 back out. */
 	KUNIT_EXPECT_STREQ(test, "13\n", buffer);
@@ -233,9 +233,9 @@ static void sysctl_test_dointvec_read_happy_single_negative(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_READ,
 					       user_buffer, &len, &pos));
-	KUNIT_ASSERT_EQ(test, (size_t)4, len);
+	KUNIT_ASSERT_EQ(test, 4, len);
 	buffer[len] = '\0';
-	KUNIT_EXPECT_STREQ(test, "-16\n", (char *)buffer);
+	KUNIT_EXPECT_STREQ(test, "-16\n", buffer);
 }
 
 /*
@@ -265,7 +265,7 @@ static void sysctl_test_dointvec_write_happy_single_positive(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_WRITE,
 					       user_buffer, &len, &pos));
 	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, len);
-	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, (size_t)pos);
+	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, pos);
 	KUNIT_EXPECT_EQ(test, 9, *((int *)table.data));
 }
 
@@ -295,7 +295,7 @@ static void sysctl_test_dointvec_write_happy_single_negative(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_WRITE,
 					       user_buffer, &len, &pos));
 	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, len);
-	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, (size_t)pos);
+	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, pos);
 	KUNIT_EXPECT_EQ(test, -9, *((int *)table.data));
 }
 

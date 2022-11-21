@@ -72,7 +72,9 @@ static void ipoib_get_drvinfo(struct net_device *netdev,
 }
 
 static int ipoib_get_coalesce(struct net_device *dev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
@@ -83,7 +85,9 @@ static int ipoib_get_coalesce(struct net_device *dev,
 }
 
 static int ipoib_set_coalesce(struct net_device *dev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	int ret;
@@ -166,6 +170,10 @@ static inline int ib_speed_enum_to_int(int speed)
 		return SPEED_14000;
 	case IB_SPEED_EDR:
 		return SPEED_25000;
+	case IB_SPEED_HDR:
+		return SPEED_50000;
+	case IB_SPEED_NDR:
+		return SPEED_100000;
 	}
 
 	return SPEED_UNKNOWN;

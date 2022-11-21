@@ -2090,7 +2090,8 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x1190, 0x1194,
 		0x11a0, 0x11a4,
 		0x11b0, 0x11b4,
-		0x11fc, 0x1274,
+		0x11fc, 0x123c,
+		0x1254, 0x1274,
 		0x1280, 0x133c,
 		0x1800, 0x18fc,
 		0x3000, 0x302c,
@@ -2689,7 +2690,6 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 #define VPD_BASE           0x400
 #define VPD_BASE_OLD       0
 #define VPD_LEN            1024
-#define CHELSIO_VPD_UNIQUE_ID 0x82
 
 /**
  * t4_eeprom_ptov - translate a physical EEPROM address to virtual
@@ -2743,10 +2743,9 @@ int t4_seeprom_wp(struct adapter *adapter, bool enable)
  */
 int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
-	int i, ret = 0, addr;
-	int ec, sn, pn, na;
-	u8 *vpd, csum;
-	unsigned int vpdr_len, kw_offset, id_len;
+	unsigned int id_len, pn_len, sn_len, na_len;
+	int id, sn, pn, na, addr, ret = 0;
+	u8 *vpd, base_val = 0;
 
 	vpd = vmalloc(VPD_LEN);
 	if (!vpd)
@@ -2755,90 +2754,62 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	/* Card information normally starts at VPD_BASE but early cards had
 	 * it at 0.
 	 */
-	ret = pci_read_vpd(adapter->pdev, VPD_BASE, sizeof(u32), vpd);
+	ret = pci_read_vpd(adapter->pdev, VPD_BASE, 1, &base_val);
 	if (ret < 0)
 		goto out;
 
-	/* The VPD shall have a unique identifier specified by the PCI SIG.
-	 * For chelsio adapters, the identifier is 0x82. The first byte of a VPD
-	 * shall be CHELSIO_VPD_UNIQUE_ID (0x82). The VPD programming software
-	 * is expected to automatically put this entry at the
-	 * beginning of the VPD.
-	 */
-	addr = *vpd == CHELSIO_VPD_UNIQUE_ID ? VPD_BASE : VPD_BASE_OLD;
+	addr = base_val == PCI_VPD_LRDT_ID_STRING ? VPD_BASE : VPD_BASE_OLD;
 
 	ret = pci_read_vpd(adapter->pdev, addr, VPD_LEN, vpd);
 	if (ret < 0)
 		goto out;
 
-	if (vpd[0] != PCI_VPD_LRDT_ID_STRING) {
-		dev_err(adapter->pdev_dev, "missing VPD ID string\n");
+	ret = pci_vpd_find_id_string(vpd, VPD_LEN, &id_len);
+	if (ret < 0)
+		goto out;
+	id = ret;
+
+	ret = pci_vpd_check_csum(vpd, VPD_LEN);
+	if (ret) {
+		dev_err(adapter->pdev_dev, "VPD checksum incorrect or missing\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
-	id_len = pci_vpd_lrdt_size(vpd);
-	if (id_len > ID_LEN)
-		id_len = ID_LEN;
-
-	i = pci_vpd_find_tag(vpd, 0, VPD_LEN, PCI_VPD_LRDT_RO_DATA);
-	if (i < 0) {
-		dev_err(adapter->pdev_dev, "missing VPD-R section\n");
-		ret = -EINVAL;
+	ret = pci_vpd_find_ro_info_keyword(vpd, VPD_LEN,
+					   PCI_VPD_RO_KEYWORD_SERIALNO, &sn_len);
+	if (ret < 0)
 		goto out;
-	}
+	sn = ret;
 
-	vpdr_len = pci_vpd_lrdt_size(&vpd[i]);
-	kw_offset = i + PCI_VPD_LRDT_TAG_SIZE;
-	if (vpdr_len + kw_offset > VPD_LEN) {
-		dev_err(adapter->pdev_dev, "bad VPD-R length %u\n", vpdr_len);
-		ret = -EINVAL;
+	ret = pci_vpd_find_ro_info_keyword(vpd, VPD_LEN,
+					   PCI_VPD_RO_KEYWORD_PARTNO, &pn_len);
+	if (ret < 0)
 		goto out;
-	}
+	pn = ret;
 
-#define FIND_VPD_KW(var, name) do { \
-	var = pci_vpd_find_info_keyword(vpd, kw_offset, vpdr_len, name); \
-	if (var < 0) { \
-		dev_err(adapter->pdev_dev, "missing VPD keyword " name "\n"); \
-		ret = -EINVAL; \
-		goto out; \
-	} \
-	var += PCI_VPD_INFO_FLD_HDR_SIZE; \
-} while (0)
-
-	FIND_VPD_KW(i, "RV");
-	for (csum = 0; i >= 0; i--)
-		csum += vpd[i];
-
-	if (csum) {
-		dev_err(adapter->pdev_dev,
-			"corrupted VPD EEPROM, actual csum %u\n", csum);
-		ret = -EINVAL;
+	ret = pci_vpd_find_ro_info_keyword(vpd, VPD_LEN, "NA", &na_len);
+	if (ret < 0)
 		goto out;
-	}
+	na = ret;
 
-	FIND_VPD_KW(ec, "EC");
-	FIND_VPD_KW(sn, "SN");
-	FIND_VPD_KW(pn, "PN");
-	FIND_VPD_KW(na, "NA");
-#undef FIND_VPD_KW
-
-	memcpy(p->id, vpd + PCI_VPD_LRDT_TAG_SIZE, id_len);
+	memcpy(p->id, vpd + id, min_t(unsigned int, id_len, ID_LEN));
 	strim(p->id);
-	memcpy(p->ec, vpd + ec, EC_LEN);
-	strim(p->ec);
-	i = pci_vpd_info_field_size(vpd + sn - PCI_VPD_INFO_FLD_HDR_SIZE);
-	memcpy(p->sn, vpd + sn, min(i, SERNUM_LEN));
+	memcpy(p->sn, vpd + sn, min_t(unsigned int, sn_len, SERNUM_LEN));
 	strim(p->sn);
-	i = pci_vpd_info_field_size(vpd + pn - PCI_VPD_INFO_FLD_HDR_SIZE);
-	memcpy(p->pn, vpd + pn, min(i, PN_LEN));
+	memcpy(p->pn, vpd + pn, min_t(unsigned int, pn_len, PN_LEN));
 	strim(p->pn);
-	memcpy(p->na, vpd + na, min(i, MACADDR_LEN));
-	strim((char *)p->na);
+	memcpy(p->na, vpd + na, min_t(unsigned int, na_len, MACADDR_LEN));
+	strim(p->na);
 
 out:
 	vfree(vpd);
-	return ret < 0 ? ret : 0;
+	if (ret < 0) {
+		dev_err(adapter->pdev_dev, "error reading VPD\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 /**
@@ -3066,16 +3037,19 @@ int t4_read_flash(struct adapter *adapter, unsigned int addr,
  *	@addr: the start address to write
  *	@n: length of data to write in bytes
  *	@data: the data to write
+ *	@byte_oriented: whether to store data as bytes or as words
  *
  *	Writes up to a page of data (256 bytes) to the serial flash starting
  *	at the given address.  All the data must be written to the same page.
+ *	If @byte_oriented is set the write data is stored as byte stream
+ *	(i.e. matches what on disk), otherwise in big-endian.
  */
 static int t4_write_flash(struct adapter *adapter, unsigned int addr,
-			  unsigned int n, const u8 *data)
+			  unsigned int n, const u8 *data, bool byte_oriented)
 {
-	int ret;
-	u32 buf[64];
 	unsigned int i, c, left, val, offset = addr & 0xff;
+	u32 buf[64];
+	int ret;
 
 	if (addr >= adapter->params.sf_size || offset + n > SF_PAGE_SIZE)
 		return -EINVAL;
@@ -3086,10 +3060,14 @@ static int t4_write_flash(struct adapter *adapter, unsigned int addr,
 	    (ret = sf1_write(adapter, 4, 1, 1, val)) != 0)
 		goto unlock;
 
-	for (left = n; left; left -= c) {
+	for (left = n; left; left -= c, data += c) {
 		c = min(left, 4U);
-		for (val = 0, i = 0; i < c; ++i)
-			val = (val << 8) + *data++;
+		for (val = 0, i = 0; i < c; ++i) {
+			if (byte_oriented)
+				val = (val << 8) + data[i];
+			else
+				val = (val << 8) + data[c - i - 1];
+		}
 
 		ret = sf1_write(adapter, c, c != left, 1, val);
 		if (ret)
@@ -3102,7 +3080,8 @@ static int t4_write_flash(struct adapter *adapter, unsigned int addr,
 	t4_write_reg(adapter, SF_OP_A, 0);    /* unlock SF */
 
 	/* Read the page to verify the write succeeded */
-	ret = t4_read_flash(adapter, addr & ~0xff, ARRAY_SIZE(buf), buf, 1);
+	ret = t4_read_flash(adapter, addr & ~0xff, ARRAY_SIZE(buf), buf,
+			    byte_oriented);
 	if (ret)
 		return ret;
 
@@ -3698,7 +3677,7 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	 */
 	memcpy(first_page, fw_data, SF_PAGE_SIZE);
 	((struct fw_hdr *)first_page)->fw_ver = cpu_to_be32(0xffffffff);
-	ret = t4_write_flash(adap, fw_start, SF_PAGE_SIZE, first_page);
+	ret = t4_write_flash(adap, fw_start, SF_PAGE_SIZE, first_page, true);
 	if (ret)
 		goto out;
 
@@ -3706,14 +3685,14 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	for (size -= SF_PAGE_SIZE; size; size -= SF_PAGE_SIZE) {
 		addr += SF_PAGE_SIZE;
 		fw_data += SF_PAGE_SIZE;
-		ret = t4_write_flash(adap, addr, SF_PAGE_SIZE, fw_data);
+		ret = t4_write_flash(adap, addr, SF_PAGE_SIZE, fw_data, true);
 		if (ret)
 			goto out;
 	}
 
-	ret = t4_write_flash(adap,
-			     fw_start + offsetof(struct fw_hdr, fw_ver),
-			     sizeof(hdr->fw_ver), (const u8 *)&hdr->fw_ver);
+	ret = t4_write_flash(adap, fw_start + offsetof(struct fw_hdr, fw_ver),
+			     sizeof(hdr->fw_ver), (const u8 *)&hdr->fw_ver,
+			     true);
 out:
 	if (ret)
 		dev_err(adap->pdev_dev, "firmware download failed, error %d\n",
@@ -3818,9 +3797,11 @@ int t4_load_phy_fw(struct adapter *adap, int win,
 	/* Copy the supplied PHY Firmware image to the adapter memory location
 	 * allocated by the adapter firmware.
 	 */
+	spin_lock_bh(&adap->win0_lock);
 	ret = t4_memory_rw(adap, win, mtype, maddr,
 			   phy_fw_size, (__be32 *)phy_fw_data,
 			   T4_MEMORY_WRITE);
+	spin_unlock_bh(&adap->win0_lock);
 	if (ret)
 		return ret;
 
@@ -6989,7 +6970,7 @@ int t4_fw_bye(struct adapter *adap, unsigned int mbox)
 }
 
 /**
- *	t4_init_cmd - ask FW to initialize the device
+ *	t4_early_init - ask FW to initialize the device
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
  *
@@ -7788,7 +7769,6 @@ int t4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
 			   int idx, bool sleep_ok)
 {
 	struct fw_vi_mac_exact *p;
-	u8 addr[] = {0, 0, 0, 0, 0, 0};
 	struct fw_vi_mac_cmd c;
 	int ret = 0;
 	u32 exact;
@@ -7805,7 +7785,7 @@ int t4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
 	p = c.u.exact;
 	p->valid_to_idx = cpu_to_be16(FW_VI_MAC_CMD_VALID_F |
 				      FW_VI_MAC_CMD_IDX_V(idx));
-	memcpy(p->macaddr, addr, sizeof(p->macaddr));
+	eth_zero_addr(p->macaddr);
 	ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
 	return ret;
 }
@@ -9726,7 +9706,7 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 		if (ret)
 			return ret;
 
-		memcpy(adap->port[i]->dev_addr, addr, ETH_ALEN);
+		eth_hw_addr_set(adap->port[i], addr);
 		j++;
 	}
 	return 0;
@@ -10214,7 +10194,7 @@ int t4_load_cfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
 			n = size - i;
 		else
 			n = SF_PAGE_SIZE;
-		ret = t4_write_flash(adap, addr, n, cfg_data);
+		ret = t4_write_flash(adap, addr, n, cfg_data, true);
 		if (ret)
 			goto out;
 
@@ -10230,7 +10210,7 @@ out:
 }
 
 /**
- *	t4_set_vf_mac - Set MAC address for the specified VF
+ *	t4_set_vf_mac_acl - Set MAC address for the specified VF
  *	@adapter: The adapter
  *	@vf: one of the VFs instantiated by the specified PF
  *	@naddr: the number of MAC addresses
@@ -10683,13 +10663,14 @@ int t4_load_boot(struct adapter *adap, u8 *boot_data,
 	for (size -= SF_PAGE_SIZE; size; size -= SF_PAGE_SIZE) {
 		addr += SF_PAGE_SIZE;
 		boot_data += SF_PAGE_SIZE;
-		ret = t4_write_flash(adap, addr, SF_PAGE_SIZE, boot_data);
+		ret = t4_write_flash(adap, addr, SF_PAGE_SIZE, boot_data,
+				     false);
 		if (ret)
 			goto out;
 	}
 
 	ret = t4_write_flash(adap, boot_sector, SF_PAGE_SIZE,
-			     (const u8 *)header);
+			     (const u8 *)header, false);
 
 out:
 	if (ret)
@@ -10764,7 +10745,7 @@ int t4_load_bootcfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
 	for (i = 0; i < size; i += SF_PAGE_SIZE) {
 		n = min_t(u32, size - i, SF_PAGE_SIZE);
 
-		ret = t4_write_flash(adap, addr, n, cfg_data);
+		ret = t4_write_flash(adap, addr, n, cfg_data, false);
 		if (ret)
 			goto out;
 
@@ -10776,7 +10757,8 @@ int t4_load_bootcfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
 	for (i = 0; i < npad; i++) {
 		u8 data = 0;
 
-		ret = t4_write_flash(adap, cfg_addr + size + i, 1, &data);
+		ret = t4_write_flash(adap, cfg_addr + size + i, 1, &data,
+				     false);
 		if (ret)
 			goto out;
 	}

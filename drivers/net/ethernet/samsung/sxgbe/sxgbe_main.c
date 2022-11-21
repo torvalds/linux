@@ -127,7 +127,7 @@ bool sxgbe_eee_init(struct sxgbe_priv_data * const priv)
 	/* MAC core supports the EEE feature. */
 	if (priv->hw_cap.eee) {
 		/* Check if the PHY supports EEE */
-		if (phy_init_eee(ndev->phydev, 1))
+		if (phy_init_eee(ndev->phydev, true))
 			return false;
 
 		priv->eee_active = 1;
@@ -789,7 +789,7 @@ static void sxgbe_tx_queue_clean(struct sxgbe_tx_queue *tqueue)
 }
 
 /**
- * sxgbe_tx_clean:
+ * sxgbe_tx_all_clean:
  * @priv: driver private structure
  * Description: it reclaims resources after transmission completes.
  */
@@ -931,10 +931,13 @@ static int sxgbe_get_hw_features(struct sxgbe_priv_data * const priv)
 static void sxgbe_check_ether_addr(struct sxgbe_priv_data *priv)
 {
 	if (!is_valid_ether_addr(priv->dev->dev_addr)) {
+		u8 addr[ETH_ALEN];
+
 		priv->hw->mac->get_umac_addr((void __iomem *)
-					     priv->ioaddr,
-					     priv->dev->dev_addr, 0);
-		if (!is_valid_ether_addr(priv->dev->dev_addr))
+					     priv->ioaddr, addr, 0);
+		if (is_valid_ether_addr(addr))
+			eth_hw_addr_set(priv->dev, addr);
+		else
 			eth_hw_addr_random(priv->dev);
 	}
 	dev_info(priv->device, "device MAC address %pM\n",
@@ -1015,7 +1018,7 @@ static void sxgbe_tx_timer(struct timer_list *t)
 }
 
 /**
- * sxgbe_init_tx_coalesce: init tx mitigation options.
+ * sxgbe_tx_init_coalesce: init tx mitigation options.
  * @priv: driver private structure
  * Description:
  * This inits the transmit coalesce parameters: i.e. timer rate,
@@ -1964,7 +1967,7 @@ static const struct net_device_ops sxgbe_netdev_ops = {
 	.ndo_set_features	= sxgbe_set_features,
 	.ndo_set_rx_mode	= sxgbe_set_rx_mode,
 	.ndo_tx_timeout		= sxgbe_tx_timeout,
-	.ndo_do_ioctl		= sxgbe_ioctl,
+	.ndo_eth_ioctl		= sxgbe_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= sxgbe_poll_controller,
 #endif
@@ -2282,18 +2285,18 @@ static int __init sxgbe_cmdline_opt(char *str)
 	char *opt;
 
 	if (!str || !*str)
-		return -EINVAL;
+		return 1;
 	while ((opt = strsep(&str, ",")) != NULL) {
 		if (!strncmp(opt, "eee_timer:", 10)) {
 			if (kstrtoint(opt + 10, 0, &eee_timer))
 				goto err;
 		}
 	}
-	return 0;
+	return 1;
 
 err:
 	pr_err("%s: ERROR broken module parameter conversion\n", __func__);
-	return -EINVAL;
+	return 1;
 }
 
 __setup("sxgbeeth=", sxgbe_cmdline_opt);

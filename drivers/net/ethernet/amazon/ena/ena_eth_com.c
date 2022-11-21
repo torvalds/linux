@@ -58,13 +58,15 @@ static int ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_sq,
 
 	if (is_llq_max_tx_burst_exists(io_sq)) {
 		if (unlikely(!io_sq->entries_in_tx_burst_left)) {
-			pr_err("Error: trying to send more packets than tx burst allows\n");
+			netdev_err(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+				   "Error: trying to send more packets than tx burst allows\n");
 			return -ENOSPC;
 		}
 
 		io_sq->entries_in_tx_burst_left--;
-		pr_debug("Decreasing entries_in_tx_burst_left of queue %d to %d\n",
-			 io_sq->qid, io_sq->entries_in_tx_burst_left);
+		netdev_dbg(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+			   "Decreasing entries_in_tx_burst_left of queue %d to %d\n",
+			   io_sq->qid, io_sq->entries_in_tx_burst_left);
 	}
 
 	/* Make sure everything was written into the bounce buffer before
@@ -102,12 +104,14 @@ static int ena_com_write_header_to_bounce(struct ena_com_io_sq *io_sq,
 
 	if (unlikely((header_offset + header_len) >
 		     llq_info->desc_list_entry_size)) {
-		pr_err("Trying to write header larger than llq entry can accommodate\n");
+		netdev_err(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+			   "Trying to write header larger than llq entry can accommodate\n");
 		return -EFAULT;
 	}
 
 	if (unlikely(!bounce_buffer)) {
-		pr_err("Bounce buffer is NULL\n");
+		netdev_err(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+			   "Bounce buffer is NULL\n");
 		return -EFAULT;
 	}
 
@@ -125,7 +129,8 @@ static void *get_sq_desc_llq(struct ena_com_io_sq *io_sq)
 	bounce_buffer = pkt_ctrl->curr_bounce_buf;
 
 	if (unlikely(!bounce_buffer)) {
-		pr_err("Bounce buffer is NULL\n");
+		netdev_err(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+			   "Bounce buffer is NULL\n");
 		return NULL;
 	}
 
@@ -146,11 +151,14 @@ static int ena_com_close_bounce_buffer(struct ena_com_io_sq *io_sq)
 		return 0;
 
 	/* bounce buffer was used, so write it and get a new one */
-	if (pkt_ctrl->idx) {
+	if (likely(pkt_ctrl->idx)) {
 		rc = ena_com_write_bounce_buffer_to_dev(io_sq,
 							pkt_ctrl->curr_bounce_buf);
-		if (unlikely(rc))
+		if (unlikely(rc)) {
+			netdev_err(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+				   "Failed to write bounce buffer to device\n");
 			return rc;
+		}
 
 		pkt_ctrl->curr_bounce_buf =
 			ena_com_get_next_bounce_buffer(&io_sq->bounce_buf_ctrl);
@@ -180,8 +188,11 @@ static int ena_com_sq_update_llq_tail(struct ena_com_io_sq *io_sq)
 	if (!pkt_ctrl->descs_left_in_line) {
 		rc = ena_com_write_bounce_buffer_to_dev(io_sq,
 							pkt_ctrl->curr_bounce_buf);
-		if (unlikely(rc))
+		if (unlikely(rc)) {
+			netdev_err(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+				   "Failed to write bounce buffer to device\n");
 			return rc;
+		}
 
 		pkt_ctrl->curr_bounce_buf =
 			ena_com_get_next_bounce_buffer(&io_sq->bounce_buf_ctrl);
@@ -250,8 +261,9 @@ static u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 		io_cq->cur_rx_pkt_cdesc_count = 0;
 		io_cq->cur_rx_pkt_cdesc_start_idx = head_masked;
 
-		pr_debug("ENA q_id: %d packets were completed. first desc idx %u descs# %d\n",
-			 io_cq->qid, *first_cdesc_idx, count);
+		netdev_dbg(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
+			   "ENA q_id: %d packets were completed. first desc idx %u descs# %d\n",
+			   io_cq->qid, *first_cdesc_idx, count);
 	} else {
 		io_cq->cur_rx_pkt_cdesc_count += count;
 		count = 0;
@@ -335,7 +347,8 @@ static int ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
 	return 0;
 }
 
-static void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
+static void ena_com_rx_set_flags(struct ena_com_io_cq *io_cq,
+				 struct ena_com_rx_ctx *ena_rx_ctx,
 				 struct ena_eth_io_rx_cdesc_base *cdesc)
 {
 	ena_rx_ctx->l3_proto = cdesc->status &
@@ -357,10 +370,11 @@ static void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
 		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK) >>
 		ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_SHIFT;
 
-	pr_debug("l3_proto %d l4_proto %d l3_csum_err %d l4_csum_err %d hash %d frag %d cdesc_status %x\n",
-		 ena_rx_ctx->l3_proto, ena_rx_ctx->l4_proto,
-		 ena_rx_ctx->l3_csum_err, ena_rx_ctx->l4_csum_err,
-		 ena_rx_ctx->hash, ena_rx_ctx->frag, cdesc->status);
+	netdev_dbg(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
+		   "l3_proto %d l4_proto %d l3_csum_err %d l4_csum_err %d hash %d frag %d cdesc_status %x\n",
+		   ena_rx_ctx->l3_proto, ena_rx_ctx->l4_proto,
+		   ena_rx_ctx->l3_csum_err, ena_rx_ctx->l4_csum_err,
+		   ena_rx_ctx->hash, ena_rx_ctx->frag, cdesc->status);
 }
 
 /*****************************************************************************/
@@ -385,19 +399,24 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 
 	/* num_bufs +1 for potential meta desc */
 	if (unlikely(!ena_com_sq_have_enough_space(io_sq, num_bufs + 1))) {
-		pr_debug("Not enough space in the tx queue\n");
+		netdev_dbg(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+			   "Not enough space in the tx queue\n");
 		return -ENOMEM;
 	}
 
 	if (unlikely(header_len > io_sq->tx_max_header_size)) {
-		pr_err("Header size is too large %d max header: %d\n",
-		       header_len, io_sq->tx_max_header_size);
+		netdev_err(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+			   "Header size is too large %d max header: %d\n",
+			   header_len, io_sq->tx_max_header_size);
 		return -EINVAL;
 	}
 
 	if (unlikely(io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV &&
-		     !buffer_to_push))
+		     !buffer_to_push)) {
+		netdev_err(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+			   "Push header wasn't provided in LLQ mode\n");
 		return -EINVAL;
+	}
 
 	rc = ena_com_write_header_to_bounce(io_sq, buffer_to_push, header_len);
 	if (unlikely(rc))
@@ -405,13 +424,17 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 
 	rc = ena_com_create_and_store_tx_meta_desc(io_sq, ena_tx_ctx, &have_meta);
 	if (unlikely(rc)) {
-		pr_err("Failed to create and store tx meta desc\n");
+		netdev_err(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+			   "Failed to create and store tx meta desc\n");
 		return rc;
 	}
 
 	/* If the caller doesn't want to send packets */
 	if (unlikely(!num_bufs && !header_len)) {
 		rc = ena_com_close_bounce_buffer(io_sq);
+		if (rc)
+			netdev_err(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+				   "Failed to write buffers to LLQ\n");
 		*nb_hw_desc = io_sq->tail - start_tail;
 		return rc;
 	}
@@ -471,8 +494,11 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 		/* The first desc share the same desc as the header */
 		if (likely(i != 0)) {
 			rc = ena_com_sq_update_tail(io_sq);
-			if (unlikely(rc))
+			if (unlikely(rc)) {
+				netdev_err(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+					   "Failed to update sq tail\n");
 				return rc;
+			}
 
 			desc = get_sq_desc(io_sq);
 			if (unlikely(!desc))
@@ -501,8 +527,11 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	desc->len_ctrl |= ENA_ETH_IO_TX_DESC_LAST_MASK;
 
 	rc = ena_com_sq_update_tail(io_sq);
-	if (unlikely(rc))
+	if (unlikely(rc)) {
+		netdev_err(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+			   "Failed to update sq tail of the last descriptor\n");
 		return rc;
+	}
 
 	rc = ena_com_close_bounce_buffer(io_sq);
 
@@ -529,12 +558,14 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 		return 0;
 	}
 
-	pr_debug("Fetch rx packet: queue %d completed desc: %d\n", io_cq->qid,
-		 nb_hw_desc);
+	netdev_dbg(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
+		   "Fetch rx packet: queue %d completed desc: %d\n", io_cq->qid,
+		   nb_hw_desc);
 
 	if (unlikely(nb_hw_desc > ena_rx_ctx->max_bufs)) {
-		pr_err("Too many RX cdescs (%d) > MAX(%d)\n", nb_hw_desc,
-		       ena_rx_ctx->max_bufs);
+		netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
+			   "Too many RX cdescs (%d) > MAX(%d)\n", nb_hw_desc,
+			   ena_rx_ctx->max_bufs);
 		return -ENOSPC;
 	}
 
@@ -557,13 +588,15 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 	/* Update SQ head ptr */
 	io_sq->next_to_comp += nb_hw_desc;
 
-	pr_debug("[%s][QID#%d] Updating SQ head to: %d\n", __func__, io_sq->qid,
-		 io_sq->next_to_comp);
+	netdev_dbg(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
+		   "[%s][QID#%d] Updating SQ head to: %d\n", __func__,
+		   io_sq->qid, io_sq->next_to_comp);
 
 	/* Get rx flags from the last pkt */
-	ena_com_rx_set_flags(ena_rx_ctx, cdesc);
+	ena_com_rx_set_flags(io_cq, ena_rx_ctx, cdesc);
 
 	ena_rx_ctx->descs = nb_hw_desc;
+
 	return 0;
 }
 
@@ -588,10 +621,14 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 
 	desc->ctrl = ENA_ETH_IO_RX_DESC_FIRST_MASK |
 		     ENA_ETH_IO_RX_DESC_LAST_MASK |
-		     (io_sq->phase & ENA_ETH_IO_RX_DESC_PHASE_MASK) |
-		     ENA_ETH_IO_RX_DESC_COMP_REQ_MASK;
+		     ENA_ETH_IO_RX_DESC_COMP_REQ_MASK |
+		     (io_sq->phase & ENA_ETH_IO_RX_DESC_PHASE_MASK);
 
 	desc->req_id = req_id;
+
+	netdev_dbg(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+		   "[%s] Adding single RX desc, Queue: %u, req_id: %u\n",
+		   __func__, io_sq->qid, req_id);
 
 	desc->buff_addr_lo = (u32)ena_buf->paddr;
 	desc->buff_addr_hi =

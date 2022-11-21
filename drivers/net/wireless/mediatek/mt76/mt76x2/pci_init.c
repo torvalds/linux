@@ -69,7 +69,7 @@ mt76x2_fixup_xtal(struct mt76x02_dev *dev)
 
 int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 {
-	const u8 *macaddr = dev->mt76.macaddr;
+	const u8 *macaddr = dev->mphy.macaddr;
 	u32 val;
 	int i, k;
 
@@ -271,7 +271,7 @@ static int mt76x2_init_hardware(struct mt76x02_dev *dev)
 void mt76x2_stop_hardware(struct mt76x02_dev *dev)
 {
 	cancel_delayed_work_sync(&dev->cal_work);
-	cancel_delayed_work_sync(&dev->mt76.mac_work);
+	cancel_delayed_work_sync(&dev->mphy.mac_work);
 	cancel_delayed_work_sync(&dev->wdt_work);
 	clear_bit(MT76_RESTART, &dev->mphy.state);
 	mt76x02_mcu_set_radio_state(dev, false);
@@ -292,8 +292,9 @@ int mt76x2_register_device(struct mt76x02_dev *dev)
 	int ret;
 
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2_phy_calibrate);
-
-	mt76x02_init_device(dev);
+	ret = mt76x02_init_device(dev);
+	if (ret)
+		return ret;
 
 	ret = mt76x2_init_hardware(dev);
 	if (ret)

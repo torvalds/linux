@@ -11,7 +11,7 @@ menuconfig ARCH_REALVIEW
 	select HAVE_ARM_TWD if SMP
 	select HAVE_PATA_PLATFORM
 	select HAVE_TCM
-	select ICST
+	select CLK_ICST
 	select MACH_REALVIEW_EB if ARCH_MULTI_V5
 	select MFD_SYSCON
 	select PLAT_VERSATILE

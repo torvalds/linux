@@ -57,11 +57,6 @@ void stp_policy_node_get_ranges(struct stp_policy_node *policy_node,
 	*cend	= policy_node->last_channel;
 }
 
-static inline char *stp_policy_node_name(struct stp_policy_node *policy_node)
-{
-	return policy_node->group.cg_item.ci_name ? : "<none>";
-}
-
 static inline struct stp_policy *to_stp_policy(struct config_item *item)
 {
 	return item ?

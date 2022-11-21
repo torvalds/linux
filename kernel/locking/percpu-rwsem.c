@@ -7,6 +7,7 @@
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
+#include <linux/sched/debug.h>
 #include <linux/errno.h>
 
 int __percpu_init_rwsem(struct percpu_rw_semaphore *sem,
@@ -162,7 +163,7 @@ static void percpu_rwsem_wait(struct percpu_rw_semaphore *sem, bool reader)
 	__set_current_state(TASK_RUNNING);
 }
 
-bool __percpu_down_read(struct percpu_rw_semaphore *sem, bool try)
+bool __sched __percpu_down_read(struct percpu_rw_semaphore *sem, bool try)
 {
 	if (__percpu_down_read_trylock(sem))
 		return true;
@@ -211,7 +212,7 @@ static bool readers_active_check(struct percpu_rw_semaphore *sem)
 	return true;
 }
 
-void percpu_down_write(struct percpu_rw_semaphore *sem)
+void __sched percpu_down_write(struct percpu_rw_semaphore *sem)
 {
 	might_sleep();
 	rwsem_acquire(&sem->dep_map, 0, 0, _RET_IP_);

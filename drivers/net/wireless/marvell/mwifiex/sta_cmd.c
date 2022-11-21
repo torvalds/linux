@@ -396,6 +396,10 @@ mwifiex_cmd_802_11_hs_cfg(struct mwifiex_private *priv,
 	if (hs_activate) {
 		hs_cfg->action = cpu_to_le16(HS_ACTIVATE);
 		hs_cfg->params.hs_activate.resp_ctrl = cpu_to_le16(RESP_NEEDED);
+
+		adapter->hs_activated_manually = true;
+		mwifiex_dbg(priv->adapter, CMD,
+			    "cmd: Activating host sleep manually\n");
 	} else {
 		hs_cfg->action = cpu_to_le16(HS_CONFIGURE);
 		hs_cfg->params.hs_config.conditions = hscfg_param->conditions;
@@ -840,14 +844,15 @@ mwifiex_cmd_802_11_key_material_v1(struct mwifiex_private *priv,
 	}
 
 	if (!enc_key) {
-		memset(&key_material->key_param_set, 0,
-		       (NUM_WEP_KEYS *
-			sizeof(struct mwifiex_ie_type_key_param_set)));
+		struct host_cmd_ds_802_11_key_material_wep *key_material_wep =
+			(struct host_cmd_ds_802_11_key_material_wep *)key_material;
+		memset(key_material_wep->key_param_set, 0,
+		       sizeof(key_material_wep->key_param_set));
 		ret = mwifiex_set_keyparamset_wep(priv,
-						  &key_material->key_param_set,
+						  &key_material_wep->key_param_set[0],
 						  &key_param_len);
 		cmd->size = cpu_to_le16(key_param_len +
-				    sizeof(key_material->action) + S_DS_GEN);
+				    sizeof(key_material_wep->action) + S_DS_GEN);
 		return ret;
 	} else
 		memset(&key_material->key_param_set, 0,

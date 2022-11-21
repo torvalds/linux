@@ -30,17 +30,29 @@ extern int extra_prog_load_log_flags;
 
 static int check_load(const char *file)
 {
-	struct bpf_prog_load_attr attr;
 	struct bpf_object *obj = NULL;
-	int err, prog_fd;
+	struct bpf_program *prog;
+	int err;
 
-	memset(&attr, 0, sizeof(struct bpf_prog_load_attr));
-	attr.file = file;
-	attr.prog_type = BPF_PROG_TYPE_UNSPEC;
-	attr.log_level = extra_prog_load_log_flags;
-	attr.prog_flags = BPF_F_TEST_RND_HI32;
 	found = false;
-	err = bpf_prog_load_xattr(&attr, &obj, &prog_fd);
+
+	obj = bpf_object__open_file(file, NULL);
+	err = libbpf_get_error(obj);
+	if (err)
+		return err;
+
+	prog = bpf_object__next_program(obj, NULL);
+	if (!prog) {
+		err = -ENOENT;
+		goto err_out;
+	}
+
+	bpf_program__set_flags(prog, BPF_F_TEST_RND_HI32);
+	bpf_program__set_log_level(prog, extra_prog_load_log_flags);
+
+	err = bpf_object__load(obj);
+
+err_out:
 	bpf_object__close(obj);
 	return err;
 }
@@ -61,6 +73,14 @@ void test_test_global_funcs(void)
 		{ "test_global_func6.o" , "modified ctx ptr R2" },
 		{ "test_global_func7.o" , "foo() doesn't return scalar" },
 		{ "test_global_func8.o" },
+		{ "test_global_func9.o" },
+		{ "test_global_func10.o", "invalid indirect read from stack" },
+		{ "test_global_func11.o", "Caller passes invalid args into func#1" },
+		{ "test_global_func12.o", "invalid mem access 'mem_or_null'" },
+		{ "test_global_func13.o", "Caller passes invalid args into func#1" },
+		{ "test_global_func14.o", "reference type('FWD S') size cannot be determined" },
+		{ "test_global_func15.o", "At program exit the register R0 has value" },
+		{ "test_global_func16.o", "invalid indirect read from stack" },
 	};
 	libbpf_print_fn_t old_print_fn = NULL;
 	int err, i, duration = 0;

@@ -590,16 +590,12 @@ static void register_attributes(void *event_data, void *data)
 	randomize_layout_attr.name		= "randomize_layout";
 	randomize_layout_attr.type_required	= true;
 	randomize_layout_attr.handler		= handle_randomize_layout_attr;
-#if BUILDING_GCC_VERSION >= 4007
 	randomize_layout_attr.affects_type_identity = true;
-#endif
 
 	no_randomize_layout_attr.name		= "no_randomize_layout";
 	no_randomize_layout_attr.type_required	= true;
 	no_randomize_layout_attr.handler	= handle_randomize_layout_attr;
-#if BUILDING_GCC_VERSION >= 4007
 	no_randomize_layout_attr.affects_type_identity = true;
-#endif
 
 	randomize_considered_attr.name		= "randomize_considered";
 	randomize_considered_attr.type_required	= true;

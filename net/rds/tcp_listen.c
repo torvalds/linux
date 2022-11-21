@@ -133,7 +133,10 @@ int rds_tcp_accept_one(struct socket *sock)
 	__module_get(new_sock->ops->owner);
 
 	rds_tcp_keepalive(new_sock);
-	rds_tcp_tune(new_sock);
+	if (!rds_tcp_tune(new_sock)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	inet = inet_sk(new_sock->sk);
 
@@ -166,6 +169,12 @@ int rds_tcp_accept_one(struct socket *sock)
 		dev_if = new_sock->sk->sk_bound_dev_if;
 	}
 #endif
+
+	if (!rds_tcp_laddr_check(sock_net(sock->sk), peer_addr, dev_if)) {
+		/* local address connection is only allowed via loopback */
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 
 	conn = rds_conn_create(sock_net(sock->sk),
 			       my_addr, peer_addr,

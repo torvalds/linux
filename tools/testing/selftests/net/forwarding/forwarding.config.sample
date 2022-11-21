@@ -13,6 +13,8 @@ NETIFS[p5]=veth4
 NETIFS[p6]=veth5
 NETIFS[p7]=veth6
 NETIFS[p8]=veth7
+NETIFS[p9]=veth8
+NETIFS[p10]=veth9
 
 # Port that does not have a cable connected.
 NETIF_NO_CABLE=eth8
@@ -39,3 +41,11 @@ NETIF_CREATE=yes
 # Timeout (in seconds) before ping exits regardless of how many packets have
 # been sent or received
 PING_TIMEOUT=5
+# Minimum ageing_time (in centiseconds) supported by hardware
+LOW_AGEING_TIME=1000
+# Flag for tc match, supposed to be skip_sw/skip_hw which means do not process
+# filter by software/hardware
+TC_FLAG=skip_hw
+# IPv6 traceroute utility name.
+TROUTE6=traceroute6
+

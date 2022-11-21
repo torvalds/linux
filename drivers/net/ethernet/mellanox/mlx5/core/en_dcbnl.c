@@ -1142,39 +1142,30 @@ static int mlx5e_update_trust_state_hw(struct mlx5e_priv *priv, void *context)
 	err = mlx5_set_trust_state(priv->mdev, *trust_state);
 	if (err)
 		return err;
-	priv->dcbx_dp.trust_state = *trust_state;
+	WRITE_ONCE(priv->dcbx_dp.trust_state, *trust_state);
 
 	return 0;
 }
 
 static int mlx5e_set_trust_state(struct mlx5e_priv *priv, u8 trust_state)
 {
-	struct mlx5e_channels new_channels = {};
-	bool reset_channels = true;
-	int err = 0;
+	struct mlx5e_params new_params;
+	bool reset = true;
+	int err;
 
 	mutex_lock(&priv->state_lock);
 
-	new_channels.params = priv->channels.params;
-	mlx5e_params_calc_trust_tx_min_inline_mode(priv->mdev, &new_channels.params,
+	new_params = priv->channels.params;
+	mlx5e_params_calc_trust_tx_min_inline_mode(priv->mdev, &new_params,
 						   trust_state);
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		priv->channels.params = new_channels.params;
-		reset_channels = false;
-	}
-
 	/* Skip if tx_min_inline is the same */
-	if (new_channels.params.tx_min_inline_mode ==
-	    priv->channels.params.tx_min_inline_mode)
-		reset_channels = false;
+	if (new_params.tx_min_inline_mode == priv->channels.params.tx_min_inline_mode)
+		reset = false;
 
-	if (reset_channels)
-		err = mlx5e_safe_switch_channels(priv, &new_channels,
-						 mlx5e_update_trust_state_hw,
-						 &trust_state);
-	else
-		err = mlx5e_update_trust_state_hw(priv, &trust_state);
+	err = mlx5e_safe_switch_params(priv, &new_params,
+				       mlx5e_update_trust_state_hw,
+				       &trust_state, reset);
 
 	mutex_unlock(&priv->state_lock);
 
@@ -1196,16 +1187,28 @@ static int mlx5e_set_dscp2prio(struct mlx5e_priv *priv, u8 dscp, u8 prio)
 static int mlx5e_trust_initialize(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
+	u8 trust_state;
 	int err;
 
-	priv->dcbx_dp.trust_state = MLX5_QPTS_TRUST_PCP;
-
-	if (!MLX5_DSCP_SUPPORTED(mdev))
+	if (!MLX5_DSCP_SUPPORTED(mdev)) {
+		WRITE_ONCE(priv->dcbx_dp.trust_state, MLX5_QPTS_TRUST_PCP);
 		return 0;
+	}
 
-	err = mlx5_query_trust_state(priv->mdev, &priv->dcbx_dp.trust_state);
+	err = mlx5_query_trust_state(priv->mdev, &trust_state);
 	if (err)
 		return err;
+	WRITE_ONCE(priv->dcbx_dp.trust_state, trust_state);
+
+	if (priv->dcbx_dp.trust_state == MLX5_QPTS_TRUST_PCP && priv->dcbx.dscp_app_cnt) {
+		/*
+		 * Align the driver state with the register state.
+		 * Temporary state change is required to enable the app list reset.
+		 */
+		priv->dcbx_dp.trust_state = MLX5_QPTS_TRUST_DSCP;
+		mlx5e_dcbnl_delete_app(priv);
+		priv->dcbx_dp.trust_state = MLX5_QPTS_TRUST_PCP;
+	}
 
 	mlx5e_params_calc_trust_tx_min_inline_mode(priv->mdev, &priv->channels.params,
 						   priv->dcbx_dp.trust_state);

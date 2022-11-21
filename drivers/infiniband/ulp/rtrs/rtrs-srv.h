@@ -37,13 +37,11 @@ struct rtrs_srv_stats_rdma_stats {
 struct rtrs_srv_stats {
 	struct kobject				kobj_stats;
 	struct rtrs_srv_stats_rdma_stats	rdma_stats;
-	struct rtrs_srv_sess			*sess;
+	struct rtrs_srv_path			*srv_path;
 };
 
 struct rtrs_srv_con {
 	struct rtrs_con		c;
-	atomic_t		wr_cnt;
-	atomic_t		sq_wr_avail;
 	struct list_head	rsp_wr_wait_list;
 	spinlock_t		rsp_wr_wait_lock;
 };
@@ -62,7 +60,7 @@ struct rtrs_srv_op {
 
 /*
  * server side memory region context, when always_invalidate=Y, we need
- * queue_depth of memory regrion to invalidate each memory region.
+ * queue_depth of memory region to invalidate each memory region.
  */
 struct rtrs_srv_mr {
 	struct ib_mr	*mr;
@@ -73,16 +71,16 @@ struct rtrs_srv_mr {
 	struct rtrs_iu	*iu;		/* send buffer for new rkey msg */
 };
 
-struct rtrs_srv_sess {
-	struct rtrs_sess	s;
-	struct rtrs_srv	*srv;
+struct rtrs_srv_path {
+	struct rtrs_path	s;
+	struct rtrs_srv_sess	*srv;
 	struct work_struct	close_work;
 	enum rtrs_srv_state	state;
 	spinlock_t		state_lock;
 	int			cur_cq_vector;
 	struct rtrs_srv_op	**ops_ids;
-	atomic_t		ids_inflight;
-	wait_queue_head_t	ids_waitq;
+	struct percpu_ref       ids_inflight_ref;
+	struct completion       complete_done;
 	struct rtrs_srv_mr	*mrs;
 	unsigned int		mrs_num;
 	dma_addr_t		*dma_addr;
@@ -92,7 +90,7 @@ struct rtrs_srv_sess {
 	struct rtrs_srv_stats	*stats;
 };
 
-struct rtrs_srv {
+struct rtrs_srv_sess {
 	struct list_head	paths_list;
 	int			paths_up;
 	struct mutex		paths_ev_mutex;
@@ -127,7 +125,7 @@ struct rtrs_srv_ib_ctx {
 
 extern struct class *rtrs_dev_class;
 
-void close_sess(struct rtrs_srv_sess *sess);
+void close_path(struct rtrs_srv_path *srv_path);
 
 static inline void rtrs_srv_update_rdma_stats(struct rtrs_srv_stats *s,
 					      size_t size, int d)
@@ -138,18 +136,13 @@ static inline void rtrs_srv_update_rdma_stats(struct rtrs_srv_stats *s,
 
 /* functions which are implemented in rtrs-srv-stats.c */
 int rtrs_srv_reset_rdma_stats(struct rtrs_srv_stats *stats, bool enable);
-ssize_t rtrs_srv_stats_rdma_to_str(struct rtrs_srv_stats *stats,
-				    char *page, size_t len);
-int rtrs_srv_reset_wc_completion_stats(struct rtrs_srv_stats *stats,
-					bool enable);
-int rtrs_srv_stats_wc_completion_to_str(struct rtrs_srv_stats *stats, char *buf,
-					 size_t len);
+ssize_t rtrs_srv_stats_rdma_to_str(struct rtrs_srv_stats *stats, char *page);
 int rtrs_srv_reset_all_stats(struct rtrs_srv_stats *stats, bool enable);
 ssize_t rtrs_srv_reset_all_help(struct rtrs_srv_stats *stats,
 				 char *page, size_t len);
 
 /* functions which are implemented in rtrs-srv-sysfs.c */
-int rtrs_srv_create_sess_files(struct rtrs_srv_sess *sess);
-void rtrs_srv_destroy_sess_files(struct rtrs_srv_sess *sess);
+int rtrs_srv_create_path_files(struct rtrs_srv_path *srv_path);
+void rtrs_srv_destroy_path_files(struct rtrs_srv_path *srv_path);
 
 #endif /* RTRS_SRV_H */

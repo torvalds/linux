@@ -269,9 +269,7 @@ static int q6asm_dai_prepare(struct snd_soc_component *component,
 
 	if (ret < 0) {
 		dev_err(dev, "%s: q6asm_open_write failed\n", __func__);
-		q6asm_audio_client_free(prtd->audio_client);
-		prtd->audio_client = NULL;
-		return -ENOMEM;
+		goto open_err;
 	}
 
 	prtd->session_id = q6asm_get_session_id(prtd->audio_client);
@@ -279,7 +277,7 @@ static int q6asm_dai_prepare(struct snd_soc_component *component,
 			      prtd->session_id, substream->stream);
 	if (ret) {
 		dev_err(dev, "%s: stream reg failed ret:%d\n", __func__, ret);
-		return ret;
+		goto routing_err;
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -301,10 +299,19 @@ static int q6asm_dai_prepare(struct snd_soc_component *component,
 	}
 	if (ret < 0)
 		dev_info(dev, "%s: CMD Format block failed\n", __func__);
+	else
+		prtd->state = Q6ASM_STREAM_RUNNING;
 
-	prtd->state = Q6ASM_STREAM_RUNNING;
+	return ret;
 
-	return 0;
+routing_err:
+	q6asm_cmd(prtd->audio_client, prtd->stream_id,  CMD_CLOSE);
+open_err:
+	q6asm_unmap_memory_regions(substream->stream, prtd->audio_client);
+	q6asm_audio_client_free(prtd->audio_client);
+	prtd->audio_client = NULL;
+
+	return ret;
 }
 
 static int q6asm_dai_trigger(struct snd_soc_component *component,
@@ -429,8 +436,6 @@ static int q6asm_dai_open(struct snd_soc_component *component,
 	else
 		prtd->phys = substream->dma_buffer.addr | (pdata->sid << 32);
 
-	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
-
 	return 0;
 }
 
@@ -468,18 +473,6 @@ static snd_pcm_uframes_t q6asm_dai_pointer(struct snd_soc_component *component,
 		prtd->pcm_irq_pos = 0;
 
 	return bytes_to_frames(runtime, (prtd->pcm_irq_pos));
-}
-
-static int q6asm_dai_mmap(struct snd_soc_component *component,
-			  struct snd_pcm_substream *substream,
-			  struct vm_area_struct *vma)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct device *dev = component->dev;
-
-	return dma_mmap_coherent(dev, vma,
-			runtime->dma_area, runtime->dma_addr,
-			runtime->dma_bytes);
 }
 
 static int q6asm_dai_hw_params(struct snd_soc_component *component,
@@ -1169,7 +1162,7 @@ static int q6asm_dai_compr_get_codec_caps(struct snd_soc_component *component,
 	return 0;
 }
 
-static struct snd_compress_ops q6asm_dai_compress_ops = {
+static const struct snd_compress_ops q6asm_dai_compress_ops = {
 	.open		= q6asm_dai_compr_open,
 	.free		= q6asm_dai_compr_free,
 	.set_params	= q6asm_dai_compr_set_params,
@@ -1185,53 +1178,31 @@ static struct snd_compress_ops q6asm_dai_compress_ops = {
 static int q6asm_dai_pcm_new(struct snd_soc_component *component,
 			     struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_pcm_substream *psubstream, *csubstream;
 	struct snd_pcm *pcm = rtd->pcm;
-	struct device *dev;
-	int size, ret;
+	size_t size = q6asm_dai_hardware_playback.buffer_bytes_max;
 
-	dev = component->dev;
-	size = q6asm_dai_hardware_playback.buffer_bytes_max;
-	psubstream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
-	if (psubstream) {
-		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, dev, size,
-					  &psubstream->dma_buffer);
-		if (ret) {
-			dev_err(dev, "Cannot allocate buffer(s)\n");
-			return ret;
-		}
-	}
-
-	csubstream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
-	if (csubstream) {
-		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, dev, size,
-					  &csubstream->dma_buffer);
-		if (ret) {
-			dev_err(dev, "Cannot allocate buffer(s)\n");
-			if (psubstream)
-				snd_dma_free_pages(&psubstream->dma_buffer);
-			return ret;
-		}
-	}
-
-	return 0;
+	return snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+					    component->dev, size);
 }
 
-static void q6asm_dai_pcm_free(struct snd_soc_component *component,
-			       struct snd_pcm *pcm)
-{
-	struct snd_pcm_substream *substream;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(pcm->streams); i++) {
-		substream = pcm->streams[i].substream;
-		if (substream) {
-			snd_dma_free_pages(&substream->dma_buffer);
-			substream->dma_buffer.area = NULL;
-			substream->dma_buffer.addr = 0;
-		}
-	}
-}
+static const struct snd_soc_dapm_widget q6asm_dapm_widgets[] = {
+	SND_SOC_DAPM_AIF_IN("MM_DL1", "MultiMedia1 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL2", "MultiMedia2 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL3", "MultiMedia3 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL4", "MultiMedia4 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL5", "MultiMedia5 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL6", "MultiMedia6 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL7", "MultiMedia7 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL8", "MultiMedia8 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL1", "MultiMedia1 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL2", "MultiMedia2 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL3", "MultiMedia3 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL4", "MultiMedia4 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL5", "MultiMedia5 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL6", "MultiMedia6 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL7", "MultiMedia7 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL8", "MultiMedia8 Capture", 0, SND_SOC_NOPM, 0, 0),
+};
 
 static const struct snd_soc_component_driver q6asm_fe_dai_component = {
 	.name		= DRV_NAME,
@@ -1241,10 +1212,10 @@ static const struct snd_soc_component_driver q6asm_fe_dai_component = {
 	.prepare	= q6asm_dai_prepare,
 	.trigger	= q6asm_dai_trigger,
 	.pointer	= q6asm_dai_pointer,
-	.mmap		= q6asm_dai_mmap,
 	.pcm_construct	= q6asm_dai_pcm_new,
-	.pcm_destruct	= q6asm_dai_pcm_free,
 	.compress_ops	= &q6asm_dai_compress_ops,
+	.dapm_widgets	= q6asm_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(q6asm_dapm_widgets),
 };
 
 static struct snd_soc_dai_driver q6asm_fe_dais_template[] = {

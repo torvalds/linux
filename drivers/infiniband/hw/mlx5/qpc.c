@@ -220,7 +220,7 @@ int mlx5_core_create_dct(struct mlx5_ib_dev *dev, struct mlx5_core_dct *dct,
 	init_completion(&dct->drained);
 	MLX5_SET(create_dct_in, in, opcode, MLX5_CMD_OP_CREATE_DCT);
 
-	err = mlx5_cmd_exec(dev->mdev, in, inlen, out, outlen);
+	err = mlx5_cmd_do(dev->mdev, in, inlen, out, outlen);
 	if (err)
 		return err;
 
@@ -439,6 +439,12 @@ static int modify_qp_mbox_alloc(struct mlx5_core_dev *dev, u16 opcode, int qpn,
 		if (MBOX_ALLOC(mbox, sqerr2rts_qp))
 			return -ENOMEM;
 		MOD_QP_IN_SET_QPC(sqerr2rts_qp, mbox->in, opcode, qpn,
+				  opt_param_mask, qpc, uid);
+		break;
+	case MLX5_CMD_OP_SQD_RTS_QP:
+		if (MBOX_ALLOC(mbox, sqd2rts_qp))
+			return -ENOMEM;
+		MOD_QP_IN_SET_QPC(sqd2rts_qp, mbox->in, opcode, qpn,
 				  opt_param_mask, qpc, uid);
 		break;
 	case MLX5_CMD_OP_INIT2INIT_QP:

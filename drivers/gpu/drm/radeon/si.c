@@ -32,11 +32,14 @@
 
 #include "atom.h"
 #include "clearstate_si.h"
+#include "evergreen.h"
+#include "r600.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
 #include "radeon_ucode.h"
 #include "si_blit_shaders.h"
+#include "si.h"
 #include "sid.h"
 
 
@@ -127,14 +130,6 @@ static void si_pcie_gen3_enable(struct radeon_device *rdev);
 static void si_program_aspm(struct radeon_device *rdev);
 extern void sumo_rlc_fini(struct radeon_device *rdev);
 extern int sumo_rlc_init(struct radeon_device *rdev);
-extern int r600_ih_ring_alloc(struct radeon_device *rdev);
-extern void r600_ih_ring_fini(struct radeon_device *rdev);
-extern void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev);
-extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
-extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
-extern u32 evergreen_get_number_of_dram_channels(struct radeon_device *rdev);
-extern void evergreen_print_gpu_status_regs(struct radeon_device *rdev);
-extern bool evergreen_is_display_hung(struct radeon_device *rdev);
 static void si_enable_gui_idle_interrupt(struct radeon_device *rdev,
 					 bool enable);
 static void si_init_pg(struct radeon_device *rdev);
@@ -3093,7 +3088,7 @@ static void si_setup_rb(struct radeon_device *rdev,
 static void si_gpu_init(struct radeon_device *rdev)
 {
 	u32 gb_addr_config = 0;
-	u32 mc_shared_chmap, mc_arb_ramcfg;
+	u32 mc_arb_ramcfg;
 	u32 sx_debug_1;
 	u32 hdp_host_path_cntl;
 	u32 tmp;
@@ -3205,7 +3200,7 @@ static void si_gpu_init(struct radeon_device *rdev)
 
 	WREG32(BIF_FB_EN, FB_READ_EN | FB_WRITE_EN);
 
-	mc_shared_chmap = RREG32(MC_SHARED_CHMAP);
+	RREG32(MC_SHARED_CHMAP);
 	mc_arb_ramcfg = RREG32(MC_ARB_RAMCFG);
 
 	rdev->config.si.num_tile_pipes = rdev->config.si.max_tile_pipes;
@@ -4516,7 +4511,7 @@ static int si_vm_packet3_cp_dma_check(u32 *ib, u32 idx)
 			} else {
 				for (i = 0; i < (command & 0x1fffff); i++) {
 					reg = start_reg + (4 * i);
-				if (!si_vm_reg_valid(reg)) {
+					if (!si_vm_reg_valid(reg)) {
 						DRM_ERROR("CP DMA Bad DST register\n");
 						return -EINVAL;
 					}
@@ -6805,8 +6800,8 @@ int si_suspend(struct radeon_device *rdev)
 	si_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);
 	if (rdev->has_uvd) {
-		uvd_v1_0_fini(rdev);
 		radeon_uvd_suspend(rdev);
+		uvd_v1_0_fini(rdev);
 	}
 	if (rdev->has_vce)
 		radeon_vce_suspend(rdev);
@@ -6862,9 +6857,7 @@ int si_init(struct radeon_device *rdev)
 	radeon_get_clock_info(rdev->ddev);
 
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
-	if (r)
-		return r;
+	radeon_fence_driver_init(rdev);
 
 	/* initialize memory controller */
 	r = si_mc_init(rdev);

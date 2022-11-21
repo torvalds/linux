@@ -4,6 +4,9 @@
 #ifndef _IONIC_LIF_H_
 #define _IONIC_LIF_H_
 
+#include <linux/ptp_clock_kernel.h>
+#include <linux/timecounter.h>
+#include <uapi/linux/net_tstamp.h>
 #include <linux/dim.h>
 #include <linux/pci.h>
 #include "ionic_rx_filter.h"
@@ -11,8 +14,11 @@
 #define IONIC_ADMINQ_LENGTH	16	/* must be a power of two */
 #define IONIC_NOTIFYQ_LENGTH	64	/* must be a power of two */
 
-#define IONIC_MAX_NUM_NAPI_CNTR		(NAPI_POLL_WEIGHT + 1)
-#define IONIC_MAX_NUM_SG_CNTR		(IONIC_TX_MAX_SG_ELEMS + 1)
+#define ADD_ADDR	true
+#define DEL_ADDR	false
+#define CAN_SLEEP	true
+#define CAN_NOT_SLEEP	false
+
 #define IONIC_RX_COPYBREAK_DEFAULT	256
 #define IONIC_TX_BUDGET_DEFAULT		256
 
@@ -28,8 +34,9 @@ struct ionic_tx_stats {
 	u64 clean;
 	u64 linearize;
 	u64 crc32_csum;
-	u64 sg_cntr[IONIC_MAX_NUM_SG_CNTR];
 	u64 dma_map_err;
+	u64 hwstamp_valid;
+	u64 hwstamp_invalid;
 };
 
 struct ionic_rx_stats {
@@ -37,12 +44,13 @@ struct ionic_rx_stats {
 	u64 bytes;
 	u64 csum_none;
 	u64 csum_complete;
-	u64 buffers_posted;
 	u64 dropped;
 	u64 vlan_stripped;
 	u64 csum_error;
 	u64 dma_map_err;
 	u64 alloc_err;
+	u64 hwstamp_valid;
+	u64 hwstamp_invalid;
 };
 
 #define IONIC_QCQ_F_INITED		BIT(0)
@@ -51,11 +59,6 @@ struct ionic_rx_stats {
 #define IONIC_QCQ_F_TX_STATS		BIT(3)
 #define IONIC_QCQ_F_RX_STATS		BIT(4)
 #define IONIC_QCQ_F_NOTIFYQ		BIT(5)
-
-struct ionic_napi_stats {
-	u64 poll_count;
-	u64 work_done_cntr[IONIC_MAX_NUM_NAPI_CNTR];
-};
 
 struct ionic_qcq {
 	void *q_base;
@@ -72,7 +75,6 @@ struct ionic_qcq {
 	struct ionic_cq cq;
 	struct ionic_intr_info intr;
 	struct napi_struct napi;
-	struct ionic_napi_stats napi_stats;
 	unsigned int flags;
 	struct dentry *dentry;
 };
@@ -85,8 +87,6 @@ struct ionic_qcq {
 
 enum ionic_deferred_work_type {
 	IONIC_DW_TYPE_RX_MODE,
-	IONIC_DW_TYPE_RX_ADDR_ADD,
-	IONIC_DW_TYPE_RX_ADDR_DEL,
 	IONIC_DW_TYPE_LINK_STATUS,
 	IONIC_DW_TYPE_LIF_RESET,
 };
@@ -95,7 +95,6 @@ struct ionic_deferred_work {
 	struct list_head list;
 	enum ionic_deferred_work_type type;
 	union {
-		unsigned int rx_mode;
 		u8 addr[ETH_ALEN];
 		u8 fw_status;
 	};
@@ -119,6 +118,10 @@ struct ionic_lif_sw_stats {
 	u64 rx_csum_none;
 	u64 rx_csum_complete;
 	u64 rx_csum_error;
+	u64 tx_hwstamp_valid;
+	u64 tx_hwstamp_invalid;
+	u64 rx_hwstamp_valid;
+	u64 rx_hwstamp_invalid;
 	u64 hw_tx_dropped;
 	u64 hw_rx_dropped;
 	u64 hw_rx_over_errors;
@@ -128,11 +131,13 @@ struct ionic_lif_sw_stats {
 
 enum ionic_lif_state_flags {
 	IONIC_LIF_F_INITED,
-	IONIC_LIF_F_SW_DEBUG_STATS,
 	IONIC_LIF_F_UP,
 	IONIC_LIF_F_LINK_CHECK_REQUESTED,
+	IONIC_LIF_F_FILTER_SYNC_NEEDED,
 	IONIC_LIF_F_FW_RESET,
+	IONIC_LIF_F_FW_STOPPING,
 	IONIC_LIF_F_SPLIT_INTR,
+	IONIC_LIF_F_BROKEN,
 	IONIC_LIF_F_TX_DIM_INTR,
 	IONIC_LIF_F_RX_DIM_INTR,
 
@@ -151,40 +156,46 @@ struct ionic_qtype_info {
 	u16 sg_desc_stride;
 };
 
+struct ionic_phc;
+
 #define IONIC_LIF_NAME_MAX_SZ		32
 struct ionic_lif {
-	char name[IONIC_LIF_NAME_MAX_SZ];
-	struct list_head list;
 	struct net_device *netdev;
 	DECLARE_BITMAP(state, IONIC_LIF_F_STATE_SIZE);
 	struct ionic *ionic;
-	bool registered;
 	unsigned int index;
 	unsigned int hw_index;
-	unsigned int kern_pid;
-	u64 __iomem *kern_dbpage;
 	struct mutex queue_lock;	/* lock for queue structures */
+	struct mutex config_lock;	/* lock for config actions */
 	spinlock_t adminq_lock;		/* lock for AdminQ operations */
 	struct ionic_qcq *adminqcq;
 	struct ionic_qcq *notifyqcq;
 	struct ionic_qcq **txqcqs;
+	struct ionic_qcq *hwstamp_txq;
 	struct ionic_tx_stats *txqstats;
 	struct ionic_qcq **rxqcqs;
+	struct ionic_qcq *hwstamp_rxq;
 	struct ionic_rx_stats *rxqstats;
+	struct ionic_deferred deferred;
+	struct work_struct tx_timeout_work;
 	u64 last_eid;
+	unsigned int kern_pid;
+	u64 __iomem *kern_dbpage;
 	unsigned int neqs;
 	unsigned int nxqs;
 	unsigned int ntxq_descs;
 	unsigned int nrxq_descs;
 	u32 rx_copybreak;
-	u32 tx_budget;
-	unsigned int rx_mode;
+	u64 rxq_features;
+	u16 rx_mode;
 	u64 hw_features;
-	bool mc_overflow;
-	unsigned int nmcast;
-	bool uc_overflow;
+	bool registered;
 	u16 lif_type;
+	unsigned int nmcast;
 	unsigned int nucast;
+	unsigned int nvlans;
+	unsigned int max_vlans;
+	char name[IONIC_LIF_NAME_MAX_SZ];
 
 	union ionic_lif_identity *identity;
 	struct ionic_lif_info *info;
@@ -199,16 +210,33 @@ struct ionic_lif {
 	u32 rss_ind_tbl_sz;
 
 	struct ionic_rx_filters rx_filters;
-	struct ionic_deferred deferred;
-	unsigned long *dbid_inuse;
-	unsigned int dbid_count;
-	struct dentry *dentry;
 	u32 rx_coalesce_usecs;		/* what the user asked for */
 	u32 rx_coalesce_hw;		/* what the hw is using */
 	u32 tx_coalesce_usecs;		/* what the user asked for */
 	u32 tx_coalesce_hw;		/* what the hw is using */
+	unsigned int dbid_count;
 
-	struct work_struct tx_timeout_work;
+	struct ionic_phc *phc;
+
+	struct dentry *dentry;
+};
+
+struct ionic_phc {
+	spinlock_t lock; /* lock for cc and tc */
+	struct cyclecounter cc;
+	struct timecounter tc;
+
+	struct mutex config_lock; /* lock for ts_config */
+	struct hwtstamp_config ts_config;
+	u64 ts_config_rx_filt;
+	u32 ts_config_tx_mode;
+
+	u32 init_cc_mult;
+	long aux_work_delay;
+
+	struct ptp_clock_info ptp_info;
+	struct ptp_clock *ptp;
+	struct ionic_lif *lif;
 };
 
 struct ionic_queue_params {
@@ -216,6 +244,7 @@ struct ionic_queue_params {
 	unsigned int ntxq_descs;
 	unsigned int nrxq_descs;
 	unsigned int intr_split;
+	u64 rxq_features;
 };
 
 static inline void ionic_init_queue_params(struct ionic_lif *lif,
@@ -225,6 +254,7 @@ static inline void ionic_init_queue_params(struct ionic_lif *lif,
 	qparam->ntxq_descs = lif->ntxq_descs;
 	qparam->nrxq_descs = lif->nrxq_descs;
 	qparam->intr_split = test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state);
+	qparam->rxq_features = lif->rxq_features;
 }
 
 static inline u32 ionic_coal_usec_to_hw(struct ionic *ionic, u32 usecs)
@@ -243,8 +273,6 @@ static inline u32 ionic_coal_usec_to_hw(struct ionic *ionic, u32 usecs)
 	return (usecs * mult) / div;
 }
 
-typedef void (*ionic_reset_cb)(struct ionic_lif *lif, void *arg);
-
 void ionic_link_status_check_request(struct ionic_lif *lif, bool can_sleep);
 void ionic_get_stats64(struct net_device *netdev,
 		       struct rtnl_link_stats64 *ns);
@@ -254,46 +282,60 @@ int ionic_lif_alloc(struct ionic *ionic);
 int ionic_lif_init(struct ionic_lif *lif);
 void ionic_lif_free(struct ionic_lif *lif);
 void ionic_lif_deinit(struct ionic_lif *lif);
+
+int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr);
+int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr);
+
 int ionic_lif_register(struct ionic_lif *lif);
 void ionic_lif_unregister(struct ionic_lif *lif);
 int ionic_lif_identify(struct ionic *ionic, u8 lif_type,
 		       union ionic_lif_identity *lif_ident);
 int ionic_lif_size(struct ionic *ionic);
+
+#if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
+void ionic_lif_hwstamp_replay(struct ionic_lif *lif);
+void ionic_lif_hwstamp_recreate_queues(struct ionic_lif *lif);
+int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr);
+int ionic_lif_hwstamp_get(struct ionic_lif *lif, struct ifreq *ifr);
+ktime_t ionic_lif_phc_ktime(struct ionic_lif *lif, u64 counter);
+void ionic_lif_register_phc(struct ionic_lif *lif);
+void ionic_lif_unregister_phc(struct ionic_lif *lif);
+void ionic_lif_alloc_phc(struct ionic_lif *lif);
+void ionic_lif_free_phc(struct ionic_lif *lif);
+#else
+static inline void ionic_lif_hwstamp_replay(struct ionic_lif *lif) {}
+static inline void ionic_lif_hwstamp_recreate_queues(struct ionic_lif *lif) {}
+
+static inline int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int ionic_lif_hwstamp_get(struct ionic_lif *lif, struct ifreq *ifr)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline ktime_t ionic_lif_phc_ktime(struct ionic_lif *lif, u64 counter)
+{
+	return ns_to_ktime(0);
+}
+
+static inline void ionic_lif_register_phc(struct ionic_lif *lif) {}
+static inline void ionic_lif_unregister_phc(struct ionic_lif *lif) {}
+static inline void ionic_lif_alloc_phc(struct ionic_lif *lif) {}
+static inline void ionic_lif_free_phc(struct ionic_lif *lif) {}
+#endif
+
+int ionic_lif_create_hwstamp_txq(struct ionic_lif *lif);
+int ionic_lif_create_hwstamp_rxq(struct ionic_lif *lif);
+int ionic_lif_config_hwstamp_rxq_all(struct ionic_lif *lif, bool rx_all);
+int ionic_lif_set_hwstamp_txmode(struct ionic_lif *lif, u16 txstamp_mode);
+int ionic_lif_set_hwstamp_rxfilt(struct ionic_lif *lif, u64 pkt_class);
+
 int ionic_lif_rss_config(struct ionic_lif *lif, u16 types,
 			 const u8 *key, const u32 *indir);
+void ionic_lif_rx_mode(struct ionic_lif *lif);
 int ionic_reconfigure_queues(struct ionic_lif *lif,
 			     struct ionic_queue_params *qparam);
-
-static inline void debug_stats_txq_post(struct ionic_queue *q, bool dbell)
-{
-	struct ionic_txq_desc *desc = &q->txq[q->head_idx];
-	u8 num_sg_elems;
-
-	q->dbell_count += dbell;
-
-	num_sg_elems = ((le64_to_cpu(desc->cmd) >> IONIC_TXQ_DESC_NSGE_SHIFT)
-						& IONIC_TXQ_DESC_NSGE_MASK);
-	if (num_sg_elems > (IONIC_MAX_NUM_SG_CNTR - 1))
-		num_sg_elems = IONIC_MAX_NUM_SG_CNTR - 1;
-
-	q->lif->txqstats[q->index].sg_cntr[num_sg_elems]++;
-}
-
-static inline void debug_stats_napi_poll(struct ionic_qcq *qcq,
-					 unsigned int work_done)
-{
-	qcq->napi_stats.poll_count++;
-
-	if (work_done > (IONIC_MAX_NUM_NAPI_CNTR - 1))
-		work_done = IONIC_MAX_NUM_NAPI_CNTR - 1;
-
-	qcq->napi_stats.work_done_cntr[work_done]++;
-}
-
-#define DEBUG_STATS_CQE_CNT(cq)		((cq)->compl_count++)
-#define DEBUG_STATS_RX_BUFF_CNT(q)	((q)->lif->rxqstats[q->index].buffers_posted++)
-#define DEBUG_STATS_TXQ_POST(q, dbell)  debug_stats_txq_post(q, dbell)
-#define DEBUG_STATS_NAPI_POLL(qcq, work_done) \
-	debug_stats_napi_poll(qcq, work_done)
-
 #endif /* _IONIC_LIF_H_ */

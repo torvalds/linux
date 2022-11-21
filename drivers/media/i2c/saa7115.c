@@ -1129,7 +1129,7 @@ static void saa711x_set_lcr(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_forma
 
 static int saa711x_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *sliced)
 {
-	static u16 lcr2vbi[] = {
+	static const u16 lcr2vbi[] = {
 		0, V4L2_SLICED_TELETEXT_B, 0,	/* 1 */
 		0, V4L2_SLICED_CAPTION_525,	/* 4 */
 		V4L2_SLICED_WSS_625, 0,		/* 5 */
@@ -1167,7 +1167,7 @@ static int saa711x_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 }
 
 static int saa711x_set_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;

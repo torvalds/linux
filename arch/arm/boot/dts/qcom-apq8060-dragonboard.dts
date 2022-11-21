@@ -1,25 +1,4 @@
-/*
- * Copyright 2016 Linaro Ltd
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
-
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
@@ -104,7 +83,7 @@
 
 	soc {
 		pinctrl@800000 {
-			/* eMMMC pins, all 8 data lines connected */
+			/* eMMC pins, all 8 data lines connected */
 			dragon_sdcc1_pins: sdcc1 {
 				mux {
 					pins = "gpio159", "gpio160", "gpio161",
@@ -378,8 +357,8 @@
 				};
 
 				mpps@50 {
-					dragon_cm3605_mpps: cm3605-mpps {
-						pinconf {
+					dragon_cm3605_mpps: cm3605-mpps-state {
+						mpp5 {
 							pins = "mpp5";
 							function = "analog";
 							input-enable;
@@ -461,11 +440,11 @@
 		};
 
 		gsbi@19800000 {
-			status = "ok";
+			status = "okay";
 			qcom,mode = <GSBI_PROT_I2C>;
 
 			i2c@19880000 {
-				status = "ok";
+				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&dragon_gsbi8_i2c_pins>;
 
@@ -497,17 +476,17 @@
 		};
 
 		gsbi@19c00000 {
-			status = "ok";
+			status = "okay";
 			qcom,mode = <GSBI_PROT_I2C_UART>;
 
 			serial@19c40000 {
-				status = "ok";
+				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&dragon_gsbi12_serial_pins>;
 			};
 
 			i2c@19c80000 {
-				status = "ok";
+				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&dragon_gsbi12_i2c_pins>;
 
@@ -571,7 +550,7 @@
 
 		external-bus@1a100000 {
 			/* The EBI2 will instantiate first, then populate its children */
-			status = "ok";
+			status = "okay";
 			pinctrl-names = "default";
 			pinctrl-0 = <&dragon_ebi2_pins>;
 
@@ -581,7 +560,7 @@
 			 * EBI2. This has a 25MHz chrystal next to it, so no
 			 * clocking is needed.
 			 */
-			ethernet-ebi2@2,0 {
+			ethernet@2,0 {
 				compatible = "smsc,lan9221", "smsc,lan9115";
 				reg = <2 0x0 0x100>;
 				/*
@@ -598,8 +577,6 @@
 				phy-mode = "mii";
 				reg-io-width = <2>;
 				smsc,force-external-phy;
-				/* IRQ on edge falling = active low */
-				smsc,irq-active-low;
 				smsc,irq-push-pull;
 
 				/*
@@ -697,14 +674,14 @@
 					bias-pull-down;
 				};
 
-				/* LVS0 thru 3 and mvs0 are just switches */
+				/* LVS0 thru 3 and mvs are just switches */
 				lvs0 {
 					regulator-always-on;
 				};
 				lvs1 { };
 				lvs2 { };
 				lvs3 { };
-				mvs0 {};
+				mvs { };
 
 			};
 
@@ -922,7 +899,7 @@
 		};
 		amba {
 			/* Internal 3.69 GiB eMMC */
-			sdcc@12400000 {
+			mmc@12400000 {
 				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&dragon_sdcc1_pins>;
@@ -931,7 +908,7 @@
 			};
 
 			/* External micro SD card, directly connected, pulled up to 2.85 V */
-			sdcc@12180000 {
+			mmc@12180000 {
 				status = "okay";
 				/* Enable SSBI GPIO 22 as input, use for card detect */
 				pinctrl-names = "default";
@@ -945,7 +922,7 @@
 			 * Second external micro SD card, using two TXB104RGYR levelshifters
 			 * to lift from 1.8 V to 2.85 V
 			 */
-			sdcc@12200000 {
+			mmc@12200000 {
 				status = "okay";
 				/* Enable SSBI GPIO 26 as input, use for card detect */
 				pinctrl-names = "default";

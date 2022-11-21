@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2017 Redpine Signals Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -27,6 +27,17 @@
 #define DEV_OPMODE_STA_BT_DUAL		13
 #define DEV_OPMODE_AP_BT		6
 #define DEV_OPMODE_AP_BT_DUAL		14
+
+#define DEV_OPMODE_PARAM_DESC		\
+	__stringify(DEV_OPMODE_WIFI_ALONE)	"[Wi-Fi alone], "	\
+	__stringify(DEV_OPMODE_BT_ALONE)	"[BT classic alone], "	\
+	__stringify(DEV_OPMODE_BT_LE_ALONE)	"[BT LE alone], "	\
+	__stringify(DEV_OPMODE_BT_DUAL)		"[BT classic + BT LE alone], " \
+	__stringify(DEV_OPMODE_STA_BT)		"[Wi-Fi STA + BT classic], " \
+	__stringify(DEV_OPMODE_STA_BT_LE)	"[Wi-Fi STA + BT LE], "	\
+	__stringify(DEV_OPMODE_STA_BT_DUAL)	"[Wi-Fi STA + BT classic + BT LE], " \
+	__stringify(DEV_OPMODE_AP_BT)		"[Wi-Fi AP + BT classic], "	\
+	__stringify(DEV_OPMODE_AP_BT_DUAL)	"[Wi-Fi AP + BT classic + BT LE]"
 
 #define FLASH_WRITE_CHUNK_SIZE		(4 * 1024)
 #define FLASH_SECTOR_SIZE		(4 * 1024)

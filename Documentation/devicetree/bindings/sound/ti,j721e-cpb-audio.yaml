@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2020 Texas Instruments Incorporated
+# Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/sound/ti,j721e-cpb-audio.yaml#
@@ -7,7 +9,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Texas Instruments J721e Common Processor Board Audio Support
 
 maintainers:
-  - Peter Ujfalusi <peter.ujfalusi@ti.com>
+  - Peter Ujfalusi <peter.ujfalusi@gmail.com>
 
 description: |
   The audio support on the board is using pcm3168a codec connected to McASP10
@@ -78,7 +80,6 @@ allOf:
     then:
       properties:
         clocks:
-          minItems: 6
           items:
             - description: AUXCLK clock for McASP used by CPB audio
             - description: Parent for CPB_McASP auxclk (for 48KHz)
@@ -105,7 +106,6 @@ allOf:
     then:
       properties:
         clocks:
-          maxItems: 4
           items:
             - description: AUXCLK clock for McASP used by CPB audio
             - description: Parent for CPB_McASP auxclk (for 48KHz)
@@ -124,8 +124,6 @@ examples:
     sound {
         compatible = "ti,j721e-cpb-audio";
         model = "j721e-cpb";
-
-        status = "okay";
 
         ti,cpb-mcasp = <&mcasp10>;
         ti,cpb-codec = <&pcm3168a_1>;

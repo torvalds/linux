@@ -5,7 +5,10 @@
  */
 
 #include <linux/pagevec.h>
+#include <linux/shmem_fs.h>
 #include <linux/swap.h>
+
+#include <drm/drm_cache.h>
 
 #include "gem/i915_gem_region.h"
 #include "i915_drv.h"
@@ -25,47 +28,54 @@ static void check_release_pagevec(struct pagevec *pvec)
 	cond_resched();
 }
 
-static int shmem_get_pages(struct drm_i915_gem_object *obj)
+void shmem_sg_free_table(struct sg_table *st, struct address_space *mapping,
+			 bool dirty, bool backup)
 {
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct intel_memory_region *mem = obj->mm.region;
-	const unsigned long page_count = obj->base.size / PAGE_SIZE;
-	unsigned long i;
-	struct address_space *mapping;
-	struct sg_table *st;
-	struct scatterlist *sg;
 	struct sgt_iter sgt_iter;
+	struct pagevec pvec;
+	struct page *page;
+
+	mapping_clear_unevictable(mapping);
+
+	pagevec_init(&pvec);
+	for_each_sgt_page(page, sgt_iter, st) {
+		if (dirty)
+			set_page_dirty(page);
+
+		if (backup)
+			mark_page_accessed(page);
+
+		if (!pagevec_add(&pvec, page))
+			check_release_pagevec(&pvec);
+	}
+	if (pagevec_count(&pvec))
+		check_release_pagevec(&pvec);
+
+	sg_free_table(st);
+}
+
+int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
+			 size_t size, struct intel_memory_region *mr,
+			 struct address_space *mapping,
+			 unsigned int max_segment)
+{
+	const unsigned long page_count = size / PAGE_SIZE;
+	unsigned long i;
+	struct scatterlist *sg;
 	struct page *page;
 	unsigned long last_pfn = 0;	/* suppress gcc warning */
-	unsigned int max_segment = i915_sg_segment_size();
-	unsigned int sg_page_sizes;
 	gfp_t noreclaim;
 	int ret;
-
-	/*
-	 * Assert that the object is not currently in any GPU domain. As it
-	 * wasn't in the GTT, there shouldn't be any way it could have been in
-	 * a GPU cache
-	 */
-	GEM_BUG_ON(obj->read_domains & I915_GEM_GPU_DOMAINS);
-	GEM_BUG_ON(obj->write_domain & I915_GEM_GPU_DOMAINS);
 
 	/*
 	 * If there's no chance of allocating enough pages for the whole
 	 * object, bail early.
 	 */
-	if (obj->base.size > resource_size(&mem->region))
+	if (size > resource_size(&mr->region))
 		return -ENOMEM;
 
-	st = kmalloc(sizeof(*st), GFP_KERNEL);
-	if (!st)
+	if (sg_alloc_table(st, page_count, GFP_KERNEL))
 		return -ENOMEM;
-
-rebuild_st:
-	if (sg_alloc_table(st, page_count, GFP_KERNEL)) {
-		kfree(st);
-		return -ENOMEM;
-	}
 
 	/*
 	 * Get the list of pages out of our struct file.  They'll be pinned
@@ -73,14 +83,12 @@ rebuild_st:
 	 *
 	 * Fail silently without starting the shrinker
 	 */
-	mapping = obj->base.filp->f_mapping;
 	mapping_set_unevictable(mapping);
 	noreclaim = mapping_gfp_constraint(mapping, ~__GFP_RECLAIM);
 	noreclaim |= __GFP_NORETRY | __GFP_NOWARN;
 
 	sg = st->sgl;
 	st->nents = 0;
-	sg_page_sizes = 0;
 	for (i = 0; i < page_count; i++) {
 		const unsigned int shrink[] = {
 			I915_SHRINK_BOUND | I915_SHRINK_UNBOUND,
@@ -99,7 +107,7 @@ rebuild_st:
 				goto err_sg;
 			}
 
-			i915_gem_shrink(i915, 2 * page_count, NULL, *s++);
+			i915_gem_shrink(NULL, i915, 2 * page_count, NULL, *s++);
 
 			/*
 			 * We've tried hard to allocate the memory by reaping
@@ -135,10 +143,9 @@ rebuild_st:
 		if (!i ||
 		    sg->length >= max_segment ||
 		    page_to_pfn(page) != last_pfn + 1) {
-			if (i) {
-				sg_page_sizes |= sg->length;
+			if (i)
 				sg = sg_next(sg);
-			}
+
 			st->nents++;
 			sg_set_page(sg, page, PAGE_SIZE, 0);
 		} else {
@@ -149,60 +156,21 @@ rebuild_st:
 		/* Check that the i965g/gm workaround works. */
 		GEM_BUG_ON(gfp & __GFP_DMA32 && last_pfn >= 0x00100000UL);
 	}
-	if (sg) { /* loop terminated early; short sg table */
-		sg_page_sizes |= sg->length;
+	if (sg) /* loop terminated early; short sg table */
 		sg_mark_end(sg);
-	}
 
 	/* Trim unused sg entries to avoid wasting memory. */
 	i915_sg_trim(st);
 
-	ret = i915_gem_gtt_prepare_pages(obj, st);
-	if (ret) {
-		/*
-		 * DMA remapping failed? One possible cause is that
-		 * it could not reserve enough large entries, asking
-		 * for PAGE_SIZE chunks instead may be helpful.
-		 */
-		if (max_segment > PAGE_SIZE) {
-			for_each_sgt_page(page, sgt_iter, st)
-				put_page(page);
-			sg_free_table(st);
-
-			max_segment = PAGE_SIZE;
-			goto rebuild_st;
-		} else {
-			dev_warn(&i915->drm.pdev->dev,
-				 "Failed to DMA remap %lu pages\n",
-				 page_count);
-			goto err_pages;
-		}
-	}
-
-	if (i915_gem_object_needs_bit17_swizzle(obj))
-		i915_gem_object_do_bit_17_swizzle(obj, st);
-
-	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
-
 	return 0;
-
 err_sg:
 	sg_mark_end(sg);
-err_pages:
-	mapping_clear_unevictable(mapping);
 	if (sg != st->sgl) {
-		struct pagevec pvec;
-
-		pagevec_init(&pvec);
-		for_each_sgt_page(page, sgt_iter, st) {
-			if (!pagevec_add(&pvec, page))
-				check_release_pagevec(&pvec);
-		}
-		if (pagevec_count(&pvec))
-			check_release_pagevec(&pvec);
+		shmem_sg_free_table(st, mapping, false, false);
+	} else {
+		mapping_clear_unevictable(mapping);
+		sg_free_table(st);
 	}
-	sg_free_table(st);
-	kfree(st);
 
 	/*
 	 * shmemfs first checks if there is enough memory to allocate the page
@@ -219,7 +187,90 @@ err_pages:
 	return ret;
 }
 
-static void
+static int shmem_get_pages(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct intel_memory_region *mem = obj->mm.region;
+	struct address_space *mapping = obj->base.filp->f_mapping;
+	const unsigned long page_count = obj->base.size / PAGE_SIZE;
+	unsigned int max_segment = i915_sg_segment_size();
+	struct sg_table *st;
+	struct sgt_iter sgt_iter;
+	struct page *page;
+	int ret;
+
+	/*
+	 * Assert that the object is not currently in any GPU domain. As it
+	 * wasn't in the GTT, there shouldn't be any way it could have been in
+	 * a GPU cache
+	 */
+	GEM_BUG_ON(obj->read_domains & I915_GEM_GPU_DOMAINS);
+	GEM_BUG_ON(obj->write_domain & I915_GEM_GPU_DOMAINS);
+
+rebuild_st:
+	st = kmalloc(sizeof(*st), GFP_KERNEL);
+	if (!st)
+		return -ENOMEM;
+
+	ret = shmem_sg_alloc_table(i915, st, obj->base.size, mem, mapping,
+				   max_segment);
+	if (ret)
+		goto err_st;
+
+	ret = i915_gem_gtt_prepare_pages(obj, st);
+	if (ret) {
+		/*
+		 * DMA remapping failed? One possible cause is that
+		 * it could not reserve enough large entries, asking
+		 * for PAGE_SIZE chunks instead may be helpful.
+		 */
+		if (max_segment > PAGE_SIZE) {
+			for_each_sgt_page(page, sgt_iter, st)
+				put_page(page);
+			sg_free_table(st);
+			kfree(st);
+
+			max_segment = PAGE_SIZE;
+			goto rebuild_st;
+		} else {
+			dev_warn(i915->drm.dev,
+				 "Failed to DMA remap %lu pages\n",
+				 page_count);
+			goto err_pages;
+		}
+	}
+
+	if (i915_gem_object_needs_bit17_swizzle(obj))
+		i915_gem_object_do_bit_17_swizzle(obj, st);
+
+	if (i915_gem_object_can_bypass_llc(obj))
+		obj->cache_dirty = true;
+
+	__i915_gem_object_set_pages(obj, st, i915_sg_dma_sizes(st->sgl));
+
+	return 0;
+
+err_pages:
+	shmem_sg_free_table(st, mapping, false, false);
+	/*
+	 * shmemfs first checks if there is enough memory to allocate the page
+	 * and reports ENOSPC should there be insufficient, along with the usual
+	 * ENOMEM for a genuine allocation failure.
+	 *
+	 * We use ENOSPC in our driver to mean that we have run out of aperture
+	 * space and so want to translate the error from shmemfs back to our
+	 * usual understanding of ENOMEM.
+	 */
+err_st:
+	if (ret == -ENOSPC)
+		ret = -ENOMEM;
+
+	kfree(st);
+
+	return ret;
+}
+
+static int
 shmem_truncate(struct drm_i915_gem_object *obj)
 {
 	/*
@@ -231,12 +282,12 @@ shmem_truncate(struct drm_i915_gem_object *obj)
 	shmem_truncate_range(file_inode(obj->base.filp), 0, (loff_t)-1);
 	obj->mm.madv = __I915_MADV_PURGED;
 	obj->mm.pages = ERR_PTR(-EFAULT);
+
+	return 0;
 }
 
-static void
-shmem_writeback(struct drm_i915_gem_object *obj)
+void __shmem_writeback(size_t size, struct address_space *mapping)
 {
-	struct address_space *mapping;
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_NONE,
 		.nr_to_write = SWAP_CLUSTER_MAX,
@@ -252,10 +303,9 @@ shmem_writeback(struct drm_i915_gem_object *obj)
 	 * instead of invoking writeback so they are aged and paged out
 	 * as normal.
 	 */
-	mapping = obj->base.filp->f_mapping;
 
 	/* Begin writeback on each dirty page */
-	for (i = 0; i < obj->base.size >> PAGE_SHIFT; i++) {
+	for (i = 0; i < size >> PAGE_SHIFT; i++) {
 		struct page *page;
 
 		page = find_lock_page(mapping, i);
@@ -278,11 +328,34 @@ put:
 	}
 }
 
+static void
+shmem_writeback(struct drm_i915_gem_object *obj)
+{
+	__shmem_writeback(obj->base.size, obj->base.filp->f_mapping);
+}
+
+static int shmem_shrink(struct drm_i915_gem_object *obj, unsigned int flags)
+{
+	switch (obj->mm.madv) {
+	case I915_MADV_DONTNEED:
+		return i915_gem_object_truncate(obj);
+	case __I915_MADV_PURGED:
+		return 0;
+	}
+
+	if (flags & I915_GEM_OBJECT_SHRINK_WRITEBACK)
+		shmem_writeback(obj);
+
+	return 0;
+}
+
 void
 __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 				struct sg_table *pages,
 				bool needs_clflush)
 {
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+
 	GEM_BUG_ON(obj->mm.madv == __I915_MADV_PURGED);
 
 	if (obj->mm.madv == I915_MADV_DONTNEED)
@@ -294,15 +367,20 @@ __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 		drm_clflush_sg(pages);
 
 	__start_cpu_write(obj);
+	/*
+	 * On non-LLC platforms, force the flush-on-acquire if this is ever
+	 * swapped-in. Our async flush path is not trust worthy enough yet(and
+	 * happens in the wrong order), and with some tricks it's conceivable
+	 * for userspace to change the cache-level to I915_CACHE_NONE after the
+	 * pages are swapped-in, and since execbuf binds the object before doing
+	 * the async flush, we have a race window.
+	 */
+	if (!HAS_LLC(i915))
+		obj->cache_dirty = true;
 }
 
-static void
-shmem_put_pages(struct drm_i915_gem_object *obj, struct sg_table *pages)
+void i915_gem_object_put_pages_shmem(struct drm_i915_gem_object *obj, struct sg_table *pages)
 {
-	struct sgt_iter sgt_iter;
-	struct pagevec pvec;
-	struct page *page;
-
 	__i915_gem_object_release_shmem(obj, pages, true);
 
 	i915_gem_gtt_finish_pages(obj, pages);
@@ -310,25 +388,19 @@ shmem_put_pages(struct drm_i915_gem_object *obj, struct sg_table *pages)
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_save_bit_17_swizzle(obj, pages);
 
-	mapping_clear_unevictable(file_inode(obj->base.filp)->i_mapping);
-
-	pagevec_init(&pvec);
-	for_each_sgt_page(page, sgt_iter, pages) {
-		if (obj->mm.dirty)
-			set_page_dirty(page);
-
-		if (obj->mm.madv == I915_MADV_WILLNEED)
-			mark_page_accessed(page);
-
-		if (!pagevec_add(&pvec, page))
-			check_release_pagevec(&pvec);
-	}
-	if (pagevec_count(&pvec))
-		check_release_pagevec(&pvec);
-	obj->mm.dirty = false;
-
-	sg_free_table(pages);
+	shmem_sg_free_table(pages, file_inode(obj->base.filp)->i_mapping,
+			    obj->mm.dirty, obj->mm.madv == I915_MADV_WILLNEED);
 	kfree(pages);
+	obj->mm.dirty = false;
+}
+
+static void
+shmem_put_pages(struct drm_i915_gem_object *obj, struct sg_table *pages)
+{
+	if (likely(i915_gem_object_has_struct_page(obj)))
+		i915_gem_object_put_pages_shmem(obj, pages);
+	else
+		i915_gem_object_put_pages_phys(obj, pages);
 }
 
 static int
@@ -342,6 +414,9 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 
 	/* Caller already validated user args */
 	GEM_BUG_ON(!access_ok(user_data, arg->size));
+
+	if (!i915_gem_object_has_struct_page(obj))
+		return i915_gem_object_pwrite_phys(obj, arg);
 
 	/*
 	 * Before we instantiate/pin the backing store for our use, we
@@ -421,24 +496,35 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
+static int
+shmem_pread(struct drm_i915_gem_object *obj,
+	    const struct drm_i915_gem_pread *arg)
+{
+	if (!i915_gem_object_has_struct_page(obj))
+		return i915_gem_object_pread_phys(obj, arg);
+
+	return -ENODEV;
+}
+
 static void shmem_release(struct drm_i915_gem_object *obj)
 {
-	i915_gem_object_release_memory_region(obj);
+	if (i915_gem_object_has_struct_page(obj))
+		i915_gem_object_release_memory_region(obj);
 
 	fput(obj->base.filp);
 }
 
 const struct drm_i915_gem_object_ops i915_gem_shmem_ops = {
 	.name = "i915_gem_object_shmem",
-	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE |
-		 I915_GEM_OBJECT_IS_SHRINKABLE,
+	.flags = I915_GEM_OBJECT_IS_SHRINKABLE,
 
 	.get_pages = shmem_get_pages,
 	.put_pages = shmem_put_pages,
 	.truncate = shmem_truncate,
-	.writeback = shmem_writeback,
+	.shrink = shmem_shrink,
 
 	.pwrite = shmem_pwrite,
+	.pread = shmem_pread,
 
 	.release = shmem_release,
 };
@@ -464,26 +550,22 @@ static int __create_shmem(struct drm_i915_private *i915,
 	return 0;
 }
 
-static struct drm_i915_gem_object *
-create_shmem(struct intel_memory_region *mem,
-	     resource_size_t size,
-	     unsigned int flags)
+static int shmem_object_init(struct intel_memory_region *mem,
+			     struct drm_i915_gem_object *obj,
+			     resource_size_t size,
+			     resource_size_t page_size,
+			     unsigned int flags)
 {
 	static struct lock_class_key lock_class;
 	struct drm_i915_private *i915 = mem->i915;
-	struct drm_i915_gem_object *obj;
 	struct address_space *mapping;
 	unsigned int cache_level;
 	gfp_t mask;
 	int ret;
 
-	obj = i915_gem_object_alloc();
-	if (!obj)
-		return ERR_PTR(-ENOMEM);
-
 	ret = __create_shmem(i915, &obj->base, size);
 	if (ret)
-		goto fail;
+		return ret;
 
 	mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
 	if (IS_I965GM(i915) || IS_I965G(i915)) {
@@ -496,8 +578,8 @@ create_shmem(struct intel_memory_region *mem,
 	mapping_set_gfp_mask(mapping, mask);
 	GEM_BUG_ON(!(mapping_gfp_mask(mapping) & __GFP_RECLAIM));
 
-	i915_gem_object_init(obj, &i915_gem_shmem_ops, &lock_class);
-
+	i915_gem_object_init(obj, &i915_gem_shmem_ops, &lock_class, 0);
+	obj->mem_flags |= I915_BO_FLAG_STRUCT_PAGE;
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 
@@ -520,13 +602,9 @@ create_shmem(struct intel_memory_region *mem,
 
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 
-	i915_gem_object_init_memory_region(obj, mem, 0);
+	i915_gem_object_init_memory_region(obj, mem);
 
-	return obj;
-
-fail:
-	i915_gem_object_free(obj);
-	return ERR_PTR(ret);
+	return 0;
 }
 
 struct drm_i915_gem_object *
@@ -534,7 +612,7 @@ i915_gem_object_create_shmem(struct drm_i915_private *i915,
 			     resource_size_t size)
 {
 	return i915_gem_object_create_region(i915->mm.regions[INTEL_REGION_SMEM],
-					     size, 0);
+					     size, 0, 0);
 }
 
 /* Allocate a new GEM object and fill it with the supplied data */
@@ -547,6 +625,7 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
 	resource_size_t offset;
 	int err;
 
+	GEM_WARN_ON(IS_DGFX(dev_priv));
 	obj = i915_gem_object_create_shmem(dev_priv, round_up(size, PAGE_SIZE));
 	if (IS_ERR(obj))
 		return obj;
@@ -603,21 +682,29 @@ static int init_shmem(struct intel_memory_region *mem)
 	return 0; /* Don't error, we can simply fallback to the kernel mnt */
 }
 
-static void release_shmem(struct intel_memory_region *mem)
+static int release_shmem(struct intel_memory_region *mem)
 {
 	i915_gemfs_fini(mem->i915);
+	return 0;
 }
 
 static const struct intel_memory_region_ops shmem_region_ops = {
 	.init = init_shmem,
 	.release = release_shmem,
-	.create_object = create_shmem,
+	.init_object = shmem_object_init,
 };
 
-struct intel_memory_region *i915_gem_shmem_setup(struct drm_i915_private *i915)
+struct intel_memory_region *i915_gem_shmem_setup(struct drm_i915_private *i915,
+						 u16 type, u16 instance)
 {
 	return intel_memory_region_create(i915, 0,
 					  totalram_pages() << PAGE_SHIFT,
-					  PAGE_SIZE, 0,
+					  PAGE_SIZE, 0, 0,
+					  type, instance,
 					  &shmem_region_ops);
+}
+
+bool i915_gem_object_is_shmem(const struct drm_i915_gem_object *obj)
+{
+	return obj->ops == &i915_gem_shmem_ops;
 }

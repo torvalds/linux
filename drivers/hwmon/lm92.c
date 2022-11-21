@@ -99,7 +99,7 @@ static const u8 regs[t_num_regs] = {
 struct lm92_data {
 	struct i2c_client *client;
 	struct mutex update_lock;
-	char valid; /* zero until following fields are valid */
+	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
 	/* registers values */
@@ -126,7 +126,7 @@ static struct lm92_data *lm92_update_device(struct device *dev)
 				i2c_smbus_read_word_swapped(client, regs[i]);
 		}
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

@@ -18,8 +18,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("EMU10K1");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Creative Labs,SB Live!/PCI512/E-mu APS},"
-	       "{Creative Labs,SB Audigy}}");
 
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
 #define ENABLE_SYNTH
@@ -101,56 +99,67 @@ static int snd_card_emu10k1_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-			   0, &card);
+	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+				sizeof(*emu), &card);
 	if (err < 0)
 		return err;
+	emu = card->private_data;
+
 	if (max_buffer_size[dev] < 32)
 		max_buffer_size[dev] = 32;
 	else if (max_buffer_size[dev] > 1024)
 		max_buffer_size[dev] = 1024;
-	if ((err = snd_emu10k1_create(card, pci, extin[dev], extout[dev],
-				      (long)max_buffer_size[dev] * 1024 * 1024,
-				      enable_ir[dev], subsystem[dev],
-				      &emu)) < 0)
-		goto error;
-	card->private_data = emu;
+	err = snd_emu10k1_create(card, pci, extin[dev], extout[dev],
+				 (long)max_buffer_size[dev] * 1024 * 1024,
+				 enable_ir[dev], subsystem[dev]);
+	if (err < 0)
+		return err;
 	emu->delay_pcm_irq = delay_pcm_irq[dev] & 0x1f;
-	if ((err = snd_emu10k1_pcm(emu, 0)) < 0)
-		goto error;
-	if ((err = snd_emu10k1_pcm_mic(emu, 1)) < 0)
-		goto error;
-	if ((err = snd_emu10k1_pcm_efx(emu, 2)) < 0)
-		goto error;
+	err = snd_emu10k1_pcm(emu, 0);
+	if (err < 0)
+		return err;
+	err = snd_emu10k1_pcm_mic(emu, 1);
+	if (err < 0)
+		return err;
+	err = snd_emu10k1_pcm_efx(emu, 2);
+	if (err < 0)
+		return err;
 	/* This stores the periods table. */
 	if (emu->card_capabilities->ca0151_chip) { /* P16V */	
-		err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
-					  1024, &emu->p16v_buffer);
-		if (err < 0)
-			goto error;
+		emu->p16v_buffer =
+			snd_devm_alloc_pages(&pci->dev, SNDRV_DMA_TYPE_DEV, 1024);
+		if (!emu->p16v_buffer)
+			return -ENOMEM;
 	}
 
-	if ((err = snd_emu10k1_mixer(emu, 0, 3)) < 0)
-		goto error;
+	err = snd_emu10k1_mixer(emu, 0, 3);
+	if (err < 0)
+		return err;
 	
-	if ((err = snd_emu10k1_timer(emu, 0)) < 0)
-		goto error;
+	err = snd_emu10k1_timer(emu, 0);
+	if (err < 0)
+		return err;
 
-	if ((err = snd_emu10k1_pcm_multi(emu, 3)) < 0)
-		goto error;
+	err = snd_emu10k1_pcm_multi(emu, 3);
+	if (err < 0)
+		return err;
 	if (emu->card_capabilities->ca0151_chip) { /* P16V */
-		if ((err = snd_p16v_pcm(emu, 4)) < 0)
-			goto error;
+		err = snd_p16v_pcm(emu, 4);
+		if (err < 0)
+			return err;
 	}
 	if (emu->audigy) {
-		if ((err = snd_emu10k1_audigy_midi(emu)) < 0)
-			goto error;
+		err = snd_emu10k1_audigy_midi(emu);
+		if (err < 0)
+			return err;
 	} else {
-		if ((err = snd_emu10k1_midi(emu)) < 0)
-			goto error;
+		err = snd_emu10k1_midi(emu);
+		if (err < 0)
+			return err;
 	}
-	if ((err = snd_emu10k1_fx8010_new(emu, 0)) < 0)
-		goto error;
+	err = snd_emu10k1_fx8010_new(emu, 0);
+	if (err < 0)
+		return err;
 #ifdef ENABLE_SYNTH
 	if (snd_seq_device_new(card, 1, SNDRV_SEQ_DEV_ID_EMU10K1_SYNTH,
 			       sizeof(struct snd_emu10k1_synth_arg), &wave) < 0 ||
@@ -168,16 +177,17 @@ static int snd_card_emu10k1_probe(struct pci_dev *pci,
 	}
 #endif
  
-	strlcpy(card->driver, emu->card_capabilities->driver,
+	strscpy(card->driver, emu->card_capabilities->driver,
 		sizeof(card->driver));
-	strlcpy(card->shortname, emu->card_capabilities->name,
+	strscpy(card->shortname, emu->card_capabilities->name,
 		sizeof(card->shortname));
 	snprintf(card->longname, sizeof(card->longname),
 		 "%s (rev.%d, serial:0x%x) at 0x%lx, irq %i",
 		 card->shortname, emu->revision, emu->serial, emu->port, emu->irq);
 
-	if ((err = snd_card_register(card)) < 0)
-		goto error;
+	err = snd_card_register(card);
+	if (err < 0)
+		return err;
 
 	if (emu->card_capabilities->emu_model)
 		schedule_delayed_work(&emu->emu1010.firmware_work, 0);
@@ -185,17 +195,7 @@ static int snd_card_emu10k1_probe(struct pci_dev *pci,
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
-
- error:
-	snd_card_free(card);
-	return err;
 }
-
-static void snd_card_emu10k1_remove(struct pci_dev *pci)
-{
-	snd_card_free(pci_get_drvdata(pci));
-}
-
 
 #ifdef CONFIG_PM_SLEEP
 static int snd_emu10k1_suspend(struct device *dev)
@@ -253,7 +253,6 @@ static struct pci_driver emu10k1_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_emu10k1_ids,
 	.probe = snd_card_emu10k1_probe,
-	.remove = snd_card_emu10k1_remove,
 	.driver = {
 		.pm = SND_EMU10K1_PM_OPS,
 	},

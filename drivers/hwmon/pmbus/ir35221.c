@@ -137,7 +137,6 @@ static struct i2c_driver ir35221_driver = {
 		.name	= "ir35221",
 	},
 	.probe_new	= ir35221_probe,
-	.remove		= pmbus_do_remove,
 	.id_table	= ir35221_id,
 };
 
@@ -146,3 +145,4 @@ module_i2c_driver(ir35221_driver);
 MODULE_AUTHOR("Samuel Mendoza-Jonas <sam@mendozajonas.com");
 MODULE_DESCRIPTION("PMBus driver for IR35221");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

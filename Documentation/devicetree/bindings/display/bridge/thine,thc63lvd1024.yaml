@@ -25,45 +25,40 @@ properties:
     const: thine,thc63lvd1024
 
   ports:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
     description: |
-      This device has four video ports. Their connections are modeled using the
-      OF graph bindings specified in Documentation/devicetree/bindings/graph.txt.
+      The device can operate in single or dual input and output modes.
 
-      The device can operate in single-link mode or dual-link mode. In
-      single-link mode, all pixels are received on port@0, and port@1 shall not
-      contain any endpoint. In dual-link mode, even-numbered pixels are
-      received on port@0 and odd-numbered pixels on port@1, and both port@0 and
-      port@1 shall contain endpoints.
+      When operating in single input mode, all pixels are received on port@0,
+      and port@1 shall not contain any endpoint. In dual input mode,
+      even-numbered pixels are received on port@0 and odd-numbered pixels on
+      port@1, and both port@0 and port@1 shall contain endpoints.
+
+      When operating in single output mode all pixels are output from the first
+      CMOS/TTL port and port@3 shall not contain any endpoint. In dual output
+      mode pixels are output from both CMOS/TTL ports and both port@2 and
+      port@3 shall contain endpoints.
 
     properties:
-      '#address-cells':
-        const: 1
-
-      '#size-cells':
-        const: 0
-
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: First LVDS input port
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Second LVDS input port
 
       port@2:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: First digital CMOS/TTL parallel output
 
       port@3:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Second digital CMOS/TTL parallel output
 
     required:
       - port@0
       - port@2
-
-    additionalProperties: false
 
   oe-gpios:
     maxItems: 1
@@ -74,7 +69,6 @@ properties:
     description: Power down GPIO signal, pin name "/PDWN", active low.
 
   vcc-supply:
-    maxItems: 1
     description:
       Power supply for the TTL output, TTL CLOCKOUT signal, LVDS input, PLL and
       digital circuitry.

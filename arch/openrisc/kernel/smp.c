@@ -16,6 +16,7 @@
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/irq.h>
+#include <linux/of.h>
 #include <asm/cpuinfo.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
@@ -60,22 +61,28 @@ void __init smp_prepare_boot_cpu(void)
 
 void __init smp_init_cpus(void)
 {
-	int i;
+	struct device_node *cpu;
+	u32 cpu_id;
 
-	for (i = 0; i < NR_CPUS; i++)
-		set_cpu_possible(i, true);
+	for_each_of_cpu_node(cpu) {
+		cpu_id = of_get_cpu_hwid(cpu, 0);
+		if (cpu_id < NR_CPUS)
+			set_cpu_possible(cpu_id, true);
+	}
 }
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	int i;
+	unsigned int cpu;
 
 	/*
 	 * Initialise the present map, which describes the set of CPUs
 	 * actually populated at the present time.
 	 */
-	for (i = 0; i < max_cpus; i++)
-		set_cpu_present(i, true);
+	for_each_possible_cpu(cpu) {
+		if (cpu < max_cpus)
+			set_cpu_present(cpu, true);
+	}
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
@@ -134,8 +141,6 @@ asmlinkage __init void secondary_start_kernel(void)
 	set_cpu_online(cpu, true);
 
 	local_irq_enable();
-
-	preempt_disable();
 	/*
 	 * OK, it's off to the idle thread for us
 	 */
@@ -263,7 +268,7 @@ static inline void ipi_flush_tlb_range(void *info)
 	local_flush_tlb_range(NULL, fd->addr1, fd->addr2);
 }
 
-static void smp_flush_tlb_range(struct cpumask *cmask, unsigned long start,
+static void smp_flush_tlb_range(const struct cpumask *cmask, unsigned long start,
 				unsigned long end)
 {
 	unsigned int cpuid;
@@ -311,7 +316,9 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
 void flush_tlb_range(struct vm_area_struct *vma,
 		     unsigned long start, unsigned long end)
 {
-	smp_flush_tlb_range(mm_cpumask(vma->vm_mm), start, end);
+	const struct cpumask *cmask = vma ? mm_cpumask(vma->vm_mm)
+					  : cpu_online_mask;
+	smp_flush_tlb_range(cmask, start, end);
 }
 
 /* Instruction cache invalidate - performed on each cpu */

@@ -18,6 +18,7 @@
 #include <linux/ptp_classify.h>
 #include <net/pkt_cls.h>
 #include <net/sock.h>
+#include <net/tso.h>
 
 #include "dpaa2-eth.h"
 
@@ -33,6 +34,75 @@ MODULE_DESCRIPTION("Freescale DPAA2 Ethernet Driver");
 
 struct ptp_qoriq *dpaa2_ptp;
 EXPORT_SYMBOL(dpaa2_ptp);
+
+static void dpaa2_eth_detect_features(struct dpaa2_eth_priv *priv)
+{
+	priv->features = 0;
+
+	if (dpaa2_eth_cmp_dpni_ver(priv, DPNI_PTP_ONESTEP_VER_MAJOR,
+				   DPNI_PTP_ONESTEP_VER_MINOR) >= 0)
+		priv->features |= DPAA2_ETH_FEATURE_ONESTEP_CFG_DIRECT;
+}
+
+static void dpaa2_update_ptp_onestep_indirect(struct dpaa2_eth_priv *priv,
+					      u32 offset, u8 udp)
+{
+	struct dpni_single_step_cfg cfg;
+
+	cfg.en = 1;
+	cfg.ch_update = udp;
+	cfg.offset = offset;
+	cfg.peer_delay = 0;
+
+	if (dpni_set_single_step_cfg(priv->mc_io, 0, priv->mc_token, &cfg))
+		WARN_ONCE(1, "Failed to set single step register");
+}
+
+static void dpaa2_update_ptp_onestep_direct(struct dpaa2_eth_priv *priv,
+					    u32 offset, u8 udp)
+{
+	u32 val = 0;
+
+	val = DPAA2_PTP_SINGLE_STEP_ENABLE |
+	       DPAA2_PTP_SINGLE_CORRECTION_OFF(offset);
+
+	if (udp)
+		val |= DPAA2_PTP_SINGLE_STEP_CH;
+
+	if (priv->onestep_reg_base)
+		writel(val, priv->onestep_reg_base);
+}
+
+static void dpaa2_ptp_onestep_reg_update_method(struct dpaa2_eth_priv *priv)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	struct dpni_single_step_cfg ptp_cfg;
+
+	priv->dpaa2_set_onestep_params_cb = dpaa2_update_ptp_onestep_indirect;
+
+	if (!(priv->features & DPAA2_ETH_FEATURE_ONESTEP_CFG_DIRECT))
+		return;
+
+	if (dpni_get_single_step_cfg(priv->mc_io, 0,
+				     priv->mc_token, &ptp_cfg)) {
+		dev_err(dev, "dpni_get_single_step_cfg cannot retrieve onestep reg, falling back to indirect update\n");
+		return;
+	}
+
+	if (!ptp_cfg.ptp_onestep_reg_base) {
+		dev_err(dev, "1588 onestep reg not available, falling back to indirect update\n");
+		return;
+	}
+
+	priv->onestep_reg_base = ioremap(ptp_cfg.ptp_onestep_reg_base,
+					 sizeof(u32));
+	if (!priv->onestep_reg_base) {
+		dev_err(dev, "1588 onestep reg cannot be mapped, falling back to indirect update\n");
+		return;
+	}
+
+	priv->dpaa2_set_onestep_params_cb = dpaa2_update_ptp_onestep_direct;
+}
 
 static void *dpaa2_iova_to_virt(struct iommu_domain *domain,
 				dma_addr_t iova_addr)
@@ -223,31 +293,31 @@ static void dpaa2_eth_free_bufs(struct dpaa2_eth_priv *priv, u64 *buf_array,
 	}
 }
 
-static void dpaa2_eth_xdp_release_buf(struct dpaa2_eth_priv *priv,
-				      struct dpaa2_eth_channel *ch,
-				      dma_addr_t addr)
+static void dpaa2_eth_recycle_buf(struct dpaa2_eth_priv *priv,
+				  struct dpaa2_eth_channel *ch,
+				  dma_addr_t addr)
 {
 	int retries = 0;
 	int err;
 
-	ch->xdp.drop_bufs[ch->xdp.drop_cnt++] = addr;
-	if (ch->xdp.drop_cnt < DPAA2_ETH_BUFS_PER_CMD)
+	ch->recycled_bufs[ch->recycled_bufs_cnt++] = addr;
+	if (ch->recycled_bufs_cnt < DPAA2_ETH_BUFS_PER_CMD)
 		return;
 
 	while ((err = dpaa2_io_service_release(ch->dpio, priv->bpid,
-					       ch->xdp.drop_bufs,
-					       ch->xdp.drop_cnt)) == -EBUSY) {
+					       ch->recycled_bufs,
+					       ch->recycled_bufs_cnt)) == -EBUSY) {
 		if (retries++ >= DPAA2_ETH_SWP_BUSY_RETRIES)
 			break;
 		cpu_relax();
 	}
 
 	if (err) {
-		dpaa2_eth_free_bufs(priv, ch->xdp.drop_bufs, ch->xdp.drop_cnt);
-		ch->buf_count -= ch->xdp.drop_cnt;
+		dpaa2_eth_free_bufs(priv, ch->recycled_bufs, ch->recycled_bufs_cnt);
+		ch->buf_count -= ch->recycled_bufs_cnt;
 	}
 
-	ch->xdp.drop_cnt = 0;
+	ch->recycled_bufs_cnt = 0;
 }
 
 static int dpaa2_eth_xdp_flush(struct dpaa2_eth_priv *priv,
@@ -300,7 +370,7 @@ static void dpaa2_eth_xdp_tx_flush(struct dpaa2_eth_priv *priv,
 		ch->stats.xdp_tx++;
 	}
 	for (i = enqueued; i < fq->xdp_tx_fds.num; i++) {
-		dpaa2_eth_xdp_release_buf(priv, ch, dpaa2_fd_get_addr(&fds[i]));
+		dpaa2_eth_recycle_buf(priv, ch, dpaa2_fd_get_addr(&fds[i]));
 		percpu_stats->tx_errors++;
 		ch->stats.xdp_tx_err++;
 	}
@@ -350,22 +420,16 @@ static u32 dpaa2_eth_run_xdp(struct dpaa2_eth_priv *priv,
 	struct bpf_prog *xdp_prog;
 	struct xdp_buff xdp;
 	u32 xdp_act = XDP_PASS;
-	int err;
-
-	rcu_read_lock();
+	int err, offset;
 
 	xdp_prog = READ_ONCE(ch->xdp.prog);
 	if (!xdp_prog)
 		goto out;
 
-	xdp.data = vaddr + dpaa2_fd_get_offset(fd);
-	xdp.data_end = xdp.data + dpaa2_fd_get_len(fd);
-	xdp.data_hard_start = xdp.data - XDP_PACKET_HEADROOM;
-	xdp_set_data_meta_invalid(&xdp);
-	xdp.rxq = &ch->xdp_rxq;
-
-	xdp.frame_sz = DPAA2_ETH_RX_BUF_RAW_SIZE -
-		(dpaa2_fd_get_offset(fd) - XDP_PACKET_HEADROOM);
+	offset = dpaa2_fd_get_offset(fd) - XDP_PACKET_HEADROOM;
+	xdp_init_buff(&xdp, DPAA2_ETH_RX_BUF_RAW_SIZE - offset, &ch->xdp_rxq);
+	xdp_prepare_buff(&xdp, vaddr + offset, XDP_PACKET_HEADROOM,
+			 dpaa2_fd_get_len(fd), false);
 
 	xdp_act = bpf_prog_run_xdp(xdp_prog, &xdp);
 
@@ -380,13 +444,13 @@ static u32 dpaa2_eth_run_xdp(struct dpaa2_eth_priv *priv,
 		dpaa2_eth_xdp_enqueue(priv, ch, fd, vaddr, rx_fq->flowid);
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(xdp_act);
+		bpf_warn_invalid_xdp_action(priv->net_dev, xdp_prog, xdp_act);
 		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(priv->net_dev, xdp_prog, xdp_act);
 		fallthrough;
 	case XDP_DROP:
-		dpaa2_eth_xdp_release_buf(priv, ch, addr);
+		dpaa2_eth_recycle_buf(priv, ch, addr);
 		ch->stats.xdp_drop++;
 		break;
 	case XDP_REDIRECT:
@@ -399,17 +463,55 @@ static u32 dpaa2_eth_run_xdp(struct dpaa2_eth_priv *priv,
 		xdp.frame_sz = DPAA2_ETH_RX_BUF_RAW_SIZE;
 
 		err = xdp_do_redirect(priv->net_dev, &xdp, xdp_prog);
-		if (unlikely(err))
+		if (unlikely(err)) {
+			addr = dma_map_page(priv->net_dev->dev.parent,
+					    virt_to_page(vaddr), 0,
+					    priv->rx_buf_size, DMA_BIDIRECTIONAL);
+			if (unlikely(dma_mapping_error(priv->net_dev->dev.parent, addr))) {
+				free_pages((unsigned long)vaddr, 0);
+			} else {
+				ch->buf_count++;
+				dpaa2_eth_recycle_buf(priv, ch, addr);
+			}
 			ch->stats.xdp_drop++;
-		else
+		} else {
 			ch->stats.xdp_redirect++;
+		}
 		break;
 	}
 
 	ch->xdp.res |= xdp_act;
 out:
-	rcu_read_unlock();
 	return xdp_act;
+}
+
+static struct sk_buff *dpaa2_eth_copybreak(struct dpaa2_eth_channel *ch,
+					   const struct dpaa2_fd *fd,
+					   void *fd_vaddr)
+{
+	u16 fd_offset = dpaa2_fd_get_offset(fd);
+	struct dpaa2_eth_priv *priv = ch->priv;
+	u32 fd_length = dpaa2_fd_get_len(fd);
+	struct sk_buff *skb = NULL;
+	unsigned int skb_len;
+
+	if (fd_length > priv->rx_copybreak)
+		return NULL;
+
+	skb_len = fd_length + dpaa2_eth_needed_headroom(NULL);
+
+	skb = napi_alloc_skb(&ch->napi, skb_len);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, dpaa2_eth_needed_headroom(NULL));
+	skb_put(skb, fd_length);
+
+	memcpy(skb->data, fd_vaddr + fd_offset, fd_length);
+
+	dpaa2_eth_recycle_buf(priv, ch, dpaa2_fd_get_addr(fd));
+
+	return skb;
 }
 
 /* Main Rx frame processing routine */
@@ -453,9 +555,12 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 			return;
 		}
 
-		dma_unmap_page(dev, addr, priv->rx_buf_size,
-			       DMA_BIDIRECTIONAL);
-		skb = dpaa2_eth_build_linear_skb(ch, fd, vaddr);
+		skb = dpaa2_eth_copybreak(ch, fd, vaddr);
+		if (!skb) {
+			dma_unmap_page(dev, addr, priv->rx_buf_size,
+				       DMA_BIDIRECTIONAL);
+			skb = dpaa2_eth_build_linear_skb(ch, fd, vaddr);
+		}
 	} else if (fd_format == dpaa2_fd_sg) {
 		WARN_ON(priv->xdp_prog);
 
@@ -498,6 +603,7 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 
 	percpu_stats->rx_packets++;
 	percpu_stats->rx_bytes += dpaa2_fd_get_len(fd);
+	ch->stats.bytes_per_cdan += dpaa2_fd_get_len(fd);
 
 	list_add_tail(&skb->list, ch->rx_list);
 
@@ -606,6 +712,7 @@ static int dpaa2_eth_consume_frames(struct dpaa2_eth_channel *ch,
 
 	fq->stats.frames += cleaned;
 	ch->stats.frames += cleaned;
+	ch->stats.frames_per_cdan += cleaned;
 
 	/* A dequeue operation only pulls frames from a single queue
 	 * into the store. Return the frame queue as an out param.
@@ -658,7 +765,6 @@ static void dpaa2_eth_enable_tx_tstamp(struct dpaa2_eth_priv *priv,
 				       struct sk_buff *skb)
 {
 	struct ptp_tstamp origin_timestamp;
-	struct dpni_single_step_cfg cfg;
 	u8 msgtype, twostep, udp;
 	struct dpaa2_faead *faead;
 	struct dpaa2_fas *fas;
@@ -686,7 +792,7 @@ static void dpaa2_eth_enable_tx_tstamp(struct dpaa2_eth_priv *priv,
 	if (skb->cb[0] == TX_TSTAMP_ONESTEP_SYNC) {
 		if (dpaa2_eth_ptp_parse(skb, &msgtype, &twostep, &udp,
 					&offset1, &offset2) ||
-		    msgtype != 0 || twostep) {
+		    msgtype != PTP_MSGTYPE_SYNC || twostep) {
 			WARN_ONCE(1, "Bad packet for one-step timestamping\n");
 			return;
 		}
@@ -712,15 +818,46 @@ static void dpaa2_eth_enable_tx_tstamp(struct dpaa2_eth_priv *priv,
 			htonl(origin_timestamp.sec_lsb);
 		*(__be32 *)(data + offset2 + 6) = htonl(origin_timestamp.nsec);
 
-		cfg.en = 1;
-		cfg.ch_update = udp;
-		cfg.offset = offset1;
-		cfg.peer_delay = 0;
+		if (priv->ptp_correction_off == offset1)
+			return;
 
-		if (dpni_set_single_step_cfg(priv->mc_io, 0, priv->mc_token,
-					     &cfg))
-			WARN_ONCE(1, "Failed to set single step register");
+		priv->dpaa2_set_onestep_params_cb(priv, offset1, udp);
+		priv->ptp_correction_off = offset1;
+
 	}
+}
+
+static void *dpaa2_eth_sgt_get(struct dpaa2_eth_priv *priv)
+{
+	struct dpaa2_eth_sgt_cache *sgt_cache;
+	void *sgt_buf = NULL;
+	int sgt_buf_size;
+
+	sgt_cache = this_cpu_ptr(priv->sgt_cache);
+	sgt_buf_size = priv->tx_data_offset +
+		DPAA2_ETH_SG_ENTRIES_MAX * sizeof(struct dpaa2_sg_entry);
+
+	if (sgt_cache->count == 0)
+		sgt_buf = napi_alloc_frag_align(sgt_buf_size, DPAA2_ETH_TX_BUF_ALIGN);
+	else
+		sgt_buf = sgt_cache->buf[--sgt_cache->count];
+	if (!sgt_buf)
+		return NULL;
+
+	memset(sgt_buf, 0, sgt_buf_size);
+
+	return sgt_buf;
+}
+
+static void dpaa2_eth_sgt_recycle(struct dpaa2_eth_priv *priv, void *sgt_buf)
+{
+	struct dpaa2_eth_sgt_cache *sgt_cache;
+
+	sgt_cache = this_cpu_ptr(priv->sgt_cache);
+	if (sgt_cache->count >= DPAA2_ETH_SGT_CACHE_SIZE)
+		skb_free_frag(sgt_buf);
+	else
+		sgt_cache->buf[sgt_cache->count++] = sgt_buf;
 }
 
 /* Create a frame descriptor based on a fragmented skb */
@@ -768,13 +905,11 @@ static int dpaa2_eth_build_sg_fd(struct dpaa2_eth_priv *priv,
 	/* Prepare the HW SGT structure */
 	sgt_buf_size = priv->tx_data_offset +
 		       sizeof(struct dpaa2_sg_entry) *  num_dma_bufs;
-	sgt_buf = napi_alloc_frag(sgt_buf_size + DPAA2_ETH_TX_BUF_ALIGN);
+	sgt_buf = dpaa2_eth_sgt_get(priv);
 	if (unlikely(!sgt_buf)) {
 		err = -ENOMEM;
 		goto sgt_buf_alloc_failed;
 	}
-	sgt_buf = PTR_ALIGN(sgt_buf, DPAA2_ETH_TX_BUF_ALIGN);
-	memset(sgt_buf, 0, sgt_buf_size);
 
 	sgt = (struct dpaa2_sg_entry *)(sgt_buf + priv->tx_data_offset);
 
@@ -810,6 +945,7 @@ static int dpaa2_eth_build_sg_fd(struct dpaa2_eth_priv *priv,
 		err = -ENOMEM;
 		goto dma_map_single_failed;
 	}
+	memset(fd, 0, sizeof(struct dpaa2_fd));
 	dpaa2_fd_set_offset(fd, priv->tx_data_offset);
 	dpaa2_fd_set_format(fd, dpaa2_fd_sg);
 	dpaa2_fd_set_addr(fd, addr);
@@ -819,7 +955,7 @@ static int dpaa2_eth_build_sg_fd(struct dpaa2_eth_priv *priv,
 	return 0;
 
 dma_map_single_failed:
-	skb_free_frag(sgt_buf);
+	dpaa2_eth_sgt_recycle(priv, sgt_buf);
 sgt_buf_alloc_failed:
 	dma_unmap_sg(dev, scl, num_sg, DMA_BIDIRECTIONAL);
 dma_map_sg_failed:
@@ -839,7 +975,6 @@ static int dpaa2_eth_build_sg_fd_single_buf(struct dpaa2_eth_priv *priv,
 					    void **swa_addr)
 {
 	struct device *dev = priv->net_dev->dev.parent;
-	struct dpaa2_eth_sgt_cache *sgt_cache;
 	struct dpaa2_sg_entry *sgt;
 	struct dpaa2_eth_swa *swa;
 	dma_addr_t addr, sgt_addr;
@@ -848,18 +983,10 @@ static int dpaa2_eth_build_sg_fd_single_buf(struct dpaa2_eth_priv *priv,
 	int err;
 
 	/* Prepare the HW SGT structure */
-	sgt_cache = this_cpu_ptr(priv->sgt_cache);
 	sgt_buf_size = priv->tx_data_offset + sizeof(struct dpaa2_sg_entry);
-
-	if (sgt_cache->count == 0)
-		sgt_buf = kzalloc(sgt_buf_size + DPAA2_ETH_TX_BUF_ALIGN,
-				  GFP_ATOMIC);
-	else
-		sgt_buf = sgt_cache->buf[--sgt_cache->count];
+	sgt_buf = dpaa2_eth_sgt_get(priv);
 	if (unlikely(!sgt_buf))
 		return -ENOMEM;
-
-	sgt_buf = PTR_ALIGN(sgt_buf, DPAA2_ETH_TX_BUF_ALIGN);
 	sgt = (struct dpaa2_sg_entry *)(sgt_buf + priv->tx_data_offset);
 
 	addr = dma_map_single(dev, skb->data, skb->len, DMA_BIDIRECTIONAL);
@@ -878,7 +1005,7 @@ static int dpaa2_eth_build_sg_fd_single_buf(struct dpaa2_eth_priv *priv,
 	swa = (struct dpaa2_eth_swa *)sgt_buf;
 	swa->type = DPAA2_ETH_SWA_SINGLE;
 	swa->single.skb = skb;
-	swa->sg.sgt_size = sgt_buf_size;
+	swa->single.sgt_size = sgt_buf_size;
 
 	/* Separately map the SGT buffer */
 	sgt_addr = dma_map_single(dev, sgt_buf, sgt_buf_size, DMA_BIDIRECTIONAL);
@@ -887,6 +1014,7 @@ static int dpaa2_eth_build_sg_fd_single_buf(struct dpaa2_eth_priv *priv,
 		goto sgt_map_failed;
 	}
 
+	memset(fd, 0, sizeof(struct dpaa2_fd));
 	dpaa2_fd_set_offset(fd, priv->tx_data_offset);
 	dpaa2_fd_set_format(fd, dpaa2_fd_sg);
 	dpaa2_fd_set_addr(fd, sgt_addr);
@@ -898,10 +1026,7 @@ static int dpaa2_eth_build_sg_fd_single_buf(struct dpaa2_eth_priv *priv,
 sgt_map_failed:
 	dma_unmap_single(dev, addr, skb->len, DMA_BIDIRECTIONAL);
 data_map_failed:
-	if (sgt_cache->count >= DPAA2_ETH_SGT_CACHE_SIZE)
-		kfree(sgt_buf);
-	else
-		sgt_cache->buf[sgt_cache->count++] = sgt_buf;
+	dpaa2_eth_sgt_recycle(priv, sgt_buf);
 
 	return err;
 }
@@ -942,6 +1067,7 @@ static int dpaa2_eth_build_single_fd(struct dpaa2_eth_priv *priv,
 	if (unlikely(dma_mapping_error(dev, addr)))
 		return -ENOMEM;
 
+	memset(fd, 0, sizeof(struct dpaa2_fd));
 	dpaa2_fd_set_addr(fd, addr);
 	dpaa2_fd_set_offset(fd, (u16)(skb->data - buffer_start));
 	dpaa2_fd_set_len(fd, skb->len);
@@ -969,9 +1095,9 @@ static void dpaa2_eth_free_tx_fd(struct dpaa2_eth_priv *priv,
 	struct dpaa2_eth_swa *swa;
 	u8 fd_format = dpaa2_fd_get_format(fd);
 	u32 fd_len = dpaa2_fd_get_len(fd);
-
-	struct dpaa2_eth_sgt_cache *sgt_cache;
 	struct dpaa2_sg_entry *sgt;
+	int should_free_skb = 1;
+	int i;
 
 	fd_addr = dpaa2_fd_get_addr(fd);
 	buffer_start = dpaa2_iova_to_virt(priv->iommu_domain, fd_addr);
@@ -1003,6 +1129,28 @@ static void dpaa2_eth_free_tx_fd(struct dpaa2_eth_priv *priv,
 			/* Unmap the SGT buffer */
 			dma_unmap_single(dev, fd_addr, swa->sg.sgt_size,
 					 DMA_BIDIRECTIONAL);
+		} else if (swa->type == DPAA2_ETH_SWA_SW_TSO) {
+			skb = swa->tso.skb;
+
+			sgt = (struct dpaa2_sg_entry *)(buffer_start +
+							priv->tx_data_offset);
+
+			/* Unmap and free the header */
+			dma_unmap_single(dev, dpaa2_sg_get_addr(sgt), TSO_HEADER_SIZE,
+					 DMA_TO_DEVICE);
+			kfree(dpaa2_iova_to_virt(priv->iommu_domain, dpaa2_sg_get_addr(sgt)));
+
+			/* Unmap the other SG entries for the data */
+			for (i = 1; i < swa->tso.num_sg; i++)
+				dma_unmap_single(dev, dpaa2_sg_get_addr(&sgt[i]),
+						 dpaa2_sg_get_len(&sgt[i]), DMA_TO_DEVICE);
+
+			/* Unmap the SGT buffer */
+			dma_unmap_single(dev, fd_addr, swa->sg.sgt_size,
+					 DMA_BIDIRECTIONAL);
+
+			if (!swa->tso.is_last_fd)
+				should_free_skb = 0;
 		} else {
 			skb = swa->single.skb;
 
@@ -1031,55 +1179,195 @@ static void dpaa2_eth_free_tx_fd(struct dpaa2_eth_priv *priv,
 	}
 
 	/* Get the timestamp value */
-	if (skb->cb[0] == TX_TSTAMP) {
-		struct skb_shared_hwtstamps shhwtstamps;
-		__le64 *ts = dpaa2_get_ts(buffer_start, true);
-		u64 ns;
+	if (swa->type != DPAA2_ETH_SWA_SW_TSO) {
+		if (skb->cb[0] == TX_TSTAMP) {
+			struct skb_shared_hwtstamps shhwtstamps;
+			__le64 *ts = dpaa2_get_ts(buffer_start, true);
+			u64 ns;
 
-		memset(&shhwtstamps, 0, sizeof(shhwtstamps));
+			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 
-		ns = DPAA2_PTP_CLK_PERIOD_NS * le64_to_cpup(ts);
-		shhwtstamps.hwtstamp = ns_to_ktime(ns);
-		skb_tstamp_tx(skb, &shhwtstamps);
-	} else if (skb->cb[0] == TX_TSTAMP_ONESTEP_SYNC) {
-		mutex_unlock(&priv->onestep_tstamp_lock);
-	}
-
-	/* Free SGT buffer allocated on tx */
-	if (fd_format != dpaa2_fd_single) {
-		sgt_cache = this_cpu_ptr(priv->sgt_cache);
-		if (swa->type == DPAA2_ETH_SWA_SG) {
-			skb_free_frag(buffer_start);
-		} else {
-			if (sgt_cache->count >= DPAA2_ETH_SGT_CACHE_SIZE)
-				kfree(buffer_start);
-			else
-				sgt_cache->buf[sgt_cache->count++] = buffer_start;
+			ns = DPAA2_PTP_CLK_PERIOD_NS * le64_to_cpup(ts);
+			shhwtstamps.hwtstamp = ns_to_ktime(ns);
+			skb_tstamp_tx(skb, &shhwtstamps);
+		} else if (skb->cb[0] == TX_TSTAMP_ONESTEP_SYNC) {
+			mutex_unlock(&priv->onestep_tstamp_lock);
 		}
 	}
 
-	/* Move on with skb release */
-	napi_consume_skb(skb, in_napi);
+	/* Free SGT buffer allocated on tx */
+	if (fd_format != dpaa2_fd_single)
+		dpaa2_eth_sgt_recycle(priv, buffer_start);
+
+	/* Move on with skb release. If we are just confirming multiple FDs
+	 * from the same TSO skb then only the last one will need to free the
+	 * skb.
+	 */
+	if (should_free_skb)
+		napi_consume_skb(skb, in_napi);
+}
+
+static int dpaa2_eth_build_gso_fd(struct dpaa2_eth_priv *priv,
+				  struct sk_buff *skb, struct dpaa2_fd *fd,
+				  int *num_fds, u32 *total_fds_len)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	int hdr_len, total_len, data_left, fd_len;
+	int num_sge, err, i, sgt_buf_size;
+	struct dpaa2_fd *fd_start = fd;
+	struct dpaa2_sg_entry *sgt;
+	struct dpaa2_eth_swa *swa;
+	dma_addr_t sgt_addr, addr;
+	dma_addr_t tso_hdr_dma;
+	unsigned int index = 0;
+	struct tso_t tso;
+	char *tso_hdr;
+	void *sgt_buf;
+
+	/* Initialize the TSO handler, and prepare the first payload */
+	hdr_len = tso_start(skb, &tso);
+	*total_fds_len = 0;
+
+	total_len = skb->len - hdr_len;
+	while (total_len > 0) {
+		/* Prepare the HW SGT structure for this frame */
+		sgt_buf = dpaa2_eth_sgt_get(priv);
+		if (unlikely(!sgt_buf)) {
+			netdev_err(priv->net_dev, "dpaa2_eth_sgt_get() failed\n");
+			err = -ENOMEM;
+			goto err_sgt_get;
+		}
+		sgt = (struct dpaa2_sg_entry *)(sgt_buf + priv->tx_data_offset);
+
+		/* Determine the data length of this frame */
+		data_left = min_t(int, skb_shinfo(skb)->gso_size, total_len);
+		total_len -= data_left;
+		fd_len = data_left + hdr_len;
+
+		/* Prepare packet headers: MAC + IP + TCP */
+		tso_hdr = kmalloc(TSO_HEADER_SIZE, GFP_ATOMIC);
+		if (!tso_hdr) {
+			err =  -ENOMEM;
+			goto err_alloc_tso_hdr;
+		}
+
+		tso_build_hdr(skb, tso_hdr, &tso, data_left, total_len == 0);
+		tso_hdr_dma = dma_map_single(dev, tso_hdr, TSO_HEADER_SIZE, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, tso_hdr_dma)) {
+			netdev_err(priv->net_dev, "dma_map_single(tso_hdr) failed\n");
+			err = -ENOMEM;
+			goto err_map_tso_hdr;
+		}
+
+		/* Setup the SG entry for the header */
+		dpaa2_sg_set_addr(sgt, tso_hdr_dma);
+		dpaa2_sg_set_len(sgt, hdr_len);
+		dpaa2_sg_set_final(sgt, data_left <= 0);
+
+		/* Compose the SG entries for each fragment of data */
+		num_sge = 1;
+		while (data_left > 0) {
+			int size;
+
+			/* Move to the next SG entry */
+			sgt++;
+			size = min_t(int, tso.size, data_left);
+
+			addr = dma_map_single(dev, tso.data, size, DMA_TO_DEVICE);
+			if (dma_mapping_error(dev, addr)) {
+				netdev_err(priv->net_dev, "dma_map_single(tso.data) failed\n");
+				err = -ENOMEM;
+				goto err_map_data;
+			}
+			dpaa2_sg_set_addr(sgt, addr);
+			dpaa2_sg_set_len(sgt, size);
+			dpaa2_sg_set_final(sgt, size == data_left);
+
+			num_sge++;
+
+			/* Build the data for the __next__ fragment */
+			data_left -= size;
+			tso_build_data(skb, &tso, size);
+		}
+
+		/* Store the skb backpointer in the SGT buffer */
+		sgt_buf_size = priv->tx_data_offset + num_sge * sizeof(struct dpaa2_sg_entry);
+		swa = (struct dpaa2_eth_swa *)sgt_buf;
+		swa->type = DPAA2_ETH_SWA_SW_TSO;
+		swa->tso.skb = skb;
+		swa->tso.num_sg = num_sge;
+		swa->tso.sgt_size = sgt_buf_size;
+		swa->tso.is_last_fd = total_len == 0 ? 1 : 0;
+
+		/* Separately map the SGT buffer */
+		sgt_addr = dma_map_single(dev, sgt_buf, sgt_buf_size, DMA_BIDIRECTIONAL);
+		if (unlikely(dma_mapping_error(dev, sgt_addr))) {
+			netdev_err(priv->net_dev, "dma_map_single(sgt_buf) failed\n");
+			err = -ENOMEM;
+			goto err_map_sgt;
+		}
+
+		/* Setup the frame descriptor */
+		memset(fd, 0, sizeof(struct dpaa2_fd));
+		dpaa2_fd_set_offset(fd, priv->tx_data_offset);
+		dpaa2_fd_set_format(fd, dpaa2_fd_sg);
+		dpaa2_fd_set_addr(fd, sgt_addr);
+		dpaa2_fd_set_len(fd, fd_len);
+		dpaa2_fd_set_ctrl(fd, FD_CTRL_PTA);
+
+		*total_fds_len += fd_len;
+		/* Advance to the next frame descriptor */
+		fd++;
+		index++;
+	}
+
+	*num_fds = index;
+
+	return 0;
+
+err_map_sgt:
+err_map_data:
+	/* Unmap all the data S/G entries for the current FD */
+	sgt = (struct dpaa2_sg_entry *)(sgt_buf + priv->tx_data_offset);
+	for (i = 1; i < num_sge; i++)
+		dma_unmap_single(dev, dpaa2_sg_get_addr(&sgt[i]),
+				 dpaa2_sg_get_len(&sgt[i]), DMA_TO_DEVICE);
+
+	/* Unmap the header entry */
+	dma_unmap_single(dev, tso_hdr_dma, TSO_HEADER_SIZE, DMA_TO_DEVICE);
+err_map_tso_hdr:
+	kfree(tso_hdr);
+err_alloc_tso_hdr:
+	dpaa2_eth_sgt_recycle(priv, sgt_buf);
+err_sgt_get:
+	/* Free all the other FDs that were already fully created */
+	for (i = 0; i < index; i++)
+		dpaa2_eth_free_tx_fd(priv, NULL, &fd_start[i], false);
+
+	return err;
 }
 
 static netdev_tx_t __dpaa2_eth_tx(struct sk_buff *skb,
 				  struct net_device *net_dev)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-	struct dpaa2_fd fd;
-	struct rtnl_link_stats64 *percpu_stats;
+	int total_enqueued = 0, retries = 0, enqueued;
 	struct dpaa2_eth_drv_stats *percpu_extras;
+	struct rtnl_link_stats64 *percpu_stats;
+	unsigned int needed_headroom;
+	int num_fds = 1, max_retries;
 	struct dpaa2_eth_fq *fq;
 	struct netdev_queue *nq;
+	struct dpaa2_fd *fd;
 	u16 queue_mapping;
-	unsigned int needed_headroom;
-	u32 fd_len;
+	void *swa = NULL;
 	u8 prio = 0;
 	int err, i;
-	void *swa;
+	u32 fd_len;
 
 	percpu_stats = this_cpu_ptr(priv->percpu_stats);
 	percpu_extras = this_cpu_ptr(priv->percpu_extras);
+	fd = (this_cpu_ptr(priv->fd))->array;
 
 	needed_headroom = dpaa2_eth_needed_headroom(skb);
 
@@ -1094,20 +1382,28 @@ static netdev_tx_t __dpaa2_eth_tx(struct sk_buff *skb,
 	}
 
 	/* Setup the FD fields */
-	memset(&fd, 0, sizeof(fd));
 
-	if (skb_is_nonlinear(skb)) {
-		err = dpaa2_eth_build_sg_fd(priv, skb, &fd, &swa);
+	if (skb_is_gso(skb)) {
+		err = dpaa2_eth_build_gso_fd(priv, skb, fd, &num_fds, &fd_len);
+		percpu_extras->tx_sg_frames += num_fds;
+		percpu_extras->tx_sg_bytes += fd_len;
+		percpu_extras->tx_tso_frames += num_fds;
+		percpu_extras->tx_tso_bytes += fd_len;
+	} else if (skb_is_nonlinear(skb)) {
+		err = dpaa2_eth_build_sg_fd(priv, skb, fd, &swa);
 		percpu_extras->tx_sg_frames++;
 		percpu_extras->tx_sg_bytes += skb->len;
+		fd_len = dpaa2_fd_get_len(fd);
 	} else if (skb_headroom(skb) < needed_headroom) {
-		err = dpaa2_eth_build_sg_fd_single_buf(priv, skb, &fd, &swa);
+		err = dpaa2_eth_build_sg_fd_single_buf(priv, skb, fd, &swa);
 		percpu_extras->tx_sg_frames++;
 		percpu_extras->tx_sg_bytes += skb->len;
 		percpu_extras->tx_converted_sg_frames++;
 		percpu_extras->tx_converted_sg_bytes += skb->len;
+		fd_len = dpaa2_fd_get_len(fd);
 	} else {
-		err = dpaa2_eth_build_single_fd(priv, skb, &fd, &swa);
+		err = dpaa2_eth_build_single_fd(priv, skb, fd, &swa);
+		fd_len = dpaa2_fd_get_len(fd);
 	}
 
 	if (unlikely(err)) {
@@ -1115,11 +1411,12 @@ static netdev_tx_t __dpaa2_eth_tx(struct sk_buff *skb,
 		goto err_build_fd;
 	}
 
-	if (skb->cb[0])
-		dpaa2_eth_enable_tx_tstamp(priv, &fd, swa, skb);
+	if (swa && skb->cb[0])
+		dpaa2_eth_enable_tx_tstamp(priv, fd, swa, skb);
 
 	/* Tracing point */
-	trace_dpaa2_tx_fd(net_dev, &fd);
+	for (i = 0; i < num_fds; i++)
+		trace_dpaa2_tx_fd(net_dev, &fd[i]);
 
 	/* TxConf FQ selection relies on queue id from the stack.
 	 * In case of a forwarded frame from another DPNI interface, we choose
@@ -1139,27 +1436,32 @@ static netdev_tx_t __dpaa2_eth_tx(struct sk_buff *skb,
 		queue_mapping %= dpaa2_eth_queue_count(priv);
 	}
 	fq = &priv->fq[queue_mapping];
-
-	fd_len = dpaa2_fd_get_len(&fd);
 	nq = netdev_get_tx_queue(net_dev, queue_mapping);
 	netdev_tx_sent_queue(nq, fd_len);
 
 	/* Everything that happens after this enqueues might race with
 	 * the Tx confirmation callback for this frame
 	 */
-	for (i = 0; i < DPAA2_ETH_ENQUEUE_RETRIES; i++) {
-		err = priv->enqueue(priv, fq, &fd, prio, 1, NULL);
-		if (err != -EBUSY)
-			break;
+	max_retries = num_fds * DPAA2_ETH_ENQUEUE_RETRIES;
+	while (total_enqueued < num_fds && retries < max_retries) {
+		err = priv->enqueue(priv, fq, &fd[total_enqueued],
+				    prio, num_fds - total_enqueued, &enqueued);
+		if (err == -EBUSY) {
+			retries++;
+			continue;
+		}
+
+		total_enqueued += enqueued;
 	}
-	percpu_extras->tx_portal_busy += i;
+	percpu_extras->tx_portal_busy += retries;
+
 	if (unlikely(err < 0)) {
 		percpu_stats->tx_errors++;
 		/* Clean up everything, including freeing the skb */
-		dpaa2_eth_free_tx_fd(priv, fq, &fd, false);
+		dpaa2_eth_free_tx_fd(priv, fq, fd, false);
 		netdev_tx_completed_queue(nq, 1, fd_len);
 	} else {
-		percpu_stats->tx_packets++;
+		percpu_stats->tx_packets += total_enqueued;
 		percpu_stats->tx_bytes += fd_len;
 	}
 
@@ -1212,7 +1514,7 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 	if (skb->cb[0] == TX_TSTAMP_ONESTEP_SYNC) {
 		if (!dpaa2_eth_ptp_parse(skb, &msgtype, &twostep, &udp,
 					 &offset1, &offset2))
-			if (msgtype == 0 && twostep == 0) {
+			if (msgtype == PTP_MSGTYPE_SYNC && twostep == 0) {
 				skb_queue_tail(&priv->tx_skbs, skb);
 				queue_work(priv->dpaa2_ptp_wq,
 					   &priv->tx_onestep_tstamp);
@@ -1230,7 +1532,7 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 
 /* Tx confirmation frame processing routine */
 static void dpaa2_eth_tx_conf(struct dpaa2_eth_priv *priv,
-			      struct dpaa2_eth_channel *ch __always_unused,
+			      struct dpaa2_eth_channel *ch,
 			      const struct dpaa2_fd *fd,
 			      struct dpaa2_eth_fq *fq)
 {
@@ -1245,6 +1547,7 @@ static void dpaa2_eth_tx_conf(struct dpaa2_eth_priv *priv,
 	percpu_extras = this_cpu_ptr(priv->percpu_extras);
 	percpu_extras->tx_conf_frames++;
 	percpu_extras->tx_conf_bytes += fd_len;
+	ch->stats.bytes_per_cdan += fd_len;
 
 	/* Check frame errors in the FD field */
 	fd_errors = dpaa2_fd_get_ctrl(fd) & DPAA2_FD_TX_ERR_MASK;
@@ -1260,6 +1563,22 @@ static void dpaa2_eth_tx_conf(struct dpaa2_eth_priv *priv,
 	percpu_stats = this_cpu_ptr(priv->percpu_stats);
 	/* Tx-conf logically pertains to the egress path. */
 	percpu_stats->tx_errors++;
+}
+
+static int dpaa2_eth_set_rx_vlan_filtering(struct dpaa2_eth_priv *priv,
+					   bool enable)
+{
+	int err;
+
+	err = dpni_enable_vlan_filter(priv->mc_io, 0, priv->mc_token, enable);
+
+	if (err) {
+		netdev_err(priv->net_dev,
+			   "dpni_enable_vlan_filter failed\n");
+		return err;
+	}
+
+	return 0;
 }
 
 static int dpaa2_eth_set_rx_csum(struct dpaa2_eth_priv *priv, bool enable)
@@ -1470,7 +1789,7 @@ static void dpaa2_eth_sgt_cache_drain(struct dpaa2_eth_priv *priv)
 		count = sgt_cache->count;
 
 		for (i = 0; i < count; i++)
-			kfree(sgt_cache->buf[i]);
+			skb_free_frag(sgt_cache->buf[i]);
 		sgt_cache->count = 0;
 	}
 }
@@ -1550,6 +1869,12 @@ static int dpaa2_eth_poll(struct napi_struct *napi, int budget)
 			goto out;
 		}
 	} while (store_cleaned);
+
+	/* Update NET DIM with the values for this CDAN */
+	dpaa2_io_update_net_dim(ch->dpio, ch->stats.frames_per_cdan,
+				ch->stats.bytes_per_cdan);
+	ch->stats.frames_per_cdan = 0;
+	ch->stats.bytes_per_cdan = 0;
 
 	/* We didn't consume the entire budget, so finish napi and
 	 * re-enable data availability notifications
@@ -1648,7 +1973,7 @@ set_cgtd:
 	 * CG taildrop threshold, so it won't interfere with it; we also
 	 * want frames in non-PFC enabled traffic classes to be kept in check)
 	 */
-	td.enable = !tx_pause || (tx_pause && pfc);
+	td.enable = !tx_pause || pfc;
 	if (priv->rx_cgtd_enabled == td.enable)
 		return;
 
@@ -1691,7 +2016,7 @@ static int dpaa2_eth_link_state_update(struct dpaa2_eth_priv *priv)
 	/* When we manage the MAC/PHY using phylink there is no need
 	 * to manually update the netif_carrier.
 	 */
-	if (priv->mac)
+	if (dpaa2_eth_is_type_phy(priv))
 		goto out;
 
 	/* Chech link state; speed / duplex changes are not treated yet */
@@ -1730,7 +2055,7 @@ static int dpaa2_eth_open(struct net_device *net_dev)
 			   priv->dpbp_dev->obj_desc.id, priv->bpid);
 	}
 
-	if (!priv->mac) {
+	if (!dpaa2_eth_is_type_phy(priv)) {
 		/* We'll only start the txqs when the link is actually ready;
 		 * make sure we don't race against the link up notification,
 		 * which may come immediately after dpni_enable();
@@ -1752,8 +2077,10 @@ static int dpaa2_eth_open(struct net_device *net_dev)
 		goto enable_err;
 	}
 
-	if (priv->mac)
+	if (dpaa2_eth_is_type_phy(priv)) {
+		dpaa2_mac_start(priv->mac);
 		phylink_start(priv->mac->phylink);
+	}
 
 	return 0;
 
@@ -1826,11 +2153,12 @@ static int dpaa2_eth_stop(struct net_device *net_dev)
 	int dpni_enabled = 0;
 	int retries = 10;
 
-	if (!priv->mac) {
+	if (dpaa2_eth_is_type_phy(priv)) {
+		phylink_stop(priv->mac->phylink);
+		dpaa2_mac_stop(priv->mac);
+	} else {
 		netif_tx_stop_all_queues(net_dev);
 		netif_carrier_off(net_dev);
-	} else {
-		phylink_stop(priv->mac->phylink);
 	}
 
 	/* On dpni_disable(), the MC firmware will:
@@ -1952,6 +2280,43 @@ static void dpaa2_eth_add_mc_hw_addr(const struct net_device *net_dev,
 	}
 }
 
+static int dpaa2_eth_rx_add_vid(struct net_device *net_dev,
+				__be16 vlan_proto, u16 vid)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	int err;
+
+	err = dpni_add_vlan_id(priv->mc_io, 0, priv->mc_token,
+			       vid, 0, 0, 0);
+
+	if (err) {
+		netdev_warn(priv->net_dev,
+			    "Could not add the vlan id %u\n",
+			    vid);
+		return err;
+	}
+
+	return 0;
+}
+
+static int dpaa2_eth_rx_kill_vid(struct net_device *net_dev,
+				 __be16 vlan_proto, u16 vid)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	int err;
+
+	err = dpni_remove_vlan_id(priv->mc_io, 0, priv->mc_token, vid);
+
+	if (err) {
+		netdev_warn(priv->net_dev,
+			    "Could not remove the vlan id %u\n",
+			    vid);
+		return err;
+	}
+
+	return 0;
+}
+
 static void dpaa2_eth_set_rx_mode(struct net_device *net_dev)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
@@ -2058,6 +2423,13 @@ static int dpaa2_eth_set_features(struct net_device *net_dev,
 	bool enable;
 	int err;
 
+	if (changed & NETIF_F_HW_VLAN_CTAG_FILTER) {
+		enable = !!(features & NETIF_F_HW_VLAN_CTAG_FILTER);
+		err = dpaa2_eth_set_rx_vlan_filtering(priv, enable);
+		if (err)
+			return err;
+	}
+
 	if (changed & NETIF_F_RXCSUM) {
 		enable = !!(features & NETIF_F_RXCSUM);
 		err = dpaa2_eth_set_rx_csum(priv, enable);
@@ -2104,6 +2476,9 @@ static int dpaa2_eth_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 	}
 
+	if (priv->tx_tstamp_type == HWTSTAMP_TX_ONESTEP_SYNC)
+		dpaa2_ptp_onestep_reg_update_method(priv);
+
 	return copy_to_user(rq->ifr_data, &config, sizeof(config)) ?
 			-EFAULT : 0;
 }
@@ -2115,7 +2490,7 @@ static int dpaa2_eth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (cmd == SIOCSHWTSTAMP)
 		return dpaa2_eth_ts_ioctl(dev, rq, cmd);
 
-	if (priv->mac)
+	if (dpaa2_eth_is_type_phy(priv))
 		return phylink_mii_ioctl(priv->mac->phylink, rq, cmd);
 
 	return -EOPNOTSUPP;
@@ -2366,8 +2741,6 @@ static int dpaa2_eth_xdp_xmit(struct net_device *net_dev, int n,
 	percpu_stats->tx_packets += enqueued;
 	for (i = 0; i < enqueued; i++)
 		percpu_stats->tx_bytes += dpaa2_fd_get_len(&fds[i]);
-	for (i = enqueued; i < n; i++)
-		xdp_return_frame_rx_napi(frames[i]);
 
 	return enqueued;
 }
@@ -2502,11 +2875,13 @@ static const struct net_device_ops dpaa2_eth_ops = {
 	.ndo_get_stats64 = dpaa2_eth_get_stats,
 	.ndo_set_rx_mode = dpaa2_eth_set_rx_mode,
 	.ndo_set_features = dpaa2_eth_set_features,
-	.ndo_do_ioctl = dpaa2_eth_ioctl,
+	.ndo_eth_ioctl = dpaa2_eth_ioctl,
 	.ndo_change_mtu = dpaa2_eth_change_mtu,
 	.ndo_bpf = dpaa2_eth_xdp,
 	.ndo_xdp_xmit = dpaa2_eth_xdp_xmit,
 	.ndo_setup_tc = dpaa2_eth_setup_tc,
+	.ndo_vlan_rx_add_vid = dpaa2_eth_rx_add_vid,
+	.ndo_vlan_rx_kill_vid = dpaa2_eth_rx_kill_vid
 };
 
 static void dpaa2_eth_cdan_cb(struct dpaa2_io_notification_ctx *ctx)
@@ -3334,7 +3709,7 @@ static int dpaa2_eth_setup_rx_flow(struct dpaa2_eth_priv *priv,
 		return 0;
 
 	err = xdp_rxq_info_reg(&fq->channel->xdp_rxq, priv->net_dev,
-			       fq->flowid);
+			       fq->flowid, 0);
 	if (err) {
 		dev_err(dev, "xdp_rxq_info_reg failed\n");
 		return err;
@@ -3919,7 +4294,7 @@ static int dpaa2_eth_set_mac_addr(struct dpaa2_eth_priv *priv)
 				return err;
 			}
 		}
-		memcpy(net_dev->dev_addr, mac_addr, net_dev->addr_len);
+		eth_hw_addr_set(net_dev, mac_addr);
 	} else if (is_zero_ether_addr(dpni_mac_addr)) {
 		/* No MAC address configured, fill in net_dev->dev_addr
 		 * with a random one
@@ -3944,7 +4319,7 @@ static int dpaa2_eth_set_mac_addr(struct dpaa2_eth_priv *priv)
 		/* NET_ADDR_PERM is default, all we have to do is
 		 * fill in the device addr.
 		 */
-		memcpy(net_dev->dev_addr, dpni_mac_addr, net_dev->addr_len);
+		eth_hw_addr_set(net_dev, dpni_mac_addr);
 	}
 
 	return 0;
@@ -3997,6 +4372,8 @@ static int dpaa2_eth_netdev_init(struct net_device *net_dev)
 		return err;
 	}
 
+	dpaa2_eth_detect_features(priv);
+
 	/* Capabilities listing */
 	supported |= IFF_LIVE_ADDR_CHANGE;
 
@@ -4012,8 +4389,12 @@ static int dpaa2_eth_netdev_init(struct net_device *net_dev)
 	net_dev->features = NETIF_F_RXCSUM |
 			    NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			    NETIF_F_SG | NETIF_F_HIGHDMA |
-			    NETIF_F_LLTX | NETIF_F_HW_TC;
+			    NETIF_F_LLTX | NETIF_F_HW_TC | NETIF_F_TSO;
+	net_dev->gso_max_segs = DPAA2_ETH_ENQUEUE_MAX_FDS;
 	net_dev->hw_features = net_dev->features;
+
+	if (priv->dpni_attrs.vlan_filter_entries)
+		net_dev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	return 0;
 }
@@ -4041,11 +4422,12 @@ static int dpaa2_eth_connect_mac(struct dpaa2_eth_priv *priv)
 	int err;
 
 	dpni_dev = to_fsl_mc_device(priv->net_dev->dev.parent);
-	dpmac_dev = fsl_mc_get_endpoint(dpni_dev);
-	if (IS_ERR_OR_NULL(dpmac_dev) || dpmac_dev->dev.type != &fsl_mc_bus_dpmac_type)
-		return 0;
+	dpmac_dev = fsl_mc_get_endpoint(dpni_dev, 0);
 
-	if (dpaa2_mac_is_type_fixed(dpmac_dev, priv->mc_io))
+	if (PTR_ERR(dpmac_dev) == -EPROBE_DEFER)
+		return PTR_ERR(dpmac_dev);
+
+	if (IS_ERR(dpmac_dev) || dpmac_dev->dev.type != &fsl_mc_bus_dpmac_type)
 		return 0;
 
 	mac = kzalloc(sizeof(struct dpaa2_mac), GFP_KERNEL);
@@ -4056,23 +4438,39 @@ static int dpaa2_eth_connect_mac(struct dpaa2_eth_priv *priv)
 	mac->mc_io = priv->mc_io;
 	mac->net_dev = priv->net_dev;
 
-	err = dpaa2_mac_connect(mac);
-	if (err) {
-		netdev_err(priv->net_dev, "Error connecting to the MAC endpoint\n");
-		kfree(mac);
-		return err;
-	}
+	err = dpaa2_mac_open(mac);
+	if (err)
+		goto err_free_mac;
 	priv->mac = mac;
 
+	if (dpaa2_eth_is_type_phy(priv)) {
+		err = dpaa2_mac_connect(mac);
+		if (err && err != -EPROBE_DEFER)
+			netdev_err(priv->net_dev, "Error connecting to the MAC endpoint: %pe",
+				   ERR_PTR(err));
+		if (err)
+			goto err_close_mac;
+	}
+
 	return 0;
+
+err_close_mac:
+	dpaa2_mac_close(mac);
+	priv->mac = NULL;
+err_free_mac:
+	kfree(mac);
+	return err;
 }
 
 static void dpaa2_eth_disconnect_mac(struct dpaa2_eth_priv *priv)
 {
-	if (!priv->mac)
+	if (dpaa2_eth_is_type_phy(priv))
+		dpaa2_mac_disconnect(priv->mac);
+
+	if (!dpaa2_eth_has_mac(priv))
 		return;
 
-	dpaa2_mac_disconnect(priv->mac);
+	dpaa2_mac_close(priv->mac);
 	kfree(priv->mac);
 	priv->mac = NULL;
 }
@@ -4101,7 +4499,7 @@ static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 		dpaa2_eth_update_tx_fqids(priv);
 
 		rtnl_lock();
-		if (priv->mac)
+		if (dpaa2_eth_has_mac(priv))
 			dpaa2_eth_disconnect_mac(priv);
 		else
 			dpaa2_eth_connect_mac(priv);
@@ -4123,7 +4521,7 @@ static int dpaa2_eth_setup_irqs(struct fsl_mc_device *ls_dev)
 	}
 
 	irq = ls_dev->irqs[0];
-	err = devm_request_threaded_irq(&ls_dev->dev, irq->msi_desc->irq,
+	err = devm_request_threaded_irq(&ls_dev->dev, irq->virq,
 					NULL, dpni_irq0_handler_thread,
 					IRQF_NO_SUSPEND | IRQF_ONESHOT,
 					dev_name(&ls_dev->dev), &ls_dev->dev);
@@ -4150,7 +4548,7 @@ static int dpaa2_eth_setup_irqs(struct fsl_mc_device *ls_dev)
 	return 0;
 
 free_irq:
-	devm_free_irq(&ls_dev->dev, irq->msi_desc->irq, &ls_dev->dev);
+	devm_free_irq(&ls_dev->dev, irq->virq, &ls_dev->dev);
 free_mc_irq:
 	fsl_mc_free_irqs(ls_dev);
 
@@ -4215,8 +4613,10 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	}
 
 	INIT_WORK(&priv->tx_onestep_tstamp, dpaa2_eth_tx_onestep_tstamp);
-
+	mutex_init(&priv->onestep_tstamp_lock);
 	skb_queue_head_init(&priv->tx_skbs);
+
+	priv->rx_copybreak = DPAA2_ETH_DEFAULT_COPYBREAK;
 
 	/* Obtain a MC portal */
 	err = fsl_mc_portal_allocate(dpni_dev, FSL_MC_IO_ATOMIC_CONTEXT_PORTAL,
@@ -4272,6 +4672,13 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 		goto err_alloc_sgt_cache;
 	}
 
+	priv->fd = alloc_percpu(*priv->fd);
+	if (!priv->fd) {
+		dev_err(dev, "alloc_percpu(fds) failed\n");
+		err = -ENOMEM;
+		goto err_alloc_fds;
+	}
+
 	err = dpaa2_eth_netdev_init(net_dev);
 	if (err)
 		goto err_netdev_init;
@@ -4315,7 +4722,7 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	if (err)
 		goto err_connect_mac;
 
-	err = dpaa2_eth_dl_register(priv);
+	err = dpaa2_eth_dl_alloc(priv);
 	if (err)
 		goto err_dl_register;
 
@@ -4337,6 +4744,7 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	dpaa2_dbg_add(priv);
 #endif
 
+	dpaa2_eth_dl_register(priv);
 	dev_info(dev, "Probed interface %s\n", net_dev->name);
 	return 0;
 
@@ -4345,7 +4753,7 @@ err_netdev_reg:
 err_dl_port_add:
 	dpaa2_eth_dl_traps_unregister(priv);
 err_dl_trap_register:
-	dpaa2_eth_dl_unregister(priv);
+	dpaa2_eth_dl_free(priv);
 err_dl_register:
 	dpaa2_eth_disconnect_mac(priv);
 err_connect_mac:
@@ -4358,6 +4766,8 @@ err_poll_thread:
 err_alloc_rings:
 err_csum:
 err_netdev_init:
+	free_percpu(priv->fd);
+err_alloc_fds:
 	free_percpu(priv->sgt_cache);
 err_alloc_sgt_cache:
 	free_percpu(priv->percpu_extras);
@@ -4392,18 +4802,20 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 	net_dev = dev_get_drvdata(dev);
 	priv = netdev_priv(net_dev);
 
+	dpaa2_eth_dl_unregister(priv);
+
 #ifdef CONFIG_DEBUG_FS
 	dpaa2_dbg_remove(priv);
 #endif
+
+	unregister_netdev(net_dev);
 	rtnl_lock();
 	dpaa2_eth_disconnect_mac(priv);
 	rtnl_unlock();
 
-	unregister_netdev(net_dev);
-
 	dpaa2_eth_dl_port_del(priv);
 	dpaa2_eth_dl_traps_unregister(priv);
-	dpaa2_eth_dl_unregister(priv);
+	dpaa2_eth_dl_free(priv);
 
 	if (priv->do_link_poll)
 		kthread_stop(priv->poll_thread);
@@ -4411,6 +4823,7 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 		fsl_mc_free_irqs(ls_dev);
 
 	dpaa2_eth_free_rings(priv);
+	free_percpu(priv->fd);
 	free_percpu(priv->sgt_cache);
 	free_percpu(priv->percpu_stats);
 	free_percpu(priv->percpu_extras);
@@ -4419,12 +4832,16 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 	dpaa2_eth_free_dpbp(priv);
 	dpaa2_eth_free_dpio(priv);
 	dpaa2_eth_free_dpni(priv);
+	if (priv->onestep_reg_base)
+		iounmap(priv->onestep_reg_base);
 
 	fsl_mc_portal_free(priv->mc_io);
 
-	free_netdev(net_dev);
+	destroy_workqueue(priv->dpaa2_ptp_wq);
 
 	dev_dbg(net_dev->dev.parent, "Removed interface %s\n", net_dev->name);
+
+	free_netdev(net_dev);
 
 	return 0;
 }

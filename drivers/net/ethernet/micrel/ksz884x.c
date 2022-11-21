@@ -25,6 +25,7 @@
 #include <linux/crc32.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/micrel_phy.h>
 
 
 /* DMA Registers */
@@ -271,83 +272,14 @@
 
 #define KS884X_PHY_CTRL_OFFSET		0x00
 
-/* Mode Control Register */
-#define PHY_REG_CTRL			0
-
-#define PHY_RESET			0x8000
-#define PHY_LOOPBACK			0x4000
-#define PHY_SPEED_100MBIT		0x2000
-#define PHY_AUTO_NEG_ENABLE		0x1000
-#define PHY_POWER_DOWN			0x0800
-#define PHY_MII_DISABLE			0x0400
-#define PHY_AUTO_NEG_RESTART		0x0200
-#define PHY_FULL_DUPLEX			0x0100
-#define PHY_COLLISION_TEST		0x0080
-#define PHY_HP_MDIX			0x0020
-#define PHY_FORCE_MDIX			0x0010
-#define PHY_AUTO_MDIX_DISABLE		0x0008
-#define PHY_REMOTE_FAULT_DISABLE	0x0004
-#define PHY_TRANSMIT_DISABLE		0x0002
-#define PHY_LED_DISABLE			0x0001
-
 #define KS884X_PHY_STATUS_OFFSET	0x02
-
-/* Mode Status Register */
-#define PHY_REG_STATUS			1
-
-#define PHY_100BT4_CAPABLE		0x8000
-#define PHY_100BTX_FD_CAPABLE		0x4000
-#define PHY_100BTX_CAPABLE		0x2000
-#define PHY_10BT_FD_CAPABLE		0x1000
-#define PHY_10BT_CAPABLE		0x0800
-#define PHY_MII_SUPPRESS_CAPABLE	0x0040
-#define PHY_AUTO_NEG_ACKNOWLEDGE	0x0020
-#define PHY_REMOTE_FAULT		0x0010
-#define PHY_AUTO_NEG_CAPABLE		0x0008
-#define PHY_LINK_STATUS			0x0004
-#define PHY_JABBER_DETECT		0x0002
-#define PHY_EXTENDED_CAPABILITY		0x0001
 
 #define KS884X_PHY_ID_1_OFFSET		0x04
 #define KS884X_PHY_ID_2_OFFSET		0x06
 
-/* PHY Identifier Registers */
-#define PHY_REG_ID_1			2
-#define PHY_REG_ID_2			3
-
 #define KS884X_PHY_AUTO_NEG_OFFSET	0x08
 
-/* Auto-Negotiation Advertisement Register */
-#define PHY_REG_AUTO_NEGOTIATION	4
-
-#define PHY_AUTO_NEG_NEXT_PAGE		0x8000
-#define PHY_AUTO_NEG_REMOTE_FAULT	0x2000
-/* Not supported. */
-#define PHY_AUTO_NEG_ASYM_PAUSE		0x0800
-#define PHY_AUTO_NEG_SYM_PAUSE		0x0400
-#define PHY_AUTO_NEG_100BT4		0x0200
-#define PHY_AUTO_NEG_100BTX_FD		0x0100
-#define PHY_AUTO_NEG_100BTX		0x0080
-#define PHY_AUTO_NEG_10BT_FD		0x0040
-#define PHY_AUTO_NEG_10BT		0x0020
-#define PHY_AUTO_NEG_SELECTOR		0x001F
-#define PHY_AUTO_NEG_802_3		0x0001
-
-#define PHY_AUTO_NEG_PAUSE  (PHY_AUTO_NEG_SYM_PAUSE | PHY_AUTO_NEG_ASYM_PAUSE)
-
 #define KS884X_PHY_REMOTE_CAP_OFFSET	0x0A
-
-/* Auto-Negotiation Link Partner Ability Register */
-#define PHY_REG_REMOTE_CAPABILITY	5
-
-#define PHY_REMOTE_NEXT_PAGE		0x8000
-#define PHY_REMOTE_ACKNOWLEDGE		0x4000
-#define PHY_REMOTE_REMOTE_FAULT		0x2000
-#define PHY_REMOTE_SYM_PAUSE		0x0400
-#define PHY_REMOTE_100BTX_FD		0x0100
-#define PHY_REMOTE_100BTX		0x0080
-#define PHY_REMOTE_10BT_FD		0x0040
-#define PHY_REMOTE_10BT			0x0020
 
 /* P1VCT */
 #define KS884X_P1VCT_P			0x04F0
@@ -2153,7 +2085,7 @@ static void sw_cfg_broad_storm(struct ksz_hw *hw, u8 percent)
 }
 
 /**
- * sw_get_board_storm - get broadcast storm threshold
+ * sw_get_broad_storm - get broadcast storm threshold
  * @hw: 	The hardware instance.
  * @percent:	Buffer to store the broadcast storm threshold percentage.
  *
@@ -2886,15 +2818,6 @@ static void sw_block_addr(struct ksz_hw *hw)
 	}
 }
 
-#define PHY_LINK_SUPPORT		\
-	(PHY_AUTO_NEG_ASYM_PAUSE |	\
-	PHY_AUTO_NEG_SYM_PAUSE |	\
-	PHY_AUTO_NEG_100BT4 |		\
-	PHY_AUTO_NEG_100BTX_FD |	\
-	PHY_AUTO_NEG_100BTX |		\
-	PHY_AUTO_NEG_10BT_FD |		\
-	PHY_AUTO_NEG_10BT)
-
 static inline void hw_r_phy_ctrl(struct ksz_hw *hw, int phy, u16 *data)
 {
 	*data = readw(hw->io + phy + KS884X_PHY_CTRL_OFFSET);
@@ -2973,7 +2896,7 @@ static void hw_r_phy(struct ksz_hw *hw, int port, u16 reg, u16 *val)
 }
 
 /**
- * port_w_phy - write data to PHY register
+ * hw_w_phy - write data to PHY register
  * @hw: 	The hardware instance.
  * @port:	Port to write.
  * @reg:	PHY register to write.
@@ -3238,16 +3161,18 @@ static void determine_flow_ctrl(struct ksz_hw *hw, struct ksz_port *port,
 	rx = tx = 0;
 	if (port->force_link)
 		rx = tx = 1;
-	if (remote & PHY_AUTO_NEG_SYM_PAUSE) {
-		if (local & PHY_AUTO_NEG_SYM_PAUSE) {
+	if (remote & LPA_PAUSE_CAP) {
+		if (local & ADVERTISE_PAUSE_CAP) {
 			rx = tx = 1;
-		} else if ((remote & PHY_AUTO_NEG_ASYM_PAUSE) &&
-				(local & PHY_AUTO_NEG_PAUSE) ==
-				PHY_AUTO_NEG_ASYM_PAUSE) {
+		} else if ((remote & LPA_PAUSE_ASYM) &&
+			   (local &
+			    (ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM)) ==
+			   ADVERTISE_PAUSE_ASYM) {
 			tx = 1;
 		}
-	} else if (remote & PHY_AUTO_NEG_ASYM_PAUSE) {
-		if ((local & PHY_AUTO_NEG_PAUSE) == PHY_AUTO_NEG_PAUSE)
+	} else if (remote & LPA_PAUSE_ASYM) {
+		if ((local & (ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM))
+		    == (ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM))
 			rx = 1;
 	}
 	if (!hw->ksz_switch)
@@ -3428,16 +3353,16 @@ static void port_force_link_speed(struct ksz_port *port)
 		phy = KS884X_PHY_1_CTRL_OFFSET + p * PHY_CTRL_INTERVAL;
 		hw_r_phy_ctrl(hw, phy, &data);
 
-		data &= ~PHY_AUTO_NEG_ENABLE;
+		data &= ~BMCR_ANENABLE;
 
 		if (10 == port->speed)
-			data &= ~PHY_SPEED_100MBIT;
+			data &= ~BMCR_SPEED100;
 		else if (100 == port->speed)
-			data |= PHY_SPEED_100MBIT;
+			data |= BMCR_SPEED100;
 		if (1 == port->duplex)
-			data &= ~PHY_FULL_DUPLEX;
+			data &= ~BMCR_FULLDPLX;
 		else if (2 == port->duplex)
-			data |= PHY_FULL_DUPLEX;
+			data |= BMCR_FULLDPLX;
 		hw_w_phy_ctrl(hw, phy, data);
 	}
 }
@@ -4108,7 +4033,7 @@ static void hw_set_add_addr(struct ksz_hw *hw)
 	}
 }
 
-static int hw_add_addr(struct ksz_hw *hw, u8 *mac_addr)
+static int hw_add_addr(struct ksz_hw *hw, const u8 *mac_addr)
 {
 	int i;
 	int j = ADDITIONAL_ENTRIES;
@@ -4129,7 +4054,7 @@ static int hw_add_addr(struct ksz_hw *hw, u8 *mac_addr)
 	return -1;
 }
 
-static int hw_del_addr(struct ksz_hw *hw, u8 *mac_addr)
+static int hw_del_addr(struct ksz_hw *hw, const u8 *mac_addr)
 {
 	int i;
 
@@ -4782,7 +4707,7 @@ static void transmit_cleanup(struct dev_info *hw_priv, int normal)
 }
 
 /**
- * transmit_done - transmit done processing
+ * tx_done - transmit done processing
  * @hw_priv:	Network device.
  *
  * This routine is called when the transmit interrupt is triggered, indicating
@@ -5300,7 +5225,6 @@ static irqreturn_t netdev_intr(int irq, void *dev_id)
  * Linux network device functions
  */
 
-static unsigned long next_jiffies;
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void netdev_netpoll(struct net_device *dev)
@@ -5486,10 +5410,12 @@ static int netdev_open(struct net_device *dev)
 	struct dev_info *hw_priv = priv->adapter;
 	struct ksz_hw *hw = &hw_priv->hw;
 	struct ksz_port *port = &priv->port;
+	unsigned long next_jiffies;
 	int i;
 	int p;
 	int rc = 0;
 
+	next_jiffies = jiffies + HZ * 2;
 	priv->multicast = 0;
 	priv->promiscuous = 0;
 
@@ -5503,10 +5429,7 @@ static int netdev_open(struct net_device *dev)
 		if (rc)
 			return rc;
 		for (i = 0; i < hw->mib_port_cnt; i++) {
-			if (next_jiffies < jiffies)
-				next_jiffies = jiffies + HZ * 2;
-			else
-				next_jiffies += HZ * 1;
+			next_jiffies += HZ * 1;
 			hw_priv->counter[i].time = next_jiffies;
 			hw->port_mib[i].state = media_disconnected;
 			port_init_cnt(hw, i);
@@ -5656,7 +5579,7 @@ static int netdev_set_mac_address(struct net_device *dev, void *addr)
 		memcpy(hw->override_addr, mac->sa_data, ETH_ALEN);
 	}
 
-	memcpy(dev->dev_addr, mac->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, mac->sa_data);
 
 	interrupt = hw_block_intr(hw);
 
@@ -6392,11 +6315,15 @@ static int netdev_set_pauseparam(struct net_device *dev,
  * netdev_get_ringparam - get tx/rx ring parameters
  * @dev:	Network device.
  * @ring:	Ethtool RING settings data structure.
+ * @kernel_ring:	Ethtool external RING settings data structure.
+ * @extack:	Netlink handle.
  *
  * This procedure returns the TX/RX ring settings.
  */
 static void netdev_get_ringparam(struct net_device *dev,
-	struct ethtool_ringparam *ring)
+				 struct ethtool_ringparam *ring,
+				 struct kernel_ethtool_ringparam *kernel_ring,
+				 struct netlink_ext_ack *extack)
 {
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;
@@ -6634,6 +6561,7 @@ static void mib_read_work(struct work_struct *work)
 	struct dev_info *hw_priv =
 		container_of(work, struct dev_info, mib_read);
 	struct ksz_hw *hw = &hw_priv->hw;
+	unsigned long next_jiffies;
 	struct ksz_port_mib *mib;
 	int i;
 
@@ -6813,7 +6741,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_set_features	= netdev_set_features,
 	.ndo_set_mac_address	= netdev_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= netdev_ioctl,
+	.ndo_eth_ioctl		= netdev_ioctl,
 	.ndo_set_rx_mode	= netdev_set_rx_mode,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= netdev_netpoll,
@@ -7080,12 +7008,14 @@ static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev->mem_end = dev->mem_start + reg_len - 1;
 		dev->irq = pdev->irq;
 		if (MAIN_PORT == i)
-			memcpy(dev->dev_addr, hw_priv->hw.override_addr,
-			       ETH_ALEN);
+			eth_hw_addr_set(dev, hw_priv->hw.override_addr);
 		else {
-			memcpy(dev->dev_addr, sw->other_addr, ETH_ALEN);
+			u8 addr[ETH_ALEN];
+
+			ether_addr_copy(addr, sw->other_addr);
 			if (ether_addr_equal(sw->other_addr, hw->override_addr))
-				dev->dev_addr[5] += port->first_port;
+				addr[5] += port->first_port;
+			eth_hw_addr_set(dev, addr);
 		}
 
 		dev->netdev_ops = &netdev_ops;

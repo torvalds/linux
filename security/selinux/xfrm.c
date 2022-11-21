@@ -47,7 +47,7 @@
 #include "xfrm.h"
 
 /* Labeled XFRM instance counter */
-atomic_t selinux_xfrm_refcount = ATOMIC_INIT(0);
+atomic_t selinux_xfrm_refcount __read_mostly = ATOMIC_INIT(0);
 
 /*
  * Returns true if the context is an LSM/SELinux context.
@@ -89,7 +89,7 @@ static int selinux_xfrm_alloc_user(struct xfrm_sec_ctx **ctxp,
 	if (str_len >= PAGE_SIZE)
 		return -ENOMEM;
 
-	ctx = kmalloc(sizeof(*ctx) + str_len + 1, gfp);
+	ctx = kmalloc(struct_size(ctx, ctx_str, str_len + 1), gfp);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -150,7 +150,7 @@ static int selinux_xfrm_delete(struct xfrm_sec_ctx *ctx)
  * LSM hook implementation that authorizes that a flow can use a xfrm policy
  * rule.
  */
-int selinux_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir)
+int selinux_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid)
 {
 	int rc;
 
@@ -175,9 +175,10 @@ int selinux_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir)
  */
 int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
 				      struct xfrm_policy *xp,
-				      const struct flowi *fl)
+				      const struct flowi_common *flic)
 {
 	u32 state_sid;
+	u32 flic_sid;
 
 	if (!xp->security)
 		if (x->security)
@@ -196,17 +197,17 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
 				return 0;
 
 	state_sid = x->security->ctx_sid;
+	flic_sid = flic->flowic_secid;
 
-	if (fl->flowi_secid != state_sid)
+	if (flic_sid != state_sid)
 		return 0;
 
 	/* We don't need a separate SA Vs. policy polmatch check since the SA
 	 * is now of the same label as the flow and a flow Vs. policy polmatch
 	 * check had already happened in selinux_xfrm_policy_lookup() above. */
-	return (avc_has_perm(&selinux_state,
-			     fl->flowi_secid, state_sid,
-			    SECCLASS_ASSOCIATION, ASSOCIATION__SENDTO,
-			    NULL) ? 0 : 1);
+	return (avc_has_perm(&selinux_state, flic_sid, state_sid,
+			     SECCLASS_ASSOCIATION, ASSOCIATION__SENDTO,
+			     NULL) ? 0 : 1);
 }
 
 static u32 selinux_xfrm_skb_sid_egress(struct sk_buff *skb)
@@ -346,7 +347,7 @@ int selinux_xfrm_state_alloc_acquire(struct xfrm_state *x,
 	int rc;
 	struct xfrm_sec_ctx *ctx;
 	char *ctx_str = NULL;
-	int str_len;
+	u32 str_len;
 
 	if (!polsec)
 		return 0;
@@ -359,7 +360,7 @@ int selinux_xfrm_state_alloc_acquire(struct xfrm_state *x,
 	if (rc)
 		return rc;
 
-	ctx = kmalloc(sizeof(*ctx) + str_len, GFP_ATOMIC);
+	ctx = kmalloc(struct_size(ctx, ctx_str, str_len), GFP_ATOMIC);
 	if (!ctx) {
 		rc = -ENOMEM;
 		goto out;

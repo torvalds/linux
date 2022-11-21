@@ -50,6 +50,7 @@ struct dce120_hw_seq_reg_offsets {
 	uint32_t crtc;
 };
 
+#if 0
 static const struct dce120_hw_seq_reg_offsets reg_offsets[] = {
 {
 	.crtc = (mmCRTC0_CRTC_GSL_CONTROL - mmCRTC0_CRTC_GSL_CONTROL),
@@ -79,7 +80,6 @@ static const struct dce120_hw_seq_reg_offsets reg_offsets[] = {
 /*******************************************************************************
  * Private definitions
  ******************************************************************************/
-#if 0
 static void dce120_init_pte(struct dc_context *ctx, uint8_t controller_id)
 {
 	uint32_t addr;

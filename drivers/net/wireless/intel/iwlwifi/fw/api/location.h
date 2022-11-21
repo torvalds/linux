@@ -1,62 +1,8 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2020 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- * Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2020 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2015-2017 Intel Deutschland GmbH
+ * Copyright (C) 2018-2021 Intel Corporation
+ */
 #ifndef __iwl_fw_api_location_h__
 #define __iwl_fw_api_location_h__
 
@@ -66,7 +12,12 @@
 enum iwl_location_subcmd_ids {
 	/**
 	 * @TOF_RANGE_REQ_CMD: TOF ranging request,
-	 *	uses &struct iwl_tof_range_req_cmd
+	 *	uses one of &struct iwl_tof_range_req_cmd_v5,
+	 *	&struct iwl_tof_range_req_cmd_v7,
+	 *	&struct iwl_tof_range_req_cmd_v8,
+	 *	&struct iwl_tof_range_req_cmd_v9,
+	 *	&struct iwl_tof_range_req_cmd_v11,
+	 *	&struct iwl_tof_range_req_cmd_v7
 	 */
 	TOF_RANGE_REQ_CMD = 0x0,
 	/**
@@ -196,6 +147,14 @@ enum iwl_tof_mcsi_enable {
  * @IWL_TOF_RESPONDER_CMD_VALID_RETRY_ON_ALGO_FAIL: retry on algorithm failure
  *	is valid
  * @IWL_TOF_RESPONDER_CMD_VALID_STA_ID: station ID is valid
+ * @IWL_TOF_RESPONDER_CMD_VALID_NDP_SUPPORT: enable/disable NDP ranging support
+ *	is valid
+ * @IWL_TOF_RESPONDER_CMD_VALID_NDP_PARAMS: NDP parameters are valid
+ * @IWL_TOF_RESPONDER_CMD_VALID_LMR_FEEDBACK: LMR feedback support is valid
+ * @IWL_TOF_RESPONDER_CMD_VALID_SESSION_ID: session id flag is valid
+ * @IWL_TOF_RESPONDER_CMD_VALID_BSS_COLOR: the bss_color field is valid
+ * @IWL_TOF_RESPONDER_CMD_VALID_MIN_MAX_TIME_BETWEEN_MSR: the
+ *	min_time_between_msr and max_time_between_msr fields are valid
  */
 enum iwl_tof_responder_cmd_valid_field {
 	IWL_TOF_RESPONDER_CMD_VALID_CHAN_INFO = BIT(0),
@@ -211,6 +170,12 @@ enum iwl_tof_responder_cmd_valid_field {
 	IWL_TOF_RESPONDER_CMD_VALID_FAST_ALGO_SUPPORT = BIT(10),
 	IWL_TOF_RESPONDER_CMD_VALID_RETRY_ON_ALGO_FAIL = BIT(11),
 	IWL_TOF_RESPONDER_CMD_VALID_STA_ID = BIT(12),
+	IWL_TOF_RESPONDER_CMD_VALID_NDP_SUPPORT = BIT(22),
+	IWL_TOF_RESPONDER_CMD_VALID_NDP_PARAMS = BIT(23),
+	IWL_TOF_RESPONDER_CMD_VALID_LMR_FEEDBACK = BIT(24),
+	IWL_TOF_RESPONDER_CMD_VALID_SESSION_ID = BIT(25),
+	IWL_TOF_RESPONDER_CMD_VALID_BSS_COLOR = BIT(26),
+	IWL_TOF_RESPONDER_CMD_VALID_MIN_MAX_TIME_BETWEEN_MSR = BIT(27),
 };
 
 /**
@@ -225,6 +190,11 @@ enum iwl_tof_responder_cmd_valid_field {
  * @IWL_TOF_RESPONDER_FLAGS_FAST_ALGO_SUPPORT: fast algorithm support
  * @IWL_TOF_RESPONDER_FLAGS_RETRY_ON_ALGO_FAIL: retry on algorithm fail
  * @IWL_TOF_RESPONDER_FLAGS_FTM_TX_ANT: TX antenna mask
+ * @IWL_TOF_RESPONDER_FLAGS_NDP_SUPPORT: support NDP ranging
+ * @IWL_TOF_RESPONDER_FLAGS_LMR_FEEDBACK: request for LMR feedback if the
+ *	initiator supports it
+ * @IWL_TOF_RESPONDER_FLAGS_SESSION_ID: send the session id in the initial FTM
+ *	frame.
  */
 enum iwl_tof_responder_cfg_flags {
 	IWL_TOF_RESPONDER_FLAGS_NON_ASAP_SUPPORT = BIT(0),
@@ -236,7 +206,10 @@ enum iwl_tof_responder_cfg_flags {
 	IWL_TOF_RESPONDER_FLAGS_SPECIFIC_CALIB_MODE = BIT(8),
 	IWL_TOF_RESPONDER_FLAGS_FAST_ALGO_SUPPORT = BIT(9),
 	IWL_TOF_RESPONDER_FLAGS_RETRY_ON_ALGO_FAIL = BIT(10),
-	IWL_TOF_RESPONDER_FLAGS_FTM_TX_ANT = RATE_MCS_ANT_ABC_MSK,
+	IWL_TOF_RESPONDER_FLAGS_FTM_TX_ANT = RATE_MCS_ANT_AB_MSK,
+	IWL_TOF_RESPONDER_FLAGS_NDP_SUPPORT = BIT(24),
+	IWL_TOF_RESPONDER_FLAGS_LMR_FEEDBACK = BIT(25),
+	IWL_TOF_RESPONDER_FLAGS_SESSION_ID = BIT(27),
 };
 
 /**
@@ -275,7 +248,7 @@ struct iwl_tof_responder_config_cmd_v6 {
 } __packed; /* TOF_RESPONDER_CONFIG_CMD_API_S_VER_6 */
 
 /**
- * struct iwl_tof_responder_config_cmd - ToF AP mode (for debug)
+ * struct iwl_tof_responder_config_cmd_v7 - ToF AP mode (for debug)
  * @cmd_valid_fields: &iwl_tof_responder_cmd_valid_field
  * @responder_cfg_flags: &iwl_tof_responder_cfg_flags
  * @format_bw: bits 0 - 3: &enum iwl_location_frame_format.
@@ -294,7 +267,7 @@ struct iwl_tof_responder_config_cmd_v6 {
  * @bssid: Current AP BSSID
  * @reserved2: reserved
  */
-struct iwl_tof_responder_config_cmd {
+struct iwl_tof_responder_config_cmd_v7 {
 	__le32 cmd_valid_fields;
 	__le32 responder_cfg_flags;
 	u8 format_bw;
@@ -308,7 +281,108 @@ struct iwl_tof_responder_config_cmd {
 	__le16 specific_calib;
 	u8 bssid[ETH_ALEN];
 	__le16 reserved2;
-} __packed; /* TOF_RESPONDER_CONFIG_CMD_API_S_VER_6 */
+} __packed; /* TOF_RESPONDER_CONFIG_CMD_API_S_VER_7 */
+
+#define IWL_RESPONDER_STS_POS	3
+#define IWL_RESPONDER_TOTAL_LTF_POS	6
+
+/**
+ * struct iwl_tof_responder_config_cmd_v8 - ToF AP mode (for debug)
+ * @cmd_valid_fields: &iwl_tof_responder_cmd_valid_field
+ * @responder_cfg_flags: &iwl_tof_responder_cfg_flags
+ * @format_bw: bits 0 - 3: &enum iwl_location_frame_format.
+ *             bits 4 - 7: &enum iwl_location_bw.
+ * @rate: current AP rate
+ * @channel_num: current AP Channel
+ * @ctrl_ch_position: coding of the control channel position relative to
+ *	the center frequency, see iwl_mvm_get_ctrl_pos()
+ * @sta_id: index of the AP STA when in AP mode
+ * @reserved1: reserved
+ * @toa_offset: Artificial addition [pSec] for the ToA - to be used for debug
+ *	purposes, simulating station movement by adding various values
+ *	to this field
+ * @common_calib: XVT: common calibration value
+ * @specific_calib: XVT: specific calibration value
+ * @bssid: Current AP BSSID
+ * @r2i_ndp_params: parameters for R2I NDP.
+ *	bits 0 - 2: max number of LTF repetitions
+ *	bits 3 - 5: max number of spatial streams (supported values are < 2)
+ *	bits 6 - 7: max number of total LTFs see
+ *	&enum ieee80211_range_params_max_total_ltf
+ * @i2r_ndp_params: parameters for I2R NDP.
+ *	bits 0 - 2: max number of LTF repetitions
+ *	bits 3 - 5: max number of spatial streams
+ *	bits 6 - 7: max number of total LTFs see
+ *	&enum ieee80211_range_params_max_total_ltf
+ */
+struct iwl_tof_responder_config_cmd_v8 {
+	__le32 cmd_valid_fields;
+	__le32 responder_cfg_flags;
+	u8 format_bw;
+	u8 rate;
+	u8 channel_num;
+	u8 ctrl_ch_position;
+	u8 sta_id;
+	u8 reserved1;
+	__le16 toa_offset;
+	__le16 common_calib;
+	__le16 specific_calib;
+	u8 bssid[ETH_ALEN];
+	u8 r2i_ndp_params;
+	u8 i2r_ndp_params;
+} __packed; /* TOF_RESPONDER_CONFIG_CMD_API_S_VER_8 */
+
+/**
+ * struct iwl_tof_responder_config_cmd_v9 - ToF AP mode (for debug)
+ * @cmd_valid_fields: &iwl_tof_responder_cmd_valid_field
+ * @responder_cfg_flags: &iwl_tof_responder_cfg_flags
+ * @format_bw: bits 0 - 3: &enum iwl_location_frame_format.
+ *             bits 4 - 7: &enum iwl_location_bw.
+ * @bss_color: current AP bss_color
+ * @channel_num: current AP Channel
+ * @ctrl_ch_position: coding of the control channel position relative to
+ *	the center frequency, see iwl_mvm_get_ctrl_pos()
+ * @sta_id: index of the AP STA when in AP mode
+ * @reserved1: reserved
+ * @toa_offset: Artificial addition [pSec] for the ToA - to be used for debug
+ *	purposes, simulating station movement by adding various values
+ *	to this field
+ * @common_calib: XVT: common calibration value
+ * @specific_calib: XVT: specific calibration value
+ * @bssid: Current AP BSSID
+ * @r2i_ndp_params: parameters for R2I NDP.
+ *	bits 0 - 2: max number of LTF repetitions
+ *	bits 3 - 5: max number of spatial streams (supported values are < 2)
+ *	bits 6 - 7: max number of total LTFs see
+ *	&enum ieee80211_range_params_max_total_ltf
+ * @i2r_ndp_params: parameters for I2R NDP.
+ *	bits 0 - 2: max number of LTF repetitions
+ *	bits 3 - 5: max number of spatial streams
+ *	bits 6 - 7: max number of total LTFs see
+ *	&enum ieee80211_range_params_max_total_ltf
+ * @min_time_between_msr: for non trigger based NDP ranging, minimum time
+ *	between measurements in milliseconds.
+ * @max_time_between_msr: for non trigger based NDP ranging, maximum time
+ *	between measurements in milliseconds.
+ */
+struct iwl_tof_responder_config_cmd_v9 {
+	__le32 cmd_valid_fields;
+	__le32 responder_cfg_flags;
+	u8 format_bw;
+	u8 bss_color;
+	u8 channel_num;
+	u8 ctrl_ch_position;
+	u8 sta_id;
+	u8 reserved1;
+	__le16 toa_offset;
+	__le16 common_calib;
+	__le16 specific_calib;
+	u8 bssid[ETH_ALEN];
+	u8 r2i_ndp_params;
+	u8 i2r_ndp_params;
+	__le16 min_time_between_msr;
+	__le16 max_time_between_msr;
+} __packed; /* TOF_RESPONDER_CONFIG_CMD_API_S_VER_8 */
 
 #define IWL_LCI_CIVIC_IE_MAX_SIZE	400
 
@@ -471,10 +545,16 @@ struct iwl_tof_range_req_ap_entry_v2 {
  *	driver.
  * @IWL_INITIATOR_AP_FLAGS_NON_TB: Use non trigger based flow
  * @IWL_INITIATOR_AP_FLAGS_TB: Use trigger based flow
- * @IWL_INITIATOR_AP_FLAGS_SECURED: request secured measurement
+ * @IWL_INITIATOR_AP_FLAGS_SECURED: request secure LTF measurement
  * @IWL_INITIATOR_AP_FLAGS_LMR_FEEDBACK: Send LMR feedback
  * @IWL_INITIATOR_AP_FLAGS_USE_CALIB: Use calibration values from the request
  *      instead of fw internal values.
+ * @IWL_INITIATOR_AP_FLAGS_PMF: request to protect the negotiation and LMR
+ *      frames with protected management frames.
+ * @IWL_INITIATOR_AP_FLAGS_TERMINATE_ON_LMR_FEEDBACK: terminate the session if
+ *	the responder asked for LMR feedback although the initiator did not set
+ *	the LMR feedback bit in the FTM request. If not set, the initiator will
+ *	continue with the session and will provide the LMR feedback.
  */
 enum iwl_initiator_ap_flags {
 	IWL_INITIATOR_AP_FLAGS_ASAP = BIT(1),
@@ -489,6 +569,8 @@ enum iwl_initiator_ap_flags {
 	IWL_INITIATOR_AP_FLAGS_SECURED = BIT(11),
 	IWL_INITIATOR_AP_FLAGS_LMR_FEEDBACK = BIT(12),
 	IWL_INITIATOR_AP_FLAGS_USE_CALIB = BIT(13),
+	IWL_INITIATOR_AP_FLAGS_PMF = BIT(14),
+	IWL_INITIATOR_AP_FLAGS_TERMINATE_ON_LMR_FEEDBACK = BIT(15),
 };
 
 /**
@@ -547,6 +629,7 @@ enum iwl_location_bw {
 	IWL_LOCATION_BW_20MHZ,
 	IWL_LOCATION_BW_40MHZ,
 	IWL_LOCATION_BW_80MHZ,
+	IWL_LOCATION_BW_160MHZ,
 };
 
 #define TK_11AZ_LEN	32
@@ -705,6 +788,163 @@ struct iwl_tof_range_req_ap_entry_v7 {
 	u8 rx_pn[IEEE80211_CCMP_PN_LEN];
 	u8 tx_pn[IEEE80211_CCMP_PN_LEN];
 } __packed; /* LOCATION_RANGE_REQ_AP_ENTRY_CMD_API_S_VER_7 */
+
+#define IWL_LOCATION_MAX_STS_POS	3
+
+/**
+ * struct iwl_tof_range_req_ap_entry_v8 - AP configuration parameters
+ * @initiator_ap_flags: see &enum iwl_initiator_ap_flags.
+ * @channel_num: AP Channel number
+ * @format_bw: bits 0 - 3: &enum iwl_location_frame_format.
+ *             bits 4 - 7: &enum iwl_location_bw.
+ * @ctrl_ch_position: Coding of the control channel position relative to the
+ *	center frequency, see iwl_mvm_get_ctrl_pos().
+ * @ftmr_max_retries: Max number of retries to send the FTMR in case of no
+ *	reply from the AP.
+ * @bssid: AP's BSSID
+ * @burst_period: Recommended value to be sent to the AP. Measurement
+ *	periodicity In units of 100ms. ignored if num_of_bursts_exp = 0
+ * @samples_per_burst: the number of FTMs pairs in single Burst (1-31);
+ * @num_of_bursts: Recommended value to be sent to the AP. 2s Exponent of
+ *	the number of measurement iterations (min 2^0 = 1, max 2^14)
+ * @sta_id: the station id of the AP. Only relevant when associated to the AP,
+ *	otherwise should be set to &IWL_MVM_INVALID_STA.
+ * @cipher: pairwise cipher suite for secured measurement.
+ *          &enum iwl_location_cipher.
+ * @hltk: HLTK to be used for secured 11az measurement
+ * @tk: TK to be used for secured 11az measurement
+ * @calib: An array of calibration values per FTM rx bandwidth.
+ *         If &IWL_INITIATOR_AP_FLAGS_USE_CALIB is set, the fw will use the
+ *         calibration value that corresponds to the rx bandwidth of the FTM
+ *         frame.
+ * @beacon_interval: beacon interval of the AP in TUs. Only required if
+ *	&IWL_INITIATOR_AP_FLAGS_TB is set.
+ * @rx_pn: the next expected PN for protected management frames Rx. LE byte
+ *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
+ *	is set to &IWL_MVM_INVALID_STA.
+ * @tx_pn: the next PN to use for protected management frames Tx. LE byte
+ *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
+ *	is set to &IWL_MVM_INVALID_STA.
+ * @r2i_ndp_params: parameters for R2I NDP ranging negotiation.
+ *      bits 0 - 2: max LTF repetitions
+ *      bits 3 - 5: max number of spatial streams
+ *      bits 6 - 7: reserved
+ * @i2r_ndp_params: parameters for I2R NDP ranging negotiation.
+ *      bits 0 - 2: max LTF repetitions
+ *      bits 3 - 5: max number of spatial streams (supported values are < 2)
+ *      bits 6 - 7: reserved
+ * @r2i_max_total_ltf: R2I Max Total LTFs for NDP ranging negotiation.
+ *      One of &enum ieee80211_range_params_max_total_ltf.
+ * @i2r_max_total_ltf: I2R Max Total LTFs for NDP ranging negotiation.
+ *      One of &enum ieee80211_range_params_max_total_ltf.
+ */
+struct iwl_tof_range_req_ap_entry_v8 {
+	__le32 initiator_ap_flags;
+	u8 channel_num;
+	u8 format_bw;
+	u8 ctrl_ch_position;
+	u8 ftmr_max_retries;
+	u8 bssid[ETH_ALEN];
+	__le16 burst_period;
+	u8 samples_per_burst;
+	u8 num_of_bursts;
+	u8 sta_id;
+	u8 cipher;
+	u8 hltk[HLTK_11AZ_LEN];
+	u8 tk[TK_11AZ_LEN];
+	__le16 calib[IWL_TOF_BW_NUM];
+	__le16 beacon_interval;
+	u8 rx_pn[IEEE80211_CCMP_PN_LEN];
+	u8 tx_pn[IEEE80211_CCMP_PN_LEN];
+	u8 r2i_ndp_params;
+	u8 i2r_ndp_params;
+	u8 r2i_max_total_ltf;
+	u8 i2r_max_total_ltf;
+} __packed; /* LOCATION_RANGE_REQ_AP_ENTRY_CMD_API_S_VER_8 */
+
+/**
+ * struct iwl_tof_range_req_ap_entry_v9 - AP configuration parameters
+ * @initiator_ap_flags: see &enum iwl_initiator_ap_flags.
+ * @channel_num: AP Channel number
+ * @format_bw: bits 0 - 3: &enum iwl_location_frame_format.
+ *             bits 4 - 7: &enum iwl_location_bw.
+ * @ctrl_ch_position: Coding of the control channel position relative to the
+ *	center frequency, see iwl_mvm_get_ctrl_pos().
+ * @ftmr_max_retries: Max number of retries to send the FTMR in case of no
+ *	reply from the AP.
+ * @bssid: AP's BSSID
+ * @burst_period: For EDCA based ranging: Recommended value to be sent to the
+ *	AP. Measurement periodicity In units of 100ms. ignored if
+ *	num_of_bursts_exp = 0.
+ *	For non trigger based NDP ranging, the maximum time between
+ *	measurements in units of milliseconds.
+ * @samples_per_burst: the number of FTMs pairs in single Burst (1-31);
+ * @num_of_bursts: Recommended value to be sent to the AP. 2s Exponent of
+ *	the number of measurement iterations (min 2^0 = 1, max 2^14)
+ * @sta_id: the station id of the AP. Only relevant when associated to the AP,
+ *	otherwise should be set to &IWL_MVM_INVALID_STA.
+ * @cipher: pairwise cipher suite for secured measurement.
+ *          &enum iwl_location_cipher.
+ * @hltk: HLTK to be used for secured 11az measurement
+ * @tk: TK to be used for secured 11az measurement
+ * @calib: An array of calibration values per FTM rx bandwidth.
+ *         If &IWL_INITIATOR_AP_FLAGS_USE_CALIB is set, the fw will use the
+ *         calibration value that corresponds to the rx bandwidth of the FTM
+ *         frame.
+ * @beacon_interval: beacon interval of the AP in TUs. Only required if
+ *	&IWL_INITIATOR_AP_FLAGS_TB is set.
+ * @bss_color: the BSS color of the responder. Only valid if
+ *	&IWL_INITIATOR_AP_FLAGS_TB or &IWL_INITIATOR_AP_FLAGS_NON_TB is set.
+ * @rx_pn: the next expected PN for protected management frames Rx. LE byte
+ *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
+ *	is set to &IWL_MVM_INVALID_STA.
+ * @tx_pn: the next PN to use for protected management frames Tx. LE byte
+ *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
+ *	is set to &IWL_MVM_INVALID_STA.
+ * @r2i_ndp_params: parameters for R2I NDP ranging negotiation.
+ *      bits 0 - 2: max LTF repetitions
+ *      bits 3 - 5: max number of spatial streams
+ *      bits 6 - 7: reserved
+ * @i2r_ndp_params: parameters for I2R NDP ranging negotiation.
+ *      bits 0 - 2: max LTF repetitions
+ *      bits 3 - 5: max number of spatial streams (supported values are < 2)
+ *      bits 6 - 7: reserved
+ * @r2i_max_total_ltf: R2I Max Total LTFs for NDP ranging negotiation.
+ *      One of &enum ieee80211_range_params_max_total_ltf.
+ * @i2r_max_total_ltf: I2R Max Total LTFs for NDP ranging negotiation.
+ *      One of &enum ieee80211_range_params_max_total_ltf.
+ * @bss_color: the BSS color of the responder. Only valid if
+ *	&IWL_INITIATOR_AP_FLAGS_NON_TB or &IWL_INITIATOR_AP_FLAGS_TB is set.
+ * @band: 0 for 5.2 GHz, 1 for 2.4 GHz, 2 for 6GHz
+ * @min_time_between_msr: For non trigger based NDP ranging, the minimum time
+ *	between measurements in units of milliseconds
+ */
+struct iwl_tof_range_req_ap_entry_v9 {
+	__le32 initiator_ap_flags;
+	u8 channel_num;
+	u8 format_bw;
+	u8 ctrl_ch_position;
+	u8 ftmr_max_retries;
+	u8 bssid[ETH_ALEN];
+	__le16 burst_period;
+	u8 samples_per_burst;
+	u8 num_of_bursts;
+	u8 sta_id;
+	u8 cipher;
+	u8 hltk[HLTK_11AZ_LEN];
+	u8 tk[TK_11AZ_LEN];
+	__le16 calib[IWL_TOF_BW_NUM];
+	u16 beacon_interval;
+	u8 rx_pn[IEEE80211_CCMP_PN_LEN];
+	u8 tx_pn[IEEE80211_CCMP_PN_LEN];
+	u8 r2i_ndp_params;
+	u8 i2r_ndp_params;
+	u8 r2i_max_total_ltf;
+	u8 i2r_max_total_ltf;
+	u8 bss_color;
+	u8 band;
+	__le16 min_time_between_msr;
+} __packed; /* LOCATION_RANGE_REQ_AP_ENTRY_CMD_API_S_VER_9 */
 
 /**
  * enum iwl_tof_response_mode
@@ -926,6 +1166,62 @@ struct iwl_tof_range_req_cmd_v11 {
 	__le32 tsf_mac_id;
 	struct iwl_tof_range_req_ap_entry_v7 ap[IWL_MVM_TOF_MAX_APS];
 } __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_11 */
+
+/**
+ * struct iwl_tof_range_req_cmd_v12 - start measurement cmd
+ * @initiator_flags: see flags @ iwl_tof_initiator_flags
+ * @request_id: A Token incremented per request. The same Token will be
+ *		sent back in the range response
+ * @num_of_ap: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
+ * @range_req_bssid: ranging request BSSID
+ * @macaddr_mask: Bits set to 0 shall be copied from the MAC address template.
+ *		  Bits set to 1 shall be randomized by the UMAC
+ * @macaddr_template: MAC address template to use for non-randomized bits
+ * @req_timeout_ms: Requested timeout of the response in units of milliseconds.
+ *	This is the session time for completing the measurement.
+ * @tsf_mac_id: report the measurement start time for each ap in terms of the
+ *	TSF of this mac id. 0xff to disable TSF reporting.
+ * @ap: per-AP request data, see &struct iwl_tof_range_req_ap_entry_v2.
+ */
+struct iwl_tof_range_req_cmd_v12 {
+	__le32 initiator_flags;
+	u8 request_id;
+	u8 num_of_ap;
+	u8 range_req_bssid[ETH_ALEN];
+	u8 macaddr_mask[ETH_ALEN];
+	u8 macaddr_template[ETH_ALEN];
+	__le32 req_timeout_ms;
+	__le32 tsf_mac_id;
+	struct iwl_tof_range_req_ap_entry_v8 ap[IWL_MVM_TOF_MAX_APS];
+} __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_12 */
+
+/**
+ * struct iwl_tof_range_req_cmd_v13 - start measurement cmd
+ * @initiator_flags: see flags @ iwl_tof_initiator_flags
+ * @request_id: A Token incremented per request. The same Token will be
+ *		sent back in the range response
+ * @num_of_ap: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
+ * @range_req_bssid: ranging request BSSID
+ * @macaddr_mask: Bits set to 0 shall be copied from the MAC address template.
+ *		  Bits set to 1 shall be randomized by the UMAC
+ * @macaddr_template: MAC address template to use for non-randomized bits
+ * @req_timeout_ms: Requested timeout of the response in units of milliseconds.
+ *	This is the session time for completing the measurement.
+ * @tsf_mac_id: report the measurement start time for each ap in terms of the
+ *	TSF of this mac id. 0xff to disable TSF reporting.
+ * @ap: per-AP request data, see &struct iwl_tof_range_req_ap_entry_v9.
+ */
+struct iwl_tof_range_req_cmd_v13 {
+	__le32 initiator_flags;
+	u8 request_id;
+	u8 num_of_ap;
+	u8 range_req_bssid[ETH_ALEN];
+	u8 macaddr_mask[ETH_ALEN];
+	u8 macaddr_template[ETH_ALEN];
+	__le32 req_timeout_ms;
+	__le32 tsf_mac_id;
+	struct iwl_tof_range_req_ap_entry_v9 ap[IWL_MVM_TOF_MAX_APS];
+} __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_13 */
 
 /*
  * enum iwl_tof_range_request_status - status of the sent request
@@ -1205,7 +1501,9 @@ struct iwl_tof_range_rsp_ap_entry_ntfy_v6 {
 	u8 reserved[3];
 	u8 rx_pn[IEEE80211_CCMP_PN_LEN];
 	u8 tx_pn[IEEE80211_CCMP_PN_LEN];
-} __packed; /* LOCATION_RANGE_RSP_AP_ETRY_NTFY_API_S_VER_6 */
+} __packed; /* LOCATION_RANGE_RSP_AP_ETRY_NTFY_API_S_VER_6,
+	       LOCATION_RANGE_RSP_AP_ETRY_NTFY_API_S_VER_7 */
+
 
 /**
  * enum iwl_tof_response_status - tof response status
@@ -1286,7 +1584,8 @@ struct iwl_tof_range_rsp_ntfy_v8 {
 	u8 last_report;
 	u8 reserved;
 	struct iwl_tof_range_rsp_ap_entry_ntfy_v6 ap[IWL_MVM_TOF_MAX_APS];
-} __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_8 */
+} __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_8,
+	       LOCATION_RANGE_RSP_NTFY_API_S_VER_9 */
 
 #define IWL_MVM_TOF_MCSI_BUF_SIZE  (245)
 /**

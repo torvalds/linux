@@ -41,7 +41,7 @@
 	leds: leds {
 		compatible = "gpio-leds";
 
-		on {
+		led {
 			label = "e60k02:white:on";
 			gpios = <&gpio5 7 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "timer";
@@ -278,6 +278,12 @@
 };
 
 &uart1 {
+	/* J4, through-hole */
+	status = "okay";
+};
+
+&uart4 {
+	/* TP198, next to J4, SMD pads */
 	status = "okay";
 };
 

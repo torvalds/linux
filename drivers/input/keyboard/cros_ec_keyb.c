@@ -15,6 +15,7 @@
 #include <linux/bitops.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/input/vivaldi-fmap.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/notifier.h>
@@ -27,7 +28,9 @@
 
 #include <asm/unaligned.h>
 
-/*
+/**
+ * struct cros_ec_keyb - Structure representing EC keyboard device
+ *
  * @rows: Number of rows in the keypad
  * @cols: Number of columns in the keypad
  * @row_shift: log2 or number of rows, rounded up
@@ -40,6 +43,7 @@
  * @idev: The input device for the matrix keys.
  * @bs_idev: The input device for non-matrix buttons and switches (or NULL).
  * @notifier: interrupt event notifier for transport devices
+ * @vdata: vivaldi function row data
  */
 struct cros_ec_keyb {
 	unsigned int rows;
@@ -56,12 +60,13 @@ struct cros_ec_keyb {
 	struct input_dev *idev;
 	struct input_dev *bs_idev;
 	struct notifier_block notifier;
+
+	struct vivaldi_data vdata;
 };
 
-
 /**
- * cros_ec_bs_map - Struct mapping Linux keycodes to EC button/switch bitmap
- * #defines
+ * struct cros_ec_bs_map - Mapping between Linux keycodes and EC button/switch
+ *	bitmap #defines
  *
  * @ev_type: The type of the input event to generate (e.g., EV_KEY).
  * @code: A linux keycode
@@ -526,6 +531,11 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	struct input_dev *idev;
 	const char *phys;
 	int err;
+	struct property *prop;
+	const __be32 *p;
+	u32 *physmap;
+	u32 key_pos;
+	unsigned int row, col, scancode, n_physmap;
 
 	err = matrix_keypad_parse_properties(dev, &ckdev->rows, &ckdev->cols);
 	if (err)
@@ -577,6 +587,22 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	ckdev->idev = idev;
 	cros_ec_keyb_compute_valid_keys(ckdev);
 
+	physmap = ckdev->vdata.function_row_physmap;
+	n_physmap = 0;
+	of_property_for_each_u32(dev->of_node, "function-row-physmap",
+				 prop, p, key_pos) {
+		if (n_physmap == VIVALDI_MAX_FUNCTION_ROW_KEYS) {
+			dev_warn(dev, "Only support up to %d top row keys\n",
+				 VIVALDI_MAX_FUNCTION_ROW_KEYS);
+			break;
+		}
+		row = KEY_ROW(key_pos);
+		col = KEY_COL(key_pos);
+		scancode = MATRIX_SCAN_CODE(row, col, ckdev->row_shift);
+		physmap[n_physmap++] = scancode;
+	}
+	ckdev->vdata.num_function_row_keys = n_physmap;
+
 	err = input_register_device(ckdev->idev);
 	if (err) {
 		dev_err(dev, "cannot register input device\n");
@@ -585,6 +611,43 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 
 	return 0;
 }
+
+static ssize_t function_row_physmap_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	const struct cros_ec_keyb *ckdev = dev_get_drvdata(dev);
+	const struct vivaldi_data *data = &ckdev->vdata;
+
+	return vivaldi_function_row_physmap_show(data, buf);
+}
+
+static DEVICE_ATTR_RO(function_row_physmap);
+
+static struct attribute *cros_ec_keyb_attrs[] = {
+	&dev_attr_function_row_physmap.attr,
+	NULL,
+};
+
+static umode_t cros_ec_keyb_attr_is_visible(struct kobject *kobj,
+					    struct attribute *attr,
+					    int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct cros_ec_keyb *ckdev = dev_get_drvdata(dev);
+
+	if (attr == &dev_attr_function_row_physmap.attr &&
+	    !ckdev->vdata.num_function_row_keys)
+		return 0;
+
+	return attr->mode;
+}
+
+static const struct attribute_group cros_ec_keyb_attr_group = {
+	.is_visible = cros_ec_keyb_attr_is_visible,
+	.attrs = cros_ec_keyb_attrs,
+};
+
 
 static int cros_ec_keyb_probe(struct platform_device *pdev)
 {
@@ -613,6 +676,12 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	err = cros_ec_keyb_register_bs(ckdev);
 	if (err) {
 		dev_err(dev, "cannot register non-matrix inputs: %d\n", err);
+		return err;
+	}
+
+	err = devm_device_add_group(dev, &cros_ec_keyb_attr_group);
+	if (err) {
+		dev_err(dev, "failed to create attributes. err=%d\n", err);
 		return err;
 	}
 

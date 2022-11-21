@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/9p/vfs_file.c
- *
  * This file contians vfs file ops for 9P2000.
  *
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
@@ -46,7 +44,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	int err;
 	struct v9fs_inode *v9inode;
 	struct v9fs_session_info *v9ses;
-	struct p9_fid *fid;
+	struct p9_fid *fid, *writeback_fid;
 	int omode;
 
 	p9_debug(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, file);
@@ -85,17 +83,19 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 		 * because we want write after unlink usecase
 		 * to work.
 		 */
-		fid = v9fs_writeback_fid(file_dentry(file));
-		if (IS_ERR(fid)) {
-			err = PTR_ERR(fid);
+		writeback_fid = v9fs_writeback_fid(file_dentry(file));
+		if (IS_ERR(writeback_fid)) {
+			err = PTR_ERR(writeback_fid);
 			mutex_unlock(&v9inode->v_mutex);
 			goto out_error;
 		}
-		v9inode->writeback_fid = (void *) fid;
+		v9inode->writeback_fid = (void *) writeback_fid;
 	}
 	mutex_unlock(&v9inode->v_mutex);
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
-		v9fs_cache_inode_set_cookie(inode, file);
+		fscache_use_cookie(v9fs_inode_cookie(v9inode),
+				   file->f_mode & FMODE_WRITE);
+	v9fs_open_fid_add(inode, fid);
 	return 0;
 out_error:
 	p9_client_clunk(file->private_data);
@@ -115,21 +115,16 @@ out_error:
 
 static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
-	int res = 0;
 	struct inode *inode = file_inode(filp);
 
 	p9_debug(P9_DEBUG_VFS, "filp: %p lock: %p\n", filp, fl);
-
-	/* No mandatory locks */
-	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
-		return -ENOLCK;
 
 	if ((IS_SETLK(cmd) || IS_SETLKW(cmd)) && fl->fl_type != F_UNLCK) {
 		filemap_write_and_wait(inode->i_mapping);
 		invalidate_mapping_pages(&inode->i_data, 0, -1);
 	}
 
-	return res;
+	return 0;
 }
 
 static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
@@ -144,8 +139,7 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 	fid = filp->private_data;
 	BUG_ON(fid == NULL);
 
-	if ((fl->fl_flags & FL_POSIX) != FL_POSIX)
-		BUG();
+	BUG_ON((fl->fl_flags & FL_POSIX) != FL_POSIX);
 
 	res = locks_lock_file_wait(filp, fl);
 	if (res < 0)
@@ -311,10 +305,6 @@ static int v9fs_file_lock_dotl(struct file *filp, int cmd, struct file_lock *fl)
 	p9_debug(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %pD\n",
 		 filp, cmd, fl, filp);
 
-	/* No mandatory locks */
-	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
-		goto out_err;
-
 	if ((IS_SETLK(cmd) || IS_SETLKW(cmd)) && fl->fl_type != F_UNLCK) {
 		filemap_write_and_wait(inode->i_mapping);
 		invalidate_mapping_pages(&inode->i_data, 0, -1);
@@ -326,7 +316,6 @@ static int v9fs_file_lock_dotl(struct file *filp, int cmd, struct file_lock *fl)
 		ret = v9fs_file_getlock(filp, fl);
 	else
 		ret = -EINVAL;
-out_err:
 	return ret;
 }
 
@@ -346,10 +335,6 @@ static int v9fs_file_flock_dotl(struct file *filp, int cmd,
 
 	p9_debug(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %pD\n",
 		 filp, cmd, fl, filp);
-
-	/* No mandatory locks */
-	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
-		goto out_err;
 
 	if (!(fl->fl_flags & FL_FLOCK))
 		goto out_err;
@@ -371,14 +356,11 @@ out_err:
 }
 
 /**
- * v9fs_file_read - read from a file
- * @filp: file pointer to read
- * @udata: user data buffer to read data into
- * @count: size of buffer
- * @offset: offset at which to read data
+ * v9fs_file_read_iter - read from a file
+ * @iocb: The operation parameters
+ * @to: The buffer to read into
  *
  */
-
 static ssize_t
 v9fs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
@@ -400,11 +382,9 @@ v9fs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 }
 
 /**
- * v9fs_file_write - write to a file
- * @filp: file pointer to write
- * @data: data buffer to write data from
- * @count: size of buffer
- * @offset: offset at which to write data
+ * v9fs_file_write_iter - write to a file
+ * @iocb: The operation parameters
+ * @from: The data to write
  *
  */
 static ssize_t
@@ -425,6 +405,7 @@ v9fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		struct inode *inode = file_inode(file);
 		loff_t i_size;
 		unsigned long pg_start, pg_end;
+
 		pg_start = origin >> PAGE_SHIFT;
 		pg_end = (origin + retval - 1) >> PAGE_SHIFT;
 		if (inode->i_mapping && inode->i_mapping->nrpages)
@@ -546,38 +527,45 @@ static vm_fault_t
 v9fs_vm_page_mkwrite(struct vm_fault *vmf)
 {
 	struct v9fs_inode *v9inode;
-	struct page *page = vmf->page;
+	struct folio *folio = page_folio(vmf->page);
 	struct file *filp = vmf->vma->vm_file;
 	struct inode *inode = file_inode(filp);
 
 
-	p9_debug(P9_DEBUG_VFS, "page %p fid %lx\n",
-		 page, (unsigned long)filp->private_data);
+	p9_debug(P9_DEBUG_VFS, "folio %p fid %lx\n",
+		 folio, (unsigned long)filp->private_data);
+
+	v9inode = V9FS_I(inode);
+
+	/* Wait for the page to be written to the cache before we allow it to
+	 * be modified.  We then assume the entire page will need writing back.
+	 */
+#ifdef CONFIG_9P_FSCACHE
+	if (folio_test_fscache(folio) &&
+	    folio_wait_fscache_killable(folio) < 0)
+		return VM_FAULT_NOPAGE;
+#endif
 
 	/* Update file times before taking page lock */
 	file_update_time(filp);
 
-	v9inode = V9FS_I(inode);
-	/* make sure the cache has finished storing the page */
-	v9fs_fscache_wait_on_page_write(inode, page);
 	BUG_ON(!v9inode->writeback_fid);
-	lock_page(page);
-	if (page->mapping != inode->i_mapping)
+	if (folio_lock_killable(folio) < 0)
+		return VM_FAULT_RETRY;
+	if (folio_mapping(folio) != inode->i_mapping)
 		goto out_unlock;
-	wait_for_stable_page(page);
+	folio_wait_stable(folio);
 
 	return VM_FAULT_LOCKED;
 out_unlock:
-	unlock_page(page);
+	folio_unlock(folio);
 	return VM_FAULT_NOPAGE;
 }
 
 /**
- * v9fs_mmap_file_read - read from a file
- * @filp: file pointer to read
- * @data: user data buffer to read data into
- * @count: size of buffer
- * @offset: offset at which to read data
+ * v9fs_mmap_file_read_iter - read from a file
+ * @iocb: The operation parameters
+ * @to: The buffer to read into
  *
  */
 static ssize_t
@@ -588,11 +576,9 @@ v9fs_mmap_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 }
 
 /**
- * v9fs_mmap_file_write - write to a file
- * @filp: file pointer to write
- * @data: data buffer to write data from
- * @count: size of buffer
- * @offset: offset at which to write data
+ * v9fs_mmap_file_write_iter - write to a file
+ * @iocb: The operation parameters
+ * @from: The data to write
  *
  */
 static ssize_t
@@ -624,12 +610,7 @@ static void v9fs_mmap_vm_close(struct vm_area_struct *vma)
 	p9_debug(P9_DEBUG_VFS, "9p VMA close, %p, flushing", vma);
 
 	inode = file_inode(vma->vm_file);
-
-	if (!mapping_can_writeback(inode->i_mapping))
-		wbc.nr_to_write = 0;
-
-	might_sleep();
-	sync_inode(inode, &wbc);
+	filemap_fdatawrite_wbc(inode->i_mapping, &wbc);
 }
 
 

@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/iopoll.h>
 #include <linux/of_device.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
@@ -31,6 +32,17 @@
 #define PCL_RSTCTRL2			0x0024
 #define PCL_RSTCTRL_PHY_RESET		BIT(0)
 
+#define PCL_PINCTRL0			0x002c
+#define PCL_PERST_PLDN_REGEN		BIT(12)
+#define PCL_PERST_NOE_REGEN		BIT(11)
+#define PCL_PERST_OUT_REGEN		BIT(8)
+#define PCL_PERST_PLDN_REGVAL		BIT(4)
+#define PCL_PERST_NOE_REGVAL		BIT(3)
+#define PCL_PERST_OUT_REGVAL		BIT(0)
+
+#define PCL_PIPEMON			0x0044
+#define PCL_PCLK_ALIVE			BIT(15)
+
 #define PCL_MODE			0x8000
 #define PCL_MODE_REGEN			BIT(8)
 #define PCL_MODE_REGVAL			BIT(0)
@@ -51,6 +63,9 @@
 #define PCL_APP_INTX			0x8074
 #define PCL_APP_INTX_SYS_INT		BIT(0)
 
+#define PCL_APP_PM0			0x8078
+#define PCL_SYS_AUX_PWR_DET		BIT(8)
+
 /* assertion time of INTx in usec */
 #define PCL_INTX_WIDTH_USEC		30
 
@@ -60,7 +75,14 @@ struct uniphier_pcie_ep_priv {
 	struct clk *clk, *clk_gio;
 	struct reset_control *rst, *rst_gio;
 	struct phy *phy;
-	const struct pci_epc_features *features;
+	const struct uniphier_pcie_ep_soc_data *data;
+};
+
+struct uniphier_pcie_ep_soc_data {
+	bool has_gio;
+	void (*init)(struct uniphier_pcie_ep_priv *priv);
+	int (*wait)(struct uniphier_pcie_ep_priv *priv);
+	const struct pci_epc_features features;
 };
 
 #define to_uniphier_pcie(x)	dev_get_drvdata((x)->dev)
@@ -91,7 +113,7 @@ static void uniphier_pcie_phy_reset(struct uniphier_pcie_ep_priv *priv,
 	writel(val, priv->base + PCL_RSTCTRL2);
 }
 
-static void uniphier_pcie_init_ep(struct uniphier_pcie_ep_priv *priv)
+static void uniphier_pcie_pro5_init_ep(struct uniphier_pcie_ep_priv *priv)
 {
 	u32 val;
 
@@ -114,6 +136,55 @@ static void uniphier_pcie_init_ep(struct uniphier_pcie_ep_priv *priv)
 	uniphier_pcie_ltssm_enable(priv, false);
 
 	msleep(100);
+}
+
+static void uniphier_pcie_nx1_init_ep(struct uniphier_pcie_ep_priv *priv)
+{
+	u32 val;
+
+	/* set EP mode */
+	val = readl(priv->base + PCL_MODE);
+	val |= PCL_MODE_REGEN | PCL_MODE_REGVAL;
+	writel(val, priv->base + PCL_MODE);
+
+	/* use auxiliary power detection */
+	val = readl(priv->base + PCL_APP_PM0);
+	val |= PCL_SYS_AUX_PWR_DET;
+	writel(val, priv->base + PCL_APP_PM0);
+
+	/* assert PERST# */
+	val = readl(priv->base + PCL_PINCTRL0);
+	val &= ~(PCL_PERST_NOE_REGVAL | PCL_PERST_OUT_REGVAL
+		 | PCL_PERST_PLDN_REGVAL);
+	val |= PCL_PERST_NOE_REGEN | PCL_PERST_OUT_REGEN
+		| PCL_PERST_PLDN_REGEN;
+	writel(val, priv->base + PCL_PINCTRL0);
+
+	uniphier_pcie_ltssm_enable(priv, false);
+
+	usleep_range(100000, 200000);
+
+	/* deassert PERST# */
+	val = readl(priv->base + PCL_PINCTRL0);
+	val |= PCL_PERST_OUT_REGVAL | PCL_PERST_OUT_REGEN;
+	writel(val, priv->base + PCL_PINCTRL0);
+}
+
+static int uniphier_pcie_nx1_wait_ep(struct uniphier_pcie_ep_priv *priv)
+{
+	u32 status;
+	int ret;
+
+	/* wait PIPE clock */
+	ret = readl_poll_timeout(priv->base + PCL_PIPEMON, status,
+				 status & PCL_PCLK_ALIVE, 100000, 1000000);
+	if (ret) {
+		dev_err(priv->pci.dev,
+			"Failed to initialize controller in EP mode\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static int uniphier_pcie_start_link(struct dw_pcie *pci)
@@ -209,7 +280,7 @@ uniphier_pcie_get_features(struct dw_pcie_ep *ep)
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct uniphier_pcie_ep_priv *priv = to_uniphier_pcie(pci);
 
-	return priv->features;
+	return &priv->data->features;
 }
 
 static const struct dw_pcie_ep_ops uniphier_pcie_ep_ops = {
@@ -217,35 +288,6 @@ static const struct dw_pcie_ep_ops uniphier_pcie_ep_ops = {
 	.raise_irq = uniphier_pcie_ep_raise_irq,
 	.get_features = uniphier_pcie_get_features,
 };
-
-static int uniphier_add_pcie_ep(struct uniphier_pcie_ep_priv *priv,
-				struct platform_device *pdev)
-{
-	struct dw_pcie *pci = &priv->pci;
-	struct dw_pcie_ep *ep = &pci->ep;
-	struct device *dev = &pdev->dev;
-	struct resource *res;
-	int ret;
-
-	ep->ops = &uniphier_pcie_ep_ops;
-
-	pci->dbi_base2 = devm_platform_ioremap_resource_byname(pdev, "dbi2");
-	if (IS_ERR(pci->dbi_base2))
-		return PTR_ERR(pci->dbi_base2);
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
-	if (!res)
-		return -EINVAL;
-
-	ep->phys_base = res->start;
-	ep->addr_size = resource_size(res);
-
-	ret = dw_pcie_ep_init(ep);
-	if (ret)
-		dev_err(dev, "Failed to initialize endpoint (%d)\n", ret);
-
-	return ret;
-}
 
 static int uniphier_pcie_ep_enable(struct uniphier_pcie_ep_priv *priv)
 {
@@ -267,7 +309,8 @@ static int uniphier_pcie_ep_enable(struct uniphier_pcie_ep_priv *priv)
 	if (ret)
 		goto out_rst_assert;
 
-	uniphier_pcie_init_ep(priv);
+	if (priv->data->init)
+		priv->data->init(priv);
 
 	uniphier_pcie_phy_reset(priv, true);
 
@@ -277,8 +320,16 @@ static int uniphier_pcie_ep_enable(struct uniphier_pcie_ep_priv *priv)
 
 	uniphier_pcie_phy_reset(priv, false);
 
+	if (priv->data->wait) {
+		ret = priv->data->wait(priv);
+		if (ret)
+			goto out_phy_exit;
+	}
+
 	return 0;
 
+out_phy_exit:
+	phy_exit(priv->phy);
 out_rst_gio_assert:
 	reset_control_assert(priv->rst_gio);
 out_rst_assert:
@@ -300,36 +351,32 @@ static int uniphier_pcie_ep_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct uniphier_pcie_ep_priv *priv;
-	struct resource *res;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->features = of_device_get_match_data(dev);
-	if (WARN_ON(!priv->features))
+	priv->data = of_device_get_match_data(dev);
+	if (WARN_ON(!priv->data))
 		return -EINVAL;
 
 	priv->pci.dev = dev;
 	priv->pci.ops = &dw_pcie_ops;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	priv->pci.dbi_base = devm_pci_remap_cfg_resource(dev, res);
-	if (IS_ERR(priv->pci.dbi_base))
-		return PTR_ERR(priv->pci.dbi_base);
-
 	priv->base = devm_platform_ioremap_resource_byname(pdev, "link");
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	priv->clk_gio = devm_clk_get(dev, "gio");
-	if (IS_ERR(priv->clk_gio))
-		return PTR_ERR(priv->clk_gio);
+	if (priv->data->has_gio) {
+		priv->clk_gio = devm_clk_get(dev, "gio");
+		if (IS_ERR(priv->clk_gio))
+			return PTR_ERR(priv->clk_gio);
 
-	priv->rst_gio = devm_reset_control_get_shared(dev, "gio");
-	if (IS_ERR(priv->rst_gio))
-		return PTR_ERR(priv->rst_gio);
+		priv->rst_gio = devm_reset_control_get_shared(dev, "gio");
+		if (IS_ERR(priv->rst_gio))
+			return PTR_ERR(priv->rst_gio);
+	}
 
 	priv->clk = devm_clk_get(dev, "link");
 	if (IS_ERR(priv->clk))
@@ -352,22 +399,45 @@ static int uniphier_pcie_ep_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return uniphier_add_pcie_ep(priv, pdev);
+	priv->pci.ep.ops = &uniphier_pcie_ep_ops;
+	return dw_pcie_ep_init(&priv->pci.ep);
 }
 
-static const struct pci_epc_features uniphier_pro5_data = {
-	.linkup_notifier = false,
-	.msi_capable = true,
-	.msix_capable = false,
-	.align = 1 << 16,
-	.bar_fixed_64bit = BIT(BAR_0) | BIT(BAR_2) | BIT(BAR_4),
-	.reserved_bar =  BIT(BAR_4),
+static const struct uniphier_pcie_ep_soc_data uniphier_pro5_data = {
+	.has_gio = true,
+	.init = uniphier_pcie_pro5_init_ep,
+	.wait = NULL,
+	.features = {
+		.linkup_notifier = false,
+		.msi_capable = true,
+		.msix_capable = false,
+		.align = 1 << 16,
+		.bar_fixed_64bit = BIT(BAR_0) | BIT(BAR_2) | BIT(BAR_4),
+		.reserved_bar =  BIT(BAR_4),
+	},
+};
+
+static const struct uniphier_pcie_ep_soc_data uniphier_nx1_data = {
+	.has_gio = false,
+	.init = uniphier_pcie_nx1_init_ep,
+	.wait = uniphier_pcie_nx1_wait_ep,
+	.features = {
+		.linkup_notifier = false,
+		.msi_capable = true,
+		.msix_capable = false,
+		.align = 1 << 12,
+		.bar_fixed_64bit = BIT(BAR_0) | BIT(BAR_2) | BIT(BAR_4),
+	},
 };
 
 static const struct of_device_id uniphier_pcie_ep_match[] = {
 	{
 		.compatible = "socionext,uniphier-pro5-pcie-ep",
 		.data = &uniphier_pro5_data,
+	},
+	{
+		.compatible = "socionext,uniphier-nx1-pcie-ep",
+		.data = &uniphier_nx1_data,
 	},
 	{ /* sentinel */ },
 };

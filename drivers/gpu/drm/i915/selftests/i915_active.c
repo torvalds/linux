@@ -68,7 +68,7 @@ static struct live_active *__live_alloc(struct drm_i915_private *i915)
 		return NULL;
 
 	kref_init(&active->ref);
-	i915_active_init(&active->base, __live_active, __live_retire);
+	i915_active_init(&active->base, __live_active, __live_retire, 0);
 
 	return active;
 }
@@ -254,7 +254,7 @@ int i915_active_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_active_barrier),
 	};
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
 	return i915_subtests(tests, i915);

@@ -245,23 +245,23 @@ void foo(void)
 	BLANK();
 
 	DEFINE(IA64_PMSA_GR_OFFSET,
-	       offsetof (struct pal_min_state_area_s, pmsa_gr));
+	       offsetof(struct pal_min_state_area, pmsa_gr));
 	DEFINE(IA64_PMSA_BANK1_GR_OFFSET,
-	       offsetof (struct pal_min_state_area_s, pmsa_bank1_gr));
+	       offsetof(struct pal_min_state_area, pmsa_bank1_gr));
 	DEFINE(IA64_PMSA_PR_OFFSET,
-	       offsetof (struct pal_min_state_area_s, pmsa_pr));
+	       offsetof(struct pal_min_state_area, pmsa_pr));
 	DEFINE(IA64_PMSA_BR0_OFFSET,
-	       offsetof (struct pal_min_state_area_s, pmsa_br0));
+	       offsetof(struct pal_min_state_area, pmsa_br0));
 	DEFINE(IA64_PMSA_RSC_OFFSET,
-	       offsetof (struct pal_min_state_area_s, pmsa_rsc));
+	       offsetof(struct pal_min_state_area, pmsa_rsc));
 	DEFINE(IA64_PMSA_IIP_OFFSET,
-	       offsetof (struct pal_min_state_area_s, pmsa_iip));
+	       offsetof(struct pal_min_state_area, pmsa_iip));
 	DEFINE(IA64_PMSA_IPSR_OFFSET,
-	       offsetof (struct pal_min_state_area_s, pmsa_ipsr));
+	       offsetof(struct pal_min_state_area, pmsa_ipsr));
 	DEFINE(IA64_PMSA_IFS_OFFSET,
-	       offsetof (struct pal_min_state_area_s, pmsa_ifs));
+	       offsetof(struct pal_min_state_area, pmsa_ifs));
 	DEFINE(IA64_PMSA_XIP_OFFSET,
-	       offsetof (struct pal_min_state_area_s, pmsa_xip));
+	       offsetof(struct pal_min_state_area, pmsa_xip));
 	BLANK();
 
 	/* used by fsys_gettimeofday in arch/ia64/kernel/fsys.S */

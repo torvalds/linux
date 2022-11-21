@@ -700,8 +700,7 @@ static void rs_set_capacity(struct raid_set *rs)
 {
 	struct gendisk *gendisk = dm_disk(dm_table_get_md(rs->ti->table));
 
-	set_capacity(gendisk, rs->md.array_sectors);
-	revalidate_disk_size(gendisk, true);
+	set_capacity_and_notify(gendisk, rs->md.array_sectors);
 }
 
 /*
@@ -1262,7 +1261,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			md_rdev_init(jdev);
 			jdev->mddev = &rs->md;
 			jdev->bdev = rs->journal_dev.dev->bdev;
-			jdev->sectors = to_sector(i_size_read(jdev->bdev->bd_inode));
+			jdev->sectors = bdev_nr_sectors(jdev->bdev);
 			if (jdev->sectors < MIN_RAID456_JOURNAL_SPACE) {
 				rs->ti->error = "No space for raid4/5/6 journal";
 				return -ENOSPC;
@@ -1608,7 +1607,7 @@ static int _check_data_dev_sectors(struct raid_set *rs)
 
 	rdev_for_each(rdev, &rs->md)
 		if (!test_bit(Journal, &rdev->flags) && rdev->bdev) {
-			ds = min(ds, to_sector(i_size_read(rdev->bdev->bd_inode)));
+			ds = min(ds, bdev_nr_sectors(rdev->bdev));
 			if (ds < rs->md.dev_sectors) {
 				rs->ti->error = "Component device(s) too small";
 				return -EINVAL;
@@ -1854,6 +1853,7 @@ static int rs_check_takeover(struct raid_set *rs)
 		    ((mddev->layout == ALGORITHM_PARITY_N && mddev->new_layout == ALGORITHM_PARITY_N) ||
 		     __within_range(mddev->new_layout, ALGORITHM_LEFT_ASYMMETRIC, ALGORITHM_RIGHT_SYMMETRIC)))
 			return 0;
+		break;
 
 	default:
 		break;
@@ -1869,6 +1869,14 @@ static bool rs_takeover_requested(struct raid_set *rs)
 	return rs->md.new_level != rs->md.level;
 }
 
+/* True if layout is set to reshape. */
+static bool rs_is_layout_change(struct raid_set *rs, bool use_mddev)
+{
+	return (use_mddev ? rs->md.delta_disks : rs->delta_disks) ||
+	       rs->md.new_layout != rs->md.layout ||
+	       rs->md.new_chunk_sectors != rs->md.chunk_sectors;
+}
+
 /* True if @rs is requested to reshape by ctr */
 static bool rs_reshape_requested(struct raid_set *rs)
 {
@@ -1881,9 +1889,7 @@ static bool rs_reshape_requested(struct raid_set *rs)
 	if (rs_is_raid0(rs))
 		return false;
 
-	change = mddev->new_layout != mddev->layout ||
-		 mddev->new_chunk_sectors != mddev->chunk_sectors ||
-		 rs->delta_disks;
+	change = rs_is_layout_change(rs, false);
 
 	/* Historical case to support raid1 reshape without delta disks */
 	if (rs_is_raid1(rs)) {
@@ -2656,7 +2662,7 @@ static int rs_adjust_data_offsets(struct raid_set *rs)
 	 * Make sure we got a minimum amount of free sectors per device
 	 */
 	if (rs->data_offset &&
-	    to_sector(i_size_read(rdev->bdev->bd_inode)) - rs->md.dev_sectors < MIN_FREE_RESHAPE_SPACE) {
+	    bdev_nr_sectors(rdev->bdev) - rs->md.dev_sectors < MIN_FREE_RESHAPE_SPACE) {
 		rs->ti->error = data_offset ? "No space for forward reshape" :
 					      "No space for backward reshape";
 		return -ENOSPC;
@@ -2818,7 +2824,7 @@ static sector_t _get_reshape_sectors(struct raid_set *rs)
 }
 
 /*
- *
+ * Reshape:
  * - change raid layout
  * - change chunk size
  * - add disks
@@ -2925,6 +2931,20 @@ static int rs_setup_reshape(struct raid_set *rs)
 				rdev->sectors += reshape_sectors;
 
 	return r;
+}
+
+/*
+ * If the md resync thread has updated superblock with max reshape position
+ * at the end of a reshape but not (yet) reset the layout configuration
+ * changes -> reset the latter.
+ */
+static void rs_reset_inconclusive_reshape(struct raid_set *rs)
+{
+	if (!rs_is_reshaping(rs) && rs_is_layout_change(rs, true)) {
+		rs_set_cur(rs);
+		rs->md.delta_disks = 0;
+		rs->md.reshape_backwards = 0;
+	}
 }
 
 /*
@@ -3213,11 +3233,14 @@ size_check:
 	if (r)
 		goto bad;
 
+	/* Catch any inconclusive reshape superblock content. */
+	rs_reset_inconclusive_reshape(rs);
+
 	/* Start raid set read-only and assumed clean to change in raid_resume() */
 	rs->md.ro = 1;
 	rs->md.in_sync = 1;
 
-	/* Keep array frozen */
+	/* Keep array frozen until resume. */
 	set_bit(MD_RECOVERY_FROZEN, &rs->md.recovery);
 
 	/* Has to be held on running the array */
@@ -3231,7 +3254,6 @@ size_check:
 	}
 
 	r = md_start(&rs->md);
-
 	if (r) {
 		ti->error = "Failed to start raid array";
 		mddev_unlock(&rs->md);
@@ -3649,6 +3671,45 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		for (i = 0; i < rs->raid_disks; i++)
 			DMEMIT(" %s %s", __get_dev_name(rs->dev[i].meta_dev),
 					 __get_dev_name(rs->dev[i].data_dev));
+		break;
+
+	case STATUSTYPE_IMA:
+		rt = get_raid_type_by_ll(mddev->new_level, mddev->new_layout);
+		if (!rt)
+			return;
+
+		DMEMIT_TARGET_NAME_VERSION(ti->type);
+		DMEMIT(",raid_type=%s,raid_disks=%d", rt->name, mddev->raid_disks);
+
+		/* Access most recent mddev properties for status output */
+		smp_rmb();
+		recovery = rs->md.recovery;
+		state = decipher_sync_action(mddev, recovery);
+		DMEMIT(",raid_state=%s", sync_str(state));
+
+		for (i = 0; i < rs->raid_disks; i++) {
+			DMEMIT(",raid_device_%d_status=", i);
+			DMEMIT(__raid_dev_status(rs, &rs->dev[i].rdev));
+		}
+
+		if (rt_is_raid456(rt)) {
+			DMEMIT(",journal_dev_mode=");
+			switch (rs->journal_dev.mode) {
+			case R5C_JOURNAL_MODE_WRITE_THROUGH:
+				DMEMIT("%s",
+				       _raid456_journal_mode[R5C_JOURNAL_MODE_WRITE_THROUGH].param);
+				break;
+			case R5C_JOURNAL_MODE_WRITE_BACK:
+				DMEMIT("%s",
+				       _raid456_journal_mode[R5C_JOURNAL_MODE_WRITE_BACK].param);
+				break;
+			default:
+				DMEMIT("invalid");
+				break;
+			}
+		}
+		DMEMIT(";");
+		break;
 	}
 }
 
@@ -3728,17 +3789,6 @@ static void raid_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 	blk_limits_io_min(limits, chunk_size_bytes);
 	blk_limits_io_opt(limits, chunk_size_bytes * mddev_data_stripes(rs));
-
-	/*
-	 * RAID10 personality requires bio splitting,
-	 * RAID0/1/4/5/6 don't and process large discard bios properly.
-	 */
-	if (rs_is_raid10(rs)) {
-		limits->discard_granularity = max(chunk_size_bytes,
-						  limits->discard_granularity);
-		limits->max_discard_sectors = min_not_zero(rs->md.chunk_sectors,
-							   limits->max_discard_sectors);
-	}
 }
 
 static void raid_postsuspend(struct dm_target *ti)

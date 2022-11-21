@@ -356,6 +356,7 @@ static int db1x_pcmcia_get_status(struct pcmcia_socket *skt,
 	case 0:
 	case 2:
 		status |= SS_3VCARD;	/* 3V card */
+		break;
 	case 3:
 		break;			/* 5V card: set nothing */
 	default:
@@ -452,7 +453,7 @@ static int db1x_pcmcia_socket_probe(struct platform_device *pdev)
 		printk(KERN_INFO "db1xxx-ss: unknown board %d!\n", bid);
 		ret = -ENODEV;
 		goto out0;
-	};
+	}
 
 	/*
 	 * gather resources necessary and optional nice-to-haves to

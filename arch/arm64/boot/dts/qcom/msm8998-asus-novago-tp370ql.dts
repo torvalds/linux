@@ -8,6 +8,7 @@
 / {
 	model = "Asus NovaGo TP370QL";
 	compatible = "asus,novago-tp370ql", "qcom,msm8998";
+	chassis-type = "convertible";
 };
 
 &blsp1_i2c6 {

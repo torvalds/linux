@@ -7,7 +7,8 @@ ns2="ns2-$rndh"
 ns3="ns3-$rndh"
 capture=false
 ksft_skip=4
-timeout=30
+timeout_poll=30
+timeout_test=$((timeout_poll * 2 + 1))
 test_cnt=1
 ret=0
 bail=0
@@ -21,8 +22,8 @@ usage() {
 
 cleanup()
 {
-	rm -f "$cin" "$cout"
-	rm -f "$sin" "$sout"
+	rm -f "$cout" "$sout"
+	rm -f "$large" "$small"
 	rm -f "$capout"
 
 	local netns
@@ -50,7 +51,7 @@ setup()
 	sout=$(mktemp)
 	cout=$(mktemp)
 	capout=$(mktemp)
-	size=$((2048 * 4096))
+	size=$((2 * 2048 * 4096))
 	dd if=/dev/zero of=$small bs=4096 count=20 >/dev/null 2>&1
 	dd if=/dev/zero of=$large bs=4096 count=$((size / 4096)) >/dev/null 2>&1
 
@@ -59,6 +60,8 @@ setup()
 	for i in "$ns1" "$ns2" "$ns3";do
 		ip netns add $i || exit $ksft_skip
 		ip -net $i link set lo up
+		ip netns exec $i sysctl -q net.ipv4.conf.all.rp_filter=0
+		ip netns exec $i sysctl -q net.ipv4.conf.default.rp_filter=0
 	done
 
 	ip link add ns1eth1 netns "$ns1" type veth peer name ns2eth1 netns "$ns2"
@@ -79,7 +82,6 @@ setup()
 
 	ip netns exec "$ns1" ./pm_nl_ctl limits 1 1
 	ip netns exec "$ns1" ./pm_nl_ctl add 10.0.2.1 dev ns1eth2 flags subflow
-	ip netns exec "$ns1" sysctl -q net.ipv4.conf.all.rp_filter=0
 
 	ip -net "$ns2" addr add 10.0.1.2/24 dev ns2eth1
 	ip -net "$ns2" addr add dead:beef:1::2/64 dev ns2eth1 nodad
@@ -157,14 +159,18 @@ do_transfer()
 		sleep 1
 	fi
 
-	ip netns exec ${ns3} ./mptcp_connect -jt $timeout -l -p $port 0.0.0.0 < "$sin" > "$sout" &
+	timeout ${timeout_test} \
+		ip netns exec ${ns3} \
+			./mptcp_connect -jt ${timeout_poll} -l -p $port -T $time \
+				0.0.0.0 < "$sin" > "$sout" &
 	local spid=$!
 
 	wait_local_port_listen "${ns3}" "${port}"
 
-	local start
-	start=$(date +%s%3N)
-	ip netns exec ${ns1} ./mptcp_connect -jt $timeout -p $port 10.0.3.3 < "$cin" > "$cout" &
+	timeout ${timeout_test} \
+		ip netns exec ${ns1} \
+			./mptcp_connect -jt ${timeout_poll} -p $port -T $time \
+				10.0.3.3 < "$cin" > "$cout" &
 	local cpid=$!
 
 	wait $cpid
@@ -172,27 +178,20 @@ do_transfer()
 	wait $spid
 	local rets=$?
 
-	local stop
-	stop=$(date +%s%3N)
-
 	if $capture; then
 		sleep 1
 		kill ${cappid_listener}
 		kill ${cappid_connector}
 	fi
 
-	local duration
-	duration=$((stop-start))
-
 	cmp $sin $cout > /dev/null 2>&1
 	local cmps=$?
 	cmp $cin $sout > /dev/null 2>&1
 	local cmpc=$?
 
-	printf "%16s" "$duration max $max_time "
+	printf "%-16s" " max $max_time "
 	if [ $retc -eq 0 ] && [ $rets -eq 0 ] && \
-	   [ $cmpc -eq 0 ] && [ $cmps -eq 0 ] && \
-	   [ $duration -lt $max_time ]; then
+	   [ $cmpc -eq 0 ] && [ $cmps -eq 0 ]; then
 		echo "[ OK ]"
 		cat "$capout"
 		return 0
@@ -236,23 +235,24 @@ run_test()
 	tc -n $ns2 qdisc add dev ns2eth1 root netem rate ${rate1}mbit $delay1
 	tc -n $ns2 qdisc add dev ns2eth2 root netem rate ${rate2}mbit $delay2
 
-	# time is measure in ms
-	local time=$((size * 8 * 1000 / (( $rate1 + $rate2) * 1024 *1024) ))
+	# time is measured in ms, account for transfer size, affegated link speed
+	# and header overhead (10%)
+	local time=$((size * 8 * 1000 * 10 / (( $rate1 + $rate2) * 1024 *1024 * 9) ))
 
 	# mptcp_connect will do some sleeps to allow the mp_join handshake
-	# completion
-	time=$((time + 1350))
+	# completion (see mptcp_connect): 200ms on each side, add some slack
+	time=$((time + 450))
 
-	printf "%-50s" "$msg"
-	do_transfer $small $large $((time * 11 / 10))
+	printf "%-60s" "$msg"
+	do_transfer $small $large $time
 	lret=$?
 	if [ $lret -ne 0 ]; then
 		ret=$lret
 		[ $bail -eq 0 ] || exit $ret
 	fi
 
-	printf "%-50s" "$msg - reverse direction"
-	do_transfer $large $small $((time * 11 / 10))
+	printf "%-60s" "$msg - reverse direction"
+	do_transfer $large $small $time
 	lret=$?
 	if [ $lret -ne 0 ]; then
 		ret=$lret
@@ -287,7 +287,7 @@ run_test 10 10 0 0 "balanced bwidth"
 run_test 10 10 1 50 "balanced bwidth with unbalanced delay"
 
 # we still need some additional infrastructure to pass the following test-cases
-# run_test 30 10 0 0 "unbalanced bwidth"
-# run_test 30 10 1 50 "unbalanced bwidth with unbalanced delay"
-# run_test 30 10 50 1 "unbalanced bwidth with opposed, unbalanced delay"
+run_test 30 10 0 0 "unbalanced bwidth"
+run_test 30 10 1 50 "unbalanced bwidth with unbalanced delay"
+run_test 30 10 50 1 "unbalanced bwidth with opposed, unbalanced delay"
 exit $ret

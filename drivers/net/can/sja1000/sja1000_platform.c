@@ -17,7 +17,6 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_irq.h>
 
 #include "sja1000.h"
 
@@ -234,13 +233,15 @@ static int sp_probe(struct platform_device *pdev)
 	if (!addr)
 		return -ENOMEM;
 
-	if (of)
-		irq = irq_of_parse_and_map(of, 0);
-	else
+	if (of) {
+		irq = platform_get_irq(pdev, 0);
+		if (irq < 0)
+			return irq;
+	} else {
 		res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-
-	if (!irq && !res_irq)
-		return -ENODEV;
+		if (!res_irq)
+			return -ENODEV;
+	}
 
 	of_id = of_match_device(sp_of_table, &pdev->dev);
 	if (of_id && of_id->data) {

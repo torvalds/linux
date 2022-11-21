@@ -553,9 +553,6 @@ struct tegra_clk_periph_regs {
  * Flags:
  * TEGRA_PERIPH_NO_RESET - This flag indicates that reset is not allowed
  *     for this module.
- * TEGRA_PERIPH_MANUAL_RESET - This flag indicates not to reset module
- *     after clock enable and driver for the module is responsible for
- *     doing reset.
  * TEGRA_PERIPH_ON_APB - If peripheral is in the APB bus then read the
  *     bus to flush the write operation in apb bus. This flag indicates
  *     that this peripheral is in apb bus.
@@ -577,7 +574,6 @@ struct tegra_clk_periph_gate {
 #define TEGRA_CLK_PERIPH_GATE_MAGIC 0x17760309
 
 #define TEGRA_PERIPH_NO_RESET BIT(0)
-#define TEGRA_PERIPH_MANUAL_RESET BIT(1)
 #define TEGRA_PERIPH_ON_APB BIT(2)
 #define TEGRA_PERIPH_WAR_1005168 BIT(3)
 #define TEGRA_PERIPH_NO_DIV BIT(4)
@@ -881,15 +877,21 @@ void tegra_super_clk_gen5_init(void __iomem *clk_base,
 			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
 			struct tegra_clk_pll_params *pll_params);
 
-#ifdef CONFIG_TEGRA124_EMC
-struct clk *tegra_clk_register_emc(void __iomem *base, struct device_node *np,
-				   spinlock_t *lock);
+#ifdef CONFIG_TEGRA124_CLK_EMC
+struct clk *tegra124_clk_register_emc(void __iomem *base, struct device_node *np,
+				      spinlock_t *lock);
+bool tegra124_clk_emc_driver_available(struct clk_hw *emc_hw);
 #else
-static inline struct clk *tegra_clk_register_emc(void __iomem *base,
-						 struct device_node *np,
-						 spinlock_t *lock)
+static inline struct clk *
+tegra124_clk_register_emc(void __iomem *base, struct device_node *np,
+			  spinlock_t *lock)
 {
 	return NULL;
+}
+
+static inline bool tegra124_clk_emc_driver_available(struct clk_hw *emc_hw)
+{
+	return false;
 }
 #endif
 
@@ -924,5 +926,7 @@ struct clk *tegra20_clk_register_emc(void __iomem *ioaddr, bool low_jitter);
 
 struct clk *tegra210_clk_register_emc(struct device_node *np,
 				      void __iomem *regs);
+
+struct clk *tegra_clk_dev_register(struct clk_hw *hw);
 
 #endif /* TEGRA_CLK_H */

@@ -14,6 +14,7 @@
 #include <linux/mutex.h>
 #include <linux/counter.h>
 #include <linux/bitfield.h>
+#include <linux/types.h>
 
 #define FTM_FIELD_UPDATE(ftm, offset, mask, val)			\
 	({								\
@@ -25,7 +26,6 @@
 	})
 
 struct ftm_quaddec {
-	struct counter_device counter;
 	struct platform_device *pdev;
 	void __iomem *ftm_base;
 	bool big_endian;
@@ -115,10 +115,9 @@ static void ftm_quaddec_disable(void *ftm)
 }
 
 static int ftm_quaddec_get_prescaler(struct counter_device *counter,
-				     struct counter_count *count,
-				     size_t *cnt_mode)
+				     struct counter_count *count, u32 *cnt_mode)
 {
-	struct ftm_quaddec *ftm = counter->priv;
+	struct ftm_quaddec *ftm = counter_priv(counter);
 	uint32_t scflags;
 
 	ftm_read(ftm, FTM_SC, &scflags);
@@ -129,10 +128,9 @@ static int ftm_quaddec_get_prescaler(struct counter_device *counter,
 }
 
 static int ftm_quaddec_set_prescaler(struct counter_device *counter,
-				     struct counter_count *count,
-				     size_t cnt_mode)
+				     struct counter_count *count, u32 cnt_mode)
 {
-	struct ftm_quaddec *ftm = counter->priv;
+	struct ftm_quaddec *ftm = counter_priv(counter);
 
 	mutex_lock(&ftm->ftm_quaddec_mutex);
 
@@ -151,36 +149,19 @@ static const char * const ftm_quaddec_prescaler[] = {
 	"1", "2", "4", "8", "16", "32", "64", "128"
 };
 
-static struct counter_count_enum_ext ftm_quaddec_prescaler_enum = {
-	.items = ftm_quaddec_prescaler,
-	.num_items = ARRAY_SIZE(ftm_quaddec_prescaler),
-	.get = ftm_quaddec_get_prescaler,
-	.set = ftm_quaddec_set_prescaler
-};
-
-enum ftm_quaddec_synapse_action {
-	FTM_QUADDEC_SYNAPSE_ACTION_BOTH_EDGES,
-};
-
-static enum counter_synapse_action ftm_quaddec_synapse_actions[] = {
-	[FTM_QUADDEC_SYNAPSE_ACTION_BOTH_EDGES] =
+static const enum counter_synapse_action ftm_quaddec_synapse_actions[] = {
 	COUNTER_SYNAPSE_ACTION_BOTH_EDGES
 };
 
-enum ftm_quaddec_count_function {
-	FTM_QUADDEC_COUNT_ENCODER_MODE_1,
-};
-
-static const enum counter_count_function ftm_quaddec_count_functions[] = {
-	[FTM_QUADDEC_COUNT_ENCODER_MODE_1] =
-	COUNTER_COUNT_FUNCTION_QUADRATURE_X4
+static const enum counter_function ftm_quaddec_count_functions[] = {
+	COUNTER_FUNCTION_QUADRATURE_X4
 };
 
 static int ftm_quaddec_count_read(struct counter_device *counter,
 				  struct counter_count *count,
-				  unsigned long *val)
+				  u64 *val)
 {
-	struct ftm_quaddec *const ftm = counter->priv;
+	struct ftm_quaddec *const ftm = counter_priv(counter);
 	uint32_t cntval;
 
 	ftm_read(ftm, FTM_CNT, &cntval);
@@ -192,9 +173,9 @@ static int ftm_quaddec_count_read(struct counter_device *counter,
 
 static int ftm_quaddec_count_write(struct counter_device *counter,
 				   struct counter_count *count,
-				   const unsigned long val)
+				   const u64 val)
 {
-	struct ftm_quaddec *const ftm = counter->priv;
+	struct ftm_quaddec *const ftm = counter_priv(counter);
 
 	if (val != 0) {
 		dev_warn(&ftm->pdev->dev, "Can only accept '0' as new counter value\n");
@@ -206,21 +187,21 @@ static int ftm_quaddec_count_write(struct counter_device *counter,
 	return 0;
 }
 
-static int ftm_quaddec_count_function_get(struct counter_device *counter,
-					  struct counter_count *count,
-					  size_t *function)
+static int ftm_quaddec_count_function_read(struct counter_device *counter,
+					   struct counter_count *count,
+					   enum counter_function *function)
 {
-	*function = FTM_QUADDEC_COUNT_ENCODER_MODE_1;
+	*function = COUNTER_FUNCTION_QUADRATURE_X4;
 
 	return 0;
 }
 
-static int ftm_quaddec_action_get(struct counter_device *counter,
-				  struct counter_count *count,
-				  struct counter_synapse *synapse,
-				  size_t *action)
+static int ftm_quaddec_action_read(struct counter_device *counter,
+				   struct counter_count *count,
+				   struct counter_synapse *synapse,
+				   enum counter_synapse_action *action)
 {
-	*action = FTM_QUADDEC_SYNAPSE_ACTION_BOTH_EDGES;
+	*action = COUNTER_SYNAPSE_ACTION_BOTH_EDGES;
 
 	return 0;
 }
@@ -228,8 +209,8 @@ static int ftm_quaddec_action_get(struct counter_device *counter,
 static const struct counter_ops ftm_quaddec_cnt_ops = {
 	.count_read = ftm_quaddec_count_read,
 	.count_write = ftm_quaddec_count_write,
-	.function_get = ftm_quaddec_count_function_get,
-	.action_get = ftm_quaddec_action_get,
+	.function_read = ftm_quaddec_count_function_read,
+	.action_read = ftm_quaddec_action_read,
 };
 
 static struct counter_signal ftm_quaddec_signals[] = {
@@ -256,9 +237,12 @@ static struct counter_synapse ftm_quaddec_count_synapses[] = {
 	}
 };
 
-static const struct counter_count_ext ftm_quaddec_count_ext[] = {
-	COUNTER_COUNT_ENUM("prescaler", &ftm_quaddec_prescaler_enum),
-	COUNTER_COUNT_ENUM_AVAILABLE("prescaler", &ftm_quaddec_prescaler_enum),
+static DEFINE_COUNTER_ENUM(ftm_quaddec_prescaler_enum, ftm_quaddec_prescaler);
+
+static struct counter_comp ftm_quaddec_count_ext[] = {
+	COUNTER_COMP_COUNT_ENUM("prescaler", ftm_quaddec_get_prescaler,
+				ftm_quaddec_set_prescaler,
+				ftm_quaddec_prescaler_enum),
 };
 
 static struct counter_count ftm_quaddec_counts = {
@@ -274,17 +258,17 @@ static struct counter_count ftm_quaddec_counts = {
 
 static int ftm_quaddec_probe(struct platform_device *pdev)
 {
+	struct counter_device *counter;
 	struct ftm_quaddec *ftm;
 
 	struct device_node *node = pdev->dev.of_node;
 	struct resource *io;
 	int ret;
 
-	ftm = devm_kzalloc(&pdev->dev, sizeof(*ftm), GFP_KERNEL);
-	if (!ftm)
+	counter = devm_counter_alloc(&pdev->dev, sizeof(*ftm));
+	if (!counter)
 		return -ENOMEM;
-
-	platform_set_drvdata(pdev, ftm);
+	ftm = counter_priv(counter);
 
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!io) {
@@ -300,14 +284,13 @@ static int ftm_quaddec_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to map memory region\n");
 		return -EINVAL;
 	}
-	ftm->counter.name = dev_name(&pdev->dev);
-	ftm->counter.parent = &pdev->dev;
-	ftm->counter.ops = &ftm_quaddec_cnt_ops;
-	ftm->counter.counts = &ftm_quaddec_counts;
-	ftm->counter.num_counts = 1;
-	ftm->counter.signals = ftm_quaddec_signals;
-	ftm->counter.num_signals = ARRAY_SIZE(ftm_quaddec_signals);
-	ftm->counter.priv = ftm;
+	counter->name = dev_name(&pdev->dev);
+	counter->parent = &pdev->dev;
+	counter->ops = &ftm_quaddec_cnt_ops;
+	counter->counts = &ftm_quaddec_counts;
+	counter->num_counts = 1;
+	counter->signals = ftm_quaddec_signals;
+	counter->num_signals = ARRAY_SIZE(ftm_quaddec_signals);
 
 	mutex_init(&ftm->ftm_quaddec_mutex);
 
@@ -317,9 +300,9 @@ static int ftm_quaddec_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = devm_counter_register(&pdev->dev, &ftm->counter);
+	ret = devm_counter_add(&pdev->dev, counter);
 	if (ret)
-		return ret;
+		return dev_err_probe(&pdev->dev, ret, "Failed to add counter\n");
 
 	return 0;
 }

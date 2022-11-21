@@ -7,6 +7,14 @@ config F2FS_FS
 	select CRYPTO_CRC32
 	select F2FS_FS_XATTR if FS_ENCRYPTION
 	select FS_ENCRYPTION_ALGS if FS_ENCRYPTION
+	select FS_IOMAP
+	select LZ4_COMPRESS if F2FS_FS_LZ4
+	select LZ4_DECOMPRESS if F2FS_FS_LZ4
+	select LZ4HC_COMPRESS if F2FS_FS_LZ4HC
+	select LZO_COMPRESS if F2FS_FS_LZO
+	select LZO_DECOMPRESS if F2FS_FS_LZO
+	select ZSTD_COMPRESS if F2FS_FS_ZSTD
+	select ZSTD_DECOMPRESS if F2FS_FS_ZSTD
 	help
 	  F2FS is based on Log-structured File System (LFS), which supports
 	  versatile "flash-friendly" features. The design has been focused on
@@ -76,16 +84,6 @@ config F2FS_CHECK_FS
 
 	  If you want to improve the performance, say N.
 
-config F2FS_IO_TRACE
-	bool "F2FS IO tracer"
-	depends on F2FS_FS
-	depends on FUNCTION_TRACER
-	help
-	  F2FS IO trace is based on a function trace, which gathers process
-	  information and block IO patterns in the filesystem level.
-
-	  If unsure, say N.
-
 config F2FS_FAULT_INJECTION
 	bool "F2FS fault injection facility"
 	depends on F2FS_FS
@@ -104,36 +102,51 @@ config F2FS_FS_COMPRESSION
 config F2FS_FS_LZO
 	bool "LZO compression support"
 	depends on F2FS_FS_COMPRESSION
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
 	default y
 	help
 	  Support LZO compress algorithm, if unsure, say Y.
 
+config F2FS_FS_LZORLE
+	bool "LZO-RLE compression support"
+	depends on F2FS_FS_LZO
+	default y
+	help
+	  Support LZO-RLE compress algorithm, if unsure, say Y.
+
 config F2FS_FS_LZ4
 	bool "LZ4 compression support"
 	depends on F2FS_FS_COMPRESSION
-	select LZ4_COMPRESS
-	select LZ4_DECOMPRESS
 	default y
 	help
 	  Support LZ4 compress algorithm, if unsure, say Y.
 
+config F2FS_FS_LZ4HC
+	bool "LZ4HC compression support"
+	depends on F2FS_FS_LZ4
+	default y
+	help
+	  Support LZ4HC compress algorithm, LZ4HC has compatible on-disk
+	  layout with LZ4, if unsure, say Y.
+
 config F2FS_FS_ZSTD
 	bool "ZSTD compression support"
 	depends on F2FS_FS_COMPRESSION
-	select ZSTD_COMPRESS
-	select ZSTD_DECOMPRESS
 	default y
 	help
 	  Support ZSTD compress algorithm, if unsure, say Y.
 
-config F2FS_FS_LZORLE
-	bool "LZO-RLE compression support"
-	depends on F2FS_FS_COMPRESSION
-	depends on F2FS_FS_LZO
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
+config F2FS_IOSTAT
+	bool "F2FS IO statistics information"
+	depends on F2FS_FS
 	default y
 	help
-	  Support LZO-RLE compress algorithm, if unsure, say Y.
+	  Support getting IO statistics through sysfs and printing out periodic
+	  IO statistics tracepoint events. You have to turn on "iostat_enable"
+	  sysfs node to enable this feature.
+
+config F2FS_UNFAIR_RWSEM
+	bool "F2FS unfair rw_semaphore"
+	depends on F2FS_FS && BLK_CGROUP
+	help
+	  Use unfair rw_semaphore, if system configured IO priority by block
+	  cgroup.

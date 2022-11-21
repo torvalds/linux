@@ -6,27 +6,36 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
+#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
-#include <linux/delay.h>
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
 #include "../common/hid-sensors/hid-sensor-trigger.h"
 
-#define CHANNEL_SCAN_INDEX_PRESSURE 0
+enum {
+	CHANNEL_SCAN_INDEX_PRESSURE,
+	CHANNEL_SCAN_INDEX_TIMESTAMP,
+};
 
 struct press_state {
 	struct hid_sensor_hub_callbacks callbacks;
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info press_attr;
-	u32 press_data;
+	struct {
+		u32 press_data;
+		u64 timestamp __aligned(8);
+	} scan;
 	int scale_pre_decml;
 	int scale_post_decml;
 	int scale_precision;
 	int value_offset;
+	s64 timestamp;
+};
+
+static const u32 press_sensitivity_addresses[] = {
+	HID_USAGE_SENSOR_DATA_ATMOSPHERIC_PRESSURE,
+	HID_USAGE_SENSOR_ATMOSPHERIC_PRESSURE
 };
 
 /* Channel definitions */
@@ -39,7 +48,9 @@ static const struct iio_chan_spec press_channels[] = {
 		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
 		BIT(IIO_CHAN_INFO_HYSTERESIS),
 		.scan_index = CHANNEL_SCAN_INDEX_PRESSURE,
-	}
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(CHANNEL_SCAN_INDEX_TIMESTAMP)
+
 };
 
 /* Adjust channel real bits based on report descriptor */
@@ -152,14 +163,6 @@ static const struct iio_info press_info = {
 	.write_raw = &press_write_raw,
 };
 
-/* Function to push data to buffer */
-static void hid_sensor_push_data(struct iio_dev *indio_dev, const void *data,
-					int len)
-{
-	dev_dbg(&indio_dev->dev, "hid_sensor_push_data\n");
-	iio_push_to_buffers(indio_dev, data);
-}
-
 /* Callback handler to send event after all samples are received and captured */
 static int press_proc_event(struct hid_sensor_hub_device *hsdev,
 				unsigned usage_id,
@@ -169,10 +172,13 @@ static int press_proc_event(struct hid_sensor_hub_device *hsdev,
 	struct press_state *press_state = iio_priv(indio_dev);
 
 	dev_dbg(&indio_dev->dev, "press_proc_event\n");
-	if (atomic_read(&press_state->common_attributes.data_ready))
-		hid_sensor_push_data(indio_dev,
-				&press_state->press_data,
-				sizeof(press_state->press_data));
+	if (atomic_read(&press_state->common_attributes.data_ready)) {
+		if (!press_state->timestamp)
+			press_state->timestamp = iio_get_time_ns(indio_dev);
+
+		iio_push_to_buffers_with_timestamp(
+			indio_dev, &press_state->scan, press_state->timestamp);
+	}
 
 	return 0;
 }
@@ -189,8 +195,12 @@ static int press_capture_sample(struct hid_sensor_hub_device *hsdev,
 
 	switch (usage_id) {
 	case HID_USAGE_SENSOR_ATMOSPHERIC_PRESSURE:
-		press_state->press_data = *(u32 *)raw_data;
+		press_state->scan.press_data = *(u32 *)raw_data;
 		ret = 0;
+		break;
+	case HID_USAGE_SENSOR_TIME_TIMESTAMP:
+		press_state->timestamp = hid_sensor_convert_timestamp(
+			&press_state->common_attributes, *(s64 *)raw_data);
 		break;
 	default:
 		break;
@@ -225,17 +235,6 @@ static int press_parse_report(struct platform_device *pdev,
 				&st->press_attr,
 				&st->scale_pre_decml, &st->scale_post_decml);
 
-	/* Set Sensitivity field ids, when there is no individual modifier */
-	if (st->common_attributes.sensitivity.index < 0) {
-		sensor_hub_input_get_attribute_info(hsdev,
-			HID_FEATURE_REPORT, usage_id,
-			HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_ABS |
-			HID_USAGE_SENSOR_DATA_ATMOSPHERIC_PRESSURE,
-			&st->common_attributes.sensitivity);
-		dev_dbg(&pdev->dev, "Sensitivity index:report %d:%d\n",
-			st->common_attributes.sensitivity.index,
-			st->common_attributes.sensitivity.report_id);
-	}
 	return ret;
 }
 
@@ -260,14 +259,16 @@ static int hid_press_probe(struct platform_device *pdev)
 
 	ret = hid_sensor_parse_common_attributes(hsdev,
 					HID_USAGE_SENSOR_PRESSURE,
-					&press_state->common_attributes);
+					&press_state->common_attributes,
+					press_sensitivity_addresses,
+					ARRAY_SIZE(press_sensitivity_addresses));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup common attributes\n");
 		return ret;
 	}
 
-	indio_dev->channels = kmemdup(press_channels, sizeof(press_channels),
-				      GFP_KERNEL);
+	indio_dev->channels = devm_kmemdup(&pdev->dev, press_channels,
+					   sizeof(press_channels), GFP_KERNEL);
 	if (!indio_dev->channels) {
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
 		return -ENOMEM;
@@ -278,7 +279,7 @@ static int hid_press_probe(struct platform_device *pdev)
 				 HID_USAGE_SENSOR_PRESSURE, press_state);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup attributes\n");
-		goto error_free_dev_mem;
+		return ret;
 	}
 
 	indio_dev->num_channels =
@@ -293,7 +294,7 @@ static int hid_press_probe(struct platform_device *pdev)
 				&press_state->common_attributes);
 	if (ret) {
 		dev_err(&pdev->dev, "trigger setup failed\n");
-		goto error_free_dev_mem;
+		return ret;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -318,8 +319,6 @@ error_iio_unreg:
 	iio_device_unregister(indio_dev);
 error_remove_trigger:
 	hid_sensor_remove_trigger(indio_dev, &press_state->common_attributes);
-error_free_dev_mem:
-	kfree(indio_dev->channels);
 	return ret;
 }
 
@@ -333,7 +332,6 @@ static int hid_press_remove(struct platform_device *pdev)
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_PRESSURE);
 	iio_device_unregister(indio_dev);
 	hid_sensor_remove_trigger(indio_dev, &press_state->common_attributes);
-	kfree(indio_dev->channels);
 
 	return 0;
 }
@@ -361,3 +359,4 @@ module_platform_driver(hid_press_platform_driver);
 MODULE_DESCRIPTION("HID Sensor Pressure");
 MODULE_AUTHOR("Archana Patni <archana.patni@intel.com>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_HID);

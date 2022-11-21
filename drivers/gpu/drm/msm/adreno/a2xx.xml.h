@@ -8,21 +8,21 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/envytools/rnndb/adreno.xml                     (    594 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml        (   1572 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml                (  90159 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml       (  14386 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml          (  65048 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml                (  84226 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml                ( 112556 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml                ( 149461 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml                ( 184695 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml            (  11218 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml               (   1773 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_control_regs.xml (   4559 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pipe_regs.xml    (   2872 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno.xml                     (    594 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/freedreno_copyright.xml        (   1572 bytes, from 2020-12-31 19:26:32)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a2xx.xml                (  90810 bytes, from 2021-06-21 15:24:24)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_common.xml       (  14609 bytes, from 2021-11-24 23:05:10)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pm4.xml          (  69086 bytes, from 2022-03-03 16:41:33)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a3xx.xml                (  84231 bytes, from 2021-11-24 23:05:10)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a4xx.xml                ( 113358 bytes, from 2022-01-31 23:06:21)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a5xx.xml                ( 149512 bytes, from 2022-01-31 23:06:21)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx.xml                ( 184954 bytes, from 2022-03-03 16:41:33)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx_gmu.xml            (  11331 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/ocmem.xml               (   1773 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_control_regs.xml (   6038 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pipe_regs.xml    (   2924 bytes, from 2021-07-22 15:21:56)
 
-Copyright (C) 2013-2020 by the following authors:
+Copyright (C) 2013-2021 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -1258,11 +1258,17 @@ static inline uint32_t A2XX_MH_MMU_VA_RANGE_VA_BASE(uint32_t val)
 
 #define REG_A2XX_NQWAIT_UNTIL					0x00000394
 
-#define REG_A2XX_RBBM_PERFCOUNTER1_SELECT			0x00000395
+#define REG_A2XX_RBBM_PERFCOUNTER0_SELECT			0x00000395
 
-#define REG_A2XX_RBBM_PERFCOUNTER1_LO				0x00000397
+#define REG_A2XX_RBBM_PERFCOUNTER1_SELECT			0x00000396
 
-#define REG_A2XX_RBBM_PERFCOUNTER1_HI				0x00000398
+#define REG_A2XX_RBBM_PERFCOUNTER0_LO				0x00000397
+
+#define REG_A2XX_RBBM_PERFCOUNTER0_HI				0x00000398
+
+#define REG_A2XX_RBBM_PERFCOUNTER1_LO				0x00000399
+
+#define REG_A2XX_RBBM_PERFCOUNTER1_HI				0x0000039a
 
 #define REG_A2XX_RBBM_DEBUG					0x0000039b
 
@@ -2922,9 +2928,27 @@ static inline uint32_t A2XX_RB_COPY_DEST_OFFSET_Y(uint32_t val)
 
 #define REG_A2XX_RB_PERFCOUNTER0_SELECT				0x00000f04
 
+#define REG_A2XX_RB_PERFCOUNTER1_SELECT				0x00000f05
+
+#define REG_A2XX_RB_PERFCOUNTER2_SELECT				0x00000f06
+
+#define REG_A2XX_RB_PERFCOUNTER3_SELECT				0x00000f07
+
 #define REG_A2XX_RB_PERFCOUNTER0_LOW				0x00000f08
 
 #define REG_A2XX_RB_PERFCOUNTER0_HI				0x00000f09
+
+#define REG_A2XX_RB_PERFCOUNTER1_LOW				0x00000f0a
+
+#define REG_A2XX_RB_PERFCOUNTER1_HI				0x00000f0b
+
+#define REG_A2XX_RB_PERFCOUNTER2_LOW				0x00000f0c
+
+#define REG_A2XX_RB_PERFCOUNTER2_HI				0x00000f0d
+
+#define REG_A2XX_RB_PERFCOUNTER3_LOW				0x00000f0e
+
+#define REG_A2XX_RB_PERFCOUNTER3_HI				0x00000f0f
 
 #define REG_A2XX_SQ_TEX_0					0x00000000
 #define A2XX_SQ_TEX_0_TYPE__MASK				0x00000003

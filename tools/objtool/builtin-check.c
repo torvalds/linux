@@ -15,13 +15,21 @@
 
 #include <subcmd/parse-options.h>
 #include <string.h>
-#include "builtin.h"
-#include "objtool.h"
+#include <stdlib.h>
+#include <objtool/builtin.h>
+#include <objtool/objtool.h>
 
-bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess, stats, validate_dup, vmlinux;
+bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess, stats,
+     lto, vmlinux, mcount, noinstr, backup, sls, dryrun,
+     ibt;
 
 static const char * const check_usage[] = {
 	"objtool check [<options>] file.o",
+	NULL,
+};
+
+static const char * const env_usage[] = {
+	"OBJTOOL_ARGS=\"<options>\"",
 	NULL,
 };
 
@@ -33,27 +41,52 @@ const struct option check_options[] = {
 	OPT_BOOLEAN('b', "backtrace", &backtrace, "unwind on error"),
 	OPT_BOOLEAN('a', "uaccess", &uaccess, "enable uaccess checking"),
 	OPT_BOOLEAN('s', "stats", &stats, "print statistics"),
-	OPT_BOOLEAN('d', "duplicate", &validate_dup, "duplicate validation for vmlinux.o"),
+	OPT_BOOLEAN(0, "lto", &lto, "whole-archive like runs"),
+	OPT_BOOLEAN('n', "noinstr", &noinstr, "noinstr validation for vmlinux.o"),
 	OPT_BOOLEAN('l', "vmlinux", &vmlinux, "vmlinux.o validation"),
+	OPT_BOOLEAN('M', "mcount", &mcount, "generate __mcount_loc"),
+	OPT_BOOLEAN('B', "backup", &backup, "create .orig files before modification"),
+	OPT_BOOLEAN('S', "sls", &sls, "validate straight-line-speculation"),
+	OPT_BOOLEAN(0, "dry-run", &dryrun, "don't write the modifications"),
+	OPT_BOOLEAN(0, "ibt", &ibt, "validate ENDBR placement"),
 	OPT_END(),
 };
 
+int cmd_parse_options(int argc, const char **argv, const char * const usage[])
+{
+	const char *envv[16] = { };
+	char *env;
+	int envc;
+
+	env = getenv("OBJTOOL_ARGS");
+	if (env) {
+		envv[0] = "OBJTOOL_ARGS";
+		for (envc = 1; envc < ARRAY_SIZE(envv); ) {
+			envv[envc++] = env;
+			env = strchr(env, ' ');
+			if (!env)
+				break;
+			*env = '\0';
+			env++;
+		}
+
+		parse_options(envc, envv, check_options, env_usage, 0);
+	}
+
+	argc = parse_options(argc, argv, check_options, usage, 0);
+	if (argc != 1)
+		usage_with_options(usage, check_options);
+	return argc;
+}
+
 int cmd_check(int argc, const char **argv)
 {
-	const char *objname, *s;
+	const char *objname;
 	struct objtool_file *file;
 	int ret;
 
-	argc = parse_options(argc, argv, check_options, check_usage, 0);
-
-	if (argc != 1)
-		usage_with_options(check_usage, check_options);
-
+	argc = cmd_parse_options(argc, argv, check_usage);
 	objname = argv[0];
-
-	s = strstr(objname, "vmlinux.o");
-	if (s && !s[9])
-		vmlinux = true;
 
 	file = objtool_open_read(objname);
 	if (!file)

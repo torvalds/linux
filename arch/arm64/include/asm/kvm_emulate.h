@@ -21,25 +21,45 @@
 #include <asm/cputype.h>
 #include <asm/virt.h>
 
-unsigned long *vcpu_reg32(const struct kvm_vcpu *vcpu, u8 reg_num);
-unsigned long vcpu_read_spsr32(const struct kvm_vcpu *vcpu);
-void vcpu_write_spsr32(struct kvm_vcpu *vcpu, unsigned long v);
+#define CURRENT_EL_SP_EL0_VECTOR	0x0
+#define CURRENT_EL_SP_ELx_VECTOR	0x200
+#define LOWER_EL_AArch64_VECTOR		0x400
+#define LOWER_EL_AArch32_VECTOR		0x600
+
+enum exception_type {
+	except_type_sync	= 0,
+	except_type_irq		= 0x80,
+	except_type_fiq		= 0x100,
+	except_type_serror	= 0x180,
+};
 
 bool kvm_condition_valid32(const struct kvm_vcpu *vcpu);
-void kvm_skip_instr32(struct kvm_vcpu *vcpu, bool is_wide_instr);
+void kvm_skip_instr32(struct kvm_vcpu *vcpu);
 
 void kvm_inject_undefined(struct kvm_vcpu *vcpu);
 void kvm_inject_vabt(struct kvm_vcpu *vcpu);
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr);
-void kvm_inject_undef32(struct kvm_vcpu *vcpu);
-void kvm_inject_dabt32(struct kvm_vcpu *vcpu, unsigned long addr);
-void kvm_inject_pabt32(struct kvm_vcpu *vcpu, unsigned long addr);
+void kvm_inject_size_fault(struct kvm_vcpu *vcpu);
 
+void kvm_vcpu_wfi(struct kvm_vcpu *vcpu);
+
+#if defined(__KVM_VHE_HYPERVISOR__) || defined(__KVM_NVHE_HYPERVISOR__)
 static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
 {
 	return !(vcpu->arch.hcr_el2 & HCR_RW);
 }
+#else
+static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+
+	WARN_ON_ONCE(!test_bit(KVM_ARCH_FLAG_REG_WIDTH_CONFIGURED,
+			       &kvm->arch.flags));
+
+	return test_bit(KVM_ARCH_FLAG_EL1_32BIT, &kvm->arch.flags);
+}
+#endif
 
 static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 {
@@ -65,20 +85,22 @@ static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 		vcpu->arch.hcr_el2 |= HCR_TVM;
 	}
 
-	if (test_bit(KVM_ARM_VCPU_EL1_32BIT, vcpu->arch.features))
+	if (vcpu_el1_is_32bit(vcpu))
 		vcpu->arch.hcr_el2 &= ~HCR_RW;
-
-	/*
-	 * TID3: trap feature register accesses that we virtualise.
-	 * For now this is conditional, since no AArch32 feature regs
-	 * are currently virtualised.
-	 */
-	if (!vcpu_el1_is_32bit(vcpu))
+	else
+		/*
+		 * TID3: trap feature register accesses that we virtualise.
+		 * For now this is conditional, since no AArch32 feature regs
+		 * are currently virtualised.
+		 */
 		vcpu->arch.hcr_el2 |= HCR_TID3;
 
 	if (cpus_have_const_cap(ARM64_MISMATCHED_CACHE_TYPE) ||
 	    vcpu_el1_is_32bit(vcpu))
 		vcpu->arch.hcr_el2 |= HCR_TID2;
+
+	if (kvm_has_mte(vcpu->kvm))
+		vcpu->arch.hcr_el2 |= HCR_ATA;
 }
 
 static inline unsigned long *vcpu_hcr(struct kvm_vcpu *vcpu)
@@ -166,30 +188,6 @@ static __always_inline void vcpu_set_reg(struct kvm_vcpu *vcpu, u8 reg_num,
 {
 	if (reg_num != 31)
 		vcpu_gp_regs(vcpu)->regs[reg_num] = val;
-}
-
-static inline unsigned long vcpu_read_spsr(const struct kvm_vcpu *vcpu)
-{
-	if (vcpu_mode_is_32bit(vcpu))
-		return vcpu_read_spsr32(vcpu);
-
-	if (vcpu->arch.sysregs_loaded_on_cpu)
-		return read_sysreg_el1(SYS_SPSR);
-	else
-		return __vcpu_sys_reg(vcpu, SPSR_EL1);
-}
-
-static inline void vcpu_write_spsr(struct kvm_vcpu *vcpu, unsigned long v)
-{
-	if (vcpu_mode_is_32bit(vcpu)) {
-		vcpu_write_spsr32(vcpu, v);
-		return;
-	}
-
-	if (vcpu->arch.sysregs_loaded_on_cpu)
-		write_sysreg_el1(v, SYS_SPSR);
-	else
-		__vcpu_sys_reg(vcpu, SPSR_EL1) = v;
 }
 
 /*
@@ -402,7 +400,7 @@ static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
 		*vcpu_cpsr(vcpu) |= PSR_AA32_E_BIT;
 	} else {
 		u64 sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
-		sctlr |= (1 << 25);
+		sctlr |= SCTLR_ELx_EE;
 		vcpu_write_sys_reg(vcpu, sctlr, SCTLR_EL1);
 	}
 }
@@ -412,7 +410,10 @@ static inline bool kvm_vcpu_is_be(struct kvm_vcpu *vcpu)
 	if (vcpu_mode_is_32bit(vcpu))
 		return !!(*vcpu_cpsr(vcpu) & PSR_AA32_E_BIT);
 
-	return !!(vcpu_read_sys_reg(vcpu, SCTLR_EL1) & (1 << 25));
+	if (vcpu_mode_priv(vcpu))
+		return !!(vcpu_read_sys_reg(vcpu, SCTLR_EL1) & SCTLR_ELx_EE);
+	else
+		return !!(vcpu_read_sys_reg(vcpu, SCTLR_EL1) & SCTLR_EL1_E0E);
 }
 
 static inline unsigned long vcpu_data_guest_to_host(struct kvm_vcpu *vcpu,
@@ -477,32 +478,14 @@ static inline unsigned long vcpu_data_host_to_guest(struct kvm_vcpu *vcpu,
 	return data;		/* Leave LE untouched */
 }
 
-static __always_inline void kvm_skip_instr(struct kvm_vcpu *vcpu, bool is_wide_instr)
+static __always_inline void kvm_incr_pc(struct kvm_vcpu *vcpu)
 {
-	if (vcpu_mode_is_32bit(vcpu)) {
-		kvm_skip_instr32(vcpu, is_wide_instr);
-	} else {
-		*vcpu_pc(vcpu) += 4;
-		*vcpu_cpsr(vcpu) &= ~PSR_BTYPE_MASK;
-	}
-
-	/* advance the singlestep state machine */
-	*vcpu_cpsr(vcpu) &= ~DBG_SPSR_SS;
+	vcpu->arch.flags |= KVM_ARM64_INCREMENT_PC;
 }
 
-/*
- * Skip an instruction which has been emulated at hyp while most guest sysregs
- * are live.
- */
-static __always_inline void __kvm_skip_instr(struct kvm_vcpu *vcpu)
+static inline bool vcpu_has_feature(struct kvm_vcpu *vcpu, int feature)
 {
-	*vcpu_pc(vcpu) = read_sysreg_el2(SYS_ELR);
-	vcpu_gp_regs(vcpu)->pstate = read_sysreg_el2(SYS_SPSR);
-
-	kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
-
-	write_sysreg_el2(vcpu_gp_regs(vcpu)->pstate, SYS_SPSR);
-	write_sysreg_el2(*vcpu_pc(vcpu), SYS_ELR);
+	return test_bit(feature, vcpu->arch.features);
 }
 
 #endif /* __ARM64_KVM_EMULATE_H__ */

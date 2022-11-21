@@ -23,9 +23,21 @@
 
 void __check_vmalloc_seq(struct mm_struct *mm);
 
+#ifdef CONFIG_MMU
+static inline void check_vmalloc_seq(struct mm_struct *mm)
+{
+	if (!IS_ENABLED(CONFIG_ARM_LPAE) &&
+	    unlikely(atomic_read(&mm->context.vmalloc_seq) !=
+		     atomic_read(&init_mm.context.vmalloc_seq)))
+		__check_vmalloc_seq(mm);
+}
+#endif
+
 #ifdef CONFIG_CPU_HAS_ASID
 
 void check_and_switch_context(struct mm_struct *mm, struct task_struct *tsk);
+
+#define init_new_context init_new_context
 static inline int
 init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
@@ -50,8 +62,7 @@ static inline void a15_erratum_get_cpumask(int this_cpu, struct mm_struct *mm,
 static inline void check_and_switch_context(struct mm_struct *mm,
 					    struct task_struct *tsk)
 {
-	if (unlikely(mm->context.vmalloc_seq != init_mm.context.vmalloc_seq))
-		__check_vmalloc_seq(mm);
+	check_vmalloc_seq(mm);
 
 	if (irqs_disabled())
 		/*
@@ -92,31 +103,9 @@ static inline void finish_arch_post_lock_switch(void)
 
 #endif	/* CONFIG_MMU */
 
-static inline int
-init_new_context(struct task_struct *tsk, struct mm_struct *mm)
-{
-	return 0;
-}
-
-
 #endif	/* CONFIG_CPU_HAS_ASID */
 
-#define destroy_context(mm)		do { } while(0)
 #define activate_mm(prev,next)		switch_mm(prev, next, NULL)
-
-/*
- * This is called when "tsk" is about to enter lazy TLB mode.
- *
- * mm:  describes the currently active mm context
- * tsk: task which is entering lazy tlb
- * cpu: cpu number which is entering lazy tlb
- *
- * tsk->mm will be NULL
- */
-static inline void
-enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
-{
-}
 
 /*
  * This is the actual mm switch as far as the scheduler
@@ -149,6 +138,15 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 #endif
 }
 
-#define deactivate_mm(tsk,mm)	do { } while (0)
+#ifdef CONFIG_VMAP_STACK
+static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
+{
+	if (mm != &init_mm)
+		check_vmalloc_seq(mm);
+}
+#define enter_lazy_tlb enter_lazy_tlb
+#endif
+
+#include <asm-generic/mmu_context.h>
 
 #endif

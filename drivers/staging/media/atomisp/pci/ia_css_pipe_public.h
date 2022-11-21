@@ -123,9 +123,6 @@ struct ia_css_pipe_config {
 	     processing stages. */
 
 /* ISP2401 */
-	bool enable_luma_only;
-	/** Enabling of monochrome mode for a pipeline. If enabled only luma processing
-	     will be done. */
 	bool enable_tnr;
 	/** Enabling of TNR (temporal noise reduction). This is only applicable to video
 	     pipes. Non video-pipes should always set this parameter to false. */
@@ -481,29 +478,6 @@ int
 ia_css_pipe_get_qos_ext_state(struct ia_css_pipe *pipe,
 			      u32 fw_handle,
 			      bool *enable);
-
-/* ISP2401  */
-/* @brief  Update mapped CSS and ISP arguments for QoS pipe during SP runtime.
- * @param[in] pipe	Pipe handle.
- * @param[in] fw_handle	Extension firmware Handle (ia_css_fw_info.handle).
- * @param[in] css_seg	Parameter memory descriptors for CSS segments.
- * @param[in] isp_seg	Parameter memory descriptors for ISP segments.
- *
- * @return
- * 0			: Success
- * -EINVAL		: Invalid Parameters
- * -EBUSY	: Inactive QOS Pipe
- *					(No active stream with this pipe)
- *
- * \deprecated{This interface is used to temporarily support a late-developed,
- * specific use-case on a specific IPU2 platform. It will not be supported or
- * maintained on IPU3 or further.}
- */
-int
-ia_css_pipe_update_qos_ext_mapped_arg(struct ia_css_pipe *pipe,
-				      u32 fw_handle,
-				      struct ia_css_isp_param_css_segments *css_seg,
-				      struct ia_css_isp_param_isp_segments *isp_seg);
 
 /* @brief Get selected configuration settings
  * @param[in]	pipe	The pipe.

@@ -31,11 +31,11 @@
 #include "dcn20/display_rq_dlg_calc_20v2.h"
 #include "dcn21/display_mode_vba_21.h"
 #include "dcn21/display_rq_dlg_calc_21.h"
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 #include "dcn30/display_mode_vba_30.h"
 #include "dcn30/display_rq_dlg_calc_30.h"
+#include "dcn31/display_mode_vba_31.h"
+#include "dcn31/display_rq_dlg_calc_31.h"
 #include "dml_logger.h"
-#endif
 
 const struct dml_funcs dml20_funcs = {
 	.validate = dml20_ModeSupportAndSystemConfigurationFull,
@@ -58,14 +58,20 @@ const struct dml_funcs dml21_funcs = {
         .rq_dlg_get_rq_reg = dml21_rq_dlg_get_rq_reg
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 const struct dml_funcs dml30_funcs = {
 	.validate = dml30_ModeSupportAndSystemConfigurationFull,
 	.recalculate = dml30_recalculate,
 	.rq_dlg_get_dlg_reg = dml30_rq_dlg_get_dlg_reg,
 	.rq_dlg_get_rq_reg = dml30_rq_dlg_get_rq_reg
 };
-#endif
+
+const struct dml_funcs dml31_funcs = {
+	.validate = dml31_ModeSupportAndSystemConfigurationFull,
+	.recalculate = dml31_recalculate,
+	.rq_dlg_get_dlg_reg = dml31_rq_dlg_get_dlg_reg,
+	.rq_dlg_get_rq_reg = dml31_rq_dlg_get_rq_reg
+};
+
 void dml_init_instance(struct display_mode_lib *lib,
 		const struct _vcs_dpi_soc_bounding_box_st *soc_bb,
 		const struct _vcs_dpi_ip_params_st *ip_params,
@@ -76,6 +82,7 @@ void dml_init_instance(struct display_mode_lib *lib,
 	lib->project = project;
 	switch (project) {
 	case DML_PROJECT_NAVI10:
+	case DML_PROJECT_DCN201:
 		lib->funcs = dml20_funcs;
 		break;
 	case DML_PROJECT_NAVI10v2:
@@ -84,11 +91,13 @@ void dml_init_instance(struct display_mode_lib *lib,
         case DML_PROJECT_DCN21:
                 lib->funcs = dml21_funcs;
                 break;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	case DML_PROJECT_DCN30:
 		lib->funcs = dml30_funcs;
 		break;
-#endif
+	case DML_PROJECT_DCN31:
+	case DML_PROJECT_DCN31_FPGA:
+		lib->funcs = dml31_funcs;
+		break;
 
 	default:
 		break;
@@ -123,7 +132,7 @@ const char *dml_get_status_message(enum dm_validation_status status)
 	default:                                  return "Unknown Status";
 	}
 }
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+
 void dml_log_pipe_params(
 		struct display_mode_lib *mode_lib,
 		display_e2e_pipe_params_st *pipes,
@@ -231,7 +240,7 @@ void dml_log_pipe_params(
 		dml_print("DML PARAMS: PIPE [%d] DISPLAY OUTPUT PARAMS:\n", i);
 		dml_print("DML PARAMS:     output_type                = %d\n", dout->output_type);
 		dml_print("DML PARAMS:     output_format              = %d\n", dout->output_format);
-		dml_print("DML PARAMS:     output_bpc                 = %d\n", dout->output_bpc);
+		dml_print("DML PARAMS:     dsc_input_bpc              = %d\n", dout->dsc_input_bpc);
 		dml_print("DML PARAMS:     output_bpp                 = %3.4f\n", dout->output_bpp);
 		dml_print("DML PARAMS:     dp_lanes                   = %d\n", dout->dp_lanes);
 		dml_print("DML PARAMS:     dsc_enable                 = %d\n", dout->dsc_enable);
@@ -285,4 +294,3 @@ void dml_log_mode_support_params(struct display_mode_lib *mode_lib)
 		dml_print("DML SUPPORT:     ImmediateFlipSupportedForState      : [%d, %d]\n", mode_lib->vba.ImmediateFlipSupportedForState[i][0], mode_lib->vba.ImmediateFlipSupportedForState[i][1]);
 	}
 }
-#endif

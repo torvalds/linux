@@ -2,9 +2,7 @@
 # m68k/Makefile
 #
 # This file is included by the global makefile so that you can add your own
-# architecture-specific flags and dependencies. Remember to do have actions
-# for "archclean" and "archdep" for cleaning up and making dependencies for
-# this architecture
+# architecture-specific flags and dependencies.
 #
 # This file is subject to the terms and conditions of the GNU General Public
 # License.  See the file "COPYING" in the main directory of this archive
@@ -16,7 +14,7 @@
 
 KBUILD_DEFCONFIG := multi_defconfig
 
-ifneq ($(SUBARCH),$(ARCH))
+ifdef cross_compiling
 	ifeq ($(CROSS_COMPILE),)
 		CROSS_COMPILE := $(call cc-cross-prefix, \
 			m68k-linux-gnu- m68k-linux- m68k-unknown-linux-gnu-)
@@ -66,8 +64,7 @@ KBUILD_CFLAGS += $(cpuflags-y)
 KBUILD_CFLAGS += -pipe -ffreestanding
 
 ifdef CONFIG_MMU
-# without -fno-strength-reduce the 53c7xx.c driver fails ;-(
-KBUILD_CFLAGS += -fno-strength-reduce -ffixed-a2
+KBUILD_CFLAGS += -ffixed-a2
 else
 # we can use a m68k-linux-gcc toolchain with these in place
 KBUILD_CPPFLAGS += -DUTS_SYSNAME=\"uClinux\"
@@ -98,7 +95,6 @@ head-$(CONFIG_SUN3)		:= arch/m68k/kernel/sun3-head.o
 head-$(CONFIG_M68000)		:= arch/m68k/68000/head.o
 head-$(CONFIG_COLDFIRE)		:= arch/m68k/coldfire/head.o
 
-core-y				+= arch/m68k/
 libs-y				+= arch/m68k/lib/
 
 

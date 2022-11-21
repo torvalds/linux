@@ -78,7 +78,7 @@ static DECLARE_WAIT_QUEUE_HEAD(u132_hcd_wait);
 * u132_module_lock exists to protect access to global variables
 *
 */
-static struct mutex u132_module_lock;
+static DEFINE_MUTEX(u132_module_lock);
 static int u132_exiting;
 static int u132_instances;
 /*
@@ -208,13 +208,13 @@ struct u132 {
 #define ftdi_read_pcimem(pdev, member, data) usb_ftdi_elan_read_pcimem(pdev, \
 	offsetof(struct ohci_regs, member), 0, data);
 #define ftdi_write_pcimem(pdev, member, data) usb_ftdi_elan_write_pcimem(pdev, \
-	offsetof(struct ohci_regs, member), 0, data);
+	offsetof(struct ohci_regs, member), 0, data)
 #define u132_read_pcimem(u132, member, data) \
 	usb_ftdi_elan_read_pcimem(u132->platform_dev, offsetof(struct \
-	ohci_regs, member), 0, data);
+	ohci_regs, member), 0, data)
 #define u132_write_pcimem(u132, member, data) \
 	usb_ftdi_elan_write_pcimem(u132->platform_dev, offsetof(struct \
-	ohci_regs, member), 0, data);
+	ohci_regs, member), 0, data)
 static inline struct u132 *udev_to_u132(struct u132_udev *udev)
 {
 	u8 udev_number = udev->udev_number;
@@ -2392,8 +2392,7 @@ static int dequeue_from_overflow_chain(struct u132 *u132,
 			urb->error_count = 0;
 			usb_hcd_giveback_urb(hcd, urb, 0);
 			return 0;
-		} else
-			continue;
+		}
 	}
 	dev_err(&u132->platform_dev->dev, "urb=%p not found in endp[%d]=%p ring"
 		"[%d] %c%c usb_endp=%d usb_addr=%d size=%d next=%04X last=%04X"
@@ -2448,8 +2447,7 @@ static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
 				urb_slot = &endp->urb_list[ENDP_QUEUE_MASK &
 					queue_scan];
 				break;
-			} else
-				continue;
+			}
 		}
 		while (++queue_list < ENDP_QUEUE_SIZE && --queue_size > 0) {
 			*urb_slot = endp->urb_list[ENDP_QUEUE_MASK &
@@ -3190,7 +3188,6 @@ static int __init u132_hcd_init(void)
 	int retval;
 	u132_instances = 0;
 	u132_exiting = 0;
-	mutex_init(&u132_module_lock);
 	if (usb_disabled())
 		return -ENODEV;
 	printk(KERN_INFO "driver %s\n", hcd_name);
@@ -3214,7 +3211,6 @@ static void __exit u132_hcd_exit(void)
 	platform_driver_unregister(&u132_platform_driver);
 	printk(KERN_INFO "u132-hcd driver deregistered\n");
 	wait_event(u132_hcd_wait, u132_instances == 0);
-	flush_workqueue(workqueue);
 	destroy_workqueue(workqueue);
 }
 

@@ -589,7 +589,7 @@ static int deinterlace_start_streaming(struct vb2_queue *vq, unsigned int count)
 	int ret;
 
 	if (V4L2_TYPE_IS_OUTPUT(vq->type)) {
-		ret = pm_runtime_get_sync(dev);
+		ret = pm_runtime_resume_and_get(dev);
 		if (ret < 0) {
 			dev_err(dev, "Failed to enable module\n");
 
@@ -803,7 +803,6 @@ static int deinterlace_probe(struct platform_device *pdev)
 {
 	struct deinterlace_dev *dev;
 	struct video_device *vfd;
-	struct resource *res;
 	int irq, ret;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
@@ -825,12 +824,7 @@ static int deinterlace_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_dma_configure(dev->dev, dev->dev->of_node, true);
-	if (ret)
-		return ret;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->base = devm_ioremap_resource(&pdev->dev, res);
+	dev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->base))
 		return PTR_ERR(dev->base);
 

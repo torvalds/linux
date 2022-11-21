@@ -34,7 +34,7 @@ static int thermal_mmio_get_temperature(void *private, int *temp)
 	return 0;
 }
 
-static struct thermal_zone_of_device_ops thermal_mmio_ops = {
+static const struct thermal_zone_of_device_ops thermal_mmio_ops = {
 	.get_temp = thermal_mmio_get_temperature,
 };
 
@@ -54,11 +54,8 @@ static int thermal_mmio_probe(struct platform_device *pdev)
 
 	resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	sensor->mmio_base = devm_ioremap_resource(&pdev->dev, resource);
-	if (IS_ERR(sensor->mmio_base)) {
-		dev_err(&pdev->dev, "failed to ioremap memory (%ld)\n",
-			PTR_ERR(sensor->mmio_base));
+	if (IS_ERR(sensor->mmio_base))
 		return PTR_ERR(sensor->mmio_base);
-	}
 
 	sensor_init_func = device_get_match_data(&pdev->dev);
 	if (sensor_init_func) {

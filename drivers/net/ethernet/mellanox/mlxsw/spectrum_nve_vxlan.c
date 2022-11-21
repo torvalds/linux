@@ -10,28 +10,55 @@
 #include "spectrum.h"
 #include "spectrum_nve.h"
 
-/* Eth (18B) | IPv6 (40B) | UDP (8B) | VxLAN (8B) | Eth (14B) | IPv6 (40B)
- *
- * In the worst case - where we have a VLAN tag on the outer Ethernet
- * header and IPv6 in overlay and underlay - we need to parse 128 bytes
- */
-#define MLXSW_SP_NVE_VXLAN_PARSING_DEPTH 128
-#define MLXSW_SP_NVE_DEFAULT_PARSING_DEPTH 96
-
-#define MLXSW_SP_NVE_VXLAN_SUPPORTED_FLAGS	(VXLAN_F_UDP_ZERO_CSUM_TX | \
+#define MLXSW_SP_NVE_VXLAN_IPV4_SUPPORTED_FLAGS (VXLAN_F_UDP_ZERO_CSUM_TX | \
 						 VXLAN_F_LEARN)
+#define MLXSW_SP_NVE_VXLAN_IPV6_SUPPORTED_FLAGS (VXLAN_F_IPV6 | \
+						 VXLAN_F_UDP_ZERO_CSUM6_TX | \
+						 VXLAN_F_UDP_ZERO_CSUM6_RX)
 
-static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
-					   const struct net_device *dev,
-					   struct netlink_ext_ack *extack)
+static bool mlxsw_sp_nve_vxlan_ipv4_flags_check(const struct vxlan_config *cfg,
+						struct netlink_ext_ack *extack)
 {
-	struct vxlan_dev *vxlan = netdev_priv(dev);
-	struct vxlan_config *cfg = &vxlan->cfg;
-
-	if (cfg->saddr.sa.sa_family != AF_INET) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Only IPv4 underlay is supported");
+	if (!(cfg->flags & VXLAN_F_UDP_ZERO_CSUM_TX)) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Zero UDP checksum must be allowed for TX");
 		return false;
 	}
+
+	if (cfg->flags & ~MLXSW_SP_NVE_VXLAN_IPV4_SUPPORTED_FLAGS) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Unsupported flag");
+		return false;
+	}
+
+	return true;
+}
+
+static bool mlxsw_sp_nve_vxlan_ipv6_flags_check(const struct vxlan_config *cfg,
+						struct netlink_ext_ack *extack)
+{
+	if (!(cfg->flags & VXLAN_F_UDP_ZERO_CSUM6_TX)) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Zero UDP checksum must be allowed for TX");
+		return false;
+	}
+
+	if (!(cfg->flags & VXLAN_F_UDP_ZERO_CSUM6_RX)) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Zero UDP checksum must be allowed for RX");
+		return false;
+	}
+
+	if (cfg->flags & ~MLXSW_SP_NVE_VXLAN_IPV6_SUPPORTED_FLAGS) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Unsupported flag");
+		return false;
+	}
+
+	return true;
+}
+
+static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
+					   const struct mlxsw_sp_nve_params *params,
+					   struct netlink_ext_ack *extack)
+{
+	struct vxlan_dev *vxlan = netdev_priv(params->dev);
+	struct vxlan_config *cfg = &vxlan->cfg;
 
 	if (vxlan_addr_multicast(&cfg->remote_ip)) {
 		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Multicast destination IP is not supported");
@@ -63,14 +90,15 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 		return false;
 	}
 
-	if (!(cfg->flags & VXLAN_F_UDP_ZERO_CSUM_TX)) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: UDP checksum is not supported");
-		return false;
-	}
-
-	if (cfg->flags & ~MLXSW_SP_NVE_VXLAN_SUPPORTED_FLAGS) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Unsupported flag");
-		return false;
+	switch (cfg->saddr.sa.sa_family) {
+	case AF_INET:
+		if (!mlxsw_sp_nve_vxlan_ipv4_flags_check(cfg, extack))
+			return false;
+		break;
+	case AF_INET6:
+		if (!mlxsw_sp_nve_vxlan_ipv6_flags_check(cfg, extack))
+			return false;
+		break;
 	}
 
 	if (cfg->ttl == 0) {
@@ -86,11 +114,39 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 	return true;
 }
 
+static bool mlxsw_sp1_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
+					    const struct mlxsw_sp_nve_params *params,
+					    struct netlink_ext_ack *extack)
+{
+	if (params->ethertype == ETH_P_8021AD) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: 802.1ad bridge is not supported with VxLAN");
+		return false;
+	}
+
+	return mlxsw_sp_nve_vxlan_can_offload(nve, params, extack);
+}
+
+static void
+mlxsw_sp_nve_vxlan_ul_proto_sip_config(const struct vxlan_config *cfg,
+				       struct mlxsw_sp_nve_config *config)
+{
+	switch (cfg->saddr.sa.sa_family) {
+	case AF_INET:
+		config->ul_proto = MLXSW_SP_L3_PROTO_IPV4;
+		config->ul_sip.addr4 = cfg->saddr.sin.sin_addr.s_addr;
+		break;
+	case AF_INET6:
+		config->ul_proto = MLXSW_SP_L3_PROTO_IPV6;
+		config->ul_sip.addr6 = cfg->saddr.sin6.sin6_addr;
+		break;
+	}
+}
+
 static void mlxsw_sp_nve_vxlan_config(const struct mlxsw_sp_nve *nve,
-				      const struct net_device *dev,
+				      const struct mlxsw_sp_nve_params *params,
 				      struct mlxsw_sp_nve_config *config)
 {
-	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_dev *vxlan = netdev_priv(params->dev);
 	struct vxlan_config *cfg = &vxlan->cfg;
 
 	config->type = MLXSW_SP_NVE_TYPE_VXLAN;
@@ -98,75 +154,15 @@ static void mlxsw_sp_nve_vxlan_config(const struct mlxsw_sp_nve *nve,
 	config->flowlabel = cfg->label;
 	config->learning_en = cfg->flags & VXLAN_F_LEARN ? 1 : 0;
 	config->ul_tb_id = RT_TABLE_MAIN;
-	config->ul_proto = MLXSW_SP_L3_PROTO_IPV4;
-	config->ul_sip.addr4 = cfg->saddr.sin.sin_addr.s_addr;
+	mlxsw_sp_nve_vxlan_ul_proto_sip_config(cfg, config);
 	config->udp_dport = cfg->dst_port;
-}
-
-static int __mlxsw_sp_nve_parsing_set(struct mlxsw_sp *mlxsw_sp,
-				      unsigned int parsing_depth,
-				      __be16 udp_dport)
-{
-	char mprs_pl[MLXSW_REG_MPRS_LEN];
-
-	mlxsw_reg_mprs_pack(mprs_pl, parsing_depth, be16_to_cpu(udp_dport));
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mprs), mprs_pl);
-}
-
-static int mlxsw_sp_nve_parsing_set(struct mlxsw_sp *mlxsw_sp,
-				    __be16 udp_dport)
-{
-	int parsing_depth = mlxsw_sp->nve->inc_parsing_depth_refs ?
-				MLXSW_SP_NVE_VXLAN_PARSING_DEPTH :
-				MLXSW_SP_NVE_DEFAULT_PARSING_DEPTH;
-
-	return __mlxsw_sp_nve_parsing_set(mlxsw_sp, parsing_depth, udp_dport);
-}
-
-static int
-__mlxsw_sp_nve_inc_parsing_depth_get(struct mlxsw_sp *mlxsw_sp,
-				     __be16 udp_dport)
-{
-	int err;
-
-	mlxsw_sp->nve->inc_parsing_depth_refs++;
-
-	err = mlxsw_sp_nve_parsing_set(mlxsw_sp, udp_dport);
-	if (err)
-		goto err_nve_parsing_set;
-	return 0;
-
-err_nve_parsing_set:
-	mlxsw_sp->nve->inc_parsing_depth_refs--;
-	return err;
-}
-
-static void
-__mlxsw_sp_nve_inc_parsing_depth_put(struct mlxsw_sp *mlxsw_sp,
-				     __be16 udp_dport)
-{
-	mlxsw_sp->nve->inc_parsing_depth_refs--;
-	mlxsw_sp_nve_parsing_set(mlxsw_sp, udp_dport);
-}
-
-int mlxsw_sp_nve_inc_parsing_depth_get(struct mlxsw_sp *mlxsw_sp)
-{
-	__be16 udp_dport = mlxsw_sp->nve->config.udp_dport;
-
-	return __mlxsw_sp_nve_inc_parsing_depth_get(mlxsw_sp, udp_dport);
-}
-
-void mlxsw_sp_nve_inc_parsing_depth_put(struct mlxsw_sp *mlxsw_sp)
-{
-	__be16 udp_dport = mlxsw_sp->nve->config.udp_dport;
-
-	__mlxsw_sp_nve_inc_parsing_depth_put(mlxsw_sp, udp_dport);
 }
 
 static void
 mlxsw_sp_nve_vxlan_config_prepare(char *tngcr_pl,
 				  const struct mlxsw_sp_nve_config *config)
 {
+	struct in6_addr addr6;
 	u8 udp_sport;
 
 	mlxsw_reg_tngcr_pack(tngcr_pl, MLXSW_REG_TNGCR_TYPE_VXLAN, true,
@@ -178,7 +174,18 @@ mlxsw_sp_nve_vxlan_config_prepare(char *tngcr_pl,
 	get_random_bytes(&udp_sport, sizeof(udp_sport));
 	udp_sport = (udp_sport % (0xee - 0x80 + 1)) + 0x80;
 	mlxsw_reg_tngcr_nve_udp_sport_prefix_set(tngcr_pl, udp_sport);
-	mlxsw_reg_tngcr_usipv4_set(tngcr_pl, be32_to_cpu(config->ul_sip.addr4));
+
+	switch (config->ul_proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		mlxsw_reg_tngcr_usipv4_set(tngcr_pl,
+					   be32_to_cpu(config->ul_sip.addr4));
+		break;
+	case MLXSW_SP_L3_PROTO_IPV6:
+		addr6 = config->ul_sip.addr6;
+		mlxsw_reg_tngcr_usipv6_memcpy_to(tngcr_pl,
+						 (const char *)&addr6);
+		break;
+	}
 }
 
 static int
@@ -226,9 +233,13 @@ static int mlxsw_sp1_nve_vxlan_init(struct mlxsw_sp_nve *nve,
 	struct mlxsw_sp *mlxsw_sp = nve->mlxsw_sp;
 	int err;
 
-	err = __mlxsw_sp_nve_inc_parsing_depth_get(mlxsw_sp, config->udp_dport);
+	err = mlxsw_sp_parsing_vxlan_udp_dport_set(mlxsw_sp, config->udp_dport);
 	if (err)
 		return err;
+
+	err = mlxsw_sp_parsing_depth_inc(mlxsw_sp);
+	if (err)
+		goto err_parsing_depth_inc;
 
 	err = mlxsw_sp1_nve_vxlan_config_set(mlxsw_sp, config);
 	if (err)
@@ -251,7 +262,9 @@ err_promote_decap:
 err_rtdp_set:
 	mlxsw_sp1_nve_vxlan_config_clear(mlxsw_sp);
 err_config_set:
-	__mlxsw_sp_nve_inc_parsing_depth_put(mlxsw_sp, 0);
+	mlxsw_sp_parsing_depth_dec(mlxsw_sp);
+err_parsing_depth_inc:
+	mlxsw_sp_parsing_vxlan_udp_dport_set(mlxsw_sp, 0);
 	return err;
 }
 
@@ -263,7 +276,8 @@ static void mlxsw_sp1_nve_vxlan_fini(struct mlxsw_sp_nve *nve)
 	mlxsw_sp_router_nve_demote_decap(mlxsw_sp, config->ul_tb_id,
 					 config->ul_proto, &config->ul_sip);
 	mlxsw_sp1_nve_vxlan_config_clear(mlxsw_sp);
-	__mlxsw_sp_nve_inc_parsing_depth_put(mlxsw_sp, 0);
+	mlxsw_sp_parsing_depth_dec(mlxsw_sp);
+	mlxsw_sp_parsing_vxlan_udp_dport_set(mlxsw_sp, 0);
 }
 
 static int
@@ -286,7 +300,7 @@ mlxsw_sp_nve_vxlan_clear_offload(const struct net_device *nve_dev, __be32 vni)
 
 const struct mlxsw_sp_nve_ops mlxsw_sp1_nve_vxlan_ops = {
 	.type		= MLXSW_SP_NVE_TYPE_VXLAN,
-	.can_offload	= mlxsw_sp_nve_vxlan_can_offload,
+	.can_offload	= mlxsw_sp1_nve_vxlan_can_offload,
 	.nve_config	= mlxsw_sp_nve_vxlan_config,
 	.init		= mlxsw_sp1_nve_vxlan_init,
 	.fini		= mlxsw_sp1_nve_vxlan_fini,
@@ -299,9 +313,21 @@ static bool mlxsw_sp2_nve_vxlan_learning_set(struct mlxsw_sp *mlxsw_sp,
 {
 	char tnpc_pl[MLXSW_REG_TNPC_LEN];
 
-	mlxsw_reg_tnpc_pack(tnpc_pl, MLXSW_REG_TNPC_TUNNEL_PORT_NVE,
+	mlxsw_reg_tnpc_pack(tnpc_pl, MLXSW_REG_TUNNEL_PORT_NVE,
 			    learning_en);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tnpc), tnpc_pl);
+}
+
+static int
+mlxsw_sp2_nve_decap_ethertype_set(struct mlxsw_sp *mlxsw_sp)
+{
+	char spvid_pl[MLXSW_REG_SPVID_LEN] = {};
+
+	mlxsw_reg_spvid_tport_set(spvid_pl, true);
+	mlxsw_reg_spvid_local_port_set(spvid_pl,
+				       MLXSW_REG_TUNNEL_PORT_NVE);
+	mlxsw_reg_spvid_egr_et_set_set(spvid_pl, true);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvid), spvid_pl);
 }
 
 static int
@@ -309,6 +335,7 @@ mlxsw_sp2_nve_vxlan_config_set(struct mlxsw_sp *mlxsw_sp,
 			       const struct mlxsw_sp_nve_config *config)
 {
 	char tngcr_pl[MLXSW_REG_TNGCR_LEN];
+	char spvtr_pl[MLXSW_REG_SPVTR_LEN];
 	u16 ul_rif_index;
 	int err;
 
@@ -329,8 +356,25 @@ mlxsw_sp2_nve_vxlan_config_set(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_tngcr_write;
 
+	mlxsw_reg_spvtr_pack(spvtr_pl, true, MLXSW_REG_TUNNEL_PORT_NVE,
+			     MLXSW_REG_SPVTR_IPVID_MODE_ALWAYS_PUSH_VLAN);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvtr), spvtr_pl);
+	if (err)
+		goto err_spvtr_write;
+
+	err = mlxsw_sp2_nve_decap_ethertype_set(mlxsw_sp);
+	if (err)
+		goto err_decap_ethertype_set;
+
 	return 0;
 
+err_decap_ethertype_set:
+	mlxsw_reg_spvtr_pack(spvtr_pl, true, MLXSW_REG_TUNNEL_PORT_NVE,
+			     MLXSW_REG_SPVTR_IPVID_MODE_IEEE_COMPLIANT_PVID);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvtr), spvtr_pl);
+err_spvtr_write:
+	mlxsw_reg_tngcr_pack(tngcr_pl, MLXSW_REG_TNGCR_TYPE_VXLAN, false, 0);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tngcr), tngcr_pl);
 err_tngcr_write:
 	mlxsw_sp2_nve_vxlan_learning_set(mlxsw_sp, false);
 err_vxlan_learning_set:
@@ -340,8 +384,12 @@ err_vxlan_learning_set:
 
 static void mlxsw_sp2_nve_vxlan_config_clear(struct mlxsw_sp *mlxsw_sp)
 {
+	char spvtr_pl[MLXSW_REG_SPVTR_LEN];
 	char tngcr_pl[MLXSW_REG_TNGCR_LEN];
 
+	mlxsw_reg_spvtr_pack(spvtr_pl, true, MLXSW_REG_TUNNEL_PORT_NVE,
+			     MLXSW_REG_SPVTR_IPVID_MODE_IEEE_COMPLIANT_PVID);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvtr), spvtr_pl);
 	mlxsw_reg_tngcr_pack(tngcr_pl, MLXSW_REG_TNGCR_TYPE_VXLAN, false, 0);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tngcr), tngcr_pl);
 	mlxsw_sp2_nve_vxlan_learning_set(mlxsw_sp, false);
@@ -366,9 +414,13 @@ static int mlxsw_sp2_nve_vxlan_init(struct mlxsw_sp_nve *nve,
 	struct mlxsw_sp *mlxsw_sp = nve->mlxsw_sp;
 	int err;
 
-	err = __mlxsw_sp_nve_inc_parsing_depth_get(mlxsw_sp, config->udp_dport);
+	err = mlxsw_sp_parsing_vxlan_udp_dport_set(mlxsw_sp, config->udp_dport);
 	if (err)
 		return err;
+
+	err = mlxsw_sp_parsing_depth_inc(mlxsw_sp);
+	if (err)
+		goto err_parsing_depth_inc;
 
 	err = mlxsw_sp2_nve_vxlan_config_set(mlxsw_sp, config);
 	if (err)
@@ -392,7 +444,9 @@ err_promote_decap:
 err_rtdp_set:
 	mlxsw_sp2_nve_vxlan_config_clear(mlxsw_sp);
 err_config_set:
-	__mlxsw_sp_nve_inc_parsing_depth_put(mlxsw_sp, 0);
+	mlxsw_sp_parsing_depth_dec(mlxsw_sp);
+err_parsing_depth_inc:
+	mlxsw_sp_parsing_vxlan_udp_dport_set(mlxsw_sp, 0);
 	return err;
 }
 
@@ -404,7 +458,8 @@ static void mlxsw_sp2_nve_vxlan_fini(struct mlxsw_sp_nve *nve)
 	mlxsw_sp_router_nve_demote_decap(mlxsw_sp, config->ul_tb_id,
 					 config->ul_proto, &config->ul_sip);
 	mlxsw_sp2_nve_vxlan_config_clear(mlxsw_sp);
-	__mlxsw_sp_nve_inc_parsing_depth_put(mlxsw_sp, 0);
+	mlxsw_sp_parsing_depth_dec(mlxsw_sp);
+	mlxsw_sp_parsing_vxlan_udp_dport_set(mlxsw_sp, 0);
 }
 
 const struct mlxsw_sp_nve_ops mlxsw_sp2_nve_vxlan_ops = {

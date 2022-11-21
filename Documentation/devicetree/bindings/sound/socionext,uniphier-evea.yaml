@@ -40,11 +40,13 @@ properties:
 
 patternProperties:
   "^port@[0-9]$":
-    type: object
-    properties:
-      endpoint: true
-    required:
-      - endpoint
+    description: |
+      Port number of DT node is specified by the following DAI channels.
+        0: line1
+        1: hp
+        2: line2
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
 
 additionalProperties: false
 

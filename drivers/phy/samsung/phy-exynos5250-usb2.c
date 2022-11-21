@@ -117,9 +117,9 @@
 
 /* Isolation, configured in the power management unit */
 #define EXYNOS_5250_USB_ISOL_OTG_OFFSET		0x704
-#define EXYNOS_5250_USB_ISOL_OTG		BIT(0)
 #define EXYNOS_5250_USB_ISOL_HOST_OFFSET	0x708
-#define EXYNOS_5250_USB_ISOL_HOST		BIT(0)
+#define EXYNOS_5420_USB_ISOL_HOST_OFFSET	0x70C
+#define EXYNOS_5250_USB_ISOL_ENABLE		BIT(0)
 
 /* Mode swtich register */
 #define EXYNOS_5250_MODE_SWITCH_OFFSET		0x230
@@ -132,7 +132,6 @@ enum exynos4x12_phy_id {
 	EXYNOS5250_HOST,
 	EXYNOS5250_HSIC0,
 	EXYNOS5250_HSIC1,
-	EXYNOS5250_NUM_PHYS,
 };
 
 /*
@@ -176,20 +175,19 @@ static void exynos5250_isol(struct samsung_usb2_phy_instance *inst, bool on)
 {
 	struct samsung_usb2_phy_driver *drv = inst->drv;
 	u32 offset;
-	u32 mask;
+	u32 mask = EXYNOS_5250_USB_ISOL_ENABLE;
 
-	switch (inst->cfg->id) {
-	case EXYNOS5250_DEVICE:
+	if (drv->cfg == &exynos5250_usb2_phy_config &&
+	    inst->cfg->id == EXYNOS5250_DEVICE)
 		offset = EXYNOS_5250_USB_ISOL_OTG_OFFSET;
-		mask = EXYNOS_5250_USB_ISOL_OTG;
-		break;
-	case EXYNOS5250_HOST:
+	else if (drv->cfg == &exynos5250_usb2_phy_config &&
+		 inst->cfg->id == EXYNOS5250_HOST)
 		offset = EXYNOS_5250_USB_ISOL_HOST_OFFSET;
-		mask = EXYNOS_5250_USB_ISOL_HOST;
-		break;
-	default:
+	else if (drv->cfg == &exynos5420_usb2_phy_config &&
+		 inst->cfg->id == EXYNOS5250_HOST)
+		offset = EXYNOS_5420_USB_ISOL_HOST_OFFSET;
+	else
 		return;
-	}
 
 	regmap_update_bits(drv->reg_pmu, offset, mask, on ? 0 : mask);
 }
@@ -390,9 +388,31 @@ static const struct samsung_usb2_common_phy exynos5250_phys[] = {
 	},
 };
 
+static const struct samsung_usb2_common_phy exynos5420_phys[] = {
+	{
+		.label		= "host",
+		.id		= EXYNOS5250_HOST,
+		.power_on	= exynos5250_power_on,
+		.power_off	= exynos5250_power_off,
+	},
+	{
+		.label		= "hsic",
+		.id		= EXYNOS5250_HSIC0,
+		.power_on	= exynos5250_power_on,
+		.power_off	= exynos5250_power_off,
+	},
+};
+
 const struct samsung_usb2_phy_config exynos5250_usb2_phy_config = {
 	.has_mode_switch	= 1,
-	.num_phys		= EXYNOS5250_NUM_PHYS,
+	.num_phys		= ARRAY_SIZE(exynos5250_phys),
 	.phys			= exynos5250_phys,
+	.rate_to_clk		= exynos5250_rate_to_clk,
+};
+
+const struct samsung_usb2_phy_config exynos5420_usb2_phy_config = {
+	.has_mode_switch	= 1,
+	.num_phys		= ARRAY_SIZE(exynos5420_phys),
+	.phys			= exynos5420_phys,
 	.rate_to_clk		= exynos5250_rate_to_clk,
 };

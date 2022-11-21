@@ -186,9 +186,7 @@ static int pa12203001_set_power_state(struct pa12203001_data *data, bool on,
 	}
 
 	if (on) {
-		ret = pm_runtime_get_sync(&data->client->dev);
-		if (ret < 0)
-			pm_runtime_put_noidle(&data->client->dev);
+		ret = pm_runtime_resume_and_get(&data->client->dev);
 
 	} else {
 		pm_runtime_mark_last_busy(&data->client->dev);
@@ -454,14 +452,14 @@ static const struct dev_pm_ops pa12203001_pm_ops = {
 };
 
 static const struct acpi_device_id pa12203001_acpi_match[] = {
-	{ "TXCPA122", 0},
+	{ "TXCPA122", 0 },
 	{}
 };
 
 MODULE_DEVICE_TABLE(acpi, pa12203001_acpi_match);
 
 static const struct i2c_device_id pa12203001_id[] = {
-		{"txcpa122", 0},
+		{ "txcpa122", 0 },
 		{}
 };
 

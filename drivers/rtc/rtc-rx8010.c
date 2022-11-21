@@ -55,7 +55,7 @@ static const struct i2c_device_id rx8010_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rx8010_id);
 
-static const struct of_device_id rx8010_of_match[] = {
+static const __maybe_unused struct of_device_id rx8010_of_match[] = {
 	{ .compatible = "epson,rx8010" },
 	{ }
 };
@@ -73,11 +73,11 @@ static irqreturn_t rx8010_irq_1_handler(int irq, void *dev_id)
 	struct rx8010_data *rx8010 = i2c_get_clientdata(client);
 	int flagreg, err;
 
-	mutex_lock(&rx8010->rtc->ops_lock);
+	rtc_lock(rx8010->rtc);
 
 	err = regmap_read(rx8010->regs, RX8010_FLAG, &flagreg);
 	if (err) {
-		mutex_unlock(&rx8010->rtc->ops_lock);
+		rtc_unlock(rx8010->rtc);
 		return IRQ_NONE;
 	}
 
@@ -100,7 +100,7 @@ static irqreturn_t rx8010_irq_1_handler(int irq, void *dev_id)
 	}
 
 	err = regmap_write(rx8010->regs, RX8010_FLAG, flagreg);
-	mutex_unlock(&rx8010->rtc->ops_lock);
+	rtc_unlock(rx8010->rtc);
 	return err ? IRQ_NONE : IRQ_HANDLED;
 }
 
@@ -354,13 +354,7 @@ static int rx8010_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	}
 }
 
-static const struct rtc_class_ops rx8010_rtc_ops_default = {
-	.read_time = rx8010_get_time,
-	.set_time = rx8010_set_time,
-	.ioctl = rx8010_ioctl,
-};
-
-static const struct rtc_class_ops rx8010_rtc_ops_alarm = {
+static const struct rtc_class_ops rx8010_rtc_ops = {
 	.read_time = rx8010_get_time,
 	.set_time = rx8010_set_time,
 	.ioctl = rx8010_ioctl,
@@ -409,17 +403,16 @@ static int rx8010_probe(struct i2c_client *client)
 			dev_err(dev, "unable to request IRQ\n");
 			return err;
 		}
-
-		rx8010->rtc->ops = &rx8010_rtc_ops_alarm;
 	} else {
-		rx8010->rtc->ops = &rx8010_rtc_ops_default;
+		clear_bit(RTC_FEATURE_ALARM, rx8010->rtc->features);
 	}
 
+	rx8010->rtc->ops = &rx8010_rtc_ops;
 	rx8010->rtc->max_user_freq = 1;
 	rx8010->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rx8010->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
-	return rtc_register_device(rx8010->rtc);
+	return devm_rtc_register_device(rx8010->rtc);
 }
 
 static struct i2c_driver rx8010_driver = {

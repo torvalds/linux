@@ -5,41 +5,59 @@
 #include <linux/bpf.h>
 #include <linux/stddef.h>
 #include <linux/pkt_cls.h>
+#include <linux/if_ether.h>
+#include <linux/ip.h>
 
 #include <bpf/bpf_helpers.h>
 
-enum {
-	dev_src,
-	dev_dst,
-};
+volatile const __u32 IFINDEX_SRC;
+volatile const __u32 IFINDEX_DST;
 
-struct bpf_map_def SEC("maps") ifindex_map = {
-	.type		= BPF_MAP_TYPE_ARRAY,
-	.key_size	= sizeof(int),
-	.value_size	= sizeof(int),
-	.max_entries	= 2,
-};
+static const __u8 src_mac[] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
+static const __u8 dst_mac[] = {0x00, 0x22, 0x33, 0x44, 0x55, 0x66};
 
-static __always_inline int get_dev_ifindex(int which)
-{
-	int *ifindex = bpf_map_lookup_elem(&ifindex_map, &which);
-
-	return ifindex ? *ifindex : 0;
-}
-
-SEC("chk_egress") int tc_chk(struct __sk_buff *skb)
+SEC("tc")
+int tc_chk(struct __sk_buff *skb)
 {
 	return TC_ACT_SHOT;
 }
 
-SEC("dst_ingress") int tc_dst(struct __sk_buff *skb)
+SEC("tc")
+int tc_dst(struct __sk_buff *skb)
 {
-	return bpf_redirect_peer(get_dev_ifindex(dev_src), 0);
+	return bpf_redirect_peer(IFINDEX_SRC, 0);
 }
 
-SEC("src_ingress") int tc_src(struct __sk_buff *skb)
+SEC("tc")
+int tc_src(struct __sk_buff *skb)
 {
-	return bpf_redirect_peer(get_dev_ifindex(dev_dst), 0);
+	return bpf_redirect_peer(IFINDEX_DST, 0);
+}
+
+SEC("tc")
+int tc_dst_l3(struct __sk_buff *skb)
+{
+	return bpf_redirect(IFINDEX_SRC, 0);
+}
+
+SEC("tc")
+int tc_src_l3(struct __sk_buff *skb)
+{
+	__u16 proto = skb->protocol;
+
+	if (bpf_skb_change_head(skb, ETH_HLEN, 0) != 0)
+		return TC_ACT_SHOT;
+
+	if (bpf_skb_store_bytes(skb, 0, &src_mac, ETH_ALEN, 0) != 0)
+		return TC_ACT_SHOT;
+
+	if (bpf_skb_store_bytes(skb, ETH_ALEN, &dst_mac, ETH_ALEN, 0) != 0)
+		return TC_ACT_SHOT;
+
+	if (bpf_skb_store_bytes(skb, ETH_ALEN + ETH_ALEN, &proto, sizeof(__u16), 0) != 0)
+		return TC_ACT_SHOT;
+
+	return bpf_redirect_peer(IFINDEX_DST, 0);
 }
 
 char __license[] SEC("license") = "GPL";

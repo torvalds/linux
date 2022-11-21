@@ -8,6 +8,17 @@
 #ifndef _MESH_H
 #define _MESH_H
 
+struct mesh_cmd_priv {
+	int this_residual;
+	int message;
+	int status;
+};
+
+static inline struct mesh_cmd_priv *mesh_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
+
 /*
  * Registers in the MESH controller.
  */

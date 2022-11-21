@@ -9,32 +9,24 @@ perf-ftrace - simple wrapper for kernel's ftrace functionality
 SYNOPSIS
 --------
 [verse]
-'perf ftrace' <command>
+'perf ftrace' {trace|latency} <command>
 
 DESCRIPTION
 -----------
-The 'perf ftrace' command is a simple wrapper of kernel's ftrace
-functionality.  It only supports single thread tracing currently and
-just reads trace_pipe in text and then write it to stdout.
+The 'perf ftrace' command provides a collection of subcommands which use
+kernel's ftrace infrastructure.
+
+  'perf ftrace trace' is a simple wrapper of the ftrace.  It only supports
+  single thread tracing currently and just reads trace_pipe in text and then
+  write it to stdout.
+
+  'perf ftrace latency' calculates execution latency of a given function
+  (optionally with BPF) and display it as a histogram.
 
 The following options apply to perf ftrace.
 
-OPTIONS
--------
-
--t::
---tracer=::
-	Tracer to use when neither -G nor -F option is not
-	specified: function_graph or function.
-
--v::
---verbose=::
-        Verbosity level.
-
--F::
---funcs::
-        List available functions to trace. It accepts a pattern to
-        only list interested functions.
+COMMON OPTIONS
+--------------
 
 -p::
 --pid=::
@@ -42,10 +34,6 @@ OPTIONS
 
 --tid=::
 	Trace on existing thread id (comma separated list).
-
--D::
---delay::
-	Time (ms) to wait before starting tracing after program start.
 
 -a::
 --all-cpus::
@@ -60,6 +48,28 @@ OPTIONS
 	be provided as a comma separated list with no space like: 0,1.
 	Ranges of CPUs are specified with -: 0-2.
 	Default is to trace on all online CPUs.
+
+-v::
+--verbose::
+        Increase the verbosity level.
+
+
+OPTIONS for 'perf ftrace trace'
+-------------------------------
+
+-t::
+--tracer=::
+	Tracer to use when neither -G nor -F option is not
+	specified: function_graph or function.
+
+-F::
+--funcs::
+        List available functions to trace. It accepts a pattern to
+        only list interested functions.
+
+-D::
+--delay::
+	Time (ms) to wait before starting tracing after program start.
 
 -m::
 --buffer-size::
@@ -113,6 +123,25 @@ OPTIONS
 	  verbose      - Show process names, PIDs, timestamps, etc.
 	  thresh=<n>   - Setup trace duration threshold in microseconds.
 	  depth=<n>    - Set max depth for function graph tracer to follow.
+
+
+OPTIONS for 'perf ftrace latency'
+---------------------------------
+
+-T::
+--trace-funcs=::
+	Set the function name to get the histogram.  Unlike perf ftrace trace,
+	it only allows single function to calculate the histogram.
+
+-b::
+--use-bpf::
+	Use BPF to measure function latency instead of using the ftrace (it
+	uses function_graph tracer internally).
+
+-n::
+--use-nsec::
+	Use nano-second instead of micro-second as a base unit of the histogram.
+
 
 SEE ALSO
 --------

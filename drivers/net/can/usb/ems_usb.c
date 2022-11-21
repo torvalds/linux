@@ -230,7 +230,6 @@ struct ems_tx_urb_context {
 	struct ems_usb *dev;
 
 	u32 echo_index;
-	u8 dlc;
 };
 
 struct ems_usb {
@@ -255,6 +254,8 @@ struct ems_usb {
 	unsigned int free_slots; /* remember number of available slots */
 
 	struct ems_cpc_msg active_params; /* active controller parameters */
+	void *rxbuf[MAX_RX_URBS];
+	dma_addr_t rxbuf_dma[MAX_RX_URBS];
 };
 
 static void ems_usb_read_interrupt_callback(struct urb *urb)
@@ -306,7 +307,7 @@ static void ems_usb_rx_can_msg(struct ems_usb *dev, struct ems_cpc_msg *msg)
 		return;
 
 	cf->can_id = le32_to_cpu(msg->msg.can_msg.id);
-	cf->can_dlc = get_can_dlc(msg->msg.can_msg.length & 0xF);
+	cf->len = can_cc_dlc2len(msg->msg.can_msg.length & 0xF);
 
 	if (msg->type == CPC_MSG_TYPE_EXT_CAN_FRAME ||
 	    msg->type == CPC_MSG_TYPE_EXT_RTR_FRAME)
@@ -316,12 +317,13 @@ static void ems_usb_rx_can_msg(struct ems_usb *dev, struct ems_cpc_msg *msg)
 	    msg->type == CPC_MSG_TYPE_EXT_RTR_FRAME) {
 		cf->can_id |= CAN_RTR_FLAG;
 	} else {
-		for (i = 0; i < cf->can_dlc; i++)
+		for (i = 0; i < cf->len; i++)
 			cf->data[i] = msg->msg.can_msg.msg[i];
-	}
 
+		stats->rx_bytes += cf->len;
+	}
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+
 	netif_rx(skb);
 }
 
@@ -395,8 +397,6 @@ static void ems_usb_rx_err(struct ems_usb *dev, struct ems_cpc_msg *msg)
 		stats->rx_errors++;
 	}
 
-	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
 	netif_rx(skb);
 }
 
@@ -516,9 +516,8 @@ static void ems_usb_write_bulk_callback(struct urb *urb)
 
 	/* transmission complete interrupt */
 	netdev->stats.tx_packets++;
-	netdev->stats.tx_bytes += context->dlc;
-
-	can_get_echo_skb(netdev, context->echo_index);
+	netdev->stats.tx_bytes += can_get_echo_skb(netdev, context->echo_index,
+						   NULL);
 
 	/* Release context */
 	context->echo_index = MAX_TX_URBS;
@@ -587,6 +586,7 @@ static int ems_usb_start(struct ems_usb *dev)
 	for (i = 0; i < MAX_RX_URBS; i++) {
 		struct urb *urb = NULL;
 		u8 *buf = NULL;
+		dma_addr_t buf_dma;
 
 		/* create a URB, and a buffer for it */
 		urb = usb_alloc_urb(0, GFP_KERNEL);
@@ -596,13 +596,15 @@ static int ems_usb_start(struct ems_usb *dev)
 		}
 
 		buf = usb_alloc_coherent(dev->udev, RX_BUFFER_SIZE, GFP_KERNEL,
-					 &urb->transfer_dma);
+					 &buf_dma);
 		if (!buf) {
 			netdev_err(netdev, "No memory left for USB buffer\n");
 			usb_free_urb(urb);
 			err = -ENOMEM;
 			break;
 		}
+
+		urb->transfer_dma = buf_dma;
 
 		usb_fill_bulk_urb(urb, dev->udev, usb_rcvbulkpipe(dev->udev, 2),
 				  buf, RX_BUFFER_SIZE,
@@ -618,6 +620,9 @@ static int ems_usb_start(struct ems_usb *dev)
 			usb_free_urb(urb);
 			break;
 		}
+
+		dev->rxbuf[i] = buf;
+		dev->rxbuf_dma[i] = buf_dma;
 
 		/* Drop reference, USB core will take care of freeing it */
 		usb_free_urb(urb);
@@ -683,6 +688,10 @@ static void unlink_all_urbs(struct ems_usb *dev)
 	usb_unlink_urb(dev->intr_urb);
 
 	usb_kill_anchored_urbs(&dev->rx_submitted);
+
+	for (i = 0; i < MAX_RX_URBS; ++i)
+		usb_free_coherent(dev->udev, RX_BUFFER_SIZE,
+				  dev->rxbuf[i], dev->rxbuf_dma[i]);
 
 	usb_kill_anchored_urbs(&dev->tx_submitted);
 	atomic_set(&dev->active_tx_urbs, 0);
@@ -755,7 +764,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 	msg = (struct ems_cpc_msg *)&buf[CPC_HEADER_SIZE];
 
 	msg->msg.can_msg.id = cpu_to_le32(cf->can_id & CAN_ERR_MASK);
-	msg->msg.can_msg.length = cf->can_dlc;
+	msg->msg.can_msg.length = cf->len;
 
 	if (cf->can_id & CAN_RTR_FLAG) {
 		msg->type = cf->can_id & CAN_EFF_FLAG ?
@@ -766,10 +775,10 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 		msg->type = cf->can_id & CAN_EFF_FLAG ?
 			CPC_CMD_TYPE_EXT_CAN_FRAME : CPC_CMD_TYPE_CAN_FRAME;
 
-		for (i = 0; i < cf->can_dlc; i++)
+		for (i = 0; i < cf->len; i++)
 			msg->msg.can_msg.msg[i] = cf->data[i];
 
-		msg->length = CPC_CAN_MSG_MIN_SIZE + cf->can_dlc;
+		msg->length = CPC_CAN_MSG_MIN_SIZE + cf->len;
 	}
 
 	for (i = 0; i < MAX_TX_URBS; i++) {
@@ -794,24 +803,22 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 
 	context->dev = dev;
 	context->echo_index = i;
-	context->dlc = cf->can_dlc;
 
 	usb_fill_bulk_urb(urb, dev->udev, usb_sndbulkpipe(dev->udev, 2), buf,
 			  size, ems_usb_write_bulk_callback, context);
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	usb_anchor_urb(urb, &dev->tx_submitted);
 
-	can_put_echo_skb(skb, netdev, context->echo_index);
+	can_put_echo_skb(skb, netdev, context->echo_index, 0);
 
 	atomic_inc(&dev->active_tx_urbs);
 
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (unlikely(err)) {
-		can_free_echo_skb(netdev, context->echo_index);
+		can_free_echo_skb(netdev, context->echo_index, NULL);
 
 		usb_unanchor_urb(urb);
 		usb_free_coherent(dev->udev, size, buf, urb->transfer_dma);
-		dev_kfree_skb(skb);
 
 		atomic_dec(&dev->active_tx_urbs);
 
@@ -1053,7 +1060,6 @@ static void ems_usb_disconnect(struct usb_interface *intf)
 
 	if (dev) {
 		unregister_netdev(dev->netdev);
-		free_candev(dev->netdev);
 
 		unlink_all_urbs(dev);
 
@@ -1061,6 +1067,8 @@ static void ems_usb_disconnect(struct usb_interface *intf)
 
 		kfree(dev->intr_in_buffer);
 		kfree(dev->tx_msg_buffer);
+
+		free_candev(dev->netdev);
 	}
 }
 

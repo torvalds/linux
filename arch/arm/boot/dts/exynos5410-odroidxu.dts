@@ -19,6 +19,10 @@
 	model = "Hardkernel Odroid XU";
 	compatible = "hardkernel,odroid-xu", "samsung,exynos5410", "samsung,exynos5";
 
+	aliases {
+		ethernet = &ethernet;
+	};
+
 	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0x7ea00000>;
@@ -184,8 +188,8 @@
 		interrupt-parent = <&gpx0>;
 		interrupts = <4 IRQ_TYPE_NONE>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&max77802_irq>, <&pmic_dvs_1>, <&pmic_dvs_2>,
-			    <&pmic_dvs_3>;
+		pinctrl-0 = <&max77802_irq>, <&pmic_dvs_1>, <&pmic_dvs_2>;
+		wakeup-source;
 		#clock-cells = <1>;
 
 		inl1-supply = <&buck5_reg>;
@@ -327,6 +331,8 @@
 				regulator-name = "vddq_lcd";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
+				/* Supplies also GPK and GPJ */
+				regulator-always-on;
 			};
 
 			ldo8_reg: LDO8 {
@@ -387,10 +393,6 @@
 				regulator-always-on;
 			};
 
-			ldo16_reg: LDO16 {
-				regulator-name = "ldo16";
-			};
-
 			ldo17_reg: LDO17 {
 				regulator-name = "cam_sensor_core";
 				regulator-min-microvolt = <1200000>;
@@ -418,10 +420,6 @@
 				regulator-name = "vddf_2v8";
 				regulator-min-microvolt = <2850000>;
 				regulator-max-microvolt = <2850000>;
-			};
-
-			ldo22_reg: LDO22 {
-				regulator-name = "ldo22";
 			};
 
 			ldo23_reg: LDO23 {
@@ -470,10 +468,6 @@
 				regulator-always-on;
 			};
 
-			ldo31_reg: LDO31 {
-				regulator-name = "ldo31";
-			};
-
 			/* On revisions with ti,ina231 this is sensor VS */
 			ldo32_reg: LDO32 {
 				regulator-name = "vs_power_meter";
@@ -498,7 +492,7 @@
 
 &i2c_1 {
 	status = "okay";
-	max98090: max98090@10 {
+	max98090: audio-codec@10 {
 		compatible = "maxim,max98090";
 		reg = <0x10>;
 		interrupt-parent = <&gpj3>;
@@ -541,14 +535,14 @@
 };
 
 &pinctrl_0 {
-	emmc_nrst_pin: emmc-nrst {
+	emmc_nrst_pin: emmc-nrst-pins {
 		samsung,pins = "gpd1-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 
-	sd2_wp: sd2-wp {
+	sd2_wp: sd2-wp-pins {
 		samsung,pins = "gpm5-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		/* Pin is floating so be sure to disable write-protect */
@@ -556,21 +550,14 @@
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV4>;
 	};
 
-	pmic_dvs_3: pmic-dvs-3 {
-		samsung,pins = "gpx0-0";
+	pmic_dvs_2: pmic-dvs-2-pins {
+		samsung,pins = "gpx0-0", "gpx0-1";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 
-	pmic_dvs_2: pmic-dvs-2 {
-		samsung,pins = "gpx0-1";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
-	};
-
-	pmic_dvs_1: pmic-dvs-1 {
+	pmic_dvs_1: pmic-dvs-1-pins {
 		samsung,pins = "gpx0-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -578,7 +565,7 @@
 		samsung,pin-val = <1>;
 	};
 
-	max77802_irq: max77802-irq {
+	max77802_irq: max77802-irq-pins {
 		samsung,pins = "gpx0-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -636,12 +623,22 @@
 	vtmu-supply = <&ldo10_reg>;
 };
 
+&usb3_0_oc {
+	/* External pull up */
+	samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+};
+
+&usb3_1_oc {
+	/* External pull up */
+	samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+};
+
 &usbdrd_dwc3_0 {
-	dr_mode = "host";
+	dr_mode = "peripheral";
 };
 
 &usbdrd_dwc3_1 {
-	dr_mode = "peripheral";
+	dr_mode = "host";
 };
 
 &usbdrd3_0 {
@@ -652,4 +649,15 @@
 &usbdrd3_1 {
 	vdd33-supply = <&ldo12_reg>;
 	vdd10-supply = <&ldo15_reg>;
+};
+
+&usbhost2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	ethernet: usbether@2 {
+		compatible = "usb0424,9730";
+		reg = <2>;
+		local-mac-address = [00 00 00 00 00 00]; /* Filled in by a bootloader */
+	};
 };

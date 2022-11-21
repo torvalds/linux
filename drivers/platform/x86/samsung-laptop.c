@@ -152,7 +152,7 @@ struct sabi_config {
 
 static const struct sabi_config sabi_configs[] = {
 	{
-		/* I don't know if it is really 2, but it it is
+		/* I don't know if it is really 2, but it is
 		 * less than 3 anyway */
 		.sabi_version = 2,
 
@@ -388,7 +388,7 @@ MODULE_PARM_DESC(force,
 		"Disable the DMI check and forces the driver to be loaded");
 
 static bool debug;
-module_param(debug, bool, S_IRUGO | S_IWUSR);
+module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
 
 static int sabi_command(struct samsung_laptop *samsung, u16 command,
@@ -705,7 +705,7 @@ static ssize_t set_performance_level(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(performance_level, S_IWUSR | S_IRUGO,
+static DEVICE_ATTR(performance_level, 0644,
 		   get_performance_level, set_performance_level);
 
 static int read_battery_life_extender(struct samsung_laptop *samsung)
@@ -774,7 +774,7 @@ static ssize_t set_battery_life_extender(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(battery_life_extender, S_IWUSR | S_IRUGO,
+static DEVICE_ATTR(battery_life_extender, 0644,
 		   get_battery_life_extender, set_battery_life_extender);
 
 static int read_usb_charge(struct samsung_laptop *samsung)
@@ -843,7 +843,7 @@ static ssize_t set_usb_charge(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(usb_charge, S_IWUSR | S_IRUGO,
+static DEVICE_ATTR(usb_charge, 0644,
 		   get_usb_charge, set_usb_charge);
 
 static int read_lid_handling(struct samsung_laptop *samsung)
@@ -908,7 +908,7 @@ static ssize_t set_lid_handling(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(lid_handling, S_IWUSR | S_IRUGO,
+static DEVICE_ATTR(lid_handling, 0644,
 		   get_lid_handling, set_lid_handling);
 
 static struct attribute *platform_attributes[] = {
@@ -1121,8 +1121,6 @@ static void kbd_led_set(struct led_classdev *led_cdev,
 
 	if (value > samsung->kbd_led.max_brightness)
 		value = samsung->kbd_led.max_brightness;
-	else if (value < 0)
-		value = 0;
 
 	samsung->kbd_led_wk = value;
 	queue_work(samsung->led_workqueue, &samsung->kbd_led_work);
@@ -1291,24 +1289,17 @@ static void samsung_debugfs_init(struct samsung_laptop *samsung)
 	samsung->debug.sdiag_wrapper.data = samsung->sdiag;
 	samsung->debug.sdiag_wrapper.size = strlen(samsung->sdiag);
 
-	debugfs_create_u16("command", S_IRUGO | S_IWUSR, root,
-			   &samsung->debug.command);
-	debugfs_create_u32("d0", S_IRUGO | S_IWUSR, root,
-			   &samsung->debug.data.d0);
-	debugfs_create_u32("d1", S_IRUGO | S_IWUSR, root,
-			   &samsung->debug.data.d1);
-	debugfs_create_u16("d2", S_IRUGO | S_IWUSR, root,
-			   &samsung->debug.data.d2);
-	debugfs_create_u8("d3", S_IRUGO | S_IWUSR, root,
-			  &samsung->debug.data.d3);
-	debugfs_create_blob("data", S_IRUGO | S_IWUSR, root,
-			    &samsung->debug.data_wrapper);
-	debugfs_create_blob("f0000_segment", S_IRUSR | S_IWUSR, root,
+	debugfs_create_u16("command", 0644, root, &samsung->debug.command);
+	debugfs_create_u32("d0", 0644, root, &samsung->debug.data.d0);
+	debugfs_create_u32("d1", 0644, root, &samsung->debug.data.d1);
+	debugfs_create_u16("d2", 0644, root, &samsung->debug.data.d2);
+	debugfs_create_u8("d3", 0644, root, &samsung->debug.data.d3);
+	debugfs_create_blob("data", 0444, root, &samsung->debug.data_wrapper);
+	debugfs_create_blob("f0000_segment", 0400, root,
 			    &samsung->debug.f0000_wrapper);
-	debugfs_create_file("call", S_IFREG | S_IRUGO, root, samsung,
+	debugfs_create_file("call", 0444, root, samsung,
 			    &samsung_laptop_call_fops);
-	debugfs_create_blob("sdiag", S_IRUGO | S_IWUSR, root,
-			    &samsung->debug.sdiag_wrapper);
+	debugfs_create_blob("sdiag", 0444, root, &samsung->debug.sdiag_wrapper);
 }
 
 static void samsung_sabi_exit(struct samsung_laptop *samsung)

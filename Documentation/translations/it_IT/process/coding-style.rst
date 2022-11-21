@@ -62,7 +62,7 @@ i ``case``.  Un esempio.:
 	case 'K':
 	case 'k':
 		mem <<= 10;
-		/* fall through */
+		fallthrough;
 	default:
 		break;
 	}
@@ -75,8 +75,25 @@ stessa riga:
 	if (condition) do_this;
 	  do_something_everytime;
 
-né mettete più assegnamenti sulla stessa riga.  Lo stile del kernel
+Non usate le virgole per evitare le parentesi:
+
+.. code-block:: c
+
+	if (condition)
+               do_this(), do_that();
+
+Invece, usate sempre le parentesi per racchiudere più istruzioni.
+
+.. code-block:: c
+
+	if (condition) {
+               do_this();
+               do_that();
+       }
+
+Non mettete nemmeno più assegnamenti sulla stessa riga.  Lo stile del kernel
 è ultrasemplice.  Evitate espressioni intricate.
+
 
 Al di fuori dei commenti, della documentazione ed escludendo i Kconfig, gli
 spazi non vengono mai usati per l'indentazione, e l'esempio qui sopra è
@@ -92,16 +109,22 @@ delle righe.
 Lo stile del codice riguarda la leggibilità e la manutenibilità utilizzando
 strumenti comuni.
 
-Il limite delle righe è di 80 colonne e questo e un limite fortemente
-desiderato.
+Come limite di riga si preferiscono le 80 colonne.
 
-Espressioni più lunghe di 80 colonne saranno spezzettate in pezzi più piccoli,
-a meno che eccedere le 80 colonne non aiuti ad aumentare la leggibilità senza
-nascondere informazioni.  I pezzi derivati sono sostanzialmente più corti degli
-originali e vengono posizionati più a destra.  Lo stesso si applica, nei file
-d'intestazione, alle funzioni con una lista di argomenti molto lunga. Tuttavia,
-non spezzettate mai le stringhe visibili agli utenti come i messaggi di
-printk, questo perché inibireste la possibilità d'utilizzare grep per cercarle.
+Espressioni più lunghe di 80 colonne dovrebbero essere spezzettate in
+pezzi più piccoli, a meno che eccedere le 80 colonne non aiuti ad
+aumentare la leggibilità senza nascondere informazioni.
+
+I nuovi pezzi derivati sono sostanzialmente più corti degli originali
+e vengono posizionati più a destra. Uno stile molto comune è quello di
+allineare i nuovi pezzi alla parentesi aperta di una funzione.
+
+Lo stesso si applica, nei file d'intestazione, alle funzioni con una
+lista di argomenti molto lunga.
+
+Tuttavia, non spezzettate mai le stringhe visibili agli utenti come i
+messaggi di printk, questo perché inibireste la possibilità
+d'utilizzare grep per cercarle.
 
 3) Posizionamento di parentesi graffe e spazi
 ---------------------------------------------
@@ -314,8 +337,7 @@ qualcosa di simile, **non** dovreste chiamarla ``cntusr()``.
 
 Codificare il tipo di funzione nel suo nome (quella cosa chiamata notazione
 ungherese) è stupido - il compilatore conosce comunque il tipo e
-può verificarli, e inoltre confonde i programmatori.  Non c'è da
-sorprendersi che MicroSoft faccia programmi bacati.
+può verificarli, e inoltre confonde i programmatori.
 
 Le variabili LOCALI dovrebbero avere nomi corti, e significativi.  Se avete
 un qualsiasi contatore di ciclo, probabilmente sarà chiamato ``i``.

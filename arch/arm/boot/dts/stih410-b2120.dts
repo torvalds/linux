@@ -11,7 +11,6 @@
 	compatible = "st,stih410-b2120", "st,stih410";
 
 	chosen {
-		bootargs = "clk_ignore_unused";
 		stdout-path = &sbc_serial0;
 	};
 
@@ -25,6 +24,14 @@
 		ethernet0 = &ethernet0;
 	};
 
+	usb2_picophy1: phy2 {
+		status = "okay";
+	};
+
+	usb2_picophy2: phy3 {
+		status = "okay";
+	};
+
 	soc {
 
 		mmc0: sdhci@9060000 {
@@ -32,14 +39,6 @@
 			sd-uhs-sdr50;
 			sd-uhs-sdr104;
 			sd-uhs-ddr50;
-		};
-
-		usb2_picophy1: phy2@0 {
-			status = "okay";
-		};
-
-		usb2_picophy2: phy3@0 {
-			status = "okay";
 		};
 
 		ohci0: usb@9a03c00 {

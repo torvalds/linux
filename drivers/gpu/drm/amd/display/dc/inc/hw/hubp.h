@@ -29,6 +29,7 @@
 #include "mem_input.h"
 
 #define OPP_ID_INVALID 0xf
+#define MAX_TTU 0xffffff
 
 
 enum cursor_pitch {
@@ -48,10 +49,8 @@ enum cursor_lines_per_chunk {
 enum hubp_ind_block_size {
 	hubp_ind_block_unconstrained = 0,
 	hubp_ind_block_64b,
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	hubp_ind_block_128b,
 	hubp_ind_block_64b_no_128bcl,
-#endif
 };
 
 struct hubp {
@@ -140,6 +139,7 @@ struct hubp_funcs {
 	bool (*hubp_is_flip_pending)(struct hubp *hubp);
 
 	void (*set_blank)(struct hubp *hubp, bool blank);
+	void (*set_blank_regs)(struct hubp *hubp, bool blank);
 	void (*set_hubp_blank_en)(struct hubp *hubp, bool blank);
 
 	void (*set_cursor_attributes)(
@@ -187,7 +187,18 @@ struct hubp_funcs {
 			struct _vcs_dpi_display_rq_regs_st *dml_rq_regs,
 			struct _vcs_dpi_display_dlg_regs_st *dml_dlg_attr,
 			struct _vcs_dpi_display_ttu_regs_st *dml_ttu_attr);
+	void (*set_unbounded_requesting)(
+		struct hubp *hubp,
+		bool enable);
+	bool (*hubp_in_blank)(struct hubp *hubp);
+	void (*hubp_soft_reset)(struct hubp *hubp, bool reset);
 
+	void (*hubp_set_flip_int)(struct hubp *hubp);
+
+	void (*program_extended_blank)(struct hubp *hubp,
+			unsigned int min_dst_y_next_start_optimized);
+
+	void (*hubp_wait_pipe_read_start)(struct hubp *hubp);
 };
 
 #endif

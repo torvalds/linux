@@ -207,11 +207,13 @@ int
 gm200_acr_wpr_parse(struct nvkm_acr *acr)
 {
 	const struct wpr_header *hdr = (void *)acr->wpr_fw->data;
+	struct nvkm_acr_lsfw *lsfw;
 
 	while (hdr->falcon_id != WPR_HEADER_V0_FALCON_ID_INVALID) {
 		wpr_header_dump(&acr->subdev, hdr);
-		if (!nvkm_acr_lsfw_add(NULL, acr, NULL, (hdr++)->falcon_id))
-			return -ENOMEM;
+		lsfw = nvkm_acr_lsfw_add(NULL, acr, NULL, (hdr++)->falcon_id);
+		if (IS_ERR(lsfw))
+			return PTR_ERR(lsfw);
 	}
 
 	return 0;
@@ -262,7 +264,7 @@ gm200_acr_hsfw_boot(struct nvkm_acr *acr, struct nvkm_acr_hsf *hsf,
 	hsf->func->bld(acr, hsf);
 
 	/* Boot the falcon. */
-	nvkm_mc_intr_mask(device, falcon->owner->index, false);
+	nvkm_mc_intr_mask(device, falcon->owner->type, falcon->owner->inst, false);
 
 	nvkm_falcon_wr32(falcon, 0x040, 0xdeada5a5);
 	nvkm_falcon_set_start_addr(falcon, hsf->imem_tag << 8);
@@ -279,7 +281,7 @@ gm200_acr_hsfw_boot(struct nvkm_acr *acr, struct nvkm_acr_hsf *hsf,
 		return -EIO;
 
 	nvkm_falcon_clear_interrupt(falcon, intr_clear);
-	nvkm_mc_intr_mask(device, falcon->owner->index, true);
+	nvkm_mc_intr_mask(device, falcon->owner->type, falcon->owner->inst, true);
 	return ret;
 }
 
@@ -478,7 +480,8 @@ gm200_acr_fwif[] = {
 };
 
 int
-gm200_acr_new(struct nvkm_device *device, int index, struct nvkm_acr **pacr)
+gm200_acr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_acr **pacr)
 {
-	return nvkm_acr_new_(gm200_acr_fwif, device, index, pacr);
+	return nvkm_acr_new_(gm200_acr_fwif, device, type, inst, pacr);
 }

@@ -124,7 +124,6 @@ struct zcrypt_queue {
 extern atomic_t zcrypt_rescan_req;
 
 extern spinlock_t zcrypt_list_lock;
-extern int zcrypt_device_count;
 extern struct list_head zcrypt_card_list;
 
 #define for_each_zcrypt_card(_zc) \
@@ -146,7 +145,7 @@ void zcrypt_queue_get(struct zcrypt_queue *);
 int zcrypt_queue_put(struct zcrypt_queue *);
 int zcrypt_queue_register(struct zcrypt_queue *);
 void zcrypt_queue_unregister(struct zcrypt_queue *);
-void zcrypt_queue_force_online(struct zcrypt_queue *, int);
+bool zcrypt_queue_force_online(struct zcrypt_queue *zq, int online);
 
 int zcrypt_rng_device_add(void);
 void zcrypt_rng_device_remove(void);
@@ -161,6 +160,8 @@ long zcrypt_send_ep11_cprb(struct ep11_urb *urb);
 void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus);
 int zcrypt_device_status_ext(int card, int queue,
 			     struct zcrypt_device_status_ext *devstatus);
+
+int zcrypt_wait_api_operational(void);
 
 static inline unsigned long z_copy_from_user(bool userspace,
 					     void *to,

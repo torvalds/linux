@@ -135,6 +135,14 @@
 			};
 		};
 
+		reset: reset-controller@611010008 {
+			compatible = "microchip,sparx5-switch-reset";
+			reg = <0x6 0x11010008 0x4>;
+			reg-names = "gcb";
+			#reset-cells = <1>;
+			cpu-syscon = <&cpu_ctrl>;
+		};
+
 		uart0: serial@600100000 {
 			pinctrl-0 = <&uart_pins>;
 			pinctrl-names = "default";
@@ -226,6 +234,22 @@
 				function = "si2";
 			};
 
+			sgpio0_pins: sgpio-pins {
+				pins = "GPIO_0", "GPIO_1", "GPIO_2", "GPIO_3";
+				function = "sg0";
+			};
+
+			sgpio1_pins: sgpio1-pins {
+				pins = "GPIO_4", "GPIO_5", "GPIO_12", "GPIO_13";
+				function = "sg1";
+			};
+
+			sgpio2_pins: sgpio2-pins {
+				pins = "GPIO_30", "GPIO_31", "GPIO_32",
+				       "GPIO_33";
+				function = "sg2";
+			};
+
 			uart_pins: uart-pins {
 				pins = "GPIO_10", "GPIO_11";
 				function = "uart";
@@ -253,6 +277,111 @@
 					"GPIO_43", "GPIO_44", "GPIO_45",
 					"GPIO_46", "GPIO_47";
 				function = "emmc";
+			};
+
+			miim1_pins: miim1-pins {
+				pins = "GPIO_56", "GPIO_57";
+				function = "miim";
+			};
+
+			miim2_pins: miim2-pins {
+				pins = "GPIO_58", "GPIO_59";
+				function = "miim";
+			};
+
+			miim3_pins: miim3-pins {
+				pins = "GPIO_52", "GPIO_53";
+				function = "miim";
+			};
+		};
+
+		sgpio0: gpio@61101036c {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "microchip,sparx5-sgpio";
+			status = "disabled";
+			clocks = <&sys_clk>;
+			pinctrl-0 = <&sgpio0_pins>;
+			pinctrl-names = "default";
+			resets = <&reset 0>;
+			reset-names = "switch";
+			reg = <0x6 0x1101036c 0x100>;
+			sgpio_in0: gpio@0 {
+				compatible = "microchip,sparx5-sgpio-bank";
+				reg = <0>;
+				gpio-controller;
+				#gpio-cells = <3>;
+				ngpios = <96>;
+				interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <3>;
+			};
+			sgpio_out0: gpio@1 {
+				compatible = "microchip,sparx5-sgpio-bank";
+				reg = <1>;
+				gpio-controller;
+				#gpio-cells = <3>;
+				ngpios = <96>;
+			};
+		};
+
+		sgpio1: gpio@611010484 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "microchip,sparx5-sgpio";
+			status = "disabled";
+			clocks = <&sys_clk>;
+			pinctrl-0 = <&sgpio1_pins>;
+			pinctrl-names = "default";
+			resets = <&reset 0>;
+			reset-names = "switch";
+			reg = <0x6 0x11010484 0x100>;
+			sgpio_in1: gpio@0 {
+				compatible = "microchip,sparx5-sgpio-bank";
+				reg = <0>;
+				gpio-controller;
+				#gpio-cells = <3>;
+				ngpios = <96>;
+				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <3>;
+			};
+			sgpio_out1: gpio@1 {
+				compatible = "microchip,sparx5-sgpio-bank";
+				reg = <1>;
+				gpio-controller;
+				#gpio-cells = <3>;
+				ngpios = <96>;
+			};
+		};
+
+		sgpio2: gpio@61101059c {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "microchip,sparx5-sgpio";
+			status = "disabled";
+			clocks = <&sys_clk>;
+			pinctrl-0 = <&sgpio2_pins>;
+			pinctrl-names = "default";
+			resets = <&reset 0>;
+			reset-names = "switch";
+			reg = <0x6 0x1101059c 0x100>;
+			sgpio_in2: gpio@0 {
+				reg = <0>;
+				compatible = "microchip,sparx5-sgpio-bank";
+				gpio-controller;
+				#gpio-cells = <3>;
+				ngpios = <96>;
+				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <3>;
+			};
+			sgpio_out2: gpio@1 {
+				compatible = "microchip,sparx5-sgpio-bank";
+				reg = <1>;
+				gpio-controller;
+				#gpio-cells = <3>;
+				ngpios = <96>;
 			};
 		};
 
@@ -289,6 +418,65 @@
 			reg = <0x6 0x10508110 0xc>;
 			#thermal-sensor-cells = <0>;
 			clocks = <&ahb_clk>;
+		};
+
+		mdio0: mdio@6110102b0 {
+			compatible = "mscc,ocelot-miim";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x6 0x110102b0 0x24>;
+		};
+
+		mdio1: mdio@6110102d4 {
+			compatible = "mscc,ocelot-miim";
+			status = "disabled";
+			pinctrl-0 = <&miim1_pins>;
+			pinctrl-names = "default";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x6 0x110102d4 0x24>;
+		};
+
+		mdio2: mdio@6110102f8 {
+			compatible = "mscc,ocelot-miim";
+			status = "disabled";
+			pinctrl-0 = <&miim2_pins>;
+			pinctrl-names = "default";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x6 0x110102d4 0x24>;
+		};
+
+		mdio3: mdio@61101031c {
+			compatible = "mscc,ocelot-miim";
+			status = "disabled";
+			pinctrl-0 = <&miim3_pins>;
+			pinctrl-names = "default";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x6 0x1101031c 0x24>;
+		};
+
+		serdes: serdes@10808000 {
+			compatible = "microchip,sparx5-serdes";
+			#phy-cells = <1>;
+			clocks = <&sys_clk>;
+			reg = <0x6 0x10808000 0x5d0000>;
+		};
+
+		switch: switch@0x600000000 {
+			compatible = "microchip,sparx5-switch";
+			reg =	<0x6 0 0x401000>,
+				<0x6 0x10004000 0x7fc000>,
+				<0x6 0x11010000 0xaf0000>;
+			reg-names = "cpu", "dev", "gcb";
+			interrupt-names = "xtr", "fdma", "ptp";
+			interrupts =	<GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&reset 0>;
+			reset-names = "switch";
 		};
 	};
 };

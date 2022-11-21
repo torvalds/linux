@@ -3,14 +3,14 @@
 * Copyright (C) 2012 Invensense, Inc.
 */
 
-#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/property.h>
+
 #include "inv_mpu_iio.h"
 
 static const struct regmap_config inv_mpu_regmap_config = {
@@ -51,7 +51,7 @@ static int inv_mpu_i2c_aux_setup(struct iio_dev *indio_dev)
 {
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 	struct device *dev = indio_dev->dev.parent;
-	struct device_node *mux_node;
+	struct fwnode_handle *mux_node;
 	int ret;
 
 	/*
@@ -65,12 +65,12 @@ static int inv_mpu_i2c_aux_setup(struct iio_dev *indio_dev)
 	case INV_MPU9150:
 	case INV_MPU9250:
 	case INV_MPU9255:
-		mux_node = of_get_child_by_name(dev->of_node, "i2c-gate");
+		mux_node = device_get_named_child_node(dev, "i2c-gate");
 		if (mux_node != NULL) {
 			st->magn_disabled = true;
 			dev_warn(dev, "disable internal use of magnetometer\n");
 		}
-		of_node_put(mux_node);
+		fwnode_handle_put(mux_node);
 		break;
 	default:
 		break;
@@ -110,7 +110,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 
 	match = device_get_match_data(&client->dev);
 	if (match) {
-		chip_type = (enum inv_devices)match;
+		chip_type = (uintptr_t)match;
 		name = client->name;
 	} else if (id) {
 		chip_type = (enum inv_devices)
@@ -177,6 +177,7 @@ static const struct i2c_device_id inv_mpu_id[] = {
 	{"mpu6050", INV_MPU6050},
 	{"mpu6500", INV_MPU6500},
 	{"mpu6515", INV_MPU6515},
+	{"mpu6880", INV_MPU6880},
 	{"mpu9150", INV_MPU9150},
 	{"mpu9250", INV_MPU9250},
 	{"mpu9255", INV_MPU9255},
@@ -203,6 +204,10 @@ static const struct of_device_id inv_of_match[] = {
 	{
 		.compatible = "invensense,mpu6515",
 		.data = (void *)INV_MPU6515
+	},
+	{
+		.compatible = "invensense,mpu6880",
+		.data = (void *)INV_MPU6880
 	},
 	{
 		.compatible = "invensense,mpu9150",
@@ -248,7 +253,6 @@ static const struct acpi_device_id inv_acpi_match[] = {
 	{"INVN6500", INV_MPU6500},
 	{ },
 };
-
 MODULE_DEVICE_TABLE(acpi, inv_acpi_match);
 
 static struct i2c_driver inv_mpu_driver = {
@@ -257,7 +261,7 @@ static struct i2c_driver inv_mpu_driver = {
 	.id_table	=	inv_mpu_id,
 	.driver = {
 		.of_match_table = inv_of_match,
-		.acpi_match_table = ACPI_PTR(inv_acpi_match),
+		.acpi_match_table = inv_acpi_match,
 		.name	=	"inv-mpu6050-i2c",
 		.pm     =       &inv_mpu_pmops,
 	},

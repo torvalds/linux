@@ -78,12 +78,11 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 #endif /* CONFIG_HOTPLUG_CPU */
 
 /**
- * exynos_core_power_down : power down the specified cpu
- * @cpu : the cpu to power down
+ * exynos_cpu_power_down() - power down the specified cpu
+ * @cpu: the cpu to power down
  *
  * Power down the specified cpu. The sequence must be finished by a
  * call to cpu_do_idle()
- *
  */
 void exynos_cpu_power_down(int cpu)
 {
@@ -107,8 +106,8 @@ void exynos_cpu_power_down(int cpu)
 }
 
 /**
- * exynos_cpu_power_up : power up the specified cpu
- * @cpu : the cpu to power up
+ * exynos_cpu_power_up() - power up the specified cpu
+ * @cpu: the cpu to power up
  *
  * Power up the specified cpu
  */
@@ -124,9 +123,8 @@ void exynos_cpu_power_up(int cpu)
 }
 
 /**
- * exynos_cpu_power_state : returns the power state of the cpu
- * @cpu : the cpu to retrieve the power state from
- *
+ * exynos_cpu_power_state() - returns the power state of the cpu
+ * @cpu: the cpu to retrieve the power state from
  */
 int exynos_cpu_power_state(int cpu)
 {
@@ -135,8 +133,8 @@ int exynos_cpu_power_state(int cpu)
 }
 
 /**
- * exynos_cluster_power_down : power down the specified cluster
- * @cluster : the cluster to power down
+ * exynos_cluster_power_down() - power down the specified cluster
+ * @cluster: the cluster to power down
  */
 void exynos_cluster_power_down(int cluster)
 {
@@ -144,8 +142,8 @@ void exynos_cluster_power_down(int cluster)
 }
 
 /**
- * exynos_cluster_power_up : power up the specified cluster
- * @cluster : the cluster to power up
+ * exynos_cluster_power_up() - power up the specified cluster
+ * @cluster: the cluster to power up
  */
 void exynos_cluster_power_up(int cluster)
 {
@@ -154,8 +152,8 @@ void exynos_cluster_power_up(int cluster)
 }
 
 /**
- * exynos_cluster_power_state : returns the power state of the cluster
- * @cluster : the cluster to retrieve the power state from
+ * exynos_cluster_power_state() - returns the power state of the cluster
+ * @cluster: the cluster to retrieve the power state from
  *
  */
 int exynos_cluster_power_state(int cluster)
@@ -165,7 +163,7 @@ int exynos_cluster_power_state(int cluster)
 }
 
 /**
- * exynos_scu_enable : enables SCU for Cortex-A9 based system
+ * exynos_scu_enable() - enables SCU for Cortex-A9 based system
  */
 void exynos_scu_enable(void)
 {
@@ -215,7 +213,7 @@ void exynos_core_restart(u32 core_id)
 	unsigned int timeout = 16;
 	u32 val;
 
-	if (!of_machine_is_compatible("samsung,exynos3250"))
+	if (!soc_is_exynos3250())
 		return;
 
 	while (timeout && !pmu_raw_readl(S5P_PMU_SPARE2)) {

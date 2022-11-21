@@ -83,11 +83,6 @@
 	};
 };
 
-/* MCAN interrupts are hard-wired to irqs 67, 68 */
-&crossbar_mpu {
-	ti,irqs-skip = <10 67 68 133 139 140>;
-};
-
 &scm_conf_clocks {
 	dpll_gmac_h14x2_ctrl_ck: dpll_gmac_h14x2_ctrl_ck@3fc {
 		#clock-cells = <0>;
@@ -132,4 +127,33 @@
 &mmc3 {
 	/* dra76x is not affected by i887 */
 	max-frequency = <96000000>;
+};
+
+&cpu0_opp_table {
+	opp_plus@1800000000 {
+		opp-hz = /bits/ 64 <1800000000>;
+		opp-microvolt = <1250000 950000 1250000>,
+				<1250000 950000 1250000>;
+		opp-supported-hw = <0xFF 0x08>;
+	};
+};
+
+&opp_supply_mpu {
+	ti,efuse-settings = <
+	/* uV   offset */
+	1060000 0x0
+	1160000 0x4
+	1210000 0x8
+	1250000 0xC
+	>;
+};
+
+&abb_mpu {
+	ti,abb_info = <
+	/*uV		ABB	efuse	rbb_m fbb_m	vset_m*/
+	1060000		0	0x0	0 0x02000000 0x01F00000
+	1160000		0	0x4	0 0x02000000 0x01F00000
+	1210000		0	0x8	0 0x02000000 0x01F00000
+	1250000		0	0xC	0 0x02000000 0x01F00000
+	>;
 };

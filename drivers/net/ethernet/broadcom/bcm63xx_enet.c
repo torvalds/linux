@@ -220,7 +220,7 @@ static void bcm_enet_mdio_write_mii(struct net_device *dev, int mii_id,
 /*
  * refill rx queue
  */
-static int bcm_enet_refill_rx(struct net_device *dev)
+static int bcm_enet_refill_rx(struct net_device *dev, bool napi_mode)
 {
 	struct bcm_enet_priv *priv;
 
@@ -228,26 +228,29 @@ static int bcm_enet_refill_rx(struct net_device *dev)
 
 	while (priv->rx_desc_count < priv->rx_ring_size) {
 		struct bcm_enet_desc *desc;
-		struct sk_buff *skb;
-		dma_addr_t p;
 		int desc_idx;
 		u32 len_stat;
 
 		desc_idx = priv->rx_dirty_desc;
 		desc = &priv->rx_desc_cpu[desc_idx];
 
-		if (!priv->rx_skb[desc_idx]) {
-			skb = netdev_alloc_skb(dev, priv->rx_skb_size);
-			if (!skb)
+		if (!priv->rx_buf[desc_idx]) {
+			void *buf;
+
+			if (likely(napi_mode))
+				buf = napi_alloc_frag(priv->rx_frag_size);
+			else
+				buf = netdev_alloc_frag(priv->rx_frag_size);
+			if (unlikely(!buf))
 				break;
-			priv->rx_skb[desc_idx] = skb;
-			p = dma_map_single(&priv->pdev->dev, skb->data,
-					   priv->rx_skb_size,
-					   DMA_FROM_DEVICE);
-			desc->address = p;
+			priv->rx_buf[desc_idx] = buf;
+			desc->address = dma_map_single(&priv->pdev->dev,
+						       buf + priv->rx_buf_offset,
+						       priv->rx_buf_size,
+						       DMA_FROM_DEVICE);
 		}
 
-		len_stat = priv->rx_skb_size << DMADESC_LENGTH_SHIFT;
+		len_stat = priv->rx_buf_size << DMADESC_LENGTH_SHIFT;
 		len_stat |= DMADESC_OWNER_MASK;
 		if (priv->rx_dirty_desc == priv->rx_ring_size - 1) {
 			len_stat |= (DMADESC_WRAP_MASK >> priv->dma_desc_shift);
@@ -287,7 +290,7 @@ static void bcm_enet_refill_rx_timer(struct timer_list *t)
 	struct net_device *dev = priv->net_dev;
 
 	spin_lock(&priv->rx_lock);
-	bcm_enet_refill_rx(dev);
+	bcm_enet_refill_rx(dev, false);
 	spin_unlock(&priv->rx_lock);
 }
 
@@ -297,10 +300,12 @@ static void bcm_enet_refill_rx_timer(struct timer_list *t)
 static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 {
 	struct bcm_enet_priv *priv;
+	struct list_head rx_list;
 	struct device *kdev;
 	int processed;
 
 	priv = netdev_priv(dev);
+	INIT_LIST_HEAD(&rx_list);
 	kdev = &priv->pdev->dev;
 	processed = 0;
 
@@ -315,6 +320,7 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 		int desc_idx;
 		u32 len_stat;
 		unsigned int len;
+		void *buf;
 
 		desc_idx = priv->rx_curr_desc;
 		desc = &priv->rx_desc_cpu[desc_idx];
@@ -333,7 +339,6 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 		priv->rx_curr_desc++;
 		if (priv->rx_curr_desc == priv->rx_ring_size)
 			priv->rx_curr_desc = 0;
-		priv->rx_desc_count--;
 
 		/* if the packet does not have start of packet _and_
 		 * end of packet flag set, then just recycle it */
@@ -360,16 +365,14 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 		}
 
 		/* valid packet */
-		skb = priv->rx_skb[desc_idx];
+		buf = priv->rx_buf[desc_idx];
 		len = (len_stat & DMADESC_LENGTH_MASK) >> DMADESC_LENGTH_SHIFT;
 		/* don't include FCS */
 		len -= 4;
 
 		if (len < copybreak) {
-			struct sk_buff *nskb;
-
-			nskb = napi_alloc_skb(&priv->napi, len);
-			if (!nskb) {
+			skb = napi_alloc_skb(&priv->napi, len);
+			if (unlikely(!skb)) {
 				/* forget packet, just rearm desc */
 				dev->stats.rx_dropped++;
 				continue;
@@ -377,26 +380,36 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 
 			dma_sync_single_for_cpu(kdev, desc->address,
 						len, DMA_FROM_DEVICE);
-			memcpy(nskb->data, skb->data, len);
+			memcpy(skb->data, buf + priv->rx_buf_offset, len);
 			dma_sync_single_for_device(kdev, desc->address,
 						   len, DMA_FROM_DEVICE);
-			skb = nskb;
 		} else {
-			dma_unmap_single(&priv->pdev->dev, desc->address,
-					 priv->rx_skb_size, DMA_FROM_DEVICE);
-			priv->rx_skb[desc_idx] = NULL;
+			dma_unmap_single(kdev, desc->address,
+					 priv->rx_buf_size, DMA_FROM_DEVICE);
+			priv->rx_buf[desc_idx] = NULL;
+
+			skb = build_skb(buf, priv->rx_frag_size);
+			if (unlikely(!skb)) {
+				skb_free_frag(buf);
+				dev->stats.rx_dropped++;
+				continue;
+			}
+			skb_reserve(skb, priv->rx_buf_offset);
 		}
 
 		skb_put(skb, len);
 		skb->protocol = eth_type_trans(skb, dev);
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += len;
-		netif_receive_skb(skb);
+		list_add_tail(&skb->list, &rx_list);
 
-	} while (--budget > 0);
+	} while (processed < budget);
+
+	netif_receive_skb_list(&rx_list);
+	priv->rx_desc_count -= processed;
 
 	if (processed || !priv->rx_desc_count) {
-		bcm_enet_refill_rx(dev);
+		bcm_enet_refill_rx(dev, true);
 
 		/* kick rx dma */
 		enet_dmac_writel(priv, priv->dma_chan_en_mask,
@@ -413,9 +426,11 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 static int bcm_enet_tx_reclaim(struct net_device *dev, int force)
 {
 	struct bcm_enet_priv *priv;
+	unsigned int bytes;
 	int released;
 
 	priv = netdev_priv(dev);
+	bytes = 0;
 	released = 0;
 
 	while (priv->tx_desc_count < priv->tx_ring_size) {
@@ -452,9 +467,12 @@ static int bcm_enet_tx_reclaim(struct net_device *dev, int force)
 		if (desc->len_stat & DMADESC_UNDER_MASK)
 			dev->stats.tx_errors++;
 
+		bytes += skb->len;
 		dev_kfree_skb(skb);
 		released++;
 	}
+
+	netdev_completed_queue(dev, released, bytes);
 
 	if (netif_queue_stopped(dev) && released)
 		netif_wake_queue(dev);
@@ -622,8 +640,11 @@ bcm_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	desc->len_stat = len_stat;
 	wmb();
 
+	netdev_sent_queue(dev, skb->len);
+
 	/* kick tx dma */
-	enet_dmac_writel(priv, priv->dma_chan_en_mask,
+	if (!netdev_xmit_more() || !priv->tx_desc_count)
+		enet_dmac_writel(priv, priv->dma_chan_en_mask,
 				 ENETDMAC_CHANCFG, priv->tx_chan);
 
 	/* stop queue if no more desc available */
@@ -649,7 +670,7 @@ static int bcm_enet_set_mac_address(struct net_device *dev, void *p)
 	u32 val;
 
 	priv = netdev_priv(dev);
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	/* use perfect match register 0 to store my mac address */
 	val = (dev->dev_addr[2] << 24) | (dev->dev_addr[3] << 16) |
@@ -845,6 +866,24 @@ static void bcm_enet_adjust_link(struct net_device *dev)
 		priv->pause_tx ? "tx" : "off");
 }
 
+static void bcm_enet_free_rx_buf_ring(struct device *kdev, struct bcm_enet_priv *priv)
+{
+	int i;
+
+	for (i = 0; i < priv->rx_ring_size; i++) {
+		struct bcm_enet_desc *desc;
+
+		if (!priv->rx_buf[i])
+			continue;
+
+		desc = &priv->rx_desc_cpu[i];
+		dma_unmap_single(kdev, desc->address, priv->rx_buf_size,
+				 DMA_FROM_DEVICE);
+		skb_free_frag(priv->rx_buf[i]);
+	}
+	kfree(priv->rx_buf);
+}
+
 /*
  * open callback, allocate dma rings & buffers and start rx operation
  */
@@ -954,10 +993,10 @@ static int bcm_enet_open(struct net_device *dev)
 	priv->tx_curr_desc = 0;
 	spin_lock_init(&priv->tx_lock);
 
-	/* init & fill rx ring with skbs */
-	priv->rx_skb = kcalloc(priv->rx_ring_size, sizeof(struct sk_buff *),
+	/* init & fill rx ring with buffers */
+	priv->rx_buf = kcalloc(priv->rx_ring_size, sizeof(void *),
 			       GFP_KERNEL);
-	if (!priv->rx_skb) {
+	if (!priv->rx_buf) {
 		ret = -ENOMEM;
 		goto out_free_tx_skb;
 	}
@@ -974,8 +1013,8 @@ static int bcm_enet_open(struct net_device *dev)
 		enet_dmac_writel(priv, ENETDMA_BUFALLOC_FORCE_MASK | 0,
 				ENETDMAC_BUFALLOC, priv->rx_chan);
 
-	if (bcm_enet_refill_rx(dev)) {
-		dev_err(kdev, "cannot allocate rx skb queue\n");
+	if (bcm_enet_refill_rx(dev, false)) {
+		dev_err(kdev, "cannot allocate rx buffer queue\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1069,18 +1108,7 @@ static int bcm_enet_open(struct net_device *dev)
 	return 0;
 
 out:
-	for (i = 0; i < priv->rx_ring_size; i++) {
-		struct bcm_enet_desc *desc;
-
-		if (!priv->rx_skb[i])
-			continue;
-
-		desc = &priv->rx_desc_cpu[i];
-		dma_unmap_single(kdev, desc->address, priv->rx_skb_size,
-				 DMA_FROM_DEVICE);
-		kfree_skb(priv->rx_skb[i]);
-	}
-	kfree(priv->rx_skb);
+	bcm_enet_free_rx_buf_ring(kdev, priv);
 
 out_free_tx_skb:
 	kfree(priv->tx_skb);
@@ -1159,7 +1187,6 @@ static int bcm_enet_stop(struct net_device *dev)
 {
 	struct bcm_enet_priv *priv;
 	struct device *kdev;
-	int i;
 
 	priv = netdev_priv(dev);
 	kdev = &priv->pdev->dev;
@@ -1186,21 +1213,10 @@ static int bcm_enet_stop(struct net_device *dev)
 	/* force reclaim of all tx buffers */
 	bcm_enet_tx_reclaim(dev, 1);
 
-	/* free the rx skb ring */
-	for (i = 0; i < priv->rx_ring_size; i++) {
-		struct bcm_enet_desc *desc;
-
-		if (!priv->rx_skb[i])
-			continue;
-
-		desc = &priv->rx_desc_cpu[i];
-		dma_unmap_single(kdev, desc->address, priv->rx_skb_size,
-				 DMA_FROM_DEVICE);
-		kfree_skb(priv->rx_skb[i]);
-	}
+	/* free the rx buffer ring */
+	bcm_enet_free_rx_buf_ring(kdev, priv);
 
 	/* free remaining allocated memory */
-	kfree(priv->rx_skb);
 	kfree(priv->tx_skb);
 	dma_free_coherent(kdev, priv->rx_desc_alloc_size,
 			  priv->rx_desc_cpu, priv->rx_desc_dma);
@@ -1213,6 +1229,9 @@ static int bcm_enet_stop(struct net_device *dev)
 	/* release phy */
 	if (priv->has_phy)
 		phy_disconnect(dev->phydev);
+
+	/* reset BQL after forced tx reclaim to prevent kernel panic */
+	netdev_reset_queue(dev);
 
 	return 0;
 }
@@ -1478,8 +1497,11 @@ static int bcm_enet_set_link_ksettings(struct net_device *dev,
 	}
 }
 
-static void bcm_enet_get_ringparam(struct net_device *dev,
-				   struct ethtool_ringparam *ering)
+static void
+bcm_enet_get_ringparam(struct net_device *dev,
+		       struct ethtool_ringparam *ering,
+		       struct kernel_ethtool_ringparam *kernel_ering,
+		       struct netlink_ext_ack *extack)
 {
 	struct bcm_enet_priv *priv;
 
@@ -1493,7 +1515,9 @@ static void bcm_enet_get_ringparam(struct net_device *dev,
 }
 
 static int bcm_enet_set_ringparam(struct net_device *dev,
-				  struct ethtool_ringparam *ering)
+				  struct ethtool_ringparam *ering,
+				  struct kernel_ethtool_ringparam *kernel_ering,
+				  struct netlink_ext_ack *extack)
 {
 	struct bcm_enet_priv *priv;
 	int was_running;
@@ -1622,8 +1646,11 @@ static int bcm_enet_change_mtu(struct net_device *dev, int new_mtu)
 	 * align rx buffer size to dma burst len, account FCS since
 	 * it's appended
 	 */
-	priv->rx_skb_size = ALIGN(actual_mtu + ETH_FCS_LEN,
+	priv->rx_buf_size = ALIGN(actual_mtu + ETH_FCS_LEN,
 				  priv->dma_maxburst * 4);
+
+	priv->rx_frag_size = SKB_DATA_ALIGN(priv->rx_buf_offset + priv->rx_buf_size) +
+					    SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	dev->mtu = new_mtu;
 	return 0;
@@ -1677,7 +1704,7 @@ static const struct net_device_ops bcm_enet_ops = {
 	.ndo_start_xmit		= bcm_enet_start_xmit,
 	.ndo_set_mac_address	= bcm_enet_set_mac_address,
 	.ndo_set_rx_mode	= bcm_enet_set_multicast_list,
-	.ndo_do_ioctl		= bcm_enet_ioctl,
+	.ndo_eth_ioctl		= bcm_enet_ioctl,
 	.ndo_change_mtu		= bcm_enet_change_mtu,
 };
 
@@ -1689,17 +1716,17 @@ static int bcm_enet_probe(struct platform_device *pdev)
 	struct bcm_enet_priv *priv;
 	struct net_device *dev;
 	struct bcm63xx_enet_platform_data *pd;
-	struct resource *res_irq, *res_irq_rx, *res_irq_tx;
+	int irq, irq_rx, irq_tx;
 	struct mii_bus *bus;
 	int i, ret;
 
 	if (!bcm_enet_shared_base[0])
 		return -EPROBE_DEFER;
 
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	res_irq_rx = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
-	res_irq_tx = platform_get_resource(pdev, IORESOURCE_IRQ, 2);
-	if (!res_irq || !res_irq_rx || !res_irq_tx)
+	irq = platform_get_irq(pdev, 0);
+	irq_rx = platform_get_irq(pdev, 1);
+	irq_tx = platform_get_irq(pdev, 2);
+	if (irq < 0 || irq_rx < 0 || irq_tx < 0)
 		return -ENODEV;
 
 	dev = alloc_etherdev(sizeof(*priv));
@@ -1709,6 +1736,7 @@ static int bcm_enet_probe(struct platform_device *pdev)
 
 	priv->enet_is_sw = false;
 	priv->dma_maxburst = BCMENET_DMA_MAXBURST;
+	priv->rx_buf_offset = NET_SKB_PAD;
 
 	ret = bcm_enet_change_mtu(dev, dev->mtu);
 	if (ret)
@@ -1720,9 +1748,9 @@ static int bcm_enet_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	dev->irq = priv->irq = res_irq->start;
-	priv->irq_rx = res_irq_rx->start;
-	priv->irq_tx = res_irq_tx->start;
+	dev->irq = priv->irq = irq;
+	priv->irq_rx = irq_rx;
+	priv->irq_tx = irq_tx;
 
 	priv->mac_clk = devm_clk_get(&pdev->dev, "enet");
 	if (IS_ERR(priv->mac_clk)) {
@@ -1739,7 +1767,7 @@ static int bcm_enet_probe(struct platform_device *pdev)
 
 	pd = dev_get_platdata(&pdev->dev);
 	if (pd) {
-		memcpy(dev->dev_addr, pd->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(dev, pd->mac_addr);
 		priv->has_phy = pd->has_phy;
 		priv->phy_id = pd->phy_id;
 		priv->has_phy_interrupt = pd->has_phy_interrupt;
@@ -2126,7 +2154,7 @@ static int bcm_enetsw_open(struct net_device *dev)
 	priv->tx_skb = kcalloc(priv->tx_ring_size, sizeof(struct sk_buff *),
 			       GFP_KERNEL);
 	if (!priv->tx_skb) {
-		dev_err(kdev, "cannot allocate rx skb queue\n");
+		dev_err(kdev, "cannot allocate tx skb queue\n");
 		ret = -ENOMEM;
 		goto out_free_tx_ring;
 	}
@@ -2136,11 +2164,11 @@ static int bcm_enetsw_open(struct net_device *dev)
 	priv->tx_curr_desc = 0;
 	spin_lock_init(&priv->tx_lock);
 
-	/* init & fill rx ring with skbs */
-	priv->rx_skb = kcalloc(priv->rx_ring_size, sizeof(struct sk_buff *),
+	/* init & fill rx ring with buffers */
+	priv->rx_buf = kcalloc(priv->rx_ring_size, sizeof(void *),
 			       GFP_KERNEL);
-	if (!priv->rx_skb) {
-		dev_err(kdev, "cannot allocate rx skb queue\n");
+	if (!priv->rx_buf) {
+		dev_err(kdev, "cannot allocate rx buffer queue\n");
 		ret = -ENOMEM;
 		goto out_free_tx_skb;
 	}
@@ -2187,8 +2215,8 @@ static int bcm_enetsw_open(struct net_device *dev)
 	enet_dma_writel(priv, ENETDMA_BUFALLOC_FORCE_MASK | 0,
 			ENETDMA_BUFALLOC_REG(priv->rx_chan));
 
-	if (bcm_enet_refill_rx(dev)) {
-		dev_err(kdev, "cannot allocate rx skb queue\n");
+	if (bcm_enet_refill_rx(dev, false)) {
+		dev_err(kdev, "cannot allocate rx buffer queue\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -2287,18 +2315,7 @@ static int bcm_enetsw_open(struct net_device *dev)
 	return 0;
 
 out:
-	for (i = 0; i < priv->rx_ring_size; i++) {
-		struct bcm_enet_desc *desc;
-
-		if (!priv->rx_skb[i])
-			continue;
-
-		desc = &priv->rx_desc_cpu[i];
-		dma_unmap_single(kdev, desc->address, priv->rx_skb_size,
-				 DMA_FROM_DEVICE);
-		kfree_skb(priv->rx_skb[i]);
-	}
-	kfree(priv->rx_skb);
+	bcm_enet_free_rx_buf_ring(kdev, priv);
 
 out_free_tx_skb:
 	kfree(priv->tx_skb);
@@ -2327,7 +2344,6 @@ static int bcm_enetsw_stop(struct net_device *dev)
 {
 	struct bcm_enet_priv *priv;
 	struct device *kdev;
-	int i;
 
 	priv = netdev_priv(dev);
 	kdev = &priv->pdev->dev;
@@ -2348,21 +2364,10 @@ static int bcm_enetsw_stop(struct net_device *dev)
 	/* force reclaim of all tx buffers */
 	bcm_enet_tx_reclaim(dev, 1);
 
-	/* free the rx skb ring */
-	for (i = 0; i < priv->rx_ring_size; i++) {
-		struct bcm_enet_desc *desc;
-
-		if (!priv->rx_skb[i])
-			continue;
-
-		desc = &priv->rx_desc_cpu[i];
-		dma_unmap_single(kdev, desc->address, priv->rx_skb_size,
-				 DMA_FROM_DEVICE);
-		kfree_skb(priv->rx_skb[i]);
-	}
+	/* free the rx buffer ring */
+	bcm_enet_free_rx_buf_ring(kdev, priv);
 
 	/* free remaining allocated memory */
-	kfree(priv->rx_skb);
 	kfree(priv->tx_skb);
 	dma_free_coherent(kdev, priv->rx_desc_alloc_size,
 			  priv->rx_desc_cpu, priv->rx_desc_dma);
@@ -2371,6 +2376,9 @@ static int bcm_enetsw_stop(struct net_device *dev)
 	if (priv->irq_tx != -1)
 		free_irq(priv->irq_tx, dev);
 	free_irq(priv->irq_rx, dev);
+
+	/* reset BQL after forced tx reclaim to prevent kernel panic */
+	netdev_reset_queue(dev);
 
 	return 0;
 }
@@ -2443,7 +2451,7 @@ static const struct net_device_ops bcm_enetsw_ops = {
 	.ndo_stop		= bcm_enetsw_stop,
 	.ndo_start_xmit		= bcm_enet_start_xmit,
 	.ndo_change_mtu		= bcm_enet_change_mtu,
-	.ndo_do_ioctl		= bcm_enetsw_ioctl,
+	.ndo_eth_ioctl		= bcm_enetsw_ioctl,
 };
 
 
@@ -2576,8 +2584,11 @@ static void bcm_enetsw_get_ethtool_stats(struct net_device *netdev,
 	}
 }
 
-static void bcm_enetsw_get_ringparam(struct net_device *dev,
-				     struct ethtool_ringparam *ering)
+static void
+bcm_enetsw_get_ringparam(struct net_device *dev,
+			 struct ethtool_ringparam *ering,
+			 struct kernel_ethtool_ringparam *kernel_ering,
+			 struct netlink_ext_ack *extack)
 {
 	struct bcm_enet_priv *priv;
 
@@ -2592,8 +2603,11 @@ static void bcm_enetsw_get_ringparam(struct net_device *dev,
 	ering->tx_pending = priv->tx_ring_size;
 }
 
-static int bcm_enetsw_set_ringparam(struct net_device *dev,
-				    struct ethtool_ringparam *ering)
+static int
+bcm_enetsw_set_ringparam(struct net_device *dev,
+			 struct ethtool_ringparam *ering,
+			 struct kernel_ethtool_ringparam *kernel_ering,
+			 struct netlink_ext_ack *extack)
 {
 	struct bcm_enet_priv *priv;
 	int was_running;
@@ -2646,7 +2660,6 @@ static int bcm_enetsw_probe(struct platform_device *pdev)
 	if (!res_mem || irq_rx < 0)
 		return -ENODEV;
 
-	ret = 0;
 	dev = alloc_etherdev(sizeof(*priv));
 	if (!dev)
 		return -ENOMEM;
@@ -2659,10 +2672,11 @@ static int bcm_enetsw_probe(struct platform_device *pdev)
 	priv->rx_ring_size = BCMENET_DEF_RX_DESC;
 	priv->tx_ring_size = BCMENET_DEF_TX_DESC;
 	priv->dma_maxburst = BCMENETSW_DMA_MAXBURST;
+	priv->rx_buf_offset = NET_SKB_PAD + NET_IP_ALIGN;
 
 	pd = dev_get_platdata(&pdev->dev);
 	if (pd) {
-		memcpy(dev->dev_addr, pd->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(dev, pd->mac_addr);
 		memcpy(priv->used_ports, pd->used_ports,
 		       sizeof(pd->used_ports));
 		priv->num_ports = pd->num_ports;

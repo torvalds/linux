@@ -59,6 +59,7 @@ config DMA_OF
 #devices
 config ALTERA_MSGDMA
 	tristate "Altera / Intel mSGDMA Engine"
+	depends on HAS_IOMEM
 	select DMA_ENGINE
 	help
 	  Enable support for Altera / Intel mSGDMA controller.
@@ -100,7 +101,7 @@ config AT_XDMAC
 
 config AXI_DMAC
 	tristate "Analog Devices AXI-DMAC DMA support"
-	depends on MICROBLAZE || NIOS2 || ARCH_ZYNQ || ARCH_ZYNQMP || ARCH_SOCFPGA || COMPILE_TEST
+	depends on MICROBLAZE || NIOS2 || ARCH_ZYNQ || ARCH_ZYNQMP || ARCH_INTEL_SOCFPGA || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	select REGMAP_MMIO
@@ -123,13 +124,6 @@ config BCM_SBA_RAID
 	  engine is available on most of the Broadcom iProc SoCs. It
 	  has the capability to offload memcpy, xor and pq computation
 	  for raid5/6.
-
-config COH901318
-	bool "ST-Ericsson COH901318 DMA support"
-	select DMA_ENGINE
-	depends on ARCH_U300 || COMPILE_TEST
-	help
-	  Enable support for ST-Ericsson COH 901 318 DMA.
 
 config DMA_BCM2835
 	tristate "BCM2835 DMA engine support"
@@ -179,6 +173,7 @@ config DMA_SUN6I
 config DW_AXI_DMAC
 	tristate "Synopsys DesignWare AXI DMA support"
 	depends on OF || COMPILE_TEST
+	depends on HAS_IOMEM
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -282,10 +277,15 @@ config INTEL_IDMA64
 	  Enable DMA support for Intel Low Power Subsystem such as found on
 	  Intel Skylake PCH.
 
+config INTEL_IDXD_BUS
+	tristate
+	default INTEL_IDXD
+
 config INTEL_IDXD
 	tristate "Intel Data Accelerators support"
-	depends on PCI && X86_64
+	depends on PCI && X86_64 && !UML
 	depends on PCI_MSI
+	depends on PCI_PASID
 	depends on SBITMAP
 	select DMA_ENGINE
 	help
@@ -296,9 +296,48 @@ config INTEL_IDXD
 
 	  If unsure, say N.
 
+config INTEL_IDXD_COMPAT
+	bool "Legacy behavior for idxd driver"
+	depends on PCI && X86_64
+	select INTEL_IDXD_BUS
+	help
+	  Compatible driver to support old /sys/bus/dsa/drivers/dsa behavior.
+	  The old behavior performed driver bind/unbind for device and wq
+	  devices all under the dsa driver. The compat driver will emulate
+	  the legacy behavior in order to allow existing support apps (i.e.
+	  accel-config) to continue function. It is expected that accel-config
+	  v3.2 and earlier will need the compat mode. A distro with later
+	  accel-config version can disable this compat config.
+
+	  Say Y if you have old applications that require such behavior.
+
+	  If unsure, say N.
+
+# Config symbol that collects all the dependencies that's necessary to
+# support shared virtual memory for the devices supported by idxd.
+config INTEL_IDXD_SVM
+	bool "Accelerator Shared Virtual Memory Support"
+	depends on INTEL_IDXD
+	depends on INTEL_IOMMU_SVM
+	depends on PCI_PRI
+	depends on PCI_PASID
+	depends on PCI_IOV
+
+config INTEL_IDXD_PERFMON
+	bool "Intel Data Accelerators performance monitor support"
+	depends on INTEL_IDXD
+	help
+	  Enable performance monitor (pmu) support for the Intel(R)
+	  data accelerators present in Intel Xeon CPU.  With this
+	  enabled, perf can be used to monitor the DSA (Intel Data
+	  Streaming Accelerator) events described in the Intel DSA
+	  spec.
+
+	  If unsure, say N.
+
 config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
-	depends on PCI && X86_64
+	depends on PCI && X86_64 && !UML
 	select DMA_ENGINE
 	select DMA_ENGINE_RAID
 	select DCA
@@ -368,14 +407,14 @@ config MILBEAUT_XDMAC
 	  XDMAC device.
 
 config MMP_PDMA
-	bool "MMP PDMA support"
+	tristate "MMP PDMA support"
 	depends on ARCH_MMP || ARCH_PXA || COMPILE_TEST
 	select DMA_ENGINE
 	help
 	  Support the MMP PDMA engine for PXA and MMP platform.
 
 config MMP_TDMA
-	bool "MMP Two-Channel DMA support"
+	tristate "MMP Two-Channel DMA support"
 	depends on ARCH_MMP || COMPILE_TEST
 	select DMA_ENGINE
 	select GENERIC_ALLOCATOR
@@ -509,13 +548,6 @@ config PLX_DMA
 	  These are exposed via extra functions on the switch's
 	  upstream port. Each function exposes one DMA channel.
 
-config SIRF_DMA
-	tristate "CSR SiRFprimaII/SiRFmarco DMA support"
-	depends on ARCH_SIRF
-	select DMA_ENGINE
-	help
-	  Enable support for the CSR SiRFprimaII DMA engine.
-
 config STE_DMA40
 	bool "ST-Ericsson DMA40 support"
 	depends on ARCH_U8500
@@ -591,7 +623,7 @@ config S3C24XX_DMAC
 
 config TXX9_DMAC
 	tristate "Toshiba TXx9 SoC DMA support"
-	depends on MACH_TX49XX || MACH_TX39XX
+	depends on MACH_TX49XX
 	select DMA_ENGINE
 	help
 	  Support the TXx9 SoC internal DMA controller.  This can be
@@ -685,13 +717,14 @@ config XILINX_DMA
 
 config XILINX_ZYNQMP_DMA
 	tristate "Xilinx ZynqMP DMA Engine"
-	depends on (ARCH_ZYNQ || MICROBLAZE || ARM64)
+	depends on ARCH_ZYNQ || MICROBLAZE || ARM64 || COMPILE_TEST
 	select DMA_ENGINE
 	help
 	  Enable support for Xilinx ZynqMP DMA controller.
 
 config XILINX_ZYNQMP_DPDMA
 	tristate "Xilinx DPDMA Engine"
+	depends on HAS_IOMEM && OF
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -700,19 +733,12 @@ config XILINX_ZYNQMP_DPDMA
 	  driver provides the dmaengine required by the DisplayPort subsystem
 	  display driver.
 
-config ZX_DMA
-	tristate "ZTE ZX DMA support"
-	depends on ARCH_ZX || COMPILE_TEST
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-	help
-	  Support the DMA engine for ZTE ZX family platform devices.
-
-
 # driver files
 source "drivers/dma/bestcomm/Kconfig"
 
 source "drivers/dma/mediatek/Kconfig"
+
+source "drivers/dma/ptdma/Kconfig"
 
 source "drivers/dma/qcom/Kconfig"
 
@@ -729,6 +755,8 @@ source "drivers/dma/sh/Kconfig"
 source "drivers/dma/ti/Kconfig"
 
 source "drivers/dma/fsl-dpaa2-qdma/Kconfig"
+
+source "drivers/dma/lgm/Kconfig"
 
 # clients
 comment "DMA Clients"

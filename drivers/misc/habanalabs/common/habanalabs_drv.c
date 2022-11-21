@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -27,25 +27,37 @@ static struct class *hl_class;
 static DEFINE_IDR(hl_devs_idr);
 static DEFINE_MUTEX(hl_devs_idr_lock);
 
-static int timeout_locked = 5;
+static int timeout_locked = 30;
 static int reset_on_lockup = 1;
+static int memory_scrub;
+static ulong boot_error_status_mask = ULONG_MAX;
 
 module_param(timeout_locked, int, 0444);
 MODULE_PARM_DESC(timeout_locked,
-	"Device lockup timeout in seconds (0 = disabled, default 5s)");
+	"Device lockup timeout in seconds (0 = disabled, default 30s)");
 
 module_param(reset_on_lockup, int, 0444);
 MODULE_PARM_DESC(reset_on_lockup,
 	"Do device reset on lockup (0 = no, 1 = yes, default yes)");
 
+module_param(memory_scrub, int, 0444);
+MODULE_PARM_DESC(memory_scrub,
+	"Scrub device memory in various states (0 = no, 1 = yes, default no)");
+
+module_param(boot_error_status_mask, ulong, 0444);
+MODULE_PARM_DESC(boot_error_status_mask,
+	"Mask of the error status during device CPU boot (If bitX is cleared then error X is masked. Default all 1's)");
+
 #define PCI_VENDOR_ID_HABANALABS	0x1da3
 
 #define PCI_IDS_GOYA			0x0001
 #define PCI_IDS_GAUDI			0x1000
+#define PCI_IDS_GAUDI_SEC		0x1010
 
 static const struct pci_device_id ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GOYA), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI_SEC), },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, ids);
@@ -69,12 +81,25 @@ static enum hl_asic_type get_asic_type(u16 device)
 	case PCI_IDS_GAUDI:
 		asic_type = ASIC_GAUDI;
 		break;
+	case PCI_IDS_GAUDI_SEC:
+		asic_type = ASIC_GAUDI_SEC;
+		break;
 	default:
 		asic_type = ASIC_INVALID;
 		break;
 	}
 
 	return asic_type;
+}
+
+static bool is_asic_secured(enum hl_asic_type asic_type)
+{
+	switch (asic_type) {
+	case ASIC_GAUDI_SEC:
+		return true;
+	default:
+		return false;
+	}
 }
 
 /*
@@ -87,6 +112,7 @@ static enum hl_asic_type get_asic_type(u16 device)
  */
 int hl_device_open(struct inode *inode, struct file *filp)
 {
+	enum hl_device_status status;
 	struct hl_device *hdev;
 	struct hl_fpriv *hpriv;
 	int rc;
@@ -114,28 +140,21 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	hl_cb_mgr_init(&hpriv->cb_mgr);
 	hl_ctx_mgr_init(&hpriv->ctx_mgr);
+	hl_ts_mgr_init(&hpriv->ts_mem_mgr);
 
-	hpriv->taskpid = find_get_pid(current->pid);
+	hpriv->taskpid = get_task_pid(current, PIDTYPE_PID);
 
 	mutex_lock(&hdev->fpriv_list_lock);
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, &status)) {
 		dev_err_ratelimited(hdev->dev,
-			"Can't open %s because it is disabled or in reset\n",
-			dev_name(hdev->dev));
+			"Can't open %s because it is %s\n",
+			dev_name(hdev->dev), hdev->status[status]);
 		rc = -EPERM;
 		goto out_err;
 	}
 
-	if (hdev->in_debug) {
-		dev_err_ratelimited(hdev->dev,
-			"Can't open %s because it is being debugged by another user\n",
-			dev_name(hdev->dev));
-		rc = -EPERM;
-		goto out_err;
-	}
-
-	if (hdev->compute_ctx) {
+	if (hdev->is_compute_ctx_active) {
 		dev_dbg_ratelimited(hdev->dev,
 			"Can't open %s because another user is working on it\n",
 			dev_name(hdev->dev));
@@ -149,24 +168,24 @@ int hl_device_open(struct inode *inode, struct file *filp)
 		goto out_err;
 	}
 
-	/* Device is IDLE at this point so it is legal to change PLLs.
-	 * There is no need to check anything because if the PLL is
-	 * already HIGH, the set function will return without doing
-	 * anything
-	 */
-	hl_device_set_frequency(hdev, PLL_HIGH);
-
 	list_add(&hpriv->dev_node, &hdev->fpriv_list);
 	mutex_unlock(&hdev->fpriv_list_lock);
 
 	hl_debugfs_add_file(hpriv);
 
+	atomic_set(&hdev->last_error.cs_write_disable, 0);
+	atomic_set(&hdev->last_error.razwi_write_disable, 0);
+
+	hdev->open_counter++;
+	hdev->last_successful_open_jif = jiffies;
+	hdev->last_successful_open_ktime = ktime_get();
+
 	return 0;
 
 out_err:
 	mutex_unlock(&hdev->fpriv_list_lock);
-
 	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
+	hl_ts_mgr_fini(hpriv->hdev, &hpriv->ts_mem_mgr);
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 	filp->private_data = NULL;
 	mutex_destroy(&hpriv->restore_phase_mutex);
@@ -197,9 +216,19 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	if (!hpriv)
 		return -ENOMEM;
 
-	mutex_lock(&hdev->fpriv_list_lock);
+	/* Prevent other routines from reading partial hpriv data by
+	 * initializing hpriv fields before inserting it to the list
+	 */
+	hpriv->hdev = hdev;
+	filp->private_data = hpriv;
+	hpriv->filp = filp;
+	nonseekable_open(inode, filp);
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	hpriv->taskpid = find_get_pid(current->pid);
+
+	mutex_lock(&hdev->fpriv_ctrl_list_lock);
+
+	if (!hl_device_operational(hdev, NULL)) {
 		dev_err_ratelimited(hdev->dev_ctrl,
 			"Can't open %s because it is disabled or in reset\n",
 			dev_name(hdev->dev_ctrl));
@@ -207,59 +236,86 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 		goto out_err;
 	}
 
-	list_add(&hpriv->dev_node, &hdev->fpriv_list);
-	mutex_unlock(&hdev->fpriv_list_lock);
-
-	hpriv->hdev = hdev;
-	filp->private_data = hpriv;
-	hpriv->filp = filp;
-	hpriv->is_control = true;
-	nonseekable_open(inode, filp);
-
-	hpriv->taskpid = find_get_pid(current->pid);
+	list_add(&hpriv->dev_node, &hdev->fpriv_ctrl_list);
+	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 
 	return 0;
 
 out_err:
-	mutex_unlock(&hdev->fpriv_list_lock);
+	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
+	filp->private_data = NULL;
+	put_pid(hpriv->taskpid);
+
 	kfree(hpriv);
+
 	return rc;
 }
 
 static void set_driver_behavior_per_device(struct hl_device *hdev)
 {
-	hdev->mmu_enable = 1;
-	hdev->cpu_enable = 1;
-	hdev->fw_loading = 1;
+	hdev->pldm = 0;
+	hdev->fw_components = FW_TYPE_ALL_TYPES;
 	hdev->cpu_queues_enable = 1;
 	hdev->heartbeat = 1;
-	hdev->clock_gating_mask = ULONG_MAX;
-
-	hdev->reset_pcilink = 0;
-	hdev->axi_drain = 0;
+	hdev->mmu_enable = 1;
 	hdev->sram_scrambler_enable = 1;
 	hdev->dram_scrambler_enable = 1;
 	hdev->bmc_enable = 1;
 	hdev->hard_reset_on_fw_events = 1;
+	hdev->reset_on_preboot_fail = 1;
+	hdev->reset_if_device_not_idle = 1;
+
+	hdev->reset_pcilink = 0;
+	hdev->axi_drain = 0;
 }
 
-/*
+static void copy_kernel_module_params_to_device(struct hl_device *hdev)
+{
+	hdev->major = hl_major;
+	hdev->memory_scrub = memory_scrub;
+	hdev->reset_on_lockup = reset_on_lockup;
+	hdev->boot_error_status_mask = boot_error_status_mask;
+
+	if (timeout_locked)
+		hdev->timeout_jiffies = msecs_to_jiffies(timeout_locked * 1000);
+	else
+		hdev->timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
+
+}
+
+static int fixup_device_params(struct hl_device *hdev)
+{
+	hdev->asic_prop.fw_security_enabled = is_asic_secured(hdev->asic_type);
+
+	hdev->fw_poll_interval_usec = HL_FW_STATUS_POLL_INTERVAL_USEC;
+
+	hdev->stop_on_err = true;
+	hdev->reset_info.curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+	hdev->reset_info.prev_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
+
+	/* Enable only after the initialization of the device */
+	hdev->disabled = true;
+
+	/* Set default DMA mask to 32 bits */
+	hdev->dma_mask = 32;
+
+	return 0;
+}
+
+/**
  * create_hdev - create habanalabs device instance
  *
  * @dev: will hold the pointer to the new habanalabs device structure
  * @pdev: pointer to the pci device
- * @asic_type: in case of simulator device, which device is it
- * @minor: in case of simulator device, the minor of the device
  *
  * Allocate memory for habanalabs device and initialize basic fields
  * Identify the ASIC type
  * Allocate ID (minor) for the device (only for real devices)
  */
-int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
-		enum hl_asic_type asic_type, int minor)
+static int create_hdev(struct hl_device **dev, struct pci_dev *pdev)
 {
+	int main_id, ctrl_id = 0, rc = 0;
 	struct hl_device *hdev;
-	int rc, main_id, ctrl_id = 0;
 
 	*dev = NULL;
 
@@ -267,44 +323,39 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	if (!hdev)
 		return -ENOMEM;
 
+	/* can be NULL in case of simulator device */
+	hdev->pdev = pdev;
+
+	/* Assign status description string */
+	strncpy(hdev->status[HL_DEVICE_STATUS_OPERATIONAL], "operational", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_IN_RESET], "in reset", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_MALFUNCTION], "disabled", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_NEEDS_RESET], "needs reset", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_IN_DEVICE_CREATION],
+					"in device creation", HL_STR_MAX);
+
 	/* First, we must find out which ASIC are we handling. This is needed
 	 * to configure the behavior of the driver (kernel parameters)
 	 */
-	if (pdev) {
-		hdev->asic_type = get_asic_type(pdev->device);
-		if (hdev->asic_type == ASIC_INVALID) {
-			dev_err(&pdev->dev, "Unsupported ASIC\n");
-			rc = -ENODEV;
-			goto free_hdev;
-		}
-	} else {
-		hdev->asic_type = asic_type;
+	hdev->asic_type = get_asic_type(pdev->device);
+	if (hdev->asic_type == ASIC_INVALID) {
+		dev_err(&pdev->dev, "Unsupported ASIC\n");
+		rc = -ENODEV;
+		goto free_hdev;
 	}
 
-	hdev->major = hl_major;
-	hdev->reset_on_lockup = reset_on_lockup;
-	hdev->pldm = 0;
+	copy_kernel_module_params_to_device(hdev);
 
 	set_driver_behavior_per_device(hdev);
 
-	if (timeout_locked)
-		hdev->timeout_jiffies = msecs_to_jiffies(timeout_locked * 1000);
-	else
-		hdev->timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
-
-	hdev->disabled = true;
-	hdev->pdev = pdev; /* can be NULL in case of simulator device */
-
-	/* Set default DMA mask to 32 bits */
-	hdev->dma_mask = 32;
+	fixup_device_params(hdev);
 
 	mutex_lock(&hl_devs_idr_lock);
 
 	/* Always save 2 numbers, 1 for main device and 1 for control.
 	 * They must be consecutive
 	 */
-	main_id = idr_alloc(&hl_devs_idr, hdev, 0, HL_MAX_MINORS,
-				GFP_KERNEL);
+	main_id = idr_alloc(&hl_devs_idr, hdev, 0, HL_MAX_MINORS, GFP_KERNEL);
 
 	if (main_id >= 0)
 		ctrl_id = idr_alloc(&hl_devs_idr, hdev, main_id + 1,
@@ -344,7 +395,7 @@ free_hdev:
  * @dev: pointer to the habanalabs device structure
  *
  */
-void destroy_hdev(struct hl_device *hdev)
+static void destroy_hdev(struct hl_device *hdev)
 {
 	/* Remove device from the device list */
 	mutex_lock(&hl_devs_idr_lock);
@@ -383,7 +434,7 @@ static int hl_pmops_resume(struct device *dev)
 	return hl_device_resume(hdev);
 }
 
-/*
+/**
  * hl_pci_probe - probe PCI habanalabs devices
  *
  * @pdev: pointer to pci device
@@ -393,8 +444,7 @@ static int hl_pmops_resume(struct device *dev)
  * Create a new habanalabs device and initialize it according to the
  * device's type
  */
-static int hl_pci_probe(struct pci_dev *pdev,
-				const struct pci_device_id *id)
+static int hl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct hl_device *hdev;
 	int rc;
@@ -403,7 +453,7 @@ static int hl_pci_probe(struct pci_dev *pdev,
 		 " device found [%04x:%04x] (rev %x)\n",
 		 (int)pdev->vendor, (int)pdev->device, (int)pdev->revision);
 
-	rc = create_hdev(&hdev, pdev, ASIC_INVALID, -1);
+	rc = create_hdev(&hdev, pdev);
 	if (rc)
 		return rc;
 
@@ -421,6 +471,7 @@ static int hl_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 disable_device:
+	pci_disable_pcie_error_reporting(pdev);
 	pci_set_drvdata(pdev, NULL);
 	destroy_hdev(hdev);
 
@@ -481,7 +532,7 @@ hl_pci_err_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		result = PCI_ERS_RESULT_NONE;
 	}
 
-	hdev->asic_funcs->halt_engines(hdev, true);
+	hdev->asic_funcs->halt_engines(hdev, true, false);
 
 	return result;
 }
@@ -528,7 +579,12 @@ static struct pci_driver hl_pci_driver = {
 	.id_table = ids,
 	.probe = hl_pci_probe,
 	.remove = hl_pci_remove,
-	.driver.pm = &hl_pm_ops,
+	.shutdown = hl_pci_remove,
+	.driver = {
+		.name = HL_NAME,
+		.pm = &hl_pm_ops,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+	},
 	.err_handler = &hl_pci_err_handler,
 };
 

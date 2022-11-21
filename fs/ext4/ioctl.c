@@ -20,13 +20,256 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/iversion.h>
+#include <linux/fileattr.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include <linux/fsmap.h>
 #include "fsmap.h"
 #include <trace/events/ext4.h>
 
-/**
+typedef void ext4_update_sb_callback(struct ext4_super_block *es,
+				       const void *arg);
+
+/*
+ * Superblock modification callback function for changing file system
+ * label
+ */
+static void ext4_sb_setlabel(struct ext4_super_block *es, const void *arg)
+{
+	/* Sanity check, this should never happen */
+	BUILD_BUG_ON(sizeof(es->s_volume_name) < EXT4_LABEL_MAX);
+
+	memcpy(es->s_volume_name, (char *)arg, EXT4_LABEL_MAX);
+}
+
+static
+int ext4_update_primary_sb(struct super_block *sb, handle_t *handle,
+			   ext4_update_sb_callback func,
+			   const void *arg)
+{
+	int err = 0;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct buffer_head *bh = sbi->s_sbh;
+	struct ext4_super_block *es = sbi->s_es;
+
+	trace_ext4_update_sb(sb, bh->b_blocknr, 1);
+
+	BUFFER_TRACE(bh, "get_write_access");
+	err = ext4_journal_get_write_access(handle, sb,
+					    bh,
+					    EXT4_JTR_NONE);
+	if (err)
+		goto out_err;
+
+	lock_buffer(bh);
+	func(es, arg);
+	ext4_superblock_csum_set(sb);
+	unlock_buffer(bh);
+
+	if (buffer_write_io_error(bh) || !buffer_uptodate(bh)) {
+		ext4_msg(sbi->s_sb, KERN_ERR, "previous I/O error to "
+			 "superblock detected");
+		clear_buffer_write_io_error(bh);
+		set_buffer_uptodate(bh);
+	}
+
+	err = ext4_handle_dirty_metadata(handle, NULL, bh);
+	if (err)
+		goto out_err;
+	err = sync_dirty_buffer(bh);
+out_err:
+	ext4_std_error(sb, err);
+	return err;
+}
+
+/*
+ * Update one backup superblock in the group 'grp' using the callback
+ * function 'func' and argument 'arg'. If the handle is NULL the
+ * modification is not journalled.
+ *
+ * Returns: 0 when no modification was done (no superblock in the group)
+ *	    1 when the modification was successful
+ *	   <0 on error
+ */
+static int ext4_update_backup_sb(struct super_block *sb,
+				 handle_t *handle, ext4_group_t grp,
+				 ext4_update_sb_callback func, const void *arg)
+{
+	int err = 0;
+	ext4_fsblk_t sb_block;
+	struct buffer_head *bh;
+	unsigned long offset = 0;
+	struct ext4_super_block *es;
+
+	if (!ext4_bg_has_super(sb, grp))
+		return 0;
+
+	/*
+	 * For the group 0 there is always 1k padding, so we have
+	 * either adjust offset, or sb_block depending on blocksize
+	 */
+	if (grp == 0) {
+		sb_block = 1 * EXT4_MIN_BLOCK_SIZE;
+		offset = do_div(sb_block, sb->s_blocksize);
+	} else {
+		sb_block = ext4_group_first_block_no(sb, grp);
+		offset = 0;
+	}
+
+	trace_ext4_update_sb(sb, sb_block, handle ? 1 : 0);
+
+	bh = ext4_sb_bread(sb, sb_block, 0);
+	if (IS_ERR(bh))
+		return PTR_ERR(bh);
+
+	if (handle) {
+		BUFFER_TRACE(bh, "get_write_access");
+		err = ext4_journal_get_write_access(handle, sb,
+						    bh,
+						    EXT4_JTR_NONE);
+		if (err)
+			goto out_bh;
+	}
+
+	es = (struct ext4_super_block *) (bh->b_data + offset);
+	lock_buffer(bh);
+	if (ext4_has_metadata_csum(sb) &&
+	    es->s_checksum != ext4_superblock_csum(sb, es)) {
+		ext4_msg(sb, KERN_ERR, "Invalid checksum for backup "
+		"superblock %llu\n", sb_block);
+		unlock_buffer(bh);
+		err = -EFSBADCRC;
+		goto out_bh;
+	}
+	func(es, arg);
+	if (ext4_has_metadata_csum(sb))
+		es->s_checksum = ext4_superblock_csum(sb, es);
+	set_buffer_uptodate(bh);
+	unlock_buffer(bh);
+
+	if (err)
+		goto out_bh;
+
+	if (handle) {
+		err = ext4_handle_dirty_metadata(handle, NULL, bh);
+		if (err)
+			goto out_bh;
+	} else {
+		BUFFER_TRACE(bh, "marking dirty");
+		mark_buffer_dirty(bh);
+	}
+	err = sync_dirty_buffer(bh);
+
+out_bh:
+	brelse(bh);
+	ext4_std_error(sb, err);
+	return (err) ? err : 1;
+}
+
+/*
+ * Update primary and backup superblocks using the provided function
+ * func and argument arg.
+ *
+ * Only the primary superblock and at most two backup superblock
+ * modifications are journalled; the rest is modified without journal.
+ * This is safe because e2fsck will re-write them if there is a problem,
+ * and we're very unlikely to ever need more than two backups.
+ */
+static
+int ext4_update_superblocks_fn(struct super_block *sb,
+			       ext4_update_sb_callback func,
+			       const void *arg)
+{
+	handle_t *handle;
+	ext4_group_t ngroups;
+	unsigned int three = 1;
+	unsigned int five = 5;
+	unsigned int seven = 7;
+	int err = 0, ret, i;
+	ext4_group_t grp, primary_grp;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+
+	/*
+	 * We can't update superblocks while the online resize is running
+	 */
+	if (test_and_set_bit_lock(EXT4_FLAGS_RESIZING,
+				  &sbi->s_ext4_flags)) {
+		ext4_msg(sb, KERN_ERR, "Can't modify superblock while"
+			 "performing online resize");
+		return -EBUSY;
+	}
+
+	/*
+	 * We're only going to update primary superblock and two
+	 * backup superblocks in this transaction.
+	 */
+	handle = ext4_journal_start_sb(sb, EXT4_HT_MISC, 3);
+	if (IS_ERR(handle)) {
+		err = PTR_ERR(handle);
+		goto out;
+	}
+
+	/* Update primary superblock */
+	err = ext4_update_primary_sb(sb, handle, func, arg);
+	if (err) {
+		ext4_msg(sb, KERN_ERR, "Failed to update primary "
+			 "superblock");
+		goto out_journal;
+	}
+
+	primary_grp = ext4_get_group_number(sb, sbi->s_sbh->b_blocknr);
+	ngroups = ext4_get_groups_count(sb);
+
+	/*
+	 * Update backup superblocks. We have to start from group 0
+	 * because it might not be where the primary superblock is
+	 * if the fs is mounted with -o sb=<backup_sb_block>
+	 */
+	i = 0;
+	grp = 0;
+	while (grp < ngroups) {
+		/* Skip primary superblock */
+		if (grp == primary_grp)
+			goto next_grp;
+
+		ret = ext4_update_backup_sb(sb, handle, grp, func, arg);
+		if (ret < 0) {
+			/* Ignore bad checksum; try to update next sb */
+			if (ret == -EFSBADCRC)
+				goto next_grp;
+			err = ret;
+			goto out_journal;
+		}
+
+		i += ret;
+		if (handle && i > 1) {
+			/*
+			 * We're only journalling primary superblock and
+			 * two backup superblocks; the rest is not
+			 * journalled.
+			 */
+			err = ext4_journal_stop(handle);
+			if (err)
+				goto out;
+			handle = NULL;
+		}
+next_grp:
+		grp = ext4_list_backups(sb, &three, &five, &seven);
+	}
+
+out_journal:
+	if (handle) {
+		ret = ext4_journal_stop(handle);
+		if (ret && !err)
+			err = ret;
+	}
+out:
+	clear_bit_unlock(EXT4_FLAGS_RESIZING, &sbi->s_ext4_flags);
+	smp_mb__after_atomic();
+	return err ? err : 0;
+}
+
+/*
  * Swap memory between @a and @b for @len bytes.
  *
  * @a:          pointer to first memory area
@@ -47,7 +290,7 @@ static void memswap(void *a, void *b, size_t len)
 	}
 }
 
-/**
+/*
  * Swap i_data and associated attributes between @inode1 and @inode2.
  * This function is used for the primary swap between inode1 and inode2
  * and also to revert this primary swap in case of errors.
@@ -101,16 +344,18 @@ void ext4_reset_inode_seed(struct inode *inode)
 	ei->i_csum_seed = ext4_chksum(sbi, csum, (__u8 *)&gen, sizeof(gen));
 }
 
-/**
+/*
  * Swap the information from the given @inode and the inode
  * EXT4_BOOT_LOADER_INO. It will basically swap i_data and all other
  * important fields of the inodes.
  *
  * @sb:         the super block of the filesystem
+ * @mnt_userns:	user namespace of the mount the inode was found from
  * @inode:      the inode to swap with EXT4_BOOT_LOADER_INO
  *
  */
 static long swap_inode_boot_loader(struct super_block *sb,
+				struct user_namespace *mnt_userns,
 				struct inode *inode)
 {
 	handle_t *handle;
@@ -139,12 +384,13 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	}
 
 	if (IS_RDONLY(inode) || IS_APPEND(inode) || IS_IMMUTABLE(inode) ||
-	    !inode_owner_or_capable(inode) || !capable(CAP_SYS_ADMIN)) {
+	    !inode_owner_or_capable(mnt_userns, inode) ||
+	    !capable(CAP_SYS_ADMIN)) {
 		err = -EPERM;
 		goto journal_err_out;
 	}
 
-	down_write(&EXT4_I(inode)->i_mmap_sem);
+	filemap_invalidate_lock(inode->i_mapping);
 	err = filemap_write_and_wait(inode->i_mapping);
 	if (err)
 		goto err_out;
@@ -165,7 +411,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 		err = -EINVAL;
 		goto err_out;
 	}
-	ext4_fc_start_ineligible(sb, EXT4_FC_REASON_SWAP_BOOT);
+	ext4_fc_mark_ineligible(sb, EXT4_FC_REASON_SWAP_BOOT, handle);
 
 	/* Protect extent tree against block allocations via delalloc */
 	ext4_double_down_write_data_sem(inode, inode_bl);
@@ -248,11 +494,10 @@ revert:
 
 err_out1:
 	ext4_journal_stop(handle);
-	ext4_fc_stop_ineligible(sb);
 	ext4_double_up_write_data_sem(inode, inode_bl);
 
 err_out:
-	up_write(&EXT4_I(inode)->i_mmap_sem);
+	filemap_invalidate_unlock(inode->i_mapping);
 journal_err_out:
 	unlock_two_nondirectories(inode, inode_bl);
 	iput(inode_bl);
@@ -312,6 +557,12 @@ static void ext4_dax_dontcache(struct inode *inode, unsigned int flags)
 static bool dax_compatible(struct inode *inode, unsigned int oldflags,
 			   unsigned int flags)
 {
+	/* Allow the DAX flag to be changed on inline directories */
+	if (S_ISDIR(inode->i_mode)) {
+		flags &= ~EXT4_INLINE_DATA_FL;
+		oldflags &= ~EXT4_INLINE_DATA_FL;
+	}
+
 	if (flags & EXT4_DAX_FL) {
 		if ((oldflags & EXT4_DAX_MUT_EXCL) ||
 		     ext4_test_inode_state(inode,
@@ -341,11 +592,6 @@ static int ext4_ioctl_setflags(struct inode *inode,
 		goto flags_out;
 
 	oldflags = ei->i_flags;
-
-	err = vfs_ioc_setflags_prepare(inode, oldflags, flags);
-	if (err)
-		goto flags_out;
-
 	/*
 	 * The JOURNAL_DATA flag can only be changed by
 	 * the relevant capability.
@@ -456,9 +702,8 @@ flags_out:
 }
 
 #ifdef CONFIG_QUOTA
-static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
+static int ext4_ioctl_setproject(struct inode *inode, __u32 projid)
 {
-	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	int err, rc;
@@ -542,63 +787,13 @@ out_stop:
 	return err;
 }
 #else
-static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
+static int ext4_ioctl_setproject(struct inode *inode, __u32 projid)
 {
 	if (projid != EXT4_DEF_PROJID)
 		return -EOPNOTSUPP;
 	return 0;
 }
 #endif
-
-/* Transfer internal flags to xflags */
-static inline __u32 ext4_iflags_to_xflags(unsigned long iflags)
-{
-	__u32 xflags = 0;
-
-	if (iflags & EXT4_SYNC_FL)
-		xflags |= FS_XFLAG_SYNC;
-	if (iflags & EXT4_IMMUTABLE_FL)
-		xflags |= FS_XFLAG_IMMUTABLE;
-	if (iflags & EXT4_APPEND_FL)
-		xflags |= FS_XFLAG_APPEND;
-	if (iflags & EXT4_NODUMP_FL)
-		xflags |= FS_XFLAG_NODUMP;
-	if (iflags & EXT4_NOATIME_FL)
-		xflags |= FS_XFLAG_NOATIME;
-	if (iflags & EXT4_PROJINHERIT_FL)
-		xflags |= FS_XFLAG_PROJINHERIT;
-	if (iflags & EXT4_DAX_FL)
-		xflags |= FS_XFLAG_DAX;
-	return xflags;
-}
-
-#define EXT4_SUPPORTED_FS_XFLAGS (FS_XFLAG_SYNC | FS_XFLAG_IMMUTABLE | \
-				  FS_XFLAG_APPEND | FS_XFLAG_NODUMP | \
-				  FS_XFLAG_NOATIME | FS_XFLAG_PROJINHERIT | \
-				  FS_XFLAG_DAX)
-
-/* Transfer xflags flags to internal */
-static inline unsigned long ext4_xflags_to_iflags(__u32 xflags)
-{
-	unsigned long iflags = 0;
-
-	if (xflags & FS_XFLAG_SYNC)
-		iflags |= EXT4_SYNC_FL;
-	if (xflags & FS_XFLAG_IMMUTABLE)
-		iflags |= EXT4_IMMUTABLE_FL;
-	if (xflags & FS_XFLAG_APPEND)
-		iflags |= EXT4_APPEND_FL;
-	if (xflags & FS_XFLAG_NODUMP)
-		iflags |= EXT4_NODUMP_FL;
-	if (xflags & FS_XFLAG_NOATIME)
-		iflags |= EXT4_NOATIME_FL;
-	if (xflags & FS_XFLAG_PROJINHERIT)
-		iflags |= EXT4_PROJINHERIT_FL;
-	if (xflags & FS_XFLAG_DAX)
-		iflags |= EXT4_DAX_FL;
-
-	return iflags;
-}
 
 static int ext4_shutdown(struct super_block *sb, unsigned long arg)
 {
@@ -624,7 +819,7 @@ static int ext4_shutdown(struct super_block *sb, unsigned long arg)
 	case EXT4_GOING_FLAGS_DEFAULT:
 		freeze_bdev(sb->s_bdev);
 		set_bit(EXT4_FLAGS_SHUTDOWN, &sbi->s_ext4_flags);
-		thaw_bdev(sb->s_bdev, sb);
+		thaw_bdev(sb->s_bdev);
 		break;
 	case EXT4_GOING_FLAGS_LOGFLUSH:
 		set_bit(EXT4_FLAGS_SHUTDOWN, &sbi->s_ext4_flags);
@@ -705,10 +900,9 @@ static int ext4_ioc_getfsmap(struct super_block *sb,
 	info.gi_sb = sb;
 	info.gi_data = arg;
 	error = ext4_getfsmap(sb, &xhead, ext4_getfsmap_format, &info);
-	if (error == EXT4_QUERY_RANGE_ABORT) {
-		error = 0;
+	if (error == EXT4_QUERY_RANGE_ABORT)
 		aborted = true;
-	} else if (error)
+	else if (error)
 		return error;
 
 	/* If we didn't abort, set the "last" flag in the last fmx */
@@ -753,7 +947,7 @@ static long ext4_ioctl_group_add(struct file *file,
 	err = ext4_group_add(sb, input);
 	if (EXT4_SB(sb)->s_journal) {
 		jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
-		err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
+		err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal, 0);
 		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 	}
 	if (err == 0)
@@ -767,15 +961,50 @@ group_add_out:
 	return err;
 }
 
-static void ext4_fill_fsxattr(struct inode *inode, struct fsxattr *fa)
+int ext4_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 {
+	struct inode *inode = d_inode(dentry);
 	struct ext4_inode_info *ei = EXT4_I(inode);
+	u32 flags = ei->i_flags & EXT4_FL_USER_VISIBLE;
 
-	simple_fill_fsxattr(fa, ext4_iflags_to_xflags(ei->i_flags &
-						      EXT4_FL_USER_VISIBLE));
+	if (S_ISREG(inode->i_mode))
+		flags &= ~FS_PROJINHERIT_FL;
 
+	fileattr_fill_flags(fa, flags);
 	if (ext4_has_feature_project(inode->i_sb))
 		fa->fsx_projid = from_kprojid(&init_user_ns, ei->i_projid);
+
+	return 0;
+}
+
+int ext4_fileattr_set(struct user_namespace *mnt_userns,
+		      struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	u32 flags = fa->flags;
+	int err = -EOPNOTSUPP;
+
+	if (flags & ~EXT4_FL_USER_VISIBLE)
+		goto out;
+
+	/*
+	 * chattr(1) grabs flags via GETFLAGS, modifies the result and
+	 * passes that to SETFLAGS. So we cannot easily make SETFLAGS
+	 * more restrictive than just silently masking off visible but
+	 * not settable flags as we always did.
+	 */
+	flags &= EXT4_FL_USER_MODIFIABLE;
+	if (ext4_mask_flags(inode->i_mode, flags) != flags)
+		goto out;
+	err = ext4_ioctl_check_immutable(inode, fa->fsx_projid, flags);
+	if (err)
+		goto out;
+	err = ext4_ioctl_setflags(inode, flags);
+	if (err)
+		goto out;
+	err = ext4_ioctl_setproject(inode, fa->fsx_projid);
+out:
+	return err;
 }
 
 /* So that the fiemap access checks can't overflow on 32 bit machines. */
@@ -809,58 +1038,126 @@ static int ext4_ioctl_get_es_cache(struct file *filp, unsigned long arg)
 	return error;
 }
 
+static int ext4_ioctl_checkpoint(struct file *filp, unsigned long arg)
+{
+	int err = 0;
+	__u32 flags = 0;
+	unsigned int flush_flags = 0;
+	struct super_block *sb = file_inode(filp)->i_sb;
+	struct request_queue *q;
+
+	if (copy_from_user(&flags, (__u32 __user *)arg,
+				sizeof(__u32)))
+		return -EFAULT;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	/* check for invalid bits set */
+	if ((flags & ~EXT4_IOC_CHECKPOINT_FLAG_VALID) ||
+				((flags & JBD2_JOURNAL_FLUSH_DISCARD) &&
+				(flags & JBD2_JOURNAL_FLUSH_ZEROOUT)))
+		return -EINVAL;
+
+	if (!EXT4_SB(sb)->s_journal)
+		return -ENODEV;
+
+	if (flags & ~EXT4_IOC_CHECKPOINT_FLAG_VALID)
+		return -EINVAL;
+
+	q = bdev_get_queue(EXT4_SB(sb)->s_journal->j_dev);
+	if (!q)
+		return -ENXIO;
+	if ((flags & JBD2_JOURNAL_FLUSH_DISCARD) && !blk_queue_discard(q))
+		return -EOPNOTSUPP;
+
+	if (flags & EXT4_IOC_CHECKPOINT_FLAG_DRY_RUN)
+		return 0;
+
+	if (flags & EXT4_IOC_CHECKPOINT_FLAG_DISCARD)
+		flush_flags |= JBD2_JOURNAL_FLUSH_DISCARD;
+
+	if (flags & EXT4_IOC_CHECKPOINT_FLAG_ZEROOUT) {
+		flush_flags |= JBD2_JOURNAL_FLUSH_ZEROOUT;
+		pr_info_ratelimited("warning: checkpointing journal with EXT4_IOC_CHECKPOINT_FLAG_ZEROOUT can be slow");
+	}
+
+	jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
+	err = jbd2_journal_flush(EXT4_SB(sb)->s_journal, flush_flags);
+	jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
+
+	return err;
+}
+
+static int ext4_ioctl_setlabel(struct file *filp, const char __user *user_label)
+{
+	size_t len;
+	int ret = 0;
+	char new_label[EXT4_LABEL_MAX + 1];
+	struct super_block *sb = file_inode(filp)->i_sb;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	/*
+	 * Copy the maximum length allowed for ext4 label with one more to
+	 * find the required terminating null byte in order to test the
+	 * label length. The on disk label doesn't need to be null terminated.
+	 */
+	if (copy_from_user(new_label, user_label, EXT4_LABEL_MAX + 1))
+		return -EFAULT;
+
+	len = strnlen(new_label, EXT4_LABEL_MAX + 1);
+	if (len > EXT4_LABEL_MAX)
+		return -EINVAL;
+
+	/*
+	 * Clear the buffer after the new label
+	 */
+	memset(new_label + len, 0, EXT4_LABEL_MAX - len);
+
+	ret = mnt_want_write_file(filp);
+	if (ret)
+		return ret;
+
+	ret = ext4_update_superblocks_fn(sb, ext4_sb_setlabel, new_label);
+
+	mnt_drop_write_file(filp);
+	return ret;
+}
+
+static int ext4_ioctl_getlabel(struct ext4_sb_info *sbi, char __user *user_label)
+{
+	char label[EXT4_LABEL_MAX + 1];
+
+	/*
+	 * EXT4_LABEL_MAX must always be smaller than FSLABEL_MAX because
+	 * FSLABEL_MAX must include terminating null byte, while s_volume_name
+	 * does not have to.
+	 */
+	BUILD_BUG_ON(EXT4_LABEL_MAX >= FSLABEL_MAX);
+
+	memset(label, 0, sizeof(label));
+	lock_buffer(sbi->s_sbh);
+	strncpy(label, sbi->s_es->s_volume_name, EXT4_LABEL_MAX);
+	unlock_buffer(sbi->s_sbh);
+
+	if (copy_to_user(user_label, label, sizeof(label)))
+		return -EFAULT;
+	return 0;
+}
+
 static long __ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
-	struct ext4_inode_info *ei = EXT4_I(inode);
-	unsigned int flags;
+	struct user_namespace *mnt_userns = file_mnt_user_ns(filp);
 
 	ext4_debug("cmd = %u, arg = %lu\n", cmd, arg);
 
 	switch (cmd) {
 	case FS_IOC_GETFSMAP:
 		return ext4_ioc_getfsmap(sb, (void __user *)arg);
-	case FS_IOC_GETFLAGS:
-		flags = ei->i_flags & EXT4_FL_USER_VISIBLE;
-		if (S_ISREG(inode->i_mode))
-			flags &= ~EXT4_PROJINHERIT_FL;
-		return put_user(flags, (int __user *) arg);
-	case FS_IOC_SETFLAGS: {
-		int err;
-
-		if (!inode_owner_or_capable(inode))
-			return -EACCES;
-
-		if (get_user(flags, (int __user *) arg))
-			return -EFAULT;
-
-		if (flags & ~EXT4_FL_USER_VISIBLE)
-			return -EOPNOTSUPP;
-		/*
-		 * chattr(1) grabs flags via GETFLAGS, modifies the result and
-		 * passes that to SETFLAGS. So we cannot easily make SETFLAGS
-		 * more restrictive than just silently masking off visible but
-		 * not settable flags as we always did.
-		 */
-		flags &= EXT4_FL_USER_MODIFIABLE;
-		if (ext4_mask_flags(inode->i_mode, flags) != flags)
-			return -EOPNOTSUPP;
-
-		err = mnt_want_write_file(filp);
-		if (err)
-			return err;
-
-		inode_lock(inode);
-		err = ext4_ioctl_check_immutable(inode,
-				from_kprojid(&init_user_ns, ei->i_projid),
-				flags);
-		if (!err)
-			err = ext4_ioctl_setflags(inode, flags);
-		inode_unlock(inode);
-		mnt_drop_write_file(filp);
-		return err;
-	}
 	case EXT4_IOC_GETVERSION:
 	case EXT4_IOC_GETVERSION_OLD:
 		return put_user(inode->i_generation, (int __user *) arg);
@@ -871,7 +1168,7 @@ static long __ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		__u32 generation;
 		int err;
 
-		if (!inode_owner_or_capable(inode))
+		if (!inode_owner_or_capable(mnt_userns, inode))
 			return -EPERM;
 
 		if (ext4_has_metadata_csum(inode->i_sb)) {
@@ -935,7 +1232,7 @@ setversion_out:
 		err = ext4_group_extend(sb, EXT4_SB(sb)->s_es, n_blocks_count);
 		if (EXT4_SB(sb)->s_journal) {
 			jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
-			err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
+			err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal, 0);
 			jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 		}
 		if (err == 0)
@@ -1010,7 +1307,7 @@ mext_out:
 	case EXT4_IOC_MIGRATE:
 	{
 		int err;
-		if (!inode_owner_or_capable(inode))
+		if (!inode_owner_or_capable(mnt_userns, inode))
 			return -EACCES;
 
 		err = mnt_want_write_file(filp);
@@ -1032,7 +1329,7 @@ mext_out:
 	case EXT4_IOC_ALLOC_DA_BLKS:
 	{
 		int err;
-		if (!inode_owner_or_capable(inode))
+		if (!inode_owner_or_capable(mnt_userns, inode))
 			return -EACCES;
 
 		err = mnt_want_write_file(filp);
@@ -1051,7 +1348,7 @@ mext_out:
 		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
-		err = swap_inode_boot_loader(sb, inode);
+		err = swap_inode_boot_loader(sb, mnt_userns, inode);
 		mnt_drop_write_file(filp);
 		return err;
 	}
@@ -1076,9 +1373,9 @@ mext_out:
 
 		err = ext4_resize_fs(sb, n_blocks_count);
 		if (EXT4_SB(sb)->s_journal) {
-			ext4_fc_mark_ineligible(sb, EXT4_FC_REASON_RESIZE);
+			ext4_fc_mark_ineligible(sb, EXT4_FC_REASON_RESIZE, NULL);
 			jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
-			err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
+			err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal, 0);
 			jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 		}
 		if (err == 0)
@@ -1117,8 +1414,6 @@ resizefs_out:
 		    sizeof(range)))
 			return -EFAULT;
 
-		range.minlen = max((unsigned int)range.minlen,
-				   q->limits.discard_granularity);
 		ret = ext4_trim_fs(sb, &range);
 		if (ret < 0)
 			return ret;
@@ -1154,10 +1449,15 @@ resizefs_out:
 				err = PTR_ERR(handle);
 				goto pwsalt_err_exit;
 			}
-			err = ext4_journal_get_write_access(handle, sbi->s_sbh);
+			err = ext4_journal_get_write_access(handle, sb,
+							    sbi->s_sbh,
+							    EXT4_JTR_NONE);
 			if (err)
 				goto pwsalt_err_journal;
+			lock_buffer(sbi->s_sbh);
 			generate_random_uuid(sbi->s_es->s_encrypt_pw_salt);
+			ext4_superblock_csum_set(sb);
+			unlock_buffer(sbi->s_sbh);
 			err = ext4_handle_dirty_metadata(handle, NULL,
 							 sbi->s_sbh);
 		pwsalt_err_journal:
@@ -1214,7 +1514,7 @@ resizefs_out:
 
 	case EXT4_IOC_CLEAR_ES_CACHE:
 	{
-		if (!inode_owner_or_capable(inode))
+		if (!inode_owner_or_capable(mnt_userns, inode))
 			return -EACCES;
 		ext4_clear_inode_es(inode);
 		return 0;
@@ -1239,60 +1539,6 @@ resizefs_out:
 	case EXT4_IOC_GET_ES_CACHE:
 		return ext4_ioctl_get_es_cache(filp, arg);
 
-	case FS_IOC_FSGETXATTR:
-	{
-		struct fsxattr fa;
-
-		ext4_fill_fsxattr(inode, &fa);
-
-		if (copy_to_user((struct fsxattr __user *)arg,
-				 &fa, sizeof(fa)))
-			return -EFAULT;
-		return 0;
-	}
-	case FS_IOC_FSSETXATTR:
-	{
-		struct fsxattr fa, old_fa;
-		int err;
-
-		if (copy_from_user(&fa, (struct fsxattr __user *)arg,
-				   sizeof(fa)))
-			return -EFAULT;
-
-		/* Make sure caller has proper permission */
-		if (!inode_owner_or_capable(inode))
-			return -EACCES;
-
-		if (fa.fsx_xflags & ~EXT4_SUPPORTED_FS_XFLAGS)
-			return -EOPNOTSUPP;
-
-		flags = ext4_xflags_to_iflags(fa.fsx_xflags);
-		if (ext4_mask_flags(inode->i_mode, flags) != flags)
-			return -EOPNOTSUPP;
-
-		err = mnt_want_write_file(filp);
-		if (err)
-			return err;
-
-		inode_lock(inode);
-		ext4_fill_fsxattr(inode, &old_fa);
-		err = vfs_ioc_fssetxattr_check(inode, &old_fa, &fa);
-		if (err)
-			goto out;
-		flags = (ei->i_flags & ~EXT4_FL_XFLAG_VISIBLE) |
-			 (flags & EXT4_FL_XFLAG_VISIBLE);
-		err = ext4_ioctl_check_immutable(inode, fa.fsx_projid, flags);
-		if (err)
-			goto out;
-		err = ext4_ioctl_setflags(inode, flags);
-		if (err)
-			goto out;
-		err = ext4_ioctl_setproject(filp, fa.fsx_projid);
-out:
-		inode_unlock(inode);
-		mnt_drop_write_file(filp);
-		return err;
-	}
 	case EXT4_IOC_SHUTDOWN:
 		return ext4_shutdown(sb, arg);
 
@@ -1306,6 +1552,22 @@ out:
 			return -EOPNOTSUPP;
 		return fsverity_ioctl_measure(filp, (void __user *)arg);
 
+	case FS_IOC_READ_VERITY_METADATA:
+		if (!ext4_has_feature_verity(sb))
+			return -EOPNOTSUPP;
+		return fsverity_ioctl_read_metadata(filp,
+						    (const void __user *)arg);
+
+	case EXT4_IOC_CHECKPOINT:
+		return ext4_ioctl_checkpoint(filp, arg);
+
+	case FS_IOC_GETFSLABEL:
+		return ext4_ioctl_getlabel(EXT4_SB(sb), (void __user *)arg);
+
+	case FS_IOC_SETFSLABEL:
+		return ext4_ioctl_setlabel(filp,
+					   (const void __user *)arg);
+
 	default:
 		return -ENOTTY;
 	}
@@ -1313,13 +1575,7 @@ out:
 
 long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	long ret;
-
-	ext4_fc_start_update(file_inode(filp));
-	ret = __ext4_ioctl(filp, cmd, arg);
-	ext4_fc_stop_update(file_inode(filp));
-
-	return ret;
+	return __ext4_ioctl(filp, cmd, arg);
 }
 
 #ifdef CONFIG_COMPAT
@@ -1327,12 +1583,6 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	/* These are just misnamed, they actually get/put from/to user an int */
 	switch (cmd) {
-	case FS_IOC32_GETFLAGS:
-		cmd = FS_IOC_GETFLAGS;
-		break;
-	case FS_IOC32_SETFLAGS:
-		cmd = FS_IOC_SETFLAGS;
-		break;
 	case EXT4_IOC32_GETVERSION:
 		cmd = EXT4_IOC_GETVERSION;
 		break;
@@ -1388,11 +1638,13 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case FS_IOC_GETFSMAP:
 	case FS_IOC_ENABLE_VERITY:
 	case FS_IOC_MEASURE_VERITY:
+	case FS_IOC_READ_VERITY_METADATA:
 	case EXT4_IOC_CLEAR_ES_CACHE:
 	case EXT4_IOC_GETSTATE:
 	case EXT4_IOC_GET_ES_CACHE:
-	case FS_IOC_FSGETXATTR:
-	case FS_IOC_FSSETXATTR:
+	case EXT4_IOC_CHECKPOINT:
+	case FS_IOC_GETFSLABEL:
+	case FS_IOC_SETFSLABEL:
 		break;
 	default:
 		return -ENOIOCTLCMD;
@@ -1400,3 +1652,19 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return ext4_ioctl(file, cmd, (unsigned long) compat_ptr(arg));
 }
 #endif
+
+static void set_overhead(struct ext4_super_block *es, const void *arg)
+{
+	es->s_overhead_clusters = cpu_to_le32(*((unsigned long *) arg));
+}
+
+int ext4_update_overhead(struct super_block *sb)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+
+	if (sb_rdonly(sb) || sbi->s_overhead == 0 ||
+	    sbi->s_overhead == le32_to_cpu(sbi->s_es->s_overhead_clusters))
+		return 0;
+
+	return ext4_update_superblocks_fn(sb, set_overhead, &sbi->s_overhead);
+}

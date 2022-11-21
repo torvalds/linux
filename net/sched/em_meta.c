@@ -457,7 +457,7 @@ META_COLLECTOR(int_sk_fwd_alloc)
 		*err = -1;
 		return;
 	}
-	dst->value = sk->sk_forward_alloc;
+	dst->value = sk_forward_alloc_get(sk);
 }
 
 META_COLLECTOR(int_sk_sndbuf)

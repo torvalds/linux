@@ -13,6 +13,7 @@
 
 #include <linux/device.h>
 #include <linux/iio/iio.h>
+#include <linux/regulator/consumer.h>
 
 #define ST_LSM6DS3_DEV_NAME	"lsm6ds3"
 #define ST_LSM6DS3H_DEV_NAME	"lsm6ds3h"
@@ -28,6 +29,8 @@
 #define ST_LSM9DS1_DEV_NAME	"lsm9ds1-imu"
 #define ST_LSM6DS0_DEV_NAME	"lsm6ds0"
 #define ST_LSM6DSRX_DEV_NAME	"lsm6dsrx"
+#define ST_LSM6DST_DEV_NAME	"lsm6dst"
+#define ST_LSM6DSOP_DEV_NAME	"lsm6dsop"
 
 enum st_lsm6dsx_hw_id {
 	ST_LSM6DS3_ID,
@@ -44,6 +47,8 @@ enum st_lsm6dsx_hw_id {
 	ST_LSM9DS1_ID,
 	ST_LSM6DS0_ID,
 	ST_LSM6DSRX_ID,
+	ST_LSM6DST_ID,
+	ST_LSM6DSOP_ID,
 	ST_LSM6DSX_MAX_ID,
 };
 
@@ -138,6 +143,7 @@ struct st_lsm6dsx_fs_table_entry {
  * @read_fifo: Read FIFO callback.
  * @fifo_th: FIFO threshold register info (addr + mask).
  * @fifo_diff: FIFO diff status register info (addr + mask).
+ * @max_size: Sensor max fifo length in FIFO words.
  * @th_wl: FIFO threshold word length.
  */
 struct st_lsm6dsx_fifo_ops {
@@ -151,6 +157,7 @@ struct st_lsm6dsx_fifo_ops {
 		u8 addr;
 		u16 mask;
 	} fifo_diff;
+	u16 max_size;
 	u8 th_wl;
 };
 
@@ -263,11 +270,9 @@ struct st_lsm6dsx_ext_dev_settings {
 
 /**
  * struct st_lsm6dsx_settings - ST IMU sensor settings
- * @wai: Sensor WhoAmI default value.
  * @reset: register address for reset.
  * @boot: register address for boot.
  * @bdu: register address for Block Data Update.
- * @max_fifo_size: Sensor max fifo length in FIFO words.
  * @id: List of hw id/device name supported by the driver configuration.
  * @channels: IIO channels supported by the device.
  * @irq_config: interrupts related registers.
@@ -281,14 +286,13 @@ struct st_lsm6dsx_ext_dev_settings {
  * @shub_settings: i2c controller related settings.
  */
 struct st_lsm6dsx_settings {
-	u8 wai;
 	struct st_lsm6dsx_reg reset;
 	struct st_lsm6dsx_reg boot;
 	struct st_lsm6dsx_reg bdu;
-	u16 max_fifo_size;
 	struct {
 		enum st_lsm6dsx_hw_id hw_id;
 		const char *name;
+		u8 wai;
 	} id[ST_LSM6DSX_MAX_ID];
 	struct {
 		const struct iio_chan_spec *chan;
@@ -366,6 +370,7 @@ struct st_lsm6dsx_sensor {
  * struct st_lsm6dsx_hw - ST IMU MEMS hw instance
  * @dev: Pointer to instance of struct device (I2C or SPI).
  * @regmap: Register map of the device.
+ * @regulators: VDD/VDDIO voltage regulators.
  * @irq: Device interrupt line (I2C or SPI).
  * @fifo_lock: Mutex to prevent concurrent access to the hw FIFO.
  * @conf_lock: Mutex to prevent concurrent FIFO configuration update.
@@ -388,6 +393,7 @@ struct st_lsm6dsx_sensor {
 struct st_lsm6dsx_hw {
 	struct device *dev;
 	struct regmap *regmap;
+	struct regulator_bulk_data regulators[2];
 	int irq;
 
 	struct mutex fifo_lock;

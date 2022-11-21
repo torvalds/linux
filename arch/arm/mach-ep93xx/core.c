@@ -214,7 +214,7 @@ static int ep93xx_ohci_power_on(struct platform_device *pdev)
 			return PTR_ERR(ep93xx_ohci_host_clock);
 	}
 
-	return clk_enable(ep93xx_ohci_host_clock);
+	return clk_prepare_enable(ep93xx_ohci_host_clock);
 }
 
 static void ep93xx_ohci_power_off(struct platform_device *pdev)
@@ -1003,9 +1003,4 @@ void ep93xx_restart(enum reboot_mode mode, const char *cmd)
 
 	while (1)
 		;
-}
-
-void __init ep93xx_init_late(void)
-{
-	crunch_init();
 }

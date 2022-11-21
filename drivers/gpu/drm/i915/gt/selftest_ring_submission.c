@@ -35,16 +35,16 @@ static struct i915_vma *create_wally(struct intel_engine_cs *engine)
 		return ERR_PTR(err);
 	}
 
-	cs = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	cs = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(cs)) {
 		i915_gem_object_put(obj);
 		return ERR_CAST(cs);
 	}
 
-	if (INTEL_GEN(engine->i915) >= 6) {
+	if (GRAPHICS_VER(engine->i915) >= 6) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4;
 		*cs++ = 0;
-	} else if (INTEL_GEN(engine->i915) >= 4) {
+	} else if (GRAPHICS_VER(engine->i915) >= 4) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = 0;
 	} else {
@@ -212,7 +212,7 @@ static int __live_ctx_switch_wa(struct intel_engine_cs *engine)
 	if (IS_ERR(bb))
 		return PTR_ERR(bb);
 
-	result = i915_gem_object_pin_map(bb->obj, I915_MAP_WC);
+	result = i915_gem_object_pin_map_unlocked(bb->obj, I915_MAP_WC);
 	if (IS_ERR(result)) {
 		intel_context_put(bb->private);
 		i915_vma_unpin_and_release(&bb, 0);
@@ -266,7 +266,7 @@ static int live_ctx_switch_wa(void *arg)
 		if (!intel_engine_can_store_dword(engine))
 			continue;
 
-		if (IS_GEN_RANGE(gt->i915, 4, 5))
+		if (IS_GRAPHICS_VER(gt->i915, 4, 5))
 			continue; /* MI_STORE_DWORD is privileged! */
 
 		saved_wa = fetch_and_zero(&engine->wa_ctx.vma);
@@ -291,8 +291,8 @@ int intel_ring_submission_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_ctx_switch_wa),
 	};
 
-	if (HAS_EXECLISTS(i915))
+	if (to_gt(i915)->submission_method > INTEL_SUBMISSION_RING)
 		return 0;
 
-	return intel_gt_live_subtests(tests, &i915->gt);
+	return intel_gt_live_subtests(tests, to_gt(i915));
 }

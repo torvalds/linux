@@ -478,7 +478,7 @@ static u32 periodic_compensation_handler(struct tegra210_emc *emc, u32 type,
 static u32 tegra210_emc_r21021_periodic_compensation(struct tegra210_emc *emc)
 {
 	u32 emc_cfg, emc_cfg_o, emc_cfg_update, del, value;
-	u32 list[] = {
+	static const u32 list[] = {
 		EMC_PMACRO_OB_DDLL_LONG_DQ_RANK0_0,
 		EMC_PMACRO_OB_DDLL_LONG_DQ_RANK0_1,
 		EMC_PMACRO_OB_DDLL_LONG_DQ_RANK0_2,

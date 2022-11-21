@@ -29,9 +29,6 @@ struct  sh_css_fw_bi_file_h {
 };
 
 extern struct ia_css_fw_info     sh_css_sp_fw;
-#if defined(HAS_BL)
-extern struct ia_css_fw_info     sh_css_bl_fw;
-#endif /* HAS_BL */
 extern struct ia_css_blob_descr *sh_css_blob_info;
 extern unsigned int sh_css_num_binaries;
 

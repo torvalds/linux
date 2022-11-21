@@ -18,6 +18,7 @@
 #include <linux/refcount.h>
 #include <net/neighbour.h>
 #include <asm/processor.h>
+#include <linux/indirect_call_wrapper.h>
 
 struct sk_buff;
 
@@ -76,6 +77,7 @@ struct dst_entry {
 #ifndef CONFIG_64BIT
 	atomic_t		__refcnt;	/* 32-bit offset 64 */
 #endif
+	netdevice_tracker	dev_tracker;
 };
 
 struct dst_metrics {
@@ -193,9 +195,11 @@ dst_feature(const struct dst_entry *dst, u32 feature)
 	return dst_metric(dst, RTAX_FEATURES) & feature;
 }
 
+INDIRECT_CALLABLE_DECLARE(unsigned int ip6_mtu(const struct dst_entry *));
+INDIRECT_CALLABLE_DECLARE(unsigned int ipv4_mtu(const struct dst_entry *));
 static inline u32 dst_mtu(const struct dst_entry *dst)
 {
-	return dst->ops->mtu(dst);
+	return INDIRECT_CALL_INET(dst->ops->mtu, ip6_mtu, ipv4_mtu, dst);
 }
 
 /* RTT metrics are stored in milliseconds for user ABI, but used as jiffies */
@@ -274,6 +278,7 @@ static inline void skb_dst_drop(struct sk_buff *skb)
 
 static inline void __skb_dst_copy(struct sk_buff *nskb, unsigned long refdst)
 {
+	nskb->slow_gro |= !!refdst;
 	nskb->_skb_refdst = refdst;
 	if (!(nskb->_skb_refdst & SKB_DST_NOREF))
 		dst_clone(skb_dst(nskb));
@@ -313,6 +318,7 @@ static inline bool skb_dst_force(struct sk_buff *skb)
 			dst = NULL;
 
 		skb->_skb_refdst = (unsigned long)dst;
+		skb->slow_gro |= !!dst;
 	}
 
 	return skb->_skb_refdst != 0UL;
@@ -400,14 +406,12 @@ static inline struct neighbour *dst_neigh_lookup(const struct dst_entry *dst, co
 static inline struct neighbour *dst_neigh_lookup_skb(const struct dst_entry *dst,
 						     struct sk_buff *skb)
 {
-	struct neighbour *n = NULL;
+	struct neighbour *n;
 
-	/* The packets from tunnel devices (eg bareudp) may have only
-	 * metadata in the dst pointer of skb. Hence a pointer check of
-	 * neigh_lookup is needed.
-	 */
-	if (dst->ops->neigh_lookup)
-		n = dst->ops->neigh_lookup(dst, skb, NULL);
+	if (WARN_ON_ONCE(!dst->ops->neigh_lookup))
+		return NULL;
+
+	n = dst->ops->neigh_lookup(dst, skb, NULL);
 
 	return IS_ERR(n) ? NULL : n;
 }
@@ -437,22 +441,36 @@ static inline void dst_set_expires(struct dst_entry *dst, int timeout)
 		dst->expires = expires;
 }
 
+INDIRECT_CALLABLE_DECLARE(int ip6_output(struct net *, struct sock *,
+					 struct sk_buff *));
+INDIRECT_CALLABLE_DECLARE(int ip_output(struct net *, struct sock *,
+					 struct sk_buff *));
 /* Output packet to network from transport.  */
 static inline int dst_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	return skb_dst(skb)->output(net, sk, skb);
+	return INDIRECT_CALL_INET(skb_dst(skb)->output,
+				  ip6_output, ip_output,
+				  net, sk, skb);
 }
 
+INDIRECT_CALLABLE_DECLARE(int ip6_input(struct sk_buff *));
+INDIRECT_CALLABLE_DECLARE(int ip_local_deliver(struct sk_buff *));
 /* Input packet from network to transport.  */
 static inline int dst_input(struct sk_buff *skb)
 {
-	return skb_dst(skb)->input(skb);
+	return INDIRECT_CALL_INET(skb_dst(skb)->input,
+				  ip6_input, ip_local_deliver, skb);
 }
 
+INDIRECT_CALLABLE_DECLARE(struct dst_entry *ip6_dst_check(struct dst_entry *,
+							  u32));
+INDIRECT_CALLABLE_DECLARE(struct dst_entry *ipv4_dst_check(struct dst_entry *,
+							   u32));
 static inline struct dst_entry *dst_check(struct dst_entry *dst, u32 cookie)
 {
 	if (dst->obsolete)
-		dst = dst->ops->check(dst, cookie);
+		dst = INDIRECT_CALL_INET(dst->ops->check, ip6_dst_check,
+					 ipv4_dst_check, dst, cookie);
 	return dst;
 }
 
@@ -534,5 +552,16 @@ static inline void skb_dst_update_pmtu_no_confirm(struct sk_buff *skb, u32 mtu)
 	if (dst && dst->ops->update_pmtu)
 		dst->ops->update_pmtu(dst, NULL, skb, mtu, false);
 }
+
+struct dst_entry *dst_blackhole_check(struct dst_entry *dst, u32 cookie);
+void dst_blackhole_update_pmtu(struct dst_entry *dst, struct sock *sk,
+			       struct sk_buff *skb, u32 mtu, bool confirm_neigh);
+void dst_blackhole_redirect(struct dst_entry *dst, struct sock *sk,
+			    struct sk_buff *skb);
+u32 *dst_blackhole_cow_metrics(struct dst_entry *dst, unsigned long old);
+struct neighbour *dst_blackhole_neigh_lookup(const struct dst_entry *dst,
+					     struct sk_buff *skb,
+					     const void *daddr);
+unsigned int dst_blackhole_mtu(const struct dst_entry *dst);
 
 #endif /* _NET_DST_H */

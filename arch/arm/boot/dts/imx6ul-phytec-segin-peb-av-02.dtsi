@@ -1,0 +1,151 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
+/*
+ * Copyright (C) 2016, 2020 PHYTEC Messtechnik
+ * Author: Christian Hemp <c.hemp@phytec.de>
+ * Author: Stefan Riedmueller <s.riedmueller@phytec.de>
+ */
+
+/ {
+	backlight_lcd: backlight-lcd {
+		compatible = "pwm-backlight";
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <5>;
+		power-supply = <&reg_backlight_en>;
+		pwms = <&pwm3 0 5000000>;
+		status = "disabled";
+	};
+
+	lcd_panel: lcd-panel {
+		compatible = "edt,etm0700g0edh6";
+		backlight = <&backlight_lcd>;
+		status = "disabled";
+
+		port {
+			lcd_panel_in: endpoint {
+				remote-endpoint = <&lcdif_parallel_out>;
+			};
+		};
+	};
+
+	reg_backlight_en: regulator-backlight-en {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_backlight_en>;
+		regulator-name = "backlight-lcd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+};
+
+&i2c1 {
+	edt_ft5406: touchscreen@38 {
+		compatible = "edt,edt-ft5406";
+		reg = <0x38>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_edt_ft5406>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+		wakeup-source;
+		status = "disabled";
+	};
+
+	stmpe: touchscreen@44 {
+		compatible = "st,stmpe811";
+		reg = <0x44>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_stmpe>;
+		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpio5>;
+		wakeup-source;
+		status = "disabled";
+
+		stmpe_touchscreen {
+			compatible = "st,stmpe-ts";
+			st,sample-time = <4>;
+			st,mod-12b = <1>;
+			st,ref-sel = <0>;
+			st,adc-freq = <1>;
+			st,ave-ctrl = <1>;
+			st,touch-det-delay = <2>;
+			st,settling = <2>;
+			st,fraction-z = <7>;
+			st,i-drive = <1>;
+			touchscreen-inverted-x;
+			touchscreen-inverted-y;
+		};
+	};
+};
+
+&lcdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lcdif_dat>;
+	status = "disabled";
+
+	port {
+		lcdif_parallel_out: endpoint {
+			remote-endpoint = <&lcd_panel_in>;
+		};
+	};
+};
+
+&pwm3 {
+	#pwm-cells = <2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm3>;
+	status = "disabled";
+};
+
+&iomuxc {
+	pinctrl_edt_ft5406: edtft5406grp {
+		fsl,pins = <
+			MX6UL_PAD_SNVS_TAMPER5__GPIO5_IO05	0x1b0b0
+		>;
+	};
+
+	pinctrl_backlight_en: bachlightengrp {
+		fsl,pins = <
+			MX6UL_PAD_UART1_CTS_B__GPIO1_IO18	0x1b0b0
+		>;
+	};
+
+	pinctrl_lcdif_dat: lcdifdatgrp {
+		fsl,pins = <
+			MX6UL_PAD_LCD_DATA00__LCDIF_DATA00  0x59
+			MX6UL_PAD_LCD_DATA01__LCDIF_DATA01  0x59
+			MX6UL_PAD_LCD_DATA02__LCDIF_DATA02  0x59
+			MX6UL_PAD_LCD_DATA03__LCDIF_DATA03  0x59
+			MX6UL_PAD_LCD_DATA04__LCDIF_DATA04  0x59
+			MX6UL_PAD_LCD_DATA05__LCDIF_DATA05  0x59
+			MX6UL_PAD_LCD_DATA06__LCDIF_DATA06  0x59
+			MX6UL_PAD_LCD_DATA07__LCDIF_DATA07  0x59
+			MX6UL_PAD_LCD_DATA08__LCDIF_DATA08  0x59
+			MX6UL_PAD_LCD_DATA09__LCDIF_DATA09  0x59
+			MX6UL_PAD_LCD_DATA10__LCDIF_DATA10  0x59
+			MX6UL_PAD_LCD_DATA11__LCDIF_DATA11  0x59
+			MX6UL_PAD_LCD_DATA12__LCDIF_DATA12  0x59
+			MX6UL_PAD_LCD_DATA13__LCDIF_DATA13  0x59
+			MX6UL_PAD_LCD_DATA14__LCDIF_DATA14  0x59
+			MX6UL_PAD_LCD_DATA15__LCDIF_DATA15  0x59
+			MX6UL_PAD_LCD_DATA16__LCDIF_DATA16  0x59
+			MX6UL_PAD_LCD_DATA17__LCDIF_DATA17  0x59
+			MX6UL_PAD_LCD_CLK__LCDIF_CLK	    0x59
+			MX6UL_PAD_LCD_ENABLE__LCDIF_ENABLE  0x59
+			MX6UL_PAD_LCD_HSYNC__LCDIF_HSYNC    0x59
+			MX6UL_PAD_LCD_VSYNC__LCDIF_VSYNC    0x59
+		>;
+	};
+
+	pinctrl_pwm3: pwm3grp {
+		fsl,pins = <
+			MX6UL_PAD_GPIO1_IO04__PWM3_OUT	0x0b0b0
+		>;
+	};
+
+	pinctrl_stmpe: stmpegrp {
+		fsl,pins = <
+			MX6UL_PAD_SNVS_TAMPER3__GPIO5_IO03	0x17059
+		>;
+	};
+};

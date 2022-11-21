@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/thermal/thermal.h>
 #include "tegra30.dtsi"
+#include "tegra30-cpu-opp.dtsi"
+#include "tegra30-cpu-opp-microvolt.dtsi"
 
 /**
  * This file contains common DT entry for all fab version of Cardhu.
@@ -172,6 +175,7 @@
 
 	serial@70006200 {
 		compatible = "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 		status = "okay";
 	};
 
@@ -206,7 +210,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x70>;
-			reset-gpio = <&gpio TEGRA_GPIO(BB, 0) GPIO_ACTIVE_LOW>;
+			reset-gpios = <&gpio TEGRA_GPIO(BB, 0) GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -240,6 +244,7 @@
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 			#interrupt-cells = <2>;
 			interrupt-controller;
+			wakeup-source;
 
 			ti,system-power-controller;
 
@@ -272,9 +277,14 @@
 
 				vddctrl_reg: vddctrl {
 					regulator-name = "vdd_cpu,vdd_sys";
-					regulator-min-microvolt = <1000000>;
-					regulator-max-microvolt = <1000000>;
+					regulator-min-microvolt = <800000>;
+					regulator-max-microvolt = <1250000>;
+					regulator-coupled-with = <&vdd_core>;
+					regulator-coupled-max-spread = <300000>;
+					regulator-max-step-microvolt = <100000>;
 					regulator-always-on;
+
+					nvidia,tegra-cpu-regulator;
 				};
 
 				vio_reg: vio {
@@ -334,32 +344,39 @@
 			};
 		};
 
-		temperature-sensor@4c {
+		nct1008: temperature-sensor@4c {
 			compatible = "onnn,nct1008";
 			reg = <0x4c>;
 			vcc-supply = <&sys_3v3_reg>;
 			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(CC, 2) IRQ_TYPE_LEVEL_LOW>;
+			interrupts = <TEGRA_GPIO(CC, 2) IRQ_TYPE_EDGE_FALLING>;
+			#thermal-sensor-cells = <1>;
 		};
 
-		tps62361@60 {
+		vdd_core: tps62361@60 {
 			compatible = "ti,tps62361";
 			reg = <0x60>;
 
 			regulator-name = "tps62361-vout";
 			regulator-min-microvolt = <500000>;
 			regulator-max-microvolt = <1500000>;
+			regulator-coupled-with = <&vddctrl_reg>;
+			regulator-coupled-max-spread = <300000>;
+			regulator-max-step-microvolt = <100000>;
 			regulator-boot-on;
 			regulator-always-on;
 			ti,vsel0-state-high;
 			ti,vsel1-state-high;
+
+			nvidia,tegra-core-regulator;
 		};
 	};
 
 	spi@7000da00 {
 		status = "okay";
 		spi-max-frequency = <25000000>;
-		spi-flash@1 {
+
+		flash@1 {
 			compatible = "winbond,w25q32", "jedec,spi-nor";
 			reg = <1>;
 			spi-max-frequency = <20000000>;
@@ -376,6 +393,7 @@
 		nvidia,core-pwr-off-time = <0>;
 		nvidia,core-power-req-active-high;
 		nvidia,sys-clock-req-active-high;
+		core-supply = <&vdd_core>;
 	};
 
 	ahub@70080000 {
@@ -418,10 +436,36 @@
 		default-brightness-level = <6>;
 	};
 
-	clk32k_in: clock@0 {
+	clk32k_in: clock-32k {
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 		#clock-cells = <0>;
+	};
+
+	cpus {
+		cpu0: cpu@0 {
+			cpu-supply = <&vddctrl_reg>;
+			operating-points-v2 = <&cpu0_opp_table>;
+			#cooling-cells = <2>;
+		};
+
+		cpu1: cpu@1 {
+			cpu-supply = <&vddctrl_reg>;
+			operating-points-v2 = <&cpu0_opp_table>;
+			#cooling-cells = <2>;
+		};
+
+		cpu2: cpu@2 {
+			cpu-supply = <&vddctrl_reg>;
+			operating-points-v2 = <&cpu0_opp_table>;
+			#cooling-cells = <2>;
+		};
+
+		cpu3: cpu@3 {
+			cpu-supply = <&vddctrl_reg>;
+			operating-points-v2 = <&cpu0_opp_table>;
+			#cooling-cells = <2>;
+		};
 	};
 
 	panel: panel {
@@ -434,7 +478,7 @@
 		backlight = <&backlight>;
 	};
 
-	vdd_ac_bat_reg: regulator@0 {
+	vdd_ac_bat_reg: regulator-acbat {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_ac_bat";
 		regulator-min-microvolt = <5000000>;
@@ -442,7 +486,7 @@
 		regulator-always-on;
 	};
 
-	cam_1v8_reg: regulator@1 {
+	cam_1v8_reg: regulator-cam {
 		compatible = "regulator-fixed";
 		regulator-name = "cam_1v8";
 		regulator-min-microvolt = <1800000>;
@@ -452,7 +496,7 @@
 		vin-supply = <&vio_reg>;
 	};
 
-	cp_5v_reg: regulator@2 {
+	cp_5v_reg: regulator-5v0cp {
 		compatible = "regulator-fixed";
 		regulator-name = "cp_5v";
 		regulator-min-microvolt = <5000000>;
@@ -463,7 +507,7 @@
 		gpio = <&pmic 0 GPIO_ACTIVE_HIGH>;
 	};
 
-	emmc_3v3_reg: regulator@3 {
+	emmc_3v3_reg: regulator-emmc {
 		compatible = "regulator-fixed";
 		regulator-name = "emmc_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -475,7 +519,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	modem_3v3_reg: regulator@4 {
+	modem_3v3_reg: regulator-modem {
 		compatible = "regulator-fixed";
 		regulator-name = "modem_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -484,7 +528,7 @@
 		gpio = <&gpio TEGRA_GPIO(D, 6) GPIO_ACTIVE_HIGH>;
 	};
 
-	pex_hvdd_3v3_reg: regulator@5 {
+	pex_hvdd_3v3_reg: regulator-pex {
 		compatible = "regulator-fixed";
 		regulator-name = "pex_hvdd_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -494,7 +538,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_cam1_ldo_reg: regulator@6 {
+	vdd_cam1_ldo_reg: regulator-cam1 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_cam1_ldo";
 		regulator-min-microvolt = <2800000>;
@@ -504,7 +548,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_cam2_ldo_reg: regulator@7 {
+	vdd_cam2_ldo_reg: regulator-cam2 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_cam2_ldo";
 		regulator-min-microvolt = <2800000>;
@@ -514,7 +558,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_cam3_ldo_reg: regulator@8 {
+	vdd_cam3_ldo_reg: regulator-cam3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_cam3_ldo";
 		regulator-min-microvolt = <3300000>;
@@ -524,7 +568,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_com_reg: regulator@9 {
+	vdd_com_reg: regulator-com {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_com";
 		regulator-min-microvolt = <3300000>;
@@ -536,7 +580,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_fuse_3v3_reg: regulator@10 {
+	vdd_fuse_3v3_reg: regulator-fuse {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_fuse_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -546,7 +590,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_pnl1_reg: regulator@11 {
+	vdd_pnl1_reg: regulator-pnl1 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_pnl1";
 		regulator-min-microvolt = <3300000>;
@@ -558,7 +602,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_vid_reg: regulator@12 {
+	vdd_vid_reg: regulator-vid {
 		compatible = "regulator-fixed";
 		regulator-name = "vddio_vid";
 		regulator-min-microvolt = <5000000>;
@@ -589,7 +633,7 @@
 
 		nvidia,spkr-en-gpios = <&wm8903 2 GPIO_ACTIVE_HIGH>;
 		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(W, 2)
-			GPIO_ACTIVE_HIGH>;
+			GPIO_ACTIVE_LOW>;
 
 		clocks = <&tegra_car TEGRA30_CLK_PLL_A>,
 			 <&tegra_car TEGRA30_CLK_PLL_A_OUT0>,
@@ -601,6 +645,41 @@
 
 		assigned-clock-parents = <&tegra_car TEGRA30_CLK_PLL_A_OUT0>,
 					 <&tegra_car TEGRA30_CLK_EXTERN1>;
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			polling-delay-passive = <1000>; /* milliseconds */
+			polling-delay = <5000>; /* milliseconds */
+
+			thermal-sensors = <&nct1008 1>;
+
+			trips {
+				trip0: cpu-alert0 {
+					/* throttle at 57C until temperature drops to 56.8C */
+					temperature = <57000>;
+					hysteresis = <200>;
+					type = "passive";
+				};
+
+				trip1: cpu-crit {
+					/* shut down at 60C */
+					temperature = <60000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&trip0>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
 	};
 
 	gpio-keys {

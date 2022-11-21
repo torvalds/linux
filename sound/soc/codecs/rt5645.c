@@ -34,6 +34,7 @@
 #define QUIRK_INV_JD1_1(q)	((q) & 1)
 #define QUIRK_LEVEL_IRQ(q)	(((q) >> 1) & 1)
 #define QUIRK_IN2_DIFF(q)	(((q) >> 2) & 1)
+#define QUIRK_INV_HP_POL(q)	(((q) >> 3) & 1)
 #define QUIRK_JD_MODE(q)	(((q) >> 4) & 7)
 #define QUIRK_DMIC1_DATA_PIN(q)	(((q) >> 8) & 3)
 #define QUIRK_DMIC2_DATA_PIN(q)	(((q) >> 12) & 3)
@@ -41,6 +42,8 @@
 static unsigned int quirk = -1;
 module_param(quirk, uint, 0444);
 MODULE_PARM_DESC(quirk, "RT5645 pdata quirk override");
+
+static const struct acpi_gpio_mapping *cht_rt5645_gpios;
 
 #define RT5645_DEVICE_ID 0x6308
 #define RT5650_DEVICE_ID 0x6419
@@ -408,6 +411,30 @@ static const char *const rt5645_supply_names[] = {
 	"cpvdd",
 };
 
+struct rt5645_platform_data {
+	/* IN2 can optionally be differential */
+	bool in2_diff;
+
+	unsigned int dmic1_data_pin;
+	/* 0 = IN2N; 1 = GPIO5; 2 = GPIO11 */
+	unsigned int dmic2_data_pin;
+	/* 0 = IN2P; 1 = GPIO6; 2 = GPIO10; 3 = GPIO12 */
+
+	unsigned int jd_mode;
+	/* Use level triggered irq */
+	bool level_trigger_irq;
+	/* Invert JD1_1 status polarity */
+	bool inv_jd1_1;
+	/* Invert HP detect status polarity */
+	bool inv_hp_pol;
+
+	/* Value to assign to snd_soc_card.long_name */
+	const char *long_name;
+
+	/* Some (package) variants have the headset-mic pin not-connected */
+	bool no_headset_mic;
+};
+
 struct rt5645_priv {
 	struct snd_soc_component *component;
 	struct rt5645_platform_data pdata;
@@ -435,7 +462,6 @@ struct rt5645_priv {
 
 	int jack_type;
 	bool en_button_func;
-	bool hp_on;
 	int v_id;
 };
 
@@ -688,7 +714,7 @@ static int rt5645_hweq_get(struct snd_kcontrol *kcontrol,
 
 static bool rt5645_validate_hweq(unsigned short reg)
 {
-	if ((reg >= 0x1a4 && reg <= 0x1cd) | (reg >= 0x1e5 && reg <= 0x1f8) |
+	if ((reg >= 0x1a4 && reg <= 0x1cd) || (reg >= 0x1e5 && reg <= 0x1f8) ||
 		(reg == RT5645_EQ_CTRL2))
 		return true;
 
@@ -1645,6 +1671,7 @@ static void hp_amp_power(struct snd_soc_component *component, int on)
 {
 	static int hp_amp_power_count;
 	struct rt5645_priv *rt5645 = snd_soc_component_get_drvdata(component);
+	int i, val;
 
 	if (on) {
 		if (hp_amp_power_count <= 0) {
@@ -1655,7 +1682,13 @@ static void hp_amp_power(struct snd_soc_component *component, int on)
 				snd_soc_component_write(component, RT5645_DEPOP_M1, 0x000d);
 				regmap_write(rt5645->regmap, RT5645_PR_BASE +
 					RT5645_HP_DCC_INT1, 0x9f01);
-				msleep(20);
+				for (i = 0; i < 20; i++) {
+					usleep_range(1000, 1500);
+					regmap_read(rt5645->regmap, RT5645_PR_BASE +
+						RT5645_HP_DCC_INT1, &val);
+					if (!(val & 0x8000))
+						break;
+				}
 				snd_soc_component_update_bits(component, RT5645_DEPOP_M1,
 					RT5645_HP_CO_MASK, RT5645_HP_CO_EN);
 				regmap_write(rt5645->regmap, RT5645_PR_BASE +
@@ -1665,7 +1698,6 @@ static void hp_amp_power(struct snd_soc_component *component, int on)
 					RT5645_MAMP_INT_REG2, 0xfc00);
 				snd_soc_component_write(component, RT5645_DEPOP_M2, 0x1140);
 				msleep(90);
-				rt5645->hp_on = true;
 			} else {
 				/* depop parameters */
 				snd_soc_component_update_bits(component, RT5645_DEPOP_M2,
@@ -1876,27 +1908,6 @@ static int rt5645_bst2_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_component_update_bits(component, RT5645_PWR_ANLG2,
 			RT5645_PWR_BST2_P, 0);
-		break;
-
-	default:
-		return 0;
-	}
-
-	return 0;
-}
-
-static int rt5650_hp_event(struct snd_soc_dapm_widget *w,
-		struct snd_kcontrol *k, int  event)
-{
-	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	struct rt5645_priv *rt5645 = snd_soc_component_get_drvdata(component);
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		if (rt5645->hp_on) {
-			msleep(100);
-			rt5645->hp_on = false;
-		}
 		break;
 
 	default:
@@ -2242,7 +2253,6 @@ static const struct snd_soc_dapm_widget rt5645_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("PDM1R"),
 	SND_SOC_DAPM_OUTPUT("SPOL"),
 	SND_SOC_DAPM_OUTPUT("SPOR"),
-	SND_SOC_DAPM_POST("DAPM_POST", rt5650_hp_event),
 };
 
 static const struct snd_soc_dapm_widget rt5645_specific_dapm_widgets[] = {
@@ -2959,7 +2969,7 @@ static int rt5645_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 
 	ret = rl6231_pll_calc(freq_in, freq_out, &pll_code);
 	if (ret < 0) {
-		dev_err(component->dev, "Unsupport input clock %d\n", freq_in);
+		dev_err(component->dev, "Unsupported input clock %d\n", freq_in);
 		return ret;
 	}
 
@@ -2970,8 +2980,8 @@ static int rt5645_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	snd_soc_component_write(component, RT5645_PLL_CTRL1,
 		pll_code.n_code << RT5645_PLL_N_SFT | pll_code.k_code);
 	snd_soc_component_write(component, RT5645_PLL_CTRL2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5645_PLL_M_SFT |
-		pll_code.m_bp << RT5645_PLL_M_BP_SFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5645_PLL_M_SFT) |
+		(pll_code.m_bp << RT5645_PLL_M_BP_SFT));
 
 	rt5645->pll_in = freq_in;
 	rt5645->pll_out = freq_out;
@@ -3173,7 +3183,7 @@ static int rt5645_jack_detect(struct snd_soc_component *component, int jack_inse
 		val &= 0x7;
 		dev_dbg(component->dev, "val = %d\n", val);
 
-		if (val == 1 || val == 2) {
+		if ((val == 1 || val == 2) && !rt5645->pdata.no_headset_mic) {
 			rt5645->jack_type = SND_JACK_HEADSET;
 			if (rt5645->en_button_func) {
 				rt5645_enable_push_button_irq(component, true);
@@ -3261,6 +3271,8 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 	case 0: /* Not using rt5645 JD */
 		if (rt5645->gpiod_hp_det) {
 			gpio_state = gpiod_get_value(rt5645->gpiod_hp_det);
+			if (rt5645->pdata.inv_hp_pol)
+				gpio_state ^= 1;
 			dev_dbg(rt5645->component->dev, "gpio_state = %d\n",
 				gpio_state);
 			report = rt5645_jack_detect(rt5645->component, gpio_state);
@@ -3651,6 +3663,25 @@ static const struct rt5645_platform_data kahlee_platform_data = {
 	.jd_mode = 3,
 };
 
+static const struct rt5645_platform_data ecs_ef20_platform_data = {
+	.dmic1_data_pin = RT5645_DMIC1_DISABLE,
+	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
+	.inv_hp_pol = 1,
+};
+
+static const struct acpi_gpio_params ef20_hp_detect = { 1, 0, false };
+
+static const struct acpi_gpio_mapping cht_rt5645_ef20_gpios[] = {
+	{ "hp-detect-gpios", &ef20_hp_detect, 1 },
+	{ },
+};
+
+static int cht_rt5645_ef20_quirk_cb(const struct dmi_system_id *id)
+{
+	cht_rt5645_gpios = cht_rt5645_ef20_gpios;
+	return 1;
+}
+
 static const struct dmi_system_id dmi_platform_data[] = {
 	{
 		.ident = "Chrome Buddy",
@@ -3780,6 +3811,22 @@ static const struct dmi_system_id dmi_platform_data[] = {
 		},
 		.driver_data = (void *)&intel_braswell_platform_data,
 	},
+	{
+		.ident = "EF20",
+		.callback = cht_rt5645_ef20_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "EF20"),
+		},
+		.driver_data = (void *)&ecs_ef20_platform_data,
+	},
+	{
+		.ident = "EF20EA",
+		.callback = cht_rt5645_ef20_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
+		},
+		.driver_data = (void *)&ecs_ef20_platform_data,
+	},
 	{ }
 };
 
@@ -3811,7 +3858,7 @@ static int rt5645_parse_dt(struct rt5645_priv *rt5645, struct device *dev)
 static int rt5645_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
-	struct rt5645_platform_data *pdata = dev_get_platdata(&i2c->dev);
+	struct rt5645_platform_data *pdata = NULL;
 	const struct dmi_system_id *dmi_data;
 	struct rt5645_priv *rt5645;
 	int ret, i;
@@ -3843,9 +3890,21 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		rt5645->pdata.in2_diff = QUIRK_IN2_DIFF(quirk);
 		rt5645->pdata.level_trigger_irq = QUIRK_LEVEL_IRQ(quirk);
 		rt5645->pdata.inv_jd1_1 = QUIRK_INV_JD1_1(quirk);
+		rt5645->pdata.inv_hp_pol = QUIRK_INV_HP_POL(quirk);
 		rt5645->pdata.jd_mode = QUIRK_JD_MODE(quirk);
 		rt5645->pdata.dmic1_data_pin = QUIRK_DMIC1_DATA_PIN(quirk);
 		rt5645->pdata.dmic2_data_pin = QUIRK_DMIC2_DATA_PIN(quirk);
+	}
+
+	if (has_acpi_companion(&i2c->dev)) {
+		if (cht_rt5645_gpios) {
+			if (devm_acpi_dev_add_driver_gpios(&i2c->dev, cht_rt5645_gpios))
+				dev_dbg(&i2c->dev, "Failed to add driver gpios\n");
+		}
+
+		/* The ALC3270 package has the headset-mic pin not-connected */
+		if (acpi_dev_hid_uid_match(ACPI_COMPANION(&i2c->dev), "10EC3270", NULL))
+			rt5645->pdata.no_headset_mic = true;
 	}
 
 	rt5645->gpiod_hp_det = devm_gpiod_get_optional(&i2c->dev, "hp-detect",

@@ -189,13 +189,8 @@ num_phys
 The event interface::
 
 	/* LLDD calls these to notify the class of an event. */
-	void (*notify_ha_event)(struct sas_ha_struct *, enum ha_event);
-	void (*notify_port_event)(struct sas_phy *, enum port_event);
-	void (*notify_phy_event)(struct sas_phy *, enum phy_event);
-
-When sas_register_ha() returns, those are set and can be
-called by the LLDD to notify the SAS layer of such events
-the SAS layer.
+	void sas_notify_port_event(struct sas_phy *, enum port_event, gfp_t);
+	void sas_notify_phy_event(struct sas_phy *, enum phy_event, gfp_t);
 
 The port notification::
 
@@ -212,7 +207,6 @@ Management Functions (TMFs) described in SAM::
 	/* Task Management Functions. Must be called from process context. */
 	int (*lldd_abort_task)(struct sas_task *);
 	int (*lldd_abort_task_set)(struct domain_device *, u8 *lun);
-	int (*lldd_clear_aca)(struct domain_device *, u8 *lun);
 	int (*lldd_clear_task_set)(struct domain_device *, u8 *lun);
 	int (*lldd_I_T_nexus_reset)(struct domain_device *);
 	int (*lldd_lu_reset)(struct domain_device *, u8 *lun);
@@ -267,7 +261,6 @@ can look like this (called last thing from probe())
 
 	    my_ha->sas_ha.lldd_abort_task     = my_abort_task;
 	    my_ha->sas_ha.lldd_abort_task_set = my_abort_task_set;
-	    my_ha->sas_ha.lldd_clear_aca      = my_clear_aca;
 	    my_ha->sas_ha.lldd_clear_task_set = my_clear_task_set;
 	    my_ha->sas_ha.lldd_I_T_nexus_reset= NULL; (2)
 	    my_ha->sas_ha.lldd_lu_reset       = my_lu_reset;

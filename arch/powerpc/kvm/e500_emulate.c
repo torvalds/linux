@@ -65,7 +65,7 @@ static int kvmppc_e500_emul_msgsnd(struct kvm_vcpu *vcpu, int rb)
 	ulong param = vcpu->arch.regs.gpr[rb];
 	int prio = dbell2prio(rb);
 	int pir = param & PPC_DBELL_PIR_MASK;
-	int i;
+	unsigned long i;
 	struct kvm_vcpu *cvcpu;
 
 	if (prio < 0)

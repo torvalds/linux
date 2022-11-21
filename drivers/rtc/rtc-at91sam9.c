@@ -184,7 +184,7 @@ static int at91_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 		return -EILSEQ;
 
 	memset(alrm, 0, sizeof(*alrm));
-	if (alarm != ALARM_DISABLED && offset != 0) {
+	if (alarm != ALARM_DISABLED) {
 		rtc_time64_to_tm(offset + alarm, tm);
 
 		dev_dbg(dev, "%s: %ptR\n", __func__, tm);
@@ -431,7 +431,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "%s: SET TIME!\n",
 			 dev_name(&rtc->rtcdev->dev));
 
-	return rtc_register_device(rtc->rtcdev);
+	return devm_rtc_register_device(rtc->rtcdev);
 
 err_clk:
 	clk_disable_unprepare(rtc->sclk);

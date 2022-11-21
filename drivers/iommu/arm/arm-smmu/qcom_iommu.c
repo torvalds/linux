@@ -10,7 +10,6 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/dma-iommu.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -25,7 +24,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
-#include <linux/of_iommu.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -185,13 +183,6 @@ static void qcom_iommu_tlb_flush_walk(unsigned long iova, size_t size,
 	qcom_iommu_tlb_sync(cookie);
 }
 
-static void qcom_iommu_tlb_flush_leaf(unsigned long iova, size_t size,
-				      size_t granule, void *cookie)
-{
-	qcom_iommu_tlb_inv_range_nosync(iova, size, granule, true, cookie);
-	qcom_iommu_tlb_sync(cookie);
-}
-
 static void qcom_iommu_tlb_add_page(struct iommu_iotlb_gather *gather,
 				    unsigned long iova, size_t granule,
 				    void *cookie)
@@ -202,7 +193,6 @@ static void qcom_iommu_tlb_add_page(struct iommu_iotlb_gather *gather,
 static const struct iommu_flush_ops qcom_flush_ops = {
 	.tlb_flush_all	= qcom_iommu_tlb_inv_context,
 	.tlb_flush_walk = qcom_iommu_tlb_flush_walk,
-	.tlb_flush_leaf = qcom_iommu_tlb_flush_leaf,
 	.tlb_add_page	= qcom_iommu_tlb_add_page,
 };
 
@@ -344,12 +334,6 @@ static struct iommu_domain *qcom_iommu_domain_alloc(unsigned type)
 	if (!qcom_domain)
 		return NULL;
 
-	if (type == IOMMU_DOMAIN_DMA &&
-	    iommu_get_dma_cookie(&qcom_domain->domain)) {
-		kfree(qcom_domain);
-		return NULL;
-	}
-
 	mutex_init(&qcom_domain->init_mutex);
 	spin_lock_init(&qcom_domain->pgtbl_lock);
 
@@ -359,8 +343,6 @@ static struct iommu_domain *qcom_iommu_domain_alloc(unsigned type)
 static void qcom_iommu_domain_free(struct iommu_domain *domain)
 {
 	struct qcom_iommu_domain *qcom_domain = to_qcom_iommu_domain(domain);
-
-	iommu_put_dma_cookie(domain);
 
 	if (qcom_domain->iommu) {
 		/*
@@ -608,19 +590,21 @@ static int qcom_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 static const struct iommu_ops qcom_iommu_ops = {
 	.capable	= qcom_iommu_capable,
 	.domain_alloc	= qcom_iommu_domain_alloc,
-	.domain_free	= qcom_iommu_domain_free,
-	.attach_dev	= qcom_iommu_attach_dev,
-	.detach_dev	= qcom_iommu_detach_dev,
-	.map		= qcom_iommu_map,
-	.unmap		= qcom_iommu_unmap,
-	.flush_iotlb_all = qcom_iommu_flush_iotlb_all,
-	.iotlb_sync	= qcom_iommu_iotlb_sync,
-	.iova_to_phys	= qcom_iommu_iova_to_phys,
 	.probe_device	= qcom_iommu_probe_device,
 	.release_device	= qcom_iommu_release_device,
 	.device_group	= generic_device_group,
 	.of_xlate	= qcom_iommu_of_xlate,
 	.pgsize_bitmap	= SZ_4K | SZ_64K | SZ_1M | SZ_16M,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= qcom_iommu_attach_dev,
+		.detach_dev	= qcom_iommu_detach_dev,
+		.map		= qcom_iommu_map,
+		.unmap		= qcom_iommu_unmap,
+		.flush_iotlb_all = qcom_iommu_flush_iotlb_all,
+		.iotlb_sync	= qcom_iommu_iotlb_sync,
+		.iova_to_phys	= qcom_iommu_iova_to_phys,
+		.free		= qcom_iommu_domain_free,
+	}
 };
 
 static int qcom_iommu_sec_ptbl_init(struct device *dev)
@@ -845,23 +829,20 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
 	ret = devm_of_platform_populate(dev);
 	if (ret) {
 		dev_err(dev, "Failed to populate iommu contexts\n");
-		return ret;
+		goto err_pm_disable;
 	}
 
 	ret = iommu_device_sysfs_add(&qcom_iommu->iommu, dev, NULL,
 				     dev_name(dev));
 	if (ret) {
 		dev_err(dev, "Failed to register iommu in sysfs\n");
-		return ret;
+		goto err_pm_disable;
 	}
 
-	iommu_device_set_ops(&qcom_iommu->iommu, &qcom_iommu_ops);
-	iommu_device_set_fwnode(&qcom_iommu->iommu, dev->fwnode);
-
-	ret = iommu_device_register(&qcom_iommu->iommu);
+	ret = iommu_device_register(&qcom_iommu->iommu, &qcom_iommu_ops, dev);
 	if (ret) {
 		dev_err(dev, "Failed to register iommu\n");
-		return ret;
+		goto err_pm_disable;
 	}
 
 	bus_set_iommu(&platform_bus_type, &qcom_iommu_ops);
@@ -873,6 +854,10 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
 	}
 
 	return 0;
+
+err_pm_disable:
+	pm_runtime_disable(dev);
+	return ret;
 }
 
 static int qcom_iommu_device_remove(struct platform_device *pdev)

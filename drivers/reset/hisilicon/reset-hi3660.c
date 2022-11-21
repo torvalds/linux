@@ -83,9 +83,14 @@ static int hi3660_reset_probe(struct platform_device *pdev)
 	if (!rc)
 		return -ENOMEM;
 
-	rc->map = syscon_regmap_lookup_by_phandle(np, "hisi,rst-syscon");
+	rc->map = syscon_regmap_lookup_by_phandle(np, "hisilicon,rst-syscon");
+	if (rc->map == ERR_PTR(-ENODEV)) {
+		/* fall back to the deprecated compatible */
+		rc->map = syscon_regmap_lookup_by_phandle(np,
+							  "hisi,rst-syscon");
+	}
 	if (IS_ERR(rc->map)) {
-		dev_err(dev, "failed to get hi3660,rst-syscon\n");
+		dev_err(dev, "failed to get hisilicon,rst-syscon\n");
 		return PTR_ERR(rc->map);
 	}
 

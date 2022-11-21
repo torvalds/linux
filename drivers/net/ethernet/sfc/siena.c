@@ -25,6 +25,7 @@
 #include "mcdi_port_common.h"
 #include "selftest.h"
 #include "siena_sriov.h"
+#include "rx_common.h"
 
 /* Hardware control for SFC9000 family including SFL9021 (aka Siena). */
 
@@ -958,6 +959,12 @@ static unsigned int siena_check_caps(const struct efx_nic *efx,
 	return 0;
 }
 
+static unsigned int efx_siena_recycle_ring_size(const struct efx_nic *efx)
+{
+	/* Maximum link speed is 10G */
+	return EFX_RECYCLE_RING_SIZE_10G;
+}
+
 /**************************************************************************
  *
  * Revision-dependent attributes used by efx.c and nic.c
@@ -1098,4 +1105,5 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.rx_hash_key_size = 16,
 	.check_caps = siena_check_caps,
 	.sensor_event = efx_mcdi_sensor_event,
+	.rx_recycle_ring_size = efx_siena_recycle_ring_size,
 };

@@ -93,7 +93,7 @@ static unsigned long bcm6328_led_read(void __iomem *reg)
 #endif
 }
 
-/**
+/*
  * LEDMode 64 bits / 24 LEDs
  * bits [31:0] -> LEDs 8-23
  * bits [47:32] -> LEDs 0-7

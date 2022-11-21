@@ -19,9 +19,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
-#include <linux/mfd/abx500/ab8500-bm.h>
 #include <linux/mfd/dbx500-prcmu.h>
-#include <linux/regulator/ab8500.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 
@@ -122,12 +120,6 @@
 static DEFINE_SPINLOCK(on_stat_lock);
 static u8 turn_on_stat_mask = 0xFF;
 static u8 turn_on_stat_set;
-static bool no_bm; /* No battery management */
-/*
- * not really modular, but the easiest way to keep compat with existing
- * bootargs behaviour is to continue using module_param here.
- */
-module_param(no_bm, bool, S_IRUGO);
 
 #define AB9540_MODEM_CTRL2_REG			0x23
 #define AB9540_MODEM_CTRL2_SWDBBRSTN_BIT	BIT(2)
@@ -493,7 +485,7 @@ static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
 		if (line == AB8540_INT_GPIO43F || line == AB8540_INT_GPIO44F)
 			line += 1;
 
-		handle_nested_irq(irq_create_mapping(ab8500->domain, line));
+		handle_nested_irq(irq_find_mapping(ab8500->domain, line));
 	}
 
 	return 0;
@@ -610,61 +602,52 @@ int ab8500_suspend(struct ab8500 *ab8500)
 }
 
 static const struct mfd_cell ab8500_bm_devs[] = {
-	OF_MFD_CELL("ab8500-charger", NULL, &ab8500_bm_data,
-		    sizeof(ab8500_bm_data), 0, "stericsson,ab8500-charger"),
-	OF_MFD_CELL("ab8500-btemp", NULL, &ab8500_bm_data,
-		    sizeof(ab8500_bm_data), 0, "stericsson,ab8500-btemp"),
-	OF_MFD_CELL("ab8500-fg", NULL, &ab8500_bm_data,
-		    sizeof(ab8500_bm_data), 0, "stericsson,ab8500-fg"),
-	OF_MFD_CELL("ab8500-chargalg", NULL, &ab8500_bm_data,
-		    sizeof(ab8500_bm_data), 0, "stericsson,ab8500-chargalg"),
+	MFD_CELL_OF("ab8500-charger", NULL, NULL, 0, 0,
+		    "stericsson,ab8500-charger"),
+	MFD_CELL_OF("ab8500-btemp", NULL, NULL, 0, 0,
+		    "stericsson,ab8500-btemp"),
+	MFD_CELL_OF("ab8500-fg", NULL, NULL, 0, 0,
+		    "stericsson,ab8500-fg"),
+	MFD_CELL_OF("ab8500-chargalg", NULL, NULL, 0, 0,
+		    "stericsson,ab8500-chargalg"),
 };
 
 static const struct mfd_cell ab8500_devs[] = {
-#ifdef CONFIG_DEBUG_FS
-	OF_MFD_CELL("ab8500-debug",
-		    NULL, NULL, 0, 0, "stericsson,ab8500-debug"),
-#endif
-	OF_MFD_CELL("ab8500-sysctrl",
+	MFD_CELL_OF("ab8500-sysctrl",
 		    NULL, NULL, 0, 0, "stericsson,ab8500-sysctrl"),
-	OF_MFD_CELL("ab8500-ext-regulator",
+	MFD_CELL_OF("ab8500-ext-regulator",
 		    NULL, NULL, 0, 0, "stericsson,ab8500-ext-regulator"),
-	OF_MFD_CELL("ab8500-regulator",
+	MFD_CELL_OF("ab8500-regulator",
 		    NULL, NULL, 0, 0, "stericsson,ab8500-regulator"),
-	OF_MFD_CELL("ab8500-clk",
+	MFD_CELL_OF("ab8500-clk",
 		    NULL, NULL, 0, 0, "stericsson,ab8500-clk"),
-	OF_MFD_CELL("ab8500-gpadc",
+	MFD_CELL_OF("ab8500-gpadc",
 		    NULL, NULL, 0, 0, "stericsson,ab8500-gpadc"),
-	OF_MFD_CELL("ab8500-rtc",
+	MFD_CELL_OF("ab8500-rtc",
 		    NULL, NULL, 0, 0, "stericsson,ab8500-rtc"),
-	OF_MFD_CELL("ab8500-acc-det",
+	MFD_CELL_OF("ab8500-acc-det",
 		    NULL, NULL, 0, 0, "stericsson,ab8500-acc-det"),
-	OF_MFD_CELL("ab8500-poweron-key",
+	MFD_CELL_OF("ab8500-poweron-key",
 		    NULL, NULL, 0, 0, "stericsson,ab8500-poweron-key"),
-	OF_MFD_CELL("ab8500-pwm",
+	MFD_CELL_OF("ab8500-pwm",
 		    NULL, NULL, 0, 1, "stericsson,ab8500-pwm"),
-	OF_MFD_CELL("ab8500-pwm",
+	MFD_CELL_OF("ab8500-pwm",
 		    NULL, NULL, 0, 2, "stericsson,ab8500-pwm"),
-	OF_MFD_CELL("ab8500-pwm",
+	MFD_CELL_OF("ab8500-pwm",
 		    NULL, NULL, 0, 3, "stericsson,ab8500-pwm"),
-	OF_MFD_CELL("ab8500-denc",
+	MFD_CELL_OF("ab8500-denc",
 		    NULL, NULL, 0, 0, "stericsson,ab8500-denc"),
-	OF_MFD_CELL("pinctrl-ab8500",
+	MFD_CELL_OF("pinctrl-ab8500",
 		    NULL, NULL, 0, 0, "stericsson,ab8500-gpio"),
-	OF_MFD_CELL("abx500-temp",
+	MFD_CELL_OF("abx500-temp",
 		    NULL, NULL, 0, 0, "stericsson,abx500-temp"),
-	OF_MFD_CELL("ab8500-usb",
+	MFD_CELL_OF("ab8500-usb",
 		    NULL, NULL, 0, 0, "stericsson,ab8500-usb"),
-	OF_MFD_CELL("ab8500-codec",
+	MFD_CELL_OF("ab8500-codec",
 		    NULL, NULL, 0, 0, "stericsson,ab8500-codec"),
 };
 
 static const struct mfd_cell ab9540_devs[] = {
-#ifdef CONFIG_DEBUG_FS
-	{
-		.name = "ab8500-debug",
-	},
-#endif
 	{
 		.name = "ab8500-sysctrl",
 	},
@@ -715,12 +698,6 @@ static const struct mfd_cell ab9540_devs[] = {
 
 /* Device list for ab8505  */
 static const struct mfd_cell ab8505_devs[] = {
-#ifdef CONFIG_DEBUG_FS
-	{
-		.name = "ab8500-debug",
-		.of_compatible = "stericsson,ab8500-debug",
-	},
-#endif
 	{
 		.name = "ab8500-sysctrl",
 		.of_compatible = "stericsson,ab8500-sysctrl",
@@ -772,11 +749,6 @@ static const struct mfd_cell ab8505_devs[] = {
 };
 
 static const struct mfd_cell ab8540_devs[] = {
-#ifdef CONFIG_DEBUG_FS
-	{
-		.name = "ab8500-debug",
-	},
-#endif
 	{
 		.name = "ab8500-sysctrl",
 	},
@@ -835,8 +807,8 @@ static const struct mfd_cell ab8540_cut2_devs[] = {
 	},
 };
 
-static ssize_t show_chip_id(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t chip_id_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct ab8500 *ab8500;
 
@@ -856,8 +828,8 @@ static ssize_t show_chip_id(struct device *dev,
  * 0x40 Power on key 1 pressed longer than 10 seconds
  * 0x80 DB8500 thermal shutdown
  */
-static ssize_t show_switch_off_status(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t switch_off_status_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
 {
 	int ret;
 	u8 value;
@@ -891,8 +863,8 @@ void ab8500_override_turn_on_stat(u8 mask, u8 set)
  * 0x40 UsbIDDetect
  * 0x80 Reserved
  */
-static ssize_t show_turn_on_status(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t turn_on_status_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	int ret;
 	u8 value;
@@ -920,8 +892,8 @@ static ssize_t show_turn_on_status(struct device *dev,
 	return sprintf(buf, "%#x\n", value);
 }
 
-static ssize_t show_turn_on_status_2(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t turn_on_status_2_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	int ret;
 	u8 value;
@@ -935,8 +907,8 @@ static ssize_t show_turn_on_status_2(struct device *dev,
 	return sprintf(buf, "%#x\n", (value & 0x1));
 }
 
-static ssize_t show_ab9540_dbbrstn(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t dbbrstn_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct ab8500 *ab8500;
 	int ret;
@@ -953,7 +925,7 @@ static ssize_t show_ab9540_dbbrstn(struct device *dev,
 			(value & AB9540_MODEM_CTRL2_SWDBBRSTN_BIT) ? 1 : 0);
 }
 
-static ssize_t store_ab9540_dbbrstn(struct device *dev,
+static ssize_t dbbrstn_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct ab8500 *ab8500;
@@ -988,12 +960,11 @@ exit:
 	return ret;
 }
 
-static DEVICE_ATTR(chip_id, S_IRUGO, show_chip_id, NULL);
-static DEVICE_ATTR(switch_off_status, S_IRUGO, show_switch_off_status, NULL);
-static DEVICE_ATTR(turn_on_status, S_IRUGO, show_turn_on_status, NULL);
-static DEVICE_ATTR(turn_on_status_2, S_IRUGO, show_turn_on_status_2, NULL);
-static DEVICE_ATTR(dbbrstn, S_IRUGO | S_IWUSR,
-			show_ab9540_dbbrstn, store_ab9540_dbbrstn);
+static DEVICE_ATTR_RO(chip_id);
+static DEVICE_ATTR_RO(switch_off_status);
+static DEVICE_ATTR_RO(turn_on_status);
+static DEVICE_ATTR_RO(turn_on_status_2);
+static DEVICE_ATTR_RW(dbbrstn);
 
 static struct attribute *ab8500_sysfs_entries[] = {
 	&dev_attr_chip_id.attr,
@@ -1051,9 +1022,9 @@ static int ab8500_probe(struct platform_device *pdev)
 	enum ab8500_version version = AB8500_VERSION_UNDEFINED;
 	struct device_node *np = pdev->dev.of_node;
 	struct ab8500 *ab8500;
-	struct resource *resource;
 	int ret;
 	int i;
+	int irq;
 	u8 value;
 
 	ab8500 = devm_kzalloc(&pdev->dev, sizeof(*ab8500), GFP_KERNEL);
@@ -1062,13 +1033,11 @@ static int ab8500_probe(struct platform_device *pdev)
 
 	ab8500->dev = &pdev->dev;
 
-	resource = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!resource) {
-		dev_err(&pdev->dev, "no IRQ resource\n");
-		return -ENODEV;
-	}
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
-	ab8500->irq = resource->start;
+	ab8500->irq = irq;
 
 	ab8500->read = ab8500_prcmu_read;
 	ab8500->write = ab8500_prcmu_write;
@@ -1256,14 +1225,12 @@ static int ab8500_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (!no_bm) {
-		/* Add battery management devices */
-		ret = mfd_add_devices(ab8500->dev, 0, ab8500_bm_devs,
-				      ARRAY_SIZE(ab8500_bm_devs), NULL,
-				      0, ab8500->domain);
-		if (ret)
-			dev_err(ab8500->dev, "error adding bm devices\n");
-	}
+	/* Add battery management devices */
+	ret = mfd_add_devices(ab8500->dev, 0, ab8500_bm_devs,
+			      ARRAY_SIZE(ab8500_bm_devs), NULL,
+			      0, ab8500->domain);
+	if (ret)
+		dev_err(ab8500->dev, "error adding bm devices\n");
 
 	if (((is_ab8505(ab8500) || is_ab9540(ab8500)) &&
 			ab8500->chip_id >= AB8500_CUT2P0) || is_ab8540(ab8500))

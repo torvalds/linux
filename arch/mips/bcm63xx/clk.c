@@ -76,7 +76,7 @@ static struct clk clk_enet_misc = {
 };
 
 /*
- * Ethernet MAC clocks: only revelant on 6358, silently enable misc
+ * Ethernet MAC clocks: only relevant on 6358, silently enable misc
  * clocks
  */
 static void enetx_set(struct clk *clk, int enable)
@@ -380,6 +380,18 @@ void clk_disable(struct clk *clk)
 }
 
 EXPORT_SYMBOL(clk_disable);
+
+struct clk *clk_get_parent(struct clk *clk)
+{
+	return NULL;
+}
+EXPORT_SYMBOL(clk_get_parent);
+
+int clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	return 0;
+}
+EXPORT_SYMBOL(clk_set_parent);
 
 unsigned long clk_get_rate(struct clk *clk)
 {

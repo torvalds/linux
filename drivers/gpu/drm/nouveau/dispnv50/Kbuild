@@ -13,6 +13,7 @@ nouveau-y += dispnv50/corec57d.o
 nouveau-$(CONFIG_DEBUG_FS) += dispnv50/crc.o
 nouveau-$(CONFIG_DEBUG_FS) += dispnv50/crc907d.o
 nouveau-$(CONFIG_DEBUG_FS) += dispnv50/crcc37d.o
+nouveau-$(CONFIG_DEBUG_FS) += dispnv50/crcc57d.o
 
 nouveau-y += dispnv50/dac507d.o
 nouveau-y += dispnv50/dac907d.o
@@ -37,6 +38,7 @@ nouveau-y += dispnv50/wimmc37b.o
 nouveau-y += dispnv50/wndw.o
 nouveau-y += dispnv50/wndwc37e.o
 nouveau-y += dispnv50/wndwc57e.o
+nouveau-y += dispnv50/wndwc67e.o
 
 nouveau-y += dispnv50/base.o
 nouveau-y += dispnv50/base507c.o

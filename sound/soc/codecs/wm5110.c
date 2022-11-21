@@ -45,35 +45,35 @@ struct wm5110_priv {
 	unsigned int in_pga_cache[6];
 };
 
-static const struct wm_adsp_region wm5110_dsp1_regions[] = {
+static const struct cs_dsp_region wm5110_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x100000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x180000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x190000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x1a8000 },
 };
 
-static const struct wm_adsp_region wm5110_dsp2_regions[] = {
+static const struct cs_dsp_region wm5110_dsp2_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x200000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x280000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x290000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x2a8000 },
 };
 
-static const struct wm_adsp_region wm5110_dsp3_regions[] = {
+static const struct cs_dsp_region wm5110_dsp3_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x300000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x380000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x390000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x3a8000 },
 };
 
-static const struct wm_adsp_region wm5110_dsp4_regions[] = {
+static const struct cs_dsp_region wm5110_dsp4_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x400000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x480000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x490000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x4a8000 },
 };
 
-static const struct wm_adsp_region *wm5110_dsp_regions[] = {
+static const struct cs_dsp_region *wm5110_dsp_regions[] = {
 	wm5110_dsp1_regions,
 	wm5110_dsp2_regions,
 	wm5110_dsp3_regions,
@@ -2089,8 +2089,8 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 			 .formats = WM5110_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm5110-aif2",
@@ -2111,8 +2111,8 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 			 .formats = WM5110_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm5110-aif3",
@@ -2133,8 +2133,8 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 			 .formats = WM5110_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm5110-slim1",
@@ -2355,7 +2355,7 @@ static unsigned int wm5110_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_6R,
 };
 
-static struct snd_compress_ops wm5110_compress_ops = {
+static const struct snd_compress_ops wm5110_compress_ops = {
 	.open		= wm5110_open,
 	.free		= wm_adsp_compr_free,
 	.set_params	= wm_adsp_compr_set_params,
@@ -2370,6 +2370,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm5110 = {
 	.remove			= wm5110_component_remove,
 	.set_sysclk		= arizona_set_sysclk,
 	.set_pll		= wm5110_set_fll,
+	.set_jack		= arizona_jack_set_jack,
 	.name			= DRV_NAME,
 	.compress_ops		= &wm5110_compress_ops,
 	.controls		= wm5110_snd_controls,
@@ -2408,21 +2409,26 @@ static int wm5110_probe(struct platform_device *pdev)
 
 	for (i = 0; i < WM5110_NUM_ADSP; i++) {
 		wm5110->core.adsp[i].part = "wm5110";
-		wm5110->core.adsp[i].num = i + 1;
-		wm5110->core.adsp[i].type = WMFW_ADSP2;
-		wm5110->core.adsp[i].dev = arizona->dev;
-		wm5110->core.adsp[i].regmap = arizona->regmap;
+		wm5110->core.adsp[i].cs_dsp.num = i + 1;
+		wm5110->core.adsp[i].cs_dsp.type = WMFW_ADSP2;
+		wm5110->core.adsp[i].cs_dsp.dev = arizona->dev;
+		wm5110->core.adsp[i].cs_dsp.regmap = arizona->regmap;
 
-		wm5110->core.adsp[i].base = ARIZONA_DSP1_CONTROL_1
+		wm5110->core.adsp[i].cs_dsp.base = ARIZONA_DSP1_CONTROL_1
 			+ (0x100 * i);
-		wm5110->core.adsp[i].mem = wm5110_dsp_regions[i];
-		wm5110->core.adsp[i].num_mems
+		wm5110->core.adsp[i].cs_dsp.mem = wm5110_dsp_regions[i];
+		wm5110->core.adsp[i].cs_dsp.num_mems
 			= ARRAY_SIZE(wm5110_dsp1_regions);
 
 		ret = wm_adsp2_init(&wm5110->core.adsp[i]);
 		if (ret != 0)
 			return ret;
 	}
+
+	/* This may return -EPROBE_DEFER, so do this early on */
+	ret = arizona_jack_codec_dev_probe(&wm5110->core, &pdev->dev);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(wm5110->fll); i++)
 		wm5110->fll[i].vco_mult = 3;
@@ -2456,7 +2462,7 @@ static int wm5110_probe(struct platform_device *pdev)
 				  wm5110);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request DSP IRQ: %d\n", ret);
-		return ret;
+		goto err_jack_codec_dev;
 	}
 
 	ret = arizona_set_irq_wake(arizona, ARIZONA_IRQ_DSP_IRQ1, 1);
@@ -2490,6 +2496,8 @@ err_spk_irqs:
 err_dsp_irq:
 	arizona_set_irq_wake(arizona, ARIZONA_IRQ_DSP_IRQ1, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5110);
+err_jack_codec_dev:
+	arizona_jack_codec_dev_remove(&wm5110->core);
 
 	return ret;
 }
@@ -2509,6 +2517,8 @@ static int wm5110_remove(struct platform_device *pdev)
 
 	arizona_set_irq_wake(arizona, ARIZONA_IRQ_DSP_IRQ1, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5110);
+
+	arizona_jack_codec_dev_remove(&wm5110->core);
 
 	return 0;
 }

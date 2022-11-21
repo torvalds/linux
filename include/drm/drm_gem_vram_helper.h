@@ -5,12 +5,14 @@
 
 #include <drm/drm_file.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_modes.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 
-#include <linux/kernel.h> /* for container_of() */
+#include <linux/container_of.h>
+#include <linux/iosys-map.h>
 
 struct drm_mode_create_dumb;
 struct drm_plane;
@@ -29,13 +31,11 @@ struct vm_area_struct;
 
 /**
  * struct drm_gem_vram_object - GEM object backed by VRAM
- * @gem:	GEM object
  * @bo:		TTM buffer object
- * @kmap:	Mapping information for @bo
+ * @map:	Mapping information for @bo
  * @placement:	TTM placement information. Supported placements are \
 	%TTM_PL_VRAM and %TTM_PL_SYSTEM
  * @placements:	TTM placement information.
- * @pin_count:	Pin counter
  *
  * The type struct drm_gem_vram_object represents a GEM object that is
  * backed by VRAM. It can be used for simple framebuffer devices with
@@ -51,26 +51,24 @@ struct vm_area_struct;
  */
 struct drm_gem_vram_object {
 	struct ttm_buffer_object bo;
-	struct ttm_bo_kmap_obj kmap;
+	struct iosys_map map;
 
 	/**
-	 * @kmap_use_count:
+	 * @vmap_use_count:
 	 *
 	 * Reference count on the virtual address.
 	 * The address are un-mapped when the count reaches zero.
 	 */
-	unsigned int kmap_use_count;
+	unsigned int vmap_use_count;
 
 	/* Supported placements are %TTM_PL_VRAM and %TTM_PL_SYSTEM */
 	struct ttm_placement placement;
 	struct ttm_place placements[2];
-
-	int pin_count;
 };
 
 /**
- * Returns the container of type &struct drm_gem_vram_object
- * for field bo.
+ * drm_gem_vram_of_bo - Returns the container of type
+ * &struct drm_gem_vram_object for field bo.
  * @bo:		the VRAM buffer object
  * Returns:	The containing GEM VRAM object
  */
@@ -81,8 +79,8 @@ static inline struct drm_gem_vram_object *drm_gem_vram_of_bo(
 }
 
 /**
- * Returns the container of type &struct drm_gem_vram_object
- * for field gem.
+ * drm_gem_vram_of_gem - Returns the container of type
+ * &struct drm_gem_vram_object for field gem.
  * @gem:	the GEM object
  * Returns:	The containing GEM VRAM object
  */
@@ -96,12 +94,12 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 						size_t size,
 						unsigned long pg_align);
 void drm_gem_vram_put(struct drm_gem_vram_object *gbo);
-u64 drm_gem_vram_mmap_offset(struct drm_gem_vram_object *gbo);
 s64 drm_gem_vram_offset(struct drm_gem_vram_object *gbo);
 int drm_gem_vram_pin(struct drm_gem_vram_object *gbo, unsigned long pl_flag);
 int drm_gem_vram_unpin(struct drm_gem_vram_object *gbo);
-void *drm_gem_vram_vmap(struct drm_gem_vram_object *gbo);
-void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo, void *vaddr);
+int drm_gem_vram_vmap(struct drm_gem_vram_object *gbo, struct iosys_map *map);
+void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo,
+			 struct iosys_map *map);
 
 int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 				  struct drm_device *dev,
@@ -116,9 +114,6 @@ int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 int drm_gem_vram_driver_dumb_create(struct drm_file *file,
 				    struct drm_device *dev,
 				    struct drm_mode_create_dumb *args);
-int drm_gem_vram_driver_dumb_mmap_offset(struct drm_file *file,
-					 struct drm_device *dev,
-					 uint32_t handle, uint64_t *offset);
 
 /*
  * Helpers for struct drm_plane_helper_funcs
@@ -129,6 +124,18 @@ drm_gem_vram_plane_helper_prepare_fb(struct drm_plane *plane,
 void
 drm_gem_vram_plane_helper_cleanup_fb(struct drm_plane *plane,
 				     struct drm_plane_state *old_state);
+
+/**
+ * DRM_GEM_VRAM_PLANE_HELPER_FUNCS -
+ *	Initializes struct drm_plane_helper_funcs for VRAM handling
+ *
+ * Drivers may use GEM BOs as VRAM helpers for the framebuffer memory. This
+ * macro initializes struct drm_plane_helper_funcs to use the respective helper
+ * functions.
+ */
+#define DRM_GEM_VRAM_PLANE_HELPER_FUNCS \
+	.prepare_fb = drm_gem_vram_plane_helper_prepare_fb, \
+	.cleanup_fb = drm_gem_vram_plane_helper_cleanup_fb
 
 /*
  * Helpers for struct drm_simple_display_pipe_funcs
@@ -152,7 +159,7 @@ void drm_gem_vram_simple_display_pipe_cleanup_fb(
 #define DRM_GEM_VRAM_DRIVER \
 	.debugfs_init             = drm_vram_mm_debugfs_init, \
 	.dumb_create		  = drm_gem_vram_driver_dumb_create, \
-	.dumb_map_offset	  = drm_gem_vram_driver_dumb_mmap_offset, \
+	.dumb_map_offset	  = drm_gem_ttm_dumb_map_offset, \
 	.gem_prime_mmap		  = drm_gem_prime_mmap
 
 /*
@@ -175,19 +182,19 @@ struct drm_vram_mm {
 	uint64_t vram_base;
 	size_t vram_size;
 
-	struct ttm_bo_device bdev;
+	struct ttm_device bdev;
 };
 
 /**
  * drm_vram_mm_of_bdev() - \
-	Returns the container of type &struct ttm_bo_device for field bdev.
+	Returns the container of type &struct ttm_device for field bdev.
  * @bdev:	the TTM BO device
  *
  * Returns:
  * The containing instance of &struct drm_vram_mm
  */
 static inline struct drm_vram_mm *drm_vram_mm_of_bdev(
-	struct ttm_bo_device *bdev)
+	struct ttm_device *bdev)
 {
 	return container_of(bdev, struct drm_vram_mm, bdev);
 }
@@ -197,10 +204,6 @@ void drm_vram_mm_debugfs_init(struct drm_minor *minor);
 /*
  * Helpers for integration with struct drm_device
  */
-
-struct drm_vram_mm *drm_vram_helper_alloc_mm(
-	struct drm_device *dev, uint64_t vram_base, size_t vram_size);
-void drm_vram_helper_release_mm(struct drm_device *dev);
 
 int drmm_vram_helper_init(struct drm_device *dev, uint64_t vram_base,
 			  size_t vram_size);

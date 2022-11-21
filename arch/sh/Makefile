@@ -9,7 +9,7 @@
 # License.  See the file "COPYING" in the main directory of this archive
 # for more details.
 #
-ifneq ($(SUBARCH),$(ARCH))
+ifdef cross_compiling
   ifeq ($(CROSS_COMPILE),)
     CROSS_COMPILE := $(call cc-cross-prefix, sh-linux- sh-linux-gnu- sh-unknown-linux-gnu-)
   endif
@@ -116,11 +116,6 @@ export ld-bfd
 
 head-y	:= arch/sh/kernel/head_32.o
 
-core-y				+= arch/sh/kernel/ arch/sh/mm/ arch/sh/boards/
-core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
-
-core-$(CONFIG_USE_BUILTIN_DTB)	+= arch/sh/boot/dts/
-
 # Mach groups
 machdir-$(CONFIG_SOLUTION_ENGINE)		+= mach-se
 machdir-$(CONFIG_SH_HP6XX)			+= mach-hp6xx
@@ -170,7 +165,6 @@ cpuincdir-$(CONFIG_CPU_SH4)	+= cpu-sh4
 cpuincdir-y			+= cpu-common	# Must be last
 
 drivers-y			+= arch/sh/drivers/
-drivers-$(CONFIG_OPROFILE)	+= arch/sh/oprofile/
 
 cflags-y	+= $(foreach d, $(cpuincdir-y), -I $(srctree)/arch/sh/include/$(d)) \
 		   $(foreach d, $(machdir-y), -I $(srctree)/arch/sh/include/$(d))
@@ -203,10 +197,6 @@ compressed: zImage
 
 archprepare:
 	$(Q)$(MAKE) $(build)=arch/sh/tools include/generated/machtypes.h
-
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
-	$(Q)$(MAKE) $(clean)=arch/sh/kernel/vsyscall
 
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/sh/kernel/syscalls all

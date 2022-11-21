@@ -14,7 +14,7 @@
  * This mutex must be held while accessing the EMI unit. We can't rely on the
  * EC mutex because memmap data may be accessed without it being held.
  */
-static struct mutex io_mutex;
+static DEFINE_MUTEX(io_mutex);
 static u16 mec_emi_base, mec_emi_end;
 
 /**
@@ -142,7 +142,6 @@ EXPORT_SYMBOL(cros_ec_lpc_io_bytes_mec);
 
 void cros_ec_lpc_mec_init(unsigned int base, unsigned int end)
 {
-	mutex_init(&io_mutex);
 	mec_emi_base = base;
 	mec_emi_end = end;
 }

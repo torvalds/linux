@@ -198,11 +198,13 @@ static const struct fpga_bridge_ops altera_freeze_br_br_ops = {
 	.enable_show = altera_freeze_br_enable_show,
 };
 
+#ifdef CONFIG_OF
 static const struct of_device_id altera_freeze_br_of_match[] = {
 	{ .compatible = "altr,freeze-bridge-controller", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, altera_freeze_br_of_match);
+#endif
 
 static int altera_freeze_br_probe(struct platform_device *pdev)
 {
@@ -244,14 +246,14 @@ static int altera_freeze_br_probe(struct platform_device *pdev)
 
 	priv->base_addr = base_addr;
 
-	br = devm_fpga_bridge_create(dev, FREEZE_BRIDGE_NAME,
-				     &altera_freeze_br_br_ops, priv);
-	if (!br)
-		return -ENOMEM;
+	br = fpga_bridge_register(dev, FREEZE_BRIDGE_NAME,
+				  &altera_freeze_br_br_ops, priv);
+	if (IS_ERR(br))
+		return PTR_ERR(br);
 
 	platform_set_drvdata(pdev, br);
 
-	return fpga_bridge_register(br);
+	return 0;
 }
 
 static int altera_freeze_br_remove(struct platform_device *pdev)

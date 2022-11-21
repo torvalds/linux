@@ -5,6 +5,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>
+#include <linux/dma-mapping.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
@@ -99,11 +100,6 @@ int aiu_fifo_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct aiu_fifo *fifo = dai->playback_dma_data;
 	dma_addr_t end;
-	int ret;
-
-	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-	if (ret < 0)
-		return ret;
 
 	/* Setup the fifo boundaries */
 	end = runtime->dma_addr + runtime->dma_bytes - fifo->fifo_block;
@@ -122,12 +118,6 @@ int aiu_fifo_hw_params(struct snd_pcm_substream *substream,
 				      FIELD_PREP(AIU_MEM_MASK_CH_MEM, 0xff));
 
 	return 0;
-}
-
-int aiu_fifo_hw_free(struct snd_pcm_substream *substream,
-		     struct snd_soc_dai *dai)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 static irqreturn_t aiu_fifo_isr(int irq, void *dev_id)
@@ -187,15 +177,17 @@ void aiu_fifo_shutdown(struct snd_pcm_substream *substream,
 int aiu_fifo_pcm_new(struct snd_soc_pcm_runtime *rtd,
 		     struct snd_soc_dai *dai)
 {
-	struct snd_pcm_substream *substream =
-		rtd->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
 	struct snd_card *card = rtd->card->snd_card;
 	struct aiu_fifo *fifo = dai->playback_dma_data;
 	size_t size = fifo->pcm->buffer_bytes_max;
+	int ret;
 
-	snd_pcm_lib_preallocate_pages(substream,
-				      SNDRV_DMA_TYPE_DEV,
-				      card->dev, size, size);
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
+	snd_pcm_set_managed_buffer_all(rtd->pcm, SNDRV_DMA_TYPE_DEV,
+				       card->dev, size, size);
 
 	return 0;
 }

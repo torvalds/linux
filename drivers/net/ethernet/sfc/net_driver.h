@@ -782,6 +782,12 @@ struct efx_async_filter_insertion {
 #define EFX_RPS_MAX_IN_FLIGHT	8
 #endif /* CONFIG_RFS_ACCEL */
 
+enum efx_xdp_tx_queues_mode {
+	EFX_XDP_TX_QUEUES_DEDICATED,	/* one queue per core, locking not needed */
+	EFX_XDP_TX_QUEUES_SHARED,	/* each queue used by more than 1 core */
+	EFX_XDP_TX_QUEUES_BORROWED	/* queues borrowed from net stack */
+};
+
 /**
  * struct efx_nic - an Efx NIC
  * @name: Device name (net device name or bus id before net device registered)
@@ -820,6 +826,7 @@ struct efx_async_filter_insertion {
  *	should be allocated for this NIC
  * @xdp_tx_queue_count: Number of entries in %xdp_tx_queues.
  * @xdp_tx_queues: Array of pointers to tx queues used for XDP transmit.
+ * @xdp_txq_queues_mode: XDP TX queues sharing strategy.
  * @rxq_entries: Size of receive queues requested by user.
  * @txq_entries: Size of transmit queues requested by user.
  * @txq_stop_thresh: TX queue fill level at or above which we stop it.
@@ -979,6 +986,7 @@ struct efx_nic {
 
 	unsigned int xdp_tx_queue_count;
 	struct efx_tx_queue **xdp_tx_queues;
+	enum efx_xdp_tx_queues_mode xdp_txq_queues_mode;
 
 	unsigned rxq_entries;
 	unsigned txq_entries;
@@ -1187,6 +1195,7 @@ struct efx_udp_tunnel {
  * @get_wol: Get WoL configuration from driver state
  * @set_wol: Push WoL configuration to the NIC
  * @resume_wol: Synchronise WoL state between driver and MC (e.g. after resume)
+ * @get_fec_stats: Get standard FEC statistics.
  * @test_chip: Test registers.  May use efx_farch_test_registers(), and is
  *	expected to reset the NIC.
  * @test_nvram: Test validity of NVRAM contents
@@ -1273,6 +1282,7 @@ struct efx_udp_tunnel {
  * @udp_tnl_has_port: Check if a port has been added as UDP tunnel
  * @print_additional_fwver: Dump NIC-specific additional FW version info
  * @sensor_event: Handle a sensor event from MCDI
+ * @rx_recycle_ring_size: Size of the RX recycle ring
  * @revision: Hardware architecture revision
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
@@ -1332,6 +1342,8 @@ struct efx_nic_type {
 	void (*get_wol)(struct efx_nic *efx, struct ethtool_wolinfo *wol);
 	int (*set_wol)(struct efx_nic *efx, u32 type);
 	void (*resume_wol)(struct efx_nic *efx);
+	void (*get_fec_stats)(struct efx_nic *efx,
+			      struct ethtool_fec_stats *fec_stats);
 	unsigned int (*check_caps)(const struct efx_nic *efx,
 				   u8 flag,
 				   u32 offset);
@@ -1429,7 +1441,7 @@ struct efx_nic_type {
 	bool (*sriov_wanted)(struct efx_nic *efx);
 	void (*sriov_reset)(struct efx_nic *efx);
 	void (*sriov_flr)(struct efx_nic *efx, unsigned vf_i);
-	int (*sriov_set_vf_mac)(struct efx_nic *efx, int vf_i, u8 *mac);
+	int (*sriov_set_vf_mac)(struct efx_nic *efx, int vf_i, const u8 *mac);
 	int (*sriov_set_vf_vlan)(struct efx_nic *efx, int vf_i, u16 vlan,
 				 u8 qos);
 	int (*sriov_set_vf_spoofchk)(struct efx_nic *efx, int vf_i,
@@ -1449,6 +1461,7 @@ struct efx_nic_type {
 	size_t (*print_additional_fwver)(struct efx_nic *efx, char *buf,
 					 size_t len);
 	void (*sensor_event)(struct efx_nic *efx, efx_qword_t *ev);
+	unsigned int (*rx_recycle_ring_size)(const struct efx_nic *efx);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;

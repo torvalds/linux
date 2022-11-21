@@ -45,29 +45,9 @@ g84_fifo_chan_ntfy(struct nvkm_fifo_chan *chan, u32 type,
 }
 
 static int
-g84_fifo_chan_engine(struct nvkm_engine *engine)
-{
-	switch (engine->subdev.index) {
-	case NVKM_ENGINE_GR    : return 0;
-	case NVKM_ENGINE_MPEG  :
-	case NVKM_ENGINE_MSPPP : return 1;
-	case NVKM_ENGINE_CE0   : return 2;
-	case NVKM_ENGINE_VP    :
-	case NVKM_ENGINE_MSPDEC: return 3;
-	case NVKM_ENGINE_CIPHER:
-	case NVKM_ENGINE_SEC   : return 4;
-	case NVKM_ENGINE_BSP   :
-	case NVKM_ENGINE_MSVLD : return 5;
-	default:
-		WARN_ON(1);
-		return 0;
-	}
-}
-
-static int
 g84_fifo_chan_engine_addr(struct nvkm_engine *engine)
 {
-	switch (engine->subdev.index) {
+	switch (engine->subdev.type) {
 	case NVKM_ENGINE_DMAOBJ:
 	case NVKM_ENGINE_SW    : return -1;
 	case NVKM_ENGINE_GR    : return 0x0020;
@@ -79,7 +59,7 @@ g84_fifo_chan_engine_addr(struct nvkm_engine *engine)
 	case NVKM_ENGINE_MSVLD : return 0x0080;
 	case NVKM_ENGINE_CIPHER:
 	case NVKM_ENGINE_SEC   : return 0x00a0;
-	case NVKM_ENGINE_CE0   : return 0x00c0;
+	case NVKM_ENGINE_CE    : return 0x00c0;
 	default:
 		WARN_ON(1);
 		return -1;
@@ -102,7 +82,7 @@ g84_fifo_chan_engine_fini(struct nvkm_fifo_chan *base,
 	if (offset < 0)
 		return 0;
 
-	engn = g84_fifo_chan_engine(engine);
+	engn = fifo->base.func->engine_id(&fifo->base, engine) - 1;
 	save = nvkm_mask(device, 0x002520, 0x0000003f, 1 << engn);
 	nvkm_wr32(device, 0x0032fc, chan->base.inst->addr >> 12);
 	done = nvkm_msec(device, 2000,
@@ -134,7 +114,7 @@ g84_fifo_chan_engine_init(struct nvkm_fifo_chan *base,
 			  struct nvkm_engine *engine)
 {
 	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	struct nvkm_gpuobj *engn = chan->engn[engine->subdev.index];
+	struct nvkm_gpuobj *engn = *nv50_fifo_chan_engine(chan, engine);
 	u64 limit, start;
 	int offset;
 
@@ -162,12 +142,11 @@ g84_fifo_chan_engine_ctor(struct nvkm_fifo_chan *base,
 			  struct nvkm_object *object)
 {
 	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	int engn = engine->subdev.index;
 
 	if (g84_fifo_chan_engine_addr(engine) < 0)
 		return 0;
 
-	return nvkm_object_bind(object, NULL, 0, &chan->engn[engn]);
+	return nvkm_object_bind(object, NULL, 0, nv50_fifo_chan_engine(chan, engine));
 }
 
 static int
@@ -178,14 +157,14 @@ g84_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
 	u32 handle = object->handle;
 	u32 context;
 
-	switch (object->engine->subdev.index) {
+	switch (object->engine->subdev.type) {
 	case NVKM_ENGINE_DMAOBJ:
 	case NVKM_ENGINE_SW    : context = 0x00000000; break;
 	case NVKM_ENGINE_GR    : context = 0x00100000; break;
 	case NVKM_ENGINE_MPEG  :
 	case NVKM_ENGINE_MSPPP : context = 0x00200000; break;
 	case NVKM_ENGINE_ME    :
-	case NVKM_ENGINE_CE0   : context = 0x00300000; break;
+	case NVKM_ENGINE_CE    : context = 0x00300000; break;
 	case NVKM_ENGINE_VP    :
 	case NVKM_ENGINE_MSPDEC: context = 0x00400000; break;
 	case NVKM_ENGINE_CIPHER:
@@ -241,20 +220,20 @@ g84_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vmm, u64 push,
 
 	ret = nvkm_fifo_chan_ctor(&g84_fifo_chan_func, &fifo->base,
 				  0x10000, 0x1000, false, vmm, push,
-				  (1ULL << NVKM_ENGINE_BSP) |
-				  (1ULL << NVKM_ENGINE_CE0) |
-				  (1ULL << NVKM_ENGINE_CIPHER) |
-				  (1ULL << NVKM_ENGINE_DMAOBJ) |
-				  (1ULL << NVKM_ENGINE_GR) |
-				  (1ULL << NVKM_ENGINE_ME) |
-				  (1ULL << NVKM_ENGINE_MPEG) |
-				  (1ULL << NVKM_ENGINE_MSPDEC) |
-				  (1ULL << NVKM_ENGINE_MSPPP) |
-				  (1ULL << NVKM_ENGINE_MSVLD) |
-				  (1ULL << NVKM_ENGINE_SEC) |
-				  (1ULL << NVKM_ENGINE_SW) |
-				  (1ULL << NVKM_ENGINE_VIC) |
-				  (1ULL << NVKM_ENGINE_VP),
+				  BIT(G84_FIFO_ENGN_SW) |
+				  BIT(G84_FIFO_ENGN_GR) |
+				  BIT(G84_FIFO_ENGN_MPEG) |
+				  BIT(G84_FIFO_ENGN_MSPPP) |
+				  BIT(G84_FIFO_ENGN_ME) |
+				  BIT(G84_FIFO_ENGN_CE0) |
+				  BIT(G84_FIFO_ENGN_VP) |
+				  BIT(G84_FIFO_ENGN_MSPDEC) |
+				  BIT(G84_FIFO_ENGN_CIPHER) |
+				  BIT(G84_FIFO_ENGN_SEC) |
+				  BIT(G84_FIFO_ENGN_VIC) |
+				  BIT(G84_FIFO_ENGN_BSP) |
+				  BIT(G84_FIFO_ENGN_MSVLD) |
+				  BIT(G84_FIFO_ENGN_DMA),
 				  0, 0xc00000, 0x2000, oclass, &chan->base);
 	chan->fifo = fifo;
 	if (ret)

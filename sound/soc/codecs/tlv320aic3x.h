@@ -9,6 +9,19 @@
 #ifndef _AIC3X_H
 #define _AIC3X_H
 
+struct device;
+struct regmap_config;
+
+extern const struct regmap_config aic3x_regmap;
+int aic3x_probe(struct device *dev, struct regmap *regmap, kernel_ulong_t driver_data);
+void aic3x_remove(struct device *dev);
+
+#define AIC3X_MODEL_3X 0
+#define AIC3X_MODEL_33 1
+#define AIC3X_MODEL_3007 2
+#define AIC3X_MODEL_3104 3
+#define AIC3X_MODEL_3106 4
+
 /* AIC3X register space */
 #define AIC3X_CACHEREGNUM		110
 

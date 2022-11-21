@@ -110,26 +110,6 @@ static int nsim_dev_dummy_fmsg_put(struct devlink_fmsg *fmsg, u32 binary_len)
 	if (err)
 		return err;
 
-	err = devlink_fmsg_arr_pair_nest_start(fmsg, "test_bool_array");
-	if (err)
-		return err;
-	for (i = 0; i < 10; i++) {
-		err = devlink_fmsg_bool_put(fmsg, true);
-		if (err)
-			return err;
-	}
-	err = devlink_fmsg_arr_pair_nest_end(fmsg);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_arr_pair_nest_start(fmsg, "test_u8_array");
-	if (err)
-		return err;
-	for (i = 0; i < 10; i++) {
-		err = devlink_fmsg_u8_put(fmsg, i);
-		if (err)
-			return err;
-	}
 	err = devlink_fmsg_arr_pair_nest_end(fmsg);
 	if (err)
 		return err;
@@ -139,18 +119,6 @@ static int nsim_dev_dummy_fmsg_put(struct devlink_fmsg *fmsg, u32 binary_len)
 		return err;
 	for (i = 0; i < 10; i++) {
 		err = devlink_fmsg_u32_put(fmsg, i);
-		if (err)
-			return err;
-	}
-	err = devlink_fmsg_arr_pair_nest_end(fmsg);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_arr_pair_nest_start(fmsg, "test_u64_array");
-	if (err)
-		return err;
-	for (i = 0; i < 10; i++) {
-		err = devlink_fmsg_u64_put(fmsg, i);
 		if (err)
 			return err;
 	}
@@ -235,15 +203,10 @@ static ssize_t nsim_dev_health_break_write(struct file *file,
 	char *break_msg;
 	int err;
 
-	break_msg = kmalloc(count + 1, GFP_KERNEL);
-	if (!break_msg)
-		return -ENOMEM;
+	break_msg = memdup_user_nul(data, count);
+	if (IS_ERR(break_msg))
+		return PTR_ERR(break_msg);
 
-	if (copy_from_user(break_msg, data, count)) {
-		err = -EFAULT;
-		goto out;
-	}
-	break_msg[count] = '\0';
 	if (break_msg[count - 1] == '\n')
 		break_msg[count - 1] = '\0';
 

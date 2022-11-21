@@ -114,26 +114,29 @@ static int vega20_get_current_rpm(struct pp_hwmgr *hwmgr, uint32_t *current_rpm)
 	return 0;
 }
 
-int vega20_fan_ctrl_get_fan_speed_percent(struct pp_hwmgr *hwmgr,
+int vega20_fan_ctrl_get_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 		uint32_t *speed)
 {
-	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
-	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
-	uint32_t current_rpm, percent = 0;
-	int ret = 0;
+	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t duty100, duty;
+	uint64_t tmp64;
 
-	ret = vega20_get_current_rpm(hwmgr, &current_rpm);
-	if (ret)
-		return ret;
+	duty100 = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL1),
+				CG_FDO_CTRL1, FMAX_DUTY100);
+	duty = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_THERMAL_STATUS),
+				CG_THERMAL_STATUS, FDO_PWM_DUTY);
 
-	percent = current_rpm * 100 / pp_table->FanMaximumRpm;
+	if (!duty100)
+		return -EINVAL;
 
-	*speed = percent > 100 ? 100 : percent;
+	tmp64 = (uint64_t)duty * 255;
+	do_div(tmp64, duty100);
+	*speed = MIN((uint32_t)tmp64, 255);
 
 	return 0;
 }
 
-int vega20_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
+int vega20_fan_ctrl_set_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 		uint32_t speed)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
@@ -141,8 +144,7 @@ int vega20_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 	uint32_t duty;
 	uint64_t tmp64;
 
-	if (speed > 100)
-		speed = 100;
+	speed = MIN(speed, 255);
 
 	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
 		vega20_fan_ctrl_stop_smc_fan_control(hwmgr);
@@ -154,7 +156,7 @@ int vega20_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 		return -EINVAL;
 
 	tmp64 = (uint64_t)speed * duty100;
-	do_div(tmp64, 100);
+	do_div(tmp64, 255);
 	duty = (uint32_t)tmp64;
 
 	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL0,
@@ -209,10 +211,10 @@ int vega20_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 }
 
 /**
-* Reads the remote temperature from the SIslands thermal controller.
-*
-* @param    hwmgr The address of the hardware manager.
-*/
+ * vega20_thermal_get_temperature - Reads the remote temperature from the SIslands thermal controller.
+ *
+ * @hwmgr: The address of the hardware manager.
+ */
 int vega20_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
@@ -230,13 +232,12 @@ int vega20_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Set the requested temperature range for high and low alert signals
-*
-* @param    hwmgr The address of the hardware manager.
-* @param    range Temperature range to be programmed for
-*           high and low alert signals
-* @exception PP_Result_BadInput if the input data is not valid.
-*/
+ * vega20_thermal_set_temperature_range - Set the requested temperature range for high and low alert signals
+ *
+ * @hwmgr: The address of the hardware manager.
+ * @range: Temperature range to be programmed for high and low alert signals
+ * Exception: PP_Result_BadInput if the input data is not valid.
+ */
 static int vega20_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 		struct PP_TemperatureRange *range)
 {
@@ -270,10 +271,10 @@ static int vega20_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 }
 
 /**
-* Enable thermal alerts on the RV770 thermal controller.
-*
-* @param    hwmgr The address of the hardware manager.
-*/
+ * vega20_thermal_enable_alert - Enable thermal alerts on the RV770 thermal controller.
+ *
+ * @hwmgr: The address of the hardware manager.
+ */
 static int vega20_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
@@ -289,9 +290,9 @@ static int vega20_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Disable thermal alerts on the RV770 thermal controller.
-* @param    hwmgr The address of the hardware manager.
-*/
+ * vega20_thermal_disable_alert - Disable thermal alerts on the RV770 thermal controller.
+ * @hwmgr: The address of the hardware manager.
+ */
 int vega20_thermal_disable_alert(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
@@ -302,10 +303,10 @@ int vega20_thermal_disable_alert(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Uninitialize the thermal controller.
-* Currently just disables alerts.
-* @param    hwmgr The address of the hardware manager.
-*/
+ * vega20_thermal_stop_thermal_controller - Uninitialize the thermal controller.
+ * Currently just disables alerts.
+ * @hwmgr: The address of the hardware manager.
+ */
 int vega20_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 {
 	int result = vega20_thermal_disable_alert(hwmgr);
@@ -314,14 +315,9 @@ int vega20_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Set up the fan table to control the fan using the SMC.
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @param    pInput the pointer to input data
-* @param    pOutput the pointer to output data
-* @param    pStorage the pointer to temporary storage
-* @param    Result the last failure code
-* @return   result from set temperature range routine
-*/
+ * vega20_thermal_setup_fan_table - Set up the fan table to control the fan using the SMC.
+ * @hwmgr:  the address of the powerplay hardware manager.
+ */
 static int vega20_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
 	int ret;

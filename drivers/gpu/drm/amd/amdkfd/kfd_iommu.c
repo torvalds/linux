@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2018 Advanced Micro Devices, Inc.
+ * Copyright 2018-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +21,16 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/kconfig.h>
+
+#if IS_REACHABLE(CONFIG_AMD_IOMMU_V2)
+
 #include <linux/printk.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/amd-iommu.h>
 #include "kfd_priv.h"
-#include "kfd_dbgmgr.h"
 #include "kfd_topology.h"
 #include "kfd_iommu.h"
 
@@ -85,7 +89,7 @@ int kfd_iommu_device_init(struct kfd_dev *kfd)
 	}
 
 	pasid_limit = min_t(unsigned int,
-			(unsigned int)(1 << kfd->device_info->max_pasid_bits),
+			(unsigned int)(1 << kfd->device_info.max_pasid_bits),
 			iommu_info.max_pasids);
 
 	if (!kfd_set_pasid_limit(pasid_limit)) {
@@ -131,11 +135,11 @@ int kfd_iommu_bind_process_to_device(struct kfd_process_device *pdd)
  */
 void kfd_iommu_unbind_process(struct kfd_process *p)
 {
-	struct kfd_process_device *pdd;
+	int i;
 
-	list_for_each_entry(pdd, &p->per_device_data, per_device_list)
-		if (pdd->bound == PDD_BOUND)
-			amd_iommu_unbind_pasid(pdd->dev->pdev, p->pasid);
+	for (i = 0; i < p->n_pdds; i++)
+		if (p->pdds[i]->bound == PDD_BOUND)
+			amd_iommu_unbind_pasid(p->pdds[i]->dev->pdev, p->pasid);
 }
 
 /* Callback for process shutdown invoked by the IOMMU driver */
@@ -158,17 +162,6 @@ static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, u32 pasid)
 		return;
 
 	pr_debug("Unbinding process 0x%x from IOMMU\n", pasid);
-
-	mutex_lock(kfd_get_dbgmgr_mutex());
-
-	if (dev->dbgmgr && dev->dbgmgr->pasid == p->pasid) {
-		if (!kfd_dbgmgr_unregister(dev->dbgmgr, p)) {
-			kfd_dbgmgr_destroy(dev->dbgmgr);
-			dev->dbgmgr = NULL;
-		}
-	}
-
-	mutex_unlock(kfd_get_dbgmgr_mutex());
 
 	mutex_lock(&p->mutex);
 
@@ -329,10 +322,6 @@ int kfd_iommu_resume(struct kfd_dev *kfd)
 	return 0;
 }
 
-extern bool amd_iommu_pc_supported(void);
-extern u8 amd_iommu_pc_get_max_banks(u16 devid);
-extern u8 amd_iommu_pc_get_max_counters(u16 devid);
-
 /** kfd_iommu_add_perf_counters - Add IOMMU performance counters to topology
  */
 int kfd_iommu_add_perf_counters(struct kfd_topology_device *kdev)
@@ -355,3 +344,5 @@ int kfd_iommu_add_perf_counters(struct kfd_topology_device *kdev)
 
 	return 0;
 }
+
+#endif

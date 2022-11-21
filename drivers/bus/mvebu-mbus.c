@@ -618,7 +618,7 @@ mvebu_mbus_find_bridge_hole(uint64_t *start, uint64_t *end)
 		 * This part of the memory is above 4 GB, so we don't
 		 * care for the MBus bridge hole.
 		 */
-		if (reg_start >= 0x100000000ULL)
+		if ((u64)reg_start >= 0x100000000ULL)
 			continue;
 
 		/*
@@ -914,6 +914,7 @@ int mvebu_mbus_add_window_remap_by_id(unsigned int target,
 
 	return mvebu_mbus_alloc_window(s, base, size, remap, target, attribute);
 }
+EXPORT_SYMBOL_GPL(mvebu_mbus_add_window_remap_by_id);
 
 int mvebu_mbus_add_window_by_id(unsigned int target, unsigned int attribute,
 				phys_addr_t base, size_t size)
@@ -921,6 +922,7 @@ int mvebu_mbus_add_window_by_id(unsigned int target, unsigned int attribute,
 	return mvebu_mbus_add_window_remap_by_id(target, attribute, base,
 						 size, MVEBU_MBUS_NO_REMAP);
 }
+EXPORT_SYMBOL_GPL(mvebu_mbus_add_window_by_id);
 
 int mvebu_mbus_del_window(phys_addr_t base, size_t size)
 {
@@ -933,6 +935,7 @@ int mvebu_mbus_del_window(phys_addr_t base, size_t size)
 	mvebu_mbus_disable_window(&mbus_state, win);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mvebu_mbus_del_window);
 
 void mvebu_mbus_get_pcie_mem_aperture(struct resource *res)
 {
@@ -940,6 +943,7 @@ void mvebu_mbus_get_pcie_mem_aperture(struct resource *res)
 		return;
 	*res = mbus_state.pcie_mem_aperture;
 }
+EXPORT_SYMBOL_GPL(mvebu_mbus_get_pcie_mem_aperture);
 
 void mvebu_mbus_get_pcie_io_aperture(struct resource *res)
 {
@@ -947,6 +951,7 @@ void mvebu_mbus_get_pcie_io_aperture(struct resource *res)
 		return;
 	*res = mbus_state.pcie_io_aperture;
 }
+EXPORT_SYMBOL_GPL(mvebu_mbus_get_pcie_io_aperture);
 
 int mvebu_mbus_get_dram_win_info(phys_addr_t phyaddr, u8 *target, u8 *attr)
 {
@@ -1111,7 +1116,7 @@ static int __init mvebu_mbus_common_init(struct mvebu_mbus_state *mbus,
 
 	mbus->sdramwins_base = ioremap(sdramwins_phys_base, sdramwins_size);
 	if (!mbus->sdramwins_base) {
-		iounmap(mbus_state.mbuswins_base);
+		iounmap(mbus->mbuswins_base);
 		return -ENOMEM;
 	}
 

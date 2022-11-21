@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/percpu.h>
 #include <linux/jump_label.h>
+#include <asm/interrupt.h>
 #include <asm/opal-api.h>
 #include <asm/trace.h>
 #include <asm/asm-prototypes.h>
@@ -99,6 +100,9 @@ static int64_t opal_call(int64_t a0, int64_t a1, int64_t a2, int64_t a3,
 	unsigned long msr = mfmsr();
 	bool mmu = (msr & (MSR_IR|MSR_DR));
 	int64_t ret;
+
+	/* OPAL call / firmware may use SRR and/or HSRR */
+	srr_regs_clobbered();
 
 	msr &= ~MSR_EE;
 
@@ -267,8 +271,6 @@ OPAL_CALL(opal_xive_get_queue_state,		OPAL_XIVE_GET_QUEUE_STATE);
 OPAL_CALL(opal_xive_set_queue_state,		OPAL_XIVE_SET_QUEUE_STATE);
 OPAL_CALL(opal_xive_get_vp_state,		OPAL_XIVE_GET_VP_STATE);
 OPAL_CALL(opal_signal_system_reset,		OPAL_SIGNAL_SYSTEM_RESET);
-OPAL_CALL(opal_npu_init_context,		OPAL_NPU_INIT_CONTEXT);
-OPAL_CALL(opal_npu_destroy_context,		OPAL_NPU_DESTROY_CONTEXT);
 OPAL_CALL(opal_npu_map_lpar,			OPAL_NPU_MAP_LPAR);
 OPAL_CALL(opal_imc_counters_init,		OPAL_IMC_COUNTERS_INIT);
 OPAL_CALL(opal_imc_counters_start,		OPAL_IMC_COUNTERS_START);

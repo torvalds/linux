@@ -3,8 +3,6 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
-int _version SEC("version") = 1;
-
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 1);

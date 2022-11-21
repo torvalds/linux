@@ -71,14 +71,12 @@ patternProperties:
 
       interrupts:
         minItems: 1
-        maxItems: 2
         items:
           - description: physical timer irq
           - description: virtual timer irq
 
       reg:
         minItems: 1
-        maxItems: 2
         items:
           - description: 1st view base address
           - description: 2nd optional view base address

@@ -48,7 +48,7 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 	if (irq)
 		return irq;
 
-	irq = kzalloc(sizeof(struct vgic_irq), GFP_KERNEL);
+	irq = kzalloc(sizeof(struct vgic_irq), GFP_KERNEL_ACCOUNT);
 	if (!irq)
 		return ERR_PTR(-ENOMEM);
 
@@ -332,7 +332,7 @@ int vgic_copy_lpi_list(struct kvm *kvm, struct kvm_vcpu *vcpu, u32 **intid_ptr)
 	 * we must be careful not to overrun the array.
 	 */
 	irq_count = READ_ONCE(dist->lpi_list_count);
-	intids = kmalloc_array(irq_count, sizeof(intids[0]), GFP_KERNEL);
+	intids = kmalloc_array(irq_count, sizeof(intids[0]), GFP_KERNEL_ACCOUNT);
 	if (!intids)
 		return -ENOMEM;
 
@@ -985,7 +985,7 @@ static int vgic_its_alloc_collection(struct vgic_its *its,
 	if (!vgic_its_check_id(its, its->baser_coll_table, coll_id, NULL))
 		return E_ITS_MAPC_COLLECTION_OOR;
 
-	collection = kzalloc(sizeof(*collection), GFP_KERNEL);
+	collection = kzalloc(sizeof(*collection), GFP_KERNEL_ACCOUNT);
 	if (!collection)
 		return -ENOMEM;
 
@@ -1029,7 +1029,7 @@ static struct its_ite *vgic_its_alloc_ite(struct its_device *device,
 {
 	struct its_ite *ite;
 
-	ite = kzalloc(sizeof(*ite), GFP_KERNEL);
+	ite = kzalloc(sizeof(*ite), GFP_KERNEL_ACCOUNT);
 	if (!ite)
 		return ERR_PTR(-ENOMEM);
 
@@ -1150,7 +1150,7 @@ static struct its_device *vgic_its_alloc_device(struct vgic_its *its,
 {
 	struct its_device *device;
 
-	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	device = kzalloc(sizeof(*device), GFP_KERNEL_ACCOUNT);
 	if (!device)
 		return ERR_PTR(-ENOMEM);
 
@@ -1847,7 +1847,7 @@ void vgic_lpi_translation_cache_init(struct kvm *kvm)
 		struct vgic_translation_cache_entry *cte;
 
 		/* An allocation failure is not fatal */
-		cte = kzalloc(sizeof(*cte), GFP_KERNEL);
+		cte = kzalloc(sizeof(*cte), GFP_KERNEL_ACCOUNT);
 		if (WARN_ON(!cte))
 			break;
 
@@ -1888,7 +1888,7 @@ static int vgic_its_create(struct kvm_device *dev, u32 type)
 	if (type != KVM_DEV_TYPE_ARM_VGIC_ITS)
 		return -ENODEV;
 
-	its = kzalloc(sizeof(struct vgic_its), GFP_KERNEL);
+	its = kzalloc(sizeof(struct vgic_its), GFP_KERNEL_ACCOUNT);
 	if (!its)
 		return -ENOMEM;
 
@@ -2143,7 +2143,7 @@ static int vgic_its_save_ite(struct vgic_its *its, struct its_device *dev,
 static int vgic_its_restore_ite(struct vgic_its *its, u32 event_id,
 				void *ptr, void *opaque)
 {
-	struct its_device *dev = (struct its_device *)opaque;
+	struct its_device *dev = opaque;
 	struct its_collection *collection;
 	struct kvm *kvm = its->dev->kvm;
 	struct kvm_vcpu *vcpu = NULL;
@@ -2190,8 +2190,8 @@ static int vgic_its_restore_ite(struct vgic_its *its, u32 event_id,
 	return offset;
 }
 
-static int vgic_its_ite_cmp(void *priv, struct list_head *a,
-			    struct list_head *b)
+static int vgic_its_ite_cmp(void *priv, const struct list_head *a,
+			    const struct list_head *b)
 {
 	struct its_ite *itea = container_of(a, struct its_ite, ite_list);
 	struct its_ite *iteb = container_of(b, struct its_ite, ite_list);
@@ -2218,10 +2218,10 @@ static int vgic_its_save_itt(struct vgic_its *its, struct its_device *device)
 		/*
 		 * If an LPI carries the HW bit, this means that this
 		 * interrupt is controlled by GICv4, and we do not
-		 * have direct access to that state. Let's simply fail
-		 * the save operation...
+		 * have direct access to that state without GICv4.1.
+		 * Let's simply fail the save operation...
 		 */
-		if (ite->irq->hw)
+		if (ite->irq->hw && !kvm_vgic_global_state.has_gicv4_1)
 			return -EACCES;
 
 		ret = vgic_its_save_ite(its, device, ite, gpa, ite_esz);
@@ -2329,8 +2329,8 @@ static int vgic_its_restore_dte(struct vgic_its *its, u32 id,
 	return offset;
 }
 
-static int vgic_its_device_cmp(void *priv, struct list_head *a,
-			       struct list_head *b)
+static int vgic_its_device_cmp(void *priv, const struct list_head *a,
+			       const struct list_head *b)
 {
 	struct its_device *deva = container_of(a, struct its_device, dev_list);
 	struct its_device *devb = container_of(b, struct its_device, dev_list);
@@ -2710,8 +2710,8 @@ static int vgic_its_set_attr(struct kvm_device *dev,
 		if (copy_from_user(&addr, uaddr, sizeof(addr)))
 			return -EFAULT;
 
-		ret = vgic_check_ioaddr(dev->kvm, &its->vgic_its_base,
-					addr, SZ_64K);
+		ret = vgic_check_iorange(dev->kvm, its->vgic_its_base,
+					 addr, SZ_64K, KVM_VGIC_V3_ITS_SIZE);
 		if (ret)
 			return ret;
 

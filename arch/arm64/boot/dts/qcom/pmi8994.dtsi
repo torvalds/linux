@@ -32,5 +32,15 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 		};
+
+		pmi8994_wled: wled@d800 {
+			compatible = "qcom,pmi8994-wled";
+			reg = <0xd800 0xd900>;
+			interrupts = <3 0xd8 0x02 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "short";
+			qcom,cabc;
+			qcom,external-pfet;
+			status = "disabled";
+		};
 	};
 };

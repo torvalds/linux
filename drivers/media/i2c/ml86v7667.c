@@ -188,7 +188,7 @@ static int ml86v7667_g_input_status(struct v4l2_subdev *sd, u32 *status)
 }
 
 static int ml86v7667_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index > 0)
@@ -200,7 +200,7 @@ static int ml86v7667_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ml86v7667_fill_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct ml86v7667_priv *priv = to_ml86v7667(sd);
@@ -223,9 +223,10 @@ static int ml86v7667_get_mbus_config(struct v4l2_subdev *sd,
 				     unsigned int pad,
 				     struct v4l2_mbus_config *cfg)
 {
-	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_PCLK_SAMPLE_RISING |
-		     V4L2_MBUS_DATA_ACTIVE_HIGH;
 	cfg->type = V4L2_MBUS_BT656;
+	cfg->bus.parallel.flags = V4L2_MBUS_MASTER |
+				  V4L2_MBUS_PCLK_SAMPLE_RISING |
+				  V4L2_MBUS_DATA_ACTIVE_HIGH;
 
 	return 0;
 }

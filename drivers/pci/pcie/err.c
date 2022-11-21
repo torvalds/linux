@@ -49,14 +49,16 @@ static int report_error_detected(struct pci_dev *dev,
 				 pci_channel_state_t state,
 				 enum pci_ers_result *result)
 {
+	struct pci_driver *pdrv;
 	pci_ers_result_t vote;
 	const struct pci_error_handlers *err_handler;
 
 	device_lock(&dev->dev);
+	pdrv = dev->driver;
 	if (!pci_dev_set_io_state(dev, state) ||
-		!dev->driver ||
-		!dev->driver->err_handler ||
-		!dev->driver->err_handler->error_detected) {
+		!pdrv ||
+		!pdrv->err_handler ||
+		!pdrv->err_handler->error_detected) {
 		/*
 		 * If any device in the subtree does not have an error_detected
 		 * callback, PCI_ERS_RESULT_NO_AER_DRIVER prevents subsequent
@@ -70,7 +72,7 @@ static int report_error_detected(struct pci_dev *dev,
 			vote = PCI_ERS_RESULT_NONE;
 		}
 	} else {
-		err_handler = dev->driver->err_handler;
+		err_handler = pdrv->err_handler;
 		vote = err_handler->error_detected(dev, state);
 	}
 	pci_uevent_ers(dev, vote);
@@ -91,16 +93,18 @@ static int report_normal_detected(struct pci_dev *dev, void *data)
 
 static int report_mmio_enabled(struct pci_dev *dev, void *data)
 {
+	struct pci_driver *pdrv;
 	pci_ers_result_t vote, *result = data;
 	const struct pci_error_handlers *err_handler;
 
 	device_lock(&dev->dev);
-	if (!dev->driver ||
-		!dev->driver->err_handler ||
-		!dev->driver->err_handler->mmio_enabled)
+	pdrv = dev->driver;
+	if (!pdrv ||
+		!pdrv->err_handler ||
+		!pdrv->err_handler->mmio_enabled)
 		goto out;
 
-	err_handler = dev->driver->err_handler;
+	err_handler = pdrv->err_handler;
 	vote = err_handler->mmio_enabled(dev);
 	*result = merge_result(*result, vote);
 out:
@@ -110,16 +114,18 @@ out:
 
 static int report_slot_reset(struct pci_dev *dev, void *data)
 {
+	struct pci_driver *pdrv;
 	pci_ers_result_t vote, *result = data;
 	const struct pci_error_handlers *err_handler;
 
 	device_lock(&dev->dev);
-	if (!dev->driver ||
-		!dev->driver->err_handler ||
-		!dev->driver->err_handler->slot_reset)
+	pdrv = dev->driver;
+	if (!pdrv ||
+		!pdrv->err_handler ||
+		!pdrv->err_handler->slot_reset)
 		goto out;
 
-	err_handler = dev->driver->err_handler;
+	err_handler = pdrv->err_handler;
 	vote = err_handler->slot_reset(dev);
 	*result = merge_result(*result, vote);
 out:
@@ -129,16 +135,18 @@ out:
 
 static int report_resume(struct pci_dev *dev, void *data)
 {
+	struct pci_driver *pdrv;
 	const struct pci_error_handlers *err_handler;
 
 	device_lock(&dev->dev);
+	pdrv = dev->driver;
 	if (!pci_dev_set_io_state(dev, pci_channel_io_normal) ||
-		!dev->driver ||
-		!dev->driver->err_handler ||
-		!dev->driver->err_handler->resume)
+		!pdrv ||
+		!pdrv->err_handler ||
+		!pdrv->err_handler->resume)
 		goto out;
 
-	err_handler = dev->driver->err_handler;
+	err_handler = pdrv->err_handler;
 	err_handler->resume(dev);
 out:
 	pci_uevent_ers(dev, PCI_ERS_RESULT_RECOVERED);
@@ -146,38 +154,70 @@ out:
 	return 0;
 }
 
-pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
-			pci_channel_state_t state,
-			pci_ers_result_t (*reset_link)(struct pci_dev *pdev))
+/**
+ * pci_walk_bridge - walk bridges potentially AER affected
+ * @bridge:	bridge which may be a Port, an RCEC, or an RCiEP
+ * @cb:		callback to be called for each device found
+ * @userdata:	arbitrary pointer to be passed to callback
+ *
+ * If the device provided is a bridge, walk the subordinate bus, including
+ * any bridged devices on buses under this bus.  Call the provided callback
+ * on each device found.
+ *
+ * If the device provided has no subordinate bus, e.g., an RCEC or RCiEP,
+ * call the callback on the device itself.
+ */
+static void pci_walk_bridge(struct pci_dev *bridge,
+			    int (*cb)(struct pci_dev *, void *),
+			    void *userdata)
 {
+	if (bridge->subordinate)
+		pci_walk_bus(bridge->subordinate, cb, userdata);
+	else
+		cb(bridge, userdata);
+}
+
+pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
+		pci_channel_state_t state,
+		pci_ers_result_t (*reset_subordinates)(struct pci_dev *pdev))
+{
+	int type = pci_pcie_type(dev);
+	struct pci_dev *bridge;
 	pci_ers_result_t status = PCI_ERS_RESULT_CAN_RECOVER;
-	struct pci_bus *bus;
+	struct pci_host_bridge *host = pci_find_host_bridge(dev->bus);
 
 	/*
-	 * Error recovery runs on all subordinates of the first downstream port.
-	 * If the downstream port detected the error, it is cleared at the end.
+	 * If the error was detected by a Root Port, Downstream Port, RCEC,
+	 * or RCiEP, recovery runs on the device itself.  For Ports, that
+	 * also includes any subordinate devices.
+	 *
+	 * If it was detected by another device (Endpoint, etc), recovery
+	 * runs on the device and anything else under the same Port, i.e.,
+	 * everything under "bridge".
 	 */
-	if (!(pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT ||
-	      pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM))
-		dev = dev->bus->self;
-	bus = dev->subordinate;
+	if (type == PCI_EXP_TYPE_ROOT_PORT ||
+	    type == PCI_EXP_TYPE_DOWNSTREAM ||
+	    type == PCI_EXP_TYPE_RC_EC ||
+	    type == PCI_EXP_TYPE_RC_END)
+		bridge = dev;
+	else
+		bridge = pci_upstream_bridge(dev);
 
-	pci_dbg(dev, "broadcast error_detected message\n");
+	pci_dbg(bridge, "broadcast error_detected message\n");
 	if (state == pci_channel_io_frozen) {
-		pci_walk_bus(bus, report_frozen_detected, &status);
-		status = reset_link(dev);
-		if (status != PCI_ERS_RESULT_RECOVERED) {
-			pci_warn(dev, "link reset failed\n");
+		pci_walk_bridge(bridge, report_frozen_detected, &status);
+		if (reset_subordinates(bridge) != PCI_ERS_RESULT_RECOVERED) {
+			pci_warn(bridge, "subordinate device reset failed\n");
 			goto failed;
 		}
 	} else {
-		pci_walk_bus(bus, report_normal_detected, &status);
+		pci_walk_bridge(bridge, report_normal_detected, &status);
 	}
 
 	if (status == PCI_ERS_RESULT_CAN_RECOVER) {
 		status = PCI_ERS_RESULT_RECOVERED;
-		pci_dbg(dev, "broadcast mmio_enabled message\n");
-		pci_walk_bus(bus, report_mmio_enabled, &status);
+		pci_dbg(bridge, "broadcast mmio_enabled message\n");
+		pci_walk_bridge(bridge, report_mmio_enabled, &status);
 	}
 
 	if (status == PCI_ERS_RESULT_NEED_RESET) {
@@ -187,27 +227,34 @@ pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
 		 * drivers' slot_reset callbacks?
 		 */
 		status = PCI_ERS_RESULT_RECOVERED;
-		pci_dbg(dev, "broadcast slot_reset message\n");
-		pci_walk_bus(bus, report_slot_reset, &status);
+		pci_dbg(bridge, "broadcast slot_reset message\n");
+		pci_walk_bridge(bridge, report_slot_reset, &status);
 	}
 
 	if (status != PCI_ERS_RESULT_RECOVERED)
 		goto failed;
 
-	pci_dbg(dev, "broadcast resume message\n");
-	pci_walk_bus(bus, report_resume, &status);
+	pci_dbg(bridge, "broadcast resume message\n");
+	pci_walk_bridge(bridge, report_resume, &status);
 
-	if (pcie_aer_is_native(dev))
+	/*
+	 * If we have native control of AER, clear error status in the device
+	 * that detected the error.  If the platform retained control of AER,
+	 * it is responsible for clearing this status.  In that case, the
+	 * signaling device may not even be visible to the OS.
+	 */
+	if (host->native_aer || pcie_ports_native) {
 		pcie_clear_device_status(dev);
-	pci_aer_clear_nonfatal_status(dev);
-	pci_info(dev, "device recovery successful\n");
+		pci_aer_clear_nonfatal_status(dev);
+	}
+	pci_info(bridge, "device recovery successful\n");
 	return status;
 
 failed:
-	pci_uevent_ers(dev, PCI_ERS_RESULT_DISCONNECT);
+	pci_uevent_ers(bridge, PCI_ERS_RESULT_DISCONNECT);
 
 	/* TODO: Should kernel panic here? */
-	pci_info(dev, "device recovery failed\n");
+	pci_info(bridge, "device recovery failed\n");
 
 	return status;
 }

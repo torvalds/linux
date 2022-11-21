@@ -31,7 +31,6 @@
  *
  */
 #include <linux/errno.h>
-#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "usnic_ib.h"

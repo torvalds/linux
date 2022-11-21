@@ -3661,6 +3661,8 @@
 #define mmGCMC_VM_XGMI_LFB_CNTL_BASE_IDX                                                               0
 #define mmGCMC_VM_XGMI_LFB_SIZE                                                                        0x16f8
 #define mmGCMC_VM_XGMI_LFB_SIZE_BASE_IDX                                                               0
+#define mmGCMC_VM_FB_NOALLOC_CNTL                                                                      0x16f9
+#define mmGCMC_VM_FB_NOALLOC_CNTL_BASE_IDX                                                             0
 #define mmGCUTCL2_HARVEST_BYPASS_GROUPS                                                                0x16fa
 #define mmGCUTCL2_HARVEST_BYPASS_GROUPS_BASE_IDX                                                       0
 
@@ -6953,6 +6955,12 @@
 #define mmCP_CE_IB2_BASE_HI_BASE_IDX                                                                   1
 #define mmCP_CE_IB2_BUFSZ                                                                              0x20cb
 #define mmCP_CE_IB2_BUFSZ_BASE_IDX                                                                     1
+#define mmCP_IB1_BASE_LO                                                                               0x20cc
+#define mmCP_IB1_BASE_LO_BASE_IDX                                                                      1
+#define mmCP_IB1_BASE_HI                                                                               0x20cd
+#define mmCP_IB1_BASE_HI_BASE_IDX                                                                      1
+#define mmCP_IB1_BUFSZ                                                                                 0x20ce
+#define mmCP_IB1_BUFSZ_BASE_IDX                                                                        1
 #define mmCP_IB2_BASE_LO                                                                               0x20cf
 #define mmCP_IB2_BASE_LO_BASE_IDX                                                                      1
 #define mmCP_IB2_BASE_HI                                                                               0x20d0

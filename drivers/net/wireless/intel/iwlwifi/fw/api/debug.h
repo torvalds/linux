@@ -1,64 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2007 - 2014, 2018 - 2020 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2005 - 2014, 2018 - 2020 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2005-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fw_api_debug_h__
 #define __iwl_fw_api_debug_h__
 
@@ -79,6 +24,12 @@ enum iwl_debug_cmds {
 	 */
 	UMAC_RD_WR = 0x1,
 	/**
+	 * @HOST_EVENT_CFG:
+	 * updates the enabled event severities
+	 * &struct iwl_dbg_host_event_cfg_cmd
+	 */
+	HOST_EVENT_CFG = 0x3,
+	/**
 	 * @DBGC_SUSPEND_RESUME:
 	 * DBGC suspend/resume commad. Uses a single dword as data:
 	 * 0 - resume DBGC recording
@@ -91,6 +42,12 @@ enum iwl_debug_cmds {
 	 * &struct iwl_buf_alloc_cmd
 	 */
 	BUFFER_ALLOCATION = 0x8,
+	/**
+	 * @FW_DUMP_COMPLETE_CMD:
+	 * sends command to fw once dump collection completed
+	 * &struct iwl_dbg_dump_complete_cmd
+	 */
+	FW_DUMP_COMPLETE_CMD = 0xB,
 	/**
 	 * @MFU_ASSERT_DUMP_NTF:
 	 * &struct iwl_mfu_assert_dump_notif
@@ -233,6 +190,21 @@ struct iwl_shared_mem_cfg {
 	__le32 rxfifo2_control_addr;
 	__le32 rxfifo2_control_size;
 } __packed; /* SHARED_MEM_ALLOC_API_S_VER_4 */
+
+/**
+ * struct iwl_mfuart_load_notif_v1 - mfuart image version & status
+ * ( MFUART_LOAD_NOTIFICATION = 0xb1 )
+ * @installed_ver: installed image version
+ * @external_ver: external image version
+ * @status: MFUART loading status
+ * @duration: MFUART loading time
+*/
+struct iwl_mfuart_load_notif_v1 {
+	__le32 installed_ver;
+	__le32 external_ver;
+	__le32 status;
+	__le32 duration;
+} __packed; /* MFU_LOADER_NTFY_API_S_VER_1 */
 
 /**
  * struct iwl_mfuart_load_notif - mfuart image version & status
@@ -394,5 +366,59 @@ struct iwl_buf_alloc_cmd {
 	__le32 num_frags;
 	struct iwl_buf_alloc_frag frags[BUF_ALLOC_MAX_NUM_FRAGS];
 } __packed; /* BUFFER_ALLOCATION_CMD_API_S_VER_2 */
+
+#define DRAM_INFO_FIRST_MAGIC_WORD 0x76543210
+#define DRAM_INFO_SECOND_MAGIC_WORD 0x89ABCDEF
+
+/**
+ * struct iwL_dram_info - DRAM fragments allocation struct
+ *
+ * Driver will fill in the first 1K(+) of the pointed DRAM fragment
+ *
+ * @first_word: magic word value
+ * @second_word: magic word value
+ * @framfrags: DRAM fragmentaion detail
+*/
+struct iwl_dram_info {
+	__le32 first_word;
+	__le32 second_word;
+	struct iwl_buf_alloc_cmd dram_frags[IWL_FW_INI_ALLOCATION_NUM - 1];
+} __packed; /* INIT_DRAM_FRAGS_ALLOCATIONS_S_VER_1 */
+
+/**
+ * struct iwl_dbgc1_info - DBGC1 address and size
+ *
+ * Driver will fill the dbcg1 address and size at address based on config TLV.
+ *
+ * @first_word: all 0 set as identifier
+ * @dbgc1_add_lsb: LSB bits of DBGC1 physical address
+ * @dbgc1_add_msb: MSB bits of DBGC1 physical address
+ * @dbgc1_size: DBGC1 size
+*/
+struct iwl_dbgc1_info {
+	__le32 first_word;
+	__le32 dbgc1_add_lsb;
+	__le32 dbgc1_add_msb;
+	__le32 dbgc1_size;
+} __packed; /* INIT_DRAM_FRAGS_ALLOCATIONS_S_VER_1 */
+
+/**
+ * struct iwl_dbg_host_event_cfg_cmd
+ * @enabled_severities: enabled severities
+ */
+struct iwl_dbg_host_event_cfg_cmd {
+	__le32 enabled_severities;
+} __packed; /* DEBUG_HOST_EVENT_CFG_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_dbg_dump_complete_cmd - dump complete cmd
+ *
+ * @tp: timepoint whose dump has completed
+ * @tp_data: timepoint data
+ */
+struct iwl_dbg_dump_complete_cmd {
+	__le32 tp;
+	__le32 tp_data;
+} __packed; /* FW_DUMP_COMPLETE_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_debug_h__ */

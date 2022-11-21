@@ -17,7 +17,6 @@
 #include <linux/slab.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
-#include <linux/of_iommu.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -44,7 +43,7 @@ static const struct of_device_id of_skipped_node_table[] = {
  * Takes a reference to the embedded struct device which needs to be dropped
  * after use.
  *
- * Returns platform_device pointer, or NULL if not found
+ * Return: platform_device pointer, or NULL if not found
  */
 struct platform_device *of_find_device_by_node(struct device_node *np)
 {
@@ -77,6 +76,7 @@ static void of_device_make_bus_id(struct device *dev)
 	struct device_node *node = dev->of_node;
 	const __be32 *reg;
 	u64 addr;
+	u32 mask;
 
 	/* Construct the name, using parent nodes if necessary to ensure uniqueness */
 	while (node->parent) {
@@ -86,8 +86,13 @@ static void of_device_make_bus_id(struct device *dev)
 		 */
 		reg = of_get_property(node, "reg", NULL);
 		if (reg && (addr = of_translate_address(node, reg)) != OF_BAD_ADDR) {
-			dev_set_name(dev, dev_name(dev) ? "%llx.%pOFn:%s" : "%llx.%pOFn",
-				     addr, node, dev_name(dev));
+			if (!of_property_read_u32(node, "mask", &mask))
+				dev_set_name(dev, dev_name(dev) ? "%llx.%x.%pOFn:%s" : "%llx.%x.%pOFn",
+					     addr, ffs(mask) - 1, node, dev_name(dev));
+
+			else
+				dev_set_name(dev, dev_name(dev) ? "%llx.%pOFn:%s" : "%llx.%pOFn",
+					     addr, node, dev_name(dev));
 			return;
 		}
 
@@ -160,7 +165,7 @@ EXPORT_SYMBOL(of_device_alloc);
  * @platform_data: pointer to populate platform_data pointer with
  * @parent: Linux device model parent device.
  *
- * Returns pointer to created platform device, or NULL if a device was not
+ * Return: Pointer to created platform device, or NULL if a device was not
  * registered.  Unavailable devices will not get registered.
  */
 static struct platform_device *of_platform_device_create_pdata(
@@ -204,7 +209,7 @@ err_clear_flag:
  * @bus_id: name to assign device
  * @parent: Linux device model parent device.
  *
- * Returns pointer to created platform device, or NULL if a device was not
+ * Return: Pointer to created platform device, or NULL if a device was not
  * registered.  Unavailable devices will not get registered.
  */
 struct platform_device *of_platform_device_create(struct device_node *np,
@@ -223,7 +228,7 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 {
 	struct amba_device *dev;
 	const void *prop;
-	int i, ret;
+	int ret;
 
 	pr_debug("Creating amba device %pOF\n", node);
 
@@ -253,10 +258,6 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 	prop = of_get_property(node, "arm,primecell-periphid", NULL);
 	if (prop)
 		dev->periphid = of_read_ulong(prop, 1);
-
-	/* Decode the IRQs and address ranges */
-	for (i = 0; i < AMBA_NR_IRQS; i++)
-		dev->irq[i] = irq_of_parse_and_map(node, i);
 
 	ret = of_address_to_resource(node, 0, &dev->res);
 	if (ret) {
@@ -290,7 +291,7 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 }
 #endif /* CONFIG_ARM_AMBA */
 
-/**
+/*
  * of_dev_lookup() - Given a device node, lookup the preferred Linux name
  */
 static const struct of_dev_auxdata *of_dev_lookup(const struct of_dev_auxdata *lookup,
@@ -463,7 +464,7 @@ EXPORT_SYMBOL(of_platform_bus_probe);
  * New board support should be using this function instead of
  * of_platform_bus_probe().
  *
- * Returns 0 on success, < 0 on failure.
+ * Return: 0 on success, < 0 on failure.
  */
 int of_platform_populate(struct device_node *root,
 			const struct of_device_id *matches,
@@ -510,7 +511,10 @@ EXPORT_SYMBOL_GPL(of_platform_default_populate);
 static const struct of_device_id reserved_mem_matches[] = {
 	{ .compatible = "qcom,rmtfs-mem" },
 	{ .compatible = "qcom,cmd-db" },
+	{ .compatible = "qcom,smem" },
 	{ .compatible = "ramoops" },
+	{ .compatible = "nvmem-rmem" },
+	{ .compatible = "google,open-dice" },
 	{}
 };
 
@@ -537,10 +541,12 @@ static int __init of_platform_default_populate_init(void)
 		of_node_put(node);
 	}
 
+	node = of_get_compatible_child(of_chosen, "simple-framebuffer");
+	of_platform_device_create(node, NULL, NULL);
+	of_node_put(node);
+
 	/* Populate everything else. */
-	fw_devlink_pause();
 	of_platform_default_populate(NULL, NULL, NULL);
-	fw_devlink_resume();
 
 	return 0;
 }
@@ -608,7 +614,7 @@ static void devm_of_platform_populate_release(struct device *dev, void *res)
  * Similar to of_platform_populate(), but will automatically call
  * of_platform_depopulate() when the device is unbound from the bus.
  *
- * Returns 0 on success, < 0 on failure.
+ * Return: 0 on success, < 0 on failure.
  */
 int devm_of_platform_populate(struct device *dev)
 {
@@ -689,7 +695,7 @@ static int of_platform_notify(struct notifier_block *nb,
 		pdev_parent = of_find_device_by_node(rd->dn->parent);
 		pdev = of_platform_device_create(rd->dn, NULL,
 				pdev_parent ? &pdev_parent->dev : NULL);
-		of_dev_put(pdev_parent);
+		platform_device_put(pdev_parent);
 
 		if (pdev == NULL) {
 			pr_err("%s: failed to create for '%pOF'\n",
@@ -714,7 +720,7 @@ static int of_platform_notify(struct notifier_block *nb,
 		of_platform_device_destroy(&pdev->dev, &children_left);
 
 		/* and put the reference of the find */
-		of_dev_put(pdev);
+		platform_device_put(pdev);
 		break;
 	}
 

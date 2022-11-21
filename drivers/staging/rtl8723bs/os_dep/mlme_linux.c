@@ -4,10 +4,6 @@
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-
-
-#define _MLME_OSDEP_C_
-
 #include <drv_types.h>
 #include <rtw_debug.h>
 
@@ -48,10 +44,10 @@ void rtw_os_indicate_connect(struct adapter *adapter)
 	if ((check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true) ||
 		(check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true)) {
 		rtw_cfg80211_ibss_indicate_connect(adapter);
-	} else
+	} else {
 		rtw_cfg80211_indicate_connect(adapter);
+	}
 
-	rtw_indicate_wx_assoc_event(adapter);
 	netif_carrier_on(adapter->pnetdev);
 
 	if (adapter->pid[2] != 0)
@@ -61,10 +57,9 @@ void rtw_os_indicate_connect(struct adapter *adapter)
 void rtw_os_indicate_scan_done(struct adapter *padapter, bool aborted)
 {
 	rtw_cfg80211_indicate_scan_done(padapter, aborted);
-	indicate_wx_scan_complete_event(padapter);
 }
 
-static RT_PMKID_LIST   backupPMKIDList[NUM_PMKID_CACHE];
+static struct rt_pmkid_list   backupPMKIDList[NUM_PMKID_CACHE];
 void rtw_reset_securitypriv(struct adapter *adapter)
 {
 	u8 backupPMKIDIndex = 0;
@@ -83,7 +78,7 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 		/*  Backup the btkip_countermeasure information. */
 		/*  When the countermeasure is trigger, the driver have to disconnect with AP for 60 seconds. */
 
-		memcpy(&backupPMKIDList[0], &adapter->securitypriv.PMKIDList[0], sizeof(RT_PMKID_LIST) * NUM_PMKID_CACHE);
+		memcpy(&backupPMKIDList[0], &adapter->securitypriv.PMKIDList[0], sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
 		backupPMKIDIndex = adapter->securitypriv.PMKIDIndex;
 		backupTKIPCountermeasure = adapter->securitypriv.btkip_countermeasure;
 		backupTKIPcountermeasure_time = adapter->securitypriv.btkip_countermeasure_time;
@@ -95,7 +90,7 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 
 		/*  Added by Albert 2009/02/18 */
 		/*  Restore the PMK information to securitypriv structure for the following connection. */
-		memcpy(&adapter->securitypriv.PMKIDList[0], &backupPMKIDList[0], sizeof(RT_PMKID_LIST) * NUM_PMKID_CACHE);
+		memcpy(&adapter->securitypriv.PMKIDList[0], &backupPMKIDList[0], sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
 		adapter->securitypriv.PMKIDIndex = backupPMKIDIndex;
 		adapter->securitypriv.btkip_countermeasure = backupTKIPCountermeasure;
 		adapter->securitypriv.btkip_countermeasure_time = backupTKIPcountermeasure_time;
@@ -126,13 +121,11 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 
 void rtw_os_indicate_disconnect(struct adapter *adapter)
 {
-	/* RT_PMKID_LIST   backupPMKIDList[ NUM_PMKID_CACHE ]; */
+	/* struct rt_pmkid_list   backupPMKIDList[ NUM_PMKID_CACHE ]; */
 
 	netif_carrier_off(adapter->pnetdev); /*  Do it first for tx broadcast pkt after disconnection issue! */
 
 	rtw_cfg80211_indicate_disconnect(adapter);
-
-	rtw_indicate_wx_disassoc_event(adapter);
 
 	/* modify for CONFIG_IEEE80211W, none 11w also can use the same command */
 	rtw_reset_securitypriv_cmd(adapter);
@@ -144,30 +137,23 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 	u8 *buff, *p, i;
 	union iwreq_data wrqu;
 
-	RT_TRACE(_module_mlme_osdep_c_, _drv_info_, ("+rtw_report_sec_ie, authmode =%d\n", authmode));
-
 	buff = NULL;
-	if (authmode == _WPA_IE_ID_) {
-		RT_TRACE(_module_mlme_osdep_c_, _drv_info_, ("rtw_report_sec_ie, authmode =%d\n", authmode));
-
+	if (authmode == WLAN_EID_VENDOR_SPECIFIC) {
 		buff = rtw_zmalloc(IW_CUSTOM_MAX);
-		if (NULL == buff) {
-			DBG_871X(FUNC_ADPT_FMT ": alloc memory FAIL!!\n",
-				FUNC_ADPT_ARG(adapter));
+		if (!buff)
 			return;
-		}
+
 		p = buff;
 
-		p += sprintf(p, "ASSOCINFO(ReqIEs =");
+		p += scnprintf(p, IW_CUSTOM_MAX - (p - buff), "ASSOCINFO(ReqIEs =");
 
 		len = sec_ie[1] + 2;
 		len = (len < IW_CUSTOM_MAX) ? len : IW_CUSTOM_MAX;
 
-		for (i = 0; i < len; i++) {
-			p += sprintf(p, "%02x", sec_ie[i]);
-		}
+		for (i = 0; i < len; i++)
+			p += scnprintf(p, IW_CUSTOM_MAX - (p - buff), "%02x", sec_ie[i]);
 
-		p += sprintf(p, ")");
+		p += scnprintf(p, IW_CUSTOM_MAX - (p - buff), ")");
 
 		memset(&wrqu, 0, sizeof(wrqu));
 

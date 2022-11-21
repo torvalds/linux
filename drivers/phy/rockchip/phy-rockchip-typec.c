@@ -1180,6 +1180,7 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 			dev_err(dev, "failed to create phy: %pOFn\n",
 				child_np);
 			pm_runtime_disable(dev);
+			of_node_put(child_np);
 			return PTR_ERR(phy);
 		}
 

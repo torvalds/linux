@@ -37,10 +37,10 @@ rebalancing event for the current runqueue has arrived. The actual load
 balancing workhorse, run_rebalance_domains()->rebalance_domains(), is then run
 in softirq context (SCHED_SOFTIRQ).
 
-The latter function takes two arguments: the current CPU and whether it was idle
-at the time the scheduler_tick() happened and iterates over all sched domains
-our CPU is on, starting from its base domain and going up the ->parent chain.
-While doing that, it checks to see if the current domain has exhausted its
+The latter function takes two arguments: the runqueue of current CPU and whether
+the CPU was idle at the time the scheduler_tick() happened and iterates over all
+sched domains our CPU is on, starting from its base domain and going up the ->parent
+chain. While doing that, it checks to see if the current domain has exhausted its
 rebalance interval. If so, it runs load_balance() on that domain. It then checks
 the parent sched_domain (if it exists), and the parent of the parent and so
 forth.
@@ -65,21 +65,17 @@ of the SMP domain will span the entire machine, with each group having the
 cpumask of a node. Or, you could do multi-level NUMA or Opteron, for example,
 might have just one domain covering its one NUMA level.
 
-The implementor should read comments in include/linux/sched.h:
-struct sched_domain fields, SD_FLAG_*, SD_*_INIT to get an idea of
-the specifics and what to tune.
+The implementor should read comments in include/linux/sched/sd_flags.h:
+SD_* to get an idea of the specifics and what to tune for the SD flags
+of a sched_domain.
 
-Architectures may retain the regular override the default SD_*_INIT flags
-while using the generic domain builder in kernel/sched/core.c if they wish to
-retain the traditional SMT->SMP->NUMA topology (or some subset of that). This
-can be done by #define'ing ARCH_HASH_SCHED_TUNE.
-
-Alternatively, the architecture may completely override the generic domain
-builder by #define'ing ARCH_HASH_SCHED_DOMAIN, and exporting your
-arch_init_sched_domains function. This function will attach domains to all
-CPUs using cpu_attach_domain.
+Architectures may override the generic domain builder and the default SD flags
+for a given topology level by creating a sched_domain_topology_level array and
+calling set_sched_topology() with this array as the parameter.
 
 The sched-domains debugging infrastructure can be enabled by enabling
-CONFIG_SCHED_DEBUG. This enables an error checking parse of the sched domains
-which should catch most possible errors (described above). It also prints out
-the domain structure in a visual format.
+CONFIG_SCHED_DEBUG and adding 'sched_verbose' to your cmdline. If you
+forgot to tweak your cmdline, you can also flip the
+/sys/kernel/debug/sched/verbose knob. This enables an error checking parse of
+the sched domains which should catch most possible errors (described above). It
+also prints out the domain structure in a visual format.

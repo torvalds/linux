@@ -66,6 +66,22 @@
 		interrupt-parent = <&gic>;
 		ranges;
 
+		wdt0: watchdog@40008000 {
+			compatible = "renesas,r9a06g032-wdt", "renesas,rzn1-wdt";
+			reg = <0x40008000 0x1000>;
+			interrupts = <GIC_SPI 73 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&sysctrl R9A06G032_CLK_WATCHDOG>;
+			status = "disabled";
+		};
+
+		wdt1: watchdog@40009000 {
+			compatible = "renesas,r9a06g032-wdt", "renesas,rzn1-wdt";
+			reg = <0x40009000 0x1000>;
+			interrupts = <GIC_SPI 74 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&sysctrl R9A06G032_CLK_WATCHDOG>;
+			status = "disabled";
+		};
+
 		sysctrl: system-controller@4000c000 {
 			compatible = "renesas,r9a06g032-sysctrl";
 			reg = <0x4000c000 0x1000>;
@@ -171,6 +187,17 @@
 			clocks = <&sysctrl R9A06G032_HCLK_PINCONFIG>;
 			clock-names = "bus";
 			status = "okay";
+		};
+
+		nand_controller: nand-controller@40102000 {
+			compatible = "renesas,r9a06g032-nandc", "renesas,rzn1-nandc";
+			reg = <0x40102000 0x2000>;
+			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sysctrl R9A06G032_HCLK_NAND>, <&sysctrl R9A06G032_CLK_NAND>;
+			clock-names = "hclk", "eclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		gic: interrupt-controller@44101000 {

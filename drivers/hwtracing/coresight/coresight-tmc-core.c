@@ -33,16 +33,20 @@ DEFINE_CORESIGHT_DEVLIST(etr_devs, "tmc_etr");
 
 void tmc_wait_for_tmcready(struct tmc_drvdata *drvdata)
 {
+	struct coresight_device *csdev = drvdata->csdev;
+	struct csdev_access *csa = &csdev->access;
+
 	/* Ensure formatter, unformatter and hardware fifo are empty */
-	if (coresight_timeout(drvdata->base,
-			      TMC_STS, TMC_STS_TMCREADY_BIT, 1)) {
-		dev_err(&drvdata->csdev->dev,
+	if (coresight_timeout(csa, TMC_STS, TMC_STS_TMCREADY_BIT, 1)) {
+		dev_err(&csdev->dev,
 			"timeout while waiting for TMC to be Ready\n");
 	}
 }
 
 void tmc_flush_and_stop(struct tmc_drvdata *drvdata)
 {
+	struct coresight_device *csdev = drvdata->csdev;
+	struct csdev_access *csa = &csdev->access;
 	u32 ffcr;
 
 	ffcr = readl_relaxed(drvdata->base + TMC_FFCR);
@@ -51,9 +55,8 @@ void tmc_flush_and_stop(struct tmc_drvdata *drvdata)
 	ffcr |= BIT(TMC_FFCR_FLUSHMAN_BIT);
 	writel_relaxed(ffcr, drvdata->base + TMC_FFCR);
 	/* Ensure flush completes */
-	if (coresight_timeout(drvdata->base,
-			      TMC_FFCR, TMC_FFCR_FLUSHMAN_BIT, 0)) {
-		dev_err(&drvdata->csdev->dev,
+	if (coresight_timeout(csa, TMC_FFCR, TMC_FFCR_FLUSHMAN_BIT, 0)) {
+		dev_err(&csdev->dev,
 		"timeout while waiting for completion of Manual Flush\n");
 	}
 
@@ -429,6 +432,21 @@ static u32 tmc_etr_get_default_buffer_size(struct device *dev)
 	return size;
 }
 
+static u32 tmc_etr_get_max_burst_size(struct device *dev)
+{
+	u32 burst_size;
+
+	if (fwnode_property_read_u32(dev->fwnode, "arm,max-burst-size",
+				     &burst_size))
+		return TMC_AXICTL_WR_BURST_16;
+
+	/* Only permissible values are 0 to 15 */
+	if (burst_size > 0xF)
+		burst_size = TMC_AXICTL_WR_BURST_16;
+
+	return burst_size;
+}
+
 static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
@@ -456,6 +474,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	drvdata->base = base;
+	desc.access = CSDEV_ACCESS_IOMEM(base);
 
 	spin_lock_init(&drvdata->spinlock);
 
@@ -465,10 +484,12 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	/* This device is not associated with a session */
 	drvdata->pid = -1;
 
-	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR)
+	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
 		drvdata->size = tmc_etr_get_default_buffer_size(dev);
-	else
+		drvdata->max_burst_size = tmc_etr_get_max_burst_size(dev);
+	} else {
 		drvdata->size = readl_relaxed(drvdata->base + TMC_RSZ) * 4;
+	}
 
 	desc.dev = dev;
 	desc.groups = coresight_tmc_groups;
@@ -559,7 +580,7 @@ out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 }
 
-static int __exit tmc_remove(struct amba_device *adev)
+static void tmc_remove(struct amba_device *adev)
 {
 	struct tmc_drvdata *drvdata = dev_get_drvdata(&adev->dev);
 
@@ -570,8 +591,6 @@ static int __exit tmc_remove(struct amba_device *adev)
 	 */
 	misc_deregister(&drvdata->miscdev);
 	coresight_unregister(drvdata->csdev);
-
-	return 0;
 }
 
 static const struct amba_id tmc_ids[] = {

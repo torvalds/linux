@@ -12,6 +12,8 @@
 
 #define CR0_CLOCK_COMPARATOR_SIGN	BIT(63 - 10)
 #define CR0_LOW_ADDRESS_PROTECTION	BIT(63 - 35)
+#define CR0_FETCH_PROTECTION_OVERRIDE	BIT(63 - 38)
+#define CR0_STORAGE_PROTECTION_OVERRIDE	BIT(63 - 39)
 #define CR0_EMERGENCY_SIGNAL_SUBMASK	BIT(63 - 49)
 #define CR0_EXTERNAL_CALL_SUBMASK	BIT(63 - 50)
 #define CR0_CLOCK_COMPARATOR_SUBMASK	BIT(63 - 52)
@@ -20,8 +22,6 @@
 #define CR0_UNUSED_56			BIT(63 - 56)
 #define CR0_INTERRUPT_KEY_SUBMASK	BIT(63 - 57)
 #define CR0_MEASUREMENT_ALERT_SUBMASK	BIT(63 - 58)
-
-#define CR2_GUARDED_STORAGE		BIT(63 - 59)
 
 #define CR14_UNUSED_32			BIT(63 - 32)
 #define CR14_UNUSED_33			BIT(63 - 33)
@@ -74,8 +74,17 @@ static __always_inline void __ctl_clear_bit(unsigned int cr, unsigned int bit)
 	__ctl_load(reg, cr, cr);
 }
 
-void smp_ctl_set_bit(int cr, int bit);
-void smp_ctl_clear_bit(int cr, int bit);
+void smp_ctl_set_clear_bit(int cr, int bit, bool set);
+
+static inline void ctl_set_bit(int cr, int bit)
+{
+	smp_ctl_set_clear_bit(cr, bit, true);
+}
+
+static inline void ctl_clear_bit(int cr, int bit)
+{
+	smp_ctl_set_clear_bit(cr, bit, false);
+}
 
 union ctlreg0 {
 	unsigned long val;
@@ -113,8 +122,22 @@ union ctlreg2 {
 	};
 };
 
-#define ctl_set_bit(cr, bit) smp_ctl_set_bit(cr, bit)
-#define ctl_clear_bit(cr, bit) smp_ctl_clear_bit(cr, bit)
+union ctlreg5 {
+	unsigned long val;
+	struct {
+		unsigned long	    : 33;
+		unsigned long pasteo: 25;
+		unsigned long	    : 6;
+	};
+};
+
+union ctlreg15 {
+	unsigned long val;
+	struct {
+		unsigned long lsea  : 61;
+		unsigned long	    : 3;
+	};
+};
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_CTL_REG_H */

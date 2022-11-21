@@ -242,6 +242,9 @@ struct pcie_service_card {
 	struct mwifiex_msix_context share_irq_ctx;
 	struct work_struct work;
 	unsigned long work_flags;
+
+	bool pci_reset_ongoing;
+	unsigned long quirks;
 };
 
 static inline int

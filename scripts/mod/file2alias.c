@@ -115,6 +115,17 @@ static inline void add_uuid(char *str, uuid_le uuid)
 		uuid.b[12], uuid.b[13], uuid.b[14], uuid.b[15]);
 }
 
+static inline void add_guid(char *str, guid_t guid)
+{
+	int len = strlen(str);
+
+	sprintf(str + len, "%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X",
+		guid.b[3], guid.b[2], guid.b[1], guid.b[0],
+		guid.b[5], guid.b[4], guid.b[7], guid.b[6],
+		guid.b[8], guid.b[9], guid.b[10], guid.b[11],
+		guid.b[12], guid.b[13], guid.b[14], guid.b[15]);
+}
+
 /**
  * Check that sizeof(device_id type) are consistent with size of section
  * in .o file. If in-consistent then userspace and kernel does not agree
@@ -426,7 +437,7 @@ static int do_ieee1394_entry(const char *filename,
 	return 1;
 }
 
-/* Looks like: pci:vNdNsvNsdNbcNscNiN. */
+/* Looks like: pci:vNdNsvNsdNbcNscNiN or <prefix>_pci:vNdNsvNsdNbcNscNiN. */
 static int do_pci_entry(const char *filename,
 			void *symval, char *alias)
 {
@@ -440,8 +451,21 @@ static int do_pci_entry(const char *filename,
 	DEF_FIELD(symval, pci_device_id, subdevice);
 	DEF_FIELD(symval, pci_device_id, class);
 	DEF_FIELD(symval, pci_device_id, class_mask);
+	DEF_FIELD(symval, pci_device_id, override_only);
 
-	strcpy(alias, "pci:");
+	switch (override_only) {
+	case 0:
+		strcpy(alias, "pci:");
+		break;
+	case PCI_ID_F_VFIO_DRIVER_OVERRIDE:
+		strcpy(alias, "vfio_pci:");
+		break;
+	default:
+		warn("Unknown PCI driver_override alias %08X\n",
+		     override_only);
+		return 0;
+	}
+
 	ADD(alias, "v", vendor != PCI_ANY_ID, vendor);
 	ADD(alias, "d", device != PCI_ANY_ID, device);
 	ADD(alias, "sv", subvendor != PCI_ANY_ID, subvendor);
@@ -1364,7 +1388,60 @@ static int do_mhi_entry(const char *filename, void *symval, char *alias)
 {
 	DEF_FIELD_ADDR(symval, mhi_device_id, chan);
 	sprintf(alias, MHI_DEVICE_MODALIAS_FMT, *chan);
+	return 1;
+}
 
+/* Looks like: ishtp:{guid} */
+static int do_ishtp_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD(symval, ishtp_device_id, guid);
+
+	strcpy(alias, ISHTP_MODULE_PREFIX "{");
+	add_guid(alias, guid);
+	strcat(alias, "}");
+
+	return 1;
+}
+
+static int do_auxiliary_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD_ADDR(symval, auxiliary_device_id, name);
+	sprintf(alias, AUXILIARY_MODULE_PREFIX "%s", *name);
+
+	return 1;
+}
+
+/*
+ * Looks like: ssam:dNcNtNiNfN
+ *
+ * N is exactly 2 digits, where each is an upper-case hex digit.
+ */
+static int do_ssam_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD(symval, ssam_device_id, match_flags);
+	DEF_FIELD(symval, ssam_device_id, domain);
+	DEF_FIELD(symval, ssam_device_id, category);
+	DEF_FIELD(symval, ssam_device_id, target);
+	DEF_FIELD(symval, ssam_device_id, instance);
+	DEF_FIELD(symval, ssam_device_id, function);
+
+	sprintf(alias, "ssam:d%02Xc%02X", domain, category);
+	ADD(alias, "t", match_flags & SSAM_MATCH_TARGET, target);
+	ADD(alias, "i", match_flags & SSAM_MATCH_INSTANCE, instance);
+	ADD(alias, "f", match_flags & SSAM_MATCH_FUNCTION, function);
+
+	return 1;
+}
+
+/* Looks like: dfl:tNfN */
+static int do_dfl_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD(symval, dfl_device_id, type);
+	DEF_FIELD(symval, dfl_device_id, feature_id);
+
+	sprintf(alias, "dfl:t%04Xf%04X", type, feature_id);
+
+	add_wildcard(alias);
 	return 1;
 }
 
@@ -1442,6 +1519,10 @@ static const struct devtable devtable[] = {
 	{"tee", SIZE_tee_client_device_id, do_tee_entry},
 	{"wmi", SIZE_wmi_device_id, do_wmi_entry},
 	{"mhi", SIZE_mhi_device_id, do_mhi_entry},
+	{"auxiliary", SIZE_auxiliary_device_id, do_auxiliary_entry},
+	{"ssam", SIZE_ssam_device_id, do_ssam_entry},
+	{"dfl", SIZE_dfl_device_id, do_dfl_entry},
+	{"ishtp", SIZE_ishtp_device_id, do_ishtp_entry},
 };
 
 /* Create MODULE_ALIAS() statements.

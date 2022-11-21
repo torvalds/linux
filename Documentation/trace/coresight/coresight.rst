@@ -315,7 +315,8 @@ intermediate links as required.
 
 Note: ``cti_sys0`` appears in two of the connections lists above.
 CTIs can connect to multiple devices and are arranged in a star topology
-via the CTM. See (:doc:`coresight-ect`) [#fourth]_ for further details.
+via the CTM. See (Documentation/trace/coresight/coresight-ect.rst)
+[#fourth]_ for further details.
 Looking at this device we see 4 connections::
 
   linaro-developer:~# ls -l /sys/bus/coresight/devices/cti_sys0/connections
@@ -512,6 +513,38 @@ The --itrace option controls the type and frequency of synthesized events
 Note that only 64-bit programs are currently supported - further work is
 required to support instruction decode of 32-bit Arm programs.
 
+2.2) Tracing PID
+
+The kernel can be built to write the PID value into the PE ContextID registers.
+For a kernel running at EL1, the PID is stored in CONTEXTIDR_EL1.  A PE may
+implement Arm Virtualization Host Extensions (VHE), which the kernel can
+run at EL2 as a virtualisation host; in this case, the PID value is stored in
+CONTEXTIDR_EL2.
+
+perf provides PMU formats that program the ETM to insert these values into the
+trace data; the PMU formats are defined as below:
+
+  "contextid1": Available on both EL1 kernel and EL2 kernel.  When the
+                kernel is running at EL1, "contextid1" enables the PID
+                tracing; when the kernel is running at EL2, this enables
+                tracing the PID of guest applications.
+
+  "contextid2": Only usable when the kernel is running at EL2.  When
+                selected, enables PID tracing on EL2 kernel.
+
+  "contextid":  Will be an alias for the option that enables PID
+                tracing.  I.e,
+                contextid == contextid1, on EL1 kernel.
+                contextid == contextid2, on EL2 kernel.
+
+perf will always enable PID tracing at the relevant EL, this is accomplished by
+automatically enable the "contextid" config - but for EL2 it is possible to make
+specific adjustments using configs "contextid1" and "contextid2", E.g. if a user
+wants to trace PIDs for both host and guest, the two configs "contextid1" and
+"contextid2" can be set at the same time:
+
+  perf record -e cs_etm/contextid1,contextid2/u -- vm
+
 
 Generating coverage files for Feedback Directed Optimization: AutoFDO
 ---------------------------------------------------------------------
@@ -574,7 +607,8 @@ interface provided for that purpose by the generic STM API::
     crw-------    1 root     root       10,  61 Jan  3 18:11 /dev/stm0
     root@genericarmv8:~#
 
-Details on how to use the generic STM API can be found here:- :doc:`../stm` [#second]_.
+Details on how to use the generic STM API can be found here:
+- Documentation/trace/stm.rst [#second]_.
 
 The CTI & CTM Modules
 ---------------------
@@ -584,7 +618,20 @@ individual CTIs and components, and can propagate these between all CTIs via
 channels on the CTM (Cross Trigger Matrix).
 
 A separate documentation file is provided to explain the use of these devices.
-(:doc:`coresight-ect`) [#fourth]_.
+(Documentation/trace/coresight/coresight-ect.rst) [#fourth]_.
+
+CoreSight System Configuration
+------------------------------
+
+CoreSight components can be complex devices with many programming options.
+Furthermore, components can be programmed to interact with each other across the
+complete system.
+
+A CoreSight System Configuration manager is provided to allow these complex programming
+configurations to be selected and used easily from perf and sysfs.
+
+See the separate document for further information.
+(Documentation/trace/coresight/coresight-config.rst) [#fifth]_.
 
 
 .. [#first] Documentation/ABI/testing/sysfs-bus-coresight-devices-stm
@@ -594,3 +641,5 @@ A separate documentation file is provided to explain the use of these devices.
 .. [#third] https://github.com/Linaro/perf-opencsd
 
 .. [#fourth] Documentation/trace/coresight/coresight-ect.rst
+
+.. [#fifth] Documentation/trace/coresight/coresight-config.rst

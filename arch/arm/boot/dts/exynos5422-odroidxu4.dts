@@ -17,14 +17,14 @@
 	compatible = "hardkernel,odroid-xu4", "samsung,exynos5800", \
 		     "samsung,exynos5";
 
-	pwmleds {
+	led-controller {
 		compatible = "pwm-leds";
 
-		blueled {
+		led-1 {
 			label = "blue:heartbeat";
 			pwms = <&pwm 2 2000000 0>;
 			pwm-names = "pwm2";
-			max_brightness = <255>;
+			max-brightness = <255>;
 			linux,default-trigger = "heartbeat";
 		};
 	};

@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright 2016-2017  Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  */
 
 #include <linux/if_arp.h>
@@ -155,7 +155,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	};
 	bool signal_valid;
 	struct ieee80211_sub_if_data *scan_sdata;
-	struct ieee802_11_elems elems;
+	struct ieee802_11_elems *elems;
 	size_t baselen;
 	u8 *elements;
 
@@ -209,8 +209,10 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	if (baselen > len)
 		return NULL;
 
-	ieee802_11_parse_elems(elements, len - baselen, false, &elems,
-			       mgmt->bssid, cbss->bssid);
+	elems = ieee802_11_parse_elems(elements, len - baselen, false,
+				       mgmt->bssid, cbss->bssid);
+	if (!elems)
+		return NULL;
 
 	/* In case the signal is invalid update the status */
 	signal_valid = channel == cbss->channel;
@@ -218,14 +220,16 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
 	bss = (void *)cbss->priv;
-	ieee80211_update_bss_from_elems(local, bss, &elems, rx_status, beacon);
+	ieee80211_update_bss_from_elems(local, bss, elems, rx_status, beacon);
 
 	list_for_each_entry(non_tx_cbss, &cbss->nontrans_list, nontrans_list) {
 		non_tx_bss = (void *)non_tx_cbss->priv;
 
-		ieee80211_update_bss_from_elems(local, non_tx_bss, &elems,
+		ieee80211_update_bss_from_elems(local, non_tx_bss, elems,
 						rx_status, beacon);
 	}
+
+	kfree(elems);
 
 	return bss;
 }
@@ -251,13 +255,24 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 	struct ieee80211_mgmt *mgmt = (void *)skb->data;
 	struct ieee80211_bss *bss;
 	struct ieee80211_channel *channel;
+	size_t min_hdr_len = offsetof(struct ieee80211_mgmt,
+				      u.probe_resp.variable);
+
+	if (!ieee80211_is_probe_resp(mgmt->frame_control) &&
+	    !ieee80211_is_beacon(mgmt->frame_control) &&
+	    !ieee80211_is_s1g_beacon(mgmt->frame_control))
+		return;
 
 	if (ieee80211_is_s1g_beacon(mgmt->frame_control)) {
-		if (skb->len < 15)
-			return;
-	} else if (skb->len < 24 ||
-		 (!ieee80211_is_probe_resp(mgmt->frame_control) &&
-		  !ieee80211_is_beacon(mgmt->frame_control)))
+		if (ieee80211_is_s1g_short_beacon(mgmt->frame_control))
+			min_hdr_len = offsetof(struct ieee80211_ext,
+					       u.s1g_short_beacon.variable);
+		else
+			min_hdr_len = offsetof(struct ieee80211_ext,
+					       u.s1g_beacon);
+	}
+
+	if (skb->len < min_hdr_len)
 		return;
 
 	sdata1 = rcu_dereference(local->scan_sdata);

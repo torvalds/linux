@@ -52,10 +52,6 @@
 MODULE_AUTHOR("Jaromir Koutek <miri@punknet.cz>");
 MODULE_DESCRIPTION("ESS Solo-1");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{ESS,ES1938},"
-                "{ESS,ES1946},"
-                "{ESS,ES1969},"
-		"{TerraTec,128i PCI}}");
 
 #if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK 1
@@ -297,7 +293,8 @@ static void snd_es1938_write_cmd(struct es1938 *chip, unsigned char cmd)
 	int i;
 	unsigned char v;
 	for (i = 0; i < WRITE_LOOP_TIMEOUT; i++) {
-		if (!(v = inb(SLSB_REG(chip, READSTATUS)) & 0x80)) {
+		v = inb(SLSB_REG(chip, READSTATUS));
+		if (!(v & 0x80)) {
 			outb(cmd, SLSB_REG(chip, WRITEDATA));
 			return;
 		}
@@ -313,9 +310,11 @@ static int snd_es1938_get_byte(struct es1938 *chip)
 {
 	int i;
 	unsigned char v;
-	for (i = GET_LOOP_TIMEOUT; i; i--)
-		if ((v = inb(SLSB_REG(chip, STATUS))) & 0x80)
+	for (i = GET_LOOP_TIMEOUT; i; i--) {
+		v = inb(SLSB_REG(chip, STATUS));
+		if (v & 0x80)
 			return inb(SLSB_REG(chip, READDATA));
+	}
 	dev_err(chip->card->dev, "get_byte timeout: status 0x02%x\n", v);
 	return -ENODEV;
 }
@@ -997,7 +996,8 @@ static int snd_es1938_new_pcm(struct es1938 *chip, int device)
 	struct snd_pcm *pcm;
 	int err;
 
-	if ((err = snd_pcm_new(chip->card, "es-1938-1946", device, 2, 1, &pcm)) < 0)
+	err = snd_pcm_new(chip->card, "es-1938-1946", device, 2, 1, &pcm);
+	if (err < 0)
 		return err;
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_es1938_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_es1938_capture_ops);
@@ -1521,8 +1521,10 @@ static inline int snd_es1938_create_gameport(struct es1938 *chip) { return -ENOS
 static inline void snd_es1938_free_gameport(struct es1938 *chip) { }
 #endif /* SUPPORT_JOYSTICK */
 
-static int snd_es1938_free(struct es1938 *chip)
+static void snd_es1938_free(struct snd_card *card)
 {
+	struct es1938 *chip = card->private_data;
+
 	/* disable irqs */
 	outb(0x00, SLIO_REG(chip, IRQCONTROL));
 	if (chip->rmidi)
@@ -1532,70 +1534,47 @@ static int snd_es1938_free(struct es1938 *chip)
 
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
-	pci_release_regions(chip->pci);
-	pci_disable_device(chip->pci);
-	kfree(chip);
-	return 0;
-}
-
-static int snd_es1938_dev_free(struct snd_device *device)
-{
-	struct es1938 *chip = device->device_data;
-	return snd_es1938_free(chip);
 }
 
 static int snd_es1938_create(struct snd_card *card,
-			     struct pci_dev *pci,
-			     struct es1938 **rchip)
+			     struct pci_dev *pci)
 {
-	struct es1938 *chip;
+	struct es1938 *chip = card->private_data;
 	int err;
-	static const struct snd_device_ops ops = {
-		.dev_free =	snd_es1938_dev_free,
-	};
-
-	*rchip = NULL;
 
 	/* enable PCI device */
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pcim_enable_device(pci);
+	if (err < 0)
 		return err;
         /* check, if we can restrict PCI DMA transfers to 24 bits */
-	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(24)) < 0 ||
-	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(24)) < 0) {
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(24))) {
 		dev_err(card->dev,
 			"architecture does not support 24bit PCI busmaster DMA\n");
-		pci_disable_device(pci);
                 return -ENXIO;
         }
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL) {
-		pci_disable_device(pci);
-		return -ENOMEM;
-	}
 	spin_lock_init(&chip->reg_lock);
 	spin_lock_init(&chip->mixer_lock);
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
-	if ((err = pci_request_regions(pci, "ESS Solo-1")) < 0) {
-		kfree(chip);
-		pci_disable_device(pci);
+	err = pci_request_regions(pci, "ESS Solo-1");
+	if (err < 0)
 		return err;
-	}
 	chip->io_port = pci_resource_start(pci, 0);
 	chip->sb_port = pci_resource_start(pci, 1);
 	chip->vc_port = pci_resource_start(pci, 2);
 	chip->mpu_port = pci_resource_start(pci, 3);
 	chip->game_port = pci_resource_start(pci, 4);
+	/* still use non-managed irq handler as it's re-acquired at PM resume */
 	if (request_irq(pci->irq, snd_es1938_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, chip)) {
 		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
-		snd_es1938_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
 	card->sync_irq = chip->irq;
+	card->private_free = snd_es1938_free;
 	dev_dbg(card->dev,
 		"create: io: 0x%lx, sb: 0x%lx, vc: 0x%lx, mpu: 0x%lx, game: 0x%lx\n",
 		   chip->io_port, chip->sb_port, chip->vc_port, chip->mpu_port, chip->game_port);
@@ -1603,13 +1582,6 @@ static int snd_es1938_create(struct snd_card *card,
 	chip->ddma_port = chip->vc_port + 0x00;		/* fix from Thomas Sailer */
 
 	snd_es1938_chip_init(chip);
-
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
-		snd_es1938_free(chip);
-		return err;
-	}
-
-	*rchip = chip;
 	return 0;
 }
 
@@ -1736,15 +1708,16 @@ static int snd_es1938_mixer(struct es1938 *chip)
 				kctl->private_free = snd_es1938_hwv_free;
 				break;
 			}
-		if ((err = snd_ctl_add(card, kctl)) < 0)
+		err = snd_ctl_add(card, kctl);
+		if (err < 0)
 			return err;
 	}
 	return 0;
 }
        
 
-static int snd_es1938_probe(struct pci_dev *pci,
-			    const struct pci_device_id *pci_id)
+static int __snd_es1938_probe(struct pci_dev *pci,
+			      const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -1759,22 +1732,20 @@ static int snd_es1938_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-			   0, &card);
+	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+				sizeof(*chip), &card);
 	if (err < 0)
 		return err;
-	for (idx = 0; idx < 5; idx++) {
+	chip = card->private_data;
+
+	for (idx = 0; idx < 5; idx++)
 		if (pci_resource_start(pci, idx) == 0 ||
-		    !(pci_resource_flags(pci, idx) & IORESOURCE_IO)) {
-		    	snd_card_free(card);
-		    	return -ENODEV;
-		}
-	}
-	if ((err = snd_es1938_create(card, pci, &chip)) < 0) {
-		snd_card_free(card);
+		    !(pci_resource_flags(pci, idx) & IORESOURCE_IO))
+			return -ENODEV;
+
+	err = snd_es1938_create(card, pci);
+	if (err < 0)
 		return err;
-	}
-	card->private_data = chip;
 
 	strcpy(card->driver, "ES1938");
 	strcpy(card->shortname, "ESS ES1938 (Solo-1)");
@@ -1783,14 +1754,12 @@ static int snd_es1938_probe(struct pci_dev *pci,
 		chip->revision,
 		chip->irq);
 
-	if ((err = snd_es1938_new_pcm(chip, 0)) < 0) {
-		snd_card_free(card);
+	err = snd_es1938_new_pcm(chip, 0);
+	if (err < 0)
 		return err;
-	}
-	if ((err = snd_es1938_mixer(chip)) < 0) {
-		snd_card_free(card);
+	err = snd_es1938_mixer(chip);
+	if (err < 0)
 		return err;
-	}
 	if (snd_opl3_create(card,
 			    SLSB_REG(chip, FMLOWADDR),
 			    SLSB_REG(chip, FMHIGHADDR),
@@ -1798,14 +1767,12 @@ static int snd_es1938_probe(struct pci_dev *pci,
 		dev_err(card->dev, "OPL3 not detected at 0x%lx\n",
 			   SLSB_REG(chip, FMLOWADDR));
 	} else {
-	        if ((err = snd_opl3_timer_new(opl3, 0, 1)) < 0) {
-	                snd_card_free(card);
+		err = snd_opl3_timer_new(opl3, 0, 1);
+		if (err < 0)
 	                return err;
-		}
-	        if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
-	                snd_card_free(card);
+		err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
+		if (err < 0)
 	                return err;
-		}
 	}
 	if (snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
 				chip->mpu_port,
@@ -1820,26 +1787,25 @@ static int snd_es1938_probe(struct pci_dev *pci,
 
 	snd_es1938_create_gameport(chip);
 
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
+	err = snd_card_register(card);
+	if (err < 0)
 		return err;
-	}
 
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
 }
 
-static void snd_es1938_remove(struct pci_dev *pci)
+static int snd_es1938_probe(struct pci_dev *pci,
+			    const struct pci_device_id *pci_id)
 {
-	snd_card_free(pci_get_drvdata(pci));
+	return snd_card_free_on_error(&pci->dev, __snd_es1938_probe(pci, pci_id));
 }
 
 static struct pci_driver es1938_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_es1938_ids,
 	.probe = snd_es1938_probe,
-	.remove = snd_es1938_remove,
 	.driver = {
 		.pm = ES1938_PM_OPS,
 	},

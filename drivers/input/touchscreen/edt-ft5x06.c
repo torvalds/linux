@@ -69,6 +69,9 @@
 #define EDT_RAW_DATA_RETRIES		100
 #define EDT_RAW_DATA_DELAY		1000 /* usec */
 
+#define EDT_DEFAULT_NUM_X		1024
+#define EDT_DEFAULT_NUM_Y		1024
+
 enum edt_pmode {
 	EDT_PMODE_NOT_SUPPORTED,
 	EDT_PMODE_HIBERNATE,
@@ -101,6 +104,7 @@ struct edt_ft5x06_ts_data {
 	u16 num_x;
 	u16 num_y;
 	struct regulator *vcc;
+	struct regulator *iovcc;
 
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *wake_gpio;
@@ -895,6 +899,7 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 		 * the identification registers.
 		 */
 		switch (rdbuf[0]) {
+		case 0x11:   /* EDT EP0110M09 */
 		case 0x35:   /* EDT EP0350M09 */
 		case 0x43:   /* EDT EP0430M09 */
 		case 0x50:   /* EDT EP0500M09 */
@@ -977,8 +982,7 @@ static void edt_ft5x06_ts_get_defaults(struct device *dev,
 	}
 }
 
-static void
-edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
+static void edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 {
 	struct edt_reg_addr *reg_addr = &tsdata->reg_addr;
 
@@ -997,21 +1001,17 @@ edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 	if (reg_addr->reg_report_rate != NO_REGISTER)
 		tsdata->report_rate = edt_ft5x06_register_read(tsdata,
 						reg_addr->reg_report_rate);
-	if (tsdata->version == EDT_M06 ||
-	    tsdata->version == EDT_M09 ||
-	    tsdata->version == EDT_M12) {
+	tsdata->num_x = EDT_DEFAULT_NUM_X;
+	if (reg_addr->reg_num_x != NO_REGISTER)
 		tsdata->num_x = edt_ft5x06_register_read(tsdata,
 							 reg_addr->reg_num_x);
+	tsdata->num_y = EDT_DEFAULT_NUM_Y;
+	if (reg_addr->reg_num_y != NO_REGISTER)
 		tsdata->num_y = edt_ft5x06_register_read(tsdata,
 							 reg_addr->reg_num_y);
-	} else {
-		tsdata->num_x = -1;
-		tsdata->num_y = -1;
-	}
 }
 
-static void
-edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
+static void edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 {
 	struct edt_reg_addr *reg_addr = &tsdata->reg_addr;
 
@@ -1041,31 +1041,35 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 
 	case EV_FT:
 		reg_addr->reg_threshold = EV_REGISTER_THRESHOLD;
+		reg_addr->reg_report_rate = NO_REGISTER;
 		reg_addr->reg_gain = EV_REGISTER_GAIN;
 		reg_addr->reg_offset = NO_REGISTER;
 		reg_addr->reg_offset_x = EV_REGISTER_OFFSET_X;
 		reg_addr->reg_offset_y = EV_REGISTER_OFFSET_Y;
 		reg_addr->reg_num_x = NO_REGISTER;
 		reg_addr->reg_num_y = NO_REGISTER;
-		reg_addr->reg_report_rate = NO_REGISTER;
 		break;
 
 	case GENERIC_FT:
 		/* this is a guesswork */
 		reg_addr->reg_threshold = M09_REGISTER_THRESHOLD;
+		reg_addr->reg_report_rate = NO_REGISTER;
 		reg_addr->reg_gain = M09_REGISTER_GAIN;
 		reg_addr->reg_offset = M09_REGISTER_OFFSET;
 		reg_addr->reg_offset_x = NO_REGISTER;
 		reg_addr->reg_offset_y = NO_REGISTER;
+		reg_addr->reg_num_x = NO_REGISTER;
+		reg_addr->reg_num_y = NO_REGISTER;
 		break;
 	}
 }
 
-static void edt_ft5x06_disable_regulator(void *arg)
+static void edt_ft5x06_disable_regulators(void *arg)
 {
 	struct edt_ft5x06_ts_data *data = arg;
 
 	regulator_disable(data->vcc);
+	regulator_disable(data->iovcc);
 }
 
 static int edt_ft5x06_ts_probe(struct i2c_client *client,
@@ -1106,14 +1110,33 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
+	tsdata->iovcc = devm_regulator_get(&client->dev, "iovcc");
+	if (IS_ERR(tsdata->iovcc)) {
+		error = PTR_ERR(tsdata->iovcc);
+		if (error != -EPROBE_DEFER)
+			dev_err(&client->dev,
+				"failed to request iovcc regulator: %d\n", error);
+		return error;
+	}
+
+	error = regulator_enable(tsdata->iovcc);
+	if (error < 0) {
+		dev_err(&client->dev, "failed to enable iovcc: %d\n", error);
+		return error;
+	}
+
+	/* Delay enabling VCC for > 10us (T_ivd) after IOVCC */
+	usleep_range(10, 100);
+
 	error = regulator_enable(tsdata->vcc);
 	if (error < 0) {
 		dev_err(&client->dev, "failed to enable vcc: %d\n", error);
+		regulator_disable(tsdata->iovcc);
 		return error;
 	}
 
 	error = devm_add_action_or_reset(&client->dev,
-					 edt_ft5x06_disable_regulator,
+					 edt_ft5x06_disable_regulators,
 					 tsdata);
 	if (error)
 		return error;
@@ -1195,20 +1218,10 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &client->dev;
 
-	if (tsdata->version == EDT_M06 ||
-	    tsdata->version == EDT_M09 ||
-	    tsdata->version == EDT_M12) {
-		input_set_abs_params(input, ABS_MT_POSITION_X,
-				     0, tsdata->num_x * 64 - 1, 0, 0);
-		input_set_abs_params(input, ABS_MT_POSITION_Y,
-				     0, tsdata->num_y * 64 - 1, 0, 0);
-	} else {
-		/* Unknown maximum values. Specify via devicetree */
-		input_set_abs_params(input, ABS_MT_POSITION_X,
-				     0, 65535, 0, 0);
-		input_set_abs_params(input, ABS_MT_POSITION_Y,
-				     0, 65535, 0, 0);
-	}
+	input_set_abs_params(input, ABS_MT_POSITION_X,
+			     0, tsdata->num_x * 64 - 1, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_Y,
+			     0, tsdata->num_y * 64 - 1, 0, 0);
 
 	touchscreen_parse_properties(input, true, &tsdata->prop);
 
@@ -1298,6 +1311,9 @@ static int __maybe_unused edt_ft5x06_ts_suspend(struct device *dev)
 	ret = regulator_disable(tsdata->vcc);
 	if (ret)
 		dev_warn(dev, "Failed to disable vcc\n");
+	ret = regulator_disable(tsdata->iovcc);
+	if (ret)
+		dev_warn(dev, "Failed to disable iovcc\n");
 
 	return 0;
 }
@@ -1328,9 +1344,19 @@ static int __maybe_unused edt_ft5x06_ts_resume(struct device *dev)
 		gpiod_set_value_cansleep(reset_gpio, 1);
 		usleep_range(5000, 6000);
 
+		ret = regulator_enable(tsdata->iovcc);
+		if (ret) {
+			dev_err(dev, "Failed to enable iovcc\n");
+			return ret;
+		}
+
+		/* Delay enabling VCC for > 10us (T_ivd) after IOVCC */
+		usleep_range(10, 100);
+
 		ret = regulator_enable(tsdata->vcc);
 		if (ret) {
 			dev_err(dev, "Failed to enable vcc\n");
+			regulator_disable(tsdata->iovcc);
 			return ret;
 		}
 

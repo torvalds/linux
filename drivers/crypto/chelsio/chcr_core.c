@@ -1,4 +1,4 @@
-/**
+/*
  * This file is part of the Chelsio T4/T5/T6 Ethernet driver for Linux.
  *
  * Copyright (C) 2011-2016 Chelsio Communications.  All rights reserved.
@@ -184,7 +184,7 @@ static void *chcr_uld_add(const struct cxgb4_lld_info *lld)
 	struct uld_ctx *u_ctx;
 
 	/* Create the device and add it in the device list */
-	pr_info_once("%s - version %s\n", DRV_DESC, DRV_VERSION);
+	pr_info_once("%s\n", DRV_DESC);
 	if (!(lld->ulp_crypto & ULP_CRYPTO_LOOKASIDE))
 		return ERR_PTR(-EOPNOTSUPP);
 
@@ -309,4 +309,3 @@ module_exit(chcr_crypto_exit);
 MODULE_DESCRIPTION("Crypto Co-processor for Chelsio Terminator cards.");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chelsio Communications");
-MODULE_VERSION(DRV_VERSION);

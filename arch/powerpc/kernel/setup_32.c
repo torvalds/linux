@@ -74,8 +74,8 @@ EXPORT_SYMBOL(DMA_MODE_WRITE);
  */
 notrace void __init machine_init(u64 dt_ptr)
 {
-	struct ppc_inst *addr = (struct ppc_inst *)patch_site_addr(&patch__memset_nocache);
-	struct ppc_inst insn;
+	u32 *addr = (u32 *)patch_site_addr(&patch__memset_nocache);
+	ppc_inst_t insn;
 
 	/* Configure static keys first, now that we're relocated. */
 	setup_feature_keys();
@@ -85,7 +85,7 @@ notrace void __init machine_init(u64 dt_ptr)
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
 
-	patch_instruction_site(&patch__memcpy_nocache, ppc_inst(PPC_INST_NOP));
+	patch_instruction_site(&patch__memcpy_nocache, ppc_inst(PPC_RAW_NOP()));
 
 	create_cond_branch(&insn, addr, branch_target(addr), 0x820000);
 	patch_instruction(addr, insn);	/* replace b by bne cr0 */
@@ -164,7 +164,7 @@ void __init irqstack_early_init(void)
 }
 
 #ifdef CONFIG_VMAP_STACK
-void *emergency_ctx[NR_CPUS] __ro_after_init;
+void *emergency_ctx[NR_CPUS] __ro_after_init = {[0] = &init_stack};
 
 void __init emergency_stack_init(void)
 {
@@ -175,7 +175,7 @@ void __init emergency_stack_init(void)
 }
 #endif
 
-#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+#ifdef CONFIG_BOOKE_OR_40x
 void __init exc_lvl_early_init(void)
 {
 	unsigned int i, hw_cpu;
@@ -222,7 +222,4 @@ __init void initialize_cache_info(void)
 	 */
 	dcache_bsize = cur_cpu_spec->dcache_bsize;
 	icache_bsize = cur_cpu_spec->icache_bsize;
-	ucache_bsize = 0;
-	if (IS_ENABLED(CONFIG_E200))
-		ucache_bsize = icache_bsize = dcache_bsize;
 }

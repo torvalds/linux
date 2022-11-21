@@ -43,7 +43,7 @@ config PCIEAER_INJECT
 	  error injection can fake almost all kinds of errors with the
 	  help of a user space helper tool aer-inject, which can be
 	  gotten from:
-	     https://www.kernel.org/pub/linux/utils/pci/aer-inject/
+	     https://git.kernel.org/cgit/linux/kernel/git/gong.chen/aer-inject.git/
 
 #
 # PCI Express ECRC
@@ -132,14 +132,6 @@ config PCIE_PTM
 
 	  This is only useful if you have devices that support PTM, but it
 	  is safe to enable even if you don't.
-
-config PCIE_BW
-	bool "PCI Express Bandwidth Change Notification"
-	depends on PCIEPORTBUS
-	help
-	  This enables PCI Express Bandwidth Change Notification.  If
-	  you know link width or rate changes occur only to correct
-	  unreliable links, you may answer Y.
 
 config PCIE_EDR
 	bool "PCI Express Error Disconnect Recover support"

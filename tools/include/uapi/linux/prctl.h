@@ -213,6 +213,7 @@ struct prctl_mm_map {
 /* Speculation control variants */
 # define PR_SPEC_STORE_BYPASS		0
 # define PR_SPEC_INDIRECT_BRANCH	1
+# define PR_SPEC_L1D_FLUSH		2
 /* Return and control values for PR_SET/GET_SPECULATION_CTRL */
 # define PR_SPEC_NOT_AFFECTED		0
 # define PR_SPEC_PRCTL			(1UL << 0)
@@ -234,17 +235,44 @@ struct prctl_mm_map {
 #define PR_GET_TAGGED_ADDR_CTRL		56
 # define PR_TAGGED_ADDR_ENABLE		(1UL << 0)
 /* MTE tag check fault modes */
-# define PR_MTE_TCF_SHIFT		1
-# define PR_MTE_TCF_NONE		(0UL << PR_MTE_TCF_SHIFT)
-# define PR_MTE_TCF_SYNC		(1UL << PR_MTE_TCF_SHIFT)
-# define PR_MTE_TCF_ASYNC		(2UL << PR_MTE_TCF_SHIFT)
-# define PR_MTE_TCF_MASK		(3UL << PR_MTE_TCF_SHIFT)
+# define PR_MTE_TCF_NONE		0UL
+# define PR_MTE_TCF_SYNC		(1UL << 1)
+# define PR_MTE_TCF_ASYNC		(1UL << 2)
+# define PR_MTE_TCF_MASK		(PR_MTE_TCF_SYNC | PR_MTE_TCF_ASYNC)
 /* MTE tag inclusion mask */
 # define PR_MTE_TAG_SHIFT		3
 # define PR_MTE_TAG_MASK		(0xffffUL << PR_MTE_TAG_SHIFT)
+/* Unused; kept only for source compatibility */
+# define PR_MTE_TCF_SHIFT		1
 
 /* Control reclaim behavior when allocating memory */
 #define PR_SET_IO_FLUSHER		57
 #define PR_GET_IO_FLUSHER		58
+
+/* Dispatch syscalls to a userspace handler */
+#define PR_SET_SYSCALL_USER_DISPATCH	59
+# define PR_SYS_DISPATCH_OFF		0
+# define PR_SYS_DISPATCH_ON		1
+/* The control values for the user space selector when dispatch is enabled */
+# define SYSCALL_DISPATCH_FILTER_ALLOW	0
+# define SYSCALL_DISPATCH_FILTER_BLOCK	1
+
+/* Set/get enabled arm64 pointer authentication keys */
+#define PR_PAC_SET_ENABLED_KEYS		60
+#define PR_PAC_GET_ENABLED_KEYS		61
+
+/* Request the scheduler to share a core */
+#define PR_SCHED_CORE			62
+# define PR_SCHED_CORE_GET		0
+# define PR_SCHED_CORE_CREATE		1 /* create unique core_sched cookie */
+# define PR_SCHED_CORE_SHARE_TO		2 /* push core_sched cookie to pid */
+# define PR_SCHED_CORE_SHARE_FROM	3 /* pull core_sched cookie to pid */
+# define PR_SCHED_CORE_MAX		4
+# define PR_SCHED_CORE_SCOPE_THREAD		0
+# define PR_SCHED_CORE_SCOPE_THREAD_GROUP	1
+# define PR_SCHED_CORE_SCOPE_PROCESS_GROUP	2
+
+#define PR_SET_VMA		0x53564d41
+# define PR_SET_VMA_ANON_NAME		0
 
 #endif /* _LINUX_PRCTL_H */

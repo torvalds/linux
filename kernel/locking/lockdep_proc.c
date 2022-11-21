@@ -24,14 +24,33 @@
 
 #include "lockdep_internals.h"
 
+/*
+ * Since iteration of lock_classes is done without holding the lockdep lock,
+ * it is not safe to iterate all_lock_classes list directly as the iteration
+ * may branch off to free_lock_classes or the zapped list. Iteration is done
+ * directly on the lock_classes array by checking the lock_classes_in_use
+ * bitmap and max_lock_class_idx.
+ */
+#define iterate_lock_classes(idx, class)				\
+	for (idx = 0, class = lock_classes; idx <= max_lock_class_idx;	\
+	     idx++, class++)
+
 static void *l_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	return seq_list_next(v, &all_lock_classes, pos);
+	struct lock_class *class = v;
+
+	++class;
+	*pos = class - lock_classes;
+	return (*pos > max_lock_class_idx) ? NULL : class;
 }
 
 static void *l_start(struct seq_file *m, loff_t *pos)
 {
-	return seq_list_start_head(&all_lock_classes, *pos);
+	unsigned long idx = *pos;
+
+	if (idx > max_lock_class_idx)
+		return NULL;
+	return lock_classes + idx;
 }
 
 static void l_stop(struct seq_file *m, void *v)
@@ -57,39 +76,43 @@ static void print_name(struct seq_file *m, struct lock_class *class)
 
 static int l_show(struct seq_file *m, void *v)
 {
-	struct lock_class *class = list_entry(v, struct lock_class, lock_entry);
+	struct lock_class *class = v;
 	struct lock_list *entry;
 	char usage[LOCK_USAGE_CHARS];
+	int idx = class - lock_classes;
 
-	if (v == &all_lock_classes) {
+	if (v == lock_classes)
 		seq_printf(m, "all lock classes:\n");
+
+	if (!test_bit(idx, lock_classes_in_use))
 		return 0;
-	}
 
 	seq_printf(m, "%p", class->key);
 #ifdef CONFIG_DEBUG_LOCKDEP
 	seq_printf(m, " OPS:%8ld", debug_class_ops_read(class));
 #endif
-#ifdef CONFIG_PROVE_LOCKING
-	seq_printf(m, " FD:%5ld", lockdep_count_forward_deps(class));
-	seq_printf(m, " BD:%5ld", lockdep_count_backward_deps(class));
-#endif
+	if (IS_ENABLED(CONFIG_PROVE_LOCKING)) {
+		seq_printf(m, " FD:%5ld", lockdep_count_forward_deps(class));
+		seq_printf(m, " BD:%5ld", lockdep_count_backward_deps(class));
 
-	get_usage_chars(class, usage);
-	seq_printf(m, " %s", usage);
+		get_usage_chars(class, usage);
+		seq_printf(m, " %s", usage);
+	}
 
 	seq_printf(m, ": ");
 	print_name(m, class);
 	seq_puts(m, "\n");
 
-	list_for_each_entry(entry, &class->locks_after, entry) {
-		if (entry->distance == 1) {
-			seq_printf(m, " -> [%p] ", entry->class->key);
-			print_name(m, entry->class);
-			seq_puts(m, "\n");
+	if (IS_ENABLED(CONFIG_PROVE_LOCKING)) {
+		list_for_each_entry(entry, &class->locks_after, entry) {
+			if (entry->distance == 1) {
+				seq_printf(m, " -> [%p] ", entry->class->key);
+				print_name(m, entry->class);
+				seq_puts(m, "\n");
+			}
 		}
+		seq_puts(m, "\n");
 	}
-	seq_puts(m, "\n");
 
 	return 0;
 }
@@ -218,8 +241,11 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 
 #ifdef CONFIG_PROVE_LOCKING
 	struct lock_class *class;
+	unsigned long idx;
 
-	list_for_each_entry(class, &all_lock_classes, lock_entry) {
+	iterate_lock_classes(idx, class) {
+		if (!test_bit(idx, lock_classes_in_use))
+			continue;
 
 		if (class->usage_mask == 0)
 			nr_unused++;
@@ -252,6 +278,7 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 
 		sum_forward_deps += lockdep_count_forward_deps(class);
 	}
+
 #ifdef CONFIG_DEBUG_LOCKDEP
 	DEBUG_LOCKS_WARN_ON(debug_atomic_read(nr_unused_locks) != nr_unused);
 #endif
@@ -343,12 +370,14 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 	seq_printf(m, " max bfs queue depth:           %11u\n",
 			max_bfs_queue_depth);
 #endif
+	seq_printf(m, " max lock class index:          %11lu\n",
+			max_lock_class_idx);
 	lockdep_stats_debug_show(m);
 	seq_printf(m, " debug_locks:                   %11u\n",
 			debug_locks);
 
 	/*
-	 * Zappped classes and lockdep data buffers reuse statistics.
+	 * Zapped classes and lockdep data buffers reuse statistics.
 	 */
 	seq_puts(m, "\n");
 	seq_printf(m, " zapped classes:                %11lu\n",
@@ -620,12 +649,16 @@ static int lock_stat_open(struct inode *inode, struct file *file)
 	if (!res) {
 		struct lock_stat_data *iter = data->stats;
 		struct seq_file *m = file->private_data;
+		unsigned long idx;
 
-		list_for_each_entry(class, &all_lock_classes, lock_entry) {
+		iterate_lock_classes(idx, class) {
+			if (!test_bit(idx, lock_classes_in_use))
+				continue;
 			iter->class = class;
 			iter->stats = lock_stats(class);
 			iter++;
 		}
+
 		data->iter_end = iter;
 
 		sort(data->stats, data->iter_end - data->stats,
@@ -643,6 +676,7 @@ static ssize_t lock_stat_write(struct file *file, const char __user *buf,
 			       size_t count, loff_t *ppos)
 {
 	struct lock_class *class;
+	unsigned long idx;
 	char c;
 
 	if (count) {
@@ -652,8 +686,11 @@ static ssize_t lock_stat_write(struct file *file, const char __user *buf,
 		if (c != '0')
 			return count;
 
-		list_for_each_entry(class, &all_lock_classes, lock_entry)
+		iterate_lock_classes(idx, class) {
+			if (!test_bit(idx, lock_classes_in_use))
+				continue;
 			clear_lock_stats(class);
+		}
 	}
 	return count;
 }

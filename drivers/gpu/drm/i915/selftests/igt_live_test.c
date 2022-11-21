@@ -5,7 +5,7 @@
  */
 
 #include "i915_drv.h"
-#include "gt/intel_gt_requests.h"
+#include "gt/intel_gt.h"
 
 #include "../i915_selftest.h"
 #include "igt_flush_test.h"
@@ -16,7 +16,7 @@ int igt_live_test_begin(struct igt_live_test *t,
 			const char *func,
 			const char *name)
 {
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int err;
@@ -57,7 +57,7 @@ int igt_live_test_end(struct igt_live_test *t)
 		return -EIO;
 	}
 
-	for_each_engine(engine, &i915->gt, id) {
+	for_each_engine(engine, to_gt(i915), id) {
 		if (t->reset_engine[id] ==
 		    i915_reset_engine_count(&i915->gpu_error, engine))
 			continue;

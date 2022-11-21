@@ -286,11 +286,9 @@ static int amg88xx_read(struct device *dev, enum hwmon_sensor_types type,
 	__le16 buf;
 	int tmp;
 
-	tmp = pm_runtime_get_sync(regmap_get_device(data->regmap));
-	if (tmp < 0) {
-		pm_runtime_put_noidle(regmap_get_device(data->regmap));
+	tmp = pm_runtime_resume_and_get(regmap_get_device(data->regmap));
+	if (tmp < 0)
 		return tmp;
-	}
 
 	tmp = regmap_bulk_read(data->regmap, AMG88XX_REG_TTHL, &buf, 2);
 	pm_runtime_mark_last_busy(regmap_get_device(data->regmap));
@@ -443,14 +441,15 @@ static void buffer_queue(struct vb2_buffer *vb)
 static int video_i2c_thread_vid_cap(void *priv)
 {
 	struct video_i2c_data *data = priv;
-	unsigned int delay = mult_frac(HZ, data->frame_interval.numerator,
-				       data->frame_interval.denominator);
+	u32 delay = mult_frac(1000000UL, data->frame_interval.numerator,
+			       data->frame_interval.denominator);
+	s64 end_us = ktime_to_us(ktime_get());
 
 	set_freezable();
 
 	do {
-		unsigned long start_jiffies = jiffies;
 		struct video_i2c_buffer *vid_cap_buf = NULL;
+		s64 current_us;
 		int schedule_delay;
 
 		try_to_freeze();
@@ -477,12 +476,14 @@ static int video_i2c_thread_vid_cap(void *priv)
 				VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 		}
 
-		schedule_delay = delay - (jiffies - start_jiffies);
-
-		if (time_after(jiffies, start_jiffies + delay))
-			schedule_delay = delay;
-
-		schedule_timeout_interruptible(schedule_delay);
+		end_us += delay;
+		current_us = ktime_to_us(ktime_get());
+		if (current_us < end_us) {
+			schedule_delay = end_us - current_us;
+			usleep_range(schedule_delay * 3 / 4, schedule_delay);
+		} else {
+			end_us = current_us;
+		}
 	} while (!kthread_should_stop());
 
 	return 0;
@@ -512,11 +513,9 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (data->kthread_vid_cap)
 		return 0;
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
 		goto error_del_list;
-	}
 
 	ret = data->chip->setup(data);
 	if (ret)

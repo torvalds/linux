@@ -35,6 +35,10 @@ properties:
       - boe,tv080wum-nl0
         # Innolux P079ZCA 7.85" 768x1024 TFT LCD panel
       - innolux,p079zca
+        # JDI FHD_R63452 1080x1920 5.2" IPS LCD Panel
+      - jdi,fhd-r63452
+        # Khadas TS050 5" 1080x1920 LCD panel
+      - khadas,ts050
         # Kingdisplay KD097D04 9.7" 1536x2048 TFT LCD panel
       - kingdisplay,kd097d04
         # LG ACX467AKM-7 4.95" 1080×1920 LCD Panel
@@ -47,6 +51,12 @@ properties:
       - panasonic,vvx10f004b00
         # Panasonic 10" WUXGA TFT LCD panel
       - panasonic,vvx10f034n00
+        # Samsung s6e3fc2x01 1080x2340 AMOLED panel
+      - samsung,s6e3fc2x01
+        # Samsung sofef00 1080x2280 AMOLED panel
+      - samsung,sofef00
+        # Shangai Top Display Optoelectronics 7" TL070WSH30 1024x600 TFT LCD panel
+      - tdo,tl070wsh30
 
   reg:
     maxItems: 1
@@ -54,6 +64,7 @@ properties:
 
   backlight: true
   enable-gpios: true
+  reset-gpios: true
   port: true
   power-supply: true
 

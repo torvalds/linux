@@ -76,7 +76,7 @@ struct tpg110 {
 	 */
 	struct drm_panel panel;
 	/**
-	 * @panel_type: the panel mode as detected
+	 * @panel_mode: the panel mode as detected
 	 */
 	const struct tpg110_panel_mode *panel_mode;
 	/**
@@ -362,6 +362,7 @@ static int tpg110_enable(struct drm_panel *panel)
 /**
  * tpg110_get_modes() - return the appropriate mode
  * @panel: the panel to get the mode for
+ * @connector: reference to the central DRM connector control structure
  *
  * This currently does not present a forest of modes, instead it
  * presents the mode that is configured for the system under use,
@@ -449,12 +450,11 @@ static int tpg110_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int tpg110_remove(struct spi_device *spi)
+static void tpg110_remove(struct spi_device *spi)
 {
 	struct tpg110 *tpg = spi_get_drvdata(spi);
 
 	drm_panel_remove(&tpg->panel);
-	return 0;
 }
 
 static const struct of_device_id tpg110_match[] = {

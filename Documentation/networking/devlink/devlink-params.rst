@@ -97,14 +97,31 @@ own name.
    * - ``enable_roce``
      - Boolean
      - Enable handling of RoCE traffic in the device.
+   * - ``enable_eth``
+     - Boolean
+     - When enabled, the device driver will instantiate Ethernet specific
+       auxiliary device of the devlink device.
+   * - ``enable_rdma``
+     - Boolean
+     - When enabled, the device driver will instantiate RDMA specific
+       auxiliary device of the devlink device.
+   * - ``enable_vnet``
+     - Boolean
+     - When enabled, the device driver will instantiate VDPA networking
+       specific auxiliary device of the devlink device.
+   * - ``enable_iwarp``
+     - Boolean
+     - Enable handling of iWARP traffic in the device.
    * - ``internal_err_reset``
      - Boolean
      - When enabled, the device driver will reset the device on internal
        errors.
    * - ``max_macs``
      - u32
-     - Specifies the maximum number of MAC addresses per ethernet port of
-       this device.
+     - Typically macvlan, vlan net devices mac are also programmed in their
+       parent netdevice's Function rx filter. This parameter limit the
+       maximum number of unicast mac address filters to receive traffic from
+       per ethernet port of this device.
    * - ``region_snapshot_enable``
      - Boolean
      - Enable capture of ``devlink-region`` snapshots.
@@ -114,3 +131,9 @@ own name.
        will NACK any attempt of other host to reset the device. This parameter
        is useful for setups where a device is shared by different hosts, such
        as multi-host setup.
+   * - ``io_eq_size``
+     - u32
+     - Control the size of I/O completion EQs.
+   * - ``event_eq_size``
+     - u32
+     - Control the size of asynchronous control events EQ.

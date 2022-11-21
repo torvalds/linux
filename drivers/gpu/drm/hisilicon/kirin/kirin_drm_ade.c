@@ -3,7 +3,7 @@
  * Hisilicon Hi6220 SoC ADE(Advanced Display Engine)'s crtc&plane driver
  *
  * Copyright (c) 2016 Linaro Limited.
- * Copyright (c) 2014-2016 Hisilicon Limited.
+ * Copyright (c) 2014-2016 HiSilicon Limited.
  *
  * Author:
  *	Xinliang Liu <z.liuxinliang@hisilicon.com>
@@ -436,7 +436,7 @@ static void ade_dump_regs(void __iomem *base) { }
 #endif
 
 static void ade_crtc_atomic_enable(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_state)
+				   struct drm_atomic_state *state)
 {
 	struct kirin_crtc *kcrtc = to_kirin_crtc(crtc);
 	struct ade_hw_ctx *ctx = kcrtc->hw_ctx;
@@ -459,7 +459,7 @@ static void ade_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void ade_crtc_atomic_disable(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_state)
+				    struct drm_atomic_state *state)
 {
 	struct kirin_crtc *kcrtc = to_kirin_crtc(crtc);
 	struct ade_hw_ctx *ctx = kcrtc->hw_ctx;
@@ -485,7 +485,7 @@ static void ade_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static void ade_crtc_atomic_begin(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_state)
+				  struct drm_atomic_state *state)
 {
 	struct kirin_crtc *kcrtc = to_kirin_crtc(crtc);
 	struct ade_hw_ctx *ctx = kcrtc->hw_ctx;
@@ -498,7 +498,7 @@ static void ade_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void ade_crtc_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_state)
+				  struct drm_atomic_state *state)
 
 {
 	struct kirin_crtc *kcrtc = to_kirin_crtc(crtc);
@@ -549,16 +549,15 @@ static void ade_rdma_set(void __iomem *base, struct drm_framebuffer *fb,
 			 u32 ch, u32 y, u32 in_h, u32 fmt)
 {
 	struct drm_gem_cma_object *obj = drm_fb_cma_get_gem_obj(fb, 0);
-	struct drm_format_name_buf format_name;
 	u32 reg_ctrl, reg_addr, reg_size, reg_stride, reg_space, reg_en;
 	u32 stride = fb->pitches[0];
 	u32 addr = (u32)obj->paddr + y * stride;
 
 	DRM_DEBUG_DRIVER("rdma%d: (y=%d, height=%d), stride=%d, paddr=0x%x\n",
 			 ch + 1, y, in_h, stride, (u32)obj->paddr);
-	DRM_DEBUG_DRIVER("addr=0x%x, fb:%dx%d, pixel_format=%d(%s)\n",
+	DRM_DEBUG_DRIVER("addr=0x%x, fb:%dx%d, pixel_format=%d(%p4cc)\n",
 			 addr, fb->width, fb->height, fmt,
-			 drm_get_format_name(fb->format->format, &format_name));
+			 &fb->format->format);
 
 	/* get reg offset */
 	reg_ctrl = RD_CH_CTRL(ch);
@@ -758,19 +757,21 @@ static void ade_disable_channel(struct kirin_plane *kplane)
 }
 
 static int ade_plane_atomic_check(struct drm_plane *plane,
-				  struct drm_plane_state *state)
+				  struct drm_atomic_state *state)
 {
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_crtc *crtc = state->crtc;
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
+	struct drm_framebuffer *fb = new_plane_state->fb;
+	struct drm_crtc *crtc = new_plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
-	u32 src_x = state->src_x >> 16;
-	u32 src_y = state->src_y >> 16;
-	u32 src_w = state->src_w >> 16;
-	u32 src_h = state->src_h >> 16;
-	int crtc_x = state->crtc_x;
-	int crtc_y = state->crtc_y;
-	u32 crtc_w = state->crtc_w;
-	u32 crtc_h = state->crtc_h;
+	u32 src_x = new_plane_state->src_x >> 16;
+	u32 src_y = new_plane_state->src_y >> 16;
+	u32 src_w = new_plane_state->src_w >> 16;
+	u32 src_h = new_plane_state->src_h >> 16;
+	int crtc_x = new_plane_state->crtc_x;
+	int crtc_y = new_plane_state->crtc_y;
+	u32 crtc_w = new_plane_state->crtc_w;
+	u32 crtc_h = new_plane_state->crtc_h;
 	u32 fmt;
 
 	if (!crtc || !fb)
@@ -780,7 +781,7 @@ static int ade_plane_atomic_check(struct drm_plane *plane,
 	if (fmt == ADE_FORMAT_UNSUPPORT)
 		return -EINVAL;
 
-	crtc_state = drm_atomic_get_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
@@ -803,19 +804,21 @@ static int ade_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void ade_plane_atomic_update(struct drm_plane *plane,
-				    struct drm_plane_state *old_state)
+				    struct drm_atomic_state *state)
 {
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct kirin_plane *kplane = to_kirin_plane(plane);
 
-	ade_update_channel(kplane, state->fb, state->crtc_x, state->crtc_y,
-			   state->crtc_w, state->crtc_h,
-			   state->src_x >> 16, state->src_y >> 16,
-			   state->src_w >> 16, state->src_h >> 16);
+	ade_update_channel(kplane, new_state->fb, new_state->crtc_x,
+			   new_state->crtc_y,
+			   new_state->crtc_w, new_state->crtc_h,
+			   new_state->src_x >> 16, new_state->src_y >> 16,
+			   new_state->src_w >> 16, new_state->src_h >> 16);
 }
 
 static void ade_plane_atomic_disable(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	struct kirin_plane *kplane = to_kirin_plane(plane);
 
@@ -918,7 +921,7 @@ static const struct drm_mode_config_funcs ade_mode_config_funcs = {
 
 DEFINE_DRM_GEM_CMA_FOPS(ade_fops);
 
-static struct drm_driver ade_driver = {
+static const struct drm_driver ade_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops = &ade_fops,
 	DRM_GEM_CMA_DRIVER_OPS,

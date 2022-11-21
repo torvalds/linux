@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STM32 GPIO and Pin Mux/Config controller
 
 maintainers:
-  - Alexandre TORGUE <alexandre.torgue@st.com>
+  - Alexandre TORGUE <alexandre.torgue@foss.st.com>
 
 description: |
   STMicroelectronics's STM32 MCUs intregrate a GPIO and Pin mux/config hardware
@@ -24,6 +24,7 @@ properties:
       - st,stm32f746-pinctrl
       - st,stm32f769-pinctrl
       - st,stm32h743-pinctrl
+      - st,stm32mp135-pinctrl
       - st,stm32mp157-pinctrl
       - st,stm32mp157-z-pinctrl
 
@@ -40,11 +41,13 @@ properties:
     maxItems: 1
 
   st,syscfg:
-    description: Should be phandle/offset/mask
-      - Phandle to the syscon node which includes IRQ mux selection.
-      - The offset of the IRQ mux selection register.
-      - The field mask of IRQ mux, needed if different of 0xf.
+    description: Phandle+args to the syscon node which includes IRQ mux selection.
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    items:
+      - items:
+          - description: syscon node which includes IRQ mux selection
+          - description: The offset of the IRQ mux selection register
+          - description: The field mask of IRQ mux, needed if different of 0xf
 
   st,package:
     description:
@@ -181,6 +184,9 @@ patternProperties:
 
         required:
           - pinmux
+
+allOf:
+  - $ref: "pinctrl.yaml#"
 
 required:
   - compatible

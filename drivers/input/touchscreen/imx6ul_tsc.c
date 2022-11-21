@@ -304,11 +304,10 @@ static irqreturn_t adc_irq_fn(int irq, void *dev_id)
 {
 	struct imx6ul_tsc *tsc = dev_id;
 	u32 coco;
-	u32 value;
 
 	coco = readl(tsc->adc_regs + REG_ADC_HS);
 	if (coco & 0x01) {
-		value = readl(tsc->adc_regs + REG_ADC_R0);
+		readl(tsc->adc_regs + REG_ADC_R0);
 		complete(&tsc->completion);
 	}
 
@@ -521,7 +520,7 @@ static int __maybe_unused imx6ul_tsc_suspend(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		imx6ul_tsc_stop(tsc);
 
 	mutex_unlock(&input_dev->mutex);
@@ -538,7 +537,7 @@ static int __maybe_unused imx6ul_tsc_resume(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		retval = imx6ul_tsc_start(tsc);
 
 	mutex_unlock(&input_dev->mutex);

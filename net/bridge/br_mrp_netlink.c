@@ -453,7 +453,7 @@ int br_mrp_fill_info(struct sk_buff *skb, struct net_bridge *br)
 	if (!mrp_tb)
 		return -EMSGSIZE;
 
-	list_for_each_entry_rcu(mrp, &br->mrp_list, list) {
+	hlist_for_each_entry_rcu(mrp, &br->mrp_list, list) {
 		struct net_bridge_port *p;
 
 		tb = nla_nest_start_noflag(skb, IFLA_BRIDGE_MRP_INFO);

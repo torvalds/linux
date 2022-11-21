@@ -16,6 +16,7 @@
 #include <linux/kobject.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/random.h>
 
 #include <soc/tegra/fuse.h>
@@ -46,6 +47,10 @@ static u32 tegra20_fuse_read(struct tegra_fuse *fuse, unsigned int offset)
 	u32 value = 0;
 	int err;
 
+	err = pm_runtime_resume_and_get(fuse->dev);
+	if (err)
+		return err;
+
 	mutex_lock(&fuse->apbdma.lock);
 
 	fuse->apbdma.config.src_addr = fuse->phys + FUSE_BEGIN + offset;
@@ -66,8 +71,6 @@ static u32 tegra20_fuse_read(struct tegra_fuse *fuse, unsigned int offset)
 
 	reinit_completion(&fuse->apbdma.wait);
 
-	clk_prepare_enable(fuse->clk);
-
 	dmaengine_submit(dma_desc);
 	dma_async_issue_pending(fuse->apbdma.chan);
 	time_left = wait_for_completion_timeout(&fuse->apbdma.wait,
@@ -78,10 +81,9 @@ static u32 tegra20_fuse_read(struct tegra_fuse *fuse, unsigned int offset)
 	else
 		value = *fuse->apbdma.virt;
 
-	clk_disable_unprepare(fuse->clk);
-
 out:
 	mutex_unlock(&fuse->apbdma.lock);
+	pm_runtime_put(fuse->dev);
 	return value;
 }
 
@@ -92,9 +94,28 @@ static bool dma_filter(struct dma_chan *chan, void *filter_param)
 	return of_device_is_compatible(np, "nvidia,tegra20-apbdma");
 }
 
+static void tegra20_fuse_release_channel(void *data)
+{
+	struct tegra_fuse *fuse = data;
+
+	dma_release_channel(fuse->apbdma.chan);
+	fuse->apbdma.chan = NULL;
+}
+
+static void tegra20_fuse_free_coherent(void *data)
+{
+	struct tegra_fuse *fuse = data;
+
+	dma_free_coherent(fuse->dev, sizeof(u32), fuse->apbdma.virt,
+			  fuse->apbdma.phys);
+	fuse->apbdma.virt = NULL;
+	fuse->apbdma.phys = 0x0;
+}
+
 static int tegra20_fuse_probe(struct tegra_fuse *fuse)
 {
 	dma_cap_mask_t mask;
+	int err;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
@@ -103,13 +124,21 @@ static int tegra20_fuse_probe(struct tegra_fuse *fuse)
 	if (!fuse->apbdma.chan)
 		return -EPROBE_DEFER;
 
+	err = devm_add_action_or_reset(fuse->dev, tegra20_fuse_release_channel,
+				       fuse);
+	if (err)
+		return err;
+
 	fuse->apbdma.virt = dma_alloc_coherent(fuse->dev, sizeof(u32),
 					       &fuse->apbdma.phys,
 					       GFP_KERNEL);
-	if (!fuse->apbdma.virt) {
-		dma_release_channel(fuse->apbdma.chan);
+	if (!fuse->apbdma.virt)
 		return -ENOMEM;
-	}
+
+	err = devm_add_action_or_reset(fuse->dev, tegra20_fuse_free_coherent,
+				       fuse);
+	if (err)
+		return err;
 
 	fuse->apbdma.config.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	fuse->apbdma.config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
@@ -165,4 +194,5 @@ const struct tegra_fuse_soc tegra20_fuse_soc = {
 	.probe = tegra20_fuse_probe,
 	.info = &tegra20_fuse_info,
 	.soc_attr_group = &tegra_soc_attr_group,
+	.clk_suspend_on = false,
 };

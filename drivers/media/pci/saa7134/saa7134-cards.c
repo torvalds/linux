@@ -15,7 +15,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include <media/v4l2-common.h>
 #include <media/tveeprom.h>
 #include "tea5767.h"
@@ -5765,6 +5765,33 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x0200000,
 		},
 	},
+	[SAA7134_BOARD_LEADTEK_WINFAST_HDTV200_H] = {
+		.name           = "Leadtek Winfast HDTV200 H",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.ts_type        = SAA7134_MPEG_TS_PARALLEL,
+		.gpiomask       = 0x00200700,
+		.inputs         = { {
+			.type = SAA7134_INPUT_TV,
+			.vmux = 1,
+			.amux = TV,
+			.gpio = 0x00000300,
+		}, {
+			.type = SAA7134_INPUT_COMPOSITE,
+			.vmux = 3,
+			.amux = LINE1,
+			.gpio = 0x00200300,
+		}, {
+			.type = SAA7134_INPUT_SVIDEO,
+			.vmux = 8,
+			.amux = LINE1,
+			.gpio = 0x00200300,
+		} },
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -7041,6 +7068,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x13cf,
 		.driver_data  = SAA7134_BOARD_SNAZIO_TVPVR_PRO,
 	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x107d,
+		.subdevice    = 0x6f2e,
+		.driver_data  = SAA7134_BOARD_LEADTEK_WINFAST_HDTV200_H,
+	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -7245,6 +7278,22 @@ static int saa7134_kworld_pc150u_toggle_agc(struct saa7134_dev *dev,
 	return 0;
 }
 
+static int saa7134_leadtek_hdtv200h_toggle_agc(struct saa7134_dev *dev,
+					       enum tda18271_mode mode)
+{
+	switch (mode) {
+	case TDA18271_ANALOG:
+		saa7134_set_gpio(dev, 10, 0);
+		break;
+	case TDA18271_DIGITAL:
+		saa7134_set_gpio(dev, 10, 1);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int saa7134_tda8290_18271_callback(struct saa7134_dev *dev,
 					  int command, int arg)
 {
@@ -7263,6 +7312,9 @@ static int saa7134_tda8290_18271_callback(struct saa7134_dev *dev,
 			break;
 		case SAA7134_BOARD_KWORLD_PC150U:
 			ret = saa7134_kworld_pc150u_toggle_agc(dev, arg);
+			break;
+		case SAA7134_BOARD_LEADTEK_WINFAST_HDTV200_H:
+			ret = saa7134_leadtek_hdtv200h_toggle_agc(dev, arg);
 			break;
 		default:
 			break;
@@ -7287,6 +7339,7 @@ static int saa7134_tda8290_callback(struct saa7134_dev *dev,
 	case SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG:
 	case SAA7134_BOARD_KWORLD_PC150U:
 	case SAA7134_BOARD_MAGICPRO_PROHDTV_PRO2:
+	case SAA7134_BOARD_LEADTEK_WINFAST_HDTV200_H:
 		/* tda8290 + tda18271 */
 		ret = saa7134_tda8290_18271_callback(dev, command, arg);
 		break;

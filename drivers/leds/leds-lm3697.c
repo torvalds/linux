@@ -2,11 +2,16 @@
 // TI LM3697 LED chip family driver
 // Copyright (C) 2018 Texas Instruments Incorporated - https://www.ti.com/
 
+#include <linux/bits.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
-#include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
+#include <linux/property.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/types.h>
+
 #include <linux/leds-ti-lmu-common.h>
 
 #define LM3697_REV			0x0
@@ -47,6 +52,8 @@
  * @lmu_data: Register and setting values for common code
  * @control_bank: Control bank the LED is associated to. 0 is control bank A
  *		   1 is control bank B
+ * @enabled: LED brightness level (or LED_OFF)
+ * @num_leds: Number of LEDs available
  */
 struct lm3697_led {
 	u32 hvled_strings[LM3697_MAX_LED_STRINGS];
@@ -68,6 +75,8 @@ struct lm3697_led {
  * @dev: Pointer to the devices device struct
  * @lock: Lock for reading/writing the device
  * @leds: Array of LED strings
+ * @bank_cfg: OUTPUT_CONFIG register values
+ * @num_banks: Number of control banks
  */
 struct lm3697 {
 	struct gpio_desc *enable_gpio;
@@ -203,11 +212,9 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 
 	priv->enable_gpio = devm_gpiod_get_optional(dev, "enable",
 						    GPIOD_OUT_LOW);
-	if (IS_ERR(priv->enable_gpio)) {
-		ret = PTR_ERR(priv->enable_gpio);
-		dev_err(dev, "Failed to get enable gpio: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(priv->enable_gpio))
+		return dev_err_probe(dev, PTR_ERR(priv->enable_gpio),
+					  "Failed to get enable GPIO\n");
 
 	priv->regulator = devm_regulator_get(dev, "vled");
 	if (IS_ERR(priv->regulator))
@@ -219,14 +226,12 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 		ret = fwnode_property_read_u32(child, "reg", &control_bank);
 		if (ret) {
 			dev_err(dev, "reg property missing\n");
-			fwnode_handle_put(child);
 			goto child_out;
 		}
 
 		if (control_bank > LM3697_CONTROL_B) {
 			dev_err(dev, "reg property is invalid\n");
 			ret = -EINVAL;
-			fwnode_handle_put(child);
 			goto child_out;
 		}
 
@@ -257,7 +262,6 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 						    led->num_leds);
 		if (ret) {
 			dev_err(dev, "led-sources property missing\n");
-			fwnode_handle_put(child);
 			goto child_out;
 		}
 
@@ -282,14 +286,16 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 						     &init_data);
 		if (ret) {
 			dev_err(dev, "led register err: %d\n", ret);
-			fwnode_handle_put(child);
 			goto child_out;
 		}
 
 		i++;
 	}
 
+	return ret;
+
 child_out:
+	fwnode_handle_put(child);
 	return ret;
 }
 

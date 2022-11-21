@@ -14,60 +14,70 @@
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-20400000 {
 				clock-frequency = <20400000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-40800000 {
 				clock-frequency = <40800000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-68000000 {
 				clock-frequency = <68000000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-102000000 {
 				clock-frequency = <102000000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-204000000 {
 				clock-frequency = <204000000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-300000000 {
 				clock-frequency = <300000000>;
 				nvidia,parent-clock-frequency = <600000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_C>;
 				clock-names = "emc-parent";
 			};
+
 			timing-396000000 {
 				clock-frequency = <396000000>;
 				nvidia,parent-clock-frequency = <792000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_M>;
 				clock-names = "emc-parent";
 			};
+
 			timing-528000000 {
 				clock-frequency = <528000000>;
 				nvidia,parent-clock-frequency = <528000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_M_UD>;
 				clock-names = "emc-parent";
 			};
+
 			timing-600000000 {
 				clock-frequency = <600000000>;
 				nvidia,parent-clock-frequency = <600000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_C_UD>;
 				clock-names = "emc-parent";
 			};
+
 			timing-792000000 {
 				clock-frequency = <792000000>;
 				nvidia,parent-clock-frequency = <792000000>;
@@ -85,60 +95,70 @@
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-20400000 {
 				clock-frequency = <20400000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-40800000 {
 				clock-frequency = <40800000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-68000000 {
 				clock-frequency = <68000000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-102000000 {
 				clock-frequency = <102000000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-204000000 {
 				clock-frequency = <204000000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-300000000 {
 				clock-frequency = <300000000>;
 				nvidia,parent-clock-frequency = <600000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_C>;
 				clock-names = "emc-parent";
 			};
+
 			timing-396000000 {
 				clock-frequency = <396000000>;
 				nvidia,parent-clock-frequency = <792000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_M>;
 				clock-names = "emc-parent";
 			};
+
 			timing-528000000 {
 				clock-frequency = <528000000>;
 				nvidia,parent-clock-frequency = <528000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_M_UD>;
 				clock-names = "emc-parent";
 			};
+
 			timing-600000000 {
 				clock-frequency = <600000000>;
 				nvidia,parent-clock-frequency = <600000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_C_UD>;
 				clock-names = "emc-parent";
 			};
+
 			timing-792000000 {
 				clock-frequency = <792000000>;
 				nvidia,parent-clock-frequency = <792000000>;
@@ -156,65 +176,947 @@
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-20400000 {
 				clock-frequency = <20400000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-40800000 {
 				clock-frequency = <40800000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-68000000 {
 				clock-frequency = <68000000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-102000000 {
 				clock-frequency = <102000000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-204000000 {
 				clock-frequency = <204000000>;
 				nvidia,parent-clock-frequency = <408000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_P>;
 				clock-names = "emc-parent";
 			};
+
 			timing-300000000 {
 				clock-frequency = <300000000>;
 				nvidia,parent-clock-frequency = <600000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_C>;
 				clock-names = "emc-parent";
 			};
+
 			timing-396000000 {
 				clock-frequency = <396000000>;
 				nvidia,parent-clock-frequency = <792000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_M>;
 				clock-names = "emc-parent";
 			};
+
 			timing-528000000 {
 				clock-frequency = <528000000>;
 				nvidia,parent-clock-frequency = <528000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_M_UD>;
 				clock-names = "emc-parent";
 			};
+
 			timing-600000000 {
 				clock-frequency = <600000000>;
 				nvidia,parent-clock-frequency = <600000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_C_UD>;
 				clock-names = "emc-parent";
 			};
+
 			timing-792000000 {
 				clock-frequency = <792000000>;
 				nvidia,parent-clock-frequency = <792000000>;
 				clocks = <&tegra_car TEGRA124_CLK_PLL_M_UD>;
 				clock-names = "emc-parent";
+			};
+		};
+	};
+
+	memory-controller@70019000 {
+		emc-timings-1 {
+			nvidia,ram-code = <1>;
+
+			timing-12750000 {
+				clock-frequency = <12750000>;
+
+				nvidia,emem-configuration = <
+					0x40040001 /* MC_EMEM_ARB_CFG */
+					0x8000000a /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
+					0x77e30303 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-20400000 {
+				clock-frequency = <20400000>;
+
+				nvidia,emem-configuration = <
+					0x40020001 /* MC_EMEM_ARB_CFG */
+					0x80000012 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
+					0x76230303 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-40800000 {
+				clock-frequency = <40800000>;
+
+				nvidia,emem-configuration = <
+					0xa0000001 /* MC_EMEM_ARB_CFG */
+					0x80000017 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
+					0x74a30303 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-68000000 {
+				clock-frequency = <68000000>;
+
+				nvidia,emem-configuration = <
+					0x00000001 /* MC_EMEM_ARB_CFG */
+					0x8000001e /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
+					0x74230403 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-102000000 {
+				clock-frequency = <102000000>;
+
+				nvidia,emem-configuration = <
+					0x08000001 /* MC_EMEM_ARB_CFG */
+					0x80000026 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0403 /* MC_EMEM_ARB_DA_COVERS */
+					0x73c30504 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-204000000 {
+				clock-frequency = <204000000>;
+
+				nvidia,emem-configuration = <
+					0x01000003 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000005 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000004 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06040203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0405 /* MC_EMEM_ARB_DA_COVERS */
+					0x73840a06 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-300000000 {
+				clock-frequency = <300000000>;
+
+				nvidia,emem-configuration = <
+					0x08000004 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000007 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000004 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000005 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000007 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06040202 /* MC_EMEM_ARB_DA_TURNS */
+					0x000b0607 /* MC_EMEM_ARB_DA_COVERS */
+					0x77450e08 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-396000000 {
+				clock-frequency = <396000000>;
+
+				nvidia,emem-configuration = <
+					0x0f000005 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000009 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000005 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000007 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06040202 /* MC_EMEM_ARB_DA_TURNS */
+					0x000d0709 /* MC_EMEM_ARB_DA_COVERS */
+					0x7586120a /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-528000000 {
+				clock-frequency = <528000000>;
+
+				nvidia,emem-configuration = <
+					0x0f000007 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RP */
+					0x0000000d /* MC_EMEM_ARB_TIMING_RC */
+					0x00000008 /* MC_EMEM_ARB_TIMING_RAS */
+					0x0000000a /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000009 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000005 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06050202 /* MC_EMEM_ARB_DA_TURNS */
+					0x0010090d /* MC_EMEM_ARB_DA_COVERS */
+					0x7428180e /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-600000000 {
+				clock-frequency = <600000000>;
+
+				nvidia,emem-configuration = <
+					0x00000009 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000004 /* MC_EMEM_ARB_TIMING_RP */
+					0x0000000e /* MC_EMEM_ARB_TIMING_RC */
+					0x00000009 /* MC_EMEM_ARB_TIMING_RAS */
+					0x0000000b /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x0000000b /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000005 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000007 /* MC_EMEM_ARB_TIMING_W2R */
+					0x07050202 /* MC_EMEM_ARB_DA_TURNS */
+					0x00130b0e /* MC_EMEM_ARB_DA_COVERS */
+					0x73a91b0f /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-792000000 {
+				clock-frequency = <792000000>;
+
+				nvidia,emem-configuration = <
+					0x0e00000b /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000004 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000005 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000013 /* MC_EMEM_ARB_TIMING_RC */
+					0x0000000c /* MC_EMEM_ARB_TIMING_RAS */
+					0x0000000f /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x0000000c /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000008 /* MC_EMEM_ARB_TIMING_W2R */
+					0x08060202 /* MC_EMEM_ARB_DA_TURNS */
+					0x00160d13 /* MC_EMEM_ARB_DA_COVERS */
+					0x734c2414 /* MC_EMEM_ARB_MISC0 */
+					0x70000f02 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+		};
+
+		emc-timings-4 {
+			nvidia,ram-code = <4>;
+
+			timing-12750000 {
+				clock-frequency = <12750000>;
+
+				nvidia,emem-configuration = <
+					0x40040001 /* MC_EMEM_ARB_CFG */
+					0x8000000a /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0502 /* MC_EMEM_ARB_DA_COVERS */
+					0x77e30303 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-20400000 {
+				clock-frequency = <20400000>;
+
+				nvidia,emem-configuration = <
+					0x40020001 /* MC_EMEM_ARB_CFG */
+					0x80000012 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0502 /* MC_EMEM_ARB_DA_COVERS */
+					0x77430303 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-40800000 {
+				clock-frequency = <40800000>;
+
+				nvidia,emem-configuration = <
+					0xa0000001 /* MC_EMEM_ARB_CFG */
+					0x80000017 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0502 /* MC_EMEM_ARB_DA_COVERS */
+					0x75e30303 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-68000000 {
+				clock-frequency = <68000000>;
+
+				nvidia,emem-configuration = <
+					0x00000001 /* MC_EMEM_ARB_CFG */
+					0x8000001e /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0502 /* MC_EMEM_ARB_DA_COVERS */
+					0x75430403 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-102000000 {
+				clock-frequency = <102000000>;
+
+				nvidia,emem-configuration = <
+					0x08000001 /* MC_EMEM_ARB_CFG */
+					0x80000026 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0503 /* MC_EMEM_ARB_DA_COVERS */
+					0x74e30504 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-204000000 {
+				clock-frequency = <204000000>;
+
+				nvidia,emem-configuration = <
+					0x01000003 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000004 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000004 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06040203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0504 /* MC_EMEM_ARB_DA_COVERS */
+					0x74a40a05 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-300000000 {
+				clock-frequency = <300000000>;
+
+				nvidia,emem-configuration = <
+					0x08000004 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000007 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000004 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000005 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000007 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06040202 /* MC_EMEM_ARB_DA_TURNS */
+					0x000b0607 /* MC_EMEM_ARB_DA_COVERS */
+					0x77450e08 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-396000000 {
+				clock-frequency = <396000000>;
+
+				nvidia,emem-configuration = <
+					0x0f000005 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000009 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000005 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000007 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06040202 /* MC_EMEM_ARB_DA_TURNS */
+					0x000d0709 /* MC_EMEM_ARB_DA_COVERS */
+					0x7586120a /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-528000000 {
+				clock-frequency = <528000000>;
+
+				nvidia,emem-configuration = <
+					0x0f000007 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RP */
+					0x0000000c /* MC_EMEM_ARB_TIMING_RC */
+					0x00000007 /* MC_EMEM_ARB_TIMING_RAS */
+					0x0000000a /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000009 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000005 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06050202 /* MC_EMEM_ARB_DA_TURNS */
+					0x0010090c /* MC_EMEM_ARB_DA_COVERS */
+					0x7488180d /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-600000000 {
+				clock-frequency = <600000000>;
+
+				nvidia,emem-configuration = <
+					0x00000009 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000004 /* MC_EMEM_ARB_TIMING_RP */
+					0x0000000e /* MC_EMEM_ARB_TIMING_RC */
+					0x00000009 /* MC_EMEM_ARB_TIMING_RAS */
+					0x0000000b /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x0000000b /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000005 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000007 /* MC_EMEM_ARB_TIMING_W2R */
+					0x07050202 /* MC_EMEM_ARB_DA_TURNS */
+					0x00130b0e /* MC_EMEM_ARB_DA_COVERS */
+					0x74691b0f /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-792000000 {
+				clock-frequency = <792000000>;
+
+				nvidia,emem-configuration = <
+					0x0e00000b /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000004 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000005 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000013 /* MC_EMEM_ARB_TIMING_RC */
+					0x0000000c /* MC_EMEM_ARB_TIMING_RAS */
+					0x0000000f /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x0000000c /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000008 /* MC_EMEM_ARB_TIMING_W2R */
+					0x08060202 /* MC_EMEM_ARB_DA_TURNS */
+					0x00170e13 /* MC_EMEM_ARB_DA_COVERS */
+					0x746c2414 /* MC_EMEM_ARB_MISC0 */
+					0x70000f02 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+		};
+
+		emc-timings-6 {
+			nvidia,ram-code = <6>;
+
+			timing-12750000 {
+				clock-frequency = <12750000>;
+
+				nvidia,emem-configuration = <
+					0x40040001 /* MC_EMEM_ARB_CFG */
+					0x8000000a /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
+					0x77e30303 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-20400000 {
+				clock-frequency = <20400000>;
+
+				nvidia,emem-configuration = <
+					0x40020001 /* MC_EMEM_ARB_CFG */
+					0x80000012 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
+					0x76230303 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-40800000 {
+				clock-frequency = <40800000>;
+
+				nvidia,emem-configuration = <
+					0xa0000001 /* MC_EMEM_ARB_CFG */
+					0x80000017 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
+					0x74a30303 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-68000000 {
+				clock-frequency = <68000000>;
+
+				nvidia,emem-configuration = <
+					0x00000001 /* MC_EMEM_ARB_CFG */
+					0x8000001e /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
+					0x74230403 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-102000000 {
+				clock-frequency = <102000000>;
+
+				nvidia,emem-configuration = <
+					0x08000001 /* MC_EMEM_ARB_CFG */
+					0x80000026 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0403 /* MC_EMEM_ARB_DA_COVERS */
+					0x73c30504 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-204000000 {
+				clock-frequency = <204000000>;
+
+				nvidia,emem-configuration = <
+					0x01000003 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000005 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000004 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06040203 /* MC_EMEM_ARB_DA_TURNS */
+					0x000a0405 /* MC_EMEM_ARB_DA_COVERS */
+					0x73840a06 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-300000000 {
+				clock-frequency = <300000000>;
+
+				nvidia,emem-configuration = <
+					0x08000004 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000007 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000004 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000005 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000007 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06040202 /* MC_EMEM_ARB_DA_TURNS */
+					0x000b0607 /* MC_EMEM_ARB_DA_COVERS */
+					0x77450e08 /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-396000000 {
+				clock-frequency = <396000000>;
+
+				nvidia,emem-configuration = <
+					0x0f000005 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000009 /* MC_EMEM_ARB_TIMING_RC */
+					0x00000005 /* MC_EMEM_ARB_TIMING_RAS */
+					0x00000007 /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06040202 /* MC_EMEM_ARB_DA_TURNS */
+					0x000d0709 /* MC_EMEM_ARB_DA_COVERS */
+					0x7586120a /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-528000000 {
+				clock-frequency = <528000000>;
+
+				nvidia,emem-configuration = <
+					0x0f000007 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RP */
+					0x0000000d /* MC_EMEM_ARB_TIMING_RC */
+					0x00000008 /* MC_EMEM_ARB_TIMING_RAS */
+					0x0000000a /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x00000009 /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000005 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
+					0x06050202 /* MC_EMEM_ARB_DA_TURNS */
+					0x0010090d /* MC_EMEM_ARB_DA_COVERS */
+					0x7428180e /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-600000000 {
+				clock-frequency = <600000000>;
+
+				nvidia,emem-configuration = <
+					0x00000009 /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000004 /* MC_EMEM_ARB_TIMING_RP */
+					0x0000000e /* MC_EMEM_ARB_TIMING_RC */
+					0x00000009 /* MC_EMEM_ARB_TIMING_RAS */
+					0x0000000b /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x0000000b /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000005 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000007 /* MC_EMEM_ARB_TIMING_W2R */
+					0x07050202 /* MC_EMEM_ARB_DA_TURNS */
+					0x00130b0e /* MC_EMEM_ARB_DA_COVERS */
+					0x73a91b0f /* MC_EMEM_ARB_MISC0 */
+					0x70000f03 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
+			};
+
+			timing-792000000 {
+				clock-frequency = <792000000>;
+
+				nvidia,emem-configuration = <
+					0x0e00000b /* MC_EMEM_ARB_CFG */
+					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
+					0x00000004 /* MC_EMEM_ARB_TIMING_RCD */
+					0x00000005 /* MC_EMEM_ARB_TIMING_RP */
+					0x00000013 /* MC_EMEM_ARB_TIMING_RC */
+					0x0000000c /* MC_EMEM_ARB_TIMING_RAS */
+					0x0000000f /* MC_EMEM_ARB_TIMING_FAW */
+					0x00000002 /* MC_EMEM_ARB_TIMING_RRD */
+					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
+					0x0000000c /* MC_EMEM_ARB_TIMING_WAP2PRE */
+					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
+					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
+					0x00000006 /* MC_EMEM_ARB_TIMING_R2W */
+					0x00000008 /* MC_EMEM_ARB_TIMING_W2R */
+					0x08060202 /* MC_EMEM_ARB_DA_TURNS */
+					0x00160d13 /* MC_EMEM_ARB_DA_COVERS */
+					0x734c2414 /* MC_EMEM_ARB_MISC0 */
+					0x70000f02 /* MC_EMEM_ARB_MISC1 */
+					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
+				>;
 			};
 		};
 	};
@@ -5776,876 +6678,14 @@
 			};
 		};
 	};
-
-	memory-controller@70019000 {
-		emc-timings-1 {
-			nvidia,ram-code = <1>;
-
-			timing-12750000 {
-				clock-frequency = <12750000>;
-
-				nvidia,emem-configuration = <
-					0x40040001 /* MC_EMEM_ARB_CFG */
-					0x8000000a /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
-					0x77e30303 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-20400000 {
-				clock-frequency = <20400000>;
-
-				nvidia,emem-configuration = <
-					0x40020001 /* MC_EMEM_ARB_CFG */
-					0x80000012 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
-					0x76230303 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-40800000 {
-				clock-frequency = <40800000>;
-
-				nvidia,emem-configuration = <
-					0xa0000001 /* MC_EMEM_ARB_CFG */
-					0x80000017 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
-					0x74a30303 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-68000000 {
-				clock-frequency = <68000000>;
-
-				nvidia,emem-configuration = <
-					0x00000001 /* MC_EMEM_ARB_CFG */
-					0x8000001e /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
-					0x74230403 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-102000000 {
-				clock-frequency = <102000000>;
-
-				nvidia,emem-configuration = <
-					0x08000001 /* MC_EMEM_ARB_CFG */
-					0x80000026 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0403 /* MC_EMEM_ARB_DA_COVERS */
-					0x73c30504 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-204000000 {
-				clock-frequency = <204000000>;
-
-				nvidia,emem-configuration = <
-					0x01000003 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000005 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000004 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06040203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0405 /* MC_EMEM_ARB_DA_COVERS */
-					0x73840a06 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-300000000 {
-				clock-frequency = <300000000>;
-
-				nvidia,emem-configuration = <
-					0x08000004 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000007 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000004 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000005 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000007 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06040202 /* MC_EMEM_ARB_DA_TURNS */
-					0x000b0607 /* MC_EMEM_ARB_DA_COVERS */
-					0x77450e08 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-396000000 {
-				clock-frequency = <396000000>;
-
-				nvidia,emem-configuration = <
-					0x0f000005 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000009 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000005 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000007 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06040202 /* MC_EMEM_ARB_DA_TURNS */
-					0x000d0709 /* MC_EMEM_ARB_DA_COVERS */
-					0x7586120a /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-528000000 {
-				clock-frequency = <528000000>;
-
-				nvidia,emem-configuration = <
-					0x0f000007 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RP */
-					0x0000000d /* MC_EMEM_ARB_TIMING_RC */
-					0x00000008 /* MC_EMEM_ARB_TIMING_RAS */
-					0x0000000a /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000009 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000005 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06050202 /* MC_EMEM_ARB_DA_TURNS */
-					0x0010090d /* MC_EMEM_ARB_DA_COVERS */
-					0x7428180e /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-600000000 {
-				clock-frequency = <600000000>;
-
-				nvidia,emem-configuration = <
-					0x00000009 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000004 /* MC_EMEM_ARB_TIMING_RP */
-					0x0000000e /* MC_EMEM_ARB_TIMING_RC */
-					0x00000009 /* MC_EMEM_ARB_TIMING_RAS */
-					0x0000000b /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x0000000b /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000005 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000007 /* MC_EMEM_ARB_TIMING_W2R */
-					0x07050202 /* MC_EMEM_ARB_DA_TURNS */
-					0x00130b0e /* MC_EMEM_ARB_DA_COVERS */
-					0x73a91b0f /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-792000000 {
-				clock-frequency = <792000000>;
-
-				nvidia,emem-configuration = <
-					0x0e00000b /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000004 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000005 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000013 /* MC_EMEM_ARB_TIMING_RC */
-					0x0000000c /* MC_EMEM_ARB_TIMING_RAS */
-					0x0000000f /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x0000000c /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000008 /* MC_EMEM_ARB_TIMING_W2R */
-					0x08060202 /* MC_EMEM_ARB_DA_TURNS */
-					0x00160d13 /* MC_EMEM_ARB_DA_COVERS */
-					0x734c2414 /* MC_EMEM_ARB_MISC0 */
-					0x70000f02 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-		};
-
-		emc-timings-4 {
-			nvidia,ram-code = <4>;
-
-			timing-12750000 {
-				clock-frequency = <12750000>;
-
-				nvidia,emem-configuration = <
-					0x40040001 /* MC_EMEM_ARB_CFG */
-					0x8000000a /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0502 /* MC_EMEM_ARB_DA_COVERS */
-					0x77e30303 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-20400000 {
-				clock-frequency = <20400000>;
-
-				nvidia,emem-configuration = <
-					0x40020001 /* MC_EMEM_ARB_CFG */
-					0x80000012 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0502 /* MC_EMEM_ARB_DA_COVERS */
-					0x77430303 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-40800000 {
-				clock-frequency = <40800000>;
-
-				nvidia,emem-configuration = <
-					0xa0000001 /* MC_EMEM_ARB_CFG */
-					0x80000017 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0502 /* MC_EMEM_ARB_DA_COVERS */
-					0x75e30303 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-68000000 {
-				clock-frequency = <68000000>;
-
-				nvidia,emem-configuration = <
-					0x00000001 /* MC_EMEM_ARB_CFG */
-					0x8000001e /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0502 /* MC_EMEM_ARB_DA_COVERS */
-					0x75430403 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-102000000 {
-				clock-frequency = <102000000>;
-
-				nvidia,emem-configuration = <
-					0x08000001 /* MC_EMEM_ARB_CFG */
-					0x80000026 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0503 /* MC_EMEM_ARB_DA_COVERS */
-					0x74e30504 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-204000000 {
-				clock-frequency = <204000000>;
-
-				nvidia,emem-configuration = <
-					0x01000003 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000004 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000004 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06040203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0504 /* MC_EMEM_ARB_DA_COVERS */
-					0x74a40a05 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-300000000 {
-				clock-frequency = <300000000>;
-
-				nvidia,emem-configuration = <
-					0x08000004 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000007 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000004 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000005 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000007 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06040202 /* MC_EMEM_ARB_DA_TURNS */
-					0x000b0607 /* MC_EMEM_ARB_DA_COVERS */
-					0x77450e08 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-396000000 {
-				clock-frequency = <396000000>;
-
-				nvidia,emem-configuration = <
-					0x0f000005 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000009 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000005 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000007 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06040202 /* MC_EMEM_ARB_DA_TURNS */
-					0x000d0709 /* MC_EMEM_ARB_DA_COVERS */
-					0x7586120a /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-528000000 {
-				clock-frequency = <528000000>;
-
-				nvidia,emem-configuration = <
-					0x0f000007 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RP */
-					0x0000000c /* MC_EMEM_ARB_TIMING_RC */
-					0x00000007 /* MC_EMEM_ARB_TIMING_RAS */
-					0x0000000a /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000009 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000005 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06050202 /* MC_EMEM_ARB_DA_TURNS */
-					0x0010090c /* MC_EMEM_ARB_DA_COVERS */
-					0x7488180d /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-600000000 {
-				clock-frequency = <600000000>;
-
-				nvidia,emem-configuration = <
-					0x00000009 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000004 /* MC_EMEM_ARB_TIMING_RP */
-					0x0000000e /* MC_EMEM_ARB_TIMING_RC */
-					0x00000009 /* MC_EMEM_ARB_TIMING_RAS */
-					0x0000000b /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x0000000b /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000005 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000007 /* MC_EMEM_ARB_TIMING_W2R */
-					0x07050202 /* MC_EMEM_ARB_DA_TURNS */
-					0x00130b0e /* MC_EMEM_ARB_DA_COVERS */
-					0x74691b0f /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-792000000 {
-				clock-frequency = <792000000>;
-
-				nvidia,emem-configuration = <
-					0x0e00000b /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000004 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000005 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000013 /* MC_EMEM_ARB_TIMING_RC */
-					0x0000000c /* MC_EMEM_ARB_TIMING_RAS */
-					0x0000000f /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x0000000c /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000008 /* MC_EMEM_ARB_TIMING_W2R */
-					0x08060202 /* MC_EMEM_ARB_DA_TURNS */
-					0x00170e13 /* MC_EMEM_ARB_DA_COVERS */
-					0x746c2414 /* MC_EMEM_ARB_MISC0 */
-					0x70000f02 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-		};
-
-		emc-timings-6 {
-			nvidia,ram-code = <6>;
-
-			timing-12750000 {
-				clock-frequency = <12750000>;
-
-				nvidia,emem-configuration = <
-					0x40040001 /* MC_EMEM_ARB_CFG */
-					0x8000000a /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
-					0x77e30303 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-20400000 {
-				clock-frequency = <20400000>;
-
-				nvidia,emem-configuration = <
-					0x40020001 /* MC_EMEM_ARB_CFG */
-					0x80000012 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
-					0x76230303 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-40800000 {
-				clock-frequency = <40800000>;
-
-				nvidia,emem-configuration = <
-					0xa0000001 /* MC_EMEM_ARB_CFG */
-					0x80000017 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
-					0x74a30303 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-68000000 {
-				clock-frequency = <68000000>;
-
-				nvidia,emem-configuration = <
-					0x00000001 /* MC_EMEM_ARB_CFG */
-					0x8000001e /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0402 /* MC_EMEM_ARB_DA_COVERS */
-					0x74230403 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-102000000 {
-				clock-frequency = <102000000>;
-
-				nvidia,emem-configuration = <
-					0x08000001 /* MC_EMEM_ARB_CFG */
-					0x80000026 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000000 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000002 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06030203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0403 /* MC_EMEM_ARB_DA_COVERS */
-					0x73c30504 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-204000000 {
-				clock-frequency = <204000000>;
-
-				nvidia,emem-configuration = <
-					0x01000003 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000005 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000004 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000003 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06040203 /* MC_EMEM_ARB_DA_TURNS */
-					0x000a0405 /* MC_EMEM_ARB_DA_COVERS */
-					0x73840a06 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-300000000 {
-				clock-frequency = <300000000>;
-
-				nvidia,emem-configuration = <
-					0x08000004 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000007 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000004 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000005 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000007 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06040202 /* MC_EMEM_ARB_DA_TURNS */
-					0x000b0607 /* MC_EMEM_ARB_DA_COVERS */
-					0x77450e08 /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-396000000 {
-				clock-frequency = <396000000>;
-
-				nvidia,emem-configuration = <
-					0x0f000005 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000009 /* MC_EMEM_ARB_TIMING_RC */
-					0x00000005 /* MC_EMEM_ARB_TIMING_RAS */
-					0x00000007 /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000008 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000004 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06040202 /* MC_EMEM_ARB_DA_TURNS */
-					0x000d0709 /* MC_EMEM_ARB_DA_COVERS */
-					0x7586120a /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-528000000 {
-				clock-frequency = <528000000>;
-
-				nvidia,emem-configuration = <
-					0x0f000007 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RP */
-					0x0000000d /* MC_EMEM_ARB_TIMING_RC */
-					0x00000008 /* MC_EMEM_ARB_TIMING_RAS */
-					0x0000000a /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000001 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x00000009 /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000005 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_W2R */
-					0x06050202 /* MC_EMEM_ARB_DA_TURNS */
-					0x0010090d /* MC_EMEM_ARB_DA_COVERS */
-					0x7428180e /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-600000000 {
-				clock-frequency = <600000000>;
-
-				nvidia,emem-configuration = <
-					0x00000009 /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000004 /* MC_EMEM_ARB_TIMING_RP */
-					0x0000000e /* MC_EMEM_ARB_TIMING_RC */
-					0x00000009 /* MC_EMEM_ARB_TIMING_RAS */
-					0x0000000b /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x0000000b /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000005 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000007 /* MC_EMEM_ARB_TIMING_W2R */
-					0x07050202 /* MC_EMEM_ARB_DA_TURNS */
-					0x00130b0e /* MC_EMEM_ARB_DA_COVERS */
-					0x73a91b0f /* MC_EMEM_ARB_MISC0 */
-					0x70000f03 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-
-			timing-792000000 {
-				clock-frequency = <792000000>;
-
-				nvidia,emem-configuration = <
-					0x0e00000b /* MC_EMEM_ARB_CFG */
-					0x80000040 /* MC_EMEM_ARB_OUTSTANDING_REQ */
-					0x00000004 /* MC_EMEM_ARB_TIMING_RCD */
-					0x00000005 /* MC_EMEM_ARB_TIMING_RP */
-					0x00000013 /* MC_EMEM_ARB_TIMING_RC */
-					0x0000000c /* MC_EMEM_ARB_TIMING_RAS */
-					0x0000000f /* MC_EMEM_ARB_TIMING_FAW */
-					0x00000002 /* MC_EMEM_ARB_TIMING_RRD */
-					0x00000003 /* MC_EMEM_ARB_TIMING_RAP2PRE */
-					0x0000000c /* MC_EMEM_ARB_TIMING_WAP2PRE */
-					0x00000002 /* MC_EMEM_ARB_TIMING_R2R */
-					0x00000002 /* MC_EMEM_ARB_TIMING_W2W */
-					0x00000006 /* MC_EMEM_ARB_TIMING_R2W */
-					0x00000008 /* MC_EMEM_ARB_TIMING_W2R */
-					0x08060202 /* MC_EMEM_ARB_DA_TURNS */
-					0x00160d13 /* MC_EMEM_ARB_DA_COVERS */
-					0x734c2414 /* MC_EMEM_ARB_MISC0 */
-					0x70000f02 /* MC_EMEM_ARB_MISC1 */
-					0x001f0000 /* MC_EMEM_ARB_RING1_THROTTLE */
-				>;
-			};
-		};
-	};
+};
+
+&emc_icc_dvfs_opp_table {
+	/delete-node/ opp-924000000-1100;
+	/delete-node/ opp-1200000000-1100;
+};
+
+&emc_bw_dfs_opp_table {
+	/delete-node/ opp-924000000;
+	/delete-node/ opp-1200000000;
 };

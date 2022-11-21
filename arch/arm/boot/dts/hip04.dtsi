@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Hisilicon Ltd. HiP04 SoC
+ * HiSilicon Ltd. HiP04 SoC
  *
- * Copyright (C) 2013-2014 Hisilicon Ltd.
+ * Copyright (C) 2013-2014 HiSilicon Ltd.
  * Copyright (C) 2013-2014 Linaro Ltd.
  *
  * Author: Haojian Zhuang <haojian.zhuang@linaro.org>
@@ -250,12 +250,12 @@
 				     <0 79 4>;
 		};
 
-		uart0: uart@4007000 {
+		uart0: serial@4007000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x4007000 0x1000>;
 			interrupts = <0 381 4>;
-			clocks = <&clk_168m>;
-			clock-names = "uartclk";
+			clocks = <&clk_168m>, <&clk_168m>;
+			clock-names = "baudclk", "apb_pclk";
 			reg-shift = <2>;
 			status = "disabled";
 		};

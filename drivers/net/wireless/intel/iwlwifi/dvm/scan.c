@@ -3,10 +3,6 @@
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2018        Intel Corporation
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -405,7 +401,7 @@ static u16 iwl_limit_dwell(struct iwl_priv *priv, u16 dwell_time)
 		limit = (limits[1] * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
 		limit /= 2;
 		dwell_time = min(limit, dwell_time);
-		/* fall through */
+		fallthrough;
 	case 1:
 		limit = (limits[0] * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
 		limit /= n_active;

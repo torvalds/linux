@@ -91,7 +91,7 @@ static int ionic_fw_status_long_wait(struct ionic *ionic,
 	return err;
 }
 
-int ionic_firmware_update(struct ionic_lif *lif, const char *fw_name,
+int ionic_firmware_update(struct ionic_lif *lif, const struct firmware *fw,
 			  struct netlink_ext_ack *extack)
 {
 	struct ionic_dev *idev = &lif->ionic->idev;
@@ -99,23 +99,15 @@ int ionic_firmware_update(struct ionic_lif *lif, const char *fw_name,
 	struct ionic *ionic = lif->ionic;
 	union ionic_dev_cmd_comp comp;
 	u32 buf_sz, copy_sz, offset;
-	const struct firmware *fw;
 	struct devlink *dl;
 	int next_interval;
 	int err = 0;
 	u8 fw_slot;
 
-	netdev_info(netdev, "Installing firmware %s\n", fw_name);
+	netdev_info(netdev, "Installing firmware\n");
 
 	dl = priv_to_devlink(ionic);
-	devlink_flash_update_begin_notify(dl);
 	devlink_flash_update_status_notify(dl, "Preparing to flash", NULL, 0, 0);
-
-	err = request_firmware(&fw, fw_name, ionic->dev);
-	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Unable to find firmware file");
-		goto err_out;
-	}
 
 	buf_sz = sizeof(idev->dev_cmd_regs->data);
 
@@ -200,7 +192,5 @@ err_out:
 		devlink_flash_update_status_notify(dl, "Flash failed", NULL, 0, 0);
 	else
 		devlink_flash_update_status_notify(dl, "Flash done", NULL, 0, 0);
-	release_firmware(fw);
-	devlink_flash_update_end_notify(dl);
 	return err;
 }

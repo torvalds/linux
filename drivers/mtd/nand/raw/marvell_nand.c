@@ -451,7 +451,7 @@ struct marvell_nfc_timings {
 };
 
 /**
- * Derives a duration in numbers of clock cycles.
+ * TO_CYCLES() - Derives a duration in numbers of clock cycles.
  *
  * @ps: Duration in pico-seconds
  * @period_ns:  Clock period in nano-seconds
@@ -2396,7 +2396,7 @@ static int marvell_nfc_setup_interface(struct nand_chip *chip, int chipnr,
 	 * be greater than that to be sure tCCS delay is respected.
 	 */
 	nfc_tmg.tWHR = TO_CYCLES(max_t(int, sdr->tWHR_min, sdr->tCCS_min),
-				 period_ns) - 2,
+				 period_ns) - 2;
 	nfc_tmg.tRHW = TO_CYCLES(max_t(int, sdr->tRHW_min, sdr->tCCS_min),
 				 period_ns);
 
@@ -2677,12 +2677,6 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 
 	mtd = nand_to_mtd(chip);
 	mtd->dev.parent = dev;
-
-	/*
-	 * Default to HW ECC engine mode. If the nand-ecc-mode property is given
-	 * in the DT node, this entry will be overwritten in nand_scan_ident().
-	 */
-	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 
 	/*
 	 * Save a reference value for timing registers before
@@ -3036,8 +3030,10 @@ static int __maybe_unused marvell_nfc_resume(struct device *dev)
 		return ret;
 
 	ret = clk_prepare_enable(nfc->reg_clk);
-	if (ret < 0)
+	if (ret < 0) {
+		clk_disable_unprepare(nfc->core_clk);
 		return ret;
+	}
 
 	/*
 	 * Reset nfc->selected_chip so the next command will cause the timing

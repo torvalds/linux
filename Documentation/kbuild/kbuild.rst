@@ -77,6 +77,17 @@ HOSTLDLIBS
 ----------
 Additional libraries to link against when building host programs.
 
+.. _userkbuildflags:
+
+USERCFLAGS
+----------
+Additional options used for $(CC) when compiling userprogs.
+
+USERLDFLAGS
+-----------
+Additional options used for $(LD) when linking userprogs. userprogs are linked
+with CC, so $(USERLDFLAGS) should include "-Wl," prefix as applicable.
+
 KBUILD_KCONFIG
 --------------
 Set the top-level Kconfig file to the value of this environment

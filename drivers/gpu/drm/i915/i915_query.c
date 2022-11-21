@@ -31,7 +31,7 @@ static int copy_query_item(void *query_hdr, size_t query_sz,
 static int query_topology_info(struct drm_i915_private *dev_priv,
 			       struct drm_i915_query_item *query_item)
 {
-	const struct sseu_dev_info *sseu = &dev_priv->gt.info.sseu;
+	const struct sseu_dev_info *sseu = &to_gt(dev_priv)->info.sseu;
 	struct drm_i915_query_topology_info topo;
 	u32 slice_length, subslice_length, eu_length, total_length;
 	int ret;
@@ -124,7 +124,9 @@ query_engine_info(struct drm_i915_private *i915,
 	for_each_uabi_engine(engine, i915) {
 		info.engine.engine_class = engine->uabi_class;
 		info.engine.engine_instance = engine->uabi_instance;
+		info.flags = I915_ENGINE_INFO_HAS_LOGICAL_INSTANCE;
 		info.capabilities = engine->uabi_capabilities;
+		info.logical_instance = ilog2(engine->logical_mask);
 
 		if (copy_to_user(info_ptr, &info, sizeof(info)))
 			return -EFAULT;
@@ -419,11 +421,70 @@ static int query_perf_config(struct drm_i915_private *i915,
 	}
 }
 
+static int query_memregion_info(struct drm_i915_private *i915,
+				struct drm_i915_query_item *query_item)
+{
+	struct drm_i915_query_memory_regions __user *query_ptr =
+		u64_to_user_ptr(query_item->data_ptr);
+	struct drm_i915_memory_region_info __user *info_ptr =
+		&query_ptr->regions[0];
+	struct drm_i915_memory_region_info info = { };
+	struct drm_i915_query_memory_regions query;
+	struct intel_memory_region *mr;
+	u32 total_length;
+	int ret, id, i;
+
+	if (query_item->flags != 0)
+		return -EINVAL;
+
+	total_length = sizeof(query);
+	for_each_memory_region(mr, i915, id) {
+		if (mr->private)
+			continue;
+
+		total_length += sizeof(info);
+	}
+
+	ret = copy_query_item(&query, sizeof(query), total_length, query_item);
+	if (ret != 0)
+		return ret;
+
+	if (query.num_regions)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(query.rsvd); i++) {
+		if (query.rsvd[i])
+			return -EINVAL;
+	}
+
+	for_each_memory_region(mr, i915, id) {
+		if (mr->private)
+			continue;
+
+		info.region.memory_class = mr->type;
+		info.region.memory_instance = mr->instance;
+		info.probed_size = mr->total;
+		info.unallocated_size = mr->avail;
+
+		if (__copy_to_user(info_ptr, &info, sizeof(info)))
+			return -EFAULT;
+
+		query.num_regions++;
+		info_ptr++;
+	}
+
+	if (__copy_to_user(query_ptr, &query, sizeof(query)))
+		return -EFAULT;
+
+	return total_length;
+}
+
 static int (* const i915_query_funcs[])(struct drm_i915_private *dev_priv,
 					struct drm_i915_query_item *query_item) = {
 	query_topology_info,
 	query_engine_info,
 	query_perf_config,
+	query_memregion_info,
 };
 
 int i915_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)

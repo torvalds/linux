@@ -9,8 +9,8 @@ SYNOPSIS
 --------
 [verse]
 'perf stat' [-e <EVENT> | --event=EVENT] [-a] <command>
-'perf stat' [-e <EVENT> | --event=EVENT] [-a] -- <command> [<options>]
-'perf stat' [-e <EVENT> | --event=EVENT] [-a] record [-o file] -- <command> [<options>]
+'perf stat' [-e <EVENT> | --event=EVENT] [-a] \-- <command> [<options>]
+'perf stat' [-e <EVENT> | --event=EVENT] [-a] record [-o file] \-- <command> [<options>]
 'perf stat' report [-i file]
 
 DESCRIPTION
@@ -36,8 +36,10 @@ report::
 
 	- a symbolic event name (use 'perf list' to list all events)
 
-	- a raw PMU event (eventsel+umask) in the form of rNNN where NNN is a
-	  hexadecimal event descriptor.
+	- a raw PMU event in the form of rN where N is a hexadecimal value
+	  that represents the raw register encoding with the layout of the
+	  event control registers as described by entries in
+	  /sys/bus/event_sources/devices/cpu/format/*.
 
         - a symbolic or raw PMU event followed by an optional colon
 	  and a list of event modifiers, e.g., cpu-cycles:p.  See the
@@ -74,6 +76,37 @@ report::
 -t::
 --tid=<tid>::
         stat events on existing thread id (comma separated list)
+
+-b::
+--bpf-prog::
+        stat events on existing bpf program id (comma separated list),
+        requiring root rights. bpftool-prog could be used to find program
+        id all bpf programs in the system. For example:
+
+  # bpftool prog | head -n 1
+  17247: tracepoint  name sys_enter  tag 192d548b9d754067  gpl
+
+  # perf stat -e cycles,instructions --bpf-prog 17247 --timeout 1000
+
+   Performance counter stats for 'BPF program(s) 17247':
+
+             85,967      cycles
+             28,982      instructions              #    0.34  insn per cycle
+
+        1.102235068 seconds time elapsed
+
+--bpf-counters::
+	Use BPF programs to aggregate readings from perf_events.  This
+	allows multiple perf-stat sessions that are counting the same metric (cycles,
+	instructions, etc.) to share hardware counters.
+	To use BPF programs on common events by default, use
+	"perf config stat.bpf-counter-events=<list_of_events>".
+
+--bpf-attr-map::
+	With option "--bpf-counters", different perf-stat sessions share
+	information about shared BPF programs and maps via a pinned hashmap.
+	Use "--bpf-attr-map" to specify the path of this pinned hashmap.
+	The default path is /sys/fs/bpf/perf_attr_map.
 
 ifdef::HAVE_LIBPFM[]
 --pfm-events events::
@@ -124,7 +157,10 @@ Do not aggregate counts across all monitored CPUs.
 
 -n::
 --null::
-        null run - don't start any counters
+null run - Don't start any counters.
+
+This can be useful to measure just elapsed wall-clock time - or to assess the
+raw overhead of perf stat itself, without running any counters.
 
 -v::
 --verbose::
@@ -168,8 +204,9 @@ command line can be used: 'perf stat -e cycles -G cgroup_name -a -e cycles'.
 
 --for-each-cgroup name::
 Expand event list for each cgroup in "name" (allow multiple cgroups separated
-by comma).  This has same effect that repeating -e option and -G option for
-each event x name.  This option cannot be used with -G/--cgroup option.
+by comma).  It also support regex patterns to match multiple groups.  This has same
+effect that repeating -e option and -G option for each event x name.  This option
+cannot be used with -G/--cgroup option.
 
 -o file::
 --output file::
@@ -182,8 +219,8 @@ Append to the output file designated with the -o option. Ignored if -o is not sp
 
 Log output to fd, instead of stderr.  Complementary to --output, and mutually exclusive
 with it.  --append may be used here.  Examples:
-     3>results  perf stat --log-fd 3          -- $cmd
-     3>>results perf stat --log-fd 3 --append -- $cmd
+     3>results  perf stat --log-fd 3          \-- $cmd
+     3>>results perf stat --log-fd 3 --append \-- $cmd
 
 --control=fifo:ctl-fifo[,ack-fifo]::
 --control=fd:ctl-fd[,ack-fd]::
@@ -210,7 +247,7 @@ disable events during measurements:
 
  perf stat -D -1 -e cpu-cycles -a -I 1000       \
            --control fd:${ctl_fd},${ctl_fd_ack} \
-           -- sleep 30 &
+           \-- sleep 30 &
  perf_pid=$!
 
  sleep 5  && echo 'enable' >&${ctl_fd} && read -u ${ctl_fd_ack} e1 && echo "enabled(${e1})"
@@ -230,7 +267,7 @@ disable events during measurements:
 --post::
 	Pre and post measurement hooks, e.g.:
 
-perf stat --repeat 10 --null --sync --pre 'make -s O=defconfig-build/clean' -- make -s -j64 O=defconfig-build/ bzImage
+perf stat --repeat 10 --null --sync --pre 'make -s O=defconfig-build/clean' \-- make -s -j64 O=defconfig-build/ bzImage
 
 -I msecs::
 --interval-print msecs::
@@ -316,6 +353,10 @@ small group that need not have multiplexing is lowered. This option
 forbids the event merging logic from sharing events between groups and
 may be used to increase accuracy in this case.
 
+--quiet::
+Don't print output. This is useful with perf stat record below to only
+write data to the perf.data file.
+
 STAT RECORD
 -----------
 Stores stat data into perf data file.
@@ -346,14 +387,14 @@ Aggregate counts per physical processor for system-wide mode measurements.
 Print metrics or metricgroups specified in a comma separated list.
 For a group all metrics from the group are added.
 The events from the metrics are automatically measured.
-See perf list output for the possble metrics and metricgroups.
+See perf list output for the possible metrics and metricgroups.
 
 -A::
 --no-aggr::
 Do not aggregate counts across all monitored CPUs.
 
 --topdown::
-Print top down level 1 metrics if supported by the CPU. This allows to
+Print complete top-down metrics supported by the CPU. This allows to
 determine bottle necks in the CPU pipeline for CPU bound workloads,
 by breaking the cycles consumed down into frontend bound, backend bound,
 bad speculation and retiring.
@@ -387,6 +428,18 @@ on workload with changing phases.
 To interpret the results it is usually needed to know on which
 CPUs the workload runs on. If needed the CPUs can be forced using
 taskset.
+
+--td-level::
+Print the top-down statistics that equal to or lower than the input level.
+It allows users to print the interested top-down metrics level instead of
+the complete top-down metrics.
+
+The availability of the top-down metrics level depends on the hardware. For
+example, Ice Lake only supports L1 top-down metrics. The Sapphire Rapids
+supports both L1 and L2 top-down metrics.
+
+Default: 0 means the max level that the current hardware support.
+Error out if the input is higher than the supported max level.
 
 --no-merge::
 Do not merge results from same PMUs.
@@ -433,10 +486,23 @@ convenient for post processing.
 --summary::
 Print summary for interval mode (-I).
 
+--no-csv-summary::
+Don't print 'summary' at the first column for CVS summary output.
+This option must be used with -x and --summary.
+
+This option can be enabled in perf config by setting the variable
+'stat.no-csv-summary'.
+
+$ perf config stat.no-csv-summary=true
+
+--cputype::
+Only enable events on applying cpu with this type for hybrid platform
+(e.g. core or atom)"
+
 EXAMPLES
 --------
 
-$ perf stat -- make
+$ perf stat \-- make
 
    Performance counter stats for 'make':
 
@@ -491,6 +557,8 @@ The fields are in this order:
 	- optional unit of metric
 
 Additional metrics may be printed with all earlier fields being empty.
+
+include::intel-hybrid.txt[]
 
 SEE ALSO
 --------

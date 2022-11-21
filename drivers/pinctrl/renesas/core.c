@@ -175,13 +175,25 @@ u32 sh_pfc_read(struct sh_pfc *pfc, u32 reg)
 	return sh_pfc_read_raw_reg(sh_pfc_phys_to_virt(pfc, reg), 32);
 }
 
+static void sh_pfc_unlock_reg(struct sh_pfc *pfc, u32 reg, u32 data)
+{
+	u32 unlock;
+
+	if (!pfc->info->unlock_reg)
+		return;
+
+	if (pfc->info->unlock_reg >= 0x80000000UL)
+		unlock = pfc->info->unlock_reg;
+	else
+		/* unlock_reg is a mask */
+		unlock = reg & ~pfc->info->unlock_reg;
+
+	sh_pfc_write_raw_reg(sh_pfc_phys_to_virt(pfc, unlock), 32, ~data);
+}
+
 void sh_pfc_write(struct sh_pfc *pfc, u32 reg, u32 data)
 {
-	if (pfc->info->unlock_reg)
-		sh_pfc_write_raw_reg(
-			sh_pfc_phys_to_virt(pfc, pfc->info->unlock_reg), 32,
-			~data);
-
+	sh_pfc_unlock_reg(pfc, reg, data);
 	sh_pfc_write_raw_reg(sh_pfc_phys_to_virt(pfc, reg), 32, data);
 }
 
@@ -227,11 +239,7 @@ static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 	data &= mask;
 	data |= value;
 
-	if (pfc->info->unlock_reg)
-		sh_pfc_write_raw_reg(
-			sh_pfc_phys_to_virt(pfc, pfc->info->unlock_reg), 32,
-			~data);
-
+	sh_pfc_unlock_reg(pfc, crp->reg, data);
 	sh_pfc_write_raw_reg(mapped_reg, crp->reg_width, data);
 }
 
@@ -315,6 +323,7 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 		range = NULL;
 		break;
 
+#ifdef CONFIG_PINCTRL_SH_PFC_GPIO
 	case PINMUX_TYPE_OUTPUT:
 		range = &pfc->info->output;
 		break;
@@ -322,6 +331,7 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	case PINMUX_TYPE_INPUT:
 		range = &pfc->info->input;
 		break;
+#endif /* CONFIG_PINCTRL_SH_PFC_GPIO */
 
 	default:
 		return -EINVAL;
@@ -382,26 +392,6 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	}
 
 	return 0;
-}
-
-const struct pinmux_bias_reg *
-sh_pfc_pin_to_bias_reg(const struct sh_pfc *pfc, unsigned int pin,
-		       unsigned int *bit)
-{
-	unsigned int i, j;
-
-	for (i = 0; pfc->info->bias_regs[i].puen; i++) {
-		for (j = 0; j < ARRAY_SIZE(pfc->info->bias_regs[i].pins); j++) {
-			if (pfc->info->bias_regs[i].pins[j] == pin) {
-				*bit = j;
-				return &pfc->info->bias_regs[i];
-			}
-		}
-	}
-
-	WARN_ONCE(1, "Pin %u is not in bias info list\n", pin);
-
-	return NULL;
 }
 
 static int sh_pfc_init_ranges(struct sh_pfc *pfc)
@@ -581,17 +571,21 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7794_pinmux_info,
 	},
 #endif
-/* Both r8a7795 entries must be present to make sanity checks work */
-#ifdef CONFIG_PINCTRL_PFC_R8A77950
-	{
-		.compatible = "renesas,pfc-r8a7795",
-		.data = &r8a77950_pinmux_info,
-	},
-#endif
+/*
+ * Both r8a7795 entries must be present to make sanity checks work, but only
+ * the first entry is actually used.
+ * R-Car H3 ES1.x is matched using soc_device_match() instead.
+ */
 #ifdef CONFIG_PINCTRL_PFC_R8A77951
 	{
 		.compatible = "renesas,pfc-r8a7795",
 		.data = &r8a77951_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77950
+	{
+		.compatible = "renesas,pfc-r8a7795",
+		.data = &r8a77950_pinmux_info,
 	},
 #endif
 #ifdef CONFIG_PINCTRL_PFC_R8A77960
@@ -636,6 +630,18 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a77995_pinmux_info,
 	},
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A779A0
+	{
+		.compatible = "renesas,pfc-r8a779a0",
+		.data = &r8a779a0_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A779F0
+	{
+		.compatible = "renesas,pfc-r8a779f0",
+		.data = &r8a779f0_pinmux_info,
+	},
+#endif
 #ifdef CONFIG_PINCTRL_PFC_SH73A0
 	{
 		.compatible = "renesas,pfc-sh73a0",
@@ -675,8 +681,10 @@ static unsigned int sh_pfc_walk_regs(struct sh_pfc *pfc,
 			do_reg(pfc, pfc->info->drive_regs[i].reg, n++);
 
 	if (pfc->info->bias_regs)
-		for (i = 0; pfc->info->bias_regs[i].puen; i++) {
-			do_reg(pfc, pfc->info->bias_regs[i].puen, n++);
+		for (i = 0; pfc->info->bias_regs[i].puen ||
+			    pfc->info->bias_regs[i].pud; i++) {
+			if (pfc->info->bias_regs[i].puen)
+				do_reg(pfc, pfc->info->bias_regs[i].puen, n++);
 			if (pfc->info->bias_regs[i].pud)
 				do_reg(pfc, pfc->info->bias_regs[i].pud, n++);
 		}
@@ -739,20 +747,35 @@ static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
 
 #ifdef DEBUG
 #define SH_PFC_MAX_REGS		300
-#define SH_PFC_MAX_ENUMS	3000
+#define SH_PFC_MAX_ENUMS	5000
 
-static unsigned int sh_pfc_errors __initdata = 0;
-static unsigned int sh_pfc_warnings __initdata = 0;
-static u32 *sh_pfc_regs __initdata = NULL;
-static u32 sh_pfc_num_regs __initdata = 0;
-static u16 *sh_pfc_enums __initdata = NULL;
-static u32 sh_pfc_num_enums __initdata = 0;
+static unsigned int sh_pfc_errors __initdata;
+static unsigned int sh_pfc_warnings __initdata;
+static bool sh_pfc_bias_done __initdata;
+static bool sh_pfc_drive_done __initdata;
+static bool sh_pfc_power_done __initdata;
+static struct {
+	u32 reg;
+	u32 bits;
+} *sh_pfc_regs __initdata;
+static u32 sh_pfc_num_regs __initdata;
+static u16 *sh_pfc_enums __initdata;
+static u32 sh_pfc_num_enums __initdata;
 
 #define sh_pfc_err(fmt, ...)					\
 	do {							\
 		pr_err("%s: " fmt, drvname, ##__VA_ARGS__);	\
 		sh_pfc_errors++;				\
 	} while (0)
+
+#define sh_pfc_err_once(type, fmt, ...)				\
+	do {							\
+		if (!sh_pfc_ ## type ## _done) {		\
+			sh_pfc_ ## type ## _done = true;	\
+			sh_pfc_err(fmt, ##__VA_ARGS__);		\
+		}						\
+	} while (0)
+
 #define sh_pfc_warn(fmt, ...)					\
 	do {							\
 		pr_warn("%s: " fmt, drvname, ##__VA_ARGS__);	\
@@ -772,28 +795,33 @@ static bool __init is0s(const u16 *enum_ids, unsigned int n)
 
 static bool __init same_name(const char *a, const char *b)
 {
-	if (!a || !b)
-		return false;
-
-	return !strcmp(a, b);
+	return a && b && !strcmp(a, b);
 }
 
-static void __init sh_pfc_check_reg(const char *drvname, u32 reg)
+static void __init sh_pfc_check_reg(const char *drvname, u32 reg, u32 bits)
 {
 	unsigned int i;
 
-	for (i = 0; i < sh_pfc_num_regs; i++)
-		if (reg == sh_pfc_regs[i]) {
-			sh_pfc_err("reg 0x%x conflict\n", reg);
-			return;
-		}
+	for (i = 0; i < sh_pfc_num_regs; i++) {
+		if (reg != sh_pfc_regs[i].reg)
+			continue;
+
+		if (bits & sh_pfc_regs[i].bits)
+			sh_pfc_err("reg 0x%x: bits 0x%x conflict\n", reg,
+				   bits & sh_pfc_regs[i].bits);
+
+		sh_pfc_regs[i].bits |= bits;
+		return;
+	}
 
 	if (sh_pfc_num_regs == SH_PFC_MAX_REGS) {
 		pr_warn_once("%s: Please increase SH_PFC_MAX_REGS\n", drvname);
 		return;
 	}
 
-	sh_pfc_regs[sh_pfc_num_regs++] = reg;
+	sh_pfc_regs[sh_pfc_num_regs].reg = reg;
+	sh_pfc_regs[sh_pfc_num_regs].bits = bits;
+	sh_pfc_num_regs++;
 }
 
 static int __init sh_pfc_check_enum(const char *drvname, u16 enum_id)
@@ -826,21 +854,22 @@ static void __init sh_pfc_check_reg_enums(const char *drvname, u32 reg,
 	}
 }
 
-static void __init sh_pfc_check_pin(const struct sh_pfc_soc_info *info,
-				    u32 reg, unsigned int pin)
+static const struct sh_pfc_pin __init *sh_pfc_find_pin(
+	const struct sh_pfc_soc_info *info, u32 reg, unsigned int pin)
 {
 	const char *drvname = info->name;
 	unsigned int i;
 
 	if (pin == SH_PFC_PIN_NONE)
-		return;
+		return NULL;
 
 	for (i = 0; i < info->nr_pins; i++) {
 		if (pin == info->pins[i].pin)
-			return;
+			return &info->pins[i];
 	}
 
 	sh_pfc_err("reg 0x%x: pin %u not found\n", reg, pin);
+	return NULL;
 }
 
 static void __init sh_pfc_check_cfg_reg(const char *drvname,
@@ -848,10 +877,12 @@ static void __init sh_pfc_check_cfg_reg(const char *drvname,
 {
 	unsigned int i, n, rw, fw;
 
-	sh_pfc_check_reg(drvname, cfg_reg->reg);
+	sh_pfc_check_reg(drvname, cfg_reg->reg,
+			 GENMASK(cfg_reg->reg_width - 1, 0));
 
 	if (cfg_reg->field_width) {
-		n = cfg_reg->reg_width / cfg_reg->field_width;
+		fw = cfg_reg->field_width;
+		n = (cfg_reg->reg_width / fw) << fw;
 		/* Skip field checks (done at build time) */
 		goto check_enum_ids;
 	}
@@ -880,51 +911,118 @@ static void __init sh_pfc_check_drive_reg(const struct sh_pfc_soc_info *info,
 					  const struct pinmux_drive_reg *drive)
 {
 	const char *drvname = info->name;
-	unsigned long seen = 0, mask;
+	const struct sh_pfc_pin *pin;
 	unsigned int i;
 
-	sh_pfc_check_reg(info->name, drive->reg);
 	for (i = 0; i < ARRAY_SIZE(drive->fields); i++) {
 		const struct pinmux_drive_reg_field *field = &drive->fields[i];
 
 		if (!field->pin && !field->offset && !field->size)
 			continue;
 
-		mask = GENMASK(field->offset + field->size, field->offset);
-		if (mask & seen)
-			sh_pfc_err("drive_reg 0x%x: field %u overlap\n",
-				   drive->reg, i);
-		seen |= mask;
+		sh_pfc_check_reg(info->name, drive->reg,
+				 GENMASK(field->offset + field->size - 1,
+					 field->offset));
 
-		sh_pfc_check_pin(info, drive->reg, field->pin);
+		pin = sh_pfc_find_pin(info, drive->reg, field->pin);
+		if (pin && !(pin->configs & SH_PFC_PIN_CFG_DRIVE_STRENGTH))
+			sh_pfc_err("drive_reg 0x%x: field %u: pin %s lacks SH_PFC_PIN_CFG_DRIVE_STRENGTH flag\n",
+				   drive->reg, i, pin->name);
 	}
 }
 
 static void __init sh_pfc_check_bias_reg(const struct sh_pfc_soc_info *info,
 					 const struct pinmux_bias_reg *bias)
 {
+	const char *drvname = info->name;
+	const struct sh_pfc_pin *pin;
 	unsigned int i;
+	u32 bits;
 
-	sh_pfc_check_reg(info->name, bias->puen);
+	for (i = 0, bits = 0; i < ARRAY_SIZE(bias->pins); i++)
+		if (bias->pins[i] != SH_PFC_PIN_NONE)
+			bits |= BIT(i);
+
+	if (bias->puen)
+		sh_pfc_check_reg(info->name, bias->puen, bits);
 	if (bias->pud)
-		sh_pfc_check_reg(info->name, bias->pud);
-	for (i = 0; i < ARRAY_SIZE(bias->pins); i++)
-		sh_pfc_check_pin(info, bias->puen, bias->pins[i]);
+		sh_pfc_check_reg(info->name, bias->pud, bits);
+	for (i = 0; i < ARRAY_SIZE(bias->pins); i++) {
+		pin = sh_pfc_find_pin(info, bias->puen, bias->pins[i]);
+		if (!pin)
+			continue;
+
+		if (bias->puen && bias->pud) {
+			/*
+			 * Pull-enable and pull-up/down control registers
+			 * As some SoCs have pins that support only pull-up
+			 * or pull-down, we just check for one of them
+			 */
+			if (!(pin->configs & SH_PFC_PIN_CFG_PULL_UP_DOWN))
+				sh_pfc_err("bias_reg 0x%x:%u: pin %s lacks one or more SH_PFC_PIN_CFG_PULL_* flags\n",
+					   bias->puen, i, pin->name);
+		} else if (bias->puen) {
+			/* Pull-up control register only */
+			if (!(pin->configs & SH_PFC_PIN_CFG_PULL_UP))
+				sh_pfc_err("bias_reg 0x%x:%u: pin %s lacks SH_PFC_PIN_CFG_PULL_UP flag\n",
+					   bias->puen, i, pin->name);
+		} else if (bias->pud) {
+			/* Pull-down control register only */
+			if (!(pin->configs & SH_PFC_PIN_CFG_PULL_DOWN))
+				sh_pfc_err("bias_reg 0x%x:%u: pin %s lacks SH_PFC_PIN_CFG_PULL_DOWN flag\n",
+					   bias->pud, i, pin->name);
+		}
+	}
+}
+
+static void __init sh_pfc_compare_groups(const char *drvname,
+					 const struct sh_pfc_pin_group *a,
+					 const struct sh_pfc_pin_group *b)
+{
+	unsigned int i;
+	size_t len;
+
+	if (same_name(a->name, b->name))
+		sh_pfc_err("group %s: name conflict\n", a->name);
+
+	if (a->nr_pins > b->nr_pins)
+		swap(a, b);
+
+	len = a->nr_pins * sizeof(a->pins[0]);
+	for (i = 0; i <= b->nr_pins - a->nr_pins; i++) {
+		if (a->pins == b->pins + i || a->mux == b->mux + i ||
+		    memcmp(a->pins, b->pins + i, len) ||
+		    memcmp(a->mux, b->mux + i, len))
+			continue;
+
+		if (a->nr_pins == b->nr_pins)
+			sh_pfc_warn("group %s can be an alias for %s\n",
+				    a->name, b->name);
+		else
+			sh_pfc_warn("group %s is a subset of %s\n", a->name,
+				    b->name);
+	}
 }
 
 static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 {
+	const struct pinmux_drive_reg *drive_regs = info->drive_regs;
+	const struct pinmux_bias_reg *bias_regs = info->bias_regs;
 	const char *drvname = info->name;
 	unsigned int *refcnts;
 	unsigned int i, j, k;
 
-	pr_info("Checking %s\n", drvname);
+	pr_info("sh_pfc: Checking %s\n", drvname);
 	sh_pfc_num_regs = 0;
 	sh_pfc_num_enums = 0;
+	sh_pfc_bias_done = false;
+	sh_pfc_drive_done = false;
+	sh_pfc_power_done = false;
 
 	/* Check pins */
 	for (i = 0; i < info->nr_pins; i++) {
 		const struct sh_pfc_pin *pin = &info->pins[i];
+		unsigned int x;
 
 		if (!pin->name) {
 			sh_pfc_err("empty pin %u\n", i);
@@ -945,6 +1043,65 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 				sh_pfc_err("pin %s/%s: enum_id %u conflict\n",
 					   pin->name, pin2->name,
 					   pin->enum_id);
+		}
+
+		if (pin->configs & SH_PFC_PIN_CFG_PULL_UP_DOWN) {
+			if (!info->ops || !info->ops->get_bias ||
+			    !info->ops->set_bias)
+				sh_pfc_err_once(bias, "SH_PFC_PIN_CFG_PULL_* flag set but .[gs]et_bias() not implemented\n");
+
+			if (!bias_regs &&
+			     (!info->ops || !info->ops->pin_to_portcr))
+				sh_pfc_err_once(bias, "SH_PFC_PIN_CFG_PULL_UP flag set but no bias_regs defined and .pin_to_portcr() not implemented\n");
+		}
+
+		if ((pin->configs & SH_PFC_PIN_CFG_PULL_UP_DOWN) && bias_regs) {
+			const struct pinmux_bias_reg *bias_reg =
+				rcar_pin_to_bias_reg(info, pin->pin, &x);
+
+			if (!bias_reg ||
+			    ((pin->configs & SH_PFC_PIN_CFG_PULL_UP) &&
+			     !bias_reg->puen))
+				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_PULL_UP flag set but pin not in bias_regs\n",
+					   pin->name);
+
+			if (!bias_reg ||
+			    ((pin->configs & SH_PFC_PIN_CFG_PULL_DOWN) &&
+			     !bias_reg->pud))
+				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_PULL_DOWN flag set but pin not in bias_regs\n",
+					   pin->name);
+		}
+
+		if (pin->configs & SH_PFC_PIN_CFG_DRIVE_STRENGTH) {
+			if (!drive_regs) {
+				sh_pfc_err_once(drive, "SH_PFC_PIN_CFG_DRIVE_STRENGTH flag set but drive_regs missing\n");
+			} else {
+				for (j = 0; drive_regs[j / 8].reg; j++) {
+					if (!drive_regs[j / 8].fields[j % 8].pin &&
+					    !drive_regs[j / 8].fields[j % 8].offset &&
+					    !drive_regs[j / 8].fields[j % 8].size)
+						continue;
+
+					if (drive_regs[j / 8].fields[j % 8].pin == pin->pin)
+						break;
+				}
+
+				if (!drive_regs[j / 8].reg)
+					sh_pfc_err("pin %s: SH_PFC_PIN_CFG_DRIVE_STRENGTH flag set but not in drive_regs\n",
+						   pin->name);
+			}
+		}
+
+		if (pin->configs & SH_PFC_PIN_CFG_IO_VOLTAGE) {
+			if (!info->ops || !info->ops->pin_to_pocctrl)
+				sh_pfc_err_once(power, "SH_PFC_PIN_CFG_IO_VOLTAGE flag set but .pin_to_pocctrl() not implemented\n");
+			else if (info->ops->pin_to_pocctrl(pin->pin, &x) < 0)
+				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_IO_VOLTAGE set but invalid pin_to_pocctrl()\n",
+					   pin->name);
+		} else if (info->ops && info->ops->pin_to_pocctrl &&
+			   info->ops->pin_to_pocctrl(pin->pin, &x) >= 0) {
+			sh_pfc_warn("pin %s: SH_PFC_PIN_CFG_IO_VOLTAGE not set but valid pin_to_pocctrl()\n",
+				    pin->name);
 		}
 	}
 
@@ -987,11 +1144,9 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 			sh_pfc_err("empty group %u\n", i);
 			continue;
 		}
-		for (j = 0; j < i; j++) {
-			if (same_name(group->name, info->groups[j].name))
-				sh_pfc_err("group %s: name conflict\n",
-					   group->name);
-		}
+		for (j = 0; j < i; j++)
+			sh_pfc_compare_groups(drvname, group, &info->groups[j]);
+
 		if (!refcnts[i])
 			sh_pfc_err("orphan group %s\n", group->name);
 		else if (refcnts[i] > 1)
@@ -1006,20 +1161,61 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 		sh_pfc_check_cfg_reg(drvname, &info->cfg_regs[i]);
 
 	/* Check drive strength registers */
-	for (i = 0; info->drive_regs && info->drive_regs[i].reg; i++)
-		sh_pfc_check_drive_reg(info, &info->drive_regs[i]);
+	for (i = 0; drive_regs && drive_regs[i].reg; i++)
+		sh_pfc_check_drive_reg(info, &drive_regs[i]);
+
+	for (i = 0; drive_regs && drive_regs[i / 8].reg; i++) {
+		if (!drive_regs[i / 8].fields[i % 8].pin &&
+		    !drive_regs[i / 8].fields[i % 8].offset &&
+		    !drive_regs[i / 8].fields[i % 8].size)
+			continue;
+
+		for (j = 0; j < i; j++) {
+			if (drive_regs[i / 8].fields[i % 8].pin ==
+			    drive_regs[j / 8].fields[j % 8].pin &&
+			    drive_regs[j / 8].fields[j % 8].offset &&
+			    drive_regs[j / 8].fields[j % 8].size) {
+				sh_pfc_err("drive_reg 0x%x:%u/0x%x:%u: pin conflict\n",
+					   drive_regs[i / 8].reg, i % 8,
+					   drive_regs[j / 8].reg, j % 8);
+			}
+		}
+	}
 
 	/* Check bias registers */
-	for (i = 0; info->bias_regs && info->bias_regs[i].puen; i++)
-		sh_pfc_check_bias_reg(info, &info->bias_regs[i]);
+	for (i = 0; bias_regs && (bias_regs[i].puen || bias_regs[i].pud); i++)
+		sh_pfc_check_bias_reg(info, &bias_regs[i]);
+
+	for (i = 0; bias_regs &&
+		    (bias_regs[i / 32].puen || bias_regs[i / 32].pud); i++) {
+		if (bias_regs[i / 32].pins[i % 32] == SH_PFC_PIN_NONE)
+			continue;
+
+		for (j = 0; j < i; j++) {
+			if (bias_regs[i / 32].pins[i % 32] !=
+			    bias_regs[j / 32].pins[j % 32])
+				continue;
+
+			if (bias_regs[i / 32].puen && bias_regs[j / 32].puen)
+				sh_pfc_err("bias_reg 0x%x:%u/0x%x:%u: pin conflict\n",
+					   bias_regs[i / 32].puen, i % 32,
+					   bias_regs[j / 32].puen, j % 32);
+			if (bias_regs[i / 32].pud && bias_regs[j / 32].pud)
+				sh_pfc_err("bias_reg 0x%x:%u/0x%x:%u: pin conflict\n",
+					   bias_regs[i / 32].pud, i % 32,
+					   bias_regs[j / 32].pud, j % 32);
+		}
+
+	}
 
 	/* Check ioctrl registers */
 	for (i = 0; info->ioctrl_regs && info->ioctrl_regs[i].reg; i++)
-		sh_pfc_check_reg(drvname, info->ioctrl_regs[i].reg);
+		sh_pfc_check_reg(drvname, info->ioctrl_regs[i].reg, U32_MAX);
 
 	/* Check data registers */
 	for (i = 0; info->data_regs && info->data_regs[i].reg; i++) {
-		sh_pfc_check_reg(drvname, info->data_regs[i].reg);
+		sh_pfc_check_reg(drvname, info->data_regs[i].reg,
+				 GENMASK(info->data_regs[i].reg_width - 1, 0));
 		sh_pfc_check_reg_enums(drvname, info->data_regs[i].reg,
 				       info->data_regs[i].enum_ids,
 				       info->data_regs[i].reg_width);
@@ -1050,6 +1246,10 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 {
 	unsigned int i;
 
+	if (!IS_ENABLED(CONFIG_SUPERH) &&
+	    !of_find_matching_node(NULL, pdrv->driver.of_match_table))
+		return;
+
 	sh_pfc_regs = kcalloc(SH_PFC_MAX_REGS, sizeof(*sh_pfc_regs),
 			      GFP_KERNEL);
 	if (!sh_pfc_regs)
@@ -1060,7 +1260,7 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 	if (!sh_pfc_enums)
 		goto free_regs;
 
-	pr_warn("Checking builtin pinmux tables\n");
+	pr_warn("sh_pfc: Checking builtin pinmux tables\n");
 
 	for (i = 0; pdrv->id_table[i].name[0]; i++)
 		sh_pfc_check_info((void *)pdrv->id_table[i].driver_data);
@@ -1070,7 +1270,7 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 		sh_pfc_check_info(pdrv->driver.of_match_table[i].data);
 #endif
 
-	pr_warn("Detected %u errors and %u warnings\n", sh_pfc_errors,
+	pr_warn("sh_pfc: Detected %u errors and %u warnings\n", sh_pfc_errors,
 		sh_pfc_warnings);
 
 	kfree(sh_pfc_enums);
@@ -1085,26 +1285,20 @@ static inline void sh_pfc_check_driver(struct platform_driver *pdrv) {}
 #ifdef CONFIG_OF
 static const void *sh_pfc_quirk_match(void)
 {
-#if defined(CONFIG_PINCTRL_PFC_R8A77950) || \
-    defined(CONFIG_PINCTRL_PFC_R8A77951)
+#ifdef CONFIG_PINCTRL_PFC_R8A77950
 	const struct soc_device_attribute *match;
 	static const struct soc_device_attribute quirks[] = {
 		{
 			.soc_id = "r8a7795", .revision = "ES1.*",
 			.data = &r8a77950_pinmux_info,
 		},
-		{
-			.soc_id = "r8a7795",
-			.data = &r8a77951_pinmux_info,
-		},
-
 		{ /* sentinel */ }
 	};
 
 	match = soc_device_match(quirks);
 	if (match)
-		return match->data ?: ERR_PTR(-ENODEV);
-#endif /* CONFIG_PINCTRL_PFC_R8A77950 || CONFIG_PINCTRL_PFC_R8A77951 */
+		return match->data;
+#endif /* CONFIG_PINCTRL_PFC_R8A77950 */
 
 	return NULL;
 }
@@ -1119,9 +1313,6 @@ static int sh_pfc_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node) {
 		info = sh_pfc_quirk_match();
-		if (IS_ERR(info))
-			return PTR_ERR(info);
-
 		if (!info)
 			info = of_device_get_match_data(&pdev->dev);
 	} else

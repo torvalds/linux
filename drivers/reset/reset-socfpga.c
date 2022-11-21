@@ -44,7 +44,7 @@ static int a10_reset_init(struct device_node *np)
 	data->membase = ioremap(res.start, size);
 	if (!data->membase) {
 		ret = -ENOMEM;
-		goto err_alloc;
+		goto release_region;
 	}
 
 	if (of_property_read_u32(np, "altr,modrst-offset", &reg_offset))
@@ -59,7 +59,14 @@ static int a10_reset_init(struct device_node *np)
 	data->rcdev.of_node = np;
 	data->status_active_low = true;
 
-	return reset_controller_register(&data->rcdev);
+	ret = reset_controller_register(&data->rcdev);
+	if (ret)
+		pr_err("unable to register device\n");
+
+	return ret;
+
+release_region:
+	release_mem_region(res.start, size);
 
 err_alloc:
 	kfree(data);
@@ -85,3 +92,29 @@ void __init socfpga_reset_init(void)
 	for_each_matching_node(np, socfpga_early_reset_dt_ids)
 		a10_reset_init(np);
 }
+
+/*
+ * The early driver is problematic, because it doesn't register
+ * itself as a driver. This causes certain device links to prevent
+ * consumer devices from probing. The hacky solution is to register
+ * an empty driver, whose only job is to attach itself to the reset
+ * manager and call probe.
+ */
+static const struct of_device_id socfpga_reset_dt_ids[] = {
+	{ .compatible = "altr,rst-mgr", },
+	{ /* sentinel */ },
+};
+
+static int reset_simple_probe(struct platform_device *pdev)
+{
+	return 0;
+}
+
+static struct platform_driver reset_socfpga_driver = {
+	.probe	= reset_simple_probe,
+	.driver = {
+		.name		= "socfpga-reset",
+		.of_match_table	= socfpga_reset_dt_ids,
+	},
+};
+builtin_platform_driver(reset_socfpga_driver);

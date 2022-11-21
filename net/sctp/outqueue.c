@@ -547,6 +547,9 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 			sctp_assoc_update_retran_path(transport->asoc);
 		transport->asoc->rtx_data_chunks +=
 			transport->asoc->unack_data;
+		if (transport->pl.state == SCTP_PL_COMPLETE &&
+		    transport->asoc->unack_data)
+			sctp_transport_reset_probe_timer(transport);
 		break;
 	case SCTP_RTXR_FAST_RTX:
 		SCTP_INC_STATS(net, SCTP_MIB_FAST_RETRANSMITS);
@@ -769,7 +772,11 @@ static int sctp_packet_singleton(struct sctp_transport *transport,
 
 	sctp_packet_init(&singleton, transport, sport, dport);
 	sctp_packet_config(&singleton, vtag, 0);
-	sctp_packet_append_chunk(&singleton, chunk);
+	if (sctp_packet_append_chunk(&singleton, chunk) != SCTP_XMIT_OK) {
+		list_del_init(&chunk->list);
+		sctp_chunk_free(chunk);
+		return -ENOMEM;
+	}
 	return sctp_packet_transmit(&singleton, gfp);
 }
 
@@ -907,6 +914,7 @@ static void sctp_outq_flush_ctrl(struct sctp_flush_ctx *ctx)
 				ctx->asoc->base.sk->sk_err = -error;
 				return;
 			}
+			ctx->asoc->stats.octrlchunks++;
 			break;
 
 		case SCTP_CID_ABORT:
@@ -929,8 +937,16 @@ static void sctp_outq_flush_ctrl(struct sctp_flush_ctx *ctx)
 			one_packet = 1;
 			fallthrough;
 
-		case SCTP_CID_SACK:
 		case SCTP_CID_HEARTBEAT:
+			if (chunk->pmtu_probe) {
+				error = sctp_packet_singleton(ctx->transport,
+							      chunk, ctx->gfp);
+				if (!error)
+					ctx->asoc->stats.octrlchunks++;
+				break;
+			}
+			fallthrough;
+		case SCTP_CID_SACK:
 		case SCTP_CID_SHUTDOWN:
 		case SCTP_CID_ECN_ECNE:
 		case SCTP_CID_ASCONF:
@@ -1135,6 +1151,7 @@ static void sctp_outq_flush_data(struct sctp_flush_ctx *ctx,
 
 static void sctp_outq_flush_transports(struct sctp_flush_ctx *ctx)
 {
+	struct sock *sk = ctx->asoc->base.sk;
 	struct list_head *ltransport;
 	struct sctp_packet *packet;
 	struct sctp_transport *t;
@@ -1144,6 +1161,12 @@ static void sctp_outq_flush_transports(struct sctp_flush_ctx *ctx)
 		t = list_entry(ltransport, struct sctp_transport, send_ready);
 		packet = &t->packet;
 		if (!sctp_packet_empty(packet)) {
+			rcu_read_lock();
+			if (t->dst && __sk_dst_get(sk) != t->dst) {
+				dst_hold(t->dst);
+				sk_setup_caps(sk, t->dst);
+			}
+			rcu_read_unlock();
 			error = sctp_packet_transmit(packet, ctx->gfp);
 			if (error < 0)
 				ctx->q->asoc->base.sk->sk_err = -error;

@@ -16,50 +16,48 @@
 #include <linux/bits.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <asm/asm.h>
 #include <asm/barrier.h>
 #include <asm/byteorder.h>		/* sigh ... */
 #include <asm/compiler.h>
 #include <asm/cpu-features.h>
-#include <asm/isa-rev.h>
-#include <asm/llsc.h>
 #include <asm/sgidefs.h>
-#include <asm/war.h>
 
 #define __bit_op(mem, insn, inputs...) do {			\
-	unsigned long temp;					\
+	unsigned long __temp;					\
 								\
 	asm volatile(						\
 	"	.set		push			\n"	\
 	"	.set		" MIPS_ISA_LEVEL "	\n"	\
 	"	" __SYNC(full, loongson3_war) "		\n"	\
-	"1:	" __LL		"%0, %1			\n"	\
+	"1:	" __stringify(LONG_LL)	"	%0, %1	\n"	\
 	"	" insn		"			\n"	\
-	"	" __SC		"%0, %1			\n"	\
-	"	" __SC_BEQZ	"%0, 1b			\n"	\
+	"	" __stringify(LONG_SC)	"	%0, %1	\n"	\
+	"	" __stringify(SC_BEQZ)	"	%0, 1b	\n"	\
 	"	.set		pop			\n"	\
-	: "=&r"(temp), "+" GCC_OFF_SMALL_ASM()(mem)		\
+	: "=&r"(__temp), "+" GCC_OFF_SMALL_ASM()(mem)		\
 	: inputs						\
 	: __LLSC_CLOBBER);					\
 } while (0)
 
 #define __test_bit_op(mem, ll_dst, insn, inputs...) ({		\
-	unsigned long orig, temp;				\
+	unsigned long __orig, __temp;				\
 								\
 	asm volatile(						\
 	"	.set		push			\n"	\
 	"	.set		" MIPS_ISA_LEVEL "	\n"	\
 	"	" __SYNC(full, loongson3_war) "		\n"	\
-	"1:	" __LL		ll_dst ", %2		\n"	\
+	"1:	" __stringify(LONG_LL) " "	ll_dst ", %2\n"	\
 	"	" insn		"			\n"	\
-	"	" __SC		"%1, %2			\n"	\
-	"	" __SC_BEQZ	"%1, 1b			\n"	\
+	"	" __stringify(LONG_SC)	"	%1, %2	\n"	\
+	"	" __stringify(SC_BEQZ)	"	%1, 1b	\n"	\
 	"	.set		pop			\n"	\
-	: "=&r"(orig), "=&r"(temp),				\
+	: "=&r"(__orig), "=&r"(__temp),				\
 	  "+" GCC_OFF_SMALL_ASM()(mem)				\
 	: inputs						\
 	: __LLSC_CLOBBER);					\
 								\
-	orig;							\
+	__orig;							\
 })
 
 /*
@@ -98,7 +96,7 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 	}
 
 	if ((MIPS_ISA_REV >= 2) && __builtin_constant_p(bit) && (bit >= 16)) {
-		__bit_op(*m, __INS "%0, %3, %2, 1", "i"(bit), "r"(~0));
+		__bit_op(*m, __stringify(LONG_INS) " %0, %3, %2, 1", "i"(bit), "r"(~0));
 		return;
 	}
 
@@ -126,7 +124,7 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 	}
 
 	if ((MIPS_ISA_REV >= 2) && __builtin_constant_p(bit)) {
-		__bit_op(*m, __INS "%0, $0, %2, 1", "i"(bit));
+		__bit_op(*m, __stringify(LONG_INS) " %0, $0, %2, 1", "i"(bit));
 		return;
 	}
 
@@ -234,8 +232,8 @@ static inline int test_and_clear_bit(unsigned long nr,
 		res = __mips_test_and_clear_bit(nr, addr);
 	} else if ((MIPS_ISA_REV >= 2) && __builtin_constant_p(nr)) {
 		res = __test_bit_op(*m, "%1",
-				    __EXT "%0, %1, %3, 1;"
-				    __INS "%1, $0, %3, 1",
+				    __stringify(LONG_EXT) " %0, %1, %3, 1;"
+				    __stringify(LONG_INS) " %1, $0, %3, 1",
 				    "i"(bit));
 	} else {
 		orig = __test_bit_op(*m, "%0",
@@ -435,7 +433,7 @@ static inline int fls(unsigned int x)
  *
  * This is defined the same way as
  * the libc and compiler builtin ffs routines, therefore
- * differs in spirit from the above ffz (man ffs).
+ * differs in spirit from the below ffz (man ffs).
  */
 static inline int ffs(int word)
 {
@@ -446,7 +444,6 @@ static inline int ffs(int word)
 }
 
 #include <asm-generic/bitops/ffz.h>
-#include <asm-generic/bitops/find.h>
 
 #ifdef __KERNEL__
 

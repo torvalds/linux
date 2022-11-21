@@ -16,7 +16,6 @@
 #include "card.h"
 #include "quirks.h"
 #include "helper.h"
-#include "debug.h"
 #include "clock.h"
 #include "format.h"
 
@@ -40,6 +39,8 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 	case UAC_VERSION_1:
 	default: {
 		struct uac_format_type_i_discrete_descriptor *fmt = _fmt;
+		if (format >= 64)
+			return 0; /* invalid format */
 		sample_width = fmt->bBitResolution;
 		sample_bytes = fmt->bSubframeSize;
 		format = 1ULL << format;
@@ -165,6 +166,23 @@ static int set_fixed_rate(struct audioformat *fp, int rate, int rate_bits)
 	return 0;
 }
 
+/* set up rate_min, rate_max and rates from the rate table */
+static void set_rate_table_min_max(struct audioformat *fp)
+{
+	unsigned int rate;
+	int i;
+
+	fp->rate_min = INT_MAX;
+	fp->rate_max = 0;
+	fp->rates = 0;
+	for (i = 0; i < fp->nr_rates; i++) {
+		rate = fp->rate_table[i];
+		fp->rate_min = min(fp->rate_min, rate);
+		fp->rate_max = max(fp->rate_max, rate);
+		fp->rates |= snd_pcm_rate_to_rate_bit(rate);
+	}
+}
+
 /*
  * parse the format descriptor and stores the possible sample rates
  * on the audioformat table (audio class v1).
@@ -199,16 +217,17 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
 			return -ENOMEM;
 
 		fp->nr_rates = 0;
-		fp->rate_min = fp->rate_max = 0;
 		for (r = 0, idx = offset + 1; r < nr_rates; r++, idx += 3) {
 			unsigned int rate = combine_triple(&fmt[idx]);
 			if (!rate)
 				continue;
 			/* C-Media CM6501 mislabels its 96 kHz altsetting */
 			/* Terratec Aureon 7.1 USB C-Media 6206, too */
+			/* Ozone Z90 USB C-Media, too */
 			if (rate == 48000 && nr_rates == 1 &&
 			    (chip->usb_id == USB_ID(0x0d8c, 0x0201) ||
 			     chip->usb_id == USB_ID(0x0d8c, 0x0102) ||
+			     chip->usb_id == USB_ID(0x0d8c, 0x0078) ||
 			     chip->usb_id == USB_ID(0x0ccd, 0x00b1)) &&
 			    fp->altsetting == 5 && fp->maxpacksize == 392)
 				rate = 96000;
@@ -218,18 +237,15 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
 			     chip->usb_id == USB_ID(0x041e, 0x4068)))
 				rate = 8000;
 
-			fp->rate_table[fp->nr_rates] = rate;
-			if (!fp->rate_min || rate < fp->rate_min)
-				fp->rate_min = rate;
-			if (!fp->rate_max || rate > fp->rate_max)
-				fp->rate_max = rate;
-			fp->rates |= snd_pcm_rate_to_rate_bit(rate);
-			fp->nr_rates++;
+			fp->rate_table[fp->nr_rates++] = rate;
 		}
 		if (!fp->nr_rates) {
-			hwc_debug("All rates were zero. Skipping format!\n");
+			usb_audio_info(chip,
+				       "%u:%d: All rates were zero\n",
+				       fp->iface, fp->altsetting);
 			return -EINVAL;
 		}
+		set_rate_table_min_max(fp);
 	} else {
 		/* continuous rates */
 		fp->rates = SNDRV_PCM_RATE_CONTINUOUS;
@@ -335,8 +351,6 @@ static int parse_uac2_sample_rate_range(struct snd_usb_audio *chip,
 {
 	int i, nr_rates = 0;
 
-	fp->rates = fp->rate_min = fp->rate_max = 0;
-
 	for (i = 0; i < nr_triplets; i++) {
 		int min = combine_quad(&data[2 + 12 * i]);
 		int max = combine_quad(&data[6 + 12 * i]);
@@ -361,7 +375,7 @@ static int parse_uac2_sample_rate_range(struct snd_usb_audio *chip,
 		for (rate = min; rate <= max; rate += res) {
 
 			/* Filter out invalid rates on Presonus Studio 1810c */
-			if (chip->usb_id == USB_ID(0x0194f, 0x010c) &&
+			if (chip->usb_id == USB_ID(0x194f, 0x010c) &&
 			    !s1810c_valid_sample_rate(fp, rate))
 				goto skip_rate;
 
@@ -372,12 +386,6 @@ static int parse_uac2_sample_rate_range(struct snd_usb_audio *chip,
 
 			if (fp->rate_table)
 				fp->rate_table[nr_rates] = rate;
-			if (!fp->rate_min || rate < fp->rate_min)
-				fp->rate_min = rate;
-			if (!fp->rate_max || rate > fp->rate_max)
-				fp->rate_max = rate;
-			fp->rates |= snd_pcm_rate_to_rate_bit(rate);
-
 			nr_rates++;
 			if (nr_rates >= MAX_NR_RATES) {
 				usb_audio_err(chip, "invalid uac2 rates\n");
@@ -406,6 +414,7 @@ static int line6_parse_audio_format_rates_quirk(struct snd_usb_audio *chip,
 	case USB_ID(0x0e41, 0x4242): /* Line6 Helix Rack */
 	case USB_ID(0x0e41, 0x4244): /* Line6 Helix LT */
 	case USB_ID(0x0e41, 0x4246): /* Line6 HX-Stomp */
+	case USB_ID(0x0e41, 0x4253): /* Line6 HX-Stomp XL */
 	case USB_ID(0x0e41, 0x4247): /* Line6 Pod Go */
 	case USB_ID(0x0e41, 0x4248): /* Line6 Helix >= fw 2.82 */
 	case USB_ID(0x0e41, 0x4249): /* Line6 Helix Rack >= fw 2.82 */
@@ -415,6 +424,92 @@ static int line6_parse_audio_format_rates_quirk(struct snd_usb_audio *chip,
 	}
 
 	return -ENODEV;
+}
+
+/* check whether the given altsetting is supported for the already set rate */
+static bool check_valid_altsetting_v2v3(struct snd_usb_audio *chip, int iface,
+					int altsetting)
+{
+	struct usb_device *dev = chip->dev;
+	__le64 raw_data = 0;
+	u64 data;
+	int err;
+
+	/* we assume 64bit is enough for any altsettings */
+	if (snd_BUG_ON(altsetting >= 64 - 8))
+		return false;
+
+	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
+			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
+			      UAC2_AS_VAL_ALT_SETTINGS << 8,
+			      iface, &raw_data, sizeof(raw_data));
+	if (err < 0)
+		return false;
+
+	data = le64_to_cpu(raw_data);
+	/* first byte contains the bitmap size */
+	if ((data & 0xff) * 8 < altsetting)
+		return false;
+	if (data & (1ULL << (altsetting + 8)))
+		return true;
+
+	return false;
+}
+
+/*
+ * Validate each sample rate with the altsetting
+ * Rebuild the rate table if only partial values are valid
+ */
+static int validate_sample_rate_table_v2v3(struct snd_usb_audio *chip,
+					   struct audioformat *fp,
+					   int clock)
+{
+	struct usb_device *dev = chip->dev;
+	unsigned int *table;
+	unsigned int nr_rates;
+	int i, err;
+
+	/* performing the rate verification may lead to unexpected USB bus
+	 * behavior afterwards by some unknown reason.  Do this only for the
+	 * known devices.
+	 */
+	if (!(chip->quirk_flags & QUIRK_FLAG_VALIDATE_RATES))
+		return 0; /* don't perform the validation as default */
+
+	table = kcalloc(fp->nr_rates, sizeof(*table), GFP_KERNEL);
+	if (!table)
+		return -ENOMEM;
+
+	/* clear the interface altsetting at first */
+	usb_set_interface(dev, fp->iface, 0);
+
+	nr_rates = 0;
+	for (i = 0; i < fp->nr_rates; i++) {
+		err = snd_usb_set_sample_rate_v2v3(chip, fp, clock,
+						   fp->rate_table[i]);
+		if (err < 0)
+			continue;
+
+		if (check_valid_altsetting_v2v3(chip, fp->iface, fp->altsetting))
+			table[nr_rates++] = fp->rate_table[i];
+	}
+
+	if (!nr_rates) {
+		usb_audio_dbg(chip,
+			      "No valid sample rate available for %d:%d, assuming a firmware bug\n",
+			      fp->iface, fp->altsetting);
+		nr_rates = fp->nr_rates; /* continue as is */
+	}
+
+	if (fp->nr_rates == nr_rates) {
+		kfree(table);
+		return 0;
+	}
+
+	kfree(fp->rate_table);
+	fp->rate_table = table;
+	fp->nr_rates = nr_rates;
+	return 0;
 }
 
 /*
@@ -508,6 +603,12 @@ static int parse_audio_format_rates_v2v3(struct snd_usb_audio *chip,
 	/* Call the triplet parser again, but this time, fp->rate_table is
 	 * allocated, so the rates will be stored */
 	parse_uac2_sample_rate_range(chip, fp, nr_triplets, data);
+
+	ret = validate_sample_rate_table_v2v3(chip, fp, clock);
+	if (ret < 0)
+		goto err_free;
+
+	set_rate_table_min_max(fp);
 
 err_free:
 	kfree(data);

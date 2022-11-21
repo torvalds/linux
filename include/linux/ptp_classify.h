@@ -31,7 +31,13 @@
 #define PTP_CLASS_V2_VLAN (PTP_CLASS_V2 | PTP_CLASS_VLAN)
 #define PTP_CLASS_L4      (PTP_CLASS_IPV4 | PTP_CLASS_IPV6)
 
+#define PTP_MSGTYPE_SYNC        0x0
+#define PTP_MSGTYPE_DELAY_REQ   0x1
+#define PTP_MSGTYPE_PDELAY_REQ  0x2
+#define PTP_MSGTYPE_PDELAY_RESP 0x3
+
 #define PTP_EV_PORT 319
+#define PTP_GEN_PORT 320
 #define PTP_GEN_BIT 0x08 /* indicates general message, if set in message type */
 
 #define OFF_PTP_SOURCE_UUID	22 /* PTPv1 only */
@@ -120,6 +126,17 @@ static inline u8 ptp_get_msgtype(const struct ptp_header *hdr,
 	return msgtype;
 }
 
+/**
+ * ptp_msg_is_sync - Evaluates whether the given skb is a PTP Sync message
+ * @skb: packet buffer
+ * @type: type of the packet (see ptp_classify_raw())
+ *
+ * This function evaluates whether the given skb is a PTP Sync message.
+ *
+ * Return: true if sync message, false otherwise
+ */
+bool ptp_msg_is_sync(struct sk_buff *skb, unsigned int type);
+
 void __init ptp_classifier_init(void);
 #else
 static inline void ptp_classifier_init(void)
@@ -140,7 +157,11 @@ static inline u8 ptp_get_msgtype(const struct ptp_header *hdr,
 	/* The return is meaningless. The stub function would not be
 	 * executed since no available header from ptp_parse_header.
 	 */
-	return 0;
+	return PTP_MSGTYPE_SYNC;
+}
+static inline bool ptp_msg_is_sync(struct sk_buff *skb, unsigned int type)
+{
+	return false;
 }
 #endif
 #endif /* _PTP_CLASSIFY_H_ */

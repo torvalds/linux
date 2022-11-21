@@ -190,6 +190,11 @@ static int simtec_hw_params(struct snd_pcm_substream *substream,
 
 		ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C24XX_DIV_PRESCALER,
 					     cdclk_scale);
+		if (ret) {
+			pr_err("%s: failed to set clock div\n",
+			       __func__);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -322,7 +327,7 @@ int simtec_audio_core_probe(struct platform_device *pdev,
 
 	snd_dev = platform_device_alloc("soc-audio", -1);
 	if (!snd_dev) {
-		dev_err(&pdev->dev, "failed to alloc soc-audio devicec\n");
+		dev_err(&pdev->dev, "failed to alloc soc-audio device\n");
 		ret = -ENOMEM;
 		goto err_gpio;
 	}

@@ -51,6 +51,8 @@ detailed description):
 	- UWB enable and disable
 	- LCD Shadow (PrivacyGuard) enable and disable
 	- Lap mode sensor
+	- Setting keyboard language
+	- WWAN Antenna type
 
 A compatibility table by model and feature is maintained on the web
 site, http://ibm-acpi.sf.net/. I appreciate any success or failure
@@ -1466,6 +1468,49 @@ Sysfs notes
 	rfkill controller switch "tpacpi_uwb_sw": refer to
 	Documentation/driver-api/rfkill.rst for details.
 
+
+Setting keyboard language
+-------------------------
+
+sysfs: keyboard_lang
+
+This feature is used to set keyboard language to ECFW using ASL interface.
+Fewer thinkpads models like T580 , T590 , T15 Gen 1 etc.. has "=", "(',
+")" numeric keys, which are not displaying correctly, when keyboard language
+is other than "english". This is because the default keyboard language in ECFW
+is set as "english". Hence using this sysfs, user can set the correct keyboard
+language to ECFW and then these key's will work correctly.
+
+Example of command to set keyboard language is mentioned below::
+
+        echo jp > /sys/devices/platform/thinkpad_acpi/keyboard_lang
+
+Text corresponding to keyboard layout to be set in sysfs are: be(Belgian),
+cz(Czech), da(Danish), de(German), en(English), es(Spain), et(Estonian),
+fr(French), fr-ch(French(Switzerland)), hu(Hungarian), it(Italy), jp (Japan),
+nl(Dutch), nn(Norway), pl(Polish), pt(portugese), sl(Slovenian), sv(Sweden),
+tr(Turkey)
+
+WWAN Antenna type
+-----------------
+
+sysfs: wwan_antenna_type
+
+On some newer Thinkpads we need to set SAR value based on the antenna
+type. This interface will be used by userspace to get the antenna type
+and set the corresponding SAR value, as is required for FCC certification.
+
+The available commands are::
+
+        cat /sys/devices/platform/thinkpad_acpi/wwan_antenna_type
+
+Currently 2 antenna types are supported as mentioned below:
+- type a
+- type b
+
+The property is read-only. If the platform doesn't have support the sysfs
+class is not created.
+
 Adaptive keyboard
 -----------------
 
@@ -1475,15 +1520,15 @@ This sysfs attribute controls the keyboard "face" that will be shown on the
 Lenovo X1 Carbon 2nd gen (2014)'s adaptive keyboard. The value can be read
 and set.
 
-- 1 = Home mode
-- 2 = Web-browser mode
-- 3 = Web-conference mode
-- 4 = Function mode
-- 5 = Layflat mode
+- 0 = Home mode
+- 1 = Web-browser mode
+- 2 = Web-conference mode
+- 3 = Function mode
+- 4 = Layflat mode
 
 For more details about which buttons will appear depending on the mode, please
 review the laptop's user guide:
-http://www.lenovo.com/shop/americas/content/user_guides/x1carbon_2_ug_en.pdf
+https://download.lenovo.com/ibmdl/pub/pc/pccbbs/mobiles_pdf/x1carbon_2_ug_en.pdf
 
 Battery charge control
 ----------------------

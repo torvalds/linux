@@ -431,7 +431,8 @@ no_iso:
 	ss_iso_sink_desc.bEndpointAddress = fs_iso_sink_desc.bEndpointAddress;
 
 	ret = usb_assign_descriptors(f, fs_source_sink_descs,
-			hs_source_sink_descs, ss_source_sink_descs, NULL);
+			hs_source_sink_descs, ss_source_sink_descs,
+			ss_source_sink_descs);
 	if (ret)
 		return ret;
 
@@ -559,6 +560,7 @@ static void source_sink_complete(struct usb_ep *ep, struct usb_request *req)
 #if 1
 		DBG(cdev, "%s complete --> %d, %d/%d\n", ep->name,
 				status, req->actual, req->length);
+		break;
 #endif
 	case -EREMOTEIO:		/* short read */
 		break;
@@ -582,6 +584,7 @@ static int source_sink_start_ep(struct f_sourcesink *ss, bool is_in,
 
 	if (is_iso) {
 		switch (speed) {
+		case USB_SPEED_SUPER_PLUS:
 		case USB_SPEED_SUPER:
 			size = ss->isoc_maxpacket *
 					(ss->isoc_mult + 1) *

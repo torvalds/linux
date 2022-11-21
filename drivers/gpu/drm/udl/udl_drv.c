@@ -32,16 +32,31 @@ static int udl_usb_resume(struct usb_interface *interface)
 	return drm_mode_config_helper_resume(dev);
 }
 
+/*
+ * FIXME: Dma-buf sharing requires DMA support by the importing device.
+ *        This function is a workaround to make USB devices work as well.
+ *        See todo.rst for how to fix the issue in the dma-buf framework.
+ */
+static struct drm_gem_object *udl_driver_gem_prime_import(struct drm_device *dev,
+							  struct dma_buf *dma_buf)
+{
+	struct udl_device *udl = to_udl(dev);
+
+	if (!udl->dmadev)
+		return ERR_PTR(-ENODEV);
+
+	return drm_gem_prime_import_dev(dev, dma_buf, udl->dmadev);
+}
+
 DEFINE_DRM_GEM_FOPS(udl_driver_fops);
 
-static struct drm_driver driver = {
+static const struct drm_driver driver = {
 	.driver_features = DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
 
 	/* GEM hooks */
-	.gem_create_object = drm_gem_shmem_create_object_cached,
-
 	.fops = &udl_driver_fops,
 	DRM_GEM_SHMEM_DRIVER_OPS,
+	.gem_prime_import = udl_driver_gem_prime_import,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
@@ -53,7 +68,6 @@ static struct drm_driver driver = {
 
 static struct udl_device *udl_driver_create(struct usb_interface *interface)
 {
-	struct usb_device *udev = interface_to_usbdev(interface);
 	struct udl_device *udl;
 	int r;
 
@@ -61,8 +75,6 @@ static struct udl_device *udl_driver_create(struct usb_interface *interface)
 				 struct udl_device, drm);
 	if (IS_ERR(udl))
 		return udl;
-
-	udl->udev = udev;
 
 	r = udl_init(udl);
 	if (r)

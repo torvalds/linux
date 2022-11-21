@@ -33,7 +33,8 @@
 #include <linux/crypto.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/algapi.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/hash.h>
 #include <crypto/internal/hash.h>
 #include "atmel-sha-regs.h"
@@ -433,7 +434,7 @@ static int atmel_sha_init(struct ahash_request *req)
 
 	ctx->flags = 0;
 
-	dev_dbg(dd->dev, "init: digest size: %d\n",
+	dev_dbg(dd->dev, "init: digest size: %u\n",
 		crypto_ahash_digestsize(tfm));
 
 	switch (crypto_ahash_digestsize(tfm)) {
@@ -459,7 +460,6 @@ static int atmel_sha_init(struct ahash_request *req)
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	ctx->bufcnt = 0;
@@ -1102,7 +1102,7 @@ static int atmel_sha_start(struct atmel_sha_dev *dd)
 	struct atmel_sha_reqctx *ctx = ahash_request_ctx(req);
 	int err;
 
-	dev_dbg(dd->dev, "handling new req, op: %lu, nbytes: %d\n",
+	dev_dbg(dd->dev, "handling new req, op: %lu, nbytes: %u\n",
 						ctx->op, req->nbytes);
 
 	err = atmel_sha_hw_init(dd);
@@ -2508,6 +2508,7 @@ static void atmel_sha_get_cap(struct atmel_sha_dev *dd)
 
 	/* keep only major version number */
 	switch (dd->hw_version & 0xff0) {
+	case 0x700:
 	case 0x510:
 		dd->caps.has_dma = 1;
 		dd->caps.has_dualbuff = 1;

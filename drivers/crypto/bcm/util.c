@@ -119,8 +119,8 @@ int spu_sg_count(struct scatterlist *sg_list, unsigned int skip, int nbytes)
  * @from_skip:   number of bytes to skip in from_sg. Non-zero when previous
  *		 request included part of the buffer in entry in from_sg.
  *		 Assumes from_skip < from_sg->length.
- * @from_nents   number of entries in from_sg
- * @length       number of bytes to copy. may reach this limit before exhausting
+ * @from_nents:  number of entries in from_sg
+ * @length:      number of bytes to copy. may reach this limit before exhausting
  *		 from_sg.
  *
  * Copies the entries themselves, not the data in the entries. Assumes to_sg has
@@ -268,6 +268,7 @@ do_shash_err:
 	return rc;
 }
 
+#ifdef DEBUG
 /* Dump len bytes of a scatterlist starting at skip bytes into the sg */
 void __dump_sg(struct scatterlist *sg, unsigned int skip, unsigned int len)
 {
@@ -289,6 +290,7 @@ void __dump_sg(struct scatterlist *sg, unsigned int skip, unsigned int len)
 	if (debug_logging_sleep)
 		msleep(debug_logging_sleep);
 }
+#endif
 
 /* Returns the name for a given cipher alg/mode */
 char *spu_alg_name(enum spu_cipher_alg alg, enum spu_cipher_mode mode)
@@ -348,7 +350,7 @@ char *spu_alg_name(enum spu_cipher_alg alg, enum spu_cipher_mode mode)
 static ssize_t spu_debugfs_read(struct file *filp, char __user *ubuf,
 				size_t count, loff_t *offp)
 {
-	struct device_private *ipriv;
+	struct bcm_device_private *ipriv;
 	char *buf;
 	ssize_t ret, out_offset, out_count;
 	int i;

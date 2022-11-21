@@ -69,7 +69,10 @@
 #define VC5_FEEDBACK_FRAC_DIV(n)		(0x19 + (n))
 #define VC5_RC_CONTROL0				0x1e
 #define VC5_RC_CONTROL1				0x1f
-/* Register 0x20 is factory reserved */
+
+/* These registers are named "Unused Factory Reserved Registers" */
+#define VC5_RESERVED_X0(idx)		(0x20 + ((idx) * 0x10))
+#define VC5_RESERVED_X0_BYPASS_SYNC	BIT(7) /* bypass_sync<idx> bit */
 
 /* Output divider control for divider 1,2,3,4 */
 #define VC5_OUT_DIV_CONTROL(idx)	(0x21 + ((idx) * 0x10))
@@ -87,7 +90,6 @@
 #define VC5_OUT_DIV_SKEW_INT(idx, n)	(0x2b + ((idx) * 0x10) + (n))
 #define VC5_OUT_DIV_INT(idx, n)		(0x2d + ((idx) * 0x10) + (n))
 #define VC5_OUT_DIV_SKEW_FRAC(idx)	(0x2f + ((idx) * 0x10))
-/* Registers 0x30, 0x40, 0x50 are factory reserved */
 
 /* Clock control register for clock 1,2 */
 #define VC5_CLK_OUTPUT_CFG(idx, n)	(0x60 + ((idx) * 0x2) + (n))
@@ -140,6 +142,8 @@
 #define VC5_HAS_INTERNAL_XTAL	BIT(0)
 /* chip has PFD requency doubler */
 #define VC5_HAS_PFD_FREQ_DBL	BIT(1)
+/* chip has bits to disable FOD sync */
+#define VC5_HAS_BYPASS_SYNC_BIT	BIT(2)
 
 /* Supported IDT VC5 models. */
 enum vc5_model {
@@ -582,6 +586,23 @@ static int vc5_clk_out_prepare(struct clk_hw *hw)
 	int ret;
 
 	/*
+	 * When enabling a FOD, all currently enabled FODs are briefly
+	 * stopped in order to synchronize all of them. This causes a clock
+	 * disruption to any unrelated chips that might be already using
+	 * other clock outputs. Bypass the sync feature to avoid the issue,
+	 * which is possible on the VersaClock 6E family via reserved
+	 * registers.
+	 */
+	if (vc5->chip_info->flags & VC5_HAS_BYPASS_SYNC_BIT) {
+		ret = regmap_update_bits(vc5->regmap,
+					 VC5_RESERVED_X0(hwdata->num),
+					 VC5_RESERVED_X0_BYPASS_SYNC,
+					 VC5_RESERVED_X0_BYPASS_SYNC);
+		if (ret)
+			return ret;
+	}
+
+	/*
 	 * If the input mux is disabled, enable it first and
 	 * select source from matching FOD.
 	 */
@@ -739,8 +760,8 @@ static int vc5_update_power(struct device_node *np_output,
 {
 	u32 value;
 
-	if (!of_property_read_u32(np_output,
-				  "idt,voltage-microvolts", &value)) {
+	if (!of_property_read_u32(np_output, "idt,voltage-microvolt",
+				  &value)) {
 		clk_out->clk_output_cfg0_mask |= VC5_CLK_OUTPUT_CFG0_PWR_MASK;
 		switch (value) {
 		case 1800000:
@@ -756,6 +777,63 @@ static int vc5_update_power(struct device_node *np_output,
 			return -EINVAL;
 		}
 	}
+	return 0;
+}
+
+static int vc5_map_cap_value(u32 femtofarads)
+{
+	int mapped_value;
+
+	/*
+	 * The datasheet explicitly states 9000 - 25000 with 0.5pF
+	 * steps, but the Programmer's guide shows the steps are 0.430pF.
+	 * After getting feedback from Renesas, the .5pF steps were the
+	 * goal, but 430nF was the actual values.
+	 * Because of this, the actual range goes to 22760 instead of 25000
+	 */
+	if (femtofarads < 9000 || femtofarads > 22760)
+		return -EINVAL;
+
+	/*
+	 * The Programmer's guide shows XTAL[5:0] but in reality,
+	 * XTAL[0] and XTAL[1] are both LSB which makes the math
+	 * strange.  With clarfication from Renesas, setting the
+	 * values should be simpler by ignoring XTAL[0]
+	 */
+	mapped_value = DIV_ROUND_CLOSEST(femtofarads - 9000, 430);
+
+	/*
+	 * Since the calculation ignores XTAL[0], there is one
+	 * special case where mapped_value = 32.  In reality, this means
+	 * the real mapped value should be 111111b.  In other cases,
+	 * the mapped_value needs to be shifted 1 to the left.
+	 */
+	if (mapped_value > 31)
+		mapped_value = 0x3f;
+	else
+		mapped_value <<= 1;
+
+	return mapped_value;
+}
+static int vc5_update_cap_load(struct device_node *node, struct vc5_driver_data *vc5)
+{
+	u32 value;
+	int mapped_value;
+
+	if (!of_property_read_u32(node, "idt,xtal-load-femtofarads", &value)) {
+		mapped_value = vc5_map_cap_value(value);
+		if (mapped_value < 0)
+			return mapped_value;
+
+		/*
+		 * The mapped_value is really the high 6 bits of
+		 * VC5_XTAL_X1_LOAD_CAP and VC5_XTAL_X2_LOAD_CAP, so
+		 * shift the value 2 places.
+		 */
+		regmap_update_bits(vc5->regmap, VC5_XTAL_X1_LOAD_CAP, ~0x03, mapped_value << 2);
+		regmap_update_bits(vc5->regmap, VC5_XTAL_X2_LOAD_CAP, ~0x03, mapped_value << 2);
+	}
+
 	return 0;
 }
 
@@ -827,8 +905,9 @@ output_error:
 
 static const struct of_device_id clk_vc5_of_match[];
 
-static int vc5_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int vc5_probe(struct i2c_client *client)
 {
+	unsigned int oe, sd, src_mask = 0, src_val = 0;
 	struct vc5_driver_data *vc5;
 	struct clk_init_data init;
 	const char *parent_names[2];
@@ -852,10 +931,32 @@ static int vc5_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -EPROBE_DEFER;
 
 	vc5->regmap = devm_regmap_init_i2c(client, &vc5_regmap_config);
-	if (IS_ERR(vc5->regmap)) {
-		dev_err(&client->dev, "failed to allocate register map\n");
-		return PTR_ERR(vc5->regmap);
+	if (IS_ERR(vc5->regmap))
+		return dev_err_probe(&client->dev, PTR_ERR(vc5->regmap),
+				     "failed to allocate register map\n");
+
+	ret = of_property_read_u32(client->dev.of_node, "idt,shutdown", &sd);
+	if (!ret) {
+		src_mask |= VC5_PRIM_SRC_SHDN_EN_GBL_SHDN;
+		if (sd)
+			src_val |= VC5_PRIM_SRC_SHDN_EN_GBL_SHDN;
+	} else if (ret != -EINVAL) {
+		return dev_err_probe(&client->dev, ret,
+				     "could not read idt,shutdown\n");
 	}
+
+	ret = of_property_read_u32(client->dev.of_node,
+				   "idt,output-enable-active", &oe);
+	if (!ret) {
+		src_mask |= VC5_PRIM_SRC_SHDN_SP;
+		if (oe)
+			src_val |= VC5_PRIM_SRC_SHDN_SP;
+	} else if (ret != -EINVAL) {
+		return dev_err_probe(&client->dev, ret,
+				     "could not read idt,output-enable-active\n");
+	}
+
+	regmap_update_bits(vc5->regmap, VC5_PRIM_SRC_SHDN, src_mask, src_val);
 
 	/* Register clock input mux */
 	memset(&init, 0, sizeof(init));
@@ -879,9 +980,15 @@ static int vc5_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		    __clk_get_name(vc5->pin_clkin);
 	}
 
-	if (!init.num_parents) {
-		dev_err(&client->dev, "no input clock specified!\n");
-		return -EINVAL;
+	if (!init.num_parents)
+		return dev_err_probe(&client->dev, -EINVAL,
+				     "no input clock specified!\n");
+
+	/* Configure Optional Loading Capacitance for external XTAL */
+	if (!(vc5->chip_info->flags & VC5_HAS_INTERNAL_XTAL)) {
+		ret = vc5_update_cap_load(client->dev.of_node, vc5);
+		if (ret)
+			goto err_clk_register;
 	}
 
 	init.name = kasprintf(GFP_KERNEL, "%pOFn.mux", client->dev.of_node);
@@ -1014,14 +1121,16 @@ static int vc5_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	ret = of_clk_add_hw_provider(client->dev.of_node, vc5_of_clk_get, vc5);
 	if (ret) {
-		dev_err(&client->dev, "unable to add clk provider\n");
+		dev_err_probe(&client->dev, ret,
+			      "unable to add clk provider\n");
 		goto err_clk;
 	}
 
 	return 0;
 
 err_clk_register:
-	dev_err(&client->dev, "unable to register %s\n", init.name);
+	dev_err_probe(&client->dev, ret,
+		      "unable to register %s\n", init.name);
 	kfree(init.name); /* clock framework made a copy of the name */
 err_clk:
 	if (vc5->chip_info->flags & VC5_HAS_INTERNAL_XTAL)
@@ -1102,7 +1211,7 @@ static const struct vc5_chip_info idt_5p49v6965_info = {
 	.model = IDT_VC6_5P49V6965,
 	.clk_fod_cnt = 4,
 	.clk_out_cnt = 5,
-	.flags = 0,
+	.flags = VC5_HAS_BYPASS_SYNC_BIT,
 };
 
 static const struct i2c_device_id vc5_id[] = {
@@ -1135,7 +1244,7 @@ static struct i2c_driver vc5_driver = {
 		.pm	= &vc5_pm_ops,
 		.of_match_table = clk_vc5_of_match,
 	},
-	.probe		= vc5_probe,
+	.probe_new	= vc5_probe,
 	.remove		= vc5_remove,
 	.id_table	= vc5_id,
 };

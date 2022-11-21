@@ -16,7 +16,6 @@ typedef __u16 __sum16;
 #include <linux/if_packet.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
-#include <netinet/tcp.h>
 #include <linux/filter.h>
 #include <linux/perf_event.h>
 #include <linux/socket.h>
@@ -63,13 +62,16 @@ struct test_env {
 	struct test_selector test_selector;
 	struct test_selector subtest_selector;
 	bool verifier_stats;
+	bool debug;
 	enum verbosity verbosity;
 
 	bool jit_enabled;
+	bool has_testmod;
 	bool get_test_cnt;
 	bool list_test_names;
 
-	struct prog_test_def *test;
+	struct prog_test_def *test; /* current running tests */
+
 	FILE *stdout;
 	FILE *stderr;
 	char *log_buf;
@@ -82,6 +84,38 @@ struct test_env {
 	int skip_cnt; /* skipped tests */
 
 	int saved_netns_fd;
+	int workers; /* number of worker process */
+	int worker_id; /* id number of current worker, main process is -1 */
+	pid_t *worker_pids; /* array of worker pids */
+	int *worker_socks; /* array of worker socks */
+	int *worker_current_test; /* array of current running test for each worker */
+};
+
+#define MAX_LOG_TRUNK_SIZE 8192
+enum msg_type {
+	MSG_DO_TEST = 0,
+	MSG_TEST_DONE = 1,
+	MSG_TEST_LOG = 2,
+	MSG_EXIT = 255,
+};
+struct msg {
+	enum msg_type type;
+	union {
+		struct {
+			int test_num;
+		} do_test;
+		struct {
+			int test_num;
+			int sub_succ_cnt;
+			int error_cnt;
+			int skip_cnt;
+			bool have_log;
+		} test_done;
+		struct {
+			char log_buf[MAX_LOG_TRUNK_SIZE + 1];
+			bool is_last;
+		} test_log;
+	};
 };
 
 extern struct test_env env;
@@ -130,6 +164,20 @@ extern int test__join_cgroup(const char *path);
 #define CHECK_ATTR(condition, tag, format...) \
 	_CHECK(condition, tag, tattr.duration, format)
 
+#define ASSERT_TRUE(actual, name) ({					\
+	static int duration = 0;					\
+	bool ___ok = (actual);						\
+	CHECK(!___ok, (name), "unexpected %s: got FALSE\n", (name));	\
+	___ok;								\
+})
+
+#define ASSERT_FALSE(actual, name) ({					\
+	static int duration = 0;					\
+	bool ___ok = !(actual);						\
+	CHECK(!___ok, (name), "unexpected %s: got TRUE\n", (name));	\
+	___ok;								\
+})
+
 #define ASSERT_EQ(actual, expected, name) ({				\
 	static int duration = 0;					\
 	typeof(actual) ___act = (actual);				\
@@ -137,6 +185,61 @@ extern int test__join_cgroup(const char *path);
 	bool ___ok = ___act == ___exp;					\
 	CHECK(!___ok, (name),						\
 	      "unexpected %s: actual %lld != expected %lld\n",		\
+	      (name), (long long)(___act), (long long)(___exp));	\
+	___ok;								\
+})
+
+#define ASSERT_NEQ(actual, expected, name) ({				\
+	static int duration = 0;					\
+	typeof(actual) ___act = (actual);				\
+	typeof(expected) ___exp = (expected);				\
+	bool ___ok = ___act != ___exp;					\
+	CHECK(!___ok, (name),						\
+	      "unexpected %s: actual %lld == expected %lld\n",		\
+	      (name), (long long)(___act), (long long)(___exp));	\
+	___ok;								\
+})
+
+#define ASSERT_LT(actual, expected, name) ({				\
+	static int duration = 0;					\
+	typeof(actual) ___act = (actual);				\
+	typeof(expected) ___exp = (expected);				\
+	bool ___ok = ___act < ___exp;					\
+	CHECK(!___ok, (name),						\
+	      "unexpected %s: actual %lld >= expected %lld\n",		\
+	      (name), (long long)(___act), (long long)(___exp));	\
+	___ok;								\
+})
+
+#define ASSERT_LE(actual, expected, name) ({				\
+	static int duration = 0;					\
+	typeof(actual) ___act = (actual);				\
+	typeof(expected) ___exp = (expected);				\
+	bool ___ok = ___act <= ___exp;					\
+	CHECK(!___ok, (name),						\
+	      "unexpected %s: actual %lld > expected %lld\n",		\
+	      (name), (long long)(___act), (long long)(___exp));	\
+	___ok;								\
+})
+
+#define ASSERT_GT(actual, expected, name) ({				\
+	static int duration = 0;					\
+	typeof(actual) ___act = (actual);				\
+	typeof(expected) ___exp = (expected);				\
+	bool ___ok = ___act > ___exp;					\
+	CHECK(!___ok, (name),						\
+	      "unexpected %s: actual %lld <= expected %lld\n",		\
+	      (name), (long long)(___act), (long long)(___exp));	\
+	___ok;								\
+})
+
+#define ASSERT_GE(actual, expected, name) ({				\
+	static int duration = 0;					\
+	typeof(actual) ___act = (actual);				\
+	typeof(expected) ___exp = (expected);				\
+	bool ___ok = ___act >= ___exp;					\
+	CHECK(!___ok, (name),						\
+	      "unexpected %s: actual %lld < expected %lld\n",		\
 	      (name), (long long)(___act), (long long)(___exp));	\
 	___ok;								\
 })
@@ -152,11 +255,24 @@ extern int test__join_cgroup(const char *path);
 	___ok;								\
 })
 
+#define ASSERT_STRNEQ(actual, expected, len, name) ({			\
+	static int duration = 0;					\
+	const char *___act = actual;					\
+	const char *___exp = expected;					\
+	int ___len = len;						\
+	bool ___ok = strncmp(___act, ___exp, ___len) == 0;		\
+	CHECK(!___ok, (name),						\
+	      "unexpected %s: actual '%.*s' != expected '%.*s'\n",	\
+	      (name), ___len, ___act, ___len, ___exp);			\
+	___ok;								\
+})
+
 #define ASSERT_OK(res, name) ({						\
 	static int duration = 0;					\
 	long long ___res = (res);					\
 	bool ___ok = ___res == 0;					\
-	CHECK(!___ok, (name), "unexpected error: %lld\n", ___res);	\
+	CHECK(!___ok, (name), "unexpected error: %lld (errno %d)\n",	\
+	      ___res, errno);						\
 	___ok;								\
 })
 
@@ -179,16 +295,17 @@ extern int test__join_cgroup(const char *path);
 #define ASSERT_OK_PTR(ptr, name) ({					\
 	static int duration = 0;					\
 	const void *___res = (ptr);					\
-	bool ___ok = !IS_ERR_OR_NULL(___res);				\
-	CHECK(!___ok, (name),						\
-	      "unexpected error: %ld\n", PTR_ERR(___res));		\
+	int ___err = libbpf_get_error(___res);				\
+	bool ___ok = ___err == 0;					\
+	CHECK(!___ok, (name), "unexpected error: %d\n", ___err);	\
 	___ok;								\
 })
 
 #define ASSERT_ERR_PTR(ptr, name) ({					\
 	static int duration = 0;					\
 	const void *___res = (ptr);					\
-	bool ___ok = IS_ERR(___res)					\
+	int ___err = libbpf_get_error(___res);				\
+	bool ___ok = ___err != 0;					\
 	CHECK(!___ok, (name), "unexpected pointer: %p\n", ___res);	\
 	___ok;								\
 })
@@ -207,6 +324,9 @@ int bpf_find_map(const char *test, struct bpf_object *obj, const char *name);
 int compare_map_keys(int map1_fd, int map2_fd);
 int compare_stack_ips(int smap_fd, int amap_fd, int stack_trace_len);
 int extract_build_id(char *build_id, size_t size);
+int kern_sync_rcu(void);
+int trigger_module_test_read(int read_sz);
+int trigger_module_test_write(int write_sz);
 
 #ifdef __x86_64__
 #define SYS_NANOSLEEP_KPROBE_NAME "__x64_sys_nanosleep"
@@ -215,3 +335,5 @@ int extract_build_id(char *build_id, size_t size);
 #else
 #define SYS_NANOSLEEP_KPROBE_NAME "sys_nanosleep"
 #endif
+
+#define BPF_TESTMOD_TEST_FILE "/sys/kernel/bpf_testmod"

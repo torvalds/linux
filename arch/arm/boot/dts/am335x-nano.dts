@@ -238,7 +238,6 @@
 
 &gpmc {
 	compatible = "ti,am3352-gpmc";
-	ti,hwmods = "gpmc";
 	status = "okay";
 	gpmc,num-waitpins = <2>;
 	pinctrl-names = "default";
@@ -370,12 +369,11 @@
 	};
 };
 
-&mac {
-	dual_emac;
+&mac_sw {
 	status = "okay";
 };
 
-&davinci_mdio {
+&davinci_mdio_sw {
 	status = "okay";
 
 	ethphy0: ethernet-phy@0 {
@@ -387,16 +385,16 @@
 	};
 };
 
-&cpsw_emac0 {
+&cpsw_port1 {
 	phy-handle = <&ethphy0>;
 	phy-mode = "mii";
-	dual_emac_res_vlan = <1>;
+	ti,dual-emac-pvid = <1>;
 };
 
-&cpsw_emac1 {
+&cpsw_port2 {
 	phy-handle = <&ethphy1>;
 	phy-mode = "mii";
-	dual_emac_res_vlan = <2>;
+	ti,dual-emac-pvid = <2>;
 };
 
 &mmc1 {

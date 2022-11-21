@@ -272,6 +272,21 @@ static int wcn36xx_dxe_enable_ch_int(struct wcn36xx *wcn, u16 wcn_ch)
 	return 0;
 }
 
+static void wcn36xx_dxe_disable_ch_int(struct wcn36xx *wcn, u16 wcn_ch)
+{
+	int reg_data = 0;
+
+	wcn36xx_dxe_read_register(wcn,
+				  WCN36XX_DXE_INT_MASK_REG,
+				  &reg_data);
+
+	reg_data &= ~wcn_ch;
+
+	wcn36xx_dxe_write_register(wcn,
+				   WCN36XX_DXE_INT_MASK_REG,
+				   (int)reg_data);
+}
+
 static int wcn36xx_dxe_fill_skb(struct device *dev,
 				struct wcn36xx_dxe_ctl *ctl,
 				gfp_t gfp)
@@ -403,8 +418,21 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 			dma_unmap_single(wcn->dev, ctl->desc->src_addr_l,
 					 ctl->skb->len, DMA_TO_DEVICE);
 			info = IEEE80211_SKB_CB(ctl->skb);
-			if (!(info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS)) {
-				/* Keep frame until TX status comes */
+			if (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS) {
+				if (info->flags & IEEE80211_TX_CTL_NO_ACK) {
+					info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+					ieee80211_tx_status_irqsafe(wcn->hw, ctl->skb);
+				} else {
+					/* Wait for the TX ack indication or timeout... */
+					spin_lock(&wcn->dxe_lock);
+					if (WARN_ON(wcn->tx_ack_skb))
+						ieee80211_free_txskb(wcn->hw, wcn->tx_ack_skb);
+					wcn->tx_ack_skb = ctl->skb; /* Tracking ref */
+					mod_timer(&wcn->tx_ack_timer, jiffies + HZ / 10);
+					spin_unlock(&wcn->dxe_lock);
+				}
+				/* do not free, ownership transferred to mac80211 status cb */
+			} else {
 				ieee80211_free_txskb(wcn->hw, ctl->skb);
 			}
 
@@ -426,7 +454,6 @@ static irqreturn_t wcn36xx_irq_tx_complete(int irq, void *dev)
 {
 	struct wcn36xx *wcn = (struct wcn36xx *)dev;
 	int int_src, int_reason;
-	bool transmitted = false;
 
 	wcn36xx_dxe_read_register(wcn, WCN36XX_DXE_INT_SRC_RAW_REG, &int_src);
 
@@ -466,7 +493,6 @@ static irqreturn_t wcn36xx_irq_tx_complete(int irq, void *dev)
 		if (int_reason & (WCN36XX_CH_STAT_INT_DONE_MASK |
 				  WCN36XX_CH_STAT_INT_ED_MASK)) {
 			reap_tx_dxes(wcn, &wcn->dxe_tx_h_ch);
-			transmitted = true;
 		}
 	}
 
@@ -478,7 +504,6 @@ static irqreturn_t wcn36xx_irq_tx_complete(int irq, void *dev)
 		wcn36xx_dxe_write_register(wcn,
 					   WCN36XX_DXE_0_INT_CLR,
 					   WCN36XX_INT_MASK_CHAN_TX_L);
-
 
 		if (int_reason & WCN36XX_CH_STAT_INT_ERR_MASK ) {
 			wcn36xx_dxe_write_register(wcn,
@@ -507,25 +532,8 @@ static irqreturn_t wcn36xx_irq_tx_complete(int irq, void *dev)
 		if (int_reason & (WCN36XX_CH_STAT_INT_DONE_MASK |
 				  WCN36XX_CH_STAT_INT_ED_MASK)) {
 			reap_tx_dxes(wcn, &wcn->dxe_tx_l_ch);
-			transmitted = true;
 		}
 	}
-
-	spin_lock(&wcn->dxe_lock);
-	if (wcn->tx_ack_skb && transmitted) {
-		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(wcn->tx_ack_skb);
-
-		/* TX complete, no need to wait for 802.11 ack indication */
-		if (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS &&
-		    info->flags & IEEE80211_TX_CTL_NO_ACK) {
-			info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
-			del_timer(&wcn->tx_ack_timer);
-			ieee80211_tx_status_irqsafe(wcn->hw, wcn->tx_ack_skb);
-			wcn->tx_ack_skb = NULL;
-			ieee80211_wake_queues(wcn->hw);
-		}
-	}
-	spin_unlock(&wcn->dxe_lock);
 
 	return IRQ_HANDLED;
 }
@@ -613,6 +621,10 @@ static int wcn36xx_rx_handle_packets(struct wcn36xx *wcn,
 	dxe = ctl->desc;
 
 	while (!(READ_ONCE(dxe->ctrl) & WCN36xx_DXE_CTRL_VLD)) {
+		/* do not read until we own DMA descriptor */
+		dma_rmb();
+
+		/* read/modify DMA descriptor */
 		skb = ctl->skb;
 		dma_addr = dxe->dst_addr_l;
 		ret = wcn36xx_dxe_fill_skb(wcn->dev, ctl, GFP_ATOMIC);
@@ -623,9 +635,15 @@ static int wcn36xx_rx_handle_packets(struct wcn36xx *wcn,
 			dma_unmap_single(wcn->dev, dma_addr, WCN36XX_PKT_SIZE,
 					DMA_FROM_DEVICE);
 			wcn36xx_rx_skb(wcn, skb);
-		} /* else keep old skb not submitted and use it for rx DMA */
+		}
+		/* else keep old skb not submitted and reuse it for rx DMA
+		 * (dropping the packet that it contained)
+		 */
 
+		/* flush descriptor changes before re-marking as valid */
+		dma_wmb();
 		dxe->ctrl = ctrl;
+
 		ctl = ctl->next;
 		dxe = ctl->desc;
 	}
@@ -800,7 +818,7 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 			 (char *)ctl_skb->skb->data, ctl_skb->skb->len);
 
 	/* Move the head of the ring to the next empty descriptor */
-	 ch->head_blk_ctl = ctl_skb->next;
+	ch->head_blk_ctl = ctl_skb->next;
 
 	/* Commit all previous writes and set descriptors to VALID */
 	wmb();
@@ -829,6 +847,53 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 unlock:
 	spin_unlock_irqrestore(&ch->lock, flags);
 	return ret;
+}
+
+static bool _wcn36xx_dxe_tx_channel_is_empty(struct wcn36xx_dxe_ch *ch)
+{
+	unsigned long flags;
+	struct wcn36xx_dxe_ctl *ctl_bd_start, *ctl_skb_start;
+	struct wcn36xx_dxe_ctl *ctl_bd, *ctl_skb;
+	bool ret = true;
+
+	spin_lock_irqsave(&ch->lock, flags);
+
+	/* Loop through ring buffer looking for nonempty entries. */
+	ctl_bd_start = ch->head_blk_ctl;
+	ctl_bd = ctl_bd_start;
+	ctl_skb_start = ctl_bd_start->next;
+	ctl_skb = ctl_skb_start;
+	do {
+		if (ctl_skb->skb) {
+			ret = false;
+			goto unlock;
+		}
+		ctl_bd = ctl_skb->next;
+		ctl_skb = ctl_bd->next;
+	} while (ctl_skb != ctl_skb_start);
+
+unlock:
+	spin_unlock_irqrestore(&ch->lock, flags);
+	return ret;
+}
+
+int wcn36xx_dxe_tx_flush(struct wcn36xx *wcn)
+{
+	int i = 0;
+
+	/* Called with mac80211 queues stopped. Wait for empty HW queues. */
+	do {
+		if (_wcn36xx_dxe_tx_channel_is_empty(&wcn->dxe_tx_l_ch) &&
+		    _wcn36xx_dxe_tx_channel_is_empty(&wcn->dxe_tx_h_ch)) {
+			return 0;
+		}
+		/* This ieee80211_ops callback is specifically allowed to
+		 * sleep.
+		 */
+		usleep_range(1000, 1100);
+	} while (++i < 100);
+
+	return -EBUSY;
 }
 
 int wcn36xx_dxe_init(struct wcn36xx *wcn)
@@ -866,7 +931,6 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 		WCN36XX_DXE_WQ_TX_L);
 
 	wcn36xx_dxe_read_register(wcn, WCN36XX_DXE_REG_CH_EN, &reg_data);
-	wcn36xx_dxe_enable_ch_int(wcn, WCN36XX_INT_MASK_CHAN_TX_L);
 
 	/***************************************/
 	/* Init descriptors for TX HIGH channel */
@@ -890,9 +954,6 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 
 	wcn36xx_dxe_read_register(wcn, WCN36XX_DXE_REG_CH_EN, &reg_data);
 
-	/* Enable channel interrupts */
-	wcn36xx_dxe_enable_ch_int(wcn, WCN36XX_INT_MASK_CHAN_TX_H);
-
 	/***************************************/
 	/* Init descriptors for RX LOW channel */
 	/***************************************/
@@ -901,7 +962,6 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 		dev_err(wcn->dev, "Error allocating descriptor\n");
 		goto out_err_rxl_ch;
 	}
-
 
 	/* For RX we need to preallocated buffers */
 	wcn36xx_dxe_ch_alloc_skb(wcn, &wcn->dxe_rx_l_ch);
@@ -924,9 +984,6 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 	wcn36xx_dxe_write_register(wcn,
 		WCN36XX_DXE_REG_CTL_RX_L,
 		WCN36XX_DXE_CH_DEFAULT_CTL_RX_L);
-
-	/* Enable channel interrupts */
-	wcn36xx_dxe_enable_ch_int(wcn, WCN36XX_INT_MASK_CHAN_RX_L);
 
 	/***************************************/
 	/* Init descriptors for RX HIGH channel */
@@ -959,14 +1016,17 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 		WCN36XX_DXE_REG_CTL_RX_H,
 		WCN36XX_DXE_CH_DEFAULT_CTL_RX_H);
 
-	/* Enable channel interrupts */
-	wcn36xx_dxe_enable_ch_int(wcn, WCN36XX_INT_MASK_CHAN_RX_H);
-
 	ret = wcn36xx_dxe_request_irqs(wcn);
 	if (ret < 0)
 		goto out_err_irq;
 
 	timer_setup(&wcn->tx_ack_timer, wcn36xx_dxe_tx_timer, 0);
+
+	/* Enable channel interrupts */
+	wcn36xx_dxe_enable_ch_int(wcn, WCN36XX_INT_MASK_CHAN_TX_L);
+	wcn36xx_dxe_enable_ch_int(wcn, WCN36XX_INT_MASK_CHAN_TX_H);
+	wcn36xx_dxe_enable_ch_int(wcn, WCN36XX_INT_MASK_CHAN_RX_L);
+	wcn36xx_dxe_enable_ch_int(wcn, WCN36XX_INT_MASK_CHAN_RX_H);
 
 	return 0;
 
@@ -984,6 +1044,14 @@ out_err_txh_ch:
 
 void wcn36xx_dxe_deinit(struct wcn36xx *wcn)
 {
+	int reg_data = 0;
+
+	/* Disable channel interrupts */
+	wcn36xx_dxe_disable_ch_int(wcn, WCN36XX_INT_MASK_CHAN_RX_H);
+	wcn36xx_dxe_disable_ch_int(wcn, WCN36XX_INT_MASK_CHAN_RX_L);
+	wcn36xx_dxe_disable_ch_int(wcn, WCN36XX_INT_MASK_CHAN_TX_H);
+	wcn36xx_dxe_disable_ch_int(wcn, WCN36XX_INT_MASK_CHAN_TX_L);
+
 	free_irq(wcn->tx_irq, wcn);
 	free_irq(wcn->rx_irq, wcn);
 	del_timer(&wcn->tx_ack_timer);
@@ -993,6 +1061,15 @@ void wcn36xx_dxe_deinit(struct wcn36xx *wcn)
 		wcn->tx_ack_skb = NULL;
 	}
 
+	/* Put the DXE block into reset before freeing memory */
+	reg_data = WCN36XX_DXE_REG_RESET;
+	wcn36xx_dxe_write_register(wcn, WCN36XX_DXE_REG_CSR_RESET, reg_data);
+
 	wcn36xx_dxe_ch_free_skbs(wcn, &wcn->dxe_rx_l_ch);
 	wcn36xx_dxe_ch_free_skbs(wcn, &wcn->dxe_rx_h_ch);
+
+	wcn36xx_dxe_deinit_descs(wcn->dev, &wcn->dxe_tx_l_ch);
+	wcn36xx_dxe_deinit_descs(wcn->dev, &wcn->dxe_tx_h_ch);
+	wcn36xx_dxe_deinit_descs(wcn->dev, &wcn->dxe_rx_l_ch);
+	wcn36xx_dxe_deinit_descs(wcn->dev, &wcn->dxe_rx_h_ch);
 }

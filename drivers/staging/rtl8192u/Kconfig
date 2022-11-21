@@ -5,6 +5,7 @@ config RTL8192U
 	depends on m
 	select WIRELESS_EXT
 	select WEXT_PRIV
+	select CRC32
 	select CRYPTO
 	select CRYPTO_AES
 	select CRYPTO_CCM

@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: GPL-2.0+
+# Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
+
+menuconfig SURFACE_AGGREGATOR
+	tristate "Microsoft Surface System Aggregator Module Subsystem and Drivers"
+	depends on SERIAL_DEV_BUS
+	depends on ACPI
+	select CRC_CCITT
+	help
+	  The Surface System Aggregator Module (Surface SAM or SSAM) is an
+	  embedded controller (EC) found on 5th- and later-generation Microsoft
+	  Surface devices (i.e. Surface Pro 5, Surface Book 2, Surface Laptop,
+	  and newer, with exception of Surface Go series devices).
+
+	  Depending on the device in question, this EC provides varying
+	  functionality, including:
+	  - EC access from ACPI via Surface ACPI Notify (5th- and 6th-generation)
+	  - battery status information (all devices)
+	  - thermal sensor access (all devices)
+	  - performance mode / cooling mode control (all devices)
+	  - clipboard detachment system control (Surface Book 2 and 3)
+	  - HID / keyboard input (Surface Laptops, Surface Book 3)
+
+	  This option controls whether the Surface SAM subsystem core will be
+	  built. This includes a driver for the Surface Serial Hub (SSH), which
+	  is the device responsible for the communication with the EC, and a
+	  basic kernel interface exposing the EC functionality to other client
+	  drivers, i.e. allowing them to make requests to the EC and receive
+	  events from it. Selecting this option alone will not provide any
+	  client drivers and therefore no functionality beyond the in-kernel
+	  interface. Said functionality is the responsibility of the respective
+	  client drivers.
+
+	  Note: While 4th-generation Surface devices also make use of a SAM EC,
+	  due to a difference in the communication interface of the controller,
+	  only 5th and later generations are currently supported. Specifically,
+	  devices using SAM-over-SSH are supported, whereas devices using
+	  SAM-over-HID, which is used on the 4th generation, are currently not
+	  supported.
+
+	  Choose m if you want to build the SAM subsystem core and SSH driver as
+	  module, y if you want to build it into the kernel and n if you don't
+	  want it at all.
+
+config SURFACE_AGGREGATOR_BUS
+	bool "Surface System Aggregator Module Bus"
+	depends on SURFACE_AGGREGATOR
+	default y
+	help
+	  Expands the Surface System Aggregator Module (SSAM) core driver by
+	  providing a dedicated bus and client-device type.
+
+	  This bus and device type are intended to provide and simplify support
+	  for non-platform and non-ACPI SSAM devices, i.e. SSAM devices that are
+	  not auto-detectable via the conventional means (e.g. ACPI).
+
+config SURFACE_AGGREGATOR_ERROR_INJECTION
+	bool "Surface System Aggregator Module Error Injection Capabilities"
+	depends on SURFACE_AGGREGATOR
+	depends on FUNCTION_ERROR_INJECTION
+	help
+	  Provides error-injection capabilities for the Surface System
+	  Aggregator Module subsystem and Surface Serial Hub driver.
+
+	  Specifically, exports error injection hooks to be used with the
+	  kernel's function error injection capabilities to simulate underlying
+	  transport and communication problems, such as invalid data sent to or
+	  received from the EC, dropped data, and communication timeouts.
+	  Intended for development and debugging.

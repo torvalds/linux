@@ -35,11 +35,9 @@ properties:
     maxItems: 1
 
   ovdd-supply:
-    maxItems: 1
     description: I/O voltage
 
   pwr18-supply:
-    maxItems: 1
     description: core voltage
 
   interrupts:
@@ -55,7 +53,7 @@ properties:
     description: extcon specifier for the Power Delivery
 
   port:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/port
     description: A port node pointing to DPI host port node
 
 required:

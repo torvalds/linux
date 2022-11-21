@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <drm/drm_module.h>
 #include <drm/drm_of.h>
 
 #include "dcss-dev.h"
@@ -131,7 +132,7 @@ static struct platform_driver dcss_platform_driver = {
 	},
 };
 
-module_platform_driver(dcss_platform_driver);
+drm_module_platform_driver(dcss_platform_driver);
 
 MODULE_AUTHOR("Laurentiu Palcu <laurentiu.palcu@nxp.com>");
 MODULE_DESCRIPTION("DCSS driver for i.MX8MQ");

@@ -287,7 +287,7 @@ struct apei_res {
 };
 
 /* Collect all resources requested, to avoid conflict */
-struct apei_resources apei_resources_all = {
+static struct apei_resources apei_resources_all = {
 	.iomem = LIST_HEAD_INIT(apei_resources_all.iomem),
 	.ioport = LIST_HEAD_INIT(apei_resources_all.ioport),
 };
@@ -319,7 +319,7 @@ repeat:
 	if (res_ins)
 		list_add(&res_ins->list, res_list);
 	else {
-		res_ins = kmalloc(sizeof(*res), GFP_KERNEL);
+		res_ins = kmalloc(sizeof(*res_ins), GFP_KERNEL);
 		if (!res_ins)
 			return -ENOMEM;
 		res_ins->start = start;

@@ -6,8 +6,20 @@
 #include <linux/kernel.h>
 
 #include "i915_debugfs_params.h"
+#include "gt/intel_gt.h"
+#include "gt/uc/intel_guc.h"
 #include "i915_drv.h"
 #include "i915_params.h"
+
+#define MATCH_DEBUGFS_NODE_NAME(_file, _name) \
+	(strcmp((_file)->f_path.dentry->d_name.name, (_name)) == 0)
+
+#define GET_I915(i915, name, ptr)	\
+	do {	\
+		struct i915_params *params;	\
+		params = container_of(((void *)(ptr)), typeof(*params), name);	\
+		(i915) = container_of(params, typeof(*(i915)), params);	\
+	} while (0)
 
 /* int param */
 static int i915_param_int_show(struct seq_file *m, void *data)
@@ -22,6 +34,16 @@ static int i915_param_int_show(struct seq_file *m, void *data)
 static int i915_param_int_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, i915_param_int_show, inode->i_private);
+}
+
+static int notify_guc(struct drm_i915_private *i915)
+{
+	int ret = 0;
+
+	if (intel_uc_uses_guc_submission(&to_gt(i915)->uc))
+		ret = intel_guc_global_policies_update(&to_gt(i915)->uc.guc);
+
+	return ret;
 }
 
 static ssize_t i915_param_int_write(struct file *file,
@@ -81,8 +103,10 @@ static ssize_t i915_param_uint_write(struct file *file,
 				     const char __user *ubuf, size_t len,
 				     loff_t *offp)
 {
+	struct drm_i915_private *i915;
 	struct seq_file *m = file->private_data;
 	unsigned int *value = m->private;
+	unsigned int old = *value;
 	int ret;
 
 	ret = kstrtouint_from_user(ubuf, len, 0, value);
@@ -93,6 +117,14 @@ static ssize_t i915_param_uint_write(struct file *file,
 		ret = kstrtobool_from_user(ubuf, len, &b);
 		if (!ret)
 			*value = b;
+	}
+
+	if (!ret && MATCH_DEBUGFS_NODE_NAME(file, "reset")) {
+		GET_I915(i915, reset, value);
+
+		ret = notify_guc(i915);
+		if (ret)
+			*value = old;
 	}
 
 	return ret ?: len;

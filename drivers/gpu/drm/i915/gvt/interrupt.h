@@ -32,7 +32,10 @@
 #ifndef _GVT_INTERRUPT_H_
 #define _GVT_INTERRUPT_H_
 
-#include <linux/types.h>
+#include <linux/hrtimer.h>
+#include <linux/kernel.h>
+
+#include "i915_reg_defs.h"
 
 enum intel_gvt_event_type {
 	RCS_MI_USER_INTERRUPT = 0,
@@ -198,24 +201,17 @@ struct intel_gvt_irq_map {
 	u32 down_irq_bitmask;
 };
 
-struct intel_gvt_vblank_timer {
-	struct hrtimer timer;
-	u64 period;
-};
-
 /* structure containing device specific IRQ state */
 struct intel_gvt_irq {
-	struct intel_gvt_irq_ops *ops;
+	const struct intel_gvt_irq_ops *ops;
 	struct intel_gvt_irq_info *info[INTEL_GVT_IRQ_INFO_MAX];
 	DECLARE_BITMAP(irq_info_bitmap, INTEL_GVT_IRQ_INFO_MAX);
 	struct intel_gvt_event_info events[INTEL_GVT_EVENT_MAX];
 	DECLARE_BITMAP(pending_events, INTEL_GVT_EVENT_MAX);
 	struct intel_gvt_irq_map *irq_map;
-	struct intel_gvt_vblank_timer vblank_timer;
 };
 
 int intel_gvt_init_irq(struct intel_gvt *gvt);
-void intel_gvt_clean_irq(struct intel_gvt *gvt);
 
 void intel_vgpu_trigger_virtual_event(struct intel_vgpu *vgpu,
 	enum intel_gvt_event_type event);

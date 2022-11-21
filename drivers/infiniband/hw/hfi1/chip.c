@@ -1,48 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
 /*
  * Copyright(c) 2015 - 2020 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * Copyright(c) 2021 Cornelis Networks.
  */
 
 /*
@@ -1322,9 +1281,9 @@ CNTR_ELEM(#name, \
 	  access_ibp_##cntr)
 
 /**
- * hfi_addr_from_offset - return addr for readq/writeq
- * @dd - the dd device
- * @offset - the offset of the CSR within bar0
+ * hfi1_addr_from_offset - return addr for readq/writeq
+ * @dd: the dd device
+ * @offset: the offset of the CSR within bar0
  *
  * This routine selects the appropriate base address
  * based on the indicated offset.
@@ -1340,8 +1299,8 @@ static inline void __iomem *hfi1_addr_from_offset(
 
 /**
  * read_csr - read CSR at the indicated offset
- * @dd - the dd device
- * @offset - the offset of the CSR within bar0
+ * @dd: the dd device
+ * @offset: the offset of the CSR within bar0
  *
  * Return: the value read or all FF's if there
  * is no mapping
@@ -1355,9 +1314,9 @@ u64 read_csr(const struct hfi1_devdata *dd, u32 offset)
 
 /**
  * write_csr - write CSR at the indicated offset
- * @dd - the dd device
- * @offset - the offset of the CSR within bar0
- * @value - value to write
+ * @dd: the dd device
+ * @offset: the offset of the CSR within bar0
+ * @value: value to write
  */
 void write_csr(const struct hfi1_devdata *dd, u32 offset, u64 value)
 {
@@ -1373,8 +1332,8 @@ void write_csr(const struct hfi1_devdata *dd, u32 offset, u64 value)
 
 /**
  * get_csr_addr - return te iomem address for offset
- * @dd - the dd device
- * @offset - the offset of the CSR within bar0
+ * @dd: the dd device
+ * @offset: the offset of the CSR within bar0
  *
  * Return: The iomem address to use in subsequent
  * writeq/readq operations.
@@ -8316,7 +8275,7 @@ static void is_interrupt(struct hfi1_devdata *dd, unsigned int source)
 }
 
 /**
- * gerneral_interrupt() -  General interrupt handler
+ * general_interrupt -  General interrupt handler
  * @irq: MSIx IRQ vector
  * @data: hfi1 devdata
  *
@@ -8433,7 +8392,7 @@ static inline int check_packet_present(struct hfi1_ctxtdata *rcd)
 	return hfi1_rcd_head(rcd) != tail;
 }
 
-/**
+/*
  * Common code for receive contexts interrupt handlers.
  * Update traces, increment kernel IRQ counter and
  * setup ASPM when needed.
@@ -8447,7 +8406,7 @@ static void receive_interrupt_common(struct hfi1_ctxtdata *rcd)
 	aspm_ctx_disable(rcd);
 }
 
-/**
+/*
  * __hfi1_rcd_eoi_intr() - Make HW issue receive interrupt
  * when there are packets present in the queue. When calling
  * with interrupts enabled please use hfi1_rcd_eoi_intr.
@@ -8456,6 +8415,8 @@ static void receive_interrupt_common(struct hfi1_ctxtdata *rcd)
  */
 static void __hfi1_rcd_eoi_intr(struct hfi1_ctxtdata *rcd)
 {
+	if (!rcd->rcvhdrq)
+		return;
 	clear_recv_intr(rcd);
 	if (check_packet_present(rcd))
 		force_recv_intr(rcd);
@@ -8484,8 +8445,8 @@ static void hfi1_rcd_eoi_intr(struct hfi1_ctxtdata *rcd)
 
 /**
  * hfi1_netdev_rx_napi - napi poll function to move eoi inline
- * @napi - pointer to napi object
- * @budget - netdev budget
+ * @napi: pointer to napi object
+ * @budget: netdev budget
  */
 int hfi1_netdev_rx_napi(struct napi_struct *napi, int budget)
 {
@@ -10142,7 +10103,7 @@ u32 lrh_max_header_bytes(struct hfi1_devdata *dd)
 
 /*
  * Set Send Length
- * @ppd - per port data
+ * @ppd: per port data
  *
  * Set the MTU by limiting how many DWs may be sent.  The SendLenCheck*
  * registers compare against LRH.PktLen, so use the max bytes included
@@ -14186,7 +14147,7 @@ static void init_kdeth_qp(struct hfi1_devdata *dd)
 }
 
 /**
- * hfi1_get_qp_map
+ * hfi1_get_qp_map - get qp map
  * @dd: device data
  * @idx: index to read
  */
@@ -14199,10 +14160,10 @@ u8 hfi1_get_qp_map(struct hfi1_devdata *dd, u8 idx)
 }
 
 /**
- * init_qpmap_table
- * @dd - device data
- * @first_ctxt - first context
- * @last_ctxt - first context
+ * init_qpmap_table - init qp map
+ * @dd: device data
+ * @first_ctxt: first context
+ * @last_ctxt: first context
  *
  * This return sets the qpn mapping table that
  * is indexed by qpn[8:1].
@@ -14383,8 +14344,8 @@ no_qos:
 
 /**
  * init_qos - init RX qos
- * @dd - device data
- * @rmt - RSM map table
+ * @dd: device data
+ * @rmt: RSM map table
  *
  * This routine initializes Rule 0 and the RSM map table to implement
  * quality of service (qos).
@@ -14414,7 +14375,7 @@ static void init_qos(struct hfi1_devdata *dd, struct rsm_map_table *rmt)
 	if (rmt->used + rmt_entries >= NUM_MAP_ENTRIES)
 		goto bail;
 
-	/* add qos entries to the the RSM map table */
+	/* add qos entries to the RSM map table */
 	for (i = 0, ctxt = FIRST_KERNEL_KCTXT; i < num_vls; i++) {
 		unsigned tctxt;
 
@@ -14893,7 +14854,7 @@ int hfi1_clear_ctxt_pkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *ctxt)
 }
 
 /*
- * Start doing the clean up the the chip. Our clean up happens in multiple
+ * Start doing the clean up the chip. Our clean up happens in multiple
  * stages and this is just the first.
  */
 void hfi1_start_cleanup(struct hfi1_devdata *dd)
@@ -14960,7 +14921,7 @@ static int obtain_boardname(struct hfi1_devdata *dd)
 {
 	/* generic board description */
 	const char generic[] =
-		"Intel Omni-Path Host Fabric Interface Adapter 100 Series";
+		"Cornelis Omni-Path Host Fabric Interface Adapter 100 Series";
 	unsigned long size;
 	int ret;
 
@@ -15022,8 +14983,7 @@ err_exit:
 
 /**
  * hfi1_init_dd() - Initialize most of the dd structure.
- * @dev: the pci_dev for hfi1_ib device
- * @ent: pci_device_id struct for this dev
+ * @dd: the dd device
  *
  * This is global, and is called directly at init to set up the
  * chip-specific function pointers for later use.
@@ -15244,8 +15204,8 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 		 (dd->revision >> CCE_REVISION_SW_SHIFT)
 		    & CCE_REVISION_SW_MASK);
 
-	/* alloc netdev data */
-	ret = hfi1_netdev_alloc(dd);
+	/* alloc VNIC/AIP rx data */
+	ret = hfi1_alloc_rx(dd);
 	if (ret)
 		goto bail_cleanup;
 
@@ -15337,7 +15297,7 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 	init_completion(&dd->user_comp);
 
 	/* The user refcount starts with one to inidicate an active device */
-	atomic_set(&dd->user_refcount, 1);
+	refcount_set(&dd->user_refcount, 1);
 
 	goto bail;
 
@@ -15349,7 +15309,7 @@ bail_clear_intr:
 	hfi1_comp_vectors_clean_up(dd);
 	msix_clean_up_interrupts(dd);
 bail_cleanup:
-	hfi1_netdev_free(dd);
+	hfi1_free_rx(dd);
 	hfi1_pcie_ddcleanup(dd);
 bail_free:
 	hfi1_free_devdata(dd);
@@ -15378,10 +15338,11 @@ static u16 delay_cycles(struct hfi1_pportdata *ppd, u32 desired_egress_rate,
 
 /**
  * create_pbc - build a pbc for transmission
+ * @ppd: info of physical Hfi port
  * @flags: special case flags or-ed in built pbc
- * @srate: static rate
+ * @srate_mbs: static rate
  * @vl: vl
- * @dwlen: dword length (header words + data words + pbc words)
+ * @dw_len: dword length (header words + data words + pbc words)
  *
  * Create a PBC with the given flags, rate, VL, and length.
  *

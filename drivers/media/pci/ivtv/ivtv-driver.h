@@ -57,8 +57,6 @@
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
-#include <linux/dvb/video.h>
-#include <linux/dvb/audio.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
@@ -332,7 +330,6 @@ struct ivtv_stream {
 	struct ivtv *itv;		/* for ease of use */
 	const char *name;		/* name of the stream */
 	int type;			/* stream type */
-	u32 caps;			/* V4L2 capabilities */
 
 	struct v4l2_fh *fh;		/* pointer to the streaming filehandle */
 	spinlock_t qlock;		/* locks access to the queues */

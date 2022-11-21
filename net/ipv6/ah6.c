@@ -175,7 +175,6 @@ static void ipv6_rearrange_destopt(struct ipv6hdr *iph, struct ipv6_opt_hdr *des
 			 * See 11.3.2 of RFC 3775 for details.
 			 */
 			if (opt[off] == IPV6_TLV_HAO) {
-				struct in6_addr final_addr;
 				struct ipv6_destopt_hao *hao;
 
 				hao = (struct ipv6_destopt_hao *)&opt[off];
@@ -184,9 +183,7 @@ static void ipv6_rearrange_destopt(struct ipv6hdr *iph, struct ipv6_opt_hdr *des
 							     hao->length);
 					goto bad;
 				}
-				final_addr = hao->addr;
-				hao->addr = iph->saddr;
-				iph->saddr = final_addr;
+				swap(hao->addr, iph->saddr);
 			}
 			break;
 		}
@@ -316,7 +313,7 @@ static void ah6_output_done(struct crypto_async_request *base, int err)
 	}
 
 	kfree(AH_SKB_CB(skb)->tmp);
-	xfrm_output_resume(skb, err);
+	xfrm_output_resume(skb->sk, skb, err);
 }
 
 static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
@@ -705,7 +702,7 @@ static int ah6_init_state(struct xfrm_state *x)
 
 	if (aalg_desc->uinfo.auth.icv_fullbits/8 !=
 	    crypto_ahash_digestsize(ahash)) {
-		pr_info("AH: %s digestsize %u != %hu\n",
+		pr_info("AH: %s digestsize %u != %u\n",
 			x->aalg->alg_name, crypto_ahash_digestsize(ahash),
 			aalg_desc->uinfo.auth.icv_fullbits/8);
 		goto error;
@@ -755,7 +752,6 @@ static int ah6_rcv_cb(struct sk_buff *skb, int err)
 }
 
 static const struct xfrm_type ah6_type = {
-	.description	= "AH6",
 	.owner		= THIS_MODULE,
 	.proto		= IPPROTO_AH,
 	.flags		= XFRM_TYPE_REPLAY_PROT,
@@ -763,7 +759,6 @@ static const struct xfrm_type ah6_type = {
 	.destructor	= ah6_destroy,
 	.input		= ah6_input,
 	.output		= ah6_output,
-	.hdr_offset	= xfrm6_find_1stfragopt,
 };
 
 static struct xfrm6_protocol ah6_protocol = {

@@ -85,10 +85,12 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
 		goto err;
 	}
 
-	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
-		   "Initialized: CID %08x cmd %02x protocol %02x data_addr %lu comp_mode [%s]\n",
-		   opaque_cid, cmd, protocol,
-		   (unsigned long)&p_ent->ramrod,
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SPQ,
+		   "Initialized: CID %08x %s:[%02x] %s:%02x data_addr %llx comp_mode [%s]\n",
+		   opaque_cid, qed_get_ramrod_cmd_id_str(protocol, cmd),
+		   cmd, qed_get_protocol_type_str(protocol), protocol,
+		   (unsigned long long)(uintptr_t)&p_ent->ramrod,
 		   D_TRINE(p_ent->comp_mode, QED_SPQ_MODE_EBLOCK,
 			   QED_SPQ_MODE_BLOCK, "MODE_EBLOCK", "MODE_BLOCK",
 			   "MODE_CB"));
@@ -369,8 +371,12 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		       qed_chain_get_pbl_phys(&p_hwfn->p_eq->chain));
 	page_cnt = (u8)qed_chain_get_page_cnt(&p_hwfn->p_eq->chain);
 	p_ramrod->event_ring_num_pages = page_cnt;
-	DMA_REGPAIR_LE(p_ramrod->consolid_q_pbl_addr,
+
+	/* Place consolidation queue address in ramrod */
+	DMA_REGPAIR_LE(p_ramrod->consolid_q_pbl_base_addr,
 		       qed_chain_get_pbl_phys(&p_hwfn->p_consq->chain));
+	page_cnt = (u8)qed_chain_get_page_cnt(&p_hwfn->p_consq->chain);
+	p_ramrod->consolid_q_num_pages = page_cnt;
 
 	qed_tunn_set_pf_start_params(p_hwfn, p_tunn, &p_ramrod->tunnel_config);
 
@@ -385,7 +391,8 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		p_ramrod->personality = PERSONALITY_FCOE;
 		break;
 	case QED_PCI_ISCSI:
-		p_ramrod->personality = PERSONALITY_ISCSI;
+	case QED_PCI_NVMETCP:
+		p_ramrod->personality = PERSONALITY_TCP_ULP;
 		break;
 	case QED_PCI_ETH_ROCE:
 	case QED_PCI_ETH_IWARP:
@@ -400,8 +407,8 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	if (p_hwfn->cdev->p_iov_info) {
 		struct qed_hw_sriov_info *p_iov = p_hwfn->cdev->p_iov_info;
 
-		p_ramrod->base_vf_id = (u8) p_iov->first_vf_in_pf;
-		p_ramrod->num_vfs = (u8) p_iov->total_vfs;
+		p_ramrod->base_vf_id = (u8)p_iov->first_vf_in_pf;
+		p_ramrod->num_vfs = (u8)p_iov->total_vfs;
 	}
 	p_ramrod->hsi_fp_ver.major_ver_arr[ETH_VER_KEY] = ETH_HSI_VER_MAJOR;
 	p_ramrod->hsi_fp_ver.minor_ver_arr[ETH_VER_KEY] = ETH_HSI_VER_MINOR;

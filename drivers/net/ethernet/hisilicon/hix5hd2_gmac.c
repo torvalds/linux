@@ -429,7 +429,7 @@ static void hix5hd2_port_disable(struct hix5hd2_priv *priv)
 static void hix5hd2_hw_set_mac_addr(struct net_device *dev)
 {
 	struct hix5hd2_priv *priv = netdev_priv(dev);
-	unsigned char *mac = dev->dev_addr;
+	const unsigned char *mac = dev->dev_addr;
 	u32 val;
 
 	val = mac[1] | (mac[0] << 8);
@@ -1098,7 +1098,6 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct hix5hd2_priv *priv;
 	struct mii_bus *bus;
-	const char *mac_addr;
 	int ret;
 
 	ndev = alloc_etherdev(sizeof(struct hix5hd2_priv));
@@ -1220,10 +1219,8 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 		goto out_phy_node;
 	}
 
-	mac_addr = of_get_mac_address(node);
-	if (!IS_ERR(mac_addr))
-		ether_addr_copy(ndev->dev_addr, mac_addr);
-	if (!is_valid_ether_addr(ndev->dev_addr)) {
+	ret = of_get_ethdev_address(node, ndev);
+	if (ret) {
 		eth_hw_addr_random(ndev);
 		netdev_warn(ndev, "using random MAC address %pM\n",
 			    ndev->dev_addr);

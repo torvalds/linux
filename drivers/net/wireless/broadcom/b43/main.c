@@ -4053,7 +4053,7 @@ static void b43_update_basic_rates(struct b43_wldev *dev, u32 brates)
 {
 	struct ieee80211_supported_band *sband =
 		dev->wl->hw->wiphy->bands[b43_current_band(dev->wl)];
-	struct ieee80211_rate *rate;
+	const struct ieee80211_rate *rate;
 	int i;
 	u16 basic, direct, offset, basic_offset, rateptr;
 
@@ -4961,12 +4961,11 @@ static int b43_op_add_interface(struct ieee80211_hw *hw,
 	struct b43_wldev *dev;
 	int err = -EOPNOTSUPP;
 
-	/* TODO: allow WDS/AP devices to coexist */
+	/* TODO: allow AP devices to coexist */
 
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_MESH_POINT &&
 	    vif->type != NL80211_IFTYPE_STATION &&
-	    vif->type != NL80211_IFTYPE_WDS &&
 	    vif->type != NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
 
@@ -5576,9 +5575,6 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 		BIT(NL80211_IFTYPE_AP) |
 		BIT(NL80211_IFTYPE_MESH_POINT) |
 		BIT(NL80211_IFTYPE_STATION) |
-#ifdef CONFIG_WIRELESS_WDS
-		BIT(NL80211_IFTYPE_WDS) |
-#endif
 		BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;

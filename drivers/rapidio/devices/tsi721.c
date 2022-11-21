@@ -2836,17 +2836,17 @@ static int tsi721_probe(struct pci_dev *pdev,
 	}
 
 	/* Configure DMA attributes. */
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
 			tsi_err(&pdev->dev, "Unable to set DMA mask");
 			goto err_unmap_bars;
 		}
 
-		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))
+		if (dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32)))
 			tsi_info(&pdev->dev, "Unable to set consistent DMA mask");
 	} else {
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 		if (err)
 			tsi_info(&pdev->dev, "Unable to set consistent DMA mask");
 	}

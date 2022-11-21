@@ -46,6 +46,8 @@ enum amd_apu_flags {
 	AMD_APU_IS_PICASSO = 0x00000004UL,
 	AMD_APU_IS_RENOIR = 0x00000008UL,
 	AMD_APU_IS_GREEN_SARDINE = 0x00000010UL,
+	AMD_APU_IS_VANGOGH = 0x00000020UL,
+	AMD_APU_IS_CYAN_SKILLFISH2 = 0x00000040UL,
 };
 
 /**
@@ -81,6 +83,7 @@ enum amd_apu_flags {
 * @AMD_IP_BLOCK_TYPE_VCN: Video Core/Codec Next
 * @AMD_IP_BLOCK_TYPE_MES: Micro-Engine Scheduler
 * @AMD_IP_BLOCK_TYPE_JPEG: JPEG Engine
+* @AMD_IP_BLOCK_TYPE_NUM: Total number of IP block types
 */
 enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_COMMON,
@@ -96,7 +99,8 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_ACP,
 	AMD_IP_BLOCK_TYPE_VCN,
 	AMD_IP_BLOCK_TYPE_MES,
-	AMD_IP_BLOCK_TYPE_JPEG
+	AMD_IP_BLOCK_TYPE_JPEG,
+	AMD_IP_BLOCK_TYPE_NUM,
 };
 
 enum amd_clockgating_state {
@@ -143,6 +147,7 @@ enum amd_powergating_state {
 #define AMD_CG_SUPPORT_ATHUB_LS			(1 << 28)
 #define AMD_CG_SUPPORT_ATHUB_MGCG		(1 << 29)
 #define AMD_CG_SUPPORT_JPEG_MGCG		(1 << 30)
+#define AMD_CG_SUPPORT_GFX_FGCG			(1 << 31)
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
 #define AMD_PG_SUPPORT_GFX_SMG			(1 << 1)
@@ -211,20 +216,32 @@ enum PP_FEATURE_MASK {
 	PP_ACG_MASK = 0x10000,
 	PP_STUTTER_MODE = 0x20000,
 	PP_AVFS_MASK = 0x40000,
+	PP_GFX_DCS_MASK = 0x80000,
+};
+
+enum amd_harvest_ip_mask {
+    AMD_HARVEST_IP_VCN_MASK = 0x1,
+    AMD_HARVEST_IP_JPEG_MASK = 0x2,
+    AMD_HARVEST_IP_DMU_MASK = 0x4,
 };
 
 enum DC_FEATURE_MASK {
-	DC_FBC_MASK = 0x1,
-	DC_MULTI_MON_PP_MCLK_SWITCH_MASK = 0x2,
-	DC_DISABLE_FRACTIONAL_PWM_MASK = 0x4,
-	DC_PSR_MASK = 0x8,
+	//Default value can be found at "uint amdgpu_dc_feature_mask"
+	DC_FBC_MASK = (1 << 0), //0x1, disabled by default
+	DC_MULTI_MON_PP_MCLK_SWITCH_MASK = (1 << 1), //0x2, enabled by default
+	DC_DISABLE_FRACTIONAL_PWM_MASK = (1 << 2), //0x4, disabled by default
+	DC_PSR_MASK = (1 << 3), //0x8, disabled by default for dcn < 3.1
+	DC_EDP_NO_POWER_SEQUENCING = (1 << 4), //0x10, disabled by default
+	DC_DISABLE_LTTPR_DP1_4A = (1 << 5), //0x20, disabled by default
+	DC_DISABLE_LTTPR_DP2_0 = (1 << 6), //0x40, disabled by default
 };
 
 enum DC_DEBUG_MASK {
 	DC_DISABLE_PIPE_SPLIT = 0x1,
 	DC_DISABLE_STUTTER = 0x2,
 	DC_DISABLE_DSC = 0x4,
-	DC_DISABLE_CLOCK_GATING = 0x8
+	DC_DISABLE_CLOCK_GATING = 0x8,
+	DC_DISABLE_PSR = 0x10,
 };
 
 enum amd_dpm_forced_level;
@@ -237,6 +254,7 @@ enum amd_dpm_forced_level;
  * @late_init: sets up late driver/hw state (post hw_init) - Optional
  * @sw_init: sets up driver state, does not configure hw
  * @sw_fini: tears down driver state, does not configure hw
+ * @early_fini: tears down stuff before dev detached from driver
  * @hw_init: sets up the hw state
  * @hw_fini: tears down the hw state
  * @late_fini: final cleanup
@@ -251,7 +269,6 @@ enum amd_dpm_forced_level;
  * @set_clockgating_state: enable/disable cg for the IP block
  * @set_powergating_state: enable/disable pg for the IP block
  * @get_clockgating_state: get current clockgating status
- * @enable_umd_pstate: enable UMD powerstate
  *
  * These hooks provide an interface for controlling the operational state
  * of IP blocks. After acquiring a list of IP blocks for the GPU in use,
@@ -265,6 +282,7 @@ struct amd_ip_funcs {
 	int (*late_init)(void *handle);
 	int (*sw_init)(void *handle);
 	int (*sw_fini)(void *handle);
+	int (*early_fini)(void *handle);
 	int (*hw_init)(void *handle);
 	int (*hw_fini)(void *handle);
 	void (*late_fini)(void *handle);
@@ -281,7 +299,6 @@ struct amd_ip_funcs {
 	int (*set_powergating_state)(void *handle,
 				     enum amd_powergating_state state);
 	void (*get_clockgating_state)(void *handle, u32 *flags);
-	int (*enable_umd_pstate)(void *handle, enum amd_dpm_forced_level *level);
 };
 
 

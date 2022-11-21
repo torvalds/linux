@@ -199,8 +199,13 @@ static const struct of_device_id uniphier_regulator_match[] = {
 		.compatible = "socionext,uniphier-pxs3-usb3-regulator",
 		.data = &uniphier_pxs2_usb3_data,
 	},
+	{
+		.compatible = "socionext,uniphier-nx1-usb3-regulator",
+		.data = &uniphier_pxs2_usb3_data,
+	},
 	{ /* Sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, uniphier_regulator_match);
 
 static struct platform_driver uniphier_regulator_driver = {
 	.probe = uniphier_regulator_probe,

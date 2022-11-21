@@ -32,22 +32,27 @@
 #define MT8183_SCP_CACHESIZE_8KB	BIT(8)
 #define MT8183_SCP_CACHE_CON_WAYEN	BIT(10)
 
-#define MT8192_L2TCM_SRAM_PD_0		0x210C0
-#define MT8192_L2TCM_SRAM_PD_1		0x210C4
-#define MT8192_L2TCM_SRAM_PD_2		0x210C8
-#define MT8192_L1TCM_SRAM_PDN		0x2102C
-#define MT8192_CPU0_SRAM_PD		0x21080
+#define MT8186_SCP_L1_SRAM_PD_P1	0x40B0
+#define MT8186_SCP_L1_SRAM_PD_p2	0x40B4
 
-#define MT8192_SCP2APMCU_IPC_SET	0x24080
-#define MT8192_SCP2APMCU_IPC_CLR	0x24084
+#define MT8192_L2TCM_SRAM_PD_0		0x10C0
+#define MT8192_L2TCM_SRAM_PD_1		0x10C4
+#define MT8192_L2TCM_SRAM_PD_2		0x10C8
+#define MT8192_L1TCM_SRAM_PDN		0x102C
+#define MT8192_CPU0_SRAM_PD		0x1080
+
+#define MT8192_SCP2APMCU_IPC_SET	0x4080
+#define MT8192_SCP2APMCU_IPC_CLR	0x4084
 #define MT8192_SCP_IPC_INT_BIT		BIT(0)
-#define MT8192_SCP2SPM_IPC_CLR		0x24094
-#define MT8192_GIPC_IN_SET		0x24098
+#define MT8192_SCP2SPM_IPC_CLR		0x4094
+#define MT8192_GIPC_IN_SET		0x4098
 #define MT8192_HOST_IPC_INT_BIT		BIT(0)
 
-#define MT8192_CORE0_SW_RSTN_CLR	0x30000
-#define MT8192_CORE0_SW_RSTN_SET	0x30004
-#define MT8192_CORE0_WDT_CFG		0x30034
+#define MT8192_CORE0_SW_RSTN_CLR	0x10000
+#define MT8192_CORE0_SW_RSTN_SET	0x10004
+#define MT8192_CORE0_MEM_ATT_PREDEF	0x10008
+#define MT8192_CORE0_WDT_IRQ		0x10030
+#define MT8192_CORE0_WDT_CFG		0x10034
 
 #define SCP_FW_VER_LEN			32
 #define SCP_SHARE_BUFFER_SIZE		288
@@ -70,14 +75,18 @@ struct scp_ipi_desc {
 struct mtk_scp;
 
 struct mtk_scp_of_data {
+	int (*scp_clk_get)(struct mtk_scp *scp);
 	int (*scp_before_load)(struct mtk_scp *scp);
 	void (*scp_irq_handler)(struct mtk_scp *scp);
 	void (*scp_reset_assert)(struct mtk_scp *scp);
 	void (*scp_reset_deassert)(struct mtk_scp *scp);
 	void (*scp_stop)(struct mtk_scp *scp);
+	void *(*scp_da_to_va)(struct mtk_scp *scp, u64 da, size_t len);
 
 	u32 host_to_scp_reg;
 	u32 host_to_scp_int_bit;
+
+	size_t ipi_buf_offset;
 };
 
 struct mtk_scp {
@@ -87,6 +96,10 @@ struct mtk_scp {
 	void __iomem *reg_base;
 	void __iomem *sram_base;
 	size_t sram_size;
+	phys_addr_t sram_phys;
+	void __iomem *l1tcm_base;
+	size_t l1tcm_size;
+	phys_addr_t l1tcm_phys;
 
 	const struct mtk_scp_of_data *data;
 
@@ -99,7 +112,7 @@ struct mtk_scp {
 	bool ipi_id_ack[SCP_IPI_MAX];
 	wait_queue_head_t ack_wq;
 
-	void __iomem *cpu_addr;
+	void *cpu_addr;
 	dma_addr_t dma_addr;
 	size_t dram_size;
 

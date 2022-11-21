@@ -649,7 +649,7 @@ static struct attribute *l2_cache_pmu_cpumask_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group l2_cache_pmu_cpumask_group = {
+static const struct attribute_group l2_cache_pmu_cpumask_group = {
 	.attrs = l2_cache_pmu_cpumask_attrs,
 };
 
@@ -665,7 +665,7 @@ static struct attribute *l2_cache_pmu_formats[] = {
 	NULL,
 };
 
-static struct attribute_group l2_cache_pmu_format_group = {
+static const struct attribute_group l2_cache_pmu_format_group = {
 	.name = "format",
 	.attrs = l2_cache_pmu_formats,
 };
@@ -676,14 +676,11 @@ static ssize_t l2cache_pmu_event_show(struct device *dev,
 	struct perf_pmu_events_attr *pmu_attr;
 
 	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
-	return sprintf(page, "event=0x%02llx\n", pmu_attr->id);
+	return sysfs_emit(page, "event=0x%02llx\n", pmu_attr->id);
 }
 
-#define L2CACHE_EVENT_ATTR(_name, _id)					     \
-	(&((struct perf_pmu_events_attr[]) {				     \
-		{ .attr = __ATTR(_name, 0444, l2cache_pmu_event_show, NULL), \
-		  .id = _id, }						     \
-	})[0].attr.attr)
+#define L2CACHE_EVENT_ATTR(_name, _id)			    \
+	PMU_EVENT_ATTR_ID(_name, l2cache_pmu_event_show, _id)
 
 static struct attribute *l2_cache_pmu_events[] = {
 	L2CACHE_EVENT_ATTR(cycles, L2_EVENT_CYCLES),
@@ -700,7 +697,7 @@ static struct attribute *l2_cache_pmu_events[] = {
 	NULL
 };
 
-static struct attribute_group l2_cache_pmu_events_group = {
+static const struct attribute_group l2_cache_pmu_events_group = {
 	.name = "events",
 	.attrs = l2_cache_pmu_events,
 };
@@ -739,7 +736,7 @@ static struct cluster_pmu *l2_cache_associate_cpu_with_cluster(
 {
 	u64 mpidr;
 	int cpu_cluster_id;
-	struct cluster_pmu *cluster = NULL;
+	struct cluster_pmu *cluster;
 
 	/*
 	 * This assumes that the cluster_id is in MPIDR[aff1] for
@@ -761,10 +758,10 @@ static struct cluster_pmu *l2_cache_associate_cpu_with_cluster(
 			 cluster->cluster_id);
 		cpumask_set_cpu(cpu, &cluster->cluster_cpus);
 		*per_cpu_ptr(l2cache_pmu->pmu_cluster, cpu) = cluster;
-		break;
+		return cluster;
 	}
 
-	return cluster;
+	return NULL;
 }
 
 static int l2cache_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
@@ -843,17 +840,14 @@ static int l2_cache_pmu_probe_cluster(struct device *dev, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev->parent);
 	struct platform_device *sdev = to_platform_device(dev);
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct l2cache_pmu *l2cache_pmu = data;
 	struct cluster_pmu *cluster;
-	struct acpi_device *device;
 	unsigned long fw_cluster_id;
 	int err;
 	int irq;
 
-	if (acpi_bus_get_device(ACPI_HANDLE(dev), &device))
-		return -ENODEV;
-
-	if (kstrtoul(device->pnp.unique_id, 10, &fw_cluster_id) < 0) {
+	if (!adev || kstrtoul(adev->pnp.unique_id, 10, &fw_cluster_id) < 0) {
 		dev_err(&pdev->dev, "unable to read ACPI uid\n");
 		return -ENODEV;
 	}
@@ -869,14 +863,14 @@ static int l2_cache_pmu_probe_cluster(struct device *dev, void *data)
 	irq = platform_get_irq(sdev, 0);
 	if (irq < 0)
 		return irq;
-	irq_set_status_flags(irq, IRQ_NOAUTOEN);
 	cluster->irq = irq;
 
 	cluster->l2cache_pmu = l2cache_pmu;
 	cluster->on_cpu = -1;
 
 	err = devm_request_irq(&pdev->dev, irq, l2_cache_handle_irq,
-			       IRQF_NOBALANCING | IRQF_NO_THREAD,
+			       IRQF_NOBALANCING | IRQF_NO_THREAD |
+			       IRQF_NO_AUTOEN,
 			       "l2-cache-pmu", cluster);
 	if (err) {
 		dev_err(&pdev->dev,

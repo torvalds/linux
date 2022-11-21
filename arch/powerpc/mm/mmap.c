@@ -80,6 +80,7 @@ static inline unsigned long mmap_base(unsigned long rnd,
 	return PAGE_ALIGN(DEFAULT_MAP_WINDOW - gap - rnd);
 }
 
+#ifdef HAVE_ARCH_UNMAPPED_AREA
 #ifdef CONFIG_PPC_RADIX_MMU
 /*
  * Same function as generic code used only for radix, because we don't need to overload
@@ -181,11 +182,42 @@ radix__arch_get_unmapped_area_topdown(struct file *filp,
 	 */
 	return radix__arch_get_unmapped_area(filp, addr0, len, pgoff, flags);
 }
+#endif
+
+unsigned long arch_get_unmapped_area(struct file *filp,
+				     unsigned long addr,
+				     unsigned long len,
+				     unsigned long pgoff,
+				     unsigned long flags)
+{
+#ifdef CONFIG_PPC_MM_SLICES
+	return slice_get_unmapped_area(addr, len, flags,
+				       mm_ctx_user_psize(&current->mm->context), 0);
+#else
+	BUG();
+#endif
+}
+
+unsigned long arch_get_unmapped_area_topdown(struct file *filp,
+					     const unsigned long addr0,
+					     const unsigned long len,
+					     const unsigned long pgoff,
+					     const unsigned long flags)
+{
+#ifdef CONFIG_PPC_MM_SLICES
+	return slice_get_unmapped_area(addr0, len, flags,
+				       mm_ctx_user_psize(&current->mm->context), 1);
+#else
+	BUG();
+#endif
+}
+#endif /* HAVE_ARCH_UNMAPPED_AREA */
 
 static void radix__arch_pick_mmap_layout(struct mm_struct *mm,
 					unsigned long random_factor,
 					struct rlimit *rlim_stack)
 {
+#ifdef CONFIG_PPC_RADIX_MMU
 	if (mmap_is_legacy(rlim_stack)) {
 		mm->mmap_base = TASK_UNMAPPED_BASE;
 		mm->get_unmapped_area = radix__arch_get_unmapped_area;
@@ -193,13 +225,9 @@ static void radix__arch_pick_mmap_layout(struct mm_struct *mm,
 		mm->mmap_base = mmap_base(random_factor, rlim_stack);
 		mm->get_unmapped_area = radix__arch_get_unmapped_area_topdown;
 	}
-}
-#else
-/* dummy */
-extern void radix__arch_pick_mmap_layout(struct mm_struct *mm,
-					unsigned long random_factor,
-					struct rlimit *rlim_stack);
 #endif
+}
+
 /*
  * This function, called very early during the creation of a new
  * process VM image, sets up which VM layout function to use:

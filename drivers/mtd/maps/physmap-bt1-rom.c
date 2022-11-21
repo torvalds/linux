@@ -31,12 +31,12 @@ static map_word __xipram bt1_rom_map_read(struct map_info *map,
 					  unsigned long ofs)
 {
 	void __iomem *src = map->virt + ofs;
-	unsigned long shift;
+	unsigned int shift;
 	map_word ret;
 	u32 data;
 
 	/* Read data within offset dword. */
-	shift = (unsigned long)src & 0x3;
+	shift = (uintptr_t)src & 0x3;
 	data = readl_relaxed(src - shift);
 	if (!shift) {
 		ret.x[0] = data;
@@ -60,7 +60,7 @@ static void __xipram bt1_rom_map_copy_from(struct map_info *map,
 					   ssize_t len)
 {
 	void __iomem *src = map->virt + from;
-	ssize_t shift, chunk;
+	unsigned int shift, chunk;
 	u32 data;
 
 	if (len <= 0 || from >= map->size)
@@ -75,11 +75,11 @@ static void __xipram bt1_rom_map_copy_from(struct map_info *map,
 	 * up into the next three stages: unaligned head, aligned body,
 	 * unaligned tail.
 	 */
-	shift = (ssize_t)src & 0x3;
+	shift = (uintptr_t)src & 0x3;
 	if (shift) {
 		chunk = min_t(ssize_t, 4 - shift, len);
 		data = readl_relaxed(src - shift);
-		memcpy(to, &data + shift, chunk);
+		memcpy(to, (char *)&data + shift, chunk);
 		src += chunk;
 		to += chunk;
 		len -= chunk;

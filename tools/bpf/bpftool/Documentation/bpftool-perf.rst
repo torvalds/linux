@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
 ================
 bpftool-perf
 ================
@@ -7,12 +9,14 @@ tool for inspection of perf related bpf prog attachments
 
 :Manual section: 8
 
+.. include:: substitutions.rst
+
 SYNOPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **perf** *COMMAND*
 
-	*OPTIONS* := { [{ **-j** | **--json** }] [{ **-p** | **--pretty** }] }
+	*OPTIONS* := { |COMMON_OPTIONS| }
 
 	*COMMANDS* :=
 	{ **show** | **list** | **help** }

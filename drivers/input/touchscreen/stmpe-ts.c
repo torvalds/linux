@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
+#include <linux/input/touchscreen.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -51,6 +52,7 @@
  * @idev: registered input device
  * @work: a work item used to scan the device
  * @dev: a pointer back to the MFD cell struct device*
+ * @prop: Touchscreen properties
  * @ave_ctrl: Sample average control
  * (0 -> 1 sample, 1 -> 2 samples, 2 -> 4 samples, 3 -> 8 samples)
  * @touch_det_delay: Touch detect interrupt delay
@@ -72,6 +74,7 @@ struct stmpe_touch {
 	struct input_dev *idev;
 	struct delayed_work work;
 	struct device *dev;
+	struct touchscreen_properties prop;
 	u8 ave_ctrl;
 	u8 touch_det_delay;
 	u8 settling;
@@ -150,8 +153,7 @@ static irqreturn_t stmpe_ts_handler(int irq, void *data)
 	y = ((data_set[1] & 0xf) << 8) | data_set[2];
 	z = data_set[3];
 
-	input_report_abs(ts->idev, ABS_X, x);
-	input_report_abs(ts->idev, ABS_Y, y);
+	touchscreen_report_pos(ts->idev, &ts->prop, x, y, false);
 	input_report_abs(ts->idev, ABS_PRESSURE, z);
 	input_report_key(ts->idev, BTN_TOUCH, 1);
 	input_sync(ts->idev);
@@ -336,6 +338,8 @@ static int stmpe_input_probe(struct platform_device *pdev)
 	input_set_abs_params(idev, ABS_X, 0, XY_MASK, 0, 0);
 	input_set_abs_params(idev, ABS_Y, 0, XY_MASK, 0, 0);
 	input_set_abs_params(idev, ABS_PRESSURE, 0x0, 0xff, 0, 0);
+
+	touchscreen_parse_properties(idev, false, &ts->prop);
 
 	error = input_register_device(idev);
 	if (error) {

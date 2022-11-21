@@ -71,7 +71,6 @@ static int gw_pld_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct device_node *np = dev->of_node;
 	struct gw_pld *gw;
 	int ret;
 
@@ -82,7 +81,6 @@ static int gw_pld_probe(struct i2c_client *client,
 	gw->chip.base = -1;
 	gw->chip.can_sleep = true;
 	gw->chip.parent = dev;
-	gw->chip.of_node = np;
 	gw->chip.owner = THIS_MODULE;
 	gw->chip.label = dev_name(dev);
 	gw->chip.ngpio = 8;

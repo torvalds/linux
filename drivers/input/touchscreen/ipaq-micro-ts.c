@@ -135,7 +135,7 @@ static int __maybe_unused micro_ts_resume(struct device *dev)
 
 	mutex_lock(&input->mutex);
 
-	if (input->users)
+	if (input_device_enabled(input))
 		micro_ts_toggle_receive(ts, true);
 
 	mutex_unlock(&input->mutex);

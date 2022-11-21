@@ -151,7 +151,7 @@ struct atm_dev {
 	const char	*type;		/* device type name */
 	int		number;		/* device index */
 	void		*dev_data;	/* per-device data */
-	void		*phy_data;	/* private PHY date */
+	void		*phy_data;	/* private PHY data */
 	unsigned long	flags;		/* device flags (ATM_DF_*) */
 	struct list_head local;		/* local ATM addresses */
 	struct list_head lecs;		/* LECS ATM addresses learned via ILMI */
@@ -186,6 +186,7 @@ struct atmdev_ops { /* only send is required */
 			    void __user *arg);
 #endif
 	int (*send)(struct atm_vcc *vcc,struct sk_buff *skb);
+	int (*send_bh)(struct atm_vcc *vcc, struct sk_buff *skb);
 	int (*send_oam)(struct atm_vcc *vcc,void *cell,int flags);
 	void (*phy_put)(struct atm_dev *dev,unsigned char value,
 	    unsigned long addr);
@@ -206,7 +207,7 @@ struct atm_skb_data {
 	struct atm_vcc	*vcc;		/* ATM VCC */
 	unsigned long	atm_options;	/* ATM layer options */
 	unsigned int	acct_truesize;  /* truesize accounted to vcc */
-};
+} __packed;
 
 #define VCC_HTABLE_SIZE 32
 

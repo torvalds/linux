@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_ADMIN_H_
@@ -82,7 +82,7 @@ struct efa_admin_acq_common_desc {
 
 	/*
 	 * indicates to the driver which AQ entry has been consumed by the
-	 *    device and could be reused
+	 * device and could be reused
 	 */
 	u16 sq_head_indx;
 };
@@ -118,6 +118,43 @@ struct efa_admin_aenq_entry {
 	u32 inline_data_w4[12];
 };
 
+enum efa_admin_eqe_event_type {
+	EFA_ADMIN_EQE_EVENT_TYPE_COMPLETION         = 0,
+};
+
+/* Completion event */
+struct efa_admin_comp_event {
+	/* CQ number */
+	u16 cqn;
+
+	/* MBZ */
+	u16 reserved;
+
+	/* MBZ */
+	u32 reserved2;
+};
+
+/* Event Queue Element */
+struct efa_admin_eqe {
+	/*
+	 * 0 : phase
+	 * 8:1 : event_type - Event type
+	 * 31:9 : reserved - MBZ
+	 */
+	u32 common;
+
+	/* MBZ */
+	u32 reserved;
+
+	union {
+		/* Event data */
+		u32 event_data[2];
+
+		/* Completion Event */
+		struct efa_admin_comp_event comp_event;
+	} u;
+};
+
 /* aq_common_desc */
 #define EFA_ADMIN_AQ_COMMON_DESC_COMMAND_ID_MASK            GENMASK(11, 0)
 #define EFA_ADMIN_AQ_COMMON_DESC_PHASE_MASK                 BIT(0)
@@ -130,5 +167,9 @@ struct efa_admin_aenq_entry {
 
 /* aenq_common_desc */
 #define EFA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK               BIT(0)
+
+/* eqe */
+#define EFA_ADMIN_EQE_PHASE_MASK                            BIT(0)
+#define EFA_ADMIN_EQE_EVENT_TYPE_MASK                       GENMASK(8, 1)
 
 #endif /* _EFA_ADMIN_H_ */

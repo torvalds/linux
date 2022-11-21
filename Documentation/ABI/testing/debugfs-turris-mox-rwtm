@@ -1,7 +1,7 @@
 What:		/sys/kernel/debug/turris-mox-rwtm/do_sign
 Date:		Jun 2020
 KernelVersion:	5.8
-Contact:	Marek Behún <marek.behun@nic.cz>
+Contact:	Marek Behún <kabel@kernel.org>
 Description:
 
 		======= ===========================================================

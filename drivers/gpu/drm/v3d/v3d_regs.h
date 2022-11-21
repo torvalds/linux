@@ -347,6 +347,8 @@
 /* Each src reg muxes four counters each. */
 #define V3D_V4_PCTR_0_SRC_0_3                          0x00660
 #define V3D_V4_PCTR_0_SRC_28_31                        0x0067c
+#define V3D_V4_PCTR_0_SRC_X(x)                         (V3D_V4_PCTR_0_SRC_0_3 + \
+							4 * (x))
 # define V3D_PCTR_S0_MASK                              V3D_MASK(6, 0)
 # define V3D_PCTR_S0_SHIFT                             0
 # define V3D_PCTR_S1_MASK                              V3D_MASK(14, 8)

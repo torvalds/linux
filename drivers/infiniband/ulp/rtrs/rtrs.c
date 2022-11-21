@@ -18,7 +18,7 @@
 MODULE_DESCRIPTION("RDMA Transport Core");
 MODULE_LICENSE("GPL");
 
-struct rtrs_iu *rtrs_iu_alloc(u32 queue_size, size_t size, gfp_t gfp_mask,
+struct rtrs_iu *rtrs_iu_alloc(u32 iu_num, size_t size, gfp_t gfp_mask,
 			      struct ib_device *dma_dev,
 			      enum dma_data_direction dir,
 			      void (*done)(struct ib_cq *cq, struct ib_wc *wc))
@@ -26,11 +26,12 @@ struct rtrs_iu *rtrs_iu_alloc(u32 queue_size, size_t size, gfp_t gfp_mask,
 	struct rtrs_iu *ius, *iu;
 	int i;
 
-	ius = kcalloc(queue_size, sizeof(*ius), gfp_mask);
+	ius = kcalloc(iu_num, sizeof(*ius), gfp_mask);
 	if (!ius)
 		return NULL;
-	for (i = 0; i < queue_size; i++) {
+	for (i = 0; i < iu_num; i++) {
 		iu = &ius[i];
+		iu->direction = dir;
 		iu->buf = kzalloc(size, gfp_mask);
 		if (!iu->buf)
 			goto err;
@@ -41,17 +42,15 @@ struct rtrs_iu *rtrs_iu_alloc(u32 queue_size, size_t size, gfp_t gfp_mask,
 
 		iu->cqe.done  = done;
 		iu->size      = size;
-		iu->direction = dir;
 	}
 	return ius;
 err:
-	rtrs_iu_free(ius, dir, dma_dev, i);
+	rtrs_iu_free(ius, dma_dev, i);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_alloc);
 
-void rtrs_iu_free(struct rtrs_iu *ius, enum dma_data_direction dir,
-		   struct ib_device *ibdev, u32 queue_size)
+void rtrs_iu_free(struct rtrs_iu *ius, struct ib_device *ibdev, u32 queue_num)
 {
 	struct rtrs_iu *iu;
 	int i;
@@ -59,9 +58,9 @@ void rtrs_iu_free(struct rtrs_iu *ius, enum dma_data_direction dir,
 	if (!ius)
 		return;
 
-	for (i = 0; i < queue_size; i++) {
+	for (i = 0; i < queue_num; i++) {
 		iu = &ius[i];
-		ib_dma_unmap_single(ibdev, iu->dma_addr, iu->size, dir);
+		ib_dma_unmap_single(ibdev, iu->dma_addr, iu->size, iu->direction);
 		kfree(iu->buf);
 	}
 	kfree(ius);
@@ -70,16 +69,16 @@ EXPORT_SYMBOL_GPL(rtrs_iu_free);
 
 int rtrs_iu_post_recv(struct rtrs_con *con, struct rtrs_iu *iu)
 {
-	struct rtrs_sess *sess = con->sess;
+	struct rtrs_path *path = con->path;
 	struct ib_recv_wr wr;
 	struct ib_sge list;
 
 	list.addr   = iu->dma_addr;
 	list.length = iu->size;
-	list.lkey   = sess->dev->ib_pd->local_dma_lkey;
+	list.lkey   = path->dev->ib_pd->local_dma_lkey;
 
 	if (list.length == 0) {
-		rtrs_wrn(con->sess,
+		rtrs_wrn(con->path,
 			  "Posting receive work request failed, sg list is empty\n");
 		return -EINVAL;
 	}
@@ -105,10 +104,29 @@ int rtrs_post_recv_empty(struct rtrs_con *con, struct ib_cqe *cqe)
 }
 EXPORT_SYMBOL_GPL(rtrs_post_recv_empty);
 
+static int rtrs_post_send(struct ib_qp *qp, struct ib_send_wr *head,
+			  struct ib_send_wr *wr, struct ib_send_wr *tail)
+{
+	if (head) {
+		struct ib_send_wr *next = head;
+
+		while (next->next)
+			next = next->next;
+		next->next = wr;
+	} else {
+		head = wr;
+	}
+
+	if (tail)
+		wr->next = tail;
+
+	return ib_post_send(qp, head, NULL);
+}
+
 int rtrs_iu_post_send(struct rtrs_con *con, struct rtrs_iu *iu, size_t size,
 		       struct ib_send_wr *head)
 {
-	struct rtrs_sess *sess = con->sess;
+	struct rtrs_path *path = con->path;
 	struct ib_send_wr wr;
 	struct ib_sge list;
 
@@ -117,7 +135,7 @@ int rtrs_iu_post_send(struct rtrs_con *con, struct rtrs_iu *iu, size_t size,
 
 	list.addr   = iu->dma_addr;
 	list.length = size;
-	list.lkey   = sess->dev->ib_pd->local_dma_lkey;
+	list.lkey   = path->dev->ib_pd->local_dma_lkey;
 
 	wr = (struct ib_send_wr) {
 		.wr_cqe     = &iu->cqe,
@@ -127,25 +145,16 @@ int rtrs_iu_post_send(struct rtrs_con *con, struct rtrs_iu *iu, size_t size,
 		.send_flags = IB_SEND_SIGNALED,
 	};
 
-	if (head) {
-		struct ib_send_wr *tail = head;
-
-		while (tail->next)
-			tail = tail->next;
-		tail->next = &wr;
-	} else {
-		head = &wr;
-	}
-
-	return ib_post_send(con->qp, head, NULL);
+	return rtrs_post_send(con->qp, head, &wr, NULL);
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_post_send);
 
 int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
-				 struct ib_sge *sge, unsigned int num_sge,
-				 u32 rkey, u64 rdma_addr, u32 imm_data,
-				 enum ib_send_flags flags,
-				 struct ib_send_wr *head)
+				struct ib_sge *sge, unsigned int num_sge,
+				u32 rkey, u64 rdma_addr, u32 imm_data,
+				enum ib_send_flags flags,
+				struct ib_send_wr *head,
+				struct ib_send_wr *tail)
 {
 	struct ib_rdma_wr wr;
 	int i;
@@ -169,46 +178,32 @@ int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
 		if (WARN_ON(sge[i].length == 0))
 			return -EINVAL;
 
-	if (head) {
-		struct ib_send_wr *tail = head;
-
-		while (tail->next)
-			tail = tail->next;
-		tail->next = &wr.wr;
-	} else {
-		head = &wr.wr;
-	}
-
-	return ib_post_send(con->qp, head, NULL);
+	return rtrs_post_send(con->qp, head, &wr.wr, tail);
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_post_rdma_write_imm);
 
-int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con, struct ib_cqe *cqe,
-				    u32 imm_data, enum ib_send_flags flags,
-				    struct ib_send_wr *head)
+static int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con,
+					  struct ib_cqe *cqe,
+					  u32 imm_data,
+					  struct ib_send_wr *head)
 {
-	struct ib_send_wr wr;
+	struct ib_rdma_wr wr;
+	struct rtrs_path *path = con->path;
+	enum ib_send_flags sflags;
 
-	wr = (struct ib_send_wr) {
-		.wr_cqe	= cqe,
-		.send_flags	= flags,
-		.opcode	= IB_WR_RDMA_WRITE_WITH_IMM,
-		.ex.imm_data	= cpu_to_be32(imm_data),
+	atomic_dec_if_positive(&con->sq_wr_avail);
+	sflags = (atomic_inc_return(&con->wr_cnt) % path->signal_interval) ?
+		0 : IB_SEND_SIGNALED;
+
+	wr = (struct ib_rdma_wr) {
+		.wr.wr_cqe	= cqe,
+		.wr.send_flags	= sflags,
+		.wr.opcode	= IB_WR_RDMA_WRITE_WITH_IMM,
+		.wr.ex.imm_data	= cpu_to_be32(imm_data),
 	};
 
-	if (head) {
-		struct ib_send_wr *tail = head;
-
-		while (tail->next)
-			tail = tail->next;
-		tail->next = &wr;
-	} else {
-		head = &wr;
-	}
-
-	return ib_post_send(con->qp, head, NULL);
+	return rtrs_post_send(con->qp, head, &wr.wr, NULL);
 }
-EXPORT_SYMBOL_GPL(rtrs_post_rdma_write_imm_empty);
 
 static void qp_event_handler(struct ib_event *ev, void *ctx)
 {
@@ -216,44 +211,54 @@ static void qp_event_handler(struct ib_event *ev, void *ctx)
 
 	switch (ev->event) {
 	case IB_EVENT_COMM_EST:
-		rtrs_info(con->sess, "QP event %s (%d) received\n",
+		rtrs_info(con->path, "QP event %s (%d) received\n",
 			   ib_event_msg(ev->event), ev->event);
 		rdma_notify(con->cm_id, IB_EVENT_COMM_EST);
 		break;
 	default:
-		rtrs_info(con->sess, "Unhandled QP event %s (%d) received\n",
+		rtrs_info(con->path, "Unhandled QP event %s (%d) received\n",
 			   ib_event_msg(ev->event), ev->event);
 		break;
 	}
 }
 
-static int create_cq(struct rtrs_con *con, int cq_vector, u16 cq_size,
+static bool is_pollqueue(struct rtrs_con *con)
+{
+	return con->cid >= con->path->irq_con_num;
+}
+
+static int create_cq(struct rtrs_con *con, int cq_vector, int nr_cqe,
 		     enum ib_poll_context poll_ctx)
 {
 	struct rdma_cm_id *cm_id = con->cm_id;
 	struct ib_cq *cq;
 
-	cq = ib_alloc_cq(cm_id->device, con, cq_size,
-			 cq_vector, poll_ctx);
+	if (is_pollqueue(con))
+		cq = ib_alloc_cq(cm_id->device, con, nr_cqe, cq_vector,
+				 poll_ctx);
+	else
+		cq = ib_cq_pool_get(cm_id->device, nr_cqe, cq_vector, poll_ctx);
+
 	if (IS_ERR(cq)) {
-		rtrs_err(con->sess, "Creating completion queue failed, errno: %ld\n",
+		rtrs_err(con->path, "Creating completion queue failed, errno: %ld\n",
 			  PTR_ERR(cq));
 		return PTR_ERR(cq);
 	}
 	con->cq = cq;
+	con->nr_cqe = nr_cqe;
 
 	return 0;
 }
 
 static int create_qp(struct rtrs_con *con, struct ib_pd *pd,
-		     u16 wr_queue_size, u32 max_sge)
+		     u32 max_send_wr, u32 max_recv_wr, u32 max_sge)
 {
 	struct ib_qp_init_attr init_attr = {NULL};
 	struct rdma_cm_id *cm_id = con->cm_id;
 	int ret;
 
-	init_attr.cap.max_send_wr = wr_queue_size;
-	init_attr.cap.max_recv_wr = wr_queue_size;
+	init_attr.cap.max_send_wr = max_send_wr;
+	init_attr.cap.max_recv_wr = max_recv_wr;
 	init_attr.cap.max_recv_sge = 1;
 	init_attr.event_handler = qp_event_handler;
 	init_attr.qp_context = con;
@@ -266,7 +271,7 @@ static int create_qp(struct rtrs_con *con, struct ib_pd *pd,
 
 	ret = rdma_create_qp(cm_id, pd, &init_attr);
 	if (ret) {
-		rtrs_err(con->sess, "Creating QP failed, err: %d\n", ret);
+		rtrs_err(con->path, "Creating QP failed, err: %d\n", ret);
 		return ret;
 	}
 	con->qp = cm_id->qp;
@@ -274,23 +279,35 @@ static int create_qp(struct rtrs_con *con, struct ib_pd *pd,
 	return ret;
 }
 
-int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
-		       u32 max_send_sge, int cq_vector, u16 cq_size,
-		       u16 wr_queue_size, enum ib_poll_context poll_ctx)
+static void destroy_cq(struct rtrs_con *con)
+{
+	if (con->cq) {
+		if (is_pollqueue(con))
+			ib_free_cq(con->cq);
+		else
+			ib_cq_pool_put(con->cq, con->nr_cqe);
+	}
+	con->cq = NULL;
+}
+
+int rtrs_cq_qp_create(struct rtrs_path *path, struct rtrs_con *con,
+		       u32 max_send_sge, int cq_vector, int nr_cqe,
+		       u32 max_send_wr, u32 max_recv_wr,
+		       enum ib_poll_context poll_ctx)
 {
 	int err;
 
-	err = create_cq(con, cq_vector, cq_size, poll_ctx);
+	err = create_cq(con, cq_vector, nr_cqe, poll_ctx);
 	if (err)
 		return err;
 
-	err = create_qp(con, sess->dev->ib_pd, wr_queue_size, max_send_sge);
+	err = create_qp(con, path->dev->ib_pd, max_send_wr, max_recv_wr,
+			max_send_sge);
 	if (err) {
-		ib_free_cq(con->cq);
-		con->cq = NULL;
+		destroy_cq(con);
 		return err;
 	}
-	con->sess = sess;
+	con->path = path;
 
 	return 0;
 }
@@ -302,30 +319,28 @@ void rtrs_cq_qp_destroy(struct rtrs_con *con)
 		rdma_destroy_qp(con->cm_id);
 		con->qp = NULL;
 	}
-	if (con->cq) {
-		ib_free_cq(con->cq);
-		con->cq = NULL;
-	}
+	destroy_cq(con);
 }
 EXPORT_SYMBOL_GPL(rtrs_cq_qp_destroy);
 
-static void schedule_hb(struct rtrs_sess *sess)
+static void schedule_hb(struct rtrs_path *path)
 {
-	queue_delayed_work(sess->hb_wq, &sess->hb_dwork,
-			   msecs_to_jiffies(sess->hb_interval_ms));
+	queue_delayed_work(path->hb_wq, &path->hb_dwork,
+			   msecs_to_jiffies(path->hb_interval_ms));
 }
 
-void rtrs_send_hb_ack(struct rtrs_sess *sess)
+void rtrs_send_hb_ack(struct rtrs_path *path)
 {
-	struct rtrs_con *usr_con = sess->con[0];
+	struct rtrs_con *usr_con = path->con[0];
 	u32 imm;
 	int err;
 
 	imm = rtrs_to_imm(RTRS_HB_ACK_IMM, 0);
-	err = rtrs_post_rdma_write_imm_empty(usr_con, sess->hb_cqe, imm,
-					      IB_SEND_SIGNALED, NULL);
+	err = rtrs_post_rdma_write_imm_empty(usr_con, path->hb_cqe, imm,
+					     NULL);
 	if (err) {
-		sess->hb_err_handler(usr_con);
+		rtrs_err(path, "send HB ACK failed, errno: %d\n", err);
+		path->hb_err_handler(usr_con);
 		return;
 	}
 }
@@ -334,59 +349,63 @@ EXPORT_SYMBOL_GPL(rtrs_send_hb_ack);
 static void hb_work(struct work_struct *work)
 {
 	struct rtrs_con *usr_con;
-	struct rtrs_sess *sess;
+	struct rtrs_path *path;
 	u32 imm;
 	int err;
 
-	sess = container_of(to_delayed_work(work), typeof(*sess), hb_dwork);
-	usr_con = sess->con[0];
+	path = container_of(to_delayed_work(work), typeof(*path), hb_dwork);
+	usr_con = path->con[0];
 
-	if (sess->hb_missed_cnt > sess->hb_missed_max) {
-		sess->hb_err_handler(usr_con);
+	if (path->hb_missed_cnt > path->hb_missed_max) {
+		rtrs_err(path, "HB missed max reached.\n");
+		path->hb_err_handler(usr_con);
 		return;
 	}
-	if (sess->hb_missed_cnt++) {
+	if (path->hb_missed_cnt++) {
 		/* Reschedule work without sending hb */
-		schedule_hb(sess);
-		return;
-	}
-	imm = rtrs_to_imm(RTRS_HB_MSG_IMM, 0);
-	err = rtrs_post_rdma_write_imm_empty(usr_con, sess->hb_cqe, imm,
-					      IB_SEND_SIGNALED, NULL);
-	if (err) {
-		sess->hb_err_handler(usr_con);
+		schedule_hb(path);
 		return;
 	}
 
-	schedule_hb(sess);
+	path->hb_last_sent = ktime_get();
+
+	imm = rtrs_to_imm(RTRS_HB_MSG_IMM, 0);
+	err = rtrs_post_rdma_write_imm_empty(usr_con, path->hb_cqe, imm,
+					     NULL);
+	if (err) {
+		rtrs_err(path, "HB send failed, errno: %d\n", err);
+		path->hb_err_handler(usr_con);
+		return;
+	}
+
+	schedule_hb(path);
 }
 
-void rtrs_init_hb(struct rtrs_sess *sess, struct ib_cqe *cqe,
+void rtrs_init_hb(struct rtrs_path *path, struct ib_cqe *cqe,
 		  unsigned int interval_ms, unsigned int missed_max,
 		  void (*err_handler)(struct rtrs_con *con),
 		  struct workqueue_struct *wq)
 {
-	sess->hb_cqe = cqe;
-	sess->hb_interval_ms = interval_ms;
-	sess->hb_err_handler = err_handler;
-	sess->hb_wq = wq;
-	sess->hb_missed_max = missed_max;
-	sess->hb_missed_cnt = 0;
-	INIT_DELAYED_WORK(&sess->hb_dwork, hb_work);
+	path->hb_cqe = cqe;
+	path->hb_interval_ms = interval_ms;
+	path->hb_err_handler = err_handler;
+	path->hb_wq = wq;
+	path->hb_missed_max = missed_max;
+	path->hb_missed_cnt = 0;
+	INIT_DELAYED_WORK(&path->hb_dwork, hb_work);
 }
 EXPORT_SYMBOL_GPL(rtrs_init_hb);
 
-void rtrs_start_hb(struct rtrs_sess *sess)
+void rtrs_start_hb(struct rtrs_path *path)
 {
-	schedule_hb(sess);
+	schedule_hb(path);
 }
 EXPORT_SYMBOL_GPL(rtrs_start_hb);
 
-void rtrs_stop_hb(struct rtrs_sess *sess)
+void rtrs_stop_hb(struct rtrs_path *path)
 {
-	cancel_delayed_work_sync(&sess->hb_dwork);
-	sess->hb_missed_cnt = 0;
-	sess->hb_missed_max = 0;
+	cancel_delayed_work_sync(&path->hb_dwork);
+	path->hb_missed_cnt = 0;
 }
 EXPORT_SYMBOL_GPL(rtrs_stop_hb);
 
@@ -460,7 +479,6 @@ static int rtrs_str_to_sockaddr(const char *addr, size_t len,
  */
 int sockaddr_to_str(const struct sockaddr *addr, char *buf, size_t len)
 {
-
 	switch (addr->sa_family) {
 	case AF_IB:
 		return scnprintf(buf, len, "gid:%pI6",
@@ -475,6 +493,30 @@ int sockaddr_to_str(const struct sockaddr *addr, char *buf, size_t len)
 	return scnprintf(buf, len, "<invalid address family>");
 }
 EXPORT_SYMBOL(sockaddr_to_str);
+
+/**
+ * rtrs_addr_to_str() - convert rtrs_addr to a string "src@dst"
+ * @addr:	the rtrs_addr structure to be converted
+ * @buf:	string containing source and destination addr of a path
+ *		separated by '@' I.e. "ip:1.1.1.1@ip:1.1.1.2"
+ *		"ip:1.1.1.1@ip:1.1.1.2".
+ * @len:	string length
+ *
+ * The return value is the number of characters written into buf not
+ * including the trailing '\0'.
+ */
+int rtrs_addr_to_str(const struct rtrs_addr *addr, char *buf, size_t len)
+{
+	int cnt;
+
+	cnt = sockaddr_to_str((struct sockaddr *)addr->src,
+			      buf, len);
+	cnt += scnprintf(buf + cnt, len - cnt, "@");
+	sockaddr_to_str((struct sockaddr *)addr->dst,
+			buf + cnt, len - cnt);
+	return cnt;
+}
+EXPORT_SYMBOL(rtrs_addr_to_str);
 
 /**
  * rtrs_addr_to_sockaddr() - convert path string "src,dst" or "src@dst"

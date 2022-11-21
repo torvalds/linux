@@ -71,14 +71,6 @@ do {						\
 do {						\
 	__this_cpu_dec(hardirq_context);	\
 } while (0)
-# define lockdep_softirq_enter()		\
-do {						\
-	current->softirq_context++;		\
-} while (0)
-# define lockdep_softirq_exit()			\
-do {						\
-	current->softirq_context--;		\
-} while (0)
 
 # define lockdep_hrtimer_enter(__hrtimer)		\
 ({							\
@@ -107,14 +99,14 @@ do {						\
 		  current->irq_config = 0;			\
 	  } while (0)
 
-# define lockdep_irq_work_enter(__work)					\
+# define lockdep_irq_work_enter(_flags)					\
 	  do {								\
-		  if (!(atomic_read(&__work->flags) & IRQ_WORK_HARD_IRQ))\
+		  if (!((_flags) & IRQ_WORK_HARD_IRQ))			\
 			current->irq_config = 1;			\
 	  } while (0)
-# define lockdep_irq_work_exit(__work)					\
+# define lockdep_irq_work_exit(_flags)					\
 	  do {								\
-		  if (!(atomic_read(&__work->flags) & IRQ_WORK_HARD_IRQ))\
+		  if (!((_flags) & IRQ_WORK_HARD_IRQ))			\
 			current->irq_config = 0;			\
 	  } while (0)
 
@@ -140,6 +132,21 @@ do {						\
 # define lockdep_irq_work_exit(__work)		do { } while (0)
 #endif
 
+#if defined(CONFIG_TRACE_IRQFLAGS) && !defined(CONFIG_PREEMPT_RT)
+# define lockdep_softirq_enter()		\
+do {						\
+	current->softirq_context++;		\
+} while (0)
+# define lockdep_softirq_exit()			\
+do {						\
+	current->softirq_context--;		\
+} while (0)
+
+#else
+# define lockdep_softirq_enter()		do { } while (0)
+# define lockdep_softirq_exit()			do { } while (0)
+#endif
+
 #if defined(CONFIG_IRQSOFF_TRACER) || \
 	defined(CONFIG_PREEMPT_TRACER)
  extern void stop_critical_timings(void);
@@ -147,6 +154,17 @@ do {						\
 #else
 # define stop_critical_timings() do { } while (0)
 # define start_critical_timings() do { } while (0)
+#endif
+
+#ifdef CONFIG_DEBUG_IRQFLAGS
+extern void warn_bogus_irq_restore(void);
+#define raw_check_bogus_irq_restore()			\
+	do {						\
+		if (unlikely(!arch_irqs_disabled()))	\
+			warn_bogus_irq_restore();	\
+	} while (0)
+#else
+#define raw_check_bogus_irq_restore() do { } while (0)
 #endif
 
 /*
@@ -162,6 +180,7 @@ do {						\
 #define raw_local_irq_restore(flags)			\
 	do {						\
 		typecheck(unsigned long, flags);	\
+		raw_check_bogus_irq_restore();		\
 		arch_local_irq_restore(flags);		\
 	} while (0)
 #define raw_local_save_flags(flags)			\

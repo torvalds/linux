@@ -29,11 +29,14 @@
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
 #include <linux/hugetlb.h>
+#include <linux/acpi_iort.h>
+#include <linux/kmemleak.h>
 
 #include <asm/boot.h>
 #include <asm/fixmap.h>
 #include <asm/kasan.h>
 #include <asm/kernel-pgtable.h>
+#include <asm/kvm_host.h>
 #include <asm/memory.h>
 #include <asm/numa.h>
 #include <asm/sections.h>
@@ -41,8 +44,7 @@
 #include <linux/sizes.h>
 #include <asm/tlb.h>
 #include <asm/alternative.h>
-
-#define ARM64_ZONE_DMA_BITS	30
+#include <asm/xen/swiotlb-xen.h>
 
 /*
  * We need to be able to catch inadvertent references to memstart_addr
@@ -54,15 +56,40 @@ s64 memstart_addr __ro_after_init = -1;
 EXPORT_SYMBOL(memstart_addr);
 
 /*
- * We create both ZONE_DMA and ZONE_DMA32. ZONE_DMA covers the first 1G of
- * memory as some devices, namely the Raspberry Pi 4, have peripherals with
- * this limited view of the memory. ZONE_DMA32 will cover the rest of the 32
- * bit addressable memory area.
+ * If the corresponding config options are enabled, we create both ZONE_DMA
+ * and ZONE_DMA32. By default ZONE_DMA covers the 32-bit addressable memory
+ * unless restricted on specific platforms (e.g. 30-bit on Raspberry Pi 4).
+ * In such case, ZONE_DMA32 covers the rest of the 32-bit addressable memory,
+ * otherwise it is empty.
+ *
+ * Memory reservation for crash kernel either done early or deferred
+ * depending on DMA memory zones configs (ZONE_DMA) --
+ *
+ * In absence of ZONE_DMA configs arm64_dma_phys_limit initialized
+ * here instead of max_zone_phys().  This lets early reservation of
+ * crash kernel memory which has a dependency on arm64_dma_phys_limit.
+ * Reserving memory early for crash kernel allows linear creation of block
+ * mappings (greater than page-granularity) for all the memory bank rangs.
+ * In this scheme a comparatively quicker boot is observed.
+ *
+ * If ZONE_DMA configs are defined, crash kernel memory reservation
+ * is delayed until DMA zone memory range size initialization performed in
+ * zone_sizes_init().  The defer is necessary to steer clear of DMA zone
+ * memory range to avoid overlap allocation.  So crash kernel memory boundaries
+ * are not known when mapping all bank memory ranges, which otherwise means
+ * not possible to exclude crash kernel range from creating block mappings
+ * so page-granularity mappings are created for the entire memory range.
+ * Hence a slightly slower boot is observed.
+ *
+ * Note: Page-granularity mappings are necessary for crash kernel memory
+ * range for shrinking its size via /sys/kernel/kexec_crash_size interface.
  */
-phys_addr_t arm64_dma_phys_limit __ro_after_init;
-static phys_addr_t arm64_dma32_phys_limit __ro_after_init;
+#if IS_ENABLED(CONFIG_ZONE_DMA) || IS_ENABLED(CONFIG_ZONE_DMA32)
+phys_addr_t __ro_after_init arm64_dma_phys_limit;
+#else
+phys_addr_t __ro_after_init arm64_dma_phys_limit = PHYS_MASK + 1;
+#endif
 
-#ifdef CONFIG_KEXEC_CORE
 /*
  * reserve_crashkernel() - reserves memory for crash kernel
  *
@@ -73,7 +100,11 @@ static phys_addr_t arm64_dma32_phys_limit __ro_after_init;
 static void __init reserve_crashkernel(void)
 {
 	unsigned long long crash_base, crash_size;
+	unsigned long long crash_max = arm64_dma_phys_limit;
 	int ret;
+
+	if (!IS_ENABLED(CONFIG_KEXEC_CORE))
+		return;
 
 	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
 				&crash_size, &crash_base);
@@ -83,142 +114,86 @@ static void __init reserve_crashkernel(void)
 
 	crash_size = PAGE_ALIGN(crash_size);
 
-	if (crash_base == 0) {
-		/* Current arm64 boot protocol requires 2MB alignment */
-		crash_base = memblock_find_in_range(0, arm64_dma32_phys_limit,
-				crash_size, SZ_2M);
-		if (crash_base == 0) {
-			pr_warn("cannot allocate crashkernel (size:0x%llx)\n",
-				crash_size);
-			return;
-		}
-	} else {
-		/* User specifies base address explicitly. */
-		if (!memblock_is_region_memory(crash_base, crash_size)) {
-			pr_warn("cannot reserve crashkernel: region is not memory\n");
-			return;
-		}
+	/* User specifies base address explicitly. */
+	if (crash_base)
+		crash_max = crash_base + crash_size;
 
-		if (memblock_is_region_reserved(crash_base, crash_size)) {
-			pr_warn("cannot reserve crashkernel: region overlaps reserved memory\n");
-			return;
-		}
-
-		if (!IS_ALIGNED(crash_base, SZ_2M)) {
-			pr_warn("cannot reserve crashkernel: base address is not 2MB aligned\n");
-			return;
-		}
+	/* Current arm64 boot protocol requires 2MB alignment */
+	crash_base = memblock_phys_alloc_range(crash_size, SZ_2M,
+					       crash_base, crash_max);
+	if (!crash_base) {
+		pr_warn("cannot allocate crashkernel (size:0x%llx)\n",
+			crash_size);
+		return;
 	}
-	memblock_reserve(crash_base, crash_size);
 
 	pr_info("crashkernel reserved: 0x%016llx - 0x%016llx (%lld MB)\n",
 		crash_base, crash_base + crash_size, crash_size >> 20);
 
+	/*
+	 * The crashkernel memory will be removed from the kernel linear
+	 * map. Inform kmemleak so that it won't try to access it.
+	 */
+	kmemleak_ignore_phys(crash_base);
 	crashk_res.start = crash_base;
 	crashk_res.end = crash_base + crash_size - 1;
 }
-#else
-static void __init reserve_crashkernel(void)
-{
-}
-#endif /* CONFIG_KEXEC_CORE */
-
-#ifdef CONFIG_CRASH_DUMP
-static int __init early_init_dt_scan_elfcorehdr(unsigned long node,
-		const char *uname, int depth, void *data)
-{
-	const __be32 *reg;
-	int len;
-
-	if (depth != 1 || strcmp(uname, "chosen") != 0)
-		return 0;
-
-	reg = of_get_flat_dt_prop(node, "linux,elfcorehdr", &len);
-	if (!reg || (len < (dt_root_addr_cells + dt_root_size_cells)))
-		return 1;
-
-	elfcorehdr_addr = dt_mem_next_cell(dt_root_addr_cells, &reg);
-	elfcorehdr_size = dt_mem_next_cell(dt_root_size_cells, &reg);
-
-	return 1;
-}
 
 /*
- * reserve_elfcorehdr() - reserves memory for elf core header
- *
- * This function reserves the memory occupied by an elf core header
- * described in the device tree. This region contains all the
- * information about primary kernel's core image and is used by a dump
- * capture kernel to access the system memory on primary kernel.
- */
-static void __init reserve_elfcorehdr(void)
-{
-	of_scan_flat_dt(early_init_dt_scan_elfcorehdr, NULL);
-
-	if (!elfcorehdr_size)
-		return;
-
-	if (memblock_is_region_reserved(elfcorehdr_addr, elfcorehdr_size)) {
-		pr_warn("elfcorehdr is overlapped\n");
-		return;
-	}
-
-	memblock_reserve(elfcorehdr_addr, elfcorehdr_size);
-
-	pr_info("Reserving %lldKB of memory at 0x%llx for elfcorehdr\n",
-		elfcorehdr_size >> 10, elfcorehdr_addr);
-}
-#else
-static void __init reserve_elfcorehdr(void)
-{
-}
-#endif /* CONFIG_CRASH_DUMP */
-
-/*
- * Return the maximum physical address for a zone with a given address size
- * limit. It currently assumes that for memory starting above 4G, 32-bit
- * devices will use a DMA offset.
+ * Return the maximum physical address for a zone accessible by the given bits
+ * limit. If DRAM starts above 32-bit, expand the zone to the maximum
+ * available memory, otherwise cap it at 32-bit.
  */
 static phys_addr_t __init max_zone_phys(unsigned int zone_bits)
 {
-	phys_addr_t offset = memblock_start_of_DRAM() & GENMASK_ULL(63, zone_bits);
-	return min(offset + (1ULL << zone_bits), memblock_end_of_DRAM());
+	phys_addr_t zone_mask = DMA_BIT_MASK(zone_bits);
+	phys_addr_t phys_start = memblock_start_of_DRAM();
+
+	if (phys_start > U32_MAX)
+		zone_mask = PHYS_ADDR_MAX;
+	else if (phys_start > zone_mask)
+		zone_mask = U32_MAX;
+
+	return min(zone_mask, memblock_end_of_DRAM() - 1) + 1;
 }
 
 static void __init zone_sizes_init(unsigned long min, unsigned long max)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES]  = {0};
+	unsigned int __maybe_unused acpi_zone_dma_bits;
+	unsigned int __maybe_unused dt_zone_dma_bits;
+	phys_addr_t __maybe_unused dma32_phys_limit = max_zone_phys(32);
 
 #ifdef CONFIG_ZONE_DMA
+	acpi_zone_dma_bits = fls64(acpi_iort_dma_get_max_cpu_address());
+	dt_zone_dma_bits = fls64(of_dma_get_max_cpu_address(NULL));
+	zone_dma_bits = min3(32U, dt_zone_dma_bits, acpi_zone_dma_bits);
+	arm64_dma_phys_limit = max_zone_phys(zone_dma_bits);
 	max_zone_pfns[ZONE_DMA] = PFN_DOWN(arm64_dma_phys_limit);
 #endif
 #ifdef CONFIG_ZONE_DMA32
-	max_zone_pfns[ZONE_DMA32] = PFN_DOWN(arm64_dma32_phys_limit);
+	max_zone_pfns[ZONE_DMA32] = PFN_DOWN(dma32_phys_limit);
+	if (!arm64_dma_phys_limit)
+		arm64_dma_phys_limit = dma32_phys_limit;
 #endif
 	max_zone_pfns[ZONE_NORMAL] = max;
 
 	free_area_init(max_zone_pfns);
 }
 
-int pfn_valid(unsigned long pfn)
+int pfn_is_map_memory(unsigned long pfn)
 {
-	phys_addr_t addr = pfn << PAGE_SHIFT;
+	phys_addr_t addr = PFN_PHYS(pfn);
 
-	if ((addr >> PAGE_SHIFT) != pfn)
+	/* avoid false positives for bogus PFNs, see comment in pfn_valid() */
+	if (PHYS_PFN(addr) != pfn)
 		return 0;
 
-#ifdef CONFIG_SPARSEMEM
-	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
-		return 0;
-
-	if (!valid_section(__pfn_to_section(pfn)))
-		return 0;
-#endif
 	return memblock_is_map_memory(addr);
 }
-EXPORT_SYMBOL(pfn_valid);
+EXPORT_SYMBOL(pfn_is_map_memory);
 
-static phys_addr_t memory_limit = PHYS_ADDR_MAX;
+static phys_addr_t memory_limit __ro_after_init = PHYS_ADDR_MAX;
 
 /*
  * Limit the memory size that was specified via FDT.
@@ -235,44 +210,23 @@ static int __init early_mem(char *p)
 }
 early_param("mem", early_mem);
 
-static int __init early_init_dt_scan_usablemem(unsigned long node,
-		const char *uname, int depth, void *data)
-{
-	struct memblock_region *usablemem = data;
-	const __be32 *reg;
-	int len;
-
-	if (depth != 1 || strcmp(uname, "chosen") != 0)
-		return 0;
-
-	reg = of_get_flat_dt_prop(node, "linux,usable-memory-range", &len);
-	if (!reg || (len < (dt_root_addr_cells + dt_root_size_cells)))
-		return 1;
-
-	usablemem->base = dt_mem_next_cell(dt_root_addr_cells, &reg);
-	usablemem->size = dt_mem_next_cell(dt_root_size_cells, &reg);
-
-	return 1;
-}
-
-static void __init fdt_enforce_memory_region(void)
-{
-	struct memblock_region reg = {
-		.size = 0,
-	};
-
-	of_scan_flat_dt(early_init_dt_scan_usablemem, &reg);
-
-	if (reg.size)
-		memblock_cap_memory_range(reg.base, reg.size);
-}
-
 void __init arm64_memblock_init(void)
 {
-	const s64 linear_region_size = BIT(vabits_actual - 1);
+	s64 linear_region_size = PAGE_END - _PAGE_OFFSET(vabits_actual);
 
-	/* Handle linux,usable-memory-range property */
-	fdt_enforce_memory_region();
+	/*
+	 * Corner case: 52-bit VA capable systems running KVM in nVHE mode may
+	 * be limited in their ability to support a linear map that exceeds 51
+	 * bits of VA space, depending on the placement of the ID map. Given
+	 * that the placement of the ID map may be randomized, let's simply
+	 * limit the kernel's linear map to 51 bits as well if we detect this
+	 * configuration.
+	 */
+	if (IS_ENABLED(CONFIG_KVM) && vabits_actual == 52 &&
+	    is_hyp_mode_available() && !is_kernel_in_hyp_mode()) {
+		pr_info("Capping linear region to 51 bits for KVM in nVHE mode on LVA capable hardware.\n");
+		linear_region_size = min_t(u64, linear_region_size, BIT(51));
+	}
 
 	/* Remove memory above our supported physical address size */
 	memblock_remove(1ULL << PHYS_MASK_SHIFT, ULLONG_MAX);
@@ -282,6 +236,9 @@ void __init arm64_memblock_init(void)
 	 */
 	memstart_addr = round_down(memblock_start_of_DRAM(),
 				   ARM64_MEMSTART_ALIGN);
+
+	if ((memblock_end_of_DRAM() - memstart_addr) > linear_region_size)
+		pr_warn("Memory doesn't fit in the linear mapping, VA_BITS too small\n");
 
 	/*
 	 * Remove the memory that we will not be able to cover with the
@@ -348,15 +305,18 @@ void __init arm64_memblock_init(void)
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
 		extern u16 memstart_offset_seed;
-		u64 range = linear_region_size -
-			    (memblock_end_of_DRAM() - memblock_start_of_DRAM());
+		u64 mmfr0 = read_cpuid(ID_AA64MMFR0_EL1);
+		int parange = cpuid_feature_extract_unsigned_field(
+					mmfr0, ID_AA64MMFR0_PARANGE_SHIFT);
+		s64 range = linear_region_size -
+			    BIT(id_aa64mmfr0_parange_to_phys_shift(parange));
 
 		/*
 		 * If the size of the linear region exceeds, by a sufficient
-		 * margin, the size of the region that the available physical
-		 * memory spans, randomize the linear region as well.
+		 * margin, the size of the region that the physical memory can
+		 * span, randomize the linear region as well.
 		 */
-		if (memstart_offset_seed > 0 && range >= ARM64_MEMSTART_ALIGN) {
+		if (memstart_offset_seed > 0 && range >= (s64)ARM64_MEMSTART_ALIGN) {
 			range /= ARM64_MEMSTART_ALIGN;
 			memstart_addr -= ARM64_MEMSTART_ALIGN *
 					 ((range * memstart_offset_seed) >> 16);
@@ -367,7 +327,7 @@ void __init arm64_memblock_init(void)
 	 * Register the kernel text, kernel data, initrd, and initial
 	 * pagetables with memblock.
 	 */
-	memblock_reserve(__pa_symbol(_text), _end - _text);
+	memblock_reserve(__pa_symbol(_stext), _end - _stext);
 	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) && phys_initrd_size) {
 		/* the generic initrd code expects virtual addresses */
 		initrd_start = __phys_to_virt(phys_initrd_start);
@@ -376,23 +336,10 @@ void __init arm64_memblock_init(void)
 
 	early_init_fdt_scan_reserved_mem();
 
-	if (IS_ENABLED(CONFIG_ZONE_DMA)) {
-		zone_dma_bits = ARM64_ZONE_DMA_BITS;
-		arm64_dma_phys_limit = max_zone_phys(ARM64_ZONE_DMA_BITS);
-	}
-
-	if (IS_ENABLED(CONFIG_ZONE_DMA32))
-		arm64_dma32_phys_limit = max_zone_phys(32);
-	else
-		arm64_dma32_phys_limit = PHYS_MASK + 1;
-
-	reserve_crashkernel();
-
-	reserve_elfcorehdr();
+	if (!IS_ENABLED(CONFIG_ZONE_DMA) && !IS_ENABLED(CONFIG_ZONE_DMA32))
+		reserve_crashkernel();
 
 	high_memory = __va(memblock_end_of_DRAM() - 1) + 1;
-
-	dma_contiguous_reserve(arm64_dma32_phys_limit);
 }
 
 void __init bootmem_init(void)
@@ -407,10 +354,10 @@ void __init bootmem_init(void)
 	max_pfn = max_low_pfn = max;
 	min_low_pfn = min;
 
-	arm64_numa_init();
+	arch_numa_init();
 
 	/*
-	 * must be done after arm64_numa_init() which calls numa_init() to
+	 * must be done after arch_numa_init() which calls numa_init() to
 	 * initialize node_online_map that gets used in hugetlb_cma_reserve()
 	 * while allocating required CMA size across online nodes.
 	 */
@@ -420,6 +367,8 @@ void __init bootmem_init(void)
 
 	dma_pernuma_cma_reserve();
 
+	kvm_hyp_reserve();
+
 	/*
 	 * sparse_init() tries to allocate memory from memblock, so must be
 	 * done after the fixed reservations
@@ -427,73 +376,20 @@ void __init bootmem_init(void)
 	sparse_init();
 	zone_sizes_init(min, max);
 
+	/*
+	 * Reserve the CMA area after arm64_dma_phys_limit was initialised.
+	 */
+	dma_contiguous_reserve(arm64_dma_phys_limit);
+
+	/*
+	 * request_standard_resources() depends on crashkernel's memory being
+	 * reserved, so do it here.
+	 */
+	if (IS_ENABLED(CONFIG_ZONE_DMA) || IS_ENABLED(CONFIG_ZONE_DMA32))
+		reserve_crashkernel();
+
 	memblock_dump_all();
 }
-
-#ifndef CONFIG_SPARSEMEM_VMEMMAP
-static inline void free_memmap(unsigned long start_pfn, unsigned long end_pfn)
-{
-	struct page *start_pg, *end_pg;
-	unsigned long pg, pgend;
-
-	/*
-	 * Convert start_pfn/end_pfn to a struct page pointer.
-	 */
-	start_pg = pfn_to_page(start_pfn - 1) + 1;
-	end_pg = pfn_to_page(end_pfn - 1) + 1;
-
-	/*
-	 * Convert to physical addresses, and round start upwards and end
-	 * downwards.
-	 */
-	pg = (unsigned long)PAGE_ALIGN(__pa(start_pg));
-	pgend = (unsigned long)__pa(end_pg) & PAGE_MASK;
-
-	/*
-	 * If there are free pages between these, free the section of the
-	 * memmap array.
-	 */
-	if (pg < pgend)
-		memblock_free(pg, pgend - pg);
-}
-
-/*
- * The mem_map array can get very big. Free the unused area of the memory map.
- */
-static void __init free_unused_memmap(void)
-{
-	unsigned long start, end, prev_end = 0;
-	int i;
-
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start, &end, NULL) {
-#ifdef CONFIG_SPARSEMEM
-		/*
-		 * Take care not to free memmap entries that don't exist due
-		 * to SPARSEMEM sections which aren't present.
-		 */
-		start = min(start, ALIGN(prev_end, PAGES_PER_SECTION));
-#endif
-		/*
-		 * If we had a previous bank, and there is a space between the
-		 * current bank and the previous, free it.
-		 */
-		if (prev_end && prev_end < start)
-			free_memmap(prev_end, start);
-
-		/*
-		 * Align up here since the VM subsystem insists that the
-		 * memmap entries are valid from the bank end aligned to
-		 * MAX_ORDER_NR_PAGES.
-		 */
-		prev_end = ALIGN(end, MAX_ORDER_NR_PAGES);
-	}
-
-#ifdef CONFIG_SPARSEMEM
-	if (!IS_ALIGNED(prev_end, PAGES_PER_SECTION))
-		free_memmap(prev_end, ALIGN(prev_end, PAGES_PER_SECTION));
-#endif
-}
-#endif	/* !CONFIG_SPARSEMEM_VMEMMAP */
 
 /*
  * mem_init() marks the free areas in the mem_map and tells us how much memory
@@ -503,20 +399,13 @@ static void __init free_unused_memmap(void)
 void __init mem_init(void)
 {
 	if (swiotlb_force == SWIOTLB_FORCE ||
-	    max_pfn > PFN_DOWN(arm64_dma_phys_limit ? : arm64_dma32_phys_limit))
+	    max_pfn > PFN_DOWN(arm64_dma_phys_limit))
 		swiotlb_init(1);
-	else
+	else if (!xen_swiotlb_detect())
 		swiotlb_force = SWIOTLB_NO_FORCE;
 
-	set_max_mapnr(max_pfn - PHYS_PFN_OFFSET);
-
-#ifndef CONFIG_SPARSEMEM_VMEMMAP
-	free_unused_memmap();
-#endif
 	/* this will put all unused low memory onto the freelists */
 	memblock_free_all();
-
-	mem_init_print_info(NULL);
 
 	/*
 	 * Check boundaries twice: Some fundamental inconsistencies can be
@@ -525,6 +414,13 @@ void __init mem_init(void)
 #ifdef CONFIG_COMPAT
 	BUILD_BUG_ON(TASK_SIZE_32 > DEFAULT_MAP_WINDOW_64);
 #endif
+
+	/*
+	 * Selected page table levels should match when derived from
+	 * scratch using the virtual address range and page size.
+	 */
+	BUILD_BUG_ON(ARM64_HW_PGTABLE_LEVELS(CONFIG_ARM64_VA_BITS) !=
+		     CONFIG_PGTABLE_LEVELS);
 
 	if (PAGE_SIZE >= 16384 && get_num_physpages() <= 128) {
 		extern int sysctl_overcommit_memory;
@@ -546,7 +442,7 @@ void free_initmem(void)
 	 * prevents the region from being reused for kernel modules, which
 	 * is not supported by kallsyms.
 	 */
-	unmap_kernel_range((u64)__init_begin, (u64)(__init_end - __init_begin));
+	vunmap_range((u64)__init_begin, (u64)__init_end);
 }
 
 void dump_mem_limit(void)

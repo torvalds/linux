@@ -8,6 +8,7 @@
  */
 /dts-v1/;
 #include "at91-sama5d27_wlsom1.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Microchip SAMA5D27 WLSOM1 EK";
@@ -35,7 +36,7 @@
 		sw4 {
 			label = "USER BUTTON";
 			gpios = <&pioA PIN_PB2 GPIO_ACTIVE_LOW>;
-			linux,code = <0x104>;
+			linux,code = <KEY_PROG1>;
 			wakeup-source;
 		};
 	};
@@ -190,7 +191,7 @@
 &qspi1 {
 	status = "okay";
 
-	qspi1_flash: spi_flash@0 {
+	qspi1_flash: flash@0 {
 		status = "okay";
 	};
 };
@@ -204,12 +205,11 @@
 };
 
 &shutdown_controller {
-	atmel,shdwc-debouncer = <976>;
+	debounce-delay-us = <976>;
 	atmel,wakeup-rtc-timer;
 
 	input@0 {
 		reg = <0>;
-		atmel,wakeup-type = "low";
 	};
 };
 

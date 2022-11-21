@@ -52,7 +52,9 @@ struct abm_funcs {
 	unsigned int (*get_target_backlight)(struct abm *abm);
 	bool (*init_abm_config)(struct abm *abm,
 			const char *src,
-			unsigned int bytes);
+			unsigned int bytes,
+			unsigned int inst);
+	bool (*set_abm_pause)(struct abm *abm, bool pause, unsigned int panel_inst, unsigned int otg_inst);
 };
 
 #endif

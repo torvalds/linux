@@ -8,6 +8,7 @@
 #include "tegra30.dtsi"
 #include "tegra30-cpu-opp.dtsi"
 #include "tegra30-cpu-opp-microvolt.dtsi"
+#include "tegra30-asus-lvds-display.dtsi"
 
 / {
 	aliases {
@@ -59,23 +60,8 @@
 		};
 	};
 
-	host1x@50000000 {
-		dc@54200000 {
-			rgb {
-				status = "okay";
-
-				port@0 {
-					lcd_output: endpoint {
-						remote-endpoint = <&lvds_encoder_input>;
-						bus-width = <24>;
-					};
-				};
-			};
-		};
-	};
-
 	gpio@6000d000 {
-		init-mode {
+		init-mode-hog {
 			gpio-hog;
 			gpios =	<TEGRA_GPIO(DD, 7) GPIO_ACTIVE_HIGH>,
 				<TEGRA_GPIO(CC, 6) GPIO_ACTIVE_HIGH>,
@@ -83,7 +69,7 @@
 			output-low;
 		};
 
-		init-low-power-mode {
+		init-low-power-mode-hog {
 			gpio-hog;
 			gpios = <TEGRA_GPIO(I, 6) GPIO_ACTIVE_HIGH>;
 			input;
@@ -804,11 +790,13 @@
 
 	uartb: serial@70006040 {
 		compatible = "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 		/* GPS BCM4751 */
 	};
 
 	uartc: serial@70006200 {
 		compatible = "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 		status = "okay";
 
 		nvidia,adjust-baud-rates = <0 9600 100>,
@@ -819,6 +807,10 @@
 		bluetooth {
 			compatible = "brcm,bcm4330-bt";
 
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(U, 6) IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "host-wakeup";
+
 			max-speed = <4000000>;
 
 			clocks = <&tegra_pmc TEGRA_PMC_CLK_BLINK>;
@@ -828,7 +820,6 @@
 			vddio-supply = <&vdd_1v8>;
 
 			device-wakeup-gpios = <&gpio TEGRA_GPIO(U, 1) GPIO_ACTIVE_HIGH>;
-			host-wakeup-gpios =   <&gpio TEGRA_GPIO(U, 6) GPIO_ACTIVE_HIGH>;
 			shutdown-gpios =      <&gpio TEGRA_GPIO(U, 0) GPIO_ACTIVE_HIGH>;
 		};
 	};
@@ -920,6 +911,10 @@
 			compatible = "onnn,nct1008";
 			reg = <0x4c>;
 			vcc-supply = <&vdd_3v3_sys>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(S, 3) IRQ_TYPE_EDGE_FALLING>;
+
 			#thermal-sensor-cells = <1>;
 		};
 
@@ -927,7 +922,6 @@
 			compatible = "ti,bq27541";
 			reg = <0x55>;
 			power-supplies = <&power_supply>;
-			monitored-battery = <&battery_cell>;
 		};
 
 		power_supply: charger@6a {
@@ -938,9 +932,29 @@
 			interrupts = <TEGRA_GPIO(V, 1) IRQ_TYPE_EDGE_BOTH>;
 
 			summit,enable-charge-control = <SMB3XX_CHG_ENABLE_PIN_ACTIVE_LOW>;
+			summit,inok-polarity = <SMB3XX_SYSOK_INOK_ACTIVE_LOW>;
 			summit,enable-usb-charging;
 
 			monitored-battery = <&battery_cell>;
+
+			usb_vbus: usb-vbus {
+				regulator-name = "usb_vbus";
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+				regulator-min-microamp = <750000>;
+				regulator-max-microamp = <750000>;
+
+				/*
+				 * SMB347 INOK input pin is connected to PMIC's
+				 * ACOK output, which is fixed to ACTIVE_LOW as
+				 * long as battery voltage is in a good range.
+				 *
+				 * Active INOK disables SMB347 output, so polarity
+				 * needs to be toggled when we want to get the
+				 * output.
+				 */
+				summit,needs-inok-toggle;
+			};
 		};
 	};
 
@@ -954,6 +968,7 @@
 		nvidia,core-pwr-off-time = <0>;
 		nvidia,core-power-req-active-high;
 		nvidia,sys-clock-req-active-high;
+		core-supply = <&vdd_core>;
 	};
 
 	ahub@70080000 {
@@ -1013,12 +1028,13 @@
 	usb@7d000000 {
 		compatible = "nvidia,tegra30-udc";
 		status = "okay";
-		dr_mode = "peripheral";
+		dr_mode = "otg";
+		vbus-supply = <&usb_vbus>;
 	};
 
 	usb-phy@7d000000 {
 		status = "okay";
-		dr_mode = "peripheral";
+		dr_mode = "otg";
 		nvidia,hssync-start-delay = <0>;
 		nvidia,xcvr-lsfslew = <2>;
 		nvidia,xcvr-lsrslew = <2>;
@@ -1042,7 +1058,7 @@
 	};
 
 	/* PMIC has a built-in 32KHz oscillator which is used by PMC */
-	clk32k_in: clock@0 {
+	clk32k_in: clock-32k {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
@@ -1056,28 +1072,36 @@
 			#cooling-cells = <2>;
 		};
 
-		cpu@1 {
+		cpu1: cpu@1 {
 			cpu-supply = <&vdd_cpu>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			#cooling-cells = <2>;
 		};
 
-		cpu@2 {
+		cpu2: cpu@2 {
 			cpu-supply = <&vdd_cpu>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			#cooling-cells = <2>;
 		};
 
-		cpu@3 {
+		cpu3: cpu@3 {
 			cpu-supply = <&vdd_cpu>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			#cooling-cells = <2>;
 		};
 	};
 
 	display-panel {
-		compatible = "hydis,hv070wx2-1e0", "chunghwa,claa070wp03xg",
-			     "panel-lvds";
-
-		power-supply = <&vdd_pnl>;
-		backlight = <&backlight>;
+		/*
+		 * Nexus 7 supports two compatible panel models:
+		 *
+		 *  1. hydis,hv070wx2-1e0
+		 *  2. chunghwa,claa070wp03xg
+		 *
+		 * We want to use timing which is optimized for Nexus 7,
+		 * hence we need to customize the timing.
+		 */
+		compatible = "panel-lvds";
 
 		width-mm = <94>;
 		height-mm = <150>;
@@ -1085,11 +1109,8 @@
 
 		data-mapping = "jeida-24";
 
-		port {
-			panel_input: endpoint {
-				remote-endpoint = <&lvds_encoder_output>;
-			};
-		};
+		/* DDC unconnected on Nexus 7 */
+		/delete-property/ ddc-i2c-bus;
 	};
 
 	firmware {
@@ -1141,34 +1162,7 @@
 		};
 	};
 
-	lvds-encoder {
-		compatible = "ti,sn75lvds83", "lvds-encoder";
-
-		powerdown-gpios = <&gpio TEGRA_GPIO(N, 6) GPIO_ACTIVE_LOW>;
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-
-				lvds_encoder_input: endpoint {
-					remote-endpoint = <&lcd_output>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-
-				lvds_encoder_output: endpoint {
-					remote-endpoint = <&panel_input>;
-				};
-			};
-		};
-	};
-
-	vdd_5v0_sys: regulator@0 {
+	vdd_5v0_sys: regulator-5v0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_5v0";
 		regulator-min-microvolt = <5000000>;
@@ -1177,7 +1171,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_3v3_sys: regulator@1 {
+	vdd_3v3_sys: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -1187,7 +1181,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_pnl: regulator@2 {
+	vdd_pnl: regulator-panel {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_panel";
 		regulator-min-microvolt = <3300000>;
@@ -1198,7 +1192,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vcc_3v3_ts: regulator@3 {
+	vcc_3v3_ts: regulator-ts {
 		compatible = "regulator-fixed";
 		regulator-name = "ldo_s-1167_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -1240,30 +1234,36 @@
 	};
 
 	thermal-zones {
-		nct72-local {
-			polling-delay-passive = <1000>; /* milliseconds */
-			polling-delay = <0>; /* milliseconds */
+		/*
+		 * NCT72 has two sensors:
+		 *
+		 *	0: internal that monitors ambient/skin temperature
+		 *	1: external that is connected to the CPU's diode
+		 *
+		 * Ideally we should use userspace thermal governor,
+		 * but it's a much more complex solution.  The "skin"
+		 * zone is a simpler solution which prevents Nexus 7
+		 * from getting too hot from a user's tactile perspective.
+		 * The CPU zone is intended to protect silicon from damage.
+		 */
 
-			thermal-sensors = <&nct72 0>;
-		};
-
-		nct72-remote {
+		skin-thermal {
 			polling-delay-passive = <1000>; /* milliseconds */
 			polling-delay = <5000>; /* milliseconds */
 
-			thermal-sensors = <&nct72 1>;
+			thermal-sensors = <&nct72 0>;
 
 			trips {
-				trip0: cpu-alert0 {
-					/* start throttling at 50C */
-					temperature = <50000>;
-					hysteresis = <3000>;
+				trip0: skin-alert {
+					/* throttle at 57C until temperature drops to 56.8C */
+					temperature = <57000>;
+					hysteresis = <200>;
 					type = "passive";
 				};
 
-				trip1: cpu-crit {
-					/* shut down at 60C */
-					temperature = <60000>;
+				trip1: skin-crit {
+					/* shut down at 65C */
+					temperature = <65000>;
 					hysteresis = <2000>;
 					type = "critical";
 				};
@@ -1272,7 +1272,47 @@
 			cooling-maps {
 				map0 {
 					trip = <&trip0>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&actmon THERMAL_NO_LIMIT
+								  THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+
+		cpu-thermal {
+			polling-delay-passive = <1000>; /* milliseconds */
+			polling-delay = <5000>; /* milliseconds */
+
+			thermal-sensors = <&nct72 1>;
+
+			trips {
+				trip2: cpu-alert {
+					/* throttle at 85C until temperature drops to 84.8C */
+					temperature = <85000>;
+					hysteresis = <200>;
+					type = "passive";
+				};
+
+				trip3: cpu-crit {
+					/* shut down at 90C */
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map1 {
+					trip = <&trip2>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&actmon THERMAL_NO_LIMIT
+								  THERMAL_NO_LIMIT>;
 				};
 			};
 		};

@@ -45,9 +45,9 @@ properties:
     pattern: "^cpts@[0-9a-f]+$"
 
   compatible:
-    oneOf:
-      - const: ti,am65-cpts
-      - const: ti,j721e-cpts
+    enum:
+      - ti,am65-cpts
+      - ti,j721e-cpts
 
   reg:
     maxItems: 1
@@ -59,6 +59,7 @@ properties:
       - const: cpts
 
   clocks:
+    maxItems: 1
     description: CPTS reference clock
 
   clock-names:
@@ -72,6 +73,13 @@ properties:
   interrupt-names:
     items:
       - const: cpts
+
+  assigned-clock-parents: true
+
+  assigned-clocks: true
+
+  power-domains:
+    maxItems: 1
 
   ti,cpts-ext-ts-inputs:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -94,12 +102,6 @@ properties:
 
       clocks:
         maxItems: 8
-
-      assigned-clocks:
-        maxItems: 1
-
-      assigned-clocks-parents:
-        maxItems: 1
 
     required:
       - clocks

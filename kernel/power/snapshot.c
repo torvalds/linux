@@ -76,6 +76,40 @@ static inline void hibernate_restore_protect_page(void *page_address) {}
 static inline void hibernate_restore_unprotect_page(void *page_address) {}
 #endif /* CONFIG_STRICT_KERNEL_RWX  && CONFIG_ARCH_HAS_SET_MEMORY */
 
+
+/*
+ * The calls to set_direct_map_*() should not fail because remapping a page
+ * here means that we only update protection bits in an existing PTE.
+ * It is still worth to have a warning here if something changes and this
+ * will no longer be the case.
+ */
+static inline void hibernate_map_page(struct page *page)
+{
+	if (IS_ENABLED(CONFIG_ARCH_HAS_SET_DIRECT_MAP)) {
+		int ret = set_direct_map_default_noflush(page);
+
+		if (ret)
+			pr_warn_once("Failed to remap page\n");
+	} else {
+		debug_pagealloc_map_pages(page, 1);
+	}
+}
+
+static inline void hibernate_unmap_page(struct page *page)
+{
+	if (IS_ENABLED(CONFIG_ARCH_HAS_SET_DIRECT_MAP)) {
+		unsigned long addr = (unsigned long)page_address(page);
+		int ret  = set_direct_map_invalid_noflush(page);
+
+		if (ret)
+			pr_warn_once("Failed to remap page\n");
+
+		flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
+	} else {
+		debug_pagealloc_unmap_pages(page, 1);
+	}
+}
+
 static int swsusp_page_is_free(struct page *);
 static void swsusp_set_page_forbidden(struct page *);
 static void swsusp_unset_page_forbidden(struct page *);
@@ -295,9 +329,9 @@ static void *chain_alloc(struct chain_allocator *ca, unsigned int size)
 /**
  * Data types related to memory bitmaps.
  *
- * Memory bitmap is a structure consiting of many linked lists of
+ * Memory bitmap is a structure consisting of many linked lists of
  * objects.  The main list's elements are of type struct zone_bitmap
- * and each of them corresonds to one zone.  For each zone bitmap
+ * and each of them corresponds to one zone.  For each zone bitmap
  * object there is a list of objects of type struct bm_block that
  * represent each blocks of bitmap in which information is stored.
  *
@@ -944,8 +978,7 @@ static void memory_bm_recycle(struct memory_bitmap *bm)
  * Register a range of page frames the contents of which should not be saved
  * during hibernation (to be used in the early initialization code).
  */
-void __init __register_nosave_region(unsigned long start_pfn,
-				     unsigned long end_pfn, int use_kmalloc)
+void __init register_nosave_region(unsigned long start_pfn, unsigned long end_pfn)
 {
 	struct nosave_region *region;
 
@@ -961,18 +994,12 @@ void __init __register_nosave_region(unsigned long start_pfn,
 			goto Report;
 		}
 	}
-	if (use_kmalloc) {
-		/* During init, this shouldn't fail */
-		region = kmalloc(sizeof(struct nosave_region), GFP_KERNEL);
-		BUG_ON(!region);
-	} else {
-		/* This allocation cannot fail */
-		region = memblock_alloc(sizeof(struct nosave_region),
-					SMP_CACHE_BYTES);
-		if (!region)
-			panic("%s: Failed to allocate %zu bytes\n", __func__,
-			      sizeof(struct nosave_region));
-	}
+	/* This allocation cannot fail */
+	region = memblock_alloc(sizeof(struct nosave_region),
+				SMP_CACHE_BYTES);
+	if (!region)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(struct nosave_region));
 	region->start_pfn = start_pfn;
 	region->end_pfn = end_pfn;
 	list_add_tail(&region->list, &nosave_regions);
@@ -1112,7 +1139,7 @@ int create_basic_memory_bitmaps(void)
  Free_second_object:
 	kfree(bm2);
  Free_first_bitmap:
- 	memory_bm_free(bm1, PG_UNSAFE_CLEAR);
+	memory_bm_free(bm1, PG_UNSAFE_CLEAR);
  Free_first_object:
 	kfree(bm1);
 	return -ENOMEM;
@@ -1144,7 +1171,15 @@ void free_basic_memory_bitmaps(void)
 	pr_debug("Basic memory bitmaps freed\n");
 }
 
-void clear_free_pages(void)
+static void clear_or_poison_free_page(struct page *page)
+{
+	if (page_poisoning_enabled_static())
+		__kernel_poison_pages(page, 1);
+	else if (want_init_on_free())
+		clear_highpage(page);
+}
+
+void clear_or_poison_free_pages(void)
 {
 	struct memory_bitmap *bm = free_pages_map;
 	unsigned long pfn;
@@ -1152,12 +1187,12 @@ void clear_free_pages(void)
 	if (WARN_ON(!(free_pages_map)))
 		return;
 
-	if (IS_ENABLED(CONFIG_PAGE_POISONING_ZERO) || want_init_on_free()) {
+	if (page_poisoning_enabled() || want_init_on_free()) {
 		memory_bm_position_reset(bm);
 		pfn = memory_bm_next_pfn(bm);
 		while (pfn != BM_END_OF_MAP) {
 			if (pfn_valid(pfn))
-				clear_highpage(pfn_to_page(pfn));
+				clear_or_poison_free_page(pfn_to_page(pfn));
 
 			pfn = memory_bm_next_pfn(bm);
 		}
@@ -1355,9 +1390,9 @@ static void safe_copy_page(void *dst, struct page *s_page)
 	if (kernel_page_present(s_page)) {
 		do_copy_page(dst, page_address(s_page));
 	} else {
-		kernel_map_pages(s_page, 1, 1);
+		hibernate_map_page(s_page);
 		do_copy_page(dst, page_address(s_page));
-		kernel_map_pages(s_page, 1, 0);
+		hibernate_unmap_page(s_page);
 	}
 }
 
@@ -1458,7 +1493,7 @@ static struct memory_bitmap copy_bm;
 /**
  * swsusp_free - Free pages allocated for hibernation image.
  *
- * Image pages are alocated before snapshot creation, so they need to be
+ * Image pages are allocated before snapshot creation, so they need to be
  * released after resume.
  */
 void swsusp_free(void)
@@ -2284,7 +2319,7 @@ static struct memory_bitmap *safe_highmem_bm;
  * (@nr_highmem_p points to the variable containing the number of highmem image
  * pages).  The pages that are "safe" (ie. will not be overwritten when the
  * hibernation image is restored entirely) have the corresponding bits set in
- * @bm (it must be unitialized).
+ * @bm (it must be uninitialized).
  *
  * NOTE: This function should not be called if there are no highmem image pages.
  */
@@ -2441,7 +2476,7 @@ static inline void free_highmem_data(void) {}
 
 /**
  * prepare_image - Make room for loading hibernation image.
- * @new_bm: Unitialized memory bitmap structure.
+ * @new_bm: Uninitialized memory bitmap structure.
  * @bm: Memory bitmap with unsafe pages marked.
  *
  * Use @bm to mark the pages that will be overwritten in the process of

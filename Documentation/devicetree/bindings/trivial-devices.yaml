@@ -23,20 +23,27 @@ properties:
     maxItems: 1
   interrupts:
     maxItems: 1
+
+  spi-max-frequency: true
+
   compatible:
     items:
       - enum:
             # SMBus/I2C Digital Temperature Sensor in 6-Pin SOT with SMBus Alert and Over Temperature Pin
           - ad,ad7414
-            # ADM9240:  Complete System Hardware Monitor for uProcessor-Based Systems
+            # ADM9240: Complete System Hardware Monitor for uProcessor-Based Systems
           - ad,adm9240
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7461
-            # +/-1C TDM Extended Temp Range I.C
-          - adt7461
+            # AD5110 - Nonvolatile Digital Potentiometer
+          - adi,ad5110
+            # Analog Devices ADP5585 Keypad Decoder and I/O Expansion
+          - adi,adp5585
+            # Analog Devices ADP5585 Keypad Decoder and I/O Expansion with support for Row5
+          - adi,adp5585-02
+            # Analog Devices ADP5589 Keypad Decoder and I/O Expansion
+          - adi,adp5589
             # AMS iAQ-Core VOC Sensor
           - ams,iaq-core
-            # i2c serial eeprom  (24cxx)
+            # i2c serial eeprom (24cxx)
           - at,24c08
             # i2c trusted platform module (TPM)
           - atmel,at97sc3204t
@@ -44,10 +51,16 @@ properties:
           - atmel,atsha204a
             # i2c h/w elliptic curve crypto module
           - atmel,atecc508a
+            # BPA-RS600: Power Supply
+          - blutek,bpa-rs600
+            # Bosch Sensortec pressure, temperature, humididty and VOC sensor
+          - bosch,bme680
             # CM32181: Ambient Light Sensor
           - capella,cm32181
             # CM3232: Ambient Light Sensor
           - capella,cm3232
+            # CM3323: Ambient Light Sensor
+          - capella,cm3323
             # High-Precision Digital Thermometer
           - dallas,ds1631
             # Total-Elapsed-Time Recorder with Alarm
@@ -60,6 +73,14 @@ properties:
           - dallas,ds4510
             # Digital Thermometer and Thermostat
           - dallas,ds75
+            # Delta AHE-50DC Open19 power shelf fan control module
+          - delta,ahe50dc-fan
+            # Delta Electronics DPS-650-AB power supply
+          - delta,dps650ab
+            # Delta Electronics DPS920AB 920W 54V Power Supply
+          - delta,dps920ab
+            # 1/4 Brick DC/DC Regulated Power Module
+          - delta,q54sj108a2
             # Devantech SRF02 ultrasonic ranger in I2C mode
           - devantech,srf02
             # Devantech SRF08 ultrasonic ranger
@@ -70,6 +91,12 @@ properties:
           - dlg,da9053
             # DA9063: system PMIC for quad-core application processors
           - dlg,da9063
+            # DMARD05: 3-axis I2C Accelerometer
+          - domintech,dmard05
+            # DMARD06: 3-axis I2C Accelerometer
+          - domintech,dmard06
+            # DMARD05: 3-axis I2C Accelerometer
+          - domintech,dmard07
             # DMARD09: 3-axis Accelerometer
           - domintech,dmard09
             # DMARD10: 3-axis Accelerometer
@@ -82,22 +109,48 @@ properties:
           - fsl,mpl3115
             # MPR121: Proximity Capacitive Touch Sensor Controller
           - fsl,mpr121
+            # Monolithic Power Systems Inc. multi-phase controller mp2888
+          - mps,mp2888
             # Monolithic Power Systems Inc. multi-phase controller mp2975
           - mps,mp2975
-            # G751: Digital Temperature Sensor and Thermal Watchdog with Two-Wire Interface
-          - gmt,g751
+            # Honeywell Humidicon HIH-6130 humidity/temperature sensor
+          - honeywell,hi6130
+            # IBM Common Form Factor Power Supply Versions (all versions)
+          - ibm,cffps
+            # IBM Common Form Factor Power Supply Versions 1
+          - ibm,cffps1
+            # IBM Common Form Factor Power Supply Versions 2
+          - ibm,cffps2
+            # Infineon IR36021 digital POL buck controller
+          - infineon,ir36021
+            # Infineon IR38060 Voltage Regulator
+          - infineon,ir38060
             # Infineon IR38064 Voltage Regulator
           - infineon,ir38064
+            # Infineon IR38164 Voltage Regulator
+          - infineon,ir38164
+            # Infineon IR38263 Voltage Regulator
+          - infineon,ir38263
             # Infineon SLB9635 (Soft-) I2C TPM (old protocol, max 100khz)
           - infineon,slb9635tt
             # Infineon SLB9645 I2C TPM (new protocol, max 400khz)
           - infineon,slb9645tt
             # Infineon TLV493D-A1B6 I2C 3D Magnetic Sensor
           - infineon,tlv493d-a1b6
+            # Infineon Multi-phase Digital VR Controller xdpe11280
+          - infineon,xdpe11280
             # Infineon Multi-phase Digital VR Controller xdpe12254
           - infineon,xdpe12254
             # Infineon Multi-phase Digital VR Controller xdpe12284
           - infineon,xdpe12284
+            # Injoinic IP5108 2.0A Power Bank IC with I2C
+          - injoinic,ip5108
+            # Injoinic IP5109 2.1A Power Bank IC with I2C
+          - injoinic,ip5109
+            # Injoinic IP5207 1.2A Power Bank IC with I2C
+          - injoinic,ip5207
+            # Injoinic IP5209 2.4A Power Bank IC with I2C
+          - injoinic,ip5209
             # Inspur Power System power supply unit version 1
           - inspur,ipsps1
             # Intersil ISL29028 Ambient Light and Proximity Sensor
@@ -108,20 +161,26 @@ properties:
           - isil,isl68137
             # 5 Bit Programmable, Pulse-Width Modulator
           - maxim,ds1050
-            # 10-bit 8 channels 300ks/s SPI ADC with temperature sensor
-          - maxim,max1027
-            # 10-bit 12 channels 300ks/s SPI ADC with temperature sensor
-          - maxim,max1029
-            # 10-bit 16 channels 300ks/s SPI ADC with temperature sensor
-          - maxim,max1031
-            # 12-bit 8 channels 300ks/s SPI ADC with temperature sensor
-          - maxim,max1227
-            # 12-bit 12 channels 300ks/s SPI ADC with temperature sensor
-          - maxim,max1229
-            # 12-bit 16 channels 300ks/s SPI ADC with temperature sensor
-          - maxim,max1231
+            # 10 kOhm digital potentiometer with I2C interface
+          - maxim,ds1803-010
+            # 50 kOhm digital potentiometer with I2C interface
+          - maxim,ds1803-050
+            # 100 kOhm digital potentiometer with I2C interface
+          - maxim,ds1803-100
+            # 10 kOhm digital potentiometer with I2C interface
+          - maxim,ds3502
             # Low-Power, 4-/12-Channel, 2-Wire Serial, 12-Bit ADCs
           - maxim,max1237
+            # Temperature Sensor, I2C interface
+          - maxim,max1619
+            # 10-bit 10 kOhm linear programable voltage divider
+          - maxim,max5481
+            # 10-bit 50 kOhm linear programable voltage divider
+          - maxim,max5482
+            # 10-bit 10 kOhm linear programable variable resistor
+          - maxim,max5483
+            # 10-bit 50 kOhm linear programable variable resistor
+          - maxim,max5484
             # PECI-to-I2C translator for PECI-to-SMBus/I2C protocol conversion
           - maxim,max6621
             # 9-Bit/12-Bit Temperature Sensors with I²C-Compatible Serial Interface
@@ -130,8 +189,32 @@ properties:
           - maxim,max31730
             # mCube 3-axis 8-bit digital accelerometer
           - mcube,mc3230
+            # Measurement Specialities I2C temperature and humidity sensor
+          - meas,htu21
+            # Measurement Specialities I2C pressure and temperature sensor
+          - meas,ms5637
+            # Measurement Specialities I2C pressure and temperature sensor
+          - meas,ms5803
+            # Measurement Specialities I2C pressure and temperature sensor
+          - meas,ms5805
+            # Measurement Specialities I2C pressure and temperature sensor
+          - meas,ms5837
+            # Measurement Specialities temp and humidity part of ms8607 device
+          - meas,ms8607-humidity
+            # Measurement Specialities temp and pressure part of ms8607 device
+          - meas,ms8607-temppressure
+            # Measurement Specialties temperature sensor
+          - meas,tsys01
+            # MEMSIC magnetometer
+          - memsic,mmc35240
+            # MEMSIC 3-axis accelerometer
+          - memsic,mx4005
             # MEMSIC 2-axis 8-bit digital accelerometer
           - memsic,mxc6225
+            # MEMSIC 2-axis 8-bit digital accelerometer
+          - memsic,mxc6255
+            # MEMSIC 3-axis accelerometer
+          - memsic,mxc6655
             # Microchip differential I2C ADC, 1 Channel, 18 bit
           - microchip,mcp3421
             # Microchip differential I2C ADC, 2 Channel, 18 bit
@@ -172,134 +255,6 @@ properties:
           - microchip,mcp4019-503
             # Microchip 7-bit Single I2C Digital POT (100k)
           - microchip,mcp4019-104
-            # Microchip 7-bit Single I2C Digital Potentiometer (5k)
-          - microchip,mcp4531-502
-            # Microchip 7-bit Single I2C Digital Potentiometer (10k)
-          - microchip,mcp4531-103
-            # Microchip 7-bit Single I2C Digital Potentiometer (50k)
-          - microchip,mcp4531-503
-            # Microchip 7-bit Single I2C Digital Potentiometer (100k)
-          - microchip,mcp4531-104
-            # Microchip 7-bit Single I2C Digital Potentiometer (5k)
-          - microchip,mcp4532-502
-            # Microchip 7-bit Single I2C Digital Potentiometer (10k)
-          - microchip,mcp4532-103
-            # Microchip 7-bit Single I2C Digital Potentiometer (50k)
-          - microchip,mcp4532-503
-            # Microchip 7-bit Single I2C Digital Potentiometer (100k)
-          - microchip,mcp4532-104
-            # Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (5k)
-          - microchip,mcp4541-502
-            # Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (10k)
-          - microchip,mcp4541-103
-            # Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (50k)
-          - microchip,mcp4541-503
-            # Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (100k)
-          - microchip,mcp4541-104
-            # Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (5k)
-          - microchip,mcp4542-502
-            # Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (10k)
-          - microchip,mcp4542-103
-            # Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (50k)
-          - microchip,mcp4542-503
-            # Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (100k)
-          - microchip,mcp4542-104
-            # Microchip 8-bit Single I2C Digital Potentiometer (5k)
-          - microchip,mcp4551-502
-            # Microchip 8-bit Single I2C Digital Potentiometer (10k)
-          - microchip,mcp4551-103
-            # Microchip 8-bit Single I2C Digital Potentiometer (50k)
-          - microchip,mcp4551-503
-            # Microchip 8-bit Single I2C Digital Potentiometer (100k)
-          - microchip,mcp4551-104
-            # Microchip 8-bit Single I2C Digital Potentiometer (5k)
-          - microchip,mcp4552-502
-            # Microchip 8-bit Single I2C Digital Potentiometer (10k)
-          - microchip,mcp4552-103
-            # Microchip 8-bit Single I2C Digital Potentiometer (50k)
-          - microchip,mcp4552-503
-            # Microchip 8-bit Single I2C Digital Potentiometer (100k)
-          - microchip,mcp4552-104
-            # Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (5k)
-          - microchip,mcp4561-502
-            # Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (10k)
-          - microchip,mcp4561-103
-            # Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (50k)
-          - microchip,mcp4561-503
-            # Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (100k)
-          - microchip,mcp4561-104
-            # Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (5k)
-          - microchip,mcp4562-502
-            # Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (10k)
-          - microchip,mcp4562-103
-            # Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (50k)
-          - microchip,mcp4562-503
-            # Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (100k)
-          - microchip,mcp4562-104
-            # Microchip 7-bit Dual I2C Digital Potentiometer (5k)
-          - microchip,mcp4631-502
-            # Microchip 7-bit Dual I2C Digital Potentiometer (10k)
-          - microchip,mcp4631-103
-            # Microchip 7-bit Dual I2C Digital Potentiometer (50k)
-          - microchip,mcp4631-503
-            # Microchip 7-bit Dual I2C Digital Potentiometer (100k)
-          - microchip,mcp4631-104
-            # Microchip 7-bit Dual I2C Digital Potentiometer (5k)
-          - microchip,mcp4632-502
-            # Microchip 7-bit Dual I2C Digital Potentiometer (10k)
-          - microchip,mcp4632-103
-            # Microchip 7-bit Dual I2C Digital Potentiometer (50k)
-          - microchip,mcp4632-503
-            # Microchip 7-bit Dual I2C Digital Potentiometer (100k)
-          - microchip,mcp4632-104
-            # Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (5k)
-          - microchip,mcp4641-502
-            # Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (10k)
-          - microchip,mcp4641-103
-            # Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (50k)
-          - microchip,mcp4641-503
-            # Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (100k)
-          - microchip,mcp4641-104
-            # Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (5k)
-          - microchip,mcp4642-502
-            # Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (10k)
-          - microchip,mcp4642-103
-            # Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (50k)
-          - microchip,mcp4642-503
-            # Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (100k)
-          - microchip,mcp4642-104
-            # Microchip 8-bit Dual I2C Digital Potentiometer (5k)
-          - microchip,mcp4651-502
-            # Microchip 8-bit Dual I2C Digital Potentiometer (10k)
-          - microchip,mcp4651-103
-            # Microchip 8-bit Dual I2C Digital Potentiometer (50k)
-          - microchip,mcp4651-503
-            # Microchip 8-bit Dual I2C Digital Potentiometer (100k)
-          - microchip,mcp4651-104
-            # Microchip 8-bit Dual I2C Digital Potentiometer (5k)
-          - microchip,mcp4652-502
-            # Microchip 8-bit Dual I2C Digital Potentiometer (10k)
-          - microchip,mcp4652-103
-            # Microchip 8-bit Dual I2C Digital Potentiometer (50k)
-          - microchip,mcp4652-503
-            # Microchip 8-bit Dual I2C Digital Potentiometer (100k)
-          - microchip,mcp4652-104
-            # Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (5k)
-          - microchip,mcp4661-502
-            # Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (10k)
-          - microchip,mcp4661-103
-            # Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (50k)
-          - microchip,mcp4661-503
-            # Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (100k)
-          - microchip,mcp4661-104
-            # Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (5k)
-          - microchip,mcp4662-502
-            # Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (10k)
-          - microchip,mcp4662-103
-            # Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (50k)
-          - microchip,mcp4662-503
-            # Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (100k)
-          - microchip,mcp4662-104
             # PWM Fan Speed Controller With Fan Fault Detection
           - microchip,tc654
             # PWM Fan Speed Controller With Fan Fault Detection
@@ -336,8 +291,24 @@ properties:
           - plx,pex8648
             # Pulsedlight LIDAR range-finding sensor
           - pulsedlight,lidar-lite-v2
+            # Renesas ISL29501 time-of-flight sensor
+          - renesas,isl29501
             # S524AD0XF1 (128K/256K-bit Serial EEPROM for Low Power)
           - samsung,24ad0xd1
+            # Samsung Exynos SoC SATA PHY I2C device
+          - samsung,exynos-sataphy-i2c
+            # Sensirion low power multi-pixel gas sensor with I2C interface
+          - sensirion,sgpc3
+            # Sensirion multi-pixel gas sensor with I2C interface
+          - sensirion,sgp30
+            # Sensirion gas sensor with I2C interface
+          - sensirion,sgp40
+            # Sensirion temperature & humidity sensor with I2C interface
+          - sensirion,sht4x
+            # Sensortek 3 axis accelerometer
+          - sensortek,stk8312
+            # Sensortek 3 axis accelerometer
+          - sensortek,stk8ba50
             # SGX Sensortech VZ89X Sensors
           - sgx,vz89x
             # Relative Humidity and Temperature Sensors
@@ -346,34 +317,60 @@ properties:
           - skyworks,sky81452
             # Socionext SynQuacer TPM MMIO module
           - socionext,synquacer-tpm-mmio
-            # i2c serial eeprom  (24cxx)
+            # SparkFun Qwiic Joystick (COM-15168) with i2c interface
+          - sparkfun,qwiic-joystick
+            # i2c serial eeprom (24cxx)
           - st,24c256
             # Ambient Light Sensor with SMBUS/Two Wire Serial Interface
           - taos,tsl2550
-            # 8-Channels, 12-bit ADC
-          - ti,ads7828
-            # 8-Channels, 8-bit ADC
-          - ti,ads7830
             # Temperature Monitoring and Fan Control
           - ti,amc6821
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1000
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1008
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1010
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1050
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1080
+            # Thermometer with SPI interface
+          - ti,lm70
+          - ti,lm71
             # Temperature sensor with 2-wire interface
           - ti,lm73
+            # Thermometer with SPI interface
+          - ti,lm74
             # Temperature sensor with integrated fan control
           - ti,lm96000
             # I2C Touch-Screen Controller
           - ti,tsc2003
             # Low Power Digital Temperature Sensor with SMBUS/Two Wire Serial Interface
-          - ti,tmp102
-            # Low Power Digital Temperature Sensor with SMBUS/Two Wire Serial Interface
           - ti,tmp103
+            # Thermometer with SPI interface
+          - ti,tmp121
+          - ti,tmp122
+          - ti,tmp125
             # Digital Temperature Sensor
           - ti,tmp275
+            # TI DC-DC converter on PMBus
+          - ti,tps40400
+            # TI Dual channel DCAP+ multiphase controller TPS53676 with AVSBus
+          - ti,tps53676
             # TI Dual channel DCAP+ multiphase controller TPS53679
           - ti,tps53679
             # TI Dual channel DCAP+ multiphase controller TPS53688
           - ti,tps53688
+            # TI DC-DC converters on PMBus
+          - ti,tps544b20
+          - ti,tps544b25
+          - ti,tps544c20
+          - ti,tps544c25
             # Winbond/Nuvoton H/W Monitor
           - winbond,w83793
+            # Vicor Corporation Digital Supervisor
+          - vicor,pli1209bc
             # i2c trusted platform module (TPM)
           - winbond,wpct301
 

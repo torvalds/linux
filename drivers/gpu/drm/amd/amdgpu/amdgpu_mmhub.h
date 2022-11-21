@@ -21,12 +21,11 @@
 #ifndef __AMDGPU_MMHUB_H__
 #define __AMDGPU_MMHUB_H__
 
+struct amdgpu_mmhub_ras {
+	struct amdgpu_ras_block_object ras_block;
+};
+
 struct amdgpu_mmhub_funcs {
-	void (*ras_init)(struct amdgpu_device *adev);
-	int (*ras_late_init)(struct amdgpu_device *adev);
-	void (*query_ras_error_count)(struct amdgpu_device *adev,
-					void *ras_error_status);
-	void (*reset_ras_error_count)(struct amdgpu_device *adev);
 	u64 (*get_fb_location)(struct amdgpu_device *adev);
 	void (*init)(struct amdgpu_device *adev);
 	int (*gart_enable)(struct amdgpu_device *adev);
@@ -40,15 +39,13 @@ struct amdgpu_mmhub_funcs {
 				uint64_t page_table_base);
 	void (*update_power_gating)(struct amdgpu_device *adev,
                                 bool enable);
-	void (*query_ras_error_status)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_mmhub {
 	struct ras_common_if *ras_if;
 	const struct amdgpu_mmhub_funcs *funcs;
+	struct amdgpu_mmhub_ras  *ras;
 };
 
-int amdgpu_mmhub_ras_late_init(struct amdgpu_device *adev);
-void amdgpu_mmhub_ras_fini(struct amdgpu_device *adev);
 #endif
 

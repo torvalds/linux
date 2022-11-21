@@ -640,13 +640,13 @@ static int scd30_setup_trigger(struct iio_dev *indio_dev)
 	struct iio_trigger *trig;
 	int ret;
 
-	trig = devm_iio_trigger_alloc(dev, "%s-dev%d", indio_dev->name, indio_dev->id);
+	trig = devm_iio_trigger_alloc(dev, "%s-dev%d", indio_dev->name,
+				      iio_device_id(indio_dev));
 	if (!trig) {
 		dev_err(dev, "failed to allocate trigger\n");
 		return -ENOMEM;
 	}
 
-	trig->dev.parent = dev;
 	trig->ops = &scd30_trigger_ops;
 	iio_trigger_set_drvdata(trig, indio_dev);
 
@@ -656,18 +656,18 @@ static int scd30_setup_trigger(struct iio_dev *indio_dev)
 
 	indio_dev->trig = iio_trigger_get(trig);
 
+	/*
+	 * Interrupt is enabled just before taking a fresh measurement
+	 * and disabled afterwards. This means we need to ensure it is not
+	 * enabled here to keep calls to enable/disable balanced.
+	 */
 	ret = devm_request_threaded_irq(dev, state->irq, scd30_irq_handler,
-					scd30_irq_thread_handler, IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					scd30_irq_thread_handler,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT |
+					IRQF_NO_AUTOEN,
 					indio_dev->name, indio_dev);
 	if (ret)
 		dev_err(dev, "failed to request irq\n");
-
-	/*
-	 * Interrupt is enabled just before taking a fresh measurement
-	 * and disabled afterwards. This means we need to disable it here
-	 * to keep calls to enable/disable balanced.
-	 */
-	disable_irq(state->irq);
 
 	return ret;
 }

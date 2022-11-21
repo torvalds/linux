@@ -17,7 +17,7 @@ asmlinkage void poly1305_init_mips(void *state, const u8 *key);
 asmlinkage void poly1305_blocks_mips(void *state, const u8 *src, u32 len, u32 hibit);
 asmlinkage void poly1305_emit_mips(void *state, u8 *digest, const u32 *nonce);
 
-void poly1305_init_arch(struct poly1305_desc_ctx *dctx, const u8 *key)
+void poly1305_init_arch(struct poly1305_desc_ctx *dctx, const u8 key[POLY1305_KEY_SIZE])
 {
 	poly1305_init_mips(&dctx->h, key);
 	dctx->s[0] = get_unaligned_le32(key + 16);

@@ -103,7 +103,7 @@
 	status = "okay";
 
 	/* M41T0M6 real time clock on carrier board */
-	rtc: m41t0m6@68 {
+	rtc: rtc@68 {
 		compatible = "st,m41t0";
 		reg = <0x68>;
 	};

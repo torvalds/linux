@@ -6,13 +6,11 @@
  *  Based on Sharp's NAND driver sharp_sl.c
  */
 
-#include <linux/genhd.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
-#include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/sharpsl.h>
 #include <linux/interrupt.h>
@@ -107,7 +105,7 @@ static int sharpsl_attach_chip(struct nand_chip *chip)
 	chip->ecc.strength = 1;
 	chip->ecc.hwctl = sharpsl_nand_enable_hwecc;
 	chip->ecc.calculate = sharpsl_nand_calculate_ecc;
-	chip->ecc.correct = nand_correct_data;
+	chip->ecc.correct = rawnand_sw_hamming_correct;
 
 	return 0;
 }

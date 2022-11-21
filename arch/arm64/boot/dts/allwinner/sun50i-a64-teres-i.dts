@@ -14,6 +14,7 @@
 / {
 	model = "Olimex A64 Teres-I";
 	compatible = "olimex,a64-teres-i", "allwinner,sun50i-a64";
+	chassis-type = "laptop";
 
 	aliases {
 		serial0 = &uart0;
@@ -52,12 +53,12 @@
 	leds {
 		compatible = "gpio-leds";
 
-		capslock {
+		led-0 {
 			label = "teres-i:green:capslock";
 			gpios = <&pio 2 7 GPIO_ACTIVE_HIGH>; /* PC7 */
 		};
 
-		numlock {
+		led-1 {
 			label = "teres-i:green:numlock";
 			gpios = <&pio 2 4 GPIO_ACTIVE_HIGH>; /* PC4 */
 		};
@@ -139,6 +140,8 @@
 			#size-cells = <0>;
 
 			port@0 {
+				reg = <0>;
+
 				anx6345_in: endpoint {
 					remote-endpoint = <&tcon0_out_anx6345>;
 				};
@@ -205,8 +208,7 @@
 		compatible = "x-powers,axp803";
 		reg = <0x3a3>;
 		interrupt-parent = <&r_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
-		wakeup-source;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 

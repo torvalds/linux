@@ -29,12 +29,6 @@ static inline void preempt_count_set(int pc)
 				  old, new) != old);
 }
 
-#define init_task_preempt_count(p)	do { } while (0)
-
-#define init_idle_preempt_count(p, cpu)	do { \
-	S390_lowcore.preempt_count = PREEMPT_ENABLED; \
-} while (0)
-
 static inline void set_preempt_need_resched(void)
 {
 	__atomic_and(~PREEMPT_NEED_RESCHED, &S390_lowcore.preempt_count);
@@ -88,12 +82,6 @@ static inline void preempt_count_set(int pc)
 	S390_lowcore.preempt_count = pc;
 }
 
-#define init_task_preempt_count(p)	do { } while (0)
-
-#define init_idle_preempt_count(p, cpu)	do { \
-	S390_lowcore.preempt_count = PREEMPT_ENABLED; \
-} while (0)
-
 static inline void set_preempt_need_resched(void)
 {
 }
@@ -130,10 +118,14 @@ static inline bool should_resched(int preempt_offset)
 
 #endif /* CONFIG_HAVE_MARCH_Z196_FEATURES */
 
+#define init_task_preempt_count(p)	do { } while (0)
+/* Deferred to CPU bringup time */
+#define init_idle_preempt_count(p, cpu)	do { } while (0)
+
 #ifdef CONFIG_PREEMPTION
-extern asmlinkage void preempt_schedule(void);
+extern void preempt_schedule(void);
 #define __preempt_schedule() preempt_schedule()
-extern asmlinkage void preempt_schedule_notrace(void);
+extern void preempt_schedule_notrace(void);
 #define __preempt_schedule_notrace() preempt_schedule_notrace()
 #endif /* CONFIG_PREEMPTION */
 

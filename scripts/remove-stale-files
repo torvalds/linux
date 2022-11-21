@@ -1,0 +1,43 @@
+#!/bin/sh
+
+set -e
+
+# When you move, remove or rename generated files, you probably also update
+# .gitignore and cleaning rules in the Makefile. This is the right thing
+# to do. However, people usually do 'git pull', 'git bisect', etc. without
+# running 'make clean'. Then, the stale generated files are left over, often
+# causing build issues.
+#
+# Also, 'git status' shows such stale build artifacts as untracked files.
+# What is worse, some people send a wrong patch to get them back to .gitignore
+# without checking the commit history.
+#
+# So, when you (re)move generated files, please move the cleaning rules from
+# the Makefile to this script. This is run before Kbuild starts building
+# anything, so people will not be annoyed by such garbage files.
+#
+# This script is not intended to grow endlessly. Rather, it is a temporary scrap
+# yard. Stale files stay in this file for a while (for some release cycles?),
+# then will be really dead and removed from the code base entirely.
+
+# These were previously generated source files. When you are building the kernel
+# with O=, make sure to remove the stale files in the output tree. Otherwise,
+# the build system wrongly compiles the stale ones.
+if [ -n "${building_out_of_srctree}" ]; then
+	for f in fdt_rw.c fdt_ro.c fdt_wip.c fdt.c ashldi3.S bswapsdi2.S font.c lib1funcs.S hyp-stub.S
+	do
+		rm -f arch/arm/boot/compressed/${f}
+	done
+
+	for f in uart-ath79.c ashldi3.c bswapdi.c bswapsi.c
+	do
+		rm -f arch/mips/boot/compressed/${f}
+	done
+
+	for f in firmware.c real2.S
+	do
+		rm -f arch/parisc/boot/compressed/${f}
+	done
+fi
+
+rm -f scripts/extract-cert

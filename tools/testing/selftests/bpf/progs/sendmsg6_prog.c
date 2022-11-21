@@ -8,6 +8,8 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
+#include <bpf_sockopt_helpers.h>
+
 #define SRC_REWRITE_IP6_0	0
 #define SRC_REWRITE_IP6_1	0
 #define SRC_REWRITE_IP6_2	0
@@ -20,12 +22,13 @@
 
 #define DST_REWRITE_PORT6	6666
 
-int _version SEC("version") = 1;
-
 SEC("cgroup/sendmsg6")
 int sendmsg_v6_prog(struct bpf_sock_addr *ctx)
 {
 	if (ctx->type != SOCK_DGRAM)
+		return 0;
+
+	if (!get_set_sk_priority(ctx))
 		return 0;
 
 	/* Rewrite source. */

@@ -50,7 +50,7 @@ Callbacks to implement
 
 The NIC driver offering ipsec offload will need to implement these
 callbacks to make the offload available to the network stack's
-XFRM subsytem.  Additionally, the feature bits NETIF_F_HW_ESP and
+XFRM subsystem.  Additionally, the feature bits NETIF_F_HW_ESP and
 NETIF_F_HW_ESP_TX_CSUM will signal the availability of the offload.
 
 

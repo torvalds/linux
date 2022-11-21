@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 Linaro Ltd.
- * Copyright (c) 2014 Hisilicon Limited.
+ * Copyright (c) 2014 HiSilicon Limited.
  */
 
 #include <linux/clk.h>
@@ -194,7 +194,7 @@ static irqreturn_t hix5hd2_ir_rx_interrupt(int irq, void *data)
 		 * IR_INTS availably since logic would not clear
 		 * fifo when overflow, drv do the job
 		 */
-		ir_raw_event_reset(priv->rdev);
+		ir_raw_event_overflow(priv->rdev);
 		symb_num = readl_relaxed(priv->base + IR_DATAH);
 		for (i = 0; i < symb_num; i++)
 			readl_relaxed(priv->base + IR_DATAL);
@@ -249,7 +249,6 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 {
 	struct rc_dev *rdev;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct hix5hd2_ir_priv *priv;
 	struct device_node *node = pdev->dev.of_node;
 	const struct of_device_id *of_id;
@@ -274,8 +273,7 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 		priv->regmap = NULL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 

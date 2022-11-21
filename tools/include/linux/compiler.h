@@ -2,9 +2,7 @@
 #ifndef _TOOLS_LINUX_COMPILER_H_
 #define _TOOLS_LINUX_COMPILER_H_
 
-#ifdef __GNUC__
-#include <linux/compiler-gcc.h>
-#endif
+#include <linux/compiler_types.h>
 
 #ifndef __compiletime_error
 # define __compiletime_error(message)
@@ -102,10 +100,6 @@
 
 #ifndef __init
 # define __init
-#endif
-
-#ifndef noinline
-# define noinline
 #endif
 
 #include <linux/types.h>

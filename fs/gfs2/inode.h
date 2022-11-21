@@ -99,20 +99,20 @@ extern int gfs2_inode_refresh(struct gfs2_inode *ip);
 
 extern struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 				  int is_root);
-extern int gfs2_permission(struct inode *inode, int mask);
-extern int gfs2_setattr_simple(struct inode *inode, struct iattr *attr);
+extern int gfs2_permission(struct user_namespace *mnt_userns,
+			   struct inode *inode, int mask);
 extern struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
 extern void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf);
 extern int gfs2_open_common(struct inode *inode, struct file *file);
 extern loff_t gfs2_seek_data(struct file *file, loff_t offset);
 extern loff_t gfs2_seek_hole(struct file *file, loff_t offset);
 
-extern const struct inode_operations gfs2_file_iops;
-extern const struct inode_operations gfs2_dir_iops;
-extern const struct inode_operations gfs2_symlink_iops;
 extern const struct file_operations gfs2_file_fops_nolock;
 extern const struct file_operations gfs2_dir_fops_nolock;
 
+extern int gfs2_fileattr_get(struct dentry *dentry, struct fileattr *fa);
+extern int gfs2_fileattr_set(struct user_namespace *mnt_userns,
+			     struct dentry *dentry, struct fileattr *fa);
 extern void gfs2_set_inode_flags(struct inode *inode);
  
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM

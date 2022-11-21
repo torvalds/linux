@@ -181,6 +181,10 @@ struct hv_ring_buffer_info {
 	 * being freed while the ring buffer is being accessed.
 	 */
 	struct mutex ring_buffer_mutex;
+
+	/* Buffer that holds a copy of an incoming host packet */
+	void *pkt_buffer;
+	u32 pkt_buffer_size;
 };
 
 
@@ -234,6 +238,7 @@ static inline u32 hv_get_avail_to_write_percent(
  * 5 . 0  (Newer Windows 10)
  * 5 . 1  (Windows 10 RS4)
  * 5 . 2  (Windows Server 2019, RS5)
+ * 5 . 3  (Windows Server 2022)
  */
 
 #define VERSION_WS2008  ((0 << 16) | (13))
@@ -245,6 +250,7 @@ static inline u32 hv_get_avail_to_write_percent(
 #define VERSION_WIN10_V5 ((5 << 16) | (0))
 #define VERSION_WIN10_V5_1 ((5 << 16) | (1))
 #define VERSION_WIN10_V5_2 ((5 << 16) | (2))
+#define VERSION_WIN10_V5_3 ((5 << 16) | (3))
 
 /* Make maximum size of pipe payload of 16K */
 #define MAX_PIPE_DATA_PAYLOAD		(sizeof(u8) * 16384)
@@ -284,7 +290,7 @@ struct vmbus_channel_offer {
 
 		/*
 		 * Pipes:
-		 * The following sructure is an integrated pipe protocol, which
+		 * The following structure is an integrated pipe protocol, which
 		 * is implemented on top of standard user-defined data. Pipe
 		 * clients have MAX_PIPE_USER_DEFINED_BYTES left for their own
 		 * use.
@@ -475,6 +481,7 @@ enum vmbus_channel_message_type {
 	CHANNELMSG_TL_CONNECT_REQUEST		= 21,
 	CHANNELMSG_MODIFYCHANNEL		= 22,
 	CHANNELMSG_TL_CONNECT_RESULT		= 23,
+	CHANNELMSG_MODIFYCHANNEL_RESPONSE	= 24,
 	CHANNELMSG_COUNT
 };
 
@@ -531,12 +538,6 @@ struct vmbus_channel_rescind_offer {
 	u32 child_relid;
 } __packed;
 
-static inline u32
-hv_ringbuffer_pending_size(const struct hv_ring_buffer_info *rbi)
-{
-	return rbi->ring_buffer->pending_send_sz;
-}
-
 /*
  * Request Offer -- no parameters, SynIC message contains the partition ID
  * Set Snoop -- no parameters, SynIC message contains the partition ID
@@ -585,6 +586,13 @@ struct vmbus_channel_open_result {
 	struct vmbus_channel_message_header header;
 	u32 child_relid;
 	u32 openid;
+	u32 status;
+} __packed;
+
+/* Modify Channel Result parameters */
+struct vmbus_channel_modifychannel_response {
+	struct vmbus_channel_message_header header;
+	u32 child_relid;
 	u32 status;
 } __packed;
 
@@ -720,6 +728,7 @@ struct vmbus_channel_msginfo {
 		struct vmbus_channel_gpadl_torndown gpadl_torndown;
 		struct vmbus_channel_gpadl_created gpadl_created;
 		struct vmbus_channel_version_response version_response;
+		struct vmbus_channel_modifychannel_response modify_response;
 	} response;
 
 	u32 msgsize;
@@ -764,10 +773,40 @@ enum vmbus_device_type {
 	HV_UNKNOWN,
 };
 
+/*
+ * Provides request ids for VMBus. Encapsulates guest memory
+ * addresses and stores the next available slot in req_arr
+ * to generate new ids in constant time.
+ */
+struct vmbus_requestor {
+	u64 *req_arr;
+	unsigned long *req_bitmap; /* is a given slot available? */
+	u32 size;
+	u64 next_request_id;
+	spinlock_t req_lock; /* provides atomicity */
+};
+
+#define VMBUS_NO_RQSTOR U64_MAX
+#define VMBUS_RQST_ERROR (U64_MAX - 1)
+/* NetVSC-specific */
+#define VMBUS_RQST_ID_NO_RESPONSE (U64_MAX - 2)
+/* StorVSC-specific */
+#define VMBUS_RQST_INIT (U64_MAX - 2)
+#define VMBUS_RQST_RESET (U64_MAX - 3)
+
 struct vmbus_device {
 	u16  dev_type;
 	guid_t guid;
 	bool perf_device;
+	bool allowed_in_isolated;
+};
+
+#define VMBUS_DEFAULT_MAX_PKT_SIZE 4096
+
+struct vmbus_gpadl {
+	u32 gpadl_handle;
+	u32 size;
+	void *buffer;
 };
 
 struct vmbus_channel {
@@ -786,9 +825,10 @@ struct vmbus_channel {
 	u8 monitor_bit;
 
 	bool rescind; /* got rescind msg */
+	bool rescind_ref; /* got rescind msg, got channel reference */
 	struct completion rescind_event;
 
-	u32 ringbuffer_gpadlhandle;
+	struct vmbus_gpadl ringbuffer_gpadlhandle;
 
 	/* Allocated memory for ring buffer */
 	struct page *ringbuffer_page;
@@ -864,11 +904,11 @@ struct vmbus_channel {
 	 * Support for sub-channels. For high performance devices,
 	 * it will be useful to have multiple sub-channels to support
 	 * a scalable communication infrastructure with the host.
-	 * The support for sub-channels is implemented as an extention
+	 * The support for sub-channels is implemented as an extension
 	 * to the current infrastructure.
 	 * The initial offer is considered the primary channel and this
 	 * offer message will indicate if the host supports sub-channels.
-	 * The guest is free to ask for sub-channels to be offerred and can
+	 * The guest is free to ask for sub-channels to be offered and can
 	 * open these sub-channels as a normal "primary" channel. However,
 	 * all sub-channels will have the same type and instance guids as the
 	 * primary channel. Requests sent on a given channel will result in a
@@ -932,7 +972,7 @@ struct vmbus_channel {
 	 * Clearly, these optimizations improve throughput at the expense of
 	 * latency. Furthermore, since the channel is shared for both
 	 * control and data messages, control messages currently suffer
-	 * unnecessary latency adversley impacting performance and boot
+	 * unnecessary latency adversely impacting performance and boot
 	 * time. To fix this issue, permit tagging the channel as being
 	 * in "low latency" mode. In this mode, we will bypass the monitor
 	 * mechanism.
@@ -988,7 +1028,21 @@ struct vmbus_channel {
 	u32 fuzz_testing_interrupt_delay;
 	u32 fuzz_testing_message_delay;
 
+	/* callback to generate a request ID from a request address */
+	u64 (*next_request_id_callback)(struct vmbus_channel *channel, u64 rqst_addr);
+	/* callback to retrieve a request address from a request ID */
+	u64 (*request_addr_callback)(struct vmbus_channel *channel, u64 rqst_id);
+
+	/* request/transaction ids for VMBus */
+	struct vmbus_requestor requestor;
+	u32 rqstor_size;
+
+	/* The max size of a packet on this channel */
+	u32 max_pkt_size;
 };
+
+u64 vmbus_next_request_id(struct vmbus_channel *channel, u64 rqst_addr);
+u64 vmbus_request_addr(struct vmbus_channel *channel, u64 trans_id);
 
 static inline bool is_hvsock_channel(const struct vmbus_channel *c)
 {
@@ -1038,16 +1092,6 @@ static inline void set_channel_pending_send_size(struct vmbus_channel *c,
 	c->outbound.ring_buffer->pending_send_sz = size;
 }
 
-static inline void set_low_latency_mode(struct vmbus_channel *c)
-{
-	c->low_latency = true;
-}
-
-static inline void clear_low_latency_mode(struct vmbus_channel *c)
-{
-	c->low_latency = false;
-}
-
 void vmbus_onmessage(struct vmbus_channel_message_header *hdr);
 
 int vmbus_request_offers(void);
@@ -1061,19 +1105,6 @@ void vmbus_set_sc_create_callback(struct vmbus_channel *primary_channel,
 
 void vmbus_set_chn_rescind_callback(struct vmbus_channel *channel,
 		void (*chn_rescind_cb)(struct vmbus_channel *));
-
-/*
- * Check if sub-channels have already been offerred. This API will be useful
- * when the driver is unloaded after establishing sub-channels. In this case,
- * when the driver is re-loaded, the driver would have to check if the
- * subchannels have already been established before attempting to request
- * the creation of sub-channels.
- * This function returns TRUE to indicate that subchannels have already been
- * created.
- * This function should be invoked after setting the callback function for
- * sub-channel creation.
- */
-bool vmbus_are_subchannels_present(struct vmbus_channel *primary);
 
 /* The format must be the same as struct vmdata_gpa_direct */
 struct vmbus_channel_packet_page_buffer {
@@ -1154,10 +1185,10 @@ extern int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
 extern int vmbus_establish_gpadl(struct vmbus_channel *channel,
 				      void *kbuffer,
 				      u32 size,
-				      u32 *gpadl_handle);
+				      struct vmbus_gpadl *gpadl);
 
 extern int vmbus_teardown_gpadl(struct vmbus_channel *channel,
-				     u32 gpadl_handle);
+				     struct vmbus_gpadl *gpadl);
 
 void vmbus_reset_channel_cb(struct vmbus_channel *channel);
 
@@ -1230,6 +1261,8 @@ struct hv_device {
 
 	struct vmbus_channel *channel;
 	struct kset	     *channels_kset;
+	struct device_dma_parameters dma_parms;
+	u64 dma_mask;
 
 	/* place holder to keep track of the dir for hv device in debugfs */
 	struct dentry *debug_dir;
@@ -1448,6 +1481,7 @@ void vmbus_free_mmio(resource_size_t start, resource_size_t size);
 #define ICMSGTYPE_SHUTDOWN		3
 #define ICMSGTYPE_TIMESYNC		4
 #define ICMSGTYPE_VSS			5
+#define ICMSGTYPE_FCOPY			7
 
 #define ICMSGHDRFLAG_TRANSACTION	1
 #define ICMSGHDRFLAG_REQUEST		2
@@ -1491,11 +1525,17 @@ struct icmsg_hdr {
 	u8 reserved[2];
 } __packed;
 
+#define IC_VERSION_NEGOTIATION_MAX_VER_COUNT 100
+#define ICMSG_HDR (sizeof(struct vmbuspipe_hdr) + sizeof(struct icmsg_hdr))
+#define ICMSG_NEGOTIATE_PKT_SIZE(icframe_vercnt, icmsg_vercnt) \
+	(ICMSG_HDR + sizeof(struct icmsg_negotiate) + \
+	 (((icframe_vercnt) + (icmsg_vercnt)) * sizeof(struct ic_version)))
+
 struct icmsg_negotiate {
 	u16 icframe_vercnt;
 	u16 icmsg_vercnt;
 	u32 reserved;
-	struct ic_version icversion_data[1]; /* any size array */
+	struct ic_version icversion_data[]; /* any size array */
 } __packed;
 
 struct shutdown_msg_data {
@@ -1545,8 +1585,13 @@ struct hyperv_service_callback {
 	void (*callback)(void *context);
 };
 
+struct hv_dma_range {
+	dma_addr_t dma;
+	u32 mapping_size;
+};
+
 #define MAX_SRV_VER	0x7ffffff
-extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp, u8 *buf,
+extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp, u8 *buf, u32 buflen,
 				const int *fw_version, int fw_vercnt,
 				const int *srv_version, int srv_vercnt,
 				int *nego_fw_version, int *nego_srv_version);
@@ -1562,7 +1607,7 @@ extern __u32 vmbus_proto_version;
 
 int vmbus_send_tl_connect_request(const guid_t *shv_guest_servie_id,
 				  const guid_t *shv_host_servie_id);
-int vmbus_send_modifychannel(u32 child_relid, u32 target_vp);
+int vmbus_send_modifychannel(struct vmbus_channel *channel, u32 target_vp);
 void vmbus_set_event(struct vmbus_channel *channel);
 
 /* Get the start of the ring buffer. */
@@ -1620,13 +1665,42 @@ static inline u32 hv_pkt_datalen(const struct vmpacket_descriptor *desc)
 
 
 struct vmpacket_descriptor *
+hv_pkt_iter_first_raw(struct vmbus_channel *channel);
+
+struct vmpacket_descriptor *
 hv_pkt_iter_first(struct vmbus_channel *channel);
 
 struct vmpacket_descriptor *
 __hv_pkt_iter_next(struct vmbus_channel *channel,
-		   const struct vmpacket_descriptor *pkt);
+		   const struct vmpacket_descriptor *pkt,
+		   bool copy);
 
 void hv_pkt_iter_close(struct vmbus_channel *channel);
+
+static inline struct vmpacket_descriptor *
+hv_pkt_iter_next_pkt(struct vmbus_channel *channel,
+		     const struct vmpacket_descriptor *pkt,
+		     bool copy)
+{
+	struct vmpacket_descriptor *nxt;
+
+	nxt = __hv_pkt_iter_next(channel, pkt, copy);
+	if (!nxt)
+		hv_pkt_iter_close(channel);
+
+	return nxt;
+}
+
+/*
+ * Get next packet descriptor without copying it out of the ring buffer
+ * If at end of list, return NULL and update host.
+ */
+static inline struct vmpacket_descriptor *
+hv_pkt_iter_next_raw(struct vmbus_channel *channel,
+		     const struct vmpacket_descriptor *pkt)
+{
+	return hv_pkt_iter_next_pkt(channel, pkt, false);
+}
 
 /*
  * Get next packet descriptor from iterator
@@ -1636,13 +1710,7 @@ static inline struct vmpacket_descriptor *
 hv_pkt_iter_next(struct vmbus_channel *channel,
 		 const struct vmpacket_descriptor *pkt)
 {
-	struct vmpacket_descriptor *nxt;
-
-	nxt = __hv_pkt_iter_next(channel, pkt);
-	if (!nxt)
-		hv_pkt_iter_close(channel);
-
-	return nxt;
+	return hv_pkt_iter_next_pkt(channel, pkt, true);
 }
 
 #define foreach_vmbus_pkt(pkt, channel) \
@@ -1694,6 +1762,7 @@ static inline unsigned long virt_to_hvpfn(void *addr)
 #define NR_HV_HYP_PAGES_IN_PAGE	(PAGE_SIZE / HV_HYP_PAGE_SIZE)
 #define offset_in_hvpage(ptr)	((unsigned long)(ptr) & ~HV_HYP_PAGE_MASK)
 #define HVPFN_UP(x)	(((x) + HV_HYP_PAGE_SIZE-1) >> HV_HYP_PAGE_SHIFT)
+#define HVPFN_DOWN(x)	((x) >> HV_HYP_PAGE_SHIFT)
 #define page_to_hvpfn(page)	(page_to_pfn(page) * NR_HV_HYP_PAGES_IN_PAGE)
 
 #endif /* _HYPERV_H */

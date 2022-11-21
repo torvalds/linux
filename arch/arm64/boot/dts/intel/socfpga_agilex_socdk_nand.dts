@@ -6,6 +6,7 @@
 
 / {
 	model = "SoCFPGA Agilex SoCDK";
+	compatible = "intel,socfpga-agilex-socdk", "intel,socfpga-agilex";
 
 	aliases {
 		serial0 = &uart0;
@@ -20,17 +21,17 @@
 
 	leds {
 		compatible = "gpio-leds";
-		hps0 {
+		led0 {
 			label = "hps_led0";
 			gpios = <&portb 20 GPIO_ACTIVE_HIGH>;
 		};
 
-		hps1 {
+		led1 {
 			label = "hps_led1";
 			gpios = <&portb 19 GPIO_ACTIVE_HIGH>;
 		};
 
-		hps2 {
+		led2 {
 			label = "hps_led2";
 			gpios = <&portb 21 GPIO_ACTIVE_HIGH>;
 		};
@@ -40,14 +41,6 @@
 		device_type = "memory";
 		/* We expect the bootloader to fill in the reg */
 		reg = <0 0 0 0>;
-	};
-
-	soc {
-		clocks {
-			osc1 {
-				clock-frequency = <25000000>;
-			};
-		};
 	};
 };
 
@@ -99,26 +92,14 @@
 			reg = <0 0x200000>;
 		};
 		partition@200000 {
-			label = "env";
-			reg = <0x200000 0x40000>;
-		};
-		partition@240000 {
-			label = "dtb";
-			reg = <0x240000 0x40000>;
-		};
-		partition@280000 {
-			label = "kernel";
-			reg = <0x280000 0x2000000>;
-		};
-		partition@2280000 {
-			label = "misc";
-			reg = <0x2280000 0x2000000>;
-		};
-		partition@4280000 {
-			label = "rootfs";
-			reg = <0x4280000 0x3bd80000>;
+			label = "root";
+			reg = <0x200000 0x3fe00000>;
 		};
 	};
+};
+
+&osc1 {
+	clock-frequency = <25000000>;
 };
 
 &uart0 {

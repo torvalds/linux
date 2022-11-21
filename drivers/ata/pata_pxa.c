@@ -164,10 +164,10 @@ static int pxa_ata_probe(struct platform_device *pdev)
 	struct resource *cmd_res;
 	struct resource *ctl_res;
 	struct resource *dma_res;
-	struct resource *irq_res;
 	struct pata_pxa_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct dma_slave_config	config;
 	int ret = 0;
+	int irq;
 
 	/*
 	 * Resource validation, three resources are needed:
@@ -205,9 +205,9 @@ static int pxa_ata_probe(struct platform_device *pdev)
 	/*
 	 * IRQ pin
 	 */
-	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (unlikely(irq_res == NULL))
-		return -EINVAL;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	/*
 	 * Allocate the host
@@ -287,7 +287,7 @@ static int pxa_ata_probe(struct platform_device *pdev)
 	/*
 	 * Activate the ATA host
 	 */
-	ret = ata_host_activate(host, irq_res->start, ata_sff_interrupt,
+	ret = ata_host_activate(host, irq, ata_sff_interrupt,
 				pdata->irq_flags, &pxa_ata_sht);
 	if (ret)
 		dma_release_channel(data->dma_chan);

@@ -80,16 +80,6 @@ static int imx_sc_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 	return imx_scu_irq_group_enable(SC_IRQ_GROUP_RTC, SC_IRQ_RTC, enable);
 }
 
-static int imx_sc_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
-{
-	/*
-	 * SCU firmware does NOT provide read alarm API, but .read_alarm
-	 * callback is required by RTC framework to support alarm function,
-	 * so just return here.
-	 */
-	return 0;
-}
-
 static int imx_sc_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct imx_sc_msg_timer_rtc_set_alarm msg;
@@ -127,7 +117,6 @@ static int imx_sc_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 static const struct rtc_class_ops imx_sc_rtc_ops = {
 	.read_time = imx_sc_rtc_read_time,
 	.set_time = imx_sc_rtc_set_time,
-	.read_alarm = imx_sc_rtc_read_alarm,
 	.set_alarm = imx_sc_rtc_set_alarm,
 	.alarm_irq_enable = imx_sc_rtc_alarm_irq_enable,
 };
@@ -166,7 +155,7 @@ static int imx_sc_rtc_probe(struct platform_device *pdev)
 	imx_sc_rtc->range_min = 0;
 	imx_sc_rtc->range_max = U32_MAX;
 
-	ret = rtc_register_device(imx_sc_rtc);
+	ret = devm_rtc_register_device(imx_sc_rtc);
 	if (ret)
 		return ret;
 

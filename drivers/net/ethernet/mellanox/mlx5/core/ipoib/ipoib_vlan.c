@@ -149,7 +149,7 @@ static const struct net_device_ops mlx5i_pkey_netdev_ops = {
 	.ndo_get_stats64         = mlx5i_get_stats,
 	.ndo_uninit              = mlx5i_pkey_dev_cleanup,
 	.ndo_change_mtu          = mlx5i_pkey_change_mtu,
-	.ndo_do_ioctl            = mlx5i_pkey_ioctl,
+	.ndo_eth_ioctl            = mlx5i_pkey_ioctl,
 };
 
 /* Child NDOs */
@@ -276,14 +276,12 @@ static int mlx5i_pkey_change_mtu(struct net_device *netdev, int new_mtu)
 
 /* Called directly after IPoIB netdevice was created to initialize SW structs */
 static int mlx5i_pkey_init(struct mlx5_core_dev *mdev,
-			   struct net_device *netdev,
-			   const struct mlx5e_profile *profile,
-			   void *ppriv)
+			   struct net_device *netdev)
 {
 	struct mlx5e_priv *priv  = mlx5i_epriv(netdev);
 	int err;
 
-	err = mlx5i_init(mdev, netdev, profile, ppriv);
+	err = mlx5i_init(mdev, netdev);
 	if (err)
 		return err;
 

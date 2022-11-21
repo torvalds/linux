@@ -10,6 +10,7 @@
 
 #include "i915_drv.h"
 #include "i915_gem.h"
+#include "i915_gem_internal.h"
 #include "i915_gem_object.h"
 #include "i915_scatterlist.h"
 #include "i915_utils.h"
@@ -42,7 +43,7 @@ static int i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 
 	max_order = MAX_ORDER;
 #ifdef CONFIG_SWIOTLB
-	if (swiotlb_nr_tbl()) {
+	if (is_swiotlb_active(obj->base.dev->dev)) {
 		unsigned int max_segment;
 
 		max_segment = swiotlb_max_segment();
@@ -134,15 +135,57 @@ static void i915_gem_object_put_pages_internal(struct drm_i915_gem_object *obj,
 	internal_free_pages(pages);
 
 	obj->mm.dirty = false;
+
+	__start_cpu_write(obj);
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_internal_ops = {
 	.name = "i915_gem_object_internal",
-	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE |
-		 I915_GEM_OBJECT_IS_SHRINKABLE,
+	.flags = I915_GEM_OBJECT_IS_SHRINKABLE,
 	.get_pages = i915_gem_object_get_pages_internal,
 	.put_pages = i915_gem_object_put_pages_internal,
 };
+
+struct drm_i915_gem_object *
+__i915_gem_object_create_internal(struct drm_i915_private *i915,
+				  const struct drm_i915_gem_object_ops *ops,
+				  phys_addr_t size)
+{
+	static struct lock_class_key lock_class;
+	struct drm_i915_gem_object *obj;
+	unsigned int cache_level;
+
+	GEM_BUG_ON(!size);
+	GEM_BUG_ON(!IS_ALIGNED(size, PAGE_SIZE));
+
+	if (overflows_type(size, obj->base.size))
+		return ERR_PTR(-E2BIG);
+
+	obj = i915_gem_object_alloc();
+	if (!obj)
+		return ERR_PTR(-ENOMEM);
+
+	drm_gem_private_object_init(&i915->drm, &obj->base, size);
+	i915_gem_object_init(obj, ops, &lock_class, 0);
+	obj->mem_flags |= I915_BO_FLAG_STRUCT_PAGE;
+
+	/*
+	 * Mark the object as volatile, such that the pages are marked as
+	 * dontneed whilst they are still pinned. As soon as they are unpinned
+	 * they are allowed to be reaped by the shrinker, and the caller is
+	 * expected to repopulate - the contents of this object are only valid
+	 * whilst active and pinned.
+	 */
+	i915_gem_object_set_volatile(obj);
+
+	obj->read_domains = I915_GEM_DOMAIN_CPU;
+	obj->write_domain = I915_GEM_DOMAIN_CPU;
+
+	cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	i915_gem_object_set_cache_coherency(obj, cache_level);
+
+	return obj;
+}
 
 /**
  * i915_gem_object_create_internal: create an object with volatile pages
@@ -163,37 +206,5 @@ struct drm_i915_gem_object *
 i915_gem_object_create_internal(struct drm_i915_private *i915,
 				phys_addr_t size)
 {
-	static struct lock_class_key lock_class;
-	struct drm_i915_gem_object *obj;
-	unsigned int cache_level;
-
-	GEM_BUG_ON(!size);
-	GEM_BUG_ON(!IS_ALIGNED(size, PAGE_SIZE));
-
-	if (overflows_type(size, obj->base.size))
-		return ERR_PTR(-E2BIG);
-
-	obj = i915_gem_object_alloc();
-	if (!obj)
-		return ERR_PTR(-ENOMEM);
-
-	drm_gem_private_object_init(&i915->drm, &obj->base, size);
-	i915_gem_object_init(obj, &i915_gem_object_internal_ops, &lock_class);
-
-	/*
-	 * Mark the object as volatile, such that the pages are marked as
-	 * dontneed whilst they are still pinned. As soon as they are unpinned
-	 * they are allowed to be reaped by the shrinker, and the caller is
-	 * expected to repopulate - the contents of this object are only valid
-	 * whilst active and pinned.
-	 */
-	i915_gem_object_set_volatile(obj);
-
-	obj->read_domains = I915_GEM_DOMAIN_CPU;
-	obj->write_domain = I915_GEM_DOMAIN_CPU;
-
-	cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
-	i915_gem_object_set_cache_coherency(obj, cache_level);
-
-	return obj;
+	return __i915_gem_object_create_internal(i915, &i915_gem_object_internal_ops, size);
 }

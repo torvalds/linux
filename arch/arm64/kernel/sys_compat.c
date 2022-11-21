@@ -9,7 +9,6 @@
 
 #include <linux/compat.h>
 #include <linux/cpufeature.h>
-#include <linux/personality.h>
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
@@ -41,7 +40,7 @@ __do_compat_cache_op(unsigned long start, unsigned long end)
 			dsb(ish);
 		}
 
-		ret = __flush_cache_user_range(start, start + chunk);
+		ret = caches_clean_inval_user_pou(start, start + chunk);
 		if (ret)
 			return ret;
 
@@ -68,7 +67,7 @@ do_compat_cache_op(unsigned long start, unsigned long end, int flags)
  */
 long compat_arm_syscall(struct pt_regs *regs, int scno)
 {
-	void __user *addr;
+	unsigned long addr;
 
 	switch (scno) {
 	/*
@@ -111,8 +110,7 @@ long compat_arm_syscall(struct pt_regs *regs, int scno)
 		break;
 	}
 
-	addr  = (void __user *)instruction_pointer(regs) -
-		(compat_thumb_mode(regs) ? 2 : 4);
+	addr = instruction_pointer(regs) - (compat_thumb_mode(regs) ? 2 : 4);
 
 	arm64_notify_die("Oops - bad compat syscall(2)", regs,
 			 SIGILL, ILL_ILLTRP, addr, scno);

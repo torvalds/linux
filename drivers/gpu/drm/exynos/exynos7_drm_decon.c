@@ -344,8 +344,9 @@ static void decon_win_set_colkey(struct decon_context *ctx, unsigned int win)
 }
 
 /**
- * shadow_protect_win() - disable updating values from shadow registers at vsync
+ * decon_shadow_protect_win() - disable updating values from shadow registers at vsync
  *
+ * @ctx: display and enhancement controller context
  * @win: window to protect registers for
  * @protect: 1 to protect (disable updates)
  */
@@ -530,11 +531,16 @@ static void decon_init(struct decon_context *ctx)
 static void decon_atomic_enable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
+	int ret;
 
 	if (!ctx->suspended)
 		return;
 
-	pm_runtime_get_sync(ctx->dev);
+	ret = pm_runtime_resume_and_get(ctx->dev);
+	if (ret < 0) {
+		DRM_DEV_ERROR(ctx->dev, "failed to enable DECON device.\n");
+		return;
+	}
 
 	decon_init(ctx);
 
@@ -672,7 +678,6 @@ static int decon_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct decon_context *ctx;
 	struct device_node *i80_if_timings;
-	struct resource *res;
 	int ret;
 
 	if (!dev->of_node)
@@ -722,16 +727,11 @@ static int decon_probe(struct platform_device *pdev)
 		goto err_iounmap;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
-					   ctx->i80_if ? "lcd_sys" : "vsync");
-	if (!res) {
-		dev_err(dev, "irq request failed.\n");
-		ret = -ENXIO;
+	ret =  platform_get_irq_byname(pdev, ctx->i80_if ? "lcd_sys" : "vsync");
+	if (ret < 0)
 		goto err_iounmap;
-	}
 
-	ret = devm_request_irq(dev, res->start, decon_irq_handler,
-							0, "drm_decon", ctx);
+	ret = devm_request_irq(dev, ret, decon_irq_handler, 0, "drm_decon", ctx);
 	if (ret) {
 		dev_err(dev, "irq request failed.\n");
 		goto err_iounmap;

@@ -114,6 +114,7 @@ static int sonic_probe1(struct net_device *dev)
 	struct sonic_local *lp = netdev_priv(dev);
 	int err = -ENODEV;
 	int i;
+	unsigned char addr[ETH_ALEN];
 
 	if (!request_mem_region(dev->base_addr, SONIC_MEM_SIZE, jazz_sonic_string))
 		return -EBUSY;
@@ -143,9 +144,10 @@ static int sonic_probe1(struct net_device *dev)
 	SONIC_WRITE(SONIC_CEP,0);
 	for (i=0; i<3; i++) {
 		val = SONIC_READ(SONIC_CAP0-i);
-		dev->dev_addr[i*2] = val;
-		dev->dev_addr[i*2+1] = val >> 8;
+		addr[i*2] = val;
+		addr[i*2+1] = val >> 8;
 	}
+	eth_hw_addr_set(dev, addr);
 
 	lp->dma_bitmode = SONIC_BITMODE32;
 
@@ -192,8 +194,6 @@ static int jazz_sonic_probe(struct platform_device *pdev)
 	lp->device = &pdev->dev;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	platform_set_drvdata(pdev, dev);
-
-	netdev_boot_setup_check(dev);
 
 	dev->base_addr = res->start;
 	dev->irq = platform_get_irq(pdev, 0);

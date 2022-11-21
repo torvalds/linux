@@ -538,7 +538,7 @@ static void amd_pmu_cpu_starting(int cpu)
 	if (!x86_pmu.amd_nb_constraints)
 		return;
 
-	nb_id = amd_get_nb_id(cpu);
+	nb_id = topology_die_id(cpu);
 	WARN_ON_ONCE(nb_id == BAD_APICID);
 
 	for_each_online_cpu(i) {
@@ -623,7 +623,7 @@ static void amd_pmu_disable_all(void)
 	/*
 	 * Check each counter for overflow and wait for it to be reset by the
 	 * NMI if it has overflowed. This relies on the fact that all active
-	 * counters are always enabled when this function is caled and
+	 * counters are always enabled when this function is called and
 	 * ARCH_PERFMON_EVENTSEL_INT is always set.
 	 */
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {

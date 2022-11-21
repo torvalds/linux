@@ -209,8 +209,8 @@ config PCMCIA_PXA2XX
 	tristate "PXA2xx support"
 	depends on ARM && ARCH_PXA && PCMCIA
 	depends on (ARCH_LUBBOCK || MACH_MAINSTONE || PXA_SHARPSL \
-		    || MACH_ARMCORE || ARCH_PXA_PALM || TRIZEPS_PCMCIA \
-		    || ARCOM_PCMCIA || ARCH_PXA_ESERIES || MACH_STARGATE2 \
+		    || ARCH_PXA_PALM || TRIZEPS_PCMCIA \
+		    || ARCOM_PCMCIA || ARCH_PXA_ESERIES \
 		    || MACH_VPAC270 || MACH_BALLOON3 || MACH_COLIBRI \
 		    || MACH_COLIBRI320 || MACH_H4700)
 	select PCMCIA_SOC_COMMON
@@ -244,10 +244,6 @@ config PCMCIA_VRC4171
 	tristate "NEC VRC4171 Card Controllers support"
 	depends on CPU_VR41XX && ISA && PCMCIA
 
-config PCMCIA_VRC4173
-	tristate "NEC VRC4173 CARDU support"
-	depends on CPU_VR41XX && PCI && PCMCIA
-
 config OMAP_CF
 	tristate "OMAP CompactFlash Controller"
 	depends on PCMCIA && ARCH_OMAP16XX
@@ -258,6 +254,7 @@ config OMAP_CF
 config AT91_CF
 	tristate "AT91 CompactFlash Controller"
 	depends on PCI
+	depends on OF
 	depends on PCMCIA && ARCH_AT91
 	help
 	  Say Y here to support the CompactFlash controller on AT91 chips.

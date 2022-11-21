@@ -28,10 +28,11 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 		struct resource *cfgres, struct resource *busr,
 		const struct pci_ecam_ops *ops)
 {
+	unsigned int bus_shift = ops->bus_shift;
 	struct pci_config_window *cfg;
 	unsigned int bus_range, bus_range_max, bsz;
 	struct resource *conflict;
-	int i, err;
+	int err;
 
 	if (busr->start > busr->end)
 		return ERR_PTR(-EINVAL);
@@ -40,20 +41,25 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 	if (!cfg)
 		return ERR_PTR(-ENOMEM);
 
+	/* ECAM-compliant platforms need not supply ops->bus_shift */
+	if (!bus_shift)
+		bus_shift = PCIE_ECAM_BUS_SHIFT;
+
 	cfg->parent = dev;
 	cfg->ops = ops;
 	cfg->busr.start = busr->start;
 	cfg->busr.end = busr->end;
 	cfg->busr.flags = IORESOURCE_BUS;
+	cfg->bus_shift = bus_shift;
 	bus_range = resource_size(&cfg->busr);
-	bus_range_max = resource_size(cfgres) >> ops->bus_shift;
+	bus_range_max = resource_size(cfgres) >> bus_shift;
 	if (bus_range > bus_range_max) {
 		bus_range = bus_range_max;
 		cfg->busr.end = busr->start + bus_range - 1;
 		dev_warn(dev, "ECAM area %pR can only accommodate %pR (reduced from %pR desired)\n",
 			 cfgres, &cfg->busr, busr);
 	}
-	bsz = 1 << ops->bus_shift;
+	bsz = 1 << bus_shift;
 
 	cfg->res.start = cfgres->start;
 	cfg->res.end = cfgres->end;
@@ -72,13 +78,6 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 		cfg->winp = kcalloc(bus_range, sizeof(*cfg->winp), GFP_KERNEL);
 		if (!cfg->winp)
 			goto err_exit_malloc;
-		for (i = 0; i < bus_range; i++) {
-			cfg->winp[i] =
-				pci_remap_cfgspace(cfgres->start + i * bsz,
-						   bsz);
-			if (!cfg->winp[i])
-				goto err_exit_iomap;
-		}
 	} else {
 		cfg->win = pci_remap_cfgspace(cfgres->start, bus_range * bsz);
 		if (!cfg->win)
@@ -124,6 +123,44 @@ void pci_ecam_free(struct pci_config_window *cfg)
 }
 EXPORT_SYMBOL_GPL(pci_ecam_free);
 
+static int pci_ecam_add_bus(struct pci_bus *bus)
+{
+	struct pci_config_window *cfg = bus->sysdata;
+	unsigned int bsz = 1 << cfg->bus_shift;
+	unsigned int busn = bus->number;
+	phys_addr_t start;
+
+	if (!per_bus_mapping)
+		return 0;
+
+	if (busn < cfg->busr.start || busn > cfg->busr.end)
+		return -EINVAL;
+
+	busn -= cfg->busr.start;
+	start = cfg->res.start + busn * bsz;
+
+	cfg->winp[busn] = pci_remap_cfgspace(start, bsz);
+	if (!cfg->winp[busn])
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void pci_ecam_remove_bus(struct pci_bus *bus)
+{
+	struct pci_config_window *cfg = bus->sysdata;
+	unsigned int busn = bus->number;
+
+	if (!per_bus_mapping || busn < cfg->busr.start || busn > cfg->busr.end)
+		return;
+
+	busn -= cfg->busr.start;
+	if (cfg->winp[busn]) {
+		iounmap(cfg->winp[busn]);
+		cfg->winp[busn] = NULL;
+	}
+}
+
 /*
  * Function to implement the pci_ops ->map_bus method
  */
@@ -131,26 +168,39 @@ void __iomem *pci_ecam_map_bus(struct pci_bus *bus, unsigned int devfn,
 			       int where)
 {
 	struct pci_config_window *cfg = bus->sysdata;
+	unsigned int bus_shift = cfg->ops->bus_shift;
 	unsigned int devfn_shift = cfg->ops->bus_shift - 8;
 	unsigned int busn = bus->number;
 	void __iomem *base;
+	u32 bus_offset, devfn_offset;
 
 	if (busn < cfg->busr.start || busn > cfg->busr.end)
 		return NULL;
 
 	busn -= cfg->busr.start;
-	if (per_bus_mapping)
+	if (per_bus_mapping) {
 		base = cfg->winp[busn];
-	else
-		base = cfg->win + (busn << cfg->ops->bus_shift);
-	return base + (devfn << devfn_shift) + where;
+		busn = 0;
+	} else
+		base = cfg->win;
+
+	if (cfg->ops->bus_shift) {
+		bus_offset = (busn & PCIE_ECAM_BUS_MASK) << bus_shift;
+		devfn_offset = (devfn & PCIE_ECAM_DEVFN_MASK) << devfn_shift;
+		where &= PCIE_ECAM_REG_MASK;
+
+		return base + (bus_offset | devfn_offset | where);
+	}
+
+	return base + PCIE_ECAM_OFFSET(busn, devfn, where);
 }
 EXPORT_SYMBOL_GPL(pci_ecam_map_bus);
 
 /* ECAM ops */
 const struct pci_ecam_ops pci_generic_ecam_ops = {
-	.bus_shift	= 20,
 	.pci_ops	= {
+		.add_bus	= pci_ecam_add_bus,
+		.remove_bus	= pci_ecam_remove_bus,
 		.map_bus	= pci_ecam_map_bus,
 		.read		= pci_generic_config_read,
 		.write		= pci_generic_config_write,
@@ -161,8 +211,9 @@ EXPORT_SYMBOL_GPL(pci_generic_ecam_ops);
 #if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
 /* ECAM ops for 32-bit access only (non-compliant) */
 const struct pci_ecam_ops pci_32b_ops = {
-	.bus_shift	= 20,
 	.pci_ops	= {
+		.add_bus	= pci_ecam_add_bus,
+		.remove_bus	= pci_ecam_remove_bus,
 		.map_bus	= pci_ecam_map_bus,
 		.read		= pci_generic_config_read32,
 		.write		= pci_generic_config_write32,
@@ -171,8 +222,9 @@ const struct pci_ecam_ops pci_32b_ops = {
 
 /* ECAM ops for 32-bit read only (non-compliant) */
 const struct pci_ecam_ops pci_32b_read_ops = {
-	.bus_shift	= 20,
 	.pci_ops	= {
+		.add_bus	= pci_ecam_add_bus,
+		.remove_bus	= pci_ecam_remove_bus,
 		.map_bus	= pci_ecam_map_bus,
 		.read		= pci_generic_config_read32,
 		.write		= pci_generic_config_write,

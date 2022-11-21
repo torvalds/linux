@@ -38,7 +38,6 @@
 #define CHANNEL_STR				"channel"
 #define REGISTERS_STR				"registers"
 
-static struct dentry				*base_dir;
 static struct dw_edma				*dw;
 static struct dw_edma_v0_regs			__iomem *regs;
 
@@ -55,7 +54,7 @@ struct debugfs_entries {
 static int dw_edma_debugfs_u32_get(void *data, u64 *val)
 {
 	void __iomem *reg = (void __force __iomem *)data;
-	if (dw->mode == EDMA_MODE_LEGACY &&
+	if (dw->mf == EDMA_MF_EDMA_LEGACY &&
 	    reg >= (void __iomem *)&regs->type.legacy.ch) {
 		void __iomem *ptr = &regs->type.legacy.ch;
 		u32 viewport_sel = 0;
@@ -114,12 +113,12 @@ static void dw_edma_debugfs_regs_ch(struct dw_edma_v0_ch_regs __iomem *regs,
 		REGISTER(ch_control1),
 		REGISTER(ch_control2),
 		REGISTER(transfer_size),
-		REGISTER(sar_low),
-		REGISTER(sar_high),
-		REGISTER(dar_low),
-		REGISTER(dar_high),
-		REGISTER(llp_low),
-		REGISTER(llp_high),
+		REGISTER(sar.lsb),
+		REGISTER(sar.msb),
+		REGISTER(dar.lsb),
+		REGISTER(dar.msb),
+		REGISTER(llp.lsb),
+		REGISTER(llp.msb),
 	};
 
 	nr_entries = ARRAY_SIZE(debugfs_regs);
@@ -132,17 +131,17 @@ static void dw_edma_debugfs_regs_wr(struct dentry *dir)
 		/* eDMA global registers */
 		WR_REGISTER(engine_en),
 		WR_REGISTER(doorbell),
-		WR_REGISTER(ch_arb_weight_low),
-		WR_REGISTER(ch_arb_weight_high),
+		WR_REGISTER(ch_arb_weight.lsb),
+		WR_REGISTER(ch_arb_weight.msb),
 		/* eDMA interrupts registers */
 		WR_REGISTER(int_status),
 		WR_REGISTER(int_mask),
 		WR_REGISTER(int_clear),
 		WR_REGISTER(err_status),
-		WR_REGISTER(done_imwr_low),
-		WR_REGISTER(done_imwr_high),
-		WR_REGISTER(abort_imwr_low),
-		WR_REGISTER(abort_imwr_high),
+		WR_REGISTER(done_imwr.lsb),
+		WR_REGISTER(done_imwr.msb),
+		WR_REGISTER(abort_imwr.lsb),
+		WR_REGISTER(abort_imwr.msb),
 		WR_REGISTER(ch01_imwr_data),
 		WR_REGISTER(ch23_imwr_data),
 		WR_REGISTER(ch45_imwr_data),
@@ -152,8 +151,8 @@ static void dw_edma_debugfs_regs_wr(struct dentry *dir)
 	const struct debugfs_entries debugfs_unroll_regs[] = {
 		/* eDMA channel context grouping */
 		WR_REGISTER_UNROLL(engine_chgroup),
-		WR_REGISTER_UNROLL(engine_hshake_cnt_low),
-		WR_REGISTER_UNROLL(engine_hshake_cnt_high),
+		WR_REGISTER_UNROLL(engine_hshake_cnt.lsb),
+		WR_REGISTER_UNROLL(engine_hshake_cnt.msb),
 		WR_REGISTER_UNROLL(ch0_pwr_en),
 		WR_REGISTER_UNROLL(ch1_pwr_en),
 		WR_REGISTER_UNROLL(ch2_pwr_en),
@@ -174,7 +173,7 @@ static void dw_edma_debugfs_regs_wr(struct dentry *dir)
 	nr_entries = ARRAY_SIZE(debugfs_regs);
 	dw_edma_debugfs_create_x32(debugfs_regs, nr_entries, regs_dir);
 
-	if (dw->mode == EDMA_MODE_UNROLL) {
+	if (dw->mf == EDMA_MF_HDMA_COMPAT) {
 		nr_entries = ARRAY_SIZE(debugfs_unroll_regs);
 		dw_edma_debugfs_create_x32(debugfs_unroll_regs, nr_entries,
 					   regs_dir);
@@ -200,19 +199,19 @@ static void dw_edma_debugfs_regs_rd(struct dentry *dir)
 		/* eDMA global registers */
 		RD_REGISTER(engine_en),
 		RD_REGISTER(doorbell),
-		RD_REGISTER(ch_arb_weight_low),
-		RD_REGISTER(ch_arb_weight_high),
+		RD_REGISTER(ch_arb_weight.lsb),
+		RD_REGISTER(ch_arb_weight.msb),
 		/* eDMA interrupts registers */
 		RD_REGISTER(int_status),
 		RD_REGISTER(int_mask),
 		RD_REGISTER(int_clear),
-		RD_REGISTER(err_status_low),
-		RD_REGISTER(err_status_high),
+		RD_REGISTER(err_status.lsb),
+		RD_REGISTER(err_status.msb),
 		RD_REGISTER(linked_list_err_en),
-		RD_REGISTER(done_imwr_low),
-		RD_REGISTER(done_imwr_high),
-		RD_REGISTER(abort_imwr_low),
-		RD_REGISTER(abort_imwr_high),
+		RD_REGISTER(done_imwr.lsb),
+		RD_REGISTER(done_imwr.msb),
+		RD_REGISTER(abort_imwr.lsb),
+		RD_REGISTER(abort_imwr.msb),
 		RD_REGISTER(ch01_imwr_data),
 		RD_REGISTER(ch23_imwr_data),
 		RD_REGISTER(ch45_imwr_data),
@@ -221,8 +220,8 @@ static void dw_edma_debugfs_regs_rd(struct dentry *dir)
 	const struct debugfs_entries debugfs_unroll_regs[] = {
 		/* eDMA channel context grouping */
 		RD_REGISTER_UNROLL(engine_chgroup),
-		RD_REGISTER_UNROLL(engine_hshake_cnt_low),
-		RD_REGISTER_UNROLL(engine_hshake_cnt_high),
+		RD_REGISTER_UNROLL(engine_hshake_cnt.lsb),
+		RD_REGISTER_UNROLL(engine_hshake_cnt.msb),
 		RD_REGISTER_UNROLL(ch0_pwr_en),
 		RD_REGISTER_UNROLL(ch1_pwr_en),
 		RD_REGISTER_UNROLL(ch2_pwr_en),
@@ -243,7 +242,7 @@ static void dw_edma_debugfs_regs_rd(struct dentry *dir)
 	nr_entries = ARRAY_SIZE(debugfs_regs);
 	dw_edma_debugfs_create_x32(debugfs_regs, nr_entries, regs_dir);
 
-	if (dw->mode == EDMA_MODE_UNROLL) {
+	if (dw->mf == EDMA_MF_HDMA_COMPAT) {
 		nr_entries = ARRAY_SIZE(debugfs_unroll_regs);
 		dw_edma_debugfs_create_x32(debugfs_unroll_regs, nr_entries,
 					   regs_dir);
@@ -272,7 +271,7 @@ static void dw_edma_debugfs_regs(void)
 	struct dentry *regs_dir;
 	int nr_entries;
 
-	regs_dir = debugfs_create_dir(REGISTERS_STR, base_dir);
+	regs_dir = debugfs_create_dir(REGISTERS_STR, dw->debugfs);
 	if (!regs_dir)
 		return;
 
@@ -293,19 +292,23 @@ void dw_edma_v0_debugfs_on(struct dw_edma_chip *chip)
 	if (!regs)
 		return;
 
-	base_dir = debugfs_create_dir(dw->name, NULL);
-	if (!base_dir)
+	dw->debugfs = debugfs_create_dir(dw->name, NULL);
+	if (!dw->debugfs)
 		return;
 
-	debugfs_create_u32("version", 0444, base_dir, &dw->version);
-	debugfs_create_u32("mode", 0444, base_dir, &dw->mode);
-	debugfs_create_u16("wr_ch_cnt", 0444, base_dir, &dw->wr_ch_cnt);
-	debugfs_create_u16("rd_ch_cnt", 0444, base_dir, &dw->rd_ch_cnt);
+	debugfs_create_u32("mf", 0444, dw->debugfs, &dw->mf);
+	debugfs_create_u16("wr_ch_cnt", 0444, dw->debugfs, &dw->wr_ch_cnt);
+	debugfs_create_u16("rd_ch_cnt", 0444, dw->debugfs, &dw->rd_ch_cnt);
 
 	dw_edma_debugfs_regs();
 }
 
-void dw_edma_v0_debugfs_off(void)
+void dw_edma_v0_debugfs_off(struct dw_edma_chip *chip)
 {
-	debugfs_remove_recursive(base_dir);
+	dw = chip->dw;
+	if (!dw)
+		return;
+
+	debugfs_remove_recursive(dw->debugfs);
+	dw->debugfs = NULL;
 }

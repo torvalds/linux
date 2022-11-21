@@ -248,21 +248,7 @@ populate_shared_memory:
 		 *       or it can pointers to struct page's
 		 */
 
-		/*
-		 * When reading, readahead_size will only be zero when
-		 * we're doing O_DIRECT, otherwise we got here from
-		 * orangefs_readpage.
-		 *
-		 * If we got here from orangefs_readpage we want to
-		 * copy either a page or the whole file into the io
-		 * vector, whichever is smaller.
-		 */
-		if (readahead_size)
-			copy_amount =
-				min(new_op->downcall.resp.io.amt_complete,
-					(__s64)PAGE_SIZE);
-		else
-			copy_amount = new_op->downcall.resp.io.amt_complete;
+		copy_amount = new_op->downcall.resp.io.amt_complete;
 
 		ret = orangefs_bufmap_copy_to_iovec(iter, buffer_index,
 			copy_amount);
@@ -283,19 +269,11 @@ populate_shared_memory:
 
 out:
 	if (buffer_index >= 0) {
-		if ((readahead_size) && (type == ORANGEFS_IO_READ)) {
-			/* readpage */
-			*index_return = buffer_index;
-			gossip_debug(GOSSIP_FILE_DEBUG,
-				"%s: hold on to buffer_index :%d:\n",
-				__func__, buffer_index);
-		} else {
-			/* O_DIRECT */
-			orangefs_bufmap_put(buffer_index);
-			gossip_debug(GOSSIP_FILE_DEBUG,
-				"%s(%pU): PUT buffer_index %d\n",
-				__func__, handle, buffer_index);
-		}
+		orangefs_bufmap_put(buffer_index);
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			"%s(%pU): PUT buffer_index %d\n",
+			__func__, handle, buffer_index);
+		buffer_index = -1;
 	}
 	op_release(new_op);
 	return ret;
@@ -375,84 +353,6 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb,
 	return ret;
 }
 
-static int orangefs_getflags(struct inode *inode, unsigned long *uval)
-{
-	__u64 val = 0;
-	int ret;
-
-	ret = orangefs_inode_getxattr(inode,
-				      "user.pvfs2.meta_hint",
-				      &val, sizeof(val));
-	if (ret < 0 && ret != -ENODATA)
-		return ret;
-	else if (ret == -ENODATA)
-		val = 0;
-	*uval = val;
-	return 0;
-}
-
-/*
- * Perform a miscellaneous operation on a file.
- */
-static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	struct inode *inode = file_inode(file);
-	int ret = -ENOTTY;
-	__u64 val = 0;
-	unsigned long uval;
-
-	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "orangefs_ioctl: called with cmd %d\n",
-		     cmd);
-
-	/*
-	 * we understand some general ioctls on files, such as the immutable
-	 * and append flags
-	 */
-	if (cmd == FS_IOC_GETFLAGS) {
-		ret = orangefs_getflags(inode, &uval);
-		if (ret)
-			return ret;
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "orangefs_ioctl: FS_IOC_GETFLAGS: %llu\n",
-			     (unsigned long long)uval);
-		return put_user(uval, (int __user *)arg);
-	} else if (cmd == FS_IOC_SETFLAGS) {
-		unsigned long old_uval;
-
-		ret = 0;
-		if (get_user(uval, (int __user *)arg))
-			return -EFAULT;
-		/*
-		 * ORANGEFS_MIRROR_FL is set internally when the mirroring mode
-		 * is turned on for a file. The user is not allowed to turn
-		 * on this bit, but the bit is present if the user first gets
-		 * the flags and then updates the flags with some new
-		 * settings. So, we ignore it in the following edit. bligon.
-		 */
-		if ((uval & ~ORANGEFS_MIRROR_FL) &
-		    (~(FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NOATIME_FL))) {
-			gossip_err("orangefs_ioctl: the FS_IOC_SETFLAGS only supports setting one of FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NOATIME_FL\n");
-			return -EINVAL;
-		}
-		ret = orangefs_getflags(inode, &old_uval);
-		if (ret)
-			return ret;
-		ret = vfs_ioc_setflags_prepare(inode, old_uval, uval);
-		if (ret)
-			return ret;
-		val = uval;
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "orangefs_ioctl: FS_IOC_SETFLAGS: %llu\n",
-			     (unsigned long long)val);
-		ret = orangefs_inode_setxattr(inode,
-					      "user.pvfs2.meta_hint",
-					      &val, sizeof(val), 0);
-	}
-
-	return ret;
-}
-
 static vm_fault_t orangefs_fault(struct vm_fault *vmf)
 {
 	struct file *file = vmf->vma->vm_file;
@@ -487,10 +387,7 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 		return ret;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "orangefs_file_mmap: called on %s\n",
-		     (file ?
-			(char *)file->f_path.dentry->d_name.name :
-			(char *)"Unknown"));
+		     "orangefs_file_mmap: called on %pD\n", file);
 
 	/* set the sequential readahead hint */
 	vma->vm_flags |= VM_SEQ_READ;
@@ -660,9 +557,10 @@ const struct file_operations orangefs_file_operations = {
 	.read_iter	= orangefs_file_read_iter,
 	.write_iter	= orangefs_file_write_iter,
 	.lock		= orangefs_lock,
-	.unlocked_ioctl	= orangefs_ioctl,
 	.mmap		= orangefs_file_mmap,
 	.open		= generic_file_open,
+	.splice_read    = generic_file_splice_read,
+	.splice_write   = iter_file_splice_write,
 	.flush		= orangefs_flush,
 	.release	= orangefs_file_release,
 	.fsync		= orangefs_fsync,

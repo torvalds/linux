@@ -27,7 +27,6 @@
 #define MAX_NR_FUNC	256	/* max nr of strings assigned to keys */
 
 #define KT_LATIN	0	/* we depend on this being zero */
-#define KT_LETTER	11	/* symbol that can be acted upon by CapsLock */
 #define KT_FN		1
 #define KT_SPEC		2
 #define KT_PAD		3
@@ -38,6 +37,7 @@
 #define KT_META		8
 #define KT_ASCII	9
 #define KT_LOCK		10
+#define KT_LETTER	11	/* symbol that can be acted upon by CapsLock */
 #define KT_SLOCK	12
 #define KT_DEAD2	13
 #define KT_BRL		14

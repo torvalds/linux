@@ -98,12 +98,20 @@ for_each_frame:	tst	frame, mask		@ Check for address exceptions
 
 		cmp	sv_fp, frame		@ next frame must be
 		mov	frame, sv_fp		@ above the current frame
+#ifdef CONFIG_IRQSTACKS
+		@
+		@ Kernel stacks may be discontiguous in memory. If the next
+		@ frame is below the previous frame, accept it as long as it
+		@ lives in kernel memory.
+		@
+		cmpls	sv_fp, #PAGE_OFFSET
+#endif
 		bhi	for_each_frame
 
 1006:		adr	r0, .Lbad
 		mov	r1, loglvl
 		mov	r2, frame
-		bl	printk
+		bl	_printk
 no_frame:	ldmfd	sp!, {r4 - r9, pc}
 ENDPROC(c_backtrace)
 		

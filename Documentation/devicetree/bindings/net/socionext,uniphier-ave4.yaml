@@ -13,9 +13,6 @@ description: |
   This describes the devicetree bindings for AVE ethernet controller
   implemented on Socionext UniPhier SoCs.
 
-allOf:
-  - $ref: ethernet-controller.yaml#
-
 properties:
   compatible:
     enum:
@@ -24,6 +21,7 @@ properties:
       - socionext,uniphier-ld11-ave4
       - socionext,uniphier-ld20-ave4
       - socionext,uniphier-pxs3-ave4
+      - socionext,uniphier-nx1-ave4
 
   reg:
     maxItems: 1
@@ -43,34 +41,63 @@ properties:
     minItems: 1
     maxItems: 4
 
-  clock-names:
-    oneOf:
-      - items:          # for Pro4
-          - const: gio
-          - const: ether
-          - const: ether-gb
-          - const: ether-phy
-      - const: ether    # for others
+  clock-names: true
 
   resets:
     minItems: 1
     maxItems: 2
 
-  reset-names:
-    oneOf:
-      - items:          # for Pro4
-          - const: gio
-          - const: ether
-      - const: ether    # for others
+  reset-names: true
 
   socionext,syscon-phy-mode:
-    $ref: /schemas/types.yaml#definitions/phandle-array
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to syscon that configures phy mode
+          - description: ID of MAC instance
     description:
       A phandle to syscon with one argument that configures phy mode.
       The argument is the ID of MAC instance.
 
   mdio:
     $ref: mdio.yaml#
+    unevaluatedProperties: false
+
+allOf:
+  - $ref: ethernet-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: socionext,uniphier-pro4-ave4
+    then:
+      properties:
+        clocks:
+          minItems: 4
+          maxItems: 4
+        clock-names:
+          items:
+            - const: gio
+            - const: ether
+            - const: ether-gb
+            - const: ether-phy
+        resets:
+          minItems: 2
+          maxItems: 2
+        reset-names:
+          items:
+            - const: gio
+            - const: ether
+    else:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          const: ether
+        resets:
+          maxItems: 1
+        reset-names:
+          const: ether
 
 required:
   - compatible
@@ -84,7 +111,7 @@ required:
   - reset-names
   - mdio
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

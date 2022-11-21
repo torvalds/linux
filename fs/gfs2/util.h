@@ -149,9 +149,12 @@ int gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function,
 
 extern int check_journal_clean(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 			       bool verbose);
+extern int gfs2_freeze_lock(struct gfs2_sbd *sdp,
+			    struct gfs2_holder *freeze_gh, int caller_flags);
+extern void gfs2_freeze_unlock(struct gfs2_holder *freeze_gh);
 
 #define gfs2_io_error(sdp) \
-gfs2_io_error_i((sdp), __func__, __FILE__, __LINE__);
+gfs2_io_error_i((sdp), __func__, __FILE__, __LINE__)
 
 
 void gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
@@ -159,10 +162,10 @@ void gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
 			bool withdraw);
 
 #define gfs2_io_error_bh_wd(sdp, bh) \
-gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__, true);
+gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__, true)
 
 #define gfs2_io_error_bh(sdp, bh) \
-gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__, false);
+gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__, false)
 
 
 extern struct kmem_cache *gfs2_glock_cachep;
@@ -213,6 +216,11 @@ static inline bool gfs2_withdrawing(struct gfs2_sbd *sdp)
 {
 	return test_bit(SDF_WITHDRAWING, &sdp->sd_flags) &&
 	       !test_bit(SDF_WITHDRAWN, &sdp->sd_flags);
+}
+
+static inline bool gfs2_withdraw_in_prog(struct gfs2_sbd *sdp)
+{
+	return test_bit(SDF_WITHDRAW_IN_PROG, &sdp->sd_flags);
 }
 
 #define gfs2_tune_get(sdp, field) \

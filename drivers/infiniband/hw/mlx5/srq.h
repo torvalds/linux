@@ -28,6 +28,7 @@ struct mlx5_srq_attr {
 	u32 user_index;
 	u64 db_record;
 	__be64 *pas;
+	struct ib_umem *umem;
 	u32 tm_log_list_size;
 	u32 tm_next_tag;
 	u32 tm_hw_phase_cnt;

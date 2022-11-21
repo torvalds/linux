@@ -1,0 +1,14 @@
+config INTEL_SAR_INT1092
+	tristate "Intel Specific Absorption Rate Driver"
+	depends on ACPI
+	help
+	  This driver helps to limit the exposure of human body to RF frequency by
+	  providing information to userspace application that will inform the Intel
+	  M.2 modem to regulate the RF power based on SAR data obtained from the
+	  sensors captured in the BIOS. ACPI interface exposes this data from the BIOS
+	  to SAR driver. The front end application in userspace will interact with SAR
+	  driver to obtain information like the device mode, Antenna index, baseband index,
+	  SAR table index and use available communication like MBIM interface to enable
+	  data communication to modem for RF power regulation. Enable this config when
+	  given platform needs to support "Dynamic SAR" configuration for a modem available
+	  on the platform.

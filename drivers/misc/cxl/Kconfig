@@ -6,6 +6,7 @@
 config CXL_BASE
 	bool
 	select PPC_COPRO_BASE
+	select PPC_64S_HASH_MMU
 
 config CXL
 	tristate "Support for IBM Coherent Accelerators (CXL)"

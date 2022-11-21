@@ -17,11 +17,10 @@ properties:
       - lltc,ltc2496
 
   vref-supply:
-    description: phandle to an external regulator providing the reference voltage
-    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Power supply for the reference voltage
 
   reg:
-    description: spi chipselect number according to the usual spi bindings
+    maxItems: 1
 
   spi-max-frequency:
     description: maximal spi bus frequency supported

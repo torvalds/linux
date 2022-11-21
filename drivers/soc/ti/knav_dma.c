@@ -500,7 +500,7 @@ EXPORT_SYMBOL_GPL(knav_dma_open_channel);
 /**
  * knav_dma_close_channel()	- Destroy a dma channel
  *
- * channel:	dma channel handle
+ * @channel:	dma channel handle
  *
  */
 void knav_dma_close_channel(void *channel)
@@ -646,31 +646,31 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 	}
 
 	dma->reg_global	 = pktdma_get_regs(dma, node, 0, &size);
-	if (!dma->reg_global)
-		return -ENODEV;
+	if (IS_ERR(dma->reg_global))
+		return PTR_ERR(dma->reg_global);
 	if (size < sizeof(struct reg_global)) {
 		dev_err(kdev->dev, "bad size %pa for global regs\n", &size);
 		return -ENODEV;
 	}
 
 	dma->reg_tx_chan = pktdma_get_regs(dma, node, 1, &size);
-	if (!dma->reg_tx_chan)
-		return -ENODEV;
+	if (IS_ERR(dma->reg_tx_chan))
+		return PTR_ERR(dma->reg_tx_chan);
 
 	max_tx_chan = size / sizeof(struct reg_chan);
 	dma->reg_rx_chan = pktdma_get_regs(dma, node, 2, &size);
-	if (!dma->reg_rx_chan)
-		return -ENODEV;
+	if (IS_ERR(dma->reg_rx_chan))
+		return PTR_ERR(dma->reg_rx_chan);
 
 	max_rx_chan = size / sizeof(struct reg_chan);
 	dma->reg_tx_sched = pktdma_get_regs(dma, node, 3, &size);
-	if (!dma->reg_tx_sched)
-		return -ENODEV;
+	if (IS_ERR(dma->reg_tx_sched))
+		return PTR_ERR(dma->reg_tx_sched);
 
 	max_tx_sched = size / sizeof(struct reg_tx_sched);
 	dma->reg_rx_flow = pktdma_get_regs(dma, node, 4, &size);
-	if (!dma->reg_rx_flow)
-		return -ENODEV;
+	if (IS_ERR(dma->reg_rx_flow))
+		return PTR_ERR(dma->reg_rx_flow);
 
 	max_rx_flow = size / sizeof(struct reg_rx_flow);
 	dma->rx_priority = DMA_PRIO_DEFAULT;
@@ -749,14 +749,16 @@ static int knav_dma_probe(struct platform_device *pdev)
 	pm_runtime_enable(kdev->dev);
 	ret = pm_runtime_get_sync(kdev->dev);
 	if (ret < 0) {
+		pm_runtime_put_noidle(kdev->dev);
 		dev_err(kdev->dev, "unable to enable pktdma, err %d\n", ret);
-		return ret;
+		goto err_pm_disable;
 	}
 
 	/* Initialise all packet dmas */
 	for_each_child_of_node(node, child) {
 		ret = dma_init(node, child);
 		if (ret) {
+			of_node_put(child);
 			dev_err(&pdev->dev, "init failed with %d\n", ret);
 			break;
 		}
@@ -764,13 +766,21 @@ static int knav_dma_probe(struct platform_device *pdev)
 
 	if (list_empty(&kdev->list)) {
 		dev_err(dev, "no valid dma instance\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_put_sync;
 	}
 
 	debugfs_create_file("knav_dma", S_IFREG | S_IRUGO, NULL, NULL,
 			    &knav_dma_debug_fops);
 
 	device_ready = true;
+	return ret;
+
+err_put_sync:
+	pm_runtime_put_sync(kdev->dev);
+err_pm_disable:
+	pm_runtime_disable(kdev->dev);
+
 	return ret;
 }
 

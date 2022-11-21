@@ -560,6 +560,8 @@ static struct sh_eth_cpu_data r7s72100_data = {
 			  EESR_TDE,
 	.fdr_value	= 0x0000070f,
 
+	.trscer_err_mask = TRSCER_RMAFCE | TRSCER_RRFCE,
+
 	.no_psr		= 1,
 	.apr		= 1,
 	.mpr		= 1,
@@ -699,7 +701,7 @@ static struct sh_eth_cpu_data rcar_gen2_data = {
 			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE,
 	.fdr_value	= 0x00000f0f,
 
-	.trscer_err_mask = DESC_I_RINT8,
+	.trscer_err_mask = TRSCER_RMAFCE,
 
 	.apr		= 1,
 	.mpr		= 1,
@@ -779,6 +781,8 @@ static struct sh_eth_cpu_data r7s9210_data = {
 			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE,
 
 	.fdr_value	= 0x0000070f,
+
+	.trscer_err_mask = TRSCER_RMAFCE | TRSCER_RRFCE,
 
 	.apr		= 1,
 	.mpr		= 1,
@@ -1089,6 +1093,9 @@ static struct sh_eth_cpu_data sh771x_data = {
 			  EESIPR_CEEFIP | EESIPR_CELFIP |
 			  EESIPR_RRFIP | EESIPR_RTLFIP | EESIPR_RTSFIP |
 			  EESIPR_PREIP | EESIPR_CERFIP,
+
+	.trscer_err_mask = TRSCER_RMAFCE,
+
 	.tsu		= 1,
 	.dual_port	= 1,
 };
@@ -1146,17 +1153,19 @@ static void update_mac_address(struct net_device *ndev)
 static void read_mac_address(struct net_device *ndev, unsigned char *mac)
 {
 	if (mac[0] || mac[1] || mac[2] || mac[3] || mac[4] || mac[5]) {
-		memcpy(ndev->dev_addr, mac, ETH_ALEN);
+		eth_hw_addr_set(ndev, mac);
 	} else {
 		u32 mahr = sh_eth_read(ndev, MAHR);
 		u32 malr = sh_eth_read(ndev, MALR);
+		u8 addr[ETH_ALEN];
 
-		ndev->dev_addr[0] = (mahr >> 24) & 0xFF;
-		ndev->dev_addr[1] = (mahr >> 16) & 0xFF;
-		ndev->dev_addr[2] = (mahr >>  8) & 0xFF;
-		ndev->dev_addr[3] = (mahr >>  0) & 0xFF;
-		ndev->dev_addr[4] = (malr >>  8) & 0xFF;
-		ndev->dev_addr[5] = (malr >>  0) & 0xFF;
+		addr[0] = (mahr >> 24) & 0xFF;
+		addr[1] = (mahr >> 16) & 0xFF;
+		addr[2] = (mahr >>  8) & 0xFF;
+		addr[3] = (mahr >>  0) & 0xFF;
+		addr[4] = (malr >>  8) & 0xFF;
+		addr[5] = (malr >>  0) & 0xFF;
+		eth_hw_addr_set(ndev, addr);
 	}
 }
 
@@ -1742,7 +1751,7 @@ static void sh_eth_emac_interrupt(struct net_device *ndev)
 		link_stat = sh_eth_read(ndev, PSR);
 		if (mdp->ether_link_active_low)
 			link_stat = ~link_stat;
-		if (!(link_stat & PHY_ST_LINK)) {
+		if (!(link_stat & PSR_LMON)) {
 			sh_eth_rcv_snd_disable(ndev);
 		} else {
 			/* Link Up */
@@ -2017,14 +2026,8 @@ static int sh_eth_phy_init(struct net_device *ndev)
 	}
 
 	/* mask with MAC supported features */
-	if (mdp->cd->register_type != SH_ETH_REG_GIGABIT) {
-		int err = phy_set_max_speed(phydev, SPEED_100);
-		if (err) {
-			netdev_err(ndev, "failed to limit PHY to 100 Mbit/s\n");
-			phy_disconnect(phydev);
-			return err;
-		}
-	}
+	if (mdp->cd->register_type != SH_ETH_REG_GIGABIT)
+		phy_set_max_speed(phydev, SPEED_100);
 
 	phy_attached_info(phydev);
 
@@ -2280,14 +2283,16 @@ static void sh_eth_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 {
 	switch (stringset) {
 	case ETH_SS_STATS:
-		memcpy(data, *sh_eth_gstrings_stats,
+		memcpy(data, sh_eth_gstrings_stats,
 		       sizeof(sh_eth_gstrings_stats));
 		break;
 	}
 }
 
 static void sh_eth_get_ringparam(struct net_device *ndev,
-				 struct ethtool_ringparam *ring)
+				 struct ethtool_ringparam *ring,
+				 struct kernel_ethtool_ringparam *kernel_ring,
+				 struct netlink_ext_ack *extack)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -2298,7 +2303,9 @@ static void sh_eth_get_ringparam(struct net_device *ndev,
 }
 
 static int sh_eth_set_ringparam(struct net_device *ndev,
-				struct ethtool_ringparam *ring)
+				struct ethtool_ringparam *ring,
+				struct kernel_ethtool_ringparam *kernel_ring,
+				struct netlink_ext_ack *extack)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	int ret;
@@ -2526,6 +2533,7 @@ static netdev_tx_t sh_eth_start_xmit(struct sk_buff *skb,
 	else
 		txdesc->status |= cpu_to_le32(TD_TACT);
 
+	wmb(); /* cur_tx must be incremented after TACT bit was set */
 	mdp->cur_tx++;
 
 	if (!(sh_eth_read(ndev, EDTRR) & mdp->cd->edtrr_trns))
@@ -2606,9 +2614,9 @@ static int sh_eth_close(struct net_device *ndev)
 	/* Free all the skbuffs in the Rx queue and the DMA buffer. */
 	sh_eth_ring_free(ndev);
 
-	pm_runtime_put_sync(&mdp->pdev->dev);
-
 	mdp->is_opened = 0;
+
+	pm_runtime_put(&mdp->pdev->dev);
 
 	return 0;
 }
@@ -3034,6 +3042,28 @@ static int sh_mdio_release(struct sh_eth_private *mdp)
 	return 0;
 }
 
+static int sh_mdiobb_read(struct mii_bus *bus, int phy, int reg)
+{
+	int res;
+
+	pm_runtime_get_sync(bus->parent);
+	res = mdiobb_read(bus, phy, reg);
+	pm_runtime_put(bus->parent);
+
+	return res;
+}
+
+static int sh_mdiobb_write(struct mii_bus *bus, int phy, int reg, u16 val)
+{
+	int res;
+
+	pm_runtime_get_sync(bus->parent);
+	res = mdiobb_write(bus, phy, reg, val);
+	pm_runtime_put(bus->parent);
+
+	return res;
+}
+
 /* MDIO bus init function */
 static int sh_mdio_init(struct sh_eth_private *mdp,
 			struct sh_eth_plat_data *pd)
@@ -3057,6 +3087,10 @@ static int sh_mdio_init(struct sh_eth_private *mdp,
 	mdp->mii_bus = alloc_mdio_bitbang(&bitbang->ctrl);
 	if (!mdp->mii_bus)
 		return -ENOMEM;
+
+	/* Wrap accessors with Runtime PM-aware ops */
+	mdp->mii_bus->read = sh_mdiobb_read;
+	mdp->mii_bus->write = sh_mdiobb_write;
 
 	/* Hook up MII support for ethtool */
 	mdp->mii_bus->name = "sh_mii";
@@ -3108,7 +3142,7 @@ static const struct net_device_ops sh_eth_netdev_ops = {
 	.ndo_get_stats		= sh_eth_get_stats,
 	.ndo_set_rx_mode	= sh_eth_set_rx_mode,
 	.ndo_tx_timeout		= sh_eth_tx_timeout,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_change_mtu		= sh_eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -3124,7 +3158,7 @@ static const struct net_device_ops sh_eth_netdev_ops_tsu = {
 	.ndo_vlan_rx_add_vid	= sh_eth_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= sh_eth_vlan_rx_kill_vid,
 	.ndo_tx_timeout		= sh_eth_tx_timeout,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_change_mtu		= sh_eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -3137,7 +3171,6 @@ static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 	struct device_node *np = dev->of_node;
 	struct sh_eth_plat_data *pdata;
 	phy_interface_t interface;
-	const char *mac_addr;
 	int ret;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -3149,9 +3182,7 @@ static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 		return NULL;
 	pdata->phy_interface = interface;
 
-	mac_addr = of_get_mac_address(np);
-	if (!IS_ERR(mac_addr))
-		ether_addr_copy(pdata->mac_addr, mac_addr);
+	of_get_mac_address(np, pdata->mac_addr);
 
 	pdata->no_ether_link =
 		of_property_read_bool(np, "renesas,no-ether-link");
@@ -3195,9 +3226,6 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	int ret;
 
-	/* get base addr */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
 	ndev = alloc_etherdev(sizeof(struct sh_eth_private));
 	if (!ndev)
 		return -ENOMEM;
@@ -3215,7 +3243,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp = netdev_priv(ndev);
 	mdp->num_tx_ring = TX_RING_SIZE;
 	mdp->num_rx_ring = RX_RING_SIZE;
-	mdp->addr = devm_ioremap_resource(&pdev->dev, res);
+	mdp->addr = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(mdp->addr)) {
 		ret = PTR_ERR(mdp->addr);
 		goto out_release;
@@ -3334,8 +3362,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	/* MDIO bus init */
 	ret = sh_mdio_init(mdp, pd);
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "MDIO init failed: %d\n", ret);
+		dev_err_probe(&pdev->dev, ret, "MDIO init failed\n");
 		goto out_release;
 	}
 
@@ -3417,9 +3444,7 @@ static int sh_eth_wol_restore(struct net_device *ndev)
 	 * both be reset and all registers restored. This is what
 	 * happens during suspend and resume without WoL enabled.
 	 */
-	ret = sh_eth_close(ndev);
-	if (ret < 0)
-		return ret;
+	sh_eth_close(ndev);
 	ret = sh_eth_open(ndev);
 	if (ret < 0)
 		return ret;
@@ -3431,7 +3456,7 @@ static int sh_eth_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	int ret = 0;
+	int ret;
 
 	if (!netif_running(ndev))
 		return 0;
@@ -3450,7 +3475,7 @@ static int sh_eth_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	int ret = 0;
+	int ret;
 
 	if (!netif_running(ndev))
 		return 0;

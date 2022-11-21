@@ -116,6 +116,7 @@ static const struct omap_clkctrl_reg_data am4_l3s_clkctrl_regs[] __initconst = {
 	{ AM4_L3S_VPFE0_CLKCTRL, NULL, CLKF_SW_SUP, "l3_gclk" },
 	{ AM4_L3S_VPFE1_CLKCTRL, NULL, CLKF_SW_SUP, "l3_gclk" },
 	{ AM4_L3S_GPMC_CLKCTRL, NULL, CLKF_SW_SUP, "l3s_gclk" },
+	{ AM4_L3S_ADC1_CLKCTRL, NULL, CLKF_SW_SUP, "l3s_gclk" },
 	{ AM4_L3S_MCASP0_CLKCTRL, NULL, CLKF_SW_SUP, "mcasp0_fck" },
 	{ AM4_L3S_MCASP1_CLKCTRL, NULL, CLKF_SW_SUP, "mcasp1_fck" },
 	{ AM4_L3S_MMC3_CLKCTRL, NULL, CLKF_SW_SUP, "mmc_clk" },
@@ -272,16 +273,21 @@ static struct ti_dt_clk am43xx_clks[] = {
 	{ .node_name = NULL },
 };
 
+static const char *enable_init_clks[] = {
+	/* AM4_L3_L3_MAIN_CLKCTRL, needed during suspend */
+	"l3-clkctrl:0000:0",
+};
+
 int __init am43xx_dt_clk_init(void)
 {
 	struct clk *clk1, *clk2;
 
-	if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT)
-		ti_dt_clocks_register(am43xx_compat_clks);
-	else
-		ti_dt_clocks_register(am43xx_clks);
+	ti_dt_clocks_register(am43xx_clks);
 
 	omap2_clk_disable_autoidle_all();
+
+	omap2_clk_enable_init_clocks(enable_init_clks,
+				     ARRAY_SIZE(enable_init_clks));
 
 	ti_clk_add_aliases();
 

@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
+#include <linux/blk_types.h>
 
 #include "exfat_raw.h"
 #include "exfat_fs.h"
@@ -180,7 +181,7 @@ int exfat_update_bhs(struct buffer_head **bhs, int nr_bhs, int sync)
 		set_buffer_uptodate(bhs[i]);
 		mark_buffer_dirty(bhs[i]);
 		if (sync)
-			write_dirty_buffer(bhs[i], 0);
+			write_dirty_buffer(bhs[i], REQ_SYNC);
 	}
 
 	for (i = 0; i < nr_bhs && sync; i++) {

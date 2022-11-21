@@ -4,18 +4,19 @@
 $id: http://devicetree.org/schemas/display/bridge/lontium,lt9611.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Lontium LT9611 2 Port MIPI to HDMI Bridge
+title: Lontium LT9611(UXC) 2 Port MIPI to HDMI Bridge
 
 maintainers:
   - Vinod Koul <vkoul@kernel.org>
 
 description: |
-  The LT9611 is a bridge device which converts DSI to HDMI
+  The LT9611 and LT9611UXC are bridge devices which convert DSI to HDMI
 
 properties:
   compatible:
     enum:
       - lontium,lt9611
+      - lontium,lt9611uxc
 
   reg:
     maxItems: 1
@@ -37,82 +38,26 @@ properties:
     description: Regulator for 3.3V IO power.
 
   ports:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
       port@0:
-        type: object
-        description: |
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
           Primary MIPI port-1 for MIPI input
 
-        properties:
-          reg:
-            const: 0
-
-        patternProperties:
-          "^endpoint(@[0-9])$":
-            type: object
-            additionalProperties: false
-
-            properties:
-              remote-endpoint:
-                $ref: /schemas/types.yaml#/definitions/phandle
-
-        required:
-          - reg
-
       port@1:
-        type: object
-        description: |
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
           Additional MIPI port-2 for MIPI input, used in combination
           with primary MIPI port-1 to drive higher resolution displays
 
-        properties:
-          reg:
-            const: 1
-
-        patternProperties:
-          "^endpoint(@[0-9])$":
-            type: object
-            additionalProperties: false
-
-            properties:
-              remote-endpoint:
-                $ref: /schemas/types.yaml#/definitions/phandle
-
-        required:
-          - reg
-
       port@2:
-        type: object
-        description: |
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
           HDMI port for HDMI output
 
-        properties:
-          reg:
-            const: 2
-
-        patternProperties:
-          "^endpoint(@[0-9])$":
-            type: object
-            additionalProperties: false
-
-            properties:
-              remote-endpoint:
-                $ref: /schemas/types.yaml#/definitions/phandle
-
-        required:
-          - reg
-
     required:
-      - "#address-cells"
-      - "#size-cells"
       - port@0
       - port@2
 

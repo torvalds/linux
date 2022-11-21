@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_IVTV
 	tristate "Conexant cx23416/cx23415 MPEG encoder/decoder support"
-	depends on VIDEO_V4L2 && PCI && I2C
+	depends on VIDEO_DEV && PCI && I2C
 	select I2C_ALGOBIT
 	depends on RC_CORE
 	select VIDEO_TUNER
@@ -28,18 +28,6 @@ config VIDEO_IVTV
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ivtv.
-
-config VIDEO_IVTV_DEPRECATED_IOCTLS
-	bool "enable the DVB ioctls abuse on ivtv driver"
-	depends on VIDEO_IVTV
-	help
-	  Enable the usage of the a DVB set of ioctls that were abused by
-	  IVTV driver for a while.
-
-	  Those ioctls were not needed for a long time, as IVTV implements
-	  the proper V4L2 ioctls since kernel 3.3.
-
-	  If unsure, say N.
 
 config VIDEO_IVTV_ALSA
 	tristate "Conexant cx23415/cx23416 ALSA interface for PCM audio capture"

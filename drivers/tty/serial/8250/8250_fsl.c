@@ -23,10 +23,6 @@
 
 #include "8250.h"
 
-struct fsl8250_data {
-	int	line;
-};
-
 int fsl8250_handle_irq(struct uart_port *port)
 {
 	unsigned char lsr, orig_lsr;
@@ -38,7 +34,7 @@ int fsl8250_handle_irq(struct uart_port *port)
 
 	iir = port->serial_in(port, UART_IIR);
 	if (iir & UART_IIR_NO_INT) {
-		spin_unlock_irqrestore(&up->port.lock, flags);
+		spin_unlock(&up->port.lock);
 		return 0;
 	}
 
@@ -46,7 +42,7 @@ int fsl8250_handle_irq(struct uart_port *port)
 	if (unlikely(up->lsr_saved_flags & UART_LSR_BI)) {
 		up->lsr_saved_flags &= ~UART_LSR_BI;
 		port->serial_in(port, UART_RX);
-		spin_unlock_irqrestore(&up->port.lock, flags);
+		spin_unlock(&up->port.lock);
 		return 1;
 	}
 
@@ -82,12 +78,18 @@ int fsl8250_handle_irq(struct uart_port *port)
 		serial8250_tx_chars(up);
 
 	up->lsr_saved_flags = orig_lsr;
-	uart_unlock_and_check_sysrq(&up->port, flags);
+
+	uart_unlock_and_check_sysrq_irqrestore(&up->port, flags);
+
 	return 1;
 }
 EXPORT_SYMBOL_GPL(fsl8250_handle_irq);
 
 #ifdef CONFIG_ACPI
+struct fsl8250_data {
+	int	line;
+};
+
 static int fsl8250_acpi_probe(struct platform_device *pdev)
 {
 	struct fsl8250_data *data;
@@ -104,11 +106,8 @@ static int fsl8250_acpi_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		if (irq != -EPROBE_DEFER)
-			dev_err(dev, "cannot get irq\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	memset(&port8250, 0, sizeof(port8250));
 

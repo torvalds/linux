@@ -71,11 +71,18 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 	".if " oldinstr_pad_len(num) " > 6\n"				\
 	"\tjg " e_oldinstr_pad_end "f\n"				\
 	"6620:\n"							\
-	"\t.fill (" oldinstr_pad_len(num) " - (6620b-662b)) / 2, 2, 0x0700\n" \
+	"\t.rept (" oldinstr_pad_len(num) " - (6620b-662b)) / 2\n"	\
+	"\tnopr\n"							\
 	".else\n"							\
-	"\t.fill " oldinstr_pad_len(num) " / 6, 6, 0xc0040000\n"	\
-	"\t.fill " oldinstr_pad_len(num) " %% 6 / 4, 4, 0x47000000\n"	\
-	"\t.fill " oldinstr_pad_len(num) " %% 6 %% 4 / 2, 2, 0x0700\n"	\
+	"\t.rept " oldinstr_pad_len(num) " / 6\n"			\
+	"\t.brcl 0,0\n"							\
+	"\t.endr\n"							\
+	"\t.rept " oldinstr_pad_len(num) " %% 6 / 4\n"			\
+	"\tnop\n"							\
+	"\t.endr\n"							\
+	"\t.rept " oldinstr_pad_len(num) " %% 6 %% 4 / 2\n"		\
+	"\tnopr\n"							\
+	".endr\n"							\
 	".endif\n"
 
 #define OLDINSTR(oldinstr, num)						\
@@ -144,6 +151,22 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 #define alternative_2(oldinstr, altinstr1, facility1, altinstr2, facility2) \
 	asm_inline volatile(ALTERNATIVE_2(oldinstr, altinstr1, facility1,   \
 				   altinstr2, facility2) ::: "memory")
+
+/* Alternative inline assembly with input. */
+#define alternative_input(oldinstr, newinstr, feature, input...)	\
+	asm_inline volatile (ALTERNATIVE(oldinstr, newinstr, feature)	\
+		: : input)
+
+/* Like alternative_input, but with a single output argument */
+#define alternative_io(oldinstr, altinstr, facility, output, input...)	\
+	asm_inline volatile(ALTERNATIVE(oldinstr, altinstr, facility)	\
+		: output : input)
+
+/* Use this macro if more than one output parameter is needed. */
+#define ASM_OUTPUT2(a...) a
+
+/* Use this macro if clobbers are needed without inputs. */
+#define ASM_NO_INPUT_CLOBBER(clobber...) : clobber
 
 #endif /* __ASSEMBLY__ */
 

@@ -379,11 +379,6 @@ void xen_timer_resume(void)
 	}
 }
 
-static const struct pv_time_ops xen_time_ops __initconst = {
-	.sched_clock = xen_sched_clock,
-	.steal_clock = xen_steal_clock,
-};
-
 static struct pvclock_vsyscall_time_info *xen_clock __read_mostly;
 static u64 xen_clock_value_saved;
 
@@ -525,17 +520,24 @@ static void __init xen_time_init(void)
 		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
 }
 
-void __init xen_init_time_ops(void)
+static void __init xen_init_time_common(void)
 {
 	xen_sched_clock_offset = xen_clocksource_read();
-	pv_ops.time = xen_time_ops;
+	static_call_update(pv_steal_clock, xen_steal_clock);
+	paravirt_set_sched_clock(xen_sched_clock);
+
+	x86_platform.calibrate_tsc = xen_tsc_khz;
+	x86_platform.get_wallclock = xen_get_wallclock;
+}
+
+void __init xen_init_time_ops(void)
+{
+	xen_init_time_common();
 
 	x86_init.timers.timer_init = xen_time_init;
 	x86_init.timers.setup_percpu_clockev = x86_init_noop;
 	x86_cpuinit.setup_percpu_clockev = x86_init_noop;
 
-	x86_platform.calibrate_tsc = xen_tsc_khz;
-	x86_platform.get_wallclock = xen_get_wallclock;
 	/* Dom0 uses the native method to set the hardware RTC. */
 	if (!xen_initial_domain())
 		x86_platform.set_wallclock = xen_set_wallclock;
@@ -556,6 +558,11 @@ static void xen_hvm_setup_cpu_clockevents(void)
 
 void __init xen_hvm_init_time_ops(void)
 {
+	static bool hvm_time_initialized;
+
+	if (hvm_time_initialized)
+		return;
+
 	/*
 	 * vector callback is needed otherwise we cannot receive interrupts
 	 * on cpu > 0 and at this point we don't know how many cpus are
@@ -565,18 +572,33 @@ void __init xen_hvm_init_time_ops(void)
 		return;
 
 	if (!xen_feature(XENFEAT_hvm_safe_pvclock)) {
-		pr_info("Xen doesn't support pvclock on HVM, disable pv timer");
+		pr_info_once("Xen doesn't support pvclock on HVM, disable pv timer");
 		return;
 	}
 
-	xen_sched_clock_offset = xen_clocksource_read();
-	pv_ops.time = xen_time_ops;
+	/*
+	 * Only MAX_VIRT_CPUS 'vcpu_info' are embedded inside 'shared_info'.
+	 * The __this_cpu_read(xen_vcpu) is still NULL when Xen HVM guest
+	 * boots on vcpu >= MAX_VIRT_CPUS (e.g., kexec), To access
+	 * __this_cpu_read(xen_vcpu) via xen_clocksource_read() will panic.
+	 *
+	 * The xen_hvm_init_time_ops() should be called again later after
+	 * __this_cpu_read(xen_vcpu) is available.
+	 */
+	if (!__this_cpu_read(xen_vcpu)) {
+		pr_info("Delay xen_init_time_common() as kernel is running on vcpu=%d\n",
+			xen_vcpu_nr(0));
+		return;
+	}
+
+	xen_init_time_common();
+
 	x86_init.timers.setup_percpu_clockev = xen_time_init;
 	x86_cpuinit.setup_percpu_clockev = xen_hvm_setup_cpu_clockevents;
 
-	x86_platform.calibrate_tsc = xen_tsc_khz;
-	x86_platform.get_wallclock = xen_get_wallclock;
 	x86_platform.set_wallclock = xen_set_wallclock;
+
+	hvm_time_initialized = true;
 }
 #endif
 

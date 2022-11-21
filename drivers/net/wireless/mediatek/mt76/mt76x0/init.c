@@ -237,7 +237,10 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 {
 	int ret;
 
-	mt76x02_init_device(dev);
+	ret = mt76x02_init_device(dev);
+	if (ret)
+		return ret;
+
 	mt76x02_config_mac_addr_list(dev);
 
 	ret = mt76_register_device(&dev->mt76, true, mt76x02_rates,
@@ -245,7 +248,7 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	if (dev->mt76.cap.has_5ghz) {
+	if (dev->mphy.cap.has_5ghz) {
 		struct ieee80211_supported_band *sband;
 
 		sband = &dev->mphy.sband_5g.sband;
@@ -253,7 +256,7 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 		mt76x0_init_txpower(dev, sband);
 	}
 
-	if (dev->mt76.cap.has_2ghz)
+	if (dev->mphy.cap.has_2ghz)
 		mt76x0_init_txpower(dev, &dev->mphy.sband_2g.sband);
 
 	mt76x02_init_debugfs(dev);

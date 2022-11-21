@@ -86,7 +86,7 @@ EXPORT_SYMBOL(jbd2_journal_start_commit);
 EXPORT_SYMBOL(jbd2_journal_force_commit_nested);
 EXPORT_SYMBOL(jbd2_journal_wipe);
 EXPORT_SYMBOL(jbd2_journal_blocks_per_page);
-EXPORT_SYMBOL(jbd2_journal_invalidatepage);
+EXPORT_SYMBOL(jbd2_journal_invalidate_folio);
 EXPORT_SYMBOL(jbd2_journal_try_to_free_buffers);
 EXPORT_SYMBOL(jbd2_journal_force_commit);
 EXPORT_SYMBOL(jbd2_journal_inode_ranged_write);
@@ -757,6 +757,7 @@ int jbd2_fc_begin_commit(journal_t *journal, tid_t tid)
 	}
 	journal->j_flags |= JBD2_FAST_COMMIT_ONGOING;
 	write_unlock(&journal->j_state_lock);
+	jbd2_journal_lock_updates(journal);
 
 	return 0;
 }
@@ -768,8 +769,9 @@ EXPORT_SYMBOL(jbd2_fc_begin_commit);
  */
 static int __jbd2_fc_end_commit(journal_t *journal, tid_t tid, bool fallback)
 {
+	jbd2_journal_unlock_updates(journal);
 	if (journal->j_fc_cleanup_callback)
-		journal->j_fc_cleanup_callback(journal, 0);
+		journal->j_fc_cleanup_callback(journal, 0, tid);
 	write_lock(&journal->j_state_lock);
 	journal->j_flags &= ~JBD2_FAST_COMMIT_ONGOING;
 	if (fallback)
@@ -934,10 +936,6 @@ int jbd2_fc_wait_bufs(journal_t *journal, int num_blks)
 }
 EXPORT_SYMBOL(jbd2_fc_wait_bufs);
 
-/*
- * Wait on fast commit buffers that were allocated by jbd2_fc_get_buf
- * for completion.
- */
 int jbd2_fc_release_bufs(journal_t *journal)
 {
 	struct buffer_head *bh;
@@ -945,10 +943,6 @@ int jbd2_fc_release_bufs(journal_t *journal)
 
 	j_fc_off = journal->j_fc_off;
 
-	/*
-	 * Wait in reverse order to minimize chances of us being woken up before
-	 * all IOs have completed
-	 */
 	for (i = j_fc_off - 1; i >= 0; i--) {
 		bh = journal->j_fc_wbuf[i];
 		if (!bh)
@@ -1218,7 +1212,7 @@ static const struct seq_operations jbd2_seq_info_ops = {
 
 static int jbd2_seq_info_open(struct inode *inode, struct file *file)
 {
-	journal_t *journal = PDE_DATA(inode);
+	journal_t *journal = pde_data(inode);
 	struct jbd2_stats_proc_session *s;
 	int rc, size;
 
@@ -1289,6 +1283,52 @@ static int jbd2_min_tag_size(void)
 	 * structure
 	 */
 	return sizeof(journal_block_tag_t) - 4;
+}
+
+/**
+ * jbd2_journal_shrink_scan()
+ * @shrink: shrinker to work on
+ * @sc: reclaim request to process
+ *
+ * Scan the checkpointed buffer on the checkpoint list and release the
+ * journal_head.
+ */
+static unsigned long jbd2_journal_shrink_scan(struct shrinker *shrink,
+					      struct shrink_control *sc)
+{
+	journal_t *journal = container_of(shrink, journal_t, j_shrinker);
+	unsigned long nr_to_scan = sc->nr_to_scan;
+	unsigned long nr_shrunk;
+	unsigned long count;
+
+	count = percpu_counter_read_positive(&journal->j_checkpoint_jh_count);
+	trace_jbd2_shrink_scan_enter(journal, sc->nr_to_scan, count);
+
+	nr_shrunk = jbd2_journal_shrink_checkpoint_list(journal, &nr_to_scan);
+
+	count = percpu_counter_read_positive(&journal->j_checkpoint_jh_count);
+	trace_jbd2_shrink_scan_exit(journal, nr_to_scan, nr_shrunk, count);
+
+	return nr_shrunk;
+}
+
+/**
+ * jbd2_journal_shrink_count()
+ * @shrink: shrinker to work on
+ * @sc: reclaim request to process
+ *
+ * Count the number of checkpoint buffers on the checkpoint list.
+ */
+static unsigned long jbd2_journal_shrink_count(struct shrinker *shrink,
+					       struct shrink_control *sc)
+{
+	journal_t *journal = container_of(shrink, journal_t, j_shrinker);
+	unsigned long count;
+
+	count = percpu_counter_read_positive(&journal->j_checkpoint_jh_count);
+	trace_jbd2_shrink_count(journal, sc->nr_to_scan, count);
+
+	return count;
 }
 
 /*
@@ -1369,9 +1409,23 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	journal->j_sb_buffer = bh;
 	journal->j_superblock = (journal_superblock_t *)bh->b_data;
 
+	journal->j_shrink_transaction = NULL;
+	journal->j_shrinker.scan_objects = jbd2_journal_shrink_scan;
+	journal->j_shrinker.count_objects = jbd2_journal_shrink_count;
+	journal->j_shrinker.seeks = DEFAULT_SEEKS;
+	journal->j_shrinker.batch = journal->j_max_transaction_buffers;
+
+	if (percpu_counter_init(&journal->j_checkpoint_jh_count, 0, GFP_KERNEL))
+		goto err_cleanup;
+
+	if (register_shrinker(&journal->j_shrinker)) {
+		percpu_counter_destroy(&journal->j_checkpoint_jh_count);
+		goto err_cleanup;
+	}
 	return journal;
 
 err_cleanup:
+	brelse(journal->j_sb_buffer);
 	kfree(journal->j_wbuf);
 	jbd2_journal_destroy_revoke(journal);
 	kfree(journal);
@@ -1618,6 +1672,10 @@ int jbd2_journal_update_sb_log_tail(journal_t *journal, tid_t tail_tid,
 
 	if (is_journal_aborted(journal))
 		return -EIO;
+	if (test_bit(JBD2_CHECKPOINT_IO_ERROR, &journal->j_atomic_flags)) {
+		jbd2_journal_abort(journal, -EIO);
+		return -EIO;
+	}
 
 	BUG_ON(!mutex_is_locked(&journal->j_checkpoint_mutex));
 	jbd_debug(1, "JBD2: updating superblock (start %lu, seq %u)\n",
@@ -1686,6 +1744,110 @@ static void jbd2_mark_journal_empty(journal_t *journal, int write_op)
 	write_unlock(&journal->j_state_lock);
 }
 
+/**
+ * __jbd2_journal_erase() - Discard or zeroout journal blocks (excluding superblock)
+ * @journal: The journal to erase.
+ * @flags: A discard/zeroout request is sent for each physically contigous
+ *	region of the journal. Either JBD2_JOURNAL_FLUSH_DISCARD or
+ *	JBD2_JOURNAL_FLUSH_ZEROOUT must be set to determine which operation
+ *	to perform.
+ *
+ * Note: JBD2_JOURNAL_FLUSH_ZEROOUT attempts to use hardware offload. Zeroes
+ * will be explicitly written if no hardware offload is available, see
+ * blkdev_issue_zeroout for more details.
+ */
+static int __jbd2_journal_erase(journal_t *journal, unsigned int flags)
+{
+	int err = 0;
+	unsigned long block, log_offset; /* logical */
+	unsigned long long phys_block, block_start, block_stop; /* physical */
+	loff_t byte_start, byte_stop, byte_count;
+	struct request_queue *q = bdev_get_queue(journal->j_dev);
+
+	/* flags must be set to either discard or zeroout */
+	if ((flags & ~JBD2_JOURNAL_FLUSH_VALID) || !flags ||
+			((flags & JBD2_JOURNAL_FLUSH_DISCARD) &&
+			(flags & JBD2_JOURNAL_FLUSH_ZEROOUT)))
+		return -EINVAL;
+
+	if (!q)
+		return -ENXIO;
+
+	if ((flags & JBD2_JOURNAL_FLUSH_DISCARD) && !blk_queue_discard(q))
+		return -EOPNOTSUPP;
+
+	/*
+	 * lookup block mapping and issue discard/zeroout for each
+	 * contiguous region
+	 */
+	log_offset = be32_to_cpu(journal->j_superblock->s_first);
+	block_start =  ~0ULL;
+	for (block = log_offset; block < journal->j_total_len; block++) {
+		err = jbd2_journal_bmap(journal, block, &phys_block);
+		if (err) {
+			pr_err("JBD2: bad block at offset %lu", block);
+			return err;
+		}
+
+		if (block_start == ~0ULL) {
+			block_start = phys_block;
+			block_stop = block_start - 1;
+		}
+
+		/*
+		 * last block not contiguous with current block,
+		 * process last contiguous region and return to this block on
+		 * next loop
+		 */
+		if (phys_block != block_stop + 1) {
+			block--;
+		} else {
+			block_stop++;
+			/*
+			 * if this isn't the last block of journal,
+			 * no need to process now because next block may also
+			 * be part of this contiguous region
+			 */
+			if (block != journal->j_total_len - 1)
+				continue;
+		}
+
+		/*
+		 * end of contiguous region or this is last block of journal,
+		 * take care of the region
+		 */
+		byte_start = block_start * journal->j_blocksize;
+		byte_stop = block_stop * journal->j_blocksize;
+		byte_count = (block_stop - block_start + 1) *
+				journal->j_blocksize;
+
+		truncate_inode_pages_range(journal->j_dev->bd_inode->i_mapping,
+				byte_start, byte_stop);
+
+		if (flags & JBD2_JOURNAL_FLUSH_DISCARD) {
+			err = blkdev_issue_discard(journal->j_dev,
+					byte_start >> SECTOR_SHIFT,
+					byte_count >> SECTOR_SHIFT,
+					GFP_NOFS, 0);
+		} else if (flags & JBD2_JOURNAL_FLUSH_ZEROOUT) {
+			err = blkdev_issue_zeroout(journal->j_dev,
+					byte_start >> SECTOR_SHIFT,
+					byte_count >> SECTOR_SHIFT,
+					GFP_NOFS, 0);
+		}
+
+		if (unlikely(err != 0)) {
+			pr_err("JBD2: (error %d) unable to wipe journal at physical blocks %llu - %llu",
+					err, block_start, block_stop);
+			return err;
+		}
+
+		/* reset start and stop after processing a region */
+		block_start = ~0ULL;
+	}
+
+	return blkdev_issue_flush(journal->j_dev);
+}
 
 /**
  * jbd2_journal_update_sb_errno() - Update error in the journal.
@@ -1869,9 +2031,7 @@ static int load_superblock(journal_t *journal)
 
 	if (jbd2_has_feature_fast_commit(journal)) {
 		journal->j_fc_last = be32_to_cpu(sb->s_maxlen);
-		num_fc_blocks = be32_to_cpu(sb->s_num_fc_blks);
-		if (!num_fc_blocks)
-			num_fc_blocks = JBD2_MIN_FC_BLOCKS;
+		num_fc_blocks = jbd2_journal_get_num_fc_blks(sb);
 		if (journal->j_last - num_fc_blocks >= JBD2_MIN_JOURNAL_BLOCKS)
 			journal->j_last = journal->j_fc_last - num_fc_blocks;
 		journal->j_fc_first = journal->j_last + 1;
@@ -1997,6 +2157,16 @@ int jbd2_journal_destroy(journal_t *journal)
 	J_ASSERT(journal->j_checkpoint_transactions == NULL);
 	spin_unlock(&journal->j_list_lock);
 
+	/*
+	 * OK, all checkpoint transactions have been checked, now check the
+	 * write out io error flag and abort the journal if some buffer failed
+	 * to write back to the original location, otherwise the filesystem
+	 * may become inconsistent.
+	 */
+	if (!is_journal_aborted(journal) &&
+	    test_bit(JBD2_CHECKPOINT_IO_ERROR, &journal->j_atomic_flags))
+		jbd2_journal_abort(journal, -EIO);
+
 	if (journal->j_sb_buffer) {
 		if (!is_journal_aborted(journal)) {
 			mutex_lock_io(&journal->j_checkpoint_mutex);
@@ -2014,6 +2184,10 @@ int jbd2_journal_destroy(journal_t *journal)
 		brelse(journal->j_sb_buffer);
 	}
 
+	if (journal->j_shrinker.flags & SHRINKER_REGISTERED) {
+		percpu_counter_destroy(&journal->j_checkpoint_jh_count);
+		unregister_shrinker(&journal->j_shrinker);
+	}
 	if (journal->j_proc_entry)
 		jbd2_stats_proc_exit(journal);
 	iput(journal->j_inode);
@@ -2102,9 +2276,7 @@ jbd2_journal_initialize_fast_commit(journal_t *journal)
 	journal_superblock_t *sb = journal->j_superblock;
 	unsigned long long num_fc_blks;
 
-	num_fc_blks = be32_to_cpu(sb->s_num_fc_blks);
-	if (num_fc_blks == 0)
-		num_fc_blks = JBD2_MIN_FC_BLOCKS;
+	num_fc_blks = jbd2_journal_get_num_fc_blks(sb);
 	if (journal->j_last - num_fc_blks < JBD2_MIN_JOURNAL_BLOCKS)
 		return -ENOSPC;
 
@@ -2250,13 +2422,18 @@ EXPORT_SYMBOL(jbd2_journal_clear_features);
 /**
  * jbd2_journal_flush() - Flush journal
  * @journal: Journal to act on.
+ * @flags: optional operation on the journal blocks after the flush (see below)
  *
  * Flush all data for a given journal to disk and empty the journal.
  * Filesystems can use this when remounting readonly to ensure that
- * recovery does not need to happen on remount.
+ * recovery does not need to happen on remount. Optionally, a discard or zeroout
+ * can be issued on the journal blocks after flushing.
+ *
+ * flags:
+ *	JBD2_JOURNAL_FLUSH_DISCARD: issues discards for the journal blocks
+ *	JBD2_JOURNAL_FLUSH_ZEROOUT: issues zeroouts for the journal blocks
  */
-
-int jbd2_journal_flush(journal_t *journal)
+int jbd2_journal_flush(journal_t *journal, unsigned int flags)
 {
 	int err = 0;
 	transaction_t *transaction = NULL;
@@ -2310,6 +2487,10 @@ int jbd2_journal_flush(journal_t *journal)
 	 * commits of data to the journal will restore the current
 	 * s_start value. */
 	jbd2_mark_journal_empty(journal, REQ_SYNC | REQ_FUA);
+
+	if (flags)
+		err = __jbd2_journal_erase(journal, flags);
+
 	mutex_unlock(&journal->j_checkpoint_mutex);
 	write_lock(&journal->j_state_lock);
 	J_ASSERT(!journal->j_running_transaction);
@@ -2795,6 +2976,7 @@ struct journal_head *jbd2_journal_grab_journal_head(struct buffer_head *bh)
 	jbd_unlock_bh_journal_head(bh);
 	return jh;
 }
+EXPORT_SYMBOL(jbd2_journal_grab_journal_head);
 
 static void __journal_remove_journal_head(struct buffer_head *bh)
 {
@@ -2847,6 +3029,7 @@ void jbd2_journal_put_journal_head(struct journal_head *jh)
 		jbd_unlock_bh_journal_head(bh);
 	}
 }
+EXPORT_SYMBOL(jbd2_journal_put_journal_head);
 
 /*
  * Initialize jbd inode head

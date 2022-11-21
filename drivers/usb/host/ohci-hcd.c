@@ -171,7 +171,7 @@ static int ohci_urb_enqueue (
 
 			/* 1 TD for setup, 1 for ACK, plus ... */
 			size = 2;
-			/* FALLTHROUGH */
+			fallthrough;
 		// case PIPE_INTERRUPT:
 		// case PIPE_BULK:
 		default:
@@ -191,8 +191,7 @@ static int ohci_urb_enqueue (
 	}
 
 	/* allocate the private part of the URB */
-	urb_priv = kzalloc (sizeof (urb_priv_t) + size * sizeof (struct td *),
-			mem_flags);
+	urb_priv = kzalloc(struct_size(urb_priv, td, size), mem_flags);
 	if (!urb_priv)
 		return -ENOMEM;
 	INIT_LIST_HEAD (&urb_priv->pending);

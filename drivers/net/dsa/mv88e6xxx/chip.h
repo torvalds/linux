@@ -18,11 +18,18 @@
 #include <linux/timecounter.h>
 #include <net/dsa.h>
 
+#define EDSA_HLEN		8
 #define MV88E6XXX_N_FID		4096
+#define MV88E6XXX_N_SID		64
+
+#define MV88E6XXX_FID_STANDALONE	0
+#define MV88E6XXX_FID_BRIDGED		1
 
 /* PVT limits for 4-bit port and 5-bit switch */
 #define MV88E6XXX_MAX_PVT_SWITCHES	32
 #define MV88E6XXX_MAX_PVT_PORTS		16
+#define MV88E6XXX_MAX_PVT_ENTRIES	\
+	(MV88E6XXX_MAX_PVT_SWITCHES * MV88E6XXX_MAX_PVT_PORTS)
 
 #define MV88E6XXX_MAX_GPIO	16
 
@@ -63,6 +70,8 @@ enum mv88e6xxx_model {
 	MV88E6190,
 	MV88E6190X,
 	MV88E6191,
+	MV88E6191X,
+	MV88E6193X,
 	MV88E6220,
 	MV88E6240,
 	MV88E6250,
@@ -75,6 +84,7 @@ enum mv88e6xxx_model {
 	MV88E6352,
 	MV88E6390,
 	MV88E6390X,
+	MV88E6393X,
 };
 
 enum mv88e6xxx_family {
@@ -90,6 +100,23 @@ enum mv88e6xxx_family {
 	MV88E6XXX_FAMILY_6351,	/* 6171 6175 6350 6351 */
 	MV88E6XXX_FAMILY_6352,	/* 6172 6176 6240 6352 */
 	MV88E6XXX_FAMILY_6390,  /* 6190 6190X 6191 6290 6390 6390X */
+	MV88E6XXX_FAMILY_6393,	/* 6191X 6193X 6393X */
+};
+
+/**
+ * enum mv88e6xxx_edsa_support - Ethertype DSA tag support level
+ * @MV88E6XXX_EDSA_UNSUPPORTED:  Device has no support for EDSA tags
+ * @MV88E6XXX_EDSA_UNDOCUMENTED: Documentation indicates that
+ *                               egressing FORWARD frames with an EDSA
+ *                               tag is reserved for future use, but
+ *                               empirical data shows that this mode
+ *                               is supported.
+ * @MV88E6XXX_EDSA_SUPPORTED:    EDSA tags are fully supported.
+ */
+enum mv88e6xxx_edsa_support {
+	MV88E6XXX_EDSA_UNSUPPORTED = 0,
+	MV88E6XXX_EDSA_UNDOCUMENTED,
+	MV88E6XXX_EDSA_SUPPORTED,
 };
 
 struct mv88e6xxx_ops;
@@ -104,6 +131,7 @@ struct mv88e6xxx_info {
 	unsigned int num_internal_phys;
 	unsigned int num_gpio;
 	unsigned int max_vid;
+	unsigned int max_sid;
 	unsigned int port_base_addr;
 	unsigned int phy_base_addr;
 	unsigned int global1_addr;
@@ -129,7 +157,7 @@ struct mv88e6xxx_info {
 	 */
 	bool dual_chip;
 
-	enum dsa_tag_protocol tag_protocol;
+	enum mv88e6xxx_edsa_support edsa_support;
 
 	/* Mask for FromPort and ToPort value of PortVec used in ATU Move
 	 * operation. 0 means that the ATU Move operation is not supported.
@@ -153,7 +181,14 @@ struct mv88e6xxx_vtu_entry {
 	u16	fid;
 	u8	sid;
 	bool	valid;
+	bool	policy;
 	u8	member[DSA_MAX_PORTS];
+	u8	state[DSA_MAX_PORTS];	/* Older silicon has no STU */
+};
+
+struct mv88e6xxx_stu_entry {
+	u8	sid;
+	bool	valid;
 	u8	state[DSA_MAX_PORTS];
 };
 
@@ -223,9 +258,15 @@ struct mv88e6xxx_policy {
 	u16 vid;
 };
 
+struct mv88e6xxx_vlan {
+	u16	vid;
+	bool	valid;
+};
+
 struct mv88e6xxx_port {
 	struct mv88e6xxx_chip *chip;
 	int port;
+	struct mv88e6xxx_vlan bridge_pvid;
 	u64 serdes_stats[2];
 	u64 atu_member_violation;
 	u64 atu_miss_violation;
@@ -245,6 +286,9 @@ enum mv88e6xxx_region_id {
 	MV88E6XXX_REGION_GLOBAL1 = 0,
 	MV88E6XXX_REGION_GLOBAL2,
 	MV88E6XXX_REGION_ATU,
+	MV88E6XXX_REGION_VTU,
+	MV88E6XXX_REGION_STU,
+	MV88E6XXX_REGION_PVT,
 
 	_MV88E6XXX_REGION_MAX,
 };
@@ -253,8 +297,21 @@ struct mv88e6xxx_region_priv {
 	enum mv88e6xxx_region_id id;
 };
 
+struct mv88e6xxx_mst {
+	struct list_head node;
+
+	refcount_t refcnt;
+	struct net_device *br;
+	u16 msti;
+
+	struct mv88e6xxx_stu_entry stu;
+};
+
 struct mv88e6xxx_chip {
 	const struct mv88e6xxx_info *info;
+
+	/* Currently configured tagging protocol */
+	enum dsa_tag_protocol tag_protocol;
 
 	/* The dsa_switch this private structure is related to */
 	struct dsa_switch *ds;
@@ -350,11 +407,15 @@ struct mv88e6xxx_chip {
 
 	/* devlink regions */
 	struct devlink_region *regions[_MV88E6XXX_REGION_MAX];
+
+	/* Bridge MST to SID mappings */
+	struct list_head msts;
 };
 
 struct mv88e6xxx_bus_ops {
 	int (*read)(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);
 	int (*write)(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val);
+	int (*init)(struct mv88e6xxx_chip *chip);
 };
 
 struct mv88e6xxx_mdio_bus {
@@ -416,6 +477,10 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_link)(struct mv88e6xxx_chip *chip, int port, int link);
 
+	/* Synchronise the port link state with that of the SERDES
+	 */
+	int (*port_sync_link)(struct mv88e6xxx_chip *chip, int port, unsigned int mode, bool isup);
+
 #define PAUSE_ON		1
 #define PAUSE_OFF		0
 
@@ -449,8 +514,10 @@ struct mv88e6xxx_ops {
 
 	int (*port_set_frame_mode)(struct mv88e6xxx_chip *chip, int port,
 				   enum mv88e6xxx_frame_mode mode);
-	int (*port_set_egress_floods)(struct mv88e6xxx_chip *chip, int port,
-				      bool unicast, bool multicast);
+	int (*port_set_ucast_flood)(struct mv88e6xxx_chip *chip, int port,
+				    bool unicast);
+	int (*port_set_mcast_flood)(struct mv88e6xxx_chip *chip, int port,
+				    bool multicast);
 	int (*port_set_ether_type)(struct mv88e6xxx_chip *chip, int port,
 				   u16 etype);
 	int (*port_set_jumbo_size)(struct mv88e6xxx_chip *chip, int port,
@@ -506,30 +573,30 @@ struct mv88e6xxx_ops {
 	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
 
 	/* Power on/off a SERDES interface */
-	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, u8 lane,
+	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, int lane,
 			    bool up);
 
 	/* SERDES lane mapping */
-	u8 (*serdes_get_lane)(struct mv88e6xxx_chip *chip, int port);
+	int (*serdes_get_lane)(struct mv88e6xxx_chip *chip, int port);
 
 	int (*serdes_pcs_get_state)(struct mv88e6xxx_chip *chip, int port,
-				    u8 lane, struct phylink_link_state *state);
+				    int lane, struct phylink_link_state *state);
 	int (*serdes_pcs_config)(struct mv88e6xxx_chip *chip, int port,
-				 u8 lane, unsigned int mode,
+				 int lane, unsigned int mode,
 				 phy_interface_t interface,
 				 const unsigned long *advertise);
 	int (*serdes_pcs_an_restart)(struct mv88e6xxx_chip *chip, int port,
-				     u8 lane);
+				     int lane);
 	int (*serdes_pcs_link_up)(struct mv88e6xxx_chip *chip, int port,
-				  u8 lane, int speed, int duplex);
+				  int lane, int speed, int duplex);
 
 	/* SERDES interrupt handling */
 	unsigned int (*serdes_irq_mapping)(struct mv88e6xxx_chip *chip,
 					   int port);
-	int (*serdes_irq_enable)(struct mv88e6xxx_chip *chip, int port, u8 lane,
+	int (*serdes_irq_enable)(struct mv88e6xxx_chip *chip, int port, int lane,
 				 bool enable);
 	irqreturn_t (*serdes_irq_status)(struct mv88e6xxx_chip *chip, int port,
-					 u8 lane);
+					 int lane);
 
 	/* Statistics from the SERDES interface */
 	int (*serdes_get_sset_count)(struct mv88e6xxx_chip *chip, int port);
@@ -543,6 +610,10 @@ struct mv88e6xxx_ops {
 	void (*serdes_get_regs)(struct mv88e6xxx_chip *chip, int port,
 				void *_p);
 
+	/* SERDES SGMII/Fiber Output Amplitude */
+	int (*serdes_set_tx_amplitude)(struct mv88e6xxx_chip *chip, int port,
+				       int val);
+
 	/* Address Translation Unit operations */
 	int (*atu_get_hash)(struct mv88e6xxx_chip *chip, u8 *hash);
 	int (*atu_set_hash)(struct mv88e6xxx_chip *chip, u8 hash);
@@ -552,6 +623,12 @@ struct mv88e6xxx_ops {
 			   struct mv88e6xxx_vtu_entry *entry);
 	int (*vtu_loadpurge)(struct mv88e6xxx_chip *chip,
 			     struct mv88e6xxx_vtu_entry *entry);
+
+	/* Spanning Tree Unit operations */
+	int (*stu_getnext)(struct mv88e6xxx_chip *chip,
+			   struct mv88e6xxx_stu_entry *entry);
+	int (*stu_loadpurge)(struct mv88e6xxx_chip *chip,
+			     struct mv88e6xxx_stu_entry *entry);
 
 	/* GPIO operations */
 	const struct mv88e6xxx_gpio_ops *gpio_ops;
@@ -566,9 +643,8 @@ struct mv88e6xxx_ops {
 	const struct mv88e6xxx_ptp_ops *ptp_ops;
 
 	/* Phylink */
-	void (*phylink_validate)(struct mv88e6xxx_chip *chip, int port,
-				 unsigned long *mask,
-				 struct phylink_link_state *state);
+	void (*phylink_get_caps)(struct mv88e6xxx_chip *chip, int port,
+				 struct phylink_config *config);
 
 	/* Max Frame Size */
 	int (*set_max_frame_size)(struct mv88e6xxx_chip *chip, int mtu);
@@ -652,9 +728,21 @@ struct mv88e6xxx_hw_stat {
 	int type;
 };
 
+static inline bool mv88e6xxx_has_stu(struct mv88e6xxx_chip *chip)
+{
+	return chip->info->max_sid > 0 &&
+		chip->info->ops->stu_loadpurge &&
+		chip->info->ops->stu_getnext;
+}
+
 static inline bool mv88e6xxx_has_pvt(struct mv88e6xxx_chip *chip)
 {
 	return chip->info->pvt;
+}
+
+static inline bool mv88e6xxx_has_lag(struct mv88e6xxx_chip *chip)
+{
+	return !!chip->info->global2_addr;
 }
 
 static inline unsigned int mv88e6xxx_num_databases(struct mv88e6xxx_chip *chip)
@@ -670,6 +758,16 @@ static inline unsigned int mv88e6xxx_num_macs(struct  mv88e6xxx_chip *chip)
 static inline unsigned int mv88e6xxx_num_ports(struct mv88e6xxx_chip *chip)
 {
 	return chip->info->num_ports;
+}
+
+static inline unsigned int mv88e6xxx_max_vid(struct mv88e6xxx_chip *chip)
+{
+	return chip->info->max_vid;
+}
+
+static inline unsigned int mv88e6xxx_max_sid(struct mv88e6xxx_chip *chip)
+{
+	return chip->info->max_sid;
 }
 
 static inline u16 mv88e6xxx_port_mask(struct mv88e6xxx_chip *chip)

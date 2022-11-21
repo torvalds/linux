@@ -9,6 +9,7 @@
 
 #define pr_fmt(fmt) "irq-mips-gic: " fmt
 
+#include <linux/bitfield.h>
 #include <linux/bitmap.h>
 #include <linux/clocksource.h>
 #include <linux/cpuhotplug.h>
@@ -16,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
+#include <linux/irqdomain.h>
 #include <linux/of_address.h>
 #include <linux/percpu.h>
 #include <linux/sched.h>
@@ -147,7 +149,7 @@ int gic_get_c0_fdc_int(void)
 
 static void gic_handle_shared_int(bool chained)
 {
-	unsigned int intr, virq;
+	unsigned int intr;
 	unsigned long *pcpu_mask;
 	DECLARE_BITMAP(pending, GIC_MAX_INTRS);
 
@@ -164,12 +166,12 @@ static void gic_handle_shared_int(bool chained)
 	bitmap_and(pending, pending, pcpu_mask, gic_shared_intrs);
 
 	for_each_set_bit(intr, pending, gic_shared_intrs) {
-		virq = irq_linear_revmap(gic_irq_domain,
-					 GIC_SHARED_TO_HWIRQ(intr));
 		if (chained)
-			generic_handle_irq(virq);
+			generic_handle_domain_irq(gic_irq_domain,
+						  GIC_SHARED_TO_HWIRQ(intr));
 		else
-			do_IRQ(virq);
+			do_domain_IRQ(gic_irq_domain,
+				      GIC_SHARED_TO_HWIRQ(intr));
 	}
 }
 
@@ -307,7 +309,7 @@ static struct irq_chip gic_edge_irq_controller = {
 static void gic_handle_local_int(bool chained)
 {
 	unsigned long pending, masked;
-	unsigned int intr, virq;
+	unsigned int intr;
 
 	pending = read_gic_vl_pend();
 	masked = read_gic_vl_mask();
@@ -315,12 +317,12 @@ static void gic_handle_local_int(bool chained)
 	bitmap_and(&pending, &pending, &masked, GIC_NUM_LOCAL_INTRS);
 
 	for_each_set_bit(intr, &pending, GIC_NUM_LOCAL_INTRS) {
-		virq = irq_linear_revmap(gic_irq_domain,
-					 GIC_LOCAL_TO_HWIRQ(intr));
 		if (chained)
-			generic_handle_irq(virq);
+			generic_handle_domain_irq(gic_irq_domain,
+						  GIC_LOCAL_TO_HWIRQ(intr));
 		else
-			do_IRQ(virq);
+			do_domain_IRQ(gic_irq_domain,
+				      GIC_LOCAL_TO_HWIRQ(intr));
 	}
 }
 
@@ -380,24 +382,35 @@ static void gic_unmask_local_irq_all_vpes(struct irq_data *d)
 	spin_unlock_irqrestore(&gic_lock, flags);
 }
 
-static void gic_all_vpes_irq_cpu_online(struct irq_data *d)
+static void gic_all_vpes_irq_cpu_online(void)
 {
-	struct gic_all_vpes_chip_data *cd;
-	unsigned int intr;
+	static const unsigned int local_intrs[] = {
+		GIC_LOCAL_INT_TIMER,
+		GIC_LOCAL_INT_PERFCTR,
+		GIC_LOCAL_INT_FDC,
+	};
+	unsigned long flags;
+	int i;
 
-	intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
-	cd = irq_data_get_irq_chip_data(d);
+	spin_lock_irqsave(&gic_lock, flags);
 
-	write_gic_vl_map(mips_gic_vx_map_reg(intr), cd->map);
-	if (cd->mask)
-		write_gic_vl_smask(BIT(intr));
+	for (i = 0; i < ARRAY_SIZE(local_intrs); i++) {
+		unsigned int intr = local_intrs[i];
+		struct gic_all_vpes_chip_data *cd;
+
+		cd = &gic_all_vpes_chip_data[intr];
+		write_gic_vl_map(mips_gic_vx_map_reg(intr), cd->map);
+		if (cd->mask)
+			write_gic_vl_smask(BIT(intr));
+	}
+
+	spin_unlock_irqrestore(&gic_lock, flags);
 }
 
 static struct irq_chip gic_all_vpes_local_irq_controller = {
 	.name			= "MIPS GIC Local",
 	.irq_mask		= gic_mask_local_irq_all_vpes,
 	.irq_unmask		= gic_unmask_local_irq_all_vpes,
-	.irq_cpu_online		= gic_all_vpes_irq_cpu_online,
 };
 
 static void __gic_irq_dispatch(void)
@@ -476,6 +489,10 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	intr = GIC_HWIRQ_TO_LOCAL(hwirq);
 	map = GIC_MAP_PIN_MAP_TO_PIN | gic_cpu_pin;
 
+	/*
+	 * If adding support for more per-cpu interrupts, keep the the
+	 * array in gic_all_vpes_irq_cpu_online() in sync.
+	 */
 	switch (intr) {
 	case GIC_LOCAL_INT_TIMER:
 		/* CONFIG_MIPS_CMP workaround (see __gic_init) */
@@ -662,8 +679,8 @@ static int gic_cpu_startup(unsigned int cpu)
 	/* Clear all local IRQ masks (ie. disable all local interrupts) */
 	write_gic_vl_rmask(~0);
 
-	/* Invoke irq_cpu_online callbacks to enable desired interrupts */
-	irq_cpu_online();
+	/* Enable desired interrupts */
+	gic_all_vpes_irq_cpu_online();
 
 	return 0;
 }
@@ -719,8 +736,7 @@ static int __init gic_of_init(struct device_node *node,
 	mips_gic_base = ioremap(gic_base, gic_len);
 
 	gicconfig = read_gic_config();
-	gic_shared_intrs = gicconfig & GIC_CONFIG_NUMINTERRUPTS;
-	gic_shared_intrs >>= __ffs(GIC_CONFIG_NUMINTERRUPTS);
+	gic_shared_intrs = FIELD_GET(GIC_CONFIG_NUMINTERRUPTS, gicconfig);
 	gic_shared_intrs = (gic_shared_intrs + 1) * 8;
 
 	if (cpu_has_veic) {

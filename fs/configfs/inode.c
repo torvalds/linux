@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/*
  * inode.c - basic inode and dentry operations.
  *
  * Based on sysfs:
@@ -30,17 +28,12 @@
 static struct lock_class_key default_group_class[MAX_LOCK_DEPTH];
 #endif
 
-static const struct address_space_operations configfs_aops = {
-	.readpage	= simple_readpage,
-	.write_begin	= simple_write_begin,
-	.write_end	= simple_write_end,
-};
-
 static const struct inode_operations configfs_inode_operations ={
 	.setattr	= configfs_setattr,
 };
 
-int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
+int configfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		     struct iattr *iattr)
 {
 	struct inode * inode = d_inode(dentry);
 	struct configfs_dirent * sd = dentry->d_fsdata;
@@ -67,7 +60,7 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 	}
 	/* attributes were changed atleast once in past */
 
-	error = simple_setattr(dentry, iattr);
+	error = simple_setattr(mnt_userns, dentry, iattr);
 	if (error)
 		return error;
 
@@ -115,7 +108,7 @@ struct inode *configfs_new_inode(umode_t mode, struct configfs_dirent *sd,
 	struct inode * inode = new_inode(s);
 	if (inode) {
 		inode->i_ino = get_next_ino();
-		inode->i_mapping->a_ops = &configfs_aops;
+		inode->i_mapping->a_ops = &ram_aops;
 		inode->i_op = &configfs_inode_operations;
 
 		if (sd->s_iattr) {

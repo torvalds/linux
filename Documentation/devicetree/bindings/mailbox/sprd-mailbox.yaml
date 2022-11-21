@@ -15,6 +15,7 @@ properties:
   compatible:
     enum:
       - sprd,sc9860-mailbox
+      - sprd,sc9863a-mailbox
 
   reg:
     items:
@@ -22,9 +23,15 @@ properties:
       - description: outbox registers' base address
 
   interrupts:
+    minItems: 2
+    maxItems: 3
+
+  interrupt-names:
+    minItems: 2
     items:
-      - description: inbox interrupt
-      - description: outbox interrupt
+      - const: inbox
+      - const: outbox
+      - const: supp-outbox
 
   clocks:
     maxItems: 1
@@ -40,6 +47,7 @@ required:
   - compatible
   - reg
   - interrupts
+  - interrupt-names
   - "#mbox-cells"
   - clocks
   - clock-names
@@ -56,5 +64,6 @@ examples:
       clock-names = "enable";
       clocks = <&aon_gate 53>;
       interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+      interrupt-names = "inbox", "outbox";
     };
 ...

@@ -86,6 +86,10 @@ int mlx4_ib_create_srq(struct ib_srq *ib_srq,
 	int err;
 	int i;
 
+	if (init_attr->srq_type != IB_SRQT_BASIC &&
+	    init_attr->srq_type != IB_SRQT_XRC)
+		return -EOPNOTSUPP;
+
 	/* Sanity check SRQ size before proceeding */
 	if (init_attr->attr.max_wr  >= dev->dev->caps.max_srq_wqes ||
 	    init_attr->attr.max_sge >  dev->dev->caps.max_srq_sge)
@@ -316,7 +320,6 @@ int mlx4_ib_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 	if (mdev->dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR) {
 		err = -EIO;
 		*bad_wr = wr;
-		nreq = 0;
 		goto out;
 	}
 

@@ -31,6 +31,8 @@
  * @fw: the ELF firmware image
  *
  * Make sure this fw image is sane (ie a correct ELF32/ELF64 file).
+ *
+ * Return: 0 on success and -EINVAL upon any failure
  */
 int rproc_elf_sanity_check(struct rproc *rproc, const struct firmware *fw)
 {
@@ -117,11 +119,11 @@ EXPORT_SYMBOL(rproc_elf_sanity_check);
  * @rproc: the remote processor handle
  * @fw: the ELF firmware image
  *
- * This function returns the entry point address of the ELF
- * image.
- *
  * Note that the boot address is not a configurable property of all remote
  * processors. Some will always boot at a specific hard-coded address.
+ *
+ * Return: entry point address of the ELF image
+ *
  */
 u64 rproc_elf_get_boot_addr(struct rproc *rproc, const struct firmware *fw)
 {
@@ -152,6 +154,8 @@ EXPORT_SYMBOL(rproc_elf_get_boot_addr);
  * might be different: they might not have iommus, and would prefer to
  * directly allocate memory for every segment/resource. This is not yet
  * supported, though.
+ *
+ * Return: 0 on success and an appropriate error code otherwise
  */
 int rproc_elf_load_segments(struct rproc *rproc, const struct firmware *fw)
 {
@@ -174,6 +178,7 @@ int rproc_elf_load_segments(struct rproc *rproc, const struct firmware *fw)
 		u64 filesz = elf_phdr_get_p_filesz(class, phdr);
 		u64 offset = elf_phdr_get_p_offset(class, phdr);
 		u32 type = elf_phdr_get_p_type(class, phdr);
+		bool is_iomem = false;
 		void *ptr;
 
 		if (type != PT_LOAD)
@@ -204,7 +209,7 @@ int rproc_elf_load_segments(struct rproc *rproc, const struct firmware *fw)
 		}
 
 		/* grab the kernel address for this device address */
-		ptr = rproc_da_to_va(rproc, da, memsz);
+		ptr = rproc_da_to_va(rproc, da, memsz, &is_iomem);
 		if (!ptr) {
 			dev_err(dev, "bad phdr da 0x%llx mem 0x%llx\n", da,
 				memsz);
@@ -213,8 +218,12 @@ int rproc_elf_load_segments(struct rproc *rproc, const struct firmware *fw)
 		}
 
 		/* put the segment where the remote processor expects it */
-		if (filesz)
-			memcpy(ptr, elf_data + offset, filesz);
+		if (filesz) {
+			if (is_iomem)
+				memcpy_toio((void __iomem *)ptr, elf_data + offset, filesz);
+			else
+				memcpy(ptr, elf_data + offset, filesz);
+		}
 
 		/*
 		 * Zero out remaining memory for this segment.
@@ -223,8 +232,12 @@ int rproc_elf_load_segments(struct rproc *rproc, const struct firmware *fw)
 		 * did this for us. albeit harmless, we may consider removing
 		 * this.
 		 */
-		if (memsz > filesz)
-			memset(ptr + filesz, 0, memsz - filesz);
+		if (memsz > filesz) {
+			if (is_iomem)
+				memset_io((void __iomem *)(ptr + filesz), 0, memsz - filesz);
+			else
+				memset(ptr + filesz, 0, memsz - filesz);
+		}
 	}
 
 	return ret;
@@ -353,7 +366,7 @@ EXPORT_SYMBOL(rproc_elf_load_rsc_table);
  * This function finds the location of the loaded resource table. Don't
  * call this function if the table wasn't loaded yet - it's a bug if you do.
  *
- * Returns the pointer to the resource table if it is found or NULL otherwise.
+ * Return: pointer to the resource table if it is found or NULL otherwise.
  * If the table wasn't loaded yet the result is unspecified.
  */
 struct resource_table *rproc_elf_find_loaded_rsc_table(struct rproc *rproc,
@@ -377,6 +390,6 @@ struct resource_table *rproc_elf_find_loaded_rsc_table(struct rproc *rproc,
 		return NULL;
 	}
 
-	return rproc_da_to_va(rproc, sh_addr, sh_size);
+	return rproc_da_to_va(rproc, sh_addr, sh_size, NULL);
 }
 EXPORT_SYMBOL(rproc_elf_find_loaded_rsc_table);

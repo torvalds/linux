@@ -68,7 +68,6 @@ int radeon_vce_init(struct radeon_device *rdev)
 	case CHIP_TAHITI:
 	case CHIP_PITCAIRN:
 	case CHIP_VERDE:
-	case CHIP_OLAND:
 	case CHIP_ARUBA:
 		fw_name = FIRMWARE_TAHITI;
 		break;
@@ -122,7 +121,7 @@ int radeon_vce_init(struct radeon_device *rdev)
 	if (sscanf(c, "%2u]", &rdev->vce.fb_version) != 1)
 		return -EINVAL;
 
-	DRM_INFO("Found VCE firmware/feedback version %hhd.%hhd.%hhd / %d!\n",
+	DRM_INFO("Found VCE firmware/feedback version %d.%d.%d / %d!\n",
 		 start, mid, end, rdev->vce.fb_version);
 
 	rdev->vce.fw_version = (start << 24) | (mid << 16) | (end << 8);
@@ -514,7 +513,7 @@ int radeon_vce_cs_reloc(struct radeon_cs_parser *p, int lo, int hi,
  * @allocated: allocated a new handle?
  *
  * Validates the handle and return the found session index or -EINVAL
- * we we don't have another free session index.
+ * we don't have another free session index.
  */
 static int radeon_vce_validate_handle(struct radeon_cs_parser *p,
 				      uint32_t handle, bool *allocated)

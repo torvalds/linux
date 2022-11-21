@@ -55,23 +55,27 @@ struct lynx_accel {
 	volatile unsigned char __iomem *dpPortBase;
 
 	/* function pointers */
-	void (*de_init)(struct lynx_accel *);
+	void (*de_init)(struct lynx_accel *accel);
 
 	int (*de_wait)(void);/* see if hardware ready to work */
 
-	int (*de_fillrect)(struct lynx_accel *,
-			   u32, u32, u32, u32,
-			   u32, u32, u32, u32, u32);
+	int (*de_fillrect)(struct lynx_accel *accel,
+			   u32 base, u32 pitch, u32 bpp,
+			   u32 x, u32 y, u32 width, u32 height,
+			   u32 color, u32 rop);
 
-	int (*de_copyarea)(struct lynx_accel *,
-			   u32, u32, u32, u32,
-			   u32, u32, u32, u32,
-			   u32, u32, u32, u32);
+	int (*de_copyarea)(struct lynx_accel *accel,
+			   u32 s_base, u32 s_pitch,
+			   u32 sx, u32 sy,
+			   u32 d_base, u32 d_pitch,
+			   u32 bpp, u32 dx, u32 dy,
+			   u32 width, u32 height,
+			   u32 rop2);
 
-	int (*de_imageblit)(struct lynx_accel *, const char *,
-			    u32, u32, u32, u32,
-			    u32, u32, u32, u32,
-			    u32, u32, u32, u32);
+	int (*de_imageblit)(struct lynx_accel *accel, const char *p_srcbuf,
+			    u32 src_delta, u32 start_bit, u32 d_base, u32 d_pitch,
+			    u32 byte_per_pixel, u32 dx, u32 dy, u32 width,
+			    u32 height, u32 f_color, u32 b_color, u32 rop2);
 
 };
 
@@ -118,8 +122,8 @@ struct lynx_cursor {
 	int h;
 	int size;
 	/* hardware limitation */
-	int maxW;
-	int maxH;
+	int max_w;
+	int max_h;
 	/* base virtual address and offset  of cursor image */
 	char __iomem *vstart;
 	int offset;
@@ -128,10 +132,10 @@ struct lynx_cursor {
 };
 
 struct lynxfb_crtc {
-	unsigned char __iomem *vCursor; /* virtual address of cursor */
-	unsigned char __iomem *vScreen; /* virtual address of on_screen */
-	int oCursor; /* cursor address offset in vidmem */
-	int oScreen; /* onscreen address offset in vidmem */
+	unsigned char __iomem *v_cursor; /* virtual address of cursor */
+	unsigned char __iomem *v_screen; /* virtual address of on_screen */
+	int o_cursor; /* cursor address offset in vidmem */
+	int o_screen; /* onscreen address offset in vidmem */
 	int channel;/* which channel this crtc stands for*/
 	resource_size_t vidmem_size;/* this view's video memory max size */
 

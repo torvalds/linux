@@ -6,6 +6,8 @@
  * Author: Catalin Marinas <catalin.marinas@arm.com>
  */
 
+#include <asm/assembler.h>
+
 .macro fpsimd_save state, tmpnr
 	stp	q0, q1, [\state, #16 * 0]
 	stp	q2, q3, [\state, #16 * 2]
@@ -92,6 +94,7 @@
 .endm
 
 /* SVE instruction encodings for non-SVE-capable assemblers */
+/* (pre binutils 2.28, all kernel capable clang versions support SVE) */
 
 /* STR (vector): STR Z\nz, [X\nxbase, #\offset, MUL VL] */
 .macro _sve_str_v nz, nxbase, offset=0
@@ -211,30 +214,39 @@
 	mov	v\nz\().16b, v\nz\().16b
 .endm
 
-.macro sve_flush
+.macro sve_flush_z
  _for n, 0, 31, _sve_flush_z	\n
+.endm
+.macro sve_flush_p
  _for n, 0, 15, _sve_pfalse	\n
+.endm
+.macro sve_flush_ffr
 		_sve_wrffr	0
 .endm
 
-.macro sve_save nxbase, xpfpsr, nxtmp
+.macro sve_save nxbase, xpfpsr, save_ffr, nxtmp
  _for n, 0, 31,	_sve_str_v	\n, \nxbase, \n - 34
  _for n, 0, 15,	_sve_str_p	\n, \nxbase, \n - 16
+		cbz		\save_ffr, 921f
 		_sve_rdffr	0
 		_sve_str_p	0, \nxbase
 		_sve_ldr_p	0, \nxbase, -16
-
+		b		922f
+921:
+		str		xzr, [x\nxbase]		// Zero out FFR
+922:
 		mrs		x\nxtmp, fpsr
 		str		w\nxtmp, [\xpfpsr]
 		mrs		x\nxtmp, fpcr
 		str		w\nxtmp, [\xpfpsr, #4]
 .endm
 
-.macro sve_load nxbase, xpfpsr, xvqminus1, nxtmp, xtmp2
-		sve_load_vq	\xvqminus1, x\nxtmp, \xtmp2
+.macro sve_load nxbase, xpfpsr, restore_ffr, nxtmp
  _for n, 0, 31,	_sve_ldr_v	\n, \nxbase, \n - 34
+		cbz		\restore_ffr, 921f
 		_sve_ldr_p	0, \nxbase
 		_sve_wrffr	0
+921:
  _for n, 0, 15,	_sve_ldr_p	\n, \nxbase, \n - 16
 
 		ldr		w\nxtmp, [\xpfpsr]

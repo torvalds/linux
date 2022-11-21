@@ -25,6 +25,11 @@
 		i2c2 = &i2c3;
 		i2c3 = &i2c4;
 		i2c4 = &i2c5;
+		mmc0 = &mmc1;
+		mmc1 = &mmc2;
+		mmc2 = &mmc3;
+		mmc3 = &mmc4;
+		mmc4 = &mmc5;
 		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
@@ -101,6 +106,15 @@
 			     <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	/*
+	 * Needed early by omap4_sram_init() for barrier, do not move to l3
+	 * interconnect as simple-pm-bus probes at module_init() time.
+	 */
+	ocmcram: sram@40300000 {
+		compatible = "mmio-sram";
+		reg = <0 0x40300000 0 0x20000>; /* 128k */
+	};
+
 	gic: interrupt-controller@48211000 {
 		compatible = "arm,cortex-a15-gic";
 		interrupt-controller;
@@ -121,19 +135,6 @@
 	};
 
 	/*
-	 * The soc node represents the soc top level view. It is used for IPs
-	 * that are not memory mapped in the MPU view or for the MPU itself.
-	 */
-	soc {
-		compatible = "ti,omap-infra";
-		mpu {
-			compatible = "ti,omap4-mpu";
-			ti,hwmods = "mpu";
-			sram = <&ocmcram>;
-		};
-	};
-
-	/*
 	 * XXX: Use a flat representation of the OMAP3 interconnect.
 	 * The real OMAP interconnect network is quite complex.
 	 * Since it will not bring real advantage to represent that in DT for
@@ -141,17 +142,24 @@
 	 * hierarchy.
 	 */
 	ocp {
-		compatible = "ti,omap5-l3-noc", "simple-bus";
+		compatible = "simple-pm-bus";
+		power-domains = <&prm_core>;
+		clocks = <&l3main1_clkctrl OMAP5_L3_MAIN_1_CLKCTRL 0>,
+			 <&l3main2_clkctrl OMAP5_L3_MAIN_2_CLKCTRL 0>,
+			 <&l3instr_clkctrl OMAP5_L3_MAIN_3_CLKCTRL 0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0 0 0xc0000000>;
 		dma-ranges = <0x80000000 0x0 0x80000000 0x80000000>;
-		ti,hwmods = "l3_main_1", "l3_main_2", "l3_main_3";
-		reg = <0 0x44000000 0 0x2000>,
-		      <0 0x44800000 0 0x3000>,
-		      <0 0x45000000 0 0x4000>;
-		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+
+		l3-noc@44000000 {
+			compatible = "ti,omap5-l3-noc";
+			reg = <0x44000000 0x2000>,
+			      <0x44800000 0x3000>,
+			      <0x45000000 0x4000>;
+			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		};
 
 		l4_wkup: interconnect@4ae00000 {
 		};
@@ -162,31 +170,58 @@
 		l4_per: interconnect@48000000 {
 		};
 
+		target-module@48210000 {
+			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			power-domains = <&prm_mpu>;
+			clocks = <&mpu_clkctrl OMAP5_MPU_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x48210000 0x1f0000>;
+
+			mpu {
+				compatible = "ti,omap4-mpu";
+				sram = <&ocmcram>;
+			};
+		};
+
 		l4_abe: interconnect@40100000 {
 		};
 
-		ocmcram: sram@40300000 {
-			compatible = "mmio-sram";
-			reg = <0x40300000 0x20000>; /* 128k */
-		};
-
-		gpmc: gpmc@50000000 {
-			compatible = "ti,omap4430-gpmc";
-			reg = <0x50000000 0x1000>;
-			#address-cells = <2>;
-			#size-cells = <1>;
-			interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&sdma 4>;
-			dma-names = "rxtx";
-			gpmc,num-cs = <8>;
-			gpmc,num-waitpins = <4>;
-			ti,hwmods = "gpmc";
-			clocks = <&l3_iclk_div>;
+		target-module@50000000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x50000000 4>,
+			      <0x50000010 4>,
+			      <0x50000014 4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			ti,no-idle-on-init;
+			clocks = <&l3main2_clkctrl OMAP5_L3_MAIN_2_GPMC_CLKCTRL 0>;
 			clock-names = "fck";
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			gpio-controller;
-			#gpio-cells = <2>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x50000000 0x50000000 0x00001000>, /* regs */
+				 <0x00000000 0x00000000 0x40000000>; /* data */
+
+			gpmc: gpmc@50000000 {
+				compatible = "ti,omap4430-gpmc";
+				reg = <0x50000000 0x1000>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&sdma 4>;
+				dma-names = "rxtx";
+				gpmc,num-cs = <8>;
+				gpmc,num-waitpins = <4>;
+				clock-names = "fck";
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
 		};
 
 		target-module@55082000 {
@@ -241,35 +276,67 @@
 			status = "disabled";
 		};
 
-		dmm@4e000000 {
-			compatible = "ti,omap5-dmm";
-			reg = <0x4e000000 0x800>;
-			interrupts = <0 113 0x4>;
-			ti,hwmods = "dmm";
+		target-module@4e000000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x4e000000 0x4>,
+			      <0x4e000010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ranges = <0x0 0x4e000000 0x2000000>;
+			#size-cells = <1>;
+			#address-cells = <1>;
+
+			dmm@0 {
+				compatible = "ti,omap5-dmm";
+				reg = <0 0x800>;
+				interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
-		emif1: emif@4c000000 {
-			compatible	= "ti,emif-4d5";
-			ti,hwmods	= "emif1";
-			ti,no-idle-on-init;
-			phy-type	= <2>; /* DDR PHY type: Intelli PHY */
-			reg = <0x4c000000 0x400>;
-			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
-			hw-caps-read-idle-ctrl;
-			hw-caps-ll-interface;
-			hw-caps-temp-alert;
+		target-module@4c000000 {
+			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			reg = <0x4c000000 0x4>;
+			reg-names = "rev";
+			clocks = <&emif_clkctrl OMAP5_EMIF1_CLKCTRL 0>;
+			clock-names = "fck";
+			ti,no-idle;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4c000000 0x1000000>;
+
+			emif1: emif@0 {
+				compatible = "ti,emif-4d5";
+				reg = <0 0x400>;
+				interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+				phy-type = <2>; /* DDR PHY type: Intelli PHY */
+				hw-caps-read-idle-ctrl;
+				hw-caps-ll-interface;
+				hw-caps-temp-alert;
+			};
 		};
 
-		emif2: emif@4d000000 {
-			compatible	= "ti,emif-4d5";
-			ti,hwmods	= "emif2";
-			ti,no-idle-on-init;
-			phy-type	= <2>; /* DDR PHY type: Intelli PHY */
-			reg = <0x4d000000 0x400>;
-			interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
-			hw-caps-read-idle-ctrl;
-			hw-caps-ll-interface;
-			hw-caps-temp-alert;
+		target-module@4d000000 {
+			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			reg = <0x4d000000 0x4>;
+			reg-names = "rev";
+			clocks = <&emif_clkctrl OMAP5_EMIF2_CLKCTRL 0>;
+			clock-names = "fck";
+			ti,no-idle;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4d000000 0x1000000>;
+
+			emif2: emif@0 {
+				compatible = "ti,emif-4d5";
+				reg = <0 0x400>;
+				interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+				phy-type = <2>; /* DDR PHY type: Intelli PHY */
+				hw-caps-read-idle-ctrl;
+				hw-caps-ll-interface;
+				hw-caps-temp-alert;
+			};
 		};
 
 		aes1_target: target-module@4b501000 {
@@ -369,18 +436,6 @@
 			#thermal-sensor-cells = <1>;
 		};
 
-		/* OCP2SCP3 */
-		sata: sata@4a141100 {
-			compatible = "snps,dwc-ahci";
-			reg = <0x4a140000 0x1100>, <0x4a141100 0x7>;
-			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
-			phys = <&sata_phy>;
-			phy-names = "sata-phy";
-			clocks = <&l3init_clkctrl OMAP5_SATA_CLKCTRL 8>;
-			ti,hwmods = "sata";
-			ports-implemented = <0x1>;
-		};
-
 		target-module@56000000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
 			reg = <0x5600fe00 0x4>,
@@ -410,6 +465,7 @@
 			      <0x58000014 4>;
 			reg-names = "rev", "syss";
 			ti,syss-mask = <1>;
+			power-domains = <&prm_dss>;
 			clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 0>,
 				 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 9>,
 				 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>,
@@ -517,6 +573,9 @@
 						clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>,
 							 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>;
 						clock-names = "fck", "sys_clk";
+
+						#address-cells = <1>;
+						#size-cells = <0>;
 					};
 				};
 
@@ -549,6 +608,9 @@
 						clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>,
 							 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>;
 						clock-names = "fck", "sys_clk";
+
+						#address-cells = <1>;
+						#size-cells = <0>;
 					};
 				};
 
@@ -670,10 +732,17 @@
 #include "omap54xx-clocks.dtsi"
 
 &prm {
+	prm_mpu: prm@300 {
+		compatible = "ti,omap5-prm-inst", "ti,omap-prm-inst";
+		reg = <0x300 0x100>;
+		#power-domain-cells = <0>;
+	};
+
 	prm_dsp: prm@400 {
 		compatible = "ti,omap5-prm-inst", "ti,omap-prm-inst";
 		reg = <0x400 0x100>;
 		#reset-cells = <1>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_abe: prm@500 {
@@ -682,16 +751,66 @@
 		#power-domain-cells = <0>;
 	};
 
+	prm_coreaon: prm@600 {
+		compatible = "ti,omap5-prm-inst", "ti,omap-prm-inst";
+		reg = <0x600 0x100>;
+		#power-domain-cells = <0>;
+	};
+
 	prm_core: prm@700 {
 		compatible = "ti,omap5-prm-inst", "ti,omap-prm-inst";
 		reg = <0x700 0x100>;
 		#reset-cells = <1>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_iva: prm@1200 {
 		compatible = "ti,omap5-prm-inst", "ti,omap-prm-inst";
 		reg = <0x1200 0x100>;
 		#reset-cells = <1>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_cam: prm@1300 {
+		compatible = "ti,omap5-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1300 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_dss: prm@1400 {
+		compatible = "ti,omap5-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1400 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_gpu: prm@1500 {
+		compatible = "ti,omap5-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1500 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_l3init: prm@1600 {
+		compatible = "ti,omap5-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1600 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_custefuse: prm@1700 {
+		compatible = "ti,omap5-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1700 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_wkupaon: prm@1800 {
+		compatible = "ti,omap5-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1800 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_emu: prm@1a00 {
+		compatible = "ti,omap5-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1a00 0x100>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_device: prm@1c00 {

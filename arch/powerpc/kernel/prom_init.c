@@ -14,7 +14,7 @@
 /* we cannot use FORTIFY as it brings in new symbols */
 #define __NO_FORTIFY
 
-#include <stdarg.h>
+#include <linux/stdarg.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
@@ -27,10 +27,12 @@
 #include <linux/initrd.h>
 #include <linux/bitops.h>
 #include <linux/pgtable.h>
+#include <linux/printk.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/page.h>
 #include <asm/processor.h>
+#include <asm/interrupt.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -242,13 +244,31 @@ static int __init prom_strcmp(const char *cs, const char *ct)
 	return 0;
 }
 
-static char __init *prom_strcpy(char *dest, const char *src)
+static ssize_t __init prom_strscpy_pad(char *dest, const char *src, size_t n)
 {
-	char *tmp = dest;
+	ssize_t rc;
+	size_t i;
 
-	while ((*dest++ = *src++) != '\0')
-		/* nothing */;
-	return tmp;
+	if (n == 0 || n > INT_MAX)
+		return -E2BIG;
+
+	// Copy up to n bytes
+	for (i = 0; i < n && src[i] != '\0'; i++)
+		dest[i] = src[i];
+
+	rc = i;
+
+	// If we copied all n then we have run out of space for the nul
+	if (rc == n) {
+		// Rewind by one character to ensure nul termination
+		i--;
+		rc = -E2BIG;
+	}
+
+	for (; i < n; i++)
+		dest[i] = '\0';
+
+	return rc;
 }
 
 static int __init prom_strncmp(const char *cs, const char *ct, size_t count)
@@ -355,6 +375,7 @@ static int __init prom_strtobool(const char *s, bool *res)
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}
@@ -651,7 +672,7 @@ static inline int __init prom_getproplen(phandle node, const char *pname)
 	return call_prom("getproplen", 2, 1, node, ADDR(pname));
 }
 
-static void add_string(char **str, const char *q)
+static void __init add_string(char **str, const char *q)
 {
 	char *p = *str;
 
@@ -661,7 +682,7 @@ static void add_string(char **str, const char *q)
 	*str = p;
 }
 
-static char *tohex(unsigned int x)
+static char *__init tohex(unsigned int x)
 {
 	static const char digits[] __initconst = "0123456789abcdef";
 	static char result[9] __prombss;
@@ -700,29 +721,28 @@ static int __init prom_setprop(phandle node, const char *nodename,
 }
 
 /* We can't use the standard versions because of relocation headaches. */
-#define isxdigit(c)	(('0' <= (c) && (c) <= '9') \
-			 || ('a' <= (c) && (c) <= 'f') \
-			 || ('A' <= (c) && (c) <= 'F'))
+#define prom_isxdigit(c) \
+	(('0' <= (c) && (c) <= '9') || ('a' <= (c) && (c) <= 'f') || ('A' <= (c) && (c) <= 'F'))
 
-#define isdigit(c)	('0' <= (c) && (c) <= '9')
-#define islower(c)	('a' <= (c) && (c) <= 'z')
-#define toupper(c)	(islower(c) ? ((c) - 'a' + 'A') : (c))
+#define prom_isdigit(c)	('0' <= (c) && (c) <= '9')
+#define prom_islower(c)	('a' <= (c) && (c) <= 'z')
+#define prom_toupper(c)	(prom_islower(c) ? ((c) - 'a' + 'A') : (c))
 
-static unsigned long prom_strtoul(const char *cp, const char **endp)
+static unsigned long __init prom_strtoul(const char *cp, const char **endp)
 {
 	unsigned long result = 0, base = 10, value;
 
 	if (*cp == '0') {
 		base = 8;
 		cp++;
-		if (toupper(*cp) == 'X') {
+		if (prom_toupper(*cp) == 'X') {
 			cp++;
 			base = 16;
 		}
 	}
 
-	while (isxdigit(*cp) &&
-	       (value = isdigit(*cp) ? *cp - '0' : toupper(*cp) - 'A' + 10) < base) {
+	while (prom_isxdigit(*cp) &&
+	       (value = prom_isdigit(*cp) ? *cp - '0' : prom_toupper(*cp) - 'A' + 10) < base) {
 		result = result * base + value;
 		cp++;
 	}
@@ -733,7 +753,7 @@ static unsigned long prom_strtoul(const char *cp, const char **endp)
 	return result;
 }
 
-static unsigned long prom_memparse(const char *ptr, const char **retptr)
+static unsigned long __init prom_memparse(const char *ptr, const char **retptr)
 {
 	unsigned long ret = prom_strtoul(ptr, retptr);
 	int shift = 0;
@@ -926,6 +946,10 @@ struct option_vector6 {
 	u8 os_name;
 } __packed;
 
+struct option_vector7 {
+	u8 os_id[256];
+} __packed;
+
 struct ibm_arch_vec {
 	struct { u32 mask, val; } pvrs[14];
 
@@ -948,6 +972,9 @@ struct ibm_arch_vec {
 
 	u8 vec6_len;
 	struct option_vector6 vec6;
+
+	u8 vec7_len;
+	struct option_vector7 vec7;
 } __packed;
 
 static const struct ibm_arch_vec ibm_architecture_vec_template __initconst = {
@@ -1069,7 +1096,8 @@ static const struct ibm_arch_vec ibm_architecture_vec_template __initconst = {
 #else
 		0,
 #endif
-		.associativity = OV5_FEAT(OV5_TYPE1_AFFINITY) | OV5_FEAT(OV5_PRRN),
+		.associativity = OV5_FEAT(OV5_FORM1_AFFINITY) | OV5_FEAT(OV5_PRRN) |
+		OV5_FEAT(OV5_FORM2_AFFINITY),
 		.bin_opts = OV5_FEAT(OV5_RESIZE_HPT) | OV5_FEAT(OV5_HP_EVT),
 		.micro_checkpoint = 0,
 		.reserved0 = 0,
@@ -1094,6 +1122,9 @@ static const struct ibm_arch_vec ibm_architecture_vec_template __initconst = {
 		.secondary_pteg = 0,
 		.os_name = OV6_LINUX,
 	},
+
+	/* option vector 7: OS Identification */
+	.vec7_len = VECTOR_LENGTH(sizeof(struct option_vector7)),
 };
 
 static struct ibm_arch_vec __prombss ibm_architecture_vec  ____cacheline_aligned;
@@ -1322,6 +1353,8 @@ static void __init prom_check_platform_support(void)
 	memcpy(&ibm_architecture_vec, &ibm_architecture_vec_template,
 	       sizeof(ibm_architecture_vec));
 
+	prom_strscpy_pad(ibm_architecture_vec.vec7.os_id, linux_banner, 256);
+
 	if (prop_len > 1) {
 		int i;
 		u8 vec[8];
@@ -1330,14 +1363,10 @@ static void __init prom_check_platform_support(void)
 		if (prop_len > sizeof(vec))
 			prom_printf("WARNING: ibm,arch-vec-5-platform-support longer than expected (len: %d)\n",
 				    prop_len);
-		prom_getprop(prom.chosen, "ibm,arch-vec-5-platform-support",
-			     &vec, sizeof(vec));
-		for (i = 0; i < sizeof(vec); i += 2) {
-			prom_debug("%d: index = 0x%x val = 0x%x\n", i / 2
-								  , vec[i]
-								  , vec[i + 1]);
-			prom_parse_platform_support(vec[i], vec[i + 1],
-						    &supported);
+		prom_getprop(prom.chosen, "ibm,arch-vec-5-platform-support", &vec, sizeof(vec));
+		for (i = 0; i < prop_len; i += 2) {
+			prom_debug("%d: index = 0x%x val = 0x%x\n", i / 2, vec[i], vec[i + 1]);
+			prom_parse_platform_support(vec[i], vec[i + 1], &supported);
 		}
 	}
 
@@ -1757,7 +1786,7 @@ static void __init prom_close_stdin(void)
 }
 
 #ifdef CONFIG_PPC_SVM
-static int prom_rtas_hcall(uint64_t args)
+static int __init prom_rtas_hcall(uint64_t args)
 {
 	register uint64_t arg1 asm("r3") = H_RTAS;
 	register uint64_t arg2 asm("r4") = args;
@@ -1765,6 +1794,8 @@ static int prom_rtas_hcall(uint64_t args)
 	asm volatile("sc 1\n" : "=r" (arg1) :
 			"r" (arg1),
 			"r" (arg2) :);
+	srr_regs_clobbered();
+
 	return arg1;
 }
 
@@ -2705,7 +2736,7 @@ static void __init flatten_device_tree(void)
 
 	/* Add "phandle" in there, we'll need it */
 	namep = make_room(&mem_start, &mem_end, 16, 1);
-	prom_strcpy(namep, "phandle");
+	prom_strscpy_pad(namep, "phandle", sizeof("phandle"));
 	mem_start = (unsigned long)namep + prom_strlen(namep) + 1;
 
 	/* Build string array */
@@ -2960,7 +2991,7 @@ static void __init fixup_device_tree_efika_add_phy(void)
 
 	/* Check if the phy-handle property exists - bail if it does */
 	rv = prom_getprop(node, "phy-handle", prop, sizeof(prop));
-	if (!rv)
+	if (rv <= 0)
 		return;
 
 	/*
@@ -2986,7 +3017,7 @@ static void __init fixup_device_tree_efika_add_phy(void)
 				" 0x3 encode-int encode+"
 				" s\" interrupts\" property"
 			" finish-device");
-	};
+	}
 
 	/* Check for a PHY device node - if missing then create one and
 	 * give it's phandle to the ethernet node */
@@ -3213,59 +3244,11 @@ static void __init prom_check_initrd(unsigned long r3, unsigned long r4)
 #endif /* CONFIG_BLK_DEV_INITRD */
 }
 
-#ifdef CONFIG_PPC64
-#ifdef CONFIG_RELOCATABLE
-static void reloc_toc(void)
-{
-}
-
-static void unreloc_toc(void)
-{
-}
-#else
-static void __reloc_toc(unsigned long offset, unsigned long nr_entries)
-{
-	unsigned long i;
-	unsigned long *toc_entry;
-
-	/* Get the start of the TOC by using r2 directly. */
-	asm volatile("addi %0,2,-0x8000" : "=b" (toc_entry));
-
-	for (i = 0; i < nr_entries; i++) {
-		*toc_entry = *toc_entry + offset;
-		toc_entry++;
-	}
-}
-
-static void reloc_toc(void)
-{
-	unsigned long offset = reloc_offset();
-	unsigned long nr_entries =
-		(__prom_init_toc_end - __prom_init_toc_start) / sizeof(long);
-
-	__reloc_toc(offset, nr_entries);
-
-	mb();
-}
-
-static void unreloc_toc(void)
-{
-	unsigned long offset = reloc_offset();
-	unsigned long nr_entries =
-		(__prom_init_toc_end - __prom_init_toc_start) / sizeof(long);
-
-	mb();
-
-	__reloc_toc(-offset, nr_entries);
-}
-#endif
-#endif
-
 #ifdef CONFIG_PPC_SVM
 /*
  * Perform the Enter Secure Mode ultracall.
  */
-static int enter_secure_mode(unsigned long kbase, unsigned long fdt)
+static int __init enter_secure_mode(unsigned long kbase, unsigned long fdt)
 {
 	register unsigned long r3 asm("r3") = UV_ESM;
 	register unsigned long r4 asm("r4") = kbase;
@@ -3294,14 +3277,12 @@ static void __init setup_secure_guest(unsigned long kbase, unsigned long fdt)
 	 * relocated it so the check will fail. Restore the original image by
 	 * relocating it back to the kernel virtual base address.
 	 */
-	if (IS_ENABLED(CONFIG_RELOCATABLE))
-		relocate(KERNELBASE);
+	relocate(KERNELBASE);
 
 	ret = enter_secure_mode(kbase, fdt);
 
 	/* Relocate the kernel again. */
-	if (IS_ENABLED(CONFIG_RELOCATABLE))
-		relocate(kbase);
+	relocate(kbase);
 
 	if (ret != U_SUCCESS) {
 		prom_printf("Returned %d from switching to secure mode.\n", ret);
@@ -3329,8 +3310,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 #ifdef CONFIG_PPC32
 	unsigned long offset = reloc_offset();
 	reloc_got2(offset);
-#else
-	reloc_toc();
 #endif
 
 	/*
@@ -3507,8 +3486,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 
 #ifdef CONFIG_PPC32
 	reloc_got2(-offset);
-#else
-	unreloc_toc();
 #endif
 
 	/* Move to secure memory if we're supposed to be secure guests. */

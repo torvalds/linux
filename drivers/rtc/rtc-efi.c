@@ -261,15 +261,17 @@ static int __init efi_rtc_probe(struct platform_device *dev)
 	if (efi.get_time(&eft, &cap) != EFI_SUCCESS)
 		return -ENODEV;
 
-	rtc = devm_rtc_device_register(&dev->dev, "rtc-efi", &efi_rtc_ops,
-					THIS_MODULE);
+	rtc = devm_rtc_allocate_device(&dev->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	rtc->uie_unsupported = 1;
 	platform_set_drvdata(dev, rtc);
 
-	return 0;
+	rtc->ops = &efi_rtc_ops;
+	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->features);
+	set_bit(RTC_FEATURE_ALARM_WAKEUP_ONLY, rtc->features);
+
+	return devm_rtc_register_device(rtc);
 }
 
 static struct platform_driver efi_rtc_driver = {
@@ -280,7 +282,6 @@ static struct platform_driver efi_rtc_driver = {
 
 module_platform_driver_probe(efi_rtc_driver, efi_rtc_probe);
 
-MODULE_ALIAS("platform:rtc-efi");
 MODULE_AUTHOR("dann frazier <dannf@dannf.org>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("EFI RTC driver");

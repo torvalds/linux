@@ -26,11 +26,6 @@ config GENERIC_IRQ_SHOW_LEVEL
 config GENERIC_IRQ_EFFECTIVE_AFF_MASK
        bool
 
-# Facility to allocate a hardware interrupt. This is legacy support
-# and should not be used in new code. Use irq domains instead.
-config GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
-       bool
-
 # Support for delayed migration from interrupt context
 config GENERIC_PENDING_IRQ
 	bool
@@ -75,6 +70,11 @@ config IRQ_DOMAIN_HIERARCHY
 	bool
 	select IRQ_DOMAIN
 
+# Support for obsolete non-mapping irq domains
+config IRQ_DOMAIN_NOMAP
+	bool
+	select IRQ_DOMAIN
+
 # Support for hierarchical fasteoi+edge and fasteoi+level handlers
 config IRQ_FASTEOI_HIERARCHY_HANDLERS
 	bool
@@ -95,9 +95,6 @@ config GENERIC_MSI_IRQ_DOMAIN
 	select GENERIC_MSI_IRQ
 
 config IRQ_MSI_IOMMU
-	bool
-
-config HANDLE_DOMAIN_IRQ
 	bool
 
 config IRQ_TIMINGS
@@ -144,3 +141,10 @@ config GENERIC_IRQ_MULTI_HANDLER
 	bool
 	help
 	  Allow to specify the low level IRQ handler at run time.
+
+# Cavium Octeon is the last system to use this deprecated option
+# Do not even think of enabling this on any new platform
+config DEPRECATED_IRQ_CPU_ONOFFLINE
+	bool
+	depends on CAVIUM_OCTEON_SOC
+	default CAVIUM_OCTEON_SOC

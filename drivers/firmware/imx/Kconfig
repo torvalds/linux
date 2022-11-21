@@ -13,6 +13,7 @@ config IMX_DSP
 config IMX_SCU
 	bool "IMX SCU Protocol driver"
 	depends on IMX_MBOX
+	select SOC_BUS
 	help
 	  The System Controller Firmware (SCFW) is a low-level system function
 	  which runs on a dedicated Cortex-M core to provide power, clock, and

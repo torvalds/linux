@@ -18,7 +18,7 @@
 #else
 #define THREAD_SIZE_ORDER 2
 #endif
-#define BOOT_STACK_ORDER  2
+#define BOOT_STACK_SIZE (PAGE_SIZE << 2)
 #define THREAD_SIZE (PAGE_SIZE << THREAD_SIZE_ORDER)
 
 #ifndef __ASSEMBLY__
@@ -36,6 +36,8 @@
  */
 struct thread_info {
 	unsigned long		flags;		/* low level flags */
+	unsigned long		syscall_work;	/* SYSCALL_WORK_ flags */
+	unsigned int		cpu;		/* current CPU */
 };
 
 /*
@@ -45,6 +47,8 @@ struct thread_info {
 {						\
 	.flags		= 0,			\
 }
+
+struct task_struct;
 
 void arch_release_task_struct(struct task_struct *tsk);
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
@@ -65,8 +69,10 @@ void arch_setup_new_exec(void);
 #define TIF_GUARDED_STORAGE	4	/* load guarded storage control block */
 #define TIF_PATCH_PENDING	5	/* pending live patching update */
 #define TIF_PGSTE		6	/* New mm's will use 4K page tables */
+#define TIF_NOTIFY_SIGNAL	7	/* signal notifications exist */
 #define TIF_ISOLATE_BP		8	/* Run process with isolated BP */
 #define TIF_ISOLATE_BP_GUEST	9	/* Run KVM guests with isolated BP */
+#define TIF_PER_TRAP		10	/* Need to handle PER trap on exit to usermode */
 
 #define TIF_31BIT		16	/* 32bit process */
 #define TIF_MEMDIE		17	/* is terminating due to OOM killer */
@@ -82,6 +88,7 @@ void arch_setup_new_exec(void);
 #define TIF_SYSCALL_TRACEPOINT	27	/* syscall tracepoint instrumentation */
 
 #define _TIF_NOTIFY_RESUME	BIT(TIF_NOTIFY_RESUME)
+#define _TIF_NOTIFY_SIGNAL	BIT(TIF_NOTIFY_SIGNAL)
 #define _TIF_SIGPENDING		BIT(TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	BIT(TIF_NEED_RESCHED)
 #define _TIF_UPROBE		BIT(TIF_UPROBE)
@@ -89,6 +96,7 @@ void arch_setup_new_exec(void);
 #define _TIF_PATCH_PENDING	BIT(TIF_PATCH_PENDING)
 #define _TIF_ISOLATE_BP		BIT(TIF_ISOLATE_BP)
 #define _TIF_ISOLATE_BP_GUEST	BIT(TIF_ISOLATE_BP_GUEST)
+#define _TIF_PER_TRAP		BIT(TIF_PER_TRAP)
 
 #define _TIF_31BIT		BIT(TIF_31BIT)
 #define _TIF_SINGLE_STEP	BIT(TIF_SINGLE_STEP)

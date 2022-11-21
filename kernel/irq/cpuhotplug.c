@@ -166,7 +166,7 @@ void irq_migrate_all_off_this_cpu(void)
 		raw_spin_unlock(&desc->lock);
 
 		if (affinity_broken) {
-			pr_warn_ratelimited("IRQ %u: no longer affine to CPU%u\n",
+			pr_debug_ratelimited("IRQ %u: no longer affine to CPU%u\n",
 					    irq, smp_processor_id());
 		}
 	}
@@ -176,10 +176,10 @@ static bool hk_should_isolate(struct irq_data *data, unsigned int cpu)
 {
 	const struct cpumask *hk_mask;
 
-	if (!housekeeping_enabled(HK_FLAG_MANAGED_IRQ))
+	if (!housekeeping_enabled(HK_TYPE_MANAGED_IRQ))
 		return false;
 
-	hk_mask = housekeeping_cpumask(HK_FLAG_MANAGED_IRQ);
+	hk_mask = housekeeping_cpumask(HK_TYPE_MANAGED_IRQ);
 	if (cpumask_subset(irq_data_get_effective_affinity_mask(data), hk_mask))
 		return false;
 

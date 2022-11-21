@@ -147,7 +147,7 @@ static struct platform_driver clk_pwm_driver = {
 	.remove = clk_pwm_remove,
 	.driver = {
 		.name = "pwm-clock",
-		.of_match_table = of_match_ptr(clk_pwm_dt_ids),
+		.of_match_table = clk_pwm_dt_ids,
 	},
 };
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (C) 2017 Axis Communications AB
  *
  * Driver for Texas Instruments' ADC084S021 ADC chip.
@@ -65,16 +65,15 @@ static const struct iio_chan_spec adc084s021_channels[] = {
 };
 
 /**
- * Read an ADC channel and return its value.
+ * adc084s021_adc_conversion() - Read an ADC channel and return its value.
  *
  * @adc: The ADC SPI data.
  * @data: Buffer for converted data.
  */
-static int adc084s021_adc_conversion(struct adc084s021 *adc, void *data)
+static int adc084s021_adc_conversion(struct adc084s021 *adc, __be16 *data)
 {
 	int n_words = (adc->spi_trans.len >> 1) - 1; /* Discard first word */
 	int ret, i = 0;
-	u16 *p = data;
 
 	/* Do the transfer */
 	ret = spi_sync(adc->spi, &adc->message);
@@ -82,7 +81,7 @@ static int adc084s021_adc_conversion(struct adc084s021 *adc, void *data)
 		return ret;
 
 	for (; i < n_words; i++)
-		*(p + i) = adc->rx_buf[i + 1];
+		*(data + i) = adc->rx_buf[i + 1];
 
 	return ret;
 }
@@ -93,6 +92,7 @@ static int adc084s021_read_raw(struct iio_dev *indio_dev,
 {
 	struct adc084s021 *adc = iio_priv(indio_dev);
 	int ret;
+	__be16 be_val;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -107,13 +107,13 @@ static int adc084s021_read_raw(struct iio_dev *indio_dev,
 		}
 
 		adc->tx_buf[0] = channel->channel << 3;
-		ret = adc084s021_adc_conversion(adc, val);
+		ret = adc084s021_adc_conversion(adc, &be_val);
 		iio_device_release_direct_mode(indio_dev);
 		regulator_disable(adc->reg);
 		if (ret < 0)
 			return ret;
 
-		*val = be16_to_cpu(*val);
+		*val = be16_to_cpu(be_val);
 		*val = (*val >> channel->scan_type.shift) & 0xff;
 
 		return IIO_VAL_INT;
@@ -136,7 +136,7 @@ static int adc084s021_read_raw(struct iio_dev *indio_dev,
 }
 
 /**
- * Read enabled ADC channels and push data to the buffer.
+ * adc084s021_buffer_trigger_handler() - Read ADC channels and push to buffer.
  *
  * @irq: The interrupt number (not used).
  * @pollfunc: Pointer to the poll func.
@@ -210,9 +210,6 @@ static int adc084s021_probe(struct spi_device *spi)
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;
 
-	/* Connect the SPI device and the iio dev */
-	spi_set_drvdata(spi, indio_dev);
-
 	/* Initiate the Industrial I/O device */
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -251,7 +248,7 @@ static const struct of_device_id adc084s021_of_match[] = {
 MODULE_DEVICE_TABLE(of, adc084s021_of_match);
 
 static const struct spi_device_id adc084s021_id[] = {
-	{ ADC084S021_DRIVER_NAME, 0},
+	{ ADC084S021_DRIVER_NAME, 0 },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, adc084s021_id);

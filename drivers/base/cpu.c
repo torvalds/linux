@@ -175,7 +175,7 @@ static struct attribute *crash_note_cpu_attrs[] = {
 	NULL
 };
 
-static struct attribute_group crash_note_cpu_attr_group = {
+static const struct attribute_group crash_note_cpu_attr_group = {
 	.attrs = crash_note_cpu_attrs,
 };
 #endif
@@ -275,7 +275,7 @@ static ssize_t print_cpus_isolated(struct device *dev,
 		return -ENOMEM;
 
 	cpumask_andnot(isolated, cpu_possible_mask,
-		       housekeeping_cpumask(HK_FLAG_DOMAIN));
+		       housekeeping_cpumask(HK_TYPE_DOMAIN));
 	len = sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(isolated));
 
 	free_cpumask_var(isolated);
@@ -388,7 +388,7 @@ int register_cpu(struct cpu *cpu, int num)
 	return 0;
 }
 
-struct device *get_cpu_device(unsigned cpu)
+struct device *get_cpu_device(unsigned int cpu)
 {
 	if (cpu < nr_cpu_ids && cpu_possible(cpu))
 		return per_cpu(cpu_sys_devices, cpu);
@@ -409,13 +409,11 @@ __cpu_device_create(struct device *parent, void *drvdata,
 		    const char *fmt, va_list args)
 {
 	struct device *dev = NULL;
-	int retval = -ENODEV;
+	int retval = -ENOMEM;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		retval = -ENOMEM;
+	if (!dev)
 		goto error;
-	}
 
 	device_initialize(dev);
 	dev->parent = parent;
@@ -477,7 +475,7 @@ static struct attribute *cpu_root_attrs[] = {
 	NULL
 };
 
-static struct attribute_group cpu_root_attr_group = {
+static const struct attribute_group cpu_root_attr_group = {
 	.attrs = cpu_root_attrs,
 };
 
@@ -486,7 +484,7 @@ static const struct attribute_group *cpu_root_attr_groups[] = {
 	NULL,
 };
 
-bool cpu_is_hotpluggable(unsigned cpu)
+bool cpu_is_hotpluggable(unsigned int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
 	return dev && container_of(dev, struct cpu, dev)->hotpluggable;

@@ -74,7 +74,6 @@ static irqreturn_t floppy_hardint(int irq, void *dev_id)
 		int lcount;
 		char *lptr;
 
-		st = 1;
 		for (lcount = virtual_dma_count, lptr = virtual_dma_addr;
 		     lcount; lcount--, lptr++) {
 			st = inb(virtual_dma_port + FD_STATUS);

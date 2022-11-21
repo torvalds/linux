@@ -7,7 +7,6 @@
 
 #include <linux/linkage.h>
 #include <asm/frame.h>
-#include <asm/nospec-branch.h>
 
 #define CAMELLIA_TABLE_BYTE_LEN 272
 
@@ -227,7 +226,7 @@ SYM_FUNC_START_LOCAL(roundsm32_x0_x1_x2_x3_x4_x5_x6_x7_y0_y1_y2_y3_y4_y5_y6_y7_c
 	roundsm32(%ymm0, %ymm1, %ymm2, %ymm3, %ymm4, %ymm5, %ymm6, %ymm7,
 		  %ymm8, %ymm9, %ymm10, %ymm11, %ymm12, %ymm13, %ymm14, %ymm15,
 		  %rcx, (%r9));
-	ret;
+	RET;
 SYM_FUNC_END(roundsm32_x0_x1_x2_x3_x4_x5_x6_x7_y0_y1_y2_y3_y4_y5_y6_y7_cd)
 
 .align 8
@@ -235,7 +234,7 @@ SYM_FUNC_START_LOCAL(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_a
 	roundsm32(%ymm4, %ymm5, %ymm6, %ymm7, %ymm0, %ymm1, %ymm2, %ymm3,
 		  %ymm12, %ymm13, %ymm14, %ymm15, %ymm8, %ymm9, %ymm10, %ymm11,
 		  %rax, (%r9));
-	ret;
+	RET;
 SYM_FUNC_END(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
 
 /*
@@ -625,16 +624,6 @@ SYM_FUNC_END(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
 .section	.rodata.cst16, "aM", @progbits, 16
 .align 16
 
-/* For CTR-mode IV byteswap */
-.Lbswap128_mask:
-	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
-
-/* For XTS mode */
-.Lxts_gf128mul_and_shl1_mask_0:
-	.byte 0x87, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
-.Lxts_gf128mul_and_shl1_mask_1:
-	.byte 0x0e, 1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0
-
 /*
  * pre-SubByte transform
  *
@@ -825,7 +814,7 @@ SYM_FUNC_START_LOCAL(__camellia_enc_blk32)
 		    %ymm15, (key_table)(CTX, %r8, 8), (%rax), 1 * 32(%rax));
 
 	FRAME_END
-	ret;
+	RET;
 
 .align 8
 .Lenc_max32:
@@ -912,7 +901,7 @@ SYM_FUNC_START_LOCAL(__camellia_dec_blk32)
 		    %ymm15, (key_table)(CTX), (%rax), 1 * 32(%rax));
 
 	FRAME_END
-	ret;
+	RET;
 
 .align 8
 .Ldec_max32:
@@ -957,7 +946,7 @@ SYM_FUNC_START(camellia_ecb_enc_32way)
 	vzeroupper;
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(camellia_ecb_enc_32way)
 
 SYM_FUNC_START(camellia_ecb_dec_32way)
@@ -991,7 +980,7 @@ SYM_FUNC_START(camellia_ecb_dec_32way)
 	vzeroupper;
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(camellia_ecb_dec_32way)
 
 SYM_FUNC_START(camellia_cbc_dec_32way)
@@ -1001,6 +990,7 @@ SYM_FUNC_START(camellia_cbc_dec_32way)
 	 *	%rdx: src (32 blocks)
 	 */
 	FRAME_BEGIN
+	subq $(16 * 32), %rsp;
 
 	vzeroupper;
 
@@ -1013,7 +1003,6 @@ SYM_FUNC_START(camellia_cbc_dec_32way)
 		     %ymm8, %ymm9, %ymm10, %ymm11, %ymm12, %ymm13, %ymm14,
 		     %ymm15, %rdx, (key_table)(CTX, %r8, 8));
 
-	movq %rsp, %r10;
 	cmpq %rsi, %rdx;
 	je .Lcbc_dec_use_stack;
 
@@ -1026,7 +1015,6 @@ SYM_FUNC_START(camellia_cbc_dec_32way)
 	 * dst still in-use (because dst == src), so use stack for temporary
 	 * storage.
 	 */
-	subq $(16 * 32), %rsp;
 	movq %rsp, %rax;
 
 .Lcbc_dec_continue:
@@ -1036,7 +1024,6 @@ SYM_FUNC_START(camellia_cbc_dec_32way)
 	vpxor %ymm7, %ymm7, %ymm7;
 	vinserti128 $1, (%rdx), %ymm7, %ymm7;
 	vpxor (%rax), %ymm7, %ymm7;
-	movq %r10, %rsp;
 	vpxor (0 * 32 + 16)(%rdx), %ymm6, %ymm6;
 	vpxor (1 * 32 + 16)(%rdx), %ymm5, %ymm5;
 	vpxor (2 * 32 + 16)(%rdx), %ymm4, %ymm4;
@@ -1058,346 +1045,7 @@ SYM_FUNC_START(camellia_cbc_dec_32way)
 
 	vzeroupper;
 
-	FRAME_END
-	ret;
-SYM_FUNC_END(camellia_cbc_dec_32way)
-
-#define inc_le128(x, minus_one, tmp) \
-	vpcmpeqq minus_one, x, tmp; \
-	vpsubq minus_one, x, x; \
-	vpslldq $8, tmp, tmp; \
-	vpsubq tmp, x, x;
-
-#define add2_le128(x, minus_one, minus_two, tmp1, tmp2) \
-	vpcmpeqq minus_one, x, tmp1; \
-	vpcmpeqq minus_two, x, tmp2; \
-	vpsubq minus_two, x, x; \
-	vpor tmp2, tmp1, tmp1; \
-	vpslldq $8, tmp1, tmp1; \
-	vpsubq tmp1, x, x;
-
-SYM_FUNC_START(camellia_ctr_32way)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst (32 blocks)
-	 *	%rdx: src (32 blocks)
-	 *	%rcx: iv (little endian, 128bit)
-	 */
-	FRAME_BEGIN
-
-	vzeroupper;
-
-	movq %rsp, %r10;
-	cmpq %rsi, %rdx;
-	je .Lctr_use_stack;
-
-	/* dst can be used as temporary storage, src is not overwritten. */
-	movq %rsi, %rax;
-	jmp .Lctr_continue;
-
-.Lctr_use_stack:
-	subq $(16 * 32), %rsp;
-	movq %rsp, %rax;
-
-.Lctr_continue:
-	vpcmpeqd %ymm15, %ymm15, %ymm15;
-	vpsrldq $8, %ymm15, %ymm15; /* ab: -1:0 ; cd: -1:0 */
-	vpaddq %ymm15, %ymm15, %ymm12; /* ab: -2:0 ; cd: -2:0 */
-
-	/* load IV and byteswap */
-	vmovdqu (%rcx), %xmm0;
-	vmovdqa %xmm0, %xmm1;
-	inc_le128(%xmm0, %xmm15, %xmm14);
-	vbroadcasti128 .Lbswap128_mask, %ymm14;
-	vinserti128 $1, %xmm0, %ymm1, %ymm0;
-	vpshufb %ymm14, %ymm0, %ymm13;
-	vmovdqu %ymm13, 15 * 32(%rax);
-
-	/* construct IVs */
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13); /* ab:le2 ; cd:le3 */
-	vpshufb %ymm14, %ymm0, %ymm13;
-	vmovdqu %ymm13, 14 * 32(%rax);
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vpshufb %ymm14, %ymm0, %ymm13;
-	vmovdqu %ymm13, 13 * 32(%rax);
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vpshufb %ymm14, %ymm0, %ymm13;
-	vmovdqu %ymm13, 12 * 32(%rax);
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vpshufb %ymm14, %ymm0, %ymm13;
-	vmovdqu %ymm13, 11 * 32(%rax);
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vpshufb %ymm14, %ymm0, %ymm10;
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vpshufb %ymm14, %ymm0, %ymm9;
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vpshufb %ymm14, %ymm0, %ymm8;
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vpshufb %ymm14, %ymm0, %ymm7;
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vpshufb %ymm14, %ymm0, %ymm6;
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vpshufb %ymm14, %ymm0, %ymm5;
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vpshufb %ymm14, %ymm0, %ymm4;
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vpshufb %ymm14, %ymm0, %ymm3;
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vpshufb %ymm14, %ymm0, %ymm2;
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vpshufb %ymm14, %ymm0, %ymm1;
-	add2_le128(%ymm0, %ymm15, %ymm12, %ymm11, %ymm13);
-	vextracti128 $1, %ymm0, %xmm13;
-	vpshufb %ymm14, %ymm0, %ymm0;
-	inc_le128(%xmm13, %xmm15, %xmm14);
-	vmovdqu %xmm13, (%rcx);
-
-	/* inpack32_pre: */
-	vpbroadcastq (key_table)(CTX), %ymm15;
-	vpshufb .Lpack_bswap, %ymm15, %ymm15;
-	vpxor %ymm0, %ymm15, %ymm0;
-	vpxor %ymm1, %ymm15, %ymm1;
-	vpxor %ymm2, %ymm15, %ymm2;
-	vpxor %ymm3, %ymm15, %ymm3;
-	vpxor %ymm4, %ymm15, %ymm4;
-	vpxor %ymm5, %ymm15, %ymm5;
-	vpxor %ymm6, %ymm15, %ymm6;
-	vpxor %ymm7, %ymm15, %ymm7;
-	vpxor %ymm8, %ymm15, %ymm8;
-	vpxor %ymm9, %ymm15, %ymm9;
-	vpxor %ymm10, %ymm15, %ymm10;
-	vpxor 11 * 32(%rax), %ymm15, %ymm11;
-	vpxor 12 * 32(%rax), %ymm15, %ymm12;
-	vpxor 13 * 32(%rax), %ymm15, %ymm13;
-	vpxor 14 * 32(%rax), %ymm15, %ymm14;
-	vpxor 15 * 32(%rax), %ymm15, %ymm15;
-
-	call __camellia_enc_blk32;
-
-	movq %r10, %rsp;
-
-	vpxor 0 * 32(%rdx), %ymm7, %ymm7;
-	vpxor 1 * 32(%rdx), %ymm6, %ymm6;
-	vpxor 2 * 32(%rdx), %ymm5, %ymm5;
-	vpxor 3 * 32(%rdx), %ymm4, %ymm4;
-	vpxor 4 * 32(%rdx), %ymm3, %ymm3;
-	vpxor 5 * 32(%rdx), %ymm2, %ymm2;
-	vpxor 6 * 32(%rdx), %ymm1, %ymm1;
-	vpxor 7 * 32(%rdx), %ymm0, %ymm0;
-	vpxor 8 * 32(%rdx), %ymm15, %ymm15;
-	vpxor 9 * 32(%rdx), %ymm14, %ymm14;
-	vpxor 10 * 32(%rdx), %ymm13, %ymm13;
-	vpxor 11 * 32(%rdx), %ymm12, %ymm12;
-	vpxor 12 * 32(%rdx), %ymm11, %ymm11;
-	vpxor 13 * 32(%rdx), %ymm10, %ymm10;
-	vpxor 14 * 32(%rdx), %ymm9, %ymm9;
-	vpxor 15 * 32(%rdx), %ymm8, %ymm8;
-	write_output(%ymm7, %ymm6, %ymm5, %ymm4, %ymm3, %ymm2, %ymm1, %ymm0,
-		     %ymm15, %ymm14, %ymm13, %ymm12, %ymm11, %ymm10, %ymm9,
-		     %ymm8, %rsi);
-
-	vzeroupper;
-
-	FRAME_END
-	ret;
-SYM_FUNC_END(camellia_ctr_32way)
-
-#define gf128mul_x_ble(iv, mask, tmp) \
-	vpsrad $31, iv, tmp; \
-	vpaddq iv, iv, iv; \
-	vpshufd $0x13, tmp, tmp; \
-	vpand mask, tmp, tmp; \
-	vpxor tmp, iv, iv;
-
-#define gf128mul_x2_ble(iv, mask1, mask2, tmp0, tmp1) \
-	vpsrad $31, iv, tmp0; \
-	vpaddq iv, iv, tmp1; \
-	vpsllq $2, iv, iv; \
-	vpshufd $0x13, tmp0, tmp0; \
-	vpsrad $31, tmp1, tmp1; \
-	vpand mask2, tmp0, tmp0; \
-	vpshufd $0x13, tmp1, tmp1; \
-	vpxor tmp0, iv, iv; \
-	vpand mask1, tmp1, tmp1; \
-	vpxor tmp1, iv, iv;
-
-.align 8
-SYM_FUNC_START_LOCAL(camellia_xts_crypt_32way)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst (32 blocks)
-	 *	%rdx: src (32 blocks)
-	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
-	 *	%r8: index for input whitening key
-	 *	%r9: pointer to  __camellia_enc_blk32 or __camellia_dec_blk32
-	 */
-	FRAME_BEGIN
-
-	vzeroupper;
-
-	subq $(16 * 32), %rsp;
-	movq %rsp, %rax;
-
-	vbroadcasti128 .Lxts_gf128mul_and_shl1_mask_0, %ymm12;
-
-	/* load IV and construct second IV */
-	vmovdqu (%rcx), %xmm0;
-	vmovdqa %xmm0, %xmm15;
-	gf128mul_x_ble(%xmm0, %xmm12, %xmm13);
-	vbroadcasti128 .Lxts_gf128mul_and_shl1_mask_1, %ymm13;
-	vinserti128 $1, %xmm0, %ymm15, %ymm0;
-	vpxor 0 * 32(%rdx), %ymm0, %ymm15;
-	vmovdqu %ymm15, 15 * 32(%rax);
-	vmovdqu %ymm0, 0 * 32(%rsi);
-
-	/* construct IVs */
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 1 * 32(%rdx), %ymm0, %ymm15;
-	vmovdqu %ymm15, 14 * 32(%rax);
-	vmovdqu %ymm0, 1 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 2 * 32(%rdx), %ymm0, %ymm15;
-	vmovdqu %ymm15, 13 * 32(%rax);
-	vmovdqu %ymm0, 2 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 3 * 32(%rdx), %ymm0, %ymm15;
-	vmovdqu %ymm15, 12 * 32(%rax);
-	vmovdqu %ymm0, 3 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 4 * 32(%rdx), %ymm0, %ymm11;
-	vmovdqu %ymm0, 4 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 5 * 32(%rdx), %ymm0, %ymm10;
-	vmovdqu %ymm0, 5 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 6 * 32(%rdx), %ymm0, %ymm9;
-	vmovdqu %ymm0, 6 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 7 * 32(%rdx), %ymm0, %ymm8;
-	vmovdqu %ymm0, 7 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 8 * 32(%rdx), %ymm0, %ymm7;
-	vmovdqu %ymm0, 8 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 9 * 32(%rdx), %ymm0, %ymm6;
-	vmovdqu %ymm0, 9 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 10 * 32(%rdx), %ymm0, %ymm5;
-	vmovdqu %ymm0, 10 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 11 * 32(%rdx), %ymm0, %ymm4;
-	vmovdqu %ymm0, 11 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 12 * 32(%rdx), %ymm0, %ymm3;
-	vmovdqu %ymm0, 12 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 13 * 32(%rdx), %ymm0, %ymm2;
-	vmovdqu %ymm0, 13 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 14 * 32(%rdx), %ymm0, %ymm1;
-	vmovdqu %ymm0, 14 * 32(%rsi);
-
-	gf128mul_x2_ble(%ymm0, %ymm12, %ymm13, %ymm14, %ymm15);
-	vpxor 15 * 32(%rdx), %ymm0, %ymm15;
-	vmovdqu %ymm15, 0 * 32(%rax);
-	vmovdqu %ymm0, 15 * 32(%rsi);
-
-	vextracti128 $1, %ymm0, %xmm0;
-	gf128mul_x_ble(%xmm0, %xmm12, %xmm15);
-	vmovdqu %xmm0, (%rcx);
-
-	/* inpack32_pre: */
-	vpbroadcastq (key_table)(CTX, %r8, 8), %ymm15;
-	vpshufb .Lpack_bswap, %ymm15, %ymm15;
-	vpxor 0 * 32(%rax), %ymm15, %ymm0;
-	vpxor %ymm1, %ymm15, %ymm1;
-	vpxor %ymm2, %ymm15, %ymm2;
-	vpxor %ymm3, %ymm15, %ymm3;
-	vpxor %ymm4, %ymm15, %ymm4;
-	vpxor %ymm5, %ymm15, %ymm5;
-	vpxor %ymm6, %ymm15, %ymm6;
-	vpxor %ymm7, %ymm15, %ymm7;
-	vpxor %ymm8, %ymm15, %ymm8;
-	vpxor %ymm9, %ymm15, %ymm9;
-	vpxor %ymm10, %ymm15, %ymm10;
-	vpxor %ymm11, %ymm15, %ymm11;
-	vpxor 12 * 32(%rax), %ymm15, %ymm12;
-	vpxor 13 * 32(%rax), %ymm15, %ymm13;
-	vpxor 14 * 32(%rax), %ymm15, %ymm14;
-	vpxor 15 * 32(%rax), %ymm15, %ymm15;
-
-	CALL_NOSPEC r9;
-
 	addq $(16 * 32), %rsp;
-
-	vpxor 0 * 32(%rsi), %ymm7, %ymm7;
-	vpxor 1 * 32(%rsi), %ymm6, %ymm6;
-	vpxor 2 * 32(%rsi), %ymm5, %ymm5;
-	vpxor 3 * 32(%rsi), %ymm4, %ymm4;
-	vpxor 4 * 32(%rsi), %ymm3, %ymm3;
-	vpxor 5 * 32(%rsi), %ymm2, %ymm2;
-	vpxor 6 * 32(%rsi), %ymm1, %ymm1;
-	vpxor 7 * 32(%rsi), %ymm0, %ymm0;
-	vpxor 8 * 32(%rsi), %ymm15, %ymm15;
-	vpxor 9 * 32(%rsi), %ymm14, %ymm14;
-	vpxor 10 * 32(%rsi), %ymm13, %ymm13;
-	vpxor 11 * 32(%rsi), %ymm12, %ymm12;
-	vpxor 12 * 32(%rsi), %ymm11, %ymm11;
-	vpxor 13 * 32(%rsi), %ymm10, %ymm10;
-	vpxor 14 * 32(%rsi), %ymm9, %ymm9;
-	vpxor 15 * 32(%rsi), %ymm8, %ymm8;
-	write_output(%ymm7, %ymm6, %ymm5, %ymm4, %ymm3, %ymm2, %ymm1, %ymm0,
-		     %ymm15, %ymm14, %ymm13, %ymm12, %ymm11, %ymm10, %ymm9,
-		     %ymm8, %rsi);
-
-	vzeroupper;
-
 	FRAME_END
-	ret;
-SYM_FUNC_END(camellia_xts_crypt_32way)
-
-SYM_FUNC_START(camellia_xts_enc_32way)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst (32 blocks)
-	 *	%rdx: src (32 blocks)
-	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
-	 */
-
-	xorl %r8d, %r8d; /* input whitening key, 0 for enc */
-
-	leaq __camellia_enc_blk32, %r9;
-
-	jmp camellia_xts_crypt_32way;
-SYM_FUNC_END(camellia_xts_enc_32way)
-
-SYM_FUNC_START(camellia_xts_dec_32way)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst (32 blocks)
-	 *	%rdx: src (32 blocks)
-	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
-	 */
-
-	cmpl $16, key_length(CTX);
-	movl $32, %r8d;
-	movl $24, %eax;
-	cmovel %eax, %r8d;  /* input whitening key, last for dec */
-
-	leaq __camellia_dec_blk32, %r9;
-
-	jmp camellia_xts_crypt_32way;
-SYM_FUNC_END(camellia_xts_dec_32way)
+	RET;
+SYM_FUNC_END(camellia_cbc_dec_32way)

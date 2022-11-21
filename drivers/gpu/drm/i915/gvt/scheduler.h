@@ -36,6 +36,11 @@
 #ifndef _GVT_SCHEDULER_H_
 #define _GVT_SCHEDULER_H_
 
+#include "gt/intel_engine_types.h"
+
+#include "execlist.h"
+#include "interrupt.h"
+
 struct intel_gvt_workload_scheduler {
 	struct intel_vgpu *current_vgpu;
 	struct intel_vgpu *next_vgpu;
@@ -51,7 +56,7 @@ struct intel_gvt_workload_scheduler {
 	wait_queue_head_t waitq[I915_NUM_ENGINES];
 
 	void *sched_data;
-	struct intel_gvt_sched_policy_ops *sched_ops;
+	const struct intel_gvt_sched_policy_ops *sched_ops;
 };
 
 #define INDIRECT_CTX_ADDR_MASK 0xffffffc0

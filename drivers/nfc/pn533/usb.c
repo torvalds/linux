@@ -354,8 +354,6 @@ static void pn533_acr122_poweron_rdr_resp(struct urb *urb)
 {
 	struct pn533_acr122_poweron_rdr_arg *arg = urb->context;
 
-	dev_dbg(&urb->dev->dev, "%s\n", __func__);
-
 	print_hex_dump_debug("ACR122 RX: ", DUMP_PREFIX_NONE, 16, 1,
 		       urb->transfer_buffer, urb->transfer_buffer_length,
 		       false);
@@ -374,8 +372,6 @@ static int pn533_acr122_poweron_rdr(struct pn533_usb_phy *phy)
 	int rc;
 	void *cntx;
 	struct pn533_acr122_poweron_rdr_arg arg;
-
-	dev_dbg(&phy->udev->dev, "%s\n", __func__);
 
 	buffer = kmemdup(cmd, sizeof(cmd), GFP_KERNEL);
 	if (!buffer)
@@ -433,7 +429,7 @@ static void pn533_send_complete(struct urb *urb)
 	}
 }
 
-static struct pn533_phy_ops usb_phy_ops = {
+static const struct pn533_phy_ops usb_phy_ops = {
 	.send_frame = pn533_usb_send_frame,
 	.send_ack = pn533_usb_send_ack,
 	.abort_cmd = pn533_usb_abort_cmd,
@@ -517,7 +513,7 @@ static int pn533_usb_probe(struct usb_interface *interface,
 	case PN533_DEVICE_ACR122U:
 		protocols = PN533_NO_TYPE_B_PROTOCOLS;
 		fops = &pn533_acr122_frame_ops;
-		protocol_type = PN533_PROTO_REQ_RESP,
+		protocol_type = PN533_PROTO_REQ_RESP;
 
 		rc = pn533_acr122_poweron_rdr(phy);
 		if (rc < 0) {

@@ -1,16 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2014, 2018 - 2020  Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014, 2018 - 2021  Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
  *****************************************************************************/
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -52,8 +47,8 @@
 
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link AGN driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IWLWIFI);
 
 /* Please keep this array *SORTED* by hex value.
  * Access is done through binary search.
@@ -406,7 +401,6 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 	u32 i;
 	u32 ptr;        /* SRAM byte address of log data */
 	u32 ev, time, data; /* event log data */
-	unsigned long reg_flags;
 
 	if (mode == 0)
 		ptr = base + (4 * sizeof(u32)) + (start_idx * 2 * sizeof(u32));
@@ -414,7 +408,7 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		ptr = base + (4 * sizeof(u32)) + (start_idx * 3 * sizeof(u32));
 
 	/* Make sure device is powered up for SRAM reads */
-	if (!iwl_trans_grab_nic_access(priv->trans, &reg_flags))
+	if (!iwl_trans_grab_nic_access(priv->trans))
 		return;
 
 	/* Set starting address; reads will auto-increment */
@@ -446,7 +440,7 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		}
 	}
 	/* Allow device to power down */
-	iwl_trans_release_nic_access(priv->trans, &reg_flags);
+	iwl_trans_release_nic_access(priv->trans);
 }
 
 static void iwl_continuous_event_trace(struct iwl_priv *priv)
@@ -1526,7 +1520,6 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 	kfree(priv->nvm_data);
 
 	/*netif_stop_queue(dev); */
-	flush_workqueue(priv->workqueue);
 
 	/* ieee80211_unregister_hw calls iwlagn_mac_stop, which flushes
 	 * priv->workqueue... so we can't take down the workqueue
@@ -1694,7 +1687,6 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	u32 event_size; /* 2 u32s, or 3 u32s if timestamp recorded */
 	u32 ptr;        /* SRAM byte address of log data */
 	u32 ev, time, data; /* event log data */
-	unsigned long reg_flags;
 
 	struct iwl_trans *trans = priv->trans;
 
@@ -1718,7 +1710,7 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	ptr = base + EVENT_START_OFFSET + (start_idx * event_size);
 
 	/* Make sure device is powered up for SRAM reads */
-	if (!iwl_trans_grab_nic_access(trans, &reg_flags))
+	if (!iwl_trans_grab_nic_access(trans))
 		return pos;
 
 	/* Set starting address; reads will auto-increment */
@@ -1757,7 +1749,7 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	}
 
 	/* Allow device to power down */
-	iwl_trans_release_nic_access(trans, &reg_flags);
+	iwl_trans_release_nic_access(trans);
 	return pos;
 }
 
@@ -1952,7 +1944,7 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	}
 }
 
-static void iwl_nic_error(struct iwl_op_mode *op_mode)
+static void iwl_nic_error(struct iwl_op_mode *op_mode, bool sync)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
@@ -1983,12 +1975,8 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 
 	/* SKU Control */
 	iwl_trans_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
-				CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
-				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP,
-				(CSR_HW_REV_STEP(priv->trans->hw_rev) <<
-					CSR_HW_IF_CONFIG_REG_POS_MAC_STEP) |
-				(CSR_HW_REV_DASH(priv->trans->hw_rev) <<
-					CSR_HW_IF_CONFIG_REG_POS_MAC_DASH));
+				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP_DASH,
+				CSR_HW_REV_STEP_DASH(priv->trans->hw_rev));
 
 	/* write radio config values to register */
 	if (priv->nvm_data->radio_cfg_type <= EEPROM_RF_CONFIG_TYPE_MAX) {

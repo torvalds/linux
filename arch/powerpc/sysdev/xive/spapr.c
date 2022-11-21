@@ -44,7 +44,7 @@ struct xive_irq_bitmap {
 
 static LIST_HEAD(xive_irq_bitmaps);
 
-static int xive_irq_bitmap_add(int base, int count)
+static int __init xive_irq_bitmap_add(int base, int count)
 {
 	struct xive_irq_bitmap *xibm;
 
@@ -65,6 +65,17 @@ static int xive_irq_bitmap_add(int base, int count)
 	pr_info("Using IRQ range [%x-%x]", xibm->base,
 		xibm->base + xibm->count - 1);
 	return 0;
+}
+
+static void xive_irq_bitmap_remove_all(void)
+{
+	struct xive_irq_bitmap *xibm, *tmp;
+
+	list_for_each_entry_safe(xibm, tmp, &xive_irq_bitmaps, list) {
+		list_del(&xibm->list);
+		kfree(xibm->bitmap);
+		kfree(xibm);
+	}
 }
 
 static int __xive_irq_bitmap_alloc(struct xive_irq_bitmap *xibm)
@@ -173,7 +184,7 @@ static long plpar_int_get_source_info(unsigned long flags,
 	} while (plpar_busy_delay(rc));
 
 	if (rc) {
-		pr_err("H_INT_GET_SOURCE_INFO lisn=%ld failed %ld\n", lisn, rc);
+		pr_err("H_INT_GET_SOURCE_INFO lisn=0x%lx failed %ld\n", lisn, rc);
 		return rc;
 	}
 
@@ -182,8 +193,8 @@ static long plpar_int_get_source_info(unsigned long flags,
 	*trig_page = retbuf[2];
 	*esb_shift = retbuf[3];
 
-	pr_devel("H_INT_GET_SOURCE_INFO flags=%lx eoi=%lx trig=%lx shift=%lx\n",
-		retbuf[0], retbuf[1], retbuf[2], retbuf[3]);
+	pr_debug("H_INT_GET_SOURCE_INFO lisn=0x%lx flags=0x%lx eoi=0x%lx trig=0x%lx shift=0x%lx\n",
+		 lisn, retbuf[0], retbuf[1], retbuf[2], retbuf[3]);
 
 	return 0;
 }
@@ -200,8 +211,8 @@ static long plpar_int_set_source_config(unsigned long flags,
 	long rc;
 
 
-	pr_devel("H_INT_SET_SOURCE_CONFIG flags=%lx lisn=%lx target=%lx prio=%lx sw_irq=%lx\n",
-		flags, lisn, target, prio, sw_irq);
+	pr_debug("H_INT_SET_SOURCE_CONFIG flags=0x%lx lisn=0x%lx target=%ld prio=%ld sw_irq=%ld\n",
+		 flags, lisn, target, prio, sw_irq);
 
 
 	do {
@@ -210,7 +221,7 @@ static long plpar_int_set_source_config(unsigned long flags,
 	} while (plpar_busy_delay(rc));
 
 	if (rc) {
-		pr_err("H_INT_SET_SOURCE_CONFIG lisn=%ld target=%lx prio=%lx failed %ld\n",
+		pr_err("H_INT_SET_SOURCE_CONFIG lisn=0x%lx target=%ld prio=%ld failed %ld\n",
 		       lisn, target, prio, rc);
 		return rc;
 	}
@@ -227,7 +238,7 @@ static long plpar_int_get_source_config(unsigned long flags,
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	long rc;
 
-	pr_devel("H_INT_GET_SOURCE_CONFIG flags=%lx lisn=%lx\n", flags, lisn);
+	pr_debug("H_INT_GET_SOURCE_CONFIG flags=0x%lx lisn=0x%lx\n", flags, lisn);
 
 	do {
 		rc = plpar_hcall(H_INT_GET_SOURCE_CONFIG, retbuf, flags, lisn,
@@ -235,7 +246,7 @@ static long plpar_int_get_source_config(unsigned long flags,
 	} while (plpar_busy_delay(rc));
 
 	if (rc) {
-		pr_err("H_INT_GET_SOURCE_CONFIG lisn=%ld failed %ld\n",
+		pr_err("H_INT_GET_SOURCE_CONFIG lisn=0x%lx failed %ld\n",
 		       lisn, rc);
 		return rc;
 	}
@@ -244,8 +255,8 @@ static long plpar_int_get_source_config(unsigned long flags,
 	*prio   = retbuf[1];
 	*sw_irq = retbuf[2];
 
-	pr_devel("H_INT_GET_SOURCE_CONFIG target=%lx prio=%lx sw_irq=%lx\n",
-		retbuf[0], retbuf[1], retbuf[2]);
+	pr_debug("H_INT_GET_SOURCE_CONFIG target=%ld prio=%ld sw_irq=%ld\n",
+		 retbuf[0], retbuf[1], retbuf[2]);
 
 	return 0;
 }
@@ -273,8 +284,8 @@ static long plpar_int_get_queue_info(unsigned long flags,
 	*esn_page = retbuf[0];
 	*esn_size = retbuf[1];
 
-	pr_devel("H_INT_GET_QUEUE_INFO page=%lx size=%lx\n",
-		retbuf[0], retbuf[1]);
+	pr_debug("H_INT_GET_QUEUE_INFO cpu=%ld prio=%ld page=0x%lx size=0x%lx\n",
+		 target, priority, retbuf[0], retbuf[1]);
 
 	return 0;
 }
@@ -289,8 +300,8 @@ static long plpar_int_set_queue_config(unsigned long flags,
 {
 	long rc;
 
-	pr_devel("H_INT_SET_QUEUE_CONFIG flags=%lx target=%lx priority=%lx qpage=%lx qsize=%lx\n",
-		flags,  target, priority, qpage, qsize);
+	pr_debug("H_INT_SET_QUEUE_CONFIG flags=0x%lx target=%ld priority=0x%lx qpage=0x%lx qsize=0x%lx\n",
+		 flags,  target, priority, qpage, qsize);
 
 	do {
 		rc = plpar_hcall_norets(H_INT_SET_QUEUE_CONFIG, flags, target,
@@ -298,7 +309,7 @@ static long plpar_int_set_queue_config(unsigned long flags,
 	} while (plpar_busy_delay(rc));
 
 	if (rc) {
-		pr_err("H_INT_SET_QUEUE_CONFIG cpu=%ld prio=%ld qpage=%lx returned %ld\n",
+		pr_err("H_INT_SET_QUEUE_CONFIG cpu=%ld prio=%ld qpage=0x%lx returned %ld\n",
 		       target, priority, qpage, rc);
 		return  rc;
 	}
@@ -315,7 +326,7 @@ static long plpar_int_sync(unsigned long flags, unsigned long lisn)
 	} while (plpar_busy_delay(rc));
 
 	if (rc) {
-		pr_err("H_INT_SYNC lisn=%ld returned %ld\n", lisn, rc);
+		pr_err("H_INT_SYNC lisn=0x%lx returned %ld\n", lisn, rc);
 		return  rc;
 	}
 
@@ -333,8 +344,8 @@ static long plpar_int_esb(unsigned long flags,
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	long rc;
 
-	pr_devel("H_INT_ESB flags=%lx lisn=%lx offset=%lx in=%lx\n",
-		flags,  lisn, offset, in_data);
+	pr_debug("H_INT_ESB flags=0x%lx lisn=0x%lx offset=0x%lx in=0x%lx\n",
+		 flags,  lisn, offset, in_data);
 
 	do {
 		rc = plpar_hcall(H_INT_ESB, retbuf, flags, lisn, offset,
@@ -342,7 +353,7 @@ static long plpar_int_esb(unsigned long flags,
 	} while (plpar_busy_delay(rc));
 
 	if (rc) {
-		pr_err("H_INT_ESB lisn=%ld offset=%ld returned %ld\n",
+		pr_err("H_INT_ESB lisn=0x%lx offset=0x%lx returned %ld\n",
 		       lisn, offset, rc);
 		return  rc;
 	}
@@ -549,7 +560,7 @@ static void xive_spapr_cleanup_queue(unsigned int cpu, struct xive_cpu *xc,
 static bool xive_spapr_match(struct device_node *node)
 {
 	/* Ignore cascaded controllers for the moment */
-	return 1;
+	return true;
 }
 
 #ifdef CONFIG_SMP
@@ -628,11 +639,6 @@ static void xive_spapr_update_pending(struct xive_cpu *xc)
 	}
 }
 
-static void xive_spapr_eoi(u32 hw_irq)
-{
-	/* Not used */;
-}
-
 static void xive_spapr_setup_cpu(unsigned int cpu, struct xive_cpu *xc)
 {
 	/* Only some debug on the TIMA settings */
@@ -658,6 +664,9 @@ static int xive_spapr_debug_show(struct seq_file *m, void *private)
 	struct xive_irq_bitmap *xibm;
 	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 
+	if (!buf)
+		return -ENOMEM;
+
 	list_for_each_entry(xibm, &xive_irq_bitmaps, list) {
 		memset(buf, 0, PAGE_SIZE);
 		bitmap_print_to_pagebuf(true, buf, xibm->bitmap, xibm->count);
@@ -677,7 +686,6 @@ static const struct xive_ops xive_spapr_ops = {
 	.match			= xive_spapr_match,
 	.shutdown		= xive_spapr_shutdown,
 	.update_pending		= xive_spapr_update_pending,
-	.eoi			= xive_spapr_eoi,
 	.setup_cpu		= xive_spapr_setup_cpu,
 	.teardown_cpu		= xive_spapr_teardown_cpu,
 	.sync_source		= xive_spapr_sync_source,
@@ -693,7 +701,7 @@ static const struct xive_ops xive_spapr_ops = {
 /*
  * get max priority from "/ibm,plat-res-int-priorities"
  */
-static bool xive_get_max_prio(u8 *max_prio)
+static bool __init xive_get_max_prio(u8 *max_prio)
 {
 	struct device_node *rootdn;
 	const __be32 *reg;
@@ -747,7 +755,7 @@ static bool xive_get_max_prio(u8 *max_prio)
 	return true;
 }
 
-static const u8 *get_vec5_feature(unsigned int index)
+static const u8 *__init get_vec5_feature(unsigned int index)
 {
 	unsigned long root, chosen;
 	int size;
@@ -806,7 +814,7 @@ bool __init xive_spapr_init(void)
 	u32 val;
 	u32 len;
 	const __be32 *reg;
-	int i;
+	int i, err;
 
 	if (xive_spapr_disabled())
 		return false;
@@ -831,23 +839,26 @@ bool __init xive_spapr_init(void)
 	}
 
 	if (!xive_get_max_prio(&max_prio))
-		return false;
+		goto err_unmap;
 
 	/* Feed the IRQ number allocator with the ranges given in the DT */
 	reg = of_get_property(np, "ibm,xive-lisn-ranges", &len);
 	if (!reg) {
 		pr_err("Failed to read 'ibm,xive-lisn-ranges' property\n");
-		return false;
+		goto err_unmap;
 	}
 
 	if (len % (2 * sizeof(u32)) != 0) {
 		pr_err("invalid 'ibm,xive-lisn-ranges' property\n");
-		return false;
+		goto err_unmap;
 	}
 
-	for (i = 0; i < len / (2 * sizeof(u32)); i++, reg += 2)
-		xive_irq_bitmap_add(be32_to_cpu(reg[0]),
-				    be32_to_cpu(reg[1]));
+	for (i = 0; i < len / (2 * sizeof(u32)); i++, reg += 2) {
+		err = xive_irq_bitmap_add(be32_to_cpu(reg[0]),
+					  be32_to_cpu(reg[1]));
+		if (err < 0)
+			goto err_mem_free;
+	}
 
 	/* Iterate the EQ sizes and pick one */
 	of_property_for_each_u32(np, "ibm,xive-eq-sizes", prop, reg, val) {
@@ -857,11 +868,17 @@ bool __init xive_spapr_init(void)
 	}
 
 	/* Initialize XIVE core with our backend */
-	if (!xive_core_init(&xive_spapr_ops, tima, TM_QW1_OS, max_prio))
-		return false;
+	if (!xive_core_init(np, &xive_spapr_ops, tima, TM_QW1_OS, max_prio))
+		goto err_mem_free;
 
 	pr_info("Using %dkB queues\n", 1 << (xive_queue_shift - 10));
 	return true;
+
+err_mem_free:
+	xive_irq_bitmap_remove_all();
+err_unmap:
+	iounmap(tima);
+	return false;
 }
 
 machine_arch_initcall(pseries, xive_core_debug_init);

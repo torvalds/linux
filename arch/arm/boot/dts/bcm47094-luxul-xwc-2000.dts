@@ -16,10 +16,10 @@
 		bootargs = "earlycon";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
-		reg = <0x00000000 0x08000000
-		       0x88000000 0x18000000>;
+		reg = <0x00000000 0x08000000>,
+		      <0x88000000 0x18000000>;
 	};
 
 	leds {
@@ -57,9 +57,6 @@
 	status = "okay";
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@0 {
 			reg = <0>;
 			label = "lan";

@@ -194,7 +194,7 @@ static void ls_scfg_msi_irq_handler(struct irq_desc *desc)
 	struct ls_scfg_msir *msir = irq_desc_get_handler_data(desc);
 	struct ls_scfg_msi *msi_data = msir->msi_data;
 	unsigned long val;
-	int pos, size, virq, hwirq;
+	int pos, size, hwirq;
 
 	chained_irq_enter(irq_desc_get_chip(desc), desc);
 
@@ -206,9 +206,7 @@ static void ls_scfg_msi_irq_handler(struct irq_desc *desc)
 	for_each_set_bit_from(pos, &val, size) {
 		hwirq = ((msir->bit_end - pos) << msi_data->cfg->ibs_shift) |
 			msir->srs;
-		virq = irq_find_mapping(msi_data->parent, hwirq);
-		if (virq)
-			generic_handle_irq(virq);
+		generic_handle_domain_irq(msi_data->parent, hwirq);
 	}
 
 	chained_irq_exit(irq_desc_get_chip(desc), desc);
@@ -364,10 +362,7 @@ static int ls_scfg_msi_probe(struct platform_device *pdev)
 
 	msi_data->irqs_num = MSI_IRQS_PER_MSIR *
 			     (1 << msi_data->cfg->ibs_shift);
-	msi_data->used = devm_kcalloc(&pdev->dev,
-				    BITS_TO_LONGS(msi_data->irqs_num),
-				    sizeof(*msi_data->used),
-				    GFP_KERNEL);
+	msi_data->used = devm_bitmap_zalloc(&pdev->dev, msi_data->irqs_num, GFP_KERNEL);
 	if (!msi_data->used)
 		return -ENOMEM;
 	/*

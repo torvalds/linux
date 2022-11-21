@@ -1,49 +1,32 @@
 [
     {
-        "PublicDescription": "Software increment. Instruction architecturally executed (condition code check pass).",
-        "EventCode": "0x00",
-        "EventName": "SW_INCR",
-        "BriefDescription": "Software increment."
+        "ArchStdEvent": "SW_INCR"
     },
     {
-        "PublicDescription": "Instruction architecturally executed. This event counts all retired instructions, including those that fail their condition check.",
-        "EventCode": "0x08",
-        "EventName": "INST_RETIRED",
-        "BriefDescription": "Instruction architecturally executed."
+        "PublicDescription": "This event counts all retired instructions, including those that fail their condition check.",
+        "ArchStdEvent": "INST_RETIRED"
     },
     {
-        "EventCode": "0x0A",
-        "EventName": "EXC_RETURN",
-        "BriefDescription": "Instruction architecturally executed, condition code check pass, exception return."
+        "ArchStdEvent": "EXC_RETURN"
     },
     {
-        "PublicDescription": "Instruction architecturally executed, condition code check pass, write to CONTEXTIDR. This event only counts writes to CONTEXTIDR in AArch32 state, and via the CONTEXTIDR_EL1 mnemonic in AArch64 state.",
-        "EventCode": "0x0B",
-        "EventName": "CID_WRITE_RETIRED",
-        "BriefDescription": "Instruction architecturally executed, condition code check pass, write to CONTEXTIDR."
+        "PublicDescription": "This event only counts writes to CONTEXTIDR in AArch32 state, and via the CONTEXTIDR_EL1 mnemonic in AArch64 state.",
+        "ArchStdEvent": "CID_WRITE_RETIRED"
     },
     {
-        "EventCode": "0x1B",
-        "EventName": "INST_SPEC",
-        "BriefDescription": "Operation speculatively executed"
+        "ArchStdEvent": "INST_SPEC"
     },
     {
-        "PublicDescription": "Instruction architecturally executed, condition code check pass, write to TTBR. This event only counts writes to TTBR0/TTBR1 in AArch32 state and TTBR0_EL1/TTBR1_EL1 in AArch64 state.",
-        "EventCode": "0x1C",
-        "EventName": "TTBR_WRITE_RETIRED",
-        "BriefDescription": "Instruction architecturally executed, condition code check pass, write to TTBR"
+        "PublicDescription": "This event only counts writes to TTBR0/TTBR1 in AArch32 state and TTBR0_EL1/TTBR1_EL1 in AArch64 state.",
+        "ArchStdEvent": "TTBR_WRITE_RETIRED"
     },
     {
-        "PublicDescription": "Instruction architecturally executed, branch. This event counts all branches, taken or not. This excludes exception entries, debug entries and CCFAIL branches.",
-        "EventCode": "0x21",
-        "EventName": "BR_RETIRED",
-        "BriefDescription": "Instruction architecturally executed, branch."
+        "PublicDescription": "This event counts all branches, taken or not. This excludes exception entries, debug entries and CCFAIL branches.",
+        "ArchStdEvent": "BR_RETIRED"
     },
     {
-        "PublicDescription": "Instruction architecturally executed, mispredicted branch. This event counts any branch counted by BR_RETIRED which is not correctly predicted and causes a pipeline flush.",
-        "EventCode": "0x22",
-        "EventName": "BR_MIS_PRED_RETIRED",
-        "BriefDescription": "Instruction architecturally executed, mispredicted branch."
+        "PublicDescription": "This event counts any branch counted by BR_RETIRED which is not correctly predicted and causes a pipeline flush.",
+        "ArchStdEvent": "BR_MIS_PRED_RETIRED"
     },
     {
         "ArchStdEvent": "ASE_SPEC"

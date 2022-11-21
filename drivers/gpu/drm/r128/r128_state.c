@@ -1582,6 +1582,7 @@ int r128_getparam(struct drm_device *dev, void *data, struct drm_file *file_priv
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_getparam_t *param = data;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int value;
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
@@ -1590,7 +1591,7 @@ int r128_getparam(struct drm_device *dev, void *data, struct drm_file *file_priv
 
 	switch (param->param) {
 	case R128_PARAM_IRQ_NR:
-		value = dev->pdev->irq;
+		value = pdev->irq;
 		break;
 	default:
 		return -EINVAL;

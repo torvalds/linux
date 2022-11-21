@@ -13,13 +13,16 @@ properties:
   $nodename:
     pattern: "^ethernet(@.*)?$"
 
+  label:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: Human readable label on a port of a box.
+
   local-mac-address:
     description:
       Specifies the MAC address that was assigned to the network device.
-    $ref: /schemas/types.yaml#definitions/uint8-array
-    items:
-      - minItems: 6
-        maxItems: 6
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    minItems: 6
+    maxItems: 6
 
   mac-address:
     description:
@@ -27,20 +30,19 @@ properties:
       program; should be used in cases where the MAC address assigned
       to the device by the boot program is different from the
       local-mac-address property.
-    $ref: /schemas/types.yaml#definitions/uint8-array
-    items:
-      - minItems: 6
-        maxItems: 6
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    minItems: 6
+    maxItems: 6
 
   max-frame-size:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Maximum transfer unit (IEEE defined MTU), rather than the
       maximum frame size (there\'s contradiction in the Devicetree
       Specification).
 
   max-speed:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Specifies maximum speed in Mbit/s supported by the device.
 
@@ -49,7 +51,7 @@ properties:
     description:
       Reference to an nvmem node for the MAC address
 
-  nvmem-cells-names:
+  nvmem-cell-names:
     const: mac-address
 
   phy-connection-type:
@@ -68,6 +70,8 @@ properties:
       - tbi
       - rev-mii
       - rmii
+      - rev-rmii
+      - moca
 
       # RX and TX delays are added by the MAC when required
       - rgmii
@@ -89,18 +93,27 @@ properties:
       - trgmii
       - 1000base-x
       - 2500base-x
+      - 5gbase-r
       - rxaui
       - xaui
 
       # 10GBASE-KR, XFI, SFI
       - 10gbase-kr
       - usxgmii
+      - 10gbase-r
+      - 25gbase-r
 
   phy-mode:
     $ref: "#/properties/phy-connection-type"
 
+  pcs-handle:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Specifies a reference to a node representing a PCS PHY device on a MDIO
+      bus to link with an external PHY (phy-handle) if exists.
+
   phy-handle:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Specifies a reference to a node representing a PHY device.
 
@@ -113,7 +126,7 @@ properties:
     deprecated: true
 
   rx-fifo-depth:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       The size of the controller\'s receive fifo in bytes. This is used
       for components that can have configurable receive fifo sizes,
@@ -121,25 +134,23 @@ properties:
       such as flow control thresholds.
 
   rx-internal-delay-ps:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       RGMII Receive Clock Delay defined in pico seconds.
       This is used for controllers that have configurable RX internal delays.
       If this property is present then the MAC applies the RX delay.
 
   sfp:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Specifies a reference to a node representing a SFP cage.
 
   tx-fifo-depth:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       The size of the controller\'s transmit fifo in bytes. This
       is used for components that can have configurable fifo sizes.
 
   tx-internal-delay-ps:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       RGMII Transmit Clock Delay defined in pico seconds.
       This is used for controllers that have configurable TX internal delays.
@@ -149,7 +160,7 @@ properties:
     description:
       Specifies the PHY management type. If auto is set and fixed-link
       is not specified, it uses MDIO for management.
-    $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
     default: auto
     enum:
       - auto
@@ -161,33 +172,30 @@ properties:
           type: array
         then:
           deprecated: true
-          minItems: 1
-          maxItems: 1
           items:
-            items:
-              - minimum: 0
-                maximum: 31
-                description:
-                  Emulated PHY ID, choose any but unique to the all
-                  specified fixed-links
+            - minimum: 0
+              maximum: 31
+              description:
+                Emulated PHY ID, choose any but unique to the all
+                specified fixed-links
 
-              - enum: [0, 1]
-                description:
-                  Duplex configuration. 0 for half duplex or 1 for
-                  full duplex
+            - enum: [0, 1]
+              description:
+                Duplex configuration. 0 for half duplex or 1 for
+                full duplex
 
-              - enum: [10, 100, 1000]
-                description:
-                  Link speed in Mbits/sec.
+            - enum: [10, 100, 1000, 2500, 10000]
+              description:
+                Link speed in Mbits/sec.
 
-              - enum: [0, 1]
-                description:
-                  Pause configuration. 0 for no pause, 1 for pause
+            - enum: [0, 1]
+              description:
+                Pause configuration. 0 for no pause, 1 for pause
 
-              - enum: [0, 1]
-                description:
-                  Asymmetric pause configuration. 0 for no asymmetric
-                  pause, 1 for asymmetric pause
+            - enum: [0, 1]
+              description:
+                Asymmetric pause configuration. 0 for no asymmetric
+                pause, 1 for asymmetric pause
 
 
       - if:
@@ -197,17 +205,22 @@ properties:
             speed:
               description:
                 Link speed.
-              $ref: /schemas/types.yaml#definitions/uint32
-              enum: [10, 100, 1000]
+              $ref: /schemas/types.yaml#/definitions/uint32
+              enum: [10, 100, 1000, 2500, 10000]
 
             full-duplex:
-              $ref: /schemas/types.yaml#definitions/flag
+              $ref: /schemas/types.yaml#/definitions/flag
               description:
                 Indicates that full-duplex is used. When absent, half
                 duplex is assumed.
 
-            asym-pause:
+            pause:
               $ref: /schemas/types.yaml#definitions/flag
+              description:
+                Indicates that pause should be enabled.
+
+            asym-pause:
+              $ref: /schemas/types.yaml#/definitions/flag
               description:
                 Indicates that asym_pause should be enabled.
 

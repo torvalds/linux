@@ -26,16 +26,9 @@
  */
 #define MAX_SCCB_ROOM (PAGE_SIZE - sizeof(struct sclp_buffer))
 
-static void sclp_rw_pm_event(struct sclp_register *reg,
-			     enum sclp_pm_event sclp_pm_event)
-{
-	sclp_console_pm_event(sclp_pm_event);
-}
-
 /* Event type structure for write message and write priority message */
 static struct sclp_register sclp_rw_event = {
 	.send_mask = EVTYP_MSG_MASK,
-	.pm_event_fn = sclp_rw_pm_event,
 };
 
 /*
@@ -325,10 +318,10 @@ sclp_buffer_space(struct sclp_buffer *buffer)
 /*
  * Return number of characters in buffer
  */
-int
+unsigned int
 sclp_chars_in_buffer(struct sclp_buffer *buffer)
 {
-	int count;
+	unsigned int count;
 
 	count = buffer->char_sum;
 	if (buffer->current_line != NULL)

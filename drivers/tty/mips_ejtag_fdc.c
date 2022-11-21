@@ -840,11 +840,11 @@ static int mips_ejtag_fdc_tty_write(struct tty_struct *tty,
 	return total;
 }
 
-static int mips_ejtag_fdc_tty_write_room(struct tty_struct *tty)
+static unsigned int mips_ejtag_fdc_tty_write_room(struct tty_struct *tty)
 {
 	struct mips_ejtag_fdc_tty_port *dport = tty->driver_data;
 	struct mips_ejtag_fdc_tty *priv = dport->driver;
-	int room;
+	unsigned int room;
 
 	/* Report the space in the xmit buffer */
 	spin_lock(&dport->xmit_lock);
@@ -854,10 +854,10 @@ static int mips_ejtag_fdc_tty_write_room(struct tty_struct *tty)
 	return room;
 }
 
-static int mips_ejtag_fdc_tty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int mips_ejtag_fdc_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct mips_ejtag_fdc_tty_port *dport = tty->driver_data;
-	int chars;
+	unsigned int chars;
 
 	/* Report the number of bytes in the xmit buffer */
 	spin_lock(&dport->xmit_lock);
@@ -955,19 +955,18 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 		mips_ejtag_fdc_con.tty_drv = driver;
 
 	init_waitqueue_head(&priv->waitqueue);
-	priv->thread = kthread_create(mips_ejtag_fdc_put, priv, priv->fdc_name);
-	if (IS_ERR(priv->thread)) {
-		ret = PTR_ERR(priv->thread);
-		dev_err(priv->dev, "Couldn't create kthread (%d)\n", ret);
-		goto err_destroy_ports;
-	}
 	/*
 	 * Bind the writer thread to the right CPU so it can't migrate.
 	 * The channels are per-CPU and we want all channel I/O to be on a
 	 * single predictable CPU.
 	 */
-	kthread_bind(priv->thread, dev->cpu);
-	wake_up_process(priv->thread);
+	priv->thread = kthread_run_on_cpu(mips_ejtag_fdc_put, priv,
+					  dev->cpu, "ttyFDC/%u");
+	if (IS_ERR(priv->thread)) {
+		ret = PTR_ERR(priv->thread);
+		dev_err(priv->dev, "Couldn't create kthread (%d)\n", ret);
+		goto err_destroy_ports;
+	}
 
 	/* Look for an FDC IRQ */
 	priv->irq = get_c0_fdc_int();
@@ -1042,7 +1041,7 @@ err_destroy_ports:
 		dport = &priv->ports[nport];
 		tty_port_destroy(&dport->port);
 	}
-	put_tty_driver(priv->driver);
+	tty_driver_kref_put(priv->driver);
 	return ret;
 }
 
@@ -1095,15 +1094,14 @@ static int mips_ejtag_fdc_tty_cpu_up(struct mips_cdmm_device *dev)
 	}
 
 	/* Restart the kthread */
-	priv->thread = kthread_create(mips_ejtag_fdc_put, priv, priv->fdc_name);
+	/* Bind it back to the right CPU and set it off */
+	priv->thread = kthread_run_on_cpu(mips_ejtag_fdc_put, priv,
+					  dev->cpu, "ttyFDC/%u");
 	if (IS_ERR(priv->thread)) {
 		ret = PTR_ERR(priv->thread);
 		dev_err(priv->dev, "Couldn't re-create kthread (%d)\n", ret);
 		goto out;
 	}
-	/* Bind it back to the right CPU and set it off */
-	kthread_bind(priv->thread, dev->cpu);
-	wake_up_process(priv->thread);
 out:
 	return ret;
 }

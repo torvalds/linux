@@ -381,8 +381,9 @@ static int gmc_v7_0_mc_init(struct amdgpu_device *adev)
 	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
 
 #ifdef CONFIG_X86_64
-	if (adev->flags & AMD_IS_APU &&
-	    adev->gmc.real_vram_size > adev->gmc.aper_size) {
+	if ((adev->flags & AMD_IS_APU) &&
+	    adev->gmc.real_vram_size > adev->gmc.aper_size &&
+	    !amdgpu_passthrough(adev)) {
 		adev->gmc.aper_base = ((u64)RREG32(mmMC_VM_FB_OFFSET)) << 22;
 		adev->gmc.aper_size = adev->gmc.real_vram_size;
 	}
@@ -414,6 +415,7 @@ static int gmc_v7_0_mc_init(struct amdgpu_device *adev)
 		adev->gmc.gart_size = (u64)amdgpu_gart_size << 20;
 	}
 
+	adev->gmc.gart_size += adev->pm.smu_prv_buffer_size;
 	gmc_v7_0_vram_gtt_location(adev, &adev->gmc);
 
 	return 0;
@@ -424,6 +426,8 @@ static int gmc_v7_0_mc_init(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device pointer
  * @pasid: pasid to be flush
+ * @flush_type: type of flush
+ * @all_hub: flush all hubs
  *
  * Flush the TLB for the requested pasid.
  */
@@ -463,7 +467,9 @@ static int gmc_v7_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  * @vmid: vm instance to flush
- *
+ * @vmhub: which hub to flush
+ * @flush_type: type of flush
+ * *
  * Flush the TLB for the requested page table (CIK).
  */
 static void gmc_v7_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
@@ -511,7 +517,7 @@ static void gmc_v7_0_get_vm_pte(struct amdgpu_device *adev,
 }
 
 /**
- * gmc_v8_0_set_fault_enable_default - update VM fault handling
+ * gmc_v7_0_set_fault_enable_default - update VM fault handling
  *
  * @adev: amdgpu_device pointer
  * @value: true redirects VM faults to the default page
@@ -608,17 +614,14 @@ static void gmc_v7_0_set_prt(struct amdgpu_device *adev, bool enable)
 static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 {
 	uint64_t table_addr;
-	int r, i;
 	u32 tmp, field;
+	int i;
 
 	if (adev->gart.bo == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
-	r = amdgpu_gart_table_vram_pin(adev);
-	if (r)
-		return r;
-
+	amdgpu_gtt_mgr_recover(&adev->mman.gtt_mgr);
 	table_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
 
 	/* Setup TLB control */
@@ -673,7 +676,7 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 	/* set vm size, must be a multiple of 4 */
 	WREG32(mmVM_CONTEXT1_PAGE_TABLE_START_ADDR, 0);
 	WREG32(mmVM_CONTEXT1_PAGE_TABLE_END_ADDR, adev->vm_manager.max_pfn - 1);
-	for (i = 1; i < 16; i++) {
+	for (i = 1; i < AMDGPU_NUM_VMID; i++) {
 		if (i < 8)
 			WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + i,
 			       table_addr >> 12);
@@ -707,7 +710,6 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
 		 (unsigned long long)table_addr);
-	adev->gart.ready = true;
 	return 0;
 }
 
@@ -753,7 +755,6 @@ static void gmc_v7_0_gart_disable(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_CACHE, 0);
 	WREG32(mmVM_L2_CNTL, tmp);
 	WREG32(mmVM_L2_CNTL2, 0);
-	amdgpu_gart_table_vram_unpin(adev);
 }
 
 /**
@@ -763,6 +764,7 @@ static void gmc_v7_0_gart_disable(struct amdgpu_device *adev)
  * @status: VM_CONTEXT1_PROTECTION_FAULT_STATUS register value
  * @addr: VM_CONTEXT1_PROTECTION_FAULT_ADDR register value
  * @mc_client: VM_CONTEXT1_PROTECTION_FAULT_MCCLIENT register value
+ * @pasid: debug logging only - no functional use
  *
  * Print human readable fault information (CIK).
  */
@@ -956,8 +958,6 @@ static int gmc_v7_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_bo_late_init(adev);
-
 	if (amdgpu_vm_fault_stop != AMDGPU_VM_FAULT_STOP_ALWAYS)
 		return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);
 	else
@@ -1081,7 +1081,6 @@ static int gmc_v7_0_sw_fini(void *handle)
 	kfree(adev->gmc.vm_fault_info);
 	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
-	amdgpu_gart_fini(adev);
 	release_firmware(adev->gmc.fw);
 	adev->gmc.fw = NULL;
 
@@ -1109,7 +1108,10 @@ static int gmc_v7_0_hw_init(void *handle)
 	if (r)
 		return r;
 
-	return r;
+	if (amdgpu_emu_mode == 1)
+		return amdgpu_gmc_vram_checking(adev);
+	else
+		return r;
 }
 
 static int gmc_v7_0_hw_fini(void *handle)

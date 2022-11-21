@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2019, 2021 Intel Corporation
  * Author:     Luis Carlos Cobo <luisca@cozybit.com>
  */
 #include <linux/gfp.h>
@@ -150,7 +150,7 @@ out:
  * mesh STA in a MBSS. Three HT protection modes are supported for now, non-HT
  * mixed mode, 20MHz-protection and no-protection mode. non-HT mixed mode is
  * selected if any non-HT peers are present in our MBSS.  20MHz-protection mode
- * is selected if all peers in our 20/40MHz MBSS support HT and atleast one
+ * is selected if all peers in our 20/40MHz MBSS support HT and at least one
  * HT20 peer is present. Otherwise no-protection mode is selected.
  */
 static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
@@ -1200,7 +1200,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 			 struct ieee80211_mgmt *mgmt, size_t len,
 			 struct ieee80211_rx_status *rx_status)
 {
-	struct ieee802_11_elems elems;
+	struct ieee802_11_elems *elems;
 	size_t baselen;
 	u8 *baseaddr;
 
@@ -1228,7 +1228,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 		if (baselen > len)
 			return;
 	}
-	ieee802_11_parse_elems(baseaddr, len - baselen, true, &elems,
-			       mgmt->bssid, NULL);
-	mesh_process_plink_frame(sdata, mgmt, &elems, rx_status);
+	elems = ieee802_11_parse_elems(baseaddr, len - baselen, true,
+				       mgmt->bssid, NULL);
+	mesh_process_plink_frame(sdata, mgmt, elems, rx_status);
+	kfree(elems);
 }

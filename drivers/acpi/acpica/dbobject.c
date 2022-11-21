@@ -47,7 +47,7 @@ acpi_db_dump_method_info(acpi_status status, struct acpi_walk_state *walk_state)
 
 	/* Ignore control codes, they are not errors */
 
-	if ((status & AE_CODE_MASK) == AE_CODE_CONTROL) {
+	if (ACPI_CNTL_EXCEPTION(status)) {
 		return;
 	}
 

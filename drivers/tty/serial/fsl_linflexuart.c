@@ -157,27 +157,29 @@ static void linflex_stop_rx(struct uart_port *port)
 	writel(ier & ~LINFLEXD_LINIER_DRIE, port->membase + LINIER);
 }
 
+static void linflex_put_char(struct uart_port *sport, unsigned char c)
+{
+	unsigned long status;
+
+	writeb(c, sport->membase + BDRL);
+
+	/* Waiting for data transmission completed. */
+	while (((status = readl(sport->membase + UARTSR)) &
+				LINFLEXD_UARTSR_DTFTFF) !=
+				LINFLEXD_UARTSR_DTFTFF)
+		;
+
+	writel(status | LINFLEXD_UARTSR_DTFTFF, sport->membase + UARTSR);
+}
+
 static inline void linflex_transmit_buffer(struct uart_port *sport)
 {
 	struct circ_buf *xmit = &sport->state->xmit;
-	unsigned char c;
-	unsigned long status;
 
 	while (!uart_circ_empty(xmit)) {
-		c = xmit->buf[xmit->tail];
-		writeb(c, sport->membase + BDRL);
-
-		/* Waiting for data transmission completed. */
-		while (((status = readl(sport->membase + UARTSR)) &
-					LINFLEXD_UARTSR_DTFTFF) !=
-					LINFLEXD_UARTSR_DTFTFF)
-			;
-
+		linflex_put_char(sport, xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		sport->icount.tx++;
-
-		writel(status | LINFLEXD_UARTSR_DTFTFF,
-		       sport->membase + UARTSR);
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -201,21 +203,11 @@ static irqreturn_t linflex_txint(int irq, void *dev_id)
 	struct uart_port *sport = dev_id;
 	struct circ_buf *xmit = &sport->state->xmit;
 	unsigned long flags;
-	unsigned long status;
 
 	spin_lock_irqsave(&sport->lock, flags);
 
 	if (sport->x_char) {
-		writeb(sport->x_char, sport->membase + BDRL);
-
-		/* waiting for data transmission completed */
-		while (((status = readl(sport->membase + UARTSR)) &
-			LINFLEXD_UARTSR_DTFTFF) != LINFLEXD_UARTSR_DTFTFF)
-			;
-
-		writel(status | LINFLEXD_UARTSR_DTFTFF,
-		       sport->membase + UARTSR);
-
+		linflex_put_char(sport, sport->x_char);
 		goto out;
 	}
 
@@ -225,10 +217,6 @@ static irqreturn_t linflex_txint(int irq, void *dev_id)
 	}
 
 	linflex_transmit_buffer(sport);
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(sport);
-
 out:
 	spin_unlock_irqrestore(&sport->lock, flags);
 	return IRQ_HANDLED;
@@ -252,23 +240,22 @@ static irqreturn_t linflex_rxint(int irq, void *dev_id)
 		flg = TTY_NORMAL;
 		sport->icount.rx++;
 
-		if (status & (LINFLEXD_UARTSR_BOF | LINFLEXD_UARTSR_SZF |
-			      LINFLEXD_UARTSR_FEF | LINFLEXD_UARTSR_PE)) {
-			if (status & LINFLEXD_UARTSR_SZF)
-				status |= LINFLEXD_UARTSR_SZF;
+		if (status & (LINFLEXD_UARTSR_BOF | LINFLEXD_UARTSR_FEF |
+				LINFLEXD_UARTSR_PE)) {
 			if (status & LINFLEXD_UARTSR_BOF)
-				status |= LINFLEXD_UARTSR_BOF;
+				sport->icount.overrun++;
 			if (status & LINFLEXD_UARTSR_FEF) {
-				if (!rx)
+				if (!rx) {
 					brk = true;
-				status |= LINFLEXD_UARTSR_FEF;
+					sport->icount.brk++;
+				} else
+					sport->icount.frame++;
 			}
 			if (status & LINFLEXD_UARTSR_PE)
-				status |=  LINFLEXD_UARTSR_PE;
+				sport->icount.parity++;
 		}
 
-		writel(status | LINFLEXD_UARTSR_RMB | LINFLEXD_UARTSR_DRFRFE,
-		       sport->membase + UARTSR);
+		writel(status, sport->membase + UARTSR);
 		status = readl(sport->membase + UARTSR);
 
 		if (brk) {
@@ -566,7 +553,7 @@ static const struct uart_ops linflex_pops = {
 static struct uart_port *linflex_ports[UART_NR];
 
 #ifdef CONFIG_SERIAL_FSL_LINFLEXUART_CONSOLE
-static void linflex_console_putchar(struct uart_port *port, int ch)
+static void linflex_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	unsigned long cr;
 
@@ -591,7 +578,7 @@ static void linflex_console_putchar(struct uart_port *port, int ch)
 	}
 }
 
-static void linflex_earlycon_putchar(struct uart_port *port, int ch)
+static void linflex_earlycon_putchar(struct uart_port *port, unsigned char ch)
 {
 	unsigned long flags;
 	char *ret;
@@ -862,11 +849,7 @@ static int linflex_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sport);
 
-	ret = uart_add_one_port(&linflex_reg, sport);
-	if (ret)
-		return ret;
-
-	return 0;
+	return uart_add_one_port(&linflex_reg, sport);
 }
 
 static int linflex_remove(struct platform_device *pdev)

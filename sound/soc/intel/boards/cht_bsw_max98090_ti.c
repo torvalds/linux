@@ -264,7 +264,7 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	}
 
 	fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
-				| SND_SOC_DAIFMT_CBS_CFS;
+				| SND_SOC_DAIFMT_CBC_CFC;
 
 	ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0), fmt);
 	if (ret < 0) {
@@ -296,7 +296,7 @@ static int cht_max98090_headset_init(struct snd_soc_component *component)
 	int ret;
 
 	/*
-	 * TI supports 4 butons headset detection
+	 * TI supports 4 buttons headset detection
 	 * KEY_MEDIA
 	 * KEY_VOICECOMMAND
 	 * KEY_VOLUMEUP
@@ -372,7 +372,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 		.id = 0,
 		.no_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
-					| SND_SOC_DAIFMT_CBS_CFS,
+					| SND_SOC_DAIFMT_CBC_CFC,
 		.init = cht_codec_init,
 		.be_hw_params_fixup = cht_codec_fixup,
 		.dpcm_playback = 1,
@@ -382,19 +382,15 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	},
 };
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 /* use space before codec name to simplify card ID, and simplify driver name */
-#define CARD_NAME "bytcht max98090" /* card name will be 'sof-bytcht max98090 */
-#define DRIVER_NAME "SOF"
-#else
+#define SOF_CARD_NAME "bytcht max98090" /* card name will be 'sof-bytcht max98090 */
+#define SOF_DRIVER_NAME "SOF"
+
 #define CARD_NAME "chtmax98090"
 #define DRIVER_NAME NULL /* card name will be used for driver name */
-#endif
 
 /* SoC card */
 static struct snd_soc_card snd_soc_card_cht = {
-	.name = CARD_NAME,
-	.driver_name = DRIVER_NAME,
 	.owner = THIS_MODULE,
 	.dai_link = cht_dailink,
 	.num_links = ARRAY_SIZE(cht_dailink),
@@ -540,6 +536,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	const char *mclk_name;
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
+	bool sof_parent;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
@@ -561,7 +558,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 			dev_dbg(dev, "Unable to add GPIO mapping table\n");
 	}
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	snd_soc_card_cht.dev = &pdev->dev;
 	mach = pdev->dev.platform_data;
 	platform_name = mach->mach_params.platform;
@@ -602,6 +599,21 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		}
 	}
 
+	sof_parent = snd_soc_acpi_sof_parent(&pdev->dev);
+
+	/* set card and driver name */
+	if (sof_parent) {
+		snd_soc_card_cht.name = SOF_CARD_NAME;
+		snd_soc_card_cht.driver_name = SOF_DRIVER_NAME;
+	} else {
+		snd_soc_card_cht.name = CARD_NAME;
+		snd_soc_card_cht.driver_name = DRIVER_NAME;
+	}
+
+	/* set pm ops */
+	if (sof_parent)
+		dev->driver->pm = &snd_soc_pm_ops;
+
 	ret_val = devm_snd_soc_register_card(&pdev->dev, &snd_soc_card_cht);
 	if (ret_val) {
 		dev_err(&pdev->dev,
@@ -626,9 +638,6 @@ static int snd_cht_mc_remove(struct platform_device *pdev)
 static struct platform_driver snd_cht_mc_driver = {
 	.driver = {
 		.name = "cht-bsw-max98090",
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-		.pm = &snd_soc_pm_ops,
-#endif
 	},
 	.probe = snd_cht_mc_probe,
 	.remove = snd_cht_mc_remove,

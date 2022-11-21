@@ -195,6 +195,7 @@ static bool rt5640_volatile_register(struct device *dev, unsigned int reg)
 	case RT5640_PRIV_DATA:
 	case RT5640_PGM_REG_ARR1:
 	case RT5640_PGM_REG_ARR3:
+	case RT5640_DUMMY2:
 	case RT5640_VENDOR_ID:
 	case RT5640_VENDOR_ID1:
 	case RT5640_VENDOR_ID2:
@@ -339,9 +340,9 @@ static bool rt5640_readable_register(struct device *dev, unsigned int reg)
 }
 
 static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -4650, 150, 0);
-static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -65625, 375, 0);
+static const DECLARE_TLV_DB_MINMAX(dac_vol_tlv, -6562, 0);
 static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -3450, 150, 0);
-static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -17625, 375, 0);
+static const DECLARE_TLV_DB_MINMAX(adc_vol_tlv, -1762, 3000);
 static const DECLARE_TLV_DB_SCALE(adc_bst_tlv, 0, 1200, 0);
 
 /* {0, +20, +24, +30, +35, +40, +44, +50, +52} dB */
@@ -400,6 +401,9 @@ static const struct snd_kcontrol_new rt5640_snd_controls[] = {
 	/* DAC Digital Volume */
 	SOC_DOUBLE("DAC2 Playback Switch", RT5640_DAC2_CTRL,
 		RT5640_M_DAC_L2_VOL_SFT, RT5640_M_DAC_R2_VOL_SFT, 1, 1),
+	SOC_DOUBLE_TLV("DAC2 Playback Volume", RT5640_DAC2_DIG_VOL,
+			RT5640_L_VOL_SFT, RT5640_R_VOL_SFT,
+			175, 0, dac_vol_tlv),
 	SOC_DOUBLE_TLV("DAC1 Playback Volume", RT5640_DAC1_DIG_VOL,
 			RT5640_L_VOL_SFT, RT5640_R_VOL_SFT,
 			175, 0, dac_vol_tlv),
@@ -443,9 +447,6 @@ static const struct snd_kcontrol_new rt5640_specific_snd_controls[] = {
 	/* MONO Output Control */
 	SOC_SINGLE("Mono Playback Switch", RT5640_MONO_OUT, RT5640_L_MUTE_SFT,
 		1, 1),
-
-	SOC_DOUBLE_TLV("Mono DAC Playback Volume", RT5640_DAC2_DIG_VOL,
-		RT5640_L_VOL_SFT, RT5640_R_VOL_SFT, 175, 0, dac_vol_tlv),
 };
 
 /**
@@ -1838,9 +1839,6 @@ static int rt5640_set_dai_sysclk(struct snd_soc_dai *dai,
 	unsigned int reg_val = 0;
 	unsigned int pll_bit = 0;
 
-	if (freq == rt5640->sysclk && clk_id == rt5640->sysclk_src)
-		return 0;
-
 	switch (clk_id) {
 	case RT5640_SCLK_S_MCLK:
 		reg_val |= RT5640_SCLK_SRC_MCLK;
@@ -1909,7 +1907,7 @@ static int rt5640_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 
 	ret = rl6231_pll_calc(freq_in, freq_out, &pll_code);
 	if (ret < 0) {
-		dev_err(component->dev, "Unsupport input clock %d\n", freq_in);
+		dev_err(component->dev, "Unsupported input clock %d\n", freq_in);
 		return ret;
 	}
 
@@ -1918,10 +1916,10 @@ static int rt5640_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		pll_code.n_code, pll_code.k_code);
 
 	snd_soc_component_write(component, RT5640_PLL_CTRL1,
-		pll_code.n_code << RT5640_PLL_N_SFT | pll_code.k_code);
+		(pll_code.n_code << RT5640_PLL_N_SFT) | pll_code.k_code);
 	snd_soc_component_write(component, RT5640_PLL_CTRL2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5640_PLL_M_SFT |
-		pll_code.m_bp << RT5640_PLL_M_BP_SFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5640_PLL_M_SFT) |
+		(pll_code.m_bp << RT5640_PLL_M_BP_SFT));
 
 	rt5640->pll_in = freq_in;
 	rt5640->pll_out = freq_out;
@@ -1972,7 +1970,7 @@ static int rt5640_set_bias_level(struct snd_soc_component *component,
 				RT5640_PWR_FV1 | RT5640_PWR_FV2,
 				RT5640_PWR_FV1 | RT5640_PWR_FV2);
 			snd_soc_component_update_bits(component, RT5640_DUMMY1,
-						0x0301, 0x0301);
+						0x1, 0x1);
 			snd_soc_component_update_bits(component, RT5640_MICBIAS,
 						0x0030, 0x0030);
 		}
@@ -2093,7 +2091,7 @@ int rt5640_sel_asrc_clk_src(struct snd_soc_component *component,
 }
 EXPORT_SYMBOL_GPL(rt5640_sel_asrc_clk_src);
 
-static void rt5640_enable_micbias1_for_ovcd(struct snd_soc_component *component)
+void rt5640_enable_micbias1_for_ovcd(struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
@@ -2105,8 +2103,9 @@ static void rt5640_enable_micbias1_for_ovcd(struct snd_soc_component *component)
 	snd_soc_dapm_sync_unlocked(dapm);
 	snd_soc_dapm_mutex_unlock(dapm);
 }
+EXPORT_SYMBOL_GPL(rt5640_enable_micbias1_for_ovcd);
 
-static void rt5640_disable_micbias1_for_ovcd(struct snd_soc_component *component)
+void rt5640_disable_micbias1_for_ovcd(struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
@@ -2117,6 +2116,7 @@ static void rt5640_disable_micbias1_for_ovcd(struct snd_soc_component *component
 	snd_soc_dapm_sync_unlocked(dapm);
 	snd_soc_dapm_mutex_unlock(dapm);
 }
+EXPORT_SYMBOL_GPL(rt5640_disable_micbias1_for_ovcd);
 
 static void rt5640_enable_micbias1_ovcd_irq(struct snd_soc_component *component)
 {
@@ -2157,7 +2157,11 @@ static bool rt5640_jack_inserted(struct snd_soc_component *component)
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
 	int val;
 
-	val = snd_soc_component_read(component, RT5640_INT_IRQ_ST);
+	if (rt5640->jd_gpio)
+		val = gpiod_get_value(rt5640->jd_gpio) ? RT5640_JD_STATUS : 0;
+	else
+		val = snd_soc_component_read(component, RT5640_INT_IRQ_ST);
+
 	dev_dbg(component->dev, "irq status %#04x\n", val);
 
 	if (rt5640->jd_inverted)
@@ -2241,7 +2245,7 @@ static void rt5640_button_press_work(struct work_struct *work)
 	schedule_delayed_work(&rt5640->bp_work, msecs_to_jiffies(BP_POLL_TIME));
 }
 
-static int rt5640_detect_headset(struct snd_soc_component *component)
+int rt5640_detect_headset(struct snd_soc_component *component, struct gpio_desc *hp_det_gpio)
 {
 	int i, headset_count = 0, headphone_count = 0;
 
@@ -2259,8 +2263,13 @@ static int rt5640_detect_headset(struct snd_soc_component *component)
 		msleep(JACK_SETTLE_TIME);
 
 		/* Check the jack is still connected before checking ovcd */
-		if (!rt5640_jack_inserted(component))
-			return 0;
+		if (hp_det_gpio) {
+			if (gpiod_get_value_cansleep(hp_det_gpio))
+				return 0;
+		} else {
+			if (!rt5640_jack_inserted(component))
+				return 0;
+		}
 
 		if (rt5640_micbias1_ovcd(component)) {
 			/*
@@ -2285,13 +2294,46 @@ static int rt5640_detect_headset(struct snd_soc_component *component)
 	dev_err(component->dev, "Error detecting headset vs headphones, bad contact?, assuming headphones\n");
 	return SND_JACK_HEADPHONE;
 }
+EXPORT_SYMBOL_GPL(rt5640_detect_headset);
 
 static void rt5640_jack_work(struct work_struct *work)
 {
 	struct rt5640_priv *rt5640 =
-		container_of(work, struct rt5640_priv, jack_work);
+		container_of(work, struct rt5640_priv, jack_work.work);
 	struct snd_soc_component *component = rt5640->component;
 	int status;
+
+	if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER) {
+		int val, jack_type = 0, hda_mic_plugged, hda_hp_plugged;
+
+		/* mic jack */
+		val = snd_soc_component_read(component, RT5640_INT_IRQ_ST);
+		hda_mic_plugged = !(val & RT5640_JD_STATUS);
+		dev_dbg(component->dev, "mic jack status %d\n",
+			hda_mic_plugged);
+
+		snd_soc_component_update_bits(component, RT5640_IRQ_CTRL1,
+			RT5640_JD_P_MASK, !hda_mic_plugged << RT5640_JD_P_SFT);
+
+		if (hda_mic_plugged)
+			jack_type |= SND_JACK_MICROPHONE;
+
+		/* headphone jack */
+		val = snd_soc_component_read(component, RT5640_DUMMY2);
+		hda_hp_plugged = !(val & (0x1 << 11));
+		dev_dbg(component->dev, "headphone jack status %d\n",
+			hda_hp_plugged);
+
+		snd_soc_component_update_bits(component, RT5640_DUMMY2,
+			(0x1 << 10), !hda_hp_plugged << 10);
+
+		if (hda_hp_plugged)
+			jack_type |= SND_JACK_HEADPHONE;
+
+		snd_soc_jack_report(rt5640->jack, jack_type, SND_JACK_HEADSET);
+
+		return;
+	}
 
 	if (!rt5640_jack_inserted(component)) {
 		/* Jack removed, or spurious IRQ? */
@@ -2309,7 +2351,7 @@ static void rt5640_jack_work(struct work_struct *work)
 		/* Jack inserted */
 		WARN_ON(rt5640->ovcd_irq_enabled);
 		rt5640_enable_micbias1_for_ovcd(component);
-		status = rt5640_detect_headset(component);
+		status = rt5640_detect_headset(component, NULL);
 		if (status == SND_JACK_HEADSET) {
 			/* Enable ovcd IRQ for button press detect. */
 			rt5640_enable_micbias1_ovcd_irq(component);
@@ -2340,7 +2382,7 @@ static void rt5640_jack_work(struct work_struct *work)
 		 * disabled the OVCD IRQ, the IRQ pin will stay high and as
 		 * we react to edges, we miss the unplug event -> recheck.
 		 */
-		queue_work(system_long_wq, &rt5640->jack_work);
+		queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 	}
 }
 
@@ -2349,7 +2391,17 @@ static irqreturn_t rt5640_irq(int irq, void *data)
 	struct rt5640_priv *rt5640 = data;
 
 	if (rt5640->jack)
-		queue_work(system_long_wq, &rt5640->jack_work);
+		queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t rt5640_jd_gpio_irq(int irq, void *data)
+{
+	struct rt5640_priv *rt5640 = data;
+
+	queue_delayed_work(system_long_wq, &rt5640->jack_work,
+			   msecs_to_jiffies(JACK_SETTLE_TIME));
 
 	return IRQ_HANDLED;
 }
@@ -2358,32 +2410,13 @@ static void rt5640_cancel_work(void *data)
 {
 	struct rt5640_priv *rt5640 = data;
 
-	cancel_work_sync(&rt5640->jack_work);
+	cancel_delayed_work_sync(&rt5640->jack_work);
 	cancel_delayed_work_sync(&rt5640->bp_work);
 }
 
-static void rt5640_enable_jack_detect(struct snd_soc_component *component,
-				      struct snd_soc_jack *jack)
+void rt5640_set_ovcd_params(struct snd_soc_component *component)
 {
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
-
-	/* Select JD-source */
-	snd_soc_component_update_bits(component, RT5640_JD_CTRL,
-		RT5640_JD_MASK, rt5640->jd_src);
-
-	/* Selecting GPIO01 as an interrupt */
-	snd_soc_component_update_bits(component, RT5640_GPIO_CTRL1,
-		RT5640_GP1_PIN_MASK, RT5640_GP1_PIN_IRQ);
-
-	/* Set GPIO1 output */
-	snd_soc_component_update_bits(component, RT5640_GPIO_CTRL3,
-		RT5640_GP1_PF_MASK, RT5640_GP1_PF_OUT);
-
-	/* Enabling jd2 in general control 1 */
-	snd_soc_component_write(component, RT5640_DUMMY1, 0x3f41);
-
-	/* Enabling jd2 in general control 2 */
-	snd_soc_component_write(component, RT5640_DUMMY2, 0x4001);
 
 	snd_soc_component_write(component, RT5640_PR_BASE + RT5640_BIAS_CUR4,
 		0xa800 | rt5640->ovcd_sf);
@@ -2403,6 +2436,66 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 	 */
 	snd_soc_component_update_bits(component, RT5640_IRQ_CTRL2,
 		RT5640_MB1_OC_STKY_MASK, RT5640_MB1_OC_STKY_EN);
+}
+EXPORT_SYMBOL_GPL(rt5640_set_ovcd_params);
+
+static void rt5640_disable_jack_detect(struct snd_soc_component *component)
+{
+	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
+
+	/*
+	 * soc_remove_component() force-disables jack and thus rt5640->jack
+	 * could be NULL at the time of driver's module unloading.
+	 */
+	if (!rt5640->jack)
+		return;
+
+	if (rt5640->jd_gpio_irq_requested)
+		free_irq(rt5640->jd_gpio_irq, rt5640);
+
+	if (rt5640->irq_requested)
+		free_irq(rt5640->irq, rt5640);
+
+	rt5640_cancel_work(rt5640);
+
+	if (rt5640->jack->status & SND_JACK_MICROPHONE) {
+		rt5640_disable_micbias1_ovcd_irq(component);
+		rt5640_disable_micbias1_for_ovcd(component);
+		snd_soc_jack_report(rt5640->jack, 0, SND_JACK_BTN_0);
+	}
+
+	rt5640->jd_gpio_irq_requested = false;
+	rt5640->irq_requested = false;
+	rt5640->jd_gpio = NULL;
+	rt5640->jack = NULL;
+}
+
+static void rt5640_enable_jack_detect(struct snd_soc_component *component,
+				      struct snd_soc_jack *jack,
+				      struct rt5640_set_jack_data *jack_data)
+{
+	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	/* Select JD-source */
+	snd_soc_component_update_bits(component, RT5640_JD_CTRL,
+		RT5640_JD_MASK, rt5640->jd_src);
+
+	/* Selecting GPIO01 as an interrupt */
+	snd_soc_component_update_bits(component, RT5640_GPIO_CTRL1,
+		RT5640_GP1_PIN_MASK, RT5640_GP1_PIN_IRQ);
+
+	/* Set GPIO1 output */
+	snd_soc_component_update_bits(component, RT5640_GPIO_CTRL3,
+		RT5640_GP1_PF_MASK, RT5640_GP1_PF_OUT);
+
+	/* Enabling jd2 in general control 1 */
+	snd_soc_component_write(component, RT5640_DUMMY1, 0x3f41);
+
+	/* Enabling jd2 in general control 2 */
+	snd_soc_component_write(component, RT5640_DUMMY2, 0x4001);
+
+	rt5640_set_ovcd_params(component);
 
 	/*
 	 * All IRQs get or-ed together, so we need the jack IRQ to report 0
@@ -2423,41 +2516,90 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 		rt5640_enable_micbias1_ovcd_irq(component);
 	}
 
-	enable_irq(rt5640->irq);
-	/* sync initial jack state */
-	queue_work(system_long_wq, &rt5640->jack_work);
-}
+	if (jack_data && jack_data->codec_irq_override)
+		rt5640->irq = jack_data->codec_irq_override;
 
-static void rt5640_disable_jack_detect(struct snd_soc_component *component)
-{
-	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
+	if (jack_data && jack_data->jd_gpio) {
+		rt5640->jd_gpio = jack_data->jd_gpio;
+		rt5640->jd_gpio_irq = gpiod_to_irq(rt5640->jd_gpio);
 
-	/*
-	 * soc_remove_component() force-disables jack and thus rt5640->jack
-	 * could be NULL at the time of driver's module unloading.
-	 */
-	if (!rt5640->jack)
-		return;
-
-	disable_irq(rt5640->irq);
-	rt5640_cancel_work(rt5640);
-
-	if (rt5640->jack->status & SND_JACK_MICROPHONE) {
-		rt5640_disable_micbias1_ovcd_irq(component);
-		rt5640_disable_micbias1_for_ovcd(component);
-		snd_soc_jack_report(rt5640->jack, 0, SND_JACK_BTN_0);
+		ret = request_irq(rt5640->jd_gpio_irq, rt5640_jd_gpio_irq,
+				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				  "rt5640-jd-gpio", rt5640);
+		if (ret) {
+			dev_warn(component->dev, "Failed to request jd GPIO IRQ %d: %d\n",
+				 rt5640->jd_gpio_irq, ret);
+			rt5640_disable_jack_detect(component);
+			return;
+		}
+		rt5640->jd_gpio_irq_requested = true;
 	}
 
-	rt5640->jack = NULL;
+	ret = request_irq(rt5640->irq, rt5640_irq,
+			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+			  "rt5640", rt5640);
+	if (ret) {
+		dev_warn(component->dev, "Failed to reguest IRQ %d: %d\n", rt5640->irq, ret);
+		rt5640_disable_jack_detect(component);
+		return;
+	}
+	rt5640->irq_requested = true;
+
+	/* sync initial jack state */
+	queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
+}
+
+static void rt5640_enable_hda_jack_detect(
+	struct snd_soc_component *component, struct snd_soc_jack *jack)
+{
+	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	/* Select JD1 for Mic */
+	snd_soc_component_update_bits(component, RT5640_JD_CTRL,
+		RT5640_JD_MASK, RT5640_JD_JD1_IN4P);
+	snd_soc_component_write(component, RT5640_IRQ_CTRL1, RT5640_IRQ_JD_NOR);
+
+	/* Select JD2 for Headphone */
+	snd_soc_component_update_bits(component, RT5640_DUMMY2, 0x1100, 0x1100);
+
+	/* Selecting GPIO01 as an interrupt */
+	snd_soc_component_update_bits(component, RT5640_GPIO_CTRL1,
+		RT5640_GP1_PIN_MASK, RT5640_GP1_PIN_IRQ);
+
+	/* Set GPIO1 output */
+	snd_soc_component_update_bits(component, RT5640_GPIO_CTRL3,
+		RT5640_GP1_PF_MASK, RT5640_GP1_PF_OUT);
+
+	snd_soc_component_update_bits(component, RT5640_DUMMY1, 0x400, 0x0);
+
+	rt5640->jack = jack;
+
+	ret = request_irq(rt5640->irq, rt5640_irq,
+			  IRQF_TRIGGER_RISING | IRQF_ONESHOT, "rt5640", rt5640);
+	if (ret) {
+		dev_warn(component->dev, "Failed to reguest IRQ %d: %d\n", rt5640->irq, ret);
+		rt5640->irq = -ENXIO;
+		return;
+	}
+
+	/* sync initial jack state */
+	queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 }
 
 static int rt5640_set_jack(struct snd_soc_component *component,
 			   struct snd_soc_jack *jack, void *data)
 {
-	if (jack)
-		rt5640_enable_jack_detect(component, jack);
-	else
+	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
+
+	if (jack) {
+		if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER)
+			rt5640_enable_hda_jack_detect(component, jack);
+		else
+			rt5640_enable_jack_detect(component, jack, data);
+	} else {
 		rt5640_disable_jack_detect(component);
+	}
 
 	return 0;
 }
@@ -2547,11 +2689,16 @@ static int rt5640_probe(struct snd_soc_component *component)
 
 	if (device_property_read_u32(component->dev,
 				     "realtek,jack-detect-source", &val) == 0) {
-		if (val <= RT5640_JD_SRC_GPIO4)
+		if (val <= RT5640_JD_SRC_GPIO4) {
 			rt5640->jd_src = val << RT5640_JD_SFT;
-		else
+		} else if (val == RT5640_JD_SRC_HDA_HEADER) {
+			rt5640->jd_src = RT5640_JD_SRC_HDA_HEADER;
+			snd_soc_component_update_bits(component, RT5640_DUMMY1,
+				0x0300, 0x0);
+		} else {
 			dev_warn(component->dev, "Warning: Invalid jack-detect-source value: %d, leaving jack-detect disabled\n",
 				 val);
+		}
 	}
 
 	if (!device_property_read_bool(component->dev, "realtek,jack-detect-not-inverted"))
@@ -2605,6 +2752,7 @@ static int rt5640_suspend(struct snd_soc_component *component)
 {
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
 
+	rt5640_cancel_work(rt5640);
 	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
 	rt5640_reset(component);
 	regcache_cache_only(rt5640->regmap, true);
@@ -2626,6 +2774,17 @@ static int rt5640_resume(struct snd_soc_component *component)
 
 	regcache_cache_only(rt5640->regmap, false);
 	regcache_sync(rt5640->regmap);
+
+	if (rt5640->jack) {
+		if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER)
+			snd_soc_component_update_bits(component,
+				RT5640_DUMMY2, 0x1100, 0x1100);
+		else
+			snd_soc_component_write(component, RT5640_DUMMY2,
+				0x4001);
+
+		queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
+	}
 
 	return 0;
 }
@@ -2829,24 +2988,12 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 	rt5640->hp_mute = true;
 	rt5640->irq = i2c->irq;
 	INIT_DELAYED_WORK(&rt5640->bp_work, rt5640_button_press_work);
-	INIT_WORK(&rt5640->jack_work, rt5640_jack_work);
+	INIT_DELAYED_WORK(&rt5640->jack_work, rt5640_jack_work);
 
 	/* Make sure work is stopped on probe-error / remove */
 	ret = devm_add_action_or_reset(&i2c->dev, rt5640_cancel_work, rt5640);
 	if (ret)
 		return ret;
-
-	ret = devm_request_irq(&i2c->dev, rt5640->irq, rt5640_irq,
-			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
-			       | IRQF_ONESHOT, "rt5640", rt5640);
-	if (ret == 0) {
-		/* Gets re-enabled by rt5640_set_jack() */
-		disable_irq(rt5640->irq);
-	} else {
-		dev_warn(&i2c->dev, "Failed to reguest IRQ %d: %d\n",
-			 rt5640->irq, ret);
-		rt5640->irq = -ENXIO;
-	}
 
 	return devm_snd_soc_register_component(&i2c->dev,
 				      &soc_component_dev_rt5640,

@@ -7,8 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics STM32 DSI host controller
 
 maintainers:
-  - Philippe Cornu <philippe.cornu@st.com>
-  - Yannick Fertre <yannick.fertre@st.com>
+  - Philippe Cornu <philippe.cornu@foss.st.com>
+  - Yannick Fertre <yannick.fertre@foss.st.com>
 
 description:
   The STMicroelectronics STM32 DSI controller uses the Synopsys DesignWare MIPI-DSI host controller.
@@ -29,7 +29,6 @@ properties:
       - description: DSI bus clock
       - description: Pixel clock
     minItems: 2
-    maxItems: 3
 
   clock-names:
     items:
@@ -37,7 +36,6 @@ properties:
       - const: ref
       - const: px_clk
     minItems: 2
-    maxItems: 3
 
   resets:
     maxItems: 1
@@ -51,20 +49,16 @@ properties:
       Phandle of the regulator that provides the supply voltage.
 
   ports:
-    type: object
-    description:
-      A node containing DSI input & output port nodes with endpoint
-      definitions as documented in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
-      Documentation/devicetree/bindings/graph.txt
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description:
           DSI input port node, connected to the ltdc rgb output port.
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description:
           DSI output port node, connected to a panel or a bridge input port"
 
@@ -116,7 +110,7 @@ examples:
               };
         };
 
-        panel-dsi@0 {
+        panel@0 {
               compatible = "orisetech,otm8009a";
               reg = <0>;
               reset-gpios = <&gpioe 4 GPIO_ACTIVE_LOW>;
@@ -131,4 +125,3 @@ examples:
     };
 
 ...
-

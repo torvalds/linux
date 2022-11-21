@@ -30,6 +30,7 @@ struct drm_file;
 struct amdgpu_fpriv;
 
 #define AMDGPU_MAX_ENTITY_NUM 4
+#define AMDGPU_CTX_FENCE_USAGE_MIN_RATIO(max, total) ((max) > 16384ULL*(total))
 
 struct amdgpu_ctx_entity {
 	uint64_t		sequence;
@@ -46,12 +47,13 @@ struct amdgpu_ctx {
 	spinlock_t			ring_lock;
 	struct amdgpu_ctx_entity	*entities[AMDGPU_HW_IP_NUM][AMDGPU_MAX_ENTITY_NUM];
 	bool				preamble_presented;
-	enum drm_sched_priority		init_priority;
-	enum drm_sched_priority		override_priority;
+	int32_t				init_priority;
+	int32_t				override_priority;
 	struct mutex			lock;
 	atomic_t			guilty;
 	unsigned long			ras_counter_ce;
 	unsigned long			ras_counter_ue;
+	uint32_t			stable_pstate;
 };
 
 struct amdgpu_ctx_mgr {
@@ -74,8 +76,8 @@ void amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx,
 struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 				       struct drm_sched_entity *entity,
 				       uint64_t seq);
-void amdgpu_ctx_priority_override(struct amdgpu_ctx *ctx,
-				  enum drm_sched_priority priority);
+bool amdgpu_ctx_priority_is_valid(int32_t ctx_prio);
+void amdgpu_ctx_priority_override(struct amdgpu_ctx *ctx, int32_t ctx_prio);
 
 int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 		     struct drm_file *filp);
@@ -87,5 +89,6 @@ void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr);
 void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr);
 long amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr, long timeout);
 void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr);
-
+ktime_t amdgpu_ctx_mgr_fence_usage(struct amdgpu_ctx_mgr *mgr, uint32_t hwip,
+		uint32_t idx, uint64_t *elapsed);
 #endif

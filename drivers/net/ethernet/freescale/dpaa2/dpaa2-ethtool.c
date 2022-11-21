@@ -44,6 +44,8 @@ static char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
 	"[drv] tx conf bytes",
 	"[drv] tx sg frames",
 	"[drv] tx sg bytes",
+	"[drv] tx tso frames",
+	"[drv] tx tso bytes",
 	"[drv] rx sg frames",
 	"[drv] rx sg bytes",
 	"[drv] tx converted sg frames",
@@ -72,12 +74,12 @@ static void dpaa2_eth_get_drvinfo(struct net_device *net_dev,
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 
-	strlcpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
+	strscpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
 
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%u.%u", priv->dpni_ver_major, priv->dpni_ver_minor);
 
-	strlcpy(drvinfo->bus_info, dev_name(net_dev->dev.parent->parent),
+	strscpy(drvinfo->bus_info, dev_name(net_dev->dev.parent->parent),
 		sizeof(drvinfo->bus_info));
 }
 
@@ -85,7 +87,7 @@ static int dpaa2_eth_nway_reset(struct net_device *net_dev)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 
-	if (priv->mac)
+	if (dpaa2_eth_is_type_phy(priv))
 		return phylink_ethtool_nway_reset(priv->mac->phylink);
 
 	return -EOPNOTSUPP;
@@ -97,7 +99,7 @@ dpaa2_eth_get_link_ksettings(struct net_device *net_dev,
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 
-	if (priv->mac)
+	if (dpaa2_eth_is_type_phy(priv))
 		return phylink_ethtool_ksettings_get(priv->mac->phylink,
 						     link_settings);
 
@@ -115,7 +117,7 @@ dpaa2_eth_set_link_ksettings(struct net_device *net_dev,
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 
-	if (!priv->mac)
+	if (!dpaa2_eth_is_type_phy(priv))
 		return -ENOTSUPP;
 
 	return phylink_ethtool_ksettings_set(priv->mac->phylink, link_settings);
@@ -127,7 +129,7 @@ static void dpaa2_eth_get_pauseparam(struct net_device *net_dev,
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	u64 link_options = priv->link_state.options;
 
-	if (priv->mac) {
+	if (dpaa2_eth_is_type_phy(priv)) {
 		phylink_ethtool_get_pauseparam(priv->mac->phylink, pause);
 		return;
 	}
@@ -150,7 +152,7 @@ static int dpaa2_eth_set_pauseparam(struct net_device *net_dev,
 		return -EOPNOTSUPP;
 	}
 
-	if (priv->mac)
+	if (dpaa2_eth_is_type_phy(priv))
 		return phylink_ethtool_set_pauseparam(priv->mac->phylink,
 						      pause);
 	if (pause->autoneg)
@@ -191,14 +193,14 @@ static void dpaa2_eth_get_strings(struct net_device *netdev, u32 stringset,
 	switch (stringset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < DPAA2_ETH_NUM_STATS; i++) {
-			strlcpy(p, dpaa2_ethtool_stats[i], ETH_GSTRING_LEN);
+			strscpy(p, dpaa2_ethtool_stats[i], ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
 		for (i = 0; i < DPAA2_ETH_NUM_EXTRA_STATS; i++) {
-			strlcpy(p, dpaa2_ethtool_extras[i], ETH_GSTRING_LEN);
+			strscpy(p, dpaa2_ethtool_extras[i], ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
-		if (priv->mac)
+		if (dpaa2_eth_has_mac(priv))
 			dpaa2_mac_get_strings(p);
 		break;
 	}
@@ -211,7 +213,7 @@ static int dpaa2_eth_get_sset_count(struct net_device *net_dev, int sset)
 
 	switch (sset) {
 	case ETH_SS_STATS: /* ethtool_get_stats(), ethtool_get_drvinfo() */
-		if (priv->mac)
+		if (dpaa2_eth_has_mac(priv))
 			num_ss_stats += dpaa2_mac_get_sset_count();
 		return num_ss_stats;
 	default:
@@ -278,7 +280,7 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 	/* Per-channel stats */
 	for (k = 0; k < priv->num_channels; k++) {
 		ch_stats = &priv->channel[k]->stats;
-		for (j = 0; j < sizeof(*ch_stats) / sizeof(__u64) - 1; j++)
+		for (j = 0; j < DPAA2_ETH_CH_STATS; j++)
 			*((__u64 *)data + i + j) += *((__u64 *)ch_stats + j);
 	}
 	i += j;
@@ -313,7 +315,7 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 	}
 	*(data + i++) = buf_cnt;
 
-	if (priv->mac)
+	if (dpaa2_eth_has_mac(priv))
 		dpaa2_mac_get_ethtool_stats(priv->mac, data + i);
 }
 
@@ -782,7 +784,101 @@ static int dpaa2_eth_get_ts_info(struct net_device *dev,
 	return 0;
 }
 
+static int dpaa2_eth_get_tunable(struct net_device *net_dev,
+				 const struct ethtool_tunable *tuna,
+				 void *data)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	int err = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		*(u32 *)data = priv->rx_copybreak;
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
+static int dpaa2_eth_set_tunable(struct net_device *net_dev,
+				 const struct ethtool_tunable *tuna,
+				 const void *data)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	int err = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		priv->rx_copybreak = *(u32 *)data;
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
+static int dpaa2_eth_get_coalesce(struct net_device *dev,
+				  struct ethtool_coalesce *ic,
+				  struct kernel_ethtool_coalesce *kernel_coal,
+				  struct netlink_ext_ack *extack)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(dev);
+	struct dpaa2_io *dpio = priv->channel[0]->dpio;
+
+	dpaa2_io_get_irq_coalescing(dpio, &ic->rx_coalesce_usecs);
+	ic->use_adaptive_rx_coalesce = dpaa2_io_get_adaptive_coalescing(dpio);
+
+	return 0;
+}
+
+static int dpaa2_eth_set_coalesce(struct net_device *dev,
+				  struct ethtool_coalesce *ic,
+				  struct kernel_ethtool_coalesce *kernel_coal,
+				  struct netlink_ext_ack *extack)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(dev);
+	struct dpaa2_io *dpio;
+	int prev_adaptive;
+	u32 prev_rx_usecs;
+	int i, j, err;
+
+	/* Keep track of the previous value, just in case we fail */
+	dpio = priv->channel[0]->dpio;
+	dpaa2_io_get_irq_coalescing(dpio, &prev_rx_usecs);
+	prev_adaptive = dpaa2_io_get_adaptive_coalescing(dpio);
+
+	/* Setup new value for rx coalescing */
+	for (i = 0; i < priv->num_channels; i++) {
+		dpio = priv->channel[i]->dpio;
+
+		dpaa2_io_set_adaptive_coalescing(dpio,
+						 ic->use_adaptive_rx_coalesce);
+		err = dpaa2_io_set_irq_coalescing(dpio, ic->rx_coalesce_usecs);
+		if (err)
+			goto restore_rx_usecs;
+	}
+
+	return 0;
+
+restore_rx_usecs:
+	for (j = 0; j < i; j++) {
+		dpio = priv->channel[j]->dpio;
+
+		dpaa2_io_set_irq_coalescing(dpio, prev_rx_usecs);
+		dpaa2_io_set_adaptive_coalescing(dpio, prev_adaptive);
+	}
+
+	return err;
+}
+
 const struct ethtool_ops dpaa2_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_drvinfo = dpaa2_eth_get_drvinfo,
 	.nway_reset = dpaa2_eth_nway_reset,
 	.get_link = ethtool_op_get_link,
@@ -796,4 +892,8 @@ const struct ethtool_ops dpaa2_ethtool_ops = {
 	.get_rxnfc = dpaa2_eth_get_rxnfc,
 	.set_rxnfc = dpaa2_eth_set_rxnfc,
 	.get_ts_info = dpaa2_eth_get_ts_info,
+	.get_tunable = dpaa2_eth_get_tunable,
+	.set_tunable = dpaa2_eth_set_tunable,
+	.get_coalesce = dpaa2_eth_get_coalesce,
+	.set_coalesce = dpaa2_eth_set_coalesce,
 };

@@ -31,7 +31,6 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/slab.h>
 
-#include <asm/intel-mid.h>
 #include <asm/unaligned.h>
 
 #include <drm/drm_crtc.h>
@@ -40,9 +39,13 @@
 #include <video/mipi_display.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
-#include "intel_sideband.h"
+#include "intel_dsi_vbt.h"
+#include "vlv_dsi.h"
+#include "vlv_dsi_regs.h"
+#include "vlv_sideband.h"
 
 #define MIPI_TRANSFER_MODE_SHIFT	0
 #define MIPI_VIRTUAL_CHANNEL_SHIFT	1
@@ -203,7 +206,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 		break;
 	}
 
-	if (INTEL_GEN(dev_priv) < 11)
+	if (DISPLAY_VER(dev_priv) < 11)
 		vlv_dsi_wait_for_fifo_empty(intel_dsi, port);
 
 out:
@@ -380,7 +383,7 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	/* pull up/down */
 	value = *data++ & 1;
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (DISPLAY_VER(dev_priv) >= 11)
 		icl_exec_gpio(dev_priv, gpio_source, gpio_index, value);
 	else if (IS_VALLEYVIEW(dev_priv))
 		vlv_exec_gpio(dev_priv, gpio_source, gpio_number, value);
@@ -425,24 +428,16 @@ static void i2c_acpi_find_adapter(struct intel_dsi *intel_dsi,
 				  const u16 slave_addr)
 {
 	struct drm_device *drm_dev = intel_dsi->base.base.dev;
-	struct device *dev = &drm_dev->pdev->dev;
-	struct acpi_device *acpi_dev;
-	struct list_head resource_list;
-	struct i2c_adapter_lookup lookup;
+	struct acpi_device *adev = ACPI_COMPANION(drm_dev->dev);
+	struct i2c_adapter_lookup lookup = {
+		.slave_addr = slave_addr,
+		.intel_dsi = intel_dsi,
+		.dev_handle = acpi_device_handle(adev),
+	};
+	LIST_HEAD(resource_list);
 
-	acpi_dev = ACPI_COMPANION(dev);
-	if (acpi_dev) {
-		memset(&lookup, 0, sizeof(lookup));
-		lookup.slave_addr = slave_addr;
-		lookup.intel_dsi = intel_dsi;
-		lookup.dev_handle = acpi_device_handle(acpi_dev);
-
-		INIT_LIST_HEAD(&resource_list);
-		acpi_dev_get_resources(acpi_dev, &resource_list,
-				       i2c_adapter_lookup,
-				       &lookup);
-		acpi_dev_free_resource_list(&resource_list);
-	}
+	acpi_dev_get_resources(adev, &resource_list, i2c_adapter_lookup, &lookup);
+	acpi_dev_free_resource_list(&resource_list);
 }
 #else
 static inline void i2c_acpi_find_adapter(struct intel_dsi *intel_dsi,
@@ -681,11 +676,11 @@ void intel_dsi_log_params(struct intel_dsi *intel_dsi)
 	drm_dbg_kms(&i915->drm, "Lane count %d\n", intel_dsi->lane_count);
 	drm_dbg_kms(&i915->drm, "DPHY param reg 0x%x\n", intel_dsi->dphy_reg);
 	drm_dbg_kms(&i915->drm, "Video mode format %s\n",
-		    intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE ?
+		    intel_dsi->video_mode == NON_BURST_SYNC_PULSE ?
 		    "non-burst with sync pulse" :
-		    intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS ?
+		    intel_dsi->video_mode == NON_BURST_SYNC_EVENTS ?
 		    "non-burst with sync events" :
-		    intel_dsi->video_mode_format == VIDEO_MODE_BURST ?
+		    intel_dsi->video_mode == BURST_MODE ?
 		    "burst" : "<unknown>");
 	drm_dbg_kms(&i915->drm, "Burst mode ratio %d\n",
 		    intel_dsi->burst_mode_ratio);
@@ -745,7 +740,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->dual_link = mipi_config->dual_link;
 	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;
 	intel_dsi->operation_mode = mipi_config->is_cmd_mode;
-	intel_dsi->video_mode_format = mipi_config->video_transfer_mode;
+	intel_dsi->video_mode = mipi_config->video_transfer_mode;
 	intel_dsi->escape_clk_div = mipi_config->byte_clk_sel;
 	intel_dsi->lp_rx_timeout = mipi_config->lp_rx_timeout;
 	intel_dsi->hs_tx_timeout = mipi_config->hs_tx_timeout;
@@ -776,7 +771,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	 * Target ddr frequency from VBT / non burst ddr freq
 	 * multiply by 100 to preserve remainder
 	 */
-	if (intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
+	if (intel_dsi->video_mode == BURST_MODE) {
 		if (mipi_config->target_burst_mode_freq) {
 			u32 bitrate = intel_dsi_bitrate(intel_dsi);
 

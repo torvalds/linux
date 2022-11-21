@@ -23,15 +23,11 @@ struct zpool {
 	void *pool;
 	const struct zpool_ops *ops;
 	bool evictable;
-
-	struct list_head list;
+	bool can_sleep_mapped;
 };
 
 static LIST_HEAD(drivers_head);
 static DEFINE_SPINLOCK(drivers_lock);
-
-static LIST_HEAD(pools_head);
-static DEFINE_SPINLOCK(pools_lock);
 
 /**
  * zpool_register_driver() - register a zpool implementation.
@@ -183,6 +179,7 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
 	zpool->pool = driver->create(name, gfp, ops, zpool);
 	zpool->ops = ops;
 	zpool->evictable = driver->shrink && ops && ops->evict;
+	zpool->can_sleep_mapped = driver->sleep_mapped;
 
 	if (!zpool->pool) {
 		pr_err("couldn't create %s pool\n", type);
@@ -192,10 +189,6 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
 	}
 
 	pr_debug("created pool type %s\n", type);
-
-	spin_lock(&pools_lock);
-	list_add(&zpool->list, &pools_head);
-	spin_unlock(&pools_lock);
 
 	return zpool;
 }
@@ -215,9 +208,6 @@ void zpool_destroy_pool(struct zpool *zpool)
 {
 	pr_debug("destroying pool type %s\n", zpool->driver->type);
 
-	spin_lock(&pools_lock);
-	list_del(&zpool->list);
-	spin_unlock(&pools_lock);
 	zpool->driver->destroy(zpool->pool);
 	zpool_put_driver(zpool->driver);
 	kfree(zpool);
@@ -334,7 +324,7 @@ int zpool_shrink(struct zpool *zpool, unsigned int pages,
  * This may hold locks, disable interrupts, and/or preemption,
  * and the zpool_unmap_handle() must be called to undo those
  * actions.  The code that uses the mapped handle should complete
- * its operatons on the mapped handle memory quickly and unmap
+ * its operations on the mapped handle memory quickly and unmap
  * as soon as possible.  As the implementation may use per-cpu
  * data, multiple handles should not be mapped concurrently on
  * any cpu.
@@ -391,6 +381,17 @@ u64 zpool_get_total_size(struct zpool *zpool)
 bool zpool_evictable(struct zpool *zpool)
 {
 	return zpool->evictable;
+}
+
+/**
+ * zpool_can_sleep_mapped - Test if zpool can sleep when do mapped.
+ * @zpool:	The zpool to test
+ *
+ * Returns: true if zpool can sleep; false otherwise.
+ */
+bool zpool_can_sleep_mapped(struct zpool *zpool)
+{
+	return zpool->can_sleep_mapped;
 }
 
 MODULE_LICENSE("GPL");

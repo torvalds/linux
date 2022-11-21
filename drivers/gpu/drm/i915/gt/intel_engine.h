@@ -2,6 +2,7 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
+#include <asm/cacheflush.h>
 #include <drm/drm_util.h>
 
 #include <linux/hashtable.h>
@@ -10,16 +11,17 @@
 #include <linux/seqlock.h>
 
 #include "i915_pmu.h"
-#include "i915_reg.h"
 #include "i915_request.h"
 #include "i915_selftest.h"
-#include "gt/intel_timeline.h"
 #include "intel_engine_types.h"
-#include "intel_gpu_commands.h"
+#include "intel_gt_types.h"
+#include "intel_timeline.h"
 #include "intel_workarounds.h"
 
 struct drm_printer;
+struct intel_context;
 struct intel_gt;
+struct lock_class_key;
 
 /* Early gen2 devices have a cacheline of just 32 bytes, using 64 is overkill,
  * but keeps the logic simple. Indeed, the whole purpose of this macro is just
@@ -123,20 +125,6 @@ execlists_active(const struct intel_engine_execlists *execlists)
 	return active;
 }
 
-static inline void
-execlists_active_lock_bh(struct intel_engine_execlists *execlists)
-{
-	local_bh_disable(); /* prevent local softirq and lock recursion */
-	tasklet_lock(&execlists->tasklet);
-}
-
-static inline void
-execlists_active_unlock_bh(struct intel_engine_execlists *execlists)
-{
-	tasklet_unlock(&execlists->tasklet);
-	local_bh_enable(); /* restore softirq, and kick ksoftirqd! */
-}
-
 struct i915_request *
 execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists);
 
@@ -186,11 +174,16 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 #define I915_GEM_HWS_PREEMPT_ADDR	(I915_GEM_HWS_PREEMPT * sizeof(u32))
 #define I915_GEM_HWS_SEQNO		0x40
 #define I915_GEM_HWS_SEQNO_ADDR		(I915_GEM_HWS_SEQNO * sizeof(u32))
+#define I915_GEM_HWS_MIGRATE		(0x42 * sizeof(u32))
+#define I915_GEM_HWS_PXP		0x60
+#define I915_GEM_HWS_PXP_ADDR		(I915_GEM_HWS_PXP * sizeof(u32))
 #define I915_GEM_HWS_SCRATCH		0x80
 
 #define I915_HWS_CSB_BUF0_INDEX		0x10
 #define I915_HWS_CSB_WRITE_INDEX	0x1f
-#define CNL_HWS_CSB_WRITE_INDEX		0x2f
+#define ICL_HWS_CSB_WRITE_INDEX		0x2f
+#define INTEL_HWS_CSB_WRITE_INDEX(__i915) \
+	(GRAPHICS_VER(__i915) >= 11 ? ICL_HWS_CSB_WRITE_INDEX : I915_HWS_CSB_WRITE_INDEX)
 
 void intel_engine_stop(struct intel_engine_cs *engine);
 void intel_engine_cleanup(struct intel_engine_cs *engine);
@@ -223,90 +216,8 @@ void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 
 void intel_engine_init_execlists(struct intel_engine_cs *engine);
 
-static inline u32 *__gen8_emit_pipe_control(u32 *batch, u32 flags0, u32 flags1, u32 offset)
-{
-	memset(batch, 0, 6 * sizeof(u32));
-
-	batch[0] = GFX_OP_PIPE_CONTROL(6) | flags0;
-	batch[1] = flags1;
-	batch[2] = offset;
-
-	return batch + 6;
-}
-
-static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
-{
-	return __gen8_emit_pipe_control(batch, 0, flags, offset);
-}
-
-static inline u32 *gen12_emit_pipe_control(u32 *batch, u32 flags0, u32 flags1, u32 offset)
-{
-	return __gen8_emit_pipe_control(batch, flags0, flags1, offset);
-}
-
-static inline u32 *
-__gen8_emit_write_rcs(u32 *cs, u32 value, u32 offset, u32 flags0, u32 flags1)
-{
-	*cs++ = GFX_OP_PIPE_CONTROL(6) | flags0;
-	*cs++ = flags1 | PIPE_CONTROL_QW_WRITE;
-	*cs++ = offset;
-	*cs++ = 0;
-	*cs++ = value;
-	*cs++ = 0; /* We're thrashing one extra dword. */
-
-	return cs;
-}
-
-static inline u32*
-gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
-{
-	/* We're using qword write, offset should be aligned to 8 bytes. */
-	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
-
-	return __gen8_emit_write_rcs(cs,
-				     value,
-				     gtt_offset,
-				     0,
-				     flags | PIPE_CONTROL_GLOBAL_GTT_IVB);
-}
-
-static inline u32*
-gen12_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset, u32 flags0, u32 flags1)
-{
-	/* We're using qword write, offset should be aligned to 8 bytes. */
-	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
-
-	return __gen8_emit_write_rcs(cs,
-				     value,
-				     gtt_offset,
-				     flags0,
-				     flags1 | PIPE_CONTROL_GLOBAL_GTT_IVB);
-}
-
-static inline u32 *
-__gen8_emit_flush_dw(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
-{
-	*cs++ = (MI_FLUSH_DW + 1) | flags;
-	*cs++ = gtt_offset;
-	*cs++ = 0;
-	*cs++ = value;
-
-	return cs;
-}
-
-static inline u32 *
-gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
-{
-	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
-	GEM_BUG_ON(gtt_offset & (1 << 5));
-	/* Offset should be aligned to 8 bytes for both (QW/DW) write types */
-	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
-
-	return __gen8_emit_flush_dw(cs,
-				    value,
-				    gtt_offset | MI_FLUSH_DW_USE_GTT,
-				    flags | MI_FLUSH_DW_OP_STOREDW);
-}
+bool intel_engine_irq_enable(struct intel_engine_cs *engine);
+void intel_engine_irq_disable(struct intel_engine_cs *engine);
 
 static inline void __intel_engine_reset(struct intel_engine_cs *engine,
 					bool stalled)
@@ -318,7 +229,12 @@ static inline void __intel_engine_reset(struct intel_engine_cs *engine,
 
 bool intel_engines_are_idle(struct intel_gt *gt);
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
-void intel_engine_flush_submission(struct intel_engine_cs *engine);
+
+void __intel_engine_flush_submission(struct intel_engine_cs *engine, bool sync);
+static inline void intel_engine_flush_submission(struct intel_engine_cs *engine)
+{
+	__intel_engine_flush_submission(engine, true);
+}
 
 void intel_engines_reset_default_submission(struct intel_gt *gt);
 
@@ -328,37 +244,111 @@ __printf(3, 4)
 void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...);
+void intel_engine_dump_active_requests(struct list_head *requests,
+				       struct i915_request *hung_rq,
+				       struct drm_printer *m);
 
 ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine,
 				   ktime_t *now);
 
 struct i915_request *
-intel_engine_find_active_request(struct intel_engine_cs *engine);
+intel_engine_execlist_find_hung_request(struct intel_engine_cs *engine);
 
 u32 intel_engine_context_size(struct intel_gt *gt, u8 class);
+struct intel_context *
+intel_engine_create_pinned_context(struct intel_engine_cs *engine,
+				   struct i915_address_space *vm,
+				   unsigned int ring_size,
+				   unsigned int hwsp,
+				   struct lock_class_key *key,
+				   const char *name);
 
-void intel_engine_init_active(struct intel_engine_cs *engine,
-			      unsigned int subclass);
+void intel_engine_destroy_pinned_context(struct intel_context *ce);
+
+void xehp_enable_ccs_engines(struct intel_engine_cs *engine);
+
 #define ENGINE_PHYSICAL	0
 #define ENGINE_MOCK	1
 #define ENGINE_VIRTUAL	2
 
+static inline bool intel_engine_uses_guc(const struct intel_engine_cs *engine)
+{
+	return engine->gt->submission_method >= INTEL_SUBMISSION_GUC;
+}
+
 static inline bool
 intel_engine_has_preempt_reset(const struct intel_engine_cs *engine)
 {
-	if (!IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT))
+	if (!CONFIG_DRM_I915_PREEMPT_TIMEOUT)
 		return false;
 
 	return intel_engine_has_preemption(engine);
 }
 
+#define FORCE_VIRTUAL	BIT(0)
+struct intel_context *
+intel_engine_create_virtual(struct intel_engine_cs **siblings,
+			    unsigned int count, unsigned long flags);
+
+static inline struct intel_context *
+intel_engine_create_parallel(struct intel_engine_cs **engines,
+			     unsigned int num_engines,
+			     unsigned int width)
+{
+	GEM_BUG_ON(!engines[0]->cops->create_parallel);
+	return engines[0]->cops->create_parallel(engines, num_engines, width);
+}
+
+static inline bool
+intel_virtual_engine_has_heartbeat(const struct intel_engine_cs *engine)
+{
+	/*
+	 * For non-GuC submission we expect the back-end to look at the
+	 * heartbeat status of the actual physical engine that the work
+	 * has been (or is being) scheduled on, so we should only reach
+	 * here with GuC submission enabled.
+	 */
+	GEM_BUG_ON(!intel_engine_uses_guc(engine));
+
+	return intel_guc_virtual_engine_has_heartbeat(engine);
+}
+
 static inline bool
 intel_engine_has_heartbeat(const struct intel_engine_cs *engine)
 {
-	if (!IS_ACTIVE(CONFIG_DRM_I915_HEARTBEAT_INTERVAL))
+	if (!CONFIG_DRM_I915_HEARTBEAT_INTERVAL)
 		return false;
 
-	return READ_ONCE(engine->props.heartbeat_interval_ms);
+	if (intel_engine_is_virtual(engine))
+		return intel_virtual_engine_has_heartbeat(engine);
+	else
+		return READ_ONCE(engine->props.heartbeat_interval_ms);
+}
+
+static inline struct intel_engine_cs *
+intel_engine_get_sibling(struct intel_engine_cs *engine, unsigned int sibling)
+{
+	GEM_BUG_ON(!intel_engine_is_virtual(engine));
+	return engine->cops->get_sibling(engine, sibling);
+}
+
+static inline void
+intel_engine_set_hung_context(struct intel_engine_cs *engine,
+			      struct intel_context *ce)
+{
+	engine->hung_ce = ce;
+}
+
+static inline void
+intel_engine_clear_hung_context(struct intel_engine_cs *engine)
+{
+	intel_engine_set_hung_context(engine, NULL);
+}
+
+static inline struct intel_context *
+intel_engine_get_hung_context(struct intel_engine_cs *engine)
+{
+	return engine->hung_ce;
 }
 
 #endif /* _INTEL_RINGBUFFER_H_ */

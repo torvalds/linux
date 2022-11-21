@@ -51,3 +51,15 @@ Description:
 		Boolean value indicating whether the PHY device is used in
 		standalone mode, without a net_device associated, by PHYLINK.
 		Attribute created only when this is the case.
+
+What:		/sys/class/mdio_bus/<bus>/<device>/phy_dev_flags
+Date:		March 2021
+KernelVersion:	5.13
+Contact:	netdev@vger.kernel.org
+Description:
+		32-bit hexadecimal number representing a bit mask of the
+		configuration bits passed from the consumer of the PHY
+		(Ethernet MAC, switch, etc.) to the PHY driver. The flags are
+		only used internally by the kernel and their placement are
+		not meant to be stable across kernel versions. This is intended
+		for facilitating the debugging of PHY drivers.

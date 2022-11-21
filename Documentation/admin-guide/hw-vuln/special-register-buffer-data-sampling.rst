@@ -3,7 +3,8 @@
 SRBDS - Special Register Buffer Data Sampling
 =============================================
 
-SRBDS is a hardware vulnerability that allows MDS :doc:`mds` techniques to
+SRBDS is a hardware vulnerability that allows MDS
+Documentation/admin-guide/hw-vuln/mds.rst techniques to
 infer values returned from special register accesses.  Special register
 accesses are accesses to off core registers.  According to Intel's evaluation,
 the special register reads that have a security expectation of privacy are

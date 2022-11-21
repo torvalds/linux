@@ -84,6 +84,8 @@ int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *addr,
 struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
 int sctp_register_pf(struct sctp_pf *, sa_family_t);
 void sctp_addr_wq_mgmt(struct net *, struct sctp_sockaddr_entry *, int);
+int sctp_udp_sock_start(struct net *net);
+void sctp_udp_sock_stop(struct net *net);
 
 /*
  * sctp/socket.c
@@ -103,19 +105,18 @@ extern struct percpu_counter sctp_sockets_allocated;
 int sctp_asconf_mgmt(struct sctp_sock *, struct sctp_sockaddr_entry *);
 struct sk_buff *sctp_skb_recv_datagram(struct sock *, int, int, int *);
 
+typedef int (*sctp_callback_t)(struct sctp_endpoint *, struct sctp_transport *, void *);
 void sctp_transport_walk_start(struct rhashtable_iter *iter);
 void sctp_transport_walk_stop(struct rhashtable_iter *iter);
 struct sctp_transport *sctp_transport_get_next(struct net *net,
 			struct rhashtable_iter *iter);
 struct sctp_transport *sctp_transport_get_idx(struct net *net,
 			struct rhashtable_iter *iter, int pos);
-int sctp_transport_lookup_process(int (*cb)(struct sctp_transport *, void *),
-				  struct net *net,
+int sctp_transport_lookup_process(sctp_callback_t cb, struct net *net,
 				  const union sctp_addr *laddr,
 				  const union sctp_addr *paddr, void *p);
-int sctp_for_each_transport(int (*cb)(struct sctp_transport *, void *),
-			    int (*cb_done)(struct sctp_transport *, void *),
-			    struct net *net, int *pos, void *p);
+int sctp_transport_traverse_process(sctp_callback_t cb, sctp_callback_t cb_done,
+				    struct net *net, int *pos, void *p);
 int sctp_for_each_endpoint(int (*cb)(struct sctp_endpoint *, void *), void *p);
 int sctp_get_sctp_info(struct sock *sk, struct sctp_association *asoc,
 		       struct sctp_info *info);
@@ -143,6 +144,8 @@ struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *,
 			     struct sctphdr *, struct sctp_association **,
 			     struct sctp_transport **);
 void sctp_err_finish(struct sock *, struct sctp_transport *);
+int sctp_udp_v4_err(struct sock *sk, struct sk_buff *skb);
+int sctp_udp_v6_err(struct sock *sk, struct sk_buff *skb);
 void sctp_icmp_frag_needed(struct sock *, struct sctp_association *,
 			   struct sctp_transport *t, __u32 pmtu);
 void sctp_icmp_redirect(struct sock *, struct sctp_transport *,
@@ -506,8 +509,8 @@ static inline int sctp_ep_hashfn(struct net *net, __u16 lport)
 	return (net_hash_mix(net) + lport) & (sctp_ep_hashsize - 1);
 }
 
-#define sctp_for_each_hentry(epb, head) \
-	hlist_for_each_entry(epb, head, node)
+#define sctp_for_each_hentry(ep, head) \
+	hlist_for_each_entry(ep, head, node)
 
 /* Is a socket of this style? */
 #define sctp_style(sk, style) __sctp_style((sk), (SCTP_SOCKET_##style))
@@ -571,20 +574,30 @@ static inline struct dst_entry *sctp_transport_dst_check(struct sctp_transport *
 /* Calculate max payload size given a MTU, or the total overhead if
  * given MTU is zero
  */
-static inline __u32 sctp_mtu_payload(const struct sctp_sock *sp,
-				     __u32 mtu, __u32 extra)
+static inline __u32 __sctp_mtu_payload(const struct sctp_sock *sp,
+				       const struct sctp_transport *t,
+				       __u32 mtu, __u32 extra)
 {
 	__u32 overhead = sizeof(struct sctphdr) + extra;
 
-	if (sp)
+	if (sp) {
 		overhead += sp->pf->af->net_header_len;
-	else
+		if (sp->udp_port && (!t || t->encap_port))
+			overhead += sizeof(struct udphdr);
+	} else {
 		overhead += sizeof(struct ipv6hdr);
+	}
 
 	if (WARN_ON_ONCE(mtu && mtu <= overhead))
 		mtu = overhead;
 
 	return mtu ? mtu - overhead : overhead;
+}
+
+static inline __u32 sctp_mtu_payload(const struct sctp_sock *sp,
+				     __u32 mtu, __u32 extra)
+{
+	return __sctp_mtu_payload(sp, NULL, mtu, extra);
 }
 
 static inline __u32 sctp_dst_mtu(const struct dst_entry *dst)
@@ -608,6 +621,47 @@ static inline bool sctp_transport_pmtu_check(struct sctp_transport *t)
 static inline __u32 sctp_min_frag_point(struct sctp_sock *sp, __u16 datasize)
 {
 	return sctp_mtu_payload(sp, SCTP_DEFAULT_MINSEGMENT, datasize);
+}
+
+static inline int sctp_transport_pl_hlen(struct sctp_transport *t)
+{
+	return __sctp_mtu_payload(sctp_sk(t->asoc->base.sk), t, 0, 0) -
+	       sizeof(struct sctphdr);
+}
+
+static inline void sctp_transport_pl_reset(struct sctp_transport *t)
+{
+	if (t->probe_interval && (t->param_flags & SPP_PMTUD_ENABLE) &&
+	    (t->state == SCTP_ACTIVE || t->state == SCTP_UNKNOWN)) {
+		if (t->pl.state == SCTP_PL_DISABLED) {
+			t->pl.state = SCTP_PL_BASE;
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
+			t->pl.probe_size = SCTP_BASE_PLPMTU;
+			sctp_transport_reset_probe_timer(t);
+		}
+	} else {
+		if (t->pl.state != SCTP_PL_DISABLED) {
+			if (del_timer(&t->probe_timer))
+				sctp_transport_put(t);
+			t->pl.state = SCTP_PL_DISABLED;
+		}
+	}
+}
+
+static inline void sctp_transport_pl_update(struct sctp_transport *t)
+{
+	if (t->pl.state == SCTP_PL_DISABLED)
+		return;
+
+	t->pl.state = SCTP_PL_BASE;
+	t->pl.pmtu = SCTP_BASE_PLPMTU;
+	t->pl.probe_size = SCTP_BASE_PLPMTU;
+	sctp_transport_reset_probe_timer(t);
+}
+
+static inline bool sctp_transport_pl_enabled(struct sctp_transport *t)
+{
+	return t->pl.state != SCTP_PL_DISABLED;
 }
 
 static inline bool sctp_newsk_ready(const struct sock *sk)

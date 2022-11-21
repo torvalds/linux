@@ -399,7 +399,6 @@ static const struct regmap_config fsl_pwm_regmap_config = {
 static int fsl_pwm_probe(struct platform_device *pdev)
 {
 	struct fsl_pwm_chip *fpc;
-	struct resource *res;
 	void __iomem *base;
 	int ret;
 
@@ -412,8 +411,7 @@ static int fsl_pwm_probe(struct platform_device *pdev)
 	fpc->soc = of_device_get_match_data(&pdev->dev);
 	fpc->chip.dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -453,12 +451,9 @@ static int fsl_pwm_probe(struct platform_device *pdev)
 
 
 	fpc->chip.ops = &fsl_pwm_ops;
-	fpc->chip.of_xlate = of_pwm_xlate_with_flags;
-	fpc->chip.of_pwm_n_cells = 3;
-	fpc->chip.base = -1;
 	fpc->chip.npwm = 8;
 
-	ret = pwmchip_add(&fpc->chip);
+	ret = devm_pwmchip_add(&pdev->dev, &fpc->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add PWM chip: %d\n", ret);
 		return ret;
@@ -467,13 +462,6 @@ static int fsl_pwm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, fpc);
 
 	return fsl_pwm_init(fpc);
-}
-
-static int fsl_pwm_remove(struct platform_device *pdev)
-{
-	struct fsl_pwm_chip *fpc = platform_get_drvdata(pdev);
-
-	return pwmchip_remove(&fpc->chip);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -557,7 +545,6 @@ static struct platform_driver fsl_pwm_driver = {
 		.pm = &fsl_pwm_pm_ops,
 	},
 	.probe = fsl_pwm_probe,
-	.remove = fsl_pwm_remove,
 };
 module_platform_driver(fsl_pwm_driver);
 

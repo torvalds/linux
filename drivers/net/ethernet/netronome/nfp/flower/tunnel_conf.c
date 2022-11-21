@@ -16,11 +16,12 @@
 #define NFP_FL_MAX_ROUTES               32
 
 #define NFP_TUN_PRE_TUN_RULE_LIMIT	32
-#define NFP_TUN_PRE_TUN_RULE_DEL	0x1
-#define NFP_TUN_PRE_TUN_IDX_BIT		0x8
+#define NFP_TUN_PRE_TUN_RULE_DEL	BIT(0)
+#define NFP_TUN_PRE_TUN_IDX_BIT		BIT(3)
+#define NFP_TUN_PRE_TUN_IPV6_BIT	BIT(7)
 
 /**
- * struct nfp_tun_pre_run_rule - rule matched before decap
+ * struct nfp_tun_pre_tun_rule - rule matched before decap
  * @flags:		options for the rule offset
  * @port_idx:		index of destination MAC address for the rule
  * @vlan_tci:		VLAN info associated with MAC
@@ -355,7 +356,7 @@ __nfp_tun_add_route_to_cache(struct list_head *route_list,
 			return 0;
 		}
 
-	entry = kmalloc(sizeof(*entry) + add_len, GFP_ATOMIC);
+	entry = kmalloc(struct_size(entry, ip_add, add_len), GFP_ATOMIC);
 	if (!entry) {
 		spin_unlock_bh(list_lock);
 		return -ENOMEM;
@@ -836,7 +837,7 @@ nfp_tunnel_put_ipv6_off(struct nfp_app *app, struct nfp_ipv6_addr_entry *entry)
 }
 
 static int
-__nfp_tunnel_offload_mac(struct nfp_app *app, u8 *mac, u16 idx, bool del)
+__nfp_tunnel_offload_mac(struct nfp_app *app, const u8 *mac, u16 idx, bool del)
 {
 	struct nfp_tun_mac_addr_offload payload;
 
@@ -885,7 +886,7 @@ static bool nfp_tunnel_is_mac_idx_global(u16 nfp_mac_idx)
 }
 
 static struct nfp_tun_offloaded_mac *
-nfp_tunnel_lookup_offloaded_macs(struct nfp_app *app, u8 *mac)
+nfp_tunnel_lookup_offloaded_macs(struct nfp_app *app, const u8 *mac)
 {
 	struct nfp_flower_priv *priv = app->priv;
 
@@ -921,8 +922,8 @@ nfp_tunnel_add_shared_mac(struct nfp_app *app, struct net_device *netdev,
 			  int port, bool mod)
 {
 	struct nfp_flower_priv *priv = app->priv;
-	int ida_idx = NFP_MAX_MAC_INDEX, err;
 	struct nfp_tun_offloaded_mac *entry;
+	int ida_idx = -1, err;
 	u16 nfp_mac_idx = 0;
 
 	entry = nfp_tunnel_lookup_offloaded_macs(app, netdev->dev_addr);
@@ -941,8 +942,8 @@ nfp_tunnel_add_shared_mac(struct nfp_app *app, struct net_device *netdev,
 	if (!nfp_mac_idx) {
 		/* Assign a global index if non-repr or MAC is now shared. */
 		if (entry || !port) {
-			ida_idx = ida_simple_get(&priv->tun.mac_off_ids, 0,
-						 NFP_MAX_MAC_INDEX, GFP_KERNEL);
+			ida_idx = ida_alloc_max(&priv->tun.mac_off_ids,
+						NFP_MAX_MAC_INDEX, GFP_KERNEL);
 			if (ida_idx < 0)
 				return ida_idx;
 
@@ -996,20 +997,21 @@ err_remove_hash:
 err_free_entry:
 	kfree(entry);
 err_free_ida:
-	if (ida_idx != NFP_MAX_MAC_INDEX)
-		ida_simple_remove(&priv->tun.mac_off_ids, ida_idx);
+	if (ida_idx != -1)
+		ida_free(&priv->tun.mac_off_ids, ida_idx);
 
 	return err;
 }
 
 static int
 nfp_tunnel_del_shared_mac(struct nfp_app *app, struct net_device *netdev,
-			  u8 *mac, bool mod)
+			  const u8 *mac, bool mod)
 {
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_flower_repr_priv *repr_priv;
 	struct nfp_tun_offloaded_mac *entry;
 	struct nfp_repr *repr;
+	u16 nfp_mac_idx;
 	int ida_idx;
 
 	entry = nfp_tunnel_lookup_offloaded_macs(app, mac);
@@ -1028,8 +1030,6 @@ nfp_tunnel_del_shared_mac(struct nfp_app *app, struct net_device *netdev,
 		entry->bridge_count--;
 
 		if (!entry->bridge_count && entry->ref_count) {
-			u16 nfp_mac_idx;
-
 			nfp_mac_idx = entry->index & ~NFP_TUN_PRE_TUN_IDX_BIT;
 			if (__nfp_tunnel_offload_mac(app, mac, nfp_mac_idx,
 						     false)) {
@@ -1045,7 +1045,6 @@ nfp_tunnel_del_shared_mac(struct nfp_app *app, struct net_device *netdev,
 
 	/* If MAC is now used by 1 repr set the offloaded MAC index to port. */
 	if (entry->ref_count == 1 && list_is_singular(&entry->repr_list)) {
-		u16 nfp_mac_idx;
 		int port, err;
 
 		repr_priv = list_first_entry(&entry->repr_list,
@@ -1062,7 +1061,7 @@ nfp_tunnel_del_shared_mac(struct nfp_app *app, struct net_device *netdev,
 		}
 
 		ida_idx = nfp_tunnel_get_ida_from_global_mac_idx(entry->index);
-		ida_simple_remove(&priv->tun.mac_off_ids, ida_idx);
+		ida_free(&priv->tun.mac_off_ids, ida_idx);
 		entry->index = nfp_mac_idx;
 		return 0;
 	}
@@ -1073,10 +1072,16 @@ nfp_tunnel_del_shared_mac(struct nfp_app *app, struct net_device *netdev,
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->tun.offloaded_macs,
 					    &entry->ht_node,
 					    offloaded_macs_params));
+
+	if (nfp_flower_is_supported_bridge(netdev))
+		nfp_mac_idx = entry->index & ~NFP_TUN_PRE_TUN_IDX_BIT;
+	else
+		nfp_mac_idx = entry->index;
+
 	/* If MAC has global ID then extract and free the ida entry. */
-	if (nfp_tunnel_is_mac_idx_global(entry->index)) {
+	if (nfp_tunnel_is_mac_idx_global(nfp_mac_idx)) {
 		ida_idx = nfp_tunnel_get_ida_from_global_mac_idx(entry->index);
-		ida_simple_remove(&priv->tun.mac_off_ids, ida_idx);
+		ida_free(&priv->tun.mac_off_ids, ida_idx);
 	}
 
 	kfree(entry);
@@ -1268,6 +1273,7 @@ int nfp_flower_xmit_pre_tun_flow(struct nfp_app *app,
 {
 	struct nfp_flower_priv *app_priv = app->priv;
 	struct nfp_tun_offloaded_mac *mac_entry;
+	struct nfp_flower_meta_tci *key_meta;
 	struct nfp_tun_pre_tun_rule payload;
 	struct net_device *internal_dev;
 	int err;
@@ -1289,6 +1295,15 @@ int nfp_flower_xmit_pre_tun_flow(struct nfp_app *app,
 						     internal_dev->dev_addr);
 	if (!mac_entry)
 		return -ENOENT;
+
+	/* Set/clear IPV6 bit. cpu_to_be16() swap will lead to MSB being
+	 * set/clear for port_idx.
+	 */
+	key_meta = (struct nfp_flower_meta_tci *)flow->unmasked_data;
+	if (key_meta->nfp_flow_key_layer & NFP_FLOWER_LAYER_IPV6)
+		mac_entry->index |= NFP_TUN_PRE_TUN_IPV6_BIT;
+	else
+		mac_entry->index &= ~NFP_TUN_PRE_TUN_IPV6_BIT;
 
 	payload.port_idx = cpu_to_be16(mac_entry->index);
 

@@ -147,6 +147,11 @@ enum flow_action_id {
 	FLOW_ACTION_MPLS_POP,
 	FLOW_ACTION_MPLS_MANGLE,
 	FLOW_ACTION_GATE,
+	FLOW_ACTION_PPPOE_PUSH,
+	FLOW_ACTION_JUMP,
+	FLOW_ACTION_PIPE,
+	FLOW_ACTION_VLAN_PUSH_ETH,
+	FLOW_ACTION_VLAN_POP_ETH,
 	NUM_FLOW_ACTIONS,
 };
 
@@ -196,6 +201,7 @@ void flow_action_cookie_destroy(struct flow_action_cookie *cookie);
 
 struct flow_action_entry {
 	enum flow_action_id		id;
+	u32				hw_index;
 	enum flow_action_hw_stats	hw_stats;
 	action_destr			destructor;
 	void				*destructor_priv;
@@ -207,6 +213,10 @@ struct flow_action_entry {
 			__be16		proto;
 			u8		prio;
 		} vlan;
+		struct {				/* FLOW_ACTION_VLAN_PUSH_ETH */
+			unsigned char dst[ETH_ALEN];
+			unsigned char src[ETH_ALEN];
+		} vlan_push_eth;
 		struct {				/* FLOW_ACTION_MANGLE */
 							/* FLOW_ACTION_ADD */
 			enum flow_action_mangle_base htype;
@@ -231,10 +241,18 @@ struct flow_action_entry {
 			bool			truncate;
 		} sample;
 		struct {				/* FLOW_ACTION_POLICE */
-			u32			index;
 			u32			burst;
 			u64			rate_bytes_ps;
+			u64			peakrate_bytes_ps;
+			u32			avrate;
+			u16			overhead;
+			u64			burst_pkt;
+			u64			rate_pkt_ps;
 			u32			mtu;
+			struct {
+				enum flow_action_id	act_id;
+				u32			extval;
+			} exceed, notexceed;
 		} police;
 		struct {				/* FLOW_ACTION_CT */
 			int action;
@@ -245,6 +263,7 @@ struct flow_action_entry {
 			unsigned long cookie;
 			u32 mark;
 			u32 labels[4];
+			bool orig_dir;
 		} ct_metadata;
 		struct {				/* FLOW_ACTION_MPLS_PUSH */
 			u32		label;
@@ -263,7 +282,6 @@ struct flow_action_entry {
 			u8		ttl;
 		} mpls_mangle;
 		struct {
-			u32		index;
 			s32		prio;
 			u64		basetime;
 			u64		cycletime;
@@ -271,6 +289,9 @@ struct flow_action_entry {
 			u32		num_entries;
 			struct action_gate_entry *entries;
 		} gate;
+		struct {				/* FLOW_ACTION_PPPOE_PUSH */
+			u16		sid;
+		} pppoe;
 	};
 	struct flow_action_cookie *cookie; /* user defined action cookie */
 };
@@ -286,7 +307,7 @@ static inline bool flow_action_has_entries(const struct flow_action *action)
 }
 
 /**
- * flow_action_has_one_action() - check if exactly one action is present
+ * flow_offload_has_one_action() - check if exactly one action is present
  * @action: tc filter flow offload action
  *
  * Returns true if exactly one action is present.
@@ -294,6 +315,12 @@ static inline bool flow_action_has_entries(const struct flow_action *action)
 static inline bool flow_offload_has_one_action(const struct flow_action *action)
 {
 	return action->num_entries == 1;
+}
+
+static inline bool flow_action_is_last_entry(const struct flow_action *action,
+					     const struct flow_action_entry *entry)
+{
+	return entry == &action->entries[action->num_entries - 1];
 }
 
 #define flow_action_for_each(__i, __act, __actions)			\
@@ -444,6 +471,7 @@ struct flow_block_offload {
 	struct list_head *driver_block_list;
 	struct netlink_ext_ack *extack;
 	struct Qdisc *sch;
+	struct list_head *cb_list_head;
 };
 
 enum tc_setup_type;
@@ -543,6 +571,23 @@ struct flow_cls_offload {
 	struct flow_stats stats;
 	u32 classid;
 };
+
+enum offload_act_command  {
+	FLOW_ACT_REPLACE,
+	FLOW_ACT_DESTROY,
+	FLOW_ACT_STATS,
+};
+
+struct flow_offload_action {
+	struct netlink_ext_ack *extack; /* NULL in FLOW_ACT_STATS process*/
+	enum offload_act_command  command;
+	enum flow_action_id id;
+	u32 index;
+	struct flow_stats stats;
+	struct flow_action action;
+};
+
+struct flow_offload_action *offload_action_alloc(unsigned int num_actions);
 
 static inline struct flow_rule *
 flow_cls_offload_flow_rule(struct flow_cls_offload *flow_cmd)

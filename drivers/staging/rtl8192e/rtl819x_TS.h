@@ -42,15 +42,15 @@ struct tx_ts_record {
 };
 
 struct rx_ts_record {
-	struct ts_common_info TsCommonInfo;
-	u16				RxIndicateSeq;
-	u16				RxTimeoutIndicateSeq;
-	struct list_head		RxPendingPktList;
-	struct timer_list		RxPktPendingTimer;
-	struct ba_record RxAdmittedBARecord;
-	u16				RxLastSeqNum;
-	u8				RxLastFragNum;
-	u8				num;
+	struct ts_common_info ts_common_info;
+	u16 rx_indicate_seq;
+	u16 rx_timeout_indicate_seq;
+	struct list_head rx_pending_pkt_list;
+	struct timer_list rx_pkt_pending_timer;
+	struct ba_record rx_admitted_ba_record;
+	u16 rx_last_seq_num;
+	u8 rx_last_frag_num;
+	u8 num;
 };
 
 

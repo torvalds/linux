@@ -37,7 +37,7 @@
 
 / {
 	model = "NorthStar Plus SVK (BCM988312HR)";
-	compatible = "brcm,bcm88312", "brcm,nsp";
+	compatible = "brcm,bcm988312hr", "brcm,bcm88312", "brcm,nsp";
 
 	chosen {
 		stdout-path = "serial0:115200n8";
@@ -58,6 +58,10 @@
 
 /* USB 3 support needed to be complete */
 
+&dma {
+	status = "okay";
+};
+
 &amac0 {
 	status = "okay";
 };
@@ -74,8 +78,8 @@
 	status = "okay";
 };
 
-&nand {
-	nandcs@0 {
+&nand_controller {
+	nand@0 {
 		compatible = "brcm,nandcs";
 		reg = <0>;
 		nand-on-flash-bbt;
@@ -134,6 +138,7 @@
 };
 
 &qspi {
+	status = "okay";
 	bspi-sel = <0>;
 	flash: m25p80@0 {
 		#address-cells = <1>;
@@ -184,9 +189,6 @@
 	status = "okay";
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@0 {
 			label = "port0";
 			reg = <0>;

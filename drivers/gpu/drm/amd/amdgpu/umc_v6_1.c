@@ -22,6 +22,7 @@
  */
 #include "umc_v6_1.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_umc.h"
 #include "amdgpu.h"
 
 #include "rsmu/rsmu_0_0_2_offset.h"
@@ -253,7 +254,7 @@ static void umc_v6_1_querry_uncorrectable_error_count(struct amdgpu_device *adev
 static void umc_v6_1_query_ras_error_count(struct amdgpu_device *adev,
 					   void *ras_error_status)
 {
-	struct ras_err_data* err_data = (struct ras_err_data*)ras_error_status;
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 
 	uint32_t umc_inst        = 0;
 	uint32_t ch_inst         = 0;
@@ -299,7 +300,6 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 {
 	uint32_t lsb, mc_umc_status_addr;
 	uint64_t mc_umc_status, err_addr, retired_page, mc_umc_addrt0;
-	struct eeprom_table_record *err_rec;
 	uint32_t channel_index = adev->umc.channel_idx_tbl[umc_inst * adev->umc.channel_inst_num + ch_inst];
 
 	if (adev->asic_type == CHIP_ARCTURUS) {
@@ -327,8 +327,6 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 		return;
 	}
 
-	err_rec = &err_data->err_addr[err_data->err_addr_cnt];
-
 	/* calculate error address if ue/ce error is detected */
 	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
 	    (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1 ||
@@ -347,18 +345,9 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 
 		/* we only save ue error information currently, ce is skipped */
 		if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC)
-				== 1) {
-			err_rec->address = err_addr;
-			/* page frame address is saved */
-			err_rec->retired_page = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
-			err_rec->ts = (uint64_t)ktime_get_real_seconds();
-			err_rec->err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
-			err_rec->cu = 0;
-			err_rec->mem_channel = channel_index;
-			err_rec->mcumc_id = umc_inst;
-
-			err_data->err_addr_cnt++;
-		}
+				== 1)
+			amdgpu_umc_fill_error_record(err_data, err_addr,
+					retired_page, channel_index, umc_inst);
 	}
 
 	/* clear umc status */
@@ -368,7 +357,7 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 static void umc_v6_1_query_ras_error_address(struct amdgpu_device *adev,
 					     void *ras_error_status)
 {
-	struct ras_err_data* err_data = (struct ras_err_data*)ras_error_status;
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 
 	uint32_t umc_inst        = 0;
 	uint32_t ch_inst         = 0;
@@ -464,9 +453,14 @@ static void umc_v6_1_err_cnt_init(struct amdgpu_device *adev)
 		umc_v6_1_enable_umc_index_mode(adev);
 }
 
-const struct amdgpu_umc_funcs umc_v6_1_funcs = {
-	.err_cnt_init = umc_v6_1_err_cnt_init,
-	.ras_late_init = amdgpu_umc_ras_late_init,
+const struct amdgpu_ras_block_hw_ops umc_v6_1_ras_hw_ops = {
 	.query_ras_error_count = umc_v6_1_query_ras_error_count,
 	.query_ras_error_address = umc_v6_1_query_ras_error_address,
+};
+
+struct amdgpu_umc_ras umc_v6_1_ras = {
+	.ras_block = {
+		.hw_ops = &umc_v6_1_ras_hw_ops,
+	},
+	.err_cnt_init = umc_v6_1_err_cnt_init,
 };

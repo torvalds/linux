@@ -20,7 +20,18 @@ typedef u16 compat_ushort_t;
 typedef u32 compat_uint_t;
 typedef u32 compat_ulong_t;
 typedef u32 compat_uptr_t;
+typedef u32 compat_caddr_t;
 typedef u32 compat_aio_context_t;
+typedef u32 compat_old_sigset_t;
+
+#ifndef __compat_uid32_t
+typedef u32 __compat_uid32_t;
+typedef u32 __compat_gid32_t;
+#endif
+
+#ifndef compat_mode_t
+typedef u32 compat_mode_t;
+#endif
 
 #ifdef CONFIG_COMPAT_FOR_U64_ALIGNMENT
 typedef s64 __attribute__((aligned(4))) compat_s64;
@@ -28,6 +39,12 @@ typedef u64 __attribute__((aligned(4))) compat_u64;
 #else
 typedef s64 compat_s64;
 typedef u64 compat_u64;
+#endif
+
+#ifndef _COMPAT_NSIG
+typedef u32 compat_sigset_word;
+#define _COMPAT_NSIG _NSIG
+#define _COMPAT_NSIG_BPW 32
 #endif
 
 #endif

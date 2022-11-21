@@ -578,7 +578,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.no_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_DSP_A |
 			SND_SOC_DAIFMT_IB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
+			SND_SOC_DAIFMT_CBC_CFC,
 		.init = skylake_ssm4567_codec_init,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = skylake_ssp_fixup,
@@ -593,7 +593,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.no_pcm = 1,
 		.init = skylake_nau8825_codec_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
+			SND_SOC_DAIFMT_CBC_CFC,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = skylake_ssp_fixup,
 		.ops = &skylake_nau8825_ops,
@@ -717,6 +717,7 @@ static const struct platform_device_id skl_board_ids[] = {
 	{ .name = "kbl_n88l25_s4567" },
 	{ }
 };
+MODULE_DEVICE_TABLE(platform, skl_board_ids);
 
 static struct platform_driver skylake_audio = {
 	.probe = skylake_audio_probe,
@@ -737,5 +738,3 @@ MODULE_AUTHOR("Sathya Prakash M R <sathya.prakash.m.r@intel.com>");
 MODULE_AUTHOR("Yong Zhi <yong.zhi@intel.com>");
 MODULE_DESCRIPTION("Intel Audio Machine driver for SKL with NAU88L25 and SSM4567 in I2S Mode");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:skl_n88l25_s4567");
-MODULE_ALIAS("platform:kbl_n88l25_s4567");

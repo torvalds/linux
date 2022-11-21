@@ -6,7 +6,7 @@
 #include "icp_qat_fw.h"
 
 enum icp_qat_fw_init_admin_cmd_id {
-	ICP_QAT_FW_INIT_ME = 0,
+	ICP_QAT_FW_INIT_AE = 0,
 	ICP_QAT_FW_TRNG_ENABLE = 1,
 	ICP_QAT_FW_TRNG_DISABLE = 2,
 	ICP_QAT_FW_CONSTANTS_CFG = 3,
@@ -14,7 +14,9 @@ enum icp_qat_fw_init_admin_cmd_id {
 	ICP_QAT_FW_COUNTERS_GET = 5,
 	ICP_QAT_FW_LOOPBACK = 6,
 	ICP_QAT_FW_HEARTBEAT_SYNC = 7,
-	ICP_QAT_FW_HEARTBEAT_GET = 8
+	ICP_QAT_FW_HEARTBEAT_GET = 8,
+	ICP_QAT_FW_COMP_CAPABILITY_GET = 9,
+	ICP_QAT_FW_PM_STATE_CONFIG = 128,
 };
 
 enum icp_qat_fw_init_admin_resp_status {
@@ -39,7 +41,7 @@ struct icp_qat_fw_init_admin_req {
 	};
 
 	__u32 resrvd4;
-};
+} __packed;
 
 struct icp_qat_fw_init_admin_resp {
 	__u8 flags;
@@ -52,6 +54,7 @@ struct icp_qat_fw_init_admin_resp {
 			__u16 version_minor_num;
 			__u16 version_major_num;
 		};
+		__u32 extended_features;
 	};
 	__u64 opaque_data;
 	union {
@@ -92,7 +95,7 @@ struct icp_qat_fw_init_admin_resp {
 			__u64 resrvd8;
 		};
 	};
-};
+} __packed;
 
 #define ICP_QAT_FW_COMN_HEARTBEAT_OK 0
 #define ICP_QAT_FW_COMN_HEARTBEAT_BLOCKED 1

@@ -439,6 +439,8 @@ int lp55xx_init_device(struct lp55xx_chip *chip)
 		return -EINVAL;
 
 	if (pdata->enable_gpiod) {
+		gpiod_direction_output(pdata->enable_gpiod, 0);
+
 		gpiod_set_consumer_name(pdata->enable_gpiod, "LP55xx enable");
 		gpiod_set_value(pdata->enable_gpiod, 0);
 		usleep_range(1000, 2000); /* Keep enable down at least 1ms */

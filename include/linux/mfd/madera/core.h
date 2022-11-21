@@ -186,6 +186,7 @@ struct madera {
 	struct regulator_bulk_data core_supplies[MADERA_MAX_CORE_SUPPLIES];
 	struct regulator *dcvdd;
 	bool internal_dcvdd;
+	bool reset_errata;
 
 	struct madera_pdata pdata;
 

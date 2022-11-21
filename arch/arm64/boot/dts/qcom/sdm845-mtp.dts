@@ -7,9 +7,10 @@
 
 /dts-v1/;
 
-#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include "sdm845.dtsi"
+#include "pm8998.dtsi"
+#include "pmi8998.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. SDM845 MTP";
@@ -45,6 +46,68 @@
 		regulator-boot-on;
 
 		vin-supply = <&vph_pwr>;
+	};
+
+	thermal-zones {
+		xo_thermal: xo-thermal {
+			polling-delay-passive = <0>;
+			polling-delay = <0>;
+
+			thermal-sensors = <&pm8998_adc_tm 1>;
+
+			trips {
+				trip-point {
+					temperature = <125000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+		};
+
+		msm_thermal: msm-thermal {
+			polling-delay-passive = <0>;
+			polling-delay = <0>;
+
+			thermal-sensors = <&pm8998_adc_tm 2>;
+
+			trips {
+				trip-point {
+					temperature = <125000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+		};
+
+		pa_thermal: pa-thermal {
+			polling-delay-passive = <0>;
+			polling-delay = <0>;
+
+			thermal-sensors = <&pm8998_adc_tm 3>;
+
+			trips {
+				trip-point {
+					temperature = <125000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+		};
+
+		quiet_thermal: quiet-thermal {
+			polling-delay-passive = <0>;
+			polling-delay = <0>;
+
+			thermal-sensors = <&pm8998_adc_tm 4>;
+
+			trips {
+				trip-point {
+					temperature = <125000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+		};
 	};
 };
 
@@ -361,9 +424,6 @@
 	qcom,dual-dsi-mode;
 	qcom,master-dsi;
 
-	#address-cells = <1>;
-	#size-cells = <0>;
-
 	ports {
 		port@1 {
 			endpoint {
@@ -413,6 +473,9 @@
 
 	qcom,dual-dsi-mode;
 
+	/* DSI1 is slave, so use DSI0 clocks */
+	assigned-clock-parents = <&dsi0_phy 0>, <&dsi0_phy 1>;
+
 	ports {
 		port@1 {
 			endpoint {
@@ -436,7 +499,13 @@
 			   <GCC_LPASS_SWAY_CLK>;
 };
 
+&gmu {
+	status = "okay";
+};
+
 &gpu {
+	status = "okay";
+
 	zap-shader {
 		memory-region = <&gpu_mem>;
 		firmware-name = "qcom/sdm845/a630_zap.mbn";
@@ -448,17 +517,94 @@
 	clock-frequency = <400000>;
 };
 
-&mdss {
+&ipa {
 	status = "okay";
+	memory-region = <&ipa_fw_mem>;
 };
 
-&mdss_mdp {
+&mdss {
 	status = "okay";
 };
 
 &mss_pil {
 	status = "okay";
 	firmware-name = "qcom/sdm845/mba.mbn", "qcom/sdm845/modem.mbn";
+};
+
+&pm8998_adc {
+	adc-chan@4c {
+		reg = <ADC5_XO_THERM_100K_PU>;
+		label = "xo_therm";
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+
+	adc-chan@4d {
+		reg = <ADC5_AMUX_THM1_100K_PU>;
+		label = "msm_therm";
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+
+	adc-chan@4f {
+		reg = <ADC5_AMUX_THM3_100K_PU>;
+		label = "pa_therm1";
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+
+	adc-chan@51 {
+		reg = <ADC5_AMUX_THM5_100K_PU>;
+		label = "quiet_therm";
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+
+	adc-chan@83 {
+		reg = <ADC5_VPH_PWR>;
+		label = "vph_pwr";
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+
+	adc-chan@85 {
+		reg = <ADC5_VCOIN>;
+		label = "vcoin";
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+};
+
+&pm8998_adc_tm {
+	status = "okay";
+
+	xo-thermistor@1 {
+		reg = <1>;
+		io-channels = <&pm8998_adc ADC5_XO_THERM_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+
+	msm-thermistor@2 {
+		reg = <2>;
+		io-channels = <&pm8998_adc ADC5_AMUX_THM1_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+
+	pa-thermistor@3 {
+		reg = <3>;
+		io-channels = <&pm8998_adc ADC5_AMUX_THM3_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
+
+	quiet-thermistor@4 {
+		reg = <4>;
+		io-channels = <&pm8998_adc ADC5_AMUX_THM5_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time-us = <200>;
+	};
 };
 
 &qupv3_id_1 {
@@ -556,6 +702,10 @@
 
 	vdda-phy-supply = <&vdda_usb2_ss_1p2>;
 	vdda-pll-supply = <&vdda_usb2_ss_core>;
+};
+
+&venus {
+	status = "okay";
 };
 
 &wifi {

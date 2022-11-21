@@ -12,7 +12,9 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 
+#include "camss.h"
 #include "camss-vfe.h"
+#include "camss-vfe-gen1.h"
 
 #define VFE_0_HW_VERSION		0x000
 
@@ -208,11 +210,13 @@
 #define MSM_VFE_VFE0_UB_SIZE 1023
 #define MSM_VFE_VFE0_UB_SIZE_RDI (MSM_VFE_VFE0_UB_SIZE / 3)
 
-static void vfe_hw_version_read(struct vfe_device *vfe, struct device *dev)
+static u32 vfe_hw_version(struct vfe_device *vfe)
 {
 	u32 hw_version = readl_relaxed(vfe->base + VFE_0_HW_VERSION);
 
-	dev_dbg(dev, "VFE HW Version = 0x%08x\n", hw_version);
+	dev_dbg(vfe->camss->dev, "VFE HW Version = 0x%08x\n", hw_version);
+
+	return hw_version;
 }
 
 static u16 vfe_get_ub_size(u8 vfe_id)
@@ -283,49 +287,17 @@ static void vfe_wm_frame_based(struct vfe_device *vfe, u8 wm, u8 enable)
 			1 << VFE_0_BUS_IMAGE_MASTER_n_WR_CFG_FRM_BASED_SHIFT);
 }
 
-#define CALC_WORD(width, M, N) (((width) * (M) + (N) - 1) / (N))
-
-static int vfe_word_per_line(u32 format, u32 pixel_per_line)
-{
-	int val = 0;
-
-	switch (format) {
-	case V4L2_PIX_FMT_NV12:
-	case V4L2_PIX_FMT_NV21:
-	case V4L2_PIX_FMT_NV16:
-	case V4L2_PIX_FMT_NV61:
-		val = CALC_WORD(pixel_per_line, 1, 8);
-		break;
-	case V4L2_PIX_FMT_YUYV:
-	case V4L2_PIX_FMT_YVYU:
-	case V4L2_PIX_FMT_UYVY:
-	case V4L2_PIX_FMT_VYUY:
-		val = CALC_WORD(pixel_per_line, 2, 8);
-		break;
-	}
-
-	return val;
-}
-
 static void vfe_get_wm_sizes(struct v4l2_pix_format_mplane *pix, u8 plane,
 			     u16 *width, u16 *height, u16 *bytesperline)
 {
-	switch (pix->pixelformat) {
-	case V4L2_PIX_FMT_NV12:
-	case V4L2_PIX_FMT_NV21:
-		*width = pix->width;
-		*height = pix->height;
-		*bytesperline = pix->plane_fmt[0].bytesperline;
+	*width = pix->width;
+	*height = pix->height;
+	*bytesperline = pix->plane_fmt[0].bytesperline;
+
+	if (pix->pixelformat == V4L2_PIX_FMT_NV12 ||
+	    pix->pixelformat == V4L2_PIX_FMT_NV21)
 		if (plane == 1)
 			*height /= 2;
-		break;
-	case V4L2_PIX_FMT_NV16:
-	case V4L2_PIX_FMT_NV61:
-		*width = pix->width;
-		*height = pix->height;
-		*bytesperline = pix->plane_fmt[0].bytesperline;
-		break;
-	}
 }
 
 static void vfe_wm_line_based(struct vfe_device *vfe, u32 wm,
@@ -665,20 +637,6 @@ static void vfe_set_demux_cfg(struct vfe_device *vfe, struct vfe_line *line)
 	writel_relaxed(odd_cfg, vfe->base + VFE_0_DEMUX_ODD_CFG);
 }
 
-static inline u8 vfe_calc_interp_reso(u16 input, u16 output)
-{
-	if (input / output >= 16)
-		return 0;
-
-	if (input / output >= 8)
-		return 1;
-
-	if (input / output >= 4)
-		return 2;
-
-	return 3;
-}
-
 static void vfe_set_scale_cfg(struct vfe_device *vfe, struct vfe_line *line)
 {
 	u32 p = line->video_out.active_fmt.fmt.pix_mp.pixelformat;
@@ -922,7 +880,7 @@ static void vfe_violation_read(struct vfe_device *vfe)
 }
 
 /*
- * vfe_isr - ISPIF module interrupt handler
+ * vfe_isr - VFE module interrupt handler
  * @irq: Interrupt line
  * @dev: VFE device
  *
@@ -936,8 +894,8 @@ static irqreturn_t vfe_isr(int irq, void *dev)
 
 	vfe->ops->isr_read(vfe, &value0, &value1);
 
-	trace_printk("VFE: status0 = 0x%08x, status1 = 0x%08x\n",
-		     value0, value1);
+	dev_dbg(vfe->camss->dev, "VFE: status0 = 0x%08x, status1 = 0x%08x\n",
+		value0, value1);
 
 	if (value0 & VFE_0_IRQ_STATUS_0_RESET_ACK)
 		vfe->isr_ops.reset_ack(vfe);
@@ -974,46 +932,82 @@ static irqreturn_t vfe_isr(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-const struct vfe_hw_ops vfe_ops_4_1 = {
-	.hw_version_read = vfe_hw_version_read,
-	.get_ub_size = vfe_get_ub_size,
-	.global_reset = vfe_global_reset,
-	.halt_request = vfe_halt_request,
-	.halt_clear = vfe_halt_clear,
-	.wm_enable = vfe_wm_enable,
-	.wm_frame_based = vfe_wm_frame_based,
-	.wm_line_based = vfe_wm_line_based,
-	.wm_set_framedrop_period = vfe_wm_set_framedrop_period,
-	.wm_set_framedrop_pattern = vfe_wm_set_framedrop_pattern,
-	.wm_set_ub_cfg = vfe_wm_set_ub_cfg,
-	.bus_reload_wm = vfe_bus_reload_wm,
-	.wm_set_ping_addr = vfe_wm_set_ping_addr,
-	.wm_set_pong_addr = vfe_wm_set_pong_addr,
-	.wm_get_ping_pong_status = vfe_wm_get_ping_pong_status,
-	.bus_enable_wr_if = vfe_bus_enable_wr_if,
+/*
+ * vfe_pm_domain_off - Disable power domains specific to this VFE.
+ * @vfe: VFE Device
+ */
+static void vfe_pm_domain_off(struct vfe_device *vfe)
+{
+	/* nop */
+}
+
+/*
+ * vfe_pm_domain_on - Enable power domains specific to this VFE.
+ * @vfe: VFE Device
+ */
+static int vfe_pm_domain_on(struct vfe_device *vfe)
+{
+	return 0;
+}
+
+static const struct vfe_hw_ops_gen1 vfe_ops_gen1_4_1 = {
 	.bus_connect_wm_to_rdi = vfe_bus_connect_wm_to_rdi,
-	.wm_set_subsample = vfe_wm_set_subsample,
 	.bus_disconnect_wm_from_rdi = vfe_bus_disconnect_wm_from_rdi,
-	.set_xbar_cfg = vfe_set_xbar_cfg,
-	.set_realign_cfg = vfe_set_realign_cfg,
-	.set_rdi_cid = vfe_set_rdi_cid,
-	.reg_update = vfe_reg_update,
-	.reg_update_clear = vfe_reg_update_clear,
-	.enable_irq_wm_line = vfe_enable_irq_wm_line,
-	.enable_irq_pix_line = vfe_enable_irq_pix_line,
+	.bus_enable_wr_if = vfe_bus_enable_wr_if,
+	.bus_reload_wm = vfe_bus_reload_wm,
+	.camif_wait_for_stop = vfe_camif_wait_for_stop,
 	.enable_irq_common = vfe_enable_irq_common,
-	.set_demux_cfg = vfe_set_demux_cfg,
-	.set_scale_cfg = vfe_set_scale_cfg,
-	.set_crop_cfg = vfe_set_crop_cfg,
-	.set_clamp_cfg = vfe_set_clamp_cfg,
-	.set_qos = vfe_set_qos,
-	.set_ds = vfe_set_ds,
-	.set_cgc_override = vfe_set_cgc_override,
+	.enable_irq_pix_line = vfe_enable_irq_pix_line,
+	.enable_irq_wm_line = vfe_enable_irq_wm_line,
+	.get_ub_size = vfe_get_ub_size,
+	.halt_clear = vfe_halt_clear,
+	.halt_request = vfe_halt_request,
 	.set_camif_cfg = vfe_set_camif_cfg,
 	.set_camif_cmd = vfe_set_camif_cmd,
+	.set_cgc_override = vfe_set_cgc_override,
+	.set_clamp_cfg = vfe_set_clamp_cfg,
+	.set_crop_cfg = vfe_set_crop_cfg,
+	.set_demux_cfg = vfe_set_demux_cfg,
+	.set_ds = vfe_set_ds,
 	.set_module_cfg = vfe_set_module_cfg,
-	.camif_wait_for_stop = vfe_camif_wait_for_stop,
+	.set_qos = vfe_set_qos,
+	.set_rdi_cid = vfe_set_rdi_cid,
+	.set_realign_cfg = vfe_set_realign_cfg,
+	.set_scale_cfg = vfe_set_scale_cfg,
+	.set_xbar_cfg = vfe_set_xbar_cfg,
+	.wm_enable = vfe_wm_enable,
+	.wm_frame_based = vfe_wm_frame_based,
+	.wm_get_ping_pong_status = vfe_wm_get_ping_pong_status,
+	.wm_line_based = vfe_wm_line_based,
+	.wm_set_framedrop_pattern = vfe_wm_set_framedrop_pattern,
+	.wm_set_framedrop_period = vfe_wm_set_framedrop_period,
+	.wm_set_ping_addr = vfe_wm_set_ping_addr,
+	.wm_set_pong_addr = vfe_wm_set_pong_addr,
+	.wm_set_subsample = vfe_wm_set_subsample,
+	.wm_set_ub_cfg = vfe_wm_set_ub_cfg,
+};
+
+static void vfe_subdev_init(struct device *dev, struct vfe_device *vfe)
+{
+	vfe->isr_ops = vfe_isr_ops_gen1;
+	vfe->ops_gen1 = &vfe_ops_gen1_4_1;
+	vfe->video_ops = vfe_video_ops_gen1;
+
+	vfe->line_num = VFE_LINE_NUM_GEN1;
+}
+
+const struct vfe_hw_ops vfe_ops_4_1 = {
+	.global_reset = vfe_global_reset,
+	.hw_version = vfe_hw_version,
 	.isr_read = vfe_isr_read,
-	.violation_read = vfe_violation_read,
 	.isr = vfe_isr,
+	.pm_domain_off = vfe_pm_domain_off,
+	.pm_domain_on = vfe_pm_domain_on,
+	.reg_update_clear = vfe_reg_update_clear,
+	.reg_update = vfe_reg_update,
+	.subdev_init = vfe_subdev_init,
+	.vfe_disable = vfe_gen1_disable,
+	.vfe_enable = vfe_gen1_enable,
+	.vfe_halt = vfe_gen1_halt,
+	.violation_read = vfe_violation_read,
 };

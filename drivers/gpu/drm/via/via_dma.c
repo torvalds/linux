@@ -38,7 +38,6 @@
 #include <linux/uaccess.h>
 
 #include <drm/drm.h>
-#include <drm/drm_agpsupport.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
 #include <drm/via_drm.h>
@@ -593,13 +592,11 @@ static inline void via_dummy_bitblt(drm_via_private_t *dev_priv)
 
 static void via_cmdbuf_jump(drm_via_private_t *dev_priv)
 {
-	uint32_t agp_base;
 	uint32_t pause_addr_lo, pause_addr_hi;
 	uint32_t jump_addr_lo, jump_addr_hi;
 	volatile uint32_t *last_pause_ptr;
 	uint32_t dma_low_save1, dma_low_save2;
 
-	agp_base = dev_priv->dma_offset + (uint32_t) dev_priv->agpAddr;
 	via_align_cmd(dev_priv, HC_HAGPBpID_JUMP, 0, &jump_addr_hi,
 		      &jump_addr_lo, 0);
 

@@ -141,11 +141,10 @@ int pkcs7_get_digest(struct pkcs7_message *pkcs7, const u8 **buf, u32 *len,
 	*buf = sinfo->sig->digest;
 	*len = sinfo->sig->digest_size;
 
-	for (i = 0; i < HASH_ALGO__LAST; i++)
-		if (!strcmp(hash_algo_name[i], sinfo->sig->hash_algo)) {
-			*hash_algo = i;
-			break;
-		}
+	i = match_string(hash_algo_name, HASH_ALGO__LAST,
+			 sinfo->sig->hash_algo);
+	if (i >= 0)
+		*hash_algo = i;
 
 	return 0;
 }
@@ -174,12 +173,6 @@ static int pkcs7_find_key(struct pkcs7_message *pkcs7,
 			continue;
 		pr_devel("Sig %u: Found cert serial match X.509[%u]\n",
 			 sinfo->index, certix);
-
-		if (strcmp(x509->pub->pkey_algo, sinfo->sig->pkey_algo) != 0) {
-			pr_warn("Sig %u: X.509 algo and PKCS#7 sig algo don't match\n",
-				sinfo->index);
-			continue;
-		}
 
 		sinfo->signer = x509;
 		return 0;
@@ -227,9 +220,6 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 			return 0;
 		}
 
-		if (x509->unsupported_key)
-			goto unsupported_crypto_in_x509;
-
 		pr_debug("- issuer %s\n", x509->issuer);
 		sig = x509->sig;
 		if (sig->auth_ids[0])
@@ -246,7 +236,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 			 * authority.
 			 */
 			if (x509->unsupported_sig)
-				goto unsupported_crypto_in_x509;
+				goto unsupported_sig_in_x509;
 			x509->signer = x509;
 			pr_debug("- self-signed\n");
 			return 0;
@@ -310,7 +300,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 		might_sleep();
 	}
 
-unsupported_crypto_in_x509:
+unsupported_sig_in_x509:
 	/* Just prune the certificate chain at this point if we lack some
 	 * crypto module to go further.  Note, however, we don't want to set
 	 * sinfo->unsupported_crypto as the signed info block may still be

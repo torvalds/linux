@@ -26,7 +26,7 @@
 const struct nvkm_mc_map
 gk104_mc_reset[] = {
 	{ 0x00000100, NVKM_ENGINE_FIFO },
-	{ 0x00002000, NVKM_SUBDEV_PMU, true },
+	{ 0x00002000, NVKM_SUBDEV_PMU, 0, true },
 	{}
 };
 
@@ -34,7 +34,7 @@ const struct nvkm_mc_map
 gk104_mc_intr[] = {
 	{ 0x04000000, NVKM_ENGINE_DISP },
 	{ 0x00000100, NVKM_ENGINE_FIFO },
-	{ 0x40000000, NVKM_SUBDEV_IBUS },
+	{ 0x40000000, NVKM_SUBDEV_PRIVRING },
 	{ 0x10000000, NVKM_SUBDEV_BUS },
 	{ 0x08000000, NVKM_SUBDEV_FB },
 	{ 0x02000000, NVKM_SUBDEV_LTC },
@@ -60,7 +60,7 @@ gk104_mc = {
 };
 
 int
-gk104_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+gk104_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
-	return nvkm_mc_new_(&gk104_mc, device, index, pmc);
+	return nvkm_mc_new_(&gk104_mc, device, type, inst, pmc);
 }

@@ -29,30 +29,24 @@
 #define IMX_CAPTURE_NAME "imx-capture"
 
 struct capture_priv {
-	struct imx_media_video_dev vdev;
+	struct imx_media_dev *md;		/* Media device */
+	struct device *dev;			/* Physical device */
 
-	struct v4l2_subdev    *src_sd;
-	int                   src_sd_pad;
-	struct device         *dev;
+	struct imx_media_video_dev vdev;	/* Video device */
+	struct media_pad vdev_pad;		/* Video device pad */
 
-	struct imx_media_dev  *md;
+	struct v4l2_subdev *src_sd;		/* Source subdev */
+	int src_sd_pad;				/* Source subdev pad */
 
-	struct media_pad      vdev_pad;
+	struct mutex mutex;			/* Protect vdev operations */
 
-	struct mutex          mutex;       /* capture device mutex */
+	struct vb2_queue q;			/* The videobuf2 queue */
+	struct list_head ready_q;		/* List of queued buffers */
+	spinlock_t q_lock;			/* Protect ready_q */
 
-	/* the videobuf2 queue */
-	struct vb2_queue       q;
-	/* list of ready imx_media_buffer's from q */
-	struct list_head       ready_q;
-	/* protect ready_q */
-	spinlock_t             q_lock;
+	struct v4l2_ctrl_handler ctrl_hdlr;	/* Controls inherited from subdevs */
 
-	/* controls inherited from subdevs */
-	struct v4l2_ctrl_handler ctrl_hdlr;
-
-	/* misc status */
-	bool                  stop;          /* streaming is stopping */
+	bool legacy_api;			/* Use the legacy (pre-MC) API */
 };
 
 #define to_capture_priv(v) container_of(v, struct capture_priv, vdev)
@@ -60,27 +54,231 @@ struct capture_priv {
 /* In bytes, per queue */
 #define VID_MEM_LIMIT	SZ_64M
 
-static const struct vb2_ops capture_qops;
-
-/*
- * Video ioctls follow
+/* -----------------------------------------------------------------------------
+ * MC-Centric Video IOCTLs
  */
 
-static int vidioc_querycap(struct file *file, void *fh,
-			   struct v4l2_capability *cap)
+static const struct imx_media_pixfmt *capture_find_format(u32 code, u32 fourcc)
+{
+	const struct imx_media_pixfmt *cc;
+
+	cc = imx_media_find_ipu_format(code, PIXFMT_SEL_YUV_RGB);
+	if (cc) {
+		enum imx_pixfmt_sel fmt_sel = cc->cs == IPUV3_COLORSPACE_YUV
+					    ? PIXFMT_SEL_YUV : PIXFMT_SEL_RGB;
+
+		cc = imx_media_find_pixel_format(fourcc, fmt_sel);
+		if (!cc) {
+			imx_media_enum_pixel_formats(&fourcc, 0, fmt_sel, 0);
+			cc = imx_media_find_pixel_format(fourcc, fmt_sel);
+		}
+
+		return cc;
+	}
+
+	return imx_media_find_mbus_format(code, PIXFMT_SEL_ANY);
+}
+
+static int capture_querycap(struct file *file, void *fh,
+			    struct v4l2_capability *cap)
 {
 	struct capture_priv *priv = video_drvdata(file);
 
 	strscpy(cap->driver, IMX_CAPTURE_NAME, sizeof(cap->driver));
 	strscpy(cap->card, IMX_CAPTURE_NAME, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "platform:%s", priv->src_sd->name);
+		 "platform:%s", dev_name(priv->dev));
 
 	return 0;
 }
 
+static int capture_enum_fmt_vid_cap(struct file *file, void *fh,
+				    struct v4l2_fmtdesc *f)
+{
+	return imx_media_enum_pixel_formats(&f->pixelformat, f->index,
+					    PIXFMT_SEL_ANY, f->mbus_code);
+}
+
 static int capture_enum_framesizes(struct file *file, void *fh,
 				   struct v4l2_frmsizeenum *fsize)
+{
+	const struct imx_media_pixfmt *cc;
+
+	if (fsize->index > 0)
+		return -EINVAL;
+
+	cc = imx_media_find_pixel_format(fsize->pixel_format, PIXFMT_SEL_ANY);
+	if (!cc)
+		return -EINVAL;
+
+	/*
+	 * TODO: The constraints are hardware-specific and may depend on the
+	 * pixel format. This should come from the driver using
+	 * imx_media_capture.
+	 */
+	fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
+	fsize->stepwise.min_width = 1;
+	fsize->stepwise.max_width = 65535;
+	fsize->stepwise.min_height = 1;
+	fsize->stepwise.max_height = 65535;
+	fsize->stepwise.step_width = 1;
+	fsize->stepwise.step_height = 1;
+
+	return 0;
+}
+
+static int capture_g_fmt_vid_cap(struct file *file, void *fh,
+				 struct v4l2_format *f)
+{
+	struct capture_priv *priv = video_drvdata(file);
+
+	f->fmt.pix = priv->vdev.fmt;
+
+	return 0;
+}
+
+static const struct imx_media_pixfmt *
+__capture_try_fmt(struct v4l2_pix_format *pixfmt, struct v4l2_rect *compose)
+{
+	struct v4l2_mbus_framefmt fmt_src;
+	const struct imx_media_pixfmt *cc;
+
+	/*
+	 * Find the pixel format, default to the first supported format if not
+	 * found.
+	 */
+	cc = imx_media_find_pixel_format(pixfmt->pixelformat, PIXFMT_SEL_ANY);
+	if (!cc) {
+		imx_media_enum_pixel_formats(&pixfmt->pixelformat, 0,
+					     PIXFMT_SEL_ANY, 0);
+		cc = imx_media_find_pixel_format(pixfmt->pixelformat,
+						 PIXFMT_SEL_ANY);
+	}
+
+	/* Allow IDMAC interweave but enforce field order from source. */
+	if (V4L2_FIELD_IS_INTERLACED(pixfmt->field)) {
+		switch (pixfmt->field) {
+		case V4L2_FIELD_SEQ_TB:
+			pixfmt->field = V4L2_FIELD_INTERLACED_TB;
+			break;
+		case V4L2_FIELD_SEQ_BT:
+			pixfmt->field = V4L2_FIELD_INTERLACED_BT;
+			break;
+		default:
+			break;
+		}
+	}
+
+	v4l2_fill_mbus_format(&fmt_src, pixfmt, 0);
+	imx_media_mbus_fmt_to_pix_fmt(pixfmt, &fmt_src, cc);
+
+	if (compose) {
+		compose->width = fmt_src.width;
+		compose->height = fmt_src.height;
+	}
+
+	return cc;
+}
+
+static int capture_try_fmt_vid_cap(struct file *file, void *fh,
+				   struct v4l2_format *f)
+{
+	__capture_try_fmt(&f->fmt.pix, NULL);
+	return 0;
+}
+
+static int capture_s_fmt_vid_cap(struct file *file, void *fh,
+				 struct v4l2_format *f)
+{
+	struct capture_priv *priv = video_drvdata(file);
+	const struct imx_media_pixfmt *cc;
+
+	if (vb2_is_busy(&priv->q)) {
+		dev_err(priv->dev, "%s queue busy\n", __func__);
+		return -EBUSY;
+	}
+
+	cc = __capture_try_fmt(&f->fmt.pix, &priv->vdev.compose);
+
+	priv->vdev.cc = cc;
+	priv->vdev.fmt = f->fmt.pix;
+
+	return 0;
+}
+
+static int capture_g_selection(struct file *file, void *fh,
+			       struct v4l2_selection *s)
+{
+	struct capture_priv *priv = video_drvdata(file);
+
+	switch (s->target) {
+	case V4L2_SEL_TGT_COMPOSE:
+	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
+		/* The compose rectangle is fixed to the source format. */
+		s->r = priv->vdev.compose;
+		break;
+	case V4L2_SEL_TGT_COMPOSE_PADDED:
+		/*
+		 * The hardware writes with a configurable but fixed DMA burst
+		 * size. If the source format width is not burst size aligned,
+		 * the written frame contains padding to the right.
+		 */
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = priv->vdev.fmt.width;
+		s->r.height = priv->vdev.fmt.height;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int capture_subscribe_event(struct v4l2_fh *fh,
+				   const struct v4l2_event_subscription *sub)
+{
+	switch (sub->type) {
+	case V4L2_EVENT_IMX_FRAME_INTERVAL_ERROR:
+		return v4l2_event_subscribe(fh, sub, 0, NULL);
+	default:
+		return -EINVAL;
+	}
+}
+
+static const struct v4l2_ioctl_ops capture_ioctl_ops = {
+	.vidioc_querycap		= capture_querycap,
+
+	.vidioc_enum_fmt_vid_cap	= capture_enum_fmt_vid_cap,
+	.vidioc_enum_framesizes		= capture_enum_framesizes,
+
+	.vidioc_g_fmt_vid_cap		= capture_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap		= capture_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap		= capture_s_fmt_vid_cap,
+
+	.vidioc_g_selection		= capture_g_selection,
+
+	.vidioc_reqbufs			= vb2_ioctl_reqbufs,
+	.vidioc_create_bufs		= vb2_ioctl_create_bufs,
+	.vidioc_prepare_buf		= vb2_ioctl_prepare_buf,
+	.vidioc_querybuf		= vb2_ioctl_querybuf,
+	.vidioc_qbuf			= vb2_ioctl_qbuf,
+	.vidioc_dqbuf			= vb2_ioctl_dqbuf,
+	.vidioc_expbuf			= vb2_ioctl_expbuf,
+	.vidioc_streamon		= vb2_ioctl_streamon,
+	.vidioc_streamoff		= vb2_ioctl_streamoff,
+
+	.vidioc_subscribe_event		= capture_subscribe_event,
+	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
+};
+
+/* -----------------------------------------------------------------------------
+ * Legacy Video IOCTLs
+ */
+
+static int capture_legacy_enum_framesizes(struct file *file, void *fh,
+					  struct v4l2_frmsizeenum *fsize)
 {
 	struct capture_priv *priv = video_drvdata(file);
 	const struct imx_media_pixfmt *cc;
@@ -119,8 +317,8 @@ static int capture_enum_framesizes(struct file *file, void *fh,
 	return 0;
 }
 
-static int capture_enum_frameintervals(struct file *file, void *fh,
-				       struct v4l2_frmivalenum *fival)
+static int capture_legacy_enum_frameintervals(struct file *file, void *fh,
+					      struct v4l2_frmivalenum *fival)
 {
 	struct capture_priv *priv = video_drvdata(file);
 	const struct imx_media_pixfmt *cc;
@@ -150,8 +348,8 @@ static int capture_enum_frameintervals(struct file *file, void *fh,
 	return 0;
 }
 
-static int capture_enum_fmt_vid_cap(struct file *file, void *fh,
-				    struct v4l2_fmtdesc *f)
+static int capture_legacy_enum_fmt_vid_cap(struct file *file, void *fh,
+					   struct v4l2_fmtdesc *f)
 {
 	struct capture_priv *priv = video_drvdata(file);
 	const struct imx_media_pixfmt *cc_src;
@@ -163,7 +361,7 @@ static int capture_enum_fmt_vid_cap(struct file *file, void *fh,
 	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL, &fmt_src);
 	if (ret) {
-		v4l2_err(priv->src_sd, "failed to get src_sd format\n");
+		dev_err(priv->dev, "failed to get src_sd format\n");
 		return ret;
 	}
 
@@ -174,7 +372,8 @@ static int capture_enum_fmt_vid_cap(struct file *file, void *fh,
 			(cc_src->cs == IPUV3_COLORSPACE_YUV) ?
 			PIXFMT_SEL_YUV : PIXFMT_SEL_RGB;
 
-		ret = imx_media_enum_pixel_formats(&fourcc, f->index, fmt_sel);
+		ret = imx_media_enum_pixel_formats(&fourcc, f->index, fmt_sel,
+						   0);
 		if (ret)
 			return ret;
 	} else {
@@ -193,50 +392,19 @@ static int capture_enum_fmt_vid_cap(struct file *file, void *fh,
 	return 0;
 }
 
-static int capture_g_fmt_vid_cap(struct file *file, void *fh,
-				 struct v4l2_format *f)
+static const struct imx_media_pixfmt *
+__capture_legacy_try_fmt(struct capture_priv *priv,
+			 struct v4l2_subdev_format *fmt_src,
+			 struct v4l2_pix_format *pixfmt)
 {
-	struct capture_priv *priv = video_drvdata(file);
+	const struct imx_media_pixfmt *cc;
 
-	*f = priv->vdev.fmt;
-
-	return 0;
-}
-
-static int __capture_try_fmt_vid_cap(struct capture_priv *priv,
-				     struct v4l2_subdev_format *fmt_src,
-				     struct v4l2_format *f,
-				     const struct imx_media_pixfmt **retcc,
-				     struct v4l2_rect *compose)
-{
-	const struct imx_media_pixfmt *cc, *cc_src;
-
-	cc_src = imx_media_find_ipu_format(fmt_src->format.code,
-					   PIXFMT_SEL_YUV_RGB);
-	if (cc_src) {
-		enum imx_pixfmt_sel fmt_sel;
-		u32 fourcc;
-
-		fmt_sel = (cc_src->cs == IPUV3_COLORSPACE_YUV) ?
-			PIXFMT_SEL_YUV : PIXFMT_SEL_RGB;
-		fourcc = f->fmt.pix.pixelformat;
-
-		cc = imx_media_find_pixel_format(fourcc, fmt_sel);
-		if (!cc) {
-			imx_media_enum_pixel_formats(&fourcc, 0, fmt_sel);
-			cc = imx_media_find_pixel_format(fourcc, fmt_sel);
-		}
-	} else {
-		cc_src = imx_media_find_mbus_format(fmt_src->format.code,
-						    PIXFMT_SEL_ANY);
-		if (WARN_ON(!cc_src))
-			return -EINVAL;
-
-		cc = cc_src;
-	}
+	cc = capture_find_format(fmt_src->format.code, pixfmt->pixelformat);
+	if (WARN_ON(!cc))
+		return NULL;
 
 	/* allow IDMAC interweave but enforce field order from source */
-	if (V4L2_FIELD_IS_INTERLACED(f->fmt.pix.field)) {
+	if (V4L2_FIELD_IS_INTERLACED(pixfmt->field)) {
 		switch (fmt_src->format.field) {
 		case V4L2_FIELD_SEQ_TB:
 			fmt_src->format.field = V4L2_FIELD_INTERLACED_TB;
@@ -249,23 +417,13 @@ static int __capture_try_fmt_vid_cap(struct capture_priv *priv,
 		}
 	}
 
-	imx_media_mbus_fmt_to_pix_fmt(&f->fmt.pix, &fmt_src->format, cc);
+	imx_media_mbus_fmt_to_pix_fmt(pixfmt, &fmt_src->format, cc);
 
-	if (retcc)
-		*retcc = cc;
-
-	if (compose) {
-		compose->left = 0;
-		compose->top = 0;
-		compose->width = fmt_src->format.width;
-		compose->height = fmt_src->format.height;
-	}
-
-	return 0;
+	return cc;
 }
 
-static int capture_try_fmt_vid_cap(struct file *file, void *fh,
-				   struct v4l2_format *f)
+static int capture_legacy_try_fmt_vid_cap(struct file *file, void *fh,
+					  struct v4l2_format *f)
 {
 	struct capture_priv *priv = video_drvdata(file);
 	struct v4l2_subdev_format fmt_src;
@@ -277,18 +435,22 @@ static int capture_try_fmt_vid_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	return __capture_try_fmt_vid_cap(priv, &fmt_src, f, NULL, NULL);
+	if (!__capture_legacy_try_fmt(priv, &fmt_src, &f->fmt.pix))
+		return -EINVAL;
+
+	return 0;
 }
 
-static int capture_s_fmt_vid_cap(struct file *file, void *fh,
-				 struct v4l2_format *f)
+static int capture_legacy_s_fmt_vid_cap(struct file *file, void *fh,
+					struct v4l2_format *f)
 {
 	struct capture_priv *priv = video_drvdata(file);
 	struct v4l2_subdev_format fmt_src;
+	const struct imx_media_pixfmt *cc;
 	int ret;
 
 	if (vb2_is_busy(&priv->q)) {
-		v4l2_err(priv->src_sd, "%s queue busy\n", __func__);
+		dev_err(priv->dev, "%s queue busy\n", __func__);
 		return -EBUSY;
 	}
 
@@ -298,31 +460,34 @@ static int capture_s_fmt_vid_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	ret = __capture_try_fmt_vid_cap(priv, &fmt_src, f, &priv->vdev.cc,
-					&priv->vdev.compose);
-	if (ret)
-		return ret;
+	cc = __capture_legacy_try_fmt(priv, &fmt_src, &f->fmt.pix);
+	if (!cc)
+		return -EINVAL;
 
-	priv->vdev.fmt.fmt.pix = f->fmt.pix;
+	priv->vdev.cc = cc;
+	priv->vdev.fmt = f->fmt.pix;
+	priv->vdev.compose.width = fmt_src.format.width;
+	priv->vdev.compose.height = fmt_src.format.height;
 
 	return 0;
 }
 
-static int capture_querystd(struct file *file, void *fh, v4l2_std_id *std)
+static int capture_legacy_querystd(struct file *file, void *fh,
+				   v4l2_std_id *std)
 {
 	struct capture_priv *priv = video_drvdata(file);
 
 	return v4l2_subdev_call(priv->src_sd, video, querystd, std);
 }
 
-static int capture_g_std(struct file *file, void *fh, v4l2_std_id *std)
+static int capture_legacy_g_std(struct file *file, void *fh, v4l2_std_id *std)
 {
 	struct capture_priv *priv = video_drvdata(file);
 
 	return v4l2_subdev_call(priv->src_sd, video, g_std, std);
 }
 
-static int capture_s_std(struct file *file, void *fh, v4l2_std_id std)
+static int capture_legacy_s_std(struct file *file, void *fh, v4l2_std_id std)
 {
 	struct capture_priv *priv = video_drvdata(file);
 
@@ -332,38 +497,8 @@ static int capture_s_std(struct file *file, void *fh, v4l2_std_id std)
 	return v4l2_subdev_call(priv->src_sd, video, s_std, std);
 }
 
-static int capture_g_selection(struct file *file, void *fh,
-			       struct v4l2_selection *s)
-{
-	struct capture_priv *priv = video_drvdata(file);
-
-	switch (s->target) {
-	case V4L2_SEL_TGT_COMPOSE:
-	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
-	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
-		/* The compose rectangle is fixed to the source format. */
-		s->r = priv->vdev.compose;
-		break;
-	case V4L2_SEL_TGT_COMPOSE_PADDED:
-		/*
-		 * The hardware writes with a configurable but fixed DMA burst
-		 * size. If the source format width is not burst size aligned,
-		 * the written frame contains padding to the right.
-		 */
-		s->r.left = 0;
-		s->r.top = 0;
-		s->r.width = priv->vdev.fmt.fmt.pix.width;
-		s->r.height = priv->vdev.fmt.fmt.pix.height;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int capture_g_parm(struct file *file, void *fh,
-			  struct v4l2_streamparm *a)
+static int capture_legacy_g_parm(struct file *file, void *fh,
+				 struct v4l2_streamparm *a)
 {
 	struct capture_priv *priv = video_drvdata(file);
 	struct v4l2_subdev_frame_interval fi;
@@ -384,8 +519,8 @@ static int capture_g_parm(struct file *file, void *fh,
 	return 0;
 }
 
-static int capture_s_parm(struct file *file, void *fh,
-			  struct v4l2_streamparm *a)
+static int capture_legacy_s_parm(struct file *file, void *fh,
+				 struct v4l2_streamparm *a)
 {
 	struct capture_priv *priv = video_drvdata(file);
 	struct v4l2_subdev_frame_interval fi;
@@ -407,8 +542,8 @@ static int capture_s_parm(struct file *file, void *fh,
 	return 0;
 }
 
-static int capture_subscribe_event(struct v4l2_fh *fh,
-				   const struct v4l2_event_subscription *sub)
+static int capture_legacy_subscribe_event(struct v4l2_fh *fh,
+					  const struct v4l2_event_subscription *sub)
 {
 	switch (sub->type) {
 	case V4L2_EVENT_IMX_FRAME_INTERVAL_ERROR:
@@ -422,42 +557,42 @@ static int capture_subscribe_event(struct v4l2_fh *fh,
 	}
 }
 
-static const struct v4l2_ioctl_ops capture_ioctl_ops = {
-	.vidioc_querycap	= vidioc_querycap,
+static const struct v4l2_ioctl_ops capture_legacy_ioctl_ops = {
+	.vidioc_querycap		= capture_querycap,
 
-	.vidioc_enum_framesizes = capture_enum_framesizes,
-	.vidioc_enum_frameintervals = capture_enum_frameintervals,
+	.vidioc_enum_framesizes		= capture_legacy_enum_framesizes,
+	.vidioc_enum_frameintervals	= capture_legacy_enum_frameintervals,
 
-	.vidioc_enum_fmt_vid_cap        = capture_enum_fmt_vid_cap,
-	.vidioc_g_fmt_vid_cap           = capture_g_fmt_vid_cap,
-	.vidioc_try_fmt_vid_cap         = capture_try_fmt_vid_cap,
-	.vidioc_s_fmt_vid_cap           = capture_s_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_cap	= capture_legacy_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap		= capture_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap		= capture_legacy_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap		= capture_legacy_s_fmt_vid_cap,
 
-	.vidioc_querystd        = capture_querystd,
-	.vidioc_g_std           = capture_g_std,
-	.vidioc_s_std           = capture_s_std,
+	.vidioc_querystd		= capture_legacy_querystd,
+	.vidioc_g_std			= capture_legacy_g_std,
+	.vidioc_s_std			= capture_legacy_s_std,
 
-	.vidioc_g_selection	= capture_g_selection,
+	.vidioc_g_selection		= capture_g_selection,
 
-	.vidioc_g_parm          = capture_g_parm,
-	.vidioc_s_parm          = capture_s_parm,
+	.vidioc_g_parm			= capture_legacy_g_parm,
+	.vidioc_s_parm			= capture_legacy_s_parm,
 
-	.vidioc_reqbufs		= vb2_ioctl_reqbufs,
-	.vidioc_create_bufs     = vb2_ioctl_create_bufs,
-	.vidioc_prepare_buf     = vb2_ioctl_prepare_buf,
-	.vidioc_querybuf	= vb2_ioctl_querybuf,
-	.vidioc_qbuf		= vb2_ioctl_qbuf,
-	.vidioc_dqbuf		= vb2_ioctl_dqbuf,
-	.vidioc_expbuf		= vb2_ioctl_expbuf,
-	.vidioc_streamon	= vb2_ioctl_streamon,
-	.vidioc_streamoff	= vb2_ioctl_streamoff,
+	.vidioc_reqbufs			= vb2_ioctl_reqbufs,
+	.vidioc_create_bufs		= vb2_ioctl_create_bufs,
+	.vidioc_prepare_buf		= vb2_ioctl_prepare_buf,
+	.vidioc_querybuf		= vb2_ioctl_querybuf,
+	.vidioc_qbuf			= vb2_ioctl_qbuf,
+	.vidioc_dqbuf			= vb2_ioctl_dqbuf,
+	.vidioc_expbuf			= vb2_ioctl_expbuf,
+	.vidioc_streamon		= vb2_ioctl_streamon,
+	.vidioc_streamoff		= vb2_ioctl_streamoff,
 
-	.vidioc_subscribe_event = capture_subscribe_event,
-	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
+	.vidioc_subscribe_event		= capture_legacy_subscribe_event,
+	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 };
 
-/*
- * Queue operations
+/* -----------------------------------------------------------------------------
+ * Queue Operations
  */
 
 static int capture_queue_setup(struct vb2_queue *vq,
@@ -467,7 +602,7 @@ static int capture_queue_setup(struct vb2_queue *vq,
 			       struct device *alloc_devs[])
 {
 	struct capture_priv *priv = vb2_get_drv_priv(vq);
-	struct v4l2_pix_format *pix = &priv->vdev.fmt.fmt.pix;
+	struct v4l2_pix_format *pix = &priv->vdev.fmt;
 	unsigned int count = *nbuffers;
 
 	if (vq->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -506,12 +641,12 @@ static int capture_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct capture_priv *priv = vb2_get_drv_priv(vq);
-	struct v4l2_pix_format *pix = &priv->vdev.fmt.fmt.pix;
+	struct v4l2_pix_format *pix = &priv->vdev.fmt;
 
 	if (vb2_plane_size(vb, 0) < pix->sizeimage) {
-		v4l2_err(priv->src_sd,
-			 "data will not fit into plane (%lu < %lu)\n",
-			 vb2_plane_size(vb, 0), (long)pix->sizeimage);
+		dev_err(priv->dev,
+			"data will not fit into plane (%lu < %lu)\n",
+			vb2_plane_size(vb, 0), (long)pix->sizeimage);
 		return -EINVAL;
 	}
 
@@ -537,27 +672,35 @@ static int capture_validate_fmt(struct capture_priv *priv)
 {
 	struct v4l2_subdev_format fmt_src;
 	const struct imx_media_pixfmt *cc;
-	struct v4l2_rect compose;
-	struct v4l2_format f;
 	int ret;
 
+	/* Retrieve the media bus format on the source subdev. */
 	fmt_src.pad = priv->src_sd_pad;
 	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL, &fmt_src);
 	if (ret)
 		return ret;
 
-	v4l2_fill_pix_format(&f.fmt.pix, &fmt_src.format);
+	/*
+	 * Verify that the media bus size matches the size set on the video
+	 * node. It is sufficient to check the compose rectangle size without
+	 * checking the rounded size from vdev.fmt, as the rounded size is
+	 * derived directly from the compose rectangle size, and will thus
+	 * always match if the compose rectangle matches.
+	 */
+	if (priv->vdev.compose.width != fmt_src.format.width ||
+	    priv->vdev.compose.height != fmt_src.format.height)
+		return -EPIPE;
 
-	ret = __capture_try_fmt_vid_cap(priv, &fmt_src, &f, &cc, &compose);
-	if (ret)
-		return ret;
+	/*
+	 * Verify that the media bus code is compatible with the pixel format
+	 * set on the video node.
+	 */
+	cc = capture_find_format(fmt_src.format.code, 0);
+	if (!cc || priv->vdev.cc->cs != cc->cs)
+		return -EPIPE;
 
-	return (priv->vdev.fmt.fmt.pix.width != f.fmt.pix.width ||
-		priv->vdev.fmt.fmt.pix.height != f.fmt.pix.height ||
-		priv->vdev.cc->cs != cc->cs ||
-		priv->vdev.compose.width != compose.width ||
-		priv->vdev.compose.height != compose.height) ? -EINVAL : 0;
+	return 0;
 }
 
 static int capture_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -569,18 +712,16 @@ static int capture_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	ret = capture_validate_fmt(priv);
 	if (ret) {
-		v4l2_err(priv->src_sd, "capture format not valid\n");
+		dev_err(priv->dev, "capture format not valid\n");
 		goto return_bufs;
 	}
 
 	ret = imx_media_pipeline_set_stream(priv->md, &priv->src_sd->entity,
 					    true);
 	if (ret) {
-		v4l2_err(priv->src_sd, "pipeline start failed with %d\n", ret);
+		dev_err(priv->dev, "pipeline start failed with %d\n", ret);
 		goto return_bufs;
 	}
-
-	priv->stop = false;
 
 	return 0;
 
@@ -602,14 +743,10 @@ static void capture_stop_streaming(struct vb2_queue *vq)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&priv->q_lock, flags);
-	priv->stop = true;
-	spin_unlock_irqrestore(&priv->q_lock, flags);
-
 	ret = imx_media_pipeline_set_stream(priv->md, &priv->src_sd->entity,
 					    false);
 	if (ret)
-		v4l2_warn(priv->src_sd, "pipeline stop failed with %d\n", ret);
+		dev_warn(priv->dev, "pipeline stop failed with %d\n", ret);
 
 	/* release all active buffers */
 	spin_lock_irqsave(&priv->q_lock, flags);
@@ -631,9 +768,10 @@ static const struct vb2_ops capture_qops = {
 	.stop_streaming  = capture_stop_streaming,
 };
 
-/*
- * File operations
+/* -----------------------------------------------------------------------------
+ * File Operations
  */
+
 static int capture_open(struct file *file)
 {
 	struct capture_priv *priv = video_drvdata(file);
@@ -644,13 +782,16 @@ static int capture_open(struct file *file)
 		return -ERESTARTSYS;
 
 	ret = v4l2_fh_open(file);
-	if (ret)
-		v4l2_err(priv->src_sd, "v4l2_fh_open failed\n");
+	if (ret) {
+		dev_err(priv->dev, "v4l2_fh_open failed\n");
+		goto out;
+	}
 
 	ret = v4l2_pipeline_pm_get(&vfd->entity);
 	if (ret)
 		v4l2_fh_release(file);
 
+out:
 	mutex_unlock(&priv->mutex);
 	return ret;
 }
@@ -684,15 +825,9 @@ static const struct v4l2_file_operations capture_fops = {
 	.mmap		= vb2_fop_mmap,
 };
 
-static struct video_device capture_videodev = {
-	.fops		= &capture_fops,
-	.ioctl_ops	= &capture_ioctl_ops,
-	.minor		= -1,
-	.release	= video_device_release,
-	.vfl_dir	= VFL_DIR_RX,
-	.tvnorms	= V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
-	.device_caps	= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING,
-};
+/* -----------------------------------------------------------------------------
+ * Public API
+ */
 
 struct imx_media_buffer *
 imx_media_capture_device_next_buf(struct imx_media_video_dev *vdev)
@@ -731,14 +866,45 @@ void imx_media_capture_device_error(struct imx_media_video_dev *vdev)
 }
 EXPORT_SYMBOL_GPL(imx_media_capture_device_error);
 
-int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
+static int capture_init_format(struct capture_priv *priv)
+{
+	struct v4l2_subdev_format fmt_src = {
+		.pad = priv->src_sd_pad,
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct imx_media_video_dev *vdev = &priv->vdev;
+	int ret;
+
+	if (priv->legacy_api) {
+		ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL,
+				       &fmt_src);
+		if (ret) {
+			dev_err(priv->dev, "failed to get source format\n");
+			return ret;
+		}
+	} else {
+		fmt_src.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
+		fmt_src.format.width = IMX_MEDIA_DEF_PIX_WIDTH;
+		fmt_src.format.height = IMX_MEDIA_DEF_PIX_HEIGHT;
+	}
+
+	imx_media_mbus_fmt_to_pix_fmt(&vdev->fmt, &fmt_src.format, NULL);
+	vdev->compose.width = fmt_src.format.width;
+	vdev->compose.height = fmt_src.format.height;
+
+	vdev->cc = imx_media_find_pixel_format(vdev->fmt.pixelformat,
+					       PIXFMT_SEL_ANY);
+
+	return 0;
+}
+
+int imx_media_capture_device_register(struct imx_media_video_dev *vdev,
+				      u32 link_flags)
 {
 	struct capture_priv *priv = to_capture_priv(vdev);
 	struct v4l2_subdev *sd = priv->src_sd;
 	struct v4l2_device *v4l2_dev = sd->v4l2_dev;
 	struct video_device *vfd = vdev->vfd;
-	struct vb2_queue *vq = &priv->q;
-	struct v4l2_subdev_format fmt_src;
 	int ret;
 
 	/* get media device */
@@ -746,12 +912,104 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 
 	vfd->v4l2_dev = v4l2_dev;
 
+	/* Initialize the default format and compose rectangle. */
+	ret = capture_init_format(priv);
+	if (ret < 0)
+		return ret;
+
+	/* Register the video device. */
 	ret = video_register_device(vfd, VFL_TYPE_VIDEO, -1);
 	if (ret) {
-		v4l2_err(sd, "Failed to register video device\n");
+		dev_err(priv->dev, "Failed to register video device\n");
 		return ret;
 	}
 
+	dev_info(priv->dev, "Registered %s as /dev/%s\n", vfd->name,
+		 video_device_node_name(vfd));
+
+	/* Create the link from the src_sd devnode pad to device node. */
+	if (link_flags & MEDIA_LNK_FL_IMMUTABLE)
+		link_flags |= MEDIA_LNK_FL_ENABLED;
+	ret = media_create_pad_link(&sd->entity, priv->src_sd_pad,
+				    &vfd->entity, 0, link_flags);
+	if (ret) {
+		dev_err(priv->dev, "failed to create link to device node\n");
+		video_unregister_device(vfd);
+		return ret;
+	}
+
+	/* Add vdev to the video devices list. */
+	imx_media_add_video_device(priv->md, vdev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(imx_media_capture_device_register);
+
+void imx_media_capture_device_unregister(struct imx_media_video_dev *vdev)
+{
+	struct capture_priv *priv = to_capture_priv(vdev);
+	struct video_device *vfd = priv->vdev.vfd;
+
+	media_entity_cleanup(&vfd->entity);
+	video_unregister_device(vfd);
+}
+EXPORT_SYMBOL_GPL(imx_media_capture_device_unregister);
+
+struct imx_media_video_dev *
+imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
+			      int pad, bool legacy_api)
+{
+	struct capture_priv *priv;
+	struct video_device *vfd;
+	struct vb2_queue *vq;
+	int ret;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return ERR_PTR(-ENOMEM);
+
+	priv->src_sd = src_sd;
+	priv->src_sd_pad = pad;
+	priv->dev = dev;
+	priv->legacy_api = legacy_api;
+
+	mutex_init(&priv->mutex);
+	INIT_LIST_HEAD(&priv->ready_q);
+	spin_lock_init(&priv->q_lock);
+
+	/* Allocate and initialize the video device. */
+	vfd = video_device_alloc();
+	if (!vfd)
+		return ERR_PTR(-ENOMEM);
+
+	vfd->fops = &capture_fops;
+	vfd->ioctl_ops = legacy_api ? &capture_legacy_ioctl_ops
+		       : &capture_ioctl_ops;
+	vfd->minor = -1;
+	vfd->release = video_device_release;
+	vfd->vfl_dir = VFL_DIR_RX;
+	vfd->tvnorms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
+	vfd->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING
+			 | (!legacy_api ? V4L2_CAP_IO_MC : 0);
+	vfd->lock = &priv->mutex;
+	vfd->queue = &priv->q;
+
+	snprintf(vfd->name, sizeof(vfd->name), "%s capture", src_sd->name);
+
+	video_set_drvdata(vfd, priv);
+	priv->vdev.vfd = vfd;
+	INIT_LIST_HEAD(&priv->vdev.list);
+
+	/* Initialize the video device pad. */
+	priv->vdev_pad.flags = MEDIA_PAD_FL_SINK;
+	ret = media_entity_pads_init(&vfd->entity, 1, &priv->vdev_pad);
+	if (ret) {
+		video_device_release(vfd);
+		return ERR_PTR(ret);
+	}
+
+	/* Initialize the vb2 queue. */
+	vq = &priv->q;
 	vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	vq->drv_priv = priv;
@@ -765,111 +1023,16 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 
 	ret = vb2_queue_init(vq);
 	if (ret) {
-		v4l2_err(sd, "vb2_queue_init failed\n");
-		goto unreg;
-	}
-
-	INIT_LIST_HEAD(&priv->ready_q);
-
-	/* create the link from the src_sd devnode pad to device node */
-	ret = media_create_pad_link(&sd->entity, priv->src_sd_pad,
-				    &vfd->entity, 0, 0);
-	if (ret) {
-		v4l2_err(sd, "failed to create link to device node\n");
-		goto unreg;
-	}
-
-	/* setup default format */
-	fmt_src.pad = priv->src_sd_pad;
-	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt_src);
-	if (ret) {
-		v4l2_err(sd, "failed to get src_sd format\n");
-		goto unreg;
-	}
-
-	vdev->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	imx_media_mbus_fmt_to_pix_fmt(&vdev->fmt.fmt.pix,
-				      &fmt_src.format, NULL);
-	vdev->compose.width = fmt_src.format.width;
-	vdev->compose.height = fmt_src.format.height;
-	vdev->cc = imx_media_find_pixel_format(vdev->fmt.fmt.pix.pixelformat,
-					       PIXFMT_SEL_ANY);
-
-	v4l2_info(sd, "Registered %s as /dev/%s\n", vfd->name,
-		  video_device_node_name(vfd));
-
-	vfd->ctrl_handler = &priv->ctrl_hdlr;
-
-	/* add vdev to the video device list */
-	imx_media_add_video_device(priv->md, vdev);
-
-	return 0;
-unreg:
-	video_unregister_device(vfd);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(imx_media_capture_device_register);
-
-void imx_media_capture_device_unregister(struct imx_media_video_dev *vdev)
-{
-	struct capture_priv *priv = to_capture_priv(vdev);
-	struct video_device *vfd = priv->vdev.vfd;
-
-	mutex_lock(&priv->mutex);
-
-	if (video_is_registered(vfd)) {
-		video_unregister_device(vfd);
-		media_entity_cleanup(&vfd->entity);
-	}
-
-	mutex_unlock(&priv->mutex);
-}
-EXPORT_SYMBOL_GPL(imx_media_capture_device_unregister);
-
-struct imx_media_video_dev *
-imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
-			      int pad)
-{
-	struct capture_priv *priv;
-	struct video_device *vfd;
-	int ret;
-
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return ERR_PTR(-ENOMEM);
-
-	priv->src_sd = src_sd;
-	priv->src_sd_pad = pad;
-	priv->dev = dev;
-
-	mutex_init(&priv->mutex);
-	spin_lock_init(&priv->q_lock);
-
-	snprintf(capture_videodev.name, sizeof(capture_videodev.name),
-		 "%s capture", src_sd->name);
-
-	vfd = video_device_alloc();
-	if (!vfd)
-		return ERR_PTR(-ENOMEM);
-
-	*vfd = capture_videodev;
-	vfd->lock = &priv->mutex;
-	vfd->queue = &priv->q;
-	priv->vdev.vfd = vfd;
-
-	priv->vdev_pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_pads_init(&vfd->entity, 1, &priv->vdev_pad);
-	if (ret) {
+		dev_err(priv->dev, "vb2_queue_init failed\n");
 		video_device_release(vfd);
 		return ERR_PTR(ret);
 	}
 
-	INIT_LIST_HEAD(&priv->vdev.list);
-
-	video_set_drvdata(vfd, priv);
-
-	v4l2_ctrl_handler_init(&priv->ctrl_hdlr, 0);
+	if (legacy_api) {
+		/* Initialize the control handler. */
+		v4l2_ctrl_handler_init(&priv->ctrl_hdlr, 0);
+		vfd->ctrl_handler = &priv->ctrl_hdlr;
+	}
 
 	return &priv->vdev;
 }

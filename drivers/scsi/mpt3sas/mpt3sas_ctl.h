@@ -50,6 +50,8 @@
 #include <linux/miscdevice.h>
 #endif
 
+#include "mpt3sas_base.h"
+
 #ifndef MPT2SAS_MINOR
 #define MPT2SAS_MINOR		(MPT_MINOR + 1)
 #endif
@@ -94,6 +96,8 @@
 	struct mpt3_diag_query)
 #define MPT3DIAGREADBUFFER _IOWR(MPT3_MAGIC_NUMBER, 30, \
 	struct mpt3_diag_read_buffer)
+#define MPT3ADDNLDIAGQUERY _IOWR(MPT3_MAGIC_NUMBER, 32, \
+	struct mpt3_addnl_diag_query)
 
 /* Trace Buffer default UniqueId */
 #define MPT2DIAGBUFFUNIQUEID (0x07075900)
@@ -428,6 +432,20 @@ struct mpt3_diag_read_buffer {
 	uint32_t bytes_to_read;
 	uint32_t unique_id;
 	uint32_t diagnostic_data[1];
+};
+
+/**
+ * struct mpt3_addnl_diag_query - diagnostic buffer release reason
+ * @hdr - generic header
+ * @unique_id - unique id associated with this buffer.
+ * @rel_query - release query.
+ * @reserved2
+ */
+struct mpt3_addnl_diag_query {
+	struct mpt3_ioctl_header hdr;
+	uint32_t unique_id;
+	struct htb_rel_query rel_query;
+	uint32_t reserved2[2];
 };
 
 #endif /* MPT3SAS_CTL_H_INCLUDED */

@@ -14,47 +14,6 @@
 extern int mem_init_done;
 #endif
 
-#ifndef CONFIG_MMU
-
-#define pgd_present(pgd)	(1) /* pages are always present on non MMU */
-#define pgd_none(pgd)		(0)
-#define pgd_bad(pgd)		(0)
-#define pgd_clear(pgdp)
-#define kern_addr_valid(addr)	(1)
-
-#define PAGE_NONE		__pgprot(0) /* these mean nothing to non MMU */
-#define PAGE_SHARED		__pgprot(0) /* these mean nothing to non MMU */
-#define PAGE_COPY		__pgprot(0) /* these mean nothing to non MMU */
-#define PAGE_READONLY		__pgprot(0) /* these mean nothing to non MMU */
-#define PAGE_KERNEL		__pgprot(0) /* these mean nothing to non MMU */
-
-#define pgprot_noncached(x)	(x)
-#define pgprot_writecombine	pgprot_noncached
-#define pgprot_device		pgprot_noncached
-
-#define __swp_type(x)		(0)
-#define __swp_offset(x)		(0)
-#define __swp_entry(typ, off)	((swp_entry_t) { ((typ) | ((off) << 7)) })
-#define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
-#define __swp_entry_to_pte(x)	((pte_t) { (x).val })
-
-#define ZERO_PAGE(vaddr)	({ BUG(); NULL; })
-
-#define swapper_pg_dir ((pgd_t *) NULL)
-
-#define arch_enter_lazy_cpu_mode()	do {} while (0)
-
-#define pgprot_noncached_wc(prot)	prot
-
-/*
- * All 32bit addresses are effectively valid for vmalloc...
- * Sort of meaningless for non-VM targets.
- */
-#define	VMALLOC_START	0
-#define	VMALLOC_END	0xffffffff
-
-#else /* CONFIG_MMU */
-
 #include <asm-generic/pgtable-nopmd.h>
 
 #ifdef __KERNEL__
@@ -65,8 +24,6 @@ extern int mem_init_done;
 #include <asm/processor.h>		/* For TASK_SIZE */
 #include <asm/mmu.h>
 #include <asm/page.h>
-
-#define FIRST_USER_ADDRESS	0UL
 
 extern unsigned long va_to_phys(unsigned long address);
 extern pte_t *va_to_pte(unsigned long address);
@@ -442,6 +399,9 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 	return ((unsigned long) (pmd_val(pmd) & PAGE_MASK));
 }
 
+/* returns pfn of the pmd entry*/
+#define pmd_pfn(pmd)	(__pa(pmd_val(pmd)) >> PAGE_SHIFT)
+
 /* returns struct *page of the pmd entry*/
 #define pmd_page(pmd)	(pfn_to_page(__pa(pmd_val(pmd)) >> PAGE_SHIFT))
 
@@ -486,12 +446,8 @@ extern int mem_init_done;
 
 asmlinkage void __init mmu_init(void);
 
-void __init *early_get_page(void);
-
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
-
-#endif /* CONFIG_MMU */
 
 #ifndef __ASSEMBLY__
 extern unsigned long ioremap_bot, ioremap_base;

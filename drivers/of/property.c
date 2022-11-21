@@ -24,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/of_irq.h>
 #include <linux/string.h>
 #include <linux/moduleparam.h>
 
@@ -60,9 +61,11 @@ EXPORT_SYMBOL(of_graph_is_present);
  * @elem_size:	size of the individual element
  *
  * Search for a property in a device node and count the number of elements of
- * size elem_size in it. Returns number of elements on sucess, -EINVAL if the
- * property does not exist or its length does not match a multiple of elem_size
- * and -ENODATA if the property does not have a value.
+ * size elem_size in it.
+ *
+ * Return: The number of elements on sucess, -EINVAL if the property does not
+ * exist or its length does not match a multiple of elem_size and -ENODATA if
+ * the property does not have a value.
  */
 int of_property_count_elems_of_size(const struct device_node *np,
 				const char *propname, int elem_size)
@@ -94,8 +97,9 @@ EXPORT_SYMBOL_GPL(of_property_count_elems_of_size);
  * @len:	if !=NULL, actual length is written to here
  *
  * Search for a property in a device node and valid the requested size.
- * Returns the property value on success, -EINVAL if the property does not
- *  exist, -ENODATA if property does not have a value, and -EOVERFLOW if the
+ *
+ * Return: The property value on success, -EINVAL if the property does not
+ * exist, -ENODATA if property does not have a value, and -EOVERFLOW if the
  * property data is too small or too large.
  *
  */
@@ -128,7 +132,9 @@ static void *of_find_property_value_of_size(const struct device_node *np,
  * @out_value:	pointer to return value, modified only if no error.
  *
  * Search for a property in a device node and read nth 32-bit value from
- * it. Returns 0 on success, -EINVAL if the property does not exist,
+ * it.
+ *
+ * Return: 0 on success, -EINVAL if the property does not exist,
  * -ENODATA if property does not have a value, and -EOVERFLOW if the
  * property data isn't large enough.
  *
@@ -160,7 +166,9 @@ EXPORT_SYMBOL_GPL(of_property_read_u32_index);
  * @out_value:	pointer to return value, modified only if no error.
  *
  * Search for a property in a device node and read nth 64-bit value from
- * it. Returns 0 on success, -EINVAL if the property does not exist,
+ * it.
+ *
+ * Return: 0 on success, -EINVAL if the property does not exist,
  * -ENODATA if property does not have a value, and -EOVERFLOW if the
  * property data isn't large enough.
  *
@@ -195,12 +203,14 @@ EXPORT_SYMBOL_GPL(of_property_read_u64_index);
  *		sz_min will be read.
  *
  * Search for a property in a device node and read 8-bit value(s) from
- * it. Returns number of elements read on success, -EINVAL if the property
- * does not exist, -ENODATA if property does not have a value, and -EOVERFLOW
- * if the property data is smaller than sz_min or longer than sz_max.
+ * it.
  *
  * dts entry of array should be like:
- *	property = /bits/ 8 <0x50 0x60 0x70>;
+ *  ``property = /bits/ 8 <0x50 0x60 0x70>;``
+ *
+ * Return: The number of elements read on success, -EINVAL if the property
+ * does not exist, -ENODATA if property does not have a value, and -EOVERFLOW
+ * if the property data is smaller than sz_min or longer than sz_max.
  *
  * The out_values is modified only if a valid u8 value can be decoded.
  */
@@ -243,12 +253,14 @@ EXPORT_SYMBOL_GPL(of_property_read_variable_u8_array);
  *		sz_min will be read.
  *
  * Search for a property in a device node and read 16-bit value(s) from
- * it. Returns number of elements read on success, -EINVAL if the property
- * does not exist, -ENODATA if property does not have a value, and -EOVERFLOW
- * if the property data is smaller than sz_min or longer than sz_max.
+ * it.
  *
  * dts entry of array should be like:
- *	property = /bits/ 16 <0x5000 0x6000 0x7000>;
+ *  ``property = /bits/ 16 <0x5000 0x6000 0x7000>;``
+ *
+ * Return: The number of elements read on success, -EINVAL if the property
+ * does not exist, -ENODATA if property does not have a value, and -EOVERFLOW
+ * if the property data is smaller than sz_min or longer than sz_max.
  *
  * The out_values is modified only if a valid u16 value can be decoded.
  */
@@ -291,7 +303,9 @@ EXPORT_SYMBOL_GPL(of_property_read_variable_u16_array);
  *		sz_min will be read.
  *
  * Search for a property in a device node and read 32-bit value(s) from
- * it. Returns number of elements read on success, -EINVAL if the property
+ * it.
+ *
+ * Return: The number of elements read on success, -EINVAL if the property
  * does not exist, -ENODATA if property does not have a value, and -EOVERFLOW
  * if the property data is smaller than sz_min or longer than sz_max.
  *
@@ -330,7 +344,9 @@ EXPORT_SYMBOL_GPL(of_property_read_variable_u32_array);
  * @out_value:	pointer to return value, modified only if return value is 0.
  *
  * Search for a property in a device node and read a 64-bit value from
- * it. Returns 0 on success, -EINVAL if the property does not exist,
+ * it.
+ *
+ * Return: 0 on success, -EINVAL if the property does not exist,
  * -ENODATA if property does not have a value, and -EOVERFLOW if the
  * property data isn't large enough.
  *
@@ -365,7 +381,9 @@ EXPORT_SYMBOL_GPL(of_property_read_u64);
  *		sz_min will be read.
  *
  * Search for a property in a device node and read 64-bit value(s) from
- * it. Returns number of elements read on success, -EINVAL if the property
+ * it.
+ *
+ * Return: The number of elements read on success, -EINVAL if the property
  * does not exist, -ENODATA if property does not have a value, and -EOVERFLOW
  * if the property data is smaller than sz_min or longer than sz_max.
  *
@@ -407,10 +425,11 @@ EXPORT_SYMBOL_GPL(of_property_read_variable_u64_array);
  *		return value is 0.
  *
  * Search for a property in a device tree node and retrieve a null
- * terminated string value (pointer to data, not a copy). Returns 0 on
- * success, -EINVAL if the property does not exist, -ENODATA if property
- * does not have a value, and -EILSEQ if the string is not null-terminated
- * within the length of the property data.
+ * terminated string value (pointer to data, not a copy).
+ *
+ * Return: 0 on success, -EINVAL if the property does not exist, -ENODATA if
+ * property does not have a value, and -EILSEQ if the string is not
+ * null-terminated within the length of the property data.
  *
  * The out_string pointer is modified only if a valid string can be decoded.
  */
@@ -774,7 +793,7 @@ EXPORT_SYMBOL(of_graph_get_remote_port_parent);
  * @node: pointer to a local endpoint device_node
  *
  * Return: Remote port node associated with remote endpoint node linked
- *	   to @node. Use of_node_put() on it when done.
+ * to @node. Use of_node_put() on it when done.
  */
 struct device_node *of_graph_get_remote_port(const struct device_node *node)
 {
@@ -807,7 +826,7 @@ EXPORT_SYMBOL(of_graph_get_endpoint_count);
  * @endpoint: identifier (value of reg property) of the endpoint node
  *
  * Return: Remote device node associated with remote endpoint node linked
- *	   to @node. Use of_node_put() on it when done.
+ * to @node. Use of_node_put() on it when done.
  */
 struct device_node *of_graph_get_remote_node(const struct device_node *node,
 					     u32 port, u32 endpoint)
@@ -1037,34 +1056,40 @@ static bool of_is_ancestor_of(struct device_node *test_ancestor,
 	return false;
 }
 
-/**
- * of_get_next_parent_dev - Add device link to supplier from supplier phandle
- * @np: device tree node
- *
- * Given a device tree node (@np), this function finds its closest ancestor
- * device tree node that has a corresponding struct device.
- *
- * The caller of this function is expected to call put_device() on the returned
- * device when they are done.
- */
-static struct device *of_get_next_parent_dev(struct device_node *np)
+static struct device_node *of_get_compat_node(struct device_node *np)
 {
-	struct device *dev = NULL;
-
 	of_node_get(np);
-	do {
+
+	while (np) {
+		if (!of_device_is_available(np)) {
+			of_node_put(np);
+			np = NULL;
+		}
+
+		if (of_find_property(np, "compatible", NULL))
+			break;
+
 		np = of_get_next_parent(np);
-		if (np)
-			dev = get_dev_from_fwnode(&np->fwnode);
-	} while (np && !dev);
-	of_node_put(np);
-	return dev;
+	}
+
+	return np;
+}
+
+static struct device_node *of_get_compat_node_parent(struct device_node *np)
+{
+	struct device_node *parent, *node;
+
+	parent = of_get_parent(np);
+	node = of_get_compat_node(parent);
+	of_node_put(parent);
+
+	return node;
 }
 
 /**
- * of_link_to_phandle - Add device link to supplier from supplier phandle
- * @dev: consumer device
- * @sup_np: phandle to supplier device tree node
+ * of_link_to_phandle - Add fwnode link to supplier from supplier phandle
+ * @con_np: consumer device tree node
+ * @sup_np: supplier device tree node
  *
  * Given a phandle to a supplier device tree node (@sup_np), this function
  * finds the device that owns the supplier device tree node and creates a
@@ -1074,39 +1099,24 @@ static struct device *of_get_next_parent_dev(struct device_node *np)
  * cases, it returns an error.
  *
  * Returns:
- * - 0 if link successfully created to supplier
- * - -EAGAIN if linking to the supplier should be reattempted
+ * - 0 if fwnode link successfully created to supplier
  * - -EINVAL if the supplier link is invalid and should not be created
- * - -ENODEV if there is no device that corresponds to the supplier phandle
+ * - -ENODEV if struct device will never be create for supplier
  */
-static int of_link_to_phandle(struct device *dev, struct device_node *sup_np,
-			      u32 dl_flags)
+static int of_link_to_phandle(struct device_node *con_np,
+			      struct device_node *sup_np)
 {
-	struct device *sup_dev, *sup_par_dev;
-	int ret = 0;
+	struct device *sup_dev;
 	struct device_node *tmp_np = sup_np;
 
-	of_node_get(sup_np);
 	/*
 	 * Find the device node that contains the supplier phandle.  It may be
 	 * @sup_np or it may be an ancestor of @sup_np.
 	 */
-	while (sup_np) {
-
-		/* Don't allow linking to a disabled supplier */
-		if (!of_device_is_available(sup_np)) {
-			of_node_put(sup_np);
-			sup_np = NULL;
-		}
-
-		if (of_find_property(sup_np, "compatible", NULL))
-			break;
-
-		sup_np = of_get_next_parent(sup_np);
-	}
-
+	sup_np = of_get_compat_node(sup_np);
 	if (!sup_np) {
-		dev_dbg(dev, "Not linking to %pOFP - No device\n", tmp_np);
+		pr_debug("Not linking %pOFP to %pOFP - No device\n",
+			 con_np, tmp_np);
 		return -ENODEV;
 	}
 
@@ -1115,53 +1125,32 @@ static int of_link_to_phandle(struct device *dev, struct device_node *sup_np,
 	 * descendant nodes. By definition, a child node can't be a functional
 	 * dependency for the parent node.
 	 */
-	if (of_is_ancestor_of(dev->of_node, sup_np)) {
-		dev_dbg(dev, "Not linking to %pOFP - is descendant\n", sup_np);
+	if (of_is_ancestor_of(con_np, sup_np)) {
+		pr_debug("Not linking %pOFP to %pOFP - is descendant\n",
+			 con_np, sup_np);
 		of_node_put(sup_np);
 		return -EINVAL;
 	}
+
+	/*
+	 * Don't create links to "early devices" that won't have struct devices
+	 * created for them.
+	 */
 	sup_dev = get_dev_from_fwnode(&sup_np->fwnode);
-	if (!sup_dev && of_node_check_flag(sup_np, OF_POPULATED)) {
-		/* Early device without struct device. */
-		dev_dbg(dev, "Not linking to %pOFP - No struct device\n",
-			sup_np);
+	if (!sup_dev &&
+	    (of_node_check_flag(sup_np, OF_POPULATED) ||
+	     sup_np->fwnode.flags & FWNODE_FLAG_NOT_DEVICE)) {
+		pr_debug("Not linking %pOFP to %pOFP - No struct device\n",
+			 con_np, sup_np);
 		of_node_put(sup_np);
 		return -ENODEV;
-	} else if (!sup_dev) {
-		/*
-		 * DL_FLAG_SYNC_STATE_ONLY doesn't block probing and supports
-		 * cycles. So cycle detection isn't necessary and shouldn't be
-		 * done.
-		 */
-		if (dl_flags & DL_FLAG_SYNC_STATE_ONLY) {
-			of_node_put(sup_np);
-			return -EAGAIN;
-		}
-
-		sup_par_dev = of_get_next_parent_dev(sup_np);
-
-		if (sup_par_dev && device_is_dependent(dev, sup_par_dev)) {
-			/* Cyclic dependency detected, don't try to link */
-			dev_dbg(dev, "Not linking to %pOFP - cycle detected\n",
-				sup_np);
-			ret = -EINVAL;
-		} else {
-			/*
-			 * Can't check for cycles or no cycles. So let's try
-			 * again later.
-			 */
-			ret = -EAGAIN;
-		}
-
-		of_node_put(sup_np);
-		put_device(sup_par_dev);
-		return ret;
 	}
-	of_node_put(sup_np);
-	if (!device_link_add(dev, sup_dev, dl_flags))
-		ret = -EINVAL;
 	put_device(sup_dev);
-	return ret;
+
+	fwnode_link_add(of_fwnode_handle(con_np), of_fwnode_handle(sup_np));
+	of_node_put(sup_np);
+
+	return 0;
 }
 
 /**
@@ -1270,6 +1259,10 @@ static struct device_node *parse_##fname(struct device_node *np,	     \
  * @parse_prop.prop_name: Name of property holding a phandle value
  * @parse_prop.index: For properties holding a list of phandles, this is the
  *		      index into the list
+ * @optional: Describes whether a supplier is mandatory or not
+ * @node_not_dev: The consumer node containing the property is never converted
+ *		  to a struct device. Instead, parse ancestor nodes for the
+ *		  compatible property to find a node corresponding to a device.
  *
  * Returns:
  * parse_prop() return values are
@@ -1280,6 +1273,8 @@ static struct device_node *parse_##fname(struct device_node *np,	     \
 struct supplier_bindings {
 	struct device_node *(*parse_prop)(struct device_node *np,
 					  const char *prop_name, int index);
+	bool optional;
+	bool node_not_dev;
 };
 
 DEFINE_SIMPLE_PROP(clocks, "clocks", "#clock-cells")
@@ -1292,8 +1287,6 @@ DEFINE_SIMPLE_PROP(dmas, "dmas", "#dma-cells")
 DEFINE_SIMPLE_PROP(power_domains, "power-domains", "#power-domain-cells")
 DEFINE_SIMPLE_PROP(hwlocks, "hwlocks", "#hwlock-cells")
 DEFINE_SIMPLE_PROP(extcon, "extcon", NULL)
-DEFINE_SIMPLE_PROP(interrupts_extended, "interrupts-extended",
-					"#interrupt-cells")
 DEFINE_SIMPLE_PROP(nvmem_cells, "nvmem-cells", NULL)
 DEFINE_SIMPLE_PROP(phys, "phys", "#phy-cells")
 DEFINE_SIMPLE_PROP(wakeup_parent, "wakeup-parent", NULL)
@@ -1306,9 +1299,23 @@ DEFINE_SIMPLE_PROP(pinctrl5, "pinctrl-5", NULL)
 DEFINE_SIMPLE_PROP(pinctrl6, "pinctrl-6", NULL)
 DEFINE_SIMPLE_PROP(pinctrl7, "pinctrl-7", NULL)
 DEFINE_SIMPLE_PROP(pinctrl8, "pinctrl-8", NULL)
+DEFINE_SIMPLE_PROP(remote_endpoint, "remote-endpoint", NULL)
+DEFINE_SIMPLE_PROP(pwms, "pwms", "#pwm-cells")
+DEFINE_SIMPLE_PROP(resets, "resets", "#reset-cells")
+DEFINE_SIMPLE_PROP(leds, "leds", NULL)
+DEFINE_SIMPLE_PROP(backlight, "backlight", NULL)
 DEFINE_SUFFIX_PROP(regulators, "-supply", NULL)
 DEFINE_SUFFIX_PROP(gpio, "-gpio", "#gpio-cells")
-DEFINE_SUFFIX_PROP(gpios, "-gpios", "#gpio-cells")
+
+static struct device_node *parse_gpios(struct device_node *np,
+				       const char *prop_name, int index)
+{
+	if (!strcmp_suffix(prop_name, ",nr-gpios"))
+		return NULL;
+
+	return parse_suffix_prop_cells(np, prop_name, index, "-gpios",
+				       "#gpio-cells");
+}
 
 static struct device_node *parse_iommu_maps(struct device_node *np,
 					    const char *prop_name, int index)
@@ -1319,19 +1326,55 @@ static struct device_node *parse_iommu_maps(struct device_node *np,
 	return of_parse_phandle(np, prop_name, (index * 4) + 1);
 }
 
+static struct device_node *parse_gpio_compat(struct device_node *np,
+					     const char *prop_name, int index)
+{
+	struct of_phandle_args sup_args;
+
+	if (strcmp(prop_name, "gpio") && strcmp(prop_name, "gpios"))
+		return NULL;
+
+	/*
+	 * Ignore node with gpio-hog property since its gpios are all provided
+	 * by its parent.
+	 */
+	if (of_find_property(np, "gpio-hog", NULL))
+		return NULL;
+
+	if (of_parse_phandle_with_args(np, prop_name, "#gpio-cells", index,
+				       &sup_args))
+		return NULL;
+
+	return sup_args.np;
+}
+
+static struct device_node *parse_interrupts(struct device_node *np,
+					    const char *prop_name, int index)
+{
+	struct of_phandle_args sup_args;
+
+	if (!IS_ENABLED(CONFIG_OF_IRQ) || IS_ENABLED(CONFIG_PPC))
+		return NULL;
+
+	if (strcmp(prop_name, "interrupts") &&
+	    strcmp(prop_name, "interrupts-extended"))
+		return NULL;
+
+	return of_irq_parse_one(np, index, &sup_args) ? NULL : sup_args.np;
+}
+
 static const struct supplier_bindings of_supplier_bindings[] = {
 	{ .parse_prop = parse_clocks, },
 	{ .parse_prop = parse_interconnects, },
-	{ .parse_prop = parse_iommus, },
-	{ .parse_prop = parse_iommu_maps, },
+	{ .parse_prop = parse_iommus, .optional = true, },
+	{ .parse_prop = parse_iommu_maps, .optional = true, },
 	{ .parse_prop = parse_mboxes, },
 	{ .parse_prop = parse_io_channels, },
 	{ .parse_prop = parse_interrupt_parent, },
-	{ .parse_prop = parse_dmas, },
+	{ .parse_prop = parse_dmas, .optional = true, },
 	{ .parse_prop = parse_power_domains, },
 	{ .parse_prop = parse_hwlocks, },
 	{ .parse_prop = parse_extcon, },
-	{ .parse_prop = parse_interrupts_extended, },
 	{ .parse_prop = parse_nvmem_cells, },
 	{ .parse_prop = parse_phys, },
 	{ .parse_prop = parse_wakeup_parent, },
@@ -1344,6 +1387,13 @@ static const struct supplier_bindings of_supplier_bindings[] = {
 	{ .parse_prop = parse_pinctrl6, },
 	{ .parse_prop = parse_pinctrl7, },
 	{ .parse_prop = parse_pinctrl8, },
+	{ .parse_prop = parse_remote_endpoint, .node_not_dev = true, },
+	{ .parse_prop = parse_pwms, },
+	{ .parse_prop = parse_resets, },
+	{ .parse_prop = parse_leds, },
+	{ .parse_prop = parse_backlight, },
+	{ .parse_prop = parse_gpio_compat, },
+	{ .parse_prop = parse_interrupts, },
 	{ .parse_prop = parse_regulators, },
 	{ .parse_prop = parse_gpio, },
 	{ .parse_prop = parse_gpios, },
@@ -1352,7 +1402,6 @@ static const struct supplier_bindings of_supplier_bindings[] = {
 
 /**
  * of_link_property - Create device links to suppliers listed in a property
- * @dev: Consumer device
  * @con_np: The consumer device tree node which contains the property
  * @prop_name: Name of property to be parsed
  *
@@ -1361,69 +1410,61 @@ static const struct supplier_bindings of_supplier_bindings[] = {
  * that list phandles to suppliers. If @prop_name isn't one, this function
  * doesn't do anything.
  *
- * If @prop_name is one, this function attempts to create device links from the
- * consumer device @dev to all the devices of the suppliers listed in
- * @prop_name.
+ * If @prop_name is one, this function attempts to create fwnode links from the
+ * consumer device tree node @con_np to all the suppliers device tree nodes
+ * listed in @prop_name.
  *
- * Any failed attempt to create a device link will NOT result in an immediate
+ * Any failed attempt to create a fwnode link will NOT result in an immediate
  * return.  of_link_property() must create links to all the available supplier
- * devices even when attempts to create a link to one or more suppliers fail.
+ * device tree nodes even when attempts to create a link to one or more
+ * suppliers fail.
  */
-static int of_link_property(struct device *dev, struct device_node *con_np,
-			     const char *prop_name)
+static int of_link_property(struct device_node *con_np, const char *prop_name)
 {
 	struct device_node *phandle;
 	const struct supplier_bindings *s = of_supplier_bindings;
 	unsigned int i = 0;
 	bool matched = false;
-	int ret = 0;
-	u32 dl_flags;
-
-	if (dev->of_node == con_np)
-		dl_flags = fw_devlink_get_flags();
-	else
-		dl_flags = DL_FLAG_SYNC_STATE_ONLY;
 
 	/* Do not stop at first failed link, link all available suppliers. */
 	while (!matched && s->parse_prop) {
+		if (s->optional && !fw_devlink_is_strict()) {
+			s++;
+			continue;
+		}
+
 		while ((phandle = s->parse_prop(con_np, prop_name, i))) {
+			struct device_node *con_dev_np;
+
+			con_dev_np = s->node_not_dev
+					? of_get_compat_node_parent(con_np)
+					: of_node_get(con_np);
 			matched = true;
 			i++;
-			if (of_link_to_phandle(dev, phandle, dl_flags)
-								== -EAGAIN)
-				ret = -EAGAIN;
+			of_link_to_phandle(con_dev_np, phandle);
 			of_node_put(phandle);
+			of_node_put(con_dev_np);
 		}
 		s++;
 	}
-	return ret;
+	return 0;
 }
 
-static int of_link_to_suppliers(struct device *dev,
-				  struct device_node *con_np)
+static int of_fwnode_add_links(struct fwnode_handle *fwnode)
 {
-	struct device_node *child;
 	struct property *p;
-	int ret = 0;
+	struct device_node *con_np = to_of_node(fwnode);
 
-	for_each_property_of_node(con_np, p)
-		if (of_link_property(dev, con_np, p->name))
-			ret = -ENODEV;
-
-	for_each_available_child_of_node(con_np, child)
-		if (of_link_to_suppliers(dev, child) && !ret)
-			ret = -EAGAIN;
-
-	return ret;
-}
-
-static int of_fwnode_add_links(const struct fwnode_handle *fwnode,
-			       struct device *dev)
-{
-	if (unlikely(!is_of_node(fwnode)))
+	if (IS_ENABLED(CONFIG_X86))
 		return 0;
 
-	return of_link_to_suppliers(dev, to_of_node(fwnode));
+	if (!con_np)
+		return -EINVAL;
+
+	for_each_property_of_node(con_np, p)
+		of_link_property(con_np, p->name);
+
+	return 0;
 }
 
 const struct fwnode_operations of_fwnode_ops = {

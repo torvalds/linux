@@ -23,6 +23,7 @@ config SND_SOC_SH4_SSI
 
 config SND_SOC_SH4_FSI
 	tristate "SH4 FSI support"
+	depends on SUPERH || COMMON_CLK
 	select SND_SIMPLE_CARD
 	help
 	  This option enables FSI sound support
@@ -43,6 +44,12 @@ config SND_SOC_RCAR
 	select REGMAP_MMIO
 	help
 	  This option enables R-Car SRU/SCU/SSIU/SSI sound support
+
+config SND_SOC_RZ
+	tristate "RZ/G2L series SSIF-2 support"
+	depends on ARCH_R9A07G044 || COMPILE_TEST
+	help
+	  This option enables RZ/G2L SSIF-2 sound support.
 
 ##
 ## Boards

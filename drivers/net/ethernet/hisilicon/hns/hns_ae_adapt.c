@@ -81,8 +81,8 @@ static struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 	vfnum_per_port = hns_ae_get_vf_num_per_port(dsaf_dev, port_id);
 	qnum_per_vf = hns_ae_get_q_num_per_vf(dsaf_dev, port_id);
 
-	vf_cb = kzalloc(sizeof(*vf_cb) +
-			qnum_per_vf * sizeof(struct hnae_queue *), GFP_KERNEL);
+	vf_cb = kzalloc(struct_size(vf_cb, ae_handle.qs, qnum_per_vf),
+			GFP_KERNEL);
 	if (unlikely(!vf_cb)) {
 		dev_err(dsaf_dev->dev, "malloc vf_cb fail!\n");
 		ae_handle = ERR_PTR(-ENOMEM);
@@ -108,7 +108,6 @@ static struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 		goto vf_id_err;
 	}
 
-	ae_handle->qs = (struct hnae_queue **)(&ae_handle->qs + 1);
 	for (i = 0; i < qnum_per_vf; i++) {
 		ae_handle->qs[i] = &ring_pair_cb->q;
 		ae_handle->qs[i]->rx_ring.q = ae_handle->qs[i];
@@ -207,7 +206,7 @@ static void hns_ae_fini_queue(struct hnae_queue *q)
 		hns_rcb_reset_ring_hw(q);
 }
 
-static int hns_ae_set_mac_address(struct hnae_handle *handle, void *p)
+static int hns_ae_set_mac_address(struct hnae_handle *handle, const void *p)
 {
 	int ret;
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
@@ -462,8 +461,6 @@ static void hns_ae_adjust_link(struct hnae_handle *handle, int speed,
 	default:
 		break;
 	}
-
-	return;
 }
 
 static void hns_ae_get_ring_bdnum_limit(struct hnae_queue *queue,
@@ -487,30 +484,12 @@ static void hns_ae_get_pauseparam(struct hnae_handle *handle,
 		hns_dsaf_get_rx_mac_pause_en(dsaf_dev, mac_cb->mac_id, rx_en);
 }
 
-static int hns_ae_set_autoneg(struct hnae_handle *handle, u8 enable)
-{
-	assert(handle);
-
-	return hns_mac_set_autoneg(hns_get_mac_cb(handle), enable);
-}
-
 static void hns_ae_set_promisc_mode(struct hnae_handle *handle, u32 en)
 {
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
 	hns_dsaf_set_promisc_mode(hns_ae_get_dsaf_dev(handle->dev), en);
 	hns_mac_set_promisc(mac_cb, (u8)!!en);
-}
-
-static int hns_ae_get_autoneg(struct hnae_handle *handle)
-{
-	u32     auto_neg;
-
-	assert(handle);
-
-	hns_mac_get_autoneg(hns_get_mac_cb(handle), &auto_neg);
-
-	return auto_neg;
 }
 
 static int hns_ae_set_pauseparam(struct hnae_handle *handle,
@@ -648,7 +627,7 @@ static void hns_ae_update_stats(struct hnae_handle *handle,
 	struct hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
 	u64 tx_bytes = 0, rx_bytes = 0, tx_packets = 0, rx_packets = 0;
 	u64 rx_errors = 0, tx_errors = 0, tx_dropped = 0;
-	u64 rx_missed_errors = 0;
+	u64 rx_missed_errors;
 
 	dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 	if (!dsaf_dev)
@@ -965,8 +944,6 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.set_loopback = hns_ae_config_loopback,
 	.get_ring_bdnum_limit = hns_ae_get_ring_bdnum_limit,
 	.get_pauseparam = hns_ae_get_pauseparam,
-	.set_autoneg = hns_ae_set_autoneg,
-	.get_autoneg = hns_ae_get_autoneg,
 	.set_pauseparam = hns_ae_set_pauseparam,
 	.get_coalesce_usecs = hns_ae_get_coalesce_usecs,
 	.get_max_coalesced_frames = hns_ae_get_max_coalesced_frames,

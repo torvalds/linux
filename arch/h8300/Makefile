@@ -30,15 +30,9 @@ ifeq ($(CROSS_COMPILE),)
 CROSS_COMPILE := $(call cc-cross-prefix, h8300-unknown-linux- h8300-linux-)
 endif
 
-core-y	+= arch/$(ARCH)/kernel/ arch/$(ARCH)/mm/
-core-y	+= arch/$(ARCH)/boot/dts/
-
 libs-y	+= arch/$(ARCH)/lib/
 
 boot := arch/h8300/boot
-
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
 
 vmlinux.srec vmlinux.bin zImage uImage.bin: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@

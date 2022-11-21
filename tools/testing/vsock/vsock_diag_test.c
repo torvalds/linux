@@ -332,8 +332,6 @@ static void test_no_sockets(const struct test_opts *opts)
 	read_vsock_stat(&sockets);
 
 	check_no_sockets(&sockets);
-
-	free_sock_stat(&sockets);
 }
 
 static void test_listen_socket_server(const struct test_opts *opts)

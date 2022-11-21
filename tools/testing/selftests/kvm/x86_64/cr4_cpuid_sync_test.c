@@ -81,7 +81,6 @@ int main(int argc, char *argv[])
 
 	/* Create VM */
 	vm = vm_create_default(VCPU_ID, 0, guest_code);
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 	run = vcpu_state(vm, VCPU_ID);
 
 	while (1) {
@@ -110,8 +109,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	kvm_vm_free(vm);
-
 done:
+	kvm_vm_free(vm);
 	return 0;
 }

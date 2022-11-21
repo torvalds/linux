@@ -49,7 +49,7 @@ static void panfrost_gem_free_object(struct drm_gem_object *obj)
 		kvfree(bo->sgts);
 	}
 
-	drm_gem_shmem_free_object(obj);
+	drm_gem_shmem_free(&bo->base);
 }
 
 struct panfrost_gem_mapping *
@@ -60,7 +60,7 @@ panfrost_gem_mapping_get(struct panfrost_gem_object *bo,
 
 	mutex_lock(&bo->mappings.lock);
 	list_for_each_entry(iter, &bo->mappings.list, node) {
-		if (iter->mmu == &priv->mmu) {
+		if (iter->mmu == priv->mmu) {
 			kref_get(&iter->refcount);
 			mapping = iter;
 			break;
@@ -74,16 +74,13 @@ panfrost_gem_mapping_get(struct panfrost_gem_object *bo,
 static void
 panfrost_gem_teardown_mapping(struct panfrost_gem_mapping *mapping)
 {
-	struct panfrost_file_priv *priv;
-
 	if (mapping->active)
 		panfrost_mmu_unmap(mapping);
 
-	priv = container_of(mapping->mmu, struct panfrost_file_priv, mmu);
-	spin_lock(&priv->mm_lock);
+	spin_lock(&mapping->mmu->mm_lock);
 	if (drm_mm_node_allocated(&mapping->mmnode))
 		drm_mm_remove_node(&mapping->mmnode);
-	spin_unlock(&priv->mm_lock);
+	spin_unlock(&mapping->mmu->mm_lock);
 }
 
 static void panfrost_gem_mapping_release(struct kref *kref)
@@ -94,6 +91,7 @@ static void panfrost_gem_mapping_release(struct kref *kref)
 
 	panfrost_gem_teardown_mapping(mapping);
 	drm_gem_object_put(&mapping->obj->base.base);
+	panfrost_mmu_ctx_put(mapping->mmu);
 	kfree(mapping);
 }
 
@@ -143,11 +141,11 @@ int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_priv)
 	else
 		align = size >= SZ_2M ? SZ_2M >> PAGE_SHIFT : 0;
 
-	mapping->mmu = &priv->mmu;
-	spin_lock(&priv->mm_lock);
-	ret = drm_mm_insert_node_generic(&priv->mm, &mapping->mmnode,
+	mapping->mmu = panfrost_mmu_ctx_get(priv->mmu);
+	spin_lock(&mapping->mmu->mm_lock);
+	ret = drm_mm_insert_node_generic(&mapping->mmu->mm, &mapping->mmnode,
 					 size >> PAGE_SHIFT, align, color, 0);
-	spin_unlock(&priv->mm_lock);
+	spin_unlock(&mapping->mmu->mm_lock);
 	if (ret)
 		goto err;
 
@@ -176,7 +174,7 @@ void panfrost_gem_close(struct drm_gem_object *obj, struct drm_file *file_priv)
 
 	mutex_lock(&bo->mappings.lock);
 	list_for_each_entry(iter, &bo->mappings.list, node) {
-		if (iter->mmu == &priv->mmu) {
+		if (iter->mmu == priv->mmu) {
 			mapping = iter;
 			list_del(&iter->node);
 			break;
@@ -189,23 +187,26 @@ void panfrost_gem_close(struct drm_gem_object *obj, struct drm_file *file_priv)
 
 static int panfrost_gem_pin(struct drm_gem_object *obj)
 {
-	if (to_panfrost_bo(obj)->is_heap)
+	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
+
+	if (bo->is_heap)
 		return -EINVAL;
 
-	return drm_gem_shmem_pin(obj);
+	return drm_gem_shmem_pin(&bo->base);
 }
 
 static const struct drm_gem_object_funcs panfrost_gem_funcs = {
 	.free = panfrost_gem_free_object,
 	.open = panfrost_gem_open,
 	.close = panfrost_gem_close,
-	.print_info = drm_gem_shmem_print_info,
+	.print_info = drm_gem_shmem_object_print_info,
 	.pin = panfrost_gem_pin,
-	.unpin = drm_gem_shmem_unpin,
-	.get_sg_table = drm_gem_shmem_get_sg_table,
-	.vmap = drm_gem_shmem_vmap,
-	.vunmap = drm_gem_shmem_vunmap,
-	.mmap = drm_gem_shmem_mmap,
+	.unpin = drm_gem_shmem_object_unpin,
+	.get_sg_table = drm_gem_shmem_object_get_sg_table,
+	.vmap = drm_gem_shmem_object_vmap,
+	.vunmap = drm_gem_shmem_object_vunmap,
+	.mmap = drm_gem_shmem_object_mmap,
+	.vm_ops = &drm_gem_shmem_vm_ops,
 };
 
 /**
@@ -218,15 +219,17 @@ static const struct drm_gem_object_funcs panfrost_gem_funcs = {
  */
 struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t size)
 {
+	struct panfrost_device *pfdev = dev->dev_private;
 	struct panfrost_gem_object *obj;
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (!obj)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&obj->mappings.list);
 	mutex_init(&obj->mappings.lock);
 	obj->base.base.funcs = &panfrost_gem_funcs;
+	obj->base.map_wc = !pfdev->coherent;
 
 	return &obj->base.base;
 }

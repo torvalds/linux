@@ -242,6 +242,19 @@ static void zfcp_fsf_status_read_link_down(struct zfcp_fsf_req *req)
 	}
 }
 
+static void
+zfcp_fsf_status_read_version_change(struct zfcp_adapter *adapter,
+				    struct fsf_status_read_buffer *sr_buf)
+{
+	if (sr_buf->status_subtype == FSF_STATUS_READ_SUB_LIC_CHANGE) {
+		u32 version = sr_buf->payload.version_change.current_version;
+
+		WRITE_ONCE(adapter->fsf_lic_version, version);
+		snprintf(fc_host_firmware_version(adapter->scsi_host),
+			 FC_VERSION_STRING_SIZE, "%#08x", version);
+	}
+}
+
 static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
@@ -296,9 +309,15 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 	case FSF_STATUS_READ_NOTIFICATION_LOST:
 		if (sr_buf->status_subtype & FSF_STATUS_READ_SUB_INCOMING_ELS)
 			zfcp_fc_conditional_port_scan(adapter);
+		if (sr_buf->status_subtype & FSF_STATUS_READ_SUB_VERSION_CHANGE)
+			queue_work(adapter->work_queue,
+				   &adapter->version_change_lost_work);
 		break;
 	case FSF_STATUS_READ_FEATURE_UPDATE_ALERT:
 		adapter->adapter_features = sr_buf->payload.word[0];
+		break;
+	case FSF_STATUS_READ_VERSION_CHANGE:
+		zfcp_fsf_status_read_version_change(adapter, sr_buf);
 		break;
 	}
 
@@ -827,7 +846,6 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
 	if (adapter->req_no == 0)
 		adapter->req_no++;
 
-	INIT_LIST_HEAD(&req->list);
 	timer_setup(&req->timer, NULL, 0);
 	init_completion(&req->completion);
 
@@ -2257,7 +2275,7 @@ static void zfcp_fsf_close_lun_handler(struct zfcp_fsf_req *req)
 }
 
 /**
- * zfcp_fsf_close_LUN - close LUN
+ * zfcp_fsf_close_lun - close LUN
  * @erp_action: pointer to erp_action triggering the "close LUN"
  * Returns: 0 on success, error otherwise
  */
@@ -2359,8 +2377,7 @@ static void zfcp_fsf_req_trace(struct zfcp_fsf_req *req, struct scsi_cmnd *scsi)
 		}
 	}
 
-	blk_add_driver_data(scsi->request->q, scsi->request, &blktrc,
-			    sizeof(blktrc));
+	blk_add_driver_data(scsi_cmd_to_rq(scsi), &blktrc, sizeof(blktrc));
 }
 
 /**
@@ -2484,7 +2501,7 @@ skip_fsfstatus:
 	zfcp_dbf_scsi_result(scpnt, req);
 
 	scpnt->host_scribble = NULL;
-	(scpnt->scsi_done) (scpnt);
+	scsi_done(scpnt);
 	/*
 	 * We must hold this lock until scsi_done has been called.
 	 * Otherwise we may call scsi_done after abort regarding this
@@ -2582,8 +2599,8 @@ int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *scsi_cmnd)
 	io->fcp_cmnd_length = FCP_CMND_LEN;
 
 	if (scsi_get_prot_op(scsi_cmnd) != SCSI_PROT_NORMAL) {
-		io->data_block_length = scsi_cmnd->device->sector_size;
-		io->ref_tag_value = scsi_get_lba(scsi_cmnd) & 0xFFFFFFFF;
+		io->data_block_length = scsi_prot_interval(scsi_cmnd);
+		io->ref_tag_value = scsi_prot_ref_tag(scsi_cmnd);
 	}
 
 	if (zfcp_fsf_set_data_dir(scsi_cmnd, &io->data_direction))

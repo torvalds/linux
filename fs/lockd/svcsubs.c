@@ -45,7 +45,7 @@ static inline void nlm_debug_print_fh(char *msg, struct nfs_fh *f)
 
 static inline void nlm_debug_print_file(char *msg, struct nlm_file *file)
 {
-	struct inode *inode = locks_inode(file->f_file);
+	struct inode *inode = nlmsvc_file_inode(file);
 
 	dprintk("lockd: %s %s/%ld\n",
 		msg, inode->i_sb->s_id, inode->i_ino);
@@ -71,56 +71,75 @@ static inline unsigned int file_hash(struct nfs_fh *f)
 	return tmp & (FILE_NRHASH - 1);
 }
 
+int lock_to_openmode(struct file_lock *lock)
+{
+	return (lock->fl_type == F_WRLCK) ? O_WRONLY : O_RDONLY;
+}
+
+/*
+ * Open the file. Note that if we're reexporting, for example,
+ * this could block the lockd thread for a while.
+ *
+ * We have to make sure we have the right credential to open
+ * the file.
+ */
+static __be32 nlm_do_fopen(struct svc_rqst *rqstp,
+			   struct nlm_file *file, int mode)
+{
+	struct file **fp = &file->f_file[mode];
+	__be32	nfserr;
+
+	if (*fp)
+		return 0;
+	nfserr = nlmsvc_ops->fopen(rqstp, &file->f_handle, fp, mode);
+	if (nfserr)
+		dprintk("lockd: open failed (error %d)\n", nfserr);
+	return nfserr;
+}
+
 /*
  * Lookup file info. If it doesn't exist, create a file info struct
  * and open a (VFS) file for the given inode.
- *
- * FIXME:
- * Note that we open the file O_RDONLY even when creating write locks.
- * This is not quite right, but for now, we assume the client performs
- * the proper R/W checking.
  */
 __be32
 nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
-					struct nfs_fh *f)
+					struct nlm_lock *lock)
 {
 	struct nlm_file	*file;
 	unsigned int	hash;
 	__be32		nfserr;
+	int		mode;
 
-	nlm_debug_print_fh("nlm_lookup_file", f);
+	nlm_debug_print_fh("nlm_lookup_file", &lock->fh);
 
-	hash = file_hash(f);
+	hash = file_hash(&lock->fh);
+	mode = lock_to_openmode(&lock->fl);
 
 	/* Lock file table */
 	mutex_lock(&nlm_file_mutex);
 
 	hlist_for_each_entry(file, &nlm_files[hash], f_list)
-		if (!nfs_compare_fh(&file->f_handle, f))
+		if (!nfs_compare_fh(&file->f_handle, &lock->fh)) {
+			mutex_lock(&file->f_mutex);
+			nfserr = nlm_do_fopen(rqstp, file, mode);
+			mutex_unlock(&file->f_mutex);
 			goto found;
-
-	nlm_debug_print_fh("creating file for", f);
+		}
+	nlm_debug_print_fh("creating file for", &lock->fh);
 
 	nfserr = nlm_lck_denied_nolocks;
 	file = kzalloc(sizeof(*file), GFP_KERNEL);
 	if (!file)
-		goto out_unlock;
+		goto out_free;
 
-	memcpy(&file->f_handle, f, sizeof(struct nfs_fh));
+	memcpy(&file->f_handle, &lock->fh, sizeof(struct nfs_fh));
 	mutex_init(&file->f_mutex);
 	INIT_HLIST_NODE(&file->f_list);
 	INIT_LIST_HEAD(&file->f_blocks);
 
-	/* Open the file. Note that this must not sleep for too long, else
-	 * we would lock up lockd:-) So no NFS re-exports, folks.
-	 *
-	 * We have to make sure we have the right credential to open
-	 * the file.
-	 */
-	if ((nfserr = nlmsvc_ops->fopen(rqstp, f, &file->f_file)) != 0) {
-		dprintk("lockd: open failed (error %d)\n", nfserr);
-		goto out_free;
-	}
+	nfserr = nlm_do_fopen(rqstp, file, mode);
+	if (nfserr)
+		goto out_unlock;
 
 	hlist_add_head(&file->f_list, &nlm_files[hash]);
 
@@ -128,7 +147,6 @@ found:
 	dprintk("lockd: found file %p (count %d)\n", file, file->f_count);
 	*result = file;
 	file->f_count++;
-	nfserr = 0;
 
 out_unlock:
 	mutex_unlock(&nlm_file_mutex);
@@ -148,11 +166,34 @@ nlm_delete_file(struct nlm_file *file)
 	nlm_debug_print_file("closing file", file);
 	if (!hlist_unhashed(&file->f_list)) {
 		hlist_del(&file->f_list);
-		nlmsvc_ops->fclose(file->f_file);
+		if (file->f_file[O_RDONLY])
+			nlmsvc_ops->fclose(file->f_file[O_RDONLY]);
+		if (file->f_file[O_WRONLY])
+			nlmsvc_ops->fclose(file->f_file[O_WRONLY]);
 		kfree(file);
 	} else {
 		printk(KERN_WARNING "lockd: attempt to release unknown file!\n");
 	}
+}
+
+static int nlm_unlock_files(struct nlm_file *file)
+{
+	struct file_lock lock;
+
+	locks_init_lock(&lock);
+	lock.fl_type  = F_UNLCK;
+	lock.fl_start = 0;
+	lock.fl_end   = OFFSET_MAX;
+	if (file->f_file[O_RDONLY] &&
+	    vfs_lock_file(file->f_file[O_RDONLY], F_SETLK, &lock, NULL))
+		goto out_err;
+	if (file->f_file[O_WRONLY] &&
+	    vfs_lock_file(file->f_file[O_WRONLY], F_SETLK, &lock, NULL))
+		goto out_err;
+	return 0;
+out_err:
+	pr_warn("lockd: unlock failure in %s:%d\n", __FILE__, __LINE__);
+	return 1;
 }
 
 /*
@@ -182,17 +223,10 @@ again:
 
 		lockhost = ((struct nlm_lockowner *)fl->fl_owner)->host;
 		if (match(lockhost, host)) {
-			struct file_lock lock = *fl;
 
 			spin_unlock(&flctx->flc_lock);
-			lock.fl_type  = F_UNLCK;
-			lock.fl_start = 0;
-			lock.fl_end   = OFFSET_MAX;
-			if (vfs_lock_file(file->f_file, F_SETLK, &lock, NULL) < 0) {
-				printk("lockd: unlock failure in %s:%d\n",
-						__FILE__, __LINE__);
+			if (nlm_unlock_files(file))
 				return 1;
-			}
 			goto again;
 		}
 	}
@@ -246,6 +280,15 @@ nlm_file_inuse(struct nlm_file *file)
 	return 0;
 }
 
+static void nlm_close_files(struct nlm_file *file)
+{
+	struct file *f;
+
+	for (f = file->f_file[0]; f <= file->f_file[1]; f++)
+		if (f)
+			nlmsvc_ops->fclose(f);
+}
+
 /*
  * Loop over all files in the file table.
  */
@@ -276,7 +319,7 @@ nlm_traverse_files(void *data, nlm_host_match_fn_t match,
 			if (list_empty(&file->f_blocks) && !file->f_locks
 			 && !file->f_shares && !file->f_count) {
 				hlist_del(&file->f_list);
-				nlmsvc_ops->fclose(file->f_file);
+				nlm_close_files(file);
 				kfree(file);
 			}
 		}
@@ -410,12 +453,13 @@ nlmsvc_invalidate_all(void)
 	nlm_traverse_files(NULL, nlmsvc_is_client, NULL);
 }
 
+
 static int
 nlmsvc_match_sb(void *datap, struct nlm_file *file)
 {
 	struct super_block *sb = datap;
 
-	return sb == locks_inode(file->f_file)->i_sb;
+	return sb == nlmsvc_file_inode(file)->i_sb;
 }
 
 /**

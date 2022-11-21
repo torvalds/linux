@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/if_vlan.h>
-#include <net/dsa.h>
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <net/addrconf.h>
@@ -37,6 +36,7 @@
 #include <net/ip6_checksum.h>
 #include <asm/unaligned.h>
 #include <trace/events/napi.h>
+#include <linux/kconfig.h>
 
 /*
  * We maintain a small pool of fully-sized skbs, to make sure the
@@ -390,7 +390,8 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	static atomic_t ip_ident;
 	struct ipv6hdr *ip6h;
 
-	WARN_ON_ONCE(!irqs_disabled());
+	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
+		WARN_ON_ONCE(!irqs_disabled());
 
 	udp_len = len + sizeof(*udph);
 	if (np->ipv6)
@@ -429,7 +430,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 		ip6h = ipv6_hdr(skb);
 
 		/* ip6h->version = 6; ip6h->priority = 0; */
-		put_unaligned(0x60, (unsigned char *)ip6h);
+		*(unsigned char *)ip6h = 0x60;
 		ip6h->flow_lbl[0] = 0;
 		ip6h->flow_lbl[1] = 0;
 		ip6h->flow_lbl[2] = 0;
@@ -457,7 +458,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 		iph = ip_hdr(skb);
 
 		/* iph->version = 4; iph->ihl = 5; */
-		put_unaligned(0x45, (unsigned char *)iph);
+		*(unsigned char *)iph = 0x45;
 		iph->tos      = 0;
 		put_unaligned(htons(ip_len), &(iph->tot_len));
 		iph->id       = htons(atomic_inc_return(&ip_ident));
@@ -658,34 +659,21 @@ EXPORT_SYMBOL_GPL(__netpoll_setup);
 
 int netpoll_setup(struct netpoll *np)
 {
-	struct net_device *ndev = NULL, *dev = NULL;
-	struct net *net = current->nsproxy->net_ns;
+	struct net_device *ndev = NULL;
 	struct in_device *in_dev;
 	int err;
 
 	rtnl_lock();
-	if (np->dev_name[0])
+	if (np->dev_name[0]) {
+		struct net *net = current->nsproxy->net_ns;
 		ndev = __dev_get_by_name(net, np->dev_name);
-
+	}
 	if (!ndev) {
 		np_err(np, "%s doesn't exist, aborting\n", np->dev_name);
 		err = -ENODEV;
 		goto unlock;
 	}
 	dev_hold(ndev);
-
-	/* bring up DSA management network devices up first */
-	for_each_netdev(net, dev) {
-		if (!netdev_uses_dsa(dev))
-			continue;
-
-		err = dev_change_flags(dev, dev->flags | IFF_UP, NULL);
-		if (err < 0) {
-			np_err(np, "%s failed to open %s\n",
-			       np->dev_name, dev->name);
-			goto put;
-		}
-	}
 
 	if (netdev_master_upper_dev_get(ndev)) {
 		np_err(np, "%s is a slave device, aborting\n", np->dev_name);
@@ -788,7 +776,7 @@ put_noaddr:
 	err = __netpoll_setup(np, ndev);
 	if (err)
 		goto put;
-
+	netdev_tracker_alloc(ndev, &np->dev_tracker, GFP_KERNEL);
 	rtnl_unlock();
 	return 0;
 
@@ -865,7 +853,7 @@ void netpoll_cleanup(struct netpoll *np)
 	if (!np->dev)
 		goto out;
 	__netpoll_cleanup(np);
-	dev_put(np->dev);
+	dev_put_track(np->dev, &np->dev_tracker);
 	np->dev = NULL;
 out:
 	rtnl_unlock();

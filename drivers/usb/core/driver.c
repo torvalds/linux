@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/usb/driver.c - most of the driver model stuff for usb
+ * drivers/usb/core/driver.c - most of the driver model stuff for usb
  *
  * (C) Copyright 2005 Greg Kroah-Hartman <gregkh@suse.de>
  *
@@ -519,16 +519,12 @@ static int usb_unbind_interface(struct device *dev)
  * @driver: the driver to be bound
  * @iface: the interface to which it will be bound; must be in the
  *	usb device's active configuration
- * @priv: driver data associated with that interface
+ * @data: driver data associated with that interface
  *
  * This is used by usb device drivers that need to claim more than one
  * interface on a device when probing (audio and acm are current examples).
  * No device driver should directly modify internal usb_interface or
  * usb_device structure members.
- *
- * Few drivers should need to use this routine, since the most natural
- * way to bind to an interface is to return the private data from
- * the driver's probe() method.
  *
  * Callers must own the device lock, so driver probe() entries don't need
  * extra locking, but other call contexts may need to explicitly claim that
@@ -537,7 +533,7 @@ static int usb_unbind_interface(struct device *dev)
  * Return: 0 on success.
  */
 int usb_driver_claim_interface(struct usb_driver *driver,
-				struct usb_interface *iface, void *priv)
+				struct usb_interface *iface, void *data)
 {
 	struct device *dev;
 	int retval = 0;
@@ -554,7 +550,7 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 		return -ENODEV;
 
 	dev->driver = &driver->drvwrap.driver;
-	usb_set_intfdata(iface, priv);
+	usb_set_intfdata(iface, data);
 	iface->needs_binding = 0;
 
 	iface->condition = USB_INTERFACE_BOUND;
@@ -838,6 +834,7 @@ const struct usb_device_id *usb_device_match_id(struct usb_device *udev,
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(usb_device_match_id);
 
 bool usb_driver_applicable(struct usb_device *udev,
 			   struct usb_device_driver *udrv)

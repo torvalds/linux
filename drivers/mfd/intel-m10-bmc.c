@@ -15,6 +15,12 @@
 
 enum m10bmc_type {
 	M10_N3000,
+	M10_D5005,
+	M10_N5010,
+};
+
+static struct mfd_cell m10bmc_d5005_subdevs[] = {
+	{ .name = "d5005bmc-hwmon" },
 };
 
 static struct mfd_cell m10bmc_pacn3000_subdevs[] = {
@@ -23,10 +29,27 @@ static struct mfd_cell m10bmc_pacn3000_subdevs[] = {
 	{ .name = "n3000bmc-secure" },
 };
 
+static struct mfd_cell m10bmc_n5010_subdevs[] = {
+	{ .name = "n5010bmc-hwmon" },
+};
+
+static const struct regmap_range m10bmc_regmap_range[] = {
+	regmap_reg_range(M10BMC_LEGACY_BUILD_VER, M10BMC_LEGACY_BUILD_VER),
+	regmap_reg_range(M10BMC_SYS_BASE, M10BMC_SYS_END),
+	regmap_reg_range(M10BMC_FLASH_BASE, M10BMC_FLASH_END),
+};
+
+static const struct regmap_access_table m10bmc_access_table = {
+	.yes_ranges	= m10bmc_regmap_range,
+	.n_yes_ranges	= ARRAY_SIZE(m10bmc_regmap_range),
+};
+
 static struct regmap_config intel_m10bmc_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
+	.wr_table = &m10bmc_access_table,
+	.rd_table = &m10bmc_access_table,
 	.max_register = M10BMC_MEM_END,
 };
 
@@ -60,9 +83,52 @@ static ssize_t bmcfw_version_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(bmcfw_version);
 
+static ssize_t mac_address_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct intel_m10bmc *max10 = dev_get_drvdata(dev);
+	unsigned int macaddr_low, macaddr_high;
+	int ret;
+
+	ret = m10bmc_sys_read(max10, M10BMC_MAC_LOW, &macaddr_low);
+	if (ret)
+		return ret;
+
+	ret = m10bmc_sys_read(max10, M10BMC_MAC_HIGH, &macaddr_high);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "%02x:%02x:%02x:%02x:%02x:%02x\n",
+			  (u8)FIELD_GET(M10BMC_MAC_BYTE1, macaddr_low),
+			  (u8)FIELD_GET(M10BMC_MAC_BYTE2, macaddr_low),
+			  (u8)FIELD_GET(M10BMC_MAC_BYTE3, macaddr_low),
+			  (u8)FIELD_GET(M10BMC_MAC_BYTE4, macaddr_low),
+			  (u8)FIELD_GET(M10BMC_MAC_BYTE5, macaddr_high),
+			  (u8)FIELD_GET(M10BMC_MAC_BYTE6, macaddr_high));
+}
+static DEVICE_ATTR_RO(mac_address);
+
+static ssize_t mac_count_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct intel_m10bmc *max10 = dev_get_drvdata(dev);
+	unsigned int macaddr_high;
+	int ret;
+
+	ret = m10bmc_sys_read(max10, M10BMC_MAC_HIGH, &macaddr_high);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "%u\n",
+			  (u8)FIELD_GET(M10BMC_MAC_COUNT, macaddr_high));
+}
+static DEVICE_ATTR_RO(mac_count);
+
 static struct attribute *m10bmc_attrs[] = {
 	&dev_attr_bmc_version.attr,
 	&dev_attr_bmcfw_version.attr,
+	&dev_attr_mac_address.attr,
+	&dev_attr_mac_count.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(m10bmc);
@@ -73,17 +139,14 @@ static int check_m10bmc_version(struct intel_m10bmc *ddata)
 	int ret;
 
 	/*
-	 * This check is to filter out the very old legacy BMC versions,
-	 * M10BMC_LEGACY_SYS_BASE is the offset to this old block of mmio
-	 * registers. In the old BMC chips, the BMC version info is stored
-	 * in this old version register (M10BMC_LEGACY_SYS_BASE +
-	 * M10BMC_BUILD_VER), so its read out value would have not been
-	 * LEGACY_INVALID (0xffffffff). But in new BMC chips that the
-	 * driver supports, the value of this register should be
-	 * LEGACY_INVALID.
+	 * This check is to filter out the very old legacy BMC versions. In the
+	 * old BMC chips, the BMC version info is stored in the old version
+	 * register (M10BMC_LEGACY_BUILD_VER), so its read out value would have
+	 * not been M10BMC_VER_LEGACY_INVALID (0xffffffff). But in new BMC
+	 * chips that the driver supports, the value of this register should be
+	 * M10BMC_VER_LEGACY_INVALID.
 	 */
-	ret = m10bmc_raw_read(ddata,
-			      M10BMC_LEGACY_SYS_BASE + M10BMC_BUILD_VER, &v);
+	ret = m10bmc_raw_read(ddata, M10BMC_LEGACY_BUILD_VER, &v);
 	if (ret)
 		return -ENODEV;
 
@@ -130,6 +193,14 @@ static int intel_m10_bmc_spi_probe(struct spi_device *spi)
 		cells = m10bmc_pacn3000_subdevs;
 		n_cell = ARRAY_SIZE(m10bmc_pacn3000_subdevs);
 		break;
+	case M10_D5005:
+		cells = m10bmc_d5005_subdevs;
+		n_cell = ARRAY_SIZE(m10bmc_d5005_subdevs);
+		break;
+	case M10_N5010:
+		cells = m10bmc_n5010_subdevs;
+		n_cell = ARRAY_SIZE(m10bmc_n5010_subdevs);
+		break;
 	default:
 		return -ENODEV;
 	}
@@ -144,6 +215,8 @@ static int intel_m10_bmc_spi_probe(struct spi_device *spi)
 
 static const struct spi_device_id m10bmc_spi_id[] = {
 	{ "m10-n3000", M10_N3000 },
+	{ "m10-d5005", M10_D5005 },
+	{ "m10-n5010", M10_N5010 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, m10bmc_spi_id);

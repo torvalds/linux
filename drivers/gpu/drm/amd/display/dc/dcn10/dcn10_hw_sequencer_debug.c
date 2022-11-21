@@ -47,7 +47,7 @@
 
 unsigned int snprintf_count(char *pBuf, unsigned int bufSize, char *fmt, ...)
 {
-	unsigned int ret_vsnprintf;
+	int ret_vsnprintf;
 	unsigned int chars_printed;
 
 	va_list args;

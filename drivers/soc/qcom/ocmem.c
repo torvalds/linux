@@ -189,6 +189,7 @@ struct ocmem *of_get_ocmem(struct device *dev)
 {
 	struct platform_device *pdev;
 	struct device_node *devnode;
+	struct ocmem *ocmem;
 
 	devnode = of_parse_phandle(dev->of_node, "sram", 0);
 	if (!devnode || !devnode->parent) {
@@ -202,7 +203,13 @@ struct ocmem *of_get_ocmem(struct device *dev)
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	return platform_get_drvdata(pdev);
+	ocmem = platform_get_drvdata(pdev);
+	if (!ocmem) {
+		dev_err(dev, "Cannot get ocmem\n");
+		put_device(&pdev->dev);
+		return ERR_PTR(-ENODEV);
+	}
+	return ocmem;
 }
 EXPORT_SYMBOL(of_get_ocmem);
 
@@ -294,7 +301,6 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	unsigned long reg, region_size;
 	int i, j, ret, num_banks;
-	struct resource *res;
 	struct ocmem *ocmem;
 
 	if (!qcom_scm_is_available())
@@ -315,8 +321,7 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ctrl");
-	ocmem->mmio = devm_ioremap_resource(&pdev->dev, res);
+	ocmem->mmio = devm_platform_ioremap_resource_byname(pdev, "ctrl");
 	if (IS_ERR(ocmem->mmio)) {
 		dev_err(&pdev->dev, "Failed to ioremap ocmem_ctrl resource\n");
 		return PTR_ERR(ocmem->mmio);

@@ -1176,7 +1176,7 @@ bool adxl372_readable_noinc_reg(struct device *dev, unsigned int reg)
 {
 	return (reg == ADXL372_FIFO_DATA);
 }
-EXPORT_SYMBOL_GPL(adxl372_readable_noinc_reg);
+EXPORT_SYMBOL_NS_GPL(adxl372_readable_noinc_reg, IIO_ADXL372);
 
 int adxl372_probe(struct device *dev, struct regmap *regmap,
 		  int irq, const char *name)
@@ -1211,34 +1211,32 @@ int adxl372_probe(struct device *dev, struct regmap *regmap,
 		return ret;
 	}
 
-	ret = devm_iio_triggered_buffer_setup(dev,
-					      indio_dev, NULL,
-					      adxl372_trigger_handler,
-					      &adxl372_buffer_ops);
+	ret = devm_iio_triggered_buffer_setup_ext(dev,
+						  indio_dev, NULL,
+						  adxl372_trigger_handler,
+						  IIO_BUFFER_DIRECTION_IN,
+						  &adxl372_buffer_ops,
+						  adxl372_fifo_attributes);
 	if (ret < 0)
 		return ret;
-
-	iio_buffer_set_attrs(indio_dev->buffer, adxl372_fifo_attributes);
 
 	if (st->irq) {
 		st->dready_trig = devm_iio_trigger_alloc(dev,
 							 "%s-dev%d",
 							 indio_dev->name,
-							 indio_dev->id);
+							 iio_device_id(indio_dev));
 		if (st->dready_trig == NULL)
 			return -ENOMEM;
 
 		st->peak_datardy_trig = devm_iio_trigger_alloc(dev,
 							       "%s-dev%d-peak",
 							       indio_dev->name,
-							       indio_dev->id);
+							       iio_device_id(indio_dev));
 		if (!st->peak_datardy_trig)
 			return -ENOMEM;
 
 		st->dready_trig->ops = &adxl372_trigger_ops;
 		st->peak_datardy_trig->ops = &adxl372_peak_data_trigger_ops;
-		st->dready_trig->dev.parent = dev;
-		st->peak_datardy_trig->dev.parent = dev;
 		iio_trigger_set_drvdata(st->dready_trig, indio_dev);
 		iio_trigger_set_drvdata(st->peak_datardy_trig, indio_dev);
 		ret = devm_iio_trigger_register(dev, st->dready_trig);
@@ -1262,7 +1260,7 @@ int adxl372_probe(struct device *dev, struct regmap *regmap,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_GPL(adxl372_probe);
+EXPORT_SYMBOL_NS_GPL(adxl372_probe, IIO_ADXL372);
 
 MODULE_AUTHOR("Stefan Popa <stefan.popa@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADXL372 3-axis accelerometer driver");

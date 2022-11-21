@@ -133,10 +133,19 @@ void snd_seq_device_load_drivers(void)
 	flush_work(&autoload_work);
 }
 EXPORT_SYMBOL(snd_seq_device_load_drivers);
-#define cancel_autoload_drivers()	cancel_work_sync(&autoload_work)
+
+static inline void cancel_autoload_drivers(void)
+{
+	cancel_work_sync(&autoload_work);
+}
 #else
-#define queue_autoload_drivers() /* NOP */
-#define cancel_autoload_drivers() /* NOP */
+static inline void queue_autoload_drivers(void)
+{
+}
+
+static inline void cancel_autoload_drivers(void)
+{
+}
 #endif
 
 /*
@@ -147,6 +156,8 @@ static int snd_seq_device_dev_free(struct snd_device *device)
 	struct snd_seq_device *dev = device->device_data;
 
 	cancel_autoload_drivers();
+	if (dev->private_free)
+		dev->private_free(dev);
 	put_device(&dev->dev);
 	return 0;
 }
@@ -174,11 +185,7 @@ static int snd_seq_device_dev_disconnect(struct snd_device *device)
 
 static void snd_seq_dev_release(struct device *dev)
 {
-	struct snd_seq_device *sdev = to_seq_dev(dev);
-
-	if (sdev->private_free)
-		sdev->private_free(sdev);
-	kfree(sdev);
+	kfree(to_seq_dev(dev));
 }
 
 /*

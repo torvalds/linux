@@ -21,7 +21,7 @@ understand and fix the security vulnerability.
 
 As it is with any bug, the more information provided the easier it
 will be to diagnose and fix.  Please review the procedure outlined in
-:doc:`reporting-bugs` if you are unclear about what
+'Documentation/admin-guide/reporting-issues.rst' if you are unclear about what
 information is helpful.  Any exploit code is very helpful and will not
 be released without consent from the reporter unless it has already been
 made public.

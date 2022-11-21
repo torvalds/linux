@@ -13,8 +13,8 @@ description: |
   from 4 to 32-bit data size.
 
 maintainers:
-  - Erwan Leray <erwan.leray@st.com>
-  - Fabrice Gasnier <fabrice.gasnier@st.com>
+  - Erwan Leray <erwan.leray@foss.st.com>
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
 
 allOf:
   - $ref: "spi-controller.yaml#"
@@ -96,12 +96,6 @@ examples:
       dma-names = "rx", "tx";
       cs-gpios = <&gpioa 11 0>;
 
-      aardvark@0 {
-        compatible = "totalphase,aardvark";
-        reg = <0>;
-        spi-max-frequency = <4000000>;
-        st,spi-midi-ns = <4000>;
-      };
     };
 
 ...

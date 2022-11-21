@@ -12,31 +12,11 @@ maintainers:
 properties:
   power-supplies:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description:
       This property is added to a supply in order to list the devices which
       supply it power, referenced by their phandles.
 
 additionalProperties: true
 
-examples:
-  - |
-    power {
-      #address-cells = <1>;
-      #size-cells = <0>;
-
-      usb_charger:charger@e {
-        compatible = "some,usb-charger";
-        reg = <0xe>;
-      };
-
-      ac_charger:charger@c {
-        compatible = "some,ac-charger";
-        reg = <0xc>;
-      };
-
-      battery:battery@b {
-        compatible = "some,battery";
-        reg = <0xb>;
-        power-supplies = <&usb_charger>, <&ac_charger>;
-      };
-    };

@@ -18,7 +18,7 @@
 #define COMPAT_HWCAP_EDSP	(1 << 7)
 #define COMPAT_HWCAP_JAVA	(1 << 8)
 #define COMPAT_HWCAP_IWMMXT	(1 << 9)
-#define COMPAT_HWCAP_CRUNCH	(1 << 10)
+#define COMPAT_HWCAP_CRUNCH	(1 << 10) /* Obsolete */
 #define COMPAT_HWCAP_THUMBEE	(1 << 11)
 #define COMPAT_HWCAP_NEON	(1 << 12)
 #define COMPAT_HWCAP_VFPv3	(1 << 13)
@@ -105,6 +105,10 @@
 #define KERNEL_HWCAP_RNG		__khwcap2_feature(RNG)
 #define KERNEL_HWCAP_BTI		__khwcap2_feature(BTI)
 #define KERNEL_HWCAP_MTE		__khwcap2_feature(MTE)
+#define KERNEL_HWCAP_ECV		__khwcap2_feature(ECV)
+#define KERNEL_HWCAP_AFP		__khwcap2_feature(AFP)
+#define KERNEL_HWCAP_RPRES		__khwcap2_feature(RPRES)
+#define KERNEL_HWCAP_MTE3		__khwcap2_feature(MTE3)
 
 /*
  * This yields a mask that user programs can use to figure out what

@@ -16,13 +16,7 @@ menuconfig BLK_DEV
 
 if BLK_DEV
 
-config BLK_DEV_NULL_BLK
-	tristate "Null test block driver"
-	select CONFIGFS_FS
-
-config BLK_DEV_NULL_BLK_FAULT_INJECTION
-	bool "Support fault injection for Null test block driver"
-	depends on BLK_DEV_NULL_BLK && FAULT_INJECTION
+source "drivers/block/null_blk/Kconfig"
 
 config BLK_DEV_FD
 	tristate "Normal floppy disk support"
@@ -38,6 +32,22 @@ config BLK_DEV_FD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called floppy.
+
+config BLK_DEV_FD_RAWCMD
+	bool "Support for raw floppy disk commands (DEPRECATED)"
+	depends on BLK_DEV_FD
+	help
+	  If you want to use actual physical floppies and expect to do
+	  special low-level hardware accesses to them (access and use
+	  non-standard formats, for example), then enable this.
+
+	  Note that the code enabled by this option is rarely used and
+	  might be unstable or insecure, and distros should not enable it.
+
+	  Note: FDRAWCMD is deprecated and will be removed from the kernel
+	  in the near future.
+
+	  If unsure, say N.
 
 config AMIGA_FLOPPY
 	tristate "Amiga floppy support"
@@ -56,7 +66,7 @@ config MAC_FLOPPY
 
 config BLK_DEV_SWIM
 	tristate "Support for SWIM Macintosh floppy"
-	depends on M68K && MAC
+	depends on M68K && MAC && !HIGHMEM
 	help
 	  You should select this option if you want floppy support
 	  and you don't have a II, IIfx, Q900, Q950 or AV series.
@@ -72,9 +82,14 @@ config AMIGA_Z2RAM
 	  To compile this driver as a module, choose M here: the
 	  module will be called z2ram.
 
+config N64CART
+	bool "N64 cart support"
+	depends on MACH_NINTENDO64
+	help
+	  Support for the N64 cart.
+
 config CDROM
 	tristate
-	select BLK_SCSI_REQUEST
 
 config GDROM
 	tristate "SEGA Dreamcast GD-ROM drive"
@@ -120,23 +135,6 @@ source "drivers/block/paride/Kconfig"
 source "drivers/block/mtip32xx/Kconfig"
 
 source "drivers/block/zram/Kconfig"
-
-config BLK_DEV_UMEM
-	tristate "Micro Memory MM5415 Battery Backed RAM support"
-	depends on PCI
-	help
-	  Saying Y here will include support for the MM5415 family of
-	  battery backed (Non-volatile) RAM cards.
-	  <http://www.umem.com/>
-
-	  The cards appear as block devices that can be partitioned into
-	  as many as 15 partitions.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called umem.
-
-	  The umem driver has not yet been allocated a MAJOR number, so
-	  one is chosen dynamically.
 
 config BLK_DEV_UBD
 	bool "Virtual block device"
@@ -198,14 +196,6 @@ config BLK_DEV_LOOP
 	  bits of, say, a sound file). This is also safe if the file resides
 	  on a remote file server.
 
-	  There are several ways of encrypting disks. Some of these require
-	  kernel patches. The vanilla kernel offers the cryptoloop option
-	  and a Device Mapper target (which is superior, as it supports all
-	  file systems). If you want to use the cryptoloop, say Y to both
-	  LOOP and CRYPTOLOOP, and make sure you have a recent (version 2.12
-	  or later) version of util-linux. Additionally, be aware that
-	  the cryptoloop is not safe for storing journaled filesystems.
-
 	  Note that this loop device has nothing to do with the loopback
 	  device used for network connections from the machine to itself.
 
@@ -228,21 +218,6 @@ config BLK_DEV_LOOP_MIN_COUNT
 	  The historic default is 8. If a late 2011 version of losetup(8)
 	  is used, it can be set to 0, since needed loop devices can be
 	  dynamically allocated with the /dev/loop-control interface.
-
-config BLK_DEV_CRYPTOLOOP
-	tristate "Cryptoloop Support"
-	select CRYPTO
-	select CRYPTO_CBC
-	depends on BLK_DEV_LOOP
-	help
-	  Say Y here if you want to be able to use the ciphers that are 
-	  provided by the CryptoAPI as loop transformation. This might be
-	  used as hard disk encryption.
-
-	  WARNING: This device is not safe for journaled file systems like
-	  ext3 or Reiserfs. Please use the Device Mapper crypto module
-	  instead, which can be configured to be on-disk compatible with the
-	  cryptoloop device.
 
 source "drivers/block/drbd/Kconfig"
 
@@ -272,16 +247,6 @@ config BLK_DEV_NBD
 	  module will be called nbd.
 
 	  If unsure, say N.
-
-config BLK_DEV_SKD
-	tristate "STEC S1120 Block Driver"
-	depends on PCI
-	depends on 64BIT
-	help
-	Saying Y or M here will enable support for the
-	STEC, Inc. S1120 PCIe SSD.
-
-	Use device /dev/skd$N amd /dev/skd$Np$M.
 
 config BLK_DEV_SX8
 	tristate "Promise SATA SX8 support"
@@ -332,8 +297,8 @@ config BLK_DEV_RAM_SIZE
 config CDROM_PKTCDVD
 	tristate "Packet writing on CD/DVD media (DEPRECATED)"
 	depends on !UML
+	depends on SCSI
 	select CDROM
-	select BLK_SCSI_REQUEST
 	help
 	  Note: This driver is deprecated and will be removed from the
 	  kernel in the near future!
@@ -388,12 +353,6 @@ config SUNVDC
 
 source "drivers/s390/block/Kconfig"
 
-config XILINX_SYSACE
-	tristate "Xilinx SystemACE support"
-	depends on 4xx || MICROBLAZE
-	help
-	  Include support for the Xilinx SystemACE CompactFlash interface
-
 config XEN_BLKDEV_FRONTEND
 	tristate "Xen virtual block device support"
 	depends on XEN
@@ -428,6 +387,7 @@ config XEN_BLKDEV_BACKEND
 config VIRTIO_BLK
 	tristate "Virtio block driver"
 	depends on VIRTIO
+	select SG_POOL
 	help
 	  This is the virtual block driver for virtio.  It can be used with
           QEMU based VMMs (like KVM or Xen).  Say Y or M.
@@ -447,16 +407,6 @@ config BLK_DEV_RBD
 	  More information at http://ceph.newdream.net/.
 
 	  If unsure, say N.
-
-config BLK_DEV_RSXX
-	tristate "IBM Flash Adapter 900GB Full Height PCIe Device Driver"
-	depends on PCI
-	help
-	  Device driver for IBM's high speed PCIe SSD
-	  storage device: Flash Adapter 900GB Full Height.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called rsxx.
 
 source "drivers/block/rnbd/Kconfig"
 

@@ -97,8 +97,11 @@
 	pinctrl-1 = <&pinctrl_i2c1_sleep>;
 	status = "okay";
 
-	/* TODO: embedded controller at 0x43 (driver missing) */
-
+	ec: embedded-controller@43 {
+		compatible = "netronix,ntxec";
+		reg = <0x43>;
+		#pwm-cells = <2>;
+	};
 };
 
 &i2c2 {
@@ -340,7 +343,6 @@
 			MX6SL_PAD_KEY_ROW7__GPIO4_IO07		0x79
 			MX6SL_PAD_ECSPI2_MOSI__GPIO4_IO13	0x79
 			MX6SL_PAD_KEY_COL5__GPIO4_IO02		0x79
-			MX6SL_PAD_KEY_ROW6__GPIO4_IO05		0x79
 		>;
 	};
 
@@ -396,7 +398,14 @@
 	pinctrl_uart1: uart1grp {
 		fsl,pins = <
 			MX6SL_PAD_UART1_TXD__UART1_TX_DATA 0x1b0b1
-			MX6SL_PAD_UART1_RXD__UART1_TX_DATA 0x1b0b1
+			MX6SL_PAD_UART1_RXD__UART1_RX_DATA 0x1b0b1
+		>;
+	};
+
+	pinctrl_uart4: uart4grp {
+		fsl,pins = <
+			MX6SL_PAD_KEY_ROW6__UART4_TX_DATA 0x1b0b1
+			MX6SL_PAD_KEY_COL6__UART4_RX_DATA 0x1b0b1
 		>;
 	};
 
@@ -543,8 +552,16 @@
 };
 
 &uart1 {
+	/* J4, through-holes */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&uart4 {
+	/* TP198, next to J4, SMD pads */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart4>;
 	status = "okay";
 };
 

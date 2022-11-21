@@ -27,10 +27,9 @@
 #include "smu_v11_0_i2c.h"
 #include "atom.h"
 #include "amdgpu_fru_eeprom.h"
+#include "amdgpu_eeprom.h"
 
-#define I2C_PRODUCT_INFO_ADDR		0xAC
-#define I2C_PRODUCT_INFO_ADDR_SIZE	0x2
-#define I2C_PRODUCT_INFO_OFFSET		0xC0
+#define FRU_EEPROM_MADDR        0x60000
 
 static bool is_fru_eeprom_supported(struct amdgpu_device *adev)
 {
@@ -40,7 +39,13 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev)
 	 */
 	struct atom_context *atom_ctx = adev->mode_info.atom_context;
 
-	/* VBIOS is of the format ###-DXXXYY-##. For SKU identification,
+	/* The i2c access is blocked on VF
+	 * TODO: Need other way to get the info
+	 */
+	if (amdgpu_sriov_vf(adev))
+		return false;
+
+	/* VBIOS is of the format ###-DXXXYYYY-##. For SKU identification,
 	 * we can use just the "DXXX" portion. If there were more models, we
 	 * could convert the 3 characters to a hex integer and use a switch
 	 * for ease/speed/readability. For now, 2 string comparisons are
@@ -56,25 +61,27 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev)
 			return true;
 		else
 			return false;
+	case CHIP_ALDEBARAN:
+		/* All Aldebaran SKUs have the FRU */
+		return true;
+	case CHIP_SIENNA_CICHLID:
+		if (strnstr(atom_ctx->vbios_version, "D603",
+			    sizeof(atom_ctx->vbios_version)))
+			return true;
+		else
+			return false;
 	default:
 		return false;
 	}
 }
 
 static int amdgpu_fru_read_eeprom(struct amdgpu_device *adev, uint32_t addrptr,
-			   unsigned char *buff)
+				  unsigned char *buf, size_t buf_size)
 {
-	int ret, size;
-	struct i2c_msg msg = {
-			.addr   = I2C_PRODUCT_INFO_ADDR,
-			.flags  = I2C_M_RD,
-			.buf    = buff,
-	};
-	buff[0] = 0;
-	buff[1] = addrptr;
-	msg.len = I2C_PRODUCT_INFO_ADDR_SIZE + 1;
-	ret = i2c_transfer(&adev->pm.smu_i2c, &msg, 1);
+	int ret;
+	u8 size;
 
+	ret = amdgpu_eeprom_read(adev->pm.fru_eeprom_i2c_bus, addrptr, buf, 1);
 	if (ret < 1) {
 		DRM_WARN("FRU: Failed to get size field");
 		return ret;
@@ -83,13 +90,11 @@ static int amdgpu_fru_read_eeprom(struct amdgpu_device *adev, uint32_t addrptr,
 	/* The size returned by the i2c requires subtraction of 0xC0 since the
 	 * size apparently always reports as 0xC0+actual size.
 	 */
-	size = buff[2] - I2C_PRODUCT_INFO_OFFSET;
-	/* Add 1 since address field was 1 byte */
-	buff[1] = addrptr + 1;
+	size = buf[0] & 0x3F;
+	size = min_t(size_t, size, buf_size);
 
-	msg.len = I2C_PRODUCT_INFO_ADDR_SIZE + size;
-	ret = i2c_transfer(&adev->pm.smu_i2c, &msg, 1);
-
+	ret = amdgpu_eeprom_read(adev->pm.fru_eeprom_i2c_bus, addrptr + 1,
+				 buf, size);
 	if (ret < 1) {
 		DRM_WARN("FRU: Failed to get data field");
 		return ret;
@@ -100,16 +105,17 @@ static int amdgpu_fru_read_eeprom(struct amdgpu_device *adev, uint32_t addrptr,
 
 int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 {
-	unsigned char buff[34];
-	int addrptr = 0, size = 0;
+	unsigned char buf[AMDGPU_PRODUCT_NAME_LEN];
+	u32 addrptr;
+	int size, len;
 
 	if (!is_fru_eeprom_supported(adev))
 		return 0;
 
 	/* If algo exists, it means that the i2c_adapter's initialized */
-	if (!adev->pm.smu_i2c.algo) {
+	if (!adev->pm.fru_eeprom_i2c_bus || !adev->pm.fru_eeprom_i2c_bus->algo) {
 		DRM_WARN("Cannot access FRU, EEPROM accessor not initialized");
-		return 0;
+		return -ENODEV;
 	}
 
 	/* There's a lot of repetition here. This is due to the FRU having
@@ -124,76 +130,76 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	 * Bytes 8-a are all 1-byte and refer to the size of the entire struct,
 	 * and the language field, so just start from 0xb, manufacturer size
 	 */
-	addrptr = 0xb;
-	size = amdgpu_fru_read_eeprom(adev, addrptr, buff);
+	addrptr = FRU_EEPROM_MADDR + 0xb;
+	size = amdgpu_fru_read_eeprom(adev, addrptr, buf, sizeof(buf));
 	if (size < 1) {
 		DRM_ERROR("Failed to read FRU Manufacturer, ret:%d", size);
-		return size;
+		return -EINVAL;
 	}
 
 	/* Increment the addrptr by the size of the field, and 1 due to the
 	 * size field being 1 byte. This pattern continues below.
 	 */
 	addrptr += size + 1;
-	size = amdgpu_fru_read_eeprom(adev, addrptr, buff);
+	size = amdgpu_fru_read_eeprom(adev, addrptr, buf, sizeof(buf));
 	if (size < 1) {
 		DRM_ERROR("Failed to read FRU product name, ret:%d", size);
-		return size;
+		return -EINVAL;
 	}
 
-	/* Product name should only be 32 characters. Any more,
-	 * and something could be wrong. Cap it at 32 to be safe
-	 */
-	if (size > 32) {
-		DRM_WARN("FRU Product Number is larger than 32 characters. This is likely a mistake");
-		size = 32;
+	len = size;
+	if (len >= AMDGPU_PRODUCT_NAME_LEN) {
+		DRM_WARN("FRU Product Name is larger than %d characters. This is likely a mistake",
+				AMDGPU_PRODUCT_NAME_LEN);
+		len = AMDGPU_PRODUCT_NAME_LEN - 1;
 	}
-	/* Start at 2 due to buff using fields 0 and 1 for the address */
-	memcpy(adev->product_name, &buff[2], size);
-	adev->product_name[size] = '\0';
+	memcpy(adev->product_name, buf, len);
+	adev->product_name[len] = '\0';
 
 	addrptr += size + 1;
-	size = amdgpu_fru_read_eeprom(adev, addrptr, buff);
+	size = amdgpu_fru_read_eeprom(adev, addrptr, buf, sizeof(buf));
 	if (size < 1) {
 		DRM_ERROR("Failed to read FRU product number, ret:%d", size);
-		return size;
+		return -EINVAL;
 	}
 
+	len = size;
 	/* Product number should only be 16 characters. Any more,
 	 * and something could be wrong. Cap it at 16 to be safe
 	 */
-	if (size > 16) {
+	if (len >= sizeof(adev->product_number)) {
 		DRM_WARN("FRU Product Number is larger than 16 characters. This is likely a mistake");
-		size = 16;
+		len = sizeof(adev->product_number) - 1;
 	}
-	memcpy(adev->product_number, &buff[2], size);
-	adev->product_number[size] = '\0';
+	memcpy(adev->product_number, buf, len);
+	adev->product_number[len] = '\0';
 
 	addrptr += size + 1;
-	size = amdgpu_fru_read_eeprom(adev, addrptr, buff);
+	size = amdgpu_fru_read_eeprom(adev, addrptr, buf, sizeof(buf));
 
 	if (size < 1) {
 		DRM_ERROR("Failed to read FRU product version, ret:%d", size);
-		return size;
+		return -EINVAL;
 	}
 
 	addrptr += size + 1;
-	size = amdgpu_fru_read_eeprom(adev, addrptr, buff);
+	size = amdgpu_fru_read_eeprom(adev, addrptr, buf, sizeof(buf));
 
 	if (size < 1) {
 		DRM_ERROR("Failed to read FRU serial number, ret:%d", size);
-		return size;
+		return -EINVAL;
 	}
 
+	len = size;
 	/* Serial number should only be 16 characters. Any more,
 	 * and something could be wrong. Cap it at 16 to be safe
 	 */
-	if (size > 16) {
+	if (len >= sizeof(adev->serial)) {
 		DRM_WARN("FRU Serial Number is larger than 16 characters. This is likely a mistake");
-		size = 16;
+		len = sizeof(adev->serial) - 1;
 	}
-	memcpy(adev->serial, &buff[2], size);
-	adev->serial[size] = '\0';
+	memcpy(adev->serial, buf, len);
+	adev->serial[len] = '\0';
 
 	return 0;
 }

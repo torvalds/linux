@@ -55,6 +55,7 @@ int afs_net_id;
 static const struct super_operations afs_super_ops = {
 	.statfs		= afs_statfs,
 	.alloc_inode	= afs_alloc_inode,
+	.write_inode	= afs_write_inode,
 	.drop_inode	= afs_drop_inode,
 	.destroy_inode	= afs_destroy_inode,
 	.free_inode	= afs_free_inode,
@@ -667,6 +668,7 @@ static void afs_i_init_once(void *_vnode)
 	INIT_LIST_HEAD(&vnode->pending_locks);
 	INIT_LIST_HEAD(&vnode->granted_locks);
 	INIT_DELAYED_WORK(&vnode->lock_work, afs_lock_work);
+	INIT_LIST_HEAD(&vnode->cb_mmap_link);
 	seqlock_init(&vnode->cb_lock);
 }
 
@@ -677,7 +679,7 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 {
 	struct afs_vnode *vnode;
 
-	vnode = kmem_cache_alloc(afs_inode_cachep, GFP_KERNEL);
+	vnode = alloc_inode_sb(sb, afs_inode_cachep, GFP_KERNEL);
 	if (!vnode)
 		return NULL;
 
@@ -686,18 +688,17 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 	/* Reset anything that shouldn't leak from one inode to the next. */
 	memset(&vnode->fid, 0, sizeof(vnode->fid));
 	memset(&vnode->status, 0, sizeof(vnode->status));
+	afs_vnode_set_cache(vnode, NULL);
 
 	vnode->volume		= NULL;
 	vnode->lock_key		= NULL;
 	vnode->permit_cache	= NULL;
-#ifdef CONFIG_AFS_FSCACHE
-	vnode->cache		= NULL;
-#endif
 
 	vnode->flags		= 1 << AFS_VNODE_UNSET;
 	vnode->lock_state	= AFS_VNODE_LOCK_NONE;
 
 	init_rwsem(&vnode->rmdir_lock);
+	INIT_WORK(&vnode->cb_work, afs_invalidate_mmap_work);
 
 	_leave(" = %p", &vnode->vfs_inode);
 	return &vnode->vfs_inode;

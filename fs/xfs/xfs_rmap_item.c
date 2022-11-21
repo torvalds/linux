@@ -21,8 +21,8 @@
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
 
-kmem_zone_t	*xfs_rui_zone;
-kmem_zone_t	*xfs_rud_zone;
+struct kmem_cache	*xfs_rui_cache;
+struct kmem_cache	*xfs_rud_cache;
 
 static const struct xfs_item_ops xfs_rui_item_ops;
 
@@ -38,7 +38,7 @@ xfs_rui_item_free(
 	if (ruip->rui_format.rui_nextents > XFS_RUI_MAX_FAST_EXTENTS)
 		kmem_free(ruip);
 	else
-		kmem_cache_free(xfs_rui_zone, ruip);
+		kmem_cache_free(xfs_rui_cache, ruip);
 }
 
 /*
@@ -141,7 +141,7 @@ xfs_rui_init(
 	if (nextents > XFS_RUI_MAX_FAST_EXTENTS)
 		ruip = kmem_zalloc(xfs_rui_log_item_sizeof(nextents), 0);
 	else
-		ruip = kmem_cache_zalloc(xfs_rui_zone,
+		ruip = kmem_cache_zalloc(xfs_rui_cache,
 					 GFP_KERNEL | __GFP_NOFAIL);
 
 	xfs_log_item_init(mp, &ruip->rui_item, XFS_LI_RUI, &xfs_rui_item_ops);
@@ -227,7 +227,7 @@ xfs_rud_item_release(
 	struct xfs_rud_log_item	*rudp = RUD_ITEM(lip);
 
 	xfs_rui_release(rudp->rud_ruip);
-	kmem_cache_free(xfs_rud_zone, rudp);
+	kmem_cache_free(xfs_rud_cache, rudp);
 }
 
 static const struct xfs_item_ops xfs_rud_item_ops = {
@@ -244,7 +244,7 @@ xfs_trans_get_rud(
 {
 	struct xfs_rud_log_item		*rudp;
 
-	rudp = kmem_cache_zalloc(xfs_rud_zone, GFP_KERNEL | __GFP_NOFAIL);
+	rudp = kmem_cache_zalloc(xfs_rud_cache, GFP_KERNEL | __GFP_NOFAIL);
 	xfs_log_item_init(tp->t_mountp, &rudp->rud_item, XFS_LI_RUD,
 			  &xfs_rud_item_ops);
 	rudp->rud_ruip = ruip;
@@ -337,8 +337,8 @@ xfs_trans_log_finish_rmap_update(
 static int
 xfs_rmap_update_diff_items(
 	void				*priv,
-	struct list_head		*a,
-	struct list_head		*b)
+	const struct list_head		*a,
+	const struct list_head		*b)
 {
 	struct xfs_mount		*mp = priv;
 	struct xfs_rmap_intent		*ra;
@@ -427,7 +427,7 @@ xfs_rmap_update_finish_item(
 			rmap->ri_bmap.br_startoff, rmap->ri_bmap.br_startblock,
 			rmap->ri_bmap.br_blockcount, rmap->ri_bmap.br_state,
 			state);
-	kmem_free(rmap);
+	kmem_cache_free(xfs_rmap_intent_cache, rmap);
 	return error;
 }
 
@@ -447,7 +447,7 @@ xfs_rmap_update_cancel_item(
 	struct xfs_rmap_intent		*rmap;
 
 	rmap = container_of(item, struct xfs_rmap_intent, ri_list);
-	kmem_free(rmap);
+	kmem_cache_free(xfs_rmap_intent_cache, rmap);
 }
 
 const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
@@ -459,6 +459,42 @@ const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
 	.finish_cleanup = xfs_rmap_finish_one_cleanup,
 	.cancel_item	= xfs_rmap_update_cancel_item,
 };
+
+/* Is this recovered RUI ok? */
+static inline bool
+xfs_rui_validate_map(
+	struct xfs_mount		*mp,
+	struct xfs_map_extent		*rmap)
+{
+	if (!xfs_has_rmapbt(mp))
+		return false;
+
+	if (rmap->me_flags & ~XFS_RMAP_EXTENT_FLAGS)
+		return false;
+
+	switch (rmap->me_flags & XFS_RMAP_EXTENT_TYPE_MASK) {
+	case XFS_RMAP_EXTENT_MAP:
+	case XFS_RMAP_EXTENT_MAP_SHARED:
+	case XFS_RMAP_EXTENT_UNMAP:
+	case XFS_RMAP_EXTENT_UNMAP_SHARED:
+	case XFS_RMAP_EXTENT_CONVERT:
+	case XFS_RMAP_EXTENT_CONVERT_SHARED:
+	case XFS_RMAP_EXTENT_ALLOC:
+	case XFS_RMAP_EXTENT_FREE:
+		break;
+	default:
+		return false;
+	}
+
+	if (!XFS_RMAP_NON_INODE_OWNER(rmap->me_owner) &&
+	    !xfs_verify_ino(mp, rmap->me_owner))
+		return false;
+
+	if (!xfs_verify_fileext(mp, rmap->me_startoff, rmap->me_len))
+		return false;
+
+	return xfs_verify_fsbext(mp, rmap->me_startblock, rmap->me_len);
+}
 
 /*
  * Process an rmap update intent item that was recovered from the log.
@@ -474,11 +510,9 @@ xfs_rui_item_recover(
 	struct xfs_rud_log_item		*rudp;
 	struct xfs_trans		*tp;
 	struct xfs_btree_cur		*rcur = NULL;
-	struct xfs_mount		*mp = lip->li_mountp;
-	xfs_fsblock_t			startblock_fsb;
+	struct xfs_mount		*mp = lip->li_log->l_mp;
 	enum xfs_rmap_intent_type	type;
 	xfs_exntst_t			state;
-	bool				op_ok;
 	int				i;
 	int				whichfork;
 	int				error = 0;
@@ -489,30 +523,13 @@ xfs_rui_item_recover(
 	 * just toss the RUI.
 	 */
 	for (i = 0; i < ruip->rui_format.rui_nextents; i++) {
-		rmap = &ruip->rui_format.rui_extents[i];
-		startblock_fsb = XFS_BB_TO_FSB(mp,
-				   XFS_FSB_TO_DADDR(mp, rmap->me_startblock));
-		switch (rmap->me_flags & XFS_RMAP_EXTENT_TYPE_MASK) {
-		case XFS_RMAP_EXTENT_MAP:
-		case XFS_RMAP_EXTENT_MAP_SHARED:
-		case XFS_RMAP_EXTENT_UNMAP:
-		case XFS_RMAP_EXTENT_UNMAP_SHARED:
-		case XFS_RMAP_EXTENT_CONVERT:
-		case XFS_RMAP_EXTENT_CONVERT_SHARED:
-		case XFS_RMAP_EXTENT_ALLOC:
-		case XFS_RMAP_EXTENT_FREE:
-			op_ok = true;
-			break;
-		default:
-			op_ok = false;
-			break;
-		}
-		if (!op_ok || startblock_fsb == 0 ||
-		    rmap->me_len == 0 ||
-		    startblock_fsb >= mp->m_sb.sb_dblocks ||
-		    rmap->me_len >= mp->m_sb.sb_agblocks ||
-		    (rmap->me_flags & ~XFS_RMAP_EXTENT_FLAGS))
+		if (!xfs_rui_validate_map(mp,
+					&ruip->rui_format.rui_extents[i])) {
+			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+					&ruip->rui_format,
+					sizeof(ruip->rui_format));
 			return -EFSCORRUPTED;
+		}
 	}
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate,
@@ -561,13 +578,16 @@ xfs_rui_item_recover(
 				rmap->me_owner, whichfork,
 				rmap->me_startoff, rmap->me_startblock,
 				rmap->me_len, state, &rcur);
+		if (error == -EFSCORRUPTED)
+			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+					rmap, sizeof(*rmap));
 		if (error)
 			goto abort_error;
 
 	}
 
 	xfs_rmap_finish_one_cleanup(tp, rcur, error);
-	return xfs_defer_ops_capture_and_commit(tp, NULL, capture_list);
+	return xfs_defer_ops_capture_and_commit(tp, capture_list);
 
 abort_error:
 	xfs_rmap_finish_one_cleanup(tp, rcur, error);

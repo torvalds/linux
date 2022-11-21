@@ -539,7 +539,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.no_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
+			SND_SOC_DAIFMT_CBC_CFC,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = skylake_ssp_fixup,
 		.dpcm_playback = 1,
@@ -552,7 +552,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.no_pcm = 1,
 		.init = skylake_nau8825_codec_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
+			SND_SOC_DAIFMT_CBC_CFC,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = skylake_ssp_fixup,
 		.ops = &skylake_nau8825_ops,
@@ -673,6 +673,7 @@ static const struct platform_device_id skl_board_ids[] = {
 	{ .name = "kbl_n88l25_m98357a" },
 	{ }
 };
+MODULE_DEVICE_TABLE(platform, skl_board_ids);
 
 static struct platform_driver skylake_audio = {
 	.probe = skylake_audio_probe,
@@ -689,5 +690,3 @@ module_platform_driver(skylake_audio)
 MODULE_DESCRIPTION("Audio Machine driver-NAU88L25 & MAX98357A in I2S mode");
 MODULE_AUTHOR("Rohit Ainapure <rohit.m.ainapure@intel.com");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:skl_n88l25_m98357a");
-MODULE_ALIAS("platform:kbl_n88l25_m98357a");

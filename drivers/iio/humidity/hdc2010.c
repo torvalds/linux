@@ -272,7 +272,6 @@ static int hdc2010_probe(struct i2c_client *client,
 	data->client = client;
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	/*
 	 * As DEVICE ID register does not differentiate between
 	 * HDC2010 and HDC2080, we have the name hardcoded

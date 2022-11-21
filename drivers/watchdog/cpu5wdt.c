@@ -273,7 +273,6 @@ module_exit(cpu5wdt_exit_module);
 
 MODULE_AUTHOR("Heiko Ronsdorf <hero@ihg.uni-duisburg.de>");
 MODULE_DESCRIPTION("sma cpu5 watchdog driver");
-MODULE_SUPPORTED_DEVICE("sma cpu5 watchdog");
 MODULE_LICENSE("GPL");
 
 module_param_hw(port, int, ioport, 0);

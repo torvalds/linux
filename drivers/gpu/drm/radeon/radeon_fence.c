@@ -37,7 +37,6 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 
-#include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
 
@@ -51,7 +50,7 @@
  * for GPU/CPU synchronization.  When the fence is written,
  * it is expected that all buffers associated with that fence
  * are no longer in use by the associated ring on the GPU and
- * that the the relevant GPU caches have been flushed.  Whether
+ * that the relevant GPU caches have been flushed.  Whether
  * we use a scratch register or memory location depends on the asic
  * and whether writeback is enabled.
  */
@@ -157,7 +156,7 @@ int radeon_fence_emit(struct radeon_device *rdev,
 	return 0;
 }
 
-/**
+/*
  * radeon_fence_check_signaled - callback from fence_queue
  *
  * this function is called with fence_queue lock held, which is also used
@@ -177,18 +176,11 @@ static int radeon_fence_check_signaled(wait_queue_entry_t *wait, unsigned mode, 
 	 */
 	seq = atomic64_read(&fence->rdev->fence_drv[fence->ring].last_seq);
 	if (seq >= fence->seq) {
-		int ret = dma_fence_signal_locked(&fence->base);
-
-		if (!ret)
-			DMA_FENCE_TRACE(&fence->base, "signaled from irq context\n");
-		else
-			DMA_FENCE_TRACE(&fence->base, "was already signaled\n");
-
+		dma_fence_signal_locked(&fence->base);
 		radeon_irq_kms_sw_irq_put(fence->rdev, fence->ring);
 		__remove_wait_queue(&fence->rdev->fence_queue, &fence->fence_wake);
 		dma_fence_put(&fence->base);
-	} else
-		DMA_FENCE_TRACE(&fence->base, "pending\n");
+	}
 	return 0;
 }
 
@@ -289,7 +281,7 @@ static void radeon_fence_check_lockup(struct work_struct *work)
 		return;
 	}
 
-	if (fence_drv->delayed_irq && rdev->ddev->irq_enabled) {
+	if (fence_drv->delayed_irq && rdev->irq.installed) {
 		unsigned long irqflags;
 
 		fence_drv->delayed_irq = false;
@@ -383,7 +375,7 @@ static bool radeon_fence_is_signaled(struct dma_fence *f)
 
 /**
  * radeon_fence_enable_signaling - enable signalling on fence
- * @fence: fence
+ * @f: fence
  *
  * This function is called with fence_queue lock held, and adds a callback
  * to fence_queue that checks if this fence is signaled, and if so it
@@ -423,8 +415,6 @@ static bool radeon_fence_enable_signaling(struct dma_fence *f)
 	fence->fence_wake.func = radeon_fence_check_signaled;
 	__add_wait_queue(&rdev->fence_queue, &fence->fence_wake);
 	dma_fence_get(f);
-
-	DMA_FENCE_TRACE(&fence->base, "armed on ring %i!\n", fence->ring);
 	return true;
 }
 
@@ -442,11 +432,7 @@ bool radeon_fence_signaled(struct radeon_fence *fence)
 		return true;
 
 	if (radeon_fence_seq_signaled(fence->rdev, fence->seq, fence->ring)) {
-		int ret;
-
-		ret = dma_fence_signal(&fence->base);
-		if (!ret)
-			DMA_FENCE_TRACE(&fence->base, "signaled from radeon_fence_signaled\n");
+		dma_fence_signal(&fence->base);
 		return true;
 	}
 	return false;
@@ -551,7 +537,6 @@ long radeon_fence_wait_timeout(struct radeon_fence *fence, bool intr, long timeo
 {
 	uint64_t seq[RADEON_NUM_RINGS] = {};
 	long r;
-	int r_sig;
 
 	/*
 	 * This function should not be called on !radeon fences.
@@ -568,9 +553,7 @@ long radeon_fence_wait_timeout(struct radeon_fence *fence, bool intr, long timeo
 		return r;
 	}
 
-	r_sig = dma_fence_signal(&fence->base);
-	if (!r_sig)
-		DMA_FENCE_TRACE(&fence->base, "signaled from fence_wait\n");
+	dma_fence_signal(&fence->base);
 	return r;
 }
 
@@ -906,9 +889,8 @@ static void radeon_fence_driver_init_ring(struct radeon_device *rdev, int ring)
  * Not all asics have all rings, so each asic will only
  * start the fence driver on the rings it has using
  * radeon_fence_driver_start_ring().
- * Returns 0 for success.
  */
-int radeon_fence_driver_init(struct radeon_device *rdev)
+void radeon_fence_driver_init(struct radeon_device *rdev)
 {
 	int ring;
 
@@ -916,10 +898,8 @@ int radeon_fence_driver_init(struct radeon_device *rdev)
 	for (ring = 0; ring < RADEON_NUM_RINGS; ring++) {
 		radeon_fence_driver_init_ring(rdev, ring);
 	}
-	if (radeon_debugfs_fence_init(rdev)) {
-		dev_err(rdev->dev, "fence debugfs file creation failed\n");
-	}
-	return 0;
+
+	radeon_debugfs_fence_init(rdev);
 }
 
 /**
@@ -973,11 +953,9 @@ void radeon_fence_driver_force_completion(struct radeon_device *rdev, int ring)
  * Fence debugfs
  */
 #if defined(CONFIG_DEBUG_FS)
-static int radeon_debugfs_fence_info(struct seq_file *m, void *data)
+static int radeon_debugfs_fence_info_show(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev = (struct radeon_device *)m->private;
 	int i, j;
 
 	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
@@ -1001,38 +979,39 @@ static int radeon_debugfs_fence_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-/**
+/*
  * radeon_debugfs_gpu_reset - manually trigger a gpu reset
  *
  * Manually trigger a gpu reset at the next fence wait.
  */
-static int radeon_debugfs_gpu_reset(struct seq_file *m, void *data)
+static int radeon_debugfs_gpu_reset(void *data, u64 *val)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev = (struct radeon_device *)data;
 
 	down_read(&rdev->exclusive_lock);
-	seq_printf(m, "%d\n", rdev->needs_reset);
+	*val = rdev->needs_reset;
 	rdev->needs_reset = true;
 	wake_up_all(&rdev->fence_queue);
 	up_read(&rdev->exclusive_lock);
 
 	return 0;
 }
-
-static struct drm_info_list radeon_debugfs_fence_list[] = {
-	{"radeon_fence_info", &radeon_debugfs_fence_info, 0, NULL},
-	{"radeon_gpu_reset", &radeon_debugfs_gpu_reset, 0, NULL}
-};
+DEFINE_SHOW_ATTRIBUTE(radeon_debugfs_fence_info);
+DEFINE_DEBUGFS_ATTRIBUTE(radeon_debugfs_gpu_reset_fops,
+			 radeon_debugfs_gpu_reset, NULL, "%lld\n");
 #endif
 
-int radeon_debugfs_fence_init(struct radeon_device *rdev)
+void radeon_debugfs_fence_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_debugfs_fence_list, 2);
-#else
-	return 0;
+	struct dentry *root = rdev->ddev->primary->debugfs_root;
+
+	debugfs_create_file("radeon_gpu_reset", 0444, root, rdev,
+			    &radeon_debugfs_gpu_reset_fops);
+	debugfs_create_file("radeon_fence_info", 0444, root, rdev,
+			    &radeon_debugfs_fence_info_fops);
+
+
 #endif
 }
 

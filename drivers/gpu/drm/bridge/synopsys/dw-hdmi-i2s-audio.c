@@ -135,8 +135,15 @@ static int dw_hdmi_i2s_get_eld(struct device *dev, void *data, uint8_t *buf,
 			       size_t len)
 {
 	struct dw_hdmi_i2s_audio_data *audio = data;
+	u8 *eld;
 
-	memcpy(buf, audio->eld, min_t(size_t, MAX_ELD_BYTES, len));
+	eld = audio->get_eld(audio->hdmi);
+	if (eld)
+		memcpy(buf, eld, min_t(size_t, MAX_ELD_BYTES, len));
+	else
+		/* Pass en empty ELD if connector not available */
+		memset(buf, 0, len);
+
 	return 0;
 }
 
@@ -170,7 +177,7 @@ static int dw_hdmi_i2s_hook_plugged_cb(struct device *dev, void *data,
 	return dw_hdmi_set_plugged_cb(hdmi, fn, codec_dev);
 }
 
-static struct hdmi_codec_ops dw_hdmi_i2s_ops = {
+static const struct hdmi_codec_ops dw_hdmi_i2s_ops = {
 	.hw_params	= dw_hdmi_i2s_hw_params,
 	.audio_startup  = dw_hdmi_i2s_audio_startup,
 	.audio_shutdown	= dw_hdmi_i2s_audio_shutdown,

@@ -19,6 +19,7 @@
 #include "xfs_error.h"
 #include "xfs_icache.h"
 #include "xfs_health.h"
+#include "xfs_trans.h"
 
 /*
  * Bulk Stat
@@ -54,11 +55,12 @@ struct xfs_bstat_chunk {
 STATIC int
 xfs_bulkstat_one_int(
 	struct xfs_mount	*mp,
+	struct user_namespace	*mnt_userns,
 	struct xfs_trans	*tp,
 	xfs_ino_t		ino,
 	struct xfs_bstat_chunk	*bc)
 {
-	struct xfs_icdinode	*dic;		/* dinode core info pointer */
+	struct user_namespace	*sb_userns = mp->m_super->s_user_ns;
 	struct xfs_inode	*ip;		/* incore inode pointer */
 	struct inode		*inode;
 	struct xfs_bulkstat	*buf = bc->buf;
@@ -79,16 +81,14 @@ xfs_bulkstat_one_int(
 	ASSERT(ip->i_imap.im_blkno != 0);
 	inode = VFS_I(ip);
 
-	dic = &ip->i_d;
-
 	/* xfs_iget returns the following without needing
 	 * further change.
 	 */
-	buf->bs_projectid = ip->i_d.di_projid;
+	buf->bs_projectid = ip->i_projid;
 	buf->bs_ino = ino;
-	buf->bs_uid = i_uid_read(inode);
-	buf->bs_gid = i_gid_read(inode);
-	buf->bs_size = dic->di_size;
+	buf->bs_uid = from_kuid(sb_userns, i_uid_into_mnt(mnt_userns, inode));
+	buf->bs_gid = from_kgid(sb_userns, i_gid_into_mnt(mnt_userns, inode));
+	buf->bs_size = ip->i_disk_size;
 
 	buf->bs_nlink = inode->i_nlink;
 	buf->bs_atime = inode->i_atime.tv_sec;
@@ -97,22 +97,22 @@ xfs_bulkstat_one_int(
 	buf->bs_mtime_nsec = inode->i_mtime.tv_nsec;
 	buf->bs_ctime = inode->i_ctime.tv_sec;
 	buf->bs_ctime_nsec = inode->i_ctime.tv_nsec;
-	buf->bs_btime = dic->di_crtime.tv_sec;
-	buf->bs_btime_nsec = dic->di_crtime.tv_nsec;
 	buf->bs_gen = inode->i_generation;
 	buf->bs_mode = inode->i_mode;
 
 	buf->bs_xflags = xfs_ip2xflags(ip);
-	buf->bs_extsize_blks = dic->di_extsize;
+	buf->bs_extsize_blks = ip->i_extsize;
 	buf->bs_extents = xfs_ifork_nextents(&ip->i_df);
 	xfs_bulkstat_health(ip, buf);
 	buf->bs_aextents = xfs_ifork_nextents(ip->i_afp);
 	buf->bs_forkoff = XFS_IFORK_BOFF(ip);
 	buf->bs_version = XFS_BULKSTAT_VERSION_V5;
 
-	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
-		if (dic->di_flags2 & XFS_DIFLAG2_COWEXTSIZE)
-			buf->bs_cowextsize_blks = dic->di_cowextsize;
+	if (xfs_has_v3inodes(mp)) {
+		buf->bs_btime = ip->i_crtime.tv_sec;
+		buf->bs_btime_nsec = ip->i_crtime.tv_nsec;
+		if (ip->i_diflags2 & XFS_DIFLAG2_COWEXTSIZE)
+			buf->bs_cowextsize_blks = ip->i_cowextsize;
 	}
 
 	switch (ip->i_df.if_format) {
@@ -130,7 +130,7 @@ xfs_bulkstat_one_int(
 	case XFS_DINODE_FMT_BTREE:
 		buf->bs_rdev = 0;
 		buf->bs_blksize = mp->m_sb.sb_blocksize;
-		buf->bs_blocks = dic->di_nblocks + ip->i_delayed_blks;
+		buf->bs_blocks = ip->i_nblocks + ip->i_delayed_blks;
 		break;
 	}
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
@@ -164,7 +164,14 @@ xfs_bulkstat_one(
 		.formatter	= formatter,
 		.breq		= breq,
 	};
+	struct xfs_trans	*tp;
 	int			error;
+
+	if (breq->mnt_userns != &init_user_ns) {
+		xfs_warn_ratelimited(breq->mp,
+			"bulkstat not supported inside of idmapped mounts.");
+		return -EINVAL;
+	}
 
 	ASSERT(breq->icount == 1);
 
@@ -173,8 +180,18 @@ xfs_bulkstat_one(
 	if (!bc.buf)
 		return -ENOMEM;
 
-	error = xfs_bulkstat_one_int(breq->mp, NULL, breq->startino, &bc);
+	/*
+	 * Grab an empty transaction so that we can use its recursive buffer
+	 * locking abilities to detect cycles in the inobt without deadlocking.
+	 */
+	error = xfs_trans_alloc_empty(breq->mp, &tp);
+	if (error)
+		goto out;
 
+	error = xfs_bulkstat_one_int(breq->mp, breq->mnt_userns, tp,
+			breq->startino, &bc);
+	xfs_trans_cancel(tp);
+out:
 	kmem_free(bc.buf);
 
 	/*
@@ -194,9 +211,10 @@ xfs_bulkstat_iwalk(
 	xfs_ino_t		ino,
 	void			*data)
 {
+	struct xfs_bstat_chunk	*bc = data;
 	int			error;
 
-	error = xfs_bulkstat_one_int(mp, tp, ino, data);
+	error = xfs_bulkstat_one_int(mp, bc->breq->mnt_userns, tp, ino, data);
 	/* bulkstat just skips over missing inodes */
 	if (error == -ENOENT || error == -EINVAL)
 		return 0;
@@ -237,8 +255,14 @@ xfs_bulkstat(
 		.formatter	= formatter,
 		.breq		= breq,
 	};
+	struct xfs_trans	*tp;
 	int			error;
 
+	if (breq->mnt_userns != &init_user_ns) {
+		xfs_warn_ratelimited(breq->mp,
+			"bulkstat not supported inside of idmapped mounts.");
+		return -EINVAL;
+	}
 	if (xfs_bulkstat_already_done(breq->mp, breq->startino))
 		return 0;
 
@@ -247,9 +271,18 @@ xfs_bulkstat(
 	if (!bc.buf)
 		return -ENOMEM;
 
-	error = xfs_iwalk(breq->mp, NULL, breq->startino, breq->flags,
-			xfs_bulkstat_iwalk, breq->icount, &bc);
+	/*
+	 * Grab an empty transaction so that we can use its recursive buffer
+	 * locking abilities to detect cycles in the inobt without deadlocking.
+	 */
+	error = xfs_trans_alloc_empty(breq->mp, &tp);
+	if (error)
+		goto out;
 
+	error = xfs_iwalk(breq->mp, tp, breq->startino, breq->flags,
+			xfs_bulkstat_iwalk, breq->icount, &bc);
+	xfs_trans_cancel(tp);
+out:
 	kmem_free(bc.buf);
 
 	/*
@@ -362,13 +395,24 @@ xfs_inumbers(
 		.formatter	= formatter,
 		.breq		= breq,
 	};
+	struct xfs_trans	*tp;
 	int			error = 0;
 
 	if (xfs_bulkstat_already_done(breq->mp, breq->startino))
 		return 0;
 
-	error = xfs_inobt_walk(breq->mp, NULL, breq->startino, breq->flags,
+	/*
+	 * Grab an empty transaction so that we can use its recursive buffer
+	 * locking abilities to detect cycles in the inobt without deadlocking.
+	 */
+	error = xfs_trans_alloc_empty(breq->mp, &tp);
+	if (error)
+		goto out;
+
+	error = xfs_inobt_walk(breq->mp, tp, breq->startino, breq->flags,
 			xfs_inumbers_walk, breq->icount, &ic);
+	xfs_trans_cancel(tp);
+out:
 
 	/*
 	 * We found some inode groups, so clear the error status and return

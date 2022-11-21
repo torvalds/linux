@@ -57,6 +57,7 @@ kecho := $($(quiet)kecho)
 # - If the content differ the new file is used
 # - If they are equal no change, and no timestamp update
 define filechk
+	$(check-FORCE)
 	$(Q)set -e;						\
 	mkdir -p $(dir $@);					\
 	trap "rm -f $(dot-target).tmp" EXIT;			\
@@ -66,90 +67,6 @@ define filechk
 		mv -f $(dot-target).tmp $@;			\
 	fi
 endef
-
-######
-# gcc support functions
-# See documentation in Documentation/kbuild/makefiles.rst
-
-# cc-cross-prefix
-# Usage: CROSS_COMPILE := $(call cc-cross-prefix, m68k-linux-gnu- m68k-linux-)
-# Return first <prefix> where a <prefix>gcc is found in PATH.
-# If no gcc found in PATH with listed prefixes return nothing
-#
-# Note: '2>/dev/null' is here to force Make to invoke a shell. Otherwise, it
-# would try to directly execute the shell builtin 'command'. This workaround
-# should be kept for a long time since this issue was fixed only after the
-# GNU Make 4.2.1 release.
-cc-cross-prefix = $(firstword $(foreach c, $(1), \
-			$(if $(shell command -v -- $(c)gcc 2>/dev/null), $(c))))
-
-# output directory for tests below
-TMPOUT = $(if $(KBUILD_EXTMOD),$(firstword $(KBUILD_EXTMOD))/).tmp_$$$$
-
-# try-run
-# Usage: option = $(call try-run, $(CC)...-o "$$TMP",option-ok,otherwise)
-# Exit code chooses option. "$$TMP" serves as a temporary file and is
-# automatically cleaned up.
-try-run = $(shell set -e;		\
-	TMP=$(TMPOUT)/tmp;		\
-	TMPO=$(TMPOUT)/tmp.o;		\
-	mkdir -p $(TMPOUT);		\
-	trap "rm -rf $(TMPOUT)" EXIT;	\
-	if ($(1)) >/dev/null 2>&1;	\
-	then echo "$(2)";		\
-	else echo "$(3)";		\
-	fi)
-
-# as-option
-# Usage: cflags-y += $(call as-option,-Wa$(comma)-isa=foo,)
-
-as-option = $(call try-run,\
-	$(CC) $(KBUILD_CFLAGS) $(1) -c -x assembler /dev/null -o "$$TMP",$(1),$(2))
-
-# as-instr
-# Usage: cflags-y += $(call as-instr,instr,option1,option2)
-
-as-instr = $(call try-run,\
-	printf "%b\n" "$(1)" | $(CC) $(KBUILD_AFLAGS) -c -x assembler -o "$$TMP" -,$(2),$(3))
-
-# __cc-option
-# Usage: MY_CFLAGS += $(call __cc-option,$(CC),$(MY_CFLAGS),-march=winchip-c6,-march=i586)
-__cc-option = $(call try-run,\
-	$(1) -Werror $(2) $(3) -c -x c /dev/null -o "$$TMP",$(3),$(4))
-
-# cc-option
-# Usage: cflags-y += $(call cc-option,-march=winchip-c6,-march=i586)
-
-cc-option = $(call __cc-option, $(CC),\
-	$(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS),$(1),$(2))
-
-# cc-option-yn
-# Usage: flag := $(call cc-option-yn,-march=winchip-c6)
-cc-option-yn = $(call try-run,\
-	$(CC) -Werror $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) $(1) -c -x c /dev/null -o "$$TMP",y,n)
-
-# cc-disable-warning
-# Usage: cflags-y += $(call cc-disable-warning,unused-but-set-variable)
-cc-disable-warning = $(call try-run,\
-	$(CC) -Werror $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) -W$(strip $(1)) -c -x c /dev/null -o "$$TMP",-Wno-$(strip $(1)))
-
-# cc-ifversion
-# Usage:  EXTRA_CFLAGS += $(call cc-ifversion, -lt, 0402, -O1)
-cc-ifversion = $(shell [ $(CONFIG_GCC_VERSION)0 $(1) $(2)000 ] && echo $(3) || echo $(4))
-
-# ld-option
-# Usage: KBUILD_LDFLAGS += $(call ld-option, -X, -Y)
-ld-option = $(call try-run, $(LD) $(KBUILD_LDFLAGS) $(1) -v,$(1),$(2),$(3))
-
-# ld-version
-# Note this is mainly for HJ Lu's 3 number binutil versions
-ld-version = $(shell $(LD) --version | $(srctree)/scripts/ld-version.sh)
-
-# ld-ifversion
-# Usage:  $(call ld-ifversion, -ge, 22252, y)
-ld-ifversion = $(shell [ $(ld-version) $(1) $(2) ] && echo $(3) || echo $(4))
-
-######
 
 ###
 # Shorthand for $(Q)$(MAKE) -f scripts/Makefile.build obj=
@@ -174,8 +91,13 @@ clean := -f $(srctree)/scripts/Makefile.clean obj
 echo-cmd = $(if $($(quiet)cmd_$(1)),\
 	echo '  $(call escsq,$($(quiet)cmd_$(1)))$(echo-why)';)
 
+# sink stdout for 'make -s'
+       redirect :=
+ quiet_redirect :=
+silent_redirect := exec >/dev/null;
+
 # printing commands
-cmd = @set -e; $(echo-cmd) $(cmd_$(1))
+cmd = @set -e; $(echo-cmd) $($(quiet)redirect) $(cmd_$(1))
 
 ###
 # if_changed      - execute command if any prerequisite is newer than
@@ -209,13 +131,19 @@ make-cmd = $(call escsq,$(subst $(pound),$$(pound),$(subst $$,$$$$,$(cmd_$(1))))
 # PHONY targets skipped in both cases.
 newer-prereqs = $(filter-out $(PHONY),$?)
 
+# It is a typical mistake to forget the FORCE prerequisite. Check it here so
+# no more breakage will slip in.
+check-FORCE = $(if $(filter FORCE, $^),,$(warning FORCE prerequisite is missing))
+
+if-changed-cond = $(newer-prereqs)$(cmd-check)$(check-FORCE)
+
 # Execute command if command has changed or prerequisite(s) are updated.
-if_changed = $(if $(newer-prereqs)$(cmd-check),                              \
+if_changed = $(if $(if-changed-cond),                                        \
 	$(cmd);                                                              \
 	printf '%s\n' 'cmd_$@ := $(make-cmd)' > $(dot-target).cmd, @:)
 
 # Execute the command and also postprocess generated .d dependencies file.
-if_changed_dep = $(if $(newer-prereqs)$(cmd-check),$(cmd_and_fixdep),@:)
+if_changed_dep = $(if $(if-changed-cond),$(cmd_and_fixdep),@:)
 
 cmd_and_fixdep =                                                             \
 	$(cmd);                                                              \
@@ -225,7 +153,7 @@ cmd_and_fixdep =                                                             \
 # Usage: $(call if_changed_rule,foo)
 # Will check if $(cmd_foo) or any of the prerequisites changed,
 # and if so will execute $(rule_foo).
-if_changed_rule = $(if $(newer-prereqs)$(cmd-check),$(rule_$(1)),@:)
+if_changed_rule = $(if $(if-changed-cond),$(rule_$(1)),@:)
 
 ###
 # why - tell why a target got built
@@ -267,53 +195,6 @@ why =                                                                        \
 echo-why = $(call escsq, $(strip $(why)))
 endif
 
-###############################################################################
-#
-# When a Kconfig string contains a filename, it is suitable for
-# passing to shell commands. It is surrounded by double-quotes, and
-# any double-quotes or backslashes within it are escaped by
-# backslashes.
-#
-# This is no use for dependencies or $(wildcard). We need to strip the
-# surrounding quotes and the escaping from quotes and backslashes, and
-# we *do* need to escape any spaces in the string. So, for example:
-#
-# Usage: $(eval $(call config_filename,FOO))
-#
-# Defines FOO_FILENAME based on the contents of the CONFIG_FOO option,
-# transformed as described above to be suitable for use within the
-# makefile.
-#
-# Also, if the filename is a relative filename and exists in the source
-# tree but not the build tree, define FOO_SRCPREFIX as $(srctree)/ to
-# be prefixed to *both* command invocation and dependencies.
-#
-# Note: We also print the filenames in the quiet_cmd_foo text, and
-# perhaps ought to have a version specially escaped for that purpose.
-# But it's only cosmetic, and $(patsubst "%",%,$(CONFIG_FOO)) is good
-# enough.  It'll strip the quotes in the common case where there's no
-# space and it's a simple filename, and it'll retain the quotes when
-# there's a space. There are some esoteric cases in which it'll print
-# the wrong thing, but we don't really care. The actual dependencies
-# and commands *do* get it right, with various combinations of single
-# and double quotes, backslashes and spaces in the filenames.
-#
-###############################################################################
-#
-define config_filename
-ifneq ($$(CONFIG_$(1)),"")
-$(1)_FILENAME := $$(subst \\,\,$$(subst \$$(quote),$$(quote),$$(subst $$(space_escape),\$$(space),$$(patsubst "%",%,$$(subst $$(space),$$(space_escape),$$(CONFIG_$(1)))))))
-ifneq ($$(patsubst /%,%,$$(firstword $$($(1)_FILENAME))),$$(firstword $$($(1)_FILENAME)))
-else
-ifeq ($$(wildcard $$($(1)_FILENAME)),)
-ifneq ($$(wildcard $$(srctree)/$$($(1)_FILENAME)),)
-$(1)_SRCPREFIX := $(srctree)/
-endif
-endif
-endif
-endif
-endef
-#
 ###############################################################################
 
 # delete partially updated (i.e. corrupted) files on error

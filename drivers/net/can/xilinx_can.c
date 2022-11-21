@@ -516,8 +516,7 @@ static int xcan_chip_start(struct net_device *ndev)
  * @ndev:	Pointer to net_device structure
  * @mode:	Tells the mode of the driver
  *
- * This check the drivers state and calls the
- * the corresponding modes to set.
+ * This check the drivers state and calls the corresponding modes to set.
  *
  * Return: 0 on success and failure value on error
  */
@@ -583,7 +582,7 @@ static void xcan_write_frame(struct net_device *ndev, struct sk_buff *skb,
 			id |= XCAN_IDR_SRR_MASK;
 	}
 
-	dlc = can_len2dlc(cf->len) << XCAN_DLCR_DLC_SHIFT;
+	dlc = can_fd_len2dlc(cf->len) << XCAN_DLCR_DLC_SHIFT;
 	if (can_is_canfd_skb(skb)) {
 		if (cf->flags & CANFD_BRS)
 			dlc |= XCAN_DLCR_BRS_MASK;
@@ -592,9 +591,9 @@ static void xcan_write_frame(struct net_device *ndev, struct sk_buff *skb,
 
 	if (!(priv->devtype.flags & XCAN_FLAG_TX_MAILBOXES) &&
 	    (priv->devtype.flags & XCAN_FLAG_TXFEMP))
-		can_put_echo_skb(skb, ndev, priv->tx_head % priv->tx_max);
+		can_put_echo_skb(skb, ndev, priv->tx_head % priv->tx_max, 0);
 	else
-		can_put_echo_skb(skb, ndev, 0);
+		can_put_echo_skb(skb, ndev, 0, 0);
 
 	priv->tx_head++;
 
@@ -759,7 +758,7 @@ static int xcan_rx(struct net_device *ndev, int frame_base)
 				   XCAN_DLCR_DLC_SHIFT;
 
 	/* Change Xilinx CAN data length format to socketCAN data format */
-	cf->can_dlc = get_can_dlc(dlc);
+	cf->len = can_cc_dlc2len(dlc);
 
 	/* Change Xilinx CAN ID format to socketCAN ID format */
 	if (id_xcan & XCAN_IDR_IDE_MASK) {
@@ -784,14 +783,15 @@ static int xcan_rx(struct net_device *ndev, int frame_base)
 
 	if (!(cf->can_id & CAN_RTR_FLAG)) {
 		/* Change Xilinx CAN data format to socketCAN data format */
-		if (cf->can_dlc > 0)
+		if (cf->len > 0)
 			*(__be32 *)(cf->data) = cpu_to_be32(data[0]);
-		if (cf->can_dlc > 4)
+		if (cf->len > 4)
 			*(__be32 *)(cf->data + 4) = cpu_to_be32(data[1]);
-	}
 
-	stats->rx_bytes += cf->can_dlc;
+		stats->rx_bytes += cf->len;
+	}
 	stats->rx_packets++;
+
 	netif_receive_skb(skb);
 
 	return 1;
@@ -832,10 +832,10 @@ static int xcanfd_rx(struct net_device *ndev, int frame_base)
 	 * format
 	 */
 	if (dlc & XCAN_DLCR_EDL_MASK)
-		cf->len = can_dlc2len((dlc & XCAN_DLCR_DLC_MASK) >>
+		cf->len = can_fd_dlc2len((dlc & XCAN_DLCR_DLC_MASK) >>
 				  XCAN_DLCR_DLC_SHIFT);
 	else
-		cf->len = get_can_dlc((dlc & XCAN_DLCR_DLC_MASK) >>
+		cf->len = can_cc_dlc2len((dlc & XCAN_DLCR_DLC_MASK) >>
 					  XCAN_DLCR_DLC_SHIFT);
 
 	/* Change Xilinx CAN ID format to socketCAN ID format */
@@ -872,8 +872,11 @@ static int xcanfd_rx(struct net_device *ndev, int frame_base)
 			*(__be32 *)(cf->data + i) = cpu_to_be32(data[0]);
 		}
 	}
-	stats->rx_bytes += cf->len;
+
+	if (!(cf->can_id & CAN_RTR_FLAG))
+		stats->rx_bytes += cf->len;
 	stats->rx_packets++;
+
 	netif_receive_skb(skb);
 
 	return 1;
@@ -966,13 +969,8 @@ static void xcan_update_error_state_after_rxtx(struct net_device *ndev)
 
 		xcan_set_error_state(ndev, new_state, skb ? cf : NULL);
 
-		if (skb) {
-			struct net_device_stats *stats = &ndev->stats;
-
-			stats->rx_packets++;
-			stats->rx_bytes += cf->can_dlc;
+		if (skb)
 			netif_rx(skb);
-		}
 	}
 }
 
@@ -982,7 +980,7 @@ static void xcan_update_error_state_after_rxtx(struct net_device *ndev)
  * @isr:	interrupt status register value
  *
  * This is the CAN error interrupt and it will
- * check the the type of error and forward the error
+ * check the type of error and forward the error
  * frame to upper layers.
  */
 static void xcan_err_interrupt(struct net_device *ndev, u32 isr)
@@ -1096,8 +1094,6 @@ static void xcan_err_interrupt(struct net_device *ndev, u32 isr)
 		if (skb) {
 			skb_cf->can_id |= cf.can_id;
 			memcpy(skb_cf->data, cf.data, CAN_ERR_DLC);
-			stats->rx_packets++;
-			stats->rx_bytes += CAN_ERR_DLC;
 			netif_rx(skb);
 		}
 	}
@@ -1219,10 +1215,11 @@ static int xcan_rx_poll(struct napi_struct *napi, int quota)
 	}
 
 	if (work_done < quota) {
-		napi_complete_done(napi, work_done);
-		ier = priv->read_reg(priv, XCAN_IER_OFFSET);
-		ier |= xcan_rx_int_mask(priv);
-		priv->write_reg(priv, XCAN_IER_OFFSET, ier);
+		if (napi_complete_done(napi, work_done)) {
+			ier = priv->read_reg(priv, XCAN_IER_OFFSET);
+			ier |= xcan_rx_int_mask(priv);
+			priv->write_reg(priv, XCAN_IER_OFFSET, ier);
+		}
 	}
 	return work_done;
 }
@@ -1292,7 +1289,7 @@ static void xcan_tx_interrupt(struct net_device *ndev, u32 isr)
 
 	while (frames_sent--) {
 		stats->tx_bytes += can_get_echo_skb(ndev, priv->tx_tail %
-						    priv->tx_max);
+						    priv->tx_max, NULL);
 		priv->tx_tail++;
 		stats->tx_packets++;
 	}
@@ -1762,7 +1759,12 @@ static int xcan_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->tx_lock);
 
 	/* Get IRQ for the device */
-	ndev->irq = platform_get_irq(pdev, 0);
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		goto err_free;
+
+	ndev->irq = ret;
+
 	ndev->flags |= IFF_ECHO;	/* We support local echo */
 
 	platform_set_drvdata(pdev, ndev);
@@ -1772,17 +1774,15 @@ static int xcan_probe(struct platform_device *pdev)
 	/* Getting the CAN can_clk info */
 	priv->can_clk = devm_clk_get(&pdev->dev, "can_clk");
 	if (IS_ERR(priv->can_clk)) {
-		if (PTR_ERR(priv->can_clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Device clock not found.\n");
-		ret = PTR_ERR(priv->can_clk);
+		ret = dev_err_probe(&pdev->dev, PTR_ERR(priv->can_clk),
+				    "device clock not found\n");
 		goto err_free;
 	}
 
 	priv->bus_clk = devm_clk_get(&pdev->dev, devtype->bus_clk_name);
 	if (IS_ERR(priv->bus_clk)) {
-		if (PTR_ERR(priv->bus_clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "bus clock not found\n");
-		ret = PTR_ERR(priv->bus_clk);
+		ret = dev_err_probe(&pdev->dev, PTR_ERR(priv->bus_clk),
+				    "bus clock not found\n");
 		goto err_free;
 	}
 
@@ -1846,11 +1846,9 @@ err:
 static int xcan_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct xcan_priv *priv = netdev_priv(ndev);
 
 	unregister_candev(ndev);
 	pm_runtime_disable(&pdev->dev);
-	netif_napi_del(&priv->napi);
 	free_candev(ndev);
 
 	return 0;

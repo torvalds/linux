@@ -116,7 +116,7 @@ config RCU_EQS_DEBUG
 
 config RCU_STRICT_GRACE_PERIOD
 	bool "Provide debug RCU implementation with short grace periods"
-	depends on DEBUG_KERNEL && RCU_EXPERT
+	depends on DEBUG_KERNEL && RCU_EXPERT && NR_CPUS <= 4
 	default n
 	select PREEMPT_COUNT if PREEMPT=n
 	help

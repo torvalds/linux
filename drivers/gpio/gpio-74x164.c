@@ -163,16 +163,21 @@ exit_destroy:
 	return ret;
 }
 
-static int gen_74x164_remove(struct spi_device *spi)
+static void gen_74x164_remove(struct spi_device *spi)
 {
 	struct gen_74x164_chip *chip = spi_get_drvdata(spi);
 
 	gpiod_set_value_cansleep(chip->gpiod_oe, 0);
 	gpiochip_remove(&chip->gpio_chip);
 	mutex_destroy(&chip->lock);
-
-	return 0;
 }
+
+static const struct spi_device_id gen_74x164_spi_ids[] = {
+	{ .name = "74hc595" },
+	{ .name = "74lvc594" },
+	{},
+};
+MODULE_DEVICE_TABLE(spi, gen_74x164_spi_ids);
 
 static const struct of_device_id gen_74x164_dt_ids[] = {
 	{ .compatible = "fairchild,74hc595" },
@@ -188,6 +193,7 @@ static struct spi_driver gen_74x164_driver = {
 	},
 	.probe		= gen_74x164_probe,
 	.remove		= gen_74x164_remove,
+	.id_table	= gen_74x164_spi_ids,
 };
 module_spi_driver(gen_74x164_driver);
 

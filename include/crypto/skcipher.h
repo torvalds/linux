@@ -8,9 +8,13 @@
 #ifndef _CRYPTO_SKCIPHER_H
 #define _CRYPTO_SKCIPHER_H
 
+#include <linux/container_of.h>
 #include <linux/crypto.h>
-#include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/types.h>
+
+struct scatterlist;
 
 /**
  *	struct skcipher_request - Symmetric key cipher request
@@ -196,6 +200,8 @@ static inline struct crypto_tfm *crypto_skcipher_tfm(
 /**
  * crypto_free_skcipher() - zeroize and free cipher handle
  * @tfm: cipher handle to be freed
+ *
+ * If @tfm is a NULL or error pointer, this function does nothing.
  */
 static inline void crypto_free_skcipher(struct crypto_skcipher *tfm)
 {

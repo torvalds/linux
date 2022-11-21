@@ -28,7 +28,6 @@
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
-#include <linux/interrupt.h>  /* for in_interrupt() */
 #include <linux/kmod.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
@@ -561,7 +560,8 @@ static bool usb_dev_authorized(struct usb_device *dev, struct usb_hcd *hcd)
  * @parent: hub to which device is connected; null to allocate a root hub
  * @bus: bus used to access the device
  * @port1: one-based index of port; ignored for root hubs
- * Context: !in_interrupt()
+ *
+ * Context: task context, might sleep.
  *
  * Only hub drivers (including virtual root hub drivers for host
  * controllers) should ever call this.
@@ -688,6 +688,10 @@ EXPORT_SYMBOL_GPL(usb_alloc_dev);
  * Drivers for USB interfaces should normally record such references in
  * their probe() methods, when they bind to an interface, and release
  * them by calling usb_put_dev(), in their disconnect() methods.
+ * However, if a driver does not access the usb_device structure after
+ * its disconnect() method returns then refcounting is not necessary,
+ * because the USB core guarantees that a usb_device will not be
+ * deallocated until after all of its interface drivers have been unbound.
  *
  * Return: A pointer to the device with the incremented reference counter.
  */
@@ -722,6 +726,10 @@ EXPORT_SYMBOL_GPL(usb_put_dev);
  * Drivers for USB interfaces should normally record such references in
  * their probe() methods, when they bind to an interface, and release
  * them by calling usb_put_intf(), in their disconnect() methods.
+ * However, if a driver does not access the usb_interface structure after
+ * its disconnect() method returns then refcounting is not necessary,
+ * because the USB core guarantees that a usb_interface will not be
+ * deallocated until after its driver has been unbound.
  *
  * Return: A pointer to the interface with the incremented reference counter.
  */
@@ -747,6 +755,38 @@ void usb_put_intf(struct usb_interface *intf)
 		put_device(&intf->dev);
 }
 EXPORT_SYMBOL_GPL(usb_put_intf);
+
+/**
+ * usb_intf_get_dma_device - acquire a reference on the usb interface's DMA endpoint
+ * @intf: the usb interface
+ *
+ * While a USB device cannot perform DMA operations by itself, many USB
+ * controllers can. A call to usb_intf_get_dma_device() returns the DMA endpoint
+ * for the given USB interface, if any. The returned device structure must be
+ * released with put_device().
+ *
+ * See also usb_get_dma_device().
+ *
+ * Returns: A reference to the usb interface's DMA endpoint; or NULL if none
+ *          exists.
+ */
+struct device *usb_intf_get_dma_device(struct usb_interface *intf)
+{
+	struct usb_device *udev = interface_to_usbdev(intf);
+	struct device *dmadev;
+
+	if (!udev->bus)
+		return NULL;
+
+	dmadev = get_device(udev->bus->sysdev);
+	if (!dmadev || !dmadev->dma_mask) {
+		put_device(dmadev);
+		return NULL;
+	}
+
+	return dmadev;
+}
+EXPORT_SYMBOL_GPL(usb_intf_get_dma_device);
 
 /*			USB device locking
  *
@@ -950,17 +990,15 @@ static struct notifier_block usb_bus_nb = {
 	.notifier_call = usb_bus_notify,
 };
 
-static struct dentry *usb_devices_root;
-
 static void usb_debugfs_init(void)
 {
-	usb_devices_root = debugfs_create_file("devices", 0444, usb_debug_root,
-					       NULL, &usbfs_devices_fops);
+	debugfs_create_file("devices", 0444, usb_debug_root, NULL,
+			    &usbfs_devices_fops);
 }
 
 static void usb_debugfs_cleanup(void)
 {
-	debugfs_remove(usb_devices_root);
+	debugfs_remove(debugfs_lookup("devices", usb_debug_root));
 }
 
 /*

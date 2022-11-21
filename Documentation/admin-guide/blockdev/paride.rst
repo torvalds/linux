@@ -220,7 +220,7 @@ example::
 Finally, you can load high-level drivers for each kind of device that
 you have connected.  By default, each driver will autoprobe for a single
 device, but you can support up to four similar devices by giving their
-individual co-ordinates when you load the driver.
+individual coordinates when you load the driver.
 
 For example, if you had two no-name CD-ROM drives both using the
 KingByte KBIC-951A adapter, one on port 0x378 and the other on 0x3bc

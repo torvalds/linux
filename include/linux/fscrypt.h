@@ -47,27 +47,125 @@ struct fscrypt_name {
 #define FSCRYPT_SET_CONTEXT_MAX_SIZE	40
 
 #ifdef CONFIG_FS_ENCRYPTION
+
 /*
- * fscrypt superblock flags
+ * If set, the fscrypt bounce page pool won't be allocated (unless another
+ * filesystem needs it).  Set this if the filesystem always uses its own bounce
+ * pages for writes and therefore won't need the fscrypt bounce page pool.
  */
 #define FS_CFLG_OWN_PAGES (1U << 1)
 
-/*
- * crypto operations for filesystems
- */
+/* Crypto operations for filesystems */
 struct fscrypt_operations {
+
+	/* Set of optional flags; see above for allowed flags */
 	unsigned int flags;
+
+	/*
+	 * If set, this is a filesystem-specific key description prefix that
+	 * will be accepted for "logon" keys for v1 fscrypt policies, in
+	 * addition to the generic prefix "fscrypt:".  This functionality is
+	 * deprecated, so new filesystems shouldn't set this field.
+	 */
 	const char *key_prefix;
+
+	/*
+	 * Get the fscrypt context of the given inode.
+	 *
+	 * @inode: the inode whose context to get
+	 * @ctx: the buffer into which to get the context
+	 * @len: length of the @ctx buffer in bytes
+	 *
+	 * Return: On success, returns the length of the context in bytes; this
+	 *	   may be less than @len.  On failure, returns -ENODATA if the
+	 *	   inode doesn't have a context, -ERANGE if the context is
+	 *	   longer than @len, or another -errno code.
+	 */
 	int (*get_context)(struct inode *inode, void *ctx, size_t len);
+
+	/*
+	 * Set an fscrypt context on the given inode.
+	 *
+	 * @inode: the inode whose context to set.  The inode won't already have
+	 *	   an fscrypt context.
+	 * @ctx: the context to set
+	 * @len: length of @ctx in bytes (at most FSCRYPT_SET_CONTEXT_MAX_SIZE)
+	 * @fs_data: If called from fscrypt_set_context(), this will be the
+	 *	     value the filesystem passed to fscrypt_set_context().
+	 *	     Otherwise (i.e. when called from
+	 *	     FS_IOC_SET_ENCRYPTION_POLICY) this will be NULL.
+	 *
+	 * i_rwsem will be held for write.
+	 *
+	 * Return: 0 on success, -errno on failure.
+	 */
 	int (*set_context)(struct inode *inode, const void *ctx, size_t len,
 			   void *fs_data);
+
+	/*
+	 * Get the dummy fscrypt policy in use on the filesystem (if any).
+	 *
+	 * Filesystems only need to implement this function if they support the
+	 * test_dummy_encryption mount option.
+	 *
+	 * Return: A pointer to the dummy fscrypt policy, if the filesystem is
+	 *	   mounted with test_dummy_encryption; otherwise NULL.
+	 */
 	const union fscrypt_policy *(*get_dummy_policy)(struct super_block *sb);
+
+	/*
+	 * Check whether a directory is empty.  i_rwsem will be held for write.
+	 */
 	bool (*empty_dir)(struct inode *inode);
-	unsigned int max_namelen;
+
+	/*
+	 * Check whether the filesystem's inode numbers and UUID are stable,
+	 * meaning that they will never be changed even by offline operations
+	 * such as filesystem shrinking and therefore can be used in the
+	 * encryption without the possibility of files becoming unreadable.
+	 *
+	 * Filesystems only need to implement this function if they want to
+	 * support the FSCRYPT_POLICY_FLAG_IV_INO_LBLK_{32,64} flags.  These
+	 * flags are designed to work around the limitations of UFS and eMMC
+	 * inline crypto hardware, and they shouldn't be used in scenarios where
+	 * such hardware isn't being used.
+	 *
+	 * Leaving this NULL is equivalent to always returning false.
+	 */
 	bool (*has_stable_inodes)(struct super_block *sb);
+
+	/*
+	 * Get the number of bits that the filesystem uses to represent inode
+	 * numbers and file logical block numbers.
+	 *
+	 * By default, both of these are assumed to be 64-bit.  This function
+	 * can be implemented to declare that either or both of these numbers is
+	 * shorter, which may allow the use of the
+	 * FSCRYPT_POLICY_FLAG_IV_INO_LBLK_{32,64} flags and/or the use of
+	 * inline crypto hardware whose maximum DUN length is less than 64 bits
+	 * (e.g., eMMC v5.2 spec compliant hardware).  This function only needs
+	 * to be implemented if support for one of these features is needed.
+	 */
 	void (*get_ino_and_lblk_bits)(struct super_block *sb,
 				      int *ino_bits_ret, int *lblk_bits_ret);
+
+	/*
+	 * Return the number of block devices to which the filesystem may write
+	 * encrypted file contents.
+	 *
+	 * If the filesystem can use multiple block devices (other than block
+	 * devices that aren't used for encrypted file contents, such as
+	 * external journal devices), and wants to support inline encryption,
+	 * then it must implement this function.  Otherwise it's not needed.
+	 */
 	int (*get_num_devices)(struct super_block *sb);
+
+	/*
+	 * If ->get_num_devices() returns a value greater than 1, then this
+	 * function is called to get the array of request_queues that the
+	 * filesystem is using -- one per block device.  (There may be duplicate
+	 * entries in this array, as block devices can share a request_queue.)
+	 */
 	void (*get_devices)(struct super_block *sb,
 			    struct request_queue **devs);
 };
@@ -75,7 +173,7 @@ struct fscrypt_operations {
 static inline struct fscrypt_info *fscrypt_get_info(const struct inode *inode)
 {
 	/*
-	 * Pairs with the cmpxchg_release() in fscrypt_get_encryption_info().
+	 * Pairs with the cmpxchg_release() in fscrypt_setup_encryption_info().
 	 * I.e., another task may publish ->i_crypt_info concurrently, executing
 	 * a RELEASE barrier.  We need to use smp_load_acquire() here to safely
 	 * ACQUIRE the memory the other task published.
@@ -109,6 +207,35 @@ static inline bool fscrypt_needs_contents_encryption(const struct inode *inode)
 static inline void fscrypt_handle_d_move(struct dentry *dentry)
 {
 	dentry->d_flags &= ~DCACHE_NOKEY_NAME;
+}
+
+/**
+ * fscrypt_is_nokey_name() - test whether a dentry is a no-key name
+ * @dentry: the dentry to check
+ *
+ * This returns true if the dentry is a no-key dentry.  A no-key dentry is a
+ * dentry that was created in an encrypted directory that hasn't had its
+ * encryption key added yet.  Such dentries may be either positive or negative.
+ *
+ * When a filesystem is asked to create a new filename in an encrypted directory
+ * and the new filename's dentry is a no-key dentry, it must fail the operation
+ * with ENOKEY.  This includes ->create(), ->mkdir(), ->mknod(), ->symlink(),
+ * ->rename(), and ->link().  (However, ->rename() and ->link() are already
+ * handled by fscrypt_prepare_rename() and fscrypt_prepare_link().)
+ *
+ * This is necessary because creating a filename requires the directory's
+ * encryption key, but just checking for the key on the directory inode during
+ * the final filesystem operation doesn't guarantee that the key was available
+ * during the preceding dentry lookup.  And the key must have already been
+ * available during the dentry lookup in order for it to have been checked
+ * whether the filename already exists in the directory and for the new file's
+ * dentry not to be invalidated due to it incorrectly having the no-key flag.
+ *
+ * Return: %true if the dentry is a no-key name
+ */
+static inline bool fscrypt_is_nokey_name(const struct dentry *dentry)
+{
+	return dentry->d_flags & DCACHE_NOKEY_NAME;
 }
 
 /* crypto.c */
@@ -171,7 +298,6 @@ int fscrypt_ioctl_remove_key_all_users(struct file *filp, void __user *arg);
 int fscrypt_ioctl_get_key_status(struct file *filp, void __user *arg);
 
 /* keysetup.c */
-int fscrypt_get_encryption_info(struct inode *inode);
 int fscrypt_prepare_new_inode(struct inode *dir, struct inode *inode,
 			      bool *encrypt_ret);
 void fscrypt_put_encryption_info(struct inode *inode);
@@ -213,6 +339,8 @@ int __fscrypt_prepare_rename(struct inode *old_dir, struct dentry *old_dentry,
 			     unsigned int flags);
 int __fscrypt_prepare_lookup(struct inode *dir, struct dentry *dentry,
 			     struct fscrypt_name *fname);
+int __fscrypt_prepare_readdir(struct inode *dir);
+int __fscrypt_prepare_setattr(struct dentry *dentry, struct iattr *attr);
 int fscrypt_prepare_setflags(struct inode *inode,
 			     unsigned int oldflags, unsigned int flags);
 int fscrypt_prepare_symlink(struct inode *dir, const char *target,
@@ -223,6 +351,7 @@ int __fscrypt_encrypt_symlink(struct inode *inode, const char *target,
 const char *fscrypt_get_symlink(struct inode *inode, const void *caddr,
 				unsigned int max_size,
 				struct delayed_call *done);
+int fscrypt_symlink_getattr(const struct path *path, struct kstat *stat);
 static inline void fscrypt_set_ops(struct super_block *sb,
 				   const struct fscrypt_operations *s_cop)
 {
@@ -242,6 +371,11 @@ static inline bool fscrypt_needs_contents_encryption(const struct inode *inode)
 
 static inline void fscrypt_handle_d_move(struct dentry *dentry)
 {
+}
+
+static inline bool fscrypt_is_nokey_name(const struct dentry *dentry)
+{
+	return false;
 }
 
 /* crypto.c */
@@ -372,10 +506,6 @@ static inline int fscrypt_ioctl_get_key_status(struct file *filp,
 }
 
 /* keysetup.c */
-static inline int fscrypt_get_encryption_info(struct inode *inode)
-{
-	return -EOPNOTSUPP;
-}
 
 static inline int fscrypt_prepare_new_inode(struct inode *dir,
 					    struct inode *inode,
@@ -503,6 +633,17 @@ static inline int __fscrypt_prepare_lookup(struct inode *dir,
 	return -EOPNOTSUPP;
 }
 
+static inline int __fscrypt_prepare_readdir(struct inode *dir)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int __fscrypt_prepare_setattr(struct dentry *dentry,
+					    struct iattr *attr)
+{
+	return -EOPNOTSUPP;
+}
+
 static inline int fscrypt_prepare_setflags(struct inode *inode,
 					   unsigned int oldflags,
 					   unsigned int flags)
@@ -541,6 +682,12 @@ static inline const char *fscrypt_get_symlink(struct inode *inode,
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
+static inline int fscrypt_symlink_getattr(const struct path *path,
+					  struct kstat *stat)
+{
+	return -EOPNOTSUPP;
+}
+
 static inline void fscrypt_set_ops(struct super_block *sb,
 				   const struct fscrypt_operations *s_cop)
 {
@@ -566,6 +713,10 @@ bool fscrypt_mergeable_bio(struct bio *bio, const struct inode *inode,
 
 bool fscrypt_mergeable_bio_bh(struct bio *bio,
 			      const struct buffer_head *next_bh);
+
+bool fscrypt_dio_supported(struct kiocb *iocb, struct iov_iter *iter);
+
+u64 fscrypt_limit_io_blocks(const struct inode *inode, u64 lblk, u64 nr_blocks);
 
 #else /* CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
 
@@ -594,6 +745,20 @@ static inline bool fscrypt_mergeable_bio_bh(struct bio *bio,
 					    const struct buffer_head *next_bh)
 {
 	return true;
+}
+
+static inline bool fscrypt_dio_supported(struct kiocb *iocb,
+					 struct iov_iter *iter)
+{
+	const struct inode *inode = file_inode(iocb->ki_filp);
+
+	return !fscrypt_needs_contents_encryption(inode);
+}
+
+static inline u64 fscrypt_limit_io_blocks(const struct inode *inode, u64 lblk,
+					  u64 nr_blocks)
+{
+	return nr_blocks;
 }
 #endif /* !CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
 
@@ -642,32 +807,6 @@ static inline bool fscrypt_has_encryption_key(const struct inode *inode)
 }
 
 /**
- * fscrypt_require_key() - require an inode's encryption key
- * @inode: the inode we need the key for
- *
- * If the inode is encrypted, set up its encryption key if not already done.
- * Then require that the key be present and return -ENOKEY otherwise.
- *
- * No locks are needed, and the key will live as long as the struct inode --- so
- * it won't go away from under you.
- *
- * Return: 0 on success, -ENOKEY if the key is missing, or another -errno code
- * if a problem occurred while setting up the encryption key.
- */
-static inline int fscrypt_require_key(struct inode *inode)
-{
-	if (IS_ENCRYPTED(inode)) {
-		int err = fscrypt_get_encryption_info(inode);
-
-		if (err)
-			return err;
-		if (!fscrypt_has_encryption_key(inode))
-			return -ENOKEY;
-	}
-	return 0;
-}
-
-/**
  * fscrypt_prepare_link() - prepare to link an inode into a possibly-encrypted
  *			    directory
  * @old_dentry: an existing dentry for the inode being linked
@@ -676,8 +815,7 @@ static inline int fscrypt_require_key(struct inode *inode)
  *
  * A new link can only be added to an encrypted directory if the directory's
  * encryption key is available --- since otherwise we'd have no way to encrypt
- * the filename.  Therefore, we first set up the directory's encryption key (if
- * not already done) and return an error if it's unavailable.
+ * the filename.
  *
  * We also verify that the link will not violate the constraint that all files
  * in an encrypted directory tree use the same encryption policy.
@@ -738,11 +876,15 @@ static inline int fscrypt_prepare_rename(struct inode *old_dir,
  *
  * Prepare for ->lookup() in a directory which may be encrypted by determining
  * the name that will actually be used to search the directory on-disk.  If the
- * directory's encryption key is available, then the lookup is assumed to be by
- * plaintext name; otherwise, it is assumed to be by no-key name.
+ * directory's encryption policy is supported by this kernel and its encryption
+ * key is available, then the lookup is assumed to be by plaintext name;
+ * otherwise, it is assumed to be by no-key name.
  *
- * This also installs a custom ->d_revalidate() method which will invalidate the
- * dentry if it was created without the key and the key is later added.
+ * This will set DCACHE_NOKEY_NAME on the dentry if the lookup is by no-key
+ * name.  In this case the filesystem must assign the dentry a dentry_operations
+ * which contains fscrypt_d_revalidate (or contains a d_revalidate method that
+ * calls fscrypt_d_revalidate), so that the dentry will be invalidated if the
+ * directory's encryption key is later added.
  *
  * Return: 0 on success; -ENOENT if the directory's key is unavailable but the
  * filename isn't a valid no-key name, so a negative dentry should be created;
@@ -759,6 +901,26 @@ static inline int fscrypt_prepare_lookup(struct inode *dir,
 	fname->usr_fname = &dentry->d_name;
 	fname->disk_name.name = (unsigned char *)dentry->d_name.name;
 	fname->disk_name.len = dentry->d_name.len;
+	return 0;
+}
+
+/**
+ * fscrypt_prepare_readdir() - prepare to read a possibly-encrypted directory
+ * @dir: the directory inode
+ *
+ * If the directory is encrypted and it doesn't already have its encryption key
+ * set up, try to set it up so that the filenames will be listed in plaintext
+ * form rather than in no-key form.
+ *
+ * Return: 0 on success; -errno on error.  Note that the encryption key being
+ *	   unavailable is not considered an error.  It is also not an error if
+ *	   the encryption policy is unsupported by this kernel; that is treated
+ *	   like the key being unavailable, so that files can still be deleted.
+ */
+static inline int fscrypt_prepare_readdir(struct inode *dir)
+{
+	if (IS_ENCRYPTED(dir))
+		return __fscrypt_prepare_readdir(dir);
 	return 0;
 }
 
@@ -783,8 +945,8 @@ static inline int fscrypt_prepare_lookup(struct inode *dir,
 static inline int fscrypt_prepare_setattr(struct dentry *dentry,
 					  struct iattr *attr)
 {
-	if (attr->ia_valid & ATTR_SIZE)
-		return fscrypt_require_key(d_inode(dentry));
+	if (IS_ENCRYPTED(d_inode(dentry)))
+		return __fscrypt_prepare_setattr(dentry, attr);
 	return 0;
 }
 

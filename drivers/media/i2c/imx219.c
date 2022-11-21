@@ -262,8 +262,6 @@ static const struct imx219_reg mode_1920_1080_regs[] = {
 	{0x4793, 0x10},
 	{0x4797, 0x0e},
 	{0x479b, 0x0e},
-	{0x0162, 0x0d},
-	{0x0163, 0x78},
 };
 
 static const struct imx219_reg mode_1640_1232_regs[] = {
@@ -392,6 +390,10 @@ static const struct imx219_reg raw10_framefmt_regs[] = {
 	{0x0309, 0x0a},
 };
 
+static const s64 imx219_link_freq_menu[] = {
+	IMX219_DEFAULT_LINK_FREQ,
+};
+
 static const char * const imx219_test_pattern_menu[] = {
 	"Disabled",
 	"Color Bars",
@@ -473,8 +475,8 @@ static const struct imx219_mode supported_modes[] = {
 		.width = 3280,
 		.height = 2464,
 		.crop = {
-			.left = 0,
-			.top = 0,
+			.left = IMX219_PIXEL_ARRAY_LEFT,
+			.top = IMX219_PIXEL_ARRAY_TOP,
 			.width = 3280,
 			.height = 2464
 		},
@@ -489,8 +491,8 @@ static const struct imx219_mode supported_modes[] = {
 		.width = 1920,
 		.height = 1080,
 		.crop = {
-			.left = 680,
-			.top = 692,
+			.left = 688,
+			.top = 700,
 			.width = 1920,
 			.height = 1080
 		},
@@ -505,8 +507,8 @@ static const struct imx219_mode supported_modes[] = {
 		.width = 1640,
 		.height = 1232,
 		.crop = {
-			.left = 0,
-			.top = 0,
+			.left = IMX219_PIXEL_ARRAY_LEFT,
+			.top = IMX219_PIXEL_ARRAY_TOP,
 			.width = 3280,
 			.height = 2464
 		},
@@ -521,8 +523,8 @@ static const struct imx219_mode supported_modes[] = {
 		.width = 640,
 		.height = 480,
 		.crop = {
-			.left = 1000,
-			.top = 752,
+			.left = 1008,
+			.top = 760,
 			.width = 1280,
 			.height = 960
 		},
@@ -549,6 +551,7 @@ struct imx219 {
 	struct v4l2_ctrl_handler ctrl_handler;
 	/* V4L2 Controls */
 	struct v4l2_ctrl *pixel_rate;
+	struct v4l2_ctrl *link_freq;
 	struct v4l2_ctrl *exposure;
 	struct v4l2_ctrl *vflip;
 	struct v4l2_ctrl *hflip;
@@ -686,7 +689,7 @@ static int imx219_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct imx219 *imx219 = to_imx219(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->pad, 0);
+		v4l2_subdev_get_try_format(sd, fh->state, 0);
 	struct v4l2_rect *try_crop;
 
 	mutex_lock(&imx219->mutex);
@@ -699,7 +702,7 @@ static int imx219_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	/* Initialize try_crop rectangle. */
-	try_crop = v4l2_subdev_get_try_crop(sd, fh->pad, 0);
+	try_crop = v4l2_subdev_get_try_crop(sd, fh->state, 0);
 	try_crop->top = IMX219_PIXEL_ARRAY_TOP;
 	try_crop->left = IMX219_PIXEL_ARRAY_LEFT;
 	try_crop->width = IMX219_PIXEL_ARRAY_WIDTH;
@@ -800,7 +803,7 @@ static const struct v4l2_ctrl_ops imx219_ctrl_ops = {
 };
 
 static int imx219_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct imx219 *imx219 = to_imx219(sd);
@@ -808,21 +811,27 @@ static int imx219_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->index >= (ARRAY_SIZE(codes) / 4))
 		return -EINVAL;
 
+	mutex_lock(&imx219->mutex);
 	code->code = imx219_get_format_code(imx219, codes[code->index * 4]);
+	mutex_unlock(&imx219->mutex);
 
 	return 0;
 }
 
 static int imx219_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct imx219 *imx219 = to_imx219(sd);
+	u32 code;
 
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fse->code != imx219_get_format_code(imx219, fse->code))
+	mutex_lock(&imx219->mutex);
+	code = imx219_get_format_code(imx219, fse->code);
+	mutex_unlock(&imx219->mutex);
+	if (fse->code != code)
 		return -EINVAL;
 
 	fse->min_width = supported_modes[fse->index].width;
@@ -854,12 +863,13 @@ static void imx219_update_pad_format(struct imx219 *imx219,
 }
 
 static int __imx219_get_pad_format(struct imx219 *imx219,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_format *fmt)
 {
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *try_fmt =
-			v4l2_subdev_get_try_format(&imx219->sd, cfg, fmt->pad);
+			v4l2_subdev_get_try_format(&imx219->sd, sd_state,
+						   fmt->pad);
 		/* update the code which could change due to vflip or hflip: */
 		try_fmt->code = imx219_get_format_code(imx219, try_fmt->code);
 		fmt->format = *try_fmt;
@@ -873,21 +883,21 @@ static int __imx219_get_pad_format(struct imx219 *imx219,
 }
 
 static int imx219_get_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct imx219 *imx219 = to_imx219(sd);
 	int ret;
 
 	mutex_lock(&imx219->mutex);
-	ret = __imx219_get_pad_format(imx219, cfg, fmt);
+	ret = __imx219_get_pad_format(imx219, sd_state, fmt);
 	mutex_unlock(&imx219->mutex);
 
 	return ret;
 }
 
 static int imx219_set_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct imx219 *imx219 = to_imx219(sd);
@@ -913,7 +923,7 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 				      fmt->format.width, fmt->format.height);
 	imx219_update_pad_format(imx219, mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else if (imx219->mode != mode ||
 		   imx219->fmt.code != fmt->format.code) {
@@ -970,12 +980,13 @@ static int imx219_set_framefmt(struct imx219 *imx219)
 }
 
 static const struct v4l2_rect *
-__imx219_get_pad_crop(struct imx219 *imx219, struct v4l2_subdev_pad_config *cfg,
+__imx219_get_pad_crop(struct imx219 *imx219,
+		      struct v4l2_subdev_state *sd_state,
 		      unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&imx219->sd, cfg, pad);
+		return v4l2_subdev_get_try_crop(&imx219->sd, sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &imx219->mode->crop;
 	}
@@ -984,7 +995,7 @@ __imx219_get_pad_crop(struct imx219 *imx219, struct v4l2_subdev_pad_config *cfg,
 }
 
 static int imx219_get_selection(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
 	switch (sel->target) {
@@ -992,7 +1003,7 @@ static int imx219_get_selection(struct v4l2_subdev *sd,
 		struct imx219 *imx219 = to_imx219(sd);
 
 		mutex_lock(&imx219->mutex);
-		sel->r = *__imx219_get_pad_crop(imx219, cfg, sel->pad,
+		sel->r = *__imx219_get_pad_crop(imx219, sd_state, sel->pad,
 						sel->which);
 		mutex_unlock(&imx219->mutex);
 
@@ -1008,6 +1019,7 @@ static int imx219_get_selection(struct v4l2_subdev *sd,
 		return 0;
 
 	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
 		sel->r.top = IMX219_PIXEL_ARRAY_TOP;
 		sel->r.left = IMX219_PIXEL_ARRAY_LEFT;
 		sel->r.width = IMX219_PIXEL_ARRAY_WIDTH;
@@ -1025,29 +1037,45 @@ static int imx219_start_streaming(struct imx219 *imx219)
 	const struct imx219_reg_list *reg_list;
 	int ret;
 
+	ret = pm_runtime_resume_and_get(&client->dev);
+	if (ret < 0)
+		return ret;
+
 	/* Apply default values of current mode */
 	reg_list = &imx219->mode->reg_list;
 	ret = imx219_write_regs(imx219, reg_list->regs, reg_list->num_of_regs);
 	if (ret) {
 		dev_err(&client->dev, "%s failed to set mode\n", __func__);
-		return ret;
+		goto err_rpm_put;
 	}
 
 	ret = imx219_set_framefmt(imx219);
 	if (ret) {
 		dev_err(&client->dev, "%s failed to set frame format: %d\n",
 			__func__, ret);
-		return ret;
+		goto err_rpm_put;
 	}
 
 	/* Apply customized values from user */
 	ret =  __v4l2_ctrl_handler_setup(imx219->sd.ctrl_handler);
 	if (ret)
-		return ret;
+		goto err_rpm_put;
 
 	/* set stream on register */
-	return imx219_write_reg(imx219, IMX219_REG_MODE_SELECT,
-				IMX219_REG_VALUE_08BIT, IMX219_MODE_STREAMING);
+	ret = imx219_write_reg(imx219, IMX219_REG_MODE_SELECT,
+			       IMX219_REG_VALUE_08BIT, IMX219_MODE_STREAMING);
+	if (ret)
+		goto err_rpm_put;
+
+	/* vflip and hflip cannot change during streaming */
+	__v4l2_ctrl_grab(imx219->vflip, true);
+	__v4l2_ctrl_grab(imx219->hflip, true);
+
+	return 0;
+
+err_rpm_put:
+	pm_runtime_put(&client->dev);
+	return ret;
 }
 
 static void imx219_stop_streaming(struct imx219 *imx219)
@@ -1060,12 +1088,16 @@ static void imx219_stop_streaming(struct imx219 *imx219)
 			       IMX219_REG_VALUE_08BIT, IMX219_MODE_STANDBY);
 	if (ret)
 		dev_err(&client->dev, "%s failed to set stream\n", __func__);
+
+	__v4l2_ctrl_grab(imx219->vflip, false);
+	__v4l2_ctrl_grab(imx219->hflip, false);
+
+	pm_runtime_put(&client->dev);
 }
 
 static int imx219_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct imx219 *imx219 = to_imx219(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
 	mutex_lock(&imx219->mutex);
@@ -1075,36 +1107,23 @@ static int imx219_set_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
-			goto err_unlock;
-		}
-
 		/*
 		 * Apply default & customized values
 		 * and then start streaming.
 		 */
 		ret = imx219_start_streaming(imx219);
 		if (ret)
-			goto err_rpm_put;
+			goto err_unlock;
 	} else {
 		imx219_stop_streaming(imx219);
-		pm_runtime_put(&client->dev);
 	}
 
 	imx219->streaming = enable;
-
-	/* vflip and hflip cannot change during streaming */
-	__v4l2_ctrl_grab(imx219->vflip, enable);
-	__v4l2_ctrl_grab(imx219->hflip, enable);
 
 	mutex_unlock(&imx219->mutex);
 
 	return ret;
 
-err_rpm_put:
-	pm_runtime_put(&client->dev);
 err_unlock:
 	mutex_unlock(&imx219->mutex);
 
@@ -1114,22 +1133,21 @@ err_unlock:
 /* Power/clock management functions */
 static int imx219_power_on(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx219 *imx219 = to_imx219(sd);
 	int ret;
 
 	ret = regulator_bulk_enable(IMX219_NUM_SUPPLIES,
 				    imx219->supplies);
 	if (ret) {
-		dev_err(&client->dev, "%s: failed to enable regulators\n",
+		dev_err(dev, "%s: failed to enable regulators\n",
 			__func__);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(imx219->xclk);
 	if (ret) {
-		dev_err(&client->dev, "%s: failed to enable clock\n",
+		dev_err(dev, "%s: failed to enable clock\n",
 			__func__);
 		goto reg_off;
 	}
@@ -1148,8 +1166,7 @@ reg_off:
 
 static int imx219_power_off(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx219 *imx219 = to_imx219(sd);
 
 	gpiod_set_value_cansleep(imx219->reset_gpio, 0);
@@ -1161,8 +1178,7 @@ static int imx219_power_off(struct device *dev)
 
 static int __maybe_unused imx219_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx219 *imx219 = to_imx219(sd);
 
 	if (imx219->streaming)
@@ -1173,8 +1189,7 @@ static int __maybe_unused imx219_suspend(struct device *dev)
 
 static int __maybe_unused imx219_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx219 *imx219 = to_imx219(sd);
 	int ret;
 
@@ -1268,7 +1283,7 @@ static int imx219_init_controls(struct imx219 *imx219)
 	int i, ret;
 
 	ctrl_hdlr = &imx219->ctrl_handler;
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 11);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 12);
 	if (ret)
 		return ret;
 
@@ -1281,6 +1296,14 @@ static int imx219_init_controls(struct imx219 *imx219)
 					       IMX219_PIXEL_RATE,
 					       IMX219_PIXEL_RATE, 1,
 					       IMX219_PIXEL_RATE);
+
+	imx219->link_freq =
+		v4l2_ctrl_new_int_menu(ctrl_hdlr, &imx219_ctrl_ops,
+				       V4L2_CID_LINK_FREQ,
+				       ARRAY_SIZE(imx219_link_freq_menu) - 1, 0,
+				       imx219_link_freq_menu);
+	if (imx219->link_freq)
+		imx219->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	/* Initial vblank/hblank/exposure parameters based on current mode */
 	imx219->vblank = v4l2_ctrl_new_std(ctrl_hdlr, &imx219_ctrl_ops,
@@ -1498,7 +1521,8 @@ static int imx219_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	imx219->sd.internal_ops = &imx219_internal_ops;
-	imx219->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	imx219->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+			    V4L2_SUBDEV_FL_HAS_EVENTS;
 	imx219->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	/* Initialize source pad */
@@ -1513,7 +1537,7 @@ static int imx219_probe(struct i2c_client *client)
 		goto error_handler_free;
 	}
 
-	ret = v4l2_async_register_subdev_sensor_common(&imx219->sd);
+	ret = v4l2_async_register_subdev_sensor(&imx219->sd);
 	if (ret < 0) {
 		dev_err(dev, "failed to register sensor sub-device: %d\n", ret);
 		goto error_media_entity;

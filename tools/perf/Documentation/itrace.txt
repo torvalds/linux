@@ -4,13 +4,16 @@
 		r	synthesize branches events (returns only)
 		x	synthesize transactions events
 		w	synthesize ptwrite events
-		p	synthesize power events
+		p	synthesize power events (incl. PSB events for Intel PT)
 		o	synthesize other events recorded due to the use
 			of aux-output (refer to perf record)
+		I	synthesize interrupt or similar (asynchronous) events
+			(e.g. Intel PT Event Trace)
 		e	synthesize error events
 		d	create a debug log
 		f	synthesize first level cache events
 		m	synthesize last level cache events
+		M	synthesize memory events
 		t	synthesize TLB events
 		a	synthesize remote access events
 		g	synthesize a call chain (use with i or x)
@@ -19,6 +22,8 @@
 		L	synthesize last branch entries on existing event records
 		s       skip initial number of events
 		q	quicker (less detailed) decoding
+		A	approximate IPC
+		Z	prefer to ignore timestamps (so-called "timeless" decoding)
 
 	The default is all events i.e. the same as --itrace=ibxwpe,
 	except for perf script where it is --itrace=ce
@@ -59,5 +64,6 @@
 	debug messages will or will not be logged. Each flag must be preceded
 	by either '+' or '-'. The flags are:
 		a	all perf events
+		o	output to stdout
 
 	If supported, the 'q' option may be repeated to increase the effect.

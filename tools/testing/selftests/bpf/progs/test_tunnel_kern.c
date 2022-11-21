@@ -15,7 +15,6 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/types.h>
-#include <linux/tcp.h>
 #include <linux/socket.h>
 #include <linux/pkt_cls.h>
 #include <linux/erspan.h>
@@ -26,8 +25,6 @@
 		char fmt[] = "ERROR line:%d ret:%d\n";\
 		bpf_trace_printk(fmt, sizeof(fmt), __LINE__, ret); \
 	} while (0)
-
-int _version SEC("version") = 1;
 
 struct geneve_opt {
 	__be16	opt_class;
@@ -397,7 +394,7 @@ int _ip6vxlan_get_tunnel(struct __sk_buff *skb)
 SEC("geneve_set_tunnel")
 int _geneve_set_tunnel(struct __sk_buff *skb)
 {
-	int ret, ret2;
+	int ret;
 	struct bpf_tunnel_key key;
 	struct geneve_opt gopt;
 
@@ -447,10 +444,8 @@ int _geneve_get_tunnel(struct __sk_buff *skb)
 	}
 
 	ret = bpf_skb_get_tunnel_opt(skb, &gopt, sizeof(gopt));
-	if (ret < 0) {
-		ERROR(ret);
-		return TC_ACT_SHOT;
-	}
+	if (ret < 0)
+		gopt.opt_class = 0;
 
 	bpf_trace_printk(fmt, sizeof(fmt),
 			key.tunnel_id, key.remote_ipv4, gopt.opt_class);
@@ -511,10 +506,8 @@ int _ip6geneve_get_tunnel(struct __sk_buff *skb)
 	}
 
 	ret = bpf_skb_get_tunnel_opt(skb, &gopt, sizeof(gopt));
-	if (ret < 0) {
-		ERROR(ret);
-		return TC_ACT_SHOT;
-	}
+	if (ret < 0)
+		gopt.opt_class = 0;
 
 	bpf_trace_printk(fmt, sizeof(fmt),
 			key.tunnel_id, key.remote_ipv4, gopt.opt_class);
@@ -528,12 +521,11 @@ int _ipip_set_tunnel(struct __sk_buff *skb)
 	struct bpf_tunnel_key key = {};
 	void *data = (void *)(long)skb->data;
 	struct iphdr *iph = data;
-	struct tcphdr *tcp = data + sizeof(*iph);
 	void *data_end = (void *)(long)skb->data_end;
 	int ret;
 
 	/* single length check */
-	if (data + sizeof(*iph) + sizeof(*tcp) > data_end) {
+	if (data + sizeof(*iph) > data_end) {
 		ERROR(1);
 		return TC_ACT_SHOT;
 	}
@@ -541,16 +533,6 @@ int _ipip_set_tunnel(struct __sk_buff *skb)
 	key.tunnel_ttl = 64;
 	if (iph->protocol == IPPROTO_ICMP) {
 		key.remote_ipv4 = 0xac100164; /* 172.16.1.100 */
-	} else {
-		if (iph->protocol != IPPROTO_TCP || iph->ihl != 5)
-			return TC_ACT_SHOT;
-
-		if (tcp->dest == bpf_htons(5200))
-			key.remote_ipv4 = 0xac100164; /* 172.16.1.100 */
-		else if (tcp->dest == bpf_htons(5201))
-			key.remote_ipv4 = 0xac100165; /* 172.16.1.101 */
-		else
-			return TC_ACT_SHOT;
 	}
 
 	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key), 0);
@@ -585,19 +567,20 @@ int _ipip6_set_tunnel(struct __sk_buff *skb)
 	struct bpf_tunnel_key key = {};
 	void *data = (void *)(long)skb->data;
 	struct iphdr *iph = data;
-	struct tcphdr *tcp = data + sizeof(*iph);
 	void *data_end = (void *)(long)skb->data_end;
 	int ret;
 
 	/* single length check */
-	if (data + sizeof(*iph) + sizeof(*tcp) > data_end) {
+	if (data + sizeof(*iph) > data_end) {
 		ERROR(1);
 		return TC_ACT_SHOT;
 	}
 
 	__builtin_memset(&key, 0x0, sizeof(key));
-	key.remote_ipv6[3] = bpf_htonl(0x11); /* ::11 */
 	key.tunnel_ttl = 64;
+	if (iph->protocol == IPPROTO_ICMP) {
+		key.remote_ipv6[3] = bpf_htonl(0x11); /* ::11 */
+	}
 
 	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key),
 				     BPF_F_TUNINFO_IPV6);
@@ -634,35 +617,18 @@ int _ip6ip6_set_tunnel(struct __sk_buff *skb)
 	struct bpf_tunnel_key key = {};
 	void *data = (void *)(long)skb->data;
 	struct ipv6hdr *iph = data;
-	struct tcphdr *tcp = data + sizeof(*iph);
 	void *data_end = (void *)(long)skb->data_end;
 	int ret;
 
 	/* single length check */
-	if (data + sizeof(*iph) + sizeof(*tcp) > data_end) {
+	if (data + sizeof(*iph) > data_end) {
 		ERROR(1);
 		return TC_ACT_SHOT;
 	}
 
-	key.remote_ipv6[0] = bpf_htonl(0x2401db00);
 	key.tunnel_ttl = 64;
-
 	if (iph->nexthdr == 58 /* NEXTHDR_ICMP */) {
-		key.remote_ipv6[3] = bpf_htonl(1);
-	} else {
-		if (iph->nexthdr != 6 /* NEXTHDR_TCP */) {
-			ERROR(iph->nexthdr);
-			return TC_ACT_SHOT;
-		}
-
-		if (tcp->dest == bpf_htons(5200)) {
-			key.remote_ipv6[3] = bpf_htonl(1);
-		} else if (tcp->dest == bpf_htons(5201)) {
-			key.remote_ipv6[3] = bpf_htonl(2);
-		} else {
-			ERROR(tcp->dest);
-			return TC_ACT_SHOT;
-		}
+		key.remote_ipv6[3] = bpf_htonl(0x11); /* ::11 */
 	}
 
 	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key),

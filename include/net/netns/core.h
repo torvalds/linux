@@ -10,9 +10,9 @@ struct netns_core {
 	struct ctl_table_header	*sysctl_hdr;
 
 	int	sysctl_somaxconn;
+	u8	sysctl_txrehash;
 
 #ifdef CONFIG_PROC_FS
-	int __percpu *sock_inuse;
 	struct prot_inuse __percpu *prot_inuse;
 #endif
 };

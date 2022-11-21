@@ -36,6 +36,7 @@
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/eswitch.h>
 #include "mlx5_core.h"
+#include "sf/sf.h"
 
 /* Mutex to hold while enabling or disabling RoCE */
 static DEFINE_MUTEX(mlx5_roce_en_lock);
@@ -420,19 +421,21 @@ int mlx5_query_nic_vport_system_image_guid(struct mlx5_core_dev *mdev,
 {
 	u32 *out;
 	int outlen = MLX5_ST_SZ_BYTES(query_nic_vport_context_out);
+	int err;
 
 	out = kvzalloc(outlen, GFP_KERNEL);
 	if (!out)
 		return -ENOMEM;
 
-	mlx5_query_nic_vport_context(mdev, 0, out);
+	err = mlx5_query_nic_vport_context(mdev, 0, out);
+	if (err)
+		goto out;
 
 	*system_image_guid = MLX5_GET64(query_nic_vport_context_out, out,
 					nic_vport_context.system_image_guid);
-
+out:
 	kvfree(out);
-
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_nic_vport_system_image_guid);
 
@@ -464,8 +467,6 @@ int mlx5_modify_nic_vport_node_guid(struct mlx5_core_dev *mdev,
 	void *in;
 	int err;
 
-	if (!vport)
-		return -EINVAL;
 	if (!MLX5_CAP_GEN(mdev, vport_group_manager))
 		return -EACCES;
 
@@ -1134,32 +1135,31 @@ EXPORT_SYMBOL_GPL(mlx5_nic_vport_unaffiliate_multiport);
 u64 mlx5_query_nic_system_image_guid(struct mlx5_core_dev *mdev)
 {
 	int port_type_cap = MLX5_CAP_GEN(mdev, port_type);
-	u64 tmp = 0;
+	u64 tmp;
+	int err;
 
 	if (mdev->sys_image_guid)
 		return mdev->sys_image_guid;
 
 	if (port_type_cap == MLX5_CAP_PORT_TYPE_ETH)
-		mlx5_query_nic_vport_system_image_guid(mdev, &tmp);
+		err = mlx5_query_nic_vport_system_image_guid(mdev, &tmp);
 	else
-		mlx5_query_hca_vport_system_image_guid(mdev, &tmp);
+		err = mlx5_query_hca_vport_system_image_guid(mdev, &tmp);
 
-	mdev->sys_image_guid = tmp;
+	mdev->sys_image_guid = err ? 0 : tmp;
 
-	return tmp;
+	return mdev->sys_image_guid;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_nic_system_image_guid);
 
-/**
- * mlx5_eswitch_get_total_vports - Get total vports of the eswitch
- *
- * @dev:	Pointer to core device
- *
- * mlx5_eswitch_get_total_vports returns total number of vports for
- * the eswitch.
- */
-u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev)
+int mlx5_vport_get_other_func_cap(struct mlx5_core_dev *dev, u16 function_id, void *out)
 {
-	return MLX5_SPECIAL_VPORTS(dev) + mlx5_core_max_vfs(dev);
+	u16 opmod = (MLX5_CAP_GENERAL << 1) | (HCA_CAP_OPMOD_GET_MAX & 0x01);
+	u8 in[MLX5_ST_SZ_BYTES(query_hca_cap_in)] = {};
+
+	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
+	MLX5_SET(query_hca_cap_in, in, op_mod, opmod);
+	MLX5_SET(query_hca_cap_in, in, function_id, function_id);
+	MLX5_SET(query_hca_cap_in, in, other_function, true);
+	return mlx5_cmd_exec_inout(dev, query_hca_cap, in, out);
 }
-EXPORT_SYMBOL_GPL(mlx5_eswitch_get_total_vports);

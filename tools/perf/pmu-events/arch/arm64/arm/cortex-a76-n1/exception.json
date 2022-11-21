@@ -1,14 +1,10 @@
 [
     {
-        "EventCode": "0x09",
-        "EventName": "EXC_TAKEN",
-        "BriefDescription": "Exception taken."
+        "ArchStdEvent": "EXC_TAKEN"
     },
     {
-        "PublicDescription": "Local memory error. This event counts any correctable or uncorrectable memory error (ECC or parity) in the protected core RAMs",
-        "EventCode": "0x1A",
-        "EventName": "MEMORY_ERROR",
-        "BriefDescription": "Local memory error."
+        "PublicDescription": "This event counts any correctable or uncorrectable memory error (ECC or parity) in the protected core RAMs",
+        "ArchStdEvent": "MEMORY_ERROR"
     },
     {
         "ArchStdEvent": "EXC_DABORT"

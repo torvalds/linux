@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2021 Intel Corporation. */
 
 #ifndef _I40E_PROTOTYPE_H_
 #define _I40E_PROTOTYPE_H_
@@ -22,11 +22,30 @@ void i40e_adminq_init_ring_data(struct i40e_hw *hw);
 i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 					     struct i40e_arq_event_info *e,
 					     u16 *events_pending);
-i40e_status i40e_asq_send_command(struct i40e_hw *hw,
+i40e_status
+i40e_asq_send_command(struct i40e_hw *hw, struct i40e_aq_desc *desc,
+		      void *buff, /* can be NULL */ u16  buff_size,
+		      struct i40e_asq_cmd_details *cmd_details);
+i40e_status
+i40e_asq_send_command_v2(struct i40e_hw *hw,
+			 struct i40e_aq_desc *desc,
+			 void *buff, /* can be NULL */
+			 u16  buff_size,
+			 struct i40e_asq_cmd_details *cmd_details,
+			 enum i40e_admin_queue_err *aq_status);
+i40e_status
+i40e_asq_send_command_atomic(struct i40e_hw *hw, struct i40e_aq_desc *desc,
+			     void *buff, /* can be NULL */ u16  buff_size,
+			     struct i40e_asq_cmd_details *cmd_details,
+			     bool is_atomic_context);
+i40e_status
+i40e_asq_send_command_atomic_v2(struct i40e_hw *hw,
 				struct i40e_aq_desc *desc,
 				void *buff, /* can be NULL */
 				u16  buff_size,
-				struct i40e_asq_cmd_details *cmd_details);
+				struct i40e_asq_cmd_details *cmd_details,
+				bool is_atomic_context,
+				enum i40e_admin_queue_err *aq_status);
 
 /* debug function for adminq */
 void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask,
@@ -146,9 +165,19 @@ i40e_status i40e_aq_get_veb_parameters(struct i40e_hw *hw,
 i40e_status i40e_aq_add_macvlan(struct i40e_hw *hw, u16 vsi_id,
 			struct i40e_aqc_add_macvlan_element_data *mv_list,
 			u16 count, struct i40e_asq_cmd_details *cmd_details);
+i40e_status
+i40e_aq_add_macvlan_v2(struct i40e_hw *hw, u16 seid,
+		       struct i40e_aqc_add_macvlan_element_data *mv_list,
+		       u16 count, struct i40e_asq_cmd_details *cmd_details,
+		       enum i40e_admin_queue_err *aq_status);
 i40e_status i40e_aq_remove_macvlan(struct i40e_hw *hw, u16 vsi_id,
 			struct i40e_aqc_remove_macvlan_element_data *mv_list,
 			u16 count, struct i40e_asq_cmd_details *cmd_details);
+i40e_status
+i40e_aq_remove_macvlan_v2(struct i40e_hw *hw, u16 seid,
+			  struct i40e_aqc_remove_macvlan_element_data *mv_list,
+			  u16 count, struct i40e_asq_cmd_details *cmd_details,
+			  enum i40e_admin_queue_err *aq_status);
 i40e_status i40e_aq_add_mirrorrule(struct i40e_hw *hw, u16 sw_seid,
 			u16 rule_type, u16 dest_vsi, u16 count, __le16 *mr_list,
 			struct i40e_asq_cmd_details *cmd_details,
@@ -200,6 +229,10 @@ i40e_status i40e_aq_get_lldp_mib(struct i40e_hw *hw, u8 bridge_type,
 				u8 mib_type, void *buff, u16 buff_size,
 				u16 *local_len, u16 *remote_len,
 				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code
+i40e_aq_set_lldp_mib(struct i40e_hw *hw,
+		     u8 mib_type, void *buff, u16 buff_size,
+		     struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_cfg_lldp_mib_change_event(struct i40e_hw *hw,
 				bool enable_update,
 				struct i40e_asq_cmd_details *cmd_details);
@@ -289,6 +322,9 @@ i40e_aq_rem_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
 			     u8 filter_count);
 i40e_status i40e_read_lldp_cfg(struct i40e_hw *hw,
 			       struct i40e_lldp_variables *lldp_cfg);
+enum i40e_status_code
+i40e_aq_suspend_port_tx(struct i40e_hw *hw, u16 seid,
+			struct i40e_asq_cmd_details *cmd_details);
 /* i40e_common */
 i40e_status i40e_init_shared_code(struct i40e_hw *hw);
 i40e_status i40e_pf_reset(struct i40e_hw *hw);

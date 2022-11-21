@@ -31,7 +31,8 @@ static int alloc_context_id(int min_id, int max_id)
 	return ida_alloc_range(&mmu_context_ida, min_id, max_id, GFP_KERNEL);
 }
 
-void hash__reserve_context_id(int id)
+#ifdef CONFIG_PPC_64S_HASH_MMU
+void __init hash__reserve_context_id(int id)
 {
 	int result = ida_alloc_range(&mmu_context_ida, id, id, GFP_KERNEL);
 
@@ -50,7 +51,9 @@ int hash__alloc_context_id(void)
 	return alloc_context_id(MIN_USER_CONTEXT, max);
 }
 EXPORT_SYMBOL_GPL(hash__alloc_context_id);
+#endif
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 static int realloc_context_ids(mm_context_t *ctx)
 {
 	int i, id;
@@ -119,7 +122,7 @@ static int hash__init_new_context(struct mm_struct *mm)
 		/* This is fork. Copy hash_context details from current->mm */
 		memcpy(mm->context.hash_context, current->mm->context.hash_context, sizeof(struct hash_mm_context));
 #ifdef CONFIG_PPC_SUBPAGE_PROT
-		/* inherit subpage prot detalis if we have one. */
+		/* inherit subpage prot details if we have one. */
 		if (current->mm->context.hash_context->spt) {
 			mm->context.hash_context->spt = kmalloc(sizeof(struct subpage_prot_table),
 								GFP_KERNEL);
@@ -150,6 +153,13 @@ void hash__setup_new_exec(void)
 
 	slb_setup_new_exec();
 }
+#else
+static inline int hash__init_new_context(struct mm_struct *mm)
+{
+	BUILD_BUG();
+	return 0;
+}
+#endif
 
 static int radix__init_new_context(struct mm_struct *mm)
 {
@@ -175,7 +185,9 @@ static int radix__init_new_context(struct mm_struct *mm)
 	 */
 	asm volatile("ptesync;isync" : : : "memory");
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	mm->context.hash_context = NULL;
+#endif
 
 	return index;
 }
@@ -213,14 +225,22 @@ EXPORT_SYMBOL_GPL(__destroy_context);
 
 static void destroy_contexts(mm_context_t *ctx)
 {
-	int index, context_id;
+	if (radix_enabled()) {
+		ida_free(&mmu_context_ida, ctx->id);
+	} else {
+#ifdef CONFIG_PPC_64S_HASH_MMU
+		int index, context_id;
 
-	for (index = 0; index < ARRAY_SIZE(ctx->extended_id); index++) {
-		context_id = ctx->extended_id[index];
-		if (context_id)
-			ida_free(&mmu_context_ida, context_id);
+		for (index = 0; index < ARRAY_SIZE(ctx->extended_id); index++) {
+			context_id = ctx->extended_id[index];
+			if (context_id)
+				ida_free(&mmu_context_ida, context_id);
+		}
+		kfree(ctx->hash_context);
+#else
+		BUILD_BUG(); // radix_enabled() should be constant true
+#endif
 	}
-	kfree(ctx->hash_context);
 }
 
 static void pmd_frag_destroy(void *pmd_frag)

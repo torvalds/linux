@@ -133,20 +133,26 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 	if (NULL == add)
 		return NULL;
 
-	add->grants    = kvcalloc(count, sizeof(add->grants[0]), GFP_KERNEL);
-	add->map_ops   = kvcalloc(count, sizeof(add->map_ops[0]), GFP_KERNEL);
-	add->unmap_ops = kvcalloc(count, sizeof(add->unmap_ops[0]), GFP_KERNEL);
-	add->kmap_ops  = kvcalloc(count, sizeof(add->kmap_ops[0]), GFP_KERNEL);
-	add->kunmap_ops = kvcalloc(count,
-				   sizeof(add->kunmap_ops[0]), GFP_KERNEL);
+	add->grants    = kvmalloc_array(count, sizeof(add->grants[0]),
+					GFP_KERNEL);
+	add->map_ops   = kvmalloc_array(count, sizeof(add->map_ops[0]),
+					GFP_KERNEL);
+	add->unmap_ops = kvmalloc_array(count, sizeof(add->unmap_ops[0]),
+					GFP_KERNEL);
 	add->pages     = kvcalloc(count, sizeof(add->pages[0]), GFP_KERNEL);
 	if (NULL == add->grants    ||
 	    NULL == add->map_ops   ||
 	    NULL == add->unmap_ops ||
-	    NULL == add->kmap_ops  ||
-	    NULL == add->kunmap_ops ||
 	    NULL == add->pages)
 		goto err;
+	if (use_ptemod) {
+		add->kmap_ops   = kvmalloc_array(count, sizeof(add->kmap_ops[0]),
+						 GFP_KERNEL);
+		add->kunmap_ops = kvmalloc_array(count, sizeof(add->kunmap_ops[0]),
+						 GFP_KERNEL);
+		if (NULL == add->kmap_ops || NULL == add->kunmap_ops)
+			goto err;
+	}
 
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
 	add->dma_flags = dma_flags;
@@ -183,10 +189,14 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 		goto err;
 
 	for (i = 0; i < count; i++) {
-		add->map_ops[i].handle = -1;
-		add->unmap_ops[i].handle = -1;
-		add->kmap_ops[i].handle = -1;
-		add->kunmap_ops[i].handle = -1;
+		add->grants[i].domid = DOMID_INVALID;
+		add->grants[i].ref = INVALID_GRANT_REF;
+		add->map_ops[i].handle = INVALID_GRANT_HANDLE;
+		add->unmap_ops[i].handle = INVALID_GRANT_HANDLE;
+		if (use_ptemod) {
+			add->kmap_ops[i].handle = INVALID_GRANT_HANDLE;
+			add->kunmap_ops[i].handle = INVALID_GRANT_HANDLE;
+		}
 	}
 
 	add->index = 0;
@@ -240,13 +250,13 @@ void gntdev_put_map(struct gntdev_priv *priv, struct gntdev_grant_map *map)
 	if (!refcount_dec_and_test(&map->users))
 		return;
 
+	if (map->pages && !use_ptemod)
+		unmap_grant_pages(map, 0, map->count);
+
 	if (map->notify.flags & UNMAP_NOTIFY_SEND_EVENT) {
 		notify_remote_via_evtchn(map->notify.event);
 		evtchn_put(map->notify.event);
 	}
-
-	if (map->pages && !use_ptemod)
-		unmap_grant_pages(map, 0, map->count);
 	gntdev_free_map(map);
 }
 
@@ -256,35 +266,20 @@ static int find_grant_ptes(pte_t *pte, unsigned long addr, void *data)
 {
 	struct gntdev_grant_map *map = data;
 	unsigned int pgnr = (addr - map->vma->vm_start) >> PAGE_SHIFT;
-	int flags = map->flags | GNTMAP_application_map | GNTMAP_contains_pte;
+	int flags = map->flags | GNTMAP_application_map | GNTMAP_contains_pte |
+		    (1 << _GNTMAP_guest_avail0);
 	u64 pte_maddr;
 
 	BUG_ON(pgnr >= map->count);
 	pte_maddr = arbitrary_virt_to_machine(pte).maddr;
 
-	/*
-	 * Set the PTE as special to force get_user_pages_fast() fall
-	 * back to the slow path.  If this is not supported as part of
-	 * the grant map, it will be done afterwards.
-	 */
-	if (xen_feature(XENFEAT_gnttab_map_avail_bits))
-		flags |= (1 << _GNTMAP_guest_avail0);
-
 	gnttab_set_map_op(&map->map_ops[pgnr], pte_maddr, flags,
 			  map->grants[pgnr].ref,
 			  map->grants[pgnr].domid);
 	gnttab_set_unmap_op(&map->unmap_ops[pgnr], pte_maddr, flags,
-			    -1 /* handle */);
+			    INVALID_GRANT_HANDLE);
 	return 0;
 }
-
-#ifdef CONFIG_X86
-static int set_grant_ptes_as_special(pte_t *pte, unsigned long addr, void *data)
-{
-	set_pte_at(current->mm, addr, pte, pte_mkspecial(*pte));
-	return 0;
-}
-#endif
 
 int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 {
@@ -292,7 +287,7 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 
 	if (!use_ptemod) {
 		/* Note: it could already be mapped */
-		if (map->map_ops[0].handle != -1)
+		if (map->map_ops[0].handle != INVALID_GRANT_HANDLE)
 			return 0;
 		for (i = 0; i < map->count; i++) {
 			unsigned long addr = (unsigned long)
@@ -301,7 +296,7 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 				map->grants[i].ref,
 				map->grants[i].domid);
 			gnttab_set_unmap_op(&map->unmap_ops[i], addr,
-				map->flags, -1 /* handle */);
+				map->flags, INVALID_GRANT_HANDLE);
 		}
 	} else {
 		/*
@@ -309,44 +304,47 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 		 * to the kernel linear addresses of the struct pages.
 		 * These ptes are completely different from the user ptes dealt
 		 * with find_grant_ptes.
+		 * Note that GNTMAP_device_map isn't needed here: The
+		 * dev_bus_addr output field gets consumed only from ->map_ops,
+		 * and by not requesting it when mapping we also avoid needing
+		 * to mirror dev_bus_addr into ->unmap_ops (and holding an extra
+		 * reference to the page in the hypervisor).
 		 */
+		unsigned int flags = (map->flags & ~GNTMAP_device_map) |
+				     GNTMAP_host_map;
+
 		for (i = 0; i < map->count; i++) {
 			unsigned long address = (unsigned long)
 				pfn_to_kaddr(page_to_pfn(map->pages[i]));
 			BUG_ON(PageHighMem(map->pages[i]));
 
-			gnttab_set_map_op(&map->kmap_ops[i], address,
-				map->flags | GNTMAP_host_map,
+			gnttab_set_map_op(&map->kmap_ops[i], address, flags,
 				map->grants[i].ref,
 				map->grants[i].domid);
 			gnttab_set_unmap_op(&map->kunmap_ops[i], address,
-				map->flags | GNTMAP_host_map, -1);
+				flags, INVALID_GRANT_HANDLE);
 		}
 	}
 
 	pr_debug("map %d+%d\n", map->index, map->count);
-	err = gnttab_map_refs(map->map_ops, use_ptemod ? map->kmap_ops : NULL,
-			map->pages, map->count);
-	if (err)
-		return err;
+	err = gnttab_map_refs(map->map_ops, map->kmap_ops, map->pages,
+			map->count);
 
 	for (i = 0; i < map->count; i++) {
-		if (map->map_ops[i].status) {
+		if (map->map_ops[i].status == GNTST_okay)
+			map->unmap_ops[i].handle = map->map_ops[i].handle;
+		else if (!err)
 			err = -EINVAL;
-			continue;
-		}
 
-		map->unmap_ops[i].handle = map->map_ops[i].handle;
-		if (use_ptemod)
-			map->kunmap_ops[i].handle = map->kmap_ops[i].handle;
-#ifdef CONFIG_XEN_GRANT_DMA_ALLOC
-		else if (map->dma_vaddr) {
-			unsigned long bfn;
+		if (map->flags & GNTMAP_device_map)
+			map->unmap_ops[i].dev_bus_addr = map->map_ops[i].dev_bus_addr;
 
-			bfn = pfn_to_bfn(page_to_pfn(map->pages[i]));
-			map->unmap_ops[i].dev_bus_addr = __pfn_to_phys(bfn);
+		if (use_ptemod) {
+			if (map->kmap_ops[i].status == GNTST_okay)
+				map->kunmap_ops[i].handle = map->kmap_ops[i].handle;
+			else if (!err)
+				err = -EINVAL;
 		}
-#endif
 	}
 	return err;
 }
@@ -382,7 +380,15 @@ static int __unmap_grant_pages(struct gntdev_grant_map *map, int offset,
 		pr_debug("unmap handle=%d st=%d\n",
 			map->unmap_ops[offset+i].handle,
 			map->unmap_ops[offset+i].status);
-		map->unmap_ops[offset+i].handle = -1;
+		map->unmap_ops[offset+i].handle = INVALID_GRANT_HANDLE;
+		if (use_ptemod) {
+			if (map->kunmap_ops[offset+i].status)
+				err = -EINVAL;
+			pr_debug("kunmap handle=%u st=%d\n",
+				 map->kunmap_ops[offset+i].handle,
+				 map->kunmap_ops[offset+i].status);
+			map->kunmap_ops[offset+i].handle = INVALID_GRANT_HANDLE;
+		}
 	}
 	return err;
 }
@@ -398,13 +404,15 @@ static int unmap_grant_pages(struct gntdev_grant_map *map, int offset,
 	 * already unmapped some of the grants. Only unmap valid ranges.
 	 */
 	while (pages && !err) {
-		while (pages && map->unmap_ops[offset].handle == -1) {
+		while (pages &&
+		       map->unmap_ops[offset].handle == INVALID_GRANT_HANDLE) {
 			offset++;
 			pages--;
 		}
 		range = 0;
 		while (range < pages) {
-			if (map->unmap_ops[offset+range].handle == -1)
+			if (map->unmap_ops[offset + range].handle ==
+			    INVALID_GRANT_HANDLE)
 				break;
 			range++;
 		}
@@ -1002,8 +1010,10 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 		err = mmu_interval_notifier_insert_locked(
 			&map->notifier, vma->vm_mm, vma->vm_start,
 			vma->vm_end - vma->vm_start, &gntdev_mmu_ops);
-		if (err)
+		if (err) {
+			map->vma = NULL;
 			goto out_unlock_put;
+		}
 	}
 	mutex_unlock(&priv->lock);
 
@@ -1038,23 +1048,6 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 		err = vm_map_pages_zero(vma, map->pages, map->count);
 		if (err)
 			goto out_put_map;
-	} else {
-#ifdef CONFIG_X86
-		/*
-		 * If the PTEs were not made special by the grant map
-		 * hypercall, do so here.
-		 *
-		 * This is racy since the mapping is already visible
-		 * to userspace but userspace should be well-behaved
-		 * enough to not touch it until the mmap() call
-		 * returns.
-		 */
-		if (!xen_feature(XENFEAT_gnttab_map_avail_bits)) {
-			apply_to_page_range(vma->vm_mm, vma->vm_start,
-					    vma->vm_end - vma->vm_start,
-					    set_grant_ptes_as_special, NULL);
-		}
-#endif
 	}
 
 	return 0;

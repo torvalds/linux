@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/usb.h>
+#include <linux/ethtool.h>
 
 #include <linux/can.h>
 #include <linux/can/dev.h>
@@ -26,27 +27,31 @@ MODULE_DESCRIPTION("CAN driver for PEAK-System USB adapters");
 MODULE_LICENSE("GPL v2");
 
 /* Table of devices that work with this driver */
-static struct usb_device_id peak_usb_table[] = {
-	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USB_PRODUCT_ID)},
-	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBPRO_PRODUCT_ID)},
-	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBFD_PRODUCT_ID)},
-	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBPROFD_PRODUCT_ID)},
-	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBCHIP_PRODUCT_ID)},
-	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBX6_PRODUCT_ID)},
-	{} /* Terminating entry */
+static const struct usb_device_id peak_usb_table[] = {
+	{
+		USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USB_PRODUCT_ID),
+		.driver_info = (kernel_ulong_t)&pcan_usb,
+	}, {
+		USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBPRO_PRODUCT_ID),
+		.driver_info = (kernel_ulong_t)&pcan_usb_pro,
+	}, {
+		USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBFD_PRODUCT_ID),
+		.driver_info = (kernel_ulong_t)&pcan_usb_fd,
+	}, {
+		USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBPROFD_PRODUCT_ID),
+		.driver_info = (kernel_ulong_t)&pcan_usb_pro_fd,
+	}, {
+		USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBCHIP_PRODUCT_ID),
+		.driver_info = (kernel_ulong_t)&pcan_usb_chip,
+	}, {
+		USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBX6_PRODUCT_ID),
+		.driver_info = (kernel_ulong_t)&pcan_usb_x6,
+	}, {
+		/* Terminating entry */
+	}
 };
 
 MODULE_DEVICE_TABLE(usb, peak_usb_table);
-
-/* List of supported PCAN-USB adapters (NULL terminated list) */
-static const struct peak_usb_adapter *const peak_usb_adapters_list[] = {
-	&pcan_usb,
-	&pcan_usb_pro,
-	&pcan_usb_fd,
-	&pcan_usb_pro_fd,
-	&pcan_usb_chip,
-	&pcan_usb_x6,
-};
 
 /*
  * dump memory
@@ -200,6 +205,19 @@ int peak_usb_netif_rx(struct sk_buff *skb,
 	return netif_rx(skb);
 }
 
+/* post received skb with native 64-bit hw timestamp */
+int peak_usb_netif_rx_64(struct sk_buff *skb, u32 ts_low, u32 ts_high)
+{
+	struct skb_shared_hwtstamps *hwts = skb_hwtstamps(skb);
+	u64 ns_ts;
+
+	ns_ts = (u64)ts_high << 32 | ts_low;
+	ns_ts *= NSEC_PER_USEC;
+	hwts->hwtstamp = ns_to_ktime(ns_ts);
+
+	return netif_rx(skb);
+}
+
 /*
  * callback for bulk Rx urb
  */
@@ -273,6 +291,7 @@ static void peak_usb_write_bulk_callback(struct urb *urb)
 	struct peak_tx_urb_context *context = urb->context;
 	struct peak_usb_device *dev;
 	struct net_device *netdev;
+	int tx_bytes;
 
 	BUG_ON(!context);
 
@@ -287,33 +306,35 @@ static void peak_usb_write_bulk_callback(struct urb *urb)
 	/* check tx status */
 	switch (urb->status) {
 	case 0:
-		/* transmission complete */
-		netdev->stats.tx_packets++;
-		netdev->stats.tx_bytes += context->data_len;
-
 		/* prevent tx timeout */
 		netif_trans_update(netdev);
+		break;
+
+	case -EPROTO:
+	case -ENOENT:
+	case -ECONNRESET:
+	case -ESHUTDOWN:
 		break;
 
 	default:
 		if (net_ratelimit())
 			netdev_err(netdev, "Tx urb aborted (%d)\n",
 				   urb->status);
-	case -EPROTO:
-	case -ENOENT:
-	case -ECONNRESET:
-	case -ESHUTDOWN:
-
 		break;
 	}
 
 	/* should always release echo skb and corresponding context */
-	can_get_echo_skb(netdev, context->echo_index);
+	tx_bytes = can_get_echo_skb(netdev, context->echo_index, NULL);
 	context->echo_index = PCAN_USB_MAX_TX_URBS;
 
-	/* do wakeup tx queue in case of success only */
-	if (!urb->status)
+	if (!urb->status) {
+		/* transmission complete */
+		netdev->stats.tx_packets++;
+		netdev->stats.tx_bytes += tx_bytes;
+
+		/* do wakeup tx queue in case of success only */
 		netif_wake_queue(netdev);
+	}
 }
 
 /*
@@ -325,7 +346,6 @@ static netdev_tx_t peak_usb_ndo_start_xmit(struct sk_buff *skb,
 	struct peak_usb_device *dev = netdev_priv(netdev);
 	struct peak_tx_urb_context *context = NULL;
 	struct net_device_stats *stats = &netdev->stats;
-	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
 	struct urb *urb;
 	u8 *obuf;
 	int i, err;
@@ -359,18 +379,15 @@ static netdev_tx_t peak_usb_ndo_start_xmit(struct sk_buff *skb,
 
 	context->echo_index = i;
 
-	/* Note: this works with CANFD frames too */
-	context->data_len = cfd->len;
-
 	usb_anchor_urb(urb, &dev->tx_submitted);
 
-	can_put_echo_skb(skb, netdev, context->echo_index);
+	can_put_echo_skb(skb, netdev, context->echo_index, 0);
 
 	atomic_inc(&dev->active_tx_urbs);
 
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err) {
-		can_free_echo_skb(netdev, context->echo_index);
+		can_free_echo_skb(netdev, context->echo_index, NULL);
 
 		usb_unanchor_urb(urb);
 
@@ -622,6 +639,7 @@ static int peak_usb_ndo_stop(struct net_device *netdev)
 	/* can set bus off now */
 	if (dev->adapter->dev_set_bus) {
 		int err = dev->adapter->dev_set_bus(dev, 0);
+
 		if (err)
 			return err;
 	}
@@ -819,6 +837,9 @@ static int peak_usb_create_dev(const struct peak_usb_adapter *peak_usb_adapter,
 
 	netdev->flags |= IFF_ECHO; /* we support local echo */
 
+	/* add ethtool support */
+	netdev->ethtool_ops = peak_usb_adapter->ethtool_ops;
+
 	init_usb_anchor(&dev->rx_submitted);
 
 	init_usb_anchor(&dev->tx_submitted);
@@ -856,7 +877,7 @@ static int peak_usb_create_dev(const struct peak_usb_adapter *peak_usb_adapter,
 	if (dev->adapter->dev_set_bus) {
 		err = dev->adapter->dev_set_bus(dev, 0);
 		if (err)
-			goto lbl_unregister_candev;
+			goto adap_dev_free;
 	}
 
 	/* get device number early */
@@ -867,6 +888,10 @@ static int peak_usb_create_dev(const struct peak_usb_adapter *peak_usb_adapter,
 			peak_usb_adapter->name, ctrl_idx, dev->device_number);
 
 	return 0;
+
+adap_dev_free:
+	if (dev->adapter->dev_free)
+		dev->adapter->dev_free(dev);
 
 lbl_unregister_candev:
 	unregister_candev(netdev);
@@ -918,24 +943,11 @@ static void peak_usb_disconnect(struct usb_interface *intf)
 static int peak_usb_probe(struct usb_interface *intf,
 			  const struct usb_device_id *id)
 {
-	struct usb_device *usb_dev = interface_to_usbdev(intf);
-	const u16 usb_id_product = le16_to_cpu(usb_dev->descriptor.idProduct);
-	const struct peak_usb_adapter *peak_usb_adapter = NULL;
+	const struct peak_usb_adapter *peak_usb_adapter;
 	int i, err = -ENOMEM;
 
 	/* get corresponding PCAN-USB adapter */
-	for (i = 0; i < ARRAY_SIZE(peak_usb_adapters_list); i++)
-		if (peak_usb_adapters_list[i]->device_id == usb_id_product) {
-			peak_usb_adapter = peak_usb_adapters_list[i];
-			break;
-		}
-
-	if (!peak_usb_adapter) {
-		/* should never come except device_id bad usage in this file */
-		pr_err("%s: didn't find device id. 0x%x in devices list\n",
-			PCAN_USB_DRIVER_NAME, usb_id_product);
-		return -ENODEV;
-	}
+	peak_usb_adapter = (const struct peak_usb_adapter *)id->driver_info;
 
 	/* got corresponding adapter: check if it handles current interface */
 	if (peak_usb_adapter->intf_probe) {

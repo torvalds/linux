@@ -16,6 +16,8 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
 
 #define STK1160_VERSION		"0.9.5"
 #define STK1160_VERSION_NUM	0x000905
@@ -84,6 +86,14 @@ struct stk1160_buffer {
 	unsigned int pos;		/* current pos inside buffer */
 };
 
+struct stk1160_urb {
+	struct urb *urb;
+	char *transfer_buffer;
+	struct sg_table *sgt;
+	struct stk1160 *dev;
+	dma_addr_t dma;
+};
+
 struct stk1160_isoc_ctl {
 	/* max packet size of isoc transaction */
 	int max_pkt_size;
@@ -91,11 +101,7 @@ struct stk1160_isoc_ctl {
 	/* number of allocated urbs */
 	int num_bufs;
 
-	/* urb for isoc transfers */
-	struct urb **urb;
-
-	/* transfer buffers for isoc transfer */
-	char **transfer_buffer;
+	struct stk1160_urb urb_ctl[STK1160_NUM_BUFS];
 
 	/* current buffer */
 	struct stk1160_buffer *buf;
@@ -166,7 +172,7 @@ struct regval {
 int stk1160_vb2_setup(struct stk1160 *dev);
 int stk1160_video_register(struct stk1160 *dev);
 void stk1160_video_unregister(struct stk1160 *dev);
-void stk1160_clear_queue(struct stk1160 *dev);
+void stk1160_clear_queue(struct stk1160 *dev, enum vb2_buffer_state vb2_state);
 
 /* Provided by stk1160-video.c */
 int stk1160_alloc_isoc(struct stk1160 *dev);
@@ -189,3 +195,8 @@ void stk1160_select_input(struct stk1160 *dev);
 
 /* Provided by stk1160-ac97.c */
 void stk1160_ac97_setup(struct stk1160 *dev);
+
+static inline struct device *stk1160_get_dmadev(struct stk1160 *dev)
+{
+	return bus_to_hcd(dev->udev->bus)->self.sysdev;
+}

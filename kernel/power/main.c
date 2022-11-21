@@ -387,7 +387,7 @@ static struct attribute *suspend_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group suspend_attr_group = {
+static const struct attribute_group suspend_attr_group = {
 	.name = "suspend_stats",
 	.attrs = suspend_attrs,
 };
@@ -504,7 +504,10 @@ static ssize_t pm_wakeup_irq_show(struct kobject *kobj,
 					struct kobj_attribute *attr,
 					char *buf)
 {
-	return pm_wakeup_irq ? sprintf(buf, "%u\n", pm_wakeup_irq) : -ENODATA;
+	if (!pm_wakeup_irq())
+		return -ENODATA;
+
+	return sprintf(buf, "%u\n", pm_wakeup_irq());
 }
 
 power_attr_ro(pm_wakeup_irq);
@@ -577,7 +580,7 @@ static inline void pm_print_times_init(void) {}
 
 struct kobject *power_kobj;
 
-/**
+/*
  * state - control system sleep states.
  *
  * show() returns available sleep state labels, which may be "mem", "standby",

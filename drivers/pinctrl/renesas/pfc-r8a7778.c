@@ -16,11 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
-#include "core.h"
 #include "sh_pfc.h"
-
-#define PORT_GP_PUP_1(bank, pin, fn, sfx)	\
-	PORT_GP_CFG_1(bank, pin, fn, sfx, SH_PFC_PIN_CFG_PULL_UP)
 
 #define CPU_ALL_GP(fn, sfx)		\
 	PORT_GP_CFG_32(0, fn, sfx, SH_PFC_PIN_CFG_PULL_UP),		\
@@ -1431,25 +1427,17 @@ I2C_PFC_MUX(i2c3_c,	SDA3_C,			SCL3_C);
 /* - MMC macro -------------------------------------------------------------- */
 #define MMC_PFC_PINS(name, args...)		SH_PFC_PINS(name, args)
 #define MMC_PFC_CTRL(name, clk, cmd)		SH_PFC_MUX2(name, clk, cmd)
-#define MMC_PFC_DAT1(name, d0)			SH_PFC_MUX1(name, d0)
-#define MMC_PFC_DAT4(name, d0, d1, d2, d3)	SH_PFC_MUX4(name, d0, d1, d2, d3)
 #define MMC_PFC_DAT8(name, d0, d1, d2, d3, d4, d5, d6, d7)	\
 			SH_PFC_MUX8(name, d0, d1, d2, d3, d4, d5, d6, d7)
 
 /* - MMC -------------------------------------------------------------------- */
 MMC_PFC_PINS(mmc_ctrl,		RCAR_GP_PIN(1, 5),	RCAR_GP_PIN(1, 6));
 MMC_PFC_CTRL(mmc_ctrl,		MMC_CLK,		MMC_CMD);
-MMC_PFC_PINS(mmc_data1,		RCAR_GP_PIN(1, 7));
-MMC_PFC_DAT1(mmc_data1,		MMC_D0);
-MMC_PFC_PINS(mmc_data4,		RCAR_GP_PIN(1, 7),	RCAR_GP_PIN(1, 8),
-				RCAR_GP_PIN(0, 5),	RCAR_GP_PIN(0, 6));
-MMC_PFC_DAT4(mmc_data4,		MMC_D0,			MMC_D1,
-				MMC_D2,			MMC_D3);
-MMC_PFC_PINS(mmc_data8,		RCAR_GP_PIN(1, 7),	RCAR_GP_PIN(1, 8),
+MMC_PFC_PINS(mmc_data,		RCAR_GP_PIN(1, 7),	RCAR_GP_PIN(1, 8),
 				RCAR_GP_PIN(0, 5),	RCAR_GP_PIN(0, 6),
 				RCAR_GP_PIN(1, 4),	RCAR_GP_PIN(1, 0),
 				RCAR_GP_PIN(0, 30),	RCAR_GP_PIN(0, 31));
-MMC_PFC_DAT8(mmc_data8,		MMC_D0,			MMC_D1,
+MMC_PFC_DAT8(mmc_data,		MMC_D0,			MMC_D1,
 				MMC_D2,			MMC_D3,
 				MMC_D4,			MMC_D5,
 				MMC_D6,			MMC_D7);
@@ -1534,7 +1522,6 @@ SCIF_PFC_DAT(scif5_data_b,	TX5_B,			RX5_B);
 
 /* - SDHI macro ------------------------------------------------------------- */
 #define SDHI_PFC_PINS(name, args...)		SH_PFC_PINS(name, args)
-#define SDHI_PFC_DAT1(name, d0)			SH_PFC_MUX1(name, d0)
 #define SDHI_PFC_DAT4(name, d0, d1, d2, d3)	SH_PFC_MUX4(name, d0, d1, d2, d3)
 #define SDHI_PFC_CTRL(name, clk, cmd)		SH_PFC_MUX2(name, clk, cmd)
 #define SDHI_PFC_CDPN(name, cd)			SH_PFC_MUX1(name, cd)
@@ -1545,11 +1532,9 @@ SDHI_PFC_PINS(sdhi0_cd,		RCAR_GP_PIN(3, 17));
 SDHI_PFC_CDPN(sdhi0_cd,		SD0_CD);
 SDHI_PFC_PINS(sdhi0_ctrl,	RCAR_GP_PIN(3, 11),	RCAR_GP_PIN(3, 12));
 SDHI_PFC_CTRL(sdhi0_ctrl,	SD0_CLK,		SD0_CMD);
-SDHI_PFC_PINS(sdhi0_data1,	RCAR_GP_PIN(3, 13));
-SDHI_PFC_DAT1(sdhi0_data1,	SD0_DAT0);
-SDHI_PFC_PINS(sdhi0_data4,	RCAR_GP_PIN(3, 13),	RCAR_GP_PIN(3, 14),
+SDHI_PFC_PINS(sdhi0_data,	RCAR_GP_PIN(3, 13),	RCAR_GP_PIN(3, 14),
 				RCAR_GP_PIN(3, 15),	RCAR_GP_PIN(3, 16));
-SDHI_PFC_DAT4(sdhi0_data4,	SD0_DAT0,		SD0_DAT1,
+SDHI_PFC_DAT4(sdhi0_data,	SD0_DAT0,		SD0_DAT1,
 				SD0_DAT2,		SD0_DAT3);
 SDHI_PFC_PINS(sdhi0_wp,		RCAR_GP_PIN(3, 18));
 SDHI_PFC_WPPN(sdhi0_wp,		SD0_WP);
@@ -1563,17 +1548,13 @@ SDHI_PFC_PINS(sdhi1_ctrl_a,	RCAR_GP_PIN(1, 5),	RCAR_GP_PIN(1, 6));
 SDHI_PFC_CTRL(sdhi1_ctrl_a,	SD1_CLK_A,		SD1_CMD_A);
 SDHI_PFC_PINS(sdhi1_ctrl_b,	RCAR_GP_PIN(1, 17),	RCAR_GP_PIN(1, 16));
 SDHI_PFC_CTRL(sdhi1_ctrl_b,	SD1_CLK_B,		SD1_CMD_B);
-SDHI_PFC_PINS(sdhi1_data1_a,	RCAR_GP_PIN(1, 7));
-SDHI_PFC_DAT1(sdhi1_data1_a,	SD1_DAT0_A);
-SDHI_PFC_PINS(sdhi1_data1_b,	RCAR_GP_PIN(1, 18));
-SDHI_PFC_DAT1(sdhi1_data1_b,	SD1_DAT0_B);
-SDHI_PFC_PINS(sdhi1_data4_a,	RCAR_GP_PIN(1, 7),	RCAR_GP_PIN(1, 8),
+SDHI_PFC_PINS(sdhi1_data_a,	RCAR_GP_PIN(1, 7),	RCAR_GP_PIN(1, 8),
 				RCAR_GP_PIN(0, 5),	RCAR_GP_PIN(0, 6));
-SDHI_PFC_DAT4(sdhi1_data4_a,	SD1_DAT0_A,		SD1_DAT1_A,
+SDHI_PFC_DAT4(sdhi1_data_a,	SD1_DAT0_A,		SD1_DAT1_A,
 				SD1_DAT2_A,		SD1_DAT3_A);
-SDHI_PFC_PINS(sdhi1_data4_b,	RCAR_GP_PIN(1, 18),	RCAR_GP_PIN(1, 19),
+SDHI_PFC_PINS(sdhi1_data_b,	RCAR_GP_PIN(1, 18),	RCAR_GP_PIN(1, 19),
 				RCAR_GP_PIN(1, 20),	RCAR_GP_PIN(1, 21));
-SDHI_PFC_DAT4(sdhi1_data4_b,	SD1_DAT0_B,		SD1_DAT1_B,
+SDHI_PFC_DAT4(sdhi1_data_b,	SD1_DAT0_B,		SD1_DAT1_B,
 				SD1_DAT2_B,		SD1_DAT3_B);
 SDHI_PFC_PINS(sdhi1_wp_a,	RCAR_GP_PIN(0, 31));
 SDHI_PFC_WPPN(sdhi1_wp_a,	SD1_WP_A);
@@ -1589,17 +1570,13 @@ SDHI_PFC_PINS(sdhi2_ctrl_a,	RCAR_GP_PIN(4, 17),	RCAR_GP_PIN(4, 18));
 SDHI_PFC_CTRL(sdhi2_ctrl_a,	SD2_CLK_A,		SD2_CMD_A);
 SDHI_PFC_PINS(sdhi2_ctrl_b,	RCAR_GP_PIN(4, 5),	RCAR_GP_PIN(4, 6));
 SDHI_PFC_CTRL(sdhi2_ctrl_b,	SD2_CLK_B,		SD2_CMD_B);
-SDHI_PFC_PINS(sdhi2_data1_a,	RCAR_GP_PIN(4, 19));
-SDHI_PFC_DAT1(sdhi2_data1_a,	SD2_DAT0_A);
-SDHI_PFC_PINS(sdhi2_data1_b,	RCAR_GP_PIN(4, 7));
-SDHI_PFC_DAT1(sdhi2_data1_b,	SD2_DAT0_B);
-SDHI_PFC_PINS(sdhi2_data4_a,	RCAR_GP_PIN(4, 19),	RCAR_GP_PIN(4, 20),
+SDHI_PFC_PINS(sdhi2_data_a,	RCAR_GP_PIN(4, 19),	RCAR_GP_PIN(4, 20),
 				RCAR_GP_PIN(4, 21),	RCAR_GP_PIN(4, 22));
-SDHI_PFC_DAT4(sdhi2_data4_a,	SD2_DAT0_A,		SD2_DAT1_A,
+SDHI_PFC_DAT4(sdhi2_data_a,	SD2_DAT0_A,		SD2_DAT1_A,
 				SD2_DAT2_A,		SD2_DAT3_A);
-SDHI_PFC_PINS(sdhi2_data4_b,	RCAR_GP_PIN(4, 7),	RCAR_GP_PIN(4, 8),
+SDHI_PFC_PINS(sdhi2_data_b,	RCAR_GP_PIN(4, 7),	RCAR_GP_PIN(4, 8),
 				RCAR_GP_PIN(3, 25),	RCAR_GP_PIN(3, 26));
-SDHI_PFC_DAT4(sdhi2_data4_b,	SD2_DAT0_B,		SD2_DAT1_B,
+SDHI_PFC_DAT4(sdhi2_data_b,	SD2_DAT0_B,		SD2_DAT1_B,
 				SD2_DAT2_B,		SD2_DAT3_B);
 SDHI_PFC_PINS(sdhi2_wp_a,	RCAR_GP_PIN(4, 24));
 SDHI_PFC_WPPN(sdhi2_wp_a,	SD2_WP_A);
@@ -1748,9 +1725,9 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(i2c3_b),
 	SH_PFC_PIN_GROUP(i2c3_c),
 	SH_PFC_PIN_GROUP(mmc_ctrl),
-	SH_PFC_PIN_GROUP(mmc_data1),
-	SH_PFC_PIN_GROUP(mmc_data4),
-	SH_PFC_PIN_GROUP(mmc_data8),
+	BUS_DATA_PIN_GROUP(mmc_data, 1),
+	BUS_DATA_PIN_GROUP(mmc_data, 4),
+	BUS_DATA_PIN_GROUP(mmc_data, 8),
 	SH_PFC_PIN_GROUP(scif_clk),
 	SH_PFC_PIN_GROUP(scif0_data_a),
 	SH_PFC_PIN_GROUP(scif0_data_b),
@@ -1785,27 +1762,27 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(scif5_data_b),
 	SH_PFC_PIN_GROUP(sdhi0_cd),
 	SH_PFC_PIN_GROUP(sdhi0_ctrl),
-	SH_PFC_PIN_GROUP(sdhi0_data1),
-	SH_PFC_PIN_GROUP(sdhi0_data4),
+	BUS_DATA_PIN_GROUP(sdhi0_data, 1),
+	BUS_DATA_PIN_GROUP(sdhi0_data, 4),
 	SH_PFC_PIN_GROUP(sdhi0_wp),
 	SH_PFC_PIN_GROUP(sdhi1_cd_a),
 	SH_PFC_PIN_GROUP(sdhi1_cd_b),
 	SH_PFC_PIN_GROUP(sdhi1_ctrl_a),
 	SH_PFC_PIN_GROUP(sdhi1_ctrl_b),
-	SH_PFC_PIN_GROUP(sdhi1_data1_a),
-	SH_PFC_PIN_GROUP(sdhi1_data1_b),
-	SH_PFC_PIN_GROUP(sdhi1_data4_a),
-	SH_PFC_PIN_GROUP(sdhi1_data4_b),
+	BUS_DATA_PIN_GROUP(sdhi1_data, 1, _a),
+	BUS_DATA_PIN_GROUP(sdhi1_data, 1, _b),
+	BUS_DATA_PIN_GROUP(sdhi1_data, 4, _a),
+	BUS_DATA_PIN_GROUP(sdhi1_data, 4, _b),
 	SH_PFC_PIN_GROUP(sdhi1_wp_a),
 	SH_PFC_PIN_GROUP(sdhi1_wp_b),
 	SH_PFC_PIN_GROUP(sdhi2_cd_a),
 	SH_PFC_PIN_GROUP(sdhi2_cd_b),
 	SH_PFC_PIN_GROUP(sdhi2_ctrl_a),
 	SH_PFC_PIN_GROUP(sdhi2_ctrl_b),
-	SH_PFC_PIN_GROUP(sdhi2_data1_a),
-	SH_PFC_PIN_GROUP(sdhi2_data1_b),
-	SH_PFC_PIN_GROUP(sdhi2_data4_a),
-	SH_PFC_PIN_GROUP(sdhi2_data4_b),
+	BUS_DATA_PIN_GROUP(sdhi2_data, 1, _a),
+	BUS_DATA_PIN_GROUP(sdhi2_data, 1, _b),
+	BUS_DATA_PIN_GROUP(sdhi2_data, 4, _a),
+	BUS_DATA_PIN_GROUP(sdhi2_data, 4, _b),
 	SH_PFC_PIN_GROUP(sdhi2_wp_a),
 	SH_PFC_PIN_GROUP(sdhi2_wp_b),
 	SH_PFC_PIN_GROUP(ssi012_ctrl),
@@ -2909,7 +2886,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 };
 
 static const struct pinmux_bias_reg pinmux_bias_regs[] = {
-	{ PINMUX_BIAS_REG("PUPR0", 0x100, "N/A", 0) {
+	{ PINMUX_BIAS_REG("PUPR0", 0xfffc0100, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(0,  6),	/* A0 */
 		[ 1] = RCAR_GP_PIN(0,  7),	/* A1 */
 		[ 2] = RCAR_GP_PIN(0,  8),	/* A2 */
@@ -2943,7 +2920,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[30] = RCAR_GP_PIN(1,  7),	/* /EX_CS4 */
 		[31] = RCAR_GP_PIN(1,  8),	/* /EX_CS5 */
 	} },
-	{ PINMUX_BIAS_REG("PUPR1", 0x104, "N/A", 0) {
+	{ PINMUX_BIAS_REG("PUPR1", 0xfffc0104, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(0,  0),	/* /PRESETOUT	*/
 		[ 1] = RCAR_GP_PIN(0,  5),	/* /BS		*/
 		[ 2] = RCAR_GP_PIN(1,  0),	/* RD//WR	*/
@@ -2977,7 +2954,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[30] = SH_PFC_PIN_NONE,
 		[31] = SH_PFC_PIN_NONE,
 	} },
-	{ PINMUX_BIAS_REG("PUPR2", 0x108, "N/A", 0) {
+	{ PINMUX_BIAS_REG("PUPR2", 0xfffc0108, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(1, 22),	/* DU0_DR0	*/
 		[ 1] = RCAR_GP_PIN(1, 23),	/* DU0_DR1	*/
 		[ 2] = RCAR_GP_PIN(1, 24),	/* DU0_DR2	*/
@@ -3011,7 +2988,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[30] = RCAR_GP_PIN(2, 21),	/* DU0_CDE	*/
 		[31] = RCAR_GP_PIN(2, 16),	/* DU0_DOTCLKOUT1 */
 	} },
-	{ PINMUX_BIAS_REG("PUPR3", 0x10c, "N/A", 0) {
+	{ PINMUX_BIAS_REG("PUPR3", 0xfffc010c, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(3, 24),	/* VI0_CLK	*/
 		[ 1] = RCAR_GP_PIN(3, 25),	/* VI0_CLKENB	*/
 		[ 2] = RCAR_GP_PIN(3, 26),	/* VI0_FIELD	*/
@@ -3045,7 +3022,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[30] = RCAR_GP_PIN(4, 18),	/* ETH_MDIO	*/
 		[31] = RCAR_GP_PIN(4, 19),	/* ETH_LINK	*/
 	} },
-	{ PINMUX_BIAS_REG("PUPR4", 0x110, "N/A", 0) {
+	{ PINMUX_BIAS_REG("PUPR4", 0xfffc0110, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(3,  6),	/* SSI_SCK012	*/
 		[ 1] = RCAR_GP_PIN(3,  7),	/* SSI_WS012	*/
 		[ 2] = RCAR_GP_PIN(3, 10),	/* SSI_SDATA0	*/
@@ -3079,7 +3056,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[30] = RCAR_GP_PIN(1, 14),	/* IRQ2		*/
 		[31] = RCAR_GP_PIN(1, 15),	/* IRQ3		*/
 	} },
-	{ PINMUX_BIAS_REG("PUPR5", 0x114, "N/A", 0) {
+	{ PINMUX_BIAS_REG("PUPR5", 0xfffc0114, "N/A", 0) {
 		[ 0] = RCAR_GP_PIN(0,  1),	/* PENC0	*/
 		[ 1] = RCAR_GP_PIN(0,  2),	/* PENC1	*/
 		[ 2] = RCAR_GP_PIN(0,  3),	/* USB_OVC0	*/
@@ -3116,48 +3093,9 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 	{ /* sentinel */ },
 };
 
-static unsigned int r8a7778_pinmux_get_bias(struct sh_pfc *pfc,
-					    unsigned int pin)
-{
-	const struct pinmux_bias_reg *reg;
-	void __iomem *addr;
-	unsigned int bit;
-
-	reg = sh_pfc_pin_to_bias_reg(pfc, pin, &bit);
-	if (!reg)
-		return PIN_CONFIG_BIAS_DISABLE;
-
-	addr = pfc->windows->virt + reg->puen;
-
-	if (ioread32(addr) & BIT(bit))
-		return PIN_CONFIG_BIAS_PULL_UP;
-	else
-		return PIN_CONFIG_BIAS_DISABLE;
-}
-
-static void r8a7778_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
-				   unsigned int bias)
-{
-	const struct pinmux_bias_reg *reg;
-	void __iomem *addr;
-	unsigned int bit;
-	u32 value;
-
-	reg = sh_pfc_pin_to_bias_reg(pfc, pin, &bit);
-	if (!reg)
-		return;
-
-	addr = pfc->windows->virt + reg->puen;
-
-	value = ioread32(addr) & ~BIT(bit);
-	if (bias == PIN_CONFIG_BIAS_PULL_UP)
-		value |= BIT(bit);
-	iowrite32(value, addr);
-}
-
 static const struct sh_pfc_soc_operations r8a7778_pfc_ops = {
-	.get_bias = r8a7778_pinmux_get_bias,
-	.set_bias = r8a7778_pinmux_set_bias,
+	.get_bias = rcar_pinmux_get_bias,
+	.set_bias = rcar_pinmux_set_bias,
 };
 
 const struct sh_pfc_soc_info r8a7778_pinmux_info = {

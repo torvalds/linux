@@ -247,12 +247,12 @@ It is possible to document nested structs and unions, like::
           struct {
             int memb1;
             int memb2;
-        }
+          };
           struct {
             void *memb3;
             int memb4;
-          }
-        }
+          };
+        };
         union {
           struct {
             int memb1;

@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -91,7 +92,7 @@ static bool kq_initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->pq_gpu_addr = kq->pq->gpu_addr;
 
 	/* For CIK family asics, kq->eop_mem is not needed */
-	if (dev->device_info->asic_family > CHIP_MULLINS) {
+	if (dev->adev->asic_type > CHIP_MULLINS) {
 		retval = kfd_gtt_sa_allocate(dev, PAGE_SIZE, &kq->eop_mem);
 		if (retval != 0)
 			goto err_eop_allocate_vidmem;
@@ -111,7 +112,7 @@ static bool kq_initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->rptr_kernel = kq->rptr_mem->cpu_ptr;
 	kq->rptr_gpu_addr = kq->rptr_mem->gpu_addr;
 
-	retval = kfd_gtt_sa_allocate(dev, dev->device_info->doorbell_size,
+	retval = kfd_gtt_sa_allocate(dev, dev->device_info.doorbell_size,
 					&kq->wptr_mem);
 
 	if (retval != 0)
@@ -136,7 +137,6 @@ static bool kq_initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	prop.write_ptr = (uint32_t *) kq->wptr_gpu_addr;
 	prop.eop_ring_buffer_address = kq->eop_gpu_addr;
 	prop.eop_ring_buffer_size = PAGE_SIZE;
-	prop.cu_mask = NULL;
 
 	if (init_queue(&kq->queue, &prop) != 0)
 		goto err_init_queue;
@@ -298,7 +298,7 @@ void kq_submit_packet(struct kernel_queue *kq)
 	}
 	pr_debug("\n");
 #endif
-	if (kq->dev->device_info->doorbell_size == 8) {
+	if (kq->dev->device_info.doorbell_size == 8) {
 		*kq->wptr64_kernel = kq->pending_wptr64;
 		write_kernel_doorbell64(kq->queue->properties.doorbell_ptr,
 					kq->pending_wptr64);
@@ -311,7 +311,7 @@ void kq_submit_packet(struct kernel_queue *kq)
 
 void kq_rollback_packet(struct kernel_queue *kq)
 {
-	if (kq->dev->device_info->doorbell_size == 8) {
+	if (kq->dev->device_info.doorbell_size == 8) {
 		kq->pending_wptr64 = *kq->wptr64_kernel;
 		kq->pending_wptr = *kq->wptr_kernel %
 			(kq->queue->properties.queue_size / 4);

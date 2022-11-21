@@ -24,10 +24,7 @@
 /* Default operating mode is wlan STA + BT */
 static u16 dev_oper_mode = DEV_OPMODE_STA_BT_DUAL;
 module_param(dev_oper_mode, ushort, 0444);
-MODULE_PARM_DESC(dev_oper_mode,
-		 "1[Wi-Fi], 4[BT], 8[BT LE], 5[Wi-Fi STA + BT classic]\n"
-		 "9[Wi-Fi STA + BT LE], 13[Wi-Fi STA + BT classic + BT LE]\n"
-		 "6[AP + BT classic], 14[AP + BT classic + BT LE]");
+MODULE_PARM_DESC(dev_oper_mode, DEV_OPMODE_PARAM_DESC);
 
 /**
  * rsi_sdio_set_cmd52_arg() - This function prepares cmd 52 read/write arg.
@@ -153,9 +150,7 @@ static void rsi_handle_interrupt(struct sdio_func *function)
 	if (adapter->priv->fsm_state == FSM_FW_NOT_LOADED)
 		return;
 
-	dev->sdio_irq_task = current;
-	rsi_interrupt_handler(adapter);
-	dev->sdio_irq_task = NULL;
+	rsi_set_event(&dev->rx_thread.event);
 }
 
 /**
@@ -1058,8 +1053,6 @@ static int rsi_probe(struct sdio_func *pfunction,
 		rsi_dbg(ERR_ZONE, "%s: Unable to init rx thrd\n", __func__);
 		goto fail_kill_thread;
 	}
-	skb_queue_head_init(&sdev->rx_q.head);
-	sdev->rx_q.num_rx_pkts = 0;
 
 	sdio_claim_host(pfunction);
 	if (sdio_claim_irq(pfunction, rsi_handle_interrupt)) {
@@ -1517,7 +1510,7 @@ static int rsi_restore(struct device *dev)
 }
 static const struct dev_pm_ops rsi_pm_ops = {
 	.suspend = rsi_suspend,
-	.resume = rsi_resume,
+	.resume_noirq = rsi_resume,
 	.freeze = rsi_freeze,
 	.thaw = rsi_thaw,
 	.restore = rsi_restore,
@@ -1575,7 +1568,6 @@ module_exit(rsi_module_exit);
 
 MODULE_AUTHOR("Redpine Signals Inc");
 MODULE_DESCRIPTION("Common SDIO layer for RSI drivers");
-MODULE_SUPPORTED_DEVICE("RSI-91x");
 MODULE_DEVICE_TABLE(sdio, rsi_dev_table);
 MODULE_FIRMWARE(FIRMWARE_RSI9113);
 MODULE_VERSION("0.1");

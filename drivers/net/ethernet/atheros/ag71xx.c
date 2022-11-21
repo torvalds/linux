@@ -37,6 +37,7 @@
 #include <linux/reset.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <net/selftests.h>
 
 /* For our NAPI weight bigger does *NOT* mean better - it means more
  * D-cache misses and lots more wasted cycles than we'll ever
@@ -222,8 +223,6 @@
 #define AG71XX_REG_FIFO_DEPTH	0x01a8
 #define AG71XX_REG_RX_SM	0x01b0
 #define AG71XX_REG_TX_SM	0x01b4
-
-#define ETH_SWITCH_HEADER_LEN	2
 
 #define AG71XX_DEFAULT_MSG_ENABLE	\
 	(NETIF_MSG_DRV			\
@@ -499,12 +498,17 @@ static int ag71xx_ethtool_set_pauseparam(struct net_device *ndev,
 static void ag71xx_ethtool_get_strings(struct net_device *netdev, u32 sset,
 				       u8 *data)
 {
-	if (sset == ETH_SS_STATS) {
-		int i;
+	int i;
 
+	switch (sset) {
+	case ETH_SS_STATS:
 		for (i = 0; i < ARRAY_SIZE(ag71xx_statistics); i++)
 			memcpy(data + i * ETH_GSTRING_LEN,
 			       ag71xx_statistics[i].name, ETH_GSTRING_LEN);
+		break;
+	case ETH_SS_TEST:
+		net_selftest_get_strings(data);
+		break;
 	}
 }
 
@@ -521,9 +525,14 @@ static void ag71xx_ethtool_get_stats(struct net_device *ndev,
 
 static int ag71xx_ethtool_get_sset_count(struct net_device *ndev, int sset)
 {
-	if (sset == ETH_SS_STATS)
+	switch (sset) {
+	case ETH_SS_STATS:
 		return ARRAY_SIZE(ag71xx_statistics);
-	return -EOPNOTSUPP;
+	case ETH_SS_TEST:
+		return net_selftest_get_count();
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static const struct ethtool_ops ag71xx_ethtool_ops = {
@@ -538,6 +547,7 @@ static const struct ethtool_ops ag71xx_ethtool_ops = {
 	.get_strings			= ag71xx_ethtool_get_strings,
 	.get_ethtool_stats		= ag71xx_ethtool_get_stats,
 	.get_sset_count			= ag71xx_ethtool_get_sset_count,
+	.self_test			= net_selftest,
 };
 
 static int ag71xx_mdio_wait_busy(struct ag71xx *ag)
@@ -756,7 +766,7 @@ static bool ag71xx_check_dma_stuck(struct ag71xx *ag)
 	unsigned long timestamp;
 	u32 rx_sm, tx_sm, rx_fd;
 
-	timestamp = netdev_get_tx_queue(ag->ndev, 0)->trans_start;
+	timestamp = READ_ONCE(netdev_get_tx_queue(ag->ndev, 0)->trans_start);
 	if (likely(time_before(jiffies, timestamp + HZ / 10)))
 		return false;
 
@@ -933,7 +943,7 @@ static void ag71xx_hw_setup(struct ag71xx *ag)
 
 static unsigned int ag71xx_max_frame_len(unsigned int mtu)
 {
-	return ETH_SWITCH_HEADER_LEN + ETH_HLEN + VLAN_HLEN + mtu + ETH_FCS_LEN;
+	return ETH_HLEN + VLAN_HLEN + mtu + ETH_FCS_LEN;
 }
 
 static void ag71xx_hw_set_macaddr(struct ag71xx *ag, unsigned char *mac)
@@ -1014,85 +1024,6 @@ static void ag71xx_mac_config(struct phylink_config *config, unsigned int mode,
 	ag71xx_wr(ag, AG71XX_REG_FIFO_CFG3, ag->fifodata[2]);
 }
 
-static void ag71xx_mac_validate(struct phylink_config *config,
-			    unsigned long *supported,
-			    struct phylink_link_state *state)
-{
-	struct ag71xx *ag = netdev_priv(to_net_dev(config->dev));
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
-
-	switch (state->interface) {
-	case PHY_INTERFACE_MODE_NA:
-		break;
-	case PHY_INTERFACE_MODE_MII:
-		if ((ag71xx_is(ag, AR9330) && ag->mac_idx == 0) ||
-		    ag71xx_is(ag, AR9340) ||
-		    ag71xx_is(ag, QCA9530) ||
-		    (ag71xx_is(ag, QCA9550) && ag->mac_idx == 1))
-			break;
-		goto unsupported;
-	case PHY_INTERFACE_MODE_GMII:
-		if ((ag71xx_is(ag, AR9330) && ag->mac_idx == 1) ||
-		    (ag71xx_is(ag, AR9340) && ag->mac_idx == 1) ||
-		    (ag71xx_is(ag, QCA9530) && ag->mac_idx == 1))
-			break;
-		goto unsupported;
-	case PHY_INTERFACE_MODE_SGMII:
-		if (ag71xx_is(ag, QCA9550) && ag->mac_idx == 0)
-			break;
-		goto unsupported;
-	case PHY_INTERFACE_MODE_RMII:
-		if (ag71xx_is(ag, AR9340) && ag->mac_idx == 0)
-			break;
-		goto unsupported;
-	case PHY_INTERFACE_MODE_RGMII:
-		if ((ag71xx_is(ag, AR9340) && ag->mac_idx == 0) ||
-		    (ag71xx_is(ag, QCA9550) && ag->mac_idx == 1))
-			break;
-		goto unsupported;
-	default:
-		goto unsupported;
-	}
-
-	phylink_set(mask, MII);
-
-	phylink_set(mask, Pause);
-	phylink_set(mask, Asym_Pause);
-	phylink_set(mask, Autoneg);
-	phylink_set(mask, 10baseT_Half);
-	phylink_set(mask, 10baseT_Full);
-	phylink_set(mask, 100baseT_Half);
-	phylink_set(mask, 100baseT_Full);
-
-	if (state->interface == PHY_INTERFACE_MODE_NA ||
-	    state->interface == PHY_INTERFACE_MODE_SGMII ||
-	    state->interface == PHY_INTERFACE_MODE_RGMII ||
-	    state->interface == PHY_INTERFACE_MODE_GMII) {
-		phylink_set(mask, 1000baseT_Full);
-		phylink_set(mask, 1000baseX_Full);
-	}
-
-	bitmap_and(supported, supported, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-
-	return;
-unsupported:
-	bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
-static void ag71xx_mac_pcs_get_state(struct phylink_config *config,
-				     struct phylink_link_state *state)
-{
-	state->link = 0;
-}
-
-static void ag71xx_mac_an_restart(struct phylink_config *config)
-{
-	/* Not Supported */
-}
-
 static void ag71xx_mac_link_down(struct phylink_config *config,
 				 unsigned int mode, phy_interface_t interface)
 {
@@ -1155,9 +1086,7 @@ static void ag71xx_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops ag71xx_phylink_mac_ops = {
-	.validate = ag71xx_mac_validate,
-	.mac_pcs_get_state = ag71xx_mac_pcs_get_state,
-	.mac_an_restart = ag71xx_mac_an_restart,
+	.validate = phylink_generic_validate,
 	.mac_config = ag71xx_mac_config,
 	.mac_link_down = ag71xx_mac_link_down,
 	.mac_link_up = ag71xx_mac_link_up,
@@ -1169,6 +1098,34 @@ static int ag71xx_phylink_setup(struct ag71xx *ag)
 
 	ag->phylink_config.dev = &ag->ndev->dev;
 	ag->phylink_config.type = PHYLINK_NETDEV;
+	ag->phylink_config.mac_capabilities = MAC_SYM_PAUSE | MAC_ASYM_PAUSE |
+		MAC_10 | MAC_100 | MAC_1000FD;
+
+	if ((ag71xx_is(ag, AR9330) && ag->mac_idx == 0) ||
+	    ag71xx_is(ag, AR9340) ||
+	    ag71xx_is(ag, QCA9530) ||
+	    (ag71xx_is(ag, QCA9550) && ag->mac_idx == 1))
+		__set_bit(PHY_INTERFACE_MODE_MII,
+			  ag->phylink_config.supported_interfaces);
+
+	if ((ag71xx_is(ag, AR9330) && ag->mac_idx == 1) ||
+	    (ag71xx_is(ag, AR9340) && ag->mac_idx == 1) ||
+	    (ag71xx_is(ag, QCA9530) && ag->mac_idx == 1))
+		__set_bit(PHY_INTERFACE_MODE_GMII,
+			  ag->phylink_config.supported_interfaces);
+
+	if (ag71xx_is(ag, QCA9550) && ag->mac_idx == 0)
+		__set_bit(PHY_INTERFACE_MODE_SGMII,
+			  ag->phylink_config.supported_interfaces);
+
+	if (ag71xx_is(ag, AR9340) && ag->mac_idx == 0)
+		__set_bit(PHY_INTERFACE_MODE_RMII,
+			  ag->phylink_config.supported_interfaces);
+
+	if ((ag71xx_is(ag, AR9340) && ag->mac_idx == 0) ||
+	    (ag71xx_is(ag, QCA9550) && ag->mac_idx == 1))
+		__set_bit(PHY_INTERFACE_MODE_RGMII,
+			  ag->phylink_config.supported_interfaces);
 
 	phylink = phylink_create(&ag->phylink_config, ag->pdev->dev.fwnode,
 				 ag->phy_if_mode, &ag71xx_phylink_mac_ops);
@@ -1660,9 +1617,9 @@ static int ag71xx_rx_packets(struct ag71xx *ag, int limit)
 	struct net_device *ndev = ag->ndev;
 	int ring_mask, ring_size, done = 0;
 	unsigned int pktlen_mask, offset;
-	struct sk_buff *next, *skb;
 	struct ag71xx_ring *ring;
 	struct list_head rx_list;
+	struct sk_buff *skb;
 
 	ring = &ag->rx_ring;
 	pktlen_mask = ag->dcfg->desc_pktlen_mask;
@@ -1727,7 +1684,7 @@ next:
 
 	ag71xx_ring_rx_refill(ag);
 
-	list_for_each_entry_safe(skb, next, &rx_list, list)
+	list_for_each_entry(skb, &rx_list, list)
 		skb->protocol = eth_type_trans(skb, ndev);
 	netif_receive_skb_list(&rx_list);
 
@@ -1841,7 +1798,7 @@ static const struct net_device_ops ag71xx_netdev_ops = {
 	.ndo_open		= ag71xx_open,
 	.ndo_stop		= ag71xx_stop,
 	.ndo_start_xmit		= ag71xx_hard_start_xmit,
-	.ndo_do_ioctl		= phy_do_ioctl,
+	.ndo_eth_ioctl		= phy_do_ioctl,
 	.ndo_tx_timeout		= ag71xx_tx_timeout,
 	.ndo_change_mtu		= ag71xx_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -1858,7 +1815,6 @@ static int ag71xx_probe(struct platform_device *pdev)
 	const struct ag71xx_dcfg *dcfg;
 	struct net_device *ndev;
 	struct resource *res;
-	const void *mac_addr;
 	int tx_size, err, i;
 	struct ag71xx *ag;
 
@@ -1906,15 +1862,12 @@ static int ag71xx_probe(struct platform_device *pdev)
 	ag->mac_reset = devm_reset_control_get(&pdev->dev, "mac");
 	if (IS_ERR(ag->mac_reset)) {
 		netif_err(ag, probe, ndev, "missing mac reset\n");
-		err = PTR_ERR(ag->mac_reset);
-		goto err_free;
+		return PTR_ERR(ag->mac_reset);
 	}
 
 	ag->mac_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!ag->mac_base) {
-		err = -ENOMEM;
-		goto err_free;
-	}
+	if (!ag->mac_base)
+		return -ENOMEM;
 
 	ndev->irq = platform_get_irq(pdev, 0);
 	err = devm_request_irq(&pdev->dev, ndev->irq, ag71xx_interrupt,
@@ -1922,7 +1875,7 @@ static int ag71xx_probe(struct platform_device *pdev)
 	if (err) {
 		netif_err(ag, probe, ndev, "unable to request IRQ %d\n",
 			  ndev->irq);
-		goto err_free;
+		return err;
 	}
 
 	ndev->netdev_ops = &ag71xx_netdev_ops;
@@ -1950,27 +1903,23 @@ static int ag71xx_probe(struct platform_device *pdev)
 	ag->stop_desc = dmam_alloc_coherent(&pdev->dev,
 					    sizeof(struct ag71xx_desc),
 					    &ag->stop_desc_dma, GFP_KERNEL);
-	if (!ag->stop_desc) {
-		err = -ENOMEM;
-		goto err_free;
-	}
+	if (!ag->stop_desc)
+		return -ENOMEM;
 
 	ag->stop_desc->data = 0;
 	ag->stop_desc->ctrl = 0;
 	ag->stop_desc->next = (u32)ag->stop_desc_dma;
 
-	mac_addr = of_get_mac_address(np);
-	if (!IS_ERR(mac_addr))
-		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
-	if (IS_ERR(mac_addr) || !is_valid_ether_addr(ndev->dev_addr)) {
+	err = of_get_ethdev_address(np, ndev);
+	if (err) {
 		netif_err(ag, probe, ndev, "invalid MAC address, using random address\n");
-		eth_random_addr(ndev->dev_addr);
+		eth_hw_addr_random(ndev);
 	}
 
 	err = of_get_phy_mode(np, &ag->phy_if_mode);
 	if (err) {
 		netif_err(ag, probe, ndev, "missing phy-mode property in DT\n");
-		goto err_free;
+		return err;
 	}
 
 	netif_napi_add(ndev, &ag->napi, ag71xx_poll, AG71XX_NAPI_WEIGHT);
@@ -1978,7 +1927,7 @@ static int ag71xx_probe(struct platform_device *pdev)
 	err = clk_prepare_enable(ag->clk_eth);
 	if (err) {
 		netif_err(ag, probe, ndev, "Failed to enable eth clk.\n");
-		goto err_free;
+		return err;
 	}
 
 	ag71xx_wr(ag, AG71XX_REG_MAC_CFG1, 0);
@@ -2014,8 +1963,6 @@ err_mdio_remove:
 	ag71xx_mdio_remove(ag);
 err_put_clk:
 	clk_disable_unprepare(ag->clk_eth);
-err_free:
-	free_netdev(ndev);
 	return err;
 }
 

@@ -11,8 +11,7 @@
 static int
 w25q256_post_bfpt_fixups(struct spi_nor *nor,
 			 const struct sfdp_parameter_header *bfpt_header,
-			 const struct sfdp_bfpt *bfpt,
-			 struct spi_nor_flash_parameter *params)
+			 const struct sfdp_bfpt *bfpt)
 {
 	/*
 	 * W25Q256JV supports 4B opcodes but W25Q256FV does not.
@@ -29,85 +28,117 @@ w25q256_post_bfpt_fixups(struct spi_nor *nor,
 	return 0;
 }
 
-static struct spi_nor_fixups w25q256_fixups = {
+static const struct spi_nor_fixups w25q256_fixups = {
 	.post_bfpt = w25q256_post_bfpt_fixups,
 };
 
-static const struct flash_info winbond_parts[] = {
+static const struct flash_info winbond_nor_parts[] = {
 	/* Winbond -- w25x "blocks" are 64K, "sectors" are 4KiB */
-	{ "w25x05", INFO(0xef3010, 0, 64 * 1024,  1,  SECT_4K) },
-	{ "w25x10", INFO(0xef3011, 0, 64 * 1024,  2,  SECT_4K) },
-	{ "w25x20", INFO(0xef3012, 0, 64 * 1024,  4,  SECT_4K) },
-	{ "w25x40", INFO(0xef3013, 0, 64 * 1024,  8,  SECT_4K) },
-	{ "w25x80", INFO(0xef3014, 0, 64 * 1024,  16, SECT_4K) },
-	{ "w25x16", INFO(0xef3015, 0, 64 * 1024,  32, SECT_4K) },
-	{ "w25q16dw", INFO(0xef6015, 0, 64 * 1024,  32,
-			   SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-			   SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
-	{ "w25x32", INFO(0xef3016, 0, 64 * 1024,  64, SECT_4K) },
-	{ "w25q16jv-im/jm", INFO(0xef7015, 0, 64 * 1024,  32,
-				 SECT_4K | SPI_NOR_DUAL_READ |
-				 SPI_NOR_QUAD_READ | SPI_NOR_HAS_LOCK |
-				 SPI_NOR_HAS_TB) },
-	{ "w25q20cl", INFO(0xef4012, 0, 64 * 1024,  4, SECT_4K) },
-	{ "w25q20bw", INFO(0xef5012, 0, 64 * 1024,  4, SECT_4K) },
-	{ "w25q20ew", INFO(0xef6012, 0, 64 * 1024,  4, SECT_4K) },
-	{ "w25q32", INFO(0xef4016, 0, 64 * 1024,  64, SECT_4K) },
-	{ "w25q32dw", INFO(0xef6016, 0, 64 * 1024,  64,
-			   SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-			   SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
-	{ "w25q32jv", INFO(0xef7016, 0, 64 * 1024,  64,
-			   SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-			   SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
-	},
-	{ "w25q32jwm", INFO(0xef8016, 0, 64 * 1024,  64,
-			    SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-			    SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
-	{ "w25q64jwm", INFO(0xef8017, 0, 64 * 1024, 128,
-			    SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-			    SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
-	{ "w25q128jwm", INFO(0xef8018, 0, 64 * 1024, 256,
-			    SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-			    SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
-	{ "w25q256jwm", INFO(0xef8019, 0, 64 * 1024, 512,
-			    SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-			    SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
-	{ "w25x64", INFO(0xef3017, 0, 64 * 1024, 128, SECT_4K) },
-	{ "w25q64", INFO(0xef4017, 0, 64 * 1024, 128,
-			 SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
-	{ "w25q64dw", INFO(0xef6017, 0, 64 * 1024, 128,
-			   SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-			   SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
-	{ "w25q64jvm", INFO(0xef7017, 0, 64 * 1024, 128, SECT_4K) },
-	{ "w25q128fw", INFO(0xef6018, 0, 64 * 1024, 256,
-			    SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-			    SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
-	{ "w25q128jv", INFO(0xef7018, 0, 64 * 1024, 256,
-			    SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-			    SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
-	{ "w25q80", INFO(0xef5014, 0, 64 * 1024,  16, SECT_4K) },
-	{ "w25q80bl", INFO(0xef4014, 0, 64 * 1024,  16, SECT_4K) },
-	{ "w25q128", INFO(0xef4018, 0, 64 * 1024, 256, SECT_4K) },
-	{ "w25q256", INFO(0xef4019, 0, 64 * 1024, 512,
-			  SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
-	  .fixups = &w25q256_fixups },
-	{ "w25q256jvm", INFO(0xef7019, 0, 64 * 1024, 512,
-			     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
-	{ "w25q256jw", INFO(0xef6019, 0, 64 * 1024, 512,
-			     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
-	{ "w25m512jv", INFO(0xef7119, 0, 64 * 1024, 1024,
-			    SECT_4K | SPI_NOR_QUAD_READ | SPI_NOR_DUAL_READ) },
+	{ "w25x05", INFO(0xef3010, 0, 64 * 1024,  1)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25x10", INFO(0xef3011, 0, 64 * 1024,  2)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25x20", INFO(0xef3012, 0, 64 * 1024,  4)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25x40", INFO(0xef3013, 0, 64 * 1024,  8)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25x80", INFO(0xef3014, 0, 64 * 1024,  16)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25x16", INFO(0xef3015, 0, 64 * 1024,  32)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25q16dw", INFO(0xef6015, 0, 64 * 1024,  32)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
+	{ "w25x32", INFO(0xef3016, 0, 64 * 1024,  64)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25q16jv-im/jm", INFO(0xef7015, 0, 64 * 1024,  32)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
+	{ "w25q20cl", INFO(0xef4012, 0, 64 * 1024,  4)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25q20bw", INFO(0xef5012, 0, 64 * 1024,  4)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25q20ew", INFO(0xef6012, 0, 64 * 1024,  4)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25q32", INFO(0xef4016, 0, 64 * 1024,  64)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25q32dw", INFO(0xef6016, 0, 64 * 1024,  64)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
+		OTP_INFO(256, 3, 0x1000, 0x1000) },
+	{ "w25q32jv", INFO(0xef7016, 0, 64 * 1024,  64)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
+	{ "w25q32jwm", INFO(0xef8016, 0, 64 * 1024,  64)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
+		OTP_INFO(256, 3, 0x1000, 0x1000) },
+	{ "w25q64jwm", INFO(0xef8017, 0, 64 * 1024, 128)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
+	{ "w25q128jwm", INFO(0xef8018, 0, 64 * 1024, 256)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
+	{ "w25q256jwm", INFO(0xef8019, 0, 64 * 1024, 512)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
+	{ "w25x64", INFO(0xef3017, 0, 64 * 1024, 128)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25q64", INFO(0xef4017, 0, 64 * 1024, 128)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
+	{ "w25q64dw", INFO(0xef6017, 0, 64 * 1024, 128)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
+	{ "w25q64jvm", INFO(0xef7017, 0, 64 * 1024, 128)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25q128fw", INFO(0xef6018, 0, 64 * 1024, 256)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
+	{ "w25q128jv", INFO(0xef7018, 0, 64 * 1024, 256)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
+	{ "w25q80", INFO(0xef5014, 0, 64 * 1024,  16)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25q80bl", INFO(0xef4014, 0, 64 * 1024,  16)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25q128", INFO(0xef4018, 0, 64 * 1024, 256)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "w25q256", INFO(0xef4019, 0, 64 * 1024, 512)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
+		.fixups = &w25q256_fixups },
+	{ "w25q256jvm", INFO(0xef7019, 0, 64 * 1024, 512)
+		PARSE_SFDP },
+	{ "w25q256jw", INFO(0xef6019, 0, 64 * 1024, 512)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
+	{ "w25m512jv", INFO(0xef7119, 0, 64 * 1024, 1024)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_QUAD_READ |
+			      SPI_NOR_DUAL_READ) },
+	{ "w25q512jvq", INFO(0xef4020, 0, 64 * 1024, 1024)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
 };
 
 /**
- * winbond_set_4byte_addr_mode() - Set 4-byte address mode for Winbond flashes.
+ * winbond_nor_set_4byte_addr_mode() - Set 4-byte address mode for Winbond
+ * flashes.
  * @nor:	pointer to 'struct spi_nor'.
  * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
  *		address mode.
  *
  * Return: 0 on success, -errno otherwise.
  */
-static int winbond_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
+static int winbond_nor_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 {
 	int ret;
 
@@ -131,18 +162,33 @@ static int winbond_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 	return spi_nor_write_disable(nor);
 }
 
-static void winbond_default_init(struct spi_nor *nor)
+static const struct spi_nor_otp_ops winbond_nor_otp_ops = {
+	.read = spi_nor_otp_read_secr,
+	.write = spi_nor_otp_write_secr,
+	.erase = spi_nor_otp_erase_secr,
+	.lock = spi_nor_otp_lock_sr2,
+	.is_locked = spi_nor_otp_is_locked_sr2,
+};
+
+static void winbond_nor_default_init(struct spi_nor *nor)
 {
-	nor->params->set_4byte_addr_mode = winbond_set_4byte_addr_mode;
+	nor->params->set_4byte_addr_mode = winbond_nor_set_4byte_addr_mode;
 }
 
-static const struct spi_nor_fixups winbond_fixups = {
-	.default_init = winbond_default_init,
+static void winbond_nor_late_init(struct spi_nor *nor)
+{
+	if (nor->params->otp.org->n_regions)
+		nor->params->otp.ops = &winbond_nor_otp_ops;
+}
+
+static const struct spi_nor_fixups winbond_nor_fixups = {
+	.default_init = winbond_nor_default_init,
+	.late_init = winbond_nor_late_init,
 };
 
 const struct spi_nor_manufacturer spi_nor_winbond = {
 	.name = "winbond",
-	.parts = winbond_parts,
-	.nparts = ARRAY_SIZE(winbond_parts),
-	.fixups = &winbond_fixups,
+	.parts = winbond_nor_parts,
+	.nparts = ARRAY_SIZE(winbond_nor_parts),
+	.fixups = &winbond_nor_fixups,
 };

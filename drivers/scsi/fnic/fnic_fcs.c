@@ -56,6 +56,8 @@ void fnic_handle_link(struct work_struct *work)
 
 	spin_lock_irqsave(&fnic->fnic_lock, flags);
 
+	fnic->link_events = 1;      /* less work to just set everytime*/
+
 	if (fnic->stop_rx_link_events) {
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 		return;
@@ -73,7 +75,7 @@ void fnic_handle_link(struct work_struct *work)
 	atomic64_set(&fnic->fnic_stats.misc_stats.current_port_speed,
 			new_port_speed);
 	if (old_port_speed != new_port_speed)
-		shost_printk(KERN_INFO, fnic->lport->host,
+		FNIC_MAIN_DBG(KERN_INFO, fnic->lport->host,
 				"Current vnic speed set to :  %llu\n",
 				new_port_speed);
 
@@ -294,7 +296,7 @@ void fnic_handle_event(struct work_struct *work)
 }
 
 /**
- * Check if the Received FIP FLOGI frame is rejected
+ * is_fnic_fip_flogi_reject() - Check if the Received FIP FLOGI frame is rejected
  * @fip: The FCoE controller that received the frame
  * @skb: The received FIP frame
  *
@@ -1341,15 +1343,16 @@ void fnic_handle_fip_timer(struct fnic *fnic)
 	if (list_empty(&fnic->vlans)) {
 		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
 		/* no vlans available, try again */
-		if (printk_ratelimit())
-			FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
-				  "Start VLAN Discovery\n");
+		if (unlikely(fnic_log_level & FNIC_FCS_LOGGING))
+			if (printk_ratelimit())
+				shost_printk(KERN_DEBUG, fnic->lport->host,
+						"Start VLAN Discovery\n");
 		fnic_event_enq(fnic, FNIC_EVT_START_VLAN_DISC);
 		return;
 	}
 
 	vlan = list_first_entry(&fnic->vlans, struct fcoe_vlan, list);
-	shost_printk(KERN_DEBUG, fnic->lport->host,
+	FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
 		  "fip_timer: vlan %d state %d sol_count %d\n",
 		  vlan->vid, vlan->state, vlan->sol_count);
 	switch (vlan->state) {
@@ -1361,9 +1364,10 @@ void fnic_handle_fip_timer(struct fnic *fnic)
 	case FIP_VLAN_FAILED:
 		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
 		/* if all vlans are in failed state, restart vlan disc */
-		if (printk_ratelimit())
-			FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
-				  "Start VLAN Discovery\n");
+		if (unlikely(fnic_log_level & FNIC_FCS_LOGGING))
+			if (printk_ratelimit())
+				shost_printk(KERN_DEBUG, fnic->lport->host,
+					  "Start VLAN Discovery\n");
 		fnic_event_enq(fnic, FNIC_EVT_START_VLAN_DISC);
 		break;
 	case FIP_VLAN_SENT:
@@ -1372,7 +1376,7 @@ void fnic_handle_fip_timer(struct fnic *fnic)
 			 * no response on this vlan, remove  from the list.
 			 * Try the next vlan
 			 */
-			shost_printk(KERN_INFO, fnic->lport->host,
+			FNIC_FCS_DBG(KERN_INFO, fnic->lport->host,
 				  "Dequeue this VLAN ID %d from list\n",
 				  vlan->vid);
 			list_del(&vlan->list);
@@ -1382,7 +1386,7 @@ void fnic_handle_fip_timer(struct fnic *fnic)
 				/* we exhausted all vlans, restart vlan disc */
 				spin_unlock_irqrestore(&fnic->vlans_lock,
 							flags);
-				shost_printk(KERN_INFO, fnic->lport->host,
+				FNIC_FCS_DBG(KERN_INFO, fnic->lport->host,
 					  "fip_timer: vlan list empty, "
 					  "trigger vlan disc\n");
 				fnic_event_enq(fnic, FNIC_EVT_START_VLAN_DISC);

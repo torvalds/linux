@@ -178,7 +178,7 @@ static void hvterm_hvsi_close(struct hvc_struct *hp, int data)
 	notifier_del_irq(hp, data);
 }
 
-void hvterm_hvsi_hangup(struct hvc_struct *hp, int data)
+static void hvterm_hvsi_hangup(struct hvc_struct *hp, int data)
 {
 	struct hvterm_priv *pv = hvterm_privs[hp->vtermno];
 
@@ -249,7 +249,7 @@ static void udbg_hvc_putc(char c)
 			count = hvterm_hvsi_put_chars(0, &c, 1);
 			break;
 		}
-	} while(count == 0);
+	} while (count == 0 || count == -EAGAIN);
 }
 
 static int udbg_hvc_getc_poll(void)

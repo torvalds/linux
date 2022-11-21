@@ -63,11 +63,6 @@ struct imgu_node_mapping {
 	const char *name;
 };
 
-/**
- * struct imgu_video_device
- * each node registers as video device and maintains its
- * own vb2_queue.
- */
 struct imgu_video_device {
 	const char *name;
 	bool output;
@@ -168,5 +163,17 @@ int imgu_v4l2_unregister(struct imgu_device *dev);
 void imgu_v4l2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state);
 
 int imgu_s_stream(struct imgu_device *imgu, int enable);
+
+static inline u32 imgu_bytesperline(const unsigned int width,
+				    enum imgu_abi_frame_format frame_format)
+{
+	if (frame_format == IMGU_ABI_FRAME_FORMAT_NV12)
+		return ALIGN(width, IPU3_UAPI_ISP_VEC_ELEMS);
+	/*
+	 * 64 bytes for every 50 pixels, the line length
+	 * in bytes is multiple of 64 (line end alignment).
+	 */
+	return DIV_ROUND_UP(width, 50) * 64;
+}
 
 #endif

@@ -470,7 +470,7 @@ static int sunxi_rtc_probe(struct platform_device *pdev)
 
 	chip->rtc->ops = &sunxi_rtc_ops;
 
-	return rtc_register_device(chip->rtc);
+	return devm_rtc_register_device(chip->rtc);
 }
 
 static struct platform_driver sunxi_rtc_driver = {

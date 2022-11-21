@@ -514,6 +514,7 @@ nsim_bpf_map_alloc(struct netdevsim *ns, struct bpf_offloaded_map *offmap)
 				goto err_free;
 			key = nmap->entry[i].key;
 			*key = i;
+			memset(nmap->entry[i].value, 0, offmap->map.value_size);
 		}
 	}
 

@@ -170,8 +170,8 @@ dma_xor_aligned_offsets(struct dma_device *device, unsigned int offset,
  *
  * xor_blocks always uses the dest as a source so the
  * ASYNC_TX_XOR_ZERO_DST flag must be set to not include dest data in
- * the calculation.  The assumption with dma eninges is that they only
- * use the destination buffer as a source when it is explicity specified
+ * the calculation.  The assumption with dma engines is that they only
+ * use the destination buffer as a source when it is explicitly specified
  * in the source list.
  *
  * src_list note: if the dest is also a source it must be at index zero.
@@ -233,6 +233,8 @@ async_xor_offs(struct page *dest, unsigned int offset,
 		if (submit->flags & ASYNC_TX_XOR_DROP_DST) {
 			src_cnt--;
 			src_list++;
+			if (src_offs)
+				src_offs++;
 		}
 
 		/* wait for any prerequisite operations */
@@ -259,8 +261,8 @@ EXPORT_SYMBOL_GPL(async_xor_offs);
  *
  * xor_blocks always uses the dest as a source so the
  * ASYNC_TX_XOR_ZERO_DST flag must be set to not include dest data in
- * the calculation.  The assumption with dma eninges is that they only
- * use the destination buffer as a source when it is explicity specified
+ * the calculation.  The assumption with dma engines is that they only
+ * use the destination buffer as a source when it is explicitly specified
  * in the source list.
  *
  * src_list note: if the dest is also a source it must be at index zero.

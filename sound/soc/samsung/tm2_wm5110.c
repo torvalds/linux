@@ -126,7 +126,7 @@ static int tm2_aif1_hw_params(struct snd_pcm_substream *substream,
 	return tm2_start_sysclk(rtd->card);
 }
 
-static struct snd_soc_ops tm2_aif1_ops = {
+static const struct snd_soc_ops tm2_aif1_ops = {
 	.hw_params = tm2_aif1_hw_params,
 };
 
@@ -200,7 +200,7 @@ static int tm2_aif2_hw_free(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static struct snd_soc_ops tm2_aif2_ops = {
+static const struct snd_soc_ops tm2_aif2_ops = {
 	.hw_params = tm2_aif2_hw_params,
 	.hw_free = tm2_aif2_hw_free,
 };
@@ -254,7 +254,7 @@ static int tm2_hdmi_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops tm2_hdmi_ops = {
+static const struct snd_soc_ops tm2_hdmi_ops = {
 	.hw_params = tm2_hdmi_hw_params,
 };
 
@@ -501,7 +501,6 @@ static int tm2_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card = &tm2_card;
 	struct tm2_machine_priv *priv;
-	struct of_phandle_args args;
 	struct snd_soc_dai_link *dai_link;
 	int num_codecs, ret, i;
 
@@ -553,7 +552,7 @@ static int tm2_probe(struct platform_device *pdev)
 
 		ret = of_parse_phandle_with_args(dev->of_node, "i2s-controller",
 						 cells_name, i, &args);
-		if (!args.np) {
+		if (ret) {
 			dev_err(dev, "i2s-controller property parse error: %d\n", i);
 			ret = -EINVAL;
 			goto dai_node_put;
@@ -585,6 +584,8 @@ static int tm2_probe(struct platform_device *pdev)
 	}
 
 	if (num_codecs > 1) {
+		struct of_phandle_args args;
+
 		/* HDMI DAI link (I2S1) */
 		i = card->num_links - 1;
 
@@ -611,8 +612,7 @@ static int tm2_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret < 0) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to register card: %d\n", ret);
+		dev_err_probe(dev, ret, "Failed to register card\n");
 		goto dai_node_put;
 	}
 

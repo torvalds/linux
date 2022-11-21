@@ -315,7 +315,7 @@ exit:
 	case 0:
 		++cfv->stats.rx_napi_complete;
 
-		/* Really out of patckets? (stolen from virtio_net)*/
+		/* Really out of packets? (stolen from virtio_net)*/
 		napi_complete(napi);
 		if (unlikely(!vringh_notify_enable_kern(cfv->vr_rx)) &&
 		    napi_schedule_prep(napi)) {
@@ -463,7 +463,7 @@ static int cfv_netdev_close(struct net_device *netdev)
 	vringh_notify_disable_kern(cfv->vr_rx);
 	napi_disable(&cfv->napi);
 
-	/* Release any TX buffers on both used and avilable rings */
+	/* Release any TX buffers on both used and available rings */
 	cfv_release_used_buf(cfv->vq_tx);
 	spin_lock_irqsave(&cfv->tx_lock, flags);
 	while ((buf_info = virtqueue_detach_unused_buf(cfv->vq_tx)))
@@ -497,7 +497,7 @@ static struct buf_info *cfv_alloc_and_copy_to_shm(struct cfv_info *cfv,
 	if (unlikely(!buf_info))
 		goto err;
 
-	/* Make the IP header aligned in tbe buffer */
+	/* Make the IP header aligned in the buffer */
 	hdr_ofs = cfv->tx_hr + info->hdr_len;
 	pad_len = hdr_ofs & (IP_HDR_ALIGN - 1);
 	buf_info->size = cfv->tx_hr + skb->len + cfv->tx_tr + pad_len;
@@ -598,9 +598,9 @@ err:
 	return NETDEV_TX_OK;
 }
 
-static void cfv_tx_release_tasklet(unsigned long drv)
+static void cfv_tx_release_tasklet(struct tasklet_struct *t)
 {
-	struct cfv_info *cfv = (struct cfv_info *)drv;
+	struct cfv_info *cfv = from_tasklet(cfv, t, tx_release_tasklet);
 	cfv_release_used_buf(cfv->vq_tx);
 }
 
@@ -716,9 +716,7 @@ static int cfv_probe(struct virtio_device *vdev)
 	cfv->ctx.head = USHRT_MAX;
 	netif_napi_add(netdev, &cfv->napi, cfv_rx_poll, CFV_DEFAULT_QUOTA);
 
-	tasklet_init(&cfv->tx_release_tasklet,
-		     cfv_tx_release_tasklet,
-		     (unsigned long)cfv);
+	tasklet_setup(&cfv->tx_release_tasklet, cfv_tx_release_tasklet);
 
 	/* Carrier is off until netdevice is opened */
 	netif_carrier_off(netdev);
@@ -756,7 +754,7 @@ static void cfv_remove(struct virtio_device *vdev)
 	debugfs_remove_recursive(cfv->debugfs);
 
 	vringh_kiov_cleanup(&cfv->ctx.riov);
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	vdev->vringh_config->del_vrhs(cfv->vdev);
 	cfv->vr_rx = NULL;
 	vdev->config->del_vqs(cfv->vdev);

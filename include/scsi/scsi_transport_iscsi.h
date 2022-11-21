@@ -82,6 +82,7 @@ struct iscsi_transport {
 	void (*destroy_session) (struct iscsi_cls_session *session);
 	struct iscsi_cls_conn *(*create_conn) (struct iscsi_cls_session *sess,
 				uint32_t cid);
+	void (*unbind_conn) (struct iscsi_cls_conn *conn, bool is_active);
 	int (*bind_conn) (struct iscsi_cls_session *session,
 			  struct iscsi_cls_conn *cls_conn,
 			  uint64_t transport_eph, int is_leading);
@@ -193,16 +194,27 @@ enum iscsi_connection_state {
 	ISCSI_CONN_UP = 0,
 	ISCSI_CONN_DOWN,
 	ISCSI_CONN_FAILED,
+	ISCSI_CONN_BOUND,
 };
+
+#define ISCSI_CLS_CONN_BIT_CLEANUP	1
 
 struct iscsi_cls_conn {
 	struct list_head conn_list;	/* item in connlist */
-	struct list_head conn_list_err;	/* item in connlist_err */
 	void *dd_data;			/* LLD private data */
 	struct iscsi_transport *transport;
 	uint32_t cid;			/* connection id */
+	/*
+	 * This protects the conn startup and binding/unbinding of the ep to
+	 * the conn. Unbinding includes ep_disconnect and stop_conn.
+	 */
 	struct mutex ep_mutex;
 	struct iscsi_endpoint *ep;
+
+	/* Used when accessing flags and queueing work. */
+	spinlock_t lock;
+	unsigned long flags;
+	struct work_struct cleanup_work;
 
 	struct device dev;		/* sysfs transport/container device */
 	enum iscsi_connection_state state;
@@ -241,6 +253,8 @@ struct iscsi_cls_session {
 	bool recovery_tmo_sysfs_override;
 	struct delayed_work recovery_work;
 
+	struct workqueue_struct *workq;
+
 	unsigned int target_id;
 	bool ida_used;
 
@@ -268,7 +282,6 @@ struct iscsi_cls_session {
 	iscsi_dev_to_session(_stgt->dev.parent)
 
 struct iscsi_cls_host {
-	atomic_t nr_scans;
 	struct mutex mutex;
 	struct request_queue *bsg_q;
 	uint32_t port_speed;
@@ -284,7 +297,7 @@ extern void iscsi_host_for_each_session(struct Scsi_Host *shost,
 struct iscsi_endpoint {
 	void *dd_data;			/* LLD private data */
 	struct device dev;
-	uint64_t id;
+	int id;
 	struct iscsi_cls_conn *conn;
 };
 
@@ -431,15 +444,18 @@ extern struct iscsi_cls_session *iscsi_create_session(struct Scsi_Host *shost,
 						unsigned int target_id);
 extern void iscsi_remove_session(struct iscsi_cls_session *session);
 extern void iscsi_free_session(struct iscsi_cls_session *session);
-extern struct iscsi_cls_conn *iscsi_create_conn(struct iscsi_cls_session *sess,
+extern struct iscsi_cls_conn *iscsi_alloc_conn(struct iscsi_cls_session *sess,
 						int dd_size, uint32_t cid);
-extern int iscsi_destroy_conn(struct iscsi_cls_conn *conn);
+extern int iscsi_add_conn(struct iscsi_cls_conn *conn);
+extern void iscsi_remove_conn(struct iscsi_cls_conn *conn);
+extern void iscsi_put_conn(struct iscsi_cls_conn *conn);
+extern void iscsi_get_conn(struct iscsi_cls_conn *conn);
 extern void iscsi_unblock_session(struct iscsi_cls_session *session);
 extern void iscsi_block_session(struct iscsi_cls_session *session);
-extern int iscsi_scan_finished(struct Scsi_Host *shost, unsigned long time);
 extern struct iscsi_endpoint *iscsi_create_endpoint(int dd_size);
 extern void iscsi_destroy_endpoint(struct iscsi_endpoint *ep);
 extern struct iscsi_endpoint *iscsi_lookup_endpoint(u64 handle);
+extern void iscsi_put_endpoint(struct iscsi_endpoint *ep);
 extern int iscsi_block_scsi_eh(struct scsi_cmnd *cmd);
 extern struct iscsi_iface *iscsi_create_iface(struct Scsi_Host *shost,
 					      struct iscsi_transport *t,

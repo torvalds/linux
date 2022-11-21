@@ -10,7 +10,6 @@
 #include <sched.h>
 #include <pthread.h>
 #include <linux/kernel.h>
-#include <sys/syscall.h>
 #include <asm/kvm.h>
 #include <asm/kvm_para.h>
 
@@ -20,7 +19,6 @@
 
 #define NR_VCPUS		4
 #define ST_GPA_BASE		(1 << 30)
-#define MIN_RUN_DELAY_NS	200000UL
 
 static void *st_gva[NR_VCPUS];
 static uint64_t guest_stolen_time[NR_VCPUS];
@@ -73,8 +71,6 @@ static void steal_time_init(struct kvm_vm *vm)
 	for (i = 0; i < NR_VCPUS; ++i) {
 		int ret;
 
-		vcpu_set_cpuid(vm, i, kvm_get_supported_cpuid());
-
 		/* ST_GPA_BASE is identity mapped */
 		st_gva[i] = (void *)(ST_GPA_BASE + i * STEAL_TIME_SIZE);
 		sync_global_to_guest(vm, st_gva[i]);
@@ -120,12 +116,12 @@ struct st_time {
 	uint64_t st_time;
 };
 
-static int64_t smccc(uint32_t func, uint32_t arg)
+static int64_t smccc(uint32_t func, uint64_t arg)
 {
 	unsigned long ret;
 
 	asm volatile(
-		"mov	x0, %1\n"
+		"mov	w0, %w1\n"
 		"mov	x1, %2\n"
 		"hvc	#0\n"
 		"mov	%0, x0\n"
@@ -219,20 +215,6 @@ static void steal_time_dump(struct kvm_vm *vm, uint32_t vcpuid)
 
 #endif
 
-static long get_run_delay(void)
-{
-	char path[64];
-	long val[2];
-	FILE *fp;
-
-	sprintf(path, "/proc/%ld/schedstat", syscall(SYS_gettid));
-	fp = fopen(path, "r");
-	fscanf(fp, "%ld %ld ", &val[0], &val[1]);
-	fclose(fp);
-
-	return val[1];
-}
-
 static void *do_steal_time(void *arg)
 {
 	struct timespec ts, stop;
@@ -295,7 +277,7 @@ int main(int ac, char **av)
 	vm = vm_create_default(0, 0, guest_code);
 	gpages = vm_calc_num_guest_pages(VM_MODE_DEFAULT, STEAL_TIME_SIZE * NR_VCPUS);
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, ST_GPA_BASE, 1, gpages, 0);
-	virt_map(vm, ST_GPA_BASE, ST_GPA_BASE, gpages, 0);
+	virt_map(vm, ST_GPA_BASE, ST_GPA_BASE, gpages);
 	ucall_init(vm, NULL);
 
 	/* Add the rest of the VCPUs */
@@ -322,7 +304,7 @@ int main(int ac, char **av)
 		run_delay = get_run_delay();
 		pthread_create(&thread, &attr, do_steal_time, NULL);
 		do
-			pthread_yield();
+			sched_yield();
 		while (get_run_delay() - run_delay < MIN_RUN_DELAY_NS);
 		pthread_join(thread, NULL);
 		run_delay = get_run_delay() - run_delay;

@@ -12,7 +12,7 @@
 #include <linux/posix_acl_xattr.h>
 
 int fuse_setxattr(struct inode *inode, const char *name, const void *value,
-		  size_t size, int flags)
+		  size_t size, int flags, unsigned int extra_flags)
 {
 	struct fuse_mount *fm = get_fuse_mount(inode);
 	FUSE_ARGS(args);
@@ -25,10 +25,13 @@ int fuse_setxattr(struct inode *inode, const char *name, const void *value,
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.size = size;
 	inarg.flags = flags;
+	inarg.setxattr_flags = extra_flags;
+
 	args.opcode = FUSE_SETXATTR;
 	args.nodeid = get_node_id(inode);
 	args.in_numargs = 3;
-	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].size = fm->fc->setxattr_ext ?
+		sizeof(inarg) : FUSE_COMPAT_SETXATTR_IN_SIZE;
 	args.in_args[0].value = &inarg;
 	args.in_args[1].size = strlen(name) + 1;
 	args.in_args[1].value = name;
@@ -39,10 +42,9 @@ int fuse_setxattr(struct inode *inode, const char *name, const void *value,
 		fm->fc->no_setxattr = 1;
 		err = -EOPNOTSUPP;
 	}
-	if (!err) {
-		fuse_invalidate_attr(inode);
+	if (!err)
 		fuse_update_ctime(inode);
-	}
+
 	return err;
 }
 
@@ -113,6 +115,9 @@ ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size)
 	struct fuse_getxattr_out outarg;
 	ssize_t ret;
 
+	if (fuse_is_bad(inode))
+		return -EIO;
+
 	if (!fuse_allow_current_process(fm->fc))
 		return -EACCES;
 
@@ -167,10 +172,9 @@ int fuse_removexattr(struct inode *inode, const char *name)
 		fm->fc->no_removexattr = 1;
 		err = -EOPNOTSUPP;
 	}
-	if (!err) {
-		fuse_invalidate_attr(inode);
+	if (!err)
 		fuse_update_ctime(inode);
-	}
+
 	return err;
 }
 
@@ -178,18 +182,25 @@ static int fuse_xattr_get(const struct xattr_handler *handler,
 			 struct dentry *dentry, struct inode *inode,
 			 const char *name, void *value, size_t size)
 {
+	if (fuse_is_bad(inode))
+		return -EIO;
+
 	return fuse_getxattr(inode, name, value, size);
 }
 
 static int fuse_xattr_set(const struct xattr_handler *handler,
+			  struct user_namespace *mnt_userns,
 			  struct dentry *dentry, struct inode *inode,
 			  const char *name, const void *value, size_t size,
 			  int flags)
 {
+	if (fuse_is_bad(inode))
+		return -EIO;
+
 	if (!value)
 		return fuse_removexattr(inode, name);
 
-	return fuse_setxattr(inode, name, value, size, flags);
+	return fuse_setxattr(inode, name, value, size, flags, 0);
 }
 
 static bool no_xattr_list(struct dentry *dentry)
@@ -205,6 +216,7 @@ static int no_xattr_get(const struct xattr_handler *handler,
 }
 
 static int no_xattr_set(const struct xattr_handler *handler,
+			struct user_namespace *mnt_userns,
 			struct dentry *dentry, struct inode *nodee,
 			const char *name, const void *value,
 			size_t size, int flags)

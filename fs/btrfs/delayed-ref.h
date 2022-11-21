@@ -135,6 +135,11 @@ struct btrfs_delayed_data_ref {
 	u64 offset;
 };
 
+enum btrfs_delayed_ref_flags {
+	/* Indicate that we are flushing delayed refs for the commit */
+	BTRFS_DELAYED_REFS_FLUSHING,
+};
+
 struct btrfs_delayed_ref_root {
 	/* head ref rbtree */
 	struct rb_root_cached href_root;
@@ -158,12 +163,7 @@ struct btrfs_delayed_ref_root {
 
 	u64 pending_csums;
 
-	/*
-	 * set when the tree is flushing before a transaction commit,
-	 * used by the throttling code to decide if new updates need
-	 * to be run right away
-	 */
-	int flushing;
+	unsigned long flags;
 
 	u64 run_delayed_start;
 
@@ -186,8 +186,8 @@ enum btrfs_ref_type {
 struct btrfs_data_ref {
 	/* For EXTENT_DATA_REF */
 
-	/* Root which refers to this data extent */
-	u64 ref_root;
+	/* Original root this data extent belongs to */
+	u64 owning_root;
 
 	/* Inode which refers to this data extent */
 	u64 ino;
@@ -210,11 +210,11 @@ struct btrfs_tree_ref {
 	int level;
 
 	/*
-	 * Root which refers to this tree block.
+	 * Root which owns this tree block.
 	 *
 	 * For TREE_BLOCK_REF (skinny metadata, either inline or keyed)
 	 */
-	u64 root;
+	u64 owning_root;
 
 	/* For non-skinny metadata, no special member needed */
 };
@@ -231,17 +231,10 @@ struct btrfs_ref {
 	 */
 	bool skip_qgroup;
 
-	/*
-	 * Optional. For which root is this modification.
-	 * Mostly used for qgroup optimization.
-	 *
-	 * When unset, data/tree ref init code will populate it.
-	 * In certain cases, we're modifying reference for a different root.
-	 * E.g. COW fs tree blocks for balance.
-	 * In that case, tree_ref::root will be fs tree, but we're doing this
-	 * for reloc tree, then we should set @real_root to reloc tree.
-	 */
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+	/* Through which root is this modification. */
 	u64 real_root;
+#endif
 	u64 bytenr;
 	u64 len;
 
@@ -271,26 +264,40 @@ static inline void btrfs_init_generic_ref(struct btrfs_ref *generic_ref,
 }
 
 static inline void btrfs_init_tree_ref(struct btrfs_ref *generic_ref,
-				int level, u64 root)
+				int level, u64 root, u64 mod_root, bool skip_qgroup)
 {
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
 	/* If @real_root not set, use @root as fallback */
-	if (!generic_ref->real_root)
-		generic_ref->real_root = root;
+	generic_ref->real_root = mod_root ?: root;
+#endif
 	generic_ref->tree_ref.level = level;
-	generic_ref->tree_ref.root = root;
+	generic_ref->tree_ref.owning_root = root;
 	generic_ref->type = BTRFS_REF_METADATA;
+	if (skip_qgroup || !(is_fstree(root) &&
+			     (!mod_root || is_fstree(mod_root))))
+		generic_ref->skip_qgroup = true;
+	else
+		generic_ref->skip_qgroup = false;
+
 }
 
 static inline void btrfs_init_data_ref(struct btrfs_ref *generic_ref,
-				u64 ref_root, u64 ino, u64 offset)
+				u64 ref_root, u64 ino, u64 offset, u64 mod_root,
+				bool skip_qgroup)
 {
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
 	/* If @real_root not set, use @root as fallback */
-	if (!generic_ref->real_root)
-		generic_ref->real_root = ref_root;
-	generic_ref->data_ref.ref_root = ref_root;
+	generic_ref->real_root = mod_root ?: ref_root;
+#endif
+	generic_ref->data_ref.owning_root = ref_root;
 	generic_ref->data_ref.ino = ino;
 	generic_ref->data_ref.offset = offset;
 	generic_ref->type = BTRFS_REF_DATA;
+	if (skip_qgroup || !(is_fstree(ref_root) &&
+			     (!mod_root || is_fstree(mod_root))))
+		generic_ref->skip_qgroup = true;
+	else
+		generic_ref->skip_qgroup = false;
 }
 
 static inline struct btrfs_delayed_extent_op *
@@ -326,6 +333,16 @@ static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
 	}
 }
 
+static inline u64 btrfs_ref_head_to_space_flags(
+				struct btrfs_delayed_ref_head *head_ref)
+{
+	if (head_ref->is_data)
+		return BTRFS_BLOCK_GROUP_DATA;
+	else if (head_ref->is_system)
+		return BTRFS_BLOCK_GROUP_SYSTEM;
+	return BTRFS_BLOCK_GROUP_METADATA;
+}
+
 static inline void btrfs_put_delayed_ref_head(struct btrfs_delayed_ref_head *head)
 {
 	if (refcount_dec_and_test(&head->refs))
@@ -334,12 +351,10 @@ static inline void btrfs_put_delayed_ref_head(struct btrfs_delayed_ref_head *hea
 
 int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 			       struct btrfs_ref *generic_ref,
-			       struct btrfs_delayed_extent_op *extent_op,
-			       int *old_ref_mod, int *new_ref_mod);
+			       struct btrfs_delayed_extent_op *extent_op);
 int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 			       struct btrfs_ref *generic_ref,
-			       u64 reserved, int *old_ref_mod,
-			       int *new_ref_mod);
+			       u64 reserved);
 int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 				u64 bytenr, u64 num_bytes,
 				struct btrfs_delayed_extent_op *extent_op);

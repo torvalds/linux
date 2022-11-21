@@ -16,13 +16,21 @@
 #include "spte.h"
 
 #include <asm/e820/api.h>
+#include <asm/memtype.h>
+#include <asm/vmx.h>
 
+static bool __read_mostly enable_mmio_caching = true;
+module_param_named(mmio_caching, enable_mmio_caching, bool, 0444);
+
+u64 __read_mostly shadow_host_writable_mask;
+u64 __read_mostly shadow_mmu_writable_mask;
 u64 __read_mostly shadow_nx_mask;
 u64 __read_mostly shadow_x_mask; /* mutual exclusive with nx_mask */
 u64 __read_mostly shadow_user_mask;
 u64 __read_mostly shadow_accessed_mask;
 u64 __read_mostly shadow_dirty_mask;
 u64 __read_mostly shadow_mmio_value;
+u64 __read_mostly shadow_mmio_mask;
 u64 __read_mostly shadow_mmio_access_mask;
 u64 __read_mostly shadow_present_mask;
 u64 __read_mostly shadow_me_mask;
@@ -38,7 +46,6 @@ static u64 generation_mmio_spte_mask(u64 gen)
 	u64 mask;
 
 	WARN_ON(gen & ~MMIO_SPTE_GEN_MASK);
-	BUILD_BUG_ON((MMIO_SPTE_GEN_HIGH_MASK | MMIO_SPTE_GEN_LOW_MASK) & SPTE_SPECIAL_MASK);
 
 	mask = (gen << MMIO_SPTE_GEN_LOW_SHIFT) & MMIO_SPTE_GEN_LOW_MASK;
 	mask |= (gen << MMIO_SPTE_GEN_HIGH_SHIFT) & MMIO_SPTE_GEN_HIGH_MASK;
@@ -48,16 +55,18 @@ static u64 generation_mmio_spte_mask(u64 gen)
 u64 make_mmio_spte(struct kvm_vcpu *vcpu, u64 gfn, unsigned int access)
 {
 	u64 gen = kvm_vcpu_memslots(vcpu)->generation & MMIO_SPTE_GEN_MASK;
-	u64 mask = generation_mmio_spte_mask(gen);
+	u64 spte = generation_mmio_spte_mask(gen);
 	u64 gpa = gfn << PAGE_SHIFT;
 
+	WARN_ON_ONCE(!shadow_mmio_value);
+
 	access &= shadow_mmio_access_mask;
-	mask |= shadow_mmio_value | access;
-	mask |= gpa | shadow_nonpresent_or_rsvd_mask;
-	mask |= (gpa & shadow_nonpresent_or_rsvd_mask)
+	spte |= shadow_mmio_value | access;
+	spte |= gpa | shadow_nonpresent_or_rsvd_mask;
+	spte |= (gpa & shadow_nonpresent_or_rsvd_mask)
 		<< SHADOW_NONPRESENT_OR_RSVD_MASK_LEN;
 
-	return mask;
+	return spte;
 }
 
 static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
@@ -81,18 +90,48 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
 				     E820_TYPE_RAM);
 }
 
-int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
-		     gfn_t gfn, kvm_pfn_t pfn, u64 old_spte, bool speculative,
-		     bool can_unsync, bool host_writable, bool ad_disabled,
-		     u64 *new_spte)
+/*
+ * Returns true if the SPTE has bits that may be set without holding mmu_lock.
+ * The caller is responsible for checking if the SPTE is shadow-present, and
+ * for determining whether or not the caller cares about non-leaf SPTEs.
+ */
+bool spte_has_volatile_bits(u64 spte)
 {
-	u64 spte = 0;
-	int ret = 0;
+	/*
+	 * Always atomically update spte if it can be updated
+	 * out of mmu-lock, it can ensure dirty bit is not lost,
+	 * also, it can help us to get a stable is_writable_pte()
+	 * to ensure tlb flush is not missed.
+	 */
+	if (!is_writable_pte(spte) && is_mmu_writable_spte(spte))
+		return true;
 
-	if (ad_disabled)
-		spte |= SPTE_AD_DISABLED_MASK;
-	else if (kvm_vcpu_ad_need_write_protect(vcpu))
-		spte |= SPTE_AD_WRPROT_ONLY_MASK;
+	if (is_access_track_spte(spte))
+		return true;
+
+	if (spte_ad_enabled(spte)) {
+		if (!(spte & shadow_accessed_mask) ||
+		    (is_writable_pte(spte) && !(spte & shadow_dirty_mask)))
+			return true;
+	}
+
+	return false;
+}
+
+bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
+	       const struct kvm_memory_slot *slot,
+	       unsigned int pte_access, gfn_t gfn, kvm_pfn_t pfn,
+	       u64 old_spte, bool prefetch, bool can_unsync,
+	       bool host_writable, u64 *new_spte)
+{
+	int level = sp->role.level;
+	u64 spte = SPTE_MMU_PRESENT_MASK;
+	bool wrprot = false;
+
+	if (sp->role.ad_disabled)
+		spte |= SPTE_TDP_AD_DISABLED_MASK;
+	else if (kvm_mmu_page_ad_need_write_protect(sp))
+		spte |= SPTE_TDP_AD_WRPROT_ONLY_MASK;
 
 	/*
 	 * For the EPT case, shadow_present_mask is 0 if hardware
@@ -101,7 +140,7 @@ int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 	 * read access.  See FNAME(gpte_access) in paging_tmpl.h.
 	 */
 	spte |= shadow_present_mask;
-	if (!speculative)
+	if (!prefetch)
 		spte |= spte_shadow_accessed_mask(spte);
 
 	if (level > PG_LEVEL_4K && (pte_access & ACC_EXEC_MASK) &&
@@ -120,11 +159,11 @@ int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 	if (level > PG_LEVEL_4K)
 		spte |= PT_PAGE_SIZE_MASK;
 	if (tdp_enabled)
-		spte |= kvm_x86_ops.get_mt_mask(vcpu, gfn,
+		spte |= static_call(kvm_x86_get_mt_mask)(vcpu, gfn,
 			kvm_is_mmio_pfn(pfn));
 
 	if (host_writable)
-		spte |= SPTE_HOST_WRITEABLE;
+		spte |= shadow_host_writable_mask;
 	else
 		pte_access &= ~ACC_WRITE_MASK;
 
@@ -134,46 +173,121 @@ int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 	spte |= (u64)pfn << PAGE_SHIFT;
 
 	if (pte_access & ACC_WRITE_MASK) {
-		spte |= PT_WRITABLE_MASK | SPTE_MMU_WRITEABLE;
+		spte |= PT_WRITABLE_MASK | shadow_mmu_writable_mask;
 
 		/*
 		 * Optimization: for pte sync, if spte was writable the hash
 		 * lookup is unnecessary (and expensive). Write protection
-		 * is responsibility of mmu_get_page / kvm_sync_page.
+		 * is responsibility of kvm_mmu_get_page / kvm_mmu_sync_roots.
 		 * Same reasoning can be applied to dirty page accounting.
 		 */
-		if (!can_unsync && is_writable_pte(old_spte))
+		if (is_writable_pte(old_spte))
 			goto out;
 
-		if (mmu_need_write_protect(vcpu, gfn, can_unsync)) {
+		/*
+		 * Unsync shadow pages that are reachable by the new, writable
+		 * SPTE.  Write-protect the SPTE if the page can't be unsync'd,
+		 * e.g. it's write-tracked (upper-level SPs) or has one or more
+		 * shadow pages and unsync'ing pages is not allowed.
+		 */
+		if (mmu_try_to_unsync_pages(vcpu->kvm, slot, gfn, can_unsync, prefetch)) {
 			pgprintk("%s: found shadow page for %llx, marking ro\n",
 				 __func__, gfn);
-			ret |= SET_SPTE_WRITE_PROTECTED_PT;
+			wrprot = true;
 			pte_access &= ~ACC_WRITE_MASK;
-			spte &= ~(PT_WRITABLE_MASK | SPTE_MMU_WRITEABLE);
+			spte &= ~(PT_WRITABLE_MASK | shadow_mmu_writable_mask);
 		}
 	}
 
 	if (pte_access & ACC_WRITE_MASK)
 		spte |= spte_shadow_dirty_mask(spte);
 
-	if (speculative)
+out:
+	if (prefetch)
 		spte = mark_spte_for_access_track(spte);
 
-out:
+	WARN_ONCE(is_rsvd_spte(&vcpu->arch.mmu->shadow_zero_check, spte, level),
+		  "spte = 0x%llx, level = %d, rsvd bits = 0x%llx", spte, level,
+		  get_rsvd_bits(&vcpu->arch.mmu->shadow_zero_check, spte, level));
+
+	if ((spte & PT_WRITABLE_MASK) && kvm_slot_dirty_track_enabled(slot)) {
+		/* Enforced by kvm_mmu_hugepage_adjust. */
+		WARN_ON(level > PG_LEVEL_4K);
+		mark_page_dirty_in_slot(vcpu->kvm, slot, gfn);
+	}
+
 	*new_spte = spte;
-	return ret;
+	return wrprot;
 }
+
+static u64 make_spte_executable(u64 spte)
+{
+	bool is_access_track = is_access_track_spte(spte);
+
+	if (is_access_track)
+		spte = restore_acc_track_spte(spte);
+
+	spte &= ~shadow_nx_mask;
+	spte |= shadow_x_mask;
+
+	if (is_access_track)
+		spte = mark_spte_for_access_track(spte);
+
+	return spte;
+}
+
+/*
+ * Construct an SPTE that maps a sub-page of the given huge page SPTE where
+ * `index` identifies which sub-page.
+ *
+ * This is used during huge page splitting to build the SPTEs that make up the
+ * new page table.
+ */
+u64 make_huge_page_split_spte(u64 huge_spte, int huge_level, int index)
+{
+	u64 child_spte;
+	int child_level;
+
+	if (WARN_ON_ONCE(!is_shadow_present_pte(huge_spte)))
+		return 0;
+
+	if (WARN_ON_ONCE(!is_large_pte(huge_spte)))
+		return 0;
+
+	child_spte = huge_spte;
+	child_level = huge_level - 1;
+
+	/*
+	 * The child_spte already has the base address of the huge page being
+	 * split. So we just have to OR in the offset to the page at the next
+	 * lower level for the given index.
+	 */
+	child_spte |= (index * KVM_PAGES_PER_HPAGE(child_level)) << PAGE_SHIFT;
+
+	if (child_level == PG_LEVEL_4K) {
+		child_spte &= ~PT_PAGE_SIZE_MASK;
+
+		/*
+		 * When splitting to a 4K page, mark the page executable as the
+		 * NX hugepage mitigation no longer applies.
+		 */
+		if (is_nx_huge_page_enabled())
+			child_spte = make_spte_executable(child_spte);
+	}
+
+	return child_spte;
+}
+
 
 u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled)
 {
-	u64 spte;
+	u64 spte = SPTE_MMU_PRESENT_MASK;
 
-	spte = __pa(child_pt) | shadow_present_mask | PT_WRITABLE_MASK |
-	       shadow_user_mask | shadow_x_mask | shadow_me_mask;
+	spte |= __pa(child_pt) | shadow_present_mask | PT_WRITABLE_MASK |
+		shadow_user_mask | shadow_x_mask | shadow_me_mask;
 
 	if (ad_disabled)
-		spte |= SPTE_AD_DISABLED_MASK;
+		spte |= SPTE_TDP_AD_DISABLED_MASK;
 	else
 		spte |= shadow_accessed_mask;
 
@@ -188,7 +302,8 @@ u64 kvm_mmu_changed_pte_notifier_make_spte(u64 old_spte, kvm_pfn_t new_pfn)
 	new_spte |= (u64)new_pfn << PAGE_SHIFT;
 
 	new_spte &= ~PT_WRITABLE_MASK;
-	new_spte &= ~SPTE_HOST_WRITEABLE;
+	new_spte &= ~shadow_host_writable_mask;
+	new_spte &= ~shadow_mmu_writable_mask;
 
 	new_spte = mark_spte_for_access_track(new_spte);
 
@@ -222,14 +337,7 @@ u64 mark_spte_for_access_track(u64 spte)
 	if (is_access_track_spte(spte))
 		return spte;
 
-	/*
-	 * Making an Access Tracking PTE will result in removal of write access
-	 * from the PTE. So, verify that we will be able to restore the write
-	 * access in the fast page fault path later on.
-	 */
-	WARN_ONCE((spte & PT_WRITABLE_MASK) &&
-		  !spte_can_locklessly_be_made_writable(spte),
-		  "kvm: Writable SPTE is not locklessly dirty-trackable\n");
+	check_spte_writable_invariants(spte);
 
 	WARN_ONCE(spte & (SHADOW_ACC_TRACK_SAVED_BITS_MASK <<
 			  SHADOW_ACC_TRACK_SAVED_BITS_SHIFT),
@@ -242,53 +350,68 @@ u64 mark_spte_for_access_track(u64 spte)
 	return spte;
 }
 
-void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 access_mask)
+void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 mmio_mask, u64 access_mask)
 {
 	BUG_ON((u64)(unsigned)access_mask != access_mask);
-	WARN_ON(mmio_value & (shadow_nonpresent_or_rsvd_mask << SHADOW_NONPRESENT_OR_RSVD_MASK_LEN));
 	WARN_ON(mmio_value & shadow_nonpresent_or_rsvd_lower_gfn_mask);
-	shadow_mmio_value = mmio_value | SPTE_MMIO_MASK;
+
+	if (!enable_mmio_caching)
+		mmio_value = 0;
+
+	/*
+	 * Disable MMIO caching if the MMIO value collides with the bits that
+	 * are used to hold the relocated GFN when the L1TF mitigation is
+	 * enabled.  This should never fire as there is no known hardware that
+	 * can trigger this condition, e.g. SME/SEV CPUs that require a custom
+	 * MMIO value are not susceptible to L1TF.
+	 */
+	if (WARN_ON(mmio_value & (shadow_nonpresent_or_rsvd_mask <<
+				  SHADOW_NONPRESENT_OR_RSVD_MASK_LEN)))
+		mmio_value = 0;
+
+	/*
+	 * The masked MMIO value must obviously match itself and a removed SPTE
+	 * must not get a false positive.  Removed SPTEs and MMIO SPTEs should
+	 * never collide as MMIO must set some RWX bits, and removed SPTEs must
+	 * not set any RWX bits.
+	 */
+	if (WARN_ON((mmio_value & mmio_mask) != mmio_value) ||
+	    WARN_ON(mmio_value && (REMOVED_SPTE & mmio_mask) == mmio_value))
+		mmio_value = 0;
+
+	shadow_mmio_value = mmio_value;
+	shadow_mmio_mask  = mmio_mask;
 	shadow_mmio_access_mask = access_mask;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_set_mmio_spte_mask);
 
-/*
- * Sets the shadow PTE masks used by the MMU.
- *
- * Assumptions:
- *  - Setting either @accessed_mask or @dirty_mask requires setting both
- *  - At least one of @accessed_mask or @acc_track_mask must be set
- */
-void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
-		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask,
-		u64 acc_track_mask, u64 me_mask)
+void kvm_mmu_set_ept_masks(bool has_ad_bits, bool has_exec_only)
 {
-	BUG_ON(!dirty_mask != !accessed_mask);
-	BUG_ON(!accessed_mask && !acc_track_mask);
-	BUG_ON(acc_track_mask & SPTE_SPECIAL_MASK);
+	shadow_user_mask	= VMX_EPT_READABLE_MASK;
+	shadow_accessed_mask	= has_ad_bits ? VMX_EPT_ACCESS_BIT : 0ull;
+	shadow_dirty_mask	= has_ad_bits ? VMX_EPT_DIRTY_BIT : 0ull;
+	shadow_nx_mask		= 0ull;
+	shadow_x_mask		= VMX_EPT_EXECUTABLE_MASK;
+	shadow_present_mask	= has_exec_only ? 0ull : VMX_EPT_READABLE_MASK;
+	shadow_acc_track_mask	= VMX_EPT_RWX_MASK;
+	shadow_me_mask		= 0ull;
 
-	shadow_user_mask = user_mask;
-	shadow_accessed_mask = accessed_mask;
-	shadow_dirty_mask = dirty_mask;
-	shadow_nx_mask = nx_mask;
-	shadow_x_mask = x_mask;
-	shadow_present_mask = p_mask;
-	shadow_acc_track_mask = acc_track_mask;
-	shadow_me_mask = me_mask;
+	shadow_host_writable_mask = EPT_SPTE_HOST_WRITABLE;
+	shadow_mmu_writable_mask  = EPT_SPTE_MMU_WRITABLE;
+
+	/*
+	 * EPT Misconfigurations are generated if the value of bits 2:0
+	 * of an EPT paging-structure entry is 110b (write/execute).
+	 */
+	kvm_mmu_set_mmio_spte_mask(VMX_EPT_MISCONFIG_WX_VALUE,
+				   VMX_EPT_RWX_MASK, 0);
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_set_mask_ptes);
+EXPORT_SYMBOL_GPL(kvm_mmu_set_ept_masks);
 
 void kvm_mmu_reset_all_pte_masks(void)
 {
 	u8 low_phys_bits;
-
-	shadow_user_mask = 0;
-	shadow_accessed_mask = 0;
-	shadow_dirty_mask = 0;
-	shadow_nx_mask = 0;
-	shadow_x_mask = 0;
-	shadow_present_mask = 0;
-	shadow_acc_track_mask = 0;
+	u64 mask;
 
 	shadow_phys_bits = kvm_get_shadow_phys_bits();
 
@@ -315,4 +438,30 @@ void kvm_mmu_reset_all_pte_masks(void)
 
 	shadow_nonpresent_or_rsvd_lower_gfn_mask =
 		GENMASK_ULL(low_phys_bits - 1, PAGE_SHIFT);
+
+	shadow_user_mask	= PT_USER_MASK;
+	shadow_accessed_mask	= PT_ACCESSED_MASK;
+	shadow_dirty_mask	= PT_DIRTY_MASK;
+	shadow_nx_mask		= PT64_NX_MASK;
+	shadow_x_mask		= 0;
+	shadow_present_mask	= PT_PRESENT_MASK;
+	shadow_acc_track_mask	= 0;
+	shadow_me_mask		= sme_me_mask;
+
+	shadow_host_writable_mask = DEFAULT_SPTE_HOST_WRITABLE;
+	shadow_mmu_writable_mask  = DEFAULT_SPTE_MMU_WRITABLE;
+
+	/*
+	 * Set a reserved PA bit in MMIO SPTEs to generate page faults with
+	 * PFEC.RSVD=1 on MMIO accesses.  64-bit PTEs (PAE, x86-64, and EPT
+	 * paging) support a maximum of 52 bits of PA, i.e. if the CPU supports
+	 * 52-bit physical addresses then there are no reserved PA bits in the
+	 * PTEs and so the reserved PA approach must be disabled.
+	 */
+	if (shadow_phys_bits < 52)
+		mask = BIT_ULL(51) | PT_PRESENT_MASK;
+	else
+		mask = 0;
+
+	kvm_mmu_set_mmio_spte_mask(mask, mask, ACC_WRITE_MASK | ACC_USER_MASK);
 }

@@ -8,6 +8,10 @@
 	model = "Rockchip RV1108 Evaluation board";
 	compatible = "rockchip,rv1108-evb", "rockchip,rv1108";
 
+	aliases {
+		mmc0 = &sdmmc;
+	};
+
 	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x08000000>;
@@ -81,6 +85,7 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PB4 IRQ_TYPE_LEVEL_LOW>;
 		rockchip,system-power-controller;
+		#clock-cells = <0>;
 
 		vcc1-supply = <&vcc_sys>;
 		vcc2-supply = <&vcc_sys>;

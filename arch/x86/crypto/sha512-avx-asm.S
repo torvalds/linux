@@ -76,14 +76,10 @@ tmp0	= %rax
 W_SIZE = 80*8
 # W[t] + K[t] | W[t+1] + K[t+1]
 WK_SIZE = 2*8
-RSPSAVE_SIZE = 1*8
-GPRSAVE_SIZE = 5*8
 
 frame_W = 0
 frame_WK = frame_W + W_SIZE
-frame_RSPSAVE = frame_WK + WK_SIZE
-frame_GPRSAVE = frame_RSPSAVE + RSPSAVE_SIZE
-frame_size = frame_GPRSAVE + GPRSAVE_SIZE
+frame_size = frame_WK + WK_SIZE
 
 # Useful QWORD "arrays" for simpler memory references
 # MSG, DIGEST, K_t, W_t are arrays
@@ -278,21 +274,21 @@ frame_size = frame_GPRSAVE + GPRSAVE_SIZE
 # "blocks" is the message length in SHA512 blocks
 ########################################################################
 SYM_FUNC_START(sha512_transform_avx)
-	cmp $0, msglen
+	test msglen, msglen
 	je nowork
 
+	# Save GPRs
+	push	%rbx
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+
 	# Allocate Stack Space
-	mov	%rsp, %rax
+	push	%rbp
+	mov	%rsp, %rbp
 	sub     $frame_size, %rsp
 	and	$~(0x20 - 1), %rsp
-	mov	%rax, frame_RSPSAVE(%rsp)
-
-	# Save GPRs
-	mov     %rbx, frame_GPRSAVE(%rsp)
-	mov     %r12, frame_GPRSAVE +8*1(%rsp)
-	mov     %r13, frame_GPRSAVE +8*2(%rsp)
-	mov     %r14, frame_GPRSAVE +8*3(%rsp)
-	mov     %r15, frame_GPRSAVE +8*4(%rsp)
 
 updateblock:
 
@@ -353,18 +349,19 @@ updateblock:
 	dec     msglen
 	jnz     updateblock
 
-	# Restore GPRs
-	mov     frame_GPRSAVE(%rsp),      %rbx
-	mov     frame_GPRSAVE +8*1(%rsp), %r12
-	mov     frame_GPRSAVE +8*2(%rsp), %r13
-	mov     frame_GPRSAVE +8*3(%rsp), %r14
-	mov     frame_GPRSAVE +8*4(%rsp), %r15
-
 	# Restore Stack Pointer
-	mov	frame_RSPSAVE(%rsp), %rsp
+	mov	%rbp, %rsp
+	pop	%rbp
+
+	# Restore GPRs
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbx
 
 nowork:
-	ret
+	RET
 SYM_FUNC_END(sha512_transform_avx)
 
 ########################################################################

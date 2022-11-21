@@ -30,7 +30,7 @@ int __bootdata_preserved(prot_virt_host);
 EXPORT_SYMBOL(prot_virt_host);
 EXPORT_SYMBOL(uv_info);
 
-static int __init uv_init(unsigned long stor_base, unsigned long stor_len)
+static int __init uv_init(phys_addr_t stor_base, unsigned long stor_len)
 {
 	struct uv_cb_init uvcb = {
 		.header.cmd = UVC_CMD_INIT_UV,
@@ -49,27 +49,12 @@ static int __init uv_init(unsigned long stor_base, unsigned long stor_len)
 
 void __init setup_uv(void)
 {
-	unsigned long uv_stor_base;
+	void *uv_stor_base;
 
-	/*
-	 * keep these conditions in line with kasan init code has_uv_sec_stor_limit()
-	 */
 	if (!is_prot_virt_host())
 		return;
 
-	if (is_prot_virt_guest()) {
-		prot_virt_host = 0;
-		pr_warn("Protected virtualization not available in protected guests.");
-		return;
-	}
-
-	if (!test_facility(158)) {
-		prot_virt_host = 0;
-		pr_warn("Protected virtualization not supported by the hardware.");
-		return;
-	}
-
-	uv_stor_base = (unsigned long)memblock_alloc_try_nid(
+	uv_stor_base = memblock_alloc_try_nid(
 		uv_info.uv_base_stor_len, SZ_1M, SZ_2G,
 		MEMBLOCK_ALLOC_ACCESSIBLE, NUMA_NO_NODE);
 	if (!uv_stor_base) {
@@ -78,7 +63,7 @@ void __init setup_uv(void)
 		goto fail;
 	}
 
-	if (uv_init(uv_stor_base, uv_info.uv_base_stor_len)) {
+	if (uv_init(__pa(uv_stor_base), uv_info.uv_base_stor_len)) {
 		memblock_free(uv_stor_base, uv_info.uv_base_stor_len);
 		goto fail;
 	}
@@ -89,12 +74,6 @@ void __init setup_uv(void)
 fail:
 	pr_info("Disabling support for protected virtualization");
 	prot_virt_host = 0;
-}
-
-void adjust_to_uv_max(unsigned long *vmax)
-{
-	if (uv_info.max_sec_stor_addr)
-		*vmax = min_t(unsigned long, *vmax, uv_info.max_sec_stor_addr);
 }
 
 /*
@@ -121,7 +100,7 @@ static int uv_pin_shared(unsigned long paddr)
  *
  * @paddr: Absolute host address of page to be destroyed
  */
-int uv_destroy_page(unsigned long paddr)
+static int uv_destroy_page(unsigned long paddr)
 {
 	struct uv_cb_cfs uvcb = {
 		.header.cmd = UVC_CMD_DESTR_SEC_STOR,
@@ -142,6 +121,22 @@ int uv_destroy_page(unsigned long paddr)
 }
 
 /*
+ * The caller must already hold a reference to the page
+ */
+int uv_destroy_owned_page(unsigned long paddr)
+{
+	struct page *page = phys_to_page(paddr);
+	int rc;
+
+	get_page(page);
+	rc = uv_destroy_page(paddr);
+	if (!rc)
+		clear_bit(PG_arch_1, &page->flags);
+	put_page(page);
+	return rc;
+}
+
+/*
  * Requests the Ultravisor to encrypt a guest page and make it
  * accessible to the host for paging (export).
  *
@@ -158,6 +153,22 @@ int uv_convert_from_secure(unsigned long paddr)
 	if (uv_call(0, (u64)&uvcb))
 		return -EINVAL;
 	return 0;
+}
+
+/*
+ * The caller must already hold a reference to the page
+ */
+int uv_convert_owned_from_secure(unsigned long paddr)
+{
+	struct page *page = phys_to_page(paddr);
+	int rc;
+
+	get_page(page);
+	rc = uv_convert_from_secure(paddr);
+	if (!rc)
+		clear_bit(PG_arch_1, &page->flags);
+	put_page(page);
+	return rc;
 }
 
 /*
@@ -186,7 +197,7 @@ static int make_secure_pte(pte_t *ptep, unsigned long addr,
 {
 	pte_t entry = READ_ONCE(*ptep);
 	struct page *page;
-	int expected, rc = 0;
+	int expected, cc = 0;
 
 	if (!pte_present(entry))
 		return -ENXIO;
@@ -202,12 +213,25 @@ static int make_secure_pte(pte_t *ptep, unsigned long addr,
 	if (!page_ref_freeze(page, expected))
 		return -EBUSY;
 	set_bit(PG_arch_1, &page->flags);
-	rc = uv_call(0, (u64)uvcb);
+	/*
+	 * If the UVC does not succeed or fail immediately, we don't want to
+	 * loop for long, or we might get stall notifications.
+	 * On the other hand, this is a complex scenario and we are holding a lot of
+	 * locks, so we can't easily sleep and reschedule. We try only once,
+	 * and if the UVC returned busy or partial completion, we return
+	 * -EAGAIN and we let the callers deal with it.
+	 */
+	cc = __uv_call(0, (u64)uvcb);
 	page_ref_unfreeze(page, expected);
-	/* Return -ENXIO if the page was not mapped, -EINVAL otherwise */
-	if (rc)
-		rc = uvcb->rc == 0x10a ? -ENXIO : -EINVAL;
-	return rc;
+	/*
+	 * Return -ENXIO if the page was not mapped, -EINVAL for other errors.
+	 * If busy or partially completed, return -EAGAIN.
+	 */
+	if (cc == UVC_CC_OK)
+		return 0;
+	else if (cc == UVC_CC_BUSY || cc == UVC_CC_PARTIAL)
+		return -EAGAIN;
+	return uvcb->rc == 0x10a ? -ENXIO : -EINVAL;
 }
 
 /*
@@ -233,7 +257,7 @@ again:
 	uaddr = __gmap_translate(gmap, gaddr);
 	if (IS_ERR_VALUE(uaddr))
 		goto out;
-	vma = find_vma(gmap->mm, uaddr);
+	vma = vma_lookup(gmap->mm, uaddr);
 	if (!vma)
 		goto out;
 	/*
@@ -260,6 +284,10 @@ out:
 	mmap_read_unlock(gmap->mm);
 
 	if (rc == -EAGAIN) {
+		/*
+		 * If we are here because the UVC returned busy or partial
+		 * completion, this is just a useless check, but it is safe.
+		 */
 		wait_on_page_writeback(page);
 	} else if (rc == -EBUSY) {
 		/*
@@ -364,11 +392,20 @@ static ssize_t uv_query_facilities(struct kobject *kobj,
 static struct kobj_attribute uv_query_facilities_attr =
 	__ATTR(facilities, 0444, uv_query_facilities, NULL);
 
+static ssize_t uv_query_feature_indications(struct kobject *kobj,
+					    struct kobj_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%lx\n", uv_info.uv_feature_indications);
+}
+
+static struct kobj_attribute uv_query_feature_indications_attr =
+	__ATTR(feature_indications, 0444, uv_query_feature_indications, NULL);
+
 static ssize_t uv_query_max_guest_cpus(struct kobject *kobj,
 				       struct kobj_attribute *attr, char *page)
 {
 	return scnprintf(page, PAGE_SIZE, "%d\n",
-			uv_info.max_guest_cpus);
+			uv_info.max_guest_cpu_id + 1);
 }
 
 static struct kobj_attribute uv_query_max_guest_cpus_attr =
@@ -396,6 +433,7 @@ static struct kobj_attribute uv_query_max_guest_addr_attr =
 
 static struct attribute *uv_query_attrs[] = {
 	&uv_query_facilities_attr.attr,
+	&uv_query_feature_indications_attr.attr,
 	&uv_query_max_guest_cpus_attr.attr,
 	&uv_query_max_guest_vms_attr.attr,
 	&uv_query_max_guest_addr_attr.attr,
@@ -404,6 +442,41 @@ static struct attribute *uv_query_attrs[] = {
 
 static struct attribute_group uv_query_attr_group = {
 	.attrs = uv_query_attrs,
+};
+
+static ssize_t uv_is_prot_virt_guest(struct kobject *kobj,
+				     struct kobj_attribute *attr, char *page)
+{
+	int val = 0;
+
+#ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
+	val = prot_virt_guest;
+#endif
+	return scnprintf(page, PAGE_SIZE, "%d\n", val);
+}
+
+static ssize_t uv_is_prot_virt_host(struct kobject *kobj,
+				    struct kobj_attribute *attr, char *page)
+{
+	int val = 0;
+
+#if IS_ENABLED(CONFIG_KVM)
+	val = prot_virt_host;
+#endif
+
+	return scnprintf(page, PAGE_SIZE, "%d\n", val);
+}
+
+static struct kobj_attribute uv_prot_virt_guest =
+	__ATTR(prot_virt_guest, 0444, uv_is_prot_virt_guest, NULL);
+
+static struct kobj_attribute uv_prot_virt_host =
+	__ATTR(prot_virt_host, 0444, uv_is_prot_virt_host, NULL);
+
+static const struct attribute *uv_prot_virt_attrs[] = {
+	&uv_prot_virt_guest.attr,
+	&uv_prot_virt_host.attr,
+	NULL,
 };
 
 static struct kset *uv_query_kset;
@@ -420,15 +493,23 @@ static int __init uv_info_init(void)
 	if (!uv_kobj)
 		return -ENOMEM;
 
-	uv_query_kset = kset_create_and_add("query", NULL, uv_kobj);
-	if (!uv_query_kset)
+	rc = sysfs_create_files(uv_kobj, uv_prot_virt_attrs);
+	if (rc)
 		goto out_kobj;
+
+	uv_query_kset = kset_create_and_add("query", NULL, uv_kobj);
+	if (!uv_query_kset) {
+		rc = -ENOMEM;
+		goto out_ind_files;
+	}
 
 	rc = sysfs_create_group(&uv_query_kset->kobj, &uv_query_attr_group);
 	if (!rc)
 		return 0;
 
 	kset_unregister(uv_query_kset);
+out_ind_files:
+	sysfs_remove_files(uv_kobj, uv_prot_virt_attrs);
 out_kobj:
 	kobject_del(uv_kobj);
 	kobject_put(uv_kobj);

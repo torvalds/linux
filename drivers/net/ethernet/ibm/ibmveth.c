@@ -483,17 +483,6 @@ retry:
 	return rc;
 }
 
-static u64 ibmveth_encode_mac_addr(u8 *mac)
-{
-	int i;
-	u64 encoded = 0;
-
-	for (i = 0; i < ETH_ALEN; i++)
-		encoded = (encoded << 8) | mac[i];
-
-	return encoded;
-}
-
 static int ibmveth_open(struct net_device *netdev)
 {
 	struct ibmveth_adapter *adapter = netdev_priv(netdev);
@@ -553,7 +542,7 @@ static int ibmveth_open(struct net_device *netdev)
 	adapter->rx_queue.num_slots = rxq_entries;
 	adapter->rx_queue.toggle = 1;
 
-	mac_address = ibmveth_encode_mac_addr(netdev->dev_addr);
+	mac_address = ether_addr_to_u64(netdev->dev_addr);
 
 	rxq_desc.fields.flags_len = IBMVETH_BUF_VALID |
 					adapter->rx_queue.queue_len;
@@ -605,17 +594,13 @@ static int ibmveth_open(struct net_device *netdev)
 	}
 
 	rc = -ENOMEM;
-	adapter->bounce_buffer =
-	    kmalloc(netdev->mtu + IBMVETH_BUFF_OH, GFP_KERNEL);
-	if (!adapter->bounce_buffer)
-		goto out_free_irq;
 
-	adapter->bounce_buffer_dma =
-	    dma_map_single(&adapter->vdev->dev, adapter->bounce_buffer,
-			   netdev->mtu + IBMVETH_BUFF_OH, DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(dev, adapter->bounce_buffer_dma)) {
-		netdev_err(netdev, "unable to map bounce buffer\n");
-		goto out_free_bounce_buffer;
+	adapter->bounce_buffer = dma_alloc_coherent(&adapter->vdev->dev,
+						    netdev->mtu + IBMVETH_BUFF_OH,
+						    &adapter->bounce_buffer_dma, GFP_KERNEL);
+	if (!adapter->bounce_buffer) {
+		netdev_err(netdev, "unable to alloc bounce buffer\n");
+		goto out_free_irq;
 	}
 
 	netdev_dbg(netdev, "initial replenish cycle\n");
@@ -627,8 +612,6 @@ static int ibmveth_open(struct net_device *netdev)
 
 	return 0;
 
-out_free_bounce_buffer:
-	kfree(adapter->bounce_buffer);
 out_free_irq:
 	free_irq(netdev->irq, netdev);
 out_free_buffer_pools:
@@ -702,10 +685,9 @@ static int ibmveth_close(struct net_device *netdev)
 			ibmveth_free_buffer_pool(adapter,
 						 &adapter->rx_buff_pool[i]);
 
-	dma_unmap_single(&adapter->vdev->dev, adapter->bounce_buffer_dma,
-			 adapter->netdev->mtu + IBMVETH_BUFF_OH,
-			 DMA_BIDIRECTIONAL);
-	kfree(adapter->bounce_buffer);
+	dma_free_coherent(&adapter->vdev->dev,
+			  adapter->netdev->mtu + IBMVETH_BUFF_OH,
+			  adapter->bounce_buffer, adapter->bounce_buffer_dma);
 
 	netdev_dbg(netdev, "close complete\n");
 
@@ -1285,36 +1267,41 @@ static void ibmveth_rx_csum_helper(struct sk_buff *skb,
 		iph_proto = iph6->nexthdr;
 	}
 
-	/* In OVS environment, when a flow is not cached, specifically for a
-	 * new TCP connection, the first packet information is passed up
+	/* When CSO is enabled the TCP checksum may have be set to NULL by
+	 * the sender given that we zeroed out TCP checksum field in
+	 * transmit path (refer ibmveth_start_xmit routine). In this case set
+	 * up CHECKSUM_PARTIAL. If the packet is forwarded, the checksum will
+	 * then be recalculated by the destination NIC (CSO must be enabled
+	 * on the destination NIC).
+	 *
+	 * In an OVS environment, when a flow is not cached, specifically for a
+	 * new TCP connection, the first packet information is passed up to
 	 * the user space for finding a flow. During this process, OVS computes
 	 * checksum on the first packet when CHECKSUM_PARTIAL flag is set.
 	 *
-	 * Given that we zeroed out TCP checksum field in transmit path
-	 * (refer ibmveth_start_xmit routine) as we set "no checksum bit",
-	 * OVS computed checksum will be incorrect w/o TCP pseudo checksum
-	 * in the packet. This leads to OVS dropping the packet and hence
-	 * TCP retransmissions are seen.
-	 *
-	 * So, re-compute TCP pseudo header checksum.
+	 * So, re-compute TCP pseudo header checksum when configured for
+	 * trunk mode.
 	 */
-	if (iph_proto == IPPROTO_TCP && adapter->is_active_trunk) {
+	if (iph_proto == IPPROTO_TCP) {
 		struct tcphdr *tcph = (struct tcphdr *)(skb->data + iphlen);
-
-		tcphdrlen = skb->len - iphlen;
-
-		/* Recompute TCP pseudo header checksum */
-		if (skb_proto == ETH_P_IP)
-			tcph->check = ~csum_tcpudp_magic(iph->saddr,
+		if (tcph->check == 0x0000) {
+			/* Recompute TCP pseudo header checksum  */
+			if (adapter->is_active_trunk) {
+				tcphdrlen = skb->len - iphlen;
+				if (skb_proto == ETH_P_IP)
+					tcph->check =
+					 ~csum_tcpudp_magic(iph->saddr,
 					iph->daddr, tcphdrlen, iph_proto, 0);
-		else if (skb_proto == ETH_P_IPV6)
-			tcph->check = ~csum_ipv6_magic(&iph6->saddr,
+				else if (skb_proto == ETH_P_IPV6)
+					tcph->check =
+					 ~csum_ipv6_magic(&iph6->saddr,
 					&iph6->daddr, tcphdrlen, iph_proto, 0);
-
-		/* Setup SKB fields for checksum offload */
-		skb_partial_csum_set(skb, iphlen,
-				     offsetof(struct tcphdr, check));
-		skb_reset_network_header(skb);
+			}
+			/* Setup SKB fields for checksum offload */
+			skb_partial_csum_set(skb, iphlen,
+					     offsetof(struct tcphdr, check));
+			skb_reset_network_header(skb);
+		}
 	}
 }
 
@@ -1478,7 +1465,7 @@ static void ibmveth_set_multicast_list(struct net_device *netdev)
 		netdev_for_each_mc_addr(ha, netdev) {
 			/* add the multicast address to the filter table */
 			u64 mcast_addr;
-			mcast_addr = ibmveth_encode_mac_addr(ha->addr);
+			mcast_addr = ether_addr_to_u64(ha->addr);
 			lpar_rc = h_multicast_ctrl(adapter->vdev->unit_address,
 						   IbmVethMcastAddFilter,
 						   mcast_addr);
@@ -1608,14 +1595,14 @@ static int ibmveth_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	mac_address = ibmveth_encode_mac_addr(addr->sa_data);
+	mac_address = ether_addr_to_u64(addr->sa_data);
 	rc = h_change_logical_lan_mac(adapter->vdev->unit_address, mac_address);
 	if (rc) {
 		netdev_err(adapter->netdev, "h_change_logical_lan_mac failed with rc=%d\n", rc);
 		return rc;
 	}
 
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	return 0;
 }
@@ -1625,7 +1612,7 @@ static const struct net_device_ops ibmveth_netdev_ops = {
 	.ndo_stop		= ibmveth_close,
 	.ndo_start_xmit		= ibmveth_start_xmit,
 	.ndo_set_rx_mode	= ibmveth_set_multicast_list,
-	.ndo_do_ioctl		= ibmveth_ioctl,
+	.ndo_eth_ioctl		= ibmveth_ioctl,
 	.ndo_change_mtu		= ibmveth_change_mtu,
 	.ndo_fix_features	= ibmveth_fix_features,
 	.ndo_set_features	= ibmveth_set_features,
@@ -1722,7 +1709,7 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	netdev->min_mtu = IBMVETH_MIN_MTU;
 	netdev->max_mtu = ETH_MAX_MTU - IBMVETH_BUFF_OH;
 
-	memcpy(netdev->dev_addr, mac_addr_p, ETH_ALEN);
+	eth_hw_addr_set(netdev, mac_addr_p);
 
 	if (firmware_has_feature(FW_FEATURE_CMO))
 		memcpy(pool_count, pool_count_cmo, sizeof(pool_count));
@@ -1758,7 +1745,7 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	return 0;
 }
 
-static int ibmveth_remove(struct vio_dev *dev)
+static void ibmveth_remove(struct vio_dev *dev)
 {
 	struct net_device *netdev = dev_get_drvdata(&dev->dev);
 	struct ibmveth_adapter *adapter = netdev_priv(netdev);
@@ -1771,8 +1758,6 @@ static int ibmveth_remove(struct vio_dev *dev)
 
 	free_netdev(netdev);
 	dev_set_drvdata(&dev->dev, NULL);
-
-	return 0;
 }
 
 static struct attribute veth_active_attr;
@@ -1801,8 +1786,7 @@ static ssize_t veth_pool_store(struct kobject *kobj, struct attribute *attr,
 	struct ibmveth_buff_pool *pool = container_of(kobj,
 						      struct ibmveth_buff_pool,
 						      kobj);
-	struct net_device *netdev = dev_get_drvdata(
-	    container_of(kobj->parent, struct device, kobj));
+	struct net_device *netdev = dev_get_drvdata(kobj_to_dev(kobj->parent));
 	struct ibmveth_adapter *adapter = netdev_priv(netdev);
 	long value = simple_strtol(buf, NULL, 10);
 	long rc;
@@ -1906,6 +1890,7 @@ static struct attribute *veth_pool_attrs[] = {
 	&veth_size_attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(veth_pool);
 
 static const struct sysfs_ops veth_pool_ops = {
 	.show   = veth_pool_show,
@@ -1915,7 +1900,7 @@ static const struct sysfs_ops veth_pool_ops = {
 static struct kobj_type ktype_veth_pool = {
 	.release        = NULL,
 	.sysfs_ops      = &veth_pool_ops,
-	.default_attrs  = veth_pool_attrs,
+	.default_groups = veth_pool_groups,
 };
 
 static int ibmveth_resume(struct device *dev)

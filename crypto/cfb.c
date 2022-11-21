@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0
 /*
  * CFB: Cipher FeedBack mode
  *
@@ -20,6 +20,7 @@
  */
 
 #include <crypto/algapi.h>
+#include <crypto/internal/cipher.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -250,3 +251,4 @@ module_exit(crypto_cfb_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("CFB block cipher mode of operation");
 MODULE_ALIAS_CRYPTO("cfb");
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);

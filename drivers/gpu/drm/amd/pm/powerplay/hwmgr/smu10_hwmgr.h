@@ -283,6 +283,7 @@ struct smu10_hwmgr {
 	uint32_t                        vclk_soft_min;
 	uint32_t                        dclk_soft_min;
 	uint32_t                        gfx_actual_soft_min_freq;
+	uint32_t                        gfx_actual_soft_max_freq;
 	uint32_t                        gfx_min_freq_limit;
 	uint32_t                        gfx_max_freq_limit; /* in 10Khz*/
 
@@ -299,6 +300,8 @@ struct smu10_hwmgr {
 	bool need_min_deep_sleep_dcefclk;
 	uint32_t                             deep_sleep_dcefclk;
 	uint32_t                             num_active_display;
+
+	bool							fine_grain_enabled;
 };
 
 struct pp_hwmgr;

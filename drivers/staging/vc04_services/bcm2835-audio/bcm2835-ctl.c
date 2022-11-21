@@ -224,7 +224,7 @@ int snd_bcm2835_new_ctl(struct bcm2835_chip *chip)
 {
 	int err;
 
-	strcpy(chip->card->mixername, "Broadcom Mixer");
+	strscpy(chip->card->mixername, "Broadcom Mixer", sizeof(chip->card->mixername));
 	err = create_ctls(chip, ARRAY_SIZE(snd_bcm2835_ctl), snd_bcm2835_ctl);
 	if (err < 0)
 		return err;
@@ -261,7 +261,7 @@ static const struct snd_kcontrol_new snd_bcm2835_headphones_ctl[] = {
 
 int snd_bcm2835_new_headphones_ctl(struct bcm2835_chip *chip)
 {
-	strcpy(chip->card->mixername, "Broadcom Mixer");
+	strscpy(chip->card->mixername, "Broadcom Mixer", sizeof(chip->card->mixername));
 	return create_ctls(chip, ARRAY_SIZE(snd_bcm2835_headphones_ctl),
 			   snd_bcm2835_headphones_ctl);
 }
@@ -295,7 +295,7 @@ static const struct snd_kcontrol_new snd_bcm2835_hdmi[] = {
 
 int snd_bcm2835_new_hdmi_ctl(struct bcm2835_chip *chip)
 {
-	strcpy(chip->card->mixername, "Broadcom Mixer");
+	strscpy(chip->card->mixername, "Broadcom Mixer", sizeof(chip->card->mixername));
 	return create_ctls(chip, ARRAY_SIZE(snd_bcm2835_hdmi),
 			   snd_bcm2835_hdmi);
 }

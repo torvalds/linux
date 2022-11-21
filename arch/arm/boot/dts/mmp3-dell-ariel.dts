@@ -26,10 +26,20 @@
 	};
 
 	memory@0 {
-		linux,usable-memory = <0x0 0x7f600000>;
 		available = <0x7f700000 0x7ff00000 0x00000000 0x7f600000>;
 		reg = <0x0 0x80000000>;
 		device_type = "memory";
+	};
+
+	ec_input_spi: spi {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		num-chipselects = <0>;
+		sck-gpios = <&gpio 55 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio 57 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio 58 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -96,6 +106,15 @@
 
 &twsi4 {
 	status = "okay";
+
+	embedded-controller@58 {
+		compatible = "dell,wyse-ariel-ec", "ene,kb3930";
+		reg = <0x58>;
+		system-power-controller;
+
+		off-gpios = <&gpio 126 GPIO_ACTIVE_HIGH>,
+			    <&gpio 127 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &ssp1 {
@@ -110,9 +129,17 @@
 	};
 };
 
-&ssp2 {
-	cs-gpios = <&gpio 56 GPIO_ACTIVE_LOW>;
+&ec_input_spi {
 	status = "okay";
+	cs-gpios = <&gpio 56 GPIO_ACTIVE_LOW>;
+
+	power-button@0 {
+		reg = <0>;
+		interrupt-parent = <&gpio>;
+		interrupts = <60 IRQ_TYPE_EDGE_RISING>;
+		compatible = "dell,wyse-ariel-ec-input", "ene,kb3930-input";
+		spi-max-frequency = <33000000>;
+	};
 };
 
 &gpu_2d {

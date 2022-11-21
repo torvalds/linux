@@ -63,7 +63,66 @@
 
 static int all;
 module_param(all, int, 0444);
-MODULE_PARM_DESC(all, "Grab all legacy port devices, even if PCI(0=off, 1=on)");
+MODULE_PARM_DESC(all,
+		 "Set to probe unclaimed pri/sec ISA port ranges even if PCI");
+
+static int probe_all;
+module_param(probe_all, int, 0);
+MODULE_PARM_DESC(probe_all,
+		 "Set to probe tertiary+ ISA port ranges even if PCI");
+
+static int probe_mask = ~0;
+module_param(probe_mask, int, 0);
+MODULE_PARM_DESC(probe_mask, "Probe mask for legacy ISA PATA ports");
+
+static int autospeed;
+module_param(autospeed, int, 0);
+MODULE_PARM_DESC(autospeed, "Chip present that snoops speed changes");
+
+static int pio_mask = ATA_PIO4;
+module_param(pio_mask, int, 0);
+MODULE_PARM_DESC(pio_mask, "PIO range for autospeed devices");
+
+static int iordy_mask = 0xFFFFFFFF;
+module_param(iordy_mask, int, 0);
+MODULE_PARM_DESC(iordy_mask, "Use IORDY if available");
+
+static int ht6560a;
+module_param(ht6560a, int, 0);
+MODULE_PARM_DESC(ht6560a, "HT 6560A on primary 1, second 2, both 3");
+
+static int ht6560b;
+module_param(ht6560b, int, 0);
+MODULE_PARM_DESC(ht6560b, "HT 6560B on primary 1, secondary 2, both 3");
+
+static int opti82c611a;
+module_param(opti82c611a, int, 0);
+MODULE_PARM_DESC(opti82c611a,
+		 "Opti 82c611A on primary 1, secondary 2, both 3");
+
+static int opti82c46x;
+module_param(opti82c46x, int, 0);
+MODULE_PARM_DESC(opti82c46x,
+		 "Opti 82c465MV on primary 1, secondary 2, both 3");
+
+#ifdef CONFIG_PATA_QDI_MODULE
+static int qdi = 1;
+#else
+static int qdi;
+#endif
+module_param(qdi, int, 0);
+MODULE_PARM_DESC(qdi, "Set to probe QDI controllers");
+
+#ifdef CONFIG_PATA_WINBOND_VLB_MODULE
+static int winbond = 1;
+#else
+static int winbond;
+#endif
+module_param(winbond, int, 0);
+MODULE_PARM_DESC(winbond,
+		 "Set to probe Winbond controllers, "
+		 "give I/O port if non standard");
+
 
 enum controller {
 	BIOS = 0,
@@ -117,30 +176,6 @@ static struct ata_host *legacy_host[NR_HOST];
 static int nr_legacy_host;
 
 
-static int probe_all;		/* Set to check all ISA port ranges */
-static int ht6560a;		/* HT 6560A on primary 1, second 2, both 3 */
-static int ht6560b;		/* HT 6560A on primary 1, second 2, both 3 */
-static int opti82c611a;		/* Opti82c611A on primary 1, sec 2, both 3 */
-static int opti82c46x;		/* Opti 82c465MV present(pri/sec autodetect) */
-static int autospeed;		/* Chip present which snoops speed changes */
-static int pio_mask = ATA_PIO4;	/* PIO range for autospeed devices */
-static int iordy_mask = 0xFFFFFFFF;	/* Use iordy if available */
-
-/* Set to probe QDI controllers */
-#ifdef CONFIG_PATA_QDI_MODULE
-static int qdi = 1;
-#else
-static int qdi;
-#endif
-
-#ifdef CONFIG_PATA_WINBOND_VLB_MODULE
-static int winbond = 1;		/* Set to probe Winbond controllers,
-					give I/O port if non standard */
-#else
-static int winbond;		/* Set to probe Winbond controllers,
-					give I/O port if non standard */
-#endif
-
 /**
  *	legacy_probe_add	-	Add interface to probe list
  *	@port: Controller port
@@ -168,6 +203,8 @@ static int legacy_probe_add(unsigned long port, unsigned int irq,
 			free = lp;
 		/* Matching port, or the correct slot for ordering */
 		if (lp->port == port || legacy_port[i] == port) {
+			if (!(probe_mask & 1 << i))
+				return -1;
 			free = lp;
 			break;
 		}
@@ -315,7 +352,8 @@ static unsigned int pdc_data_xfer_vlb(struct ata_queued_cmd *qc,
 			iowrite32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 
 		if (unlikely(slop)) {
-			__le32 pad;
+			__le32 pad = 0;
+
 			if (rw == READ) {
 				pad = cpu_to_le32(ioread32(ap->ioaddr.data_addr));
 				memcpy(buf + buflen - slop, &pad, slop);
@@ -588,7 +626,7 @@ static void opti82c46x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	opt82c465mv_qc_issue		-	command issue
+ *	opti82c46x_qc_issue		-	command issue
  *	@qc: command pending
  *
  *	Called when the libata layer is about to issue a command. We wrap
@@ -705,7 +743,8 @@ static unsigned int vlb32_data_xfer(struct ata_queued_cmd *qc,
 			ioread32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 
 		if (unlikely(slop)) {
-			__le32 pad;
+			__le32 pad = 0;
+
 			if (rw == WRITE) {
 				memcpy(&pad, buf + buflen - slop, slop);
 				iowrite32(le32_to_cpu(pad), ap->ioaddr.data_addr);
@@ -923,7 +962,7 @@ static __init int probe_chip_type(struct legacy_probe *probe)
 
 /**
  *	legacy_init_one		-	attach a legacy interface
- *	@pl: probe record
+ *	@probe: probe record
  *
  *	Register an ISA bus IDE interface. Such interfaces are PIO and we
  *	assume do not support IRQ sharing.
@@ -1009,8 +1048,8 @@ fail:
 /**
  *	legacy_check_special_cases	-	ATA special cases
  *	@p: PCI device to check
- *	@master: set this if we find an ATA master
- *	@master: set this if we find an ATA secondary
+ *	@primary: set this if we find an ATA master
+ *	@secondary: set this if we find an ATA secondary
  *
  *	A small number of vendors implemented early PCI ATA interfaces
  *	on bridge logic without the ATA interface being PCI visible.
@@ -1249,17 +1288,6 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("pata_qdi");
 MODULE_ALIAS("pata_winbond");
-
-module_param(probe_all, int, 0);
-module_param(autospeed, int, 0);
-module_param(ht6560a, int, 0);
-module_param(ht6560b, int, 0);
-module_param(opti82c611a, int, 0);
-module_param(opti82c46x, int, 0);
-module_param(qdi, int, 0);
-module_param(winbond, int, 0);
-module_param(pio_mask, int, 0);
-module_param(iordy_mask, int, 0);
 
 module_init(legacy_init);
 module_exit(legacy_exit);

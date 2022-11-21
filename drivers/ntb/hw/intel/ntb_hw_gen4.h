@@ -35,6 +35,9 @@
 #define GEN4_IM_SPAD_SEM_OFFSET		0x00c0	/* SPAD hw semaphore */
 #define GEN4_IM_SPAD_STICKY_OFFSET	0x00c4  /* sticky SPAD */
 #define GEN4_IM_DOORBELL_OFFSET		0x0100  /* 0-31 doorbells */
+#define GEN4_LTR_SWSEL_OFFSET		0x30ec
+#define GEN4_LTR_ACTIVE_OFFSET		0x30f0
+#define GEN4_LTR_IDLE_OFFSET		0x30f4
 #define GEN4_EM_SPAD_OFFSET		0x8080
 /* note, link status is now in MMIO and not config space for NTB */
 #define GEN4_LINK_CTRL_OFFSET		0xb050
@@ -46,10 +49,14 @@
 #define GEN4_PPD_CLEAR_TRN		0x0001
 #define GEN4_PPD_LINKTRN		0x0008
 #define GEN4_PPD_CONN_MASK		0x0300
+#define SPR_PPD_CONN_MASK		0x0700
 #define GEN4_PPD_CONN_B2B		0x0200
 #define GEN4_PPD_DEV_MASK		0x1000
 #define GEN4_PPD_DEV_DSD		0x1000
 #define GEN4_PPD_DEV_USD		0x0000
+#define SPR_PPD_DEV_MASK		0x4000
+#define SPR_PPD_DEV_DSD 		0x4000
+#define SPR_PPD_DEV_USD 		0x0000
 #define GEN4_LINK_CTRL_LINK_DISABLE	0x0010
 
 #define GEN4_SLOTSTS			0xb05a
@@ -58,6 +65,10 @@
 #define GEN4_PPD_TOPO_MASK	(GEN4_PPD_CONN_MASK | GEN4_PPD_DEV_MASK)
 #define GEN4_PPD_TOPO_B2B_USD	(GEN4_PPD_CONN_B2B | GEN4_PPD_DEV_USD)
 #define GEN4_PPD_TOPO_B2B_DSD	(GEN4_PPD_CONN_B2B | GEN4_PPD_DEV_DSD)
+
+#define SPR_PPD_TOPO_MASK	(SPR_PPD_CONN_MASK | SPR_PPD_DEV_MASK)
+#define SPR_PPD_TOPO_B2B_USD	(GEN4_PPD_CONN_B2B | SPR_PPD_DEV_USD)
+#define SPR_PPD_TOPO_B2B_DSD	(GEN4_PPD_CONN_B2B | SPR_PPD_DEV_DSD)
 
 #define GEN4_DB_COUNT			32
 #define GEN4_DB_LINK			32
@@ -80,6 +91,18 @@
 
 #define NTB_SJC_FORCEDETECT		0x000004
 
+#define NTB_LTR_SWSEL_ACTIVE		0x0
+#define NTB_LTR_SWSEL_IDLE		0x1
+
+#define NTB_LTR_NS_SHIFT		16
+#define NTB_LTR_ACTIVE_VAL		0x0000  /* 0 us */
+#define NTB_LTR_ACTIVE_LATSCALE		0x0800  /* 1us scale */
+#define NTB_LTR_ACTIVE_REQMNT		0x8000  /* snoop req enable */
+
+#define NTB_LTR_IDLE_VAL		0x0258  /* 600 us */
+#define NTB_LTR_IDLE_LATSCALE		0x0800  /* 1us scale */
+#define NTB_LTR_IDLE_REQMNT		0x8000  /* snoop req enable */
+
 ssize_t ndev_ntb4_debugfs_read(struct file *filp, char __user *ubuf,
 				      size_t count, loff_t *offp);
 int gen4_init_dev(struct intel_ntb_dev *ndev);
@@ -93,6 +116,14 @@ static inline int pdev_is_ICX(struct pci_dev *pdev)
 	if (pdev_is_gen4(pdev) &&
 	    pdev->revision >= PCI_DEVICE_REVISION_ICX_MIN &&
 	    pdev->revision <= PCI_DEVICE_REVISION_ICX_MAX)
+		return 1;
+	return 0;
+}
+
+static inline int pdev_is_SPR(struct pci_dev *pdev)
+{
+	if (pdev_is_gen4(pdev) &&
+	    pdev->revision > PCI_DEVICE_REVISION_ICX_MAX)
 		return 1;
 	return 0;
 }

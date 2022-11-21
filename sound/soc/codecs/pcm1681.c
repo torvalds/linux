@@ -84,7 +84,7 @@ static const int pcm1681_deemph[] = { 44100, 48000, 32000 };
 static int pcm1681_set_deemph(struct snd_soc_component *component)
 {
 	struct pcm1681_private *priv = snd_soc_component_get_drvdata(component);
-	int i = 0, val = -1, enable = 0;
+	int i, val = -1, enable = 0;
 
 	if (priv->deemph) {
 		for (i = 0; i < ARRAY_SIZE(pcm1681_deemph); i++) {
@@ -136,8 +136,8 @@ static int pcm1681_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	struct pcm1681_private *priv = snd_soc_component_get_drvdata(component);
 
-	/* The PCM1681 can only be slave to all clocks */
-	if ((format & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
+	/* The PCM1681 can only be consumer to all clocks */
+	if ((format & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) != SND_SOC_DAIFMT_CBC_CFC) {
 		dev_err(component->dev, "Invalid clocking mode\n");
 		return -EINVAL;
 	}

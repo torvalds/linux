@@ -183,7 +183,7 @@ static void hubp21_setup(
 
 }
 
-void hubp21_set_viewport(
+static void hubp21_set_viewport(
 	struct hubp *hubp,
 	const struct rect *viewport,
 	const struct rect *viewport_c)
@@ -225,8 +225,8 @@ void hubp21_set_viewport(
 		  SEC_VIEWPORT_Y_START_C, viewport_c->y);
 }
 
-void hubp21_set_vm_system_aperture_settings(struct hubp *hubp,
-		struct vm_system_aperture_param *apt)
+static void hubp21_set_vm_system_aperture_settings(struct hubp *hubp,
+						   struct vm_system_aperture_param *apt)
 {
 	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
 
@@ -248,7 +248,7 @@ void hubp21_set_vm_system_aperture_settings(struct hubp *hubp,
 			SYSTEM_ACCESS_MODE, 0x3);
 }
 
-void hubp21_validate_dml_output(struct hubp *hubp,
+static void hubp21_validate_dml_output(struct hubp *hubp,
 		struct dc_context *ctx,
 		struct _vcs_dpi_display_rq_regs_st *dml_rq_regs,
 		struct _vcs_dpi_display_dlg_regs_st *dml_dlg_attr,
@@ -664,7 +664,8 @@ static void program_surface_flip_and_addr(struct hubp *hubp, struct surface_flip
 			flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS);
 }
 
-void dmcub_PLAT_54186_wa(struct hubp *hubp, struct surface_flip_registers *flip_regs)
+static void dmcub_PLAT_54186_wa(struct hubp *hubp,
+				struct surface_flip_registers *flip_regs)
 {
 	struct dc_dmub_srv *dmcub = hubp->ctx->dmub_srv;
 	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
@@ -697,7 +698,7 @@ void dmcub_PLAT_54186_wa(struct hubp *hubp, struct surface_flip_registers *flip_
 	PERF_TRACE();  // TODO: remove after performance is stable.
 }
 
-bool hubp21_program_surface_flip_and_addr(
+static bool hubp21_program_surface_flip_and_addr(
 		struct hubp *hubp,
 		const struct dc_plane_address *address,
 		bool flip_immediate)
@@ -805,7 +806,7 @@ bool hubp21_program_surface_flip_and_addr(
 	return true;
 }
 
-void hubp21_init(struct hubp *hubp)
+static void hubp21_init(struct hubp *hubp)
 {
 	// DEDCN21-133: Inconsistent row starting line for flip between DPTE and Meta
 	// This is a chicken bit to enable the ECO fix.
@@ -833,11 +834,12 @@ static struct hubp_funcs dcn21_hubp_funcs = {
 	.dmdata_set_attributes = hubp2_dmdata_set_attributes,
 	.dmdata_load = hubp2_dmdata_load,
 	.dmdata_status_done = hubp2_dmdata_status_done,
-	.hubp_read_state = hubp1_read_state,
+	.hubp_read_state = hubp2_read_state,
 	.hubp_clear_underflow = hubp1_clear_underflow,
 	.hubp_set_flip_control_surface_gsl = hubp2_set_flip_control_surface_gsl,
 	.hubp_init = hubp21_init,
 	.validate_dml_output = hubp21_validate_dml_output,
+	.hubp_set_flip_int = hubp1_set_flip_int,
 };
 
 bool hubp21_construct(

@@ -42,7 +42,10 @@ struct msm_gpu_config {
  *    + z180_gpu
  */
 struct msm_gpu_funcs {
-	int (*get_param)(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
+	int (*get_param)(struct msm_gpu *gpu, struct msm_file_private *ctx,
+			 uint32_t param, uint64_t *value);
+	int (*set_param)(struct msm_gpu *gpu, struct msm_file_private *ctx,
+			 uint32_t param, uint64_t value);
 	int (*hw_init)(struct msm_gpu *gpu);
 	int (*pm_suspend)(struct msm_gpu *gpu);
 	int (*pm_resume)(struct msm_gpu *gpu);
@@ -71,6 +74,68 @@ struct msm_gpu_funcs {
 	uint32_t (*get_rptr)(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
 };
 
+/* Additional state for iommu faults: */
+struct msm_gpu_fault_info {
+	u64 ttbr0;
+	unsigned long iova;
+	int flags;
+	const char *type;
+	const char *block;
+};
+
+/**
+ * struct msm_gpu_devfreq - devfreq related state
+ */
+struct msm_gpu_devfreq {
+	/** devfreq: devfreq instance */
+	struct devfreq *devfreq;
+
+	/**
+	 * idle_constraint:
+	 *
+	 * A PM QoS constraint to limit max freq while the GPU is idle.
+	 */
+	struct dev_pm_qos_request idle_freq;
+
+	/**
+	 * boost_constraint:
+	 *
+	 * A PM QoS constraint to boost min freq for a period of time
+	 * until the boost expires.
+	 */
+	struct dev_pm_qos_request boost_freq;
+
+	/**
+	 * busy_cycles:
+	 *
+	 * Used by implementation of gpu->gpu_busy() to track the last
+	 * busy counter value, for calculating elapsed busy cycles since
+	 * last sampling period.
+	 */
+	u64 busy_cycles;
+
+	/** time: Time of last sampling period. */
+	ktime_t time;
+
+	/** idle_time: Time of last transition to idle: */
+	ktime_t idle_time;
+
+	/**
+	 * idle_work:
+	 *
+	 * Used to delay clamping to idle freq on active->idle transition.
+	 */
+	struct msm_hrtimer_work idle_work;
+
+	/**
+	 * boost_work:
+	 *
+	 * Used to reset the boost_constraint after the boost period has
+	 * elapsed
+	 */
+	struct msm_hrtimer_work boost_work;
+};
+
 struct msm_gpu {
 	const char *name;
 	struct drm_device *dev;
@@ -94,17 +159,61 @@ struct msm_gpu {
 	struct msm_ringbuffer *rb[MSM_GPU_MAX_RINGS];
 	int nr_rings;
 
-	/* list of GEM active objects: */
+	/**
+	 * sysprof_active:
+	 *
+	 * The count of contexts that have enabled system profiling.
+	 */
+	refcount_t sysprof_active;
+
+	/**
+	 * cur_ctx_seqno:
+	 *
+	 * The ctx->seqno value of the last context to submit rendering,
+	 * and the one with current pgtables installed (for generations
+	 * that support per-context pgtables).  Tracked by seqno rather
+	 * than pointer value to avoid dangling pointers, and cases where
+	 * a ctx can be freed and a new one created with the same address.
+	 */
+	int cur_ctx_seqno;
+
+	/*
+	 * List of GEM active objects on this gpu.  Protected by
+	 * msm_drm_private::mm_lock
+	 */
 	struct list_head active_list;
+
+	/**
+	 * lock:
+	 *
+	 * General lock for serializing all the gpu things.
+	 *
+	 * TODO move to per-ring locking where feasible (ie. submit/retire
+	 * path, etc)
+	 */
+	struct mutex lock;
+
+	/**
+	 * active_submits:
+	 *
+	 * The number of submitted but not yet retired submits, used to
+	 * determine transitions between active and idle.
+	 *
+	 * Protected by active_lock
+	 */
+	int active_submits;
+
+	/** lock: protects active_submits and idle/active transitions */
+	struct mutex active_lock;
 
 	/* does gpu need hw_init? */
 	bool needs_hw_init;
 
-	/* number of GPU hangs (for all contexts) */
+	/**
+	 * global_faults: number of GPU hangs not attributed to a particular
+	 * address space
+	 */
 	int global_faults;
-
-	/* worker for handling active-list retiring: */
-	struct work_struct retire_work;
 
 	void __iomem *mmio;
 	int irq;
@@ -118,35 +227,46 @@ struct msm_gpu {
 	struct clk *ebi1_clk, *core_clk, *rbbmtimer_clk;
 	uint32_t fast_rate;
 
-	/* The gfx-mem interconnect path that's used by all GPU types. */
-	struct icc_path *icc_path;
-
-	/*
-	 * Second interconnect path for some A3xx and all A4xx GPUs to the
-	 * On Chip MEMory (OCMEM).
-	 */
-	struct icc_path *ocmem_icc_path;
-
 	/* Hang and Inactivity Detection:
 	 */
 #define DRM_MSM_INACTIVE_PERIOD   66 /* in ms (roughly four frames) */
 
-#define DRM_MSM_HANGCHECK_PERIOD 500 /* in ms */
-#define DRM_MSM_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_MSM_HANGCHECK_PERIOD)
+#define DRM_MSM_HANGCHECK_DEFAULT_PERIOD 500 /* in ms */
 	struct timer_list hangcheck_timer;
-	struct work_struct recover_work;
+
+	/* Fault info for most recent iova fault: */
+	struct msm_gpu_fault_info fault_info;
+
+	/* work for handling GPU ioval faults: */
+	struct kthread_work fault_work;
+
+	/* work for handling GPU recovery: */
+	struct kthread_work recover_work;
+
+	/** retire_event: notified when submits are retired: */
+	wait_queue_head_t retire_event;
+
+	/* work for handling active-list retiring: */
+	struct kthread_work retire_work;
+
+	/* worker for retire/recover: */
+	struct kthread_worker *worker;
 
 	struct drm_gem_object *memptrs_bo;
 
-	struct {
-		struct devfreq *devfreq;
-		u64 busy_cycles;
-		ktime_t time;
-	} devfreq;
+	struct msm_gpu_devfreq devfreq;
+
+	uint32_t suspend_count;
 
 	struct msm_gpu_state *crashstate;
+
+	/* Enable clamping to idle freq when inactive: */
+	bool clamp_to_idle;
+
 	/* True if the hardware supports expanded apriv (a650 and newer) */
 	bool hw_apriv;
+
+	struct thermal_cooling_device *cooling;
 };
 
 static inline struct msm_gpu *dev_to_gpu(struct device *dev)
@@ -170,7 +290,7 @@ static inline bool msm_gpu_active(struct msm_gpu *gpu)
 	for (i = 0; i < gpu->nr_rings; i++) {
 		struct msm_ringbuffer *ring = gpu->rb[i];
 
-		if (ring->seqno > ring->memptrs->fence)
+		if (fence_after(ring->seqno, ring->memptrs->fence))
 			return true;
 	}
 
@@ -190,14 +310,146 @@ struct msm_gpu_perfcntr {
 	const char *name;
 };
 
+/*
+ * The number of priority levels provided by drm gpu scheduler.  The
+ * DRM_SCHED_PRIORITY_KERNEL priority level is treated specially in some
+ * cases, so we don't use it (no need for kernel generated jobs).
+ */
+#define NR_SCHED_PRIORITIES (1 + DRM_SCHED_PRIORITY_HIGH - DRM_SCHED_PRIORITY_MIN)
+
+/**
+ * struct msm_file_private - per-drm_file context
+ *
+ * @queuelock:    synchronizes access to submitqueues list
+ * @submitqueues: list of &msm_gpu_submitqueue created by userspace
+ * @queueid:      counter incremented each time a submitqueue is created,
+ *                used to assign &msm_gpu_submitqueue.id
+ * @aspace:       the per-process GPU address-space
+ * @ref:          reference count
+ * @seqno:        unique per process seqno
+ */
+struct msm_file_private {
+	rwlock_t queuelock;
+	struct list_head submitqueues;
+	int queueid;
+	struct msm_gem_address_space *aspace;
+	struct kref ref;
+	int seqno;
+
+	/**
+	 * sysprof:
+	 *
+	 * The value of MSM_PARAM_SYSPROF set by userspace.  This is
+	 * intended to be used by system profiling tools like Mesa's
+	 * pps-producer (perfetto), and restricted to CAP_SYS_ADMIN.
+	 *
+	 * Setting a value of 1 will preserve performance counters across
+	 * context switches.  Setting a value of 2 will in addition
+	 * suppress suspend.  (Performance counters lose state across
+	 * power collapse, which is undesirable for profiling in some
+	 * cases.)
+	 *
+	 * The value automatically reverts to zero when the drm device
+	 * file is closed.
+	 */
+	int sysprof;
+
+	/**
+	 * entities:
+	 *
+	 * Table of per-priority-level sched entities used by submitqueues
+	 * associated with this &drm_file.  Because some userspace apps
+	 * make assumptions about rendering from multiple gl contexts
+	 * (of the same priority) within the process happening in FIFO
+	 * order without requiring any fencing beyond MakeCurrent(), we
+	 * create at most one &drm_sched_entity per-process per-priority-
+	 * level.
+	 */
+	struct drm_sched_entity *entities[NR_SCHED_PRIORITIES * MSM_GPU_MAX_RINGS];
+};
+
+/**
+ * msm_gpu_convert_priority - Map userspace priority to ring # and sched priority
+ *
+ * @gpu:        the gpu instance
+ * @prio:       the userspace priority level
+ * @ring_nr:    [out] the ringbuffer the userspace priority maps to
+ * @sched_prio: [out] the gpu scheduler priority level which the userspace
+ *              priority maps to
+ *
+ * With drm/scheduler providing it's own level of prioritization, our total
+ * number of available priority levels is (nr_rings * NR_SCHED_PRIORITIES).
+ * Each ring is associated with it's own scheduler instance.  However, our
+ * UABI is that lower numerical values are higher priority.  So mapping the
+ * single userspace priority level into ring_nr and sched_prio takes some
+ * care.  The userspace provided priority (when a submitqueue is created)
+ * is mapped to ring nr and scheduler priority as such:
+ *
+ *   ring_nr    = userspace_prio / NR_SCHED_PRIORITIES
+ *   sched_prio = NR_SCHED_PRIORITIES -
+ *                (userspace_prio % NR_SCHED_PRIORITIES) - 1
+ *
+ * This allows generations without preemption (nr_rings==1) to have some
+ * amount of prioritization, and provides more priority levels for gens
+ * that do have preemption.
+ */
+static inline int msm_gpu_convert_priority(struct msm_gpu *gpu, int prio,
+		unsigned *ring_nr, enum drm_sched_priority *sched_prio)
+{
+	unsigned rn, sp;
+
+	rn = div_u64_rem(prio, NR_SCHED_PRIORITIES, &sp);
+
+	/* invert sched priority to map to higher-numeric-is-higher-
+	 * priority convention
+	 */
+	sp = NR_SCHED_PRIORITIES - sp - 1;
+
+	if (rn >= gpu->nr_rings)
+		return -EINVAL;
+
+	*ring_nr = rn;
+	*sched_prio = sp;
+
+	return 0;
+}
+
+/**
+ * struct msm_gpu_submitqueues - Userspace created context.
+ *
+ * A submitqueue is associated with a gl context or vk queue (or equiv)
+ * in userspace.
+ *
+ * @id:        userspace id for the submitqueue, unique within the drm_file
+ * @flags:     userspace flags for the submitqueue, specified at creation
+ *             (currently unusued)
+ * @ring_nr:   the ringbuffer used by this submitqueue, which is determined
+ *             by the submitqueue's priority
+ * @faults:    the number of GPU hangs associated with this submitqueue
+ * @last_fence: the sequence number of the last allocated fence (for error
+ *             checking)
+ * @ctx:       the per-drm_file context associated with the submitqueue (ie.
+ *             which set of pgtables do submits jobs associated with the
+ *             submitqueue use)
+ * @node:      node in the context's list of submitqueues
+ * @fence_idr: maps fence-id to dma_fence for userspace visible fence
+ *             seqno, protected by submitqueue lock
+ * @lock:      submitqueue lock
+ * @ref:       reference count
+ * @entity:    the submit job-queue
+ */
 struct msm_gpu_submitqueue {
 	int id;
 	u32 flags;
-	u32 prio;
+	u32 ring_nr;
 	int faults;
+	uint32_t last_fence;
 	struct msm_file_private *ctx;
 	struct list_head node;
+	struct idr fence_idr;
+	struct mutex lock;
 	struct kref ref;
+	struct drm_sched_entity *entity;
 };
 
 struct msm_gpu_state_bo {
@@ -230,6 +482,8 @@ struct msm_gpu_state {
 	char *comm;
 	char *cmd;
 
+	struct msm_gpu_fault_info fault_info;
+
 	int nr_bos;
 	struct msm_gpu_state_bo *bos;
 };
@@ -246,10 +500,7 @@ static inline u32 gpu_read(struct msm_gpu *gpu, u32 reg)
 
 static inline void gpu_rmw(struct msm_gpu *gpu, u32 reg, u32 mask, u32 or)
 {
-	uint32_t val = gpu_read(gpu, reg);
-
-	val &= ~mask;
-	gpu_write(gpu, reg, val | or);
+	msm_rmw(gpu->mmio + (reg << 2), mask, or);
 }
 
 static inline u64 gpu_read64(struct msm_gpu *gpu, u32 lo, u32 hi)
@@ -285,7 +536,43 @@ static inline void gpu_write64(struct msm_gpu *gpu, u32 lo, u32 hi, u64 val)
 
 int msm_gpu_pm_suspend(struct msm_gpu *gpu);
 int msm_gpu_pm_resume(struct msm_gpu *gpu);
-void msm_gpu_resume_devfreq(struct msm_gpu *gpu);
+
+int msm_submitqueue_init(struct drm_device *drm, struct msm_file_private *ctx);
+struct msm_gpu_submitqueue *msm_submitqueue_get(struct msm_file_private *ctx,
+		u32 id);
+int msm_submitqueue_create(struct drm_device *drm,
+		struct msm_file_private *ctx,
+		u32 prio, u32 flags, u32 *id);
+int msm_submitqueue_query(struct drm_device *drm, struct msm_file_private *ctx,
+		struct drm_msm_submitqueue_query *args);
+int msm_submitqueue_remove(struct msm_file_private *ctx, u32 id);
+void msm_submitqueue_close(struct msm_file_private *ctx);
+
+void msm_submitqueue_destroy(struct kref *kref);
+
+int msm_file_private_set_sysprof(struct msm_file_private *ctx,
+				 struct msm_gpu *gpu, int sysprof);
+void __msm_file_private_destroy(struct kref *kref);
+
+static inline void msm_file_private_put(struct msm_file_private *ctx)
+{
+	kref_put(&ctx->ref, __msm_file_private_destroy);
+}
+
+static inline struct msm_file_private *msm_file_private_get(
+	struct msm_file_private *ctx)
+{
+	kref_get(&ctx->ref);
+	return ctx;
+}
+
+void msm_devfreq_init(struct msm_gpu *gpu);
+void msm_devfreq_cleanup(struct msm_gpu *gpu);
+void msm_devfreq_resume(struct msm_gpu *gpu);
+void msm_devfreq_suspend(struct msm_gpu *gpu);
+void msm_devfreq_boost(struct msm_gpu *gpu, unsigned factor);
+void msm_devfreq_active(struct msm_gpu *gpu);
+void msm_devfreq_idle(struct msm_gpu *gpu);
 
 int msm_gpu_hw_init(struct msm_gpu *gpu);
 
@@ -320,28 +607,28 @@ static inline struct msm_gpu_state *msm_gpu_crashstate_get(struct msm_gpu *gpu)
 {
 	struct msm_gpu_state *state = NULL;
 
-	mutex_lock(&gpu->dev->struct_mutex);
+	mutex_lock(&gpu->lock);
 
 	if (gpu->crashstate) {
 		kref_get(&gpu->crashstate->ref);
 		state = gpu->crashstate;
 	}
 
-	mutex_unlock(&gpu->dev->struct_mutex);
+	mutex_unlock(&gpu->lock);
 
 	return state;
 }
 
 static inline void msm_gpu_crashstate_put(struct msm_gpu *gpu)
 {
-	mutex_lock(&gpu->dev->struct_mutex);
+	mutex_lock(&gpu->lock);
 
 	if (gpu->crashstate) {
 		if (gpu->funcs->gpu_state_put(gpu->crashstate))
 			gpu->crashstate = NULL;
 	}
 
-	mutex_unlock(&gpu->dev->struct_mutex);
+	mutex_unlock(&gpu->lock);
 }
 
 /*

@@ -14,6 +14,7 @@
 #include <linux/debugfs.h>
 #include <linux/dmapool.h>
 #include <linux/iopoll.h>
+#include <linux/irq.h>
 #include <linux/lcm.h>
 #include <linux/libata.h>
 #include <linux/mfd/syscon.h>
@@ -33,9 +34,10 @@
 #define HISI_SAS_QUEUE_SLOTS	4096
 #define HISI_SAS_MAX_ITCT_ENTRIES 1024
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
-#define HISI_SAS_RESET_BIT	0
+#define HISI_SAS_RESETTING_BIT	0
 #define HISI_SAS_REJECT_CMD_BIT	1
 #define HISI_SAS_PM_BIT		2
+#define HISI_SAS_HW_FAULT_BIT	3
 #define HISI_SAS_MAX_COMMANDS (HISI_SAS_QUEUE_SLOTS)
 #define HISI_SAS_RESERVED_IPTT  96
 #define HISI_SAS_UNRESERVED_IPTT \
@@ -43,6 +45,7 @@
 
 #define HISI_SAS_IOST_ITCT_CACHE_NUM 64
 #define HISI_SAS_IOST_ITCT_CACHE_DW_SZ 10
+#define HISI_SAS_FIFO_DATA_DW_SIZE 32
 
 #define HISI_SAS_STATUS_BUF_SZ (sizeof(struct hisi_sas_status_buffer))
 #define HISI_SAS_COMMAND_TABLE_SZ (sizeof(union hisi_sas_command_table))
@@ -88,8 +91,8 @@
 
 #define HISI_SAS_PROT_MASK (HISI_SAS_DIF_PROT_MASK | HISI_SAS_DIX_PROT_MASK)
 
-#define HISI_SAS_WAIT_PHYUP_TIMEOUT 20
-#define CLEAR_ITCT_TIMEOUT	20
+#define HISI_SAS_WAIT_PHYUP_TIMEOUT	(30 * HZ)
+#define HISI_SAS_CLEAR_ITCT_TIMEOUT	(20 * HZ)
 
 struct hisi_hba;
 
@@ -150,7 +153,18 @@ enum hisi_sas_bit_err_type {
 enum hisi_sas_phy_event {
 	HISI_PHYE_PHY_UP   = 0U,
 	HISI_PHYE_LINK_RESET,
+	HISI_PHYE_PHY_UP_PM,
 	HISI_PHYES_NUM,
+};
+
+struct hisi_sas_debugfs_fifo {
+	u32 signal_sel;
+	u32 dump_msk;
+	u32 dump_mode;
+	u32 trigger;
+	u32 trigger_msk;
+	u32 trigger_mode;
+	u32 rd_data[HISI_SAS_FIFO_DATA_DW_SIZE];
 };
 
 struct hisi_sas_phy {
@@ -173,7 +187,11 @@ struct hisi_sas_phy {
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate;
 	int enable;
+	int wait_phyup_cnt;
 	atomic_t down_cnt;
+
+	/* Trace FIFO */
+	struct hisi_sas_debugfs_fifo fifo;
 };
 
 struct hisi_sas_port {
@@ -211,13 +229,6 @@ struct hisi_sas_device {
 	spinlock_t lock; /* For protecting slots */
 };
 
-struct hisi_sas_tmf_task {
-	int force_phy;
-	int phy_id;
-	u8 tmf;
-	u16 tag_of_task_to_be_managed;
-};
-
 struct hisi_sas_slot {
 	struct list_head entry;
 	struct list_head delivery;
@@ -236,29 +247,11 @@ struct hisi_sas_slot {
 	dma_addr_t cmd_hdr_dma;
 	struct timer_list internal_abort_timer;
 	bool is_internal;
-	struct hisi_sas_tmf_task *tmf;
+	struct sas_tmf_task *tmf;
 	/* Do not reorder/change members after here */
 	void	*buf;
 	dma_addr_t buf_dma;
 	u16	idx;
-};
-
-#define HISI_SAS_DEBUGFS_REG(x) {#x, x}
-
-struct hisi_sas_debugfs_reg_lu {
-	char *name;
-	int off;
-};
-
-struct hisi_sas_debugfs_reg {
-	const struct hisi_sas_debugfs_reg_lu *lu;
-	int count;
-	int base_off;
-	union {
-		u32 (*read_global_reg)(struct hisi_hba *hisi_hba, u32 off);
-		u32 (*read_port_reg)(struct hisi_hba *hisi_hba, int port,
-				     u32 off);
-	};
 };
 
 struct hisi_sas_iost_itct_cache {
@@ -312,6 +305,7 @@ enum {
 
 struct hisi_sas_hw {
 	int (*hw_init)(struct hisi_hba *hisi_hba);
+	int (*interrupt_preinit)(struct hisi_hba *hisi_hba);
 	void (*setup_itct)(struct hisi_hba *hisi_hba,
 			   struct hisi_sas_device *device);
 	int (*slot_index_alloc)(struct hisi_hba *hisi_hba,
@@ -326,8 +320,7 @@ struct hisi_sas_hw {
 	void (*prep_stp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_slot *slot);
 	void (*prep_abort)(struct hisi_hba *hisi_hba,
-			  struct hisi_sas_slot *slot,
-			  int device_id, int abort_flag, int tag_to_abort);
+			  struct hisi_sas_slot *slot);
 	void (*phys_init)(struct hisi_hba *hisi_hba);
 	void (*phy_start)(struct hisi_hba *hisi_hba, int phy_no);
 	void (*phy_disable)(struct hisi_hba *hisi_hba, int phy_no);
@@ -348,17 +341,9 @@ struct hisi_sas_hw {
 				u8 reg_index, u8 reg_count, u8 *write_data);
 	void (*wait_cmds_complete_timeout)(struct hisi_hba *hisi_hba,
 					   int delay_ms, int timeout_ms);
-	void (*snapshot_prepare)(struct hisi_hba *hisi_hba);
-	void (*snapshot_restore)(struct hisi_hba *hisi_hba);
-	int (*set_bist)(struct hisi_hba *hisi_hba, bool enable);
-	void (*read_iost_itct_cache)(struct hisi_hba *hisi_hba,
-				     enum hisi_sas_debugfs_cache_type type,
-				     u32 *cache);
+	void (*debugfs_snapshot_regs)(struct hisi_hba *hisi_hba);
 	int complete_hdr_size;
 	struct scsi_host_template *sht;
-
-	const struct hisi_sas_debugfs_reg *debugfs_reg_array[DEBUGFS_REGS_NUM];
-	const struct hisi_sas_debugfs_reg *debugfs_reg_port;
 };
 
 #define HISI_SAS_MAX_DEBUGFS_DUMP (50)
@@ -417,6 +402,8 @@ struct hisi_hba {
 	u32 ctrl_clock_ena_reg;
 	u32 refclk_frequency_mhz;
 	u8 sas_addr[SAS_ADDR_SIZE];
+
+	int *irq_map; /* v2 hw */
 
 	int n_phy;
 	spinlock_t lock;
@@ -495,6 +482,7 @@ struct hisi_hba {
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_dump_dentry;
 	struct dentry *debugfs_bist_dentry;
+	struct dentry *debugfs_fifo_dentry;
 };
 
 /* Generic HW DMA host memory structures */
@@ -653,12 +641,14 @@ extern int hisi_sas_probe(struct platform_device *pdev,
 extern int hisi_sas_remove(struct platform_device *pdev);
 
 extern int hisi_sas_slave_configure(struct scsi_device *sdev);
+extern int hisi_sas_slave_alloc(struct scsi_device *sdev);
 extern int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
 extern void hisi_sas_scan_start(struct Scsi_Host *shost);
 extern int hisi_sas_host_reset(struct Scsi_Host *shost, int reset_type);
 extern void hisi_sas_phy_enable(struct hisi_hba *hisi_hba, int phy_no,
 				int enable);
-extern void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy);
+extern void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy,
+			      gfp_t gfp_flags);
 extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,
 				    struct sas_task *task,
 				    struct hisi_sas_slot *slot);
@@ -673,7 +663,4 @@ extern void hisi_sas_release_tasks(struct hisi_hba *hisi_hba);
 extern u8 hisi_sas_get_prog_phy_linkrate_mask(enum sas_linkrate max);
 extern void hisi_sas_controller_reset_prepare(struct hisi_hba *hisi_hba);
 extern void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba);
-extern void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba);
-extern void hisi_sas_debugfs_exit(struct hisi_hba *hisi_hba);
-extern void hisi_sas_debugfs_work_handler(struct work_struct *work);
 #endif

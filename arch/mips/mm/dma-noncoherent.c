@@ -10,7 +10,6 @@
 
 #include <asm/cache.h>
 #include <asm/cpu-type.h>
-#include <asm/dma-coherence.h>
 #include <asm/io.h>
 
 /*
@@ -33,6 +32,7 @@ static inline bool cpu_needs_post_dma_flush(void)
 	case CPU_R12000:
 	case CPU_BMIPS5000:
 	case CPU_LOONGSON2EF:
+	case CPU_XBURST:
 		return true;
 	default:
 		/*
@@ -136,7 +136,7 @@ void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
 }
 #endif
 
-#ifdef CONFIG_DMA_PERDEV_COHERENT
+#ifdef CONFIG_ARCH_HAS_SETUP_DMA_OPS
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 		const struct iommu_ops *iommu, bool coherent)
 {

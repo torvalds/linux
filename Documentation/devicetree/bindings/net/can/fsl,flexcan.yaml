@@ -84,12 +84,12 @@ properties:
       req_bit is the bit offset of CAN stop request.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      items:
-        - description: The 'gpr' is the phandle to general purpose register node.
-        - description: The 'req_gpr' is the gpr register offset of CAN stop request.
-          maximum: 0xff
-        - description: The 'req_bit' is the bit offset of CAN stop request.
-          maximum: 0x1f
+      - items:
+          - description: The 'gpr' is the phandle to general purpose register node.
+          - description: The 'req_gpr' is the gpr register offset of CAN stop request.
+            maximum: 0xff
+          - description: The 'req_bit' is the bit offset of CAN stop request.
+            maximum: 0x1f
 
   fsl,clk-source:
     description: |
@@ -99,7 +99,7 @@ properties:
       by default.
       0: clock source 0 (oscillator clock)
       1: clock source 1 (peripheral clock)
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint8
     default: 1
     minimum: 0
     maximum: 1
@@ -108,6 +108,19 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       Enable CAN remote wakeup.
+
+  fsl,scu-index:
+    description: |
+      The scu index of CAN instance.
+      For SoCs with SCU support, need setup stop mode via SCU firmware, so this
+      property can help indicate a resource. It supports up to 3 CAN instances
+      now.
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 0
+    maximum: 2
+
+  termination-gpios: true
+  termination-ohms: true
 
 required:
   - compatible
@@ -124,7 +137,7 @@ examples:
         interrupts = <48 0x2>;
         interrupt-parent = <&mpic>;
         clock-frequency = <200000000>;
-        fsl,clk-source = <0>;
+        fsl,clk-source = /bits/ 8 <0>;
     };
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
@@ -136,4 +149,19 @@ examples:
         clocks = <&clks 1>, <&clks 2>;
         clock-names = "ipg", "per";
         fsl,stop-mode = <&gpr 0x34 28>;
+        fsl,scu-index = /bits/ 8 <1>;
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    can@2090000 {
+        compatible = "fsl,imx6q-flexcan";
+        reg = <0x02090000 0x4000>;
+        interrupts = <0 110 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clks 1>, <&clks 2>;
+        clock-names = "ipg", "per";
+        fsl,stop-mode = <&gpr 0x34 28>;
+        termination-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+        termination-ohms = <120>;
     };

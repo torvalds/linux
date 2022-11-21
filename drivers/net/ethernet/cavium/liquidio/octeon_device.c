@@ -545,7 +545,7 @@ static atomic_t adapter_fw_states[MAX_OCTEON_DEVICES];
 
 static u32 octeon_device_count;
 /* locks device array (i.e. octeon_device[]) */
-static spinlock_t octeon_devices_lock;
+static DEFINE_SPINLOCK(octeon_devices_lock);
 
 static struct octeon_core_setup core_setup[MAX_OCTEON_DEVICES];
 
@@ -563,7 +563,6 @@ void octeon_init_device_list(int conf_type)
 	memset(octeon_device, 0, (sizeof(void *) * MAX_OCTEON_DEVICES));
 	for (i = 0; i <  MAX_OCTEON_DEVICES; i++)
 		oct_set_config_info(i, conf_type);
-	spin_lock_init(&octeon_devices_lock);
 }
 
 static void *__retrieve_octeon_config_info(struct octeon_device *oct,

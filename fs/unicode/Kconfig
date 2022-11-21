@@ -3,12 +3,13 @@
 # UTF-8 normalization
 #
 config UNICODE
-	bool "UTF-8 normalization and casefolding support"
+	tristate "UTF-8 normalization and casefolding support"
 	help
 	  Say Y here to enable UTF-8 NFD normalization and NFD+CF casefolding
-	  support.
+	  support.  If you say M here the large table of case foldings will
+	  be a separate loadable module that gets requested only when a file
+	  system actually use it.
 
 config UNICODE_NORMALIZATION_SELFTEST
 	tristate "Test UTF-8 normalization support"
 	depends on UNICODE
-	default n

@@ -48,7 +48,6 @@ properties:
 
   clocks:
     minItems: 2
-    maxItems: 6
     items:
       - description: The TCON TOP interface clock
       - description: The TCON TOP TV0 clock
@@ -59,7 +58,6 @@ properties:
 
   clock-names:
     minItems: 2
-    maxItems: 6
     items:
       - const: bus
       - const: tcon-tv0
@@ -80,140 +78,44 @@ properties:
     maxItems: 1
 
   ports:
-    type: object
-    description: |
-      A ports node with endpoint definitions as defined in
-      Documentation/devicetree/bindings/media/video-interfaces.txt.
-      All ports should have only one endpoint connected to
-      remote endpoint.
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Input endpoint for Mixer 0 mux.
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Output endpoint for Mixer 0 mux
 
-        properties:
-          "#address-cells":
-            const: 1
-
-          "#size-cells":
-            const: 0
-
-          reg: true
-
-        patternProperties:
-          "^endpoint@[0-9]$":
-            type: object
-
-            properties:
-              reg:
-                description: |
-                  ID of the target TCON
-
-            required:
-              - reg
-
-        required:
-          - "#address-cells"
-          - "#size-cells"
-
-        additionalProperties: false
-
       port@2:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Input endpoint for Mixer 1 mux.
 
       port@3:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Output endpoint for Mixer 1 mux
 
-        properties:
-          "#address-cells":
-            const: 1
-
-          "#size-cells":
-            const: 0
-
-          reg: true
-
-        patternProperties:
-          "^endpoint@[0-9]$":
-            type: object
-
-            properties:
-              reg:
-                description: |
-                  ID of the target TCON
-
-            required:
-              - reg
-
-        required:
-          - "#address-cells"
-          - "#size-cells"
-
-        additionalProperties: false
-
       port@4:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Input endpoint for HDMI mux.
 
-        properties:
-          "#address-cells":
-            const: 1
-
-          "#size-cells":
-            const: 0
-
-          reg: true
-
-        patternProperties:
-          "^endpoint@[0-9]$":
-            type: object
-
-            properties:
-              reg:
-                description: |
-                  ID of the target TCON
-
-            required:
-              - reg
-
-        required:
-          - "#address-cells"
-          - "#size-cells"
-
-        additionalProperties: false
-
       port@5:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Output endpoint for HDMI mux
 
     required:
-      - "#address-cells"
-      - "#size-cells"
       - port@0
       - port@1
       - port@4
       - port@5
-
-    additionalProperties: false
 
 required:
   - "#clock-cells"

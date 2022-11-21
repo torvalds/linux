@@ -94,7 +94,6 @@ struct rcar_can_priv {
 	struct rcar_can_regs __iomem *regs;
 	struct clk *clk;
 	struct clk *can_clk;
-	u8 tx_dlc[RCAR_CAN_FIFO_DEPTH];
 	u32 tx_head;
 	u32 tx_tail;
 	u8 clock_select;
@@ -217,13 +216,12 @@ static void tx_failure_cleanup(struct net_device *ndev)
 	int i;
 
 	for (i = 0; i < RCAR_CAN_FIFO_DEPTH; i++)
-		can_free_echo_skb(ndev, i);
+		can_free_echo_skb(ndev, i, NULL);
 }
 
 static void rcar_can_error(struct net_device *ndev)
 {
 	struct rcar_can_priv *priv = netdev_priv(ndev);
-	struct net_device_stats *stats = &ndev->stats;
 	struct can_frame *cf;
 	struct sk_buff *skb;
 	u8 eifr, txerr = 0, rxerr = 0;
@@ -362,11 +360,8 @@ static void rcar_can_error(struct net_device *ndev)
 		}
 	}
 
-	if (skb) {
-		stats->rx_packets++;
-		stats->rx_bytes += cf->can_dlc;
+	if (skb)
 		netif_rx(skb);
-	}
 }
 
 static void rcar_can_tx_done(struct net_device *ndev)
@@ -383,10 +378,11 @@ static void rcar_can_tx_done(struct net_device *ndev)
 		if (priv->tx_head - priv->tx_tail <= unsent)
 			break;
 		stats->tx_packets++;
-		stats->tx_bytes += priv->tx_dlc[priv->tx_tail %
-						RCAR_CAN_FIFO_DEPTH];
-		priv->tx_dlc[priv->tx_tail % RCAR_CAN_FIFO_DEPTH] = 0;
-		can_get_echo_skb(ndev, priv->tx_tail % RCAR_CAN_FIFO_DEPTH);
+		stats->tx_bytes +=
+			can_get_echo_skb(ndev,
+					 priv->tx_tail % RCAR_CAN_FIFO_DEPTH,
+					 NULL);
+
 		priv->tx_tail++;
 		netif_wake_queue(ndev);
 	}
@@ -607,17 +603,16 @@ static netdev_tx_t rcar_can_start_xmit(struct sk_buff *skb,
 	if (cf->can_id & CAN_RTR_FLAG) { /* Remote transmission request */
 		data |= RCAR_CAN_RTR;
 	} else {
-		for (i = 0; i < cf->can_dlc; i++)
+		for (i = 0; i < cf->len; i++)
 			writeb(cf->data[i],
 			       &priv->regs->mb[RCAR_CAN_TX_FIFO_MBX].data[i]);
 	}
 
 	writel(data, &priv->regs->mb[RCAR_CAN_TX_FIFO_MBX].id);
 
-	writeb(cf->can_dlc, &priv->regs->mb[RCAR_CAN_TX_FIFO_MBX].dlc);
+	writeb(cf->len, &priv->regs->mb[RCAR_CAN_TX_FIFO_MBX].dlc);
 
-	priv->tx_dlc[priv->tx_head % RCAR_CAN_FIFO_DEPTH] = cf->can_dlc;
-	can_put_echo_skb(skb, ndev, priv->tx_head % RCAR_CAN_FIFO_DEPTH);
+	can_put_echo_skb(skb, ndev, priv->tx_head % RCAR_CAN_FIFO_DEPTH, 0);
 	priv->tx_head++;
 	/* Start Tx: write 0xff to the TFPCR register to increment
 	 * the CPU-side pointer for the transmit FIFO to the next
@@ -659,19 +654,20 @@ static void rcar_can_rx_pkt(struct rcar_can_priv *priv)
 		cf->can_id = (data >> RCAR_CAN_SID_SHIFT) & CAN_SFF_MASK;
 
 	dlc = readb(&priv->regs->mb[RCAR_CAN_RX_FIFO_MBX].dlc);
-	cf->can_dlc = get_can_dlc(dlc);
+	cf->len = can_cc_dlc2len(dlc);
 	if (data & RCAR_CAN_RTR) {
 		cf->can_id |= CAN_RTR_FLAG;
 	} else {
-		for (dlc = 0; dlc < cf->can_dlc; dlc++)
+		for (dlc = 0; dlc < cf->len; dlc++)
 			cf->data[dlc] =
 			readb(&priv->regs->mb[RCAR_CAN_RX_FIFO_MBX].data[dlc]);
+
+		stats->rx_bytes += cf->len;
 	}
+	stats->rx_packets++;
 
 	can_led_event(priv->ndev, CAN_LED_EVENT_RX);
 
-	stats->rx_bytes += cf->can_dlc;
-	stats->rx_packets++;
 	netif_receive_skb(skb);
 }
 
@@ -846,10 +842,12 @@ static int __maybe_unused rcar_can_suspend(struct device *dev)
 	struct rcar_can_priv *priv = netdev_priv(ndev);
 	u16 ctlr;
 
-	if (netif_running(ndev)) {
-		netif_stop_queue(ndev);
-		netif_device_detach(ndev);
-	}
+	if (!netif_running(ndev))
+		return 0;
+
+	netif_stop_queue(ndev);
+	netif_device_detach(ndev);
+
 	ctlr = readw(&priv->regs->ctlr);
 	ctlr |= RCAR_CAN_CTLR_CANM_HALT;
 	writew(ctlr, &priv->regs->ctlr);
@@ -868,6 +866,9 @@ static int __maybe_unused rcar_can_resume(struct device *dev)
 	u16 ctlr;
 	int err;
 
+	if (!netif_running(ndev))
+		return 0;
+
 	err = clk_enable(priv->clk);
 	if (err) {
 		netdev_err(ndev, "clk_enable() failed, error %d\n", err);
@@ -881,10 +882,9 @@ static int __maybe_unused rcar_can_resume(struct device *dev)
 	writew(ctlr, &priv->regs->ctlr);
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
-	if (netif_running(ndev)) {
-		netif_device_attach(ndev);
-		netif_start_queue(ndev);
-	}
+	netif_device_attach(ndev);
+	netif_start_queue(ndev);
+
 	return 0;
 }
 

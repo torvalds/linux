@@ -110,6 +110,7 @@ struct x86_init_ops x86_init __initdata = {
 		.init_platform		= x86_init_noop,
 		.guest_late_init	= x86_init_noop,
 		.x2apic_available	= bool_x86_init_noop,
+		.msi_ext_dest_id	= bool_x86_init_noop,
 		.init_mem_mapping	= x86_init_noop,
 		.init_after_bootmem	= x86_init_noop,
 	},
@@ -128,6 +129,11 @@ struct x86_cpuinit_ops x86_cpuinit = {
 
 static void default_nmi_init(void) { };
 
+static void enc_status_change_prepare_noop(unsigned long vaddr, int npages, bool enc) { }
+static bool enc_status_change_finish_noop(unsigned long vaddr, int npages, bool enc) { return false; }
+static bool enc_tlb_flush_required_noop(bool enc) { return false; }
+static bool enc_cache_flush_required_noop(void) { return false; }
+
 struct x86_platform_ops x86_platform __ro_after_init = {
 	.calibrate_cpu			= native_calibrate_cpu_early,
 	.calibrate_tsc			= native_calibrate_tsc,
@@ -137,24 +143,19 @@ struct x86_platform_ops x86_platform __ro_after_init = {
 	.is_untracked_pat_range		= is_ISA_range,
 	.nmi_init			= default_nmi_init,
 	.get_nmi_reason			= default_get_nmi_reason,
-	.save_sched_clock_state 	= tsc_save_sched_clock_state,
-	.restore_sched_clock_state 	= tsc_restore_sched_clock_state,
+	.save_sched_clock_state		= tsc_save_sched_clock_state,
+	.restore_sched_clock_state	= tsc_restore_sched_clock_state,
 	.hyper.pin_vcpu			= x86_op_int_noop,
+
+	.guest = {
+		.enc_status_change_prepare = enc_status_change_prepare_noop,
+		.enc_status_change_finish  = enc_status_change_finish_noop,
+		.enc_tlb_flush_required	   = enc_tlb_flush_required_noop,
+		.enc_cache_flush_required  = enc_cache_flush_required_noop,
+	},
 };
 
 EXPORT_SYMBOL_GPL(x86_platform);
-
-#if defined(CONFIG_PCI_MSI)
-struct x86_msi_ops x86_msi __ro_after_init = {
-	.restore_msi_irqs	= default_restore_msi_irqs,
-};
-
-/* MSI arch specific hooks */
-void arch_restore_msi_irqs(struct pci_dev *dev)
-{
-	x86_msi.restore_msi_irqs(dev);
-}
-#endif
 
 struct x86_apic_ops x86_apic_ops __ro_after_init = {
 	.io_apic_read	= native_io_apic_read,

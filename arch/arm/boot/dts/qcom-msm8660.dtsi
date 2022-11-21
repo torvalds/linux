@@ -126,6 +126,7 @@
 		gcc: clock-controller@900000 {
 			compatible = "qcom,gcc-msm8660";
 			#clock-cells = <1>;
+			#power-domain-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0x900000 0x4000>;
 		};
@@ -307,20 +308,9 @@
 					reg = <0x50>;
 					gpio-controller;
 					#gpio-cells = <2>;
-					interrupt-parent = <&pm8058>;
-					interrupts =
-					<128 IRQ_TYPE_NONE>,
-					<129 IRQ_TYPE_NONE>,
-					<130 IRQ_TYPE_NONE>,
-					<131 IRQ_TYPE_NONE>,
-					<132 IRQ_TYPE_NONE>,
-					<133 IRQ_TYPE_NONE>,
-					<134 IRQ_TYPE_NONE>,
-					<135 IRQ_TYPE_NONE>,
-					<136 IRQ_TYPE_NONE>,
-					<137 IRQ_TYPE_NONE>,
-					<138 IRQ_TYPE_NONE>,
-					<139 IRQ_TYPE_NONE>;
+					gpio-ranges = <&pm8058_mpps 0 0 12>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
 				};
 
 				pwrkey@1c {
@@ -401,7 +391,7 @@
 		};
 
 		l2cc: clock-controller@2082000 {
-			compatible	= "syscon";
+			compatible	= "qcom,kpss-gcc", "syscon";
 			reg		= <0x02082000 0x1000>;
 		};
 
@@ -494,7 +484,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-			sdcc1: sdcc@12400000 {
+			sdcc1: mmc@12400000 {
 				status		= "disabled";
 				compatible	= "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
@@ -510,7 +500,7 @@
 				cap-mmc-highspeed;
 			};
 
-			sdcc2: sdcc@12140000 {
+			sdcc2: mmc@12140000 {
 				status		= "disabled";
 				compatible	= "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
@@ -525,7 +515,7 @@
 				cap-mmc-highspeed;
 			};
 
-			sdcc3: sdcc@12180000 {
+			sdcc3: mmc@12180000 {
 				compatible	= "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
 				status		= "disabled";
@@ -541,7 +531,7 @@
 				no-1-8-v;
 			};
 
-			sdcc4: sdcc@121c0000 {
+			sdcc4: mmc@121c0000 {
 				compatible	= "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
 				status		= "disabled";
@@ -556,7 +546,7 @@
 				cap-mmc-highspeed;
 			};
 
-			sdcc5: sdcc@12200000 {
+			sdcc5: mmc@12200000 {
 				compatible	= "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
 				status		= "disabled";

@@ -12,63 +12,7 @@
 #include <linux/string.h>
 
 #include <asm/processor.h>
-
-#define ARCH_HAS_SORT_EXTABLE
-#define ARCH_HAS_SEARCH_EXTABLE
-
-/* Sparc is not segmented, however we need to be able to fool access_ok()
- * when doing system calls from kernel mode legitimately.
- *
- * "For historical reasons, these macros are grossly misnamed." -Linus
- */
-
-#define KERNEL_DS   ((mm_segment_t) { 0 })
-#define USER_DS     ((mm_segment_t) { -1 })
-
-#define get_fs()	(current->thread.current_ds)
-#define set_fs(val)	((current->thread.current_ds) = (val))
-
-#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
-
-/* We have there a nice not-mapped page at PAGE_OFFSET - PAGE_SIZE, so that this test
- * can be fairly lightweight.
- * No one can read/write anything from userland in the kernel space by setting
- * large size and address near to PAGE_OFFSET - a fault will break his intentions.
- */
-#define __user_ok(addr, size) ({ (void)(size); (addr) < STACK_TOP; })
-#define __kernel_ok (uaccess_kernel())
-#define __access_ok(addr, size) (__user_ok((addr) & get_fs().seg, (size)))
-#define access_ok(addr, size) __access_ok((unsigned long)(addr), size)
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- *
- * There is a special way how to put a range of potentially faulting
- * insns (like twenty ldd/std's with now intervening other instructions)
- * You specify address of first in insn and 0 in fixup and in the next
- * exception_table_entry you specify last potentially faulting insn + 1
- * and in fixup the routine which should handle the fault.
- * That fixup code will get
- * (faulting_insn_address - first_insn_in_the_range_address)/4
- * in %g2 (ie. index of the faulting instruction in the range).
- */
-
-struct exception_table_entry
-{
-        unsigned long insn, fixup;
-};
-
-/* Returns 0 if exception not found and fixup otherwise.  */
-unsigned long search_extables_range(unsigned long addr, unsigned long *g2);
+#include <asm-generic/access_ok.h>
 
 /* Uh, these should become the main single-value transfer routines..
  * They automatically use the right size if we just have the right
@@ -80,13 +24,13 @@ unsigned long search_extables_range(unsigned long addr, unsigned long *g2);
  * and hide all the ugliness from the user.
  */
 #define put_user(x, ptr) ({ \
-	unsigned long __pu_addr = (unsigned long)(ptr); \
+	void __user *__pu_addr = (ptr); \
 	__chk_user_ptr(ptr); \
 	__put_user_check((__typeof__(*(ptr)))(x), __pu_addr, sizeof(*(ptr))); \
 })
 
 #define get_user(x, ptr) ({ \
-	unsigned long __gu_addr = (unsigned long)(ptr); \
+	const void __user *__gu_addr = (ptr); \
 	__chk_user_ptr(ptr); \
 	__get_user_check((x), __gu_addr, sizeof(*(ptr)), __typeof__(*(ptr))); \
 })
@@ -252,12 +196,7 @@ static inline unsigned long __clear_user(void __user *addr, unsigned long size)
 	unsigned long ret;
 
 	__asm__ __volatile__ (
-		".section __ex_table,#alloc\n\t"
-		".align 4\n\t"
-		".word 1f,3\n\t"
-		".previous\n\t"
 		"mov %2, %%o1\n"
-		"1:\n\t"
 		"call __bzero\n\t"
 		" mov %1, %%o0\n\t"
 		"mov %%o0, %0\n"
@@ -270,7 +209,7 @@ static inline unsigned long __clear_user(void __user *addr, unsigned long size)
 
 static inline unsigned long clear_user(void __user *addr, unsigned long n)
 {
-	if (n && __access_ok((unsigned long) addr, n))
+	if (n && __access_ok(addr, n))
 		return __clear_user(addr, n);
 	else
 		return n;

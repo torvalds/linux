@@ -63,6 +63,7 @@ static int panfrost_ioctl_get_param(struct drm_device *ddev, void *data, struct 
 		PANFROST_FEATURE(THREAD_MAX_BARRIER_SZ,
 				thread_max_barrier_sz);
 		PANFROST_FEATURE(COHERENCY_FEATURES, coherency_features);
+		PANFROST_FEATURE(AFBC_FEATURES, afbc_features);
 		PANFROST_FEATURE_ARRAY(TEXTURE_FEATURES, texture_features, 3);
 		PANFROST_FEATURE_ARRAY(JS_FEATURES, js_features, 15);
 		PANFROST_FEATURE(NR_CORE_GROUPS, nr_core_groups);
@@ -137,12 +138,6 @@ panfrost_lookup_bos(struct drm_device *dev,
 	if (!job->bo_count)
 		return 0;
 
-	job->implicit_fences = kvmalloc_array(job->bo_count,
-				  sizeof(struct dma_fence *),
-				  GFP_KERNEL | __GFP_ZERO);
-	if (!job->implicit_fences)
-		return -ENOMEM;
-
 	ret = drm_gem_objects_lookup(file_priv,
 				     (void __user *)(uintptr_t)args->bo_handles,
 				     job->bo_count, &job->bos);
@@ -173,7 +168,7 @@ panfrost_lookup_bos(struct drm_device *dev,
 }
 
 /**
- * panfrost_copy_in_sync() - Sets up job->in_fences[] with the sync objects
+ * panfrost_copy_in_sync() - Sets up job->deps with the sync objects
  * referenced by the job.
  * @dev: DRM device
  * @file_priv: DRM file for this fd
@@ -193,22 +188,14 @@ panfrost_copy_in_sync(struct drm_device *dev,
 {
 	u32 *handles;
 	int ret = 0;
-	int i;
+	int i, in_fence_count;
 
-	job->in_fence_count = args->in_sync_count;
+	in_fence_count = args->in_sync_count;
 
-	if (!job->in_fence_count)
+	if (!in_fence_count)
 		return 0;
 
-	job->in_fences = kvmalloc_array(job->in_fence_count,
-					sizeof(struct dma_fence *),
-					GFP_KERNEL | __GFP_ZERO);
-	if (!job->in_fences) {
-		DRM_DEBUG("Failed to allocate job in fences\n");
-		return -ENOMEM;
-	}
-
-	handles = kvmalloc_array(job->in_fence_count, sizeof(u32), GFP_KERNEL);
+	handles = kvmalloc_array(in_fence_count, sizeof(u32), GFP_KERNEL);
 	if (!handles) {
 		ret = -ENOMEM;
 		DRM_DEBUG("Failed to allocate incoming syncobj handles\n");
@@ -217,16 +204,23 @@ panfrost_copy_in_sync(struct drm_device *dev,
 
 	if (copy_from_user(handles,
 			   (void __user *)(uintptr_t)args->in_syncs,
-			   job->in_fence_count * sizeof(u32))) {
+			   in_fence_count * sizeof(u32))) {
 		ret = -EFAULT;
 		DRM_DEBUG("Failed to copy in syncobj handles\n");
 		goto fail;
 	}
 
-	for (i = 0; i < job->in_fence_count; i++) {
+	for (i = 0; i < in_fence_count; i++) {
+		struct dma_fence *fence;
+
 		ret = drm_syncobj_find_fence(file_priv, handles[i], 0, 0,
-					     &job->in_fences[i]);
-		if (ret == -EINVAL)
+					     &fence);
+		if (ret)
+			goto fail;
+
+		ret = drm_sched_job_add_dependency(&job->base, fence);
+
+		if (ret)
 			goto fail;
 	}
 
@@ -242,7 +236,7 @@ static int panfrost_ioctl_submit(struct drm_device *dev, void *data,
 	struct drm_panfrost_submit *args = data;
 	struct drm_syncobj *sync_out = NULL;
 	struct panfrost_job *job;
-	int ret = 0;
+	int ret = 0, slot;
 
 	if (!args->jc)
 		return -EINVAL;
@@ -259,7 +253,7 @@ static int panfrost_ioctl_submit(struct drm_device *dev, void *data,
 	job = kzalloc(sizeof(*job), GFP_KERNEL);
 	if (!job) {
 		ret = -ENOMEM;
-		goto fail_out_sync;
+		goto out_put_syncout;
 	}
 
 	kref_init(&job->refcount);
@@ -270,25 +264,36 @@ static int panfrost_ioctl_submit(struct drm_device *dev, void *data,
 	job->flush_id = panfrost_gpu_get_latest_flush_id(pfdev);
 	job->file_priv = file->driver_priv;
 
+	slot = panfrost_job_get_slot(job);
+
+	ret = drm_sched_job_init(&job->base,
+				 &job->file_priv->sched_entity[slot],
+				 NULL);
+	if (ret)
+		goto out_put_job;
+
 	ret = panfrost_copy_in_sync(dev, file, args, job);
 	if (ret)
-		goto fail_job;
+		goto out_cleanup_job;
 
 	ret = panfrost_lookup_bos(dev, file, args, job);
 	if (ret)
-		goto fail_job;
+		goto out_cleanup_job;
 
 	ret = panfrost_job_push(job);
 	if (ret)
-		goto fail_job;
+		goto out_cleanup_job;
 
 	/* Update the return sync object for the job */
 	if (sync_out)
 		drm_syncobj_replace_fence(sync_out, job->render_done_fence);
 
-fail_job:
+out_cleanup_job:
+	if (ret)
+		drm_sched_job_cleanup(&job->base);
+out_put_job:
 	panfrost_job_put(job);
-fail_out_sync:
+out_put_syncout:
 	if (sync_out)
 		drm_syncobj_put(sync_out);
 
@@ -311,8 +316,7 @@ panfrost_ioctl_wait_bo(struct drm_device *dev, void *data,
 	if (!gem_obj)
 		return -ENOENT;
 
-	ret = dma_resv_wait_timeout_rcu(gem_obj->resv, true,
-						  true, timeout);
+	ret = dma_resv_wait_timeout(gem_obj->resv, true, true, timeout);
 	if (!ret)
 		ret = timeout ? -ETIMEDOUT : -EBUSY;
 
@@ -417,13 +421,13 @@ static int panfrost_ioctl_madvise(struct drm_device *dev, void *data,
 		 * anyway, so let's not bother.
 		 */
 		if (!list_is_singular(&bo->mappings.list) ||
-		    WARN_ON_ONCE(first->mmu != &priv->mmu)) {
+		    WARN_ON_ONCE(first->mmu != priv->mmu)) {
 			ret = -EINVAL;
 			goto out_unlock_mappings;
 		}
 	}
 
-	args->retained = drm_gem_shmem_madvise(gem_obj, args->madv);
+	args->retained = drm_gem_shmem_madvise(&bo->base, args->madv);
 
 	if (args->retained) {
 		if (args->madv == PANFROST_MADV_DONTNEED)
@@ -449,32 +453,6 @@ int panfrost_unstable_ioctl_check(void)
 	return 0;
 }
 
-#define PFN_4G		(SZ_4G >> PAGE_SHIFT)
-#define PFN_4G_MASK	(PFN_4G - 1)
-#define PFN_16M		(SZ_16M >> PAGE_SHIFT)
-
-static void panfrost_drm_mm_color_adjust(const struct drm_mm_node *node,
-					 unsigned long color,
-					 u64 *start, u64 *end)
-{
-	/* Executable buffers can't start or end on a 4GB boundary */
-	if (!(color & PANFROST_BO_NOEXEC)) {
-		u64 next_seg;
-
-		if ((*start & PFN_4G_MASK) == 0)
-			(*start)++;
-
-		if ((*end & PFN_4G_MASK) == 0)
-			(*end)--;
-
-		next_seg = ALIGN(*start, PFN_4G);
-		if (next_seg - *start <= PFN_16M)
-			*start = next_seg + 1;
-
-		*end = min(*end, ALIGN(*start, PFN_4G) - 1);
-	}
-}
-
 static int
 panfrost_open(struct drm_device *dev, struct drm_file *file)
 {
@@ -489,15 +467,11 @@ panfrost_open(struct drm_device *dev, struct drm_file *file)
 	panfrost_priv->pfdev = pfdev;
 	file->driver_priv = panfrost_priv;
 
-	spin_lock_init(&panfrost_priv->mm_lock);
-
-	/* 4G enough for now. can be 48-bit */
-	drm_mm_init(&panfrost_priv->mm, SZ_32M >> PAGE_SHIFT, (SZ_4G - SZ_32M) >> PAGE_SHIFT);
-	panfrost_priv->mm.color_adjust = panfrost_drm_mm_color_adjust;
-
-	ret = panfrost_mmu_pgtable_alloc(panfrost_priv);
-	if (ret)
-		goto err_pgtable;
+	panfrost_priv->mmu = panfrost_mmu_ctx_create(pfdev);
+	if (IS_ERR(panfrost_priv->mmu)) {
+		ret = PTR_ERR(panfrost_priv->mmu);
+		goto err_free;
+	}
 
 	ret = panfrost_job_open(panfrost_priv);
 	if (ret)
@@ -506,9 +480,8 @@ panfrost_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 
 err_job:
-	panfrost_mmu_pgtable_free(panfrost_priv);
-err_pgtable:
-	drm_mm_takedown(&panfrost_priv->mm);
+	panfrost_mmu_ctx_put(panfrost_priv->mmu);
+err_free:
 	kfree(panfrost_priv);
 	return ret;
 }
@@ -521,8 +494,7 @@ panfrost_postclose(struct drm_device *dev, struct drm_file *file)
 	panfrost_perfcnt_close(file);
 	panfrost_job_close(panfrost_priv);
 
-	panfrost_mmu_pgtable_free(panfrost_priv);
-	drm_mm_takedown(&panfrost_priv->mm);
+	panfrost_mmu_ctx_put(panfrost_priv->mmu);
 	kfree(panfrost_priv);
 }
 
@@ -547,8 +519,9 @@ DEFINE_DRM_GEM_FOPS(panfrost_drm_driver_fops);
  * Panfrost driver version:
  * - 1.0 - initial interface
  * - 1.1 - adds HEAP and NOEXEC flags for CREATE_BO
+ * - 1.2 - adds AFBC_FEATURES query
  */
-static struct drm_driver panfrost_drm_driver = {
+static const struct drm_driver panfrost_drm_driver = {
 	.driver_features	= DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ,
 	.open			= panfrost_open,
 	.postclose		= panfrost_postclose,
@@ -559,7 +532,7 @@ static struct drm_driver panfrost_drm_driver = {
 	.desc			= "panfrost DRM",
 	.date			= "20180908",
 	.major			= 1,
-	.minor			= 1,
+	.minor			= 2,
 
 	.gem_create_object	= panfrost_gem_create_object,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
@@ -587,7 +560,9 @@ static int panfrost_probe(struct platform_device *pdev)
 	if (!pfdev->comp)
 		return -ENODEV;
 
-	/* Allocate and initialze the DRM device. */
+	pfdev->coherent = device_get_dma_attr(&pdev->dev) == DEV_DMA_COHERENT;
+
+	/* Allocate and initialize the DRM device. */
 	ddev = drm_dev_alloc(&panfrost_drm_driver, &pdev->dev);
 	if (IS_ERR(ddev))
 		return PTR_ERR(ddev);
@@ -663,6 +638,15 @@ static const struct panfrost_compatible amlogic_data = {
 	.vendor_quirk = panfrost_gpu_amlogic_quirk,
 };
 
+static const char * const mediatek_mt8183_supplies[] = { "mali", "sram" };
+static const char * const mediatek_mt8183_pm_domains[] = { "core0", "core1", "core2" };
+static const struct panfrost_compatible mediatek_mt8183_data = {
+	.num_supplies = ARRAY_SIZE(mediatek_mt8183_supplies),
+	.supply_names = mediatek_mt8183_supplies,
+	.num_pm_domains = ARRAY_SIZE(mediatek_mt8183_pm_domains),
+	.pm_domain_names = mediatek_mt8183_pm_domains,
+};
+
 static const struct of_device_id dt_match[] = {
 	/* Set first to probe before the generic compatibles */
 	{ .compatible = "amlogic,meson-gxm-mali",
@@ -679,6 +663,7 @@ static const struct of_device_id dt_match[] = {
 	{ .compatible = "arm,mali-t860", .data = &default_data, },
 	{ .compatible = "arm,mali-t880", .data = &default_data, },
 	{ .compatible = "arm,mali-bifrost", .data = &default_data, },
+	{ .compatible = "mediatek,mt8183-mali", .data = &mediatek_mt8183_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);

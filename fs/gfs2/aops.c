@@ -540,10 +540,7 @@ int gfs2_internal_read(struct gfs2_inode *ip, char *buf, loff_t *pos,
 
 /**
  * gfs2_readahead - Read a bunch of pages at once
- * @file: The file to read from
- * @mapping: Address space info
- * @pages: List of pages to read
- * @nr_pages: Number of pages to read
+ * @rac: Read-ahead control structure
  *
  * Some notes:
  * 1. This is only for readahead, so we can simply ignore any things
@@ -577,10 +574,9 @@ void adjust_fs_space(struct inode *inode)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
-	struct gfs2_inode *l_ip = GFS2_I(sdp->sd_sc_inode);
 	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
 	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
-	struct buffer_head *m_bh, *l_bh;
+	struct buffer_head *m_bh;
 	u64 fs_total, new_free;
 
 	if (gfs2_trans_begin(sdp, 2 * RES_STATFS, 0) != 0)
@@ -603,29 +599,19 @@ void adjust_fs_space(struct inode *inode)
 		(unsigned long long)new_free);
 	gfs2_statfs_change(sdp, new_free, new_free, 0);
 
-	if (gfs2_meta_inode_buffer(l_ip, &l_bh) != 0)
-		goto out2;
-	update_statfs(sdp, m_bh, l_bh);
-	brelse(l_bh);
-out2:
+	update_statfs(sdp, m_bh);
 	brelse(m_bh);
 out:
 	sdp->sd_rindex_uptodate = 0;
 	gfs2_trans_end(sdp);
 }
 
-/**
- * jdata_set_page_dirty - Page dirtying function
- * @page: The page to dirty
- *
- * Returns: 1 if it dirtyed the page, or 0 otherwise
- */
- 
-static int jdata_set_page_dirty(struct page *page)
+static bool jdata_dirty_folio(struct address_space *mapping,
+		struct folio *folio)
 {
 	if (current->journal_info)
-		SetPageChecked(page);
-	return __set_page_dirty_buffers(page);
+		folio_set_checked(folio);
+	return block_dirty_folio(mapping, folio);
 }
 
 /**
@@ -680,22 +666,23 @@ static void gfs2_discard(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	unlock_buffer(bh);
 }
 
-static void gfs2_invalidatepage(struct page *page, unsigned int offset,
-				unsigned int length)
+static void gfs2_invalidate_folio(struct folio *folio, size_t offset,
+				size_t length)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
-	unsigned int stop = offset + length;
-	int partial_page = (offset || length < PAGE_SIZE);
+	struct gfs2_sbd *sdp = GFS2_SB(folio->mapping->host);
+	size_t stop = offset + length;
+	int partial_page = (offset || length < folio_size(folio));
 	struct buffer_head *bh, *head;
 	unsigned long pos = 0;
 
-	BUG_ON(!PageLocked(page));
+	BUG_ON(!folio_test_locked(folio));
 	if (!partial_page)
-		ClearPageChecked(page);
-	if (!page_has_buffers(page))
+		folio_clear_checked(folio);
+	head = folio_buffers(folio);
+	if (!head)
 		goto out;
 
-	bh = head = page_buffers(page);
+	bh = head;
 	do {
 		if (pos + bh->b_size > stop)
 			return;
@@ -707,7 +694,7 @@ static void gfs2_invalidatepage(struct page *page, unsigned int offset,
 	} while (bh != head);
 out:
 	if (!partial_page)
-		try_to_release_page(page, 0);
+		filemap_release_folio(folio, 0);
 }
 
 /**
@@ -787,9 +774,9 @@ static const struct address_space_operations gfs2_aops = {
 	.writepages = gfs2_writepages,
 	.readpage = gfs2_readpage,
 	.readahead = gfs2_readahead,
-	.set_page_dirty = iomap_set_page_dirty,
+	.dirty_folio = filemap_dirty_folio,
 	.releasepage = iomap_releasepage,
-	.invalidatepage = iomap_invalidatepage,
+	.invalidate_folio = iomap_invalidate_folio,
 	.bmap = gfs2_bmap,
 	.direct_IO = noop_direct_IO,
 	.migratepage = iomap_migrate_page,
@@ -802,9 +789,9 @@ static const struct address_space_operations gfs2_jdata_aops = {
 	.writepages = gfs2_jdata_writepages,
 	.readpage = gfs2_readpage,
 	.readahead = gfs2_readahead,
-	.set_page_dirty = jdata_set_page_dirty,
+	.dirty_folio = jdata_dirty_folio,
 	.bmap = gfs2_bmap,
-	.invalidatepage = gfs2_invalidatepage,
+	.invalidate_folio = gfs2_invalidate_folio,
 	.releasepage = gfs2_releasepage,
 	.is_partially_uptodate = block_is_partially_uptodate,
 	.error_remove_page = generic_error_remove_page,

@@ -22,6 +22,8 @@
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
 #include <linux/pgtable.h>
+#include <linux/debugfs.h>
+
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
@@ -38,8 +40,6 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/kexec.h>
 #include <asm/fadump.h>
-#include <asm/asm-prototypes.h>
-#include <asm/debugfs.h>
 #include <asm/dtl.h>
 
 #include "pseries.h"
@@ -57,6 +57,7 @@ EXPORT_SYMBOL(plpar_hcall);
 EXPORT_SYMBOL(plpar_hcall9);
 EXPORT_SYMBOL(plpar_hcall_norets);
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 /*
  * H_BLOCK_REMOVE supported block size for this page size in segment who's base
  * page size is that page size.
@@ -65,6 +66,7 @@ EXPORT_SYMBOL(plpar_hcall_norets);
  * page size.
  */
 static int hblkrm_size[MMU_PAGE_COUNT][MMU_PAGE_COUNT] __ro_after_init;
+#endif
 
 /*
  * Due to the involved complexity, and that the current hypervisor is only
@@ -261,7 +263,7 @@ static int cpu_relative_dispatch_distance(int last_disp_cpu, int cur_disp_cpu)
 	if (!last_disp_cpu_assoc || !cur_disp_cpu_assoc)
 		return -EIO;
 
-	return cpu_distance(last_disp_cpu_assoc, cur_disp_cpu_assoc);
+	return cpu_relative_distance(last_disp_cpu_assoc, cur_disp_cpu_assoc);
 }
 
 static int cpu_home_node_dispatch_distance(int disp_cpu)
@@ -281,7 +283,7 @@ static int cpu_home_node_dispatch_distance(int disp_cpu)
 	if (!disp_cpu_assoc || !vcpu_assoc)
 		return -EIO;
 
-	return cpu_distance(disp_cpu_assoc, vcpu_assoc);
+	return cpu_relative_distance(disp_cpu_assoc, vcpu_assoc);
 }
 
 static void update_vcpu_disp_stat(int disp_cpu)
@@ -688,7 +690,7 @@ void vpa_init(int cpu)
 		return;
 	}
 
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	/*
 	 * PAPR says this feature is SLB-Buffer but firmware never
 	 * reports that.  All SPLPAR support SLB shadow buffer.
@@ -701,7 +703,7 @@ void vpa_init(int cpu)
 			       "cpu %d (hw %d) of area %lx failed with %ld\n",
 			       cpu, hwcpu, addr, ret);
 	}
-#endif /* CONFIG_PPC_BOOK3S_64 */
+#endif /* CONFIG_PPC_64S_HASH_MMU */
 
 	/*
 	 * Register dispatch trace log, if one has been allocated.
@@ -710,6 +712,36 @@ void vpa_init(int cpu)
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
+
+static int __init pseries_lpar_register_process_table(unsigned long base,
+			unsigned long page_size, unsigned long table_size)
+{
+	long rc;
+	unsigned long flags = 0;
+
+	if (table_size)
+		flags |= PROC_TABLE_NEW;
+	if (radix_enabled()) {
+		flags |= PROC_TABLE_RADIX;
+		if (mmu_has_feature(MMU_FTR_GTSE))
+			flags |= PROC_TABLE_GTSE;
+	} else
+		flags |= PROC_TABLE_HPT_SLB;
+	for (;;) {
+		rc = plpar_hcall_norets(H_REGISTER_PROC_TBL, flags, base,
+					page_size, table_size);
+		if (!H_IS_LONG_BUSY(rc))
+			break;
+		mdelay(get_longbusy_msecs(rc));
+	}
+	if (rc != H_SUCCESS) {
+		pr_err("Failed to register process table (rc=%ld)\n", rc);
+		BUG();
+	}
+	return rc;
+}
+
+#ifdef CONFIG_PPC_64S_HASH_MMU
 
 static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 				     unsigned long vpn, unsigned long pa,
@@ -801,7 +833,8 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 	return -1;
 }
 
-static void manual_hpte_clear_all(void)
+/* Called during kexec sequence with MMU off */
+static notrace void manual_hpte_clear_all(void)
 {
 	unsigned long size_bytes = 1UL << ppc64_pft_size;
 	unsigned long hpte_count = size_bytes >> 4;
@@ -834,7 +867,8 @@ static void manual_hpte_clear_all(void)
 	}
 }
 
-static int hcall_hpte_clear_all(void)
+/* Called during kexec sequence with MMU off */
+static notrace int hcall_hpte_clear_all(void)
 {
 	int rc;
 
@@ -845,7 +879,8 @@ static int hcall_hpte_clear_all(void)
 	return rc;
 }
 
-static void pseries_hpte_clear_all(void)
+/* Called during kexec sequence with MMU off */
+static notrace void pseries_hpte_clear_all(void)
 {
 	int rc;
 
@@ -887,7 +922,8 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 
 	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
-	flags = (newpp & 7) | H_AVPN;
+	flags = (newpp & (HPTE_R_PP | HPTE_R_N | HPTE_R_KEY_LO)) | H_AVPN;
+	flags |= (newpp & HPTE_R_KEY_HI) >> 48;
 	if (mmu_has_feature(MMU_FTR_KERNEL_RO))
 		/* Move pp0 into bit 8 (IBM 55) */
 		flags |= (newpp & HPTE_R_PP0) >> 55;
@@ -976,10 +1012,12 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 	slot = pSeries_lpar_hpte_find(vpn, psize, ssize);
 	BUG_ON(slot == -1);
 
-	flags = newpp & 7;
+	flags = newpp & (HPTE_R_PP | HPTE_R_N);
 	if (mmu_has_feature(MMU_FTR_KERNEL_RO))
 		/* Move pp0 into bit 8 (IBM 55) */
 		flags |= (newpp & HPTE_R_PP0) >> 55;
+
+	flags |= ((newpp & HPTE_R_KEY_HI) >> 48) | (newpp & HPTE_R_KEY_LO);
 
 	lpar_rc = plpar_pte_protect(flags, slot, 0);
 
@@ -1629,7 +1667,7 @@ static int pseries_lpar_resize_hpt(unsigned long shift)
 		}
 		msleep(delay);
 		rc = plpar_resize_hpt_prepare(0, shift);
-	};
+	}
 
 	switch (rc) {
 	case H_SUCCESS:
@@ -1673,34 +1711,6 @@ static int pseries_lpar_resize_hpt(unsigned long shift)
 	return 0;
 }
 
-static int pseries_lpar_register_process_table(unsigned long base,
-			unsigned long page_size, unsigned long table_size)
-{
-	long rc;
-	unsigned long flags = 0;
-
-	if (table_size)
-		flags |= PROC_TABLE_NEW;
-	if (radix_enabled()) {
-		flags |= PROC_TABLE_RADIX;
-		if (mmu_has_feature(MMU_FTR_GTSE))
-			flags |= PROC_TABLE_GTSE;
-	} else
-		flags |= PROC_TABLE_HPT_SLB;
-	for (;;) {
-		rc = plpar_hcall_norets(H_REGISTER_PROC_TBL, flags, base,
-					page_size, table_size);
-		if (!H_IS_LONG_BUSY(rc))
-			break;
-		mdelay(get_longbusy_msecs(rc));
-	}
-	if (rc != H_SUCCESS) {
-		pr_err("Failed to register process table (rc=%ld)\n", rc);
-		BUG();
-	}
-	return rc;
-}
-
 void __init hpte_init_pseries(void)
 {
 	mmu_hash_ops.hpte_invalidate	 = pSeries_lpar_hpte_invalidate;
@@ -1723,9 +1733,10 @@ void __init hpte_init_pseries(void)
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
 		pseries_lpar_register_process_table(0, 0, 0);
 }
+#endif /* CONFIG_PPC_64S_HASH_MMU */
 
 #ifdef CONFIG_PPC_RADIX_MMU
-void radix_init_pseries(void)
+void __init radix_init_pseries(void)
 {
 	pr_info("Using radix MMU under hypervisor\n");
 
@@ -1826,30 +1837,28 @@ void hcall_tracepoint_unregfunc(void)
 #endif
 
 /*
- * Since the tracing code might execute hcalls we need to guard against
- * recursion. One example of this are spinlocks calling H_YIELD on
- * shared processor partitions.
+ * Keep track of hcall tracing depth and prevent recursion. Warn if any is
+ * detected because it may indicate a problem. This will not catch all
+ * problems with tracing code making hcalls, because the tracing might have
+ * been invoked from a non-hcall, so the first hcall could recurse into it
+ * without warning here, but this better than nothing.
+ *
+ * Hcalls with specific problems being traced should use the _notrace
+ * plpar_hcall variants.
  */
 static DEFINE_PER_CPU(unsigned int, hcall_trace_depth);
 
 
-void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
+notrace void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
 {
 	unsigned long flags;
 	unsigned int *depth;
-
-	/*
-	 * We cannot call tracepoints inside RCU idle regions which
-	 * means we must not trace H_CEDE.
-	 */
-	if (opcode == H_CEDE)
-		return;
 
 	local_irq_save(flags);
 
 	depth = this_cpu_ptr(&hcall_trace_depth);
 
-	if (*depth)
+	if (WARN_ON_ONCE(*depth))
 		goto out;
 
 	(*depth)++;
@@ -1861,19 +1870,16 @@ out:
 	local_irq_restore(flags);
 }
 
-void __trace_hcall_exit(long opcode, long retval, unsigned long *retbuf)
+notrace void __trace_hcall_exit(long opcode, long retval, unsigned long *retbuf)
 {
 	unsigned long flags;
 	unsigned int *depth;
-
-	if (opcode == H_CEDE)
-		return;
 
 	local_irq_save(flags);
 
 	depth = this_cpu_ptr(&hcall_trace_depth);
 
-	if (*depth)
+	if (*depth) /* Don't warn again on the way out */
 		goto out;
 
 	(*depth)++;
@@ -1930,7 +1936,8 @@ int h_get_mpp_x(struct hvcall_mpp_x_data *mpp_x_data)
 	return rc;
 }
 
-static unsigned long vsid_unscramble(unsigned long vsid, int ssize)
+#ifdef CONFIG_PPC_64S_HASH_MMU
+static unsigned long __init vsid_unscramble(unsigned long vsid, int ssize)
 {
 	unsigned long protovsid;
 	unsigned long va_bits = VA_BITS;
@@ -1990,6 +1997,7 @@ static int __init reserve_vrma_context_id(void)
 	return 0;
 }
 machine_device_initcall(pseries, reserve_vrma_context_id);
+#endif
 
 #ifdef CONFIG_DEBUG_FS
 /* debugfs file interface for vpa data */
@@ -2018,7 +2026,7 @@ static int __init vpa_debugfs_init(void)
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return 0;
 
-	vpa_dir = debugfs_create_dir("vpa", powerpc_debugfs_root);
+	vpa_dir = debugfs_create_dir("vpa", arch_debugfs_dir);
 
 	/* set up the per-cpu vpa file*/
 	for_each_possible_cpu(i) {

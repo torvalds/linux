@@ -5,7 +5,7 @@ Contact:	Dhaval Giani <dhaval@linux.vnet.ibm.com>
 Description:
 		The /sys/kernel/uids/<uid>/cpu_shares tunable is used
 		to set the cpu bandwidth a user is allowed. This is a
-		propotional value. What that means is that if there
+		proportional value. What that means is that if there
 		are two users logged in, each with an equal number of
 		shares, then they will get equal CPU bandwidth. Another
 		example would be, if User A has shares = 1024 and user

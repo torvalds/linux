@@ -16,16 +16,26 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 
-#include "core.h"
 #include "sh_pfc.h"
 
 #define CPU_ALL_GP(fn, sfx)	\
-	PORT_GP_CFG_22(0, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),	\
-	PORT_GP_28(1, fn, sfx),	\
-	PORT_GP_CFG_30(2, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),	\
-	PORT_GP_CFG_17(3, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE), \
-	PORT_GP_25(4, fn, sfx),	\
-	PORT_GP_15(5, fn, sfx)
+	PORT_GP_CFG_22(0, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE | SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PORT_GP_CFG_28(1, fn, sfx, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PORT_GP_CFG_30(2, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE | SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PORT_GP_CFG_17(3, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE | SH_PFC_PIN_CFG_PULL_UP_DOWN), \
+	PORT_GP_CFG_25(4, fn, sfx, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PORT_GP_CFG_15(5, fn, sfx, SH_PFC_PIN_CFG_PULL_UP_DOWN)
+
+#define CPU_ALL_NOGP(fn)	\
+	PIN_NOGP_CFG(DCUTCK_LPDCLK, "DCUTCK_LPDCLK", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_NOGP_CFG(DCUTDI_LPDI, "DCUTDI_LPDI", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_NOGP_CFG(DCUTMS, "DCUTMS", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_NOGP_CFG(DCUTRST_N, "DCUTRST#", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_NOGP_CFG(DU_DOTCLKIN, "DU_DOTCLKIN", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_NOGP_CFG(EXTALR, "EXTALR", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_NOGP_CFG(FSCLKST, "FSCLKST", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_NOGP_CFG(FSCLKST_N, "FSCLKST#", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_NOGP_CFG(PRESETOUT_N, "PRESETOUT#", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN)
 
 /*
  * F_() : just information
@@ -831,8 +841,17 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_GPSR(IP10_19_16,	FSO_TOE_N),
 };
 
+/*
+ * Pins not associated with a GPIO port.
+ */
+enum {
+	GP_ASSIGN_LAST(),
+	NOGP_ALL(),
+};
+
 static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
+	PINMUX_NOGP_ALL(),
 };
 
 /* - AVB -------------------------------------------------------------------- */
@@ -1346,30 +1365,14 @@ static const unsigned int intc_ex_irq5_mux[] = {
 };
 
 /* - MMC -------------------------------------------------------------------- */
-static const unsigned int mmc_data1_pins[] = {
-	/* MMC_D0 */
-	RCAR_GP_PIN(3, 8),
-};
-static const unsigned int mmc_data1_mux[] = {
-	MMC_D0_MARK,
-};
-static const unsigned int mmc_data4_pins[] = {
-	/* MMC_D[0:3] */
-	RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
-	RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
-};
-static const unsigned int mmc_data4_mux[] = {
-	MMC_D0_MARK, MMC_D1_MARK,
-	MMC_D2_MARK, MMC_D3_MARK,
-};
-static const unsigned int mmc_data8_pins[] = {
+static const unsigned int mmc_data_pins[] = {
 	/* MMC_D[0:7] */
 	RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
 	RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
 	RCAR_GP_PIN(3, 13), RCAR_GP_PIN(3, 14),
 	RCAR_GP_PIN(3, 15), RCAR_GP_PIN(3, 16),
 };
-static const unsigned int mmc_data8_mux[] = {
+static const unsigned int mmc_data_mux[] = {
 	MMC_D0_MARK, MMC_D1_MARK,
 	MMC_D2_MARK, MMC_D3_MARK,
 	MMC_D4_MARK, MMC_D5_MARK,
@@ -1668,22 +1671,6 @@ static const unsigned int qspi0_ctrl_pins[] = {
 static const unsigned int qspi0_ctrl_mux[] = {
 	QSPI0_SPCLK_MARK, QSPI0_SSL_MARK,
 };
-static const unsigned int qspi0_data2_pins[] = {
-	/* MOSI_IO0, MISO_IO1 */
-	RCAR_GP_PIN(5, 1), RCAR_GP_PIN(5, 2),
-};
-static const unsigned int qspi0_data2_mux[] = {
-	QSPI0_MOSI_IO0_MARK, QSPI0_MISO_IO1_MARK,
-};
-static const unsigned int qspi0_data4_pins[] = {
-	/* MOSI_IO0, MISO_IO1, IO2, IO3 */
-	RCAR_GP_PIN(5, 1), RCAR_GP_PIN(5, 2),
-	RCAR_GP_PIN(5, 3), RCAR_GP_PIN(5, 4),
-};
-static const unsigned int qspi0_data4_mux[] = {
-	QSPI0_MOSI_IO0_MARK, QSPI0_MISO_IO1_MARK,
-	QSPI0_IO2_MARK, QSPI0_IO3_MARK
-};
 
 /* - QSPI1 ------------------------------------------------------------------ */
 static const unsigned int qspi1_ctrl_pins[] = {
@@ -1693,36 +1680,14 @@ static const unsigned int qspi1_ctrl_pins[] = {
 static const unsigned int qspi1_ctrl_mux[] = {
 	QSPI1_SPCLK_MARK, QSPI1_SSL_MARK,
 };
-static const unsigned int qspi1_data2_pins[] = {
-	/* MOSI_IO0, MISO_IO1 */
-	RCAR_GP_PIN(5, 7), RCAR_GP_PIN(5, 8),
-};
-static const unsigned int qspi1_data2_mux[] = {
-	QSPI1_MOSI_IO0_MARK, QSPI1_MISO_IO1_MARK,
-};
-static const unsigned int qspi1_data4_pins[] = {
-	/* MOSI_IO0, MISO_IO1, IO2, IO3 */
-	RCAR_GP_PIN(5, 7), RCAR_GP_PIN(5, 8),
-	RCAR_GP_PIN(5, 9), RCAR_GP_PIN(5, 10),
-};
-static const unsigned int qspi1_data4_mux[] = {
-	QSPI1_MOSI_IO0_MARK, QSPI1_MISO_IO1_MARK,
-	QSPI1_IO2_MARK, QSPI1_IO3_MARK
-};
 
 /* - RPC -------------------------------------------------------------------- */
-static const unsigned int rpc_clk1_pins[] = {
+static const unsigned int rpc_clk_pins[] = {
 	/* Octal-SPI flash: C/SCLK */
-	RCAR_GP_PIN(5, 0),
-};
-static const unsigned int rpc_clk1_mux[] = {
-	QSPI0_SPCLK_MARK,
-};
-static const unsigned int rpc_clk2_pins[] = {
 	/* HyperFlash: CK, CK# */
 	RCAR_GP_PIN(5, 0), RCAR_GP_PIN(5, 6),
 };
-static const unsigned int rpc_clk2_mux[] = {
+static const unsigned int rpc_clk_mux[] = {
 	QSPI0_SPCLK_MARK, QSPI1_SPCLK_MARK,
 };
 static const unsigned int rpc_ctrl_pins[] = {
@@ -1944,37 +1909,33 @@ static const unsigned int tpu_to3_mux[] = {
 };
 
 /* - VIN0 ------------------------------------------------------------------- */
-static const union vin_data vin0_data_pins = {
-	.data24 = {
-		RCAR_GP_PIN(2, 4), RCAR_GP_PIN(2, 5),
-		RCAR_GP_PIN(2, 6), RCAR_GP_PIN(2, 7),
-		RCAR_GP_PIN(2, 8), RCAR_GP_PIN(2, 9),
-		RCAR_GP_PIN(2, 10), RCAR_GP_PIN(2, 11),
-		RCAR_GP_PIN(2, 12), RCAR_GP_PIN(2, 13),
-		RCAR_GP_PIN(2, 14), RCAR_GP_PIN(2, 15),
-		RCAR_GP_PIN(2, 17), RCAR_GP_PIN(2, 18),
-		RCAR_GP_PIN(2, 19), RCAR_GP_PIN(2, 20),
-		RCAR_GP_PIN(2, 21), RCAR_GP_PIN(2, 22),
-		RCAR_GP_PIN(2, 23), RCAR_GP_PIN(2, 24),
-		RCAR_GP_PIN(2, 25), RCAR_GP_PIN(2, 26),
-		RCAR_GP_PIN(2, 27), RCAR_GP_PIN(2, 28),
-	},
+static const unsigned int vin0_data_pins[] = {
+	RCAR_GP_PIN(2, 4), RCAR_GP_PIN(2, 5),
+	RCAR_GP_PIN(2, 6), RCAR_GP_PIN(2, 7),
+	RCAR_GP_PIN(2, 8), RCAR_GP_PIN(2, 9),
+	RCAR_GP_PIN(2, 10), RCAR_GP_PIN(2, 11),
+	RCAR_GP_PIN(2, 12), RCAR_GP_PIN(2, 13),
+	RCAR_GP_PIN(2, 14), RCAR_GP_PIN(2, 15),
+	RCAR_GP_PIN(2, 17), RCAR_GP_PIN(2, 18),
+	RCAR_GP_PIN(2, 19), RCAR_GP_PIN(2, 20),
+	RCAR_GP_PIN(2, 21), RCAR_GP_PIN(2, 22),
+	RCAR_GP_PIN(2, 23), RCAR_GP_PIN(2, 24),
+	RCAR_GP_PIN(2, 25), RCAR_GP_PIN(2, 26),
+	RCAR_GP_PIN(2, 27), RCAR_GP_PIN(2, 28),
 };
-static const union vin_data vin0_data_mux = {
-	.data24 = {
-		VI0_DATA0_MARK, VI0_DATA1_MARK,
-		VI0_DATA2_MARK, VI0_DATA3_MARK,
-		VI0_DATA4_MARK, VI0_DATA5_MARK,
-		VI0_DATA6_MARK, VI0_DATA7_MARK,
-		VI0_DATA8_MARK, VI0_DATA9_MARK,
-		VI0_DATA10_MARK, VI0_DATA11_MARK,
-		VI0_DATA12_MARK, VI0_DATA13_MARK,
-		VI0_DATA14_MARK, VI0_DATA15_MARK,
-		VI0_DATA16_MARK, VI0_DATA17_MARK,
-		VI0_DATA18_MARK, VI0_DATA19_MARK,
-		VI0_DATA20_MARK, VI0_DATA21_MARK,
-		VI0_DATA22_MARK, VI0_DATA23_MARK,
-	},
+static const unsigned int vin0_data_mux[] = {
+	VI0_DATA0_MARK, VI0_DATA1_MARK,
+	VI0_DATA2_MARK, VI0_DATA3_MARK,
+	VI0_DATA4_MARK, VI0_DATA5_MARK,
+	VI0_DATA6_MARK, VI0_DATA7_MARK,
+	VI0_DATA8_MARK, VI0_DATA9_MARK,
+	VI0_DATA10_MARK, VI0_DATA11_MARK,
+	VI0_DATA12_MARK, VI0_DATA13_MARK,
+	VI0_DATA14_MARK, VI0_DATA15_MARK,
+	VI0_DATA16_MARK, VI0_DATA17_MARK,
+	VI0_DATA18_MARK, VI0_DATA19_MARK,
+	VI0_DATA20_MARK, VI0_DATA21_MARK,
+	VI0_DATA22_MARK, VI0_DATA23_MARK,
 };
 static const unsigned int vin0_data18_pins[] = {
 	RCAR_GP_PIN(2, 6), RCAR_GP_PIN(2, 7),
@@ -2028,25 +1989,21 @@ static const unsigned int vin0_clk_mux[] = {
 };
 
 /* - VIN1 ------------------------------------------------------------------- */
-static const union vin_data12 vin1_data_pins = {
-	.data12 = {
-		RCAR_GP_PIN(3, 4), RCAR_GP_PIN(3, 5),
-		RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
-		RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
-		RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
-		RCAR_GP_PIN(3, 12), RCAR_GP_PIN(3, 13),
-		RCAR_GP_PIN(3, 14), RCAR_GP_PIN(3, 15),
-	},
+static const unsigned int vin1_data_pins[] = {
+	RCAR_GP_PIN(3, 4), RCAR_GP_PIN(3, 5),
+	RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
+	RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
+	RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
+	RCAR_GP_PIN(3, 12), RCAR_GP_PIN(3, 13),
+	RCAR_GP_PIN(3, 14), RCAR_GP_PIN(3, 15),
 };
-static const union vin_data12 vin1_data_mux = {
-	.data12 = {
-		VI1_DATA0_MARK, VI1_DATA1_MARK,
-		VI1_DATA2_MARK, VI1_DATA3_MARK,
-		VI1_DATA4_MARK, VI1_DATA5_MARK,
-		VI1_DATA6_MARK, VI1_DATA7_MARK,
-		VI1_DATA8_MARK,  VI1_DATA9_MARK,
-		VI1_DATA10_MARK, VI1_DATA11_MARK,
-	},
+static const unsigned int vin1_data_mux[] = {
+	VI1_DATA0_MARK, VI1_DATA1_MARK,
+	VI1_DATA2_MARK, VI1_DATA3_MARK,
+	VI1_DATA4_MARK, VI1_DATA5_MARK,
+	VI1_DATA6_MARK, VI1_DATA7_MARK,
+	VI1_DATA8_MARK,  VI1_DATA9_MARK,
+	VI1_DATA10_MARK, VI1_DATA11_MARK,
 };
 static const unsigned int vin1_sync_pins[] = {
 	/* VI1_VSYNC#, VI1_HSYNC# */
@@ -2137,9 +2094,9 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(intc_ex_irq3),
 	SH_PFC_PIN_GROUP(intc_ex_irq4),
 	SH_PFC_PIN_GROUP(intc_ex_irq5),
-	SH_PFC_PIN_GROUP(mmc_data1),
-	SH_PFC_PIN_GROUP(mmc_data4),
-	SH_PFC_PIN_GROUP(mmc_data8),
+	BUS_DATA_PIN_GROUP(mmc_data, 1),
+	BUS_DATA_PIN_GROUP(mmc_data, 4),
+	BUS_DATA_PIN_GROUP(mmc_data, 8),
 	SH_PFC_PIN_GROUP(mmc_ctrl),
 	SH_PFC_PIN_GROUP(mmc_cd),
 	SH_PFC_PIN_GROUP(mmc_wp),
@@ -2179,13 +2136,13 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(pwm4_a),
 	SH_PFC_PIN_GROUP(pwm4_b),
 	SH_PFC_PIN_GROUP(qspi0_ctrl),
-	SH_PFC_PIN_GROUP(qspi0_data2),
-	SH_PFC_PIN_GROUP(qspi0_data4),
+	SH_PFC_PIN_GROUP_SUBSET(qspi0_data2, rpc_data, 0, 2),
+	SH_PFC_PIN_GROUP_SUBSET(qspi0_data4, rpc_data, 0, 4),
 	SH_PFC_PIN_GROUP(qspi1_ctrl),
-	SH_PFC_PIN_GROUP(qspi1_data2),
-	SH_PFC_PIN_GROUP(qspi1_data4),
-	SH_PFC_PIN_GROUP(rpc_clk1),
-	SH_PFC_PIN_GROUP(rpc_clk2),
+	SH_PFC_PIN_GROUP_SUBSET(qspi1_data2, rpc_data, 4, 2),
+	SH_PFC_PIN_GROUP_SUBSET(qspi1_data4, rpc_data, 4, 4),
+	BUS_DATA_PIN_GROUP(rpc_clk, 1),
+	BUS_DATA_PIN_GROUP(rpc_clk, 2),
 	SH_PFC_PIN_GROUP(rpc_ctrl),
 	SH_PFC_PIN_GROUP(rpc_data),
 	SH_PFC_PIN_GROUP(rpc_reset),
@@ -2214,20 +2171,20 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(tpu_to1),
 	SH_PFC_PIN_GROUP(tpu_to2),
 	SH_PFC_PIN_GROUP(tpu_to3),
-	VIN_DATA_PIN_GROUP(vin0_data, 8),
-	VIN_DATA_PIN_GROUP(vin0_data, 10),
-	VIN_DATA_PIN_GROUP(vin0_data, 12),
-	VIN_DATA_PIN_GROUP(vin0_data, 16),
+	BUS_DATA_PIN_GROUP(vin0_data, 8),
+	BUS_DATA_PIN_GROUP(vin0_data, 10),
+	BUS_DATA_PIN_GROUP(vin0_data, 12),
+	BUS_DATA_PIN_GROUP(vin0_data, 16),
 	SH_PFC_PIN_GROUP(vin0_data18),
-	VIN_DATA_PIN_GROUP(vin0_data, 20),
-	VIN_DATA_PIN_GROUP(vin0_data, 24),
+	BUS_DATA_PIN_GROUP(vin0_data, 20),
+	BUS_DATA_PIN_GROUP(vin0_data, 24),
 	SH_PFC_PIN_GROUP(vin0_sync),
 	SH_PFC_PIN_GROUP(vin0_field),
 	SH_PFC_PIN_GROUP(vin0_clkenb),
 	SH_PFC_PIN_GROUP(vin0_clk),
-	VIN_DATA_PIN_GROUP(vin1_data, 8),
-	VIN_DATA_PIN_GROUP(vin1_data, 10),
-	VIN_DATA_PIN_GROUP(vin1_data, 12),
+	BUS_DATA_PIN_GROUP(vin1_data, 8),
+	BUS_DATA_PIN_GROUP(vin1_data, 10),
+	BUS_DATA_PIN_GROUP(vin1_data, 12),
 	SH_PFC_PIN_GROUP(vin1_sync),
 	SH_PFC_PIN_GROUP(vin1_field),
 	SH_PFC_PIN_GROUP(vin1_clkenb),
@@ -2921,8 +2878,7 @@ static const struct pinmux_ioctrl_reg pinmux_ioctrl_regs[] = {
 	{ /* sentinel */ },
 };
 
-static int r8a77980_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin,
-				   u32 *pocctrl)
+static int r8a77980_pin_to_pocctrl(unsigned int pin, u32 *pocctrl)
 {
 	int bit = pin & 0x1f;
 
@@ -2946,13 +2902,189 @@ static int r8a77980_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin,
 	return -EINVAL;
 }
 
-static const struct sh_pfc_soc_operations pinmux_ops = {
+static const struct pinmux_bias_reg pinmux_bias_regs[] = {
+	{ PINMUX_BIAS_REG("PUEN0", 0xe6060400, "PUD0", 0xe6060440) {
+		[ 0] = RCAR_GP_PIN(0, 0),	/* DU_DR2 */
+		[ 1] = RCAR_GP_PIN(0, 1),	/* DU_DR3 */
+		[ 2] = RCAR_GP_PIN(0, 2),	/* DU_DR4 */
+		[ 3] = RCAR_GP_PIN(0, 3),	/* DU_DR5 */
+		[ 4] = RCAR_GP_PIN(0, 4),	/* DU_DR6 */
+		[ 5] = RCAR_GP_PIN(0, 5),	/* DU_DR7 */
+		[ 6] = RCAR_GP_PIN(0, 6),	/* DU_DG2 */
+		[ 7] = RCAR_GP_PIN(0, 7),	/* DU_DG3 */
+		[ 8] = RCAR_GP_PIN(0, 8),	/* DU_DG4 */
+		[ 9] = RCAR_GP_PIN(0, 9),	/* DU_DG5 */
+		[10] = RCAR_GP_PIN(0, 10),	/* DU_DG6 */
+		[11] = RCAR_GP_PIN(0, 11),	/* DU_DG7 */
+		[12] = RCAR_GP_PIN(0, 12),	/* DU_DB2 */
+		[13] = RCAR_GP_PIN(0, 13),	/* DU_DB3 */
+		[14] = RCAR_GP_PIN(0, 14),	/* DU_DB4 */
+		[15] = RCAR_GP_PIN(0, 15),	/* DU_DB5 */
+		[16] = RCAR_GP_PIN(0, 16),	/* DU_DB6 */
+		[17] = RCAR_GP_PIN(0, 17),	/* DU_DB7 */
+		[18] = RCAR_GP_PIN(0, 18),	/* DU_DOTCLKOUT */
+		[19] = RCAR_GP_PIN(0, 19),	/* DU_EXHSYNC/DU_HSYNC */
+		[20] = RCAR_GP_PIN(0, 20),	/* DU_EXVSYNC/DU_VSYNC */
+		[21] = RCAR_GP_PIN(0, 21),	/* DU_EXODDF/DU_ODDF/DISP/CDE */
+		[22] = SH_PFC_PIN_NONE,
+		[23] = SH_PFC_PIN_NONE,
+		[24] = PIN_DU_DOTCLKIN,		/* DU_DOTCLKIN */
+		[25] = SH_PFC_PIN_NONE,
+		[26] = PIN_PRESETOUT_N,		/* PRESETOUT# */
+		[27] = SH_PFC_PIN_NONE,
+		[28] = SH_PFC_PIN_NONE,
+		[29] = SH_PFC_PIN_NONE,
+		[30] = PIN_EXTALR,		/* EXTALR */
+		[31] = PIN_FSCLKST_N,		/* FSCLKST# */
+	} },
+	{ PINMUX_BIAS_REG("PUEN1", 0xe6060404, "PUD1", 0xe6060444) {
+		[ 0] = PIN_FSCLKST,		/* FSCLKST */
+		[ 1] = SH_PFC_PIN_NONE,
+		[ 2] = RCAR_GP_PIN(1, 0),	/* IRQ0 */
+		[ 3] = PIN_DCUTRST_N,		/* DCUTRST# */
+		[ 4] = PIN_DCUTCK_LPDCLK,	/* DCUTCK_LPDCLK */
+		[ 5] = PIN_DCUTMS,		/* DCUTMS */
+		[ 6] = PIN_DCUTDI_LPDI,		/* DCUTDI_LPDI */
+		[ 7] = SH_PFC_PIN_NONE,
+		[ 8] = RCAR_GP_PIN(2, 0),	/* VI0_CLK */
+		[ 9] = RCAR_GP_PIN(2, 1),	/* VI0_CLKENB */
+		[10] = RCAR_GP_PIN(2, 2),	/* VI0_HSYNC# */
+		[11] = RCAR_GP_PIN(2, 3),	/* VI0_VSYNC# */
+		[12] = RCAR_GP_PIN(2, 4),	/* VI0_DATA0 */
+		[13] = RCAR_GP_PIN(2, 5),	/* VI0_DATA1 */
+		[14] = RCAR_GP_PIN(2, 6),	/* VI0_DATA2 */
+		[15] = RCAR_GP_PIN(2, 7),	/* VI0_DATA3 */
+		[16] = RCAR_GP_PIN(2, 8),	/* VI0_DATA4 */
+		[17] = RCAR_GP_PIN(2, 9),	/* VI0_DATA5 */
+		[18] = RCAR_GP_PIN(2, 10),	/* VI0_DATA6 */
+		[19] = RCAR_GP_PIN(2, 11),	/* VI0_DATA7 */
+		[20] = RCAR_GP_PIN(2, 12),	/* VI0_DATA8 */
+		[21] = RCAR_GP_PIN(2, 13),	/* VI0_DATA9 */
+		[22] = RCAR_GP_PIN(2, 14),	/* VI0_DATA10 */
+		[23] = RCAR_GP_PIN(2, 15),	/* VI0_DATA11 */
+		[24] = RCAR_GP_PIN(2, 16),	/* VI0_FIELD */
+		[25] = RCAR_GP_PIN(3, 0),	/* VI1_CLK */
+		[26] = RCAR_GP_PIN(3, 1),	/* VI1_CLKENB */
+		[27] = RCAR_GP_PIN(3, 2),	/* VI1_HSYNC# */
+		[28] = RCAR_GP_PIN(3, 3),	/* VI1_VSYNC# */
+		[29] = RCAR_GP_PIN(3, 4),	/* VI1_DATA0 */
+		[30] = RCAR_GP_PIN(3, 5),	/* VI1_DATA1 */
+		[31] = RCAR_GP_PIN(3, 6),	/* VI1_DATA2 */
+	} },
+	{ PINMUX_BIAS_REG("PUEN2", 0xe6060408, "PUD2", 0xe6060448) {
+		[ 0] = RCAR_GP_PIN(3, 7),	/* VI1_DATA3 */
+		[ 1] = RCAR_GP_PIN(3, 8),	/* VI1_DATA4 */
+		[ 2] = RCAR_GP_PIN(3, 9),	/* VI1_DATA5 */
+		[ 3] = RCAR_GP_PIN(3, 10),	/* VI1_DATA6 */
+		[ 4] = RCAR_GP_PIN(3, 11),	/* VI1_DATA7 */
+		[ 5] = RCAR_GP_PIN(3, 12),	/* VI1_DATA8 */
+		[ 6] = RCAR_GP_PIN(3, 13),	/* VI1_DATA9 */
+		[ 7] = RCAR_GP_PIN(3, 14),	/* VI1_DATA10 */
+		[ 8] = RCAR_GP_PIN(3, 15),	/* VI1_DATA11 */
+		[ 9] = RCAR_GP_PIN(3, 16),	/* VI1_FIELD */
+		[10] = RCAR_GP_PIN(4, 0),	/* SCL0 */
+		[11] = RCAR_GP_PIN(4, 1),	/* SDA0 */
+		[12] = RCAR_GP_PIN(4, 2),	/* SCL1 */
+		[13] = RCAR_GP_PIN(4, 3),	/* SDA1 */
+		[14] = RCAR_GP_PIN(4, 4),	/* SCL2 */
+		[15] = RCAR_GP_PIN(4, 5),	/* SDA2 */
+		[16] = RCAR_GP_PIN(1, 1),	/* AVB_RX_CTL */
+		[17] = RCAR_GP_PIN(1, 2),	/* AVB_RXC */
+		[18] = RCAR_GP_PIN(1, 3),	/* AVB_RD0 */
+		[19] = RCAR_GP_PIN(1, 4),	/* AVB_RD1 */
+		[20] = RCAR_GP_PIN(1, 5),	/* AVB_RD2 */
+		[21] = RCAR_GP_PIN(1, 6),	/* AVB_RD3 */
+		[22] = RCAR_GP_PIN(1, 7),	/* AVB_TX_CTL */
+		[23] = RCAR_GP_PIN(1, 8),	/* AVB_TXC */
+		[24] = RCAR_GP_PIN(1, 9),	/* AVB_TD0 */
+		[25] = RCAR_GP_PIN(1, 10),	/* AVB_TD1 */
+		[26] = RCAR_GP_PIN(1, 11),	/* AVB_TD2 */
+		[27] = RCAR_GP_PIN(1, 12),	/* AVB_TD3 */
+		[28] = RCAR_GP_PIN(1, 13),	/* AVB_TXCREFCLK */
+		[29] = RCAR_GP_PIN(1, 14),	/* AVB_MDIO */
+		[30] = RCAR_GP_PIN(1, 15),	/* AVB_MDC */
+		[31] = RCAR_GP_PIN(1, 16),	/* AVB_MAGIC */
+	} },
+	{ PINMUX_BIAS_REG("PUEN3", 0xe606040c, "PUD3", 0xe606044c) {
+		[ 0] = RCAR_GP_PIN(1, 17),	/* AVB_PHY_INT */
+		[ 1] = RCAR_GP_PIN(1, 18),	/* AVB_LINK */
+		[ 2] = RCAR_GP_PIN(1, 19),	/* AVB_AVTP_MATCH */
+		[ 3] = RCAR_GP_PIN(1, 20),	/* AVTP_CAPTURE */
+		[ 4] = RCAR_GP_PIN(4, 6),	/* GETHER_RX_CTL */
+		[ 5] = RCAR_GP_PIN(4, 7),	/* GETHER_RXC */
+		[ 6] = RCAR_GP_PIN(4, 8),	/* GETHER_RD0 */
+		[ 7] = RCAR_GP_PIN(4, 9),	/* GETHER_RD1 */
+		[ 8] = RCAR_GP_PIN(4, 10),	/* GETHER_RD2 */
+		[ 9] = RCAR_GP_PIN(4, 11),	/* GETHER_RD3 */
+		[10] = RCAR_GP_PIN(4, 12),	/* GETHER_TX_CTL */
+		[11] = RCAR_GP_PIN(4, 13),	/* GETHER_TXC */
+		[12] = RCAR_GP_PIN(4, 14),	/* GETHER_TD0 */
+		[13] = RCAR_GP_PIN(4, 15),	/* GETHER_TD1 */
+		[14] = RCAR_GP_PIN(4, 16),	/* GETHER_TD2 */
+		[15] = RCAR_GP_PIN(4, 17),	/* GETHER_TD3 */
+		[16] = RCAR_GP_PIN(4, 18),	/* GETHER_TXCREFCLK */
+		[17] = RCAR_GP_PIN(4, 19),	/* GETHER_TXCREFCLK_MEGA */
+		[18] = RCAR_GP_PIN(4, 20),	/* GETHER_MDIO_A */
+		[19] = RCAR_GP_PIN(4, 21),	/* GETHER_MDC_A */
+		[20] = RCAR_GP_PIN(4, 22),	/* GETHER_MAGIC */
+		[21] = RCAR_GP_PIN(4, 23),	/* GETHER_PHY_INT_A */
+		[22] = RCAR_GP_PIN(4, 24),	/* GETHER_LINK_A */
+		[23] = RCAR_GP_PIN(1, 21),	/* CANFD0_TX_A */
+		[24] = RCAR_GP_PIN(1, 22),	/* CANFD0_RX_A */
+		[25] = RCAR_GP_PIN(1, 23),	/* CANFD1_TX */
+		[26] = RCAR_GP_PIN(1, 24),	/* CANFD1_RX */
+		[27] = RCAR_GP_PIN(1, 25),	/* CAN_CLK_A */
+		[28] = RCAR_GP_PIN(5, 0),	/* QSPI0_SPCLK */
+		[29] = RCAR_GP_PIN(5, 1),	/* QSPI0_MOSI_IO0 */
+		[30] = RCAR_GP_PIN(5, 2),	/* QSPI0_MISO_IO1 */
+		[31] = RCAR_GP_PIN(5, 3),	/* QSPI0_IO2 */
+	} },
+	{ PINMUX_BIAS_REG("PUEN4", 0xe6060410, "PUD4", 0xe6060450) {
+		[ 0] = RCAR_GP_PIN(5, 4),	/* QSPI0_IO3 */
+		[ 1] = RCAR_GP_PIN(5, 5),	/* QSPI0_SSL */
+		[ 2] = RCAR_GP_PIN(5, 6),	/* QSPI1_SPCLK */
+		[ 3] = RCAR_GP_PIN(5, 7),	/* QSPI1_MOSI_IO0 */
+		[ 4] = RCAR_GP_PIN(5, 8),	/* QSPI1_MISO_IO1 */
+		[ 5] = RCAR_GP_PIN(5, 9),	/* QSPI1_IO2 */
+		[ 6] = RCAR_GP_PIN(5, 10),	/* QSPI1_IO3 */
+		[ 7] = RCAR_GP_PIN(5, 11),	/* QSPI1_SSL */
+		[ 8] = RCAR_GP_PIN(5, 12),	/* RPC_RESET# */
+		[ 9] = RCAR_GP_PIN(5, 13),	/* RPC_WP# */
+		[10] = RCAR_GP_PIN(5, 14),	/* RPC_INT# */
+		[11] = RCAR_GP_PIN(1, 26),	/* DIGRF_CLKIN */
+		[12] = RCAR_GP_PIN(1, 27),	/* DIGRF_CLKOUT */
+		[13] = RCAR_GP_PIN(2, 17),	/* IRQ4 */
+		[14] = RCAR_GP_PIN(2, 18),	/* IRQ5 */
+		[15] = RCAR_GP_PIN(2, 25),	/* SCL3 */
+		[16] = RCAR_GP_PIN(2, 26),	/* SDA3 */
+		[17] = RCAR_GP_PIN(2, 19),	/* MSIOF0_RXD */
+		[18] = RCAR_GP_PIN(2, 20),	/* MSIOF0_TXD */
+		[19] = RCAR_GP_PIN(2, 21),	/* MSIOF0_SCK */
+		[20] = RCAR_GP_PIN(2, 22),	/* MSIOF0_SYNC */
+		[21] = RCAR_GP_PIN(2, 23),	/* MSIOF0_SS1 */
+		[22] = RCAR_GP_PIN(2, 24),	/* MSIOF0_SS2 */
+		[23] = RCAR_GP_PIN(2, 27),	/* FSO_CFE_0# */
+		[24] = RCAR_GP_PIN(2, 28),	/* FSO_CFE_1# */
+		[25] = RCAR_GP_PIN(2, 29),	/* FSO_TOE# */
+		[26] = SH_PFC_PIN_NONE,
+		[27] = SH_PFC_PIN_NONE,
+		[28] = SH_PFC_PIN_NONE,
+		[29] = SH_PFC_PIN_NONE,
+		[30] = SH_PFC_PIN_NONE,
+		[31] = SH_PFC_PIN_NONE,
+	} },
+	{ /* sentinel */ }
+};
+
+static const struct sh_pfc_soc_operations r8a77980_pfc_ops = {
 	.pin_to_pocctrl = r8a77980_pin_to_pocctrl,
+	.get_bias = rcar_pinmux_get_bias,
+	.set_bias = rcar_pinmux_set_bias,
 };
 
 const struct sh_pfc_soc_info r8a77980_pinmux_info = {
 	.name = "r8a77980_pfc",
-	.ops = &pinmux_ops,
+	.ops = &r8a77980_pfc_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
@@ -2965,6 +3097,7 @@ const struct sh_pfc_soc_info r8a77980_pinmux_info = {
 	.nr_functions = ARRAY_SIZE(pinmux_functions),
 
 	.cfg_regs = pinmux_config_regs,
+	.bias_regs = pinmux_bias_regs,
 	.ioctrl_regs = pinmux_ioctrl_regs,
 
 	.pinmux_data = pinmux_data,

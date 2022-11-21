@@ -10,6 +10,56 @@
 / {
 	model = "ZII Ultra RMB3 Board";
 	compatible = "zii,imx8mq-ultra-rmb3", "zii,imx8mq-ultra", "fsl,imx8mq";
+
+	sound1 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "front";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&sound1_codec>;
+		simple-audio-card,frame-master = <&sound1_codec>;
+		simple-audio-card,widgets =
+			"Headphone", "Headphone Jack Front";
+		simple-audio-card,routing =
+			"Headphone Jack Front", "HPA1 HPLEFT",
+			"Headphone Jack Front", "HPA1 HPRIGHT",
+			"HPA1 LEFTIN", "HPL",
+			"HPA1 RIGHTIN", "HPR";
+		simple-audio-card,aux-devs = <&hpa1>;
+
+		sound1_cpu: simple-audio-card,cpu {
+			sound-dai = <&sai2>;
+		};
+
+		sound1_codec: simple-audio-card,codec {
+			sound-dai = <&codec1>;
+			clocks = <&cs2000>;
+		};
+	};
+
+	sound2 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "periph";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&sound2_codec>;
+		simple-audio-card,frame-master = <&sound2_codec>;
+		simple-audio-card,widgets =
+			"Headphone", "Headphone Jack Back";
+		simple-audio-card,routing =
+			"Headphone Jack Back", "HPA1 HPLEFT",
+			"Headphone Jack Back", "HPA1 HPRIGHT",
+			"HPA1 LEFTIN", "HPL",
+			"HPA1 RIGHTIN", "HPR";
+		simple-audio-card,aux-devs = <&hpa2>;
+
+		sound2_cpu: simple-audio-card,cpu {
+			sound-dai = <&sai3>;
+		};
+
+		sound2_codec: simple-audio-card,codec {
+			sound-dai = <&codec2>;
+			clocks = <&cs2000>;
+		};
+	};
 };
 
 &ecspi1 {
@@ -24,6 +74,27 @@
 		compatible = "st,n25q128a13", "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
+	};
+};
+
+&hpa2 {
+	sound-name-prefix = "HPA1";
+};
+
+&i2c1 {
+	codec2: codec@18 {
+		compatible = "ti,tlv320dac3100";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_codec2>;
+		reg = <0x18>;
+		#sound-dai-cells = <0>;
+		HPVDD-supply = <&reg_gen_3p3>;
+		SPRVDD-supply = <&reg_gen_3p3>;
+		SPLVDD-supply = <&reg_gen_3p3>;
+		AVDD-supply = <&reg_gen_3p3>;
+		IOVDD-supply = <&reg_gen_3p3>;
+		DVDD-supply = <&vgen4_reg>;
+		reset-gpios = <&gpio3 4 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -56,6 +127,8 @@
 			touchscreen-inverted-x;
 			touchscreen-swapped-x-y;
 			syna,sensor-type = <1>;
+			syna,delta-x-threshold = <5>;
+			syna,delta-y-threshold = <10>;
 		};
 
 		rmi4-f12@12 {
@@ -79,17 +152,37 @@
 	};
 };
 
+&sai3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai3>;
+	status = "okay";
+};
+
 &usbhub {
 	swap-dx-lanes = <0>;
 };
 
 &iomuxc {
+	pinctrl_codec2: dac2grp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_NAND_CE3_B_GPIO3_IO4		0x41
+		>;
+	};
+
 	pinctrl_ecspi1: ecspi1grp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_ECSPI1_SS0_GPIO5_IO9	0x19
 			MX8MQ_IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK	0x82
 			MX8MQ_IOMUXC_ECSPI1_MISO_ECSPI1_MISO	0x82
 			MX8MQ_IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI	0x82
+		>;
+	};
+
+	pinctrl_sai3: sai3grp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SAI3_TXFS_SAI3_TX_SYNC		0xd6
+			MX8MQ_IOMUXC_SAI3_TXC_SAI3_TX_BCLK		0xd6
+			MX8MQ_IOMUXC_SAI3_TXD_SAI3_TX_DATA0		0xd6
 		>;
 	};
 };

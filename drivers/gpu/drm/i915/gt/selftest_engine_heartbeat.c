@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2018 Intel Corporation
  */
 
@@ -11,6 +10,12 @@
 #include "intel_gt_requests.h"
 #include "i915_selftest.h"
 #include "selftest_engine_heartbeat.h"
+
+static void reset_heartbeat(struct intel_engine_cs *engine)
+{
+	intel_engine_set_heartbeat(engine,
+				   engine->defaults.heartbeat_interval_ms);
+}
 
 static int timeline_sync(struct intel_timeline *tl)
 {
@@ -72,7 +77,7 @@ static struct pulse *pulse_create(void)
 		return p;
 
 	kref_init(&p->kref);
-	i915_active_init(&p->active, pulse_active, pulse_retire);
+	i915_active_init(&p->active, pulse_active, pulse_retire, 0);
 
 	return p;
 }
@@ -197,6 +202,7 @@ static int cmp_u32(const void *_a, const void *_b)
 
 static int __live_heartbeat_fast(struct intel_engine_cs *engine)
 {
+	const unsigned int error_threshold = max(20000u, jiffies_to_usecs(6));
 	struct intel_context *ce;
 	struct i915_request *rq;
 	ktime_t t0, t1;
@@ -215,16 +221,17 @@ static int __live_heartbeat_fast(struct intel_engine_cs *engine)
 		goto err_pm;
 
 	for (i = 0; i < ARRAY_SIZE(times); i++) {
-		/* Manufacture a tick */
 		do {
-			while (READ_ONCE(engine->heartbeat.systole))
-				flush_delayed_work(&engine->heartbeat.work);
+			/* Manufacture a tick */
+			intel_engine_park_heartbeat(engine);
+			GEM_BUG_ON(engine->heartbeat.systole);
+			engine->serial++; /*  pretend we are not idle! */
+			intel_engine_unpark_heartbeat(engine);
 
-			engine->serial++; /* quick, pretend we are not idle! */
 			flush_delayed_work(&engine->heartbeat.work);
 			if (!delayed_work_pending(&engine->heartbeat.work)) {
-				pr_err("%s: heartbeat did not start\n",
-				       engine->name);
+				pr_err("%s: heartbeat %d did not start\n",
+				       engine->name, i);
 				err = -EINVAL;
 				goto err_pm;
 			}
@@ -253,16 +260,22 @@ static int __live_heartbeat_fast(struct intel_engine_cs *engine)
 		times[0],
 		times[ARRAY_SIZE(times) - 1]);
 
-	/* Min work delay is 2 * 2 (worst), +1 for scheduling, +1 for slack */
-	if (times[ARRAY_SIZE(times) / 2] > jiffies_to_usecs(6)) {
+	/*
+	 * Ideally, the upper bound on min work delay would be something like
+	 * 2 * 2 (worst), +1 for scheduling, +1 for slack. In practice, we
+	 * are, even with system_wq_highpri, at the mercy of the CPU scheduler
+	 * and may be stuck behind some slow work for many millisecond. Such
+	 * as our very own display workers.
+	 */
+	if (times[ARRAY_SIZE(times) / 2] > error_threshold) {
 		pr_err("%s: Heartbeat delay was %uus, expected less than %dus\n",
 		       engine->name,
 		       times[ARRAY_SIZE(times) / 2],
-		       jiffies_to_usecs(6));
+		       error_threshold);
 		err = -EINVAL;
 	}
 
-	intel_engine_set_heartbeat(engine, CONFIG_DRM_I915_HEARTBEAT_INTERVAL);
+	reset_heartbeat(engine);
 err_pm:
 	intel_engine_pm_put(engine);
 	intel_context_put(ce);
@@ -325,7 +338,7 @@ static int __live_heartbeat_off(struct intel_engine_cs *engine)
 	}
 
 err_beat:
-	intel_engine_set_heartbeat(engine, CONFIG_DRM_I915_HEARTBEAT_INTERVAL);
+	reset_heartbeat(engine);
 err_pm:
 	intel_engine_pm_put(engine);
 	return err;
@@ -365,13 +378,13 @@ int intel_heartbeat_live_selftests(struct drm_i915_private *i915)
 	int saved_hangcheck;
 	int err;
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
 	saved_hangcheck = i915->params.enable_hangcheck;
 	i915->params.enable_hangcheck = INT_MAX;
 
-	err = intel_gt_live_subtests(tests, &i915->gt);
+	err = intel_gt_live_subtests(tests, to_gt(i915));
 
 	i915->params.enable_hangcheck = saved_hangcheck;
 	return err;
@@ -389,6 +402,28 @@ void st_engine_heartbeat_enable(struct intel_engine_cs *engine)
 {
 	intel_engine_pm_put(engine);
 
+	engine->props.heartbeat_interval_ms =
+		engine->defaults.heartbeat_interval_ms;
+}
+
+void st_engine_heartbeat_disable_no_pm(struct intel_engine_cs *engine)
+{
+	engine->props.heartbeat_interval_ms = 0;
+
+	/*
+	 * Park the heartbeat but without holding the PM lock as that
+	 * makes the engines appear not-idle. Note that if/when unpark
+	 * is called due to the PM lock being acquired later the
+	 * heartbeat still won't be enabled because of the above = 0.
+	 */
+	if (intel_engine_pm_get_if_awake(engine)) {
+		intel_engine_park_heartbeat(engine);
+		intel_engine_pm_put(engine);
+	}
+}
+
+void st_engine_heartbeat_enable_no_pm(struct intel_engine_cs *engine)
+{
 	engine->props.heartbeat_interval_ms =
 		engine->defaults.heartbeat_interval_ms;
 }

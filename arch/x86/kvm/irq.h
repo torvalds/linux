@@ -55,8 +55,7 @@ struct kvm_pic {
 	int output;		/* intr from master PIC */
 	struct kvm_io_device dev_master;
 	struct kvm_io_device dev_slave;
-	struct kvm_io_device dev_eclr;
-	void (*ack_notifier)(void *opaque, int irq);
+	struct kvm_io_device dev_elcr;
 	unsigned long irq_states[PIC_NUM_PINS];
 };
 

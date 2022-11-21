@@ -27,14 +27,21 @@
  */
 
 #include "gem/i915_gem_context.h"
+#include "gt/intel_gt.h"
 #include "gt/intel_gt_requests.h"
 
 #include "i915_drv.h"
+#include "i915_gem_evict.h"
 #include "i915_trace.h"
 
 I915_SELFTEST_DECLARE(static struct igt_evict_ctl {
 	bool fail_if_busy:1;
 } igt_evict_ctl;)
+
+static bool dying_vma(struct i915_vma *vma)
+{
+	return !kref_read(&vma->obj->base.refcount);
+}
 
 static int ggtt_flush(struct intel_gt *gt)
 {
@@ -48,8 +55,37 @@ static int ggtt_flush(struct intel_gt *gt)
 	return intel_gt_wait_for_idle(gt, MAX_SCHEDULE_TIMEOUT);
 }
 
+static bool grab_vma(struct i915_vma *vma, struct i915_gem_ww_ctx *ww)
+{
+	/*
+	 * We add the extra refcount so the object doesn't drop to zero until
+	 * after ungrab_vma(), this way trylock is always paired with unlock.
+	 */
+	if (i915_gem_object_get_rcu(vma->obj)) {
+		if (!i915_gem_object_trylock(vma->obj, ww)) {
+			i915_gem_object_put(vma->obj);
+			return false;
+		}
+	} else {
+		/* Dead objects don't need pins */
+		atomic_and(~I915_VMA_PIN_MASK, &vma->flags);
+	}
+
+	return true;
+}
+
+static void ungrab_vma(struct i915_vma *vma)
+{
+	if (dying_vma(vma))
+		return;
+
+	i915_gem_object_unlock(vma->obj);
+	i915_gem_object_put(vma->obj);
+}
+
 static bool
 mark_free(struct drm_mm_scan *scan,
+	  struct i915_gem_ww_ctx *ww,
 	  struct i915_vma *vma,
 	  unsigned int flags,
 	  struct list_head *unwind)
@@ -57,13 +93,28 @@ mark_free(struct drm_mm_scan *scan,
 	if (i915_vma_is_pinned(vma))
 		return false;
 
+	if (!grab_vma(vma, ww))
+		return false;
+
 	list_add(&vma->evict_link, unwind);
 	return drm_mm_scan_add_block(scan, &vma->node);
+}
+
+static bool defer_evict(struct i915_vma *vma)
+{
+	if (i915_vma_is_active(vma))
+		return true;
+
+	if (i915_vma_is_scanout(vma))
+		return true;
+
+	return false;
 }
 
 /**
  * i915_gem_evict_something - Evict vmas to make room for binding a new one
  * @vm: address space to evict from
+ * @ww: An optional struct i915_gem_ww_ctx.
  * @min_size: size of the desired free space
  * @alignment: alignment constraint of the desired free space
  * @color: color for the desired space
@@ -86,6 +137,7 @@ mark_free(struct drm_mm_scan *scan,
  */
 int
 i915_gem_evict_something(struct i915_address_space *vm,
+			 struct i915_gem_ww_ctx *ww,
 			 u64 min_size, u64 alignment,
 			 unsigned long color,
 			 u64 start, u64 end,
@@ -150,7 +202,7 @@ search_again:
 		 * To notice when we complete one full cycle, we record the
 		 * first active element seen, before moving it to the tail.
 		 */
-		if (active != ERR_PTR(-EAGAIN) && i915_vma_is_active(vma)) {
+		if (active != ERR_PTR(-EAGAIN) && defer_evict(vma)) {
 			if (!active)
 				active = vma;
 
@@ -158,7 +210,7 @@ search_again:
 			continue;
 		}
 
-		if (mark_free(&scan, vma, flags, &eviction_list))
+		if (mark_free(&scan, ww, vma, flags, &eviction_list))
 			goto found;
 	}
 
@@ -166,6 +218,7 @@ search_again:
 	list_for_each_entry_safe(vma, next, &eviction_list, evict_link) {
 		ret = drm_mm_scan_remove_block(&scan, &vma->node);
 		BUG_ON(ret);
+		ungrab_vma(vma);
 	}
 
 	/*
@@ -210,10 +263,12 @@ found:
 	 * of any of our objects, thus corrupting the list).
 	 */
 	list_for_each_entry_safe(vma, next, &eviction_list, evict_link) {
-		if (drm_mm_scan_remove_block(&scan, &vma->node))
+		if (drm_mm_scan_remove_block(&scan, &vma->node)) {
 			__i915_vma_pin(vma);
-		else
+		} else {
 			list_del(&vma->evict_link);
+			ungrab_vma(vma);
+		}
 	}
 
 	/* Unbinding will emit any required flushes */
@@ -222,24 +277,29 @@ found:
 		__i915_vma_unpin(vma);
 		if (ret == 0)
 			ret = __i915_vma_unbind(vma);
+		ungrab_vma(vma);
 	}
 
 	while (ret == 0 && (node = drm_mm_scan_color_evict(&scan))) {
 		vma = container_of(node, struct i915_vma, node);
 
 		/* If we find any non-objects (!vma), we cannot evict them */
-		if (vma->node.color != I915_COLOR_UNEVICTABLE)
+		if (vma->node.color != I915_COLOR_UNEVICTABLE &&
+		    grab_vma(vma, ww)) {
 			ret = __i915_vma_unbind(vma);
-		else
-			ret = -ENOSPC; /* XXX search failed, try again? */
+			ungrab_vma(vma);
+		} else {
+			ret = -ENOSPC;
+		}
 	}
 
 	return ret;
 }
 
 /**
- * i915_gem_evict_for_vma - Evict vmas to make room for binding a new one
+ * i915_gem_evict_for_node - Evict vmas to make room for binding a new one
  * @vm: address space to evict from
+ * @ww: An optional struct i915_gem_ww_ctx.
  * @target: range (and color) to evict for
  * @flags: additional flags to control the eviction algorithm
  *
@@ -249,6 +309,7 @@ found:
  * memory in e.g. the shrinker.
  */
 int i915_gem_evict_for_node(struct i915_address_space *vm,
+			    struct i915_gem_ww_ctx *ww,
 			    struct drm_mm_node *target,
 			    unsigned int flags)
 {
@@ -321,6 +382,11 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 			break;
 		}
 
+		if (!grab_vma(vma, ww)) {
+			ret = -ENOSPC;
+			break;
+		}
+
 		/*
 		 * Never show fear in the face of dragons!
 		 *
@@ -338,6 +404,8 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 		__i915_vma_unpin(vma);
 		if (ret == 0)
 			ret = __i915_vma_unbind(vma);
+
+		ungrab_vma(vma);
 	}
 
 	return ret;
@@ -346,6 +414,8 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 /**
  * i915_gem_evict_vm - Evict all idle vmas from a vm
  * @vm: Address space to cleanse
+ * @ww: An optional struct i915_gem_ww_ctx. If not NULL, i915_gem_evict_vm
+ * will be able to evict vma's locked by the ww as well.
  *
  * This function evicts all vmas from a vm.
  *
@@ -355,7 +425,7 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
  * To clarify: This is for freeing up virtual address space, not for freeing
  * memory in e.g. the shrinker.
  */
-int i915_gem_evict_vm(struct i915_address_space *vm)
+int i915_gem_evict_vm(struct i915_address_space *vm, struct i915_gem_ww_ctx *ww)
 {
 	int ret = 0;
 
@@ -376,24 +446,52 @@ int i915_gem_evict_vm(struct i915_address_space *vm)
 	do {
 		struct i915_vma *vma, *vn;
 		LIST_HEAD(eviction_list);
+		LIST_HEAD(locked_eviction_list);
 
 		list_for_each_entry(vma, &vm->bound_list, vm_link) {
 			if (i915_vma_is_pinned(vma))
 				continue;
 
+			/*
+			 * If we already own the lock, trylock fails. In case
+			 * the resv is shared among multiple objects, we still
+			 * need the object ref.
+			 */
+			if (dying_vma(vma) ||
+			    (ww && (dma_resv_locking_ctx(vma->obj->base.resv) == &ww->ctx))) {
+				__i915_vma_pin(vma);
+				list_add(&vma->evict_link, &locked_eviction_list);
+				continue;
+			}
+
+			if (!i915_gem_object_trylock(vma->obj, ww))
+				continue;
+
 			__i915_vma_pin(vma);
 			list_add(&vma->evict_link, &eviction_list);
 		}
-		if (list_empty(&eviction_list))
+		if (list_empty(&eviction_list) && list_empty(&locked_eviction_list))
 			break;
 
 		ret = 0;
+		/* Unbind locked objects first, before unlocking the eviction_list */
+		list_for_each_entry_safe(vma, vn, &locked_eviction_list, evict_link) {
+			__i915_vma_unpin(vma);
+
+			if (ret == 0)
+				ret = __i915_vma_unbind(vma);
+			if (ret != -EINTR) /* "Get me out of here!" */
+				ret = 0;
+		}
+
 		list_for_each_entry_safe(vma, vn, &eviction_list, evict_link) {
 			__i915_vma_unpin(vma);
 			if (ret == 0)
 				ret = __i915_vma_unbind(vma);
 			if (ret != -EINTR) /* "Get me out of here!" */
 				ret = 0;
+
+			i915_gem_object_unlock(vma->obj);
 		}
 	} while (ret == 0);
 

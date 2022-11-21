@@ -82,17 +82,6 @@ struct komeda_format_caps_table {
 
 extern u64 komeda_supported_modifiers[];
 
-static inline const char *komeda_get_format_name(u32 fourcc, u64 modifier)
-{
-	struct drm_format_name_buf buf;
-	static char name[64];
-
-	snprintf(name, sizeof(name), "%s with modifier: 0x%llx.",
-		 drm_get_format_name(fourcc, &buf), modifier);
-
-	return name;
-}
-
 const struct komeda_format_caps *
 komeda_get_format_caps(struct komeda_format_caps_table *table,
 		       u32 fourcc, u64 modifier);

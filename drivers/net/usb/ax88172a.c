@@ -25,20 +25,6 @@ struct ax88172a_private {
 	struct asix_rx_fixup_info rx_fixup_info;
 };
 
-/* MDIO read and write wrappers for phylib */
-static int asix_mdio_bus_read(struct mii_bus *bus, int phy_id, int regnum)
-{
-	return asix_mdio_read(((struct usbnet *)bus->priv)->net, phy_id,
-			      regnum);
-}
-
-static int asix_mdio_bus_write(struct mii_bus *bus, int phy_id, int regnum,
-			       u16 val)
-{
-	asix_mdio_write(((struct usbnet *)bus->priv)->net, phy_id, regnum, val);
-	return 0;
-}
-
 /* set MAC link settings according to information from phylib */
 static void ax88172a_adjust_link(struct net_device *netdev)
 {
@@ -120,10 +106,10 @@ static const struct net_device_ops ax88172a_netdev_ops = {
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_change_mtu		= usbnet_change_mtu,
-	.ndo_get_stats64	= usbnet_get_stats64,
+	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_mac_address	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_set_rx_mode        = asix_set_multicast,
 };
 
@@ -190,7 +176,7 @@ static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 		ret = -EIO;
 		goto free;
 	}
-	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
+	eth_hw_addr_set(dev->net, buf);
 
 	dev->net->netdev_ops = &ax88172a_netdev_ops;
 	dev->net->ethtool_ops = &ax88172a_ethtool_ops;
@@ -219,7 +205,12 @@ static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 		goto free;
 	}
 
-	priv->phy_addr = asix_read_phy_addr(dev, priv->use_embdphy);
+	ret = asix_read_phy_addr(dev, priv->use_embdphy);
+	if (ret < 0)
+		goto free;
+
+	priv->phy_addr = ret;
+
 	ax88172a_reset_phy(dev, priv->use_embdphy);
 
 	/* Asix framing packs multiple eth frames into a 2K usb bulk transfer */

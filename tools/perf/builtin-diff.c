@@ -494,7 +494,7 @@ static struct evsel *evsel_match(struct evsel *evsel,
 	return NULL;
 }
 
-static void perf_evlist__collapse_resort(struct evlist *evlist)
+static void evlist__collapse_resort(struct evlist *evlist)
 {
 	struct evsel *evsel;
 
@@ -1031,12 +1031,12 @@ static int process_base_stream(struct data__file *data_base,
 			continue;
 
 		es_base = evsel_streams__entry(data_base->evlist_streams,
-					       evsel_base->idx);
+					       evsel_base->core.idx);
 		if (!es_base)
 			return -1;
 
 		es_pair = evsel_streams__entry(data_pair->evlist_streams,
-					       evsel_pair->idx);
+					       evsel_pair->core.idx);
 		if (!es_pair)
 			return -1;
 
@@ -1156,7 +1156,7 @@ static int check_file_brstack(void)
 	int i;
 
 	data__for_each_file(i, d) {
-		d->session = perf_session__new(&d->data, false, &pdiff.tool);
+		d->session = perf_session__new(&d->data, &pdiff.tool);
 		if (IS_ERR(d->session)) {
 			pr_err("Failed to open %s\n", d->data.path);
 			return PTR_ERR(d->session);
@@ -1188,7 +1188,7 @@ static int __cmd_diff(void)
 	ret = -EINVAL;
 
 	data__for_each_file(i, d) {
-		d->session = perf_session__new(&d->data, false, &pdiff.tool);
+		d->session = perf_session__new(&d->data, &pdiff.tool);
 		if (IS_ERR(d->session)) {
 			ret = PTR_ERR(d->session);
 			pr_err("Failed to open %s\n", d->data.path);
@@ -1214,7 +1214,7 @@ static int __cmd_diff(void)
 			goto out_delete;
 		}
 
-		perf_evlist__collapse_resort(d->session->evlist);
+		evlist__collapse_resort(d->session->evlist);
 
 		if (pdiff.ptime_range)
 			zfree(&pdiff.ptime_range);
@@ -1236,7 +1236,8 @@ static int __cmd_diff(void)
 
  out_delete:
 	data__for_each_file(i, d) {
-		perf_session__delete(d->session);
+		if (!IS_ERR(d->session))
+			perf_session__delete(d->session);
 		data__free(d);
 	}
 
@@ -1795,7 +1796,7 @@ static int ui_init(void)
 	data__for_each_file(i, d) {
 
 		/*
-		 * Baseline or compute realted columns:
+		 * Baseline or compute related columns:
 		 *
 		 *   PERF_HPP_DIFF__BASELINE
 		 *   PERF_HPP_DIFF__DELTA

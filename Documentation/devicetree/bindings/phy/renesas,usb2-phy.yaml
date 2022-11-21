@@ -30,6 +30,12 @@ properties:
               - renesas,usb2-phy-r8a77995 # R-Car D3
           - const: renesas,rcar-gen3-usb2-phy
 
+      - items:
+          - enum:
+              - renesas,usb2-phy-r9a07g044 # RZ/G2{L,LC}
+              - renesas,usb2-phy-r9a07g054 # RZ/V2L
+          - const: renesas,rzg2l-usb2-phy
+
   reg:
     maxItems: 1
 
@@ -39,7 +45,6 @@ properties:
 
   clock-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: fck
       - const: usb_x1
@@ -61,7 +66,6 @@ properties:
 
   resets:
     minItems: 1
-    maxItems: 2
     items:
       - description: reset of USB 2.0 host side
       - description: reset of USB 2.0 peripheral side
@@ -81,9 +85,8 @@ properties:
 if:
   properties:
     compatible:
-      items:
-        enum:
-          - renesas,usb2-phy-r7s9210
+      contains:
+        const: renesas,usb2-phy-r7s9210
 then:
   required:
     - clock-names
@@ -93,6 +96,16 @@ required:
   - reg
   - clocks
   - '#phy-cells'
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,rzg2l-usb2-phy
+    then:
+      required:
+        - resets
 
 additionalProperties: false
 

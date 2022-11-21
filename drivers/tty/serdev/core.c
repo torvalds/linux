@@ -421,15 +421,13 @@ static int serdev_drv_probe(struct device *dev)
 	return ret;
 }
 
-static int serdev_drv_remove(struct device *dev)
+static void serdev_drv_remove(struct device *dev)
 {
 	const struct serdev_device_driver *sdrv = to_serdev_device_driver(dev->driver);
 	if (sdrv->remove)
 		sdrv->remove(to_serdev_device(dev));
 
 	dev_pm_domain_detach(dev, true);
-
-	return 0;
 }
 
 static struct bus_type serdev_bus_type = {
@@ -564,22 +562,44 @@ struct acpi_serdev_lookup {
 	int index;
 };
 
+/**
+ * serdev_acpi_get_uart_resource - Gets UARTSerialBus resource if type matches
+ * @ares:	ACPI resource
+ * @uart:	Pointer to UARTSerialBus resource will be returned here
+ *
+ * Checks if the given ACPI resource is of type UARTSerialBus.
+ * In this case, returns a pointer to it to the caller.
+ *
+ * Return: True if resource type is of UARTSerialBus, otherwise false.
+ */
+bool serdev_acpi_get_uart_resource(struct acpi_resource *ares,
+				   struct acpi_resource_uart_serialbus **uart)
+{
+	struct acpi_resource_uart_serialbus *sb;
+
+	if (ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS)
+		return false;
+
+	sb = &ares->data.uart_serial_bus;
+	if (sb->type != ACPI_RESOURCE_SERIAL_TYPE_UART)
+		return false;
+
+	*uart = sb;
+	return true;
+}
+EXPORT_SYMBOL_GPL(serdev_acpi_get_uart_resource);
+
 static int acpi_serdev_parse_resource(struct acpi_resource *ares, void *data)
 {
 	struct acpi_serdev_lookup *lookup = data;
 	struct acpi_resource_uart_serialbus *sb;
 	acpi_status status;
 
-	if (ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS)
-		return 1;
-
-	if (ares->data.common_serial_bus.type != ACPI_RESOURCE_SERIAL_TYPE_UART)
+	if (!serdev_acpi_get_uart_resource(ares, &sb))
 		return 1;
 
 	if (lookup->index != -1 && lookup->n++ != lookup->index)
 		return 1;
-
-	sb = &ares->data.uart_serial_bus;
 
 	status = acpi_get_handle(lookup->device_handle,
 				 sb->resource_source.string_ptr,
@@ -588,7 +608,7 @@ static int acpi_serdev_parse_resource(struct acpi_resource *ares, void *data)
 		return 1;
 
 	/*
-	 * NOTE: Ideally, we would also want to retreive other properties here,
+	 * NOTE: Ideally, we would also want to retrieve other properties here,
 	 * once setting them before opening the device is supported by serdev.
 	 */
 
@@ -684,13 +704,10 @@ static const struct acpi_device_id serdev_acpi_devices_blacklist[] = {
 static acpi_status acpi_serdev_add_device(acpi_handle handle, u32 level,
 					  void *data, void **return_value)
 {
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct serdev_controller *ctrl = data;
-	struct acpi_device *adev;
 
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-
-	if (acpi_device_enumerated(adev))
+	if (!adev || acpi_device_enumerated(adev))
 		return AE_OK;
 
 	/* Skip if black listed */
@@ -707,9 +724,23 @@ static acpi_status acpi_serdev_add_device(acpi_handle handle, u32 level,
 static int acpi_serdev_register_devices(struct serdev_controller *ctrl)
 {
 	acpi_status status;
+	bool skip;
+	int ret;
 
 	if (!has_acpi_companion(ctrl->dev.parent))
 		return -ENODEV;
+
+	/*
+	 * Skip registration on boards where the ACPI tables are known to
+	 * contain buggy devices. Note serdev_controller_add() must still
+	 * succeed in this case, so that the proper serdev devices can be
+	 * added "manually" later.
+	 */
+	ret = acpi_quirk_skip_serdev_enumeration(ctrl->dev.parent, &skip);
+	if (ret)
+		return ret;
+	if (skip)
+		return 0;
 
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 				     SERDEV_ACPI_MAX_SCAN_DEPTH,
@@ -788,21 +819,19 @@ static int serdev_remove_device(struct device *dev, void *data)
  */
 void serdev_controller_remove(struct serdev_controller *ctrl)
 {
-	int dummy;
-
 	if (!ctrl)
 		return;
 
-	dummy = device_for_each_child(&ctrl->dev, NULL,
-				      serdev_remove_device);
+	device_for_each_child(&ctrl->dev, NULL, serdev_remove_device);
 	pm_runtime_disable(&ctrl->dev);
 	device_del(&ctrl->dev);
 }
 EXPORT_SYMBOL_GPL(serdev_controller_remove);
 
 /**
- * serdev_driver_register() - Register client driver with serdev core
+ * __serdev_device_driver_register() - Register client driver with serdev core
  * @sdrv:	client driver to be associated with client-device.
+ * @owner:	client driver owner to set.
  *
  * This API will register the client driver with the serdev framework.
  * It is typically called from the driver's module-init function.

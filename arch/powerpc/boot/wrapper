@@ -26,6 +26,8 @@
 # Stop execution if any command fails
 set -e
 
+export LC_ALL=C
+
 # Allow for verbose output
 if [ "$V" = 1 ]; then
     set -x
@@ -46,6 +48,8 @@ compression=.gz
 uboot_comp=gzip
 pie=
 format=
+notext=
+rodynamic=
 
 # cross-compilation prefix
 CROSS=
@@ -189,7 +193,7 @@ if [ -z "$kernel" ]; then
     kernel=vmlinux
 fi
 
-LANG=C elfformat="`${CROSS}objdump -p "$kernel" | grep 'file format' | awk '{print $4}'`"
+LC_ALL=C elfformat="`${CROSS}objdump -p "$kernel" | grep 'file format' | awk '{print $4}'`"
 case "$elfformat" in
     elf64-powerpcle)	format=elf64lppc	;;
     elf64-powerpc)	format=elf32ppc	;;
@@ -296,7 +300,7 @@ cuboot*)
     *-tqm8541|*-mpc8560*|*-tqm8560|*-tqm8555|*-ksi8560*)
         platformo=$object/cuboot-85xx-cpm2.o
         ;;
-    *-mpc85*|*-tqm85*|*-sbc85*)
+    *-mpc85*|*-tqm85*)
         platformo=$object/cuboot-85xx.o
         ;;
     *-amigaone)
@@ -340,6 +344,11 @@ gamecube|wii)
     link_address='0x600000'
     platformo="$object/$platform-head.o $object/$platform.o"
     ;;
+microwatt)
+    link_address='0x500000'
+    platformo="$object/fixed-head.o $object/$platform.o"
+    binary=y
+    ;;
 treeboot-currituck)
     link_address='0x1000000'
     ;;
@@ -353,6 +362,8 @@ epapr)
     platformo="$object/pseries-head.o $object/epapr.o $object/epapr-wrapper.o"
     link_address='0x20000000'
     pie=-pie
+    notext='-z notext'
+    rodynamic=$(if ${CROSS}ld -V 2>&1 | grep -q LLD ; then echo "-z rodynamic"; fi)
     ;;
 mvme5100)
     platformo="$object/fixed-head.o $object/mvme5100.o"
@@ -493,7 +504,7 @@ if [ "$platform" != "miboot" ]; then
         text_start="-Ttext $link_address"
     fi
 #link everything
-    ${CROSS}ld -m $format -T $lds $text_start $pie $nodl -o "$ofile" $map \
+    ${CROSS}ld -m $format -T $lds $text_start $pie $nodl $rodynamic $notext -o "$ofile" $map \
 	$platformo $tmp $object/wrapper.a
     rm $tmp
 fi

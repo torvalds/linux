@@ -9,85 +9,73 @@
 #ifndef _CEPH_CACHE_H
 #define _CEPH_CACHE_H
 
+#include <linux/netfs.h>
+
 #ifdef CONFIG_CEPH_FSCACHE
-
-extern struct fscache_netfs ceph_cache_netfs;
-
-int ceph_fscache_register(void);
-void ceph_fscache_unregister(void);
+#include <linux/fscache.h>
 
 int ceph_fscache_register_fs(struct ceph_fs_client* fsc, struct fs_context *fc);
 void ceph_fscache_unregister_fs(struct ceph_fs_client* fsc);
 
 void ceph_fscache_register_inode_cookie(struct inode *inode);
 void ceph_fscache_unregister_inode_cookie(struct ceph_inode_info* ci);
-void ceph_fscache_file_set_cookie(struct inode *inode, struct file *filp);
-void ceph_fscache_revalidate_cookie(struct ceph_inode_info *ci);
 
-int ceph_readpage_from_fscache(struct inode *inode, struct page *page);
-int ceph_readpages_from_fscache(struct inode *inode,
-				struct address_space *mapping,
-				struct list_head *pages,
-				unsigned *nr_pages);
-void ceph_readpage_to_fscache(struct inode *inode, struct page *page);
-void ceph_invalidate_fscache_page(struct inode* inode, struct page *page);
+void ceph_fscache_use_cookie(struct inode *inode, bool will_modify);
+void ceph_fscache_unuse_cookie(struct inode *inode, bool update);
 
-static inline void ceph_fscache_inode_init(struct ceph_inode_info *ci)
+void ceph_fscache_update(struct inode *inode);
+void ceph_fscache_invalidate(struct inode *inode, bool dio_write);
+
+static inline struct fscache_cookie *ceph_fscache_cookie(struct ceph_inode_info *ci)
 {
-	ci->fscache = NULL;
-	ci->i_fscache_gen = 0;
+	return netfs_i_cookie(&ci->vfs_inode);
 }
 
-static inline void ceph_fscache_invalidate(struct inode *inode)
-{
-	fscache_invalidate(ceph_inode(inode)->fscache);
-}
-
-static inline void ceph_fscache_uncache_page(struct inode *inode,
-					     struct page *page)
+static inline void ceph_fscache_resize(struct inode *inode, loff_t to)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	return fscache_uncache_page(ci->fscache, page);
+	struct fscache_cookie *cookie = ceph_fscache_cookie(ci);
+
+	if (cookie) {
+		ceph_fscache_use_cookie(inode, true);
+		fscache_resize_cookie(cookie, to);
+		ceph_fscache_unuse_cookie(inode, true);
+	}
 }
 
-static inline int ceph_release_fscache_page(struct page *page, gfp_t gfp)
+static inline void ceph_fscache_unpin_writeback(struct inode *inode,
+						struct writeback_control *wbc)
 {
-	struct inode* inode = page->mapping->host;
+	fscache_unpin_writeback(wbc, ceph_fscache_cookie(ceph_inode(inode)));
+}
+
+static inline int ceph_fscache_dirty_folio(struct address_space *mapping,
+		struct folio *folio)
+{
+	struct ceph_inode_info *ci = ceph_inode(mapping->host);
+
+	return fscache_dirty_folio(mapping, folio, ceph_fscache_cookie(ci));
+}
+
+static inline int ceph_begin_cache_operation(struct netfs_io_request *rreq)
+{
+	struct fscache_cookie *cookie = ceph_fscache_cookie(ceph_inode(rreq->inode));
+
+	return fscache_begin_read_operation(&rreq->cache_resources, cookie);
+}
+
+static inline bool ceph_is_cache_enabled(struct inode *inode)
+{
+	return fscache_cookie_enabled(ceph_fscache_cookie(ceph_inode(inode)));
+}
+
+static inline void ceph_fscache_note_page_release(struct inode *inode)
+{
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	return fscache_maybe_release_page(ci->fscache, page, gfp);
+
+	fscache_note_page_release(ceph_fscache_cookie(ci));
 }
-
-static inline void ceph_fscache_readpage_cancel(struct inode *inode,
-						struct page *page)
-{
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	if (fscache_cookie_valid(ci->fscache) && PageFsCache(page))
-		__fscache_uncache_page(ci->fscache, page);
-}
-
-static inline void ceph_fscache_readpages_cancel(struct inode *inode,
-						 struct list_head *pages)
-{
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	return fscache_readpages_cancel(ci->fscache, pages);
-}
-
-static inline void ceph_disable_fscache_readpage(struct ceph_inode_info *ci)
-{
-	ci->i_fscache_gen = ci->i_rdcache_gen - 1;
-}
-
-#else
-
-static inline int ceph_fscache_register(void)
-{
-	return 0;
-}
-
-static inline void ceph_fscache_unregister(void)
-{
-}
-
+#else /* CONFIG_CEPH_FSCACHE */
 static inline int ceph_fscache_register_fs(struct ceph_fs_client* fsc,
 					   struct fs_context *fc)
 {
@@ -95,10 +83,6 @@ static inline int ceph_fscache_register_fs(struct ceph_fs_client* fsc,
 }
 
 static inline void ceph_fscache_unregister_fs(struct ceph_fs_client* fsc)
-{
-}
-
-static inline void ceph_fscache_inode_init(struct ceph_inode_info *ci)
 {
 }
 
@@ -110,67 +94,55 @@ static inline void ceph_fscache_unregister_inode_cookie(struct ceph_inode_info* 
 {
 }
 
-static inline void ceph_fscache_file_set_cookie(struct inode *inode,
-						struct file *filp)
+static inline void ceph_fscache_use_cookie(struct inode *inode, bool will_modify)
 {
 }
 
-static inline void ceph_fscache_revalidate_cookie(struct ceph_inode_info *ci)
+static inline void ceph_fscache_unuse_cookie(struct inode *inode, bool update)
 {
 }
 
-static inline void ceph_fscache_uncache_page(struct inode *inode,
-					     struct page *pages)
+static inline void ceph_fscache_update(struct inode *inode)
 {
 }
 
-static inline int ceph_readpage_from_fscache(struct inode* inode,
-					     struct page *page)
+static inline void ceph_fscache_invalidate(struct inode *inode, bool dio_write)
+{
+}
+
+static inline struct fscache_cookie *ceph_fscache_cookie(struct ceph_inode_info *ci)
+{
+	return NULL;
+}
+
+static inline void ceph_fscache_resize(struct inode *inode, loff_t to)
+{
+}
+
+static inline void ceph_fscache_unpin_writeback(struct inode *inode,
+						struct writeback_control *wbc)
+{
+}
+
+static inline int ceph_fscache_dirty_folio(struct address_space *mapping,
+		struct folio *folio)
+{
+	return filemap_dirty_folio(mapping, folio);
+}
+
+static inline bool ceph_is_cache_enabled(struct inode *inode)
+{
+	return false;
+}
+
+static inline int ceph_begin_cache_operation(struct netfs_io_request *rreq)
 {
 	return -ENOBUFS;
 }
 
-static inline int ceph_readpages_from_fscache(struct inode *inode,
-					      struct address_space *mapping,
-					      struct list_head *pages,
-					      unsigned *nr_pages)
-{
-	return -ENOBUFS;
-}
-
-static inline void ceph_readpage_to_fscache(struct inode *inode,
-					    struct page *page)
+static inline void ceph_fscache_note_page_release(struct inode *inode)
 {
 }
-
-static inline void ceph_fscache_invalidate(struct inode *inode)
-{
-}
-
-static inline void ceph_invalidate_fscache_page(struct inode *inode,
-						struct page *page)
-{
-}
-
-static inline int ceph_release_fscache_page(struct page *page, gfp_t gfp)
-{
-	return 1;
-}
-
-static inline void ceph_fscache_readpage_cancel(struct inode *inode,
-						struct page *page)
-{
-}
-
-static inline void ceph_fscache_readpages_cancel(struct inode *inode,
-						 struct list_head *pages)
-{
-}
-
-static inline void ceph_disable_fscache_readpage(struct ceph_inode_info *ci)
-{
-}
-
-#endif
+#endif /* CONFIG_CEPH_FSCACHE */
 
 #endif

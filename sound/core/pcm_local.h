@@ -63,12 +63,21 @@ static inline void snd_pcm_timer_done(struct snd_pcm_substream *substream) {}
 
 void __snd_pcm_xrun(struct snd_pcm_substream *substream);
 void snd_pcm_group_init(struct snd_pcm_group *group);
-
-#ifdef CONFIG_SND_DMA_SGBUF
-struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream,
-				    unsigned long offset);
-#endif
+void snd_pcm_sync_stop(struct snd_pcm_substream *substream, bool sync_irq);
 
 #define PCM_RUNTIME_CHECK(sub) snd_BUG_ON(!(sub) || !(sub)->runtime)
+
+/* loop over all PCM substreams */
+#define for_each_pcm_substream(pcm, str, subs) \
+	for ((str) = 0; (str) < 2; (str)++) \
+		for ((subs) = (pcm)->streams[str].substream; (subs); \
+		     (subs) = (subs)->next)
+
+static inline void snd_pcm_dma_buffer_sync(struct snd_pcm_substream *substream,
+					   enum snd_dma_sync_mode mode)
+{
+	if (substream->runtime->info & SNDRV_PCM_INFO_EXPLICIT_SYNC)
+		snd_dma_buffer_sync(snd_pcm_get_dma_buf(substream), mode);
+}
 
 #endif	/* __SOUND_CORE_PCM_LOCAL_H */

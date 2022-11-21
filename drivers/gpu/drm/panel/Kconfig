@@ -8,6 +8,15 @@ config DRM_PANEL
 menu "Display Panels"
 	depends on DRM && DRM_PANEL
 
+config DRM_PANEL_ABT_Y030XX067A
+	tristate "ABT Y030XX067A 320x480 LCD panel"
+	depends on OF && SPI
+	select REGMAP_SPI
+	help
+	  Say Y here to enable support for the Asia Better Technology Ltd.
+	  Y030XX067A 320x480 3.0" panel as found in the YLM RG-280M, RG-300
+	  and RG-99 handheld gaming consoles.
+
 config DRM_PANEL_ARM_VERSATILE
 	tristate "ARM Versatile panel driver"
 	depends on OF
@@ -27,6 +36,17 @@ config DRM_PANEL_ASUS_Z00T_TM5P5_NT35596
 	  Say Y here if you want to enable support for the ASUS TMP5P5
 	  NT35596 1080x1920 video mode panel as found in some Asus
 	  Zenfone 2 Laser Z00T devices.
+
+config DRM_PANEL_BOE_BF060Y8M_AJ0
+	tristate "Boe BF060Y8M-AJ0 panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Boe BF060Y8M-AJ0
+	  5.99" AMOLED modules. The panel has a 1080x2160 resolution and
+	  uses 24 bit RGB per pixel. It provides a MIPI DSI interface to
+	  the host and backlight is controlled through DSI commands.
 
 config DRM_PANEL_BOE_HIMAX8279D
 	tristate "Boe Himax8279d panel"
@@ -48,6 +68,15 @@ config DRM_PANEL_BOE_TV101WUM_NL6
 	  Say Y here if you want to support for BOE TV101WUM and AUO KD101N80
 	  45NA WUXGA PANEL DSI Video Mode panel
 
+config DRM_PANEL_DSI_CM
+	tristate "Generic DSI command mode panels"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  DRM panel driver for DSI command mode panels with support for
+	  embedded and external backlights.
+
 config DRM_PANEL_LVDS
 	tristate "Generic LVDS panel driver"
 	depends on OF
@@ -59,12 +88,28 @@ config DRM_PANEL_LVDS
 	  backlight handling if the panel is attached to a backlight controller.
 
 config DRM_PANEL_SIMPLE
-	tristate "support for simple panels"
+	tristate "support for simple panels (other than eDP ones)"
 	depends on OF
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on PM
 	select VIDEOMODE_HELPERS
 	help
-	  DRM panel driver for dumb panels that need at most a regulator and
+	  DRM panel driver for dumb non-eDP panels that need at most a regulator
+	  and a GPIO to be powered up. Optionally a backlight can be attached so
+	  that it can be automatically turned off when the panel goes into a
+	  low power state.
+
+config DRM_PANEL_EDP
+	tristate "support for simple Embedded DisplayPort panels"
+	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on PM
+	select VIDEOMODE_HELPERS
+	select DRM_DP_AUX_BUS
+	select DRM_DP_HELPER
+	select DRM_KMS_HELPER
+	help
+	  DRM panel driver for dumb eDP panels that need at most a regulator and
 	  a GPIO to be powered up. Optionally a backlight can be attached so
 	  that it can be automatically turned off when the panel goes into a
 	  low power state.
@@ -105,6 +150,18 @@ config DRM_PANEL_ILITEK_IL9322
 	  Say Y here if you want to enable support for Ilitek IL9322
 	  QVGA (320x240) RGB, YUV and ITU-T BT.656 panels.
 
+config DRM_PANEL_ILITEK_ILI9341
+	tristate "Ilitek ILI9341 240x320 QVGA panels"
+	depends on OF && SPI
+	depends on DRM_KMS_HELPER
+	depends on DRM_GEM_CMA_HELPER
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_MIPI_DBI
+	help
+	  Say Y here if you want to enable support for Ilitek IL9341
+	  QVGA (240x320) RGB panels. support serial & parallel rgb
+	  interface.
+
 config DRM_PANEL_ILITEK_ILI9881C
 	tristate "Ilitek ILI9881C-based panels"
 	depends on OF
@@ -113,6 +170,15 @@ config DRM_PANEL_ILITEK_ILI9881C
 	help
 	  Say Y if you want to enable support for panels based on the
 	  Ilitek ILI9881c controller.
+
+config DRM_PANEL_INNOLUX_EJ030NA
+        tristate "Innolux EJ030NA 320x480 LCD panel"
+        depends on OF && SPI
+        select REGMAP_SPI
+        help
+          Say Y here to enable support for the Innolux/Chimei EJ030NA
+          320x480 3.0" panel as found in the RS97 V2.1, RG300(non-ips)
+          and LDK handheld gaming consoles.
 
 config DRM_PANEL_INNOLUX_P079ZCA
 	tristate "Innolux P079ZCA panel"
@@ -135,6 +201,26 @@ config DRM_PANEL_JDI_LT070ME05000
 	  panel as found in Google Nexus 7 (2013) devices.
 	  The panel has a 1200(RGB)×1920 (WUXGA) resolution and uses
 	  24 bit per pixel.
+
+config DRM_PANEL_JDI_R63452
+	tristate "JDI R63452 Full HD DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the JDI R63452
+	  DSI command mode panel as found in Xiaomi Mi 5 Devices.
+
+config DRM_PANEL_KHADAS_TS050
+	tristate "Khadas TS050 panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Khadas TS050 TFT-LCD
+	  panel module. The panel has a 1080x1920 resolution and uses
+	  24 bit RGB per pixel. It provides a MIPI DSI interface to
+	  the host, a built-in LED backlight and touch controller.
 
 config DRM_PANEL_KINGDISPLAY_KD097D04
 	tristate "Kingdisplay kd097d04 panel"
@@ -208,6 +294,39 @@ config DRM_PANEL_NOVATEK_NT35510
 	  around the Novatek NT35510 display controller, such as some
 	  Hydis panels.
 
+config DRM_PANEL_NOVATEK_NT35560
+	tristate "Novatek NT35560 DSI command mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
+	help
+	  Say Y here if you want to enable the Novatek NT35560 display
+	  controller. This panel supports DSI in both command and video
+	  mode. This supports several panels such as Sony ACX424AKM and
+	  ACX424AKP.
+
+config DRM_PANEL_NOVATEK_NT35950
+	tristate "Novatek NT35950 DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the panels built
+	  around the Novatek NT35950 display controller, such as some
+	  Sharp panels used in Sony Xperia Z5 Premium and XZ Premium
+	  mobile phones.
+
+config DRM_PANEL_NOVATEK_NT36672A
+	tristate "Novatek NT36672A DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the panels built
+	  around the Novatek NT36672A display controller, such as some
+	  Tianma panels used in a few Xiaomi Poco F1 mobile phones.
+
 config DRM_PANEL_NOVATEK_NT39016
 	tristate "Novatek NT39016 RGB/SPI panel"
 	depends on OF && SPI
@@ -233,6 +352,7 @@ config DRM_PANEL_OLIMEX_LCD_OLINUXINO
 	depends on OF
 	depends on I2C
 	depends on BACKLIGHT_CLASS_DEVICE
+	select CRC32
 	help
 	  The panel is used with different sizes LCDs, from 480x272 to
 	  1280x800, and 24 bit per pixel.
@@ -303,11 +423,43 @@ config DRM_PANEL_RONBO_RB070D30
 	  Say Y here if you want to enable support for Ronbo Electronics
 	  RB070D30 1024x600 DSI panel.
 
+config DRM_PANEL_SAMSUNG_ATNA33XC20
+	tristate "Samsung ATNA33XC20 eDP panel"
+	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on PM
+	select DRM_DP_AUX_BUS
+	help
+	  DRM panel driver for the Samsung ATNA33XC20 panel. This panel can't
+	  be handled by the DRM_PANEL_SIMPLE driver because its power
+	  sequencing is non-standard.
+
+config DRM_PANEL_SAMSUNG_DB7430
+	tristate "Samsung DB7430-based DPI panels"
+	depends on OF && SPI && GPIOLIB
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_MIPI_DBI
+	help
+	  Say Y here if you want to enable support for the Samsung
+	  DB7430 DPI display controller used in such devices as the
+	  LMS397KF04 480x800 DPI panel.
+
 config DRM_PANEL_SAMSUNG_S6D16D0
 	tristate "Samsung S6D16D0 DSI video mode panel"
 	depends on OF
 	depends on DRM_MIPI_DSI
 	select VIDEOMODE_HELPERS
+
+config DRM_PANEL_SAMSUNG_S6D27A1
+	tristate "Samsung S6D27A1 DPI panel driver"
+	depends on OF && SPI && GPIOLIB
+	select DRM_MIPI_DBI
+	help
+	  Say Y here if you want to enable support for the Samsung
+	  S6D27A1 DPI 480x800 panel.
+
+	  This panel can be found in Samsung Galaxy Ace 2
+	  GT-I8160 mobile phone.
 
 config DRM_PANEL_SAMSUNG_S6E3HA2
 	tristate "Samsung S6E3HA2 DSI video mode panel"
@@ -337,6 +489,7 @@ config DRM_PANEL_SAMSUNG_S6E63M0_SPI
 	depends on SPI
 	depends on DRM_PANEL_SAMSUNG_S6E63M0
 	default DRM_PANEL_SAMSUNG_S6E63M0
+	select DRM_MIPI_DBI
 	help
 	  Say Y here if you want to be able to access the Samsung
 	  S6E63M0 panel using SPI.
@@ -360,6 +513,18 @@ config DRM_PANEL_SAMSUNG_S6E8AA0
 	depends on OF
 	select DRM_MIPI_DSI
 	select VIDEOMODE_HELPERS
+
+config DRM_PANEL_SAMSUNG_SOFEF00
+	tristate "Samsung sofef00/s6e3fc2x01 OnePlus 6/6T DSI cmd mode panels"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
+	help
+	  Say Y or M here if you want to enable support for the Samsung AMOLED
+	  command mode panels found in the OnePlus 6/6T smartphones.
+
+	  The panels are 2280x1080@60Hz and 2340x1080@60Hz respectively
 
 config DRM_PANEL_SEIKO_43WVF1G
 	tristate "Seiko 43WVF1G panel"
@@ -400,6 +565,16 @@ config DRM_PANEL_SHARP_LS043T1LE01
 	  Say Y here if you want to enable support for Sharp LS043T1LE01 qHD
 	  (540x960) DSI panel as found on the Qualcomm APQ8074 Dragonboard
 
+config DRM_PANEL_SHARP_LS060T1SX01
+	tristate "Sharp LS060T1SX01 FullHD video mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Sharp LS060T1SX01 6.0"
+	  FullHD (1080x1920) DSI panel as found in Dragonboard Display Adapter
+	  Bundle.
+
 config DRM_PANEL_SITRONIX_ST7701
 	tristate "Sitronix ST7701 panel driver"
 	depends on OF
@@ -431,17 +606,6 @@ config DRM_PANEL_SITRONIX_ST7789V
 	  Say Y here if you want to enable support for the Sitronix
 	  ST7789V controller for 240x320 LCD panels
 
-config DRM_PANEL_SONY_ACX424AKP
-	tristate "Sony ACX424AKP DSI command mode panel"
-	depends on OF
-	depends on DRM_MIPI_DSI
-	depends on BACKLIGHT_CLASS_DEVICE
-	select VIDEOMODE_HELPERS
-	help
-	  Say Y here if you want to enable the Sony ACX424 display
-	  panel. This panel supports DSI in both command and video
-	  mode.
-
 config DRM_PANEL_SONY_ACX565AKM
 	tristate "Sony ACX565AKM panel"
 	depends on GPIOLIB && OF && SPI
@@ -449,6 +613,27 @@ config DRM_PANEL_SONY_ACX565AKM
 	help
 	  Say Y here if you want to enable support for the Sony ACX565AKM
 	  800x600 3.5" panel (found on the Nokia N900).
+
+config DRM_PANEL_SONY_TULIP_TRULY_NT35521
+	tristate "Sony Tulip Truly NT35521 panel"
+	depends on GPIOLIB && OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Sony Tulip
+	  NT35521 1280x720 video mode panel as found on Sony Xperia M4
+	  Aqua phone.
+
+config DRM_PANEL_TDO_TL070WSH30
+	tristate "TDO TL070WSH30 DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for TDO TL070WSH30 TFT-LCD
+	  panel module. The panel has a 1024×600 resolution and uses
+	  24 bit RGB per pixel. It provides a MIPI DSI interface to
+	  the host, a built-in LED backlight and touch controller.
 
 config DRM_PANEL_TPO_TD028TTEC1
 	tristate "Toppoly (TPO) TD028TTEC1 panel driver"
@@ -489,6 +674,16 @@ config DRM_PANEL_VISIONOX_RM69299
 	help
 	  Say Y here if you want to enable support for Visionox
 	  RM69299  DSI Video Mode panel.
+
+config DRM_PANEL_WIDECHIPS_WS2401
+	tristate "Widechips WS2401 DPI panel driver"
+	depends on SPI && GPIOLIB
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_MIPI_DBI
+	help
+	  Say Y here if you want to enable support for the Widechips WS2401 DPI
+	  480x800 display controller used in panels such as Samsung LMS380KF01.
+	  This display is used in the Samsung Galaxy Ace 2 GT-I8160 (Codina).
 
 config DRM_PANEL_XINPENG_XPP055C272
 	tristate "Xinpeng XPP055C272 panel driver"

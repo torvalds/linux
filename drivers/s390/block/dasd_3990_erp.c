@@ -201,7 +201,7 @@ dasd_3990_erp_DCTL(struct dasd_ccw_req * erp, char modifier)
 	struct ccw1 *ccw;
 	struct dasd_ccw_req *dctl_cqr;
 
-	dctl_cqr = dasd_alloc_erp_request((char *) &erp->magic, 1,
+	dctl_cqr = dasd_alloc_erp_request(erp->magic, 1,
 					  sizeof(struct DCTL_data),
 					  device);
 	if (IS_ERR(dctl_cqr)) {
@@ -1652,7 +1652,7 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
 	}
 
 	/* Build new ERP request including DE/LO */
-	erp = dasd_alloc_erp_request((char *) &cqr->magic,
+	erp = dasd_alloc_erp_request(cqr->magic,
 				     2 + 1,/* DE/LO + TIC */
 				     sizeof(struct DE_eckd_data) +
 				     sizeof(struct LO_eckd_data), device);
@@ -2388,7 +2388,7 @@ static struct dasd_ccw_req *dasd_3990_erp_add_erp(struct dasd_ccw_req *cqr)
 	}
 
 	/* allocate additional request block */
-	erp = dasd_alloc_erp_request((char *) &cqr->magic,
+	erp = dasd_alloc_erp_request(cqr->magic,
 				     cplength, datasize, device);
 	if (IS_ERR(erp)) {
                 if (cqr->retries <= 0) {

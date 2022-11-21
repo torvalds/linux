@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * APEI Hardware Error Souce Table support
+ * APEI Hardware Error Source Table support
  *
  * HEST describes error sources in detail; communicates operational
  * parameters (i.e. severity levels, masking bits, and threshold
@@ -49,6 +49,12 @@ static const int hest_esrc_len_tab[ACPI_HEST_TYPE_RESERVED] = {
 	[ACPI_HEST_TYPE_IA32_DEFERRED_CHECK] = -1,
 };
 
+static inline bool is_generic_error(struct acpi_hest_header *hest_hdr)
+{
+	return hest_hdr->type == ACPI_HEST_TYPE_GENERIC_ERROR ||
+	       hest_hdr->type == ACPI_HEST_TYPE_GENERIC_ERROR_V2;
+}
+
 static int hest_esrc_len(struct acpi_hest_header *hest_hdr)
 {
 	u16 hest_type = hest_hdr->type;
@@ -80,7 +86,9 @@ static int hest_esrc_len(struct acpi_hest_header *hest_hdr)
 	return len;
 };
 
-int apei_hest_parse(apei_hest_func_t func, void *data)
+typedef int (*apei_hest_func_t)(struct acpi_hest_header *hest_hdr, void *data);
+
+static int apei_hest_parse(apei_hest_func_t func, void *data)
 {
 	struct acpi_hest_header *hest_hdr;
 	int i, rc, len;
@@ -115,7 +123,6 @@ int apei_hest_parse(apei_hest_func_t func, void *data)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(apei_hest_parse);
 
 /*
  * Check if firmware advertises firmware first mode. We need FF bit to be set
@@ -141,8 +148,7 @@ static int __init hest_parse_ghes_count(struct acpi_hest_header *hest_hdr, void 
 {
 	int *count = data;
 
-	if (hest_hdr->type == ACPI_HEST_TYPE_GENERIC_ERROR ||
-	    hest_hdr->type == ACPI_HEST_TYPE_GENERIC_ERROR_V2)
+	if (is_generic_error(hest_hdr))
 		(*count)++;
 	return 0;
 }
@@ -153,8 +159,7 @@ static int __init hest_parse_ghes(struct acpi_hest_header *hest_hdr, void *data)
 	struct ghes_arr *ghes_arr = data;
 	int rc, i;
 
-	if (hest_hdr->type != ACPI_HEST_TYPE_GENERIC_ERROR &&
-	    hest_hdr->type != ACPI_HEST_TYPE_GENERIC_ERROR_V2)
+	if (!is_generic_error(hest_hdr))
 		return 0;
 
 	if (!((struct acpi_hest_generic *)hest_hdr)->enabled)
@@ -219,7 +224,7 @@ err:
 static int __init setup_hest_disable(char *str)
 {
 	hest_disable = HEST_DISABLED;
-	return 0;
+	return 1;
 }
 
 __setup("hest_disable", setup_hest_disable);

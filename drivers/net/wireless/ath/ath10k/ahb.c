@@ -442,14 +442,7 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 
 	pdev = ar_ahb->pdev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ath10k_err(ar, "failed to get memory resource\n");
-		ret = -ENXIO;
-		goto out;
-	}
-
-	ar_ahb->mem = devm_ioremap_resource(&pdev->dev, res);
+	ar_ahb->mem = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(ar_ahb->mem)) {
 		ath10k_err(ar, "mem ioremap error\n");
 		ret = PTR_ERR(ar_ahb->mem);
@@ -626,7 +619,7 @@ static int ath10k_ahb_hif_start(struct ath10k *ar)
 {
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot ahb hif start\n");
 
-	napi_enable(&ar->napi);
+	ath10k_core_napi_enable(ar);
 	ath10k_ce_enable_interrupts(ar);
 	ath10k_pci_enable_legacy_irq(ar);
 
@@ -644,8 +637,7 @@ static void ath10k_ahb_hif_stop(struct ath10k *ar)
 	ath10k_ahb_irq_disable(ar);
 	synchronize_irq(ar_ahb->irq);
 
-	napi_synchronize(&ar->napi);
-	napi_disable(&ar->napi);
+	ath10k_core_napi_sync_disable(ar);
 
 	ath10k_pci_flush(ar);
 }

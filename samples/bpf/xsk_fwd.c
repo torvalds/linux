@@ -27,6 +27,9 @@
 #include <bpf/xsk.h>
 #include <bpf/bpf.h>
 
+/* libbpf APIs for AF_XDP are deprecated starting from v0.7 */
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 typedef __u64 u64;
@@ -971,8 +974,8 @@ static void remove_xdp_program(void)
 	int i;
 
 	for (i = 0 ; i < n_ports; i++)
-		bpf_set_link_xdp_fd(if_nametoindex(port_params[i].iface), -1,
-				    port_params[i].xsk_cfg.xdp_flags);
+		bpf_xdp_detach(if_nametoindex(port_params[i].iface),
+			       port_params[i].xsk_cfg.xdp_flags, NULL);
 }
 
 int main(int argc, char **argv)

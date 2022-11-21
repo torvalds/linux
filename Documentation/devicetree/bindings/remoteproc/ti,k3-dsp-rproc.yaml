@@ -33,9 +33,11 @@ properties:
     enum:
       - ti,j721e-c66-dsp
       - ti,j721e-c71-dsp
+      - ti,j721s2-c71-dsp
     description:
       Use "ti,j721e-c66-dsp" for C66x DSPs on K3 J721E SoCs
       Use "ti,j721e-c71-dsp" for C71x DSPs on K3 J721E SoCs
+      Use "ti,j721s2-c71-dsp" for C71x DSPs on K3 J721S2 SoCs
 
   resets:
     description: |
@@ -77,6 +79,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     minItems: 1
     maxItems: 4
+    items:
+      maxItems: 1
     description: |
       phandles to one or more reserved on-chip SRAM regions. The regions
       should be defined as child nodes of the respective SRAM node, and
@@ -106,6 +110,7 @@ else:
       compatible:
         enum:
           - ti,j721e-c71-dsp
+          - ti,j721s2-c71-dsp
   then:
     properties:
       reg:
@@ -133,11 +138,17 @@ unevaluatedProperties: false
 
 examples:
   - |
-    / {
-        model = "Texas Instruments K3 J721E SoC";
-        compatible = "ti,j721e";
+    soc {
         #address-cells = <2>;
         #size-cells = <2>;
+
+        mailbox0_cluster3: mailbox-0 {
+            #mbox-cells = <1>;
+        };
+
+        mailbox0_cluster4: mailbox-1 {
+            #mbox-cells = <1>;
+        };
 
         bus@100000 {
             compatible = "simple-bus";

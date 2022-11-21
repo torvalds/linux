@@ -11,7 +11,7 @@
 
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "console=ttyS4,115200 earlyprintk";
+		bootargs = "console=ttyS4,115200 earlycon";
 	};
 
 	memory@80000000 {
@@ -581,6 +581,11 @@
 	/* RTC RX8900CE */
 	/* TMP275A */
 	/* TMP275A */
+
+	rtc@32 {
+		compatible = "epson,rx8900";
+		reg = <0x32>;
+	};
 
 	tmp275@48 {
 		compatible = "ti,tmp275";

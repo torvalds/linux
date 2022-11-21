@@ -61,8 +61,6 @@
 #define NV10_CHANNEL_DMA                              /* cl506b.h */ 0x0000006e
 #define NV17_CHANNEL_DMA                              /* cl506b.h */ 0x0000176e
 #define NV40_CHANNEL_DMA                              /* cl506b.h */ 0x0000406e
-#define NV50_CHANNEL_DMA                              /* cl506e.h */ 0x0000506e
-#define G82_CHANNEL_DMA                               /* cl826e.h */ 0x0000826e
 
 #define NV50_CHANNEL_GPFIFO                           /* cl506f.h */ 0x0000506f
 #define G82_CHANNEL_GPFIFO                            /* cl826f.h */ 0x0000826f
@@ -73,6 +71,7 @@
 #define PASCAL_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000c06f
 #define VOLTA_CHANNEL_GPFIFO_A                        /* clc36f.h */ 0x0000c36f
 #define TURING_CHANNEL_GPFIFO_A                       /* clc36f.h */ 0x0000c46f
+#define AMPERE_CHANNEL_GPFIFO_B                       /* clc36f.h */ 0x0000c76f
 
 #define NV50_DISP                                     /* cl5070.h */ 0x00005070
 #define G82_DISP                                      /* cl5070.h */ 0x00008270
@@ -88,6 +87,7 @@
 #define GP102_DISP                                    /* cl5070.h */ 0x00009870
 #define GV100_DISP                                    /* cl5070.h */ 0x0000c370
 #define TU102_DISP                                    /* cl5070.h */ 0x0000c570
+#define GA102_DISP                                    /* cl5070.h */ 0x0000c670
 
 #define GV100_DISP_CAPS                                              0x0000c373
 
@@ -103,6 +103,7 @@
 #define GK104_DISP_CURSOR                             /* cl507a.h */ 0x0000917a
 #define GV100_DISP_CURSOR                             /* cl507a.h */ 0x0000c37a
 #define TU102_DISP_CURSOR                             /* cl507a.h */ 0x0000c57a
+#define GA102_DISP_CURSOR                             /* cl507a.h */ 0x0000c67a
 
 #define NV50_DISP_OVERLAY                             /* cl507b.h */ 0x0000507b
 #define G82_DISP_OVERLAY                              /* cl507b.h */ 0x0000827b
@@ -112,6 +113,7 @@
 
 #define GV100_DISP_WINDOW_IMM_CHANNEL_DMA             /* clc37b.h */ 0x0000c37b
 #define TU102_DISP_WINDOW_IMM_CHANNEL_DMA             /* clc37b.h */ 0x0000c57b
+#define GA102_DISP_WINDOW_IMM_CHANNEL_DMA             /* clc37b.h */ 0x0000c67b
 
 #define NV50_DISP_BASE_CHANNEL_DMA                    /* cl507c.h */ 0x0000507c
 #define G82_DISP_BASE_CHANNEL_DMA                     /* cl507c.h */ 0x0000827c
@@ -135,6 +137,7 @@
 #define GP102_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000987d
 #define GV100_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000c37d
 #define TU102_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000c57d
+#define GA102_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000c67d
 
 #define NV50_DISP_OVERLAY_CHANNEL_DMA                 /* cl507e.h */ 0x0000507e
 #define G82_DISP_OVERLAY_CHANNEL_DMA                  /* cl507e.h */ 0x0000827e
@@ -145,6 +148,7 @@
 
 #define GV100_DISP_WINDOW_CHANNEL_DMA                 /* clc37e.h */ 0x0000c37e
 #define TU102_DISP_WINDOW_CHANNEL_DMA                 /* clc37e.h */ 0x0000c57e
+#define GA102_DISP_WINDOW_CHANNEL_DMA                 /* clc37e.h */ 0x0000c67e
 
 #define NV50_TESLA                                                   0x00005097
 #define G82_TESLA                                                    0x00008297
@@ -197,6 +201,7 @@
 #define PASCAL_DMA_COPY_B                                            0x0000c1b5
 #define VOLTA_DMA_COPY_A                                             0x0000c3b5
 #define TURING_DMA_COPY_A                                            0x0000c5b5
+#define AMPERE_DMA_COPY_B                                            0x0000c7b5
 
 #define FERMI_DECOMPRESS                                             0x000090b8
 

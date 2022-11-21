@@ -26,9 +26,6 @@ static inline int of_driver_match_device(struct device *dev,
 	return of_match_device(drv->of_match_table, dev) != NULL;
 }
 
-extern struct platform_device *of_dev_get(struct platform_device *dev);
-extern void of_dev_put(struct platform_device *dev);
-
 extern int of_device_add(struct platform_device *pdev);
 extern int of_device_register(struct platform_device *ofdev);
 extern void of_device_unregister(struct platform_device *ofdev);
@@ -40,11 +37,6 @@ extern int of_device_request_module(struct device *dev);
 
 extern void of_device_uevent(struct device *dev, struct kobj_uevent_env *env);
 extern int of_device_uevent_modalias(struct device *dev, struct kobj_uevent_env *env);
-
-static inline void of_device_node_put(struct device *dev)
-{
-	of_node_put(dev->of_node);
-}
 
 static inline struct device_node *of_cpu_device_node_get(int cpu)
 {
@@ -97,15 +89,11 @@ static inline int of_device_uevent_modalias(struct device *dev,
 	return -ENODEV;
 }
 
-static inline void of_device_node_put(struct device *dev) { }
-
-static inline const struct of_device_id *__of_match_device(
+static inline const struct of_device_id *of_match_device(
 		const struct of_device_id *matches, const struct device *dev)
 {
 	return NULL;
 }
-#define of_match_device(matches, dev)	\
-	__of_match_device(of_match_ptr(matches), (dev))
 
 static inline struct device_node *of_cpu_device_node_get(int cpu)
 {

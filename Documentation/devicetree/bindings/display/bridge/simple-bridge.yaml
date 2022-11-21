@@ -22,6 +22,9 @@ properties:
               - ti,ths8134a
               - ti,ths8134b
           - const: ti,ths8134
+      - items:
+          - const: corpro,gm7123
+          - const: adi,adv7123
       - enum:
           - adi,adv7123
           - dumb-vga-dac
@@ -30,37 +33,26 @@ properties:
           - ti,ths8135
 
   ports:
-    type: object
-    description: |
-      This device has two video ports. Their connections are modeled using the
-      OF graph bindings specified in Documentation/devicetree/bindings/graph.txt.
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
-      '#address-cells':
-        const: 1
-
-      '#size-cells':
-        const: 0
-
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: The bridge input
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: The bridge output
 
     required:
       - port@0
       - port@1
 
-    additionalProperties: false
-
   enable-gpios:
     maxItems: 1
     description: GPIO controlling bridge enable
 
   vdd-supply:
-    maxItems: 1
     description: Power supply for the bridge
 
 required:

@@ -11,8 +11,13 @@
 #include <dt-bindings/sound/meson-g12a-tohdmitx.h>
 
 / {
-	compatible = "azw,gtking", "amlogic,g12b";
+	compatible = "azw,gtking", "amlogic,s922x", "amlogic,g12b";
 	model = "Beelink GT-King Pro";
+
+	aliases {
+		rtc0 = &rtc;
+		rtc1 = &vrtc;
+	};
 
 	gpio-keys-polled {
 		compatible = "gpio-keys-polled";
@@ -30,7 +35,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		white {
+		led-white {
 			label = "power:white";
 			gpios = <&gpio_ao GPIOAO_11 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
@@ -39,7 +44,7 @@
 
 	sound {
 		compatible = "amlogic,axg-sound-card";
-		model = "G12B-GTKING-PRO";
+		model = "GTKING-PRO";
 		audio-aux-devs = <&tdmout_b>;
 		audio-routing = "TDMOUT_B IN 0", "FRDDR_A OUT 1",
 				"TDMOUT_B IN 1", "FRDDR_B OUT 1",
@@ -110,6 +115,18 @@
 
 &frddr_c {
 	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+	pinctrl-0 = <&i2c3_sda_a_pins>, <&i2c3_sck_a_pins>;
+	pinctrl-names = "default";
+
+	rtc: rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+		wakeup-source;
+	};
 };
 
 &tdmif_b {

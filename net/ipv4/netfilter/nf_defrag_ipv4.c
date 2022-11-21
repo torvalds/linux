@@ -106,10 +106,10 @@ static const struct nf_hook_ops ipv4_defrag_ops[] = {
 
 static void __net_exit defrag4_net_exit(struct net *net)
 {
-	if (net->nf.defrag_ipv4) {
+	if (net->nf.defrag_ipv4_users) {
 		nf_unregister_net_hooks(net, ipv4_defrag_ops,
 					ARRAY_SIZE(ipv4_defrag_ops));
-		net->nf.defrag_ipv4 = false;
+		net->nf.defrag_ipv4_users = 0;
 	}
 }
 
@@ -131,25 +131,41 @@ int nf_defrag_ipv4_enable(struct net *net)
 {
 	int err = 0;
 
-	might_sleep();
-
-	if (net->nf.defrag_ipv4)
-		return 0;
-
 	mutex_lock(&defrag4_mutex);
-	if (net->nf.defrag_ipv4)
+	if (net->nf.defrag_ipv4_users == UINT_MAX) {
+		err = -EOVERFLOW;
 		goto out_unlock;
+	}
+
+	if (net->nf.defrag_ipv4_users) {
+		net->nf.defrag_ipv4_users++;
+		goto out_unlock;
+	}
 
 	err = nf_register_net_hooks(net, ipv4_defrag_ops,
 				    ARRAY_SIZE(ipv4_defrag_ops));
 	if (err == 0)
-		net->nf.defrag_ipv4 = true;
+		net->nf.defrag_ipv4_users = 1;
 
  out_unlock:
 	mutex_unlock(&defrag4_mutex);
 	return err;
 }
 EXPORT_SYMBOL_GPL(nf_defrag_ipv4_enable);
+
+void nf_defrag_ipv4_disable(struct net *net)
+{
+	mutex_lock(&defrag4_mutex);
+	if (net->nf.defrag_ipv4_users) {
+		net->nf.defrag_ipv4_users--;
+		if (net->nf.defrag_ipv4_users == 0)
+			nf_unregister_net_hooks(net, ipv4_defrag_ops,
+						ARRAY_SIZE(ipv4_defrag_ops));
+	}
+
+	mutex_unlock(&defrag4_mutex);
+}
+EXPORT_SYMBOL_GPL(nf_defrag_ipv4_disable);
 
 module_init(nf_defrag_init);
 module_exit(nf_defrag_fini);

@@ -530,6 +530,7 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 		goto err_rx_dma_buf;
 	}
 
+	memset(&cfg, 0, sizeof(cfg));
 	cfg.src_addr = phy_addr + SPI_POPR;
 	cfg.dst_addr = phy_addr + SPI_PUSHR;
 	cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
@@ -1165,7 +1166,7 @@ static int dspi_init(struct fsl_dspi *dspi)
 	unsigned int mcr;
 
 	/* Set idle states for all chip select signals to high */
-	mcr = SPI_MCR_PCSIS(GENMASK(dspi->ctlr->num_chipselect - 1, 0));
+	mcr = SPI_MCR_PCSIS(GENMASK(dspi->ctlr->max_native_cs - 1, 0));
 
 	if (dspi->devtype_data->trans_mode == DSPI_XSPI_MODE)
 		mcr |= SPI_MCR_XSPI;
@@ -1250,7 +1251,7 @@ static int dspi_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata) {
-		ctlr->num_chipselect = pdata->cs_num;
+		ctlr->num_chipselect = ctlr->max_native_cs = pdata->cs_num;
 		ctlr->bus_num = pdata->bus_num;
 
 		/* Only Coldfire uses platform data */
@@ -1263,7 +1264,7 @@ static int dspi_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "can't get spi-num-chipselects\n");
 			goto out_ctlr_put;
 		}
-		ctlr->num_chipselect = cs_num;
+		ctlr->num_chipselect = ctlr->max_native_cs = cs_num;
 
 		of_property_read_u32(np, "bus-num", &bus_num);
 		ctlr->bus_num = bus_num;
@@ -1375,11 +1376,13 @@ poll_mode:
 	ret = spi_register_controller(ctlr);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Problem registering DSPI ctlr\n");
-		goto out_free_irq;
+		goto out_release_dma;
 	}
 
 	return ret;
 
+out_release_dma:
+	dspi_release_dma(dspi);
 out_free_irq:
 	if (dspi->irq)
 		free_irq(dspi->irq, dspi);

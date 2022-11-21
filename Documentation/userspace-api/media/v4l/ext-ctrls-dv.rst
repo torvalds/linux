@@ -99,7 +99,7 @@ enum v4l2_dv_it_content_type -
     or an analog source. The enum v4l2_dv_it_content_type defines
     the possible content types:
 
-.. tabularcolumns:: |p{7.3cm}|p{10.4cm}|
+.. tabularcolumns:: |p{7.3cm}|p{10.2cm}|
 
 .. flat-table::
     :header-rows:  0

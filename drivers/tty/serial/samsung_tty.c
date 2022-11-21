@@ -56,9 +56,16 @@
 /* flag to ignore all characters coming in */
 #define RXSTAT_DUMMY_READ (0x10000000)
 
+enum s3c24xx_port_type {
+	TYPE_S3C24XX,
+	TYPE_S3C6400,
+	TYPE_APPLE_S5L,
+};
+
 struct s3c24xx_uart_info {
-	char			*name;
-	unsigned int		type;
+	const char		*name;
+	enum s3c24xx_port_type	type;
+	unsigned int		port_type;
 	unsigned int		fifosize;
 	unsigned long		rx_fifomask;
 	unsigned long		rx_fifoshift;
@@ -70,6 +77,7 @@ struct s3c24xx_uart_info {
 	unsigned long		num_clks;
 	unsigned long		clksel_mask;
 	unsigned long		clksel_shift;
+	unsigned long		ucon_mask;
 
 	/* uart port features */
 
@@ -77,9 +85,9 @@ struct s3c24xx_uart_info {
 };
 
 struct s3c24xx_serial_drv_data {
-	struct s3c24xx_uart_info	*info;
-	struct s3c2410_uartcfg		*def_cfg;
-	unsigned int			fifosize[CONFIG_SERIAL_SAMSUNG_UARTS];
+	const struct s3c24xx_uart_info	info;
+	const struct s3c2410_uartcfg	def_cfg;
+	const unsigned int		fifosize[CONFIG_SERIAL_SAMSUNG_UARTS];
 };
 
 struct s3c24xx_uart_dma {
@@ -128,14 +136,14 @@ struct s3c24xx_uart_port {
 	unsigned int			tx_mode;
 	unsigned int			rx_mode;
 
-	struct s3c24xx_uart_info	*info;
+	const struct s3c24xx_uart_info	*info;
 	struct clk			*clk;
 	struct clk			*baudclk;
 	struct uart_port		port;
-	struct s3c24xx_serial_drv_data	*drv_data;
+	const struct s3c24xx_serial_drv_data	*drv_data;
 
 	/* reference to platform data */
-	struct s3c2410_uartcfg		*cfg;
+	const struct s3c2410_uartcfg	*cfg;
 
 	struct s3c24xx_uart_dma		*dma;
 
@@ -143,6 +151,8 @@ struct s3c24xx_uart_port {
 	struct notifier_block		freq_transition;
 #endif
 };
+
+static void s3c24xx_serial_tx_chars(struct s3c24xx_uart_port *ourport);
 
 /* conversion functions */
 
@@ -154,7 +164,7 @@ struct s3c24xx_uart_port {
 #define portaddrl(port, reg) \
 	((unsigned long *)(unsigned long)((port)->membase + (reg)))
 
-static u32 rd_reg(struct uart_port *port, u32 reg)
+static u32 rd_reg(const struct uart_port *port, u32 reg)
 {
 	switch (port->iotype) {
 	case UPIO_MEM:
@@ -169,7 +179,7 @@ static u32 rd_reg(struct uart_port *port, u32 reg)
 
 #define rd_regl(port, reg) (readl_relaxed(portaddr(port, reg)))
 
-static void wr_reg(struct uart_port *port, u32 reg, u32 val)
+static void wr_reg(const struct uart_port *port, u32 reg, u32 val)
 {
 	switch (port->iotype) {
 	case UPIO_MEM:
@@ -185,7 +195,7 @@ static void wr_reg(struct uart_port *port, u32 reg, u32 val)
 
 /* Byte-order aware bit setting/clearing functions. */
 
-static inline void s3c24xx_set_bit(struct uart_port *port, int idx,
+static inline void s3c24xx_set_bit(const struct uart_port *port, int idx,
 				   unsigned int reg)
 {
 	unsigned long flags;
@@ -198,7 +208,7 @@ static inline void s3c24xx_set_bit(struct uart_port *port, int idx,
 	local_irq_restore(flags);
 }
 
-static inline void s3c24xx_clear_bit(struct uart_port *port, int idx,
+static inline void s3c24xx_clear_bit(const struct uart_port *port, int idx,
 				     unsigned int reg)
 {
 	unsigned long flags;
@@ -218,24 +228,14 @@ static inline struct s3c24xx_uart_port *to_ourport(struct uart_port *port)
 
 /* translate a port to the device name */
 
-static inline const char *s3c24xx_serial_portname(struct uart_port *port)
+static inline const char *s3c24xx_serial_portname(const struct uart_port *port)
 {
 	return to_platform_device(port->dev)->name;
 }
 
-static int s3c24xx_serial_txempty_nofifo(struct uart_port *port)
+static int s3c24xx_serial_txempty_nofifo(const struct uart_port *port)
 {
 	return rd_regl(port, S3C2410_UTRSTAT) & S3C2410_UTRSTAT_TXE;
-}
-
-/*
- * s3c64xx and later SoC's include the interrupt mask and status registers in
- * the controller itself, unlike the s3c24xx SoC's which have these registers
- * in the interrupt controller. Check if the port type is s3c64xx or higher.
- */
-static int s3c24xx_serial_has_interrupt_mask(struct uart_port *port)
-{
-	return to_ourport(port)->info->type == PORT_S3C6400;
 }
 
 static void s3c24xx_serial_rx_enable(struct uart_port *port)
@@ -289,17 +289,25 @@ static void s3c24xx_serial_stop_tx(struct uart_port *port)
 	if (!ourport->tx_enabled)
 		return;
 
-	if (s3c24xx_serial_has_interrupt_mask(port))
+	switch (ourport->info->type) {
+	case TYPE_S3C6400:
 		s3c24xx_set_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
-	else
+		break;
+	case TYPE_APPLE_S5L:
+		s3c24xx_clear_bit(port, APPLE_S5L_UCON_TXTHRESH_ENA, S3C2410_UCON);
+		break;
+	default:
 		disable_irq_nosync(ourport->tx_irq);
+		break;
+	}
 
 	if (dma && dma->tx_chan && ourport->tx_in_progress == S3C24XX_TX_DMA) {
 		dmaengine_pause(dma->tx_chan);
 		dmaengine_tx_status(dma->tx_chan, dma->tx_cookie, &state);
 		dmaengine_terminate_all(dma->tx_chan);
-		dma_sync_single_for_cpu(ourport->port.dev,
-			dma->tx_transfer_addr, dma->tx_size, DMA_TO_DEVICE);
+		dma_sync_single_for_cpu(dma->tx_chan->device->dev,
+					dma->tx_transfer_addr, dma->tx_size,
+					DMA_TO_DEVICE);
 		async_tx_ack(dma->tx_desc);
 		count = dma->tx_bytes_requested - state.residue;
 		xmit->tail = (xmit->tail + count) & (UART_XMIT_SIZE - 1);
@@ -331,8 +339,9 @@ static void s3c24xx_serial_tx_dma_complete(void *args)
 	count = dma->tx_bytes_requested - state.residue;
 	async_tx_ack(dma->tx_desc);
 
-	dma_sync_single_for_cpu(ourport->port.dev, dma->tx_transfer_addr,
-				dma->tx_size, DMA_TO_DEVICE);
+	dma_sync_single_for_cpu(dma->tx_chan->device->dev,
+				dma->tx_transfer_addr, dma->tx_size,
+				DMA_TO_DEVICE);
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -349,14 +358,21 @@ static void s3c24xx_serial_tx_dma_complete(void *args)
 
 static void enable_tx_dma(struct s3c24xx_uart_port *ourport)
 {
-	struct uart_port *port = &ourport->port;
+	const struct uart_port *port = &ourport->port;
 	u32 ucon;
 
 	/* Mask Tx interrupt */
-	if (s3c24xx_serial_has_interrupt_mask(port))
+	switch (ourport->info->type) {
+	case TYPE_S3C6400:
 		s3c24xx_set_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
-	else
+		break;
+	case TYPE_APPLE_S5L:
+		WARN_ON(1); // No DMA
+		break;
+	default:
 		disable_irq_nosync(ourport->tx_irq);
+		break;
+	}
 
 	/* Enable tx dma mode */
 	ucon = rd_regl(port, S3C2410_UCON);
@@ -371,7 +387,7 @@ static void enable_tx_dma(struct s3c24xx_uart_port *ourport)
 
 static void enable_tx_pio(struct s3c24xx_uart_port *ourport)
 {
-	struct uart_port *port = &ourport->port;
+	const struct uart_port *port = &ourport->port;
 	u32 ucon, ufcon;
 
 	/* Set ufcon txtrig */
@@ -386,13 +402,28 @@ static void enable_tx_pio(struct s3c24xx_uart_port *ourport)
 	wr_regl(port,  S3C2410_UCON, ucon);
 
 	/* Unmask Tx interrupt */
-	if (s3c24xx_serial_has_interrupt_mask(port))
+	switch (ourport->info->type) {
+	case TYPE_S3C6400:
 		s3c24xx_clear_bit(port, S3C64XX_UINTM_TXD,
 				  S3C64XX_UINTM);
-	else
+		break;
+	case TYPE_APPLE_S5L:
+		ucon |= APPLE_S5L_UCON_TXTHRESH_ENA_MSK;
+		wr_regl(port, S3C2410_UCON, ucon);
+		break;
+	default:
 		enable_irq(ourport->tx_irq);
+		break;
+	}
 
 	ourport->tx_mode = S3C24XX_TX_PIO;
+
+	/*
+	 * The Apple version only has edge triggered TX IRQs, so we need
+	 * to kick off the process by sending some characters here.
+	 */
+	if (ourport->info->type == TYPE_APPLE_S5L)
+		s3c24xx_serial_tx_chars(ourport);
 }
 
 static void s3c24xx_serial_start_tx_pio(struct s3c24xx_uart_port *ourport)
@@ -414,8 +445,9 @@ static int s3c24xx_serial_start_tx_dma(struct s3c24xx_uart_port *ourport,
 	dma->tx_size = count & ~(dma_get_cache_alignment() - 1);
 	dma->tx_transfer_addr = dma->tx_addr + xmit->tail;
 
-	dma_sync_single_for_device(ourport->port.dev, dma->tx_transfer_addr,
-				dma->tx_size, DMA_TO_DEVICE);
+	dma_sync_single_for_device(dma->tx_chan->device->dev,
+				   dma->tx_transfer_addr, dma->tx_size,
+				   DMA_TO_DEVICE);
 
 	dma->tx_desc = dmaengine_prep_slave_single(dma->tx_chan,
 				dma->tx_transfer_addr, dma->tx_size,
@@ -486,7 +518,7 @@ static void s3c24xx_uart_copy_rx_to_tty(struct s3c24xx_uart_port *ourport,
 	if (!count)
 		return;
 
-	dma_sync_single_for_cpu(ourport->port.dev, dma->rx_addr,
+	dma_sync_single_for_cpu(dma->rx_chan->device->dev, dma->rx_addr,
 				dma->rx_size, DMA_FROM_DEVICE);
 
 	ourport->port.icount.rx += count;
@@ -513,11 +545,19 @@ static void s3c24xx_serial_stop_rx(struct uart_port *port)
 
 	if (ourport->rx_enabled) {
 		dev_dbg(port->dev, "stopping rx\n");
-		if (s3c24xx_serial_has_interrupt_mask(port))
+		switch (ourport->info->type) {
+		case TYPE_S3C6400:
 			s3c24xx_set_bit(port, S3C64XX_UINTM_RXD,
 					S3C64XX_UINTM);
-		else
+			break;
+		case TYPE_APPLE_S5L:
+			s3c24xx_clear_bit(port, APPLE_S5L_UCON_RXTHRESH_ENA, S3C2410_UCON);
+			s3c24xx_clear_bit(port, APPLE_S5L_UCON_RXTO_ENA, S3C2410_UCON);
+			break;
+		default:
 			disable_irq_nosync(ourport->rx_irq);
+			break;
+		}
 		ourport->rx_enabled = 0;
 	}
 	if (dma && dma->rx_chan) {
@@ -533,16 +573,16 @@ static void s3c24xx_serial_stop_rx(struct uart_port *port)
 	}
 }
 
-static inline struct s3c24xx_uart_info
+static inline const struct s3c24xx_uart_info
 	*s3c24xx_port_to_info(struct uart_port *port)
 {
 	return to_ourport(port)->info;
 }
 
-static inline struct s3c2410_uartcfg
-	*s3c24xx_port_to_cfg(struct uart_port *port)
+static inline const struct s3c2410_uartcfg
+	*s3c24xx_port_to_cfg(const struct uart_port *port)
 {
-	struct s3c24xx_uart_port *ourport;
+	const struct s3c24xx_uart_port *ourport;
 
 	if (port->dev == NULL)
 		return NULL;
@@ -551,10 +591,10 @@ static inline struct s3c2410_uartcfg
 	return ourport->cfg;
 }
 
-static int s3c24xx_serial_rx_fifocnt(struct s3c24xx_uart_port *ourport,
+static int s3c24xx_serial_rx_fifocnt(const struct s3c24xx_uart_port *ourport,
 				     unsigned long ufstat)
 {
-	struct s3c24xx_uart_info *info = ourport->info;
+	const struct s3c24xx_uart_info *info = ourport->info;
 
 	if (ufstat & info->rx_fifofull)
 		return ourport->port.fifosize;
@@ -599,8 +639,8 @@ static void s3c64xx_start_rx_dma(struct s3c24xx_uart_port *ourport)
 {
 	struct s3c24xx_uart_dma *dma = ourport->dma;
 
-	dma_sync_single_for_device(ourport->port.dev, dma->rx_addr,
-				dma->rx_size, DMA_FROM_DEVICE);
+	dma_sync_single_for_device(dma->rx_chan->device->dev, dma->rx_addr,
+				   dma->rx_size, DMA_FROM_DEVICE);
 
 	dma->rx_desc = dmaengine_prep_slave_single(dma->rx_chan,
 				dma->rx_addr, dma->rx_size, DMA_DEV_TO_MEM,
@@ -651,14 +691,18 @@ static void enable_rx_pio(struct s3c24xx_uart_port *ourport)
 
 	/* set Rx mode to DMA mode */
 	ucon = rd_regl(port, S3C2410_UCON);
-	ucon &= ~(S3C64XX_UCON_TIMEOUT_MASK |
-			S3C64XX_UCON_EMPTYINT_EN |
-			S3C64XX_UCON_DMASUS_EN |
-			S3C64XX_UCON_TIMEOUT_EN |
-			S3C64XX_UCON_RXMODE_MASK);
-	ucon |= 0xf << S3C64XX_UCON_TIMEOUT_SHIFT |
-			S3C64XX_UCON_TIMEOUT_EN |
-			S3C64XX_UCON_RXMODE_CPU;
+	ucon &= ~S3C64XX_UCON_RXMODE_MASK;
+	ucon |= S3C64XX_UCON_RXMODE_CPU;
+
+	/* Apple types use these bits for IRQ masks */
+	if (ourport->info->type != TYPE_APPLE_S5L) {
+		ucon &= ~(S3C64XX_UCON_TIMEOUT_MASK |
+				S3C64XX_UCON_EMPTYINT_EN |
+				S3C64XX_UCON_DMASUS_EN |
+				S3C64XX_UCON_TIMEOUT_EN);
+		ucon |= 0xf << S3C64XX_UCON_TIMEOUT_SHIFT |
+				S3C64XX_UCON_TIMEOUT_EN;
+	}
 	wr_regl(port, S3C2410_UCON, ucon);
 
 	ourport->rx_mode = S3C24XX_RX_PIO;
@@ -674,13 +718,12 @@ static irqreturn_t s3c24xx_serial_rx_chars_dma(void *dev_id)
 	struct s3c24xx_uart_dma *dma = ourport->dma;
 	struct tty_struct *tty = tty_port_tty_get(&ourport->port.state->port);
 	struct tty_port *t = &port->state->port;
-	unsigned long flags;
 	struct dma_tx_state state;
 
 	utrstat = rd_regl(port, S3C2410_UTRSTAT);
 	rd_regl(port, S3C2410_UFSTAT);
 
-	spin_lock_irqsave(&port->lock, flags);
+	spin_lock(&port->lock);
 
 	if (!(utrstat & S3C2410_UTRSTAT_TIMEOUT)) {
 		s3c64xx_start_rx_dma(ourport);
@@ -709,7 +752,7 @@ static irqreturn_t s3c24xx_serial_rx_chars_dma(void *dev_id)
 	wr_regl(port, S3C2410_UTRSTAT, S3C2410_UTRSTAT_TIMEOUT);
 
 finish:
-	spin_unlock_irqrestore(&port->lock, flags);
+	spin_unlock(&port->lock);
 
 	return IRQ_HANDLED;
 }
@@ -805,16 +848,15 @@ static irqreturn_t s3c24xx_serial_rx_chars_pio(void *dev_id)
 {
 	struct s3c24xx_uart_port *ourport = dev_id;
 	struct uart_port *port = &ourport->port;
-	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	spin_lock(&port->lock);
 	s3c24xx_serial_rx_drain_fifo(ourport);
-	spin_unlock_irqrestore(&port->lock, flags);
+	spin_unlock(&port->lock);
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t s3c24xx_serial_rx_chars(int irq, void *dev_id)
+static irqreturn_t s3c24xx_serial_rx_irq(int irq, void *dev_id)
 {
 	struct s3c24xx_uart_port *ourport = dev_id;
 
@@ -823,15 +865,11 @@ static irqreturn_t s3c24xx_serial_rx_chars(int irq, void *dev_id)
 	return s3c24xx_serial_rx_chars_pio(dev_id);
 }
 
-static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
+static void s3c24xx_serial_tx_chars(struct s3c24xx_uart_port *ourport)
 {
-	struct s3c24xx_uart_port *ourport = id;
 	struct uart_port *port = &ourport->port;
 	struct circ_buf *xmit = &port->state->xmit;
-	unsigned long flags;
 	int count, dma_count = 0;
-
-	spin_lock_irqsave(&port->lock, flags);
 
 	count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 
@@ -849,7 +887,7 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 		wr_reg(port, S3C2410_UTXH, port->x_char);
 		port->icount.tx++;
 		port->x_char = 0;
-		goto out;
+		return;
 	}
 
 	/* if there isn't anything more to transmit, or the uart is now
@@ -858,7 +896,7 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
 		s3c24xx_serial_stop_tx(port);
-		goto out;
+		return;
 	}
 
 	/* try and drain the buffer... */
@@ -880,45 +918,72 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 
 	if (!count && dma_count) {
 		s3c24xx_serial_start_tx_dma(ourport, dma_count);
-		goto out;
+		return;
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS) {
-		spin_unlock(&port->lock);
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
-		spin_lock(&port->lock);
-	}
 
 	if (uart_circ_empty(xmit))
 		s3c24xx_serial_stop_tx(port);
+}
 
-out:
-	spin_unlock_irqrestore(&port->lock, flags);
+static irqreturn_t s3c24xx_serial_tx_irq(int irq, void *id)
+{
+	struct s3c24xx_uart_port *ourport = id;
+	struct uart_port *port = &ourport->port;
+
+	spin_lock(&port->lock);
+
+	s3c24xx_serial_tx_chars(ourport);
+
+	spin_unlock(&port->lock);
 	return IRQ_HANDLED;
 }
 
 /* interrupt handler for s3c64xx and later SoC's.*/
 static irqreturn_t s3c64xx_serial_handle_irq(int irq, void *id)
 {
-	struct s3c24xx_uart_port *ourport = id;
-	struct uart_port *port = &ourport->port;
+	const struct s3c24xx_uart_port *ourport = id;
+	const struct uart_port *port = &ourport->port;
 	unsigned int pend = rd_regl(port, S3C64XX_UINTP);
 	irqreturn_t ret = IRQ_HANDLED;
 
 	if (pend & S3C64XX_UINTM_RXD_MSK) {
-		ret = s3c24xx_serial_rx_chars(irq, id);
+		ret = s3c24xx_serial_rx_irq(irq, id);
 		wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_RXD_MSK);
 	}
 	if (pend & S3C64XX_UINTM_TXD_MSK) {
-		ret = s3c24xx_serial_tx_chars(irq, id);
+		ret = s3c24xx_serial_tx_irq(irq, id);
 		wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_TXD_MSK);
 	}
 	return ret;
 }
 
+/* interrupt handler for Apple SoC's.*/
+static irqreturn_t apple_serial_handle_irq(int irq, void *id)
+{
+	const struct s3c24xx_uart_port *ourport = id;
+	const struct uart_port *port = &ourport->port;
+	unsigned int pend = rd_regl(port, S3C2410_UTRSTAT);
+	irqreturn_t ret = IRQ_NONE;
+
+	if (pend & (APPLE_S5L_UTRSTAT_RXTHRESH | APPLE_S5L_UTRSTAT_RXTO)) {
+		wr_regl(port, S3C2410_UTRSTAT,
+			APPLE_S5L_UTRSTAT_RXTHRESH | APPLE_S5L_UTRSTAT_RXTO);
+		ret = s3c24xx_serial_rx_irq(irq, id);
+	}
+	if (pend & APPLE_S5L_UTRSTAT_TXTHRESH) {
+		wr_regl(port, S3C2410_UTRSTAT, APPLE_S5L_UTRSTAT_TXTHRESH);
+		ret = s3c24xx_serial_tx_irq(irq, id);
+	}
+
+	return ret;
+}
+
 static unsigned int s3c24xx_serial_tx_empty(struct uart_port *port)
 {
-	struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
+	const struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
 	unsigned long ufstat = rd_regl(port, S3C2410_UFSTAT);
 	unsigned long ufcon = rd_regl(port, S3C2410_UFCON);
 
@@ -1037,18 +1102,19 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 		goto err_release_tx;
 	}
 
-	dma->rx_addr = dma_map_single(p->port.dev, dma->rx_buf,
-				dma->rx_size, DMA_FROM_DEVICE);
-	if (dma_mapping_error(p->port.dev, dma->rx_addr)) {
+	dma->rx_addr = dma_map_single(dma->rx_chan->device->dev, dma->rx_buf,
+				      dma->rx_size, DMA_FROM_DEVICE);
+	if (dma_mapping_error(dma->rx_chan->device->dev, dma->rx_addr)) {
 		reason = "DMA mapping error for RX buffer";
 		ret = -EIO;
 		goto err_free_rx;
 	}
 
 	/* TX buffer */
-	dma->tx_addr = dma_map_single(p->port.dev, p->port.state->xmit.buf,
-				UART_XMIT_SIZE, DMA_TO_DEVICE);
-	if (dma_mapping_error(p->port.dev, dma->tx_addr)) {
+	dma->tx_addr = dma_map_single(dma->tx_chan->device->dev,
+				      p->port.state->xmit.buf, UART_XMIT_SIZE,
+				      DMA_TO_DEVICE);
+	if (dma_mapping_error(dma->tx_chan->device->dev, dma->tx_addr)) {
 		reason = "DMA mapping error for TX buffer";
 		ret = -EIO;
 		goto err_unmap_rx;
@@ -1057,8 +1123,8 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 	return 0;
 
 err_unmap_rx:
-	dma_unmap_single(p->port.dev, dma->rx_addr, dma->rx_size,
-			 DMA_FROM_DEVICE);
+	dma_unmap_single(dma->rx_chan->device->dev, dma->rx_addr,
+			 dma->rx_size, DMA_FROM_DEVICE);
 err_free_rx:
 	kfree(dma->rx_buf);
 err_release_tx:
@@ -1077,8 +1143,8 @@ static void s3c24xx_serial_release_dma(struct s3c24xx_uart_port *p)
 
 	if (dma->rx_chan) {
 		dmaengine_terminate_all(dma->rx_chan);
-		dma_unmap_single(p->port.dev, dma->rx_addr,
-				dma->rx_size, DMA_FROM_DEVICE);
+		dma_unmap_single(dma->rx_chan->device->dev, dma->rx_addr,
+				 dma->rx_size, DMA_FROM_DEVICE);
 		kfree(dma->rx_buf);
 		dma_release_channel(dma->rx_chan);
 		dma->rx_chan = NULL;
@@ -1086,8 +1152,8 @@ static void s3c24xx_serial_release_dma(struct s3c24xx_uart_port *p)
 
 	if (dma->tx_chan) {
 		dmaengine_terminate_all(dma->tx_chan);
-		dma_unmap_single(p->port.dev, dma->tx_addr,
-				UART_XMIT_SIZE, DMA_TO_DEVICE);
+		dma_unmap_single(dma->tx_chan->device->dev, dma->tx_addr,
+				 UART_XMIT_SIZE, DMA_TO_DEVICE);
 		dma_release_channel(dma->tx_chan);
 		dma->tx_chan = NULL;
 	}
@@ -1098,27 +1164,62 @@ static void s3c24xx_serial_shutdown(struct uart_port *port)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (ourport->tx_claimed) {
-		if (!s3c24xx_serial_has_interrupt_mask(port))
-			free_irq(ourport->tx_irq, ourport);
+		free_irq(ourport->tx_irq, ourport);
 		ourport->tx_enabled = 0;
 		ourport->tx_claimed = 0;
 		ourport->tx_mode = 0;
 	}
 
 	if (ourport->rx_claimed) {
-		if (!s3c24xx_serial_has_interrupt_mask(port))
-			free_irq(ourport->rx_irq, ourport);
+		free_irq(ourport->rx_irq, ourport);
 		ourport->rx_claimed = 0;
 		ourport->rx_enabled = 0;
 	}
 
-	/* Clear pending interrupts and mask all interrupts */
-	if (s3c24xx_serial_has_interrupt_mask(port)) {
-		free_irq(port->irq, ourport);
+	if (ourport->dma)
+		s3c24xx_serial_release_dma(ourport);
 
-		wr_regl(port, S3C64XX_UINTP, 0xf);
-		wr_regl(port, S3C64XX_UINTM, 0xf);
-	}
+	ourport->tx_in_progress = 0;
+}
+
+static void s3c64xx_serial_shutdown(struct uart_port *port)
+{
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
+	ourport->tx_enabled = 0;
+	ourport->tx_mode = 0;
+	ourport->rx_enabled = 0;
+
+	free_irq(port->irq, ourport);
+
+	wr_regl(port, S3C64XX_UINTP, 0xf);
+	wr_regl(port, S3C64XX_UINTM, 0xf);
+
+	if (ourport->dma)
+		s3c24xx_serial_release_dma(ourport);
+
+	ourport->tx_in_progress = 0;
+}
+
+static void apple_s5l_serial_shutdown(struct uart_port *port)
+{
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
+	unsigned int ucon;
+
+	ucon = rd_regl(port, S3C2410_UCON);
+	ucon &= ~(APPLE_S5L_UCON_TXTHRESH_ENA_MSK |
+		  APPLE_S5L_UCON_RXTHRESH_ENA_MSK |
+		  APPLE_S5L_UCON_RXTO_ENA_MSK);
+	wr_regl(port, S3C2410_UCON, ucon);
+
+	wr_regl(port, S3C2410_UTRSTAT, APPLE_S5L_UTRSTAT_ALL_FLAGS);
+
+	free_irq(port->irq, ourport);
+
+	ourport->tx_enabled = 0;
+	ourport->tx_mode = 0;
+	ourport->rx_enabled = 0;
 
 	if (ourport->dma)
 		s3c24xx_serial_release_dma(ourport);
@@ -1133,7 +1234,7 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 
 	ourport->rx_enabled = 1;
 
-	ret = request_irq(ourport->rx_irq, s3c24xx_serial_rx_chars, 0,
+	ret = request_irq(ourport->rx_irq, s3c24xx_serial_rx_irq, 0,
 			  s3c24xx_serial_portname(port), ourport);
 
 	if (ret != 0) {
@@ -1147,7 +1248,7 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 
 	ourport->tx_enabled = 1;
 
-	ret = request_irq(ourport->tx_irq, s3c24xx_serial_tx_chars, 0,
+	ret = request_irq(ourport->tx_irq, s3c24xx_serial_tx_irq, 0,
 			  s3c24xx_serial_portname(port), ourport);
 
 	if (ret) {
@@ -1193,9 +1294,7 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 
 	/* For compatibility with s3c24xx Soc's */
 	ourport->rx_enabled = 1;
-	ourport->rx_claimed = 1;
 	ourport->tx_enabled = 0;
-	ourport->tx_claimed = 1;
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -1211,6 +1310,45 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 
 	/* Enable Rx Interrupt */
 	s3c24xx_clear_bit(port, S3C64XX_UINTM_RXD, S3C64XX_UINTM);
+
+	return ret;
+}
+
+static int apple_s5l_serial_startup(struct uart_port *port)
+{
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+	unsigned long flags;
+	unsigned int ufcon;
+	int ret;
+
+	wr_regl(port, S3C2410_UTRSTAT, APPLE_S5L_UTRSTAT_ALL_FLAGS);
+
+	ret = request_irq(port->irq, apple_serial_handle_irq, 0,
+			  s3c24xx_serial_portname(port), ourport);
+	if (ret) {
+		dev_err(port->dev, "cannot get irq %d\n", port->irq);
+		return ret;
+	}
+
+	/* For compatibility with s3c24xx Soc's */
+	ourport->rx_enabled = 1;
+	ourport->tx_enabled = 0;
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	ufcon = rd_regl(port, S3C2410_UFCON);
+	ufcon |= S3C2410_UFCON_RESETRX | S5PV210_UFCON_RXTRIG8;
+	if (!uart_console(port))
+		ufcon |= S3C2410_UFCON_RESETTX;
+	wr_regl(port, S3C2410_UFCON, ufcon);
+
+	enable_rx_pio(ourport);
+
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	/* Enable Rx Interrupt */
+	s3c24xx_set_bit(port, APPLE_S5L_UCON_RXTHRESH_ENA, S3C2410_UCON);
+	s3c24xx_set_bit(port, APPLE_S5L_UCON_RXTO_ENA, S3C2410_UCON);
 
 	return ret;
 }
@@ -1241,7 +1379,6 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 
 		if (!IS_ERR(ourport->baudclk))
 			clk_prepare_enable(ourport->baudclk);
-
 		break;
 	default:
 		dev_err(port->dev, "s3c24xx_serial: unknown pm %d\n", level);
@@ -1265,7 +1402,7 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 
 static inline int s3c24xx_serial_getsource(struct uart_port *port)
 {
-	struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
+	const struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
 	unsigned int ucon;
 
 	if (info->num_clks == 1)
@@ -1279,7 +1416,7 @@ static inline int s3c24xx_serial_getsource(struct uart_port *port)
 static void s3c24xx_serial_setsource(struct uart_port *port,
 			unsigned int clk_sel)
 {
-	struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
+	const struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
 	unsigned int ucon;
 
 	if (info->num_clks == 1)
@@ -1298,7 +1435,7 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 			unsigned int req_baud, struct clk **best_clk,
 			unsigned int *clk_num)
 {
-	struct s3c24xx_uart_info *info = ourport->info;
+	const struct s3c24xx_uart_info *info = ourport->info;
 	struct clk *clk;
 	unsigned long rate;
 	unsigned int cnt, baud, quot, best_quot = 0;
@@ -1359,7 +1496,7 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
  * This table takes the fractional value of the baud divisor and gives
  * the recommended setting for the UDIVSLOT register.
  */
-static u16 udivslot_table[16] = {
+static const u16 udivslot_table[16] = {
 	[0] = 0x0000,
 	[1] = 0x0080,
 	[2] = 0x0808,
@@ -1382,7 +1519,7 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 				       struct ktermios *termios,
 				       struct ktermios *old)
 {
-	struct s3c2410_uartcfg *cfg = s3c24xx_port_to_cfg(port);
+	const struct s3c2410_uartcfg *cfg = s3c24xx_port_to_cfg(port);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 	struct clk *clk = ERR_PTR(-EINVAL);
 	unsigned long flags;
@@ -1535,41 +1672,26 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 
 static const char *s3c24xx_serial_type(struct uart_port *port)
 {
-	switch (port->type) {
-	case PORT_S3C2410:
-		return "S3C2410";
-	case PORT_S3C2440:
-		return "S3C2440";
-	case PORT_S3C2412:
-		return "S3C2412";
-	case PORT_S3C6400:
+	const struct s3c24xx_uart_port *ourport = to_ourport(port);
+
+	switch (ourport->info->type) {
+	case TYPE_S3C24XX:
+		return "S3C24XX";
+	case TYPE_S3C6400:
 		return "S3C6400/10";
+	case TYPE_APPLE_S5L:
+		return "APPLE S5L";
 	default:
 		return NULL;
 	}
 }
 
-#define MAP_SIZE (0x100)
-
-static void s3c24xx_serial_release_port(struct uart_port *port)
-{
-	release_mem_region(port->mapbase, MAP_SIZE);
-}
-
-static int s3c24xx_serial_request_port(struct uart_port *port)
-{
-	const char *name = s3c24xx_serial_portname(port);
-
-	return request_mem_region(port->mapbase, MAP_SIZE, name) ? 0 : -EBUSY;
-}
-
 static void s3c24xx_serial_config_port(struct uart_port *port, int flags)
 {
-	struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
+	const struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
 
-	if (flags & UART_CONFIG_TYPE &&
-	    s3c24xx_serial_request_port(port) == 0)
-		port->type = info->type;
+	if (flags & UART_CONFIG_TYPE)
+		port->type = info->port_type;
 }
 
 /*
@@ -1578,9 +1700,9 @@ static void s3c24xx_serial_config_port(struct uart_port *port, int flags)
 static int
 s3c24xx_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
+	const struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
 
-	if (ser->type != PORT_UNKNOWN && ser->type != info->type)
+	if (ser->type != PORT_UNKNOWN && ser->type != info->port_type)
 		return -EINVAL;
 
 	return 0;
@@ -1590,15 +1712,21 @@ s3c24xx_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
 
 static struct console s3c24xx_serial_console;
 
-static int __init s3c24xx_serial_console_init(void)
+static void __init s3c24xx_serial_register_console(void)
 {
 	register_console(&s3c24xx_serial_console);
-	return 0;
 }
-console_initcall(s3c24xx_serial_console_init);
+
+static void s3c24xx_serial_unregister_console(void)
+{
+	if (s3c24xx_serial_console.flags & CON_ENABLED)
+		unregister_console(&s3c24xx_serial_console);
+}
 
 #define S3C24XX_SERIAL_CONSOLE &s3c24xx_serial_console
 #else
+static inline void s3c24xx_serial_register_console(void) { }
+static inline void s3c24xx_serial_unregister_console(void) { }
 #define S3C24XX_SERIAL_CONSOLE NULL
 #endif
 
@@ -1608,7 +1736,7 @@ static void s3c24xx_serial_put_poll_char(struct uart_port *port,
 			 unsigned char c);
 #endif
 
-static struct uart_ops s3c24xx_serial_ops = {
+static const struct uart_ops s3c24xx_serial_ops = {
 	.pm		= s3c24xx_serial_pm,
 	.tx_empty	= s3c24xx_serial_tx_empty,
 	.get_mctrl	= s3c24xx_serial_get_mctrl,
@@ -1621,8 +1749,48 @@ static struct uart_ops s3c24xx_serial_ops = {
 	.shutdown	= s3c24xx_serial_shutdown,
 	.set_termios	= s3c24xx_serial_set_termios,
 	.type		= s3c24xx_serial_type,
-	.release_port	= s3c24xx_serial_release_port,
-	.request_port	= s3c24xx_serial_request_port,
+	.config_port	= s3c24xx_serial_config_port,
+	.verify_port	= s3c24xx_serial_verify_port,
+#if defined(CONFIG_SERIAL_SAMSUNG_CONSOLE) && defined(CONFIG_CONSOLE_POLL)
+	.poll_get_char = s3c24xx_serial_get_poll_char,
+	.poll_put_char = s3c24xx_serial_put_poll_char,
+#endif
+};
+
+static const struct uart_ops s3c64xx_serial_ops = {
+	.pm		= s3c24xx_serial_pm,
+	.tx_empty	= s3c24xx_serial_tx_empty,
+	.get_mctrl	= s3c24xx_serial_get_mctrl,
+	.set_mctrl	= s3c24xx_serial_set_mctrl,
+	.stop_tx	= s3c24xx_serial_stop_tx,
+	.start_tx	= s3c24xx_serial_start_tx,
+	.stop_rx	= s3c24xx_serial_stop_rx,
+	.break_ctl	= s3c24xx_serial_break_ctl,
+	.startup	= s3c64xx_serial_startup,
+	.shutdown	= s3c64xx_serial_shutdown,
+	.set_termios	= s3c24xx_serial_set_termios,
+	.type		= s3c24xx_serial_type,
+	.config_port	= s3c24xx_serial_config_port,
+	.verify_port	= s3c24xx_serial_verify_port,
+#if defined(CONFIG_SERIAL_SAMSUNG_CONSOLE) && defined(CONFIG_CONSOLE_POLL)
+	.poll_get_char = s3c24xx_serial_get_poll_char,
+	.poll_put_char = s3c24xx_serial_put_poll_char,
+#endif
+};
+
+static const struct uart_ops apple_s5l_serial_ops = {
+	.pm		= s3c24xx_serial_pm,
+	.tx_empty	= s3c24xx_serial_tx_empty,
+	.get_mctrl	= s3c24xx_serial_get_mctrl,
+	.set_mctrl	= s3c24xx_serial_set_mctrl,
+	.stop_tx	= s3c24xx_serial_stop_tx,
+	.start_tx	= s3c24xx_serial_start_tx,
+	.stop_rx	= s3c24xx_serial_stop_rx,
+	.break_ctl	= s3c24xx_serial_break_ctl,
+	.startup	= apple_s5l_serial_startup,
+	.shutdown	= apple_s5l_serial_shutdown,
+	.set_termios	= s3c24xx_serial_set_termios,
+	.type		= s3c24xx_serial_type,
 	.config_port	= s3c24xx_serial_config_port,
 	.verify_port	= s3c24xx_serial_verify_port,
 #if defined(CONFIG_SERIAL_SAMSUNG_CONSOLE) && defined(CONFIG_CONSOLE_POLL)
@@ -1702,18 +1870,13 @@ s3c24xx_serial_ports[CONFIG_SERIAL_SAMSUNG_UARTS] = {
  */
 
 static void s3c24xx_serial_resetport(struct uart_port *port,
-				   struct s3c2410_uartcfg *cfg)
+				     const struct s3c2410_uartcfg *cfg)
 {
-	struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
+	const struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
 	unsigned long ucon = rd_regl(port, S3C2410_UCON);
-	unsigned int ucon_mask;
 
-	ucon_mask = info->clksel_mask;
-	if (info->type == PORT_S3C2440)
-		ucon_mask |= S3C2440_UCON0_DIVMASK;
-
-	ucon &= ucon_mask;
-	wr_regl(port, S3C2410_UCON,  ucon | cfg->ucon);
+	ucon &= (info->clksel_mask | info->ucon_mask);
+	wr_regl(port, S3C2410_UCON, ucon | cfg->ucon);
 
 	/* reset both fifos */
 	wr_regl(port, S3C2410_UFCON, cfg->ufcon | S3C2410_UFCON_RESETBOTH);
@@ -1813,7 +1976,7 @@ s3c24xx_serial_cpufreq_deregister(struct s3c24xx_uart_port *port)
 static int s3c24xx_serial_enable_baudclk(struct s3c24xx_uart_port *ourport)
 {
 	struct device *dev = ourport->port.dev;
-	struct s3c24xx_uart_info *info = ourport->info;
+	const struct s3c24xx_uart_info *info = ourport->info;
 	char clk_name[MAX_CLK_NAME_LENGTH];
 	unsigned int clk_sel;
 	struct clk *clk;
@@ -1855,7 +2018,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 				    struct platform_device *platdev)
 {
 	struct uart_port *port = &ourport->port;
-	struct s3c2410_uartcfg *cfg = ourport->cfg;
+	const struct s3c2410_uartcfg *cfg = ourport->cfg;
 	struct resource *res;
 	int ret;
 
@@ -1867,10 +2030,6 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	/* setup info for port */
 	port->dev	= &platdev->dev;
-
-	/* Startup sequence is different for s3c64xx and higher SoC's */
-	if (s3c24xx_serial_has_interrupt_mask(port))
-		s3c24xx_serial_ops.startup = s3c64xx_serial_startup;
 
 	port->uartclk = 1;
 
@@ -1889,8 +2048,8 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	dev_dbg(port->dev, "resource %pR)\n", res);
 
-	port->membase = devm_ioremap(port->dev, res->start, resource_size(res));
-	if (!port->membase) {
+	port->membase = devm_ioremap_resource(port->dev, res);
+	if (IS_ERR(port->membase)) {
 		dev_err(port->dev, "failed to remap controller address\n");
 		return -EBUSY;
 	}
@@ -1905,11 +2064,16 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		ourport->tx_irq = ret + 1;
 	}
 
-	if (!s3c24xx_serial_has_interrupt_mask(port)) {
+	switch (ourport->info->type) {
+	case TYPE_S3C24XX:
 		ret = platform_get_irq(platdev, 1);
 		if (ret > 0)
 			ourport->tx_irq = ret;
+		break;
+	default:
+		break;
 	}
+
 	/*
 	 * DMA is currently supported only on DT platforms, if DMA properties
 	 * are specified.
@@ -1945,10 +2109,26 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		pr_warn("uart: failed to enable baudclk\n");
 
 	/* Keep all interrupts masked and cleared */
-	if (s3c24xx_serial_has_interrupt_mask(port)) {
+	switch (ourport->info->type) {
+	case TYPE_S3C6400:
 		wr_regl(port, S3C64XX_UINTM, 0xf);
 		wr_regl(port, S3C64XX_UINTP, 0xf);
 		wr_regl(port, S3C64XX_UINTSP, 0xf);
+		break;
+	case TYPE_APPLE_S5L: {
+		unsigned int ucon;
+
+		ucon = rd_regl(port, S3C2410_UCON);
+		ucon &= ~(APPLE_S5L_UCON_TXTHRESH_ENA_MSK |
+			APPLE_S5L_UCON_RXTHRESH_ENA_MSK |
+			APPLE_S5L_UCON_RXTO_ENA_MSK);
+		wr_regl(port, S3C2410_UCON, ucon);
+
+		wr_regl(port, S3C2410_UTRSTAT, APPLE_S5L_UTRSTAT_ALL_FLAGS);
+		break;
+	}
+	default:
+		break;
 	}
 
 	dev_dbg(port->dev, "port: map=%pa, mem=%p, irq=%d (%d,%d), clock=%u\n",
@@ -1967,23 +2147,14 @@ err:
 
 /* Device driver serial port probe */
 
-#ifdef CONFIG_OF
-static const struct of_device_id s3c24xx_uart_dt_match[];
-#endif
-
 static int probe_index;
 
-static inline struct s3c24xx_serial_drv_data *
+static inline const struct s3c24xx_serial_drv_data *
 s3c24xx_get_driver_data(struct platform_device *pdev)
 {
-#ifdef CONFIG_OF
-	if (pdev->dev.of_node) {
-		const struct of_device_id *match;
+	if (dev_of_node(&pdev->dev))
+		return of_device_get_match_data(&pdev->dev);
 
-		match = of_match_node(s3c24xx_uart_dt_match, pdev->dev.of_node);
-		return (struct s3c24xx_serial_drv_data *)match->data;
-	}
-#endif
 	return (struct s3c24xx_serial_drv_data *)
 			platform_get_device_id(pdev)->driver_data;
 }
@@ -2014,10 +2185,22 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	}
 
 	ourport->baudclk = ERR_PTR(-EINVAL);
-	ourport->info = ourport->drv_data->info;
+	ourport->info = &ourport->drv_data->info;
 	ourport->cfg = (dev_get_platdata(&pdev->dev)) ?
 			dev_get_platdata(&pdev->dev) :
-			ourport->drv_data->def_cfg;
+			&ourport->drv_data->def_cfg;
+
+	switch (ourport->info->type) {
+	case TYPE_S3C24XX:
+		ourport->port.ops = &s3c24xx_serial_ops;
+		break;
+	case TYPE_S3C6400:
+		ourport->port.ops = &s3c64xx_serial_ops;
+		break;
+	case TYPE_APPLE_S5L:
+		ourport->port.ops = &apple_s5l_serial_ops;
+		break;
+	}
 
 	if (np) {
 		of_property_read_u32(np,
@@ -2034,8 +2217,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 			default:
 				dev_warn(&pdev->dev, "unsupported reg-io-width (%d)\n",
 						prop);
-				ret = -EINVAL;
-				break;
+				return -EINVAL;
 			}
 		}
 	}
@@ -2142,7 +2324,8 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 
 	if (port) {
 		/* restore IRQ mask */
-		if (s3c24xx_serial_has_interrupt_mask(port)) {
+		switch (ourport->info->type) {
+		case TYPE_S3C6400: {
 			unsigned int uintm = 0xf;
 
 			if (ourport->tx_enabled)
@@ -2156,6 +2339,47 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 			if (!IS_ERR(ourport->baudclk))
 				clk_disable_unprepare(ourport->baudclk);
 			clk_disable_unprepare(ourport->clk);
+			break;
+		}
+		case TYPE_APPLE_S5L: {
+			unsigned int ucon;
+			int ret;
+
+			ret = clk_prepare_enable(ourport->clk);
+			if (ret) {
+				dev_err(dev, "clk_enable clk failed: %d\n", ret);
+				return ret;
+			}
+			if (!IS_ERR(ourport->baudclk)) {
+				ret = clk_prepare_enable(ourport->baudclk);
+				if (ret) {
+					dev_err(dev, "clk_enable baudclk failed: %d\n", ret);
+					clk_disable_unprepare(ourport->clk);
+					return ret;
+				}
+			}
+
+			ucon = rd_regl(port, S3C2410_UCON);
+
+			ucon &= ~(APPLE_S5L_UCON_TXTHRESH_ENA_MSK |
+				  APPLE_S5L_UCON_RXTHRESH_ENA_MSK |
+				  APPLE_S5L_UCON_RXTO_ENA_MSK);
+
+			if (ourport->tx_enabled)
+				ucon |= APPLE_S5L_UCON_TXTHRESH_ENA_MSK;
+			if (ourport->rx_enabled)
+				ucon |= APPLE_S5L_UCON_RXTHRESH_ENA_MSK |
+					APPLE_S5L_UCON_RXTO_ENA_MSK;
+
+			wr_regl(port, S3C2410_UCON, ucon);
+
+			if (!IS_ERR(ourport->baudclk))
+				clk_disable_unprepare(ourport->baudclk);
+			clk_disable_unprepare(ourport->clk);
+			break;
+		}
+		default:
+			break;
 		}
 	}
 
@@ -2183,7 +2407,7 @@ static struct uart_port *cons_uart;
 static int
 s3c24xx_serial_console_txrdy(struct uart_port *port, unsigned int ufcon)
 {
-	struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
+	const struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
 	unsigned long ufstat, utrstat;
 
 	if (ufcon & S3C2410_UFCON_FIFOMODE) {
@@ -2214,7 +2438,7 @@ s3c24xx_port_configured(unsigned int ucon)
 
 static int s3c24xx_serial_get_poll_char(struct uart_port *port)
 {
-	struct s3c24xx_uart_port *ourport = to_ourport(port);
+	const struct s3c24xx_uart_port *ourport = to_ourport(port);
 	unsigned int ufstat;
 
 	ufstat = rd_regl(port, S3C2410_UFSTAT);
@@ -2242,7 +2466,7 @@ static void s3c24xx_serial_put_poll_char(struct uart_port *port,
 #endif /* CONFIG_CONSOLE_POLL */
 
 static void
-s3c24xx_serial_console_putchar(struct uart_port *port, int ch)
+s3c24xx_serial_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	unsigned int ufcon = rd_regl(port, S3C2410_UFCON);
 
@@ -2264,7 +2488,8 @@ s3c24xx_serial_console_write(struct console *co, const char *s,
 	uart_console_write(cons_uart, s, count, s3c24xx_serial_console_putchar);
 }
 
-static void __init
+/* Shouldn't be __init, as it can be instantiated from other module */
+static void
 s3c24xx_serial_get_options(struct uart_port *port, int *baud,
 			   int *parity, int *bits)
 {
@@ -2327,7 +2552,8 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
 	}
 }
 
-static int __init
+/* Shouldn't be __init, as it can be instantiated from other module */
+static int
 s3c24xx_serial_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
@@ -2377,10 +2603,11 @@ static struct console s3c24xx_serial_console = {
 #endif /* CONFIG_SERIAL_SAMSUNG_CONSOLE */
 
 #ifdef CONFIG_CPU_S3C2410
-static struct s3c24xx_serial_drv_data s3c2410_serial_drv_data = {
-	.info = &(struct s3c24xx_uart_info) {
+static const struct s3c24xx_serial_drv_data s3c2410_serial_drv_data = {
+	.info = {
 		.name		= "Samsung S3C2410 UART",
-		.type		= PORT_S3C2410,
+		.type		= TYPE_S3C24XX,
+		.port_type	= PORT_S3C2410,
 		.fifosize	= 16,
 		.rx_fifomask	= S3C2410_UFSTAT_RXMASK,
 		.rx_fifoshift	= S3C2410_UFSTAT_RXSHIFT,
@@ -2393,21 +2620,22 @@ static struct s3c24xx_serial_drv_data s3c2410_serial_drv_data = {
 		.clksel_mask	= S3C2410_UCON_CLKMASK,
 		.clksel_shift	= S3C2410_UCON_CLKSHIFT,
 	},
-	.def_cfg = &(struct s3c2410_uartcfg) {
+	.def_cfg = {
 		.ucon		= S3C2410_UCON_DEFAULT,
 		.ufcon		= S3C2410_UFCON_DEFAULT,
 	},
 };
-#define S3C2410_SERIAL_DRV_DATA ((kernel_ulong_t)&s3c2410_serial_drv_data)
+#define S3C2410_SERIAL_DRV_DATA (&s3c2410_serial_drv_data)
 #else
-#define S3C2410_SERIAL_DRV_DATA (kernel_ulong_t)NULL
+#define S3C2410_SERIAL_DRV_DATA NULL
 #endif
 
 #ifdef CONFIG_CPU_S3C2412
-static struct s3c24xx_serial_drv_data s3c2412_serial_drv_data = {
-	.info = &(struct s3c24xx_uart_info) {
+static const struct s3c24xx_serial_drv_data s3c2412_serial_drv_data = {
+	.info = {
 		.name		= "Samsung S3C2412 UART",
-		.type		= PORT_S3C2412,
+		.type		= TYPE_S3C24XX,
+		.port_type	= PORT_S3C2412,
 		.fifosize	= 64,
 		.has_divslot	= 1,
 		.rx_fifomask	= S3C2440_UFSTAT_RXMASK,
@@ -2421,22 +2649,23 @@ static struct s3c24xx_serial_drv_data s3c2412_serial_drv_data = {
 		.clksel_mask	= S3C2412_UCON_CLKMASK,
 		.clksel_shift	= S3C2412_UCON_CLKSHIFT,
 	},
-	.def_cfg = &(struct s3c2410_uartcfg) {
+	.def_cfg = {
 		.ucon		= S3C2410_UCON_DEFAULT,
 		.ufcon		= S3C2410_UFCON_DEFAULT,
 	},
 };
-#define S3C2412_SERIAL_DRV_DATA ((kernel_ulong_t)&s3c2412_serial_drv_data)
+#define S3C2412_SERIAL_DRV_DATA (&s3c2412_serial_drv_data)
 #else
-#define S3C2412_SERIAL_DRV_DATA (kernel_ulong_t)NULL
+#define S3C2412_SERIAL_DRV_DATA NULL
 #endif
 
 #if defined(CONFIG_CPU_S3C2440) || defined(CONFIG_CPU_S3C2416) || \
 	defined(CONFIG_CPU_S3C2443) || defined(CONFIG_CPU_S3C2442)
-static struct s3c24xx_serial_drv_data s3c2440_serial_drv_data = {
-	.info = &(struct s3c24xx_uart_info) {
+static const struct s3c24xx_serial_drv_data s3c2440_serial_drv_data = {
+	.info = {
 		.name		= "Samsung S3C2440 UART",
-		.type		= PORT_S3C2440,
+		.type		= TYPE_S3C24XX,
+		.port_type	= PORT_S3C2440,
 		.fifosize	= 64,
 		.has_divslot	= 1,
 		.rx_fifomask	= S3C2440_UFSTAT_RXMASK,
@@ -2449,22 +2678,24 @@ static struct s3c24xx_serial_drv_data s3c2440_serial_drv_data = {
 		.num_clks	= 4,
 		.clksel_mask	= S3C2412_UCON_CLKMASK,
 		.clksel_shift	= S3C2412_UCON_CLKSHIFT,
+		.ucon_mask	= S3C2440_UCON0_DIVMASK,
 	},
-	.def_cfg = &(struct s3c2410_uartcfg) {
+	.def_cfg = {
 		.ucon		= S3C2410_UCON_DEFAULT,
 		.ufcon		= S3C2410_UFCON_DEFAULT,
 	},
 };
-#define S3C2440_SERIAL_DRV_DATA ((kernel_ulong_t)&s3c2440_serial_drv_data)
+#define S3C2440_SERIAL_DRV_DATA (&s3c2440_serial_drv_data)
 #else
-#define S3C2440_SERIAL_DRV_DATA (kernel_ulong_t)NULL
+#define S3C2440_SERIAL_DRV_DATA NULL
 #endif
 
 #if defined(CONFIG_CPU_S3C6400) || defined(CONFIG_CPU_S3C6410)
-static struct s3c24xx_serial_drv_data s3c6400_serial_drv_data = {
-	.info = &(struct s3c24xx_uart_info) {
+static const struct s3c24xx_serial_drv_data s3c6400_serial_drv_data = {
+	.info = {
 		.name		= "Samsung S3C6400 UART",
-		.type		= PORT_S3C6400,
+		.type		= TYPE_S3C6400,
+		.port_type	= PORT_S3C6400,
 		.fifosize	= 64,
 		.has_divslot	= 1,
 		.rx_fifomask	= S3C2440_UFSTAT_RXMASK,
@@ -2478,21 +2709,22 @@ static struct s3c24xx_serial_drv_data s3c6400_serial_drv_data = {
 		.clksel_mask	= S3C6400_UCON_CLKMASK,
 		.clksel_shift	= S3C6400_UCON_CLKSHIFT,
 	},
-	.def_cfg = &(struct s3c2410_uartcfg) {
+	.def_cfg = {
 		.ucon		= S3C2410_UCON_DEFAULT,
 		.ufcon		= S3C2410_UFCON_DEFAULT,
 	},
 };
-#define S3C6400_SERIAL_DRV_DATA ((kernel_ulong_t)&s3c6400_serial_drv_data)
+#define S3C6400_SERIAL_DRV_DATA (&s3c6400_serial_drv_data)
 #else
-#define S3C6400_SERIAL_DRV_DATA (kernel_ulong_t)NULL
+#define S3C6400_SERIAL_DRV_DATA NULL
 #endif
 
 #ifdef CONFIG_CPU_S5PV210
-static struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
-	.info = &(struct s3c24xx_uart_info) {
+static const struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
+	.info = {
 		.name		= "Samsung S5PV210 UART",
-		.type		= PORT_S3C6400,
+		.type		= TYPE_S3C6400,
+		.port_type	= PORT_S3C6400,
 		.has_divslot	= 1,
 		.rx_fifomask	= S5PV210_UFSTAT_RXMASK,
 		.rx_fifoshift	= S5PV210_UFSTAT_RXSHIFT,
@@ -2505,22 +2737,23 @@ static struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
 		.clksel_mask	= S5PV210_UCON_CLKMASK,
 		.clksel_shift	= S5PV210_UCON_CLKSHIFT,
 	},
-	.def_cfg = &(struct s3c2410_uartcfg) {
+	.def_cfg = {
 		.ucon		= S5PV210_UCON_DEFAULT,
 		.ufcon		= S5PV210_UFCON_DEFAULT,
 	},
 	.fifosize = { 256, 64, 16, 16 },
 };
-#define S5PV210_SERIAL_DRV_DATA ((kernel_ulong_t)&s5pv210_serial_drv_data)
+#define S5PV210_SERIAL_DRV_DATA (&s5pv210_serial_drv_data)
 #else
-#define S5PV210_SERIAL_DRV_DATA	(kernel_ulong_t)NULL
+#define S5PV210_SERIAL_DRV_DATA	NULL
 #endif
 
 #if defined(CONFIG_ARCH_EXYNOS)
-#define EXYNOS_COMMON_SERIAL_DRV_DATA				\
-	.info = &(struct s3c24xx_uart_info) {			\
+#define EXYNOS_COMMON_SERIAL_DRV_DATA()				\
+	.info = {						\
 		.name		= "Samsung Exynos UART",	\
-		.type		= PORT_S3C6400,			\
+		.type		= TYPE_S3C6400,			\
+		.port_type	= PORT_S3C6400,			\
 		.has_divslot	= 1,				\
 		.rx_fifomask	= S5PV210_UFSTAT_RXMASK,	\
 		.rx_fifoshift	= S5PV210_UFSTAT_RXSHIFT,	\
@@ -2533,51 +2766,126 @@ static struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
 		.clksel_mask	= 0,				\
 		.clksel_shift	= 0,				\
 	},							\
-	.def_cfg = &(struct s3c2410_uartcfg) {			\
+	.def_cfg = {						\
 		.ucon		= S5PV210_UCON_DEFAULT,		\
 		.ufcon		= S5PV210_UFCON_DEFAULT,	\
 		.has_fracval	= 1,				\
 	}							\
 
-static struct s3c24xx_serial_drv_data exynos4210_serial_drv_data = {
-	EXYNOS_COMMON_SERIAL_DRV_DATA,
+static const struct s3c24xx_serial_drv_data exynos4210_serial_drv_data = {
+	EXYNOS_COMMON_SERIAL_DRV_DATA(),
 	.fifosize = { 256, 64, 16, 16 },
 };
 
-static struct s3c24xx_serial_drv_data exynos5433_serial_drv_data = {
-	EXYNOS_COMMON_SERIAL_DRV_DATA,
+static const struct s3c24xx_serial_drv_data exynos5433_serial_drv_data = {
+	EXYNOS_COMMON_SERIAL_DRV_DATA(),
 	.fifosize = { 64, 256, 16, 256 },
 };
 
-#define EXYNOS4210_SERIAL_DRV_DATA ((kernel_ulong_t)&exynos4210_serial_drv_data)
-#define EXYNOS5433_SERIAL_DRV_DATA ((kernel_ulong_t)&exynos5433_serial_drv_data)
+static const struct s3c24xx_serial_drv_data exynos850_serial_drv_data = {
+	EXYNOS_COMMON_SERIAL_DRV_DATA(),
+	.fifosize = { 256, 64, 64, 64 },
+};
+
+#define EXYNOS4210_SERIAL_DRV_DATA (&exynos4210_serial_drv_data)
+#define EXYNOS5433_SERIAL_DRV_DATA (&exynos5433_serial_drv_data)
+#define EXYNOS850_SERIAL_DRV_DATA (&exynos850_serial_drv_data)
+
 #else
-#define EXYNOS4210_SERIAL_DRV_DATA (kernel_ulong_t)NULL
-#define EXYNOS5433_SERIAL_DRV_DATA (kernel_ulong_t)NULL
+#define EXYNOS4210_SERIAL_DRV_DATA NULL
+#define EXYNOS5433_SERIAL_DRV_DATA NULL
+#define EXYNOS850_SERIAL_DRV_DATA NULL
+#endif
+
+#ifdef CONFIG_ARCH_APPLE
+static const struct s3c24xx_serial_drv_data s5l_serial_drv_data = {
+	.info = {
+		.name		= "Apple S5L UART",
+		.type		= TYPE_APPLE_S5L,
+		.port_type	= PORT_8250,
+		.fifosize	= 16,
+		.rx_fifomask	= S3C2410_UFSTAT_RXMASK,
+		.rx_fifoshift	= S3C2410_UFSTAT_RXSHIFT,
+		.rx_fifofull	= S3C2410_UFSTAT_RXFULL,
+		.tx_fifofull	= S3C2410_UFSTAT_TXFULL,
+		.tx_fifomask	= S3C2410_UFSTAT_TXMASK,
+		.tx_fifoshift	= S3C2410_UFSTAT_TXSHIFT,
+		.def_clk_sel	= S3C2410_UCON_CLKSEL0,
+		.num_clks	= 1,
+		.clksel_mask	= 0,
+		.clksel_shift	= 0,
+	},
+	.def_cfg = {
+		.ucon		= APPLE_S5L_UCON_DEFAULT,
+		.ufcon		= S3C2410_UFCON_DEFAULT,
+	},
+};
+#define S5L_SERIAL_DRV_DATA (&s5l_serial_drv_data)
+#else
+#define S5L_SERIAL_DRV_DATA NULL
+#endif
+
+#if defined(CONFIG_ARCH_ARTPEC)
+static const struct s3c24xx_serial_drv_data artpec8_serial_drv_data = {
+	.info = {
+		.name		= "Axis ARTPEC-8 UART",
+		.type		= TYPE_S3C6400,
+		.port_type	= PORT_S3C6400,
+		.fifosize	= 64,
+		.has_divslot	= 1,
+		.rx_fifomask	= S5PV210_UFSTAT_RXMASK,
+		.rx_fifoshift	= S5PV210_UFSTAT_RXSHIFT,
+		.rx_fifofull	= S5PV210_UFSTAT_RXFULL,
+		.tx_fifofull	= S5PV210_UFSTAT_TXFULL,
+		.tx_fifomask	= S5PV210_UFSTAT_TXMASK,
+		.tx_fifoshift	= S5PV210_UFSTAT_TXSHIFT,
+		.def_clk_sel	= S3C2410_UCON_CLKSEL0,
+		.num_clks	= 1,
+		.clksel_mask	= 0,
+		.clksel_shift	= 0,
+	},
+	.def_cfg = {
+		.ucon		= S5PV210_UCON_DEFAULT,
+		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.has_fracval	= 1,
+	}
+};
+#define ARTPEC8_SERIAL_DRV_DATA (&artpec8_serial_drv_data)
+#else
+#define ARTPEC8_SERIAL_DRV_DATA (NULL)
 #endif
 
 static const struct platform_device_id s3c24xx_serial_driver_ids[] = {
 	{
 		.name		= "s3c2410-uart",
-		.driver_data	= S3C2410_SERIAL_DRV_DATA,
+		.driver_data	= (kernel_ulong_t)S3C2410_SERIAL_DRV_DATA,
 	}, {
 		.name		= "s3c2412-uart",
-		.driver_data	= S3C2412_SERIAL_DRV_DATA,
+		.driver_data	= (kernel_ulong_t)S3C2412_SERIAL_DRV_DATA,
 	}, {
 		.name		= "s3c2440-uart",
-		.driver_data	= S3C2440_SERIAL_DRV_DATA,
+		.driver_data	= (kernel_ulong_t)S3C2440_SERIAL_DRV_DATA,
 	}, {
 		.name		= "s3c6400-uart",
-		.driver_data	= S3C6400_SERIAL_DRV_DATA,
+		.driver_data	= (kernel_ulong_t)S3C6400_SERIAL_DRV_DATA,
 	}, {
 		.name		= "s5pv210-uart",
-		.driver_data	= S5PV210_SERIAL_DRV_DATA,
+		.driver_data	= (kernel_ulong_t)S5PV210_SERIAL_DRV_DATA,
 	}, {
 		.name		= "exynos4210-uart",
-		.driver_data	= EXYNOS4210_SERIAL_DRV_DATA,
+		.driver_data	= (kernel_ulong_t)EXYNOS4210_SERIAL_DRV_DATA,
 	}, {
 		.name		= "exynos5433-uart",
-		.driver_data	= EXYNOS5433_SERIAL_DRV_DATA,
+		.driver_data	= (kernel_ulong_t)EXYNOS5433_SERIAL_DRV_DATA,
+	}, {
+		.name		= "s5l-uart",
+		.driver_data	= (kernel_ulong_t)S5L_SERIAL_DRV_DATA,
+	}, {
+		.name		= "exynos850-uart",
+		.driver_data	= (kernel_ulong_t)EXYNOS850_SERIAL_DRV_DATA,
+	}, {
+		.name		= "artpec8-uart",
+		.driver_data	= (kernel_ulong_t)ARTPEC8_SERIAL_DRV_DATA,
 	},
 	{ },
 };
@@ -2586,19 +2894,25 @@ MODULE_DEVICE_TABLE(platform, s3c24xx_serial_driver_ids);
 #ifdef CONFIG_OF
 static const struct of_device_id s3c24xx_uart_dt_match[] = {
 	{ .compatible = "samsung,s3c2410-uart",
-		.data = (void *)S3C2410_SERIAL_DRV_DATA },
+		.data = S3C2410_SERIAL_DRV_DATA },
 	{ .compatible = "samsung,s3c2412-uart",
-		.data = (void *)S3C2412_SERIAL_DRV_DATA },
+		.data = S3C2412_SERIAL_DRV_DATA },
 	{ .compatible = "samsung,s3c2440-uart",
-		.data = (void *)S3C2440_SERIAL_DRV_DATA },
+		.data = S3C2440_SERIAL_DRV_DATA },
 	{ .compatible = "samsung,s3c6400-uart",
-		.data = (void *)S3C6400_SERIAL_DRV_DATA },
+		.data = S3C6400_SERIAL_DRV_DATA },
 	{ .compatible = "samsung,s5pv210-uart",
-		.data = (void *)S5PV210_SERIAL_DRV_DATA },
+		.data = S5PV210_SERIAL_DRV_DATA },
 	{ .compatible = "samsung,exynos4210-uart",
-		.data = (void *)EXYNOS4210_SERIAL_DRV_DATA },
+		.data = EXYNOS4210_SERIAL_DRV_DATA },
 	{ .compatible = "samsung,exynos5433-uart",
-		.data = (void *)EXYNOS5433_SERIAL_DRV_DATA },
+		.data = EXYNOS5433_SERIAL_DRV_DATA },
+	{ .compatible = "apple,s5l-uart",
+		.data = S5L_SERIAL_DRV_DATA },
+	{ .compatible = "samsung,exynos850-uart",
+		.data = EXYNOS850_SERIAL_DRV_DATA },
+	{ .compatible = "axis,artpec8-uart",
+		.data = ARTPEC8_SERIAL_DRV_DATA },
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c24xx_uart_dt_match);
@@ -2615,14 +2929,36 @@ static struct platform_driver samsung_serial_driver = {
 	},
 };
 
-module_platform_driver(samsung_serial_driver);
+static int __init samsung_serial_init(void)
+{
+	int ret;
+
+	s3c24xx_serial_register_console();
+
+	ret = platform_driver_register(&samsung_serial_driver);
+	if (ret) {
+		s3c24xx_serial_unregister_console();
+		return ret;
+	}
+
+	return 0;
+}
+
+static void __exit samsung_serial_exit(void)
+{
+	platform_driver_unregister(&samsung_serial_driver);
+	s3c24xx_serial_unregister_console();
+}
+
+module_init(samsung_serial_init);
+module_exit(samsung_serial_exit);
 
 #ifdef CONFIG_SERIAL_SAMSUNG_CONSOLE
 /*
  * Early console.
  */
 
-static void wr_reg_barrier(struct uart_port *port, u32 reg, u32 val)
+static void wr_reg_barrier(const struct uart_port *port, u32 reg, u32 val)
 {
 	switch (port->iotype) {
 	case UPIO_MEM:
@@ -2636,23 +2972,24 @@ static void wr_reg_barrier(struct uart_port *port, u32 reg, u32 val)
 
 struct samsung_early_console_data {
 	u32 txfull_mask;
+	u32 rxfifo_mask;
 };
 
-static void samsung_early_busyuart(struct uart_port *port)
+static void samsung_early_busyuart(const struct uart_port *port)
 {
 	while (!(readl(port->membase + S3C2410_UTRSTAT) & S3C2410_UTRSTAT_TXFE))
 		;
 }
 
-static void samsung_early_busyuart_fifo(struct uart_port *port)
+static void samsung_early_busyuart_fifo(const struct uart_port *port)
 {
-	struct samsung_early_console_data *data = port->private_data;
+	const struct samsung_early_console_data *data = port->private_data;
 
 	while (readl(port->membase + S3C2410_UFSTAT) & data->txfull_mask)
 		;
 }
 
-static void samsung_early_putc(struct uart_port *port, int c)
+static void samsung_early_putc(struct uart_port *port, unsigned char c)
 {
 	if (readl(port->membase + S3C2410_UFCON) & S3C2410_UFCON_FIFOMODE)
 		samsung_early_busyuart_fifo(port);
@@ -2670,6 +3007,26 @@ static void samsung_early_write(struct console *con, const char *s,
 	uart_console_write(&dev->port, s, n, samsung_early_putc);
 }
 
+static int samsung_early_read(struct console *con, char *s, unsigned int n)
+{
+	struct earlycon_device *dev = con->data;
+	const struct samsung_early_console_data *data = dev->port.private_data;
+	int ch, ufstat, num_read = 0;
+
+	while (num_read < n) {
+		ufstat = rd_regl(&dev->port, S3C2410_UFSTAT);
+		if (!(ufstat & data->rxfifo_mask))
+			break;
+		ch = rd_reg(&dev->port, S3C2410_URXH);
+		if (ch == NO_POLL_CHAR)
+			break;
+
+		s[num_read++] = ch;
+	}
+
+	return num_read;
+}
+
 static int __init samsung_early_console_setup(struct earlycon_device *device,
 					      const char *opt)
 {
@@ -2677,12 +3034,14 @@ static int __init samsung_early_console_setup(struct earlycon_device *device,
 		return -ENODEV;
 
 	device->con->write = samsung_early_write;
+	device->con->read = samsung_early_read;
 	return 0;
 }
 
 /* S3C2410 */
 static struct samsung_early_console_data s3c2410_early_console_data = {
 	.txfull_mask = S3C2410_UFSTAT_TXFULL,
+	.rxfifo_mask = S3C2410_UFSTAT_RXFULL | S3C2410_UFSTAT_RXMASK,
 };
 
 static int __init s3c2410_early_console_setup(struct earlycon_device *device,
@@ -2698,6 +3057,7 @@ OF_EARLYCON_DECLARE(s3c2410, "samsung,s3c2410-uart",
 /* S3C2412, S3C2440, S3C64xx */
 static struct samsung_early_console_data s3c2440_early_console_data = {
 	.txfull_mask = S3C2440_UFSTAT_TXFULL,
+	.rxfifo_mask = S3C2440_UFSTAT_RXFULL | S3C2440_UFSTAT_RXMASK,
 };
 
 static int __init s3c2440_early_console_setup(struct earlycon_device *device,
@@ -2717,6 +3077,7 @@ OF_EARLYCON_DECLARE(s3c6400, "samsung,s3c6400-uart",
 /* S5PV210, Exynos */
 static struct samsung_early_console_data s5pv210_early_console_data = {
 	.txfull_mask = S5PV210_UFSTAT_TXFULL,
+	.rxfifo_mask = S5PV210_UFSTAT_RXFULL | S5PV210_UFSTAT_RXMASK,
 };
 
 static int __init s5pv210_early_console_setup(struct earlycon_device *device,
@@ -2730,6 +3091,25 @@ OF_EARLYCON_DECLARE(s5pv210, "samsung,s5pv210-uart",
 			s5pv210_early_console_setup);
 OF_EARLYCON_DECLARE(exynos4210, "samsung,exynos4210-uart",
 			s5pv210_early_console_setup);
+OF_EARLYCON_DECLARE(artpec8, "axis,artpec8-uart",
+			s5pv210_early_console_setup);
+
+/* Apple S5L */
+static int __init apple_s5l_early_console_setup(struct earlycon_device *device,
+						const char *opt)
+{
+	/* Close enough to S3C2410 for earlycon... */
+	device->port.private_data = &s3c2410_early_console_data;
+
+#ifdef CONFIG_ARM64
+	/* ... but we need to override the existing fixmap entry as nGnRnE */
+	__set_fixmap(FIX_EARLYCON_MEM_BASE, device->port.mapbase,
+		     __pgprot(PROT_DEVICE_nGnRnE));
+#endif
+	return samsung_early_console_setup(device, opt);
+}
+
+OF_EARLYCON_DECLARE(s5l, "apple,s5l-uart", apple_s5l_early_console_setup);
 #endif
 
 MODULE_ALIAS("platform:samsung-uart");

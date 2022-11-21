@@ -23,7 +23,6 @@
 #define ICE_MAX_DATA_PER_TXD_ALIGNED \
 	(~(ICE_MAX_READ_REQ_SIZE - 1) & ICE_MAX_DATA_PER_TXD)
 
-#define ICE_RX_BUF_WRITE	16	/* Must be power of 2 */
 #define ICE_MAX_TXQ_PER_TXQG	128
 
 /* Attempt to maximize the headroom available for incoming frames. We use a 2K
@@ -111,6 +110,8 @@ static inline int ice_skb_pad(void)
 	(u16)((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
 	      (R)->next_to_clean - (R)->next_to_use - 1)
 
+#define ICE_RING_QUARTER(R) ((R)->count >> 2)
+
 #define ICE_TX_FLAGS_TSO	BIT(0)
 #define ICE_TX_FLAGS_HW_VLAN	BIT(1)
 #define ICE_TX_FLAGS_SW_VLAN	BIT(2)
@@ -118,9 +119,11 @@ static inline int ice_skb_pad(void)
  * freed instead of returned like skb packets.
  */
 #define ICE_TX_FLAGS_DUMMY_PKT	BIT(3)
+#define ICE_TX_FLAGS_TSYN	BIT(4)
 #define ICE_TX_FLAGS_IPV4	BIT(5)
 #define ICE_TX_FLAGS_IPV6	BIT(6)
 #define ICE_TX_FLAGS_TUNNEL	BIT(7)
+#define ICE_TX_FLAGS_HW_OUTER_SINGLE_VLAN	BIT(8)
 #define ICE_TX_FLAGS_VLAN_M	0xffff0000
 #define ICE_TX_FLAGS_VLAN_PR_M	0xe0000000
 #define ICE_TX_FLAGS_VLAN_PR_S	29
@@ -153,7 +156,7 @@ struct ice_tx_buf {
 
 struct ice_tx_offload_params {
 	u64 cd_qw1;
-	struct ice_ring *tx_ring;
+	struct ice_tx_ring *tx_ring;
 	u32 td_cmd;
 	u32 td_offset;
 	u32 td_l2tag1;
@@ -163,18 +166,10 @@ struct ice_tx_offload_params {
 };
 
 struct ice_rx_buf {
-	union {
-		struct {
-			struct sk_buff *skb;
-			dma_addr_t dma;
-			struct page *page;
-			unsigned int page_offset;
-			u16 pagecnt_bias;
-		};
-		struct {
-			struct xdp_buff *xdp;
-		};
-	};
+	dma_addr_t dma;
+	struct page *page;
+	unsigned int page_offset;
+	u16 pagecnt_bias;
 };
 
 struct ice_q_stats {
@@ -193,7 +188,11 @@ struct ice_rxq_stats {
 	u64 non_eop_descs;
 	u64 alloc_page_failed;
 	u64 alloc_buf_failed;
-	u64 gro_dropped; /* GRO returned dropped */
+};
+
+enum ice_ring_state_t {
+	ICE_TX_XPS_INIT_DONE,
+	ICE_TX_NBITS,
 };
 
 /* this enum matches hardware bits and is meant to be used by DYN_CTLN
@@ -220,27 +219,23 @@ enum ice_rx_dtype {
 #define ICE_TX_ITR	ICE_IDX_ITR1
 #define ICE_ITR_8K	124
 #define ICE_ITR_20K	50
-#define ICE_ITR_MAX	8160
-#define ICE_DFLT_TX_ITR	(ICE_ITR_20K | ICE_ITR_DYNAMIC)
-#define ICE_DFLT_RX_ITR	(ICE_ITR_20K | ICE_ITR_DYNAMIC)
-#define ICE_ITR_DYNAMIC	0x8000  /* used as flag for itr_setting */
-#define ITR_IS_DYNAMIC(setting) (!!((setting) & ICE_ITR_DYNAMIC))
-#define ITR_TO_REG(setting)	((setting) & ~ICE_ITR_DYNAMIC)
+#define ICE_ITR_MAX	8160 /* 0x1FE0 */
+#define ICE_DFLT_TX_ITR	ICE_ITR_20K
+#define ICE_DFLT_RX_ITR	ICE_ITR_20K
+enum ice_dynamic_itr {
+	ITR_STATIC = 0,
+	ITR_DYNAMIC = 1
+};
+
+#define ITR_IS_DYNAMIC(rc) ((rc)->itr_mode == ITR_DYNAMIC)
 #define ICE_ITR_GRAN_S		1	/* ITR granularity is always 2us */
 #define ICE_ITR_GRAN_US		BIT(ICE_ITR_GRAN_S)
 #define ICE_ITR_MASK		0x1FFE	/* ITR register value alignment mask */
 #define ITR_REG_ALIGN(setting)	((setting) & ICE_ITR_MASK)
 
-#define ICE_ITR_ADAPTIVE_MIN_INC	0x0002
-#define ICE_ITR_ADAPTIVE_MIN_USECS	0x0002
-#define ICE_ITR_ADAPTIVE_MAX_USECS	0x00FA
-#define ICE_ITR_ADAPTIVE_LATENCY	0x8000
-#define ICE_ITR_ADAPTIVE_BULK		0x0000
-
 #define ICE_DFLT_INTRL	0
 #define ICE_MAX_INTRL	236
 
-#define ICE_WB_ON_ITR_USECS	2
 #define ICE_IN_WB_ON_ITR_MODE	255
 /* Sets WB_ON_ITR and assumes INTENA bit is already cleared, which allows
  * setting the MSK_M bit to tell hardware to ignore the INTENA_M bit. Also,
@@ -258,9 +253,9 @@ enum ice_rx_dtype {
 #define ICE_TX_LEGACY	1
 
 /* descriptor ring, associated with a VSI */
-struct ice_ring {
+struct ice_rx_ring {
 	/* CL1 - 1st cacheline starts here */
-	struct ice_ring *next;		/* pointer to next ring in q_vector */
+	struct ice_rx_ring *next;	/* pointer to next ring in q_vector */
 	void *desc;			/* Descriptor ring memory */
 	struct device *dev;		/* Used for DMA mapping */
 	struct net_device *netdev;	/* netdev ring maps to */
@@ -268,14 +263,13 @@ struct ice_ring {
 	struct ice_q_vector *q_vector;	/* Backreference to associated vector */
 	u8 __iomem *tail;
 	union {
-		struct ice_tx_buf *tx_buf;
 		struct ice_rx_buf *rx_buf;
+		struct xdp_buff **xdp_buf;
 	};
 	/* CL2 - 2nd cacheline starts here */
+	struct xdp_rxq_info xdp_rxq;
+	/* CL3 - 3rd cacheline starts here */
 	u16 q_index;			/* Queue number of ring */
-	u16 q_handle;			/* Queue handle per TC */
-
-	u8 ring_active:1;		/* is ring online or not */
 
 	u16 count;			/* Number of descriptors */
 	u16 reg_idx;			/* HW register index of the ring */
@@ -284,80 +278,139 @@ struct ice_ring {
 	u16 next_to_use;
 	u16 next_to_clean;
 	u16 next_to_alloc;
+	u16 rx_offset;
+	u16 rx_buf_len;
 
 	/* stats structs */
+	struct ice_rxq_stats rx_stats;
 	struct ice_q_stats	stats;
 	struct u64_stats_sync syncp;
-	union {
-		struct ice_txq_stats tx_stats;
-		struct ice_rxq_stats rx_stats;
-	};
 
 	struct rcu_head rcu;		/* to avoid race on free */
+	/* CL4 - 3rd cacheline starts here */
+	struct ice_channel *ch;
 	struct bpf_prog *xdp_prog;
+	struct ice_tx_ring *xdp_ring;
 	struct xsk_buff_pool *xsk_pool;
-	/* CL3 - 3rd cacheline starts here */
-	struct xdp_rxq_info xdp_rxq;
-	/* CLX - the below items are only accessed infrequently and should be
-	 * in their own cache line if possible
-	 */
-#define ICE_TX_FLAGS_RING_XDP		BIT(0)
-#define ICE_RX_FLAGS_RING_BUILD_SKB	BIT(1)
-	u8 flags;
+	struct sk_buff *skb;
 	dma_addr_t dma;			/* physical address of ring */
-	unsigned int size;		/* length of descriptor ring in bytes */
-	u32 txq_teid;			/* Added Tx queue TEID */
-	u16 rx_buf_len;
+#define ICE_RX_FLAGS_RING_BUILD_SKB	BIT(1)
+	u64 cached_phctime;
 	u8 dcb_tc;			/* Traffic class of ring */
+	u8 ptp_rx;
+	u8 flags;
 } ____cacheline_internodealigned_in_smp;
 
-static inline bool ice_ring_uses_build_skb(struct ice_ring *ring)
+struct ice_tx_ring {
+	/* CL1 - 1st cacheline starts here */
+	struct ice_tx_ring *next;	/* pointer to next ring in q_vector */
+	void *desc;			/* Descriptor ring memory */
+	struct device *dev;		/* Used for DMA mapping */
+	u8 __iomem *tail;
+	struct ice_tx_buf *tx_buf;
+	struct ice_q_vector *q_vector;	/* Backreference to associated vector */
+	struct net_device *netdev;	/* netdev ring maps to */
+	struct ice_vsi *vsi;		/* Backreference to associated VSI */
+	/* CL2 - 2nd cacheline starts here */
+	dma_addr_t dma;			/* physical address of ring */
+	struct xsk_buff_pool *xsk_pool;
+	u16 next_to_use;
+	u16 next_to_clean;
+	u16 next_rs;
+	u16 next_dd;
+	u16 q_handle;			/* Queue handle per TC */
+	u16 reg_idx;			/* HW register index of the ring */
+	u16 count;			/* Number of descriptors */
+	u16 q_index;			/* Queue number of ring */
+	/* stats structs */
+	struct ice_txq_stats tx_stats;
+	/* CL3 - 3rd cacheline starts here */
+	struct ice_q_stats	stats;
+	struct u64_stats_sync syncp;
+	struct rcu_head rcu;		/* to avoid race on free */
+	DECLARE_BITMAP(xps_state, ICE_TX_NBITS);	/* XPS Config State */
+	struct ice_channel *ch;
+	struct ice_ptp_tx *tx_tstamps;
+	spinlock_t tx_lock;
+	u32 txq_teid;			/* Added Tx queue TEID */
+	/* CL4 - 4th cacheline starts here */
+	u16 xdp_tx_active;
+#define ICE_TX_FLAGS_RING_XDP		BIT(0)
+#define ICE_TX_FLAGS_RING_VLAN_L2TAG1	BIT(1)
+#define ICE_TX_FLAGS_RING_VLAN_L2TAG2	BIT(2)
+	u8 flags;
+	u8 dcb_tc;			/* Traffic class of ring */
+	u8 ptp_tx;
+} ____cacheline_internodealigned_in_smp;
+
+static inline bool ice_ring_uses_build_skb(struct ice_rx_ring *ring)
 {
 	return !!(ring->flags & ICE_RX_FLAGS_RING_BUILD_SKB);
 }
 
-static inline void ice_set_ring_build_skb_ena(struct ice_ring *ring)
+static inline void ice_set_ring_build_skb_ena(struct ice_rx_ring *ring)
 {
 	ring->flags |= ICE_RX_FLAGS_RING_BUILD_SKB;
 }
 
-static inline void ice_clear_ring_build_skb_ena(struct ice_ring *ring)
+static inline void ice_clear_ring_build_skb_ena(struct ice_rx_ring *ring)
 {
 	ring->flags &= ~ICE_RX_FLAGS_RING_BUILD_SKB;
 }
 
-static inline bool ice_ring_is_xdp(struct ice_ring *ring)
+static inline bool ice_ring_ch_enabled(struct ice_tx_ring *ring)
+{
+	return !!ring->ch;
+}
+
+static inline bool ice_ring_is_xdp(struct ice_tx_ring *ring)
 {
 	return !!(ring->flags & ICE_TX_FLAGS_RING_XDP);
 }
 
+enum ice_container_type {
+	ICE_RX_CONTAINER,
+	ICE_TX_CONTAINER,
+};
+
 struct ice_ring_container {
 	/* head of linked-list of rings */
-	struct ice_ring *ring;
-	unsigned long next_update;	/* jiffies value of next queue update */
-	unsigned int total_bytes;	/* total bytes processed this int */
-	unsigned int total_pkts;	/* total packets processed this int */
+	union {
+		struct ice_rx_ring *rx_ring;
+		struct ice_tx_ring *tx_ring;
+	};
+	struct dim dim;		/* data for net_dim algorithm */
 	u16 itr_idx;		/* index in the interrupt vector */
-	u16 target_itr;		/* value in usecs divided by the hw->itr_gran */
-	u16 current_itr;	/* value in usecs divided by the hw->itr_gran */
-	/* high bit set means dynamic ITR, rest is used to store user
-	 * readable ITR value in usecs and must be converted before programming
-	 * to a register.
+	/* this matches the maximum number of ITR bits, but in usec
+	 * values, so it is shifted left one bit (bit zero is ignored)
 	 */
-	u16 itr_setting;
+	union {
+		struct {
+			u16 itr_setting:13;
+			u16 itr_reserved:2;
+			u16 itr_mode:1;
+		};
+		u16 itr_settings;
+	};
+	enum ice_container_type type;
 };
 
 struct ice_coalesce_stored {
 	u16 itr_tx;
 	u16 itr_rx;
 	u8 intrl;
+	u8 tx_valid;
+	u8 rx_valid;
 };
 
 /* iterator for handling rings in ring container */
-#define ice_for_each_ring(pos, head) \
-	for (pos = (head).ring; pos; pos = pos->next)
+#define ice_for_each_rx_ring(pos, head) \
+	for (pos = (head).rx_ring; pos; pos = pos->next)
 
-static inline unsigned int ice_rx_pg_order(struct ice_ring *ring)
+#define ice_for_each_tx_ring(pos, head) \
+	for (pos = (head).tx_ring; pos; pos = pos->next)
+
+static inline unsigned int ice_rx_pg_order(struct ice_rx_ring *ring)
 {
 #if (PAGE_SIZE < 8192)
 	if (ring->rx_buf_len > (PAGE_SIZE / 2))
@@ -370,18 +423,21 @@ static inline unsigned int ice_rx_pg_order(struct ice_ring *ring)
 
 union ice_32b_rx_flex_desc;
 
-bool ice_alloc_rx_bufs(struct ice_ring *rxr, u16 cleaned_count);
+bool ice_alloc_rx_bufs(struct ice_rx_ring *rxr, u16 cleaned_count);
 netdev_tx_t ice_start_xmit(struct sk_buff *skb, struct net_device *netdev);
-void ice_clean_tx_ring(struct ice_ring *tx_ring);
-void ice_clean_rx_ring(struct ice_ring *rx_ring);
-int ice_setup_tx_ring(struct ice_ring *tx_ring);
-int ice_setup_rx_ring(struct ice_ring *rx_ring);
-void ice_free_tx_ring(struct ice_ring *tx_ring);
-void ice_free_rx_ring(struct ice_ring *rx_ring);
+u16
+ice_select_queue(struct net_device *dev, struct sk_buff *skb,
+		 struct net_device *sb_dev);
+void ice_clean_tx_ring(struct ice_tx_ring *tx_ring);
+void ice_clean_rx_ring(struct ice_rx_ring *rx_ring);
+int ice_setup_tx_ring(struct ice_tx_ring *tx_ring);
+int ice_setup_rx_ring(struct ice_rx_ring *rx_ring);
+void ice_free_tx_ring(struct ice_tx_ring *tx_ring);
+void ice_free_rx_ring(struct ice_rx_ring *rx_ring);
 int ice_napi_poll(struct napi_struct *napi, int budget);
 int
 ice_prgm_fdir_fltr(struct ice_vsi *vsi, struct ice_fltr_desc *fdir_desc,
 		   u8 *raw_packet);
-int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget);
-void ice_clean_ctrl_tx_irq(struct ice_ring *tx_ring);
+int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget);
+void ice_clean_ctrl_tx_irq(struct ice_tx_ring *tx_ring);
 #endif /* _ICE_TXRX_H_ */

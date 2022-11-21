@@ -366,7 +366,7 @@ static void set_dflts(struct dtsec_cfg *cfg)
 	cfg->maximum_frame = DEFAULT_MAXIMUM_FRAME;
 }
 
-static void set_mac_address(struct dtsec_regs __iomem *regs, u8 *adr)
+static void set_mac_address(struct dtsec_regs __iomem *regs, const u8 *adr)
 {
 	u32 tmp;
 
@@ -516,7 +516,7 @@ static int init(struct dtsec_regs __iomem *regs, struct dtsec_cfg *cfg,
 
 	if (addr) {
 		MAKE_ENET_ADDR_FROM_UINT64(addr, eth_addr);
-		set_mac_address(regs, (u8 *)eth_addr);
+		set_mac_address(regs, (const u8 *)eth_addr);
 	}
 
 	/* HASH */
@@ -1022,7 +1022,7 @@ int dtsec_accept_rx_pause_frames(struct fman_mac *dtsec, bool en)
 	return 0;
 }
 
-int dtsec_modify_mac_address(struct fman_mac *dtsec, enet_addr_t *enet_addr)
+int dtsec_modify_mac_address(struct fman_mac *dtsec, const enet_addr_t *enet_addr)
 {
 	struct dtsec_regs __iomem *regs = dtsec->regs;
 	enum comm_mode mode = COMM_MODE_NONE;
@@ -1041,7 +1041,7 @@ int dtsec_modify_mac_address(struct fman_mac *dtsec, enet_addr_t *enet_addr)
 	 * Station address have to be swapped (big endian to little endian
 	 */
 	dtsec->addr = ENET_ADDR_TO_UINT64(*enet_addr);
-	set_mac_address(dtsec->regs, (u8 *)(*enet_addr));
+	set_mac_address(dtsec->regs, (const u8 *)(*enet_addr));
 
 	graceful_start(dtsec, mode);
 

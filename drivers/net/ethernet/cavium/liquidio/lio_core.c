@@ -411,7 +411,7 @@ void octeon_pf_changed_vf_macaddr(struct octeon_device *oct, u8 *mac)
 
 	if (!ether_addr_equal(netdev->dev_addr, mac)) {
 		macaddr_changed = true;
-		ether_addr_copy(netdev->dev_addr, mac);
+		eth_hw_addr_set(netdev, mac);
 		ether_addr_copy(((u8 *)&lio->linfo.hw_addr) + 2, mac);
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, netdev);
 	}
@@ -490,7 +490,6 @@ void cleanup_rx_oom_poll_fn(struct net_device *netdev)
 		wq = &lio->rxq_status_wq[q_no];
 		if (wq->wq) {
 			cancel_delayed_work_sync(&wq->wk.work);
-			flush_workqueue(wq->wq);
 			destroy_workqueue(wq->wq);
 			wq->wq = NULL;
 		}
@@ -729,13 +728,8 @@ static void liquidio_napi_drv_callback(void *arg)
 	    droq->cpu_id == this_cpu) {
 		napi_schedule_irqoff(&droq->napi);
 	} else {
-		call_single_data_t *csd = &droq->csd;
-
-		csd->func = napi_schedule_wrapper;
-		csd->info = &droq->napi;
-		csd->flags = 0;
-
-		smp_call_function_single_async(droq->cpu_id, csd);
+		INIT_CSD(&droq->csd, napi_schedule_wrapper, &droq->napi);
+		smp_call_function_single_async(droq->cpu_id, &droq->csd);
 	}
 }
 
@@ -1168,7 +1162,7 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 			oct->flags |= LIO_FLAG_MSI_ENABLED;
 
 		/* allocate storage for the names assigned to the irq */
-		oct->irq_name_storage = kcalloc(1, INTRNAMSIZ, GFP_KERNEL);
+		oct->irq_name_storage = kzalloc(INTRNAMSIZ, GFP_KERNEL);
 		if (!oct->irq_name_storage)
 			return -ENOMEM;
 

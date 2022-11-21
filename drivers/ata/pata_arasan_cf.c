@@ -39,6 +39,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <trace/events/libata.h>
 
 #define DRIVER_NAME	"arasan_cf"
 #define TIMEOUT		msecs_to_jiffies(3000)
@@ -703,9 +704,11 @@ static unsigned int arasan_cf_qc_issue(struct ata_queued_cmd *qc)
 	case ATA_PROT_DMA:
 		WARN_ON_ONCE(qc->tf.flags & ATA_TFLAG_POLLING);
 
+		trace_ata_tf_load(ap, &qc->tf);
 		ap->ops->sff_tf_load(ap, &qc->tf);
 		acdev->dma_status = 0;
 		acdev->qc = qc;
+		trace_ata_bmdma_start(ap, &qc->tf, qc->tag);
 		arasan_cf_dma_start(acdev);
 		ap->hsm_task_state = HSM_ST_LAST;
 		break;
@@ -818,12 +821,19 @@ static int arasan_cf_probe(struct platform_device *pdev)
 	else
 		quirk = CF_BROKEN_UDMA; /* as it is on spear1340 */
 
-	/* if irq is 0, support only PIO */
-	acdev->irq = platform_get_irq(pdev, 0);
-	if (acdev->irq)
+	/*
+	 * If there's an error getting IRQ (or we do get IRQ0),
+	 * support only PIO
+	 */
+	ret = platform_get_irq(pdev, 0);
+	if (ret > 0) {
+		acdev->irq = ret;
 		irq_handler = arasan_cf_interrupt;
-	else
+	} else	if (ret == -EPROBE_DEFER) {
+		return ret;
+	} else	{
 		quirk |= CF_BROKEN_MWDMA | CF_BROKEN_UDMA;
+	}
 
 	acdev->pbase = res->start;
 	acdev->vbase = devm_ioremap(&pdev->dev, res->start,
@@ -927,7 +937,8 @@ static int arasan_cf_suspend(struct device *dev)
 		dmaengine_terminate_all(acdev->dma_chan);
 
 	cf_exit(acdev);
-	return ata_host_suspend(host, PMSG_SUSPEND);
+	ata_host_suspend(host, PMSG_SUSPEND);
+	return 0;
 }
 
 static int arasan_cf_resume(struct device *dev)

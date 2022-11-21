@@ -46,7 +46,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/x1000-cgu.h>
+    #include <dt-bindings/clock/ingenic,x1000-cgu.h>
 
     ost: timer@12000000 {
         compatible = "ingenic,x1000-ost";

@@ -45,6 +45,7 @@
 #include <asm/cache.h>
 #include <asm/current.h>
 #include <asm/delay.h>
+#include <asm/efi.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mca.h>
@@ -440,7 +441,6 @@ start_secondary (void *unused)
 #endif
 	efi_map_pal_code();
 	cpu_init();
-	preempt_disable();
 	smp_callin();
 
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);

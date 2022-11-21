@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * fs/verity/enable.c: ioctl to enable verity on a file
+ * Ioctl to enable verity on a file
  *
  * Copyright 2019 Google LLC
  */
@@ -177,7 +177,7 @@ static int build_merkle_tree(struct file *filp,
 	 * (level 0) and ascending to the root node (level 'num_levels - 1').
 	 * Then at the end (level 'num_levels'), calculate the root hash.
 	 */
-	blocks = (inode->i_size + params->block_size - 1) >>
+	blocks = ((u64)inode->i_size + params->block_size - 1) >>
 		 params->log_blocksize;
 	for (level = 0; level <= params->num_levels; level++) {
 		err = build_merkle_tree_level(filp, level, blocks, params,
@@ -369,7 +369,7 @@ int fsverity_ioctl_enable(struct file *filp, const void __user *uarg)
 	 * has verity enabled, and to stabilize the data being hashed.
 	 */
 
-	err = inode_permission(inode, MAY_WRITE);
+	err = file_permission(filp, MAY_WRITE);
 	if (err)
 		return err;
 
@@ -398,9 +398,9 @@ int fsverity_ioctl_enable(struct file *filp, const void __user *uarg)
 	 * Some pages of the file may have been evicted from pagecache after
 	 * being used in the Merkle tree construction, then read into pagecache
 	 * again by another process reading from the file concurrently.  Since
-	 * these pages didn't undergo verification against the file measurement
-	 * which fs-verity now claims to be enforcing, we have to wipe the
-	 * pagecache to ensure that all future reads are verified.
+	 * these pages didn't undergo verification against the file digest which
+	 * fs-verity now claims to be enforcing, we have to wipe the pagecache
+	 * to ensure that all future reads are verified.
 	 */
 	filemap_write_and_wait(inode->i_mapping);
 	invalidate_inode_pages2(inode->i_mapping);

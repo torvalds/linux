@@ -34,14 +34,6 @@ properties:
   interrupts:
     maxItems: 1
 
-  '#address-cells':
-    description: number of address cells for the MDIO bus
-    const: 1
-
-  '#size-cells':
-    description: number of size cells on the MDIO bus
-    const: 0
-
   clocks:
     items:
       - description: MAC main clock
@@ -61,6 +53,10 @@ properties:
     items:
       - const: mac
       - const: mdio
+
+  mdio:
+    $ref: mdio.yaml#
+    unevaluatedProperties: false
 
 required:
   - compatible
@@ -85,7 +81,6 @@ examples:
         reset-names = "mac", "mdio";
         clocks = <&pll 1>, <&pll 2>;
         clock-names = "eth", "mdio";
-        qca,ethcfg = <&ethcfg>;
         phy-mode = "mii";
         phy-handle = <&phy_port4>;
     };
@@ -101,8 +96,6 @@ examples:
 
         phy-mode = "gmii";
 
-        status = "disabled";
-
         fixed-link {
             speed = <1000>;
             full-duplex;
@@ -113,9 +106,6 @@ examples:
             #size-cells = <0>;
 
             switch10: switch@10 {
-                #address-cells = <1>;
-                #size-cells = <0>;
-
                 compatible = "qca,ar9331-switch";
                 reg = <0x10>;
                 resets = <&rst 8>;
@@ -148,32 +138,24 @@ examples:
                         reg = <0x1>;
                         phy-handle = <&phy_port0>;
                         phy-mode = "internal";
-
-                        status = "disabled";
                     };
 
                     switch_port2: port@2 {
                         reg = <0x2>;
                         phy-handle = <&phy_port1>;
                         phy-mode = "internal";
-
-                        status = "disabled";
                     };
 
                     switch_port3: port@3 {
                         reg = <0x3>;
                         phy-handle = <&phy_port2>;
                         phy-mode = "internal";
-
-                        status = "disabled";
                     };
 
                     switch_port4: port@4 {
                         reg = <0x4>;
                         phy-handle = <&phy_port3>;
                         phy-mode = "internal";
-
-                        status = "disabled";
                     };
                 };
 
@@ -183,34 +165,29 @@ examples:
 
                     interrupt-parent = <&switch10>;
 
-                    phy_port0: phy@0 {
+                    phy_port0: ethernet-phy@0 {
                         reg = <0x0>;
                         interrupts = <0>;
-                        status = "disabled";
                     };
 
-                    phy_port1: phy@1 {
+                    phy_port1: ethernet-phy@1 {
                         reg = <0x1>;
                         interrupts = <0>;
-                        status = "disabled";
                     };
 
-                    phy_port2: phy@2 {
+                    phy_port2: ethernet-phy@2 {
                         reg = <0x2>;
                         interrupts = <0>;
-                        status = "disabled";
                     };
 
-                    phy_port3: phy@3 {
+                    phy_port3: ethernet-phy@3 {
                         reg = <0x3>;
                         interrupts = <0>;
-                        status = "disabled";
                     };
 
-                    phy_port4: phy@4 {
+                    phy_port4: ethernet-phy@4 {
                         reg = <0x4>;
                         interrupts = <0>;
-                        status = "disabled";
                     };
                 };
             };

@@ -57,7 +57,6 @@ enum vmw_bo_dirty_method {
  * @ref_count: Reference count for this structure
  * @bitmap_size: The size of the bitmap in bits. Typically equal to the
  * nuber of pages in the bo.
- * @size: The accounting size for this struct.
  * @bitmap: A bitmap where each bit represents a page. A set bit means a
  * dirty page.
  */
@@ -68,7 +67,6 @@ struct vmw_bo_dirty {
 	unsigned int change_count;
 	unsigned int ref_count;
 	unsigned long bitmap_size;
-	size_t size;
 	unsigned long bitmap[];
 };
 
@@ -206,7 +204,7 @@ static void vmw_bo_dirty_pre_unmap(struct vmw_buffer_object *vbo,
  * @start: First page of the range within the buffer object.
  * @end: Last page of the range within the buffer object + 1.
  *
- * This is similar to ttm_bo_unmap_virtual_locked() except it takes a subrange.
+ * This is similar to ttm_bo_unmap_virtual() except it takes a subrange.
  */
 void vmw_bo_dirty_unmap(struct vmw_buffer_object *vbo,
 			pgoff_t start, pgoff_t end)
@@ -232,13 +230,9 @@ void vmw_bo_dirty_unmap(struct vmw_buffer_object *vbo,
 int vmw_bo_dirty_add(struct vmw_buffer_object *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
-	pgoff_t num_pages = vbo->base.num_pages;
-	size_t size, acc_size;
+	pgoff_t num_pages = vbo->base.resource->num_pages;
+	size_t size;
 	int ret;
-	static struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
 
 	if (dirty) {
 		dirty->ref_count++;
@@ -246,20 +240,12 @@ int vmw_bo_dirty_add(struct vmw_buffer_object *vbo)
 	}
 
 	size = sizeof(*dirty) + BITS_TO_LONGS(num_pages) * sizeof(long);
-	acc_size = ttm_round_pot(size);
-	ret = ttm_mem_global_alloc(&ttm_mem_glob, acc_size, &ctx);
-	if (ret) {
-		VMW_DEBUG_USER("Out of graphics memory for buffer object "
-			       "dirty tracker.\n");
-		return ret;
-	}
 	dirty = kvzalloc(size, GFP_KERNEL);
 	if (!dirty) {
 		ret = -ENOMEM;
 		goto out_no_dirty;
 	}
 
-	dirty->size = acc_size;
 	dirty->bitmap_size = num_pages;
 	dirty->start = dirty->bitmap_size;
 	dirty->end = 0;
@@ -285,7 +271,6 @@ int vmw_bo_dirty_add(struct vmw_buffer_object *vbo)
 	return 0;
 
 out_no_dirty:
-	ttm_mem_global_free(&ttm_mem_glob, acc_size);
 	return ret;
 }
 
@@ -304,10 +289,7 @@ void vmw_bo_dirty_release(struct vmw_buffer_object *vbo)
 	struct vmw_bo_dirty *dirty = vbo->dirty;
 
 	if (dirty && --dirty->ref_count == 0) {
-		size_t acc_size = dirty->size;
-
 		kvfree(dirty);
-		ttm_mem_global_free(&ttm_mem_glob, acc_size);
 		vbo->dirty = NULL;
 	}
 }
@@ -413,7 +395,7 @@ vm_fault_t vmw_bo_vm_mkwrite(struct vm_fault *vmf)
 		return ret;
 
 	page_offset = vmf->pgoff - drm_vma_node_start(&bo->base.vma_node);
-	if (unlikely(page_offset >= bo->num_pages)) {
+	if (unlikely(page_offset >= bo->resource->num_pages)) {
 		ret = VM_FAULT_SIGBUS;
 		goto out_unlock;
 	}
@@ -456,7 +438,7 @@ vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf)
 
 		page_offset = vmf->pgoff -
 			drm_vma_node_start(&bo->base.vma_node);
-		if (page_offset >= bo->num_pages ||
+		if (page_offset >= bo->resource->num_pages ||
 		    vmw_resources_clean(vbo, page_offset,
 					page_offset + PAGE_SIZE,
 					&allowed_prefault)) {
@@ -477,7 +459,7 @@ vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf)
 	else
 		prot = vm_get_page_prot(vma->vm_flags);
 
-	ret = ttm_bo_vm_fault_reserved(vmf, prot, num_prefault, 1);
+	ret = ttm_bo_vm_fault_reserved(vmf, prot, num_prefault);
 	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
 		return ret;
 
@@ -486,75 +468,3 @@ out_unlock:
 
 	return ret;
 }
-
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-vm_fault_t vmw_bo_vm_huge_fault(struct vm_fault *vmf,
-				enum page_entry_size pe_size)
-{
-	struct vm_area_struct *vma = vmf->vma;
-	struct ttm_buffer_object *bo = (struct ttm_buffer_object *)
-	    vma->vm_private_data;
-	struct vmw_buffer_object *vbo =
-		container_of(bo, struct vmw_buffer_object, base);
-	pgprot_t prot;
-	vm_fault_t ret;
-	pgoff_t fault_page_size;
-	bool write = vmf->flags & FAULT_FLAG_WRITE;
-	bool is_cow_mapping =
-		(vma->vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
-
-	switch (pe_size) {
-	case PE_SIZE_PMD:
-		fault_page_size = HPAGE_PMD_SIZE >> PAGE_SHIFT;
-		break;
-#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-	case PE_SIZE_PUD:
-		fault_page_size = HPAGE_PUD_SIZE >> PAGE_SHIFT;
-		break;
-#endif
-	default:
-		WARN_ON_ONCE(1);
-		return VM_FAULT_FALLBACK;
-	}
-
-	/* Always do write dirty-tracking and COW on PTE level. */
-	if (write && (READ_ONCE(vbo->dirty) || is_cow_mapping))
-		return VM_FAULT_FALLBACK;
-
-	ret = ttm_bo_vm_reserve(bo, vmf);
-	if (ret)
-		return ret;
-
-	if (vbo->dirty) {
-		pgoff_t allowed_prefault;
-		unsigned long page_offset;
-
-		page_offset = vmf->pgoff -
-			drm_vma_node_start(&bo->base.vma_node);
-		if (page_offset >= bo->num_pages ||
-		    vmw_resources_clean(vbo, page_offset,
-					page_offset + PAGE_SIZE,
-					&allowed_prefault)) {
-			ret = VM_FAULT_SIGBUS;
-			goto out_unlock;
-		}
-
-		/*
-		 * Write protect, so we get a new fault on write, and can
-		 * split.
-		 */
-		prot = vm_get_page_prot(vma->vm_flags & ~VM_SHARED);
-	} else {
-		prot = vm_get_page_prot(vma->vm_flags);
-	}
-
-	ret = ttm_bo_vm_fault_reserved(vmf, prot, 1, fault_page_size);
-	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
-		return ret;
-
-out_unlock:
-	dma_resv_unlock(bo->base.resv);
-
-	return ret;
-}
-#endif

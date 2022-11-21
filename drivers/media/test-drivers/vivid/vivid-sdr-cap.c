@@ -17,6 +17,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-dv-timings.h>
 #include <linux/fixp-arith.h>
+#include <linux/jiffies.h>
 
 #include "vivid-core.h"
 #include "vivid-ctrls.h"
@@ -101,7 +102,7 @@ static void vivid_thread_sdr_cap_tick(struct vivid_dev *dev)
 	spin_unlock(&dev->slock);
 
 	if (sdr_cap_buf) {
-		sdr_cap_buf->vb.sequence = dev->sdr_cap_seq_count;
+		sdr_cap_buf->vb.sequence = dev->sdr_cap_with_seq_wrap_count;
 		v4l2_ctrl_request_setup(sdr_cap_buf->vb.vb2_buf.req_obj.req,
 					&dev->ctrl_hdl_sdr_cap);
 		v4l2_ctrl_request_complete(sdr_cap_buf->vb.vb2_buf.req_obj.req,
@@ -131,10 +132,13 @@ static int vivid_thread_sdr_cap(void *data)
 
 	/* Resets frame counters */
 	dev->sdr_cap_seq_offset = 0;
-	if (dev->seq_wrap)
-		dev->sdr_cap_seq_offset = 0xffffff80U;
+	dev->sdr_cap_seq_count = 0;
 	dev->jiffies_sdr_cap = jiffies;
 	dev->sdr_cap_seq_resync = false;
+	if (dev->time_wrap)
+		dev->time_wrap_offset = dev->time_wrap - ktime_get_ns();
+	else
+		dev->time_wrap_offset = 0;
 
 	for (;;) {
 		try_to_freeze();
@@ -142,7 +146,7 @@ static int vivid_thread_sdr_cap(void *data)
 			break;
 
 		if (!mutex_trylock(&dev->mutex)) {
-			schedule_timeout_uninterruptible(1);
+			schedule();
 			continue;
 		}
 
@@ -174,6 +178,7 @@ static int vivid_thread_sdr_cap(void *data)
 		}
 		dev->sdr_cap_seq_count =
 			buffers_since_start + dev->sdr_cap_seq_offset;
+		dev->sdr_cap_with_seq_wrap_count = dev->sdr_cap_seq_count - dev->sdr_cap_seq_start;
 
 		vivid_thread_sdr_cap_tick(dev);
 		mutex_unlock(&dev->mutex);
@@ -201,7 +206,9 @@ static int vivid_thread_sdr_cap(void *data)
 			next_jiffies_since_start = jiffies_since_start;
 
 		wait_jiffies = next_jiffies_since_start - jiffies_since_start;
-		schedule_timeout_interruptible(wait_jiffies ? wait_jiffies : 1);
+		while (time_is_after_jiffies(cur_jiffies + wait_jiffies) &&
+		       !kthread_should_stop())
+			schedule();
 	}
 	dprintk(dev, 1, "SDR Capture Thread End\n");
 	return 0;
@@ -261,7 +268,7 @@ static int sdr_cap_start_streaming(struct vb2_queue *vq, unsigned count)
 	int err = 0;
 
 	dprintk(dev, 1, "%s\n", __func__);
-	dev->sdr_cap_seq_count = 0;
+	dev->sdr_cap_seq_start = dev->seq_wrap * 128;
 	if (dev->start_streaming_error) {
 		dev->start_streaming_error = false;
 		err = -EINVAL;
@@ -453,7 +460,6 @@ int vidioc_g_fmt_sdr_cap(struct file *file, void *fh, struct v4l2_format *f)
 
 	f->fmt.sdr.pixelformat = dev->sdr_pixelformat;
 	f->fmt.sdr.buffersize = dev->sdr_buffersize;
-	memset(f->fmt.sdr.reserved, 0, sizeof(f->fmt.sdr.reserved));
 	return 0;
 }
 
@@ -466,7 +472,6 @@ int vidioc_s_fmt_sdr_cap(struct file *file, void *fh, struct v4l2_format *f)
 	if (vb2_is_busy(q))
 		return -EBUSY;
 
-	memset(f->fmt.sdr.reserved, 0, sizeof(f->fmt.sdr.reserved));
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
 		if (formats[i].pixelformat == f->fmt.sdr.pixelformat) {
 			dev->sdr_pixelformat = formats[i].pixelformat;
@@ -486,7 +491,6 @@ int vidioc_try_fmt_sdr_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
 	int i;
 
-	memset(f->fmt.sdr.reserved, 0, sizeof(f->fmt.sdr.reserved));
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
 		if (formats[i].pixelformat == f->fmt.sdr.pixelformat) {
 			f->fmt.sdr.buffersize = formats[i].buffersize;

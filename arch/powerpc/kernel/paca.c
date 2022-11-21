@@ -139,8 +139,7 @@ static struct lppaca * __init new_lppaca(int cpu, unsigned long limit)
 }
 #endif /* CONFIG_PPC_PSERIES */
 
-#ifdef CONFIG_PPC_BOOK3S_64
-
+#ifdef CONFIG_PPC_64S_HASH_MMU
 /*
  * 3 persistent SLBs are allocated here.  The buffer will be zero
  * initially, hence will all be invaild until we actually write them.
@@ -169,8 +168,7 @@ static struct slb_shadow * __init new_slb_shadow(int cpu, unsigned long limit)
 
 	return s;
 }
-
-#endif /* CONFIG_PPC_BOOK3S_64 */
+#endif /* CONFIG_PPC_64S_HASH_MMU */
 
 #ifdef CONFIG_PPC_PSERIES
 /**
@@ -208,7 +206,7 @@ static struct rtas_args * __init new_rtas_args(int cpu, unsigned long limit)
 struct paca_struct **paca_ptrs __read_mostly;
 EXPORT_SYMBOL(paca_ptrs);
 
-void __init __nostackprotector initialise_paca(struct paca_struct *new_paca, int cpu)
+void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 {
 #ifdef CONFIG_PPC_PSERIES
 	new_paca->lppaca_ptr = NULL;
@@ -226,7 +224,7 @@ void __init __nostackprotector initialise_paca(struct paca_struct *new_paca, int
 	new_paca->kexec_state = KEXEC_STATE_NONE;
 	new_paca->__current = &init_task;
 	new_paca->data_offset = 0xfeeeeeeeeeeeeeeeULL;
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	new_paca->slb_shadow_ptr = NULL;
 #endif
 
@@ -241,7 +239,7 @@ void __init __nostackprotector initialise_paca(struct paca_struct *new_paca, int
 }
 
 /* Put the paca pointer into r13 and SPRG_PACA */
-void __nostackprotector setup_paca(struct paca_struct *new_paca)
+void setup_paca(struct paca_struct *new_paca)
 {
 	/* Setup r13 */
 	local_paca = new_paca;
@@ -307,7 +305,7 @@ void __init allocate_paca(int cpu)
 #ifdef CONFIG_PPC_PSERIES
 	paca->lppaca_ptr = new_lppaca(cpu, limit);
 #endif
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	paca->slb_shadow_ptr = new_slb_shadow(cpu, limit);
 #endif
 #ifdef CONFIG_PPC_PSERIES
@@ -322,17 +320,17 @@ void __init free_unused_pacas(void)
 
 	new_ptrs_size = sizeof(struct paca_struct *) * nr_cpu_ids;
 	if (new_ptrs_size < paca_ptrs_size)
-		memblock_free(__pa(paca_ptrs) + new_ptrs_size,
-					paca_ptrs_size - new_ptrs_size);
+		memblock_phys_free(__pa(paca_ptrs) + new_ptrs_size,
+				   paca_ptrs_size - new_ptrs_size);
 
 	paca_nr_cpu_ids = nr_cpu_ids;
 	paca_ptrs_size = new_ptrs_size;
 
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	if (early_radix_enabled()) {
 		/* Ugly fixup, see new_slb_shadow() */
-		memblock_free(__pa(paca_ptrs[boot_cpuid]->slb_shadow_ptr),
-				sizeof(struct slb_shadow));
+		memblock_phys_free(__pa(paca_ptrs[boot_cpuid]->slb_shadow_ptr),
+				   sizeof(struct slb_shadow));
 		paca_ptrs[boot_cpuid]->slb_shadow_ptr = NULL;
 	}
 #endif
@@ -341,15 +339,13 @@ void __init free_unused_pacas(void)
 			paca_ptrs_size + paca_struct_size, nr_cpu_ids);
 }
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 void copy_mm_to_paca(struct mm_struct *mm)
 {
-#ifdef CONFIG_PPC_BOOK3S
 	mm_context_t *context = &mm->context;
 
-	get_paca()->mm_ctx_id = context->id;
 #ifdef CONFIG_PPC_MM_SLICES
 	VM_BUG_ON(!mm_ctx_slb_addr_limit(context));
-	get_paca()->mm_ctx_slb_addr_limit = mm_ctx_slb_addr_limit(context);
 	memcpy(&get_paca()->mm_ctx_low_slices_psize, mm_ctx_low_slices(context),
 	       LOW_SLICE_ARRAY_SZ);
 	memcpy(&get_paca()->mm_ctx_high_slices_psize, mm_ctx_high_slices(context),
@@ -358,7 +354,5 @@ void copy_mm_to_paca(struct mm_struct *mm)
 	get_paca()->mm_ctx_user_psize = context->user_psize;
 	get_paca()->mm_ctx_sllp = context->sllp;
 #endif
-#else /* !CONFIG_PPC_BOOK3S */
-	return;
-#endif
 }
+#endif /* CONFIG_PPC_64S_HASH_MMU */

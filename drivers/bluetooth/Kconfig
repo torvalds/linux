@@ -19,6 +19,10 @@ config BT_QCA
 	tristate
 	select FW_LOADER
 
+config BT_MTK
+	tristate
+	select FW_LOADER
+
 config BT_HCIBTUSB
 	tristate "HCI USB driver"
 	depends on USB
@@ -55,6 +59,7 @@ config BT_HCIBTUSB_BCM
 config BT_HCIBTUSB_MTK
 	bool "MediaTek protocol support"
 	depends on BT_HCIBTUSB
+	select BT_MTK
 	default n
 	help
 	  The MediaTek protocol support enables firmware download
@@ -383,6 +388,7 @@ config BT_ATH3K
 config BT_MTKSDIO
 	tristate "MediaTek HCI SDIO driver"
 	depends on MMC
+	select BT_MTK
 	help
 	  MediaTek Bluetooth HCI SDIO driver.
 	  This driver is required if you want to use MediaTek Bluetooth
@@ -394,6 +400,7 @@ config BT_MTKSDIO
 config BT_MTKUART
 	tristate "MediaTek HCI UART driver"
 	depends on SERIAL_DEV_BUS
+	select BT_MTK
 	help
 	  MediaTek Bluetooth HCI UART driver.
 	  This driver is required if you want to use MediaTek Bluetooth
@@ -423,6 +430,16 @@ config BT_HCIRSI
 	  to the RSI_91x coex module for further scheduling to device
 
 	  Say Y here to compile support for HCI over Redpine into the
+	  kernel or say M to compile as a module.
+
+config BT_VIRTIO
+	tristate "Virtio Bluetooth driver"
+	depends on VIRTIO
+	help
+	  Virtio Bluetooth support driver.
+	  This driver supports Virtio Bluetooth devices.
+
+	  Say Y here to compile support for HCI over Virtio into the
 	  kernel or say M to compile as a module.
 
 endmenu

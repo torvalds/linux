@@ -25,25 +25,27 @@
 					I2C_FUNC_SMBUS_BLOCK_DATA |	\
 					I2C_FUNC_SMBUS_I2C_BLOCK)
 
-#define DW_IC_CON_MASTER		0x1
-#define DW_IC_CON_SPEED_STD		0x2
-#define DW_IC_CON_SPEED_FAST		0x4
-#define DW_IC_CON_SPEED_HIGH		0x6
-#define DW_IC_CON_SPEED_MASK		0x6
-#define DW_IC_CON_10BITADDR_SLAVE		0x8
-#define DW_IC_CON_10BITADDR_MASTER	0x10
-#define DW_IC_CON_RESTART_EN		0x20
-#define DW_IC_CON_SLAVE_DISABLE		0x40
-#define DW_IC_CON_STOP_DET_IFADDRESSED		0x80
-#define DW_IC_CON_TX_EMPTY_CTRL		0x100
-#define DW_IC_CON_RX_FIFO_FULL_HLD_CTRL		0x200
+#define DW_IC_CON_MASTER			BIT(0)
+#define DW_IC_CON_SPEED_STD			(1 << 1)
+#define DW_IC_CON_SPEED_FAST			(2 << 1)
+#define DW_IC_CON_SPEED_HIGH			(3 << 1)
+#define DW_IC_CON_SPEED_MASK			GENMASK(2, 1)
+#define DW_IC_CON_10BITADDR_SLAVE		BIT(3)
+#define DW_IC_CON_10BITADDR_MASTER		BIT(4)
+#define DW_IC_CON_RESTART_EN			BIT(5)
+#define DW_IC_CON_SLAVE_DISABLE			BIT(6)
+#define DW_IC_CON_STOP_DET_IFADDRESSED		BIT(7)
+#define DW_IC_CON_TX_EMPTY_CTRL			BIT(8)
+#define DW_IC_CON_RX_FIFO_FULL_HLD_CTRL		BIT(9)
+
+#define DW_IC_DATA_CMD_DAT			GENMASK(7, 0)
 
 /*
  * Registers offset
  */
-#define DW_IC_CON		0x0
-#define DW_IC_TAR		0x4
-#define DW_IC_SAR		0x8
+#define DW_IC_CON		0x00
+#define DW_IC_TAR		0x04
+#define DW_IC_SAR		0x08
 #define DW_IC_DATA_CMD		0x10
 #define DW_IC_SS_SCL_HCNT	0x14
 #define DW_IC_SS_SCL_LCNT	0x18
@@ -81,19 +83,19 @@
 #define DW_IC_COMP_TYPE		0xfc
 #define DW_IC_COMP_TYPE_VALUE	0x44570140
 
-#define DW_IC_INTR_RX_UNDER	0x001
-#define DW_IC_INTR_RX_OVER	0x002
-#define DW_IC_INTR_RX_FULL	0x004
-#define DW_IC_INTR_TX_OVER	0x008
-#define DW_IC_INTR_TX_EMPTY	0x010
-#define DW_IC_INTR_RD_REQ	0x020
-#define DW_IC_INTR_TX_ABRT	0x040
-#define DW_IC_INTR_RX_DONE	0x080
-#define DW_IC_INTR_ACTIVITY	0x100
-#define DW_IC_INTR_STOP_DET	0x200
-#define DW_IC_INTR_START_DET	0x400
-#define DW_IC_INTR_GEN_CALL	0x800
-#define DW_IC_INTR_RESTART_DET	0x1000
+#define DW_IC_INTR_RX_UNDER	BIT(0)
+#define DW_IC_INTR_RX_OVER	BIT(1)
+#define DW_IC_INTR_RX_FULL	BIT(2)
+#define DW_IC_INTR_TX_OVER	BIT(3)
+#define DW_IC_INTR_TX_EMPTY	BIT(4)
+#define DW_IC_INTR_RD_REQ	BIT(5)
+#define DW_IC_INTR_TX_ABRT	BIT(6)
+#define DW_IC_INTR_RX_DONE	BIT(7)
+#define DW_IC_INTR_ACTIVITY	BIT(8)
+#define DW_IC_INTR_STOP_DET	BIT(9)
+#define DW_IC_INTR_START_DET	BIT(10)
+#define DW_IC_INTR_GEN_CALL	BIT(11)
+#define DW_IC_INTR_RESTART_DET	BIT(12)
 
 #define DW_IC_INTR_DEFAULT_MASK		(DW_IC_INTR_RX_FULL | \
 					 DW_IC_INTR_TX_ABRT | \
@@ -105,17 +107,17 @@
 					 DW_IC_INTR_RX_UNDER | \
 					 DW_IC_INTR_RD_REQ)
 
-#define DW_IC_STATUS_ACTIVITY		0x1
+#define DW_IC_STATUS_ACTIVITY		BIT(0)
 #define DW_IC_STATUS_TFE		BIT(2)
 #define DW_IC_STATUS_MASTER_ACTIVITY	BIT(5)
 #define DW_IC_STATUS_SLAVE_ACTIVITY	BIT(6)
 
 #define DW_IC_SDA_HOLD_RX_SHIFT		16
-#define DW_IC_SDA_HOLD_RX_MASK		GENMASK(23, DW_IC_SDA_HOLD_RX_SHIFT)
+#define DW_IC_SDA_HOLD_RX_MASK		GENMASK(23, 16)
 
 #define DW_IC_ERR_TX_ABRT	0x1
 
-#define DW_IC_TAR_10BITADDR_MASTER BIT(12)
+#define DW_IC_TAR_10BITADDR_MASTER	BIT(12)
 
 #define DW_IC_COMP_PARAM_1_SPEED_MODE_HIGH	(BIT(2) | BIT(3))
 #define DW_IC_COMP_PARAM_1_SPEED_MODE_MASK	GENMASK(3, 2)
@@ -154,20 +156,20 @@
 #define ABRT_SLAVE_ARBLOST	14
 #define ABRT_SLAVE_RD_INTX	15
 
-#define DW_IC_TX_ABRT_7B_ADDR_NOACK	(1UL << ABRT_7B_ADDR_NOACK)
-#define DW_IC_TX_ABRT_10ADDR1_NOACK	(1UL << ABRT_10ADDR1_NOACK)
-#define DW_IC_TX_ABRT_10ADDR2_NOACK	(1UL << ABRT_10ADDR2_NOACK)
-#define DW_IC_TX_ABRT_TXDATA_NOACK	(1UL << ABRT_TXDATA_NOACK)
-#define DW_IC_TX_ABRT_GCALL_NOACK	(1UL << ABRT_GCALL_NOACK)
-#define DW_IC_TX_ABRT_GCALL_READ	(1UL << ABRT_GCALL_READ)
-#define DW_IC_TX_ABRT_SBYTE_ACKDET	(1UL << ABRT_SBYTE_ACKDET)
-#define DW_IC_TX_ABRT_SBYTE_NORSTRT	(1UL << ABRT_SBYTE_NORSTRT)
-#define DW_IC_TX_ABRT_10B_RD_NORSTRT	(1UL << ABRT_10B_RD_NORSTRT)
-#define DW_IC_TX_ABRT_MASTER_DIS	(1UL << ABRT_MASTER_DIS)
-#define DW_IC_TX_ARB_LOST		(1UL << ARB_LOST)
-#define DW_IC_RX_ABRT_SLAVE_RD_INTX	(1UL << ABRT_SLAVE_RD_INTX)
-#define DW_IC_RX_ABRT_SLAVE_ARBLOST	(1UL << ABRT_SLAVE_ARBLOST)
-#define DW_IC_RX_ABRT_SLAVE_FLUSH_TXFIFO	(1UL << ABRT_SLAVE_FLUSH_TXFIFO)
+#define DW_IC_TX_ABRT_7B_ADDR_NOACK		BIT(ABRT_7B_ADDR_NOACK)
+#define DW_IC_TX_ABRT_10ADDR1_NOACK		BIT(ABRT_10ADDR1_NOACK)
+#define DW_IC_TX_ABRT_10ADDR2_NOACK		BIT(ABRT_10ADDR2_NOACK)
+#define DW_IC_TX_ABRT_TXDATA_NOACK		BIT(ABRT_TXDATA_NOACK)
+#define DW_IC_TX_ABRT_GCALL_NOACK		BIT(ABRT_GCALL_NOACK)
+#define DW_IC_TX_ABRT_GCALL_READ		BIT(ABRT_GCALL_READ)
+#define DW_IC_TX_ABRT_SBYTE_ACKDET		BIT(ABRT_SBYTE_ACKDET)
+#define DW_IC_TX_ABRT_SBYTE_NORSTRT		BIT(ABRT_SBYTE_NORSTRT)
+#define DW_IC_TX_ABRT_10B_RD_NORSTRT		BIT(ABRT_10B_RD_NORSTRT)
+#define DW_IC_TX_ABRT_MASTER_DIS		BIT(ABRT_MASTER_DIS)
+#define DW_IC_TX_ARB_LOST			BIT(ARB_LOST)
+#define DW_IC_RX_ABRT_SLAVE_RD_INTX		BIT(ABRT_SLAVE_RD_INTX)
+#define DW_IC_RX_ABRT_SLAVE_ARBLOST		BIT(ABRT_SLAVE_ARBLOST)
+#define DW_IC_RX_ABRT_SLAVE_FLUSH_TXFIFO	BIT(ABRT_SLAVE_FLUSH_TXFIFO)
 
 #define DW_IC_TX_ABRT_NOACK		(DW_IC_TX_ABRT_7B_ADDR_NOACK | \
 					 DW_IC_TX_ABRT_10ADDR1_NOACK | \
@@ -189,23 +191,26 @@ struct reset_control;
  * @cmd_complete: tx completion indicator
  * @clk: input reference clock
  * @pclk: clock required to access the registers
+ * @rst: optional reset for the controller
  * @slave: represent an I2C slave device
+ * @get_clk_rate_khz: callback to retrieve IP specific bus speed
  * @cmd_err: run time hadware error code
  * @msgs: points to an array of messages currently being transferred
  * @msgs_num: the number of elements in msgs
- * @msg_write_idx: the element index of the current tx message in the msgs
- *	array
+ * @msg_write_idx: the element index of the current tx message in the msgs array
  * @tx_buf_len: the length of the current tx buffer
  * @tx_buf: the current tx buffer
- * @msg_read_idx: the element index of the current rx message in the msgs
- *	array
+ * @msg_read_idx: the element index of the current rx message in the msgs array
  * @rx_buf_len: the length of the current rx buffer
  * @rx_buf: the current rx buffer
  * @msg_err: error status of the current transfer
  * @status: i2c master status, one of STATUS_*
  * @abort_source: copy of the TX_ABRT_SOURCE register
  * @irq: interrupt number for the i2c master
+ * @flags: platform specific flags like type of IO accessors or model
  * @adapter: i2c subsystem adapter node
+ * @functionality: I2C_FUNC_* ORed bits to reflect what controller does support
+ * @master_cfg: configuration for the master device
  * @slave_cfg: configuration for the slave device
  * @tx_fifo_depth: depth of the hardware tx fifo
  * @rx_fifo_depth: depth of the hardware rx fifo
@@ -222,12 +227,15 @@ struct reset_control;
  * @hs_lcnt: high speed LCNT value
  * @acquire_lock: function to acquire a hardware lock on the bus
  * @release_lock: function to release a hardware lock on the bus
+ * @semaphore_idx: Index of table with semaphore type attached to the bus. It's
+ *	-1 if there is no semaphore.
  * @shared_with_punit: true if this bus is shared with the SoCs PUNIT
  * @disable: function to disable the controller
  * @disable_int: function to disable all interrupts
  * @init: function to initialize the I2C hardware
+ * @set_sda_hold_time: callback to retrieve IP specific SDA hold timing
  * @mode: operation mode - DW_IC_MASTER or DW_IC_SLAVE
- * @suspended: set to true if the controller is suspended
+ * @rinfo: I²C GPIO recovery information
  *
  * HCNT and LCNT parameters can be used if the platform knows more accurate
  * values than the one computed based only on the input clock frequency.
@@ -243,7 +251,7 @@ struct dw_i2c_dev {
 	struct clk		*clk;
 	struct clk		*pclk;
 	struct reset_control	*rst;
-	struct i2c_client		*slave;
+	struct i2c_client	*slave;
 	u32			(*get_clk_rate_khz) (struct dw_i2c_dev *dev);
 	int			cmd_err;
 	struct i2c_msg		*msgs;
@@ -278,6 +286,7 @@ struct dw_i2c_dev {
 	u16			hs_lcnt;
 	int			(*acquire_lock)(void);
 	void			(*release_lock)(void);
+	int			semaphore_idx;
 	bool			shared_with_punit;
 	void			(*disable)(struct dw_i2c_dev *dev);
 	void			(*disable_int)(struct dw_i2c_dev *dev);
@@ -285,15 +294,28 @@ struct dw_i2c_dev {
 	int			(*set_sda_hold_time)(struct dw_i2c_dev *dev);
 	int			mode;
 	struct i2c_bus_recovery_info rinfo;
-	bool			suspended;
 };
 
-#define ACCESS_INTR_MASK	0x00000001
-#define ACCESS_NO_IRQ_SUSPEND	0x00000002
+#define ACCESS_INTR_MASK	BIT(0)
+#define ACCESS_NO_IRQ_SUSPEND	BIT(1)
+#define ARBITRATION_SEMAPHORE	BIT(2)
 
-#define MODEL_MSCC_OCELOT	0x00000100
-#define MODEL_BAIKAL_BT1	0x00000200
-#define MODEL_MASK		0x00000f00
+#define MODEL_MSCC_OCELOT	BIT(8)
+#define MODEL_BAIKAL_BT1	BIT(9)
+#define MODEL_AMD_NAVI_GPU	BIT(10)
+#define MODEL_MASK		GENMASK(11, 8)
+
+/*
+ * Enable UCSI interrupt by writing 0xd at register
+ * offset 0x474 specified in hardware specification.
+ */
+#define AMD_UCSI_INTR_REG	0x474
+#define AMD_UCSI_INTR_EN	0xd
+
+struct i2c_dw_semaphore_callbacks {
+	int	(*probe)(struct dw_i2c_dev *dev);
+	void	(*remove)(struct dw_i2c_dev *dev);
+};
 
 int i2c_dw_init_regmap(struct dw_i2c_dev *dev);
 u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset);
@@ -355,9 +377,12 @@ static inline void i2c_dw_configure(struct dw_i2c_dev *dev)
 }
 
 #if IS_ENABLED(CONFIG_I2C_DESIGNWARE_BAYTRAIL)
-extern int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev);
-#else
-static inline int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev) { return 0; }
+int i2c_dw_baytrail_probe_lock_support(struct dw_i2c_dev *dev);
+#endif
+
+#if IS_ENABLED(CONFIG_I2C_DESIGNWARE_AMDPSP)
+int i2c_dw_amdpsp_probe_lock_support(struct dw_i2c_dev *dev);
+void i2c_dw_amdpsp_remove_lock_support(struct dw_i2c_dev *dev);
 #endif
 
 int i2c_dw_validate_speed(struct dw_i2c_dev *dev);

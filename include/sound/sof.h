@@ -17,6 +17,36 @@
 
 struct snd_sof_dsp_ops;
 
+/**
+ * enum sof_fw_state - DSP firmware state definitions
+ * @SOF_FW_BOOT_NOT_STARTED:	firmware boot is not yet started
+ * @SOF_FW_BOOT_PREPARE:	preparing for boot (firmware loading for exaqmple)
+ * @SOF_FW_BOOT_IN_PROGRESS:	firmware boot is in progress
+ * @SOF_FW_BOOT_FAILED:		firmware boot failed
+ * @SOF_FW_BOOT_READY_FAILED:	firmware booted but fw_ready op failed
+ * @SOF_FW_BOOT_READY_OK:	firmware booted and fw_ready op passed
+ * @SOF_FW_BOOT_COMPLETE:	firmware is booted up and functional
+ * @SOF_FW_CRASHED:		firmware crashed after successful boot
+ */
+enum sof_fw_state {
+	SOF_FW_BOOT_NOT_STARTED = 0,
+	SOF_FW_BOOT_PREPARE,
+	SOF_FW_BOOT_IN_PROGRESS,
+	SOF_FW_BOOT_FAILED,
+	SOF_FW_BOOT_READY_FAILED,
+	SOF_FW_BOOT_READY_OK,
+	SOF_FW_BOOT_COMPLETE,
+	SOF_FW_CRASHED,
+};
+
+/* DSP power states */
+enum sof_dsp_power_states {
+	SOF_DSP_PM_D0,
+	SOF_DSP_PM_D1,
+	SOF_DSP_PM_D2,
+	SOF_DSP_PM_D3,
+};
+
 /*
  * SOF Platform data.
  */
@@ -74,11 +104,6 @@ struct sof_dev_desc {
 	int resindex_pcicfg_base;
 	int resindex_imr_base;
 	int irqindex_host_ipc;
-	int resindex_dma_base;
-
-	/* DMA only valid when resindex_dma_base != -1*/
-	int dma_engine;
-	int dma_size;
 
 	/* IPC timeouts in ms */
 	int ipc_timeout;
@@ -100,6 +125,7 @@ struct sof_dev_desc {
 	const struct snd_sof_dsp_ops *ops;
 };
 
-int sof_nocodec_setup(struct device *dev,
-		      const struct snd_sof_dsp_ops *ops);
+int sof_dai_get_mclk(struct snd_soc_pcm_runtime *rtd);
+int sof_dai_get_bclk(struct snd_soc_pcm_runtime *rtd);
+
 #endif

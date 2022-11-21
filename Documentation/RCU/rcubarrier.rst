@@ -9,7 +9,7 @@ RCU (read-copy update) is a synchronization mechanism that can be thought
 of as a replacement for read-writer locking (among other things), but with
 very low-overhead readers that are immune to deadlock, priority inversion,
 and unbounded latency. RCU read-side critical sections are delimited
-by rcu_read_lock() and rcu_read_unlock(), which, in non-CONFIG_PREEMPT
+by rcu_read_lock() and rcu_read_unlock(), which, in non-CONFIG_PREEMPTION
 kernels, generate no code whatsoever.
 
 This means that RCU writers are unaware of the presence of concurrent
@@ -329,10 +329,10 @@ Answer: This cannot happen. The reason is that on_each_cpu() has its last
 	to smp_call_function() and further to smp_call_function_on_cpu(),
 	causing this latter to spin until the cross-CPU invocation of
 	rcu_barrier_func() has completed. This by itself would prevent
-	a grace period from completing on non-CONFIG_PREEMPT kernels,
+	a grace period from completing on non-CONFIG_PREEMPTION kernels,
 	since each CPU must undergo a context switch (or other quiescent
 	state) before the grace period can complete. However, this is
-	of no use in CONFIG_PREEMPT kernels.
+	of no use in CONFIG_PREEMPTION kernels.
 
 	Therefore, on_each_cpu() disables preemption across its call
 	to smp_call_function() and also across the local call to

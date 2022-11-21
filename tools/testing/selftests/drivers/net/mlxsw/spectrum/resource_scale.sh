@@ -22,8 +22,9 @@ cleanup()
 devlink_sp_read_kvd_defaults
 trap cleanup EXIT
 
-ALL_TESTS="router tc_flower mirror_gre tc_police"
+ALL_TESTS="router tc_flower mirror_gre tc_police port rif_mac_profile"
 for current_test in ${TESTS:-$ALL_TESTS}; do
+	RET_FIN=0
 	source ${current_test}_scale.sh
 
 	num_netifs_var=${current_test^^}_NUM_NETIFS
@@ -49,9 +50,10 @@ for current_test in ${TESTS:-$ALL_TESTS}; do
 			else
 				log_test "'$current_test' [$profile] overflow $target"
 			fi
+			RET_FIN=$(( RET_FIN || RET ))
 		done
 	done
 done
 current_test=""
 
-exit "$RET"
+exit "$RET_FIN"

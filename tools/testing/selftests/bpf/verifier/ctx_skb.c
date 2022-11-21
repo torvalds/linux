@@ -502,7 +502,7 @@
 	"check skb->hash byte load permitted",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, hash)),
 #else
@@ -537,7 +537,7 @@
 	"check skb->hash byte load permitted 3",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, hash) + 3),
 #else
@@ -646,7 +646,7 @@
 	"check skb->hash half load permitted",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, hash)),
 #else
@@ -661,7 +661,7 @@
 	"check skb->hash half load permitted 2",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, hash) + 2),
 #else
@@ -676,7 +676,7 @@
 	"check skb->hash half load not permitted, unaligned 1",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, hash) + 1),
 #else
@@ -693,7 +693,7 @@
 	"check skb->hash half load not permitted, unaligned 3",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, hash) + 3),
 #else
@@ -951,7 +951,7 @@
 	"check skb->data half load not permitted",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, data)),
 #else
@@ -1058,6 +1058,66 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {
+	"padding after gso_size is not accessible",
+	.insns = {
+	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+		    offsetofend(struct __sk_buff, gso_size)),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = REJECT,
+	.result_unpriv = REJECT,
+	.errstr = "invalid bpf_context access off=180 size=4",
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+},
+{
+	"read hwtstamp from CGROUP_SKB",
+	.insns = {
+	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
+		    offsetof(struct __sk_buff, hwtstamp)),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = ACCEPT,
+	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+},
+{
+	"read hwtstamp from CGROUP_SKB",
+	.insns = {
+	BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_1,
+		    offsetof(struct __sk_buff, hwtstamp)),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = ACCEPT,
+	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+},
+{
+	"write hwtstamp from CGROUP_SKB",
+	.insns = {
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0,
+		    offsetof(struct __sk_buff, hwtstamp)),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = REJECT,
+	.result_unpriv = REJECT,
+	.errstr = "invalid bpf_context access off=184 size=8",
+	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+},
+{
+	"read hwtstamp from CLS",
+	.insns = {
+	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
+		    offsetof(struct __sk_buff, hwtstamp)),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = ACCEPT,
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+},
+{
 	"check wire_len is not readable by sockets",
 	.insns = {
 		BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
@@ -1088,4 +1148,46 @@
 	.errstr = "invalid bpf_context access",
 	.errstr_unpriv = "R1 leaks addr",
 	.result = REJECT,
+},
+{
+       "pkt > pkt_end taken check",
+       .insns = {
+       BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,                //  0. r2 = *(u32 *)(r1 + data_end)
+                   offsetof(struct __sk_buff, data_end)),
+       BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_1,                //  1. r4 = *(u32 *)(r1 + data)
+                   offsetof(struct __sk_buff, data)),
+       BPF_MOV64_REG(BPF_REG_3, BPF_REG_4),                    //  2. r3 = r4
+       BPF_ALU64_IMM(BPF_ADD, BPF_REG_3, 42),                  //  3. r3 += 42
+       BPF_MOV64_IMM(BPF_REG_1, 0),                            //  4. r1 = 0
+       BPF_JMP_REG(BPF_JGT, BPF_REG_3, BPF_REG_2, 2),          //  5. if r3 > r2 goto 8
+       BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, 14),                  //  6. r4 += 14
+       BPF_MOV64_REG(BPF_REG_1, BPF_REG_4),                    //  7. r1 = r4
+       BPF_JMP_REG(BPF_JGT, BPF_REG_3, BPF_REG_2, 1),          //  8. if r3 > r2 goto 10
+       BPF_LDX_MEM(BPF_H, BPF_REG_2, BPF_REG_1, 9),            //  9. r2 = *(u8 *)(r1 + 9)
+       BPF_MOV64_IMM(BPF_REG_0, 0),                            // 10. r0 = 0
+       BPF_EXIT_INSN(),                                        // 11. exit
+       },
+       .result = ACCEPT,
+       .prog_type = BPF_PROG_TYPE_SK_SKB,
+},
+{
+       "pkt_end < pkt taken check",
+       .insns = {
+       BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,                //  0. r2 = *(u32 *)(r1 + data_end)
+                   offsetof(struct __sk_buff, data_end)),
+       BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_1,                //  1. r4 = *(u32 *)(r1 + data)
+                   offsetof(struct __sk_buff, data)),
+       BPF_MOV64_REG(BPF_REG_3, BPF_REG_4),                    //  2. r3 = r4
+       BPF_ALU64_IMM(BPF_ADD, BPF_REG_3, 42),                  //  3. r3 += 42
+       BPF_MOV64_IMM(BPF_REG_1, 0),                            //  4. r1 = 0
+       BPF_JMP_REG(BPF_JGT, BPF_REG_3, BPF_REG_2, 2),          //  5. if r3 > r2 goto 8
+       BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, 14),                  //  6. r4 += 14
+       BPF_MOV64_REG(BPF_REG_1, BPF_REG_4),                    //  7. r1 = r4
+       BPF_JMP_REG(BPF_JLT, BPF_REG_2, BPF_REG_3, 1),          //  8. if r2 < r3 goto 10
+       BPF_LDX_MEM(BPF_H, BPF_REG_2, BPF_REG_1, 9),            //  9. r2 = *(u8 *)(r1 + 9)
+       BPF_MOV64_IMM(BPF_REG_0, 0),                            // 10. r0 = 0
+       BPF_EXIT_INSN(),                                        // 11. exit
+       },
+       .result = ACCEPT,
+       .prog_type = BPF_PROG_TYPE_SK_SKB,
 },

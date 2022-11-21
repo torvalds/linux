@@ -76,7 +76,7 @@ __resolve_symbol(struct btf *btf, int type_id)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(test_symbols); i++) {
-		if (test_symbols[i].id != -1)
+		if (test_symbols[i].id >= 0)
 			continue;
 
 		if (BTF_INFO_KIND(type->info) != test_symbols[i].type)
@@ -106,9 +106,9 @@ static int resolve_symbols(void)
 		  "Failed to load BTF from btf_data.o\n"))
 		return -1;
 
-	nr = btf__get_nr_types(btf);
+	nr = btf__type_cnt(btf);
 
-	for (type_id = 1; type_id <= nr; type_id++) {
+	for (type_id = 1; type_id < nr; type_id++) {
 		if (__resolve_symbol(btf, type_id))
 			break;
 	}
@@ -117,14 +117,14 @@ static int resolve_symbols(void)
 	return 0;
 }
 
-int test_resolve_btfids(void)
+void test_resolve_btfids(void)
 {
 	__u32 *test_list, *test_lists[] = { test_list_local, test_list_global };
 	unsigned int i, j;
 	int ret = 0;
 
 	if (resolve_symbols())
-		return -1;
+		return;
 
 	/* Check BTF_ID_LIST(test_list_local) and
 	 * BTF_ID_LIST_GLOBAL(test_list_global) IDs
@@ -138,7 +138,7 @@ int test_resolve_btfids(void)
 				    test_symbols[i].name,
 				    test_list[i], test_symbols[i].id);
 			if (ret)
-				return ret;
+				return;
 		}
 	}
 
@@ -160,13 +160,8 @@ int test_resolve_btfids(void)
 			break;
 
 		if (i > 0) {
-			ret = CHECK(test_set.ids[i - 1] > test_set.ids[i],
-				    "sort_check",
-				    "test_set is not sorted\n");
-			if (ret)
-				break;
+			if (!ASSERT_LE(test_set.ids[i - 1], test_set.ids[i], "sort_check"))
+				return;
 		}
 	}
-
-	return ret;
 }

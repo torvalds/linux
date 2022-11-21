@@ -42,7 +42,7 @@ mcp79_gr = {
 };
 
 int
-mcp79_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+mcp79_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
-	return nv50_gr_new_(&mcp79_gr, device, index, pgr);
+	return nv50_gr_new_(&mcp79_gr, device, type, inst, pgr);
 }

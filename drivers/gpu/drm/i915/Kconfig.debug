@@ -19,6 +19,8 @@ config DRM_I915_WERROR
 config DRM_I915_DEBUG
 	bool "Enable additional driver debugging"
 	depends on DRM_I915
+	depends on EXPERT # only for developers
+	depends on !COMPILE_TEST # never built by robots
 	select DEBUG_FS
 	select PREEMPT_COUNT
 	select I2C_CHARDEV
@@ -31,10 +33,13 @@ config DRM_I915_DEBUG
 	select DRM_DEBUG_SELFTEST
 	select DMABUF_SELFTESTS
 	select SW_SYNC # signaling validation framework (igt/syncobj*)
+	select DRM_I915_WERROR
+	select DRM_I915_DEBUG_GEM
+	select DRM_I915_DEBUG_GEM_ONCE
+	select DRM_I915_DEBUG_MMIO
+	select DRM_I915_DEBUG_RUNTIME_PM
 	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
 	select DRM_I915_SELFTEST
-	select DRM_I915_DEBUG_RUNTIME_PM
-	select DRM_I915_DEBUG_MMIO
 	default n
 	help
 	  Choose this option to turn on extra driver debugging that may affect
@@ -64,6 +69,21 @@ config DRM_I915_DEBUG_GEM
 	help
 	  Enable extra sanity checks (including BUGs) along the GEM driver
 	  paths that may slow the system down and if hit hang the machine.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_I915_DEBUG_GEM_ONCE
+	bool "Make a GEM debug failure fatal"
+	default n
+	depends on DRM_I915_DEBUG_GEM
+	help
+	  During development, we often only want the very first failure
+	  as that would otherwise be lost in the deluge of subsequent
+	  failures. However, more casual testers may not want to trigger
+	  a hard BUG_ON and hope that the system remains sufficiently usable
+	  to capture a bug report in situ.
 
 	  Recommended for driver developers only.
 
@@ -187,6 +207,8 @@ config DRM_I915_LOW_LEVEL_TRACEPOINTS
 	  This provides the ability to precisely monitor engine utilisation
 	  and also analyze the request dependency resolving timeline.
 
+	  Recommended for driver developers only.
+
 	  If in doubt, say "N".
 
 config DRM_I915_DEBUG_VBLANK_EVADE
@@ -200,6 +222,8 @@ config DRM_I915_DEBUG_VBLANK_EVADE
 	  is exceeded, even if there isn't an actual risk of missing
 	  the vblank.
 
+	  Recommended for driver developers only.
+
 	  If in doubt, say "N".
 
 config DRM_I915_DEBUG_RUNTIME_PM
@@ -211,5 +235,7 @@ config DRM_I915_DEBUG_RUNTIME_PM
 	  Choose this option to turn on extra state checking for the
 	  runtime PM functionality. This may introduce overhead during
 	  driver loading, suspend and resume operations.
+
+	  Recommended for driver developers only.
 
 	  If in doubt, say "N"

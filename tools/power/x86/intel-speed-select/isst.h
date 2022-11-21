@@ -76,6 +76,9 @@
 
 #define DISP_FREQ_MULTIPLIER 100
 
+#define MAX_PACKAGE_COUNT 8
+#define MAX_DIE_PER_PACKAGE 2
+
 struct isst_clos_config {
 	int pkg_id;
 	int die_id;
@@ -228,6 +231,7 @@ extern void isst_fact_display_information(int cpu, FILE *outf, int level,
 					  int fact_bucket, int fact_avx,
 					  struct isst_fact_info *fact_info);
 extern int isst_set_trl(int cpu, unsigned long long trl);
+extern int isst_get_trl(int cpu, unsigned long long *trl);
 extern int isst_set_trl_from_current_tdp(int cpu, unsigned long long trl);
 extern int isst_get_config_tdp_lock_status(int cpu);
 
@@ -255,4 +259,18 @@ extern int is_clx_n_platform(void);
 extern int get_cpufreq_base_freq(int cpu);
 extern int isst_read_pm_config(int cpu, int *cp_state, int *cp_cap);
 extern void isst_display_error_info_message(int error, char *msg, int arg_valid, int arg);
+extern int is_skx_based_platform(void);
+extern int is_spr_platform(void);
+extern int is_icx_platform(void);
+extern void isst_trl_display_information(int cpu, FILE *outf, unsigned long long trl);
+
+extern void set_cpu_online_offline(int cpu, int state);
+extern void for_each_online_package_in_set(void (*callback)(int, void *, void *,
+							    void *, void *),
+					   void *arg1, void *arg2, void *arg3,
+					   void *arg4);
+extern int isst_daemon(int debug_mode, int poll_interval, int no_daemon);
+extern void process_level_change(int cpu);
+extern int hfi_main(void);
+extern void hfi_exit(void);
 #endif

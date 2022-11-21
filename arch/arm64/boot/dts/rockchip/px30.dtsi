@@ -110,7 +110,7 @@
 		};
 	};
 
-	cpu0_opp_table: cpu0-opp-table {
+	cpu0_opp_table: opp-table-0 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -244,28 +244,31 @@
 			#size-cells = <0>;
 
 			/* These power domains are grouped by VD_LOGIC */
-			pd_usb@PX30_PD_USB {
+			power-domain@PX30_PD_USB {
 				reg = <PX30_PD_USB>;
 				clocks = <&cru HCLK_HOST>,
 					 <&cru HCLK_OTG>,
 					 <&cru SCLK_OTG_ADP>;
 				pm_qos = <&qos_usb_host>, <&qos_usb_otg>;
+				#power-domain-cells = <0>;
 			};
-			pd_sdcard@PX30_PD_SDCARD {
+			power-domain@PX30_PD_SDCARD {
 				reg = <PX30_PD_SDCARD>;
 				clocks = <&cru HCLK_SDMMC>,
 					 <&cru SCLK_SDMMC>;
 				pm_qos = <&qos_sdmmc>;
+				#power-domain-cells = <0>;
 			};
-			pd_gmac@PX30_PD_GMAC {
+			power-domain@PX30_PD_GMAC {
 				reg = <PX30_PD_GMAC>;
 				clocks = <&cru ACLK_GMAC>,
 					 <&cru PCLK_GMAC>,
 					 <&cru SCLK_MAC_REF>,
 					 <&cru SCLK_GMAC_RX_TX>;
 				pm_qos = <&qos_gmac>;
+				#power-domain-cells = <0>;
 			};
-			pd_mmc_nand@PX30_PD_MMC_NAND {
+			power-domain@PX30_PD_MMC_NAND {
 				reg = <PX30_PD_MMC_NAND>;
 				clocks =  <&cru HCLK_NANDC>,
 					  <&cru HCLK_EMMC>,
@@ -277,15 +280,17 @@
 					  <&cru SCLK_SFC>;
 				pm_qos = <&qos_emmc>, <&qos_nand>,
 					 <&qos_sdio>, <&qos_sfc>;
+				#power-domain-cells = <0>;
 			};
-			pd_vpu@PX30_PD_VPU {
+			power-domain@PX30_PD_VPU {
 				reg = <PX30_PD_VPU>;
 				clocks = <&cru ACLK_VPU>,
 					 <&cru HCLK_VPU>,
 					 <&cru SCLK_CORE_VPU>;
 				pm_qos = <&qos_vpu>, <&qos_vpu_r128>;
+				#power-domain-cells = <0>;
 			};
-			pd_vo@PX30_PD_VO {
+			power-domain@PX30_PD_VO {
 				reg = <PX30_PD_VO>;
 				clocks = <&cru ACLK_RGA>,
 					 <&cru ACLK_VOPB>,
@@ -300,8 +305,9 @@
 					 <&cru SCLK_VOPB_PWM>;
 				pm_qos = <&qos_rga_rd>, <&qos_rga_wr>,
 					 <&qos_vop_m0>, <&qos_vop_m1>;
+				#power-domain-cells = <0>;
 			};
-			pd_vi@PX30_PD_VI {
+			power-domain@PX30_PD_VI {
 				reg = <PX30_PD_VI>;
 				clocks = <&cru ACLK_CIF>,
 					 <&cru ACLK_ISP>,
@@ -311,11 +317,13 @@
 				pm_qos = <&qos_isp_128>, <&qos_isp_rd>,
 					 <&qos_isp_wr>, <&qos_isp_m1>,
 					 <&qos_vip>;
+				#power-domain-cells = <0>;
 			};
-			pd_gpu@PX30_PD_GPU {
+			power-domain@PX30_PD_GPU {
 				reg = <PX30_PD_GPU>;
 				clocks = <&cru SCLK_GPU>;
 				pm_qos = <&qos_gpu>;
+				#power-domain-cells = <0>;
 			};
 		};
 	};
@@ -600,7 +608,7 @@
 	};
 
 	wdt: watchdog@ff1e0000 {
-		compatible = "snps,dw-wdt";
+		compatible = "rockchip,px30-wdt", "snps,dw-wdt";
 		reg = <0x0 0xff1e0000 0x0 0x100>;
 		clocks = <&cru PCLK_WDT_NS>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
@@ -703,22 +711,15 @@
 		clock-names = "pclk", "timer";
 	};
 
-	amba: bus {
-		compatible = "simple-bus";
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		dmac: dmac@ff240000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x0 0xff240000 0x0 0x4000>;
-			interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-			arm,pl330-periph-burst;
-			clocks = <&cru ACLK_DMAC>;
-			clock-names = "apb_pclk";
-			#dma-cells = <1>;
-		};
+	dmac: dma-controller@ff240000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x0 0xff240000 0x0 0x4000>;
+		interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+		arm,pl330-periph-burst;
+		clocks = <&cru ACLK_DMAC>;
+		clock-names = "apb_pclk";
+		#dma-cells = <1>;
 	};
 
 	tsadc: tsadc@ff280000 {
@@ -821,7 +822,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		u2phy: usb2-phy@100 {
+		u2phy: usb2phy@100 {
 			compatible = "rockchip,px30-usb2phy";
 			reg = <0x100 0x20>;
 			clocks = <&pmucru SCLK_USBPHY_REF>;
@@ -860,6 +861,19 @@
 		reset-names = "apb";
 		#phy-cells = <0>;
 		power-domains = <&power PX30_PD_VO>;
+		status = "disabled";
+	};
+
+	csi_dphy: phy@ff2f0000 {
+		compatible = "rockchip,px30-csi-dphy";
+		reg = <0x0 0xff2f0000 0x0 0x4000>;
+		clocks = <&cru PCLK_MIPICSIPHY>;
+		clock-names = "pclk";
+		#phy-cells = <0>;
+		power-domains = <&power PX30_PD_VI>;
+		resets = <&cru SRST_MIPICSIPHY_P>;
+		reset-names = "apb";
+		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
@@ -973,6 +987,54 @@
 		status = "disabled";
 	};
 
+	sfc: spi@ff3a0000 {
+		compatible = "rockchip,sfc";
+		reg = <0x0 0xff3a0000 0x0 0x4000>;
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
+		clock-names = "clk_sfc", "hclk_sfc";
+		pinctrl-0 = <&sfc_clk &sfc_cs0 &sfc_bus4>;
+		pinctrl-names = "default";
+		power-domains = <&power PX30_PD_MMC_NAND>;
+		status = "disabled";
+	};
+
+	nfc: nand-controller@ff3b0000 {
+		compatible = "rockchip,px30-nfc";
+		reg = <0x0 0xff3b0000 0x0 0x4000>;
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_NANDC>, <&cru SCLK_NANDC>;
+		clock-names = "ahb", "nfc";
+		assigned-clocks = <&cru SCLK_NANDC>;
+		assigned-clock-rates = <150000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&flash_ale &flash_bus8 &flash_cle &flash_cs0
+			     &flash_rdn &flash_rdy &flash_wrn &flash_dqs>;
+		power-domains = <&power PX30_PD_MMC_NAND>;
+		status = "disabled";
+	};
+
+	gpu_opp_table: opp-table-1 {
+		compatible = "operating-points-v2";
+
+		opp-200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <950000>;
+		};
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <975000>;
+		};
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1050000>;
+		};
+		opp-480000000 {
+			opp-hz = /bits/ 64 <480000000>;
+			opp-microvolt = <1125000>;
+		};
+	};
+
 	gpu: gpu@ff400000 {
 		compatible = "rockchip,px30-mali", "arm,mali-bifrost";
 		reg = <0x0 0xff400000 0x0 0x4000>;
@@ -983,11 +1045,34 @@
 		clocks = <&cru SCLK_GPU>;
 		#cooling-cells = <2>;
 		power-domains = <&power PX30_PD_GPU>;
+		operating-points-v2 = <&gpu_opp_table>;
 		status = "disabled";
 	};
 
+	vpu: video-codec@ff442000 {
+		compatible = "rockchip,px30-vpu";
+		reg = <0x0 0xff442000 0x0 0x800>;
+		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vepu", "vdpu";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk", "hclk";
+		iommus = <&vpu_mmu>;
+		power-domains = <&power PX30_PD_VPU>;
+	};
+
+	vpu_mmu: iommu@ff442800 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff442800 0x0 0x100>;
+		interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk", "iface";
+		#iommu-cells = <0>;
+		power-domains = <&power PX30_PD_VPU>;
+	};
+
 	dsi: dsi@ff450000 {
-		compatible = "rockchip,px30-mipi-dsi";
+		compatible = "rockchip,px30-mipi-dsi", "snps,dw-mipi-dsi";
 		reg = <0x0 0xff450000 0x0 0x10000>;
 		interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_MIPI_DSI>;
@@ -1057,7 +1142,6 @@
 		compatible = "rockchip,iommu";
 		reg = <0x0 0xff460f00 0x0 0x100>;
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "vopb_mmu";
 		clocks = <&cru ACLK_VOPB>, <&cru HCLK_VOPB>;
 		clock-names = "aclk", "iface";
 		power-domains = <&power PX30_PD_VO>;
@@ -1097,8 +1181,7 @@
 	vopl_mmu: iommu@ff470f00 {
 		compatible = "rockchip,iommu";
 		reg = <0x0 0xff470f00 0x0 0x100>;
-		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "vopl_mmu";
+		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOPL>, <&cru HCLK_VOPL>;
 		clock-names = "aclk", "iface";
 		power-domains = <&power PX30_PD_VO>;
@@ -1106,103 +1189,144 @@
 		status = "disabled";
 	};
 
+	isp: isp@ff4a0000 {
+		compatible = "rockchip,px30-cif-isp"; /*rk3326-rkisp1*/
+		reg = <0x0 0xff4a0000 0x0 0x8000>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp", "mi", "mipi";
+		clocks = <&cru SCLK_ISP>,
+			 <&cru ACLK_ISP>,
+			 <&cru HCLK_ISP>,
+			 <&cru PCLK_ISP>;
+		clock-names = "isp", "aclk", "hclk", "pclk";
+		iommus = <&isp_mmu>;
+		phys = <&csi_dphy>;
+		phy-names = "dphy";
+		power-domains = <&power PX30_PD_VI>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+	};
+
+	isp_mmu: iommu@ff4a8000 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff4a8000 0x0 0x100>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power PX30_PD_VI>;
+		rockchip,disable-mmu-reset;
+		#iommu-cells = <0>;
+	};
+
 	qos_gmac: qos@ff518000 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff518000 0x0 0x20>;
 	};
 
 	qos_gpu: qos@ff520000 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff520000 0x0 0x20>;
 	};
 
 	qos_sdmmc: qos@ff52c000 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff52c000 0x0 0x20>;
 	};
 
 	qos_emmc: qos@ff538000 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff538000 0x0 0x20>;
 	};
 
 	qos_nand: qos@ff538080 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff538080 0x0 0x20>;
 	};
 
 	qos_sdio: qos@ff538100 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff538100 0x0 0x20>;
 	};
 
 	qos_sfc: qos@ff538180 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff538180 0x0 0x20>;
 	};
 
 	qos_usb_host: qos@ff540000 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff540000 0x0 0x20>;
 	};
 
 	qos_usb_otg: qos@ff540080 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff540080 0x0 0x20>;
 	};
 
 	qos_isp_128: qos@ff548000 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff548000 0x0 0x20>;
 	};
 
 	qos_isp_rd: qos@ff548080 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff548080 0x0 0x20>;
 	};
 
 	qos_isp_wr: qos@ff548100 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff548100 0x0 0x20>;
 	};
 
 	qos_isp_m1: qos@ff548180 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff548180 0x0 0x20>;
 	};
 
 	qos_vip: qos@ff548200 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff548200 0x0 0x20>;
 	};
 
 	qos_rga_rd: qos@ff550000 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff550000 0x0 0x20>;
 	};
 
 	qos_rga_wr: qos@ff550080 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff550080 0x0 0x20>;
 	};
 
 	qos_vop_m0: qos@ff550100 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff550100 0x0 0x20>;
 	};
 
 	qos_vop_m1: qos@ff550180 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff550180 0x0 0x20>;
 	};
 
 	qos_vpu: qos@ff558000 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff558000 0x0 0x20>;
 	};
 
 	qos_vpu_r128: qos@ff558080 {
-		compatible = "syscon";
+		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff558080 0x0 0x20>;
 	};
 
@@ -1214,7 +1338,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		gpio0: gpio0@ff040000 {
+		gpio0: gpio@ff040000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff040000 0x0 0x100>;
 			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
@@ -1226,7 +1350,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		gpio1: gpio1@ff250000 {
+		gpio1: gpio@ff250000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff250000 0x0 0x100>;
 			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
@@ -1238,7 +1362,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		gpio2: gpio2@ff260000 {
+		gpio2: gpio@ff260000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff260000 0x0 0x100>;
 			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
@@ -1250,7 +1374,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		gpio3: gpio3@ff270000 {
+		gpio3: gpio@ff270000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff270000 0x0 0x100>;
 			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
@@ -1934,6 +2058,32 @@
 					<1 RK_PA5 1 &pcfg_pull_up_12ma>,
 					<1 RK_PA6 1 &pcfg_pull_up_12ma>,
 					<1 RK_PA7 1 &pcfg_pull_up_12ma>;
+			};
+		};
+
+		sfc {
+			sfc_bus4: sfc-bus4 {
+				rockchip,pins =
+					<1 RK_PA0 3 &pcfg_pull_none>,
+					<1 RK_PA1 3 &pcfg_pull_none>,
+					<1 RK_PA2 3 &pcfg_pull_none>,
+					<1 RK_PA3 3 &pcfg_pull_none>;
+			};
+
+			sfc_bus2: sfc-bus2 {
+				rockchip,pins =
+					<1 RK_PA0 3 &pcfg_pull_none>,
+					<1 RK_PA1 3 &pcfg_pull_none>;
+			};
+
+			sfc_cs0: sfc-cs0 {
+				rockchip,pins =
+					<1 RK_PA4 3 &pcfg_pull_none>;
+			};
+
+			sfc_clk: sfc-clk {
+				rockchip,pins =
+					<1 RK_PB1 3 &pcfg_pull_none>;
 			};
 		};
 

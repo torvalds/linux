@@ -1,0 +1,200 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/dlg,da9121.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Dialog Semiconductor DA9121 voltage regulator
+
+maintainers:
+  - Adam Ward <Adam.Ward.opensource@diasemi.com>
+
+description: |
+  Dialog Semiconductor DA9121 Single-channel 10A double-phase buck converter
+  Dialog Semiconductor DA9122 Double-channel  5A single-phase buck converter
+  Dialog Semiconductor DA9220 Double-channel  3A single-phase buck converter
+  Dialog Semiconductor DA9217 Single-channel  6A double-phase buck converter
+  Dialog Semiconductor DA9130 Single-channel 10A double-phase buck converter
+  Dialog Semiconductor DA9131 Double-channel  5A single-phase buck converter
+  Dialog Semiconductor DA9132 Double-channel  3A single-phase buck converter
+  Dialog Semiconductor DA9141 Single-channel 40A   quad-phase buck converter
+  Dialog Semiconductor DA9142 Single-channel 20A double-phase buck converter
+
+  Device parameter ranges
+
+  The current limits can be set to at/near double the rated current per channel
+  to allow for transient peaks.
+  Current limit changes when the output is enabled are not supported, as a
+  precaution against undefined behaviour.
+
+  |----------------------------------------------|
+  |               | range & reset default value  |
+  | Device        |------------------------------|
+  |               | microvolt    | microamp      |
+  |----------------------------------------------|
+  | DA9121/DA9130 | Min:  300000 | Min:  7000000 |
+  |               | Max: 1900000 | Max: 20000000 |
+  |----------------------------------------------|
+  | DA9121/DA9131 | Min:  300000 | Min:  3500000 |
+  |               | Max: 1900000 | Max: 10000000 |
+  |----------------------------------------------|
+  | DA9121/DA9131 | Min:  300000 | Min:  3500000 |
+  |               | Max: 1900000 | Max:  6000000 |
+  |----------------------------------------------|
+  | DA9217        | Min:  300000 | Min:  7000000 |
+  |               | Max: 1900000 | Max: 12000000 |
+  |----------------------------------------------|
+  | DA9141        | Min:  300000 | Min: 26000000 |
+  |               | Max: 1300000 | Max: 78000000 |
+  |----------------------------------------------|
+  | DA9142        | Min:  300000 | Min: 13000000 |
+  |               | Max: 1300000 | Max: 39000000 |
+  |----------------------------------------------|
+
+properties:
+  $nodename:
+    pattern: "pmic@[0-9a-f]{1,2}"
+  compatible:
+    enum:
+      - dlg,da9121
+      - dlg,da9122
+      - dlg,da9220
+      - dlg,da9217
+      - dlg,da9130
+      - dlg,da9131
+      - dlg,da9132
+      - dlg,da9141
+      - dlg,da9142
+
+  reg:
+    maxItems: 1
+    description: Specifies the I2C slave address.
+
+  interrupts:
+    maxItems: 1
+    description: IRQ line information.
+
+  dlg,irq-polling-delay-passive-ms:
+    minimum: 1000
+    maximum: 10000
+    description: |
+      Specify the polling period, measured in milliseconds, between interrupt status
+      update checks. Range 1000-10000 ms.
+
+  regulators:
+    type: object
+    description: |
+      List of regulators provided by the device
+
+    patternProperties:
+      "^buck([1-2])$":
+        type: object
+        $ref: regulator.yaml#
+        description: |
+          Properties for a single BUCK regulator
+
+        properties:
+          regulator-name:
+            pattern: "^BUCK([1-2])$"
+            description: |
+              BUCK2 present in DA9122, DA9220, DA9131, DA9132 only
+
+          regulator-initial-mode:
+            enum: [ 0, 1, 2, 3 ]
+            description: Defined in include/dt-bindings/regulator/dlg,da9121-regulator.h
+
+          enable-gpios:
+            maxItems: 1
+            description: Specify a valid GPIO for platform control of the regulator
+
+          dlg,ripple-cancel:
+            $ref: "/schemas/types.yaml#/definitions/uint32"
+            enum: [ 0, 1, 2, 3 ]
+            description: |
+              Defined in include/dt-bindings/regulator/dlg,da9121-regulator.h
+              Only present on multi-channel devices (DA9122, DA9220, DA9131, DA9132)
+
+        unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/regulator/dlg,da9121-regulator.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      pmic@68 {
+        compatible = "dlg,da9121";
+        reg = <0x68>;
+
+        interrupt-parent = <&gpio6>;
+        interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+
+        dlg,irq-polling-delay-passive-ms = <2000>;
+
+        regulators {
+          DA9121_BUCK1: buck1 {
+            regulator-name = "BUCK1";
+            regulator-min-microvolt = <300000>;
+            regulator-max-microvolt = <1900000>;
+            regulator-min-microamp = <7000000>;
+            regulator-max-microamp = <20000000>;
+            regulator-boot-on;
+            regulator-initial-mode = <DA9121_BUCK_MODE_AUTO>;
+            enable-gpios = <&gpio 1 GPIO_ACTIVE_HIGH>;
+          };
+        };
+      };
+    };
+
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/regulator/dlg,da9121-regulator.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      pmic@68 {
+        compatible = "dlg,da9122";
+        reg = <0x68>;
+
+        interrupt-parent = <&gpio6>;
+        interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+
+        dlg,irq-polling-delay-passive-ms = <2000>;
+
+        regulators {
+          DA9122_BUCK1: buck1 {
+            regulator-name = "BUCK1";
+            regulator-min-microvolt = <300000>;
+            regulator-max-microvolt = <1900000>;
+            regulator-min-microamp = <3500000>;
+            regulator-max-microamp = <10000000>;
+            regulator-boot-on;
+            regulator-initial-mode = <DA9121_BUCK_MODE_AUTO>;
+            enable-gpios = <&gpio6 1 GPIO_ACTIVE_HIGH>;
+            dlg,ripple-cancel = <DA9121_BUCK_RIPPLE_CANCEL_NONE>;
+          };
+          DA9122_BUCK2: buck2 {
+            regulator-name = "BUCK2";
+            regulator-min-microvolt = <300000>;
+            regulator-max-microvolt = <1900000>;
+            regulator-min-microamp = <3500000>;
+            regulator-max-microamp = <10000000>;
+            regulator-boot-on;
+            regulator-initial-mode = <DA9121_BUCK_MODE_AUTO>;
+            enable-gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;
+            dlg,ripple-cancel = <DA9121_BUCK_RIPPLE_CANCEL_NONE>;
+          };
+        };
+      };
+    };
+...

@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * DMM IOMMU driver support functions for TI OMAP processors.
  *
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
  *         Andy Gross <andy.gross@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/completion.h>
@@ -306,7 +298,7 @@ static irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-/**
+/*
  * Get a handle for a DMM transaction
  */
 static struct dmm_txn *dmm_txn_init(struct dmm *dmm, struct tcm *tcm)
@@ -344,7 +336,7 @@ static struct dmm_txn *dmm_txn_init(struct dmm *dmm, struct tcm *tcm)
 	return txn;
 }
 
-/**
+/*
  * Add region to DMM transaction.  If pages or pages[i] is NULL, then the
  * corresponding slot is cleared (ie. dummy_pa is programmed)
  */
@@ -392,7 +384,7 @@ static void dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
 	return;
 }
 
-/**
+/*
  * Commit the DMM transaction.
  */
 static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
@@ -889,6 +881,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 					   &omap_dmm->refill_pa, GFP_KERNEL);
 	if (!omap_dmm->refill_va) {
 		dev_err(&dev->dev, "could not allocate refill memory\n");
+		ret = -ENOMEM;
 		goto fail;
 	}
 

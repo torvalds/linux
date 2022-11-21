@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_PSI_H
 #define _LINUX_PSI_H
 
@@ -5,6 +6,7 @@
 #include <linux/psi_types.h>
 #include <linux/sched.h>
 #include <linux/poll.h>
+#include <linux/cgroup-defs.h>
 
 struct seq_file;
 struct css_set;
@@ -20,23 +22,21 @@ void psi_task_change(struct task_struct *task, int clear, int set);
 void psi_task_switch(struct task_struct *prev, struct task_struct *next,
 		     bool sleep);
 
-void psi_memstall_tick(struct task_struct *task, int cpu);
 void psi_memstall_enter(unsigned long *flags);
 void psi_memstall_leave(unsigned long *flags);
 
 int psi_show(struct seq_file *s, struct psi_group *group, enum psi_res res);
+struct psi_trigger *psi_trigger_create(struct psi_group *group,
+			char *buf, size_t nbytes, enum psi_res res);
+void psi_trigger_destroy(struct psi_trigger *t);
+
+__poll_t psi_trigger_poll(void **trigger_ptr, struct file *file,
+			poll_table *wait);
 
 #ifdef CONFIG_CGROUPS
 int psi_cgroup_alloc(struct cgroup *cgrp);
 void psi_cgroup_free(struct cgroup *cgrp);
 void cgroup_move_task(struct task_struct *p, struct css_set *to);
-
-struct psi_trigger *psi_trigger_create(struct psi_group *group,
-			char *buf, size_t nbytes, enum psi_res res);
-void psi_trigger_replace(void **trigger_ptr, struct psi_trigger *t);
-
-__poll_t psi_trigger_poll(void **trigger_ptr, struct file *file,
-			poll_table *wait);
 #endif
 
 #else /* CONFIG_PSI */

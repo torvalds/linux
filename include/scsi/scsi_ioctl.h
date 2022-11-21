@@ -18,7 +18,9 @@
 
 #ifdef __KERNEL__
 
+struct gendisk;
 struct scsi_device;
+struct sg_io_hdr;
 
 /*
  * Structures used for scsi_ioctl et al.
@@ -43,8 +45,11 @@ typedef struct scsi_fctargaddress {
 
 int scsi_ioctl_block_when_processing_errors(struct scsi_device *sdev,
 		int cmd, bool ndelay);
-extern int scsi_ioctl(struct scsi_device *, int, void __user *);
-extern int scsi_compat_ioctl(struct scsi_device *sdev, int cmd, void __user *arg);
+int scsi_ioctl(struct scsi_device *sdev, fmode_t mode, int cmd,
+		void __user *arg);
+int get_sg_io_hdr(struct sg_io_hdr *hdr, const void __user *argp);
+int put_sg_io_hdr(const struct sg_io_hdr *hdr, void __user *argp);
+bool scsi_cmd_allowed(unsigned char *cmd, fmode_t mode);
 
 #endif /* __KERNEL__ */
 #endif /* _SCSI_IOCTL_H */

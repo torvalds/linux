@@ -14,17 +14,21 @@
 
 /* common helpers */
 
-int vgic_check_ioaddr(struct kvm *kvm, phys_addr_t *ioaddr,
-		      phys_addr_t addr, phys_addr_t alignment)
+int vgic_check_iorange(struct kvm *kvm, phys_addr_t ioaddr,
+		       phys_addr_t addr, phys_addr_t alignment,
+		       phys_addr_t size)
 {
-	if (addr & ~kvm_phys_mask(kvm))
-		return -E2BIG;
+	if (!IS_VGIC_ADDR_UNDEF(ioaddr))
+		return -EEXIST;
 
-	if (!IS_ALIGNED(addr, alignment))
+	if (!IS_ALIGNED(addr, alignment) || !IS_ALIGNED(size, alignment))
 		return -EINVAL;
 
-	if (!IS_VGIC_ADDR_UNDEF(*ioaddr))
-		return -EEXIST;
+	if (addr + size < addr)
+		return -EINVAL;
+
+	if (addr & ~kvm_phys_mask(kvm) || addr + size > kvm_phys_size(kvm))
+		return -E2BIG;
 
 	return 0;
 }
@@ -57,7 +61,7 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 {
 	int r = 0;
 	struct vgic_dist *vgic = &kvm->arch.vgic;
-	phys_addr_t *addr_ptr, alignment;
+	phys_addr_t *addr_ptr, alignment, size;
 	u64 undef_value = VGIC_ADDR_UNDEF;
 
 	mutex_lock(&kvm->lock);
@@ -66,16 +70,19 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V2);
 		addr_ptr = &vgic->vgic_dist_base;
 		alignment = SZ_4K;
+		size = KVM_VGIC_V2_DIST_SIZE;
 		break;
 	case KVM_VGIC_V2_ADDR_TYPE_CPU:
 		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V2);
 		addr_ptr = &vgic->vgic_cpu_base;
 		alignment = SZ_4K;
+		size = KVM_VGIC_V2_CPU_SIZE;
 		break;
 	case KVM_VGIC_V3_ADDR_TYPE_DIST:
 		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V3);
 		addr_ptr = &vgic->vgic_dist_base;
 		alignment = SZ_64K;
+		size = KVM_VGIC_V3_DIST_SIZE;
 		break;
 	case KVM_VGIC_V3_ADDR_TYPE_REDIST: {
 		struct vgic_redist_region *rdreg;
@@ -87,8 +94,8 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 			r = vgic_v3_set_redist_base(kvm, 0, *addr, 0);
 			goto out;
 		}
-		rdreg = list_first_entry(&vgic->rd_regions,
-					 struct vgic_redist_region, list);
+		rdreg = list_first_entry_or_null(&vgic->rd_regions,
+						 struct vgic_redist_region, list);
 		if (!rdreg)
 			addr_ptr = &undef_value;
 		else
@@ -140,7 +147,7 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 		goto out;
 
 	if (write) {
-		r = vgic_check_ioaddr(kvm, addr_ptr, *addr, alignment);
+		r = vgic_check_iorange(kvm, *addr_ptr, *addr, alignment, size);
 		if (!r)
 			*addr_ptr = *addr;
 	} else {
@@ -225,6 +232,9 @@ static int vgic_get_common_attr(struct kvm_device *dev,
 		u64 __user *uaddr = (u64 __user *)(long)attr->addr;
 		u64 addr;
 		unsigned long type = (unsigned long)attr->attr;
+
+		if (copy_from_user(&addr, uaddr, sizeof(addr)))
+			return -EFAULT;
 
 		r = kvm_vgic_addr(dev->kvm, type, &addr, false);
 		if (r)
@@ -315,7 +325,7 @@ void unlock_all_vcpus(struct kvm *kvm)
 bool lock_all_vcpus(struct kvm *kvm)
 {
 	struct kvm_vcpu *tmp_vcpu;
-	int c;
+	unsigned long c;
 
 	/*
 	 * Any time a vcpu is run, vcpu_load is called which tries to grab the

@@ -122,6 +122,7 @@ void ConfigItem::updateMenu(void)
 		goto set_prompt;
 	case P_COMMENT:
 		setIcon(promptColIdx, QIcon());
+		prompt = "*** " + prompt + " ***";
 		goto set_prompt;
 	default:
 		;
@@ -310,15 +311,16 @@ ConfigList::ConfigList(QWidget *parent, const char *name)
 
 	setHeaderLabels(QStringList() << "Option" << "Name" << "Value");
 
-	connect(this, SIGNAL(itemSelectionChanged(void)),
-		SLOT(updateSelection(void)));
+	connect(this, &ConfigList::itemSelectionChanged,
+		this, &ConfigList::updateSelection);
 
 	if (name) {
 		configSettings->beginGroup(name);
 		showName = configSettings->value("/showName", false).toBool();
 		optMode = (enum optionMode)configSettings->value("/optionMode", 0).toInt();
 		configSettings->endGroup();
-		connect(configApp, SIGNAL(aboutToQuit()), SLOT(saveSettings()));
+		connect(configApp, &QApplication::aboutToQuit,
+			this, &ConfigList::saveSettings);
 	}
 
 	showColumn(promptColIdx);
@@ -888,10 +890,10 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 		headerPopup = new QMenu(this);
 		action = new QAction("Show Name", this);
 		action->setCheckable(true);
-		connect(action, SIGNAL(toggled(bool)),
-			SLOT(setShowName(bool)));
-		connect(this, SIGNAL(showNameChanged(bool)),
-			action, SLOT(setChecked(bool)));
+		connect(action, &QAction::toggled,
+			this, &ConfigList::setShowName);
+		connect(this, &ConfigList::showNameChanged,
+			action, &QAction::setChecked);
 		action->setChecked(showName);
 		headerPopup->addAction(action);
 	}
@@ -936,15 +938,18 @@ ConfigInfoView::ConfigInfoView(QWidget* parent, const char *name)
 		configSettings->beginGroup(objectName());
 		setShowDebug(configSettings->value("/showDebug", false).toBool());
 		configSettings->endGroup();
-		connect(configApp, SIGNAL(aboutToQuit()), SLOT(saveSettings()));
+		connect(configApp, &QApplication::aboutToQuit,
+			this, &ConfigInfoView::saveSettings);
 	}
 
 	contextMenu = createStandardContextMenu();
 	QAction *action = new QAction("Show Debug Info", contextMenu);
 
 	action->setCheckable(true);
-	connect(action, SIGNAL(toggled(bool)), SLOT(setShowDebug(bool)));
-	connect(this, SIGNAL(showDebugChanged(bool)), action, SLOT(setChecked(bool)));
+	connect(action, &QAction::toggled,
+		this, &ConfigInfoView::setShowDebug);
+	connect(this, &ConfigInfoView::showDebugChanged,
+		action, &QAction::setChecked);
 	action->setChecked(showDebug());
 	contextMenu->addSeparator();
 	contextMenu->addAction(action);
@@ -1231,11 +1236,13 @@ ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow *parent)
 	layout2->setSpacing(6);
 	layout2->addWidget(new QLabel("Find:", this));
 	editField = new QLineEdit(this);
-	connect(editField, SIGNAL(returnPressed()), SLOT(search()));
+	connect(editField, &QLineEdit::returnPressed,
+		this, &ConfigSearchWindow::search);
 	layout2->addWidget(editField);
 	searchButton = new QPushButton("Search", this);
 	searchButton->setAutoDefault(false);
-	connect(searchButton, SIGNAL(clicked()), SLOT(search()));
+	connect(searchButton, &QPushButton::clicked,
+		this, &ConfigSearchWindow::search);
 	layout2->addWidget(searchButton);
 	layout1->addLayout(layout2);
 
@@ -1244,10 +1251,10 @@ ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow *parent)
 	list = new ConfigList(split, "search");
 	list->mode = listMode;
 	info = new ConfigInfoView(split, "search");
-	connect(list, SIGNAL(menuChanged(struct menu *)),
-		info, SLOT(setInfo(struct menu *)));
-	connect(list, SIGNAL(menuChanged(struct menu *)),
-		parent, SLOT(setMenuLink(struct menu *)));
+	connect(list, &ConfigList::menuChanged,
+		info, &ConfigInfoView::setInfo);
+	connect(list, &ConfigList::menuChanged,
+		parent, &ConfigMainWindow::setMenuLink);
 
 	layout1->addWidget(split);
 
@@ -1267,7 +1274,8 @@ ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow *parent)
 	if (ok)
 		split->setSizes(sizes);
 	configSettings->endGroup();
-	connect(configApp, SIGNAL(aboutToQuit()), SLOT(saveSettings()));
+	connect(configApp, &QApplication::aboutToQuit,
+		this, &ConfigSearchWindow::saveSettings);
 }
 
 void ConfigSearchWindow::saveSettings(void)
@@ -1367,19 +1375,23 @@ ConfigMainWindow::ConfigMainWindow(void)
 	configList->setFocus();
 
 	backAction = new QAction(QPixmap(xpm_back), "Back", this);
-	connect(backAction, SIGNAL(triggered(bool)), SLOT(goBack()));
+	connect(backAction, &QAction::triggered,
+		this, &ConfigMainWindow::goBack);
 
 	QAction *quitAction = new QAction("&Quit", this);
 	quitAction->setShortcut(Qt::CTRL + Qt::Key_Q);
-	connect(quitAction, SIGNAL(triggered(bool)), SLOT(close()));
+	connect(quitAction, &QAction::triggered,
+		this, &ConfigMainWindow::close);
 
 	QAction *loadAction = new QAction(QPixmap(xpm_load), "&Load", this);
 	loadAction->setShortcut(Qt::CTRL + Qt::Key_L);
-	connect(loadAction, SIGNAL(triggered(bool)), SLOT(loadConfig()));
+	connect(loadAction, &QAction::triggered,
+		this, &ConfigMainWindow::loadConfig);
 
 	saveAction = new QAction(QPixmap(xpm_save), "&Save", this);
 	saveAction->setShortcut(Qt::CTRL + Qt::Key_S);
-	connect(saveAction, SIGNAL(triggered(bool)), SLOT(saveConfig()));
+	connect(saveAction, &QAction::triggered,
+		this, &ConfigMainWindow::saveConfig);
 
 	conf_set_changed_callback(conf_changed);
 
@@ -1388,31 +1400,37 @@ ConfigMainWindow::ConfigMainWindow(void)
 	configname = xstrdup(conf_get_configname());
 
 	QAction *saveAsAction = new QAction("Save &As...", this);
-	  connect(saveAsAction, SIGNAL(triggered(bool)), SLOT(saveConfigAs()));
+	connect(saveAsAction, &QAction::triggered,
+		this, &ConfigMainWindow::saveConfigAs);
 	QAction *searchAction = new QAction("&Find", this);
 	searchAction->setShortcut(Qt::CTRL + Qt::Key_F);
-	  connect(searchAction, SIGNAL(triggered(bool)), SLOT(searchConfig()));
+	connect(searchAction, &QAction::triggered,
+		this, &ConfigMainWindow::searchConfig);
 	singleViewAction = new QAction(QPixmap(xpm_single_view), "Single View", this);
 	singleViewAction->setCheckable(true);
-	  connect(singleViewAction, SIGNAL(triggered(bool)), SLOT(showSingleView()));
+	connect(singleViewAction, &QAction::triggered,
+		this, &ConfigMainWindow::showSingleView);
 	splitViewAction = new QAction(QPixmap(xpm_split_view), "Split View", this);
 	splitViewAction->setCheckable(true);
-	  connect(splitViewAction, SIGNAL(triggered(bool)), SLOT(showSplitView()));
+	connect(splitViewAction, &QAction::triggered,
+		this, &ConfigMainWindow::showSplitView);
 	fullViewAction = new QAction(QPixmap(xpm_tree_view), "Full View", this);
 	fullViewAction->setCheckable(true);
-	  connect(fullViewAction, SIGNAL(triggered(bool)), SLOT(showFullView()));
+	connect(fullViewAction, &QAction::triggered,
+		this, &ConfigMainWindow::showFullView);
 
 	QAction *showNameAction = new QAction("Show Name", this);
 	  showNameAction->setCheckable(true);
-	connect(showNameAction, SIGNAL(toggled(bool)), configList, SLOT(setShowName(bool)));
+	connect(showNameAction, &QAction::toggled,
+		configList, &ConfigList::setShowName);
 	showNameAction->setChecked(configList->showName);
 
 	QActionGroup *optGroup = new QActionGroup(this);
 	optGroup->setExclusive(true);
-	connect(optGroup, SIGNAL(triggered(QAction*)), configList,
-		SLOT(setOptionMode(QAction *)));
-	connect(optGroup, SIGNAL(triggered(QAction *)), menuList,
-		SLOT(setOptionMode(QAction *)));
+	connect(optGroup, &QActionGroup::triggered,
+		configList, &ConfigList::setOptionMode);
+	connect(optGroup, &QActionGroup::triggered,
+		menuList, &ConfigList::setOptionMode);
 
 	ConfigList::showNormalAction = new QAction("Show Normal Options", optGroup);
 	ConfigList::showNormalAction->setCheckable(true);
@@ -1423,13 +1441,16 @@ ConfigMainWindow::ConfigMainWindow(void)
 
 	QAction *showDebugAction = new QAction("Show Debug Info", this);
 	  showDebugAction->setCheckable(true);
-	  connect(showDebugAction, SIGNAL(toggled(bool)), helpText, SLOT(setShowDebug(bool)));
+	connect(showDebugAction, &QAction::toggled,
+		helpText, &ConfigInfoView::setShowDebug);
 	  showDebugAction->setChecked(helpText->showDebug());
 
 	QAction *showIntroAction = new QAction("Introduction", this);
-	  connect(showIntroAction, SIGNAL(triggered(bool)), SLOT(showIntro()));
+	connect(showIntroAction, &QAction::triggered,
+		this, &ConfigMainWindow::showIntro);
 	QAction *showAboutAction = new QAction("About", this);
-	  connect(showAboutAction, SIGNAL(triggered(bool)), SLOT(showAbout()));
+	connect(showAboutAction, &QAction::triggered,
+		this, &ConfigMainWindow::showAbout);
 
 	// init tool bar
 	QToolBar *toolBar = addToolBar("Tools");
@@ -1467,30 +1488,30 @@ ConfigMainWindow::ConfigMainWindow(void)
 	menu->addAction(showIntroAction);
 	menu->addAction(showAboutAction);
 
-	connect (helpText, SIGNAL (anchorClicked (const QUrl &)),
-		 helpText, SLOT (clicked (const QUrl &)) );
+	connect(helpText, &ConfigInfoView::anchorClicked,
+		helpText, &ConfigInfoView::clicked);
 
-	connect(configList, SIGNAL(menuChanged(struct menu *)),
-		helpText, SLOT(setInfo(struct menu *)));
-	connect(configList, SIGNAL(menuSelected(struct menu *)),
-		SLOT(changeMenu(struct menu *)));
-	connect(configList, SIGNAL(itemSelected(struct menu *)),
-		SLOT(changeItens(struct menu *)));
-	connect(configList, SIGNAL(parentSelected()),
-		SLOT(goBack()));
-	connect(menuList, SIGNAL(menuChanged(struct menu *)),
-		helpText, SLOT(setInfo(struct menu *)));
-	connect(menuList, SIGNAL(menuSelected(struct menu *)),
-		SLOT(changeMenu(struct menu *)));
+	connect(configList, &ConfigList::menuChanged,
+		helpText, &ConfigInfoView::setInfo);
+	connect(configList, &ConfigList::menuSelected,
+		this, &ConfigMainWindow::changeMenu);
+	connect(configList, &ConfigList::itemSelected,
+		this, &ConfigMainWindow::changeItens);
+	connect(configList, &ConfigList::parentSelected,
+		this, &ConfigMainWindow::goBack);
+	connect(menuList, &ConfigList::menuChanged,
+		helpText, &ConfigInfoView::setInfo);
+	connect(menuList, &ConfigList::menuSelected,
+		this, &ConfigMainWindow::changeMenu);
 
-	connect(configList, SIGNAL(gotFocus(struct menu *)),
-		helpText, SLOT(setInfo(struct menu *)));
-	connect(menuList, SIGNAL(gotFocus(struct menu *)),
-		helpText, SLOT(setInfo(struct menu *)));
-	connect(menuList, SIGNAL(gotFocus(struct menu *)),
-		SLOT(listFocusChanged(void)));
-	connect(helpText, SIGNAL(menuSelected(struct menu *)),
-		SLOT(setMenuLink(struct menu *)));
+	connect(configList, &ConfigList::gotFocus,
+		helpText, &ConfigInfoView::setInfo);
+	connect(menuList, &ConfigList::gotFocus,
+		helpText, &ConfigInfoView::setInfo);
+	connect(menuList, &ConfigList::gotFocus,
+		this, &ConfigMainWindow::listFocusChanged);
+	connect(helpText, &ConfigInfoView::menuSelected,
+		this, &ConfigMainWindow::setMenuLink);
 
 	QString listMode = configSettings->value("/listMode", "symbol").toString();
 	if (listMode == "single")
@@ -1779,10 +1800,13 @@ void ConfigMainWindow::showIntro(void)
 void ConfigMainWindow::showAbout(void)
 {
 	static const QString str = "qconf is Copyright (C) 2002 Roman Zippel <zippel@linux-m68k.org>.\n"
-		"Copyright (C) 2015 Boris Barbulovski <bbarbulovski@gmail.com>.\n\n"
-		"Bug reports and feature request can also be entered at http://bugzilla.kernel.org/\n";
+		"Copyright (C) 2015 Boris Barbulovski <bbarbulovski@gmail.com>.\n"
+		"\n"
+		"Bug reports and feature request can also be entered at http://bugzilla.kernel.org/\n"
+		"\n"
+		"Qt Version: ";
 
-	QMessageBox::information(this, "qconf", str);
+	QMessageBox::information(this, "qconf", str + qVersion());
 }
 
 void ConfigMainWindow::saveSettings(void)

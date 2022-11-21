@@ -12,6 +12,7 @@
 #include "maps.h"
 #include "symbol.h"
 #include "symsrc.h"
+#include "demangle-ocaml.h"
 #include "demangle-java.h"
 #include "demangle-rust.h"
 #include "machine.h"
@@ -251,8 +252,12 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 	    return demangled;
 
 	demangled = bfd_demangle(NULL, elf_name, demangle_flags);
-	if (demangled == NULL)
-		demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
+	if (demangled == NULL) {
+		demangled = ocaml_demangle_sym(elf_name);
+		if (demangled == NULL) {
+			demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
+		}
+	}
 	else if (rust_is_mangled(demangled))
 		/*
 		    * Input to Rust demangling is the BFD-demangled
@@ -534,7 +539,7 @@ out:
 
 #ifdef HAVE_LIBBFD_BUILDID_SUPPORT
 
-int filename__read_build_id(const char *filename, struct build_id *bid)
+static int read_build_id(const char *filename, struct build_id *bid)
 {
 	size_t size = sizeof(bid->data);
 	int err = -1;
@@ -563,7 +568,7 @@ out_close:
 
 #else // HAVE_LIBBFD_BUILDID_SUPPORT
 
-int filename__read_build_id(const char *filename, struct build_id *bid)
+static int read_build_id(const char *filename, struct build_id *bid)
 {
 	size_t size = sizeof(bid->data);
 	int fd, err = -1;
@@ -594,6 +599,39 @@ out:
 }
 
 #endif // HAVE_LIBBFD_BUILDID_SUPPORT
+
+int filename__read_build_id(const char *filename, struct build_id *bid)
+{
+	struct kmod_path m = { .name = NULL, };
+	char path[PATH_MAX];
+	int err;
+
+	if (!filename)
+		return -EFAULT;
+
+	err = kmod_path__parse(&m, filename);
+	if (err)
+		return -1;
+
+	if (m.comp) {
+		int error = 0, fd;
+
+		fd = filename__decompress(filename, path, sizeof(path), m.comp, &error);
+		if (fd < 0) {
+			pr_debug("Failed to decompress (error %d) %s\n",
+				 error, filename);
+			return -1;
+		}
+		close(fd);
+		filename = path;
+	}
+
+	err = read_build_id(filename, bid);
+
+	if (m.comp)
+		unlink(filename);
+	return err;
+}
 
 int sysfs__read_build_id(const char *filename, struct build_id *bid)
 {
@@ -1020,7 +1058,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		curr_dso->symtab_type = dso->symtab_type;
 		maps__insert(kmaps, curr_map);
 		/*
-		 * Add it before we drop the referece to curr_map, i.e. while
+		 * Add it before we drop the reference to curr_map, i.e. while
 		 * we still are sure to have a reference to this DSO via
 		 * *curr_map->dso.
 		 */
@@ -1036,14 +1074,15 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 	return 0;
 }
 
-int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
-		  struct symsrc *runtime_ss, int kmodule)
+static int
+dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
+		       struct symsrc *runtime_ss, int kmodule, int dynsym)
 {
 	struct kmap *kmap = dso->kernel ? map__kmap(map) : NULL;
 	struct maps *kmaps = kmap ? map__kmaps(map) : NULL;
 	struct map *curr_map = map;
 	struct dso *curr_dso = dso;
-	Elf_Data *symstrs, *secstrs;
+	Elf_Data *symstrs, *secstrs, *secstrs_run, *secstrs_sym;
 	uint32_t nr_syms;
 	int err = -1;
 	uint32_t idx;
@@ -1060,34 +1099,15 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	if (kmap && !kmaps)
 		return -1;
 
-	dso->symtab_type = syms_ss->type;
-	dso->is_64_bit = syms_ss->is_64_bit;
-	dso->rel = syms_ss->ehdr.e_type == ET_REL;
-
-	/*
-	 * Modules may already have symbols from kallsyms, but those symbols
-	 * have the wrong values for the dso maps, so remove them.
-	 */
-	if (kmodule && syms_ss->symtab)
-		symbols__delete(&dso->symbols);
-
-	if (!syms_ss->symtab) {
-		/*
-		 * If the vmlinux is stripped, fail so we will fall back
-		 * to using kallsyms. The vmlinux runtime symbols aren't
-		 * of much use.
-		 */
-		if (dso->kernel)
-			goto out_elf_end;
-
-		syms_ss->symtab  = syms_ss->dynsym;
-		syms_ss->symshdr = syms_ss->dynshdr;
-	}
-
 	elf = syms_ss->elf;
 	ehdr = syms_ss->ehdr;
-	sec = syms_ss->symtab;
-	shdr = syms_ss->symshdr;
+	if (dynsym) {
+		sec  = syms_ss->dynsym;
+		shdr = syms_ss->dynshdr;
+	} else {
+		sec =  syms_ss->symtab;
+		shdr = syms_ss->symshdr;
+	}
 
 	if (elf_section_by_name(runtime_ss->elf, &runtime_ss->ehdr, &tshdr,
 				".text", NULL))
@@ -1112,8 +1132,16 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	if (sec_strndx == NULL)
 		goto out_elf_end;
 
-	secstrs = elf_getdata(sec_strndx, NULL);
-	if (secstrs == NULL)
+	secstrs_run = elf_getdata(sec_strndx, NULL);
+	if (secstrs_run == NULL)
+		goto out_elf_end;
+
+	sec_strndx = elf_getscn(elf, ehdr.e_shstrndx);
+	if (sec_strndx == NULL)
+		goto out_elf_end;
+
+	secstrs_sym = elf_getdata(sec_strndx, NULL);
+	if (secstrs_sym == NULL)
 		goto out_elf_end;
 
 	nr_syms = shdr.sh_size / shdr.sh_entsize;
@@ -1193,11 +1221,28 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		if (sym.st_shndx == SHN_ABS)
 			continue;
 
-		sec = elf_getscn(runtime_ss->elf, sym.st_shndx);
+		sec = elf_getscn(syms_ss->elf, sym.st_shndx);
 		if (!sec)
 			goto out_elf_end;
 
 		gelf_getshdr(sec, &shdr);
+
+		secstrs = secstrs_sym;
+
+		/*
+		 * We have to fallback to runtime when syms' section header has
+		 * NOBITS set. NOBITS results in file offset (sh_offset) not
+		 * being incremented. So sh_offset used below has different
+		 * values for syms (invalid) and runtime (valid).
+		 */
+		if (shdr.sh_type == SHT_NOBITS) {
+			sec = elf_getscn(runtime_ss->elf, sym.st_shndx);
+			if (!sec)
+				goto out_elf_end;
+
+			gelf_getshdr(sec, &shdr);
+			secstrs = secstrs_run;
+		}
 
 		if (is_label && !elf_sec__filter(&shdr, secstrs))
 			continue;
@@ -1245,7 +1290,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	 * For misannotated, zeroed, ASM function sizes.
 	 */
 	if (nr > 0) {
-		symbols__fixup_end(&dso->symbols);
+		symbols__fixup_end(&dso->symbols, false);
 		symbols__fixup_duplicate(&dso->symbols);
 		if (kmap) {
 			/*
@@ -1257,6 +1302,50 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	}
 	err = nr;
 out_elf_end:
+	return err;
+}
+
+int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
+		  struct symsrc *runtime_ss, int kmodule)
+{
+	int nr = 0;
+	int err = -1;
+
+	dso->symtab_type = syms_ss->type;
+	dso->is_64_bit = syms_ss->is_64_bit;
+	dso->rel = syms_ss->ehdr.e_type == ET_REL;
+
+	/*
+	 * Modules may already have symbols from kallsyms, but those symbols
+	 * have the wrong values for the dso maps, so remove them.
+	 */
+	if (kmodule && syms_ss->symtab)
+		symbols__delete(&dso->symbols);
+
+	if (!syms_ss->symtab) {
+		/*
+		 * If the vmlinux is stripped, fail so we will fall back
+		 * to using kallsyms. The vmlinux runtime symbols aren't
+		 * of much use.
+		 */
+		if (dso->kernel)
+			return err;
+	} else  {
+		err = dso__load_sym_internal(dso, map, syms_ss, runtime_ss,
+					     kmodule, 0);
+		if (err < 0)
+			return err;
+		nr = err;
+	}
+
+	if (syms_ss->dynsym) {
+		err = dso__load_sym_internal(dso, map, syms_ss, runtime_ss,
+					     kmodule, 1);
+		if (err < 0)
+			return err;
+		err += nr;
+	}
+
 	return err;
 }
 
@@ -2360,6 +2449,7 @@ int cleanup_sdt_note_list(struct list_head *sdt_notes)
 
 	list_for_each_entry_safe(pos, tmp, sdt_notes, note_list) {
 		list_del_init(&pos->note_list);
+		zfree(&pos->args);
 		zfree(&pos->name);
 		zfree(&pos->provider);
 		free(pos);

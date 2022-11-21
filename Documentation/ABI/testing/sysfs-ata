@@ -1,4 +1,4 @@
-What:		/sys/class/ata_...
+What:		/sys/class/ata_*
 Description:
 		Provide a place in sysfs for storing the ATA topology of the
 		system. This allows retrieving various information about ATA

@@ -10,6 +10,11 @@
 	model = "Firefly roc-rk3328-cc";
 	compatible = "firefly,roc-rk3328-cc", "rockchip,rk3328";
 
+	aliases {
+		mmc0 = &sdmmc;
+		mmc1 = &emmc;
+	};
+
 	chosen {
 		stdout-path = "serial2:1500000n8";
 	};
@@ -45,8 +50,8 @@
 	vcc_sdio: sdmmcio-regulator {
 		compatible = "regulator-gpio";
 		gpios = <&grf_gpio 0 GPIO_ACTIVE_HIGH>;
-		states = <1800000 0x1
-			  3300000 0x0>;
+		states = <1800000 0x1>,
+			 <3300000 0x0>;
 		regulator-name = "vcc_sdio";
 		regulator-type = "voltage";
 		regulator-min-microvolt = <1800000>;
@@ -104,6 +109,14 @@
 	};
 };
 
+&analog_sound {
+	status = "okay";
+};
+
+&codec {
+	status = "okay";
+};
+
 &cpu0 {
 	cpu-supply = <&vdd_arm>;
 };
@@ -158,6 +171,10 @@
 };
 
 &hdmiphy {
+	status = "okay";
+};
+
+&hdmi_sound {
 	status = "okay";
 };
 
@@ -270,6 +287,14 @@
 	};
 };
 
+&i2s0 {
+	status = "okay";
+};
+
+&i2s1 {
+	status = "okay";
+};
+
 &io_domains {
 	status = "okay";
 
@@ -334,6 +359,12 @@
 };
 
 &usb20_otg {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usbdrd3 {
+	dr_mode = "host";
 	status = "okay";
 };
 

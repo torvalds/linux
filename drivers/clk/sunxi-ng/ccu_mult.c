@@ -170,3 +170,4 @@ const struct clk_ops ccu_mult_ops = {
 	.recalc_rate	= ccu_mult_recalc_rate,
 	.set_rate	= ccu_mult_set_rate,
 };
+EXPORT_SYMBOL_NS_GPL(ccu_mult_ops, SUNXI_CCU);

@@ -55,6 +55,14 @@ properties:
       - const: vp1
       - const: vp2
 
+  assigned-clocks:
+    minItems: 1
+    maxItems: 3
+
+  assigned-clock-parents:
+    minItems: 1
+    maxItems: 3
+
   interrupts:
     maxItems: 1
 
@@ -62,34 +70,25 @@ properties:
     maxItems: 1
     description: phandle to the associated power domain
 
+  dma-coherent:
+    type: boolean
+
   ports:
-    type: object
-    description:
-      Ports as described in Documentation/devicetree/bindings/graph.txt
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description:
           The DSS OLDI output port node form video port 1
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description:
           The DSS DPI output port node from video port 2
 
-    required:
-      - "#address-cells"
-      - "#size-cells"
-
   ti,am65x-oldi-io-ctrl:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
-    maxItems: 1
+    $ref: "/schemas/types.yaml#/definitions/phandle"
     description:
       phandle to syscon device node mapping OLDI IO_CTRL registers.
       The mapped range should point to OLDI_DAT0_IO_CTRL, map it and

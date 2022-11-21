@@ -191,7 +191,8 @@ snd_emu8000_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	sp->v.truesize = truesize * 2; /* in bytes */
 
 	snd_emux_terminate_all(emu->emu);
-	if ((rc = snd_emu8000_open_dma(emu, EMU8000_RAM_WRITE)) != 0)
+	rc = snd_emu8000_open_dma(emu, EMU8000_RAM_WRITE);
+	if (rc)
 		return rc;
 
 	/* Set the address to start writing at */

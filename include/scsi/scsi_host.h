@@ -16,10 +16,8 @@ struct completion;
 struct module;
 struct scsi_cmnd;
 struct scsi_device;
-struct scsi_host_cmd_pool;
 struct scsi_target;
 struct Scsi_Host;
-struct scsi_host_cmd_pool;
 struct scsi_transport_template;
 
 
@@ -30,40 +28,15 @@ struct scsi_transport_template;
 #define MODE_TARGET 0x02
 
 struct scsi_host_template {
-	struct module *module;
-	const char *name;
+	/*
+	 * Put fields referenced in IO submission path together in
+	 * same cacheline
+	 */
 
 	/*
-	 * The info function will return whatever useful information the
-	 * developer sees fit.  If not provided, then the name field will
-	 * be used instead.
-	 *
-	 * Status: OPTIONAL
+	 * Additional per-command data allocated for the driver.
 	 */
-	const char *(* info)(struct Scsi_Host *);
-
-	/*
-	 * Ioctl interface
-	 *
-	 * Status: OPTIONAL
-	 */
-	int (*ioctl)(struct scsi_device *dev, unsigned int cmd,
-		     void __user *arg);
-
-
-#ifdef CONFIG_COMPAT
-	/* 
-	 * Compat handler. Handle 32bit ABI.
-	 * When unknown ioctl is passed return -ENOIOCTLCMD.
-	 *
-	 * Status: OPTIONAL
-	 */
-	int (*compat_ioctl)(struct scsi_device *dev, unsigned int cmd,
-			    void __user *arg);
-#endif
-
-	int (*init_cmd_priv)(struct Scsi_Host *shost, struct scsi_cmnd *cmd);
-	int (*exit_cmd_priv)(struct Scsi_Host *shost, struct scsi_cmnd *cmd);
+	unsigned int cmd_size;
 
 	/*
 	 * The queuecommand function is used to queue up a scsi
@@ -110,6 +83,41 @@ struct scsi_host_template {
 	 * STATUS: OPTIONAL
 	 */
 	void (*commit_rqs)(struct Scsi_Host *, u16);
+
+	struct module *module;
+	const char *name;
+
+	/*
+	 * The info function will return whatever useful information the
+	 * developer sees fit.  If not provided, then the name field will
+	 * be used instead.
+	 *
+	 * Status: OPTIONAL
+	 */
+	const char *(*info)(struct Scsi_Host *);
+
+	/*
+	 * Ioctl interface
+	 *
+	 * Status: OPTIONAL
+	 */
+	int (*ioctl)(struct scsi_device *dev, unsigned int cmd,
+		     void __user *arg);
+
+
+#ifdef CONFIG_COMPAT
+	/*
+	 * Compat handler. Handle 32bit ABI.
+	 * When unknown ioctl is passed return -ENOIOCTLCMD.
+	 *
+	 * Status: OPTIONAL
+	 */
+	int (*compat_ioctl)(struct scsi_device *dev, unsigned int cmd,
+			    void __user *arg);
+#endif
+
+	int (*init_cmd_priv)(struct Scsi_Host *shost, struct scsi_cmnd *cmd);
+	int (*exit_cmd_priv)(struct Scsi_Host *shost, struct scsi_cmnd *cmd);
 
 	/*
 	 * This is an error handling strategy routine.  You don't need to
@@ -271,6 +279,16 @@ struct scsi_host_template {
 	int (* map_queues)(struct Scsi_Host *shost);
 
 	/*
+	 * SCSI interface of blk_poll - poll for IO completions.
+	 * Only applicable if SCSI LLD exposes multiple h/w queues.
+	 *
+	 * Return value: Number of completed entries found.
+	 *
+	 * Status: OPTIONAL
+	 */
+	int (* mq_poll)(struct Scsi_Host *shost, unsigned int queue_num);
+
+	/*
 	 * Check if scatterlists need to be padded for DMA draining.
 	 *
 	 * Status: OPTIONAL
@@ -314,6 +332,12 @@ struct scsi_host_template {
 	 * Status: OPTIONAL
 	 */
 	enum blk_eh_timer_return (*eh_timed_out)(struct scsi_cmnd *);
+	/*
+	 * Optional routine that allows the transport to decide if a cmd
+	 * is retryable. Return true if the transport is in a state the
+	 * cmd should be retried on.
+	 */
+	bool (*eh_should_retry_cmd)(struct scsi_cmnd *scmd);
 
 	/* This is an optional routine that allows transport to initiate
 	 * LLD adapter or firmware reset using sysfs attribute.
@@ -419,11 +443,6 @@ struct scsi_host_template {
 	unsigned supported_mode:2;
 
 	/*
-	 * True if this host adapter uses unchecked DMA onto an ISA bus.
-	 */
-	unsigned unchecked_isa_dma:1;
-
-	/*
 	 * True for emulated SCSI host adapters (e.g. ATAPI).
 	 */
 	unsigned emulated:1;
@@ -454,14 +473,9 @@ struct scsi_host_template {
 #define SCSI_DEFAULT_HOST_BLOCKED	7
 
 	/*
-	 * Pointer to the sysfs class properties for this host, NULL terminated.
+	 * Pointer to the SCSI host sysfs attribute groups, NULL terminated.
 	 */
-	struct device_attribute **shost_attrs;
-
-	/*
-	 * Pointer to the SCSI device properties for this host, NULL terminated.
-	 */
-	struct device_attribute **sdev_attrs;
+	const struct attribute_group **shost_groups;
 
 	/*
 	 * Pointer to the SCSI device attribute groups for this host,
@@ -477,12 +491,6 @@ struct scsi_host_template {
 	 *   scsi_netlink.h
 	 */
 	u64 vendor_id;
-
-	/*
-	 * Additional per-command data allocated for the driver.
-	 */
-	unsigned int cmd_size;
-	struct scsi_host_cmd_pool *cmd_pool;
 
 	/* Delay for runtime autosuspend */
 	int rpm_autosuspend_delay;
@@ -500,7 +508,7 @@ struct scsi_host_template {
 		unsigned long irq_flags;				\
 		int rc;							\
 		spin_lock_irqsave(shost->host_lock, irq_flags);		\
-		rc = func_name##_lck (cmd, cmd->scsi_done);			\
+		rc = func_name##_lck(cmd);				\
 		spin_unlock_irqrestore(shost->host_lock, irq_flags);	\
 		return rc;						\
 	}
@@ -540,6 +548,7 @@ struct Scsi_Host {
 
 	struct mutex		scan_mutex;/* serialize scanning activity */
 
+	struct list_head	eh_abort_list;
 	struct list_head	eh_cmd_q;
 	struct task_struct    * ehandler;  /* Error recovery thread. */
 	struct completion     * eh_action; /* Wait for specific actions on the
@@ -610,8 +619,8 @@ struct Scsi_Host {
 	 * the total queue depth is can_queue.
 	 */
 	unsigned nr_hw_queues;
+	unsigned nr_maps;
 	unsigned active_mode:2;
-	unsigned unchecked_isa_dma:1;
 
 	/*
 	 * Host has requested that no further requests come through for the
@@ -748,7 +757,7 @@ extern void scsi_host_put(struct Scsi_Host *t);
 extern struct Scsi_Host *scsi_host_lookup(unsigned short);
 extern const char *scsi_host_state_name(enum scsi_host_state);
 extern void scsi_host_complete_all_commands(struct Scsi_Host *shost,
-					    int status);
+					    enum scsi_host_status status);
 
 static inline int __must_check scsi_add_host(struct Scsi_Host *host,
 					     struct device *dev)
@@ -780,16 +789,6 @@ void scsi_host_busy_iter(struct Scsi_Host *,
 			 bool (*fn)(struct scsi_cmnd *, void *, bool), void *priv);
 
 struct class_container;
-
-/*
- * These two functions are used to allocate and free a pseudo device
- * which will connect to the host adapter itself rather than any
- * physical device.  You must deallocate when you are done with the
- * thing.  This physical pseudo-device isn't real and won't be available
- * from any high-level drivers.
- */
-extern void scsi_free_host_dev(struct scsi_device *);
-extern struct scsi_device *scsi_get_host_dev(struct Scsi_Host *);
 
 /*
  * DIF defines the exchange of protection information between

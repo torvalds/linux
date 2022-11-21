@@ -180,8 +180,7 @@ static int opl3_get_voice(struct snd_opl3 *opl3, int instr_4op,
 			if (vp2->state == SNDRV_OPL3_ST_ON_2OP) {
 				/* kill two voices, EXPENSIVE */
 				bp++;
-				voice_time = (voice_time > vp->time) ?
-					voice_time : vp->time;
+				voice_time = max(voice_time, vp2->time);
 			}
 		} else {
 			/* allocate 2op voice */
@@ -398,7 +397,7 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	}
 	if (instr_4op) {
 		vp2 = &opl3->voices[voice + 3];
-		if (vp->state > 0) {
+		if (vp2->state > 0) {
 			opl3_reg = reg_side | (OPL3_REG_KEYON_BLOCK +
 					       voice_offset + 3);
 			reg_val = vp->keyon_reg & ~OPL3_KEYON_BIT;

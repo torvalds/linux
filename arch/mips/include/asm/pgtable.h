@@ -25,14 +25,8 @@
 struct mm_struct;
 struct vm_area_struct;
 
-#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_NO_READ | \
-				 _page_cachable_default)
-#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_WRITE | \
-				 _page_cachable_default)
-#define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_NO_EXEC | \
-				 _page_cachable_default)
-#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | \
-				 _page_cachable_default)
+#define PAGE_SHARED	vm_get_page_prot(VM_READ|VM_WRITE|VM_SHARED)
+
 #define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
 				 _PAGE_GLOBAL | _page_cachable_default)
 #define PAGE_KERNEL_NC	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
@@ -70,6 +64,7 @@ struct vm_area_struct;
 #define __S111 __pgprot(0)
 
 extern unsigned long _page_cachable_default;
+extern void __update_cache(unsigned long address, pte_t pte);
 
 /*
  * ZERO_PAGE is a global shared page that is always zero; used
@@ -91,40 +86,44 @@ extern void paging_init(void);
  */
 #define pmd_phys(pmd)		virt_to_phys((void *)pmd_val(pmd))
 
-#define __pmd_page(pmd)		(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
-#ifndef CONFIG_TRANSPARENT_HUGEPAGE
-#define pmd_page(pmd)		__pmd_page(pmd)
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE  */
+static inline unsigned long pmd_pfn(pmd_t pmd)
+{
+	return pmd_val(pmd) >> _PFN_SHIFT;
+}
+
+#ifndef CONFIG_MIPS_HUGE_TLB_SUPPORT
+#define pmd_page(pmd)		(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
+#endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 
 #define pmd_page_vaddr(pmd)	pmd_val(pmd)
 
 #define htw_stop()							\
 do {									\
-	unsigned long flags;						\
+	unsigned long __flags;						\
 									\
 	if (cpu_has_htw) {						\
-		local_irq_save(flags);					\
+		local_irq_save(__flags);				\
 		if(!raw_current_cpu_data.htw_seq++) {			\
 			write_c0_pwctl(read_c0_pwctl() &		\
 				       ~(1 << MIPS_PWCTL_PWEN_SHIFT));	\
 			back_to_back_c0_hazard();			\
 		}							\
-		local_irq_restore(flags);				\
+		local_irq_restore(__flags);				\
 	}								\
 } while(0)
 
 #define htw_start()							\
 do {									\
-	unsigned long flags;						\
+	unsigned long __flags;						\
 									\
 	if (cpu_has_htw) {						\
-		local_irq_save(flags);					\
+		local_irq_save(__flags);				\
 		if (!--raw_current_cpu_data.htw_seq) {			\
 			write_c0_pwctl(read_c0_pwctl() |		\
 				       (1 << MIPS_PWCTL_PWEN_SHIFT));	\
 			back_to_back_c0_hazard();			\
 		}							\
-		local_irq_restore(flags);				\
+		local_irq_restore(__flags);				\
 	}								\
 } while(0)
 
@@ -230,7 +229,6 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pteval)
 {
-	extern void __update_cache(unsigned long address, pte_t pte);
 
 	if (!pte_present(pteval))
 		goto cache_sync_done;
@@ -422,6 +420,20 @@ static inline pte_t pte_mkhuge(pte_t pte)
 	pte_val(pte) |= _PAGE_HUGE;
 	return pte;
 }
+
+#define pmd_write pmd_write
+static inline int pmd_write(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_WRITE);
+}
+
+static inline struct page *pmd_page(pmd_t pmd)
+{
+	if (pmd_val(pmd) & _PAGE_HUGE)
+		return pfn_to_page(pmd_pfn(pmd));
+
+	return pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT);
+}
 #endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 
 #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
@@ -597,12 +609,6 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
 extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 		       pmd_t *pmdp, pmd_t pmd);
 
-#define pmd_write pmd_write
-static inline int pmd_write(pmd_t pmd)
-{
-	return !!(pmd_val(pmd) & _PAGE_WRITE);
-}
-
 static inline pmd_t pmd_wrprotect(pmd_t pmd)
 {
 	pmd_val(pmd) &= ~(_PAGE_WRITE | _PAGE_SILENT_WRITE);
@@ -682,19 +688,6 @@ static inline pmd_t pmd_clear_soft_dirty(pmd_t pmd)
 
 /* Extern to avoid header file madness */
 extern pmd_t mk_pmd(struct page *page, pgprot_t prot);
-
-static inline unsigned long pmd_pfn(pmd_t pmd)
-{
-	return pmd_val(pmd) >> _PFN_SHIFT;
-}
-
-static inline struct page *pmd_page(pmd_t pmd)
-{
-	if (pmd_trans_huge(pmd))
-		return pfn_to_page(pmd_pfn(pmd));
-
-	return pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT);
-}
 
 static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {

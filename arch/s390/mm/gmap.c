@@ -2,7 +2,7 @@
 /*
  *  KVM guest address space mapping code
  *
- *    Copyright IBM Corp. 2007, 2016, 2018
+ *    Copyright IBM Corp. 2007, 2020
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  *		 David Hildenbrand <david@redhat.com>
  *		 Janosch Frank <frankja@linux.vnet.ibm.com>
@@ -27,7 +27,6 @@
 
 /**
  * gmap_alloc - allocate and initialize a guest address space
- * @mm: pointer to the parent mm_struct
  * @limit: maximum address of the gmap address space
  *
  * Returns a guest address space structure.
@@ -56,19 +55,19 @@ static struct gmap *gmap_alloc(unsigned long limit)
 		atype = _ASCE_TYPE_REGION1;
 		etype = _REGION1_ENTRY_EMPTY;
 	}
-	gmap = kzalloc(sizeof(struct gmap), GFP_KERNEL);
+	gmap = kzalloc(sizeof(struct gmap), GFP_KERNEL_ACCOUNT);
 	if (!gmap)
 		goto out;
 	INIT_LIST_HEAD(&gmap->crst_list);
 	INIT_LIST_HEAD(&gmap->children);
 	INIT_LIST_HEAD(&gmap->pt_list);
-	INIT_RADIX_TREE(&gmap->guest_to_host, GFP_KERNEL);
-	INIT_RADIX_TREE(&gmap->host_to_guest, GFP_ATOMIC);
-	INIT_RADIX_TREE(&gmap->host_to_rmap, GFP_ATOMIC);
+	INIT_RADIX_TREE(&gmap->guest_to_host, GFP_KERNEL_ACCOUNT);
+	INIT_RADIX_TREE(&gmap->host_to_guest, GFP_ATOMIC | __GFP_ACCOUNT);
+	INIT_RADIX_TREE(&gmap->host_to_rmap, GFP_ATOMIC | __GFP_ACCOUNT);
 	spin_lock_init(&gmap->guest_table_lock);
 	spin_lock_init(&gmap->shadow_lock);
 	refcount_set(&gmap->ref_count, 1);
-	page = alloc_pages(GFP_KERNEL, CRST_ALLOC_ORDER);
+	page = alloc_pages(GFP_KERNEL_ACCOUNT, CRST_ALLOC_ORDER);
 	if (!page)
 		goto out_free;
 	page->index = 0;
@@ -309,7 +308,7 @@ static int gmap_alloc_table(struct gmap *gmap, unsigned long *table,
 	unsigned long *new;
 
 	/* since we dont free the gmap table until gmap_free we can unlock */
-	page = alloc_pages(GFP_KERNEL, CRST_ALLOC_ORDER);
+	page = alloc_pages(GFP_KERNEL_ACCOUNT, CRST_ALLOC_ORDER);
 	if (!page)
 		return -ENOMEM;
 	new = (unsigned long *) page_to_phys(page);
@@ -504,7 +503,7 @@ EXPORT_SYMBOL_GPL(gmap_translate);
 
 /**
  * gmap_unlink - disconnect a page table from the gmap shadow tables
- * @gmap: pointer to guest mapping meta data structure
+ * @mm: pointer to the parent mm_struct
  * @table: pointer to the host page table
  * @vmaddr: vm address associated with the host page table
  */
@@ -527,7 +526,7 @@ static void gmap_pmdp_xchg(struct gmap *gmap, pmd_t *old, pmd_t new,
 			   unsigned long gaddr);
 
 /**
- * gmap_link - set up shadow page tables to connect a host to a guest address
+ * __gmap_link - set up shadow page tables to connect a host to a guest address
  * @gmap: pointer to guest mapping meta data structure
  * @gaddr: guest address
  * @vmaddr: vm address
@@ -594,7 +593,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 	if (pmd_large(*pmd) && !gmap->mm->context.allow_gmap_hpage_1m)
 		return -EFAULT;
 	/* Link gmap segment table entry location to page table. */
-	rc = radix_tree_preload(GFP_KERNEL);
+	rc = radix_tree_preload(GFP_KERNEL_ACCOUNT);
 	if (rc)
 		return rc;
 	ptl = pmd_lock(mm, pmd);
@@ -673,6 +672,7 @@ EXPORT_SYMBOL_GPL(gmap_fault);
  */
 void __gmap_zap(struct gmap *gmap, unsigned long gaddr)
 {
+	struct vm_area_struct *vma;
 	unsigned long vmaddr;
 	spinlock_t *ptl;
 	pte_t *ptep;
@@ -682,11 +682,17 @@ void __gmap_zap(struct gmap *gmap, unsigned long gaddr)
 						   gaddr >> PMD_SHIFT);
 	if (vmaddr) {
 		vmaddr |= gaddr & ~PMD_MASK;
+
+		vma = vma_lookup(gmap->mm, vmaddr);
+		if (!vma || is_vm_hugetlb_page(vma))
+			return;
+
 		/* Get pointer to the page table entry */
 		ptep = get_locked_pte(gmap->mm, vmaddr, &ptl);
-		if (likely(ptep))
+		if (likely(ptep)) {
 			ptep_zap_unused(gmap->mm, vmaddr, ptep, 0);
-		pte_unmap_unlock(ptep, ptl);
+			pte_unmap_unlock(ptep, ptl);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(__gmap_zap);
@@ -968,18 +974,18 @@ static int gmap_protect_pmd(struct gmap *gmap, unsigned long gaddr,
 		return -EAGAIN;
 
 	if (prot == PROT_NONE && !pmd_i) {
-		pmd_val(new) |= _SEGMENT_ENTRY_INVALID;
+		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_INVALID));
 		gmap_pmdp_xchg(gmap, pmdp, new, gaddr);
 	}
 
 	if (prot == PROT_READ && !pmd_p) {
-		pmd_val(new) &= ~_SEGMENT_ENTRY_INVALID;
-		pmd_val(new) |= _SEGMENT_ENTRY_PROTECT;
+		new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_INVALID));
+		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_PROTECT));
 		gmap_pmdp_xchg(gmap, pmdp, new, gaddr);
 	}
 
 	if (bits & GMAP_NOTIFY_MPROT)
-		pmd_val(*pmdp) |= _SEGMENT_ENTRY_GMAP_IN;
+		set_pmd(pmdp, set_pmd_bit(*pmdp, __pgprot(_SEGMENT_ENTRY_GMAP_IN)));
 
 	/* Shadow GMAP protection needs split PMDs */
 	if (bits & GMAP_NOTIFY_SHADOW)
@@ -1145,7 +1151,7 @@ int gmap_read_table(struct gmap *gmap, unsigned long gaddr, unsigned long *val)
 				address = pte_val(pte) & PAGE_MASK;
 				address += gaddr & ~PAGE_MASK;
 				*val = *(unsigned long *) address;
-				pte_val(*ptep) |= _PAGE_YOUNG;
+				set_pte(ptep, set_pte_bit(*ptep, __pgprot(_PAGE_YOUNG)));
 				/* Do *NOT* clear the _PAGE_INVALID bit! */
 				rc = 0;
 			}
@@ -1177,6 +1183,7 @@ EXPORT_SYMBOL_GPL(gmap_read_table);
 static inline void gmap_insert_rmap(struct gmap *sg, unsigned long vmaddr,
 				    struct gmap_rmap *rmap)
 {
+	struct gmap_rmap *temp;
 	void __rcu **slot;
 
 	BUG_ON(!gmap_is_shadow(sg));
@@ -1184,6 +1191,12 @@ static inline void gmap_insert_rmap(struct gmap *sg, unsigned long vmaddr,
 	if (slot) {
 		rmap->next = radix_tree_deref_slot_protected(slot,
 							&sg->guest_table_lock);
+		for (temp = rmap->next; temp; temp = temp->next) {
+			if (temp->raddr == rmap->raddr) {
+				kfree(rmap);
+				return;
+			}
+		}
 		radix_tree_replace_slot(&sg->host_to_rmap, slot, rmap);
 	} else {
 		rmap->next = NULL;
@@ -1218,11 +1231,11 @@ static int gmap_protect_rmap(struct gmap *sg, unsigned long raddr,
 		vmaddr = __gmap_translate(parent, paddr);
 		if (IS_ERR_VALUE(vmaddr))
 			return vmaddr;
-		rmap = kzalloc(sizeof(*rmap), GFP_KERNEL);
+		rmap = kzalloc(sizeof(*rmap), GFP_KERNEL_ACCOUNT);
 		if (!rmap)
 			return -ENOMEM;
 		rmap->raddr = raddr;
-		rc = radix_tree_preload(GFP_KERNEL);
+		rc = radix_tree_preload(GFP_KERNEL_ACCOUNT);
 		if (rc) {
 			kfree(rmap);
 			return rc;
@@ -1272,7 +1285,7 @@ static int gmap_protect_rmap(struct gmap *sg, unsigned long raddr,
 static inline void gmap_idte_one(unsigned long asce, unsigned long vaddr)
 {
 	asm volatile(
-		"	.insn	rrf,0xb98e0000,%0,%1,0,0"
+		"	idte	%0,0,%1"
 		: : "a" (asce), "a" (vaddr) : "cc", "memory");
 }
 
@@ -1741,7 +1754,7 @@ int gmap_shadow_r2t(struct gmap *sg, unsigned long saddr, unsigned long r2t,
 
 	BUG_ON(!gmap_is_shadow(sg));
 	/* Allocate a shadow region second table */
-	page = alloc_pages(GFP_KERNEL, CRST_ALLOC_ORDER);
+	page = alloc_pages(GFP_KERNEL_ACCOUNT, CRST_ALLOC_ORDER);
 	if (!page)
 		return -ENOMEM;
 	page->index = r2t & _REGION_ENTRY_ORIGIN;
@@ -1825,7 +1838,7 @@ int gmap_shadow_r3t(struct gmap *sg, unsigned long saddr, unsigned long r3t,
 
 	BUG_ON(!gmap_is_shadow(sg));
 	/* Allocate a shadow region second table */
-	page = alloc_pages(GFP_KERNEL, CRST_ALLOC_ORDER);
+	page = alloc_pages(GFP_KERNEL_ACCOUNT, CRST_ALLOC_ORDER);
 	if (!page)
 		return -ENOMEM;
 	page->index = r3t & _REGION_ENTRY_ORIGIN;
@@ -1909,7 +1922,7 @@ int gmap_shadow_sgt(struct gmap *sg, unsigned long saddr, unsigned long sgt,
 
 	BUG_ON(!gmap_is_shadow(sg) || (sgt & _REGION3_ENTRY_LARGE));
 	/* Allocate a shadow segment table */
-	page = alloc_pages(GFP_KERNEL, CRST_ALLOC_ORDER);
+	page = alloc_pages(GFP_KERNEL_ACCOUNT, CRST_ALLOC_ORDER);
 	if (!page)
 		return -ENOMEM;
 	page->index = sgt & _REGION_ENTRY_ORIGIN;
@@ -1971,7 +1984,7 @@ out_free:
 EXPORT_SYMBOL_GPL(gmap_shadow_sgt);
 
 /**
- * gmap_shadow_lookup_pgtable - find a shadow page table
+ * gmap_shadow_pgt_lookup - find a shadow page table
  * @sg: pointer to the shadow guest address space structure
  * @saddr: the address in the shadow aguest address space
  * @pgt: parent gmap address of the page table to get shadowed
@@ -2116,7 +2129,7 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte)
 	parent = sg->parent;
 	prot = (pte_val(pte) & _PAGE_PROTECT) ? PROT_READ : PROT_WRITE;
 
-	rmap = kzalloc(sizeof(*rmap), GFP_KERNEL);
+	rmap = kzalloc(sizeof(*rmap), GFP_KERNEL_ACCOUNT);
 	if (!rmap)
 		return -ENOMEM;
 	rmap->raddr = (saddr & PAGE_MASK) | _SHADOW_RMAP_PGTABLE;
@@ -2128,7 +2141,7 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte)
 			rc = vmaddr;
 			break;
 		}
-		rc = radix_tree_preload(GFP_KERNEL);
+		rc = radix_tree_preload(GFP_KERNEL_ACCOUNT);
 		if (rc)
 			break;
 		rc = -EAGAIN;
@@ -2165,7 +2178,7 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte)
 }
 EXPORT_SYMBOL_GPL(gmap_shadow_page);
 
-/**
+/*
  * gmap_shadow_notify - handle notifications for shadow gmap
  *
  * Called with sg->parent->shadow_lock.
@@ -2225,7 +2238,7 @@ static void gmap_shadow_notify(struct gmap *sg, unsigned long vmaddr,
 /**
  * ptep_notify - call all invalidation callbacks for a specific pte.
  * @mm: pointer to the process mm_struct
- * @addr: virtual address in the process address space
+ * @vmaddr: virtual address in the process address space
  * @pte: pointer to the page table entry
  * @bits: bits from the pgste that caused the notify call
  *
@@ -2269,7 +2282,7 @@ EXPORT_SYMBOL_GPL(ptep_notify);
 static void pmdp_notify_gmap(struct gmap *gmap, pmd_t *pmdp,
 			     unsigned long gaddr)
 {
-	pmd_val(*pmdp) &= ~_SEGMENT_ENTRY_GMAP_IN;
+	set_pmd(pmdp, clear_pmd_bit(*pmdp, __pgprot(_SEGMENT_ENTRY_GMAP_IN)));
 	gmap_call_notifier(gmap, gaddr, gaddr + HPAGE_SIZE - 1);
 }
 
@@ -2288,7 +2301,7 @@ static void gmap_pmdp_xchg(struct gmap *gmap, pmd_t *pmdp, pmd_t new,
 {
 	gaddr &= HPAGE_MASK;
 	pmdp_notify_gmap(gmap, pmdp, gaddr);
-	pmd_val(new) &= ~_SEGMENT_ENTRY_GMAP_IN;
+	new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_GMAP_IN));
 	if (MACHINE_HAS_TLB_GUEST)
 		__pmdp_idte(gaddr, (pmd_t *)pmdp, IDTE_GUEST_ASCE, gmap->asce,
 			    IDTE_GLOBAL);
@@ -2296,7 +2309,7 @@ static void gmap_pmdp_xchg(struct gmap *gmap, pmd_t *pmdp, pmd_t new,
 		__pmdp_idte(gaddr, (pmd_t *)pmdp, 0, 0, IDTE_GLOBAL);
 	else
 		__pmdp_csp(pmdp);
-	*pmdp = new;
+	set_pmd(pmdp, new);
 }
 
 static void gmap_pmdp_clear(struct mm_struct *mm, unsigned long vmaddr,
@@ -2318,7 +2331,7 @@ static void gmap_pmdp_clear(struct mm_struct *mm, unsigned long vmaddr,
 						   _SEGMENT_ENTRY_GMAP_UC));
 			if (purge)
 				__pmdp_csp(pmdp);
-			pmd_val(*pmdp) = _SEGMENT_ENTRY_EMPTY;
+			set_pmd(pmdp, __pmd(_SEGMENT_ENTRY_EMPTY));
 		}
 		spin_unlock(&gmap->guest_table_lock);
 	}
@@ -2441,7 +2454,7 @@ static bool gmap_test_and_clear_dirty_pmd(struct gmap *gmap, pmd_t *pmdp,
 		return false;
 
 	/* Clear UC indication and reset protection */
-	pmd_val(*pmdp) &= ~_SEGMENT_ENTRY_GMAP_UC;
+	set_pmd(pmdp, clear_pmd_bit(*pmdp, __pgprot(_SEGMENT_ENTRY_GMAP_UC)));
 	gmap_protect_pmd(gmap, gaddr, pmdp, PROT_READ, 0);
 	return true;
 }
@@ -2678,8 +2691,10 @@ static int __s390_reset_acc(pte_t *ptep, unsigned long addr,
 {
 	pte_t pte = READ_ONCE(*ptep);
 
+	/* There is a reference through the mapping */
 	if (pte_present(pte))
-		WARN_ON_ONCE(uv_destroy_page(pte_val(pte) & PAGE_MASK));
+		WARN_ON_ONCE(uv_destroy_owned_page(pte_val(pte) & PAGE_MASK));
+
 	return 0;
 }
 

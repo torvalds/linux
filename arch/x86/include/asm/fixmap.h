@@ -14,13 +14,20 @@
 #ifndef _ASM_X86_FIXMAP_H
 #define _ASM_X86_FIXMAP_H
 
+#include <asm/kmap_size.h>
+
 /*
  * Exposed to assembly code for setting up initial page tables. Cannot be
  * calculated in assembly code (fixmap entries are an enum), but is sanity
  * checked in the actual fixmap C code to make sure that the fixmap is
  * covered fully.
  */
-#define FIXMAP_PMD_NUM	2
+#ifndef CONFIG_DEBUG_KMAP_LOCAL_FORCE_MAP
+# define FIXMAP_PMD_NUM	2
+#else
+# define KM_PMDS	(KM_MAX_IDX * ((CONFIG_NR_CPUS + 511) / 512))
+# define FIXMAP_PMD_NUM (KM_PMDS + 2)
+#endif
 /* fixmap starts downwards from the 507th entry in level2_fixmap_pgt */
 #define FIXMAP_PMD_TOP	507
 
@@ -31,7 +38,6 @@
 #include <asm/pgtable_types.h>
 #ifdef CONFIG_X86_32
 #include <linux/threads.h>
-#include <asm/kmap_types.h>
 #else
 #include <uapi/asm/vsyscall.h>
 #endif
@@ -92,18 +98,15 @@ enum fixed_addresses {
 	FIX_IO_APIC_BASE_0,
 	FIX_IO_APIC_BASE_END = FIX_IO_APIC_BASE_0 + MAX_IO_APICS - 1,
 #endif
-#ifdef CONFIG_X86_32
+#ifdef CONFIG_KMAP_LOCAL
 	FIX_KMAP_BEGIN,	/* reserved pte's for temporary kernel mappings */
-	FIX_KMAP_END = FIX_KMAP_BEGIN+(KM_TYPE_NR*NR_CPUS)-1,
+	FIX_KMAP_END = FIX_KMAP_BEGIN + (KM_MAX_IDX * NR_CPUS) - 1,
 #ifdef CONFIG_PCI_MMCONFIG
 	FIX_PCIE_MCFG,
 #endif
 #endif
 #ifdef CONFIG_PARAVIRT_XXL
 	FIX_PARAVIRT_BOOTMAP,
-#endif
-#ifdef	CONFIG_X86_INTEL_MID
-	FIX_LNW_VRTC,
 #endif
 
 #ifdef CONFIG_ACPI_APEI_GHES
@@ -151,7 +154,6 @@ extern void reserve_top_address(unsigned long reserve);
 
 extern int fixmaps_set;
 
-extern pte_t *kmap_pte;
 extern pte_t *pkmap_page_table;
 
 void __native_set_fixmap(enum fixed_addresses idx, pte_t pte);

@@ -98,6 +98,7 @@ static struct scsi_host_template cxgb3i_host_template = {
 	.dma_boundary	= PAGE_SIZE - 1,
 	.this_id	= -1,
 	.track_queue_depth = 1,
+	.cmd_size	= sizeof(struct iscsi_cmd),
 };
 
 static struct iscsi_transport cxgb3i_iscsi_transport = {
@@ -117,6 +118,7 @@ static struct iscsi_transport cxgb3i_iscsi_transport = {
 	/* connection management */
 	.create_conn	= cxgbi_create_conn,
 	.bind_conn	= cxgbi_bind_conn,
+	.unbind_conn	= iscsi_conn_unbind,
 	.destroy_conn	= iscsi_tcp_conn_teardown,
 	.start_conn	= iscsi_conn_start,
 	.stop_conn	= iscsi_conn_stop,
@@ -1177,7 +1179,7 @@ static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk,
 }
 
 /**
- * cxgb3i_setup_conn_digest - setup conn. digest setting
+ * ddp_setup_conn_digest - setup conn. digest setting
  * @csk: cxgb tcp socket
  * @tid: connection id
  * @hcrc: header digest enabled

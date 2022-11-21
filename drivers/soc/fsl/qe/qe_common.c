@@ -26,8 +26,8 @@
 #include <soc/fsl/qe/qe.h>
 
 static struct gen_pool *muram_pool;
-static spinlock_t cpm_muram_lock;
-static u8 __iomem *muram_vbase;
+static DEFINE_SPINLOCK(cpm_muram_lock);
+static void __iomem *muram_vbase;
 static phys_addr_t muram_pbase;
 
 struct muram_block {
@@ -54,7 +54,6 @@ int cpm_muram_init(void)
 	if (muram_pbase)
 		return 0;
 
-	spin_lock_init(&cpm_muram_lock);
 	np = of_find_compatible_node(NULL, NULL, "fsl,cpm-muram-data");
 	if (!np) {
 		/* try legacy bindings */
@@ -223,18 +222,30 @@ void __iomem *cpm_muram_addr(unsigned long offset)
 }
 EXPORT_SYMBOL(cpm_muram_addr);
 
-unsigned long cpm_muram_offset(void __iomem *addr)
+unsigned long cpm_muram_offset(const void __iomem *addr)
 {
-	return addr - (void __iomem *)muram_vbase;
+	return addr - muram_vbase;
 }
 EXPORT_SYMBOL(cpm_muram_offset);
 
 /**
  * cpm_muram_dma - turn a muram virtual address into a DMA address
- * @offset: virtual address from cpm_muram_addr() to convert
+ * @addr: virtual address from cpm_muram_addr() to convert
  */
 dma_addr_t cpm_muram_dma(void __iomem *addr)
 {
-	return muram_pbase + ((u8 __iomem *)addr - muram_vbase);
+	return muram_pbase + (addr - muram_vbase);
 }
 EXPORT_SYMBOL(cpm_muram_dma);
+
+/*
+ * As cpm_muram_free, but takes the virtual address rather than the
+ * muram offset.
+ */
+void cpm_muram_free_addr(const void __iomem *addr)
+{
+	if (!addr)
+		return;
+	cpm_muram_free(cpm_muram_offset(addr));
+}
+EXPORT_SYMBOL(cpm_muram_free_addr);

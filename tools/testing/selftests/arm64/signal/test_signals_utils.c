@@ -26,6 +26,7 @@ static int sig_copyctx = SIGTRAP;
 
 static char const *const feats_names[FMAX_END] = {
 	" SSBS ",
+	" SVE ",
 };
 
 #define MAX_FEATS_SZ	128
@@ -34,6 +35,8 @@ static char feats_string[MAX_FEATS_SZ];
 static inline char *feats_to_string(unsigned long feats)
 {
 	size_t flen = MAX_FEATS_SZ - 1;
+
+	feats_string[0] = '\0';
 
 	for (int i = 0; i < FMAX_END; i++) {
 		if (feats & (1UL << i)) {
@@ -255,7 +258,7 @@ int test_init(struct tdescr *td)
 		td->minsigstksz = MINSIGSTKSZ;
 	fprintf(stderr, "Detected MINSTKSIGSZ:%d\n", td->minsigstksz);
 
-	if (td->feats_required) {
+	if (td->feats_required || td->feats_incompatible) {
 		td->feats_supported = 0;
 		/*
 		 * Checking for CPU required features using both the
@@ -263,16 +266,35 @@ int test_init(struct tdescr *td)
 		 */
 		if (getauxval(AT_HWCAP) & HWCAP_SSBS)
 			td->feats_supported |= FEAT_SSBS;
-		if (feats_ok(td))
-			fprintf(stderr,
-				"Required Features: [%s] supported\n",
-				feats_to_string(td->feats_required &
-						td->feats_supported));
-		else
-			fprintf(stderr,
-				"Required Features: [%s] NOT supported\n",
-				feats_to_string(td->feats_required &
-						~td->feats_supported));
+		if (getauxval(AT_HWCAP) & HWCAP_SVE)
+			td->feats_supported |= FEAT_SVE;
+		if (feats_ok(td)) {
+			if (td->feats_required & td->feats_supported)
+				fprintf(stderr,
+					"Required Features: [%s] supported\n",
+					feats_to_string(td->feats_required &
+							td->feats_supported));
+			if (!(td->feats_incompatible & td->feats_supported))
+				fprintf(stderr,
+					"Incompatible Features: [%s] absent\n",
+					feats_to_string(td->feats_incompatible));
+		} else {
+			if ((td->feats_required & td->feats_supported) !=
+			    td->feats_supported)
+				fprintf(stderr,
+					"Required Features: [%s] NOT supported\n",
+					feats_to_string(td->feats_required &
+							~td->feats_supported));
+			if (td->feats_incompatible & td->feats_supported)
+				fprintf(stderr,
+					"Incompatible Features: [%s] supported\n",
+					feats_to_string(td->feats_incompatible &
+							~td->feats_supported));
+
+
+			td->result = KSFT_SKIP;
+			return 0;
+		}
 	}
 
 	/* Perform test specific additional initialization */
@@ -304,14 +326,12 @@ int test_setup(struct tdescr *td)
 
 int test_run(struct tdescr *td)
 {
-	if (td->sig_trig) {
-		if (td->trigger)
-			return td->trigger(td);
-		else
-			return default_trigger(td);
-	} else {
+	if (td->trigger)
+		return td->trigger(td);
+	else if (td->sig_trig)
+		return default_trigger(td);
+	else
 		return td->run(td, NULL, NULL);
-	}
 }
 
 void test_result(struct tdescr *td)

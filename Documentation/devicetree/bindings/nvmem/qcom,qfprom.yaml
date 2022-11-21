@@ -14,7 +14,19 @@ allOf:
 
 properties:
   compatible:
-    const: qcom,qfprom
+    items:
+      - enum:
+          - qcom,apq8064-qfprom
+          - qcom,apq8084-qfprom
+          - qcom,msm8974-qfprom
+          - qcom,msm8916-qfprom
+          - qcom,msm8996-qfprom
+          - qcom,msm8998-qfprom
+          - qcom,qcs404-qfprom
+          - qcom,sc7180-qfprom
+          - qcom,sc7280-qfprom
+          - qcom,sdm845-qfprom
+      - const: qcom,qfprom
 
   reg:
     # If the QFPROM is read-only OS image then only the corrected region
@@ -39,6 +51,9 @@ properties:
   vcc-supply:
     description: Our power supply.
 
+  power-domains:
+    maxItems: 1
+
   # Needed if any child nodes are present.
   "#address-cells":
     const: 1
@@ -60,7 +75,7 @@ examples:
       #size-cells = <2>;
 
       efuse@784000 {
-        compatible = "qcom,qfprom";
+        compatible = "qcom,sc7180-qfprom", "qcom,qfprom";
         reg = <0 0x00784000 0 0x8ff>,
               <0 0x00780000 0 0x7a0>,
               <0 0x00782000 0 0x100>,
@@ -85,7 +100,7 @@ examples:
       #size-cells = <2>;
 
       efuse@784000 {
-        compatible = "qcom,qfprom";
+        compatible = "qcom,sdm845-qfprom", "qcom,qfprom";
         reg = <0 0x00784000 0 0x8ff>;
         #address-cells = <1>;
         #size-cells = <1>;

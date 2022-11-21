@@ -12,6 +12,7 @@
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 			#interrupt-cells = <2>;
 			interrupt-controller;
+			wakeup-source;
 
 			ti,en-gpio-sleep = <0 0 1 0 0 0 0 0 0>;
 			ti,system-power-controller;
@@ -142,8 +143,17 @@
 		};
 	};
 
-	vdd_3v3_sys: regulator@1 {
-		gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
+	vdd_3v3_sys: regulator-3v3 {
+		gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+	};
+
+	pmc@7000e400 {
+		i2c-thermtrip {
+			nvidia,i2c-controller-id = <4>;
+			nvidia,bus-addr = <0x2d>;
+			nvidia,reg-addr = <0x3f>;
+			nvidia,reg-data = <0x80>;
+		};
 	};
 };

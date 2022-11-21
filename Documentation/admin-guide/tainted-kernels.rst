@@ -84,7 +84,7 @@ Bit  Log  Number  Reason that got the kernel tainted
 ===  ===  ======  ========================================================
   0  G/P       1  proprietary module was loaded
   1  _/F       2  module was force loaded
-  2  _/S       4  SMP kernel oops on an officially SMP incapable processor
+  2  _/S       4  kernel running on an out of specification system
   3  _/R       8  module was force unloaded
   4  _/M      16  processor reported a Machine Check Exception (MCE)
   5  _/B      32  bad page referenced or some unexpected page flags
@@ -116,10 +116,23 @@ More detailed explanation for tainting
  1)  ``F`` if any module was force loaded by ``insmod -f``, ``' '`` if all
      modules were loaded normally.
 
- 2)  ``S`` if the oops occurred on an SMP kernel running on hardware that
-     hasn't been certified as safe to run multiprocessor.
-     Currently this occurs only on various Athlons that are not
-     SMP capable.
+ 2)  ``S`` if the kernel is running on a processor or system that is out of
+     specification: hardware has been put into an unsupported configuration,
+     therefore proper execution cannot be guaranteed.
+     Kernel will be tainted if, for example:
+
+     - on x86: PAE is forced through forcepae on intel CPUs (such as Pentium M)
+       which do not report PAE but may have a functional implementation, an SMP
+       kernel is running on non officially capable SMP Athlon CPUs, MSRs are
+       being poked at from userspace.
+     - on arm: kernel running on certain CPUs (such as Keystone 2) without
+       having certain kernel features enabled.
+     - on arm64: there are mismatched hardware features between CPUs, the
+       bootloader has booted CPUs in different modes.
+     - certain drivers are being used on non supported architectures (such as
+       scsi/snic on something else than x86_64, scsi/ips on non
+       x86/x86_64/itanium, have broken firmware settings for the
+       irqchip/irq-gic on arm64 ...).
 
  3)  ``R`` if a module was force unloaded by ``rmmod -f``, ``' '`` if all
      modules were unloaded normally.

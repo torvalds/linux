@@ -21,14 +21,14 @@ static int proc_initialized;	/* = 0 */
 
 static loff_t proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 {
-	struct pci_dev *dev = PDE_DATA(file_inode(file));
+	struct pci_dev *dev = pde_data(file_inode(file));
 	return fixed_size_llseek(file, off, whence, dev->cfg_size);
 }
 
 static ssize_t proc_bus_pci_read(struct file *file, char __user *buf,
 				 size_t nbytes, loff_t *ppos)
 {
-	struct pci_dev *dev = PDE_DATA(file_inode(file));
+	struct pci_dev *dev = pde_data(file_inode(file));
 	unsigned int pos = *ppos;
 	unsigned int cnt, size;
 
@@ -83,6 +83,7 @@ static ssize_t proc_bus_pci_read(struct file *file, char __user *buf,
 		buf += 4;
 		pos += 4;
 		cnt -= 4;
+		cond_resched();
 	}
 
 	if (cnt >= 2) {
@@ -98,9 +99,7 @@ static ssize_t proc_bus_pci_read(struct file *file, char __user *buf,
 		unsigned char val;
 		pci_user_read_config_byte(dev, pos, &val);
 		__put_user(val, buf);
-		buf++;
 		pos++;
-		cnt--;
 	}
 
 	pci_config_pm_runtime_put(dev);
@@ -113,7 +112,7 @@ static ssize_t proc_bus_pci_write(struct file *file, const char __user *buf,
 				  size_t nbytes, loff_t *ppos)
 {
 	struct inode *ino = file_inode(file);
-	struct pci_dev *dev = PDE_DATA(ino);
+	struct pci_dev *dev = pde_data(ino);
 	int pos = *ppos;
 	int size = dev->cfg_size;
 	int cnt, ret;
@@ -175,9 +174,7 @@ static ssize_t proc_bus_pci_write(struct file *file, const char __user *buf,
 		unsigned char val;
 		__get_user(val, buf);
 		pci_user_write_config_byte(dev, pos, val);
-		buf++;
 		pos++;
-		cnt--;
 	}
 
 	pci_config_pm_runtime_put(dev);
@@ -187,15 +184,17 @@ static ssize_t proc_bus_pci_write(struct file *file, const char __user *buf,
 	return nbytes;
 }
 
+#ifdef HAVE_PCI_MMAP
 struct pci_filp_private {
 	enum pci_mmap_state mmap_state;
 	int write_combine;
 };
+#endif /* HAVE_PCI_MMAP */
 
 static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
-	struct pci_dev *dev = PDE_DATA(file_inode(file));
+	struct pci_dev *dev = pde_data(file_inode(file));
 #ifdef HAVE_PCI_MMAP
 	struct pci_filp_private *fpriv = file->private_data;
 #endif /* HAVE_PCI_MMAP */
@@ -230,8 +229,8 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 		/* If arch decided it can't, fall through... */
-#endif /* HAVE_PCI_MMAP */
 		fallthrough;
+#endif /* HAVE_PCI_MMAP */
 	default:
 		ret = -EINVAL;
 		break;
@@ -243,7 +242,7 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 #ifdef HAVE_PCI_MMAP
 static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct pci_dev *dev = PDE_DATA(file_inode(file));
+	struct pci_dev *dev = pde_data(file_inode(file));
 	struct pci_filp_private *fpriv = file->private_data;
 	int i, ret, write_combine = 0, res_bit = IORESOURCE_MEM;
 
@@ -274,6 +273,11 @@ static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 		else
 			return -EINVAL;
 	}
+
+	if (dev->resource[i].flags & IORESOURCE_MEM &&
+	    iomem_is_exclusive(dev->resource[i].start))
+		return -EINVAL;
+
 	ret = pci_mmap_page_range(dev, i, vma,
 				  fpriv->mmap_state, write_combine);
 	if (ret < 0)
@@ -293,6 +297,7 @@ static int proc_bus_pci_open(struct inode *inode, struct file *file)
 	fpriv->write_combine = 0;
 
 	file->private_data = fpriv;
+	file->f_mapping = iomem_get_mapping();
 
 	return 0;
 }

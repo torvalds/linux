@@ -28,6 +28,7 @@
 
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "r600.h"
 #include "evergreend.h"
 #include "evergreen_reg_safe.h"
 #include "cayman_reg_safe.h"
@@ -37,8 +38,6 @@
 
 #define REG_SAFE_BM_SIZE ARRAY_SIZE(evergreen_reg_safe_bm)
 
-int r600_dma_cs_next_reloc(struct radeon_cs_parser *p,
-			   struct radeon_bo_list **cs_reloc);
 struct evergreen_cs_track {
 	u32			group_size;
 	u32			nbanks;
@@ -1015,7 +1014,7 @@ static int evergreen_cs_track_check(struct radeon_cs_parser *p)
 
 /**
  * evergreen_cs_packet_parse_vline() - parse userspace VLINE packet
- * @parser:		parser structure holding parsing context.
+ * @p:		parser structure holding parsing context.
  *
  * This is an Evergreen(+)-specific function for parsing VLINE packets.
  * Real work is done by r600_cs_common_vline_parse function.
@@ -1087,7 +1086,7 @@ static int evergreen_cs_parse_packet0(struct radeon_cs_parser *p,
 
 /**
  * evergreen_cs_handle_reg() - process registers that need special handling.
- * @parser: parser structure holding parsing context
+ * @p: parser structure holding parsing context
  * @reg: register we are testing
  * @idx: index into the cs buffer
  */
@@ -1747,7 +1746,7 @@ static int evergreen_cs_handle_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 
 /**
  * evergreen_is_safe_reg() - check if register is authorized or not
- * @parser: parser structure holding parsing context
+ * @p: parser structure holding parsing context
  * @reg: register we are testing
  *
  * This function will test against reg_safe_bm and return true

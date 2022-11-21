@@ -43,7 +43,7 @@
  * property types and ranges.
  *
  * Properties don't store the current value directly, but need to be
- * instatiated by attaching them to a &drm_mode_object with
+ * instantiated by attaching them to a &drm_mode_object with
  * drm_object_attach_property().
  *
  * Property values are only 64bit. To support bigger piles of data (like gamma
@@ -127,8 +127,7 @@ struct drm_property *drm_property_create(struct drm_device *dev,
 	property->num_values = num_values;
 	INIT_LIST_HEAD(&property->enum_list);
 
-	strncpy(property->name, name, DRM_PROP_NAME_LEN);
-	property->name[DRM_PROP_NAME_LEN-1] = '\0';
+	strscpy_pad(property->name, name, DRM_PROP_NAME_LEN);
 
 	list_add_tail(&property->head, &dev->mode_config.property_list);
 
@@ -421,8 +420,7 @@ int drm_property_add_enum(struct drm_property *property,
 	if (!prop_enum)
 		return -ENOMEM;
 
-	strncpy(prop_enum->name, name, DRM_PROP_NAME_LEN);
-	prop_enum->name[DRM_PROP_NAME_LEN-1] = '\0';
+	strscpy_pad(prop_enum->name, name, DRM_PROP_NAME_LEN);
 	prop_enum->value = value;
 
 	property->values[index] = value;
@@ -434,7 +432,7 @@ EXPORT_SYMBOL(drm_property_add_enum);
 /**
  * drm_property_destroy - destroy a drm property
  * @dev: drm device
- * @property: property to destry
+ * @property: property to destroy
  *
  * This function frees a property including any attached resources like
  * enumeration values.
@@ -475,8 +473,7 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	if (!property)
 		return -ENOENT;
 
-	strncpy(out_resp->name, property->name, DRM_PROP_NAME_LEN);
-	out_resp->name[DRM_PROP_NAME_LEN-1] = 0;
+	strscpy_pad(out_resp->name, property->name, DRM_PROP_NAME_LEN);
 	out_resp->flags = property->flags;
 
 	value_count = property->num_values;
@@ -644,7 +641,7 @@ EXPORT_SYMBOL(drm_property_blob_get);
  * @id: id of the blob property
  *
  * If successful, this takes an additional reference to the blob property.
- * callers need to make sure to eventually unreference the returned property
+ * callers need to make sure to eventually unreferenced the returned property
  * again, using drm_property_blob_put().
  *
  * Return:

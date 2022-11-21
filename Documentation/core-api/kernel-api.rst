@@ -24,11 +24,8 @@ String Conversions
 .. kernel-doc:: lib/vsprintf.c
    :export:
 
-.. kernel-doc:: include/linux/kernel.h
-   :functions: kstrtol
-
-.. kernel-doc:: include/linux/kernel.h
-   :functions: kstrtoul
+.. kernel-doc:: include/linux/kstrtox.h
+   :functions: kstrtol kstrtoul
 
 .. kernel-doc:: lib/kstrtox.c
    :export:
@@ -282,6 +279,7 @@ Accounting Framework
 Block Devices
 =============
 
+.. kernel-doc:: include/linux/bio.h
 .. kernel-doc:: block/blk-core.c
    :export:
 
@@ -295,9 +293,6 @@ Block Devices
    :internal:
 
 .. kernel-doc:: block/blk-settings.c
-   :export:
-
-.. kernel-doc:: block/blk-exec.c
    :export:
 
 .. kernel-doc:: block/blk-flush.c
@@ -316,6 +311,9 @@ Block Devices
    :internal:
 
 .. kernel-doc:: block/genhd.c
+   :export:
+
+.. kernel-doc:: block/bdev.c
    :export:
 
 Char devices

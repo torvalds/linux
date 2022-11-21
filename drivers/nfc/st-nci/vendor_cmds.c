@@ -98,7 +98,7 @@ static int st_nci_hci_dm_get_info(struct nfc_dev *dev, void *data,
 	r = nci_hci_send_cmd(ndev, ST_NCI_DEVICE_MGNT_GATE, ST_NCI_HCI_DM_GETINFO,
 			     data, data_len, &skb);
 	if (r)
-		goto exit;
+		return r;
 
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST_NCI_VENDOR_OUI,
 					     HCI_DM_GET_INFO, skb->len);
@@ -117,7 +117,6 @@ static int st_nci_hci_dm_get_info(struct nfc_dev *dev, void *data,
 
 free_skb:
 	kfree_skb(skb);
-exit:
 	return r;
 }
 
@@ -131,7 +130,7 @@ static int st_nci_hci_dm_get_data(struct nfc_dev *dev, void *data,
 	r = nci_hci_send_cmd(ndev, ST_NCI_DEVICE_MGNT_GATE, ST_NCI_HCI_DM_GETDATA,
 			     data, data_len, &skb);
 	if (r)
-		goto exit;
+		return r;
 
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST_NCI_VENDOR_OUI,
 					     HCI_DM_GET_DATA, skb->len);
@@ -150,7 +149,6 @@ static int st_nci_hci_dm_get_data(struct nfc_dev *dev, void *data,
 
 free_skb:
 	kfree_skb(skb);
-exit:
 	return r;
 }
 
@@ -216,7 +214,7 @@ static int st_nci_hci_get_param(struct nfc_dev *dev, void *data,
 
 	r = nci_hci_get_param(ndev, param->gate, param->data, &skb);
 	if (r)
-		goto exit;
+		return r;
 
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST_NCI_VENDOR_OUI,
 					     HCI_GET_PARAM, skb->len);
@@ -235,7 +233,6 @@ static int st_nci_hci_get_param(struct nfc_dev *dev, void *data,
 
 free_skb:
 	kfree_skb(skb);
-exit:
 	return r;
 }
 
@@ -262,7 +259,7 @@ static int st_nci_hci_dm_vdc_measurement_value(struct nfc_dev *dev, void *data,
 			     ST_NCI_HCI_DM_VDC_MEASUREMENT_VALUE,
 			     data, data_len, &skb);
 	if (r)
-		goto exit;
+		return r;
 
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST_NCI_VENDOR_OUI,
 				HCI_DM_VDC_MEASUREMENT_VALUE, skb->len);
@@ -281,7 +278,6 @@ static int st_nci_hci_dm_vdc_measurement_value(struct nfc_dev *dev, void *data,
 
 free_skb:
 	kfree_skb(skb);
-exit:
 	return r;
 }
 
@@ -299,7 +295,7 @@ static int st_nci_hci_dm_vdc_value_comparison(struct nfc_dev *dev, void *data,
 			     ST_NCI_HCI_DM_VDC_VALUE_COMPARISON,
 			     data, data_len, &skb);
 	if (r)
-		goto exit;
+		return r;
 
 	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST_NCI_VENDOR_OUI,
 					HCI_DM_VDC_VALUE_COMPARISON, skb->len);
@@ -318,7 +314,6 @@ static int st_nci_hci_dm_vdc_value_comparison(struct nfc_dev *dev, void *data,
 
 free_skb:
 	kfree_skb(skb);
-exit:
 	return r;
 }
 
@@ -376,7 +371,7 @@ static int st_nci_manufacturer_specific(struct nfc_dev *dev, void *data,
 	return nfc_vendor_cmd_reply(msg);
 }
 
-static struct nfc_vendor_cmd st_nci_vendor_cmds[] = {
+static const struct nfc_vendor_cmd st_nci_vendor_cmds[] = {
 	{
 		.vendor_id = ST_NCI_VENDOR_OUI,
 		.subcmd = FACTORY_MODE,
@@ -461,7 +456,7 @@ static struct nfc_vendor_cmd st_nci_vendor_cmds[] = {
 
 int st_nci_vendor_cmds_init(struct nci_dev *ndev)
 {
-	return nfc_set_vendor_cmds(ndev->nfc_dev, st_nci_vendor_cmds,
+	return nci_set_vendor_cmds(ndev, st_nci_vendor_cmds,
 				   sizeof(st_nci_vendor_cmds));
 }
 EXPORT_SYMBOL(st_nci_vendor_cmds_init);

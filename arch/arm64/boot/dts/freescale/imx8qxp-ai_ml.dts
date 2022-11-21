@@ -13,13 +13,13 @@
 	compatible = "einfochips,imx8qxp-ai_ml", "fsl,imx8qxp";
 
 	aliases {
-		serial1 = &adma_lpuart1;
-		serial2 = &adma_lpuart2;
-		serial3 = &adma_lpuart3;
+		serial1 = &lpuart1;
+		serial2 = &lpuart2;
+		serial3 = &lpuart3;
 	};
 
 	chosen {
-		stdout-path = &adma_lpuart2;
+		stdout-path = &lpuart2;
 	};
 
 	memory@80000000 {
@@ -82,7 +82,7 @@
 };
 
 /* BT */
-&adma_lpuart0 {
+&lpuart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpuart0>;
 	uart-has-rtscts;
@@ -90,21 +90,21 @@
 };
 
 /* LS-UART0 */
-&adma_lpuart1 {
+&lpuart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpuart1>;
 	status = "okay";
 };
 
 /* Debug */
-&adma_lpuart2 {
+&lpuart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpuart2>;
 	status = "okay";
 };
 
 /* PCI-E UART */
-&adma_lpuart3 {
+&lpuart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpuart3>;
 	status = "okay";
@@ -133,7 +133,7 @@
 &usdhc1 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	assigned-clocks = <&clk IMX_CONN_SDHC0_CLK>;
+	assigned-clocks = <&clk IMX_SC_R_SDHC_0 IMX_SC_PM_CLK_PER>;
 	assigned-clock-rates = <200000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
@@ -151,7 +151,7 @@
 
 /* SD */
 &usdhc2 {
-	assigned-clocks = <&clk IMX_CONN_SDHC1_CLK>;
+	assigned-clocks = <&clk IMX_SC_R_SDHC_1 IMX_SC_PM_CLK_PER>;
 	assigned-clock-rates = <200000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
@@ -195,7 +195,7 @@
 		fsl,pins = <
 			IMX8QXP_UART0_RX_ADMA_UART0_RX				0X06000020
 			IMX8QXP_UART0_TX_ADMA_UART0_TX				0X06000020
-			IMX8QXP_FLEXCAN0_TX_ADMA_UART0_CTS_B 			0x06000020
+			IMX8QXP_FLEXCAN0_TX_ADMA_UART0_CTS_B			0x06000020
 			IMX8QXP_FLEXCAN0_RX_ADMA_UART0_RTS_B			0x06000020
 		>;
 	};

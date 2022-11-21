@@ -38,8 +38,8 @@
  * otherwise by the lowest id first, see xfs_dqlock2.
  */
 
-struct kmem_zone		*xfs_qm_dqtrxzone;
-static struct kmem_zone		*xfs_qm_dqzone;
+struct kmem_cache		*xfs_dqtrx_cache;
+static struct kmem_cache	*xfs_dquot_cache;
 
 static struct lock_class_key xfs_dquot_group_class;
 static struct lock_class_key xfs_dquot_project_class;
@@ -57,7 +57,7 @@ xfs_qm_dqdestroy(
 	mutex_destroy(&dqp->q_qlock);
 
 	XFS_STATS_DEC(dqp->q_mount, xs_qm_dquot);
-	kmem_cache_free(xfs_qm_dqzone, dqp);
+	kmem_cache_free(xfs_dquot_cache, dqp);
 }
 
 /*
@@ -223,9 +223,9 @@ xfs_qm_init_dquot_blk(
 		d->dd_diskdq.d_version = XFS_DQUOT_VERSION;
 		d->dd_diskdq.d_id = cpu_to_be32(curid);
 		d->dd_diskdq.d_type = type;
-		if (curid > 0 && xfs_sb_version_hasbigtime(&mp->m_sb))
+		if (curid > 0 && xfs_has_bigtime(mp))
 			d->dd_diskdq.d_type |= XFS_DQTYPE_BIGTIME;
-		if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		if (xfs_has_crc(mp)) {
 			uuid_copy(&d->dd_uuid, &mp->m_sb.sb_meta_uuid);
 			xfs_update_cksum((char *)d, sizeof(struct xfs_dqblk),
 					 XFS_DQUOT_CRC_OFF);
@@ -289,13 +289,12 @@ xfs_dquot_set_prealloc_limits(struct xfs_dquot *dqp)
  */
 STATIC int
 xfs_dquot_disk_alloc(
-	struct xfs_trans	**tpp,
 	struct xfs_dquot	*dqp,
 	struct xfs_buf		**bpp)
 {
 	struct xfs_bmbt_irec	map;
-	struct xfs_trans	*tp = *tpp;
-	struct xfs_mount	*mp = tp->t_mountp;
+	struct xfs_trans	*tp;
+	struct xfs_mount	*mp = dqp->q_mount;
 	struct xfs_buf		*bp;
 	xfs_dqtype_t		qtype = xfs_dquot_type(dqp);
 	struct xfs_inode	*quotip = xfs_quota_inode(mp, qtype);
@@ -304,23 +303,35 @@ xfs_dquot_disk_alloc(
 
 	trace_xfs_dqalloc(dqp);
 
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_qm_dqalloc,
+			XFS_QM_DQALLOC_SPACE_RES(mp), 0, 0, &tp);
+	if (error)
+		return error;
+
 	xfs_ilock(quotip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, quotip, 0);
+
 	if (!xfs_this_quota_on(dqp->q_mount, qtype)) {
 		/*
 		 * Return if this type of quotas is turned off while we didn't
 		 * have an inode lock
 		 */
-		xfs_iunlock(quotip, XFS_ILOCK_EXCL);
-		return -ESRCH;
+		error = -ESRCH;
+		goto err_cancel;
 	}
 
+	error = xfs_iext_count_may_overflow(quotip, XFS_DATA_FORK,
+			XFS_IEXT_ADD_NOSPLIT_CNT);
+	if (error)
+		goto err_cancel;
+
 	/* Create the block mapping. */
-	xfs_trans_ijoin(tp, quotip, XFS_ILOCK_EXCL);
 	error = xfs_bmapi_write(tp, quotip, dqp->q_fileoffset,
 			XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA, 0, &map,
 			&nmaps);
 	if (error)
-		return error;
+		goto err_cancel;
+
 	ASSERT(map.br_blockcount == XFS_DQUOT_CLUSTER_SIZE_FSB);
 	ASSERT(nmaps == 1);
 	ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
@@ -335,7 +346,7 @@ xfs_dquot_disk_alloc(
 	error = xfs_trans_get_buf(tp, mp->m_ddev_targp, dqp->q_blkno,
 			mp->m_quotainfo->qi_dqchunklen, 0, &bp);
 	if (error)
-		return error;
+		goto err_cancel;
 	bp->b_ops = &xfs_dquot_buf_ops;
 
 	/*
@@ -365,16 +376,25 @@ xfs_dquot_disk_alloc(
 	 * is responsible for unlocking any buffer passed back, either
 	 * manually or by committing the transaction.  On error, the buffer is
 	 * released and not passed back.
+	 *
+	 * Keep the quota inode ILOCKed until after the transaction commit to
+	 * maintain the atomicity of bmap/rmap updates.
 	 */
 	xfs_trans_bhold(tp, bp);
-	error = xfs_defer_finish(tpp);
+	error = xfs_trans_commit(tp);
+	xfs_iunlock(quotip, XFS_ILOCK_EXCL);
 	if (error) {
-		xfs_trans_bhold_release(*tpp, bp);
-		xfs_trans_brelse(*tpp, bp);
+		xfs_buf_relse(bp);
 		return error;
 	}
+
 	*bpp = bp;
 	return 0;
+
+err_cancel:
+	xfs_trans_cancel(tp);
+	xfs_iunlock(quotip, XFS_ILOCK_EXCL);
+	return error;
 }
 
 /*
@@ -452,7 +472,7 @@ xfs_dquot_alloc(
 {
 	struct xfs_dquot	*dqp;
 
-	dqp = kmem_cache_zalloc(xfs_qm_dqzone, GFP_KERNEL | __GFP_NOFAIL);
+	dqp = kmem_cache_zalloc(xfs_dquot_cache, GFP_KERNEL | __GFP_NOFAIL);
 
 	dqp->q_type = type;
 	dqp->q_id = id;
@@ -465,7 +485,7 @@ xfs_dquot_alloc(
 	 * Offset of dquot in the (fixed sized) dquot chunk.
 	 */
 	dqp->q_bufoffset = (id % mp->m_quotainfo->qi_dqperchunk) *
-			sizeof(xfs_dqblk_t);
+			sizeof(struct xfs_dqblk);
 
 	/*
 	 * Because we want to use a counting completion, complete
@@ -500,6 +520,42 @@ xfs_dquot_alloc(
 	return dqp;
 }
 
+/* Check the ondisk dquot's id and type match what the incore dquot expects. */
+static bool
+xfs_dquot_check_type(
+	struct xfs_dquot	*dqp,
+	struct xfs_disk_dquot	*ddqp)
+{
+	uint8_t			ddqp_type;
+	uint8_t			dqp_type;
+
+	ddqp_type = ddqp->d_type & XFS_DQTYPE_REC_MASK;
+	dqp_type = xfs_dquot_type(dqp);
+
+	if (be32_to_cpu(ddqp->d_id) != dqp->q_id)
+		return false;
+
+	/*
+	 * V5 filesystems always expect an exact type match.  V4 filesystems
+	 * expect an exact match for user dquots and for non-root group and
+	 * project dquots.
+	 */
+	if (xfs_has_crc(dqp->q_mount) ||
+	    dqp_type == XFS_DQTYPE_USER || dqp->q_id != 0)
+		return ddqp_type == dqp_type;
+
+	/*
+	 * V4 filesystems support either group or project quotas, but not both
+	 * at the same time.  The non-user quota file can be switched between
+	 * group and project quota uses depending on the mount options, which
+	 * means that we can encounter the other type when we try to load quota
+	 * defaults.  Quotacheck will soon reset the the entire quota file
+	 * (including the root dquot) anyway, but don't log scary corruption
+	 * reports to dmesg.
+	 */
+	return ddqp_type == XFS_DQTYPE_GROUP || ddqp_type == XFS_DQTYPE_PROJ;
+}
+
 /* Copy the in-core quota fields in from the on-disk buffer. */
 STATIC int
 xfs_dquot_from_disk(
@@ -512,8 +568,7 @@ xfs_dquot_from_disk(
 	 * Ensure that we got the type and ID we were looking for.
 	 * Everything else was checked by the dquot buffer verifier.
 	 */
-	if ((ddqp->d_type & XFS_DQTYPE_REC_MASK) != xfs_dquot_type(dqp) ||
-	    be32_to_cpu(ddqp->d_id) != dqp->q_id) {
+	if (!xfs_dquot_check_type(dqp, ddqp)) {
 		xfs_alert_tag(bp->b_mount, XFS_PTAG_VERIFIER_ERROR,
 			  "Metadata corruption detected at %pS, quota %u",
 			  __this_address, dqp->q_id);
@@ -588,43 +643,6 @@ xfs_dquot_to_disk(
 	ddqp->d_rtbtimer = xfs_dquot_to_disk_ts(dqp, dqp->q_rtb.timer);
 }
 
-/* Allocate and initialize the dquot buffer for this in-core dquot. */
-static int
-xfs_qm_dqread_alloc(
-	struct xfs_mount	*mp,
-	struct xfs_dquot	*dqp,
-	struct xfs_buf		**bpp)
-{
-	struct xfs_trans	*tp;
-	int			error;
-
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_qm_dqalloc,
-			XFS_QM_DQALLOC_SPACE_RES(mp), 0, 0, &tp);
-	if (error)
-		goto err;
-
-	error = xfs_dquot_disk_alloc(&tp, dqp, bpp);
-	if (error)
-		goto err_cancel;
-
-	error = xfs_trans_commit(tp);
-	if (error) {
-		/*
-		 * Buffer was held to the transaction, so we have to unlock it
-		 * manually here because we're not passing it back.
-		 */
-		xfs_buf_relse(*bpp);
-		*bpp = NULL;
-		goto err;
-	}
-	return 0;
-
-err_cancel:
-	xfs_trans_cancel(tp);
-err:
-	return error;
-}
-
 /*
  * Read in the ondisk dquot using dqtobp() then copy it to an incore version,
  * and release the buffer immediately.  If @can_alloc is true, fill any
@@ -648,7 +666,7 @@ xfs_qm_dqread(
 	/* Try to read the buffer, allocating if necessary. */
 	error = xfs_dquot_disk_read(mp, dqp, &bp);
 	if (error == -ENOENT && can_alloc)
-		error = xfs_qm_dqread_alloc(mp, dqp, &bp);
+		error = xfs_dquot_disk_alloc(dqp, &bp);
 	if (error)
 		goto err;
 
@@ -707,11 +725,9 @@ xfs_dq_get_next_id(
 	start = (xfs_fsblock_t)next_id / mp->m_quotainfo->qi_dqperchunk;
 
 	lock_flags = xfs_ilock_data_map_shared(quotip);
-	if (!(quotip->i_df.if_flags & XFS_IFEXTENTS)) {
-		error = xfs_iread_extents(NULL, quotip, XFS_DATA_FORK);
-		if (error)
-			return error;
-	}
+	error = xfs_iread_extents(NULL, quotip, XFS_DATA_FORK);
+	if (error)
+		return error;
 
 	if (xfs_iext_lookup_extent(quotip, &quotip->i_df, start, &cur, &got)) {
 		/* contiguous chunk, bump startoff for the id calculation */
@@ -808,9 +824,6 @@ xfs_qm_dqget_checks(
 	struct xfs_mount	*mp,
 	xfs_dqtype_t		type)
 {
-	if (WARN_ON_ONCE(!XFS_IS_QUOTA_RUNNING(mp)))
-		return -ESRCH;
-
 	switch (type) {
 	case XFS_DQTYPE_USER:
 		if (!XFS_IS_UQUOTA_ON(mp))
@@ -912,7 +925,7 @@ xfs_qm_id_for_quotatype(
 	case XFS_DQTYPE_GROUP:
 		return i_gid_read(VFS_I(ip));
 	case XFS_DQTYPE_PROJ:
-		return ip->i_d.di_projid;
+		return ip->i_projid;
 	}
 	ASSERT(0);
 	return 0;
@@ -1183,7 +1196,7 @@ xfs_qm_dqflush_check(
 
 	/* bigtime flag should never be set on root dquots */
 	if (dqp->q_type & XFS_DQTYPE_BIGTIME) {
-		if (!xfs_sb_version_hasbigtime(&dqp->q_mount->m_sb))
+		if (!xfs_has_bigtime(dqp->q_mount))
 			return __this_address;
 		if (dqp->q_id == 0)
 			return __this_address;
@@ -1262,7 +1275,7 @@ xfs_qm_dqflush(
 	 * buffer always has a valid CRC. This ensures there is no possibility
 	 * of a dquot without an up-to-date CRC getting to disk.
 	 */
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		dqblk->dd_lsn = cpu_to_be64(dqp->q_logitem.qli_item.li_lsn);
 		xfs_update_cksum((char *)dqblk, sizeof(struct xfs_dqblk),
 				 XFS_DQUOT_CRC_OFF);
@@ -1327,22 +1340,22 @@ xfs_dqlock2(
 int __init
 xfs_qm_init(void)
 {
-	xfs_qm_dqzone = kmem_cache_create("xfs_dquot",
+	xfs_dquot_cache = kmem_cache_create("xfs_dquot",
 					  sizeof(struct xfs_dquot),
 					  0, 0, NULL);
-	if (!xfs_qm_dqzone)
+	if (!xfs_dquot_cache)
 		goto out;
 
-	xfs_qm_dqtrxzone = kmem_cache_create("xfs_dqtrx",
+	xfs_dqtrx_cache = kmem_cache_create("xfs_dqtrx",
 					     sizeof(struct xfs_dquot_acct),
 					     0, 0, NULL);
-	if (!xfs_qm_dqtrxzone)
-		goto out_free_dqzone;
+	if (!xfs_dqtrx_cache)
+		goto out_free_dquot_cache;
 
 	return 0;
 
-out_free_dqzone:
-	kmem_cache_destroy(xfs_qm_dqzone);
+out_free_dquot_cache:
+	kmem_cache_destroy(xfs_dquot_cache);
 out:
 	return -ENOMEM;
 }
@@ -1350,8 +1363,8 @@ out:
 void
 xfs_qm_exit(void)
 {
-	kmem_cache_destroy(xfs_qm_dqtrxzone);
-	kmem_cache_destroy(xfs_qm_dqzone);
+	kmem_cache_destroy(xfs_dqtrx_cache);
+	kmem_cache_destroy(xfs_dquot_cache);
 }
 
 /*

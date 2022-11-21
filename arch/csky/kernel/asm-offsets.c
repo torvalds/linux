@@ -9,7 +9,6 @@
 int main(void)
 {
 	/* offsets into the task struct */
-	DEFINE(TASK_STATE,        offsetof(struct task_struct, state));
 	DEFINE(TASK_THREAD_INFO,  offsetof(struct task_struct, stack));
 	DEFINE(TASK_FLAGS,        offsetof(struct task_struct, flags));
 	DEFINE(TASK_PTRACE,       offsetof(struct task_struct, ptrace));
@@ -26,7 +25,6 @@ int main(void)
 	/* offsets into the thread_info struct */
 	DEFINE(TINFO_FLAGS,       offsetof(struct thread_info, flags));
 	DEFINE(TINFO_PREEMPT,     offsetof(struct thread_info, preempt_count));
-	DEFINE(TINFO_ADDR_LIMIT,  offsetof(struct thread_info, addr_limit));
 	DEFINE(TINFO_TP_VALUE,   offsetof(struct thread_info, tp_value));
 	DEFINE(TINFO_TASK,        offsetof(struct thread_info, task));
 

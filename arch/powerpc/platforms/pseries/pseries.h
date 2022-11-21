@@ -11,7 +11,7 @@
 
 struct device_node;
 
-extern void request_event_sources_irqs(struct device_node *np,
+void __init request_event_sources_irqs(struct device_node *np,
 				       irq_handler_t handler, const char *name);
 
 #include <linux/of.h>
@@ -21,6 +21,7 @@ struct pt_regs;
 extern int pSeries_system_reset_exception(struct pt_regs *regs);
 extern int pSeries_machine_check_exception(struct pt_regs *regs);
 extern long pseries_machine_check_realmode(struct pt_regs *regs);
+void pSeries_machine_check_log_err(void);
 
 #ifdef CONFIG_SMP
 extern void smp_init_pseries(void);
@@ -33,7 +34,7 @@ int smp_query_cpu_stopped(unsigned int pcpu);
 #define QCSS_HARDWARE_ERROR -1
 #define QCSS_HARDWARE_BUSY -2
 #else
-static inline void smp_init_pseries(void) { };
+static inline void smp_init_pseries(void) { }
 #endif
 
 extern void pseries_kexec_cpu_down(int crash_shutdown, int secondary);
@@ -42,9 +43,6 @@ extern void pSeries_final_fixup(void);
 
 /* Poweron flag used for enabling auto ups restart */
 extern unsigned long rtas_poweron_auto;
-
-/* Provided by HVC VIO */
-extern void hvc_vio_init_early(void);
 
 /* Dynamic logical Partitioning/Mobility */
 extern void dlpar_free_cc_nodes(struct device_node *);
@@ -55,6 +53,7 @@ extern int dlpar_attach_node(struct device_node *, struct device_node *);
 extern int dlpar_detach_node(struct device_node *);
 extern int dlpar_acquire_drc(u32 drc_index);
 extern int dlpar_release_drc(u32 drc_index);
+extern int dlpar_unisolate_drc(u32 drc_index);
 
 void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog);
 int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_errlog);
@@ -87,6 +86,8 @@ struct pci_host_bridge;
 int pseries_root_bridge_prepare(struct pci_host_bridge *bridge);
 
 extern struct pci_controller_ops pseries_pci_controller_ops;
+int pseries_msi_allocate_domains(struct pci_controller *phb);
+void pseries_msi_free_domains(struct pci_controller *phb);
 
 unsigned long pseries_memory_block_size(void);
 
@@ -111,7 +112,13 @@ static inline unsigned long cmo_get_page_size(void)
 
 int dlpar_workqueue_init(void);
 
+extern u32 pseries_security_flavor;
 void pseries_setup_security_mitigations(void);
+
+#ifdef CONFIG_PPC_64S_HASH_MMU
 void pseries_lpar_read_hblkrm_characteristics(void);
+#else
+static inline void pseries_lpar_read_hblkrm_characteristics(void) { }
+#endif
 
 #endif /* _PSERIES_PSERIES_H */

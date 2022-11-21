@@ -15,7 +15,7 @@ static int mt76x2u_start(struct ieee80211_hw *hw)
 	if (ret)
 		return ret;
 
-	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mphy.mac_work,
 				     MT_MAC_WORK_INTERVAL);
 	set_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 
@@ -78,12 +78,16 @@ mt76x2u_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		dev->txpower_conf = hw->conf.power_level * 2;
+		struct mt76_phy *mphy = &dev->mphy;
 
+		dev->txpower_conf = hw->conf.power_level * 2;
+		dev->txpower_conf = mt76_get_sar_power(mphy,
+						       mphy->chandef.chan,
+						       dev->txpower_conf);
 		/* convert to per-chain power for 2x2 devices */
 		dev->txpower_conf -= 6;
 
-		if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
+		if (test_bit(MT76_STATE_RUNNING, &mphy->state))
 			mt76x2_phy_set_txpower(dev);
 	}
 
@@ -121,4 +125,5 @@ const struct ieee80211_ops mt76x2u_ops = {
 	.set_tim = mt76_set_tim,
 	.release_buffered_frames = mt76_release_buffered_frames,
 	.get_antenna = mt76_get_antenna,
+	.set_sar_specs = mt76x2_set_sar_specs,
 };

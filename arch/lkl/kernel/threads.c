@@ -19,7 +19,7 @@ static int init_ti(struct thread_info *ti)
 	return 0;
 }
 
-unsigned long *alloc_thread_stack_node(struct task_struct *task, int node)
+unsigned long *arch_alloc_thread_stack_node(struct task_struct *task, int node)
 {
 	struct thread_info *ti;
 
@@ -61,7 +61,7 @@ static void kill_thread(struct thread_info *ti)
 
 }
 
-void free_thread_stack(struct task_struct *tsk)
+void arch_free_thread_stack(struct task_struct *tsk)
 {
 	struct thread_info *ti = task_thread_info(tsk);
 
@@ -219,7 +219,7 @@ void threads_cleanup(void)
 		if (t->pid != 1 && !test_ti_thread_flag(ti, TIF_HOST_THREAD))
 			WARN(!(t->flags & PF_KTHREAD),
 			     "non kernel thread task %s\n", t->comm);
-		WARN(t->state == TASK_RUNNING,
+		WARN(READ_ONCE(t->__state) == TASK_RUNNING,
 		     "thread %s still running while halting\n", t->comm);
 
 		kill_thread(ti);

@@ -75,44 +75,42 @@ and elsewhere regarding submitting Linux kernel patches.
 13) Has been build- and runtime tested with and without ``CONFIG_SMP`` and
     ``CONFIG_PREEMPT.``
 
-16) All codepaths have been exercised with all lockdep features enabled.
+14) All codepaths have been exercised with all lockdep features enabled.
 
-17) All new ``/proc`` entries are documented under ``Documentation/``
+15) All new ``/proc`` entries are documented under ``Documentation/``
 
-18) All new kernel boot parameters are documented in
+16) All new kernel boot parameters are documented in
     ``Documentation/admin-guide/kernel-parameters.rst``.
 
-19) All new module parameters are documented with ``MODULE_PARM_DESC()``
+17) All new module parameters are documented with ``MODULE_PARM_DESC()``
 
-20) All new userspace interfaces are documented in ``Documentation/ABI/``.
+18) All new userspace interfaces are documented in ``Documentation/ABI/``.
     See ``Documentation/ABI/README`` for more information.
     Patches that change userspace interfaces should be CCed to
     linux-api@vger.kernel.org.
 
-21) Check that it all passes ``make headers_check``.
-
-22) Has been checked with injection of at least slab and page-allocation
+19) Has been checked with injection of at least slab and page-allocation
     failures.  See ``Documentation/fault-injection/``.
 
     If the new code is substantial, addition of subsystem-specific fault
     injection might be appropriate.
 
-23) Newly-added code has been compiled with ``gcc -W`` (use
-    ``make EXTRA_CFLAGS=-W``).  This will generate lots of noise, but is good
+20) Newly-added code has been compiled with ``gcc -W`` (use
+    ``make KCFLAGS=-W``).  This will generate lots of noise, but is good
     for finding bugs like "warning: comparison between signed and unsigned".
 
-24) Tested after it has been merged into the -mm patchset to make sure
+21) Tested after it has been merged into the -mm patchset to make sure
     that it still works with all of the other queued patches and various
     changes in the VM, VFS, and other subsystems.
 
-25) All memory barriers {e.g., ``barrier()``, ``rmb()``, ``wmb()``} need a
+22) All memory barriers {e.g., ``barrier()``, ``rmb()``, ``wmb()``} need a
     comment in the source code that explains the logic of what they are doing
     and why.
 
-26) If any ioctl's are added by the patch, then also update
+23) If any ioctl's are added by the patch, then also update
     ``Documentation/userspace-api/ioctl/ioctl-number.rst``.
 
-27) If your modified source code depends on or uses any of the kernel
+24) If your modified source code depends on or uses any of the kernel
     APIs or features that are related to the following ``Kconfig`` symbols,
     then test multiple builds with the related ``Kconfig`` symbols disabled
     and/or ``=m`` (if that option is available) [not all of these at the

@@ -119,7 +119,8 @@ static const struct link_encoder_funcs dce110_lnk_enc_funcs = {
 	.disable_hpd = dce110_link_encoder_disable_hpd,
 	.is_dig_enabled = dce110_is_dig_enabled,
 	.destroy = dce110_link_encoder_destroy,
-	.get_max_link_cap = dce110_link_encoder_get_max_link_cap
+	.get_max_link_cap = dce110_link_encoder_get_max_link_cap,
+	.get_dig_frontend = dce110_get_dig_frontend,
 };
 
 static enum bp_result link_transmitter_control(
@@ -233,6 +234,44 @@ static void set_link_training_complete(
 
 	REG_UPDATE(DP_LINK_CNTL, DP_LINK_TRAINING_COMPLETE, complete);
 
+}
+
+unsigned int dce110_get_dig_frontend(struct link_encoder *enc)
+{
+	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
+	u32 value;
+	enum engine_id result;
+
+	REG_GET(DIG_BE_CNTL, DIG_FE_SOURCE_SELECT, &value);
+
+	switch (value) {
+	case DCE110_DIG_FE_SOURCE_SELECT_DIGA:
+		result = ENGINE_ID_DIGA;
+		break;
+	case DCE110_DIG_FE_SOURCE_SELECT_DIGB:
+		result = ENGINE_ID_DIGB;
+		break;
+	case DCE110_DIG_FE_SOURCE_SELECT_DIGC:
+		result = ENGINE_ID_DIGC;
+		break;
+	case DCE110_DIG_FE_SOURCE_SELECT_DIGD:
+		result = ENGINE_ID_DIGD;
+		break;
+	case DCE110_DIG_FE_SOURCE_SELECT_DIGE:
+		result = ENGINE_ID_DIGE;
+		break;
+	case DCE110_DIG_FE_SOURCE_SELECT_DIGF:
+		result = ENGINE_ID_DIGF;
+		break;
+	case DCE110_DIG_FE_SOURCE_SELECT_DIGG:
+		result = ENGINE_ID_DIGG;
+		break;
+	default:
+		// invalid source select DIG
+		result = ENGINE_ID_UNKNOWN;
+	}
+
+	return result;
 }
 
 void dce110_link_encoder_set_dp_phy_pattern_training_pattern(
@@ -749,8 +788,9 @@ static bool dce110_link_encoder_validate_hdmi_output(
 			crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		return false;
 
-	if (!enc110->base.features.flags.bits.HDMI_6GB_EN &&
-		adjusted_pix_clk_khz >= 300000)
+	if ((!enc110->base.features.flags.bits.HDMI_6GB_EN ||
+			enc110->base.ctx->dc->debug.hdmi20_disable) &&
+			adjusted_pix_clk_khz >= 300000)
 		return false;
 	if (enc110->base.ctx->dc->debug.hdmi20_disable &&
 		crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
@@ -1158,7 +1198,7 @@ void dce110_link_encoder_enable_dp_mst_output(
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
 /* enables DP PHY output */
-void dce60_link_encoder_enable_dp_output(
+static void dce60_link_encoder_enable_dp_output(
 	struct link_encoder *enc,
 	const struct dc_link_settings *link_settings,
 	enum clock_source_id clock_source)
@@ -1197,7 +1237,7 @@ void dce60_link_encoder_enable_dp_output(
 }
 
 /* enables DP PHY output in MST mode */
-void dce60_link_encoder_enable_dp_mst_output(
+static void dce60_link_encoder_enable_dp_mst_output(
 	struct link_encoder *enc,
 	const struct dc_link_settings *link_settings,
 	enum clock_source_id clock_source)
@@ -1285,7 +1325,8 @@ void dce110_link_encoder_disable_output(
 
 void dce110_link_encoder_dp_set_lane_settings(
 	struct link_encoder *enc,
-	const struct link_training_settings *link_settings)
+	const struct dc_link_settings *link_settings,
+	const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX])
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
 	union dpcd_training_lane_set training_lane_set = { { 0 } };
@@ -1300,26 +1341,26 @@ void dce110_link_encoder_dp_set_lane_settings(
 	cntl.action = TRANSMITTER_CONTROL_SET_VOLTAGE_AND_PREEMPASIS;
 	cntl.transmitter = enc110->base.transmitter;
 	cntl.connector_obj_id = enc110->base.connector;
-	cntl.lanes_number = link_settings->link_settings.lane_count;
+	cntl.lanes_number = link_settings->lane_count;
 	cntl.hpd_sel = enc110->base.hpd_source;
-	cntl.pixel_clock = link_settings->link_settings.link_rate *
+	cntl.pixel_clock = link_settings->link_rate *
 						LINK_RATE_REF_FREQ_IN_KHZ;
 
-	for (lane = 0; lane < link_settings->link_settings.lane_count; lane++) {
+	for (lane = 0; lane < link_settings->lane_count; lane++) {
 		/* translate lane settings */
 
 		training_lane_set.bits.VOLTAGE_SWING_SET =
-			link_settings->lane_settings[lane].VOLTAGE_SWING;
+				lane_settings[lane].VOLTAGE_SWING;
 		training_lane_set.bits.PRE_EMPHASIS_SET =
-			link_settings->lane_settings[lane].PRE_EMPHASIS;
+				lane_settings[lane].PRE_EMPHASIS;
 
 		/* post cursor 2 setting only applies to HBR2 link rate */
-		if (link_settings->link_settings.link_rate == LINK_RATE_HIGH2) {
+		if (link_settings->link_rate == LINK_RATE_HIGH2) {
 			/* this is passed to VBIOS
 			 * to program post cursor 2 level */
 
 			training_lane_set.bits.POST_CURSOR2_SET =
-				link_settings->lane_settings[lane].POST_CURSOR2;
+					lane_settings[lane].POST_CURSOR2;
 		}
 
 		cntl.lane_select = lane;
@@ -1387,7 +1428,7 @@ void dce110_link_encoder_dp_set_phy_pattern(
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
 /* set DP PHY test and training patterns */
-void dce60_link_encoder_dp_set_phy_pattern(
+static void dce60_link_encoder_dp_set_phy_pattern(
 	struct link_encoder *enc,
 	const struct encoder_set_dp_phy_pattern_param *param)
 {
@@ -1464,7 +1505,6 @@ void dce110_link_encoder_update_mst_stream_allocation_table(
 	const struct link_mst_stream_allocation_table *table)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
-	uint32_t value0 = 0;
 	uint32_t value1 = 0;
 	uint32_t value2 = 0;
 	uint32_t slots = 0;
@@ -1565,7 +1605,7 @@ void dce110_link_encoder_update_mst_stream_allocation_table(
 	do {
 		udelay(10);
 
-		value0 = REG_READ(DP_MSE_SAT_UPDATE);
+		REG_READ(DP_MSE_SAT_UPDATE);
 
 		REG_GET(DP_MSE_SAT_UPDATE,
 				DP_MSE_SAT_UPDATE, &value1);
@@ -1665,7 +1705,8 @@ static const struct link_encoder_funcs dce60_lnk_enc_funcs = {
 	.disable_hpd = dce110_link_encoder_disable_hpd,
 	.is_dig_enabled = dce110_is_dig_enabled,
 	.destroy = dce110_link_encoder_destroy,
-	.get_max_link_cap = dce110_link_encoder_get_max_link_cap
+	.get_max_link_cap = dce110_link_encoder_get_max_link_cap,
+	.get_dig_frontend = dce110_get_dig_frontend
 };
 
 void dce60_link_encoder_construct(

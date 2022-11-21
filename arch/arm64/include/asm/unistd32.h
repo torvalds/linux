@@ -279,7 +279,7 @@ __SYSCALL(__NR_getpgid, sys_getpgid)
 #define __NR_fchdir 133
 __SYSCALL(__NR_fchdir, sys_fchdir)
 #define __NR_bdflush 134
-__SYSCALL(__NR_bdflush, sys_bdflush)
+__SYSCALL(__NR_bdflush, sys_ni_syscall)
 #define __NR_sysfs 135
 __SYSCALL(__NR_sysfs, sys_sysfs)
 #define __NR_personality 136
@@ -649,11 +649,11 @@ __SYSCALL(__NR_inotify_add_watch, sys_inotify_add_watch)
 #define __NR_inotify_rm_watch 318
 __SYSCALL(__NR_inotify_rm_watch, sys_inotify_rm_watch)
 #define __NR_mbind 319
-__SYSCALL(__NR_mbind, compat_sys_mbind)
+__SYSCALL(__NR_mbind, sys_mbind)
 #define __NR_get_mempolicy 320
-__SYSCALL(__NR_get_mempolicy, compat_sys_get_mempolicy)
+__SYSCALL(__NR_get_mempolicy, sys_get_mempolicy)
 #define __NR_set_mempolicy 321
-__SYSCALL(__NR_set_mempolicy, compat_sys_set_mempolicy)
+__SYSCALL(__NR_set_mempolicy, sys_set_mempolicy)
 #define __NR_openat 322
 __SYSCALL(__NR_openat, compat_sys_openat)
 #define __NR_mkdirat 323
@@ -699,7 +699,7 @@ __SYSCALL(__NR_tee, sys_tee)
 #define __NR_vmsplice 343
 __SYSCALL(__NR_vmsplice, sys_vmsplice)
 #define __NR_move_pages 344
-__SYSCALL(__NR_move_pages, compat_sys_move_pages)
+__SYSCALL(__NR_move_pages, sys_move_pages)
 #define __NR_getcpu 345
 __SYSCALL(__NR_getcpu, sys_getcpu)
 #define __NR_epoll_pwait 346
@@ -811,7 +811,7 @@ __SYSCALL(__NR_rseq, sys_rseq)
 #define __NR_io_pgetevents 399
 __SYSCALL(__NR_io_pgetevents, compat_sys_io_pgetevents)
 #define __NR_migrate_pages 400
-__SYSCALL(__NR_migrate_pages, compat_sys_migrate_pages)
+__SYSCALL(__NR_migrate_pages, sys_migrate_pages)
 #define __NR_kexec_file_load 401
 __SYSCALL(__NR_kexec_file_load, sys_kexec_file_load)
 /* 402 is unused */
@@ -889,6 +889,24 @@ __SYSCALL(__NR_pidfd_getfd, sys_pidfd_getfd)
 __SYSCALL(__NR_faccessat2, sys_faccessat2)
 #define __NR_process_madvise 440
 __SYSCALL(__NR_process_madvise, sys_process_madvise)
+#define __NR_epoll_pwait2 441
+__SYSCALL(__NR_epoll_pwait2, compat_sys_epoll_pwait2)
+#define __NR_mount_setattr 442
+__SYSCALL(__NR_mount_setattr, sys_mount_setattr)
+#define __NR_quotactl_fd 443
+__SYSCALL(__NR_quotactl_fd, sys_quotactl_fd)
+#define __NR_landlock_create_ruleset 444
+__SYSCALL(__NR_landlock_create_ruleset, sys_landlock_create_ruleset)
+#define __NR_landlock_add_rule 445
+__SYSCALL(__NR_landlock_add_rule, sys_landlock_add_rule)
+#define __NR_landlock_restrict_self 446
+__SYSCALL(__NR_landlock_restrict_self, sys_landlock_restrict_self)
+#define __NR_process_mrelease 448
+__SYSCALL(__NR_process_mrelease, sys_process_mrelease)
+#define __NR_futex_waitv 449
+__SYSCALL(__NR_futex_waitv, sys_futex_waitv)
+#define __NR_set_mempolicy_home_node 450
+__SYSCALL(__NR_set_mempolicy_home_node, sys_set_mempolicy_home_node)
 
 /*
  * Please add new compat syscalls above this comment and update

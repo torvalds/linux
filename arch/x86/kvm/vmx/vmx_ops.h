@@ -4,13 +4,11 @@
 
 #include <linux/nospec.h>
 
-#include <asm/kvm_host.h>
 #include <asm/vmx.h>
 
 #include "evmcs.h"
 #include "vmcs.h"
-
-#define __ex(x) __kvm_handle_fault_on_reboot(x)
+#include "x86.h"
 
 asmlinkage void vmread_error(unsigned long field, bool fault);
 __attribute__((regparm(0))) void vmread_error_trampoline(unsigned long field,
@@ -37,6 +35,10 @@ static __always_inline void vmcs_check32(unsigned long field)
 {
 	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0,
 			 "32-bit accessor invalid for 16-bit field");
+	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2000,
+			 "32-bit accessor invalid for 64-bit field");
+	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2001,
+			 "32-bit accessor invalid for 64-bit high field");
 	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x6000,
 			 "32-bit accessor invalid for natural width field");
 }
@@ -69,6 +71,31 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 {
 	unsigned long value;
 
+#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+
+	asm_volatile_goto("1: vmread %[field], %[output]\n\t"
+			  "jna %l[do_fail]\n\t"
+
+			  _ASM_EXTABLE(1b, %l[do_exception])
+
+			  : [output] "=r" (value)
+			  : [field] "r" (field)
+			  : "cc"
+			  : do_fail, do_exception);
+
+	return value;
+
+do_fail:
+	WARN_ONCE(1, "kvm: vmread failed: field=%lx\n", field);
+	pr_warn_ratelimited("kvm: vmread failed: field=%lx\n", field);
+	return 0;
+
+do_exception:
+	kvm_spurious_fault();
+	return 0;
+
+#else /* !CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
+
 	asm volatile("1: vmread %2, %1\n\t"
 		     ".byte 0x3e\n\t" /* branch taken hint */
 		     "ja 3f\n\t"
@@ -78,9 +105,11 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 		      * @field, and bounce through the trampoline to preserve
 		      * volatile registers.
 		      */
-		     "push $0\n\t"
+		     "xorl %k1, %k1\n\t"
+		     "2:\n\t"
+		     "push %1\n\t"
 		     "push %2\n\t"
-		     "2:call vmread_error_trampoline\n\t"
+		     "call vmread_error_trampoline\n\t"
 
 		     /*
 		      * Unwind the stack.  Note, the trampoline zeros out the
@@ -91,14 +120,12 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 		     "3:\n\t"
 
 		     /* VMREAD faulted.  As above, except push '1' for @fault. */
-		     ".pushsection .fixup, \"ax\"\n\t"
-		     "4: push $1\n\t"
-		     "push %2\n\t"
-		     "jmp 2b\n\t"
-		     ".popsection\n\t"
-		     _ASM_EXTABLE(1b, 4b)
-		     : ASM_CALL_CONSTRAINT, "=r"(value) : "r"(field) : "cc");
+		     _ASM_EXTABLE_TYPE_REG(1b, 2b, EX_TYPE_ONE_REG, %1)
+
+		     : ASM_CALL_CONSTRAINT, "=&r"(value) : "r"(field) : "cc");
 	return value;
+
+#endif /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
 }
 
 static __always_inline u16 vmcs_read16(unsigned long field)

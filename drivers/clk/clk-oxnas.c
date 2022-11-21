@@ -209,15 +209,11 @@ static int oxnas_stdclk_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct oxnas_stdclk_data *data;
-	const struct of_device_id *id;
 	struct regmap *regmap;
 	int ret;
 	int i;
 
-	id = of_match_device(oxnas_stdclk_dt_ids, &pdev->dev);
-	if (!id)
-		return -ENODEV;
-	data = id->data;
+	data = of_device_get_match_data(&pdev->dev);
 
 	regmap = syscon_node_to_regmap(of_get_parent(np));
 	if (IS_ERR(regmap)) {

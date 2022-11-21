@@ -48,7 +48,6 @@ static DEFINE_SPINLOCK(iwpm_mapinfo_lock);
 static struct hlist_head *iwpm_reminfo_bucket;
 static DEFINE_SPINLOCK(iwpm_reminfo_lock);
 
-static DEFINE_MUTEX(iwpm_admin_lock);
 static struct iwpm_admin_data iwpm_admin;
 
 /**
@@ -59,35 +58,21 @@ static struct iwpm_admin_data iwpm_admin;
  */
 int iwpm_init(u8 nl_client)
 {
-	int ret = 0;
-	mutex_lock(&iwpm_admin_lock);
-	if (atomic_read(&iwpm_admin.refcount) == 0) {
-		iwpm_hash_bucket = kcalloc(IWPM_MAPINFO_HASH_SIZE,
-					   sizeof(struct hlist_head),
-					   GFP_KERNEL);
-		if (!iwpm_hash_bucket) {
-			ret = -ENOMEM;
-			goto init_exit;
-		}
-		iwpm_reminfo_bucket = kcalloc(IWPM_REMINFO_HASH_SIZE,
-					      sizeof(struct hlist_head),
-					      GFP_KERNEL);
-		if (!iwpm_reminfo_bucket) {
-			kfree(iwpm_hash_bucket);
-			ret = -ENOMEM;
-			goto init_exit;
-		}
+	iwpm_hash_bucket = kcalloc(IWPM_MAPINFO_HASH_SIZE,
+				   sizeof(struct hlist_head), GFP_KERNEL);
+	if (!iwpm_hash_bucket)
+		return -ENOMEM;
+
+	iwpm_reminfo_bucket = kcalloc(IWPM_REMINFO_HASH_SIZE,
+				      sizeof(struct hlist_head), GFP_KERNEL);
+	if (!iwpm_reminfo_bucket) {
+		kfree(iwpm_hash_bucket);
+		return -ENOMEM;
 	}
-	atomic_inc(&iwpm_admin.refcount);
-init_exit:
-	mutex_unlock(&iwpm_admin_lock);
-	if (!ret) {
-		iwpm_set_valid(nl_client, 1);
-		iwpm_set_registration(nl_client, IWPM_REG_UNDEF);
-		pr_debug("%s: Mapinfo and reminfo tables are created\n",
-				__func__);
-	}
-	return ret;
+
+	iwpm_set_registration(nl_client, IWPM_REG_UNDEF);
+	pr_debug("%s: Mapinfo and reminfo tables are created\n", __func__);
+	return 0;
 }
 
 static void free_hash_bucket(void);
@@ -101,22 +86,9 @@ static void free_reminfo_bucket(void);
  */
 int iwpm_exit(u8 nl_client)
 {
-
-	if (!iwpm_valid_client(nl_client))
-		return -EINVAL;
-	mutex_lock(&iwpm_admin_lock);
-	if (atomic_read(&iwpm_admin.refcount) == 0) {
-		mutex_unlock(&iwpm_admin_lock);
-		pr_err("%s Incorrect usage - negative refcount\n", __func__);
-		return -EINVAL;
-	}
-	if (atomic_dec_and_test(&iwpm_admin.refcount)) {
-		free_hash_bucket();
-		free_reminfo_bucket();
-		pr_debug("%s: Resources are destroyed\n", __func__);
-	}
-	mutex_unlock(&iwpm_admin_lock);
-	iwpm_set_valid(nl_client, 0);
+	free_hash_bucket();
+	free_reminfo_bucket();
+	pr_debug("%s: Resources are destroyed\n", __func__);
 	iwpm_set_registration(nl_client, IWPM_REG_UNDEF);
 	return 0;
 }
@@ -127,8 +99,8 @@ static struct hlist_head *get_mapinfo_hash_bucket(struct sockaddr_storage *,
 /**
  * iwpm_create_mapinfo - Store local and mapped IPv4/IPv6 address
  *                       info in a hash table
- * @local_addr: Local ip/tcp address
- * @mapped_addr: Mapped local ip/tcp address
+ * @local_sockaddr: Local ip/tcp address
+ * @mapped_sockaddr: Mapped local ip/tcp address
  * @nl_client: The index of the netlink client
  * @map_flags: IWPM mapping flags
  */
@@ -141,8 +113,6 @@ int iwpm_create_mapinfo(struct sockaddr_storage *local_sockaddr,
 	unsigned long flags;
 	int ret = -EINVAL;
 
-	if (!iwpm_valid_client(nl_client))
-		return ret;
 	map_info = kzalloc(sizeof(struct iwpm_mapping_info), GFP_KERNEL);
 	if (!map_info)
 		return -ENOMEM;
@@ -174,7 +144,7 @@ int iwpm_create_mapinfo(struct sockaddr_storage *local_sockaddr,
 /**
  * iwpm_remove_mapinfo - Remove local and mapped IPv4/IPv6 address
  *                       info from the hash table
- * @local_addr: Local ip/tcp address
+ * @local_sockaddr: Local ip/tcp address
  * @mapped_local_addr: Mapped local ip/tcp address
  *
  * Returns err code if mapping info is not found in the hash table,
@@ -302,10 +272,6 @@ int iwpm_get_remote_info(struct sockaddr_storage *mapped_loc_addr,
 	unsigned long flags;
 	int ret = -EINVAL;
 
-	if (!iwpm_valid_client(nl_client)) {
-		pr_info("%s: Invalid client = %d\n", __func__, nl_client);
-		return ret;
-	}
 	spin_lock_irqsave(&iwpm_reminfo_lock, flags);
 	if (iwpm_reminfo_bucket) {
 		hash_bucket_head = get_reminfo_hash_bucket(
@@ -418,16 +384,6 @@ int iwpm_wait_complete_req(struct iwpm_nlmsg_request *nlmsg_request)
 int iwpm_get_nlmsg_seq(void)
 {
 	return atomic_inc_return(&iwpm_admin.nlmsg_seq);
-}
-
-int iwpm_valid_client(u8 nl_client)
-{
-	return iwpm_admin.client_list[nl_client];
-}
-
-void iwpm_set_valid(u8 nl_client, int valid)
-{
-	iwpm_admin.client_list[nl_client] = valid;
 }
 
 /* valid client */
@@ -651,7 +607,7 @@ static int send_mapinfo_num(u32 mapping_num, u8 nl_client, int iwpm_pid)
 		err_str = "Unable to send a nlmsg";
 		goto mapinfo_num_error;
 	}
-	pr_debug("%s: Sent mapping number = %d\n", __func__, mapping_num);
+	pr_debug("%s: Sent mapping number = %u\n", __func__, mapping_num);
 	return 0;
 mapinfo_num_error:
 	pr_info("%s: %s\n", __func__, err_str);
@@ -806,7 +762,7 @@ int iwpm_send_hello(u8 nl_client, int iwpm_pid, u16 abi_version)
 {
 	struct sk_buff *skb = NULL;
 	struct nlmsghdr *nlh;
-	const char *err_str = "";
+	const char *err_str;
 	int ret = -EINVAL;
 
 	skb = iwpm_create_nlmsg(RDMA_NL_IWPM_HELLO, &nlh, nl_client);

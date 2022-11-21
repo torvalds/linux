@@ -24,7 +24,7 @@
 #define PROCSPEECH 0x00
 
 static int synth_probe(struct spk_synth *synth);
-static void dtlk_release(void);
+static void dtlk_release(struct spk_synth *synth);
 static const char *synth_immediate(struct spk_synth *synth, const char *buf);
 static void do_catch_up(struct spk_synth *synth);
 static void synth_flush(struct spk_synth *synth);
@@ -316,7 +316,7 @@ static struct synth_settings *synth_interrogate(struct spk_synth *synth)
 static int synth_probe(struct spk_synth *synth)
 {
 	unsigned int port_val = 0;
-	int i = 0;
+	int i;
 	struct synth_settings *sp;
 
 	pr_info("Probing for DoubleTalk.\n");
@@ -365,7 +365,7 @@ static int synth_probe(struct spk_synth *synth)
 	return 0;
 }
 
-static void dtlk_release(void)
+static void dtlk_release(struct spk_synth *synth)
 {
 	spk_stop_serial_interrupt();
 	if (speakup_info.port_tts)

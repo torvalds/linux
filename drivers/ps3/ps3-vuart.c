@@ -358,7 +358,7 @@ static int ps3_vuart_raw_write(struct ps3_system_bus_device *dev,
 		ps3_mm_phys_to_lpar(__pa(buf)), bytes, bytes_written);
 
 	if (result) {
-		dev_dbg(&dev->core, "%s:%d: lv1_write_virtual_uart failed: "
+		dev_warn(&dev->core, "%s:%d: lv1_write_virtual_uart failed: "
 			"%s\n", __func__, __LINE__, ps3_result(result));
 		return result;
 	}
@@ -1102,7 +1102,7 @@ static int ps3_vuart_cleanup(struct ps3_system_bus_device *dev)
  * device can no longer be used.
  */
 
-static int ps3_vuart_remove(struct ps3_system_bus_device *dev)
+static void ps3_vuart_remove(struct ps3_system_bus_device *dev)
 {
 	struct ps3_vuart_port_priv *priv = to_port_priv(dev);
 	struct ps3_vuart_port_driver *drv;
@@ -1118,7 +1118,7 @@ static int ps3_vuart_remove(struct ps3_system_bus_device *dev)
 		dev_dbg(&dev->core, "%s:%d: no driver bound\n", __func__,
 			__LINE__);
 		mutex_unlock(&vuart_bus_priv.probe_mutex);
-		return 0;
+		return;
 	}
 
 	drv = ps3_system_bus_dev_to_vuart_drv(dev);
@@ -1141,7 +1141,6 @@ static int ps3_vuart_remove(struct ps3_system_bus_device *dev)
 
 	dev_dbg(&dev->core, " <- %s:%d\n", __func__, __LINE__);
 	mutex_unlock(&vuart_bus_priv.probe_mutex);
-	return 0;
 }
 
 /**
@@ -1154,7 +1153,7 @@ static int ps3_vuart_remove(struct ps3_system_bus_device *dev)
  * sequence.
  */
 
-static int ps3_vuart_shutdown(struct ps3_system_bus_device *dev)
+static void ps3_vuart_shutdown(struct ps3_system_bus_device *dev)
 {
 	struct ps3_vuart_port_driver *drv;
 
@@ -1169,7 +1168,7 @@ static int ps3_vuart_shutdown(struct ps3_system_bus_device *dev)
 		dev_dbg(&dev->core, "%s:%d: no driver bound\n", __func__,
 			__LINE__);
 		mutex_unlock(&vuart_bus_priv.probe_mutex);
-		return 0;
+		return;
 	}
 
 	drv = ps3_system_bus_dev_to_vuart_drv(dev);
@@ -1193,7 +1192,6 @@ static int ps3_vuart_shutdown(struct ps3_system_bus_device *dev)
 	dev_dbg(&dev->core, " <- %s:%d\n", __func__, __LINE__);
 
 	mutex_unlock(&vuart_bus_priv.probe_mutex);
-	return 0;
 }
 
 static int __init ps3_vuart_bus_init(void)

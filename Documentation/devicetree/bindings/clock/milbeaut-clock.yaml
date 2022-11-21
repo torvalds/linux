@@ -18,10 +18,12 @@ description: |
 
 properties:
   compatible:
-    oneOf:
-      - items:
-          - enum:
-              - socionext,milbeaut-m10v-ccu
+    enum:
+      - socionext,milbeaut-m10v-ccu
+
+  reg:
+    maxItems: 1
+
   clocks:
     maxItems: 1
     description: external clock
@@ -41,7 +43,7 @@ examples:
   # Clock controller node:
   - |
     m10v-clk-ctrl@1d021000 {
-        compatible = "socionext,milbeaut-m10v-clk-ccu";
+        compatible = "socionext,milbeaut-m10v-ccu";
         reg = <0x1d021000 0x4000>;
         #clock-cells = <1>;
         clocks = <&clki40mhz>;

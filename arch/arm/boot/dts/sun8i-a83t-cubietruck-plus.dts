@@ -74,22 +74,22 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led-0 {
 			label = "cubietruck-plus:blue:usr";
 			gpios = <&pio 3 25 GPIO_ACTIVE_HIGH>; /* PD25 */
 		};
 
-		orange {
+		led-1 {
 			label = "cubietruck-plus:orange:usr";
 			gpios = <&pio 3 26 GPIO_ACTIVE_HIGH>; /* PD26 */
 		};
 
-		white {
+		led-2 {
 			label = "cubietruck-plus:white:usr";
 			gpios = <&pio 3 27 GPIO_ACTIVE_HIGH>; /* PD27 */
 		};
 
-		green {
+		led-3 {
 			label = "cubietruck-plus:green:usr";
 			gpios = <&pio 4 4 GPIO_ACTIVE_HIGH>; /* PE4 */
 		};
@@ -239,7 +239,7 @@
 		compatible = "x-powers,axp818", "x-powers,axp813";
 		reg = <0x3a3>;
 		interrupt-parent = <&r_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_LOW>;
 		eldoin-supply = <&reg_dcdc1>;
 		swin-supply = <&reg_dcdc1>;
 		x-powers,drive-vbus-en;
@@ -260,7 +260,7 @@
 		ac100_rtc: rtc {
 			compatible = "x-powers,ac100-rtc";
 			interrupt-parent = <&r_intc>;
-			interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&ac100_codec>;
 			#clock-cells = <1>;
 			clock-output-names = "cko1_rtc",

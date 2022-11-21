@@ -41,7 +41,9 @@ struct mm_struct;
 
 #ifndef __ASSEMBLY__
 
-#include <asm/tlbflush.h>
+#ifndef MAX_PTRS_PER_PGD
+#define MAX_PTRS_PER_PGD PTRS_PER_PGD
+#endif
 
 /* Keep these as a macros to avoid include dependency mess */
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
@@ -74,6 +76,7 @@ extern unsigned long empty_zero_page[];
 extern pgd_t swapper_pg_dir[];
 
 extern void paging_init(void);
+void poking_init(void);
 
 extern unsigned long ioremap_bot;
 
@@ -154,6 +157,12 @@ static inline bool p4d_is_leaf(p4d_t p4d)
 }
 #endif
 
+#define pmd_pgtable pmd_pgtable
+static inline pgtable_t pmd_pgtable(pmd_t pmd)
+{
+	return (pgtable_t)pmd_page_vaddr(pmd);
+}
+
 #ifdef CONFIG_PPC64
 #define is_ioremap_addr is_ioremap_addr
 static inline bool is_ioremap_addr(const void *x)
@@ -162,6 +171,9 @@ static inline bool is_ioremap_addr(const void *x)
 
 	return addr >= IOREMAP_BASE && addr < IOREMAP_END;
 }
+
+struct seq_file;
+void arch_report_meminfo(struct seq_file *m);
 #endif /* CONFIG_PPC64 */
 
 #endif /* __ASSEMBLY__ */

@@ -1284,6 +1284,18 @@ enum ec_feature_code {
 	EC_FEATURE_SCP = 39,
 	/* The MCU is an Integrated Sensor Hub */
 	EC_FEATURE_ISH = 40,
+	/* New TCPMv2 TYPEC_ prefaced commands supported */
+	EC_FEATURE_TYPEC_CMD = 41,
+	/*
+	 * The EC will wait for direction from the AP to enter Type-C alternate
+	 * modes or USB4.
+	 */
+	EC_FEATURE_TYPEC_REQUIRE_AP_MODE_ENTRY = 42,
+	/*
+	 * The EC will wait for an acknowledge from the AP after setting the
+	 * mux.
+	 */
+	EC_FEATURE_TYPEC_MUX_REQUIRE_AP_ACK = 43,
 };
 
 #define EC_FEATURE_MASK_0(event_code) BIT(event_code % 32)
@@ -3374,6 +3386,9 @@ enum ec_mkbp_event {
 	/* Send an incoming CEC message to the AP */
 	EC_MKBP_EVENT_CEC_MESSAGE = 9,
 
+	/* Peripheral device charger event */
+	EC_MKBP_EVENT_PCHG = 12,
+
 	/* Number of MKBP events */
 	EC_MKBP_EVENT_COUNT,
 };
@@ -3455,6 +3470,7 @@ struct ec_response_get_next_event_v1 {
 #define EC_MKBP_LID_OPEN	0
 #define EC_MKBP_TABLET_MODE	1
 #define EC_MKBP_BASE_ATTACHED	2
+#define EC_MKBP_FRONT_PROXIMITY	3
 
 /* Run keyboard factory test scanning */
 #define EC_CMD_KEYBOARD_FACTORY_TEST 0x0068
@@ -4215,6 +4231,7 @@ enum ec_device_event {
 	EC_DEVICE_EVENT_TRACKPAD,
 	EC_DEVICE_EVENT_DSP,
 	EC_DEVICE_EVENT_WIFI,
+	EC_DEVICE_EVENT_WLC,
 };
 
 enum ec_device_event_param {
@@ -4598,6 +4615,7 @@ enum ec_codec_i2s_rx_subcmd {
 	EC_CODEC_I2S_RX_SET_SAMPLE_DEPTH = 0x2,
 	EC_CODEC_I2S_RX_SET_DAIFMT = 0x3,
 	EC_CODEC_I2S_RX_SET_BCLK = 0x4,
+	EC_CODEC_I2S_RX_RESET = 0x5,
 	EC_CODEC_I2S_RX_SUBCMD_COUNT,
 };
 
@@ -4729,6 +4747,7 @@ enum ec_reboot_cmd {
 	EC_REBOOT_DISABLE_JUMP = 5,  /* Disable jump until next reboot */
 	EC_REBOOT_HIBERNATE = 6,     /* Hibernate EC */
 	EC_REBOOT_HIBERNATE_CLEAR_AP_OFF = 7, /* and clears AP_OFF flag */
+	EC_REBOOT_COLD_AP_OFF = 8,   /* Cold-reboot and don't boot AP */
 };
 
 /* Flags for ec_params_reboot_ec.reboot_flags */
@@ -5445,6 +5464,133 @@ struct ec_response_rollback_info {
 /* Issue AP reset */
 #define EC_CMD_AP_RESET 0x0125
 
+/**
+ * Get the number of peripheral charge ports
+ */
+#define EC_CMD_PCHG_COUNT 0x0134
+
+#define EC_PCHG_MAX_PORTS 8
+
+struct ec_response_pchg_count {
+	uint8_t port_count;
+} __ec_align1;
+
+/**
+ * Get the status of a peripheral charge port
+ */
+#define EC_CMD_PCHG 0x0135
+
+struct ec_params_pchg {
+	uint8_t port;
+} __ec_align1;
+
+struct ec_response_pchg {
+	uint32_t error;			/* enum pchg_error */
+	uint8_t state;			/* enum pchg_state state */
+	uint8_t battery_percentage;
+	uint8_t unused0;
+	uint8_t unused1;
+	/* Fields added in version 1 */
+	uint32_t fw_version;
+	uint32_t dropped_event_count;
+} __ec_align2;
+
+enum pchg_state {
+	/* Charger is reset and not initialized. */
+	PCHG_STATE_RESET = 0,
+	/* Charger is initialized or disabled. */
+	PCHG_STATE_INITIALIZED,
+	/* Charger is enabled and ready to detect a device. */
+	PCHG_STATE_ENABLED,
+	/* Device is in proximity. */
+	PCHG_STATE_DETECTED,
+	/* Device is being charged. */
+	PCHG_STATE_CHARGING,
+	/* Device is fully charged. It implies DETECTED (& not charging). */
+	PCHG_STATE_FULL,
+	/* In download (a.k.a. firmware update) mode */
+	PCHG_STATE_DOWNLOAD,
+	/* In download mode. Ready for receiving data. */
+	PCHG_STATE_DOWNLOADING,
+	/* Device is ready for data communication. */
+	PCHG_STATE_CONNECTED,
+	/* Put no more entry below */
+	PCHG_STATE_COUNT,
+};
+
+#define EC_PCHG_STATE_TEXT { \
+	[PCHG_STATE_RESET] = "RESET", \
+	[PCHG_STATE_INITIALIZED] = "INITIALIZED", \
+	[PCHG_STATE_ENABLED] = "ENABLED", \
+	[PCHG_STATE_DETECTED] = "DETECTED", \
+	[PCHG_STATE_CHARGING] = "CHARGING", \
+	[PCHG_STATE_FULL] = "FULL", \
+	[PCHG_STATE_DOWNLOAD] = "DOWNLOAD", \
+	[PCHG_STATE_DOWNLOADING] = "DOWNLOADING", \
+	[PCHG_STATE_CONNECTED] = "CONNECTED", \
+	}
+
+/*
+ * Update firmware of peripheral chip
+ */
+#define EC_CMD_PCHG_UPDATE 0x0136
+
+/* Port number is encoded in bit[28:31]. */
+#define EC_MKBP_PCHG_PORT_SHIFT		28
+/* Utility macro for converting MKBP event to port number. */
+#define EC_MKBP_PCHG_EVENT_TO_PORT(e)	(((e) >> EC_MKBP_PCHG_PORT_SHIFT) & 0xf)
+/* Utility macro for extracting event bits. */
+#define EC_MKBP_PCHG_EVENT_MASK(e)	((e) \
+					& GENMASK(EC_MKBP_PCHG_PORT_SHIFT-1, 0))
+
+#define EC_MKBP_PCHG_UPDATE_OPENED	BIT(0)
+#define EC_MKBP_PCHG_WRITE_COMPLETE	BIT(1)
+#define EC_MKBP_PCHG_UPDATE_CLOSED	BIT(2)
+#define EC_MKBP_PCHG_UPDATE_ERROR	BIT(3)
+#define EC_MKBP_PCHG_DEVICE_EVENT	BIT(4)
+
+enum ec_pchg_update_cmd {
+	/* Reset chip to normal mode. */
+	EC_PCHG_UPDATE_CMD_RESET_TO_NORMAL = 0,
+	/* Reset and put a chip in update (a.k.a. download) mode. */
+	EC_PCHG_UPDATE_CMD_OPEN,
+	/* Write a block of data containing FW image. */
+	EC_PCHG_UPDATE_CMD_WRITE,
+	/* Close update session. */
+	EC_PCHG_UPDATE_CMD_CLOSE,
+	/* End of commands */
+	EC_PCHG_UPDATE_CMD_COUNT,
+};
+
+struct ec_params_pchg_update {
+	/* PCHG port number */
+	uint8_t port;
+	/* enum ec_pchg_update_cmd */
+	uint8_t cmd;
+	/* Padding */
+	uint8_t reserved0;
+	uint8_t reserved1;
+	/* Version of new firmware */
+	uint32_t version;
+	/* CRC32 of new firmware */
+	uint32_t crc32;
+	/* Address in chip memory where <data> is written to */
+	uint32_t addr;
+	/* Size of <data> */
+	uint32_t size;
+	/* Partial data of new firmware */
+	uint8_t data[];
+} __ec_align4;
+
+BUILD_ASSERT(EC_PCHG_UPDATE_CMD_COUNT
+	     < BIT(sizeof(((struct ec_params_pchg_update *)0)->cmd)*8));
+
+struct ec_response_pchg_update {
+	/* Block size */
+	uint32_t block_size;
+} __ec_align4;
+
+
 /*****************************************************************************/
 /* Voltage regulator controls */
 
@@ -5527,6 +5673,186 @@ struct ec_params_regulator_get_voltage {
 struct ec_response_regulator_get_voltage {
 	uint32_t voltage_mv;
 } __ec_align4;
+
+/*
+ * Gather all discovery information for the given port and partner type.
+ *
+ * Note that if discovery has not yet completed, only the currently completed
+ * responses will be filled in.   If the discovery data structures are changed
+ * in the process of the command running, BUSY will be returned.
+ *
+ * VDO field sizes are set to the maximum possible number of VDOs a VDM may
+ * contain, while the number of SVIDs here is selected to fit within the PROTO2
+ * maximum parameter size.
+ */
+#define EC_CMD_TYPEC_DISCOVERY 0x0131
+
+enum typec_partner_type {
+	TYPEC_PARTNER_SOP = 0,
+	TYPEC_PARTNER_SOP_PRIME = 1,
+};
+
+struct ec_params_typec_discovery {
+	uint8_t port;
+	uint8_t partner_type; /* enum typec_partner_type */
+} __ec_align1;
+
+struct svid_mode_info {
+	uint16_t svid;
+	uint16_t mode_count;  /* Number of modes partner sent */
+	uint32_t mode_vdo[6]; /* Max VDOs allowed after VDM header is 6 */
+};
+
+struct ec_response_typec_discovery {
+	uint8_t identity_count;    /* Number of identity VDOs partner sent */
+	uint8_t svid_count;	   /* Number of SVIDs partner sent */
+	uint16_t reserved;
+	uint32_t discovery_vdo[6]; /* Max VDOs allowed after VDM header is 6 */
+	struct svid_mode_info svids[];
+} __ec_align1;
+
+/* USB Type-C commands for AP-controlled device policy. */
+#define EC_CMD_TYPEC_CONTROL 0x0132
+
+enum typec_control_command {
+	TYPEC_CONTROL_COMMAND_EXIT_MODES,
+	TYPEC_CONTROL_COMMAND_CLEAR_EVENTS,
+	TYPEC_CONTROL_COMMAND_ENTER_MODE,
+};
+
+struct ec_params_typec_control {
+	uint8_t port;
+	uint8_t command;	/* enum typec_control_command */
+	uint16_t reserved;
+
+	/*
+	 * This section will be interpreted based on |command|. Define a
+	 * placeholder structure to avoid having to increase the size and bump
+	 * the command version when adding new sub-commands.
+	 */
+	union {
+		uint32_t clear_events_mask;
+		uint8_t mode_to_enter;      /* enum typec_mode */
+		uint8_t placeholder[128];
+	};
+} __ec_align1;
+
+/*
+ * Gather all status information for a port.
+ *
+ * Note: this covers many of the return fields from the deprecated
+ * EC_CMD_USB_PD_CONTROL command, except those that are redundant with the
+ * discovery data.  The "enum pd_cc_states" is defined with the deprecated
+ * EC_CMD_USB_PD_CONTROL command.
+ *
+ * This also combines in the EC_CMD_USB_PD_MUX_INFO flags.
+ */
+#define EC_CMD_TYPEC_STATUS 0x0133
+
+/*
+ * Power role.
+ *
+ * Note this is also used for PD header creation, and values align to those in
+ * the Power Delivery Specification Revision 3.0 (See
+ * 6.2.1.1.4 Port Power Role).
+ */
+enum pd_power_role {
+	PD_ROLE_SINK = 0,
+	PD_ROLE_SOURCE = 1
+};
+
+/*
+ * Data role.
+ *
+ * Note this is also used for PD header creation, and the first two values
+ * align to those in the Power Delivery Specification Revision 3.0 (See
+ * 6.2.1.1.6 Port Data Role).
+ */
+enum pd_data_role {
+	PD_ROLE_UFP = 0,
+	PD_ROLE_DFP = 1,
+	PD_ROLE_DISCONNECTED = 2,
+};
+
+enum pd_vconn_role {
+	PD_ROLE_VCONN_OFF = 0,
+	PD_ROLE_VCONN_SRC = 1,
+};
+
+/*
+ * Note: BIT(0) may be used to determine whether the polarity is CC1 or CC2,
+ * regardless of whether a debug accessory is connected.
+ */
+enum tcpc_cc_polarity {
+	/*
+	 * _CCx: is used to indicate the polarity while not connected to
+	 * a Debug Accessory.  Only one CC line will assert a resistor and
+	 * the other will be open.
+	 */
+	POLARITY_CC1 = 0,
+	POLARITY_CC2 = 1,
+
+	/*
+	 * _CCx_DTS is used to indicate the polarity while connected to a
+	 * SRC Debug Accessory.  Assert resistors on both lines.
+	 */
+	POLARITY_CC1_DTS = 2,
+	POLARITY_CC2_DTS = 3,
+
+	/*
+	 * The current TCPC code relies on these specific POLARITY values.
+	 * Adding in a check to verify if the list grows for any reason
+	 * that this will give a hint that other places need to be
+	 * adjusted.
+	 */
+	POLARITY_COUNT
+};
+
+#define PD_STATUS_EVENT_SOP_DISC_DONE		BIT(0)
+#define PD_STATUS_EVENT_SOP_PRIME_DISC_DONE	BIT(1)
+#define PD_STATUS_EVENT_HARD_RESET		BIT(2)
+
+struct ec_params_typec_status {
+	uint8_t port;
+} __ec_align1;
+
+struct ec_response_typec_status {
+	uint8_t pd_enabled;		/* PD communication enabled - bool */
+	uint8_t dev_connected;		/* Device connected - bool */
+	uint8_t sop_connected;		/* Device is SOP PD capable - bool */
+	uint8_t source_cap_count;	/* Number of Source Cap PDOs */
+
+	uint8_t power_role;		/* enum pd_power_role */
+	uint8_t data_role;		/* enum pd_data_role */
+	uint8_t vconn_role;		/* enum pd_vconn_role */
+	uint8_t sink_cap_count;		/* Number of Sink Cap PDOs */
+
+	uint8_t polarity;		/* enum tcpc_cc_polarity */
+	uint8_t cc_state;		/* enum pd_cc_states */
+	uint8_t dp_pin;			/* DP pin mode (MODE_DP_IN_[A-E]) */
+	uint8_t mux_state;		/* USB_PD_MUX* - encoded mux state */
+
+	char tc_state[32];		/* TC state name */
+
+	uint32_t events;		/* PD_STATUS_EVENT bitmask */
+
+	/*
+	 * BCD PD revisions for partners
+	 *
+	 * The format has the PD major reversion in the upper nibble, and PD
+	 * minor version in the next nibble.  Following two nibbles are
+	 * currently 0.
+	 * ex. PD 3.2 would map to 0x3200
+	 *
+	 * PD major/minor will be 0 if no PD device is connected.
+	 */
+	uint16_t sop_revision;
+	uint16_t sop_prime_revision;
+
+	uint32_t source_cap_pdos[7];	/* Max 7 PDOs can be present */
+
+	uint32_t sink_cap_pdos[7];	/* Max 7 PDOs can be present */
+} __ec_align1;
 
 /*****************************************************************************/
 /* The command range 0x200-0x2FF is reserved for Rotor. */
@@ -5898,6 +6224,13 @@ struct ec_params_charger_control {
 	uint16_t otg_voltage;
 	uint8_t allow_charging;
 } __ec_align_size1;
+
+/* Get ACK from the USB-C SS muxes */
+#define EC_CMD_USB_PD_MUX_ACK 0x0603
+
+struct ec_params_usb_pd_mux_ack {
+	uint8_t port; /* USB-C port number */
+} __ec_align1;
 
 /*****************************************************************************/
 /*

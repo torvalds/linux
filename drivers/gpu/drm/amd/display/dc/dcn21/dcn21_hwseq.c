@@ -123,7 +123,7 @@ void dcn21_optimize_pwr_state(
  * PHY will hang on the next mode set attempt.
  * if enable PLL follow by disable PLL (without executing lane enable/disable),
  * RDPCS_PHY_DP_MPLLB_STATE remains 1,
- * which indicate that PLL disable attempt actually didn’t go through.
+ * which indicate that PLL disable attempt actually didn't go through.
  * As a workaround, insert PHY lane enable/disable before PLL disable.
  */
 void dcn21_PLAT_58856_wa(struct dc_state *context, struct pipe_ctx *pipe_ctx)
@@ -143,6 +143,7 @@ static bool dmub_abm_set_pipe(struct abm *abm, uint32_t otg_inst, uint32_t optio
 	struct dc_context *dc = abm->ctx;
 	uint32_t ramping_boundary = 0xFFFF;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.abm_set_pipe.header.type = DMUB_CMD__ABM;
 	cmd.abm_set_pipe.header.sub_type = DMUB_CMD__ABM_SET_PIPE;
 	cmd.abm_set_pipe.abm_set_pipe_data.otg_inst = otg_inst;
@@ -171,9 +172,11 @@ void dcn21_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx)
 		return;
 	}
 
-	if (abm && panel_cntl)
+	if (abm && panel_cntl) {
 		dmub_abm_set_pipe(abm, otg_inst, SET_ABM_PIPE_IMMEDIATELY_DISABLE,
 				panel_cntl->inst);
+		panel_cntl->funcs->store_backlight_level(panel_cntl);
+	}
 }
 
 void dcn21_set_pipe(struct pipe_ctx *pipe_ctx)
@@ -210,10 +213,13 @@ bool dcn21_set_backlight_level(struct pipe_ctx *pipe_ctx,
 	if (abm && panel_cntl)
 		dmub_abm_set_pipe(abm, otg_inst, SET_ABM_PIPE_NORMAL, panel_cntl->inst);
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.abm_set_backlight.header.type = DMUB_CMD__ABM;
 	cmd.abm_set_backlight.header.sub_type = DMUB_CMD__ABM_SET_BACKLIGHT;
 	cmd.abm_set_backlight.abm_set_backlight_data.frame_ramp = frame_ramp;
 	cmd.abm_set_backlight.abm_set_backlight_data.backlight_user_level = backlight_pwm_u16_16;
+	cmd.abm_set_backlight.abm_set_backlight_data.version = DMUB_CMD_ABM_CONTROL_VERSION_1;
+	cmd.abm_set_backlight.abm_set_backlight_data.panel_mask = (0x01 << panel_cntl->inst);
 	cmd.abm_set_backlight.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_backlight_data);
 
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
@@ -221,5 +227,20 @@ bool dcn21_set_backlight_level(struct pipe_ctx *pipe_ctx,
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 
 	return true;
+}
+
+bool dcn21_is_abm_supported(struct dc *dc,
+		struct dc_state *context, struct dc_stream_state *stream)
+{
+	int i;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->stream == stream &&
+				(pipe_ctx->prev_odm_pipe == NULL && pipe_ctx->next_odm_pipe == NULL))
+			return true;
+	}
+	return false;
 }
 

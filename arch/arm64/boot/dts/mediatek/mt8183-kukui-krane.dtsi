@@ -4,6 +4,7 @@
  */
 
 #include "mt8183-kukui.dtsi"
+#include "mt8183-kukui-audio-max98357a.dtsi"
 
 / {
 	ppvarn_lcd: ppvarn-lcd {
@@ -71,11 +72,13 @@
 	pinctrl-0 = <&i2c2_pins>;
 	status = "okay";
 	clock-frequency = <400000>;
+	vbus-supply = <&mt6358_vcamio_reg>;
 
 	eeprom@58 {
 		compatible = "atmel,24c32";
 		reg = <0x58>;
 		pagesize = <32>;
+		vcc-supply = <&mt6358_vcama2_reg>;
 	};
 };
 
@@ -84,11 +87,13 @@
 	pinctrl-0 = <&i2c4_pins>;
 	status = "okay";
 	clock-frequency = <400000>;
+	vbus-supply = <&mt6358_vcn18_reg>;
 
 	eeprom@54 {
 		compatible = "atmel,24c32";
 		reg = <0x54>;
 		pagesize = <32>;
+		vcc-supply = <&mt6358_vcn18_reg>;
 	};
 };
 
@@ -340,4 +345,8 @@
 
 &qca_wifi {
 	qcom,ath10k-calibration-variant = "LE_Krane";
+};
+
+&sound {
+	compatible = "mediatek,mt8183_mt6358_ts3a227_max98357";
 };

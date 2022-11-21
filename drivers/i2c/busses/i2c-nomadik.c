@@ -159,7 +159,7 @@ struct i2c_nmk_client {
  * @clk_freq: clock frequency for the operation mode
  * @tft: Tx FIFO Threshold in bytes
  * @rft: Rx FIFO Threshold in bytes
- * @timeout Slave response timeout (ms)
+ * @timeout: Slave response timeout (ms)
  * @sm: speed mode
  * @stop: stop condition.
  * @xfer_complete: acknowledge completion for a I2C message.
@@ -277,7 +277,7 @@ static int init_hw(struct nmk_i2c_dev *dev)
 		goto exit;
 
 	/* disable the controller */
-	i2c_clr_bit(dev->virtbase + I2C_CR , I2C_CR_PE);
+	i2c_clr_bit(dev->virtbase + I2C_CR, I2C_CR_PE);
 
 	disable_all_interrupts(dev);
 
@@ -525,7 +525,7 @@ static int write_i2c(struct nmk_i2c_dev *dev, u16 flags)
 			dev->virtbase + I2C_CR);
 
 	/* enable the controller */
-	i2c_set_bit(dev->virtbase + I2C_CR , I2C_CR_PE);
+	i2c_set_bit(dev->virtbase + I2C_CR, I2C_CR_PE);
 
 	init_completion(&dev->xfer_complete);
 
@@ -1055,7 +1055,7 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	return ret;
 }
 
-static int nmk_i2c_remove(struct amba_device *adev)
+static void nmk_i2c_remove(struct amba_device *adev)
 {
 	struct resource *res = &adev->res;
 	struct nmk_i2c_dev *dev = amba_get_drvdata(adev);
@@ -1068,8 +1068,6 @@ static int nmk_i2c_remove(struct amba_device *adev)
 	i2c_clr_bit(dev->virtbase + I2C_CR, I2C_CR_PE);
 	clk_disable_unprepare(dev->clk);
 	release_mem_region(res->start, resource_size(res));
-
-	return 0;
 }
 
 static struct i2c_vendor_data vendor_stn8815 = {

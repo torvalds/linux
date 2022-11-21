@@ -82,7 +82,6 @@ int main(int argc, char *argv[])
 
 	/* Create VM */
 	vm = vm_create_default(VCPU_ID, 0, l1_guest_code);
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 	vmx = vcpu_alloc_vmx(vm, &vmx_pages_gva);
 	vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
 	run = vcpu_state(vm, VCPU_ID);
@@ -98,7 +97,7 @@ int main(int argc, char *argv[])
 	 * Add an identity map for GVA range [0xc0000000, 0xc0002000).  This
 	 * affects both L1 and L2.  However...
 	 */
-	virt_map(vm, GUEST_TEST_MEM, GUEST_TEST_MEM, TEST_MEM_PAGES, 0);
+	virt_map(vm, GUEST_TEST_MEM, GUEST_TEST_MEM, TEST_MEM_PAGES);
 
 	/*
 	 * ... pages in the L2 GPA range [0xc0001000, 0xc0003000) will map to
@@ -108,11 +107,11 @@ int main(int argc, char *argv[])
 	 * meaning after the last call to virt_map.
 	 */
 	prepare_eptp(vmx, vm, 0);
-	nested_map_memslot(vmx, vm, 0, 0);
-	nested_map(vmx, vm, NESTED_TEST_MEM1, GUEST_TEST_MEM, 4096, 0);
-	nested_map(vmx, vm, NESTED_TEST_MEM2, GUEST_TEST_MEM, 4096, 0);
+	nested_map_memslot(vmx, vm, 0);
+	nested_map(vmx, vm, NESTED_TEST_MEM1, GUEST_TEST_MEM, 4096);
+	nested_map(vmx, vm, NESTED_TEST_MEM2, GUEST_TEST_MEM, 4096);
 
-	bmap = bitmap_alloc(TEST_MEM_PAGES);
+	bmap = bitmap_zalloc(TEST_MEM_PAGES);
 	host_test_mem = addr_gpa2hva(vm, GUEST_TEST_MEM);
 
 	while (!done) {

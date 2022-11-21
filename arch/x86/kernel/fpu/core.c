@@ -6,8 +6,9 @@
  *  General FPU state handling cleanups
  *	Gareth Hughes <gareth@valinux.com>, May 2000
  */
-#include <asm/fpu/internal.h>
+#include <asm/fpu/api.h>
 #include <asm/fpu/regset.h>
+#include <asm/fpu/sched.h>
 #include <asm/fpu/signal.h>
 #include <asm/fpu/types.h>
 #include <asm/traps.h>
@@ -15,27 +16,32 @@
 
 #include <linux/hardirq.h>
 #include <linux/pkeys.h>
+#include <linux/vmalloc.h>
+
+#include "context.h"
+#include "internal.h"
+#include "legacy.h"
+#include "xstate.h"
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/fpu.h>
+
+#ifdef CONFIG_X86_64
+DEFINE_STATIC_KEY_FALSE(__fpu_state_size_dynamic);
+DEFINE_PER_CPU(u64, xfd_state);
+#endif
+
+/* The FPU state configuration data for kernel and user space */
+struct fpu_state_config	fpu_kernel_cfg __ro_after_init;
+struct fpu_state_config fpu_user_cfg __ro_after_init;
 
 /*
  * Represents the initial FPU state. It's mostly (but not completely) zeroes,
  * depending on the FPU hardware format:
  */
-union fpregs_state init_fpstate __read_mostly;
+struct fpstate init_fpstate __ro_after_init;
 
-/*
- * Track whether the kernel is using the FPU state
- * currently.
- *
- * This flag is used:
- *
- *   - by IRQ context code to potentially use the FPU
- *     if it's unused.
- *
- *   - to debug kernel_fpu_begin()/end() correctness
- */
+/* Track in-kernel FPU usage */
 static DEFINE_PER_CPU(bool, in_kernel_fpu);
 
 /*
@@ -43,85 +49,363 @@ static DEFINE_PER_CPU(bool, in_kernel_fpu);
  */
 DEFINE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
 
-static bool kernel_fpu_disabled(void)
-{
-	return this_cpu_read(in_kernel_fpu);
-}
-
-static bool interrupted_kernel_fpu_idle(void)
-{
-	return !kernel_fpu_disabled();
-}
-
-/*
- * Were we in user mode (or vm86 mode) when we were
- * interrupted?
- *
- * Doing kernel_fpu_begin/end() is ok if we are running
- * in an interrupt context from user mode - we'll just
- * save the FPU state as required.
- */
-static bool interrupted_user_mode(void)
-{
-	struct pt_regs *regs = get_irq_regs();
-	return regs && user_mode(regs);
-}
-
 /*
  * Can we use the FPU in kernel mode with the
  * whole "kernel_fpu_begin/end()" sequence?
- *
- * It's always ok in process context (ie "not interrupt")
- * but it is sometimes ok even from an irq.
  */
 bool irq_fpu_usable(void)
 {
-	return !in_interrupt() ||
-		interrupted_user_mode() ||
-		interrupted_kernel_fpu_idle();
+	if (WARN_ON_ONCE(in_nmi()))
+		return false;
+
+	/* In kernel FPU usage already active? */
+	if (this_cpu_read(in_kernel_fpu))
+		return false;
+
+	/*
+	 * When not in NMI or hard interrupt context, FPU can be used in:
+	 *
+	 * - Task context except from within fpregs_lock()'ed critical
+	 *   regions.
+	 *
+	 * - Soft interrupt processing context which cannot happen
+	 *   while in a fpregs_lock()'ed critical region.
+	 */
+	if (!in_hardirq())
+		return true;
+
+	/*
+	 * In hard interrupt context it's safe when soft interrupts
+	 * are enabled, which means the interrupt did not hit in
+	 * a fpregs_lock()'ed critical region.
+	 */
+	return !softirq_count();
 }
 EXPORT_SYMBOL(irq_fpu_usable);
 
 /*
- * These must be called with preempt disabled. Returns
- * 'true' if the FPU state is still intact and we can
- * keep registers active.
- *
- * The legacy FNSAVE instruction cleared all FPU state
- * unconditionally, so registers are essentially destroyed.
- * Modern FPU state can be kept in registers, if there are
- * no pending FP exceptions.
+ * Track AVX512 state use because it is known to slow the max clock
+ * speed of the core.
  */
-int copy_fpregs_to_fpstate(struct fpu *fpu)
+static void update_avx_timestamp(struct fpu *fpu)
+{
+
+#define AVX512_TRACKING_MASK	(XFEATURE_MASK_ZMM_Hi256 | XFEATURE_MASK_Hi16_ZMM)
+
+	if (fpu->fpstate->regs.xsave.header.xfeatures & AVX512_TRACKING_MASK)
+		fpu->avx512_timestamp = jiffies;
+}
+
+/*
+ * Save the FPU register state in fpu->fpstate->regs. The register state is
+ * preserved.
+ *
+ * Must be called with fpregs_lock() held.
+ *
+ * The legacy FNSAVE instruction clears all FPU state unconditionally, so
+ * register state has to be reloaded. That might be a pointless exercise
+ * when the FPU is going to be used by another task right after that. But
+ * this only affects 20+ years old 32bit systems and avoids conditionals all
+ * over the place.
+ *
+ * FXSAVE and all XSAVE variants preserve the FPU register state.
+ */
+void save_fpregs_to_fpstate(struct fpu *fpu)
 {
 	if (likely(use_xsave())) {
-		copy_xregs_to_kernel(&fpu->state.xsave);
-
-		/*
-		 * AVX512 state is tracked here because its use is
-		 * known to slow the max clock speed of the core.
-		 */
-		if (fpu->state.xsave.header.xfeatures & XFEATURE_MASK_AVX512)
-			fpu->avx512_timestamp = jiffies;
-		return 1;
+		os_xsave(fpu->fpstate);
+		update_avx_timestamp(fpu);
+		return;
 	}
 
 	if (likely(use_fxsr())) {
-		copy_fxregs_to_kernel(fpu);
-		return 1;
+		fxsave(&fpu->fpstate->regs.fxsave);
+		return;
 	}
 
 	/*
 	 * Legacy FPU register saving, FNSAVE always clears FPU registers,
-	 * so we have to mark them inactive:
+	 * so we have to reload them from the memory state.
 	 */
-	asm volatile("fnsave %[fp]; fwait" : [fp] "=m" (fpu->state.fsave));
+	asm volatile("fnsave %[fp]; fwait" : [fp] "=m" (fpu->fpstate->regs.fsave));
+	frstor(&fpu->fpstate->regs.fsave);
+}
 
+void restore_fpregs_from_fpstate(struct fpstate *fpstate, u64 mask)
+{
+	/*
+	 * AMD K7/K8 and later CPUs up to Zen don't save/restore
+	 * FDP/FIP/FOP unless an exception is pending. Clear the x87 state
+	 * here by setting it to fixed values.  "m" is a random variable
+	 * that should be in L1.
+	 */
+	if (unlikely(static_cpu_has_bug(X86_BUG_FXSAVE_LEAK))) {
+		asm volatile(
+			"fnclex\n\t"
+			"emms\n\t"
+			"fildl %P[addr]"	/* set F?P to defined value */
+			: : [addr] "m" (fpstate));
+	}
+
+	if (use_xsave()) {
+		/*
+		 * Dynamically enabled features are enabled in XCR0, but
+		 * usage requires also that the corresponding bits in XFD
+		 * are cleared.  If the bits are set then using a related
+		 * instruction will raise #NM. This allows to do the
+		 * allocation of the larger FPU buffer lazy from #NM or if
+		 * the task has no permission to kill it which would happen
+		 * via #UD if the feature is disabled in XCR0.
+		 *
+		 * XFD state is following the same life time rules as
+		 * XSTATE and to restore state correctly XFD has to be
+		 * updated before XRSTORS otherwise the component would
+		 * stay in or go into init state even if the bits are set
+		 * in fpstate::regs::xsave::xfeatures.
+		 */
+		xfd_update_state(fpstate);
+
+		/*
+		 * Restoring state always needs to modify all features
+		 * which are in @mask even if the current task cannot use
+		 * extended features.
+		 *
+		 * So fpstate->xfeatures cannot be used here, because then
+		 * a feature for which the task has no permission but was
+		 * used by the previous task would not go into init state.
+		 */
+		mask = fpu_kernel_cfg.max_features & mask;
+
+		os_xrstor(fpstate, mask);
+	} else {
+		if (use_fxsr())
+			fxrstor(&fpstate->regs.fxsave);
+		else
+			frstor(&fpstate->regs.fsave);
+	}
+}
+
+void fpu_reset_from_exception_fixup(void)
+{
+	restore_fpregs_from_fpstate(&init_fpstate, XFEATURE_MASK_FPSTATE);
+}
+
+#if IS_ENABLED(CONFIG_KVM)
+static void __fpstate_reset(struct fpstate *fpstate, u64 xfd);
+
+static void fpu_init_guest_permissions(struct fpu_guest *gfpu)
+{
+	struct fpu_state_perm *fpuperm;
+	u64 perm;
+
+	if (!IS_ENABLED(CONFIG_X86_64))
+		return;
+
+	spin_lock_irq(&current->sighand->siglock);
+	fpuperm = &current->group_leader->thread.fpu.guest_perm;
+	perm = fpuperm->__state_perm;
+
+	/* First fpstate allocation locks down permissions. */
+	WRITE_ONCE(fpuperm->__state_perm, perm | FPU_GUEST_PERM_LOCKED);
+
+	spin_unlock_irq(&current->sighand->siglock);
+
+	gfpu->perm = perm & ~FPU_GUEST_PERM_LOCKED;
+}
+
+bool fpu_alloc_guest_fpstate(struct fpu_guest *gfpu)
+{
+	struct fpstate *fpstate;
+	unsigned int size;
+
+	size = fpu_user_cfg.default_size + ALIGN(offsetof(struct fpstate, regs), 64);
+	fpstate = vzalloc(size);
+	if (!fpstate)
+		return false;
+
+	/* Leave xfd to 0 (the reset value defined by spec) */
+	__fpstate_reset(fpstate, 0);
+	fpstate_init_user(fpstate);
+	fpstate->is_valloc	= true;
+	fpstate->is_guest	= true;
+
+	gfpu->fpstate		= fpstate;
+	gfpu->xfeatures		= fpu_user_cfg.default_features;
+	gfpu->perm		= fpu_user_cfg.default_features;
+	gfpu->uabi_size		= fpu_user_cfg.default_size;
+	fpu_init_guest_permissions(gfpu);
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(fpu_alloc_guest_fpstate);
+
+void fpu_free_guest_fpstate(struct fpu_guest *gfpu)
+{
+	struct fpstate *fps = gfpu->fpstate;
+
+	if (!fps)
+		return;
+
+	if (WARN_ON_ONCE(!fps->is_valloc || !fps->is_guest || fps->in_use))
+		return;
+
+	gfpu->fpstate = NULL;
+	vfree(fps);
+}
+EXPORT_SYMBOL_GPL(fpu_free_guest_fpstate);
+
+/*
+  * fpu_enable_guest_xfd_features - Check xfeatures against guest perm and enable
+  * @guest_fpu:         Pointer to the guest FPU container
+  * @xfeatures:         Features requested by guest CPUID
+  *
+  * Enable all dynamic xfeatures according to guest perm and requested CPUID.
+  *
+  * Return: 0 on success, error code otherwise
+  */
+int fpu_enable_guest_xfd_features(struct fpu_guest *guest_fpu, u64 xfeatures)
+{
+	lockdep_assert_preemption_enabled();
+
+	/* Nothing to do if all requested features are already enabled. */
+	xfeatures &= ~guest_fpu->xfeatures;
+	if (!xfeatures)
+		return 0;
+
+	return __xfd_enable_feature(xfeatures, guest_fpu);
+}
+EXPORT_SYMBOL_GPL(fpu_enable_guest_xfd_features);
+
+#ifdef CONFIG_X86_64
+void fpu_update_guest_xfd(struct fpu_guest *guest_fpu, u64 xfd)
+{
+	fpregs_lock();
+	guest_fpu->fpstate->xfd = xfd;
+	if (guest_fpu->fpstate->in_use)
+		xfd_update_state(guest_fpu->fpstate);
+	fpregs_unlock();
+}
+EXPORT_SYMBOL_GPL(fpu_update_guest_xfd);
+
+/**
+ * fpu_sync_guest_vmexit_xfd_state - Synchronize XFD MSR and software state
+ *
+ * Must be invoked from KVM after a VMEXIT before enabling interrupts when
+ * XFD write emulation is disabled. This is required because the guest can
+ * freely modify XFD and the state at VMEXIT is not guaranteed to be the
+ * same as the state on VMENTER. So software state has to be udpated before
+ * any operation which depends on it can take place.
+ *
+ * Note: It can be invoked unconditionally even when write emulation is
+ * enabled for the price of a then pointless MSR read.
+ */
+void fpu_sync_guest_vmexit_xfd_state(void)
+{
+	struct fpstate *fps = current->thread.fpu.fpstate;
+
+	lockdep_assert_irqs_disabled();
+	if (fpu_state_size_dynamic()) {
+		rdmsrl(MSR_IA32_XFD, fps->xfd);
+		__this_cpu_write(xfd_state, fps->xfd);
+	}
+}
+EXPORT_SYMBOL_GPL(fpu_sync_guest_vmexit_xfd_state);
+#endif /* CONFIG_X86_64 */
+
+int fpu_swap_kvm_fpstate(struct fpu_guest *guest_fpu, bool enter_guest)
+{
+	struct fpstate *guest_fps = guest_fpu->fpstate;
+	struct fpu *fpu = &current->thread.fpu;
+	struct fpstate *cur_fps = fpu->fpstate;
+
+	fpregs_lock();
+	if (!cur_fps->is_confidential && !test_thread_flag(TIF_NEED_FPU_LOAD))
+		save_fpregs_to_fpstate(fpu);
+
+	/* Swap fpstate */
+	if (enter_guest) {
+		fpu->__task_fpstate = cur_fps;
+		fpu->fpstate = guest_fps;
+		guest_fps->in_use = true;
+	} else {
+		guest_fps->in_use = false;
+		fpu->fpstate = fpu->__task_fpstate;
+		fpu->__task_fpstate = NULL;
+	}
+
+	cur_fps = fpu->fpstate;
+
+	if (!cur_fps->is_confidential) {
+		/* Includes XFD update */
+		restore_fpregs_from_fpstate(cur_fps, XFEATURE_MASK_FPSTATE);
+	} else {
+		/*
+		 * XSTATE is restored by firmware from encrypted
+		 * memory. Make sure XFD state is correct while
+		 * running with guest fpstate
+		 */
+		xfd_update_state(cur_fps);
+	}
+
+	fpregs_mark_activate();
+	fpregs_unlock();
 	return 0;
 }
-EXPORT_SYMBOL(copy_fpregs_to_fpstate);
+EXPORT_SYMBOL_GPL(fpu_swap_kvm_fpstate);
 
-void kernel_fpu_begin(void)
+void fpu_copy_guest_fpstate_to_uabi(struct fpu_guest *gfpu, void *buf,
+				    unsigned int size, u32 pkru)
+{
+	struct fpstate *kstate = gfpu->fpstate;
+	union fpregs_state *ustate = buf;
+	struct membuf mb = { .p = buf, .left = size };
+
+	if (cpu_feature_enabled(X86_FEATURE_XSAVE)) {
+		__copy_xstate_to_uabi_buf(mb, kstate, pkru, XSTATE_COPY_XSAVE);
+	} else {
+		memcpy(&ustate->fxsave, &kstate->regs.fxsave,
+		       sizeof(ustate->fxsave));
+		/* Make it restorable on a XSAVE enabled host */
+		ustate->xsave.header.xfeatures = XFEATURE_MASK_FPSSE;
+	}
+}
+EXPORT_SYMBOL_GPL(fpu_copy_guest_fpstate_to_uabi);
+
+int fpu_copy_uabi_to_guest_fpstate(struct fpu_guest *gfpu, const void *buf,
+				   u64 xcr0, u32 *vpkru)
+{
+	struct fpstate *kstate = gfpu->fpstate;
+	const union fpregs_state *ustate = buf;
+	struct pkru_state *xpkru;
+	int ret;
+
+	if (!cpu_feature_enabled(X86_FEATURE_XSAVE)) {
+		if (ustate->xsave.header.xfeatures & ~XFEATURE_MASK_FPSSE)
+			return -EINVAL;
+		if (ustate->fxsave.mxcsr & ~mxcsr_feature_mask)
+			return -EINVAL;
+		memcpy(&kstate->regs.fxsave, &ustate->fxsave, sizeof(ustate->fxsave));
+		return 0;
+	}
+
+	if (ustate->xsave.header.xfeatures & ~xcr0)
+		return -EINVAL;
+
+	ret = copy_uabi_from_kernel_to_xstate(kstate, ustate);
+	if (ret)
+		return ret;
+
+	/* Retrieve PKRU if not in init state */
+	if (kstate->regs.xsave.header.xfeatures & XFEATURE_MASK_PKRU) {
+		xpkru = get_xsave_addr(&kstate->regs.xsave, XFEATURE_PKRU);
+		*vpkru = xpkru->pkru;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fpu_copy_uabi_to_guest_fpstate);
+#endif /* CONFIG_KVM */
+
+void kernel_fpu_begin_mask(unsigned int kfpu_mask)
 {
 	preempt_disable();
 
@@ -133,21 +417,18 @@ void kernel_fpu_begin(void)
 	if (!(current->flags & PF_KTHREAD) &&
 	    !test_thread_flag(TIF_NEED_FPU_LOAD)) {
 		set_thread_flag(TIF_NEED_FPU_LOAD);
-		/*
-		 * Ignore return value -- we don't care if reg state
-		 * is clobbered.
-		 */
-		copy_fpregs_to_fpstate(&current->thread.fpu);
+		save_fpregs_to_fpstate(&current->thread.fpu);
 	}
 	__cpu_invalidate_fpregs_state();
 
-	if (boot_cpu_has(X86_FEATURE_XMM))
+	/* Put sane initial values into the control registers. */
+	if (likely(kfpu_mask & KFPU_MXCSR) && boot_cpu_has(X86_FEATURE_XMM))
 		ldmxcsr(MXCSR_DEFAULT);
 
-	if (boot_cpu_has(X86_FEATURE_FPU))
+	if (unlikely(kfpu_mask & KFPU_387) && boot_cpu_has(X86_FEATURE_FPU))
 		asm volatile ("fninit");
 }
-EXPORT_SYMBOL_GPL(kernel_fpu_begin);
+EXPORT_SYMBOL_GPL(kernel_fpu_begin_mask);
 
 void kernel_fpu_end(void)
 {
@@ -159,92 +440,166 @@ void kernel_fpu_end(void)
 EXPORT_SYMBOL_GPL(kernel_fpu_end);
 
 /*
- * Save the FPU state (mark it for reload if necessary):
- *
- * This only ever gets called for the current task.
+ * Sync the FPU register state to current's memory register state when the
+ * current task owns the FPU. The hardware register state is preserved.
  */
-void fpu__save(struct fpu *fpu)
+void fpu_sync_fpstate(struct fpu *fpu)
 {
 	WARN_ON_FPU(fpu != &current->thread.fpu);
 
 	fpregs_lock();
 	trace_x86_fpu_before_save(fpu);
 
-	if (!test_thread_flag(TIF_NEED_FPU_LOAD)) {
-		if (!copy_fpregs_to_fpstate(fpu)) {
-			copy_kernel_to_fpregs(&fpu->state);
-		}
-	}
+	if (!test_thread_flag(TIF_NEED_FPU_LOAD))
+		save_fpregs_to_fpstate(fpu);
 
 	trace_x86_fpu_after_save(fpu);
 	fpregs_unlock();
 }
 
+static inline unsigned int init_fpstate_copy_size(void)
+{
+	if (!use_xsave())
+		return fpu_kernel_cfg.default_size;
+
+	/* XSAVE(S) just needs the legacy and the xstate header part */
+	return sizeof(init_fpstate.regs.xsave);
+}
+
+static inline void fpstate_init_fxstate(struct fpstate *fpstate)
+{
+	fpstate->regs.fxsave.cwd = 0x37f;
+	fpstate->regs.fxsave.mxcsr = MXCSR_DEFAULT;
+}
+
 /*
  * Legacy x87 fpstate state init:
  */
-static inline void fpstate_init_fstate(struct fregs_state *fp)
+static inline void fpstate_init_fstate(struct fpstate *fpstate)
 {
-	fp->cwd = 0xffff037fu;
-	fp->swd = 0xffff0000u;
-	fp->twd = 0xffffffffu;
-	fp->fos = 0xffff0000u;
+	fpstate->regs.fsave.cwd = 0xffff037fu;
+	fpstate->regs.fsave.swd = 0xffff0000u;
+	fpstate->regs.fsave.twd = 0xffffffffu;
+	fpstate->regs.fsave.fos = 0xffff0000u;
 }
 
-void fpstate_init(union fpregs_state *state)
+/*
+ * Used in two places:
+ * 1) Early boot to setup init_fpstate for non XSAVE systems
+ * 2) fpu_init_fpstate_user() which is invoked from KVM
+ */
+void fpstate_init_user(struct fpstate *fpstate)
 {
-	if (!static_cpu_has(X86_FEATURE_FPU)) {
-		fpstate_init_soft(&state->soft);
+	if (!cpu_feature_enabled(X86_FEATURE_FPU)) {
+		fpstate_init_soft(&fpstate->regs.soft);
 		return;
 	}
 
-	memset(state, 0, fpu_kernel_xstate_size);
+	xstate_init_xcomp_bv(&fpstate->regs.xsave, fpstate->xfeatures);
 
-	if (static_cpu_has(X86_FEATURE_XSAVES))
-		fpstate_init_xstate(&state->xsave);
-	if (static_cpu_has(X86_FEATURE_FXSR))
-		fpstate_init_fxstate(&state->fxsave);
+	if (cpu_feature_enabled(X86_FEATURE_FXSR))
+		fpstate_init_fxstate(fpstate);
 	else
-		fpstate_init_fstate(&state->fsave);
+		fpstate_init_fstate(fpstate);
 }
-EXPORT_SYMBOL_GPL(fpstate_init);
 
-int fpu__copy(struct task_struct *dst, struct task_struct *src)
+static void __fpstate_reset(struct fpstate *fpstate, u64 xfd)
 {
-	struct fpu *dst_fpu = &dst->thread.fpu;
-	struct fpu *src_fpu = &src->thread.fpu;
+	/* Initialize sizes and feature masks */
+	fpstate->size		= fpu_kernel_cfg.default_size;
+	fpstate->user_size	= fpu_user_cfg.default_size;
+	fpstate->xfeatures	= fpu_kernel_cfg.default_features;
+	fpstate->user_xfeatures	= fpu_user_cfg.default_features;
+	fpstate->xfd		= xfd;
+}
 
+void fpstate_reset(struct fpu *fpu)
+{
+	/* Set the fpstate pointer to the default fpstate */
+	fpu->fpstate = &fpu->__fpstate;
+	__fpstate_reset(fpu->fpstate, init_fpstate.xfd);
+
+	/* Initialize the permission related info in fpu */
+	fpu->perm.__state_perm		= fpu_kernel_cfg.default_features;
+	fpu->perm.__state_size		= fpu_kernel_cfg.default_size;
+	fpu->perm.__user_state_size	= fpu_user_cfg.default_size;
+	/* Same defaults for guests */
+	fpu->guest_perm = fpu->perm;
+}
+
+static inline void fpu_inherit_perms(struct fpu *dst_fpu)
+{
+	if (fpu_state_size_dynamic()) {
+		struct fpu *src_fpu = &current->group_leader->thread.fpu;
+
+		spin_lock_irq(&current->sighand->siglock);
+		/* Fork also inherits the permissions of the parent */
+		dst_fpu->perm = src_fpu->perm;
+		dst_fpu->guest_perm = src_fpu->guest_perm;
+		spin_unlock_irq(&current->sighand->siglock);
+	}
+}
+
+/* Clone current's FPU state on fork */
+int fpu_clone(struct task_struct *dst, unsigned long clone_flags)
+{
+	struct fpu *src_fpu = &current->thread.fpu;
+	struct fpu *dst_fpu = &dst->thread.fpu;
+
+	/* The new task's FPU state cannot be valid in the hardware. */
 	dst_fpu->last_cpu = -1;
 
-	if (!static_cpu_has(X86_FEATURE_FPU))
+	fpstate_reset(dst_fpu);
+
+	if (!cpu_feature_enabled(X86_FEATURE_FPU))
 		return 0;
 
-	WARN_ON_FPU(src_fpu != &current->thread.fpu);
-
 	/*
-	 * Don't let 'init optimized' areas of the XSAVE area
-	 * leak into the child task:
+	 * Enforce reload for user space tasks and prevent kernel threads
+	 * from trying to save the FPU registers on context switch.
 	 */
-	memset(&dst_fpu->state.xsave, 0, fpu_kernel_xstate_size);
+	set_tsk_thread_flag(dst, TIF_NEED_FPU_LOAD);
 
 	/*
-	 * If the FPU registers are not current just memcpy() the state.
-	 * Otherwise save current FPU registers directly into the child's FPU
-	 * context, without any memory-to-memory copying.
+	 * No FPU state inheritance for kernel threads and IO
+	 * worker threads.
+	 */
+	if (dst->flags & (PF_KTHREAD | PF_IO_WORKER)) {
+		/* Clear out the minimal state */
+		memcpy(&dst_fpu->fpstate->regs, &init_fpstate.regs,
+		       init_fpstate_copy_size());
+		return 0;
+	}
+
+	/*
+	 * If a new feature is added, ensure all dynamic features are
+	 * caller-saved from here!
+	 */
+	BUILD_BUG_ON(XFEATURE_MASK_USER_DYNAMIC != XFEATURE_MASK_XTILE_DATA);
+
+	/*
+	 * Save the default portion of the current FPU state into the
+	 * clone. Assume all dynamic features to be defined as caller-
+	 * saved, which enables skipping both the expansion of fpstate
+	 * and the copying of any dynamic state.
 	 *
-	 * ( The function 'fails' in the FNSAVE case, which destroys
-	 *   register contents so we have to load them back. )
+	 * Do not use memcpy() when TIF_NEED_FPU_LOAD is set because
+	 * copying is not valid when current uses non-default states.
 	 */
 	fpregs_lock();
 	if (test_thread_flag(TIF_NEED_FPU_LOAD))
-		memcpy(&dst_fpu->state, &src_fpu->state, fpu_kernel_xstate_size);
-
-	else if (!copy_fpregs_to_fpstate(dst_fpu))
-		copy_kernel_to_fpregs(&dst_fpu->state);
-
+		fpregs_restore_userregs();
+	save_fpregs_to_fpstate(dst_fpu);
+	if (!(clone_flags & CLONE_THREAD))
+		fpu_inherit_perms(dst_fpu);
 	fpregs_unlock();
 
-	set_tsk_thread_flag(dst, TIF_NEED_FPU_LOAD);
+	/*
+	 * Children never inherit PASID state.
+	 * Force it to have its init value:
+	 */
+	if (use_xsave())
+		dst_fpu->fpstate->regs.xsave.header.xfeatures &= ~XFEATURE_MASK_PASID;
 
 	trace_x86_fpu_copy_src(src_fpu);
 	trace_x86_fpu_copy_dst(dst_fpu);
@@ -253,60 +608,13 @@ int fpu__copy(struct task_struct *dst, struct task_struct *src)
 }
 
 /*
- * Activate the current task's in-memory FPU context,
- * if it has not been used before:
+ * Whitelist the FPU register state embedded into task_struct for hardened
+ * usercopy.
  */
-static void fpu__initialize(struct fpu *fpu)
+void fpu_thread_struct_whitelist(unsigned long *offset, unsigned long *size)
 {
-	WARN_ON_FPU(fpu != &current->thread.fpu);
-
-	set_thread_flag(TIF_NEED_FPU_LOAD);
-	fpstate_init(&fpu->state);
-	trace_x86_fpu_init_state(fpu);
-}
-
-/*
- * This function must be called before we read a task's fpstate.
- *
- * There's two cases where this gets called:
- *
- * - for the current task (when coredumping), in which case we have
- *   to save the latest FPU registers into the fpstate,
- *
- * - or it's called for stopped tasks (ptrace), in which case the
- *   registers were already saved by the context-switch code when
- *   the task scheduled out.
- *
- * If the task has used the FPU before then save it.
- */
-void fpu__prepare_read(struct fpu *fpu)
-{
-	if (fpu == &current->thread.fpu)
-		fpu__save(fpu);
-}
-
-/*
- * This function must be called before we write a task's fpstate.
- *
- * Invalidate any cached FPU registers.
- *
- * After this function call, after registers in the fpstate are
- * modified and the child task has woken up, the child task will
- * restore the modified FPU state from the modified context. If we
- * didn't clear its cached status here then the cached in-registers
- * state pending on its former CPU could be restored, corrupting
- * the modifications.
- */
-void fpu__prepare_write(struct fpu *fpu)
-{
-	/*
-	 * Only stopped child tasks can be used to modify the FPU
-	 * state in the fpstate buffer:
-	 */
-	WARN_ON_FPU(fpu == &current->thread.fpu);
-
-	/* Invalidate any cached state: */
-	__fpu_invalidate_fpregs_state(fpu);
+	*offset = offsetof(struct thread_struct, fpu.__fpstate.regs);
+	*size = fpu_kernel_cfg.default_size;
 }
 
 /*
@@ -339,61 +647,88 @@ void fpu__drop(struct fpu *fpu)
  * Clear FPU registers by setting them up from the init fpstate.
  * Caller must do fpregs_[un]lock() around it.
  */
-static inline void copy_init_fpstate_to_fpregs(u64 features_mask)
+static inline void restore_fpregs_from_init_fpstate(u64 features_mask)
 {
 	if (use_xsave())
-		copy_kernel_to_xregs(&init_fpstate.xsave, features_mask);
-	else if (static_cpu_has(X86_FEATURE_FXSR))
-		copy_kernel_to_fxregs(&init_fpstate.fxsave);
+		os_xrstor(&init_fpstate, features_mask);
+	else if (use_fxsr())
+		fxrstor(&init_fpstate.regs.fxsave);
 	else
-		copy_kernel_to_fregs(&init_fpstate.fsave);
+		frstor(&init_fpstate.regs.fsave);
 
-	if (boot_cpu_has(X86_FEATURE_OSPKE))
-		copy_init_pkru_to_fpregs();
+	pkru_write_default();
 }
 
 /*
- * Clear the FPU state back to init state.
- *
- * Called by sys_execve(), by the signal handler code and by various
- * error paths.
+ * Reset current->fpu memory state to the init values.
  */
-static void fpu__clear(struct fpu *fpu, bool user_only)
+static void fpu_reset_fpregs(void)
+{
+	struct fpu *fpu = &current->thread.fpu;
+
+	fpregs_lock();
+	fpu__drop(fpu);
+	/*
+	 * This does not change the actual hardware registers. It just
+	 * resets the memory image and sets TIF_NEED_FPU_LOAD so a
+	 * subsequent return to usermode will reload the registers from the
+	 * task's memory image.
+	 *
+	 * Do not use fpstate_init() here. Just copy init_fpstate which has
+	 * the correct content already except for PKRU.
+	 *
+	 * PKRU handling does not rely on the xstate when restoring for
+	 * user space as PKRU is eagerly written in switch_to() and
+	 * flush_thread().
+	 */
+	memcpy(&fpu->fpstate->regs, &init_fpstate.regs, init_fpstate_copy_size());
+	set_thread_flag(TIF_NEED_FPU_LOAD);
+	fpregs_unlock();
+}
+
+/*
+ * Reset current's user FPU states to the init states.  current's
+ * supervisor states, if any, are not modified by this function.  The
+ * caller guarantees that the XSTATE header in memory is intact.
+ */
+void fpu__clear_user_states(struct fpu *fpu)
 {
 	WARN_ON_FPU(fpu != &current->thread.fpu);
 
-	if (!static_cpu_has(X86_FEATURE_FPU)) {
-		fpu__drop(fpu);
-		fpu__initialize(fpu);
+	fpregs_lock();
+	if (!cpu_feature_enabled(X86_FEATURE_FPU)) {
+		fpu_reset_fpregs();
+		fpregs_unlock();
 		return;
 	}
 
-	fpregs_lock();
+	/*
+	 * Ensure that current's supervisor states are loaded into their
+	 * corresponding registers.
+	 */
+	if (xfeatures_mask_supervisor() &&
+	    !fpregs_state_valid(fpu, smp_processor_id()))
+		os_xrstor_supervisor(fpu->fpstate);
 
-	if (user_only) {
-		if (!fpregs_state_valid(fpu, smp_processor_id()) &&
-		    xfeatures_mask_supervisor())
-			copy_kernel_to_xregs(&fpu->state.xsave,
-					     xfeatures_mask_supervisor());
-		copy_init_fpstate_to_fpregs(xfeatures_mask_user());
-	} else {
-		copy_init_fpstate_to_fpregs(xfeatures_mask_all);
-	}
+	/* Reset user states in registers. */
+	restore_fpregs_from_init_fpstate(XFEATURE_MASK_USER_RESTORE);
 
+	/*
+	 * Now all FPU registers have their desired values.  Inform the FPU
+	 * state machine that current's FPU registers are in the hardware
+	 * registers. The memory image does not need to be updated because
+	 * any operation relying on it has to save the registers first when
+	 * current's FPU is marked active.
+	 */
 	fpregs_mark_activate();
 	fpregs_unlock();
 }
 
-void fpu__clear_user_states(struct fpu *fpu)
+void fpu_flush_thread(void)
 {
-	fpu__clear(fpu, true);
+	fpstate_reset(&current->thread.fpu);
+	fpu_reset_fpregs();
 }
-
-void fpu__clear_all(struct fpu *fpu)
-{
-	fpu__clear(fpu, false);
-}
-
 /*
  * Load FPU context before returning to userspace.
  */
@@ -402,7 +737,7 @@ void switch_fpu_return(void)
 	if (!static_cpu_has(X86_FEATURE_FPU))
 		return;
 
-	__fpregs_load_activate();
+	fpregs_restore_userregs();
 }
 EXPORT_SYMBOL_GPL(switch_fpu_return);
 
@@ -432,7 +767,6 @@ void fpregs_mark_activate(void)
 	fpu->last_cpu = smp_processor_id();
 	clear_thread_flag(TIF_NEED_FPU_LOAD);
 }
-EXPORT_SYMBOL_GPL(fpregs_mark_activate);
 
 /*
  * x87 math exception handling:
@@ -455,11 +789,11 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
 		 * fully reproduce the context of the exception.
 		 */
 		if (boot_cpu_has(X86_FEATURE_FXSR)) {
-			cwd = fpu->state.fxsave.cwd;
-			swd = fpu->state.fxsave.swd;
+			cwd = fpu->fpstate->regs.fxsave.cwd;
+			swd = fpu->fpstate->regs.fxsave.swd;
 		} else {
-			cwd = (unsigned short)fpu->state.fsave.cwd;
-			swd = (unsigned short)fpu->state.fsave.swd;
+			cwd = (unsigned short)fpu->fpstate->regs.fsave.cwd;
+			swd = (unsigned short)fpu->fpstate->regs.fsave.swd;
 		}
 
 		err = swd & ~cwd;
@@ -473,7 +807,7 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
 		unsigned short mxcsr = MXCSR_DEFAULT;
 
 		if (boot_cpu_has(X86_FEATURE_XMM))
-			mxcsr = fpu->state.fxsave.mxcsr;
+			mxcsr = fpu->fpstate->regs.fxsave.mxcsr;
 
 		err = ~(mxcsr >> 7) & mxcsr;
 	}

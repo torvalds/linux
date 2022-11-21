@@ -9,6 +9,7 @@
 
 #include "i915_memcpy.h"
 #include "i915_selftest.h"
+#include "intel_gpu_commands.h"
 #include "selftests/igt_reset.h"
 #include "selftests/igt_atomic.h"
 #include "selftests/igt_spinner.h"
@@ -18,7 +19,7 @@ __igt_reset_stolen(struct intel_gt *gt,
 		   intel_engine_mask_t mask,
 		   const char *msg)
 {
-	struct i915_ggtt *ggtt = &gt->i915->ggtt;
+	struct i915_ggtt *ggtt = gt->ggtt;
 	const struct resource *dsm = &gt->i915->dsm;
 	resource_size_t num_pages, page;
 	struct intel_engine_cs *engine;
@@ -95,10 +96,10 @@ __igt_reset_stolen(struct intel_gt *gt,
 		if (!__drm_mm_interval_first(&gt->i915->mm.stolen,
 					     page << PAGE_SHIFT,
 					     ((page + 1) << PAGE_SHIFT) - 1))
-			memset32(s, STACK_MAGIC, PAGE_SIZE / sizeof(u32));
+			memset_io(s, STACK_MAGIC, PAGE_SIZE);
 
-		in = s;
-		if (i915_memcpy_from_wc(tmp, s, PAGE_SIZE))
+		in = (void __force *)s;
+		if (i915_memcpy_from_wc(tmp, in, PAGE_SIZE))
 			in = tmp;
 		crc[page] = crc32_le(0, in, PAGE_SIZE);
 
@@ -133,8 +134,8 @@ __igt_reset_stolen(struct intel_gt *gt,
 				      ggtt->error_capture.start,
 				      PAGE_SIZE);
 
-		in = s;
-		if (i915_memcpy_from_wc(tmp, s, PAGE_SIZE))
+		in = (void __force *)s;
+		if (i915_memcpy_from_wc(tmp, in, PAGE_SIZE))
 			in = tmp;
 		x = crc32_le(0, in, PAGE_SIZE);
 
@@ -320,16 +321,24 @@ static int igt_atomic_engine_reset(void *arg)
 		goto out_unlock;
 
 	for_each_engine(engine, gt, id) {
-		tasklet_disable(&engine->execlists.tasklet);
+		struct tasklet_struct *t = &engine->sched_engine->tasklet;
+
+		if (t->func)
+			tasklet_disable(t);
 		intel_engine_pm_get(engine);
 
 		for (p = igt_atomic_phases; p->name; p++) {
 			GEM_TRACE("intel_engine_reset(%s) under %s\n",
 				  engine->name, p->name);
+			if (strcmp(p->name, "softirq"))
+				local_bh_disable();
 
 			p->critical_section_begin();
-			err = intel_engine_reset(engine, NULL);
+			err = __intel_engine_reset_bh(engine, NULL);
 			p->critical_section_end();
+
+			if (strcmp(p->name, "softirq"))
+				local_bh_enable();
 
 			if (err) {
 				pr_err("intel_engine_reset(%s) failed under %s\n",
@@ -339,7 +348,10 @@ static int igt_atomic_engine_reset(void *arg)
 		}
 
 		intel_engine_pm_put(engine);
-		tasklet_enable(&engine->execlists.tasklet);
+		if (t->func) {
+			tasklet_enable(t);
+			tasklet_hi_schedule(t);
+		}
 		if (err)
 			break;
 	}
@@ -364,7 +376,7 @@ int intel_reset_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_atomic_reset),
 		SUBTEST(igt_atomic_engine_reset),
 	};
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 
 	if (!intel_has_gpu_reset(gt))
 		return 0;

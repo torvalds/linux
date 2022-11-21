@@ -32,7 +32,8 @@ int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 int vmx_get_vmx_msr(struct nested_vmx_msrs *msrs, u32 msr_index, u64 *pdata);
 int get_vmx_mem_address(struct kvm_vcpu *vcpu, unsigned long exit_qualification,
 			u32 vmx_instruction_info, bool wr, int len, gva_t *ret);
-void nested_vmx_pmu_entry_exit_ctls_update(struct kvm_vcpu *vcpu);
+void nested_vmx_pmu_refresh(struct kvm_vcpu *vcpu,
+			    bool vcpu_has_perf_global_ctrl);
 void nested_mark_vmcs12_pages_dirty(struct kvm_vcpu *vcpu);
 bool nested_vmx_check_io_bitmaps(struct kvm_vcpu *vcpu, unsigned int port,
 				 int size);
@@ -56,14 +57,9 @@ static inline int vmx_has_valid_vmcs12(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	/*
-	 * In case we do two consecutive get/set_nested_state()s while L2 was
-	 * running hv_evmcs may end up not being mapped (we map it from
-	 * nested_vmx_run()/vmx_vcpu_run()). Check is_guest_mode() as we always
-	 * have vmcs12 if it is true.
-	 */
-	return is_guest_mode(vcpu) || vmx->nested.current_vmptr != -1ull ||
-		vmx->nested.hv_evmcs;
+	/* 'hv_evmcs_vmptr' can also be EVMPTR_MAP_PENDING here */
+	return vmx->nested.current_vmptr != -1ull ||
+		vmx->nested.hv_evmcs_vmptr != EVMPTR_INVALID;
 }
 
 static inline u16 nested_get_vpid02(struct kvm_vcpu *vcpu)
@@ -242,6 +238,11 @@ static inline bool nested_exit_on_intr(struct kvm_vcpu *vcpu)
 {
 	return get_vmcs12(vcpu)->pin_based_vm_exec_control &
 		PIN_BASED_EXT_INTR_MASK;
+}
+
+static inline bool nested_cpu_has_encls_exit(struct vmcs12 *vmcs12)
+{
+	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENCLS_EXITING);
 }
 
 /*

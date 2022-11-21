@@ -21,10 +21,12 @@
 #include <linux/sfp.h>
 
 #include "nfpcore/nfp.h"
+#include "nfpcore/nfp_dev.h"
 #include "nfpcore/nfp_nsp.h"
 #include "nfp_app.h"
 #include "nfp_main.h"
 #include "nfp_net_ctrl.h"
+#include "nfp_net_dp.h"
 #include "nfp_net.h"
 #include "nfp_port.h"
 
@@ -202,7 +204,8 @@ nfp_get_drvinfo(struct nfp_app *app, struct pci_dev *pdev,
 {
 	char nsp_version[ETHTOOL_FWVERS_LEN] = {};
 
-	strlcpy(drvinfo->driver, pdev->driver->name, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->driver, dev_driver_string(&pdev->dev),
+		sizeof(drvinfo->driver));
 	nfp_net_get_nspinfo(app, nsp_version);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%s %s %s %s", vnic_version, nsp_version,
@@ -216,7 +219,7 @@ nfp_net_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	struct nfp_net *nn = netdev_priv(netdev);
 
 	snprintf(vnic_version, sizeof(vnic_version), "%d.%d.%d.%d",
-		 nn->fw_ver.resv, nn->fw_ver.class,
+		 nn->fw_ver.extend, nn->fw_ver.class,
 		 nn->fw_ver.major, nn->fw_ver.minor);
 	strlcpy(drvinfo->bus_info, pci_name(nn->pdev),
 		sizeof(drvinfo->bus_info));
@@ -286,6 +289,8 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 
 	/* Init to unknowns */
 	ethtool_link_ksettings_add_link_mode(cmd, supported, FIBRE);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, Pause);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, Pause);
 	cmd->base.port = PORT_OTHER;
 	cmd->base.speed = SPEED_UNKNOWN;
 	cmd->base.duplex = DUPLEX_UNKNOWN;
@@ -378,12 +383,15 @@ err_bad_set:
 }
 
 static void nfp_net_get_ringparam(struct net_device *netdev,
-				  struct ethtool_ringparam *ring)
+				  struct ethtool_ringparam *ring,
+				  struct kernel_ethtool_ringparam *kernel_ring,
+				  struct netlink_ext_ack *extack)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
+	u32 qc_max = nn->dev_info->max_qc_size;
 
-	ring->rx_max_pending = NFP_NET_MAX_RX_DESCS;
-	ring->tx_max_pending = NFP_NET_MAX_TX_DESCS;
+	ring->rx_max_pending = qc_max;
+	ring->tx_max_pending = qc_max / nn->dp.ops->tx_min_desc_per_pkt;
 	ring->rx_pending = nn->dp.rxd_cnt;
 	ring->tx_pending = nn->dp.txd_cnt;
 }
@@ -403,21 +411,26 @@ static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
 }
 
 static int nfp_net_set_ringparam(struct net_device *netdev,
-				 struct ethtool_ringparam *ring)
+				 struct ethtool_ringparam *ring,
+				 struct kernel_ethtool_ringparam *kernel_ring,
+				 struct netlink_ext_ack *extack)
 {
+	u32 tx_dpp, qc_min, qc_max, rxd_cnt, txd_cnt;
 	struct nfp_net *nn = netdev_priv(netdev);
-	u32 rxd_cnt, txd_cnt;
 
 	/* We don't have separate queues/rings for small/large frames. */
 	if (ring->rx_mini_pending || ring->rx_jumbo_pending)
 		return -EINVAL;
 
+	qc_min = nn->dev_info->min_qc_size;
+	qc_max = nn->dev_info->max_qc_size;
+	tx_dpp = nn->dp.ops->tx_min_desc_per_pkt;
 	/* Round up to supported values */
 	rxd_cnt = roundup_pow_of_two(ring->rx_pending);
 	txd_cnt = roundup_pow_of_two(ring->tx_pending);
 
-	if (rxd_cnt < NFP_NET_MIN_RX_DESCS || rxd_cnt > NFP_NET_MAX_RX_DESCS ||
-	    txd_cnt < NFP_NET_MIN_TX_DESCS || txd_cnt > NFP_NET_MAX_TX_DESCS)
+	if (rxd_cnt < qc_min || rxd_cnt > qc_max ||
+	    txd_cnt < qc_min / tx_dpp || txd_cnt > qc_max / tx_dpp)
 		return -EINVAL;
 
 	if (nn->dp.rxd_cnt == rxd_cnt && nn->dp.txd_cnt == txd_cnt)
@@ -427,17 +440,6 @@ static int nfp_net_set_ringparam(struct net_device *netdev,
 	       nn->dp.rxd_cnt, rxd_cnt, nn->dp.txd_cnt, txd_cnt);
 
 	return nfp_net_set_ring_size(nn, rxd_cnt, txd_cnt);
-}
-
-__printf(2, 3) u8 *nfp_pr_et(u8 *data, const char *fmt, ...)
-{
-	va_list args;
-
-	va_start(args, fmt);
-	vsnprintf(data, ETH_GSTRING_LEN, fmt, args);
-	va_end(args);
-
-	return data + ETH_GSTRING_LEN;
 }
 
 static unsigned int nfp_vnic_get_sw_stats_count(struct net_device *netdev)
@@ -454,29 +456,29 @@ static u8 *nfp_vnic_get_sw_stats_strings(struct net_device *netdev, u8 *data)
 	int i;
 
 	for (i = 0; i < nn->max_r_vecs; i++) {
-		data = nfp_pr_et(data, "rvec_%u_rx_pkts", i);
-		data = nfp_pr_et(data, "rvec_%u_tx_pkts", i);
-		data = nfp_pr_et(data, "rvec_%u_tx_busy", i);
+		ethtool_sprintf(&data, "rvec_%u_rx_pkts", i);
+		ethtool_sprintf(&data, "rvec_%u_tx_pkts", i);
+		ethtool_sprintf(&data, "rvec_%u_tx_busy", i);
 	}
 
-	data = nfp_pr_et(data, "hw_rx_csum_ok");
-	data = nfp_pr_et(data, "hw_rx_csum_inner_ok");
-	data = nfp_pr_et(data, "hw_rx_csum_complete");
-	data = nfp_pr_et(data, "hw_rx_csum_err");
-	data = nfp_pr_et(data, "rx_replace_buf_alloc_fail");
-	data = nfp_pr_et(data, "rx_tls_decrypted_packets");
-	data = nfp_pr_et(data, "hw_tx_csum");
-	data = nfp_pr_et(data, "hw_tx_inner_csum");
-	data = nfp_pr_et(data, "tx_gather");
-	data = nfp_pr_et(data, "tx_lso");
-	data = nfp_pr_et(data, "tx_tls_encrypted_packets");
-	data = nfp_pr_et(data, "tx_tls_ooo");
-	data = nfp_pr_et(data, "tx_tls_drop_no_sync_data");
+	ethtool_sprintf(&data, "hw_rx_csum_ok");
+	ethtool_sprintf(&data, "hw_rx_csum_inner_ok");
+	ethtool_sprintf(&data, "hw_rx_csum_complete");
+	ethtool_sprintf(&data, "hw_rx_csum_err");
+	ethtool_sprintf(&data, "rx_replace_buf_alloc_fail");
+	ethtool_sprintf(&data, "rx_tls_decrypted_packets");
+	ethtool_sprintf(&data, "hw_tx_csum");
+	ethtool_sprintf(&data, "hw_tx_inner_csum");
+	ethtool_sprintf(&data, "tx_gather");
+	ethtool_sprintf(&data, "tx_lso");
+	ethtool_sprintf(&data, "tx_tls_encrypted_packets");
+	ethtool_sprintf(&data, "tx_tls_ooo");
+	ethtool_sprintf(&data, "tx_tls_drop_no_sync_data");
 
-	data = nfp_pr_et(data, "hw_tls_no_space");
-	data = nfp_pr_et(data, "rx_tls_resync_req_ok");
-	data = nfp_pr_et(data, "rx_tls_resync_req_ign");
-	data = nfp_pr_et(data, "rx_tls_resync_sent");
+	ethtool_sprintf(&data, "hw_tls_no_space");
+	ethtool_sprintf(&data, "rx_tls_resync_req_ok");
+	ethtool_sprintf(&data, "rx_tls_resync_req_ign");
+	ethtool_sprintf(&data, "rx_tls_resync_sent");
 
 	return data;
 }
@@ -550,19 +552,19 @@ nfp_vnic_get_hw_stats_strings(u8 *data, unsigned int num_vecs, bool repr)
 	swap_off = repr * NN_ET_SWITCH_STATS_LEN;
 
 	for (i = 0; i < NN_ET_SWITCH_STATS_LEN; i++)
-		data = nfp_pr_et(data, nfp_net_et_stats[i + swap_off].name);
+		ethtool_sprintf(&data, nfp_net_et_stats[i + swap_off].name);
 
 	for (i = NN_ET_SWITCH_STATS_LEN; i < NN_ET_SWITCH_STATS_LEN * 2; i++)
-		data = nfp_pr_et(data, nfp_net_et_stats[i - swap_off].name);
+		ethtool_sprintf(&data, nfp_net_et_stats[i - swap_off].name);
 
 	for (i = NN_ET_SWITCH_STATS_LEN * 2; i < NN_ET_GLOBAL_STATS_LEN; i++)
-		data = nfp_pr_et(data, nfp_net_et_stats[i].name);
+		ethtool_sprintf(&data, nfp_net_et_stats[i].name);
 
 	for (i = 0; i < num_vecs; i++) {
-		data = nfp_pr_et(data, "rxq_%u_pkts", i);
-		data = nfp_pr_et(data, "rxq_%u_bytes", i);
-		data = nfp_pr_et(data, "txq_%u_pkts", i);
-		data = nfp_pr_et(data, "txq_%u_bytes", i);
+		ethtool_sprintf(&data, "rxq_%u_pkts", i);
+		ethtool_sprintf(&data, "rxq_%u_bytes", i);
+		ethtool_sprintf(&data, "txq_%u_pkts", i);
+		ethtool_sprintf(&data, "txq_%u_bytes", i);
 	}
 
 	return data;
@@ -610,15 +612,15 @@ static u8 *nfp_vnic_get_tlv_stats_strings(struct nfp_net *nn, u8 *data)
 			memcpy(data, nfp_tlv_stat_names[id], ETH_GSTRING_LEN);
 			data += ETH_GSTRING_LEN;
 		} else {
-			data = nfp_pr_et(data, "dev_unknown_stat%u", id);
+			ethtool_sprintf(&data, "dev_unknown_stat%u", id);
 		}
 	}
 
 	for (i = 0; i < nn->max_r_vecs; i++) {
-		data = nfp_pr_et(data, "rxq_%u_pkts", i);
-		data = nfp_pr_et(data, "rxq_%u_bytes", i);
-		data = nfp_pr_et(data, "txq_%u_pkts", i);
-		data = nfp_pr_et(data, "txq_%u_bytes", i);
+		ethtool_sprintf(&data, "rxq_%u_pkts", i);
+		ethtool_sprintf(&data, "rxq_%u_bytes", i);
+		ethtool_sprintf(&data, "txq_%u_pkts", i);
+		ethtool_sprintf(&data, "txq_%u_bytes", i);
 	}
 
 	return data;
@@ -666,7 +668,7 @@ static u8 *nfp_mac_get_stats_strings(struct net_device *netdev, u8 *data)
 		return data;
 
 	for (i = 0; i < ARRAY_SIZE(nfp_mac_et_stats); i++)
-		data = nfp_pr_et(data, "mac.%s", nfp_mac_et_stats[i].name);
+		ethtool_sprintf(&data, "mac.%s", nfp_mac_et_stats[i].name);
 
 	return data;
 }
@@ -1087,12 +1089,17 @@ static void nfp_net_get_regs(struct net_device *netdev,
 }
 
 static int nfp_net_get_coalesce(struct net_device *netdev,
-				struct ethtool_coalesce *ec)
+				struct ethtool_coalesce *ec,
+				struct kernel_ethtool_coalesce *kernel_coal,
+				struct netlink_ext_ack *extack)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 
 	if (!(nn->cap & NFP_NET_CFG_CTRL_IRQMOD))
 		return -EINVAL;
+
+	ec->use_adaptive_rx_coalesce = nn->rx_coalesce_adapt_on;
+	ec->use_adaptive_tx_coalesce = nn->tx_coalesce_adapt_on;
 
 	ec->rx_coalesce_usecs       = nn->rx_coalesce_usecs;
 	ec->rx_max_coalesced_frames = nn->rx_coalesce_max_frames;
@@ -1336,7 +1343,9 @@ exit_close_nsp:
 }
 
 static int nfp_net_set_coalesce(struct net_device *netdev,
-				struct ethtool_coalesce *ec)
+				struct ethtool_coalesce *ec,
+				struct kernel_ethtool_coalesce *kernel_coal,
+				struct netlink_ext_ack *extack)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	unsigned int factor;
@@ -1345,7 +1354,7 @@ static int nfp_net_set_coalesce(struct net_device *netdev,
 	 * ME timestamp ticks.  There are 16 ME clock cycles for each timestamp
 	 * count.
 	 */
-	factor = nn->me_freq_mhz / 16;
+	factor = nn->tlv_caps.me_freq_mhz / 16;
 
 	/* Each pair of (usecs, max_frames) fields specifies that interrupts
 	 * should be coalesced until
@@ -1370,19 +1379,18 @@ static int nfp_net_set_coalesce(struct net_device *netdev,
 	if (!ec->tx_coalesce_usecs && !ec->tx_max_coalesced_frames)
 		return -EINVAL;
 
-	if (ec->rx_coalesce_usecs * factor >= ((1 << 16) - 1))
+	if (nfp_net_coalesce_para_check(ec->rx_coalesce_usecs * factor,
+					ec->rx_max_coalesced_frames))
 		return -EINVAL;
 
-	if (ec->tx_coalesce_usecs * factor >= ((1 << 16) - 1))
-		return -EINVAL;
-
-	if (ec->rx_max_coalesced_frames >= ((1 << 16) - 1))
-		return -EINVAL;
-
-	if (ec->tx_max_coalesced_frames >= ((1 << 16) - 1))
+	if (nfp_net_coalesce_para_check(ec->tx_coalesce_usecs * factor,
+					ec->tx_max_coalesced_frames))
 		return -EINVAL;
 
 	/* configuration is valid */
+	nn->rx_coalesce_adapt_on = !!ec->use_adaptive_rx_coalesce;
+	nn->tx_coalesce_adapt_on = !!ec->use_adaptive_tx_coalesce;
+
 	nn->rx_coalesce_usecs      = ec->rx_coalesce_usecs;
 	nn->rx_coalesce_max_frames = ec->rx_max_coalesced_frames;
 	nn->tx_coalesce_usecs      = ec->tx_coalesce_usecs;
@@ -1454,7 +1462,8 @@ static int nfp_net_set_channels(struct net_device *netdev,
 
 static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
-				     ETHTOOL_COALESCE_MAX_FRAMES,
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE,
 	.get_drvinfo		= nfp_net_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 	.get_ringparam		= nfp_net_get_ringparam,

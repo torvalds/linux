@@ -208,8 +208,6 @@ static void pxa_init_debugfs(struct pxa_udc *udc)
 	struct dentry *root;
 
 	root = debugfs_create_dir(udc->gadget.name, usb_debug_root);
-	udc->debugfs_root = root;
-
 	debugfs_create_file("udcstate", 0400, root, udc, &state_dbg_fops);
 	debugfs_create_file("queues", 0400, root, udc, &queues_dbg_fops);
 	debugfs_create_file("epstate", 0400, root, udc, &eps_dbg_fops);
@@ -217,7 +215,7 @@ static void pxa_init_debugfs(struct pxa_udc *udc)
 
 static void pxa_cleanup_debugfs(struct pxa_udc *udc)
 {
-	debugfs_remove_recursive(udc->debugfs_root);
+	debugfs_remove(debugfs_lookup(udc->gadget.name, usb_debug_root));
 }
 
 #else
@@ -304,7 +302,7 @@ static struct pxa_ep *find_pxa_ep(struct pxa_udc *udc,
  * update_pxa_ep_matches - update pxa_ep cached values in all udc_usb_ep
  * @udc: pxa udc
  *
- * Context: in_interrupt()
+ * Context: interrupt handler
  *
  * Updates all pxa_ep fields in udc_usb_ep structures, if this field was
  * previously set up (and is not NULL). The update is necessary is a
@@ -859,7 +857,7 @@ static int write_packet(struct pxa_ep *ep, struct pxa27x_request *req,
  * @ep: pxa physical endpoint
  * @req: usb request
  *
- * Context: callable when in_interrupt()
+ * Context: interrupt handler
  *
  * Unload as many packets as possible from the fifo we use for usb OUT
  * transfers and put them into the request. Caller should have made sure
@@ -997,7 +995,7 @@ static int read_ep0_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
  * @ep: control endpoint
  * @req: request
  *
- * Context: callable when in_interrupt()
+ * Context: interrupt handler
  *
  * Sends a request (or a part of the request) to the control endpoint (ep0 in).
  * If the request doesn't fit, the remaining part will be sent from irq.
@@ -1036,8 +1034,8 @@ static int write_ep0_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
  * @_req: usb request
  * @gfp_flags: flags
  *
- * Context: normally called when !in_interrupt, but callable when in_interrupt()
- * in the special case of ep0 setup :
+ * Context: thread context or from the interrupt handler in the
+ * special case of ep0 setup :
  *   (irq->handle_ep0_ctrl_req->gadget_setup->pxa_ep_queue)
  *
  * Returns 0 if succedeed, error otherwise
@@ -1161,7 +1159,7 @@ static int pxa_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct pxa_ep		*ep;
 	struct udc_usb_ep	*udc_usb_ep;
-	struct pxa27x_request	*req;
+	struct pxa27x_request	*req = NULL, *iter;
 	unsigned long		flags;
 	int			rc = -EINVAL;
 
@@ -1175,11 +1173,12 @@ static int pxa_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	spin_lock_irqsave(&ep->lock, flags);
 
 	/* make sure it's actually queued on this endpoint */
-	list_for_each_entry(req, &ep->queue, queue) {
-		if (&req->req == _req) {
-			rc = 0;
-			break;
-		}
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		req = iter;
+		rc = 0;
+		break;
 	}
 
 	spin_unlock_irqrestore(&ep->lock, flags);
@@ -1512,7 +1511,8 @@ static int should_disable_udc(struct pxa_udc *udc)
  * pxa_udc_pullup - Offer manual D+ pullup control
  * @_gadget: usb gadget using the control
  * @is_active: 0 if disconnect, else connect D+ pullup resistor
- * Context: !in_interrupt()
+ *
+ * Context: task context, might sleep
  *
  * Returns 0 if OK, -EOPNOTSUPP if udc driver doesn't handle D+ pullup
  */
@@ -1560,7 +1560,7 @@ static int pxa_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
  * @_gadget: usb gadget
  * @mA: current drawn
  *
- * Context: !in_interrupt()
+ * Context: task context, might sleep
  *
  * Called after a configuration was chosen by a USB host, to inform how much
  * current can be drawn by the device from VBus line.
@@ -1729,7 +1729,7 @@ static void udc_enable(struct pxa_udc *udc)
 }
 
 /**
- * pxa27x_start - Register gadget driver
+ * pxa27x_udc_start - Register gadget driver
  * @g: gadget
  * @driver: gadget driver
  *
@@ -1886,7 +1886,7 @@ stall:
  * @fifo_irq: 1 if triggered by fifo service type irq
  * @opc_irq: 1 if triggered by output packet complete type irq
  *
- * Context : when in_interrupt() or with ep->lock held
+ * Context : interrupt handler
  *
  * Tries to transfer all pending request data into the endpoint and/or
  * transfer all pending data in the endpoint into usb requests.
@@ -2011,7 +2011,7 @@ static void handle_ep0(struct pxa_udc *udc, int fifo_irq, int opc_irq)
  * Tries to transfer all pending request data into the endpoint and/or
  * transfer all pending data in the endpoint into usb requests.
  *
- * Is always called when in_interrupt() and with ep->lock released.
+ * Is always called from the interrupt handler. ep->lock must not be held.
  */
 static void handle_ep(struct pxa_ep *ep)
 {

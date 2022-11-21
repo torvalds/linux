@@ -699,7 +699,7 @@ int tipc_bcast_init(struct net *net)
 	spin_lock_init(&tipc_net(net)->bclock);
 
 	if (!tipc_link_bc_create(net, 0, 0, NULL,
-				 FB_MTU,
+				 one_page_mtu,
 				 BCLINK_WIN_DEFAULT,
 				 BCLINK_WIN_DEFAULT,
 				 0,

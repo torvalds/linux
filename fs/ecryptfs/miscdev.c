@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * eCryptfs: Linux filesystem encryption layer
  *
  * Copyright (C) 2008 International Business Machines Corp.
@@ -312,6 +312,7 @@ out_unlock_daemon:
 
 /**
  * ecryptfs_miscdev_response - miscdevess response to message previously sent to daemon
+ * @daemon: eCryptfs daemon object
  * @data: Bytes comprising struct ecryptfs_message
  * @data_size: sizeof(struct ecryptfs_message) + data len
  * @seq: Sequence number for miscdev response packet

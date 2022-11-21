@@ -41,7 +41,7 @@
 #include <media/v4l2-fh.h>
 #include <media/i2c/ir-kbd-i2c.h>
 #include <media/rc-core.h>
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "xc5000.h"
 #include "em28xx-reg.h"
 
@@ -152,6 +152,7 @@
 #define EM2861_BOARD_MAGIX_VIDEOWANDLER2          103
 #define EM28178_BOARD_PCTV_461E_V2                104
 #define EM2860_BOARD_MYGICA_IGRABBER              105
+#define EM2874_BOARD_HAUPPAUGE_USB_QUADHD         106
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -334,7 +335,7 @@ enum em28xx_usb_audio_type {
 };
 
 /**
- * em28xx_amux - describes the type of audio input used by em28xx
+ * enum em28xx_amux - describes the type of audio input used by em28xx
  *
  * @EM28XX_AMUX_UNUSED:
  *	Used only on em28xx dev->map field, in order to mark an entry
@@ -626,8 +627,6 @@ struct em28xx_audio {
 	struct work_struct wq_trigger;	/* trigger to start/stop audio */
 	atomic_t       stream_started;	/* stream should be running if true */
 };
-
-struct em28xx;
 
 enum em28xx_i2c_algo_type {
 	EM28XX_I2C_ALGO_EM28XX = 0,

@@ -320,7 +320,7 @@ static const struct spi_nor_controller_ops hisi_controller_ops = {
 	.write = hisi_spi_nor_write,
 };
 
-/**
+/*
  * Get spi flash device information and register it as a mtd device.
  */
 static int hisi_spi_nor_register(struct device_node *np,
@@ -399,8 +399,10 @@ static int hisi_spi_nor_register_all(struct hifmc_host *host)
 
 	for_each_available_child_of_node(dev->of_node, np) {
 		ret = hisi_spi_nor_register(np, host);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			goto fail;
+		}
 
 		if (host->num_chip == HIFMC_MAX_CHIP_NUM) {
 			dev_warn(dev, "Flash device number exceeds the maximum chipselect number\n");
@@ -419,7 +421,6 @@ fail:
 static int hisi_spi_nor_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct hifmc_host *host;
 	int ret;
 
@@ -430,13 +431,11 @@ static int hisi_spi_nor_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 	host->dev = dev;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "control");
-	host->regbase = devm_ioremap_resource(dev, res);
+	host->regbase = devm_platform_ioremap_resource_byname(pdev, "control");
 	if (IS_ERR(host->regbase))
 		return PTR_ERR(host->regbase);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "memory");
-	host->iobase = devm_ioremap_resource(dev, res);
+	host->iobase = devm_platform_ioremap_resource_byname(pdev, "memory");
 	if (IS_ERR(host->iobase))
 		return PTR_ERR(host->iobase);
 
@@ -475,7 +474,6 @@ static int hisi_spi_nor_remove(struct platform_device *pdev)
 
 	hisi_spi_nor_unregister_all(host);
 	mutex_destroy(&host->lock);
-	clk_disable_unprepare(host->clk);
 	return 0;
 }
 

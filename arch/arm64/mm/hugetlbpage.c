@@ -40,11 +40,11 @@ void __init arm64_hugetlb_cma_reserve(void)
 {
 	int order;
 
-#ifdef CONFIG_ARM64_4K_PAGES
-	order = PUD_SHIFT - PAGE_SHIFT;
-#else
-	order = CONT_PMD_SHIFT + PMD_SHIFT - PAGE_SHIFT;
-#endif
+	if (pud_sect_supported())
+		order = PUD_SHIFT - PAGE_SHIFT;
+	else
+		order = CONT_PMD_SHIFT - PAGE_SHIFT;
+
 	/*
 	 * HugeTLB CMA reservation is required for gigantic
 	 * huge pages which could not be allocated via the
@@ -56,23 +56,33 @@ void __init arm64_hugetlb_cma_reserve(void)
 }
 #endif /* CONFIG_CMA */
 
+static bool __hugetlb_valid_size(unsigned long size)
+{
+	switch (size) {
+#ifndef __PAGETABLE_PMD_FOLDED
+	case PUD_SIZE:
+		return pud_sect_supported();
+#endif
+	case CONT_PMD_SIZE:
+	case PMD_SIZE:
+	case CONT_PTE_SIZE:
+		return true;
+	}
+
+	return false;
+}
+
 #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
 bool arch_hugetlb_migration_supported(struct hstate *h)
 {
 	size_t pagesize = huge_page_size(h);
 
-	switch (pagesize) {
-#ifdef CONFIG_ARM64_4K_PAGES
-	case PUD_SIZE:
-#endif
-	case PMD_SIZE:
-	case CONT_PMD_SIZE:
-	case CONT_PTE_SIZE:
-		return true;
-	}
-	pr_warn("%s: unrecognized huge page size 0x%lx\n",
+	if (!__hugetlb_valid_size(pagesize)) {
+		pr_warn("%s: unrecognized huge page size 0x%lx\n",
 			__func__, pagesize);
-	return false;
+		return false;
+	}
+	return true;
 }
 #endif
 
@@ -126,8 +136,11 @@ static inline int num_contig_ptes(unsigned long size, size_t *pgsize)
 	*pgsize = size;
 
 	switch (size) {
-#ifdef CONFIG_ARM64_4K_PAGES
+#ifndef __PAGETABLE_PMD_FOLDED
 	case PUD_SIZE:
+		if (pud_sect_supported())
+			contig_ptes = 1;
+		break;
 #endif
 	case PMD_SIZE:
 		contig_ptes = 1;
@@ -252,7 +265,7 @@ void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr,
 		set_pte(ptep, pte);
 }
 
-pte_t *huge_pte_alloc(struct mm_struct *mm,
+pte_t *huge_pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
 		      unsigned long addr, unsigned long sz)
 {
 	pgd_t *pgdp;
@@ -284,9 +297,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 		 */
 		ptep = pte_alloc_map(mm, pmdp, addr);
 	} else if (sz == PMD_SIZE) {
-		if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
-		    pud_none(READ_ONCE(*pudp)))
-			ptep = huge_pmd_share(mm, addr, pudp);
+		if (want_pmd_share(vma, addr) && pud_none(READ_ONCE(*pudp)))
+			ptep = huge_pmd_share(mm, vma, addr, pudp);
 		else
 			ptep = (pte_t *)pmd_alloc(mm, pudp, addr);
 	} else if (sz == (CONT_PMD_SIZE)) {
@@ -340,11 +352,11 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 	return NULL;
 }
 
-pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
-			 struct page *page, int writable)
+pte_t arch_make_huge_pte(pte_t entry, unsigned int shift, vm_flags_t flags)
 {
-	size_t pagesize = huge_page_size(hstate_vma(vma));
+	size_t pagesize = 1UL << shift;
 
+	entry = pte_mkhuge(entry);
 	if (pagesize == CONT_PTE_SIZE) {
 		entry = pte_mkcont(entry);
 	} else if (pagesize == CONT_PMD_SIZE) {
@@ -491,9 +503,9 @@ void huge_ptep_clear_flush(struct vm_area_struct *vma,
 
 static int __init hugetlbpage_init(void)
 {
-#ifdef CONFIG_ARM64_4K_PAGES
-	hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
-#endif
+	if (pud_sect_supported())
+		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+
 	hugetlb_add_hstate(CONT_PMD_SHIFT - PAGE_SHIFT);
 	hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
 	hugetlb_add_hstate(CONT_PTE_SHIFT - PAGE_SHIFT);
@@ -504,15 +516,5 @@ arch_initcall(hugetlbpage_init);
 
 bool __init arch_hugetlb_valid_size(unsigned long size)
 {
-	switch (size) {
-#ifdef CONFIG_ARM64_4K_PAGES
-	case PUD_SIZE:
-#endif
-	case CONT_PMD_SIZE:
-	case PMD_SIZE:
-	case CONT_PTE_SIZE:
-		return true;
-	}
-
-	return false;
+	return __hugetlb_valid_size(size);
 }

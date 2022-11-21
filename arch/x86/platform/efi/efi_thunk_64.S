@@ -20,12 +20,14 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/objtool.h>
 #include <asm/page_types.h>
 #include <asm/segment.h>
 
 	.text
 	.code64
-SYM_CODE_START(__efi64_thunk)
+SYM_FUNC_START(__efi64_thunk)
+STACK_FRAME_NON_STANDARD __efi64_thunk
 	push	%rbp
 	push	%rbx
 
@@ -33,8 +35,19 @@ SYM_CODE_START(__efi64_thunk)
 	 * Switch to 1:1 mapped 32-bit stack pointer.
 	 */
 	movq	%rsp, %rax
-	movq	efi_scratch(%rip), %rsp
+	movq	efi_mixed_mode_stack_pa(%rip), %rsp
 	push	%rax
+
+	/*
+	 * Copy args passed via the stack
+	 */
+	subq	$0x24, %rsp
+	movq	0x18(%rax), %rbp
+	movq	0x20(%rax), %rbx
+	movq	0x28(%rax), %rax
+	movl	%ebp, 0x18(%rsp)
+	movl	%ebx, 0x1c(%rsp)
+	movl	%eax, 0x20(%rsp)
 
 	/*
 	 * Calculate the physical address of the kernel text.
@@ -47,7 +60,6 @@ SYM_CODE_START(__efi64_thunk)
 	subq	%rax, %rbp
 	subq	%rax, %rbx
 
-	subq	$28, %rsp
 	movl	%ebx, 0x0(%rsp)		/* return address */
 	movl	%esi, 0x4(%rsp)
 	movl	%edx, 0x8(%rsp)
@@ -60,13 +72,17 @@ SYM_CODE_START(__efi64_thunk)
 	pushq	%rdi			/* EFI runtime service address */
 	lretq
 
-1:	movq	24(%rsp), %rsp
+1:	movq	0x20(%rsp), %rsp
 	pop	%rbx
 	pop	%rbp
-	retq
+	RET
 
 	.code32
 2:	pushl	$__KERNEL_CS
 	pushl	%ebp
 	lret
-SYM_CODE_END(__efi64_thunk)
+SYM_FUNC_END(__efi64_thunk)
+
+	.bss
+	.balign 8
+SYM_DATA(efi_mixed_mode_stack_pa, .quad 0)

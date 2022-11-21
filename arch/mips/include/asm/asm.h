@@ -19,11 +19,29 @@
 
 #include <asm/sgidefs.h>
 #include <asm/asm-eva.h>
+#include <asm/isa-rev.h>
+
+#ifndef __VDSO__
+/*
+ * Emit CFI data in .debug_frame sections, not .eh_frame sections.
+ * We don't do DWARF unwinding at runtime, so only the offline DWARF
+ * information is useful to anyone. Note we should change this if we
+ * ever decide to enable DWARF unwinding at runtime.
+ */
+#define CFI_SECTIONS	.cfi_sections .debug_frame
+#else
+ /*
+  * For the vDSO, emit both runtime unwind information and debug
+  * symbols for the .dbg file.
+  */
+#define CFI_SECTIONS
+#endif
 
 /*
  * LEAF - declare leaf routine
  */
 #define LEAF(symbol)					\
+		CFI_SECTIONS;				\
 		.globl	symbol;				\
 		.align	2;				\
 		.type	symbol, @function;		\
@@ -36,6 +54,7 @@ symbol:		.frame	sp, 0, ra;			\
  * NESTED - declare nested routine entry point
  */
 #define NESTED(symbol, framesize, rpc)			\
+		CFI_SECTIONS;				\
 		.globl	symbol;				\
 		.align	2;				\
 		.type	symbol, @function;		\
@@ -96,7 +115,7 @@ symbol		=	value
 		.set	push;				\
 		.set	reorder;			\
 		PTR_LA	a0, 8f;				\
-		jal	printk;				\
+		jal	_printk;			\
 		.set	pop;				\
 		TEXT(string)
 #else
@@ -193,6 +212,8 @@ symbol		=	value
 #define LONG_SUB	sub
 #define LONG_SUBU	subu
 #define LONG_L		lw
+#define LONG_LL		ll
+#define LONG_SC		sc
 #define LONG_S		sw
 #define LONG_SP		swp
 #define LONG_SLL	sll
@@ -201,6 +222,8 @@ symbol		=	value
 #define LONG_SRLV	srlv
 #define LONG_SRA	sra
 #define LONG_SRAV	srav
+#define LONG_INS	ins
+#define LONG_EXT	ext
 
 #ifdef __ASSEMBLY__
 #define LONG		.word
@@ -218,6 +241,8 @@ symbol		=	value
 #define LONG_SUB	dsub
 #define LONG_SUBU	dsubu
 #define LONG_L		ld
+#define LONG_LL		lld
+#define LONG_SC		scd
 #define LONG_S		sd
 #define LONG_SP		sdp
 #define LONG_SLL	dsll
@@ -226,6 +251,8 @@ symbol		=	value
 #define LONG_SRLV	dsrlv
 #define LONG_SRA	dsra
 #define LONG_SRAV	dsrav
+#define LONG_INS	dins
+#define LONG_EXT	dext
 
 #ifdef __ASSEMBLY__
 #define LONG		.dword
@@ -258,7 +285,7 @@ symbol		=	value
 
 #define PTR_SCALESHIFT	2
 
-#define PTR		.word
+#define PTR_WD		.word
 #define PTRSIZE		4
 #define PTRLOG		2
 #endif
@@ -283,7 +310,7 @@ symbol		=	value
 
 #define PTR_SCALESHIFT	3
 
-#define PTR		.dword
+#define PTR_WD		.dword
 #define PTRSIZE		8
 #define PTRLOG		3
 #endif
@@ -301,6 +328,19 @@ symbol		=	value
 #endif
 
 #define SSNOP		sll zero, zero, 1
+
+/*
+ * Using a branch-likely instruction to check the result of an sc instruction
+ * works around a bug present in R10000 CPUs prior to revision 3.0 that could
+ * cause ll-sc sequences to execute non-atomically.
+ */
+#ifdef CONFIG_WAR_R10000_LLSC
+# define SC_BEQZ	beqzl
+#elif MIPS_ISA_REV >= 6
+# define SC_BEQZ	beqzc
+#else
+# define SC_BEQZ	beqz
+#endif
 
 #ifdef CONFIG_SGI_IP28
 /* Inhibit speculative stores to volatile (e.g.DMA) or invalid addresses. */

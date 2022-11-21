@@ -26,21 +26,9 @@ static const struct drm_mode_config_funcs dcss_drm_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static struct drm_driver dcss_kms_driver = {
+static const struct drm_driver dcss_kms_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
-	.gem_free_object_unlocked = drm_gem_cma_free_object,
-	.gem_vm_ops		= &drm_gem_cma_vm_ops,
-	.dumb_create		= drm_gem_cma_dumb_create,
-
-	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_import	= drm_gem_prime_import,
-	.gem_prime_export	= drm_gem_prime_export,
-	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
-	.gem_prime_vmap		= drm_gem_cma_prime_vmap,
-	.gem_prime_vunmap	= drm_gem_cma_prime_vunmap,
-	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
+	DRM_GEM_CMA_DRIVER_OPS,
 	.fops			= &dcss_cma_fops,
 	.name			= "imx-dcss",
 	.desc			= "i.MX8MQ Display Subsystem",
@@ -64,7 +52,6 @@ static void dcss_kms_mode_config_init(struct dcss_kms_dev *kms)
 	config->min_height = 1;
 	config->max_width = 4096;
 	config->max_height = 4096;
-	config->allow_fb_modifiers = true;
 	config->normalize_zpos = true;
 
 	config->funcs = &dcss_drm_mode_config_funcs;
@@ -106,11 +93,8 @@ static int dcss_kms_bridge_connector_init(struct dcss_kms_dev *kms)
 
 	ret = drm_bridge_attach(encoder, bridge, NULL,
 				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
-	if (ret < 0) {
-		dev_err(ddev->dev, "Unable to attach bridge %pOF\n",
-			bridge->of_node);
+	if (ret < 0)
 		return ret;
-	}
 
 	kms->connector = drm_bridge_connector_init(ddev, encoder);
 	if (IS_ERR(kms->connector)) {
@@ -145,8 +129,6 @@ struct dcss_kms_dev *dcss_kms_attach(struct dcss_dev *dcss)
 	ret = drm_vblank_init(drm, 1);
 	if (ret)
 		goto cleanup_mode_config;
-
-	drm->irq_enabled = true;
 
 	ret = dcss_kms_bridge_connector_init(kms);
 	if (ret)
@@ -191,7 +173,6 @@ void dcss_kms_detach(struct dcss_kms_dev *kms)
 	drm_kms_helper_poll_fini(drm);
 	drm_atomic_helper_shutdown(drm);
 	drm_crtc_vblank_off(&kms->crtc.base);
-	drm->irq_enabled = false;
 	drm_mode_config_cleanup(drm);
 	dcss_crtc_deinit(&kms->crtc, drm);
 	drm->dev_private = NULL;

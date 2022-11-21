@@ -9,12 +9,17 @@
 #include <linux/ptp_classify.h>
 #include <linux/clocksource.h>
 #include <linux/ktime.h>
+#include <linux/delay.h>
+#include <linux/iopoll.h>
 
 #define INCVALUE_MASK		0x7fffffff
 #define ISGN			0x80000000
 
 #define IGC_SYSTIM_OVERFLOW_PERIOD	(HZ * 60 * 9)
 #define IGC_PTP_TX_TIMEOUT		(HZ * 15)
+
+#define IGC_PTM_STAT_SLEEP		2
+#define IGC_PTM_STAT_TIMEOUT		100
 
 /* SYSTIM read access for I225 */
 void igc_ptp_read(struct igc_adapter *adapter, struct timespec64 *ts)
@@ -120,10 +125,287 @@ static int igc_ptp_settime_i225(struct ptp_clock_info *ptp,
 	return 0;
 }
 
+static void igc_pin_direction(int pin, int input, u32 *ctrl, u32 *ctrl_ext)
+{
+	u32 *ptr = pin < 2 ? ctrl : ctrl_ext;
+	static const u32 mask[IGC_N_SDP] = {
+		IGC_CTRL_SDP0_DIR,
+		IGC_CTRL_SDP1_DIR,
+		IGC_CTRL_EXT_SDP2_DIR,
+		IGC_CTRL_EXT_SDP3_DIR,
+	};
+
+	if (input)
+		*ptr &= ~mask[pin];
+	else
+		*ptr |= mask[pin];
+}
+
+static void igc_pin_perout(struct igc_adapter *igc, int chan, int pin, int freq)
+{
+	static const u32 igc_aux0_sel_sdp[IGC_N_SDP] = {
+		IGC_AUX0_SEL_SDP0, IGC_AUX0_SEL_SDP1, IGC_AUX0_SEL_SDP2, IGC_AUX0_SEL_SDP3,
+	};
+	static const u32 igc_aux1_sel_sdp[IGC_N_SDP] = {
+		IGC_AUX1_SEL_SDP0, IGC_AUX1_SEL_SDP1, IGC_AUX1_SEL_SDP2, IGC_AUX1_SEL_SDP3,
+	};
+	static const u32 igc_ts_sdp_en[IGC_N_SDP] = {
+		IGC_TS_SDP0_EN, IGC_TS_SDP1_EN, IGC_TS_SDP2_EN, IGC_TS_SDP3_EN,
+	};
+	static const u32 igc_ts_sdp_sel_tt0[IGC_N_SDP] = {
+		IGC_TS_SDP0_SEL_TT0, IGC_TS_SDP1_SEL_TT0,
+		IGC_TS_SDP2_SEL_TT0, IGC_TS_SDP3_SEL_TT0,
+	};
+	static const u32 igc_ts_sdp_sel_tt1[IGC_N_SDP] = {
+		IGC_TS_SDP0_SEL_TT1, IGC_TS_SDP1_SEL_TT1,
+		IGC_TS_SDP2_SEL_TT1, IGC_TS_SDP3_SEL_TT1,
+	};
+	static const u32 igc_ts_sdp_sel_fc0[IGC_N_SDP] = {
+		IGC_TS_SDP0_SEL_FC0, IGC_TS_SDP1_SEL_FC0,
+		IGC_TS_SDP2_SEL_FC0, IGC_TS_SDP3_SEL_FC0,
+	};
+	static const u32 igc_ts_sdp_sel_fc1[IGC_N_SDP] = {
+		IGC_TS_SDP0_SEL_FC1, IGC_TS_SDP1_SEL_FC1,
+		IGC_TS_SDP2_SEL_FC1, IGC_TS_SDP3_SEL_FC1,
+	};
+	static const u32 igc_ts_sdp_sel_clr[IGC_N_SDP] = {
+		IGC_TS_SDP0_SEL_FC1, IGC_TS_SDP1_SEL_FC1,
+		IGC_TS_SDP2_SEL_FC1, IGC_TS_SDP3_SEL_FC1,
+	};
+	struct igc_hw *hw = &igc->hw;
+	u32 ctrl, ctrl_ext, tssdp = 0;
+
+	ctrl = rd32(IGC_CTRL);
+	ctrl_ext = rd32(IGC_CTRL_EXT);
+	tssdp = rd32(IGC_TSSDP);
+
+	igc_pin_direction(pin, 0, &ctrl, &ctrl_ext);
+
+	/* Make sure this pin is not enabled as an input. */
+	if ((tssdp & IGC_AUX0_SEL_SDP3) == igc_aux0_sel_sdp[pin])
+		tssdp &= ~IGC_AUX0_TS_SDP_EN;
+
+	if ((tssdp & IGC_AUX1_SEL_SDP3) == igc_aux1_sel_sdp[pin])
+		tssdp &= ~IGC_AUX1_TS_SDP_EN;
+
+	tssdp &= ~igc_ts_sdp_sel_clr[pin];
+	if (freq) {
+		if (chan == 1)
+			tssdp |= igc_ts_sdp_sel_fc1[pin];
+		else
+			tssdp |= igc_ts_sdp_sel_fc0[pin];
+	} else {
+		if (chan == 1)
+			tssdp |= igc_ts_sdp_sel_tt1[pin];
+		else
+			tssdp |= igc_ts_sdp_sel_tt0[pin];
+	}
+	tssdp |= igc_ts_sdp_en[pin];
+
+	wr32(IGC_TSSDP, tssdp);
+	wr32(IGC_CTRL, ctrl);
+	wr32(IGC_CTRL_EXT, ctrl_ext);
+}
+
+static void igc_pin_extts(struct igc_adapter *igc, int chan, int pin)
+{
+	static const u32 igc_aux0_sel_sdp[IGC_N_SDP] = {
+		IGC_AUX0_SEL_SDP0, IGC_AUX0_SEL_SDP1, IGC_AUX0_SEL_SDP2, IGC_AUX0_SEL_SDP3,
+	};
+	static const u32 igc_aux1_sel_sdp[IGC_N_SDP] = {
+		IGC_AUX1_SEL_SDP0, IGC_AUX1_SEL_SDP1, IGC_AUX1_SEL_SDP2, IGC_AUX1_SEL_SDP3,
+	};
+	static const u32 igc_ts_sdp_en[IGC_N_SDP] = {
+		IGC_TS_SDP0_EN, IGC_TS_SDP1_EN, IGC_TS_SDP2_EN, IGC_TS_SDP3_EN,
+	};
+	struct igc_hw *hw = &igc->hw;
+	u32 ctrl, ctrl_ext, tssdp = 0;
+
+	ctrl = rd32(IGC_CTRL);
+	ctrl_ext = rd32(IGC_CTRL_EXT);
+	tssdp = rd32(IGC_TSSDP);
+
+	igc_pin_direction(pin, 1, &ctrl, &ctrl_ext);
+
+	/* Make sure this pin is not enabled as an output. */
+	tssdp &= ~igc_ts_sdp_en[pin];
+
+	if (chan == 1) {
+		tssdp &= ~IGC_AUX1_SEL_SDP3;
+		tssdp |= igc_aux1_sel_sdp[pin] | IGC_AUX1_TS_SDP_EN;
+	} else {
+		tssdp &= ~IGC_AUX0_SEL_SDP3;
+		tssdp |= igc_aux0_sel_sdp[pin] | IGC_AUX0_TS_SDP_EN;
+	}
+
+	wr32(IGC_TSSDP, tssdp);
+	wr32(IGC_CTRL, ctrl);
+	wr32(IGC_CTRL_EXT, ctrl_ext);
+}
+
 static int igc_ptp_feature_enable_i225(struct ptp_clock_info *ptp,
 				       struct ptp_clock_request *rq, int on)
 {
+	struct igc_adapter *igc =
+		container_of(ptp, struct igc_adapter, ptp_caps);
+	struct igc_hw *hw = &igc->hw;
+	unsigned long flags;
+	struct timespec64 ts;
+	int use_freq = 0, pin = -1;
+	u32 tsim, tsauxc, tsauxc_mask, tsim_mask, trgttiml, trgttimh, freqout;
+	s64 ns;
+
+	switch (rq->type) {
+	case PTP_CLK_REQ_EXTTS:
+		/* Reject requests with unsupported flags */
+		if (rq->extts.flags & ~(PTP_ENABLE_FEATURE |
+					PTP_RISING_EDGE |
+					PTP_FALLING_EDGE |
+					PTP_STRICT_FLAGS))
+			return -EOPNOTSUPP;
+
+		/* Reject requests failing to enable both edges. */
+		if ((rq->extts.flags & PTP_STRICT_FLAGS) &&
+		    (rq->extts.flags & PTP_ENABLE_FEATURE) &&
+		    (rq->extts.flags & PTP_EXTTS_EDGES) != PTP_EXTTS_EDGES)
+			return -EOPNOTSUPP;
+
+		if (on) {
+			pin = ptp_find_pin(igc->ptp_clock, PTP_PF_EXTTS,
+					   rq->extts.index);
+			if (pin < 0)
+				return -EBUSY;
+		}
+		if (rq->extts.index == 1) {
+			tsauxc_mask = IGC_TSAUXC_EN_TS1;
+			tsim_mask = IGC_TSICR_AUTT1;
+		} else {
+			tsauxc_mask = IGC_TSAUXC_EN_TS0;
+			tsim_mask = IGC_TSICR_AUTT0;
+		}
+		spin_lock_irqsave(&igc->tmreg_lock, flags);
+		tsauxc = rd32(IGC_TSAUXC);
+		tsim = rd32(IGC_TSIM);
+		if (on) {
+			igc_pin_extts(igc, rq->extts.index, pin);
+			tsauxc |= tsauxc_mask;
+			tsim |= tsim_mask;
+		} else {
+			tsauxc &= ~tsauxc_mask;
+			tsim &= ~tsim_mask;
+		}
+		wr32(IGC_TSAUXC, tsauxc);
+		wr32(IGC_TSIM, tsim);
+		spin_unlock_irqrestore(&igc->tmreg_lock, flags);
+		return 0;
+
+	case PTP_CLK_REQ_PEROUT:
+		/* Reject requests with unsupported flags */
+		if (rq->perout.flags)
+			return -EOPNOTSUPP;
+
+		if (on) {
+			pin = ptp_find_pin(igc->ptp_clock, PTP_PF_PEROUT,
+					   rq->perout.index);
+			if (pin < 0)
+				return -EBUSY;
+		}
+		ts.tv_sec = rq->perout.period.sec;
+		ts.tv_nsec = rq->perout.period.nsec;
+		ns = timespec64_to_ns(&ts);
+		ns = ns >> 1;
+		if (on && (ns <= 70000000LL || ns == 125000000LL ||
+			   ns == 250000000LL || ns == 500000000LL)) {
+			if (ns < 8LL)
+				return -EINVAL;
+			use_freq = 1;
+		}
+		ts = ns_to_timespec64(ns);
+		if (rq->perout.index == 1) {
+			if (use_freq) {
+				tsauxc_mask = IGC_TSAUXC_EN_CLK1;
+				tsim_mask = 0;
+			} else {
+				tsauxc_mask = IGC_TSAUXC_EN_TT1;
+				tsim_mask = IGC_TSICR_TT1;
+			}
+			trgttiml = IGC_TRGTTIML1;
+			trgttimh = IGC_TRGTTIMH1;
+			freqout = IGC_FREQOUT1;
+		} else {
+			if (use_freq) {
+				tsauxc_mask = IGC_TSAUXC_EN_CLK0;
+				tsim_mask = 0;
+			} else {
+				tsauxc_mask = IGC_TSAUXC_EN_TT0;
+				tsim_mask = IGC_TSICR_TT0;
+			}
+			trgttiml = IGC_TRGTTIML0;
+			trgttimh = IGC_TRGTTIMH0;
+			freqout = IGC_FREQOUT0;
+		}
+		spin_lock_irqsave(&igc->tmreg_lock, flags);
+		tsauxc = rd32(IGC_TSAUXC);
+		tsim = rd32(IGC_TSIM);
+		if (rq->perout.index == 1) {
+			tsauxc &= ~(IGC_TSAUXC_EN_TT1 | IGC_TSAUXC_EN_CLK1);
+			tsim &= ~IGC_TSICR_TT1;
+		} else {
+			tsauxc &= ~(IGC_TSAUXC_EN_TT0 | IGC_TSAUXC_EN_CLK0);
+			tsim &= ~IGC_TSICR_TT0;
+		}
+		if (on) {
+			int i = rq->perout.index;
+
+			igc_pin_perout(igc, i, pin, use_freq);
+			igc->perout[i].start.tv_sec = rq->perout.start.sec;
+			igc->perout[i].start.tv_nsec = rq->perout.start.nsec;
+			igc->perout[i].period.tv_sec = ts.tv_sec;
+			igc->perout[i].period.tv_nsec = ts.tv_nsec;
+			wr32(trgttimh, rq->perout.start.sec);
+			/* For now, always select timer 0 as source. */
+			wr32(trgttiml, rq->perout.start.nsec | IGC_TT_IO_TIMER_SEL_SYSTIM0);
+			if (use_freq)
+				wr32(freqout, ns);
+			tsauxc |= tsauxc_mask;
+			tsim |= tsim_mask;
+		}
+		wr32(IGC_TSAUXC, tsauxc);
+		wr32(IGC_TSIM, tsim);
+		spin_unlock_irqrestore(&igc->tmreg_lock, flags);
+		return 0;
+
+	case PTP_CLK_REQ_PPS:
+		spin_lock_irqsave(&igc->tmreg_lock, flags);
+		tsim = rd32(IGC_TSIM);
+		if (on)
+			tsim |= IGC_TSICR_SYS_WRAP;
+		else
+			tsim &= ~IGC_TSICR_SYS_WRAP;
+		igc->pps_sys_wrap_on = on;
+		wr32(IGC_TSIM, tsim);
+		spin_unlock_irqrestore(&igc->tmreg_lock, flags);
+		return 0;
+
+	default:
+		break;
+	}
+
 	return -EOPNOTSUPP;
+}
+
+static int igc_ptp_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
+			      enum ptp_pin_function func, unsigned int chan)
+{
+	switch (func) {
+	case PTP_PF_NONE:
+	case PTP_PF_EXTTS:
+	case PTP_PF_PEROUT:
+		break;
+	case PTP_PF_PHYSYNC:
+		return -1;
+	}
+	return 0;
 }
 
 /**
@@ -152,49 +434,58 @@ static void igc_ptp_systim_to_hwtstamp(struct igc_adapter *adapter,
 }
 
 /**
- * igc_ptp_rx_pktstamp - retrieve Rx per packet timestamp
- * @q_vector: Pointer to interrupt specific structure
- * @va: Pointer to address containing Rx buffer
- * @skb: Buffer containing timestamp and packet
+ * igc_ptp_rx_pktstamp - Retrieve timestamp from Rx packet buffer
+ * @adapter: Pointer to adapter the packet buffer belongs to
+ * @buf: Pointer to packet buffer
  *
- * This function is meant to retrieve the first timestamp from the
- * first buffer of an incoming frame. The value is stored in little
- * endian format starting on byte 0. There's a second timestamp
- * starting on byte 8.
- **/
-void igc_ptp_rx_pktstamp(struct igc_q_vector *q_vector, void *va,
-			 struct sk_buff *skb)
+ * This function retrieves the timestamp saved in the beginning of packet
+ * buffer. While two timestamps are available, one in timer0 reference and the
+ * other in timer1 reference, this function considers only the timestamp in
+ * timer0 reference.
+ *
+ * Returns timestamp value.
+ */
+ktime_t igc_ptp_rx_pktstamp(struct igc_adapter *adapter, __le32 *buf)
 {
-	struct igc_adapter *adapter = q_vector->adapter;
-	__le64 *regval = (__le64 *)va;
-	int adjust = 0;
+	ktime_t timestamp;
+	u32 secs, nsecs;
+	int adjust;
 
-	/* The timestamp is recorded in little endian format.
-	 * DWORD: | 0          | 1           | 2          | 3
-	 * Field: | Timer0 Low | Timer0 High | Timer1 Low | Timer1 High
+	/* Timestamps are saved in little endian at the beginning of the packet
+	 * buffer following the layout:
+	 *
+	 * DWORD: | 0              | 1              | 2              | 3              |
+	 * Field: | Timer1 SYSTIML | Timer1 SYSTIMH | Timer0 SYSTIML | Timer0 SYSTIMH |
+	 *
+	 * SYSTIML holds the nanoseconds part while SYSTIMH holds the seconds
+	 * part of the timestamp.
 	 */
-	igc_ptp_systim_to_hwtstamp(adapter, skb_hwtstamps(skb),
-				   le64_to_cpu(regval[0]));
+	nsecs = le32_to_cpu(buf[2]);
+	secs = le32_to_cpu(buf[3]);
 
-	/* adjust timestamp for the RX latency based on link speed */
-	if (adapter->hw.mac.type == igc_i225) {
-		switch (adapter->link_speed) {
-		case SPEED_10:
-			adjust = IGC_I225_RX_LATENCY_10;
-			break;
-		case SPEED_100:
-			adjust = IGC_I225_RX_LATENCY_100;
-			break;
-		case SPEED_1000:
-			adjust = IGC_I225_RX_LATENCY_1000;
-			break;
-		case SPEED_2500:
-			adjust = IGC_I225_RX_LATENCY_2500;
-			break;
-		}
+	timestamp = ktime_set(secs, nsecs);
+
+	/* Adjust timestamp for the RX latency based on link speed */
+	switch (adapter->link_speed) {
+	case SPEED_10:
+		adjust = IGC_I225_RX_LATENCY_10;
+		break;
+	case SPEED_100:
+		adjust = IGC_I225_RX_LATENCY_100;
+		break;
+	case SPEED_1000:
+		adjust = IGC_I225_RX_LATENCY_1000;
+		break;
+	case SPEED_2500:
+		adjust = IGC_I225_RX_LATENCY_2500;
+		break;
+	default:
+		adjust = 0;
+		netdev_warn_once(adapter->netdev, "Imprecise timestamp\n");
+		break;
 	}
-	skb_hwtstamps(skb)->hwtstamp =
-		ktime_sub_ns(skb_hwtstamps(skb)->hwtstamp, adjust);
+
+	return ktime_sub_ns(timestamp, adjust);
 }
 
 static void igc_ptp_disable_rx_timestamp(struct igc_adapter *adapter)
@@ -269,10 +560,6 @@ static void igc_ptp_enable_tx_timestamp(struct igc_adapter *adapter)
 static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 				      struct hwtstamp_config *config)
 {
-	/* reserved for future extensions */
-	if (config->flags)
-		return -EINVAL;
-
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		igc_ptp_disable_tx_timestamp(adapter);
@@ -466,6 +753,160 @@ int igc_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr)
 		-EFAULT : 0;
 }
 
+/* The two conditions below must be met for cross timestamping via
+ * PCIe PTM:
+ *
+ * 1. We have an way to convert the timestamps in the PTM messages
+ *    to something related to the system clocks (right now, only
+ *    X86 systems with support for the Always Running Timer allow that);
+ *
+ * 2. We have PTM enabled in the path from the device to the PCIe root port.
+ */
+static bool igc_is_crosststamp_supported(struct igc_adapter *adapter)
+{
+	if (!IS_ENABLED(CONFIG_X86_TSC))
+		return false;
+
+	/* FIXME: it was noticed that enabling support for PCIe PTM in
+	 * some i225-V models could cause lockups when bringing the
+	 * interface up/down. There should be no downsides to
+	 * disabling crosstimestamping support for i225-V, as it
+	 * doesn't have any PTP support. That way we gain some time
+	 * while root causing the issue.
+	 */
+	if (adapter->pdev->device == IGC_DEV_ID_I225_V)
+		return false;
+
+	return pcie_ptm_enabled(adapter->pdev);
+}
+
+static struct system_counterval_t igc_device_tstamp_to_system(u64 tstamp)
+{
+#if IS_ENABLED(CONFIG_X86_TSC) && !defined(CONFIG_UML)
+	return convert_art_ns_to_tsc(tstamp);
+#else
+	return (struct system_counterval_t) { };
+#endif
+}
+
+static void igc_ptm_log_error(struct igc_adapter *adapter, u32 ptm_stat)
+{
+	struct net_device *netdev = adapter->netdev;
+
+	switch (ptm_stat) {
+	case IGC_PTM_STAT_RET_ERR:
+		netdev_err(netdev, "PTM Error: Root port timeout\n");
+		break;
+	case IGC_PTM_STAT_BAD_PTM_RES:
+		netdev_err(netdev, "PTM Error: Bad response, PTM Response Data expected\n");
+		break;
+	case IGC_PTM_STAT_T4M1_OVFL:
+		netdev_err(netdev, "PTM Error: T4 minus T1 overflow\n");
+		break;
+	case IGC_PTM_STAT_ADJUST_1ST:
+		netdev_err(netdev, "PTM Error: 1588 timer adjusted during first PTM cycle\n");
+		break;
+	case IGC_PTM_STAT_ADJUST_CYC:
+		netdev_err(netdev, "PTM Error: 1588 timer adjusted during non-first PTM cycle\n");
+		break;
+	default:
+		netdev_err(netdev, "PTM Error: Unknown error (%#x)\n", ptm_stat);
+		break;
+	}
+}
+
+static int igc_phc_get_syncdevicetime(ktime_t *device,
+				      struct system_counterval_t *system,
+				      void *ctx)
+{
+	u32 stat, t2_curr_h, t2_curr_l, ctrl;
+	struct igc_adapter *adapter = ctx;
+	struct igc_hw *hw = &adapter->hw;
+	int err, count = 100;
+	ktime_t t1, t2_curr;
+
+	/* Get a snapshot of system clocks to use as historic value. */
+	ktime_get_snapshot(&adapter->snapshot);
+
+	do {
+		/* Doing this in a loop because in the event of a
+		 * badly timed (ha!) system clock adjustment, we may
+		 * get PTM errors from the PCI root, but these errors
+		 * are transitory. Repeating the process returns valid
+		 * data eventually.
+		 */
+
+		/* To "manually" start the PTM cycle we need to clear and
+		 * then set again the TRIG bit.
+		 */
+		ctrl = rd32(IGC_PTM_CTRL);
+		ctrl &= ~IGC_PTM_CTRL_TRIG;
+		wr32(IGC_PTM_CTRL, ctrl);
+		ctrl |= IGC_PTM_CTRL_TRIG;
+		wr32(IGC_PTM_CTRL, ctrl);
+
+		/* The cycle only starts "for real" when software notifies
+		 * that it has read the registers, this is done by setting
+		 * VALID bit.
+		 */
+		wr32(IGC_PTM_STAT, IGC_PTM_STAT_VALID);
+
+		err = readx_poll_timeout(rd32, IGC_PTM_STAT, stat,
+					 stat, IGC_PTM_STAT_SLEEP,
+					 IGC_PTM_STAT_TIMEOUT);
+		if (err < 0) {
+			netdev_err(adapter->netdev, "Timeout reading IGC_PTM_STAT register\n");
+			return err;
+		}
+
+		if ((stat & IGC_PTM_STAT_VALID) == IGC_PTM_STAT_VALID)
+			break;
+
+		if (stat & ~IGC_PTM_STAT_VALID) {
+			/* An error occurred, log it. */
+			igc_ptm_log_error(adapter, stat);
+			/* The STAT register is write-1-to-clear (W1C),
+			 * so write the previous error status to clear it.
+			 */
+			wr32(IGC_PTM_STAT, stat);
+			continue;
+		}
+	} while (--count);
+
+	if (!count) {
+		netdev_err(adapter->netdev, "Exceeded number of tries for PTM cycle\n");
+		return -ETIMEDOUT;
+	}
+
+	t1 = ktime_set(rd32(IGC_PTM_T1_TIM0_H), rd32(IGC_PTM_T1_TIM0_L));
+
+	t2_curr_l = rd32(IGC_PTM_CURR_T2_L);
+	t2_curr_h = rd32(IGC_PTM_CURR_T2_H);
+
+	/* FIXME: When the register that tells the endianness of the
+	 * PTM registers are implemented, check them here and add the
+	 * appropriate conversion.
+	 */
+	t2_curr_h = swab32(t2_curr_h);
+
+	t2_curr = ((s64)t2_curr_h << 32 | t2_curr_l);
+
+	*device = t1;
+	*system = igc_device_tstamp_to_system(t2_curr);
+
+	return 0;
+}
+
+static int igc_ptp_getcrosststamp(struct ptp_clock_info *ptp,
+				  struct system_device_crosststamp *cts)
+{
+	struct igc_adapter *adapter = container_of(ptp, struct igc_adapter,
+						   ptp_caps);
+
+	return get_device_system_crosststamp(igc_phc_get_syncdevicetime,
+					     adapter, &adapter->snapshot, cts);
+}
+
 /**
  * igc_ptp_init - Initialize PTP functionality
  * @adapter: Board private structure
@@ -477,9 +918,17 @@ void igc_ptp_init(struct igc_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct igc_hw *hw = &adapter->hw;
+	int i;
 
 	switch (hw->mac.type) {
 	case igc_i225:
+		for (i = 0; i < IGC_N_SDP; i++) {
+			struct ptp_pin_desc *ppd = &adapter->sdp_config[i];
+
+			snprintf(ppd->name, sizeof(ppd->name), "SDP%d", i);
+			ppd->index = i;
+			ppd->func = PTP_PF_NONE;
+		}
 		snprintf(adapter->ptp_caps.name, 16, "%pm", netdev->dev_addr);
 		adapter->ptp_caps.owner = THIS_MODULE;
 		adapter->ptp_caps.max_adj = 62499999;
@@ -488,6 +937,17 @@ void igc_ptp_init(struct igc_adapter *adapter)
 		adapter->ptp_caps.gettimex64 = igc_ptp_gettimex64_i225;
 		adapter->ptp_caps.settime64 = igc_ptp_settime_i225;
 		adapter->ptp_caps.enable = igc_ptp_feature_enable_i225;
+		adapter->ptp_caps.pps = 1;
+		adapter->ptp_caps.pin_config = adapter->sdp_config;
+		adapter->ptp_caps.n_ext_ts = IGC_N_EXTTS;
+		adapter->ptp_caps.n_per_out = IGC_N_PEROUT;
+		adapter->ptp_caps.n_pins = IGC_N_SDP;
+		adapter->ptp_caps.verify = igc_ptp_verify_pin;
+
+		if (!igc_is_crosststamp_supported(adapter))
+			break;
+
+		adapter->ptp_caps.getcrosststamp = igc_ptp_getcrosststamp;
 		break;
 	default:
 		adapter->ptp_clock = NULL;
@@ -532,6 +992,17 @@ static void igc_ptp_time_restore(struct igc_adapter *adapter)
 	igc_ptp_write_i225(adapter, &ts);
 }
 
+static void igc_ptm_stop(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+	u32 ctrl;
+
+	ctrl = rd32(IGC_PTM_CTRL);
+	ctrl &= ~IGC_PTM_CTRL_EN;
+
+	wr32(IGC_PTM_CTRL, ctrl);
+}
+
 /**
  * igc_ptp_suspend - Disable PTP work items and prepare for suspend
  * @adapter: Board private structure
@@ -549,7 +1020,10 @@ void igc_ptp_suspend(struct igc_adapter *adapter)
 	adapter->ptp_tx_skb = NULL;
 	clear_bit_unlock(__IGC_PTP_TX_IN_PROGRESS, &adapter->state);
 
-	igc_ptp_time_save(adapter);
+	if (pci_device_is_present(adapter->pdev)) {
+		igc_ptp_time_save(adapter);
+		igc_ptm_stop(adapter);
+	}
 }
 
 /**
@@ -578,7 +1052,9 @@ void igc_ptp_stop(struct igc_adapter *adapter)
 void igc_ptp_reset(struct igc_adapter *adapter)
 {
 	struct igc_hw *hw = &adapter->hw;
+	u32 cycle_ctrl, ctrl;
 	unsigned long flags;
+	u32 timadj;
 
 	/* reset the tstamp_config */
 	igc_ptp_set_timestamp_mode(adapter, &adapter->tstamp_config);
@@ -587,10 +1063,38 @@ void igc_ptp_reset(struct igc_adapter *adapter)
 
 	switch (adapter->hw.mac.type) {
 	case igc_i225:
+		timadj = rd32(IGC_TIMADJ);
+		timadj |= IGC_TIMADJ_ADJUST_METH;
+		wr32(IGC_TIMADJ, timadj);
+
 		wr32(IGC_TSAUXC, 0x0);
 		wr32(IGC_TSSDP, 0x0);
-		wr32(IGC_TSIM, IGC_TSICR_INTERRUPTS);
+		wr32(IGC_TSIM,
+		     IGC_TSICR_INTERRUPTS |
+		     (adapter->pps_sys_wrap_on ? IGC_TSICR_SYS_WRAP : 0));
 		wr32(IGC_IMS, IGC_IMS_TS);
+
+		if (!igc_is_crosststamp_supported(adapter))
+			break;
+
+		wr32(IGC_PCIE_DIG_DELAY, IGC_PCIE_DIG_DELAY_DEFAULT);
+		wr32(IGC_PCIE_PHY_DELAY, IGC_PCIE_PHY_DELAY_DEFAULT);
+
+		cycle_ctrl = IGC_PTM_CYCLE_CTRL_CYC_TIME(IGC_PTM_CYC_TIME_DEFAULT);
+
+		wr32(IGC_PTM_CYCLE_CTRL, cycle_ctrl);
+
+		ctrl = IGC_PTM_CTRL_EN |
+			IGC_PTM_CTRL_START_NOW |
+			IGC_PTM_CTRL_SHRT_CYC(IGC_PTM_SHORT_CYC_DEFAULT) |
+			IGC_PTM_CTRL_PTM_TO(IGC_PTM_TIMEOUT_DEFAULT) |
+			IGC_PTM_CTRL_TRIG;
+
+		wr32(IGC_PTM_CTRL, ctrl);
+
+		/* Force the first cycle to run. */
+		wr32(IGC_PTM_STAT, IGC_PTM_STAT_VALID);
+
 		break;
 	default:
 		/* No work to do. */
