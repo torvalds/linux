@@ -36,13 +36,13 @@ fi
 # Create a list of the specified litmus tests previously run.
 ( cd $LKMM_DESTDIR; find litmus -name "*.litmus${hwfnseg}.out" -print ) |
 	sed -e "s/${hwfnseg}"'\.out$//' |
-	xargs -r egrep -l '^ \* Result: (Never|Sometimes|Always|DEADLOCK)' |
+	xargs -r grep -E -l '^ \* Result: (Never|Sometimes|Always|DEADLOCK)' |
 	xargs -r grep -L "^P${LKMM_PROCS}"> $T/list-C-already
 
 # Create a list of C-language litmus tests with "Result:" commands and
 # no more than the specified number of processes.
 find litmus -name '*.litmus' -print | mselect7 -arch C > $T/list-C
-xargs < $T/list-C -r egrep -l '^ \* Result: (Never|Sometimes|Always|DEADLOCK)' > $T/list-C-result
+xargs < $T/list-C -r grep -E -l '^ \* Result: (Never|Sometimes|Always|DEADLOCK)' > $T/list-C-result
 xargs < $T/list-C-result -r grep -L "^P${LKMM_PROCS}" > $T/list-C-result-short
 
 # Form list of tests without corresponding .out files
