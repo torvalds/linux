@@ -7,7 +7,6 @@
 #include <linux/if_vlan.h>
 #include <linux/dsa/8021q.h>
 
-#include "dsa_priv.h"
 #include "port.h"
 #include "switch.h"
 #include "tag.h"

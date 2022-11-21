@@ -23,9 +23,9 @@
 #include <linux/netpoll.h>
 
 #include "dsa.h"
-#include "dsa_priv.h"
 #include "port.h"
 #include "master.h"
+#include "netlink.h"
 #include "slave.h"
 #include "tag.h"
 

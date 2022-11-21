@@ -4,7 +4,7 @@
 #include <linux/netdevice.h>
 #include <net/rtnetlink.h>
 
-#include "dsa_priv.h"
+#include "netlink.h"
 #include "slave.h"
 
 static const struct nla_policy dsa_policy[IFLA_DSA_MAX + 1] = {

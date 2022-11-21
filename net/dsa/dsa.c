@@ -21,12 +21,14 @@
 
 #include "devlink.h"
 #include "dsa.h"
-#include "dsa_priv.h"
 #include "master.h"
+#include "netlink.h"
 #include "port.h"
 #include "slave.h"
 #include "switch.h"
 #include "tag.h"
+
+#define DSA_MAX_NUM_OFFLOADING_BRIDGES		BITS_PER_LONG
 
 static DEFINE_MUTEX(dsa2_mutex);
 LIST_HEAD(dsa_tree_list);

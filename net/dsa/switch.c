@@ -13,7 +13,7 @@
 #include <net/switchdev.h>
 
 #include "dsa.h"
-#include "dsa_priv.h"
+#include "netlink.h"
 #include "port.h"
 #include "slave.h"
 #include "switch.h"
