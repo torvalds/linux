@@ -391,11 +391,16 @@ static int overwrite_item(struct btrfs_trans_handle *trans,
 	int save_old_i_size = 0;
 	unsigned long src_ptr;
 	unsigned long dst_ptr;
-	int overwrite_root = 0;
 	bool inode_item = key->type == BTRFS_INODE_ITEM_KEY;
 
-	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID)
-		overwrite_root = 1;
+	/*
+	 * This is only used during log replay, so the root is always from a
+	 * fs/subvolume tree. In case we ever need to support a log root, then
+	 * we'll have to clone the leaf in the path, release the path and use
+	 * the leaf before writing into the log tree. See the comments at
+	 * copy_items() for more details.
+	 */
+	ASSERT(root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID);
 
 	item_size = btrfs_item_size(eb, slot);
 	src_ptr = btrfs_item_ptr_offset(eb, slot);
@@ -548,8 +553,7 @@ insert:
 			goto no_copy;
 		}
 
-		if (overwrite_root &&
-		    S_ISDIR(btrfs_inode_mode(eb, src_item)) &&
+		if (S_ISDIR(btrfs_inode_mode(eb, src_item)) &&
 		    S_ISDIR(btrfs_inode_mode(path->nodes[0], dst_item))) {
 			save_old_i_size = 1;
 			saved_i_size = btrfs_inode_size(path->nodes[0],
