@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics lis2hh12 driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2016 STMicroelectronics Inc.
- *
- * Armando Visconti <armando.visconti@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -109,7 +108,3 @@ void lis2hh12_deallocate_triggers(struct lis2hh12_data *cdata)
 		iio_trigger_unregister(cdata->iio_trig[i]);
 }
 EXPORT_SYMBOL(lis2hh12_deallocate_triggers);
-
-MODULE_DESCRIPTION("STMicroelectronics lis2hh12 driver");
-MODULE_AUTHOR("Armando Visconti <armando.visconti@st.com>");
-MODULE_LICENSE("GPL v2");
