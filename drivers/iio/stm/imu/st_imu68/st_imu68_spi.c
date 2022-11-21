@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics st_imu68 spi driver
  *
- * Copyright 2016 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
+ * Copyright 2016 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -107,6 +107,6 @@ static struct spi_driver st_imu68_driver = {
 };
 module_spi_driver(st_imu68_driver);
 
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_imu68 spi driver");
 MODULE_LICENSE("GPL v2");

@@ -2,10 +2,9 @@
 /*
  * STMicroelectronics st_imu68 sensor driver
  *
- * Copyright 2019 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- * Mario Tesi <mario.tesi@st.com>
+ * Copyright 2019 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -634,7 +633,6 @@ int st_imu68_remove(struct device *dev)
 }
 EXPORT_SYMBOL(st_imu68_remove);
 
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
-MODULE_AUTHOR("Mario Tesi <mario.tesi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_imu68 driver");
 MODULE_LICENSE("GPL v2");

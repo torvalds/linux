@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics st_imu68 sensor driver
  *
- * Copyright 2016 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
+ * Copyright 2016 STMicroelectronics Inc.
  */
 
 #ifndef ST_IMU68_H

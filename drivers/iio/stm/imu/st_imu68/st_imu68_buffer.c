@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_imu68 buffer library driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2016 STMicroelectronics Inc.
- *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- *
- * Licensed under the GPL-2.
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
