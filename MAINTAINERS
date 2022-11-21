@@ -1093,6 +1093,14 @@ S:	Maintained
 F:	Documentation/hid/amd-sfh*
 F:	drivers/hid/amd-sfh-hid/
 
+AMLOGIC DDR PMU DRIVER
+M:	Jiucheng Xu <jiucheng.xu@amlogic.com>
+L:	linux-amlogic@lists.infradead.org
+S:	Supported
+W:	http://www.amlogic.com
+F:	drivers/perf/amlogic/
+F:	include/soc/amlogic/
+
 AMPHION VPU CODEC V4L2 DRIVER
 M:	Ming Qian <ming.qian@nxp.com>
 M:	Shijie Qin <shijie.qin@nxp.com>
