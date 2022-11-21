@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics st_lis3dhh sensor driver
  *
- * Copyright 2016 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
+ * Copyright 2016 STMicroelectronics Inc.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -280,7 +280,3 @@ int st_lis3dhh_fifo_setup(struct st_lis3dhh_hw *hw)
 
 	return 0;
 }
-
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics st_lis3dhh buffer driver");
-MODULE_LICENSE("GPL v2");
