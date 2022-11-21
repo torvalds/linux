@@ -44,6 +44,7 @@
 #define BC_WLS_FW_PUSH_BUF_RESP		0x43
 #define BC_WLS_FW_GET_VERSION		0x44
 #define BC_SHUTDOWN_NOTIFY		0x47
+#define BC_CHG_CTRL_LIMIT_EN		0x48
 #define BC_HBOOST_VMAX_CLAMP_NOTIFY	0x79
 #define BC_GENERIC_NOTIFY		0x80
 
@@ -94,6 +95,9 @@ enum battery_property_id {
 	BATT_RESISTANCE,
 	BATT_POWER_NOW,
 	BATT_POWER_AVG,
+	BATT_CHG_CTRL_EN,
+	BATT_CHG_CTRL_START_THR,
+	BATT_CHG_CTRL_END_THR,
 	BATT_PROP_MAX,
 };
 
@@ -210,6 +214,13 @@ struct battery_charger_ship_mode_req_msg {
 	u32			ship_mode_type;
 };
 
+struct battery_charger_chg_ctrl_msg {
+	struct pmic_glink_hdr	hdr;
+	u32			enable;
+	u32			target_soc;
+	u32			delta_soc;
+};
+
 struct psy_state {
 	struct power_supply	*psy;
 	char			*model;
@@ -255,6 +266,9 @@ struct battery_chg_dev {
 	u32				usb_icl_ua;
 	u32				thermal_fcc_step;
 	bool				restrict_chg_en;
+	u8				chg_ctrl_start_thr;
+	u8				chg_ctrl_end_thr;
+	bool				chg_ctrl_en;
 	/* To track the driver initialization status */
 	bool				initialized;
 	bool				notify_en;
@@ -283,6 +297,8 @@ static const int battery_prop_map[BATT_PROP_MAX] = {
 	[BATT_TTE_AVG]		= POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
 	[BATT_POWER_NOW]	= POWER_SUPPLY_PROP_POWER_NOW,
 	[BATT_POWER_AVG]	= POWER_SUPPLY_PROP_POWER_AVG,
+	[BATT_CHG_CTRL_START_THR] = POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD,
+	[BATT_CHG_CTRL_END_THR]   = POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD,
 };
 
 static const int usb_prop_map[USB_PROP_MAX] = {
@@ -640,6 +656,7 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 	case BC_DISABLE_NOTIFY_REQ:
 	case BC_SHUTDOWN_NOTIFY:
 	case BC_SHIP_MODE_REQ_SET:
+	case BC_CHG_CTRL_LIMIT_EN:
 		/* Always ACK response for notify or ship_mode request */
 		ack_set = true;
 		break;
@@ -1100,6 +1117,97 @@ static struct power_supply_desc usb_psy_desc = {
 	.property_is_writeable	= usb_psy_prop_is_writeable,
 };
 
+#define CHARGE_CTRL_START_THR_MIN	50
+#define CHARGE_CTRL_START_THR_MAX	95
+#define CHARGE_CTRL_END_THR_MIN		55
+#define CHARGE_CTRL_END_THR_MAX		100
+#define CHARGE_CTRL_DELTA_SOC		5
+
+static int battery_psy_set_charge_threshold(struct battery_chg_dev *bcdev,
+					u32 target_soc, u32 delta_soc)
+{
+	struct battery_charger_chg_ctrl_msg msg = { { 0 } };
+	int rc;
+
+	if (!bcdev->chg_ctrl_en)
+		return 0;
+
+	if (target_soc > CHARGE_CTRL_END_THR_MAX)
+		target_soc = CHARGE_CTRL_END_THR_MAX;
+
+	msg.hdr.owner = MSG_OWNER_BC;
+	msg.hdr.type = MSG_TYPE_REQ_RESP;
+	msg.hdr.opcode = BC_CHG_CTRL_LIMIT_EN;
+	msg.enable = 1;
+	msg.target_soc = target_soc;
+	msg.delta_soc = delta_soc;
+
+	rc = battery_chg_write(bcdev, &msg, sizeof(msg));
+	if (rc < 0)
+		pr_err("Failed to set charge_control thresholds, rc=%d\n", rc);
+	else
+		pr_debug("target_soc: %u delta_soc: %u\n", target_soc, delta_soc);
+
+	return rc;
+}
+
+static int battery_psy_set_charge_end_threshold(struct battery_chg_dev *bcdev,
+					int val)
+{
+	u32 delta_soc = CHARGE_CTRL_DELTA_SOC;
+	int rc;
+
+	if (val < CHARGE_CTRL_END_THR_MIN ||
+	    val > CHARGE_CTRL_END_THR_MAX) {
+		pr_err("Charge control end_threshold should be within [%u %u]\n",
+			CHARGE_CTRL_END_THR_MIN, CHARGE_CTRL_END_THR_MAX);
+		return -EINVAL;
+	}
+
+	if (bcdev->chg_ctrl_start_thr && val > bcdev->chg_ctrl_start_thr)
+		delta_soc = val - bcdev->chg_ctrl_start_thr;
+
+	rc = battery_psy_set_charge_threshold(bcdev, val, delta_soc);
+	if (rc < 0)
+		pr_err("Failed to set charge control end threshold %u, rc=%d\n",
+			val, rc);
+	else
+		bcdev->chg_ctrl_end_thr = val;
+
+	return rc;
+}
+
+static int battery_psy_set_charge_start_threshold(struct battery_chg_dev *bcdev,
+					int val)
+{
+	u32 target_soc, delta_soc;
+	int rc;
+
+	if (val < CHARGE_CTRL_START_THR_MIN ||
+	    val > CHARGE_CTRL_START_THR_MAX) {
+		pr_err("Charge control start_threshold should be within [%u %u]\n",
+			CHARGE_CTRL_START_THR_MIN, CHARGE_CTRL_START_THR_MAX);
+		return -EINVAL;
+	}
+
+	if (val > bcdev->chg_ctrl_end_thr) {
+		target_soc = val +  CHARGE_CTRL_DELTA_SOC;
+		delta_soc = CHARGE_CTRL_DELTA_SOC;
+	} else {
+		target_soc = bcdev->chg_ctrl_end_thr;
+		delta_soc = bcdev->chg_ctrl_end_thr - val;
+	}
+
+	rc = battery_psy_set_charge_threshold(bcdev, target_soc, delta_soc);
+	if (rc < 0)
+		pr_err("Failed to set charge control start threshold %u, rc=%d\n",
+			val, rc);
+	else
+		bcdev->chg_ctrl_start_thr = val;
+
+	return rc;
+}
+
 static int __battery_psy_set_charge_current(struct battery_chg_dev *bcdev,
 					u32 fcc_ua)
 {
@@ -1218,6 +1326,12 @@ static int battery_psy_set_prop(struct power_supply *psy,
 	switch (prop) {
 	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
 		return battery_psy_set_charge_current(bcdev, pval->intval);
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD:
+		return battery_psy_set_charge_start_threshold(bcdev,
+								pval->intval);
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD:
+		return battery_psy_set_charge_end_threshold(bcdev,
+								pval->intval);
 	default:
 		return -EINVAL;
 	}
@@ -1230,6 +1344,8 @@ static int battery_psy_prop_is_writeable(struct power_supply *psy,
 {
 	switch (prop) {
 	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD:
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD:
 		return 1;
 	default:
 		break;
@@ -1250,6 +1366,8 @@ static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT,
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX,
+	POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD,
+	POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
@@ -1634,6 +1752,43 @@ static ssize_t wireless_type_show(struct class *c,
 }
 static CLASS_ATTR_RO(wireless_type);
 
+static ssize_t charge_control_en_store(struct class *c,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	int rc;
+	bool val;
+
+	if (kstrtobool(buf, &val))
+		return -EINVAL;
+
+	if (val == bcdev->chg_ctrl_en)
+		return count;
+
+	rc = write_property_id(bcdev, &bcdev->psy_list[PSY_TYPE_BATTERY],
+				BATT_CHG_CTRL_EN, val);
+	if (rc < 0) {
+		pr_err("Failed to set charge_control_en, rc=%d\n", rc);
+		return rc;
+	}
+
+	bcdev->chg_ctrl_en = val;
+
+	return count;
+}
+
+static ssize_t charge_control_en_show(struct class *c,
+				struct class_attribute *attr, char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", bcdev->chg_ctrl_en);
+}
+static CLASS_ATTR_RW(charge_control_en);
+
 static ssize_t usb_typec_compliant_show(struct class *c,
 				struct class_attribute *attr, char *buf)
 {
@@ -1924,6 +2079,7 @@ static struct attribute *battery_class_attrs[] = {
 	&class_attr_restrict_cur.attr,
 	&class_attr_usb_real_type.attr,
 	&class_attr_usb_typec_compliant.attr,
+	&class_attr_charge_control_en.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(battery_class);
