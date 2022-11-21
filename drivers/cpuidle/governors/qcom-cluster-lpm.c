@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/cpu.h>
@@ -390,14 +391,14 @@ void update_cluster_select(struct lpm_cpu *cpu_gov)
 		if (!cluster_gov->initialized)
 			continue;
 
-		spin_lock(&cluster_gov->lock);
-		cluster_gov->now = cpu_gov->now;
 		genpd = cluster_gov->genpd;
 		if (cpumask_test_cpu(cpu, genpd->cpus)) {
+			spin_lock(&cluster_gov->lock);
+			cluster_gov->now = cpu_gov->now;
 			cluster_gov->cpu_next_wakeup[cpu] = cpu_gov->next_wakeup;
 			update_cluster_next_wakeup(cluster_gov);
+			spin_unlock(&cluster_gov->lock);
 		}
-		spin_unlock(&cluster_gov->lock);
 	}
 }
 
