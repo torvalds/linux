@@ -2,10 +2,9 @@
 /*
  * STMicroelectronics ism303dac spi driver
  *
- * Copyright 2018 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Armando Visconti <armando.visconti@st.com>
- * Giuseppe Barba <giuseppe.barba@st.com>
+ * Copyright 2018 STMicroelectronics Inc.
  */
 
 #include <linux/module.h>
@@ -189,5 +188,5 @@ static struct spi_driver ism303dac_spi_driver = {
 module_spi_driver(ism303dac_spi_driver);
 
 MODULE_DESCRIPTION("STMicroelectronics ism303dac spi driver");
-MODULE_AUTHOR("Armando Visconti <armando.visconti@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_LICENSE("GPL v2");

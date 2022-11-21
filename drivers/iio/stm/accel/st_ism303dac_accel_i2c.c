@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics ism303dac i2c driver
  *
- * Copyright 2018 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Giuseppe Barba <giuseppe.barba@st.com>
+ * Copyright 2018 STMicroelectronics Inc.
  */
 
 #include <linux/module.h>
@@ -170,5 +170,5 @@ static struct i2c_driver ism303dac_i2c_driver = {
 module_i2c_driver(ism303dac_i2c_driver);
 
 MODULE_DESCRIPTION("STMicroelectronics ism303dac i2c driver");
-MODULE_AUTHOR("Giuseppe Barba");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_LICENSE("GPL v2");

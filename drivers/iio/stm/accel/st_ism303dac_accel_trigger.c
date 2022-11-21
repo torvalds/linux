@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics ism303dac driver
  *
- * Copyright 2018 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Giuseppe Barba <giuseppe.barba@st.com>
+ * Copyright 2018 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -164,7 +164,3 @@ void ism303dac_deallocate_triggers(struct ism303dac_data *cdata)
 	for (i = 0; i < ISM303DAC_SENSORS_NUMB; i++)
 		iio_trigger_unregister(cdata->iio_trig[i]);
 }
-
-MODULE_DESCRIPTION("STMicroelectronics ism303dac iio trigger driver");
-MODULE_AUTHOR("Giuseppe Barba");
-MODULE_LICENSE("GPL v2");

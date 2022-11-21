@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics ism303dac driver
  *
- * Copyright 2018 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Giuseppe Barba <giuseppe.barba@st.com>
+ * Copyright 2018 STMicroelectronics Inc.
  */
 
 #include <linux/module.h>
@@ -206,7 +206,3 @@ void ism303dac_deallocate_rings(struct ism303dac_data *cdata)
 	for (i = 0; i < ISM303DAC_SENSORS_NUMB; i++)
 		iio_triggered_buffer_cleanup(cdata->iio_sensors_dev[i]);
 }
-
-MODULE_DESCRIPTION("STMicroelectronics ism303dac iio buffer driver");
-MODULE_AUTHOR("Giuseppe Barba");
-MODULE_LICENSE("GPL v2");

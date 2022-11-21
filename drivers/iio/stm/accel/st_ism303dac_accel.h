@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics ism303dac driver
  *
- * Copyright 2018 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Giuseppe Barba <giuseppe.barba@st.com>
+ * Copyright 2018 STMicroelectronics Inc.
  */
 
 #ifndef __ISM303DAC_H

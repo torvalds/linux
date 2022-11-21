@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics ism303dac driver
  *
- * Copyright 2018 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Giuseppe Barba <giuseppe.barba@st.com>
+ * Copyright 2018 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -1248,5 +1248,5 @@ EXPORT_SYMBOL(ism303dac_common_resume);
 #endif /* CONFIG_PM */
 
 MODULE_DESCRIPTION("STMicroelectronics ism303dac core driver");
-MODULE_AUTHOR("Giuseppe Barba");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_LICENSE("GPL v2");
