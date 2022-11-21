@@ -2376,9 +2376,9 @@ static int dev_uevent_filter(const struct kobject *kobj)
 	return 0;
 }
 
-static const char *dev_uevent_name(struct kobject *kobj)
+static const char *dev_uevent_name(const struct kobject *kobj)
 {
-	struct device *dev = kobj_to_dev(kobj);
+	const struct device *dev = kobj_to_dev(kobj);
 
 	if (dev->bus)
 		return dev->bus->name;
