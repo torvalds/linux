@@ -18,7 +18,7 @@
 #include <linux/etherdevice.h>
 #include <linux/bits.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
 
 #define RTL4_A_NAME		"rtl4a"
 

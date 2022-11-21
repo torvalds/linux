@@ -12,6 +12,7 @@
 #include <net/dsa.h>
 
 #include "dsa_priv.h"
+#include "tag.h"
 
 #define HELLCREEK_NAME		"hellcreek"
 

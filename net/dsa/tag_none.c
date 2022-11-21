@@ -8,7 +8,7 @@
  * tagging support, look at tag_8021q.c instead.
  */
 
-#include "dsa_priv.h"
+#include "tag.h"
 
 #define NONE_NAME	"none"
 

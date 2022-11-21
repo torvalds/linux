@@ -7,7 +7,7 @@
 
 #include <linux/bitops.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
 
 #define XRS700X_NAME "xrs700x"
 

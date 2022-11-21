@@ -8,7 +8,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
 
 #define TRAILER_NAME "trailer"
 

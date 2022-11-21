@@ -10,6 +10,7 @@ dsa_core-y += \
 	port.o \
 	slave.o \
 	switch.o \
+	tag.o \
 	tag_8021q.o
 
 # tagging formats

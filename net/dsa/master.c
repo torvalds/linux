@@ -14,6 +14,7 @@
 #include "dsa_priv.h"
 #include "master.h"
 #include "port.h"
+#include "tag.h"
 
 static int dsa_master_get_regs_len(struct net_device *dev)
 {

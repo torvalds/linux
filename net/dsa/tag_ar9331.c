@@ -7,7 +7,7 @@
 #include <linux/bitfield.h>
 #include <linux/etherdevice.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
 
 #define AR9331_NAME			"ar9331"
 
