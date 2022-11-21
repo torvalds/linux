@@ -109,6 +109,7 @@
 			compatible = "cache";
 			cache-unified;
 			cache-size = <0x40000>;
+			cache-level = <3>;
 		};
 	};
 
@@ -650,7 +651,6 @@
 			reg = <0 0x11030000 0 0x10000>;
 			gpio-controller;
 			#gpio-cells = <2>;
-			#address-cells = <2>;
 			#interrupt-cells = <2>;
 			interrupt-parent = <&irqc>;
 			interrupt-controller;
