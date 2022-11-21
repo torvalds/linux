@@ -44,8 +44,6 @@ struct dsa_standalone_event_work {
 };
 
 /* dsa.c */
-struct net_device *dsa_dev_to_net_device(struct device *dev);
-
 bool dsa_db_equal(const struct dsa_db *a, const struct dsa_db *b);
 
 bool dsa_schedule_work(struct work_struct *work);
