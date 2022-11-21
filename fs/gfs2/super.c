@@ -691,8 +691,8 @@ void gfs2_freeze_func(struct work_struct *work)
 		gfs2_freeze_unlock(&freeze_gh);
 	}
 	deactivate_super(sb);
-	clear_bit_unlock(SDF_FS_FROZEN, &sdp->sd_flags);
-	wake_up_bit(&sdp->sd_flags, SDF_FS_FROZEN);
+	clear_bit_unlock(SDF_FREEZE_INITIATOR, &sdp->sd_flags);
+	wake_up_bit(&sdp->sd_flags, SDF_FREEZE_INITIATOR);
 	return;
 }
 
@@ -735,7 +735,7 @@ static int gfs2_freeze_super(struct super_block *sb)
 		fs_err(sdp, "retrying...\n");
 		msleep(1000);
 	}
-	set_bit(SDF_FS_FROZEN, &sdp->sd_flags);
+	set_bit(SDF_FREEZE_INITIATOR, &sdp->sd_flags);
 out:
 	mutex_unlock(&sdp->sd_freeze_mutex);
 	return error;
@@ -760,7 +760,7 @@ static int gfs2_thaw_super(struct super_block *sb)
 
 	gfs2_freeze_unlock(&sdp->sd_freeze_gh);
 	mutex_unlock(&sdp->sd_freeze_mutex);
-	return wait_on_bit(&sdp->sd_flags, SDF_FS_FROZEN, TASK_INTERRUPTIBLE);
+	return wait_on_bit(&sdp->sd_flags, SDF_FREEZE_INITIATOR, TASK_INTERRUPTIBLE);
 }
 
 /**
