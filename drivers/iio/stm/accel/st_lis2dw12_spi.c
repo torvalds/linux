@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics lis2dw12 spi driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2016 STMicroelectronics Inc.
- *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- *
- * Licensed under the GPL-2.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -107,6 +106,6 @@ static struct spi_driver st_lis2dw12_driver = {
 };
 module_spi_driver(st_lis2dw12_driver);
 
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_lis2dw12 spi driver");
 MODULE_LICENSE("GPL v2");

@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics lis2dw12 i2c driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2016 STMicroelectronics Inc.
- *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- *
- * Licensed under the GPL-2.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -99,6 +98,6 @@ static struct i2c_driver st_lis2dw12_driver = {
 };
 module_i2c_driver(st_lis2dw12_driver);
 
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_lis2dw12 i2c driver");
 MODULE_LICENSE("GPL v2");
