@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics ism330dlc buffer driver
  *
- * Copyright 2016 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Denis Ciocca <denis.ciocca@st.com>
+ * Copyright 2016 STMicroelectronics Inc.
  */
 
 #include <linux/module.h>
@@ -550,7 +550,3 @@ void st_ism330dlc_deallocate_rings(struct ism330dlc_data *cdata)
 	iio_triggered_buffer_cleanup(cdata->indio_dev[ST_MASK_ID_ACCEL]);
 	iio_triggered_buffer_cleanup(cdata->indio_dev[ST_MASK_ID_GYRO]);
 }
-
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics ism330dlc buffer driver");
-MODULE_LICENSE("GPL v2");

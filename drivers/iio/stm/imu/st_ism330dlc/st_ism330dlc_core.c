@@ -2777,6 +2777,6 @@ int __maybe_unused st_ism330dlc_common_resume(struct ism330dlc_data *cdata)
 EXPORT_SYMBOL(st_ism330dlc_common_resume);
 #endif /* CONFIG_PM */
 
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics ism330dlc core driver");
 MODULE_LICENSE("GPL v2");

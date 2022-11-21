@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics ism330dlc i2c master driver
  *
- * Copyright 2016 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Denis Ciocca <denis.ciocca@st.com>
+ * Copyright 2016 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -1769,7 +1769,3 @@ int st_ism330dlc_i2c_master_exit(struct ism330dlc_data *cdata)
 	return 0;
 }
 EXPORT_SYMBOL(st_ism330dlc_i2c_master_exit);
-
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics ism330dlc i2c master driver");
-MODULE_LICENSE("GPL v2");

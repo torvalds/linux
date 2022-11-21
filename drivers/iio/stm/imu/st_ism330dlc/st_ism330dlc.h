@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics ism330dlc driver
  *
- * Copyright 2016 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Denis Ciocca <denis.ciocca@st.com>
+ * Copyright 2016 STMicroelectronics Inc.
  */
 
 #ifndef ST_ISM330DLC_H

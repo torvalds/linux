@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics ism330dlc trigger driver
  *
- * Copyright 2016 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Denis Ciocca <denis.ciocca@st.com>
+ * Copyright 2016 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -178,7 +178,3 @@ void st_ism330dlc_deallocate_triggers(struct ism330dlc_data *cdata)
 		iio_trigger_unregister(cdata->trig[i]);
 }
 EXPORT_SYMBOL(st_ism330dlc_deallocate_triggers);
-
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics ism330dlc trigger driver");
-MODULE_LICENSE("GPL v2");
