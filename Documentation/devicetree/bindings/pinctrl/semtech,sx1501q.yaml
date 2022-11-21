@@ -140,7 +140,7 @@ allOf:
           properties:
             pins:
               items:
-                pattern: '^gpio[0-15]$'
+                pattern: '^(gpio[0-9]|gpio1[0-5])$'
   - if:
       properties:
         compatible:
@@ -176,7 +176,7 @@ allOf:
           properties:
             pins:
               items:
-                pattern: '^(oscio|gpio[0-15])$'
+                pattern: '^(oscio|gpio[0-9]|gpio1[0-5])$'
 
 additionalProperties: false
 
