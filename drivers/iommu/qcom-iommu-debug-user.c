@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
+#include <linux/bitfield.h>
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -11,9 +13,15 @@
 #include <linux/qcom-iommu-util.h>
 #include "qcom-iommu-debug.h"
 
+#ifdef CONFIG_64BIT
 #define kstrtoux kstrtou64
 #define kstrtox_from_user kstrtoull_from_user
 #define kstrtosize_t kstrtoul
+#else
+#define kstrtoux kstrtou32
+#define kstrtox_from_user kstrtouint_from_user
+#define kstrtosize_t kstrtouint
+#endif
 
 static void *test_virt_addr;
 static DEFINE_MUTEX(test_virt_addr_lock);
@@ -786,6 +794,7 @@ static int __full_va_sweep(struct device *dev, struct seq_file *s,
 			   struct iommu_domain *domain, void *priv)
 {
 	u64 iova;
+	int nr_maps = 0;
 	dma_addr_t dma_addr;
 	void *virt;
 	phys_addr_t phys;
@@ -818,8 +827,12 @@ static int __full_va_sweep(struct device *dev, struct seq_file *s,
 			dev_err_ratelimited(dev, "Unexpected iova on iter %d (expected: 0x%lx got: 0x%lx)\n",
 					    i, expected, (unsigned long)dma_addr);
 			ret = -EINVAL;
+			if (!dma_mapping_error(dev, dma_addr))
+				dma_unmap_single(dev, dma_addr, size,
+					DMA_TO_DEVICE);
 			goto out;
 		}
+		nr_maps++;
 	}
 
 	if (domain) {
@@ -860,7 +873,7 @@ static int __full_va_sweep(struct device *dev, struct seq_file *s,
 	}
 
 out:
-	for (iova = 0; iova < max; iova += size) {
+	for (iova = 0; iova < max && nr_maps--; iova += size) {
 		if (iova == MSI_IOVA_BASE) {
 			iova = MSI_IOVA_BASE + MSI_IOVA_LENGTH - size;
 			continue;
@@ -876,7 +889,9 @@ static int __tlb_stress_sweep(struct device *dev, struct seq_file *s,
 			      struct iommu_domain *domain, void *unused)
 {
 	int i, ret = 0;
+	int nr_maps = 0;
 	u64 iova;
+	u64 first_iova = 0;
 	const u64  max = SZ_1G * 4ULL - 1;
 	void *virt;
 	phys_addr_t phys;
@@ -901,7 +916,13 @@ static int __tlb_stress_sweep(struct device *dev, struct seq_file *s,
 			dev_err_ratelimited(dev, "Failed map on iter %d\n", i);
 			ret = -EINVAL;
 			goto out;
+		} else if (dma_addr != iova) {
+			dma_unmap_single(dev, dma_addr, SZ_8K, DMA_TO_DEVICE);
+			dev_err_ratelimited(dev, "Failed map on iter %d\n", i);
+			ret = -EINVAL;
+			goto out;
 		}
+		nr_maps++;
 	}
 
 	if (dma_map_single(dev, virt, SZ_4K, DMA_TO_DEVICE) != DMA_MAPPING_ERROR) {
@@ -914,6 +935,11 @@ static int __tlb_stress_sweep(struct device *dev, struct seq_file *s,
 	 * free up 4K at the very beginning, then leave one 4K mapping,
 	 * then free up 8K.  This will result in the next 8K map to skip
 	 * over the 4K hole and take the 8K one.
+	 * i.e
+	 *	 0K..4K	  Hole
+	 *	 4K..8K	  Map R1
+	 *	 8K..12K  Hole
+	 *	12K..4G   Map R2
 	 */
 	dma_unmap_single(dev, 0, SZ_4K, DMA_TO_DEVICE);
 	dma_unmap_single(dev, SZ_8K, SZ_4K, DMA_TO_DEVICE);
@@ -926,12 +952,23 @@ static int __tlb_stress_sweep(struct device *dev, struct seq_file *s,
 
 		dev_err_ratelimited(dev, "Unexpected dma_addr. got: %pa expected: %pa\n",
 				    &dma_addr, &expected);
+
+		/* To simplify error handling, unmap the 4K regions (4K..8K
+		 * and 12K..16K) here and the rest (16K..4G) in 8K increments
+		 * in the for loop.
+		 */
+		dma_unmap_single(dev, SZ_4K, SZ_4K, DMA_TO_DEVICE);
+		dma_unmap_single(dev, SZ_8K+SZ_4K, SZ_4K, DMA_TO_DEVICE);
+		nr_maps -= 2;
+		first_iova = SZ_8K + SZ_8K;
+
 		ret = -EINVAL;
 		goto out;
 	}
 
 	/*
-	 * now remap 4K.  We should get the first 4K chunk that was skipped
+	 * Now we have 0..4K hole and 4K..4G mapped.
+	 * Remap 4K.  We should get the first 4K chunk that was skipped
 	 * over during the previous 8K map.  If we missed a TLB invalidate
 	 * at that point this should explode.
 	 */
@@ -941,9 +978,17 @@ static int __tlb_stress_sweep(struct device *dev, struct seq_file *s,
 
 		dev_err_ratelimited(dev, "Unexpected dma_addr. got: %pa expected: %pa\n",
 				    &dma_addr, &expected);
+		/* To simplify error handling, unmap the 4K region (4K..8K)
+		 * here and rest (8K..4G) in 8K increments in the for loop.
+		 */
+		dma_unmap_single(dev, SZ_4K, SZ_4K, DMA_TO_DEVICE);
+		first_iova = SZ_8K;
+		nr_maps -= 1;
 		ret = -EINVAL;
 		goto out;
 	}
+
+	first_iova = 0;
 
 	if (dma_map_single(dev, virt, SZ_4K, DMA_TO_DEVICE) != DMA_MAPPING_ERROR) {
 		dev_err_ratelimited(dev, "dma_map_single unexpectedly after remaps (VA should have been exhausted)\n");
@@ -951,8 +996,9 @@ static int __tlb_stress_sweep(struct device *dev, struct seq_file *s,
 		goto out;
 	}
 
+out:
 	/* we're all full again. unmap everything. */
-	for (iova = 0; iova < max; iova += SZ_8K) {
+	for (iova = first_iova; iova < max && nr_maps--; iova += SZ_8K) {
 		if (iova == MSI_IOVA_BASE) {
 			iova = MSI_IOVA_BASE + MSI_IOVA_LENGTH - SZ_8K;
 			continue;
@@ -960,7 +1006,6 @@ static int __tlb_stress_sweep(struct device *dev, struct seq_file *s,
 		dma_unmap_single(dev, (dma_addr_t)iova, SZ_8K, DMA_TO_DEVICE);
 	}
 
-out:
 	free_pages((unsigned long)virt, get_order(SZ_8K));
 	return ret;
 }
@@ -993,6 +1038,7 @@ static int __rand_va_sweep(struct device *dev, struct seq_file *s,
 	u64 iova;
 	const u64 max = SZ_1G * 4ULL - 1;
 	int i, remapped, unmapped, ret = 0;
+	int nr_maps = 0;
 	void *virt;
 	dma_addr_t dma_addr, dma_addr2;
 	struct fib_state fib;
@@ -1020,7 +1066,14 @@ static int __rand_va_sweep(struct device *dev, struct seq_file *s,
 			dev_err_ratelimited(dev, "Failed map on iter %d\n", i);
 			ret = -EINVAL;
 			goto out;
+		} else if (dma_addr != iova) {
+			dma_unmap_single(dev, dma_addr, size, DMA_TO_DEVICE);
+			dev_err_ratelimited(dev, "Unexpected dma_addr. got: %lx, expected: %lx\n",
+				(unsigned long)dma_addr, (unsigned long)iova);
+			ret = -EINVAL;
+			goto out;
 		}
+		nr_maps++;
 	}
 
 	/* now unmap "random" iovas */
@@ -1059,7 +1112,8 @@ static int __rand_va_sweep(struct device *dev, struct seq_file *s,
 		ret = -EINVAL;
 	}
 
-	for (iova = 0; iova < max; iova += size) {
+out:
+	for (iova = 0; iova < max && nr_maps--; iova += size) {
 		if (iova == MSI_IOVA_BASE) {
 			iova = MSI_IOVA_BASE + MSI_IOVA_LENGTH - size;
 			continue;
@@ -1067,7 +1121,6 @@ static int __rand_va_sweep(struct device *dev, struct seq_file *s,
 		dma_unmap_single(dev, (dma_addr_t)iova, size, DMA_TO_DEVICE);
 	}
 
-out:
 	free_pages((unsigned long)virt, get_order(size));
 	return ret;
 }
