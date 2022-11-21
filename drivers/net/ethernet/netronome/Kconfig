@@ -54,6 +54,17 @@ config NFP_APP_ABM_NIC
 	  functionality.
 	  Code will be built into the nfp.ko driver.
 
+config NFP_NET_IPSEC
+	bool "NFP IPsec crypto offload support"
+	depends on NFP
+	depends on XFRM_OFFLOAD
+	default y
+	help
+	  Enable driver support IPsec crypto offload on NFP NIC.
+	  Say Y, if you are planning to make use of IPsec crypto
+	  offload. NOTE that IPsec crypto offload on NFP NIC
+	  requires specific FW to work.
+
 config NFP_DEBUG
 	bool "Debug support for Netronome(R) NFP4000/NFP6000 NIC drivers"
 	depends on NFP
