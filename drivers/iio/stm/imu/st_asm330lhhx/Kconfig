@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
 config IIO_ST_ASM330LHHX
 	tristate "STMicroelectronics ASM330LHHX sensor"
 	depends on (I2C || SPI)

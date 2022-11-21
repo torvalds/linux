@@ -2,6 +2,8 @@
 /*
  * STMicroelectronics st_asm330lhhx machine learning core driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2022 STMicroelectronics Inc.
  */
 

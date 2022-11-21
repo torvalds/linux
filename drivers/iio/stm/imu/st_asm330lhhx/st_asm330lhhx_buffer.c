@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_asm330lhhx FIFO buffer library driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2019 STMicroelectronics Inc.
- *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- * Mario Tesi <mario.tesi@st.com>
- *
- * Licensed under the GPL-2.
  */
 #include <linux/module.h>
 #include <linux/interrupt.h>

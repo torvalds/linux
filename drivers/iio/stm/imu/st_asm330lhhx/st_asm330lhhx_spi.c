@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_asm330lhhx spi driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2022 STMicroelectronics Inc.
- *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- * Mario Tesi <mario.tesi@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -71,8 +69,7 @@ static struct spi_driver st_asm330lhhx_driver = {
 };
 module_spi_driver(st_asm330lhhx_driver);
 
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
-MODULE_AUTHOR("Mario Tesi <mario.tesi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_asm330lhhx spi driver");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(ST_ASM330LHHX_DRV_VERSION);

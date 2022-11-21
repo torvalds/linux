@@ -2,6 +2,8 @@
 /*
  * STMicroelectronics st_asm330lhhx sensor hub library driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2022 STMicroelectronics Inc.
  */
 

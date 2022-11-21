@@ -2,6 +2,8 @@
 /*
  * STMicroelectronics st_asm330lhhx mlc preload config
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2022 STMicroelectronics Inc.
  */
 

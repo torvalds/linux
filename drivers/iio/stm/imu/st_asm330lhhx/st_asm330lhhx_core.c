@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_asm330lhhx sensor driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2019 STMicroelectronics Inc.
- *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- * Mario Tesi <mario.tesi@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 /*
@@ -2413,8 +2411,7 @@ const struct dev_pm_ops st_asm330lhhx_pm_ops = {
 };
 EXPORT_SYMBOL(st_asm330lhhx_pm_ops);
 
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
-MODULE_AUTHOR("Mario Tesi <mario.tesi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_asm330lhhx driver");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(ST_ASM330LHHX_DRV_VERSION);

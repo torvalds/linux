@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_asm330lhhx hwtimestamp library driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2021 STMicroelectronics Inc.
- *
- * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 #include <linux/module.h>
 #include <linux/iio/iio.h>

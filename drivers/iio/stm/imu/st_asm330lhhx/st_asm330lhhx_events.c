@@ -1,11 +1,10 @@
-/**
+// SPDX-License-Identifier: GPL-2.0-only
+/*
  * STMicroelectronics st_asm330lhhx events function sensor driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2020 STMicroelectronics Inc.
- *
- * Mario Tesi <mario.tesi@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
