@@ -215,11 +215,6 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 		kfree(cifs_i->symlink_target);
 		cifs_i->symlink_target = fattr->cf_symlink_target;
 		fattr->cf_symlink_target = NULL;
-
-		if (unlikely(!cifs_i->symlink_target))
-			inode->i_link = ERR_PTR(-EOPNOTSUPP);
-		else
-			inode->i_link = cifs_i->symlink_target;
 	}
 	spin_unlock(&inode->i_lock);
 
@@ -368,8 +363,10 @@ cifs_get_file_info_unix(struct file *filp)
 
 	if (cfile->symlink_target) {
 		fattr.cf_symlink_target = kstrdup(cfile->symlink_target, GFP_KERNEL);
-		if (!fattr.cf_symlink_target)
-			return -ENOMEM;
+		if (!fattr.cf_symlink_target) {
+			rc = -ENOMEM;
+			goto cifs_gfiunix_out;
+		}
 	}
 
 	rc = CIFSSMBUnixQFileInfo(xid, tcon, cfile->fid.netfid, &find_data);

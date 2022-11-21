@@ -613,6 +613,7 @@ static int bnxt_dl_reload_up(struct devlink *dl, enum devlink_reload_action acti
 
 static bool bnxt_nvm_test(struct bnxt *bp, struct netlink_ext_ack *extack)
 {
+	bool rc = false;
 	u32 datalen;
 	u16 index;
 	u8 *buf;
@@ -632,20 +633,20 @@ static bool bnxt_nvm_test(struct bnxt *bp, struct netlink_ext_ack *extack)
 
 	if (bnxt_get_nvram_item(bp->dev, index, 0, datalen, buf)) {
 		NL_SET_ERR_MSG_MOD(extack, "nvm test vpd read error");
-		goto err;
+		goto done;
 	}
 
 	if (bnxt_flash_nvram(bp->dev, BNX_DIR_TYPE_VPD, BNX_DIR_ORDINAL_FIRST,
 			     BNX_DIR_EXT_NONE, 0, 0, buf, datalen)) {
 		NL_SET_ERR_MSG_MOD(extack, "nvm test vpd write error");
-		goto err;
+		goto done;
 	}
 
-	return true;
+	rc = true;
 
-err:
+done:
 	kfree(buf);
-	return false;
+	return rc;
 }
 
 static bool bnxt_dl_selftest_check(struct devlink *dl, unsigned int id,

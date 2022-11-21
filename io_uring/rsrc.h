@@ -82,11 +82,7 @@ int __io_scm_file_account(struct io_ring_ctx *ctx, struct file *file);
 #if defined(CONFIG_UNIX)
 static inline bool io_file_need_scm(struct file *filp)
 {
-#if defined(IO_URING_SCM_ALL)
-	return true;
-#else
 	return !!unix_get_socket(filp);
-#endif
 }
 #else
 static inline bool io_file_need_scm(struct file *filp)

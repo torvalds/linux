@@ -611,6 +611,7 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 		.nr_tags	= 1,
 	};
 	u64 alloc_time_ns = 0;
+	struct request *rq;
 	unsigned int cpu;
 	unsigned int tag;
 	int ret;
@@ -660,8 +661,12 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 	tag = blk_mq_get_tag(&data);
 	if (tag == BLK_MQ_NO_TAG)
 		goto out_queue_exit;
-	return blk_mq_rq_ctx_init(&data, blk_mq_tags_from_data(&data), tag,
+	rq = blk_mq_rq_ctx_init(&data, blk_mq_tags_from_data(&data), tag,
 					alloc_time_ns);
+	rq->__data_len = 0;
+	rq->__sector = (sector_t) -1;
+	rq->bio = rq->biotail = NULL;
+	return rq;
 
 out_queue_exit:
 	blk_queue_exit(q);
@@ -1257,6 +1262,7 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
 		   (!blk_queue_nomerges(rq->q) &&
 		    blk_rq_bytes(last) >= BLK_PLUG_FLUSH_SIZE)) {
 		blk_mq_flush_plug_list(plug, false);
+		last = NULL;
 		trace_block_plug(rq->q);
 	}
 
@@ -3112,8 +3118,11 @@ static void blk_mq_clear_rq_mapping(struct blk_mq_tags *drv_tags,
 	struct page *page;
 	unsigned long flags;
 
-	/* There is no need to clear a driver tags own mapping */
-	if (drv_tags == tags)
+	/*
+	 * There is no need to clear mapping if driver tags is not initialized
+	 * or the mapping belongs to the driver tags.
+	 */
+	if (!drv_tags || drv_tags == tags)
 		return;
 
 	list_for_each_entry(page, &tags->page_list, lru) {
@@ -4185,9 +4194,7 @@ int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	return 0;
 
 err_hctxs:
-	xa_destroy(&q->hctx_table);
-	q->nr_hw_queues = 0;
-	blk_mq_sysfs_deinit(q);
+	blk_mq_release(q);
 err_poll:
 	blk_stat_free_callback(q->poll_cb);
 	q->poll_cb = NULL;

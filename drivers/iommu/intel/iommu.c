@@ -959,11 +959,9 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 
 			domain_flush_cache(domain, tmp_page, VTD_PAGE_SIZE);
 			pteval = ((uint64_t)virt_to_dma_pfn(tmp_page) << VTD_PAGE_SHIFT) | DMA_PTE_READ | DMA_PTE_WRITE;
-			if (domain_use_first_level(domain)) {
-				pteval |= DMA_FL_PTE_XD | DMA_FL_PTE_US;
-				if (iommu_is_dma_domain(&domain->domain))
-					pteval |= DMA_FL_PTE_ACCESS;
-			}
+			if (domain_use_first_level(domain))
+				pteval |= DMA_FL_PTE_XD | DMA_FL_PTE_US | DMA_FL_PTE_ACCESS;
+
 			if (cmpxchg64(&pte->val, 0ULL, pteval))
 				/* Someone else set it while we were thinking; use theirs. */
 				free_pgtable_page(tmp_page);
@@ -2410,6 +2408,7 @@ static int __init si_domain_init(int hw)
 
 	if (md_domain_init(si_domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
 		domain_exit(si_domain);
+		si_domain = NULL;
 		return -EFAULT;
 	}
 
@@ -3051,6 +3050,10 @@ free_iommu:
 	for_each_active_iommu(iommu, drhd) {
 		disable_dmar_iommu(iommu);
 		free_dmar_iommu(iommu);
+	}
+	if (si_domain) {
+		domain_exit(si_domain);
+		si_domain = NULL;
 	}
 
 	return ret;
@@ -4534,7 +4537,7 @@ static void intel_iommu_get_resv_regions(struct device *device,
 	struct device *i_dev;
 	int i;
 
-	down_read(&dmar_global_lock);
+	rcu_read_lock();
 	for_each_rmrr_units(rmrr) {
 		for_each_active_dev_scope(rmrr->devices, rmrr->devices_cnt,
 					  i, i_dev) {
@@ -4552,14 +4555,15 @@ static void intel_iommu_get_resv_regions(struct device *device,
 				IOMMU_RESV_DIRECT_RELAXABLE : IOMMU_RESV_DIRECT;
 
 			resv = iommu_alloc_resv_region(rmrr->base_address,
-						       length, prot, type);
+						       length, prot, type,
+						       GFP_ATOMIC);
 			if (!resv)
 				break;
 
 			list_add_tail(&resv->list, head);
 		}
 	}
-	up_read(&dmar_global_lock);
+	rcu_read_unlock();
 
 #ifdef CONFIG_INTEL_IOMMU_FLOPPY_WA
 	if (dev_is_pci(device)) {
@@ -4567,7 +4571,8 @@ static void intel_iommu_get_resv_regions(struct device *device,
 
 		if ((pdev->class >> 8) == PCI_CLASS_BRIDGE_ISA) {
 			reg = iommu_alloc_resv_region(0, 1UL << 24, prot,
-						   IOMMU_RESV_DIRECT_RELAXABLE);
+					IOMMU_RESV_DIRECT_RELAXABLE,
+					GFP_KERNEL);
 			if (reg)
 				list_add_tail(&reg->list, head);
 		}
@@ -4576,7 +4581,7 @@ static void intel_iommu_get_resv_regions(struct device *device,
 
 	reg = iommu_alloc_resv_region(IOAPIC_RANGE_START,
 				      IOAPIC_RANGE_END - IOAPIC_RANGE_START + 1,
-				      0, IOMMU_RESV_MSI);
+				      0, IOMMU_RESV_MSI, GFP_KERNEL);
 	if (!reg)
 		return;
 	list_add_tail(&reg->list, head);

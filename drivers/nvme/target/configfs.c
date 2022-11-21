@@ -1215,6 +1215,7 @@ static ssize_t nvmet_subsys_attr_model_store_locked(struct nvmet_subsys *subsys,
 		const char *page, size_t count)
 {
 	int pos = 0, len;
+	char *val;
 
 	if (subsys->subsys_discovered) {
 		pr_err("Can't set model number. %s is already assigned\n",
@@ -1237,9 +1238,11 @@ static ssize_t nvmet_subsys_attr_model_store_locked(struct nvmet_subsys *subsys,
 			return -EINVAL;
 	}
 
-	subsys->model_number = kmemdup_nul(page, len, GFP_KERNEL);
-	if (!subsys->model_number)
+	val = kmemdup_nul(page, len, GFP_KERNEL);
+	if (!val)
 		return -ENOMEM;
+	kfree(subsys->model_number);
+	subsys->model_number = val;
 	return count;
 }
 
@@ -1290,11 +1293,7 @@ static ssize_t nvmet_subsys_attr_qid_max_show(struct config_item *item,
 static ssize_t nvmet_subsys_attr_qid_max_store(struct config_item *item,
 					       const char *page, size_t cnt)
 {
-	struct nvmet_port *port = to_nvmet_port(item);
 	u16 qid_max;
-
-	if (nvmet_is_port_enabled(port, __func__))
-		return -EACCES;
 
 	if (sscanf(page, "%hu\n", &qid_max) != 1)
 		return -EINVAL;
@@ -1840,6 +1839,7 @@ static void nvmet_host_release(struct config_item *item)
 
 #ifdef CONFIG_NVME_TARGET_AUTH
 	kfree(host->dhchap_secret);
+	kfree(host->dhchap_ctrl_secret);
 #endif
 	kfree(host);
 }

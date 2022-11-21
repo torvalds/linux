@@ -772,7 +772,7 @@ static inline void ufshcd_utrl_clear(struct ufs_hba *hba, u32 mask)
 }
 
 /**
- * ufshcd_utmrl_clear - Clear a bit in UTRMLCLR register
+ * ufshcd_utmrl_clear - Clear a bit in UTMRLCLR register
  * @hba: per adapter instance
  * @pos: position of the bit to be cleared
  */
@@ -3098,7 +3098,7 @@ static int ufshcd_query_flag_retry(struct ufs_hba *hba,
 
 	if (ret)
 		dev_err(hba->dev,
-			"%s: query attribute, opcode %d, idn %d, failed with error %d after %d retries\n",
+			"%s: query flag, opcode %d, idn %d, failed with error %d after %d retries\n",
 			__func__, opcode, idn, ret, retries);
 	return ret;
 }

@@ -656,7 +656,15 @@ void lan966x_stats_get(struct net_device *dev,
 	stats->rx_dropped = dev->stats.rx_dropped +
 		lan966x->stats[idx + SYS_COUNT_RX_LONG] +
 		lan966x->stats[idx + SYS_COUNT_DR_LOCAL] +
-		lan966x->stats[idx + SYS_COUNT_DR_TAIL];
+		lan966x->stats[idx + SYS_COUNT_DR_TAIL] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_0] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_1] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_2] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_3] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_4] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_5] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_6] +
+		lan966x->stats[idx + SYS_COUNT_RX_RED_PRIO_7];
 
 	for (i = 0; i < LAN966X_NUM_TC; i++) {
 		stats->rx_dropped +=
@@ -708,6 +716,9 @@ int lan966x_stats_init(struct lan966x *lan966x)
 	snprintf(queue_name, sizeof(queue_name), "%s-stats",
 		 dev_name(lan966x->dev));
 	lan966x->stats_queue = create_singlethread_workqueue(queue_name);
+	if (!lan966x->stats_queue)
+		return -ENOMEM;
+
 	INIT_DELAYED_WORK(&lan966x->stats_work, lan966x_check_stats_work);
 	queue_delayed_work(lan966x->stats_queue, &lan966x->stats_work,
 			   LAN966X_STATS_CHECK_DELAY);

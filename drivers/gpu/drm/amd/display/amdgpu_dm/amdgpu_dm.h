@@ -51,12 +51,6 @@
 #define AMDGPU_DMUB_NOTIFICATION_MAX 5
 
 /*
- * DMUB Async to Sync Mechanism Status
- */
-#define DMUB_ASYNC_TO_SYNC_ACCESS_FAIL 1
-#define DMUB_ASYNC_TO_SYNC_ACCESS_TIMEOUT 2
-#define DMUB_ASYNC_TO_SYNC_ACCESS_SUCCESS 3
-/*
 #include "include/amdgpu_dal_power_if.h"
 #include "amdgpu_dm_irq.h"
 */

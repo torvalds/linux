@@ -23,6 +23,7 @@
 #include <linux/start_kernel.h>
 #include <linux/sched.h>
 #include <linux/kprobes.h>
+#include <linux/kstrtox.h>
 #include <linux/memblock.h>
 #include <linux/export.h>
 #include <linux/mm.h>
@@ -113,7 +114,7 @@ static __read_mostly bool xen_msr_safe = IS_ENABLED(CONFIG_XEN_PV_MSR_SAFE);
 static int __init parse_xen_msr_safe(char *str)
 {
 	if (str)
-		return strtobool(str, &xen_msr_safe);
+		return kstrtobool(str, &xen_msr_safe);
 	return -EINVAL;
 }
 early_param("xen_msr_safe", parse_xen_msr_safe);
