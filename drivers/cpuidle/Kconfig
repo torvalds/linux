@@ -57,6 +57,17 @@ config CPU_IDLE_GOV_QCOM_LPM
       CPU and the idle state chosen based on the parameters are all
       logged in the trace.
 
+config CPU_IDLE_SIMPLE_GOV_QCOM_LPM
+	tristate "Qualcomm Technologies, Inc. CPU and Cluster simple governor"
+	depends on ARCH_QCOM
+	depends on ARM_PSCI_CPUIDLE
+	help
+	  This governor allows the cpu and cluster to deeper idle states more aggressively
+	  by reducing cpuidle parameters such as the entry, exit latencies and the residency.
+
+	  This provides the provision to user to update cpuidle parameters so that it can
+	  allow or restrict particular Idle state more aggressively.
+
 config DT_IDLE_STATES
 	bool
 
