@@ -88,8 +88,7 @@ static struct regmap_irq_chip bd9576_irq_chip = {
 	.irq_reg_stride = 1,
 };
 
-static int bd957x_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int bd957x_i2c_probe(struct i2c_client *i2c)
 {
 	int ret;
 	struct regmap *regmap;
@@ -180,7 +179,7 @@ static struct i2c_driver bd957x_drv = {
 		.name = "rohm-bd957x",
 		.of_match_table = bd957x_of_match,
 	},
-	.probe = &bd957x_i2c_probe,
+	.probe_new = &bd957x_i2c_probe,
 };
 module_i2c_driver(bd957x_drv);
 
