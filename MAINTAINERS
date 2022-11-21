@@ -19758,6 +19758,7 @@ M:	Tony Huang <tonyhuang.sunplus@gmail.com>
 M:	Li-hao Kuo <lhjeff911@gmail.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/mmc/sunplus,mmc.yaml
+F:	drivers/mmc/host/sunplus-mmc.c
 
 SUNPLUS OCOTP DRIVER
 M:	Vincent Shih <vincent.sunplus@gmail.com>
