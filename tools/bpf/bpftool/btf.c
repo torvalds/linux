@@ -467,9 +467,8 @@ static int dump_btf_c(const struct btf *btf,
 	int err = 0, i;
 
 	d = btf_dump__new(btf, btf_dump_printf, NULL, NULL);
-	err = libbpf_get_error(d);
-	if (err)
-		return err;
+	if (!d)
+		return -errno;
 
 	printf("#ifndef __VMLINUX_H__\n");
 	printf("#define __VMLINUX_H__\n");
@@ -512,11 +511,9 @@ static struct btf *get_vmlinux_btf_from_sysfs(void)
 	struct btf *base;
 
 	base = btf__parse(sysfs_vmlinux, NULL);
-	if (libbpf_get_error(base)) {
-		p_err("failed to parse vmlinux BTF at '%s': %ld\n",
-		      sysfs_vmlinux, libbpf_get_error(base));
-		base = NULL;
-	}
+	if (!base)
+		p_err("failed to parse vmlinux BTF at '%s': %d\n",
+		      sysfs_vmlinux, -errno);
 
 	return base;
 }
@@ -559,7 +556,7 @@ static int do_dump(int argc, char **argv)
 	__u32 btf_id = -1;
 	const char *src;
 	int fd = -1;
-	int err;
+	int err = 0;
 
 	if (!REQ_ARGS(2)) {
 		usage();
@@ -634,8 +631,8 @@ static int do_dump(int argc, char **argv)
 			base = get_vmlinux_btf_from_sysfs();
 
 		btf = btf__parse_split(*argv, base ?: base_btf);
-		err = libbpf_get_error(btf);
 		if (!btf) {
+			err = -errno;
 			p_err("failed to load BTF from %s: %s",
 			      *argv, strerror(errno));
 			goto done;
@@ -681,8 +678,8 @@ static int do_dump(int argc, char **argv)
 		}
 
 		btf = btf__load_from_kernel_by_id_split(btf_id, base_btf);
-		err = libbpf_get_error(btf);
 		if (!btf) {
+			err = -errno;
 			p_err("get btf by id (%u): %s", btf_id, strerror(errno));
 			goto done;
 		}
