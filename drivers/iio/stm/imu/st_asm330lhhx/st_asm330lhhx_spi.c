@@ -72,4 +72,3 @@ module_spi_driver(st_asm330lhhx_driver);
 MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_asm330lhhx spi driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(ST_ASM330LHHX_DRV_VERSION);

@@ -7,12 +7,6 @@
  * Copyright 2019 STMicroelectronics Inc.
  */
 
-/*
- * Revision history:
- * 1.0: Added version
- *      Added voltage regulator
- * 1.1: Added self test procedure
- */
 #include <linux/kernel.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -2322,7 +2316,7 @@ int st_asm330lhhx_probe(struct device *dev, int irq, int hw_id,
 		return err;
 #endif /* CONFIG_PM && CONFIG_IIO_ST_ASM330LHHX_MAY_WAKEUP */
 
-	dev_info(dev, "Device probed v %s\n", ST_ASM330LHHX_DRV_VERSION);
+	dev_info(dev, "Device probed\n");
 
 	return 0;
 }
@@ -2414,4 +2408,3 @@ EXPORT_SYMBOL(st_asm330lhhx_pm_ops);
 MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_asm330lhhx driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(ST_ASM330LHHX_DRV_VERSION);

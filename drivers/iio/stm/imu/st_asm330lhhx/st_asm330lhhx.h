@@ -19,7 +19,6 @@
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 
-#define ST_ASM330LHHX_DRV_VERSION		"1.1"
 #define ST_ASM330LHHX_DEBUG_DISCHARGE
 
 #define ST_ASM330LHHX_MAX_ODR			833
