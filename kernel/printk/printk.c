@@ -79,6 +79,13 @@ int oops_in_progress;
 EXPORT_SYMBOL(oops_in_progress);
 
 /*
+ * console_mutex protects console_list updates and console->flags updates.
+ * The flags are synchronized only for consoles that are registered, i.e.
+ * accessible via the console list.
+ */
+static DEFINE_MUTEX(console_mutex);
+
+/*
  * console_sem protects console_list and console->flags updates, and also
  * provides serialization for access to the entire console driver system.
  */
@@ -103,6 +110,12 @@ static int __read_mostly suppress_panic_printk;
 static struct lockdep_map console_lock_dep_map = {
 	.name = "console_lock"
 };
+
+void lockdep_assert_console_list_lock_held(void)
+{
+	lockdep_assert_held(&console_mutex);
+}
+EXPORT_SYMBOL(lockdep_assert_console_list_lock_held);
 #endif
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -226,6 +239,40 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 	return 0;
 }
 #endif /* CONFIG_PRINTK && CONFIG_SYSCTL */
+
+/**
+ * console_list_lock - Lock the console list
+ *
+ * For console list or console->flags updates
+ */
+void console_list_lock(void)
+{
+	/*
+	 * In unregister_console(), synchronize_srcu() is called with the
+	 * console_list_lock held. Therefore it is not allowed that the
+	 * console_list_lock is taken with the srcu_lock held.
+	 *
+	 * Detecting if this context is really in the read-side critical
+	 * section is only possible if the appropriate debug options are
+	 * enabled.
+	 */
+	WARN_ON_ONCE(debug_lockdep_rcu_enabled() &&
+		     srcu_read_lock_held(&console_srcu));
+
+	mutex_lock(&console_mutex);
+}
+EXPORT_SYMBOL(console_list_lock);
+
+/**
+ * console_list_unlock - Unlock the console list
+ *
+ * Counterpart to console_list_lock()
+ */
+void console_list_unlock(void)
+{
+	mutex_unlock(&console_mutex);
+}
+EXPORT_SYMBOL(console_list_unlock);
 
 /**
  * console_srcu_read_lock - Register a new reader for the
@@ -3020,9 +3067,11 @@ struct tty_driver *console_device(int *index)
 void console_stop(struct console *console)
 {
 	__pr_flush(console, 1000, true);
+	console_list_lock();
 	console_lock();
 	console->flags &= ~CON_ENABLED;
 	console_unlock();
+	console_list_unlock();
 
 	/*
 	 * Ensure that all SRCU list walks have completed. All contexts must
@@ -3036,9 +3085,11 @@ EXPORT_SYMBOL(console_stop);
 
 void console_start(struct console *console)
 {
+	console_list_lock();
 	console_lock();
 	console->flags |= CON_ENABLED;
 	console_unlock();
+	console_list_unlock();
 	__pr_flush(console, 1000, true);
 }
 EXPORT_SYMBOL(console_start);
@@ -3187,6 +3238,8 @@ static void console_init_seq(struct console *newcon, bool bootcon_registered)
 #define console_first()				\
 	hlist_entry(console_list.first, struct console, node)
 
+static int unregister_console_locked(struct console *console);
+
 /*
  * The console driver calls this routine during kernel initialization
  * to register the console printing procedure with printk() and to
@@ -3213,13 +3266,14 @@ void register_console(struct console *newcon)
 	bool realcon_registered = false;
 	int err;
 
-	for_each_console(con) {
-		if (WARN(con == newcon, "console '%s%d' already registered\n",
-					 con->name, con->index))
-			return;
-	}
+	console_list_lock();
 
 	for_each_console(con) {
+		if (WARN(con == newcon, "console '%s%d' already registered\n",
+					 con->name, con->index)) {
+			goto unlock;
+		}
+
 		if (con->flags & CON_BOOT)
 			bootcon_registered = true;
 		else
@@ -3230,7 +3284,7 @@ void register_console(struct console *newcon)
 	if ((newcon->flags & CON_BOOT) && realcon_registered) {
 		pr_info("Too late to register bootconsole %s%d\n",
 			newcon->name, newcon->index);
-		return;
+		goto unlock;
 	}
 
 	/*
@@ -3261,7 +3315,7 @@ void register_console(struct console *newcon)
 
 	/* printk() messages are not printed to the Braille console. */
 	if (err || newcon->flags & CON_BRL)
-		return;
+		goto unlock;
 
 	/*
 	 * If we have a bootconsole, and are switching to a real console,
@@ -3320,15 +3374,20 @@ void register_console(struct console *newcon)
 
 		hlist_for_each_entry_safe(con, tmp, &console_list, node) {
 			if (con->flags & CON_BOOT)
-				unregister_console(con);
+				unregister_console_locked(con);
 		}
 	}
+unlock:
+	console_list_unlock();
 }
 EXPORT_SYMBOL(register_console);
 
-int unregister_console(struct console *console)
+/* Must be called under console_list_lock(). */
+static int unregister_console_locked(struct console *console)
 {
 	int res;
+
+	lockdep_assert_console_list_lock_held();
 
 	con_printk(KERN_INFO, console, "disabled\n");
 
@@ -3376,6 +3435,16 @@ int unregister_console(struct console *console)
 	if (console->exit)
 		res = console->exit(console);
 
+	return res;
+}
+
+int unregister_console(struct console *console)
+{
+	int res;
+
+	console_list_lock();
+	res = unregister_console_locked(console);
+	console_list_unlock();
 	return res;
 }
 EXPORT_SYMBOL(unregister_console);
@@ -3430,6 +3499,7 @@ static int __init printk_late_init(void)
 	struct console *con;
 	int ret;
 
+	console_list_lock();
 	hlist_for_each_entry_safe(con, tmp, &console_list, node) {
 		if (!(con->flags & CON_BOOT))
 			continue;
@@ -3447,9 +3517,10 @@ static int __init printk_late_init(void)
 			 */
 			pr_warn("bootconsole [%s%d] uses init memory and must be disabled even before the real one is ready\n",
 				con->name, con->index);
-			unregister_console(con);
+			unregister_console_locked(con);
 		}
 	}
+	console_list_unlock();
 
 	ret = cpuhp_setup_state_nocalls(CPUHP_PRINTK_DEAD, "printk:dead", NULL,
 					console_cpu_notify);

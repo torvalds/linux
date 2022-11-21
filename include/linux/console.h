@@ -158,6 +158,14 @@ struct console {
 	struct hlist_node node;
 };
 
+#ifdef CONFIG_LOCKDEP
+extern void lockdep_assert_console_list_lock_held(void);
+#else
+static inline void lockdep_assert_console_list_lock_held(void)
+{
+}
+#endif
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 extern bool console_srcu_read_lock_is_held(void);
 #else
@@ -169,6 +177,9 @@ static inline bool console_srcu_read_lock_is_held(void)
 
 extern int console_srcu_read_lock(void);
 extern void console_srcu_read_unlock(int cookie);
+
+extern void console_list_lock(void) __acquires(console_mutex);
+extern void console_list_unlock(void) __releases(console_mutex);
 
 extern struct hlist_head console_list;
 
@@ -186,10 +197,16 @@ extern struct hlist_head console_list;
 	hlist_for_each_entry_srcu(con, &console_list, node,		\
 				  console_srcu_read_lock_is_held())
 
-/*
- * for_each_console() allows you to iterate on each console
+/**
+ * for_each_console() - Iterator over registered consoles
+ * @con:	struct console pointer used as loop cursor
+ *
+ * The console list and the console->flags are immutable while iterating.
+ *
+ * Requires console_list_lock to be held.
  */
-#define for_each_console(con) \
+#define for_each_console(con)						\
+	lockdep_assert_console_list_lock_held();			\
 	hlist_for_each_entry(con, &console_list, node)
 
 extern int console_set_on_cmdline;
