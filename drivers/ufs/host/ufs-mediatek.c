@@ -1095,7 +1095,7 @@ static void ufs_mtk_setup_clk_gating(struct ufs_hba *hba)
 	}
 }
 
-static int ufs_mtk_post_link(struct ufs_hba *hba)
+static void ufs_mtk_post_link(struct ufs_hba *hba)
 {
 	/* enable unipro clock gating feature */
 	ufs_mtk_cfg_unipro_cg(hba, true);
@@ -1106,8 +1106,6 @@ static int ufs_mtk_post_link(struct ufs_hba *hba)
 			FIELD_PREP(UFSHCI_AHIBERN8_SCALE_MASK, 3);
 
 	ufs_mtk_setup_clk_gating(hba);
-
-	return 0;
 }
 
 static int ufs_mtk_link_startup_notify(struct ufs_hba *hba,
@@ -1120,7 +1118,7 @@ static int ufs_mtk_link_startup_notify(struct ufs_hba *hba,
 		ret = ufs_mtk_pre_link(hba);
 		break;
 	case POST_CHANGE:
-		ret = ufs_mtk_post_link(hba);
+		ufs_mtk_post_link(hba);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1272,9 +1270,8 @@ static int ufs_mtk_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
 	struct arm_smccc_res res;
 
 	if (status == PRE_CHANGE) {
-		if (!ufshcd_is_auto_hibern8_supported(hba))
-			return 0;
-		ufs_mtk_auto_hibern8_disable(hba);
+		if (ufshcd_is_auto_hibern8_supported(hba))
+			ufs_mtk_auto_hibern8_disable(hba);
 		return 0;
 	}
 
