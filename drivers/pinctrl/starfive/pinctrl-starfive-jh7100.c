@@ -1082,7 +1082,7 @@ static void starfive_irq_mask(struct irq_data *d)
 	writel_relaxed(value, ie);
 	raw_spin_unlock_irqrestore(&sfp->lock, flags);
 
-	gpiochip_disable_irq(&sfp->gc, d->hwirq);
+	gpiochip_disable_irq(&sfp->gc, gpio);
 }
 
 static void starfive_irq_mask_ack(struct irq_data *d)
@@ -1111,7 +1111,7 @@ static void starfive_irq_unmask(struct irq_data *d)
 	unsigned long flags;
 	u32 value;
 
-	gpiochip_enable_irq(&sfp->gc, d->hwirq);
+	gpiochip_enable_irq(&sfp->gc, gpio);
 
 	raw_spin_lock_irqsave(&sfp->lock, flags);
 	value = readl_relaxed(ie) | mask;
