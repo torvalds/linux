@@ -479,12 +479,14 @@ esw_setup_dests(struct mlx5_flow_destination *dest,
 	    esw_src_port_rewrite_supported(esw))
 		attr->flags |= MLX5_ATTR_FLAG_SRC_REWRITE;
 
-	if (attr->flags & MLX5_ATTR_FLAG_SAMPLE &&
-	    !(attr->flags & MLX5_ATTR_FLAG_SLOW_PATH)) {
-		esw_setup_sampler_dest(dest, flow_act, attr->sample_attr.sampler_id, *i);
-		(*i)++;
-	} else if (attr->flags & MLX5_ATTR_FLAG_SLOW_PATH) {
+	if (attr->flags & MLX5_ATTR_FLAG_SLOW_PATH) {
 		esw_setup_slow_path_dest(dest, flow_act, esw, *i);
+		(*i)++;
+		goto out;
+	}
+
+	if (attr->flags & MLX5_ATTR_FLAG_SAMPLE) {
+		esw_setup_sampler_dest(dest, flow_act, attr->sample_attr.sampler_id, *i);
 		(*i)++;
 	} else if (attr->flags & MLX5_ATTR_FLAG_ACCEPT) {
 		esw_setup_accept_dest(dest, flow_act, chains, *i);
@@ -506,6 +508,7 @@ esw_setup_dests(struct mlx5_flow_destination *dest,
 		}
 	}
 
+out:
 	return err;
 }
 
