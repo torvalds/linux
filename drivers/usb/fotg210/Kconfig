@@ -4,6 +4,7 @@ config USB_FOTG210
 	tristate "Faraday FOTG210 USB2 Dual Role controller"
 	depends on USB || USB_GADGET
 	depends on HAS_DMA && HAS_IOMEM
+	depends on ARCH_GEMINI || COMPILE_TEST
 	default ARCH_GEMINI
 	select MFD_SYSCON
 	help
