@@ -33,7 +33,6 @@ static const struct dev_pm_ops gt1x_ts_pm_ops;
 bool gt1x_gt5688;
 int gt1x_rst_gpio;
 int gt1x_int_gpio;
-static bool power_invert;
 #endif
 
 static int gt1x_register_powermanger(void);
@@ -278,11 +277,6 @@ static void gt1x_ts_work_func(struct work_struct *work)
 #else
 	ret = gt1x_touch_event_handler(point_data, input_dev, NULL);
 #endif
-	if (ret < 0) {
-#if !GTP_ESD_PROTECT
-		gt1x_power_reset();
-#endif
-	}
 
 exit_work_func:
 	if (!gt1x_rawdiff_mode && (ret >= 0 || ret == ERROR_VALUE)) {
@@ -329,14 +323,9 @@ static int gt1x_parse_dt(struct device *dev)
 	gt1x_int_gpio = of_get_named_gpio(np, "goodix,irq-gpio", 0);
 	gt1x_rst_gpio = of_get_named_gpio(np, "goodix,rst-gpio", 0);
 
-	if (!gpio_is_valid(gt1x_rst_gpio)) {
-		GTP_INFO("Invalid GPIO, rst-gpio:%d",
-			 gt1x_rst_gpio);
-	}
-
-	if (!gpio_is_valid(gt1x_int_gpio)) {
-		GTP_ERROR("Invalid GPIO, irq-gpio:%d",
-				gt1x_int_gpio);
+	if (!gpio_is_valid(gt1x_int_gpio) || !gpio_is_valid(gt1x_rst_gpio)) {
+		GTP_ERROR("Invalid GPIO, irq-gpio:%d, rst-gpio:%d",
+				gt1x_int_gpio, gt1x_rst_gpio);
 		return -EINVAL;
 	}
 
@@ -347,9 +336,6 @@ static int gt1x_parse_dt(struct device *dev)
 		if (PTR_ERR(vdd_ana) == -ENODEV) {
 			GTP_ERROR("power not specified, ignore power ctrl");
 			vdd_ana = NULL;
-		} else {
-			power_invert = of_property_read_bool(np, "power-invert");
-			GTP_INFO("Power Invert,%s ", power_invert ? "yes" : "no");
 		}
 	}
 	if (IS_ERR(vdd_ana)) {
@@ -378,7 +364,7 @@ static int gt1x_parse_dt(struct device *dev)
  */
 int gt1x_power_switch(int on)
 {
-	int ret = 0;
+	int ret;
 	struct i2c_client *client = gt1x_i2c_client;
 
 	if (!client || !vdd_ana)
@@ -386,22 +372,10 @@ int gt1x_power_switch(int on)
 
 	if (on) {
 		GTP_DEBUG("GTP power on.");
-		if (power_invert) {
-			if (regulator_is_enabled(vdd_ana) > 0)
-				ret = regulator_disable(vdd_ana);
-		} else {
-			if (!regulator_is_enabled(vdd_ana))
-				ret = regulator_enable(vdd_ana);
-		}
+		ret = regulator_enable(vdd_ana);
 	} else {
 		GTP_DEBUG("GTP power off.");
-		if (power_invert) {
-			if (!regulator_is_enabled(vdd_ana))
-				ret = regulator_enable(vdd_ana);
-		} else {
-			if (regulator_is_enabled(vdd_ana) > 0)
-				ret = regulator_disable(vdd_ana);
-		}
+		ret = regulator_disable(vdd_ana);
 	}
 	return ret;
 }
@@ -437,17 +411,14 @@ static s32 gt1x_request_io_port(void)
 	GTP_GPIO_AS_INT(GTP_INT_PORT);
 	gt1x_i2c_client->irq = GTP_INT_IRQ;
 
-	if (gpio_is_valid(gt1x_rst_gpio)) {
-		ret = gpio_request(GTP_RST_PORT, "GTP_RST_PORT");
-		if (ret < 0) {
-			GTP_ERROR("Failed to request GPIO:%d, ERRNO:%d", (s32) GTP_RST_PORT, ret);
-			gpio_free(GTP_INT_PORT);
-			return ret;
-		}
-
-		GTP_GPIO_AS_INPUT(GTP_RST_PORT);
+	ret = gpio_request(GTP_RST_PORT, "GTP_RST_PORT");
+	if (ret < 0) {
+		GTP_ERROR("Failed to request GPIO:%d, ERRNO:%d", (s32) GTP_RST_PORT, ret);
+		gpio_free(GTP_INT_PORT);
+		return ret;
 	}
 
+	GTP_GPIO_AS_INPUT(GTP_RST_PORT);
 	return 0;
 }
 
