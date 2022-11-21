@@ -280,14 +280,14 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 done:
 	dev_dbg(isp->dev, "DFS target frequency=%d.\n", new_freq);
 
-	if ((new_freq == isp->sw_contex.running_freq) && !force)
+	if ((new_freq == isp->running_freq) && !force)
 		return 0;
 
 	dev_dbg(isp->dev, "Programming DFS frequency to %d\n", new_freq);
 
 	ret = write_target_freq_to_hw(isp, new_freq);
 	if (!ret) {
-		isp->sw_contex.running_freq = new_freq;
+		isp->running_freq = new_freq;
 		trace_ipu_pstate(new_freq, -1);
 	}
 	return ret;

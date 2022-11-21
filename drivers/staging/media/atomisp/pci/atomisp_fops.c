@@ -681,7 +681,7 @@ static void atomisp_dev_init_struct(struct atomisp_device *isp)
 	 * For Merrifield, frequency is scalable.
 	 * After boot-up, the default frequency is 200MHz.
 	 */
-	isp->sw_contex.running_freq = ISP_FREQ_200MHZ;
+	isp->running_freq = ISP_FREQ_200MHZ;
 }
 
 static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
