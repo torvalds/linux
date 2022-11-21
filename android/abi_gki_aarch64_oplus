@@ -5,6 +5,7 @@
   add_device_randomness
   add_memory
   add_memory_subsection
+  address_space_init_once
   add_swap_extent
   add_taint
   add_timer
@@ -64,6 +65,8 @@
   bio_add_pc_page
   bio_alloc_bioset
   bio_associate_blkg_from_css
+  __bio_crypt_clone
+  bio_crypt_set_ctx
   bio_endio
   bio_put
   bio_reset
@@ -89,6 +92,7 @@
   blk_execute_rq_nowait
   blk_get_request
   blk_mq_free_request
+  blk_mq_queue_inflight
   blk_mq_rq_cpu
   blk_mq_sched_mark_restart_hctx
   blk_mq_start_request
@@ -2006,6 +2010,7 @@
   preempt_schedule_notrace
   prepare_to_wait
   prepare_to_wait_event
+  prepare_to_wait_exclusive
   print_hex_dump
   printk
   printk_deferred
@@ -2047,11 +2052,14 @@
   qcom_smem_state_update_bits
   queue_delayed_work_on
   queue_work_on
+  radix_tree_delete_item
   radix_tree_gang_lookup
   radix_tree_insert
   radix_tree_iter_delete
   radix_tree_lookup
+  radix_tree_lookup_slot
   radix_tree_next_chunk
+  radix_tree_replace_slot
   radix_tree_preload
   ___ratelimit
   rational_best_approximation
