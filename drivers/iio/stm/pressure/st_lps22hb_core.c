@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics lps22hb driver
  *
- * Copyright 2017 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
+ * Copyright 2017 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -492,5 +492,5 @@ int st_lps22hb_common_probe(struct device *dev, int irq, const char *name,
 EXPORT_SYMBOL(st_lps22hb_common_probe);
 
 MODULE_DESCRIPTION("STMicroelectronics lps22hb driver");
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_LICENSE("GPL v2");

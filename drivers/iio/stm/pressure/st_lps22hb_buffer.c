@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics lps22hb buffer driver
  *
- * Copyright 2017 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
+ * Copyright 2017 STMicroelectronics Inc.
  */
 
 #include <linux/interrupt.h>
@@ -286,7 +286,3 @@ int st_lps22hb_allocate_buffers(struct st_lps22hb_hw *hw)
 
 	return 0;
 }
-
-MODULE_DESCRIPTION("STMicroelectronics lps22hb buffer driver");
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
-MODULE_LICENSE("GPL v2");

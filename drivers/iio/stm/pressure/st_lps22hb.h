@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics lps22hb driver
  *
- * Copyright 2017 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
+ * Copyright 2017 STMicroelectronics Inc.
  */
 
 #ifndef __ST_LPS22HB_H
