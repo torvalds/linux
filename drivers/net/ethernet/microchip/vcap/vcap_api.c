@@ -6,44 +6,13 @@
 
 #include <linux/types.h>
 
-#include "vcap_api.h"
-#include "vcap_api_client.h"
-
-#define to_intrule(rule) container_of((rule), struct vcap_rule_internal, data)
-
-/* Private VCAP API rule data */
-struct vcap_rule_internal {
-	struct vcap_rule data; /* provided by the client */
-	struct list_head list; /* for insertion in the vcap admin list of rules */
-	struct vcap_admin *admin; /* vcap hw instance */
-	struct net_device *ndev;  /* the interface that the rule applies to */
-	struct vcap_control *vctrl; /* the client control */
-	u32 sort_key;  /* defines the position in the VCAP */
-	int keyset_sw;  /* subwords in a keyset */
-	int actionset_sw;  /* subwords in an actionset */
-	int keyset_sw_regs;  /* registers in a subword in an keyset */
-	int actionset_sw_regs;  /* registers in a subword in an actionset */
-	int size; /* the size of the rule: max(entry, action) */
-	u32 addr; /* address in the VCAP at insertion */
-	u32 counter_id; /* counter id (if a dedicated counter is available) */
-	struct vcap_counter counter; /* last read counter value */
-};
+#include "vcap_api_private.h"
 
 /* Moving a rule in the VCAP address space */
 struct vcap_rule_move {
 	int addr; /* address to move */
 	int offset; /* change in address */
 	int count; /* blocksize of addresses to move */
-};
-
-/* Bit iterator for the VCAP cache streams */
-struct vcap_stream_iter {
-	u32 offset; /* bit offset from the stream start */
-	u32 sw_width; /* subword width in bits */
-	u32 regs_per_sw; /* registers per subword */
-	u32 reg_idx; /* current register index */
-	u32 reg_bitpos; /* bit offset in current register */
-	const struct vcap_typegroup *tg; /* current typegroup */
 };
 
 /* Stores the filter cookie that enabled the port */
@@ -53,8 +22,8 @@ struct vcap_enabled_port {
 	unsigned long cookie; /* filter that enabled the port */
 };
 
-static void vcap_iter_set(struct vcap_stream_iter *itr, int sw_width,
-			  const struct vcap_typegroup *tg, u32 offset)
+void vcap_iter_set(struct vcap_stream_iter *itr, int sw_width,
+		   const struct vcap_typegroup *tg, u32 offset)
 {
 	memset(itr, 0, sizeof(*itr));
 	itr->offset = offset;
@@ -74,7 +43,7 @@ static void vcap_iter_skip_tg(struct vcap_stream_iter *itr)
 	}
 }
 
-static void vcap_iter_update(struct vcap_stream_iter *itr)
+void vcap_iter_update(struct vcap_stream_iter *itr)
 {
 	int sw_idx, sw_bitpos;
 
@@ -86,15 +55,15 @@ static void vcap_iter_update(struct vcap_stream_iter *itr)
 	itr->reg_bitpos = sw_bitpos % 32;
 }
 
-static void vcap_iter_init(struct vcap_stream_iter *itr, int sw_width,
-			   const struct vcap_typegroup *tg, u32 offset)
+void vcap_iter_init(struct vcap_stream_iter *itr, int sw_width,
+		    const struct vcap_typegroup *tg, u32 offset)
 {
 	vcap_iter_set(itr, sw_width, tg, offset);
 	vcap_iter_skip_tg(itr);
 	vcap_iter_update(itr);
 }
 
-static void vcap_iter_next(struct vcap_stream_iter *itr)
+void vcap_iter_next(struct vcap_stream_iter *itr)
 {
 	itr->offset++;
 	vcap_iter_skip_tg(itr);
@@ -179,9 +148,9 @@ static void vcap_encode_typegroups(u32 *stream, int sw_width,
 }
 
 /* Return the list of keyfields for the keyset */
-static const struct vcap_field *vcap_keyfields(struct vcap_control *vctrl,
-					       enum vcap_type vt,
-					       enum vcap_keyfield_set keyset)
+const struct vcap_field *vcap_keyfields(struct vcap_control *vctrl,
+					enum vcap_type vt,
+					enum vcap_keyfield_set keyset)
 {
 	/* Check that the keyset exists in the vcap keyset list */
 	if (keyset >= vctrl->vcaps[vt].keyfield_set_size)
@@ -190,9 +159,9 @@ static const struct vcap_field *vcap_keyfields(struct vcap_control *vctrl,
 }
 
 /* Return the keyset information for the keyset */
-static const struct vcap_set *vcap_keyfieldset(struct vcap_control *vctrl,
-					       enum vcap_type vt,
-					       enum vcap_keyfield_set keyset)
+const struct vcap_set *vcap_keyfieldset(struct vcap_control *vctrl,
+					enum vcap_type vt,
+					enum vcap_keyfield_set keyset)
 {
 	const struct vcap_set *kset;
 
@@ -206,7 +175,7 @@ static const struct vcap_set *vcap_keyfieldset(struct vcap_control *vctrl,
 }
 
 /* Return the typegroup table for the matching keyset (using subword size) */
-static const struct vcap_typegroup *
+const struct vcap_typegroup *
 vcap_keyfield_typegroup(struct vcap_control *vctrl,
 			enum vcap_type vt, enum vcap_keyfield_set keyset)
 {
@@ -219,8 +188,8 @@ vcap_keyfield_typegroup(struct vcap_control *vctrl,
 }
 
 /* Return the number of keyfields in the keyset */
-static int vcap_keyfield_count(struct vcap_control *vctrl,
-			       enum vcap_type vt, enum vcap_keyfield_set keyset)
+int vcap_keyfield_count(struct vcap_control *vctrl,
+			enum vcap_type vt, enum vcap_keyfield_set keyset)
 {
 	/* Check that the keyset exists in the vcap keyset list */
 	if (keyset >= vctrl->vcaps[vt].keyfield_set_size)
@@ -347,7 +316,7 @@ static int vcap_encode_rule_keyset(struct vcap_rule_internal *ri)
 }
 
 /* Return the list of actionfields for the actionset */
-static const struct vcap_field *
+const struct vcap_field *
 vcap_actionfields(struct vcap_control *vctrl,
 		  enum vcap_type vt, enum vcap_actionfield_set actionset)
 {
@@ -357,7 +326,7 @@ vcap_actionfields(struct vcap_control *vctrl,
 	return vctrl->vcaps[vt].actionfield_set_map[actionset];
 }
 
-static const struct vcap_set *
+const struct vcap_set *
 vcap_actionfieldset(struct vcap_control *vctrl,
 		    enum vcap_type vt, enum vcap_actionfield_set actionset)
 {
@@ -373,7 +342,7 @@ vcap_actionfieldset(struct vcap_control *vctrl,
 }
 
 /* Return the typegroup table for the matching actionset (using subword size) */
-static const struct vcap_typegroup *
+const struct vcap_typegroup *
 vcap_actionfield_typegroup(struct vcap_control *vctrl,
 			   enum vcap_type vt, enum vcap_actionfield_set actionset)
 {
@@ -386,9 +355,9 @@ vcap_actionfield_typegroup(struct vcap_control *vctrl,
 }
 
 /* Return the number of actionfields in the actionset */
-static int vcap_actionfield_count(struct vcap_control *vctrl,
-				  enum vcap_type vt,
-				  enum vcap_actionfield_set actionset)
+int vcap_actionfield_count(struct vcap_control *vctrl,
+			   enum vcap_type vt,
+			   enum vcap_actionfield_set actionset)
 {
 	/* Check that the actionset exists in the vcap actionset list */
 	if (actionset >= vctrl->vcaps[vt].actionfield_set_size)
@@ -515,7 +484,7 @@ static int vcap_encode_rule(struct vcap_rule_internal *ri)
 	return 0;
 }
 
-static int vcap_api_check(struct vcap_control *ctrl)
+int vcap_api_check(struct vcap_control *ctrl)
 {
 	if (!ctrl) {
 		pr_err("%s:%d: vcap control is missing\n", __func__, __LINE__);
@@ -533,7 +502,7 @@ static int vcap_api_check(struct vcap_control *ctrl)
 	return 0;
 }
 
-static void vcap_erase_cache(struct vcap_rule_internal *ri)
+void vcap_erase_cache(struct vcap_rule_internal *ri)
 {
 	ri->vctrl->ops->cache_erase(ri->admin);
 }
@@ -609,7 +578,7 @@ int vcap_lookup_rule_by_cookie(struct vcap_control *vctrl, u64 cookie)
 EXPORT_SYMBOL_GPL(vcap_lookup_rule_by_cookie);
 
 /* Make a shallow copy of the rule without the fields */
-static struct vcap_rule_internal *vcap_dup_rule(struct vcap_rule_internal *ri)
+struct vcap_rule_internal *vcap_dup_rule(struct vcap_rule_internal *ri)
 {
 	struct vcap_rule_internal *duprule;
 
@@ -813,9 +782,16 @@ const char *vcap_keyfield_name(struct vcap_control *vctrl,
 }
 EXPORT_SYMBOL_GPL(vcap_keyfield_name);
 
+/* map actionset id to a string with the actionset name */
+const char *vcap_actionset_name(struct vcap_control *vctrl,
+				enum vcap_actionfield_set actionset)
+{
+	return vctrl->stats->actionfield_set_names[actionset];
+}
+
 /* map action field id to a string with the action name */
-static const char *vcap_actionfield_name(struct vcap_control *vctrl,
-					 enum vcap_action_field action)
+const char *vcap_actionfield_name(struct vcap_control *vctrl,
+				  enum vcap_action_field action)
 {
 	return vctrl->stats->actionfield_names[action];
 }
@@ -1078,6 +1054,7 @@ int vcap_add_rule(struct vcap_rule *rule)
 	if (ret)
 		return ret;
 	/* Insert the new rule in the list of vcap rules */
+	mutex_lock(&ri->admin->lock);
 	ret = vcap_insert_rule(ri, &move);
 	if (ret < 0) {
 		pr_err("%s:%d: could not insert rule in vcap list: %d\n",
@@ -1096,6 +1073,7 @@ int vcap_add_rule(struct vcap_rule *rule)
 	if (ret)
 		pr_err("%s:%d: rule write error: %d\n", __func__, __LINE__, ret);
 out:
+	mutex_unlock(&ri->admin->lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(vcap_add_rule);
@@ -1245,13 +1223,15 @@ int vcap_del_rule(struct vcap_control *vctrl, struct net_device *ndev, u32 id)
 		gap = vcap_fill_rule_gap(ri);
 
 	/* Delete the rule from the list of rules and the cache */
+	mutex_lock(&admin->lock);
 	list_del(&ri->list);
 	vctrl->ops->init(ndev, admin, admin->last_used_addr, ri->size + gap);
 	kfree(ri);
+	mutex_unlock(&admin->lock);
 
-	/* Update the last used address */
+	/* Update the last used address, set to default when no rules */
 	if (list_empty(&admin->rules)) {
-		admin->last_used_addr = admin->last_valid_addr;
+		admin->last_used_addr = admin->last_valid_addr + 1;
 	} else {
 		elem = list_last_entry(&admin->rules, struct vcap_rule_internal,
 				       list);
@@ -1270,6 +1250,8 @@ int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin)
 
 	if (ret)
 		return ret;
+
+	mutex_lock(&admin->lock);
 	list_for_each_entry_safe(ri, next_ri, &admin->rules, list) {
 		vctrl->ops->init(ri->ndev, admin, ri->addr, ri->size);
 		list_del(&ri->list);
@@ -1282,6 +1264,7 @@ int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin)
 		list_del(&eport->list);
 		kfree(eport);
 	}
+	mutex_unlock(&admin->lock);
 
 	return 0;
 }
@@ -1711,10 +1694,13 @@ int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
 	if (chain_id) {
 		if (vcap_is_enabled(admin, ndev, cookie))
 			return -EADDRINUSE;
+		mutex_lock(&admin->lock);
 		vcap_enable(admin, ndev, cookie);
 	} else {
+		mutex_lock(&admin->lock);
 		vcap_disable(admin, ndev, cookie);
 	}
+	mutex_unlock(&admin->lock);
 
 	return 0;
 }

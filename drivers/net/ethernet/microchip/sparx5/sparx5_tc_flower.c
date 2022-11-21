@@ -648,7 +648,11 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 		return PTR_ERR(vrule);
 
 	vrule->cookie = fco->cookie;
-	sparx5_tc_use_dissectors(fco, admin, vrule, &l3_proto);
+
+	l3_proto = ETH_P_ALL;
+	err = sparx5_tc_use_dissectors(fco, admin, vrule, &l3_proto);
+	if (err)
+		goto out;
 
 	err = sparx5_tc_add_rule_counter(admin, vrule);
 	if (err)

@@ -40,6 +40,7 @@ config VCAP_KUNIT_TEST
 	bool "KUnit test for VCAP library" if !KUNIT_ALL_TESTS
 	depends on KUNIT
 	depends on KUNIT=y && VCAP=y && y
+	select DEBUG_FS
 	default KUNIT_ALL_TESTS
 	help
 	  This builds unit tests for the VCAP library.
