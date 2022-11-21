@@ -662,6 +662,7 @@ int ufs_qcom_ice_resume(struct ufs_qcom_host *host);
 int ufs_qcom_ice_program_key(struct ufs_hba *hba,
 			     const union ufs_crypto_cfg_entry *cfg, int slot);
 void ufs_qcom_ice_disable(struct ufs_qcom_host *host);
+void ufs_qcom_ice_debug(struct ufs_qcom_host *host);
 #else
 static inline int ufs_qcom_ice_init(struct ufs_qcom_host *host)
 {
@@ -677,7 +678,11 @@ static inline int ufs_qcom_ice_resume(struct ufs_qcom_host *host)
 }
 static inline void ufs_qcom_ice_disable(struct ufs_qcom_host *host)
 {
-	return 0;
+	return;
+}
+static inline void ufs_qcom_ice_debug(struct ufs_qcom_host *host)
+{
+	return;
 }
 #define ufs_qcom_ice_program_key NULL
 #endif /* !CONFIG_SCSI_UFS_CRYPTO */

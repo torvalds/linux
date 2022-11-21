@@ -3852,6 +3852,9 @@ static void ufs_qcom_dump_dbg_regs(struct ufs_hba *hba)
 	/* sleep a bit intermittently as we are dumping too much data */
 	ufs_qcom_print_hw_debug_reg_all(hba, NULL, ufs_qcom_dump_regs_wrapper);
 
+	/* Dump ICE registers */
+	ufs_qcom_ice_debug(host);
+
 	if (in_task()) {
 		usleep_range(1000, 1100);
 		ufs_qcom_testbus_read(hba);
