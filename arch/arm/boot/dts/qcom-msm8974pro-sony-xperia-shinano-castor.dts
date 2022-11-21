@@ -123,7 +123,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_int_pin>;
 
-		syna,startup-delay-ms = <10>;
+		syna,startup-delay-ms = <100>;
 
 		rmi-f01@1 {
 			reg = <0x1>;
