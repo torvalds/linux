@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics lis2ds12 driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2015 STMicroelectronics Inc.
- *
- * Giuseppe Barba <giuseppe.barba@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/module.h>
@@ -235,7 +234,3 @@ void lis2ds12_deallocate_rings(struct lis2ds12_data *cdata)
 	for (i = 0; i < LIS2DS12_SENSORS_NUMB; i++)
 		iio_triggered_buffer_cleanup(cdata->iio_sensors_dev[i]);
 }
-
-MODULE_DESCRIPTION("STMicroelectronics lis2ds12 iio buffer driver");
-MODULE_AUTHOR("Giuseppe Barba");
-MODULE_LICENSE("GPL v2");

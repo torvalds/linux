@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics lis2ds12 driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2015 STMicroelectronics Inc.
- *
- * Giuseppe Barba <giuseppe.barba@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -1525,5 +1524,5 @@ EXPORT_SYMBOL(lis2ds12_common_resume);
 #endif /* CONFIG_PM */
 
 MODULE_DESCRIPTION("STMicroelectronics lis2ds12 core driver");
-MODULE_AUTHOR("Giuseppe Barba");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_LICENSE("GPL v2");
