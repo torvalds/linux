@@ -682,8 +682,9 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 			goto free_slave_mii_bus;
 	}
 
-	ds->setup = true;
 	devlink_register(ds->devlink);
+
+	ds->setup = true;
 	return 0;
 
 free_slave_mii_bus:
@@ -705,8 +706,7 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 	if (!ds->setup)
 		return;
 
-	if (ds->devlink)
-		devlink_unregister(ds->devlink);
+	devlink_unregister(ds->devlink);
 
 	if (ds->slave_mii_bus && ds->ops->phy_read) {
 		mdiobus_unregister(ds->slave_mii_bus);
@@ -721,10 +721,8 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 
 	dsa_switch_unregister_notifier(ds);
 
-	if (ds->devlink) {
-		devlink_free(ds->devlink);
-		ds->devlink = NULL;
-	}
+	devlink_free(ds->devlink);
+	ds->devlink = NULL;
 
 	ds->setup = false;
 }
