@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics lsm6ds3h core driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2016 STMicroelectronics Inc.
- *
- * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -3135,6 +3134,6 @@ int __maybe_unused st_lsm6ds3h_common_resume(struct lsm6ds3h_data *cdata)
 EXPORT_SYMBOL(st_lsm6ds3h_common_resume);
 #endif /* CONFIG_PM */
 
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics lsm6ds3h core driver");
 MODULE_LICENSE("GPL v2");

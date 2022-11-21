@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics lsm6ds3h i2c master driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2016 STMicroelectronics Inc.
- *
- * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -1703,7 +1702,3 @@ int st_lsm6ds3h_i2c_master_exit(struct lsm6ds3h_data *cdata)
 	return 0;
 }
 EXPORT_SYMBOL(st_lsm6ds3h_i2c_master_exit);
-
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics lsm6ds3h i2c master driver");
-MODULE_LICENSE("GPL v2");
