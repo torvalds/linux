@@ -21,6 +21,7 @@ properties:
       - const: allwinner,sun6i-a31-ir
       - items:
           - enum:
+              - allwinner,suniv-f1c100s-ir
               - allwinner,sun8i-a83t-ir
               - allwinner,sun8i-r40-ir
               - allwinner,sun50i-a64-ir
