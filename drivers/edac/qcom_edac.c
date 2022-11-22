@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/edac.h>
@@ -16,32 +16,54 @@
 
 #define EDAC_LLCC                       "qcom_llcc"
 
+#define LLCC_ERP_PANIC_ON_CE            1
+
+#ifdef CONFIG_EDAC_QCOM_LLCC_PANIC_ON_UE
 #define LLCC_ERP_PANIC_ON_UE            1
+#else
+#define LLCC_ERP_PANIC_ON_UE            0
+#endif
 
 #define TRP_SYN_REG_CNT                 6
 #define DRP_SYN_REG_CNT                 8
 
-#define LLCC_COMMON_STATUS0             0x0003000c
+#define LLCC_COMMON_STATUS0_V2          0x0003000c
+#define LLCC_COMMON_STATUS0_V21         0x0003400c
+#define LLCC_COMMON_STATUS0             edac_regs[LLCC_COMMON_STATUS0_num]
 #define LLCC_LB_CNT_MASK                GENMASK(31, 28)
 #define LLCC_LB_CNT_SHIFT               28
 
 /* Single & double bit syndrome register offsets */
-#define TRP_ECC_SB_ERR_SYN0             0x0002304c
+#define TRP_ECC_SB_ERR_SYN0             0x0002034c
 #define TRP_ECC_DB_ERR_SYN0             0x00020370
-#define DRP_ECC_SB_ERR_SYN0             0x0004204c
-#define DRP_ECC_DB_ERR_SYN0             0x00042070
+#define DRP_ECC_SB_ERR_SYN0_V2          0x0004204c
+#define DRP_ECC_SB_ERR_SYN0_V21         0x0005204c
+#define DRP_ECC_SB_ERR_SYN0             edac_regs[DRP_ECC_SB_ERR_SYN0_num]
+#define DRP_ECC_DB_ERR_SYN0_V2          0x00042070
+#define DRP_ECC_DB_ERR_SYN0_V21         0x00052070
+#define DRP_ECC_DB_ERR_SYN0             edac_regs[DRP_ECC_DB_ERR_SYN0_num]
 
 /* Error register offsets */
 #define TRP_ECC_ERROR_STATUS1           0x00020348
 #define TRP_ECC_ERROR_STATUS0           0x00020344
-#define DRP_ECC_ERROR_STATUS1           0x00042048
-#define DRP_ECC_ERROR_STATUS0           0x00042044
+#define DRP_ECC_ERROR_STATUS1_V2        0x00042048
+#define DRP_ECC_ERROR_STATUS1_V21       0x00052048
+#define DRP_ECC_ERROR_STATUS1           edac_regs[DRP_ECC_ERROR_STATUS1_num]
+#define DRP_ECC_ERROR_STATUS0_V2        0x00042044
+#define DRP_ECC_ERROR_STATUS0_V21       0x00052044
+#define DRP_ECC_ERROR_STATUS0           edac_regs[DRP_ECC_ERROR_STATUS0_num]
 
 /* TRP, DRP interrupt register offsets */
-#define DRP_INTERRUPT_STATUS            0x00041000
+#define DRP_INTERRUPT_STATUS_V2         0x00041000
+#define DRP_INTERRUPT_STATUS_V21        0x00050020
+#define DRP_INTERRUPT_STATUS            edac_regs[DRP_INTERRUPT_STATUS_num]
 #define TRP_INTERRUPT_0_STATUS          0x00020480
-#define DRP_INTERRUPT_CLEAR             0x00041008
-#define DRP_ECC_ERROR_CNTR_CLEAR        0x00040004
+#define DRP_INTERRUPT_CLEAR_V2          0x00041008
+#define DRP_INTERRUPT_CLEAR_V21         0x00050028
+#define DRP_INTERRUPT_CLEAR             edac_regs[DRP_INTERRUPT_CLEAR_num]
+#define DRP_ECC_ERROR_CNTR_CLEAR_V2     0x00040004
+#define DRP_ECC_ERROR_CNTR_CLEAR_V21    0x00050004
+#define DRP_ECC_ERROR_CNTR_CLEAR        edac_regs[DRP_ECC_ERROR_CNTR_CLEAR_num]
 #define TRP_INTERRUPT_0_CLEAR           0x00020484
 #define TRP_ECC_ERROR_CNTR_CLEAR        0x00020440
 
@@ -61,13 +83,21 @@
 #define DRP_TRP_CNT_CLEAR               GENMASK(1, 0)
 
 /* Config registers offsets*/
-#define DRP_ECC_ERROR_CFG               0x00040000
+#define DRP_ECC_ERROR_CFG_V2            0x00040000
+#define DRP_ECC_ERROR_CFG_V21           0x00050000
+#define DRP_ECC_ERROR_CFG               edac_regs[DRP_ECC_ERROR_CFG_num]
 
 /* Tag RAM, Data RAM interrupt register offsets */
-#define CMN_INTERRUPT_0_ENABLE          0x0003001c
-#define CMN_INTERRUPT_2_ENABLE          0x0003003c
+#define CMN_INTERRUPT_0_ENABLE_V2       0x0003001c
+#define CMN_INTERRUPT_0_ENABLE_V21      0x0003401c
+#define CMN_INTERRUPT_0_ENABLE          edac_regs[CMN_INTERRUPT_0_ENABLE_num]
+#define CMN_INTERRUPT_2_ENABLE_V2       0x0003003c
+#define CMN_INTERRUPT_2_ENABLE_V21      0x0003403c
+#define CMN_INTERRUPT_2_ENABLE          edac_regs[CMN_INTERRUPT_2_ENABLE_num]
 #define TRP_INTERRUPT_0_ENABLE          0x00020488
-#define DRP_INTERRUPT_ENABLE            0x0004100c
+#define DRP_INTERRUPT_ENABLE_V2         0x0004100c
+#define DRP_INTERRUPT_ENABLE_V21        0x0005002C
+#define DRP_INTERRUPT_ENABLE            edac_regs[DRP_INTERRUPT_ENABLE_num]
 
 #define SB_ERROR_THRESHOLD              0x1
 #define SB_ERROR_THRESHOLD_SHIFT        24
@@ -83,12 +113,63 @@ enum {
 	LLCC_TRAM_UE,
 };
 
-static const struct llcc_edac_reg_data edac_reg_data[] = {
+enum {
+	LLCC_COMMON_STATUS0_num = 0,
+	DRP_ECC_SB_ERR_SYN0_num,
+	DRP_ECC_DB_ERR_SYN0_num,
+	DRP_ECC_ERROR_STATUS1_num,
+	DRP_ECC_ERROR_STATUS0_num,
+	DRP_INTERRUPT_STATUS_num,
+	DRP_INTERRUPT_CLEAR_num,
+	DRP_ECC_ERROR_CNTR_CLEAR_num,
+	DRP_ECC_ERROR_CFG_num,
+	CMN_INTERRUPT_0_ENABLE_num,
+	CMN_INTERRUPT_2_ENABLE_num,
+	DRP_INTERRUPT_ENABLE_num,
+	EDAC_REGS_MAX,
+};
+
+static int poll_msec = 5000;
+module_param(poll_msec, int, 0444);
+
+static unsigned int edac_regs_v2[EDAC_REGS_MAX] = {
+	LLCC_COMMON_STATUS0_V2,
+	DRP_ECC_SB_ERR_SYN0_V2,
+	DRP_ECC_DB_ERR_SYN0_V2,
+	DRP_ECC_ERROR_STATUS1_V2,
+	DRP_ECC_ERROR_STATUS0_V2,
+	DRP_INTERRUPT_STATUS_V2,
+	DRP_INTERRUPT_CLEAR_V2,
+	DRP_ECC_ERROR_CNTR_CLEAR_V2,
+	DRP_ECC_ERROR_CFG_V2,
+	CMN_INTERRUPT_0_ENABLE_V2,
+	CMN_INTERRUPT_2_ENABLE_V2,
+	DRP_INTERRUPT_ENABLE_V2,
+};
+
+static unsigned int edac_regs_v21[EDAC_REGS_MAX] = {
+	LLCC_COMMON_STATUS0_V21,
+	DRP_ECC_SB_ERR_SYN0_V21,
+	DRP_ECC_DB_ERR_SYN0_V21,
+	DRP_ECC_ERROR_STATUS1_V21,
+	DRP_ECC_ERROR_STATUS0_V21,
+	DRP_INTERRUPT_STATUS_V21,
+	DRP_INTERRUPT_CLEAR_V21,
+	DRP_ECC_ERROR_CNTR_CLEAR_V21,
+	DRP_ECC_ERROR_CFG_V21,
+	CMN_INTERRUPT_0_ENABLE_V21,
+	CMN_INTERRUPT_2_ENABLE_V21,
+	DRP_INTERRUPT_ENABLE_V21,
+};
+
+static unsigned int *edac_regs = edac_regs_v2;
+
+static struct llcc_edac_reg_data edac_reg_data_v2[] = {
 	[LLCC_DRAM_CE] = {
 		.name = "DRAM Single-bit",
-		.synd_reg = DRP_ECC_SB_ERR_SYN0,
-		.count_status_reg = DRP_ECC_ERROR_STATUS1,
-		.ways_status_reg = DRP_ECC_ERROR_STATUS0,
+		.synd_reg = DRP_ECC_SB_ERR_SYN0_V2,
+		.count_status_reg = DRP_ECC_ERROR_STATUS1_V2,
+		.ways_status_reg = DRP_ECC_ERROR_STATUS0_V2,
 		.reg_cnt = DRP_SYN_REG_CNT,
 		.count_mask = ECC_SB_ERR_COUNT_MASK,
 		.ways_mask = ECC_SB_ERR_WAYS_MASK,
@@ -96,9 +177,9 @@ static const struct llcc_edac_reg_data edac_reg_data[] = {
 	},
 	[LLCC_DRAM_UE] = {
 		.name = "DRAM Double-bit",
-		.synd_reg = DRP_ECC_DB_ERR_SYN0,
-		.count_status_reg = DRP_ECC_ERROR_STATUS1,
-		.ways_status_reg = DRP_ECC_ERROR_STATUS0,
+		.synd_reg = DRP_ECC_DB_ERR_SYN0_V2,
+		.count_status_reg = DRP_ECC_ERROR_STATUS1_V2,
+		.ways_status_reg = DRP_ECC_ERROR_STATUS0_V2,
 		.reg_cnt = DRP_SYN_REG_CNT,
 		.count_mask = ECC_DB_ERR_COUNT_MASK,
 		.ways_mask = ECC_DB_ERR_WAYS_MASK,
@@ -126,6 +207,51 @@ static const struct llcc_edac_reg_data edac_reg_data[] = {
 	},
 };
 
+static struct llcc_edac_reg_data edac_reg_data_v21[] = {
+	[LLCC_DRAM_CE] = {
+		.name = "DRAM Single-bit",
+		.synd_reg = DRP_ECC_SB_ERR_SYN0_V21,
+		.count_status_reg = DRP_ECC_ERROR_STATUS1_V21,
+		.ways_status_reg = DRP_ECC_ERROR_STATUS0_V21,
+		.reg_cnt = DRP_SYN_REG_CNT,
+		.count_mask = ECC_SB_ERR_COUNT_MASK,
+		.ways_mask = ECC_SB_ERR_WAYS_MASK,
+		.count_shift = ECC_SB_ERR_COUNT_SHIFT,
+	},
+	[LLCC_DRAM_UE] = {
+		.name = "DRAM Double-bit",
+		.synd_reg = DRP_ECC_DB_ERR_SYN0_V21,
+		.count_status_reg = DRP_ECC_ERROR_STATUS1_V21,
+		.ways_status_reg = DRP_ECC_ERROR_STATUS0_V21,
+		.reg_cnt = DRP_SYN_REG_CNT,
+		.count_mask = ECC_DB_ERR_COUNT_MASK,
+		.ways_mask = ECC_DB_ERR_WAYS_MASK,
+		.ways_shift = ECC_DB_ERR_WAYS_SHIFT,
+	},
+	[LLCC_TRAM_CE] = {
+		.name = "TRAM Single-bit",
+		.synd_reg = TRP_ECC_SB_ERR_SYN0,
+		.count_status_reg = TRP_ECC_ERROR_STATUS1,
+		.ways_status_reg = TRP_ECC_ERROR_STATUS0,
+		.reg_cnt = TRP_SYN_REG_CNT,
+		.count_mask = ECC_SB_ERR_COUNT_MASK,
+		.ways_mask = ECC_SB_ERR_WAYS_MASK,
+		.count_shift = ECC_SB_ERR_COUNT_SHIFT,
+	},
+	[LLCC_TRAM_UE] = {
+		.name = "TRAM Double-bit",
+		.synd_reg = TRP_ECC_DB_ERR_SYN0,
+		.count_status_reg = TRP_ECC_ERROR_STATUS1,
+		.ways_status_reg = TRP_ECC_ERROR_STATUS0,
+		.reg_cnt = TRP_SYN_REG_CNT,
+		.count_mask = ECC_DB_ERR_COUNT_MASK,
+		.ways_mask = ECC_DB_ERR_WAYS_MASK,
+		.ways_shift = ECC_DB_ERR_WAYS_SHIFT,
+	},
+};
+
+static struct llcc_edac_reg_data *edac_reg_data = edac_reg_data_v2;
+
 static int qcom_llcc_core_setup(struct regmap *llcc_bcast_regmap)
 {
 	u32 sb_err_threshold;
@@ -135,7 +261,7 @@ static int qcom_llcc_core_setup(struct regmap *llcc_bcast_regmap)
 	 * Configure interrupt enable registers such that Tag, Data RAM related
 	 * interrupts are propagated to interrupt controller for servicing
 	 */
-	ret = regmap_update_bits(llcc_bcast_regmap, CMN_INTERRUPT_2_ENABLE,
+	ret = regmap_update_bits(llcc_bcast_regmap, CMN_INTERRUPT_0_ENABLE,
 				 TRP0_INTERRUPT_ENABLE,
 				 TRP0_INTERRUPT_ENABLE);
 	if (ret)
@@ -153,7 +279,7 @@ static int qcom_llcc_core_setup(struct regmap *llcc_bcast_regmap)
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(llcc_bcast_regmap, CMN_INTERRUPT_2_ENABLE,
+	ret = regmap_update_bits(llcc_bcast_regmap, CMN_INTERRUPT_0_ENABLE,
 				 DRP0_INTERRUPT_ENABLE,
 				 DRP0_INTERRUPT_ENABLE);
 	if (ret)
@@ -249,6 +375,16 @@ clear:
 	return qcom_llcc_clear_error_status(err_type, drv);
 }
 
+
+static void llcc_edac_handle_ce(struct edac_device_ctl_info *edac_dev,
+				int inst_nr, int block_nr, const char *msg)
+{
+	edac_device_handle_ce(edac_dev, inst_nr, block_nr, msg);
+#ifdef CONFIG_EDAC_QCOM_LLCC_PANIC_ON_CE
+	panic("EDAC %s CE: %s\n", edac_dev->ctl_name, msg);
+#endif
+}
+
 static int
 dump_syn_reg(struct edac_device_ctl_info *edev_ctl, int err_type, u32 bank)
 {
@@ -261,7 +397,7 @@ dump_syn_reg(struct edac_device_ctl_info *edev_ctl, int err_type, u32 bank)
 
 	switch (err_type) {
 	case LLCC_DRAM_CE:
-		edac_device_handle_ce(edev_ctl, 0, bank,
+		llcc_edac_handle_ce(edev_ctl, 0, bank,
 				      "LLCC Data RAM correctable Error");
 		break;
 	case LLCC_DRAM_UE:
@@ -269,7 +405,7 @@ dump_syn_reg(struct edac_device_ctl_info *edev_ctl, int err_type, u32 bank)
 				      "LLCC Data RAM uncorrectable Error");
 		break;
 	case LLCC_TRAM_CE:
-		edac_device_handle_ce(edev_ctl, 0, bank,
+		llcc_edac_handle_ce(edev_ctl, 0, bank,
 				      "LLCC Tag RAM correctable Error");
 		break;
 	case LLCC_TRAM_UE:
@@ -292,6 +428,7 @@ llcc_ecc_irq_handler(int irq, void *edev_ctl)
 	struct llcc_drv_data *drv = edac_dev_ctl->pvt_info;
 	irqreturn_t irq_rc = IRQ_NONE;
 	u32 drp_error, trp_error, i;
+	bool irq_handled = false;
 	int ret;
 
 	/* Iterate over the banks and look for Tag RAM or Data RAM errors */
@@ -310,7 +447,7 @@ llcc_ecc_irq_handler(int irq, void *edev_ctl)
 			ret = dump_syn_reg(edev_ctl, LLCC_DRAM_UE, i);
 		}
 		if (!ret)
-			irq_rc = IRQ_HANDLED;
+			irq_handled = true;
 
 		ret = regmap_read(drv->regmap,
 				  drv->offsets[i] + TRP_INTERRUPT_0_STATUS,
@@ -326,10 +463,18 @@ llcc_ecc_irq_handler(int irq, void *edev_ctl)
 			ret = dump_syn_reg(edev_ctl, LLCC_TRAM_UE, i);
 		}
 		if (!ret)
-			irq_rc = IRQ_HANDLED;
+			irq_handled = true;
 	}
 
+	if (irq_handled)
+		irq_rc = IRQ_HANDLED;
+
 	return irq_rc;
+}
+
+static void qcom_llcc_poll_cache_errors(struct edac_device_ctl_info *edev_ctl)
+{
+	llcc_ecc_irq_handler(0, edev_ctl);
 }
 
 static int qcom_llcc_edac_probe(struct platform_device *pdev)
@@ -340,9 +485,10 @@ static int qcom_llcc_edac_probe(struct platform_device *pdev)
 	int ecc_irq;
 	int rc;
 
-	rc = qcom_llcc_core_setup(llcc_driv_data->bcast_regmap);
-	if (rc)
-		return rc;
+	if (llcc_driv_data->llcc_ver > 20) {
+		edac_reg_data = edac_reg_data_v21;
+		edac_regs = edac_regs_v21;
+	}
 
 	/* Allocate edac control info */
 	edev_ctl = edac_device_alloc_ctl_info(0, "qcom-llcc", 1, "bank",
@@ -360,30 +506,37 @@ static int qcom_llcc_edac_probe(struct platform_device *pdev)
 	edev_ctl->panic_on_ue = LLCC_ERP_PANIC_ON_UE;
 	edev_ctl->pvt_info = llcc_driv_data;
 
+	/* Request for ecc irq */
+	ecc_irq = llcc_driv_data->ecc_irq;
+	if (ecc_irq < 0) {
+		dev_info(dev, "No ECC IRQ; defaulting to polling mode\n");
+		edev_ctl->poll_msec = poll_msec;
+		edev_ctl->edac_check = qcom_llcc_poll_cache_errors;
+	}
+
 	rc = edac_device_add_device(edev_ctl);
 	if (rc)
 		goto out_mem;
 
-	platform_set_drvdata(pdev, edev_ctl);
+	if (ecc_irq >= 0) {
+		rc = qcom_llcc_core_setup(llcc_driv_data->bcast_regmap);
+		if (rc)
+			goto out_dev;
 
-	/* Request for ecc irq */
-	ecc_irq = llcc_driv_data->ecc_irq;
-	if (ecc_irq < 0) {
-		rc = -ENODEV;
-		goto out_dev;
+		rc = devm_request_irq(dev, ecc_irq, llcc_ecc_irq_handler,
+			      IRQF_SHARED | IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
+			      "llcc_ecc", edev_ctl);
+		if (rc)
+			goto out_dev;
 	}
-	rc = devm_request_irq(dev, ecc_irq, llcc_ecc_irq_handler,
-			      IRQF_TRIGGER_HIGH, "llcc_ecc", edev_ctl);
-	if (rc)
-		goto out_dev;
 
+	platform_set_drvdata(pdev, edev_ctl);
 	return rc;
 
 out_dev:
 	edac_device_del_device(edev_ctl->dev);
 out_mem:
 	edac_device_free_ctl_info(edev_ctl);
-
 	return rc;
 }
 
