@@ -10,6 +10,7 @@ bpf_nf                                   # JIT does not support calling kernel f
 bpf_tcp_ca                               # JIT does not support calling kernel function                                (kfunc)
 cb_refs                                  # expected error message unexpected error: -524                               (trampoline)
 cgroup_hierarchical_stats                # JIT does not support calling kernel function                                (kfunc)
+cgrp_kfunc                               # JIT does not support calling kernel function
 cgrp_local_storage                       # prog_attach unexpected error: -524                                          (trampoline)
 core_read_macros                         # unknown func bpf_probe_read#4                                               (overlapping)
 d_path                                   # failed to auto-attach program 'prog_stat': -524                             (trampoline)
