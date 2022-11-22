@@ -830,7 +830,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 i;
 
-	priv->AcmMethod = eAcmWay2_SW;
 	priv->dot11_current_preamble_mode = PREAMBLE_AUTO;
 	priv->rtllib->status = 0;
 	priv->polling_timer_on = 0;

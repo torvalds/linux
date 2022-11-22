@@ -340,8 +340,6 @@ struct r8192_priv {
 	struct bb_reg_definition PHYRegDef[4];
 	struct rate_adaptive rate_adaptive;
 
-	enum acm_method AcmMethod;
-
 	struct rt_firmware			*pFirmware;
 	enum rtl819x_loopback LoopbackMode;
 
