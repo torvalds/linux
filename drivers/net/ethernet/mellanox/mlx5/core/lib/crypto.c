@@ -41,7 +41,7 @@ int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
 	memcpy(key_p, key, sz_bytes);
 
 	MLX5_SET(encryption_key_obj, obj, key_size, general_obj_key_size);
-	MLX5_SET(encryption_key_obj, obj, key_type, key_type);
+	MLX5_SET(encryption_key_obj, obj, key_purpose, key_type);
 	MLX5_SET(general_obj_in_cmd_hdr, in, opcode,
 		 MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
 	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type,
