@@ -212,7 +212,7 @@ static int ip_vs_estimation_kthread(void *data)
 				kd->est_timer = now;
 		}
 
-		if (sysctl_run_estimation(ipvs) && kd->tick_len[row])
+		if (kd->tick_len[row])
 			ip_vs_tick_estimation(kd, row);
 
 		row++;
