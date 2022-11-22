@@ -536,6 +536,7 @@
 		 */
 		l2: l2-cache0 {
 			compatible = "cache";
+			cache-unified;
 			cache-size = <0x100000>;
 			cache-line-size = <64>;
 			cache-sets = <1024>; // 1MiB(size)/64(line-size)=16384ways/16-way set
