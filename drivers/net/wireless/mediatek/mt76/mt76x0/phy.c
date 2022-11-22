@@ -595,9 +595,6 @@ mt76x0_phy_get_target_power(struct mt76x02_dev *dev, u8 tx_mode,
 	case 0:
 		/* cck rates */
 		tx_rate = (info[0] & 0x60) >> 5;
-		if (tx_rate > 3)
-			return -EINVAL;
-
 		*target_power = cur_power + dev->rate_power.cck[tx_rate];
 		*target_pa_power = mt76x0_phy_get_rf_pa_mode(dev, 0, tx_rate);
 		break;
