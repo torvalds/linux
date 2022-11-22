@@ -172,7 +172,6 @@ obj-$(CONFIG_MFD_MAX8997)	+= max8997.o max8997-irq.o
 obj-$(CONFIG_MFD_MAX8998)	+= max8998.o max8998-irq.o
 obj-$(CONFIG_MFD_MAX96745)	+= max96745.o
 obj-$(CONFIG_MFD_MAX96755F)	+= max96755f.o
-obj-$(CONFIG_MFD_MAX96776)	+= max96776.o
 
 obj-$(CONFIG_MFD_MP2629)	+= mp2629.o
 

@@ -938,15 +938,6 @@ config MFD_MAX96755F
 	help
 	  Say yes here to add support for Maxim Semiconductor MAX96755.
 
-config MFD_MAX96776
-	tristate "Maxim Semiconductor MAX96776 GMSL2 Deserializer Support"
-	depends on I2C
-	select MFD_CORE
-	select REGMAP_I2C
-	select I2C_MUX
-	help
-	  Say yes here to add support for Maxim Semiconductor MAX96776.
-
 config MFD_MT6360
 	tristate "Mediatek MT6360 SubPMIC"
 	select MFD_CORE
