@@ -36,7 +36,7 @@ static inline void *akcipher_request_ctx(struct akcipher_request *req)
 static inline void akcipher_set_reqsize(struct crypto_akcipher *akcipher,
 					unsigned int reqsize)
 {
-	crypto_akcipher_alg(akcipher)->reqsize = reqsize;
+	akcipher->reqsize = reqsize;
 }
 
 static inline void *akcipher_tfm_ctx(struct crypto_akcipher *tfm)
