@@ -341,6 +341,14 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			regmap_update_bits_base(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_AUDIO_FSM_START, 0x01, 0x01, NULL, false, true);
 			break;
+		case WCD_USBSS_HSJ_CONNECT:
+			/* Select MG2, GSBU1 */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SELECT0, 0x03, 0x1);
+			/* Enable SENSE, MIC, AGND switches */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x07, 0x07);
+			break;
 		case WCD_USBSS_DP_AUX_CC1:
 			fallthrough;
 		case WCD_USBSS_DP_AUX_CC2:

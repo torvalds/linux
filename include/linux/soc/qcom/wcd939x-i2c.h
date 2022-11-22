@@ -15,6 +15,7 @@ enum wcd_usbss_cable_types {
 	WCD_USBSS_DP_AUX_CC2,
 	WCD_USBSS_AATC,
 	WCD_USBSS_GND_MIC_SWAP_AATC,
+	WCD_USBSS_HSJ_CONNECT,
 };
 
 enum wcd_usbss_cable_status {
