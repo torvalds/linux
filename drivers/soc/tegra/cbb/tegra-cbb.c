@@ -72,18 +72,7 @@ static int tegra_cbb_err_show(struct seq_file *file, void *data)
 
 	return cbb->ops->debugfs_show(cbb, file, data);
 }
-
-static int tegra_cbb_err_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, tegra_cbb_err_show, inode->i_private);
-}
-
-static const struct file_operations tegra_cbb_err_fops = {
-	.open = tegra_cbb_err_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release
-};
+DEFINE_SHOW_ATTRIBUTE(tegra_cbb_err);
 
 static int tegra_cbb_err_debugfs_init(struct tegra_cbb *cbb)
 {
