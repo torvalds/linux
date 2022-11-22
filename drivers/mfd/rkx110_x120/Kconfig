@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+config MFD_RKX110_X120
+	tristate "Rockchip RKx110 RKx120 SerDes MFD Driver"
+	depends on I2C
+	depends on OF
+	select MFD_CORE
+	help
+	  if you say yes here you get support for the RKx110 RKx120 from Rockchip.
+
+config ROCKCHIP_SERDES_DRM_PANEL
+	tristate "Generic RK Serdes panel driver"
+	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
+	help
+	  This driver supports rk serdes panels.
+

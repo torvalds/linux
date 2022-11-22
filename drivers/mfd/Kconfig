@@ -1218,6 +1218,8 @@ config MFD_RK1000
 	  if you say yes here you get support for the RK1000, with func as
 	  TVEncoder or CODEC.
 
+source "drivers/mfd/rkx110_x120/Kconfig"
+
 config MFD_RN5T618
 	tristate "Ricoh RN5T567/618 PMIC"
 	depends on I2C
