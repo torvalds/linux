@@ -387,6 +387,13 @@ bool zpool_evictable(struct zpool *zpool)
  * zpool_can_sleep_mapped - Test if zpool can sleep when do mapped.
  * @zpool:	The zpool to test
  *
+ * Some allocators enter non-preemptible context in ->map() callback (e.g.
+ * disable pagefaults) and exit that context in ->unmap(), which limits what
+ * we can do with the mapped object. For instance, we cannot wait for
+ * asynchronous crypto API to decompress such an object or take mutexes
+ * since those will call into the scheduler. This function tells us whether
+ * we use such an allocator.
+ *
  * Returns: true if zpool can sleep; false otherwise.
  */
 bool zpool_can_sleep_mapped(struct zpool *zpool)
