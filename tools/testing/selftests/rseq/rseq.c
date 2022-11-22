@@ -119,9 +119,11 @@ void rseq_init(void)
 		rseq_flags = *libc_rseq_flags_p;
 		return;
 	}
-	if (!rseq_available())
-		return;
 	rseq_ownership = 1;
+	if (!rseq_available()) {
+		rseq_size = 0;
+		return;
+	}
 	rseq_offset = (void *)&__rseq_abi - rseq_thread_pointer();
 	rseq_size = sizeof(struct rseq_abi);
 	rseq_flags = 0;
