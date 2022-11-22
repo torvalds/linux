@@ -289,48 +289,6 @@ SYM_FUNC_START(efi32_stub_entry)
 	popl	%esi
 	jmp	efi32_entry
 SYM_FUNC_END(efi32_stub_entry)
-
-	.text
-/*
- * This is the common EFI stub entry point for mixed mode.
- *
- * Arguments:	%ecx	image handle
- * 		%edx	EFI system table pointer
- *		%esi	struct bootparams pointer (or NULL when not using
- *			the EFI handover protocol)
- *
- * Since this is the point of no return for ordinary execution, no registers
- * are considered live except for the function parameters. [Note that the EFI
- * stub may still exit and return to the firmware using the Exit() EFI boot
- * service.]
- */
-SYM_FUNC_START_LOCAL(efi32_entry)
-	call	1f
-1:	pop	%ebx
-
-	/* Save firmware GDTR and code/data selectors */
-	sgdtl	(efi32_boot_gdt - 1b)(%ebx)
-	movw	%cs, (efi32_boot_cs - 1b)(%ebx)
-	movw	%ds, (efi32_boot_ds - 1b)(%ebx)
-
-	/* Store firmware IDT descriptor */
-	sidtl	(efi32_boot_idt - 1b)(%ebx)
-
-	/* Store boot arguments */
-	leal	(efi32_boot_args - 1b)(%ebx), %ebx
-	movl	%ecx, 0(%ebx)
-	movl	%edx, 4(%ebx)
-	movl	%esi, 8(%ebx)
-	movb	$0x0, 12(%ebx)          // efi_is64
-
-	/* Disable paging */
-	movl	%cr0, %eax
-	btrl	$X86_CR0_PG_BIT, %eax
-	movl	%eax, %cr0
-
-	jmp	startup_32
-SYM_FUNC_END(efi32_entry)
-	__HEAD
 #endif
 
 	.code64
@@ -779,9 +737,6 @@ SYM_DATA_END_LABEL(boot32_idt, SYM_L_GLOBAL, boot32_idt_end)
 SYM_DATA(image_offset, .long 0)
 #endif
 #ifdef CONFIG_EFI_MIXED
-SYM_DATA(efi32_boot_args, .long 0, 0, 0)
-SYM_DATA(efi_is64, .byte 1)
-
 #define ST32_boottime		60 // offsetof(efi_system_table_32_t, boottime)
 #define BS32_handle_protocol	88 // offsetof(efi_boot_services_32_t, handle_protocol)
 #define LI32_image_base		32 // offsetof(efi_loaded_image_32_t, image_base)
