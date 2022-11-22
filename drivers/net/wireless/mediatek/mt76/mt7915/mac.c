@@ -1259,18 +1259,18 @@ void mt7915_mac_set_timing(struct mt7915_phy *phy)
 		   MT_ARB_SCR_TX_DISABLE | MT_ARB_SCR_RX_DISABLE);
 }
 
-void mt7915_mac_enable_nf(struct mt7915_dev *dev, bool ext_phy)
+void mt7915_mac_enable_nf(struct mt7915_dev *dev, bool band)
 {
 	u32 reg;
 
-	reg = is_mt7915(&dev->mt76) ? MT_WF_PHY_RXTD12(ext_phy) :
-		MT_WF_PHY_RXTD12_MT7916(ext_phy);
+	reg = is_mt7915(&dev->mt76) ? MT_WF_PHY_RXTD12(band) :
+				      MT_WF_PHY_RXTD12_MT7916(band);
 	mt76_set(dev, reg,
 		 MT_WF_PHY_RXTD12_IRPI_SW_CLR_ONLY |
 		 MT_WF_PHY_RXTD12_IRPI_SW_CLR);
 
-	reg = is_mt7915(&dev->mt76) ? MT_WF_PHY_RX_CTRL1(ext_phy) :
-		MT_WF_PHY_RX_CTRL1_MT7916(ext_phy);
+	reg = is_mt7915(&dev->mt76) ? MT_WF_PHY_RX_CTRL1(band) :
+				      MT_WF_PHY_RX_CTRL1_MT7916(band);
 	mt76_set(dev, reg, FIELD_PREP(MT_WF_PHY_RX_CTRL1_IPI_EN, 0x5));
 }
 
@@ -1979,7 +1979,6 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 static void mt7915_mac_severe_check(struct mt7915_phy *phy)
 {
 	struct mt7915_dev *dev = phy->dev;
-	bool ext_phy = phy != &dev->phy;
 	u32 trb;
 
 	if (!phy->omac_mask)
@@ -1997,7 +1996,7 @@ static void mt7915_mac_severe_check(struct mt7915_phy *phy)
 	     FIELD_GET(MT_TRB_RXPSR0_RX_WTBL_PTR, phy->trb_ts)) &&
 	    trb == phy->trb_ts)
 		mt7915_mcu_set_ser(dev, SER_RECOVER, SER_SET_RECOVER_L3_RX_ABORT,
-				   ext_phy);
+				   phy->band_idx);
 
 	phy->trb_ts = trb;
 }

@@ -44,14 +44,14 @@ mt7915_tm_set_tx_power(struct mt7915_phy *phy)
 	int ret;
 	struct {
 		u8 format_id;
-		u8 dbdc_idx;
+		u8 band_idx;
 		s8 tx_power;
 		u8 ant_idx;	/* Only 0 is valid */
 		u8 center_chan;
 		u8 rsv[3];
 	} __packed req = {
 		.format_id = 0xf,
-		.dbdc_idx = phy != &dev->phy,
+		.band_idx = phy->band_idx,
 		.center_chan = ieee80211_frequency_to_channel(freq),
 	};
 	u8 *tx_power = NULL;
@@ -77,7 +77,7 @@ mt7915_tm_set_freq_offset(struct mt7915_phy *phy, bool en, u32 val)
 	struct mt7915_tm_cmd req = {
 		.testmode_en = en,
 		.param_idx = MCU_ATE_SET_FREQ_OFFSET,
-		.param.freq.band = phy != &dev->phy,
+		.param.freq.band = phy->band_idx,
 		.param.freq.freq_offset = cpu_to_le32(val),
 	};
 
@@ -111,7 +111,7 @@ mt7915_tm_set_trx(struct mt7915_phy *phy, int type, bool en)
 		.param_idx = MCU_ATE_SET_TRX,
 		.param.trx.type = type,
 		.param.trx.enable = en,
-		.param.trx.band = phy != &dev->phy,
+		.param.trx.band = phy->band_idx,
 	};
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(ATE_CTRL), &req,
@@ -126,7 +126,7 @@ mt7915_tm_clean_hwq(struct mt7915_phy *phy, u8 wcid)
 		.testmode_en = 1,
 		.param_idx = MCU_ATE_CLEAN_TXQUEUE,
 		.param.clean.wcid = wcid,
-		.param.clean.band = phy != &dev->phy,
+		.param.clean.band = phy->band_idx,
 	};
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(ATE_CTRL), &req,
@@ -144,7 +144,7 @@ mt7915_tm_set_slot_time(struct mt7915_phy *phy, u8 slot_time, u8 sifs)
 		.param.slot.sifs = sifs,
 		.param.slot.rifs = 2,
 		.param.slot.eifs = cpu_to_le16(60),
-		.param.slot.band = phy != &dev->phy,
+		.param.slot.band = phy->band_idx,
 	};
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(ATE_CTRL), &req,
@@ -488,7 +488,7 @@ mt7915_tm_set_rx_frames(struct mt7915_phy *phy, bool en)
 		mt7915_tm_update_channel(phy);
 
 		/* read-clear */
-		mt76_rr(dev, MT_MIB_SDR3(phy != &dev->phy));
+		mt76_rr(dev, MT_MIB_SDR3(phy->band_idx));
 		mt7915_tm_set_trx(phy, TM_MAC_RX_RXV, en);
 	}
 }
@@ -526,7 +526,7 @@ mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
 	tx_cont->control_ch = chandef->chan->hw_value;
 	tx_cont->center_ch = freq1;
 	tx_cont->tx_ant = td->tx_antenna_mask;
-	tx_cont->band = phy != &dev->phy;
+	tx_cont->band = phy->band_idx;
 
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_40:
@@ -558,7 +558,7 @@ mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
 	}
 
 	if (!en) {
-		req.op.rf.param.func_data = cpu_to_le32(phy != &dev->phy);
+		req.op.rf.param.func_data = cpu_to_le32(phy->band_idx);
 		goto out;
 	}
 

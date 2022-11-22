@@ -51,7 +51,7 @@ mt7915_sys_recovery_set(struct file *file, const char __user *user_buf,
 {
 	struct mt7915_phy *phy = file->private_data;
 	struct mt7915_dev *dev = phy->dev;
-	bool ext_phy = phy != &dev->phy;
+	bool band = phy->band_idx;
 	char buf[16];
 	int ret = 0;
 	u16 val;
@@ -83,7 +83,7 @@ mt7915_sys_recovery_set(struct file *file, const char __user *user_buf,
 	 * 8: trigger firmware crash.
 	 */
 	case SER_QUERY:
-		ret = mt7915_mcu_set_ser(dev, 0, 0, ext_phy);
+		ret = mt7915_mcu_set_ser(dev, 0, 0, band);
 		break;
 	case SER_SET_RECOVER_L1:
 	case SER_SET_RECOVER_L2:
@@ -91,17 +91,17 @@ mt7915_sys_recovery_set(struct file *file, const char __user *user_buf,
 	case SER_SET_RECOVER_L3_TX_ABORT:
 	case SER_SET_RECOVER_L3_TX_DISABLE:
 	case SER_SET_RECOVER_L3_BF:
-		ret = mt7915_mcu_set_ser(dev, SER_ENABLE, BIT(val), ext_phy);
+		ret = mt7915_mcu_set_ser(dev, SER_ENABLE, BIT(val), band);
 		if (ret)
 			return ret;
 
-		ret = mt7915_mcu_set_ser(dev, SER_RECOVER, val, ext_phy);
+		ret = mt7915_mcu_set_ser(dev, SER_RECOVER, val, band);
 		break;
 
 	/* enable full chip reset */
 	case SER_SET_RECOVER_FULL:
 		mt76_set(dev, MT_WFDMA0_MCU_HOST_INT_ENA, MT_MCU_CMD_WDT_MASK);
-		ret = mt7915_mcu_set_ser(dev, 1, 3, ext_phy);
+		ret = mt7915_mcu_set_ser(dev, 1, 3, band);
 		if (ret)
 			return ret;
 
