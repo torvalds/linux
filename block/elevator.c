@@ -721,9 +721,6 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 	if (!blk_queue_registered(q))
 		return -ENOENT;
 
-	/*
-	 * Special case for mq, turn off scheduling
-	 */
 	if (!strncmp(elevator_name, "none", 4)) {
 		if (q->elevator)
 			elevator_disable(q);
