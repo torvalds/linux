@@ -38,6 +38,7 @@
 #include "intel_display_types.h"
 #include "intel_dvo.h"
 #include "intel_dvo_dev.h"
+#include "intel_dvo_regs.h"
 #include "intel_gmbus.h"
 #include "intel_panel.h"
 
