@@ -525,6 +525,10 @@ void intel_dvo_init(struct drm_i915_private *i915)
 			 intel_dvo_encoder_type(&intel_dvo->dev),
 			 "DVO %c", port_name(encoder->port));
 
+	drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] detected %s\n",
+		    encoder->base.base.id, encoder->base.name,
+		    intel_dvo->dev.name);
+
 	if (intel_dvo->dev.type == INTEL_DVO_CHIP_TMDS)
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT |
 			DRM_CONNECTOR_POLL_DISCONNECT;
