@@ -170,44 +170,6 @@ SYM_CODE_END(ftrace_caller)
 	add	\reg, \reg, #8
 	.endm
 
-#ifndef CONFIG_DYNAMIC_FTRACE
-/*
- * void _mcount(unsigned long return_address)
- * @return_address: return address to instrumented function
- *
- * This function makes calls, if enabled, to:
- *     - tracer function to probe instrumented function's entry,
- *     - ftrace_graph_caller to set up an exit hook
- */
-SYM_FUNC_START(_mcount)
-	mcount_enter
-
-	ldr_l	x2, ftrace_trace_function
-	adr	x0, ftrace_stub
-	cmp	x0, x2			// if (ftrace_trace_function
-	b.eq	skip_ftrace_call	//     != ftrace_stub) {
-
-	mcount_get_pc	x0		//       function's pc
-	mcount_get_lr	x1		//       function's lr (= parent's pc)
-	blr	x2			//   (*ftrace_trace_function)(pc, lr);
-
-skip_ftrace_call:			// }
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	ldr_l	x2, ftrace_graph_return
-	cmp	x0, x2			//   if ((ftrace_graph_return
-	b.ne	ftrace_graph_caller	//        != ftrace_stub)
-
-	ldr_l	x2, ftrace_graph_entry	//     || (ftrace_graph_entry
-	adr_l	x0, ftrace_graph_entry_stub //     != ftrace_graph_entry_stub))
-	cmp	x0, x2
-	b.ne	ftrace_graph_caller	//     ftrace_graph_caller();
-#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-	mcount_exit
-SYM_FUNC_END(_mcount)
-EXPORT_SYMBOL(_mcount)
-NOKPROBE(_mcount)
-
-#else /* CONFIG_DYNAMIC_FTRACE */
 /*
  * _mcount() is used to build the kernel with -pg option, but all the branch
  * instructions to _mcount() are replaced to NOP initially at kernel start up,
@@ -247,7 +209,6 @@ SYM_INNER_LABEL(ftrace_graph_call, SYM_L_GLOBAL) // ftrace_graph_caller();
 
 	mcount_exit
 SYM_FUNC_END(ftrace_caller)
-#endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /*
