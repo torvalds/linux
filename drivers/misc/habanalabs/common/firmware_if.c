@@ -617,16 +617,12 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 	if (sts_val & CPU_BOOT_DEV_STS0_ENABLED)
 		dev_dbg(hdev->dev, "Device status0 %#x\n", sts_val);
 
-	/* All warnings should go here in order not to reach the unknown error validation */
 	if (err_val & CPU_BOOT_ERR0_EEPROM_FAIL) {
-		dev_warn(hdev->dev,
-			"Device boot warning - EEPROM failure detected, default settings applied\n");
-		/* This is a warning so we don't want it to disable the
-		 * device
-		 */
-		err_val &= ~CPU_BOOT_ERR0_EEPROM_FAIL;
+		dev_err(hdev->dev, "Device boot error - EEPROM failure detected\n");
+		err_exists = true;
 	}
 
+	/* All warnings should go here in order not to reach the unknown error validation */
 	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED) {
 		dev_warn(hdev->dev,
 			"Device boot warning - Skipped DRAM initialization\n");
@@ -2532,7 +2528,7 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 					struct fw_load_mgr *fw_loader)
 {
 	struct cpu_dyn_regs *dyn_regs;
-	int rc;
+	int rc, fw_error_rc;
 
 	dev_info(hdev->dev,
 		"Loading %sfirmware to device, may take some time...\n",
@@ -2632,14 +2628,17 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 
 	hl_fw_dynamic_update_linux_interrupt_if(hdev);
 
-	return 0;
-
 protocol_err:
-	if (fw_loader->dynamic_loader.fw_desc_valid)
-		fw_read_errors(hdev, le32_to_cpu(dyn_regs->cpu_boot_err0),
+	if (fw_loader->dynamic_loader.fw_desc_valid) {
+		fw_error_rc = fw_read_errors(hdev, le32_to_cpu(dyn_regs->cpu_boot_err0),
 				le32_to_cpu(dyn_regs->cpu_boot_err1),
 				le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
 				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
+
+		if (fw_error_rc)
+			return fw_error_rc;
+	}
+
 	return rc;
 }
 
