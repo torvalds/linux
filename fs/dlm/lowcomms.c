@@ -208,7 +208,7 @@ bool dlm_lowcomms_is_running(void)
 
 static void lowcomms_queue_swork(struct connection *con)
 {
-	WARN_ON_ONCE(!lockdep_is_held(&con->writequeue_lock));
+	assert_spin_locked(&con->writequeue_lock);
 
 	if (!test_bit(CF_IO_STOP, &con->flags) &&
 	    !test_bit(CF_APP_LIMITED, &con->flags) &&
@@ -218,7 +218,9 @@ static void lowcomms_queue_swork(struct connection *con)
 
 static void lowcomms_queue_rwork(struct connection *con)
 {
+#ifdef CONFIG_LOCKDEP
 	WARN_ON_ONCE(!lockdep_sock_is_held(con->sock->sk));
+#endif
 
 	if (!test_bit(CF_IO_STOP, &con->flags) &&
 	    !test_and_set_bit(CF_RECV_PENDING, &con->flags))
@@ -618,7 +620,9 @@ static void lowcomms_error_report(struct sock *sk)
 
 static void restore_callbacks(struct sock *sk)
 {
+#ifdef CONFIG_LOCKDEP
 	WARN_ON_ONCE(!lockdep_sock_is_held(sk));
+#endif
 
 	sk->sk_user_data = NULL;
 	sk->sk_data_ready = listen_sock.sk_data_ready;
