@@ -2291,6 +2291,7 @@
   usb_unregister_notify
   __usecs_to_jiffies
   usleep_range_state
+  utf8_data_table
   uuid_parse
   v4l2_device_register
   v4l2_device_register_subdev
