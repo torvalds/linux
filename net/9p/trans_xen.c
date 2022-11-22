@@ -216,7 +216,9 @@ static void p9_xen_response(struct work_struct *work)
 			goto recv_error;
 		}
 
-		memcpy(&req->rc, &h, sizeof(h));
+		req->rc.size = h.size;
+		req->rc.id = h.id;
+		req->rc.tag = h.tag;
 		req->rc.offset = 0;
 
 		masked_cons = xen_9pfs_mask(cons, XEN_9PFS_RING_SIZE(ring));
