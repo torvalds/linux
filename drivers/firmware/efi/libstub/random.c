@@ -69,12 +69,20 @@ efi_status_t efi_random_get_seed(void)
 	efi_guid_t rng_table_guid = LINUX_EFI_RANDOM_SEED_TABLE_GUID;
 	struct linux_efi_random_seed *prev_seed, *seed = NULL;
 	int prev_seed_size = 0, seed_size = EFI_RANDOM_SEED_SIZE;
+	unsigned long nv_seed_size = 0, offset = 0;
 	efi_rng_protocol_t *rng = NULL;
 	efi_status_t status;
 
 	status = efi_bs_call(locate_protocol, &rng_proto, NULL, (void **)&rng);
 	if (status != EFI_SUCCESS)
+		seed_size = 0;
+
+	// Call GetVariable() with a zero length buffer to obtain the size
+	get_efi_var(L"RandomSeed", &rng_table_guid, NULL, &nv_seed_size, NULL);
+	if (!seed_size && !nv_seed_size)
 		return status;
+
+	seed_size += nv_seed_size;
 
 	/*
 	 * Check whether a seed was provided by a prior boot stage. In that
@@ -83,7 +91,7 @@ efi_status_t efi_random_get_seed(void)
 	 * Note that we should read the seed size with caution, in case the
 	 * table got corrupted in memory somehow.
 	 */
-	prev_seed = get_efi_config_table(LINUX_EFI_RANDOM_SEED_TABLE_GUID);
+	prev_seed = get_efi_config_table(rng_table_guid);
 	if (prev_seed && prev_seed->size <= 512U) {
 		prev_seed_size = prev_seed->size;
 		seed_size += prev_seed_size;
@@ -102,25 +110,53 @@ efi_status_t efi_random_get_seed(void)
 		goto err_warn;
 	}
 
-	status = efi_call_proto(rng, get_rng, &rng_algo_raw,
-				EFI_RANDOM_SEED_SIZE, seed->bits);
-
-	if (status == EFI_UNSUPPORTED)
-		/*
-		 * Use whatever algorithm we have available if the raw algorithm
-		 * is not implemented.
-		 */
-		status = efi_call_proto(rng, get_rng, NULL,
+	if (rng) {
+		status = efi_call_proto(rng, get_rng, &rng_algo_raw,
 					EFI_RANDOM_SEED_SIZE, seed->bits);
 
-	if (status != EFI_SUCCESS)
+		if (status == EFI_UNSUPPORTED)
+			/*
+			 * Use whatever algorithm we have available if the raw algorithm
+			 * is not implemented.
+			 */
+			status = efi_call_proto(rng, get_rng, NULL,
+						EFI_RANDOM_SEED_SIZE, seed->bits);
+
+		if (status == EFI_SUCCESS)
+			offset = EFI_RANDOM_SEED_SIZE;
+	}
+
+	if (nv_seed_size) {
+		status = get_efi_var(L"RandomSeed", &rng_table_guid, NULL,
+				     &nv_seed_size, seed->bits + offset);
+
+		if (status == EFI_SUCCESS)
+			/*
+			 * We delete the seed here, and /hope/ that this causes
+			 * EFI to also zero out its representation on disk.
+			 * This is somewhat idealistic, but overwriting the
+			 * variable with zeros is likely just as fraught too.
+			 * TODO: in the future, maybe we can hash it forward
+			 * instead, and write a new seed.
+			 */
+			status = set_efi_var(L"RandomSeed", &rng_table_guid, 0,
+					     0, NULL);
+
+		if (status == EFI_SUCCESS)
+			offset += nv_seed_size;
+		else
+			memzero_explicit(seed->bits + offset, nv_seed_size);
+	}
+
+	if (!offset)
 		goto err_freepool;
 
-	seed->size = seed_size;
-	if (prev_seed_size)
-		memcpy(seed->bits + EFI_RANDOM_SEED_SIZE, prev_seed->bits,
-		       prev_seed_size);
+	if (prev_seed_size) {
+		memcpy(seed->bits + offset, prev_seed->bits, prev_seed_size);
+		offset += prev_seed_size;
+	}
 
+	seed->size = offset;
 	status = efi_bs_call(install_configuration_table, &rng_table_guid, seed);
 	if (status != EFI_SUCCESS)
 		goto err_freepool;
@@ -135,7 +171,7 @@ efi_status_t efi_random_get_seed(void)
 err_freepool:
 	memzero_explicit(seed, struct_size(seed, bits, seed_size));
 	efi_bs_call(free_pool, seed);
-	efi_warn("Failed to obtain seed from EFI_RNG_PROTOCOL\n");
+	efi_warn("Failed to obtain seed from EFI_RNG_PROTOCOL or EFI variable\n");
 err_warn:
 	if (prev_seed)
 		efi_warn("Retaining bootloader-supplied seed only");
