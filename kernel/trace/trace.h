@@ -1942,8 +1942,6 @@ static inline void tracer_hardirqs_on(unsigned long a0, unsigned long a1) { }
 static inline void tracer_hardirqs_off(unsigned long a0, unsigned long a1) { }
 #endif
 
-extern struct trace_iterator *tracepoint_print_iter;
-
 /*
  * Reset the state of the trace_iterator so that it can read consumed data.
  * Normally, the trace_iterator is used for reading the data when it is not
