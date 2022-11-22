@@ -410,6 +410,11 @@ static int rseq_this_cpu_lock(struct percpu_lock *lock)
 		int ret;
 
 		cpu = get_current_cpu_id();
+		if (cpu < 0) {
+			fprintf(stderr, "pid: %d: tid: %d, cpu: %d: cid: %d\n",
+					getpid(), (int) rseq_gettid(), rseq_current_cpu_raw(), cpu);
+			abort();
+		}
 		ret = rseq_cmpeqv_storev(RSEQ_MO_RELAXED, RSEQ_PERCPU,
 					 &lock->c[cpu].v,
 					 0, 1, cpu);
