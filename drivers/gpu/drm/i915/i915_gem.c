@@ -1140,8 +1140,10 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
-	intel_uc_fetch_firmwares(&to_gt(dev_priv)->uc);
-	intel_wopcm_init(&dev_priv->wopcm);
+	for_each_gt(gt, dev_priv, i) {
+		intel_uc_fetch_firmwares(&gt->uc);
+		intel_wopcm_init(&gt->wopcm);
+	}
 
 	ret = i915_init_ggtt(dev_priv);
 	if (ret) {
@@ -1286,7 +1288,7 @@ int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file)
 	struct i915_drm_client *client;
 	int ret = -ENOMEM;
 
-	DRM_DEBUG("\n");
+	drm_dbg(&i915->drm, "\n");
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
 	if (!file_priv)

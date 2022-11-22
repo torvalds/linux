@@ -178,8 +178,9 @@ static inline void
 fw_domain_wait_ack_clear(const struct intel_uncore_forcewake_domain *d)
 {
 	if (wait_ack_clear(d, FORCEWAKE_KERNEL)) {
-		DRM_ERROR("%s: timed out waiting for forcewake ack to clear.\n",
-			  intel_uncore_forcewake_domain_to_str(d->id));
+		drm_err(&d->uncore->i915->drm,
+			"%s: timed out waiting for forcewake ack to clear.\n",
+			intel_uncore_forcewake_domain_to_str(d->id));
 		add_taint_for_CI(d->uncore->i915, TAINT_WARN); /* CI now unreliable */
 	}
 }
@@ -226,11 +227,12 @@ fw_domain_wait_ack_with_fallback(const struct intel_uncore_forcewake_domain *d,
 		fw_clear(d, FORCEWAKE_KERNEL_FALLBACK);
 	} while (!ack_detected && pass++ < 10);
 
-	DRM_DEBUG_DRIVER("%s had to use fallback to %s ack, 0x%x (passes %u)\n",
-			 intel_uncore_forcewake_domain_to_str(d->id),
-			 type == ACK_SET ? "set" : "clear",
-			 fw_ack(d),
-			 pass);
+	drm_dbg(&d->uncore->i915->drm,
+		"%s had to use fallback to %s ack, 0x%x (passes %u)\n",
+		intel_uncore_forcewake_domain_to_str(d->id),
+		type == ACK_SET ? "set" : "clear",
+		fw_ack(d),
+		pass);
 
 	return ack_detected ? 0 : -ETIMEDOUT;
 }
@@ -255,8 +257,9 @@ static inline void
 fw_domain_wait_ack_set(const struct intel_uncore_forcewake_domain *d)
 {
 	if (wait_ack_set(d, FORCEWAKE_KERNEL)) {
-		DRM_ERROR("%s: timed out waiting for forcewake ack request.\n",
-			  intel_uncore_forcewake_domain_to_str(d->id));
+		drm_err(&d->uncore->i915->drm,
+			"%s: timed out waiting for forcewake ack request.\n",
+			intel_uncore_forcewake_domain_to_str(d->id));
 		add_taint_for_CI(d->uncore->i915, TAINT_WARN); /* CI now unreliable */
 	}
 }

@@ -244,6 +244,13 @@ static const struct engine_info intel_engines[] = {
 			{ .graphics_ver = 12, .base = GEN12_COMPUTE3_RING_BASE }
 		}
 	},
+	[GSC0] = {
+		.class = OTHER_CLASS,
+		.instance = OTHER_GSC_INSTANCE,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = MTL_GSC_RING_BASE }
+		}
+	},
 };
 
 /**
@@ -324,6 +331,7 @@ u32 intel_engine_context_size(struct intel_gt *gt, u8 class)
 	case VIDEO_DECODE_CLASS:
 	case VIDEO_ENHANCEMENT_CLASS:
 	case COPY_ENGINE_CLASS:
+	case OTHER_CLASS:
 		if (GRAPHICS_VER(gt->i915) < 8)
 			return 0;
 		return GEN8_LR_CONTEXT_OTHER_SIZE;
@@ -415,6 +423,7 @@ static u32 get_reset_domain(u8 ver, enum intel_engine_id id)
 			[CCS1]  = GEN11_GRDOM_RENDER,
 			[CCS2]  = GEN11_GRDOM_RENDER,
 			[CCS3]  = GEN11_GRDOM_RENDER,
+			[GSC0]  = GEN12_GRDOM_GSC,
 		};
 		GEM_BUG_ON(id >= ARRAY_SIZE(engine_reset_domains) ||
 			   !engine_reset_domains[id]);

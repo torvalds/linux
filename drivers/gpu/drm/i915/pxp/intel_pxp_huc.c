@@ -3,7 +3,8 @@
  * Copyright(c) 2021-2022, Intel Corporation. All rights reserved.
  */
 
-#include "drm/i915_drm.h"
+#include <drm/i915_drm.h>
+
 #include "i915_drv.h"
 
 #include "gem/i915_gem_region.h"
@@ -13,14 +14,14 @@
 #include "intel_pxp_huc.h"
 #include "intel_pxp_tee.h"
 #include "intel_pxp_types.h"
-#include "intel_pxp_tee_interface.h"
+#include "intel_pxp_cmd_interface_43.h"
 
 int intel_pxp_huc_load_and_auth(struct intel_pxp *pxp)
 {
 	struct intel_gt *gt = pxp_to_gt(pxp);
 	struct intel_huc *huc = &gt->uc.huc;
-	struct pxp_tee_start_huc_auth_in huc_in = {0};
-	struct pxp_tee_start_huc_auth_out huc_out = {0};
+	struct pxp43_start_huc_auth_in huc_in = {0};
+	struct pxp43_start_huc_auth_out huc_out = {0};
 	dma_addr_t huc_phys_addr;
 	u8 client_id = 0;
 	u8 fence_id = 0;
@@ -32,8 +33,8 @@ int intel_pxp_huc_load_and_auth(struct intel_pxp *pxp)
 	huc_phys_addr = i915_gem_object_get_dma_address(huc->fw.obj, 0);
 
 	/* write the PXP message into the lmem (the sg list) */
-	huc_in.header.api_version = PXP_TEE_43_APIVER;
-	huc_in.header.command_id  = PXP_TEE_43_START_HUC_AUTH;
+	huc_in.header.api_version = PXP_APIVER(4, 3);
+	huc_in.header.command_id  = PXP43_CMDID_START_HUC_AUTH;
 	huc_in.header.status      = 0;
 	huc_in.header.buffer_len  = sizeof(huc_in.huc_base_address);
 	huc_in.huc_base_address   = huc_phys_addr;

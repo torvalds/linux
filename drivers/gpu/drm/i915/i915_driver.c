@@ -372,8 +372,6 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_ttm;
 
-	intel_wopcm_init_early(&dev_priv->wopcm);
-
 	ret = intel_root_gt_init_early(dev_priv);
 	if (ret < 0)
 		goto err_rootgt;

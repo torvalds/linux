@@ -430,7 +430,8 @@ static int __gen5_rps_set(struct intel_rps *rps, u8 val)
 
 	rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
 	if (rgvswctl & MEMCTL_CMD_STS) {
-		DRM_DEBUG("gpu busy, RCS change rejected\n");
+		drm_dbg(&rps_to_i915(rps)->drm,
+			"gpu busy, RCS change rejected\n");
 		return -EBUSY; /* still busy with another command */
 	}
 
@@ -1953,7 +1954,8 @@ void gen6_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
 		intel_engine_cs_irq(gt->engine[VECS0], pm_iir >> 10);
 
 	if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
-		DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
+		drm_dbg(&rps_to_i915(rps)->drm,
+			"Command parser error, pm_iir 0x%08x\n", pm_iir);
 }
 
 void gen5_rps_irq_handler(struct intel_rps *rps)
@@ -2072,22 +2074,45 @@ void intel_rps_sanitize(struct intel_rps *rps)
 		rps_disable_interrupts(rps);
 }
 
+u32 intel_rps_read_rpstat_fw(struct intel_rps *rps)
+{
+	struct drm_i915_private *i915 = rps_to_i915(rps);
+	i915_reg_t rpstat;
+
+	rpstat = (GRAPHICS_VER(i915) >= 12) ? GEN12_RPSTAT1 : GEN6_RPSTAT1;
+
+	return intel_uncore_read_fw(rps_to_gt(rps)->uncore, rpstat);
+}
+
+u32 intel_rps_read_rpstat(struct intel_rps *rps)
+{
+	struct drm_i915_private *i915 = rps_to_i915(rps);
+	i915_reg_t rpstat;
+
+	rpstat = (GRAPHICS_VER(i915) >= 12) ? GEN12_RPSTAT1 : GEN6_RPSTAT1;
+
+	return intel_uncore_read(rps_to_gt(rps)->uncore, rpstat);
+}
+
 u32 intel_rps_get_cagf(struct intel_rps *rps, u32 rpstat)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 	u32 cagf;
 
-	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
-		cagf = (rpstat >> 8) & 0xff;
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70))
+		cagf = REG_FIELD_GET(MTL_CAGF_MASK, rpstat);
+	else if (GRAPHICS_VER(i915) >= 12)
+		cagf = REG_FIELD_GET(GEN12_CAGF_MASK, rpstat);
+	else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+		cagf = REG_FIELD_GET(RPE_MASK, rpstat);
 	else if (GRAPHICS_VER(i915) >= 9)
-		cagf = (rpstat & GEN9_CAGF_MASK) >> GEN9_CAGF_SHIFT;
+		cagf = REG_FIELD_GET(GEN9_CAGF_MASK, rpstat);
 	else if (IS_HASWELL(i915) || IS_BROADWELL(i915))
-		cagf = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
+		cagf = REG_FIELD_GET(HSW_CAGF_MASK, rpstat);
 	else if (GRAPHICS_VER(i915) >= 6)
-		cagf = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
+		cagf = REG_FIELD_GET(GEN6_CAGF_MASK, rpstat);
 	else
-		cagf = gen5_invert_freq(rps, (rpstat & MEMSTAT_PSTATE_MASK) >>
-					MEMSTAT_PSTATE_SHIFT);
+		cagf = gen5_invert_freq(rps, REG_FIELD_GET(MEMSTAT_PSTATE_MASK, rpstat));
 
 	return cagf;
 }
@@ -2098,7 +2123,15 @@ static u32 read_cagf(struct intel_rps *rps)
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 	u32 freq;
 
-	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
+	/*
+	 * For Gen12+ reading freq from HW does not need a forcewake and
+	 * registers will return 0 freq when GT is in RC6
+	 */
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70)) {
+		freq = intel_uncore_read(uncore, MTL_MIRROR_TARGET_WP1);
+	} else if (GRAPHICS_VER(i915) >= 12) {
+		freq = intel_uncore_read(uncore, GEN12_RPSTAT1);
+	} else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
 		vlv_punit_get(i915);
 		freq = vlv_punit_read(i915, PUNIT_REG_GPU_FREQ_STS);
 		vlv_punit_put(i915);
@@ -2264,7 +2297,7 @@ static void rps_frequency_dump(struct intel_rps *rps, struct drm_printer *p)
 	rpinclimit = intel_uncore_read(uncore, GEN6_RP_UP_THRESHOLD);
 	rpdeclimit = intel_uncore_read(uncore, GEN6_RP_DOWN_THRESHOLD);
 
-	rpstat = intel_uncore_read(uncore, GEN6_RPSTAT1);
+	rpstat = intel_rps_read_rpstat(rps);
 	rpcurupei = intel_uncore_read(uncore, GEN6_RP_CUR_UP_EI) & GEN6_CURICONT_MASK;
 	rpcurup = intel_uncore_read(uncore, GEN6_RP_CUR_UP) & GEN6_CURBSYTAVG_MASK;
 	rpprevup = intel_uncore_read(uncore, GEN6_RP_PREV_UP) & GEN6_CURBSYTAVG_MASK;
@@ -2399,7 +2432,7 @@ static void slpc_frequency_dump(struct intel_rps *rps, struct drm_printer *p)
 	drm_printf(p, "PM MASK=0x%08x\n", pm_mask);
 	drm_printf(p, "pm_intrmsk_mbz: 0x%08x\n",
 		   rps->pm_intrmsk_mbz);
-	drm_printf(p, "RPSTAT1: 0x%08x\n", intel_uncore_read(uncore, GEN6_RPSTAT1));
+	drm_printf(p, "RPSTAT1: 0x%08x\n", intel_rps_read_rpstat(rps));
 	drm_printf(p, "RPNSWREQ: %dMHz\n", intel_rps_get_requested_frequency(rps));
 	drm_printf(p, "Lowest (RPN) frequency: %dMHz\n",
 		   intel_gpu_freq(rps, caps.min_freq));

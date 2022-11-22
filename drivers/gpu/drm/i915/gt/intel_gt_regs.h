@@ -21,6 +21,13 @@
  */
 #define PERF_REG(offset)			_MMIO(offset)
 
+/* MTL workpoint reg to get core C state and actual freq of 3D, SAMedia */
+#define MTL_MIRROR_TARGET_WP1			_MMIO(0xc60)
+#define   MTL_CAGF_MASK				REG_GENMASK(8, 0)
+#define   MTL_CC0				0x0
+#define   MTL_CC6				0x3
+#define   MTL_CC_MASK				REG_GENMASK(12, 9)
+
 /* RPM unit config (Gen8+) */
 #define RPM_CONFIG0				_MMIO(0xd00)
 #define   GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_SHIFT	3
@@ -643,6 +650,7 @@
 #define   XEHPC_GRDOM_BLT3			REG_BIT(26)
 #define   XEHPC_GRDOM_BLT2			REG_BIT(25)
 #define   XEHPC_GRDOM_BLT1			REG_BIT(24)
+#define   GEN12_GRDOM_GSC			REG_BIT(21)
 #define   GEN11_GRDOM_SFC3			REG_BIT(20)
 #define   GEN11_GRDOM_SFC2			REG_BIT(19)
 #define   GEN11_GRDOM_SFC1			REG_BIT(18)
@@ -798,12 +806,9 @@
 #define GEN6_RP_DOWN_TIMEOUT			_MMIO(0xa010)
 #define GEN6_RP_INTERRUPT_LIMITS		_MMIO(0xa014)
 #define GEN6_RPSTAT1				_MMIO(0xa01c)
-#define   GEN6_CAGF_SHIFT			8
-#define   HSW_CAGF_SHIFT			7
-#define   GEN9_CAGF_SHIFT			23
-#define   GEN6_CAGF_MASK			(0x7f << GEN6_CAGF_SHIFT)
-#define   HSW_CAGF_MASK				(0x7f << HSW_CAGF_SHIFT)
-#define   GEN9_CAGF_MASK			(0x1ff << GEN9_CAGF_SHIFT)
+#define   GEN6_CAGF_MASK			REG_GENMASK(14, 8)
+#define   HSW_CAGF_MASK				REG_GENMASK(13, 7)
+#define   GEN9_CAGF_MASK			REG_GENMASK(31, 23)
 #define GEN6_RP_CONTROL				_MMIO(0xa024)
 #define   GEN6_RP_MEDIA_TURBO			(1 << 11)
 #define   GEN6_RP_MEDIA_MODE_MASK		(3 << 9)
@@ -1375,8 +1380,7 @@
 #define MEMSTAT_ILK				_MMIO(0x111f8)
 #define   MEMSTAT_VID_MASK			0x7f00
 #define   MEMSTAT_VID_SHIFT			8
-#define   MEMSTAT_PSTATE_MASK			0x00f8
-#define   MEMSTAT_PSTATE_SHIFT			3
+#define   MEMSTAT_PSTATE_MASK			REG_GENMASK(7, 3)
 #define   MEMSTAT_MON_ACTV			(1 << 2)
 #define   MEMSTAT_SRC_CTL_MASK			0x0003
 #define   MEMSTAT_SRC_CTL_CORE			0
@@ -1517,6 +1521,8 @@
 #define FORCEWAKE_MEDIA_VLV			_MMIO(0x1300b8)
 #define FORCEWAKE_ACK_MEDIA_VLV			_MMIO(0x1300bc)
 
+#define MTL_MEDIA_MC6				_MMIO(0x138048)
+
 #define GEN6_GT_THREAD_STATUS_REG		_MMIO(0x13805c)
 #define   GEN6_GT_THREAD_STATUS_CORE_MASK	0x7
 
@@ -1548,11 +1554,13 @@
 
 #define GEN12_RPSTAT1				_MMIO(0x1381b4)
 #define   GEN12_VOLTAGE_MASK			REG_GENMASK(10, 0)
+#define   GEN12_CAGF_MASK			REG_GENMASK(19, 11)
 
 #define GEN11_GT_INTR_DW(x)			_MMIO(0x190018 + ((x) * 4))
 #define   GEN11_CSME				(31)
 #define   GEN11_GUNIT				(28)
 #define   GEN11_GUC				(25)
+#define   MTL_MGUC				(24)
 #define   GEN11_WDPERF				(20)
 #define   GEN11_KCR				(19)
 #define   GEN11_GTPM				(16)
@@ -1607,6 +1615,7 @@
 #define GEN11_VECS0_VECS1_INTR_MASK		_MMIO(0x1900d0)
 #define GEN12_VECS2_VECS3_INTR_MASK		_MMIO(0x1900d4)
 #define GEN11_GUC_SG_INTR_MASK			_MMIO(0x1900e8)
+#define MTL_GUC_MGUC_INTR_MASK			_MMIO(0x1900e8) /* MTL+ */
 #define GEN11_GPM_WGBOXPERF_INTR_MASK		_MMIO(0x1900ec)
 #define GEN11_CRYPTO_RSVD_INTR_MASK		_MMIO(0x1900f0)
 #define GEN11_GUNIT_CSME_INTR_MASK		_MMIO(0x1900f4)

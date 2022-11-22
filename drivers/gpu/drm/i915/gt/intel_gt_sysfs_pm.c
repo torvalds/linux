@@ -165,13 +165,13 @@ sysfs_gt_attribute_r_func(struct kobject *kobj, struct attribute *attr,
 	INTEL_GT_ATTR_RO(_name)
 
 #ifdef CONFIG_PM
-static u32 get_residency(struct intel_gt *gt, i915_reg_t reg)
+static u32 get_residency(struct intel_gt *gt, enum intel_rc6_res_type id)
 {
 	intel_wakeref_t wakeref;
 	u64 res = 0;
 
 	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
-		res = intel_rc6_residency_us(&gt->rc6, reg);
+		res = intel_rc6_residency_us(&gt->rc6, id);
 
 	return DIV_ROUND_CLOSEST_ULL(res, 1000);
 }
@@ -210,22 +210,22 @@ static ssize_t rc6_enable_dev_show(struct device *dev,
 
 static u32 __rc6_residency_ms_show(struct intel_gt *gt)
 {
-	return get_residency(gt, GEN6_GT_GFX_RC6);
+	return get_residency(gt, INTEL_RC6_RES_RC6);
 }
 
 static u32 __rc6p_residency_ms_show(struct intel_gt *gt)
 {
-	return get_residency(gt, GEN6_GT_GFX_RC6p);
+	return get_residency(gt, INTEL_RC6_RES_RC6p);
 }
 
 static u32 __rc6pp_residency_ms_show(struct intel_gt *gt)
 {
-	return get_residency(gt, GEN6_GT_GFX_RC6pp);
+	return get_residency(gt, INTEL_RC6_RES_RC6pp);
 }
 
 static u32 __media_rc6_residency_ms_show(struct intel_gt *gt)
 {
-	return get_residency(gt, VLV_GT_MEDIA_RC6);
+	return get_residency(gt, INTEL_RC6_RES_VLV_MEDIA);
 }
 
 INTEL_GT_SYSFS_SHOW_MIN(rc6_residency_ms);

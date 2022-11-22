@@ -565,10 +565,8 @@ retry:
 			goto err_unpin;
 		}
 
-		err = i915_request_await_object(rq, vma->obj, true);
-		if (err == 0)
-			err = i915_vma_move_to_active(vma, rq,
-						      EXEC_OBJECT_WRITE);
+		err = i915_vma_move_to_active(vma, rq,
+					      EXEC_OBJECT_WRITE);
 
 		i915_request_add(rq);
 err_unpin:
@@ -1608,9 +1606,7 @@ retry:
 			goto out_unpin;
 		}
 
-		err = i915_request_await_object(rq, vma->obj, false);
-		if (err == 0)
-			err = i915_vma_move_to_active(vma, rq, 0);
+		err = i915_vma_move_to_active(vma, rq, 0);
 
 		err = engine->emit_bb_start(rq, vma->node.start, 0, 0);
 		i915_request_get(rq);

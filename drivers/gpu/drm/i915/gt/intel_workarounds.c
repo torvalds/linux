@@ -17,46 +17,68 @@
 /**
  * DOC: Hardware workarounds
  *
- * This file is intended as a central place to implement most [1]_ of the
- * required workarounds for hardware to work as originally intended. They fall
- * in five basic categories depending on how/when they are applied:
+ * Hardware workarounds are register programming documented to be executed in
+ * the driver that fall outside of the normal programming sequences for a
+ * platform. There are some basic categories of workarounds, depending on
+ * how/when they are applied:
  *
- * - Workarounds that touch registers that are saved/restored to/from the HW
- *   context image. The list is emitted (via Load Register Immediate commands)
- *   everytime a new context is created.
- * - GT workarounds. The list of these WAs is applied whenever these registers
- *   revert to default values (on GPU reset, suspend/resume [2]_, etc..).
- * - Display workarounds. The list is applied during display clock-gating
- *   initialization.
- * - Workarounds that whitelist a privileged register, so that UMDs can manage
- *   them directly. This is just a special case of a MMMIO workaround (as we
- *   write the list of these to/be-whitelisted registers to some special HW
- *   registers).
- * - Workaround batchbuffers, that get executed automatically by the hardware
- *   on every HW context restore.
+ * - Context workarounds: workarounds that touch registers that are
+ *   saved/restored to/from the HW context image. The list is emitted (via Load
+ *   Register Immediate commands) once when initializing the device and saved in
+ *   the default context. That default context is then used on every context
+ *   creation to have a "primed golden context", i.e. a context image that
+ *   already contains the changes needed to all the registers.
  *
- * .. [1] Please notice that there are other WAs that, due to their nature,
- *    cannot be applied from a central place. Those are peppered around the rest
- *    of the code, as needed.
+ * - Engine workarounds: the list of these WAs is applied whenever the specific
+ *   engine is reset. It's also possible that a set of engine classes share a
+ *   common power domain and they are reset together. This happens on some
+ *   platforms with render and compute engines. In this case (at least) one of
+ *   them need to keeep the workaround programming: the approach taken in the
+ *   driver is to tie those workarounds to the first compute/render engine that
+ *   is registered.  When executing with GuC submission, engine resets are
+ *   outside of kernel driver control, hence the list of registers involved in
+ *   written once, on engine initialization, and then passed to GuC, that
+ *   saves/restores their values before/after the reset takes place. See
+ *   ``drivers/gpu/drm/i915/gt/uc/intel_guc_ads.c`` for reference.
  *
- * .. [2] Technically, some registers are powercontext saved & restored, so they
+ * - GT workarounds: the list of these WAs is applied whenever these registers
+ *   revert to their default values: on GPU reset, suspend/resume [1]_, etc.
+ *
+ * - Register whitelist: some workarounds need to be implemented in userspace,
+ *   but need to touch privileged registers. The whitelist in the kernel
+ *   instructs the hardware to allow the access to happen. From the kernel side,
+ *   this is just a special case of a MMIO workaround (as we write the list of
+ *   these to/be-whitelisted registers to some special HW registers).
+ *
+ * - Workaround batchbuffers: buffers that get executed automatically by the
+ *   hardware on every HW context restore. These buffers are created and
+ *   programmed in the default context so the hardware always go through those
+ *   programming sequences when switching contexts. The support for workaround
+ *   batchbuffers is enabled these hardware mechanisms:
+ *
+ *   #. INDIRECT_CTX: A batchbuffer and an offset are provided in the default
+ *      context, pointing the hardware to jump to that location when that offset
+ *      is reached in the context restore. Workaround batchbuffer in the driver
+ *      currently uses this mechanism for all platforms.
+ *
+ *   #. BB_PER_CTX_PTR: A batchbuffer is provided in the default context,
+ *      pointing the hardware to a buffer to continue executing after the
+ *      engine registers are restored in a context restore sequence. This is
+ *      currently not used in the driver.
+ *
+ * - Other:  There are WAs that, due to their nature, cannot be applied from a
+ *   central place. Those are peppered around the rest of the code, as needed.
+ *   Workarounds related to the display IP are the main example.
+ *
+ * .. [1] Technically, some registers are powercontext saved & restored, so they
  *    survive a suspend/resume. In practice, writing them again is not too
- *    costly and simplifies things. We can revisit this in the future.
- *
- * Layout
- * ~~~~~~
- *
- * Keep things in this file ordered by WA type, as per the above (context, GT,
- * display, register whitelist, batchbuffer). Then, inside each type, keep the
- * following order:
- *
- * - Infrastructure functions and macros
- * - WAs per platform in standard gen/chrono order
- * - Public functions to init or apply the given workaround type.
+ *    costly and simplifies things, so it's the approach taken in the driver.
  */
 
-static void wa_init_start(struct i915_wa_list *wal, const char *name, const char *engine_name)
+static void wa_init_start(struct i915_wa_list *wal, struct intel_gt *gt,
+			  const char *name, const char *engine_name)
 {
+	wal->gt = gt;
 	wal->name = name;
 	wal->engine_name = engine_name;
 }
@@ -80,13 +102,14 @@ static void wa_init_finish(struct i915_wa_list *wal)
 	if (!wal->count)
 		return;
 
-	DRM_DEBUG_DRIVER("Initialized %u %s workarounds on %s\n",
-			 wal->wa_count, wal->name, wal->engine_name);
+	drm_dbg(&wal->gt->i915->drm, "Initialized %u %s workarounds on %s\n",
+		wal->wa_count, wal->name, wal->engine_name);
 }
 
 static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 {
 	unsigned int addr = i915_mmio_reg_offset(wa->reg);
+	struct drm_i915_private *i915 = wal->gt->i915;
 	unsigned int start = 0, end = wal->count;
 	const unsigned int grow = WA_LIST_CHUNK;
 	struct i915_wa *wa_;
@@ -99,7 +122,7 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 		list = kmalloc_array(ALIGN(wal->count + 1, grow), sizeof(*wa),
 				     GFP_KERNEL);
 		if (!list) {
-			DRM_ERROR("No space for workaround init!\n");
+			drm_err(&i915->drm, "No space for workaround init!\n");
 			return;
 		}
 
@@ -122,9 +145,10 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 			wa_ = &wal->list[mid];
 
 			if ((wa->clr | wa_->clr) && !(wa->clr & ~wa_->clr)) {
-				DRM_ERROR("Discarding overwritten w/a for reg %04x (clear: %08x, set: %08x)\n",
-					  i915_mmio_reg_offset(wa_->reg),
-					  wa_->clr, wa_->set);
+				drm_err(&i915->drm,
+					"Discarding overwritten w/a for reg %04x (clear: %08x, set: %08x)\n",
+					i915_mmio_reg_offset(wa_->reg),
+					wa_->clr, wa_->set);
 
 				wa_->set &= ~wa->clr;
 			}
@@ -826,7 +850,7 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	wa_init_start(wal, name, engine->name);
+	wa_init_start(wal, engine->gt, name, engine->name);
 
 	/* Applies to all engines */
 	/*
@@ -1676,7 +1700,7 @@ void intel_gt_init_workarounds(struct intel_gt *gt)
 {
 	struct i915_wa_list *wal = &gt->wa_list;
 
-	wa_init_start(wal, "GT", "global");
+	wa_init_start(wal, gt, "GT", "global");
 	gt_init_workarounds(gt, wal);
 	wa_init_finish(wal);
 }
@@ -1698,12 +1722,14 @@ wal_get_fw_for_rmw(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 }
 
 static bool
-wa_verify(const struct i915_wa *wa, u32 cur, const char *name, const char *from)
+wa_verify(struct intel_gt *gt, const struct i915_wa *wa, u32 cur,
+	  const char *name, const char *from)
 {
 	if ((cur ^ wa->set) & wa->read) {
-		DRM_ERROR("%s workaround lost on %s! (reg[%x]=0x%x, relevant bits were 0x%x vs expected 0x%x)\n",
-			  name, from, i915_mmio_reg_offset(wa->reg),
-			  cur, cur & wa->read, wa->set & wa->read);
+		drm_err(&gt->i915->drm,
+			"%s workaround lost on %s! (reg[%x]=0x%x, relevant bits were 0x%x vs expected 0x%x)\n",
+			name, from, i915_mmio_reg_offset(wa->reg),
+			cur, cur & wa->read, wa->set & wa->read);
 
 		return false;
 	}
@@ -1711,9 +1737,9 @@ wa_verify(const struct i915_wa *wa, u32 cur, const char *name, const char *from)
 	return true;
 }
 
-static void
-wa_list_apply(struct intel_gt *gt, const struct i915_wa_list *wal)
+static void wa_list_apply(const struct i915_wa_list *wal)
 {
+	struct intel_gt *gt = wal->gt;
 	struct intel_uncore *uncore = gt->uncore;
 	enum forcewake_domains fw;
 	unsigned long flags;
@@ -1749,7 +1775,7 @@ wa_list_apply(struct intel_gt *gt, const struct i915_wa_list *wal)
 				intel_gt_mcr_read_any_fw(gt, wa->mcr_reg) :
 				intel_uncore_read_fw(uncore, wa->reg);
 
-			wa_verify(wa, val, wal->name, "application");
+			wa_verify(gt, wa, val, wal->name, "application");
 		}
 	}
 
@@ -1759,7 +1785,7 @@ wa_list_apply(struct intel_gt *gt, const struct i915_wa_list *wal)
 
 void intel_gt_apply_workarounds(struct intel_gt *gt)
 {
-	wa_list_apply(gt, &gt->wa_list);
+	wa_list_apply(&gt->wa_list);
 }
 
 static bool wa_list_verify(struct intel_gt *gt,
@@ -1779,7 +1805,7 @@ static bool wa_list_verify(struct intel_gt *gt,
 	intel_uncore_forcewake_get__locked(uncore, fw);
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		ok &= wa_verify(wa, wa->is_mcr ?
+		ok &= wa_verify(wal->gt, wa, wa->is_mcr ?
 				intel_gt_mcr_read_any_fw(gt, wa->mcr_reg) :
 				intel_uncore_read_fw(uncore, wa->reg),
 				wal->name, from);
@@ -2127,7 +2153,7 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	struct drm_i915_private *i915 = engine->i915;
 	struct i915_wa_list *w = &engine->whitelist;
 
-	wa_init_start(w, "whitelist", engine->name);
+	wa_init_start(w, engine->gt, "whitelist", engine->name);
 
 	if (IS_PONTEVECCHIO(i915))
 		pvc_whitelist_build(engine);
@@ -3012,14 +3038,14 @@ void intel_engine_init_workarounds(struct intel_engine_cs *engine)
 	if (GRAPHICS_VER(engine->i915) < 4)
 		return;
 
-	wa_init_start(wal, "engine", engine->name);
+	wa_init_start(wal, engine->gt, "engine", engine->name);
 	engine_init_workarounds(engine, wal);
 	wa_init_finish(wal);
 }
 
 void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 {
-	wa_list_apply(engine->gt, &engine->wa_list);
+	wa_list_apply(&engine->wa_list);
 }
 
 static const struct i915_range mcr_ranges_gen8[] = {
@@ -3163,9 +3189,7 @@ retry:
 		goto err_vma;
 	}
 
-	err = i915_request_await_object(rq, vma->obj, true);
-	if (err == 0)
-		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	if (err == 0)
 		err = wa_list_srm(rq, wal, vma);
 
@@ -3193,7 +3217,7 @@ retry:
 		if (mcr_range(rq->engine->i915, i915_mmio_reg_offset(wa->reg)))
 			continue;
 
-		if (!wa_verify(wa, results[i], wal->name, from))
+		if (!wa_verify(wal->gt, wa, results[i], wal->name, from))
 			err = -ENXIO;
 	}
 

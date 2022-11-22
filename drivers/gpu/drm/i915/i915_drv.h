@@ -62,7 +62,6 @@
 #include "intel_runtime_pm.h"
 #include "intel_step.h"
 #include "intel_uncore.h"
-#include "intel_wopcm.h"
 
 struct drm_i915_clock_gating_funcs;
 struct drm_i915_gem_object;
@@ -234,8 +233,6 @@ struct drm_i915_private {
 	struct i915_virtual_gpu vgpu;
 
 	struct intel_gvt *gvt;
-
-	struct intel_wopcm wopcm;
 
 	struct pci_dev *bridge_dev;
 
@@ -740,6 +737,10 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_XEHPSDV_GRAPHICS_STEP(__i915, since, until) \
 	(IS_XEHPSDV(__i915) && IS_GRAPHICS_STEP(__i915, since, until))
 
+#define IS_MTL_GRAPHICS_STEP(__i915, variant, since, until) \
+	(IS_SUBPLATFORM(__i915, INTEL_METEORLAKE, INTEL_SUBPLATFORM_##variant) && \
+	 IS_GRAPHICS_STEP(__i915, since, until))
+
 /*
  * DG2 hardware steppings are a bit unusual.  The hardware design was forked to
  * create three variants (G10, G11, and G12) which each have distinct
@@ -778,12 +779,15 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define __HAS_ENGINE(engine_mask, id) ((engine_mask) & BIT(id))
 #define HAS_ENGINE(gt, id) __HAS_ENGINE((gt)->info.engine_mask, id)
 
-#define ENGINE_INSTANCES_MASK(gt, first, count) ({		\
+#define __ENGINE_INSTANCES_MASK(mask, first, count) ({			\
 	unsigned int first__ = (first);					\
 	unsigned int count__ = (count);					\
-	((gt)->info.engine_mask &						\
-	 GENMASK(first__ + count__ - 1, first__)) >> first__;		\
+	((mask) & GENMASK(first__ + count__ - 1, first__)) >> first__;	\
 })
+
+#define ENGINE_INSTANCES_MASK(gt, first, count) \
+	__ENGINE_INSTANCES_MASK((gt)->info.engine_mask, first, count)
+
 #define RCS_MASK(gt) \
 	ENGINE_INSTANCES_MASK(gt, RCS0, I915_MAX_RCS)
 #define BCS_MASK(gt) \
