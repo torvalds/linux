@@ -41,11 +41,14 @@ struct rk_sai_dev {
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
 	struct snd_pcm_substream *substreams[SNDRV_PCM_STREAM_LAST + 1];
+	unsigned int tx_lanes;
+	unsigned int rx_lanes;
 	enum fpw_mode fpw;
-	int fw_ratio;
+	int  fw_ratio;
 	bool has_capture;
 	bool has_playback;
 	bool is_master_mode;
+	bool is_tdm;
 };
 
 static int sai_runtime_suspend(struct device *dev)
@@ -359,6 +362,18 @@ err_pm_put:
 	return ret;
 }
 
+static unsigned int rockchip_sai_lanes_auto(struct snd_pcm_hw_params *params,
+					    struct snd_soc_dai *dai)
+{
+	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
+	unsigned int lanes = 1;
+
+	if (!sai->is_tdm)
+		lanes = DIV_ROUND_UP(params_channels(params), 2);
+
+	return lanes;
+}
+
 static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
 				  struct snd_soc_dai *dai)
@@ -368,10 +383,17 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 	unsigned int ch_per_lane, lanes, slot_width;
 	unsigned int val, fscr, reg;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	lanes = rockchip_sai_lanes_auto(params, dai);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		reg = SAI_TXCR;
-	else
+		if (sai->tx_lanes)
+			lanes = sai->tx_lanes;
+	} else {
 		reg = SAI_RXCR;
+		if (sai->rx_lanes)
+			lanes = sai->rx_lanes;
+	}
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
@@ -391,12 +413,13 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	regmap_update_bits(sai->regmap, reg, SAI_XCR_VDW_MASK, val);
+	val |= SAI_XCR_CSR(lanes);
+
+	regmap_update_bits(sai->regmap, reg, SAI_XCR_VDW_MASK | SAI_XCR_CSR_MASK, val);
 
 	regmap_read(sai->regmap, reg, &val);
 
 	slot_width = SAI_XCR_SBW_V(val);
-	lanes = SAI_XCR_CSR_V(val);
 	ch_per_lane = params_channels(params) / lanes;
 
 	regmap_update_bits(sai->regmap, reg, SAI_XCR_SNB_MASK,
@@ -525,6 +548,8 @@ static int rockchip_sai_set_tdm_slot(struct snd_soc_dai *dai,
 	regmap_update_bits(sai->regmap, SAI_RXCR, SAI_XCR_SBW_MASK,
 			   SAI_XCR_SBW(slot_width));
 	pm_runtime_put(dai->dev);
+
+	sai->is_tdm = true;
 
 	return 0;
 }
@@ -728,8 +753,8 @@ static int rockchip_sai_init_dai(struct rk_sai_dev *sai, struct resource *res,
 	return 0;
 }
 
-static const char * const tcsr_text[] = { "SDOx1", "SDOx2", "SDOx3", "SDOx4" };
-static const char * const rcsr_text[] = { "SDIx1", "SDIx2", "SDIx3", "SDIx4" };
+static const char * const tx_lanes_text[] = { "Auto", "SDOx1", "SDOx2", "SDOx3", "SDOx4" };
+static const char * const rx_lanes_text[] = { "Auto", "SDIx1", "SDIx2", "SDIx3", "SDIx4" };
 static const char * const edge_text[] = { "Rising Edge", "Dual Edge" };
 static const char * const edge_shift_text[] = { "Normal", "Shift 1 Edge" };
 
@@ -771,7 +796,8 @@ static const char * const tpaths_text[] = {
 
 /* TXCR */
 static SOC_ENUM_SINGLE_DECL(tsft_enum, SAI_TXCR, 22, edge_shift_text);
-static SOC_ENUM_SINGLE_DECL(tcsr_enum, SAI_TXCR, 20, tcsr_text);
+static const struct soc_enum tx_lanes_enum =
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(tx_lanes_text), tx_lanes_text);
 static SOC_ENUM_SINGLE_DECL(tsjm_enum, SAI_TXCR, 19, sjm_text);
 static SOC_ENUM_SINGLE_DECL(tfbm_enum, SAI_TXCR, 18, fbm_text);
 static SOC_ENUM_SINGLE_DECL(tvdj_enum, SAI_TXCR, 10, vdj_text);
@@ -786,7 +812,8 @@ static const struct soc_enum fw_ratio_enum =
 
 /* RXCR */
 static SOC_ENUM_SINGLE_DECL(rsft_enum, SAI_RXCR, 22, edge_shift_text);
-static SOC_ENUM_SINGLE_DECL(rcsr_enum, SAI_RXCR, 20, rcsr_text);
+static const struct soc_enum rx_lanes_enum =
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(rx_lanes_text), rx_lanes_text);
 static SOC_ENUM_SINGLE_DECL(rsjm_enum, SAI_RXCR, 19, sjm_text);
 static SOC_ENUM_SINGLE_DECL(rfbm_enum, SAI_RXCR, 18, fbm_text);
 static SOC_ENUM_SINGLE_DECL(rvdj_enum, SAI_RXCR, 10, vdj_text);
@@ -874,19 +901,75 @@ static int rockchip_sai_fw_ratio_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static int rockchip_sai_tx_lanes_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.enumerated.item[0] = sai->tx_lanes;
+
+	return 0;
+}
+
+static int rockchip_sai_tx_lanes_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
+	int num;
+
+	num = ucontrol->value.enumerated.item[0];
+	if (num >= ARRAY_SIZE(tx_lanes_text))
+		return -EINVAL;
+
+	sai->tx_lanes = num;
+
+	return 1;
+}
+
+static int rockchip_sai_rx_lanes_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.enumerated.item[0] = sai->rx_lanes;
+
+	return 0;
+}
+
+static int rockchip_sai_rx_lanes_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
+	int num;
+
+	num = ucontrol->value.enumerated.item[0];
+	if (num >= ARRAY_SIZE(rx_lanes_text))
+		return -EINVAL;
+
+	sai->rx_lanes = num;
+
+	return 1;
+}
+
 static DECLARE_TLV_DB_SCALE(fs_shift_tlv, 0, 8192, 0);
 
 static const struct snd_kcontrol_new rockchip_sai_controls[] = {
 
 	SOC_ENUM("Transmit Edge Shift", tsft_enum),
-	SOC_ENUM("Transmit SDOx Select", tcsr_enum),
+	SOC_ENUM_EXT("Transmit SDOx Select", tx_lanes_enum,
+		     rockchip_sai_tx_lanes_get, rockchip_sai_tx_lanes_put),
 	SOC_ENUM("Transmit Store Justified Mode", tsjm_enum),
 	SOC_ENUM("Transmit First Bit Mode", tfbm_enum),
 	SOC_ENUM("Transmit Valid Data Justified", tvdj_enum),
 	SOC_ENUM("Transmit Slot Bit Width", tsbw_enum),
 
 	SOC_ENUM("Receive Edge Shift", rsft_enum),
-	SOC_ENUM("Receive SDIx Select", rcsr_enum),
+	SOC_ENUM_EXT("Receive SDIx Select", rx_lanes_enum,
+		     rockchip_sai_rx_lanes_get, rockchip_sai_rx_lanes_put),
 	SOC_ENUM("Receive Store Justified Mode", rsjm_enum),
 	SOC_ENUM("Receive First Bit Mode", rfbm_enum),
 	SOC_ENUM("Receive Valid Data Justified", rvdj_enum),
