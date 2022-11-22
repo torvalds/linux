@@ -17,8 +17,11 @@
  * Copyright (C) 2018 Michael Neuling, IBM Corporation.
  */
 
+#define _GNU_SOURCE
+
 #include <unistd.h>
 #include <assert.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -141,8 +144,10 @@ static void disable_fds(int *fd, int n)
 
 static int perf_systemwide_event_open(int *fd, __u32 type, __u64 addr, __u64 len)
 {
+	int i, ncpus, cpu, ret = 0;
 	struct rlimit rlim;
-	int i = 0;
+	cpu_set_t *mask;
+	size_t size;
 
 	if (getrlimit(RLIMIT_NOFILE, &rlim)) {
 		perror("getrlimit");
@@ -154,16 +159,44 @@ static int perf_systemwide_event_open(int *fd, __u32 type, __u64 addr, __u64 len
 		return -1;
 	}
 
-	/* Assume online processors are 0 to nprocs for simplisity */
-	for (i = 0; i < nprocs; i++) {
-		fd[i] = perf_cpu_event_open(i, type, addr, len);
+	ncpus = get_nprocs_conf();
+	size = CPU_ALLOC_SIZE(ncpus);
+	mask = CPU_ALLOC(ncpus);
+	if (!mask) {
+		perror("malloc");
+		return -1;
+	}
+
+	CPU_ZERO_S(size, mask);
+
+	if (sched_getaffinity(0, size, mask)) {
+		perror("sched_getaffinity");
+		ret = -1;
+		goto done;
+	}
+
+	for (i = 0, cpu = 0; i < nprocs && cpu < ncpus; cpu++) {
+		if (!CPU_ISSET_S(cpu, size, mask))
+			continue;
+		fd[i] = perf_cpu_event_open(cpu, type, addr, len);
 		if (fd[i] < 0) {
 			perror("perf_systemwide_event_open");
 			close_fds(fd, i);
-			return fd[i];
+			ret = fd[i];
+			goto done;
 		}
+		i++;
 	}
-	return 0;
+
+	if (i < nprocs) {
+		printf("Error: Number of online cpus reduced since start of test: %d < %d\n", i, nprocs);
+		close_fds(fd, i);
+		ret = -1;
+	}
+
+done:
+	CPU_FREE(mask);
+	return ret;
 }
 
 static inline bool breakpoint_test(int len)
