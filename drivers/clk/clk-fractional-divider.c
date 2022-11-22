@@ -39,6 +39,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/debugfs.h>
 #include <linux/io.h>
 #include <linux/math.h>
 #include <linux/module.h>
@@ -193,10 +194,45 @@ static int clk_fd_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static int clk_fd_numerator_get(void *hw, u64 *val)
+{
+	struct u32_fract fract;
+
+	clk_fd_get_div(hw, &fract);
+
+	*val = fract.numerator;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(clk_fd_numerator_fops, clk_fd_numerator_get, NULL, "%llu\n");
+
+static int clk_fd_denominator_get(void *hw, u64 *val)
+{
+	struct u32_fract fract;
+
+	clk_fd_get_div(hw, &fract);
+
+	*val = fract.denominator;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(clk_fd_denominator_fops, clk_fd_denominator_get, NULL, "%llu\n");
+
+static void clk_fd_debug_init(struct clk_hw *hw, struct dentry *dentry)
+{
+	debugfs_create_file("numerator", 0444, dentry, hw, &clk_fd_numerator_fops);
+	debugfs_create_file("denominator", 0444, dentry, hw, &clk_fd_denominator_fops);
+}
+#endif
+
 const struct clk_ops clk_fractional_divider_ops = {
 	.recalc_rate = clk_fd_recalc_rate,
 	.round_rate = clk_fd_round_rate,
 	.set_rate = clk_fd_set_rate,
+#ifdef CONFIG_DEBUG_FS
+	.debug_init = clk_fd_debug_init,
+#endif
 };
 EXPORT_SYMBOL_GPL(clk_fractional_divider_ops);
 
