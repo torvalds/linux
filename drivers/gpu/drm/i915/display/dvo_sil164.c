@@ -205,7 +205,6 @@ static void sil164_mode_set(struct intel_dvo_device *dvo,
 	  sil164_writeb(sil, 0x0c, 0x89);
 	  sil164_writeb(sil, 0x08, 0x31);*/
 	/* don't do much */
-	return;
 }
 
 /* set the SIL164 power state */
@@ -224,7 +223,6 @@ static void sil164_dpms(struct intel_dvo_device *dvo, bool enable)
 		ch &= ~SIL164_8_PD;
 
 	sil164_writeb(dvo, SIL164_REG8, ch);
-	return;
 }
 
 static bool sil164_get_hw_state(struct intel_dvo_device *dvo)
