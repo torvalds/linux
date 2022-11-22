@@ -3810,6 +3810,8 @@ void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
 	int i;
 	struct pipe_ctx *pipe_ctx, *pipe_ctx_check;
 
+	DC_LOGGER_INIT(dc->ctx->logger);
+
 	pipe_ctx = &context->res_ctx.pipe_ctx[disabled_master_pipe_idx];
 	if ((GET_PIPE_SYNCD_FROM_PIPE(pipe_ctx) != disabled_master_pipe_idx) ||
 		!IS_PIPE_SYNCD_VALID(pipe_ctx))
@@ -3820,9 +3822,16 @@ void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
 		pipe_ctx_check = &context->res_ctx.pipe_ctx[i];
 
 		if ((GET_PIPE_SYNCD_FROM_PIPE(pipe_ctx_check) == disabled_master_pipe_idx) &&
-			IS_PIPE_SYNCD_VALID(pipe_ctx_check) && (i != disabled_master_pipe_idx))
-			DC_ERR("DC: Failure: pipe_idx[%d] syncd with disabled master pipe_idx[%d]\n",
-				i, disabled_master_pipe_idx);
+			IS_PIPE_SYNCD_VALID(pipe_ctx_check) && (i != disabled_master_pipe_idx)) {
+			/* On dcn32, this error isn't fatal since hw supports odm transition in fast update*/
+			if (dc->ctx->dce_version == DCN_VERSION_3_2 ||
+					dc->ctx->dce_version == DCN_VERSION_3_21)
+				DC_LOG_DEBUG("DC: pipe_idx[%d] syncd with disabled master pipe_idx[%d]\n",
+					i, disabled_master_pipe_idx);
+			else
+				DC_ERR("DC: Failure: pipe_idx[%d] syncd with disabled master pipe_idx[%d]\n",
+					i, disabled_master_pipe_idx);
+		}
 	}
 }
 
