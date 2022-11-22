@@ -1938,6 +1938,25 @@ void bpf_cgroup_release(struct cgroup *cgrp)
 
 	cgroup_put(cgrp);
 }
+
+/**
+ * bpf_cgroup_ancestor - Perform a lookup on an entry in a cgroup's ancestor
+ * array. A cgroup returned by this kfunc which is not subsequently stored in a
+ * map, must be released by calling bpf_cgroup_release().
+ * @cgrp: The cgroup for which we're performing a lookup.
+ * @level: The level of ancestor to look up.
+ */
+struct cgroup *bpf_cgroup_ancestor(struct cgroup *cgrp, int level)
+{
+	struct cgroup *ancestor;
+
+	if (level > cgrp->level || level < 0)
+		return NULL;
+
+	ancestor = cgrp->ancestors[level];
+	cgroup_get(ancestor);
+	return ancestor;
+}
 #endif /* CONFIG_CGROUPS */
 
 void *bpf_cast_to_kern_ctx(void *obj)
@@ -1970,6 +1989,7 @@ BTF_ID_FLAGS(func, bpf_task_release, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_cgroup_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, bpf_cgroup_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_cgroup_release, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_cgroup_ancestor, KF_ACQUIRE | KF_TRUSTED_ARGS | KF_RET_NULL)
 #endif
 BTF_SET8_END(generic_btf_ids)
 
