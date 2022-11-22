@@ -741,7 +741,6 @@
 	adp-disable;
 	dr_mode = "otg";
 	hnp-disable;
-	over-current-active-low;
 	samsung,picophy-dc-vol-level-adjust = <7>;
 	samsung,picophy-pre-emp-curr-control = <3>;
 	srp-disable;
@@ -751,7 +750,6 @@
 /* Verdin USB_2 */
 &usbotg2 {
 	dr_mode = "host";
-	over-current-active-low;
 	samsung,picophy-dc-vol-level-adjust = <7>;
 	samsung,picophy-pre-emp-curr-control = <3>;
 	vbus-supply = <&reg_usb_otg2_vbus>;
