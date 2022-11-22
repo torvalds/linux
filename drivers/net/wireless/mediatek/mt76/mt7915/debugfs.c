@@ -967,11 +967,18 @@ mt7915_rate_txpower_show(struct seq_file *file, void *data)
 		"RU484/SU40", "RU996/SU80", "RU2x996/SU160"
 	};
 	struct mt7915_phy *phy = file->private;
+	struct mt7915_dev *dev = phy->dev;
 	s8 txpower[MT7915_SKU_RATE_NUM], *buf;
-	int i;
+	u32 reg;
+	int i, ret;
 
-	seq_printf(file, "\nBand %d\n", phy != &phy->dev->phy);
-	mt7915_mcu_get_txpower_sku(phy, txpower, sizeof(txpower));
+	ret = mt7915_mcu_get_txpower_sku(phy, txpower, sizeof(txpower));
+	if (ret)
+		return ret;
+
+	/* Txpower propagation path: TMAC -> TXV -> BBP */
+	seq_printf(file, "\nPhy %d\n", phy != &dev->phy);
+
 	for (i = 0, buf = txpower; i < ARRAY_SIZE(mt7915_sku_group_len); i++) {
 		u8 mcs_num = mt7915_sku_group_len[i];
 
@@ -981,6 +988,12 @@ mt7915_rate_txpower_show(struct seq_file *file, void *data)
 		mt76_seq_puts_array(file, sku_group_name[i], buf, mcs_num);
 		buf += mt7915_sku_group_len[i];
 	}
+
+	reg = is_mt7915(&dev->mt76) ? MT_WF_PHY_TPC_CTRL_STAT(phy->band_idx) :
+	      MT_WF_PHY_TPC_CTRL_STAT_MT7916(phy->band_idx);
+
+	seq_printf(file, "\nBaseband transmit power %ld\n",
+		   mt76_get_field(dev, reg, MT_WF_PHY_TPC_POWER));
 
 	return 0;
 }
