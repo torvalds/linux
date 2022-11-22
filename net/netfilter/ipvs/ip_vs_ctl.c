@@ -483,17 +483,14 @@ static void ip_vs_service_rcu_free(struct rcu_head *head)
 	ip_vs_service_free(svc);
 }
 
-static void __ip_vs_svc_put(struct ip_vs_service *svc, bool do_delay)
+static void __ip_vs_svc_put(struct ip_vs_service *svc)
 {
 	if (atomic_dec_and_test(&svc->refcnt)) {
 		IP_VS_DBG_BUF(3, "Removing service %u/%s:%u\n",
 			      svc->fwmark,
 			      IP_VS_DBG_ADDR(svc->af, &svc->addr),
 			      ntohs(svc->port));
-		if (do_delay)
-			call_rcu(&svc->rcu_head, ip_vs_service_rcu_free);
-		else
-			ip_vs_service_free(svc);
+		call_rcu(&svc->rcu_head, ip_vs_service_rcu_free);
 	}
 }
 
@@ -780,14 +777,22 @@ out:
 	return dest;
 }
 
+static void ip_vs_dest_rcu_free(struct rcu_head *head)
+{
+	struct ip_vs_dest *dest;
+
+	dest = container_of(head, struct ip_vs_dest, rcu_head);
+	free_percpu(dest->stats.cpustats);
+	ip_vs_dest_put_and_free(dest);
+}
+
 static void ip_vs_dest_free(struct ip_vs_dest *dest)
 {
 	struct ip_vs_service *svc = rcu_dereference_protected(dest->svc, 1);
 
 	__ip_vs_dst_cache_reset(dest);
-	__ip_vs_svc_put(svc, false);
-	free_percpu(dest->stats.cpustats);
-	ip_vs_dest_put_and_free(dest);
+	__ip_vs_svc_put(svc);
+	call_rcu(&dest->rcu_head, ip_vs_dest_rcu_free);
 }
 
 /*
@@ -809,6 +814,16 @@ static void ip_vs_trash_cleanup(struct netns_ipvs *ipvs)
 		list_del(&dest->t_list);
 		ip_vs_dest_free(dest);
 	}
+}
+
+static void ip_vs_stats_rcu_free(struct rcu_head *head)
+{
+	struct ip_vs_stats_rcu *rs = container_of(head,
+						  struct ip_vs_stats_rcu,
+						  rcu_head);
+
+	free_percpu(rs->s.cpustats);
+	kfree(rs);
 }
 
 static void
@@ -923,7 +938,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 		if (old_svc != svc) {
 			ip_vs_zero_stats(&dest->stats);
 			__ip_vs_bind_svc(dest, svc);
-			__ip_vs_svc_put(old_svc, true);
+			__ip_vs_svc_put(old_svc);
 		}
 	}
 
@@ -1571,7 +1586,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup)
 	/*
 	 *    Free the service if nobody refers to it
 	 */
-	__ip_vs_svc_put(svc, true);
+	__ip_vs_svc_put(svc);
 
 	/* decrease the module use count */
 	ip_vs_use_count_dec();
@@ -1761,7 +1776,7 @@ static int ip_vs_zero_all(struct netns_ipvs *ipvs)
 		}
 	}
 
-	ip_vs_zero_stats(&ipvs->tot_stats);
+	ip_vs_zero_stats(&ipvs->tot_stats->s);
 	return 0;
 }
 
@@ -2255,7 +2270,7 @@ static int ip_vs_stats_show(struct seq_file *seq, void *v)
 	seq_puts(seq,
 		 "   Conns  Packets  Packets            Bytes            Bytes\n");
 
-	ip_vs_copy_stats(&show, &net_ipvs(net)->tot_stats);
+	ip_vs_copy_stats(&show, &net_ipvs(net)->tot_stats->s);
 	seq_printf(seq, "%8LX %8LX %8LX %16LX %16LX\n\n",
 		   (unsigned long long)show.conns,
 		   (unsigned long long)show.inpkts,
@@ -2279,7 +2294,7 @@ static int ip_vs_stats_show(struct seq_file *seq, void *v)
 static int ip_vs_stats_percpu_show(struct seq_file *seq, void *v)
 {
 	struct net *net = seq_file_single_net(seq);
-	struct ip_vs_stats *tot_stats = &net_ipvs(net)->tot_stats;
+	struct ip_vs_stats *tot_stats = &net_ipvs(net)->tot_stats->s;
 	struct ip_vs_cpu_stats __percpu *cpustats = tot_stats->cpustats;
 	struct ip_vs_kstats kstats;
 	int i;
@@ -4107,7 +4122,6 @@ static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 			kfree(tbl);
 		return -ENOMEM;
 	}
-	ip_vs_start_estimator(ipvs, &ipvs->tot_stats);
 	ipvs->sysctl_tbl = tbl;
 	/* Schedule defense work */
 	INIT_DELAYED_WORK(&ipvs->defense_work, defense_work_handler);
@@ -4118,6 +4132,7 @@ static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 	INIT_DELAYED_WORK(&ipvs->expire_nodest_conn_work,
 			  expire_nodest_conn_handler);
 
+	ip_vs_start_estimator(ipvs, &ipvs->tot_stats->s);
 	return 0;
 }
 
@@ -4129,7 +4144,7 @@ static void __net_exit ip_vs_control_net_cleanup_sysctl(struct netns_ipvs *ipvs)
 	cancel_delayed_work_sync(&ipvs->defense_work);
 	cancel_work_sync(&ipvs->defense_work.work);
 	unregister_net_sysctl_table(ipvs->sysctl_hdr);
-	ip_vs_stop_estimator(ipvs, &ipvs->tot_stats);
+	ip_vs_stop_estimator(ipvs, &ipvs->tot_stats->s);
 
 	if (!net_eq(net, &init_net))
 		kfree(ipvs->sysctl_tbl);
@@ -4165,17 +4180,20 @@ int __net_init ip_vs_control_net_init(struct netns_ipvs *ipvs)
 	atomic_set(&ipvs->conn_out_counter, 0);
 
 	/* procfs stats */
-	ipvs->tot_stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
-	if (!ipvs->tot_stats.cpustats)
+	ipvs->tot_stats = kzalloc(sizeof(*ipvs->tot_stats), GFP_KERNEL);
+	if (!ipvs->tot_stats)
 		return -ENOMEM;
+	ipvs->tot_stats->s.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
+	if (!ipvs->tot_stats->s.cpustats)
+		goto err_tot_stats;
 
 	for_each_possible_cpu(i) {
 		struct ip_vs_cpu_stats *ipvs_tot_stats;
-		ipvs_tot_stats = per_cpu_ptr(ipvs->tot_stats.cpustats, i);
+		ipvs_tot_stats = per_cpu_ptr(ipvs->tot_stats->s.cpustats, i);
 		u64_stats_init(&ipvs_tot_stats->syncp);
 	}
 
-	spin_lock_init(&ipvs->tot_stats.lock);
+	spin_lock_init(&ipvs->tot_stats->s.lock);
 
 #ifdef CONFIG_PROC_FS
 	if (!proc_create_net("ip_vs", 0, ipvs->net->proc_net,
@@ -4207,7 +4225,10 @@ err_stats:
 
 err_vs:
 #endif
-	free_percpu(ipvs->tot_stats.cpustats);
+	free_percpu(ipvs->tot_stats->s.cpustats);
+
+err_tot_stats:
+	kfree(ipvs->tot_stats);
 	return -ENOMEM;
 }
 
@@ -4220,7 +4241,7 @@ void __net_exit ip_vs_control_net_cleanup(struct netns_ipvs *ipvs)
 	remove_proc_entry("ip_vs_stats", ipvs->net->proc_net);
 	remove_proc_entry("ip_vs", ipvs->net->proc_net);
 #endif
-	free_percpu(ipvs->tot_stats.cpustats);
+	call_rcu(&ipvs->tot_stats->rcu_head, ip_vs_stats_rcu_free);
 }
 
 int __init ip_vs_register_nl_ioctl(void)
@@ -4280,5 +4301,6 @@ void ip_vs_control_cleanup(void)
 {
 	EnterFunction(2);
 	unregister_netdevice_notifier(&ip_vs_dst_notifier);
+	/* relying on common rcu_barrier() in ip_vs_cleanup() */
 	LeaveFunction(2);
 }
