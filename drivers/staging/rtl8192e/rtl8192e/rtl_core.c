@@ -866,8 +866,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->rst_progress = RESET_TYPE_NORESET;
 	priv->force_reset = false;
 	memset(priv->rtllib->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
-
-	memset(&priv->int_log, 0, sizeof(struct log_int_8190));
 	priv->rx_ctr = 0;
 	priv->rtllib->wx_set_enc = 0;
 	priv->hw_radio_off = false;
@@ -2185,7 +2183,6 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 
 	if (inta & IMR_ROK) {
 		priv->stats.rxint++;
-		priv->int_log.nIMR_ROK++;
 		tasklet_schedule(&priv->irq_rx_tasklet);
 	}
 

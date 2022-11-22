@@ -317,8 +317,6 @@ struct r8192_priv {
 
 	struct work_struct				reset_wq;
 
-	struct log_int_8190 int_log;
-
 	enum rt_customer_id CustomerID;
 
 
