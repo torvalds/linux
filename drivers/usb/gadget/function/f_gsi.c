@@ -3299,8 +3299,6 @@ static struct f_gsi *gsi_function_init(enum ipa_usb_teth_prot prot_id)
 
 	spin_lock_init(&gsi->d_port.lock);
 
-	init_completion(&wait_for_ipa_ready);
-
 	INIT_DELAYED_WORK(&gsi->d_port.usb_ipa_w, ipa_work_handler);
 
 	gsi->d_port.in_channel_handle = -EINVAL;
