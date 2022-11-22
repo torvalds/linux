@@ -3511,7 +3511,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			sec_desc->sec_type = SEC_RELO;
 			sec_desc->shdr = sh;
 			sec_desc->data = data;
-		} else if (sh->sh_type == SHT_NOBITS && strcmp(name, BSS_SEC) == 0) {
+		} else if (sh->sh_type == SHT_NOBITS && (strcmp(name, BSS_SEC) == 0 ||
+							 str_has_pfx(name, BSS_SEC "."))) {
 			sec_desc->sec_type = SEC_BSS;
 			sec_desc->shdr = sh;
 			sec_desc->data = data;

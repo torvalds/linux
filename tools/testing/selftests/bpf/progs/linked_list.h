@@ -47,7 +47,7 @@ struct {
 	},
 };
 
-#define private(name) SEC(".data." #name) __hidden __attribute__((aligned(8)))
+#define private(name) SEC(".bss." #name) __hidden __attribute__((aligned(8)))
 
 private(A) struct bpf_spin_lock glock;
 private(A) struct bpf_list_head ghead __contains(foo, node);

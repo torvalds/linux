@@ -189,7 +189,7 @@ static void test_linked_list_success(int mode, bool leave_in_map)
 	ASSERT_OK(ret, "global_list_push_pop");
 	ASSERT_OK(opts.retval, "global_list_push_pop retval");
 	if (!leave_in_map)
-		clear_fields(skel->maps.data_A);
+		clear_fields(skel->maps.bss_A);
 
 	if (mode == PUSH_POP)
 		goto end;
@@ -211,7 +211,7 @@ ppm:
 	ASSERT_OK(ret, "global_list_push_pop_multiple");
 	ASSERT_OK(opts.retval, "global_list_push_pop_multiple retval");
 	if (!leave_in_map)
-		clear_fields(skel->maps.data_A);
+		clear_fields(skel->maps.bss_A);
 
 	if (mode == PUSH_POP_MULT)
 		goto end;
@@ -233,7 +233,7 @@ lil:
 	ASSERT_OK(ret, "global_list_in_list");
 	ASSERT_OK(opts.retval, "global_list_in_list retval");
 	if (!leave_in_map)
-		clear_fields(skel->maps.data_A);
+		clear_fields(skel->maps.bss_A);
 end:
 	linked_list__destroy(skel);
 }
