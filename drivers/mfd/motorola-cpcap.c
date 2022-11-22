@@ -294,7 +294,7 @@ static int cpcap_probe(struct spi_device *spi)
 	struct cpcap_ddata *cpcap;
 	int ret;
 
-	match = of_match_device(of_match_ptr(cpcap_of_match), &spi->dev);
+	match = of_match_device(cpcap_of_match, &spi->dev);
 	if (!match)
 		return -ENODEV;
 

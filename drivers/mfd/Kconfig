@@ -797,7 +797,7 @@ config MFD_MAX14577
 config MFD_MAX77620
 	bool "Maxim Semiconductor MAX77620 and MAX20024 PMIC Support"
 	depends on I2C=y
-	depends on OF || COMPILE_TEST
+	depends on OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -812,7 +812,7 @@ config MFD_MAX77620
 config MFD_MAX77650
 	tristate "Maxim MAX77650/77651 PMIC Support"
 	depends on I2C
-	depends on OF || COMPILE_TEST
+	depends on OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -827,7 +827,7 @@ config MFD_MAX77650
 config MFD_MAX77686
 	tristate "Maxim Semiconductor MAX77686/802 PMIC Support"
 	depends on I2C
-	depends on OF || COMPILE_TEST
+	depends on OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -856,7 +856,7 @@ config MFD_MAX77693
 config MFD_MAX77714
 	tristate "Maxim Semiconductor MAX77714 PMIC Support"
 	depends on I2C
-	depends on OF || COMPILE_TEST
+	depends on OF
 	select MFD_CORE
 	select REGMAP_I2C
 	help
@@ -1013,7 +1013,7 @@ config EZX_PCAP
 config MFD_CPCAP
 	tristate "Support for Motorola CPCAP"
 	depends on SPI
-	depends on OF || COMPILE_TEST
+	depends on OF
 	select MFD_CORE
 	select REGMAP_SPI
 	select REGMAP_IRQ
@@ -1038,7 +1038,7 @@ config MFD_VIPERBOARD
 
 config MFD_NTXEC
 	tristate "Netronix embedded controller (EC)"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on I2C
 	select REGMAP_I2C
 	select MFD_CORE
@@ -1234,7 +1234,7 @@ config MFD_RN5T618
 config MFD_SEC_CORE
 	tristate "Samsung Electronics PMIC Series Support"
 	depends on I2C=y
-	depends on OF || COMPILE_TEST
+	depends on OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -2082,7 +2082,7 @@ config MFD_STPMIC1
 config MFD_STMFX
 	tristate "Support for STMicroelectronics Multi-Function eXpander (STMFX)"
 	depends on I2C
-	depends on OF || COMPILE_TEST
+	depends on OF
 	select MFD_CORE
 	select REGMAP_I2C
 	help
