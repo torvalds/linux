@@ -903,8 +903,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
 		skb_queue_head_init(&priv->rtllib->skb_waitQ[i]);
-	for (i = 0; i < MAX_QUEUE_SIZE; i++)
-		skb_queue_head_init(&priv->rtllib->skb_aggQ[i]);
 }
 
 static void _rtl92e_init_priv_lock(struct r8192_priv *priv)
