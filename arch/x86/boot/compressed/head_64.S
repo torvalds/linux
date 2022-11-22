@@ -749,7 +749,6 @@ SYM_DATA_END_LABEL(boot32_idt, SYM_L_GLOBAL, boot32_idt_end)
  */
 SYM_FUNC_START(startup32_set_idt_entry)
 	push    %ebx
-	push    %ecx
 
 	/* IDT entry address to %ebx */
 	leal    rva(boot32_idt)(%ebp), %ebx
@@ -758,10 +757,8 @@ SYM_FUNC_START(startup32_set_idt_entry)
 
 	/* Build IDT entry, lower 4 bytes */
 	movl    %eax, %edx
-	andl    $0x0000ffff, %edx	# Target code segment offset [15:0]
-	movl    $__KERNEL32_CS, %ecx	# Target code segment selector
-	shl     $16, %ecx
-	orl     %ecx, %edx
+	andl    $0x0000ffff, %edx		# Target code segment offset [15:0]
+	orl	$(__KERNEL32_CS << 16), %edx	# Target code segment selector
 
 	/* Store lower 4 bytes to IDT */
 	movl    %edx, (%ebx)
@@ -774,7 +771,6 @@ SYM_FUNC_START(startup32_set_idt_entry)
 	/* Store upper 4 bytes to IDT */
 	movl    %edx, 4(%ebx)
 
-	pop     %ecx
 	pop     %ebx
 	RET
 SYM_FUNC_END(startup32_set_idt_entry)
