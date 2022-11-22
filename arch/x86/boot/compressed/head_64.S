@@ -744,16 +744,11 @@ SYM_DATA_END_LABEL(boot32_idt, SYM_L_GLOBAL, boot32_idt_end)
  *
  * %eax:	Handler address
  * %edx:	Vector number
- *
- * Physical offset is expected in %ebp
+ * %ecx:	IDT address
  */
-SYM_FUNC_START(startup32_set_idt_entry)
-	push    %ebx
-
-	/* IDT entry address to %ebx */
-	leal    rva(boot32_idt)(%ebp), %ebx
-	shl	$3, %edx
-	addl    %edx, %ebx
+SYM_FUNC_START_LOCAL(startup32_set_idt_entry)
+	/* IDT entry address to %ecx */
+	leal	(%ecx, %edx, 8), %ecx
 
 	/* Build IDT entry, lower 4 bytes */
 	movl    %eax, %edx
@@ -761,7 +756,7 @@ SYM_FUNC_START(startup32_set_idt_entry)
 	orl	$(__KERNEL32_CS << 16), %edx	# Target code segment selector
 
 	/* Store lower 4 bytes to IDT */
-	movl    %edx, (%ebx)
+	movl    %edx, (%ecx)
 
 	/* Build IDT entry, upper 4 bytes */
 	movl    %eax, %edx
@@ -769,15 +764,16 @@ SYM_FUNC_START(startup32_set_idt_entry)
 	orl     $0x00008e00, %edx	# Present, Type 32-bit Interrupt Gate
 
 	/* Store upper 4 bytes to IDT */
-	movl    %edx, 4(%ebx)
+	movl    %edx, 4(%ecx)
 
-	pop     %ebx
 	RET
 SYM_FUNC_END(startup32_set_idt_entry)
 #endif
 
 SYM_FUNC_START(startup32_load_idt)
 #ifdef CONFIG_AMD_MEM_ENCRYPT
+	leal    rva(boot32_idt)(%ebp), %ecx
+
 	/* #VC handler */
 	leal    rva(startup32_vc_handler)(%ebp), %eax
 	movl    $X86_TRAP_VC, %edx
