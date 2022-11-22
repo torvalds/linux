@@ -307,7 +307,6 @@ SYM_FUNC_END(startup32_check_sev_cbit)
 
 	.data
 
-#ifdef CONFIG_AMD_MEM_ENCRYPT
 	.balign	8
 SYM_DATA(sme_me_mask,		.quad 0)
 SYM_DATA(sev_status,		.quad 0)
@@ -323,4 +322,3 @@ SYM_DATA_START_LOCAL(boot32_idt_desc)
 	.word	. - boot32_idt - 1
 	.long	0
 SYM_DATA_END(boot32_idt_desc)
-#endif
