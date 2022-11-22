@@ -683,6 +683,12 @@ int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 out_unfreeze:
 	blk_mq_unquiesce_queue(q);
 	blk_mq_unfreeze_queue(q);
+
+	if (ret) {
+		pr_warn("elv: switch to \"%s\" failed, falling back to \"none\"\n",
+			new_e->elevator_name);
+	}
+
 	return ret;
 }
 
