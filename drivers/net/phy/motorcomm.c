@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Motorcomm 8511/8521 PHY driver.
+ * Motorcomm 8511/8521/8531S PHY driver.
  *
  * Author: Peter Geis <pgwipeout@gmail.com>
  * Author: Frank <Frank.Sae@motor-comm.com>
@@ -12,9 +12,10 @@
 #include <linux/phy.h>
 
 #define PHY_ID_YT8511		0x0000010a
-#define PHY_ID_YT8521				0x0000011A
+#define PHY_ID_YT8521		0x0000011A
+#define PHY_ID_YT8531S		0x4F51E91A
 
-/* YT8521 Register Overview
+/* YT8521/YT8531S Register Overview
  *	UTP Register space	|	FIBER Register space
  *  ------------------------------------------------------------
  * |	UTP MII			|	FIBER MII		|
@@ -147,7 +148,7 @@
 #define YT8521_LINK_TIMER_CFG2_REG		0xA5
 #define YT8521_LTCR_EN_AUTOSEN			BIT(15)
 
-/* 0xA000, 0xA001, 0xA003 ,and 0xA006 ~ 0xA00A  are common ext registers
+/* 0xA000, 0xA001, 0xA003, 0xA006 ~ 0xA00A and 0xA012 are common ext registers
  * of yt8521 phy. There is no need to switch reg space when operating these
  * registers.
  */
@@ -220,6 +221,9 @@
  * 1b1 Interrupt and WOL events is pulse triggered and active LOW
  */
 #define YTPHY_WCR_TYPE_PULSE			BIT(0)
+
+#define YT8531S_SYNCE_CFG_REG			0xA012
+#define YT8531S_SCR_SYNCE_ENABLE		BIT(6)
 
 /* Extended Register  end */
 
@@ -645,6 +649,26 @@ static int yt8521_probe(struct phy_device *phydev)
 	}
 
 	return 0;
+}
+
+/**
+ * yt8531s_probe() - read chip config then set suitable polling_mode
+ * @phydev: a pointer to a &struct phy_device
+ *
+ * returns 0 or negative errno code
+ */
+static int yt8531s_probe(struct phy_device *phydev)
+{
+	int ret;
+
+	/* Disable SyncE clock output by default */
+	ret = ytphy_modify_ext_with_lock(phydev, YT8531S_SYNCE_CFG_REG,
+					 YT8531S_SCR_SYNCE_ENABLE, 0);
+	if (ret < 0)
+		return ret;
+
+	/* same as yt8521_probe */
+	return yt8521_probe(phydev);
 }
 
 /**
@@ -1750,11 +1774,28 @@ static struct phy_driver motorcomm_phy_drvs[] = {
 		.suspend	= yt8521_suspend,
 		.resume		= yt8521_resume,
 	},
+	{
+		PHY_ID_MATCH_EXACT(PHY_ID_YT8531S),
+		.name		= "YT8531S Gigabit Ethernet",
+		.get_features	= yt8521_get_features,
+		.probe		= yt8531s_probe,
+		.read_page	= yt8521_read_page,
+		.write_page	= yt8521_write_page,
+		.get_wol	= ytphy_get_wol,
+		.set_wol	= ytphy_set_wol,
+		.config_aneg	= yt8521_config_aneg,
+		.aneg_done	= yt8521_aneg_done,
+		.config_init	= yt8521_config_init,
+		.read_status	= yt8521_read_status,
+		.soft_reset	= yt8521_soft_reset,
+		.suspend	= yt8521_suspend,
+		.resume		= yt8521_resume,
+	},
 };
 
 module_phy_driver(motorcomm_phy_drvs);
 
-MODULE_DESCRIPTION("Motorcomm 8511/8521 PHY driver");
+MODULE_DESCRIPTION("Motorcomm 8511/8521/8531S PHY driver");
 MODULE_AUTHOR("Peter Geis");
 MODULE_AUTHOR("Frank");
 MODULE_LICENSE("GPL");
@@ -1762,6 +1803,7 @@ MODULE_LICENSE("GPL");
 static const struct mdio_device_id __maybe_unused motorcomm_tbl[] = {
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8511) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8521) },
+	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8531S) },
 	{ /* sentinal */ }
 };
 
