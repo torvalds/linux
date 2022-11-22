@@ -91,12 +91,11 @@ static inline bool elv_support_features(struct request_queue *q,
 }
 
 /**
- * elevator_match - Test an elevator name and features
+ * elevator_match - Check whether @e's name or alias matches @name
  * @e: Scheduler to test
  * @name: Elevator name to test
  *
- * Return true if the elevator @e name matches @name and if @e provides all
- * the features specified by @required_features.
+ * Return true if the elevator @e's name or alias matches @name.
  */
 static bool elevator_match(const struct elevator_type *e, const char *name)
 {
