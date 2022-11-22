@@ -251,6 +251,11 @@ SYM_FUNC_START(startup_32)
 	movl    $__BOOT_TSS, %eax
 	ltr	%ax
 
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+	/* Check if the C-bit position is correct when SEV is active */
+	call	startup32_check_sev_cbit
+#endif
+
 	/*
 	 * Setup for the jump to 64bit mode
 	 *
@@ -268,8 +273,6 @@ SYM_FUNC_START(startup_32)
 	leal	rva(startup_64_mixed_mode)(%ebp), %eax
 1:
 #endif
-	/* Check if the C-bit position is correct when SEV is active */
-	call	startup32_check_sev_cbit
 
 	pushl	$__KERNEL_CS
 	pushl	%eax
@@ -740,16 +743,17 @@ SYM_DATA_END_LABEL(boot_idt, SYM_L_GLOBAL, boot_idt_end)
  * succeed. An incorrect C-bit position will map all memory unencrypted, so that
  * the compare will use the encrypted random data and fail.
  */
-	__HEAD
-SYM_FUNC_START(startup32_check_sev_cbit)
 #ifdef CONFIG_AMD_MEM_ENCRYPT
-	pushl	%eax
+	.text
+SYM_FUNC_START(startup32_check_sev_cbit)
 	pushl	%ebx
-	pushl	%ecx
-	pushl	%edx
+	pushl	%ebp
+
+	call	0f
+0:	popl	%ebp
 
 	/* Check for non-zero sev_status */
-	movl	rva(sev_status)(%ebp), %eax
+	movl	(sev_status - 0b)(%ebp), %eax
 	testl	%eax, %eax
 	jz	4f
 
@@ -764,17 +768,18 @@ SYM_FUNC_START(startup32_check_sev_cbit)
 	jnc	2b
 
 	/* Store to memory and keep it in the registers */
-	movl	%eax, rva(sev_check_data)(%ebp)
-	movl	%ebx, rva(sev_check_data+4)(%ebp)
+	leal	(sev_check_data - 0b)(%ebp), %ebp
+	movl	%eax, 0(%ebp)
+	movl	%ebx, 4(%ebp)
 
 	/* Enable paging to see if encryption is active */
 	movl	%cr0, %edx			 /* Backup %cr0 in %edx */
 	movl	$(X86_CR0_PG | X86_CR0_PE), %ecx /* Enable Paging and Protected mode */
 	movl	%ecx, %cr0
 
-	cmpl	%eax, rva(sev_check_data)(%ebp)
+	cmpl	%eax, 0(%ebp)
 	jne	3f
-	cmpl	%ebx, rva(sev_check_data+4)(%ebp)
+	cmpl	%ebx, 4(%ebp)
 	jne	3f
 
 	movl	%edx, %cr0	/* Restore previous %cr0 */
@@ -786,13 +791,11 @@ SYM_FUNC_START(startup32_check_sev_cbit)
 	jmp	3b
 
 4:
-	popl	%edx
-	popl	%ecx
+	popl	%ebp
 	popl	%ebx
-	popl	%eax
-#endif
 	RET
 SYM_FUNC_END(startup32_check_sev_cbit)
+#endif
 
 /*
  * Stack and heap for uncompression
