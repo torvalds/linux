@@ -565,10 +565,6 @@ static const struct reg_field vsc9959_regfields[REGFIELD_MAX] = {
 	[SYS_PAUSE_CFG_PAUSE_ENA] = REG_FIELD_ID(SYS_PAUSE_CFG, 0, 1, 7, 4),
 };
 
-static const struct ocelot_stat_layout vsc9959_stats_layout[OCELOT_NUM_STATS] = {
-	OCELOT_COMMON_STATS,
-};
-
 static const struct vcap_field vsc9959_vcap_es0_keys[] = {
 	[VCAP_ES0_EGR_PORT]			= {  0,  3},
 	[VCAP_ES0_IGR_PORT]			= {  3,  3},
@@ -2546,7 +2542,6 @@ static const struct felix_info felix_info_vsc9959 = {
 	.regfields		= vsc9959_regfields,
 	.map			= vsc9959_regmap,
 	.ops			= &vsc9959_ops,
-	.stats_layout		= vsc9959_stats_layout,
 	.vcap			= vsc9959_vcap_props,
 	.vcap_pol_base		= VSC9959_VCAP_POLICER_BASE,
 	.vcap_pol_max		= VSC9959_VCAP_POLICER_MAX,

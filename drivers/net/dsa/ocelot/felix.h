@@ -28,7 +28,6 @@ struct felix_info {
 	const struct ocelot_ops		*ops;
 	const u32			*port_modes;
 	int				num_mact_rows;
-	const struct ocelot_stat_layout	*stats_layout;
 	int				num_ports;
 	int				num_tx_queues;
 	struct vcap_props		*vcap;
