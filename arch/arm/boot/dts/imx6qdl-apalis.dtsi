@@ -824,7 +824,6 @@
 };
 
 &usbotg {
-	disable-over-current;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbotg>;
 	status = "disabled";
