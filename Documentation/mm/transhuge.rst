@@ -118,15 +118,14 @@ pages:
     succeeds on tail pages.
 
   - map/unmap of PMD entry for the whole compound page increment/decrement
-    ->compound_mapcount, stored in the first tail page of the compound page.
+    ->compound_mapcount, stored in the first tail page of the compound page;
+    and also increment/decrement ->subpages_mapcount (also in the first tail)
+    by COMPOUND_MAPPED when compound_mapcount goes from -1 to 0 or 0 to -1.
 
   - map/unmap of sub-pages with PTE entry increment/decrement ->_mapcount
     on relevant sub-page of the compound page, and also increment/decrement
     ->subpages_mapcount, stored in first tail page of the compound page, when
     _mapcount goes from -1 to 0 or 0 to -1: counting sub-pages mapped by PTE.
-    In order to have race-free accounting of sub-pages mapped, changes to
-    sub-page ->_mapcount, ->subpages_mapcount and ->compound_mapcount are
-    are all locked by bit_spin_lock of PG_locked in the first tail ->flags.
 
 split_huge_page internally has to distribute the refcounts in the head
 page to the tail pages before clearing all PG_head/tail bits from the page

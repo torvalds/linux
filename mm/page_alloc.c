@@ -1330,7 +1330,7 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
 			bad_page(page, "nonzero compound_mapcount");
 			goto out;
 		}
-		if (unlikely(head_subpages_mapcount(head_page))) {
+		if (unlikely(atomic_read(subpages_mapcount_ptr(head_page)))) {
 			bad_page(page, "nonzero subpages_mapcount");
 			goto out;
 		}

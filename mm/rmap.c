@@ -1085,38 +1085,6 @@ int pfn_mkclean_range(unsigned long pfn, unsigned long nr_pages, pgoff_t pgoff,
 	return page_vma_mkclean_one(&pvmw);
 }
 
-struct compound_mapcounts {
-	unsigned int compound_mapcount;
-	unsigned int subpages_mapcount;
-};
-
-/*
- * lock_compound_mapcounts() first locks, then copies subpages_mapcount and
- * compound_mapcount from head[1].compound_mapcount and subpages_mapcount,
- * converting from struct page's internal representation to logical count
- * (that is, adding 1 to compound_mapcount to hide its offset by -1).
- */
-static void lock_compound_mapcounts(struct page *head,
-		struct compound_mapcounts *local)
-{
-	bit_spin_lock(PG_locked, &head[1].flags);
-	local->compound_mapcount = atomic_read(compound_mapcount_ptr(head)) + 1;
-	local->subpages_mapcount = atomic_read(subpages_mapcount_ptr(head));
-}
-
-/*
- * After caller has updated subpage._mapcount, local subpages_mapcount and
- * local compound_mapcount, as necessary, unlock_compound_mapcounts() converts
- * and copies them back to the compound head[1] fields, and then unlocks.
- */
-static void unlock_compound_mapcounts(struct page *head,
-		struct compound_mapcounts *local)
-{
-	atomic_set(compound_mapcount_ptr(head), local->compound_mapcount - 1);
-	atomic_set(subpages_mapcount_ptr(head), local->subpages_mapcount);
-	bit_spin_unlock(PG_locked, &head[1].flags);
-}
-
 int total_compound_mapcount(struct page *head)
 {
 	int mapcount = head_compound_mapcount(head);
@@ -1138,34 +1106,6 @@ int total_compound_mapcount(struct page *head)
 	/* But each of those _mapcounts was based on -1 */
 	mapcount += nr_subpages;
 	return mapcount;
-}
-
-/*
- * page_dup_compound_rmap(), used when copying mm,
- * provides a simple example of using lock_ and unlock_compound_mapcounts().
- */
-void page_dup_compound_rmap(struct page *head)
-{
-	struct compound_mapcounts mapcounts;
-
-	/*
-	 * Hugetlb pages could use lock_compound_mapcounts(), like THPs do;
-	 * but at present they are still being managed by atomic operations:
-	 * which are likely to be somewhat faster, so don't rush to convert
-	 * them over without evaluating the effect.
-	 *
-	 * Note that hugetlb does not call page_add_file_rmap():
-	 * here is where hugetlb shared page mapcount is raised.
-	 */
-	if (PageHuge(head)) {
-		atomic_inc(compound_mapcount_ptr(head));
-	} else if (PageTransHuge(head)) {
-		/* That test is redundant: it's for safety or to optimize out */
-
-		lock_compound_mapcounts(head, &mapcounts);
-		mapcounts.compound_mapcount++;
-		unlock_compound_mapcounts(head, &mapcounts);
-	}
 }
 
 /**
@@ -1277,7 +1217,7 @@ static void __page_check_anon_rmap(struct page *page,
 void page_add_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address, rmap_t flags)
 {
-	struct compound_mapcounts mapcounts;
+	atomic_t *mapped;
 	int nr = 0, nr_pmdmapped = 0;
 	bool compound = flags & RMAP_COMPOUND;
 	bool first = true;
@@ -1290,24 +1230,20 @@ void page_add_anon_rmap(struct page *page,
 		first = atomic_inc_and_test(&page->_mapcount);
 		nr = first;
 		if (first && PageCompound(page)) {
-			struct page *head = compound_head(page);
-
-			lock_compound_mapcounts(head, &mapcounts);
-			mapcounts.subpages_mapcount++;
-			nr = !mapcounts.compound_mapcount;
-			unlock_compound_mapcounts(head, &mapcounts);
+			mapped = subpages_mapcount_ptr(compound_head(page));
+			nr = atomic_inc_return_relaxed(mapped);
+			nr = !(nr & COMPOUND_MAPPED);
 		}
 	} else if (PageTransHuge(page)) {
 		/* That test is redundant: it's for safety or to optimize out */
 
-		lock_compound_mapcounts(page, &mapcounts);
-		first = !mapcounts.compound_mapcount;
-		mapcounts.compound_mapcount++;
+		first = atomic_inc_and_test(compound_mapcount_ptr(page));
 		if (first) {
+			mapped = subpages_mapcount_ptr(page);
+			nr = atomic_add_return_relaxed(COMPOUND_MAPPED, mapped);
 			nr_pmdmapped = thp_nr_pages(page);
-			nr = nr_pmdmapped - mapcounts.subpages_mapcount;
+			nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
 		}
-		unlock_compound_mapcounts(page, &mapcounts);
 	}
 
 	VM_BUG_ON_PAGE(!first && (flags & RMAP_EXCLUSIVE), page);
@@ -1360,6 +1296,7 @@ void page_add_new_anon_rmap(struct page *page,
 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
 		/* increment count (starts at -1) */
 		atomic_set(compound_mapcount_ptr(page), 0);
+		atomic_set(subpages_mapcount_ptr(page), COMPOUND_MAPPED);
 		nr = thp_nr_pages(page);
 		__mod_lruvec_page_state(page, NR_ANON_THPS, nr);
 	}
@@ -1379,7 +1316,7 @@ void page_add_new_anon_rmap(struct page *page,
 void page_add_file_rmap(struct page *page,
 	struct vm_area_struct *vma, bool compound)
 {
-	struct compound_mapcounts mapcounts;
+	atomic_t *mapped;
 	int nr = 0, nr_pmdmapped = 0;
 	bool first;
 
@@ -1391,24 +1328,20 @@ void page_add_file_rmap(struct page *page,
 		first = atomic_inc_and_test(&page->_mapcount);
 		nr = first;
 		if (first && PageCompound(page)) {
-			struct page *head = compound_head(page);
-
-			lock_compound_mapcounts(head, &mapcounts);
-			mapcounts.subpages_mapcount++;
-			nr = !mapcounts.compound_mapcount;
-			unlock_compound_mapcounts(head, &mapcounts);
+			mapped = subpages_mapcount_ptr(compound_head(page));
+			nr = atomic_inc_return_relaxed(mapped);
+			nr = !(nr & COMPOUND_MAPPED);
 		}
 	} else if (PageTransHuge(page)) {
 		/* That test is redundant: it's for safety or to optimize out */
 
-		lock_compound_mapcounts(page, &mapcounts);
-		first = !mapcounts.compound_mapcount;
-		mapcounts.compound_mapcount++;
+		first = atomic_inc_and_test(compound_mapcount_ptr(page));
 		if (first) {
+			mapped = subpages_mapcount_ptr(page);
+			nr = atomic_add_return_relaxed(COMPOUND_MAPPED, mapped);
 			nr_pmdmapped = thp_nr_pages(page);
-			nr = nr_pmdmapped - mapcounts.subpages_mapcount;
+			nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
 		}
-		unlock_compound_mapcounts(page, &mapcounts);
 	}
 
 	if (nr_pmdmapped)
@@ -1432,7 +1365,7 @@ void page_add_file_rmap(struct page *page,
 void page_remove_rmap(struct page *page,
 	struct vm_area_struct *vma, bool compound)
 {
-	struct compound_mapcounts mapcounts;
+	atomic_t *mapped;
 	int nr = 0, nr_pmdmapped = 0;
 	bool last;
 
@@ -1452,24 +1385,20 @@ void page_remove_rmap(struct page *page,
 		last = atomic_add_negative(-1, &page->_mapcount);
 		nr = last;
 		if (last && PageCompound(page)) {
-			struct page *head = compound_head(page);
-
-			lock_compound_mapcounts(head, &mapcounts);
-			mapcounts.subpages_mapcount--;
-			nr = !mapcounts.compound_mapcount;
-			unlock_compound_mapcounts(head, &mapcounts);
+			mapped = subpages_mapcount_ptr(compound_head(page));
+			nr = atomic_dec_return_relaxed(mapped);
+			nr = !(nr & COMPOUND_MAPPED);
 		}
 	} else if (PageTransHuge(page)) {
 		/* That test is redundant: it's for safety or to optimize out */
 
-		lock_compound_mapcounts(page, &mapcounts);
-		mapcounts.compound_mapcount--;
-		last = !mapcounts.compound_mapcount;
+		last = atomic_add_negative(-1, compound_mapcount_ptr(page));
 		if (last) {
+			mapped = subpages_mapcount_ptr(page);
+			nr = atomic_sub_return_relaxed(COMPOUND_MAPPED, mapped);
 			nr_pmdmapped = thp_nr_pages(page);
-			nr = nr_pmdmapped - mapcounts.subpages_mapcount;
+			nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
 		}
-		unlock_compound_mapcounts(page, &mapcounts);
 	}
 
 	if (nr_pmdmapped) {
