@@ -147,3 +147,76 @@ int BPF_PROG(test_task_current_acquire_release, struct task_struct *task, u64 cl
 
 	return 0;
 }
+
+static void lookup_compare_pid(const struct task_struct *p)
+{
+	struct task_struct *acquired;
+
+	acquired = bpf_task_from_pid(p->pid);
+	if (!acquired) {
+		err = 1;
+		return;
+	}
+
+	if (acquired->pid != p->pid)
+		err = 2;
+	bpf_task_release(acquired);
+}
+
+SEC("tp_btf/task_newtask")
+int BPF_PROG(test_task_from_pid_arg, struct task_struct *task, u64 clone_flags)
+{
+	struct task_struct *acquired;
+
+	if (!is_test_kfunc_task())
+		return 0;
+
+	lookup_compare_pid(task);
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+int BPF_PROG(test_task_from_pid_current, struct task_struct *task, u64 clone_flags)
+{
+	struct task_struct *current, *acquired;
+
+	if (!is_test_kfunc_task())
+		return 0;
+
+	lookup_compare_pid(bpf_get_current_task_btf());
+	return 0;
+}
+
+static int is_pid_lookup_valid(s32 pid)
+{
+	struct task_struct *acquired;
+
+	acquired = bpf_task_from_pid(pid);
+	if (acquired) {
+		bpf_task_release(acquired);
+		return 1;
+	}
+
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+int BPF_PROG(test_task_from_pid_invalid, struct task_struct *task, u64 clone_flags)
+{
+	struct task_struct *acquired;
+
+	if (!is_test_kfunc_task())
+		return 0;
+
+	if (is_pid_lookup_valid(-1)) {
+		err = 1;
+		return 0;
+	}
+
+	if (is_pid_lookup_valid(0xcafef00d)) {
+		err = 2;
+		return 0;
+	}
+
+	return 0;
+}

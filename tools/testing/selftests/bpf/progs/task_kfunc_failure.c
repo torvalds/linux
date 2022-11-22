@@ -258,3 +258,16 @@ int BPF_PROG(task_kfunc_release_unacquired, struct task_struct *task, u64 clone_
 
 	return 0;
 }
+
+SEC("tp_btf/task_newtask")
+int BPF_PROG(task_kfunc_from_pid_no_null_check, struct task_struct *task, u64 clone_flags)
+{
+	struct task_struct *acquired;
+
+	acquired = bpf_task_from_pid(task->pid);
+
+	/* Releasing bpf_task_from_pid() lookup without a NULL check. */
+	bpf_task_release(acquired);
+
+	return 0;
+}

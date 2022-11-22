@@ -78,6 +78,9 @@ static const char * const success_tests[] = {
 	"test_task_xchg_release",
 	"test_task_get_release",
 	"test_task_current_acquire_release",
+	"test_task_from_pid_arg",
+	"test_task_from_pid_current",
+	"test_task_from_pid_invalid",
 };
 
 static struct {
@@ -99,6 +102,7 @@ static struct {
 	{"task_kfunc_release_fp", "arg#0 pointer type STRUCT task_struct must point"},
 	{"task_kfunc_release_null", "arg#0 is ptr_or_null_ expected ptr_ or socket"},
 	{"task_kfunc_release_unacquired", "release kernel function bpf_task_release expects"},
+	{"task_kfunc_from_pid_no_null_check", "arg#0 is ptr_or_null_ expected ptr_ or socket"},
 };
 
 static void verify_fail(const char *prog_name, const char *expected_err_msg)
