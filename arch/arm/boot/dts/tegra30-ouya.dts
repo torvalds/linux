@@ -26,6 +26,14 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	firmware {
+		trusted-foundations {
+			compatible = "tlm,trusted-foundations";
+			tlm,version-major = <0x0>;
+			tlm,version-minor = <0x0>;
+		};
+	};
+
 	memory@80000000 {
 		reg = <0x80000000 0x40000000>;
 	};
@@ -2037,17 +2045,6 @@
 		status = "okay";
 		clock-frequency = <400000>;
 
-		cpu_temp: nct1008@4c {
-			compatible = "onnn,nct1008";
-			reg = <0x4c>;
-			vcc-supply = <&sys_3v3_reg>;
-
-			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(CC, 2) IRQ_TYPE_EDGE_FALLING>;
-
-			#thermal-sensor-cells = <1>;
-		};
-
 		pmic: pmic@2d {
 			compatible = "ti,tps65911";
 			reg = <0x2d>;
@@ -2159,6 +2156,17 @@
 					regulator-always-on;
 				};
 			};
+		};
+
+		cpu_temp: nct1008@4c {
+			compatible = "onnn,nct1008";
+			reg = <0x4c>;
+			vcc-supply = <&sys_3v3_reg>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(CC, 2) IRQ_TYPE_EDGE_FALLING>;
+
+			#thermal-sensor-cells = <1>;
 		};
 
 		vdd_core: tps62361@60 {
@@ -4485,17 +4493,6 @@
 		status = "okay";
 	};
 
-	wifi_pwrseq: wifi_pwrseq {
-		compatible = "mmc-pwrseq-simple";
-
-		clocks = <&tegra_pmc TEGRA_PMC_CLK_BLINK>;
-		clock-names = "ext_clock";
-
-		reset-gpios = <&gpio TEGRA_GPIO(D, 3) GPIO_ACTIVE_LOW>;
-		post-power-on-delay-ms = <300>;
-		power-off-delay-us = <300>;
-	};
-
 	sdmmc3: mmc@78000400 {
 		status = "okay";
 
@@ -4608,20 +4605,149 @@
 		};
 	};
 
-	firmware {
-		trusted-foundations {
-			compatible = "tlm,trusted-foundations";
-			tlm,version-major = <0x0>;
-			tlm,version-minor = <0x0>;
-		};
-	};
-
-	fan: gpio_fan {
+	fan: fan {
 		compatible = "gpio-fan";
 		gpios = <&gpio TEGRA_GPIO(J, 2) GPIO_ACTIVE_HIGH>;
 		gpio-fan,speed-map = <0    0
 				      4500 1>;
 		#cooling-cells = <2>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-power {
+			gpios = <&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_LOW>;
+			debounce-interval = <10>;
+			linux,code = <KEY_POWER>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-power {
+			label = "power-led";
+			gpios = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+			retain-state-suspended;
+		};
+	};
+
+	opp-table-actmon {
+		/delete-node/ opp-900000000;
+	};
+
+	opp-table-emc {
+		/delete-node/ opp-900000000-1350;
+	};
+
+	wifi_pwrseq: pwrseq-wifi {
+		compatible = "mmc-pwrseq-simple";
+
+		clocks = <&tegra_pmc TEGRA_PMC_CLK_BLINK>;
+		clock-names = "ext_clock";
+
+		reset-gpios = <&gpio TEGRA_GPIO(D, 3) GPIO_ACTIVE_LOW>;
+		post-power-on-delay-ms = <300>;
+		power-off-delay-us = <300>;
+	};
+
+	vdd_12v_in: regulator-vdd-12v-in {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_12v_in";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-always-on;
+	};
+
+	sdmmc_3v3_reg: regulator-sdmmc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "sdmmc_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		regulator-always-on;
+		gpio = <&gpio TEGRA_GPIO(D, 4) GPIO_ACTIVE_HIGH>;
+		vin-supply = <&sys_3v3_reg>;
+	};
+
+	vdd_fuse_3v3_reg: regulator-vdd-fuse-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_fuse_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio TEGRA_GPIO(L, 6) GPIO_ACTIVE_HIGH>;
+		vin-supply = <&sys_3v3_reg>;
+		regulator-always-on;
+	};
+
+	vdd_vid_reg: regulator-vdd-vid {
+		compatible = "regulator-fixed";
+		regulator-name = "vddio_vid";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio TEGRA_GPIO(T, 0) GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vdd_5v0_reg>;
+		regulator-boot-on;
+	};
+
+	ddr_reg: regulator-ddr {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_ddr";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		regulator-always-on;
+		enable-active-high;
+		gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		vin-supply = <&vdd_12v_in>;
+	};
+
+	sys_3v3_reg: regulator-sys-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "sys_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vdd_12v_in>;
+	};
+
+	vdd_5v0_reg: regulator-vdd-5v0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_5v0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&pmic 0 GPIO_ACTIVE_HIGH>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vdd_12v_in>;
+	};
+
+	vdd_smsc: regulator-vdd-smsc {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_smsc";
+		enable-active-high;
+		gpio = <&gpio TEGRA_GPIO(DD, 5) GPIO_ACTIVE_HIGH>;
+	};
+
+	usb3_vbus_reg: regulator-usb3-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb3_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio TEGRA_GPIO(DD, 4) GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vdd_5v0_reg>;
 	};
 
 	thermal-zones {
@@ -4666,131 +4792,4 @@
 			};
 		};
 	};
-
-	vdd_12v_in: vdd_12v_in {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_12v_in";
-		regulator-min-microvolt = <12000000>;
-		regulator-max-microvolt = <12000000>;
-		regulator-always-on;
-	};
-
-	sdmmc_3v3_reg: sdmmc_3v3_reg {
-		compatible = "regulator-fixed";
-		regulator-name = "sdmmc_3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		enable-active-high;
-		regulator-always-on;
-		gpio = <&gpio TEGRA_GPIO(D, 4) GPIO_ACTIVE_HIGH>;
-		vin-supply = <&sys_3v3_reg>;
-	};
-
-	vdd_fuse_3v3_reg: vdd_fuse_3v3_reg {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_fuse_3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		enable-active-high;
-		gpio = <&gpio TEGRA_GPIO(L, 6) GPIO_ACTIVE_HIGH>;
-		vin-supply = <&sys_3v3_reg>;
-		regulator-always-on;
-	};
-
-	vdd_vid_reg: vdd_vid_reg {
-		compatible = "regulator-fixed";
-		regulator-name = "vddio_vid";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		gpio = <&gpio TEGRA_GPIO(T, 0) GPIO_ACTIVE_HIGH>;
-		vin-supply = <&vdd_5v0_reg>;
-		regulator-boot-on;
-	};
-
-	ddr_reg: ddr_reg {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_ddr";
-		regulator-min-microvolt = <1500000>;
-		regulator-max-microvolt = <1500000>;
-		regulator-always-on;
-		enable-active-high;
-		gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
-		regulator-boot-on;
-		vin-supply = <&vdd_12v_in>;
-	};
-
-	sys_3v3_reg: sys_3v3_reg {
-		compatible = "regulator-fixed";
-		regulator-name = "sys_3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		enable-active-high;
-		gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
-		regulator-always-on;
-		regulator-boot-on;
-		vin-supply = <&vdd_12v_in>;
-	};
-
-	vdd_5v0_reg: vdd_5v0_reg {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_5v0";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		gpio = <&pmic 0 GPIO_ACTIVE_HIGH>;
-		regulator-always-on;
-		regulator-boot-on;
-		vin-supply = <&vdd_12v_in>;
-	};
-
-	vdd_smsc: vdd_smsc {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_smsc";
-		enable-active-high;
-		gpio = <&gpio TEGRA_GPIO(DD, 5) GPIO_ACTIVE_HIGH>;
-	};
-
-	usb3_vbus_reg: usb3_vbus_reg {
-		compatible = "regulator-fixed";
-		regulator-name = "usb3_vbus";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		gpio = <&gpio TEGRA_GPIO(DD, 4) GPIO_ACTIVE_HIGH>;
-		vin-supply = <&vdd_5v0_reg>;
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		key-power {
-			gpios = <&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_LOW>;
-			debounce-interval = <10>;
-			linux,code = <KEY_POWER>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
-			wakeup-source;
-		};
-	};
-
-
-	leds {
-		compatible = "gpio-leds";
-
-		led-power {
-			label = "power-led";
-			gpios = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-			linux,default-trigger = "heartbeat";
-			retain-state-suspended;
-		};
-	};
-};
-
-&emc_icc_dvfs_opp_table {
-	/delete-node/ opp-900000000-1350;
-};
-
-&emc_bw_dfs_opp_table {
-	/delete-node/ opp-900000000;
 };
