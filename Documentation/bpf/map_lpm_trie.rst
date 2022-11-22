@@ -35,7 +35,11 @@ Usage
 Kernel BPF
 ----------
 
-.. c:function::
+bpf_map_lookup_elem()
+~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    void *bpf_map_lookup_elem(struct bpf_map *map, const void *key)
 
 The longest prefix entry for a given data value can be found using the
@@ -48,7 +52,11 @@ performing longest prefix lookups. For example, when searching for the
 longest prefix match for an IPv4 address, ``prefixlen`` should be set to
 ``32``.
 
-.. c:function::
+bpf_map_update_elem()
+~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    long bpf_map_update_elem(struct bpf_map *map, const void *key, const void *value, u64 flags)
 
 Prefix entries can be added or updated using the ``bpf_map_update_elem()``
@@ -61,7 +69,11 @@ case of failure.
     The flags parameter must be one of BPF_ANY, BPF_NOEXIST or BPF_EXIST,
     but the value is ignored, giving BPF_ANY semantics.
 
-.. c:function::
+bpf_map_delete_elem()
+~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    long bpf_map_delete_elem(struct bpf_map *map, const void *key)
 
 Prefix entries can be deleted using the ``bpf_map_delete_elem()``
@@ -74,7 +86,11 @@ Userspace
 Access from userspace uses libbpf APIs with the same names as above, with
 the map identified by ``fd``.
 
-.. c:function::
+bpf_map_get_next_key()
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    int bpf_map_get_next_key (int fd, const void *cur_key, void *next_key)
 
 A userspace program can iterate through the entries in an LPM trie using

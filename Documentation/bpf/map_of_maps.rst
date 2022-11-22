@@ -45,7 +45,11 @@ Usage
 Kernel BPF Helper
 -----------------
 
-.. c:function::
+bpf_map_lookup_elem()
+~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    void *bpf_map_lookup_elem(struct bpf_map *map, const void *key)
 
 Inner maps can be retrieved using the ``bpf_map_lookup_elem()`` helper. This

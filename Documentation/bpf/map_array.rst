@@ -32,7 +32,11 @@ Usage
 Kernel BPF
 ----------
 
-.. c:function::
+bpf_map_lookup_elem()
+~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    void *bpf_map_lookup_elem(struct bpf_map *map, const void *key)
 
 Array elements can be retrieved using the ``bpf_map_lookup_elem()`` helper.
@@ -40,7 +44,11 @@ This helper returns a pointer into the array element, so to avoid data races
 with userspace reading the value, the user must use primitives like
 ``__sync_fetch_and_add()`` when updating the value in-place.
 
-.. c:function::
+bpf_map_update_elem()
+~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    long bpf_map_update_elem(struct bpf_map *map, const void *key, const void *value, u64 flags)
 
 Array elements can be updated using the ``bpf_map_update_elem()`` helper.
@@ -53,7 +61,7 @@ To clear an array element, you may use ``bpf_map_update_elem()`` to insert a
 zero value to that index.
 
 Per CPU Array
-~~~~~~~~~~~~~
+-------------
 
 Values stored in ``BPF_MAP_TYPE_ARRAY`` can be accessed by multiple programs
 across different CPUs. To restrict storage to a single CPU, you may use a
@@ -63,7 +71,11 @@ When using a ``BPF_MAP_TYPE_PERCPU_ARRAY`` the ``bpf_map_update_elem()`` and
 ``bpf_map_lookup_elem()`` helpers automatically access the slot for the current
 CPU.
 
-.. c:function::
+bpf_map_lookup_percpu_elem()
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
    void *bpf_map_lookup_percpu_elem(struct bpf_map *map, const void *key, u32 cpu)
 
 The ``bpf_map_lookup_percpu_elem()`` helper can be used to lookup the array
