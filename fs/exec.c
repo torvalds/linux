@@ -1010,6 +1010,7 @@ static int exec_mmap(struct mm_struct *mm)
 	active_mm = tsk->active_mm;
 	tsk->active_mm = mm;
 	tsk->mm = mm;
+	mm_init_cid(mm);
 	/*
 	 * This prevents preemption while active_mm is being loaded and
 	 * it and mm are being updated, which could cause problems for
@@ -1822,6 +1823,7 @@ static int bprm_execve(struct linux_binprm *bprm,
 	 */
 	check_unsafe_exec(bprm);
 	current->in_execve = 1;
+	sched_mm_cid_before_execve(current);
 
 	file = do_open_execat(fd, filename, flags);
 	retval = PTR_ERR(file);
@@ -1852,6 +1854,7 @@ static int bprm_execve(struct linux_binprm *bprm,
 	if (retval < 0)
 		goto out;
 
+	sched_mm_cid_after_execve(current);
 	/* execve succeeded */
 	current->fs->in_exec = 0;
 	current->in_execve = 0;
@@ -1871,6 +1874,7 @@ out:
 		force_fatal_sig(SIGSEGV);
 
 out_unmark:
+	sched_mm_cid_after_execve(current);
 	current->fs->in_exec = 0;
 	current->in_execve = 0;
 

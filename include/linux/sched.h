@@ -1311,6 +1311,11 @@ struct task_struct {
 	unsigned long rseq_event_mask;
 #endif
 
+#ifdef CONFIG_SCHED_MM_CID
+	int				mm_cid;		/* Current cid in mm */
+	int				mm_cid_active;	/* Whether cid bitmap is active */
+#endif
+
 	struct tlbflush_unmap_batch	tlb_ubc;
 
 	union {
