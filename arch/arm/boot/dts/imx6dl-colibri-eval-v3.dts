@@ -111,10 +111,12 @@
 };
 
 &usbh1 {
+	disable-over-current;
 	status = "okay";
 };
 
 &usbotg {
+	disable-over-current;
 	status = "okay";
 };
 
