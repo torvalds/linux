@@ -24,6 +24,7 @@
 
 #define FW_RATIO_MAX		8
 #define FW_RATIO_MIN		1
+#define MAXBURST_PER_FIFO	8
 
 enum fpw_mode {
 	FPW_ONE_BCLK_WIDTH,
@@ -379,9 +380,13 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
 	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
+	struct snd_dmaengine_dai_dma_data *dma_data;
 	unsigned int mclk_rate, bclk_rate, div_bclk;
 	unsigned int ch_per_lane, lanes, slot_width;
 	unsigned int val, fscr, reg;
+
+	dma_data = snd_soc_dai_get_dma_data(dai, substream);
+	dma_data->maxburst = MAXBURST_PER_FIFO * params_channels(params) / 2;
 
 	lanes = rockchip_sai_lanes_auto(params, dai);
 
@@ -724,7 +729,7 @@ static int rockchip_sai_init_dai(struct rk_sai_dev *sai, struct resource *res,
 
 		sai->playback_dma_data.addr = res->start + SAI_TXDR;
 		sai->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-		sai->playback_dma_data.maxburst = 8;
+		sai->playback_dma_data.maxburst = MAXBURST_PER_FIFO;
 	}
 
 	if (sai->has_capture) {
@@ -739,7 +744,7 @@ static int rockchip_sai_init_dai(struct rk_sai_dev *sai, struct resource *res,
 
 		sai->capture_dma_data.addr = res->start + SAI_RXDR;
 		sai->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-		sai->capture_dma_data.maxburst = 8;
+		sai->capture_dma_data.maxburst = MAXBURST_PER_FIFO;
 	}
 
 	regmap_update_bits(sai->regmap, SAI_DMACR, SAI_DMACR_TDL_MASK,
