@@ -559,6 +559,9 @@ void dcn31_calculate_wm_and_dlg_fp(
 		context->bw_ctx.bw.dcn.clk.dramclk_khz = 0;
 		context->bw_ctx.bw.dcn.clk.fclk_khz = 0;
 		context->bw_ctx.bw.dcn.clk.p_state_change_support = true;
+		for (i = 0; i < dc->res_pool->pipe_count; i++)
+			if (context->res_ctx.pipe_ctx[i].stream)
+				context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz = 0;
 	}
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!context->res_ctx.pipe_ctx[i].stream)
