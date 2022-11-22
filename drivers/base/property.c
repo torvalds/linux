@@ -482,12 +482,13 @@ int fwnode_property_match_string(const struct fwnode_handle *fwnode,
 
 	ret = fwnode_property_read_string_array(fwnode, propname, values, nval);
 	if (ret < 0)
-		goto out;
+		goto out_free;
 
 	ret = match_string(values, nval, string);
 	if (ret < 0)
 		ret = -ENODATA;
-out:
+
+out_free:
 	kfree(values);
 	return ret;
 }
