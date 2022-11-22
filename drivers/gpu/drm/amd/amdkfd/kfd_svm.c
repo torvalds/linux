@@ -26,7 +26,7 @@
 #include "amdgpu_sync.h"
 #include "amdgpu_object.h"
 #include "amdgpu_vm.h"
-#include "amdgpu_mn.h"
+#include "amdgpu_hmm.h"
 #include "amdgpu.h"
 #include "amdgpu_xgmi.h"
 #include "kfd_priv.h"
@@ -1596,9 +1596,9 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		next = min(vma->vm_end, end);
 		npages = (next - addr) >> PAGE_SHIFT;
 		WRITE_ONCE(p->svms.faulting_task, current);
-		r = amdgpu_hmm_range_get_pages(&prange->notifier, mm, NULL,
-					       addr, npages, &hmm_range,
-					       readonly, true, owner);
+		r = amdgpu_hmm_range_get_pages(&prange->notifier, addr, npages,
+					       readonly, owner, NULL,
+					       &hmm_range);
 		WRITE_ONCE(p->svms.faulting_task, NULL);
 		if (r) {
 			pr_debug("failed %d to get svm range pages\n", r);

@@ -29,6 +29,7 @@
 #include "amdgpu_object.h"
 #include "amdgpu_gem.h"
 #include "amdgpu_vm.h"
+#include "amdgpu_hmm.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_dma_buf.h"
 #include <uapi/linux/kfd_ioctl.h>
@@ -171,9 +172,7 @@ int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 	    (kfd_mem_limit.ttm_mem_used + ttm_mem_needed >
 	     kfd_mem_limit.max_ttm_mem_limit) ||
 	    (adev && adev->kfd.vram_used + vram_needed >
-	     adev->gmc.real_vram_size -
-	     atomic64_read(&adev->vram_pin_size) -
-	     reserved_for_pt)) {
+	     adev->gmc.real_vram_size - reserved_for_pt)) {
 		ret = -ENOMEM;
 		goto release;
 	}
@@ -405,63 +404,15 @@ static int vm_update_pds(struct amdgpu_vm *vm, struct amdgpu_sync *sync)
 
 static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
 {
-	struct amdgpu_device *bo_adev = amdgpu_ttm_adev(mem->bo->tbo.bdev);
-	bool coherent = mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_COHERENT;
-	bool uncached = mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_UNCACHED;
-	uint32_t mapping_flags;
-	uint64_t pte_flags;
-	bool snoop = false;
+	uint32_t mapping_flags = AMDGPU_VM_PAGE_READABLE |
+				 AMDGPU_VM_MTYPE_DEFAULT;
 
-	mapping_flags = AMDGPU_VM_PAGE_READABLE;
 	if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE)
 		mapping_flags |= AMDGPU_VM_PAGE_WRITEABLE;
 	if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_EXECUTABLE)
 		mapping_flags |= AMDGPU_VM_PAGE_EXECUTABLE;
 
-	switch (adev->ip_versions[GC_HWIP][0]) {
-	case IP_VERSION(9, 4, 1):
-	case IP_VERSION(9, 4, 2):
-		if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) {
-			if (bo_adev == adev) {
-				if (uncached)
-					mapping_flags |= AMDGPU_VM_MTYPE_UC;
-				else if (coherent)
-					mapping_flags |= AMDGPU_VM_MTYPE_CC;
-				else
-					mapping_flags |= AMDGPU_VM_MTYPE_RW;
-				if ((adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2)) &&
-				    adev->gmc.xgmi.connected_to_cpu)
-					snoop = true;
-			} else {
-				if (uncached || coherent)
-					mapping_flags |= AMDGPU_VM_MTYPE_UC;
-				else
-					mapping_flags |= AMDGPU_VM_MTYPE_NC;
-				if (amdgpu_xgmi_same_hive(adev, bo_adev))
-					snoop = true;
-			}
-		} else {
-			if (uncached || coherent)
-				mapping_flags |= AMDGPU_VM_MTYPE_UC;
-			else
-				mapping_flags |= AMDGPU_VM_MTYPE_NC;
-			snoop = true;
-		}
-		break;
-	default:
-		if (uncached || coherent)
-			mapping_flags |= AMDGPU_VM_MTYPE_UC;
-		else
-			mapping_flags |= AMDGPU_VM_MTYPE_NC;
-
-		if (!(mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM))
-			snoop = true;
-	}
-
-	pte_flags = amdgpu_gem_va_map_flags(adev, mapping_flags);
-	pte_flags |= snoop ? AMDGPU_PTE_SNOOPED : 0;
-
-	return pte_flags;
+	return amdgpu_gem_va_map_flags(adev, mapping_flags);
 }
 
 /**
@@ -988,6 +939,7 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 	struct amdkfd_process_info *process_info = mem->process_info;
 	struct amdgpu_bo *bo = mem->bo;
 	struct ttm_operation_ctx ctx = { true, false };
+	struct hmm_range *range;
 	int ret = 0;
 
 	mutex_lock(&process_info->lock);
@@ -998,7 +950,7 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 		goto out;
 	}
 
-	ret = amdgpu_mn_register(bo, user_addr);
+	ret = amdgpu_hmm_register(bo, user_addr);
 	if (ret) {
 		pr_err("%s: Failed to register MMU notifier: %d\n",
 		       __func__, ret);
@@ -1017,7 +969,7 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 		return 0;
 	}
 
-	ret = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages);
+	ret = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages, &range);
 	if (ret) {
 		pr_err("%s: Failed to get user pages: %d\n", __func__, ret);
 		goto unregister_out;
@@ -1035,10 +987,10 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 	amdgpu_bo_unreserve(bo);
 
 release_out:
-	amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
+	amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm, range);
 unregister_out:
 	if (ret)
-		amdgpu_mn_unregister(bo);
+		amdgpu_hmm_unregister(bo);
 out:
 	mutex_unlock(&process_info->lock);
 	return ret;
@@ -1673,6 +1625,11 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 		}
 	}
 
+	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_COHERENT)
+		alloc_flags |= AMDGPU_GEM_CREATE_COHERENT;
+	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_UNCACHED)
+		alloc_flags |= AMDGPU_GEM_CREATE_UNCACHED;
+
 	*mem = kzalloc(sizeof(struct kgd_mem), GFP_KERNEL);
 	if (!*mem) {
 		ret = -ENOMEM;
@@ -1817,7 +1774,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	mutex_unlock(&process_info->lock);
 
 	/* No more MMU notifiers */
-	amdgpu_mn_unregister(mem->bo);
+	amdgpu_hmm_unregister(mem->bo);
 
 	ret = reserve_bo_and_cond_vms(mem, NULL, BO_VM_ALL, &ctx);
 	if (unlikely(ret))
@@ -2362,6 +2319,8 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 	/* Go through userptr_inval_list and update any invalid user_pages */
 	list_for_each_entry(mem, &process_info->userptr_inval_list,
 			    validate_list.head) {
+		struct hmm_range *range;
+
 		invalid = atomic_read(&mem->invalid);
 		if (!invalid)
 			/* BO hasn't been invalidated since the last
@@ -2372,7 +2331,8 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 		bo = mem->bo;
 
 		/* Get updated user pages */
-		ret = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages);
+		ret = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages,
+						   &range);
 		if (ret) {
 			pr_debug("Failed %d to get user pages\n", ret);
 
@@ -2391,7 +2351,7 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 			 * FIXME: Cannot ignore the return code, must hold
 			 * notifier_lock
 			 */
-			amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
+			amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm, range);
 		}
 
 		/* Mark the BO as valid unless it was invalidated

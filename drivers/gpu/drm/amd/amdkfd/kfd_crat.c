@@ -1111,7 +1111,7 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 			props->cache_latency = cache->cache_latency;
 
 			memcpy(props->sibling_map, cache->sibling_map,
-					sizeof(props->sibling_map));
+					CRAT_SIBLINGMAP_SIZE);
 
 			/* set the sibling_map_size as 32 for CRAT from ACPI */
 			props->sibling_map_size = CRAT_SIBLINGMAP_SIZE;

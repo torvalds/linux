@@ -1296,6 +1296,8 @@ int dcn20_populate_dml_pipes_from_context(
 		case SIGNAL_TYPE_DISPLAY_PORT_MST:
 		case SIGNAL_TYPE_DISPLAY_PORT:
 			pipes[pipe_cnt].dout.output_type = dm_dp;
+			if (is_dp_128b_132b_signal(&res_ctx->pipe_ctx[i]))
+				pipes[pipe_cnt].dout.output_type = dm_dp2p0;
 			break;
 		case SIGNAL_TYPE_EDP:
 			pipes[pipe_cnt].dout.output_type = dm_edp;

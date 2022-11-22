@@ -97,10 +97,12 @@ void dcn10_lock_all_pipes(struct dc *dc,
 	bool lock)
 {
 	struct pipe_ctx *pipe_ctx;
+	struct pipe_ctx *old_pipe_ctx;
 	struct timing_generator *tg;
 	int i;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 		pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		tg = pipe_ctx->stream_res.tg;
 
@@ -110,7 +112,7 @@ void dcn10_lock_all_pipes(struct dc *dc,
 		 */
 		if (pipe_ctx->top_pipe ||
 		    !pipe_ctx->stream ||
-		    !pipe_ctx->plane_state ||
+		    (!pipe_ctx->plane_state && !old_pipe_ctx->plane_state) ||
 		    !tg->funcs->is_tg_enabled(tg))
 			continue;
 

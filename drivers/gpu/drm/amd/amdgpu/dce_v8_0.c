@@ -2730,6 +2730,18 @@ static int dce_v8_0_sw_init(void *handle)
 	if (r)
 		return r;
 
+	/* Disable vblank IRQs aggressively for power-saving */
+	/* XXX: can this be enabled for DC? */
+	adev_to_drm(adev)->vblank_disable_immediate = true;
+
+	r = drm_vblank_init(adev_to_drm(adev), adev->mode_info.num_crtc);
+	if (r)
+		return r;
+
+	/* Pre-DCE11 */
+	INIT_WORK(&adev->hotplug_work,
+		  amdgpu_display_hotplug_work_func);
+
 	drm_kms_helper_poll_init(adev_to_drm(adev));
 
 	adev->mode_info.mode_config_initialized = true;
@@ -2789,6 +2801,8 @@ static int dce_v8_0_hw_fini(void *handle)
 	}
 
 	dce_v8_0_pageflip_interrupt_fini(adev);
+
+	flush_work(&adev->hotplug_work);
 
 	return 0;
 }

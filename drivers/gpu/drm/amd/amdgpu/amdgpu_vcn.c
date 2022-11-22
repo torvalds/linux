@@ -1252,3 +1252,20 @@ int amdgpu_vcn_process_poison_irq(struct amdgpu_device *adev,
 
 	return 0;
 }
+
+void amdgpu_vcn_set_ras_funcs(struct amdgpu_device *adev)
+{
+	if (!adev->vcn.ras)
+		return;
+
+	amdgpu_ras_register_ras_block(adev, &adev->vcn.ras->ras_block);
+
+	strcpy(adev->vcn.ras->ras_block.ras_comm.name, "vcn");
+	adev->vcn.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__VCN;
+	adev->vcn.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__POISON;
+	adev->vcn.ras_if = &adev->vcn.ras->ras_block.ras_comm;
+
+	/* If don't define special ras_late_init function, use default ras_late_init */
+	if (!adev->vcn.ras->ras_block.ras_late_init)
+		adev->vcn.ras->ras_block.ras_late_init = amdgpu_ras_block_late_init;
+}

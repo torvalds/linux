@@ -417,27 +417,6 @@ static void drm_sched_job_timedout(struct work_struct *work)
 	}
 }
 
- /**
-  * drm_sched_increase_karma - Update sched_entity guilty flag
-  *
-  * @bad: The job guilty of time out
-  *
-  * Increment on every hang caused by the 'bad' job. If this exceeds the hang
-  * limit of the scheduler then the respective sched entity is marked guilty and
-  * jobs from it will not be scheduled further
-  */
-void drm_sched_increase_karma(struct drm_sched_job *bad)
-{
-	drm_sched_increase_karma_ext(bad, 1);
-}
-EXPORT_SYMBOL(drm_sched_increase_karma);
-
-void drm_sched_reset_karma(struct drm_sched_job *bad)
-{
-	drm_sched_increase_karma_ext(bad, 0);
-}
-EXPORT_SYMBOL(drm_sched_reset_karma);
-
 /**
  * drm_sched_stop - stop the scheduler
  *
@@ -579,30 +558,13 @@ EXPORT_SYMBOL(drm_sched_start);
  */
 void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 {
-	drm_sched_resubmit_jobs_ext(sched, INT_MAX);
-}
-EXPORT_SYMBOL(drm_sched_resubmit_jobs);
-
-/**
- * drm_sched_resubmit_jobs_ext - helper to relunch certain number of jobs from mirror ring list
- *
- * @sched: scheduler instance
- * @max: job numbers to relaunch
- *
- */
-void drm_sched_resubmit_jobs_ext(struct drm_gpu_scheduler *sched, int max)
-{
 	struct drm_sched_job *s_job, *tmp;
 	uint64_t guilty_context;
 	bool found_guilty = false;
 	struct dma_fence *fence;
-	int i = 0;
 
 	list_for_each_entry_safe(s_job, tmp, &sched->pending_list, list) {
 		struct drm_sched_fence *s_fence = s_job->s_fence;
-
-		if (i >= max)
-			break;
 
 		if (!found_guilty && atomic_read(&s_job->karma) > sched->hang_limit) {
 			found_guilty = true;
@@ -613,7 +575,6 @@ void drm_sched_resubmit_jobs_ext(struct drm_gpu_scheduler *sched, int max)
 			dma_fence_set_error(&s_fence->finished, -ECANCELED);
 
 		fence = sched->ops->run_job(s_job);
-		i++;
 
 		if (IS_ERR_OR_NULL(fence)) {
 			if (IS_ERR(fence))
@@ -629,7 +590,7 @@ void drm_sched_resubmit_jobs_ext(struct drm_gpu_scheduler *sched, int max)
 		}
 	}
 }
-EXPORT_SYMBOL(drm_sched_resubmit_jobs_ext);
+EXPORT_SYMBOL(drm_sched_resubmit_jobs);
 
 /**
  * drm_sched_job_init - init a scheduler job
@@ -1165,13 +1126,15 @@ void drm_sched_fini(struct drm_gpu_scheduler *sched)
 EXPORT_SYMBOL(drm_sched_fini);
 
 /**
- * drm_sched_increase_karma_ext - Update sched_entity guilty flag
+ * drm_sched_increase_karma - Update sched_entity guilty flag
  *
  * @bad: The job guilty of time out
- * @type: type for increase/reset karma
  *
+ * Increment on every hang caused by the 'bad' job. If this exceeds the hang
+ * limit of the scheduler then the respective sched entity is marked guilty and
+ * jobs from it will not be scheduled further
  */
-void drm_sched_increase_karma_ext(struct drm_sched_job *bad, int type)
+void drm_sched_increase_karma(struct drm_sched_job *bad)
 {
 	int i;
 	struct drm_sched_entity *tmp;
@@ -1183,10 +1146,7 @@ void drm_sched_increase_karma_ext(struct drm_sched_job *bad, int type)
 	 * corrupt but keep in mind that kernel jobs always considered good.
 	 */
 	if (bad->s_priority != DRM_SCHED_PRIORITY_KERNEL) {
-		if (type == 0)
-			atomic_set(&bad->karma, 0);
-		else if (type == 1)
-			atomic_inc(&bad->karma);
+		atomic_inc(&bad->karma);
 
 		for (i = DRM_SCHED_PRIORITY_MIN; i < DRM_SCHED_PRIORITY_KERNEL;
 		     i++) {
@@ -1197,7 +1157,7 @@ void drm_sched_increase_karma_ext(struct drm_sched_job *bad, int type)
 				if (bad->s_fence->scheduled.context ==
 				    entity->fence_context) {
 					if (entity->guilty)
-						atomic_set(entity->guilty, type);
+						atomic_set(entity->guilty, 1);
 					break;
 				}
 			}
@@ -1207,4 +1167,4 @@ void drm_sched_increase_karma_ext(struct drm_sched_job *bad, int type)
 		}
 	}
 }
-EXPORT_SYMBOL(drm_sched_increase_karma_ext);
+EXPORT_SYMBOL(drm_sched_increase_karma);

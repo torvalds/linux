@@ -1723,7 +1723,7 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 /* kfd_fill_cache_non_crat_info - Fill GPU cache info using kfd_gpu_cache_info
  * tables
  */
-void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct kfd_dev *kdev)
+static void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct kfd_dev *kdev)
 {
 	struct kfd_gpu_cache_info *pcache_info = NULL;
 	int i, j, k;

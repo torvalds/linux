@@ -116,6 +116,11 @@ bool dm_helpers_dp_mst_start_top_mgr(
 bool dm_helpers_dp_mst_stop_top_mgr(
 		struct dc_context *ctx,
 		struct dc_link *link);
+
+void dm_helpers_dp_mst_update_branch_bandwidth(
+		struct dc_context *ctx,
+		struct dc_link *link);
+
 /**
  * OS specific aux read callback.
  */

@@ -413,6 +413,11 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	else
 		copy_settings_data->debug.bitfields.force_wakeup_by_tps3 = 0;
 
+	//WA for PSR1 on specific TCON, require frame delay for frame re-lock
+	copy_settings_data->relock_delay_frame_cnt = 0;
+	if (link->dpcd_caps.sink_dev_id == DP_BRANCH_DEVICE_ID_001CF8)
+		copy_settings_data->relock_delay_frame_cnt = 2;
+
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);
 	dc_dmub_srv_wait_idle(dc->dmub_srv);

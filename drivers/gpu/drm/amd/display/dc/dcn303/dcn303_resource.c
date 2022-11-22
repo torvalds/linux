@@ -162,7 +162,6 @@ static const struct dc_plane_cap plane_cap = {
 		mm ## reg_name
 
 /* DCN */
-#undef BASE_INNER
 #define BASE_INNER(seg) DCN_BASE__INST0_SEG ## seg
 
 #define BASE(seg) BASE_INNER(seg)
@@ -194,6 +193,9 @@ static const struct dc_plane_cap plane_cap = {
 #define SRII_DWB(reg_name, temp_name, block, id)\
 		.reg_name[id] = BASE(mm ## block ## id ## _ ## temp_name ## _BASE_IDX) + \
 		mm ## block ## id ## _ ## temp_name
+
+#define SF_DWB2(reg_name, block, id, field_name, post_fix)	\
+	.field_name = reg_name ## __ ## field_name ## post_fix
 
 #define SRII_MPC_RMU(reg_name, block, id)\
 		.RMU##_##reg_name[id] = BASE(mm ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
@@ -431,6 +433,7 @@ static struct clock_source *dcn303_clock_source_create(struct dc_context *ctx, s
 		return &clk_src->base;
 	}
 
+	kfree(clk_src);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }

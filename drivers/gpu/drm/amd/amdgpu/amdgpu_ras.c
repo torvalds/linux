@@ -1948,7 +1948,12 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 
 		reset_context.method = AMD_RESET_METHOD_NONE;
 		reset_context.reset_req_dev = adev;
-		clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
+
+		/* Perform full reset in fatal error mode */
+		if (!amdgpu_ras_is_poison_mode_supported(ras->adev))
+			set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
+		else
+			clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
 
 		amdgpu_device_gpu_recover(ras->adev, NULL, &reset_context);
 	}
@@ -2343,7 +2348,8 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 				adev->ras_hw_enabled |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
 							    1 << AMDGPU_RAS_BLOCK__DF);
 
-				if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(2, 6, 0))
+				if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(2, 6, 0) ||
+				    adev->ip_versions[VCN_HWIP][0] == IP_VERSION(4, 0, 0))
 					adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__VCN |
 							1 << AMDGPU_RAS_BLOCK__JPEG);
 				else
