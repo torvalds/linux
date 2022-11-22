@@ -29,6 +29,9 @@
 			reg = <0x0 0x800>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_3>;
+			i-cache-size = <0x20000>;
+			d-cache-size = <0x10000>;
 		};
 
 		cpu_e11: cpu@801 {
@@ -37,6 +40,9 @@
 			reg = <0x0 0x801>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_3>;
+			i-cache-size = <0x20000>;
+			d-cache-size = <0x10000>;
 		};
 
 		cpu_p20: cpu@10900 {
@@ -45,6 +51,9 @@
 			reg = <0x0 0x10900>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_4>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
 		};
 
 		cpu_p21: cpu@10901 {
@@ -53,6 +62,9 @@
 			reg = <0x0 0x10901>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_4>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
 		};
 
 		cpu_p22: cpu@10902 {
@@ -61,6 +73,9 @@
 			reg = <0x0 0x10902>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_4>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
 		};
 
 		cpu_p23: cpu@10903 {
@@ -69,6 +84,9 @@
 			reg = <0x0 0x10903>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_4>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
 		};
 
 		cpu_p30: cpu@10a00 {
@@ -77,6 +95,9 @@
 			reg = <0x0 0x10a00>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_5>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
 		};
 
 		cpu_p31: cpu@10a01 {
@@ -85,6 +106,9 @@
 			reg = <0x0 0x10a01>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_5>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
 		};
 
 		cpu_p32: cpu@10a02 {
@@ -93,6 +117,9 @@
 			reg = <0x0 0x10a02>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_5>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
 		};
 
 		cpu_p33: cpu@10a03 {
@@ -101,6 +128,30 @@
 			reg = <0x0 0x10a03>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_5>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
+		};
+
+		l2_cache_3: l2-cache-3 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0x400000>;
+		};
+
+		l2_cache_4: l2-cache-4 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0xc00000>;
+		};
+
+		l2_cache_5: l2-cache-5 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0xc00000>;
 		};
 	};
 
