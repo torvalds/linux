@@ -90,12 +90,15 @@ static int rseq_update_cpu_node_id(struct task_struct *t)
 	struct rseq __user *rseq = t->rseq;
 	u32 cpu_id = raw_smp_processor_id();
 	u32 node_id = cpu_to_node(cpu_id);
+	u32 mm_cid = task_mm_cid(t);
 
+	WARN_ON_ONCE((int) mm_cid < 0);
 	if (!user_write_access_begin(rseq, t->rseq_len))
 		goto efault;
 	unsafe_put_user(cpu_id, &rseq->cpu_id_start, efault_end);
 	unsafe_put_user(cpu_id, &rseq->cpu_id, efault_end);
 	unsafe_put_user(node_id, &rseq->node_id, efault_end);
+	unsafe_put_user(mm_cid, &rseq->mm_cid, efault_end);
 	/*
 	 * Additional feature fields added after ORIG_RSEQ_SIZE
 	 * need to be conditionally updated only if
@@ -113,7 +116,8 @@ efault:
 
 static int rseq_reset_rseq_cpu_node_id(struct task_struct *t)
 {
-	u32 cpu_id_start = 0, cpu_id = RSEQ_CPU_ID_UNINITIALIZED, node_id = 0;
+	u32 cpu_id_start = 0, cpu_id = RSEQ_CPU_ID_UNINITIALIZED, node_id = 0,
+	    mm_cid = 0;
 
 	/*
 	 * Reset cpu_id_start to its initial state (0).
@@ -131,6 +135,11 @@ static int rseq_reset_rseq_cpu_node_id(struct task_struct *t)
 	 * Reset node_id to its initial state (0).
 	 */
 	if (put_user(node_id, &t->rseq->node_id))
+		return -EFAULT;
+	/*
+	 * Reset mm_cid to its initial state (0).
+	 */
+	if (put_user(mm_cid, &t->rseq->mm_cid))
 		return -EFAULT;
 	/*
 	 * Additional feature fields added after ORIG_RSEQ_SIZE
