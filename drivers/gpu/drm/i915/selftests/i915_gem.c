@@ -127,6 +127,8 @@ static void igt_pm_resume(struct drm_i915_private *i915)
 	 */
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		i915_ggtt_resume(to_gt(i915)->ggtt);
+		if (GRAPHICS_VER(i915) >= 8)
+			setup_private_pat(to_gt(i915));
 		i915_gem_resume(i915);
 	}
 }
