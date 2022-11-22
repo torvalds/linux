@@ -53,7 +53,7 @@ static inline void *kpp_request_ctx(struct kpp_request *req)
 static inline void kpp_set_reqsize(struct crypto_kpp *kpp,
 				   unsigned int reqsize)
 {
-	crypto_kpp_alg(kpp)->reqsize = reqsize;
+	kpp->reqsize = reqsize;
 }
 
 static inline void *kpp_tfm_ctx(struct crypto_kpp *tfm)
