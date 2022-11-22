@@ -27,3 +27,5 @@ iommu-logger.ko
 qcom_iommu_util.ko
 arm_smmu.ko
 virt-arm-smmu-v3.ko
+crypto-qti-virt.ko
+virtio_blk_qti_crypto.ko
