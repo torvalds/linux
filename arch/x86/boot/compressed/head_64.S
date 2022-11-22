@@ -118,7 +118,9 @@ SYM_FUNC_START(startup_32)
 1:
 
 	/* Setup Exception handling for SEV-ES */
+#ifdef CONFIG_AMD_MEM_ENCRYPT
 	call	startup32_load_idt
+#endif
 
 	/* Make sure cpu supports long mode. */
 	call	verify_cpu
@@ -732,10 +734,8 @@ SYM_DATA_START(boot32_idt)
 	.quad 0
 	.endr
 SYM_DATA_END_LABEL(boot32_idt, SYM_L_GLOBAL, boot32_idt_end)
-#endif
 
-#ifdef CONFIG_AMD_MEM_ENCRYPT
-	__HEAD
+	.text
 	.code32
 /*
  * Write an IDT entry into boot32_idt
@@ -768,24 +768,32 @@ SYM_FUNC_START_LOCAL(startup32_set_idt_entry)
 
 	RET
 SYM_FUNC_END(startup32_set_idt_entry)
-#endif
 
 SYM_FUNC_START(startup32_load_idt)
-#ifdef CONFIG_AMD_MEM_ENCRYPT
-	leal    rva(boot32_idt)(%ebp), %ecx
+	push	%ebp
+	push	%ebx
+
+	call	1f
+1:	pop	%ebp
+
+	leal    (boot32_idt - 1b)(%ebp), %ebx
 
 	/* #VC handler */
-	leal    rva(startup32_vc_handler)(%ebp), %eax
+	leal    (startup32_vc_handler - 1b)(%ebp), %eax
 	movl    $X86_TRAP_VC, %edx
+	movl	%ebx, %ecx
 	call    startup32_set_idt_entry
 
 	/* Load IDT */
-	leal	rva(boot32_idt)(%ebp), %eax
-	movl	%eax, rva(boot32_idt_desc+2)(%ebp)
-	lidt    rva(boot32_idt_desc)(%ebp)
-#endif
+	leal	(boot32_idt_desc - 1b)(%ebp), %ecx
+	movl	%ebx, 2(%ecx)
+	lidt    (%ecx)
+
+	pop	%ebx
+	pop	%ebp
 	RET
 SYM_FUNC_END(startup32_load_idt)
+#endif
 
 /*
  * Check for the correct C-bit position when the startup_32 boot-path is used.
@@ -804,6 +812,7 @@ SYM_FUNC_END(startup32_load_idt)
  * succeed. An incorrect C-bit position will map all memory unencrypted, so that
  * the compare will use the encrypted random data and fail.
  */
+	__HEAD
 SYM_FUNC_START(startup32_check_sev_cbit)
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 	pushl	%eax
