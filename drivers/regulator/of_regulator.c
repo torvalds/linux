@@ -767,7 +767,7 @@ restart:
 			memcpy(name, prop->name, i);
 			name[i] = '\0';
 			tmp = regulator_get(dev, name);
-			if (!tmp) {
+			if (IS_ERR(tmp)) {
 				ret = -EINVAL;
 				goto error;
 			}
