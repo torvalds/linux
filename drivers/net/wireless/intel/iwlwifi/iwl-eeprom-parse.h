@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018 Intel Corporation
+ * Copyright (C) 2005-2014, 2018, 2020-2022 Intel Corporation
  * Copyright (C) 2015 Intel Mobile Communications GmbH
  */
 #ifndef __iwl_eeprom_parse_h__
@@ -31,6 +31,7 @@ struct iwl_nvm_data {
 	bool sku_cap_amt_enable;
 	bool sku_cap_ipan_enable;
 	bool sku_cap_mimo_disabled;
+	bool sku_cap_11be_enable;
 
 	u16 radio_cfg_type;
 	u8 radio_cfg_step;
