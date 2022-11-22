@@ -9,6 +9,7 @@ tests/valgrind*.xml
 tests/net-test
 tests/disk
 tests/disk-vfio-pci
+tests/config
 Makefile.conf
 include/lkl_autoconf.h
 include/kernel_config.h
