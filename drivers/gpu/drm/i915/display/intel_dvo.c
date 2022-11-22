@@ -288,10 +288,10 @@ static void intel_dvo_pre_enable(struct intel_atomic_state *state,
 	enum pipe pipe = crtc->pipe;
 	u32 dvo_val;
 
-	/* Save the data order, since I don't know what it should be set to. */
+	/* Save the active data order, since I don't know what it should be set to. */
 	dvo_val = intel_de_read(i915, DVO(port)) &
 		  (DVO_DEDICATED_INT_ENABLE |
-		   DVO_PRESERVE_MASK | DVO_DATA_ORDER_GBRG);
+		   DVO_PRESERVE_MASK | DVO_ACT_DATA_ORDER_GBRG);
 	dvo_val |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE |
 		   DVO_BLANK_ACTIVE_HIGH;
 
