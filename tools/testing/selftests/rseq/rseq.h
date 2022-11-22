@@ -191,6 +191,16 @@ static inline uint32_t rseq_current_node_id(void)
 	return RSEQ_ACCESS_ONCE(rseq_get_abi()->node_id);
 }
 
+static inline bool rseq_mm_cid_available(void)
+{
+	return (int) rseq_feature_size >= rseq_offsetofend(struct rseq_abi, mm_cid);
+}
+
+static inline uint32_t rseq_current_mm_cid(void)
+{
+	return RSEQ_ACCESS_ONCE(rseq_get_abi()->mm_cid);
+}
+
 static inline void rseq_clear_rseq_cs(void)
 {
 	RSEQ_WRITE_ONCE(rseq_get_abi()->rseq_cs.arch.ptr, 0);
