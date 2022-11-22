@@ -154,11 +154,7 @@ static inline bool rcu_preempt_need_deferred_qs(struct task_struct *t)
 	return false;
 }
 static inline void rcu_preempt_deferred_qs(struct task_struct *t) { }
-#ifdef CONFIG_SRCU
 void rcu_scheduler_starting(void);
-#else /* #ifndef CONFIG_SRCU */
-static inline void rcu_scheduler_starting(void) { }
-#endif /* #else #ifndef CONFIG_SRCU */
 static inline void rcu_end_inkernel_boot(void) { }
 static inline bool rcu_inkernel_boot_has_ended(void) { return true; }
 static inline bool rcu_is_watching(void) { return true; }

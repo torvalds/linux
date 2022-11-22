@@ -47,11 +47,8 @@ int init_srcu_struct(struct srcu_struct *ssp);
 #include <linux/srcutiny.h>
 #elif defined(CONFIG_TREE_SRCU)
 #include <linux/srcutree.h>
-#elif defined(CONFIG_SRCU)
-#error "Unknown SRCU implementation specified to kernel configuration"
 #else
-/* Dummy definition for things like notifiers.  Actual use gets link error. */
-struct srcu_struct { };
+#error "Unknown SRCU implementation specified to kernel configuration"
 #endif
 
 void call_srcu(struct srcu_struct *ssp, struct rcu_head *head,
@@ -78,11 +75,7 @@ static inline void __srcu_read_unlock_nmisafe(struct srcu_struct *ssp, int idx)
 }
 #endif /* CONFIG_NEED_SRCU_NMI_SAFE */
 
-#ifdef CONFIG_SRCU
 void srcu_init(void);
-#else /* #ifdef CONFIG_SRCU */
-static inline void srcu_init(void) { }
-#endif /* #else #ifdef CONFIG_SRCU */
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
