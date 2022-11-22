@@ -1203,6 +1203,22 @@ static int iommu_debug_functional_fast_dma_api_show(struct seq_file *s,
 						    void *ignored)
 {
 	int ret = 0;
+	struct iommu_debug_device *ddev = s->private;
+
+	if (!ddev->test_dev) {
+		pr_err("%s:Have you selected a uscase?\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!ddev->fastmap_usecase) {
+		ps_printf(dev_name(ddev->test_dev), s,
+			"Not a fastmap usecase\n");
+		return 0;
+	} else if (!IS_ENABLED(CONFIG_IOMMU_IO_PGTABLE_FAST)) {
+		ps_printf(dev_name(ddev->test_dev), s,
+			"CONFIG_IOMMU_IO_PGTABLE_FAST not enabled\n");
+		return 0;
+	}
 
 	ret |= __apply_to_new_mapping(s, __functional_dma_api_alloc_test, NULL);
 	ret |= __apply_to_new_mapping(s, __functional_dma_api_basic_test, NULL);

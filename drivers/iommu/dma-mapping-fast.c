@@ -980,7 +980,7 @@ static void fast_smmu_reserve_iommu_regions(struct device *dev,
 		bitmap_set(fast->clean_bitmap, lo, hi - lo + 1);
 	}
 	spin_unlock_irqrestore(&mapping->lock, flags);
-	qcom_iommu_put_resv_regions(dev, &resv_regions);
+	iommu_put_resv_regions(dev, &resv_regions);
 
 	fast_smmu_reserve_msi_iova(dev, fast);
 }
@@ -991,8 +991,6 @@ void fast_smmu_put_dma_cookie(struct iommu_domain *domain)
 
 	if (!fast)
 		return;
-
-	iommu_put_dma_cookie(domain);
 
 	if (fast->iovad) {
 		put_iova_domain(fast->iovad);

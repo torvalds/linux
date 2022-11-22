@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
- *
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __DRIVERS_IOMMU_QCOM_IOMMU_DEBUG_H__
@@ -26,6 +26,7 @@ struct iommu_debug_device {
 	struct device *test_dev;
 	struct iommu_domain *domain;
 	u32 usecase_nr;
+	bool fastmap_usecase;
 	/* Protects test_dev */
 	struct mutex state_lock;
 	/* For waiting for child probe to complete */
