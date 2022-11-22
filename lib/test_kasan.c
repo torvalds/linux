@@ -517,6 +517,7 @@ static void kmalloc_memmove_negative_size(struct kunit *test)
 	 * which can result in a crash.
 	 */
 	KASAN_TEST_NEEDS_CONFIG_OFF(test, CONFIG_KASAN_HW_TAGS);
+	KASAN_TEST_NEEDS_CONFIG_ON(test, __HAVE_ARCH_MEMMOVE);
 
 	ptr = kmalloc(size, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr);
@@ -535,9 +536,6 @@ static void kmalloc_memmove_invalid_size(struct kunit *test)
 	size_t size = 64;
 	volatile size_t invalid_size = size;
 
-#ifndef __HAVE_ARCH_MEMMOVE
-	invalid_size = size;
-#endif
 	ptr = kmalloc(size, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr);
 
