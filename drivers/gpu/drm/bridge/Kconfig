@@ -103,15 +103,6 @@ config DRM_MAXIM_MAX96755F
 	help
 	  Driver for Maxim MAX96755F GMSL2 Serializer with MIPI-DSI Input.
 
-config DRM_MAXIM_MAX96776
-	tristate "Maxim max96776 GMSL2 Deserializer"
-	depends on OF
-	select MFD_MAX96776
-	select DRM_KMS_HELPER
-	select DRM_PANEL
-	help
-	  Driver for Maxim MAX96776 GMSL2 Deserializer with eDP Output.
-
 config DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW
 	tristate "MegaChips stdp4028-ge-b850v3-fw and stdp2690-ge-b850v3-fw"
 	depends on OF
