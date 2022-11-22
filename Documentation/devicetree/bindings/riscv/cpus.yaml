@@ -40,6 +40,8 @@ properties:
               - sifive,u7
               - sifive,u74
               - sifive,u74-mc
+              - thead,c906
+              - thead,c910
           - const: riscv
       - items:
           - enum:
