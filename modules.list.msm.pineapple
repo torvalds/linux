@@ -54,6 +54,12 @@ icc-test.ko
 qcom_hwspinlock.ko
 smem.ko
 socinfo.ko
+spmi-pmic-arb.ko
+regmap-spmi.ko
+qti-regmap-debugfs.ko
+qcom-spmi-pmic.ko
+nvmem_qcom-spmi-sdam.ko
+rtc-pm8xxx.ko
 qcom-reboot-reason.ko
 qrtr.ko
 qcom_aoss.ko
