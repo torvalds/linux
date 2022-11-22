@@ -494,6 +494,31 @@ void dev_pm_genpd_set_next_wakeup(struct device *dev, ktime_t next)
 }
 EXPORT_SYMBOL_GPL(dev_pm_genpd_set_next_wakeup);
 
+/**
+ * dev_pm_genpd_get_next_hrtimer - Return the next_hrtimer for the genpd
+ * @dev: A device that is attached to the genpd.
+ *
+ * This routine should typically be called for a device, at the point of when a
+ * GENPD_NOTIFY_PRE_OFF notification has been sent for it.
+ *
+ * Returns the aggregated value of the genpd's next hrtimer or KTIME_MAX if no
+ * valid value have been set.
+ */
+ktime_t dev_pm_genpd_get_next_hrtimer(struct device *dev)
+{
+	struct generic_pm_domain *genpd;
+
+	genpd = dev_to_genpd_safe(dev);
+	if (!genpd)
+		return KTIME_MAX;
+
+	if (genpd->gd)
+		return genpd->gd->next_hrtimer;
+
+	return KTIME_MAX;
+}
+EXPORT_SYMBOL_GPL(dev_pm_genpd_get_next_hrtimer);
+
 static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 {
 	unsigned int state_idx = genpd->state_idx;
@@ -1994,6 +2019,7 @@ static int genpd_alloc_data(struct generic_pm_domain *genpd)
 		gd->max_off_time_ns = -1;
 		gd->max_off_time_changed = true;
 		gd->next_wakeup = KTIME_MAX;
+		gd->next_hrtimer = KTIME_MAX;
 	}
 
 	/* Use only one "off" state if there were no states declared */
