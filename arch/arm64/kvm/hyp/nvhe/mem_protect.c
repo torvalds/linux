@@ -592,19 +592,18 @@ int host_stage2_idmap_locked(phys_addr_t addr, u64 size,
 }
 
 #define KVM_INVALID_PTE_OWNER_MASK	GENMASK(9, 2)
-#define KVM_MAX_OWNER_ID		FIELD_MAX(KVM_INVALID_PTE_OWNER_MASK)
-static kvm_pte_t kvm_init_invalid_leaf_owner(u8 owner_id)
+static kvm_pte_t kvm_init_invalid_leaf_owner(enum pkvm_component_id owner_id)
 {
 	return FIELD_PREP(KVM_INVALID_PTE_OWNER_MASK, owner_id);
 }
 
-int host_stage2_set_owner_locked(phys_addr_t addr, u64 size, u8 owner_id)
+int host_stage2_set_owner_locked(phys_addr_t addr, u64 size, enum pkvm_component_id owner_id)
 {
 	kvm_pte_t annotation;
 	enum kvm_pgtable_prot prot;
 	int ret;
 
-	if (owner_id > KVM_MAX_OWNER_ID)
+	if (owner_id > PKVM_ID_MAX)
 		return -EINVAL;
 
 	annotation = kvm_init_invalid_leaf_owner(owner_id);
@@ -894,7 +893,7 @@ static int host_initiate_unshare(u64 *completer_addr,
 static int host_initiate_donation(u64 *completer_addr,
 				  const struct pkvm_mem_transition *tx)
 {
-	u8 owner_id = tx->completer.id;
+	enum pkvm_component_id owner_id = tx->completer.id;
 	u64 size = tx->nr_pages * PAGE_SIZE;
 
 	*completer_addr = tx->initiator.host.completer_addr;
@@ -955,7 +954,7 @@ static int host_complete_share(u64 addr, const struct pkvm_mem_transition *tx,
 
 static int host_complete_unshare(u64 addr, const struct pkvm_mem_transition *tx)
 {
-	u8 owner_id = tx->initiator.id;
+	enum pkvm_component_id owner_id = tx->initiator.id;
 	u64 size = tx->nr_pages * PAGE_SIZE;
 
 	if (tx->initiator.id == PKVM_ID_GUEST)
@@ -967,7 +966,7 @@ static int host_complete_unshare(u64 addr, const struct pkvm_mem_transition *tx)
 static int host_complete_donation(u64 addr, const struct pkvm_mem_transition *tx)
 {
 	u64 size = tx->nr_pages * PAGE_SIZE;
-	u8 host_id = tx->completer.id;
+	enum pkvm_component_id host_id = tx->completer.id;
 
 	return host_stage2_set_owner_locked(addr, size, host_id);
 }
