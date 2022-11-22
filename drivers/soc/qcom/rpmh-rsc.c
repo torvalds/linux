@@ -932,7 +932,7 @@ print_tcs_data:
 void rpmh_rsc_debug(struct rsc_drv *drv, struct completion *compl)
 {
 	struct irq_data *rsc_irq_data = irq_get_irq_data(drv->irq);
-	bool gic_irq_sts, aoss_irq_sts;
+	bool gic_irq_sts, aoss_irq_sts = false;
 	int i;
 	int busy = 0;
 	unsigned long accl = 0;
