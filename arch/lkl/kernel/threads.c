@@ -111,8 +111,10 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		lkl_ops->sem_down(_prev->sched_sem);
 	}
 
-	if (_prev->dead)
+	if (_prev->dead) {
+		kasan_unpoison_stack();
 		lkl_ops->thread_exit();
+	}
 
 	return abs_prev;
 }

@@ -40,6 +40,7 @@ config LKL
        select UACCESS_MEMCPY
        select GENERIC_STRNCPY_FROM_USER
        select GENERIC_STRNLEN_USER
+       select HAVE_ARCH_KASAN
 
 config OUTPUT_FORMAT
        string "Output format"
@@ -104,4 +105,14 @@ config RAID6_PQ_BENCHMARK
 
 config STACKTRACE_SUPPORT
        def_bool y
+
+if KASAN
+config KASAN_SHADOW_OFFSET
+       hex "KASAN shadow offset"
+       default "0"
+
+config KASAN_SHADOW_SIZE
+       hex "KASAN shadow size"
+       default "0"
+endif
 

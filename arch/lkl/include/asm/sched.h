@@ -2,6 +2,7 @@
 #define _ASM_LKL_SCHED_H
 
 #include <linux/sched.h>
+#include <asm/kasan.h>
 #include <uapi/asm/host_ops.h>
 
 static inline void thread_sched_jb(void)
@@ -11,6 +12,11 @@ static inline void thread_sched_jb(void)
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		lkl_ops->jmp_buf_set(&current_thread_info()->sched_jb,
 				     schedule);
+		/*
+		 * The previous call to setjmp/longjmp won't unwind the stack
+		 * and, as a result, shadow memory will remain poisoned.
+		 */
+		kasan_unpoison_stack();
 	} else {
 		lkl_bug("thread_sched_jb() can be used only for host task");
 	}

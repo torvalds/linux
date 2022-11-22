@@ -1,4 +1,5 @@
 POSIX_HOSTS=elf64 elf32
+KASAN_HOSTS=elf64-x86-64
 NT_HOSTS=pe
 
 define set_autoconf_var
@@ -117,6 +118,22 @@ define 64bit_host
   $(call set_kernel_config,64BIT,y)
 endef
 
+define kasan_x86_64
+  $(call set_autoconf_var,KASAN_SHADOW_OFFSET,0x0000200000000000)
+  $(call set_kernel_config,KASAN_SHADOW_OFFSET,0x0000200000000000)
+  $(call set_autoconf_var,KASAN_SHADOW_SIZE,0x0000100000000000)
+  $(call set_kernel_config,KASAN_SHADOW_SIZE,0x0000100000000000)
+endef
+
+define kasan_enable
+  $(call set_autoconf_var,KASAN,y)
+  $(call set_kernel_config,KASAN,y)
+  # default is 20 which should be 1MB but observed 8MB of reserved
+  # memory - half of what we use
+  $(call set_kernel_config,STACK_HASH_ORDER,12)
+  $(if $(filter $(1),elf64-x86-64),$(call kasan_x86_64))
+endef
+
 define do_autoconf
   export CROSS_COMPILE := $(CROSS_COMPILE)
   export CC := $(CROSS_COMPILE)gcc
@@ -131,6 +148,7 @@ define do_autoconf
   $(if $(filter $(EXEC_FMT),elf64-s390),$(call s390_host))
   $(if $(filter $(EXEC_FMT),$(POSIX_HOSTS)),$(call posix_host,$(LD_FMT)))
   $(if $(filter $(EXEC_FMT),$(NT_HOSTS)),$(call nt_host,$(LD_FMT)))
+  $(if $(and $(filter yes,$(kasan)),$(filter $(LD_FMT),$(KASAN_HOSTS))),$(call kasan_enable,$(LD_FMT)))
 endef
 
 export do_autoconf
