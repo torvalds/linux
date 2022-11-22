@@ -519,7 +519,7 @@ int rxe_invalidate_mr(struct rxe_qp *qp, u32 key)
 
 	mr = rxe_pool_get_index(&rxe->mr_pool, key >> 8);
 	if (!mr) {
-		rxe_dbg_mr(mr, "No MR for key %#x\n", key);
+		rxe_dbg_qp(qp, "No MR for key %#x\n", key);
 		ret = -EINVAL;
 		goto err;
 	}
