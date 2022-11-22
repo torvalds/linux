@@ -6,3 +6,6 @@ basic_rseq_op_test
 param_test
 param_test_benchmark
 param_test_compare_twice
+param_test_mm_cid
+param_test_mm_cid_benchmark
+param_test_mm_cid_compare_twice
