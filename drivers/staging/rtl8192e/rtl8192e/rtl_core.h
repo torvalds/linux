@@ -309,7 +309,6 @@ struct r8192_priv {
 
 	bool		bfirst_init;
 	bool		bfirst_after_down;
-	bool		initialized_at_probe;
 	bool		being_init_adapter;
 
 	int		irq;
