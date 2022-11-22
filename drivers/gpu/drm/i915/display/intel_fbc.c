@@ -1183,7 +1183,7 @@ static bool intel_fbc_can_flip_nuke(struct intel_atomic_state *state,
 	const struct drm_framebuffer *old_fb = old_plane_state->hw.fb;
 	const struct drm_framebuffer *new_fb = new_plane_state->hw.fb;
 
-	if (drm_atomic_crtc_needs_modeset(&new_crtc_state->uapi))
+	if (intel_crtc_needs_modeset(new_crtc_state))
 		return false;
 
 	if (!intel_fbc_is_ok(old_plane_state) ||

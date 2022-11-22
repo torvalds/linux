@@ -5,6 +5,7 @@
 
 #include <linux/util_macros.h>
 
+#include "i915_reg.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"

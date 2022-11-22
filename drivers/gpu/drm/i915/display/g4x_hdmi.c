@@ -6,6 +6,7 @@
  */
 
 #include "g4x_hdmi.h"
+#include "i915_reg.h"
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
@@ -76,6 +77,18 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
 
 	return ret;
+}
+
+static int g4x_hdmi_compute_config(struct intel_encoder *encoder,
+				   struct intel_crtc_state *crtc_state,
+				   struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	if (HAS_PCH_SPLIT(i915))
+		crtc_state->has_pch_encoder = true;
+
+	return intel_hdmi_compute_config(encoder, crtc_state, conn_state);
 }
 
 static void intel_hdmi_get_config(struct intel_encoder *encoder,
@@ -543,7 +556,7 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 			 "HDMI %c", port_name(port));
 
 	intel_encoder->hotplug = intel_hdmi_hotplug;
-	intel_encoder->compute_config = intel_hdmi_compute_config;
+	intel_encoder->compute_config = g4x_hdmi_compute_config;
 	if (HAS_PCH_SPLIT(dev_priv)) {
 		intel_encoder->disable = pch_disable_hdmi;
 		intel_encoder->post_disable = pch_post_disable_hdmi;
