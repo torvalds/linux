@@ -82,6 +82,32 @@ properties:
     description: TCSR hardware block
 
 allOf:
+  # Clocks
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,scm-apq8064
+              - qcom,scm-apq8084
+              - qcom,scm-mdm9607
+              - qcom,scm-msm8226
+              - qcom,scm-msm8660
+              - qcom,scm-msm8916
+              - qcom,scm-msm8953
+              - qcom,scm-msm8960
+              - qcom,scm-msm8974
+              - qcom,scm-msm8976
+              - qcom,scm-sm6375
+    then:
+      required:
+        - clocks
+        - clock-names
+    else:
+      properties:
+        clock-names: false
+        clocks: false
+
   - if:
       properties:
         compatible:
@@ -99,10 +125,6 @@ allOf:
 
         clocks:
           maxItems: 1
-
-      required:
-        - clocks
-        - clock-names
 
   - if:
       properties:
@@ -128,9 +150,17 @@ allOf:
           minItems: 3
           maxItems: 3
 
-      required:
-        - clocks
-        - clock-names
+  # Interconnects
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - qcom,scm-sm8450
+    then:
+      properties:
+        interconnects: false
 
 required:
   - compatible
