@@ -185,11 +185,11 @@ static void intel_disable_dvo(struct intel_atomic_state *state,
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	enum port port = encoder->port;
-	u32 temp = intel_de_read(i915, DVO(port));
 
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, false);
-	intel_de_write(i915, DVO(port), temp & ~DVO_ENABLE);
-	intel_de_read(i915, DVO(port));
+
+	intel_de_rmw(i915, DVO(port), DVO_ENABLE, 0);
+	intel_de_posting_read(i915, DVO(port));
 }
 
 static void intel_enable_dvo(struct intel_atomic_state *state,
@@ -200,14 +200,13 @@ static void intel_enable_dvo(struct intel_atomic_state *state,
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	enum port port = encoder->port;
-	u32 temp = intel_de_read(i915, DVO(port));
 
 	intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
 					 &pipe_config->hw.mode,
 					 &pipe_config->hw.adjusted_mode);
 
-	intel_de_write(i915, DVO(port), temp | DVO_ENABLE);
-	intel_de_read(i915, DVO(port));
+	intel_de_rmw(i915, DVO(port), 0, DVO_ENABLE);
+	intel_de_posting_read(i915, DVO(port));
 
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 }
