@@ -8,9 +8,13 @@ define set_autoconf_var
   export LKL_HOST_CONFIG_$(1)=$(2)
 endef
 
-define set_kernel_config
+define set_kernel_config_h
 $(shell echo "#define $(1) $(2)" \
 	  >> $(OUTPUT)/include/kernel_config.h)
+endef
+
+define set_kernel_config
+$(shell echo "CONFIG_$(1)=$(2)" >> $(OUTPUT)/kernel.config)
 endef
 
 define find_include
@@ -84,21 +88,33 @@ define nt64_host
   $(call set_autoconf_var,VIRTIO_NET,y)
   $(call set_autoconf_var,NT64,y)
   CFLAGS += -Wl,--enable-auto-image-base -Wl,--image-base -Wl,0x10000000 \
-  	 -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols \
+	 -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols \
 	 -Wl,--enable-auto-import
   LDFLAGS +=-Wl,--image-base -Wl,0x10000000 -Wl,--enable-auto-image-base \
-   	   -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols \
+	   -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols \
 	   -Wl,--enable-auto-import -s
 endef
 
 define nt_host
   $(call set_autoconf_var,NT,y)
   KOPT = "KALLSYMS_EXTRA_PASS=1"
+  KOPT += "HOSTCFLAGS=-Wno-char-subscripts"
+  KOPT += "HOSTLDFLAGS=-s"
   LDLIBS += -lws2_32
   EXESUF := .exe
   SOSUF := .dll
   CFLAGS += -Iinclude/mingw32
   $(if $(filter $(1),pe-x86-64),$(call nt64_host))
+endef
+
+define s390_host
+  $(call set_kernel_config_h,LKL_CONFIG_ENDIAN,1)
+  $(call set_kernel_config,BIG_ENDIAN,y)
+endef
+
+define 64bit_host
+  $(call set_kernel_config_h,LKL_CONFIG_64BIT,1)
+  $(call set_kernel_config,64BIT,y)
 endef
 
 define do_autoconf
@@ -110,8 +126,9 @@ define do_autoconf
   $(eval CC := $(CROSS_COMPILE)gcc)
   $(eval LD_FMT := $(shell $(LD) -r -print-output-format))
   $(eval EXEC_FMT := $(shell echo $(LD_FMT) | cut -d "-" -f1))
-  $(if $(or $(filter $(EXEC_FMT),elf64),$(filter $(LD_FMT),pe-x86-64)),$(call set_kernel_config,LKL_CONFIG_64BIT,1))
-  $(if $(filter $(EXEC_FMT),elf64-s390),$(call set_kernel_config,LKL_CONFIG_ENDIAN,1))
+  $(call set_kernel_config,OUTPUT_FORMAT,\"$(LD_FMT)\")
+  $(if $(or $(filter $(EXEC_FMT),elf64),$(filter $(LD_FMT),pe-x86-64)),$(call 64bit_host))
+  $(if $(filter $(EXEC_FMT),elf64-s390),$(call s390_host))
   $(if $(filter $(EXEC_FMT),$(POSIX_HOSTS)),$(call posix_host,$(LD_FMT)))
   $(if $(filter $(EXEC_FMT),$(NT_HOSTS)),$(call nt_host,$(LD_FMT)))
 endef
@@ -124,5 +141,6 @@ $(OUTPUT)Makefile.conf: Makefile.autoconf
 	$(shell mkdir -p $(OUTPUT)/tests)
 	$(shell echo -n "" > $(OUTPUT)/include/lkl_autoconf.h)
 	$(shell echo -n "" > $(OUTPUT)/include/kernel_config.h)
+	$(shell echo -n "" > $(OUTPUT)/kernel.config)
 	$(shell echo -n "" > $(OUTPUT)/tests/autoconf.sh)
 	@echo "$$do_autoconf" > $(OUTPUT)/Makefile.conf

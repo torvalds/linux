@@ -36,7 +36,7 @@ all:
 
 conf: $(OUTPUT)Makefile.conf
 
-$(OUTPUT)Makefile.conf $(OUTPUT)include/kernel_config.h: Makefile.autoconf
+$(OUTPUT)Makefile.conf $(OUTPUT)include/kernel_config.h $(OUTPUT)/kernel.config: Makefile.autoconf
 	$(call QUIET_AUTOCONF, headers)$(MAKE) -f Makefile.autoconf -s
 
 -include $(OUTPUT)Makefile.conf
@@ -64,8 +64,12 @@ ASM_UAPI_GENERATED:=$(OUTPUT)../../arch/lkl/include/generated/uapi/asm
 ASM_CONFIG:=$(ASM_UAPI_GENERATED)/config.h
 DOT_CONFIG:=$(OUTPUT)../../.config
 
-$(DOT_CONFIG):
+$(DOT_CONFIG): $(OUTPUT)/kernel.config
 	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) $(KCONFIG)
+	$(call QUIET_INSTALL, kernel.config)cat $(OUTPUT)/kernel.config >> $(DOT_CONFIG)
+	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) olddefconfig
+	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) syncconfig
+
 
 $(ASM_CONFIG): $(OUTPUT)include/kernel_config.h
 	$(Q)mkdir -p $$(dirname $@)

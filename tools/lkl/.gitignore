@@ -16,3 +16,4 @@ include/kernel_config.h
 tests/autoconf.sh
 *.pyc
 bin/stat
+kernel.config

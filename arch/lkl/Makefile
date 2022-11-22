@@ -1,13 +1,13 @@
-include arch/lkl/auto.conf
+# SPDX-License-Identifier: GPL-2.0
 
 KBUILD_CFLAGS += -fno-builtin
 
-exec_format = $(firstword $(subst -, ,$(OUTPUT_FORMAT)))
+exec_format = $(firstword $(subst -, ,$(CONFIG_OUTPUT_FORMAT)))
 
 ifneq (,$(filter elf64 elf32,$(exec_format)))
 KBUILD_CFLAGS += -fPIC
 else ifneq (,$(filter pe,$(exec_format)))
-ifneq ($(OUTPUT_FORMAT),pe-x86-64)
+ifneq ($(CONFIG_OUTPUT_FORMAT),pe-x86-64)
 prefix=_
 KBUILD_CFLAGS += -fno-leading-underscore
 endif
@@ -15,10 +15,8 @@ endif
 LINUXINCLUDE := -isystem arch/lkl/include/system $(LINUXINCLUDE)
 # workaround for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52991
 KBUILD_CFLAGS += -mno-ms-bitfields
-KBUILD_HOSTCFLAGS += -Wno-char-subscripts
-KBUILD_HOSTLDFLAGS += -s
-else
-$(error Unrecognized platform: $(OUTPUT_FORMAT))
+else ifneq (,$(CONFIG_OUTPUT_FORMAT))
+$(error Unrecognized platform: $(CONFIG_OUTPUT_FORMAT))
 endif
 
 ifeq ($(shell uname -s), Linux)
@@ -34,7 +32,7 @@ LKL_ENTRY_POINTS := lkl_start_kernel lkl_sys_halt lkl_syscall lkl_trigger_irq \
 	lkl_get_free_irq lkl_put_irq lkl_is_running lkl_bug lkl_printf \
 	lkl_init lkl_cleanup
 
-ifeq ($(OUTPUT_FORMAT),elf32-i386)
+ifeq ($(CONFIG_OUTPUT_FORMAT),elf32-i386)
 LKL_ENTRY_POINTS += \
 	__x86.get_pc_thunk.bx __x86.get_pc_thunk.dx __x86.get_pc_thunk.ax \
 	__x86.get_pc_thunk.cx __x86.get_pc_thunk.si __x86.get_pc_thunk.di

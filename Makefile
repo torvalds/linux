@@ -667,7 +667,6 @@ endif
 export KBUILD_MODULES KBUILD_BUILTIN
 
 ifdef need-config
-include arch/$(SRCARCH)/auto.conf
 include include/config/auto.conf
 endif
 
