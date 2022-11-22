@@ -282,6 +282,7 @@ EXPORT_SYMBOL(console_list_unlock);
  * Use for_each_console_srcu() to iterate the console list
  *
  * Context: Any context.
+ * Return: A cookie to pass to console_srcu_read_unlock().
  */
 int console_srcu_read_lock(void)
 {
@@ -292,6 +293,7 @@ EXPORT_SYMBOL(console_srcu_read_lock);
 /**
  * console_srcu_read_unlock - Unregister an old reader from
  *	the SRCU-protected console list
+ * @cookie: cookie returned from console_srcu_read_lock()
  *
  * Counterpart to console_srcu_read_lock()
  */
