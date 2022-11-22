@@ -40,6 +40,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/io.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -63,14 +64,12 @@ static inline void clk_fd_writel(struct clk_fractional_divider *fd, u32 val)
 		writel(val, fd->reg);
 }
 
-static unsigned long clk_fd_recalc_rate(struct clk_hw *hw,
-					unsigned long parent_rate)
+static void clk_fd_get_div(struct clk_hw *hw, struct u32_fract *fract)
 {
 	struct clk_fractional_divider *fd = to_clk_fd(hw);
 	unsigned long flags = 0;
 	unsigned long m, n;
 	u32 val;
-	u64 ret;
 
 	if (fd->lock)
 		spin_lock_irqsave(fd->lock, flags);
@@ -92,11 +91,22 @@ static unsigned long clk_fd_recalc_rate(struct clk_hw *hw,
 		n++;
 	}
 
-	if (!n || !m)
+	fract->numerator = m;
+	fract->denominator = n;
+}
+
+static unsigned long clk_fd_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
+{
+	struct u32_fract fract;
+	u64 ret;
+
+	clk_fd_get_div(hw, &fract);
+
+	if (!fract.numerator || !fract.denominator)
 		return parent_rate;
 
-	ret = (u64)parent_rate * m;
-	do_div(ret, n);
+	ret = (u64)parent_rate * fract.numerator;
+	do_div(ret, fract.denominator);
 
 	return ret;
 }
