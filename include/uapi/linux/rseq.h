@@ -132,6 +132,14 @@ struct rseq {
 	__u32 flags;
 
 	/*
+	 * Restartable sequences node_id field. Updated by the kernel. Read by
+	 * user-space with single-copy atomicity semantics. This field should
+	 * only be read by the thread which registered this data structure.
+	 * Aligned on 32-bit. Contains the current NUMA node ID.
+	 */
+	__u32 node_id;
+
+	/*
 	 * Flexible array member at end of structure, after last feature field.
 	 */
 	char end[];
