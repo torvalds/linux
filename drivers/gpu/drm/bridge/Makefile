@@ -6,7 +6,6 @@ obj-$(CONFIG_DRM_ITE_IT6161) += ite-it6161.o
 obj-$(CONFIG_DRM_LONTIUM_LT9611) += lontium-lt9611.o
 obj-$(CONFIG_DRM_LVDS_CODEC) += lvds-codec.o
 obj-$(CONFIG_DRM_MAXIM_MAX96745) += maxim-max96745.o
-obj-$(CONFIG_DRM_MAXIM_MAX96752F) += maxim-max96752f.o
 obj-$(CONFIG_DRM_MAXIM_MAX96755F) += maxim-max96755f.o
 obj-$(CONFIG_DRM_MAXIM_MAX96776) += maxim-max96776.o
 obj-$(CONFIG_DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW) += megachips-stdpxxxx-ge-b850v3-fw.o
