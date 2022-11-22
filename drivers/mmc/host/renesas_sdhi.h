@@ -57,8 +57,8 @@ struct renesas_sdhi_of_data_with_quirks {
 };
 
 /* We want both end_flags to be set before we mark DMA as finished */
-#define SDHI_DMA_END_FLAG_DMA		BIT(0)
-#define SDHI_DMA_END_FLAG_ACCESS	BIT(1)
+#define SDHI_DMA_END_FLAG_DMA		0
+#define SDHI_DMA_END_FLAG_ACCESS	1
 
 struct renesas_sdhi_dma {
 	unsigned long end_flags;
