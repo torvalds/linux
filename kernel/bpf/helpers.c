@@ -4,6 +4,7 @@
 #include <linux/bpf.h>
 #include <linux/btf.h>
 #include <linux/bpf-cgroup.h>
+#include <linux/cgroup.h>
 #include <linux/rcupdate.h>
 #include <linux/random.h>
 #include <linux/smp.h>
@@ -1879,6 +1880,66 @@ void bpf_task_release(struct task_struct *p)
 	put_task_struct_rcu_user(p);
 }
 
+#ifdef CONFIG_CGROUPS
+/**
+ * bpf_cgroup_acquire - Acquire a reference to a cgroup. A cgroup acquired by
+ * this kfunc which is not stored in a map as a kptr, must be released by
+ * calling bpf_cgroup_release().
+ * @cgrp: The cgroup on which a reference is being acquired.
+ */
+struct cgroup *bpf_cgroup_acquire(struct cgroup *cgrp)
+{
+	cgroup_get(cgrp);
+	return cgrp;
+}
+
+/**
+ * bpf_cgroup_kptr_get - Acquire a reference on a struct cgroup kptr. A cgroup
+ * kptr acquired by this kfunc which is not subsequently stored in a map, must
+ * be released by calling bpf_cgroup_release().
+ * @cgrpp: A pointer to a cgroup kptr on which a reference is being acquired.
+ */
+struct cgroup *bpf_cgroup_kptr_get(struct cgroup **cgrpp)
+{
+	struct cgroup *cgrp;
+
+	rcu_read_lock();
+	/* Another context could remove the cgroup from the map and release it
+	 * at any time, including after we've done the lookup above. This is
+	 * safe because we're in an RCU read region, so the cgroup is
+	 * guaranteed to remain valid until at least the rcu_read_unlock()
+	 * below.
+	 */
+	cgrp = READ_ONCE(*cgrpp);
+
+	if (cgrp && !cgroup_tryget(cgrp))
+		/* If the cgroup had been removed from the map and freed as
+		 * described above, cgroup_tryget() will return false. The
+		 * cgroup will be freed at some point after the current RCU gp
+		 * has ended, so just return NULL to the user.
+		 */
+		cgrp = NULL;
+	rcu_read_unlock();
+
+	return cgrp;
+}
+
+/**
+ * bpf_cgroup_release - Release the reference acquired on a struct cgroup *.
+ * If this kfunc is invoked in an RCU read region, the cgroup is guaranteed to
+ * not be freed until the current grace period has ended, even if its refcount
+ * drops to 0.
+ * @cgrp: The cgroup on which a reference is being released.
+ */
+void bpf_cgroup_release(struct cgroup *cgrp)
+{
+	if (!cgrp)
+		return;
+
+	cgroup_put(cgrp);
+}
+#endif /* CONFIG_CGROUPS */
+
 void *bpf_cast_to_kern_ctx(void *obj)
 {
 	return obj;
@@ -1904,6 +1965,12 @@ BTF_ID_FLAGS(func, bpf_list_pop_back, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, bpf_task_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_release, KF_RELEASE)
+
+#ifdef CONFIG_CGROUPS
+BTF_ID_FLAGS(func, bpf_cgroup_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_cgroup_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_cgroup_release, KF_RELEASE)
+#endif
 BTF_SET8_END(generic_btf_ids)
 
 static const struct btf_kfunc_id_set generic_kfunc_set = {
@@ -1915,6 +1982,10 @@ static const struct btf_kfunc_id_set generic_kfunc_set = {
 BTF_ID_LIST(generic_dtor_ids)
 BTF_ID(struct, task_struct)
 BTF_ID(func, bpf_task_release)
+#ifdef CONFIG_CGROUPS
+BTF_ID(struct, cgroup)
+BTF_ID(func, bpf_cgroup_release)
+#endif
 
 BTF_SET8_START(common_btf_ids)
 BTF_ID_FLAGS(func, bpf_cast_to_kern_ctx)
@@ -1928,12 +1999,18 @@ static const struct btf_kfunc_id_set common_kfunc_set = {
 
 static int __init kfunc_init(void)
 {
-	int ret;
+	int ret, idx = 0;
 	const struct btf_id_dtor_kfunc generic_dtors[] = {
 		{
-			.btf_id       = generic_dtor_ids[0],
-			.kfunc_btf_id = generic_dtor_ids[1]
+			.btf_id       = generic_dtor_ids[idx++],
+			.kfunc_btf_id = generic_dtor_ids[idx++]
 		},
+#ifdef CONFIG_CGROUPS
+		{
+			.btf_id       = generic_dtor_ids[idx++],
+			.kfunc_btf_id = generic_dtor_ids[idx++]
+		},
+#endif
 	};
 
 	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &generic_kfunc_set);
