@@ -370,7 +370,7 @@ static int max11410_configure_channel(struct max11410_state *st,
 		 FIELD_PREP(MAX11410_CTRL_UNIPOLAR_BIT, cfg.bipolar ? 0 : 1);
 	ret = regmap_update_bits(st->regmap, MAX11410_REG_CTRL,
 				 MAX11410_CTRL_REFSEL_MASK |
-				 MAX11410_CTRL_VREFN_BUF_BIT |
+				 MAX11410_CTRL_VREFP_BUF_BIT |
 				 MAX11410_CTRL_VREFN_BUF_BIT |
 				 MAX11410_CTRL_UNIPOLAR_BIT, regval);
 	if (ret)
