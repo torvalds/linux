@@ -2602,6 +2602,9 @@
 #define   DVO_PIPE_STALL		(1 << 28)
 #define   DVO_PIPE_STALL_TV		(2 << 28)
 #define   DVO_PIPE_STALL_MASK		(3 << 28)
+#define   DVO_INTERRUPT_SELECT		(1 << 27)
+#define   DVO_DEDICATED_INT_ENABLE	(1 << 26)
+#define   DVO_PRESERVE_MASK		(0x3 << 24)
 #define   DVO_USE_VGA_SYNC		(1 << 15)
 #define   DVO_DATA_ORDER_I740		(0 << 14)
 #define   DVO_DATA_ORDER_FP		(1 << 14)
@@ -2619,7 +2622,6 @@
 #define   DVO_BLANK_ACTIVE_HIGH		(1 << 2)
 #define   DVO_OUTPUT_CSTATE_PIXELS	(1 << 1)	/* SDG only */
 #define   DVO_OUTPUT_SOURCE_SIZE_PIXELS	(1 << 0)	/* SDG only */
-#define   DVO_PRESERVE_MASK		(0x7 << 24)
 #define _DVOA_SRCDIM		0x61124
 #define _DVOB_SRCDIM		0x61144
 #define _DVOC_SRCDIM		0x61164
