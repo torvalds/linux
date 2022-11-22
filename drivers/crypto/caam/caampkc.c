@@ -1099,6 +1099,8 @@ static int caam_rsa_init_tfm(struct crypto_akcipher *tfm)
 {
 	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
 
+	akcipher_set_reqsize(tfm, sizeof(struct caam_rsa_req_ctx));
+
 	ctx->dev = caam_jr_alloc();
 
 	if (IS_ERR(ctx->dev)) {
@@ -1141,7 +1143,6 @@ static struct caam_akcipher_alg caam_rsa = {
 		.max_size = caam_rsa_max_size,
 		.init = caam_rsa_init_tfm,
 		.exit = caam_rsa_exit_tfm,
-		.reqsize = sizeof(struct caam_rsa_req_ctx),
 		.base = {
 			.cra_name = "rsa",
 			.cra_driver_name = "rsa-caam",
