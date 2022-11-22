@@ -122,7 +122,8 @@ pages:
 
   - map/unmap of sub-pages with PTE entry increment/decrement ->_mapcount
     on relevant sub-page of the compound page, and also increment/decrement
-    ->subpages_mapcount, stored in first tail page of the compound page.
+    ->subpages_mapcount, stored in first tail page of the compound page, when
+    _mapcount goes from -1 to 0 or 0 to -1: counting sub-pages mapped by PTE.
     In order to have race-free accounting of sub-pages mapped, changes to
     sub-page ->_mapcount, ->subpages_mapcount and ->compound_mapcount are
     are all locked by bit_spin_lock of PG_locked in the first tail ->flags.

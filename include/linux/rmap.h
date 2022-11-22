@@ -204,14 +204,15 @@ void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
 void hugepage_add_new_anon_rmap(struct page *, struct vm_area_struct *,
 		unsigned long address);
 
-void page_dup_compound_rmap(struct page *page, bool compound);
+void page_dup_compound_rmap(struct page *page);
 
 static inline void page_dup_file_rmap(struct page *page, bool compound)
 {
-	if (PageCompound(page))
-		page_dup_compound_rmap(page, compound);
-	else
+	/* Is page being mapped by PTE? */
+	if (likely(!compound))
 		atomic_inc(&page->_mapcount);
+	else
+		page_dup_compound_rmap(page);
 }
 
 /**

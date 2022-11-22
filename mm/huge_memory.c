@@ -2221,7 +2221,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 		BUG_ON(!pte_none(*pte));
 		set_pte_at(mm, addr, pte, entry);
 		if (!pmd_migration)
-			page_dup_compound_rmap(page + i, false);
+			page_add_anon_rmap(page + i, vma, addr, false);
 		pte_unmap(pte);
 	}
 

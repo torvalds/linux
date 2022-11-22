@@ -837,7 +837,7 @@ static inline int head_compound_mapcount(struct page *head)
 }
 
 /*
- * Sum of mapcounts of sub-pages, does not include compound mapcount.
+ * Number of sub-pages mapped by PTE, does not include compound mapcount.
  * Must be called only on head of compound page.
  */
 static inline int head_subpages_mapcount(struct page *head)
@@ -873,23 +873,7 @@ static inline int page_mapcount(struct page *page)
 	return head_compound_mapcount(page) + mapcount;
 }
 
-static inline int total_mapcount(struct page *page)
-{
-	if (likely(!PageCompound(page)))
-		return atomic_read(&page->_mapcount) + 1;
-	page = compound_head(page);
-	return head_compound_mapcount(page) + head_subpages_mapcount(page);
-}
-
-/*
- * Return true if this page is mapped into pagetables.
- * For compound page it returns true if any subpage of compound page is mapped,
- * even if this particular subpage is not itself mapped by any PTE or PMD.
- */
-static inline bool page_mapped(struct page *page)
-{
-	return total_mapcount(page) > 0;
-}
+int total_compound_mapcount(struct page *head);
 
 /**
  * folio_mapcount() - Calculate the number of mappings of this folio.
@@ -906,8 +890,20 @@ static inline int folio_mapcount(struct folio *folio)
 {
 	if (likely(!folio_test_large(folio)))
 		return atomic_read(&folio->_mapcount) + 1;
-	return atomic_read(folio_mapcount_ptr(folio)) + 1 +
-		atomic_read(folio_subpages_mapcount_ptr(folio));
+	return total_compound_mapcount(&folio->page);
+}
+
+static inline int total_mapcount(struct page *page)
+{
+	if (likely(!PageCompound(page)))
+		return atomic_read(&page->_mapcount) + 1;
+	return total_compound_mapcount(compound_head(page));
+}
+
+static inline bool folio_large_is_mapped(struct folio *folio)
+{
+	return atomic_read(folio_mapcount_ptr(folio)) +
+		atomic_read(folio_subpages_mapcount_ptr(folio)) >= 0;
 }
 
 /**
@@ -918,7 +914,21 @@ static inline int folio_mapcount(struct folio *folio)
  */
 static inline bool folio_mapped(struct folio *folio)
 {
-	return folio_mapcount(folio) > 0;
+	if (likely(!folio_test_large(folio)))
+		return atomic_read(&folio->_mapcount) >= 0;
+	return folio_large_is_mapped(folio);
+}
+
+/*
+ * Return true if this page is mapped into pagetables.
+ * For compound page it returns true if any sub-page of compound page is mapped,
+ * even if this particular sub-page is not itself mapped by any PTE or PMD.
+ */
+static inline bool page_mapped(struct page *page)
+{
+	if (likely(!PageCompound(page)))
+		return atomic_read(&page->_mapcount) >= 0;
+	return folio_large_is_mapped(page_folio(page));
 }
 
 static inline struct page *virt_to_head_page(const void *x)
