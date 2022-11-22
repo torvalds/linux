@@ -148,7 +148,7 @@ static bool intel_dvo_get_hw_state(struct intel_encoder *encoder,
 
 	tmp = intel_de_read(i915, DVO(port));
 
-	*pipe = (tmp & DVO_PIPE_SEL_MASK) >> DVO_PIPE_SEL_SHIFT;
+	*pipe = REG_FIELD_GET(DVO_PIPE_SEL_MASK, tmp);
 
 	return tmp & DVO_ENABLE;
 }
@@ -291,7 +291,7 @@ static void intel_dvo_pre_enable(struct intel_atomic_state *state,
 	/* Save the active data order, since I don't know what it should be set to. */
 	dvo_val = intel_de_read(i915, DVO(port)) &
 		  (DVO_DEDICATED_INT_ENABLE |
-		   DVO_PRESERVE_MASK | DVO_ACT_DATA_ORDER_GBRG);
+		   DVO_PRESERVE_MASK | DVO_ACT_DATA_ORDER_MASK);
 	dvo_val |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE |
 		   DVO_BLANK_ACTIVE_HIGH;
 
@@ -303,7 +303,8 @@ static void intel_dvo_pre_enable(struct intel_atomic_state *state,
 		dvo_val |= DVO_VSYNC_ACTIVE_HIGH;
 
 	intel_de_write(i915, DVO_SRCDIM(port),
-		       (adjusted_mode->crtc_hdisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) | (adjusted_mode->crtc_vdisplay << DVO_SRCDIM_VERTICAL_SHIFT));
+		       DVO_SRCDIM_HORIZONTAL(adjusted_mode->crtc_hdisplay) |
+		       DVO_SRCDIM_VERTICAL(adjusted_mode->crtc_vdisplay));
 	intel_de_write(i915, DVO(port), dvo_val);
 }
 
