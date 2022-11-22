@@ -1686,6 +1686,9 @@ static void nau8825_setup_auto_irq(struct nau8825 *nau8825)
 
 	/* Enable internal VCO needed for interruptions */
 	nau8825_configure_sysclk(nau8825, NAU8825_CLK_INTERNAL, 0);
+	/* Raise up the internal clock for jack detection */
+	regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
+			   NAU8825_CLK_MCLK_SRC_MASK, 0);
 
 	/* Enable ADC needed for interruptions */
 	regmap_update_bits(regmap, NAU8825_REG_ENA_CTRL,
@@ -1799,6 +1802,10 @@ static int nau8825_jack_insert(struct nau8825 *nau8825)
 		type = SND_JACK_HEADPHONE;
 		break;
 	}
+
+	/* Update to the default divider of internal clock for power saving */
+	regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
+			   NAU8825_CLK_MCLK_SRC_MASK, 0xf);
 
 	/* Leaving HPOL/R grounded after jack insert by default. They will be
 	 * ungrounded as part of the widget power up sequence at the beginning
