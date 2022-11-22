@@ -26,6 +26,7 @@
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
+#include <sys/resource.h>
 #include <sys/sysinfo.h>
 #include <asm/ptrace.h>
 #include <elf.h>
@@ -140,7 +141,18 @@ static void disable_fds(int *fd, int n)
 
 static int perf_systemwide_event_open(int *fd, __u32 type, __u64 addr, __u64 len)
 {
+	struct rlimit rlim;
 	int i = 0;
+
+	if (getrlimit(RLIMIT_NOFILE, &rlim)) {
+		perror("getrlimit");
+		return -1;
+	}
+	rlim.rlim_cur = 65536;
+	if (setrlimit(RLIMIT_NOFILE, &rlim)) {
+		perror("setrlimit");
+		return -1;
+	}
 
 	/* Assume online processors are 0 to nprocs for simplisity */
 	for (i = 0; i < nprocs; i++) {
