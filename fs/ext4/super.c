@@ -4881,7 +4881,7 @@ out:
 	flush_work(&sbi->s_error_work);
 	jbd2_journal_destroy(sbi->s_journal);
 	sbi->s_journal = NULL;
-	return err;
+	return -EINVAL;
 }
 
 static int ext4_journal_data_mode_check(struct super_block *sb)
