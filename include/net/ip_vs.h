@@ -410,6 +410,11 @@ struct ip_vs_stats_rcu {
 	struct rcu_head		rcu_head;
 };
 
+int ip_vs_stats_init_alloc(struct ip_vs_stats *s);
+struct ip_vs_stats *ip_vs_stats_alloc(void);
+void ip_vs_stats_release(struct ip_vs_stats *stats);
+void ip_vs_stats_free(struct ip_vs_stats *stats);
+
 struct dst_entry;
 struct iphdr;
 struct ip_vs_conn;

@@ -471,7 +471,7 @@ __ip_vs_bind_svc(struct ip_vs_dest *dest, struct ip_vs_service *svc)
 
 static void ip_vs_service_free(struct ip_vs_service *svc)
 {
-	free_percpu(svc->stats.cpustats);
+	ip_vs_stats_release(&svc->stats);
 	kfree(svc);
 }
 
@@ -782,7 +782,7 @@ static void ip_vs_dest_rcu_free(struct rcu_head *head)
 	struct ip_vs_dest *dest;
 
 	dest = container_of(head, struct ip_vs_dest, rcu_head);
-	free_percpu(dest->stats.cpustats);
+	ip_vs_stats_release(&dest->stats);
 	ip_vs_dest_put_and_free(dest);
 }
 
@@ -822,7 +822,7 @@ static void ip_vs_stats_rcu_free(struct rcu_head *head)
 						  struct ip_vs_stats_rcu,
 						  rcu_head);
 
-	free_percpu(rs->s.cpustats);
+	ip_vs_stats_release(&rs->s);
 	kfree(rs);
 }
 
@@ -877,6 +877,47 @@ ip_vs_zero_stats(struct ip_vs_stats *stats)
 	ip_vs_zero_estimator(stats);
 
 	spin_unlock_bh(&stats->lock);
+}
+
+/* Allocate fields after kzalloc */
+int ip_vs_stats_init_alloc(struct ip_vs_stats *s)
+{
+	int i;
+
+	spin_lock_init(&s->lock);
+	s->cpustats = alloc_percpu(struct ip_vs_cpu_stats);
+	if (!s->cpustats)
+		return -ENOMEM;
+
+	for_each_possible_cpu(i) {
+		struct ip_vs_cpu_stats *cs = per_cpu_ptr(s->cpustats, i);
+
+		u64_stats_init(&cs->syncp);
+	}
+	return 0;
+}
+
+struct ip_vs_stats *ip_vs_stats_alloc(void)
+{
+	struct ip_vs_stats *s = kzalloc(sizeof(*s), GFP_KERNEL);
+
+	if (s && ip_vs_stats_init_alloc(s) >= 0)
+		return s;
+	kfree(s);
+	return NULL;
+}
+
+void ip_vs_stats_release(struct ip_vs_stats *stats)
+{
+	free_percpu(stats->cpustats);
+}
+
+void ip_vs_stats_free(struct ip_vs_stats *stats)
+{
+	if (stats) {
+		ip_vs_stats_release(stats);
+		kfree(stats);
+	}
 }
 
 /*
@@ -978,14 +1019,13 @@ static int
 ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 {
 	struct ip_vs_dest *dest;
-	unsigned int atype, i;
+	unsigned int atype;
+	int ret;
 
 	EnterFunction(2);
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (udest->af == AF_INET6) {
-		int ret;
-
 		atype = ipv6_addr_type(&udest->addr.in6);
 		if ((!(atype & IPV6_ADDR_UNICAST) ||
 			atype & IPV6_ADDR_LINKLOCAL) &&
@@ -1007,15 +1047,9 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 	if (dest == NULL)
 		return -ENOMEM;
 
-	dest->stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
-	if (!dest->stats.cpustats)
+	ret = ip_vs_stats_init_alloc(&dest->stats);
+	if (ret < 0)
 		goto err_alloc;
-
-	for_each_possible_cpu(i) {
-		struct ip_vs_cpu_stats *ip_vs_dest_stats;
-		ip_vs_dest_stats = per_cpu_ptr(dest->stats.cpustats, i);
-		u64_stats_init(&ip_vs_dest_stats->syncp);
-	}
 
 	dest->af = udest->af;
 	dest->protocol = svc->protocol;
@@ -1032,7 +1066,6 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 	INIT_HLIST_NODE(&dest->d_list);
 	spin_lock_init(&dest->dst_lock);
-	spin_lock_init(&dest->stats.lock);
 	__ip_vs_update_dest(svc, dest, udest, 1);
 
 	LeaveFunction(2);
@@ -1040,7 +1073,7 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 err_alloc:
 	kfree(dest);
-	return -ENOMEM;
+	return ret;
 }
 
 
@@ -1299,7 +1332,7 @@ static int
 ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 		  struct ip_vs_service **svc_p)
 {
-	int ret = 0, i;
+	int ret = 0;
 	struct ip_vs_scheduler *sched = NULL;
 	struct ip_vs_pe *pe = NULL;
 	struct ip_vs_service *svc = NULL;
@@ -1359,18 +1392,9 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 		ret = -ENOMEM;
 		goto out_err;
 	}
-	svc->stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
-	if (!svc->stats.cpustats) {
-		ret = -ENOMEM;
+	ret = ip_vs_stats_init_alloc(&svc->stats);
+	if (ret < 0)
 		goto out_err;
-	}
-
-	for_each_possible_cpu(i) {
-		struct ip_vs_cpu_stats *ip_vs_stats;
-		ip_vs_stats = per_cpu_ptr(svc->stats.cpustats, i);
-		u64_stats_init(&ip_vs_stats->syncp);
-	}
-
 
 	/* I'm the first user of the service */
 	atomic_set(&svc->refcnt, 0);
@@ -1387,7 +1411,6 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 
 	INIT_LIST_HEAD(&svc->destinations);
 	spin_lock_init(&svc->sched_lock);
-	spin_lock_init(&svc->stats.lock);
 
 	/* Bind the scheduler */
 	if (sched) {
@@ -4166,7 +4189,7 @@ static struct notifier_block ip_vs_dst_notifier = {
 
 int __net_init ip_vs_control_net_init(struct netns_ipvs *ipvs)
 {
-	int i, idx;
+	int idx;
 
 	/* Initialize rs_table */
 	for (idx = 0; idx < IP_VS_RTAB_SIZE; idx++)
@@ -4183,17 +4206,8 @@ int __net_init ip_vs_control_net_init(struct netns_ipvs *ipvs)
 	ipvs->tot_stats = kzalloc(sizeof(*ipvs->tot_stats), GFP_KERNEL);
 	if (!ipvs->tot_stats)
 		return -ENOMEM;
-	ipvs->tot_stats->s.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
-	if (!ipvs->tot_stats->s.cpustats)
+	if (ip_vs_stats_init_alloc(&ipvs->tot_stats->s) < 0)
 		goto err_tot_stats;
-
-	for_each_possible_cpu(i) {
-		struct ip_vs_cpu_stats *ipvs_tot_stats;
-		ipvs_tot_stats = per_cpu_ptr(ipvs->tot_stats->s.cpustats, i);
-		u64_stats_init(&ipvs_tot_stats->syncp);
-	}
-
-	spin_lock_init(&ipvs->tot_stats->s.lock);
 
 #ifdef CONFIG_PROC_FS
 	if (!proc_create_net("ip_vs", 0, ipvs->net->proc_net,
@@ -4225,7 +4239,7 @@ err_stats:
 
 err_vs:
 #endif
-	free_percpu(ipvs->tot_stats->s.cpustats);
+	ip_vs_stats_release(&ipvs->tot_stats->s);
 
 err_tot_stats:
 	kfree(ipvs->tot_stats);
