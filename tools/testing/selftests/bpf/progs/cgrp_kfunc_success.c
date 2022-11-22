@@ -123,3 +123,48 @@ int BPF_PROG(test_cgrp_get_release, struct cgroup *cgrp, const char *path)
 
 	return 0;
 }
+
+SEC("tp_btf/cgroup_mkdir")
+int BPF_PROG(test_cgrp_get_ancestors, struct cgroup *cgrp, const char *path)
+{
+	struct cgroup *self, *ancestor1, *invalid;
+
+	if (!is_test_kfunc_task())
+		return 0;
+
+	self = bpf_cgroup_ancestor(cgrp, cgrp->level);
+	if (!self) {
+		err = 1;
+		return 0;
+	}
+
+	if (self->self.id != cgrp->self.id) {
+		bpf_cgroup_release(self);
+		err = 2;
+		return 0;
+	}
+	bpf_cgroup_release(self);
+
+	ancestor1 = bpf_cgroup_ancestor(cgrp, cgrp->level - 1);
+	if (!ancestor1) {
+		err = 3;
+		return 0;
+	}
+	bpf_cgroup_release(ancestor1);
+
+	invalid = bpf_cgroup_ancestor(cgrp, 10000);
+	if (invalid) {
+		bpf_cgroup_release(invalid);
+		err = 4;
+		return 0;
+	}
+
+	invalid = bpf_cgroup_ancestor(cgrp, -1);
+	if (invalid) {
+		bpf_cgroup_release(invalid);
+		err = 5;
+		return 0;
+	}
+
+	return 0;
+}

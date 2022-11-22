@@ -86,6 +86,7 @@ static const char * const success_tests[] = {
 	"test_cgrp_acquire_leave_in_map",
 	"test_cgrp_xchg_release",
 	"test_cgrp_get_release",
+	"test_cgrp_get_ancestors",
 };
 
 static struct {
