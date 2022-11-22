@@ -22,6 +22,9 @@ define_common_kernels(target_configs = {
     "kernel_aarch64_debug": {
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
+    "kernel_riscv64": {
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+    },
     "kernel_x86_64": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
