@@ -536,7 +536,6 @@ static int pm8xxx_mpp_of_xlate(struct gpio_chip *chip,
 
 
 #ifdef CONFIG_DEBUG_FS
-#include <linux/seq_file.h>
 
 static void pm8xxx_mpp_dbg_show_one(struct seq_file *s,
 				  struct pinctrl_dev *pctldev,

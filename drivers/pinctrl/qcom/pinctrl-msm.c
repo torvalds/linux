@@ -601,7 +601,6 @@ static void msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 }
 
 #ifdef CONFIG_DEBUG_FS
-#include <linux/seq_file.h>
 
 static void msm_gpio_dbg_show_one(struct seq_file *s,
 				  struct pinctrl_dev *pctldev,
