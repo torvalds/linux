@@ -8,28 +8,47 @@ OUTPUT_FORMAT(CONFIG_OUTPUT_FORMAT)
 
 jiffies = jiffies_64;
 
+/* FIXME: symbols defined here outside individual sections don't have a final
+ * address assigned because vmlinux is linked incrementally. In the final
+ * linking step (when linked against an application) they can be rearranged away
+ * from the other adjacent symbols or sections in this file which makes them
+ * bogus.
+ *
+ * Fortunatelly, in most cases their are used for informational purposes only,
+ * e.g. printing the init/code/data size early during boot.
+ */
 SECTIONS
 {
-	__init_begin = .;
-	HEAD_TEXT_SECTION
-	INIT_TEXT_SECTION(PAGE_SIZE)
-	INIT_DATA_SECTION(16)
-	PERCPU_SECTION(L1_CACHE_BYTES)
-	__init_end = .;
-
-	_stext = .;
-	_text = . ;
-	text = . ;
-	.text      :
+	/*
+	 * Keep all text symbols in the same section, including init, to keep
+	 * kallsyms partially working - at least for functions. This
+	 * allows us to get non-bogus stack traces.
+	 */
+	.text :
 	{
+		_stext = .;
+		_text = . ;
+		text = . ;
+
+		. = ALIGN(PAGE_SIZE);
+		_sinittext = .;
+		INIT_TEXT
+		_einittext = .;
+
 		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
 		CPUIDLE_TEXT
 		IRQENTRY_TEXT
 		SOFTIRQENTRY_TEXT
+
+		_etext = .;
 	}
-	_etext = .;
+
+	__init_begin = .;
+	INIT_DATA_SECTION(16)
+	PERCPU_SECTION(L1_CACHE_BYTES)
+	__init_end = .;
 
 	_sdata = .;
 	RO_DATA(PAGE_SIZE)
