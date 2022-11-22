@@ -189,10 +189,6 @@ int copy_thread(unsigned long clone_flags, unsigned long esp,
 	return 0;
 }
 
-void show_stack(struct task_struct *task, unsigned long *esp)
-{
-}
-
 /**
  * This is called before the kernel initializes, so no kernel calls (including
  * printk) can't be made yet.

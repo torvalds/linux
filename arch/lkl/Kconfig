@@ -100,3 +100,7 @@ config PCI
 config RAID6_PQ_BENCHMARK
 	bool
 	default n
+
+config STACKTRACE_SUPPORT
+       def_bool y
+
