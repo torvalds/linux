@@ -56,48 +56,42 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 	{
 		.type = INTEL_DVO_CHIP_TMDS,
 		.name = "sil164",
-		.dvo_reg = DVOC,
-		.dvo_srcdim_reg = DVOC_SRCDIM,
+		.port = PORT_C,
 		.slave_addr = SIL164_ADDR,
 		.dev_ops = &sil164_ops,
 	},
 	{
 		.type = INTEL_DVO_CHIP_TMDS,
 		.name = "ch7xxx",
-		.dvo_reg = DVOC,
-		.dvo_srcdim_reg = DVOC_SRCDIM,
+		.port = PORT_C,
 		.slave_addr = CH7xxx_ADDR,
 		.dev_ops = &ch7xxx_ops,
 	},
 	{
 		.type = INTEL_DVO_CHIP_TMDS,
 		.name = "ch7xxx",
-		.dvo_reg = DVOC,
-		.dvo_srcdim_reg = DVOC_SRCDIM,
+		.port = PORT_C,
 		.slave_addr = 0x75, /* For some ch7010 */
 		.dev_ops = &ch7xxx_ops,
 	},
 	{
 		.type = INTEL_DVO_CHIP_LVDS,
 		.name = "ivch",
-		.dvo_reg = DVOA,
-		.dvo_srcdim_reg = DVOA_SRCDIM,
+		.port = PORT_A,
 		.slave_addr = 0x02, /* Might also be 0x44, 0x84, 0xc4 */
 		.dev_ops = &ivch_ops,
 	},
 	{
 		.type = INTEL_DVO_CHIP_TMDS,
 		.name = "tfp410",
-		.dvo_reg = DVOC,
-		.dvo_srcdim_reg = DVOC_SRCDIM,
+		.port = PORT_C,
 		.slave_addr = TFP410_ADDR,
 		.dev_ops = &tfp410_ops,
 	},
 	{
 		.type = INTEL_DVO_CHIP_LVDS,
 		.name = "ch7017",
-		.dvo_reg = DVOC,
-		.dvo_srcdim_reg = DVOC_SRCDIM,
+		.port = PORT_C,
 		.slave_addr = 0x75,
 		.gpio = GMBUS_PIN_DPB,
 		.dev_ops = &ch7017_ops,
@@ -105,8 +99,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 	{
 		.type = INTEL_DVO_CHIP_LVDS_NO_FIXED,
 		.name = "ns2501",
-		.dvo_reg = DVOB,
-		.dvo_srcdim_reg = DVOB_SRCDIM,
+		.port = PORT_B,
 		.slave_addr = NS2501_ADDR,
 		.dev_ops = &ns2501_ops,
 	},
@@ -133,10 +126,12 @@ static struct intel_dvo *intel_attached_dvo(struct intel_connector *connector)
 static bool intel_dvo_connector_get_hw_state(struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
+	enum port port = encoder->port;
 	u32 tmp;
 
-	tmp = intel_de_read(i915, intel_dvo->dev.dvo_reg);
+	tmp = intel_de_read(i915, DVO(port));
 
 	if (!(tmp & DVO_ENABLE))
 		return false;
@@ -148,10 +143,10 @@ static bool intel_dvo_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
+	enum port port = encoder->port;
 	u32 tmp;
 
-	tmp = intel_de_read(i915, intel_dvo->dev.dvo_reg);
+	tmp = intel_de_read(i915, DVO(port));
 
 	*pipe = (tmp & DVO_PIPE_SEL_MASK) >> DVO_PIPE_SEL_SHIFT;
 
@@ -162,12 +157,12 @@ static void intel_dvo_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
+	enum port port = encoder->port;
 	u32 tmp, flags = 0;
 
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DVO);
 
-	tmp = intel_de_read(i915, intel_dvo->dev.dvo_reg);
+	tmp = intel_de_read(i915, DVO(port));
 	if (tmp & DVO_HSYNC_ACTIVE_HIGH)
 		flags |= DRM_MODE_FLAG_PHSYNC;
 	else
@@ -189,12 +184,12 @@ static void intel_disable_dvo(struct intel_atomic_state *state,
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
-	i915_reg_t dvo_reg = intel_dvo->dev.dvo_reg;
-	u32 temp = intel_de_read(i915, dvo_reg);
+	enum port port = encoder->port;
+	u32 temp = intel_de_read(i915, DVO(port));
 
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, false);
-	intel_de_write(i915, dvo_reg, temp & ~DVO_ENABLE);
-	intel_de_read(i915, dvo_reg);
+	intel_de_write(i915, DVO(port), temp & ~DVO_ENABLE);
+	intel_de_read(i915, DVO(port));
 }
 
 static void intel_enable_dvo(struct intel_atomic_state *state,
@@ -204,15 +199,15 @@ static void intel_enable_dvo(struct intel_atomic_state *state,
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
-	i915_reg_t dvo_reg = intel_dvo->dev.dvo_reg;
-	u32 temp = intel_de_read(i915, dvo_reg);
+	enum port port = encoder->port;
+	u32 temp = intel_de_read(i915, DVO(port));
 
 	intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
 					 &pipe_config->hw.mode,
 					 &pipe_config->hw.adjusted_mode);
 
-	intel_de_write(i915, dvo_reg, temp | DVO_ENABLE);
-	intel_de_read(i915, dvo_reg);
+	intel_de_write(i915, DVO(port), temp | DVO_ENABLE);
+	intel_de_read(i915, DVO(port));
 
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 }
@@ -289,14 +284,12 @@ static void intel_dvo_pre_enable(struct intel_atomic_state *state,
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
+	enum port port = encoder->port;
 	enum pipe pipe = crtc->pipe;
 	u32 dvo_val;
-	i915_reg_t dvo_reg = intel_dvo->dev.dvo_reg;
-	i915_reg_t dvo_srcdim_reg = intel_dvo->dev.dvo_srcdim_reg;
 
 	/* Save the data order, since I don't know what it should be set to. */
-	dvo_val = intel_de_read(i915, dvo_reg) &
+	dvo_val = intel_de_read(i915, DVO(port)) &
 		  (DVO_PRESERVE_MASK | DVO_DATA_ORDER_GBRG);
 	dvo_val |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE |
 		   DVO_BLANK_ACTIVE_HIGH;
@@ -308,9 +301,9 @@ static void intel_dvo_pre_enable(struct intel_atomic_state *state,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		dvo_val |= DVO_VSYNC_ACTIVE_HIGH;
 
-	intel_de_write(i915, dvo_srcdim_reg,
+	intel_de_write(i915, DVO_SRCDIM(port),
 		       (adjusted_mode->crtc_hdisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) | (adjusted_mode->crtc_vdisplay << DVO_SRCDIM_VERTICAL_SHIFT));
-	intel_de_write(i915, dvo_reg, dvo_val);
+	intel_de_write(i915, DVO(port), dvo_val);
 }
 
 static enum drm_connector_status
@@ -377,16 +370,6 @@ static void intel_dvo_enc_destroy(struct drm_encoder *encoder)
 static const struct drm_encoder_funcs intel_dvo_enc_funcs = {
 	.destroy = intel_dvo_enc_destroy,
 };
-
-static enum port intel_dvo_port(i915_reg_t dvo_reg)
-{
-	if (i915_mmio_reg_equal(dvo_reg, DVOA))
-		return PORT_A;
-	else if (i915_mmio_reg_equal(dvo_reg, DVOB))
-		return PORT_B;
-	else
-		return PORT_C;
-}
 
 static int intel_dvo_encoder_type(const struct intel_dvo_device *dvo)
 {
@@ -528,7 +511,7 @@ void intel_dvo_init(struct drm_i915_private *i915)
 
 	encoder->type = INTEL_OUTPUT_DVO;
 	encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
-	encoder->port = intel_dvo_port(intel_dvo->dev.dvo_reg);
+	encoder->port = intel_dvo->dev.port;
 	encoder->pipe_mask = ~0;
 
 	if (intel_dvo->dev.type != INTEL_DVO_CHIP_LVDS)

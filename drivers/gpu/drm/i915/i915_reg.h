@@ -2591,11 +2591,9 @@
 
 /* DVO port control */
 #define _DVOA			0x61120
-#define DVOA			_MMIO(_DVOA)
 #define _DVOB			0x61140
-#define DVOB			_MMIO(_DVOB)
 #define _DVOC			0x61160
-#define DVOC			_MMIO(_DVOC)
+#define DVO(port)		_MMIO_PORT((port), _DVOA, _DVOB)
 #define   DVO_ENABLE			(1 << 31)
 #define   DVO_PIPE_SEL_SHIFT		30
 #define   DVO_PIPE_SEL_MASK		(1 << 30)
@@ -2622,9 +2620,10 @@
 #define   DVO_OUTPUT_CSTATE_PIXELS	(1 << 1)	/* SDG only */
 #define   DVO_OUTPUT_SOURCE_SIZE_PIXELS	(1 << 0)	/* SDG only */
 #define   DVO_PRESERVE_MASK		(0x7 << 24)
-#define DVOA_SRCDIM		_MMIO(0x61124)
-#define DVOB_SRCDIM		_MMIO(0x61144)
-#define DVOC_SRCDIM		_MMIO(0x61164)
+#define _DVOA_SRCDIM		0x61124
+#define _DVOB_SRCDIM		0x61144
+#define _DVOC_SRCDIM		0x61164
+#define DVO_SRCDIM(port)	_MMIO_PORT((port), _DVOA_SRCDIM, _DVOB_SRCDIM)
 #define   DVO_SRCDIM_HORIZONTAL_SHIFT	12
 #define   DVO_SRCDIM_VERTICAL_SHIFT	0
 
