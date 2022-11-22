@@ -107,3 +107,4 @@ obj-$(CONFIG_MSM_SYSTEM_HEALTH_MONITOR) += health_monitor.o
 health_monitor-y := system_health_monitor_v01.o system_health_monitor.o
 obj-$(CONFIG_QCOM_QFPROM_SYS) += qfprom-sys.o
 obj-$(CONFIG_QCOM_S2D_VENDOR_HOOK) += qcom_hib.o
+obj-$(CONFIG_QCOM_SECURE_HIBERNATION) += qcom_secure_hibernation.o
