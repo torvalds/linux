@@ -16,6 +16,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/termios.h>
+#include <linux/string.h>
 
 #include "qcom_glink_native.h"
 
@@ -446,7 +447,7 @@ static ssize_t glink_pkt_write(struct file *file,
 	}
 
 	GLINK_PKT_INFO("begin to %s buffer_size %zu\n", gpdev->ch_name, count);
-	kbuf = memdup_user(buf, count);
+	kbuf = vmemdup_user(buf, count);
 	if (IS_ERR(kbuf))
 		return PTR_ERR(kbuf);
 
@@ -469,7 +470,7 @@ unlock_ch:
 	mutex_unlock(&gpdev->lock);
 
 free_kbuf:
-	kfree(kbuf);
+	kvfree(kbuf);
 	GLINK_PKT_INFO("finish to %s ret %d\n", gpdev->ch_name, ret);
 	return ret < 0 ? ret : count;
 }
