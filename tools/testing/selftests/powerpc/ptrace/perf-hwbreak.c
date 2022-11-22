@@ -146,6 +146,7 @@ static int perf_systemwide_event_open(int *fd, __u32 type, __u64 addr, __u64 len
 	for (i = 0; i < nprocs; i++) {
 		fd[i] = perf_cpu_event_open(i, type, addr, len);
 		if (fd[i] < 0) {
+			perror("perf_systemwide_event_open");
 			close_fds(fd, i);
 			return fd[i];
 		}
@@ -543,15 +544,12 @@ static int test_syswide_multi_diff_addr(void)
 	int ret;
 
 	ret = perf_systemwide_event_open(fd1, HW_BREAKPOINT_RW, (__u64)&a, (__u64)sizeof(a));
-	if (ret) {
-		perror("perf_systemwide_event_open");
+	if (ret)
 		exit(EXIT_FAILURE);
-	}
 
 	ret = perf_systemwide_event_open(fd2, HW_BREAKPOINT_RW, (__u64)&b, (__u64)sizeof(b));
 	if (ret) {
 		close_fds(fd1, nprocs);
-		perror("perf_systemwide_event_open");
 		exit(EXIT_FAILURE);
 	}
 
@@ -590,15 +588,12 @@ static int test_syswide_multi_same_addr(void)
 	int ret;
 
 	ret = perf_systemwide_event_open(fd1, HW_BREAKPOINT_RW, (__u64)&a, (__u64)sizeof(a));
-	if (ret) {
-		perror("perf_systemwide_event_open");
+	if (ret)
 		exit(EXIT_FAILURE);
-	}
 
 	ret = perf_systemwide_event_open(fd2, HW_BREAKPOINT_RW, (__u64)&a, (__u64)sizeof(a));
 	if (ret) {
 		close_fds(fd1, nprocs);
-		perror("perf_systemwide_event_open");
 		exit(EXIT_FAILURE);
 	}
 
@@ -637,15 +632,12 @@ static int test_syswide_multi_diff_addr_ro_wo(void)
 	int ret;
 
 	ret = perf_systemwide_event_open(fd1, HW_BREAKPOINT_W, (__u64)&a, (__u64)sizeof(a));
-	if (ret) {
-		perror("perf_systemwide_event_open");
+	if (ret)
 		exit(EXIT_FAILURE);
-	}
 
 	ret = perf_systemwide_event_open(fd2, HW_BREAKPOINT_R, (__u64)&b, (__u64)sizeof(b));
 	if (ret) {
 		close_fds(fd1, nprocs);
-		perror("perf_systemwide_event_open");
 		exit(EXIT_FAILURE);
 	}
 
@@ -684,15 +676,12 @@ static int test_syswide_multi_same_addr_ro_wo(void)
 	int ret;
 
 	ret = perf_systemwide_event_open(fd1, HW_BREAKPOINT_W, (__u64)&a, (__u64)sizeof(a));
-	if (ret) {
-		perror("perf_systemwide_event_open");
+	if (ret)
 		exit(EXIT_FAILURE);
-	}
 
 	ret = perf_systemwide_event_open(fd2, HW_BREAKPOINT_R, (__u64)&a, (__u64)sizeof(a));
 	if (ret) {
 		close_fds(fd1, nprocs);
-		perror("perf_systemwide_event_open");
 		exit(EXIT_FAILURE);
 	}
 
