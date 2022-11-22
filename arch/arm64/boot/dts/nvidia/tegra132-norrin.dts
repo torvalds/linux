@@ -1030,20 +1030,20 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
+		key-power {
+			label = "Power";
+			gpios = <&gpio TEGRA_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+			debounce-interval = <10>;
+			wakeup-source;
+		};
+
 		switch-lid {
 			label = "Lid";
 			gpios = <&gpio TEGRA_GPIO(R, 4) GPIO_ACTIVE_LOW>;
 			linux,input-type = <5>;
 			linux,code = <0>;
 			debounce-interval = <1>;
-			wakeup-source;
-		};
-
-		key-power {
-			label = "Power";
-			gpios = <&gpio TEGRA_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_POWER>;
-			debounce-interval = <10>;
 			wakeup-source;
 		};
 	};

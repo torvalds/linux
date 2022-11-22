@@ -111,6 +111,34 @@
 			status = "okay";
 		};
 
+		pinmux: pinmux@2430000 {
+			compatible = "nvidia,tegra194-pinmux";
+			reg = <0x0 0x2430000 0x0 0x17000>;
+			status = "okay";
+
+			pex_clkreq_c5_bi_dir_state: pinmux-pex-clkreq-c5-bi-dir {
+				clkreq {
+					nvidia,pins = "pex_l5_clkreq_n_pgg0";
+					nvidia,schmitt = <TEGRA_PIN_DISABLE>;
+					nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+					nvidia,io-hv = <TEGRA_PIN_ENABLE>;
+					nvidia,tristate = <TEGRA_PIN_DISABLE>;
+					nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				};
+			};
+
+			pex_rst_c5_out_state: pinmux-pex-rst-c5-out {
+				pex_rst {
+					nvidia,pins = "pex_l5_rst_n_pgg1";
+					nvidia,schmitt = <TEGRA_PIN_DISABLE>;
+					nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+					nvidia,io-hv = <TEGRA_PIN_ENABLE>;
+					nvidia,tristate = <TEGRA_PIN_DISABLE>;
+					nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				};
+			};
+		};
+
 		ethernet@2490000 {
 			compatible = "nvidia,tegra194-eqos",
 				     "nvidia,tegra186-eqos",
@@ -196,64 +224,6 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x02900000 0x0 0x02900000 0x0 0x200000>;
 
-			adma: dma-controller@2930000 {
-				compatible = "nvidia,tegra194-adma",
-					     "nvidia,tegra186-adma";
-				reg = <0x0 0x02930000 0x0 0x20000>;
-				interrupt-parent = <&agic>;
-				interrupts =  <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
-					      <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
-				#dma-cells = <1>;
-				clocks = <&bpmp TEGRA194_CLK_AHUB>;
-				clock-names = "d_audio";
-				status = "disabled";
-			};
-
-			agic: interrupt-controller@2a40000 {
-				compatible = "nvidia,tegra194-agic",
-					     "nvidia,tegra210-agic";
-				#interrupt-cells = <3>;
-				interrupt-controller;
-				reg = <0x0 0x02a41000 0x0 0x1000>,
-				      <0x0 0x02a42000 0x0 0x2000>;
-				interrupts = <GIC_SPI 145
-					      (GIC_CPU_MASK_SIMPLE(4) |
-					       IRQ_TYPE_LEVEL_HIGH)>;
-				clocks = <&bpmp TEGRA194_CLK_APE>;
-				clock-names = "clk";
-				status = "disabled";
-			};
-
 			tegra_ahub: ahub@2900800 {
 				compatible = "nvidia,tegra194-ahub",
 					     "nvidia,tegra186-ahub";
@@ -267,57 +237,6 @@
 				#address-cells = <2>;
 				#size-cells = <2>;
 				ranges = <0x0 0x02900800 0x0 0x02900800 0x0 0x11800>;
-
-				tegra_admaif: admaif@290f000 {
-					compatible = "nvidia,tegra194-admaif",
-						     "nvidia,tegra186-admaif";
-					reg = <0x0 0x0290f000 0x0 0x1000>;
-					dmas = <&adma 1>, <&adma 1>,
-					       <&adma 2>, <&adma 2>,
-					       <&adma 3>, <&adma 3>,
-					       <&adma 4>, <&adma 4>,
-					       <&adma 5>, <&adma 5>,
-					       <&adma 6>, <&adma 6>,
-					       <&adma 7>, <&adma 7>,
-					       <&adma 8>, <&adma 8>,
-					       <&adma 9>, <&adma 9>,
-					       <&adma 10>, <&adma 10>,
-					       <&adma 11>, <&adma 11>,
-					       <&adma 12>, <&adma 12>,
-					       <&adma 13>, <&adma 13>,
-					       <&adma 14>, <&adma 14>,
-					       <&adma 15>, <&adma 15>,
-					       <&adma 16>, <&adma 16>,
-					       <&adma 17>, <&adma 17>,
-					       <&adma 18>, <&adma 18>,
-					       <&adma 19>, <&adma 19>,
-					       <&adma 20>, <&adma 20>;
-					dma-names = "rx1", "tx1",
-						    "rx2", "tx2",
-						    "rx3", "tx3",
-						    "rx4", "tx4",
-						    "rx5", "tx5",
-						    "rx6", "tx6",
-						    "rx7", "tx7",
-						    "rx8", "tx8",
-						    "rx9", "tx9",
-						    "rx10", "tx10",
-						    "rx11", "tx11",
-						    "rx12", "tx12",
-						    "rx13", "tx13",
-						    "rx14", "tx14",
-						    "rx15", "tx15",
-						    "rx16", "tx16",
-						    "rx17", "tx17",
-						    "rx18", "tx18",
-						    "rx19", "tx19",
-						    "rx20", "tx20";
-					status = "disabled";
-					interconnects = <&mc TEGRA194_MEMORY_CLIENT_APEDMAR &emc>,
-							<&mc TEGRA194_MEMORY_CLIENT_APEDMAW &emc>;
-					interconnect-names = "dma-mem", "write";
-					iommus = <&smmu TEGRA194_SID_APE>;
-				};
 
 				tegra_i2s1: i2s@2901000 {
 					compatible = "nvidia,tegra194-i2s",
@@ -403,6 +322,98 @@
 					status = "disabled";
 				};
 
+				tegra_sfc1: sfc@2902000 {
+					compatible = "nvidia,tegra194-sfc",
+						     "nvidia,tegra210-sfc";
+					reg = <0x0 0x2902000 0x0 0x200>;
+					sound-name-prefix = "SFC1";
+					status = "disabled";
+				};
+
+				tegra_sfc2: sfc@2902200 {
+					compatible = "nvidia,tegra194-sfc",
+						     "nvidia,tegra210-sfc";
+					reg = <0x0 0x2902200 0x0 0x200>;
+					sound-name-prefix = "SFC2";
+					status = "disabled";
+				};
+
+				tegra_sfc3: sfc@2902400 {
+					compatible = "nvidia,tegra194-sfc",
+						     "nvidia,tegra210-sfc";
+					reg = <0x0 0x2902400 0x0 0x200>;
+					sound-name-prefix = "SFC3";
+					status = "disabled";
+				};
+
+				tegra_sfc4: sfc@2902600 {
+					compatible = "nvidia,tegra194-sfc",
+						     "nvidia,tegra210-sfc";
+					reg = <0x0 0x2902600 0x0 0x200>;
+					sound-name-prefix = "SFC4";
+					status = "disabled";
+				};
+
+				tegra_amx1: amx@2903000 {
+					compatible = "nvidia,tegra194-amx";
+					reg = <0x0 0x2903000 0x0 0x100>;
+					sound-name-prefix = "AMX1";
+					status = "disabled";
+				};
+
+				tegra_amx2: amx@2903100 {
+					compatible = "nvidia,tegra194-amx";
+					reg = <0x0 0x2903100 0x0 0x100>;
+					sound-name-prefix = "AMX2";
+					status = "disabled";
+				};
+
+				tegra_amx3: amx@2903200 {
+					compatible = "nvidia,tegra194-amx";
+					reg = <0x0 0x2903200 0x0 0x100>;
+					sound-name-prefix = "AMX3";
+					status = "disabled";
+				};
+
+				tegra_amx4: amx@2903300 {
+					compatible = "nvidia,tegra194-amx";
+					reg = <0x0 0x2903300 0x0 0x100>;
+					sound-name-prefix = "AMX4";
+					status = "disabled";
+				};
+
+				tegra_adx1: adx@2903800 {
+					compatible = "nvidia,tegra194-adx",
+						     "nvidia,tegra210-adx";
+					reg = <0x0 0x2903800 0x0 0x100>;
+					sound-name-prefix = "ADX1";
+					status = "disabled";
+				};
+
+				tegra_adx2: adx@2903900 {
+					compatible = "nvidia,tegra194-adx",
+						     "nvidia,tegra210-adx";
+					reg = <0x0 0x2903900 0x0 0x100>;
+					sound-name-prefix = "ADX2";
+					status = "disabled";
+				};
+
+				tegra_adx3: adx@2903a00 {
+					compatible = "nvidia,tegra194-adx",
+						     "nvidia,tegra210-adx";
+					reg = <0x0 0x2903a00 0x0 0x100>;
+					sound-name-prefix = "ADX3";
+					status = "disabled";
+				};
+
+				tegra_adx4: adx@2903b00 {
+					compatible = "nvidia,tegra194-adx",
+						     "nvidia,tegra210-adx";
+					reg = <0x0 0x2903b00 0x0 0x100>;
+					sound-name-prefix = "ADX4";
+					status = "disabled";
+				};
+
 				tegra_dmic1: dmic@2904000 {
 					compatible = "nvidia,tegra194-dmic",
 						     "nvidia,tegra210-dmic";
@@ -481,114 +492,6 @@
 					status = "disabled";
 				};
 
-				tegra_sfc1: sfc@2902000 {
-					compatible = "nvidia,tegra194-sfc",
-						     "nvidia,tegra210-sfc";
-					reg = <0x0 0x2902000 0x0 0x200>;
-					sound-name-prefix = "SFC1";
-					status = "disabled";
-				};
-
-				tegra_sfc2: sfc@2902200 {
-					compatible = "nvidia,tegra194-sfc",
-						     "nvidia,tegra210-sfc";
-					reg = <0x0 0x2902200 0x0 0x200>;
-					sound-name-prefix = "SFC2";
-					status = "disabled";
-				};
-
-				tegra_sfc3: sfc@2902400 {
-					compatible = "nvidia,tegra194-sfc",
-						     "nvidia,tegra210-sfc";
-					reg = <0x0 0x2902400 0x0 0x200>;
-					sound-name-prefix = "SFC3";
-					status = "disabled";
-				};
-
-				tegra_sfc4: sfc@2902600 {
-					compatible = "nvidia,tegra194-sfc",
-						     "nvidia,tegra210-sfc";
-					reg = <0x0 0x2902600 0x0 0x200>;
-					sound-name-prefix = "SFC4";
-					status = "disabled";
-				};
-
-				tegra_mvc1: mvc@290a000 {
-					compatible = "nvidia,tegra194-mvc",
-						     "nvidia,tegra210-mvc";
-					reg = <0x0 0x290a000 0x0 0x200>;
-					sound-name-prefix = "MVC1";
-					status = "disabled";
-				};
-
-				tegra_mvc2: mvc@290a200 {
-					compatible = "nvidia,tegra194-mvc",
-						     "nvidia,tegra210-mvc";
-					reg = <0x0 0x290a200 0x0 0x200>;
-					sound-name-prefix = "MVC2";
-					status = "disabled";
-				};
-
-				tegra_amx1: amx@2903000 {
-					compatible = "nvidia,tegra194-amx";
-					reg = <0x0 0x2903000 0x0 0x100>;
-					sound-name-prefix = "AMX1";
-					status = "disabled";
-				};
-
-				tegra_amx2: amx@2903100 {
-					compatible = "nvidia,tegra194-amx";
-					reg = <0x0 0x2903100 0x0 0x100>;
-					sound-name-prefix = "AMX2";
-					status = "disabled";
-				};
-
-				tegra_amx3: amx@2903200 {
-					compatible = "nvidia,tegra194-amx";
-					reg = <0x0 0x2903200 0x0 0x100>;
-					sound-name-prefix = "AMX3";
-					status = "disabled";
-				};
-
-				tegra_amx4: amx@2903300 {
-					compatible = "nvidia,tegra194-amx";
-					reg = <0x0 0x2903300 0x0 0x100>;
-					sound-name-prefix = "AMX4";
-					status = "disabled";
-				};
-
-				tegra_adx1: adx@2903800 {
-					compatible = "nvidia,tegra194-adx",
-						     "nvidia,tegra210-adx";
-					reg = <0x0 0x2903800 0x0 0x100>;
-					sound-name-prefix = "ADX1";
-					status = "disabled";
-				};
-
-				tegra_adx2: adx@2903900 {
-					compatible = "nvidia,tegra194-adx",
-						     "nvidia,tegra210-adx";
-					reg = <0x0 0x2903900 0x0 0x100>;
-					sound-name-prefix = "ADX2";
-					status = "disabled";
-				};
-
-				tegra_adx3: adx@2903a00 {
-					compatible = "nvidia,tegra194-adx",
-						     "nvidia,tegra210-adx";
-					reg = <0x0 0x2903a00 0x0 0x100>;
-					sound-name-prefix = "ADX3";
-					status = "disabled";
-				};
-
-				tegra_adx4: adx@2903b00 {
-					compatible = "nvidia,tegra194-adx",
-						     "nvidia,tegra210-adx";
-					reg = <0x0 0x2903b00 0x0 0x100>;
-					sound-name-prefix = "ADX4";
-					status = "disabled";
-				};
-
 				tegra_ope1: processing-engine@2908000 {
 					compatible = "nvidia,tegra194-ope",
 						     "nvidia,tegra210-ope";
@@ -613,12 +516,79 @@
 					};
 				};
 
+				tegra_mvc1: mvc@290a000 {
+					compatible = "nvidia,tegra194-mvc",
+						     "nvidia,tegra210-mvc";
+					reg = <0x0 0x290a000 0x0 0x200>;
+					sound-name-prefix = "MVC1";
+					status = "disabled";
+				};
+
+				tegra_mvc2: mvc@290a200 {
+					compatible = "nvidia,tegra194-mvc",
+						     "nvidia,tegra210-mvc";
+					reg = <0x0 0x290a200 0x0 0x200>;
+					sound-name-prefix = "MVC2";
+					status = "disabled";
+				};
+
 				tegra_amixer: amixer@290bb00 {
 					compatible = "nvidia,tegra194-amixer",
 						     "nvidia,tegra210-amixer";
 					reg = <0x0 0x290bb00 0x0 0x800>;
 					sound-name-prefix = "MIXER1";
 					status = "disabled";
+				};
+
+				tegra_admaif: admaif@290f000 {
+					compatible = "nvidia,tegra194-admaif",
+						     "nvidia,tegra186-admaif";
+					reg = <0x0 0x0290f000 0x0 0x1000>;
+					dmas = <&adma 1>, <&adma 1>,
+					       <&adma 2>, <&adma 2>,
+					       <&adma 3>, <&adma 3>,
+					       <&adma 4>, <&adma 4>,
+					       <&adma 5>, <&adma 5>,
+					       <&adma 6>, <&adma 6>,
+					       <&adma 7>, <&adma 7>,
+					       <&adma 8>, <&adma 8>,
+					       <&adma 9>, <&adma 9>,
+					       <&adma 10>, <&adma 10>,
+					       <&adma 11>, <&adma 11>,
+					       <&adma 12>, <&adma 12>,
+					       <&adma 13>, <&adma 13>,
+					       <&adma 14>, <&adma 14>,
+					       <&adma 15>, <&adma 15>,
+					       <&adma 16>, <&adma 16>,
+					       <&adma 17>, <&adma 17>,
+					       <&adma 18>, <&adma 18>,
+					       <&adma 19>, <&adma 19>,
+					       <&adma 20>, <&adma 20>;
+					dma-names = "rx1", "tx1",
+						    "rx2", "tx2",
+						    "rx3", "tx3",
+						    "rx4", "tx4",
+						    "rx5", "tx5",
+						    "rx6", "tx6",
+						    "rx7", "tx7",
+						    "rx8", "tx8",
+						    "rx9", "tx9",
+						    "rx10", "tx10",
+						    "rx11", "tx11",
+						    "rx12", "tx12",
+						    "rx13", "tx13",
+						    "rx14", "tx14",
+						    "rx15", "tx15",
+						    "rx16", "tx16",
+						    "rx17", "tx17",
+						    "rx18", "tx18",
+						    "rx19", "tx19",
+						    "rx20", "tx20";
+					status = "disabled";
+					interconnects = <&mc TEGRA194_MEMORY_CLIENT_APEDMAR &emc>,
+							<&mc TEGRA194_MEMORY_CLIENT_APEDMAW &emc>;
+					interconnect-names = "dma-mem", "write";
+					iommus = <&smmu TEGRA194_SID_APE>;
 				};
 
 				tegra_asrc: asrc@2910000 {
@@ -629,33 +599,63 @@
 					status = "disabled";
 				};
 			};
-		};
 
-		pinmux: pinmux@2430000 {
-			compatible = "nvidia,tegra194-pinmux";
-			reg = <0x0 0x2430000 0x0 0x17000>;
-			status = "okay";
-
-			pex_rst_c5_out_state: pinmux-pex-rst-c5-out {
-				pex_rst {
-					nvidia,pins = "pex_l5_rst_n_pgg1";
-					nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-					nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-					nvidia,io-hv = <TEGRA_PIN_ENABLE>;
-					nvidia,tristate = <TEGRA_PIN_DISABLE>;
-					nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				};
+			adma: dma-controller@2930000 {
+				compatible = "nvidia,tegra194-adma",
+					     "nvidia,tegra186-adma";
+				reg = <0x0 0x02930000 0x0 0x20000>;
+				interrupt-parent = <&agic>;
+				interrupts =  <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+				#dma-cells = <1>;
+				clocks = <&bpmp TEGRA194_CLK_AHUB>;
+				clock-names = "d_audio";
+				status = "disabled";
 			};
 
-			clkreq_c5_bi_dir_state: pinmux-clkreq-c5-bi-dir {
-				clkreq {
-					nvidia,pins = "pex_l5_clkreq_n_pgg0";
-					nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-					nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-					nvidia,io-hv = <TEGRA_PIN_ENABLE>;
-					nvidia,tristate = <TEGRA_PIN_DISABLE>;
-					nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				};
+			agic: interrupt-controller@2a40000 {
+				compatible = "nvidia,tegra194-agic",
+					     "nvidia,tegra210-agic";
+				#interrupt-cells = <3>;
+				interrupt-controller;
+				reg = <0x0 0x02a41000 0x0 0x1000>,
+				      <0x0 0x02a42000 0x0 0x2000>;
+				interrupts = <GIC_SPI 145
+					      (GIC_CPU_MASK_SIMPLE(4) |
+					       IRQ_TYPE_LEVEL_HIGH)>;
+				clocks = <&bpmp TEGRA194_CLK_APE>;
+				clock-names = "clk";
+				status = "disabled";
 			};
 		};
 
@@ -942,19 +942,6 @@
 			status = "disabled";
 		};
 
-		spi@3300000 {
-			compatible = "nvidia,tegra194-qspi";
-			reg = <0x0 0x3300000 0x0 0x1000>;
-			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			clocks = <&bpmp TEGRA194_CLK_QSPI1>,
-				 <&bpmp TEGRA194_CLK_QSPI1_PM>;
-			clock-names = "qspi", "qspi_out";
-			resets = <&bpmp TEGRA194_RESET_QSPI1>;
-			status = "disabled";
-		};
-
 		pwm1: pwm@3280000 {
 			compatible = "nvidia,tegra194-pwm",
 				     "nvidia,tegra186-pwm";
@@ -1030,6 +1017,19 @@
 			reset-names = "pwm";
 			status = "disabled";
 			#pwm-cells = <2>;
+		};
+
+		spi@3300000 {
+			compatible = "nvidia,tegra194-qspi";
+			reg = <0x0 0x3300000 0x0 0x1000>;
+			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA194_CLK_QSPI1>,
+				 <&bpmp TEGRA194_CLK_QSPI1_PM>;
+			clock-names = "qspi", "qspi_out";
+			resets = <&bpmp TEGRA194_RESET_QSPI1>;
+			status = "disabled";
 		};
 
 		sdmmc1: mmc@3400000 {
@@ -1707,17 +1707,14 @@
 
 			#interrupt-cells = <2>;
 			interrupt-controller;
-			sdmmc1_3v3: sdmmc1-3v3 {
-				pins = "sdmmc1-hv";
-				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
-			};
 
 			sdmmc1_1v8: sdmmc1-1v8 {
 				pins = "sdmmc1-hv";
 				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
 			};
-			sdmmc3_3v3: sdmmc3-3v3 {
-				pins = "sdmmc3-hv";
+
+			sdmmc1_3v3: sdmmc1-3v3 {
+				pins = "sdmmc1-hv";
 				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
 			};
 
@@ -1726,6 +1723,10 @@
 				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
 			};
 
+			sdmmc3_3v3: sdmmc3-3v3 {
+				pins = "sdmmc3-hv";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+			};
 		};
 
 		aon-noc@c600000 {
@@ -2373,10 +2374,10 @@
 		pcie@14100000 {
 			compatible = "nvidia,tegra194-pcie";
 			power-domains = <&bpmp TEGRA194_POWER_DOMAIN_PCIEX1A>;
-			reg = <0x0 0x14100000 0x0 0x00020000>, /* appl registers (128K)      */
-			      <0x0 0x30000000 0x0 0x00040000>, /* configuration space (256K) */
-			      <0x0 0x30040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
-			      <0x0 0x30080000 0x0 0x00040000>; /* DBI reg space (256K)       */
+			reg = <0x00 0x14100000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x30000000 0x0 0x00040000>, /* configuration space (256K) */
+			      <0x00 0x30040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x30080000 0x0 0x00040000>; /* DBI reg space (256K)       */
 			reg-names = "appl", "config", "atu_dma", "dbi";
 
 			status = "disabled";
@@ -2726,7 +2727,7 @@
 			linux,pci-domain = <5>;
 
 			pinctrl-names = "default";
-			pinctrl-0 = <&pex_rst_c5_out_state>, <&clkreq_c5_bi_dir_state>;
+			pinctrl-0 = <&pex_rst_c5_out_state>, <&pex_clkreq_c5_bi_dir_state>;
 
 			clocks = <&bpmp TEGRA194_CLK_PEX1_CORE_5>;
 			clock-names = "core";
@@ -2779,7 +2780,7 @@
 			num-ob-windows = <8>;
 
 			pinctrl-names = "default";
-			pinctrl-0 = <&clkreq_c5_bi_dir_state>;
+			pinctrl-0 = <&pex_clkreq_c5_bi_dir_state>;
 
 			clocks = <&bpmp TEGRA194_CLK_PEX1_CORE_5>;
 			clock-names = "core";
@@ -3121,6 +3122,13 @@
 		method = "smc";
 	};
 
+	tcu: serial {
+		compatible = "nvidia,tegra194-tcu";
+		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_RX(0)>,
+			 <&hsp_aon TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_TX(1)>;
+		mbox-names = "rx", "tx";
+	};
+
 	sound {
 		status = "disabled";
 
@@ -3139,13 +3147,6 @@
 		 * for 8x and 11.025x sample rate streams.
 		 */
 		assigned-clock-rates = <258000000>;
-	};
-
-	tcu: serial {
-		compatible = "nvidia,tegra194-tcu";
-		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_RX(0)>,
-		         <&hsp_aon TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_TX(1)>;
-		mbox-names = "rx", "tx";
 	};
 
 	thermal-zones {

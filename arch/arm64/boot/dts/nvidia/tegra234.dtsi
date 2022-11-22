@@ -22,6 +22,94 @@
 		#size-cells = <2>;
 		ranges = <0x0 0x0 0x0 0x0 0x0 0x40000000>;
 
+		misc@100000 {
+			compatible = "nvidia,tegra234-misc";
+			reg = <0x0 0x00100000 0x0 0xf000>,
+			      <0x0 0x0010f000 0x0 0x1000>;
+			status = "okay";
+		};
+
+		timer@2080000 {
+			compatible = "nvidia,tegra234-timer";
+			reg = <0x0 0x02080000 0x0 0x00121000>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+			status = "okay";
+		};
+
+		gpio: gpio@2200000 {
+			compatible = "nvidia,tegra234-gpio";
+			reg-names = "security", "gpio";
+			reg = <0x0 0x02200000 0x0 0x10000>,
+			      <0x0 0x02210000 0x0 0x10000>;
+			interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 289 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 290 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 291 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 295 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 301 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 315 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 319 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 321 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 322 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 323 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 325 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 329 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 332 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 333 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 334 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
+
 		gpcdma: dma-controller@2600000 {
 			compatible = "nvidia,tegra234-gpcdma",
 				     "nvidia,tegra186-gpcdma";
@@ -516,194 +604,6 @@
 				clock-names = "clk";
 				status = "disabled";
 			};
-		};
-
-		misc@100000 {
-			compatible = "nvidia,tegra234-misc";
-			reg = <0x0 0x00100000 0x0 0xf000>,
-			      <0x0 0x0010f000 0x0 0x1000>;
-			status = "okay";
-		};
-
-		timer@2080000 {
-			compatible = "nvidia,tegra234-timer";
-			reg = <0x0 0x02080000 0x0 0x00121000>;
-			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-			status = "okay";
-		};
-
-		host1x@13e00000 {
-			compatible = "nvidia,tegra234-host1x";
-			reg = <0x0 0x13e00000 0x0 0x10000>,
-			      <0x0 0x13e10000 0x0 0x10000>,
-			      <0x0 0x13e40000 0x0 0x10000>;
-			reg-names = "common", "hypervisor", "vm";
-			interrupts = <GIC_SPI 448 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 449 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 450 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 451 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 452 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 453 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 454 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 455 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "syncpt0", "syncpt1", "syncpt2", "syncpt3", "syncpt4",
-					  "syncpt5", "syncpt6", "syncpt7", "host1x";
-			clocks = <&bpmp TEGRA234_CLK_HOST1X>;
-			clock-names = "host1x";
-
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges = <0x0 0x14800000 0x0 0x14800000 0x0 0x02000000>;
-
-			interconnects = <&mc TEGRA234_MEMORY_CLIENT_HOST1XDMAR &emc>;
-			interconnect-names = "dma-mem";
-			iommus = <&smmu_niso1 TEGRA234_SID_HOST1X>;
-
-			/* Context isolation domains */
-			iommu-map = <0 &smmu_niso0 TEGRA234_SID_HOST1X_CTX0 1>,
-				    <1 &smmu_niso0 TEGRA234_SID_HOST1X_CTX1 1>,
-				    <2 &smmu_niso0 TEGRA234_SID_HOST1X_CTX2 1>,
-				    <3 &smmu_niso0 TEGRA234_SID_HOST1X_CTX3 1>,
-				    <4 &smmu_niso0 TEGRA234_SID_HOST1X_CTX4 1>,
-				    <5 &smmu_niso0 TEGRA234_SID_HOST1X_CTX5 1>,
-				    <6 &smmu_niso0 TEGRA234_SID_HOST1X_CTX6 1>,
-				    <7 &smmu_niso0 TEGRA234_SID_HOST1X_CTX7 1>,
-				    <8 &smmu_niso1 TEGRA234_SID_HOST1X_CTX0 1>,
-				    <9 &smmu_niso1 TEGRA234_SID_HOST1X_CTX1 1>,
-				    <10 &smmu_niso1 TEGRA234_SID_HOST1X_CTX2 1>,
-				    <11 &smmu_niso1 TEGRA234_SID_HOST1X_CTX3 1>,
-				    <12 &smmu_niso1 TEGRA234_SID_HOST1X_CTX4 1>,
-				    <13 &smmu_niso1 TEGRA234_SID_HOST1X_CTX5 1>,
-				    <14 &smmu_niso1 TEGRA234_SID_HOST1X_CTX6 1>,
-				    <15 &smmu_niso1 TEGRA234_SID_HOST1X_CTX7 1>;
-
-			vic@15340000 {
-				compatible = "nvidia,tegra234-vic";
-				reg = <0x0 0x15340000 0x0 0x00040000>;
-				interrupts = <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&bpmp TEGRA234_CLK_VIC>;
-				clock-names = "vic";
-				resets = <&bpmp TEGRA234_RESET_VIC>;
-				reset-names = "vic";
-
-				power-domains = <&bpmp TEGRA234_POWER_DOMAIN_VIC>;
-				interconnects = <&mc TEGRA234_MEMORY_CLIENT_VICSRD &emc>,
-						<&mc TEGRA234_MEMORY_CLIENT_VICSWR &emc>;
-				interconnect-names = "dma-mem", "write";
-				iommus = <&smmu_niso1 TEGRA234_SID_VIC>;
-				dma-coherent;
-			};
-
-			nvdec@15480000 {
-				compatible = "nvidia,tegra234-nvdec";
-				reg = <0x0 0x15480000 0x0 0x00040000>;
-				clocks = <&bpmp TEGRA234_CLK_NVDEC>,
-					 <&bpmp TEGRA234_CLK_FUSE>,
-					 <&bpmp TEGRA234_CLK_TSEC_PKA>;
-				clock-names = "nvdec", "fuse", "tsec_pka";
-				resets = <&bpmp TEGRA234_RESET_NVDEC>;
-				reset-names = "nvdec";
-				power-domains = <&bpmp TEGRA234_POWER_DOMAIN_NVDEC>;
-				interconnects = <&mc TEGRA234_MEMORY_CLIENT_NVDECSRD &emc>,
-						<&mc TEGRA234_MEMORY_CLIENT_NVDECSWR &emc>;
-				interconnect-names = "dma-mem", "write";
-				iommus = <&smmu_niso1 TEGRA234_SID_NVDEC>;
-				dma-coherent;
-
-				nvidia,memory-controller = <&mc>;
-
-				/*
-				 * Placeholder values that firmware needs to update with the real
-				 * offsets parsed from the microcode headers.
-				 */
-				nvidia,bl-manifest-offset = <0>;
-				nvidia,bl-data-offset = <0>;
-				nvidia,bl-code-offset = <0>;
-				nvidia,os-manifest-offset = <0>;
-				nvidia,os-data-offset = <0>;
-				nvidia,os-code-offset = <0>;
-
-				/*
-				 * Firmware needs to set this to "okay" once the above values have
-				 * been updated.
-				 */
-				status = "disabled";
-			};
-		};
-
-		gpio: gpio@2200000 {
-			compatible = "nvidia,tegra234-gpio";
-			reg-names = "security", "gpio";
-			reg = <0x0 0x02200000 0x0 0x10000>,
-			      <0x0 0x02210000 0x0 0x10000>;
-			interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 289 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 290 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 291 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 295 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 301 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 315 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 319 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 321 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 322 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 323 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 325 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 329 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 332 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 333 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 334 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>;
-			#interrupt-cells = <2>;
-			interrupt-controller;
-			#gpio-cells = <2>;
-			gpio-controller;
 		};
 
 		mc: memory-controller@2c00000 {
@@ -1690,24 +1590,24 @@
 			#interrupt-cells = <2>;
 			interrupt-controller;
 
-			sdmmc1_3v3: sdmmc1-3v3 {
-				pins = "sdmmc1-hv";
-				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
-			};
-
 			sdmmc1_1v8: sdmmc1-1v8 {
 				pins = "sdmmc1-hv";
 				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
 			};
 
-			sdmmc3_3v3: sdmmc3-3v3 {
-				pins = "sdmmc3-hv";
+			sdmmc1_3v3: sdmmc1-3v3 {
+				pins = "sdmmc1-hv";
 				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
 			};
 
 			sdmmc3_1v8: sdmmc3-1v8 {
 				pins = "sdmmc3-hv";
 				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+			};
+
+			sdmmc3_3v3: sdmmc3-3v3 {
+				pins = "sdmmc3-hv";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
 			};
 		};
 
@@ -2038,6 +1938,106 @@
 			reg = <0x0 0x13a00000 0x0 0x400000>;
 			interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
 			status = "okay";
+		};
+
+		host1x@13e00000 {
+			compatible = "nvidia,tegra234-host1x";
+			reg = <0x0 0x13e00000 0x0 0x10000>,
+			      <0x0 0x13e10000 0x0 0x10000>,
+			      <0x0 0x13e40000 0x0 0x10000>;
+			reg-names = "common", "hypervisor", "vm";
+			interrupts = <GIC_SPI 448 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 449 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 450 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 451 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 452 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 453 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 454 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 455 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "syncpt0", "syncpt1", "syncpt2", "syncpt3", "syncpt4",
+					  "syncpt5", "syncpt6", "syncpt7", "host1x";
+			clocks = <&bpmp TEGRA234_CLK_HOST1X>;
+			clock-names = "host1x";
+
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x14800000 0x0 0x14800000 0x0 0x02000000>;
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_HOST1XDMAR &emc>;
+			interconnect-names = "dma-mem";
+			iommus = <&smmu_niso1 TEGRA234_SID_HOST1X>;
+
+			/* Context isolation domains */
+			iommu-map = <0 &smmu_niso0 TEGRA234_SID_HOST1X_CTX0 1>,
+				    <1 &smmu_niso0 TEGRA234_SID_HOST1X_CTX1 1>,
+				    <2 &smmu_niso0 TEGRA234_SID_HOST1X_CTX2 1>,
+				    <3 &smmu_niso0 TEGRA234_SID_HOST1X_CTX3 1>,
+				    <4 &smmu_niso0 TEGRA234_SID_HOST1X_CTX4 1>,
+				    <5 &smmu_niso0 TEGRA234_SID_HOST1X_CTX5 1>,
+				    <6 &smmu_niso0 TEGRA234_SID_HOST1X_CTX6 1>,
+				    <7 &smmu_niso0 TEGRA234_SID_HOST1X_CTX7 1>,
+				    <8 &smmu_niso1 TEGRA234_SID_HOST1X_CTX0 1>,
+				    <9 &smmu_niso1 TEGRA234_SID_HOST1X_CTX1 1>,
+				    <10 &smmu_niso1 TEGRA234_SID_HOST1X_CTX2 1>,
+				    <11 &smmu_niso1 TEGRA234_SID_HOST1X_CTX3 1>,
+				    <12 &smmu_niso1 TEGRA234_SID_HOST1X_CTX4 1>,
+				    <13 &smmu_niso1 TEGRA234_SID_HOST1X_CTX5 1>,
+				    <14 &smmu_niso1 TEGRA234_SID_HOST1X_CTX6 1>,
+				    <15 &smmu_niso1 TEGRA234_SID_HOST1X_CTX7 1>;
+
+			vic@15340000 {
+				compatible = "nvidia,tegra234-vic";
+				reg = <0x0 0x15340000 0x0 0x00040000>;
+				interrupts = <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&bpmp TEGRA234_CLK_VIC>;
+				clock-names = "vic";
+				resets = <&bpmp TEGRA234_RESET_VIC>;
+				reset-names = "vic";
+
+				power-domains = <&bpmp TEGRA234_POWER_DOMAIN_VIC>;
+				interconnects = <&mc TEGRA234_MEMORY_CLIENT_VICSRD &emc>,
+						<&mc TEGRA234_MEMORY_CLIENT_VICSWR &emc>;
+				interconnect-names = "dma-mem", "write";
+				iommus = <&smmu_niso1 TEGRA234_SID_VIC>;
+				dma-coherent;
+			};
+
+			nvdec@15480000 {
+				compatible = "nvidia,tegra234-nvdec";
+				reg = <0x0 0x15480000 0x0 0x00040000>;
+				clocks = <&bpmp TEGRA234_CLK_NVDEC>,
+					 <&bpmp TEGRA234_CLK_FUSE>,
+					 <&bpmp TEGRA234_CLK_TSEC_PKA>;
+				clock-names = "nvdec", "fuse", "tsec_pka";
+				resets = <&bpmp TEGRA234_RESET_NVDEC>;
+				reset-names = "nvdec";
+				power-domains = <&bpmp TEGRA234_POWER_DOMAIN_NVDEC>;
+				interconnects = <&mc TEGRA234_MEMORY_CLIENT_NVDECSRD &emc>,
+						<&mc TEGRA234_MEMORY_CLIENT_NVDECSWR &emc>;
+				interconnect-names = "dma-mem", "write";
+				iommus = <&smmu_niso1 TEGRA234_SID_NVDEC>;
+				dma-coherent;
+
+				nvidia,memory-controller = <&mc>;
+
+				/*
+				 * Placeholder values that firmware needs to update with the real
+				 * offsets parsed from the microcode headers.
+				 */
+				nvidia,bl-manifest-offset = <0>;
+				nvidia,bl-data-offset = <0>;
+				nvidia,bl-code-offset = <0>;
+				nvidia,os-manifest-offset = <0>;
+				nvidia,os-data-offset = <0>;
+				nvidia,os-code-offset = <0>;
+
+				/*
+				 * Firmware needs to set this to "okay" once the above values have
+				 * been updated.
+				 */
+				status = "disabled";
+			};
 		};
 
 		pcie@140a0000 {
