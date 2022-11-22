@@ -72,11 +72,11 @@ struct kvm_x86_cpu_feature {
 		.bit = __bit,							\
 	};									\
 										\
-	static_assert((fn & 0xc0000000) == 0 ||					\
-		      (fn & 0xc0000000) == 0x40000000 ||			\
-		      (fn & 0xc0000000) == 0x80000000 ||			\
-		      (fn & 0xc0000000) == 0xc0000000);				\
-	static_assert(idx < BIT(sizeof(feature.index) * BITS_PER_BYTE));	\
+	kvm_static_assert((fn & 0xc0000000) == 0 ||				\
+			  (fn & 0xc0000000) == 0x40000000 ||			\
+			  (fn & 0xc0000000) == 0x80000000 ||			\
+			  (fn & 0xc0000000) == 0xc0000000);			\
+	kvm_static_assert(idx < BIT(sizeof(feature.index) * BITS_PER_BYTE));	\
 	feature;								\
 })
 
@@ -191,12 +191,12 @@ struct kvm_x86_cpu_property {
 		.hi_bit = high_bit,						\
 	};									\
 										\
-	static_assert(low_bit < high_bit);					\
-	static_assert((fn & 0xc0000000) == 0 ||					\
-		      (fn & 0xc0000000) == 0x40000000 ||			\
-		      (fn & 0xc0000000) == 0x80000000 ||			\
-		      (fn & 0xc0000000) == 0xc0000000);				\
-	static_assert(idx < BIT(sizeof(property.index) * BITS_PER_BYTE));	\
+	kvm_static_assert(low_bit < high_bit);					\
+	kvm_static_assert((fn & 0xc0000000) == 0 ||				\
+			  (fn & 0xc0000000) == 0x40000000 ||			\
+			  (fn & 0xc0000000) == 0x80000000 ||			\
+			  (fn & 0xc0000000) == 0xc0000000);			\
+	kvm_static_assert(idx < BIT(sizeof(property.index) * BITS_PER_BYTE));	\
 	property;								\
 })
 
