@@ -322,6 +322,7 @@ struct property_entry {
 	__PROPERTY_ENTRY_ARRAY_LEN(_name_, u64_data, U64, _val_, _len_)
 #define PROPERTY_ENTRY_STRING_ARRAY_LEN(_name_, _val_, _len_)		\
 	__PROPERTY_ENTRY_ARRAY_LEN(_name_, str, STRING, _val_, _len_)
+
 #define PROPERTY_ENTRY_REF_ARRAY_LEN(_name_, _val_, _len_)		\
 (struct property_entry) {						\
 	.name = _name_,							\
@@ -340,7 +341,7 @@ struct property_entry {
 	PROPERTY_ENTRY_U64_ARRAY_LEN(_name_, _val_, ARRAY_SIZE(_val_))
 #define PROPERTY_ENTRY_STRING_ARRAY(_name_, _val_)			\
 	PROPERTY_ENTRY_STRING_ARRAY_LEN(_name_, _val_, ARRAY_SIZE(_val_))
-#define PROPERTY_ENTRY_REF_ARRAY(_name_, _val_)			\
+#define PROPERTY_ENTRY_REF_ARRAY(_name_, _val_)				\
 	PROPERTY_ENTRY_REF_ARRAY_LEN(_name_, _val_, ARRAY_SIZE(_val_))
 
 #define __PROPERTY_ENTRY_ELEMENT(_name_, _elem_, _Type_, _val_)		\
@@ -363,12 +364,6 @@ struct property_entry {
 #define PROPERTY_ENTRY_STRING(_name_, _val_)				\
 	__PROPERTY_ENTRY_ELEMENT(_name_, str, STRING, _val_)
 
-#define PROPERTY_ENTRY_BOOL(_name_)		\
-(struct property_entry) {			\
-	.name = _name_,				\
-	.is_inline = true,			\
-}
-
 #define PROPERTY_ENTRY_REF(_name_, _ref_, ...)				\
 (struct property_entry) {						\
 	.name = _name_,							\
@@ -377,9 +372,14 @@ struct property_entry {
 	{ .pointer = &SOFTWARE_NODE_REFERENCE(_ref_, ##__VA_ARGS__), },	\
 }
 
+#define PROPERTY_ENTRY_BOOL(_name_)		\
+(struct property_entry) {			\
+	.name = _name_,				\
+	.is_inline = true,			\
+}
+
 struct property_entry *
 property_entries_dup(const struct property_entry *properties);
-
 void property_entries_free(const struct property_entry *properties);
 
 bool device_dma_supported(const struct device *dev);
