@@ -83,6 +83,7 @@ enum lkl_prot {
  * @thread_exit - terminates the current thread
  * @thread_join - wait for the given thread to terminate. Returns 0
  * for success, -1 otherwise
+ * @thread_stack - get the thread stack base and size of the current thread
  *
  * @tls_alloc - allocate a thread local storage key; returns 0 if successful; if
  * destructor is not NULL it will be called when a thread terminates with its
@@ -154,6 +155,7 @@ struct lkl_host_operations {
 	int (*thread_join)(lkl_thread_t tid);
 	lkl_thread_t (*thread_self)(void);
 	int (*thread_equal)(lkl_thread_t a, lkl_thread_t b);
+	void *(*thread_stack)(unsigned long *size);
 
 	struct lkl_tls_key *(*tls_alloc)(void (*destructor)(void *));
 	void (*tls_free)(struct lkl_tls_key *key);

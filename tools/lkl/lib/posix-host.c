@@ -223,6 +223,30 @@ static int thread_equal(lkl_thread_t a, lkl_thread_t b)
 	return pthread_equal((pthread_t)a, (pthread_t)b);
 }
 
+#ifdef	__FreeBSD__
+#define pthread_getattr_np pthread_attr_get_np
+#endif
+
+void *thread_stack(unsigned long *size)
+{
+	pthread_attr_t thread_attr;
+	size_t stack_size;
+	void *thread_stack;
+
+	if (pthread_getattr_np(pthread_self(), &thread_attr))
+		return NULL;
+
+	if (pthread_attr_getstack(&thread_attr, &thread_stack, &stack_size))
+		thread_stack = NULL;
+
+	pthread_attr_destroy(&thread_attr);
+
+	if (size && thread_stack)
+		*size = stack_size;
+
+	return thread_stack;
+}
+
 static struct lkl_tls_key *tls_alloc(void (*destructor)(void *))
 {
 	struct lkl_tls_key *ret = malloc(sizeof(struct lkl_tls_key));
@@ -390,6 +414,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.thread_join = thread_join,
 	.thread_self = thread_self,
 	.thread_equal = thread_equal,
+	.thread_stack = thread_stack,
 	.sem_alloc = sem_alloc,
 	.sem_free = sem_free,
 	.sem_up = sem_up,
