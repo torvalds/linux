@@ -650,10 +650,10 @@ void elevator_init_mq(struct request_queue *q)
 }
 
 /*
- * switch to new_e io scheduler. be careful not to introduce deadlocks -
- * we don't free the old io scheduler, before we have allocated what we
- * need for the new one. this way we have a chance of going back to the old
- * one, if the new one fails init for some reason.
+ * Switch to new_e io scheduler.
+ *
+ * If switching fails, we are most likely running out of memory and not able
+ * to restore the old io scheduler, so leaving the io scheduler being none.
  */
 int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 {
