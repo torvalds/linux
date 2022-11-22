@@ -8891,6 +8891,7 @@ static int __maybe_unused msm_pcie_pm_suspend_noirq(struct device *dev)
 	if (pcie_dev->enumerated && pcie_dev->power_on &&
 				pcie_dev->apss_based_l1ss_sleep) {
 
+		/* Wait till link settle's in L1ss */
 		ret_l1ss = readl_poll_timeout((pcie_dev->parf
 			+ PCIE20_PARF_PM_STTS), val, (val & BIT(8)), L1SS_POLL_INTERVAL_US,
 			L1SS_POLL_TIMEOUT_US);
@@ -8909,24 +8910,44 @@ static int __maybe_unused msm_pcie_pm_suspend_noirq(struct device *dev)
 			return 0;
 		}
 
+		/* Keep the device in power off state */
 		pcie_dev->power_on = false;
 
+		/* Set flag to indicate client has suspended */
 		pcie_dev->user_suspend = true;
 
+		/* Set flag to indicate device has suspended */
 		spin_lock_irqsave(&pcie_dev->irq_lock, irqsave_flags);
 		pcie_dev->suspending = true;
 		spin_unlock_irqrestore(&pcie_dev->irq_lock, irqsave_flags);
 
+		/* Restrict access to config space */
 		spin_lock_irqsave(&pcie_dev->cfg_lock,
 				pcie_dev->irqsave_flags);
 		pcie_dev->cfg_access = false;
 		spin_unlock_irqrestore(&pcie_dev->cfg_lock,
 				pcie_dev->irqsave_flags);
 
+		/* suspend access to MSI register. resume access in resume */
 		if (!pcie_dev->lpi_enable)
 			msm_msi_config_access(dev_get_msi_domain(&pcie_dev->dev->dev),
 					false);
 
+		/*
+		 * When GDSC is turned off, it will reset controller and it can assert
+		 * clk-req GPIO. With assertion of CLKREQ gpio, endpoint tries to bring
+		 * link back to L0, but since all clocks are turned off on host, this
+		 * can result in link down.
+		 *
+		 * So, release the control of CLKREQ gpio from controller by overriding it.
+		 */
+		msm_pcie_write_reg(pcie_dev->parf, PCIE20_PARF_CLKREQ_OVERRIDE,
+				PCIE20_PARF_CLKREQ_IN_ENABLE | PCIE20_PARF_CLKREQ_IN_VALUE);
+		if (pcie_dev->use_pinctrl && pcie_dev->pins_sleep)
+			pinctrl_select_state(pcie_dev->pinctrl,
+						pcie_dev->pins_sleep);
+
+		/* park the PCIe PHY in power down mode */
 		if (pcie_dev->phy_power_down_offset)
 			msm_pcie_write_reg(pcie_dev->phy, pcie_dev->phy_power_down_offset, 0);
 
@@ -8938,8 +8959,21 @@ static int __maybe_unused msm_pcie_pm_suspend_noirq(struct device *dev)
 		if (rc)
 			goto out;
 
+		/* switch phy aux clock mux to xo before turning off gdsc-core */
+		if (pcie_dev->phy_aux_clk_mux && pcie_dev->ref_clk_src)
+			clk_set_parent(pcie_dev->phy_aux_clk_mux, pcie_dev->ref_clk_src);
+
+		/* switch pipe clock mux to xo before turning off gdsc */
+		if (pcie_dev->pipe_clk_mux && pcie_dev->ref_clk_src)
+			clk_set_parent(pcie_dev->pipe_clk_mux, pcie_dev->ref_clk_src);
+
+		/* disable the controller GDSC*/
+		regulator_disable(pcie_dev->gdsc_core);
+
+		/* Disable the pipe clock*/
 		msm_pcie_pipe_clk_deinit(pcie_dev);
 
+		/* Disable the voltage regulators*/
 		msm_pcie_vreg_deinit_analog_rails(pcie_dev);
 
 	}
@@ -8970,7 +9004,20 @@ static int __maybe_unused msm_pcie_pm_resume_noirq(struct device *dev)
 	if (pcie_dev->enumerated && !pcie_dev->power_on &&
 				pcie_dev->apss_based_l1ss_sleep) {
 
+		/* Enable the voltage regulators*/
 		msm_pcie_vreg_init_analog_rails(pcie_dev);
+
+		 /* Enable GDSC core */
+		rc = regulator_enable(pcie_dev->gdsc_core);
+		if (rc) {
+			PCIE_ERR(pcie_dev, "PCIe: fail to enable GDSC-CORE for RC%d (%s)\n",
+					pcie_dev->rc_idx, pcie_dev->pdev->name);
+					return rc;
+		}
+
+		/* switch pipe clock source after gdsc-core is turned on */
+		if (pcie_dev->pipe_clk_mux && pcie_dev->pipe_clk_ext_src)
+			clk_set_parent(pcie_dev->pipe_clk_mux, pcie_dev->pipe_clk_ext_src);
 
 		rc = msm_pcie_icc_vote(pcie_dev, pcie_dev->current_link_speed,
 				pcie_dev->current_link_width, false);
@@ -8979,9 +9026,7 @@ static int __maybe_unused msm_pcie_pm_resume_noirq(struct device *dev)
 
 		for (i = 0; i < pcie_dev->num_clk; i++) {
 			if (pcie_dev->clk[i].hdl) {
-
 				rc = clk_prepare_enable(pcie_dev->clk[i].hdl);
-
 				if (rc)
 					PCIE_ERR(pcie_dev, "PCIe: RC%d failed to enable clk %s\n",
 						pcie_dev->rc_idx, pcie_dev->clk[i].name);
@@ -8991,29 +9036,45 @@ static int __maybe_unused msm_pcie_pm_resume_noirq(struct device *dev)
 			}
 		}
 
-		PCIE_DBG2(pcie_dev, "PCIe: RC%d: successfully set ICC path vote\n",
-			pcie_dev->rc_idx);
+		/* Enable pipe clocks */
+		for (i = 0; i < pcie_dev->num_pipe_clk; i++)
+			if (pcie_dev->pipe_clk[i].hdl)
+				clk_prepare_enable(pcie_dev->pipe_clk[i].hdl);
 
-		msm_pcie_pipe_clk_init(pcie_dev);
+		/* switch phy aux clock source from xo to phy aux clk */
+		if (pcie_dev->phy_aux_clk_mux && pcie_dev->phy_aux_clk_ext_src)
+			clk_set_parent(pcie_dev->phy_aux_clk_mux, pcie_dev->phy_aux_clk_ext_src);
 
+		/* Bring back PCIe PHY from power down */
 		if (pcie_dev->phy_power_down_offset)
 			msm_pcie_write_reg(pcie_dev->phy, pcie_dev->phy_power_down_offset,
 				MSM_PCIE_PHY_SW_PWRDN | MSM_PCIE_PHY_REFCLK_DRV_DSBL);
 
+		/* Disable the clkreq override functionality */
+		msm_pcie_write_reg(pcie_dev->parf, PCIE20_PARF_CLKREQ_OVERRIDE, 0x0);
+		if (pcie_dev->use_pinctrl && pcie_dev->pins_default)
+			pinctrl_select_state(pcie_dev->pinctrl,
+					pcie_dev->pins_default);
+
+		/* Keep the device in power on state */
 		pcie_dev->power_on = true;
 
+		/* Clear flag to indicate client has resumed */
 		pcie_dev->user_suspend = false;
 
+		/* Clear flag to indicate device has resumed */
 		spin_lock_irqsave(&pcie_dev->irq_lock, irqsave_flags);
 		pcie_dev->suspending = false;
 		spin_unlock_irqrestore(&pcie_dev->irq_lock, irqsave_flags);
 
+		/* Allow access to config space */
 		spin_lock_irqsave(&pcie_dev->cfg_lock,
 				pcie_dev->irqsave_flags);
 		pcie_dev->cfg_access = true;
 		spin_unlock_irqrestore(&pcie_dev->cfg_lock,
 				pcie_dev->irqsave_flags);
 
+		/* resume access to MSI register as link is resumed */
 		if (!pcie_dev->lpi_enable)
 			msm_msi_config_access(dev_get_msi_domain(&pcie_dev->dev->dev),
 						true);
