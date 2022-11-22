@@ -4094,6 +4094,12 @@ static void dp_test_send_link_training(struct dc_link *link)
 	dp_retrain_link_dp_test(link, &link_settings, false);
 }
 
+static bool is_dp_phy_sqaure_pattern(enum dp_test_pattern test_pattern)
+{
+	return (DP_TEST_PATTERN_SQUARE_BEGIN <= test_pattern &&
+			test_pattern <= DP_TEST_PATTERN_SQUARE_END);
+}
+
 /* TODO Raven hbr2 compliance eye output is unstable
  * (toggling on and off) with debugger break
  * This caueses intermittent PHY automation failure
@@ -4111,6 +4117,8 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 	union lane_adjust dpcd_lane_adjust;
 	unsigned int lane;
 	struct link_training_settings link_training_settings;
+	unsigned char no_preshoot = 0;
+	unsigned char no_deemphasis = 0;
 
 	dpcd_test_pattern.raw = 0;
 	memset(dpcd_lane_adjustment, 0, sizeof(dpcd_lane_adjustment));
@@ -4204,8 +4212,21 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 	case PHY_TEST_PATTERN_264BIT_CUSTOM:
 		test_pattern = DP_TEST_PATTERN_264BIT_CUSTOM;
 		break;
-	case PHY_TEST_PATTERN_SQUARE_PULSE:
-		test_pattern = DP_TEST_PATTERN_SQUARE_PULSE;
+	case PHY_TEST_PATTERN_SQUARE:
+		test_pattern = DP_TEST_PATTERN_SQUARE;
+		break;
+	case PHY_TEST_PATTERN_SQUARE_PRESHOOT_DISABLED:
+		test_pattern = DP_TEST_PATTERN_SQUARE_PRESHOOT_DISABLED;
+		no_preshoot = 1;
+		break;
+	case PHY_TEST_PATTERN_SQUARE_DEEMPHASIS_DISABLED:
+		test_pattern = DP_TEST_PATTERN_SQUARE_DEEMPHASIS_DISABLED;
+		no_deemphasis = 1;
+		break;
+	case PHY_TEST_PATTERN_SQUARE_PRESHOOT_DEEMPHASIS_DISABLED:
+		test_pattern = DP_TEST_PATTERN_SQUARE_PRESHOOT_DEEMPHASIS_DISABLED;
+		no_preshoot = 1;
+		no_deemphasis = 1;
 		break;
 	default:
 		test_pattern = DP_TEST_PATTERN_VIDEO_MODE;
@@ -4222,7 +4243,7 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 				test_pattern_size);
 	}
 
-	if (test_pattern == DP_TEST_PATTERN_SQUARE_PULSE) {
+	if (is_dp_phy_sqaure_pattern(test_pattern)) {
 		test_pattern_size = 1; // Square pattern data is 1 byte (DP spec)
 		core_link_read_dpcd(
 				link,
@@ -4259,8 +4280,10 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 				((dpcd_post_cursor_2_adjustment >> (lane * 2)) & 0x03);
 		} else if (dp_get_link_encoding_format(&link->cur_link_settings) ==
 				DP_128b_132b_ENCODING) {
-			link_training_settings.hw_lane_settings[lane].FFE_PRESET.raw =
+			link_training_settings.hw_lane_settings[lane].FFE_PRESET.settings.level =
 					dpcd_lane_adjust.tx_ffe.PRESET_VALUE;
+			link_training_settings.hw_lane_settings[lane].FFE_PRESET.settings.no_preshoot = no_preshoot;
+			link_training_settings.hw_lane_settings[lane].FFE_PRESET.settings.no_deemphasis = no_deemphasis;
 		}
 	}
 
@@ -6178,8 +6201,17 @@ bool dc_link_dp_set_test_pattern(
 		case DP_TEST_PATTERN_264BIT_CUSTOM:
 			pattern = PHY_TEST_PATTERN_264BIT_CUSTOM;
 			break;
-		case DP_TEST_PATTERN_SQUARE_PULSE:
-			pattern = PHY_TEST_PATTERN_SQUARE_PULSE;
+		case DP_TEST_PATTERN_SQUARE:
+			pattern = PHY_TEST_PATTERN_SQUARE;
+			break;
+		case DP_TEST_PATTERN_SQUARE_PRESHOOT_DISABLED:
+			pattern = PHY_TEST_PATTERN_SQUARE_PRESHOOT_DISABLED;
+			break;
+		case DP_TEST_PATTERN_SQUARE_DEEMPHASIS_DISABLED:
+			pattern = PHY_TEST_PATTERN_SQUARE_DEEMPHASIS_DISABLED;
+			break;
+		case DP_TEST_PATTERN_SQUARE_PRESHOOT_DEEMPHASIS_DISABLED:
+			pattern = PHY_TEST_PATTERN_SQUARE_PRESHOOT_DEEMPHASIS_DISABLED;
 			break;
 		default:
 			return false;
@@ -6190,14 +6222,12 @@ bool dc_link_dp_set_test_pattern(
 			return false;
 
 		if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_12) {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-			if (test_pattern == DP_TEST_PATTERN_SQUARE_PULSE)
+			if (is_dp_phy_sqaure_pattern(test_pattern))
 				core_link_write_dpcd(link,
 						DP_LINK_SQUARE_PATTERN,
 						p_custom_pattern,
 						1);
 
-#endif
 			/* tell receiver that we are sending qualification
 			 * pattern DP 1.2 or later - DP receiver's link quality
 			 * pattern is set using DPCD LINK_QUAL_LANEx_SET
