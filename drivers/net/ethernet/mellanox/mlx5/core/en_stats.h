@@ -463,6 +463,21 @@ struct mlx5e_ptp_cq_stats {
 	u64 resync_event;
 };
 
+struct mlx5e_rep_stats {
+	u64 vport_rx_packets;
+	u64 vport_tx_packets;
+	u64 vport_rx_bytes;
+	u64 vport_tx_bytes;
+	u64 rx_vport_rdma_unicast_packets;
+	u64 tx_vport_rdma_unicast_packets;
+	u64 rx_vport_rdma_unicast_bytes;
+	u64 tx_vport_rdma_unicast_bytes;
+	u64 rx_vport_rdma_multicast_packets;
+	u64 tx_vport_rdma_multicast_packets;
+	u64 rx_vport_rdma_multicast_bytes;
+	u64 tx_vport_rdma_multicast_bytes;
+};
+
 struct mlx5e_stats {
 	struct mlx5e_sw_stats sw;
 	struct mlx5e_qcounter_stats qcnt;
@@ -471,6 +486,7 @@ struct mlx5e_stats {
 	struct mlx5e_pport_stats pport;
 	struct rtnl_link_stats64 vf_vport;
 	struct mlx5e_pcie_stats pcie;
+	struct mlx5e_rep_stats rep_stats;
 };
 
 extern mlx5e_stats_grp_t mlx5e_nic_stats_grps[];
