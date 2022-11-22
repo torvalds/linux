@@ -3525,12 +3525,18 @@ void free_unref_page_list(struct list_head *list)
 		list_del(&page->lru);
 		migratetype = get_pcppage_migratetype(page);
 
-		/* Different zone, different pcp lock. */
-		if (zone != locked_zone) {
+		/*
+		 * Either different zone requiring a different pcp lock or
+		 * excessive lock hold times when freeing a large list of
+		 * pages.
+		 */
+		if (zone != locked_zone || batch_count == SWAP_CLUSTER_MAX) {
 			if (pcp) {
 				pcp_spin_unlock(pcp);
 				pcp_trylock_finish(UP_flags);
 			}
+
+			batch_count = 0;
 
 			/*
 			 * trylock is necessary as pages may be getting freed
@@ -3546,7 +3552,6 @@ void free_unref_page_list(struct list_head *list)
 				continue;
 			}
 			locked_zone = zone;
-			batch_count = 0;
 		}
 
 		/*
@@ -3558,19 +3563,7 @@ void free_unref_page_list(struct list_head *list)
 
 		trace_mm_page_free_batched(page);
 		free_unref_page_commit(zone, pcp, page, migratetype, 0);
-
-		/*
-		 * Guard against excessive lock hold times when freeing
-		 * a large list of pages. Lock will be reacquired if
-		 * necessary on the next iteration.
-		 */
-		if (++batch_count == SWAP_CLUSTER_MAX) {
-			pcp_spin_unlock(pcp);
-			pcp_trylock_finish(UP_flags);
-			batch_count = 0;
-			pcp = NULL;
-			locked_zone = NULL;
-		}
+		batch_count++;
 	}
 
 	if (pcp) {
