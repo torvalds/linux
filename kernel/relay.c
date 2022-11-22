@@ -507,7 +507,7 @@ struct rchan *relay_open(const char *base_filename,
 	chan->private_data = private_data;
 	if (base_filename) {
 		chan->has_base_filename = 1;
-		strlcpy(chan->base_filename, base_filename, NAME_MAX);
+		strscpy(chan->base_filename, base_filename, NAME_MAX);
 	}
 	chan->cb = cb;
 	kref_init(&chan->kref);
@@ -578,7 +578,7 @@ int relay_late_setup_files(struct rchan *chan,
 	if (!chan || !base_filename)
 		return -EINVAL;
 
-	strlcpy(chan->base_filename, base_filename, NAME_MAX);
+	strscpy(chan->base_filename, base_filename, NAME_MAX);
 
 	mutex_lock(&relay_channels_mutex);
 	/* Is chan already set up? */
