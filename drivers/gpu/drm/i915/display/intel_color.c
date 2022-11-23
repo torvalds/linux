@@ -935,6 +935,8 @@ static void bdw_load_lut_10(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 
 	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe),
+			  prec_index);
+	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe),
 			  PAL_PREC_AUTO_INCREMENT |
 			  prec_index);
 
@@ -1138,7 +1140,10 @@ icl_program_gamma_superfine_segment(const struct intel_crtc_state *crtc_state)
 	 * 2/(8 * 128 * 256) ... 8/(8 * 128 * 256).
 	 */
 	intel_dsb_reg_write(crtc_state, PREC_PAL_MULTI_SEG_INDEX(pipe),
-			    PAL_PREC_AUTO_INCREMENT);
+			    PAL_PREC_MULTI_SEG_INDEX_VALUE(0));
+	intel_dsb_reg_write(crtc_state, PREC_PAL_MULTI_SEG_INDEX(pipe),
+			    PAL_PREC_AUTO_INCREMENT |
+			    PAL_PREC_MULTI_SEG_INDEX_VALUE(0));
 
 	for (i = 0; i < 9; i++) {
 		const struct drm_color_lut *entry = &lut[i];
@@ -1148,6 +1153,9 @@ icl_program_gamma_superfine_segment(const struct intel_crtc_state *crtc_state)
 		intel_dsb_indexed_reg_write(crtc_state, PREC_PAL_MULTI_SEG_DATA(pipe),
 					    ilk_lut_12p4_udw(entry));
 	}
+
+	intel_dsb_reg_write(crtc_state, PREC_PAL_MULTI_SEG_INDEX(pipe),
+			    PAL_PREC_MULTI_SEG_INDEX_VALUE(0));
 }
 
 static void
@@ -1170,6 +1178,8 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 	 * PAL_PREC_INDEX[0] and PAL_PREC_INDEX[1] map to seg2[1],
 	 * seg2[0] being unused by the hardware.
 	 */
+	intel_dsb_reg_write(crtc_state, PREC_PAL_INDEX(pipe),
+			    PAL_PREC_INDEX_VALUE(0));
 	intel_dsb_reg_write(crtc_state, PREC_PAL_INDEX(pipe),
 			    PAL_PREC_AUTO_INCREMENT |
 			    PAL_PREC_INDEX_VALUE(0));
@@ -1201,6 +1211,9 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 		intel_dsb_indexed_reg_write(crtc_state, PREC_PAL_DATA(pipe),
 					    ilk_lut_12p4_udw(entry));
 	}
+
+	intel_dsb_reg_write(crtc_state, PREC_PAL_INDEX(pipe),
+			    PAL_PREC_INDEX_VALUE(0));
 
 	/* The last entry in the LUT is to be programmed in GCMAX */
 	entry = &lut[256 * 8 * 128];
@@ -2820,6 +2833,8 @@ static struct drm_property_blob *bdw_read_lut_10(struct intel_crtc *crtc,
 	lut = blob->data;
 
 	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe),
+			  prec_index);
+	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe),
 			  PAL_PREC_AUTO_INCREMENT |
 			  prec_index);
 
@@ -2947,6 +2962,8 @@ icl_read_lut_multi_segment(struct intel_crtc *crtc)
 
 	lut = blob->data;
 
+	intel_de_write_fw(i915, PREC_PAL_MULTI_SEG_INDEX(pipe),
+			  PAL_PREC_MULTI_SEG_INDEX_VALUE(0));
 	intel_de_write_fw(i915, PREC_PAL_MULTI_SEG_INDEX(pipe),
 			  PAL_PREC_MULTI_SEG_AUTO_INCREMENT |
 			  PAL_PREC_MULTI_SEG_INDEX_VALUE(0));
