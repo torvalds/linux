@@ -356,4 +356,4 @@ module_platform_driver(aspeed_pwm_driver);
 
 MODULE_AUTHOR("Billy Tsai <billy_tsai@aspeedtech.com>");
 MODULE_DESCRIPTION("Aspeed ast2600 PWM device driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
