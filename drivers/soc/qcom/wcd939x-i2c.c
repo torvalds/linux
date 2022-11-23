@@ -31,7 +31,7 @@ static const char * const supply_names[] = {
 	"vdd-usb-cp",
 };
 
-static int audio_fsm_mode = WCD_USBSS_AUDIO_FSM;
+static int audio_fsm_mode = WCD_USBSS_AUDIO_MANUAL;
 
 /* Linearlizer coefficients for 32ohm load */
 static const struct wcd_usbss_reg_mask_val coeff_init[] = {
@@ -167,6 +167,8 @@ static int wcd_usbss_switch_update_defaults(struct wcd_usbss_ctxt *priv)
 	regmap_update_bits(priv->regmap, WCD_USBSS_SWITCH_SELECT0, 0x3C, 0x14);
 	/* Enable DNL_SWITCHES and DPR_SWITCHES */
 	regmap_write_bits(priv->regmap, WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x18, 0x18);
+	/* Once plug-out done, restore to MANUAL mode */
+	audio_fsm_mode = WCD_USBSS_AUDIO_MANUAL;
 	return 0;
 }
 
@@ -278,6 +280,8 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 		case WCD_USBSS_USB:
 			break;
 		case WCD_USBSS_AATC:
+			/* for AATC plug-in, change mode to FSM */
+			audio_fsm_mode = WCD_USBSS_AUDIO_FSM;
 			/* Disable all switches */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 				WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x7F, 0x00);
