@@ -3144,14 +3144,14 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
 		.txpower_max = DIV_ROUND_UP(mphy->txpower_cur, 2),
 		.wcid = cpu_to_le16(msta->wcid.idx),
 	};
-	int ret, n_chains = hweight8(mphy->antenna_mask);
+	int ret;
 	s8 txpower_sku[MT7915_SKU_RATE_NUM];
 
 	ret = mt7915_mcu_get_txpower_sku(phy, txpower_sku, sizeof(txpower_sku));
 	if (ret)
 		return ret;
 
-	txpower = txpower * 2 - mt76_tx_power_nss_delta(n_chains);
+	txpower = mt7915_get_power_bound(phy, txpower);
 	if (txpower > mphy->txpower_cur || txpower < 0)
 		return -EINVAL;
 
@@ -3203,12 +3203,10 @@ int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy)
 	};
 	struct mt76_power_limits limits_array;
 	s8 *la = (s8 *)&limits_array;
-	int i, idx, n_chains = hweight8(mphy->antenna_mask);
-	int tx_power = hw->conf.power_level * 2;
+	int i, idx;
+	int tx_power;
 
-	tx_power = mt76_get_sar_power(mphy, mphy->chandef.chan,
-				      tx_power);
-	tx_power -= mt76_tx_power_nss_delta(n_chains);
+	tx_power = mt7915_get_power_bound(phy, hw->conf.power_level);
 	tx_power = mt76_get_rate_power_limits(mphy, mphy->chandef.chan,
 					      &limits_array, tx_power);
 	mphy->txpower_cur = tx_power;
