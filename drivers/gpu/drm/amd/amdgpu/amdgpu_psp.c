@@ -513,26 +513,22 @@ static int psp_sw_fini(void *handle)
 	struct psp_gfx_cmd_resp *cmd = psp->cmd;
 
 	psp_memory_training_fini(psp);
-	if (psp->sos_fw) {
-		release_firmware(psp->sos_fw);
-		psp->sos_fw = NULL;
-	}
-	if (psp->asd_fw) {
-		release_firmware(psp->asd_fw);
-		psp->asd_fw = NULL;
-	}
-	if (psp->ta_fw) {
-		release_firmware(psp->ta_fw);
-		psp->ta_fw = NULL;
-	}
-	if (psp->cap_fw) {
-		release_firmware(psp->cap_fw);
-		psp->cap_fw = NULL;
-	}
-	if (psp->toc_fw) {
-		release_firmware(psp->toc_fw);
-		psp->toc_fw = NULL;
-	}
+
+	release_firmware(psp->sos_fw);
+	psp->sos_fw = NULL;
+
+	release_firmware(psp->asd_fw);
+	psp->asd_fw = NULL;
+
+	release_firmware(psp->ta_fw);
+	psp->ta_fw = NULL;
+
+	release_firmware(psp->cap_fw);
+	psp->cap_fw = NULL;
+
+	release_firmware(psp->toc_fw);
+	psp->toc_fw = NULL;
+
 	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(11, 0, 0) ||
 	    adev->ip_versions[MP0_HWIP][0] == IP_VERSION(11, 0, 7))
 		psp_sysfs_fini(adev);
