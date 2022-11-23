@@ -311,7 +311,7 @@ int io_remove_buffers(struct io_kiocb *req, unsigned int issue_flags)
 
 	/* complete before unlock, IOPOLL may need the lock */
 	io_req_set_res(req, ret, 0);
-	__io_req_complete(req, issue_flags);
+	io_req_complete_post(req, 0);
 	io_ring_submit_unlock(ctx, issue_flags);
 	return IOU_ISSUE_SKIP_COMPLETE;
 }
@@ -462,7 +462,7 @@ err:
 		req_set_fail(req);
 	/* complete before unlock, IOPOLL may need the lock */
 	io_req_set_res(req, ret, 0);
-	__io_req_complete(req, issue_flags);
+	io_req_complete_post(req, 0);
 	io_ring_submit_unlock(ctx, issue_flags);
 	return IOU_ISSUE_SKIP_COMPLETE;
 }
