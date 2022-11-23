@@ -996,10 +996,9 @@ static void print_no_aggr_metric(struct perf_stat_config *config,
 }
 
 static void print_metric_headers_std(struct perf_stat_config *config,
-				     const char *prefix, bool no_indent)
+				     bool no_indent)
 {
-	if (prefix)
-		fprintf(config->output, "%s", prefix);
+	fputc(' ', config->output);
 
 	if (!no_indent) {
 		int len = aggr_header_lens[config->aggr_mode];
@@ -1012,11 +1011,8 @@ static void print_metric_headers_std(struct perf_stat_config *config,
 }
 
 static void print_metric_headers_csv(struct perf_stat_config *config,
-				     const char *prefix,
 				     bool no_indent __maybe_unused)
 {
-	if (prefix)
-		fprintf(config->output, "%s", prefix);
 	if (config->interval)
 		fputs("time,", config->output);
 	if (!config->iostat_run)
@@ -1024,7 +1020,6 @@ static void print_metric_headers_csv(struct perf_stat_config *config,
 }
 
 static void print_metric_headers_json(struct perf_stat_config *config,
-				      const char *prefix __maybe_unused,
 				      bool no_indent __maybe_unused)
 {
 	if (config->interval)
@@ -1032,8 +1027,7 @@ static void print_metric_headers_json(struct perf_stat_config *config,
 }
 
 static void print_metric_headers(struct perf_stat_config *config,
-				 struct evlist *evlist,
-				 const char *prefix, bool no_indent)
+				 struct evlist *evlist, bool no_indent)
 {
 	struct evsel *counter;
 	struct outstate os = {
@@ -1047,11 +1041,11 @@ static void print_metric_headers(struct perf_stat_config *config,
 	};
 
 	if (config->json_output)
-		print_metric_headers_json(config, prefix, no_indent);
+		print_metric_headers_json(config, no_indent);
 	else if (config->csv_output)
-		print_metric_headers_csv(config, prefix, no_indent);
+		print_metric_headers_csv(config, no_indent);
 	else
-		print_metric_headers_std(config, prefix, no_indent);
+		print_metric_headers_std(config, no_indent);
 
 	if (config->iostat_run)
 		iostat_print_header_prefix(config);
@@ -1132,7 +1126,7 @@ static void print_header_interval_std(struct perf_stat_config *config,
 	}
 
 	if (config->metric_only)
-		print_metric_headers(config, evlist, " ", true);
+		print_metric_headers(config, evlist, true);
 	else
 		fprintf(output, " %*s %*s events\n",
 			COUNTS_LEN, "counts", config->unit_width, "unit");
@@ -1168,7 +1162,7 @@ static void print_header_std(struct perf_stat_config *config,
 	fprintf(output, ":\n\n");
 
 	if (config->metric_only)
-		print_metric_headers(config, evlist, " ", false);
+		print_metric_headers(config, evlist, false);
 }
 
 static void print_header_csv(struct perf_stat_config *config,
@@ -1178,7 +1172,7 @@ static void print_header_csv(struct perf_stat_config *config,
 			     const char **argv __maybe_unused)
 {
 	if (config->metric_only)
-		print_metric_headers(config, evlist, " ", true);
+		print_metric_headers(config, evlist, true);
 }
 static void print_header_json(struct perf_stat_config *config,
 			      struct target *_target __maybe_unused,
@@ -1187,7 +1181,7 @@ static void print_header_json(struct perf_stat_config *config,
 			      const char **argv __maybe_unused)
 {
 	if (config->metric_only)
-		print_metric_headers(config, evlist, " ", true);
+		print_metric_headers(config, evlist, true);
 }
 
 static void print_header(struct perf_stat_config *config,
