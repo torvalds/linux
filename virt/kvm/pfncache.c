@@ -297,7 +297,12 @@ int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 	if (!gpc->valid || old_uhva != gpc->uhva) {
 		ret = hva_to_pfn_retry(kvm, gpc);
 	} else {
-		/* If the HVA→PFN mapping was already valid, don't unmap it. */
+		/*
+		 * If the HVA→PFN mapping was already valid, don't unmap it.
+		 * But do update gpc->khva because the offset within the page
+		 * may have changed.
+		 */
+		gpc->khva = old_khva + page_offset;
 		old_pfn = KVM_PFN_ERR_FAULT;
 		old_khva = NULL;
 		ret = 0;
