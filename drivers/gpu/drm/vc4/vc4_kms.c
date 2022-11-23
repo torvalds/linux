@@ -191,7 +191,7 @@ vc4_ctm_commit(struct vc4_dev *vc4, struct drm_atomic_state *state)
 }
 
 static struct vc4_hvs_state *
-vc4_hvs_get_new_global_state(struct drm_atomic_state *state)
+vc4_hvs_get_new_global_state(const struct drm_atomic_state *state)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(state->dev);
 	struct drm_private_state *priv_state;
@@ -204,7 +204,7 @@ vc4_hvs_get_new_global_state(struct drm_atomic_state *state)
 }
 
 static struct vc4_hvs_state *
-vc4_hvs_get_old_global_state(struct drm_atomic_state *state)
+vc4_hvs_get_old_global_state(const struct drm_atomic_state *state)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(state->dev);
 	struct drm_private_state *priv_state;
