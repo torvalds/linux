@@ -516,6 +516,11 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 	vc4_crtc->regset.regs = txp_regs;
 	vc4_crtc->regset.nregs = ARRAY_SIZE(txp_regs);
 
+	ret = vc4_crtc_init(drm, vc4_crtc,
+			    &vc4_txp_crtc_funcs, &vc4_txp_crtc_helper_funcs);
+	if (ret)
+		return ret;
+
 	vc4_encoder = &txp->encoder;
 	txp->encoder.type = VC4_ENCODER_TYPE_TXP;
 
@@ -534,11 +539,6 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 							encoder,
 							&vc4_txp_connector_funcs,
 							drm_fmts, ARRAY_SIZE(drm_fmts));
-	if (ret)
-		return ret;
-
-	ret = vc4_crtc_init(drm, vc4_crtc,
-			    &vc4_txp_crtc_funcs, &vc4_txp_crtc_helper_funcs);
 	if (ret)
 		return ret;
 
