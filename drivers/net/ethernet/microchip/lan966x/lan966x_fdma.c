@@ -80,6 +80,19 @@ static int lan966x_fdma_rx_alloc_page_pool(struct lan966x_rx *rx)
 	};
 
 	rx->page_pool = page_pool_create(&pp_params);
+
+	for (int i = 0; i < lan966x->num_phys_ports; ++i) {
+		struct lan966x_port *port;
+
+		if (!lan966x->ports[i])
+			continue;
+
+		port = lan966x->ports[i];
+		xdp_rxq_info_unreg_mem_model(&port->xdp_rxq);
+		xdp_rxq_info_reg_mem_model(&port->xdp_rxq, MEM_TYPE_PAGE_POOL,
+					   rx->page_pool);
+	}
+
 	return PTR_ERR_OR_ZERO(rx->page_pool);
 }
 
