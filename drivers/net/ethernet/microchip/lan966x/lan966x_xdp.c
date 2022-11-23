@@ -44,7 +44,8 @@ int lan966x_xdp_run(struct lan966x_port *port, struct page *page, u32 data_len)
 
 	xdp_init_buff(&xdp, PAGE_SIZE << lan966x->rx.page_order,
 		      &port->xdp_rxq);
-	xdp_prepare_buff(&xdp, page_address(page), IFH_LEN_BYTES,
+	xdp_prepare_buff(&xdp, page_address(page),
+			 IFH_LEN_BYTES + XDP_PACKET_HEADROOM,
 			 data_len - IFH_LEN_BYTES, false);
 	act = bpf_prog_run_xdp(xdp_prog, &xdp);
 	switch (act) {

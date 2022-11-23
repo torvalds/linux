@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
+#include <linux/bpf.h>
+
 #include "lan966x_main.h"
 
 static int lan966x_fdma_channel_active(struct lan966x *lan966x)
@@ -16,7 +18,7 @@ static struct page *lan966x_fdma_rx_alloc_page(struct lan966x_rx *rx,
 	if (unlikely(!page))
 		return NULL;
 
-	db->dataptr = page_pool_get_dma_addr(page);
+	db->dataptr = page_pool_get_dma_addr(page) + XDP_PACKET_HEADROOM;
 
 	return page;
 }
@@ -72,7 +74,7 @@ static int lan966x_fdma_rx_alloc_page_pool(struct lan966x_rx *rx)
 		.nid = NUMA_NO_NODE,
 		.dev = lan966x->dev,
 		.dma_dir = DMA_FROM_DEVICE,
-		.offset = 0,
+		.offset = XDP_PACKET_HEADROOM,
 		.max_len = rx->max_mtu -
 			   SKB_DATA_ALIGN(sizeof(struct skb_shared_info)),
 	};
@@ -432,11 +434,13 @@ static int lan966x_fdma_rx_check_frame(struct lan966x_rx *rx, u64 *src_port)
 	if (unlikely(!page))
 		return FDMA_ERROR;
 
-	dma_sync_single_for_cpu(lan966x->dev, (dma_addr_t)db->dataptr,
+	dma_sync_single_for_cpu(lan966x->dev,
+				(dma_addr_t)db->dataptr + XDP_PACKET_HEADROOM,
 				FDMA_DCB_STATUS_BLOCKL(db->status),
 				DMA_FROM_DEVICE);
 
-	lan966x_ifh_get_src_port(page_address(page), src_port);
+	lan966x_ifh_get_src_port(page_address(page) + XDP_PACKET_HEADROOM,
+				 src_port);
 	if (WARN_ON(*src_port >= lan966x->num_phys_ports))
 		return FDMA_ERROR;
 
@@ -466,6 +470,7 @@ static struct sk_buff *lan966x_fdma_rx_get_frame(struct lan966x_rx *rx,
 
 	skb_mark_for_recycle(skb);
 
+	skb_reserve(skb, XDP_PACKET_HEADROOM);
 	skb_put(skb, FDMA_DCB_STATUS_BLOCKL(db->status));
 
 	lan966x_ifh_get_timestamp(skb->data, &timestamp);
@@ -786,7 +791,8 @@ static int lan966x_fdma_get_max_frame(struct lan966x *lan966x)
 	return lan966x_fdma_get_max_mtu(lan966x) +
 	       IFH_LEN_BYTES +
 	       SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) +
-	       VLAN_HLEN * 2;
+	       VLAN_HLEN * 2 +
+	       XDP_PACKET_HEADROOM;
 }
 
 int lan966x_fdma_change_mtu(struct lan966x *lan966x)
