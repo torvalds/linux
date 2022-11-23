@@ -22,6 +22,7 @@
 #include <net/devlink.h>
 #include <net/switchdev.h>
 
+struct dsa_8021q_context;
 struct tc_action;
 struct phy_device;
 struct fixed_phy_status;
@@ -1284,8 +1285,6 @@ struct dsa_switch_driver {
 	struct list_head	list;
 	const struct dsa_switch_ops *ops;
 };
-
-struct net_device *dsa_dev_to_net_device(struct device *dev);
 
 bool dsa_fdb_present_in_other_db(struct dsa_switch *ds, int port,
 				 const unsigned char *addr, u16 vid,

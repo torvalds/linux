@@ -10,7 +10,7 @@
 #include <linux/if_ether.h>
 #include <net/dsa.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
 
 /* To define the outgoing port and to discover the incoming port a TAG is
  * inserted after Src MAC :

@@ -2,7 +2,8 @@
 /* Copyright 2019 NXP
  */
 #include <linux/dsa/ocelot.h>
-#include "dsa_priv.h"
+
+#include "tag.h"
 
 #define OCELOT_NAME	"ocelot"
 #define SEVILLE_NAME	"seville"

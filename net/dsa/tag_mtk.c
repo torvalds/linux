@@ -8,7 +8,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
 
 #define MTK_NAME		"mtk"
 

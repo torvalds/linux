@@ -12,7 +12,11 @@
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 
-#include "dsa_priv.h"
+#include "dsa.h"
+#include "port.h"
+#include "slave.h"
+#include "switch.h"
+#include "tag_8021q.h"
 
 /**
  * dsa_port_notify - Notify the switching fabric of changes to a port

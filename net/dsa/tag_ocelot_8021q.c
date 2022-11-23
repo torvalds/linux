@@ -10,7 +10,9 @@
  */
 #include <linux/dsa/8021q.h>
 #include <linux/dsa/ocelot.h>
-#include "dsa_priv.h"
+
+#include "tag.h"
+#include "tag_8021q.h"
 
 #define OCELOT_8021Q_NAME "ocelot-8021q"
 

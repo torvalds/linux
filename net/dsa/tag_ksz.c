@@ -7,7 +7,8 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <net/dsa.h>
-#include "dsa_priv.h"
+
+#include "tag.h"
 
 #define KSZ8795_NAME "ksz8795"
 #define KSZ9477_NAME "ksz9477"

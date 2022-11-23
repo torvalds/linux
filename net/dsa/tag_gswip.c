@@ -10,7 +10,7 @@
 #include <linux/skbuff.h>
 #include <net/dsa.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
 
 #define GSWIP_NAME			"gswip"
 

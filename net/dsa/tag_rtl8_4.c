@@ -77,7 +77,7 @@
 #include <linux/bits.h>
 #include <linux/etherdevice.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
 
 /* Protocols supported:
  *

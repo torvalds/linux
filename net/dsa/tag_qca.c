@@ -8,7 +8,7 @@
 #include <net/dsa.h>
 #include <linux/dsa/tag_qca.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
 
 #define QCA_NAME "qca"
 

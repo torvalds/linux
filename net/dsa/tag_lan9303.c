@@ -7,7 +7,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
 
 /* To define the outgoing port and to discover the incoming port a regular
  * VLAN tag is used by the LAN9303. But its VID meaning is 'special':

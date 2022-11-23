@@ -6,7 +6,15 @@
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  */
 
-#include "dsa_priv.h"
+#include <linux/ethtool.h>
+#include <linux/netdevice.h>
+#include <linux/netlink.h>
+#include <net/dsa.h>
+
+#include "dsa.h"
+#include "master.h"
+#include "port.h"
+#include "tag.h"
 
 static int dsa_master_get_regs_len(struct net_device *dev)
 {
