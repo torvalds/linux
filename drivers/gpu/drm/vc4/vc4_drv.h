@@ -233,7 +233,7 @@ struct vc4_dev {
 };
 
 static inline struct vc4_dev *
-to_vc4_dev(struct drm_device *dev)
+to_vc4_dev(const struct drm_device *dev)
 {
 	return container_of(dev, struct vc4_dev, base);
 }
@@ -286,7 +286,7 @@ struct vc4_bo {
 };
 
 static inline struct vc4_bo *
-to_vc4_bo(struct drm_gem_object *bo)
+to_vc4_bo(const struct drm_gem_object *bo)
 {
 	return container_of(to_drm_gem_dma_obj(bo), struct vc4_bo, base);
 }
@@ -299,7 +299,7 @@ struct vc4_fence {
 };
 
 static inline struct vc4_fence *
-to_vc4_fence(struct dma_fence *fence)
+to_vc4_fence(const struct dma_fence *fence)
 {
 	return container_of(fence, struct vc4_fence, base);
 }
@@ -360,7 +360,7 @@ struct vc4_plane {
 };
 
 static inline struct vc4_plane *
-to_vc4_plane(struct drm_plane *plane)
+to_vc4_plane(const struct drm_plane *plane)
 {
 	return container_of(plane, struct vc4_plane, base);
 }
@@ -436,7 +436,7 @@ struct vc4_plane_state {
 };
 
 static inline struct vc4_plane_state *
-to_vc4_plane_state(struct drm_plane_state *state)
+to_vc4_plane_state(const struct drm_plane_state *state)
 {
 	return container_of(state, struct vc4_plane_state, base);
 }
@@ -466,7 +466,7 @@ struct vc4_encoder {
 };
 
 static inline struct vc4_encoder *
-to_vc4_encoder(struct drm_encoder *encoder)
+to_vc4_encoder(const struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct vc4_encoder, base);
 }
@@ -539,7 +539,7 @@ struct vc4_crtc {
 };
 
 static inline struct vc4_crtc *
-to_vc4_crtc(struct drm_crtc *crtc)
+to_vc4_crtc(const struct drm_crtc *crtc)
 {
 	return container_of(crtc, struct vc4_crtc, base);
 }
@@ -584,7 +584,7 @@ struct vc4_crtc_state {
 #define VC4_HVS_CHANNEL_DISABLED ((unsigned int)-1)
 
 static inline struct vc4_crtc_state *
-to_vc4_crtc_state(struct drm_crtc_state *crtc_state)
+to_vc4_crtc_state(const struct drm_crtc_state *crtc_state)
 {
 	return container_of(crtc_state, struct vc4_crtc_state, base);
 }
