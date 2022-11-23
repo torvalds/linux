@@ -2111,6 +2111,171 @@ pl022_platform_data_dt_get(struct device *dev)
 	return pd;
 }
 
+static int pl022_platform_probe(struct platform_device *pdev, const struct amba_id *id)
+{
+	struct device *dev = &pdev->dev;
+	struct spi_master *master;
+	struct pl022_ssp_controller *platform_info;
+	struct amba_device *adev;
+	struct pl022 *pl022 = NULL;
+	struct resource *res;
+	int status = 0;
+	int irq;
+
+	dev_info(dev,
+		"ARM PL022 driver for StarFive SoC platform, device ID: 0x%08x\n",
+		id->id);
+
+	adev = devm_kzalloc(dev, sizeof(*adev), GFP_KERNEL);
+	adev->dev = pdev->dev;
+	platform_info = pl022_platform_data_dt_get(dev);
+	if (!platform_info) {
+		dev_err(dev, "probe: no platform data defined\n");
+		return -ENODEV;
+	}
+	/* Allocate master with space for data */
+	master = spi_alloc_master(dev, sizeof(struct pl022));
+	if (master == NULL) {
+		dev_err(dev, "probe - cannot alloc SPI master\n");
+		return -ENOMEM;
+	}
+
+	pl022 = spi_master_get_devdata(master);
+	pl022->master = master;
+	pl022->master_info = platform_info;
+	pl022->adev = adev;
+	pl022->vendor = id->data;
+	pl022->master->dev.parent = &pdev->dev;
+	/*
+	 * Bus Number Which has been Assigned to this SSP controller
+	 * on this board
+	 */
+	master->bus_num = platform_info->bus_id;
+	master->cleanup = pl022_cleanup;
+	master->setup = pl022_setup;
+	/* If open CONFIG_PM, auto_runtime_pm should be false when of-platform.*/
+	master->auto_runtime_pm = true;
+	master->transfer_one_message = pl022_transfer_one_message;
+	master->unprepare_transfer_hardware = pl022_unprepare_transfer_hardware;
+	master->rt = platform_info->rt;
+	master->dev.of_node = dev->of_node;
+	master->use_gpio_descriptors = true;
+
+	/*
+	 * Supports mode 0-3, loopback, and active low CS. Transfers are
+	 * always MS bit first on the original pl022.
+	 */
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
+	if (pl022->vendor->extended_cr)
+		master->mode_bits |= SPI_LSB_FIRST;
+
+	dev_dbg(dev, "BUSNO: %d\n", master->bus_num);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pl022->phybase = res->start;
+	pl022->virtbase = devm_ioremap_resource(dev, res);
+	if (pl022->virtbase == NULL) {
+		status = -ENOMEM;
+		goto err_no_ioremap;
+	}
+	dev_info(dev, "mapped registers from %llx to %llx\n",
+		 pdev->resource->start, pdev->resource->end);
+
+	pl022->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(pl022->clk)) {
+		status = PTR_ERR(pl022->clk);
+		dev_err(dev, "could not retrieve SSP/SPI bus clock\n");
+		goto err_no_clk;
+	}
+	status = clk_prepare_enable(pl022->clk);
+	if (status) {
+		dev_err(dev, "could not enable SSP/SPI bus clock\n");
+		goto err_no_clk_en;
+	}
+
+	pl022->rst = devm_reset_control_get_exclusive(dev, "rst_apb");
+	if (!IS_ERR(pl022->rst)) {
+		status = reset_control_deassert(pl022->rst);
+		if (status) {
+			dev_err(dev, "could not deassert SSP/SPI bus reset\n");
+			goto err_no_rst_clr;
+		}
+	} else {
+		status = PTR_ERR(pl022->rst);
+		dev_err(dev, "could not retrieve SSP/SPI bus reset\n");
+		goto err_no_rst;
+	}
+
+	/* Initialize transfer pump */
+	tasklet_init(&pl022->pump_transfers, pump_transfers,
+		     (unsigned long)pl022);
+
+	/* Disable SSP */
+	writew((readw(SSP_CR1(pl022->virtbase)) & (~SSP_CR1_MASK_SSE)),
+	       SSP_CR1(pl022->virtbase));
+	load_ssp_default_config(pl022);
+
+	/* Obtain IRQ line. */
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		status = -ENXIO;
+		goto err_no_irq;
+	}
+	status = devm_request_irq(dev, irq, pl022_interrupt_handler,
+				  0, "pl022", pl022);
+	if (status < 0) {
+		dev_err(dev, "probe - cannot get IRQ (%d)\n", status);
+		goto err_no_irq;
+	}
+
+	/* Get DMA channels, try autoconfiguration first */
+	status = pl022_dma_autoprobe(pl022);
+	if (status == -EPROBE_DEFER) {
+		dev_dbg(dev, "deferring probe to get DMA channel\n");
+		goto err_no_irq;
+	}
+
+	/* dma is not used unless configured in the device tree */
+	platform_info->enable_dma = 0;
+
+	/* If that failed, use channels from platform_info */
+	if (status == 0)
+		platform_info->enable_dma = 1;
+	else if (platform_info->enable_dma) {
+		status = pl022_dma_probe(pl022);
+		if (status != 0)
+			platform_info->enable_dma = 0;
+	}
+
+	/* Register with the SPI framework */
+	dev_set_drvdata(dev, pl022);
+
+	status = devm_spi_register_master(dev, master);
+	if (status != 0) {
+		dev_err(dev,
+			"probe - problem registering spi master\n");
+		goto err_spi_register;
+	}
+	dev_dbg(dev, "probe succeeded\n");
+
+	clk_disable_unprepare(pl022->clk);
+
+	return 0;
+ err_spi_register:
+	if (platform_info->enable_dma)
+		pl022_dma_remove(pl022);
+ err_no_irq:
+	reset_control_assert(pl022->rst);
+ err_no_rst_clr:
+ err_no_rst:
+	clk_disable_unprepare(pl022->clk);
+ err_no_clk_en:
+ err_no_clk:
+ err_no_ioremap:
+	release_mem_region(pdev->resource->start, resource_size(pdev->resource));
+	spi_master_put(master);
+	return status;
+}
 static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct device *dev = &adev->dev;
@@ -2119,14 +2284,6 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	struct spi_master *master;
 	struct pl022 *pl022 = NULL;	/*Data for this driver */
 	int status = 0;
-	int platform_flag = 0;
-
-	if (strncmp(dev->bus->name, "platform", strlen("platform")))
-		platform_flag = 0;
-	else
-		platform_flag = 1;
-	dev_dbg(&adev->dev, "bus name:%s platform flag:%d",
-			dev->bus->name, platform_flag);
 
 	dev_info(&adev->dev,
 		"ARM PL022 driver for StarFive SoC platform, device ID: 0x%08x\n",
@@ -2182,11 +2339,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_no_ioregion;
 
 	pl022->phybase = adev->res.start;
-	if (platform_flag)
-		pl022->virtbase = ioremap(adev->res.start,
-				       resource_size(&adev->res));
-	else
-		pl022->virtbase = devm_ioremap(dev, adev->res.start,
+	pl022->virtbase = devm_ioremap(dev, adev->res.start,
 				       resource_size(&adev->res));
 	if (pl022->virtbase == NULL) {
 		status = -ENOMEM;
@@ -2195,10 +2348,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	dev_info(&adev->dev, "mapped registers from %pa to %p\n",
 		&adev->res.start, pl022->virtbase);
 
-	if (platform_flag)
-		pl022->clk = clk_get(&adev->dev, NULL);
-	else
-		pl022->clk = devm_clk_get(&adev->dev, NULL);
+	pl022->clk = devm_clk_get(&adev->dev, NULL);
 	if (IS_ERR(pl022->clk)) {
 		status = PTR_ERR(pl022->clk);
 		dev_err(&adev->dev, "could not retrieve SSP/SPI bus clock\n");
@@ -2211,10 +2361,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_no_clk_en;
 	}
 
-	if (platform_flag)
-		pl022->rst = reset_control_get_exclusive(&adev->dev, "rst_apb");
-	else
-		pl022->rst = devm_reset_control_get_exclusive(&adev->dev, "rst_apb");
+	pl022->rst = devm_reset_control_get_exclusive(&adev->dev, "rst_apb");
 	if (!IS_ERR(pl022->rst)) {
 		status = reset_control_deassert(pl022->rst);
 		if (status) {
@@ -2236,11 +2383,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	       SSP_CR1(pl022->virtbase));
 	load_ssp_default_config(pl022);
 
-	if (platform_flag)
-		status = request_irq(adev->irq[0], pl022_interrupt_handler,
-				  0, "pl022", pl022);
-	else
-		status = devm_request_irq(dev, adev->irq[0], pl022_interrupt_handler,
+	status = devm_request_irq(dev, adev->irq[0], pl022_interrupt_handler,
 				  0, "pl022", pl022);
 	if (status < 0) {
 		dev_err(&adev->dev, "probe - cannot get IRQ (%d)\n", status);
@@ -2260,8 +2403,6 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	/* If that failed, use channels from platform_info */
 	if (status == 0)
 		platform_info->enable_dma = 1;
-	else if (platform_flag)
-		platform_info->enable_dma = 0;
 	else if (platform_info->enable_dma) {
 		status = pl022_dma_probe(pl022);
 		if (status != 0)
@@ -2271,18 +2412,15 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	/* Register with the SPI framework */
 	amba_set_drvdata(adev, pl022);
 
-	if (platform_flag)
-		status = spi_register_master(master);
-	else
-		status = devm_spi_register_master(&adev->dev, master);
+	status = devm_spi_register_master(&adev->dev, master);
 	if (status != 0) {
 		dev_err(&adev->dev,
 			"probe - problem registering spi master\n");
 		goto err_spi_register;
 	}
 	dev_dbg(dev, "probe succeeded\n");
-	if (!platform_flag)
-		platform_info->autosuspend_delay = 100;
+
+	platform_info->autosuspend_delay = 100;
 	/* let runtime pm put suspend */
 	if (platform_info->autosuspend_delay > 0) {
 		dev_info(&adev->dev,
@@ -2292,10 +2430,8 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 			platform_info->autosuspend_delay);
 		pm_runtime_use_autosuspend(dev);
 	}
-	if (platform_flag)
-		clk_disable_unprepare(pl022->clk);
-	else
-		pm_runtime_put(dev);
+
+	pm_runtime_put(dev);
 
 	return 0;
 
@@ -2303,26 +2439,17 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	if (platform_info->enable_dma)
 		pl022_dma_remove(pl022);
  err_no_irq:
-	if (platform_flag)
-		free_irq(adev->irq[0], pl022);
 	reset_control_assert(pl022->rst);
  err_no_rst_clr:
-	if (platform_flag)
-		reset_control_put(pl022->rst);
  err_no_rst:
 	clk_disable_unprepare(pl022->clk);
  err_no_clk_en:
-	if (platform_flag)
-		clk_put(pl022->clk);
  err_no_clk:
-	if (platform_flag)
-		iounmap(pl022->virtbase);
  err_no_ioremap:
 	amba_release_regions(adev);
  err_no_ioregion:
 	spi_master_put(master);
-	if (platform_flag)
-		kfree(platform_info);
+
 	return status;
 }
 
@@ -2540,23 +2667,7 @@ static int starfive_of_pl022_probe(struct platform_device *pdev)
 		.mask = 0x000fffff,
 		.data = &vendor_arm
 	};
-	struct amba_device *pcdev;
 	struct device *dev = &pdev->dev;
-	struct pl022 *pl022;
-
-	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
-	if (!pcdev)
-		return -ENOMEM;
-
-	pcdev->dev = pdev->dev;
-	pcdev->periphid = id.id;
-	pcdev->res = *(pdev->resource);
-
-	pcdev->irq[0] = platform_get_irq(pdev, 0);
-	if (pcdev->irq[0] < 0) {
-		dev_err(dev, "failed to get irq\n");
-		ret = -EINVAL;
-	}
 
 	ret = of_clk_set_defaults(dev->of_node, false);
 	if (ret < 0)
@@ -2565,17 +2676,11 @@ static int starfive_of_pl022_probe(struct platform_device *pdev)
 	ret = dev_pm_domain_attach(dev, true);
 	if (ret)
 		goto err_probe;
+	ret = pl022_platform_probe(pdev, &id);
 
-	ret = pl022_probe(pcdev, &id);
-
-	pl022 = amba_get_drvdata(pcdev);
-
-	pl022->master->dev.parent = &pdev->dev;
-	platform_set_drvdata(pdev, pl022);
-
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, 100);
-	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_enable(dev);
+	pm_runtime_set_autosuspend_delay(dev, 100);
+	pm_runtime_use_autosuspend(dev);
 
 	if (ret) {
 		pm_runtime_disable(dev);
@@ -2590,32 +2695,26 @@ err_probe:
 
 static int starfive_of_pl022_remove(struct platform_device *pdev)
 {
-	u32 size;
-	int irq;
 	struct pl022 *pl022 = dev_get_drvdata(&pdev->dev);
 
 	if (!pl022)
 		return 0;
 
+	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
 
 	load_ssp_default_config(pl022);
 	if (pl022->master_info->enable_dma)
 		pl022_dma_remove(pl022);
 
-	irq = platform_get_irq(pdev, 0);
-	free_irq(irq, pl022);
-	reset_control_assert(pl022->rst);
-	reset_control_put(pl022->rst);
 	clk_disable_unprepare(pl022->clk);
-	clk_put(pl022->clk);
-	iounmap(pl022->virtbase);
-	kfree(pl022->master_info);
-
-	size = resource_size(pdev->resource);
-	release_mem_region(pdev->resource->start, size);
 	tasklet_disable(&pl022->pump_transfers);
+
+	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
+	dev_pm_domain_detach(&pdev->dev, true);
 
 	return 0;
 }
