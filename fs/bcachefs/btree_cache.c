@@ -794,19 +794,10 @@ static inline void btree_check_header(struct bch_fs *c, struct btree *b)
 		btree_bad_header(c, b);
 }
 
-/**
- * bch_btree_node_get - find a btree node in the cache and lock it, reading it
- * in from disk if necessary.
- *
- * If IO is necessary and running under generic_make_request, returns -EAGAIN.
- *
- * The btree node will have either a read or a write lock held, depending on
- * the @write parameter.
- */
-struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_path *path,
-				  const struct bkey_i *k, unsigned level,
-				  enum six_lock_type lock_type,
-				  unsigned long trace_ip)
+static struct btree *__bch2_btree_node_get(struct btree_trans *trans, struct btree_path *path,
+					   const struct bkey_i *k, unsigned level,
+					   enum six_lock_type lock_type,
+					   unsigned long trace_ip)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_cache *bc = &c->btree_cache;
@@ -815,18 +806,6 @@ struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_path *
 	int ret;
 
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
-
-	b = btree_node_mem_ptr(k);
-
-	/*
-	 * Check b->hash_val _before_ calling btree_node_lock() - this might not
-	 * be the node we want anymore, and trying to lock the wrong node could
-	 * cause an unneccessary transaction restart:
-	 */
-	if (likely(c->opts.btree_node_mem_ptr_optimization &&
-		   b &&
-		   b->hash_val == btree_ptr_hash_val(k)))
-		goto lock_node;
 retry:
 	b = btree_cache_find(bc, k);
 	if (unlikely(!b)) {
@@ -845,35 +824,6 @@ retry:
 		if (IS_ERR(b))
 			return b;
 	} else {
-lock_node:
-		/*
-		 * There's a potential deadlock with splits and insertions into
-		 * interior nodes we have to avoid:
-		 *
-		 * The other thread might be holding an intent lock on the node
-		 * we want, and they want to update its parent node so they're
-		 * going to upgrade their intent lock on the parent node to a
-		 * write lock.
-		 *
-		 * But if we're holding a read lock on the parent, and we're
-		 * trying to get the intent lock they're holding, we deadlock.
-		 *
-		 * So to avoid this we drop the read locks on parent nodes when
-		 * we're starting to take intent locks - and handle the race.
-		 *
-		 * The race is that they might be about to free the node we
-		 * want, and dropping our read lock on the parent node lets them
-		 * update the parent marking the node we want as freed, and then
-		 * free it:
-		 *
-		 * To guard against this, btree nodes are evicted from the cache
-		 * when they're freed - and b->hash_val is zeroed out, which we
-		 * check for after we lock the node.
-		 *
-		 * Then, bch2_btree_node_relock() on the parent will fail - because
-		 * the parent was modified, when the pointer to the node we want
-		 * was removed - and we'll bail out:
-		 */
 		if (btree_node_read_locked(path, level + 1))
 			btree_node_unlock(trans, path, level + 1);
 
@@ -918,6 +868,110 @@ lock_node:
 
 		if (!six_relock_type(&b->c.lock, lock_type, seq))
 			goto retry;
+	}
+
+	prefetch(b->aux_data);
+
+	for_each_bset(b, t) {
+		void *p = (u64 *) b->aux_data + t->aux_data_offset;
+
+		prefetch(p + L1_CACHE_BYTES * 0);
+		prefetch(p + L1_CACHE_BYTES * 1);
+		prefetch(p + L1_CACHE_BYTES * 2);
+	}
+
+	/* avoid atomic set bit if it's not needed: */
+	if (!btree_node_accessed(b))
+		set_btree_node_accessed(b);
+
+	if (unlikely(btree_node_read_error(b))) {
+		six_unlock_type(&b->c.lock, lock_type);
+		return ERR_PTR(-EIO);
+	}
+
+	EBUG_ON(b->c.btree_id != path->btree_id);
+	EBUG_ON(BTREE_NODE_LEVEL(b->data) != level);
+	btree_check_header(c, b);
+
+	return b;
+}
+
+/**
+ * bch_btree_node_get - find a btree node in the cache and lock it, reading it
+ * in from disk if necessary.
+ *
+ * If IO is necessary and running under generic_make_request, returns -EAGAIN.
+ *
+ * The btree node will have either a read or a write lock held, depending on
+ * the @write parameter.
+ */
+struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_path *path,
+				  const struct bkey_i *k, unsigned level,
+				  enum six_lock_type lock_type,
+				  unsigned long trace_ip)
+{
+	struct bch_fs *c = trans->c;
+	struct btree *b;
+	struct bset_tree *t;
+	int ret;
+
+	EBUG_ON(level >= BTREE_MAX_DEPTH);
+
+	b = btree_node_mem_ptr(k);
+
+	/*
+	 * Check b->hash_val _before_ calling btree_node_lock() - this might not
+	 * be the node we want anymore, and trying to lock the wrong node could
+	 * cause an unneccessary transaction restart:
+	 */
+	if (unlikely(!c->opts.btree_node_mem_ptr_optimization ||
+		     !b ||
+		     b->hash_val != btree_ptr_hash_val(k)))
+		return __bch2_btree_node_get(trans, path, k, level, lock_type, trace_ip);
+
+	if (btree_node_read_locked(path, level + 1))
+		btree_node_unlock(trans, path, level + 1);
+
+	ret = btree_node_lock(trans, path, &b->c, level, lock_type, trace_ip);
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+		return ERR_PTR(ret);
+
+	BUG_ON(ret);
+
+	if (unlikely(b->hash_val != btree_ptr_hash_val(k) ||
+		     b->c.level != level ||
+		     race_fault())) {
+		six_unlock_type(&b->c.lock, lock_type);
+		if (bch2_btree_node_relock(trans, path, level + 1))
+			return __bch2_btree_node_get(trans, path, k, level, lock_type, trace_ip);
+
+		trace_and_count(c, trans_restart_btree_node_reused, trans, trace_ip, path);
+		return ERR_PTR(btree_trans_restart(trans, BCH_ERR_transaction_restart_lock_node_reused));
+	}
+
+	if (unlikely(btree_node_read_in_flight(b))) {
+		u32 seq = b->c.lock.state.seq;
+
+		six_unlock_type(&b->c.lock, lock_type);
+		bch2_trans_unlock(trans);
+
+		bch2_btree_node_wait_on_read(b);
+
+		/*
+		 * should_be_locked is not set on this path yet, so we need to
+		 * relock it specifically:
+		 */
+		if (trans) {
+			int ret = bch2_trans_relock(trans) ?:
+				bch2_btree_path_relock_intent(trans, path);
+			if (ret) {
+				BUG_ON(!trans->restarted);
+				return ERR_PTR(ret);
+			}
+		}
+
+		if (!six_relock_type(&b->c.lock, lock_type, seq))
+			return __bch2_btree_node_get(trans, path, k, level, lock_type, trace_ip);
 	}
 
 	prefetch(b->aux_data);
