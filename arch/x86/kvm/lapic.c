@@ -1487,7 +1487,6 @@ static u32 apic_get_tmcct(struct kvm_lapic *apic)
 {
 	ktime_t remaining, now;
 	s64 ns;
-	u32 tmcct;
 
 	ASSERT(apic != NULL);
 
@@ -1502,10 +1501,7 @@ static u32 apic_get_tmcct(struct kvm_lapic *apic)
 		remaining = 0;
 
 	ns = mod_64(ktime_to_ns(remaining), apic->lapic_timer.period);
-	tmcct = div64_u64(ns,
-			 (APIC_BUS_CYCLE_NS * apic->divide_count));
-
-	return tmcct;
+	return div64_u64(ns, (APIC_BUS_CYCLE_NS * apic->divide_count));
 }
 
 static void __report_tpr_access(struct kvm_lapic *apic, bool write)
