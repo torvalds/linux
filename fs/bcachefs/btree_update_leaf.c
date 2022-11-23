@@ -1459,6 +1459,7 @@ bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *pa
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i, n;
+	int cmp;
 
 	EBUG_ON(!path->should_be_locked);
 	EBUG_ON(trans->nr_updates >= BTREE_ITER_MAX);
@@ -1485,12 +1486,13 @@ bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *pa
 	 * Pending updates are kept sorted: first, find position of new update,
 	 * then delete/trim any updates the new update overwrites:
 	 */
-	trans_for_each_update(trans, i)
-		if (btree_insert_entry_cmp(&n, i) <= 0)
+	trans_for_each_update(trans, i) {
+		cmp = btree_insert_entry_cmp(&n, i);
+		if (cmp <= 0)
 			break;
+	}
 
-	if (i < trans->updates + trans->nr_updates &&
-	    !btree_insert_entry_cmp(&n, i)) {
+	if (!cmp && i < trans->updates + trans->nr_updates) {
 		EBUG_ON(i->insert_trigger_run || i->overwrite_trigger_run);
 
 		bch2_path_put(trans, i->path, true);
