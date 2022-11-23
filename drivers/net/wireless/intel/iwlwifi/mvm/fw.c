@@ -354,6 +354,18 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	 */
 	ret = iwl_wait_notification(&mvm->notif_wait, &alive_wait,
 				    MVM_UCODE_ALIVE_TIMEOUT);
+
+	if (mvm->trans->trans_cfg->device_family ==
+	    IWL_DEVICE_FAMILY_AX210) {
+		/* print these registers regardless of alive fail/success */
+		IWL_INFO(mvm, "WFPM_UMAC_PD_NOTIFICATION: 0x%x\n",
+			 iwl_read_umac_prph(mvm->trans, WFPM_ARC1_PD_NOTIFICATION));
+		IWL_INFO(mvm, "WFPM_LMAC2_PD_NOTIFICATION: 0x%x\n",
+			 iwl_read_umac_prph(mvm->trans, WFPM_LMAC2_PD_NOTIFICATION));
+		IWL_INFO(mvm, "WFPM_AUTH_KEY_0: 0x%x\n",
+			 iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG));
+	}
+
 	if (ret) {
 		struct iwl_trans *trans = mvm->trans;
 
