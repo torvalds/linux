@@ -50,6 +50,28 @@ int lan966x_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	}
 }
 
+int lan966x_xdp_xmit(struct net_device *dev,
+		     int n,
+		     struct xdp_frame **frames,
+		     u32 flags)
+{
+	struct lan966x_port *port = netdev_priv(dev);
+	int nxmit = 0;
+
+	for (int i = 0; i < n; ++i) {
+		struct xdp_frame *xdpf = frames[i];
+		int err;
+
+		err = lan966x_fdma_xmit_xdpf(port, xdpf, NULL, true);
+		if (err)
+			break;
+
+		nxmit++;
+	}
+
+	return nxmit;
+}
+
 int lan966x_xdp_run(struct lan966x_port *port, struct page *page, u32 data_len)
 {
 	struct bpf_prog *xdp_prog = port->xdp_prog;
@@ -72,8 +94,13 @@ int lan966x_xdp_run(struct lan966x_port *port, struct page *page, u32 data_len)
 		if (!xdpf)
 			return FDMA_DROP;
 
-		return lan966x_fdma_xmit_xdpf(port, xdpf, page) ?
+		return lan966x_fdma_xmit_xdpf(port, xdpf, page, false) ?
 		       FDMA_DROP : FDMA_TX;
+	case XDP_REDIRECT:
+		if (xdp_do_redirect(port->dev, &xdp, xdp_prog))
+			return FDMA_DROP;
+
+		return FDMA_REDIRECT;
 	default:
 		bpf_warn_invalid_xdp_action(port->dev, xdp_prog, act);
 		fallthrough;

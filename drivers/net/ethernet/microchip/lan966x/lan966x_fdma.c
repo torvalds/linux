@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include <linux/bpf.h>
+#include <linux/filter.h>
 
 #include "lan966x_main.h"
 
@@ -390,10 +391,13 @@ static void lan966x_fdma_tx_clear_buf(struct lan966x *lan966x, int weight)
 {
 	struct lan966x_tx *tx = &lan966x->tx;
 	struct lan966x_tx_dcb_buf *dcb_buf;
+	struct xdp_frame_bulk bq;
 	struct lan966x_db *db;
 	unsigned long flags;
 	bool clear = false;
 	int i;
+
+	xdp_frame_bulk_init(&bq);
 
 	spin_lock_irqsave(&lan966x->tx_lock, flags);
 	for (i = 0; i < FDMA_DCB_MAX; ++i) {
@@ -419,11 +423,22 @@ static void lan966x_fdma_tx_clear_buf(struct lan966x *lan966x, int weight)
 			if (!dcb_buf->ptp)
 				napi_consume_skb(dcb_buf->data.skb, weight);
 		} else {
-			xdp_return_frame_rx_napi(dcb_buf->data.xdpf);
+			if (dcb_buf->xdp_ndo)
+				dma_unmap_single(lan966x->dev,
+						 dcb_buf->dma_addr,
+						 dcb_buf->len,
+						 DMA_TO_DEVICE);
+
+			if (dcb_buf->xdp_ndo)
+				xdp_return_frame_bulk(dcb_buf->data.xdpf, &bq);
+			else
+				xdp_return_frame_rx_napi(dcb_buf->data.xdpf);
 		}
 
 		clear = true;
 	}
+
+	xdp_flush_frame_bulk(&bq);
 
 	if (clear)
 		lan966x_fdma_wakeup_netdev(lan966x);
@@ -531,6 +546,7 @@ static int lan966x_fdma_napi_poll(struct napi_struct *napi, int weight)
 	int dcb_reload = rx->dcb_index;
 	struct lan966x_rx_dcb *old_dcb;
 	struct lan966x_db *db;
+	bool redirect = false;
 	struct sk_buff *skb;
 	struct page *page;
 	int counter = 0;
@@ -553,6 +569,9 @@ static int lan966x_fdma_napi_poll(struct napi_struct *napi, int weight)
 			lan966x_fdma_rx_free_page(rx);
 			lan966x_fdma_rx_advance_dcb(rx);
 			goto allocate_new;
+		case FDMA_REDIRECT:
+			redirect = true;
+			fallthrough;
 		case FDMA_TX:
 			lan966x_fdma_rx_advance_dcb(rx);
 			continue;
@@ -591,6 +610,9 @@ allocate_new:
 
 	if (counter < weight && napi_complete_done(napi, counter))
 		lan_wr(0xff, lan966x, FDMA_INTR_DB_ENA);
+
+	if (redirect)
+		xdp_do_flush();
 
 	return counter;
 }
@@ -679,7 +701,8 @@ static void lan966x_fdma_tx_start(struct lan966x_tx *tx, int next_to_use)
 
 int lan966x_fdma_xmit_xdpf(struct lan966x_port *port,
 			   struct xdp_frame *xdpf,
-			   struct page *page)
+			   struct page *page,
+			   bool dma_map)
 {
 	struct lan966x *lan966x = port->lan966x;
 	struct lan966x_tx_dcb_buf *next_dcb_buf;
@@ -700,24 +723,53 @@ int lan966x_fdma_xmit_xdpf(struct lan966x_port *port,
 	}
 
 	/* Generate new IFH */
-	ifh = page_address(page) + XDP_PACKET_HEADROOM;
-	memset(ifh, 0x0, sizeof(__be32) * IFH_LEN);
-	lan966x_ifh_set_bypass(ifh, 1);
-	lan966x_ifh_set_port(ifh, BIT_ULL(port->chip_port));
+	if (dma_map) {
+		if (xdpf->headroom < IFH_LEN_BYTES) {
+			ret = NETDEV_TX_OK;
+			goto out;
+		}
 
-	dma_addr = page_pool_get_dma_addr(page);
-	dma_sync_single_for_device(lan966x->dev, dma_addr + XDP_PACKET_HEADROOM,
-				   xdpf->len + IFH_LEN_BYTES,
-				   DMA_TO_DEVICE);
+		ifh = xdpf->data - IFH_LEN_BYTES;
+		memset(ifh, 0x0, sizeof(__be32) * IFH_LEN);
+		lan966x_ifh_set_bypass(ifh, 1);
+		lan966x_ifh_set_port(ifh, BIT_ULL(port->chip_port));
 
-	/* Setup next dcb */
-	lan966x_fdma_tx_setup_dcb(tx, next_to_use, xdpf->len + IFH_LEN_BYTES,
-				  dma_addr + XDP_PACKET_HEADROOM);
+		dma_addr = dma_map_single(lan966x->dev,
+					  xdpf->data - IFH_LEN_BYTES,
+					  xdpf->len + IFH_LEN_BYTES,
+					  DMA_TO_DEVICE);
+		if (dma_mapping_error(lan966x->dev, dma_addr)) {
+			ret = NETDEV_TX_OK;
+			goto out;
+		}
+
+		/* Setup next dcb */
+		lan966x_fdma_tx_setup_dcb(tx, next_to_use,
+					  xdpf->len + IFH_LEN_BYTES,
+					  dma_addr);
+	} else {
+		ifh = page_address(page) + XDP_PACKET_HEADROOM;
+		memset(ifh, 0x0, sizeof(__be32) * IFH_LEN);
+		lan966x_ifh_set_bypass(ifh, 1);
+		lan966x_ifh_set_port(ifh, BIT_ULL(port->chip_port));
+
+		dma_addr = page_pool_get_dma_addr(page);
+		dma_sync_single_for_device(lan966x->dev,
+					   dma_addr + XDP_PACKET_HEADROOM,
+					   xdpf->len + IFH_LEN_BYTES,
+					   DMA_TO_DEVICE);
+
+		/* Setup next dcb */
+		lan966x_fdma_tx_setup_dcb(tx, next_to_use,
+					  xdpf->len + IFH_LEN_BYTES,
+					  dma_addr + XDP_PACKET_HEADROOM);
+	}
 
 	/* Fill up the buffer */
 	next_dcb_buf = &tx->dcbs_buf[next_to_use];
 	next_dcb_buf->use_skb = false;
 	next_dcb_buf->data.xdpf = xdpf;
+	next_dcb_buf->xdp_ndo = dma_map;
 	next_dcb_buf->len = xdpf->len + IFH_LEN_BYTES;
 	next_dcb_buf->dma_addr = dma_addr;
 	next_dcb_buf->used = true;
@@ -790,6 +842,7 @@ int lan966x_fdma_xmit(struct sk_buff *skb, __be32 *ifh, struct net_device *dev)
 	next_dcb_buf = &tx->dcbs_buf[next_to_use];
 	next_dcb_buf->use_skb = true;
 	next_dcb_buf->data.skb = skb;
+	next_dcb_buf->xdp_ndo = false;
 	next_dcb_buf->len = skb->len;
 	next_dcb_buf->dma_addr = dma_addr;
 	next_dcb_buf->used = true;
