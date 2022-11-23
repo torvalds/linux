@@ -28,7 +28,7 @@ enum iostat_mode_t {
 
 extern enum iostat_mode_t iostat_mode;
 
-typedef void (*iostat_print_counter_t)(struct perf_stat_config *, struct evsel *, char *);
+typedef void (*iostat_print_counter_t)(struct perf_stat_config *, struct evsel *, const char *);
 
 int iostat_prepare(struct evlist *evlist, struct perf_stat_config *config);
 int iostat_parse(const struct option *opt, const char *str,

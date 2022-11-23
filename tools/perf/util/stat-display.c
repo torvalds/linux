@@ -675,7 +675,7 @@ static bool is_mixed_hw_group(struct evsel *counter)
 
 static void printout(struct perf_stat_config *config, struct aggr_cpu_id id, int nr,
 		     struct evsel *counter, double uval,
-		     char *prefix, u64 run, u64 ena, double noise,
+		     const char *prefix, u64 run, u64 ena, double noise,
 		     struct runtime_stat *st, int map_idx)
 {
 	struct perf_stat_output_ctx out;
@@ -804,7 +804,7 @@ static void uniquify_counter(struct perf_stat_config *config, struct evsel *coun
 
 static void print_counter_aggrdata(struct perf_stat_config *config,
 				   struct evsel *counter, int s,
-				   char *prefix)
+				   const char *prefix)
 {
 	FILE *output = config->output;
 	u64 ena, run, val;
@@ -843,7 +843,7 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 
 static void print_metric_begin(struct perf_stat_config *config,
 			       struct evlist *evlist,
-			       char *prefix, int aggr_idx,
+			       const char *prefix, int aggr_idx,
 			       struct cgroup *cgrp)
 {
 	struct perf_stat_aggr *aggr;
@@ -874,7 +874,7 @@ static void print_metric_end(struct perf_stat_config *config)
 
 static void print_aggr(struct perf_stat_config *config,
 		       struct evlist *evlist,
-		       char *prefix)
+		       const char *prefix)
 {
 	struct evsel *counter;
 	int s;
@@ -901,7 +901,7 @@ static void print_aggr(struct perf_stat_config *config,
 
 static void print_aggr_cgroup(struct perf_stat_config *config,
 			      struct evlist *evlist,
-			      char *prefix)
+			      const char *prefix)
 {
 	struct evsel *counter, *evsel;
 	struct cgroup *cgrp = NULL;
@@ -934,7 +934,7 @@ static void print_aggr_cgroup(struct perf_stat_config *config,
 }
 
 static void print_counter(struct perf_stat_config *config,
-			  struct evsel *counter, char *prefix)
+			  struct evsel *counter, const char *prefix)
 {
 	int s;
 
@@ -952,7 +952,7 @@ static void print_counter(struct perf_stat_config *config,
 
 static void print_no_aggr_metric(struct perf_stat_config *config,
 				 struct evlist *evlist,
-				 char *prefix)
+				 const char *prefix)
 {
 	int all_idx;
 	struct perf_cpu cpu;
@@ -1301,7 +1301,7 @@ static void print_footer(struct perf_stat_config *config)
 }
 
 static void print_percore(struct perf_stat_config *config,
-			  struct evsel *counter, char *prefix)
+			  struct evsel *counter, const char *prefix)
 {
 	bool metric_only = config->metric_only;
 	FILE *output = config->output;
@@ -1345,7 +1345,7 @@ static void print_percore(struct perf_stat_config *config,
 }
 
 static void print_cgroup_counter(struct perf_stat_config *config, struct evlist *evlist,
-				 char *prefix)
+				 const char *prefix)
 {
 	struct cgroup *cgrp = NULL;
 	struct evsel *counter;
