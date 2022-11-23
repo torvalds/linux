@@ -26,6 +26,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_data/mmc-esdhc-imx.h>
 #include <linux/pm_runtime.h>
+#include "sdhci-cqhci.h"
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
 #include "cqhci.h"
@@ -293,22 +294,6 @@ struct pltfm_imx_data {
 	u32 is_ddr;
 	struct pm_qos_request pm_qos_req;
 };
-
-static const struct platform_device_id imx_esdhc_devtype[] = {
-	{
-		.name = "sdhci-esdhc-imx25",
-		.driver_data = (kernel_ulong_t) &esdhc_imx25_data,
-	}, {
-		.name = "sdhci-esdhc-imx35",
-		.driver_data = (kernel_ulong_t) &esdhc_imx35_data,
-	}, {
-		.name = "sdhci-esdhc-imx51",
-		.driver_data = (kernel_ulong_t) &esdhc_imx51_data,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, imx_esdhc_devtype);
 
 static const struct of_device_id imx_esdhc_dt_ids[] = {
 	{ .compatible = "fsl,imx25-esdhc", .data = &esdhc_imx25_data, },
@@ -1243,7 +1228,7 @@ static void esdhc_set_uhs_signaling(struct sdhci_host *host, unsigned timing)
 
 static void esdhc_reset(struct sdhci_host *host, u8 mask)
 {
-	sdhci_reset(host, mask);
+	sdhci_and_cqhci_reset(host, mask);
 
 	sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
 	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
@@ -1545,72 +1530,6 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 }
 #endif
 
-static int sdhci_esdhc_imx_probe_nondt(struct platform_device *pdev,
-			 struct sdhci_host *host,
-			 struct pltfm_imx_data *imx_data)
-{
-	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
-	int err;
-
-	if (!host->mmc->parent->platform_data) {
-		dev_err(mmc_dev(host->mmc), "no board data!\n");
-		return -EINVAL;
-	}
-
-	imx_data->boarddata = *((struct esdhc_platform_data *)
-				host->mmc->parent->platform_data);
-	/* write_protect */
-	if (boarddata->wp_type == ESDHC_WP_GPIO) {
-		host->mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
-
-		err = mmc_gpiod_request_ro(host->mmc, "wp", 0, 0);
-		if (err) {
-			dev_err(mmc_dev(host->mmc),
-				"failed to request write-protect gpio!\n");
-			return err;
-		}
-	}
-
-	/* card_detect */
-	switch (boarddata->cd_type) {
-	case ESDHC_CD_GPIO:
-		err = mmc_gpiod_request_cd(host->mmc, "cd", 0, false, 0);
-		if (err) {
-			dev_err(mmc_dev(host->mmc),
-				"failed to request card-detect gpio!\n");
-			return err;
-		}
-		fallthrough;
-
-	case ESDHC_CD_CONTROLLER:
-		/* we have a working card_detect back */
-		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
-		break;
-
-	case ESDHC_CD_PERMANENT:
-		host->mmc->caps |= MMC_CAP_NONREMOVABLE;
-		break;
-
-	case ESDHC_CD_NONE:
-		break;
-	}
-
-	switch (boarddata->max_bus_width) {
-	case 8:
-		host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_4_BIT_DATA;
-		break;
-	case 4:
-		host->mmc->caps |= MMC_CAP_4_BIT_DATA;
-		break;
-	case 1:
-	default:
-		host->quirks |= SDHCI_QUIRK_FORCE_1_BIT_DATA;
-		break;
-	}
-
-	return 0;
-}
-
 static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
@@ -1630,8 +1549,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 
 	imx_data = sdhci_pltfm_priv(pltfm_host);
 
-	imx_data->socdata = of_id ? of_id->data : (struct esdhc_soc_data *)
-						  pdev->id_entry->driver_data;
+	imx_data->socdata = of_id->data;
 
 	if (imx_data->socdata->flags & ESDHC_FLAG_PMQOS)
 		cpu_latency_qos_add_request(&imx_data->pm_qos_req, 0);
@@ -1943,7 +1861,6 @@ static struct platform_driver sdhci_esdhc_imx_driver = {
 		.of_match_table = imx_esdhc_dt_ids,
 		.pm	= &sdhci_esdhc_pmops,
 	},
-	.id_table	= imx_esdhc_devtype,
 	.probe		= sdhci_esdhc_imx_probe,
 	.remove		= sdhci_esdhc_imx_remove,
 };

@@ -13,6 +13,7 @@
 #include <linux/of_fdt.h>
 #include <linux/libfdt.h>
 #include <linux/set_memory.h>
+#include <linux/dma-map-ops.h>
 
 #include <asm/fixmap.h>
 #include <asm/tlbflush.h>
@@ -41,13 +42,14 @@ struct pt_alloc_ops {
 #endif
 };
 
+static phys_addr_t dma32_phys_limit __ro_after_init;
+
 static void __init zone_sizes_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES] = { 0, };
 
 #ifdef CONFIG_ZONE_DMA32
-	max_zone_pfns[ZONE_DMA32] = PFN_DOWN(min(4UL * SZ_1G,
-			(unsigned long) PFN_PHYS(max_low_pfn)));
+	max_zone_pfns[ZONE_DMA32] = PFN_DOWN(dma32_phys_limit);
 #endif
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 
@@ -193,6 +195,7 @@ void __init setup_bootmem(void)
 
 	max_pfn = PFN_DOWN(dram_end);
 	max_low_pfn = max_pfn;
+	dma32_phys_limit = min(4UL * SZ_1G, (unsigned long)PFN_PHYS(max_low_pfn));
 	set_max_mapnr(max_low_pfn);
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -205,7 +208,7 @@ void __init setup_bootmem(void)
 	 */
 	memblock_reserve(dtb_early_pa, fdt_totalsize(dtb_early_va));
 
-	early_init_fdt_scan_reserved_mem();
+	dma_contiguous_reserve(dma32_phys_limit);
 	memblock_allow_resize();
 	memblock_dump_all();
 }
@@ -665,8 +668,12 @@ static void __init resource_init(void)
 void __init paging_init(void)
 {
 	setup_vm_final();
-	sparse_init();
 	setup_zero_page();
+}
+
+void __init misc_mem_init(void)
+{
+	sparse_init();
 	zone_sizes_init();
 	resource_init();
 }
