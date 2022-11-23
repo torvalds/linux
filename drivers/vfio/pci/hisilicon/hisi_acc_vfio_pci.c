@@ -863,7 +863,7 @@ static const struct file_operations hisi_acc_vf_save_fops = {
 };
 
 static struct hisi_acc_vf_migration_file *
-hisi_acc_vf_stop_copy(struct hisi_acc_vf_core_device *hisi_acc_vdev)
+hisi_acc_open_saving_migf(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 {
 	struct hisi_acc_vf_migration_file *migf;
 	int ret;
@@ -885,13 +885,51 @@ hisi_acc_vf_stop_copy(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 	mutex_init(&migf->lock);
 	migf->hisi_acc_vdev = hisi_acc_vdev;
 
-	ret = vf_qm_state_save(hisi_acc_vdev, migf);
+	ret = vf_qm_get_match_data(hisi_acc_vdev, &migf->vf_data);
 	if (ret) {
 		fput(migf->filp);
 		return ERR_PTR(ret);
 	}
 
 	return migf;
+}
+
+static struct hisi_acc_vf_migration_file *
+hisi_acc_vf_pre_copy(struct hisi_acc_vf_core_device *hisi_acc_vdev)
+{
+	struct hisi_acc_vf_migration_file *migf;
+
+	migf = hisi_acc_open_saving_migf(hisi_acc_vdev);
+	if (IS_ERR(migf))
+		return migf;
+
+	migf->total_length = QM_MATCH_SIZE;
+	return migf;
+}
+
+static struct hisi_acc_vf_migration_file *
+hisi_acc_vf_stop_copy(struct hisi_acc_vf_core_device *hisi_acc_vdev, bool open)
+{
+	int ret;
+	struct hisi_acc_vf_migration_file *migf = NULL;
+
+	if (open) {
+		/*
+		 * Userspace didn't use PRECOPY support. Hence saving_migf
+		 * is not opened yet.
+		 */
+		migf = hisi_acc_open_saving_migf(hisi_acc_vdev);
+		if (IS_ERR(migf))
+			return migf;
+	} else {
+		migf = hisi_acc_vdev->saving_migf;
+	}
+
+	ret = vf_qm_state_save(hisi_acc_vdev, migf);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return open ? migf : NULL;
 }
 
 static int hisi_acc_vf_stop_device(struct hisi_acc_vf_core_device *hisi_acc_vdev)
@@ -921,6 +959,31 @@ hisi_acc_vf_set_device_state(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 	u32 cur = hisi_acc_vdev->mig_state;
 	int ret;
 
+	if (cur == VFIO_DEVICE_STATE_RUNNING && new == VFIO_DEVICE_STATE_PRE_COPY) {
+		struct hisi_acc_vf_migration_file *migf;
+
+		migf = hisi_acc_vf_pre_copy(hisi_acc_vdev);
+		if (IS_ERR(migf))
+			return ERR_CAST(migf);
+		get_file(migf->filp);
+		hisi_acc_vdev->saving_migf = migf;
+		return migf->filp;
+	}
+
+	if (cur == VFIO_DEVICE_STATE_PRE_COPY && new == VFIO_DEVICE_STATE_STOP_COPY) {
+		struct hisi_acc_vf_migration_file *migf;
+
+		ret = hisi_acc_vf_stop_device(hisi_acc_vdev);
+		if (ret)
+			return ERR_PTR(ret);
+
+		migf = hisi_acc_vf_stop_copy(hisi_acc_vdev, false);
+		if (IS_ERR(migf))
+			return ERR_CAST(migf);
+
+		return NULL;
+	}
+
 	if (cur == VFIO_DEVICE_STATE_RUNNING && new == VFIO_DEVICE_STATE_STOP) {
 		ret = hisi_acc_vf_stop_device(hisi_acc_vdev);
 		if (ret)
@@ -931,7 +994,7 @@ hisi_acc_vf_set_device_state(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 	if (cur == VFIO_DEVICE_STATE_STOP && new == VFIO_DEVICE_STATE_STOP_COPY) {
 		struct hisi_acc_vf_migration_file *migf;
 
-		migf = hisi_acc_vf_stop_copy(hisi_acc_vdev);
+		migf = hisi_acc_vf_stop_copy(hisi_acc_vdev, true);
 		if (IS_ERR(migf))
 			return ERR_CAST(migf);
 		get_file(migf->filp);
@@ -959,6 +1022,11 @@ hisi_acc_vf_set_device_state(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 		ret = hisi_acc_vf_load_state(hisi_acc_vdev);
 		if (ret)
 			return ERR_PTR(ret);
+		hisi_acc_vf_disable_fds(hisi_acc_vdev);
+		return NULL;
+	}
+
+	if (cur == VFIO_DEVICE_STATE_PRE_COPY && new == VFIO_DEVICE_STATE_RUNNING) {
 		hisi_acc_vf_disable_fds(hisi_acc_vdev);
 		return NULL;
 	}
