@@ -804,7 +804,7 @@ static void uniquify_counter(struct perf_stat_config *config, struct evsel *coun
 
 static void print_counter_aggrdata(struct perf_stat_config *config,
 				   struct evsel *counter, int s,
-				   char *prefix, bool metric_only)
+				   char *prefix)
 {
 	FILE *output = config->output;
 	u64 ena, run, val;
@@ -813,6 +813,7 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 	struct perf_stat_aggr *aggr = &ps->aggr[s];
 	struct aggr_cpu_id id = config->aggr_map->map[s];
 	double avg = aggr->counts.val;
+	bool metric_only = config->metric_only;
 
 	if (counter->supported && aggr->nr == 0)
 		return;
@@ -875,7 +876,6 @@ static void print_aggr(struct perf_stat_config *config,
 		       struct evlist *evlist,
 		       char *prefix)
 {
-	bool metric_only = config->metric_only;
 	struct evsel *counter;
 	int s;
 
@@ -893,8 +893,7 @@ static void print_aggr(struct perf_stat_config *config,
 			if (counter->merged_stat)
 				continue;
 
-			print_counter_aggrdata(config, counter, s, prefix,
-					       metric_only);
+			print_counter_aggrdata(config, counter, s, prefix);
 		}
 		print_metric_end(config);
 	}
@@ -904,7 +903,6 @@ static void print_aggr_cgroup(struct perf_stat_config *config,
 			      struct evlist *evlist,
 			      char *prefix)
 {
-	bool metric_only = config->metric_only;
 	struct evsel *counter, *evsel;
 	struct cgroup *cgrp = NULL;
 	int s;
@@ -928,8 +926,7 @@ static void print_aggr_cgroup(struct perf_stat_config *config,
 				if (counter->cgrp != cgrp)
 					continue;
 
-				print_counter_aggrdata(config, counter, s, prefix,
-						       metric_only);
+				print_counter_aggrdata(config, counter, s, prefix);
 			}
 			print_metric_end(config);
 		}
@@ -939,7 +936,6 @@ static void print_aggr_cgroup(struct perf_stat_config *config,
 static void print_counter(struct perf_stat_config *config,
 			  struct evsel *counter, char *prefix)
 {
-	bool metric_only = config->metric_only;
 	int s;
 
 	/* AGGR_THREAD doesn't have config->aggr_get_id */
@@ -950,8 +946,7 @@ static void print_counter(struct perf_stat_config *config,
 		return;
 
 	for (s = 0; s < config->aggr_map->nr; s++) {
-		print_counter_aggrdata(config, counter, s, prefix,
-				       metric_only);
+		print_counter_aggrdata(config, counter, s, prefix);
 	}
 }
 
@@ -1339,7 +1334,7 @@ static void print_percore(struct perf_stat_config *config,
 		if (found)
 			continue;
 
-		print_counter_aggrdata(config, counter, s, prefix, metric_only);
+		print_counter_aggrdata(config, counter, s, prefix);
 
 		core_map->map[c++] = core_id;
 	}
