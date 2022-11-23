@@ -19555,6 +19555,7 @@ S:	Supported
 F:	Documentation/process/stable-kernel-rules.rst
 
 STAGING - ATOMISP DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 R:	Sakari Ailus <sakari.ailus@linux.intel.com>
 L:	linux-media@vger.kernel.org
