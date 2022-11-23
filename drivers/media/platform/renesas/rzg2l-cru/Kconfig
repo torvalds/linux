@@ -15,3 +15,19 @@ config VIDEO_RZG2L_CSI2
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rzg2l-csi2.
+
+config VIDEO_RZG2L_CRU
+	tristate "RZ/G2L Camera Receiving Unit (CRU) Driver"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV && OF
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Support for Renesas RZ/G2L (and alike SoC's) Camera Receiving
+	  Unit (CRU) driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rzg2l-cru.
