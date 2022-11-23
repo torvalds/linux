@@ -713,11 +713,6 @@ static void printout(struct perf_stat_config *config, struct aggr_cpu_id id, int
 		nl = config->metric_only ? new_line_metric : new_line_std;
 	}
 
-	if (!config->no_csv_summary && config->csv_output &&
-	    config->summary && !config->interval && !config->metric_only) {
-		fprintf(config->output, "%16s%s", "summary", config->csv_sep);
-	}
-
 	if (run == 0 || ena == 0 || counter->counts->scaled == -1) {
 		if (config->metric_only) {
 			pm(config, &os, NULL, "", "", 0);
@@ -828,8 +823,13 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 	ena = aggr->counts.ena;
 	run = aggr->counts.run;
 
-	if (prefix && !metric_only)
-		fprintf(output, "%s", prefix);
+	if (!metric_only) {
+		if (prefix)
+			fprintf(output, "%s", prefix);
+		else if (config->summary && config->csv_output &&
+			 !config->no_csv_summary && !config->interval)
+			fprintf(output, "%16s%s", "summary", config->csv_sep);
+	}
 
 	uval = val * counter->scale;
 
