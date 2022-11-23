@@ -564,7 +564,7 @@ static void cti_add_assoc_to_csdev(struct coresight_device *csdev)
 			 * if we found a matching csdev then update the ECT
 			 * association pointer for the device with this CTI.
 			 */
-			coresight_set_assoc_ectdev_mutex(csdev->ect_dev,
+			coresight_set_assoc_ectdev_mutex(csdev,
 							 ect_item->csdev);
 			break;
 		}
