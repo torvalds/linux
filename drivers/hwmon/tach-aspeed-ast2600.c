@@ -285,7 +285,6 @@ static void aspeed_create_fan_tach_channel(struct aspeed_tach_data *priv,
 
 	priv->tach_channel[tach_ch].pulse_pr = DEFAULT_FAN_PULSE_PR;
 
-
 	aspeed_tach_ch_enable(priv, tach_ch, true);
 }
 
@@ -397,5 +396,4 @@ module_platform_driver(aspeed_tach_driver);
 
 MODULE_AUTHOR("Billy Tsai <billy_tsai@aspeedtech.com>");
 MODULE_DESCRIPTION("Aspeed ast2600 TACH device driver");
-MODULE_LICENSE("GPL v2");
-
+MODULE_LICENSE("GPL");
