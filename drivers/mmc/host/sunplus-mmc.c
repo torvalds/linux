@@ -318,7 +318,7 @@ static void spmmc_set_bus_width(struct spmmc_host *host, int width)
 		value &= ~SPMMC_SD_DATA_WD;
 		value &= ~SPMMC_MMC8_EN;
 		break;
-	};
+	}
 	writel(value, host->base + SPMMC_SD_CONFIG0_REG);
 }
 
