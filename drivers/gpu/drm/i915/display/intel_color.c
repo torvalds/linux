@@ -910,7 +910,8 @@ static void ivb_load_lut_10(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 
 	for (i = 0; i < lut_size; i++) {
-		intel_de_write_fw(i915, PREC_PAL_INDEX(pipe), prec_index++);
+		intel_de_write_fw(i915, PREC_PAL_INDEX(pipe),
+				  prec_index + i);
 		intel_de_write_fw(i915, PREC_PAL_DATA(pipe),
 				  ilk_lut_10(&lut[i]));
 	}
@@ -919,7 +920,8 @@ static void ivb_load_lut_10(struct intel_crtc *crtc,
 	 * Reset the index, otherwise it prevents the legacy palette to be
 	 * written properly.
 	 */
-	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe), 0);
+	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe),
+			  PAL_PREC_INDEX_VALUE(0));
 }
 
 /* On BDW+ the index auto increment mode actually works */
@@ -933,7 +935,8 @@ static void bdw_load_lut_10(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 
 	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe),
-			  prec_index | PAL_PREC_AUTO_INCREMENT);
+			  PAL_PREC_AUTO_INCREMENT |
+			  prec_index);
 
 	for (i = 0; i < lut_size; i++)
 		intel_de_write_fw(i915, PREC_PAL_DATA(pipe),
@@ -943,7 +946,8 @@ static void bdw_load_lut_10(struct intel_crtc *crtc,
 	 * Reset the index, otherwise it prevents the legacy palette to be
 	 * written properly.
 	 */
-	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe), 0);
+	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe),
+			  PAL_PREC_INDEX_VALUE(0));
 }
 
 static void ivb_load_lut_ext_max(const struct intel_crtc_state *crtc_state)
@@ -1049,9 +1053,11 @@ static void glk_load_degamma_lut(const struct intel_crtc_state *crtc_state,
 	 * ignore the index bits, so we need to reset it to index 0
 	 * separately.
 	 */
-	intel_de_write_fw(i915, PRE_CSC_GAMC_INDEX(pipe), 0);
 	intel_de_write_fw(i915, PRE_CSC_GAMC_INDEX(pipe),
-			  PRE_CSC_GAMC_AUTO_INCREMENT);
+			  PRE_CSC_GAMC_INDEX_VALUE(0));
+	intel_de_write_fw(i915, PRE_CSC_GAMC_INDEX(pipe),
+			  PRE_CSC_GAMC_AUTO_INCREMENT |
+			  PRE_CSC_GAMC_INDEX_VALUE(0));
 
 	for (i = 0; i < lut_size; i++) {
 		/*
@@ -1165,7 +1171,9 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 	 * seg2[0] being unused by the hardware.
 	 */
 	intel_dsb_reg_write(crtc_state, PREC_PAL_INDEX(pipe),
-			    PAL_PREC_AUTO_INCREMENT);
+			    PAL_PREC_AUTO_INCREMENT |
+			    PAL_PREC_INDEX_VALUE(0));
+
 	for (i = 1; i < 257; i++) {
 		entry = &lut[i * 8];
 		intel_dsb_indexed_reg_write(crtc_state, PREC_PAL_DATA(pipe),
@@ -2756,7 +2764,8 @@ static struct drm_property_blob *ivb_read_lut_10(struct intel_crtc *crtc,
 		ilk_lut_10_pack(&lut[i], val);
 	}
 
-	intel_de_write_fw(dev_priv, PREC_PAL_INDEX(pipe), 0);
+	intel_de_write_fw(dev_priv, PREC_PAL_INDEX(pipe),
+			  PAL_PREC_INDEX_VALUE(0));
 
 	return blob;
 }
@@ -2811,7 +2820,8 @@ static struct drm_property_blob *bdw_read_lut_10(struct intel_crtc *crtc,
 	lut = blob->data;
 
 	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe),
-			  prec_index | PAL_PREC_AUTO_INCREMENT);
+			  PAL_PREC_AUTO_INCREMENT |
+			  prec_index);
 
 	for (i = 0; i < lut_size; i++) {
 		u32 val = intel_de_read_fw(i915, PREC_PAL_DATA(pipe));
@@ -2819,7 +2829,8 @@ static struct drm_property_blob *bdw_read_lut_10(struct intel_crtc *crtc,
 		ilk_lut_10_pack(&lut[i], val);
 	}
 
-	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe), 0);
+	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe),
+			  PAL_PREC_INDEX_VALUE(0));
 
 	return blob;
 }
@@ -2876,9 +2887,11 @@ static struct drm_property_blob *glk_read_degamma_lut(struct intel_crtc *crtc)
 	 * ignore the index bits, so we need to reset it to index 0
 	 * separately.
 	 */
-	intel_de_write_fw(dev_priv, PRE_CSC_GAMC_INDEX(pipe), 0);
 	intel_de_write_fw(dev_priv, PRE_CSC_GAMC_INDEX(pipe),
-			  PRE_CSC_GAMC_AUTO_INCREMENT);
+			  PRE_CSC_GAMC_INDEX_VALUE(0));
+	intel_de_write_fw(dev_priv, PRE_CSC_GAMC_INDEX(pipe),
+			  PRE_CSC_GAMC_AUTO_INCREMENT |
+			  PRE_CSC_GAMC_INDEX_VALUE(0));
 
 	for (i = 0; i < lut_size; i++) {
 		u32 val = intel_de_read_fw(dev_priv, PRE_CSC_GAMC_DATA(pipe));
@@ -2888,7 +2901,8 @@ static struct drm_property_blob *glk_read_degamma_lut(struct intel_crtc *crtc)
 		lut[i].blue = val;
 	}
 
-	intel_de_write_fw(dev_priv, PRE_CSC_GAMC_INDEX(pipe), 0);
+	intel_de_write_fw(dev_priv, PRE_CSC_GAMC_INDEX(pipe),
+			  PRE_CSC_GAMC_INDEX_VALUE(0));
 
 	return blob;
 }
@@ -2934,7 +2948,8 @@ icl_read_lut_multi_segment(struct intel_crtc *crtc)
 	lut = blob->data;
 
 	intel_de_write_fw(i915, PREC_PAL_MULTI_SEG_INDEX(pipe),
-			  PAL_PREC_AUTO_INCREMENT);
+			  PAL_PREC_MULTI_SEG_AUTO_INCREMENT |
+			  PAL_PREC_MULTI_SEG_INDEX_VALUE(0));
 
 	for (i = 0; i < 9; i++) {
 		u32 ldw = intel_de_read_fw(i915, PREC_PAL_MULTI_SEG_DATA(pipe));
@@ -2943,7 +2958,8 @@ icl_read_lut_multi_segment(struct intel_crtc *crtc)
 		ilk_lut_12p4_pack(&lut[i], ldw, udw);
 	}
 
-	intel_de_write_fw(i915, PREC_PAL_MULTI_SEG_INDEX(pipe), 0);
+	intel_de_write_fw(i915, PREC_PAL_MULTI_SEG_INDEX(pipe),
+			  PAL_PREC_MULTI_SEG_INDEX_VALUE(0));
 
 	/*
 	 * FIXME readouts from PAL_PREC_DATA register aren't giving
