@@ -3494,7 +3494,7 @@ void tty_default_fops(struct file_operations *fops)
 	*fops = tty_fops;
 }
 
-static char *tty_devnode(struct device *dev, umode_t *mode)
+static char *tty_devnode(const struct device *dev, umode_t *mode)
 {
 	if (!mode)
 		return NULL;

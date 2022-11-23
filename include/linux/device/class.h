@@ -60,7 +60,7 @@ struct class {
 	struct kobject			*dev_kobj;
 
 	int (*dev_uevent)(const struct device *dev, struct kobj_uevent_env *env);
-	char *(*devnode)(struct device *dev, umode_t *mode);
+	char *(*devnode)(const struct device *dev, umode_t *mode);
 
 	void (*class_release)(struct class *class);
 	void (*dev_release)(struct device *dev);

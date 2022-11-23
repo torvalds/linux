@@ -254,9 +254,9 @@ void misc_deregister(struct miscdevice *misc)
 }
 EXPORT_SYMBOL(misc_deregister);
 
-static char *misc_devnode(struct device *dev, umode_t *mode)
+static char *misc_devnode(const struct device *dev, umode_t *mode)
 {
-	struct miscdevice *c = dev_get_drvdata(dev);
+	const struct miscdevice *c = dev_get_drvdata(dev);
 
 	if (mode && c->mode)
 		*mode = c->mode;

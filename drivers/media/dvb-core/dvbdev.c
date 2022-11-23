@@ -1018,9 +1018,9 @@ static int dvb_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static char *dvb_devnode(struct device *dev, umode_t *mode)
+static char *dvb_devnode(const struct device *dev, umode_t *mode)
 {
-	struct dvb_device *dvbdev = dev_get_drvdata(dev);
+	const struct dvb_device *dvbdev = dev_get_drvdata(dev);
 
 	return kasprintf(GFP_KERNEL, "dvb/adapter%d/%s%d",
 		dvbdev->adapter->num, dnames[dvbdev->type], dvbdev->id);

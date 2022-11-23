@@ -1913,7 +1913,7 @@ static const struct device_type input_dev_type = {
 #endif
 };
 
-static char *input_devnode(struct device *dev, umode_t *mode)
+static char *input_devnode(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "input/%s", dev_name(dev));
 }

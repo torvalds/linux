@@ -746,7 +746,7 @@ static const struct file_operations memory_fops = {
 	.llseek = noop_llseek,
 };
 
-static char *mem_devnode(struct device *dev, umode_t *mode)
+static char *mem_devnode(const struct device *dev, umode_t *mode)
 {
 	if (mode && devlist[MINOR(dev->devt)].mode)
 		*mode = devlist[MINOR(dev->devt)].mode;

@@ -1560,9 +1560,9 @@ static const struct file_operations pseudo_lock_dev_fops = {
 	.mmap =		pseudo_lock_dev_mmap,
 };
 
-static char *pseudo_lock_devnode(struct device *dev, umode_t *mode)
+static char *pseudo_lock_devnode(const struct device *dev, umode_t *mode)
 {
-	struct rdtgroup *rdtgrp;
+	const struct rdtgroup *rdtgrp;
 
 	rdtgrp = dev_get_drvdata(dev);
 	if (mode)
