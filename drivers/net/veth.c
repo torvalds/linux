@@ -1119,13 +1119,9 @@ static void veth_disable_xdp_range(struct net_device *dev, int start, int end,
 
 static int veth_enable_xdp(struct net_device *dev)
 {
+	bool napi_already_on = veth_gro_requested(dev) && (dev->flags & IFF_UP);
 	struct veth_priv *priv = netdev_priv(dev);
-	bool napi_already_on;
-	struct veth_rq *rq;
 	int err, i;
-
-	rq = &priv->rq[0];
-	napi_already_on = rcu_access_pointer(rq->napi);
 
 	if (!xdp_rxq_info_is_reg(&priv->rq[0].xdp_rxq)) {
 		err = veth_enable_xdp_range(dev, 0, dev->real_num_rx_queues, napi_already_on);
@@ -1327,28 +1323,18 @@ revert:
 
 static int veth_open(struct net_device *dev)
 {
-	struct veth_priv *peer_priv, *priv = netdev_priv(dev);
+	struct veth_priv *priv = netdev_priv(dev);
 	struct net_device *peer = rtnl_dereference(priv->peer);
-	struct veth_rq *peer_rq;
 	int err;
 
 	if (!peer)
 		return -ENOTCONN;
 
-	peer_priv = netdev_priv(peer);
-	peer_rq = &peer_priv->rq[0];
-
 	if (priv->_xdp_prog) {
 		err = veth_enable_xdp(dev);
 		if (err)
 			return err;
-		/* refer to the logic in veth_xdp_set() */
-		if (!rtnl_dereference(peer_rq->napi)) {
-			err = veth_napi_enable(peer);
-			if (err)
-				return err;
-		}
-	} else if (veth_gro_requested(dev) || peer_priv->_xdp_prog) {
+	} else if (veth_gro_requested(dev)) {
 		err = veth_napi_enable(dev);
 		if (err)
 			return err;
@@ -1364,29 +1350,17 @@ static int veth_open(struct net_device *dev)
 
 static int veth_close(struct net_device *dev)
 {
-	struct veth_priv *peer_priv, *priv = netdev_priv(dev);
+	struct veth_priv *priv = netdev_priv(dev);
 	struct net_device *peer = rtnl_dereference(priv->peer);
-	struct veth_rq *peer_rq;
 
 	netif_carrier_off(dev);
-	if (peer) {
-		peer_priv = netdev_priv(peer);
-		peer_rq = &peer_priv->rq[0];
-	}
-
-	if (priv->_xdp_prog) {
-		veth_disable_xdp(dev);
-		/* refer to the logic in veth_xdp_set */
-		if (peer && rtnl_dereference(peer_rq->napi)) {
-			if (!veth_gro_requested(peer) && !peer_priv->_xdp_prog)
-				veth_napi_del(peer);
-		}
-	} else if (veth_gro_requested(dev) || (peer && peer_priv->_xdp_prog)) {
-		veth_napi_del(dev);
-	}
-
 	if (peer)
 		netif_carrier_off(peer);
+
+	if (priv->_xdp_prog)
+		veth_disable_xdp(dev);
+	else if (veth_gro_requested(dev))
+		veth_napi_del(dev);
 
 	return 0;
 }
@@ -1496,21 +1470,17 @@ static int veth_set_features(struct net_device *dev,
 {
 	netdev_features_t changed = features ^ dev->features;
 	struct veth_priv *priv = netdev_priv(dev);
-	struct veth_rq *rq = &priv->rq[0];
 	int err;
 
 	if (!(changed & NETIF_F_GRO) || !(dev->flags & IFF_UP) || priv->_xdp_prog)
 		return 0;
 
 	if (features & NETIF_F_GRO) {
-		if (!rtnl_dereference(rq->napi)) {
-			err = veth_napi_enable(dev);
-			if (err)
-				return err;
-		}
+		err = veth_napi_enable(dev);
+		if (err)
+			return err;
 	} else {
-		if (rtnl_dereference(rq->napi))
-			veth_napi_del(dev);
+		veth_napi_del(dev);
 	}
 	return 0;
 }
@@ -1542,19 +1512,14 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 			struct netlink_ext_ack *extack)
 {
 	struct veth_priv *priv = netdev_priv(dev);
-	struct veth_priv *peer_priv;
 	struct bpf_prog *old_prog;
-	struct veth_rq *peer_rq;
 	struct net_device *peer;
-	bool napi_already_off;
 	unsigned int max_mtu;
-	bool noreq_napi;
 	int err;
 
 	old_prog = priv->_xdp_prog;
 	priv->_xdp_prog = prog;
 	peer = rtnl_dereference(priv->peer);
-	peer_priv = netdev_priv(peer);
 
 	if (prog) {
 		if (!peer) {
@@ -1591,24 +1556,6 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 			}
 		}
 
-		if (peer && (peer->flags & IFF_UP)) {
-			peer_rq = &peer_priv->rq[0];
-
-			/* If the peer hasn't enabled GRO and loaded xdp,
-			 * then we enable napi automatically if its napi
-			 * is not ready.
-			 */
-			napi_already_off = !rtnl_dereference(peer_rq->napi);
-			if (napi_already_off) {
-				err = veth_napi_enable(peer);
-				if (err) {
-					NL_SET_ERR_MSG_MOD(extack,
-							   "Failed to automatically enable napi of peer");
-					goto err;
-				}
-			}
-		}
-
 		if (!old_prog) {
 			peer->hw_features &= ~NETIF_F_GSO_SOFTWARE;
 			peer->max_mtu = max_mtu;
@@ -1623,17 +1570,6 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 			if (peer) {
 				peer->hw_features |= NETIF_F_GSO_SOFTWARE;
 				peer->max_mtu = ETH_MAX_MTU;
-				peer_rq = &peer_priv->rq[0];
-
-				/* If the peer doesn't has its xdp and enabled
-				 * GRO, then we disable napi if its napi is ready;
-				 */
-				if (rtnl_dereference(peer_rq->napi)) {
-					noreq_napi = !veth_gro_requested(peer) &&
-						     !peer_priv->_xdp_prog;
-					if (noreq_napi && (peer->flags & IFF_UP))
-						veth_napi_del(peer);
-				}
 			}
 		}
 		bpf_prog_put(old_prog);
