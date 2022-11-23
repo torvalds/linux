@@ -360,8 +360,8 @@ static int vf_qm_check_match(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 	u32 que_iso_state;
 	int ret;
 
-	if (migf->total_length < QM_MATCH_SIZE)
-		return -EINVAL;
+	if (migf->total_length < QM_MATCH_SIZE || hisi_acc_vdev->match_done)
+		return 0;
 
 	if (vf_data->acc_magic != ACC_DEV_MAGIC) {
 		dev_err(dev, "failed to match ACC_DEV_MAGIC\n");
@@ -406,6 +406,7 @@ static int vf_qm_check_match(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 	}
 
 	hisi_acc_vdev->vf_qm_state = vf_data->vf_qm_state;
+	hisi_acc_vdev->match_done = true;
 	return 0;
 }
 
@@ -492,10 +493,6 @@ static int vf_qm_state_save(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 	struct hisi_qm *vf_qm = &hisi_acc_vdev->vf_qm;
 	struct device *dev = &vf_qm->pdev->dev;
 	int ret;
-
-	ret = vf_qm_get_match_data(hisi_acc_vdev, vf_data);
-	if (ret)
-		return ret;
 
 	if (unlikely(qm_wait_dev_not_ready(vf_qm))) {
 		/* Update state and return with match data */
@@ -673,12 +670,6 @@ static int hisi_acc_vf_load_state(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 	struct hisi_acc_vf_migration_file *migf = hisi_acc_vdev->resuming_migf;
 	int ret;
 
-	/* Check dev compatibility */
-	ret = vf_qm_check_match(hisi_acc_vdev, migf);
-	if (ret) {
-		dev_err(dev, "failed to match the VF!\n");
-		return ret;
-	}
 	/* Recover data to VF */
 	ret = vf_qm_load_data(hisi_acc_vdev, migf);
 	if (ret) {
@@ -732,6 +723,10 @@ static ssize_t hisi_acc_vf_resume_write(struct file *filp, const char __user *bu
 	*pos += len;
 	done = len;
 	migf->total_length += len;
+
+	ret = vf_qm_check_match(migf->hisi_acc_vdev, migf);
+	if (ret)
+		done = -EFAULT;
 out_unlock:
 	mutex_unlock(&migf->lock);
 	return done;

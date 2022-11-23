@@ -98,6 +98,7 @@ struct hisi_acc_vf_migration_file {
 
 struct hisi_acc_vf_core_device {
 	struct vfio_pci_core_device core_device;
+	u8 match_done:1;
 	u8 deferred_reset:1;
 	/* For migration state */
 	struct mutex state_mutex;
