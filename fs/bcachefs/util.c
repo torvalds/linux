@@ -319,8 +319,8 @@ static void bch2_quantiles_update(struct bch2_quantiles *q, u64 v)
 	}
 }
 
-static void bch2_time_stats_update_one(struct bch2_time_stats *stats,
-				       u64 start, u64 end)
+static inline void bch2_time_stats_update_one(struct bch2_time_stats *stats,
+					      u64 start, u64 end)
 {
 	u64 duration, freq;
 
@@ -343,6 +343,22 @@ static void bch2_time_stats_update_one(struct bch2_time_stats *stats,
 	}
 }
 
+static noinline void bch2_time_stats_clear_buffer(struct bch2_time_stats *stats,
+						  struct bch2_time_stat_buffer *b)
+{
+	struct bch2_time_stat_buffer_entry *i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&stats->lock, flags);
+	for (i = b->entries;
+	     i < b->entries + ARRAY_SIZE(b->entries);
+	     i++)
+		bch2_time_stats_update_one(stats, i->start, i->end);
+	spin_unlock_irqrestore(&stats->lock, flags);
+
+	b->nr = 0;
+}
+
 void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end)
 {
 	unsigned long flags;
@@ -362,7 +378,6 @@ void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end)
 						 GFP_ATOMIC);
 		spin_unlock_irqrestore(&stats->lock, flags);
 	} else {
-		struct bch2_time_stat_buffer_entry *i;
 		struct bch2_time_stat_buffer *b;
 
 		preempt_disable();
@@ -374,17 +389,8 @@ void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end)
 			.end = end
 		};
 
-		if (b->nr == ARRAY_SIZE(b->entries)) {
-			spin_lock_irqsave(&stats->lock, flags);
-			for (i = b->entries;
-			     i < b->entries + ARRAY_SIZE(b->entries);
-			     i++)
-				bch2_time_stats_update_one(stats, i->start, i->end);
-			spin_unlock_irqrestore(&stats->lock, flags);
-
-			b->nr = 0;
-		}
-
+		if (unlikely(b->nr == ARRAY_SIZE(b->entries)))
+			bch2_time_stats_clear_buffer(stats, b);
 		preempt_enable();
 	}
 }
