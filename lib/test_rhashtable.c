@@ -434,7 +434,7 @@ out_free:
 static int __init test_rhashtable_max(struct test_obj *array,
 				      unsigned int entries)
 {
-	unsigned int i, insert_retries = 0;
+	unsigned int i;
 	int err;
 
 	test_rht_params.max_size = roundup_pow_of_two(entries / 8);
@@ -447,9 +447,7 @@ static int __init test_rhashtable_max(struct test_obj *array,
 
 		obj->value.id = i * 2;
 		err = insert_retry(&ht, obj, test_rht_params);
-		if (err > 0)
-			insert_retries += err;
-		else if (err)
+		if (err < 0)
 			return err;
 	}
 
