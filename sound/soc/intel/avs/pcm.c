@@ -934,8 +934,11 @@ static int avs_component_pm_op(struct snd_soc_component *component, bool be,
 			rtd = snd_pcm_substream_chip(data->substream);
 			if (rtd->dai_link->no_pcm == be && !rtd->dai_link->ignore_suspend) {
 				ret = op(dai, data);
-				if (ret < 0)
+				if (ret < 0) {
+					__snd_pcm_set_state(data->substream->runtime,
+							    SNDRV_PCM_STATE_DISCONNECTED);
 					return ret;
+				}
 			}
 		}
 
@@ -944,8 +947,11 @@ static int avs_component_pm_op(struct snd_soc_component *component, bool be,
 			rtd = snd_pcm_substream_chip(data->substream);
 			if (rtd->dai_link->no_pcm == be && !rtd->dai_link->ignore_suspend) {
 				ret = op(dai, data);
-				if (ret < 0)
+				if (ret < 0) {
+					__snd_pcm_set_state(data->substream->runtime,
+							    SNDRV_PCM_STATE_DISCONNECTED);
 					return ret;
+				}
 			}
 		}
 	}
