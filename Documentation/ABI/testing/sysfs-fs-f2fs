@@ -647,3 +647,11 @@ Date:		October 2022
 Contact:	"Yangtao Li" <frank.li@vivo.com>
 Description:	Show the current gc_mode as a string.
 		This is a read-only entry.
+
+What:		/sys/fs/f2fs/<disk>/discard_urgent_util
+Date:		November 2022
+Contact:	"Yangtao Li" <frank.li@vivo.com>
+Description:	When space utilization exceeds this, do background DISCARD aggressively.
+		Does DISCARD forcibly in a period of given min_discard_issue_time when the number
+		of discards is not 0 and set discard granularity to 1.
+		Default: 80
