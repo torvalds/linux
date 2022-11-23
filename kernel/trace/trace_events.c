@@ -2261,8 +2261,6 @@ create_new_subsystem(const char *name)
 	if (!system->name)
 		goto out_free;
 
-	system->filter = NULL;
-
 	system->filter = kzalloc(sizeof(struct event_filter), GFP_KERNEL);
 	if (!system->filter)
 		goto out_free;
