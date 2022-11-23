@@ -418,7 +418,8 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		return -EIO;
 	}
 
-	iwl_mei_alive_notif(!ret);
+	/* if reached this point, Alive notification was received */
+	iwl_mei_alive_notif(true);
 
 	ret = iwl_pnvm_load(mvm->trans, &mvm->notif_wait);
 	if (ret) {
