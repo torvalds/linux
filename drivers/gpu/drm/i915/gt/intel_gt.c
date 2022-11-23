@@ -218,21 +218,6 @@ out:
 	return ret;
 }
 
-static void rmw_set(struct intel_uncore *uncore, i915_reg_t reg, u32 set)
-{
-	intel_uncore_rmw(uncore, reg, 0, set);
-}
-
-static void rmw_clear(struct intel_uncore *uncore, i915_reg_t reg, u32 clr)
-{
-	intel_uncore_rmw(uncore, reg, clr, 0);
-}
-
-static void clear_register(struct intel_uncore *uncore, i915_reg_t reg)
-{
-	intel_uncore_rmw(uncore, reg, 0, 0);
-}
-
 static void gen6_clear_engine_error_register(struct intel_engine_cs *engine)
 {
 	GEN6_RING_FAULT_REG_RMW(engine, RING_FAULT_VALID, 0);
@@ -258,14 +243,14 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 	u32 eir;
 
 	if (GRAPHICS_VER(i915) != 2)
-		clear_register(uncore, PGTBL_ER);
+		intel_uncore_write(uncore, PGTBL_ER, 0);
 
 	if (GRAPHICS_VER(i915) < 4)
-		clear_register(uncore, IPEIR(RENDER_RING_BASE));
+		intel_uncore_write(uncore, IPEIR(RENDER_RING_BASE), 0);
 	else
-		clear_register(uncore, IPEIR_I965);
+		intel_uncore_write(uncore, IPEIR_I965, 0);
 
-	clear_register(uncore, EIR);
+	intel_uncore_write(uncore, EIR, 0);
 	eir = intel_uncore_read(uncore, EIR);
 	if (eir) {
 		/*
@@ -273,7 +258,7 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 		 * mask them.
 		 */
 		drm_dbg(&gt->i915->drm, "EIR stuck: 0x%08x, masking\n", eir);
-		rmw_set(uncore, EMR, eir);
+		intel_uncore_rmw(uncore, EMR, 0, eir);
 		intel_uncore_write(uncore, GEN2_IIR,
 				   I915_MASTER_ERROR_INTERRUPT);
 	}
@@ -283,10 +268,10 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 					   RING_FAULT_VALID, 0);
 		intel_gt_mcr_read_any(gt, XEHP_RING_FAULT_REG);
 	} else if (GRAPHICS_VER(i915) >= 12) {
-		rmw_clear(uncore, GEN12_RING_FAULT_REG, RING_FAULT_VALID);
+		intel_uncore_rmw(uncore, GEN12_RING_FAULT_REG, RING_FAULT_VALID, 0);
 		intel_uncore_posting_read(uncore, GEN12_RING_FAULT_REG);
 	} else if (GRAPHICS_VER(i915) >= 8) {
-		rmw_clear(uncore, GEN8_RING_FAULT_REG, RING_FAULT_VALID);
+		intel_uncore_rmw(uncore, GEN8_RING_FAULT_REG, RING_FAULT_VALID, 0);
 		intel_uncore_posting_read(uncore, GEN8_RING_FAULT_REG);
 	} else if (GRAPHICS_VER(i915) >= 6) {
 		struct intel_engine_cs *engine;
