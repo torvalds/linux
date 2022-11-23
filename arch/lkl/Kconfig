@@ -116,3 +116,11 @@ config KASAN_SHADOW_SIZE
        default "0"
 endif
 
+config BUILTIN_CMDLINE
+	string "Built-in kernel command string"
+	default ""
+	help
+	  Enter arguments here that should be compiled into the kernel
+	  image and used at boot time. The command line provided to
+	  lkl_start_kernel is appended to this string to form the full
+	  command line.
