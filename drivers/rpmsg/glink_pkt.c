@@ -17,6 +17,8 @@
 #include <linux/uaccess.h>
 #include <linux/termios.h>
 
+#include "qcom_glink_native.h"
+
 /* Define IPC Logging Macros */
 #define GLINK_PKT_IPC_LOG_PAGE_CNT 2
 static void *glink_pkt_ilctxt;
@@ -132,22 +134,6 @@ static ssize_t open_timeout_show(struct device *dev,
 
 static DEVICE_ATTR_RW(open_timeout);
 
-static int glink_pkt_rpdev_probe(struct rpmsg_device *rpdev)
-{
-	struct device_driver *drv = rpdev->dev.driver;
-	struct rpmsg_driver *rpdrv = drv_to_rpdrv(drv);
-	struct glink_pkt_device *gpdev = rpdrv_to_gpdev(rpdrv);
-
-	mutex_lock(&gpdev->lock);
-	gpdev->rpdev = rpdev;
-	mutex_unlock(&gpdev->lock);
-
-	dev_set_drvdata(&rpdev->dev, gpdev);
-	complete_all(&gpdev->ch_open);
-
-	return 0;
-}
-
 static int glink_pkt_rpdev_cb(struct rpmsg_device *rpdev, void *buf, int len,
 			      void *priv, u32 addr)
 {
@@ -190,6 +176,23 @@ static int glink_pkt_rpdev_sigs(struct rpmsg_device *rpdev, void *priv,
 
 	/* wake up any blocking processes, waiting for new data */
 	wake_up_interruptible(&gpdev->readq);
+
+	return 0;
+}
+
+static int glink_pkt_rpdev_probe(struct rpmsg_device *rpdev)
+{
+	struct device_driver *drv = rpdev->dev.driver;
+	struct rpmsg_driver *rpdrv = drv_to_rpdrv(drv);
+	struct glink_pkt_device *gpdev = rpdrv_to_gpdev(rpdrv);
+
+	mutex_lock(&gpdev->lock);
+	gpdev->rpdev = rpdev;
+	qcom_glink_register_signals_cb(rpdev->ept, glink_pkt_rpdev_sigs);
+	mutex_unlock(&gpdev->lock);
+
+	dev_set_drvdata(&rpdev->dev, gpdev);
+	complete_all(&gpdev->ch_open);
 
 	return 0;
 }
@@ -558,7 +561,7 @@ static int glink_pkt_tiocmset(struct glink_pkt_device *gpdev, unsigned int cmd,
 	clear &= TIOCM_DTR | TIOCM_RTS | TIOCM_CD | TIOCM_RI;
 	GLINK_PKT_INFO("set[0x%x] clear[0x%x]\n", set, clear);
 
-	return rpmsg_set_signals(gpdev->rpdev->ept, set, clear);
+	return qcom_glink_set_signals(gpdev->rpdev->ept, set, clear);
 }
 
 /**
@@ -598,7 +601,7 @@ static long glink_pkt_ioctl(struct file *file, unsigned int cmd,
 		gpdev->sig_change = false;
 		spin_unlock_irqrestore(&gpdev->queue_lock, flags);
 
-		ret = rpmsg_get_signals(gpdev->rpdev->ept);
+		ret = qcom_glink_get_signals(gpdev->rpdev->ept);
 		if (ret >= 0)
 			ret = put_user(ret, (int __user *)arg);
 		break;
@@ -727,7 +730,6 @@ static int glink_pkt_init_rpmsg(struct glink_pkt_device *gpdev)
 	rpdrv->probe = glink_pkt_rpdev_probe;
 	rpdrv->remove = glink_pkt_rpdev_remove;
 	rpdrv->callback = glink_pkt_rpdev_cb;
-	rpdrv->signals = glink_pkt_rpdev_sigs;
 	rpdrv->id_table = match;
 	rpdrv->drv.name = drv_name;
 

@@ -369,15 +369,6 @@ config QCOM_GLINK
 	  all the edges present in the device.
 	  Say M if you want to enable this module.
 
-config QCOM_GLINK_PKT
-	tristate "Enable device interface for GLINK packet channels"
-	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SLATECOM
-	help
-	  G-link packet driver provides the interface for the userspace
-	  clients to communicate over G-Link via device nodes.
-	  This enable the userspace clients to read and write to
-	  some glink packets channel.
-
 config QTI_PMIC_GLINK
 	tristate "Enable support for PMIC GLINK"
 	depends on RPMSG

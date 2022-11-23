@@ -6,6 +6,8 @@
 #ifndef __QCOM_GLINK_NATIVE_H__
 #define __QCOM_GLINK_NATIVE_H__
 
+#include <linux/rpmsg.h>
+
 #define GLINK_FEATURE_INTENT_REUSE	BIT(0)
 #define GLINK_FEATURE_MIGRATION		BIT(1)
 #define GLINK_FEATURE_TRACER_PKT	BIT(2)
@@ -38,4 +40,10 @@ int qcom_glink_native_start(struct qcom_glink *glink);
 void qcom_glink_native_remove(struct qcom_glink *glink);
 
 void qcom_glink_native_unregister(struct qcom_glink *glink);
+
+/* These operations are temporarily exposing signal interfaces */
+int qcom_glink_get_signals(struct rpmsg_endpoint *ept);
+int qcom_glink_set_signals(struct rpmsg_endpoint *ept, u32 set, u32 clear);
+int qcom_glink_register_signals_cb(struct rpmsg_endpoint *ept,
+	int (*signals_cb)(struct rpmsg_device *dev, void *priv, u32 old, u32 new));
 #endif
