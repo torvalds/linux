@@ -1483,7 +1483,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	sb_cfg = iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG);
 	mvm->pldr_sync = !(sb_cfg & SB_CFG_RESIDES_IN_OTP_MASK);
 	if (mvm->pldr_sync && iwl_mei_pldr_req())
-		return ret;
+		return -EBUSY;
 
 	ret = iwl_mvm_load_rt_fw(mvm);
 	if (ret) {
