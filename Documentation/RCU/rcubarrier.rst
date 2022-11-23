@@ -72,9 +72,9 @@ For example, if it uses call_rcu(), call_srcu() on srcu_struct_1, and
 call_srcu() on srcu_struct_2, then the following three lines of code
 will be required when unloading::
 
- 1 rcu_barrier();
- 2 srcu_barrier(&srcu_struct_1);
- 3 srcu_barrier(&srcu_struct_2);
+  1  rcu_barrier();
+  2  srcu_barrier(&srcu_struct_1);
+  3  srcu_barrier(&srcu_struct_2);
 
 If latency is of the essence, workqueues could be used to run these
 three functions concurrently.
@@ -82,69 +82,69 @@ three functions concurrently.
 An ancient version of the rcutorture module makes use of rcu_barrier()
 in its exit function as follows::
 
- 1  static void
- 2  rcu_torture_cleanup(void)
- 3  {
- 4    int i;
- 5
- 6    fullstop = 1;
- 7    if (shuffler_task != NULL) {
- 8     VERBOSE_PRINTK_STRING("Stopping rcu_torture_shuffle task");
- 9     kthread_stop(shuffler_task);
- 10   }
- 11   shuffler_task = NULL;
+  1  static void
+  2  rcu_torture_cleanup(void)
+  3  {
+  4    int i;
+  5
+  6    fullstop = 1;
+  7    if (shuffler_task != NULL) {
+  8      VERBOSE_PRINTK_STRING("Stopping rcu_torture_shuffle task");
+  9      kthread_stop(shuffler_task);
+ 10    }
+ 11    shuffler_task = NULL;
  12
- 13   if (writer_task != NULL) {
- 14     VERBOSE_PRINTK_STRING("Stopping rcu_torture_writer task");
- 15     kthread_stop(writer_task);
- 16   }
- 17   writer_task = NULL;
+ 13    if (writer_task != NULL) {
+ 14      VERBOSE_PRINTK_STRING("Stopping rcu_torture_writer task");
+ 15      kthread_stop(writer_task);
+ 16    }
+ 17    writer_task = NULL;
  18
- 19   if (reader_tasks != NULL) {
- 20     for (i = 0; i < nrealreaders; i++) {
- 21       if (reader_tasks[i] != NULL) {
- 22         VERBOSE_PRINTK_STRING(
- 23           "Stopping rcu_torture_reader task");
- 24         kthread_stop(reader_tasks[i]);
- 25       }
- 26       reader_tasks[i] = NULL;
- 27     }
- 28     kfree(reader_tasks);
- 29     reader_tasks = NULL;
- 30   }
- 31   rcu_torture_current = NULL;
+ 19    if (reader_tasks != NULL) {
+ 20      for (i = 0; i < nrealreaders; i++) {
+ 21        if (reader_tasks[i] != NULL) {
+ 22          VERBOSE_PRINTK_STRING(
+ 23            "Stopping rcu_torture_reader task");
+ 24          kthread_stop(reader_tasks[i]);
+ 25        }
+ 26        reader_tasks[i] = NULL;
+ 27      }
+ 28      kfree(reader_tasks);
+ 29      reader_tasks = NULL;
+ 30    }
+ 31    rcu_torture_current = NULL;
  32
- 33   if (fakewriter_tasks != NULL) {
- 34     for (i = 0; i < nfakewriters; i++) {
- 35       if (fakewriter_tasks[i] != NULL) {
- 36         VERBOSE_PRINTK_STRING(
- 37           "Stopping rcu_torture_fakewriter task");
- 38         kthread_stop(fakewriter_tasks[i]);
- 39       }
- 40       fakewriter_tasks[i] = NULL;
- 41     }
- 42     kfree(fakewriter_tasks);
- 43     fakewriter_tasks = NULL;
- 44   }
+ 33    if (fakewriter_tasks != NULL) {
+ 34      for (i = 0; i < nfakewriters; i++) {
+ 35        if (fakewriter_tasks[i] != NULL) {
+ 36          VERBOSE_PRINTK_STRING(
+ 37            "Stopping rcu_torture_fakewriter task");
+ 38          kthread_stop(fakewriter_tasks[i]);
+ 39        }
+ 40        fakewriter_tasks[i] = NULL;
+ 41      }
+ 42      kfree(fakewriter_tasks);
+ 43      fakewriter_tasks = NULL;
+ 44    }
  45
- 46   if (stats_task != NULL) {
- 47     VERBOSE_PRINTK_STRING("Stopping rcu_torture_stats task");
- 48     kthread_stop(stats_task);
- 49   }
- 50   stats_task = NULL;
+ 46    if (stats_task != NULL) {
+ 47      VERBOSE_PRINTK_STRING("Stopping rcu_torture_stats task");
+ 48      kthread_stop(stats_task);
+ 49    }
+ 50    stats_task = NULL;
  51
- 52   /* Wait for all RCU callbacks to fire. */
- 53   rcu_barrier();
+ 52    /* Wait for all RCU callbacks to fire. */
+ 53    rcu_barrier();
  54
- 55   rcu_torture_stats_print(); /* -After- the stats thread is stopped! */
+ 55    rcu_torture_stats_print(); /* -After- the stats thread is stopped! */
  56
- 57   if (cur_ops->cleanup != NULL)
- 58     cur_ops->cleanup();
- 59   if (atomic_read(&n_rcu_torture_error))
- 60     rcu_torture_print_module_parms("End of test: FAILURE");
- 61   else
- 62     rcu_torture_print_module_parms("End of test: SUCCESS");
- 63 }
+ 57    if (cur_ops->cleanup != NULL)
+ 58      cur_ops->cleanup();
+ 59    if (atomic_read(&n_rcu_torture_error))
+ 60      rcu_torture_print_module_parms("End of test: FAILURE");
+ 61    else
+ 62      rcu_torture_print_module_parms("End of test: SUCCESS");
+ 63  }
 
 Line 6 sets a global variable that prevents any RCU callbacks from
 re-posting themselves. This will not be necessary in most cases, since
@@ -193,16 +193,16 @@ which point, all earlier RCU callbacks are guaranteed to have completed.
 
 The original code for rcu_barrier() was roughly as follows::
 
- 1   void rcu_barrier(void)
- 2   {
- 3     BUG_ON(in_interrupt());
- 4     /* Take cpucontrol mutex to protect against CPU hotplug */
- 5     mutex_lock(&rcu_barrier_mutex);
- 6     init_completion(&rcu_barrier_completion);
- 7     atomic_set(&rcu_barrier_cpu_count, 1);
- 8     on_each_cpu(rcu_barrier_func, NULL, 0, 1);
- 9     if (atomic_dec_and_test(&rcu_barrier_cpu_count))
- 10       complete(&rcu_barrier_completion);
+  1  void rcu_barrier(void)
+  2  {
+  3    BUG_ON(in_interrupt());
+  4    /* Take cpucontrol mutex to protect against CPU hotplug */
+  5    mutex_lock(&rcu_barrier_mutex);
+  6    init_completion(&rcu_barrier_completion);
+  7    atomic_set(&rcu_barrier_cpu_count, 1);
+  8    on_each_cpu(rcu_barrier_func, NULL, 0, 1);
+  9    if (atomic_dec_and_test(&rcu_barrier_cpu_count))
+ 10      complete(&rcu_barrier_completion);
  11    wait_for_completion(&rcu_barrier_completion);
  12    mutex_unlock(&rcu_barrier_mutex);
  13  }
@@ -232,16 +232,16 @@ still gives the general idea.
 The rcu_barrier_func() runs on each CPU, where it invokes call_rcu()
 to post an RCU callback, as follows::
 
- 1  static void rcu_barrier_func(void *notused)
- 2  {
- 3    int cpu = smp_processor_id();
- 4    struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
- 5    struct rcu_head *head;
- 6
- 7    head = &rdp->barrier;
- 8    atomic_inc(&rcu_barrier_cpu_count);
- 9    call_rcu(head, rcu_barrier_callback);
- 10 }
+  1  static void rcu_barrier_func(void *notused)
+  2  {
+  3    int cpu = smp_processor_id();
+  4    struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
+  5    struct rcu_head *head;
+  6
+  7    head = &rdp->barrier;
+  8    atomic_inc(&rcu_barrier_cpu_count);
+  9    call_rcu(head, rcu_barrier_callback);
+ 10  }
 
 Lines 3 and 4 locate RCU's internal per-CPU rcu_data structure,
 which contains the struct rcu_head that needed for the later call to
@@ -254,11 +254,11 @@ The rcu_barrier_callback() function simply atomically decrements the
 rcu_barrier_cpu_count variable and finalizes the completion when it
 reaches zero, as follows::
 
- 1 static void rcu_barrier_callback(struct rcu_head *notused)
- 2 {
- 3   if (atomic_dec_and_test(&rcu_barrier_cpu_count))
- 4     complete(&rcu_barrier_completion);
- 5 }
+  1  static void rcu_barrier_callback(struct rcu_head *notused)
+  2  {
+  3    if (atomic_dec_and_test(&rcu_barrier_cpu_count))
+  4      complete(&rcu_barrier_completion);
+  5  }
 
 .. _rcubarrier_quiz_3:
 
