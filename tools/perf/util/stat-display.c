@@ -281,19 +281,19 @@ static void print_aggr_id_json(struct perf_stat_config *config,
 
 	switch (config->aggr_mode) {
 	case AGGR_CORE:
-		fprintf(output, "\"core\" : \"S%d-D%d-C%d\", \"aggregate-number\" : %d, ",
+		fprintf(output, "\"core\" : \"S%d-D%d-C%d\", \"cpu-count\" : %d, ",
 			id.socket, id.die, id.core, nr);
 		break;
 	case AGGR_DIE:
-		fprintf(output, "\"die\" : \"S%d-D%d\", \"aggregate-number\" : %d, ",
+		fprintf(output, "\"die\" : \"S%d-D%d\", \"cpu-count\" : %d, ",
 			id.socket, id.die, nr);
 		break;
 	case AGGR_SOCKET:
-		fprintf(output, "\"socket\" : \"S%d\", \"aggregate-number\" : %d, ",
+		fprintf(output, "\"socket\" : \"S%d\", \"cpu-count\" : %d, ",
 			id.socket, nr);
 		break;
 	case AGGR_NODE:
-		fprintf(output, "\"node\" : \"N%d\", \"aggregate-number\" : %d, ",
+		fprintf(output, "\"node\" : \"N%d\", \"cpu-count\" : %d, ",
 			id.node, nr);
 		break;
 	case AGGR_NONE:
