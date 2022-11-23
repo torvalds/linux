@@ -532,6 +532,8 @@ static void print_metric_only_json(struct perf_stat_config *config __maybe_unuse
 	while (isdigit(*ends) || *ends == '.')
 		ends++;
 	*ends = 0;
+	if (!unit[0] || !vals[0])
+		return;
 	fprintf(out, "%s\"%s\" : \"%s\"", os->first ? "" : ", ", unit, vals);
 	os->first = false;
 }
@@ -864,14 +866,19 @@ static void print_metric_begin(struct perf_stat_config *config,
 	print_cgroup(config, os->cgrp ? : evsel->cgrp);
 }
 
-static void print_metric_end(struct perf_stat_config *config)
+static void print_metric_end(struct perf_stat_config *config, struct outstate *os)
 {
+	FILE *output = config->output;
+
 	if (!config->metric_only)
 		return;
 
-	if (config->json_output)
-		fputc('}', config->output);
-	fputc('\n', config->output);
+	if (config->json_output) {
+		if (os->first)
+			fputs("\"metric-value\" : \"none\"", output);
+		fputc('}', output);
+	}
+	fputc('\n', output);
 }
 
 static void print_aggr(struct perf_stat_config *config,
@@ -897,7 +904,7 @@ static void print_aggr(struct perf_stat_config *config,
 
 			print_counter_aggrdata(config, counter, s, os);
 		}
-		print_metric_end(config);
+		print_metric_end(config, os);
 	}
 }
 
@@ -929,7 +936,7 @@ static void print_aggr_cgroup(struct perf_stat_config *config,
 
 				print_counter_aggrdata(config, counter, s, os);
 			}
-			print_metric_end(config);
+			print_metric_end(config, os);
 		}
 	}
 }
@@ -985,7 +992,7 @@ static void print_no_aggr_metric(struct perf_stat_config *config,
 			printout(config, os, uval, run, ena, 1.0, counter_idx);
 		}
 		if (!first)
-			print_metric_end(config);
+			print_metric_end(config, os);
 	}
 }
 
@@ -1348,7 +1355,7 @@ static void print_cgroup_counter(struct perf_stat_config *config, struct evlist 
 	evlist__for_each_entry(evlist, counter) {
 		if (os->cgrp != counter->cgrp) {
 			if (os->cgrp != NULL)
-				print_metric_end(config);
+				print_metric_end(config, os);
 
 			os->cgrp = counter->cgrp;
 			print_metric_begin(config, evlist, os, /*aggr_idx=*/0);
@@ -1357,7 +1364,7 @@ static void print_cgroup_counter(struct perf_stat_config *config, struct evlist 
 		print_counter(config, counter, os);
 	}
 	if (os->cgrp)
-		print_metric_end(config);
+		print_metric_end(config, os);
 }
 
 void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *config,
@@ -1405,7 +1412,7 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 			evlist__for_each_entry(evlist, counter) {
 				print_counter(config, counter, &os);
 			}
-			print_metric_end(config);
+			print_metric_end(config, &os);
 		}
 		break;
 	case AGGR_NONE:
