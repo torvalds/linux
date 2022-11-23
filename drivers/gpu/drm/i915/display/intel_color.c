@@ -1212,7 +1212,7 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 	case GAMMA_MODE_MODE_8BIT:
 		ilk_load_lut_8(crtc, post_csc_lut);
 		break;
-	case GAMMA_MODE_MODE_12BIT_MULTI_SEGMENTED:
+	case GAMMA_MODE_MODE_12BIT_MULTI_SEG:
 		icl_program_gamma_superfine_segment(crtc_state);
 		icl_program_gamma_multi_segment(crtc_state);
 		ivb_load_lut_ext_max(crtc_state);
@@ -2091,7 +2091,7 @@ static u32 icl_gamma_mode(const struct intel_crtc_state *crtc_state)
 	else if (DISPLAY_VER(i915) >= 13)
 		gamma_mode |= GAMMA_MODE_MODE_10BIT;
 	else
-		gamma_mode |= GAMMA_MODE_MODE_12BIT_MULTI_SEGMENTED;
+		gamma_mode |= GAMMA_MODE_MODE_12BIT_MULTI_SEG;
 
 	return gamma_mode;
 }
@@ -2283,7 +2283,7 @@ static int icl_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 		return 8;
 	case GAMMA_MODE_MODE_10BIT:
 		return 10;
-	case GAMMA_MODE_MODE_12BIT_MULTI_SEGMENTED:
+	case GAMMA_MODE_MODE_12BIT_MULTI_SEG:
 		return 16;
 	default:
 		MISSING_CASE(crtc_state->gamma_mode);
@@ -2455,7 +2455,7 @@ static bool icl_lut_equal(const struct intel_crtc_state *crtc_state,
 
 	/* hw readout broken except for the super fine segment :( */
 	if ((crtc_state->gamma_mode & GAMMA_MODE_MODE_MASK) ==
-	    GAMMA_MODE_MODE_12BIT_MULTI_SEGMENTED)
+	    GAMMA_MODE_MODE_12BIT_MULTI_SEG)
 		check_size = 9;
 
 	return intel_lut_equal(blob1, blob2, check_size,
@@ -2971,7 +2971,7 @@ static void icl_read_luts(struct intel_crtc_state *crtc_state)
 	case GAMMA_MODE_MODE_10BIT:
 		crtc_state->post_csc_lut = bdw_read_lut_10(crtc, PAL_PREC_INDEX_VALUE(0));
 		break;
-	case GAMMA_MODE_MODE_12BIT_MULTI_SEGMENTED:
+	case GAMMA_MODE_MODE_12BIT_MULTI_SEG:
 		crtc_state->post_csc_lut = icl_read_lut_multi_segment(crtc);
 		break;
 	default:
