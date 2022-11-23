@@ -1073,23 +1073,23 @@ static void print_metric_headers(struct perf_stat_config *config,
 }
 
 static void prepare_interval(struct perf_stat_config *config,
-			     char *prefix, struct timespec *ts)
+			     char *prefix, size_t len, struct timespec *ts)
 {
 	if (config->iostat_run)
 		return;
 
 	if (config->csv_output)
-		sprintf(prefix, "%lu.%09lu%s", (unsigned long) ts->tv_sec,
-				 ts->tv_nsec, config->csv_sep);
+		scnprintf(prefix, len, "%lu.%09lu%s",
+			  (unsigned long) ts->tv_sec, ts->tv_nsec, config->csv_sep);
 	else if (!config->json_output)
-		sprintf(prefix, "%6lu.%09lu ", (unsigned long) ts->tv_sec,
-				 ts->tv_nsec);
+		scnprintf(prefix, len, "%6lu.%09lu ",
+			  (unsigned long) ts->tv_sec, ts->tv_nsec);
 	else if (!config->metric_only)
-		sprintf(prefix, "{\"interval\" : %lu.%09lu, ", (unsigned long)
-				 ts->tv_sec, ts->tv_nsec);
+		scnprintf(prefix, len, "{\"interval\" : %lu.%09lu, ",
+			  (unsigned long) ts->tv_sec, ts->tv_nsec);
 	else
-		sprintf(prefix, "{\"interval\" : %lu.%09lu}", (unsigned long)
-				 ts->tv_sec, ts->tv_nsec);
+		scnprintf(prefix, len, "{\"interval\" : %lu.%09lu}",
+			  (unsigned long) ts->tv_sec, ts->tv_nsec);
 }
 
 static void print_header_interval_std(struct perf_stat_config *config,
@@ -1390,7 +1390,7 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 
 	if (interval) {
 		prefix = buf;
-		prepare_interval(config, prefix, ts);
+		prepare_interval(config, buf, sizeof(buf), ts);
 	}
 
 	print_header(config, _target, evlist, argc, argv);
