@@ -73,10 +73,9 @@ static void liteuart_timer(struct timer_list *t)
 	struct liteuart_port *uart = from_timer(uart, t, timer);
 	struct uart_port *port = &uart->port;
 	unsigned char __iomem *membase = port->membase;
-	int ch;
-	unsigned long status;
+	u8 ch;
 
-	while ((status = !litex_read8(membase + OFF_RXEMPTY)) == 1) {
+	while (!litex_read8(membase + OFF_RXEMPTY)) {
 		ch = litex_read8(membase + OFF_RXTX);
 		port->icount.rx++;
 
@@ -85,7 +84,7 @@ static void liteuart_timer(struct timer_list *t)
 
 		/* no overflow bits in status */
 		if (!(uart_handle_sysrq_char(port, ch)))
-			uart_insert_char(port, status, 0, ch, TTY_NORMAL);
+			uart_insert_char(port, 1, 0, ch, TTY_NORMAL);
 	}
 
 	tty_flip_buffer_push(&port->state->port);
