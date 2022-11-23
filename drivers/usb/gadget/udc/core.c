@@ -1723,9 +1723,9 @@ static const struct attribute_group *usb_udc_attr_groups[] = {
 	NULL,
 };
 
-static int usb_udc_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int usb_udc_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
+	const struct usb_udc	*udc = container_of(dev, struct usb_udc, dev);
 	int			ret;
 
 	ret = add_uevent_var(env, "USB_UDC_NAME=%s", udc->gadget->name);

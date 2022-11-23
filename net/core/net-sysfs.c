@@ -1873,9 +1873,9 @@ const struct kobj_ns_type_operations net_ns_type_operations = {
 };
 EXPORT_SYMBOL_GPL(net_ns_type_operations);
 
-static int netdev_uevent(struct device *d, struct kobj_uevent_env *env)
+static int netdev_uevent(const struct device *d, struct kobj_uevent_env *env)
 {
-	struct net_device *dev = to_net_dev(d);
+	const struct net_device *dev = to_net_dev(d);
 	int retval;
 
 	/* pass interface to uevent. */

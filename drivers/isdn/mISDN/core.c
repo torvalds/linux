@@ -139,9 +139,9 @@ static struct attribute *mISDN_attrs[] = {
 };
 ATTRIBUTE_GROUPS(mISDN);
 
-static int mISDN_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int mISDN_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct mISDNdevice *mdev = dev_to_mISDN(dev);
+	const struct mISDNdevice *mdev = dev_to_mISDN(dev);
 
 	if (!mdev)
 		return 0;

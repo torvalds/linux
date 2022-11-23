@@ -81,7 +81,7 @@ struct fw_sysfs {
 	void *fw_upload_priv;
 };
 
-static inline struct fw_sysfs *to_fw_sysfs(struct device *dev)
+static inline struct fw_sysfs *to_fw_sysfs(const struct device *dev)
 {
 	return container_of(dev, struct fw_sysfs, dev);
 }

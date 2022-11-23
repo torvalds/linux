@@ -64,7 +64,7 @@ static struct attribute *firmware_class_attrs[] = {
 };
 ATTRIBUTE_GROUPS(firmware_class);
 
-static int do_firmware_uevent(struct fw_sysfs *fw_sysfs, struct kobj_uevent_env *env)
+static int do_firmware_uevent(const struct fw_sysfs *fw_sysfs, struct kobj_uevent_env *env)
 {
 	if (add_uevent_var(env, "FIRMWARE=%s", fw_sysfs->fw_priv->fw_name))
 		return -ENOMEM;
@@ -76,9 +76,9 @@ static int do_firmware_uevent(struct fw_sysfs *fw_sysfs, struct kobj_uevent_env 
 	return 0;
 }
 
-static int firmware_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int firmware_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct fw_sysfs *fw_sysfs = to_fw_sysfs(dev);
+	const struct fw_sysfs *fw_sysfs = to_fw_sysfs(dev);
 	int err = 0;
 
 	mutex_lock(&fw_lock);
