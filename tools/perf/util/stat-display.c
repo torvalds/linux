@@ -175,7 +175,7 @@ static void print_cgroup(struct perf_stat_config *config, struct cgroup *cgrp)
 
 		if (config->json_output)
 			print_cgroup_json(config, cgrp_name);
-		if (config->csv_output)
+		else if (config->csv_output)
 			print_cgroup_csv(config, cgrp_name);
 		else
 			print_cgroup_std(config, cgrp_name);
