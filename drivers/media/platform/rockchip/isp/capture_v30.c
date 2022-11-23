@@ -917,7 +917,7 @@ static void stream_self_update(struct rkisp_stream *stream)
 		return;
 	}
 
-	rkisp_unite_set_bits(dev, ISP3X_MI_WR_XTD_FORMAT_CTRL, mask, val, false, is_unite);
+	rkisp_unite_set_bits(dev, ISP3X_MI_WR_CTRL2, mask, val, false, is_unite);
 }
 
 static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
