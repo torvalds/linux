@@ -184,6 +184,13 @@ enum mt7915_chan_mib_offs {
 	MIB_NON_WIFI_TIME_V2
 };
 
+struct mt7915_mcu_txpower_sku {
+	u8 format_id;
+	u8 limit_type;
+	u8 band_idx;
+	s8 txpower_sku[MT7915_SKU_RATE_NUM];
+} __packed;
+
 struct edca {
 	u8 queue;
 	u8 set;

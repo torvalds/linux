@@ -957,48 +957,198 @@ mt7915_xmit_queues_show(struct seq_file *file, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(mt7915_xmit_queues);
 
-static int
-mt7915_rate_txpower_show(struct seq_file *file, void *data)
-{
-	static const char * const sku_group_name[] = {
-		"CCK", "OFDM", "HT20", "HT40",
-		"VHT20", "VHT40", "VHT80", "VHT160",
-		"RU26", "RU52", "RU106", "RU242/SU20",
-		"RU484/SU40", "RU996/SU80", "RU2x996/SU160"
-	};
-	struct mt7915_phy *phy = file->private;
-	struct mt7915_dev *dev = phy->dev;
-	s8 txpower[MT7915_SKU_RATE_NUM], *buf;
-	u32 reg;
-	int i, ret;
+#define mt7915_txpower_puts(prefix, rate)					\
+({										\
+	len += scnprintf(buf + len, sz - len, "%-16s:", #prefix " (tmac)");	\
+	for (i = 0; i < mt7915_sku_group_len[rate]; i++, offs++)		\
+		len += scnprintf(buf + len, sz - len, " %6d", txpwr[offs]);	\
+	len += scnprintf(buf + len, sz - len, "\n");				\
+})
 
-	ret = mt7915_mcu_get_txpower_sku(phy, txpower, sizeof(txpower));
+#define mt7915_txpower_sets(rate, pwr, flag)			\
+({								\
+	offs += len;						\
+	len = mt7915_sku_group_len[rate];			\
+	if (mode == flag) {					\
+		for (i = 0; i < len; i++)			\
+			req.txpower_sku[offs + i] = pwr;	\
+	}							\
+})
+
+static ssize_t
+mt7915_rate_txpower_get(struct file *file, char __user *user_buf,
+			size_t count, loff_t *ppos)
+{
+	struct mt7915_phy *phy = file->private_data;
+	struct mt7915_dev *dev = phy->dev;
+	s8 txpwr[MT7915_SKU_RATE_NUM];
+	static const size_t sz = 2048;
+	int i, offs = 0, len = 0;
+	ssize_t ret;
+	char *buf;
+	u32 reg;
+
+	buf = kzalloc(sz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = mt7915_mcu_get_txpower_sku(phy, txpwr, sizeof(txpwr));
 	if (ret)
 		return ret;
 
 	/* Txpower propagation path: TMAC -> TXV -> BBP */
-	seq_printf(file, "\nPhy %d\n", phy != &dev->phy);
+	len += scnprintf(buf + len, sz - len,
+			 "\nPhy%d Tx power table (channel %d)\n",
+			 phy != &dev->phy, phy->mt76->chandef.chan->hw_value);
+	len += scnprintf(buf + len, sz - len, "%-16s  %6s %6s %6s %6s\n",
+			 " ", "1m", "2m", "5m", "11m");
+	mt7915_txpower_puts(CCK, SKU_CCK);
 
-	for (i = 0, buf = txpower; i < ARRAY_SIZE(mt7915_sku_group_len); i++) {
-		u8 mcs_num = mt7915_sku_group_len[i];
+	len += scnprintf(buf + len, sz - len,
+			 "%-16s  %6s %6s %6s %6s %6s %6s %6s %6s\n",
+			 " ", "6m", "9m", "12m", "18m", "24m", "36m", "48m",
+			 "54m");
+	mt7915_txpower_puts(OFDM, SKU_OFDM);
 
-		if (i >= SKU_VHT_BW20 && i <= SKU_VHT_BW160)
-			mcs_num = 10;
+	len += scnprintf(buf + len, sz - len,
+			 "%-16s  %6s %6s %6s %6s %6s %6s %6s %6s\n",
+			 " ", "mcs0", "mcs1", "mcs2", "mcs3", "mcs4",
+			 "mcs5", "mcs6", "mcs7");
+	mt7915_txpower_puts(HT20, SKU_HT_BW20);
 
-		mt76_seq_puts_array(file, sku_group_name[i], buf, mcs_num);
-		buf += mt7915_sku_group_len[i];
-	}
+	len += scnprintf(buf + len, sz - len,
+			 "%-16s  %6s %6s %6s %6s %6s %6s %6s %6s %6s\n",
+			 " ", "mcs0", "mcs1", "mcs2", "mcs3", "mcs4", "mcs5",
+			 "mcs6", "mcs7", "mcs32");
+	mt7915_txpower_puts(HT40, SKU_HT_BW40);
+
+	len += scnprintf(buf + len, sz - len,
+			 "%-16s  %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s\n",
+			 " ", "mcs0", "mcs1", "mcs2", "mcs3", "mcs4", "mcs5",
+			 "mcs6", "mcs7", "mcs8", "mcs9", "mcs10", "mcs11");
+	mt7915_txpower_puts(VHT20, SKU_VHT_BW20);
+	mt7915_txpower_puts(VHT40, SKU_VHT_BW40);
+	mt7915_txpower_puts(VHT80, SKU_VHT_BW80);
+	mt7915_txpower_puts(VHT160, SKU_VHT_BW160);
+	mt7915_txpower_puts(HE26, SKU_HE_RU26);
+	mt7915_txpower_puts(HE52, SKU_HE_RU52);
+	mt7915_txpower_puts(HE106, SKU_HE_RU106);
+	mt7915_txpower_puts(HE242, SKU_HE_RU242);
+	mt7915_txpower_puts(HE484, SKU_HE_RU484);
+	mt7915_txpower_puts(HE996, SKU_HE_RU996);
+	mt7915_txpower_puts(HE996x2, SKU_HE_RU2x996);
 
 	reg = is_mt7915(&dev->mt76) ? MT_WF_PHY_TPC_CTRL_STAT(phy->band_idx) :
 	      MT_WF_PHY_TPC_CTRL_STAT_MT7916(phy->band_idx);
 
-	seq_printf(file, "\nBaseband transmit power %ld\n",
-		   mt76_get_field(dev, reg, MT_WF_PHY_TPC_POWER));
+	len += scnprintf(buf + len, sz - len, "\nTx power (bbp)  : %6ld\n",
+			 mt76_get_field(dev, reg, MT_WF_PHY_TPC_POWER));
 
-	return 0;
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+	return ret;
 }
 
-DEFINE_SHOW_ATTRIBUTE(mt7915_rate_txpower);
+static ssize_t
+mt7915_rate_txpower_set(struct file *file, const char __user *user_buf,
+			size_t count, loff_t *ppos)
+{
+	struct mt7915_phy *phy = file->private_data;
+	struct mt7915_dev *dev = phy->dev;
+	struct mt76_phy *mphy = phy->mt76;
+	struct mt7915_mcu_txpower_sku req = {
+		.format_id = TX_POWER_LIMIT_TABLE,
+		.band_idx = phy->band_idx,
+	};
+	char buf[100];
+	int i, ret, pwr160 = 0, pwr80 = 0, pwr40 = 0, pwr20 = 0;
+	enum mac80211_rx_encoding mode;
+	u32 offs = 0, len = 0;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, user_buf, count))
+		return -EFAULT;
+
+	if (count && buf[count - 1] == '\n')
+		buf[count - 1] = '\0';
+	else
+		buf[count] = '\0';
+
+	if (sscanf(buf, "%u %u %u %u %u",
+		   &mode, &pwr160, &pwr80, &pwr40, &pwr20) != 5) {
+		dev_warn(dev->mt76.dev,
+			 "per bandwidth power limit: Mode BW160 BW80 BW40 BW20");
+		return -EINVAL;
+	}
+
+	if (mode > RX_ENC_HE)
+		return -EINVAL;
+
+	if (pwr160)
+		pwr160 = mt7915_get_power_bound(phy, pwr160);
+	if (pwr80)
+		pwr80 = mt7915_get_power_bound(phy, pwr80);
+	if (pwr40)
+		pwr40 = mt7915_get_power_bound(phy, pwr40);
+	if (pwr20)
+		pwr20 = mt7915_get_power_bound(phy, pwr20);
+
+	if (pwr160 < 0 || pwr80 < 0 || pwr40 < 0 || pwr20 < 0)
+		return -EINVAL;
+
+	mutex_lock(&dev->mt76.mutex);
+	ret = mt7915_mcu_get_txpower_sku(phy, req.txpower_sku,
+					 sizeof(req.txpower_sku));
+	if (ret)
+		goto out;
+
+	mt7915_txpower_sets(SKU_CCK, pwr20, RX_ENC_LEGACY);
+	mt7915_txpower_sets(SKU_OFDM, pwr20, RX_ENC_LEGACY);
+	if (mode == RX_ENC_LEGACY)
+		goto skip;
+
+	mt7915_txpower_sets(SKU_HT_BW20, pwr20, RX_ENC_HT);
+	mt7915_txpower_sets(SKU_HT_BW40, pwr40, RX_ENC_HT);
+	if (mode == RX_ENC_HT)
+		goto skip;
+
+	mt7915_txpower_sets(SKU_VHT_BW20, pwr20, RX_ENC_VHT);
+	mt7915_txpower_sets(SKU_VHT_BW40, pwr40, RX_ENC_VHT);
+	mt7915_txpower_sets(SKU_VHT_BW80, pwr80, RX_ENC_VHT);
+	mt7915_txpower_sets(SKU_VHT_BW160, pwr160, RX_ENC_VHT);
+	if (mode == RX_ENC_VHT)
+		goto skip;
+
+	mt7915_txpower_sets(SKU_HE_RU26, pwr20, RX_ENC_HE + 1);
+	mt7915_txpower_sets(SKU_HE_RU52, pwr20, RX_ENC_HE + 1);
+	mt7915_txpower_sets(SKU_HE_RU106, pwr20, RX_ENC_HE + 1);
+	mt7915_txpower_sets(SKU_HE_RU242, pwr20, RX_ENC_HE);
+	mt7915_txpower_sets(SKU_HE_RU484, pwr40, RX_ENC_HE);
+	mt7915_txpower_sets(SKU_HE_RU996, pwr80, RX_ENC_HE);
+	mt7915_txpower_sets(SKU_HE_RU2x996, pwr160, RX_ENC_HE);
+skip:
+	ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(TX_POWER_FEATURE_CTRL),
+				&req, sizeof(req), true);
+	if (ret)
+		goto out;
+
+	mphy->txpower_cur = max(mphy->txpower_cur,
+				max(pwr160, max(pwr80, max(pwr40, pwr20))));
+out:
+	mutex_unlock(&dev->mt76.mutex);
+
+	return ret ? ret : count;
+}
+
+static const struct file_operations mt7915_rate_txpower_fops = {
+	.write = mt7915_rate_txpower_set,
+	.read = mt7915_rate_txpower_get,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
 
 static int
 mt7915_twt_stats(struct seq_file *s, void *data)
