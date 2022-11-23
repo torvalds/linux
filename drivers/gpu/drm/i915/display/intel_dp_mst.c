@@ -81,11 +81,11 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 	}
 
 	for (bpp = max_bpp; bpp >= min_bpp; bpp -= step) {
-		crtc_state->pipe_bpp = bpp;
-
 		crtc_state->pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock,
-						       dsc ? bpp << 4 : crtc_state->pipe_bpp,
+						       dsc ? bpp << 4 : bpp,
 						       dsc);
+
+		drm_dbg_kms(&i915->drm, "Trying bpp %d\n", bpp);
 
 		slots = drm_dp_atomic_find_time_slots(state, &intel_dp->mst_mgr,
 						      connector->port,
@@ -108,9 +108,16 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 	if (ret && slots >= 0)
 		slots = ret;
 
-	if (slots < 0)
+	if (slots < 0) {
 		drm_dbg_kms(&i915->drm, "failed finding vcpi slots:%d\n",
 			    slots);
+	} else {
+		if (!dsc)
+			crtc_state->pipe_bpp = bpp;
+		else
+			crtc_state->dsc.compressed_bpp = bpp;
+		drm_dbg_kms(&i915->drm, "Got %d slots for pipe bpp %d dsc %d\n", slots, bpp, dsc);
+	}
 
 	return slots;
 }
@@ -157,8 +164,10 @@ static int intel_dp_dsc_mst_compute_link_config(struct intel_encoder *encoder,
 	int slots = -EINVAL;
 	int i, num_bpc;
 	u8 dsc_bpc[3] = {0};
-	int min_bpp, max_bpp;
+	int min_bpp, max_bpp, sink_min_bpp, sink_max_bpp;
 	u8 dsc_max_bpc;
+	bool need_timeslot_recalc = false;
+	u32 last_compressed_bpp;
 
 	/* Max DSC Input BPC for ICL is 10 and for TGL+ is 12 */
 	if (DISPLAY_VER(i915) >= 12)
@@ -171,14 +180,28 @@ static int intel_dp_dsc_mst_compute_link_config(struct intel_encoder *encoder,
 
 	num_bpc = drm_dp_dsc_sink_supported_input_bpcs(intel_dp->dsc_dpcd,
 						       dsc_bpc);
-	for (i = 0; i < num_bpc; i++) {
-		if (max_bpp >= dsc_bpc[i] * 3)
-			if (min_bpp > dsc_bpc[i] * 3)
-				min_bpp = dsc_bpc[i] * 3;
+
+	drm_dbg_kms(&i915->drm, "DSC Source supported min bpp %d max bpp %d\n",
+		    min_bpp, max_bpp);
+
+	sink_max_bpp = dsc_bpc[0] * 3;
+	sink_min_bpp = sink_max_bpp;
+
+	for (i = 1; i < num_bpc; i++) {
+		if (sink_min_bpp > dsc_bpc[i] * 3)
+			sink_min_bpp = dsc_bpc[i] * 3;
+		if (sink_max_bpp < dsc_bpc[i] * 3)
+			sink_max_bpp = dsc_bpc[i] * 3;
 	}
 
 	drm_dbg_kms(&i915->drm, "DSC Sink supported min bpp %d max bpp %d\n",
-		    min_bpp, max_bpp);
+		    sink_min_bpp, sink_max_bpp);
+
+	if (min_bpp < sink_min_bpp)
+		min_bpp = sink_min_bpp;
+
+	if (max_bpp > sink_max_bpp)
+		max_bpp = sink_max_bpp;
 
 	slots = intel_dp_mst_find_vcpi_slots_for_bpp(encoder, crtc_state, max_bpp,
 						     min_bpp, limits,
@@ -186,6 +209,28 @@ static int intel_dp_dsc_mst_compute_link_config(struct intel_encoder *encoder,
 
 	if (slots < 0)
 		return slots;
+
+	last_compressed_bpp = crtc_state->dsc.compressed_bpp;
+
+	crtc_state->dsc.compressed_bpp = intel_dp_dsc_nearest_valid_bpp(i915,
+									last_compressed_bpp,
+									crtc_state->pipe_bpp);
+
+	if (crtc_state->dsc.compressed_bpp != last_compressed_bpp)
+		need_timeslot_recalc = true;
+
+	/*
+	 * Apparently some MST hubs dislike if vcpi slots are not matching precisely
+	 * the actual compressed bpp we use.
+	 */
+	if (need_timeslot_recalc) {
+		slots = intel_dp_mst_find_vcpi_slots_for_bpp(encoder, crtc_state,
+							     crtc_state->dsc.compressed_bpp,
+							     crtc_state->dsc.compressed_bpp,
+							     limits, conn_state, 2 * 3, true);
+		if (slots < 0)
+			return slots;
+	}
 
 	intel_link_compute_m_n(crtc_state->pipe_bpp,
 			       crtc_state->lane_count,
@@ -293,7 +338,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 		ret = intel_dp_dsc_compute_config(intel_dp, pipe_config,
 						  conn_state, &limits,
-						  pipe_config->dp_m_n.tu);
+						  pipe_config->dp_m_n.tu, false);
 	}
 
 	if (ret)
@@ -868,7 +913,7 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 							    target_clock,
 							    mode->hdisplay,
 							    bigjoiner,
-							    pipe_bpp, 1) >> 4;
+							    pipe_bpp, 64) >> 4;
 			dsc_slice_count =
 				intel_dp_dsc_get_slice_count(intel_dp,
 							     target_clock,
