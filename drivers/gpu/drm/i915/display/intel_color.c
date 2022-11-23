@@ -842,7 +842,7 @@ static void ilk_lut_write(const struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
 	if (crtc_state->dsb)
-		intel_dsb_reg_write(crtc_state, reg, val);
+		intel_dsb_reg_write(crtc_state->dsb, reg, val);
 	else
 		intel_de_write_fw(i915, reg, val);
 }
@@ -853,7 +853,7 @@ static void ilk_lut_write_indexed(const struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
 	if (crtc_state->dsb)
-		intel_dsb_indexed_reg_write(crtc_state, reg, val);
+		intel_dsb_indexed_reg_write(crtc_state->dsb, reg, val);
 	else
 		intel_de_write_fw(i915, reg, val);
 }
@@ -1273,7 +1273,8 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 		break;
 	}
 
-	intel_dsb_commit(crtc_state);
+	if (crtc_state->dsb)
+		intel_dsb_commit(crtc_state->dsb);
 }
 
 static u32 chv_cgm_degamma_ldw(const struct drm_color_lut *color)
@@ -1391,12 +1392,18 @@ void intel_color_commit_arm(const struct intel_crtc_state *crtc_state)
 
 void intel_color_prepare_commit(struct intel_crtc_state *crtc_state)
 {
-	intel_dsb_prepare(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	crtc_state->dsb = intel_dsb_prepare(crtc);
 }
 
 void intel_color_cleanup_commit(struct intel_crtc_state *crtc_state)
 {
-	intel_dsb_cleanup(crtc_state);
+	if (!crtc_state->dsb)
+		return;
+
+	intel_dsb_cleanup(crtc_state->dsb);
+	crtc_state->dsb = NULL;
 }
 
 static bool intel_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
