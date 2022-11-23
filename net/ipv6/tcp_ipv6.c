@@ -1364,13 +1364,14 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 	/* Copy over the MD5 key from the original socket */
 	key = tcp_v6_md5_do_lookup(sk, &newsk->sk_v6_daddr, l3index);
 	if (key) {
-		/* We're using one, so create a matching key
-		 * on the newsk structure. If we fail to get
-		 * memory, then we end up not copying the key
-		 * across. Shucks.
-		 */
-		tcp_md5_key_copy(newsk, (union tcp_md5_addr *)&newsk->sk_v6_daddr,
-				 AF_INET6, 128, l3index, key);
+		const union tcp_md5_addr *addr;
+
+		addr = (union tcp_md5_addr *)&newsk->sk_v6_daddr;
+		if (tcp_md5_key_copy(newsk, addr, AF_INET6, 128, l3index, key)) {
+			inet_csk_prepare_forced_close(newsk);
+			tcp_done(newsk);
+			goto out;
+		}
 	}
 #endif
 
