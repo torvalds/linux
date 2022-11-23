@@ -979,6 +979,25 @@
 			power-domains = <&spm MT8186_POWER_DOMAIN_DIS>;
 		};
 
+		dsi0: dsi@14013000 {
+			compatible = "mediatek,mt8186-dsi";
+			reg = <0 0x14013000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_DSI0>,
+				 <&mmsys CLK_MM_DSI0_DSI_CK_DOMAIN>,
+				 <&mipi_tx0>;
+			clock-names = "engine", "digital", "hs";
+			interrupts = <GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH 0>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_DIS>;
+			resets = <&mmsys MT8186_MMSYS_SW0_RST_B_DISP_DSI0>;
+			phys = <&mipi_tx0>;
+			phy-names = "dphy";
+			status = "disabled";
+
+			port {
+				dsi_out: endpoint { };
+			};
+		};
+
 		iommu_mm: iommu@14016000 {
 			compatible = "mediatek,mt8186-iommu-mm";
 			reg = <0 0x14016000 0 0x1000>;
