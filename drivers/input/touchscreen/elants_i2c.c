@@ -1353,8 +1353,6 @@ static int elants_i2c_power_on(struct elants_data *ts)
 	udelay(ELAN_POWERON_DELAY_USEC);
 
 	gpiod_set_value_cansleep(ts->reset_gpio, 0);
-	if (error)
-		return error;
 
 	msleep(ELAN_RESET_DELAY_MSEC);
 
