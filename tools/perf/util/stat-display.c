@@ -674,8 +674,7 @@ static bool is_mixed_hw_group(struct evsel *counter)
 }
 
 static void printout(struct perf_stat_config *config, struct outstate *os,
-		     double uval, u64 run, u64 ena, double noise,
-		     struct runtime_stat *st, int map_idx)
+		     double uval, u64 run, u64 ena, double noise, int map_idx)
 {
 	struct perf_stat_output_ctx out;
 	print_metric_t pm;
@@ -737,7 +736,7 @@ static void printout(struct perf_stat_config *config, struct outstate *os,
 
 	if (ok) {
 		perf_stat__print_shadow_stats(config, counter, uval, map_idx,
-					      &out, &config->metric_events, st);
+					      &out, &config->metric_events, &rt_stat);
 	} else {
 		pm(config, &os, /*color=*/NULL, /*format=*/NULL, /*unit=*/"", /*val=*/0);
 	}
@@ -834,7 +833,7 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 
 	uval = val * counter->scale;
 
-	printout(config, &os, uval, run, ena, avg, &rt_stat, s);
+	printout(config, &os, uval, run, ena, avg, s);
 
 	if (!metric_only)
 		fputc('\n', output);
@@ -987,7 +986,7 @@ static void print_no_aggr_metric(struct perf_stat_config *config,
 			run = ps->aggr[counter_idx].counts.run;
 
 			uval = val * counter->scale;
-			printout(config, &os, uval, run, ena, 1.0, &rt_stat, counter_idx);
+			printout(config, &os, uval, run, ena, 1.0, counter_idx);
 		}
 		if (!first)
 			print_metric_end(config);
