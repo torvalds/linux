@@ -68,61 +68,12 @@ static struct uart_driver liteuart_driver = {
 #endif
 };
 
-static void liteuart_rx_chars(struct uart_port *port)
-{
-	unsigned char __iomem *membase = port->membase;
-	u8 ch;
-
-	while (!litex_read8(membase + OFF_RXEMPTY)) {
-		ch = litex_read8(membase + OFF_RXTX);
-		port->icount.rx++;
-
-		/* necessary for RXEMPTY to refresh its value */
-		litex_write8(membase + OFF_EV_PENDING, EV_RX);
-
-		/* no overflow bits in status */
-		if (!(uart_handle_sysrq_char(port, ch)))
-			uart_insert_char(port, 1, 0, ch, TTY_NORMAL);
-	}
-
-	tty_flip_buffer_push(&port->state->port);
-}
-
-static void liteuart_timer(struct timer_list *t)
-{
-	struct liteuart_port *uart = from_timer(uart, t, timer);
-	struct uart_port *port = &uart->port;
-
-	liteuart_rx_chars(port);
-
-	mod_timer(&uart->timer, jiffies + uart_poll_timeout(port));
-}
-
 static void liteuart_putchar(struct uart_port *port, unsigned char ch)
 {
 	while (litex_read8(port->membase + OFF_TXFULL))
 		cpu_relax();
 
 	litex_write8(port->membase + OFF_RXTX, ch);
-}
-
-static unsigned int liteuart_tx_empty(struct uart_port *port)
-{
-	/* not really tx empty, just checking if tx is not full */
-	if (!litex_read8(port->membase + OFF_TXFULL))
-		return TIOCSER_TEMT;
-
-	return 0;
-}
-
-static void liteuart_set_mctrl(struct uart_port *port, unsigned int mctrl)
-{
-	/* modem control register is not present in LiteUART */
-}
-
-static unsigned int liteuart_get_mctrl(struct uart_port *port)
-{
-	return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
 }
 
 static void liteuart_stop_tx(struct uart_port *port)
@@ -156,6 +107,55 @@ static void liteuart_stop_rx(struct uart_port *port)
 
 	/* just delete timer */
 	del_timer(&uart->timer);
+}
+
+static void liteuart_rx_chars(struct uart_port *port)
+{
+	unsigned char __iomem *membase = port->membase;
+	u8 ch;
+
+	while (!litex_read8(membase + OFF_RXEMPTY)) {
+		ch = litex_read8(membase + OFF_RXTX);
+		port->icount.rx++;
+
+		/* necessary for RXEMPTY to refresh its value */
+		litex_write8(membase + OFF_EV_PENDING, EV_RX);
+
+		/* no overflow bits in status */
+		if (!(uart_handle_sysrq_char(port, ch)))
+			uart_insert_char(port, 1, 0, ch, TTY_NORMAL);
+	}
+
+	tty_flip_buffer_push(&port->state->port);
+}
+
+static void liteuart_timer(struct timer_list *t)
+{
+	struct liteuart_port *uart = from_timer(uart, t, timer);
+	struct uart_port *port = &uart->port;
+
+	liteuart_rx_chars(port);
+
+	mod_timer(&uart->timer, jiffies + uart_poll_timeout(port));
+}
+
+static unsigned int liteuart_tx_empty(struct uart_port *port)
+{
+	/* not really tx empty, just checking if tx is not full */
+	if (!litex_read8(port->membase + OFF_TXFULL))
+		return TIOCSER_TEMT;
+
+	return 0;
+}
+
+static void liteuart_set_mctrl(struct uart_port *port, unsigned int mctrl)
+{
+	/* modem control register is not present in LiteUART */
+}
+
+static unsigned int liteuart_get_mctrl(struct uart_port *port)
+{
+	return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
 }
 
 static int liteuart_startup(struct uart_port *port)
