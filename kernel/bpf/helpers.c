@@ -2019,16 +2019,16 @@ static const struct btf_kfunc_id_set common_kfunc_set = {
 
 static int __init kfunc_init(void)
 {
-	int ret, idx = 0;
+	int ret;
 	const struct btf_id_dtor_kfunc generic_dtors[] = {
 		{
-			.btf_id       = generic_dtor_ids[idx++],
-			.kfunc_btf_id = generic_dtor_ids[idx++]
+			.btf_id       = generic_dtor_ids[0],
+			.kfunc_btf_id = generic_dtor_ids[1]
 		},
 #ifdef CONFIG_CGROUPS
 		{
-			.btf_id       = generic_dtor_ids[idx++],
-			.kfunc_btf_id = generic_dtor_ids[idx++]
+			.btf_id       = generic_dtor_ids[2],
+			.kfunc_btf_id = generic_dtor_ids[3]
 		},
 #endif
 	};
