@@ -1278,9 +1278,12 @@ static void vc4_set_crtc_possible_masks(struct drm_device *drm,
 	}
 }
 
-int vc4_crtc_init(struct drm_device *drm, struct vc4_crtc *vc4_crtc,
+int vc4_crtc_init(struct drm_device *drm, struct platform_device *pdev,
+		  struct vc4_crtc *vc4_crtc,
+		  const struct vc4_crtc_data *data,
 		  const struct drm_crtc_funcs *crtc_funcs,
-		  const struct drm_crtc_helper_funcs *crtc_helper_funcs)
+		  const struct drm_crtc_helper_funcs *crtc_helper_funcs,
+		  bool feeds_txp)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct drm_crtc *crtc = &vc4_crtc->base;
@@ -1300,6 +1303,9 @@ int vc4_crtc_init(struct drm_device *drm, struct vc4_crtc *vc4_crtc,
 		return PTR_ERR(primary_plane);
 	}
 
+	vc4_crtc->data = data;
+	vc4_crtc->pdev = pdev;
+	vc4_crtc->feeds_txp = feeds_txp;
 	spin_lock_init(&vc4_crtc->irq_lock);
 	ret = drmm_crtc_init_with_planes(drm, crtc, primary_plane, NULL,
 					 crtc_funcs, NULL);
@@ -1345,8 +1351,6 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	pv_data = of_device_get_match_data(dev);
 	if (!pv_data)
 		return -ENODEV;
-	vc4_crtc->data = &pv_data->base;
-	vc4_crtc->pdev = pdev;
 
 	vc4_crtc->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(vc4_crtc->regs))
@@ -1356,8 +1360,9 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	vc4_crtc->regset.regs = crtc_regs;
 	vc4_crtc->regset.nregs = ARRAY_SIZE(crtc_regs);
 
-	ret = vc4_crtc_init(drm, vc4_crtc,
-			    &vc4_crtc_funcs, &vc4_crtc_helper_funcs);
+	ret = vc4_crtc_init(drm, pdev, vc4_crtc, &pv_data->base,
+			    &vc4_crtc_funcs, &vc4_crtc_helper_funcs,
+			    false);
 	if (ret)
 		return ret;
 	vc4_set_crtc_possible_masks(drm, crtc);

@@ -509,15 +509,12 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 		return PTR_ERR(txp->regs);
 
 	vc4_crtc = &txp->base;
-	vc4_crtc->pdev = pdev;
-	vc4_crtc->data = &vc4_txp_crtc_data;
-	vc4_crtc->feeds_txp = true;
 	vc4_crtc->regset.base = txp->regs;
 	vc4_crtc->regset.regs = txp_regs;
 	vc4_crtc->regset.nregs = ARRAY_SIZE(txp_regs);
 
-	ret = vc4_crtc_init(drm, vc4_crtc,
-			    &vc4_txp_crtc_funcs, &vc4_txp_crtc_helper_funcs);
+	ret = vc4_crtc_init(drm, pdev, vc4_crtc, &vc4_txp_crtc_data,
+			    &vc4_txp_crtc_funcs, &vc4_txp_crtc_helper_funcs, true);
 	if (ret)
 		return ret;
 
