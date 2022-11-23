@@ -615,7 +615,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 		 */
 		i->old_v = bch2_btree_path_peek_slot(i->path, &i->old_k).v;
 
-		if (unlikely(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags))) {
+		if (unlikely(trans->journal_replay_not_finished)) {
 			struct bkey_i *j_k =
 				bch2_journal_keys_peek_slot(c, i->btree_id, i->level,
 							    i->k->k.p);
