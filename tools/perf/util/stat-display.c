@@ -1372,13 +1372,16 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 	bool metric_only = config->metric_only;
 	int interval = config->interval;
 	struct evsel *counter;
-	char buf[64], *prefix = NULL;
+	char buf[64];
+	struct outstate os = {
+		.fh = config->output,
+	};
 
 	if (config->iostat_run)
 		evlist->selected = evlist__first(evlist);
 
 	if (interval) {
-		prefix = buf;
+		os.prefix = buf;
 		prepare_interval(config, buf, sizeof(buf), ts);
 	}
 
@@ -1390,35 +1393,35 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 	case AGGR_SOCKET:
 	case AGGR_NODE:
 		if (config->cgroup_list)
-			print_aggr_cgroup(config, evlist, prefix);
+			print_aggr_cgroup(config, evlist, os.prefix);
 		else
-			print_aggr(config, evlist, prefix);
+			print_aggr(config, evlist, os.prefix);
 		break;
 	case AGGR_THREAD:
 	case AGGR_GLOBAL:
 		if (config->iostat_run) {
-			iostat_print_counters(evlist, config, ts, prefix = buf,
+			iostat_print_counters(evlist, config, ts, buf,
 					      print_counter);
 		} else if (config->cgroup_list) {
-			print_cgroup_counter(config, evlist, prefix);
+			print_cgroup_counter(config, evlist, os.prefix);
 		} else {
-			print_metric_begin(config, evlist, prefix,
+			print_metric_begin(config, evlist, os.prefix,
 					   /*aggr_idx=*/0, /*cgrp=*/NULL);
 			evlist__for_each_entry(evlist, counter) {
-				print_counter(config, counter, prefix);
+				print_counter(config, counter, os.prefix);
 			}
 			print_metric_end(config);
 		}
 		break;
 	case AGGR_NONE:
 		if (metric_only)
-			print_no_aggr_metric(config, evlist, prefix);
+			print_no_aggr_metric(config, evlist, os.prefix);
 		else {
 			evlist__for_each_entry(evlist, counter) {
 				if (counter->percore)
-					print_percore(config, counter, prefix);
+					print_percore(config, counter, os.prefix);
 				else
-					print_counter(config, counter, prefix);
+					print_counter(config, counter, os.prefix);
 			}
 		}
 		break;
