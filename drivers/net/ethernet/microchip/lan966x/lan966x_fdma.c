@@ -79,6 +79,9 @@ static int lan966x_fdma_rx_alloc_page_pool(struct lan966x_rx *rx)
 			   SKB_DATA_ALIGN(sizeof(struct skb_shared_info)),
 	};
 
+	if (lan966x_xdp_present(lan966x))
+		pp_params.dma_dir = DMA_BIDIRECTIONAL;
+
 	rx->page_pool = page_pool_create(&pp_params);
 
 	for (int i = 0; i < lan966x->num_phys_ports; ++i) {
@@ -826,15 +829,10 @@ static int lan966x_fdma_get_max_frame(struct lan966x *lan966x)
 	       XDP_PACKET_HEADROOM;
 }
 
-int lan966x_fdma_change_mtu(struct lan966x *lan966x)
+static int __lan966x_fdma_reload(struct lan966x *lan966x, int max_mtu)
 {
-	int max_mtu;
 	int err;
 	u32 val;
-
-	max_mtu = lan966x_fdma_get_max_frame(lan966x);
-	if (max_mtu == lan966x->rx.max_mtu)
-		return 0;
 
 	/* Disable the CPU port */
 	lan_rmw(QSYS_SW_PORT_MODE_PORT_ENA_SET(0),
@@ -859,6 +857,25 @@ int lan966x_fdma_change_mtu(struct lan966x *lan966x)
 		lan966x,  QSYS_SW_PORT_MODE(CPU_PORT));
 
 	return err;
+}
+
+int lan966x_fdma_change_mtu(struct lan966x *lan966x)
+{
+	int max_mtu;
+
+	max_mtu = lan966x_fdma_get_max_frame(lan966x);
+	if (max_mtu == lan966x->rx.max_mtu)
+		return 0;
+
+	return __lan966x_fdma_reload(lan966x, max_mtu);
+}
+
+int lan966x_fdma_reload_page_pool(struct lan966x *lan966x)
+{
+	int max_mtu;
+
+	max_mtu = lan966x_fdma_get_max_frame(lan966x);
+	return __lan966x_fdma_reload(lan966x, max_mtu);
 }
 
 void lan966x_fdma_netdev_init(struct lan966x *lan966x, struct net_device *dev)

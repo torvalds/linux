@@ -11,6 +11,8 @@ static int lan966x_xdp_setup(struct net_device *dev, struct netdev_bpf *xdp)
 	struct lan966x_port *port = netdev_priv(dev);
 	struct lan966x *lan966x = port->lan966x;
 	struct bpf_prog *old_prog;
+	bool old_xdp, new_xdp;
+	int err;
 
 	if (!lan966x->fdma) {
 		NL_SET_ERR_MSG_MOD(xdp->extack,
@@ -18,7 +20,20 @@ static int lan966x_xdp_setup(struct net_device *dev, struct netdev_bpf *xdp)
 		return -EOPNOTSUPP;
 	}
 
+	old_xdp = lan966x_xdp_present(lan966x);
 	old_prog = xchg(&port->xdp_prog, xdp->prog);
+	new_xdp = lan966x_xdp_present(lan966x);
+
+	if (old_xdp == new_xdp)
+		goto out;
+
+	err = lan966x_fdma_reload_page_pool(lan966x);
+	if (err) {
+		xchg(&port->xdp_prog, old_prog);
+		return err;
+	}
+
+out:
 	if (old_prog)
 		bpf_prog_put(old_prog);
 
@@ -60,6 +75,19 @@ int lan966x_xdp_run(struct lan966x_port *port, struct page *page, u32 data_len)
 	case XDP_DROP:
 		return FDMA_DROP;
 	}
+}
+
+bool lan966x_xdp_present(struct lan966x *lan966x)
+{
+	for (int p = 0; p < lan966x->num_phys_ports; ++p) {
+		if (!lan966x->ports[p])
+			continue;
+
+		if (lan966x_xdp_port_present(lan966x->ports[p]))
+			return true;
+	}
+
+	return false;
 }
 
 int lan966x_xdp_port_init(struct lan966x_port *port)
