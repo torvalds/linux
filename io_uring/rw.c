@@ -1049,7 +1049,6 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 	else if (!pos)
 		return 0;
 
-	spin_lock(&ctx->completion_lock);
 	prev = start;
 	wq_list_for_each_resume(pos, prev) {
 		struct io_kiocb *req = container_of(pos, struct io_kiocb, comp_list);
@@ -1064,11 +1063,11 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 		req->cqe.flags = io_put_kbuf(req, 0);
 		__io_fill_cqe_req(req->ctx, req);
 	}
-	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
+
 	if (unlikely(!nr_events))
 		return 0;
 
+	io_commit_cqring(ctx);
 	io_cqring_ev_posted_iopoll(ctx);
 	pos = start ? start->next : ctx->iopoll_list.first;
 	wq_list_cut(&ctx->iopoll_list, prev, start);
