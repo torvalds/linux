@@ -473,6 +473,8 @@ to_vc4_encoder(const struct drm_encoder *encoder)
 }
 
 struct vc4_crtc_data {
+	const char *name;
+
 	const char *debugfs_name;
 
 	/* Bitmask of channels (FIFOs) of the HVS that the output can source from */
