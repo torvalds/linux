@@ -1389,6 +1389,16 @@ void intel_color_commit_arm(const struct intel_crtc_state *crtc_state)
 	i915->display.funcs.color->color_commit_arm(crtc_state);
 }
 
+void intel_color_prepare_commit(struct intel_crtc_state *crtc_state)
+{
+	intel_dsb_prepare(crtc_state);
+}
+
+void intel_color_cleanup_commit(struct intel_crtc_state *crtc_state)
+{
+	intel_dsb_cleanup(crtc_state);
+}
+
 static bool intel_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
