@@ -450,6 +450,7 @@ enum vc4_encoder_type {
 	VC4_ENCODER_TYPE_DSI1,
 	VC4_ENCODER_TYPE_SMI,
 	VC4_ENCODER_TYPE_DPI,
+	VC4_ENCODER_TYPE_TXP,
 };
 
 struct vc4_encoder {

@@ -153,6 +153,7 @@ struct vc4_txp {
 
 	struct platform_device *pdev;
 
+	struct vc4_encoder encoder;
 	struct drm_writeback_connector connector;
 
 	void __iomem *regs;
@@ -160,7 +161,7 @@ struct vc4_txp {
 
 static inline struct vc4_txp *encoder_to_vc4_txp(struct drm_encoder *encoder)
 {
-	return container_of(encoder, struct vc4_txp, connector.encoder);
+	return container_of(encoder, struct vc4_txp, encoder.base);
 }
 
 static inline struct vc4_txp *connector_to_vc4_txp(struct drm_connector *conn)
@@ -488,9 +489,10 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = dev_get_drvdata(master);
+	struct vc4_encoder *vc4_encoder;
+	struct drm_encoder *encoder;
 	struct vc4_crtc *vc4_crtc;
 	struct vc4_txp *txp;
-	struct drm_encoder *encoder;
 	int ret, irq;
 
 	irq = platform_get_irq(pdev, 0);
@@ -514,13 +516,24 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 	vc4_crtc->regset.regs = txp_regs;
 	vc4_crtc->regset.nregs = ARRAY_SIZE(txp_regs);
 
+	vc4_encoder = &txp->encoder;
+	txp->encoder.type = VC4_ENCODER_TYPE_TXP;
+
+	encoder = &vc4_encoder->base;
+	encoder->possible_crtcs = drm_crtc_mask(&vc4_crtc->base);
+
+	drm_encoder_helper_add(encoder, &vc4_txp_encoder_helper_funcs);
+
+	ret = drmm_encoder_init(drm, encoder, NULL, DRM_MODE_ENCODER_VIRTUAL, NULL);
+	if (ret)
+		return ret;
+
 	drm_connector_helper_add(&txp->connector.base,
 				 &vc4_txp_connector_helper_funcs);
-	ret = drm_writeback_connector_init(drm, &txp->connector,
-					   &vc4_txp_connector_funcs,
-					   &vc4_txp_encoder_helper_funcs,
-					   drm_fmts, ARRAY_SIZE(drm_fmts),
-					   0);
+	ret = drm_writeback_connector_init_with_encoder(drm, &txp->connector,
+							encoder,
+							&vc4_txp_connector_funcs,
+							drm_fmts, ARRAY_SIZE(drm_fmts));
 	if (ret)
 		return ret;
 
@@ -528,9 +541,6 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 			    &vc4_txp_crtc_funcs, &vc4_txp_crtc_helper_funcs);
 	if (ret)
 		return ret;
-
-	encoder = &txp->connector.encoder;
-	encoder->possible_crtcs = drm_crtc_mask(&vc4_crtc->base);
 
 	ret = devm_request_irq(dev, irq, vc4_txp_interrupt, 0,
 			       dev_name(dev), txp);
