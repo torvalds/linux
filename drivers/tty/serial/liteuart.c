@@ -87,9 +87,9 @@ static void liteuart_timer(struct timer_list *t)
 		/* no overflow bits in status */
 		if (!(uart_handle_sysrq_char(port, ch)))
 			uart_insert_char(port, status, 0, ch, flg);
-
-		tty_flip_buffer_push(&port->state->port);
 	}
+
+	tty_flip_buffer_push(&port->state->port);
 
 	mod_timer(&uart->timer, jiffies + uart_poll_timeout(port));
 }
