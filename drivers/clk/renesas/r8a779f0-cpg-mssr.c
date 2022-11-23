@@ -128,10 +128,10 @@ static const struct cpg_core_clk r8a779f0_core_clks[] __initconst = {
 };
 
 static const struct mssr_mod_clk r8a779f0_mod_clks[] __initconst = {
-	DEF_MOD("hscif0",	514,	R8A779F0_CLK_S0D3),
-	DEF_MOD("hscif1",	515,	R8A779F0_CLK_S0D3),
-	DEF_MOD("hscif2",	516,	R8A779F0_CLK_S0D3),
-	DEF_MOD("hscif3",	517,	R8A779F0_CLK_S0D3),
+	DEF_MOD("hscif0",	514,	R8A779F0_CLK_SASYNCPERD1),
+	DEF_MOD("hscif1",	515,	R8A779F0_CLK_SASYNCPERD1),
+	DEF_MOD("hscif2",	516,	R8A779F0_CLK_SASYNCPERD1),
+	DEF_MOD("hscif3",	517,	R8A779F0_CLK_SASYNCPERD1),
 	DEF_MOD("i2c0",		518,	R8A779F0_CLK_S0D6_PER),
 	DEF_MOD("i2c1",		519,	R8A779F0_CLK_S0D6_PER),
 	DEF_MOD("i2c2",		520,	R8A779F0_CLK_S0D6_PER),
@@ -144,10 +144,10 @@ static const struct mssr_mod_clk r8a779f0_mod_clks[] __initconst = {
 	DEF_MOD("msiof3",	621,	R8A779F0_CLK_MSO),
 	DEF_MOD("pcie0",	624,	R8A779F0_CLK_S0D2),
 	DEF_MOD("pcie1",	625,	R8A779F0_CLK_S0D2),
-	DEF_MOD("scif0",	702,	R8A779F0_CLK_S0D12_PER),
-	DEF_MOD("scif1",	703,	R8A779F0_CLK_S0D12_PER),
-	DEF_MOD("scif3",	704,	R8A779F0_CLK_S0D12_PER),
-	DEF_MOD("scif4",	705,	R8A779F0_CLK_S0D12_PER),
+	DEF_MOD("scif0",	702,	R8A779F0_CLK_SASYNCPERD4),
+	DEF_MOD("scif1",	703,	R8A779F0_CLK_SASYNCPERD4),
+	DEF_MOD("scif3",	704,	R8A779F0_CLK_SASYNCPERD4),
+	DEF_MOD("scif4",	705,	R8A779F0_CLK_SASYNCPERD4),
 	DEF_MOD("sdhi0",        706,    R8A779F0_CLK_SD0),
 	DEF_MOD("sys-dmac0",	709,	R8A779F0_CLK_S0D3_PER),
 	DEF_MOD("sys-dmac1",	710,	R8A779F0_CLK_S0D3_PER),
@@ -163,8 +163,8 @@ static const struct mssr_mod_clk r8a779f0_mod_clks[] __initconst = {
 	DEF_MOD("cmt3",		913,	R8A779F0_CLK_R),
 	DEF_MOD("pfc0",		915,	R8A779F0_CLK_CL16M),
 	DEF_MOD("tsc",		919,	R8A779F0_CLK_CL16M),
-	DEF_MOD("tsn",		1505,	R8A779F0_CLK_S0D2_HSC),
-	DEF_MOD("rsw",		1506,	R8A779F0_CLK_RSW2),
+	DEF_MOD("rswitch2",	1505,	R8A779F0_CLK_RSW2),
+	DEF_MOD("ether-serdes",	1506,	R8A779F0_CLK_S0D2_HSC),
 	DEF_MOD("ufs",		1514,	R8A779F0_CLK_S0D4_HSC),
 };
 
