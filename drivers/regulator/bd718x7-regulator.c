@@ -1576,8 +1576,6 @@ static int setup_feedback_loop(struct device *dev, struct device_node *np,
 		if (!of_node_name_eq(np, desc->of_match))
 			continue;
 
-		pr_info("Looking at node '%s'\n", desc->of_match);
-
 		/* The feedback loop connection does not make sense for LDOs */
 		if (desc->id >= BD718XX_LDO1)
 			return -EINVAL;
