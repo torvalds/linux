@@ -130,7 +130,7 @@ static int rpcif_hb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, hyperbus);
 
-	rpcif_enable_rpm(hyperbus->rpc.dev);
+	pm_runtime_enable(hyperbus->rpc.dev);
 
 	error = rpcif_hw_init(hyperbus->rpc.dev, true);
 	if (error)
@@ -150,7 +150,7 @@ static int rpcif_hb_probe(struct platform_device *pdev)
 	return 0;
 
 out_disable_rpm:
-	rpcif_disable_rpm(hyperbus->rpc.dev);
+	pm_runtime_disable(hyperbus->rpc.dev);
 	return error;
 }
 
@@ -160,7 +160,7 @@ static int rpcif_hb_remove(struct platform_device *pdev)
 
 	hyperbus_unregister_device(&hyperbus->hbdev);
 
-	rpcif_disable_rpm(hyperbus->rpc.dev);
+	pm_runtime_disable(hyperbus->rpc.dev);
 
 	return 0;
 }
