@@ -3991,6 +3991,7 @@ static void dw_hdmi_cec_disable(struct dw_hdmi *hdmi)
 static const struct dw_hdmi_cec_ops dw_hdmi_cec_ops = {
 	.write = hdmi_writeb,
 	.read = hdmi_readb,
+	.mod = hdmi_modb,
 	.enable = dw_hdmi_cec_enable,
 	.disable = dw_hdmi_cec_disable,
 };
@@ -4560,7 +4561,7 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 
 	hdmi->irq = irq;
 	ret = devm_request_threaded_irq(dev, irq, dw_hdmi_hardirq,
-					dw_hdmi_irq, IRQF_SHARED,
+					dw_hdmi_irq, IRQF_SHARED | IRQF_ONESHOT,
 					dev_name(dev), hdmi);
 	if (ret)
 		goto err_iahb;
@@ -4684,6 +4685,12 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 		cec.hdmi = hdmi;
 		cec.ops = &dw_hdmi_cec_ops;
 		cec.irq = irq;
+
+		irq = platform_get_irq(pdev, 1);
+		if (irq < 0)
+			dev_dbg(hdmi->dev, "can't get cec wake up irq\n");
+
+		cec.wake_irq = irq;
 
 		pdevinfo.name = "dw-hdmi-cec";
 		pdevinfo.data = &cec;

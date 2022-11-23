@@ -516,6 +516,12 @@ struct cec_event {
 /* Get the connector info */
 #define CEC_ADAP_G_CONNECTOR_INFO _IOR('a',  10, struct cec_connector_info)
 
+/* set cec into standby mode */
+#define CEC_STANDBY		_IOW('a', 10, __u8)
+
+/* set cec wake up function enable */
+#define CEC_FUNC_EN		_IOW('a', 11, int)
+
 /*
  * The remainder of this header defines all CEC messages and operands.
  * The format matters since it the cec-ctl utility parses it to generate
