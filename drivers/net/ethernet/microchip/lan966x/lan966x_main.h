@@ -173,11 +173,12 @@ struct lan966x_rx {
 };
 
 struct lan966x_tx_dcb_buf {
+	dma_addr_t dma_addr;
 	struct net_device *dev;
 	struct sk_buff *skb;
-	dma_addr_t dma_addr;
-	bool used;
-	bool ptp;
+	u32 len;
+	u32 used : 1;
+	u32 ptp : 1;
 };
 
 struct lan966x_tx {
