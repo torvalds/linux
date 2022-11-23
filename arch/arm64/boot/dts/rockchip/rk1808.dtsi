@@ -379,6 +379,7 @@
 			snps,dis-del-phy-power-chg-quirk;
 			snps,tx-ipgap-linecheck-dis-quirk;
 			snps,xhci-trb-ent-quirk;
+			snps,parkmode-disable-ss-quirk;
 			status = "disabled";
 		};
 	};
