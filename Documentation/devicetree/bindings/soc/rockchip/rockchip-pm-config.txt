@@ -9,6 +9,7 @@ Required properties:
 - "rockchip,pm-rk3328" - for RK3328 SOCs.
 - "rockchip,pm-rk3368" - for RK3368 SoCs.
 - "rockchip,pm-rk3399" - for RK3399 SoCs.
+- "rockchip,pm-rk3528" - for RK3528 SoCs.
 - "rockchip,pm-rk3588" - for RK3588 SoCs.
 - "rockchip,pm-rv1126" - for RV1126 SoCs.
 
@@ -161,6 +162,23 @@ Example:
 		rockchip,pwm-regulator-config = <
 			(0 |
 			PWM2_REGULATOR_EN
+			)
+		>;
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk3528";
+		status = "disabled";
+		rockchip,sleep-debug-en = <0>;
+		rockchip,sleep-mode-config = <
+			(0
+			| RKPM_SLP_ARMPD
+			)
+		>;
+		rockchip,wakeup-config = <
+			(0
+			| RKPM_CPU0_WKUP_EN
+			| RKPM_GPIO_WKUP_EN
 			)
 		>;
 	};
