@@ -795,10 +795,11 @@ void bch2_subvolume_to_text(struct printbuf *out, struct bch_fs *c,
 	       le32_to_cpu(s.v->snapshot));
 }
 
-int bch2_subvolume_get(struct btree_trans *trans, unsigned subvol,
-		       bool inconsistent_if_not_found,
-		       int iter_flags,
-		       struct bch_subvolume *s)
+static __always_inline int
+bch2_subvolume_get_inlined(struct btree_trans *trans, unsigned subvol,
+			   bool inconsistent_if_not_found,
+			   int iter_flags,
+			   struct bch_subvolume *s)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -818,6 +819,14 @@ int bch2_subvolume_get(struct btree_trans *trans, unsigned subvol,
 	return ret;
 }
 
+int bch2_subvolume_get(struct btree_trans *trans, unsigned subvol,
+		       bool inconsistent_if_not_found,
+		       int iter_flags,
+		       struct bch_subvolume *s)
+{
+	return bch2_subvolume_get_inlined(trans, subvol, inconsistent_if_not_found, iter_flags, s);
+}
+
 int bch2_snapshot_get_subvol(struct btree_trans *trans, u32 snapshot,
 			     struct bch_subvolume *subvol)
 {
@@ -833,12 +842,12 @@ int bch2_subvolume_get_snapshot(struct btree_trans *trans, u32 subvol,
 	struct bch_subvolume s;
 	int ret;
 
-	ret = bch2_subvolume_get(trans, subvol, true,
-				 BTREE_ITER_CACHED|
-				 BTREE_ITER_WITH_UPDATES,
-				 &s);
-
-	*snapid = le32_to_cpu(s.snapshot);
+	ret = bch2_subvolume_get_inlined(trans, subvol, true,
+					 BTREE_ITER_CACHED|
+					 BTREE_ITER_WITH_UPDATES,
+					 &s);
+	if (!ret)
+		*snapid = le32_to_cpu(s.snapshot);
 	return ret;
 }
 
