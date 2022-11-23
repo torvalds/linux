@@ -836,6 +836,28 @@ static void i965_load_luts(const struct intel_crtc_state *crtc_state)
 	}
 }
 
+static void ilk_lut_write(const struct intel_crtc_state *crtc_state,
+			  i915_reg_t reg, u32 val)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	if (crtc_state->dsb)
+		intel_dsb_reg_write(crtc_state, reg, val);
+	else
+		intel_de_write_fw(i915, reg, val);
+}
+
+static void ilk_lut_write_indexed(const struct intel_crtc_state *crtc_state,
+				  i915_reg_t reg, u32 val)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	if (crtc_state->dsb)
+		intel_dsb_indexed_reg_write(crtc_state, reg, val);
+	else
+		intel_de_write_fw(i915, reg, val);
+}
+
 static void ilk_load_lut_8(struct intel_crtc *crtc,
 			   const struct drm_property_blob *blob)
 {
@@ -958,9 +980,9 @@ static void ivb_load_lut_ext_max(const struct intel_crtc_state *crtc_state)
 	enum pipe pipe = crtc->pipe;
 
 	/* Program the max register to clamp values > 1.0. */
-	intel_dsb_reg_write(crtc_state, PREC_PAL_EXT_GC_MAX(pipe, 0), 1 << 16);
-	intel_dsb_reg_write(crtc_state, PREC_PAL_EXT_GC_MAX(pipe, 1), 1 << 16);
-	intel_dsb_reg_write(crtc_state, PREC_PAL_EXT_GC_MAX(pipe, 2), 1 << 16);
+	ilk_lut_write(crtc_state, PREC_PAL_EXT_GC_MAX(pipe, 0), 1 << 16);
+	ilk_lut_write(crtc_state, PREC_PAL_EXT_GC_MAX(pipe, 1), 1 << 16);
+	ilk_lut_write(crtc_state, PREC_PAL_EXT_GC_MAX(pipe, 2), 1 << 16);
 }
 
 static void glk_load_lut_ext2_max(const struct intel_crtc_state *crtc_state)
@@ -969,9 +991,9 @@ static void glk_load_lut_ext2_max(const struct intel_crtc_state *crtc_state)
 	enum pipe pipe = crtc->pipe;
 
 	/* Program the max register to clamp values > 1.0. */
-	intel_dsb_reg_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 0), 1 << 16);
-	intel_dsb_reg_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 1), 1 << 16);
-	intel_dsb_reg_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 2), 1 << 16);
+	ilk_lut_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 0), 1 << 16);
+	ilk_lut_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 1), 1 << 16);
+	ilk_lut_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 2), 1 << 16);
 }
 
 static void ivb_load_luts(const struct intel_crtc_state *crtc_state)
@@ -1118,9 +1140,9 @@ ivb_load_lut_max(const struct intel_crtc_state *crtc_state,
 	enum pipe pipe = crtc->pipe;
 
 	/* FIXME LUT entries are 16 bit only, so we can prog 0xFFFF max */
-	intel_dsb_reg_write(crtc_state, PREC_PAL_GC_MAX(pipe, 0), color->red);
-	intel_dsb_reg_write(crtc_state, PREC_PAL_GC_MAX(pipe, 1), color->green);
-	intel_dsb_reg_write(crtc_state, PREC_PAL_GC_MAX(pipe, 2), color->blue);
+	ilk_lut_write(crtc_state, PREC_PAL_GC_MAX(pipe, 0), color->red);
+	ilk_lut_write(crtc_state, PREC_PAL_GC_MAX(pipe, 1), color->green);
+	ilk_lut_write(crtc_state, PREC_PAL_GC_MAX(pipe, 2), color->blue);
 }
 
 static void
@@ -1139,23 +1161,23 @@ icl_program_gamma_superfine_segment(const struct intel_crtc_state *crtc_state)
 	 * 9 entries, corresponding to values 0, 1/(8 * 128 * 256),
 	 * 2/(8 * 128 * 256) ... 8/(8 * 128 * 256).
 	 */
-	intel_dsb_reg_write(crtc_state, PREC_PAL_MULTI_SEG_INDEX(pipe),
-			    PAL_PREC_MULTI_SEG_INDEX_VALUE(0));
-	intel_dsb_reg_write(crtc_state, PREC_PAL_MULTI_SEG_INDEX(pipe),
-			    PAL_PREC_AUTO_INCREMENT |
-			    PAL_PREC_MULTI_SEG_INDEX_VALUE(0));
+	ilk_lut_write(crtc_state, PREC_PAL_MULTI_SEG_INDEX(pipe),
+		      PAL_PREC_MULTI_SEG_INDEX_VALUE(0));
+	ilk_lut_write(crtc_state, PREC_PAL_MULTI_SEG_INDEX(pipe),
+		      PAL_PREC_AUTO_INCREMENT |
+		      PAL_PREC_MULTI_SEG_INDEX_VALUE(0));
 
 	for (i = 0; i < 9; i++) {
 		const struct drm_color_lut *entry = &lut[i];
 
-		intel_dsb_indexed_reg_write(crtc_state, PREC_PAL_MULTI_SEG_DATA(pipe),
-					    ilk_lut_12p4_ldw(entry));
-		intel_dsb_indexed_reg_write(crtc_state, PREC_PAL_MULTI_SEG_DATA(pipe),
-					    ilk_lut_12p4_udw(entry));
+		ilk_lut_write_indexed(crtc_state, PREC_PAL_MULTI_SEG_DATA(pipe),
+				      ilk_lut_12p4_ldw(entry));
+		ilk_lut_write_indexed(crtc_state, PREC_PAL_MULTI_SEG_DATA(pipe),
+				      ilk_lut_12p4_udw(entry));
 	}
 
-	intel_dsb_reg_write(crtc_state, PREC_PAL_MULTI_SEG_INDEX(pipe),
-			    PAL_PREC_MULTI_SEG_INDEX_VALUE(0));
+	ilk_lut_write(crtc_state, PREC_PAL_MULTI_SEG_INDEX(pipe),
+		      PAL_PREC_MULTI_SEG_INDEX_VALUE(0));
 }
 
 static void
@@ -1178,18 +1200,19 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 	 * PAL_PREC_INDEX[0] and PAL_PREC_INDEX[1] map to seg2[1],
 	 * seg2[0] being unused by the hardware.
 	 */
-	intel_dsb_reg_write(crtc_state, PREC_PAL_INDEX(pipe),
-			    PAL_PREC_INDEX_VALUE(0));
-	intel_dsb_reg_write(crtc_state, PREC_PAL_INDEX(pipe),
-			    PAL_PREC_AUTO_INCREMENT |
-			    PAL_PREC_INDEX_VALUE(0));
+	ilk_lut_write(crtc_state, PREC_PAL_INDEX(pipe),
+		      PAL_PREC_INDEX_VALUE(0));
+	ilk_lut_write(crtc_state, PREC_PAL_INDEX(pipe),
+		      PAL_PREC_AUTO_INCREMENT |
+		      PAL_PREC_INDEX_VALUE(0));
 
 	for (i = 1; i < 257; i++) {
 		entry = &lut[i * 8];
-		intel_dsb_indexed_reg_write(crtc_state, PREC_PAL_DATA(pipe),
-					    ilk_lut_12p4_ldw(entry));
-		intel_dsb_indexed_reg_write(crtc_state, PREC_PAL_DATA(pipe),
-					    ilk_lut_12p4_udw(entry));
+
+		ilk_lut_write_indexed(crtc_state, PREC_PAL_DATA(pipe),
+				      ilk_lut_12p4_ldw(entry));
+		ilk_lut_write_indexed(crtc_state, PREC_PAL_DATA(pipe),
+				      ilk_lut_12p4_udw(entry));
 	}
 
 	/*
@@ -1206,14 +1229,15 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 	 */
 	for (i = 0; i < 256; i++) {
 		entry = &lut[i * 8 * 128];
-		intel_dsb_indexed_reg_write(crtc_state, PREC_PAL_DATA(pipe),
-					    ilk_lut_12p4_ldw(entry));
-		intel_dsb_indexed_reg_write(crtc_state, PREC_PAL_DATA(pipe),
-					    ilk_lut_12p4_udw(entry));
+
+		ilk_lut_write_indexed(crtc_state, PREC_PAL_DATA(pipe),
+				      ilk_lut_12p4_ldw(entry));
+		ilk_lut_write_indexed(crtc_state, PREC_PAL_DATA(pipe),
+				      ilk_lut_12p4_udw(entry));
 	}
 
-	intel_dsb_reg_write(crtc_state, PREC_PAL_INDEX(pipe),
-			    PAL_PREC_INDEX_VALUE(0));
+	ilk_lut_write(crtc_state, PREC_PAL_INDEX(pipe),
+		      PAL_PREC_INDEX_VALUE(0));
 
 	/* The last entry in the LUT is to be programmed in GCMAX */
 	entry = &lut[256 * 8 * 128];

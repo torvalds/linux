@@ -129,14 +129,9 @@ void intel_dsb_indexed_reg_write(const struct intel_crtc_state *crtc_state,
 	struct intel_dsb *dsb = crtc_state->dsb;
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 *buf;
+	u32 *buf = dsb->cmd_buf;
 	u32 reg_val;
 
-	if (!dsb) {
-		intel_de_write_fw(dev_priv, reg, val);
-		return;
-	}
-	buf = dsb->cmd_buf;
 	if (drm_WARN_ON(&dev_priv->drm, dsb->free_pos >= DSB_BUF_SIZE)) {
 		drm_dbg_kms(&dev_priv->drm, "DSB buffer overflow\n");
 		return;
@@ -205,16 +200,9 @@ void intel_dsb_reg_write(const struct intel_crtc_state *crtc_state,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_dsb *dsb;
-	u32 *buf;
+	struct intel_dsb *dsb = crtc_state->dsb;
+	u32 *buf = dsb->cmd_buf;
 
-	dsb = crtc_state->dsb;
-	if (!dsb) {
-		intel_de_write_fw(dev_priv, reg, val);
-		return;
-	}
-
-	buf = dsb->cmd_buf;
 	if (drm_WARN_ON(&dev_priv->drm, dsb->free_pos >= DSB_BUF_SIZE)) {
 		drm_dbg_kms(&dev_priv->drm, "DSB buffer overflow\n");
 		return;
