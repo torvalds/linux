@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X01 first version
+ * V0.0X01.0X02 support fastboot
  */
 
 //#define DEBUG
@@ -26,6 +27,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
+#include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
@@ -153,6 +155,8 @@ struct sc4336 {
 	const char		*module_name;
 	const char		*len_name;
 	u32			cur_vts;
+	bool			is_thunderboot;
+	bool			is_first_streamoff;
 };
 
 #define to_sc4336(sd) container_of(sd, struct sc4336, subdev)
@@ -829,15 +833,16 @@ static long sc4336_compat_ioctl32(struct v4l2_subdev *sd,
 static int __sc4336_start_stream(struct sc4336 *sc4336)
 {
 	int ret;
+	if (!sc4336->is_thunderboot) {
+		ret = sc4336_write_array(sc4336->client, sc4336->cur_mode->reg_list);
+		if (ret)
+			return ret;
 
-	ret = sc4336_write_array(sc4336->client, sc4336->cur_mode->reg_list);
-	if (ret)
-		return ret;
-
-	/* In case these controls are set before streaming */
-	ret = __v4l2_ctrl_handler_setup(&sc4336->ctrl_handler);
-	if (ret)
-		return ret;
+		/* In case these controls are set before streaming */
+		ret = __v4l2_ctrl_handler_setup(&sc4336->ctrl_handler);
+		if (ret)
+			return ret;
+	}
 
 	return sc4336_write_reg(sc4336->client, SC4336_REG_CTRL_MODE,
 				 SC4336_REG_VALUE_08BIT, SC4336_MODE_STREAMING);
@@ -845,10 +850,15 @@ static int __sc4336_start_stream(struct sc4336 *sc4336)
 
 static int __sc4336_stop_stream(struct sc4336 *sc4336)
 {
+	if (sc4336->is_thunderboot) {
+		sc4336->is_first_streamoff = true;
+		pm_runtime_put(&sc4336->client->dev);
+	}
 	return sc4336_write_reg(sc4336->client, SC4336_REG_CTRL_MODE,
 				 SC4336_REG_VALUE_08BIT, SC4336_MODE_SW_STANDBY);
 }
 
+static int __sc4336_power_on(struct sc4336 *sc4336);
 static int sc4336_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct sc4336 *sc4336 = to_sc4336(sd);
@@ -861,6 +871,11 @@ static int sc4336_s_stream(struct v4l2_subdev *sd, int on)
 		goto unlock_and_return;
 
 	if (on) {
+		if (sc4336->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
+			sc4336->is_thunderboot = false;
+			__sc4336_power_on(sc4336);
+		}
+
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
 			pm_runtime_put_noidle(&client->dev);
@@ -905,11 +920,13 @@ static int sc4336_s_power(struct v4l2_subdev *sd, int on)
 			goto unlock_and_return;
 		}
 
-		ret = sc4336_write_array(sc4336->client, sc4336_global_regs);
-		if (ret) {
-			v4l2_err(sd, "could not set init registers\n");
-			pm_runtime_put_noidle(&client->dev);
-			goto unlock_and_return;
+		if (!sc4336->is_thunderboot) {
+			ret = sc4336_write_array(sc4336->client, sc4336_global_regs);
+			if (ret) {
+				v4l2_err(sd, "could not set init registers\n");
+				pm_runtime_put_noidle(&client->dev);
+				goto unlock_and_return;
+			}
 		}
 
 		sc4336->power_on = true;
@@ -952,6 +969,9 @@ static int __sc4336_power_on(struct sc4336 *sc4336)
 		dev_err(dev, "Failed to enable xvclk\n");
 		return ret;
 	}
+	if (sc4336->is_thunderboot)
+		return 0;
+
 	if (!IS_ERR(sc4336->reset_gpio))
 		gpiod_set_value_cansleep(sc4336->reset_gpio, 0);
 
@@ -990,9 +1010,18 @@ static void __sc4336_power_off(struct sc4336 *sc4336)
 	int ret;
 	struct device *dev = &sc4336->client->dev;
 
+	clk_disable_unprepare(sc4336->xvclk);
+	if (sc4336->is_thunderboot) {
+		if (sc4336->is_first_streamoff) {
+			sc4336->is_thunderboot = false;
+			sc4336->is_first_streamoff = false;
+		} else {
+			return;
+		}
+	}
+
 	if (!IS_ERR(sc4336->pwdn_gpio))
 		gpiod_set_value_cansleep(sc4336->pwdn_gpio, 0);
-	clk_disable_unprepare(sc4336->xvclk);
 	if (!IS_ERR(sc4336->reset_gpio))
 		gpiod_set_value_cansleep(sc4336->reset_gpio, 0);
 	if (!IS_ERR_OR_NULL(sc4336->pins_sleep)) {
@@ -1282,6 +1311,11 @@ static int sc4336_check_sensor_id(struct sc4336 *sc4336,
 	u32 id = 0;
 	int ret;
 
+	if (sc4336->is_thunderboot) {
+		dev_info(dev, "Enable thunderboot mode, skip sensor id check\n");
+		return 0;
+	}
+
 	ret = sc4336_read_reg(client, SC4336_REG_CHIP_ID,
 			       SC4336_REG_VALUE_16BIT, &id);
 	if (id != CHIP_ID) {
@@ -1338,6 +1372,7 @@ static int sc4336_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	sc4336->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
 	sc4336->client = client;
 	sc4336->cur_mode = &supported_modes[0];
 
@@ -1347,14 +1382,23 @@ static int sc4336_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	sc4336->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(sc4336->reset_gpio))
-		dev_warn(dev, "Failed to get reset-gpios\n");
+	if (sc4336->is_thunderboot) {
+		sc4336->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
+		if (IS_ERR(sc4336->reset_gpio))
+			dev_warn(dev, "Failed to get reset-gpios\n");
 
-	sc4336->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
-	if (IS_ERR(sc4336->pwdn_gpio))
-		dev_warn(dev, "Failed to get pwdn-gpios\n");
+		sc4336->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
+		if (IS_ERR(sc4336->pwdn_gpio))
+			dev_warn(dev, "Failed to get pwdn-gpios\n");
+	} else {
+		sc4336->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+		if (IS_ERR(sc4336->reset_gpio))
+			dev_warn(dev, "Failed to get reset-gpios\n");
 
+		sc4336->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
+		if (IS_ERR(sc4336->pwdn_gpio))
+			dev_warn(dev, "Failed to get pwdn-gpios\n");
+	}
 	sc4336->pinctrl = devm_pinctrl_get(dev);
 	if (!IS_ERR(sc4336->pinctrl)) {
 		sc4336->pins_default =
@@ -1424,7 +1468,10 @@ static int sc4336_probe(struct i2c_client *client,
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	if (sc4336->is_thunderboot)
+		pm_runtime_get_sync(dev);
+	else
+		pm_runtime_idle(dev);
 
 	return 0;
 
@@ -1496,8 +1543,12 @@ static void __exit sensor_mod_exit(void)
 	i2c_del_driver(&sc4336_i2c_driver);
 }
 
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
+subsys_initcall(sensor_mod_init);
+#else
 device_initcall_sync(sensor_mod_init);
+#endif
 module_exit(sensor_mod_exit);
 
 MODULE_DESCRIPTION("smartsens sc4336 sensor driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
