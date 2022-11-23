@@ -517,11 +517,12 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 		}
 	}
 
+#ifdef CONFIG_BCACHEFS_DEBUG
 	trans_for_each_update(trans, i)
 		BUG_ON(!(i->flags & BTREE_TRIGGER_NORUN) &&
 		       (BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)) &&
 		       (!i->insert_trigger_run || !i->overwrite_trigger_run));
-
+#endif
 	return 0;
 }
 
@@ -767,6 +768,7 @@ static noinline void bch2_drop_overwrites_from_journal(struct btree_trans *trans
 		bch2_journal_key_overwritten(trans->c, i->btree_id, i->level, i->k->k.p);
 }
 
+#ifdef CONFIG_BCACHEFS_DEBUG
 static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans,
 						   struct btree_insert_entry *i,
 						   struct printbuf *err)
@@ -793,6 +795,7 @@ static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans,
 
 	return -EINVAL;
 }
+#endif
 
 /*
  * Get journal reservation, take write locks, and attempt to do btree update(s):
@@ -805,15 +808,17 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	struct btree_insert_entry *i;
 	struct printbuf buf = PRINTBUF;
 	int ret, u64s_delta = 0;
-	int rw = (trans->flags & BTREE_INSERT_JOURNAL_REPLAY) ? READ : WRITE;
 
+#ifdef CONFIG_BCACHEFS_DEBUG
 	trans_for_each_update(trans, i) {
+		int rw = (trans->flags & BTREE_INSERT_JOURNAL_REPLAY) ? READ : WRITE;
+
 		if (unlikely(bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
 					       i->bkey_type, rw, &buf)))
 			return bch2_trans_commit_bkey_invalid(trans, i, &buf);
 		btree_insert_entry_checks(trans, i);
 	}
-
+#endif
 	printbuf_exit(&buf);
 
 	trans_for_each_update(trans, i) {
@@ -1042,13 +1047,13 @@ int __bch2_trans_commit(struct btree_trans *trans)
 		trans->journal_u64s += jset_u64s(JSET_ENTRY_LOG_U64s);
 
 	trans_for_each_update(trans, i) {
-		BUG_ON(!i->path->should_be_locked);
+		EBUG_ON(!i->path->should_be_locked);
 
 		ret = bch2_btree_path_upgrade(trans, i->path, i->level + 1);
 		if (unlikely(ret))
 			goto out;
 
-		BUG_ON(!btree_node_intent_locked(i->path, i->level));
+		EBUG_ON(!btree_node_intent_locked(i->path, i->level));
 
 		if (i->key_cache_already_flushed)
 			continue;
@@ -1078,7 +1083,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 			goto err;
 	}
 retry:
-	BUG_ON(trans->restarted);
+	EBUG_ON(trans->restarted);
 	memset(&trans->journal_res, 0, sizeof(trans->journal_res));
 
 	ret = do_bch2_trans_commit(trans, &i, _RET_IP_);
@@ -1455,10 +1460,9 @@ bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *pa
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i, n;
 
-	BUG_ON(!path->should_be_locked);
-
-	BUG_ON(trans->nr_updates >= BTREE_ITER_MAX);
-	BUG_ON(bpos_cmp(k->k.p, path->pos));
+	EBUG_ON(!path->should_be_locked);
+	EBUG_ON(trans->nr_updates >= BTREE_ITER_MAX);
+	EBUG_ON(bpos_cmp(k->k.p, path->pos));
 
 	n = (struct btree_insert_entry) {
 		.flags		= flags,
@@ -1487,7 +1491,7 @@ bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *pa
 
 	if (i < trans->updates + trans->nr_updates &&
 	    !btree_insert_entry_cmp(&n, i)) {
-		BUG_ON(i->insert_trigger_run || i->overwrite_trigger_run);
+		EBUG_ON(i->insert_trigger_run || i->overwrite_trigger_run);
 
 		bch2_path_put(trans, i->path, true);
 		i->flags	= n.flags;
@@ -1530,7 +1534,7 @@ bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *pa
 	return 0;
 }
 
-static int __must_check
+static inline int __must_check
 bch2_trans_update_by_path(struct btree_trans *trans, struct btree_path *path,
 			  struct bkey_i *k, enum btree_update_flags flags)
 {
