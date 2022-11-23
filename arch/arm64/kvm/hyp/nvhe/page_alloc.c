@@ -99,6 +99,7 @@ static void __hyp_attach_page(struct hyp_pool *pool,
 
 	memset(hyp_page_to_virt(p), 0, PAGE_SIZE << p->order);
 
+	/* Skip coalescing for 'external' pages being freed into the pool. */
 	if (phys < pool->range_start || phys >= pool->range_end)
 		goto insert;
 

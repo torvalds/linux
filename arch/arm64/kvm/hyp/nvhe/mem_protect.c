@@ -1455,7 +1455,7 @@ static int check_donation(struct pkvm_mem_donation *donation)
 	if (ret)
 		return ret;
 
-	switch (tx->completer.id){
+	switch (tx->completer.id) {
 	case PKVM_ID_HOST:
 		ret = host_ack_donation(completer_addr, tx);
 		break;
@@ -1492,7 +1492,7 @@ static int __do_donate(struct pkvm_mem_donation *donation)
 	if (ret)
 		return ret;
 
-	switch (tx->completer.id){
+	switch (tx->completer.id) {
 	case PKVM_ID_HOST:
 		ret = host_complete_donation(completer_addr, tx);
 		break;
