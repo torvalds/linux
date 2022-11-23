@@ -652,6 +652,32 @@ void bch2_btree_path_level_init(struct btree_trans *trans,
 
 /* Btree path: fixups after btree node updates: */
 
+static void bch2_trans_revalidate_updates_in_node(struct btree_trans *trans, struct btree *b)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_insert_entry *i;
+
+	trans_for_each_update(trans, i)
+		if (!i->cached &&
+		    i->level	== b->c.level &&
+		    i->btree_id	== b->c.btree_id &&
+		    bpos_cmp(i->k->k.p, b->data->min_key) >= 0 &&
+		    bpos_cmp(i->k->k.p, b->data->max_key) <= 0) {
+			i->old_v = bch2_btree_path_peek_slot(i->path, &i->old_k).v;
+
+			if (unlikely(trans->journal_replay_not_finished)) {
+				struct bkey_i *j_k =
+					bch2_journal_keys_peek_slot(c, i->btree_id, i->level,
+								    i->k->k.p);
+
+				if (j_k) {
+					i->old_k = j_k->k;
+					i->old_v = &j_k->v;
+				}
+			}
+		}
+}
+
 /*
  * A btree node is being replaced - update the iterator to point to the new
  * node:
@@ -675,6 +701,8 @@ void bch2_trans_node_add(struct btree_trans *trans, struct btree *b)
 
 			bch2_btree_path_level_init(trans, path, b);
 		}
+
+	bch2_trans_revalidate_updates_in_node(trans, b);
 }
 
 /*
@@ -687,6 +715,8 @@ void bch2_trans_node_reinit_iter(struct btree_trans *trans, struct btree *b)
 
 	trans_for_each_path_with_node(trans, b, path)
 		__btree_path_level_init(path, b->c.level);
+
+	bch2_trans_revalidate_updates_in_node(trans, b);
 }
 
 /* Btree path: traverse, set_pos: */

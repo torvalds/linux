@@ -40,6 +40,28 @@ struct bkey_s_c bch2_btree_path_peek_slot_exact(struct btree_path *path, struct 
 	return (struct bkey_s_c) { u, NULL };
 }
 
+static void verify_update_old_key(struct btree_trans *trans, struct btree_insert_entry *i)
+{
+#ifdef CONFIG_BCACHEFS_DEBUG
+	struct bch_fs *c = trans->c;
+	struct bkey u;
+	struct bkey_s_c k = bch2_btree_path_peek_slot_exact(i->path, &u);
+
+	if (unlikely(trans->journal_replay_not_finished)) {
+		struct bkey_i *j_k =
+			bch2_journal_keys_peek_slot(c, i->btree_id, i->level, i->k->k.p);
+
+		if (j_k)
+			k = bkey_i_to_s_c(j_k);
+	}
+
+	i->old_k.needs_whiteout = k.k->needs_whiteout;
+
+	BUG_ON(memcmp(&i->old_k, k.k, sizeof(struct bkey)));
+	BUG_ON(i->old_v != k.v);
+#endif
+}
+
 static int __must_check
 bch2_trans_update_by_path(struct btree_trans *, struct btree_path *,
 			  struct bkey_i *, enum btree_update_flags);
@@ -354,6 +376,7 @@ static int btree_key_can_insert_cached(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_cached *ck = (void *) path->l[0].b;
+	struct btree_insert_entry *i;
 	unsigned new_u64s;
 	struct bkey_i *new_k;
 
@@ -381,6 +404,10 @@ static int btree_key_can_insert_cached(struct btree_trans *trans,
 		return -ENOMEM;
 	}
 
+	trans_for_each_update(trans, i)
+		if (i->old_v == &ck->k->v)
+			i->old_v = &new_k->v;
+
 	ck->u64s	= new_u64s;
 	ck->k		= new_k;
 	return 0;
@@ -395,6 +422,8 @@ static int run_one_mem_trigger(struct btree_trans *trans,
 	struct bkey_s_c old = { &i->old_k, i->old_v };
 	struct bkey_i *new = i->k;
 	int ret;
+
+	verify_update_old_key(trans, i);
 
 	if (unlikely(flags & BTREE_TRIGGER_NORUN))
 		return 0;
@@ -432,6 +461,8 @@ static int run_one_trans_trigger(struct btree_trans *trans, struct btree_insert_
 	 */
 	struct bkey old_k = i->old_k;
 	struct bkey_s_c old = { &old_k, i->old_v };
+
+	verify_update_old_key(trans, i);
 
 	if ((i->flags & BTREE_TRIGGER_NORUN) ||
 	    !(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)))
@@ -611,33 +642,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 
 		if (btree_node_type_needs_gc(i->bkey_type))
 			marking = true;
-
-		/*
-		 * Revalidate before calling mem triggers - XXX, ugly:
-		 *
-		 * - successful btree node splits don't cause transaction
-		 *   restarts and will have invalidated the pointer to the bkey
-		 *   value
-		 * - btree_node_lock_for_insert() -> btree_node_prep_for_write()
-		 *   when it has to resort
-		 * - btree_key_can_insert_cached() when it has to reallocate
-		 *
-		 *   Ugly because we currently have no way to tell if the
-		 *   pointer's been invalidated, which means it's debatabale
-		 *   whether we should be stashing the old key at all.
-		 */
-		i->old_v = bch2_btree_path_peek_slot(i->path, &i->old_k).v;
-
-		if (unlikely(trans->journal_replay_not_finished)) {
-			struct bkey_i *j_k =
-				bch2_journal_keys_peek_slot(c, i->btree_id, i->level,
-							    i->k->k.p);
-
-			if (j_k) {
-				i->old_k = j_k->k;
-				i->old_v = &j_k->v;
-			}
-		}
 	}
 
 	/*
@@ -706,6 +710,8 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 
 			if (i->flags & BTREE_UPDATE_NOJOURNAL)
 				continue;
+
+			verify_update_old_key(trans, i);
 
 			if (trans->journal_transaction_names) {
 				entry = bch2_journal_add_entry(j, &trans->journal_res,
