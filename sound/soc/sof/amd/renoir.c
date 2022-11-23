@@ -22,6 +22,7 @@
 #define I2S_BT_INSTANCE		0
 #define I2S_SP_INSTANCE		1
 #define PDM_DMIC_INSTANCE	2
+#define I2S_SP_VIRTUAL_INSTANCE	3
 
 static struct snd_soc_dai_driver renoir_sof_dai[] = {
 	[I2S_BT_INSTANCE] = {
@@ -85,6 +86,21 @@ static struct snd_soc_dai_driver renoir_sof_dai[] = {
 			.rate_min = 8000,
 			.rate_max = 48000,
 		},
+	},
+
+	[I2S_SP_VIRTUAL_INSTANCE] = {
+		.id = I2S_SP_VIRTUAL_INSTANCE,
+		.name = "acp-sof-sp-virtual",
+		.playback = {
+			.rates = SNDRV_PCM_RATE_8000_96000,
+			.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8 |
+				   SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S32_LE,
+			.channels_min = 2,
+			.channels_max = 8,
+			.rate_min = 8000,
+			.rate_max = 96000,
+		},
+		.probe = &acp_dai_probe,
 	},
 };
 
