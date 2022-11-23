@@ -70,20 +70,20 @@ struct rpcif {
 };
 
 int rpcif_sw_init(struct rpcif *rpc, struct device *dev);
-int rpcif_hw_init(struct rpcif *rpc, bool hyperflash);
-void rpcif_prepare(struct rpcif *rpc, const struct rpcif_op *op, u64 *offs,
+int rpcif_hw_init(struct device *dev, bool hyperflash);
+void rpcif_prepare(struct device *dev, const struct rpcif_op *op, u64 *offs,
 		   size_t *len);
-int rpcif_manual_xfer(struct rpcif *rpc);
-ssize_t rpcif_dirmap_read(struct rpcif *rpc, u64 offs, size_t len, void *buf);
+int rpcif_manual_xfer(struct device *dev);
+ssize_t rpcif_dirmap_read(struct device *dev, u64 offs, size_t len, void *buf);
 
-static inline void rpcif_enable_rpm(struct rpcif *rpc)
+static inline void rpcif_enable_rpm(struct device *dev)
 {
-	pm_runtime_enable(rpc->dev);
+	pm_runtime_enable(dev);
 }
 
-static inline void rpcif_disable_rpm(struct rpcif *rpc)
+static inline void rpcif_disable_rpm(struct device *dev)
 {
-	pm_runtime_disable(rpc->dev);
+	pm_runtime_disable(dev);
 }
 
 #endif // __RENESAS_RPC_IF_H
