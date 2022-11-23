@@ -40,10 +40,10 @@
  * @release_usb_lanes: put redriver into 2/4 lanes display mode
  * @notify_connect: cable connect
  * @notify_disconnect: cable disconnect
- * @orientation_get: report orientation to user if orientation source shared
+ * @get_orientation: report orientation to user if orientation source shared
  * @gadget_pullup_enter: operation when enter gadget pullup function
  * @gadget_pullup_exit: operation when exit gadget pullup function
- * @host_power_cycle: workaround for host otg case
+ * @host_powercycle: workaround for host otg case
  * @unbind, change to default state when user unbind it
  * @has_orientation,  provide orientation from chip driver or not
  * @bounded,  bound to user or not
@@ -52,7 +52,7 @@ struct usb_redriver {
 	struct list_head list;
 	struct device_node *of_node;
 
-	int (*release_usb_lanes)(struct usb_redriver *ur, int num);
+	int (*release_usb_lanes)(struct usb_redriver *ur, int ort, int num);
 	int (*notify_connect)(struct usb_redriver *ur, int ort);
 	int (*notify_disconnect)(struct usb_redriver *ur);
 	int (*get_orientation)(struct usb_redriver *ur);
@@ -73,7 +73,7 @@ struct usb_redriver *usb_get_redriver_by_phandle(
 		const struct device_node *np,
 		const char *phandle_name, int index);
 void usb_put_redriver(struct usb_redriver *ur);
-void usb_redriver_release_lanes(struct usb_redriver *ur, int num);
+void usb_redriver_release_lanes(struct usb_redriver *ur, int ort, int num);
 void usb_redriver_notify_connect(struct usb_redriver *ur, int ort);
 void usb_redriver_notify_disconnect(struct usb_redriver *ur);
 int usb_redriver_get_orientation(struct usb_redriver *ur);
@@ -102,12 +102,12 @@ static inline int usb_remove_redriver(struct usb_redriver *ur)
 
 static inline int usb_redriver_get_orientation(struct usb_redriver *ur)
 {
-	return -1;
+	return -EOPNOTSUPP;
 }
 
 #define usb_put_redriver(ur) do {} while (0)
 
-#define usb_redriver_release_lanes(ur, num) do {} while (0)
+#define usb_redriver_release_lanes(ur, ort, num) do {} while (0)
 #define usb_redriver_notify_connect(ur, ort) do {} while (0)
 #define usb_redriver_notify_disconnect(ur) do {} while (0)
 #define usb_redriver_gadget_pullup_enter(ur, is_on) do {} while (0)
