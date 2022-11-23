@@ -1394,6 +1394,9 @@ void intel_color_prepare_commit(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
+	/* FIXME DSB has issues loading LUTs, disable it for now */
+	return;
+
 	crtc_state->dsb = intel_dsb_prepare(crtc);
 }
 
