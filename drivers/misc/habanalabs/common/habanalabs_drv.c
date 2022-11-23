@@ -164,7 +164,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	nonseekable_open(inode, filp);
 
 	hl_ctx_mgr_init(&hpriv->ctx_mgr);
-	hl_mem_mgr_init(hpriv->hdev->dev, &hpriv->mem_mgr);
+	hl_mem_mgr_init(hpriv->hdev->dev, &hpriv->mem_mgr, 0);
 
 	hpriv->taskpid = get_task_pid(current, PIDTYPE_PID);
 

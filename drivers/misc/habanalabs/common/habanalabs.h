@@ -872,11 +872,13 @@ struct hl_mmap_mem_buf;
  * @dev: back pointer to the owning device
  * @lock: protects handles
  * @handles: an idr holding all active handles to the memory buffers in the system.
+ * @is_kernel_mem_mgr: indicate whether the memory manager is the per-device kernel memory manager
  */
 struct hl_mem_mgr {
 	struct device *dev;
 	spinlock_t lock;
 	struct idr handles;
+	u8 is_kernel_mem_mgr;
 };
 
 /**
@@ -935,6 +937,7 @@ struct hl_mmap_mem_buf {
  * @size: holds the CB's size.
  * @roundup_size: holds the cb size after roundup to page size.
  * @cs_cnt: holds number of CS that this CB participates in.
+ * @is_handle_destroyed: atomic boolean indicating whether or not the CB handle was destroyed.
  * @is_pool: true if CB was acquired from the pool, false otherwise.
  * @is_internal: internally allocated
  * @is_mmu_mapped: true if the CB is mapped to the device's MMU.
@@ -951,6 +954,7 @@ struct hl_cb {
 	u32			size;
 	u32			roundup_size;
 	atomic_t		cs_cnt;
+	atomic_t		is_handle_destroyed;
 	u8			is_pool;
 	u8			is_internal;
 	u8			is_mmu_mapped;
@@ -3805,7 +3809,7 @@ __printf(4, 5) int hl_snprintf_resize(char **buf, size_t *size, size_t *offset,
 char *hl_format_as_binary(char *buf, size_t buf_len, u32 n);
 const char *hl_sync_engine_to_string(enum hl_sync_engine_type engine_type);
 
-void hl_mem_mgr_init(struct device *dev, struct hl_mem_mgr *mmg);
+void hl_mem_mgr_init(struct device *dev, struct hl_mem_mgr *mmg, u8 is_kernel_mem_mgr);
 void hl_mem_mgr_fini(struct hl_mem_mgr *mmg);
 int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 		    void *args);

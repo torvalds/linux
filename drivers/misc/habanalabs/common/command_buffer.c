@@ -298,9 +298,31 @@ int hl_cb_create(struct hl_device *hdev, struct hl_mem_mgr *mmg,
 
 int hl_cb_destroy(struct hl_mem_mgr *mmg, u64 cb_handle)
 {
+	struct hl_cb *cb;
 	int rc;
 
+	/* Make sure that a CB handle isn't destroyed by user more than once */
+	if (!mmg->is_kernel_mem_mgr) {
+		cb = hl_cb_get(mmg, cb_handle);
+		if (!cb) {
+			dev_dbg(mmg->dev, "CB destroy failed, no CB was found for handle %#llx\n",
+				cb_handle);
+			rc = -EINVAL;
+			goto out;
+		}
+
+		rc = atomic_cmpxchg(&cb->is_handle_destroyed, 0, 1);
+		hl_cb_put(cb);
+		if (rc) {
+			dev_dbg(mmg->dev, "CB destroy failed, handle %#llx was already destroyed\n",
+				cb_handle);
+			rc = -EINVAL;
+			goto out;
+		}
+	}
+
 	rc = hl_mmap_mem_buf_put_handle(mmg, cb_handle);
+out:
 	if (rc < 0)
 		return rc; /* Invalid handle */
 
