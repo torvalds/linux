@@ -91,6 +91,7 @@ struct hisi_acc_vf_migration_file {
 	struct mutex lock;
 	bool disabled;
 
+	struct hisi_acc_vf_core_device *hisi_acc_vdev;
 	struct acc_vf_data vf_data;
 	size_t total_length;
 };

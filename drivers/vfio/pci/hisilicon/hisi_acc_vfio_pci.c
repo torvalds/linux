@@ -764,7 +764,56 @@ hisi_acc_vf_pci_resume(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 
 	stream_open(migf->filp->f_inode, migf->filp);
 	mutex_init(&migf->lock);
+	migf->hisi_acc_vdev = hisi_acc_vdev;
 	return migf;
+}
+
+static long hisi_acc_vf_precopy_ioctl(struct file *filp,
+				      unsigned int cmd, unsigned long arg)
+{
+	struct hisi_acc_vf_migration_file *migf = filp->private_data;
+	struct hisi_acc_vf_core_device *hisi_acc_vdev = migf->hisi_acc_vdev;
+	loff_t *pos = &filp->f_pos;
+	struct vfio_precopy_info info;
+	unsigned long minsz;
+	int ret;
+
+	if (cmd != VFIO_MIG_GET_PRECOPY_INFO)
+		return -ENOTTY;
+
+	minsz = offsetofend(struct vfio_precopy_info, dirty_bytes);
+
+	if (copy_from_user(&info, (void __user *)arg, minsz))
+		return -EFAULT;
+	if (info.argsz < minsz)
+		return -EINVAL;
+
+	mutex_lock(&hisi_acc_vdev->state_mutex);
+	if (hisi_acc_vdev->mig_state != VFIO_DEVICE_STATE_PRE_COPY) {
+		mutex_unlock(&hisi_acc_vdev->state_mutex);
+		return -EINVAL;
+	}
+
+	mutex_lock(&migf->lock);
+
+	if (migf->disabled) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	if (*pos > migf->total_length) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	info.dirty_bytes = 0;
+	info.initial_bytes = migf->total_length - *pos;
+
+	ret = copy_to_user((void __user *)arg, &info, minsz) ? -EFAULT : 0;
+out:
+	mutex_unlock(&migf->lock);
+	mutex_unlock(&hisi_acc_vdev->state_mutex);
+	return ret;
 }
 
 static ssize_t hisi_acc_vf_save_read(struct file *filp, char __user *buf, size_t len,
@@ -807,6 +856,8 @@ out_unlock:
 static const struct file_operations hisi_acc_vf_save_fops = {
 	.owner = THIS_MODULE,
 	.read = hisi_acc_vf_save_read,
+	.unlocked_ioctl = hisi_acc_vf_precopy_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.release = hisi_acc_vf_release_file,
 	.llseek = no_llseek,
 };
@@ -832,6 +883,7 @@ hisi_acc_vf_stop_copy(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 
 	stream_open(migf->filp->f_inode, migf->filp);
 	mutex_init(&migf->lock);
+	migf->hisi_acc_vdev = hisi_acc_vdev;
 
 	ret = vf_qm_state_save(hisi_acc_vdev, migf);
 	if (ret) {
