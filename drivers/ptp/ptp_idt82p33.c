@@ -895,40 +895,10 @@ static int idt82p33_output_enable(struct idt82p33_channel *channel,
 	return idt82p33_write(idt82p33, OUT_MUX_CNFG(outn), &val, sizeof(val));
 }
 
-static int idt82p33_output_mask_enable(struct idt82p33_channel *channel,
-				       bool enable)
-{
-	u16 mask;
-	int err;
-	u8 outn;
-
-	mask = channel->output_mask;
-	outn = 0;
-
-	while (mask) {
-		if (mask & 0x1) {
-			err = idt82p33_output_enable(channel, enable, outn);
-			if (err)
-				return err;
-		}
-
-		mask >>= 0x1;
-		outn++;
-	}
-
-	return 0;
-}
-
 static int idt82p33_perout_enable(struct idt82p33_channel *channel,
 				  bool enable,
 				  struct ptp_perout_request *perout)
 {
-	unsigned int flags = perout->flags;
-
-	/* Enable/disable output based on output_mask */
-	if (flags == PEROUT_ENABLE_OUTPUT_MASK)
-		return idt82p33_output_mask_enable(channel, enable);
-
 	/* Enable/disable individual output instead */
 	return idt82p33_output_enable(channel, enable, perout->index);
 }
@@ -938,10 +908,6 @@ static int idt82p33_enable_tod(struct idt82p33_channel *channel)
 	struct idt82p33 *idt82p33 = channel->idt82p33;
 	struct timespec64 ts = {0, 0};
 	int err;
-
-	/* STEELAI-366 - Temporary workaround for ts2phc compatibility */
-	if (0)
-		err = idt82p33_output_mask_enable(channel, false);
 
 	err = idt82p33_measure_tod_write_overhead(channel);
 
