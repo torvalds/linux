@@ -279,9 +279,6 @@ static void print_aggr_id_json(struct perf_stat_config *config,
 {
 	FILE *output = config->output;
 
-	if (!config->interval)
-		fputc('{', output);
-
 	switch (config->aggr_mode) {
 	case AGGR_CORE:
 		fprintf(output, "\"core\" : \"S%d-D%d-C%d\", \"aggregate-number\" : %d, ",
@@ -335,6 +332,7 @@ static void aggr_printout(struct perf_stat_config *config,
 struct outstate {
 	FILE *fh;
 	bool newline;
+	bool first;
 	const char *prefix;
 	int  nfields;
 	int  nr;
@@ -491,6 +489,7 @@ static void print_metric_only(struct perf_stat_config *config,
 
 	color_snprintf(str, sizeof(str), color ?: "", fmt, val);
 	fprintf(out, "%*s ", mlen, str);
+	os->first = false;
 }
 
 static void print_metric_only_csv(struct perf_stat_config *config __maybe_unused,
@@ -512,6 +511,7 @@ static void print_metric_only_csv(struct perf_stat_config *config __maybe_unused
 		ends++;
 	*ends = 0;
 	fprintf(out, "%s%s", vals, config->csv_sep);
+	os->first = false;
 }
 
 static void print_metric_only_json(struct perf_stat_config *config __maybe_unused,
@@ -532,7 +532,8 @@ static void print_metric_only_json(struct perf_stat_config *config __maybe_unuse
 	while (isdigit(*ends) || *ends == '.')
 		ends++;
 	*ends = 0;
-	fprintf(out, "{\"metric-value\" : \"%s\"}", vals);
+	fprintf(out, "%s\"%s\" : \"%s\"", os->first ? "" : ", ", unit, vals);
+	os->first = false;
 }
 
 static void new_line_metric(struct perf_stat_config *config __maybe_unused,
@@ -561,7 +562,7 @@ static void print_metric_header(struct perf_stat_config *config,
 	unit = fixunit(tbuf, os->evsel, unit);
 
 	if (config->json_output)
-		fprintf(os->fh, "{\"unit\" : \"%s\"}", unit);
+		return;
 	else if (config->csv_output)
 		fprintf(os->fh, "%s%s", unit, config->csv_sep);
 	else
@@ -821,6 +822,8 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 	run = aggr->counts.run;
 
 	if (!metric_only) {
+		if (config->json_output)
+			fputc('{', output);
 		if (os->prefix)
 			fprintf(output, "%s", os->prefix);
 		else if (config->summary && config->csv_output &&
@@ -844,9 +847,12 @@ static void print_metric_begin(struct perf_stat_config *config,
 	struct aggr_cpu_id id;
 	struct evsel *evsel;
 
+	os->first = true;
 	if (!config->metric_only)
 		return;
 
+	if (config->json_output)
+		fputc('{', config->output);
 	if (os->prefix)
 		fprintf(config->output, "%s", os->prefix);
 
@@ -855,7 +861,7 @@ static void print_metric_begin(struct perf_stat_config *config,
 	aggr = &evsel->stats->aggr[aggr_idx];
 	aggr_printout(config, evsel, id, aggr->nr);
 
-	print_cgroup(config, os->cgrp);
+	print_cgroup(config, os->cgrp ? : evsel->cgrp);
 }
 
 static void print_metric_end(struct perf_stat_config *config)
@@ -863,6 +869,8 @@ static void print_metric_end(struct perf_stat_config *config)
 	if (!config->metric_only)
 		return;
 
+	if (config->json_output)
+		fputc('}', config->output);
 	fputc('\n', config->output);
 }
 
@@ -1005,11 +1013,9 @@ static void print_metric_headers_csv(struct perf_stat_config *config,
 		fputs(aggr_header_csv[config->aggr_mode], config->output);
 }
 
-static void print_metric_headers_json(struct perf_stat_config *config,
+static void print_metric_headers_json(struct perf_stat_config *config __maybe_unused,
 				      bool no_indent __maybe_unused)
 {
-	if (config->interval)
-		fputs("{\"unit\" : \"sec\"}", config->output);
 }
 
 static void print_metric_headers(struct perf_stat_config *config,
@@ -1049,7 +1055,9 @@ static void print_metric_headers(struct perf_stat_config *config,
 					      &config->metric_events,
 					      &rt_stat);
 	}
-	fputc('\n', config->output);
+
+	if (!config->json_output)
+		fputc('\n', config->output);
 }
 
 static void prepare_interval(struct perf_stat_config *config,
@@ -1058,17 +1066,14 @@ static void prepare_interval(struct perf_stat_config *config,
 	if (config->iostat_run)
 		return;
 
-	if (config->csv_output)
+	if (config->json_output)
+		scnprintf(prefix, len, "\"interval\" : %lu.%09lu, ",
+			  (unsigned long) ts->tv_sec, ts->tv_nsec);
+	else if (config->csv_output)
 		scnprintf(prefix, len, "%lu.%09lu%s",
 			  (unsigned long) ts->tv_sec, ts->tv_nsec, config->csv_sep);
-	else if (!config->json_output)
-		scnprintf(prefix, len, "%6lu.%09lu ",
-			  (unsigned long) ts->tv_sec, ts->tv_nsec);
-	else if (!config->metric_only)
-		scnprintf(prefix, len, "{\"interval\" : %lu.%09lu, ",
-			  (unsigned long) ts->tv_sec, ts->tv_nsec);
 	else
-		scnprintf(prefix, len, "{\"interval\" : %lu.%09lu}",
+		scnprintf(prefix, len, "%6lu.%09lu ",
 			  (unsigned long) ts->tv_sec, ts->tv_nsec);
 }
 
@@ -1365,6 +1370,7 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 	char buf[64];
 	struct outstate os = {
 		.fh = config->output,
+		.first = true,
 	};
 
 	if (config->iostat_run)
