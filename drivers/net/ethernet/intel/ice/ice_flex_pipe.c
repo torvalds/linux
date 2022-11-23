@@ -391,10 +391,11 @@ ice_upd_dvm_boost_entry_err:
  */
 int ice_set_dvm_boost_entries(struct ice_hw *hw)
 {
-	int status;
 	u16 i;
 
 	for (i = 0; i < hw->dvm_upd.count; i++) {
+		int status;
+
 		status = ice_upd_dvm_boost_entry(hw, &hw->dvm_upd.tbl[i]);
 		if (status)
 			return status;
@@ -3195,12 +3196,13 @@ ice_rem_vsig(struct ice_hw *hw, enum ice_block blk, u16 vsig,
 	u16 idx = vsig & ICE_VSIG_IDX_M;
 	struct ice_vsig_vsi *vsi_cur;
 	struct ice_vsig_prof *d, *t;
-	int status;
 
 	/* remove TCAM entries */
 	list_for_each_entry_safe(d, t,
 				 &hw->blk[blk].xlt2.vsig_tbl[idx].prop_lst,
 				 list) {
+		int status;
+
 		status = ice_rem_prof_id(hw, blk, d);
 		if (status)
 			return status;
@@ -3251,12 +3253,13 @@ ice_rem_prof_id_vsig(struct ice_hw *hw, enum ice_block blk, u16 vsig, u64 hdl,
 {
 	u16 idx = vsig & ICE_VSIG_IDX_M;
 	struct ice_vsig_prof *p, *t;
-	int status;
 
 	list_for_each_entry_safe(p, t,
 				 &hw->blk[blk].xlt2.vsig_tbl[idx].prop_lst,
 				 list)
 		if (p->profile_cookie == hdl) {
+			int status;
+
 			if (ice_vsig_prof_id_count(hw, blk, vsig) == 1)
 				/* this is the last profile, remove the VSIG */
 				return ice_rem_vsig(hw, blk, vsig, chg);
