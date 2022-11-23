@@ -330,3 +330,16 @@ void clk_runtime_put_regmap(struct clk_regmap *rclk)
 		pm_runtime_put_sync(rclk->dev);
 }
 EXPORT_SYMBOL(clk_runtime_put_regmap);
+
+void clk_restore_critical_clocks(struct device *dev)
+{
+	struct qcom_cc_desc *desc = dev_get_drvdata(dev);
+	struct regmap *regmap = dev_get_regmap(dev, NULL);
+	struct critical_clk_offset *cclks = desc->critical_clk_en;
+	int i;
+
+	for (i = 0; i < desc->num_critical_clk; i++)
+		regmap_update_bits(regmap, cclks[i].offset, cclks[i].mask,
+					 cclks[i].mask);
+}
+EXPORT_SYMBOL(clk_restore_critical_clocks);

@@ -90,6 +90,7 @@ bool clk_is_regmap_clk(struct clk_hw *hw);
 
 int clk_runtime_get_regmap(struct clk_regmap *rclk);
 void clk_runtime_put_regmap(struct clk_regmap *rclk);
+void clk_restore_critical_clocks(struct device *dev);
 
 struct clk_register_data {
 	char *name;
