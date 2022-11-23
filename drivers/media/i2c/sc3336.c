@@ -1582,11 +1582,17 @@ static int sc3336_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	sc3336->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
+	if (!sc3336->is_thunderboot)
+		sc3336->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	else
+		sc3336->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(sc3336->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
 
-	sc3336->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
+	if (!sc3336->is_thunderboot)
+		sc3336->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
+	else
+		sc3336->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
 	if (IS_ERR(sc3336->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
 
