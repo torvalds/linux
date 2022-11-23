@@ -1197,7 +1197,7 @@ static void vcap_api_rule_find_keyset_basic_test(struct kunit *test)
 	for (idx = 0; idx < ARRAY_SIZE(ckf); idx++)
 		list_add_tail(&ckf[idx].ctrl.list, &ri.data.keyfields);
 
-	ret = vcap_rule_find_keysets(&ri, &matches);
+	ret = vcap_rule_find_keysets(&ri.data, &matches);
 
 	KUNIT_EXPECT_EQ(test, true, ret);
 	KUNIT_EXPECT_EQ(test, 1, matches.cnt);
@@ -1244,7 +1244,7 @@ static void vcap_api_rule_find_keyset_failed_test(struct kunit *test)
 	for (idx = 0; idx < ARRAY_SIZE(ckf); idx++)
 		list_add_tail(&ckf[idx].ctrl.list, &ri.data.keyfields);
 
-	ret = vcap_rule_find_keysets(&ri, &matches);
+	ret = vcap_rule_find_keysets(&ri.data, &matches);
 
 	KUNIT_EXPECT_EQ(test, false, ret);
 	KUNIT_EXPECT_EQ(test, 0, matches.cnt);
@@ -1291,7 +1291,7 @@ static void vcap_api_rule_find_keyset_many_test(struct kunit *test)
 	for (idx = 0; idx < ARRAY_SIZE(ckf); idx++)
 		list_add_tail(&ckf[idx].ctrl.list, &ri.data.keyfields);
 
-	ret = vcap_rule_find_keysets(&ri, &matches);
+	ret = vcap_rule_find_keysets(&ri.data, &matches);
 
 	KUNIT_EXPECT_EQ(test, true, ret);
 	KUNIT_EXPECT_EQ(test, 6, matches.cnt);

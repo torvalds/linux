@@ -59,10 +59,6 @@ void vcap_iter_update(struct vcap_stream_iter *itr);
 
 /* Keyset and keyfield functionality */
 
-/* Return the keyset information for the keyset */
-const struct vcap_set *vcap_keyfieldset(struct vcap_control *vctrl,
-					enum vcap_type vt,
-					enum vcap_keyfield_set keyset);
 /* Return the number of keyfields in the keyset */
 int vcap_keyfield_count(struct vcap_control *vctrl,
 			enum vcap_type vt, enum vcap_keyfield_set keyset);

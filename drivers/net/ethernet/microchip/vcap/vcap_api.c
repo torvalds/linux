@@ -173,6 +173,7 @@ const struct vcap_set *vcap_keyfieldset(struct vcap_control *vctrl,
 		return NULL;
 	return kset;
 }
+EXPORT_SYMBOL_GPL(vcap_keyfieldset);
 
 /* Return the typegroup table for the matching keyset (using subword size) */
 const struct vcap_typegroup *
@@ -824,8 +825,8 @@ vcap_find_keyset_keyfield(struct vcap_control *vctrl,
 }
 
 /* Match a list of keys against the keysets available in a vcap type */
-static bool vcap_rule_find_keysets(struct vcap_rule_internal *ri,
-				   struct vcap_keyset_list *matches)
+static bool _vcap_rule_find_keysets(struct vcap_rule_internal *ri,
+				    struct vcap_keyset_list *matches)
 {
 	const struct vcap_client_keyfield *ckf;
 	int keyset, found, keycount, map_size;
@@ -864,6 +865,16 @@ static bool vcap_rule_find_keysets(struct vcap_rule_internal *ri,
 	return matches->cnt > 0;
 }
 
+/* Match a list of keys against the keysets available in a vcap type */
+bool vcap_rule_find_keysets(struct vcap_rule *rule,
+			    struct vcap_keyset_list *matches)
+{
+	struct vcap_rule_internal *ri = to_intrule(rule);
+
+	return _vcap_rule_find_keysets(ri, matches);
+}
+EXPORT_SYMBOL_GPL(vcap_rule_find_keysets);
+
 /* Validate a rule with respect to available port keys */
 int vcap_val_rule(struct vcap_rule *rule, u16 l3_proto)
 {
@@ -888,7 +899,7 @@ int vcap_val_rule(struct vcap_rule *rule, u16 l3_proto)
 	matches.max = ARRAY_SIZE(keysets);
 	if (ri->data.keyset == VCAP_KFS_NO_VALUE) {
 		/* Iterate over rule keyfields and select keysets that fits */
-		if (!vcap_rule_find_keysets(ri, &matches)) {
+		if (!_vcap_rule_find_keysets(ri, &matches)) {
 			ri->data.exterr = VCAP_ERR_NO_KEYSET_MATCH;
 			return -EINVAL;
 		}
@@ -1270,6 +1281,19 @@ int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin)
 }
 EXPORT_SYMBOL_GPL(vcap_del_rules);
 
+/* Find a client key field in a rule */
+static struct vcap_client_keyfield *
+vcap_find_keyfield(struct vcap_rule *rule, enum vcap_key_field key)
+{
+	struct vcap_rule_internal *ri = to_intrule(rule);
+	struct vcap_client_keyfield *ckf;
+
+	list_for_each_entry(ckf, &ri->data.keyfields, ctrl.list)
+		if (ckf->ctrl.key == key)
+			return ckf;
+	return NULL;
+}
+
 /* Find information on a key field in a rule */
 const struct vcap_field *vcap_lookup_keyfield(struct vcap_rule *rule,
 					      enum vcap_key_field key)
@@ -1433,6 +1457,19 @@ int vcap_rule_add_key_u128(struct vcap_rule *rule, enum vcap_key_field key,
 	return vcap_rule_add_key(rule, key, VCAP_FIELD_U128, &data);
 }
 EXPORT_SYMBOL_GPL(vcap_rule_add_key_u128);
+
+/* Find a client action field in a rule */
+static struct vcap_client_actionfield *
+vcap_find_actionfield(struct vcap_rule *rule, enum vcap_action_field act)
+{
+	struct vcap_rule_internal *ri = (struct vcap_rule_internal *)rule;
+	struct vcap_client_actionfield *caf;
+
+	list_for_each_entry(caf, &ri->data.actionfields, ctrl.list)
+		if (caf->ctrl.action == act)
+			return caf;
+	return NULL;
+}
 
 static void vcap_copy_from_client_actionfield(struct vcap_rule *rule,
 					      struct vcap_client_actionfield *field,
@@ -1771,6 +1808,148 @@ int vcap_rule_get_counter(struct vcap_rule *rule, struct vcap_counter *ctr)
 	return vcap_read_counter(ri, ctr);
 }
 EXPORT_SYMBOL_GPL(vcap_rule_get_counter);
+
+static int vcap_rule_mod_key(struct vcap_rule *rule,
+			     enum vcap_key_field key,
+			     enum vcap_field_type ftype,
+			     struct vcap_client_keyfield_data *data)
+{
+	struct vcap_client_keyfield *field;
+
+	field = vcap_find_keyfield(rule, key);
+	if (!field)
+		return vcap_rule_add_key(rule, key, ftype, data);
+	vcap_copy_from_client_keyfield(rule, field, data);
+	return 0;
+}
+
+/* Modify a 32 bit key field with value and mask in the rule */
+int vcap_rule_mod_key_u32(struct vcap_rule *rule, enum vcap_key_field key,
+			  u32 value, u32 mask)
+{
+	struct vcap_client_keyfield_data data;
+
+	data.u32.value = value;
+	data.u32.mask = mask;
+	return vcap_rule_mod_key(rule, key, VCAP_FIELD_U32, &data);
+}
+EXPORT_SYMBOL_GPL(vcap_rule_mod_key_u32);
+
+static int vcap_rule_mod_action(struct vcap_rule *rule,
+				enum vcap_action_field action,
+				enum vcap_field_type ftype,
+				struct vcap_client_actionfield_data *data)
+{
+	struct vcap_client_actionfield *field;
+
+	field = vcap_find_actionfield(rule, action);
+	if (!field)
+		return vcap_rule_add_action(rule, action, ftype, data);
+	vcap_copy_from_client_actionfield(rule, field, data);
+	return 0;
+}
+
+/* Modify a 32 bit action field with value in the rule */
+int vcap_rule_mod_action_u32(struct vcap_rule *rule,
+			     enum vcap_action_field action,
+			     u32 value)
+{
+	struct vcap_client_actionfield_data data;
+
+	data.u32.value = value;
+	return vcap_rule_mod_action(rule, action, VCAP_FIELD_U32, &data);
+}
+EXPORT_SYMBOL_GPL(vcap_rule_mod_action_u32);
+
+/* Drop keys in a keylist and any keys that are not supported by the keyset */
+int vcap_filter_rule_keys(struct vcap_rule *rule,
+			  enum vcap_key_field keylist[], int length,
+			  bool drop_unsupported)
+{
+	struct vcap_rule_internal *ri = to_intrule(rule);
+	struct vcap_client_keyfield *ckf, *next_ckf;
+	const struct vcap_field *fields;
+	enum vcap_key_field key;
+	int err = 0;
+	int idx;
+
+	if (length > 0) {
+		err = -EEXIST;
+		list_for_each_entry_safe(ckf, next_ckf,
+					 &ri->data.keyfields, ctrl.list) {
+			key = ckf->ctrl.key;
+			for (idx = 0; idx < length; ++idx)
+				if (key == keylist[idx]) {
+					list_del(&ckf->ctrl.list);
+					kfree(ckf);
+					idx++;
+					err = 0;
+				}
+		}
+	}
+	if (drop_unsupported) {
+		err = -EEXIST;
+		fields = vcap_keyfields(ri->vctrl, ri->admin->vtype,
+					rule->keyset);
+		if (!fields)
+			return err;
+		list_for_each_entry_safe(ckf, next_ckf,
+					 &ri->data.keyfields, ctrl.list) {
+			key = ckf->ctrl.key;
+			if (fields[key].width == 0) {
+				list_del(&ckf->ctrl.list);
+				kfree(ckf);
+				err = 0;
+			}
+		}
+	}
+	return err;
+}
+EXPORT_SYMBOL_GPL(vcap_filter_rule_keys);
+
+/* Make a full copy of an existing rule with a new rule id */
+struct vcap_rule *vcap_copy_rule(struct vcap_rule *erule)
+{
+	struct vcap_rule_internal *ri = to_intrule(erule);
+	struct vcap_client_actionfield *caf;
+	struct vcap_client_keyfield *ckf;
+	struct vcap_rule *rule;
+	int err;
+
+	err = vcap_api_check(ri->vctrl);
+	if (err)
+		return ERR_PTR(err);
+
+	rule = vcap_alloc_rule(ri->vctrl, ri->ndev, ri->data.vcap_chain_id,
+			       ri->data.user, ri->data.priority, 0);
+	if (IS_ERR(rule))
+		return rule;
+
+	list_for_each_entry(ckf, &ri->data.keyfields, ctrl.list) {
+		/* Add a key duplicate in the new rule */
+		err = vcap_rule_add_key(rule,
+					ckf->ctrl.key,
+					ckf->ctrl.type,
+					&ckf->data);
+		if (err)
+			goto err;
+	}
+
+	list_for_each_entry(caf, &ri->data.actionfields, ctrl.list) {
+		/* Add a action duplicate in the new rule */
+		err = vcap_rule_add_action(rule,
+					   caf->ctrl.action,
+					   caf->ctrl.type,
+					   &caf->data);
+		if (err)
+			goto err;
+	}
+	return rule;
+err:
+	vcap_free_rule(rule);
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(vcap_copy_rule);
 
 #ifdef CONFIG_VCAP_KUNIT_TEST
 #include "vcap_api_kunit.c"
