@@ -70,14 +70,6 @@ static struct uart_driver liteuart_driver = {
 #endif
 };
 
-static void liteuart_putchar(struct uart_port *port, unsigned char ch)
-{
-	while (litex_read8(port->membase + OFF_TXFULL))
-		cpu_relax();
-
-	litex_write8(port->membase + OFF_RXTX, ch);
-}
-
 static void liteuart_update_irq_reg(struct uart_port *port, bool set, u8 mask)
 {
 	struct liteuart_port *uart = to_liteuart_port(port);
@@ -376,6 +368,14 @@ static struct platform_driver liteuart_platform_driver = {
 };
 
 #ifdef CONFIG_SERIAL_LITEUART_CONSOLE
+
+static void liteuart_putchar(struct uart_port *port, unsigned char ch)
+{
+	while (litex_read8(port->membase + OFF_TXFULL))
+		cpu_relax();
+
+	litex_write8(port->membase + OFF_RXTX, ch);
+}
 
 static void liteuart_console_write(struct console *co, const char *s,
 	unsigned int count)
