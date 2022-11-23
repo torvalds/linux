@@ -2866,14 +2866,12 @@ int cgroup_migrate(struct task_struct *leader, bool threadgroup,
 	 * take an rcu_read_lock.
 	 */
 	spin_lock_irq(&css_set_lock);
-	rcu_read_lock();
 	task = leader;
 	do {
 		cgroup_migrate_add_task(task, mgctx);
 		if (!threadgroup)
 			break;
 	} while_each_thread(leader, task);
-	rcu_read_unlock();
 	spin_unlock_irq(&css_set_lock);
 
 	return cgroup_migrate_execute(mgctx);
