@@ -2004,6 +2004,9 @@ static int rga3_irq(struct rga_scheduler_t *scheduler)
 	if (job == NULL)
 		return IRQ_HANDLED;
 
+	if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state))
+		return IRQ_WAKE_THREAD;
+
 	job->intr_status = rga_read(RGA3_INT_RAW, scheduler);
 	job->hw_status = rga_read(RGA3_STATUS0, scheduler);
 	job->cmd_status = rga_read(RGA3_CMD_STATE, scheduler);
@@ -2038,10 +2041,7 @@ static int rga3_isr_thread(struct rga_job *job, struct rga_scheduler_t *schedule
 			rga_read(RGA3_CMD_STATE, scheduler));
 
 	if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state)) {
-		if (job->intr_status & m_RGA3_INT_RGA_MMU_INTR) {
-			pr_err("iommu error, please check size of the buffer or whether the buffer has been freed.\n");
-			job->ret = -EACCES;
-		} else if (job->intr_status & m_RGA3_INT_RAG_MI_RD_BUS_ERR) {
+		if (job->intr_status & m_RGA3_INT_RAG_MI_RD_BUS_ERR) {
 			pr_err("DMA read bus error, please check size of the input_buffer or whether the buffer has been freed.\n");
 			job->ret = -EFAULT;
 		} else if (job->intr_status & m_RGA3_INT_WIN0_FBCD_DEC_ERR) {
@@ -2053,7 +2053,9 @@ static int rga3_isr_thread(struct rga_job *job, struct rga_scheduler_t *schedule
 		} else if (job->intr_status & m_RGA3_INT_RGA_MI_WR_BUS_ERR) {
 			pr_err("wr buss error, please check size of the output_buffer or whether the buffer has been freed.\n");
 			job->ret = -EFAULT;
-		} else {
+		}
+
+		if (job->ret == 0) {
 			pr_err("rga intr error[0x%x]!\n", job->intr_status);
 			job->ret = -EFAULT;
 		}

@@ -4,6 +4,11 @@
 
 #include "rga_drv.h"
 
+/* RGA_IOMMU_INT_* register fields */
+#define RGA_IOMMU_IRQ_PAGE_FAULT    0x01  /* page fault */
+#define RGA_IOMMU_IRQ_BUS_ERROR     0x02  /* bus read error */
+#define RGA_IOMMU_IRQ_MASK          (RGA_IOMMU_IRQ_PAGE_FAULT | RGA_IOMMU_IRQ_BUS_ERROR)
+
 /*
  * The maximum input is 8192*8192, the maximum output is 4096*4096
  * The size of physical pages requested is:

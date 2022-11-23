@@ -2546,6 +2546,9 @@ static int rga2_irq(struct rga_scheduler_t *scheduler)
 	if (job == NULL)
 		return IRQ_HANDLED;
 
+	if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state))
+		return IRQ_WAKE_THREAD;
+
 	job->intr_status = rga_read(RGA2_INT, scheduler);
 	job->hw_status = rga_read(RGA2_STATUS2, scheduler);
 	job->cmd_status = rga_read(RGA2_STATUS1, scheduler);
@@ -2595,6 +2598,11 @@ static int rga2_isr_thread(struct rga_job *job, struct rga_scheduler_t *schedule
 		} else if (job->intr_status & m_RGA2_INT_MMU_INT_FLAG) {
 			pr_err("mmu failed, please check size of the buffer or whether the buffer has been freed.\n");
 			job->ret = -EACCES;
+		}
+
+		if (job->ret == 0) {
+			pr_err("rga intr error[0x%x]!\n", job->intr_status);
+			job->ret = -EFAULT;
 		}
 	}
 

@@ -5,7 +5,7 @@
  * Author: Huang Lee <Putin.li@rock-chips.com>
  */
 
-#define pr_fmt(fmt) "rga2_mmu: " fmt
+#define pr_fmt(fmt) "rga_iommu: " fmt
 
 #include "rga_iommu.h"
 #include "rga_dma_buf.h"
@@ -221,6 +221,38 @@ void rga_mmu_base_free(struct rga_mmu_base **mmu_base)
 	*mmu_base = NULL;
 }
 
+static int rga_iommu_intr_fault_handler(struct iommu_domain *iommu, struct device *iommu_dev,
+					unsigned long iova, int status, void *arg)
+{
+	struct rga_scheduler_t *scheduler = (struct rga_scheduler_t *)arg;
+	struct rga_job *job = scheduler->running_job;
+
+	if (job == NULL)
+		return 0;
+
+	pr_err("IOMMU intr fault, IOVA[0x%lx], STATUS[0x%x]\n", iova, status);
+	if (scheduler->ops->irq)
+		scheduler->ops->irq(scheduler);
+
+	/* iommu interrupts on rga2 do not affect rga2 itself. */
+	if (!test_bit(RGA_JOB_STATE_INTR_ERR, &job->state)) {
+		set_bit(RGA_JOB_STATE_INTR_ERR, &job->state);
+		scheduler->ops->soft_reset(scheduler);
+	}
+
+	if (status & RGA_IOMMU_IRQ_PAGE_FAULT) {
+		pr_err("RGA IOMMU: page fault! Please check the memory size.\n");
+		job->ret = -EACCES;
+	} else if (status & RGA_IOMMU_IRQ_BUS_ERROR) {
+		pr_err("RGA IOMMU: bus error! Please check if the memory is invalid or has been freed.\n");
+		job->ret = -EACCES;
+	} else {
+		pr_err("RGA IOMMU: Wrong IOMMU interrupt signal!\n");
+	}
+
+	return 0;
+}
+
 int rga_iommu_detach(struct rga_iommu_info *info)
 {
 	if (!info)
@@ -306,6 +338,9 @@ int rga_iommu_bind(void)
 			if (main_iommu == NULL) {
 				main_iommu = scheduler->iommu_info;
 				main_iommu_index = i;
+				iommu_set_fault_handler(main_iommu->domain,
+							rga_iommu_intr_fault_handler,
+							(void *)scheduler);
 			} else {
 				scheduler->iommu_info->domain = main_iommu->domain;
 				scheduler->iommu_info->default_dev = main_iommu->default_dev;
