@@ -34,21 +34,12 @@
 	wx\n	.req	w\n
 	.endr
 
-	.macro save_and_disable_daif, flags
-	mrs	\flags, daif
-	msr	daifset, #0xf
-	.endm
-
 	.macro disable_daif
 	msr	daifset, #0xf
 	.endm
 
 	.macro enable_daif
 	msr	daifclr, #0xf
-	.endm
-
-	.macro	restore_daif, flags:req
-	msr	daif, \flags
 	.endm
 
 /*
