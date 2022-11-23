@@ -18,11 +18,6 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/page_reporting.h>
-#include <linux/mem_relinquish.h>
-
-static bool pkvm;
-module_param(pkvm, bool, 0);
-MODULE_PARM_DESC(pkvm, "Running on PKVM. Must use MEM_RELINQUISH.");
 
 /*
  * Balloon device works in 4K page units.  So each page is pointed to by
@@ -872,12 +867,6 @@ static int virtballoon_probe(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb;
 	int err;
-
-	if (pkvm && !kvm_has_memrelinquish_services()) {
-		dev_err(&vdev->dev, "%s failure: pkvm but no memrelinquish\n",
-			__func__);
-		return -EINVAL;
-	}
 
 	if (!vdev->config->get) {
 		dev_err(&vdev->dev, "%s failure: config access disabled\n",
