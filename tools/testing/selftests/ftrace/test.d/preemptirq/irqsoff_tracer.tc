@@ -46,10 +46,10 @@ cat trace
 grep -q "tracer: preemptoff" trace || fail
 
 # Check the end of the section
-egrep -q "5.....us : <stack trace>" trace || fail
+grep -E -q "5.....us : <stack trace>" trace || fail
 
 # Check for 500ms of latency
-egrep -q "latency: 5..... us" trace || fail
+grep -E -q "latency: 5..... us" trace || fail
 
 reset_tracer
 
@@ -69,10 +69,10 @@ cat trace
 grep -q "tracer: irqsoff" trace || fail
 
 # Check the end of the section
-egrep -q "5.....us : <stack trace>" trace || fail
+grep -E -q "5.....us : <stack trace>" trace || fail
 
 # Check for 500ms of latency
-egrep -q "latency: 5..... us" trace || fail
+grep -E -q "latency: 5..... us" trace || fail
 
 reset_tracer
 exit 0
