@@ -92,7 +92,6 @@ struct ttm_tt;
  * @ttm: TTM structure holding system pages.
  * @evicted: Whether the object was evicted without user-space knowing.
  * @deleted: True if the object is only a zombie and already deleted.
- * @ddestroy: List head for the delayed destroy list.
  * @swap: List head for swap LRU list.
  * @offset: The current GPU offset, which can have different meanings
  * depending on the memory type. For SYSTEM type memory, it should be 0.
@@ -135,19 +134,14 @@ struct ttm_buffer_object {
 	struct ttm_tt *ttm;
 	bool deleted;
 	struct ttm_lru_bulk_move *bulk_move;
-
-	/**
-	 * Members protected by the bdev::lru_lock.
-	 */
-
-	struct list_head ddestroy;
-
-	/**
-	 * Members protected by a bo reservation.
-	 */
-
 	unsigned priority;
 	unsigned pin_count;
+
+	/**
+	 * @delayed_delete: Work item used when we can't delete the BO
+	 * immediately
+	 */
+	struct work_struct delayed_delete;
 
 	/**
 	 * Special members that are protected by the reserve lock
@@ -448,8 +442,6 @@ void ttm_bo_vm_close(struct vm_area_struct *vma);
 
 int ttm_bo_vm_access(struct vm_area_struct *vma, unsigned long addr,
 		     void *buf, int len, int write);
-bool ttm_bo_delayed_delete(struct ttm_device *bdev, bool remove_all);
-
 vm_fault_t ttm_bo_vm_dummy_page(struct vm_fault *vmf, pgprot_t prot);
 
 #endif
