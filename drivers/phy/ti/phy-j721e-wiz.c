@@ -322,6 +322,7 @@ enum wiz_type {
 	AM64_WIZ_10G,
 	J7200_WIZ_10G,  /* J7200 SR2.0 */
 	J784S4_WIZ_10G,
+	J721S2_WIZ_10G,
 };
 
 struct wiz_data {
@@ -1000,6 +1001,7 @@ static void wiz_clock_cleanup(struct wiz *wiz, struct device_node *node)
 	case AM64_WIZ_10G:
 	case J7200_WIZ_10G:
 	case J784S4_WIZ_10G:
+	case J721S2_WIZ_10G:
 		of_clk_del_provider(dev->of_node);
 		return;
 	default:
@@ -1132,6 +1134,7 @@ static int wiz_clock_init(struct wiz *wiz, struct device_node *node)
 	case AM64_WIZ_10G:
 	case J7200_WIZ_10G:
 	case J784S4_WIZ_10G:
+	case J721S2_WIZ_10G:
 		ret = wiz_clock_register(wiz);
 		if (ret)
 			dev_err(dev, "Failed to register wiz clocks\n");
@@ -1214,6 +1217,7 @@ static int wiz_phy_fullrt_div(struct wiz *wiz, int lane)
 		break;
 	case J721E_WIZ_10G:
 	case J7200_WIZ_10G:
+	case J721S2_WIZ_10G:
 		if (wiz->lane_phy_type[lane] == PHY_TYPE_SGMII)
 			return regmap_field_write(wiz->p0_fullrt_div[lane], 0x2);
 		break;
@@ -1318,6 +1322,15 @@ static struct wiz_data j784s4_10g_data = {
 	.clk_div_sel_num = WIZ_DIV_NUM_CLOCKS_10G,
 };
 
+static struct wiz_data j721s2_10g_data = {
+	.type = J721S2_WIZ_10G,
+	.pll0_refclk_mux_sel = &pll0_refclk_mux_sel,
+	.pll1_refclk_mux_sel = &pll1_refclk_mux_sel,
+	.refclk_dig_sel = &refclk_dig_sel_10g,
+	.clk_mux_sel = clk_mux_sel_10g,
+	.clk_div_sel_num = WIZ_DIV_NUM_CLOCKS_10G,
+};
+
 static const struct of_device_id wiz_id_table[] = {
 	{
 		.compatible = "ti,j721e-wiz-16g", .data = &j721e_16g_data,
@@ -1333,6 +1346,9 @@ static const struct of_device_id wiz_id_table[] = {
 	},
 	{
 		.compatible = "ti,j784s4-wiz-10g", .data = &j784s4_10g_data,
+	},
+	{
+		.compatible = "ti,j721s2-wiz-10g", .data = &j721s2_10g_data,
 	},
 	{}
 };
