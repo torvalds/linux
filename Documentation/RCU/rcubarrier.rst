@@ -296,7 +296,8 @@ Quick Quiz #1:
 	Is there any other situation where rcu_barrier() might
 	be required?
 
-Answer: Interestingly enough, rcu_barrier() was not originally
+Answer:
+	Interestingly enough, rcu_barrier() was not originally
 	implemented for module unloading. Nikita Danilov was using
 	RCU in a filesystem, which resulted in a similar situation at
 	filesystem-unmount time. Dipankar Sarma coded up rcu_barrier()
@@ -315,7 +316,8 @@ Quick Quiz #2:
 	Why doesn't line 8 initialize rcu_barrier_cpu_count to zero,
 	thereby avoiding the need for lines 9 and 10?
 
-Answer: Suppose that the on_each_cpu() function shown on line 8 was
+Answer:
+	Suppose that the on_each_cpu() function shown on line 8 was
 	delayed, so that CPU 0's rcu_barrier_func() executed and
 	the corresponding grace period elapsed, all before CPU 1's
 	rcu_barrier_func() started executing.  This would result in
@@ -351,7 +353,8 @@ Quick Quiz #3:
 	are delayed for a full grace period? Couldn't this result in
 	rcu_barrier() returning prematurely?
 
-Answer: This cannot happen. The reason is that on_each_cpu() has its last
+Answer:
+	This cannot happen. The reason is that on_each_cpu() has its last
 	argument, the wait flag, set to "1". This flag is passed through
 	to smp_call_function() and further to smp_call_function_on_cpu(),
 	causing this latter to spin until the cross-CPU invocation of
