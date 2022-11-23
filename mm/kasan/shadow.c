@@ -514,7 +514,7 @@ void __kasan_poison_vmalloc(const void *start, unsigned long size)
 	kasan_poison(start, size, KASAN_VMALLOC_INVALID, false);
 }
 
-#else /* CONFIG_KASAN_VMALLOC */
+#elif defined(CONFIG_MODULE) /* CONFIG_KASAN_VMALLOC */
 
 int kasan_alloc_module_shadow(void *addr, size_t size, gfp_t gfp_mask)
 {
