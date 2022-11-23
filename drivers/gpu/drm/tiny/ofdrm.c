@@ -1284,14 +1284,7 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	dev->mode_config.min_height = height;
 	dev->mode_config.max_height = max_height;
 	dev->mode_config.funcs = &ofdrm_mode_config_funcs;
-	switch (depth) {
-	case 32:
-		dev->mode_config.preferred_depth = 24;
-		break;
-	default:
-		dev->mode_config.preferred_depth = depth;
-		break;
-	}
+	dev->mode_config.preferred_depth = format->depth;
 	dev->mode_config.quirk_addfb_prefer_host_byte_order = true;
 
 	/* Primary plane */
@@ -1390,10 +1383,6 @@ static int ofdrm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/*
-	 * FIXME: 24-bit color depth does not work reliably with a 32-bpp
-	 * value. Force the bpp value of the scanout buffer's format.
-	 */
 	drm_fbdev_generic_setup(dev, drm_format_info_bpp(odev->format, 0));
 
 	return 0;
