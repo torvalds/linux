@@ -7,6 +7,7 @@
 #include <dt-bindings/clock/mt8186-clk.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/memory/mt8186-memory-port.h>
 #include <dt-bindings/pinctrl/mt8186-pinfunc.h>
 #include <dt-bindings/power/mt8186-power.h>
 #include <dt-bindings/phy/phy.h>
@@ -947,10 +948,66 @@
 			#reset-cells = <1>;
 		};
 
+		smi_common: smi@14002000 {
+			compatible = "mediatek,mt8186-smi-common";
+			reg = <0 0x14002000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_SMI_COMMON>, <&mmsys CLK_MM_SMI_COMMON>,
+				 <&mmsys CLK_MM_SMI_GALS>, <&mmsys CLK_MM_SMI_GALS>;
+			clock-names = "apb", "smi", "gals0", "gals1";
+			power-domains = <&spm MT8186_POWER_DOMAIN_DIS>;
+		};
+
+		larb0: smi@14003000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x14003000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_SMI_COMMON>,
+				 <&mmsys CLK_MM_SMI_COMMON>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <0>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_DIS>;
+		};
+
+		larb1: smi@14004000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x14004000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_SMI_COMMON>,
+				 <&mmsys CLK_MM_SMI_COMMON>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <1>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_DIS>;
+		};
+
+		iommu_mm: iommu@14016000 {
+			compatible = "mediatek,mt8186-iommu-mm";
+			reg = <0 0x14016000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_SMI_IOMMU>;
+			clock-names = "bclk";
+			interrupts = <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH 0>;
+			mediatek,larbs = <&larb0 &larb1 &larb2 &larb4
+					  &larb7 &larb8 &larb9 &larb11
+					  &larb13 &larb14 &larb16 &larb17
+					  &larb19 &larb20>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_DIS>;
+			#iommu-cells = <1>;
+		};
+
 		wpesys: clock-controller@14020000 {
 			compatible = "mediatek,mt8186-wpesys";
 			reg = <0 0x14020000 0 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		larb8: smi@14023000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x14023000 0 0x1000>;
+			clocks = <&wpesys CLK_WPE_SMI_LARB8_CK_EN>,
+				 <&wpesys CLK_WPE_SMI_LARB8_CK_EN>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <8>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_WPE>;
 		};
 
 		imgsys1: clock-controller@15020000 {
@@ -959,10 +1016,43 @@
 			#clock-cells = <1>;
 		};
 
+		larb9: smi@1502e000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x1502e000 0 0x1000>;
+			clocks = <&imgsys1 CLK_IMG1_GALS_IMG1>,
+				 <&imgsys1 CLK_IMG1_LARB9_IMG1>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <9>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_IMG>;
+		};
+
 		imgsys2: clock-controller@15820000 {
 			compatible = "mediatek,mt8186-imgsys2";
 			reg = <0 0x15820000 0 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		larb11: smi@1582e000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x1582e000 0 0x1000>;
+			clocks = <&imgsys1 CLK_IMG1_LARB9_IMG1>,
+				 <&imgsys2 CLK_IMG2_LARB9_IMG2>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <11>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_IMG2>;
+		};
+
+		larb4: smi@1602e000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x1602e000 0 0x1000>;
+			clocks = <&vdecsys CLK_VDEC_LARB1_CKEN>,
+				 <&vdecsys CLK_VDEC_LARB1_CKEN>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <4>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_VDEC>;
 		};
 
 		vdecsys: clock-controller@1602f000 {
@@ -977,10 +1067,63 @@
 			#clock-cells = <1>;
 		};
 
+		larb7: smi@17010000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x17010000 0 0x1000>;
+			clocks = <&vencsys CLK_VENC_CKE1_VENC>,
+				 <&vencsys CLK_VENC_CKE1_VENC>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <7>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_VENC>;
+		};
+
 		camsys: clock-controller@1a000000 {
 			compatible = "mediatek,mt8186-camsys";
 			reg = <0 0x1a000000 0 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		larb13: smi@1a001000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x1a001000 0 0x1000>;
+			clocks = <&camsys CLK_CAM2MM_GALS>, <&camsys CLK_CAM_LARB13>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <13>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_CAM>;
+		};
+
+		larb14: smi@1a002000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x1a002000 0 0x1000>;
+			clocks = <&camsys CLK_CAM2MM_GALS>, <&camsys CLK_CAM_LARB14>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <14>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_CAM>;
+		};
+
+		larb16: smi@1a00f000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x1a00f000 0 0x1000>;
+			clocks = <&camsys CLK_CAM_LARB14>,
+				 <&camsys_rawa CLK_CAM_RAWA_LARBX_RAWA>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <16>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_CAM_RAWA>;
+		};
+
+		larb17: smi@1a010000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x1a010000 0 0x1000>;
+			clocks = <&camsys CLK_CAM_LARB13>,
+				 <&camsys_rawb CLK_CAM_RAWB_LARBX_RAWB>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <17>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_CAM_RAWB>;
 		};
 
 		camsys_rawa: clock-controller@1a04f000 {
@@ -1001,10 +1144,40 @@
 			#clock-cells = <1>;
 		};
 
+		larb2: smi@1b002000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x1b002000 0 0x1000>;
+			clocks = <&mdpsys CLK_MDP_SMI0>, <&mdpsys CLK_MDP_SMI0>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <2>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_DIS>;
+		};
+
 		ipesys: clock-controller@1c000000 {
 			compatible = "mediatek,mt8186-ipesys";
 			reg = <0 0x1c000000 0 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		larb20: smi@1c00f000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x1c00f000 0 0x1000>;
+			clocks = <&ipesys CLK_IPE_LARB20>, <&ipesys CLK_IPE_LARB20>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <20>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_IPE>;
+		};
+
+		larb19: smi@1c10f000 {
+			compatible = "mediatek,mt8186-smi-larb";
+			reg = <0 0x1c10f000 0 0x1000>;
+			clocks = <&ipesys CLK_IPE_LARB19>, <&ipesys CLK_IPE_LARB19>;
+			clock-names = "apb", "smi";
+			mediatek,larb-id = <19>;
+			mediatek,smi = <&smi_common>;
+			power-domains = <&spm MT8186_POWER_DOMAIN_IPE>;
 		};
 	};
 };
