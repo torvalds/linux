@@ -93,27 +93,12 @@ static void liteuart_update_irq_reg(struct uart_port *port, bool set, u8 mask)
 
 static void liteuart_stop_tx(struct uart_port *port)
 {
+	liteuart_update_irq_reg(port, false, EV_TX);
 }
 
 static void liteuart_start_tx(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
-	unsigned char ch;
-
-	if (unlikely(port->x_char)) {
-		litex_write8(port->membase + OFF_RXTX, port->x_char);
-		port->icount.tx++;
-		port->x_char = 0;
-	} else if (!uart_circ_empty(xmit)) {
-		while (xmit->head != xmit->tail) {
-			ch = xmit->buf[xmit->tail];
-			uart_xmit_advance(port, 1);
-			liteuart_putchar(port, ch);
-		}
-	}
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(port);
+	liteuart_update_irq_reg(port, true, EV_TX);
 }
 
 static void liteuart_stop_rx(struct uart_port *port)
@@ -144,6 +129,15 @@ static void liteuart_rx_chars(struct uart_port *port)
 	tty_flip_buffer_push(&port->state->port);
 }
 
+static void liteuart_tx_chars(struct uart_port *port)
+{
+	u8 ch;
+
+	uart_port_tx(port, ch,
+		!litex_read8(port->membase + OFF_TXFULL),
+		litex_write8(port->membase + OFF_RXTX, ch));
+}
+
 static irqreturn_t liteuart_interrupt(int irq, void *data)
 {
 	struct liteuart_port *uart = data;
@@ -159,6 +153,8 @@ static irqreturn_t liteuart_interrupt(int irq, void *data)
 	isr = litex_read8(port->membase + OFF_EV_PENDING) & uart->irq_reg;
 	if (isr & EV_RX)
 		liteuart_rx_chars(port);
+	if (isr & EV_TX)
+		liteuart_tx_chars(port);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	return IRQ_RETVAL(isr);
