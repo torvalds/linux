@@ -1855,6 +1855,10 @@ struct bkey_s_c btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos 
 	struct bkey_s_c k;
 	int ret;
 
+	if ((iter->flags & BTREE_ITER_KEY_CACHE_FILL) &&
+	    bpos_eq(iter->pos, pos))
+		return bkey_s_c_null;
+
 	if (!bch2_btree_key_cache_find(c, iter->btree_id, pos))
 		return bkey_s_c_null;
 

@@ -684,8 +684,8 @@ retry:
 
 	if (!bkey_is_inode(k.k)) {
 		bch2_fs_inconsistent(trans.c,
-				     "inode %llu not found when deleting",
-				     inum.inum);
+				     "inode %llu:%u not found when deleting",
+				     inum.inum, snapshot);
 		ret = -EIO;
 		goto err;
 	}

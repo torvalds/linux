@@ -370,19 +370,19 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 				struct btree_path *ck_path,
 				struct bkey_cached *ck)
 {
-	struct btree_path *path;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	unsigned new_u64s = 0;
 	struct bkey_i *new_k = NULL;
-	struct bkey u;
 	int ret;
 
-	path = bch2_path_get(trans, ck->key.btree_id, ck->key.pos, 0, 0, 0);
-	ret = bch2_btree_path_traverse(trans, path, 0);
+	bch2_trans_iter_init(trans, &iter, ck->key.btree_id, ck->key.pos,
+			     BTREE_ITER_KEY_CACHE_FILL|
+			     BTREE_ITER_CACHED_NOFILL);
+	k = bch2_btree_iter_peek_slot(&iter);
+	ret = bkey_err(k);
 	if (ret)
 		goto err;
-
-	k = bch2_btree_path_peek_slot(path, &u);
 
 	if (!bch2_btree_node_relock(trans, ck_path, 0)) {
 		trace_and_count(trans->c, trans_restart_relock_key_cache_fill, trans, _THIS_IP_, ck_path);
@@ -431,9 +431,9 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 	bch2_btree_node_unlock_write(trans, ck_path, ck_path->l[0].b);
 
 	/* We're not likely to need this iterator again: */
-	path->preserve = false;
+	set_btree_iter_dontneed(&iter);
 err:
-	bch2_path_put(trans, path, 0);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
