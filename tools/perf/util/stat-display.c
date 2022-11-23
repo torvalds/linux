@@ -828,7 +828,7 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 			fprintf(output, "%s", prefix);
 		else if (config->summary && config->csv_output &&
 			 !config->no_csv_summary && !config->interval)
-			fprintf(output, "%16s%s", "summary", config->csv_sep);
+			fprintf(output, "%s%s", "summary", config->csv_sep);
 	}
 
 	uval = val * counter->scale;
@@ -1078,9 +1078,12 @@ static void prepare_interval(struct perf_stat_config *config,
 	if (config->iostat_run)
 		return;
 
-	if (!config->json_output)
-		sprintf(prefix, "%6lu.%09lu%s", (unsigned long) ts->tv_sec,
+	if (config->csv_output)
+		sprintf(prefix, "%lu.%09lu%s", (unsigned long) ts->tv_sec,
 				 ts->tv_nsec, config->csv_sep);
+	else if (!config->json_output)
+		sprintf(prefix, "%6lu.%09lu ", (unsigned long) ts->tv_sec,
+				 ts->tv_nsec);
 	else if (!config->metric_only)
 		sprintf(prefix, "{\"interval\" : %lu.%09lu, ", (unsigned long)
 				 ts->tv_sec, ts->tv_nsec);
