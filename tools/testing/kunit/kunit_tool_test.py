@@ -312,6 +312,20 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertEqual(kunit_parser._summarize_failed_tests(result),
 			'Failures: all_failed_suite, some_failed_suite.test2')
 
+	def test_ktap_format(self):
+		ktap_log = test_data_path('test_parse_ktap_output.log')
+		with open(ktap_log) as file:
+			result = kunit_parser.parse_run_tests(file.readlines())
+		self.assertEqual(result.counts, kunit_parser.TestCounts(passed=3))
+		self.assertEqual('suite', result.subtests[0].name)
+		self.assertEqual('case_1', result.subtests[0].subtests[0].name)
+		self.assertEqual('case_2', result.subtests[0].subtests[1].name)
+
+	def test_parse_subtest_header(self):
+		ktap_log = test_data_path('test_parse_subtest_header.log')
+		with open(ktap_log) as file:
+			result = kunit_parser.parse_run_tests(file.readlines())
+		self.print_mock.assert_any_call(StrContains('suite (1 subtest)'))
 
 def line_stream_from_strs(strs: Iterable[str]) -> kunit_parser.LineStream:
 	return kunit_parser.LineStream(enumerate(strs, start=1))
