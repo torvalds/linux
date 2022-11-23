@@ -7,6 +7,7 @@
 
 #include <linux/bits.h>
 #include <linux/console.h>
+#include <linux/interrupt.h>
 #include <linux/litex.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -46,6 +47,7 @@ struct liteuart_port {
 	struct uart_port port;
 	struct timer_list timer;
 	u32 id;
+	u8 irq_reg;
 };
 
 #define to_liteuart_port(port)	container_of(port, struct liteuart_port, port)
@@ -74,6 +76,19 @@ static void liteuart_putchar(struct uart_port *port, unsigned char ch)
 		cpu_relax();
 
 	litex_write8(port->membase + OFF_RXTX, ch);
+}
+
+static void liteuart_update_irq_reg(struct uart_port *port, bool set, u8 mask)
+{
+	struct liteuart_port *uart = to_liteuart_port(port);
+
+	if (set)
+		uart->irq_reg |= mask;
+	else
+		uart->irq_reg &= ~mask;
+
+	if (port->irq)
+		litex_write8(port->membase + OFF_EV_ENABLE, uart->irq_reg);
 }
 
 static void liteuart_stop_tx(struct uart_port *port)
@@ -129,13 +144,32 @@ static void liteuart_rx_chars(struct uart_port *port)
 	tty_flip_buffer_push(&port->state->port);
 }
 
+static irqreturn_t liteuart_interrupt(int irq, void *data)
+{
+	struct liteuart_port *uart = data;
+	struct uart_port *port = &uart->port;
+	unsigned long flags;
+	u8 isr;
+
+	/*
+	 * if polling, the context would be "in_serving_softirq", so use
+	 * irq[save|restore] spin_lock variants to cover all possibilities
+	 */
+	spin_lock_irqsave(&port->lock, flags);
+	isr = litex_read8(port->membase + OFF_EV_PENDING) & uart->irq_reg;
+	if (isr & EV_RX)
+		liteuart_rx_chars(port);
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	return IRQ_RETVAL(isr);
+}
+
 static void liteuart_timer(struct timer_list *t)
 {
 	struct liteuart_port *uart = from_timer(uart, t, timer);
 	struct uart_port *port = &uart->port;
 
-	liteuart_rx_chars(port);
-
+	liteuart_interrupt(0, port);
 	mod_timer(&uart->timer, jiffies + uart_poll_timeout(port));
 }
 
@@ -161,19 +195,46 @@ static unsigned int liteuart_get_mctrl(struct uart_port *port)
 static int liteuart_startup(struct uart_port *port)
 {
 	struct liteuart_port *uart = to_liteuart_port(port);
+	unsigned long flags;
+	int ret;
 
-	/* disable events */
-	litex_write8(port->membase + OFF_EV_ENABLE, 0);
+	if (port->irq) {
+		ret = request_irq(port->irq, liteuart_interrupt, 0,
+				  KBUILD_MODNAME, uart);
+		if (ret) {
+			dev_warn(port->dev,
+				"line %d irq %d failed: switch to polling\n",
+				port->line, port->irq);
+			port->irq = 0;
+		}
+	}
 
-	/* prepare timer for polling */
-	timer_setup(&uart->timer, liteuart_timer, 0);
-	mod_timer(&uart->timer, jiffies + uart_poll_timeout(port));
+	spin_lock_irqsave(&port->lock, flags);
+	/* only enabling rx irqs during startup */
+	liteuart_update_irq_reg(port, true, EV_RX);
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	if (!port->irq) {
+		timer_setup(&uart->timer, liteuart_timer, 0);
+		mod_timer(&uart->timer, jiffies + uart_poll_timeout(port));
+	}
 
 	return 0;
 }
 
 static void liteuart_shutdown(struct uart_port *port)
 {
+	struct liteuart_port *uart = to_liteuart_port(port);
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+	liteuart_update_irq_reg(port, false, EV_RX | EV_TX);
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	if (port->irq)
+		free_irq(port->irq, port);
+	else
+		del_timer_sync(&uart->timer);
 }
 
 static void liteuart_set_termios(struct uart_port *port, struct ktermios *new,
@@ -261,6 +322,12 @@ static int liteuart_probe(struct platform_device *pdev)
 		ret = PTR_ERR(port->membase);
 		goto err_erase_id;
 	}
+
+	ret = platform_get_irq_optional(pdev, 0);
+	if (ret < 0 && ret != -ENXIO)
+		return ret;
+	if (ret > 0)
+		port->irq = ret;
 
 	/* values not from device tree */
 	port->dev = &pdev->dev;
