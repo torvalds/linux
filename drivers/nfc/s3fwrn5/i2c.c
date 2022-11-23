@@ -177,8 +177,7 @@ static int s3fwrn5_i2c_parse_dt(struct i2c_client *client)
 	return 0;
 }
 
-static int s3fwrn5_i2c_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int s3fwrn5_i2c_probe(struct i2c_client *client)
 {
 	struct s3fwrn5_i2c_phy *phy;
 	int ret;
@@ -262,7 +261,7 @@ static struct i2c_driver s3fwrn5_i2c_driver = {
 		.name = S3FWRN5_I2C_DRIVER_NAME,
 		.of_match_table = of_match_ptr(of_s3fwrn5_i2c_match),
 	},
-	.probe = s3fwrn5_i2c_probe,
+	.probe_new = s3fwrn5_i2c_probe,
 	.remove = s3fwrn5_i2c_remove,
 	.id_table = s3fwrn5_i2c_id_table,
 };
