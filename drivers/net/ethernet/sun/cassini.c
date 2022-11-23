@@ -90,8 +90,6 @@
 #include <linux/uaccess.h>
 #include <linux/jiffies.h>
 
-#define cas_page_map(x)      kmap_atomic((x))
-#define cas_page_unmap(x)    kunmap_atomic((x))
 #define CAS_NCPUS            num_online_cpus()
 
 #define cas_skb_release(x)  netif_rx(x)
@@ -2781,18 +2779,14 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 
 		tabort = cas_calc_tabort(cp, skb_frag_off(fragp), len);
 		if (unlikely(tabort)) {
-			void *addr;
-
 			/* NOTE: len is always > tabort */
 			cas_write_txd(cp, ring, entry, mapping, len - tabort,
 				      ctrl, 0);
 			entry = TX_DESC_NEXT(ring, entry);
-
-			addr = cas_page_map(skb_frag_page(fragp));
-			memcpy(tx_tiny_buf(cp, ring, entry),
-			       addr + skb_frag_off(fragp) + len - tabort,
-			       tabort);
-			cas_page_unmap(addr);
+			memcpy_from_page(tx_tiny_buf(cp, ring, entry),
+					 skb_frag_page(fragp),
+					 skb_frag_off(fragp) + len - tabort,
+					 tabort);
 			mapping = tx_tiny_map(cp, ring, entry, tentry);
 			len     = tabort;
 		}
