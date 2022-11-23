@@ -9386,6 +9386,7 @@ static void gaudi2_restore_user_sm_registers(struct hl_device *hdev)
 	gaudi2_memset_device_lbw(hdev, cq_lbw_data_addr, size, 0);
 	gaudi2_memset_device_lbw(hdev, cq_base_l_addr, size, 0);
 	gaudi2_memset_device_lbw(hdev, cq_base_h_addr, size, 0);
+	gaudi2_memset_device_lbw(hdev, cq_size_addr, size, 0);
 
 	cq_lbw_l_addr = mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_L_0 + DCORE_OFFSET;
 	cq_lbw_h_addr = mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_H_0 + DCORE_OFFSET;
