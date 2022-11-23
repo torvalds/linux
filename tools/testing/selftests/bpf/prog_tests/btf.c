@@ -3949,6 +3949,20 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Invalid return type",
 },
 {
+	.descr = "decl_tag test #17, func proto, argument",
+	.raw_types = {
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DECL_TAG, 0, 0), 4), (-1),	/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 0), /* [2] */
+		BTF_FUNC_PROTO_ENC(0, 1),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+		BTF_VAR_ENC(NAME_TBD, 2, 0),			/* [4] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0local\0tag1\0var"),
+	.btf_load_err = true,
+	.err_str = "Invalid arg#1",
+},
+{
 	.descr = "type_tag test #1",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
