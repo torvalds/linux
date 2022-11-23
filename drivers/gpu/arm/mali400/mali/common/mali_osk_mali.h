@@ -28,9 +28,12 @@ struct mali_device {
 	struct device *dev;
 #ifdef CONFIG_HAVE_CLK
 	struct clk *clock;
+	struct clk_bulk_data *clks;
+	int num_clks;
 #endif
 #ifdef CONFIG_REGULATOR
 	struct regulator *regulator;
+	struct opp_table *opp_table;
 #endif
 #ifdef CONFIG_PM_DEVFREQ
 	struct devfreq_dev_profile devfreq_profile;

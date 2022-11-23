@@ -513,6 +513,7 @@ static int mali_probe(struct platform_device *pdev)
 	int err;
 #ifdef CONFIG_MALI_DEVFREQ
 	struct mali_device *mdev;
+	const char *name = "mali";
 #endif
 
 	MALI_DEBUG_PRINT(2, ("mali_probe(): Called for platform device %s\n", pdev->name));
@@ -567,25 +568,38 @@ static int mali_probe(struct platform_device *pdev)
 		mdev->regulator = NULL;
 		/* Allow probe to continue without regulator */
 	}
+	if (mdev->regulator) {
+		mdev->opp_table = dev_pm_opp_set_regulators(mdev->dev, &name, 1);
+		if (IS_ERR(mdev->opp_table)) {
+			mdev->opp_table = NULL;
+			MALI_DEBUG_PRINT(2, ("Continuing without opp regulator\n"));
+		}
+	}
 #endif /* LINUX_VERSION_CODE >= 3, 12, 0 */
+
+	mdev->num_clks = devm_clk_bulk_get_all(mdev->dev, &mdev->clks);
+	if (mdev->num_clks < 1) {
+		MALI_DEBUG_PRINT(2, ("Continuing without Mali clock control\n"));
+		mdev->num_clks = 0;
+		mdev->clock = NULL;
+	} else {
+		/* Get "clk_mali" in the device tree for gpu dvfs */
+		mdev->clock = clk_get(mdev->dev, "clk_mali");
+		if (IS_ERR_OR_NULL(mdev->clock)) {
+			MALI_DEBUG_PRINT(2, ("Continuing without Mali dvfs clock\n"));
+			/* Allow probe to continue without clock. */
+			mdev->clock = NULL;
+		}
+	}
+	err = clk_bulk_prepare_enable(mdev->num_clks, mdev->clks);
+	if (err) {
+		MALI_PRINT_ERROR(("Failed to prepare clock (%d)\n", err));
+		goto clock_prepare_failed;
+	}
 
 	err = rk_platform_init_opp_table(mdev->dev);
 	if (err)
 		MALI_DEBUG_PRINT(3, ("Failed to init_opp_table\n"));
-
-	/* Need to name the gpu clock "clk_mali" in the device tree */
-	mdev->clock = clk_get(mdev->dev, "clk_mali");
-	if (IS_ERR_OR_NULL(mdev->clock)) {
-		MALI_DEBUG_PRINT(2, ("Continuing without Mali clock control\n"));
-		mdev->clock = NULL;
-		/* Allow probe to continue without clock. */
-	} else {
-		err = clk_prepare(mdev->clock);
-		if (err) {
-			MALI_PRINT_ERROR(("Failed to prepare clock (%d)\n", err));
-			goto clock_prepare_failed;
-		}
-	}
 
 	/* initilize pm metrics related */
 	if (mali_pm_metrics_init(mdev) < 0) {
@@ -597,6 +611,7 @@ static int mali_probe(struct platform_device *pdev)
 		MALI_DEBUG_PRINT(2, ("mali devfreq init failed\n"));
 		goto devfreq_init_failed;
 	}
+	clk_bulk_disable(mdev->num_clks, mdev->clks);
 #endif
 
 
@@ -632,8 +647,9 @@ static int mali_probe(struct platform_device *pdev)
 devfreq_init_failed:
 	mali_pm_metrics_term(mdev);
 pm_metrics_init_failed:
-	clk_unprepare(mdev->clock);
+	clk_bulk_disable_unprepare(mdev->num_clks, mdev->clks);
 clock_prepare_failed:
+	clk_bulk_put(mdev->num_clks, mdev->clks);
 	clk_put(mdev->clock);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && defined(CONFIG_OF) \
                         && defined(CONFIG_PM_OPP)
@@ -643,6 +659,7 @@ clock_prepare_failed:
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)) && defined(CONFIG_OF) \
                         && defined(CONFIG_REGULATOR)
 	regulator_put(mdev->regulator);
+	dev_pm_opp_put_regulators(mdev->opp_table);
 #endif /* LINUX_VERSION_CODE >= 3, 12, 0 */
 	mali_device_free(mdev);
 #endif
@@ -672,10 +689,12 @@ static int mali_remove(struct platform_device *pdev)
 	mali_pm_metrics_term(mdev);
 
 	if (mdev->clock) {
-		clk_unprepare(mdev->clock);
 		clk_put(mdev->clock);
 		mdev->clock = NULL;
 	}
+	clk_bulk_unprepare(mdev->num_clks, mdev->clks);
+	clk_bulk_put(mdev->num_clks, mdev->clks);
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && defined(CONFIG_OF) \
                         && defined(CONFIG_PM_OPP)
 	dev_pm_opp_of_remove_table(mdev->dev);
@@ -684,6 +703,7 @@ static int mali_remove(struct platform_device *pdev)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)) && defined(CONFIG_OF) \
                         && defined(CONFIG_REGULATOR)
 	regulator_put(mdev->regulator);
+	dev_pm_opp_put_regulators(mdev->opp_table);
 #endif /* LINUX_VERSION_CODE >= 3, 12, 0 */
 	mali_device_free(mdev);
 #endif

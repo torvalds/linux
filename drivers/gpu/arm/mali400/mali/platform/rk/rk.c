@@ -376,8 +376,7 @@ static int rk_platform_enable_clk_gpu(struct device *dev)
 #if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_HAVE_CLK)
 	struct mali_device *mdev = dev_get_drvdata(dev);
 
-	if (mdev->clock)
-		ret = clk_enable(mdev->clock);
+	ret = clk_bulk_enable(mdev->num_clks, mdev->clks);
 #endif
 	return ret;
 }
@@ -387,8 +386,7 @@ static void rk_platform_disable_clk_gpu(struct device *dev)
 #if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_HAVE_CLK)
 	struct mali_device *mdev = dev_get_drvdata(dev);
 
-	if (mdev->clock)
-		clk_disable(mdev->clock);
+	clk_bulk_disable(mdev->num_clks, mdev->clks);
 #endif
 }
 
