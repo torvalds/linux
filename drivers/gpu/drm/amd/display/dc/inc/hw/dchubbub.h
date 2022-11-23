@@ -186,6 +186,7 @@ struct hubbub_funcs {
 	void (*program_compbuf_size)(struct hubbub *hubbub, unsigned compbuf_size_kb, bool safe_to_increase);
 	void (*init_crb)(struct hubbub *hubbub);
 	void (*force_usr_retraining_allow)(struct hubbub *hubbub, bool allow);
+	void (*set_request_limit)(struct hubbub *hubbub, int memory_channel_count, int words_per_channel);
 };
 
 struct hubbub {

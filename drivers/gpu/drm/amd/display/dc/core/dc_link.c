@@ -4663,6 +4663,10 @@ void dc_link_set_preferred_training_settings(struct dc *dc,
 		link->preferred_link_setting.link_rate = LINK_RATE_UNKNOWN;
 	}
 
+	if (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
+			link->type == dc_connection_mst_branch)
+		dm_helpers_dp_mst_update_branch_bandwidth(dc->ctx, link);
+
 	/* Retrain now, or wait until next stream update to apply */
 	if (skip_immediate_retrain == false)
 		dc_link_set_preferred_link_settings(dc, &link->preferred_link_setting, link);

@@ -31,23 +31,22 @@
 #include <linux/interval_tree.h>
 
 int amdgpu_hmm_range_get_pages(struct mmu_interval_notifier *notifier,
-			       struct mm_struct *mm, struct page **pages,
-			       uint64_t start, uint64_t npages,
-			       struct hmm_range **phmm_range, bool readonly,
-			       bool mmap_locked, void *owner);
+			       uint64_t start, uint64_t npages, bool readonly,
+			       void *owner, struct page **pages,
+			       struct hmm_range **phmm_range);
 int amdgpu_hmm_range_get_pages_done(struct hmm_range *hmm_range);
 
 #if defined(CONFIG_HMM_MIRROR)
-int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr);
-void amdgpu_mn_unregister(struct amdgpu_bo *bo);
+int amdgpu_hmm_register(struct amdgpu_bo *bo, unsigned long addr);
+void amdgpu_hmm_unregister(struct amdgpu_bo *bo);
 #else
-static inline int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
+static inline int amdgpu_hmm_register(struct amdgpu_bo *bo, unsigned long addr)
 {
 	DRM_WARN_ONCE("HMM_MIRROR kernel config option is not enabled, "
 		      "add CONFIG_ZONE_DEVICE=y in config file to fix this\n");
 	return -ENODEV;
 }
-static inline void amdgpu_mn_unregister(struct amdgpu_bo *bo) {}
+static inline void amdgpu_hmm_unregister(struct amdgpu_bo *bo) {}
 #endif
 
 #endif

@@ -26,6 +26,11 @@ Valid mode specifiers (mode_option argument)::
 with <xres>, <yres>, <bpp> and <refresh> decimal numbers and <name> a string.
 Things between square brackets are optional.
 
+Valid names are::
+
+  - NSTC: 480i output, with the CCIR System-M TV mode and NTSC color encoding
+  - PAL: 576i output, with the CCIR System-B TV mode and PAL color encoding
+
 If 'M' is specified in the mode_option argument (after <yres> and before
 <bpp> and <refresh>, if specified) the timings will be calculated using
 VESA(TM) Coordinated Video Timings instead of looking up the mode from a table.

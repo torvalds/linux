@@ -82,7 +82,8 @@
 	SR(DCN_VM_FAULT_ADDR_MSB),\
 	SR(DCN_VM_FAULT_ADDR_LSB),\
 	SR(DCN_VM_FAULT_CNTL),\
-	SR(DCN_VM_FAULT_STATUS)
+	SR(DCN_VM_FAULT_STATUS),\
+	SR(SDPIF_REQUEST_RATE_LIMIT)
 
 #define HUBBUB_MASK_SH_LIST_DCN32(mask_sh)\
 	HUBBUB_SF(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, mask_sh), \
@@ -159,7 +160,8 @@
 	HUBBUB_SF(DCN_VM_FAULT_STATUS, DCN_VM_ERROR_VMID, mask_sh), \
 	HUBBUB_SF(DCN_VM_FAULT_STATUS, DCN_VM_ERROR_TABLE_LEVEL, mask_sh), \
 	HUBBUB_SF(DCN_VM_FAULT_STATUS, DCN_VM_ERROR_PIPE, mask_sh), \
-	HUBBUB_SF(DCN_VM_FAULT_STATUS, DCN_VM_ERROR_INTERRUPT_STATUS, mask_sh)
+	HUBBUB_SF(DCN_VM_FAULT_STATUS, DCN_VM_ERROR_INTERRUPT_STATUS, mask_sh),\
+	HUBBUB_SF(SDPIF_REQUEST_RATE_LIMIT, SDPIF_REQUEST_RATE_LIMIT, mask_sh)
 
 bool hubbub32_program_urgent_watermarks(
 		struct hubbub *hubbub,
@@ -199,5 +201,7 @@ void hubbub32_construct(struct dcn20_hubbub *hubbub2,
 	int det_size_kb,
 	int pixel_chunk_size_kb,
 	int config_return_buffer_size_kb);
+
+void hubbub32_set_request_limit(struct hubbub *hubbub, int umc_count, int words_per_umc);
 
 #endif

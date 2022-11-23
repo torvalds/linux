@@ -1521,7 +1521,12 @@ static int nvidiafb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("nvidiafb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("nvidiafb", &option))
 		return -ENODEV;
 	nvidiafb_setup(option);

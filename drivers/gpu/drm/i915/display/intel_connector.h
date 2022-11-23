@@ -6,7 +6,7 @@
 #ifndef __INTEL_CONNECTOR_H__
 #define __INTEL_CONNECTOR_H__
 
-#include "intel_display.h"
+#include <linux/types.h>
 
 struct drm_connector;
 struct edid;

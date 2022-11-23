@@ -3,17 +3,19 @@
 #include <linux/module.h>
 #include <linux/types.h>
 
-static bool drm_nomodeset;
+#include <video/nomodeset.h>
 
-bool drm_firmware_drivers_only(void)
+static bool video_nomodeset;
+
+bool video_firmware_drivers_only(void)
 {
-	return drm_nomodeset;
+	return video_nomodeset;
 }
-EXPORT_SYMBOL(drm_firmware_drivers_only);
+EXPORT_SYMBOL(video_firmware_drivers_only);
 
 static int __init disable_modeset(char *str)
 {
-	drm_nomodeset = true;
+	video_nomodeset = true;
 
 	pr_warn("Booted with the nomodeset parameter. Only the system framebuffer will be available\n");
 

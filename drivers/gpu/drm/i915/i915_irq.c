@@ -28,7 +28,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/circ_buf.h>
 #include <linux/slab.h>
 #include <linux/sysrq.h>
 
@@ -248,7 +247,7 @@ void gen3_irq_reset(struct intel_uncore *uncore, i915_reg_t imr,
 	intel_uncore_posting_read(uncore, iir);
 }
 
-void gen2_irq_reset(struct intel_uncore *uncore)
+static void gen2_irq_reset(struct intel_uncore *uncore)
 {
 	intel_uncore_write16(uncore, GEN2_IMR, 0xffff);
 	intel_uncore_posting_read16(uncore, GEN2_IMR);
@@ -309,8 +308,8 @@ void gen3_irq_init(struct intel_uncore *uncore,
 	intel_uncore_posting_read(uncore, imr);
 }
 
-void gen2_irq_init(struct intel_uncore *uncore,
-		   u32 imr_val, u32 ier_val)
+static void gen2_irq_init(struct intel_uncore *uncore,
+			  u32 imr_val, u32 ier_val)
 {
 	gen2_assert_iir_is_zero(uncore);
 
@@ -1086,8 +1085,9 @@ static void ivb_parity_work(struct work_struct *work)
 		kobject_uevent_env(&dev_priv->drm.primary->kdev->kobj,
 				   KOBJ_CHANGE, parity_event);
 
-		DRM_DEBUG("Parity error: Slice = %d, Row = %d, Bank = %d, Sub bank = %d.\n",
-			  slice, row, bank, subbank);
+		drm_dbg(&dev_priv->drm,
+			"Parity error: Slice = %d, Row = %d, Bank = %d, Sub bank = %d.\n",
+			slice, row, bank, subbank);
 
 		kfree(parity_event[4]);
 		kfree(parity_event[3]);
@@ -2774,7 +2774,8 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 		master_ctl = raw_reg_read(regs, GEN11_GFX_MSTR_IRQ);
 		raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, master_ctl);
 	} else {
-		DRM_ERROR("Tile not supported: 0x%08x\n", master_tile_ctl);
+		drm_err(&i915->drm, "Tile not supported: 0x%08x\n",
+			master_tile_ctl);
 		dg1_master_intr_enable(regs);
 		return IRQ_NONE;
 	}
@@ -3871,7 +3872,7 @@ static void i8xx_irq_reset(struct drm_i915_private *dev_priv)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	GEN2_IRQ_RESET(uncore);
+	gen2_irq_reset(uncore);
 	dev_priv->irq_mask = ~0u;
 }
 
@@ -3897,7 +3898,7 @@ static void i8xx_irq_postinstall(struct drm_i915_private *dev_priv)
 		I915_MASTER_ERROR_INTERRUPT |
 		I915_USER_INTERRUPT;
 
-	GEN2_IRQ_INIT(uncore, dev_priv->irq_mask, enable_mask);
+	gen2_irq_init(uncore, dev_priv->irq_mask, enable_mask);
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
@@ -3940,7 +3941,7 @@ static void i8xx_error_irq_ack(struct drm_i915_private *i915,
 static void i8xx_error_irq_handler(struct drm_i915_private *dev_priv,
 				   u16 eir, u16 eir_stuck)
 {
-	DRM_DEBUG("Master Error: EIR 0x%04x\n", eir);
+	drm_dbg(&dev_priv->drm, "Master Error: EIR 0x%04x\n", eir);
 
 	if (eir_stuck)
 		drm_dbg(&dev_priv->drm, "EIR stuck: 0x%04x, masked\n",
@@ -3975,7 +3976,7 @@ static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
 static void i9xx_error_irq_handler(struct drm_i915_private *dev_priv,
 				   u32 eir, u32 eir_stuck)
 {
-	DRM_DEBUG("Master Error, EIR 0x%08x\n", eir);
+	drm_dbg(&dev_priv->drm, "Master Error, EIR 0x%08x\n", eir);
 
 	if (eir_stuck)
 		drm_dbg(&dev_priv->drm, "EIR stuck: 0x%08x, masked\n",

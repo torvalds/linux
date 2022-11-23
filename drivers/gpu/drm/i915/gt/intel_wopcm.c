@@ -64,9 +64,9 @@
 #define GEN9_GUC_FW_RESERVED	SZ_128K
 #define GEN9_GUC_WOPCM_OFFSET	(GUC_WOPCM_RESERVED + GEN9_GUC_FW_RESERVED)
 
-static inline struct drm_i915_private *wopcm_to_i915(struct intel_wopcm *wopcm)
+static inline struct intel_gt *wopcm_to_gt(struct intel_wopcm *wopcm)
 {
-	return container_of(wopcm, struct drm_i915_private, wopcm);
+	return container_of(wopcm, struct intel_gt, wopcm);
 }
 
 /**
@@ -77,7 +77,8 @@ static inline struct drm_i915_private *wopcm_to_i915(struct intel_wopcm *wopcm)
  */
 void intel_wopcm_init_early(struct intel_wopcm *wopcm)
 {
-	struct drm_i915_private *i915 = wopcm_to_i915(wopcm);
+	struct intel_gt *gt = wopcm_to_gt(wopcm);
+	struct drm_i915_private *i915 = gt->i915;
 
 	if (!HAS_GT_UC(i915))
 		return;
@@ -157,10 +158,11 @@ static bool check_hw_restrictions(struct drm_i915_private *i915,
 	return true;
 }
 
-static bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
+static bool __check_layout(struct intel_gt *gt, u32 wopcm_size,
 			   u32 guc_wopcm_base, u32 guc_wopcm_size,
 			   u32 guc_fw_size, u32 huc_fw_size)
 {
+	struct drm_i915_private *i915 = gt->i915;
 	const u32 ctx_rsvd = context_reserved_size(i915);
 	u32 size;
 
@@ -181,12 +183,14 @@ static bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
 		return false;
 	}
 
-	size = huc_fw_size + WOPCM_RESERVED_SIZE;
-	if (unlikely(guc_wopcm_base < size)) {
-		drm_err(&i915->drm, "WOPCM: no space for %s: %uK < %uK\n",
-			intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_HUC),
-			guc_wopcm_base / SZ_1K, size / SZ_1K);
-		return false;
+	if (intel_uc_supports_huc(&gt->uc)) {
+		size = huc_fw_size + WOPCM_RESERVED_SIZE;
+		if (unlikely(guc_wopcm_base < size)) {
+			drm_err(&i915->drm, "WOPCM: no space for %s: %uK < %uK\n",
+				intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_HUC),
+				guc_wopcm_base / SZ_1K, size / SZ_1K);
+			return false;
+		}
 	}
 
 	return check_hw_restrictions(i915, guc_wopcm_base, guc_wopcm_size,
@@ -228,8 +232,8 @@ static bool __wopcm_regs_writable(struct intel_uncore *uncore)
  */
 void intel_wopcm_init(struct intel_wopcm *wopcm)
 {
-	struct drm_i915_private *i915 = wopcm_to_i915(wopcm);
-	struct intel_gt *gt = to_gt(i915);
+	struct intel_gt *gt = wopcm_to_gt(wopcm);
+	struct drm_i915_private *i915 = gt->i915;
 	u32 guc_fw_size = intel_uc_fw_get_upload_size(&gt->uc.guc.fw);
 	u32 huc_fw_size = intel_uc_fw_get_upload_size(&gt->uc.huc.fw);
 	u32 ctx_rsvd = context_reserved_size(i915);
@@ -275,6 +279,19 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 	}
 
 	/*
+	 * On platforms with a media GT, the WOPCM is partitioned between the
+	 * two GTs, so we would have to take that into account when doing the
+	 * math below. There is also a new section reserved for the GSC context
+	 * that would have to be factored in. However, all platforms with a
+	 * media GT also have GuC depriv enabled, so the WOPCM regs are
+	 * pre-locked and therefore we don't have to do the math ourselves.
+	 */
+	if (unlikely(i915->media_gt)) {
+		drm_err(&i915->drm, "Unlocked WOPCM regs with media GT\n");
+		return;
+	}
+
+	/*
 	 * Aligned value of guc_wopcm_base will determine available WOPCM space
 	 * for HuC firmware and mandatory reserved area.
 	 */
@@ -295,7 +312,7 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 		guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K);
 
 check:
-	if (__check_layout(i915, wopcm_size, guc_wopcm_base, guc_wopcm_size,
+	if (__check_layout(gt, wopcm_size, guc_wopcm_base, guc_wopcm_size,
 			   guc_fw_size, huc_fw_size)) {
 		wopcm->guc.base = guc_wopcm_base;
 		wopcm->guc.size = guc_wopcm_size;

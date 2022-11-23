@@ -31,6 +31,7 @@
 #include "soc15_hw_ip.h"
 #include "vcn_v2_0.h"
 #include "mmsch_v4_0.h"
+#include "vcn_v4_0.h"
 
 #include "vcn/vcn_4_0_0_offset.h"
 #include "vcn/vcn_4_0_0_sh_mask.h"
@@ -64,6 +65,7 @@ static int vcn_v4_0_set_powergating_state(void *handle,
 static int vcn_v4_0_pause_dpg_mode(struct amdgpu_device *adev,
         int inst_idx, struct dpg_pause_state *new_state);
 static void vcn_v4_0_unified_ring_set_wptr(struct amdgpu_ring *ring);
+static void vcn_v4_0_set_ras_funcs(struct amdgpu_device *adev);
 
 /**
  * vcn_v4_0_early_init - set function pointers
@@ -84,6 +86,7 @@ static int vcn_v4_0_early_init(void *handle)
 
 	vcn_v4_0_set_unified_ring_funcs(adev);
 	vcn_v4_0_set_irq_funcs(adev);
+	vcn_v4_0_set_ras_funcs(adev);
 
 	return 0;
 }
@@ -129,6 +132,12 @@ static int vcn_v4_0_sw_init(void *handle)
 		/* VCN UNIFIED TRAP */
 		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_vcns[i],
 				VCN_4_0__SRCID__UVD_ENC_GENERAL_PURPOSE, &adev->vcn.inst[i].irq);
+		if (r)
+			return r;
+
+		/* VCN POISON TRAP */
+		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_vcns[i],
+				VCN_4_0__SRCID_UVD_POISON, &adev->vcn.inst[i].irq);
 		if (r)
 			return r;
 
@@ -296,6 +305,7 @@ static int vcn_v4_0_hw_fini(void *handle)
 			}
 		}
 
+		amdgpu_irq_put(adev, &adev->vcn.inst[i].irq, 0);
 	}
 
 	return 0;
@@ -1939,6 +1949,9 @@ static int vcn_v4_0_process_interrupt(struct amdgpu_device *adev, struct amdgpu_
 	case VCN_4_0__SRCID__UVD_ENC_GENERAL_PURPOSE:
 		amdgpu_fence_process(&adev->vcn.inst[ip_instance].ring_enc[0]);
 		break;
+	case VCN_4_0__SRCID_UVD_POISON:
+		amdgpu_vcn_process_poison_irq(adev, source, entry);
+		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",
 			  entry->src_id, entry->src_data[0]);
@@ -2001,3 +2014,60 @@ const struct amdgpu_ip_block_version vcn_v4_0_ip_block =
 	.rev = 0,
 	.funcs = &vcn_v4_0_ip_funcs,
 };
+
+static uint32_t vcn_v4_0_query_poison_by_instance(struct amdgpu_device *adev,
+			uint32_t instance, uint32_t sub_block)
+{
+	uint32_t poison_stat = 0, reg_value = 0;
+
+	switch (sub_block) {
+	case AMDGPU_VCN_V4_0_VCPU_VCODEC:
+		reg_value = RREG32_SOC15(VCN, instance, regUVD_RAS_VCPU_VCODEC_STATUS);
+		poison_stat = REG_GET_FIELD(reg_value, UVD_RAS_VCPU_VCODEC_STATUS, POISONED_PF);
+		break;
+	default:
+		break;
+	}
+
+	if (poison_stat)
+		dev_info(adev->dev, "Poison detected in VCN%d, sub_block%d\n",
+			instance, sub_block);
+
+	return poison_stat;
+}
+
+static bool vcn_v4_0_query_ras_poison_status(struct amdgpu_device *adev)
+{
+	uint32_t inst, sub;
+	uint32_t poison_stat = 0;
+
+	for (inst = 0; inst < adev->vcn.num_vcn_inst; inst++)
+		for (sub = 0; sub < AMDGPU_VCN_V4_0_MAX_SUB_BLOCK; sub++)
+			poison_stat +=
+				vcn_v4_0_query_poison_by_instance(adev, inst, sub);
+
+	return !!poison_stat;
+}
+
+const struct amdgpu_ras_block_hw_ops vcn_v4_0_ras_hw_ops = {
+	.query_poison_status = vcn_v4_0_query_ras_poison_status,
+};
+
+static struct amdgpu_vcn_ras vcn_v4_0_ras = {
+	.ras_block = {
+		.hw_ops = &vcn_v4_0_ras_hw_ops,
+	},
+};
+
+static void vcn_v4_0_set_ras_funcs(struct amdgpu_device *adev)
+{
+	switch (adev->ip_versions[VCN_HWIP][0]) {
+	case IP_VERSION(4, 0, 0):
+		adev->vcn.ras = &vcn_v4_0_ras;
+		break;
+	default:
+		break;
+	}
+
+	amdgpu_vcn_set_ras_funcs(adev);
+}

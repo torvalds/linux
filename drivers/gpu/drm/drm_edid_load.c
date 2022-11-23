@@ -172,20 +172,9 @@ static const struct drm_edid *edid_load(struct drm_connector *connector, const c
 		fwdata = generic_edid[builtin];
 		fwsize = sizeof(generic_edid[builtin]);
 	} else {
-		struct platform_device *pdev;
 		int err;
 
-		pdev = platform_device_register_simple(connector->name, -1, NULL, 0);
-		if (IS_ERR(pdev)) {
-			drm_err(connector->dev,
-				"[CONNECTOR:%d:%s] Failed to register EDID firmware platform device for connector \"%s\"\n",
-				connector->base.id, connector->name,
-				connector->name);
-			return ERR_CAST(pdev);
-		}
-
-		err = request_firmware(&fw, name, &pdev->dev);
-		platform_device_unregister(pdev);
+		err = request_firmware(&fw, name, connector->dev->dev);
 		if (err) {
 			drm_err(connector->dev,
 				"[CONNECTOR:%d:%s] Requesting EDID firmware \"%s\" failed (err=%d)\n",

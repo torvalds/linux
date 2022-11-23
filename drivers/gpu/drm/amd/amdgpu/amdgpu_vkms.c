@@ -511,6 +511,10 @@ static int amdgpu_vkms_sw_init(void *handle)
 			return r;
 	}
 
+	r = drm_vblank_init(adev_to_drm(adev), adev->mode_info.num_crtc);
+	if (r)
+		return r;
+
 	drm_kms_helper_poll_init(adev_to_drm(adev));
 
 	adev->mode_info.mode_config_initialized = true;

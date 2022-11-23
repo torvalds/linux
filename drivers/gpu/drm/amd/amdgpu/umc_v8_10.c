@@ -46,6 +46,16 @@ const struct channelnum_map_colbit umc_v8_10_channelnum_map_colbit_table[] = {
 };
 
 const uint32_t
+	umc_v8_10_channel_idx_tbl_ext0[]
+				[UMC_V8_10_UMC_INSTANCE_NUM]
+				[UMC_V8_10_CHANNEL_INSTANCE_NUM] = {
+	   {{1,   5}, {7,  3}},
+	   {{14, 15}, {13, 12}},
+	   {{10, 11}, {9,  8}},
+	   {{6,   2}, {0,  4}}
+	};
+
+const uint32_t
 	umc_v8_10_channel_idx_tbl[]
 				[UMC_V8_10_UMC_INSTANCE_NUM]
 				[UMC_V8_10_CHANNEL_INSTANCE_NUM] = {

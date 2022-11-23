@@ -3777,12 +3777,15 @@
 			shutdown the other cpus.  Instead use the REBOOT_VECTOR
 			irq.
 
-	nomodeset	Disable kernel modesetting. DRM drivers will not perform
-			display-mode changes or accelerated rendering. Only the
-			system framebuffer will be available for use if this was
-			set-up by the firmware or boot loader.
+	nomodeset	Disable kernel modesetting. Most systems' firmware
+			sets up a display mode and provides framebuffer memory
+			for output. With nomodeset, DRM and fbdev drivers will
+			not load if they could possibly displace the pre-
+			initialized output. Only the system framebuffer will
+			be available for use. The respective drivers will not
+			perform display-mode changes or accelerated rendering.
 
-			Useful as fallback, or for testing and debugging.
+			Useful as error fallback, or for testing and debugging.
 
 	nomodule	Disable module load
 

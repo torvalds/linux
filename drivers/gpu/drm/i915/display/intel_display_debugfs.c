@@ -9,6 +9,8 @@
 #include <drm/drm_fourcc.h>
 
 #include "i915_debugfs.h"
+#include "i915_irq.h"
+#include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_display_debugfs.h"
 #include "intel_display_power.h"

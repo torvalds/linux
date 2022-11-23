@@ -838,8 +838,8 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 
 	if (i915->display.funcs.audio)
 		i915->display.funcs.audio->audio_codec_enable(encoder,
-								  crtc_state,
-								  conn_state);
+							      crtc_state,
+							      conn_state);
 
 	mutex_lock(&i915->display.audio.mutex);
 	encoder->audio_connector = connector;
@@ -854,7 +854,7 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 		if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
 			pipe = -1;
 		acomp->base.audio_ops->pin_eld_notify(acomp->base.audio_ops->audio_ptr,
-						 (int) port, (int) pipe);
+						      (int)port, (int)pipe);
 	}
 
 	intel_lpe_audio_notify(i915, pipe, port, connector->eld,
@@ -891,8 +891,8 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 
 	if (i915->display.funcs.audio)
 		i915->display.funcs.audio->audio_codec_disable(encoder,
-								   old_crtc_state,
-								   old_conn_state);
+							       old_crtc_state,
+							       old_conn_state);
 
 	mutex_lock(&i915->display.audio.mutex);
 	encoder->audio_connector = NULL;
@@ -905,7 +905,7 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 		if (!intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DP_MST))
 			pipe = -1;
 		acomp->base.audio_ops->pin_eld_notify(acomp->base.audio_ops->audio_ptr,
-						 (int) port, (int) pipe);
+						      (int)port, (int)pipe);
 	}
 
 	intel_lpe_audio_notify(i915, pipe, port, NULL, 0, false);
@@ -1129,10 +1129,10 @@ static int i915_audio_component_get_cdclk_freq(struct device *kdev)
 static struct intel_encoder *get_saved_enc(struct drm_i915_private *i915,
 					   int port, int pipe)
 {
-	struct intel_encoder *encoder;
-
 	/* MST */
 	if (pipe >= 0) {
+		struct intel_encoder *encoder;
+
 		if (drm_WARN_ON(&i915->drm,
 				pipe >= ARRAY_SIZE(i915->display.audio.encoder_map)))
 			return NULL;
@@ -1143,7 +1143,7 @@ static struct intel_encoder *get_saved_enc(struct drm_i915_private *i915,
 		 * MST or not. So it will poll all the port & pipe
 		 * combinations
 		 */
-		if (encoder != NULL && encoder->port == port &&
+		if (encoder && encoder->port == port &&
 		    encoder->type == INTEL_OUTPUT_DP_MST)
 			return encoder;
 	}
@@ -1153,14 +1153,12 @@ static struct intel_encoder *get_saved_enc(struct drm_i915_private *i915,
 		return NULL;
 
 	for_each_pipe(i915, pipe) {
+		struct intel_encoder *encoder;
+
 		encoder = i915->display.audio.encoder_map[pipe];
-		if (encoder == NULL)
-			continue;
 
-		if (encoder->type == INTEL_OUTPUT_DP_MST)
-			continue;
-
-		if (port == encoder->port)
+		if (encoder && encoder->port == port &&
+		    encoder->type != INTEL_OUTPUT_DP_MST)
 			return encoder;
 	}
 

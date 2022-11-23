@@ -31,6 +31,7 @@
 #include <drm/drm_mipi_dsi.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_backlight.h"
 #include "intel_connector.h"

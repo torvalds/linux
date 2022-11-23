@@ -184,6 +184,7 @@ struct dc_link {
 	bool is_dig_mapping_flexible;
 	bool hpd_status; /* HPD status of link without physical HPD pin. */
 	bool is_hpd_pending; /* Indicates a new received hpd */
+	bool is_automated; /* Indicates automated testing */
 
 	bool edp_sink_present;
 

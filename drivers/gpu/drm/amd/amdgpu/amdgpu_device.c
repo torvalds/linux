@@ -1916,6 +1916,16 @@ static void amdgpu_device_enable_virtual_display(struct amdgpu_device *adev)
 	}
 }
 
+void amdgpu_device_set_sriov_virtual_display(struct amdgpu_device *adev)
+{
+	if (amdgpu_sriov_vf(adev) && !adev->enable_virtual_display) {
+		adev->mode_info.num_crtc = 1;
+		adev->enable_virtual_display = true;
+		DRM_INFO("virtual_display:%d, num_crtc:%d\n",
+			 adev->enable_virtual_display, adev->mode_info.num_crtc);
+	}
+}
+
 /**
  * amdgpu_device_parse_gpu_info_fw - parse gpu info firmware
  *
@@ -3348,8 +3358,7 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
  */
 bool amdgpu_device_has_dc_support(struct amdgpu_device *adev)
 {
-	if (amdgpu_sriov_vf(adev) ||
-	    adev->enable_virtual_display ||
+	if (adev->enable_virtual_display ||
 	    (adev->harvest_ip_mask & AMD_HARVEST_IP_DMU_MASK))
 		return false;
 
@@ -4216,25 +4225,27 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 
 	amdgpu_ras_resume(adev);
 
-	/*
-	 * Most of the connector probing functions try to acquire runtime pm
-	 * refs to ensure that the GPU is powered on when connector polling is
-	 * performed. Since we're calling this from a runtime PM callback,
-	 * trying to acquire rpm refs will cause us to deadlock.
-	 *
-	 * Since we're guaranteed to be holding the rpm lock, it's safe to
-	 * temporarily disable the rpm helpers so this doesn't deadlock us.
-	 */
+	if (adev->mode_info.num_crtc) {
+		/*
+		 * Most of the connector probing functions try to acquire runtime pm
+		 * refs to ensure that the GPU is powered on when connector polling is
+		 * performed. Since we're calling this from a runtime PM callback,
+		 * trying to acquire rpm refs will cause us to deadlock.
+		 *
+		 * Since we're guaranteed to be holding the rpm lock, it's safe to
+		 * temporarily disable the rpm helpers so this doesn't deadlock us.
+		 */
 #ifdef CONFIG_PM
-	dev->dev->power.disable_depth++;
+		dev->dev->power.disable_depth++;
 #endif
-	if (!amdgpu_device_has_dc_support(adev))
-		drm_helper_hpd_irq_event(dev);
-	else
-		drm_kms_helper_hotplug_event(dev);
+		if (!adev->dc_enabled)
+			drm_helper_hpd_irq_event(dev);
+		else
+			drm_kms_helper_hotplug_event(dev);
 #ifdef CONFIG_PM
-	dev->dev->power.disable_depth--;
+		dev->dev->power.disable_depth--;
 #endif
+	}
 	adev->in_suspend = false;
 
 	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DEV_D0))
@@ -4582,6 +4593,10 @@ bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 
 	if (amdgpu_gpu_recovery == 0)
 		goto disabled;
+
+	/* Skip soft reset check in fatal error mode */
+	if (!amdgpu_ras_is_poison_mode_supported(adev))
+		return true;
 
 	if (!amdgpu_device_ip_check_soft_reset(adev)) {
 		dev_info(adev->dev,"Timeout, but no hardware hang detected.\n");
@@ -5078,94 +5093,6 @@ static int amdgpu_device_suspend_display_audio(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void amdgpu_device_recheck_guilty_jobs(
-	struct amdgpu_device *adev, struct list_head *device_list_handle,
-	struct amdgpu_reset_context *reset_context)
-{
-	int i, r = 0;
-
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		struct amdgpu_ring *ring = adev->rings[i];
-		int ret = 0;
-		struct drm_sched_job *s_job;
-
-		if (!ring || !ring->sched.thread)
-			continue;
-
-		s_job = list_first_entry_or_null(&ring->sched.pending_list,
-				struct drm_sched_job, list);
-		if (s_job == NULL)
-			continue;
-
-		/* clear job's guilty and depend the folowing step to decide the real one */
-		drm_sched_reset_karma(s_job);
-		drm_sched_resubmit_jobs_ext(&ring->sched, 1);
-
-		if (!s_job->s_fence->parent) {
-			DRM_WARN("Failed to get a HW fence for job!");
-			continue;
-		}
-
-		ret = dma_fence_wait_timeout(s_job->s_fence->parent, false, ring->sched.timeout);
-		if (ret == 0) { /* timeout */
-			DRM_ERROR("Found the real bad job! ring:%s, job_id:%llx\n",
-						ring->sched.name, s_job->id);
-
-
-			amdgpu_fence_driver_isr_toggle(adev, true);
-
-			/* Clear this failed job from fence array */
-			amdgpu_fence_driver_clear_job_fences(ring);
-
-			amdgpu_fence_driver_isr_toggle(adev, false);
-
-			/* Since the job won't signal and we go for
-			 * another resubmit drop this parent pointer
-			 */
-			dma_fence_put(s_job->s_fence->parent);
-			s_job->s_fence->parent = NULL;
-
-			/* set guilty */
-			drm_sched_increase_karma(s_job);
-			amdgpu_reset_prepare_hwcontext(adev, reset_context);
-retry:
-			/* do hw reset */
-			if (amdgpu_sriov_vf(adev)) {
-				amdgpu_virt_fini_data_exchange(adev);
-				r = amdgpu_device_reset_sriov(adev, false);
-				if (r)
-					adev->asic_reset_res = r;
-			} else {
-				clear_bit(AMDGPU_SKIP_HW_RESET,
-					  &reset_context->flags);
-				r = amdgpu_do_asic_reset(device_list_handle,
-							 reset_context);
-				if (r && r == -EAGAIN)
-					goto retry;
-			}
-
-			/*
-			 * add reset counter so that the following
-			 * resubmitted job could flush vmid
-			 */
-			atomic_inc(&adev->gpu_reset_counter);
-			continue;
-		}
-
-		/* got the hw fence, signal finished fence */
-		atomic_dec(ring->sched.score);
-		dma_fence_get(&s_job->s_fence->finished);
-		dma_fence_signal(&s_job->s_fence->finished);
-		dma_fence_put(&s_job->s_fence->finished);
-
-		/* remove node from list and free the job */
-		spin_lock(&ring->sched.job_list_lock);
-		list_del_init(&s_job->list);
-		spin_unlock(&ring->sched.job_list_lock);
-		ring->sched.ops->free_job(s_job);
-	}
-}
-
 static inline void amdgpu_device_stop_pending_resets(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -5185,7 +5112,6 @@ static inline void amdgpu_device_stop_pending_resets(struct amdgpu_device *adev)
 		cancel_work(&con->recovery_work);
 
 }
-
 
 /**
  * amdgpu_device_gpu_recover - reset the asic and recover scheduler
@@ -5209,7 +5135,6 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	int i, r = 0;
 	bool need_emergency_restart = false;
 	bool audio_suspended = false;
-	int tmp_vram_lost_counter;
 	bool gpu_reset_for_dev_remove = false;
 
 	gpu_reset_for_dev_remove =
@@ -5355,7 +5280,6 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 		amdgpu_device_stop_pending_resets(tmp_adev);
 	}
 
-	tmp_vram_lost_counter = atomic_read(&((adev)->vram_lost_counter));
 	/* Actual ASIC resets if needed.*/
 	/* Host driver will handle XGMI hive reset for SRIOV */
 	if (amdgpu_sriov_vf(adev)) {
@@ -5380,29 +5304,13 @@ skip_hw_reset:
 	/* Post ASIC reset for all devs .*/
 	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
 
-		/*
-		 * Sometimes a later bad compute job can block a good gfx job as gfx
-		 * and compute ring share internal GC HW mutually. We add an additional
-		 * guilty jobs recheck step to find the real guilty job, it synchronously
-		 * submits and pends for the first job being signaled. If it gets timeout,
-		 * we identify it as a real guilty job.
-		 */
-		if (amdgpu_gpu_recovery == 2 &&
-			!(tmp_vram_lost_counter < atomic_read(&adev->vram_lost_counter)))
-			amdgpu_device_recheck_guilty_jobs(
-				tmp_adev, device_list_handle, reset_context);
-
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = tmp_adev->rings[i];
 
 			if (!ring || !ring->sched.thread)
 				continue;
 
-			/* No point to resubmit jobs if we didn't HW reset*/
-			if (!tmp_adev->asic_reset_res && !job_signaled)
-				drm_sched_resubmit_jobs(&ring->sched);
-
-			drm_sched_start(&ring->sched, !tmp_adev->asic_reset_res);
+			drm_sched_start(&ring->sched, true);
 		}
 
 		if (adev->enable_mes && adev->ip_versions[GC_HWIP][0] != IP_VERSION(11, 0, 3))
@@ -5444,6 +5352,8 @@ skip_sched_resume:
 			amdgpu_device_resume_display_audio(tmp_adev);
 
 		amdgpu_device_unset_mp1_state(tmp_adev);
+
+		amdgpu_ras_set_error_query_ready(tmp_adev, true);
 	}
 
 recover_end:
@@ -5855,8 +5765,6 @@ void amdgpu_pci_resume(struct pci_dev *pdev)
 		if (!ring || !ring->sched.thread)
 			continue;
 
-
-		drm_sched_resubmit_jobs(&ring->sched);
 		drm_sched_start(&ring->sched, true);
 	}
 
@@ -6046,4 +5954,45 @@ struct dma_fence *amdgpu_device_switch_gang(struct amdgpu_device *adev,
 
 	dma_fence_put(old);
 	return NULL;
+}
+
+bool amdgpu_device_has_display_hardware(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_HAINAN:
+#endif
+	case CHIP_TOPAZ:
+		/* chips with no display hardware */
+		return false;
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+	case CHIP_VERDE:
+	case CHIP_OLAND:
+#endif
+#ifdef CONFIG_DRM_AMDGPU_CIK
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+	case CHIP_KAVERI:
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+#endif
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+		/* chips with display hardware */
+		return true;
+	default:
+		/* IP discovery */
+		if (!adev->ip_versions[DCE_HWIP][0] ||
+		    (adev->harvest_ip_mask & AMD_HARVEST_IP_DMU_MASK))
+			return false;
+		return true;
+	}
 }

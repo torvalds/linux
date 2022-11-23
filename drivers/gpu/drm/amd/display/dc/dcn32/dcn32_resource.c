@@ -106,8 +106,6 @@ enum dcn32_clk_src_array_id {
  */
 
 /* DCN */
-/* TODO awful hack. fixup dcn20_dwb.h */
-#undef BASE_INNER
 #define BASE_INNER(seg) ctx->dcn_reg_offsets[seg]
 
 #define BASE(seg) BASE_INNER(seg)
@@ -166,6 +164,9 @@ enum dcn32_clk_src_array_id {
 #define SRII_DWB(reg_name, temp_name, block, id)\
 	REG_STRUCT.reg_name[id] = BASE(reg ## block ## id ## _ ## temp_name ## _BASE_IDX) + \
 		reg ## block ## id ## _ ## temp_name
+
+#define SF_DWB2(reg_name, block, id, field_name, post_fix)	\
+	.field_name = reg_name ## __ ## field_name ## post_fix
 
 #define DCCG_SRII(reg_name, block, id)\
 	REG_STRUCT.block ## _ ## reg_name[id] = BASE(reg ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
@@ -724,6 +725,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.enable_dp_dig_pixel_rate_div_policy = 1,
 	.allow_sw_cursor_fallback = false,
 	.alloc_extra_way_for_cursor = true,
+	.min_prefetch_in_strobe_ns = 60000, // 60us
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -829,6 +831,7 @@ static struct clock_source *dcn32_clock_source_create(
 		return &clk_src->base;
 	}
 
+	kfree(clk_src);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }
@@ -1678,7 +1681,7 @@ static void dcn32_enable_phantom_plane(struct dc *dc,
 
 		/* Shadow pipe has small viewport. */
 		phantom_plane->clip_rect.y = 0;
-		phantom_plane->clip_rect.height = phantom_stream->timing.v_addressable;
+		phantom_plane->clip_rect.height = phantom_stream->src.height;
 
 		phantom_plane->is_phantom = true;
 
@@ -2116,6 +2119,7 @@ static bool dcn32_resource_construct(
 	dc->caps.cache_num_ways = 16;
 	dc->caps.max_cab_allocation_bytes = 67108864; // 64MB = 1024 * 1024 * 64
 	dc->caps.subvp_fw_processing_delay_us = 15;
+	dc->caps.subvp_drr_max_vblank_margin_us = 40;
 	dc->caps.subvp_prefetch_end_to_mall_start_us = 15;
 	dc->caps.subvp_swath_height_margin_lines = 16;
 	dc->caps.subvp_pstate_allow_width_us = 20;
@@ -2410,6 +2414,9 @@ static bool dcn32_resource_construct(
 	} else {
 		pool->base.oem_device = NULL;
 	}
+
+	if (ASICREV_IS_GC_11_0_3(dc->ctx->asic_id.hw_internal_rev) && (dc->config.sdpif_request_limit_words_per_umc == 0))
+		dc->config.sdpif_request_limit_words_per_umc = 16;
 
 	DC_FP_END();
 

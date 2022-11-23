@@ -971,3 +971,11 @@ void dm_helpers_enable_periodic_detection(struct dc_context *ctx, bool enable)
 {
 	/* TODO: add periodic detection implementation */
 }
+
+void dm_helpers_dp_mst_update_branch_bandwidth(
+		struct dc_context *ctx,
+		struct dc_link *link)
+{
+	// TODO
+}
+

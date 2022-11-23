@@ -1253,7 +1253,9 @@ static int mes_v11_0_kiq_hw_fini(struct amdgpu_device *adev)
 	if (adev->mes.ring.sched.ready)
 		mes_v11_0_kiq_dequeue_sched(adev);
 
-	mes_v11_0_enable(adev, false);
+	if (!amdgpu_sriov_vf(adev))
+		mes_v11_0_enable(adev, false);
+
 	return 0;
 }
 

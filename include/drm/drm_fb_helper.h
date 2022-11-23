@@ -116,7 +116,6 @@ struct drm_fb_helper_funcs {
  * @damage_clip: clip rectangle used with deferred_io to accumulate damage to
  *                the screen buffer
  * @damage_lock: spinlock protecting @damage_clip
- * @damage_work: worker used to flush the framebuffer
  * @resume_work: worker used during resume if the console lock is already taken
  *
  * This is the main structure used by the fbdev helpers. Drivers supporting
@@ -146,7 +145,6 @@ struct drm_fb_helper {
 	u32 pseudo_palette[17];
 	struct drm_clip_rect damage_clip;
 	spinlock_t damage_lock;
-	struct work_struct damage_work;
 	struct work_struct resume_work;
 
 	/**

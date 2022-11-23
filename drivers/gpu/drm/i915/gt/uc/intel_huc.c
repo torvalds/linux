@@ -211,11 +211,40 @@ void intel_huc_unregister_gsc_notifier(struct intel_huc *huc, struct bus_type *b
 	huc->delayed_load.nb.notifier_call = NULL;
 }
 
+static bool vcs_supported(struct intel_gt *gt)
+{
+	intel_engine_mask_t mask = gt->info.engine_mask;
+
+	/*
+	 * We reach here from i915_driver_early_probe for the primary GT before
+	 * its engine mask is set, so we use the device info engine mask for it;
+	 * this means we're not taking VCS fusing into account, but if the
+	 * primary GT supports VCS engines we expect at least one of them to
+	 * remain unfused so we're fine.
+	 * For other GTs we expect the GT-specific mask to be set before we
+	 * call this function.
+	 */
+	GEM_BUG_ON(!gt_is_root(gt) && !gt->info.engine_mask);
+
+	if (gt_is_root(gt))
+		mask = RUNTIME_INFO(gt->i915)->platform_engine_mask;
+	else
+		mask = gt->info.engine_mask;
+
+	return __ENGINE_INSTANCES_MASK(mask, VCS0, I915_MAX_VCS);
+}
+
 void intel_huc_init_early(struct intel_huc *huc)
 {
 	struct drm_i915_private *i915 = huc_to_gt(huc)->i915;
+	struct intel_gt *gt = huc_to_gt(huc);
 
 	intel_uc_fw_init_early(&huc->fw, INTEL_UC_FW_TYPE_HUC);
+
+	if (!vcs_supported(gt)) {
+		intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_NOT_SUPPORTED);
+		return;
+	}
 
 	if (GRAPHICS_VER(i915) >= 11) {
 		huc->status.reg = GEN11_HUC_KERNEL_LOAD_INFO;
