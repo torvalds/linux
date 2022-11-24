@@ -81,6 +81,11 @@ struct rtw_c2h_adaptivity {
 	u8 option;
 } __packed;
 
+struct rtw_h2c_cmd {
+	__le32 msg;
+	__le32 msg_ext;
+} __packed;
+
 enum rtw_rsvd_packet_type {
 	RSVD_BEACON,
 	RSVD_DUMMY,

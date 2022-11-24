@@ -311,10 +311,10 @@ EXPORT_SYMBOL(rtw_fw_c2h_cmd_isr);
 static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 				    u8 *h2c)
 {
+	struct rtw_h2c_cmd *h2c_cmd = (struct rtw_h2c_cmd *)h2c;
 	u8 box;
 	u8 box_state;
 	u32 box_reg, box_ex_reg;
-	int idx;
 	int ret;
 
 	rtw_dbg(rtwdev, RTW_DBG_FW,
@@ -356,10 +356,8 @@ static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 		goto out;
 	}
 
-	for (idx = 0; idx < 4; idx++)
-		rtw_write8(rtwdev, box_reg + idx, h2c[idx]);
-	for (idx = 0; idx < 4; idx++)
-		rtw_write8(rtwdev, box_ex_reg + idx, h2c[idx + 4]);
+	rtw_write32(rtwdev, box_ex_reg, le32_to_cpu(h2c_cmd->msg_ext));
+	rtw_write32(rtwdev, box_reg, le32_to_cpu(h2c_cmd->msg));
 
 	if (++rtwdev->h2c.last_box_num >= 4)
 		rtwdev->h2c.last_box_num = 0;
