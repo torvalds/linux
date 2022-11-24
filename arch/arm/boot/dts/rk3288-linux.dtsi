@@ -95,11 +95,6 @@
 		pinctrl-0 = <&uart2_xfer>;
 	};
 
-	psci {
-		compatible = "arm,psci-1.0";
-		method = "smc";
-	};
-
 	/delete-node/ timer@ff810000;
 
 	display-subsystem {
@@ -155,22 +150,6 @@
 			};
 		};
 	};
-};
-
-&cpu0 {
-	enable-method = "psci";
-};
-
-&cpu1 {
-	enable-method = "psci";
-};
-
-&cpu2 {
-	enable-method = "psci";
-};
-
-&cpu3 {
-	enable-method = "psci";
 };
 
 &dmac_bus_s {
