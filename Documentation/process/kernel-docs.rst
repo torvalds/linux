@@ -75,6 +75,14 @@ On-line docs
 Published books
 ---------------
 
+    * Title: **Linux Kernel Programming: A Comprehensive Guide to Kernel Internals, Writing Kernel Modules, and Kernel Synchronization**
+
+          :Author: Kaiwan N. Billimoria
+          :Publisher: Packt Publishing Ltd
+          :Date: 2021
+          :Pages: 754
+          :ISBN: 978-1789953435
+
     * Title: **Linux Kernel Development, 3rd Edition**
 
       :Author: Robert Love
