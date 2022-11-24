@@ -87,13 +87,13 @@ enum tpm_tis_flags {
 	TPM_TIS_ITPM_WORKAROUND		= BIT(0),
 	TPM_TIS_INVALID_STATUS		= BIT(1),
 	TPM_TIS_DEFAULT_CANCELLATION	= BIT(2),
+	TPM_TIS_IRQ_TESTED		= BIT(3),
 };
 
 struct tpm_tis_data {
 	u16 manufacturer_id;
 	int locality;
 	int irq;
-	bool irq_tested;
 	unsigned long flags;
 	void __iomem *ilb_base_addr;
 	u16 clkrun_enabled;
