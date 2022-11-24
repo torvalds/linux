@@ -168,6 +168,7 @@ struct cti_config {
 	atomic_t enable_req_count;
 	bool hw_enabled;
 	bool hw_powered;
+	bool hw_enabled_store;
 
 	/* registered triggers and filtering */
 	DECLARE_BITMAP(trig_in_use, CTIINOUTEN_MAX);
