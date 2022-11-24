@@ -172,6 +172,24 @@ static int rockchip_drm_bandwidth_atomic_check(struct drm_device *dev,
 	return 0;
 }
 
+static void drm_atomic_helper_connector_commit(struct drm_device *dev,
+					       struct drm_atomic_state *old_state)
+{
+	struct drm_connector *connector;
+	struct drm_connector_state *new_conn_state;
+	int i;
+
+	for_each_new_connector_in_state(old_state, connector, new_conn_state, i) {
+		const struct drm_connector_helper_funcs *funcs;
+
+		funcs = connector->helper_private;
+		if (!funcs->atomic_commit)
+			continue;
+
+		funcs->atomic_commit(connector, new_conn_state);
+	}
+}
+
 /**
  * rockchip_drm_atomic_helper_commit_tail_rpm - commit atomic update to hardware
  * @old_state: new modeset state to be committed
@@ -201,6 +219,8 @@ static void rockchip_drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *
 	mutex_unlock(&prv->ovl_lock);
 
 	drm_atomic_helper_fake_vblank(old_state);
+
+	drm_atomic_helper_connector_commit(dev, old_state);
 
 	drm_atomic_helper_commit_hw_done(old_state);
 
