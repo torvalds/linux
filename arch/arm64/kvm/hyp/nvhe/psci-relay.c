@@ -236,7 +236,7 @@ static u64 psci_mem_protect(s64 offset)
 		return cnt;
 
 	if (!cnt || !new)
-		psci_call(PSCI_1_1_FN64_MEM_PROTECT, offset < 0 ? 0 : 1, 0, 0);
+		psci_call(PSCI_1_1_FN_MEM_PROTECT, offset < 0 ? 0 : 1, 0, 0);
 
 	cnt = new;
 	return cnt;
