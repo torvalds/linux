@@ -488,18 +488,18 @@ enum bkey_pack_pos_ret bch2_bkey_pack_pos_lossy(struct bkey_packed *out,
 		     le64_to_cpu(f->field_offset[BKEY_FIELD_INODE])))
 		return BKEY_PACK_POS_FAIL;
 
-	if (!set_inc_field_lossy(&state, BKEY_FIELD_INODE, in.inode)) {
+	if (unlikely(!set_inc_field_lossy(&state, BKEY_FIELD_INODE, in.inode))) {
 		in.offset	= KEY_OFFSET_MAX;
 		in.snapshot	= KEY_SNAPSHOT_MAX;
 		exact = false;
 	}
 
-	if (!set_inc_field_lossy(&state, BKEY_FIELD_OFFSET, in.offset)) {
+	if (unlikely(!set_inc_field_lossy(&state, BKEY_FIELD_OFFSET, in.offset))) {
 		in.snapshot	= KEY_SNAPSHOT_MAX;
 		exact = false;
 	}
 
-	if (!set_inc_field_lossy(&state, BKEY_FIELD_SNAPSHOT, in.snapshot))
+	if (unlikely(!set_inc_field_lossy(&state, BKEY_FIELD_SNAPSHOT, in.snapshot)))
 		exact = false;
 
 	pack_state_finish(&state, out);
