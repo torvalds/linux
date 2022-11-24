@@ -937,13 +937,21 @@ int msi_domain_alloc_irqs_descs_locked(struct irq_domain *domain, struct device 
 
 	lockdep_assert_held(&dev->msi.data->mutex);
 
+	if (WARN_ON_ONCE(irq_domain_is_msi_parent(domain))) {
+		ret = -EINVAL;
+		goto free;
+	}
+
+	/* Frees allocated descriptors in case of failure. */
 	ret = msi_domain_add_simple_msi_descs(info, dev, nvec);
 	if (ret)
-		return ret;
+		goto free;
 
 	ret = ops->domain_alloc_irqs(domain, dev, nvec);
-	if (ret)
-		msi_domain_free_irqs_descs_locked(domain, dev);
+	if (!ret)
+		return 0;
+free:
+	msi_domain_free_irqs_descs_locked(domain, dev);
 	return ret;
 }
 
@@ -1012,6 +1020,9 @@ void msi_domain_free_irqs_descs_locked(struct irq_domain *domain, struct device 
 	struct msi_domain_ops *ops = info->ops;
 
 	lockdep_assert_held(&dev->msi.data->mutex);
+
+	if (WARN_ON_ONCE(irq_domain_is_msi_parent(domain)))
+		return;
 
 	ops->domain_free_irqs(domain, dev);
 	if (ops->msi_post_free)
