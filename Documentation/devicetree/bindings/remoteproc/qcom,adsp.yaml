@@ -30,7 +30,6 @@ properties:
       - qcom,sdm660-adsp-pas
       - qcom,sdm845-adsp-pas
       - qcom,sdm845-cdsp-pas
-      - qcom,sdx55-mpss-pas
 
   reg:
     maxItems: 1
@@ -125,7 +124,6 @@ allOf:
             enum:
               - qcom,sc7180-mpss-pas
               - qcom,sc7280-mpss-pas
-              - qcom,sdx55-mpss-pas
     then:
       properties:
         interrupts:
@@ -203,7 +201,6 @@ allOf:
           contains:
             enum:
               - qcom,sc7280-mpss-pas
-              - qcom,sdx55-mpss-pas
     then:
       properties:
         power-domains:
@@ -230,7 +227,6 @@ allOf:
               - qcom,qcs404-cdsp-pas
               - qcom,qcs404-wcss-pas
               - qcom,sdm660-adsp-pas
-              - qcom,sdx55-mpss-pas
     then:
       properties:
         qcom,qmp: false
