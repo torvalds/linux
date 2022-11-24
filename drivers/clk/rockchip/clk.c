@@ -154,6 +154,9 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 			frac->mux_ops->set_parent(&frac_mux->hw,
 						  frac->mux_frac_idx);
 			frac->rate_change_remuxed = 1;
+			clk_hw_set_parent(&frac_mux->hw,
+					  clk_hw_get_parent_by_index(&frac_mux->hw,
+								     frac->mux_frac_idx));
 		}
 	} else if (event == POST_RATE_CHANGE) {
 		/*
