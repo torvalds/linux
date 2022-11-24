@@ -398,9 +398,9 @@ In kernels built with CONFIG_RCU_CPU_STALL_CPUTIME=y or booted with
 rcupdate.rcu_cpu_stall_cputime=1, the following additional information
 is supplied with each RCU CPU stall warning::
 
-rcu:          hardirqs   softirqs   csw/system
-rcu:  number:      624         45            0
-rcu: cputime:       69          1         2425   ==> 2500(ms)
+  rcu:          hardirqs   softirqs   csw/system
+  rcu:  number:      624         45            0
+  rcu: cputime:       69          1         2425   ==> 2500(ms)
 
 These statistics are collected during the sampling period. The values
 in row "number:" are the number of hard interrupts, number of soft
@@ -412,22 +412,24 @@ in milliseconds.  Because user-mode tasks normally do not cause RCU CPU
 stalls, these tasks are typically kernel tasks, which is why only the
 system CPU time are considered.
 
-The sampling period is shown as follows:
-:<------------first timeout---------->:<-----second timeout----->:
-:<--half timeout-->:<--half timeout-->:                          :
-:                  :<--first period-->:                          :
-:                  :<-----------second sampling period---------->:
-:                  :                  :                          :
-:          snapshot time point    1st-stall                  2nd-stall
+The sampling period is shown as follows::
 
+  |<------------first timeout---------->|<-----second timeout----->|
+  |<--half timeout-->|<--half timeout-->|                          |
+  |                  |<--first period-->|                          |
+  |                  |<-----------second sampling period---------->|
+  |                  |                  |                          |
+             snapshot time point    1st-stall                  2nd-stall
 
 The following describes four typical scenarios:
 
-1. A CPU looping with interrupts disabled.::
+1. A CPU looping with interrupts disabled.
 
-   rcu:          hardirqs   softirqs   csw/system
-   rcu:  number:        0          0            0
-   rcu: cputime:        0          0            0   ==> 2500(ms)
+   ::
+
+     rcu:          hardirqs   softirqs   csw/system
+     rcu:  number:        0          0            0
+     rcu: cputime:        0          0            0   ==> 2500(ms)
 
    Because interrupts have been disabled throughout the measurement
    interval, there are no interrupts and no context switches.
@@ -440,11 +442,11 @@ The following describes four typical scenarios:
 
    This is similar to the previous example, but with non-zero number of
    and CPU time consumed by hard interrupts, along with non-zero CPU
-   time consumed by in-kernel execution.::
+   time consumed by in-kernel execution::
 
-   rcu:          hardirqs   softirqs   csw/system
-   rcu:  number:      624          0            0
-   rcu: cputime:       49          0         2446   ==> 2500(ms)
+     rcu:          hardirqs   softirqs   csw/system
+     rcu:  number:      624          0            0
+     rcu: cputime:       49          0         2446   ==> 2500(ms)
 
    The fact that there are zero softirqs gives a hint that these were
    disabled, perhaps via local_bh_disable().  It is of course possible
@@ -454,20 +456,22 @@ The following describes four typical scenarios:
 
 3. A CPU looping with preemption disabled.
 
-   Here, only the number of context switches is zero.::
+   Here, only the number of context switches is zero::
 
-   rcu:          hardirqs   softirqs   csw/system
-   rcu:  number:      624         45            0
-   rcu: cputime:       69          1         2425   ==> 2500(ms)
+     rcu:          hardirqs   softirqs   csw/system
+     rcu:  number:      624         45            0
+     rcu: cputime:       69          1         2425   ==> 2500(ms)
 
    This situation hints that the stalled CPU was looping with preemption
    disabled.
 
-4. No looping, but massive hard and soft interrupts.::
+4. No looping, but massive hard and soft interrupts.
 
-   rcu:          hardirqs   softirqs   csw/system
-   rcu:  number:       xx         xx            0
-   rcu: cputime:       xx         xx            0   ==> 2500(ms)
+   ::
+
+     rcu:          hardirqs   softirqs   csw/system
+     rcu:  number:       xx         xx            0
+     rcu: cputime:       xx         xx            0   ==> 2500(ms)
 
    Here, the number and CPU time of hard interrupts are all non-zero,
    but the number of context switches and the in-kernel CPU time consumed
