@@ -37,7 +37,7 @@ void zonefs_account_active(struct inode *inode)
 
 	lockdep_assert_held(&zi->i_truncate_mutex);
 
-	if (zi->i_ztype != ZONEFS_ZTYPE_SEQ)
+	if (zonefs_zone_is_cnv(zi))
 		return;
 
 	/*
@@ -177,14 +177,14 @@ static loff_t zonefs_check_zone_condition(struct inode *inode,
 		zonefs_warn(inode->i_sb, "inode %lu: read-only zone\n",
 			    inode->i_ino);
 		zi->i_flags |= ZONEFS_ZONE_READONLY;
-		if (zi->i_ztype == ZONEFS_ZTYPE_CNV)
+		if (zonefs_zone_is_cnv(zi))
 			return zi->i_max_size;
 		return zi->i_wpoffset;
 	case BLK_ZONE_COND_FULL:
 		/* The write pointer of full zones is invalid. */
 		return zi->i_max_size;
 	default:
-		if (zi->i_ztype == ZONEFS_ZTYPE_CNV)
+		if (zonefs_zone_is_cnv(zi))
 			return zi->i_max_size;
 		return (zone->wp - zone->start) << SECTOR_SHIFT;
 	}
@@ -260,7 +260,7 @@ static int zonefs_io_error_cb(struct blk_zone *zone, unsigned int idx,
 	 * In all cases, warn about inode size inconsistency and handle the
 	 * IO error according to the zone condition and to the mount options.
 	 */
-	if (zi->i_ztype == ZONEFS_ZTYPE_SEQ && isize != data_size)
+	if (zonefs_zone_is_seq(zi) && isize != data_size)
 		zonefs_warn(sb, "inode %lu: invalid size %lld (should be %lld)\n",
 			    inode->i_ino, isize, data_size);
 
@@ -584,7 +584,9 @@ static int zonefs_init_file_inode(struct inode *inode, struct blk_zone *zone,
 	inode->i_ino = zone->start >> sbi->s_zone_sectors_shift;
 	inode->i_mode = S_IFREG | sbi->s_perm;
 
-	zi->i_ztype = type;
+	if (type == ZONEFS_ZTYPE_CNV)
+		zi->i_flags |= ZONEFS_ZONE_CNV;
+
 	zi->i_zsector = zone->start;
 	zi->i_zone_size = zone->len << SECTOR_SHIFT;
 	if (zi->i_zone_size > bdev_zone_sectors(sb->s_bdev) << SECTOR_SHIFT &&

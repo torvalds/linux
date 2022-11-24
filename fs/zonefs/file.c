@@ -77,8 +77,7 @@ static int zonefs_write_iomap_begin(struct inode *inode, loff_t offset,
 	 * checked when writes are issued, so warn if we see a page writeback
 	 * operation.
 	 */
-	if (WARN_ON_ONCE(zi->i_ztype == ZONEFS_ZTYPE_SEQ &&
-			 !(flags & IOMAP_DIRECT)))
+	if (WARN_ON_ONCE(zonefs_zone_is_seq(zi) && !(flags & IOMAP_DIRECT)))
 		return -EIO;
 
 	/*
@@ -128,7 +127,7 @@ static int zonefs_write_map_blocks(struct iomap_writepage_ctx *wpc,
 {
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
 
-	if (WARN_ON_ONCE(zi->i_ztype != ZONEFS_ZTYPE_CNV))
+	if (WARN_ON_ONCE(zonefs_zone_is_seq(zi)))
 		return -EIO;
 	if (WARN_ON_ONCE(offset >= i_size_read(inode)))
 		return -EIO;
@@ -158,9 +157,8 @@ static int zonefs_swap_activate(struct swap_info_struct *sis,
 				struct file *swap_file, sector_t *span)
 {
 	struct inode *inode = file_inode(swap_file);
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
 
-	if (zi->i_ztype != ZONEFS_ZTYPE_CNV) {
+	if (zonefs_inode_is_seq(inode)) {
 		zonefs_err(inode->i_sb,
 			   "swap file: not a conventional zone file\n");
 		return -EINVAL;
@@ -196,7 +194,7 @@ int zonefs_file_truncate(struct inode *inode, loff_t isize)
 	 * only down to a 0 size, which is equivalent to a zone reset, and to
 	 * the maximum file size, which is equivalent to a zone finish.
 	 */
-	if (zi->i_ztype != ZONEFS_ZTYPE_SEQ)
+	if (!zonefs_zone_is_seq(zi))
 		return -EPERM;
 
 	if (!isize)
@@ -266,7 +264,7 @@ static int zonefs_file_fsync(struct file *file, loff_t start, loff_t end,
 	 * Since only direct writes are allowed in sequential files, page cache
 	 * flush is needed only for conventional zone files.
 	 */
-	if (ZONEFS_I(inode)->i_ztype == ZONEFS_ZTYPE_CNV)
+	if (zonefs_inode_is_cnv(inode))
 		ret = file_write_and_wait_range(file, start, end);
 	if (!ret)
 		ret = blkdev_issue_flush(inode->i_sb->s_bdev);
@@ -280,7 +278,6 @@ static int zonefs_file_fsync(struct file *file, loff_t start, loff_t end,
 static vm_fault_t zonefs_filemap_page_mkwrite(struct vm_fault *vmf)
 {
 	struct inode *inode = file_inode(vmf->vma->vm_file);
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
 	vm_fault_t ret;
 
 	if (unlikely(IS_IMMUTABLE(inode)))
@@ -290,7 +287,7 @@ static vm_fault_t zonefs_filemap_page_mkwrite(struct vm_fault *vmf)
 	 * Sanity check: only conventional zone files can have shared
 	 * writeable mappings.
 	 */
-	if (WARN_ON_ONCE(zi->i_ztype != ZONEFS_ZTYPE_CNV))
+	if (zonefs_inode_is_seq(inode))
 		return VM_FAULT_NOPAGE;
 
 	sb_start_pagefault(inode->i_sb);
@@ -319,7 +316,7 @@ static int zonefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	 * mappings are possible since there are no guarantees for write
 	 * ordering between msync() and page cache writeback.
 	 */
-	if (ZONEFS_I(file_inode(file))->i_ztype == ZONEFS_ZTYPE_SEQ &&
+	if (zonefs_inode_is_seq(file_inode(file)) &&
 	    (vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE))
 		return -EINVAL;
 
@@ -352,7 +349,7 @@ static int zonefs_file_write_dio_end_io(struct kiocb *iocb, ssize_t size,
 		return error;
 	}
 
-	if (size && zi->i_ztype != ZONEFS_ZTYPE_CNV) {
+	if (size && zonefs_zone_is_seq(zi)) {
 		/*
 		 * Note that we may be seeing completions out of order,
 		 * but that is not a problem since a write completed
@@ -491,7 +488,7 @@ static ssize_t zonefs_write_checks(struct kiocb *iocb, struct iov_iter *from)
 		return -EINVAL;
 
 	if (iocb->ki_flags & IOCB_APPEND) {
-		if (zi->i_ztype != ZONEFS_ZTYPE_SEQ)
+		if (zonefs_zone_is_cnv(zi))
 			return -EINVAL;
 		mutex_lock(&zi->i_truncate_mutex);
 		iocb->ki_pos = zi->i_wpoffset;
@@ -531,8 +528,7 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 	 * as this can cause write reordering (e.g. the first aio gets EAGAIN
 	 * on the inode lock but the second goes through but is now unaligned).
 	 */
-	if (zi->i_ztype == ZONEFS_ZTYPE_SEQ && !sync &&
-	    (iocb->ki_flags & IOCB_NOWAIT))
+	if (zonefs_zone_is_seq(zi) && !sync && (iocb->ki_flags & IOCB_NOWAIT))
 		return -EOPNOTSUPP;
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
@@ -554,7 +550,7 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 	/* Enforce sequential writes (append only) in sequential zones */
-	if (zi->i_ztype == ZONEFS_ZTYPE_SEQ) {
+	if (zonefs_zone_is_seq(zi)) {
 		mutex_lock(&zi->i_truncate_mutex);
 		if (iocb->ki_pos != zi->i_wpoffset) {
 			mutex_unlock(&zi->i_truncate_mutex);
@@ -570,7 +566,7 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 	else
 		ret = iomap_dio_rw(iocb, from, &zonefs_write_iomap_ops,
 				   &zonefs_write_dio_ops, 0, NULL, 0);
-	if (zi->i_ztype == ZONEFS_ZTYPE_SEQ &&
+	if (zonefs_zone_is_seq(zi) &&
 	    (ret > 0 || ret == -EIOCBQUEUED)) {
 		if (ret > 0)
 			count = ret;
@@ -596,14 +592,13 @@ static ssize_t zonefs_file_buffered_write(struct kiocb *iocb,
 					  struct iov_iter *from)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
 	ssize_t ret;
 
 	/*
 	 * Direct IO writes are mandatory for sequential zone files so that the
 	 * write IO issuing order is preserved.
 	 */
-	if (zi->i_ztype != ZONEFS_ZTYPE_CNV)
+	if (zonefs_inode_is_seq(inode))
 		return -EIO;
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
@@ -731,9 +726,7 @@ inode_unlock:
 static inline bool zonefs_seq_file_need_wro(struct inode *inode,
 					    struct file *file)
 {
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-
-	if (zi->i_ztype != ZONEFS_ZTYPE_SEQ)
+	if (zonefs_inode_is_cnv(inode))
 		return false;
 
 	if (!(file->f_mode & FMODE_WRITE))
