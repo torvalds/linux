@@ -26,6 +26,7 @@
 #include <linux/io-64-nonatomic-hi-lo.h>
 #include <linux/sed-opal.h>
 #include <linux/pci-p2pdma.h>
+#include <linux/delay.h>
 
 #include "trace.h"
 #include "nvme.h"
@@ -1041,6 +1042,15 @@ static inline void nvme_update_cq_head(struct nvme_queue *nvmeq)
 static inline int nvme_process_cq(struct nvme_queue *nvmeq)
 {
 	int found = 0;
+
+	/*
+	 * In some cases, such as udev trigger, cqe status may update
+	 * a little bit later than MSI, which cause an irq handle missing.
+	 * To workaound, here we will prefetch the status first, and wait
+	 * 1us if we get nothing.
+	 */
+	if (!nvme_cqe_pending(nvmeq))
+		udelay(1);
 
 	while (nvme_cqe_pending(nvmeq)) {
 		found++;
