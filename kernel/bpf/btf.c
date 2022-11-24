@@ -4779,7 +4779,6 @@ static int btf_func_proto_check(struct btf_verifier_env *env,
 		nr_args--;
 	}
 
-	err = 0;
 	for (i = 0; i < nr_args; i++) {
 		const struct btf_type *arg_type;
 		u32 arg_type_id;
@@ -4788,8 +4787,7 @@ static int btf_func_proto_check(struct btf_verifier_env *env,
 		arg_type = btf_type_by_id(btf, arg_type_id);
 		if (!arg_type) {
 			btf_verifier_log_type(env, t, "Invalid arg#%u", i + 1);
-			err = -EINVAL;
-			break;
+			return -EINVAL;
 		}
 
 		if (btf_type_is_resolve_source_only(arg_type)) {
@@ -4802,25 +4800,23 @@ static int btf_func_proto_check(struct btf_verifier_env *env,
 		     !btf_name_valid_identifier(btf, args[i].name_off))) {
 			btf_verifier_log_type(env, t,
 					      "Invalid arg#%u", i + 1);
-			err = -EINVAL;
-			break;
+			return -EINVAL;
 		}
 
 		if (btf_type_needs_resolve(arg_type) &&
 		    !env_type_is_resolved(env, arg_type_id)) {
 			err = btf_resolve(env, arg_type, arg_type_id);
 			if (err)
-				break;
+				return err;
 		}
 
 		if (!btf_type_id_size(btf, &arg_type_id, NULL)) {
 			btf_verifier_log_type(env, t, "Invalid arg#%u", i + 1);
-			err = -EINVAL;
-			break;
+			return -EINVAL;
 		}
 	}
 
-	return err;
+	return 0;
 }
 
 static int btf_func_check(struct btf_verifier_env *env,
