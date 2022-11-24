@@ -22,9 +22,6 @@ properties:
       - qcom,msm8996-slpi-pil
       - qcom,msm8998-adsp-pas
       - qcom,msm8998-slpi-pas
-      - qcom,qcs404-adsp-pas
-      - qcom,qcs404-cdsp-pas
-      - qcom,qcs404-wcss-pas
       - qcom,sc7180-mpss-pas
       - qcom,sc7280-mpss-pas
       - qcom,sdm660-adsp-pas
@@ -61,9 +58,6 @@ allOf:
               - qcom,msm8996-adsp-pil
               - qcom,msm8996-slpi-pil
               - qcom,msm8998-adsp-pas
-              - qcom,qcs404-adsp-pas
-              - qcom,qcs404-cdsp-pas
-              - qcom,qcs404-wcss-pas
               - qcom,sc7180-mpss-pas
               - qcom,sc7280-mpss-pas
               - qcom,sdm845-adsp-pas
@@ -105,9 +99,6 @@ allOf:
               - qcom,msm8996-slpi-pil
               - qcom,msm8998-adsp-pas
               - qcom,msm8998-slpi-pas
-              - qcom,qcs404-adsp-pas
-              - qcom,qcs404-cdsp-pas
-              - qcom,qcs404-wcss-pas
               - qcom,sdm845-adsp-pas
               - qcom,sdm845-cdsp-pas
     then:
@@ -223,9 +214,6 @@ allOf:
               - qcom,msm8996-slpi-pil
               - qcom,msm8998-adsp-pas
               - qcom,msm8998-slpi-pas
-              - qcom,qcs404-adsp-pas
-              - qcom,qcs404-cdsp-pas
-              - qcom,qcs404-wcss-pas
               - qcom,sdm660-adsp-pas
     then:
       properties:
