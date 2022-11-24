@@ -51,10 +51,16 @@
  */
 #define UMA_WAIT_ITERATIONS 100
 
+/* The memory-mapped view of flash is 16 MiB long */
+#define MAX_MEMORY_SIZE_PER_CS	(16 << 20)
+#define MAX_MEMORY_SIZE_TOTAL	(4 * MAX_MEMORY_SIZE_PER_CS)
+
 struct wpcm_fiu_spi {
 	struct device *dev;
 	struct clk *clk;
 	void __iomem *regs;
+	void __iomem *memory;
+	size_t memory_size;
 	struct regmap *shm_regmap;
 };
 
@@ -367,14 +373,64 @@ static int wpcm_fiu_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 	return 0;
 }
 
+static int wpcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
+{
+	struct wpcm_fiu_spi *fiu = spi_controller_get_devdata(desc->mem->spi->controller);
+	int cs = desc->mem->spi->chip_select;
+
+	if (desc->info.op_tmpl.data.dir != SPI_MEM_DATA_IN)
+		return -ENOTSUPP;
+
+	/*
+	 * Unfortunately, FIU only supports a 16 MiB direct mapping window (per
+	 * attached flash chip), but the SPI MEM core doesn't support partial
+	 * direct mappings. This means that we can't support direct mapping on
+	 * flashes that are bigger than 16 MiB.
+	 */
+	if (desc->info.offset + desc->info.length > MAX_MEMORY_SIZE_PER_CS)
+		return -ENOTSUPP;
+
+	/* Don't read past the memory window */
+	if (cs * MAX_MEMORY_SIZE_PER_CS + desc->info.offset + desc->info.length > fiu->memory_size)
+		return -ENOTSUPP;
+
+	return 0;
+}
+
+static ssize_t wpcm_fiu_direct_read(struct spi_mem_dirmap_desc *desc, u64 offs, size_t len, void *buf)
+{
+	struct wpcm_fiu_spi *fiu = spi_controller_get_devdata(desc->mem->spi->controller);
+	int cs = desc->mem->spi->chip_select;
+
+	if (offs >= MAX_MEMORY_SIZE_PER_CS)
+		return -ENOTSUPP;
+
+	offs += cs * MAX_MEMORY_SIZE_PER_CS;
+
+	if (!fiu->memory || offs >= fiu->memory_size)
+		return -ENOTSUPP;
+
+	len = min_t(size_t, len, fiu->memory_size - offs);
+	memcpy_fromio(buf, fiu->memory + offs, len);
+
+	return len;
+}
+
 static const struct spi_controller_mem_ops wpcm_fiu_mem_ops = {
 	.adjust_op_size = wpcm_fiu_adjust_op_size,
 	.supports_op = wpcm_fiu_supports_op,
 	.exec_op = wpcm_fiu_exec_op,
+	.dirmap_create = wpcm_fiu_dirmap_create,
+	.dirmap_read = wpcm_fiu_direct_read,
 };
 
 static void wpcm_fiu_hw_init(struct wpcm_fiu_spi *fiu)
 {
+	/* Configure memory-mapped flash access */
+	writeb(FIU_BURST_CFG_R16, fiu->regs + FIU_BURST_BFG);
+	writeb(MAX_MEMORY_SIZE_TOTAL / (512 << 10), fiu->regs + FIU_CFG);
+	writeb(MAX_MEMORY_SIZE_PER_CS / (512 << 10) | BIT(6), fiu->regs + FIU_SPI_FL_CFG);
+
 	/* Deassert all manually asserted chip selects */
 	writeb(0x0f, fiu->regs + FIU_UMA_ECTS);
 }
@@ -403,6 +459,14 @@ static int wpcm_fiu_probe(struct platform_device *pdev)
 	fiu->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(fiu->clk))
 		return PTR_ERR(fiu->clk);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "memory");
+	fiu->memory = devm_ioremap_resource(dev, res);
+	fiu->memory_size = min_t(size_t, resource_size(res), MAX_MEMORY_SIZE_TOTAL);
+	if (IS_ERR(fiu->memory)) {
+		dev_err(dev, "Failed to map flash memory window\n");
+		return PTR_ERR(fiu->memory);
+	}
 
 	fiu->shm_regmap = syscon_regmap_lookup_by_phandle_optional(dev->of_node, "nuvoton,shm");
 
