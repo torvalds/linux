@@ -44,15 +44,13 @@ static inline enum zonefs_ztype zonefs_zone_type(struct blk_zone *zone)
 #define ZONEFS_ZONE_ACTIVE	(1U << 2)
 #define ZONEFS_ZONE_OFFLINE	(1U << 3)
 #define ZONEFS_ZONE_READONLY	(1U << 4)
+#define ZONEFS_ZONE_CNV		(1U << 31)
 
 /*
  * In-memory inode data.
  */
 struct zonefs_inode_info {
 	struct inode		i_vnode;
-
-	/* File zone type */
-	enum zonefs_ztype	i_ztype;
 
 	/* File zone start sector (512B unit) */
 	sector_t		i_zsector;
@@ -89,6 +87,26 @@ struct zonefs_inode_info {
 static inline struct zonefs_inode_info *ZONEFS_I(struct inode *inode)
 {
 	return container_of(inode, struct zonefs_inode_info, i_vnode);
+}
+
+static inline bool zonefs_zone_is_cnv(struct zonefs_inode_info *zi)
+{
+	return zi->i_flags & ZONEFS_ZONE_CNV;
+}
+
+static inline bool zonefs_zone_is_seq(struct zonefs_inode_info *zi)
+{
+	return !zonefs_zone_is_cnv(zi);
+}
+
+static inline bool zonefs_inode_is_cnv(struct inode *inode)
+{
+	return zonefs_zone_is_cnv(ZONEFS_I(inode));
+}
+
+static inline bool zonefs_inode_is_seq(struct inode *inode)
+{
+	return zonefs_zone_is_seq(ZONEFS_I(inode));
 }
 
 /*
