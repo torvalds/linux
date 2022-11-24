@@ -703,8 +703,13 @@ static void psp_prep_tmr_cmd_buf(struct psp_context *psp,
 				 uint64_t tmr_mc, struct amdgpu_bo *tmr_bo)
 {
 	struct amdgpu_device *adev = psp->adev;
-	uint32_t size = amdgpu_bo_size(tmr_bo);
-	uint64_t tmr_pa = amdgpu_gmc_vram_pa(adev, tmr_bo);
+	uint32_t size = 0;
+	uint64_t tmr_pa = 0;
+
+	if (tmr_bo) {
+		size = amdgpu_bo_size(tmr_bo);
+		tmr_pa = amdgpu_gmc_vram_pa(adev, tmr_bo);
+	}
 
 	if (amdgpu_sriov_vf(psp->adev))
 		cmd->cmd_id = GFX_CMD_ID_SETUP_VMR;
@@ -747,6 +752,16 @@ static int psp_load_toc(struct psp_context *psp,
 	release_psp_cmd_buf(psp);
 
 	return ret;
+}
+
+static bool psp_boottime_tmr(struct psp_context *psp)
+{
+	switch (psp->adev->ip_versions[MP0_HWIP][0]) {
+	case IP_VERSION(13, 0, 6):
+		return true;
+	default:
+		return false;
+	}
 }
 
 /* Set up Trusted Memory Region */
@@ -820,8 +835,9 @@ static int psp_tmr_load(struct psp_context *psp)
 	cmd = acquire_psp_cmd_buf(psp);
 
 	psp_prep_tmr_cmd_buf(psp, cmd, psp->tmr_mc_addr, psp->tmr_bo);
-	DRM_INFO("reserve 0x%lx from 0x%llx for PSP TMR\n",
-		 amdgpu_bo_size(psp->tmr_bo), psp->tmr_mc_addr);
+	if (psp->tmr_bo)
+		DRM_INFO("reserve 0x%lx from 0x%llx for PSP TMR\n",
+			 amdgpu_bo_size(psp->tmr_bo), psp->tmr_mc_addr);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
@@ -2080,10 +2096,12 @@ static int psp_hw_start(struct psp_context *psp)
 	if (amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev))
 		goto skip_pin_bo;
 
-	ret = psp_tmr_init(psp);
-	if (ret) {
-		DRM_ERROR("PSP tmr init failed!\n");
-		return ret;
+	if (!psp_boottime_tmr(psp)) {
+		ret = psp_tmr_init(psp);
+		if (ret) {
+			DRM_ERROR("PSP tmr init failed!\n");
+			return ret;
+		}
 	}
 
 skip_pin_bo:
