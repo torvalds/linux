@@ -314,6 +314,7 @@ struct hid_item {
 #define HID_DG_LATENCYMODE	0x000d0060
 
 #define HID_BAT_ABSOLUTESTATEOFCHARGE	0x00850065
+#define HID_BAT_CHARGING		0x00850044
 
 #define HID_VD_ASUS_CUSTOM_MEDIA_KEYS	0xff310076
 
@@ -615,6 +616,7 @@ struct hid_device {							/* device report descriptor */
 	__s32 battery_max;
 	__s32 battery_report_type;
 	__s32 battery_report_id;
+	__s32 battery_charge_status;
 	enum hid_battery_status battery_status;
 	bool battery_avoid_query;
 	ktime_t battery_ratelimit_time;
