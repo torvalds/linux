@@ -770,8 +770,8 @@ struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx, bool overflow)
 	return &rings->cqes[off];
 }
 
-bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags,
-		     bool allow_overflow)
+static bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags,
+			    bool allow_overflow)
 {
 	struct io_uring_cqe *cqe;
 
