@@ -219,7 +219,7 @@ struct erdma_dev {
 	DECLARE_BITMAP(sdb_page, ERDMA_DWQE_TYPE0_CNT);
 	/*
 	 * We provide max 496 uContexts that each has one SQ normal Db,
-	 * and one directWQE db。
+	 * and one directWQE db.
 	 */
 	DECLARE_BITMAP(sdb_entry, ERDMA_DWQE_TYPE1_CNT);
 
