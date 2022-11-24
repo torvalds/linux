@@ -663,9 +663,9 @@ struct kvm_irq_routing_table {
 	 */
 	struct hlist_head map[];
 };
+#endif
 
 bool kvm_arch_irqchip_in_kernel(struct kvm *kvm);
-#endif
 
 #ifndef KVM_INTERNAL_MEM_SLOTS
 #define KVM_INTERNAL_MEM_SLOTS 0
