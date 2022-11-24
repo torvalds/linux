@@ -39,6 +39,19 @@ properties:
   '#interrupt-cells':
     const: 2
 
+  intel,virtual-wire-mode:
+    description: Intel defines a few possible interrupt delivery
+      modes. With respect to boot/init time, mainly two interrupt
+      delivery modes are possible.
+      PIC Mode - Legacy external 8259 compliant PIC interrupt controller.
+      Virtual Wire Mode - use lapic as virtual wire interrupt delivery mode.
+      For ACPI or MPS spec compliant systems, it is figured out by some read
+      only bit field/s available in their respective defined data structures.
+      For OF based systems, it is by default set to PIC mode.
+      But if this optional boolean property is set, then the interrupt delivery
+      mode is configured to virtual wire compatibility mode.
+    type: boolean
+
 required:
   - compatible
   - reg
@@ -54,4 +67,5 @@ examples:
         reg = <0xfee00000 0x1000>;
         interrupt-controller;
         #interrupt-cells = <2>;
+        intel,virtual-wire-mode;
     };
