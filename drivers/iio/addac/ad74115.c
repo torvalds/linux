@@ -317,10 +317,6 @@ static const unsigned int ad74115_dac_rate_step_tbl[][3] = {
 	{ AD74115_SLEW_MODE_LINEAR, AD74115_SLEW_STEP_22_2_PERCENT, AD74115_SLEW_RATE_240KHZ },
 };
 
-static const unsigned int ad74115_dac_slew_rate_hz_tbl[] = {
-	4000, 64000, 150000, 240000
-};
-
 static const unsigned int ad74115_rtd_excitation_current_ua_tbl[] = {
 	250, 500, 750, 1000
 };
