@@ -162,7 +162,14 @@ static void __init dtb_lapic_setup(void)
 			return;
 	}
 	smp_found_config = 1;
-	pic_mode = 1;
+	if (of_property_read_bool(dn, "intel,virtual-wire-mode")) {
+		pr_info("Virtual Wire compatibility mode.\n");
+		pic_mode = 0;
+	} else {
+		pr_info("IMCR and PIC compatibility mode.\n");
+		pic_mode = 1;
+	}
+
 	register_lapic_address(lapic_addr);
 }
 
