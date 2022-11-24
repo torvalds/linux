@@ -29,8 +29,10 @@
 #include <linux/perf_event.h>
 #include <linux/pm_runtime.h>
 #include <linux/stm.h>
+#include <linux/suspend.h>
 
 #include "coresight-priv.h"
+#include "../stm/stm.h"
 
 #define STMDMASTARTR			0xc04
 #define STMDMASTOPR			0xc08
@@ -905,6 +907,7 @@ static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 		dev_info(dev,
 			 "%s : stm_register_device failed, probing deferred\n",
 			 desc.name);
+		pm_runtime_put(&adev->dev);
 		return -EPROBE_DEFER;
 	}
 
@@ -969,8 +972,93 @@ static int stm_runtime_resume(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_DEEPSLEEP
+static int stm_suspend(struct device *dev)
+{
+	struct stm_drvdata *drvdata = dev_get_drvdata(dev);
+	struct stm_device	*stm_dev;
+	struct list_head	*head, *p;
+
+	if (mem_sleep_current == PM_SUSPEND_MEM) {
+		coresight_disable(drvdata->csdev);
+
+		stm_dev = drvdata->stm.stm;
+		if (stm_dev) {
+			head = &stm_dev->link_list;
+			list_for_each(p, head)
+				pm_runtime_put_autosuspend(&stm_dev->dev);
+		}
+	}
+
+	return 0;
+}
+
+static int stm_resume(struct device *dev)
+{
+	struct stm_drvdata *drvdata = dev_get_drvdata(dev);
+	struct stm_device	*stm_dev;
+	struct list_head	*head, *p;
+
+	if (mem_sleep_current == PM_SUSPEND_MEM) {
+		stm_dev = drvdata->stm.stm;
+		if (stm_dev) {
+			head = &stm_dev->link_list;
+			list_for_each(p, head)
+				pm_runtime_get(&stm_dev->dev);
+		}
+	}
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_HIBERNATION
+static int stm_freeze(struct device *dev)
+{
+	struct stm_drvdata *drvdata = dev_get_drvdata(dev);
+	struct stm_device	*stm_dev;
+	struct list_head	*head, *p;
+
+	coresight_disable(drvdata->csdev);
+
+	stm_dev = drvdata->stm.stm;
+	if (stm_dev) {
+		head = &stm_dev->link_list;
+		list_for_each(p, head)
+			pm_runtime_put_autosuspend(&stm_dev->dev);
+	}
+
+	return 0;
+}
+
+static int stm_restore(struct device *dev)
+{
+	struct stm_drvdata *drvdata = dev_get_drvdata(dev);
+	struct stm_device	*stm_dev;
+	struct list_head	*head, *p;
+
+	stm_dev = drvdata->stm.stm;
+	if (stm_dev) {
+		head = &stm_dev->link_list;
+		list_for_each(p, head)
+			pm_runtime_get(&stm_dev->dev);
+	}
+
+	return 0;
+}
+
+#endif
+
 static const struct dev_pm_ops stm_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(stm_runtime_suspend, stm_runtime_resume, NULL)
+#ifdef CONFIG_DEEPSLEEP
+	.suspend = stm_suspend,
+	.resume  = stm_resume,
+#endif
+#ifdef CONFIG_HIBERNATION
+	.freeze  = stm_freeze,
+	.restore = stm_restore,
+#endif
 };
 
 static const struct amba_id stm_ids[] = {
