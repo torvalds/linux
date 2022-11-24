@@ -84,6 +84,8 @@ static inline __attribute_const__ u32 msi_multi_mask(struct msi_desc *desc)
 	return (1 << (1 << desc->pci.msi_attrib.multi_cap)) - 1;
 }
 
+void msix_prepare_msi_desc(struct pci_dev *dev, struct msi_desc *desc);
+
 /* Subsystem variables */
 extern int pci_msi_enable;
 
