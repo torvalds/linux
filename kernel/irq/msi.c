@@ -40,6 +40,7 @@ struct msi_ctrl {
 #define MSI_XA_DOMAIN_SIZE	(MSI_MAX_INDEX + 1)
 
 static void msi_domain_free_locked(struct device *dev, struct msi_ctrl *ctrl);
+static unsigned int msi_domain_get_hwsize(struct device *dev, unsigned int domid);
 static inline int msi_sysfs_create_group(struct device *dev);
 
 
@@ -80,16 +81,28 @@ static void msi_free_desc(struct msi_desc *desc)
 	kfree(desc);
 }
 
-static int msi_insert_desc(struct msi_device_data *md, struct msi_desc *desc,
+static int msi_insert_desc(struct device *dev, struct msi_desc *desc,
 			   unsigned int domid, unsigned int index)
 {
+	struct msi_device_data *md = dev->msi.data;
 	struct xarray *xa = &md->__domains[domid].store;
+	unsigned int hwsize;
 	int ret;
+
+	hwsize = msi_domain_get_hwsize(dev, domid);
+	if (index >= hwsize) {
+		ret = -ERANGE;
+		goto fail;
+	}
 
 	desc->msi_index = index;
 	ret = xa_insert(xa, index, desc, GFP_KERNEL);
 	if (ret)
-		msi_free_desc(desc);
+		goto fail;
+	return 0;
+
+fail:
+	msi_free_desc(desc);
 	return ret;
 }
 
@@ -117,7 +130,7 @@ int msi_domain_insert_msi_desc(struct device *dev, unsigned int domid,
 	/* Copy type specific data to the new descriptor. */
 	desc->pci = init_desc->pci;
 
-	return msi_insert_desc(dev->msi.data, desc, domid, init_desc->msi_index);
+	return msi_insert_desc(dev, desc, domid, init_desc->msi_index);
 }
 
 static bool msi_desc_match(struct msi_desc *desc, enum msi_desc_filter filter)
@@ -136,11 +149,16 @@ static bool msi_desc_match(struct msi_desc *desc, enum msi_desc_filter filter)
 
 static bool msi_ctrl_valid(struct device *dev, struct msi_ctrl *ctrl)
 {
+	unsigned int hwsize;
+
 	if (WARN_ON_ONCE(ctrl->domid >= MSI_MAX_DEVICE_IRQDOMAINS ||
-			 !dev->msi.data->__domains[ctrl->domid].domain ||
-			 ctrl->first > ctrl->last ||
-			 ctrl->first > MSI_MAX_INDEX ||
-			 ctrl->last > MSI_MAX_INDEX))
+			 !dev->msi.data->__domains[ctrl->domid].domain))
+		return false;
+
+	hwsize = msi_domain_get_hwsize(dev, ctrl->domid);
+	if (WARN_ON_ONCE(ctrl->first > ctrl->last ||
+			 ctrl->first >= hwsize ||
+			 ctrl->last >= hwsize))
 		return false;
 	return true;
 }
@@ -208,7 +226,7 @@ static int msi_domain_add_simple_msi_descs(struct device *dev, struct msi_ctrl *
 		desc = msi_alloc_desc(dev, 1, NULL);
 		if (!desc)
 			goto fail_mem;
-		ret = msi_insert_desc(dev->msi.data, desc, ctrl->domid, idx);
+		ret = msi_insert_desc(dev, desc, ctrl->domid, idx);
 		if (ret)
 			goto fail;
 	}
@@ -566,6 +584,20 @@ static struct irq_domain *msi_get_device_domain(struct device *dev, unsigned int
 		return NULL;
 
 	return domain;
+}
+
+static unsigned int msi_domain_get_hwsize(struct device *dev, unsigned int domid)
+{
+	struct msi_domain_info *info;
+	struct irq_domain *domain;
+
+	domain = msi_get_device_domain(dev, domid);
+	if (domain) {
+		info = domain->host_data;
+		return info->hwsize;
+	}
+	/* No domain, no size... */
+	return 0;
 }
 
 static inline void irq_chip_write_msi_msg(struct irq_data *data,
@@ -1356,7 +1388,7 @@ int msi_domain_alloc_irqs_all_locked(struct device *dev, unsigned int domid, int
 	struct msi_ctrl ctrl = {
 		.domid	= domid,
 		.first	= 0,
-		.last	= MSI_MAX_INDEX,
+		.last	= msi_domain_get_hwsize(dev, domid) - 1,
 		.nirqs	= nirqs,
 	};
 
@@ -1470,7 +1502,8 @@ void msi_domain_free_irqs_range(struct device *dev, unsigned int domid,
  */
 void msi_domain_free_irqs_all_locked(struct device *dev, unsigned int domid)
 {
-	msi_domain_free_irqs_range_locked(dev, domid, 0, MSI_MAX_INDEX);
+	msi_domain_free_irqs_range_locked(dev, domid, 0,
+					  msi_domain_get_hwsize(dev, domid) - 1);
 }
 
 /**
