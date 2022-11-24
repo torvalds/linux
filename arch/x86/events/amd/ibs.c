@@ -801,7 +801,7 @@ static void perf_ibs_get_mem_lvl(union ibs_op_data2 *op_data2,
 	/* Extension Memory */
 	if (ibs_caps & IBS_CAPS_ZEN4 &&
 	    ibs_data_src == IBS_DATA_SRC_EXT_EXT_MEM) {
-		data_src->mem_lvl_num = PERF_MEM_LVLNUM_EXTN_MEM;
+		data_src->mem_lvl_num = PERF_MEM_LVLNUM_CXL;
 		if (op_data2->rmt_node) {
 			data_src->mem_remote = PERF_MEM_REMOTE_REMOTE;
 			/* IBS doesn't provide Remote socket detail */

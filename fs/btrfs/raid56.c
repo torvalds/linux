@@ -1632,10 +1632,8 @@ static int full_stripe_write(struct btrfs_raid_bio *rbio)
 	int ret;
 
 	ret = alloc_rbio_parity_pages(rbio);
-	if (ret) {
-		__free_raid_bio(rbio);
+	if (ret)
 		return ret;
-	}
 
 	ret = lock_stripe_add(rbio);
 	if (ret == 0)
@@ -1823,8 +1821,10 @@ void raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc)
 	 */
 	if (rbio_is_full(rbio)) {
 		ret = full_stripe_write(rbio);
-		if (ret)
+		if (ret) {
+			__free_raid_bio(rbio);
 			goto fail;
+		}
 		return;
 	}
 
@@ -1838,8 +1838,10 @@ void raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc)
 		list_add_tail(&rbio->plug_list, &plug->rbio_list);
 	} else {
 		ret = __raid56_parity_write(rbio);
-		if (ret)
+		if (ret) {
+			__free_raid_bio(rbio);
 			goto fail;
+		}
 	}
 
 	return;
@@ -2742,8 +2744,10 @@ raid56_alloc_missing_rbio(struct bio *bio, struct btrfs_io_context *bioc)
 
 	rbio->faila = find_logical_bio_stripe(rbio, bio);
 	if (rbio->faila == -1) {
-		BUG();
-		kfree(rbio);
+		btrfs_warn_rl(fs_info,
+	"can not determine the failed stripe number for full stripe %llu",
+			      bioc->raid_map[0]);
+		__free_raid_bio(rbio);
 		return NULL;
 	}
 

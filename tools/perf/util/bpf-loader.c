@@ -36,6 +36,24 @@
 
 #include <internal/xyarray.h>
 
+#ifndef HAVE_LIBBPF_BPF_PROGRAM__SET_INSNS
+int bpf_program__set_insns(struct bpf_program *prog __maybe_unused,
+			   struct bpf_insn *new_insns __maybe_unused, size_t new_insn_cnt __maybe_unused)
+{
+	pr_err("%s: not support, update libbpf\n", __func__);
+	return -ENOTSUP;
+}
+
+int libbpf_register_prog_handler(const char *sec __maybe_unused,
+                                 enum bpf_prog_type prog_type __maybe_unused,
+                                 enum bpf_attach_type exp_attach_type __maybe_unused,
+                                 const struct libbpf_prog_handler_opts *opts __maybe_unused)
+{
+	pr_err("%s: not support, update libbpf\n", __func__);
+	return -ENOTSUP;
+}
+#endif
+
 /* temporarily disable libbpf deprecation warnings */
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
