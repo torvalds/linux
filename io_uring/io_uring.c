@@ -775,6 +775,8 @@ static bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32
 {
 	struct io_uring_cqe *cqe;
 
+	lockdep_assert_held(&ctx->completion_lock);
+
 	ctx->cq_extra++;
 
 	/*
