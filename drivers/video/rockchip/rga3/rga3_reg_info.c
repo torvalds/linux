@@ -9,6 +9,7 @@
 
 #include "rga3_reg_info.h"
 #include "rga_dma_buf.h"
+#include "rga_iommu.h"
 #include "rga_common.h"
 #include "rga_debugger.h"
 #include "rga_hw_config.h"
@@ -1593,54 +1594,35 @@ static void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 static void rga3_soft_reset(struct rga_scheduler_t *scheduler)
 {
 	u32 i;
-	u32 reg;
-	u32 mmu_addr;
+	u32 iommu_dte_addr;
 
-	mmu_addr = rga_read(0xf00, scheduler);
+	if (scheduler->data->mmu == RGA_IOMMU)
+		iommu_dte_addr = rga_read(RGA_IOMMU_DTE_ADDR, scheduler);
 
 	rga_write(s_RGA3_SYS_CTRL_CCLK_SRESET(1) | s_RGA3_SYS_CTRL_ACLK_SRESET(1),
 		  RGA3_SYS_CTRL, scheduler);
 
-	pr_err("soft reset sys_ctrl = %x, ro_rest = %x",
-		rga_read(RGA3_SYS_CTRL, scheduler),
-		rga_read(RGA3_RO_SRST, scheduler));
-
-	mdelay(20);
-
-	pr_err("soft reset sys_ctrl = %x, ro_rest = %x",
-		rga_read(RGA3_SYS_CTRL, scheduler),
-		rga_read(RGA3_RO_SRST, scheduler));
-
-	rga_write(s_RGA3_SYS_CTRL_CCLK_SRESET(0) | s_RGA3_SYS_CTRL_ACLK_SRESET(0),
-		  RGA3_SYS_CTRL, scheduler);
-
-	pr_err("soft after reset sys_ctrl = %x, ro_rest = %x",
-		rga_read(RGA3_SYS_CTRL, scheduler),
-		rga_read(RGA3_RO_SRST, scheduler));
-
-	rga_write(m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK,
-		  RGA3_INT_CLR, scheduler);
-
-	rga_write(mmu_addr, RGA3_MMU_DTE_ADDR, scheduler);
-	rga_write(0, RGA3_MMU_COMMAND, scheduler);
-
-	if (DEBUGGER_EN(INT_FLAG))
-		pr_info("soft reset, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
-			rga_read(RGA3_INT_RAW, scheduler),
-			rga_read(RGA3_STATUS0, scheduler),
-			rga_read(RGA3_CMD_STATE, scheduler));
-
 	for (i = 0; i < RGA_RESET_TIMEOUT; i++) {
-		reg = rga_read(RGA3_SYS_CTRL, scheduler) & 1;
-
-		if (reg == 0)
+		if (rga_read(RGA3_RO_SRST, scheduler) & m_RGA3_RO_SRST_RO_RST_DONE)
 			break;
 
 		udelay(1);
 	}
 
+	rga_write(s_RGA3_SYS_CTRL_CCLK_SRESET(0) | s_RGA3_SYS_CTRL_ACLK_SRESET(0),
+		  RGA3_SYS_CTRL, scheduler);
+
+	if (scheduler->data->mmu == RGA_IOMMU) {
+		rga_write(iommu_dte_addr, RGA_IOMMU_DTE_ADDR, scheduler);
+		/* enable iommu */
+		rga_write(RGA_IOMMU_CMD_ENABLE_PAGING, RGA_IOMMU_COMMAND, scheduler);
+	}
+
 	if (i == RGA_RESET_TIMEOUT)
-		pr_err("soft reset timeout.\n");
+		pr_err("RGA3 soft reset timeout. SYS_CTRL[0x%x], RO_SRST[0x%x]\n",
+		       rga_read(RGA3_SYS_CTRL, scheduler), rga_read(RGA3_RO_SRST, scheduler));
+	else
+		pr_info("RGA3 soft reset complete.\n");
 }
 
 static int rga3_scale_check(const struct rga3_req *req)

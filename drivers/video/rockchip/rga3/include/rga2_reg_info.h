@@ -41,19 +41,6 @@
 #define RGA2_OSD_CUR_FLAGS0			0x090
 #define RGA2_OSD_CUR_FLAGS1			0x09c
 
-/* iommu reg */
-#define RGA2_MMU_DTE_ADDR			0xf00
-#define RGA2_MMU_STATUS				0xf04
-#define RGA2_MMU_COMMAND			0xf08
-#define RGA2_MMU_PAGE_FAULT_ADDR		0xf0c
-#define RGA2_MMU_ZAP_ONE_LINE			0xf10
-#define RGA2_MMU_INT_RAWSTAT			0xf14
-#define RGA2_MMU_INT_CLEAR			0xf18
-#define RGA2_MMU_INT_MASK			0xf1c
-#define RGA2_MMU_INT_STATUS			0xf20
-#define RGA2_MMU_AUTO_GATING			0xf24
-#define RGA2_MMU_REG_LOAD_EN			0xf28
-
 /* mode ctrl */
 #define RGA2_MODE_CTRL_OFFSET			0x000
 #define RGA2_SRC_INFO_OFFSET			0x004

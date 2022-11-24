@@ -2062,7 +2062,7 @@ static void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 	u32 iommu_dte_addr;
 
 	if (scheduler->data->mmu == RGA_IOMMU)
-		iommu_dte_addr = rga_read(0xf00, scheduler);
+		iommu_dte_addr = rga_read(RGA_IOMMU_DTE_ADDR, scheduler);
 
 	rga_write(m_RGA2_SYS_CTRL_ACLK_SRESET_P | m_RGA2_SYS_CTRL_CCLK_SRESET_P |
 		  m_RGA2_SYS_CTRL_RST_PROTECT_P,
@@ -2079,13 +2079,16 @@ static void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 	}
 
 	if (scheduler->data->mmu == RGA_IOMMU) {
-		rga_write(iommu_dte_addr, RGA2_MMU_DTE_ADDR, scheduler);
+		rga_write(iommu_dte_addr, RGA_IOMMU_DTE_ADDR, scheduler);
 		/* enable iommu */
-		rga_write(0, RGA2_MMU_COMMAND, scheduler);
+		rga_write(RGA_IOMMU_CMD_ENABLE_PAGING, RGA_IOMMU_COMMAND, scheduler);
 	}
 
 	if (i == RGA_RESET_TIMEOUT)
-		pr_err("soft reset timeout.\n");
+		pr_err("RAG2 soft reset timeout.\n");
+	else
+		pr_info("RGA2 soft reset complete.\n");
+
 }
 
 static int rga2_check_param(const struct rga_hw_data *data, const struct rga2_req *req)

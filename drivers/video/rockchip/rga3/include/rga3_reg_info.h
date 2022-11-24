@@ -21,19 +21,6 @@
 #define RGA3_SCAN_CNT				0x038
 #define RGA3_CMD_STATE				0x040
 
-/* iommu reg */
-#define RGA3_MMU_DTE_ADDR			0xf00
-#define RGA3_MMU_STATUS				0xf04
-#define RGA3_MMU_COMMAND			0xf08
-#define RGA3_MMU_PAGE_FAULT_ADDR		0xf0c
-#define RGA3_MMU_ZAP_ONE_LINE			0xf10
-#define RGA3_MMU_INT_RAWSTAT			0xf14
-#define RGA3_MMU_INT_CLEAR			0xf18
-#define RGA3_MMU_INT_MASK			0xf1c
-#define RGA3_MMU_INT_STATUS			0xf20
-#define RGA3_MMU_AUTO_GATING			0xf24
-#define RGA3_MMU_REG_LOAD_EN			0xf28
-
 /* cmd reg */
 #define RGA3_WIN0_RD_CTRL_OFFSET		0x000
 #define RGA3_WIN0_Y_BASE_OFFSET			0x010
@@ -151,6 +138,9 @@
 #define m_RGA3_CMD_CTRL_CMD_STOP_MODE				(0x1 << 2)
 #define m_RGA3_CMD_CTRL_CMD_INCR_VALID_P			(0x1 << 1)
 #define m_RGA3_CMD_CTRL_CMD_LINE_ST_P				(0x1 << 0)
+
+/* RGA3_RO_SRST */
+#define m_RGA3_RO_SRST_RO_RST_DONE				(0x3f << 0)
 
 /* RGA3_CMD_STATE */
 #define m_RGA3_CMD_STATE_CMD_CNT_CUR				(0xfff << 16)
