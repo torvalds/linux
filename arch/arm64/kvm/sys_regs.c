@@ -639,24 +639,18 @@ static void reset_pmselr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 
 static void reset_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
-	u64 pmcr, val;
+	u64 pmcr;
 
 	/* No PMU available, PMCR_EL0 may UNDEF... */
 	if (!kvm_arm_support_pmu_v3())
 		return;
 
-	pmcr = read_sysreg(pmcr_el0);
-	/*
-	 * Writable bits of PMCR_EL0 (ARMV8_PMU_PMCR_MASK) are reset to UNKNOWN
-	 * except PMCR.E resetting to zero.
-	 */
-	val = ((pmcr & ~ARMV8_PMU_PMCR_MASK)
-	       | (ARMV8_PMU_PMCR_MASK & 0xdecafbad)) & (~ARMV8_PMU_PMCR_E);
+	/* Only preserve PMCR_EL0.N, and reset the rest to 0 */
+	pmcr = read_sysreg(pmcr_el0) & ARMV8_PMU_PMCR_N_MASK;
 	if (!kvm_supports_32bit_el0())
-		val |= ARMV8_PMU_PMCR_LC;
-	if (!kvm_pmu_is_3p5(vcpu))
-		val &= ~ARMV8_PMU_PMCR_LP;
-	__vcpu_sys_reg(vcpu, r->reg) = val;
+		pmcr |= ARMV8_PMU_PMCR_LC;
+
+	__vcpu_sys_reg(vcpu, r->reg) = pmcr;
 }
 
 static bool check_pmu_access_disabled(struct kvm_vcpu *vcpu, u64 flags)
