@@ -1542,6 +1542,7 @@ static const struct adsp_data pineapple_mpss_resource = {
 	.qmp_name = "modem",
 	.ssctl_id = 0x12,
 	.dma_phys_below_32b = true,
+	.both_dumps = true,
 };
 
 static const struct adsp_data cinder_mpss_resource = {
