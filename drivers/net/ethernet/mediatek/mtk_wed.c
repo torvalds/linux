@@ -539,14 +539,8 @@ mtk_wed_dma_disable(struct mtk_wed_device *dev)
 static void
 mtk_wed_stop(struct mtk_wed_device *dev)
 {
-	mtk_wed_dma_disable(dev);
 	mtk_wed_set_ext_int(dev, false);
 
-	wed_clr(dev, MTK_WED_CTRL,
-		MTK_WED_CTRL_WDMA_INT_AGENT_EN |
-		MTK_WED_CTRL_WPDMA_INT_AGENT_EN |
-		MTK_WED_CTRL_WED_TX_BM_EN |
-		MTK_WED_CTRL_WED_TX_FREE_AGENT_EN);
 	wed_w32(dev, MTK_WED_WPDMA_INT_TRIGGER, 0);
 	wed_w32(dev, MTK_WED_WDMA_INT_TRIGGER, 0);
 	wdma_w32(dev, MTK_WDMA_INT_MASK, 0);
@@ -558,7 +552,27 @@ mtk_wed_stop(struct mtk_wed_device *dev)
 
 	wed_w32(dev, MTK_WED_EXT_INT_MASK1, 0);
 	wed_w32(dev, MTK_WED_EXT_INT_MASK2, 0);
-	wed_clr(dev, MTK_WED_CTRL, MTK_WED_CTRL_WED_RX_BM_EN);
+}
+
+static void
+mtk_wed_deinit(struct mtk_wed_device *dev)
+{
+	mtk_wed_stop(dev);
+	mtk_wed_dma_disable(dev);
+
+	wed_clr(dev, MTK_WED_CTRL,
+		MTK_WED_CTRL_WDMA_INT_AGENT_EN |
+		MTK_WED_CTRL_WPDMA_INT_AGENT_EN |
+		MTK_WED_CTRL_WED_TX_BM_EN |
+		MTK_WED_CTRL_WED_TX_FREE_AGENT_EN);
+
+	if (dev->hw->version == 1)
+		return;
+
+	wed_clr(dev, MTK_WED_CTRL,
+		MTK_WED_CTRL_RX_ROUTE_QM_EN |
+		MTK_WED_CTRL_WED_RX_BM_EN |
+		MTK_WED_CTRL_RX_RRO_QM_EN);
 }
 
 static void
@@ -568,7 +582,7 @@ mtk_wed_detach(struct mtk_wed_device *dev)
 
 	mutex_lock(&hw_lock);
 
-	mtk_wed_stop(dev);
+	mtk_wed_deinit(dev);
 
 	mtk_wdma_rx_reset(dev);
 	mtk_wed_reset(dev, MTK_WED_RESET_WED);
@@ -670,7 +684,7 @@ mtk_wed_hw_init_early(struct mtk_wed_device *dev)
 {
 	u32 mask, set;
 
-	mtk_wed_stop(dev);
+	mtk_wed_deinit(dev);
 	mtk_wed_reset(dev, MTK_WED_RESET_WED);
 	mtk_wed_set_wpdma(dev);
 

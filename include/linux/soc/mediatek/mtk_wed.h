@@ -234,6 +234,8 @@ mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
 	(_dev)->ops->ppe_check(_dev, _skb, _reason, _hash)
 #define mtk_wed_device_update_msg(_dev, _id, _msg, _len) \
 	(_dev)->ops->msg_update(_dev, _id, _msg, _len)
+#define mtk_wed_device_stop(_dev) (_dev)->ops->stop(_dev)
+#define mtk_wed_device_dma_reset(_dev) (_dev)->ops->reset_dma(_dev)
 #else
 static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
 {
@@ -250,6 +252,8 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
 #define mtk_wed_device_rx_ring_setup(_dev, _ring, _regs) -ENODEV
 #define mtk_wed_device_ppe_check(_dev, _skb, _reason, _hash)  do {} while (0)
 #define mtk_wed_device_update_msg(_dev, _id, _msg, _len) -ENODEV
+#define mtk_wed_device_stop(_dev) do {} while (0)
+#define mtk_wed_device_dma_reset(_dev) do {} while (0)
 #endif
 
 #endif
