@@ -758,17 +758,10 @@ static void msi_domain_update_chip_ops(struct msi_domain_info *info)
 		chip->irq_set_affinity = msi_domain_set_affinity;
 }
 
-/**
- * msi_create_irq_domain - Create an MSI interrupt domain
- * @fwnode:	Optional fwnode of the interrupt controller
- * @info:	MSI domain info
- * @parent:	Parent irq domain
- *
- * Return: pointer to the created &struct irq_domain or %NULL on failure
- */
-struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
-					 struct msi_domain_info *info,
-					 struct irq_domain *parent)
+static struct irq_domain *__msi_create_irq_domain(struct fwnode_handle *fwnode,
+						  struct msi_domain_info *info,
+						  unsigned int flags,
+						  struct irq_domain *parent)
 {
 	struct irq_domain *domain;
 
@@ -787,7 +780,7 @@ struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
 	if (info->flags & MSI_FLAG_USE_DEF_CHIP_OPS)
 		msi_domain_update_chip_ops(info);
 
-	domain = irq_domain_create_hierarchy(parent, IRQ_DOMAIN_FLAG_MSI, 0,
+	domain = irq_domain_create_hierarchy(parent, flags | IRQ_DOMAIN_FLAG_MSI, 0,
 					     fwnode, &msi_domain_ops, info);
 
 	if (domain) {
@@ -797,6 +790,21 @@ struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
 	}
 
 	return domain;
+}
+
+/**
+ * msi_create_irq_domain - Create an MSI interrupt domain
+ * @fwnode:	Optional fwnode of the interrupt controller
+ * @info:	MSI domain info
+ * @parent:	Parent irq domain
+ *
+ * Return: pointer to the created &struct irq_domain or %NULL on failure
+ */
+struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
+					 struct msi_domain_info *info,
+					 struct irq_domain *parent)
+{
+	return __msi_create_irq_domain(fwnode, info, 0, parent);
 }
 
 /**
