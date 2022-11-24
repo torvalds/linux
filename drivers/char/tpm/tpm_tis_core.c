@@ -44,6 +44,20 @@ static bool wait_for_tpm_stat_cond(struct tpm_chip *chip, u8 mask,
 	return false;
 }
 
+static u8 tpm_tis_filter_sts_mask(u8 int_mask, u8 sts_mask)
+{
+	if (!(int_mask & TPM_INTF_STS_VALID_INT))
+		sts_mask &= ~TPM_STS_VALID;
+
+	if (!(int_mask & TPM_INTF_DATA_AVAIL_INT))
+		sts_mask &= ~TPM_STS_DATA_AVAIL;
+
+	if (!(int_mask & TPM_INTF_CMD_READY_INT))
+		sts_mask &= ~TPM_STS_COMMAND_READY;
+
+	return sts_mask;
+}
+
 static int wait_for_tpm_stat(struct tpm_chip *chip, u8 mask,
 		unsigned long timeout, wait_queue_head_t *queue,
 		bool check_cancel)
@@ -53,7 +67,7 @@ static int wait_for_tpm_stat(struct tpm_chip *chip, u8 mask,
 	long rc;
 	u8 status;
 	bool canceled = false;
-	u8 sts_mask = 0;
+	u8 sts_mask;
 	int ret = 0;
 
 	/* check current status */
@@ -61,17 +75,10 @@ static int wait_for_tpm_stat(struct tpm_chip *chip, u8 mask,
 	if ((status & mask) == mask)
 		return 0;
 
+	sts_mask = mask & (TPM_STS_VALID | TPM_STS_DATA_AVAIL |
+			   TPM_STS_COMMAND_READY);
 	/* check what status changes can be handled by irqs */
-	if (priv->int_mask & TPM_INTF_STS_VALID_INT)
-		sts_mask |= TPM_STS_VALID;
-
-	if (priv->int_mask & TPM_INTF_DATA_AVAIL_INT)
-		sts_mask |= TPM_STS_DATA_AVAIL;
-
-	if (priv->int_mask & TPM_INTF_CMD_READY_INT)
-		sts_mask |= TPM_STS_COMMAND_READY;
-
-	sts_mask &= mask;
+	sts_mask = tpm_tis_filter_sts_mask(priv->int_mask, sts_mask);
 
 	stop = jiffies + timeout;
 	/* process status changes with irq support */
