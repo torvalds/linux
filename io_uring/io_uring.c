@@ -167,7 +167,8 @@ EXPORT_SYMBOL(io_uring_get_socket);
 
 static inline void io_submit_flush_completions(struct io_ring_ctx *ctx)
 {
-	if (!wq_list_empty(&ctx->submit_state.compl_reqs))
+	if (!wq_list_empty(&ctx->submit_state.compl_reqs) ||
+	    ctx->submit_state.cqes_count)
 		__io_submit_flush_completions(ctx);
 }
 
@@ -802,6 +803,21 @@ bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags
 	return false;
 }
 
+static void __io_flush_post_cqes(struct io_ring_ctx *ctx)
+	__must_hold(&ctx->uring_lock)
+{
+	struct io_submit_state *state = &ctx->submit_state;
+	unsigned int i;
+
+	lockdep_assert_held(&ctx->uring_lock);
+	for (i = 0; i < state->cqes_count; i++) {
+		struct io_uring_cqe *cqe = &state->cqes[i];
+
+		io_fill_cqe_aux(ctx, cqe->user_data, cqe->res, cqe->flags, true);
+	}
+	state->cqes_count = 0;
+}
+
 bool io_post_aux_cqe(struct io_ring_ctx *ctx,
 		     u64 user_data, s32 res, u32 cflags,
 		     bool allow_overflow)
@@ -1323,6 +1339,9 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 	struct io_submit_state *state = &ctx->submit_state;
 
 	io_cq_lock(ctx);
+	/* must come first to preserve CQE ordering in failure cases */
+	if (state->cqes_count)
+		__io_flush_post_cqes(ctx);
 	wq_list_for_each(node, prev, &state->compl_reqs) {
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 					    comp_list);
@@ -1332,8 +1351,10 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 	}
 	io_cq_unlock_post(ctx);
 
-	io_free_batch_list(ctx, state->compl_reqs.first);
-	INIT_WQ_LIST(&state->compl_reqs);
+	if (!wq_list_empty(&ctx->submit_state.compl_reqs)) {
+		io_free_batch_list(ctx, state->compl_reqs.first);
+		INIT_WQ_LIST(&state->compl_reqs);
+	}
 }
 
 /*
