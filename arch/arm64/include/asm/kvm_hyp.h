@@ -131,4 +131,6 @@ extern unsigned long kvm_nvhe_sym(__icache_flags);
 extern unsigned int kvm_nvhe_sym(kvm_arm_vmid_bits);
 extern bool kvm_nvhe_sym(smccc_trng_available);
 
+extern bool kvm_nvhe_sym(__pkvm_modules_enabled);
+
 #endif /* __ARM64_KVM_HYP_H__ */

@@ -1193,6 +1193,12 @@ static void handle___pkvm_register_hcall(struct kvm_cpu_context *host_ctxt)
 	cpu_reg(host_ctxt, 1) = __pkvm_register_hcall(hfn_hyp_va);
 }
 
+static void
+handle___pkvm_close_module_registration(struct kvm_cpu_context *host_ctxt)
+{
+	cpu_reg(host_ctxt, 1) = __pkvm_close_module_registration();
+}
+
 typedef void (*hcall_t)(struct kvm_cpu_context *);
 
 #define HANDLE_FUNC(x)	[__KVM_HOST_SMCCC_FUNC_##x] = (hcall_t)handle_##x
@@ -1236,6 +1242,7 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__pkvm_unmap_module_page),
 	HANDLE_FUNC(__pkvm_init_module),
 	HANDLE_FUNC(__pkvm_register_hcall),
+	HANDLE_FUNC(__pkvm_close_module_registration),
 };
 
 static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)
