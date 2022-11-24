@@ -77,6 +77,7 @@ struct msi_desc;
 struct pci_dev;
 struct platform_msi_priv_data;
 struct device_attribute;
+struct irq_domain;
 
 void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 #ifdef CONFIG_GENERIC_MSI_IRQ
@@ -177,9 +178,11 @@ enum msi_desc_filter {
 /**
  * struct msi_dev_domain - The internals of MSI domain info per device
  * @store:		Xarray for storing MSI descriptor pointers
+ * @irqdomain:		Pointer to a per device interrupt domain
  */
 struct msi_dev_domain {
 	struct xarray		store;
+	struct irq_domain	*domain;
 };
 
 /**

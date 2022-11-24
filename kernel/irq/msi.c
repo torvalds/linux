@@ -220,6 +220,15 @@ int msi_setup_device_data(struct device *dev)
 	for (i = 0; i < MSI_MAX_DEVICE_IRQDOMAINS; i++)
 		xa_init(&md->__domains[i].store);
 
+	/*
+	 * If @dev::msi::domain is set and is a global MSI domain, copy the
+	 * pointer into the domain array so all code can operate on domain
+	 * ids. The NULL pointer check is required to keep the legacy
+	 * architecture specific PCI/MSI support working.
+	 */
+	if (dev->msi.domain && !irq_domain_is_msi_parent(dev->msi.domain))
+		md->__domains[MSI_DEFAULT_DOMAIN].domain = dev->msi.domain;
+
 	mutex_init(&md->mutex);
 	dev->msi.data = md;
 	devres_add(dev, md);
