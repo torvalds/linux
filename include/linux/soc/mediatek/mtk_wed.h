@@ -158,7 +158,7 @@ struct mtk_wed_device {
 struct mtk_wed_ops {
 	int (*attach)(struct mtk_wed_device *dev);
 	int (*tx_ring_setup)(struct mtk_wed_device *dev, int ring,
-			     void __iomem *regs);
+			     void __iomem *regs, bool reset);
 	int (*rx_ring_setup)(struct mtk_wed_device *dev, int ring,
 			     void __iomem *regs);
 	int (*txfree_ring_setup)(struct mtk_wed_device *dev,
@@ -216,8 +216,8 @@ mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
 #define mtk_wed_device_active(_dev) !!(_dev)->ops
 #define mtk_wed_device_detach(_dev) (_dev)->ops->detach(_dev)
 #define mtk_wed_device_start(_dev, _mask) (_dev)->ops->start(_dev, _mask)
-#define mtk_wed_device_tx_ring_setup(_dev, _ring, _regs) \
-	(_dev)->ops->tx_ring_setup(_dev, _ring, _regs)
+#define mtk_wed_device_tx_ring_setup(_dev, _ring, _regs, _reset) \
+	(_dev)->ops->tx_ring_setup(_dev, _ring, _regs, _reset)
 #define mtk_wed_device_txfree_ring_setup(_dev, _regs) \
 	(_dev)->ops->txfree_ring_setup(_dev, _regs)
 #define mtk_wed_device_reg_read(_dev, _reg) \
@@ -243,7 +243,7 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
 }
 #define mtk_wed_device_detach(_dev) do {} while (0)
 #define mtk_wed_device_start(_dev, _mask) do {} while (0)
-#define mtk_wed_device_tx_ring_setup(_dev, _ring, _regs) -ENODEV
+#define mtk_wed_device_tx_ring_setup(_dev, _ring, _regs, _reset) -ENODEV
 #define mtk_wed_device_txfree_ring_setup(_dev, _ring, _regs) -ENODEV
 #define mtk_wed_device_reg_read(_dev, _reg) 0
 #define mtk_wed_device_reg_write(_dev, _reg, _val) do {} while (0)

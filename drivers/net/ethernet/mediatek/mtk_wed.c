@@ -1181,7 +1181,8 @@ mtk_wed_ring_alloc(struct mtk_wed_device *dev, struct mtk_wed_ring *ring,
 }
 
 static int
-mtk_wed_wdma_rx_ring_setup(struct mtk_wed_device *dev, int idx, int size)
+mtk_wed_wdma_rx_ring_setup(struct mtk_wed_device *dev, int idx, int size,
+			   bool reset)
 {
 	u32 desc_size = sizeof(struct mtk_wdma_desc) * dev->hw->version;
 	struct mtk_wed_ring *wdma;
@@ -1190,8 +1191,8 @@ mtk_wed_wdma_rx_ring_setup(struct mtk_wed_device *dev, int idx, int size)
 		return -EINVAL;
 
 	wdma = &dev->rx_wdma[idx];
-	if (mtk_wed_ring_alloc(dev, wdma, MTK_WED_WDMA_RING_SIZE, desc_size,
-			       true))
+	if (!reset && mtk_wed_ring_alloc(dev, wdma, MTK_WED_WDMA_RING_SIZE,
+					 desc_size, true))
 		return -ENOMEM;
 
 	wdma_w32(dev, MTK_WDMA_RING_RX(idx) + MTK_WED_RING_OFS_BASE,
@@ -1389,7 +1390,7 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
 
 	for (i = 0; i < ARRAY_SIZE(dev->rx_wdma); i++)
 		if (!dev->rx_wdma[i].desc)
-			mtk_wed_wdma_rx_ring_setup(dev, i, 16);
+			mtk_wed_wdma_rx_ring_setup(dev, i, 16, false);
 
 	mtk_wed_hw_init(dev);
 	mtk_wed_configure_irq(dev, irq_mask);
@@ -1498,7 +1499,8 @@ unlock:
 }
 
 static int
-mtk_wed_tx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs)
+mtk_wed_tx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs,
+		      bool reset)
 {
 	struct mtk_wed_ring *ring = &dev->tx_ring[idx];
 
@@ -1517,11 +1519,12 @@ mtk_wed_tx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs)
 	if (WARN_ON(idx >= ARRAY_SIZE(dev->tx_ring)))
 		return -EINVAL;
 
-	if (mtk_wed_ring_alloc(dev, ring, MTK_WED_TX_RING_SIZE,
-			       sizeof(*ring->desc), true))
+	if (!reset && mtk_wed_ring_alloc(dev, ring, MTK_WED_TX_RING_SIZE,
+					 sizeof(*ring->desc), true))
 		return -ENOMEM;
 
-	if (mtk_wed_wdma_rx_ring_setup(dev, idx, MTK_WED_WDMA_RING_SIZE))
+	if (mtk_wed_wdma_rx_ring_setup(dev, idx, MTK_WED_WDMA_RING_SIZE,
+				       reset))
 		return -ENOMEM;
 
 	ring->reg_base = MTK_WED_RING_TX(idx);
