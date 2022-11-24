@@ -365,7 +365,8 @@ static void ipc_mux_dl_cmd_decode(struct iosm_mux *ipc_mux, struct sk_buff *skb)
 /* Pass the DL packet to the netif layer. */
 static int ipc_mux_net_receive(struct iosm_mux *ipc_mux, int if_id,
 			       struct iosm_wwan *wwan, u32 offset,
-			       u8 service_class, struct sk_buff *skb)
+			       u8 service_class, struct sk_buff *skb,
+			       u32 pkt_len)
 {
 	struct sk_buff *dest_skb = skb_clone(skb, GFP_ATOMIC);
 
@@ -373,7 +374,7 @@ static int ipc_mux_net_receive(struct iosm_mux *ipc_mux, int if_id,
 		return -ENOMEM;
 
 	skb_pull(dest_skb, offset);
-	skb_set_tail_pointer(dest_skb, dest_skb->len);
+	skb_trim(dest_skb, pkt_len);
 	/* Pass the packet to the netif layer. */
 	dest_skb->priority = service_class;
 
@@ -429,7 +430,7 @@ static void ipc_mux_dl_fcth_decode(struct iosm_mux *ipc_mux,
 static void ipc_mux_dl_adgh_decode(struct iosm_mux *ipc_mux,
 				   struct sk_buff *skb)
 {
-	u32 pad_len, packet_offset;
+	u32 pad_len, packet_offset, adgh_len;
 	struct iosm_wwan *wwan;
 	struct mux_adgh *adgh;
 	u8 *block = skb->data;
@@ -470,10 +471,12 @@ static void ipc_mux_dl_adgh_decode(struct iosm_mux *ipc_mux,
 	packet_offset = sizeof(*adgh) + pad_len;
 
 	if_id += ipc_mux->wwan_q_offset;
+	adgh_len = le16_to_cpu(adgh->length);
 
 	/* Pass the packet to the netif layer */
 	rc = ipc_mux_net_receive(ipc_mux, if_id, wwan, packet_offset,
-				 adgh->service_class, skb);
+				 adgh->service_class, skb,
+				 adgh_len - packet_offset);
 	if (rc) {
 		dev_err(ipc_mux->dev, "mux adgh decoding error");
 		return;
@@ -547,7 +550,7 @@ static int mux_dl_process_dg(struct iosm_mux *ipc_mux, struct mux_adbh *adbh,
 			     int if_id, int nr_of_dg)
 {
 	u32 dl_head_pad_len = ipc_mux->session[if_id].dl_head_pad_len;
-	u32 packet_offset, i, rc;
+	u32 packet_offset, i, rc, dg_len;
 
 	for (i = 0; i < nr_of_dg; i++, dg++) {
 		if (le32_to_cpu(dg->datagram_index)
@@ -562,11 +565,12 @@ static int mux_dl_process_dg(struct iosm_mux *ipc_mux, struct mux_adbh *adbh,
 			packet_offset =
 				le32_to_cpu(dg->datagram_index) +
 				dl_head_pad_len;
+			dg_len = le16_to_cpu(dg->datagram_length);
 			/* Pass the packet to the netif layer. */
 			rc = ipc_mux_net_receive(ipc_mux, if_id, ipc_mux->wwan,
 						 packet_offset,
-						 dg->service_class,
-						 skb);
+						 dg->service_class, skb,
+						 dg_len - dl_head_pad_len);
 			if (rc)
 				goto dg_error;
 		}
