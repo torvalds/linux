@@ -217,6 +217,8 @@ static bool x86_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 		/* See msi_set_affinity() for the gory details */
 		info->flags |= MSI_FLAG_NOMASK_QUIRK;
 		break;
+	case DOMAIN_BUS_DMAR:
+		break;
 	default:
 		WARN_ON_ONCE(1);
 		return false;
