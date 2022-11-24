@@ -22,8 +22,6 @@ properties:
       - qcom,msm8996-slpi-pil
       - qcom,msm8998-adsp-pas
       - qcom,msm8998-slpi-pas
-      - qcom,sc7180-mpss-pas
-      - qcom,sc7280-mpss-pas
       - qcom,sdm660-adsp-pas
       - qcom,sdm845-adsp-pas
       - qcom,sdm845-cdsp-pas
@@ -58,8 +56,6 @@ allOf:
               - qcom,msm8996-adsp-pil
               - qcom,msm8996-slpi-pil
               - qcom,msm8998-adsp-pas
-              - qcom,sc7180-mpss-pas
-              - qcom,sc7280-mpss-pas
               - qcom,sdm845-adsp-pas
               - qcom,sdm845-cdsp-pas
     then:
@@ -113,20 +109,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,sc7180-mpss-pas
-              - qcom,sc7280-mpss-pas
-    then:
-      properties:
-        interrupts:
-          minItems: 6
-        interrupt-names:
-          minItems: 6
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
               - qcom,msm8974-adsp-pil
     then:
       required:
@@ -166,42 +148,6 @@ allOf:
             - const: ssc_cx
       required:
         - px-supply
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,sc7180-mpss-pas
-    then:
-      properties:
-        power-domains:
-          items:
-            - description: CX power domain
-            - description: MX power domain
-            - description: MSS power domain
-        power-domain-names:
-          items:
-            - const: cx
-            - const: mx
-            - const: mss
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,sc7280-mpss-pas
-    then:
-      properties:
-        power-domains:
-          items:
-            - description: CX power domain
-            - description: MSS power domain
-        power-domain-names:
-          items:
-            - const: cx
-            - const: mss
 
   - if:
       properties:
