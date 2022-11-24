@@ -1140,51 +1140,6 @@ int msi_domain_alloc_irqs_all_locked(struct device *dev, unsigned int domid, int
 	return msi_domain_alloc_locked(dev, &ctrl);
 }
 
-/**
- * msi_domain_alloc_irqs_descs_locked - Allocate interrupts from a MSI interrupt domain
- * @domain:	The domain to allocate from
- * @dev:	Pointer to device struct of the device for which the interrupts
- *		are allocated
- * @nvec:	The number of interrupts to allocate
- *
- * Must be invoked from within a msi_lock_descs() / msi_unlock_descs()
- * pair. Use this for MSI irqdomains which implement their own vector
- * allocation/free.
- *
- * Return: %0 on success or an error code.
- */
-int msi_domain_alloc_irqs_descs_locked(struct irq_domain *domain, struct device *dev,
-				       int nvec)
-{
-	struct msi_ctrl ctrl = {
-		.domid	= MSI_DEFAULT_DOMAIN,
-		.first	= 0,
-		.last	= MSI_MAX_INDEX,
-		.nirqs	= nvec,
-	};
-
-	return msi_domain_alloc_locked(dev, &ctrl);
-}
-
-/**
- * msi_domain_alloc_irqs - Allocate interrupts from a MSI interrupt domain
- * @domain:	The domain to allocate from
- * @dev:	Pointer to device struct of the device for which the interrupts
- *		are allocated
- * @nvec:	The number of interrupts to allocate
- *
- * Return: %0 on success or an error code.
- */
-int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev, int nvec)
-{
-	int ret;
-
-	msi_lock_descs(dev);
-	ret = msi_domain_alloc_irqs_descs_locked(domain, dev, nvec);
-	msi_unlock_descs(dev);
-	return ret;
-}
-
 static void __msi_domain_free_irqs(struct device *dev, struct irq_domain *domain,
 				   struct msi_ctrl *ctrl)
 {
@@ -1306,34 +1261,6 @@ void msi_domain_free_irqs_all(struct device *dev, unsigned int domid)
 {
 	msi_lock_descs(dev);
 	msi_domain_free_irqs_all_locked(dev, domid);
-	msi_unlock_descs(dev);
-}
-
-/**
- * msi_domain_free_irqs_descs_locked - Free interrupts from a MSI interrupt @domain associated to @dev
- * @domain:	The domain to managing the interrupts
- * @dev:	Pointer to device struct of the device for which the interrupts
- *		are free
- *
- * Must be invoked from within a msi_lock_descs() / msi_unlock_descs()
- * pair. Use this for MSI irqdomains which implement their own vector
- * allocation.
- */
-void msi_domain_free_irqs_descs_locked(struct irq_domain *domain, struct device *dev)
-{
-	msi_domain_free_irqs_range_locked(dev, MSI_DEFAULT_DOMAIN, 0, MSI_MAX_INDEX);
-}
-
-/**
- * msi_domain_free_irqs - Free interrupts from a MSI interrupt @domain associated to @dev
- * @domain:	The domain to managing the interrupts
- * @dev:	Pointer to device struct of the device for which the interrupts
- *		are free
- */
-void msi_domain_free_irqs(struct irq_domain *domain, struct device *dev)
-{
-	msi_lock_descs(dev);
-	msi_domain_free_irqs_descs_locked(domain, dev);
 	msi_unlock_descs(dev);
 }
 
