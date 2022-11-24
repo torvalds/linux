@@ -43,6 +43,7 @@ module_attach                            # skel_attach skeleton attach failed: -
 mptcp
 netcnt                                   # failed to load BPF skeleton 'netcnt_prog': -7                               (?)
 probe_user                               # check_kprobe_res wrong kprobe res from probe read                           (?)
+rcu_read_lock                            # failed to find kernel BTF type ID of '__x64_sys_getpgid': -3                (?)
 recursion                                # skel_attach unexpected error: -524                                          (trampoline)
 ringbuf                                  # skel_load skeleton load failed                                              (?)
 select_reuseport                         # intermittently fails on new s390x setup

@@ -572,6 +572,9 @@ enum bpf_type_flag {
 	 */
 	PTR_TRUSTED		= BIT(12 + BPF_BASE_TYPE_BITS),
 
+	/* MEM is tagged with rcu and memory access needs rcu_read_lock protection. */
+	MEM_RCU			= BIT(13 + BPF_BASE_TYPE_BITS),
+
 	__BPF_TYPE_FLAG_MAX,
 	__BPF_TYPE_LAST_FLAG	= __BPF_TYPE_FLAG_MAX - 1,
 };
@@ -682,6 +685,7 @@ struct bpf_func_proto {
 	u64 (*func)(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
 	bool gpl_only;
 	bool pkt_access;
+	bool might_sleep;
 	enum bpf_return_type ret_type;
 	union {
 		struct {

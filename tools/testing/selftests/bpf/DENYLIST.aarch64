@@ -45,6 +45,7 @@ modify_return                                    # modify_return__attach failed 
 module_attach                                    # skel_attach skeleton attach failed: -524
 mptcp/base                                       # run_test mptcp unexpected error: -524 (errno 524)
 netcnt                                           # packets unexpected packets: actual 10001 != expected 10000
+rcu_read_lock                                    # failed to attach: ERROR: strerror_r(-524)=22
 recursion                                        # skel_attach unexpected error: -524 (errno 524)
 ringbuf                                          # skel_attach skeleton attachment failed: -1
 setget_sockopt                                   # attach_cgroup unexpected error: -524
