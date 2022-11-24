@@ -94,6 +94,7 @@ struct tpm_tis_data {
 	u16 manufacturer_id;
 	int locality;
 	int irq;
+	unsigned int int_mask;
 	unsigned long flags;
 	void __iomem *ilb_base_addr;
 	u16 clkrun_enabled;
