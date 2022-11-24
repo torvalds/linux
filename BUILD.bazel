@@ -11,16 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
+load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "kernel_build", "kernel_images", "kernel_modules_install")
+load(":modules.bzl", "COMMON_GKI_MODULES_LIST")
+
 package(
     default_visibility = [
         "//visibility:public",
     ],
 )
-
-load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
-load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
-load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "kernel_build", "kernel_images", "kernel_modules_install")
-load(":modules.bzl", "COMMON_GKI_MODULES_LIST")
 
 define_common_kernels(target_configs = {
     "kernel_aarch64": {
@@ -330,9 +330,9 @@ copy_to_dist_dir(
 # - --allow-undeclared-modules must be used so modules are not declared or copied.
 # - No dist target because these are build tests. We don't care about the artifacts.
 
-# tools/bazel build --allow_undeclared_modules //common:allmodconfig_aarch64
+# tools/bazel build --allow_undeclared_modules //common:kernel_aarch64_allmodconfig
 kernel_build(
-    name = "allmodconfig_aarch64",
+    name = "kernel_aarch64_allmodconfig",
     # Hack to actually check the build.
     # Otherwise, Bazel thinks that there are no output files, and skip building.
     outs = [".config"],
@@ -340,9 +340,9 @@ kernel_build(
     visibility = ["//visibility:private"],
 )
 
-# tools/bazel build --allow_undeclared_modules //common:allmodconfig_x86_64
+# tools/bazel build --allow_undeclared_modules //common:kernel_x86_64_allmodconfig
 kernel_build(
-    name = "allmodconfig_x86_64",
+    name = "kernel_x86_64_allmodconfig",
     # Hack to actually check the build.
     # Otherwise, Bazel thinks that there are no output files, and skip building.
     outs = [".config"],
@@ -350,9 +350,9 @@ kernel_build(
     visibility = ["//visibility:private"],
 )
 
-# tools/bazel build --allow_undeclared_modules //common:allmodconfig_arm
+# tools/bazel build --allow_undeclared_modules //common:kernel_arm_allmodconfig
 kernel_build(
-    name = "allmodconfig_arm",
+    name = "kernel_arm_allmodconfig",
     # Hack to actually check the build.
     # Otherwise, Bazel thinks that there are no output files, and skip building.
     outs = [".config"],
