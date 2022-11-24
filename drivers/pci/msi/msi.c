@@ -436,6 +436,9 @@ int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 	if (rc)
 		return rc;
 
+	if (!pci_setup_msi_device_domain(dev))
+		return -ENODEV;
+
 	for (;;) {
 		if (affd) {
 			nvec = irq_calc_affinity_vectors(minvec, nvec, affd);
@@ -787,9 +790,13 @@ int __pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries, int
 	if (!pci_msix_validate_entries(dev, entries, nvec, hwsize))
 		return -EINVAL;
 
-	/* PCI_IRQ_VIRTUAL is a horrible hack! */
-	if (nvec > hwsize && !(flags & PCI_IRQ_VIRTUAL))
-		nvec = hwsize;
+	if (hwsize < nvec) {
+		/* Keep the IRQ virtual hackery working */
+		if (flags & PCI_IRQ_VIRTUAL)
+			hwsize = nvec;
+		else
+			nvec = hwsize;
+	}
 
 	if (nvec < minvec)
 		return -ENOSPC;
@@ -797,6 +804,9 @@ int __pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries, int
 	rc = pci_setup_msi_context(dev);
 	if (rc)
 		return rc;
+
+	if (!pci_setup_msix_device_domain(dev, hwsize))
+		return -ENODEV;
 
 	for (;;) {
 		if (affd) {
