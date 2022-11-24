@@ -465,7 +465,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 				continue;
 
 			if (!ret)
-				bch2_io_opts_apply(&io_opts, bch2_inode_opts_get(&inode));
+				bch2_inode_opts_get(&io_opts, c, &inode);
 
 			cur_inum = k.k->p.inode;
 		}

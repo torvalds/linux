@@ -98,17 +98,8 @@ int bch2_inode_find_by_inum_trans(struct btree_trans *, subvol_inum,
 int bch2_inode_find_by_inum(struct bch_fs *, subvol_inum,
 			    struct bch_inode_unpacked *);
 
-static inline struct bch_io_opts bch2_inode_opts_get(struct bch_inode_unpacked *inode)
-{
-	struct bch_io_opts ret = { 0 };
-
-#define x(_name, _bits)					\
-	if (inode->bi_##_name)						\
-		opt_set(ret, _name, inode->bi_##_name - 1);
-	BCH_INODE_OPTS()
-#undef x
-	return ret;
-}
+#define inode_opt_get(_c, _inode, _name)			\
+	((_inode)->bi_##_name ? (_inode)->bi_##_name - 1 : (_c)->opts._name)
 
 static inline void bch2_inode_opt_set(struct bch_inode_unpacked *inode,
 				      enum inode_opt_id id, u64 v)
@@ -137,15 +128,6 @@ static inline u64 bch2_inode_opt_get(struct bch_inode_unpacked *inode,
 	default:
 		BUG();
 	}
-}
-
-static inline struct bch_io_opts
-io_opts(struct bch_fs *c, struct bch_inode_unpacked *inode)
-{
-	struct bch_io_opts opts = bch2_opts_to_inode_opts(c->opts);
-
-	bch2_io_opts_apply(&opts, bch2_inode_opts_get(inode));
-	return opts;
 }
 
 static inline u8 mode_to_type(umode_t mode)
@@ -188,5 +170,7 @@ int bch2_inode_nlink_inc(struct bch_inode_unpacked *);
 void bch2_inode_nlink_dec(struct btree_trans *, struct bch_inode_unpacked *);
 
 struct bch_opts bch2_inode_opts_to_opts(struct bch_inode_unpacked *);
+void bch2_inode_opts_get(struct bch_io_opts *, struct bch_fs *,
+			 struct bch_inode_unpacked *);
 
 #endif /* _BCACHEFS_INODE_H */

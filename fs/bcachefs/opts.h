@@ -503,17 +503,12 @@ int bch2_parse_mount_opts(struct bch_fs *, struct bch_opts *, char *);
 /* inode opts: */
 
 struct bch_io_opts {
-#define x(_name, _bits)	unsigned _name##_defined:1;
-	BCH_INODE_OPTS()
-#undef x
-
 #define x(_name, _bits)	u##_bits _name;
 	BCH_INODE_OPTS()
 #undef x
 };
 
 struct bch_io_opts bch2_opts_to_inode_opts(struct bch_opts);
-void bch2_io_opts_apply(struct bch_io_opts *, struct bch_io_opts);
 bool bch2_opt_is_inode_opt(enum bch_opt_id);
 
 #endif /* _BCACHEFS_OPTS_H */

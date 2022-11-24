@@ -531,22 +531,11 @@ void bch2_opt_set_sb(struct bch_fs *c, const struct bch_option *opt, u64 v)
 
 struct bch_io_opts bch2_opts_to_inode_opts(struct bch_opts src)
 {
-	struct bch_io_opts ret = { 0 };
-#define x(_name, _bits)					\
-	if (opt_defined(src, _name))					\
-		opt_set(ret, _name, src._name);
+	return (struct bch_io_opts) {
+#define x(_name, _bits)	._name = src._name,
 	BCH_INODE_OPTS()
 #undef x
-	return ret;
-}
-
-void bch2_io_opts_apply(struct bch_io_opts *dst, struct bch_io_opts src)
-{
-#define x(_name, _bits)					\
-	if (opt_defined(src, _name))					\
-		opt_set(*dst, _name, src._name);
-	BCH_INODE_OPTS()
-#undef x
+	};
 }
 
 bool bch2_opt_is_inode_opt(enum bch_opt_id id)

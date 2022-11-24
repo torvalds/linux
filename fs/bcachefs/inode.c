@@ -768,3 +768,11 @@ struct bch_opts bch2_inode_opts_to_opts(struct bch_inode_unpacked *inode)
 #undef x
 	return ret;
 }
+
+void bch2_inode_opts_get(struct bch_io_opts *opts, struct bch_fs *c,
+			 struct bch_inode_unpacked *inode)
+{
+#define x(_name, _bits)		opts->_name = inode_opt_get(c, inode, _name);
+	BCH_INODE_OPTS()
+#undef x
+}

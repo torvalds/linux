@@ -1102,11 +1102,13 @@ void bch2_readahead(struct readahead_control *ractl)
 {
 	struct bch_inode_info *inode = to_bch_ei(ractl->mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct bch_io_opts opts = io_opts(c, &inode->ei_inode);
+	struct bch_io_opts opts;
 	struct btree_trans trans;
 	struct page *page;
 	struct readpages_iter readpages_iter;
 	int ret;
+
+	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
 
 	ret = readpages_iter_init(&readpages_iter, ractl);
 	BUG_ON(ret);
@@ -1170,11 +1172,14 @@ static int bch2_read_single_page(struct page *page,
 	struct bch_inode_info *inode = to_bch_ei(mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_read_bio *rbio;
+	struct bch_io_opts opts;
 	int ret;
 	DECLARE_COMPLETION_ONSTACK(done);
 
+	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
+
 	rbio = rbio_init(bio_alloc_bioset(NULL, 1, REQ_OP_READ, GFP_NOFS, &c->bio_read),
-			 io_opts(c, &inode->ei_inode));
+			 opts);
 	rbio->bio.bi_private = &done;
 	rbio->bio.bi_end_io = bch2_read_single_page_end_io;
 
@@ -1211,9 +1216,10 @@ struct bch_writepage_state {
 static inline struct bch_writepage_state bch_writepage_state_init(struct bch_fs *c,
 								  struct bch_inode_info *inode)
 {
-	return (struct bch_writepage_state) {
-		.opts = io_opts(c, &inode->ei_inode)
-	};
+	struct bch_writepage_state ret = { 0 };
+
+	bch2_inode_opts_get(&ret.opts, c, &inode->ei_inode);
+	return ret;
 }
 
 static void bch2_writepage_io_done(struct bch_write_op *op)
@@ -1879,13 +1885,15 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 	struct file *file = req->ki_filp;
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct bch_io_opts opts = io_opts(c, &inode->ei_inode);
+	struct bch_io_opts opts;
 	struct dio_read *dio;
 	struct bio *bio;
 	loff_t offset = req->ki_pos;
 	bool sync = is_sync_kiocb(req);
 	size_t shorten;
 	ssize_t ret;
+
+	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
 
 	if ((offset|iter->count) & (block_bytes(c) - 1))
 		return -EINVAL;
@@ -2224,10 +2232,13 @@ static __always_inline long bch2_dio_write_loop(struct dio_write *dio)
 	struct kiocb *req = dio->req;
 	struct address_space *mapping = dio->mapping;
 	struct bch_inode_info *inode = dio->inode;
+	struct bch_io_opts opts;
 	struct bio *bio = &dio->op.wbio.bio;
 	unsigned unaligned, iter_count;
 	bool sync = dio->sync, dropped_locks;
 	long ret;
+
+	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
 
 	while (1) {
 		iter_count = dio->iter.count;
@@ -2276,7 +2287,7 @@ static __always_inline long bch2_dio_write_loop(struct dio_write *dio)
 			goto err;
 		}
 
-		bch2_write_op_init(&dio->op, c, io_opts(c, &inode->ei_inode));
+		bch2_write_op_init(&dio->op, c, opts);
 		dio->op.end_io		= sync
 			? NULL
 			: bch2_dio_write_loop_async;
@@ -3055,9 +3066,10 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bpos end_pos = POS(inode->v.i_ino, end_sector);
-	unsigned replicas = io_opts(c, &inode->ei_inode).data_replicas;
+	struct bch_io_opts opts;
 	int ret = 0;
 
+	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 512);
 
 	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
@@ -3088,7 +3100,7 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 
 		/* already reserved */
 		if (k.k->type == KEY_TYPE_reservation &&
-		    bkey_s_c_to_reservation(k).v->nr_replicas >= replicas) {
+		    bkey_s_c_to_reservation(k).v->nr_replicas >= opts.data_replicas) {
 			bch2_btree_iter_advance(&iter);
 			continue;
 		}
@@ -3118,10 +3130,10 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 				goto bkey_err;
 		}
 
-		if (reservation.v.nr_replicas < replicas ||
+		if (reservation.v.nr_replicas < opts.data_replicas ||
 		    bch2_bkey_sectors_compressed(k)) {
 			ret = bch2_disk_reservation_get(c, &disk_res, sectors,
-							replicas, 0);
+							opts.data_replicas, 0);
 			if (unlikely(ret))
 				goto bkey_err;
 
