@@ -7584,7 +7584,7 @@ static int tpc_krn_event_to_tpc_id(u16 tpc_dec_event_type)
 	return (tpc_dec_event_type - GAUDI_EVENT_TPC0_KRN_ERR) / 6;
 }
 
-static void gaudi_print_clk_change_info(struct hl_device *hdev, u16 event_type)
+static void gaudi_print_clk_change_info(struct hl_device *hdev, u16 event_type, u64 *event_mask)
 {
 	ktime_t zero_time = ktime_set(0, 0);
 
@@ -7612,6 +7612,7 @@ static void gaudi_print_clk_change_info(struct hl_device *hdev, u16 event_type)
 		hdev->clk_throttling.aggregated_reason |= HL_CLK_THROTTLE_THERMAL;
 		hdev->clk_throttling.timestamp[HL_CLK_THROTTLE_TYPE_THERMAL].start = ktime_get();
 		hdev->clk_throttling.timestamp[HL_CLK_THROTTLE_TYPE_THERMAL].end = zero_time;
+		*event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		dev_info_ratelimited(hdev->dev,
 			"Clock throttling due to overheating\n");
 		break;
@@ -7619,6 +7620,7 @@ static void gaudi_print_clk_change_info(struct hl_device *hdev, u16 event_type)
 	case GAUDI_EVENT_FIX_THERMAL_ENV_E:
 		hdev->clk_throttling.current_reason &= ~HL_CLK_THROTTLE_THERMAL;
 		hdev->clk_throttling.timestamp[HL_CLK_THROTTLE_TYPE_THERMAL].end = ktime_get();
+		*event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		dev_info_ratelimited(hdev->dev,
 			"Thermal envelop is safe, back to optimal clock\n");
 		break;
@@ -7887,8 +7889,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 		break;
 
 	case GAUDI_EVENT_FIX_POWER_ENV_S ... GAUDI_EVENT_FIX_THERMAL_ENV_E:
-		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
-		gaudi_print_clk_change_info(hdev, event_type);
+		gaudi_print_clk_change_info(hdev, event_type, &event_mask);
 		hl_fw_unmask_irq(hdev, event_type);
 		break;
 
