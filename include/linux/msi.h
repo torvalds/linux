@@ -206,11 +206,48 @@ int msi_setup_device_data(struct device *dev);
 void msi_lock_descs(struct device *dev);
 void msi_unlock_descs(struct device *dev);
 
-struct msi_desc *msi_first_desc(struct device *dev, enum msi_desc_filter filter);
-struct msi_desc *msi_next_desc(struct device *dev, enum msi_desc_filter filter);
+struct msi_desc *msi_domain_first_desc(struct device *dev, unsigned int domid,
+				       enum msi_desc_filter filter);
 
 /**
- * msi_for_each_desc - Iterate the MSI descriptors
+ * msi_first_desc - Get the first MSI descriptor of the default irqdomain
+ * @dev:	Device to operate on
+ * @filter:	Descriptor state filter
+ *
+ * Must be called with the MSI descriptor mutex held, i.e. msi_lock_descs()
+ * must be invoked before the call.
+ *
+ * Return: Pointer to the first MSI descriptor matching the search
+ *	   criteria, NULL if none found.
+ */
+static inline struct msi_desc *msi_first_desc(struct device *dev,
+					      enum msi_desc_filter filter)
+{
+	return msi_domain_first_desc(dev, MSI_DEFAULT_DOMAIN, filter);
+}
+
+struct msi_desc *msi_next_desc(struct device *dev, unsigned int domid,
+			       enum msi_desc_filter filter);
+
+/**
+ * msi_domain_for_each_desc - Iterate the MSI descriptors in a specific domain
+ *
+ * @desc:	struct msi_desc pointer used as iterator
+ * @dev:	struct device pointer - device to iterate
+ * @domid:	The id of the interrupt domain which should be walked.
+ * @filter:	Filter for descriptor selection
+ *
+ * Notes:
+ *  - The loop must be protected with a msi_lock_descs()/msi_unlock_descs()
+ *    pair.
+ *  - It is safe to remove a retrieved MSI descriptor in the loop.
+ */
+#define msi_domain_for_each_desc(desc, dev, domid, filter)			\
+	for ((desc) = msi_domain_first_desc((dev), (domid), (filter)); (desc);	\
+	     (desc) = msi_next_desc((dev), (domid), (filter)))
+
+/**
+ * msi_for_each_desc - Iterate the MSI descriptors in the default irqdomain
  *
  * @desc:	struct msi_desc pointer used as iterator
  * @dev:	struct device pointer - device to iterate
@@ -221,9 +258,8 @@ struct msi_desc *msi_next_desc(struct device *dev, enum msi_desc_filter filter);
  *    pair.
  *  - It is safe to remove a retrieved MSI descriptor in the loop.
  */
-#define msi_for_each_desc(desc, dev, filter)			\
-	for ((desc) = msi_first_desc((dev), (filter)); (desc);	\
-	     (desc) = msi_next_desc((dev), (filter)))
+#define msi_for_each_desc(desc, dev, filter)					\
+	msi_domain_for_each_desc((desc), (dev), MSI_DEFAULT_DOMAIN, (filter))
 
 #define msi_desc_to_dev(desc)		((desc)->dev)
 

@@ -19,7 +19,13 @@
 
 #include "internals.h"
 
+/* Invalid Xarray index which is outside of any searchable range */
+#define MSI_XA_MAX_INDEX	(ULONG_MAX - 1)
+/* The maximum domain size */
+#define MSI_XA_DOMAIN_SIZE	(MSI_MAX_INDEX + 1)
+
 static inline int msi_sysfs_create_group(struct device *dev);
+
 
 /**
  * msi_alloc_desc - Allocate an initialized msi_desc
@@ -252,27 +258,29 @@ EXPORT_SYMBOL_GPL(msi_lock_descs);
 void msi_unlock_descs(struct device *dev)
 {
 	/* Invalidate the index which was cached by the iterator */
-	dev->msi.data->__iter_idx = MSI_MAX_INDEX;
+	dev->msi.data->__iter_idx = MSI_XA_MAX_INDEX;
 	mutex_unlock(&dev->msi.data->mutex);
 }
 EXPORT_SYMBOL_GPL(msi_unlock_descs);
 
-static struct msi_desc *msi_find_desc(struct msi_device_data *md, enum msi_desc_filter filter)
+static struct msi_desc *msi_find_desc(struct msi_device_data *md, unsigned int domid,
+				      enum msi_desc_filter filter)
 {
-	struct xarray *xa = &md->__domains[MSI_DEFAULT_DOMAIN].store;
+	struct xarray *xa = &md->__domains[domid].store;
 	struct msi_desc *desc;
 
 	xa_for_each_start(xa, md->__iter_idx, desc, md->__iter_idx) {
 		if (msi_desc_match(desc, filter))
 			return desc;
 	}
-	md->__iter_idx = MSI_MAX_INDEX;
+	md->__iter_idx = MSI_XA_MAX_INDEX;
 	return NULL;
 }
 
 /**
- * msi_first_desc - Get the first MSI descriptor of a device
+ * msi_domain_first_desc - Get the first MSI descriptor of an irqdomain associated to a device
  * @dev:	Device to operate on
+ * @domid:	The id of the interrupt domain which should be walked.
  * @filter:	Descriptor state filter
  *
  * Must be called with the MSI descriptor mutex held, i.e. msi_lock_descs()
@@ -281,23 +289,25 @@ static struct msi_desc *msi_find_desc(struct msi_device_data *md, enum msi_desc_
  * Return: Pointer to the first MSI descriptor matching the search
  *	   criteria, NULL if none found.
  */
-struct msi_desc *msi_first_desc(struct device *dev, enum msi_desc_filter filter)
+struct msi_desc *msi_domain_first_desc(struct device *dev, unsigned int domid,
+				       enum msi_desc_filter filter)
 {
 	struct msi_device_data *md = dev->msi.data;
 
-	if (WARN_ON_ONCE(!md))
+	if (WARN_ON_ONCE(!md || domid >= MSI_MAX_DEVICE_IRQDOMAINS))
 		return NULL;
 
 	lockdep_assert_held(&md->mutex);
 
 	md->__iter_idx = 0;
-	return msi_find_desc(md, filter);
+	return msi_find_desc(md, domid, filter);
 }
-EXPORT_SYMBOL_GPL(msi_first_desc);
+EXPORT_SYMBOL_GPL(msi_domain_first_desc);
 
 /**
  * msi_next_desc - Get the next MSI descriptor of a device
  * @dev:	Device to operate on
+ * @domid:	The id of the interrupt domain which should be walked.
  * @filter:	Descriptor state filter
  *
  * The first invocation of msi_next_desc() has to be preceeded by a
@@ -308,11 +318,12 @@ EXPORT_SYMBOL_GPL(msi_first_desc);
  * Return: Pointer to the next MSI descriptor matching the search
  *	   criteria, NULL if none found.
  */
-struct msi_desc *msi_next_desc(struct device *dev, enum msi_desc_filter filter)
+struct msi_desc *msi_next_desc(struct device *dev, unsigned int domid,
+			       enum msi_desc_filter filter)
 {
 	struct msi_device_data *md = dev->msi.data;
 
-	if (WARN_ON_ONCE(!md))
+	if (WARN_ON_ONCE(!md || domid >= MSI_MAX_DEVICE_IRQDOMAINS))
 		return NULL;
 
 	lockdep_assert_held(&md->mutex);
@@ -321,7 +332,7 @@ struct msi_desc *msi_next_desc(struct device *dev, enum msi_desc_filter filter)
 		return NULL;
 
 	md->__iter_idx++;
-	return msi_find_desc(md, filter);
+	return msi_find_desc(md, domid, filter);
 }
 EXPORT_SYMBOL_GPL(msi_next_desc);
 
