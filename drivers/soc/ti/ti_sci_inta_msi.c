@@ -93,12 +93,7 @@ int ti_sci_inta_msi_domain_alloc_irqs(struct device *dev,
 				      struct ti_sci_resource *res)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct irq_domain *msi_domain;
 	int ret, nvec;
-
-	msi_domain = dev_get_msi_domain(dev);
-	if (!msi_domain)
-		return -EINVAL;
 
 	if (pdev->id < 0)
 		return -ENODEV;
@@ -114,7 +109,8 @@ int ti_sci_inta_msi_domain_alloc_irqs(struct device *dev,
 		goto unlock;
 	}
 
-	ret = msi_domain_alloc_irqs_descs_locked(msi_domain, dev, nvec);
+	/* Use alloc ALL as it's unclear whether there are gaps in the indices */
+	ret = msi_domain_alloc_irqs_all_locked(dev, MSI_DEFAULT_DOMAIN, nvec);
 	if (ret)
 		dev_err(dev, "Failed to allocate IRQs %d\n", ret);
 unlock:
