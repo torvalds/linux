@@ -875,7 +875,7 @@ static int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev
 		 * MSI affinity setting requires a special quirk (X86) when
 		 * reservation mode is active.
 		 */
-		if (domain->flags & IRQ_DOMAIN_MSI_NOMASK_QUIRK)
+		if (info->flags & MSI_FLAG_NOMASK_QUIRK)
 			vflags |= VIRQ_NOMASK_QUIRK;
 	}
 
