@@ -1244,34 +1244,11 @@ struct bch_extent_ptr bch2_ob_ptr(struct bch_fs *c, struct open_bucket *ob)
 	};
 }
 
-/*
- * Append pointers to the space we just allocated to @k, and mark @sectors space
- * as allocated out of @ob
- */
 void bch2_alloc_sectors_append_ptrs(struct bch_fs *c, struct write_point *wp,
 				    struct bkey_i *k, unsigned sectors,
 				    bool cached)
 {
-	struct open_bucket *ob;
-	unsigned i;
-
-	BUG_ON(sectors > wp->sectors_free);
-	wp->sectors_free	-= sectors;
-	wp->sectors_allocated	+= sectors;
-
-	open_bucket_for_each(c, &wp->ptrs, ob, i) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
-		struct bch_extent_ptr ptr = bch2_ob_ptr(c, ob);
-
-		ptr.cached = cached ||
-			(!ca->mi.durability &&
-			 wp->data_type == BCH_DATA_user);
-
-		bch2_bkey_append_ptr(k, ptr);
-
-		BUG_ON(sectors > ob->sectors_free);
-		ob->sectors_free -= sectors;
-	}
+	bch2_alloc_sectors_append_ptrs_inlined(c, wp, k, sectors, cached);
 }
 
 /*
@@ -1280,17 +1257,7 @@ void bch2_alloc_sectors_append_ptrs(struct bch_fs *c, struct write_point *wp,
  */
 void bch2_alloc_sectors_done(struct bch_fs *c, struct write_point *wp)
 {
-	struct open_buckets ptrs = { .nr = 0 }, keep = { .nr = 0 };
-	struct open_bucket *ob;
-	unsigned i;
-
-	open_bucket_for_each(c, &wp->ptrs, ob, i)
-		ob_push(c, !ob->sectors_free ? &ptrs : &keep, ob);
-	wp->ptrs = keep;
-
-	mutex_unlock(&wp->lock);
-
-	bch2_open_buckets_put(c, &ptrs);
+	bch2_alloc_sectors_done_inlined(c, wp);
 }
 
 static inline void writepoint_init(struct write_point *wp,

@@ -581,8 +581,35 @@ unsigned bch2_bkey_sectors_compressed(struct bkey_s_c);
 unsigned bch2_bkey_replicas(struct bch_fs *, struct bkey_s_c);
 unsigned bch2_bkey_durability(struct bch_fs *, struct bkey_s_c);
 
+void bch2_bkey_drop_device(struct bkey_s, unsigned);
+void bch2_bkey_drop_device_noerror(struct bkey_s, unsigned);
+const struct bch_extent_ptr *bch2_bkey_has_device(struct bkey_s_c, unsigned);
+bool bch2_bkey_has_target(struct bch_fs *, struct bkey_s_c, unsigned);
+
 void bch2_bkey_extent_entry_drop(struct bkey_i *, union bch_extent_entry *);
-void bch2_bkey_append_ptr(struct bkey_i *, struct bch_extent_ptr);
+
+static inline void bch2_bkey_append_ptr(struct bkey_i *k, struct bch_extent_ptr ptr)
+{
+	EBUG_ON(bch2_bkey_has_device(bkey_i_to_s_c(k), ptr.dev));
+
+	switch (k->k.type) {
+	case KEY_TYPE_btree_ptr:
+	case KEY_TYPE_btree_ptr_v2:
+	case KEY_TYPE_extent:
+		EBUG_ON(bkey_val_u64s(&k->k) >= BKEY_EXTENT_VAL_U64s_MAX);
+
+		ptr.type = 1 << BCH_EXTENT_ENTRY_ptr;
+
+		memcpy((void *) &k->v + bkey_val_bytes(&k->k),
+		       &ptr,
+		       sizeof(ptr));
+		k->u64s++;
+		break;
+	default:
+		BUG();
+	}
+}
+
 void bch2_extent_ptr_decoded_append(struct bkey_i *,
 				    struct extent_ptr_decoded *);
 union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s,
@@ -604,11 +631,6 @@ do {									\
 		(_ptr)++;						\
 	}								\
 } while (0)
-
-void bch2_bkey_drop_device(struct bkey_s, unsigned);
-void bch2_bkey_drop_device_noerror(struct bkey_s, unsigned);
-const struct bch_extent_ptr *bch2_bkey_has_device(struct bkey_s_c, unsigned);
-bool bch2_bkey_has_target(struct bch_fs *, struct bkey_s_c, unsigned);
 
 bool bch2_bkey_matches_ptr(struct bch_fs *, struct bkey_s_c,
 			   struct bch_extent_ptr, u64);

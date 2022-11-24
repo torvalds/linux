@@ -698,29 +698,6 @@ void bch2_bkey_extent_entry_drop(struct bkey_i *k, union bch_extent_entry *entry
 	k->k.u64s -= extent_entry_u64s(entry);
 }
 
-void bch2_bkey_append_ptr(struct bkey_i *k,
-			  struct bch_extent_ptr ptr)
-{
-	EBUG_ON(bch2_bkey_has_device(bkey_i_to_s_c(k), ptr.dev));
-
-	switch (k->k.type) {
-	case KEY_TYPE_btree_ptr:
-	case KEY_TYPE_btree_ptr_v2:
-	case KEY_TYPE_extent:
-		EBUG_ON(bkey_val_u64s(&k->k) >= BKEY_EXTENT_VAL_U64s_MAX);
-
-		ptr.type = 1 << BCH_EXTENT_ENTRY_ptr;
-
-		memcpy((void *) &k->v + bkey_val_bytes(&k->k),
-		       &ptr,
-		       sizeof(ptr));
-		k->u64s++;
-		break;
-	default:
-		BUG();
-	}
-}
-
 static inline void __extent_entry_insert(struct bkey_i *k,
 					 union bch_extent_entry *dst,
 					 union bch_extent_entry *new)
