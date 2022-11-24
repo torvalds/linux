@@ -6114,7 +6114,7 @@ bool dc_link_dp_set_test_pattern(
 			 * MuteAudioEndpoint(pPathMode->pDisplayPath, true);
 			 */
 			/* Blank stream */
-			pipes->stream_res.stream_enc->funcs->dp_blank(link, pipe_ctx->stream_res.stream_enc);
+			link->dc->hwss.blank_stream(pipe_ctx);
 		}
 
 		dp_set_hw_test_pattern(link, &pipe_ctx->link_res, test_pattern,
@@ -7260,8 +7260,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			pipes[i].stream->link == link) {
 			udelay(100);
 
-			pipes[i].stream_res.stream_enc->funcs->dp_blank(link,
-					pipes[i].stream_res.stream_enc);
+			link->dc->hwss.blank_stream(&pipes[i]);
 
 			/* disable any test pattern that might be active */
 			dp_set_hw_test_pattern(link, &pipes[i].link_res,
@@ -7270,17 +7269,10 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			dp_receiver_power_ctrl(link, false);
 
 			link->dc->hwss.disable_stream(&pipes[i]);
-			if ((&pipes[i])->stream_res.audio && !link->dc->debug.az_endpoint_mute_only)
-				(&pipes[i])->stream_res.audio->funcs->az_disable((&pipes[i])->stream_res.audio);
+			if (pipes[i].stream_res.audio && !link->dc->debug.az_endpoint_mute_only)
+				pipes[i].stream_res.audio->funcs->az_disable(pipes[i].stream_res.audio);
 
-			if (link->link_enc)
-				link->link_enc->funcs->disable_output(
-						link->link_enc,
-						SIGNAL_TYPE_DISPLAY_PORT);
-
-			/* Clear current link setting. */
-			memset(&link->cur_link_settings, 0,
-				sizeof(link->cur_link_settings));
+			link->dc->hwss.disable_link_output(link, &pipes[i].link_res, SIGNAL_TYPE_DISPLAY_PORT);
 
 			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
 				do_fallback = true;
