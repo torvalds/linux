@@ -218,6 +218,7 @@ static bool x86_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 		info->flags |= MSI_FLAG_NOMASK_QUIRK;
 		break;
 	case DOMAIN_BUS_DMAR:
+	case DOMAIN_BUS_AMDVI:
 		break;
 	default:
 		WARN_ON_ONCE(1);
