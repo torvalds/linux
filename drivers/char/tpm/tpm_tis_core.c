@@ -1124,6 +1124,11 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 	/* INTERRUPT Setup */
 	init_waitqueue_head(&priv->read_queue);
 	init_waitqueue_head(&priv->int_queue);
+
+	rc = tpm_chip_startup(chip);
+	if (rc)
+		goto out_err;
+
 	if (irq != -1) {
 		/*
 		 * Before doing irq testing issue a command to the TPM in polling mode
