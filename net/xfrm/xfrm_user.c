@@ -1538,7 +1538,7 @@ static int xfrm_alloc_userspi(struct sk_buff *skb, struct nlmsghdr *nlh,
 				  &p->info.saddr, 1,
 				  family);
 	err = -ENOENT;
-	if (x == NULL)
+	if (!x)
 		goto out_noput;
 
 	err = xfrm_alloc_spi(x, p->min, p->max);
@@ -2718,7 +2718,7 @@ static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct xfrm_encap_tmpl  *encap = NULL;
 	u32 if_id = 0;
 
-	if (attrs[XFRMA_MIGRATE] == NULL)
+	if (!attrs[XFRMA_MIGRATE])
 		return -EINVAL;
 
 	kmp = attrs[XFRMA_KMADDRESS] ? &km : NULL;
@@ -2727,7 +2727,7 @@ static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err)
 		return err;
 
-	err = copy_from_user_migrate((struct xfrm_migrate *)m, kmp, attrs, &n);
+	err = copy_from_user_migrate(m, kmp, attrs, &n);
 	if (err)
 		return err;
 
